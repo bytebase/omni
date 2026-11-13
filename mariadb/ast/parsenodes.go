@@ -3047,7 +3047,8 @@ type StartReplicaStmt struct {
 	Password    string // PASSWORD = 'pass'
 	DefaultAuth string // DEFAULT_AUTH = 'plugin'
 	PluginDir   string // PLUGIN_DIR = 'dir'
-	Channel     string // FOR CHANNEL channel
+	Channel     string // the connection name, or FOR CHANNEL channel
+	AllSlaves   bool   // START ALL SLAVES
 }
 
 func (s *StartReplicaStmt) nodeTag()  {}
@@ -3062,7 +3063,8 @@ type StopReplicaStmt struct {
 	Loc       Loc
 	IOThread  bool   // IO_THREAD specified
 	SQLThread bool   // SQL_THREAD specified
-	Channel   string // FOR CHANNEL channel
+	Channel   string // the connection name, or FOR CHANNEL channel
+	AllSlaves bool   // STOP ALL SLAVES
 }
 
 func (s *StopReplicaStmt) nodeTag()  {}

@@ -3,6 +3,7 @@ package parser
 import (
 	"math"
 	"strconv"
+	"strings"
 
 	nodes "github.com/bytebase/omni/mariadb/ast"
 )
@@ -177,96 +178,6 @@ func (p *Parser) parseReplicationSourceOption() (*nodes.ReplicationOption, error
 	return opt, nil
 }
 
-// parseChangeMasterStmtInner parses a CHANGE MASTER TO statement (legacy alias).
-// CHANGE MASTER have already been consumed; p.cur is TO.
-//
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/change-master-to.html
-//
-//	CHANGE MASTER TO option [, option] ... [ channel_option ]
-//
-//	option: {
-//	    MASTER_BIND = 'interface_name'
-//	  | MASTER_HOST = 'host_name'
-//	  | MASTER_USER = 'user_name'
-//	  | MASTER_PASSWORD = 'password'
-//	  | MASTER_PORT = port_num
-//	  | PRIVILEGE_CHECKS_USER = {NULL | 'account'}
-//	  | REQUIRE_ROW_FORMAT = {0|1}
-//	  | REQUIRE_TABLE_PRIMARY_KEY_CHECK = {STREAM | ON | OFF | GENERATE}
-//	  | ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = {OFF | LOCAL | uuid}
-//	  | MASTER_LOG_FILE = 'source_log_name'
-//	  | MASTER_LOG_POS = source_log_pos
-//	  | MASTER_AUTO_POSITION = {0|1}
-//	  | RELAY_LOG_FILE = 'relay_log_name'
-//	  | RELAY_LOG_POS = relay_log_pos
-//	  | MASTER_HEARTBEAT_PERIOD = interval
-//	  | MASTER_CONNECT_RETRY = interval
-//	  | MASTER_RETRY_COUNT = count
-//	  | SOURCE_CONNECTION_AUTO_FAILOVER = {0|1}
-//	  | MASTER_DELAY = interval
-//	  | MASTER_COMPRESSION_ALGORITHMS = 'algorithm[,algorithm][,algorithm]'
-//	  | MASTER_ZSTD_COMPRESSION_LEVEL = level
-//	  | MASTER_SSL = {0|1}
-//	  | MASTER_SSL_CA = 'ca_file_name'
-//	  | MASTER_SSL_CAPATH = 'ca_directory_name'
-//	  | MASTER_SSL_CERT = 'cert_file_name'
-//	  | MASTER_SSL_CRL = 'crl_file_name'
-//	  | MASTER_SSL_CRLPATH = 'crl_directory_name'
-//	  | MASTER_SSL_KEY = 'key_file_name'
-//	  | MASTER_SSL_CIPHER = 'cipher_list'
-//	  | MASTER_SSL_VERIFY_SERVER_CERT = {0|1}
-//	  | MASTER_TLS_VERSION = 'protocol_list'
-//	  | MASTER_TLS_CIPHERSUITES = 'ciphersuite_list'
-//	  | MASTER_PUBLIC_KEY_PATH = 'key_file_name'
-//	  | GET_MASTER_PUBLIC_KEY = {0|1}
-//	  | NETWORK_NAMESPACE = 'namespace'
-//	  | IGNORE_SERVER_IDS = (server_id_list)
-//	  | GTID_ONLY = {0|1}
-//	}
-//
-//	channel_option:
-//	    FOR CHANNEL channel
-//
-//	server_id_list:
-//	    [server_id [, server_id] ... ]
-func (p *Parser) parseChangeMasterStmtInner(start int) (*nodes.ChangeReplicationSourceStmt, error) {
-	// consume TO
-	p.match(kwTO)
-
-	stmt := &nodes.ChangeReplicationSourceStmt{
-		Loc:    nodes.Loc{Start: start},
-		Legacy: true,
-	}
-
-	// Parse options: option [, option] ...
-	for {
-		opt, err := p.parseReplicationSourceOption()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Options = append(stmt.Options, opt)
-
-		if p.cur.Type != ',' {
-			break
-		}
-		p.advance() // consume ','
-	}
-
-	// Optional: FOR CHANNEL channel
-	if p.cur.Type == kwFOR {
-		p.advance() // consume FOR
-		p.advance() // consume CHANNEL (keyword token)
-		name, _, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Channel = name
-	}
-
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
-}
-
 // parseChangeReplicationFilterStmtInner parses a CHANGE REPLICATION FILTER statement.
 // CHANGE REPLICATION have already been consumed; p.cur is FILTER.
 //
@@ -417,196 +328,414 @@ func (p *Parser) parseReplicationFilter() (*nodes.ReplicationFilter, error) {
 	return f, nil
 }
 
-// parseStartReplicaStmt parses a START REPLICA or START SLAVE statement.
-// p.cur is START.
+// masterDefValue is what a master_def option takes after its '='.
+type masterDefValue int
+
+const (
+	masterString    masterDefValue = iota // TEXT_STRING_sys
+	masterUlong                           // ulong_num
+	masterUlonglong                       // ulonglong_num
+	masterHeartbeat                       // opt_plus NUM_literal
+	masterIDList                          // '(' ulong_num list ')', empty before each comma
+	masterUseGtid                         // CURRENT_POS | SLAVE_POS | NO
+	masterBool                            // bool: ulong_num | TRUE | FALSE
+)
+
+// masterDefs is master_def and master_file_def: each option CHANGE MASTER TO
+// takes, under each spelling MariaDB's lexer gives its token, and its value.
 //
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/start-replica.html
-//
-//	START REPLICA [thread_types] [until_option] [connection_options] [channel_option]
-//
-//	thread_types:
-//	    [thread_type [, thread_type] ... ]
-//
-//	thread_type:
-//	    IO_THREAD | SQL_THREAD
-//
-//	until_option:
-//	    UNTIL {   {SQL_BEFORE_GTIDS | SQL_AFTER_GTIDS} = gtid_set
-//	          |   MASTER_LOG_FILE = 'log_name', MASTER_LOG_POS = log_pos
-//	          |   SOURCE_LOG_FILE = 'log_name', SOURCE_LOG_POS = log_pos
-//	          |   RELAY_LOG_FILE = 'log_name', RELAY_LOG_POS = log_pos
-//	          |   SQL_AFTER_MTS_GAPS  }
-//
-//	connection_options:
-//	    [USER='user_name'] [PASSWORD='user_pass'] [DEFAULT_AUTH='plugin_name'] [PLUGIN_DIR='plugin_dir']
-//
-//	channel_option:
-//	    FOR CHANNEL channel
-func (p *Parser) parseStartReplicaStmt(start int) (*nodes.StartReplicaStmt, error) {
-	// REPLICA or SLAVE already consumed
-	stmt := &nodes.StartReplicaStmt{
-		Loc: nodes.Loc{Start: start},
+// Ref: master_def and master_file_def in MariaDB 11.8 sql/sql_yacc.yy, and
+// sql/lex.h for MASTER_DEMOTE_TO_REPLICA.
+var masterDefs = map[string]masterDefValue{
+	"MASTER_HOST":                   masterString,
+	"MASTER_USER":                   masterString,
+	"MASTER_PASSWORD":               masterString,
+	"MASTER_PORT":                   masterUlong,
+	"MASTER_CONNECT_RETRY":          masterUlong,
+	"MASTER_DELAY":                  masterUlong,
+	"MASTER_SSL":                    masterUlong,
+	"MASTER_SSL_CA":                 masterString,
+	"MASTER_SSL_CAPATH":             masterString,
+	"MASTER_SSL_CERT":               masterString,
+	"MASTER_SSL_CIPHER":             masterString,
+	"MASTER_SSL_KEY":                masterString,
+	"MASTER_SSL_VERIFY_SERVER_CERT": masterUlong,
+	"MASTER_SSL_CRL":                masterString,
+	"MASTER_SSL_CRLPATH":            masterString,
+	"MASTER_HEARTBEAT_PERIOD":       masterHeartbeat,
+	"IGNORE_SERVER_IDS":             masterIDList,
+	"DO_DOMAIN_IDS":                 masterIDList,
+	"IGNORE_DOMAIN_IDS":             masterIDList,
+	"MASTER_LOG_FILE":               masterString,
+	"MASTER_LOG_POS":                masterUlonglong,
+	"RELAY_LOG_FILE":                masterString,
+	"RELAY_LOG_POS":                 masterUlong,
+	"MASTER_USE_GTID":               masterUseGtid,
+	"MASTER_DEMOTE_TO_SLAVE":        masterBool,
+	"MASTER_DEMOTE_TO_REPLICA":      masterBool,
+}
+
+// masterFileDefs are the master_def options that are master_file_def too,
+// which START SLAVE UNTIL takes.
+var masterFileDefs = map[string]bool{
+	"MASTER_LOG_FILE": true, "MASTER_LOG_POS": true, "RELAY_LOG_FILE": true, "RELAY_LOG_POS": true,
+	"MASTER_USE_GTID": true, "MASTER_DEMOTE_TO_SLAVE": true, "MASTER_DEMOTE_TO_REPLICA": true,
+}
+
+// replicationWord returns the upper-cased word at the current token when it is
+// written bare, as the grammar's option keywords are, and "" otherwise: a
+// backquoted name, a string or a symbol is no keyword.
+func (p *Parser) replicationWord() string {
+	if p.cur.Type != tokIDENT && p.cur.Type < 700 {
+		return ""
 	}
+	text := p.inputText(p.cur.Loc, p.cur.End)
+	if strings.HasPrefix(text, "`") || strings.HasPrefix(text, "@") {
+		return ""
+	}
+	return strings.ToUpper(text)
+}
 
-	// Optional thread types
-	p.parseThreadTypes(stmt)
+// parseReplicationString reads TEXT_STRING_sys, one quoted string.
+func (p *Parser) parseReplicationString() (string, error) {
+	if p.cur.Type != tokSCONST {
+		return "", p.syntaxErrorAtCur()
+	}
+	return p.advance().Str, nil
+}
 
-	// Optional UNTIL
-	if p.cur.Type == kwUNTIL {
-		p.advance() // consume UNTIL
-		untilTokType := p.cur.Type
-		untilName, _, err := p.parseKeywordOrIdent()
+// parseReplicationNumber reads ulong_num (an integer, a 0x hex number or a
+// decimal) or, with noHex, ulonglong_num and NUM_literal, which take no hex
+// number.
+//
+// Ref: ulong_num, ulonglong_num and NUM_literal in MariaDB 11.8 sql/sql_yacc.yy.
+func (p *Parser) parseReplicationNumber(noHex bool) (Token, error) {
+	switch p.cur.Type {
+	case tokICONST, tokFCONST:
+		return p.advance(), nil
+	case tokXCONST:
+		if !noHex && strings.HasPrefix(strings.ToLower(p.cur.Str), "0x") {
+			return p.advance(), nil
+		}
+	}
+	return Token{}, p.syntaxErrorAtCur()
+}
+
+// replicationWhole is the whole part of a number parseReplicationNumber read,
+// as the grammar's actions take it: a hex number in base 16, anything wider
+// than 64 bits as the widest.
+func replicationWhole(tok Token) uint64 {
+	if tok.Type == tokXCONST {
+		n, err := strconv.ParseUint(tok.Str[2:], 16, 64)
+		if err != nil {
+			return math.MaxUint64
+		}
+		return n
+	}
+	return uint64(tok.Ival)
+}
+
+// parseConnectionName reads optional_connection_name, a string, when one is
+// next.
+func (p *Parser) parseConnectionName() (string, bool) {
+	if p.cur.Type != tokSCONST {
+		return "", false
+	}
+	return p.advance().Str, true
+}
+
+// parseForChannel reads optional_for_channel, `FOR CHANNEL 'name'`. The name
+// is the connection name by another spelling, and the action refuses both
+// (ER_WRONG_ARGUMENTS), so named says whether one came before.
+//
+// Ref: optional_for_channel and for_channel in MariaDB 11.8 sql/sql_yacc.yy.
+func (p *Parser) parseForChannel(named bool) (string, bool, error) {
+	if p.cur.Type != kwFOR {
+		return "", false, nil
+	}
+	at := p.cur.Loc
+	p.advance() // consume FOR
+	if _, err := p.expect(kwCHANNEL); err != nil {
+		return "", false, err
+	}
+	name, err := p.parseReplicationString()
+	if err != nil {
+		return "", false, err
+	}
+	if named {
+		return "", false, &ParseError{Message: "Incorrect arguments to CONNECTION_NAME AND FOR CHANNEL CAN NOT BE SPECIFIED AT THE SAME TIME)", Position: at}
+	}
+	return name, true, nil
+}
+
+// parseChangeMasterStmtInner parses CHANGE MASTER. CHANGE MASTER have already
+// been consumed.
+//
+// Ref: https://mariadb.com/kb/en/change-master-to/
+// Ref: change, `CHANGE MASTER_SYM optional_connection_name TO_SYM master_defs
+// optional_for_channel`, in MariaDB 11.8 sql/sql_yacc.yy.
+func (p *Parser) parseChangeMasterStmtInner(start int) (*nodes.ChangeReplicationSourceStmt, error) {
+	stmt := &nodes.ChangeReplicationSourceStmt{Loc: nodes.Loc{Start: start}, Legacy: true}
+	name, named := p.parseConnectionName()
+	stmt.Channel = name
+	if _, err := p.expect(kwTO); err != nil {
+		return nil, err
+	}
+	for {
+		opt, err := p.parseMasterDef(false)
 		if err != nil {
 			return nil, err
 		}
-		stmt.UntilType = untilName
-
-		if untilTokType == kwSQL_AFTER_MTS_GAPS {
-			// no value needed
-		} else {
-			// consume '='
-			p.match('=')
-			// value is a string literal or gtid set
-			if p.cur.Type == tokSCONST {
-				stmt.UntilValue = p.cur.Str
-				p.advance()
-			} else {
-				val, _, err := p.parseKeywordOrIdent()
-				if err != nil {
-					return nil, err
-				}
-				stmt.UntilValue = val
-			}
-			// For log file modes, also consume the POS part
-			if untilTokType == kwSOURCE_LOG_FILE || untilTokType == kwMASTER_LOG_FILE || untilTokType == kwRELAY_LOG_FILE {
-				if p.cur.Type == ',' {
-					p.advance() // consume ','
-					posName, _, err := p.parseKeywordOrIdent()
-					if err != nil {
-						return nil, err
-					}
-					_ = posName // SOURCE_LOG_POS, MASTER_LOG_POS, RELAY_LOG_POS
-					p.match('=')
-					// ulonglong_num: any number, read by its whole part.
-					if p.cur.Type == tokICONST || p.cur.Type == tokFCONST {
-						stmt.UntilPos = p.cur.Ival
-						p.advance()
-					}
-				}
-			}
+		stmt.Options = append(stmt.Options, opt)
+		if p.cur.Type != ',' {
+			break
 		}
+		p.advance() // consume ','
 	}
-
-	// Optional connection options
-	for p.isIdentToken() || p.cur.Type == kwUSER || p.cur.Type == kwPASSWORD ||
-		p.cur.Type == kwDEFAULT_AUTH || p.cur.Type == kwPLUGIN_DIR {
-		switch p.cur.Type {
-		case kwUSER:
-			p.advance()
-			p.match('=')
-			stmt.User = p.cur.Str
-			p.advance()
-		case kwPASSWORD:
-			p.advance()
-			p.match('=')
-			stmt.Password = p.cur.Str
-			p.advance()
-		case kwDEFAULT_AUTH:
-			p.advance()
-			p.match('=')
-			stmt.DefaultAuth = p.cur.Str
-			p.advance()
-		case kwPLUGIN_DIR:
-			p.advance()
-			p.match('=')
-			stmt.PluginDir = p.cur.Str
-			p.advance()
-		default:
-			goto doneConnOpts
-		}
+	channel, ok, err := p.parseForChannel(named)
+	if err != nil {
+		return nil, err
 	}
-doneConnOpts:
-
-	// Optional FOR CHANNEL
-	if p.cur.Type == kwFOR {
-		p.advance() // consume FOR
-		p.advance() // consume CHANNEL
-		name, _, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Channel = name
+	if ok {
+		stmt.Channel = channel
 	}
-
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
-// parseThreadTypes parses optional IO_THREAD, SQL_THREAD for START/STOP REPLICA.
-func (p *Parser) parseThreadTypes(stmt interface{}) {
-	for p.cur.Type == kwIO_THREAD || p.cur.Type == kwSQL_THREAD {
-		if p.cur.Type == kwIO_THREAD {
-			switch s := stmt.(type) {
-			case *nodes.StartReplicaStmt:
-				s.IOThread = true
-			case *nodes.StopReplicaStmt:
-				s.IOThread = true
-			}
-			p.advance()
-			if p.cur.Type == ',' {
-				p.advance()
-			}
-		} else if p.cur.Type == kwSQL_THREAD {
-			switch s := stmt.(type) {
-			case *nodes.StartReplicaStmt:
-				s.SQLThread = true
-			case *nodes.StopReplicaStmt:
-				s.SQLThread = true
-			}
-			p.advance()
-			if p.cur.Type == ',' {
-				p.advance()
-			}
-		} else {
-			break
-		}
+// parseMasterDef reads one master_def, or with fileOnly one master_file_def.
+func (p *Parser) parseMasterDef(fileOnly bool) (*nodes.ReplicationOption, error) {
+	opt := &nodes.ReplicationOption{Loc: nodes.Loc{Start: p.pos()}}
+	name := p.replicationWord()
+	kind, ok := masterDefs[name]
+	if !ok || (fileOnly && !masterFileDefs[name]) {
+		return nil, p.syntaxErrorAtCur()
 	}
-}
-
-// parseStopReplicaStmt parses a STOP REPLICA or STOP SLAVE statement.
-// p.cur is STOP.
-//
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/stop-replica.html
-//
-//	STOP REPLICA [thread_types] [channel_option]
-//
-//	thread_types:
-//	    [thread_type [, thread_type] ... ]
-//
-//	thread_type:
-//	    IO_THREAD | SQL_THREAD
-//
-//	channel_option:
-//	    FOR CHANNEL channel
-func (p *Parser) parseStopReplicaStmt(start int) (*nodes.StopReplicaStmt, error) {
-	stmt := &nodes.StopReplicaStmt{
-		Loc: nodes.Loc{Start: start},
+	p.advance() // consume the option keyword
+	opt.Name = name
+	if _, err := p.expect('='); err != nil {
+		return nil, err
 	}
 
-	// Optional thread types
-	p.parseThreadTypes(stmt)
-
-	// Optional FOR CHANNEL
-	if p.cur.Type == kwFOR {
-		p.advance() // consume FOR
-		p.advance() // consume CHANNEL
-		name, _, err := p.parseIdentifier()
+	switch kind {
+	case masterString:
+		val, err := p.parseReplicationString()
 		if err != nil {
 			return nil, err
 		}
-		stmt.Channel = name
+		opt.Value = val
+	case masterUlong, masterUlonglong:
+		tok, err := p.parseReplicationNumber(kind == masterUlonglong)
+		if err != nil {
+			return nil, err
+		}
+		// MASTER_DELAY is held to 31 bits (ER_MASTER_DELAY_VALUE_OUT_OF_RANGE).
+		if name == "MASTER_DELAY" && replicationWhole(tok) > math.MaxInt32 {
+			return nil, &ParseError{Message: "The requested value " + tok.Str + " for the master delay exceeds the maximum 2147483647", Position: tok.Loc}
+		}
+		opt.Value = tok.Str
+	case masterHeartbeat:
+		p.match('+')
+		tok, err := p.parseReplicationNumber(true)
+		if err != nil {
+			return nil, err
+		}
+		// The period is held to SLAVE_MAX_HEARTBEAT_PERIOD
+		// (ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE).
+		if period, err := strconv.ParseFloat(tok.Str, 64); err != nil || period > 4294967 {
+			return nil, &ParseError{Message: "The requested value for the heartbeat period exceeds the maximum 4294967", Position: tok.Loc}
+		}
+		opt.Value = tok.Str
+	case masterIDList:
+		// Each list may be empty before each comma: `(, 1)` parses.
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+		if p.cur.Type != ',' && p.cur.Type != ')' {
+			tok, err := p.parseReplicationNumber(false)
+			if err != nil {
+				return nil, err
+			}
+			opt.IDs = append(opt.IDs, tok.Ival)
+		}
+		for p.cur.Type == ',' {
+			p.advance() // consume ','
+			tok, err := p.parseReplicationNumber(false)
+			if err != nil {
+				return nil, err
+			}
+			opt.IDs = append(opt.IDs, tok.Ival)
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+	case masterUseGtid:
+		switch word := p.replicationWord(); word {
+		case "CURRENT_POS", "SLAVE_POS", "REPLICA_POS", "NO":
+			p.advance()
+			opt.Value = word
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
+	case masterBool:
+		switch word := p.replicationWord(); word {
+		case "TRUE", "FALSE":
+			p.advance()
+			opt.Value = word
+		default:
+			tok, err := p.parseReplicationNumber(false)
+			if err != nil {
+				return nil, err
+			}
+			opt.Value = tok.Str
+		}
 	}
+	opt.Loc.End = p.prev.End
+	return opt, nil
+}
 
+// parseSlaveThreads reads slave_thread_opts: a comma-separated list of
+// SQL_THREAD and RELAY_THREAD (IO_THREAD is the same token), where each item
+// may be empty, so `START SLAVE ,` parses.
+//
+// Ref: slave_thread_opt_list and slave_thread_opt in MariaDB 11.8
+// sql/sql_yacc.yy.
+func (p *Parser) parseSlaveThreads() (io, sql bool) {
+	for {
+		switch p.cur.Type {
+		case kwIO_THREAD, kwRELAY_THREAD:
+			io = true
+			p.advance()
+		case kwSQL_THREAD:
+			sql = true
+			p.advance()
+		}
+		if p.cur.Type != ',' {
+			return io, sql
+		}
+		p.advance() // consume ','
+	}
+}
+
+// atAllSlaves reports whether ALL SLAVES (or ALL REPLICAS) is next.
+func (p *Parser) atAllSlaves() bool {
+	if p.cur.Type != kwALL {
+		return false
+	}
+	next := p.peekNext()
+	return next.Type == kwREPLICAS || strings.EqualFold(next.Str, "SLAVES")
+}
+
+// parseStartReplicaStmt parses START SLAVE (or REPLICA, the same token) and
+// START ALL SLAVES. START and SLAVE have been consumed, or START alone when
+// all is true.
+//
+// Ref: https://mariadb.com/kb/en/start-replica/
+// Ref: slave, `START_SYM SLAVE optional_connection_name slave_thread_opts
+// optional_for_channel slave_until` and `START_SYM ALL SLAVES
+// slave_thread_opts`, in MariaDB 11.8 sql/sql_yacc.yy.
+func (p *Parser) parseStartReplicaStmt(start int, all bool) (*nodes.StartReplicaStmt, error) {
+	stmt := &nodes.StartReplicaStmt{Loc: nodes.Loc{Start: start}, AllSlaves: all}
+	if all {
+		p.advance() // consume ALL
+		p.advance() // consume SLAVES
+		stmt.IOThread, stmt.SQLThread = p.parseSlaveThreads()
+		stmt.Loc.End = p.prev.End
+		return stmt, nil
+	}
+	name, named := p.parseConnectionName()
+	stmt.Channel = name
+	stmt.IOThread, stmt.SQLThread = p.parseSlaveThreads()
+	channel, ok, err := p.parseForChannel(named)
+	if err != nil {
+		return nil, err
+	}
+	if ok {
+		stmt.Channel = channel
+	}
+	if p.cur.Type == kwUNTIL {
+		if err := p.parseSlaveUntil(stmt); err != nil {
+			return nil, err
+		}
+	}
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
+}
+
+// parseSlaveUntil reads slave_until: a GTID position, or a list of
+// master_file_def that names a binary log file and its position or a relay
+// log file and its position, and not both (ER_BAD_SLAVE_UNTIL_COND).
+//
+// Ref: slave_until in MariaDB 11.8 sql/sql_yacc.yy.
+func (p *Parser) parseSlaveUntil(stmt *nodes.StartReplicaStmt) error {
+	at := p.cur.Loc
+	p.advance() // consume UNTIL
+	switch word := p.replicationWord(); word {
+	case "MASTER_GTID_POS", "SQL_AFTER_GTIDS", "SQL_BEFORE_GTIDS":
+		p.advance()
+		if _, err := p.expect('='); err != nil {
+			return err
+		}
+		val, err := p.parseReplicationString()
+		if err != nil {
+			return err
+		}
+		stmt.UntilType, stmt.UntilValue = word, val
+		return nil
+	}
+	seen := map[string]bool{}
+	for {
+		opt, err := p.parseMasterDef(true)
+		if err != nil {
+			return err
+		}
+		seen[opt.Name] = true
+		switch opt.Name {
+		case "MASTER_LOG_FILE", "RELAY_LOG_FILE":
+			stmt.UntilType, stmt.UntilValue = opt.Name, opt.Value
+		case "MASTER_LOG_POS", "RELAY_LOG_POS":
+			stmt.UntilPos = numberWhole(opt.Value)
+		}
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance() // consume ','
+	}
+	binlog := seen["MASTER_LOG_FILE"] || seen["MASTER_LOG_POS"]
+	relay := seen["RELAY_LOG_FILE"] || seen["RELAY_LOG_POS"]
+	whole := (seen["MASTER_LOG_FILE"] && seen["MASTER_LOG_POS"]) || (seen["RELAY_LOG_FILE"] && seen["RELAY_LOG_POS"])
+	if (binlog && relay) || !whole {
+		return &ParseError{Message: "Incorrect parameter or combination of parameters for START SLAVE UNTIL", Position: at}
+	}
+	return nil
+}
+
+// parseStopReplicaStmt parses STOP SLAVE (or REPLICA) and STOP ALL SLAVES.
+// STOP and SLAVE have been consumed, or STOP alone when all is true.
+//
+// Ref: https://mariadb.com/kb/en/stop-replica/
+// Ref: slave, `STOP_SYM SLAVE optional_connection_name slave_thread_opts
+// optional_for_channel` and `STOP_SYM ALL SLAVES slave_thread_opts`, in
+// MariaDB 11.8 sql/sql_yacc.yy.
+func (p *Parser) parseStopReplicaStmt(start int, all bool) (*nodes.StopReplicaStmt, error) {
+	stmt := &nodes.StopReplicaStmt{Loc: nodes.Loc{Start: start}, AllSlaves: all}
+	if all {
+		p.advance() // consume ALL
+		p.advance() // consume SLAVES
+		stmt.IOThread, stmt.SQLThread = p.parseSlaveThreads()
+		stmt.Loc.End = p.prev.End
+		return stmt, nil
+	}
+	name, named := p.parseConnectionName()
+	stmt.Channel = name
+	stmt.IOThread, stmt.SQLThread = p.parseSlaveThreads()
+	channel, ok, err := p.parseForChannel(named)
+	if err != nil {
+		return nil, err
+	}
+	if ok {
+		stmt.Channel = channel
+	}
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }

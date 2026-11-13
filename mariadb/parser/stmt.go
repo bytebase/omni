@@ -265,7 +265,10 @@ func (p *Parser) parseStartDispatch() (nodes.Node, error) {
 
 	if p.cur.Type == kwREPLICA || p.cur.Type == kwSLAVE {
 		p.advance() // consume REPLICA or SLAVE
-		return p.parseStartReplicaStmt(start)
+		return p.parseStartReplicaStmt(start, false)
+	}
+	if p.atAllSlaves() {
+		return p.parseStartReplicaStmt(start, true)
 	}
 
 	if p.cur.Type == kwGROUP_REPLICATION {
@@ -365,7 +368,10 @@ func (p *Parser) parseStopDispatch() (nodes.Node, error) {
 
 	if p.cur.Type == kwREPLICA || p.cur.Type == kwSLAVE {
 		p.advance() // consume REPLICA or SLAVE
-		return p.parseStopReplicaStmt(start)
+		return p.parseStopReplicaStmt(start, false)
+	}
+	if p.atAllSlaves() {
+		return p.parseStopReplicaStmt(start, true)
 	}
 
 	if p.cur.Type == kwGROUP_REPLICATION {

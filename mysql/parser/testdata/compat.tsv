@@ -143,9 +143,9 @@ reject	reject	engine	simple_statement/call_stmt!swap	CASCADE utf8mb4;
 accept	accept	engine	simple_statement/change	CHANGE MASTER TO MASTER_HOST = 's';
 reject	reject	engine	simple_statement/change!drop-1	MASTER TO MASTER_HOST = 's';
 reject	reject	engine	simple_statement/change!drop-2	CHANGE TO MASTER_HOST = 's';
-accept	reject	engine	simple_statement/change!drop-3	CHANGE MASTER MASTER_HOST = 's';
+reject	reject	engine	simple_statement/change!drop-3	CHANGE MASTER MASTER_HOST = 's';
 reject	reject	engine	simple_statement/change!drop-4	CHANGE MASTER TO = 's';
-accept	reject	engine	simple_statement/change!drop-5	CHANGE MASTER TO MASTER_HOST 's';
+reject	reject	engine	simple_statement/change!drop-5	CHANGE MASTER TO MASTER_HOST 's';
 reject	reject	engine	simple_statement/change!drop-6	CHANGE MASTER TO MASTER_HOST =;
 reject	reject	engine	simple_statement/change!truncate	CHANGE MASTER TO MASTER_HOST =
 reject	reject	engine	simple_statement/change!insert	CHANGE MASTER TO MASTER_HOST = 's' zzz;
@@ -912,8 +912,8 @@ reject	reject	engine	change/CHANGE_REPLICATION_FILTER_SYM_filter_defs_opt_channe
 reject	reject	engine	change/CHANGE_REPLICATION_FILTER_SYM_filter_defs_opt_channel!drop-2	CHANGE FILTER REPLICATE_DO_DB =();
 reject	reject	engine	change/CHANGE_REPLICATION_FILTER_SYM_filter_defs_opt_channel!drop-3	CHANGE REPLICATION REPLICATE_DO_DB =();
 reject	reject	engine	change/CHANGE_REPLICATION_FILTER_SYM_filter_defs_opt_channel!drop-4	CHANGE REPLICATION FILTER =();
-accept	reject	engine	change/CHANGE_REPLICATION_FILTER_SYM_filter_defs_opt_channel!drop-5	CHANGE REPLICATION FILTER REPLICATE_DO_DB();
-accept	reject	engine	change/CHANGE_REPLICATION_FILTER_SYM_filter_defs_opt_channel!drop-6	CHANGE REPLICATION FILTER REPLICATE_DO_DB =);
+reject	reject	engine	change/CHANGE_REPLICATION_FILTER_SYM_filter_defs_opt_channel!drop-5	CHANGE REPLICATION FILTER REPLICATE_DO_DB();
+reject	reject	engine	change/CHANGE_REPLICATION_FILTER_SYM_filter_defs_opt_channel!drop-6	CHANGE REPLICATION FILTER REPLICATE_DO_DB =);
 reject	reject	engine	change/CHANGE_REPLICATION_FILTER_SYM_filter_defs_opt_channel!drop-7	CHANGE REPLICATION FILTER REPLICATE_DO_DB =(;
 reject	reject	engine	change/CHANGE_REPLICATION_FILTER_SYM_filter_defs_opt_channel!truncate	CHANGE REPLICATION FILTER REPLICATE_DO_DB =(
 reject	reject	engine	change/CHANGE_REPLICATION_FILTER_SYM_filter_defs_opt_channel!insert	CHANGE REPLICATION FILTER REPLICATE_DO_DB =() zzz;
@@ -921,60 +921,60 @@ reject	reject	engine	change/CHANGE_REPLICATION_FILTER_SYM_filter_defs_opt_channe
 accept	accept	engine	filter_defs/filter_def	CHANGE REPLICATION FILTER REPLICATE_DO_DB =();
 accept	accept	engine	filter_defs/filter_defs_,_filter_def	CHANGE REPLICATION FILTER REPLICATE_DO_DB =(), REPLICATE_DO_DB =();
 reject	reject	engine	filter_defs/filter_defs_,_filter_def!drop-1	CHANGE REPLICATION FILTER =(), REPLICATE_DO_DB =();
-accept	reject	engine	filter_defs/filter_defs_,_filter_def!drop-2	CHANGE REPLICATION FILTER REPLICATE_DO_DB(), REPLICATE_DO_DB =();
-accept	reject	engine	filter_defs/filter_defs_,_filter_def!drop-3	CHANGE REPLICATION FILTER REPLICATE_DO_DB =), REPLICATE_DO_DB =();
+reject	reject	engine	filter_defs/filter_defs_,_filter_def!drop-2	CHANGE REPLICATION FILTER REPLICATE_DO_DB(), REPLICATE_DO_DB =();
+reject	reject	engine	filter_defs/filter_defs_,_filter_def!drop-3	CHANGE REPLICATION FILTER REPLICATE_DO_DB =), REPLICATE_DO_DB =();
 reject	reject	engine	filter_defs/filter_defs_,_filter_def!drop-4	CHANGE REPLICATION FILTER REPLICATE_DO_DB =(, REPLICATE_DO_DB =();
 reject	reject	engine	filter_defs/filter_defs_,_filter_def!drop-5	CHANGE REPLICATION FILTER REPLICATE_DO_DB =() REPLICATE_DO_DB =();
 reject	reject	engine	filter_defs/filter_defs_,_filter_def!drop-6	CHANGE REPLICATION FILTER REPLICATE_DO_DB =(), =();
-accept	reject	engine	filter_defs/filter_defs_,_filter_def!drop-7	CHANGE REPLICATION FILTER REPLICATE_DO_DB =(), REPLICATE_DO_DB();
-accept	reject	engine	filter_defs/filter_defs_,_filter_def!drop-8	CHANGE REPLICATION FILTER REPLICATE_DO_DB =(), REPLICATE_DO_DB =);
+reject	reject	engine	filter_defs/filter_defs_,_filter_def!drop-7	CHANGE REPLICATION FILTER REPLICATE_DO_DB =(), REPLICATE_DO_DB();
+reject	reject	engine	filter_defs/filter_defs_,_filter_def!drop-8	CHANGE REPLICATION FILTER REPLICATE_DO_DB =(), REPLICATE_DO_DB =);
 reject	reject	engine	filter_defs/filter_defs_,_filter_def!drop-9	CHANGE REPLICATION FILTER REPLICATE_DO_DB =(), REPLICATE_DO_DB =(;
 reject	reject	engine	filter_defs/filter_defs_,_filter_def!truncate	CHANGE REPLICATION FILTER REPLICATE_DO_DB =(), REPLICATE_DO_DB =(
 reject	reject	engine	filter_defs/filter_defs_,_filter_def!insert	CHANGE REPLICATION FILTER REPLICATE_DO_DB =(), REPLICATE_DO_DB =() zzz;
 accept	accept	engine	filter_defs/filter_defs_,_filter_def!swap	CHANGE REPLICATION FILTER REPLICATE_DO_TABLE =(), REPLICATE_DO_DB =();
 accept	accept	engine	filter_def/REPLICATE_DO_DB_EQ_opt_filter_db_list	CHANGE REPLICATION FILTER REPLICATE_DO_DB =();
 accept	accept	engine	filter_def/REPLICATE_IGNORE_DB_EQ_opt_filter_db_list	CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB =();
-accept	reject	engine	filter_def/REPLICATE_IGNORE_DB_EQ_opt_filter_db_list!drop-2	CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB();
-accept	reject	engine	filter_def/REPLICATE_IGNORE_DB_EQ_opt_filter_db_list!drop-3	CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB =);
+reject	reject	engine	filter_def/REPLICATE_IGNORE_DB_EQ_opt_filter_db_list!drop-2	CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB();
+reject	reject	engine	filter_def/REPLICATE_IGNORE_DB_EQ_opt_filter_db_list!drop-3	CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB =);
 reject	reject	engine	filter_def/REPLICATE_IGNORE_DB_EQ_opt_filter_db_list!drop-4	CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB =(;
 reject	reject	engine	filter_def/REPLICATE_IGNORE_DB_EQ_opt_filter_db_list!truncate	CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB =(
 reject	reject	engine	filter_def/REPLICATE_IGNORE_DB_EQ_opt_filter_db_list!insert	CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB =() zzz;
 accept	accept	engine	filter_def/REPLICATE_DO_TABLE_EQ_opt_filter_table_list	CHANGE REPLICATION FILTER REPLICATE_DO_TABLE =();
-accept	reject	engine	filter_def/REPLICATE_DO_TABLE_EQ_opt_filter_table_list!drop-2	CHANGE REPLICATION FILTER REPLICATE_DO_TABLE();
-accept	reject	engine	filter_def/REPLICATE_DO_TABLE_EQ_opt_filter_table_list!drop-3	CHANGE REPLICATION FILTER REPLICATE_DO_TABLE =);
+reject	reject	engine	filter_def/REPLICATE_DO_TABLE_EQ_opt_filter_table_list!drop-2	CHANGE REPLICATION FILTER REPLICATE_DO_TABLE();
+reject	reject	engine	filter_def/REPLICATE_DO_TABLE_EQ_opt_filter_table_list!drop-3	CHANGE REPLICATION FILTER REPLICATE_DO_TABLE =);
 reject	reject	engine	filter_def/REPLICATE_DO_TABLE_EQ_opt_filter_table_list!drop-4	CHANGE REPLICATION FILTER REPLICATE_DO_TABLE =(;
 reject	reject	engine	filter_def/REPLICATE_DO_TABLE_EQ_opt_filter_table_list!truncate	CHANGE REPLICATION FILTER REPLICATE_DO_TABLE =(
 reject	reject	engine	filter_def/REPLICATE_DO_TABLE_EQ_opt_filter_table_list!insert	CHANGE REPLICATION FILTER REPLICATE_DO_TABLE =() zzz;
 accept	accept	engine	filter_def/REPLICATE_IGNORE_TABLE_EQ_opt_filter_table_list	CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE =();
-accept	reject	engine	filter_def/REPLICATE_IGNORE_TABLE_EQ_opt_filter_table_list!drop-2	CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE();
-accept	reject	engine	filter_def/REPLICATE_IGNORE_TABLE_EQ_opt_filter_table_list!drop-3	CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE =);
+reject	reject	engine	filter_def/REPLICATE_IGNORE_TABLE_EQ_opt_filter_table_list!drop-2	CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE();
+reject	reject	engine	filter_def/REPLICATE_IGNORE_TABLE_EQ_opt_filter_table_list!drop-3	CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE =);
 reject	reject	engine	filter_def/REPLICATE_IGNORE_TABLE_EQ_opt_filter_table_list!drop-4	CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE =(;
 reject	reject	engine	filter_def/REPLICATE_IGNORE_TABLE_EQ_opt_filter_table_list!truncate	CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE =(
 reject	reject	engine	filter_def/REPLICATE_IGNORE_TABLE_EQ_opt_filter_table_list!insert	CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE =() zzz;
 accept	accept	engine	filter_def/REPLICATE_WILD_DO_TABLE_EQ_opt_filter_string_list	CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE =();
-accept	reject	engine	filter_def/REPLICATE_WILD_DO_TABLE_EQ_opt_filter_string_list!drop-2	CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE();
-accept	reject	engine	filter_def/REPLICATE_WILD_DO_TABLE_EQ_opt_filter_string_list!drop-3	CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE =);
+reject	reject	engine	filter_def/REPLICATE_WILD_DO_TABLE_EQ_opt_filter_string_list!drop-2	CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE();
+reject	reject	engine	filter_def/REPLICATE_WILD_DO_TABLE_EQ_opt_filter_string_list!drop-3	CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE =);
 reject	reject	engine	filter_def/REPLICATE_WILD_DO_TABLE_EQ_opt_filter_string_list!drop-4	CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE =(;
 reject	reject	engine	filter_def/REPLICATE_WILD_DO_TABLE_EQ_opt_filter_string_list!truncate	CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE =(
 reject	reject	engine	filter_def/REPLICATE_WILD_DO_TABLE_EQ_opt_filter_string_list!insert	CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE =() zzz;
 accept	accept	engine	filter_def/REPLICATE_WILD_IGNORE_TABLE_EQ_opt_filter_string_list	CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE =();
-accept	reject	engine	filter_def/REPLICATE_WILD_IGNORE_TABLE_EQ_opt_filter_string_list!drop-2	CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE();
-accept	reject	engine	filter_def/REPLICATE_WILD_IGNORE_TABLE_EQ_opt_filter_string_list!drop-3	CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE =);
+reject	reject	engine	filter_def/REPLICATE_WILD_IGNORE_TABLE_EQ_opt_filter_string_list!drop-2	CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE();
+reject	reject	engine	filter_def/REPLICATE_WILD_IGNORE_TABLE_EQ_opt_filter_string_list!drop-3	CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE =);
 reject	reject	engine	filter_def/REPLICATE_WILD_IGNORE_TABLE_EQ_opt_filter_string_list!drop-4	CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE =(;
 reject	reject	engine	filter_def/REPLICATE_WILD_IGNORE_TABLE_EQ_opt_filter_string_list!truncate	CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE =(
 reject	reject	engine	filter_def/REPLICATE_WILD_IGNORE_TABLE_EQ_opt_filter_string_list!insert	CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE =() zzz;
-accept	reject	engine	filter_def/REPLICATE_WILD_IGNORE_TABLE_EQ_opt_filter_string_list!swap	CHANGE REPLICATION FILTER REPLICATION =();
+reject	reject	engine	filter_def/REPLICATE_WILD_IGNORE_TABLE_EQ_opt_filter_string_list!swap	CHANGE REPLICATION FILTER REPLICATION =();
 accept	accept	engine	filter_def/REPLICATE_REWRITE_DB_EQ_opt_filter_db_pair_list	CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB =();
-accept	reject	engine	filter_def/REPLICATE_REWRITE_DB_EQ_opt_filter_db_pair_list!drop-2	CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB();
-accept	reject	engine	filter_def/REPLICATE_REWRITE_DB_EQ_opt_filter_db_pair_list!drop-3	CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB =);
+reject	reject	engine	filter_def/REPLICATE_REWRITE_DB_EQ_opt_filter_db_pair_list!drop-2	CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB();
+reject	reject	engine	filter_def/REPLICATE_REWRITE_DB_EQ_opt_filter_db_pair_list!drop-3	CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB =);
 reject	reject	engine	filter_def/REPLICATE_REWRITE_DB_EQ_opt_filter_db_pair_list!drop-4	CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB =(;
 reject	reject	engine	filter_def/REPLICATE_REWRITE_DB_EQ_opt_filter_db_pair_list!truncate	CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB =(
 reject	reject	engine	filter_def/REPLICATE_REWRITE_DB_EQ_opt_filter_db_pair_list!insert	CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB =() zzz;
 accept	accept	engine	opt_filter_db_list/(_)	CHANGE REPLICATION FILTER REPLICATE_DO_DB =();
 accept	accept	engine	opt_filter_db_list/(_filter_db_list_)	CHANGE REPLICATION FILTER REPLICATE_DO_DB =(utf8mb4);
-accept	reject	engine	opt_filter_db_list/(_filter_db_list_)!drop-1	CHANGE REPLICATION FILTER REPLICATE_DO_DB = utf8mb4);
-accept	reject	engine	opt_filter_db_list/(_filter_db_list_)!drop-3	CHANGE REPLICATION FILTER REPLICATE_DO_DB =(utf8mb4;
-accept	reject	engine	opt_filter_db_list/(_filter_db_list_)!truncate	CHANGE REPLICATION FILTER REPLICATE_DO_DB =(utf8mb4
+reject	reject	engine	opt_filter_db_list/(_filter_db_list_)!drop-1	CHANGE REPLICATION FILTER REPLICATE_DO_DB = utf8mb4);
+reject	reject	engine	opt_filter_db_list/(_filter_db_list_)!drop-3	CHANGE REPLICATION FILTER REPLICATE_DO_DB =(utf8mb4;
+reject	reject	engine	opt_filter_db_list/(_filter_db_list_)!truncate	CHANGE REPLICATION FILTER REPLICATE_DO_DB =(utf8mb4
 reject	reject	engine	opt_filter_db_list/(_filter_db_list_)!insert	CHANGE REPLICATION FILTER REPLICATE_DO_DB =(utf8mb4) zzz;
 accept	accept	engine	filter_db_list/filter_db_ident	CHANGE REPLICATION FILTER REPLICATE_DO_DB =(utf8mb4);
 reject	reject	engine	filter_db_list/filter_db_ident!insert	CHANGE REPLICATION FILTER REPLICATE_DO_DB =(utf8mb4 zzz);
@@ -987,38 +987,38 @@ reject	reject	engine	filter_db_list/filter_db_list_,_filter_db_ident!insert	CHAN
 accept	accept	engine	filter_db_ident/ident	CHANGE REPLICATION FILTER REPLICATE_DO_DB =(utf8mb4);
 accept	accept	engine	opt_filter_db_pair_list/(_)	CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB =();
 accept	accept	engine	opt_filter_db_pair_list/(_filter_db_pair_list_)	CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB =((utf8mb4, utf8mb4));
-accept	reject	engine	opt_filter_db_pair_list/(_filter_db_pair_list_)!drop-1	CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB =(utf8mb4, utf8mb4));
+reject	reject	engine	opt_filter_db_pair_list/(_filter_db_pair_list_)!drop-1	CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB =(utf8mb4, utf8mb4));
 reject	reject	engine	opt_filter_db_pair_list/(_filter_db_pair_list_)!drop-3	CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB =((, utf8mb4));
-accept	reject	engine	opt_filter_db_pair_list/(_filter_db_pair_list_)!drop-4	CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB =((utf8mb4 utf8mb4));
+reject	reject	engine	opt_filter_db_pair_list/(_filter_db_pair_list_)!drop-4	CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB =((utf8mb4 utf8mb4));
 reject	reject	engine	opt_filter_db_pair_list/(_filter_db_pair_list_)!drop-5	CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB =((utf8mb4,));
-accept	reject	engine	opt_filter_db_pair_list/(_filter_db_pair_list_)!drop-6	CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB =((utf8mb4, utf8mb4);
-accept	reject	engine	opt_filter_db_pair_list/(_filter_db_pair_list_)!truncate	CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB =((utf8mb4, utf8mb4)
+reject	reject	engine	opt_filter_db_pair_list/(_filter_db_pair_list_)!drop-6	CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB =((utf8mb4, utf8mb4);
+reject	reject	engine	opt_filter_db_pair_list/(_filter_db_pair_list_)!truncate	CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB =((utf8mb4, utf8mb4)
 reject	reject	engine	opt_filter_db_pair_list/(_filter_db_pair_list_)!insert	CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB =((utf8mb4, utf8mb4)) zzz;
 accept	accept	engine	filter_db_pair_list/(_filter_db_ident_,_filter_db_ident_)	CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB =((utf8mb4, utf8mb4));
-accept	reject	engine	filter_db_pair_list/(_filter_db_ident_,_filter_db_ident_)!truncate	CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB =((utf8mb4, utf8mb4
+reject	reject	engine	filter_db_pair_list/(_filter_db_ident_,_filter_db_ident_)!truncate	CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB =((utf8mb4, utf8mb4
 reject	reject	engine	filter_db_pair_list/(_filter_db_ident_,_filter_db_ident_)!insert	CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB =((utf8mb4, utf8mb4) zzz);
 accept	accept	engine	filter_db_pair_list/filter_db_pair_list_,_(_filter_db_ident_,_filter_db_ident_)	CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB =((utf8mb4, utf8mb4),(utf8mb4, utf8mb4));
-accept	reject	engine	filter_db_pair_list/filter_db_pair_list_,_(_filter_db_ident_,_filter_db_ident_)!drop-1	CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB =(utf8mb4, utf8mb4),(utf8mb4, utf8mb4));
+reject	reject	engine	filter_db_pair_list/filter_db_pair_list_,_(_filter_db_ident_,_filter_db_ident_)!drop-1	CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB =(utf8mb4, utf8mb4),(utf8mb4, utf8mb4));
 reject	reject	engine	filter_db_pair_list/filter_db_pair_list_,_(_filter_db_ident_,_filter_db_ident_)!drop-2	CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB =((, utf8mb4),(utf8mb4, utf8mb4));
-accept	reject	engine	filter_db_pair_list/filter_db_pair_list_,_(_filter_db_ident_,_filter_db_ident_)!drop-3	CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB =((utf8mb4 utf8mb4),(utf8mb4, utf8mb4));
+reject	reject	engine	filter_db_pair_list/filter_db_pair_list_,_(_filter_db_ident_,_filter_db_ident_)!drop-3	CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB =((utf8mb4 utf8mb4),(utf8mb4, utf8mb4));
 reject	reject	engine	filter_db_pair_list/filter_db_pair_list_,_(_filter_db_ident_,_filter_db_ident_)!drop-4	CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB =((utf8mb4,),(utf8mb4, utf8mb4));
-accept	reject	engine	filter_db_pair_list/filter_db_pair_list_,_(_filter_db_ident_,_filter_db_ident_)!drop-5	CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB =((utf8mb4, utf8mb4,(utf8mb4, utf8mb4));
+reject	reject	engine	filter_db_pair_list/filter_db_pair_list_,_(_filter_db_ident_,_filter_db_ident_)!drop-5	CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB =((utf8mb4, utf8mb4,(utf8mb4, utf8mb4));
 reject	reject	engine	filter_db_pair_list/filter_db_pair_list_,_(_filter_db_ident_,_filter_db_ident_)!drop-6	CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB =((utf8mb4, utf8mb4)(utf8mb4, utf8mb4));
-accept	reject	engine	filter_db_pair_list/filter_db_pair_list_,_(_filter_db_ident_,_filter_db_ident_)!drop-7	CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB =((utf8mb4, utf8mb4), utf8mb4, utf8mb4));
+reject	reject	engine	filter_db_pair_list/filter_db_pair_list_,_(_filter_db_ident_,_filter_db_ident_)!drop-7	CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB =((utf8mb4, utf8mb4), utf8mb4, utf8mb4));
 reject	reject	engine	filter_db_pair_list/filter_db_pair_list_,_(_filter_db_ident_,_filter_db_ident_)!drop-8	CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB =((utf8mb4, utf8mb4),(, utf8mb4));
-accept	reject	engine	filter_db_pair_list/filter_db_pair_list_,_(_filter_db_ident_,_filter_db_ident_)!drop-9	CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB =((utf8mb4, utf8mb4),(utf8mb4 utf8mb4));
+reject	reject	engine	filter_db_pair_list/filter_db_pair_list_,_(_filter_db_ident_,_filter_db_ident_)!drop-9	CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB =((utf8mb4, utf8mb4),(utf8mb4 utf8mb4));
 reject	reject	engine	filter_db_pair_list/filter_db_pair_list_,_(_filter_db_ident_,_filter_db_ident_)!drop-10	CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB =((utf8mb4, utf8mb4),(utf8mb4,));
-accept	reject	engine	filter_db_pair_list/filter_db_pair_list_,_(_filter_db_ident_,_filter_db_ident_)!drop-11	CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB =((utf8mb4, utf8mb4),(utf8mb4, utf8mb4);
-accept	reject	engine	filter_db_pair_list/filter_db_pair_list_,_(_filter_db_ident_,_filter_db_ident_)!truncate	CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB =((utf8mb4, utf8mb4),(utf8mb4, utf8mb4
+reject	reject	engine	filter_db_pair_list/filter_db_pair_list_,_(_filter_db_ident_,_filter_db_ident_)!drop-11	CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB =((utf8mb4, utf8mb4),(utf8mb4, utf8mb4);
+reject	reject	engine	filter_db_pair_list/filter_db_pair_list_,_(_filter_db_ident_,_filter_db_ident_)!truncate	CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB =((utf8mb4, utf8mb4),(utf8mb4, utf8mb4
 reject	reject	engine	filter_db_pair_list/filter_db_pair_list_,_(_filter_db_ident_,_filter_db_ident_)!insert	CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB =((utf8mb4, utf8mb4),(utf8mb4, utf8mb4) zzz);
 accept	accept	engine	opt_filter_table_list/(_)	CHANGE REPLICATION FILTER REPLICATE_DO_TABLE =();
 accept	accept	engine	opt_filter_table_list/(_filter_table_list_)	CHANGE REPLICATION FILTER REPLICATE_DO_TABLE =(utf8mb4.utf8mb4);
-accept	reject	engine	opt_filter_table_list/(_filter_table_list_)!drop-1	CHANGE REPLICATION FILTER REPLICATE_DO_TABLE = utf8mb4.utf8mb4);
+reject	reject	engine	opt_filter_table_list/(_filter_table_list_)!drop-1	CHANGE REPLICATION FILTER REPLICATE_DO_TABLE = utf8mb4.utf8mb4);
 reject	reject	engine	opt_filter_table_list/(_filter_table_list_)!drop-2	CHANGE REPLICATION FILTER REPLICATE_DO_TABLE =(.utf8mb4);
 reject	reject	engine	opt_filter_table_list/(_filter_table_list_)!drop-3	CHANGE REPLICATION FILTER REPLICATE_DO_TABLE =(utf8mb4 utf8mb4);
 reject	reject	engine	opt_filter_table_list/(_filter_table_list_)!drop-4	CHANGE REPLICATION FILTER REPLICATE_DO_TABLE =(utf8mb4.);
-accept	reject	engine	opt_filter_table_list/(_filter_table_list_)!drop-5	CHANGE REPLICATION FILTER REPLICATE_DO_TABLE =(utf8mb4.utf8mb4;
-accept	reject	engine	opt_filter_table_list/(_filter_table_list_)!truncate	CHANGE REPLICATION FILTER REPLICATE_DO_TABLE =(utf8mb4.utf8mb4
+reject	reject	engine	opt_filter_table_list/(_filter_table_list_)!drop-5	CHANGE REPLICATION FILTER REPLICATE_DO_TABLE =(utf8mb4.utf8mb4;
+reject	reject	engine	opt_filter_table_list/(_filter_table_list_)!truncate	CHANGE REPLICATION FILTER REPLICATE_DO_TABLE =(utf8mb4.utf8mb4
 reject	reject	engine	opt_filter_table_list/(_filter_table_list_)!insert	CHANGE REPLICATION FILTER REPLICATE_DO_TABLE =(utf8mb4.utf8mb4) zzz;
 accept	accept	engine	filter_table_list/filter_table_ident	CHANGE REPLICATION FILTER REPLICATE_DO_TABLE =(utf8mb4.utf8mb4);
 reject	reject	engine	filter_table_list/filter_table_ident!truncate	CHANGE REPLICATION FILTER REPLICATE_DO_TABLE =(utf8mb4.
@@ -1035,28 +1035,28 @@ reject	reject	engine	filter_table_list/filter_table_list_,_filter_table_ident!tr
 reject	reject	engine	filter_table_list/filter_table_list_,_filter_table_ident!insert	CHANGE REPLICATION FILTER REPLICATE_DO_TABLE =(utf8mb4.utf8mb4, utf8mb4.utf8mb4 zzz);
 accept	accept	engine	filter_table_ident/schema_._ident	CHANGE REPLICATION FILTER REPLICATE_DO_TABLE =(utf8mb4.utf8mb4);
 accept	accept	engine	opt_filter_string_list/(_)	CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE =();
-accept	reject	engine	opt_filter_string_list/(_filter_string_list_)	CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE =('s');
-accept	reject	engine	opt_filter_string_list/(_filter_string_list_)!drop-1	CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE = 's');
-accept	reject	engine	opt_filter_string_list/(_filter_string_list_)!drop-3	CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE =('s';
-accept	reject	engine	opt_filter_string_list/(_filter_string_list_)!truncate	CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE =('s'
+reject	reject	engine	opt_filter_string_list/(_filter_string_list_)	CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE =('s');
+reject	reject	engine	opt_filter_string_list/(_filter_string_list_)!drop-1	CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE = 's');
+reject	reject	engine	opt_filter_string_list/(_filter_string_list_)!drop-3	CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE =('s';
+reject	reject	engine	opt_filter_string_list/(_filter_string_list_)!truncate	CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE =('s'
 reject	reject	engine	opt_filter_string_list/(_filter_string_list_)!insert	CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE =('s') zzz;
-accept	reject	engine	filter_string_list/filter_string	CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE =('s');
+reject	reject	engine	filter_string_list/filter_string	CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE =('s');
 reject	reject	engine	filter_string_list/filter_string!insert	CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE =('s' zzz);
-accept	reject	engine	filter_string_list/filter_string_list_,_filter_string	CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE =('s', 's');
+reject	reject	engine	filter_string_list/filter_string_list_,_filter_string	CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE =('s', 's');
 reject	reject	engine	filter_string_list/filter_string_list_,_filter_string!drop-1	CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE =(, 's');
 reject	reject	engine	filter_string_list/filter_string_list_,_filter_string!drop-2	CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE =('s' 's');
 reject	reject	engine	filter_string_list/filter_string_list_,_filter_string!drop-3	CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE =('s',);
 reject	reject	engine	filter_string_list/filter_string_list_,_filter_string!truncate	CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE =('s',
 reject	reject	engine	filter_string_list/filter_string_list_,_filter_string!insert	CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE =('s', 's' zzz);
-accept	reject	engine	filter_string/filter_wild_db_table_string	CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE =('s');
+reject	reject	engine	filter_string/filter_wild_db_table_string	CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE =('s');
 accept	accept	engine	source_defs/source_def	CHANGE MASTER TO MASTER_HOST = 's';
 accept	accept	engine	source_defs/source_defs_,_source_def	CHANGE MASTER TO MASTER_HOST = 's', MASTER_HOST = 's';
 reject	reject	engine	source_defs/source_defs_,_source_def!drop-1	CHANGE MASTER TO = 's', MASTER_HOST = 's';
-accept	reject	engine	source_defs/source_defs_,_source_def!drop-2	CHANGE MASTER TO MASTER_HOST 's', MASTER_HOST = 's';
+reject	reject	engine	source_defs/source_defs_,_source_def!drop-2	CHANGE MASTER TO MASTER_HOST 's', MASTER_HOST = 's';
 reject	reject	engine	source_defs/source_defs_,_source_def!drop-3	CHANGE MASTER TO MASTER_HOST =, MASTER_HOST = 's';
 reject	reject	engine	source_defs/source_defs_,_source_def!drop-4	CHANGE MASTER TO MASTER_HOST = 's' MASTER_HOST = 's';
 reject	reject	engine	source_defs/source_defs_,_source_def!drop-5	CHANGE MASTER TO MASTER_HOST = 's', = 's';
-accept	reject	engine	source_defs/source_defs_,_source_def!drop-6	CHANGE MASTER TO MASTER_HOST = 's', MASTER_HOST 's';
+reject	reject	engine	source_defs/source_defs_,_source_def!drop-6	CHANGE MASTER TO MASTER_HOST = 's', MASTER_HOST 's';
 reject	reject	engine	source_defs/source_defs_,_source_def!drop-7	CHANGE MASTER TO MASTER_HOST = 's', MASTER_HOST =;
 reject	reject	engine	source_defs/source_defs_,_source_def!truncate	CHANGE MASTER TO MASTER_HOST = 's', MASTER_HOST =
 reject	reject	engine	source_defs/source_defs_,_source_def!insert	CHANGE MASTER TO MASTER_HOST = 's', MASTER_HOST = 's' zzz;
@@ -1065,10 +1065,10 @@ accept	accept	engine	change_replication_source_auto_position/MASTER_AUTO_POSITIO
 reject	reject	engine	change_replication_source_auto_position/MASTER_AUTO_POSITION_SYM!drop-1	CHANGE MASTER TO = 1;
 reject	reject	engine	change_replication_source_auto_position/MASTER_AUTO_POSITION_SYM!truncate	CHANGE MASTER TO
 reject	reject	engine	change_replication_source_auto_position/MASTER_AUTO_POSITION_SYM!insert	CHANGE MASTER TO MASTER_AUTO_POSITION zzz = 1;
-accept	reject	engine	change_replication_source_auto_position/MASTER_AUTO_POSITION_SYM!swap	CHANGE MASTER TO MASTER_BIND = 1;
+reject	reject	engine	change_replication_source_auto_position/MASTER_AUTO_POSITION_SYM!swap	CHANGE MASTER TO MASTER_BIND = 1;
 accept	accept	engine	change_replication_source_auto_position/SOURCE_AUTO_POSITION_SYM	CHANGE MASTER TO SOURCE_AUTO_POSITION = 1;
 reject	reject	engine	change_replication_source_auto_position/SOURCE_AUTO_POSITION_SYM!insert	CHANGE MASTER TO SOURCE_AUTO_POSITION zzz = 1;
-accept	reject	engine	change_replication_source_auto_position/SOURCE_AUTO_POSITION_SYM!swap	CHANGE MASTER TO SOURCE_BIND = 1;
+reject	reject	engine	change_replication_source_auto_position/SOURCE_AUTO_POSITION_SYM!swap	CHANGE MASTER TO SOURCE_BIND = 1;
 accept	accept	engine	change_replication_source_host/MASTER_HOST_SYM	CHANGE MASTER TO MASTER_HOST = 's';
 reject	reject	engine	change_replication_source_host/MASTER_HOST_SYM!insert	CHANGE MASTER TO MASTER_HOST zzz = 's';
 accept	accept	engine	change_replication_source_host/SOURCE_HOST_SYM	CHANGE MASTER TO SOURCE_HOST = 's';
@@ -1079,22 +1079,22 @@ accept	accept	engine	change_replication_source_bind/SOURCE_BIND_SYM	CHANGE MASTE
 reject	reject	engine	change_replication_source_bind/SOURCE_BIND_SYM!insert	CHANGE MASTER TO SOURCE_BIND zzz = 's';
 accept	accept	engine	change_replication_source_user/MASTER_USER_SYM	CHANGE MASTER TO MASTER_USER = 's';
 reject	reject	engine	change_replication_source_user/MASTER_USER_SYM!insert	CHANGE MASTER TO MASTER_USER zzz = 's';
-accept	reject	engine	change_replication_source_user/MASTER_USER_SYM!swap	CHANGE MASTER TO MASTER_ZSTD_COMPRESSION_LEVEL = 's';
+reject	reject	engine	change_replication_source_user/MASTER_USER_SYM!swap	CHANGE MASTER TO MASTER_ZSTD_COMPRESSION_LEVEL = 's';
 accept	accept	engine	change_replication_source_user/SOURCE_USER_SYM	CHANGE MASTER TO SOURCE_USER = 's';
 reject	reject	engine	change_replication_source_user/SOURCE_USER_SYM!insert	CHANGE MASTER TO SOURCE_USER zzz = 's';
-accept	reject	engine	change_replication_source_user/SOURCE_USER_SYM!swap	CHANGE MASTER TO SOURCE_ZSTD_COMPRESSION_LEVEL = 's';
+reject	reject	engine	change_replication_source_user/SOURCE_USER_SYM!swap	CHANGE MASTER TO SOURCE_ZSTD_COMPRESSION_LEVEL = 's';
 accept	accept	engine	change_replication_source_password/MASTER_PASSWORD_SYM	CHANGE MASTER TO MASTER_PASSWORD = 's';
 reject	reject	engine	change_replication_source_password/MASTER_PASSWORD_SYM!insert	CHANGE MASTER TO MASTER_PASSWORD zzz = 's';
-accept	reject	engine	change_replication_source_password/MASTER_PASSWORD_SYM!swap	CHANGE MASTER TO MASTER_PORT = 's';
+reject	reject	engine	change_replication_source_password/MASTER_PASSWORD_SYM!swap	CHANGE MASTER TO MASTER_PORT = 's';
 accept	accept	engine	change_replication_source_password/SOURCE_PASSWORD_SYM	CHANGE MASTER TO SOURCE_PASSWORD = 's';
 reject	reject	engine	change_replication_source_password/SOURCE_PASSWORD_SYM!insert	CHANGE MASTER TO SOURCE_PASSWORD zzz = 's';
-accept	reject	engine	change_replication_source_password/SOURCE_PASSWORD_SYM!swap	CHANGE MASTER TO SOURCE_PORT = 's';
+reject	reject	engine	change_replication_source_password/SOURCE_PASSWORD_SYM!swap	CHANGE MASTER TO SOURCE_PORT = 's';
 accept	accept	engine	change_replication_source_port/MASTER_PORT_SYM	CHANGE MASTER TO MASTER_PORT = 1;
 reject	reject	engine	change_replication_source_port/MASTER_PORT_SYM!insert	CHANGE MASTER TO MASTER_PORT zzz = 1;
-accept	reject	engine	change_replication_source_port/MASTER_PORT_SYM!swap	CHANGE MASTER TO MASTER_PUBLIC_KEY_PATH = 1;
+reject	reject	engine	change_replication_source_port/MASTER_PORT_SYM!swap	CHANGE MASTER TO MASTER_PUBLIC_KEY_PATH = 1;
 accept	accept	engine	change_replication_source_port/SOURCE_PORT_SYM	CHANGE MASTER TO SOURCE_PORT = 1;
 reject	reject	engine	change_replication_source_port/SOURCE_PORT_SYM!insert	CHANGE MASTER TO SOURCE_PORT zzz = 1;
-accept	reject	engine	change_replication_source_port/SOURCE_PORT_SYM!swap	CHANGE MASTER TO SOURCE_PUBLIC_KEY_PATH = 1;
+reject	reject	engine	change_replication_source_port/SOURCE_PORT_SYM!swap	CHANGE MASTER TO SOURCE_PUBLIC_KEY_PATH = 1;
 accept	accept	engine	change_replication_source_connect_retry/MASTER_CONNECT_RETRY_SYM	CHANGE MASTER TO MASTER_CONNECT_RETRY = 1;
 reject	reject	engine	change_replication_source_connect_retry/MASTER_CONNECT_RETRY_SYM!insert	CHANGE MASTER TO MASTER_CONNECT_RETRY zzz = 1;
 accept	accept	engine	change_replication_source_connect_retry/SOURCE_CONNECT_RETRY_SYM	CHANGE MASTER TO SOURCE_CONNECT_RETRY = 1;
@@ -1109,10 +1109,10 @@ accept	accept	engine	change_replication_source_delay/SOURCE_DELAY_SYM	CHANGE MAS
 reject	reject	engine	change_replication_source_delay/SOURCE_DELAY_SYM!insert	CHANGE MASTER TO SOURCE_DELAY zzz = 1;
 accept	accept	engine	change_replication_source_ssl/MASTER_SSL_SYM	CHANGE MASTER TO MASTER_SSL = 1;
 reject	reject	engine	change_replication_source_ssl/MASTER_SSL_SYM!insert	CHANGE MASTER TO MASTER_SSL zzz = 1;
-accept	reject	engine	change_replication_source_ssl/MASTER_SSL_SYM!swap	CHANGE MASTER TO MASTER_SSL_CA = 1;
+reject	reject	engine	change_replication_source_ssl/MASTER_SSL_SYM!swap	CHANGE MASTER TO MASTER_SSL_CA = 1;
 accept	accept	engine	change_replication_source_ssl/SOURCE_SSL_SYM	CHANGE MASTER TO SOURCE_SSL = 1;
 reject	reject	engine	change_replication_source_ssl/SOURCE_SSL_SYM!insert	CHANGE MASTER TO SOURCE_SSL zzz = 1;
-accept	reject	engine	change_replication_source_ssl/SOURCE_SSL_SYM!swap	CHANGE MASTER TO SOURCE_SSL_CA = 1;
+reject	reject	engine	change_replication_source_ssl/SOURCE_SSL_SYM!swap	CHANGE MASTER TO SOURCE_SSL_CA = 1;
 accept	accept	engine	change_replication_source_ssl_ca/MASTER_SSL_CA_SYM	CHANGE MASTER TO MASTER_SSL_CA = 's';
 reject	reject	engine	change_replication_source_ssl_ca/MASTER_SSL_CA_SYM!insert	CHANGE MASTER TO MASTER_SSL_CA zzz = 's';
 accept	accept	engine	change_replication_source_ssl_ca/SOURCE_SSL_CA_SYM	CHANGE MASTER TO SOURCE_SSL_CA = 's';
@@ -1135,16 +1135,16 @@ accept	accept	engine	change_replication_source_ssl_crlpath/SOURCE_SSL_CRLPATH_SY
 reject	reject	engine	change_replication_source_ssl_crlpath/SOURCE_SSL_CRLPATH_SYM!insert	CHANGE MASTER TO SOURCE_SSL_CRLPATH zzz = 's';
 accept	accept	engine	change_replication_source_ssl_key/MASTER_SSL_KEY_SYM	CHANGE MASTER TO MASTER_SSL_KEY = 's';
 reject	reject	engine	change_replication_source_ssl_key/MASTER_SSL_KEY_SYM!insert	CHANGE MASTER TO MASTER_SSL_KEY zzz = 's';
-accept	reject	engine	change_replication_source_ssl_key/MASTER_SSL_KEY_SYM!swap	CHANGE MASTER TO MASTER_SSL_VERIFY_SERVER_CERT = 's';
+reject	reject	engine	change_replication_source_ssl_key/MASTER_SSL_KEY_SYM!swap	CHANGE MASTER TO MASTER_SSL_VERIFY_SERVER_CERT = 's';
 accept	accept	engine	change_replication_source_ssl_key/SOURCE_SSL_KEY_SYM	CHANGE MASTER TO SOURCE_SSL_KEY = 's';
 reject	reject	engine	change_replication_source_ssl_key/SOURCE_SSL_KEY_SYM!insert	CHANGE MASTER TO SOURCE_SSL_KEY zzz = 's';
-accept	reject	engine	change_replication_source_ssl_key/SOURCE_SSL_KEY_SYM!swap	CHANGE MASTER TO SOURCE_SSL_VERIFY_SERVER_CERT = 's';
+reject	reject	engine	change_replication_source_ssl_key/SOURCE_SSL_KEY_SYM!swap	CHANGE MASTER TO SOURCE_SSL_VERIFY_SERVER_CERT = 's';
 accept	accept	engine	change_replication_source_ssl_verify_server_cert/MASTER_SSL_VERIFY_SERVER_CERT_SYM	CHANGE MASTER TO MASTER_SSL_VERIFY_SERVER_CERT = 1;
 reject	reject	engine	change_replication_source_ssl_verify_server_cert/MASTER_SSL_VERIFY_SERVER_CERT_SYM!insert	CHANGE MASTER TO MASTER_SSL_VERIFY_SERVER_CERT zzz = 1;
-accept	reject	engine	change_replication_source_ssl_verify_server_cert/MASTER_SSL_VERIFY_SERVER_CERT_SYM!swap	CHANGE MASTER TO MASTER_TLS_CIPHERSUITES = 1;
+reject	reject	engine	change_replication_source_ssl_verify_server_cert/MASTER_SSL_VERIFY_SERVER_CERT_SYM!swap	CHANGE MASTER TO MASTER_TLS_CIPHERSUITES = 1;
 accept	accept	engine	change_replication_source_ssl_verify_server_cert/SOURCE_SSL_VERIFY_SERVER_CERT_SYM	CHANGE MASTER TO SOURCE_SSL_VERIFY_SERVER_CERT = 1;
 reject	reject	engine	change_replication_source_ssl_verify_server_cert/SOURCE_SSL_VERIFY_SERVER_CERT_SYM!insert	CHANGE MASTER TO SOURCE_SSL_VERIFY_SERVER_CERT zzz = 1;
-accept	reject	engine	change_replication_source_ssl_verify_server_cert/SOURCE_SSL_VERIFY_SERVER_CERT_SYM!swap	CHANGE MASTER TO SOURCE_TLS_CIPHERSUITES = 1;
+reject	reject	engine	change_replication_source_ssl_verify_server_cert/SOURCE_SSL_VERIFY_SERVER_CERT_SYM!swap	CHANGE MASTER TO SOURCE_TLS_CIPHERSUITES = 1;
 accept	accept	engine	change_replication_source_tls_version/MASTER_TLS_VERSION_SYM	CHANGE MASTER TO MASTER_TLS_VERSION = 's';
 reject	reject	engine	change_replication_source_tls_version/MASTER_TLS_VERSION_SYM!insert	CHANGE MASTER TO MASTER_TLS_VERSION zzz = 's';
 accept	accept	engine	change_replication_source_tls_version/SOURCE_TLS_VERSION_SYM	CHANGE MASTER TO SOURCE_TLS_VERSION = 's';
@@ -1159,217 +1159,217 @@ accept	accept	engine	change_replication_source_ssl_cert/SOURCE_SSL_CERT_SYM	CHAN
 reject	reject	engine	change_replication_source_ssl_cert/SOURCE_SSL_CERT_SYM!insert	CHANGE MASTER TO SOURCE_SSL_CERT zzz = 's';
 accept	accept	engine	change_replication_source_public_key/MASTER_PUBLIC_KEY_PATH_SYM	CHANGE MASTER TO MASTER_PUBLIC_KEY_PATH = 's';
 reject	reject	engine	change_replication_source_public_key/MASTER_PUBLIC_KEY_PATH_SYM!insert	CHANGE MASTER TO MASTER_PUBLIC_KEY_PATH zzz = 's';
-accept	reject	engine	change_replication_source_public_key/MASTER_PUBLIC_KEY_PATH_SYM!swap	CHANGE MASTER TO MASTER_RETRY_COUNT = 's';
+reject	reject	engine	change_replication_source_public_key/MASTER_PUBLIC_KEY_PATH_SYM!swap	CHANGE MASTER TO MASTER_RETRY_COUNT = 's';
 accept	accept	engine	change_replication_source_public_key/SOURCE_PUBLIC_KEY_PATH_SYM	CHANGE MASTER TO SOURCE_PUBLIC_KEY_PATH = 's';
 reject	reject	engine	change_replication_source_public_key/SOURCE_PUBLIC_KEY_PATH_SYM!insert	CHANGE MASTER TO SOURCE_PUBLIC_KEY_PATH zzz = 's';
-accept	reject	engine	change_replication_source_public_key/SOURCE_PUBLIC_KEY_PATH_SYM!swap	CHANGE MASTER TO SOURCE_RETRY_COUNT = 's';
+reject	reject	engine	change_replication_source_public_key/SOURCE_PUBLIC_KEY_PATH_SYM!swap	CHANGE MASTER TO SOURCE_RETRY_COUNT = 's';
 accept	accept	engine	change_replication_source_get_source_public_key/GET_MASTER_PUBLIC_KEY_SYM	CHANGE MASTER TO GET_MASTER_PUBLIC_KEY = 1;
 reject	reject	engine	change_replication_source_get_source_public_key/GET_MASTER_PUBLIC_KEY_SYM!insert	CHANGE MASTER TO GET_MASTER_PUBLIC_KEY zzz = 1;
 accept	accept	engine	change_replication_source_get_source_public_key/GET_SOURCE_PUBLIC_KEY_SYM	CHANGE MASTER TO GET_SOURCE_PUBLIC_KEY = 1;
 reject	reject	engine	change_replication_source_get_source_public_key/GET_SOURCE_PUBLIC_KEY_SYM!insert	CHANGE MASTER TO GET_SOURCE_PUBLIC_KEY zzz = 1;
-accept	reject	engine	change_replication_source_get_source_public_key/GET_SOURCE_PUBLIC_KEY_SYM!swap	CHANGE MASTER TO GLOBAL = 1;
+reject	reject	engine	change_replication_source_get_source_public_key/GET_SOURCE_PUBLIC_KEY_SYM!swap	CHANGE MASTER TO GLOBAL = 1;
 accept	accept	engine	change_replication_source_heartbeat_period/MASTER_HEARTBEAT_PERIOD_SYM	CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD = 1;
 reject	reject	engine	change_replication_source_heartbeat_period/MASTER_HEARTBEAT_PERIOD_SYM!insert	CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD zzz = 1;
-accept	reject	engine	change_replication_source_heartbeat_period/MASTER_HEARTBEAT_PERIOD_SYM!swap	CHANGE MASTER TO MASTER_HOST = 1;
+reject	reject	engine	change_replication_source_heartbeat_period/MASTER_HEARTBEAT_PERIOD_SYM!swap	CHANGE MASTER TO MASTER_HOST = 1;
 accept	accept	engine	change_replication_source_heartbeat_period/SOURCE_HEARTBEAT_PERIOD_SYM	CHANGE MASTER TO SOURCE_HEARTBEAT_PERIOD = 1;
 reject	reject	engine	change_replication_source_heartbeat_period/SOURCE_HEARTBEAT_PERIOD_SYM!insert	CHANGE MASTER TO SOURCE_HEARTBEAT_PERIOD zzz = 1;
-accept	reject	engine	change_replication_source_heartbeat_period/SOURCE_HEARTBEAT_PERIOD_SYM!swap	CHANGE MASTER TO SOURCE_HOST = 1;
+reject	reject	engine	change_replication_source_heartbeat_period/SOURCE_HEARTBEAT_PERIOD_SYM!swap	CHANGE MASTER TO SOURCE_HOST = 1;
 accept	accept	engine	change_replication_source_compression_algorithm/MASTER_COMPRESSION_ALGORITHM_SYM	CHANGE MASTER TO MASTER_COMPRESSION_ALGORITHMS = 's';
 reject	reject	engine	change_replication_source_compression_algorithm/MASTER_COMPRESSION_ALGORITHM_SYM!insert	CHANGE MASTER TO MASTER_COMPRESSION_ALGORITHMS zzz = 's';
-accept	reject	engine	change_replication_source_compression_algorithm/MASTER_COMPRESSION_ALGORITHM_SYM!swap	CHANGE MASTER TO MASTER_CONNECT_RETRY = 's';
+reject	reject	engine	change_replication_source_compression_algorithm/MASTER_COMPRESSION_ALGORITHM_SYM!swap	CHANGE MASTER TO MASTER_CONNECT_RETRY = 's';
 accept	accept	engine	change_replication_source_compression_algorithm/SOURCE_COMPRESSION_ALGORITHM_SYM	CHANGE MASTER TO SOURCE_COMPRESSION_ALGORITHMS = 's';
 reject	reject	engine	change_replication_source_compression_algorithm/SOURCE_COMPRESSION_ALGORITHM_SYM!insert	CHANGE MASTER TO SOURCE_COMPRESSION_ALGORITHMS zzz = 's';
-accept	reject	engine	change_replication_source_compression_algorithm/SOURCE_COMPRESSION_ALGORITHM_SYM!swap	CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER = 's';
+reject	reject	engine	change_replication_source_compression_algorithm/SOURCE_COMPRESSION_ALGORITHM_SYM!swap	CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER = 's';
 accept	accept	engine	change_replication_source_zstd_compression_level/MASTER_ZSTD_COMPRESSION_LEVEL_SYM	CHANGE MASTER TO MASTER_ZSTD_COMPRESSION_LEVEL = 1;
 reject	reject	engine	change_replication_source_zstd_compression_level/MASTER_ZSTD_COMPRESSION_LEVEL_SYM!insert	CHANGE MASTER TO MASTER_ZSTD_COMPRESSION_LEVEL zzz = 1;
-accept	reject	engine	change_replication_source_zstd_compression_level/MASTER_ZSTD_COMPRESSION_LEVEL_SYM!swap	CHANGE MASTER TO MATCH = 1;
+reject	reject	engine	change_replication_source_zstd_compression_level/MASTER_ZSTD_COMPRESSION_LEVEL_SYM!swap	CHANGE MASTER TO MATCH = 1;
 accept	accept	engine	change_replication_source_zstd_compression_level/SOURCE_ZSTD_COMPRESSION_LEVEL_SYM	CHANGE MASTER TO SOURCE_ZSTD_COMPRESSION_LEVEL = 1;
 reject	reject	engine	change_replication_source_zstd_compression_level/SOURCE_ZSTD_COMPRESSION_LEVEL_SYM!insert	CHANGE MASTER TO SOURCE_ZSTD_COMPRESSION_LEVEL zzz = 1;
-accept	reject	engine	change_replication_source_zstd_compression_level/SOURCE_ZSTD_COMPRESSION_LEVEL_SYM!swap	CHANGE MASTER TO SPATIAL = 1;
+reject	reject	engine	change_replication_source_zstd_compression_level/SOURCE_ZSTD_COMPRESSION_LEVEL_SYM!swap	CHANGE MASTER TO SPATIAL = 1;
 accept	accept	engine	source_def/change_replication_source_host_EQ_TEXT_STRING_sys_nonewline	CHANGE MASTER TO MASTER_HOST = 's';
 accept	accept	engine	source_def/NETWORK_NAMESPACE_SYM_EQ_TEXT_STRING_sys_nonewline	CHANGE MASTER TO NETWORK_NAMESPACE = 's';
-accept	reject	engine	source_def/NETWORK_NAMESPACE_SYM_EQ_TEXT_STRING_sys_nonewline!drop-2	CHANGE MASTER TO NETWORK_NAMESPACE 's';
+reject	reject	engine	source_def/NETWORK_NAMESPACE_SYM_EQ_TEXT_STRING_sys_nonewline!drop-2	CHANGE MASTER TO NETWORK_NAMESPACE 's';
 reject	reject	engine	source_def/NETWORK_NAMESPACE_SYM_EQ_TEXT_STRING_sys_nonewline!drop-3	CHANGE MASTER TO NETWORK_NAMESPACE =;
 reject	reject	engine	source_def/NETWORK_NAMESPACE_SYM_EQ_TEXT_STRING_sys_nonewline!truncate	CHANGE MASTER TO NETWORK_NAMESPACE =
 reject	reject	engine	source_def/NETWORK_NAMESPACE_SYM_EQ_TEXT_STRING_sys_nonewline!insert	CHANGE MASTER TO NETWORK_NAMESPACE = 's' zzz;
-accept	reject	engine	source_def/NETWORK_NAMESPACE_SYM_EQ_TEXT_STRING_sys_nonewline!swap	CHANGE MASTER TO NEVER = 's';
+reject	reject	engine	source_def/NETWORK_NAMESPACE_SYM_EQ_TEXT_STRING_sys_nonewline!swap	CHANGE MASTER TO NEVER = 's';
 accept	accept	engine	source_def/change_replication_source_bind_EQ_TEXT_STRING_sys_nonewline	CHANGE MASTER TO MASTER_BIND = 's';
-accept	reject	engine	source_def/change_replication_source_bind_EQ_TEXT_STRING_sys_nonewline!drop-2	CHANGE MASTER TO MASTER_BIND 's';
+reject	reject	engine	source_def/change_replication_source_bind_EQ_TEXT_STRING_sys_nonewline!drop-2	CHANGE MASTER TO MASTER_BIND 's';
 reject	reject	engine	source_def/change_replication_source_bind_EQ_TEXT_STRING_sys_nonewline!drop-3	CHANGE MASTER TO MASTER_BIND =;
 reject	reject	engine	source_def/change_replication_source_bind_EQ_TEXT_STRING_sys_nonewline!truncate	CHANGE MASTER TO MASTER_BIND =
 reject	reject	engine	source_def/change_replication_source_bind_EQ_TEXT_STRING_sys_nonewline!insert	CHANGE MASTER TO MASTER_BIND = 's' zzz;
 accept	accept	engine	source_def/change_replication_source_user_EQ_TEXT_STRING_sys_nonewline	CHANGE MASTER TO MASTER_USER = 's';
-accept	reject	engine	source_def/change_replication_source_user_EQ_TEXT_STRING_sys_nonewline!drop-2	CHANGE MASTER TO MASTER_USER 's';
+reject	reject	engine	source_def/change_replication_source_user_EQ_TEXT_STRING_sys_nonewline!drop-2	CHANGE MASTER TO MASTER_USER 's';
 reject	reject	engine	source_def/change_replication_source_user_EQ_TEXT_STRING_sys_nonewline!drop-3	CHANGE MASTER TO MASTER_USER =;
 reject	reject	engine	source_def/change_replication_source_user_EQ_TEXT_STRING_sys_nonewline!truncate	CHANGE MASTER TO MASTER_USER =
 reject	reject	engine	source_def/change_replication_source_user_EQ_TEXT_STRING_sys_nonewline!insert	CHANGE MASTER TO MASTER_USER = 's' zzz;
 accept	accept	engine	source_def/change_replication_source_password_EQ_TEXT_STRING_sys_nonewline	CHANGE MASTER TO MASTER_PASSWORD = 's';
-accept	reject	engine	source_def/change_replication_source_password_EQ_TEXT_STRING_sys_nonewline!drop-2	CHANGE MASTER TO MASTER_PASSWORD 's';
+reject	reject	engine	source_def/change_replication_source_password_EQ_TEXT_STRING_sys_nonewline!drop-2	CHANGE MASTER TO MASTER_PASSWORD 's';
 reject	reject	engine	source_def/change_replication_source_password_EQ_TEXT_STRING_sys_nonewline!drop-3	CHANGE MASTER TO MASTER_PASSWORD =;
 reject	reject	engine	source_def/change_replication_source_password_EQ_TEXT_STRING_sys_nonewline!truncate	CHANGE MASTER TO MASTER_PASSWORD =
 reject	reject	engine	source_def/change_replication_source_password_EQ_TEXT_STRING_sys_nonewline!insert	CHANGE MASTER TO MASTER_PASSWORD = 's' zzz;
 accept	accept	engine	source_def/change_replication_source_port_EQ_ulong_num	CHANGE MASTER TO MASTER_PORT = 1;
-accept	reject	engine	source_def/change_replication_source_port_EQ_ulong_num!drop-2	CHANGE MASTER TO MASTER_PORT 1;
+reject	reject	engine	source_def/change_replication_source_port_EQ_ulong_num!drop-2	CHANGE MASTER TO MASTER_PORT 1;
 reject	reject	engine	source_def/change_replication_source_port_EQ_ulong_num!drop-3	CHANGE MASTER TO MASTER_PORT =;
 reject	reject	engine	source_def/change_replication_source_port_EQ_ulong_num!truncate	CHANGE MASTER TO MASTER_PORT =
 reject	reject	engine	source_def/change_replication_source_port_EQ_ulong_num!insert	CHANGE MASTER TO MASTER_PORT = 1 zzz;
 accept	accept	engine	source_def/change_replication_source_connect_retry_EQ_ulong_num	CHANGE MASTER TO MASTER_CONNECT_RETRY = 1;
-accept	reject	engine	source_def/change_replication_source_connect_retry_EQ_ulong_num!drop-2	CHANGE MASTER TO MASTER_CONNECT_RETRY 1;
+reject	reject	engine	source_def/change_replication_source_connect_retry_EQ_ulong_num!drop-2	CHANGE MASTER TO MASTER_CONNECT_RETRY 1;
 reject	reject	engine	source_def/change_replication_source_connect_retry_EQ_ulong_num!drop-3	CHANGE MASTER TO MASTER_CONNECT_RETRY =;
 reject	reject	engine	source_def/change_replication_source_connect_retry_EQ_ulong_num!truncate	CHANGE MASTER TO MASTER_CONNECT_RETRY =
 reject	reject	engine	source_def/change_replication_source_connect_retry_EQ_ulong_num!insert	CHANGE MASTER TO MASTER_CONNECT_RETRY = 1 zzz;
 accept	accept	engine	source_def/change_replication_source_retry_count_EQ_ulong_num	CHANGE MASTER TO MASTER_RETRY_COUNT = 1;
-accept	reject	engine	source_def/change_replication_source_retry_count_EQ_ulong_num!drop-2	CHANGE MASTER TO MASTER_RETRY_COUNT 1;
+reject	reject	engine	source_def/change_replication_source_retry_count_EQ_ulong_num!drop-2	CHANGE MASTER TO MASTER_RETRY_COUNT 1;
 reject	reject	engine	source_def/change_replication_source_retry_count_EQ_ulong_num!drop-3	CHANGE MASTER TO MASTER_RETRY_COUNT =;
 reject	reject	engine	source_def/change_replication_source_retry_count_EQ_ulong_num!truncate	CHANGE MASTER TO MASTER_RETRY_COUNT =
 reject	reject	engine	source_def/change_replication_source_retry_count_EQ_ulong_num!insert	CHANGE MASTER TO MASTER_RETRY_COUNT = 1 zzz;
 accept	accept	engine	source_def/change_replication_source_delay_EQ_ulong_num	CHANGE MASTER TO MASTER_DELAY = 1;
-accept	reject	engine	source_def/change_replication_source_delay_EQ_ulong_num!drop-2	CHANGE MASTER TO MASTER_DELAY 1;
+reject	reject	engine	source_def/change_replication_source_delay_EQ_ulong_num!drop-2	CHANGE MASTER TO MASTER_DELAY 1;
 reject	reject	engine	source_def/change_replication_source_delay_EQ_ulong_num!drop-3	CHANGE MASTER TO MASTER_DELAY =;
 reject	reject	engine	source_def/change_replication_source_delay_EQ_ulong_num!truncate	CHANGE MASTER TO MASTER_DELAY =
 reject	reject	engine	source_def/change_replication_source_delay_EQ_ulong_num!insert	CHANGE MASTER TO MASTER_DELAY = 1 zzz;
 accept	accept	engine	source_def/change_replication_source_ssl_EQ_ulong_num	CHANGE MASTER TO MASTER_SSL = 1;
-accept	reject	engine	source_def/change_replication_source_ssl_EQ_ulong_num!drop-2	CHANGE MASTER TO MASTER_SSL 1;
+reject	reject	engine	source_def/change_replication_source_ssl_EQ_ulong_num!drop-2	CHANGE MASTER TO MASTER_SSL 1;
 reject	reject	engine	source_def/change_replication_source_ssl_EQ_ulong_num!drop-3	CHANGE MASTER TO MASTER_SSL =;
 reject	reject	engine	source_def/change_replication_source_ssl_EQ_ulong_num!truncate	CHANGE MASTER TO MASTER_SSL =
 reject	reject	engine	source_def/change_replication_source_ssl_EQ_ulong_num!insert	CHANGE MASTER TO MASTER_SSL = 1 zzz;
 accept	accept	engine	source_def/change_replication_source_ssl_ca_EQ_TEXT_STRING_sys_nonewline	CHANGE MASTER TO MASTER_SSL_CA = 's';
-accept	reject	engine	source_def/change_replication_source_ssl_ca_EQ_TEXT_STRING_sys_nonewline!drop-2	CHANGE MASTER TO MASTER_SSL_CA 's';
+reject	reject	engine	source_def/change_replication_source_ssl_ca_EQ_TEXT_STRING_sys_nonewline!drop-2	CHANGE MASTER TO MASTER_SSL_CA 's';
 reject	reject	engine	source_def/change_replication_source_ssl_ca_EQ_TEXT_STRING_sys_nonewline!drop-3	CHANGE MASTER TO MASTER_SSL_CA =;
 reject	reject	engine	source_def/change_replication_source_ssl_ca_EQ_TEXT_STRING_sys_nonewline!truncate	CHANGE MASTER TO MASTER_SSL_CA =
 reject	reject	engine	source_def/change_replication_source_ssl_ca_EQ_TEXT_STRING_sys_nonewline!insert	CHANGE MASTER TO MASTER_SSL_CA = 's' zzz;
 accept	accept	engine	source_def/change_replication_source_ssl_capath_EQ_TEXT_STRING_sys_nonewline	CHANGE MASTER TO MASTER_SSL_CAPATH = 's';
-accept	reject	engine	source_def/change_replication_source_ssl_capath_EQ_TEXT_STRING_sys_nonewline!drop-2	CHANGE MASTER TO MASTER_SSL_CAPATH 's';
+reject	reject	engine	source_def/change_replication_source_ssl_capath_EQ_TEXT_STRING_sys_nonewline!drop-2	CHANGE MASTER TO MASTER_SSL_CAPATH 's';
 reject	reject	engine	source_def/change_replication_source_ssl_capath_EQ_TEXT_STRING_sys_nonewline!drop-3	CHANGE MASTER TO MASTER_SSL_CAPATH =;
 reject	reject	engine	source_def/change_replication_source_ssl_capath_EQ_TEXT_STRING_sys_nonewline!truncate	CHANGE MASTER TO MASTER_SSL_CAPATH =
 reject	reject	engine	source_def/change_replication_source_ssl_capath_EQ_TEXT_STRING_sys_nonewline!insert	CHANGE MASTER TO MASTER_SSL_CAPATH = 's' zzz;
 accept	accept	engine	source_def/change_replication_source_tls_version_EQ_TEXT_STRING_sys_nonewline	CHANGE MASTER TO MASTER_TLS_VERSION = 's';
-accept	reject	engine	source_def/change_replication_source_tls_version_EQ_TEXT_STRING_sys_nonewline!drop-2	CHANGE MASTER TO MASTER_TLS_VERSION 's';
+reject	reject	engine	source_def/change_replication_source_tls_version_EQ_TEXT_STRING_sys_nonewline!drop-2	CHANGE MASTER TO MASTER_TLS_VERSION 's';
 reject	reject	engine	source_def/change_replication_source_tls_version_EQ_TEXT_STRING_sys_nonewline!drop-3	CHANGE MASTER TO MASTER_TLS_VERSION =;
 reject	reject	engine	source_def/change_replication_source_tls_version_EQ_TEXT_STRING_sys_nonewline!truncate	CHANGE MASTER TO MASTER_TLS_VERSION =
 reject	reject	engine	source_def/change_replication_source_tls_version_EQ_TEXT_STRING_sys_nonewline!insert	CHANGE MASTER TO MASTER_TLS_VERSION = 's' zzz;
 accept	accept	engine	source_def/change_replication_source_tls_ciphersuites_EQ_source_tls_ciphersuites_def	CHANGE MASTER TO MASTER_TLS_CIPHERSUITES = 's';
-accept	reject	engine	source_def/change_replication_source_tls_ciphersuites_EQ_source_tls_ciphersuites_def!drop-2	CHANGE MASTER TO MASTER_TLS_CIPHERSUITES 's';
+reject	reject	engine	source_def/change_replication_source_tls_ciphersuites_EQ_source_tls_ciphersuites_def!drop-2	CHANGE MASTER TO MASTER_TLS_CIPHERSUITES 's';
 reject	reject	engine	source_def/change_replication_source_tls_ciphersuites_EQ_source_tls_ciphersuites_def!drop-3	CHANGE MASTER TO MASTER_TLS_CIPHERSUITES =;
 reject	reject	engine	source_def/change_replication_source_tls_ciphersuites_EQ_source_tls_ciphersuites_def!truncate	CHANGE MASTER TO MASTER_TLS_CIPHERSUITES =
 reject	reject	engine	source_def/change_replication_source_tls_ciphersuites_EQ_source_tls_ciphersuites_def!insert	CHANGE MASTER TO MASTER_TLS_CIPHERSUITES = 's' zzz;
 accept	accept	engine	source_def/change_replication_source_ssl_cert_EQ_TEXT_STRING_sys_nonewline	CHANGE MASTER TO MASTER_SSL_CERT = 's';
-accept	reject	engine	source_def/change_replication_source_ssl_cert_EQ_TEXT_STRING_sys_nonewline!drop-2	CHANGE MASTER TO MASTER_SSL_CERT 's';
+reject	reject	engine	source_def/change_replication_source_ssl_cert_EQ_TEXT_STRING_sys_nonewline!drop-2	CHANGE MASTER TO MASTER_SSL_CERT 's';
 reject	reject	engine	source_def/change_replication_source_ssl_cert_EQ_TEXT_STRING_sys_nonewline!drop-3	CHANGE MASTER TO MASTER_SSL_CERT =;
 reject	reject	engine	source_def/change_replication_source_ssl_cert_EQ_TEXT_STRING_sys_nonewline!truncate	CHANGE MASTER TO MASTER_SSL_CERT =
 reject	reject	engine	source_def/change_replication_source_ssl_cert_EQ_TEXT_STRING_sys_nonewline!insert	CHANGE MASTER TO MASTER_SSL_CERT = 's' zzz;
 accept	accept	engine	source_def/change_replication_source_ssl_cipher_EQ_TEXT_STRING_sys_nonewline	CHANGE MASTER TO MASTER_SSL_CIPHER = 's';
-accept	reject	engine	source_def/change_replication_source_ssl_cipher_EQ_TEXT_STRING_sys_nonewline!drop-2	CHANGE MASTER TO MASTER_SSL_CIPHER 's';
+reject	reject	engine	source_def/change_replication_source_ssl_cipher_EQ_TEXT_STRING_sys_nonewline!drop-2	CHANGE MASTER TO MASTER_SSL_CIPHER 's';
 reject	reject	engine	source_def/change_replication_source_ssl_cipher_EQ_TEXT_STRING_sys_nonewline!drop-3	CHANGE MASTER TO MASTER_SSL_CIPHER =;
 reject	reject	engine	source_def/change_replication_source_ssl_cipher_EQ_TEXT_STRING_sys_nonewline!truncate	CHANGE MASTER TO MASTER_SSL_CIPHER =
 reject	reject	engine	source_def/change_replication_source_ssl_cipher_EQ_TEXT_STRING_sys_nonewline!insert	CHANGE MASTER TO MASTER_SSL_CIPHER = 's' zzz;
 accept	accept	engine	source_def/change_replication_source_ssl_key_EQ_TEXT_STRING_sys_nonewline	CHANGE MASTER TO MASTER_SSL_KEY = 's';
-accept	reject	engine	source_def/change_replication_source_ssl_key_EQ_TEXT_STRING_sys_nonewline!drop-2	CHANGE MASTER TO MASTER_SSL_KEY 's';
+reject	reject	engine	source_def/change_replication_source_ssl_key_EQ_TEXT_STRING_sys_nonewline!drop-2	CHANGE MASTER TO MASTER_SSL_KEY 's';
 reject	reject	engine	source_def/change_replication_source_ssl_key_EQ_TEXT_STRING_sys_nonewline!drop-3	CHANGE MASTER TO MASTER_SSL_KEY =;
 reject	reject	engine	source_def/change_replication_source_ssl_key_EQ_TEXT_STRING_sys_nonewline!truncate	CHANGE MASTER TO MASTER_SSL_KEY =
 reject	reject	engine	source_def/change_replication_source_ssl_key_EQ_TEXT_STRING_sys_nonewline!insert	CHANGE MASTER TO MASTER_SSL_KEY = 's' zzz;
 accept	accept	engine	source_def/change_replication_source_ssl_verify_server_cert_EQ_ulong_num	CHANGE MASTER TO MASTER_SSL_VERIFY_SERVER_CERT = 1;
-accept	reject	engine	source_def/change_replication_source_ssl_verify_server_cert_EQ_ulong_num!drop-2	CHANGE MASTER TO MASTER_SSL_VERIFY_SERVER_CERT 1;
+reject	reject	engine	source_def/change_replication_source_ssl_verify_server_cert_EQ_ulong_num!drop-2	CHANGE MASTER TO MASTER_SSL_VERIFY_SERVER_CERT 1;
 reject	reject	engine	source_def/change_replication_source_ssl_verify_server_cert_EQ_ulong_num!drop-3	CHANGE MASTER TO MASTER_SSL_VERIFY_SERVER_CERT =;
 reject	reject	engine	source_def/change_replication_source_ssl_verify_server_cert_EQ_ulong_num!truncate	CHANGE MASTER TO MASTER_SSL_VERIFY_SERVER_CERT =
 reject	reject	engine	source_def/change_replication_source_ssl_verify_server_cert_EQ_ulong_num!insert	CHANGE MASTER TO MASTER_SSL_VERIFY_SERVER_CERT = 1 zzz;
 accept	accept	engine	source_def/change_replication_source_ssl_crl_EQ_TEXT_STRING_sys_nonewline	CHANGE MASTER TO MASTER_SSL_CRL = 's';
-accept	reject	engine	source_def/change_replication_source_ssl_crl_EQ_TEXT_STRING_sys_nonewline!drop-2	CHANGE MASTER TO MASTER_SSL_CRL 's';
+reject	reject	engine	source_def/change_replication_source_ssl_crl_EQ_TEXT_STRING_sys_nonewline!drop-2	CHANGE MASTER TO MASTER_SSL_CRL 's';
 reject	reject	engine	source_def/change_replication_source_ssl_crl_EQ_TEXT_STRING_sys_nonewline!drop-3	CHANGE MASTER TO MASTER_SSL_CRL =;
 reject	reject	engine	source_def/change_replication_source_ssl_crl_EQ_TEXT_STRING_sys_nonewline!truncate	CHANGE MASTER TO MASTER_SSL_CRL =
 reject	reject	engine	source_def/change_replication_source_ssl_crl_EQ_TEXT_STRING_sys_nonewline!insert	CHANGE MASTER TO MASTER_SSL_CRL = 's' zzz;
 accept	accept	engine	source_def/change_replication_source_ssl_crlpath_EQ_TEXT_STRING_sys_nonewline	CHANGE MASTER TO MASTER_SSL_CRLPATH = 's';
-accept	reject	engine	source_def/change_replication_source_ssl_crlpath_EQ_TEXT_STRING_sys_nonewline!drop-2	CHANGE MASTER TO MASTER_SSL_CRLPATH 's';
+reject	reject	engine	source_def/change_replication_source_ssl_crlpath_EQ_TEXT_STRING_sys_nonewline!drop-2	CHANGE MASTER TO MASTER_SSL_CRLPATH 's';
 reject	reject	engine	source_def/change_replication_source_ssl_crlpath_EQ_TEXT_STRING_sys_nonewline!drop-3	CHANGE MASTER TO MASTER_SSL_CRLPATH =;
 reject	reject	engine	source_def/change_replication_source_ssl_crlpath_EQ_TEXT_STRING_sys_nonewline!truncate	CHANGE MASTER TO MASTER_SSL_CRLPATH =
 reject	reject	engine	source_def/change_replication_source_ssl_crlpath_EQ_TEXT_STRING_sys_nonewline!insert	CHANGE MASTER TO MASTER_SSL_CRLPATH = 's' zzz;
 accept	accept	engine	source_def/change_replication_source_public_key_EQ_TEXT_STRING_sys_nonewline	CHANGE MASTER TO MASTER_PUBLIC_KEY_PATH = 's';
-accept	reject	engine	source_def/change_replication_source_public_key_EQ_TEXT_STRING_sys_nonewline!drop-2	CHANGE MASTER TO MASTER_PUBLIC_KEY_PATH 's';
+reject	reject	engine	source_def/change_replication_source_public_key_EQ_TEXT_STRING_sys_nonewline!drop-2	CHANGE MASTER TO MASTER_PUBLIC_KEY_PATH 's';
 reject	reject	engine	source_def/change_replication_source_public_key_EQ_TEXT_STRING_sys_nonewline!drop-3	CHANGE MASTER TO MASTER_PUBLIC_KEY_PATH =;
 reject	reject	engine	source_def/change_replication_source_public_key_EQ_TEXT_STRING_sys_nonewline!truncate	CHANGE MASTER TO MASTER_PUBLIC_KEY_PATH =
 reject	reject	engine	source_def/change_replication_source_public_key_EQ_TEXT_STRING_sys_nonewline!insert	CHANGE MASTER TO MASTER_PUBLIC_KEY_PATH = 's' zzz;
 accept	accept	engine	source_def/change_replication_source_get_source_public_key_EQ_ulong_num	CHANGE MASTER TO GET_MASTER_PUBLIC_KEY = 1;
-accept	reject	engine	source_def/change_replication_source_get_source_public_key_EQ_ulong_num!drop-2	CHANGE MASTER TO GET_MASTER_PUBLIC_KEY 1;
+reject	reject	engine	source_def/change_replication_source_get_source_public_key_EQ_ulong_num!drop-2	CHANGE MASTER TO GET_MASTER_PUBLIC_KEY 1;
 reject	reject	engine	source_def/change_replication_source_get_source_public_key_EQ_ulong_num!drop-3	CHANGE MASTER TO GET_MASTER_PUBLIC_KEY =;
 reject	reject	engine	source_def/change_replication_source_get_source_public_key_EQ_ulong_num!truncate	CHANGE MASTER TO GET_MASTER_PUBLIC_KEY =
 reject	reject	engine	source_def/change_replication_source_get_source_public_key_EQ_ulong_num!insert	CHANGE MASTER TO GET_MASTER_PUBLIC_KEY = 1 zzz;
 accept	accept	engine	source_def/change_replication_source_heartbeat_period_EQ_NUM_literal	CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD = 1;
-accept	reject	engine	source_def/change_replication_source_heartbeat_period_EQ_NUM_literal!drop-2	CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD 1;
+reject	reject	engine	source_def/change_replication_source_heartbeat_period_EQ_NUM_literal!drop-2	CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD 1;
 reject	reject	engine	source_def/change_replication_source_heartbeat_period_EQ_NUM_literal!drop-3	CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD =;
 reject	reject	engine	source_def/change_replication_source_heartbeat_period_EQ_NUM_literal!truncate	CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD =
 reject	reject	engine	source_def/change_replication_source_heartbeat_period_EQ_NUM_literal!insert	CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD = 1 zzz;
 accept	accept	engine	source_def/IGNORE_SERVER_IDS_SYM_EQ_(_ignore_server_id_list_)	CHANGE MASTER TO IGNORE_SERVER_IDS =();
 reject	reject	engine	source_def/IGNORE_SERVER_IDS_SYM_EQ_(_ignore_server_id_list_)!drop-1	CHANGE MASTER TO =();
-accept	reject	engine	source_def/IGNORE_SERVER_IDS_SYM_EQ_(_ignore_server_id_list_)!drop-2	CHANGE MASTER TO IGNORE_SERVER_IDS();
-accept	reject	engine	source_def/IGNORE_SERVER_IDS_SYM_EQ_(_ignore_server_id_list_)!drop-3	CHANGE MASTER TO IGNORE_SERVER_IDS =);
+reject	reject	engine	source_def/IGNORE_SERVER_IDS_SYM_EQ_(_ignore_server_id_list_)!drop-2	CHANGE MASTER TO IGNORE_SERVER_IDS();
+reject	reject	engine	source_def/IGNORE_SERVER_IDS_SYM_EQ_(_ignore_server_id_list_)!drop-3	CHANGE MASTER TO IGNORE_SERVER_IDS =);
 reject	reject	engine	source_def/IGNORE_SERVER_IDS_SYM_EQ_(_ignore_server_id_list_)!drop-4	CHANGE MASTER TO IGNORE_SERVER_IDS =(;
 reject	reject	engine	source_def/IGNORE_SERVER_IDS_SYM_EQ_(_ignore_server_id_list_)!truncate	CHANGE MASTER TO IGNORE_SERVER_IDS =(
 reject	reject	engine	source_def/IGNORE_SERVER_IDS_SYM_EQ_(_ignore_server_id_list_)!insert	CHANGE MASTER TO IGNORE_SERVER_IDS =() zzz;
 reject	reject	engine	source_def/IGNORE_SERVER_IDS_SYM_EQ_(_ignore_server_id_list_)!swap	CHANGE MASTER TO IMPORT =();
 accept	accept	engine	source_def/change_replication_source_compression_algorithm_EQ_TEXT_STRING_sys	CHANGE MASTER TO MASTER_COMPRESSION_ALGORITHMS = 's';
-accept	reject	engine	source_def/change_replication_source_compression_algorithm_EQ_TEXT_STRING_sys!drop-2	CHANGE MASTER TO MASTER_COMPRESSION_ALGORITHMS 's';
+reject	reject	engine	source_def/change_replication_source_compression_algorithm_EQ_TEXT_STRING_sys!drop-2	CHANGE MASTER TO MASTER_COMPRESSION_ALGORITHMS 's';
 reject	reject	engine	source_def/change_replication_source_compression_algorithm_EQ_TEXT_STRING_sys!drop-3	CHANGE MASTER TO MASTER_COMPRESSION_ALGORITHMS =;
 reject	reject	engine	source_def/change_replication_source_compression_algorithm_EQ_TEXT_STRING_sys!truncate	CHANGE MASTER TO MASTER_COMPRESSION_ALGORITHMS =
 reject	reject	engine	source_def/change_replication_source_compression_algorithm_EQ_TEXT_STRING_sys!insert	CHANGE MASTER TO MASTER_COMPRESSION_ALGORITHMS = 's' zzz;
 accept	accept	engine	source_def/change_replication_source_zstd_compression_level_EQ_ulong_num	CHANGE MASTER TO MASTER_ZSTD_COMPRESSION_LEVEL = 1;
-accept	reject	engine	source_def/change_replication_source_zstd_compression_level_EQ_ulong_num!drop-2	CHANGE MASTER TO MASTER_ZSTD_COMPRESSION_LEVEL 1;
+reject	reject	engine	source_def/change_replication_source_zstd_compression_level_EQ_ulong_num!drop-2	CHANGE MASTER TO MASTER_ZSTD_COMPRESSION_LEVEL 1;
 reject	reject	engine	source_def/change_replication_source_zstd_compression_level_EQ_ulong_num!drop-3	CHANGE MASTER TO MASTER_ZSTD_COMPRESSION_LEVEL =;
 reject	reject	engine	source_def/change_replication_source_zstd_compression_level_EQ_ulong_num!truncate	CHANGE MASTER TO MASTER_ZSTD_COMPRESSION_LEVEL =
 reject	reject	engine	source_def/change_replication_source_zstd_compression_level_EQ_ulong_num!insert	CHANGE MASTER TO MASTER_ZSTD_COMPRESSION_LEVEL = 1 zzz;
 accept	accept	engine	source_def/change_replication_source_auto_position_EQ_ulong_num	CHANGE MASTER TO MASTER_AUTO_POSITION = 1;
-accept	reject	engine	source_def/change_replication_source_auto_position_EQ_ulong_num!drop-2	CHANGE MASTER TO MASTER_AUTO_POSITION 1;
+reject	reject	engine	source_def/change_replication_source_auto_position_EQ_ulong_num!drop-2	CHANGE MASTER TO MASTER_AUTO_POSITION 1;
 reject	reject	engine	source_def/change_replication_source_auto_position_EQ_ulong_num!drop-3	CHANGE MASTER TO MASTER_AUTO_POSITION =;
 reject	reject	engine	source_def/change_replication_source_auto_position_EQ_ulong_num!truncate	CHANGE MASTER TO MASTER_AUTO_POSITION =
 reject	reject	engine	source_def/change_replication_source_auto_position_EQ_ulong_num!insert	CHANGE MASTER TO MASTER_AUTO_POSITION = 1 zzz;
 accept	accept	engine	source_def/PRIVILEGE_CHECKS_USER_SYM_EQ_privilege_check_def	CHANGE MASTER TO PRIVILEGE_CHECKS_USER = utf8mb4;
 reject	reject	engine	source_def/PRIVILEGE_CHECKS_USER_SYM_EQ_privilege_check_def!drop-1	CHANGE MASTER TO = utf8mb4;
-accept	reject	engine	source_def/PRIVILEGE_CHECKS_USER_SYM_EQ_privilege_check_def!drop-2	CHANGE MASTER TO PRIVILEGE_CHECKS_USER utf8mb4;
+reject	reject	engine	source_def/PRIVILEGE_CHECKS_USER_SYM_EQ_privilege_check_def!drop-2	CHANGE MASTER TO PRIVILEGE_CHECKS_USER utf8mb4;
 reject	reject	engine	source_def/PRIVILEGE_CHECKS_USER_SYM_EQ_privilege_check_def!drop-3	CHANGE MASTER TO PRIVILEGE_CHECKS_USER =;
 reject	reject	engine	source_def/PRIVILEGE_CHECKS_USER_SYM_EQ_privilege_check_def!truncate	CHANGE MASTER TO PRIVILEGE_CHECKS_USER =
 reject	reject	engine	source_def/PRIVILEGE_CHECKS_USER_SYM_EQ_privilege_check_def!insert	CHANGE MASTER TO PRIVILEGE_CHECKS_USER = utf8mb4 zzz;
-accept	reject	engine	source_def/PRIVILEGE_CHECKS_USER_SYM_EQ_privilege_check_def!swap	CHANGE MASTER TO PROCEDURE = utf8mb4;
+reject	reject	engine	source_def/PRIVILEGE_CHECKS_USER_SYM_EQ_privilege_check_def!swap	CHANGE MASTER TO PROCEDURE = utf8mb4;
 accept	accept	engine	source_def/REQUIRE_ROW_FORMAT_SYM_EQ_ulong_num	CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1;
-accept	reject	engine	source_def/REQUIRE_ROW_FORMAT_SYM_EQ_ulong_num!drop-2	CHANGE MASTER TO REQUIRE_ROW_FORMAT 1;
+reject	reject	engine	source_def/REQUIRE_ROW_FORMAT_SYM_EQ_ulong_num!drop-2	CHANGE MASTER TO REQUIRE_ROW_FORMAT 1;
 reject	reject	engine	source_def/REQUIRE_ROW_FORMAT_SYM_EQ_ulong_num!drop-3	CHANGE MASTER TO REQUIRE_ROW_FORMAT =;
 reject	reject	engine	source_def/REQUIRE_ROW_FORMAT_SYM_EQ_ulong_num!truncate	CHANGE MASTER TO REQUIRE_ROW_FORMAT =
 reject	reject	engine	source_def/REQUIRE_ROW_FORMAT_SYM_EQ_ulong_num!insert	CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1 zzz;
-accept	reject	engine	source_def/REQUIRE_ROW_FORMAT_SYM_EQ_ulong_num!swap	CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = 1;
+reject	reject	engine	source_def/REQUIRE_ROW_FORMAT_SYM_EQ_ulong_num!swap	CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = 1;
 accept	accept	engine	source_def/REQUIRE_TABLE_PRIMARY_KEY_CHECK_SYM_EQ_table_primary_key_check_def	CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = STREAM;
 reject	reject	engine	source_def/REQUIRE_TABLE_PRIMARY_KEY_CHECK_SYM_EQ_table_primary_key_check_def!drop-1	CHANGE MASTER TO = STREAM;
-accept	reject	engine	source_def/REQUIRE_TABLE_PRIMARY_KEY_CHECK_SYM_EQ_table_primary_key_check_def!drop-2	CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK STREAM;
+reject	reject	engine	source_def/REQUIRE_TABLE_PRIMARY_KEY_CHECK_SYM_EQ_table_primary_key_check_def!drop-2	CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK STREAM;
 reject	reject	engine	source_def/REQUIRE_TABLE_PRIMARY_KEY_CHECK_SYM_EQ_table_primary_key_check_def!drop-3	CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK =;
 reject	reject	engine	source_def/REQUIRE_TABLE_PRIMARY_KEY_CHECK_SYM_EQ_table_primary_key_check_def!truncate	CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK =
 reject	reject	engine	source_def/REQUIRE_TABLE_PRIMARY_KEY_CHECK_SYM_EQ_table_primary_key_check_def!insert	CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = STREAM zzz;
-accept	reject	engine	source_def/REQUIRE_TABLE_PRIMARY_KEY_CHECK_SYM_EQ_table_primary_key_check_def!swap	CHANGE MASTER TO RESET = STREAM;
+reject	reject	engine	source_def/REQUIRE_TABLE_PRIMARY_KEY_CHECK_SYM_EQ_table_primary_key_check_def!swap	CHANGE MASTER TO RESET = STREAM;
 accept	accept	engine	source_def/SOURCE_CONNECTION_AUTO_FAILOVER_SYM_EQ_real_ulong_num	CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER = 1;
-accept	reject	engine	source_def/SOURCE_CONNECTION_AUTO_FAILOVER_SYM_EQ_real_ulong_num!drop-2	CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER 1;
+reject	reject	engine	source_def/SOURCE_CONNECTION_AUTO_FAILOVER_SYM_EQ_real_ulong_num!drop-2	CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER 1;
 reject	reject	engine	source_def/SOURCE_CONNECTION_AUTO_FAILOVER_SYM_EQ_real_ulong_num!drop-3	CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER =;
 reject	reject	engine	source_def/SOURCE_CONNECTION_AUTO_FAILOVER_SYM_EQ_real_ulong_num!truncate	CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER =
 reject	reject	engine	source_def/SOURCE_CONNECTION_AUTO_FAILOVER_SYM_EQ_real_ulong_num!insert	CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER = 1 zzz;
 accept	accept	engine	source_def/ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_SYM_EQ_assign_gtids_to_anonymous_transactions_def	CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF;
 reject	reject	engine	source_def/ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_SYM_EQ_assign_gtids_to_anonymous_transactions_def!drop-1	CHANGE MASTER TO = OFF;
-accept	reject	engine	source_def/ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_SYM_EQ_assign_gtids_to_anonymous_transactions_def!drop-2	CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS OFF;
+reject	reject	engine	source_def/ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_SYM_EQ_assign_gtids_to_anonymous_transactions_def!drop-2	CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS OFF;
 reject	reject	engine	source_def/ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_SYM_EQ_assign_gtids_to_anonymous_transactions_def!drop-3	CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS =;
 reject	reject	engine	source_def/ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_SYM_EQ_assign_gtids_to_anonymous_transactions_def!truncate	CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS =
 reject	reject	engine	source_def/ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_SYM_EQ_assign_gtids_to_anonymous_transactions_def!insert	CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF zzz;
-accept	reject	engine	source_def/ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_SYM_EQ_assign_gtids_to_anonymous_transactions_def!swap	CHANGE MASTER TO AT = OFF;
+reject	reject	engine	source_def/ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_SYM_EQ_assign_gtids_to_anonymous_transactions_def!swap	CHANGE MASTER TO AT = OFF;
 accept	accept	engine	source_def/GTID_ONLY_SYM_EQ_real_ulong_num	CHANGE MASTER TO GTID_ONLY = 1;
-accept	reject	engine	source_def/GTID_ONLY_SYM_EQ_real_ulong_num!drop-2	CHANGE MASTER TO GTID_ONLY 1;
+reject	reject	engine	source_def/GTID_ONLY_SYM_EQ_real_ulong_num!drop-2	CHANGE MASTER TO GTID_ONLY 1;
 reject	reject	engine	source_def/GTID_ONLY_SYM_EQ_real_ulong_num!drop-3	CHANGE MASTER TO GTID_ONLY =;
 reject	reject	engine	source_def/GTID_ONLY_SYM_EQ_real_ulong_num!truncate	CHANGE MASTER TO GTID_ONLY =
 reject	reject	engine	source_def/GTID_ONLY_SYM_EQ_real_ulong_num!insert	CHANGE MASTER TO GTID_ONLY = 1 zzz;
-accept	reject	engine	source_def/GTID_ONLY_SYM_EQ_real_ulong_num!swap	CHANGE MASTER TO HANDLER = 1;
+reject	reject	engine	source_def/GTID_ONLY_SYM_EQ_real_ulong_num!swap	CHANGE MASTER TO HANDLER = 1;
 accept	accept	engine	source_def/source_file_def	CHANGE MASTER TO MASTER_LOG_FILE = 's';
-accept	reject	engine	source_def/source_file_def!drop-2	CHANGE MASTER TO MASTER_LOG_FILE 's';
+reject	reject	engine	source_def/source_file_def!drop-2	CHANGE MASTER TO MASTER_LOG_FILE 's';
 reject	reject	engine	source_def/source_file_def!drop-3	CHANGE MASTER TO MASTER_LOG_FILE =;
 reject	reject	engine	source_def/source_file_def!truncate	CHANGE MASTER TO MASTER_LOG_FILE =
 reject	reject	engine	source_def/source_file_def!insert	CHANGE MASTER TO MASTER_LOG_FILE = 's' zzz;
-accept	reject	engine	source_def/source_file_def!swap	CHANGE MASTER TO MASTER_LOG_POS = 's';
+reject	reject	engine	source_def/source_file_def!swap	CHANGE MASTER TO MASTER_LOG_POS = 's';
 accept	accept	engine	ignore_server_id_list/%empty	CHANGE MASTER TO IGNORE_SERVER_IDS =();
 reject	reject	engine	ignore_server_id_list/%empty!insert	CHANGE MASTER TO IGNORE_SERVER_IDS =(zzz);
 accept	accept	engine	ignore_server_id_list/ignore_server_id	CHANGE MASTER TO IGNORE_SERVER_IDS =(1);
 reject	reject	engine	ignore_server_id_list/ignore_server_id!insert	CHANGE MASTER TO IGNORE_SERVER_IDS =(1 zzz);
-reject	accept	engine	ignore_server_id_list/ignore_server_id_list_,_ignore_server_id	CHANGE MASTER TO IGNORE_SERVER_IDS =(, 1);
+accept	accept	engine	ignore_server_id_list/ignore_server_id_list_,_ignore_server_id	CHANGE MASTER TO IGNORE_SERVER_IDS =(, 1);
 reject	reject	engine	ignore_server_id_list/ignore_server_id_list_,_ignore_server_id!drop-2	CHANGE MASTER TO IGNORE_SERVER_IDS =(,);
 reject	reject	engine	ignore_server_id_list/ignore_server_id_list_,_ignore_server_id!truncate	CHANGE MASTER TO IGNORE_SERVER_IDS =(,
 reject	reject	engine	ignore_server_id_list/ignore_server_id_list_,_ignore_server_id!insert	CHANGE MASTER TO IGNORE_SERVER_IDS =(, 1 zzz);
@@ -1379,58 +1379,58 @@ accept	accept	engine	privilege_check_def/NULL_SYM	CHANGE MASTER TO PRIVILEGE_CHE
 reject	reject	engine	privilege_check_def/NULL_SYM!insert	CHANGE MASTER TO PRIVILEGE_CHECKS_USER = NULL zzz;
 accept	accept	engine	privilege_check_def/NULL_SYM!swap	CHANGE MASTER TO PRIVILEGE_CHECKS_USER = NULLS;
 accept	accept	engine	table_primary_key_check_def/STREAM_SYM	CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = STREAM;
-accept	reject	engine	table_primary_key_check_def/STREAM_SYM!swap	CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = STRING;
+reject	reject	engine	table_primary_key_check_def/STREAM_SYM!swap	CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = STRING;
 accept	accept	engine	table_primary_key_check_def/ON_SYM	CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON;
 reject	reject	engine	table_primary_key_check_def/ON_SYM!insert	CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON zzz;
-accept	reject	engine	table_primary_key_check_def/ON_SYM!swap	CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = ONE;
+reject	reject	engine	table_primary_key_check_def/ON_SYM!swap	CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = ONE;
 accept	accept	engine	table_primary_key_check_def/OFF_SYM	CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF;
 reject	reject	engine	table_primary_key_check_def/OFF_SYM!insert	CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF zzz;
-accept	reject	engine	table_primary_key_check_def/OFF_SYM!swap	CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFFSET;
+reject	reject	engine	table_primary_key_check_def/OFF_SYM!swap	CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFFSET;
 accept	accept	engine	table_primary_key_check_def/GENERATE_SYM	CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = GENERATE;
 reject	reject	engine	table_primary_key_check_def/GENERATE_SYM!insert	CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = GENERATE zzz;
-accept	reject	engine	table_primary_key_check_def/GENERATE_SYM!swap	CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = GENERATED;
+reject	reject	engine	table_primary_key_check_def/GENERATE_SYM!swap	CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = GENERATED;
 accept	accept	engine	assign_gtids_to_anonymous_transactions_def/OFF_SYM	CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF;
-accept	reject	engine	assign_gtids_to_anonymous_transactions_def/OFF_SYM!swap	CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFFSET;
+reject	reject	engine	assign_gtids_to_anonymous_transactions_def/OFF_SYM!swap	CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFFSET;
 accept	accept	engine	assign_gtids_to_anonymous_transactions_def/LOCAL_SYM	CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL;
 reject	reject	engine	assign_gtids_to_anonymous_transactions_def/LOCAL_SYM!insert	CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL zzz;
-accept	reject	engine	assign_gtids_to_anonymous_transactions_def/LOCAL_SYM!swap	CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCK;
-accept	reject	engine	assign_gtids_to_anonymous_transactions_def/TEXT_STRING	CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = 's';
+reject	reject	engine	assign_gtids_to_anonymous_transactions_def/LOCAL_SYM!swap	CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCK;
+reject	reject	engine	assign_gtids_to_anonymous_transactions_def/TEXT_STRING	CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = 's';
 reject	reject	engine	assign_gtids_to_anonymous_transactions_def/TEXT_STRING!insert	CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = 's' zzz;
 accept	accept	engine	source_tls_ciphersuites_def/TEXT_STRING_sys_nonewline	CHANGE MASTER TO MASTER_TLS_CIPHERSUITES = 's';
 accept	accept	engine	source_tls_ciphersuites_def/NULL_SYM	CHANGE MASTER TO MASTER_TLS_CIPHERSUITES = NULL;
 reject	reject	engine	source_tls_ciphersuites_def/NULL_SYM!insert	CHANGE MASTER TO MASTER_TLS_CIPHERSUITES = NULL zzz;
-accept	reject	engine	source_tls_ciphersuites_def/NULL_SYM!swap	CHANGE MASTER TO MASTER_TLS_CIPHERSUITES = NULLS;
+reject	reject	engine	source_tls_ciphersuites_def/NULL_SYM!swap	CHANGE MASTER TO MASTER_TLS_CIPHERSUITES = NULLS;
 accept	accept	engine	source_log_file/MASTER_LOG_FILE_SYM	CHANGE MASTER TO MASTER_LOG_FILE = 's';
 reject	reject	engine	source_log_file/MASTER_LOG_FILE_SYM!insert	CHANGE MASTER TO MASTER_LOG_FILE zzz = 's';
 accept	accept	engine	source_log_file/SOURCE_LOG_FILE_SYM	CHANGE MASTER TO SOURCE_LOG_FILE = 's';
 reject	reject	engine	source_log_file/SOURCE_LOG_FILE_SYM!insert	CHANGE MASTER TO SOURCE_LOG_FILE zzz = 's';
-accept	reject	engine	source_log_file/SOURCE_LOG_FILE_SYM!swap	CHANGE MASTER TO SOURCE_LOG_POS = 's';
+reject	reject	engine	source_log_file/SOURCE_LOG_FILE_SYM!swap	CHANGE MASTER TO SOURCE_LOG_POS = 's';
 accept	accept	engine	source_log_pos/MASTER_LOG_POS_SYM	CHANGE MASTER TO MASTER_LOG_POS = 1;
 reject	reject	engine	source_log_pos/MASTER_LOG_POS_SYM!insert	CHANGE MASTER TO MASTER_LOG_POS zzz = 1;
-accept	reject	engine	source_log_pos/MASTER_LOG_POS_SYM!swap	CHANGE MASTER TO MASTER_PASSWORD = 1;
+reject	reject	engine	source_log_pos/MASTER_LOG_POS_SYM!swap	CHANGE MASTER TO MASTER_PASSWORD = 1;
 accept	accept	engine	source_log_pos/SOURCE_LOG_POS_SYM	CHANGE MASTER TO SOURCE_LOG_POS = 1;
 reject	reject	engine	source_log_pos/SOURCE_LOG_POS_SYM!insert	CHANGE MASTER TO SOURCE_LOG_POS zzz = 1;
-accept	reject	engine	source_log_pos/SOURCE_LOG_POS_SYM!swap	CHANGE MASTER TO SOURCE_PASSWORD = 1;
+reject	reject	engine	source_log_pos/SOURCE_LOG_POS_SYM!swap	CHANGE MASTER TO SOURCE_PASSWORD = 1;
 accept	accept	engine	source_file_def/source_log_file_EQ_TEXT_STRING_sys_nonewline	CHANGE MASTER TO MASTER_LOG_FILE = 's';
 accept	accept	engine	source_file_def/source_log_pos_EQ_ulonglong_num	CHANGE MASTER TO MASTER_LOG_POS = 1;
-accept	reject	engine	source_file_def/source_log_pos_EQ_ulonglong_num!drop-2	CHANGE MASTER TO MASTER_LOG_POS 1;
+reject	reject	engine	source_file_def/source_log_pos_EQ_ulonglong_num!drop-2	CHANGE MASTER TO MASTER_LOG_POS 1;
 reject	reject	engine	source_file_def/source_log_pos_EQ_ulonglong_num!drop-3	CHANGE MASTER TO MASTER_LOG_POS =;
 reject	reject	engine	source_file_def/source_log_pos_EQ_ulonglong_num!truncate	CHANGE MASTER TO MASTER_LOG_POS =
 reject	reject	engine	source_file_def/source_log_pos_EQ_ulonglong_num!insert	CHANGE MASTER TO MASTER_LOG_POS = 1 zzz;
 accept	accept	engine	source_file_def/RELAY_LOG_FILE_SYM_EQ_TEXT_STRING_sys_nonewline	CHANGE MASTER TO RELAY_LOG_FILE = 's';
-accept	reject	engine	source_file_def/RELAY_LOG_FILE_SYM_EQ_TEXT_STRING_sys_nonewline!drop-2	CHANGE MASTER TO RELAY_LOG_FILE 's';
+reject	reject	engine	source_file_def/RELAY_LOG_FILE_SYM_EQ_TEXT_STRING_sys_nonewline!drop-2	CHANGE MASTER TO RELAY_LOG_FILE 's';
 reject	reject	engine	source_file_def/RELAY_LOG_FILE_SYM_EQ_TEXT_STRING_sys_nonewline!drop-3	CHANGE MASTER TO RELAY_LOG_FILE =;
 reject	reject	engine	source_file_def/RELAY_LOG_FILE_SYM_EQ_TEXT_STRING_sys_nonewline!truncate	CHANGE MASTER TO RELAY_LOG_FILE =
 reject	reject	engine	source_file_def/RELAY_LOG_FILE_SYM_EQ_TEXT_STRING_sys_nonewline!insert	CHANGE MASTER TO RELAY_LOG_FILE = 's' zzz;
-accept	reject	engine	source_file_def/RELAY_LOG_FILE_SYM_EQ_TEXT_STRING_sys_nonewline!swap	CHANGE MASTER TO RELAY_LOG_POS = 's';
+reject	reject	engine	source_file_def/RELAY_LOG_FILE_SYM_EQ_TEXT_STRING_sys_nonewline!swap	CHANGE MASTER TO RELAY_LOG_POS = 's';
 accept	accept	engine	source_file_def/RELAY_LOG_POS_SYM_EQ_ulong_num	CHANGE MASTER TO RELAY_LOG_POS = 1;
-accept	reject	engine	source_file_def/RELAY_LOG_POS_SYM_EQ_ulong_num!drop-2	CHANGE MASTER TO RELAY_LOG_POS 1;
+reject	reject	engine	source_file_def/RELAY_LOG_POS_SYM_EQ_ulong_num!drop-2	CHANGE MASTER TO RELAY_LOG_POS 1;
 reject	reject	engine	source_file_def/RELAY_LOG_POS_SYM_EQ_ulong_num!drop-3	CHANGE MASTER TO RELAY_LOG_POS =;
 reject	reject	engine	source_file_def/RELAY_LOG_POS_SYM_EQ_ulong_num!truncate	CHANGE MASTER TO RELAY_LOG_POS =
 reject	reject	engine	source_file_def/RELAY_LOG_POS_SYM_EQ_ulong_num!insert	CHANGE MASTER TO RELAY_LOG_POS = 1 zzz;
-accept	reject	engine	source_file_def/RELAY_LOG_POS_SYM_EQ_ulong_num!swap	CHANGE MASTER TO RELAY_THREAD = 1;
+reject	reject	engine	source_file_def/RELAY_LOG_POS_SYM_EQ_ulong_num!swap	CHANGE MASTER TO RELAY_THREAD = 1;
 accept	accept	engine	opt_channel/%empty	RESET SLAVE;
-reject	accept	engine	opt_channel/FOR_SYM_CHANNEL_SYM_TEXT_STRING_sys_nonewline	RESET SLAVE FOR CHANNEL 's';
+accept	accept	engine	opt_channel/FOR_SYM_CHANNEL_SYM_TEXT_STRING_sys_nonewline	RESET SLAVE FOR CHANNEL 's';
 reject	reject	engine	opt_channel/FOR_SYM_CHANNEL_SYM_TEXT_STRING_sys_nonewline!drop-1	RESET SLAVE CHANNEL 's';
 reject	reject	engine	opt_channel/FOR_SYM_CHANNEL_SYM_TEXT_STRING_sys_nonewline!drop-2	RESET SLAVE FOR 's';
 reject	reject	engine	opt_channel/FOR_SYM_CHANNEL_SYM_TEXT_STRING_sys_nonewline!drop-3	RESET SLAVE FOR CHANNEL;
@@ -5131,34 +5131,34 @@ accept	accept	engine	group_replication_start/START_SYM_GROUP_REPLICATION	START G
 accept	accept	engine	opt_group_replication_start_options/%empty	START GROUP_REPLICATION;
 accept	accept	engine	opt_group_replication_start_options/group_replication_start_options	START GROUP_REPLICATION USER = 's';
 reject	reject	engine	opt_group_replication_start_options/group_replication_start_options!drop-1	START GROUP_REPLICATION = 's';
-accept	reject	engine	opt_group_replication_start_options/group_replication_start_options!drop-2	START GROUP_REPLICATION USER 's';
-accept	reject	engine	opt_group_replication_start_options/group_replication_start_options!drop-3	START GROUP_REPLICATION USER =;
-accept	reject	engine	opt_group_replication_start_options/group_replication_start_options!truncate	START GROUP_REPLICATION USER =
+reject	reject	engine	opt_group_replication_start_options/group_replication_start_options!drop-2	START GROUP_REPLICATION USER 's';
+reject	reject	engine	opt_group_replication_start_options/group_replication_start_options!drop-3	START GROUP_REPLICATION USER =;
+reject	reject	engine	opt_group_replication_start_options/group_replication_start_options!truncate	START GROUP_REPLICATION USER =
 reject	reject	engine	opt_group_replication_start_options/group_replication_start_options!insert	START GROUP_REPLICATION USER = 's' zzz;
 reject	reject	engine	opt_group_replication_start_options/group_replication_start_options!swap	START GROUP_REPLICATION USER_RESOURCES = 's';
 accept	accept	engine	group_replication_start_options/group_replication_start_option	START GROUP_REPLICATION USER = 's';
 accept	accept	engine	group_replication_start_options/group_replication_start_options_,_group_replication_start_option	START GROUP_REPLICATION USER = 's', USER = 's';
 reject	reject	engine	group_replication_start_options/group_replication_start_options_,_group_replication_start_option!drop-1	START GROUP_REPLICATION = 's', USER = 's';
-accept	reject	engine	group_replication_start_options/group_replication_start_options_,_group_replication_start_option!drop-2	START GROUP_REPLICATION USER 's', USER = 's';
-accept	reject	engine	group_replication_start_options/group_replication_start_options_,_group_replication_start_option!drop-3	START GROUP_REPLICATION USER =, USER = 's';
-accept	reject	engine	group_replication_start_options/group_replication_start_options_,_group_replication_start_option!drop-4	START GROUP_REPLICATION USER = 's' USER = 's';
+reject	reject	engine	group_replication_start_options/group_replication_start_options_,_group_replication_start_option!drop-2	START GROUP_REPLICATION USER 's', USER = 's';
+reject	reject	engine	group_replication_start_options/group_replication_start_options_,_group_replication_start_option!drop-3	START GROUP_REPLICATION USER =, USER = 's';
+reject	reject	engine	group_replication_start_options/group_replication_start_options_,_group_replication_start_option!drop-4	START GROUP_REPLICATION USER = 's' USER = 's';
 reject	reject	engine	group_replication_start_options/group_replication_start_options_,_group_replication_start_option!drop-5	START GROUP_REPLICATION USER = 's', = 's';
-accept	reject	engine	group_replication_start_options/group_replication_start_options_,_group_replication_start_option!drop-6	START GROUP_REPLICATION USER = 's', USER 's';
-accept	reject	engine	group_replication_start_options/group_replication_start_options_,_group_replication_start_option!drop-7	START GROUP_REPLICATION USER = 's', USER =;
-accept	reject	engine	group_replication_start_options/group_replication_start_options_,_group_replication_start_option!truncate	START GROUP_REPLICATION USER = 's', USER =
+reject	reject	engine	group_replication_start_options/group_replication_start_options_,_group_replication_start_option!drop-6	START GROUP_REPLICATION USER = 's', USER 's';
+reject	reject	engine	group_replication_start_options/group_replication_start_options_,_group_replication_start_option!drop-7	START GROUP_REPLICATION USER = 's', USER =;
+reject	reject	engine	group_replication_start_options/group_replication_start_options_,_group_replication_start_option!truncate	START GROUP_REPLICATION USER = 's', USER =
 reject	reject	engine	group_replication_start_options/group_replication_start_options_,_group_replication_start_option!insert	START GROUP_REPLICATION USER = 's', USER = 's' zzz;
 reject	reject	engine	group_replication_start_options/group_replication_start_options_,_group_replication_start_option!swap	START GROUP_REPLICATION USER_RESOURCES = 's', USER = 's';
 accept	accept	engine	group_replication_start_option/group_replication_user	START GROUP_REPLICATION USER = 's';
 accept	accept	engine	group_replication_start_option/group_replication_password	START GROUP_REPLICATION PASSWORD = 's';
-accept	reject	engine	group_replication_start_option/group_replication_password!drop-2	START GROUP_REPLICATION PASSWORD 's';
-accept	reject	engine	group_replication_start_option/group_replication_password!drop-3	START GROUP_REPLICATION PASSWORD =;
-accept	reject	engine	group_replication_start_option/group_replication_password!truncate	START GROUP_REPLICATION PASSWORD =
+reject	reject	engine	group_replication_start_option/group_replication_password!drop-2	START GROUP_REPLICATION PASSWORD 's';
+reject	reject	engine	group_replication_start_option/group_replication_password!drop-3	START GROUP_REPLICATION PASSWORD =;
+reject	reject	engine	group_replication_start_option/group_replication_password!truncate	START GROUP_REPLICATION PASSWORD =
 reject	reject	engine	group_replication_start_option/group_replication_password!insert	START GROUP_REPLICATION PASSWORD = 's' zzz;
 reject	reject	engine	group_replication_start_option/group_replication_password!swap	START GROUP_REPLICATION PASSWORD_LOCK_TIME = 's';
 accept	accept	engine	group_replication_start_option/group_replication_plugin_auth	START GROUP_REPLICATION DEFAULT_AUTH = 's';
-accept	reject	engine	group_replication_start_option/group_replication_plugin_auth!drop-2	START GROUP_REPLICATION DEFAULT_AUTH 's';
-accept	reject	engine	group_replication_start_option/group_replication_plugin_auth!drop-3	START GROUP_REPLICATION DEFAULT_AUTH =;
-accept	reject	engine	group_replication_start_option/group_replication_plugin_auth!truncate	START GROUP_REPLICATION DEFAULT_AUTH =
+reject	reject	engine	group_replication_start_option/group_replication_plugin_auth!drop-2	START GROUP_REPLICATION DEFAULT_AUTH 's';
+reject	reject	engine	group_replication_start_option/group_replication_plugin_auth!drop-3	START GROUP_REPLICATION DEFAULT_AUTH =;
+reject	reject	engine	group_replication_start_option/group_replication_plugin_auth!truncate	START GROUP_REPLICATION DEFAULT_AUTH =
 reject	reject	engine	group_replication_start_option/group_replication_plugin_auth!insert	START GROUP_REPLICATION DEFAULT_AUTH = 's' zzz;
 reject	reject	engine	group_replication_start_option/group_replication_plugin_auth!swap	START GROUP_REPLICATION DEFINER = 's';
 accept	accept	engine	group_replication_user/USER_EQ_TEXT_STRING_sys_nonewline	START GROUP_REPLICATION USER = 's';
@@ -5204,30 +5204,30 @@ reject	reject	engine	start_transaction_option/READ_SYM_WRITE_SYM!swap	START TRAN
 accept	accept	engine	opt_user_option/%empty	START SLAVE;
 accept	accept	engine	opt_user_option/USER_EQ_TEXT_STRING_sys	START SLAVE USER = 's';
 reject	reject	engine	opt_user_option/USER_EQ_TEXT_STRING_sys!drop-1	START SLAVE = 's';
-accept	reject	engine	opt_user_option/USER_EQ_TEXT_STRING_sys!drop-2	START SLAVE USER 's';
-accept	reject	engine	opt_user_option/USER_EQ_TEXT_STRING_sys!drop-3	START SLAVE USER =;
-accept	reject	engine	opt_user_option/USER_EQ_TEXT_STRING_sys!truncate	START SLAVE USER =
+reject	reject	engine	opt_user_option/USER_EQ_TEXT_STRING_sys!drop-2	START SLAVE USER 's';
+reject	reject	engine	opt_user_option/USER_EQ_TEXT_STRING_sys!drop-3	START SLAVE USER =;
+reject	reject	engine	opt_user_option/USER_EQ_TEXT_STRING_sys!truncate	START SLAVE USER =
 reject	reject	engine	opt_user_option/USER_EQ_TEXT_STRING_sys!insert	START SLAVE USER = 's' zzz;
 reject	reject	engine	opt_user_option/USER_EQ_TEXT_STRING_sys!swap	START SLAVE USER_RESOURCES = 's';
 accept	accept	engine	opt_password_option/%empty	START SLAVE;
 accept	accept	engine	opt_password_option/PASSWORD_EQ_TEXT_STRING_sys	START SLAVE PASSWORD = 's';
-accept	reject	engine	opt_password_option/PASSWORD_EQ_TEXT_STRING_sys!drop-2	START SLAVE PASSWORD 's';
-accept	reject	engine	opt_password_option/PASSWORD_EQ_TEXT_STRING_sys!drop-3	START SLAVE PASSWORD =;
-accept	reject	engine	opt_password_option/PASSWORD_EQ_TEXT_STRING_sys!truncate	START SLAVE PASSWORD =
+reject	reject	engine	opt_password_option/PASSWORD_EQ_TEXT_STRING_sys!drop-2	START SLAVE PASSWORD 's';
+reject	reject	engine	opt_password_option/PASSWORD_EQ_TEXT_STRING_sys!drop-3	START SLAVE PASSWORD =;
+reject	reject	engine	opt_password_option/PASSWORD_EQ_TEXT_STRING_sys!truncate	START SLAVE PASSWORD =
 reject	reject	engine	opt_password_option/PASSWORD_EQ_TEXT_STRING_sys!insert	START SLAVE PASSWORD = 's' zzz;
 reject	reject	engine	opt_password_option/PASSWORD_EQ_TEXT_STRING_sys!swap	START SLAVE PASSWORD_LOCK_TIME = 's';
 accept	accept	engine	opt_default_auth_option/%empty	START SLAVE;
 accept	accept	engine	opt_default_auth_option/DEFAULT_AUTH_SYM_EQ_TEXT_STRING_sys	START SLAVE DEFAULT_AUTH = 's';
-accept	reject	engine	opt_default_auth_option/DEFAULT_AUTH_SYM_EQ_TEXT_STRING_sys!drop-2	START SLAVE DEFAULT_AUTH 's';
-accept	reject	engine	opt_default_auth_option/DEFAULT_AUTH_SYM_EQ_TEXT_STRING_sys!drop-3	START SLAVE DEFAULT_AUTH =;
-accept	reject	engine	opt_default_auth_option/DEFAULT_AUTH_SYM_EQ_TEXT_STRING_sys!truncate	START SLAVE DEFAULT_AUTH =
+reject	reject	engine	opt_default_auth_option/DEFAULT_AUTH_SYM_EQ_TEXT_STRING_sys!drop-2	START SLAVE DEFAULT_AUTH 's';
+reject	reject	engine	opt_default_auth_option/DEFAULT_AUTH_SYM_EQ_TEXT_STRING_sys!drop-3	START SLAVE DEFAULT_AUTH =;
+reject	reject	engine	opt_default_auth_option/DEFAULT_AUTH_SYM_EQ_TEXT_STRING_sys!truncate	START SLAVE DEFAULT_AUTH =
 reject	reject	engine	opt_default_auth_option/DEFAULT_AUTH_SYM_EQ_TEXT_STRING_sys!insert	START SLAVE DEFAULT_AUTH = 's' zzz;
 reject	reject	engine	opt_default_auth_option/DEFAULT_AUTH_SYM_EQ_TEXT_STRING_sys!swap	START SLAVE DEFINER = 's';
 accept	accept	engine	opt_plugin_dir_option/%empty	START SLAVE;
 accept	accept	engine	opt_plugin_dir_option/PLUGIN_DIR_SYM_EQ_TEXT_STRING_sys	START SLAVE PLUGIN_DIR = 's';
-accept	reject	engine	opt_plugin_dir_option/PLUGIN_DIR_SYM_EQ_TEXT_STRING_sys!drop-2	START SLAVE PLUGIN_DIR 's';
-accept	reject	engine	opt_plugin_dir_option/PLUGIN_DIR_SYM_EQ_TEXT_STRING_sys!drop-3	START SLAVE PLUGIN_DIR =;
-accept	reject	engine	opt_plugin_dir_option/PLUGIN_DIR_SYM_EQ_TEXT_STRING_sys!truncate	START SLAVE PLUGIN_DIR =
+reject	reject	engine	opt_plugin_dir_option/PLUGIN_DIR_SYM_EQ_TEXT_STRING_sys!drop-2	START SLAVE PLUGIN_DIR 's';
+reject	reject	engine	opt_plugin_dir_option/PLUGIN_DIR_SYM_EQ_TEXT_STRING_sys!drop-3	START SLAVE PLUGIN_DIR =;
+reject	reject	engine	opt_plugin_dir_option/PLUGIN_DIR_SYM_EQ_TEXT_STRING_sys!truncate	START SLAVE PLUGIN_DIR =
 reject	reject	engine	opt_plugin_dir_option/PLUGIN_DIR_SYM_EQ_TEXT_STRING_sys!insert	START SLAVE PLUGIN_DIR = 's' zzz;
 reject	reject	engine	opt_plugin_dir_option/PLUGIN_DIR_SYM_EQ_TEXT_STRING_sys!swap	START SLAVE POINT = 's';
 accept	accept	engine	opt_replica_thread_option_list/%empty	START SLAVE;
@@ -5238,13 +5238,13 @@ reject	reject	engine	opt_replica_thread_option_list/replica_thread_option_list!s
 accept	accept	engine	replica_thread_option_list/replica_thread_option	START SLAVE SQL_THREAD;
 accept	accept	engine	replica_thread_option_list/replica_thread_option_list_,_replica_thread_option	START SLAVE SQL_THREAD, SQL_THREAD;
 reject	reject	engine	replica_thread_option_list/replica_thread_option_list_,_replica_thread_option!drop-1	START SLAVE, SQL_THREAD;
-accept	reject	engine	replica_thread_option_list/replica_thread_option_list_,_replica_thread_option!drop-2	START SLAVE SQL_THREAD SQL_THREAD;
-accept	reject	engine	replica_thread_option_list/replica_thread_option_list_,_replica_thread_option!drop-3	START SLAVE SQL_THREAD,;
-accept	reject	engine	replica_thread_option_list/replica_thread_option_list_,_replica_thread_option!truncate	START SLAVE SQL_THREAD,
+reject	reject	engine	replica_thread_option_list/replica_thread_option_list_,_replica_thread_option!drop-2	START SLAVE SQL_THREAD SQL_THREAD;
+reject	reject	engine	replica_thread_option_list/replica_thread_option_list_,_replica_thread_option!drop-3	START SLAVE SQL_THREAD,;
+reject	reject	engine	replica_thread_option_list/replica_thread_option_list_,_replica_thread_option!truncate	START SLAVE SQL_THREAD,
 reject	reject	engine	replica_thread_option_list/replica_thread_option_list_,_replica_thread_option!insert	START SLAVE SQL_THREAD, SQL_THREAD zzz;
 reject	reject	engine	replica_thread_option_list/replica_thread_option_list_,_replica_thread_option!swap	START SLAVE SRID, SQL_THREAD;
 accept	accept	engine	replica_thread_option/SQL_THREAD	START SLAVE SQL_THREAD;
-reject	accept	engine	replica_thread_option/RELAY_THREAD	START SLAVE RELAY_THREAD;
+accept	accept	engine	replica_thread_option/RELAY_THREAD	START SLAVE RELAY_THREAD;
 reject	reject	engine	replica_thread_option/RELAY_THREAD!insert	START SLAVE RELAY_THREAD zzz;
 reject	reject	engine	replica_thread_option/RELAY_THREAD!swap	START SLAVE RELEASE;
 accept	accept	engine	opt_replica_until/%empty	START SLAVE;
@@ -5254,13 +5254,13 @@ reject	reject	engine	opt_replica_until/UNTIL_SYM_replica_until!drop-2	START SLAV
 reject	reject	engine	opt_replica_until/UNTIL_SYM_replica_until!truncate	START SLAVE UNTIL
 reject	reject	engine	opt_replica_until/UNTIL_SYM_replica_until!insert	START SLAVE UNTIL SQL_AFTER_MTS_GAPS zzz;
 reject	reject	engine	opt_replica_until/UNTIL_SYM_replica_until!swap	START SLAVE UPDATE SQL_AFTER_MTS_GAPS;
-accept	reject	engine	replica_until/source_file_def	START SLAVE UNTIL MASTER_LOG_FILE = 's';
+reject	reject	engine	replica_until/source_file_def	START SLAVE UNTIL MASTER_LOG_FILE = 's';
 reject	reject	engine	replica_until/source_file_def!drop-1	START SLAVE UNTIL = 's';
-accept	reject	engine	replica_until/source_file_def!drop-2	START SLAVE UNTIL MASTER_LOG_FILE 's';
+reject	reject	engine	replica_until/source_file_def!drop-2	START SLAVE UNTIL MASTER_LOG_FILE 's';
 reject	reject	engine	replica_until/source_file_def!drop-3	START SLAVE UNTIL MASTER_LOG_FILE =;
 reject	reject	engine	replica_until/source_file_def!truncate	START SLAVE UNTIL MASTER_LOG_FILE =
 reject	reject	engine	replica_until/source_file_def!insert	START SLAVE UNTIL MASTER_LOG_FILE = 's' zzz;
-accept	reject	engine	replica_until/source_file_def!swap	START SLAVE UNTIL MASTER_LOG_POS = 's';
+reject	reject	engine	replica_until/source_file_def!swap	START SLAVE UNTIL MASTER_LOG_POS = 's';
 reject	reject	engine	replica_until/replica_until_,_source_file_def	START SLAVE UNTIL SQL_AFTER_MTS_GAPS, MASTER_LOG_FILE = 's';
 reject	reject	engine	replica_until/replica_until_,_source_file_def!drop-1	START SLAVE UNTIL, MASTER_LOG_FILE = 's';
 reject	reject	engine	replica_until/replica_until_,_source_file_def!drop-2	START SLAVE UNTIL SQL_AFTER_MTS_GAPS MASTER_LOG_FILE = 's';
@@ -5271,13 +5271,13 @@ reject	reject	engine	replica_until/replica_until_,_source_file_def!truncate	STAR
 reject	reject	engine	replica_until/replica_until_,_source_file_def!insert	START SLAVE UNTIL SQL_AFTER_MTS_GAPS, MASTER_LOG_FILE = 's' zzz;
 reject	reject	engine	replica_until/replica_until_,_source_file_def!swap	START SLAVE UNTIL SQL_BEFORE_GTIDS, MASTER_LOG_FILE = 's';
 accept	accept	engine	replica_until/SQL_BEFORE_GTIDS_EQ_TEXT_STRING_sys	START SLAVE UNTIL SQL_BEFORE_GTIDS = 's';
-accept	reject	engine	replica_until/SQL_BEFORE_GTIDS_EQ_TEXT_STRING_sys!drop-2	START SLAVE UNTIL SQL_BEFORE_GTIDS 's';
+reject	reject	engine	replica_until/SQL_BEFORE_GTIDS_EQ_TEXT_STRING_sys!drop-2	START SLAVE UNTIL SQL_BEFORE_GTIDS 's';
 reject	reject	engine	replica_until/SQL_BEFORE_GTIDS_EQ_TEXT_STRING_sys!drop-3	START SLAVE UNTIL SQL_BEFORE_GTIDS =;
 reject	reject	engine	replica_until/SQL_BEFORE_GTIDS_EQ_TEXT_STRING_sys!truncate	START SLAVE UNTIL SQL_BEFORE_GTIDS =
 reject	reject	engine	replica_until/SQL_BEFORE_GTIDS_EQ_TEXT_STRING_sys!insert	START SLAVE UNTIL SQL_BEFORE_GTIDS = 's' zzz;
-accept	reject	engine	replica_until/SQL_BEFORE_GTIDS_EQ_TEXT_STRING_sys!swap	START SLAVE UNTIL SQL_BIG_RESULT = 's';
+reject	reject	engine	replica_until/SQL_BEFORE_GTIDS_EQ_TEXT_STRING_sys!swap	START SLAVE UNTIL SQL_BIG_RESULT = 's';
 accept	accept	engine	replica_until/SQL_AFTER_GTIDS_EQ_TEXT_STRING_sys	START SLAVE UNTIL SQL_AFTER_GTIDS = 's';
-accept	reject	engine	replica_until/SQL_AFTER_GTIDS_EQ_TEXT_STRING_sys!drop-2	START SLAVE UNTIL SQL_AFTER_GTIDS 's';
+reject	reject	engine	replica_until/SQL_AFTER_GTIDS_EQ_TEXT_STRING_sys!drop-2	START SLAVE UNTIL SQL_AFTER_GTIDS 's';
 reject	reject	engine	replica_until/SQL_AFTER_GTIDS_EQ_TEXT_STRING_sys!drop-3	START SLAVE UNTIL SQL_AFTER_GTIDS =;
 reject	reject	engine	replica_until/SQL_AFTER_GTIDS_EQ_TEXT_STRING_sys!truncate	START SLAVE UNTIL SQL_AFTER_GTIDS =
 reject	reject	engine	replica_until/SQL_AFTER_GTIDS_EQ_TEXT_STRING_sys!insert	START SLAVE UNTIL SQL_AFTER_GTIDS = 's' zzz;
@@ -9363,7 +9363,7 @@ accept	accept	engine	IDENT_sys/IDENT	CALL utf8mb4;
 accept	accept	engine	IDENT_sys/IDENT_QUOTED	CALL `a`;
 reject	reject	engine	IDENT_sys/IDENT_QUOTED!insert	CALL `a` zzz;
 accept	accept	engine	TEXT_STRING_sys_nonewline/TEXT_STRING_sys	START GROUP_REPLICATION USER = 's';
-accept	reject	engine	filter_wild_db_table_string/TEXT_STRING_sys_nonewline	CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE =('s');
+reject	reject	engine	filter_wild_db_table_string/TEXT_STRING_sys_nonewline	CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE =('s');
 accept	accept	engine	TEXT_STRING_sys/TEXT_STRING	BINLOG 's';
 accept	accept	engine	TEXT_STRING_literal/TEXT_STRING	DESC utf8mb4 's';
 accept	accept	engine	TEXT_STRING_filesystem/TEXT_STRING	CLONE LOCAL DATA DIRECTORY 's';

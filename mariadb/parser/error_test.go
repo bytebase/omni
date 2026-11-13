@@ -210,7 +210,7 @@ func TestParseError_Section_1_4_DMLIgnoredErrors(t *testing.T) {
 		{"load_data_charset_trunc", "LOAD DATA INFILE 'f' INTO TABLE t CHARACTER SET", "at end of input"},
 		{"load_data_charset_short_trunc", "LOAD DATA INFILE 'f' INTO TABLE t CHARSET", "at end of input"},
 		// replication.go: channel identifier (UNTIL pos name)
-		{"repl_until_pos_trunc", "START REPLICA UNTIL SOURCE_LOG_FILE = 'f',", "at end of input"},
+		{"repl_until_pos_trunc", "START REPLICA UNTIL MASTER_LOG_FILE = 'f',", "at end of input"},
 		// utility.go: identifier (2 sites — RESET bare, HELP bare)
 		{"reset_bare", "RESET", "at end of input"},
 		{"help_bare", "HELP", "at end of input"},
