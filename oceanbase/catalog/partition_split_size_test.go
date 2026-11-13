@@ -29,6 +29,13 @@ func TestPartitionSplitAndAutoSize(t *testing.T) {
 		t.Error("Diff saw a change between a table and itself")
 	}
 
+	// AUTO is a keyword: its case is no change.
+	autoUpper := build("CREATE TABLE t (a INT PRIMARY KEY) PARTITION BY RANGE (a) PARTITION SIZE AUTO PARTITIONS AUTO")
+	autoLower := build("CREATE TABLE t (a INT PRIMARY KEY) PARTITION BY RANGE (a) PARTITION SIZE auto PARTITIONS AUTO")
+	if !Diff(autoUpper, autoLower).IsEmpty() {
+		t.Error("Diff saw a change between PARTITION SIZE AUTO and PARTITION SIZE auto")
+	}
+
 	auto := build("CREATE TABLE t (a INT PRIMARY KEY) PARTITION BY RANGE (a) PARTITION SIZE '1G' PARTITIONS AUTO")
 	if got := auto.ShowCreateTable("test", "t"); !strings.Contains(got, "PARTITION SIZE '1G' PARTITIONS AUTO") {
 		t.Errorf("SHOW CREATE TABLE lost the automatic partitioning:\n%s", got)

@@ -2067,7 +2067,12 @@ func (p *Parser) parseAutoPartitionTail(part *nodes.PartitionClause) error {
 	} else if !sysConf(p, func() bool { return true }) {
 		return p.syntaxErrorAtCur()
 	}
+	// Kept as written, but a keyword, a number or a variable in one case: only a
+	// string's case is its value, so PARTITION SIZE auto and AUTO are one setting.
 	part.AutoSize = p.inputText(start, p.prev.End)
+	if c := part.AutoSize[0]; c != '\'' && c != '"' {
+		part.AutoSize = strings.ToUpper(part.AutoSize)
+	}
 	if _, err := p.expect(kwPARTITIONS); err != nil {
 		return err
 	}
