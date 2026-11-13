@@ -294,7 +294,7 @@ func (p *Parser) parseXmlRootVersion() (nodes.Node, error) {
 	}
 	// NO is an unreserved keyword: before any token but VALUE it is a
 	// column name, starting the a_expr (VERSION no).
-	if p.cur.Type == NO && p.keywordLeads(func(t Token) bool { return t.Type == VALUE_P }) {
+	if p.isXmlRootNoValueStart() {
 		p.advance()
 		if _, err := p.expect(VALUE_P); err != nil {
 			return nil, err

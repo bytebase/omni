@@ -3591,7 +3591,7 @@ func (p *Parser) parseFrameBound() (int, nodes.Node, error) {
 			return 0, nil, errCollecting
 		}
 		return 0, nil, p.syntaxErrorAtCur()
-	case p.cur.Type == CURRENT_P && p.keywordLeads(func(t Token) bool { return t.Type == ROW }):
+	case p.isFrameCurrentRowStart():
 		p.advance()
 		if _, err := p.expect(ROW); err != nil {
 			return 0, nil, err

@@ -1262,7 +1262,7 @@ func (p *Parser) parseJsonTableColumnDefinition() (*nodes.JsonTableColumn, error
 	defer p.leaveNesting()
 	// NESTED path_opt Sconst ...; before any token but PATH or an
 	// Sconst, NESTED, an unreserved keyword, is the column's name.
-	if p.cur.Type == NESTED && p.keywordLeads(func(t Token) bool { return t.Type == PATH || t.Type == SCONST }) {
+	if p.isJsonNestedColumnStart() {
 		p.advance() // consume NESTED
 		// path_opt: PATH | empty
 		if p.cur.Type == PATH {

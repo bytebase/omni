@@ -434,6 +434,27 @@ func (p *Parser) isBareAliasStart() bool {
 	return p.isColId() && !p.isReservedForClause() && !p.isJoinKeyword()
 }
 
+// isXmlRootNoValueStart reports whether xml_root_version's NO VALUE starts at
+// the current token. NO is unreserved: before anything but VALUE it is an
+// a_expr, the version (XMLROOT(a, VERSION no)).
+func (p *Parser) isXmlRootNoValueStart() bool {
+	return p.cur.Type == NO && p.keywordLeads(func(t Token) bool { return t.Type == VALUE_P })
+}
+
+// isJsonNestedColumnStart reports whether json_table_column_definition's
+// NESTED [PATH] Sconst starts at the current token. NESTED is unreserved:
+// before anything but PATH or a string it is a column name.
+func (p *Parser) isJsonNestedColumnStart() bool {
+	return p.cur.Type == NESTED && p.keywordLeads(func(t Token) bool { return t.Type == PATH || t.Type == SCONST })
+}
+
+// isFrameCurrentRowStart reports whether frame_bound's CURRENT_P ROW starts
+// at the current token. CURRENT is unreserved: before anything but ROW it
+// is a column name in the bound's a_expr (frame_bound: a_expr PRECEDING).
+func (p *Parser) isFrameCurrentRowStart() bool {
+	return p.cur.Type == CURRENT_P && p.keywordLeads(func(t Token) bool { return t.Type == ROW })
+}
+
 // isFuncTypeStart reports whether the current token starts a func_type
 // production.
 //

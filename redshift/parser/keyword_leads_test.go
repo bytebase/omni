@@ -66,6 +66,12 @@ func TestClauseLeadPredicates(t *testing.T) {
 		"SELECT * FROM t a",
 		"SELECT * FROM t AS a(b)",
 		"SELECT * FROM t JOIN u ON true",
+		"SELECT XMLROOT(a, VERSION NO VALUE)",
+		"SELECT XMLROOT(a, VERSION no)",
+		"SELECT * FROM JSON_TABLE('[]', '$' COLUMNS (NESTED PATH '$' COLUMNS (a int)))",
+		"SELECT * FROM JSON_TABLE('[]', '$' COLUMNS (nested int))",
+		"SELECT count(*) OVER (ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING)",
+		"SELECT count(*) OVER (ROWS current PRECEDING)",
 	} {
 		if _, err := Parse(sql); err != nil {
 			t.Errorf("Parse(%q): %v", sql, err)
