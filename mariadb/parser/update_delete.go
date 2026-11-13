@@ -269,13 +269,21 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 		}
 		stmt.Tables = tables
 
-		// Single-table: optional [AS | =] alias, index hints and PARTITION
+		// Single-table: optional [AS | =] alias, index hints and PARTITION.
+		// They belong to delete_single_table only: the USING form's targets are
+		// a table_alias_ref_list, bare names.
+		suffixed := false
 		if len(tables) == 1 {
 			if tblRef, ok := tables[0].(*nodes.TableRef); ok {
+				at := p.pos()
 				if err := p.parseDeleteSingleTableTail(tblRef); err != nil {
 					return nil, err
 				}
+				suffixed = p.pos() != at
 			}
+		}
+		if suffixed && p.cur.Type == kwUSING {
+			return nil, p.syntaxErrorAtCur()
 		}
 
 		// Completion: after DELETE FROM table, offer WHERE/ORDER/LIMIT/USING.
@@ -727,42 +735,81 @@ func (p *Parser) parseHistoryPoint(stmt *nodes.DeleteStmt) (nodes.ExprNode, erro
 	return point, nil
 }
 
-// historyDatetimeValid reports whether s reads as a datetime: a date
-// YYYY-M-D, its fields in range, optionally followed by a time H:M[:S[.frac]].
-// The server's reader takes more spellings; this one refuses only text that is
-// none of these.
+// historyDatetimeValid reports whether s reads as a DATETIME: digits alone
+// (YYMMDD, YYYYMMDD, YYMMDDhhmmss or YYYYMMDDhhmmss), or a date of three numbers
+// split by punctuation, then optionally a space or T and a time of two or three
+// numbers split by punctuation and a fraction, each field in range. The
+// server's reader takes a few rarer spellings too; this one refuses only text
+// that is none of these.
 func historyDatetimeValid(s string) bool {
-	d, t, hasTime := strings.Cut(strings.TrimSpace(s), " ")
-	parts := strings.Split(d, "-")
-	if len(parts) != 3 {
+	s = strings.TrimSpace(s)
+	inRange := func(y, mo, d, h, mi, sec int) bool {
+		return y <= 9999 && mo >= 1 && mo <= 12 && d >= 1 && d <= 31 && h <= 23 && mi <= 59 && sec <= 59
+	}
+	if _, err := strconv.ParseUint(s, 10, 64); err == nil {
+		f := func(a, b int) int { v, _ := strconv.Atoi(s[a:b]); return v }
+		switch len(s) {
+		case 6:
+			return inRange(f(0, 2), f(2, 4), f(4, 6), 0, 0, 0)
+		case 8:
+			return inRange(f(0, 4), f(4, 6), f(6, 8), 0, 0, 0)
+		case 12:
+			return inRange(f(0, 2), f(2, 4), f(4, 6), f(6, 8), f(8, 10), f(10, 12))
+		case 14:
+			return inRange(f(0, 4), f(4, 6), f(6, 8), f(8, 10), f(10, 12), f(12, 14))
+		}
 		return false
 	}
-	var ymd [3]int
-	for i, f := range parts {
-		n, err := strconv.Atoi(f)
-		if err != nil || f == "" || f[0] == '+' || f[0] == '-' {
+	fields := func(part string) ([]int, bool) {
+		var out []int
+		cur := -1
+		for i := 0; i < len(part); i++ {
+			c := part[i]
+			switch {
+			case c >= '0' && c <= '9':
+				if cur < 0 {
+					cur = 0
+				}
+				cur = cur*10 + int(c-'0')
+				if cur > 9999 {
+					return nil, false
+				}
+			case cur >= 0 && (c == '-' || c == ':' || c == '/' || c == '.' || c == '_'):
+				out = append(out, cur)
+				cur = -1
+			default:
+				return nil, false
+			}
+		}
+		if cur < 0 {
+			return nil, false
+		}
+		return append(out, cur), true
+	}
+	date, clock := s, ""
+	if i := strings.IndexAny(s, " T"); i >= 0 {
+		date, clock = s[:i], strings.TrimSpace(s[i+1:])
+	}
+	d, ok := fields(date)
+	if !ok || len(d) != 3 {
+		return false
+	}
+	h, mi, sec := 0, 0, 0
+	if clock != "" {
+		if i := strings.IndexByte(clock, '.'); i >= 0 {
+			if _, err := strconv.ParseUint(clock[i+1:], 10, 64); err != nil {
+				return false
+			}
+			clock = clock[:i]
+		}
+		t, ok := fields(clock)
+		if !ok || len(t) < 2 || len(t) > 3 {
 			return false
 		}
-		ymd[i] = n
-	}
-	if ymd[1] < 1 || ymd[1] > 12 || ymd[2] < 1 || ymd[2] > 31 {
-		return false
-	}
-	if !hasTime {
-		return true
-	}
-	if i := strings.IndexByte(t, '.'); i >= 0 {
-		t = t[:i]
-	}
-	hms := strings.Split(t, ":")
-	if len(hms) < 2 || len(hms) > 3 {
-		return false
-	}
-	for i, f := range hms {
-		n, err := strconv.Atoi(f)
-		if err != nil || f == "" || f[0] == '+' || f[0] == '-' || n > [3]int{838, 59, 59}[i] {
-			return false
+		h, mi = t[0], t[1]
+		if len(t) == 3 {
+			sec = t[2]
 		}
 	}
-	return true
+	return inRange(d[0], d[1], d[2], h, mi, sec)
 }
