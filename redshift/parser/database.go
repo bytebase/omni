@@ -170,7 +170,16 @@ func (p *Parser) parseAlterDatabaseDispatch(stmtLoc int) (nodes.Node, error) {
 		}, nil
 
 	case OWNER:
-		// ALTER DATABASE name OWNER TO RoleSpec
+		// ALTER DATABASE name OWNER TO RoleSpec; without TO, OWNER is a
+		// createdb_opt_name (OWNER [=] value).
+		if p.peekNext().Type != TO {
+			options := p.parseCreatedbOptList()
+			return &nodes.AlterDatabaseStmt{
+				Dbname:  name,
+				Options: options,
+				Loc:     nodes.Loc{Start: stmtLoc, End: p.prev.End},
+			}, nil
+		}
 		p.advance() // consume OWNER
 		if _, err := p.expect(TO); err != nil {
 			return nil, err

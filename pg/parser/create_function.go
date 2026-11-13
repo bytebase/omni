@@ -590,7 +590,14 @@ func (p *Parser) parseCommonFuncOptItem() (*nodes.DefElem, error) {
 			return nil, err
 		}
 		return &nodes.DefElem{Defname: "strict", Arg: &nodes.Integer{Ival: 1}}, nil
-	case SECURITY:
+	case EXTERNAL, SECURITY:
+		// [EXTERNAL] SECURITY DEFINER | [EXTERNAL] SECURITY INVOKER
+		if p.cur.Type == EXTERNAL {
+			p.advance()
+			if p.cur.Type != SECURITY {
+				return nil, p.syntaxErrorAtCur()
+			}
+		}
 		p.advance()
 		if p.cur.Type == DEFINER {
 			p.advance()
@@ -611,16 +618,16 @@ func (p *Parser) parseCommonFuncOptItem() (*nodes.DefElem, error) {
 		return &nodes.DefElem{Defname: "leakproof", Arg: &nodes.Integer{Ival: 0}}, nil
 	case COST:
 		p.advance()
-		val := p.parseNumericOnly()
-		if val == nil {
-			return nil, p.syntaxErrorAtCur()
+		val, err := p.parseNumericOnlyRequired()
+		if err != nil {
+			return nil, err
 		}
 		return &nodes.DefElem{Defname: "cost", Arg: val}, nil
 	case ROWS:
 		p.advance()
-		val := p.parseNumericOnly()
-		if val == nil {
-			return nil, p.syntaxErrorAtCur()
+		val, err := p.parseNumericOnlyRequired()
+		if err != nil {
+			return nil, err
 		}
 		return &nodes.DefElem{Defname: "rows", Arg: val}, nil
 	case PARALLEL:

@@ -766,76 +766,60 @@ func (p *Parser) parseTypeList() (*nodes.List, error) {
 //	    | type_function_name attrs '%' TYPE_P
 //	    | SETOF type_function_name attrs '%' TYPE_P
 func (p *Parser) parseFuncType() (*nodes.TypeName, error) {
-	if p.cur.Type == SETOF {
-		// SETOF can be:
-		// 1. SETOF type_function_name attrs '%' TYPE_P  (pct_type with SETOF)
-		// 2. SETOF Typename (regular SETOF type)
-		//
-		// We check for the %TYPE pattern: SETOF name '.' ... '%' TYPE_P
-		// If the token after SETOF is followed by '.', it might be case 1.
-		// Otherwise, delegate to parseTypename which handles SETOF.
-
-		// Check if this is the %TYPE pattern: need at least name '.' ... '%'
-		next := p.peekNext()
-		if p.isTypeFunctionNameToken(next) {
-			// Could be either case. We can't easily distinguish without
-			// more lookahead. Use heuristic: delegate to parseTypename
-			// which handles SETOF Typename correctly.
-			// The %TYPE case is very rare in practice.
+	// The %TYPE forms need name '.' ...: try them speculatively, and roll the
+	// token stream back to parse a Typename when they do not match.
+	if !p.collectMode() {
+		setof := p.cur.Type == SETOF
+		var first Token
+		if setof {
+			first = p.peekNext()
 		}
-
-		// Delegate to parseTypename which handles SETOF
-		return p.parseTypename()
-	}
-
-	// Non-SETOF: could be type_function_name attrs '%' TYPE_P or Typename.
-	// The %TYPE case requires name '.' name '%' TYPE_P pattern.
-	// Check if we see name '.' which could indicate qualified name with %TYPE.
-	if p.isTypeFunctionName() {
-		// Check if this looks like a %TYPE reference (name.name...%TYPE)
-		next := p.peekNext()
-		if next.Type == '.' {
-			// Could be qualified type or %TYPE. Speculatively parse the
-			// %TYPE form; if it doesn't match, roll the token stream back
-			// and let parseTypename handle it as a normal qualified type.
-			//
-			// Use snapshotTokenStream/restoreTokenStream for the rollback —
-			// the previous hand-rolled save here only captured cur/prev/
-			// nextBuf/hasNext/lexer.Err and missed lexer.pos/start/state,
-			// causing every qualified type at any parseFuncType call site
-			// (parseFuncArg, RETURNS, parseTableFuncColumn, parseDefArg /
-			// CREATE OPERATOR LEFTARG/RIGHTARG, etc.) to corrupt the lexer
-			// position when parseAttrs read fresh tokens during the
-			// speculative parse.
+		if (setof && p.isTypeFunctionNameToken(first)) || (!setof && p.isTypeFunctionName() && p.peekNext().Type == '.') {
 			snap := p.snapshotTokenStream()
-
-			name, _ := p.parseTypeFunctionName()
-			if p.cur.Type == '.' {
-				// A failed attrs is no %TYPE form: fall through to the
-				// rollback, and parseTypename reports the error.
-				attrs, err := p.parseAttrs()
-				if err == nil && p.cur.Type == '%' {
-					p.advance()
-					if p.cur.Type == TYPE_P {
-						p.advance()
-						nameItems := make([]nodes.Node, 0, 1+len(attrs.Items))
-						nameItems = append(nameItems, &nodes.String{Str: name})
-						nameItems = append(nameItems, attrs.Items...)
-						return &nodes.TypeName{
-							Names:   &nodes.List{Items: nameItems},
-							PctType: true,
-							Loc:     nodes.NoLoc(),
-						}, nil
-					}
+			if setof {
+				p.advance() // consume SETOF
+			}
+			if p.peekNext().Type == '.' {
+				if tn := p.tryParsePctTypeTail(); tn != nil {
+					tn.Setof = setof
+					return tn, nil
 				}
 			}
-
-			// Not %TYPE pattern - restore and parse as Typename
 			p.restoreTokenStream(snap)
 		}
 	}
-
 	return p.parseTypename()
+}
+
+// tryParsePctTypeTail parses type_function_name attrs '%' TYPE_P at the
+// current token, or returns nil where the tokens are not that form; the
+// caller restores the token stream then.
+//
+// Use snapshotTokenStream/restoreTokenStream for the rollback: a hand-rolled
+// save of cur/prev/nextBuf missed the lexer's position and corrupted every
+// qualified type after it.
+func (p *Parser) tryParsePctTypeTail() *nodes.TypeName {
+	name, err := p.parseTypeFunctionName()
+	if err != nil || p.cur.Type != '.' {
+		return nil
+	}
+	attrs, err := p.parseAttrs()
+	if err != nil || p.cur.Type != '%' {
+		return nil
+	}
+	p.advance()
+	if p.cur.Type != TYPE_P {
+		return nil
+	}
+	p.advance()
+	nameItems := make([]nodes.Node, 0, 1+len(attrs.Items))
+	nameItems = append(nameItems, &nodes.String{Str: name})
+	nameItems = append(nameItems, attrs.Items...)
+	return &nodes.TypeName{
+		Names:   &nodes.List{Items: nameItems},
+		PctType: true,
+		Loc:     nodes.NoLoc(),
+	}
 }
 
 // isTypeFunctionNameToken checks if a token could be a type_function_name.

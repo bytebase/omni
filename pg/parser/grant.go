@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"strings"
 
 	nodes "github.com/bytebase/omni/pg/ast"
@@ -765,7 +766,11 @@ func (p *Parser) parseOptRoleList(isCreate bool) (*nodes.List, error) {
 				return nil, err
 			}
 		} else {
-			elem = p.parseAlterOptRoleElem()
+			var err error
+			elem, err = p.parseAlterOptRoleElem()
+			if err != nil {
+				return nil, err
+			}
 		}
 		if elem == nil {
 			break
@@ -778,46 +783,84 @@ func (p *Parser) parseOptRoleList(isCreate bool) (*nodes.List, error) {
 	return &nodes.List{Items: items}, nil
 }
 
-func (p *Parser) parseAlterOptRoleElem() *nodes.DefElem {
+func (p *Parser) parseAlterOptRoleElem() (*nodes.DefElem, error) {
+	expectSconst := func() (string, error) {
+		if p.cur.Type != SCONST {
+			return "", p.syntaxErrorAtCur()
+		}
+		return p.advance().Str, nil
+	}
+	start := p.pos()
 	switch p.cur.Type {
 	case PASSWORD:
 		p.advance()
 		if p.cur.Type == NULL_P {
 			p.advance()
-			return makeDefElem("password", nil)
+			return makeDefElem("password", nil), nil
 		}
-		pw := p.cur.Str
+		pw, err := expectSconst()
+		if err != nil {
+			return nil, err
+		}
+		return makeDefElem("password", &nodes.String{Str: pw}), nil
+	case ENCRYPTED, UNENCRYPTED:
+		unencrypted := p.cur.Type == UNENCRYPTED
 		p.advance()
-		return makeDefElem("password", &nodes.String{Str: pw})
-	case ENCRYPTED:
-		p.advance()
-		p.expect(PASSWORD)
-		pw := p.cur.Str
-		p.advance()
-		return makeDefElem("password", &nodes.String{Str: pw})
-	case UNENCRYPTED:
-		p.advance()
-		p.expect(PASSWORD)
-		pw := p.cur.Str
-		p.advance()
-		return makeDefElem("password", &nodes.String{Str: pw})
+		if _, err := p.expect(PASSWORD); err != nil {
+			return nil, err
+		}
+		pw, err := expectSconst()
+		if err != nil {
+			return nil, err
+		}
+		if unencrypted {
+			return nil, &ParseError{Message: "UNENCRYPTED PASSWORD is no longer supported", Position: start}
+		}
+		return makeDefElem("password", &nodes.String{Str: pw}), nil
 	case INHERIT:
 		p.advance()
-		return makeDefElem("inherit", &nodes.Boolean{Boolval: true})
+		return makeDefElem("inherit", &nodes.Boolean{Boolval: true}), nil
 	case CONNECTION:
 		p.advance()
-		p.expect(LIMIT)
-		val := p.parseSignedIconst()
-		return makeDefElem("connectionlimit", &nodes.Integer{Ival: val})
+		if _, err := p.expect(LIMIT); err != nil {
+			return nil, err
+		}
+		val, err := p.parseNumericOnlyRequired()
+		if err != nil {
+			return nil, err
+		}
+		limit, ok := val.(*nodes.Integer)
+		if !ok {
+			// SignedIconst: an integer.
+			return nil, &ParseError{Message: "syntax error", Position: p.prev.Loc}
+		}
+		return makeDefElem("connectionlimit", limit), nil
 	case VALID:
 		p.advance()
-		p.expect(UNTIL)
-		until := p.cur.Str
+		if _, err := p.expect(UNTIL); err != nil {
+			return nil, err
+		}
+		until, err := expectSconst()
+		if err != nil {
+			return nil, err
+		}
+		return makeDefElem("validUntil", &nodes.String{Str: until}), nil
+	case USER:
+		// Supported but not documented for roles, for use by ALTER GROUP.
 		p.advance()
-		return makeDefElem("validUntil", &nodes.String{Str: until})
-	default:
-		return p.parseRoleOptionIdent()
+		roles, err := p.parseRoleList()
+		if err != nil {
+			return nil, err
+		}
+		return makeDefElem("rolemembers", roles), nil
+	case IDENT:
+		elem := p.parseRoleOptionIdent()
+		if elem == nil {
+			return nil, &ParseError{Message: fmt.Sprintf("unrecognized role option \"%s\"", p.cur.Str), Position: start}
+		}
+		return elem, nil
 	}
+	return nil, nil
 }
 
 func (p *Parser) parseRoleOptionIdent() *nodes.DefElem {
@@ -880,8 +923,10 @@ func (p *Parser) parseCreateOptRoleElem() (*nodes.DefElem, error) {
 	switch p.cur.Type {
 	case SYSID:
 		p.advance()
-		val := p.cur.Ival
-		p.advance()
+		if p.cur.Type != ICONST {
+			return nil, p.syntaxErrorAtCur()
+		}
+		val := p.advance().Ival
 		return makeDefElem("sysid", &nodes.Integer{Ival: val}), nil
 	case ADMIN:
 		p.advance()
@@ -910,7 +955,7 @@ func (p *Parser) parseCreateOptRoleElem() (*nodes.DefElem, error) {
 		}
 		return makeDefElem("addroleto", roles), nil
 	default:
-		return p.parseAlterOptRoleElem(), nil
+		return p.parseAlterOptRoleElem()
 	}
 }
 
@@ -1125,7 +1170,19 @@ func (p *Parser) parseCreatePolicyStmt() (nodes.Node, error) {
 func (p *Parser) parseAlterPolicyStmt() (nodes.Node, error) {
 	loc := p.prev.Loc // position of ALTER keyword
 	p.advance()       // consume POLICY
-	policyName, _ := p.parseName()
+	// gram.y has IF EXISTS only in ALTER POLICY ... RENAME TO.
+	missingOk := false
+	if p.cur.Type == IF_P {
+		p.advance()
+		if _, err := p.expect(EXISTS); err != nil {
+			return nil, err
+		}
+		missingOk = true
+	}
+	policyName, err := p.parseName()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(ON); err != nil {
 		return nil, err
 	}
@@ -1136,17 +1193,23 @@ func (p *Parser) parseAlterPolicyStmt() (nodes.Node, error) {
 	}
 	table := makeRangeVarFromNames(names, nodes.Loc{Start: nameStart, End: p.prev.End})
 	// ALTER POLICY name ON qualified_name RENAME TO name
-	if p.cur.Type == RENAME {
-		p.advance()
+	if p.cur.Type == RENAME || missingOk {
+		if _, err := p.expect(RENAME); err != nil {
+			return nil, err
+		}
 		if _, err := p.expect(TO); err != nil {
 			return nil, err
 		}
-		newname, _ := p.parseName()
+		newname, err := p.parseName()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.RenameStmt{
 			RenameType: nodes.OBJECT_POLICY,
 			Relation:   table,
 			Subname:    policyName,
 			Newname:    newname,
+			MissingOk:  missingOk,
 			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	}
