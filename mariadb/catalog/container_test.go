@@ -6,32 +6,18 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"sync"
 	"testing"
 
-	_ "github.com/go-sql-driver/mysql"
-	"github.com/testcontainers/testcontainers-go"
-	tcmariadb "github.com/testcontainers/testcontainers-go/modules/mariadb"
-
+	"github.com/bytebase/omni/enginetest/tape"
 	"github.com/bytebase/omni/mariadb/internal/testcontainer"
 )
 
-// mariadbContainer is a connection to a real MariaDB server, in the `test`
-// database, for container testing.
+// mariadbContainer is a connection to MariaDB, in the database
+// sharedCatalogDB: a replay of the test's tape, or the pinned server in a
+// recording.
 type mariadbContainer struct {
 	db  *sql.DB
 	ctx context.Context
-}
-
-// sharedTestDB holds the pool on the `test` database of the package's shared
-// MariaDB server and serializes the tests that take it, which reset the whole
-// server between uses.
-var sharedTestDB = struct {
-	sync.Mutex
-	db  *sql.DB
-	ctx context.Context
-}{
-	ctx: context.Background(),
 }
 
 // columnInfo holds a row from INFORMATION_SCHEMA.COLUMNS.
@@ -54,235 +40,45 @@ type constraintInfo struct {
 	Name, Type string
 }
 
-// startContainer starts a MySQL 8.0 container and returns an container handle plus
-// a cleanup function. The caller must defer the cleanup function.
-// startContainer returns a handle on the `test` database of the package's
-// MariaDB server plus a cleanup function. The caller must defer the cleanup
-// function.
-func startContainer(t *testing.T) (*mariadbContainer, func()) {
-	t.Helper()
-	if os.Getenv("MYSQL_TESTCONTAINERS_SHARED") == "0" {
-		return startDedicatedContainer(t)
-	}
-
-	sharedTestDB.Lock()
-	ctr, err := getSharedContainer()
-	if err != nil {
-		sharedTestDB.Unlock()
-		t.Fatalf("failed to start shared MariaDB container: %v", err)
-	}
-	if err := resetSharedContainer(ctr); err != nil {
-		sharedTestDB.Unlock()
-		t.Fatalf("failed to reset shared MariaDB container: %v", err)
-	}
-	return ctr, func() {
-		sharedTestDB.Unlock()
-	}
-}
-
-func startDedicatedContainer(t *testing.T) (*mariadbContainer, func()) {
-	t.Helper()
-	ctx := context.Background()
-
-	container, err := tcmariadb.Run(ctx, testcontainer.Image,
-		tcmariadb.WithDatabase(sharedCatalogDB),
-		tcmariadb.WithUsername("root"),
-		tcmariadb.WithPassword("test"),
-	)
-	if err != nil {
-		_ = testcontainers.TerminateContainer(container)
-		t.Fatalf("failed to start MariaDB container: %v", err)
-	}
-
-	connStr, err := container.ConnectionString(ctx, "parseTime=true", "multiStatements=true")
-	if err != nil {
-		_ = testcontainers.TerminateContainer(container)
-		t.Fatalf("failed to get connection string: %v", err)
-	}
-
-	db, err := sql.Open("mysql", connStr)
-	if err != nil {
-		_ = testcontainers.TerminateContainer(container)
-		t.Fatalf("failed to open database: %v", err)
-	}
-
-	if err := db.PingContext(ctx); err != nil {
-		db.Close()
-		_ = testcontainers.TerminateContainer(container)
-		t.Fatalf("failed to ping database: %v", err)
-	}
-
-	cleanup := func() {
-		db.Close()
-		_ = testcontainers.TerminateContainer(container)
-	}
-
-	return &mariadbContainer{db: db, ctx: ctx}, cleanup
-}
-
 // sharedCatalogDB is the database this harness works in. AGENTS.md asks a
-// test on a shared server not to name its database `test`, and the server is
-// shared with mariadbDatabase, whose tests take a database of their own.
+// test on a shared server not to name its database `test`.
 //
 // The omni side of these tests builds a catalog in a database of the same
 // name and compares error messages that carry it, so the name is spelled out
 // in container_scenarios_test.go and deparse_container_test.go as well.
 const sharedCatalogDB = "catalog_shared"
 
-// getSharedContainer opens the pool on this harness's database of the
-// package's MariaDB server, starting that server on the first call.
-func getSharedContainer() (*mariadbContainer, error) {
-	if sharedTestDB.db != nil {
-		return &mariadbContainer{db: sharedTestDB.db, ctx: sharedTestDB.ctx}, nil
-	}
-	ctx := sharedTestDB.ctx
-
-	config, err := mariadbServerConfig(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if _, err := sharedMariaDB.admin.ExecContext(ctx,
-		"CREATE DATABASE IF NOT EXISTS "+sharedCatalogDB); err != nil {
-		return nil, fmt.Errorf("create database %s: %w", sharedCatalogDB, err)
-	}
-	config.DBName = sharedCatalogDB
-	config.ParseTime, config.MultiStatements = true, true
-
-	db, err := sql.Open("mysql", config.FormatDSN())
-	if err != nil {
-		return nil, err
-	}
-	db.SetMaxOpenConns(1)
-	db.SetMaxIdleConns(1)
-
-	if err := db.PingContext(ctx); err != nil {
-		db.Close()
-		return nil, err
-	}
-
-	sharedTestDB.db = db
-	return &mariadbContainer{db: db, ctx: ctx}, nil
+// startContainer returns a connection with sharedCatalogDB selected and empty,
+// on a server that holds nothing an earlier test left, as a server of its own
+// would be (see testcontainer.OpenEmptyWith). The tests of this harness name
+// databases and accounts of their own as they go. The second result is there
+// for the callers that defer it, and does nothing: the connection closes with
+// the test.
+func startContainer(t *testing.T) (*mariadbContainer, func()) {
+	t.Helper()
+	db := testcontainer.OpenEmptyWith(t, testcontainer.Options{
+		Database:        sharedCatalogDB,
+		MultiStatements: true,
+		ParseTime:       true,
+	})
+	return &mariadbContainer{db: db, ctx: context.Background()}, func() {}
 }
 
-func resetSharedContainer(ctr *mariadbContainer) error {
-	if err := execResetStmts(ctr,
-		"SET SESSION foreign_key_checks = 0",
-		"SET SESSION sql_mode = DEFAULT",
-		"USE mysql",
-	); err != nil {
-		return err
-	}
-
-	// The tests of this harness name databases of their own as they go, so the
-	// reset drops what is left over. It leaves alone the system databases and
-	// the mdb_N databases mariadbDatabase allocates on the same server, which
-	// belong to the test that asked for them and are dropped when it ends.
-	dbNames, err := queryStrings(ctr, `
-		SELECT SCHEMA_NAME
-		FROM information_schema.SCHEMATA
-		WHERE SCHEMA_NAME NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys')
-		  AND SCHEMA_NAME NOT LIKE 'mdb\\_%'`)
-	if err != nil {
-		return err
-	}
-	for _, dbName := range dbNames {
-		if err := execResetStmts(ctr, "DROP DATABASE IF EXISTS "+quoteIdentifier(dbName)); err != nil {
-			return err
-		}
-	}
-
-	accounts, err := queryAccountNames(ctr)
-	if err != nil {
-		return err
-	}
-	for _, account := range accounts {
-		_ = execResetStmts(ctr, "DROP ROLE IF EXISTS "+quoteAccount(account.user, account.host))
-		_ = execResetStmts(ctr, "DROP USER IF EXISTS "+quoteAccount(account.user, account.host))
-	}
-
-	return execResetStmts(ctr,
-		"CREATE DATABASE IF NOT EXISTS "+sharedCatalogDB,
-		"USE "+sharedCatalogDB,
-		"SET SESSION sql_mode = DEFAULT",
-		"SET SESSION explicit_defaults_for_timestamp = DEFAULT",
-		"SET SESSION foreign_key_checks = 1",
-		"SET SESSION time_zone = DEFAULT",
-	)
+// mariadbDatabase returns a connection with a database of this test's own
+// selected and empty (see testcontainer.OpenDatabase). A statement of a test
+// may also name a database of its own, such as orp or d1, and drops it first.
+// The pool holds one connection, so a temporary table or a session setting a
+// case leaves is there for the next.
+func mariadbDatabase(t *testing.T) *sql.DB {
+	t.Helper()
+	return testcontainer.OpenDatabase(t)
 }
 
-func execResetStmts(ctr *mariadbContainer, stmts ...string) error {
-	for _, stmt := range stmts {
-		if _, err := ctr.db.ExecContext(ctr.ctx, stmt); err != nil {
-			return fmt.Errorf("reset executing %q: %w", stmt, err)
-		}
-	}
-	return nil
-}
-
-func queryStrings(ctr *mariadbContainer, query string) ([]string, error) {
-	rows, err := ctr.db.QueryContext(ctr.ctx, query)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var result []string
-	for rows.Next() {
-		var value string
-		if err := rows.Scan(&value); err != nil {
-			return nil, err
-		}
-		result = append(result, value)
-	}
-	return result, rows.Err()
-}
-
-type mariadbAccount struct {
-	user string
-	host string
-}
-
-// queryAccountNames returns every account the tests may have created. The
-// server's own accounts are left alone: dropping mariadb.sys or the image's
-// healthcheck account would change the server under the tests that follow.
-func queryAccountNames(ctr *mariadbContainer) ([]mariadbAccount, error) {
-	rows, err := ctr.db.QueryContext(ctr.ctx, `
-		SELECT User, Host
-		FROM mysql.user
-		WHERE User NOT IN ('root', 'mariadb.sys', 'healthcheck')`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var result []mariadbAccount
-	for rows.Next() {
-		var account mariadbAccount
-		if err := rows.Scan(&account.user, &account.host); err != nil {
-			return nil, err
-		}
-		result = append(result, account)
-	}
-	return result, rows.Err()
-}
-
-func quoteIdentifier(name string) string {
-	return "`" + strings.ReplaceAll(name, "`", "``") + "`"
-}
-
-func quoteAccount(user, host string) string {
-	return "'" + strings.ReplaceAll(user, "'", "''") + "'@'" + strings.ReplaceAll(host, "'", "''") + "'"
-}
-
+// TestMain runs the tests through the tape harness, and removes the server a
+// recording started.
 func TestMain(m *testing.M) {
-	code := m.Run()
-	sharedTestDB.Lock()
-	if sharedTestDB.db != nil {
-		_ = sharedTestDB.db.Close()
-		sharedTestDB.db = nil
-	}
-	sharedTestDB.Unlock()
-	terminateSharedMariaDB()
+	code := tape.Main(m)
+	testcontainer.Terminate()
 	os.Exit(code)
 }
 
@@ -553,17 +349,16 @@ func TestContainerSmoke(t *testing.T) {
 	}
 }
 
-func TestSharedContainerResetsStateBetweenUses(t *testing.T) {
-
+// TestStartContainerStartsEmpty holds startContainer to what its callers rely
+// on: a second connection of a test finds nothing the first left, at session
+// defaults, in sharedCatalogDB.
+func TestStartContainerStartsEmpty(t *testing.T) {
 	ctr1, cleanup1 := startContainer(t)
-	var host1 string
-	if err := ctr1.db.QueryRowContext(ctr1.ctx, "SELECT @@hostname").Scan(&host1); err != nil {
-		t.Fatalf("query first hostname: %v", err)
-	}
 	for _, stmt := range []string{
 		"CREATE DATABASE dirty_shared_state",
 		"USE dirty_shared_state",
 		"CREATE TABLE dirty_table (id INT)",
+		"CREATE USER dirty_user",
 		"SET SESSION foreign_key_checks = 0",
 		"SET SESSION sql_mode = ''",
 	} {
@@ -575,15 +370,12 @@ func TestSharedContainerResetsStateBetweenUses(t *testing.T) {
 
 	ctr2, cleanup2 := startContainer(t)
 	defer cleanup2()
-	var host2, currentDB, sqlMode string
+	var currentDB, sqlMode string
 	var fkChecks int
-	if err := ctr2.db.QueryRowContext(ctr2.ctx, "SELECT @@hostname, DATABASE(), @@foreign_key_checks, @@session.sql_mode").Scan(
-		&host2, &currentDB, &fkChecks, &sqlMode,
+	if err := ctr2.db.QueryRowContext(ctr2.ctx, "SELECT DATABASE(), @@foreign_key_checks, @@session.sql_mode").Scan(
+		&currentDB, &fkChecks, &sqlMode,
 	); err != nil {
 		t.Fatalf("query reset state: %v", err)
-	}
-	if host2 != host1 {
-		t.Fatalf("expected startContainer to reuse container hostname %q, got %q", host1, host2)
 	}
 	if currentDB != sharedCatalogDB {
 		t.Fatalf("expected reset current database %s, got %q", sharedCatalogDB, currentDB)
@@ -595,11 +387,11 @@ func TestSharedContainerResetsStateBetweenUses(t *testing.T) {
 		t.Fatalf("expected reset sql_mode to default non-empty value")
 	}
 	var dirtyCount int
-	if err := ctr2.db.QueryRowContext(ctr2.ctx, "SELECT COUNT(*) FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = 'dirty_shared_state'").Scan(&dirtyCount); err != nil {
-		t.Fatalf("query dirty database count: %v", err)
+	if err := ctr2.db.QueryRowContext(ctr2.ctx, "SELECT (SELECT COUNT(*) FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = 'dirty_shared_state') + (SELECT COUNT(*) FROM mysql.global_priv WHERE User = 'dirty_user')").Scan(&dirtyCount); err != nil {
+		t.Fatalf("query what the first connection left: %v", err)
 	}
 	if dirtyCount != 0 {
-		t.Fatalf("expected dirty database to be dropped, count=%d", dirtyCount)
+		t.Fatalf("expected the dirty database and account to be dropped, count=%d", dirtyCount)
 	}
 }
 

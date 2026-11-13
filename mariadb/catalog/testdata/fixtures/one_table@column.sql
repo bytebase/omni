@@ -1,0 +1,1 @@
+CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))

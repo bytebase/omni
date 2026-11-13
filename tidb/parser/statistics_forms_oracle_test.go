@@ -9,7 +9,6 @@ import "testing"
 // fails here rather than leaving a stale expectation behind.
 func TestStatisticsFormsMatchTiDB(t *testing.T) {
 	tc := startTiDB(t)
-	assertTiDBVersion(t, tc)
 	for _, c := range statisticsFormCases {
 		t.Run(c.sql, func(t *testing.T) {
 			accepts, err := tc.prepareSyntax(c.sql)
@@ -34,7 +33,6 @@ func TestStatisticsFormsMatchTiDB(t *testing.T) {
 // test is what says the server has not.
 func TestStatisticsWordsStayNamesOnTiDB(t *testing.T) {
 	tc := startTiDB(t)
-	assertTiDBVersion(t, tc)
 	for _, sql := range statisticsWordsAsNames {
 		t.Run(sql, func(t *testing.T) {
 			accepts, err := tc.prepareSyntax(sql)

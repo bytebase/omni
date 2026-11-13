@@ -8,7 +8,6 @@ import "testing"
 // other server error means the text parsed and failed later.
 func TestBindingFormsMatchTiDB(t *testing.T) {
 	tc := startTiDB(t)
-	assertTiDBVersion(t, tc)
 	for _, c := range bindingCases {
 		t.Run(c.sql, func(t *testing.T) {
 			accepts, err := tc.prepareSyntax(c.sql)

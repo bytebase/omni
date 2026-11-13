@@ -43,6 +43,10 @@ type Suite struct {
 	// Tokens the engine's tokens.tsv. The generated rows of Path must be
 	// what they generate.
 	Grammar, Tokens string
+	// Defined names the conditions Grammar is built with, where one file
+	// holds more than one grammar between %ifdef lines, as MariaDB's does
+	// (grammar.Conditional).
+	Defined []string
 	// Omni returns omni's verdict on one statement.
 	Omni func(sql string) string
 	// Source names the judge: SourceEngine, SourceGrammar or SourceDocs.
@@ -93,7 +97,7 @@ func check(t testing.TB, s Suite) {
 	if s.Grammar != "" {
 		var generated []grammar.Row
 		var uncovered []string
-		g, generated, uncovered, err = generate(s.Grammar, s.Tokens)
+		g, generated, uncovered, err = generate(s.Grammar, s.Tokens, s.Defined)
 		if err != nil {
 			t.Fatalf("generate rows from %s: %v", s.Grammar, err)
 		}
@@ -220,7 +224,8 @@ func check(t testing.TB, s Suite) {
 }
 
 // generate reads the grammar, by its extension, and returns its rows.
-func generate(grammarPath, tokensPath string) (*grammar.Grammar, []grammar.Row, []string, error) {
+// defined is for a bison grammar's %ifdef conditions.
+func generate(grammarPath, tokensPath string, defined []string) (*grammar.Grammar, []grammar.Row, []string, error) {
 	tokens, err := grammar.ReadTokens(tokensPath)
 	if err != nil {
 		return nil, nil, nil, err
@@ -229,11 +234,15 @@ func generate(grammarPath, tokensPath string) (*grammar.Grammar, []grammar.Row, 
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	read := grammar.ReadBison
+	var g *grammar.Grammar
 	if strings.HasSuffix(grammarPath, ".g4") {
-		read = grammar.ReadANTLR
+		if len(defined) > 0 {
+			return nil, nil, nil, fmt.Errorf("%s: Defined names %%ifdef conditions, which only a bison grammar has", grammarPath)
+		}
+		g, err = grammar.ReadANTLR(string(src), tokens)
+	} else {
+		g, err = grammar.ReadBison(string(src), tokens, defined...)
 	}
-	g, err := read(string(src), tokens)
 	if err != nil {
 		return nil, nil, nil, err
 	}

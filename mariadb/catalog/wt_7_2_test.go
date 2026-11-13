@@ -120,12 +120,11 @@ func TestWalkThrough_7_2_ListColumnsMulti(t *testing.T) {
 		PARTITION p1 VALUES IN ((1,0),(1,1))
 	)`, nil)
 	if err != nil {
-		t.Skipf("[~] partial: parser does not support multi-column LIST COLUMNS tuple syntax: %v", err)
-		return
+		t.Fatalf("parse error: %v", err)
 	}
 	for _, r := range results {
 		if r.Error != nil {
-			t.Skipf("[~] partial: catalog error for multi-column LIST COLUMNS: %v", r.Error)
+			t.Fatalf("catalog error for multi-column LIST COLUMNS: %v", r.Error)
 			return
 		}
 	}
