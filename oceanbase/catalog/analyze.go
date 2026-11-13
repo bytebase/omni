@@ -1,7 +1,9 @@
 package catalog
 
 import (
+	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	nodes "github.com/bytebase/omni/oceanbase/ast"
@@ -27,6 +29,9 @@ func (c *Catalog) analyzeSelectStmtWithCTEs(stmt *nodes.SelectStmt, parentScope 
 	if stmt.SetOp != nodes.SetOpNone {
 		return c.analyzeSetOpWithCTEs(stmt, parentScope, inheritedCTEMap)
 	}
+	if stmt.ParenSource != nil {
+		return c.analyzeParenthesized(stmt, parentScope, inheritedCTEMap)
+	}
 
 	q := &Query{
 		CommandType: CmdSelect,
@@ -34,24 +39,20 @@ func (c *Catalog) analyzeSelectStmtWithCTEs(stmt *nodes.SelectStmt, parentScope 
 	}
 
 	scope := newScopeWithParent(parentScope)
+	if stmt.ValuesSource != nil {
+		// The analyzer reads no VALUES into a target list, so it knows none of the
+		// columns such a query has: column_0 and its kin are not missing, only
+		// unseen, and nothing naming them is refused.
+		scope.namesUncertain = true
+	}
 
-	// Step 0: Process CTEs (WITH clause).
-	cteMap, err := c.analyzeCTEs(stmt.CTEs, q, parentScope)
+	// Step 0: Process CTEs (WITH clause). The query sees its own, then those of
+	// the queries around it.
+	cteMap, err := c.analyzeCTEs(stmt.CTEs, q, parentScope, visibleCTEs(parentScope, inheritedCTEMap))
 	if err != nil {
 		return nil, err
 	}
-
-	// Merge inherited CTE map (for recursive CTE self-references).
-	if inheritedCTEMap != nil {
-		if cteMap == nil {
-			cteMap = make(map[string]*CommonTableExprQ)
-		}
-		for k, v := range inheritedCTEMap {
-			if _, exists := cteMap[k]; !exists {
-				cteMap[k] = v
-			}
-		}
-	}
+	scope.ctes = cteMap
 
 	// Step 1: Analyze FROM clause → populate RangeTable and scope.
 	if err := analyzeFromClause(c, stmt.From, q, scope, cteMap); err != nil {
@@ -70,6 +71,16 @@ func (c *Catalog) analyzeSelectStmtWithCTEs(stmt *nodes.SelectStmt, parentScope 
 			return nil, err
 		}
 		q.JoinTree.Quals = analyzed
+	}
+
+	// GROUP BY, HAVING and ORDER BY may name a select item by its alias, and the
+	// aliases this scope holds are deriveColumnName's reading of the select list,
+	// so from here a name they do not resolve is not known to be missing: ORDER BY
+	// `b+1` over SELECT b+1 is the engine's to take, as it is through a
+	// parenthesized query or a UNION. WHERE, read above, keeps its certainty.
+	scope.aliases = selectAliases(q.TargetList)
+	if selectDerivesNames(stmt) {
+		scope.namesUncertain = true
 	}
 
 	// Step 4: GROUP BY
@@ -108,6 +119,10 @@ func (c *Catalog) analyzeSelectStmtWithCTEs(stmt *nodes.SelectStmt, parentScope 
 	// Step 9: DISTINCT
 	q.Distinct = stmt.DistinctKind != nodes.DistinctNone && stmt.DistinctKind != nodes.DistinctAll
 
+	// What this query's own names are worth: an unaliased expression of its select
+	// list, or a star or reference to something already uncertain (scope.namesUncertain).
+	q.namesUncertain = scope.namesUncertain || selectDerivesNames(stmt)
+
 	return q, nil
 }
 
@@ -119,7 +134,9 @@ func analyzeFromClause(c *Catalog, from []nodes.TableExpr, q *Query, scope *anal
 		if err != nil {
 			return err
 		}
-		q.JoinTree.FromList = append(q.JoinTree.FromList, joinNode)
+		if joinNode != nil { // nil for DUAL
+			q.JoinTree.FromList = append(q.JoinTree.FromList, joinNode)
+		}
 	}
 	return nil
 }
@@ -134,12 +151,22 @@ func analyzeTableExpr(c *Catalog, te nodes.TableExpr, q *Query, scope *analyzerS
 		if cteMap != nil && ref.Schema == "" {
 			lower := strings.ToLower(ref.Name)
 			if cteQ, ok := cteMap[lower]; ok {
+				if cteQ.namesUncertain {
+					scope.namesUncertain = true
+				}
 				return analyzeCTERef(ref, cteQ, q, scope)
 			}
+		}
+		if ref.Schema == "" && strings.EqualFold(ref.Name, "dual") {
+			// FROM DUAL names no table: the query reads none.
+			return nil, nil
 		}
 		rte, cols, err := analyzeTableRef(c, ref)
 		if err != nil {
 			return nil, err
+		}
+		if viewNamesUncertain(c, ref) {
+			scope.namesUncertain = true
 		}
 		idx := len(q.RangeTable)
 		q.RangeTable = append(q.RangeTable, rte)
@@ -151,7 +178,7 @@ func analyzeTableExpr(c *Catalog, te nodes.TableExpr, q *Query, scope *analyzerS
 		return node, err
 
 	case *nodes.SubqueryExpr:
-		return analyzeFromSubquery(c, ref, q, scope)
+		return analyzeFromSubquery(c, ref, q, scope, cteMap)
 
 	default:
 		return nil, fmt.Errorf("unsupported FROM clause element: %T", te)
@@ -382,16 +409,19 @@ func markCoalescedInNode(node JoinNode, q *Query, scope *analyzerScope, usingSet
 }
 
 // analyzeFromSubquery processes a subquery used as a derived table in FROM.
-func analyzeFromSubquery(c *Catalog, subq *nodes.SubqueryExpr, q *Query, scope *analyzerScope) (JoinNode, error) {
+func analyzeFromSubquery(c *Catalog, subq *nodes.SubqueryExpr, q *Query, scope *analyzerScope, cteMap map[string]*CommonTableExprQ) (JoinNode, error) {
 	// Recursively analyze the inner SELECT. FROM subqueries are not correlated,
 	// so we pass nil as parent scope (unless LATERAL).
 	var parentScope *analyzerScope
 	if subq.Lateral {
 		parentScope = scope
 	}
-	innerQ, err := c.analyzeSelectStmtInternal(subq.Select, parentScope)
+	innerQ, err := c.analyzeSelectStmtWithCTEs(subq.Select, parentScope, cteMap)
 	if err != nil {
 		return nil, err
+	}
+	if len(subq.Columns) == 0 && innerQ.namesUncertain {
+		scope.namesUncertain = true
 	}
 
 	// Derive column names from the inner query's non-junk target list.
@@ -538,6 +568,13 @@ func (c *Catalog) analyzeGroupBy(groupBy []*nodes.OrderByItem, q *Query, scope *
 			}
 			varExpr, ok := analyzed.(*VarExprQ)
 			if !ok {
+				if te, levels := scope.selectAlias(n.Column); te != nil && levels == 0 && te.Expr == analyzed {
+					if aliasOfOrdinalLiteral(te.Expr) {
+						return errOrderByAliasLiteral
+					}
+					q.GroupClause = append(q.GroupClause, &SortGroupClauseQ{TargetIdx: te.ResNo})
+					continue
+				}
 				return fmt.Errorf("GROUP BY column reference resolved to unexpected type %T", analyzed)
 			}
 			targetIdx := findMatchingTarget(q.TargetList, varExpr)
@@ -702,6 +739,13 @@ func (c *Catalog) analyzeOrderBy(orderBy []*nodes.OrderByItem, q *Query, scope *
 			}
 			varExpr, ok := analyzed.(*VarExprQ)
 			if !ok {
+				if te, levels := scope.selectAlias(n.Column); te != nil && levels == 0 && te.Expr == analyzed {
+					if aliasOfOrdinalLiteral(te.Expr) {
+						return errOrderByAliasLiteral
+					}
+					q.SortClause = append(q.SortClause, &SortGroupClauseQ{TargetIdx: te.ResNo, Descending: desc, NullsFirst: nullsFirst})
+					continue
+				}
 				return fmt.Errorf("ORDER BY column reference resolved to unexpected type %T", analyzed)
 			}
 			targetIdx := findMatchingTarget(q.TargetList, varExpr)
@@ -774,12 +818,20 @@ func (c *Catalog) analyzeLimitOffset(limit *nodes.Limit, q *Query, scope *analyz
 }
 
 // analyzeCTEs processes WITH clause CTEs, returning a map for CTE name lookup.
-func (c *Catalog) analyzeCTEs(ctes []*nodes.CommonTableExpr, q *Query, parentScope *analyzerScope) (map[string]*CommonTableExprQ, error) {
-	if len(ctes) == 0 {
-		return nil, nil
+// analyzeCTEs analyzes a WITH clause's CTEs and returns them with outer, the CTEs
+// the enclosing queries make visible, which its own shadow. Each body sees outer and
+// the CTEs before it: WITH c AS (...), d AS (SELECT x FROM c) reads c.
+func (c *Catalog) analyzeCTEs(ctes []*nodes.CommonTableExpr, q *Query, parentScope *analyzerScope, outer map[string]*CommonTableExprQ) (map[string]*CommonTableExprQ, error) {
+	cteMap := make(map[string]*CommonTableExprQ, len(outer)+len(ctes))
+	for k, v := range outer {
+		cteMap[k] = v
 	}
-
-	cteMap := make(map[string]*CommonTableExprQ)
+	if len(ctes) == 0 {
+		if len(cteMap) == 0 {
+			return nil, nil
+		}
+		return cteMap, nil
+	}
 	for i, cte := range ctes {
 		if cte.Recursive {
 			q.IsRecursive = true
@@ -788,12 +840,15 @@ func (c *Catalog) analyzeCTEs(ctes []*nodes.CommonTableExpr, q *Query, parentSco
 		var innerQ *Query
 		var err error
 
-		if cte.Recursive && cte.Select.SetOp != nodes.SetOpNone {
+		// A recursive body may be written in parentheses, which the set operation
+		// that makes it recursive stands inside: WITH RECURSIVE r(x) AS ((SELECT 1
+		// UNION ALL SELECT x+1 FROM r ...)). deparse's resolver unwraps it the same way.
+		if cte.Recursive && nodes.UnwrapParenSource(cte.Select).SetOp != nodes.SetOpNone {
 			// Recursive CTE: analyze the left arm first to establish columns,
 			// then register the CTE, then analyze the right arm.
 			innerQ, err = c.analyzeRecursiveCTE(cte, parentScope, cteMap)
 		} else {
-			innerQ, err = c.analyzeSelectStmtInternal(cte.Select, parentScope)
+			innerQ, err = c.analyzeSelectStmtWithCTEs(cte.Select, parentScope, cteMap)
 		}
 		if err != nil {
 			return nil, err
@@ -810,10 +865,11 @@ func (c *Catalog) analyzeCTEs(ctes []*nodes.CommonTableExpr, q *Query, parentSco
 		}
 
 		cteQ := &CommonTableExprQ{
-			Name:        cte.Name,
-			ColumnNames: colNames,
-			Query:       innerQ,
-			Recursive:   cte.Recursive,
+			Name:           cte.Name,
+			ColumnNames:    colNames,
+			Query:          innerQ,
+			Recursive:      cte.Recursive,
+			namesUncertain: len(cte.Columns) == 0 && innerQ.namesUncertain,
 		}
 		q.CTEList = append(q.CTEList, cteQ)
 		cteMap[strings.ToLower(cte.Name)] = cteQ
@@ -826,10 +882,10 @@ func (c *Catalog) analyzeCTEs(ctes []*nodes.CommonTableExpr, q *Query, parentSco
 // operation. The left arm establishes column signatures; the right arm may
 // reference the CTE itself.
 func (c *Catalog) analyzeRecursiveCTE(cte *nodes.CommonTableExpr, parentScope *analyzerScope, cteMap map[string]*CommonTableExprQ) (*Query, error) {
-	stmt := cte.Select
+	stmt := nodes.UnwrapParenSource(cte.Select)
 
 	// Analyze left arm to establish base columns.
-	larg, err := c.analyzeSelectStmtInternal(stmt.Left, parentScope)
+	larg, err := c.analyzeSelectStmtWithCTEs(stmt.Left, parentScope, cteMap)
 	if err != nil {
 		return nil, err
 	}
@@ -850,6 +906,9 @@ func (c *Catalog) analyzeRecursiveCTE(cte *nodes.CommonTableExpr, parentScope *a
 		ColumnNames: colNames,
 		Query:       larg, // temporary — will be replaced
 		Recursive:   true,
+		// The recursive arm reads these names too, so the seed's uncertainty is
+		// the self-reference's: WITH RECURSIVE r AS (SELECT 1+1 UNION ALL ...).
+		namesUncertain: len(cte.Columns) == 0 && larg.namesUncertain,
 	}
 	cteMap[strings.ToLower(cte.Name)] = tempCTE
 
@@ -883,13 +942,14 @@ func (c *Catalog) analyzeRecursiveCTE(cte *nodes.CommonTableExpr, parentScope *a
 	}
 
 	q := &Query{
-		CommandType: CmdSelect,
-		SetOp:       setOp,
-		AllSetOp:    stmt.SetAll,
-		LArg:        larg,
-		RArg:        rarg,
-		TargetList:  targetList,
-		JoinTree:    &JoinTreeQ{},
+		CommandType:    CmdSelect,
+		SetOp:          setOp,
+		AllSetOp:       stmt.SetAll,
+		LArg:           larg,
+		RArg:           rarg,
+		TargetList:     targetList,
+		JoinTree:       &JoinTreeQ{},
+		namesUncertain: larg.namesUncertain,
 	}
 	return q, nil
 }
@@ -951,21 +1011,9 @@ func (c *Catalog) analyzeSetOpWithCTEs(stmt *nodes.SelectStmt, parentScope *anal
 		JoinTree:    &JoinTreeQ{},
 	}
 
-	cteMap, err := c.analyzeCTEs(stmt.CTEs, q, parentScope)
+	cteMap, err := c.analyzeCTEs(stmt.CTEs, q, parentScope, visibleCTEs(parentScope, inheritedCTEMap))
 	if err != nil {
 		return nil, err
-	}
-
-	// Merge inherited CTEs.
-	if inheritedCTEMap != nil {
-		if cteMap == nil {
-			cteMap = make(map[string]*CommonTableExprQ)
-		}
-		for k, v := range inheritedCTEMap {
-			if _, exists := cteMap[k]; !exists {
-				cteMap[k] = v
-			}
-		}
 	}
 
 	larg, err := c.analyzeSelectStmtWithCTEs(stmt.Left, parentScope, cteMap)
@@ -1005,6 +1053,10 @@ func (c *Catalog) analyzeSetOpWithCTEs(stmt *nodes.SelectStmt, parentScope *anal
 	q.LArg = larg
 	q.RArg = rarg
 	q.TargetList = targetList
+	// The result columns are the left arm's, so its uncertainty is the whole
+	// query's: SELECT b+1 FROM a UNION ALL SELECT b+2 FROM a ORDER BY `b+1` names
+	// a column deriveColumnName wrote as ?.
+	q.namesUncertain = larg.namesUncertain
 
 	// Handle ORDER BY / LIMIT on the outer set-op query using a
 	// scope built from result columns.
@@ -1019,6 +1071,7 @@ func (c *Catalog) analyzeSetOpWithCTEs(stmt *nodes.SelectStmt, parentScope *anal
 		}
 		// Add a virtual table entry for unqualified column resolution.
 		setScope.add("__setop__", 0, cols)
+		setScope.namesUncertain = q.namesUncertain
 
 		if len(stmt.OrderBy) > 0 {
 			if err := c.analyzeOrderBy(stmt.OrderBy, q, setScope); err != nil {
@@ -1042,4 +1095,172 @@ func (c *Catalog) AnalyzeStandaloneExpr(expr nodes.ExprNode, table *Table) (Anal
 	// Register the table's columns into the scope at RTE index 0.
 	scope.add(table.Name, 0, table.Columns)
 	return analyzeExpr(c, expr, scope)
+}
+
+// analyzeParenthesized analyzes [WITH ...] ( query ) ORDER BY ... LIMIT ...: the
+// wrapper's CTEs, then the query inside it, then the outer clauses against its
+// result columns, as a set operation's are read, so a name they do not resolve is
+// refused. A Query holds neither the outer clauses nor a WITH that stands outside
+// the query it belongs to, so with either the result is errParenthesizedOuter, a
+// plain error: the analysis did not fail, but the query alone would drop them.
+func (c *Catalog) analyzeParenthesized(stmt *nodes.SelectStmt, parentScope *analyzerScope, inheritedCTEMap map[string]*CommonTableExprQ) (*Query, error) {
+	cteMap := inheritedCTEMap
+	if len(stmt.CTEs) > 0 {
+		// The wrapper's WITH, which the query inside it reads. Its CTEList belongs to
+		// no query this returns, so holder takes it and the IR is dropped below.
+		var holder Query
+		m, err := c.analyzeCTEs(stmt.CTEs, &holder, parentScope, visibleCTEs(parentScope, inheritedCTEMap))
+		if err != nil {
+			return nil, err
+		}
+		cteMap = m
+	}
+	inner, err := c.analyzeSelectStmtWithCTEs(stmt.ParenSource, parentScope, cteMap)
+	if err != nil {
+		return nil, err
+	}
+	if len(stmt.CTEs) == 0 && len(stmt.OrderBy) == 0 && stmt.Limit == nil {
+		return inner, nil
+	}
+	outer := &Query{CommandType: CmdSelect, JoinTree: &JoinTreeQ{}}
+	var cols []*Column
+	for _, te := range inner.TargetList {
+		if te.ResJunk {
+			continue
+		}
+		outer.TargetList = append(outer.TargetList, &TargetEntryQ{Expr: te.Expr, ResNo: te.ResNo, ResName: te.ResName})
+		cols = append(cols, &Column{Position: len(cols) + 1, Name: te.ResName})
+	}
+	resultScope := newScope()
+	resultScope.add("__paren__", 0, cols)
+	// A result column of the query inside is named by deriveColumnName, which writes
+	// ? for an unaliased expression where OceanBase names it by its source text. The
+	// outer clauses then read names this does not hold, so what they do not resolve
+	// is not known to be missing: ( SELECT b+1 FROM a ) ORDER BY `b+1` is the
+	// engine's to take (TestOracle_OceanBaseQueryFirst).
+	resultScope.namesUncertain = inner.namesUncertain
+	if len(stmt.OrderBy) > 0 {
+		if err := c.analyzeOrderBy(stmt.OrderBy, outer, resultScope); err != nil {
+			return nil, err
+		}
+	}
+	if stmt.Limit != nil {
+		if err := c.analyzeLimitOffset(stmt.Limit, outer, resultScope); err != nil {
+			return nil, err
+		}
+	}
+	return nil, errParenthesizedOuter
+}
+
+// errOuterAlias is a name read from the select list of a query around this one,
+// which analyzeColumnRef resolves but cannot write into this query's IR.
+var errOuterAlias = errors.New("a subquery names an outer query's select alias, which the analyzed query cannot hold")
+
+// errOrderByAliasLiteral is an ORDER BY or GROUP BY naming a select alias whose
+// value is a bare number, which an analyzed query cannot hold apart from an
+// ordinal: SELECT 2 AS q ... ORDER BY q would read back as ORDER BY 2, the
+// second column.
+var errOrderByAliasLiteral = errors.New("an ordering names an alias of a number, which the analyzed query cannot hold")
+
+var errParenthesizedOuter = errors.New("a parenthesized query's own WITH, ORDER BY or LIMIT has no place in the analyzed query")
+
+// visibleCTEs is the CTEs the queries around a query make visible: inherited, then
+// those of each enclosing scope, the nearest first.
+func visibleCTEs(parent *analyzerScope, inherited map[string]*CommonTableExprQ) map[string]*CommonTableExprQ {
+	var m map[string]*CommonTableExprQ
+	add := func(from map[string]*CommonTableExprQ) {
+		for k, v := range from {
+			if m == nil {
+				m = make(map[string]*CommonTableExprQ)
+			}
+			if _, ok := m[k]; !ok {
+				m[k] = v
+			}
+		}
+	}
+	add(inherited)
+	for s := parent; s != nil; s = s.parent {
+		add(s.ctes)
+	}
+	return m
+}
+
+// selectDerivesNames reports whether a query has a result column the analyzer
+// cannot name as OceanBase does: an unaliased expression, which OceanBase names by
+// its source text, where deriveColumnName gives ? or a function's bare name.
+func selectDerivesNames(sel *nodes.SelectStmt) bool {
+	switch {
+	case sel == nil:
+		return false
+	case sel.SetOp != nodes.SetOpNone:
+		return selectDerivesNames(sel.Left)
+	case sel.ParenSource != nil:
+		return selectDerivesNames(sel.ParenSource)
+	}
+	for _, item := range sel.TargetList {
+		expr := item
+		if rt, ok := item.(*nodes.ResTarget); ok {
+			if rt.Name != "" {
+				continue
+			}
+			expr = rt.Val
+		}
+		parenthesized := false
+		for {
+			p, ok := expr.(*nodes.ParenExpr)
+			if !ok {
+				break
+			}
+			expr, parenthesized = p.Expr, true
+		}
+		if parenthesized {
+			// The engine names the item by its text, parentheses and all, where
+			// deriveColumnName reads through them: SELECT (1) is named (1).
+			return true
+		}
+		switch e := expr.(type) {
+		case *nodes.ColumnRef, *nodes.StarExpr, *nodes.StringLit, *nodes.FloatLit, *nodes.BoolLit, *nodes.NullLit:
+		case *nodes.IntLit:
+			// OceanBase names a number by the text written and deriveColumnName by
+			// its value, so 0004 and 0x10 come out 4 and 16
+			// (TestViewNamesAndJoinColumnsOracle).
+			if e.Text != "" && e.Text != strconv.FormatInt(e.Value, 10) {
+				return true
+			}
+		default:
+			return true
+		}
+	}
+	return false
+}
+
+// aliasOfOrdinalLiteral reports an analyzed expression a clause cannot name through
+// its alias and still read back the same: a bare whole number, which ORDER BY and
+// GROUP BY take as a column's position.
+func aliasOfOrdinalLiteral(expr AnalyzedExpr) bool {
+	cst, ok := expr.(*ConstExprQ)
+	if !ok || cst.IsNull || cst.IsString || cst.Keyword || cst.Value == "" {
+		return false
+	}
+	for _, r := range cst.Value {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+// viewNamesUncertain reports whether ref names a view whose stored column names
+// may not be the engine's.
+func viewNamesUncertain(c *Catalog, ref *nodes.TableRef) bool {
+	dbName := ref.Schema
+	if dbName == "" {
+		dbName = c.CurrentDatabase()
+	}
+	db := c.GetDatabase(dbName)
+	if db == nil {
+		return false
+	}
+	view := db.Views[toLower(ref.Name)]
+	return view != nil && view.namesUncertain
 }

@@ -1,0 +1,17 @@
+# PartiQL token forms for generated compat rows: the text written for each
+# token of PartiQLTokens.g4 that is a class of texts. Keywords and operators
+# spell themselves and need no row. Each note cites the lexer rule.
+# A sample of one name, string or number stands for its class when the
+# grammar judge reads a statement; a name sampled in quotes stands for names
+# in those quotes. (spaced) writes a token with a space on each side.
+# columns: token, form, note
+IDENTIFIER	a	PartiQLTokens.g4:372 [A-Z$_][A-Z0-9$_]*, in any case (caseInsensitive)
+IDENTIFIER_QUOTED	"a"	PartiQLTokens.g4:375 a double-quoted name; "" is a quote in it
+LITERAL_STRING	's'	PartiQLTokens.g4:360 a single-quoted string; '' is a quote in it
+LITERAL_INTEGER	1	PartiQLTokens.g4:363 digits
+LITERAL_DECIMAL	1.5	PartiQLTokens.g4:366 digits with a point, and an optional exponent
+ION_CLOSURE	`1`	PartiQLTokens.g4:348 and 449: a backtick enters Ion mode, and the token runs to the backtick that leaves it
+@	(spaced)	PartiQLTokens.g4:327 AT_SIGN is a token of its own before a name; written tight, the judge's lexer would read @a as one variable
+exprTerm	a	PartiQLParser.g4:625 the plainest expression is a name: the rule lists CURRENT_USER before varRefExpr, so the shortest expression would be a keyword every other row then carries
+explainOption	TYPE a	PartiQLParser.g4:30 two identifiers; PartiQLParserDefault.kt:524 takes the parameters TYPE and FORMAT only, so other rows write one
+patternRestrictor	TRAIL	PartiQLParser.g4:399 an identifier; PartiQLParserDefault.kt:1191 takes TRAIL, ACYCLIC and SIMPLE only, so other rows write one
