@@ -2,8 +2,8 @@ package parser
 
 import "testing"
 
-// TestParenOracleFromDegenerate transcribes pg/parser/SCENARIOS-pg-paren-dispatch.md §2.7
-// (FROM-clause degenerate / malformed corpus) into oracle probes. Every case
+// TestParenRouteFromDegenerate transcribes pg/parser/SCENARIOS-pg-paren-dispatch.md §2.7
+// (FROM-clause degenerate / malformed corpus) into routing cases. Every case
 // here is a syntactically invalid paren arrangement in FROM: empty parens,
 // unbalanced parens, missing join operands, qualifiers on join types that
 // disallow them (CROSS / NATURAL), and other grammar violations.
@@ -13,9 +13,8 @@ import "testing"
 // complements §2.2–§2.6's accept/joined-table/subquery discrimination: any
 // input that slips through omni but PG rejects (or vice versa) is a bug.
 //
-// Fixture tables T/U are created by StartParenOracle (see paren_oracle_test.go).
-func TestParenOracleFromDegenerate(t *testing.T) {
-	o := StartParenOracle(t)
+// Fixture tables T/U are created by the PostgreSQL oracle these cases were measured on.
+func TestParenRouteFromDegenerate(t *testing.T) {
 
 	cases := []struct {
 		name     string
@@ -113,7 +112,7 @@ func TestParenOracleFromDegenerate(t *testing.T) {
 			if tc.skip != "" {
 				t.Skip(tc.skip)
 			}
-			assertParenParity(t, o, tc.sql, tc.expected)
+			assertParenRoute(t, tc.sql, tc.expected)
 		})
 	}
 }

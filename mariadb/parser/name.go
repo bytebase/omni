@@ -986,7 +986,8 @@ func (p *Parser) parseVariableRef() (*nodes.VariableRef, error) {
 	}
 	// System variable: @@...
 	if p.cur.Type == tokAt2 {
-		start := p.cur.Loc
+		at := p.cur
+		start := at.Loc
 		p.advance() // consume @@
 
 		// The name touches @@: `SELECT @@ a` is a 1064.
@@ -1006,6 +1007,16 @@ func (p *Parser) parseVariableRef() (*nodes.VariableRef, error) {
 		if isScopeKeyword {
 			// Look ahead for '.' to distinguish scope from plain variable name
 			next := p.peekNext()
+			// GLOBAL, SESSION and LOCAL right after @@ are the scope, never the
+			// name: opt_var_ident_type's `GLOBAL_SYM '.'` arm takes the word
+			// before the parser sees what follows it, so `SELECT @@global` is a
+			// 1064.
+			//
+			// Ref: variable_aux's `'@' opt_var_ident_type ident_sysvar_name` in
+			// MariaDB sql/sql_yacc.yy.
+			if next.Type != '.' && (p.cur.Type == kwGLOBAL || p.cur.Type == kwSESSION || p.cur.Type == kwLOCAL) {
+				return nil, p.syntaxErrorAtTok(at)
+			}
 			if next.Type == '.' {
 				switch {
 				case p.cur.Type == kwGLOBAL:

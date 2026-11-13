@@ -6223,7 +6223,7 @@ accept	reject	engine	function_call_conflict/LAST_VALUE_(_expr_)!drop-3	DO LAST_V
 reject	reject	engine	function_call_conflict/LAST_VALUE_(_expr_)!drop-4	DO LAST_VALUE(a;
 reject	reject	engine	function_call_conflict/LAST_VALUE_(_expr_)!truncate	DO LAST_VALUE(a
 reject	reject	engine	function_call_conflict/LAST_VALUE_(_expr_)!insert	DO LAST_VALUE(a) zzz;
-accept	reject	engine	function_call_conflict/LAST_VALUE_(_expr_)!swap	DO LEAD(a);
+reject	reject	engine	function_call_conflict/LAST_VALUE_(_expr_)!swap	DO LEAD(a);
 accept	accept	engine	function_call_conflict/LAST_VALUE_(_expr_list_,_expr_)	DO LAST_VALUE(a, a);
 reject	reject	engine	function_call_conflict/LAST_VALUE_(_expr_list_,_expr_)!drop-2	DO LAST_VALUE a, a);
 reject	reject	engine	function_call_conflict/LAST_VALUE_(_expr_list_,_expr_)!drop-3	DO LAST_VALUE(, a);
@@ -6232,7 +6232,7 @@ reject	reject	engine	function_call_conflict/LAST_VALUE_(_expr_list_,_expr_)!drop
 reject	reject	engine	function_call_conflict/LAST_VALUE_(_expr_list_,_expr_)!drop-6	DO LAST_VALUE(a, a;
 reject	reject	engine	function_call_conflict/LAST_VALUE_(_expr_list_,_expr_)!truncate	DO LAST_VALUE(a, a
 reject	reject	engine	function_call_conflict/LAST_VALUE_(_expr_list_,_expr_)!insert	DO LAST_VALUE(a, a) zzz;
-accept	reject	engine	function_call_conflict/LAST_VALUE_(_expr_list_,_expr_)!swap	DO LEAD(a, a);
+reject	reject	engine	function_call_conflict/LAST_VALUE_(_expr_list_,_expr_)!swap	DO LEAD(a, a);
 accept	accept	engine	function_call_conflict/MOD_SYM_(_expr_,_expr_)	DO MOD(a, a);
 reject	reject	engine	function_call_conflict/MOD_SYM_(_expr_,_expr_)!drop-2	DO MOD a, a);
 reject	reject	engine	function_call_conflict/MOD_SYM_(_expr_,_expr_)!drop-3	DO MOD(, a);
@@ -11275,17 +11275,17 @@ reject	accept	engine	opt_var_ident_type/%empty!insert	DO@@zzz autocommit;
 accept	accept	engine	opt_var_ident_type/GLOBAL_SYM_.	DO@@GLOBAL.autocommit;
 reject	reject	engine	opt_var_ident_type/GLOBAL_SYM_.!drop-1	DO@@.autocommit;
 reject	reject	engine	opt_var_ident_type/GLOBAL_SYM_.!drop-2	DO@@GLOBAL autocommit;
-accept	reject	engine	opt_var_ident_type/GLOBAL_SYM_.!truncate	DO@@GLOBAL
+reject	reject	engine	opt_var_ident_type/GLOBAL_SYM_.!truncate	DO@@GLOBAL
 reject	accept	engine	opt_var_ident_type/GLOBAL_SYM_.!insert	DO@@GLOBAL.zzz autocommit;
 accept	accept	engine	opt_var_ident_type/GLOBAL_SYM_.!swap	DO@@GOTO.autocommit;
 accept	accept	engine	opt_var_ident_type/LOCAL_SYM_.	DO@@LOCAL.autocommit;
 reject	reject	engine	opt_var_ident_type/LOCAL_SYM_.!drop-2	DO@@LOCAL autocommit;
-accept	reject	engine	opt_var_ident_type/LOCAL_SYM_.!truncate	DO@@LOCAL
+reject	reject	engine	opt_var_ident_type/LOCAL_SYM_.!truncate	DO@@LOCAL
 reject	accept	engine	opt_var_ident_type/LOCAL_SYM_.!insert	DO@@LOCAL.zzz autocommit;
 reject	reject	engine	opt_var_ident_type/LOCAL_SYM_.!swap	DO@@LOCALTIMESTAMP.autocommit;
 accept	accept	engine	opt_var_ident_type/SESSION_SYM_.	DO@@SESSION.autocommit;
 reject	reject	engine	opt_var_ident_type/SESSION_SYM_.!drop-2	DO@@SESSION autocommit;
-accept	reject	engine	opt_var_ident_type/SESSION_SYM_.!truncate	DO@@SESSION
+reject	reject	engine	opt_var_ident_type/SESSION_SYM_.!truncate	DO@@SESSION
 reject	accept	engine	opt_var_ident_type/SESSION_SYM_.!insert	DO@@SESSION.zzz autocommit;
 accept	accept	engine	opt_var_ident_type/SESSION_SYM_.!swap	DO@@SESSION_USER.autocommit;
 accept	accept	engine	set_stmt_option/ident_cli_equal_set_expr_or_default	SET STATEMENT a = a FOR COMMIT;
