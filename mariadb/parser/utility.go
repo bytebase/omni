@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"strconv"
 	"strings"
 
 	nodes "github.com/bytebase/omni/mariadb/ast"
@@ -38,8 +39,12 @@ func (p *Parser) parseAnalyzeTableStmt() (*nodes.AnalyzeTableStmt, error) {
 
 	// TABLE is required. It used to be matched leniently, which left
 	// `ANALYZE t` -- a 1064 on MariaDB 11.8.8 -- parsing as an ANALYZE of t.
-	if _, err := p.expect(kwTABLE); err != nil {
-		return nil, err
+	// table_or_tables (TABLES too), and each table of analyze_table_list
+	// with its own PERSISTENT FOR.
+	//
+	// Ref: analyze and analyze_table_elem_spec in MariaDB 11.8 sql/sql_yacc.yy.
+	if _, ok := p.match(kwTABLE, kwTABLES); !ok {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	// Completion: after ANALYZE [LOCAL] TABLE, offer table_ref.
@@ -56,6 +61,13 @@ func (p *Parser) parseAnalyzeTableStmt() (*nodes.AnalyzeTableStmt, error) {
 			return nil, err
 		}
 		stmt.Tables = append(stmt.Tables, ref)
+		if p.atWord("PERSISTENT") {
+			ps, err := p.parseAnalyzePersistent(len(stmt.Tables) - 1)
+			if err != nil {
+				return nil, err
+			}
+			stmt.Persistent = append(stmt.Persistent, ps)
+		}
 		if p.cur.Type != ',' {
 			break
 		}
@@ -192,7 +204,16 @@ func (p *Parser) parseCheckTableStmt() (*nodes.CheckTableStmt, error) {
 	start := p.pos()
 	p.advance() // consume CHECK
 
-	p.match(kwTABLE)
+	// check_view_or_table: TABLE or TABLES and its check types, or VIEW and
+	// FOR UPGRADE alone.
+	//
+	// Ref: check_view_or_table in MariaDB 11.8 sql/sql_yacc.yy.
+	view := false
+	if _, ok := p.match(kwVIEW); ok {
+		view = true
+	} else if _, ok := p.match(kwTABLE, kwTABLES); !ok {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	// Completion: after CHECK TABLE, offer table_ref.
 	p.checkCursor()
@@ -201,7 +222,7 @@ func (p *Parser) parseCheckTableStmt() (*nodes.CheckTableStmt, error) {
 		return nil, &ParseError{Message: "collecting"}
 	}
 
-	stmt := &nodes.CheckTableStmt{Loc: nodes.Loc{Start: start}}
+	stmt := &nodes.CheckTableStmt{Loc: nodes.Loc{Start: start}, View: view}
 
 	for {
 		ref, err := p.parseTableRef()
@@ -219,10 +240,15 @@ func (p *Parser) parseCheckTableStmt() (*nodes.CheckTableStmt, error) {
 	for {
 		if p.cur.Type == kwFOR {
 			p.advance()
-			if p.cur.Type == kwUPGRADE {
-				stmt.Options = append(stmt.Options, "FOR UPGRADE")
-				p.advance()
+			if _, err := p.expect(kwUPGRADE); err != nil {
+				return nil, err
 			}
+			stmt.Options = append(stmt.Options, "FOR UPGRADE")
+			if view {
+				break
+			}
+		} else if view {
+			break
 		} else if p.cur.Type == kwQUICK {
 			stmt.Options = append(stmt.Options, "QUICK")
 			p.advance()
@@ -260,7 +286,15 @@ func (p *Parser) parseRepairTableStmt() (*nodes.RepairTableStmt, error) {
 		p.advance()
 	}
 
-	p.match(kwTABLE)
+	// repair_table_or_view: TABLE or TABLES and its repair types, or VIEW and
+	// FOR UPGRADE or FROM MYSQL.
+	//
+	// Ref: repair_table_or_view in MariaDB 11.8 sql/sql_yacc.yy.
+	if _, ok := p.match(kwVIEW); ok {
+		stmt.View = true
+	} else if _, ok := p.match(kwTABLE, kwTABLES); !ok {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	// Completion: after REPAIR TABLE, offer table_ref.
 	p.checkCursor()
@@ -282,8 +316,31 @@ func (p *Parser) parseRepairTableStmt() (*nodes.RepairTableStmt, error) {
 	}
 
 	// Options: QUICK, EXTENDED, USE_FRM
+	if stmt.View {
+		switch {
+		case p.cur.Type == kwFOR:
+			p.advance()
+			if _, err := p.expect(kwUPGRADE); err != nil {
+				return nil, err
+			}
+			stmt.ViewOption = "FOR UPGRADE"
+		case p.cur.Type == kwFROM:
+			p.advance()
+			if !p.atWord("MYSQL") {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance()
+			stmt.ViewOption = "FROM MYSQL"
+		}
+		stmt.Loc.End = p.prev.End
+		return stmt, nil
+	}
+
 	for {
-		if p.cur.Type == kwQUICK {
+		if p.cur.Type == kwFORCE {
+			stmt.Force = true
+			p.advance()
+		} else if p.cur.Type == kwQUICK {
 			stmt.Quick = true
 			p.advance()
 		} else if p.cur.Type == kwEXTENDED {
@@ -915,7 +972,11 @@ func (p *Parser) parseChecksumTableStmt() (*nodes.ChecksumTableStmt, error) {
 	start := p.pos()
 	p.advance() // consume CHECKSUM
 
-	p.match(kwTABLE)
+	// Ref: checksum, `CHECKSUM_SYM table_or_tables table_list
+	// opt_checksum_type`, in MariaDB 11.8 sql/sql_yacc.yy.
+	if _, ok := p.match(kwTABLE, kwTABLES); !ok {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	stmt := &nodes.ChecksumTableStmt{Loc: nodes.Loc{Start: start}}
 
@@ -1267,40 +1328,71 @@ func (p *Parser) parseUninstallComponentStmt(start int) (*nodes.UninstallCompone
 	return stmt, nil
 }
 
-// parseServerOptions parses the OPTIONS (...) clause for SERVER statements.
-// It consumes everything inside the parentheses as raw option strings.
+// parseServerOptions reads `OPTIONS ( server_options_list )`, which CREATE
+// SERVER and ALTER SERVER both require. Each option is a word and a string:
+// USER, HOST, DATABASE, OWNER, PASSWORD, SOCKET, PORT, or any other name
+// (IDENT_sys, so no keyword). PORT takes ulong_num too, and a string only when
+// it spells an integer the size of a long (the action's parse_error
+// otherwise). Each of the named options comes at most once
+// (MYSQL_YYABORT_UNLESS). An option comes back as its word and its value,
+// joined by a space.
+//
+// Ref: server_options_list and server_option in MariaDB 11.8 sql/sql_yacc.yy.
 func (p *Parser) parseServerOptions() ([]string, error) {
-	p.match(kwOPTIONS)
-	p.expect('(')
-
-	var opts []string
-	for p.cur.Type != ')' && p.cur.Type != tokEOF {
-		// Each option is: keyword value
-		// e.g., HOST 'host_name', DATABASE 'db_name', USER 'user_name', etc.
-		// Must accept any keyword since option names (HOST, DATABASE, USER, etc.)
-		// may be registered keywords.
-		var optStr string
-		if p.cur.Type == tokIDENT || p.cur.Type >= 700 {
-			optName, _, _ := p.parseKeywordOrIdent()
-			optStr = optName
-		} else {
-			optStr = p.cur.Str
-			p.advance()
-		}
-		// value
-		if p.cur.Type == tokSCONST {
-			optStr += " " + p.cur.Str
-			p.advance()
-		} else if p.cur.Type == tokICONST {
-			optStr += " " + p.cur.Str
-			p.advance()
-		}
-		opts = append(opts, optStr)
-		if p.cur.Type == ',' {
-			p.advance()
-		}
+	if _, err := p.expect(kwOPTIONS); err != nil {
+		return nil, err
 	}
-	p.expect(')')
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	var opts []string
+	seen := map[int]bool{}
+	for {
+		var word string
+		named := false
+		switch p.cur.Type {
+		case kwUSER, kwHOST, kwDATABASE, kwOWNER, kwPASSWORD, kwSOCKET, kwPORT:
+			word, named = strings.ToUpper(p.cur.Str), true
+			if seen[p.cur.Type] {
+				return nil, p.syntaxErrorAtCur()
+			}
+			seen[p.cur.Type] = true
+		case tokIDENT:
+			// The lexer gives a user variable as an identifier too; a name
+			// backquoted, `@custom`, is an IDENT_sys all the same.
+			if strings.HasPrefix(p.inputText(p.cur.Loc, p.cur.End), "@") {
+				return nil, p.syntaxErrorAtCur()
+			}
+			word = p.cur.Str
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
+		isPort := named && word == "PORT"
+		p.advance()
+		var val string
+		switch {
+		case isPort && (p.cur.Type == tokICONST || p.cur.Type == tokFCONST ||
+			(p.cur.Type == tokXCONST && strings.HasPrefix(strings.ToLower(p.cur.Str), "0x"))):
+			val = p.advance().Str
+		case p.cur.Type == tokSCONST:
+			if isPort {
+				if _, err := strconv.ParseInt(strings.TrimLeft(p.cur.Str, " \t\n\r"), 10, 64); err != nil {
+					return nil, p.syntaxErrorAtCur()
+				}
+			}
+			val = p.advance().Str
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
+		opts = append(opts, word+" "+val)
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance() // consume ','
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 	return opts, nil
 }
 
@@ -1319,17 +1411,19 @@ func (p *Parser) parseCreateServerStmt(start int, orReplace bool) (*nodes.Create
 		return nil, err
 	}
 
-	name, _, err := p.parseIdentifier()
+	name, _, err := p.parseIdentOrText()
 	if err != nil {
 		return nil, err
 	}
 
 	// FOREIGN DATA WRAPPER wrapper_name
-	p.match(kwFOREIGN)
-	p.match(kwDATA)
-	p.match(kwWRAPPER)
+	for _, kw := range []int{kwFOREIGN, kwDATA, kwWRAPPER} {
+		if _, err := p.expect(kw); err != nil {
+			return nil, err
+		}
+	}
 
-	wrapperName, _, err := p.parseIdentifier()
+	wrapperName, _, err := p.parseIdentOrText()
 	if err != nil {
 		return nil, err
 	}
@@ -1342,14 +1436,12 @@ func (p *Parser) parseCreateServerStmt(start int, orReplace bool) (*nodes.Create
 		WrapperName: wrapperName,
 	}
 
-	// OPTIONS (...)
-	if p.cur.Type == kwOPTIONS {
-		opts, err := p.parseServerOptions()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Options = opts
+	// OPTIONS (...), which the grammar requires.
+	opts, err := p.parseServerOptions()
+	if err != nil {
+		return nil, err
 	}
+	stmt.Options = opts
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
@@ -1363,7 +1455,7 @@ func (p *Parser) parseCreateServerStmt(start int, orReplace bool) (*nodes.Create
 func (p *Parser) parseAlterServerStmt(start int) (*nodes.AlterServerStmt, error) {
 	p.advance() // consume SERVER
 
-	name, _, err := p.parseIdentifier()
+	name, _, err := p.parseIdentOrText()
 	if err != nil {
 		return nil, err
 	}
@@ -1373,14 +1465,12 @@ func (p *Parser) parseAlterServerStmt(start int) (*nodes.AlterServerStmt, error)
 		Name: name,
 	}
 
-	// OPTIONS (...)
-	if p.cur.Type == kwOPTIONS {
-		opts, err := p.parseServerOptions()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Options = opts
+	// OPTIONS (...), which the grammar requires.
+	opts, err := p.parseServerOptions()
+	if err != nil {
+		return nil, err
 	}
+	stmt.Options = opts
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
@@ -1403,7 +1493,7 @@ func (p *Parser) parseDropServerStmt(start int) (*nodes.DropServerStmt, error) {
 		stmt.IfExists = true
 	}
 
-	name, _, err := p.parseIdentifier()
+	name, _, err := p.parseIdentOrText()
 	if err != nil {
 		return nil, err
 	}
@@ -1947,4 +2037,90 @@ func (p *Parser) parseSizeValue() string {
 		}
 	}
 	return val
+}
+
+// atWord reports whether the current token is word written bare, for a keyword
+// of MariaDB's this lexer does not know.
+func (p *Parser) atWord(word string) bool {
+	if p.cur.Type != tokIDENT && p.cur.Type < 700 {
+		return false
+	}
+	return strings.EqualFold(p.inputText(p.cur.Loc, p.cur.End), word)
+}
+
+// parseAnalyzePersistent reads `PERSISTENT FOR {ALL | COLUMNS {ALL | (col, ...)}
+// INDEXES {ALL | (idx, ...)}}`, p.cur being PERSISTENT. A list may be empty, and
+// empty before each comma.
+//
+// Ref: opt_persistent_stat_clause, persistent_stat_spec, table_column_list and
+// table_index_list in MariaDB 11.8 sql/sql_yacc.yy.
+func (p *Parser) parseAnalyzePersistent(table int) (*nodes.AnalyzePersistent, error) {
+	ps := &nodes.AnalyzePersistent{Loc: nodes.Loc{Start: p.pos()}, TableIndex: table}
+	p.advance() // consume PERSISTENT
+	if _, err := p.expect(kwFOR); err != nil {
+		return nil, err
+	}
+	if _, ok := p.match(kwALL); ok {
+		ps.All = true
+		ps.Loc.End = p.prev.End
+		return ps, nil
+	}
+	if _, err := p.expect(kwCOLUMNS); err != nil {
+		return nil, err
+	}
+	all, cols, err := p.parseAnalyzeNameList(false)
+	if err != nil {
+		return nil, err
+	}
+	ps.ColumnsAll, ps.Columns = all, cols
+	if _, err := p.expect(kwINDEXES); err != nil {
+		return nil, err
+	}
+	all, idxs, err := p.parseAnalyzeNameList(true)
+	if err != nil {
+		return nil, err
+	}
+	ps.IndexesAll, ps.Indexes = all, idxs
+	ps.Loc.End = p.prev.End
+	return ps, nil
+}
+
+// parseAnalyzeNameList reads ALL or a parenthesized list of names, which may be
+// empty before each comma; an index list takes PRIMARY too.
+func (p *Parser) parseAnalyzeNameList(indexes bool) (bool, []string, error) {
+	if _, ok := p.match(kwALL); ok {
+		return true, nil, nil
+	}
+	if _, err := p.expect('('); err != nil {
+		return false, nil, err
+	}
+	names := []string{}
+	readName := func() error {
+		if indexes && p.cur.Type == kwPRIMARY {
+			names = append(names, "PRIMARY")
+			p.advance()
+			return nil
+		}
+		name, _, err := p.parseIdent()
+		if err != nil {
+			return err
+		}
+		names = append(names, name)
+		return nil
+	}
+	if p.cur.Type != ',' && p.cur.Type != ')' {
+		if err := readName(); err != nil {
+			return false, nil, err
+		}
+	}
+	for p.cur.Type == ',' {
+		p.advance()
+		if err := readName(); err != nil {
+			return false, nil, err
+		}
+	}
+	if _, err := p.expect(')'); err != nil {
+		return false, nil, err
+	}
+	return false, names, nil
 }

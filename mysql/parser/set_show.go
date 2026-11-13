@@ -161,10 +161,10 @@ func (p *Parser) parseSetPasswordStmt(start int) (*nodes.SetPasswordStmt, error)
 	// auth_option: = 'auth_string' | TO RANDOM
 	if p.cur.Type == kwTO {
 		p.advance() // consume TO
-		if p.cur.Type == kwRANDOM {
-			p.advance() // consume RANDOM
-			stmt.ToRandom = true
+		if _, err := p.expect(kwRANDOM); err != nil {
+			return nil, err
 		}
+		stmt.ToRandom = true
 	} else {
 		// The = or := is required here: PASSWORD equal, and a bare string is a 1064
 		// (measured).
@@ -193,17 +193,22 @@ func (p *Parser) parseSetPasswordStmt(start int) (*nodes.SetPasswordStmt, error)
 	// [REPLACE 'current_auth_string']
 	if p.cur.Type == kwREPLACE {
 		p.advance()
-		if p.cur.Type == tokSCONST {
-			stmt.Replace = p.cur.Str
-			p.advance()
+		if p.cur.Type != tokSCONST {
+			return nil, p.syntaxErrorAtCur()
 		}
+		stmt.Replace = p.cur.Str
+		p.advance()
 	}
 
 	// [RETAIN CURRENT PASSWORD]
 	if p.cur.Type == kwRETAIN {
 		p.advance() // consume RETAIN
-		p.advance() // consume CURRENT
-		p.advance() // consume PASSWORD
+		if _, err := p.expect(kwCURRENT); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(kwPASSWORD); err != nil {
+			return nil, err
+		}
 		stmt.RetainCurrentPassword = true
 	}
 

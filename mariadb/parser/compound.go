@@ -479,19 +479,10 @@ func (p *Parser) parseDeclareCursorStmt(start int, name string) (*nodes.DeclareC
 func (p *Parser) parseHandlerConditionValue() (nodes.HandlerCondValue, error) {
 	// SQLSTATE [VALUE] 'sqlstate_value'
 	if p.cur.Type == kwSQLSTATE {
-		p.advance()
-		// Optional VALUE
-		if p.cur.Type == kwVALUE {
-			p.advance()
+		val, err := p.parseSQLStateValue()
+		if err != nil {
+			return nodes.HandlerCondValue{}, err
 		}
-		if p.cur.Type != tokSCONST {
-			return nodes.HandlerCondValue{}, &ParseError{
-				Message:  "expected SQLSTATE value string",
-				Position: p.cur.Loc,
-			}
-		}
-		val := p.cur.Str
-		p.advance()
 		return nodes.HandlerCondValue{Kind: nodes.HandlerCondSQLState, Value: val}, nil
 	}
 

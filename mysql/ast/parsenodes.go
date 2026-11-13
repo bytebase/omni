@@ -718,6 +718,11 @@ type FuncCallExpr struct {
 	// ordinary call to whatever function has that name.
 	JSONValueArm bool
 	Using        string // CHAR(n, ... USING charset_name): the character set as written ("" = no USING)
+	// FromFirstLast and NullTreatment are a window function's opt_from_first_last
+	// (NTH_VALUE: FROM FIRST, FROM LAST) and opt_null_treatment (RESPECT NULLS,
+	// IGNORE NULLS), "" when not written.
+	FromFirstLast string
+	NullTreatment string
 }
 
 // JSONValueOptions is what JSON_VALUE takes after its path. The call's document and path are
@@ -1194,10 +1199,11 @@ func (w *WindowDef) nodeTag() {}
 
 // WindowFrame represents a window frame specification.
 type WindowFrame struct {
-	Loc   Loc
-	Type  WindowFrameType
-	Start *WindowFrameBound
-	End   *WindowFrameBound
+	Loc     Loc
+	Type    WindowFrameType
+	Start   *WindowFrameBound
+	End     *WindowFrameBound
+	Exclude string // CURRENT ROW, GROUP, TIES or NO OTHERS ("" when no EXCLUDE is written)
 }
 
 func (f *WindowFrame) nodeTag() {}
@@ -2615,6 +2621,7 @@ type CreateTablespaceStmt struct {
 	MaxSize         string // MAX_SIZE value
 	NodeGroup       string // NODEGROUP value
 	Wait            bool   // WAIT
+	NoWait          bool   // NO_WAIT
 	Comment         string // COMMENT value
 	Engine          string // ENGINE name
 	EngineAttribute string // ENGINE_ATTRIBUTE value
@@ -2632,6 +2639,8 @@ type AlterTablespaceStmt struct {
 	DropDataFile    string // DROP DATAFILE 'file_name'
 	InitialSize     string // INITIAL_SIZE value
 	Wait            bool   // WAIT
+	NoWait          bool   // NO_WAIT
+	MaxSize         string // MAX_SIZE value
 	RenameTo        string // RENAME TO tablespace_name
 	AutoextendSize  string // AUTOEXTEND_SIZE value
 	Encryption      string // ENCRYPTION value
@@ -2650,6 +2659,8 @@ type DropTablespaceStmt struct {
 	Undo   bool   // UNDO tablespace
 	Name   string // tablespace name
 	Engine string // ENGINE name
+	Wait   bool   // WAIT
+	NoWait bool   // NO_WAIT
 }
 
 func (s *DropTablespaceStmt) nodeTag()  {}

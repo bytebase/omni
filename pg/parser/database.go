@@ -298,7 +298,7 @@ func (p *Parser) parseSetResetClause() (*nodes.VariableSetStmt, error) {
 //	    | TRANSACTION ISOLATION LEVEL
 //	    | SESSION AUTHORIZATION
 func (p *Parser) parseResetRest() nodes.Node {
-	switch p.cur.Type {
+	switch p.varNameFormKind() {
 	case TIME:
 		p.advance()
 		p.expect(ZONE)
@@ -327,8 +327,8 @@ func (p *Parser) parseResetRest() nodes.Node {
 			Kind: nodes.VAR_RESET_ALL,
 		}
 	default:
-		name := p.parseVarName()
-		if name == "" {
+		name, err := p.parseVarName()
+		if err != nil {
 			// shape-III-partial fix: invalid/empty var_name after RESET was
 			// previously accepted as an un-named VariableSetStmt.
 			return nil
