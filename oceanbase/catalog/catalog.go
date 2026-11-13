@@ -22,9 +22,17 @@ type Catalog struct {
 // time, in the time's 16 digits, and no two are alike in one catalog. The diff pairs such
 // a constraint with the engine's by definition, not by this name (forgetMadeUpRenames).
 // TestScenario_C1 and TestScenario_PS hold the shape to the engine.
-func (c *Catalog) madeUpConstraintName(table, infix string) string {
-	c.madeUpNames++
-	return fmt.Sprintf("%s%s%016d", table, infix, c.madeUpNames)
+//
+// taken reports a name a constraint already has. The count passes over those, so a schema
+// loaded with the names an earlier catalog made, as its SHOW CREATE TABLE writes them,
+// still takes an unnamed constraint.
+func (c *Catalog) madeUpConstraintName(table, infix string, taken func(name string) bool) string {
+	for {
+		c.madeUpNames++
+		if name := fmt.Sprintf("%s%s%016d", table, infix, c.madeUpNames); !taken(name) {
+			return name
+		}
+	}
 }
 
 // The infix of the name OceanBase makes up for a foreign key and for a CHECK.

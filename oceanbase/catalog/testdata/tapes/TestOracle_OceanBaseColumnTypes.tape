@@ -2,22 +2,11 @@
 
 == TestOracle_OceanBaseColumnTypes default#1
 > exec
-| DROP DATABASE IF EXISTS obtypes
-< ok 0 0
-> exec
-| CREATE DATABASE obtypes
-< ok 1 0
-> exec
-| USE obtypes
-< ok 0 0
-> exec
 | CREATE TABLE t00 (c TINYINT)
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t00
 < result
@@ -34,9 +23,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t01
 < result
@@ -53,9 +40,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t02
 < result
@@ -72,9 +57,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t03
 < result
@@ -91,9 +74,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t04
 < result
@@ -110,9 +91,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t05
 < result
@@ -129,9 +108,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t06
 < result
@@ -148,9 +125,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t07
 < result
@@ -167,9 +142,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t08
 < result
@@ -186,9 +159,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t09
 < result
@@ -205,9 +176,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t10
 < result
@@ -224,9 +193,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t11
 < result
@@ -243,9 +210,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t12
 < result
@@ -262,9 +227,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t13
 < result
@@ -281,9 +244,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t14
 < result
@@ -300,9 +261,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t15
 < result
@@ -319,9 +278,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t16
 < result
@@ -338,9 +295,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t17
 < result
@@ -357,9 +312,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t18
 < result
@@ -376,9 +329,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t19
 < result
@@ -395,9 +346,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t20
 < result
@@ -414,9 +363,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t21
 < result
@@ -433,9 +380,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t22
 < result
@@ -452,9 +397,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t23
 < result
@@ -471,9 +414,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t24
 < result
@@ -490,9 +431,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t25
 < result
@@ -509,9 +448,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t26
 < result
@@ -528,9 +465,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t27
 < result
@@ -547,9 +482,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t28
 < result
@@ -566,9 +499,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t29
 < result
@@ -587,9 +518,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t30
 < result
@@ -608,9 +537,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t31
 < result
@@ -629,9 +556,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t32
 < result
@@ -650,9 +575,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t33
 < result
@@ -671,9 +594,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t34
 < result
@@ -692,9 +613,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t35
 < result
@@ -713,9 +632,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t36
 < result
@@ -734,9 +651,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t37
 < result
@@ -755,9 +670,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t38
 < result
@@ -776,9 +689,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t39
 < result
@@ -797,9 +708,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t40
 < result
@@ -818,9 +727,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t41
 < result
@@ -839,9 +746,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t42
 < result
@@ -860,9 +765,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t43
 < result
@@ -881,9 +784,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t44
 < result
@@ -902,9 +803,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t45
 < result
@@ -927,9 +826,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t47
 < result
@@ -948,9 +845,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t48
 < result
@@ -973,9 +868,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t50
 < result
@@ -994,9 +887,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t51
 < result
@@ -1015,9 +906,7 @@
 < ok 0 0
 > query
 | SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
-: string
-| obtypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'c'
 : string
 | t52
 < result

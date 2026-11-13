@@ -13,17 +13,14 @@ import (
 // RPAD the character set of both their strings. Each view is made on OceanBase and on a
 // catalog, and both must answer what is written here.
 func TestOracle_OceanBaseViewAttributes(t *testing.T) {
-	o := oceanBaseOracle(t)
 	ctx := context.Background()
-	const db = "obviews"
-	c := New()
+	engine, c, db := engineDatabase(t, "oceanbase_catalog_view_attributes")
 	for _, s := range []string{
-		"DROP DATABASE IF EXISTS " + db, "CREATE DATABASE " + db, "USE " + db,
 		"CREATE TABLE t (id INT NOT NULL, a INT NOT NULL, n INT)",
 		"CREATE TABLE u (id INT NOT NULL, b INT NOT NULL)",
 		"CREATE TABLE s (l VARCHAR(10) CHARACTER SET latin1 COLLATE latin1_swedish_ci, m VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin)",
 	} {
-		if _, err := o.db.ExecContext(ctx, s); err != nil {
+		if _, err := engine.ExecContext(ctx, s); err != nil {
 			t.Fatalf("%s: %v", s, err)
 		}
 		if code := omniCode(c, s); code != 0 {
@@ -43,6 +40,10 @@ func TestOracle_OceanBaseViewAttributes(t *testing.T) {
 		{"v_group", "CREATE VIEW v_group AS SELECT a, COUNT(*) AS c FROM t GROUP BY a", "YES", "NONE", "a NO -, c YES -"},
 		{"v_expr", "CREATE VIEW v_expr AS SELECT a + 1 AS e, 1 AS one, 'x' AS str, ABS(a) AS f, CAST(a AS SIGNED) AS g, id FROM t", "YES", "NONE", "e NO -, one NO -, str NO utf8mb4, f NO -, g NO -, id NO -"},
 		{"v_inner", "CREATE VIEW v_inner AS SELECT t.a, u.b, t.n FROM t JOIN u ON t.id = u.id", "YES", "NONE", "a NO -, b NO -, n YES -"},
+		// IF and CASE: nullable when a result is or a CASE has no ELSE, with the
+		// character set of the results. OceanBase stores the IF as a CASE.
+		{"v_if", "CREATE VIEW v_if AS SELECT IF(a > 0, NULL, 'x') AS c, IF(a > 0, a, 1) AS e, CASE WHEN a > 0 THEN a END AS f FROM t", "YES", "NONE", "c YES utf8mb4, e NO -, f YES -"},
+		{"v_if_charset", "CREATE VIEW v_if_charset AS SELECT IF(l IS NULL, 'y', l) AS d, CASE WHEN l IS NULL THEN m ELSE l END AS g FROM s", "YES", "NONE", "d YES latin1, g YES utf8mb4"},
 		{"v_union", "CREATE VIEW v_union AS SELECT a FROM t UNION SELECT b FROM u", "YES", "NONE", "a NO -"},
 		{"v_invoker", "CREATE SQL SECURITY INVOKER VIEW v_invoker AS SELECT a FROM t", "YES", "NONE", "a NO -"},
 		{"v_definer", "CREATE SQL SECURITY DEFINER VIEW v_definer AS SELECT a FROM t", "YES", "NONE", "a NO -"},
@@ -56,19 +57,19 @@ func TestOracle_OceanBaseViewAttributes(t *testing.T) {
 		{"v_lpad_ll", "CREATE VIEW v_lpad_ll AS SELECT LPAD(l, 20, l) AS c FROM s", "YES", "NONE", "c YES latin1"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if _, err := o.db.ExecContext(ctx, tc.view); err != nil {
+			if _, err := engine.ExecContext(ctx, tc.view); err != nil {
 				t.Fatalf("%s: %v", tc.view, err)
 			}
 			if code := omniCode(c, tc.view); code != 0 {
 				t.Fatalf("omni: %s: error %d", tc.view, code)
 			}
 			var updatable, security string
-			if err := o.db.QueryRowContext(ctx, `SELECT IS_UPDATABLE, SECURITY_TYPE FROM information_schema.VIEWS
-				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?`, db, tc.name).Scan(&updatable, &security); err != nil {
+			if err := engine.QueryRowContext(ctx, `SELECT IS_UPDATABLE, SECURITY_TYPE FROM information_schema.VIEWS
+				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`, tc.name).Scan(&updatable, &security); err != nil {
 				t.Fatalf("VIEWS: %v", err)
 			}
-			rows, err := o.db.QueryContext(ctx, `SELECT COLUMN_NAME, IS_NULLABLE, CHARACTER_SET_NAME FROM information_schema.COLUMNS
-				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION`, db, tc.name)
+			rows, err := engine.QueryContext(ctx, `SELECT COLUMN_NAME, IS_NULLABLE, CHARACTER_SET_NAME FROM information_schema.COLUMNS
+				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION`, tc.name)
 			if err != nil {
 				t.Fatalf("COLUMNS: %v", err)
 			}
@@ -130,18 +131,8 @@ func orDash(s string) string {
 // stops being its column's name: OceanBase counts the 64 in bytes, where MySQL counts
 // characters, and names the column Name_exp_N past it.
 func TestOracle_OceanBaseViewColumnNames(t *testing.T) {
-	o := oceanBaseOracle(t)
 	ctx := context.Background()
-	const db = "obviewnames"
-	c := New()
-	for _, s := range []string{"DROP DATABASE IF EXISTS " + db, "CREATE DATABASE " + db, "USE " + db} {
-		if _, err := o.db.ExecContext(ctx, s); err != nil {
-			t.Fatalf("%s: %v", s, err)
-		}
-		if code := omniCode(c, s); code != 0 {
-			t.Fatalf("omni: %s: error %d", s, code)
-		}
-	}
+	engine, c, db := engineDatabase(t, "oceanbase_catalog_view_column_names")
 	bytes64 := "concat('" + strings.Repeat("é", 27) + "')" // 37 characters, 64 bytes
 	bytes66 := "concat('" + strings.Repeat("é", 28) + "')" // 38 characters, 66 bytes
 	chars64 := "concat('" + strings.Repeat("e", 54) + "')"
@@ -154,15 +145,15 @@ func TestOracle_OceanBaseViewColumnNames(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			view := "CREATE VIEW " + tc.name + " AS SELECT " + tc.item
-			if _, err := o.db.ExecContext(ctx, view); err != nil {
+			if _, err := engine.ExecContext(ctx, view); err != nil {
 				t.Fatalf("%s: %v", view, err)
 			}
 			if code := omniCode(c, view); code != 0 {
 				t.Fatalf("omni: %s: error %d", view, code)
 			}
 			var column string
-			if err := o.db.QueryRowContext(ctx, `SELECT COLUMN_NAME FROM information_schema.COLUMNS
-				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?`, db, tc.name).Scan(&column); err != nil {
+			if err := engine.QueryRowContext(ctx, `SELECT COLUMN_NAME FROM information_schema.COLUMNS
+				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`, tc.name).Scan(&column); err != nil {
 				t.Fatalf("COLUMNS: %v", err)
 			}
 			if column != tc.column {
