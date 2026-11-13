@@ -3,6 +3,7 @@ package v1review
 import (
 	"github.com/bytebase/omni/mysql/ast"
 	"github.com/bytebase/omni/v1review"
+	"strconv"
 )
 
 // StatementInsertRowLimitProbes returns, in order, the indexes of the
@@ -23,10 +24,10 @@ func StatementInsertRowLimitProbes(stmts []ast.Node) []int {
 // StatementInsertRowLimit reports, in statement order, each top-level
 // INSERT or REPLACE that inserts more than maxRows rows. An INSERT ... VALUES
 // counts its row lists; one whose rows come from a query is judged from its
-// probe: DryRunFailed when the EXPLAIN failed (Detail the error),
-// RowCountFailed when the estimate failed (Detail the error), and
+// probe: DryRunFailed when the EXPLAIN failed (Value the error),
+// RowCountFailed when the estimate failed (Value the error), and
 // RowLimitExceeded when the estimate exceeds maxRows. A query-sourced INSERT
-// with no probe result was not estimated and is not reported. Count is the
+// with no probe result was not estimated and is not reported. Value is the
 // rows; Statement the index; findings anchor the statement (Start = End =
 // 0). Ported from Bytebase's V1 rule STATEMENT_INSERT_ROW_LIMIT.
 func StatementInsertRowLimit(stmts []ast.Node, probes map[int]v1review.Probe, maxRows int) []v1review.Finding {
@@ -38,7 +39,7 @@ func StatementInsertRowLimit(stmts []ast.Node, probes map[int]v1review.Probe, ma
 		}
 		if insert.Select == nil {
 			if len(insert.Values) > maxRows {
-				findings = append(findings, v1review.Finding{Code: v1review.RowLimitExceeded, Count: len(insert.Values), Statement: i})
+				findings = append(findings, v1review.Finding{Code: v1review.RowLimitExceeded, Value: strconv.Itoa(len(insert.Values)), Statement: i})
 			}
 			continue
 		}
@@ -55,11 +56,11 @@ func StatementInsertRowLimit(stmts []ast.Node, probes map[int]v1review.Probe, ma
 func rowLimitFinding(probe v1review.Probe, maxRows, statement int) (v1review.Finding, bool) {
 	switch {
 	case probe.Error != "":
-		return v1review.Finding{Code: v1review.DryRunFailed, Detail: probe.Error, Statement: statement}, true
+		return v1review.Finding{Code: v1review.DryRunFailed, Value: probe.Error, Statement: statement}, true
 	case probe.CountError != "":
-		return v1review.Finding{Code: v1review.RowCountFailed, Detail: probe.CountError, Statement: statement}, true
+		return v1review.Finding{Code: v1review.RowCountFailed, Value: probe.CountError, Statement: statement}, true
 	case probe.Rows > int64(maxRows):
-		return v1review.Finding{Code: v1review.RowLimitExceeded, Count: int(probe.Rows), Statement: statement}, true
+		return v1review.Finding{Code: v1review.RowLimitExceeded, Value: strconv.FormatInt(probe.Rows, 10), Statement: statement}, true
 	}
 	return v1review.Finding{}, false
 }

@@ -1,6 +1,7 @@
 package v1review
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/bytebase/omni/v1review"
@@ -8,7 +9,7 @@ import (
 
 func TestStatementMergeAlterTable(t *testing.T) {
 	redundant := func(table string, count, statement int) stmtFinding {
-		return stmtFinding{Code: v1review.RedundantAlterTable, Table: table, Count: count, Statement: statement}
+		return stmtFinding{Code: v1review.RedundantAlterTable, Table: table, Value: strconv.Itoa(count), Statement: statement}
 	}
 	testStatementRule(t, StatementMergeAlterTable, []statementCase{
 		{name: "create then alter", sql: "CREATE TABLE t (a int);\nALTER TABLE t ADD b int;", want: []stmtFinding{redundant("t", 2, 1)}},

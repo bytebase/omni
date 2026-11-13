@@ -24,7 +24,7 @@ import (
 // when one of its arguments, after peeling casts, is an indexed column; a
 // binary + - * / % ^ & | # << >> when its left, else its right, operand is;
 // a unary - or ~ when its operand is. Name is the column, folded as names
-// are; Detail is the function's last name part upper-cased.
+// are; Value is the function's last name part upper-cased.
 //
 // A column is indexed when it appears among the expressions of any index of
 // its table. A table qualified with a schema resolves there; unqualified, in
@@ -1034,7 +1034,7 @@ func (r *whereFunctionRule) onMerge(n *ast.MergeStmt) {
 
 func (r *whereFunctionRule) addFunction(funcName, col string, loc ast.Loc) {
 	start, end := anchor(loc)
-	r.findings = append(r.findings, v1review.Finding{Code: v1review.FunctionOnIndexedColumn, Name: col, Detail: funcName, Start: start, End: end})
+	r.findings = append(r.findings, v1review.Finding{Code: v1review.FunctionOnIndexedColumn, Name: col, Value: funcName, Start: start, End: end})
 }
 
 func (r *whereFunctionRule) addCalculation(col string, loc ast.Loc) {

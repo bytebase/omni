@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/bytebase/omni/mysql/internal/testcontainer"
 	"strings"
 	"testing"
 
@@ -149,11 +150,11 @@ func assertRoutineApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p rou
 	}
 	toCat, ok := loadSide(p.toDDL)
 	if !ok {
-		t.Skipf("[%s] could not obtain `to` readback for %s", o.name, p.id)
+		t.Fatalf("[%s] could not obtain `to` readback for %s", o.name, p.id)
 	}
 	fromCat, ok := loadSide(p.fromDDL)
 	if !ok {
-		t.Skipf("[%s] could not obtain `from` readback for %s", o.name, p.id)
+		t.Fatalf("[%s] could not obtain `from` readback for %s", o.name, p.id)
 	}
 
 	diff := DiffWithNormalizer(fromCat, toCat, n)
@@ -175,11 +176,8 @@ func assertRoutineApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p rou
 	}
 
 	// Apply the plan to a real database in `from` state, on ONE dedicated connection.
-	conn, err := o.db.Conn(ctx)
-	if err != nil {
-		t.Fatalf("[%s] grab conn: %v", o.name, err)
-	}
-	defer func() { _ = conn.Close() }()
+	// A connection of its own: the test's other one stays free for the helpers.
+	conn := testcontainer.OpenRoot(t, testcontainer.Options{MultiStatements: true})
 
 	setup := []string{
 		"DROP DATABASE IF EXISTS " + db,
@@ -191,7 +189,7 @@ func assertRoutineApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p rou
 	}
 	for _, s := range setup {
 		if _, err := conn.ExecContext(ctx, s); err != nil {
-			t.Skipf("[%s] could not set up `from` state for %s: %q: %v", o.name, p.id, s, err)
+			t.Fatalf("[%s] could not set up `from` state for %s: %q: %v", o.name, p.id, s, err)
 		}
 	}
 
@@ -280,7 +278,7 @@ func TestOracle_RoutineMultiObjectRoundTrip(t *testing.T) {
 			}
 			for _, s := range stmts {
 				if _, err := o.db.ExecContext(ctx, s); err != nil {
-					t.Skipf("[%s] setup failed (may be expected): %q: %v", o.name, s, err)
+					t.Fatalf("[%s] setup failed : %q: %v", o.name, s, err)
 				}
 			}
 

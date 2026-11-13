@@ -1,6 +1,7 @@
 package v1review
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/bytebase/omni/pg/ast"
@@ -61,11 +62,11 @@ func hasDataModifyingCTE(with *ast.WithClause) bool {
 func rowLimitFinding(probe v1review.Probe, maxRows, statement int) (v1review.Finding, bool) {
 	switch {
 	case probe.Error != "":
-		return v1review.Finding{Code: v1review.DryRunFailed, Detail: probe.Error, Statement: statement}, true
+		return v1review.Finding{Code: v1review.DryRunFailed, Value: probe.Error, Statement: statement}, true
 	case probe.CountError != "":
-		return v1review.Finding{Code: v1review.RowCountFailed, Detail: probe.CountError, Statement: statement}, true
+		return v1review.Finding{Code: v1review.RowCountFailed, Value: probe.CountError, Statement: statement}, true
 	case probe.Rows > int64(maxRows):
-		return v1review.Finding{Code: v1review.RowLimitExceeded, Count: int(probe.Rows), Statement: statement}, true
+		return v1review.Finding{Code: v1review.RowLimitExceeded, Value: strconv.FormatInt(probe.Rows, 10), Statement: statement}, true
 	}
 	return v1review.Finding{}, false
 }

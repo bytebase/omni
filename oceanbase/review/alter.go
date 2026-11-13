@@ -21,6 +21,7 @@ const (
 	// unique key, or check constraint of the name.
 	dropConstraint
 	dropPartition
+	dropSubpartition
 )
 
 // dropKindOf returns what an ALTER TABLE subcommand drops, dropNone for
@@ -39,6 +40,8 @@ func dropKindOf(sql string, cmd *ast.AlterTableCmd) dropKind {
 		return dropIndex
 	case ast.ATDropPartition:
 		return dropPartition
+	case ast.ATDropSubpartition:
+		return dropSubpartition
 	case ast.ATDropConstraint:
 		switch wordAfterDrop(sql, cmd.Loc) {
 		case "PRIMARY":

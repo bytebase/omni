@@ -5,11 +5,11 @@ import (
 	"database/sql"
 	"errors"
 	"os"
-	"sync"
 	"testing"
 
 	gomysql "github.com/go-sql-driver/mysql"
 
+	"github.com/bytebase/omni/enginetest/tape"
 	"github.com/bytebase/omni/mysql/internal/testcontainer"
 )
 
@@ -18,38 +18,20 @@ type parserOracle struct {
 	ctx context.Context
 }
 
-// oracleDatabase is this process's database on the package's MySQL 8.0,
-// created by the first test that asks for it.
-var oracleDatabase struct {
-	once sync.Once
-	db   *testcontainer.Database
-	err  error
-}
-
 // startParserOracle returns the oracle with its database empty and selected, as a
-// server of its own would be. A statement it runs can change nothing outside that
-// database: see testcontainer.
+// server of its own would be: a replay of the test's tape, or the pinned server in
+// a recording (see testcontainer.OpenDatabase). A statement it runs can change
+// nothing outside that database: see testcontainer.
 func startParserOracle(t *testing.T) *parserOracle {
 	t.Helper()
-	ctx := context.Background()
-	oracleDatabase.once.Do(func() {
-		oracleDatabase.db, oracleDatabase.err = testcontainer.MySQL80.Database(ctx, "mysql_parser")
-	})
-	if oracleDatabase.err != nil {
-		t.Fatalf("MySQL 8.0 oracle: %v", oracleDatabase.err)
-	}
-	if err := oracleDatabase.db.Reset(ctx); err != nil {
-		t.Fatalf("reset the oracle's database: %v", err)
-	}
-	return &parserOracle{db: oracleDatabase.db.DB, ctx: ctx}
+	return &parserOracle{db: testcontainer.OpenDatabase(t, "mysql_parser"), ctx: context.Background()}
 }
 
+// TestMain runs the tests through the tape harness, and removes the server a
+// recording started.
 func TestMain(m *testing.M) {
-	code := m.Run()
-	if oracleDatabase.db != nil {
-		oracleDatabase.db.Close(context.Background())
-	}
-	testcontainer.MySQL80.Terminate()
+	code := tape.Main(m)
+	testcontainer.Terminate()
 	os.Exit(code)
 }
 

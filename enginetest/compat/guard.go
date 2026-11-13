@@ -6,11 +6,17 @@ import "fmt"
 // the change may not do. A test run sees only the file it has; these rules
 // need the file it replaced.
 //
-//   - An omni cell changes only from ?, or to its row's expected verdict:
-//     a regression is never committed as omni's new verdict.
+//   - An omni cell that held its row's expected verdict keeps it: a
+//     regression is never committed as omni's new verdict. A cell that
+//     differed may change to anything, since a fix can move a row from one
+//     gap to another (a rejection at another byte), and the test holds the
+//     cell to what omni says.
 //   - An expected cell (and its source) changes only from ?, or when the
 //     file was recorded at a new pin: the judge's answers are not edited to
-//     pass.
+//     pass. A grammar or docs cell may move whenever its grammar does,
+//     since TestCompatibility asks the recognizer again on every run.
+//   - An undocumented row's omni cell may change to anything: the docs
+//     give it nothing to agree with.
 //
 // The pin is the file's own # pin: line, which a recording writes and
 // TestCompatibility holds to the engine's pins.tsv. An edit to pins.tsv
@@ -29,11 +35,12 @@ func Guard(before, after *File) []string {
 		if !ok {
 			continue
 		}
-		if r.Omni != o.Omni && o.Omni != Unjudged && r.Omni != r.Expected {
-			problems = append(problems, fmt.Sprintf("%s: omni changed from %s to %s, which is not the expected %s: a regression, not a closed gap\n    %s",
-				r.Rule, o.Omni, r.Omni, r.Expected, r.Statement))
+		if r.Omni != o.Omni && o.Omni == o.Expected && o.Omni != Unjudged && r.Omni != r.Expected && r.Expected != Undocumented {
+			problems = append(problems, fmt.Sprintf("%s: omni changed from %s, the expected verdict, to %s: a regression\n    %s",
+				r.Rule, o.Omni, r.Omni, r.Statement))
 		}
-		if (r.Expected != o.Expected || r.Source != o.Source) && o.Expected != Unjudged && !repinned {
+		rejudged := recognized(o.Source) && r.Source == o.Source
+		if (r.Expected != o.Expected || r.Source != o.Source) && o.Expected != Unjudged && !repinned && !rejudged {
 			problems = append(problems, fmt.Sprintf("%s: expected changed from %s (%s) to %s (%s) without a pin bump; only a recording at a new pin changes it\n    %s",
 				r.Rule, o.Expected, o.Source, r.Expected, r.Source, r.Statement))
 		}

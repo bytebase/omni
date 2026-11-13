@@ -16,7 +16,7 @@ type stmtFinding struct {
 	Code      v1review.Code
 	Name      string
 	Table     string
-	Count     int
+	Value     string
 	Statement int
 	Text      string
 }
@@ -35,7 +35,7 @@ func parseStatements(t *testing.T, sql string) []ast.Node {
 func toStmtFindings(sql string, findings []v1review.Finding) []stmtFinding {
 	var got []stmtFinding
 	for _, f := range findings {
-		got = append(got, stmtFinding{f.Code, f.Name, f.Table, f.Count, f.Statement, sql[f.Start:f.End]})
+		got = append(got, stmtFinding{f.Code, f.Name, f.Table, f.Value, f.Statement, sql[f.Start:f.End]})
 	}
 	return got
 }

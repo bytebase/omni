@@ -20,7 +20,7 @@ import (
 // SELECT nested in them (CTEs, set operations, derived tables, scalar and
 // correlated subqueries, SET values). A function call is reported when an
 // argument, after peeling wrappers, is an indexed column; an arithmetic
-// expression when an operand is. Name is the column as written; Detail is
+// expression when an operand is. Name is the column as written; Value is
 // the function name as the V1 advisor printed it.
 //
 // A table resolves in its named schema; unqualified, in "dbo", then in every
@@ -631,7 +631,7 @@ func (r *whereFunctionRule) checkWhereNode(n ast.Node, indexed whereScopeIndexed
 
 func (r *whereFunctionRule) addFunction(funcName, col string, loc ast.Loc) {
 	start, end := stmtAnchor(loc)
-	r.findings = append(r.findings, v1review.Finding{Code: v1review.FunctionOnIndexedColumn, Name: col, Detail: funcName, Start: start, End: end})
+	r.findings = append(r.findings, v1review.Finding{Code: v1review.FunctionOnIndexedColumn, Name: col, Value: funcName, Start: start, End: end})
 }
 
 func (r *whereFunctionRule) addCalculation(col string, loc ast.Loc) {

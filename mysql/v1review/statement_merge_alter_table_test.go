@@ -1,6 +1,7 @@
 package v1review
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -11,7 +12,7 @@ import (
 
 func TestStatementMergeAlterTable(t *testing.T) {
 	redundant := func(table string, count, stmt int) v1review.Finding {
-		return v1review.Finding{Code: v1review.RedundantAlterTable, Table: table, Count: count, Statement: stmt}
+		return v1review.Finding{Code: v1review.RedundantAlterTable, Table: table, Value: strconv.Itoa(count), Statement: stmt}
 	}
 	for _, tt := range []struct {
 		name string

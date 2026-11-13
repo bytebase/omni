@@ -31,18 +31,18 @@ CREATE TABLE x (a int)`)
 	}
 	got := StatementInsertRowLimit(stmts, map[int]v1review.Probe{6: {CountError: "no ModifyTable"}, 7: {Rows: 2}}, 2)
 	want := []v1review.Finding{
-		{Code: v1review.RowLimitExceeded, Count: 3, Statement: 0},
-		{Code: v1review.RowCountFailed, Detail: "no ModifyTable", Statement: 6},
+		{Code: v1review.RowLimitExceeded, Value: "3", Statement: 0},
+		{Code: v1review.RowCountFailed, Value: "no ModifyTable", Statement: 6},
 	}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("insert-row findings (-want +got):\n%s", diff)
 	}
 	got = StatementDMLDryRun(stmts, map[int]v1review.Probe{3: {Error: "permission denied"}, 4: {Error: "not probed"}})
-	if diff := cmp.Diff([]v1review.Finding{{Code: v1review.DryRunFailed, Detail: "permission denied", Statement: 3}}, got); diff != "" {
+	if diff := cmp.Diff([]v1review.Finding{{Code: v1review.DryRunFailed, Value: "permission denied", Statement: 3}}, got); diff != "" {
 		t.Errorf("dry-run findings (-want +got):\n%s", diff)
 	}
 	got = StatementAffectedRowLimit(stmts, map[int]v1review.Probe{2: {Rows: 3}, 9: {Rows: 2}}, 2)
-	if diff := cmp.Diff([]v1review.Finding{{Code: v1review.RowLimitExceeded, Count: 3, Statement: 2}}, got); diff != "" {
+	if diff := cmp.Diff([]v1review.Finding{{Code: v1review.RowLimitExceeded, Value: "3", Statement: 2}}, got); diff != "" {
 		t.Errorf("affected-row findings (-want +got):\n%s", diff)
 	}
 }

@@ -26,13 +26,13 @@ func TestStatementWhereDisallowFunctionsAndCalculations(t *testing.T) {
 	}}
 	sensitive := v1review.Schema{Metadata: db, ObjectCaseSensitive: true}
 	type whereFinding struct {
-		Code   v1review.Code
-		Name   string
-		Detail string
-		Text   string
+		Code  v1review.Code
+		Name  string
+		Value string
+		Text  string
 	}
 	fn := func(col, name, text string) whereFinding {
-		return whereFinding{Code: v1review.FunctionOnIndexedColumn, Name: col, Detail: name, Text: text}
+		return whereFinding{Code: v1review.FunctionOnIndexedColumn, Name: col, Value: name, Text: text}
 	}
 	calc := func(col, text string) whereFinding {
 		return whereFinding{Code: v1review.CalculationOnIndexedColumn, Name: col, Text: text}
@@ -79,7 +79,7 @@ func TestStatementWhereDisallowFunctionsAndCalculations(t *testing.T) {
 			}
 			var got []whereFinding
 			for _, f := range StatementWhereDisallowFunctionsAndCalculations(stmts, tt.schema, "", tt.database) {
-				got = append(got, whereFinding{f.Code, f.Name, f.Detail, tt.sql[f.Start:f.End]})
+				got = append(got, whereFinding{f.Code, f.Name, f.Value, tt.sql[f.Start:f.End]})
 			}
 			if diff := cmp.Diff(tt.want, got); diff != "" {
 				t.Errorf("findings (-want +got):\n%s", diff)

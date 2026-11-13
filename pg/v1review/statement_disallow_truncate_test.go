@@ -32,7 +32,7 @@ func TestStatementDisallowTruncateOptions(t *testing.T) {
 		findings := StatementDisallowTruncate(parseStatements(t, sql))
 		var got []string
 		for _, f := range findings {
-			got = append(got, f.Detail)
+			got = append(got, f.Value)
 		}
 		if diff := cmp.Diff([]string{want}, got); diff != "" {
 			t.Errorf("%s: Detail (-want +got):\n%s", sql, diff)

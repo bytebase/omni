@@ -9,7 +9,6 @@ import "testing"
 // than leaving a stale expectation behind.
 func TestAdminFormsMatchTiDB(t *testing.T) {
 	tc := startTiDB(t)
-	assertTiDBVersion(t, tc)
 	for _, c := range adminFormCases {
 		t.Run(c.sql, func(t *testing.T) {
 			accepts, err := tc.prepareSyntax(c.sql)
@@ -32,7 +31,6 @@ func TestAdminFormsMatchTiDB(t *testing.T) {
 // is what says the server has not.
 func TestAdminWordsStayNamesOnTiDB(t *testing.T) {
 	tc := startTiDB(t)
-	assertTiDBVersion(t, tc)
 	for _, sql := range adminWordsAsNames {
 		t.Run(sql, func(t *testing.T) {
 			accepts, err := tc.prepareSyntax(sql)
@@ -51,7 +49,6 @@ func TestAdminWordsStayNamesOnTiDB(t *testing.T) {
 // later.
 func TestAdminIsNotARoutineStatementOnTiDB(t *testing.T) {
 	tc := startTiDB(t)
-	assertTiDBVersion(t, tc)
 	for _, sql := range adminRoutineBodyCases {
 		t.Run(sql, func(t *testing.T) {
 			accepts, err := tc.prepareSyntax(sql)

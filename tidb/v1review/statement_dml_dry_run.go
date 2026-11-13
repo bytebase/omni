@@ -23,7 +23,7 @@ func StatementDMLDryRunProbes(stmts []ast.Node) []int {
 }
 
 // StatementDMLDryRun reports each probed statement whose dry run failed, in
-// statement order: DryRunFailed, with Detail the probe's error and Statement
+// statement order: DryRunFailed, with Value the probe's error and Statement
 // its index. A statement with no probe result was not dry-run and is not
 // reported. Findings anchor the statement (Start = End = 0). Ported from
 // Bytebase's V1 rule STATEMENT_DML_DRY_RUN.
@@ -34,7 +34,7 @@ func StatementDMLDryRun(stmts []ast.Node, probes map[int]v1review.Probe) []v1rev
 		if !ok || probe.Error == "" {
 			continue
 		}
-		findings = append(findings, v1review.Finding{Code: v1review.DryRunFailed, Detail: probe.Error, Statement: i})
+		findings = append(findings, v1review.Finding{Code: v1review.DryRunFailed, Value: probe.Error, Statement: i})
 	}
 	return findings
 }

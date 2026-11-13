@@ -24,7 +24,7 @@ func TestStatementWhereDisallowFunctionsAndCalculations(t *testing.T) {
 	}}}
 	schema := v1review.Schema{Metadata: db}
 	fn := func(col, name, text string) stmtFinding {
-		return stmtFinding{Code: v1review.FunctionOnIndexedColumn, Name: col, Detail: name, Text: text}
+		return stmtFinding{Code: v1review.FunctionOnIndexedColumn, Name: col, Value: name, Text: text}
 	}
 	calc := func(col, text string) stmtFinding {
 		return stmtFinding{Code: v1review.CalculationOnIndexedColumn, Name: col, Text: text}

@@ -9,18 +9,18 @@ import (
 )
 
 func TestStatementSelectNoSelectAll(t *testing.T) {
-	star := func(text string) stmtFinding { return stmtFinding{Code: v1review.SelectAll, Text: text} }
+	star := func(text string) statementFinding { return statementFinding{Code: v1review.SelectAll, Text: text} }
 	for _, tt := range []struct {
 		name string
 		sql  string
-		want []stmtFinding
+		want []statementFinding
 	}{
-		{name: "bare star", sql: "SELECT * FROM t", want: []stmtFinding{star("*")}},
-		{name: "qualified star", sql: "SELECT a, t.* FROM t", want: []stmtFinding{star("t.*")}},
+		{name: "bare star", sql: "SELECT * FROM t", want: []statementFinding{star("*")}},
+		{name: "qualified star", sql: "SELECT a, t.* FROM t", want: []statementFinding{star("t.*")}},
 		{name: "no star", sql: "SELECT a FROM t"},
 		{name: "count star not judged", sql: "SELECT COUNT(*) FROM t"},
-		{name: "subquery", sql: "SELECT a FROM (SELECT * FROM t) x", want: []stmtFinding{star("*")}},
-		{name: "exists subquery", sql: "SELECT a FROM t WHERE EXISTS (SELECT * FROM u)", want: []stmtFinding{star("*")}},
+		{name: "subquery", sql: "SELECT a FROM (SELECT * FROM t) x", want: []statementFinding{star("*")}},
+		{name: "exists subquery", sql: "SELECT a FROM t WHERE EXISTS (SELECT * FROM u)", want: []statementFinding{star("*")}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			if diff := cmp.Diff(tt.want, runStatement(t, tt.sql, StatementSelectNoSelectAll)); diff != "" {

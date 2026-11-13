@@ -243,24 +243,19 @@ var queryPrimaryCases = []queryPrimaryCase{
 // and any other server error means the text parsed and failed later.
 func TestQueryPrimaryFormsOracle(t *testing.T) {
 	tc := startTiDB(t)
-	assertTiDBVersion(t, tc)
-	for i, qpc := range queryPrimaryCases {
+	for _, qpc := range queryPrimaryCases {
 		t.Run(qpc.sql, func(t *testing.T) {
-			previous := "<start of cases>"
-			if i > 0 {
-				previous = queryPrimaryCases[i-1].sql
-			}
-			accepts, _, err := tc.syntaxVerdict(t, qpc.sql, previous)
+			accepts, err := tc.prepareSyntax(qpc.sql)
 			if err != nil {
 				t.Fatalf("no verdict: %v", err)
 			}
 			if accepts != qpc.accept {
-				t.Fatalf("TiDB %s accepts=%v, want %v for %q", tidbCorpusVersion, accepts, qpc.accept, qpc.sql)
+				t.Fatalf("TiDB %s accepts=%v, want %v for %q", tidbRelease, accepts, qpc.accept, qpc.sql)
 			}
 			_, perr := Parse(qpc.sql)
 			if omniAccepts := perr == nil; omniAccepts != qpc.accept {
 				t.Errorf("DIVERGENCE omni accepts=%v, TiDB %s accepts=%v for %q: %v",
-					omniAccepts, tidbCorpusVersion, qpc.accept, qpc.sql, perr)
+					omniAccepts, tidbRelease, qpc.accept, qpc.sql, perr)
 			}
 		})
 	}

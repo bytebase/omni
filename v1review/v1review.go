@@ -62,16 +62,8 @@ type Finding struct {
 	// Pattern is the pattern the name was held to. Template rules set it,
 	// since theirs differs per object; other rules leave it empty.
 	Pattern string
-	// Detail is the compile error's text, set with PatternInvalid. A
-	// statement code that sets it says what it holds.
+	// Detail is the compile error's text, set with PatternInvalid.
 	Detail string
-	// Count is the number a statement code reports, such as how many
-	// statements altered one table; each code that sets it says so.
-	Count int
-	// Statement is the index, in the statements passed, of the statement
-	// whose text Start and End index. Only rules that judge statements
-	// together set it; a rule judging each statement alone leaves it 0.
-	Statement int
 	// Search is the text the V1 advisor searched the statement for to find
 	// the finding's line, which can differ from Name: the source spelling
 	// where Name is lower-cased, say. It is set only on a finding the V1
@@ -86,6 +78,22 @@ type Finding struct {
 	// the statement's and the caller keeps that computation. Both 0 means
 	// the AST kept no range.
 	Start, End int
+	// Statement is the index, in the statements the rule function was
+	// given, of the statement Start and End are offsets into. Rules that
+	// judge statements together, where a finding can belong to any of them,
+	// set it; for every other rule it is 0 and the caller passes one
+	// statement at a time.
+	Statement int
+	// Value is a fact the V1 advisor printed besides the name, as text: a
+	// column's type, a length, a count. Rules that set it document what it
+	// holds.
+	Value string
+	// Other is a second name the advice prints beside Name: the column an
+	// index lists twice, say. Rules that set it document what it holds.
+	Other string
+	// Schema is the schema Table is in, as the V1 advisor printed it. Rules
+	// whose advice does not name a schema leave it empty.
+	Schema string
 }
 
 // NamingConfig configures a naming rule; Bytebase builds it from the V1

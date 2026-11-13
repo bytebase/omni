@@ -22,7 +22,7 @@ func TestStatementDMLDryRun(t *testing.T) {
 		t.Errorf("probes (-want +got):\n%s", diff)
 	}
 	got := StatementDMLDryRun(stmts, map[int]v1review.Probe{0: {}, 3: {Error: "ORA-00942"}, 1: {Error: "not probed"}})
-	want := []v1review.Finding{{Code: v1review.DryRunFailed, Detail: "ORA-00942", Statement: 3}}
+	want := []v1review.Finding{{Code: v1review.DryRunFailed, Value: "ORA-00942", Statement: 3}}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("findings (-want +got):\n%s", diff)
 	}

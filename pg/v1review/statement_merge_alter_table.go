@@ -3,6 +3,7 @@ package v1review
 import (
 	"cmp"
 	"slices"
+	"strconv"
 
 	"github.com/bytebase/omni/pg/ast"
 	"github.com/bytebase/omni/v1review"
@@ -10,7 +11,7 @@ import (
 
 // StatementMergeAlterTable judges the statements together and reports each
 // table that a CREATE TABLE creates and later statements alter more than
-// once in all: one RedundantAlterTable finding per table, with Count the
+// once in all: one RedundantAlterTable finding per table, with Value the
 // CREATE and its ALTERs, Table the name the CREATE gave, and Statement the
 // last ALTER. An ALTER counts toward the most recent CREATE of the table,
 // a second CREATE starts the count over, and an ALTER of a table no
@@ -50,7 +51,7 @@ func StatementMergeAlterTable(stmts []ast.Node) []v1review.Finding {
 	var findings []v1review.Finding
 	for _, t := range tables {
 		if t.count > 1 {
-			findings = append(findings, v1review.Finding{Code: v1review.RedundantAlterTable, Table: t.name, Count: t.count, Statement: t.statement})
+			findings = append(findings, v1review.Finding{Code: v1review.RedundantAlterTable, Table: t.name, Value: strconv.Itoa(t.count), Statement: t.statement})
 		}
 	}
 	// Each ALTER names one table, so no two findings share a Statement.

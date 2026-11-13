@@ -18,7 +18,7 @@ func TestStatementDMLDryRun(t *testing.T) {
 		t.Errorf("probes (-want +got):\n%s", diff)
 	}
 	got := StatementDMLDryRun(list.Items, map[int]v1review.Probe{2: {Error: "failed to extract inner DML"}, 4: {}})
-	want := []v1review.Finding{{Code: v1review.DryRunFailed, Detail: "failed to extract inner DML", Statement: 2}}
+	want := []v1review.Finding{{Code: v1review.DryRunFailed, Value: "failed to extract inner DML", Statement: 2}}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("findings (-want +got):\n%s", diff)
 	}

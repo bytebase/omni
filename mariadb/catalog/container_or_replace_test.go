@@ -366,14 +366,15 @@ var orReplaceCases = []orReplaceCase{
 // creates the new table beside the other one; the catalog reports 1050, as
 // it does for plain CREATE [TEMPORARY] TABLE there.
 func TestContainerCreateOrReplaceTable(t *testing.T) {
-	db := mariadbDatabase(t)
 	for _, tc := range orReplaceCases {
 		t.Run(tc.name, func(t *testing.T) {
 			if len(tc.codes) != len(tc.stmts) {
 				t.Fatalf("case has %d statements and %d codes", len(tc.stmts), len(tc.codes))
 			}
 			ctx := context.Background()
-			conn, err := db.Conn(ctx)
+			// A connection for each case: a case leaves temporary tables and
+			// session settings the next must not find.
+			conn, err := mariadbDatabase(t).Conn(ctx)
 			if err != nil {
 				t.Fatal(err)
 			}

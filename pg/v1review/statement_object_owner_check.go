@@ -26,7 +26,7 @@ const pgDatabaseOwner = "pg_database_owner"
 // INDEX (the indexed table's schema), CREATE TABLE, CREATE TRIGGER, CREATE
 // MATERIALIZED VIEW, every name a DROP lists, ALTER SCHEMA ... RENAME (the
 // renamed schema) and ALTER INDEX ... RENAME. A qualified name's schema is
-// its first part only when it has two or more parts. Detail is the owner.
+// its first part only when it has two or more parts. Value is the owner.
 // Findings anchor the statement (Start = End = 0). OwnerMismatch is the only
 // code. Ported from Bytebase's V1 rule STATEMENT_OBJECT_OWNER_CHECK.
 func StatementObjectOwnerCheck(stmts []ast.Node, schema v1review.Schema, currentRole string) []v1review.Finding {
@@ -78,7 +78,7 @@ func (c *ownerCheck) check(node ast.Node) {
 	case *ast.CreateSchemaStmt:
 		owner := c.schema.Metadata.GetOwner()
 		if owner != c.role {
-			c.findings = append(c.findings, v1review.Finding{Code: v1review.OwnerMismatch, Name: "Database", Table: c.schema.Metadata.GetName(), Detail: owner, Statement: c.statement})
+			c.findings = append(c.findings, v1review.Finding{Code: v1review.OwnerMismatch, Name: "Database", Table: c.schema.Metadata.GetName(), Value: owner, Statement: c.statement})
 		}
 	case *ast.CreateSeqStmt:
 		if n.Sequence != nil {
@@ -144,7 +144,7 @@ func (c *ownerCheck) schemaOwner(schemaName string) {
 		owner = c.schema.Metadata.GetOwner()
 	}
 	if owner != c.role {
-		c.findings = append(c.findings, v1review.Finding{Code: v1review.OwnerMismatch, Name: "Schema", Table: schemaName, Detail: owner, Statement: c.statement})
+		c.findings = append(c.findings, v1review.Finding{Code: v1review.OwnerMismatch, Name: "Schema", Table: schemaName, Value: owner, Statement: c.statement})
 	}
 }
 
@@ -164,7 +164,7 @@ func (c *ownerCheck) tableOwner(schemaName, tableName string) {
 		owner = c.schema.Metadata.GetOwner()
 	}
 	if owner != c.role {
-		c.findings = append(c.findings, v1review.Finding{Code: v1review.OwnerMismatch, Name: "Table", Table: tableName, Detail: owner, Statement: c.statement})
+		c.findings = append(c.findings, v1review.Finding{Code: v1review.OwnerMismatch, Name: "Table", Table: tableName, Value: owner, Statement: c.statement})
 	}
 }
 

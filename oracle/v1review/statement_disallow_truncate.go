@@ -14,7 +14,7 @@ import (
 // written.
 //
 // Table is the table's source text, or its unqualified name when its range
-// does not lie within text. For a partition action, Detail is "PARTITION" or
+// does not lie within text. For a partition action, Value is "PARTITION" or
 // "SUBPARTITION" (the action's subtype compared case-insensitively) and Name
 // is the action's source text after the first occurrence of that keyword,
 // trimmed, with a leading "FOR " written "FOR"; when that is empty, the
@@ -71,7 +71,7 @@ func StatementDisallowTruncate(stmts []ast.Node, text string) []v1review.Finding
 					}
 				}
 				start, end := anchor(cmd.Loc)
-				findings = append(findings, v1review.Finding{Code: v1review.TruncatePartition, Name: target, Table: table, Detail: keyword, Start: start, End: end})
+				findings = append(findings, v1review.Finding{Code: v1review.TruncatePartition, Name: target, Table: table, Value: keyword, Start: start, End: end})
 			}
 		}
 	}

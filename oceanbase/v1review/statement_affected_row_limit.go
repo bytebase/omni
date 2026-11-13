@@ -3,6 +3,7 @@ package v1review
 import (
 	"github.com/bytebase/omni/oceanbase/ast"
 	"github.com/bytebase/omni/v1review"
+	"strconv"
 )
 
 // StatementAffectedRowLimitProbes returns, in order, the indexes of the
@@ -23,8 +24,8 @@ func StatementAffectedRowLimitProbes(stmts []ast.Node) []int {
 // StatementAffectedRowLimit reports, in statement order, each probed
 // statement whose estimate failed or exceeds maxRows: DryRunFailed when the
 // EXPLAIN failed, RowCountFailed when its row count could not be read
-// (Detail the error for both), RowLimitExceeded when the estimate exceeds
-// maxRows (Count the rows). A statement with no probe result was not
+// (Value the error for both), RowLimitExceeded when the estimate exceeds
+// maxRows (Value the rows). A statement with no probe result was not
 // estimated and is not reported. Statement is the index; findings anchor the
 // UPDATE or DELETE. Ported from Bytebase's V1 rule
 // STATEMENT_AFFECTED_ROW_LIMIT.
@@ -54,11 +55,11 @@ func StatementAffectedRowLimit(stmts []ast.Node, probes map[int]v1review.Probe, 
 func rowLimitFinding(probe v1review.Probe, maxRows, statement int) (v1review.Finding, bool) {
 	switch {
 	case probe.Error != "":
-		return v1review.Finding{Code: v1review.DryRunFailed, Detail: probe.Error, Statement: statement}, true
+		return v1review.Finding{Code: v1review.DryRunFailed, Value: probe.Error, Statement: statement}, true
 	case probe.CountError != "":
-		return v1review.Finding{Code: v1review.RowCountFailed, Detail: probe.CountError, Statement: statement}, true
+		return v1review.Finding{Code: v1review.RowCountFailed, Value: probe.CountError, Statement: statement}, true
 	case probe.Rows > int64(maxRows):
-		return v1review.Finding{Code: v1review.RowLimitExceeded, Count: int(probe.Rows), Statement: statement}, true
+		return v1review.Finding{Code: v1review.RowLimitExceeded, Value: strconv.FormatInt(probe.Rows, 10), Statement: statement}, true
 	}
 	return v1review.Finding{}, false
 }

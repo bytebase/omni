@@ -3,6 +3,7 @@ package v1review
 import (
 	"github.com/bytebase/omni/pg/ast"
 	"github.com/bytebase/omni/v1review"
+	"strconv"
 )
 
 // StatementInsertRowLimitProbes returns, in order, the indexes of the INSERT
@@ -28,7 +29,7 @@ func StatementInsertRowLimitProbes(stmts []ast.Node) []int {
 // through an EXPLAIN ANALYZE) that inserts more than maxRows rows: an INSERT
 // ... VALUES by its count of row lists, one whose rows come from a query by
 // its probe, as StatementAffectedRowLimit judges one. A query-sourced INSERT
-// with no probe result was not estimated and is not reported. Count is the
+// with no probe result was not estimated and is not reported. Value is the
 // rows; Statement the index; findings anchor the statement (Start = End =
 // 0). Ported from Bytebase's V1 rule STATEMENT_INSERT_ROW_LIMIT.
 func StatementInsertRowLimit(stmts []ast.Node, probes map[int]v1review.Probe, maxRows int) []v1review.Finding {
@@ -40,7 +41,7 @@ func StatementInsertRowLimit(stmts []ast.Node, probes map[int]v1review.Probe, ma
 		}
 		if rows, values := valuesRows(insert); values {
 			if rows > maxRows {
-				findings = append(findings, v1review.Finding{Code: v1review.RowLimitExceeded, Count: rows, Statement: i})
+				findings = append(findings, v1review.Finding{Code: v1review.RowLimitExceeded, Value: strconv.Itoa(rows), Statement: i})
 			}
 			continue
 		}

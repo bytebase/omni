@@ -37,8 +37,8 @@ func StatementAffectedRowLimitProbes(stmts []ast.Node) []int {
 // StatementAffectedRowLimit reports, in statement order, each probed
 // statement whose estimate failed or exceeds maxRows: DryRunFailed when the
 // EXPLAIN failed, RowCountFailed when its row count could not be read
-// (Detail the error for both), RowLimitExceeded when the estimate exceeds
-// maxRows (Count the rows). A statement with no probe result was not
+// (Value the error for both), RowLimitExceeded when the estimate exceeds
+// maxRows (Value the rows). A statement with no probe result was not
 // estimated and is not reported. Statement is the index; findings anchor the
 // statement (Start = End = 0). Ported from Bytebase's V1 rule
 // STATEMENT_AFFECTED_ROW_LIMIT.

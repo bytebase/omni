@@ -13,7 +13,7 @@ import (
 // database starts as currentDatabase, as given, and each top-level USE
 // with a database name replaces it with that name lower-cased; a USE is not
 // otherwise judged, and one nested in a block does not change it. Name is
-// the qualifier as written and Detail the current database at that point.
+// the qualifier as written and Value the current database at that point.
 // A finding anchors the table reference, and Statement is the index of the
 // statement holding it. CrossDatabaseQuery is the only code. Ported from
 // Bytebase's V1 rule STATEMENT_DISALLOW_CROSS_DB_QUERIES.
@@ -34,7 +34,7 @@ func StatementDisallowCrossDBQueries(stmts []ast.Node, currentDatabase string) [
 			}
 			if ref.Database != "" && !strings.EqualFold(ref.Database, current) {
 				start, end := stmtAnchor(ref.Loc)
-				findings = append(findings, v1review.Finding{Code: v1review.CrossDatabaseQuery, Name: ref.Database, Detail: current, Start: start, End: end, Statement: i})
+				findings = append(findings, v1review.Finding{Code: v1review.CrossDatabaseQuery, Name: ref.Database, Value: current, Start: start, End: end, Statement: i})
 			}
 			return true
 		})

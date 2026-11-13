@@ -92,7 +92,7 @@ func TestCollateConvertWeightFormsRejected(t *testing.T) {
 		}
 		t.Run(c.sql, func(t *testing.T) {
 			if _, err := Parse(c.sql); err == nil {
-				t.Fatalf("Parse(%q) was accepted, but TiDB %s rejects it", c.sql, tidbCorpusVersion)
+				t.Fatalf("Parse(%q) was accepted, but TiDB %s rejects it", c.sql, tidbRelease)
 			}
 		})
 	}

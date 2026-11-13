@@ -7,7 +7,6 @@ import "testing"
 // behind.
 func TestRowFormsMatchEngine(t *testing.T) {
 	tc := startTiDB(t)
-	assertTiDBVersion(t, tc)
 	accepts := tc.prepareSyntax
 	for _, c := range rowFormCases {
 		t.Run(c.sql, func(t *testing.T) {

@@ -20,7 +20,7 @@ import (
 // A function call is reported when one of its arguments, after peeling
 // parentheses and CASTs, is an indexed column; an arithmetic or bitwise
 // binary expression when its left, else its right, operand is; a unary minus
-// or bitwise NOT when its operand is. Name is the column as written; Detail
+// or bitwise NOT when its operand is. Name is the column as written; Value
 // is the function name upper-cased.
 //
 // A column is indexed when it appears, lower-cased, among the expressions of
@@ -545,7 +545,7 @@ func (r *whereFunctionRule) checkWhereNode(n ast.Node, indexed whereScopeIndexed
 
 func (r *whereFunctionRule) addFunction(funcName, col string, loc ast.Loc) {
 	start, end := anchor(loc)
-	r.findings = append(r.findings, v1review.Finding{Code: v1review.FunctionOnIndexedColumn, Name: col, Detail: funcName, Start: start, End: end})
+	r.findings = append(r.findings, v1review.Finding{Code: v1review.FunctionOnIndexedColumn, Name: col, Value: funcName, Start: start, End: end})
 }
 
 func (r *whereFunctionRule) addCalculation(col string, loc ast.Loc) {

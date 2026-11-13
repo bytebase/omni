@@ -24,8 +24,8 @@ func TestStatementDMLDryRun(t *testing.T) {
 		1: {Error: "a SELECT is never probed"},
 	})
 	want := []v1review.Finding{
-		{Code: v1review.DryRunFailed, Detail: "no such table", Statement: 0},
-		{Code: v1review.DryRunFailed, Detail: "bad column", Statement: 4},
+		{Code: v1review.DryRunFailed, Value: "no such table", Statement: 0},
+		{Code: v1review.DryRunFailed, Value: "bad column", Statement: 4},
 	}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("findings (-want +got):\n%s", diff)

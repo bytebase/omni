@@ -36,6 +36,9 @@ type sysMatch struct {
 	nameEnd int    // where the naming words of the form end
 	schema  string // the object the statement names, where a form reads one
 	name    string
+	// ttlColumns is the column of each TTL entry matched so far, in order.
+	ttlColumns []string
+	err        error // an inner statement's own error, which the match reports
 }
 
 // sysMiss records the current token as one no matcher took.
@@ -546,6 +549,9 @@ func (p *Parser) matchSystemForms(forms sysPat) (string, error) {
 		return false
 	}
 	if !forms(p, atEnd) {
+		if p.sys.err != nil {
+			return "", p.sys.err
+		}
 		return "", p.syntaxErrorAtTok(p.sys.far)
 	}
 	return p.sys.action, nil

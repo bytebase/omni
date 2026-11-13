@@ -9,24 +9,24 @@ import (
 )
 
 func TestStatementWhereRequireSelect(t *testing.T) {
-	missing := func(text string) stmtFinding { return stmtFinding{Code: v1review.WhereMissing, Text: text} }
+	missing := func(text string) statementFinding { return statementFinding{Code: v1review.WhereMissing, Text: text} }
 	for _, tt := range []struct {
 		name string
 		sql  string
-		want []stmtFinding
+		want []statementFinding
 	}{
-		{name: "no where", sql: "SELECT a FROM t", want: []stmtFinding{missing("SELECT a FROM t")}},
+		{name: "no where", sql: "SELECT a FROM t", want: []statementFinding{missing("SELECT a FROM t")}},
 		{name: "where", sql: "SELECT a FROM t WHERE b = 1"},
 		{name: "no from not judged", sql: "SELECT 1"},
 		{
 			name: "subquery in where",
 			sql:  "SELECT a FROM t WHERE b IN (SELECT b FROM u)",
-			want: []stmtFinding{missing("SELECT b FROM u")},
+			want: []statementFinding{missing("SELECT b FROM u")},
 		},
 		{
 			name: "in a block",
 			sql:  "IF 1 = 1 BEGIN SELECT a FROM t; END",
-			want: []stmtFinding{missing("SELECT a FROM t")},
+			want: []statementFinding{missing("SELECT a FROM t")},
 		},
 		{name: "update not judged", sql: "UPDATE t SET a = 1"},
 	} {

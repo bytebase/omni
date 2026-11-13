@@ -1,6 +1,7 @@
 package v1review
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -11,7 +12,7 @@ import (
 
 func TestStatementWhereMaximumLogicalOperatorCount(t *testing.T) {
 	exceeded := func(op string, count int, text string) stmtFinding {
-		return stmtFinding{Code: v1review.LogicalOperatorsExceeded, Name: op, Count: count, Text: text}
+		return stmtFinding{Code: v1review.LogicalOperatorsExceeded, Name: op, Value: strconv.Itoa(count), Text: text}
 	}
 	rule := func(stmts []ast.Node) []v1review.Finding { return StatementWhereMaximumLogicalOperatorCount(stmts, 2) }
 	for _, tt := range []struct {
@@ -45,8 +46,8 @@ func TestStatementWhereMaximumLogicalOperatorCountNegative(t *testing.T) {
 	rule := func(stmts []ast.Node) []v1review.Finding { return StatementWhereMaximumLogicalOperatorCount(stmts, -1) }
 	got := runStatement(t, "SELECT a FROM t WHERE a IN (SELECT b FROM s);", rule)
 	want := []stmtFinding{
-		{Code: v1review.LogicalOperatorsExceeded, Name: "OR"},
-		{Code: v1review.LogicalOperatorsExceeded, Name: "IN", Text: "a IN (SELECT b FROM s)"},
+		{Code: v1review.LogicalOperatorsExceeded, Name: "OR", Value: "0"},
+		{Code: v1review.LogicalOperatorsExceeded, Name: "IN", Value: "0", Text: "a IN (SELECT b FROM s)"},
 	}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("findings (-want +got):\n%s", diff)

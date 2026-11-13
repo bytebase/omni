@@ -23,7 +23,7 @@ import (
 // (+, -, *, /, ||, ...) and a unary minus or plus when any column beneath
 // it is. Every such node beneath a judged expression is judged, including
 // those in the select list of a subquery, against the scope of the
-// expression's query. Name is the column as folded below; Detail is the
+// expression's query. Name is the column as folded below; Value is the
 // function's name without its qualifier, as the parser folded it.
 //
 // Names are compared as the parser folded them (unquoted upper-cased,
@@ -527,7 +527,7 @@ func (*whereFunctionRule) isIndexedColumn(qualifier, column string, scope whereS
 
 func (r *whereFunctionRule) addFunctionAdvice(funcName, col string, loc ast.Loc) {
 	start, end := anchor(loc)
-	r.findings = append(r.findings, v1review.Finding{Code: v1review.FunctionOnIndexedColumn, Name: col, Detail: funcName, Start: start, End: end})
+	r.findings = append(r.findings, v1review.Finding{Code: v1review.FunctionOnIndexedColumn, Name: col, Value: funcName, Start: start, End: end})
 }
 
 func (r *whereFunctionRule) addCalculationAdvice(col string, loc ast.Loc) {

@@ -158,7 +158,8 @@ func alterNoFacts(c *ast.AlterTableCmd) bool {
 		ast.ATAddPartition, ast.ATDropPartition, ast.ATCoalescePartition, ast.ATReorganizePartition,
 		ast.ATExchangePartition, ast.ATTruncatePartition, ast.ATAnalyzePartition, ast.ATCheckPartition,
 		ast.ATOptimizePartition, ast.ATRebuildPartition, ast.ATRepairPartition, ast.ATDiscardPartitionTablespace,
-		ast.ATImportPartitionTablespace, ast.ATRemovePartitioning, ast.ATPartitionBy:
+		ast.ATImportPartitionTablespace, ast.ATRemovePartitioning, ast.ATPartitionBy,
+		ast.ATDropSubpartition, ast.ATTruncateSubpartition, ast.ATAlterPartitionStorageCachePolicy, ast.ATAddSubpartition:
 		return true
 	case ast.ATAddConstraint:
 		return c.Constraint != nil && c.Constraint.Type == ast.ConstrCheck

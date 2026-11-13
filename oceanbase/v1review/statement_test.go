@@ -14,8 +14,7 @@ type stmtFinding struct {
 	Code      v1review.Code
 	Name      string
 	Table     string
-	Detail    string
-	Count     int
+	Value     string
 	Statement int
 	Text      string
 }
@@ -29,7 +28,7 @@ func runStatement(t *testing.T, sql string, rule func([]ast.Node) []v1review.Fin
 	}
 	var got []stmtFinding
 	for _, f := range rule(list.Items) {
-		got = append(got, stmtFinding{f.Code, f.Name, f.Table, f.Detail, f.Count, f.Statement, sql[f.Start:f.End]})
+		got = append(got, stmtFinding{f.Code, f.Name, f.Table, f.Value, f.Statement, sql[f.Start:f.End]})
 	}
 	return got
 }

@@ -1,6 +1,7 @@
 package v1review
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -15,7 +16,7 @@ type stmtFinding struct {
 	Code      v1review.Code
 	Name      string
 	Table     string
-	Count     int
+	Value     string
 	Statement int
 	Text      string
 }
@@ -34,7 +35,7 @@ func runStatementCases(t *testing.T, rule func([]ast.Node) []v1review.Finding, c
 		t.Run(tt.name, func(t *testing.T) {
 			var got []stmtFinding
 			for _, f := range rule(parse(t, tt.sql)) {
-				got = append(got, stmtFinding{f.Code, f.Name, f.Table, f.Count, f.Statement, tt.sql[f.Start:f.End]})
+				got = append(got, stmtFinding{f.Code, f.Name, f.Table, f.Value, f.Statement, tt.sql[f.Start:f.End]})
 			}
 			if diff := cmp.Diff(tt.want, got); diff != "" {
 				t.Errorf("findings (-want +got):\n%s", diff)
@@ -95,7 +96,7 @@ func TestStatementInsertDisallowOrderByRand(t *testing.T) {
 
 func TestStatementMergeAlterTable(t *testing.T) {
 	redundant := func(table string, count, statement int) stmtFinding {
-		return stmtFinding{Code: v1review.RedundantAlterTable, Table: table, Count: count, Statement: statement}
+		return stmtFinding{Code: v1review.RedundantAlterTable, Table: table, Value: strconv.Itoa(count), Statement: statement}
 	}
 	runStatementCases(t, StatementMergeAlterTable, []stmtCase{
 		{

@@ -1,0 +1,99 @@
+-- pin: default mysql:8.0.46 sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b mysql-8.0.46
+
+== TestJSONValueAliasOracle default#1
+> exec
+| DROP TABLE IF EXISTS t
+< ok 0 0
+> exec
+| CREATE TABLE t (a JSON)
+< ok 0 0
+> exec
+| CREATE OR REPLACE VIEW v AS SELECT JSON_VALUE(a, '$') FROM t
+< ok 0 0
+> query
+| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'v'
+< result
+< column "COLUMN_NAME" "VARCHAR"
+< row
+: bytes
+| JSON_VALUE(a, '$')
+> exec
+| CREATE OR REPLACE VIEW v AS SELECT JSON_VALUE(a, '$' RETURNING SIGNED) FROM t
+< ok 0 0
+> query
+| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'v'
+< result
+< column "COLUMN_NAME" "VARCHAR"
+< row
+: bytes
+| JSON_VALUE(a, '$' RETURNING SIGNED)
+> exec
+| CREATE OR REPLACE VIEW v AS SELECT JSON_VALUE(a, '$' RETURNING CHAR(3)) FROM t
+< ok 0 0
+> query
+| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'v'
+< result
+< column "COLUMN_NAME" "VARCHAR"
+< row
+: bytes
+| JSON_VALUE(a, '$' RETURNING CHAR(3))
+> exec
+| CREATE OR REPLACE VIEW v AS SELECT JSON_VALUE(a, '$' RETURNING DECIMAL(5,2)) FROM t
+< ok 0 0
+> query
+| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'v'
+< result
+< column "COLUMN_NAME" "VARCHAR"
+< row
+: bytes
+| JSON_VALUE(a, '$' RETURNING DECIMAL(5,2))
+> exec
+| CREATE OR REPLACE VIEW v AS SELECT JSON_VALUE(a, '$' NULL ON EMPTY) FROM t
+< ok 0 0
+> query
+| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'v'
+< result
+< column "COLUMN_NAME" "VARCHAR"
+< row
+: bytes
+| JSON_VALUE(a, '$' NULL ON EMPTY)
+> exec
+| CREATE OR REPLACE VIEW v AS SELECT JSON_VALUE(a, '$' ERROR ON ERROR) FROM t
+< ok 0 0
+> query
+| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'v'
+< result
+< column "COLUMN_NAME" "VARCHAR"
+< row
+: bytes
+| JSON_VALUE(a, '$' ERROR ON ERROR)
+> exec
+| CREATE OR REPLACE VIEW v AS SELECT JSON_VALUE(a, '$' DEFAULT 'x' ON EMPTY) FROM t
+< ok 0 0
+> query
+| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'v'
+< result
+< column "COLUMN_NAME" "VARCHAR"
+< row
+: bytes
+| JSON_VALUE(a, '$' DEFAULT 'x' ON EMPTY)
+> exec
+| CREATE OR REPLACE VIEW v AS SELECT JSON_VALUE(a, '$' DEFAULT -1 ON ERROR) FROM t
+< ok 0 0
+> query
+| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'v'
+< result
+< column "COLUMN_NAME" "VARCHAR"
+< row
+: bytes
+| JSON_VALUE(a, '$' DEFAULT -1 ON ERROR)
+> exec
+| CREATE OR REPLACE VIEW v AS SELECT JSON_VALUE(a, '$' RETURNING SIGNED DEFAULT 7 ON EMPTY ERROR ON ERROR) FROM t
+< ok 0 0
+> query
+| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'v'
+< result
+< column "COLUMN_NAME" "VARCHAR"
+< row
+: bytes
+| Name_exp_1

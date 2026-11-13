@@ -24,10 +24,10 @@ func TestStatementInsertRowLimit(t *testing.T) {
 		6: {Rows: 2},
 	}, 2)
 	want := []v1review.Finding{
-		{Code: v1review.RowLimitExceeded, Count: 3, Statement: 0},
-		{Code: v1review.RowLimitExceeded, Count: 5, Statement: 2},
-		{Code: v1review.DryRunFailed, Detail: "explain failed", Statement: 4},
-		{Code: v1review.RowCountFailed, Detail: "no estimate", Statement: 5},
+		{Code: v1review.RowLimitExceeded, Value: "3", Statement: 0},
+		{Code: v1review.RowLimitExceeded, Value: "5", Statement: 2},
+		{Code: v1review.DryRunFailed, Value: "explain failed", Statement: 4},
+		{Code: v1review.RowCountFailed, Value: "no estimate", Statement: 5},
 	}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("findings (-want +got):\n%s", diff)
@@ -51,8 +51,8 @@ func TestStatementAffectedRowLimit(t *testing.T) {
 		3: {Rows: 2},
 	}, 2)
 	want := []v1review.Finding{
-		{Code: v1review.RowLimitExceeded, Count: 10, Statement: 0},
-		{Code: v1review.DryRunFailed, Detail: "explain failed", Statement: 1},
+		{Code: v1review.RowLimitExceeded, Value: "10", Statement: 0},
+		{Code: v1review.DryRunFailed, Value: "explain failed", Statement: 1},
 	}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("findings (-want +got):\n%s", diff)

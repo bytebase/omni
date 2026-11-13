@@ -19,7 +19,7 @@ func TestStatementObjectOwnerCheck(t *testing.T) {
 		},
 	}}
 	owner := func(kind, name, owner string, statement int) v1review.Finding {
-		return v1review.Finding{Code: v1review.OwnerMismatch, Name: kind, Table: name, Detail: owner, Statement: statement}
+		return v1review.Finding{Code: v1review.OwnerMismatch, Name: kind, Table: name, Value: owner, Statement: statement}
 	}
 	for _, tt := range []struct {
 		name, sql, role string

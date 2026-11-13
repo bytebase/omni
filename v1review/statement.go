@@ -4,7 +4,7 @@ import "github.com/bytebase/omni/metadata"
 
 // The codes of the V1 statement rules (STATEMENT_*). A statement rule judges
 // a statement's form, not a name, so its findings usually carry only a code
-// and an anchor; Name, Table, Detail and Count are set where the V1 advisor
+// and an anchor; Name, Table and Value are set where the V1 advisor
 // printed a fact the statement held, and each code says which.
 const (
 	// Commit: a COMMIT statement. STATEMENT_DISALLOW_COMMIT.
@@ -35,16 +35,16 @@ const (
 	InsertOrderByRand Code = "insert-order-by-rand"
 	// Truncate: a TRUNCATE TABLE. STATEMENT_DISALLOW_TRUNCATE. Table is the
 	// truncated table as the V1 advisor printed it. Where the V1 advisor
-	// printed the statement's options, Detail lists the ones written,
+	// printed the statement's options, Value lists the ones written,
 	// comma-separated in a fixed order ("CASCADE,RESTART IDENTITY").
 	Truncate Code = "truncate"
 	// TruncatePartition: an ALTER TABLE that truncates partitions.
 	// STATEMENT_DISALLOW_TRUNCATE. Table is the table and Name the partition
-	// as printed; Detail is the partition keyword where the V1 advisor
+	// as printed; Value is the partition keyword where the V1 advisor
 	// printed one.
 	TruncatePartition Code = "truncate-partition"
 	// RedundantAlterTable: several statements alter one table.
-	// STATEMENT_MERGE_ALTER_TABLE. Table is the table as printed, Count the
+	// STATEMENT_MERGE_ALTER_TABLE. Table is the table as printed, Value the
 	// number of statements, and Statement the last of them.
 	RedundantAlterTable Code = "redundant-alter-table"
 	// OptionMissing: an ALTER TABLE lacks a required option.
@@ -88,19 +88,19 @@ const (
 	SetRoleMissing Code = "set-role-missing"
 	// CrossDatabaseQuery: a statement names a table in another database.
 	// STATEMENT_DISALLOW_CROSS_DB_QUERIES. Name is the database the table is
-	// in, and Detail the current database, as printed.
+	// in, and Value the current database, as printed.
 	CrossDatabaseQuery Code = "cross-database-query"
 	// LogicalOperatorsExceeded: a WHERE clause holds more operands of one
 	// logical operator than allowed.
 	// STATEMENT_WHERE_MAXIMUM_LOGICAL_OPERATOR_COUNT. Name is the operator,
-	// "IN" or "OR", and Count the operands.
+	// "IN" or "OR", and Value the number of operands.
 	LogicalOperatorsExceeded Code = "logical-operators-exceeded"
 	// EqualNull: a WHERE clause compares with NULL using = or !=.
 	// STATEMENT_WHERE_NO_EQUAL_NULL.
 	EqualNull Code = "equal-null"
 	// FunctionOnIndexedColumn: a WHERE clause applies a function to an
 	// indexed column. STATEMENT_WHERE_DISALLOW_FUNCTIONS_AND_CALCULATIONS.
-	// Name is the column and Detail the function, as printed.
+	// Name is the column and Value the function, as printed.
 	FunctionOnIndexedColumn Code = "function-on-indexed-column"
 	// CalculationOnIndexedColumn: a WHERE clause computes with an indexed
 	// column. STATEMENT_WHERE_DISALLOW_FUNCTIONS_AND_CALCULATIONS. Name is the
@@ -113,16 +113,16 @@ const (
 // connection: each engine's rule says which statements it needs probed, and
 // Bytebase runs the probe and passes each result in as a Probe.
 const (
-	// DryRunFailed: probing a statement on the database failed. Detail is
+	// DryRunFailed: probing a statement on the database failed. Value is
 	// the error text. STATEMENT_DML_DRY_RUN, and STATEMENT_INSERT_ROW_LIMIT
 	// and STATEMENT_AFFECTED_ROW_LIMIT when their EXPLAIN fails.
 	DryRunFailed Code = "dry-run-failed"
 	// RowCountFailed: the probe ran but its row count could not be read.
-	// Detail is the error text. STATEMENT_INSERT_ROW_LIMIT and
+	// Value is the error text. STATEMENT_INSERT_ROW_LIMIT and
 	// STATEMENT_AFFECTED_ROW_LIMIT.
 	RowCountFailed Code = "row-count-failed"
 	// RowLimitExceeded: a statement inserts or affects more rows than
-	// allowed. Count is the rows. STATEMENT_INSERT_ROW_LIMIT and
+	// allowed. Value is the number of rows. STATEMENT_INSERT_ROW_LIMIT and
 	// STATEMENT_AFFECTED_ROW_LIMIT.
 	RowLimitExceeded Code = "row-limit-exceeded"
 	// OfflineDDL: a statement runs an operation the engine performs offline.
@@ -130,7 +130,7 @@ const (
 	OfflineDDL Code = "offline-ddl"
 	// OwnerMismatch: a statement changes an object another role owns.
 	// STATEMENT_OBJECT_OWNER_CHECK. Name is the object's kind as printed,
-	// Table the object's name, and Detail its owner.
+	// Table the object's name, and Value its owner.
 	OwnerMismatch Code = "owner-mismatch"
 )
 
@@ -156,50 +156,11 @@ type ColumnRef struct {
 // partition or subpartition of that name, as Bytebase's metadata lookup the
 // V1 advisors used did; where several tables or partitions share a name, the
 // last one wins. Schema, table and partition names follow ObjectCaseSensitive.
-// STATEMENT_WHERE_DISALLOW_FUNCTIONS_AND_CALCULATIONS reads it.
+// STATEMENT_WHERE_DISALLOW_FUNCTIONS_AND_CALCULATIONS and
+// STATEMENT_OBJECT_OWNER_CHECK read it.
 func (s Schema) Table(schemaName, tableName string) *metadata.TableMetadata {
-	id := fold(tableName, s.ObjectCaseSensitive)
-	var table, partitionOwner *metadata.TableMetadata
-	for _, t := range s.schema(schemaName).GetTables() {
-		if t == nil {
-			continue
-		}
-		if fold(t.GetName(), s.ObjectCaseSensitive) == id {
-			table = t
-		}
-		if partitionNamed(t.GetPartitions(), id, s.ObjectCaseSensitive) {
-			partitionOwner = t
-		}
-	}
-	if table != nil {
-		return table
-	}
-	return partitionOwner
-}
-
-// partitionNamed reports whether a partition or subpartition has the folded
-// name id.
-func partitionNamed(partitions []*metadata.TablePartitionMetadata, id string, caseSensitive bool) bool {
-	for _, p := range partitions {
-		if fold(p.GetName(), caseSensitive) == id || partitionNamed(p.GetSubpartitions(), id, caseSensitive) {
-			return true
-		}
-	}
-	return false
-}
-
-// SchemaNames returns the name of each schema in the snapshot, in the
-// snapshot's order, a name that several schemas share (compared as
-// ObjectCaseSensitive says) given once as the last of them spells it, as
-// Bytebase's metadata listing the V1 advisors used did; that listing had no
-// order, so a rule sorts what it needs sorted.
-// STATEMENT_WHERE_DISALLOW_FUNCTIONS_AND_CALCULATIONS reads it.
-func (s Schema) SchemaNames() []string {
-	var names []string
-	for _, schema := range lastOfEachName(s.Metadata.GetSchemas(), s.ObjectCaseSensitive, schemaNameOf) {
-		names = append(names, schema.GetName())
-	}
-	return names
+	table, _ := s.table(schemaName, tableName)
+	return table
 }
 
 // SchemaByName returns the schema of that name, nil when the snapshot has

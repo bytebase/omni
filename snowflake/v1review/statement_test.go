@@ -8,10 +8,10 @@ import (
 	"github.com/bytebase/omni/v1review"
 )
 
-// stmtFinding is a statement rule's finding as the tests compare it: the
+// statementFinding is a statement rule's finding as the tests compare it: the
 // finding with its range replaced by the text the range anchors and the
 // offset it starts at.
-type stmtFinding struct {
+type statementFinding struct {
 	Code  v1review.Code
 	Name  string
 	Start int
@@ -19,15 +19,15 @@ type stmtFinding struct {
 }
 
 // runStatement parses sql and runs a statement rule over its statements.
-func runStatement(t *testing.T, sql string, rule func([]ast.Node) []v1review.Finding) []stmtFinding {
+func runStatement(t *testing.T, sql string, rule func([]ast.Node) []v1review.Finding) []statementFinding {
 	t.Helper()
 	file, err := parser.Parse(sql)
 	if err != nil {
 		t.Fatalf("Parse: %v", err)
 	}
-	var got []stmtFinding
+	var got []statementFinding
 	for _, f := range rule(file.Stmts) {
-		got = append(got, stmtFinding{f.Code, f.Name, f.Start, sql[f.Start:f.End]})
+		got = append(got, statementFinding{f.Code, f.Name, f.Start, sql[f.Start:f.End]})
 	}
 	return got
 }

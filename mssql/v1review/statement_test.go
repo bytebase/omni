@@ -8,13 +8,13 @@ import (
 	"github.com/bytebase/omni/v1review"
 )
 
-// stmtFinding is a statement rule's finding as the tests compare it: the
+// statementFinding is a statement rule's finding as the tests compare it: the
 // finding with its range replaced by the text the range anchors.
-type stmtFinding struct {
+type statementFinding struct {
 	Code      v1review.Code
 	Name      string
 	Table     string
-	Detail    string
+	Value     string
 	Statement int
 	Text      string
 }
@@ -30,18 +30,18 @@ func parseStatements(t *testing.T, sql string) []ast.Node {
 }
 
 // anchored replaces each finding's range with the text it anchors.
-func anchored(sql string, findings []v1review.Finding) []stmtFinding {
-	var got []stmtFinding
+func stmtAnchored(sql string, findings []v1review.Finding) []statementFinding {
+	var got []statementFinding
 	for _, f := range findings {
-		got = append(got, stmtFinding{f.Code, f.Name, f.Table, f.Detail, f.Statement, sql[f.Start:f.End]})
+		got = append(got, statementFinding{f.Code, f.Name, f.Table, f.Value, f.Statement, sql[f.Start:f.End]})
 	}
 	return got
 }
 
 // runStatement parses sql and runs a statement rule over its statements.
-func runStatement(t *testing.T, sql string, rule func([]ast.Node) []v1review.Finding) []stmtFinding {
+func runStatement(t *testing.T, sql string, rule func([]ast.Node) []v1review.Finding) []statementFinding {
 	t.Helper()
-	return anchored(sql, rule(parseStatements(t, sql)))
+	return stmtAnchored(sql, rule(parseStatements(t, sql)))
 }
 
 func TestStmtAnchor(t *testing.T) {

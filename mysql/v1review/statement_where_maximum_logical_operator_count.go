@@ -3,6 +3,7 @@ package v1review
 import (
 	"github.com/bytebase/omni/mysql/ast"
 	"github.com/bytebase/omni/v1review"
+	"strconv"
 )
 
 // StatementWhereMaximumLogicalOperatorCount reports WHERE clauses of
@@ -16,7 +17,7 @@ import (
 // nothing, so a negative maximum reports every WHERE. It then reports every
 // IN list longer than maximum anywhere in the WHERE, subqueries included,
 // but not an IN nested inside an IN, each anchored at its IN; an IN over a
-// subquery counts zero. Name is "OR" or "IN" and Count the operands.
+// subquery counts zero. Name is "OR" or "IN" and Value the operands.
 // LogicalOperatorsExceeded is the only code. Ported from Bytebase's V1 rule
 // STATEMENT_WHERE_MAXIMUM_LOGICAL_OPERATOR_COUNT.
 func StatementWhereMaximumLogicalOperatorCount(stmts []ast.Node, maximum int) []v1review.Finding {
@@ -68,7 +69,7 @@ func logicalOperatorsInWhere(where ast.ExprNode, maximum int, findings []v1revie
 		start, end = anchor(or.Loc)
 	}
 	if count > maximum {
-		findings = append(findings, v1review.Finding{Code: v1review.LogicalOperatorsExceeded, Name: "OR", Count: count, Start: start, End: end})
+		findings = append(findings, v1review.Finding{Code: v1review.LogicalOperatorsExceeded, Name: "OR", Value: strconv.Itoa(count), Start: start, End: end})
 	}
 	ast.Inspect(where, func(n ast.Node) bool {
 		in, ok := n.(*ast.InExpr)
@@ -77,7 +78,7 @@ func logicalOperatorsInWhere(where ast.ExprNode, maximum int, findings []v1revie
 		}
 		if len(in.List) > maximum {
 			start, end := anchor(in.Loc)
-			findings = append(findings, v1review.Finding{Code: v1review.LogicalOperatorsExceeded, Name: "IN", Count: len(in.List), Start: start, End: end})
+			findings = append(findings, v1review.Finding{Code: v1review.LogicalOperatorsExceeded, Name: "IN", Value: strconv.Itoa(len(in.List)), Start: start, End: end})
 		}
 		return false
 	})

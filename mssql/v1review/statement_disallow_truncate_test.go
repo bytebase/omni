@@ -9,18 +9,18 @@ import (
 )
 
 func TestStatementDisallowTruncate(t *testing.T) {
-	truncate := func(table, text string) stmtFinding {
-		return stmtFinding{Code: v1review.Truncate, Table: table, Text: text}
+	truncate := func(table, text string) statementFinding {
+		return statementFinding{Code: v1review.Truncate, Table: table, Text: text}
 	}
 	for _, tt := range []struct {
 		name string
 		sql  string
-		want []stmtFinding
+		want []statementFinding
 	}{
-		{name: "table", sql: "TRUNCATE TABLE t", want: []stmtFinding{truncate("t", "TRUNCATE TABLE t")}},
-		{name: "schema kept", sql: "TRUNCATE TABLE dbo.t", want: []stmtFinding{truncate("dbo.t", "TRUNCATE TABLE dbo.t")}},
-		{name: "database dropped", sql: "TRUNCATE TABLE db.dbo.t", want: []stmtFinding{truncate("dbo.t", "TRUNCATE TABLE db.dbo.t")}},
-		{name: "bracketed name unquoted", sql: "TRUNCATE TABLE [my t]", want: []stmtFinding{truncate("my t", "TRUNCATE TABLE [my t]")}},
+		{name: "table", sql: "TRUNCATE TABLE t", want: []statementFinding{truncate("t", "TRUNCATE TABLE t")}},
+		{name: "schema kept", sql: "TRUNCATE TABLE dbo.t", want: []statementFinding{truncate("dbo.t", "TRUNCATE TABLE dbo.t")}},
+		{name: "database dropped", sql: "TRUNCATE TABLE db.dbo.t", want: []statementFinding{truncate("dbo.t", "TRUNCATE TABLE db.dbo.t")}},
+		{name: "bracketed name unquoted", sql: "TRUNCATE TABLE [my t]", want: []statementFinding{truncate("my t", "TRUNCATE TABLE [my t]")}},
 		{name: "local temp table not judged", sql: "TRUNCATE TABLE #t"},
 		{name: "global temp table not judged", sql: "TRUNCATE TABLE ##t"},
 		{name: "in a block not judged", sql: "BEGIN TRUNCATE TABLE t; END"},

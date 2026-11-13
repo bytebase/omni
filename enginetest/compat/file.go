@@ -56,6 +56,10 @@ func (r Row) hand() bool {
 	return i >= 0 && r.Rule[i] == ':'
 }
 
+// generatedAlternative reports whether the generator made the row for an
+// alternative, as opposed to a near-miss or a hand-added row.
+func (r Row) generatedAlternative() bool { return !r.hand() && !grammar.IsNearMiss(r.Rule) }
+
 // kind groups rows for the progress report.
 func (r Row) kind() string {
 	switch {
@@ -198,6 +202,9 @@ func (f *File) Write(path string) error {
 	for _, r := range f.Rows {
 		if strings.Contains(r.Statement, "\n") {
 			return fmt.Errorf("%s: statement holds a newline: %q", r.Rule, r.Statement)
+		}
+		if err := r.validate(); err != nil {
+			return fmt.Errorf("%s: %v", r.Rule, err)
 		}
 		fmt.Fprintf(&b, "%s\t%s\t%s\t%s\t%s\n", r.Omni, r.Expected, r.Source, r.Rule, r.Statement)
 	}

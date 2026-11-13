@@ -12,8 +12,7 @@ import (
 // rowFinding is a row-limit finding as the tests compare it.
 type rowFinding struct {
 	Code      v1review.Code
-	Detail    string
-	Count     int
+	Value     string
 	Statement int
 	Text      string
 }
@@ -21,7 +20,7 @@ type rowFinding struct {
 func rowFindings(sql string, findings []v1review.Finding) []rowFinding {
 	var got []rowFinding
 	for _, f := range findings {
-		got = append(got, rowFinding{f.Code, f.Detail, f.Count, f.Statement, sql[f.Start:f.End]})
+		got = append(got, rowFinding{f.Code, f.Value, f.Statement, sql[f.Start:f.End]})
 	}
 	return got
 }
@@ -40,9 +39,9 @@ func TestStatementInsertRowLimit(t *testing.T) {
 		2: {CountError: "no EST.ROWS"},
 	}, 2))
 	want := []rowFinding{
-		{v1review.RowLimitExceeded, "", 3, 0, "INSERT INTO t VALUES (1), (2), (3)"},
-		{v1review.RowLimitExceeded, "", 5, 1, "INSERT INTO t SELECT * FROM s"},
-		{v1review.RowCountFailed, "no EST.ROWS", 0, 2, "INSERT INTO t SELECT * FROM u"},
+		{v1review.RowLimitExceeded, "3", 0, "INSERT INTO t VALUES (1), (2), (3)"},
+		{v1review.RowLimitExceeded, "5", 1, "INSERT INTO t SELECT * FROM s"},
+		{v1review.RowCountFailed, "no EST.ROWS", 2, "INSERT INTO t SELECT * FROM u"},
 	}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("findings (-want +got):\n%s", diff)
@@ -64,8 +63,8 @@ func TestStatementAffectedRowLimit(t *testing.T) {
 		3: {Rows: 1},
 	}, 2))
 	want := []rowFinding{
-		{v1review.DryRunFailed, "explain failed", 0, 0, "UPDATE t SET a = 1"},
-		{v1review.RowLimitExceeded, "", 3, 2, "DELETE FROM u"},
+		{v1review.DryRunFailed, "explain failed", 0, "UPDATE t SET a = 1"},
+		{v1review.RowLimitExceeded, "3", 2, "DELETE FROM u"},
 	}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("findings (-want +got):\n%s", diff)

@@ -63,11 +63,11 @@ func TestTiDBRejectedSyntaxFailsWithoutVerdict(t *testing.T) {
 	}
 }
 
-// TestPrepareVerdictFailsWithoutVerdict pins the same property for the corpus
-// harness's reader of PREPARE errors: a server that never answered is no
-// verdict, never silent agreement. The corpus has a thousand rows the engine
-// accepts, so reading a dropped connection as acceptance would turn the gap
-// count into a number about the network. This needs no container.
+// TestPrepareVerdictFailsWithoutVerdict pins the same property for the reader
+// of PREPARE errors that compat.tsv's judge and the taped tests share: a server
+// that never answered is no verdict, never silent agreement. Reading a dropped
+// connection as acceptance would turn a recording's gap count into a number
+// about the network. This needs no container.
 func TestPrepareVerdictFailsWithoutVerdict(t *testing.T) {
 	unprobed := func() error {
 		t.Errorf("the verdict asked the probe")

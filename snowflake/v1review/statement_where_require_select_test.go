@@ -9,36 +9,36 @@ import (
 )
 
 func TestStatementWhereRequireSelect(t *testing.T) {
-	missing := func(start int, text string) stmtFinding {
-		return stmtFinding{Code: v1review.WhereMissing, Start: start, Text: text}
+	missing := func(start int, text string) statementFinding {
+		return statementFinding{Code: v1review.WhereMissing, Start: start, Text: text}
 	}
 	for _, tt := range []struct {
 		name string
 		sql  string
-		want []stmtFinding
+		want []statementFinding
 	}{
-		{name: "no where", sql: "SELECT a FROM t", want: []stmtFinding{missing(0, "SELECT a FROM t")}},
+		{name: "no where", sql: "SELECT a FROM t", want: []statementFinding{missing(0, "SELECT a FROM t")}},
 		{name: "where", sql: "SELECT a FROM t WHERE b = 1"},
 		{name: "no from not judged", sql: "SELECT 1"},
 		{
 			name: "derived table",
 			sql:  "SELECT a FROM (SELECT b FROM u) x WHERE a = 1",
-			want: []stmtFinding{missing(15, "SELECT b FROM u")},
+			want: []statementFinding{missing(15, "SELECT b FROM u")},
 		},
 		{
 			name: "with select anchors the end of the last cte",
 			sql:  "WITH c AS (SELECT x FROM t WHERE y = 1), d AS (SELECT 1)\n  SELECT a FROM c",
-			want: []stmtFinding{missing(56, "")},
+			want: []statementFinding{missing(56, "")},
 		},
 		{
 			name: "cte body before the body select",
 			sql:  "WITH c AS (SELECT x FROM t) SELECT a FROM c",
-			want: []stmtFinding{missing(11, "SELECT x FROM t"), missing(27, "")},
+			want: []statementFinding{missing(11, "SELECT x FROM t"), missing(27, "")},
 		},
 		{
 			name: "merge source",
 			sql:  "MERGE INTO t USING (SELECT id FROM s) AS u ON t.id = u.id WHEN MATCHED THEN DELETE",
-			want: []stmtFinding{missing(20, "SELECT id FROM s")},
+			want: []statementFinding{missing(20, "SELECT id FROM s")},
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {

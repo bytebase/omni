@@ -27,6 +27,12 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	if tbl == nil {
 		return errNoSuchTable(db.Name, tableName)
 	}
+	if err := checkAlterTableOptions(tbl, stmt.Commands); err != nil {
+		return err
+	}
+	if err := checkKeyOptions(alterKeys(stmt.Commands)); err != nil {
+		return err
+	}
 
 	repartition := alterRepartition(stmt.Commands)
 	if repartition != nil {
@@ -63,6 +69,10 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 
 // alterTableCommands runs the commands of an ALTER TABLE on tbl, found under key in db.
 func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt *nodes.AlterTableStmt) error {
+	// A key may name a column a later ADD COLUMN of the statement adds: OceanBase takes
+	// ADD KEY (n), ADD n INT.
+	tbl.addedLater = statementAddedColumns(stmt.Commands)
+	defer func() { tbl.addedLater = nil }()
 	if len(stmt.Commands) <= 1 {
 		// Single command: no rollback needed.
 		if len(stmt.Commands) == 1 {
@@ -138,6 +148,16 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 		return c.alterDropPartition(tbl, cmd)
 	case nodes.ATTruncatePartition:
 		return c.alterTruncatePartition(tbl, cmd)
+	case nodes.ATDropSubpartition:
+		return c.alterDropSubpartition(tbl, cmd)
+	case nodes.ATTruncateSubpartition, nodes.ATAlterPartitionStorageCachePolicy:
+		// A data operation and a cache policy, neither of which the catalog keeps.
+		if tbl.Partitioning == nil {
+			return errNotPartitioned()
+		}
+		return nil
+	case nodes.ATAddSubpartition:
+		return c.alterAddSubpartition(tbl, cmd)
 	case nodes.ATCoalescePartition:
 		return c.alterCoalescePartition(tbl, cmd)
 	case nodes.ATReorganizePartition:
@@ -147,6 +167,10 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 	case nodes.ATRemovePartitioning:
 		tbl.Partitioning = nil
 		return nil
+	case nodes.ATAddColumnGroup:
+		return alterAddColumnGroup(tbl, cmd)
+	case nodes.ATDropColumnGroup:
+		return alterDropColumnGroup(tbl, cmd)
 	default:
 		// Unsupported alter command; silently ignore.
 		return nil
@@ -175,7 +199,13 @@ func (c *Catalog) alterAddColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 
 // addSingleColumn adds one column definition to the table.
 func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first bool, after string) error {
+	if err := checkAddedGeneratedCheck(colDef); err != nil {
+		return err
+	}
 	if err := validateColumnDefSemantics(colDef); err != nil {
+		return err
+	}
+	if err := checkAddedColumn(tbl, colDef); err != nil {
 		return err
 	}
 	colKey := toLower(colDef.Name)
@@ -444,6 +474,11 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		return nil
 	}
 
+	if kind, ok := constraintKeyKind(con); ok {
+		if err := checkKeyParts(tbl, buildIndexColumns(con), kind, con.IndexOptions); err != nil {
+			return err
+		}
+	}
 	cols := extractColumnNames(con)
 	// A primary key's STORING is taken and dropped unread: on 4.3.5.6, ALTER TABLE t
 	// ADD PRIMARY KEY (a) STORING (nosuch) succeeds and the key reads back without it.
@@ -579,6 +614,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 				return checkConstraintNameExists(tbl.Database, nil, name)
 			})
 		}
+		if err := checkTableCheckExpr(tbl, conName, con.Expr); err != nil {
+			return err
+		}
 		if checkConstraintNameExists(tbl.Database, nil, conName) {
 			return errCheckConstraintDupName(conName)
 		}
@@ -634,6 +672,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			}
 		}
 		idxCols := buildIndexColumns(con)
+		if err := validateIndexColumns(tbl, idxCols, true, false); err != nil {
+			return err
+		}
 		ftIdx := &Index{
 			Name:      idxName,
 			Table:     tbl,
@@ -643,6 +684,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			Visible:   true,
 		}
 		applyIndexOptions(ftIdx, con.IndexOptions)
+		if err := checkIndexOptions(con.IndexOptions, false); err != nil {
+			return err
+		}
 		tbl.Indexes = append(tbl.Indexes, ftIdx)
 
 	case nodes.ConstrSpatialIndex:
@@ -775,37 +819,38 @@ func (c *Catalog) alterRenameIndex(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	oldKey := toLower(cmd.Name)
 	newKey := toLower(cmd.NewName)
 
+	// OceanBase looks the key up first (1176), then the new name, which may not be
+	// any key's, the key's own included: RENAME KEY k TO k is 1061
+	// (TestOracle_OceanBaseNameOrder).
+	var found *Index
+	for _, idx := range tbl.Indexes {
+		if toLower(idx.Name) == oldKey {
+			found = idx
+			break
+		}
+	}
+	if found == nil {
+		return errKeyNotExist(cmd.Name, tbl.Name)
+	}
 	if newKey != oldKey {
 		if err := validateNonPrimaryIndexName(cmd.NewName); err != nil {
 			return err
 		}
 	}
-	if newKey != oldKey && indexNameExists(tbl, cmd.NewName) {
+	if indexNameExists(tbl, cmd.NewName) {
 		return errDupKeyName(cmd.NewName)
 	}
 
-	for _, idx := range tbl.Indexes {
-		if toLower(idx.Name) == oldKey {
-			idx.Name = cmd.NewName
-			if newKey != oldKey {
-				renameFunctionalIndexHiddenColumns(tbl, idx, cmd.NewName)
-			}
-			// Also update any constraint that references this index.
-			for _, con := range tbl.Constraints {
-				if toLower(con.IndexName) == oldKey {
-					con.IndexName = cmd.NewName
-					con.Name = cmd.NewName
-				}
-			}
-			return nil
+	found.Name = cmd.NewName
+	renameFunctionalIndexHiddenColumns(tbl, found, cmd.NewName)
+	// Also update any constraint that references this index.
+	for _, con := range tbl.Constraints {
+		if toLower(con.IndexName) == oldKey {
+			con.IndexName = cmd.NewName
+			con.Name = cmd.NewName
 		}
 	}
-
-	return &Error{
-		Code:     ErrDupKeyName,
-		SQLState: sqlState(ErrDupKeyName),
-		Message:  fmt.Sprintf("Key '%s' doesn't exist in table '%s'", cmd.Name, tbl.Name),
-	}
+	return nil
 }
 
 // alterRenameTable moves a table to a new name.
@@ -902,12 +947,19 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 		tbl.Checksum = opt.Value
 	case "delay_key_write":
 		tbl.DelayKeyWrite = opt.Value
+	case "ttl":
+		return checkTTL(tbl, opt)
 	}
 	return nil
 }
 
 // alterColumnDefault sets or drops the default on an existing column.
 func (c *Catalog) alterColumnDefault(tbl *Table, cmd *nodes.AlterTableCmd) error {
+	// SET DEFAULT takes an expression only in parentheses, which reach here unwrapped:
+	// one that reads a column is 1235 before the column is looked up.
+	if cmd.DefaultExpr != nil && hasColumnRef(cmd.DefaultExpr) {
+		return errNotSupportedDefault()
+	}
 	colKey := toLower(cmd.Name)
 	idx, exists := tbl.colByName[colKey]
 	if !exists {
@@ -916,6 +968,9 @@ func (c *Catalog) alterColumnDefault(tbl *Table, cmd *nodes.AlterTableCmd) error
 
 	col := tbl.Columns[idx]
 	if cmd.DefaultExpr != nil {
+		if err := checkDefault(col.Name, col.typeNode, cmd.DefaultExpr); err != nil {
+			return err
+		}
 		if err := validateDefaultExprForExistingColumn(col, cmd.DefaultExpr); err != nil {
 			return err
 		}
@@ -945,11 +1000,7 @@ func (c *Catalog) alterIndexVisibility(tbl *Table, cmd *nodes.AlterTableCmd, vis
 			return nil
 		}
 	}
-	return &Error{
-		Code:     ErrDupKeyName,
-		SQLState: sqlState(ErrDupKeyName),
-		Message:  fmt.Sprintf("Key '%s' doesn't exist in table '%s'", cmd.Name, tbl.Name),
-	}
+	return errKeyNotExist(cmd.Name, tbl.Name)
 }
 
 // insertColumn inserts col into tbl at the position specified by first/after.
@@ -991,6 +1042,7 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 
 	// Type info.
 	if colDef.TypeName != nil {
+		col.typeNode = colDef.TypeName
 		col.DataType = normalizedColumnDataType(colDef.TypeName)
 		col.ColumnType = formatColumnType(colDef.TypeName)
 		if isNationalStringType(colDef.TypeName.Name) {
@@ -1327,6 +1379,65 @@ func (c *Catalog) alterTruncatePartition(tbl *Table, cmd *nodes.AlterTableCmd) e
 	return nil
 }
 
+// alterDropSubpartition drops named subpartitions from every partition that
+// lists them. OceanBase refuses it on a table without partitions with 1505
+// (simulate.tsv); no fixture holds a subpartitioned table yet, so the rest
+// follows alterDropPartition and is not measured.
+func (c *Catalog) alterDropSubpartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
+	if tbl.Partitioning == nil {
+		return errNotPartitioned()
+	}
+	dropSet := make(map[string]bool)
+	for _, name := range cmd.PartitionNames {
+		dropSet[toLower(name)] = true
+	}
+	for _, pd := range tbl.Partitioning.Partitions {
+		var remaining []*SubPartitionDefInfo
+		for _, spd := range pd.SubPartitions {
+			if !dropSet[toLower(spd.Name)] {
+				remaining = append(remaining, spd)
+			}
+		}
+		pd.SubPartitions = remaining
+	}
+	return nil
+}
+
+// alterAddSubpartition adds subpartitions to one partition: MODIFY PARTITION p
+// ADD SUBPARTITION (...). OceanBase refuses it on a table without partitions
+// with 1505 (simulate.tsv); the rest follows addedPartitionSubpartitions and is
+// not measured, since no fixture holds a subpartitioned table yet.
+func (c *Catalog) alterAddSubpartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
+	if tbl.Partitioning == nil {
+		return errNotPartitioned()
+	}
+	if len(cmd.PartitionDefs) == 0 {
+		return nil
+	}
+	added := cmd.PartitionDefs[0]
+	// The bounds must be the table's subpartitioning kind, as CREATE and ADD
+	// PARTITION check: a VALUES IN under SUBPARTITION BY RANGE would otherwise be
+	// stored as VALUES LESS THAN.
+	if err := checkSubpartitionBoundKinds(partitionTypeFromString(tbl.Partitioning.SubType), added.SubPartitions); err != nil {
+		return err
+	}
+	for _, pd := range tbl.Partitioning.Partitions {
+		if toLower(pd.Name) != toLower(cmd.Name) {
+			continue
+		}
+		for _, spd := range added.SubPartitions {
+			spdi := &SubPartitionDefInfo{Name: spd.Name, Engine: pd.Engine, Comment: pd.Comment}
+			if spd.Values != nil {
+				spdi.ValueExpr = partitionValueToString(spd.Values, partitionTypeFromString(tbl.Partitioning.SubType))
+			}
+			pd.SubPartitions = append(pd.SubPartitions, spdi)
+		}
+		tbl.Partitioning.UseDefaultSubpartitions = false
+		tbl.Partitioning.UseDefaultNumSubpartitions = false
+	}
+	return nil
+}
+
 // alterCoalescePartition reduces the number of partitions for HASH/KEY partitioned tables.
 func (c *Catalog) alterCoalescePartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if tbl.Partitioning == nil {
@@ -1529,4 +1640,34 @@ func partitionKeyColumn(expr string) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+// statementAddedColumns is the lowered names of the columns an ALTER TABLE adds or
+// renames to, or nil.
+func statementAddedColumns(cmds []*nodes.AlterTableCmd) map[string]bool {
+	var names map[string]bool
+	add := func(name string) {
+		if names == nil {
+			names = map[string]bool{}
+		}
+		names[toLower(name)] = true
+	}
+	for _, cmd := range cmds {
+		switch cmd.Type {
+		case nodes.ATAddColumn:
+			if cmd.Column != nil {
+				add(cmd.Column.Name)
+			}
+			for _, col := range cmd.Columns {
+				add(col.Name)
+			}
+		case nodes.ATChangeColumn:
+			if cmd.Column != nil {
+				add(cmd.Column.Name)
+			}
+		case nodes.ATRenameColumn:
+			add(cmd.NewName)
+		}
+	}
+	return names
 }
