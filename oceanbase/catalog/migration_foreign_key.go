@@ -284,9 +284,14 @@ func orderedForeignKeys(t *Table) []*Constraint {
 // stored form the canonical key folds to (see diff_foreign_key.go canonicalFKAction). Emitting an
 // explicit RESTRICT/NO ACTION would also round-trip on equality, but omitting matches show.go and
 // keeps the surface minimal.
+//
+// A name nobody wrote is left out, so OceanBase makes its own (formatCheckClause).
 func formatForeignKeyDefinition(con *Constraint) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "CONSTRAINT %s FOREIGN KEY (", migrationQuoteIdent(con.Name))
+	if !madeUpForeignKeyName(con) {
+		fmt.Fprintf(&b, "CONSTRAINT %s ", migrationQuoteIdent(con.Name))
+	}
+	b.WriteString("FOREIGN KEY (")
 	b.WriteString(quoteIdentList(con.Columns))
 	b.WriteString(") REFERENCES ")
 	if con.RefDatabase != "" {

@@ -1,7 +1,6 @@
 package catalog
 
 import (
-	"errors"
 	"strings"
 	"testing"
 )
@@ -481,7 +480,6 @@ func TestScenario_C16(t *testing.T) {
 	t.Run("16_11_YEAR_normalization", func(t *testing.T) {
 		// OceanBase takes YEAR(2), YEAR(3) and YEAR(5), which MySQL 8.0 refuses
 		// with ER_INVALID_YEAR_COLUMN_LENGTH (1818), and stores each as year(4).
-		// omni gap: the catalog refuses them with 1818, as MySQL does.
 		for _, n := range []string{"2", "3", "5"} {
 			scenarioReset(t, mc)
 			c := scenarioNewCatalog(t)
@@ -494,9 +492,8 @@ func TestScenario_C16(t *testing.T) {
 			oracleScan(t, mc, `SELECT COLUMN_TYPE FROM information_schema.COLUMNS
 				WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t' AND COLUMN_NAME='y'`, &columnType)
 			assertStringEq(t, "oracle COLUMN_TYPE of YEAR("+n+")", columnType, "year(4)")
-			var ce *Error
-			if !errors.As(mErr, &ce) || ce.Code != 1818 {
-				t.Errorf("omni: YEAR(%s): got %v, want error 1818", n, mErr)
+			if mErr != nil {
+				t.Errorf("omni: YEAR(%s): %v", n, mErr)
 			}
 		}
 
@@ -509,7 +506,6 @@ func TestScenario_C16(t *testing.T) {
 		if !strings.Contains(show, "`y` year(4)") {
 			t.Errorf("oracle SHOW CREATE: want `y` year(4): %s", show)
 		}
-		// omni gap: the catalog drops the width, as MySQL does.
 		tbl := c.GetDatabase("testdb").GetTable("t")
 		if tbl == nil {
 			t.Fatal("omni: table t missing")
@@ -518,7 +514,7 @@ func TestScenario_C16(t *testing.T) {
 		if col == nil {
 			t.Fatal("omni: column y missing")
 		}
-		assertStringEq(t, "omni ColumnType of YEAR(4)", strings.ToLower(col.ColumnType), "year")
+		assertStringEq(t, "omni ColumnType of YEAR(4)", strings.ToLower(col.ColumnType), "year(4)")
 	})
 
 	// ---- 16.12 TIMESTAMP first-column promotion carries column fsp -------

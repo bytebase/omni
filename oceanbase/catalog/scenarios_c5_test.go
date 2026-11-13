@@ -187,8 +187,7 @@ CREATE TABLE c (a INT, FOREIGN KEY (a) REFERENCES p(id) ON DELETE CASCADE);`
 		// MySQL takes the table, and InnoDB never performs the action.
 		oracleRefuses(t, mc, bad, 1215)
 
-		// omni gap: the catalog takes the table, as MySQL does.
-		assertIntEq(t, "omni FK SET DEFAULT error code", omniCode(c, bad+";"), 0)
+		assertIntEq(t, "omni FK SET DEFAULT error code", omniCode(c, bad+";"), 1215)
 	})
 
 	// --- 5.6 FK column type/size/sign must match parent --------------------
@@ -243,8 +242,7 @@ CREATE TABLE c (a INT, FOREIGN KEY (a) REFERENCES p(id) ON DELETE CASCADE);`
 			t.Errorf("oracle: FK on VIRTUAL gcol: %v", err)
 		}
 
-		// omni gap: the catalog refuses it with 3104, as MySQL does.
-		assertIntEq(t, "omni FK on VIRTUAL gcol error code", omniCode(c, bad+";"), 3104)
+		assertIntEq(t, "omni FK on VIRTUAL gcol error code", omniCode(c, bad+";"), 0)
 	})
 
 	// --- 5.8 CHECK defaults to ENFORCED ------------------------------------

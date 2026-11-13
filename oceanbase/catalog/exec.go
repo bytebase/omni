@@ -114,16 +114,10 @@ func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 				c.foreignKeyChecks = v
 				c.session.ForeignKeyChecks = v
 			}
-		case "sql_generate_invisible_primary_key":
-			if v, ok := parseSetBool(asgn.Value); ok {
-				c.generateGIPK = v
-				c.session.GenerateInvisiblePrimaryKey = v
-			}
-		case "show_gipk_in_create_table_and_information_schema":
-			if v, ok := parseSetBool(asgn.Value); ok {
-				c.showGIPK = v
-				c.session.ShowGIPK = v
-			}
+		case "sql_generate_invisible_primary_key", "show_gipk_in_create_table_and_information_schema":
+			// MySQL's generated invisible primary key. OceanBase has no such feature and
+			// knows neither variable (TestOracle_OceanBaseRefusals).
+			return &Error{Code: 1193, SQLState: "HY000", Message: fmt.Sprintf("Unknown system variable '%s'", varName)}
 		case "explicit_defaults_for_timestamp":
 			if isDefaultSetValue(asgn.Value) {
 				c.session.ExplicitDefaultsForTimestamp = true

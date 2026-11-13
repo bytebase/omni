@@ -45,13 +45,13 @@ func TestScenario_C14(t *testing.T) {
 			t.Errorf("omni: table t missing")
 			return
 		}
-		chk := c14FindCheck(tbl, "t_chk_1")
+		chk := c14FindCheck(tbl, "t_OBCHECK_<n>")
 		if chk == nil {
-			t.Errorf("omni: CHECK constraint t_chk_1 missing")
+			t.Errorf("omni: CHECK constraint t_OBCHECK_<n> missing")
 			return
 		}
 		// Default = ENFORCED → NotEnforced must be false.
-		assertBoolEq(t, "omni t_chk_1 NotEnforced", chk.NotEnforced, false)
+		assertBoolEq(t, "omni t_OBCHECK_<n> NotEnforced", chk.NotEnforced, false)
 	})
 
 	// --- 14.2 ALTER CHECK NOT ENFORCED / ENFORCED toggles the flag -------
@@ -229,7 +229,7 @@ ALTER TABLE t ALTER CHECK c_pos NOT ENFORCED;`)
 // matches (case-insensitive), or nil.
 func c14FindCheck(tbl *Table, name string) *Constraint {
 	for _, con := range tbl.Constraints {
-		if con.Type == ConCheck && strings.EqualFold(con.Name, name) {
+		if con.Type == ConCheck && strings.EqualFold(withoutCount(con.Name), name) {
 			return con
 		}
 	}

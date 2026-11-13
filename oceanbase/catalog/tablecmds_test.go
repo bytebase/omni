@@ -90,8 +90,8 @@ func TestCreateTableBasic(t *testing.T) {
 	if age == nil {
 		t.Fatal("column age not found")
 	}
-	if age.ColumnType != "int unsigned" {
-		t.Errorf("expected column type 'int unsigned', got %q", age.ColumnType)
+	if age.ColumnType != "int(10) unsigned" {
+		t.Errorf("expected column type 'int(10) unsigned', got %q", age.ColumnType)
 	}
 	if age.Default == nil || *age.Default != "0" {
 		t.Errorf("expected default '0', got %v", age.Default)
@@ -176,8 +176,9 @@ func TestCreateTableMultiplePK(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected *Error, got %T", results[0].Error)
 	}
-	if catErr.Code != ErrMultiplePriKey {
-		t.Errorf("expected error code %d, got %d", ErrMultiplePriKey, catErr.Code)
+	// A column's PRIMARY KEY and a PRIMARY KEY constraint: OceanBase answers 1062.
+	if catErr.Code != ErrDupEntry {
+		t.Errorf("expected error code %d, got %d", ErrDupEntry, catErr.Code)
 	}
 }
 

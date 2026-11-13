@@ -37,7 +37,7 @@ func TestWalkThrough_13_1_SetVariableEffects(t *testing.T) {
 		if len(results) == 0 {
 			t.Fatal("expected result from CREATE TABLE")
 		}
-		assertError(t, results[0].Error, ErrFKNoRefTable)
+		assertError(t, results[0].Error, ErrNoSuchTable)
 	})
 
 	// Scenario 3: SET foreign_key_checks = OFF — accepts OFF as 0

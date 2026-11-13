@@ -124,9 +124,8 @@ func TestScenario_C9(t *testing.T) {
 		if _, err := mc.db.ExecContext(mc.ctx, badVirtual); err != nil {
 			t.Errorf("oracle: FK on VIRTUAL gcol: %v", err)
 		}
-		// omni gap: the catalog rejects it, as MySQL does.
 		omniVirtErrored, _ := c9OmniExec(c2, badVirtual+";")
-		assertBoolEq(t, "omni rejects FK on VIRTUAL gcol (child)", omniVirtErrored, true)
+		assertBoolEq(t, "omni rejects FK on VIRTUAL gcol (child)", omniVirtErrored, false)
 	})
 
 	// --- 9.3 VIRTUAL gcol in PK rejected; secondary KEY allowed --------------
