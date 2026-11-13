@@ -149,6 +149,46 @@ func TestANTLRRefusesWhatHasNoShortestText(t *testing.T) {
 	}
 }
 
+// TestANTLRReadsTrinosParserNotation pins two things of the generated
+// parser that Trino's SqlBase.g4 writes in its rules, and that carry no
+// symbol of their own: a rule's arguments, predicate[$valueExpression.ctx],
+// and a wildcard behind a predicate, methodName : {isKeyword()}? . ,
+// which rows write as the token table says.
+func TestANTLRReadsTrinosParserNotation(t *testing.T) {
+	const src = `
+grammar X;
+s : v p[$v.ctx]? | v '.' m '(' ')' ;
+p[ParserRuleContext value] : IS NULL ;
+v : ID ;
+m : ID | {isKeyword()}? . ;
+IS : 'IS' ; NULL : 'NULL' ; ADD : 'ADD' ;
+ID : [A-Z]+ ;
+`
+	got, uncovered := antlrRows(t, src, map[string]string{"ID": "a", ".": "ADD"})
+	labels := map[string]string{}
+	for _, r := range got {
+		if !IsNearMiss(r.Rule) {
+			labels[r.Rule] = r.Statement
+		}
+	}
+	for label, want := range map[string]string{
+		"s(p)?/p":      "a IS NULL",
+		"p/IS_NULL":    "a IS NULL",
+		"m/ID":         "a.a()",
+		"m/.":          "a.ADD()",
+		"s(p)?/%empty": "a",
+	} {
+		if s, ok := labels[label]; !ok {
+			t.Errorf("no row %s; rows:\n%s", label, render(got))
+		} else if s != want {
+			t.Errorf("%s is %q, want %q", label, s, want)
+		}
+	}
+	if len(uncovered) != 0 {
+		t.Errorf("uncovered: %v", uncovered)
+	}
+}
+
 // TestRecognizerDecidesWhatTheGrammarDerives pins the docs judge's reading:
 // every generated alternative is derived, a near-miss is derived only when
 // it lands in the language, and a token class takes any token of its kind
