@@ -18,6 +18,7 @@ func TestStatementWhereRequireUpdateDelete(t *testing.T) {
 		{name: "multi-table delete", sql: "DELETE t1 FROM t1 JOIN t2 ON t1.a = t2.a;", want: []stmtFinding{{Code: v1review.WhereMissing, Name: "DELETE"}}},
 		{name: "where", sql: "UPDATE t SET a = 1 WHERE b = 2; DELETE FROM t WHERE a = 1;"},
 		{name: "select not judged", sql: "SELECT a FROM t;"},
+		{name: "delete history takes no where", sql: "DELETE HISTORY FROM t BEFORE SYSTEM_TIME TIMESTAMP '2020-01-01 00:00:00';"},
 		{name: "routine body not judged", sql: "CREATE PROCEDURE p() BEGIN DELETE FROM t; END;"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {

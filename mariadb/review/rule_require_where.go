@@ -19,7 +19,8 @@ func checkRequireWhere(s *statement, r *reporter) {
 				r.report(review.MissingWhere, s.index, rangeOf(v.Loc), noWhere("UPDATE", "of", tableExprs(v.Tables)))
 			}
 		case *ast.DeleteStmt:
-			if v.Where == nil {
+			// DELETE HISTORY takes no WHERE: BEFORE SYSTEM_TIME bounds it.
+			if v.Where == nil && !v.History {
 				r.report(review.MissingWhere, s.index, rangeOf(v.Loc), noWhere("DELETE", "from", tableExprs(deleted(v))))
 			}
 		}
