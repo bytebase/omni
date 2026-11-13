@@ -55,6 +55,12 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		return false, nil
 	}
 
+	// A constraint name that collides with another table's is the engine's answer
+	// only once this table's own name is free: CREATE TABLE IF NOT EXISTS a, with a
+	// there already, does nothing whatever its constraints are named, while a name
+	// the definition itself repeats is refused before that (TestOracle_OceanBaseNameOrder).
+	var laterCheckNames, laterForeignKeyNames []string
+
 	// CREATE TABLE ... LIKE
 	if stmt.Like != nil {
 		return c.createTableLike(db, tableName, key, stmt, nameTaken)
@@ -306,9 +312,10 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 						return checkConstraintNameExists(db, tbl, name)
 					})
 				}
-				if checkConstraintNameExists(db, tbl, conName) {
+				if constraintNameExistsInTable(tbl, ConCheck, conName) {
 					return errCheckConstraintDupName(conName)
 				}
+				laterCheckNames = append(laterCheckNames, conName)
 				if err := validateColumnCheckReferences(colDef.Name, conName, cc.Expr); err != nil {
 					return err
 				}
@@ -506,9 +513,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			if constraintNameExistsInTable(tbl, ConForeignKey, conName) {
 				return errCannotAddForeign()
 			}
-			if foreignKeyConstraintNameExists(db, nil, conName) {
-				return errFKDupName(tableName)
-			}
+			laterForeignKeyNames = append(laterForeignKeyNames, conName)
 			refDB := ""
 			refTable := ""
 			if con.RefTable != nil {
@@ -540,9 +545,10 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			if err := checkTableCheckExpr(tbl, conName, con.Expr); err != nil {
 				return err
 			}
-			if checkConstraintNameExists(db, tbl, conName) {
+			if constraintNameExistsInTable(tbl, ConCheck, conName) {
 				return errCheckConstraintDupName(conName)
 			}
+			laterCheckNames = append(laterCheckNames, conName)
 			if err := validateCheckExpr(conName, con.Expr); err != nil {
 				return err
 			}
@@ -686,6 +692,18 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 
 	if done, err := nameTaken(); done || err != nil {
 		return err
+	}
+	// The table's own name is free, so a constraint name another table holds is
+	// now the answer. The pending table is not in db yet, so it matches none.
+	for _, name := range laterCheckNames {
+		if checkConstraintNameExists(db, nil, name) {
+			return errCheckConstraintDupName(name)
+		}
+	}
+	for _, name := range laterForeignKeyNames {
+		if foreignKeyConstraintNameExists(db, nil, name) {
+			return errFKDupName(tableName)
+		}
 	}
 	db.Tables[key] = tbl
 	return nil

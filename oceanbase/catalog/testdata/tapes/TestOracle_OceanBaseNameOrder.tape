@@ -72,6 +72,52 @@
 < error
 | 1050 42S01 Table 'a' already exists
 
+== TestOracle_OceanBaseNameOrder/a_constraint_name_another_table_holds default#1
+> exec
+| CREATE TABLE p (id INT PRIMARY KEY)
+< ok 0 0
+> exec
+| CREATE TABLE a (x INT, y INT, CONSTRAINT k CHECK (x > 0), CONSTRAINT fk FOREIGN KEY (y) REFERENCES p (id))
+< ok 0 0
+> exec
+| CREATE TABLE IF NOT EXISTS a (x INT, CONSTRAINT k CHECK (x > 0))
+< ok 0 0
+> exec
+| CREATE TABLE a (x INT, CONSTRAINT k CHECK (x > 0))
+< error
+| 1050 42S01 Table 'a' already exists
+> exec
+| CREATE TABLE IF NOT EXISTS a (x INT, y INT, CONSTRAINT fk FOREIGN KEY (y) REFERENCES p (id))
+< ok 0 0
+> exec
+| CREATE TABLE a (x INT, y INT, CONSTRAINT fk FOREIGN KEY (y) REFERENCES p (id))
+< error
+| 1050 42S01 Table 'a' already exists
+> exec
+| CREATE TABLE b (x INT, CONSTRAINT k CHECK (x > 0))
+< error
+| 3822 HY000 Duplicate check constraint name 'k'.
+> exec
+| CREATE TABLE c (x INT, y INT, CONSTRAINT fk FOREIGN KEY (y) REFERENCES p (id))
+< error
+| 1022 23000 Can't write; duplicate key in table 'c'
+> exec
+| CREATE TABLE IF NOT EXISTS a (x INT, KEY kk (x), KEY kk (x))
+< error
+| 1061 42000 Duplicate key name 'kk'
+> exec
+| CREATE TABLE IF NOT EXISTS a (x VARCHAR(300000))
+< error
+| 1074 42000 Column length too big for column 'x' (max = 262144)
+> exec
+| CREATE TABLE IF NOT EXISTS a (x INT, CONSTRAINT k2 CHECK (x > 0), CONSTRAINT k2 CHECK (x > 1))
+< error
+| 3822 HY000 Duplicate check constraint name 'k2'.
+> exec
+| CREATE TABLE IF NOT EXISTS a (x INT, FOREIGN KEY (x) REFERENCES nosuch (id))
+< error
+| 1146 42S02 Table doesn't exist
+
 == TestOracle_OceanBaseNameOrder/keys default#1
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, KEY idx_c (c))

@@ -40,5 +40,22 @@ func TestOracle_OceanBaseNameOrder(t *testing.T) {
 			{"ALTER TABLE a RENAME KEY idx_c TO idx_c", 1061},
 			{"ALTER TABLE a RENAME KEY idx_c TO idx_d", taken},
 		}},
+		{"a constraint name another table holds", []engineStep{
+			{"CREATE TABLE p (id INT PRIMARY KEY)", taken},
+			{"CREATE TABLE a (x INT, y INT, CONSTRAINT k CHECK (x > 0), CONSTRAINT fk FOREIGN KEY (y) REFERENCES p (id))", taken},
+			// The table is there, so its constraints' names decide nothing.
+			{"CREATE TABLE IF NOT EXISTS a (x INT, CONSTRAINT k CHECK (x > 0))", taken},
+			{"CREATE TABLE a (x INT, CONSTRAINT k CHECK (x > 0))", 1050},
+			{"CREATE TABLE IF NOT EXISTS a (x INT, y INT, CONSTRAINT fk FOREIGN KEY (y) REFERENCES p (id))", taken},
+			{"CREATE TABLE a (x INT, y INT, CONSTRAINT fk FOREIGN KEY (y) REFERENCES p (id))", 1050},
+			// A free table name, and the collision is the answer.
+			{"CREATE TABLE b (x INT, CONSTRAINT k CHECK (x > 0))", 3822},
+			{"CREATE TABLE c (x INT, y INT, CONSTRAINT fk FOREIGN KEY (y) REFERENCES p (id))", 1022},
+			// What the definition itself settles comes first, IF NOT EXISTS or not.
+			{"CREATE TABLE IF NOT EXISTS a (x INT, KEY kk (x), KEY kk (x))", 1061},
+			{"CREATE TABLE IF NOT EXISTS a (x VARCHAR(300000))", 1074},
+			{"CREATE TABLE IF NOT EXISTS a (x INT, CONSTRAINT k2 CHECK (x > 0), CONSTRAINT k2 CHECK (x > 1))", 3822},
+			{"CREATE TABLE IF NOT EXISTS a (x INT, FOREIGN KEY (x) REFERENCES nosuch (id))", 1146},
+		}},
 	})
 }
