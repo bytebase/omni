@@ -1,0 +1,13 @@
+# The grammar this engine's committed answers come from. PartiQL has no
+# server CI can start, so default is no image: it is the grammar of the
+# PartiQL reference implementation, partiql-lang-kotlin, at the commit of
+# the release in the source tag (partiql-parser/src/main/antlr). The digest
+# is the SHA-256 of testdata/PartiQLParser.g4 followed by
+# testdata/PartiQLTokens.g4, which are those files byte for byte.
+#
+# v0.14.9 is the last release of the grammar that holds every statement
+# DynamoDB documents. The v1 grammar (v1.6.1 on 2026-11-13) was rewritten
+# along SQL's EBNF and no longer derives INSERT INTO t VALUE {...}, an
+# UPDATE's REMOVE, or RETURNING.
+# columns: role, image, digest, source tag
+default	github.com/partiql/partiql-lang-kotlin@3a9ef181ce7ce654fd3c6e0d0d75732d317b8f19	sha256:9bf19a20c3d3ca3a6519a7b7d523c4e636df523b0c6c4e2cd396e4f12afd1ce3	v0.14.9
