@@ -337,3 +337,13 @@ func TestATrailingListRepeatsTheWholeChoice(t *testing.T) {
 		t.Errorf("fragments %+v, failed %+v\nwant %s", pg.frags, pg.failed, want)
 	}
 }
+
+// TestAdditionalColumnsTakeTheWholeDefinition pins that the abbreviated
+// line after a table's column definition repeats the whole definition.
+func TestAdditionalColumnsTakeTheWholeDefinition(t *testing.T) {
+	pg := convertPage("create-table", []string{"CREATE TABLE <name> (\n    -- Column definition\n    <col_name> <col_type>\n      [ NOT NULL ]\n\n    -- Additional column definitions\n    [ , <col_name> <col_type> [ ... ] ]\n  )"}, nil)
+	want := "'CREATE' 'TABLE' ID '(' ID DATA_TYPE ('NOT' 'NULL')? (',' ID DATA_TYPE ('NOT' 'NULL')?)* ')'"
+	if len(pg.forms) != 1 || pg.forms[0] != want {
+		t.Errorf("forms %q, failed %+v\nwant %s", pg.forms, pg.failed, want)
+	}
+}

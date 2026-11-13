@@ -132,3 +132,6 @@ delete	<additional_table_or_query>	{ <additional_table> | ( <query> ) }	USING ta
 alter-session	ALTER SESSION SET sessionParams	ALTER SESSION SET sessionParams [ , sessionParams ... ]	the parameters may be separated by spaces or commas, as the SET parameter says
 alter-agent	SET SPECIFICATION = <specification>	SET SPECIFICATION = '<specification>'	the specification is a quoted (or dollar-quoted) YAML or JSON string, as the parameters say
 create-dbt-project	DBT_VERSION = <version_number>	DBT_VERSION = '<version_number>'	the version is a quoted string, as the example and the ALTER and EXECUTE pages write it
+alter-external-table	<part_col_name> = '<string>' [ , <part_col_name> = '<string>' ]	<part_col_name> = '<string>' [ , ... ]	any number of partition columns, as the example with three shows
+create-user	ALLOWED_INTERFACES = ( <list_of_interfaces> )	ALLOWED_INTERFACES = ( { 'ALL' | { 'SNOWFLAKE_INTELLIGENCE' | 'STREAMLIT' } [ , ... ] } )	the interfaces are ALL or a list of the ones the parameters name
+alter-user	ALLOWED_INTERFACES = ( <list_of_interfaces> )	ALLOWED_INTERFACES = ( { 'ALL' | { 'SNOWFLAKE_INTELLIGENCE' | 'STREAMLIT' } [ , ... ] } )	the interfaces are ALL or a list of the ones the parameters name

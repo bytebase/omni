@@ -347,6 +347,11 @@ var nameArray = regexp.MustCompile(`= <([a-z_-]+_array)>`)
 // https://docs.snowflake.com/en/sql-reference/sql/create-table-constraint.
 const constraintProperties = "[ [ NOT ] ENFORCED ] [ [ NOT ] DEFERRABLE ] [ INITIALLY { DEFERRED | IMMEDIATE } ] [ { ENABLE | DISABLE } ] [ { VALIDATE | NOVALIDATE } ] [ { RELY | NORELY } ]"
 
+// moreColumns finds a table's column definition and the line after it
+// that abbreviates the next columns, [ , <col_name> <col_type> [ ... ] ]:
+// every column takes the whole definition.
+var moreColumns = regexp.MustCompile(`(?s)(--\s*Column definition[^\n]*\n)(.*?)(\n[ \t]*\n[ \t]*-- Additional column definitions[^\n]*\n[ \t]*)\[ , <col_name> <col_type>[^\n]*\]`)
+
 // templateValue is a template argument, USING ( <key> => <value> ).
 var templateValue = regexp.MustCompile(`=> <value>`)
 
@@ -408,6 +413,16 @@ func convertPage(slug string, blocks []string, fixes []*fix) pageGrammar {
 			blocks[i] = fixed
 			pg.fixes = append(pg.fixes, "read: a template argument's <value> is a constant, a string or JSON value, as the USING parameters say")
 		}
+	}
+	columns := false
+	for i, b := range blocks {
+		if fixed := moreColumns.ReplaceAllString(b, "${1}{ ${2} }${3}[ , ... ]"); fixed != b {
+			blocks[i] = fixed
+			columns = true
+		}
+	}
+	if columns {
+		pg.fixes = append(pg.fixes, "read: the additional columns take the whole column definition, which their line abbreviates")
 	}
 	for i, b := range blocks {
 		if fixed := nameArray.ReplaceAllString(b, "= ( '<$1>' [ , ... ] )"); fixed != b {
