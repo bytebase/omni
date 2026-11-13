@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"fmt"
 	"strings"
 
 	nodes "github.com/bytebase/omni/oceanbase/ast"
@@ -238,4 +239,71 @@ func renamePartitionKeyColumn(tbl *Table, oldName, newName string) {
 		cols[i] = name
 	}
 	tbl.Partitioning.keyColumns = cols
+}
+
+// checkPartitionNames refuses a partitioning that names a column tbl lacks, or a
+// partition bound that names any column, with 1054 "in 'partition function'": the
+// partitioning's columns first, then the subpartitioning's, then the bounds in order.
+// Between the two, a HASH or KEY partitioning's partitions may list no subpartitions
+// unless it is subpartitioned (1500).
+// OceanBase checks these before a unique key's coverage (1503), in CREATE TABLE and in
+// ALTER TABLE ... PARTITION BY alike (TestOracle_OceanBasePartitionNames).
+func checkPartitionNames(tbl *Table, pc *nodes.PartitionClause) error {
+	unknown := func(name string) error {
+		return &Error{Code: ErrNoSuchColumn, SQLState: sqlState(ErrNoSuchColumn),
+			Message: fmt.Sprintf("Unknown column '%s' in 'partition function'", name)}
+	}
+	for _, names := range [][]string{pc.Columns, exprColumnNames(pc.Expr), pc.SubPartColumns, exprColumnNames(pc.SubPartExpr)} {
+		for _, name := range names {
+			if tbl.GetColumn(name) == nil {
+				return unknown(name)
+			}
+		}
+	}
+	// Subpartitions under a HASH or KEY partitioning with no SUBPARTITION BY are 1500
+	// before any bound is read; under RANGE or LIST the engine answers 1064.
+	subpartitioned := pc.SubPartType != nodes.PartitionRange || pc.SubPartExpr != nil || len(pc.SubPartColumns) > 0
+	if !subpartitioned && (pc.Type == nodes.PartitionHash || pc.Type == nodes.PartitionKey) {
+		for _, pd := range pc.Partitions {
+			if len(pd.SubPartitions) > 0 {
+				return &Error{Code: 1500, SQLState: "HY000", Message: "It is only possible to mix RANGE/LIST partitioning with HASH/KEY partitioning for subpartitioning"}
+			}
+		}
+	}
+	var bounds []nodes.Node
+	for _, pd := range pc.Partitions {
+		bounds = append(bounds, pd.Values)
+		for _, sp := range pd.SubPartitions {
+			bounds = append(bounds, sp.Values)
+		}
+	}
+	for _, sp := range pc.SubPartTemplate {
+		bounds = append(bounds, sp.Values)
+	}
+	for _, b := range bounds {
+		if name := boundColumn(b); name != "" {
+			return unknown(name)
+		}
+	}
+	return nil
+}
+
+// boundColumn returns the first column a partition bound names, or "".
+func boundColumn(n nodes.Node) string {
+	switch v := n.(type) {
+	case nil:
+		return ""
+	case *nodes.List:
+		for _, item := range v.Items {
+			if name := boundColumn(item); name != "" {
+				return name
+			}
+		}
+		return ""
+	case nodes.ExprNode:
+		if names := exprColumnNames(v); len(names) > 0 {
+			return names[0]
+		}
+	}
+	return ""
 }

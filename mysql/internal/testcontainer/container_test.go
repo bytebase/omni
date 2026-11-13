@@ -7,16 +7,18 @@ import (
 	"testing"
 
 	gomysql "github.com/go-sql-driver/mysql"
+
+	"github.com/bytebase/omni/enginetest/tape"
 )
 
 func TestMain(m *testing.M) {
-	code := m.Run()
-	MySQL80.Terminate()
+	code := tape.Main(m)
+	Terminate()
 	os.Exit(code)
 }
 
 // escapes are statements that would reach past the test's database if the
-// account could run them. mysql:8.0 parses every one.
+// account could run them. mysql:8.0.46 parses every one.
 var escapes = []string{
 	"SHUTDOWN",
 	"RESTART",
@@ -40,27 +42,18 @@ var escapes = []string{
 }
 
 // TestRestrictedAccountCannotReachTheServer is the promise that lets a corpus
-// run on the server its package shares: whatever it runs stays inside the
+// run on the server a recording shares: whatever it runs stays inside the
 // test's database. Each statement parses, so a verdict that looks for 1064
 // still reads it as parsed.
 func TestRestrictedAccountCannotReachTheServer(t *testing.T) {
 	ctx := context.Background()
-	own, err := MySQL80.Database(ctx, "own")
-	if err != nil {
+	other := OpenDatabase(t, "other")
+	if _, err := other.ExecContext(ctx, "CREATE TABLE kept (a INT)"); err != nil {
 		t.Fatal(err)
 	}
-	defer own.Close(ctx)
-	other, err := MySQL80.Database(ctx, "other")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer other.Close(ctx)
-	if _, err := other.DB.ExecContext(ctx, "CREATE TABLE kept (a INT)"); err != nil {
-		t.Fatal(err)
-	}
-
+	own := OpenDatabase(t, "own")
 	for _, stmt := range escapes {
-		_, err := own.DB.ExecContext(ctx, stmt)
+		_, err := own.ExecContext(ctx, stmt)
 		var myErr *gomysql.MySQLError
 		if !errors.As(err, &myErr) {
 			t.Errorf("%s: want a server error, got %v", stmt, err)
@@ -70,46 +63,49 @@ func TestRestrictedAccountCannotReachTheServer(t *testing.T) {
 			t.Errorf("%s: a parse error says nothing about the privilege: %v", stmt, err)
 		}
 	}
-
 	var user string
-	if err := own.DB.QueryRowContext(ctx, "SELECT CURRENT_USER()").Scan(&user); err != nil {
+	if err := own.QueryRowContext(ctx, "SELECT CURRENT_USER()").Scan(&user); err != nil {
 		t.Fatal(err)
 	}
 	if user != account+"@%" {
 		t.Errorf("connected as %q", user)
 	}
 	var n int
-	if err := other.DB.QueryRowContext(ctx, "SELECT COUNT(*) FROM kept").Scan(&n); err != nil {
+	if err := other.QueryRowContext(ctx, "SELECT COUNT(*) FROM kept").Scan(&n); err != nil {
 		t.Errorf("the other database's table is gone: %v", err)
 	}
 }
 
-// TestResetEmptiesTheDatabase holds Reset to what a server of its own would give.
-func TestResetEmptiesTheDatabase(t *testing.T) {
+// TestOpenDatabaseIsEmpty holds OpenDatabase to what a server of its own
+// would give: the database selected, and nothing in it.
+func TestOpenDatabaseIsEmpty(t *testing.T) {
 	ctx := context.Background()
-	db, err := MySQL80.Database(ctx, "reset")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close(ctx)
-	if _, err := db.DB.ExecContext(ctx, "CREATE TABLE t (a INT)"); err != nil {
-		t.Fatal(err)
-	}
-	if err := db.Reset(ctx); err != nil {
-		t.Fatal(err)
-	}
+	db := OpenDatabase(t, "empty")
 	var selected string
-	if err := db.DB.QueryRowContext(ctx, "SELECT DATABASE()").Scan(&selected); err != nil {
-		t.Fatal(err)
-	}
-	if selected != db.Name {
-		t.Errorf("selected %q, want %q", selected, db.Name)
-	}
 	var n int
-	if err := db.DB.QueryRowContext(ctx, "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE()").Scan(&n); err != nil {
+	if err := db.QueryRowContext(ctx, "SELECT DATABASE(), (SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE())").Scan(&selected, &n); err != nil {
 		t.Fatal(err)
 	}
-	if n != 0 {
-		t.Errorf("%d tables survive Reset", n)
+	if selected != DatabaseName("empty") || n != 0 {
+		t.Errorf("selected %q holding %d tables, want %q holding none", selected, n, DatabaseName("empty"))
+	}
+}
+
+func TestCodecRoundTrips(t *testing.T) {
+	for _, in := range []*gomysql.MySQLError{
+		{Number: 1064, SQLState: [5]byte{'4', '2', '0', '0', '0'}, Message: syntaxErrorPreamble + "'x'\nat line 2"},
+		{Number: 1105, Message: "no SQLSTATE"},
+	} {
+		text, ok := Codec{}.EncodeError(in)
+		if !ok {
+			t.Fatalf("%v is not encoded", in)
+		}
+		var out *gomysql.MySQLError
+		if err := (Codec{}).DecodeError(text); !errors.As(err, &out) || *out != *in {
+			t.Errorf("%q decodes to %#v, want %#v", text, err, in)
+		}
+	}
+	if _, ok := (Codec{}).EncodeError(gomysql.ErrInvalidConn); ok {
+		t.Error("a dropped connection was encoded as the engine's answer")
 	}
 }
