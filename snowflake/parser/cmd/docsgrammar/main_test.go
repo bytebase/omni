@@ -269,7 +269,8 @@ func TestPlaceholderClasses(t *testing.T) {
 		"name": tName, "table_name": tName, "integer": tNumber, "num": tNumber, "rows": tNumber,
 		"expr": tExpr, "boolean_expr": tExpr, "condition": tExpr, "query": tQuery,
 		"col_type": tType, "arg_data_type": tType, "string_literal": tString, "copy_statement": tCopy,
-		"sql":            tQuery,
+		"sql":       tQuery,
+		"col1_type": tType, "specification_text": tString,
 		"python_version": tString, "scala_or_java_runtime_version": tString, "version_name": tName,
 		"object_type": tObjectType, "object_type_plural": tObjectTypes, "integration_name": tName,
 	} {

@@ -29,9 +29,9 @@ var (
 	exprName       = regexp.MustCompile(`(^|_)(expr|exprs|expression|condition|predicate)(_?[0-9]+|_|$)`)
 	numberName     = regexp.MustCompile(`(^|_)(num|number|integer|int|n|rows|seconds|minutes|hours|days|bytes|count|percent|ptus|buckets|interval|ms)(_?[0-9]+|_|$)|^(initial|start|min|max|step)_value$|^increment$`)
 	queryName      = regexp.MustCompile(`^(query|subquery|select_statement|statement|dml_statement|sql|sql_statement)$`)
-	typeName       = regexp.MustCompile(`(^|_)(data_type|col_type|arg_type|structured_type)(_?[0-9]+|_|$)|^type$|^arg_data_type`)
+	typeName       = regexp.MustCompile(`(^|_)(data_type|col[0-9]*_type|arg_type|structured_type)(_?[0-9]+|_|$)|^type$|^arg_data_type`)
 	runtimeVersion = regexp.MustCompile(`(python|java|scala|jdk|runtime)[a-z_]*_version$|^runtime_version$`)
-	stringName     = regexp.MustCompile(`(^|_|-)(string|literal)(_?[0-9]+|_|-|$)`)
+	stringName     = regexp.MustCompile(`(^|_|-)(string|literal|text)(_?[0-9]+|_|-|$)`)
 )
 
 // placeholderClass returns the token class a <placeholder> stands for, by

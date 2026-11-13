@@ -1385,7 +1385,7 @@ alterFunctionSpcs
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-gateway
 alterGateway
-    : 'ALTER' 'GATEWAY' ('IF' 'EXISTS')? ID 'FROM' 'SPECIFICATION' ID
+    : 'ALTER' 'GATEWAY' ('IF' 'EXISTS')? ID 'FROM' 'SPECIFICATION' STRING
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-git-repository
@@ -2074,10 +2074,10 @@ alterService
     | 'ALTER' 'SERVICE' ('IF' 'EXISTS')? ID 'SET' 'TAG' ID '=' STRING (',' ID '=' STRING)*
     ;
 alterService_fromSpecification
-    : ('FROM' 'SPECIFICATION_FILE' '=' STRING | 'FROM' STAGE 'SPECIFICATION_FILE' '=' STRING | 'FROM' 'SPECIFICATION' ID)
+    : ('FROM' 'SPECIFICATION_FILE' '=' STRING | 'FROM' STAGE 'SPECIFICATION_FILE' '=' STRING | 'FROM' 'SPECIFICATION' STRING)
     ;
 alterService_fromSpecificationTemplate
-    : ('FROM' 'SPECIFICATION_TEMPLATE_FILE' '=' STRING | 'FROM' STAGE 'SPECIFICATION_TEMPLATE_FILE' '=' STRING | 'FROM' 'SPECIFICATION_TEMPLATE' ID) 'USING' '(' ID '=>' ID (',' ID '=>' ID)* ')'
+    : ('FROM' 'SPECIFICATION_TEMPLATE_FILE' '=' STRING | 'FROM' STAGE 'SPECIFICATION_TEMPLATE_FILE' '=' STRING | 'FROM' 'SPECIFICATION_TEMPLATE' STRING) 'USING' '(' ID '=>' ID (',' ID '=>' ID)* ')'
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-session
@@ -2842,7 +2842,7 @@ createContact
 // https://docs.snowflake.com/en/sql-reference/sql/create-cortex-search
 createCortexSearch
     : 'CREATE' ('OR' 'REPLACE')? 'CORTEX' 'SEARCH' 'SERVICE' ('IF' 'NOT' 'EXISTS')? ID 'ON' ID ('PRIMARY' 'KEY' '(' ID (',' ID)* ')')? 'ATTRIBUTES' ID (',' ID)* 'WAREHOUSE' '=' ID 'TARGET_LAG' '=' STRING ('EMBEDDING_MODEL' '=' ID)? ('REFRESH_MODE' '=' ('FULL' | 'INCREMENTAL'))? ('INITIALIZE' '=' ('ON_CREATE' | 'ON_SCHEDULE'))? ('FULL_INDEX_BUILD_INTERVAL_DAYS' '=' NUMBER)? ('REQUEST_LOGGING' '=' ('TRUE' | 'FALSE'))? ('AUTO_SUSPEND' '=' NUMBER)? ('COMMENT' '=' STRING)? 'AS' QUERY
-    | 'CREATE' ('OR' 'REPLACE')? 'CORTEX' 'SEARCH' 'SERVICE' ID 'TEXT' 'INDEXES' ID (',' ID)* 'VECTOR' 'INDEXES' ID (',' ID)* ('PRIMARY' 'KEY' '(' ID (',' ID)* ')')? 'ATTRIBUTES' ID (',' ID)* 'WAREHOUSE' '=' ID 'TARGET_LAG' '=' STRING ('REFRESH_MODE' '=' ('FULL' | 'INCREMENTAL'))? ('INITIALIZE' '=' ('ON_CREATE' | 'ON_SCHEDULE'))? ('FULL_INDEX_BUILD_INTERVAL_DAYS' '=' NUMBER)? ('REQUEST_LOGGING' '=' ('TRUE' | 'FALSE'))? ('AUTO_SUSPEND' '=' NUMBER)? ('COMMENT' '=' STRING)? 'AS' QUERY
+    | 'CREATE' ('OR' 'REPLACE')? 'CORTEX' 'SEARCH' 'SERVICE' ID 'TEXT' 'INDEXES' STRING (',' STRING)* 'VECTOR' 'INDEXES' ID (',' ID)* ('PRIMARY' 'KEY' '(' ID (',' ID)* ')')? 'ATTRIBUTES' ID (',' ID)* 'WAREHOUSE' '=' ID 'TARGET_LAG' '=' STRING ('REFRESH_MODE' '=' ('FULL' | 'INCREMENTAL'))? ('INITIALIZE' '=' ('ON_CREATE' | 'ON_SCHEDULE'))? ('FULL_INDEX_BUILD_INTERVAL_DAYS' '=' NUMBER)? ('REQUEST_LOGGING' '=' ('TRUE' | 'FALSE'))? ('AUTO_SUSPEND' '=' NUMBER)? ('COMMENT' '=' STRING)? 'AS' QUERY
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-data-metric-function
@@ -3014,7 +3014,7 @@ createFunctionSpcs
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-gateway
 createGateway
-    : 'CREATE' ('OR' 'REPLACE')? 'GATEWAY' ('IF' 'NOT' 'EXISTS')? ID 'FROM' 'SPECIFICATION' ID
+    : 'CREATE' ('OR' 'REPLACE')? 'GATEWAY' ('IF' 'NOT' 'EXISTS')? ID 'FROM' 'SPECIFICATION' STRING
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-git-repository
@@ -3549,10 +3549,10 @@ createService
     : 'CREATE' 'SERVICE' ('IF' 'NOT' 'EXISTS')? ID 'IN' 'COMPUTE' 'POOL' ID (createService_fromSpecification | createService_fromSpecificationTemplate) ('AUTO_SUSPEND_SECS' '=' NUMBER)? ('EXTERNAL_ACCESS_INTEGRATIONS' '=' '(' ID (',' ID)* ')')? ('AUTO_RESUME' '=' ('TRUE' | 'FALSE'))? ('MIN_INSTANCES' '=' NUMBER)? ('MIN_READY_INSTANCES' '=' NUMBER)? ('MAX_INSTANCES' '=' NUMBER)? ('LOG_LEVEL' '=' STRING)? ('QUERY_WAREHOUSE' '=' ID)? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('COMMENT' '=' '\'{string_literal}\'')?
     ;
 createService_fromSpecification
-    : ('FROM' 'SPECIFICATION_FILE' '=' STRING | 'FROM' STAGE 'SPECIFICATION_FILE' '=' STRING | 'FROM' 'SPECIFICATION' ID)
+    : ('FROM' 'SPECIFICATION_FILE' '=' STRING | 'FROM' STAGE 'SPECIFICATION_FILE' '=' STRING | 'FROM' 'SPECIFICATION' STRING)
     ;
 createService_fromSpecificationTemplate
-    : ('FROM' 'SPECIFICATION_TEMPLATE_FILE' '=' STRING | 'FROM' STAGE 'SPECIFICATION_TEMPLATE_FILE' '=' STRING | 'FROM' 'SPECIFICATION_TEMPLATE' ID) 'USING' '(' ID '=>' ID (',' ID '=>' ID)* ')'
+    : ('FROM' 'SPECIFICATION_TEMPLATE_FILE' '=' STRING | 'FROM' STAGE 'SPECIFICATION_TEMPLATE_FILE' '=' STRING | 'FROM' 'SPECIFICATION_TEMPLATE' STRING) 'USING' '(' ID '=>' ID (',' ID '=>' ID)* ')'
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-session-policy
@@ -3657,7 +3657,7 @@ createTable_outoflineConstraint
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-table-constraint
 createTableConstraint
-    : 'CREATE' 'TABLE' ID '(' ID ID ('NOT' 'NULL')? (createTableConstraint_inlineUniquePK | createTableConstraint_inlineFK | createTableConstraint_inlineCH) (',' ID ID ('NOT' 'NULL')? (createTableConstraint_inlineUniquePK | createTableConstraint_inlineFK | createTableConstraint_inlineCH))? (',' (createTableConstraint_inlineUniquePK | createTableConstraint_inlineFK | createTableConstraint_inlineCH) (',' ID ID ('NOT' 'NULL')? (createTableConstraint_inlineUniquePK | createTableConstraint_inlineFK | createTableConstraint_inlineCH))?)* ')'
+    : 'CREATE' 'TABLE' ID '(' ID DATA_TYPE ('NOT' 'NULL')? (createTableConstraint_inlineUniquePK | createTableConstraint_inlineFK | createTableConstraint_inlineCH) (',' ID DATA_TYPE ('NOT' 'NULL')? (createTableConstraint_inlineUniquePK | createTableConstraint_inlineFK | createTableConstraint_inlineCH))? (',' (createTableConstraint_inlineUniquePK | createTableConstraint_inlineFK | createTableConstraint_inlineCH) (',' ID DATA_TYPE ('NOT' 'NULL')? (createTableConstraint_inlineUniquePK | createTableConstraint_inlineFK | createTableConstraint_inlineCH))?)* ')'
     | 'ALTER' 'TABLE' ID 'ADD' 'COLUMN' ID DATA_TYPE ('NOT' 'NULL')? (createTableConstraint_inlineUniquePK | createTableConstraint_inlineFK | createTableConstraint_inlineCH)
     ;
 createTableConstraint_inlineUniquePK
@@ -4756,7 +4756,7 @@ executeImmediateFrom_relativeFilePath
 
 // https://docs.snowflake.com/en/sql-reference/sql/execute-inference-job-service
 executeInferenceJobService
-    : 'EXECUTE' 'INFERENCE' 'JOB' 'SERVICE' 'IN' 'COMPUTE' 'POOL' ID 'WITH' 'SPECIFICATION' ID 'FROM' ('(' QUERY ')' | STAGE) 'MODEL' '=' (ID '.' ID '.')? ID ('VERSION' '=' ID)? ('FUNCTION' '=' STRING)? ('NAME' '=' (ID '.' ID '.')? ID)? ('ASYNC' '=' ('TRUE' | 'FALSE'))? ('REPLICAS' '=' NUMBER)?
+    : 'EXECUTE' 'INFERENCE' 'JOB' 'SERVICE' 'IN' 'COMPUTE' 'POOL' ID 'WITH' 'SPECIFICATION' STRING 'FROM' ('(' QUERY ')' | STAGE) 'MODEL' '=' (ID '.' ID '.')? ID ('VERSION' '=' ID)? ('FUNCTION' '=' STRING)? ('NAME' '=' (ID '.' ID '.')? ID)? ('ASYNC' '=' ('TRUE' | 'FALSE'))? ('REPLICAS' '=' NUMBER)?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/execute-job-service
@@ -4765,10 +4765,10 @@ executeJobService
     : 'EXECUTE' 'JOB' 'SERVICE' 'IN' 'COMPUTE' 'POOL' ID (executeJobService_fromSpecification | executeJobService_fromSpecificationTemplate) ('NAME' '=' (ID '.' ID '.')? ID)? ('ASYNC' '=' ('TRUE' | 'FALSE'))? ('REPLICAS' '=' NUMBER)? ('QUERY_WAREHOUSE' '=' ID)? ('COMMENT' '=' STRING)? ('EXTERNAL_ACCESS_INTEGRATIONS' '=' '(' ID (',' ID)* ')')?
     ;
 executeJobService_fromSpecification
-    : ('FROM' STAGE 'SPECIFICATION_FILE' '=' STRING | 'FROM' 'SPECIFICATION' ID)
+    : ('FROM' STAGE 'SPECIFICATION_FILE' '=' STRING | 'FROM' 'SPECIFICATION' STRING)
     ;
 executeJobService_fromSpecificationTemplate
-    : ('FROM' STAGE 'SPECIFICATION_TEMPLATE_FILE' '=' STRING | 'FROM' 'SPECIFICATION_TEMPLATE' ID) 'USING' '(' ID '=>' ID (',' ID '=>' ID)* ')'
+    : ('FROM' STAGE 'SPECIFICATION_TEMPLATE_FILE' '=' STRING | 'FROM' 'SPECIFICATION_TEMPLATE' STRING) 'USING' '(' ID '=>' ID (',' ID '=>' ID)* ')'
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/execute-notebook
