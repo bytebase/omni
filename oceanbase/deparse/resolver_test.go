@@ -121,7 +121,7 @@ func TestResolver_Section_6_1_ColumnQualification(t *testing.T) {
 		{
 			"column_in_order_by",
 			"SELECT a FROM t ORDER BY a",
-			"select `t`.`a` AS `a` from `t` order by `t`.`a`",
+			"select `t`.`a` AS `a` from `t` order by 1",
 		},
 		{
 			"column_in_group_by",
