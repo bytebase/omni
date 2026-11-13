@@ -4742,21 +4742,21 @@ reject	reject	engine	data_type/MULTIPOLYGON!swap	ALTER TABLE a ADD a MULTIVALUE
 accept	accept	engine	data_type/geometry_collection	ALTER TABLE a ADD a GEOMETRYCOLLECTION
 reject	reject	engine	data_type/geometry_collection!insert	ALTER TABLE a ADD a GEOMETRYCOLLECTION zzz
 reject	reject	engine	data_type/geometry_collection!swap	ALTER TABLE a ADD a GET
-reject	accept	engine	data_type/ARRAY_(_data_type_)	ALTER TABLE a ADD a ARRAY(TINYINT)
+accept	accept	engine	data_type/ARRAY_(_data_type_)	ALTER TABLE a ADD a ARRAY(TINYINT)
 reject	reject	engine	data_type/ARRAY_(_data_type_)!drop-1	ALTER TABLE a ADD a(TINYINT)
 reject	reject	engine	data_type/ARRAY_(_data_type_)!drop-2	ALTER TABLE a ADD a ARRAY TINYINT)
 reject	reject	engine	data_type/ARRAY_(_data_type_)!drop-3	ALTER TABLE a ADD a ARRAY()
 reject	reject	engine	data_type/ARRAY_(_data_type_)!drop-4	ALTER TABLE a ADD a ARRAY(TINYINT
 reject	reject	engine	data_type/ARRAY_(_data_type_)!insert	ALTER TABLE a ADD a ARRAY(TINYINT) zzz
 reject	reject	engine	data_type/ARRAY_(_data_type_)!swap	ALTER TABLE a ADD a ARRAY_AGG(TINYINT)
-reject	accept	engine	data_type/ARRAY_COMP_LT_data_type_COMP_GT	ALTER TABLE a ADD a ARRAY < TINYINT >
+accept	accept	engine	data_type/ARRAY_COMP_LT_data_type_COMP_GT	ALTER TABLE a ADD a ARRAY < TINYINT >
 reject	reject	engine	data_type/ARRAY_COMP_LT_data_type_COMP_GT!drop-1	ALTER TABLE a ADD a < TINYINT >
 reject	reject	engine	data_type/ARRAY_COMP_LT_data_type_COMP_GT!drop-2	ALTER TABLE a ADD a ARRAY TINYINT >
 reject	reject	engine	data_type/ARRAY_COMP_LT_data_type_COMP_GT!drop-3	ALTER TABLE a ADD a ARRAY < >
 reject	reject	engine	data_type/ARRAY_COMP_LT_data_type_COMP_GT!drop-4	ALTER TABLE a ADD a ARRAY < TINYINT
 reject	reject	engine	data_type/ARRAY_COMP_LT_data_type_COMP_GT!insert	ALTER TABLE a ADD a ARRAY < TINYINT > zzz
 reject	reject	engine	data_type/ARRAY_COMP_LT_data_type_COMP_GT!swap	ALTER TABLE a ADD a ARRAY_AGG < TINYINT >
-reject	accept	engine	data_type/ARRAY_COMP_LT_ARRAY_COMP_LT_data_type_SHIFT_RIGHT	ALTER TABLE a ADD a ARRAY < ARRAY < TINYINT >>
+accept	accept	engine	data_type/ARRAY_COMP_LT_ARRAY_COMP_LT_data_type_SHIFT_RIGHT	ALTER TABLE a ADD a ARRAY < ARRAY < TINYINT >>
 reject	reject	engine	data_type/ARRAY_COMP_LT_ARRAY_COMP_LT_data_type_SHIFT_RIGHT!drop-1	ALTER TABLE a ADD a < ARRAY < TINYINT >>
 reject	reject	engine	data_type/ARRAY_COMP_LT_ARRAY_COMP_LT_data_type_SHIFT_RIGHT!drop-2	ALTER TABLE a ADD a ARRAY ARRAY < TINYINT >>
 reject	reject	engine	data_type/ARRAY_COMP_LT_ARRAY_COMP_LT_data_type_SHIFT_RIGHT!drop-3	ALTER TABLE a ADD a ARRAY < < TINYINT >>
@@ -4765,19 +4765,19 @@ reject	reject	engine	data_type/ARRAY_COMP_LT_ARRAY_COMP_LT_data_type_SHIFT_RIGHT
 reject	reject	engine	data_type/ARRAY_COMP_LT_ARRAY_COMP_LT_data_type_SHIFT_RIGHT!drop-6	ALTER TABLE a ADD a ARRAY < ARRAY < TINYINT
 reject	reject	engine	data_type/ARRAY_COMP_LT_ARRAY_COMP_LT_data_type_SHIFT_RIGHT!insert	ALTER TABLE a ADD a ARRAY < ARRAY < TINYINT >> zzz
 reject	reject	engine	data_type/ARRAY_COMP_LT_ARRAY_COMP_LT_data_type_SHIFT_RIGHT!swap	ALTER TABLE a ADD a ARRAY_AGG < ARRAY < TINYINT >>
-reject	accept	engine	data_type/data_type_[_]	ALTER TABLE a ADD a TINYINT [ ]
+accept	accept	engine	data_type/data_type_[_]	ALTER TABLE a ADD a TINYINT [ ]
 reject	reject	engine	data_type/data_type_[_]!drop-1	ALTER TABLE a ADD a [ ]
 reject	reject	engine	data_type/data_type_[_]!drop-2	ALTER TABLE a ADD a TINYINT ]
 reject	reject	engine	data_type/data_type_[_]!drop-3	ALTER TABLE a ADD a TINYINT [
 reject	reject	engine	data_type/data_type_[_]!insert	ALTER TABLE a ADD a TINYINT [ ] zzz
-reject	accept	engine	data_type/data_type_[_]!swap	ALTER TABLE a ADD a TINYTEXT [ ]
+accept	accept	engine	data_type/data_type_[_]!swap	ALTER TABLE a ADD a TINYTEXT [ ]
 accept	accept	engine	data_type/VECTOR_(_INTNUM_)	ALTER TABLE a ADD a VECTOR(1)
 reject	reject	engine	data_type/VECTOR_(_INTNUM_)!drop-2	ALTER TABLE a ADD a VECTOR 1)
 reject	reject	engine	data_type/VECTOR_(_INTNUM_)!drop-3	ALTER TABLE a ADD a VECTOR()
 reject	reject	engine	data_type/VECTOR_(_INTNUM_)!drop-4	ALTER TABLE a ADD a VECTOR(1
 reject	reject	engine	data_type/VECTOR_(_INTNUM_)!insert	ALTER TABLE a ADD a VECTOR(1) zzz
 reject	reject	engine	data_type/VECTOR_(_INTNUM_)!swap	ALTER TABLE a ADD a VECTOR_DISTANCE(1)
-reject	accept	engine	data_type/MAP_(_data_type_,_data_type_)	ALTER TABLE a ADD a MAP(TINYINT, TINYINT)
+accept	accept	engine	data_type/MAP_(_data_type_,_data_type_)	ALTER TABLE a ADD a MAP(TINYINT, TINYINT)
 reject	reject	engine	data_type/MAP_(_data_type_,_data_type_)!drop-1	ALTER TABLE a ADD a(TINYINT, TINYINT)
 reject	reject	engine	data_type/MAP_(_data_type_,_data_type_)!drop-2	ALTER TABLE a ADD a MAP TINYINT, TINYINT)
 reject	reject	engine	data_type/MAP_(_data_type_,_data_type_)!drop-3	ALTER TABLE a ADD a MAP(, TINYINT)
@@ -4786,10 +4786,10 @@ reject	reject	engine	data_type/MAP_(_data_type_,_data_type_)!drop-5	ALTER TABLE 
 reject	reject	engine	data_type/MAP_(_data_type_,_data_type_)!drop-6	ALTER TABLE a ADD a MAP(TINYINT, TINYINT
 reject	reject	engine	data_type/MAP_(_data_type_,_data_type_)!insert	ALTER TABLE a ADD a MAP(TINYINT, TINYINT) zzz
 reject	reject	engine	data_type/MAP_(_data_type_,_data_type_)!swap	ALTER TABLE a ADD a MASTER(TINYINT, TINYINT)
-reject	accept	engine	data_type/SPARSEVECTOR	ALTER TABLE a ADD a SPARSEVECTOR
+accept	accept	engine	data_type/SPARSEVECTOR	ALTER TABLE a ADD a SPARSEVECTOR
 reject	reject	engine	data_type/SPARSEVECTOR!insert	ALTER TABLE a ADD a SPARSEVECTOR zzz
 reject	reject	engine	data_type/SPARSEVECTOR!swap	ALTER TABLE a ADD a SPATIAL
-reject	accept	engine	data_type/ROARINGBITMAP	ALTER TABLE a ADD a ROARINGBITMAP
+accept	accept	engine	data_type/ROARINGBITMAP	ALTER TABLE a ADD a ROARINGBITMAP
 reject	reject	engine	data_type/ROARINGBITMAP!insert	ALTER TABLE a ADD a ROARINGBITMAP zzz
 reject	reject	engine	data_type/ROARINGBITMAP!swap	ALTER TABLE a ADD a ROLE
 accept	accept	engine	string_list/text_string	SET DECRYPTION IDENTIFIED BY 's'
@@ -4833,7 +4833,7 @@ accept	accept	engine	float_type_i/DOUBLE_PRECISION	ALTER TABLE a ADD a DOUBLE PR
 reject	reject	engine	float_type_i/DOUBLE_PRECISION!drop-1	ALTER TABLE a ADD a PRECISION
 reject	reject	engine	float_type_i/DOUBLE_PRECISION!insert	ALTER TABLE a ADD a DOUBLE PRECISION zzz
 reject	reject	engine	float_type_i/DOUBLE_PRECISION!swap	ALTER TABLE a ADD a DROP PRECISION
-reject	accept	engine	float_type_i/REAL_PRECISION	ALTER TABLE a ADD a REAL PRECISION
+accept	accept	engine	float_type_i/REAL_PRECISION	ALTER TABLE a ADD a REAL PRECISION
 reject	reject	engine	float_type_i/REAL_PRECISION!insert	ALTER TABLE a ADD a REAL PRECISION zzz
 reject	reject	engine	float_type_i/REAL_PRECISION!swap	ALTER TABLE a ADD a REBUILD PRECISION
 accept	accept	engine	datetime_type_i/DATETIME	ALTER TABLE a ADD a DATETIME
@@ -4857,11 +4857,11 @@ reject	reject	engine	text_type_i/MEDIUMTEXT!swap	ALTER TABLE a ADD a MEMBER
 accept	accept	engine	text_type_i/LONGTEXT	ALTER TABLE a ADD a LONGTEXT
 reject	reject	engine	text_type_i/LONGTEXT!insert	ALTER TABLE a ADD a LONGTEXT zzz
 reject	reject	engine	text_type_i/LONGTEXT!swap	ALTER TABLE a ADD a LOOP
-reject	accept	engine	text_type_i/MEDIUMTEXT_VARCHAR	ALTER TABLE a ADD a MEDIUMTEXT VARCHAR
+accept	accept	engine	text_type_i/MEDIUMTEXT_VARCHAR	ALTER TABLE a ADD a MEDIUMTEXT VARCHAR
 reject	reject	engine	text_type_i/MEDIUMTEXT_VARCHAR!drop-1	ALTER TABLE a ADD a VARCHAR
 reject	reject	engine	text_type_i/MEDIUMTEXT_VARCHAR!insert	ALTER TABLE a ADD a MEDIUMTEXT VARCHAR zzz
 reject	reject	engine	text_type_i/MEDIUMTEXT_VARCHAR!swap	ALTER TABLE a ADD a MEMBER VARCHAR
-reject	accept	engine	text_type_i/STRING	ALTER TABLE a ADD a STRING
+accept	accept	engine	text_type_i/STRING	ALTER TABLE a ADD a STRING
 reject	reject	engine	text_type_i/STRING!insert	ALTER TABLE a ADD a STRING zzz
 reject	reject	engine	text_type_i/STRING!swap	ALTER TABLE a ADD a STRIPE_SIZE
 accept	accept	engine	blob_type_i/TINYBLOB	ALTER TABLE a ADD a TINYBLOB
@@ -4872,7 +4872,7 @@ accept	accept	engine	blob_type_i/MEDIUMBLOB	ALTER TABLE a ADD a MEDIUMBLOB
 reject	reject	engine	blob_type_i/MEDIUMBLOB!insert	ALTER TABLE a ADD a MEDIUMBLOB zzz
 accept	accept	engine	blob_type_i/LONGBLOB	ALTER TABLE a ADD a LONGBLOB
 reject	reject	engine	blob_type_i/LONGBLOB!insert	ALTER TABLE a ADD a LONGBLOB zzz
-reject	accept	engine	blob_type_i/MEDIUMTEXT_VARBINARY	ALTER TABLE a ADD a MEDIUMTEXT VARBINARY
+accept	accept	engine	blob_type_i/MEDIUMTEXT_VARBINARY	ALTER TABLE a ADD a MEDIUMTEXT VARBINARY
 reject	reject	engine	blob_type_i/MEDIUMTEXT_VARBINARY!drop-1	ALTER TABLE a ADD a VARBINARY
 reject	reject	engine	blob_type_i/MEDIUMTEXT_VARBINARY!insert	ALTER TABLE a ADD a MEDIUMTEXT VARBINARY zzz
 reject	reject	engine	blob_type_i/MEDIUMTEXT_VARBINARY!swap	ALTER TABLE a ADD a MEMBER VARBINARY
@@ -4900,7 +4900,7 @@ reject	reject	engine	opt_float_precision/(_INTNUM_)!drop-1	ALTER TABLE a ADD a F
 reject	reject	engine	opt_float_precision/(_INTNUM_)!drop-2	ALTER TABLE a ADD a FLOAT()
 reject	reject	engine	opt_float_precision/(_INTNUM_)!drop-3	ALTER TABLE a ADD a FLOAT(1
 reject	reject	engine	opt_float_precision/(_INTNUM_)!insert	ALTER TABLE a ADD a FLOAT(1) zzz
-reject	accept	engine	opt_float_precision/(_DECIMAL_VAL_)	ALTER TABLE a ADD a FLOAT(1.5)
+accept	accept	engine	opt_float_precision/(_DECIMAL_VAL_)	ALTER TABLE a ADD a FLOAT(1.5)
 reject	reject	engine	opt_float_precision/(_DECIMAL_VAL_)!drop-1	ALTER TABLE a ADD a FLOAT 1.5)
 reject	reject	engine	opt_float_precision/(_DECIMAL_VAL_)!drop-3	ALTER TABLE a ADD a FLOAT(1.5
 reject	reject	engine	opt_float_precision/(_DECIMAL_VAL_)!insert	ALTER TABLE a ADD a FLOAT(1.5) zzz
