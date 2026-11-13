@@ -27,6 +27,9 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	if tbl == nil {
 		return errNoSuchTable(db.Name, tableName)
 	}
+	if err := checkAlterTableOptions(tbl, stmt.Commands); err != nil {
+		return err
+	}
 	if err := checkKeyOptions(alterKeys(stmt.Commands)); err != nil {
 		return err
 	}
