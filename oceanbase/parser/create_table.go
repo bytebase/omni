@@ -553,7 +553,8 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 			val = "DEFAULT"
 			p.advance()
 		default:
-			return false, nil
+			// COLUMN_FORMAT takes its value.
+			return false, p.syntaxErrorAtCur()
 		}
 		col.ColumnFormat = val
 		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
@@ -564,7 +565,7 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 		return true, nil
 
 	case kwSTORAGE:
-		// STORAGE {DISK | MEMORY}
+		// STORAGE {DEFAULT | DISK | MEMORY}, its value required.
 		p.advance()
 		var val string
 		switch p.cur.Type {
@@ -574,8 +575,11 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 		case kwMEMORY:
 			val = "MEMORY"
 			p.advance()
+		case kwDEFAULT:
+			val = "DEFAULT"
+			p.advance()
 		default:
-			return false, nil
+			return false, p.syntaxErrorAtCur()
 		}
 		col.Storage = val
 		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
@@ -583,6 +587,60 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 			Type: nodes.ColConstrStorage,
 			Name: val,
 		})
+		return true, nil
+	}
+
+	// OceanBase's own column attributes, parsed and not kept (column_attribute and
+	// generated_column_attribute in sql_parser_mysql_mode.y, oceanbase
+	// v4.3.5_CE_BP6):
+	//
+	//	ORIG_DEFAULT now_or_signed_literal
+	//	SKIP_INDEX ( [MIN_MAX | SUM] [, {MIN_MAX | SUM}] ... )
+	//	CHUNK {n | 'size'}
+	//
+	// Known gap: ID n, which OceanBase parses and then refuses with 1064
+	// (simulate.tsv). Taking it waits for the catalog to refuse it too.
+	switch {
+	case p.isBareWord("ORIG_DEFAULT"):
+		p.advance()
+		exprStart := p.pos()
+		expr, err := p.parseExpr()
+		if err != nil {
+			return false, err
+		}
+		if expr == nil {
+			return false, p.syntaxErrorAtCur()
+		}
+		if _, paren := expr.(*nodes.ParenExpr); paren {
+			return false, &ParseError{Message: "syntax error", Position: exprStart}
+		}
+		return true, refuseColumnValue(expr, exprStart)
+	case p.isBareWord("SKIP_INDEX"):
+		p.advance()
+		if _, err := p.expect('('); err != nil {
+			return false, err
+		}
+		// opt_skip_index_type_list may be empty before its first comma.
+		for p.cur.Type != ')' {
+			if p.cur.Type == ',' {
+				p.advance()
+			}
+			if !p.isBareWord("MIN_MAX") && !p.isBareWord("SUM") {
+				return false, p.syntaxErrorAtCur()
+			}
+			p.advance()
+			if p.cur.Type != ',' && p.cur.Type != ')' {
+				return false, p.syntaxErrorAtCur()
+			}
+		}
+		p.advance() // consume ')'
+		return true, nil
+	case p.isBareWord("CHUNK"):
+		p.advance()
+		if p.cur.Type != tokICONST && p.cur.Type != tokSCONST {
+			return false, p.syntaxErrorAtCur()
+		}
+		p.advance()
 		return true, nil
 	}
 
@@ -596,7 +654,8 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 	if p.cur.Type == kwSRID {
 		p.advance()
 		if p.cur.Type != tokICONST {
-			return false, nil
+			// SRID INTNUM: the number is required.
+			return false, p.syntaxErrorAtCur()
 		}
 		col.TypeName.SRID = int(p.cur.Ival)
 		col.TypeName.HasSRID = true
@@ -609,9 +668,20 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 
 // refuseColumnValue refuses a bare name as a column's DEFAULT or ON UPDATE value, as the
 // grammar's literal and now_or_signed_literal do, so `a TIMESTAMP DEFAULT now` is a 1064.
+//
+// A function call is no literal either, unless it is cur_timestamp_func: NOW,
+// CURRENT_TIMESTAMP, LOCALTIME or LOCALTIMESTAMP. `a INT DEFAULT CURRENT_USER`
+// is a 1064, and a call to anything else is written in parentheses.
 func refuseColumnValue(expr nodes.ExprNode, start int) error {
-	if _, ok := expr.(*nodes.ColumnRef); ok {
+	switch e := expr.(type) {
+	case *nodes.ColumnRef:
 		return &ParseError{Message: "syntax error", Position: start}
+	case *nodes.FuncCallExpr:
+		switch strings.ToUpper(e.Name) {
+		case "NOW", "CURRENT_TIMESTAMP", "LOCALTIME", "LOCALTIMESTAMP":
+		default:
+			return &ParseError{Message: "syntax error", Position: start}
+		}
 	}
 	return nil
 }
@@ -754,9 +824,9 @@ func (p *Parser) parseGeneratedColumn() (*nodes.GeneratedColumn, error) {
 	start := p.pos()
 	p.advance() // consume GENERATED
 
-	// Optional ALWAYS
-	if p.cur.Type == kwALWAYS {
-		p.advance()
+	// opt_generated_keyname: GENERATED ALWAYS, the ALWAYS required.
+	if _, err := p.expect(kwALWAYS); err != nil {
+		return nil, err
 	}
 
 	// AS
