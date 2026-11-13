@@ -8628,8 +8628,8 @@ accept	accept	engine	profile_defs/profile_def	SHOW PROFILE CPU;
 accept	accept	engine	profile_defs/profile_defs_,_profile_def	SHOW PROFILE CPU, CPU;
 reject	reject	engine	profile_defs/profile_defs_,_profile_def!drop-1	SHOW PROFILE, CPU;
 reject	reject	engine	profile_defs/profile_defs_,_profile_def!drop-2	SHOW PROFILE CPU CPU;
-accept	reject	engine	profile_defs/profile_defs_,_profile_def!drop-3	SHOW PROFILE CPU,;
-accept	reject	engine	profile_defs/profile_defs_,_profile_def!truncate	SHOW PROFILE CPU,
+reject	reject	engine	profile_defs/profile_defs_,_profile_def!drop-3	SHOW PROFILE CPU,;
+reject	reject	engine	profile_defs/profile_defs_,_profile_def!truncate	SHOW PROFILE CPU,
 reject	reject	engine	profile_defs/profile_defs_,_profile_def!insert	SHOW PROFILE CPU, CPU zzz;
 reject	reject	engine	profile_defs/profile_defs_,_profile_def!swap	SHOW PROFILE CREATE, CPU;
 accept	accept	engine	profile_def/CPU_SYM	SHOW PROFILE CPU;
@@ -8638,20 +8638,20 @@ reject	reject	engine	profile_def/MEMORY_SYM!insert	SHOW PROFILE MEMORY zzz;
 reject	reject	engine	profile_def/MEMORY_SYM!swap	SHOW PROFILE MERGE;
 accept	accept	engine	profile_def/BLOCK_SYM_IO_SYM	SHOW PROFILE BLOCK IO;
 reject	reject	engine	profile_def/BLOCK_SYM_IO_SYM!drop-1	SHOW PROFILE IO;
-accept	reject	engine	profile_def/BLOCK_SYM_IO_SYM!drop-2	SHOW PROFILE BLOCK;
-accept	reject	engine	profile_def/BLOCK_SYM_IO_SYM!truncate	SHOW PROFILE BLOCK
+reject	reject	engine	profile_def/BLOCK_SYM_IO_SYM!drop-2	SHOW PROFILE BLOCK;
+reject	reject	engine	profile_def/BLOCK_SYM_IO_SYM!truncate	SHOW PROFILE BLOCK
 reject	reject	engine	profile_def/BLOCK_SYM_IO_SYM!insert	SHOW PROFILE BLOCK IO zzz;
 reject	reject	engine	profile_def/BLOCK_SYM_IO_SYM!swap	SHOW PROFILE BOOL IO;
 accept	accept	engine	profile_def/CONTEXT_SYM_SWITCHES_SYM	SHOW PROFILE CONTEXT SWITCHES;
 reject	reject	engine	profile_def/CONTEXT_SYM_SWITCHES_SYM!drop-1	SHOW PROFILE SWITCHES;
-accept	reject	engine	profile_def/CONTEXT_SYM_SWITCHES_SYM!drop-2	SHOW PROFILE CONTEXT;
-accept	reject	engine	profile_def/CONTEXT_SYM_SWITCHES_SYM!truncate	SHOW PROFILE CONTEXT
+reject	reject	engine	profile_def/CONTEXT_SYM_SWITCHES_SYM!drop-2	SHOW PROFILE CONTEXT;
+reject	reject	engine	profile_def/CONTEXT_SYM_SWITCHES_SYM!truncate	SHOW PROFILE CONTEXT
 reject	reject	engine	profile_def/CONTEXT_SYM_SWITCHES_SYM!insert	SHOW PROFILE CONTEXT SWITCHES zzz;
 reject	reject	engine	profile_def/CONTEXT_SYM_SWITCHES_SYM!swap	SHOW PROFILE CONTINUE SWITCHES;
 accept	accept	engine	profile_def/PAGE_SYM_FAULTS_SYM	SHOW PROFILE PAGE FAULTS;
 reject	reject	engine	profile_def/PAGE_SYM_FAULTS_SYM!drop-1	SHOW PROFILE FAULTS;
-accept	reject	engine	profile_def/PAGE_SYM_FAULTS_SYM!drop-2	SHOW PROFILE PAGE;
-accept	reject	engine	profile_def/PAGE_SYM_FAULTS_SYM!truncate	SHOW PROFILE PAGE
+reject	reject	engine	profile_def/PAGE_SYM_FAULTS_SYM!drop-2	SHOW PROFILE PAGE;
+reject	reject	engine	profile_def/PAGE_SYM_FAULTS_SYM!truncate	SHOW PROFILE PAGE
 reject	reject	engine	profile_def/PAGE_SYM_FAULTS_SYM!insert	SHOW PROFILE PAGE FAULTS zzz;
 reject	reject	engine	profile_def/PAGE_SYM_FAULTS_SYM!swap	SHOW PROFILE PARSER FAULTS;
 accept	accept	engine	profile_def/IPC_SYM	SHOW PROFILE IPC;
@@ -8743,7 +8743,7 @@ accept	accept	engine	show_create_user_stmt/SHOW_CREATE_USER_user	SHOW CREATE USE
 accept	accept	engine	engine_or_all/ident_or_text	SHOW ENGINE utf8mb4 LOGS;
 reject	reject	engine	engine_or_all/ident_or_text!truncate	SHOW ENGINE
 reject	reject	engine	engine_or_all/ident_or_text!insert	SHOW ENGINE utf8mb4 zzz LOGS;
-reject	accept	engine	engine_or_all/ALL	SHOW ENGINE ALL LOGS;
+accept	accept	engine	engine_or_all/ALL	SHOW ENGINE ALL LOGS;
 reject	reject	engine	engine_or_all/ALL!insert	SHOW ENGINE ALL zzz LOGS;
 reject	reject	engine	engine_or_all/ALL!swap	SHOW ENGINE ALTER LOGS;
 accept	accept	engine	master_or_binary/MASTER_SYM	SHOW MASTER LOGS;
@@ -10722,7 +10722,7 @@ reject	reject	engine	opt_var_type/%empty!insert	SHOW zzz STATUS;
 accept	accept	engine	opt_var_type/GLOBAL_SYM	SHOW GLOBAL STATUS;
 reject	reject	engine	opt_var_type/GLOBAL_SYM!insert	SHOW GLOBAL zzz STATUS;
 reject	reject	engine	opt_var_type/GLOBAL_SYM!swap	SHOW GRANT STATUS;
-reject	accept	engine	opt_var_type/LOCAL_SYM	SHOW LOCAL STATUS;
+accept	accept	engine	opt_var_type/LOCAL_SYM	SHOW LOCAL STATUS;
 reject	reject	engine	opt_var_type/LOCAL_SYM!insert	SHOW LOCAL zzz STATUS;
 reject	reject	engine	opt_var_type/LOCAL_SYM!swap	SHOW LOCK STATUS;
 accept	accept	engine	opt_var_type/SESSION_SYM	SHOW SESSION STATUS;
