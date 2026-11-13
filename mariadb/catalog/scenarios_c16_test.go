@@ -61,6 +61,10 @@ func TestScenario_C16(t *testing.T) {
 		switch x := v.(type) {
 		case int64:
 			return int(x), true
+		case uint64:
+			// The column is BIGINT UNSIGNED, which the connection returns as
+			// uint64 when the statement's argument is written into its text.
+			return int(x), true
 		case []byte:
 			var n int
 			for _, c := range x {
@@ -150,7 +154,8 @@ func TestScenario_C16(t *testing.T) {
 
 		// 0..6 should all work at runtime via SELECT LENGTH(NOW(n)).
 		wantLen := map[int]int{0: 19, 1: 21, 2: 22, 3: 23, 4: 24, 5: 25, 6: 26}
-		for n, want := range wantLen {
+		for n := 0; n <= 6; n++ {
+			want := wantLen[n]
 			var got int
 			row := mc.db.QueryRowContext(mc.ctx,
 				`SELECT LENGTH(NOW(`+itoaC16(n)+`))`)
