@@ -503,3 +503,102 @@ term : 'CURRENT_USER' | ID ;
 		}
 	}
 }
+
+// TestReadANTLRReservesOnlyWhatNoEarlierClassTakes pins precedence against
+// the class token that matches the word, not the last class token: a
+// keyword written after an identifier rule that matches it is never
+// produced, so its word stays a name, whatever class rules follow.
+func TestReadANTLRReservesOnlyWhatNoEarlierClassTakes(t *testing.T) {
+	g, err := ReadANTLR(`grammar S;
+s : 'SELECT' ID ;
+ID : [a-zA-Z_][a-zA-Z_0-9]* ;
+LATE : 'late' ;
+EARLY_NUMBER : [0-9]+ ;
+FIRST : 'first' ;
+WS : [ \t\r\n]+ -> skip ;
+`, tokens(map[string]string{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := g.Recognizer()
+	for sql, want := range map[string]bool{
+		"SELECT late":  true, // ID is written first and matches it
+		"SELECT first": true,
+		"SELECT a":     true,
+	} {
+		if got := rec.Accepts(sql); got != want {
+			t.Errorf("Accepts(%q) = %v, want %v", sql, got, want)
+		}
+	}
+
+	// A class written first that does not match the word leaves it reserved,
+	// and a caseInsensitive grammar's [A-Z] matches either case.
+	g, err = ReadANTLR(`grammar S;
+options { caseInsensitive = true; }
+s : 'SELECT' ID ;
+NUMBER : [0-9]+ ;
+FROM : 'FROM' ;
+ID : [A-Z_][A-Z_0-9]* ;
+LATE : 'late' ;
+`, tokens(map[string]string{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec = g.Recognizer()
+	for sql, want := range map[string]bool{
+		"SELECT from": false, // NUMBER does not match it: FROM takes it
+		"SELECT late": true,  // ID matches it in either case
+	} {
+		if got := rec.Accepts(sql); got != want {
+			t.Errorf("caseInsensitive: Accepts(%q) = %v, want %v", sql, got, want)
+		}
+	}
+}
+
+// TestReadANTLRKeepsTheCaseOfStringSpellings pins what case folding
+// touches: a keyword spelled in either case is one word, but a token whose
+// spellings are strings that differ in case keeps each, since the
+// recognizer compares a string exactly.
+func TestReadANTLRKeepsTheCaseOfStringSpellings(t *testing.T) {
+	g, err := ReadANTLR(`grammar S;
+s : 'SELECT' VALUE ;
+VALUE : '\'a\'' | '\'A\'' ;
+`, tokens(map[string]string{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := g.Recognizer()
+	for sql, want := range map[string]bool{
+		"SELECT 'a'": true,
+		"SELECT 'A'": true,
+		"SELECT 'b'": false,
+	} {
+		if got := rec.Accepts(sql); got != want {
+			t.Errorf("Accepts(%q) = %v, want %v", sql, got, want)
+		}
+	}
+
+	// A keyword spelled letter by letter, longer than maxSpellings would
+	// allow were each case a text of its own, is still one keyword.
+	g, err = ReadANTLR(`grammar S;
+s : 'SELECT' K_KEYSPACES ID ;
+K_KEYSPACES : K E Y S P A C E S ;
+ID : [a-z]+ ;
+fragment K : ('k'|'K') ; fragment E : ('e'|'E') ; fragment Y : ('y'|'Y') ; fragment S : ('s'|'S') ;
+fragment P : ('p'|'P') ; fragment A : ('a'|'A') ; fragment C : ('c'|'C') ;
+`, tokens(map[string]string{"ID": "a"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec = g.Recognizer()
+	for sql, want := range map[string]bool{
+		"SELECT keyspaces a": true,
+		"SELECT KeySpaces a": true,
+		"SELECT keyspace a":  false,
+		"SELECT a keyspaces": false, // reserved: no name
+	} {
+		if got := rec.Accepts(sql); got != want {
+			t.Errorf("long keyword: Accepts(%q) = %v, want %v", sql, got, want)
+		}
+	}
+}
