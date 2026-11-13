@@ -157,7 +157,7 @@ func (p *Parser) parseCreateTableStmt(start int, temporary bool) (*nodes.CreateT
 
 	// Partition clause
 	if p.cur.Type == kwPARTITION {
-		part, err := p.parsePartitionClause()
+		part, err := p.parsePartitionClause(true)
 		if err != nil {
 			return nil, err
 		}
@@ -1910,7 +1910,17 @@ func (p *Parser) consumeIntegerOrDefaultOptionValue() (string, error) {
 //	    | LIST(expr) | LIST COLUMNS(column_list) }
 //	[PARTITIONS num]
 //	[(partition_definition [, partition_definition] ...)]
-func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
+//
+// auto says where opt_partition_option stands, which also takes
+// auto_partition_option: PARTITION BY RANGE ([expr]) or RANGE COLUMNS (columns),
+// then PARTITION SIZE {value | AUTO} PARTITIONS AUTO. ALTER TABLE's
+// modify_partition_info does not.
+//
+// RANGE's own forms (range_partition_option, sql_parser_mysql_mode.y, oceanbase
+// v4.3.5_CE_BP6): an empty RANGE () or RANGE COLUMNS () takes PARTITIONS n and
+// SIZE ('size') and nothing else, and a RANGE over an expression or columns
+// takes SIZE ('size') before its partition list.
+func (p *Parser) parsePartitionClause(auto bool) (*nodes.PartitionClause, error) {
 	start := p.pos()
 	p.advance() // consume PARTITION
 
@@ -1974,7 +1984,16 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 	case kwRANGE:
 		p.advance()
 		part.Type = nodes.PartitionRange
-		if _, ok := p.match(kwCOLUMNS); ok {
+		columns := p.cur.Type == kwCOLUMNS
+		if columns {
+			p.advance()
+		}
+		if p.cur.Type == '(' && p.peekNext().Type == ')' {
+			p.advance()
+			p.advance()
+			return p.parseEmptyRangeTail(part, auto, columns)
+		}
+		if columns {
 			cols, err := p.parseParenIdentList()
 			if err != nil {
 				return nil, err
@@ -2030,13 +2049,24 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 		}
 	}
 
-	// PARTITIONS num
+	// auto_partition_option, after RANGE over an expression or columns.
+	if auto && part.Type == nodes.PartitionRange && p.cur.Type == kwPARTITION && p.nextIsBareWord("SIZE") {
+		if err := p.parseAutoPartitionTail(part); err != nil {
+			return nil, err
+		}
+		part.Loc.End = p.prev.End
+		return part, nil
+	}
+
+	// PARTITIONS num. partition_num is PARTITIONS INTNUM: the count is not
+	// optional.
 	if p.cur.Type == kwPARTITIONS {
 		p.advance()
-		if p.cur.Type == tokICONST {
-			part.NumParts = int(p.cur.Ival)
-			p.advance()
+		if p.cur.Type != tokICONST {
+			return nil, p.syntaxErrorAtCur()
 		}
+		part.NumParts = int(p.cur.Ival)
+		p.advance()
 	}
 
 	// SUBPARTITION BY ..., then a SUBPARTITION TEMPLATE or SUBPARTITIONS n.
@@ -2056,6 +2086,18 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 			part.NumParts = int(p.cur.Ival)
 			p.advance()
 		}
+	}
+
+	// opt_range_partition_info: SIZE ('size') before RANGE's partition list. Known
+	// gap: ALTER TABLE takes it too, and OceanBase then refuses it with 1064 after
+	// parsing (simulate.tsv), which the catalog does not yet; until it does, only
+	// CREATE TABLE reads it here.
+	if auto && part.Type == nodes.PartitionRange && p.isBareWord("SIZE") {
+		size, err := p.parseSplitSize()
+		if err != nil {
+			return nil, err
+		}
+		part.SplitSize = size
 	}
 
 	// Optional partition definitions
@@ -2097,6 +2139,79 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 
 	part.Loc.End = p.prev.End
 	return part, nil
+}
+
+// parseEmptyRangeTail parses what follows PARTITION BY RANGE () or RANGE
+// COLUMNS (): opt_partitions opt_auto_split_tablet_size_option, or, where auto
+// allows and RANGE () stands, auto_partition_option's PARTITION SIZE.
+func (p *Parser) parseEmptyRangeTail(part *nodes.PartitionClause, auto, columns bool) (*nodes.PartitionClause, error) {
+	if auto && !columns && p.cur.Type == kwPARTITION && p.nextIsBareWord("SIZE") {
+		if err := p.parseAutoPartitionTail(part); err != nil {
+			return nil, err
+		}
+		part.Loc.End = p.prev.End
+		return part, nil
+	}
+	if p.cur.Type == kwPARTITIONS {
+		p.advance()
+		if p.cur.Type != tokICONST {
+			return nil, p.syntaxErrorAtCur()
+		}
+		part.NumParts = int(p.cur.Ival)
+		p.advance()
+	}
+	if auto && p.isBareWord("SIZE") { // only in CREATE TABLE, as above
+		size, err := p.parseSplitSize()
+		if err != nil {
+			return nil, err
+		}
+		part.SplitSize = size
+	}
+	part.Loc.End = p.prev.End
+	return part, nil
+}
+
+// parseSplitSize parses auto_split_tablet_size_option, SIZE ( 'size' ), at SIZE.
+func (p *Parser) parseSplitSize() (string, error) {
+	p.advance() // consume SIZE
+	if _, err := p.expect('('); err != nil {
+		return "", err
+	}
+	if p.cur.Type != tokSCONST {
+		return "", p.syntaxErrorAtCur()
+	}
+	size := p.advance().Str
+	if _, err := p.expect(')'); err != nil {
+		return "", err
+	}
+	return size, nil
+}
+
+// parseAutoPartitionTail parses PARTITION SIZE partition_size PARTITIONS AUTO
+// at PARTITION, where partition_size is conf_const or AUTO.
+func (p *Parser) parseAutoPartitionTail(part *nodes.PartitionClause) error {
+	p.advance() // consume PARTITION
+	p.advance() // consume SIZE
+	start := p.pos()
+	if p.isBareWord("AUTO") {
+		p.advance()
+	} else if !sysConf(p, func() bool { return true }) {
+		return p.syntaxErrorAtCur()
+	}
+	// Kept as written, but a keyword, a number or a variable in one case: only a
+	// string's case is its value, so PARTITION SIZE auto and AUTO are one setting.
+	part.AutoSize = p.inputText(start, p.prev.End)
+	if c := part.AutoSize[0]; c != '\'' && c != '"' {
+		part.AutoSize = strings.ToUpper(part.AutoSize)
+	}
+	if _, err := p.expect(kwPARTITIONS); err != nil {
+		return err
+	}
+	if !p.isBareWord("AUTO") {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance()
+	return nil
 }
 
 // parsePartitionDef parses a single partition definition.

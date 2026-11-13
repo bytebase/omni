@@ -39,8 +39,9 @@ type Suite struct {
 	// Pins is the engine's pins.tsv; the default row is the pin Expected
 	// was recorded at.
 	Pins string
-	// Grammar is the vendor's bison grammar, and Tokens the engine's
-	// tokens.tsv. The generated rows of Path must be what they generate.
+	// Grammar is the vendor's grammar, bison (.y) or ANTLR 4 (.g4), and
+	// Tokens the engine's tokens.tsv. The generated rows of Path must be
+	// what they generate.
 	Grammar, Tokens string
 	// Defined names the conditions Grammar is built with, where one file
 	// holds more than one grammar between %ifdef lines, as MariaDB's does
@@ -54,6 +55,10 @@ type Suite struct {
 	// asks the judge about one statement. It starts the server where there
 	// is one, and fails t unless that server is pin. An error from the
 	// returned function means no verdict, never a rejection.
+	//
+	// A SourceGrammar or SourceDocs suite has no Judge: a recognizer over
+	// Grammar judges it (see recognizer), and since that needs no server,
+	// every run asks it again and fails a row whose cell it no longer gives.
 	Judge func(t testing.TB, pin enginetest.Pin) func(sql string) (string, error)
 }
 
@@ -88,8 +93,11 @@ func check(t testing.TB, s Suite) {
 		t.Fatalf("%v", err)
 	}
 
+	var g *grammar.Grammar
 	if s.Grammar != "" {
-		generated, uncovered, err := generate(s.Grammar, s.Tokens, s.Defined)
+		var generated []grammar.Row
+		var uncovered []string
+		g, generated, uncovered, err = generate(s.Grammar, s.Tokens, s.Defined)
 		if err != nil {
 			t.Fatalf("generate rows from %s: %v", s.Grammar, err)
 		}
@@ -122,13 +130,52 @@ func check(t testing.TB, s Suite) {
 		}
 	}
 
+	var recognize func(Row) (string, error)
+	if recognized(s.Source) {
+		if s.Judge != nil || g == nil {
+			t.Fatalf("a %s suite is judged by a recognizer over its Grammar: give the Grammar and no Judge", s.Source)
+		}
+		recognize = recognizer(g, s.Source)
+	}
+
 	if recording {
-		n, err := judge(t, s, pin, f.Rows)
+		n, err := judge(t, s, pin, f.Rows, recognize)
 		if n > 0 {
 			changed = true
 		}
 		if err != nil {
 			t.Errorf("%v", err)
+		}
+	}
+
+	// A recognizer needs no server, so its cells are checked on every run:
+	// a grammar fix moves them, and a cell written by hand fails here.
+	var moved []string
+	if recognize != nil {
+		rejudged := 0
+		for i := range f.Rows {
+			r := &f.Rows[i]
+			if r.Source != s.Source {
+				continue
+			}
+			v, err := recognize(*r)
+			if err != nil {
+				moved = append(moved, fmt.Sprintf("%s: %s: %v:\n    %s\n", s.Path, r.Rule, err, r.Statement))
+				continue
+			}
+			if v == r.Expected {
+				continue
+			}
+			if recording {
+				r.Expected = v
+				rejudged++
+				continue
+			}
+			moved = append(moved, fmt.Sprintf("%s: the %s judge now says %s, the row records %s:\n    %s\n", describeRule(s.Path, *r), s.Source, v, r.Expected, r.Statement))
+		}
+		if rejudged > 0 {
+			t.Logf("%s: the %s judge moved %d rows", s.Path, s.Source, rejudged)
+			changed = true
 		}
 	}
 
@@ -142,7 +189,14 @@ func check(t testing.TB, s Suite) {
 			unjudged = append(unjudged, describe(s.Path, *r, now))
 			tally.add(*r, now)
 			continue
-		case now == r.Omni, r.Expected == Undocumented:
+		case r.Expected == Undocumented:
+			// The docs say nothing either way: whatever omni says passes,
+			// and -update-compat keeps the cell current.
+			if now != r.Omni && *updateCompat {
+				r.Omni = now
+				changed = true
+			}
+		case now == r.Omni:
 		case now == r.Expected:
 			if *updateCompat {
 				r.Omni = now
@@ -156,6 +210,7 @@ func check(t testing.TB, s Suite) {
 		tally.add(*r, now)
 	}
 	report(t, "not judged yet. Record them:\n  "+record, unjudged)
+	report(t, "the judge's cell is not what its recognizer gives: the grammar changed, or the cell was edited. Record them:\n  "+record, moved)
 	report(t, "a gap closed: omni now says what the judge says. Commit it:\n  "+run+" -update-compat", closed)
 	report(t, "a regression: omni moved away from the verdict its row records", regressed)
 	tally.log(t, s.Path, f.Pin)
@@ -168,22 +223,56 @@ func check(t testing.TB, s Suite) {
 	}
 }
 
-// generate reads the grammar and returns its rows.
-func generate(grammarPath, tokensPath string, defined []string) ([]grammar.Row, []string, error) {
+// generate reads the grammar, by its extension, and returns its rows.
+// defined is for a bison grammar's %ifdef conditions.
+func generate(grammarPath, tokensPath string, defined []string) (*grammar.Grammar, []grammar.Row, []string, error) {
 	tokens, err := grammar.ReadTokens(tokensPath)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	src, err := os.ReadFile(grammarPath)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
-	g, err := grammar.ReadBison(string(src), tokens, defined...)
+	var g *grammar.Grammar
+	if strings.HasSuffix(grammarPath, ".g4") {
+		if len(defined) > 0 {
+			return nil, nil, nil, fmt.Errorf("%s: Defined names %%ifdef conditions, which only a bison grammar has", grammarPath)
+		}
+		g, err = grammar.ReadANTLR(string(src), tokens)
+	} else {
+		g, err = grammar.ReadBison(string(src), tokens, defined...)
+	}
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	rows, uncovered := g.Rows()
-	return rows, uncovered, nil
+	return g, rows, uncovered, nil
+}
+
+// recognized reports whether a source's judge is a recognizer over the
+// grammar rather than a server.
+func recognized(source string) bool { return source == SourceGrammar || source == SourceDocs }
+
+// recognizer returns the judge of a grammar or docs suite. A statement the
+// grammar derives is accepted. One it does not is rejected by a grammar,
+// and undocumented by docs, which say what is valid and not what is not.
+// A generated alternative the grammar does not derive has no verdict: the
+// recognizer is reading the grammar otherwise than the generator.
+func recognizer(g *grammar.Grammar, source string) func(Row) (string, error) {
+	rec := g.Recognizer()
+	return func(r Row) (string, error) {
+		if rec.Accepts(r.Statement) {
+			return Accept, nil
+		}
+		if r.generatedAlternative() {
+			return "", fmt.Errorf("the recognizer does not derive the grammar's own statement")
+		}
+		if source == SourceDocs {
+			return Undocumented, nil
+		}
+		return Reject, nil
+	}
 }
 
 // merge returns the file's rows with its generated rows replaced by
@@ -239,10 +328,13 @@ func sample(added, removed []Row) string {
 // judge asks the judge about every unjudged row and fills in omni's cell
 // where that is unjudged too. It returns how many rows it filled. A row the
 // judge gave no verdict for stays unjudged, so a partial recording is safe
-// to write and a rerun resumes it.
-func judge(t testing.TB, s Suite, pin enginetest.Pin, rows []Row) (int, error) {
+// to write and a rerun resumes it. recognize, when set, is the judge.
+func judge(t testing.TB, s Suite, pin enginetest.Pin, rows []Row, recognize func(Row) (string, error)) (int, error) {
 	t.Helper()
-	var ask func(string) (string, error)
+	var ask func(Row) (string, error)
+	if recognize != nil {
+		ask = recognize
+	}
 	filled, judged := 0, 0
 	var unanswered []string
 	todo := 0
@@ -264,9 +356,10 @@ func judge(t testing.TB, s Suite, pin enginetest.Pin, rows []Row) (int, error) {
 			if s.Judge == nil {
 				return filled, fmt.Errorf("%s has %d unjudged rows and the suite has no judge", s.Path, todo)
 			}
-			ask = s.Judge(t, pin)
+			server := s.Judge(t, pin)
+			ask = func(r Row) (string, error) { return server(r.Statement) }
 		}
-		v, err := ask(r.Statement)
+		v, err := ask(*r)
 		if err == nil {
 			err = validVerdict(v)
 		}
@@ -288,6 +381,14 @@ func judge(t testing.TB, s Suite, pin enginetest.Pin, rows []Row) (int, error) {
 			len(unanswered), maxUnanswered, strings.Join(unanswered, "\n  "))
 	}
 	return filled, nil
+}
+
+// describeRule names a row by where it is and its rule.
+func describeRule(path string, r Row) string {
+	if r.line > 0 {
+		return fmt.Sprintf("%s:%d: %s", path, r.line, r.Rule)
+	}
+	return fmt.Sprintf("%s: %s", path, r.Rule)
 }
 
 // describe renders one row and omni's verdict on it now.
@@ -327,7 +428,7 @@ type tally struct {
 }
 
 type counts struct {
-	rows, agree, judgeOnly, omniOnly, other, unjudged int
+	rows, agree, judgeOnly, omniOnly, other, undocumented, unjudged int
 }
 
 func (c *tally) add(r Row, now string) {
@@ -345,7 +446,9 @@ func (c *tally) add(r Row, now string) {
 	switch {
 	case r.Expected == Unjudged:
 		n.unjudged++
-	case now == r.Expected, r.Expected == Undocumented:
+	case r.Expected == Undocumented:
+		n.undocumented++
+	case now == r.Expected:
 		n.agree++
 	case accepts(r.Expected) && rejects(now):
 		n.judgeOnly++
@@ -363,18 +466,22 @@ func (c *tally) log(t testing.TB, path, pin string) {
 	slices.Sort(c.kinds)
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s at pin %s\n", path, pin)
-	fmt.Fprintf(&b, "  %-28s %7s %7s %12s %10s %6s %9s\n", "rows", "total", "agree", "judge only", "omni only", "other", "unjudged")
+	fmt.Fprintf(&b, "  %-28s %7s %7s %12s %10s %6s %12s %9s\n", "rows", "total", "agree", "judge only", "omni only", "other", "undocumented", "unjudged")
 	var sum counts
+	line := func(k string, n counts) string {
+		return fmt.Sprintf("  %-28s %7d %7d %12d %10d %6d %12d %9d", k, n.rows, n.agree, n.judgeOnly, n.omniOnly, n.other, n.undocumented, n.unjudged)
+	}
 	for _, k := range c.kinds {
 		n := c.byKind[k]
-		fmt.Fprintf(&b, "  %-28s %7d %7d %12d %10d %6d %9d\n", k, n.rows, n.agree, n.judgeOnly, n.omniOnly, n.other, n.unjudged)
+		b.WriteString(line(k, *n) + "\n")
 		sum.rows += n.rows
 		sum.agree += n.agree
 		sum.judgeOnly += n.judgeOnly
 		sum.omniOnly += n.omniOnly
 		sum.other += n.other
+		sum.undocumented += n.undocumented
 		sum.unjudged += n.unjudged
 	}
-	fmt.Fprintf(&b, "  %-28s %7d %7d %12d %10d %6d %9d", "all", sum.rows, sum.agree, sum.judgeOnly, sum.omniOnly, sum.other, sum.unjudged)
+	b.WriteString(line("all", sum))
 	t.Logf("%s", b.String())
 }
