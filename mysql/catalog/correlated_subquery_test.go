@@ -1,7 +1,6 @@
 package catalog
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -184,12 +183,7 @@ func execCorrelatedRows(t *testing.T, db *sql.DB) {
 // TestDeparseCorrelatedSubqueryMySQL runs each correlated case and its
 // DeparseQuery text on MySQL 8.0 and requires the same rows.
 func TestDeparseCorrelatedSubqueryMySQL(t *testing.T) {
-	ctx := context.Background()
-	d, err := testcontainer.MySQL80.Database(ctx, "mysql_catalog_correlated")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { d.Close(ctx) })
-	execCorrelatedRows(t, d.DB)
-	checkCorrelatedOracle(t, d.DB, correlatedCatalog(t, d.Name))
+	db := testcontainer.OpenDatabase(t, "mysql_catalog_correlated")
+	execCorrelatedRows(t, db)
+	checkCorrelatedOracle(t, db, correlatedCatalog(t, testcontainer.DatabaseName("mysql_catalog_correlated")))
 }

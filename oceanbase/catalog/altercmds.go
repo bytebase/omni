@@ -29,6 +29,11 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	}
 
 	repartition := alterRepartition(stmt.Commands)
+	if repartition != nil {
+		if err := checkPartitionNames(tbl, repartition); err != nil {
+			return err
+		}
+	}
 	if tbl.Partitioning == nil && repartition == nil {
 		return c.alterTableCommands(db, tbl, key, stmt)
 	}
@@ -1206,7 +1211,7 @@ var _ = strings.ToLower
 // alterAddPartition adds partition definitions to a partitioned table.
 func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if tbl.Partitioning == nil {
-		return fmt.Errorf("ALTER TABLE ADD PARTITION: table '%s' is not partitioned", tbl.Name)
+		return errNotPartitioned()
 	}
 	if cmd.Number > 0 && len(cmd.PartitionDefs) == 0 {
 		start := len(tbl.Partitioning.Partitions)
@@ -1297,7 +1302,7 @@ func addedPartitionSubpartitions(pi *PartitionInfo, pdi *PartitionDefInfo, pd *n
 // alterDropPartition drops named partitions from a partitioned table.
 func (c *Catalog) alterDropPartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if tbl.Partitioning == nil {
-		return fmt.Errorf("ALTER TABLE DROP PARTITION: table '%s' is not partitioned", tbl.Name)
+		return errNotPartitioned()
 	}
 	dropSet := make(map[string]bool)
 	for _, name := range cmd.PartitionNames {
@@ -1316,7 +1321,7 @@ func (c *Catalog) alterDropPartition(tbl *Table, cmd *nodes.AlterTableCmd) error
 // alterTruncatePartition truncates named partitions (no-op for metadata catalog).
 func (c *Catalog) alterTruncatePartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if tbl.Partitioning == nil {
-		return fmt.Errorf("ALTER TABLE TRUNCATE PARTITION: table '%s' is not partitioned", tbl.Name)
+		return errNotPartitioned()
 	}
 	// Truncate is a data operation; for DDL catalog purposes, it's a no-op.
 	return nil
@@ -1325,7 +1330,7 @@ func (c *Catalog) alterTruncatePartition(tbl *Table, cmd *nodes.AlterTableCmd) e
 // alterCoalescePartition reduces the number of partitions for HASH/KEY partitioned tables.
 func (c *Catalog) alterCoalescePartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if tbl.Partitioning == nil {
-		return fmt.Errorf("ALTER TABLE COALESCE PARTITION: table '%s' is not partitioned", tbl.Name)
+		return errNotPartitioned()
 	}
 	// Determine current partition count.
 	currentCount := len(tbl.Partitioning.Partitions)
@@ -1346,7 +1351,7 @@ func (c *Catalog) alterCoalescePartition(tbl *Table, cmd *nodes.AlterTableCmd) e
 // alterReorganizePartition reorganizes partitions into new definitions.
 func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if tbl.Partitioning == nil {
-		return fmt.Errorf("ALTER TABLE REORGANIZE PARTITION: table '%s' is not partitioned", tbl.Name)
+		return errNotPartitioned()
 	}
 	// OceanBase refuses REORGANIZE PARTITION on a subpartitioned table, splitting or
 	// merging, templated or not: 4.3.5.6 answers 1235 "split subpartition is not
@@ -1419,7 +1424,7 @@ func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd)
 // alterExchangePartition exchanges a partition with a non-partitioned table.
 func (c *Catalog) alterExchangePartition(db *Database, tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if tbl.Partitioning == nil {
-		return fmt.Errorf("ALTER TABLE EXCHANGE PARTITION: table '%s' is not partitioned", tbl.Name)
+		return errNotPartitioned()
 	}
 	// For DDL catalog purposes, exchange is primarily a data operation.
 	// We just validate both tables exist.
