@@ -547,7 +547,7 @@ func (c *Catalog) analyzeGroupBy(groupBy []*nodes.OrderByItem, q *Query, scope *
 			}
 			varExpr, ok := analyzed.(*VarExprQ)
 			if !ok {
-				if te := scope.selectAlias(n.Column); te != nil && te.Expr == analyzed {
+				if te, levels := scope.selectAlias(n.Column); te != nil && levels == 0 && te.Expr == analyzed {
 					q.GroupClause = append(q.GroupClause, &SortGroupClauseQ{TargetIdx: te.ResNo})
 					continue
 				}
@@ -715,7 +715,7 @@ func (c *Catalog) analyzeOrderBy(orderBy []*nodes.OrderByItem, q *Query, scope *
 			}
 			varExpr, ok := analyzed.(*VarExprQ)
 			if !ok {
-				if te := scope.selectAlias(n.Column); te != nil && te.Expr == analyzed {
+				if te, levels := scope.selectAlias(n.Column); te != nil && levels == 0 && te.Expr == analyzed {
 					q.SortClause = append(q.SortClause, &SortGroupClauseQ{TargetIdx: te.ResNo, Descending: desc, NullsFirst: nullsFirst})
 					continue
 				}
@@ -1091,6 +1091,10 @@ func (c *Catalog) analyzeParenthesized(stmt *nodes.SelectStmt, parentScope *anal
 	}
 	return nil, errParenthesizedOuter
 }
+
+// errOuterAlias is a name read from the select list of a query around this one,
+// which analyzeColumnRef resolves but cannot write into this query's IR.
+var errOuterAlias = errors.New("a subquery names an outer query's select alias, which the analyzed query cannot hold")
 
 var errParenthesizedOuter = errors.New("a parenthesized query's own ORDER BY or LIMIT has no place in the analyzed query")
 

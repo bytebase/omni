@@ -85,7 +85,15 @@ func analyzeColumnRef(ref *nodes.ColumnRef, scope *analyzerScope) (AnalyzedExpr,
 	}
 	rteIdx, attNum, levelsUp, err := scope.resolveColumnFull(ref.Column)
 	if err != nil {
-		if te := scope.selectAlias(ref.Column); te != nil {
+		if te, levels := scope.selectAlias(ref.Column); te != nil {
+			if levels > 0 {
+				// The alias belongs to a query around this one, so its expression
+				// counts range tables and correlation levels from there. Rebasing it
+				// here would have to raise every reference it holds by the scopes
+				// crossed, and leave the ones inside its own subqueries alone, so the
+				// name resolves and the query is simply not analyzed.
+				return nil, errOuterAlias
+			}
 			return te.Expr, nil
 		}
 		return nil, err

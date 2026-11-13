@@ -79,14 +79,14 @@ func selectAliases(tl []*TargetEntryQ) map[string]*TargetEntryQ {
 // select list for a name a subquery of GROUP BY, HAVING or ORDER BY leaves open
 // (ob_select_resolver.cpp). A scope holds its aliases only from GROUP BY on, so a
 // subquery in WHERE, read before that, still sees none.
-func (s *analyzerScope) selectAlias(name string) *TargetEntryQ {
+func (s *analyzerScope) selectAlias(name string) (*TargetEntryQ, int) {
 	lower := strings.ToLower(name)
-	for ; s != nil; s = s.parent {
+	for levels := 0; s != nil; s, levels = s.parent, levels+1 {
 		if te, ok := s.aliases[lower]; ok {
-			return te
+			return te, levels
 		}
 	}
-	return nil
+	return nil, 0
 }
 
 func newScope() *analyzerScope {
