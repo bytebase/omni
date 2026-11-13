@@ -39,6 +39,8 @@ All defined in `first_sets.go` and documented inline. Read the doc comment on ea
 | `isTableConstraintStart` | `tableConstraintLeadTokens` (6) | set only | No — TableConstraint is only reachable via CREATE/ALTER TABLE; in-Go positive/negative test instead |
 | `isSelectLimitStart` | `selectLimitLeadTokens` (3) | set only | No — LIMIT, OFFSET, and FETCH are reserved and start nothing else after a sort or locking clause; `TestIsSelectLimitStartMatchesSlice` checks the whole `Keywords` table |
 | `isSeqOptElemStart` | `seqOptElemLeadTokens` (13) | set; NO only before CYCLE, MAXVALUE or MINVALUE | Yes — `TestSeqOptElemLeadTokensMatchPG` via `CREATE SEQUENCE s X`, plus the ALTER-only NO split |
+| `isSeqOptElemLead` | reuses `seqOptElemLeadTokens` | set only (NO leads whatever follows) | Yes — through `TestSeqOptElemLeadTokensMatchPG`, as `seqOptElemLeadTokens` |
+| `isNumericOnlyStart` | `numericOnlyLeadTokens` (4) | set only | No — no keyword starts a NumericOnly; `TestIsNumericOnlyStartMatchesSlice` checks the whole `Keywords` table |
 | `isOptTableQualifiedNameStart`, `isTempStart`, `isDeallocateTargetStart` | TABLE or a ColId; `tempLeadTokens` (2); ALL or a ColId | take a `Token` (the one after the current), for `keywordLeads` | No — each is a category or a short list; `TestKeywordLeadPredicates` checks the whole `Keywords` table |
 | `isCreateStmtTailStart` | `createStmtTailLeadTokens` (3) | set only | No — `(`, OF and PARTITION start nothing else after CREATE TABLE's name; `TestIsCreateStmtTailStartMatchesSlice` checks the whole `Keywords` table |
 | `isBareColLabelStart` | `asLabelOnlyKeywords` (39, the complement) | IDENT, or a keyword not in the set | Yes — `TestBareColumnLabelsMatchPG` via `SELECT 1 X` |

@@ -370,8 +370,8 @@ func (p *Parser) isSeqOptElemStart() bool {
 // and in CREATE SEQUENCE's OptSeqOptList. NO leads there whatever follows
 // it, so NO INHERIT fails at INHERIT, as in gram.y.
 //
-// No PG oracle test: TestIsSeqOptElemStartMatchesSlice checks the predicate
-// against the whole Keywords table.
+// Its set is seqOptElemLeadTokens, which TestSeqOptElemLeadTokensMatchPG
+// holds to PostgreSQL.
 func (p *Parser) isSeqOptElemLead() bool {
 	return slices.Contains(seqOptElemLeadTokens, p.cur.Type)
 }
