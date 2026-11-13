@@ -9836,17 +9836,17 @@ reject	reject	engine	tbl_name/relation_factor_use_partition!drop-2	DELETE FROM a
 reject	reject	engine	tbl_name/relation_factor_use_partition!drop-3	DELETE FROM a PARTITION a)
 reject	reject	engine	tbl_name/relation_factor_use_partition!drop-4	DELETE FROM a PARTITION()
 reject	reject	engine	tbl_name/relation_factor_use_partition!drop-5	DELETE FROM a PARTITION(a
-reject	accept	engine	tbl_name/relation_factor_use_partition!insert	DELETE FROM a PARTITION(a) zzz
+accept	accept	engine	tbl_name/relation_factor_use_partition!insert	DELETE FROM a PARTITION(a) zzz
 reject	reject	engine	tbl_name/relation_factor_use_partition!swap	DELETE FROM a PARTITIONING(a)
-reject	accept	engine	tbl_name/relation_factor_use_flashback	DELETE FROM a AS OF SNAPSHOT a
+accept	accept	engine	tbl_name/relation_factor_use_flashback	DELETE FROM a AS OF SNAPSHOT a
 reject	reject	engine	tbl_name/relation_factor_use_flashback!drop-1	DELETE FROM AS OF SNAPSHOT a
 reject	reject	engine	tbl_name/relation_factor_use_flashback!drop-2	DELETE FROM a OF SNAPSHOT a
 reject	reject	engine	tbl_name/relation_factor_use_flashback!drop-3	DELETE FROM a AS SNAPSHOT a
 reject	reject	engine	tbl_name/relation_factor_use_flashback!drop-4	DELETE FROM a AS OF a
 reject	reject	engine	tbl_name/relation_factor_use_flashback!drop-5	DELETE FROM a AS OF SNAPSHOT
-reject	accept	engine	tbl_name/relation_factor_use_flashback!insert	DELETE FROM a AS OF SNAPSHOT a zzz
+accept	accept	engine	tbl_name/relation_factor_use_flashback!insert	DELETE FROM a AS OF SNAPSHOT a zzz
 reject	reject	engine	tbl_name/relation_factor_use_flashback!swap	DELETE FROM a ASC OF SNAPSHOT a
-reject	accept	engine	tbl_name/relation_factor_use_partition_use_flashback	DELETE FROM a PARTITION(a) AS OF SNAPSHOT a
+accept	accept	engine	tbl_name/relation_factor_use_partition_use_flashback	DELETE FROM a PARTITION(a) AS OF SNAPSHOT a
 reject	reject	engine	tbl_name/relation_factor_use_partition_use_flashback!drop-1	DELETE FROM PARTITION(a) AS OF SNAPSHOT a
 reject	reject	engine	tbl_name/relation_factor_use_partition_use_flashback!drop-2	DELETE FROM a(a) AS OF SNAPSHOT a
 reject	reject	engine	tbl_name/relation_factor_use_partition_use_flashback!drop-3	DELETE FROM a PARTITION a) AS OF SNAPSHOT a
@@ -9856,9 +9856,9 @@ reject	reject	engine	tbl_name/relation_factor_use_partition_use_flashback!drop-6
 reject	reject	engine	tbl_name/relation_factor_use_partition_use_flashback!drop-7	DELETE FROM a PARTITION(a) AS SNAPSHOT a
 reject	reject	engine	tbl_name/relation_factor_use_partition_use_flashback!drop-8	DELETE FROM a PARTITION(a) AS OF a
 reject	reject	engine	tbl_name/relation_factor_use_partition_use_flashback!drop-9	DELETE FROM a PARTITION(a) AS OF SNAPSHOT
-reject	accept	engine	tbl_name/relation_factor_use_partition_use_flashback!insert	DELETE FROM a PARTITION(a) AS OF SNAPSHOT a zzz
+accept	accept	engine	tbl_name/relation_factor_use_partition_use_flashback!insert	DELETE FROM a PARTITION(a) AS OF SNAPSHOT a zzz
 reject	reject	engine	tbl_name/relation_factor_use_partition_use_flashback!swap	DELETE FROM a PARTITIONING(a) AS OF SNAPSHOT a
-reject	accept	engine	tbl_name/relation_factor_use_partition_index_hint_list	DELETE FROM a PARTITION(a) USE KEY()
+accept	accept	engine	tbl_name/relation_factor_use_partition_index_hint_list	DELETE FROM a PARTITION(a) USE KEY()
 reject	reject	engine	tbl_name/relation_factor_use_partition_index_hint_list!drop-1	DELETE FROM PARTITION(a) USE KEY()
 reject	reject	engine	tbl_name/relation_factor_use_partition_index_hint_list!drop-2	DELETE FROM a(a) USE KEY()
 reject	reject	engine	tbl_name/relation_factor_use_partition_index_hint_list!drop-3	DELETE FROM a PARTITION a) USE KEY()
@@ -9870,7 +9870,7 @@ reject	reject	engine	tbl_name/relation_factor_use_partition_index_hint_list!drop
 reject	reject	engine	tbl_name/relation_factor_use_partition_index_hint_list!drop-9	DELETE FROM a PARTITION(a) USE KEY(
 reject	reject	engine	tbl_name/relation_factor_use_partition_index_hint_list!insert	DELETE FROM a PARTITION(a) USE KEY() zzz
 reject	reject	engine	tbl_name/relation_factor_use_partition_index_hint_list!swap	DELETE FROM a PARTITIONING(a) USE KEY()
-reject	accept	engine	tbl_name/relation_factor_use_partition_sample_clause	DELETE FROM a PARTITION(a) SAMPLE(1)
+accept	accept	engine	tbl_name/relation_factor_use_partition_sample_clause	DELETE FROM a PARTITION(a) SAMPLE(1)
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause!drop-1	DELETE FROM PARTITION(a) SAMPLE(1)
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause!drop-2	DELETE FROM a(a) SAMPLE(1)
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause!drop-3	DELETE FROM a PARTITION a) SAMPLE(1)
@@ -9880,9 +9880,9 @@ reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause!drop-6
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause!drop-7	DELETE FROM a PARTITION(a) SAMPLE 1)
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause!drop-8	DELETE FROM a PARTITION(a) SAMPLE()
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause!drop-9	DELETE FROM a PARTITION(a) SAMPLE(1
-reject	accept	engine	tbl_name/relation_factor_use_partition_sample_clause!insert	DELETE FROM a PARTITION(a) SAMPLE(1) zzz
+accept	accept	engine	tbl_name/relation_factor_use_partition_sample_clause!insert	DELETE FROM a PARTITION(a) SAMPLE(1) zzz
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause!swap	DELETE FROM a PARTITIONING(a) SAMPLE(1)
-reject	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_seed	DELETE FROM a PARTITION(a) SAMPLE(1) SEED(1)
+accept	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_seed	DELETE FROM a PARTITION(a) SAMPLE(1) SEED(1)
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed!drop-1	DELETE FROM PARTITION(a) SAMPLE(1) SEED(1)
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed!drop-2	DELETE FROM a(a) SAMPLE(1) SEED(1)
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed!drop-3	DELETE FROM a PARTITION a) SAMPLE(1) SEED(1)
@@ -9896,9 +9896,9 @@ reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed!d
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed!drop-11	DELETE FROM a PARTITION(a) SAMPLE(1) SEED 1)
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed!drop-12	DELETE FROM a PARTITION(a) SAMPLE(1) SEED()
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed!drop-13	DELETE FROM a PARTITION(a) SAMPLE(1) SEED(1
-reject	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_seed!insert	DELETE FROM a PARTITION(a) SAMPLE(1) SEED(1) zzz
+accept	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_seed!insert	DELETE FROM a PARTITION(a) SAMPLE(1) SEED(1) zzz
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed!swap	DELETE FROM a PARTITIONING(a) SAMPLE(1) SEED(1)
-reject	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_index_hint_list	DELETE FROM a PARTITION(a) SAMPLE(1) USE KEY()
+accept	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_index_hint_list	DELETE FROM a PARTITION(a) SAMPLE(1) USE KEY()
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_index_hint_list!drop-1	DELETE FROM PARTITION(a) SAMPLE(1) USE KEY()
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_index_hint_list!drop-2	DELETE FROM a(a) SAMPLE(1) USE KEY()
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_index_hint_list!drop-3	DELETE FROM a PARTITION a) SAMPLE(1) USE KEY()
@@ -9914,7 +9914,7 @@ reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_index_
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_index_hint_list!drop-13	DELETE FROM a PARTITION(a) SAMPLE(1) USE KEY(
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_index_hint_list!insert	DELETE FROM a PARTITION(a) SAMPLE(1) USE KEY() zzz
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_index_hint_list!swap	DELETE FROM a PARTITIONING(a) SAMPLE(1) USE KEY()
-reject	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_index_hint_list	DELETE FROM a PARTITION(a) SAMPLE(1) SEED(1) USE KEY()
+accept	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_index_hint_list	DELETE FROM a PARTITION(a) SAMPLE(1) SEED(1) USE KEY()
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_index_hint_list!drop-1	DELETE FROM PARTITION(a) SAMPLE(1) SEED(1) USE KEY()
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_index_hint_list!drop-2	DELETE FROM a(a) SAMPLE(1) SEED(1) USE KEY()
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_index_hint_list!drop-3	DELETE FROM a PARTITION a) SAMPLE(1) SEED(1) USE KEY()
@@ -9934,7 +9934,7 @@ reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_i
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_index_hint_list!drop-17	DELETE FROM a PARTITION(a) SAMPLE(1) SEED(1) USE KEY(
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_index_hint_list!insert	DELETE FROM a PARTITION(a) SAMPLE(1) SEED(1) USE KEY() zzz
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_index_hint_list!swap	DELETE FROM a PARTITIONING(a) SAMPLE(1) SEED(1) USE KEY()
-reject	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback	DELETE FROM a PARTITION(a) SAMPLE(1) AS OF SNAPSHOT a
+accept	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback	DELETE FROM a PARTITION(a) SAMPLE(1) AS OF SNAPSHOT a
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback!drop-1	DELETE FROM PARTITION(a) SAMPLE(1) AS OF SNAPSHOT a
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback!drop-2	DELETE FROM a(a) SAMPLE(1) AS OF SNAPSHOT a
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback!drop-3	DELETE FROM a PARTITION a) SAMPLE(1) AS OF SNAPSHOT a
@@ -9948,9 +9948,9 @@ reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_use_fl
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback!drop-11	DELETE FROM a PARTITION(a) SAMPLE(1) AS SNAPSHOT a
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback!drop-12	DELETE FROM a PARTITION(a) SAMPLE(1) AS OF a
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback!drop-13	DELETE FROM a PARTITION(a) SAMPLE(1) AS OF SNAPSHOT
-reject	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback!insert	DELETE FROM a PARTITION(a) SAMPLE(1) AS OF SNAPSHOT a zzz
+accept	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback!insert	DELETE FROM a PARTITION(a) SAMPLE(1) AS OF SNAPSHOT a zzz
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback!swap	DELETE FROM a PARTITIONING(a) SAMPLE(1) AS OF SNAPSHOT a
-reject	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_use_flashback	DELETE FROM a PARTITION(a) SAMPLE(1) SEED(1) AS OF SNAPSHOT a
+accept	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_use_flashback	DELETE FROM a PARTITION(a) SAMPLE(1) SEED(1) AS OF SNAPSHOT a
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_use_flashback!drop-1	DELETE FROM PARTITION(a) SAMPLE(1) SEED(1) AS OF SNAPSHOT a
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_use_flashback!drop-2	DELETE FROM a(a) SAMPLE(1) SEED(1) AS OF SNAPSHOT a
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_use_flashback!drop-3	DELETE FROM a PARTITION a) SAMPLE(1) SEED(1) AS OF SNAPSHOT a
@@ -9968,9 +9968,9 @@ reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_u
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_use_flashback!drop-15	DELETE FROM a PARTITION(a) SAMPLE(1) SEED(1) AS SNAPSHOT a
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_use_flashback!drop-16	DELETE FROM a PARTITION(a) SAMPLE(1) SEED(1) AS OF a
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_use_flashback!drop-17	DELETE FROM a PARTITION(a) SAMPLE(1) SEED(1) AS OF SNAPSHOT
-reject	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_use_flashback!insert	DELETE FROM a PARTITION(a) SAMPLE(1) SEED(1) AS OF SNAPSHOT a zzz
+accept	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_use_flashback!insert	DELETE FROM a PARTITION(a) SAMPLE(1) SEED(1) AS OF SNAPSHOT a zzz
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_use_flashback!swap	DELETE FROM a PARTITIONING(a) SAMPLE(1) SEED(1) AS OF SNAPSHOT a
-reject	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback_index_hint_list	DELETE FROM a PARTITION(a) SAMPLE(1) AS OF SNAPSHOT a USE KEY()
+accept	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback_index_hint_list	DELETE FROM a PARTITION(a) SAMPLE(1) AS OF SNAPSHOT a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback_index_hint_list!drop-1	DELETE FROM PARTITION(a) SAMPLE(1) AS OF SNAPSHOT a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback_index_hint_list!drop-2	DELETE FROM a(a) SAMPLE(1) AS OF SNAPSHOT a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback_index_hint_list!drop-3	DELETE FROM a PARTITION a) SAMPLE(1) AS OF SNAPSHOT a USE KEY()
@@ -9990,7 +9990,7 @@ reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_use_fl
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback_index_hint_list!drop-17	DELETE FROM a PARTITION(a) SAMPLE(1) AS OF SNAPSHOT a USE KEY(
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback_index_hint_list!insert	DELETE FROM a PARTITION(a) SAMPLE(1) AS OF SNAPSHOT a USE KEY() zzz
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback_index_hint_list!swap	DELETE FROM a PARTITIONING(a) SAMPLE(1) AS OF SNAPSHOT a USE KEY()
-reject	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_use_flashback_index_hint_list	DELETE FROM a PARTITION(a) SAMPLE(1) SEED(1) AS OF SNAPSHOT a USE KEY()
+accept	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_use_flashback_index_hint_list	DELETE FROM a PARTITION(a) SAMPLE(1) SEED(1) AS OF SNAPSHOT a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_use_flashback_index_hint_list!drop-1	DELETE FROM PARTITION(a) SAMPLE(1) SEED(1) AS OF SNAPSHOT a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_use_flashback_index_hint_list!drop-2	DELETE FROM a(a) SAMPLE(1) SEED(1) AS OF SNAPSHOT a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_use_flashback_index_hint_list!drop-3	DELETE FROM a PARTITION a) SAMPLE(1) SEED(1) AS OF SNAPSHOT a USE KEY()
@@ -10014,15 +10014,15 @@ reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_u
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_use_flashback_index_hint_list!drop-21	DELETE FROM a PARTITION(a) SAMPLE(1) SEED(1) AS OF SNAPSHOT a USE KEY(
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_use_flashback_index_hint_list!insert	DELETE FROM a PARTITION(a) SAMPLE(1) SEED(1) AS OF SNAPSHOT a USE KEY() zzz
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_use_flashback_index_hint_list!swap	DELETE FROM a PARTITIONING(a) SAMPLE(1) SEED(1) AS OF SNAPSHOT a USE KEY()
-reject	accept	engine	tbl_name/relation_factor_sample_clause	DELETE FROM a SAMPLE(1)
+accept	accept	engine	tbl_name/relation_factor_sample_clause	DELETE FROM a SAMPLE(1)
 reject	reject	engine	tbl_name/relation_factor_sample_clause!drop-1	DELETE FROM SAMPLE(1)
 reject	reject	engine	tbl_name/relation_factor_sample_clause!drop-2	DELETE FROM a(1)
 reject	reject	engine	tbl_name/relation_factor_sample_clause!drop-3	DELETE FROM a SAMPLE 1)
 reject	reject	engine	tbl_name/relation_factor_sample_clause!drop-4	DELETE FROM a SAMPLE()
 reject	reject	engine	tbl_name/relation_factor_sample_clause!drop-5	DELETE FROM a SAMPLE(1
-reject	accept	engine	tbl_name/relation_factor_sample_clause!insert	DELETE FROM a SAMPLE(1) zzz
+accept	accept	engine	tbl_name/relation_factor_sample_clause!insert	DELETE FROM a SAMPLE(1) zzz
 reject	reject	engine	tbl_name/relation_factor_sample_clause!swap	DELETE FROM a SAVEPOINT(1)
-reject	accept	engine	tbl_name/relation_factor_sample_clause_seed	DELETE FROM a SAMPLE(1) SEED(1)
+accept	accept	engine	tbl_name/relation_factor_sample_clause_seed	DELETE FROM a SAMPLE(1) SEED(1)
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed!drop-1	DELETE FROM SAMPLE(1) SEED(1)
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed!drop-2	DELETE FROM a(1) SEED(1)
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed!drop-3	DELETE FROM a SAMPLE 1) SEED(1)
@@ -10032,9 +10032,9 @@ reject	reject	engine	tbl_name/relation_factor_sample_clause_seed!drop-6	DELETE F
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed!drop-7	DELETE FROM a SAMPLE(1) SEED 1)
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed!drop-8	DELETE FROM a SAMPLE(1) SEED()
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed!drop-9	DELETE FROM a SAMPLE(1) SEED(1
-reject	accept	engine	tbl_name/relation_factor_sample_clause_seed!insert	DELETE FROM a SAMPLE(1) SEED(1) zzz
+accept	accept	engine	tbl_name/relation_factor_sample_clause_seed!insert	DELETE FROM a SAMPLE(1) SEED(1) zzz
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed!swap	DELETE FROM a SAVEPOINT(1) SEED(1)
-reject	accept	engine	tbl_name/relation_factor_sample_clause_index_hint_list	DELETE FROM a SAMPLE(1) USE KEY()
+accept	accept	engine	tbl_name/relation_factor_sample_clause_index_hint_list	DELETE FROM a SAMPLE(1) USE KEY()
 reject	reject	engine	tbl_name/relation_factor_sample_clause_index_hint_list!drop-1	DELETE FROM SAMPLE(1) USE KEY()
 reject	reject	engine	tbl_name/relation_factor_sample_clause_index_hint_list!drop-2	DELETE FROM a(1) USE KEY()
 reject	reject	engine	tbl_name/relation_factor_sample_clause_index_hint_list!drop-3	DELETE FROM a SAMPLE 1) USE KEY()
@@ -10046,7 +10046,7 @@ reject	reject	engine	tbl_name/relation_factor_sample_clause_index_hint_list!drop
 reject	reject	engine	tbl_name/relation_factor_sample_clause_index_hint_list!drop-9	DELETE FROM a SAMPLE(1) USE KEY(
 reject	reject	engine	tbl_name/relation_factor_sample_clause_index_hint_list!insert	DELETE FROM a SAMPLE(1) USE KEY() zzz
 reject	reject	engine	tbl_name/relation_factor_sample_clause_index_hint_list!swap	DELETE FROM a SAVEPOINT(1) USE KEY()
-reject	accept	engine	tbl_name/relation_factor_sample_clause_seed_index_hint_list	DELETE FROM a SAMPLE(1) SEED(1) USE KEY()
+accept	accept	engine	tbl_name/relation_factor_sample_clause_seed_index_hint_list	DELETE FROM a SAMPLE(1) SEED(1) USE KEY()
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_index_hint_list!drop-1	DELETE FROM SAMPLE(1) SEED(1) USE KEY()
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_index_hint_list!drop-2	DELETE FROM a(1) SEED(1) USE KEY()
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_index_hint_list!drop-3	DELETE FROM a SAMPLE 1) SEED(1) USE KEY()
@@ -10062,7 +10062,7 @@ reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_index_hint_list
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_index_hint_list!drop-13	DELETE FROM a SAMPLE(1) SEED(1) USE KEY(
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_index_hint_list!insert	DELETE FROM a SAMPLE(1) SEED(1) USE KEY() zzz
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_index_hint_list!swap	DELETE FROM a SAVEPOINT(1) SEED(1) USE KEY()
-reject	accept	engine	tbl_name/relation_factor_sample_clause_use_flashback	DELETE FROM a SAMPLE(1) AS OF SNAPSHOT a
+accept	accept	engine	tbl_name/relation_factor_sample_clause_use_flashback	DELETE FROM a SAMPLE(1) AS OF SNAPSHOT a
 reject	reject	engine	tbl_name/relation_factor_sample_clause_use_flashback!drop-1	DELETE FROM SAMPLE(1) AS OF SNAPSHOT a
 reject	reject	engine	tbl_name/relation_factor_sample_clause_use_flashback!drop-2	DELETE FROM a(1) AS OF SNAPSHOT a
 reject	reject	engine	tbl_name/relation_factor_sample_clause_use_flashback!drop-3	DELETE FROM a SAMPLE 1) AS OF SNAPSHOT a
@@ -10072,9 +10072,9 @@ reject	reject	engine	tbl_name/relation_factor_sample_clause_use_flashback!drop-6
 reject	reject	engine	tbl_name/relation_factor_sample_clause_use_flashback!drop-7	DELETE FROM a SAMPLE(1) AS SNAPSHOT a
 reject	reject	engine	tbl_name/relation_factor_sample_clause_use_flashback!drop-8	DELETE FROM a SAMPLE(1) AS OF a
 reject	reject	engine	tbl_name/relation_factor_sample_clause_use_flashback!drop-9	DELETE FROM a SAMPLE(1) AS OF SNAPSHOT
-reject	accept	engine	tbl_name/relation_factor_sample_clause_use_flashback!insert	DELETE FROM a SAMPLE(1) AS OF SNAPSHOT a zzz
+accept	accept	engine	tbl_name/relation_factor_sample_clause_use_flashback!insert	DELETE FROM a SAMPLE(1) AS OF SNAPSHOT a zzz
 reject	reject	engine	tbl_name/relation_factor_sample_clause_use_flashback!swap	DELETE FROM a SAVEPOINT(1) AS OF SNAPSHOT a
-reject	accept	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback	DELETE FROM a SAMPLE(1) SEED(1) AS OF SNAPSHOT a
+accept	accept	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback	DELETE FROM a SAMPLE(1) SEED(1) AS OF SNAPSHOT a
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback!drop-1	DELETE FROM SAMPLE(1) SEED(1) AS OF SNAPSHOT a
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback!drop-2	DELETE FROM a(1) SEED(1) AS OF SNAPSHOT a
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback!drop-3	DELETE FROM a SAMPLE 1) SEED(1) AS OF SNAPSHOT a
@@ -10088,9 +10088,9 @@ reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback!d
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback!drop-11	DELETE FROM a SAMPLE(1) SEED(1) AS SNAPSHOT a
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback!drop-12	DELETE FROM a SAMPLE(1) SEED(1) AS OF a
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback!drop-13	DELETE FROM a SAMPLE(1) SEED(1) AS OF SNAPSHOT
-reject	accept	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback!insert	DELETE FROM a SAMPLE(1) SEED(1) AS OF SNAPSHOT a zzz
+accept	accept	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback!insert	DELETE FROM a SAMPLE(1) SEED(1) AS OF SNAPSHOT a zzz
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback!swap	DELETE FROM a SAVEPOINT(1) SEED(1) AS OF SNAPSHOT a
-reject	accept	engine	tbl_name/relation_factor_sample_clause_use_flashback_index_hint_list	DELETE FROM a SAMPLE(1) AS OF SNAPSHOT a USE KEY()
+accept	accept	engine	tbl_name/relation_factor_sample_clause_use_flashback_index_hint_list	DELETE FROM a SAMPLE(1) AS OF SNAPSHOT a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_sample_clause_use_flashback_index_hint_list!drop-1	DELETE FROM SAMPLE(1) AS OF SNAPSHOT a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_sample_clause_use_flashback_index_hint_list!drop-2	DELETE FROM a(1) AS OF SNAPSHOT a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_sample_clause_use_flashback_index_hint_list!drop-3	DELETE FROM a SAMPLE 1) AS OF SNAPSHOT a USE KEY()
@@ -10106,7 +10106,7 @@ reject	reject	engine	tbl_name/relation_factor_sample_clause_use_flashback_index_
 reject	reject	engine	tbl_name/relation_factor_sample_clause_use_flashback_index_hint_list!drop-13	DELETE FROM a SAMPLE(1) AS OF SNAPSHOT a USE KEY(
 reject	reject	engine	tbl_name/relation_factor_sample_clause_use_flashback_index_hint_list!insert	DELETE FROM a SAMPLE(1) AS OF SNAPSHOT a USE KEY() zzz
 reject	reject	engine	tbl_name/relation_factor_sample_clause_use_flashback_index_hint_list!swap	DELETE FROM a SAVEPOINT(1) AS OF SNAPSHOT a USE KEY()
-reject	accept	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback_index_hint_list	DELETE FROM a SAMPLE(1) SEED(1) AS OF SNAPSHOT a USE KEY()
+accept	accept	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback_index_hint_list	DELETE FROM a SAMPLE(1) SEED(1) AS OF SNAPSHOT a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback_index_hint_list!drop-1	DELETE FROM SAMPLE(1) SEED(1) AS OF SNAPSHOT a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback_index_hint_list!drop-2	DELETE FROM a(1) SEED(1) AS OF SNAPSHOT a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback_index_hint_list!drop-3	DELETE FROM a SAMPLE 1) SEED(1) AS OF SNAPSHOT a USE KEY()
@@ -10126,7 +10126,7 @@ reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback_i
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback_index_hint_list!drop-17	DELETE FROM a SAMPLE(1) SEED(1) AS OF SNAPSHOT a USE KEY(
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback_index_hint_list!insert	DELETE FROM a SAMPLE(1) SEED(1) AS OF SNAPSHOT a USE KEY() zzz
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback_index_hint_list!swap	DELETE FROM a SAVEPOINT(1) SEED(1) AS OF SNAPSHOT a USE KEY()
-reject	accept	engine	tbl_name/relation_factor_index_hint_list	DELETE FROM a USE KEY()
+accept	accept	engine	tbl_name/relation_factor_index_hint_list	DELETE FROM a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_index_hint_list!drop-1	DELETE FROM USE KEY()
 reject	reject	engine	tbl_name/relation_factor_index_hint_list!drop-2	DELETE FROM a KEY()
 reject	reject	engine	tbl_name/relation_factor_index_hint_list!drop-3	DELETE FROM a USE()
@@ -10139,7 +10139,7 @@ reject	reject	engine	tbl_name/relation_factor_AS_relation_name!drop-1	DELETE FRO
 reject	reject	engine	tbl_name/relation_factor_AS_relation_name!drop-3	DELETE FROM a AS
 reject	reject	engine	tbl_name/relation_factor_AS_relation_name!insert	DELETE FROM a AS a zzz
 reject	reject	engine	tbl_name/relation_factor_AS_relation_name!swap	DELETE FROM a ASC a
-reject	accept	engine	tbl_name/relation_factor_use_partition_AS_relation_name	DELETE FROM a PARTITION(a) AS a
+accept	accept	engine	tbl_name/relation_factor_use_partition_AS_relation_name	DELETE FROM a PARTITION(a) AS a
 reject	reject	engine	tbl_name/relation_factor_use_partition_AS_relation_name!drop-1	DELETE FROM PARTITION(a) AS a
 reject	reject	engine	tbl_name/relation_factor_use_partition_AS_relation_name!drop-2	DELETE FROM a(a) AS a
 reject	reject	engine	tbl_name/relation_factor_use_partition_AS_relation_name!drop-3	DELETE FROM a PARTITION a) AS a
@@ -10148,7 +10148,7 @@ reject	reject	engine	tbl_name/relation_factor_use_partition_AS_relation_name!dro
 reject	reject	engine	tbl_name/relation_factor_use_partition_AS_relation_name!drop-7	DELETE FROM a PARTITION(a) AS
 reject	reject	engine	tbl_name/relation_factor_use_partition_AS_relation_name!insert	DELETE FROM a PARTITION(a) AS a zzz
 reject	reject	engine	tbl_name/relation_factor_use_partition_AS_relation_name!swap	DELETE FROM a PARTITIONING(a) AS a
-reject	accept	engine	tbl_name/relation_factor_use_flashback_AS_relation_name	DELETE FROM a AS OF SNAPSHOT a AS a
+accept	accept	engine	tbl_name/relation_factor_use_flashback_AS_relation_name	DELETE FROM a AS OF SNAPSHOT a AS a
 reject	reject	engine	tbl_name/relation_factor_use_flashback_AS_relation_name!drop-1	DELETE FROM AS OF SNAPSHOT a AS a
 reject	reject	engine	tbl_name/relation_factor_use_flashback_AS_relation_name!drop-2	DELETE FROM a OF SNAPSHOT a AS a
 reject	reject	engine	tbl_name/relation_factor_use_flashback_AS_relation_name!drop-3	DELETE FROM a AS SNAPSHOT a AS a
@@ -10157,7 +10157,7 @@ reject	reject	engine	tbl_name/relation_factor_use_flashback_AS_relation_name!dro
 reject	reject	engine	tbl_name/relation_factor_use_flashback_AS_relation_name!drop-7	DELETE FROM a AS OF SNAPSHOT a AS
 reject	reject	engine	tbl_name/relation_factor_use_flashback_AS_relation_name!insert	DELETE FROM a AS OF SNAPSHOT a AS a zzz
 reject	reject	engine	tbl_name/relation_factor_use_flashback_AS_relation_name!swap	DELETE FROM a ASC OF SNAPSHOT a AS a
-reject	accept	engine	tbl_name/relation_factor_use_partition_use_flashback_AS_relation_name	DELETE FROM a PARTITION(a) AS OF SNAPSHOT a AS a
+accept	accept	engine	tbl_name/relation_factor_use_partition_use_flashback_AS_relation_name	DELETE FROM a PARTITION(a) AS OF SNAPSHOT a AS a
 reject	reject	engine	tbl_name/relation_factor_use_partition_use_flashback_AS_relation_name!drop-1	DELETE FROM PARTITION(a) AS OF SNAPSHOT a AS a
 reject	reject	engine	tbl_name/relation_factor_use_partition_use_flashback_AS_relation_name!drop-2	DELETE FROM a(a) AS OF SNAPSHOT a AS a
 reject	reject	engine	tbl_name/relation_factor_use_partition_use_flashback_AS_relation_name!drop-3	DELETE FROM a PARTITION a) AS OF SNAPSHOT a AS a
@@ -10170,7 +10170,7 @@ reject	reject	engine	tbl_name/relation_factor_use_partition_use_flashback_AS_rel
 reject	reject	engine	tbl_name/relation_factor_use_partition_use_flashback_AS_relation_name!drop-11	DELETE FROM a PARTITION(a) AS OF SNAPSHOT a AS
 reject	reject	engine	tbl_name/relation_factor_use_partition_use_flashback_AS_relation_name!insert	DELETE FROM a PARTITION(a) AS OF SNAPSHOT a AS a zzz
 reject	reject	engine	tbl_name/relation_factor_use_partition_use_flashback_AS_relation_name!swap	DELETE FROM a PARTITIONING(a) AS OF SNAPSHOT a AS a
-reject	accept	engine	tbl_name/relation_factor_sample_clause_AS_relation_name	DELETE FROM a SAMPLE(1) AS a
+accept	accept	engine	tbl_name/relation_factor_sample_clause_AS_relation_name	DELETE FROM a SAMPLE(1) AS a
 reject	reject	engine	tbl_name/relation_factor_sample_clause_AS_relation_name!drop-1	DELETE FROM SAMPLE(1) AS a
 reject	reject	engine	tbl_name/relation_factor_sample_clause_AS_relation_name!drop-2	DELETE FROM a(1) AS a
 reject	reject	engine	tbl_name/relation_factor_sample_clause_AS_relation_name!drop-3	DELETE FROM a SAMPLE 1) AS a
@@ -10179,7 +10179,7 @@ reject	reject	engine	tbl_name/relation_factor_sample_clause_AS_relation_name!dro
 reject	reject	engine	tbl_name/relation_factor_sample_clause_AS_relation_name!drop-7	DELETE FROM a SAMPLE(1) AS
 reject	reject	engine	tbl_name/relation_factor_sample_clause_AS_relation_name!insert	DELETE FROM a SAMPLE(1) AS a zzz
 reject	reject	engine	tbl_name/relation_factor_sample_clause_AS_relation_name!swap	DELETE FROM a SAVEPOINT(1) AS a
-reject	accept	engine	tbl_name/relation_factor_sample_clause_seed_AS_relation_name	DELETE FROM a SAMPLE(1) SEED(1) AS a
+accept	accept	engine	tbl_name/relation_factor_sample_clause_seed_AS_relation_name	DELETE FROM a SAMPLE(1) SEED(1) AS a
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_AS_relation_name!drop-1	DELETE FROM SAMPLE(1) SEED(1) AS a
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_AS_relation_name!drop-2	DELETE FROM a(1) SEED(1) AS a
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_AS_relation_name!drop-3	DELETE FROM a SAMPLE 1) SEED(1) AS a
@@ -10192,7 +10192,7 @@ reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_AS_relation_nam
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_AS_relation_name!drop-11	DELETE FROM a SAMPLE(1) SEED(1) AS
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_AS_relation_name!insert	DELETE FROM a SAMPLE(1) SEED(1) AS a zzz
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_AS_relation_name!swap	DELETE FROM a SAVEPOINT(1) SEED(1) AS a
-reject	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_AS_relation_name	DELETE FROM a PARTITION(a) SAMPLE(1) AS a
+accept	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_AS_relation_name	DELETE FROM a PARTITION(a) SAMPLE(1) AS a
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_AS_relation_name!drop-1	DELETE FROM PARTITION(a) SAMPLE(1) AS a
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_AS_relation_name!drop-2	DELETE FROM a(a) SAMPLE(1) AS a
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_AS_relation_name!drop-3	DELETE FROM a PARTITION a) SAMPLE(1) AS a
@@ -10205,7 +10205,7 @@ reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_AS_rel
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_AS_relation_name!drop-11	DELETE FROM a PARTITION(a) SAMPLE(1) AS
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_AS_relation_name!insert	DELETE FROM a PARTITION(a) SAMPLE(1) AS a zzz
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_AS_relation_name!swap	DELETE FROM a PARTITIONING(a) SAMPLE(1) AS a
-reject	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_AS_relation_name	DELETE FROM a PARTITION(a) SAMPLE(1) SEED(1) AS a
+accept	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_AS_relation_name	DELETE FROM a PARTITION(a) SAMPLE(1) SEED(1) AS a
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_AS_relation_name!drop-1	DELETE FROM PARTITION(a) SAMPLE(1) SEED(1) AS a
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_AS_relation_name!drop-2	DELETE FROM a(a) SAMPLE(1) SEED(1) AS a
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_AS_relation_name!drop-3	DELETE FROM a PARTITION a) SAMPLE(1) SEED(1) AS a
@@ -10222,7 +10222,7 @@ reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_A
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_AS_relation_name!drop-15	DELETE FROM a PARTITION(a) SAMPLE(1) SEED(1) AS
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_AS_relation_name!insert	DELETE FROM a PARTITION(a) SAMPLE(1) SEED(1) AS a zzz
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_AS_relation_name!swap	DELETE FROM a PARTITIONING(a) SAMPLE(1) SEED(1) AS a
-reject	accept	engine	tbl_name/relation_factor_sample_clause_use_flashback_AS_relation_name	DELETE FROM a SAMPLE(1) AS OF SNAPSHOT a AS a
+accept	accept	engine	tbl_name/relation_factor_sample_clause_use_flashback_AS_relation_name	DELETE FROM a SAMPLE(1) AS OF SNAPSHOT a AS a
 reject	reject	engine	tbl_name/relation_factor_sample_clause_use_flashback_AS_relation_name!drop-1	DELETE FROM SAMPLE(1) AS OF SNAPSHOT a AS a
 reject	reject	engine	tbl_name/relation_factor_sample_clause_use_flashback_AS_relation_name!drop-2	DELETE FROM a(1) AS OF SNAPSHOT a AS a
 reject	reject	engine	tbl_name/relation_factor_sample_clause_use_flashback_AS_relation_name!drop-3	DELETE FROM a SAMPLE 1) AS OF SNAPSHOT a AS a
@@ -10235,7 +10235,7 @@ reject	reject	engine	tbl_name/relation_factor_sample_clause_use_flashback_AS_rel
 reject	reject	engine	tbl_name/relation_factor_sample_clause_use_flashback_AS_relation_name!drop-11	DELETE FROM a SAMPLE(1) AS OF SNAPSHOT a AS
 reject	reject	engine	tbl_name/relation_factor_sample_clause_use_flashback_AS_relation_name!insert	DELETE FROM a SAMPLE(1) AS OF SNAPSHOT a AS a zzz
 reject	reject	engine	tbl_name/relation_factor_sample_clause_use_flashback_AS_relation_name!swap	DELETE FROM a SAVEPOINT(1) AS OF SNAPSHOT a AS a
-reject	accept	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback_AS_relation_name	DELETE FROM a SAMPLE(1) SEED(1) AS OF SNAPSHOT a AS a
+accept	accept	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback_AS_relation_name	DELETE FROM a SAMPLE(1) SEED(1) AS OF SNAPSHOT a AS a
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback_AS_relation_name!drop-1	DELETE FROM SAMPLE(1) SEED(1) AS OF SNAPSHOT a AS a
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback_AS_relation_name!drop-2	DELETE FROM a(1) SEED(1) AS OF SNAPSHOT a AS a
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback_AS_relation_name!drop-3	DELETE FROM a SAMPLE 1) SEED(1) AS OF SNAPSHOT a AS a
@@ -10252,7 +10252,7 @@ reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback_A
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback_AS_relation_name!drop-15	DELETE FROM a SAMPLE(1) SEED(1) AS OF SNAPSHOT a AS
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback_AS_relation_name!insert	DELETE FROM a SAMPLE(1) SEED(1) AS OF SNAPSHOT a AS a zzz
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback_AS_relation_name!swap	DELETE FROM a SAVEPOINT(1) SEED(1) AS OF SNAPSHOT a AS a
-reject	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback_AS_relation_name	DELETE FROM a PARTITION(a) SAMPLE(1) AS OF SNAPSHOT a AS a
+accept	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback_AS_relation_name	DELETE FROM a PARTITION(a) SAMPLE(1) AS OF SNAPSHOT a AS a
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback_AS_relation_name!drop-1	DELETE FROM PARTITION(a) SAMPLE(1) AS OF SNAPSHOT a AS a
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback_AS_relation_name!drop-2	DELETE FROM a(a) SAMPLE(1) AS OF SNAPSHOT a AS a
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback_AS_relation_name!drop-3	DELETE FROM a PARTITION a) SAMPLE(1) AS OF SNAPSHOT a AS a
@@ -10269,7 +10269,7 @@ reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_use_fl
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback_AS_relation_name!drop-15	DELETE FROM a PARTITION(a) SAMPLE(1) AS OF SNAPSHOT a AS
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback_AS_relation_name!insert	DELETE FROM a PARTITION(a) SAMPLE(1) AS OF SNAPSHOT a AS a zzz
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback_AS_relation_name!swap	DELETE FROM a PARTITIONING(a) SAMPLE(1) AS OF SNAPSHOT a AS a
-reject	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_use_flashback_AS_relation_name	DELETE FROM a PARTITION(a) SAMPLE(1) SEED(1) AS OF SNAPSHOT a AS a
+accept	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_use_flashback_AS_relation_name	DELETE FROM a PARTITION(a) SAMPLE(1) SEED(1) AS OF SNAPSHOT a AS a
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_use_flashback_AS_relation_name!drop-1	DELETE FROM PARTITION(a) SAMPLE(1) SEED(1) AS OF SNAPSHOT a AS a
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_use_flashback_AS_relation_name!drop-2	DELETE FROM a(a) SAMPLE(1) SEED(1) AS OF SNAPSHOT a AS a
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_use_flashback_AS_relation_name!drop-3	DELETE FROM a PARTITION a) SAMPLE(1) SEED(1) AS OF SNAPSHOT a AS a
@@ -10290,7 +10290,7 @@ reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_u
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_use_flashback_AS_relation_name!drop-19	DELETE FROM a PARTITION(a) SAMPLE(1) SEED(1) AS OF SNAPSHOT a AS
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_use_flashback_AS_relation_name!insert	DELETE FROM a PARTITION(a) SAMPLE(1) SEED(1) AS OF SNAPSHOT a AS a zzz
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_use_flashback_AS_relation_name!swap	DELETE FROM a PARTITIONING(a) SAMPLE(1) SEED(1) AS OF SNAPSHOT a AS a
-reject	accept	engine	tbl_name/relation_factor_sample_clause_use_flashback_AS_relation_name_index_hint_list	DELETE FROM a SAMPLE(1) AS OF SNAPSHOT a AS a USE KEY()
+accept	accept	engine	tbl_name/relation_factor_sample_clause_use_flashback_AS_relation_name_index_hint_list	DELETE FROM a SAMPLE(1) AS OF SNAPSHOT a AS a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_sample_clause_use_flashback_AS_relation_name_index_hint_list!drop-1	DELETE FROM SAMPLE(1) AS OF SNAPSHOT a AS a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_sample_clause_use_flashback_AS_relation_name_index_hint_list!drop-2	DELETE FROM a(1) AS OF SNAPSHOT a AS a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_sample_clause_use_flashback_AS_relation_name_index_hint_list!drop-3	DELETE FROM a SAMPLE 1) AS OF SNAPSHOT a AS a USE KEY()
@@ -10307,7 +10307,7 @@ reject	reject	engine	tbl_name/relation_factor_sample_clause_use_flashback_AS_rel
 reject	reject	engine	tbl_name/relation_factor_sample_clause_use_flashback_AS_relation_name_index_hint_list!drop-15	DELETE FROM a SAMPLE(1) AS OF SNAPSHOT a AS a USE KEY(
 reject	reject	engine	tbl_name/relation_factor_sample_clause_use_flashback_AS_relation_name_index_hint_list!insert	DELETE FROM a SAMPLE(1) AS OF SNAPSHOT a AS a USE KEY() zzz
 reject	reject	engine	tbl_name/relation_factor_sample_clause_use_flashback_AS_relation_name_index_hint_list!swap	DELETE FROM a SAVEPOINT(1) AS OF SNAPSHOT a AS a USE KEY()
-reject	accept	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback_AS_relation_name_index_hint_list	DELETE FROM a SAMPLE(1) SEED(1) AS OF SNAPSHOT a AS a USE KEY()
+accept	accept	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback_AS_relation_name_index_hint_list	DELETE FROM a SAMPLE(1) SEED(1) AS OF SNAPSHOT a AS a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback_AS_relation_name_index_hint_list!drop-1	DELETE FROM SAMPLE(1) SEED(1) AS OF SNAPSHOT a AS a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback_AS_relation_name_index_hint_list!drop-2	DELETE FROM a(1) SEED(1) AS OF SNAPSHOT a AS a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback_AS_relation_name_index_hint_list!drop-3	DELETE FROM a SAMPLE 1) SEED(1) AS OF SNAPSHOT a AS a USE KEY()
@@ -10328,7 +10328,7 @@ reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback_A
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback_AS_relation_name_index_hint_list!drop-19	DELETE FROM a SAMPLE(1) SEED(1) AS OF SNAPSHOT a AS a USE KEY(
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback_AS_relation_name_index_hint_list!insert	DELETE FROM a SAMPLE(1) SEED(1) AS OF SNAPSHOT a AS a USE KEY() zzz
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback_AS_relation_name_index_hint_list!swap	DELETE FROM a SAVEPOINT(1) SEED(1) AS OF SNAPSHOT a AS a USE KEY()
-reject	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback_AS_relation_name_index_hint_list	DELETE FROM a PARTITION(a) SAMPLE(1) AS OF SNAPSHOT a AS a USE KEY()
+accept	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback_AS_relation_name_index_hint_list	DELETE FROM a PARTITION(a) SAMPLE(1) AS OF SNAPSHOT a AS a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback_AS_relation_name_index_hint_list!drop-1	DELETE FROM PARTITION(a) SAMPLE(1) AS OF SNAPSHOT a AS a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback_AS_relation_name_index_hint_list!drop-2	DELETE FROM a(a) SAMPLE(1) AS OF SNAPSHOT a AS a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback_AS_relation_name_index_hint_list!drop-3	DELETE FROM a PARTITION a) SAMPLE(1) AS OF SNAPSHOT a AS a USE KEY()
@@ -10349,7 +10349,7 @@ reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_use_fl
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback_AS_relation_name_index_hint_list!drop-19	DELETE FROM a PARTITION(a) SAMPLE(1) AS OF SNAPSHOT a AS a USE KEY(
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback_AS_relation_name_index_hint_list!insert	DELETE FROM a PARTITION(a) SAMPLE(1) AS OF SNAPSHOT a AS a USE KEY() zzz
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback_AS_relation_name_index_hint_list!swap	DELETE FROM a PARTITIONING(a) SAMPLE(1) AS OF SNAPSHOT a AS a USE KEY()
-reject	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_use_flashback_AS_relation_name_index_hint_list	DELETE FROM a PARTITION(a) SAMPLE(1) SEED(1) AS OF SNAPSHOT a AS a USE KEY()
+accept	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_use_flashback_AS_relation_name_index_hint_list	DELETE FROM a PARTITION(a) SAMPLE(1) SEED(1) AS OF SNAPSHOT a AS a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_use_flashback_AS_relation_name_index_hint_list!drop-1	DELETE FROM PARTITION(a) SAMPLE(1) SEED(1) AS OF SNAPSHOT a AS a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_use_flashback_AS_relation_name_index_hint_list!drop-2	DELETE FROM a(a) SAMPLE(1) SEED(1) AS OF SNAPSHOT a AS a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_use_flashback_AS_relation_name_index_hint_list!drop-3	DELETE FROM a PARTITION a) SAMPLE(1) SEED(1) AS OF SNAPSHOT a AS a USE KEY()
@@ -10374,7 +10374,7 @@ reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_u
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_use_flashback_AS_relation_name_index_hint_list!drop-23	DELETE FROM a PARTITION(a) SAMPLE(1) SEED(1) AS OF SNAPSHOT a AS a USE KEY(
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_use_flashback_AS_relation_name_index_hint_list!insert	DELETE FROM a PARTITION(a) SAMPLE(1) SEED(1) AS OF SNAPSHOT a AS a USE KEY() zzz
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_use_flashback_AS_relation_name_index_hint_list!swap	DELETE FROM a PARTITIONING(a) SAMPLE(1) SEED(1) AS OF SNAPSHOT a AS a USE KEY()
-reject	accept	engine	tbl_name/relation_factor_AS_relation_name_index_hint_list	DELETE FROM a AS a USE KEY()
+accept	accept	engine	tbl_name/relation_factor_AS_relation_name_index_hint_list	DELETE FROM a AS a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_AS_relation_name_index_hint_list!drop-1	DELETE FROM AS a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_AS_relation_name_index_hint_list!drop-3	DELETE FROM a AS USE KEY()
 reject	reject	engine	tbl_name/relation_factor_AS_relation_name_index_hint_list!drop-4	DELETE FROM a AS a KEY()
@@ -10383,7 +10383,7 @@ reject	reject	engine	tbl_name/relation_factor_AS_relation_name_index_hint_list!d
 reject	reject	engine	tbl_name/relation_factor_AS_relation_name_index_hint_list!drop-7	DELETE FROM a AS a USE KEY(
 reject	reject	engine	tbl_name/relation_factor_AS_relation_name_index_hint_list!insert	DELETE FROM a AS a USE KEY() zzz
 reject	reject	engine	tbl_name/relation_factor_AS_relation_name_index_hint_list!swap	DELETE FROM a ASC a USE KEY()
-reject	accept	engine	tbl_name/relation_factor_use_partition_AS_relation_name_index_hint_list	DELETE FROM a PARTITION(a) AS a USE KEY()
+accept	accept	engine	tbl_name/relation_factor_use_partition_AS_relation_name_index_hint_list	DELETE FROM a PARTITION(a) AS a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_use_partition_AS_relation_name_index_hint_list!drop-1	DELETE FROM PARTITION(a) AS a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_use_partition_AS_relation_name_index_hint_list!drop-2	DELETE FROM a(a) AS a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_use_partition_AS_relation_name_index_hint_list!drop-3	DELETE FROM a PARTITION a) AS a USE KEY()
@@ -10396,7 +10396,7 @@ reject	reject	engine	tbl_name/relation_factor_use_partition_AS_relation_name_ind
 reject	reject	engine	tbl_name/relation_factor_use_partition_AS_relation_name_index_hint_list!drop-11	DELETE FROM a PARTITION(a) AS a USE KEY(
 reject	reject	engine	tbl_name/relation_factor_use_partition_AS_relation_name_index_hint_list!insert	DELETE FROM a PARTITION(a) AS a USE KEY() zzz
 reject	reject	engine	tbl_name/relation_factor_use_partition_AS_relation_name_index_hint_list!swap	DELETE FROM a PARTITIONING(a) AS a USE KEY()
-reject	accept	engine	tbl_name/relation_factor_sample_clause_AS_relation_name_index_hint_list	DELETE FROM a SAMPLE(1) AS a USE KEY()
+accept	accept	engine	tbl_name/relation_factor_sample_clause_AS_relation_name_index_hint_list	DELETE FROM a SAMPLE(1) AS a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_sample_clause_AS_relation_name_index_hint_list!drop-1	DELETE FROM SAMPLE(1) AS a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_sample_clause_AS_relation_name_index_hint_list!drop-2	DELETE FROM a(1) AS a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_sample_clause_AS_relation_name_index_hint_list!drop-3	DELETE FROM a SAMPLE 1) AS a USE KEY()
@@ -10409,7 +10409,7 @@ reject	reject	engine	tbl_name/relation_factor_sample_clause_AS_relation_name_ind
 reject	reject	engine	tbl_name/relation_factor_sample_clause_AS_relation_name_index_hint_list!drop-11	DELETE FROM a SAMPLE(1) AS a USE KEY(
 reject	reject	engine	tbl_name/relation_factor_sample_clause_AS_relation_name_index_hint_list!insert	DELETE FROM a SAMPLE(1) AS a USE KEY() zzz
 reject	reject	engine	tbl_name/relation_factor_sample_clause_AS_relation_name_index_hint_list!swap	DELETE FROM a SAVEPOINT(1) AS a USE KEY()
-reject	accept	engine	tbl_name/relation_factor_sample_clause_seed_AS_relation_name_index_hint_list	DELETE FROM a SAMPLE(1) SEED(1) AS a USE KEY()
+accept	accept	engine	tbl_name/relation_factor_sample_clause_seed_AS_relation_name_index_hint_list	DELETE FROM a SAMPLE(1) SEED(1) AS a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_AS_relation_name_index_hint_list!drop-1	DELETE FROM SAMPLE(1) SEED(1) AS a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_AS_relation_name_index_hint_list!drop-2	DELETE FROM a(1) SEED(1) AS a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_AS_relation_name_index_hint_list!drop-3	DELETE FROM a SAMPLE 1) SEED(1) AS a USE KEY()
@@ -10426,7 +10426,7 @@ reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_AS_relation_nam
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_AS_relation_name_index_hint_list!drop-15	DELETE FROM a SAMPLE(1) SEED(1) AS a USE KEY(
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_AS_relation_name_index_hint_list!insert	DELETE FROM a SAMPLE(1) SEED(1) AS a USE KEY() zzz
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_AS_relation_name_index_hint_list!swap	DELETE FROM a SAVEPOINT(1) SEED(1) AS a USE KEY()
-reject	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_AS_relation_name_index_hint_list	DELETE FROM a PARTITION(a) SAMPLE(1) AS a USE KEY()
+accept	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_AS_relation_name_index_hint_list	DELETE FROM a PARTITION(a) SAMPLE(1) AS a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_AS_relation_name_index_hint_list!drop-1	DELETE FROM PARTITION(a) SAMPLE(1) AS a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_AS_relation_name_index_hint_list!drop-2	DELETE FROM a(a) SAMPLE(1) AS a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_AS_relation_name_index_hint_list!drop-3	DELETE FROM a PARTITION a) SAMPLE(1) AS a USE KEY()
@@ -10443,7 +10443,7 @@ reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_AS_rel
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_AS_relation_name_index_hint_list!drop-15	DELETE FROM a PARTITION(a) SAMPLE(1) AS a USE KEY(
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_AS_relation_name_index_hint_list!insert	DELETE FROM a PARTITION(a) SAMPLE(1) AS a USE KEY() zzz
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_AS_relation_name_index_hint_list!swap	DELETE FROM a PARTITIONING(a) SAMPLE(1) AS a USE KEY()
-reject	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_AS_relation_name_index_hint_list	DELETE FROM a PARTITION(a) SAMPLE(1) SEED(1) AS a USE KEY()
+accept	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_AS_relation_name_index_hint_list	DELETE FROM a PARTITION(a) SAMPLE(1) SEED(1) AS a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_AS_relation_name_index_hint_list!drop-1	DELETE FROM PARTITION(a) SAMPLE(1) SEED(1) AS a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_AS_relation_name_index_hint_list!drop-2	DELETE FROM a(a) SAMPLE(1) SEED(1) AS a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_AS_relation_name_index_hint_list!drop-3	DELETE FROM a PARTITION a) SAMPLE(1) SEED(1) AS a USE KEY()
@@ -10466,7 +10466,7 @@ reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_A
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_AS_relation_name_index_hint_list!swap	DELETE FROM a PARTITIONING(a) SAMPLE(1) SEED(1) AS a USE KEY()
 accept	accept	engine	tbl_name/relation_factor_relation_name	DELETE FROM a a
 reject	reject	engine	tbl_name/relation_factor_relation_name!insert	DELETE FROM a a zzz
-reject	accept	engine	tbl_name/relation_factor_use_partition_relation_name	DELETE FROM a PARTITION(a) a
+accept	accept	engine	tbl_name/relation_factor_use_partition_relation_name	DELETE FROM a PARTITION(a) a
 reject	reject	engine	tbl_name/relation_factor_use_partition_relation_name!drop-1	DELETE FROM PARTITION(a) a
 reject	reject	engine	tbl_name/relation_factor_use_partition_relation_name!drop-2	DELETE FROM a(a) a
 reject	reject	engine	tbl_name/relation_factor_use_partition_relation_name!drop-3	DELETE FROM a PARTITION a) a
@@ -10474,14 +10474,14 @@ reject	reject	engine	tbl_name/relation_factor_use_partition_relation_name!drop-4
 reject	reject	engine	tbl_name/relation_factor_use_partition_relation_name!drop-5	DELETE FROM a PARTITION(a a
 reject	reject	engine	tbl_name/relation_factor_use_partition_relation_name!insert	DELETE FROM a PARTITION(a) a zzz
 reject	reject	engine	tbl_name/relation_factor_use_partition_relation_name!swap	DELETE FROM a PARTITIONING(a) a
-reject	accept	engine	tbl_name/relation_factor_use_flashback_relation_name	DELETE FROM a AS OF SNAPSHOT a a
+accept	accept	engine	tbl_name/relation_factor_use_flashback_relation_name	DELETE FROM a AS OF SNAPSHOT a a
 reject	reject	engine	tbl_name/relation_factor_use_flashback_relation_name!drop-1	DELETE FROM AS OF SNAPSHOT a a
 reject	reject	engine	tbl_name/relation_factor_use_flashback_relation_name!drop-2	DELETE FROM a OF SNAPSHOT a a
 reject	reject	engine	tbl_name/relation_factor_use_flashback_relation_name!drop-3	DELETE FROM a AS SNAPSHOT a a
 reject	reject	engine	tbl_name/relation_factor_use_flashback_relation_name!drop-4	DELETE FROM a AS OF a a
 reject	reject	engine	tbl_name/relation_factor_use_flashback_relation_name!insert	DELETE FROM a AS OF SNAPSHOT a a zzz
 reject	reject	engine	tbl_name/relation_factor_use_flashback_relation_name!swap	DELETE FROM a ASC OF SNAPSHOT a a
-reject	accept	engine	tbl_name/relation_factor_use_partition_use_flashback_relation_name	DELETE FROM a PARTITION(a) AS OF SNAPSHOT a a
+accept	accept	engine	tbl_name/relation_factor_use_partition_use_flashback_relation_name	DELETE FROM a PARTITION(a) AS OF SNAPSHOT a a
 reject	reject	engine	tbl_name/relation_factor_use_partition_use_flashback_relation_name!drop-1	DELETE FROM PARTITION(a) AS OF SNAPSHOT a a
 reject	reject	engine	tbl_name/relation_factor_use_partition_use_flashback_relation_name!drop-2	DELETE FROM a(a) AS OF SNAPSHOT a a
 reject	reject	engine	tbl_name/relation_factor_use_partition_use_flashback_relation_name!drop-3	DELETE FROM a PARTITION a) AS OF SNAPSHOT a a
@@ -10492,14 +10492,14 @@ reject	reject	engine	tbl_name/relation_factor_use_partition_use_flashback_relati
 reject	reject	engine	tbl_name/relation_factor_use_partition_use_flashback_relation_name!drop-8	DELETE FROM a PARTITION(a) AS OF a a
 reject	reject	engine	tbl_name/relation_factor_use_partition_use_flashback_relation_name!insert	DELETE FROM a PARTITION(a) AS OF SNAPSHOT a a zzz
 reject	reject	engine	tbl_name/relation_factor_use_partition_use_flashback_relation_name!swap	DELETE FROM a PARTITIONING(a) AS OF SNAPSHOT a a
-reject	accept	engine	tbl_name/relation_factor_relation_name_index_hint_list	DELETE FROM a a USE KEY()
+accept	accept	engine	tbl_name/relation_factor_relation_name_index_hint_list	DELETE FROM a a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_relation_name_index_hint_list!drop-3	DELETE FROM a a KEY()
 reject	reject	engine	tbl_name/relation_factor_relation_name_index_hint_list!drop-4	DELETE FROM a a USE()
 reject	reject	engine	tbl_name/relation_factor_relation_name_index_hint_list!drop-5	DELETE FROM a a USE KEY)
 reject	reject	engine	tbl_name/relation_factor_relation_name_index_hint_list!drop-6	DELETE FROM a a USE KEY(
 reject	reject	engine	tbl_name/relation_factor_relation_name_index_hint_list!insert	DELETE FROM a a USE KEY() zzz
 reject	reject	engine	tbl_name/relation_factor_relation_name_index_hint_list!swap	DELETE FROM a a USER KEY()
-reject	accept	engine	tbl_name/relation_factor_use_partition_relation_name_index_hint_list	DELETE FROM a PARTITION(a) a USE KEY()
+accept	accept	engine	tbl_name/relation_factor_use_partition_relation_name_index_hint_list	DELETE FROM a PARTITION(a) a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_use_partition_relation_name_index_hint_list!drop-1	DELETE FROM PARTITION(a) a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_use_partition_relation_name_index_hint_list!drop-2	DELETE FROM a(a) a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_use_partition_relation_name_index_hint_list!drop-3	DELETE FROM a PARTITION a) a USE KEY()
@@ -10511,7 +10511,7 @@ reject	reject	engine	tbl_name/relation_factor_use_partition_relation_name_index_
 reject	reject	engine	tbl_name/relation_factor_use_partition_relation_name_index_hint_list!drop-10	DELETE FROM a PARTITION(a) a USE KEY(
 reject	reject	engine	tbl_name/relation_factor_use_partition_relation_name_index_hint_list!insert	DELETE FROM a PARTITION(a) a USE KEY() zzz
 reject	reject	engine	tbl_name/relation_factor_use_partition_relation_name_index_hint_list!swap	DELETE FROM a PARTITIONING(a) a USE KEY()
-reject	accept	engine	tbl_name/relation_factor_sample_clause_seed_relation_name	DELETE FROM a SAMPLE(1) SEED(1) a
+accept	accept	engine	tbl_name/relation_factor_sample_clause_seed_relation_name	DELETE FROM a SAMPLE(1) SEED(1) a
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_relation_name!drop-1	DELETE FROM SAMPLE(1) SEED(1) a
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_relation_name!drop-2	DELETE FROM a(1) SEED(1) a
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_relation_name!drop-3	DELETE FROM a SAMPLE 1) SEED(1) a
@@ -10523,7 +10523,7 @@ reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_relation_name!d
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_relation_name!drop-9	DELETE FROM a SAMPLE(1) SEED(1 a
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_relation_name!insert	DELETE FROM a SAMPLE(1) SEED(1) a zzz
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_relation_name!swap	DELETE FROM a SAVEPOINT(1) SEED(1) a
-reject	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_relation_name	DELETE FROM a PARTITION(a) SAMPLE(1) SEED(1) a
+accept	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_relation_name	DELETE FROM a PARTITION(a) SAMPLE(1) SEED(1) a
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_relation_name!drop-1	DELETE FROM PARTITION(a) SAMPLE(1) SEED(1) a
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_relation_name!drop-2	DELETE FROM a(a) SAMPLE(1) SEED(1) a
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_relation_name!drop-3	DELETE FROM a PARTITION a) SAMPLE(1) SEED(1) a
@@ -10539,7 +10539,7 @@ reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_r
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_relation_name!drop-13	DELETE FROM a PARTITION(a) SAMPLE(1) SEED(1 a
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_relation_name!insert	DELETE FROM a PARTITION(a) SAMPLE(1) SEED(1) a zzz
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_relation_name!swap	DELETE FROM a PARTITIONING(a) SAMPLE(1) SEED(1) a
-reject	accept	engine	tbl_name/relation_factor_sample_clause_seed_relation_name_index_hint_list	DELETE FROM a SAMPLE(1) SEED(1) a USE KEY()
+accept	accept	engine	tbl_name/relation_factor_sample_clause_seed_relation_name_index_hint_list	DELETE FROM a SAMPLE(1) SEED(1) a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_relation_name_index_hint_list!drop-1	DELETE FROM SAMPLE(1) SEED(1) a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_relation_name_index_hint_list!drop-2	DELETE FROM a(1) SEED(1) a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_relation_name_index_hint_list!drop-3	DELETE FROM a SAMPLE 1) SEED(1) a USE KEY()
@@ -10555,7 +10555,7 @@ reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_relation_name_i
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_relation_name_index_hint_list!drop-14	DELETE FROM a SAMPLE(1) SEED(1) a USE KEY(
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_relation_name_index_hint_list!insert	DELETE FROM a SAMPLE(1) SEED(1) a USE KEY() zzz
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_relation_name_index_hint_list!swap	DELETE FROM a SAVEPOINT(1) SEED(1) a USE KEY()
-reject	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_relation_name_index_hint_list	DELETE FROM a PARTITION(a) SAMPLE(1) SEED(1) a USE KEY()
+accept	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_relation_name_index_hint_list	DELETE FROM a PARTITION(a) SAMPLE(1) SEED(1) a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_relation_name_index_hint_list!drop-1	DELETE FROM PARTITION(a) SAMPLE(1) SEED(1) a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_relation_name_index_hint_list!drop-2	DELETE FROM a(a) SAMPLE(1) SEED(1) a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_relation_name_index_hint_list!drop-3	DELETE FROM a PARTITION a) SAMPLE(1) SEED(1) a USE KEY()
@@ -10575,7 +10575,7 @@ reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_r
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_relation_name_index_hint_list!drop-18	DELETE FROM a PARTITION(a) SAMPLE(1) SEED(1) a USE KEY(
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_relation_name_index_hint_list!insert	DELETE FROM a PARTITION(a) SAMPLE(1) SEED(1) a USE KEY() zzz
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_relation_name_index_hint_list!swap	DELETE FROM a PARTITIONING(a) SAMPLE(1) SEED(1) a USE KEY()
-reject	accept	engine	tbl_name/relation_factor_sample_clause_relation_name	DELETE FROM a SAMPLE(1) a
+accept	accept	engine	tbl_name/relation_factor_sample_clause_relation_name	DELETE FROM a SAMPLE(1) a
 reject	reject	engine	tbl_name/relation_factor_sample_clause_relation_name!drop-1	DELETE FROM SAMPLE(1) a
 reject	reject	engine	tbl_name/relation_factor_sample_clause_relation_name!drop-2	DELETE FROM a(1) a
 reject	reject	engine	tbl_name/relation_factor_sample_clause_relation_name!drop-3	DELETE FROM a SAMPLE 1) a
@@ -10583,7 +10583,7 @@ reject	reject	engine	tbl_name/relation_factor_sample_clause_relation_name!drop-4
 reject	reject	engine	tbl_name/relation_factor_sample_clause_relation_name!drop-5	DELETE FROM a SAMPLE(1 a
 reject	reject	engine	tbl_name/relation_factor_sample_clause_relation_name!insert	DELETE FROM a SAMPLE(1) a zzz
 reject	reject	engine	tbl_name/relation_factor_sample_clause_relation_name!swap	DELETE FROM a SAVEPOINT(1) a
-reject	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_relation_name	DELETE FROM a PARTITION(a) SAMPLE(1) a
+accept	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_relation_name	DELETE FROM a PARTITION(a) SAMPLE(1) a
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_relation_name!drop-1	DELETE FROM PARTITION(a) SAMPLE(1) a
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_relation_name!drop-2	DELETE FROM a(a) SAMPLE(1) a
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_relation_name!drop-3	DELETE FROM a PARTITION a) SAMPLE(1) a
@@ -10595,7 +10595,7 @@ reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_relati
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_relation_name!drop-9	DELETE FROM a PARTITION(a) SAMPLE(1 a
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_relation_name!insert	DELETE FROM a PARTITION(a) SAMPLE(1) a zzz
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_relation_name!swap	DELETE FROM a PARTITIONING(a) SAMPLE(1) a
-reject	accept	engine	tbl_name/relation_factor_sample_clause_relation_name_index_hint_list	DELETE FROM a SAMPLE(1) a USE KEY()
+accept	accept	engine	tbl_name/relation_factor_sample_clause_relation_name_index_hint_list	DELETE FROM a SAMPLE(1) a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_sample_clause_relation_name_index_hint_list!drop-1	DELETE FROM SAMPLE(1) a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_sample_clause_relation_name_index_hint_list!drop-2	DELETE FROM a(1) a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_sample_clause_relation_name_index_hint_list!drop-3	DELETE FROM a SAMPLE 1) a USE KEY()
@@ -10607,7 +10607,7 @@ reject	reject	engine	tbl_name/relation_factor_sample_clause_relation_name_index_
 reject	reject	engine	tbl_name/relation_factor_sample_clause_relation_name_index_hint_list!drop-10	DELETE FROM a SAMPLE(1) a USE KEY(
 reject	reject	engine	tbl_name/relation_factor_sample_clause_relation_name_index_hint_list!insert	DELETE FROM a SAMPLE(1) a USE KEY() zzz
 reject	reject	engine	tbl_name/relation_factor_sample_clause_relation_name_index_hint_list!swap	DELETE FROM a SAVEPOINT(1) a USE KEY()
-reject	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_relation_name_index_hint_list	DELETE FROM a PARTITION(a) SAMPLE(1) a USE KEY()
+accept	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_relation_name_index_hint_list	DELETE FROM a PARTITION(a) SAMPLE(1) a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_relation_name_index_hint_list!drop-1	DELETE FROM PARTITION(a) SAMPLE(1) a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_relation_name_index_hint_list!drop-2	DELETE FROM a(a) SAMPLE(1) a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_relation_name_index_hint_list!drop-3	DELETE FROM a PARTITION a) SAMPLE(1) a USE KEY()
@@ -10623,7 +10623,7 @@ reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_relati
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_relation_name_index_hint_list!drop-14	DELETE FROM a PARTITION(a) SAMPLE(1) a USE KEY(
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_relation_name_index_hint_list!insert	DELETE FROM a PARTITION(a) SAMPLE(1) a USE KEY() zzz
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_relation_name_index_hint_list!swap	DELETE FROM a PARTITIONING(a) SAMPLE(1) a USE KEY()
-reject	accept	engine	tbl_name/relation_factor_sample_clause_use_flashback_relation_name	DELETE FROM a SAMPLE(1) AS OF SNAPSHOT a a
+accept	accept	engine	tbl_name/relation_factor_sample_clause_use_flashback_relation_name	DELETE FROM a SAMPLE(1) AS OF SNAPSHOT a a
 reject	reject	engine	tbl_name/relation_factor_sample_clause_use_flashback_relation_name!drop-1	DELETE FROM SAMPLE(1) AS OF SNAPSHOT a a
 reject	reject	engine	tbl_name/relation_factor_sample_clause_use_flashback_relation_name!drop-2	DELETE FROM a(1) AS OF SNAPSHOT a a
 reject	reject	engine	tbl_name/relation_factor_sample_clause_use_flashback_relation_name!drop-3	DELETE FROM a SAMPLE 1) AS OF SNAPSHOT a a
@@ -10634,7 +10634,7 @@ reject	reject	engine	tbl_name/relation_factor_sample_clause_use_flashback_relati
 reject	reject	engine	tbl_name/relation_factor_sample_clause_use_flashback_relation_name!drop-8	DELETE FROM a SAMPLE(1) AS OF a a
 reject	reject	engine	tbl_name/relation_factor_sample_clause_use_flashback_relation_name!insert	DELETE FROM a SAMPLE(1) AS OF SNAPSHOT a a zzz
 reject	reject	engine	tbl_name/relation_factor_sample_clause_use_flashback_relation_name!swap	DELETE FROM a SAVEPOINT(1) AS OF SNAPSHOT a a
-reject	accept	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback_relation_name	DELETE FROM a SAMPLE(1) SEED(1) AS OF SNAPSHOT a a
+accept	accept	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback_relation_name	DELETE FROM a SAMPLE(1) SEED(1) AS OF SNAPSHOT a a
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback_relation_name!drop-1	DELETE FROM SAMPLE(1) SEED(1) AS OF SNAPSHOT a a
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback_relation_name!drop-2	DELETE FROM a(1) SEED(1) AS OF SNAPSHOT a a
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback_relation_name!drop-3	DELETE FROM a SAMPLE 1) SEED(1) AS OF SNAPSHOT a a
@@ -10649,7 +10649,7 @@ reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback_r
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback_relation_name!drop-12	DELETE FROM a SAMPLE(1) SEED(1) AS OF a a
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback_relation_name!insert	DELETE FROM a SAMPLE(1) SEED(1) AS OF SNAPSHOT a a zzz
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback_relation_name!swap	DELETE FROM a SAVEPOINT(1) SEED(1) AS OF SNAPSHOT a a
-reject	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback_relation_name	DELETE FROM a PARTITION(a) SAMPLE(1) AS OF SNAPSHOT a a
+accept	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback_relation_name	DELETE FROM a PARTITION(a) SAMPLE(1) AS OF SNAPSHOT a a
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback_relation_name!drop-1	DELETE FROM PARTITION(a) SAMPLE(1) AS OF SNAPSHOT a a
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback_relation_name!drop-2	DELETE FROM a(a) SAMPLE(1) AS OF SNAPSHOT a a
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback_relation_name!drop-3	DELETE FROM a PARTITION a) SAMPLE(1) AS OF SNAPSHOT a a
@@ -10664,7 +10664,7 @@ reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_use_fl
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback_relation_name!drop-12	DELETE FROM a PARTITION(a) SAMPLE(1) AS OF a a
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback_relation_name!insert	DELETE FROM a PARTITION(a) SAMPLE(1) AS OF SNAPSHOT a a zzz
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback_relation_name!swap	DELETE FROM a PARTITIONING(a) SAMPLE(1) AS OF SNAPSHOT a a
-reject	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_use_flashback_relation_name	DELETE FROM a PARTITION(a) SAMPLE(1) SEED(1) AS OF SNAPSHOT a a
+accept	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_use_flashback_relation_name	DELETE FROM a PARTITION(a) SAMPLE(1) SEED(1) AS OF SNAPSHOT a a
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_use_flashback_relation_name!drop-1	DELETE FROM PARTITION(a) SAMPLE(1) SEED(1) AS OF SNAPSHOT a a
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_use_flashback_relation_name!drop-2	DELETE FROM a(a) SAMPLE(1) SEED(1) AS OF SNAPSHOT a a
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_use_flashback_relation_name!drop-3	DELETE FROM a PARTITION a) SAMPLE(1) SEED(1) AS OF SNAPSHOT a a
@@ -10683,7 +10683,7 @@ reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_u
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_use_flashback_relation_name!drop-16	DELETE FROM a PARTITION(a) SAMPLE(1) SEED(1) AS OF a a
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_use_flashback_relation_name!insert	DELETE FROM a PARTITION(a) SAMPLE(1) SEED(1) AS OF SNAPSHOT a a zzz
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_use_flashback_relation_name!swap	DELETE FROM a PARTITIONING(a) SAMPLE(1) SEED(1) AS OF SNAPSHOT a a
-reject	accept	engine	tbl_name/relation_factor_sample_clause_use_flashback_relation_name_index_hint_list	DELETE FROM a SAMPLE(1) AS OF SNAPSHOT a a USE KEY()
+accept	accept	engine	tbl_name/relation_factor_sample_clause_use_flashback_relation_name_index_hint_list	DELETE FROM a SAMPLE(1) AS OF SNAPSHOT a a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_sample_clause_use_flashback_relation_name_index_hint_list!drop-1	DELETE FROM SAMPLE(1) AS OF SNAPSHOT a a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_sample_clause_use_flashback_relation_name_index_hint_list!drop-2	DELETE FROM a(1) AS OF SNAPSHOT a a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_sample_clause_use_flashback_relation_name_index_hint_list!drop-3	DELETE FROM a SAMPLE 1) AS OF SNAPSHOT a a USE KEY()
@@ -10698,7 +10698,7 @@ reject	reject	engine	tbl_name/relation_factor_sample_clause_use_flashback_relati
 reject	reject	engine	tbl_name/relation_factor_sample_clause_use_flashback_relation_name_index_hint_list!drop-14	DELETE FROM a SAMPLE(1) AS OF SNAPSHOT a a USE KEY(
 reject	reject	engine	tbl_name/relation_factor_sample_clause_use_flashback_relation_name_index_hint_list!insert	DELETE FROM a SAMPLE(1) AS OF SNAPSHOT a a USE KEY() zzz
 reject	reject	engine	tbl_name/relation_factor_sample_clause_use_flashback_relation_name_index_hint_list!swap	DELETE FROM a SAVEPOINT(1) AS OF SNAPSHOT a a USE KEY()
-reject	accept	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback_relation_name_index_hint_list	DELETE FROM a SAMPLE(1) SEED(1) AS OF SNAPSHOT a a USE KEY()
+accept	accept	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback_relation_name_index_hint_list	DELETE FROM a SAMPLE(1) SEED(1) AS OF SNAPSHOT a a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback_relation_name_index_hint_list!drop-1	DELETE FROM SAMPLE(1) SEED(1) AS OF SNAPSHOT a a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback_relation_name_index_hint_list!drop-2	DELETE FROM a(1) SEED(1) AS OF SNAPSHOT a a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback_relation_name_index_hint_list!drop-3	DELETE FROM a SAMPLE 1) SEED(1) AS OF SNAPSHOT a a USE KEY()
@@ -10717,7 +10717,7 @@ reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback_r
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback_relation_name_index_hint_list!drop-18	DELETE FROM a SAMPLE(1) SEED(1) AS OF SNAPSHOT a a USE KEY(
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback_relation_name_index_hint_list!insert	DELETE FROM a SAMPLE(1) SEED(1) AS OF SNAPSHOT a a USE KEY() zzz
 reject	reject	engine	tbl_name/relation_factor_sample_clause_seed_use_flashback_relation_name_index_hint_list!swap	DELETE FROM a SAVEPOINT(1) SEED(1) AS OF SNAPSHOT a a USE KEY()
-reject	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback_relation_name_index_hint_list	DELETE FROM a PARTITION(a) SAMPLE(1) AS OF SNAPSHOT a a USE KEY()
+accept	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback_relation_name_index_hint_list	DELETE FROM a PARTITION(a) SAMPLE(1) AS OF SNAPSHOT a a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback_relation_name_index_hint_list!drop-1	DELETE FROM PARTITION(a) SAMPLE(1) AS OF SNAPSHOT a a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback_relation_name_index_hint_list!drop-2	DELETE FROM a(a) SAMPLE(1) AS OF SNAPSHOT a a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback_relation_name_index_hint_list!drop-3	DELETE FROM a PARTITION a) SAMPLE(1) AS OF SNAPSHOT a a USE KEY()
@@ -10736,7 +10736,7 @@ reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_use_fl
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback_relation_name_index_hint_list!drop-18	DELETE FROM a PARTITION(a) SAMPLE(1) AS OF SNAPSHOT a a USE KEY(
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback_relation_name_index_hint_list!insert	DELETE FROM a PARTITION(a) SAMPLE(1) AS OF SNAPSHOT a a USE KEY() zzz
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_use_flashback_relation_name_index_hint_list!swap	DELETE FROM a PARTITIONING(a) SAMPLE(1) AS OF SNAPSHOT a a USE KEY()
-reject	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_use_flashback_relation_name_index_hint_list	DELETE FROM a PARTITION(a) SAMPLE(1) SEED(1) AS OF SNAPSHOT a a USE KEY()
+accept	accept	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_use_flashback_relation_name_index_hint_list	DELETE FROM a PARTITION(a) SAMPLE(1) SEED(1) AS OF SNAPSHOT a a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_use_flashback_relation_name_index_hint_list!drop-1	DELETE FROM PARTITION(a) SAMPLE(1) SEED(1) AS OF SNAPSHOT a a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_use_flashback_relation_name_index_hint_list!drop-2	DELETE FROM a(a) SAMPLE(1) SEED(1) AS OF SNAPSHOT a a USE KEY()
 reject	reject	engine	tbl_name/relation_factor_use_partition_sample_clause_seed_use_flashback_relation_name_index_hint_list!drop-3	DELETE FROM a PARTITION a) SAMPLE(1) SEED(1) AS OF SNAPSHOT a a USE KEY()
@@ -10839,33 +10839,33 @@ reject	reject	engine	opt_as_alias/AS_relation_name!insert	DELETE FROM SOURCE(TYP
 reject	reject	engine	opt_as_alias/AS_relation_name!swap	DELETE FROM SOURCE(TYPE = 's') ASC a
 accept	accept	engine	dml_table_name/relation_factor_opt_use_partition	INSERT a SELECT a
 reject	reject	engine	dml_table_name/relation_factor_opt_use_partition!insert	INSERT a zzz SELECT a
-reject	accept	engine	seed/SEED_(_INTNUM_)	DELETE FROM a SAMPLE(1) SEED(1)
+accept	accept	engine	seed/SEED_(_INTNUM_)	DELETE FROM a SAMPLE(1) SEED(1)
 reject	reject	engine	seed/SEED_(_INTNUM_)!swap	DELETE FROM a SAMPLE(1) SELECT(1)
-reject	accept	engine	sample_percent/INTNUM	DELETE FROM a SAMPLE(1)
+accept	accept	engine	sample_percent/INTNUM	DELETE FROM a SAMPLE(1)
 reject	reject	engine	sample_percent/INTNUM!truncate	DELETE FROM a SAMPLE(
 reject	reject	engine	sample_percent/INTNUM!insert	DELETE FROM a SAMPLE(1 zzz)
-reject	accept	engine	sample_percent/DECIMAL_VAL	DELETE FROM a SAMPLE(1.5)
+accept	accept	engine	sample_percent/DECIMAL_VAL	DELETE FROM a SAMPLE(1.5)
 reject	reject	engine	sample_percent/DECIMAL_VAL!insert	DELETE FROM a SAMPLE(1.5 zzz)
-reject	accept	engine	opt_sample_scope/%empty	DELETE FROM a SAMPLE(1)
+accept	accept	engine	opt_sample_scope/%empty	DELETE FROM a SAMPLE(1)
 reject	reject	engine	opt_sample_scope/%empty!insert	DELETE FROM a SAMPLE zzz(1)
-reject	accept	engine	opt_sample_scope/ALL	DELETE FROM a SAMPLE ALL(1)
+accept	accept	engine	opt_sample_scope/ALL	DELETE FROM a SAMPLE ALL(1)
 accept	accept	engine	opt_sample_scope/ALL!truncate	DELETE FROM a SAMPLE
 reject	reject	engine	opt_sample_scope/ALL!insert	DELETE FROM a SAMPLE ALL zzz(1)
 reject	reject	engine	opt_sample_scope/ALL!swap	DELETE FROM a SAMPLE ALLOW(1)
-reject	accept	engine	opt_sample_scope/BASE	DELETE FROM a SAMPLE BASE(1)
+accept	accept	engine	opt_sample_scope/BASE	DELETE FROM a SAMPLE BASE(1)
 reject	reject	engine	opt_sample_scope/BASE!insert	DELETE FROM a SAMPLE BASE zzz(1)
 reject	reject	engine	opt_sample_scope/BASE!swap	DELETE FROM a SAMPLE BASELINE(1)
-reject	accept	engine	opt_sample_scope/INCR	DELETE FROM a SAMPLE INCR(1)
+accept	accept	engine	opt_sample_scope/INCR	DELETE FROM a SAMPLE INCR(1)
 reject	reject	engine	opt_sample_scope/INCR!insert	DELETE FROM a SAMPLE INCR zzz(1)
 reject	reject	engine	opt_sample_scope/INCR!swap	DELETE FROM a SAMPLE INCREMENT(1)
-reject	accept	engine	sample_clause/SAMPLE_opt_block_opt_sample_scope_(_sample_percent_)	DELETE FROM a SAMPLE(1)
-reject	accept	engine	opt_block/BLOCK	DELETE FROM a SAMPLE BLOCK(1)
+accept	accept	engine	sample_clause/SAMPLE_opt_block_opt_sample_scope_(_sample_percent_)	DELETE FROM a SAMPLE(1)
+accept	accept	engine	opt_block/BLOCK	DELETE FROM a SAMPLE BLOCK(1)
 reject	reject	engine	opt_block/BLOCK!insert	DELETE FROM a SAMPLE BLOCK zzz(1)
 reject	reject	engine	opt_block/BLOCK!swap	DELETE FROM a SAMPLE BLOCKING(1)
-reject	accept	engine	opt_block/HYBRID	DELETE FROM a SAMPLE HYBRID(1)
+accept	accept	engine	opt_block/HYBRID	DELETE FROM a SAMPLE HYBRID(1)
 reject	reject	engine	opt_block/HYBRID!insert	DELETE FROM a SAMPLE HYBRID zzz(1)
 reject	reject	engine	opt_block/HYBRID!swap	DELETE FROM a SAMPLE HYBRID_HIST(1)
-reject	accept	engine	opt_block/%empty	DELETE FROM a SAMPLE(1)
+accept	accept	engine	opt_block/%empty	DELETE FROM a SAMPLE(1)
 accept	accept	engine	table_subquery/select_with_parens_table_subquery_alias	SELECT a FROM(SELECT a) a
 accept	accept	engine	table_subquery/select_with_parens_AS_table_subquery_alias	SELECT a FROM(SELECT a) AS a
 reject	reject	engine	table_subquery/select_with_parens_AS_table_subquery_alias!drop-1	SELECT a FROM SELECT a) AS a
@@ -10913,19 +10913,19 @@ reject	reject	engine	opt_use_partition/use_partition!insert	INSERT a PARTITION(a
 reject	reject	engine	opt_use_partition/use_partition!swap	INSERT a PARTITIONING(a) SELECT a
 accept	accept	engine	opt_use_partition/%empty	INSERT a SELECT a
 accept	accept	engine	use_partition/PARTITION_(_name_list_)	DELETE FROM a PARTITION(a)
-reject	accept	engine	use_partition/PARTITION_(_external_table_partitions_)	DELETE FROM a PARTITION(a = 's')
+accept	accept	engine	use_partition/PARTITION_(_external_table_partitions_)	DELETE FROM a PARTITION(a = 's')
 reject	reject	engine	use_partition/PARTITION_(_external_table_partitions_)!drop-1	DELETE FROM a(a = 's')
 reject	reject	engine	use_partition/PARTITION_(_external_table_partitions_)!drop-2	DELETE FROM a PARTITION a = 's')
 reject	reject	engine	use_partition/PARTITION_(_external_table_partitions_)!drop-3	DELETE FROM a PARTITION(= 's')
 reject	reject	engine	use_partition/PARTITION_(_external_table_partitions_)!drop-4	DELETE FROM a PARTITION(a 's')
 reject	reject	engine	use_partition/PARTITION_(_external_table_partitions_)!drop-5	DELETE FROM a PARTITION(a =)
 reject	reject	engine	use_partition/PARTITION_(_external_table_partitions_)!drop-6	DELETE FROM a PARTITION(a = 's'
-reject	accept	engine	use_partition/PARTITION_(_external_table_partitions_)!insert	DELETE FROM a PARTITION(a = 's') zzz
+accept	accept	engine	use_partition/PARTITION_(_external_table_partitions_)!insert	DELETE FROM a PARTITION(a = 's') zzz
 reject	reject	engine	use_partition/PARTITION_(_external_table_partitions_)!swap	DELETE FROM a PARTITIONING(a = 's')
-reject	accept	engine	external_table_partitions/external_table_partition	DELETE FROM a PARTITION(a = 's')
+accept	accept	engine	external_table_partitions/external_table_partition	DELETE FROM a PARTITION(a = 's')
 reject	reject	engine	external_table_partitions/external_table_partition!truncate	DELETE FROM a PARTITION(a =
 reject	reject	engine	external_table_partitions/external_table_partition!insert	DELETE FROM a PARTITION(a = 's' zzz)
-reject	accept	engine	external_table_partitions/external_table_partitions_,_external_table_partition	DELETE FROM a PARTITION(a = 's', a = 's')
+accept	accept	engine	external_table_partitions/external_table_partitions_,_external_table_partition	DELETE FROM a PARTITION(a = 's', a = 's')
 reject	reject	engine	external_table_partitions/external_table_partitions_,_external_table_partition!drop-1	DELETE FROM a PARTITION(= 's', a = 's')
 reject	reject	engine	external_table_partitions/external_table_partitions_,_external_table_partition!drop-2	DELETE FROM a PARTITION(a 's', a = 's')
 reject	reject	engine	external_table_partitions/external_table_partitions_,_external_table_partition!drop-3	DELETE FROM a PARTITION(a =, a = 's')
@@ -10935,21 +10935,21 @@ reject	reject	engine	external_table_partitions/external_table_partitions_,_exter
 reject	reject	engine	external_table_partitions/external_table_partitions_,_external_table_partition!drop-7	DELETE FROM a PARTITION(a = 's', a =)
 reject	reject	engine	external_table_partitions/external_table_partitions_,_external_table_partition!truncate	DELETE FROM a PARTITION(a = 's', a =
 reject	reject	engine	external_table_partitions/external_table_partitions_,_external_table_partition!insert	DELETE FROM a PARTITION(a = 's', a = 's' zzz)
-reject	accept	engine	external_table_partition/relation_name_COMP_EQ_expr_const	DELETE FROM a PARTITION(a = 's')
-reject	accept	engine	use_flashback/AS_OF_SNAPSHOT_bit_expr	DELETE FROM a AS OF SNAPSHOT a
-reject	accept	engine	use_flashback/AS_OF_PROCTIME_(_)	DELETE FROM a AS OF PROCTIME()
+accept	accept	engine	external_table_partition/relation_name_COMP_EQ_expr_const	DELETE FROM a PARTITION(a = 's')
+accept	accept	engine	use_flashback/AS_OF_SNAPSHOT_bit_expr	DELETE FROM a AS OF SNAPSHOT a
+accept	accept	engine	use_flashback/AS_OF_PROCTIME_(_)	DELETE FROM a AS OF PROCTIME()
 reject	reject	engine	use_flashback/AS_OF_PROCTIME_(_)!drop-1	DELETE FROM a OF PROCTIME()
 reject	reject	engine	use_flashback/AS_OF_PROCTIME_(_)!drop-2	DELETE FROM a AS PROCTIME()
 reject	reject	engine	use_flashback/AS_OF_PROCTIME_(_)!drop-3	DELETE FROM a AS OF()
 reject	reject	engine	use_flashback/AS_OF_PROCTIME_(_)!drop-4	DELETE FROM a AS OF PROCTIME)
 reject	reject	engine	use_flashback/AS_OF_PROCTIME_(_)!drop-5	DELETE FROM a AS OF PROCTIME(
-reject	accept	engine	use_flashback/AS_OF_PROCTIME_(_)!insert	DELETE FROM a AS OF PROCTIME() zzz
+accept	accept	engine	use_flashback/AS_OF_PROCTIME_(_)!insert	DELETE FROM a AS OF PROCTIME() zzz
 reject	reject	engine	use_flashback/AS_OF_PROCTIME_(_)!swap	DELETE FROM a ASC OF PROCTIME()
-reject	accept	engine	index_hint_type/FORCE	DELETE FROM a FORCE KEY(a)
+accept	accept	engine	index_hint_type/FORCE	DELETE FROM a FORCE KEY(a)
 reject	reject	engine	index_hint_type/FORCE!drop-1	DELETE FROM a KEY(a)
 reject	reject	engine	index_hint_type/FORCE!insert	DELETE FROM a FORCE zzz KEY(a)
 reject	reject	engine	index_hint_type/FORCE!swap	DELETE FROM a FORCE_REFRESH_LOCATION_CACHE KEY(a)
-reject	accept	engine	index_hint_type/IGNORE	DELETE FROM a IGNORE KEY(a)
+accept	accept	engine	index_hint_type/IGNORE	DELETE FROM a IGNORE KEY(a)
 reject	reject	engine	index_hint_type/IGNORE!insert	DELETE FROM a IGNORE zzz KEY(a)
 reject	reject	engine	index_hint_type/IGNORE!swap	DELETE FROM a IGNORE_LAST_EMPTY_COLUMN KEY(a)
 accept	accept	engine	opt_key_or_index/key_or_index	CACHE INDEX a KEY IN a
@@ -10963,51 +10963,51 @@ reject	reject	engine	key_or_index/KEY!swap	ALTER TABLE a DROP KEYS a
 accept	accept	engine	key_or_index/INDEX	ALTER TABLE a DROP INDEX a
 reject	reject	engine	key_or_index/INDEX!insert	ALTER TABLE a DROP INDEX zzz a
 reject	reject	engine	key_or_index/INDEX!swap	ALTER TABLE a DROP INDEXED a
-reject	accept	engine	index_hint_scope/%empty	DELETE FROM a USE KEY()
+accept	accept	engine	index_hint_scope/%empty	DELETE FROM a USE KEY()
 reject	reject	engine	index_hint_scope/%empty!insert	DELETE FROM a USE KEY zzz()
-reject	accept	engine	index_hint_scope/FOR_JOIN	DELETE FROM a USE KEY FOR JOIN()
+accept	accept	engine	index_hint_scope/FOR_JOIN	DELETE FROM a USE KEY FOR JOIN()
 reject	reject	engine	index_hint_scope/FOR_JOIN!drop-1	DELETE FROM a USE KEY JOIN()
 reject	reject	engine	index_hint_scope/FOR_JOIN!drop-2	DELETE FROM a USE KEY FOR()
 reject	reject	engine	index_hint_scope/FOR_JOIN!truncate	DELETE FROM a USE KEY FOR
 reject	reject	engine	index_hint_scope/FOR_JOIN!insert	DELETE FROM a USE KEY FOR JOIN zzz()
 reject	reject	engine	index_hint_scope/FOR_JOIN!swap	DELETE FROM a USE KEY FORCE JOIN()
-reject	accept	engine	index_hint_scope/FOR_ORDER_BY	DELETE FROM a USE KEY FOR ORDER BY()
+accept	accept	engine	index_hint_scope/FOR_ORDER_BY	DELETE FROM a USE KEY FOR ORDER BY()
 reject	reject	engine	index_hint_scope/FOR_ORDER_BY!drop-1	DELETE FROM a USE KEY ORDER BY()
 reject	reject	engine	index_hint_scope/FOR_ORDER_BY!drop-2	DELETE FROM a USE KEY FOR BY()
 reject	reject	engine	index_hint_scope/FOR_ORDER_BY!drop-3	DELETE FROM a USE KEY FOR ORDER()
 reject	reject	engine	index_hint_scope/FOR_ORDER_BY!truncate	DELETE FROM a USE KEY FOR ORDER
 reject	reject	engine	index_hint_scope/FOR_ORDER_BY!insert	DELETE FROM a USE KEY FOR ORDER BY zzz()
 reject	reject	engine	index_hint_scope/FOR_ORDER_BY!swap	DELETE FROM a USE KEY FORCE ORDER BY()
-reject	accept	engine	index_hint_scope/FOR_GROUP_BY	DELETE FROM a USE KEY FOR GROUP BY()
+accept	accept	engine	index_hint_scope/FOR_GROUP_BY	DELETE FROM a USE KEY FOR GROUP BY()
 reject	reject	engine	index_hint_scope/FOR_GROUP_BY!drop-1	DELETE FROM a USE KEY GROUP BY()
 reject	reject	engine	index_hint_scope/FOR_GROUP_BY!drop-3	DELETE FROM a USE KEY FOR GROUP()
 reject	reject	engine	index_hint_scope/FOR_GROUP_BY!truncate	DELETE FROM a USE KEY FOR GROUP
 reject	reject	engine	index_hint_scope/FOR_GROUP_BY!insert	DELETE FROM a USE KEY FOR GROUP BY zzz()
 reject	reject	engine	index_hint_scope/FOR_GROUP_BY!swap	DELETE FROM a USE KEY FORCE GROUP BY()
-reject	accept	engine	index_element/NAME_OB	DELETE FROM a USE KEY(a)
+accept	accept	engine	index_element/NAME_OB	DELETE FROM a USE KEY(a)
 reject	reject	engine	index_element/NAME_OB!insert	DELETE FROM a USE KEY(a zzz)
-reject	accept	engine	index_element/PRIMARY	DELETE FROM a USE KEY(PRIMARY)
+accept	accept	engine	index_element/PRIMARY	DELETE FROM a USE KEY(PRIMARY)
 reject	reject	engine	index_element/PRIMARY!insert	DELETE FROM a USE KEY(PRIMARY zzz)
 reject	reject	engine	index_element/PRIMARY!swap	DELETE FROM a USE KEY(PRIMARY_ZONE)
-reject	accept	engine	index_list/index_element	DELETE FROM a USE KEY(a)
-reject	accept	engine	index_list/index_list_,_index_element	DELETE FROM a USE KEY(a, a)
+accept	accept	engine	index_list/index_element	DELETE FROM a USE KEY(a)
+accept	accept	engine	index_list/index_list_,_index_element	DELETE FROM a USE KEY(a, a)
 reject	reject	engine	index_list/index_list_,_index_element!drop-1	DELETE FROM a USE KEY(, a)
 reject	reject	engine	index_list/index_list_,_index_element!drop-2	DELETE FROM a USE KEY(a a)
 reject	reject	engine	index_list/index_list_,_index_element!drop-3	DELETE FROM a USE KEY(a,)
 reject	reject	engine	index_list/index_list_,_index_element!truncate	DELETE FROM a USE KEY(a,
 reject	reject	engine	index_list/index_list_,_index_element!insert	DELETE FROM a USE KEY(a, a zzz)
-reject	accept	engine	opt_index_list/index_list	DELETE FROM a USE KEY(a)
-reject	accept	engine	opt_index_list/%empty	DELETE FROM a USE KEY()
-reject	accept	engine	opt_index_list/%empty!insert	DELETE FROM a USE KEY(zzz)
-reject	accept	engine	index_hint_definition/USE_key_or_index_index_hint_scope_(_opt_index_list_)	DELETE FROM a USE KEY()
-reject	accept	engine	index_hint_definition/index_hint_type_key_or_index_index_hint_scope_(_index_list_)	DELETE FROM a FORCE KEY(a)
+accept	accept	engine	opt_index_list/index_list	DELETE FROM a USE KEY(a)
+accept	accept	engine	opt_index_list/%empty	DELETE FROM a USE KEY()
+accept	accept	engine	opt_index_list/%empty!insert	DELETE FROM a USE KEY(zzz)
+accept	accept	engine	index_hint_definition/USE_key_or_index_index_hint_scope_(_opt_index_list_)	DELETE FROM a USE KEY()
+accept	accept	engine	index_hint_definition/index_hint_type_key_or_index_index_hint_scope_(_index_list_)	DELETE FROM a FORCE KEY(a)
 reject	reject	engine	index_hint_definition/index_hint_type_key_or_index_index_hint_scope_(_index_list_)!drop-2	DELETE FROM a FORCE(a)
 reject	reject	engine	index_hint_definition/index_hint_type_key_or_index_index_hint_scope_(_index_list_)!drop-3	DELETE FROM a FORCE KEY a)
 reject	reject	engine	index_hint_definition/index_hint_type_key_or_index_index_hint_scope_(_index_list_)!drop-4	DELETE FROM a FORCE KEY()
 reject	reject	engine	index_hint_definition/index_hint_type_key_or_index_index_hint_scope_(_index_list_)!drop-5	DELETE FROM a FORCE KEY(a
 reject	reject	engine	index_hint_definition/index_hint_type_key_or_index_index_hint_scope_(_index_list_)!insert	DELETE FROM a FORCE KEY(a) zzz
-reject	accept	engine	index_hint_list/index_hint_definition	DELETE FROM a USE KEY()
-reject	accept	engine	index_hint_list/index_hint_definition_index_hint_list	DELETE FROM a USE KEY() USE KEY()
+accept	accept	engine	index_hint_list/index_hint_definition	DELETE FROM a USE KEY()
+accept	accept	engine	index_hint_list/index_hint_definition_index_hint_list	DELETE FROM a USE KEY() USE KEY()
 reject	reject	engine	index_hint_list/index_hint_definition_index_hint_list!drop-1	DELETE FROM a KEY() USE KEY()
 reject	reject	engine	index_hint_list/index_hint_definition_index_hint_list!drop-2	DELETE FROM a USE() USE KEY()
 reject	reject	engine	index_hint_list/index_hint_definition_index_hint_list!drop-3	DELETE FROM a USE KEY) USE KEY()

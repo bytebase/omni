@@ -851,7 +851,20 @@ func walkChildren(v Visitor, node Node) {
 		if n.Select != nil {
 			Walk(v, n.Select)
 		}
+	case *TableFlashback:
+		Walk(v, n.Snapshot)
 	case *TableRef:
+		for _, item := range n.PartitionValues {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		if n.Sample != nil {
+			Walk(v, n.Sample)
+		}
+		if n.Flashback != nil {
+			Walk(v, n.Flashback)
+		}
 		for _, item := range n.IndexHints {
 			if item != nil {
 				Walk(v, item)

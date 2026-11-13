@@ -1000,11 +1000,37 @@ type TableRef struct {
 	Name       string   // table name
 	Alias      string   // AS alias
 	Partitions []string // PARTITION (p0, p1, ...)
-	IndexHints []*IndexHint
+	// PartitionValues is an external table's PARTITION (col = value, ...).
+	PartitionValues []*Assignment
+	Sample          *TableSample    // SAMPLE ... (percent) [SEED (n)]
+	Flashback       *TableFlashback // AS OF SNAPSHOT expr | AS OF PROCTIME()
+	IndexHints      []*IndexHint
 }
 
 func (r *TableRef) nodeTag()   {}
 func (r *TableRef) tableExpr() {}
+
+// TableSample is the sample_clause of a table reference, with its seed:
+// SAMPLE [BLOCK | HYBRID] [ALL | BASE | INCR] (percent) [SEED (n)].
+type TableSample struct {
+	Loc     Loc
+	Method  string // "", "BLOCK" or "HYBRID"
+	Scope   string // "", "ALL", "BASE" or "INCR"
+	Percent string // the number as written
+	Seed    string // the SEED number as written, "" without one
+}
+
+func (s *TableSample) nodeTag() {}
+
+// TableFlashback is the use_flashback of a table reference: the table as it
+// stood at a snapshot, or as it stands when the row is processed.
+type TableFlashback struct {
+	Loc      Loc
+	Snapshot ExprNode // AS OF SNAPSHOT expr
+	Proctime bool     // AS OF PROCTIME()
+}
+
+func (f *TableFlashback) nodeTag() {}
 
 // IndexHint represents an index hint (USE/FORCE/IGNORE INDEX).
 type IndexHint struct {

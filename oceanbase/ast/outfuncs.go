@@ -2529,6 +2529,40 @@ func writeTableRef(sb *strings.Builder, n *TableRef) {
 		}
 		sb.WriteString(")")
 	}
+	if len(n.PartitionValues) > 0 {
+		sb.WriteString(" :partition_values (")
+		for i, v := range n.PartitionValues {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, v)
+		}
+		sb.WriteString(")")
+	}
+	if n.Sample != nil {
+		fmt.Fprintf(sb, " :sample {SAMPLE :loc %d", n.Sample.Loc.Start)
+		if n.Sample.Method != "" {
+			fmt.Fprintf(sb, " :method %s", n.Sample.Method)
+		}
+		if n.Sample.Scope != "" {
+			fmt.Fprintf(sb, " :scope %s", n.Sample.Scope)
+		}
+		fmt.Fprintf(sb, " :percent %s", n.Sample.Percent)
+		if n.Sample.Seed != "" {
+			fmt.Fprintf(sb, " :seed %s", n.Sample.Seed)
+		}
+		sb.WriteString("}")
+	}
+	if n.Flashback != nil {
+		fmt.Fprintf(sb, " :flashback {FLASHBACK :loc %d", n.Flashback.Loc.Start)
+		if n.Flashback.Proctime {
+			sb.WriteString(" :proctime true")
+		} else {
+			sb.WriteString(" :snapshot ")
+			writeNode(sb, n.Flashback.Snapshot)
+		}
+		sb.WriteString("}")
+	}
 	if len(n.IndexHints) > 0 {
 		sb.WriteString(" :index_hints ")
 		for i, h := range n.IndexHints {
