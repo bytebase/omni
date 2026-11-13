@@ -133,9 +133,9 @@ func TestOracle_OceanBaseVectorIndexMigration(t *testing.T) {
 		{id: "vecnew", table: "t", toDDL: "CREATE TABLE t (v VECTOR(3) NOT NULL, VECTOR INDEX i (v) WITH (distance=l2, type=hnsw))"},
 		{id: "vecdrop", table: "t", fromDDL: "CREATE TABLE t (v VECTOR(3) NOT NULL, VECTOR INDEX i (v) WITH (distance=l2, type=hnsw))", toDDL: "CREATE TABLE t (v VECTOR(3) NOT NULL)"},
 	} {
-		t.Run(p.id, func(t *testing.T) {
+		t.Run(p.id, gapped(func(t testing.TB) {
 			assertApplyCorrect(t, o, n, p)
-		})
+		}))
 	}
 }
 
@@ -151,7 +151,7 @@ func TestOracle_OceanBaseVectorIndex(t *testing.T) {
 		{"reordered", "CREATE TABLE t (v VECTOR(3) NOT NULL, VECTOR KEY i (v) WITH (type=hnsw, lib=vsag, m=8, distance=l2))",
 			"VECTOR KEY `i` (`v`) WITH (TYPE=HNSW, LIB=VSAG, M=8, DISTANCE=L2, EF_CONSTRUCTION=200, EF_SEARCH=64)"},
 	} {
-		t.Run(probe.id, func(t *testing.T) {
+		t.Run(probe.id, gapped(func(t testing.TB) {
 			readback, err := storeAndRead(ctx, o, "obvec_"+probe.id, probe.create, "t")
 			if err != nil {
 				t.Fatalf("OceanBase would not take the form: %v", err)
@@ -169,6 +169,6 @@ func TestOracle_OceanBaseVectorIndex(t *testing.T) {
 					t.Errorf("the vector index read as a change against its readback: %s", describeDiff(d))
 				}
 			}
-		})
+		}))
 	}
 }

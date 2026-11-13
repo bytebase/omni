@@ -1261,19 +1261,17 @@ func (n *Normalizer) isFirstTimestampColumn(table *Table, c *Column) bool {
 // Table options — engine default + ignore-in-diff (AUTO_INCREMENT, ROW_FORMAT).
 // ---------------------------------------------------------------------------
 
-// defaultEngine is the server default storage engine that MySQL always emits in
-// SHOW CREATE even when the user omits ENGINE.
+// defaultEngine is what OceanBase reports as every table's storage engine.
 const defaultEngine = "innodb"
 
-// CanonicalEngine returns the table's effective storage engine, lowercased, resolving
-// an empty value to the server default (InnoDB) so an omitted ENGINE matches the
-// always-emitted ENGINE=InnoDB readback (entry engine-always-emitted).
-func (n *Normalizer) CanonicalEngine(table *Table) string {
-	e := strings.ToLower(strings.TrimSpace(table.Engine))
-	if e == "" {
-		return defaultEngine
-	}
-	return e
+// CanonicalEngine returns the table's storage engine for comparison, which on OceanBase
+// is one value for every table. OceanBase has one storage engine: it takes any ENGINE a
+// table is written with (MyISAM, MEMORY, a name no engine has), keeps none of them, and
+// reports InnoDB in information_schema.TABLES. So a written ENGINE is not schema, and a
+// table must not differ from its own readback by it. TestOracle_OceanBaseEngine holds
+// this to the engine.
+func (n *Normalizer) CanonicalEngine(*Table) string {
+	return defaultEngine
 }
 
 // IgnoreTableAutoIncrement always reports true: the table-level AUTO_INCREMENT=N option
@@ -1282,13 +1280,18 @@ func (n *Normalizer) CanonicalEngine(table *Table) string {
 // attribute is real schema and is compared separately.
 func (n *Normalizer) IgnoreTableAutoIncrement() bool { return true }
 
-// IgnoreRowFormat reports whether the table's ROW_FORMAT should be excluded from the
-// diff. The default ROW_FORMAT is environment-dependent (innodb_default_row_format) and
-// not reliably reconstructible from DDL, so it is ignored unless the user explicitly set
-// a non-default value (entry row-format-default-omitted; flag row-format-default-source).
+// IgnoreRowFormat reports whether the table's ROW_FORMAT is the one OceanBase gives a
+// table that declares none, which a diff must not read as a declaration. OceanBase
+// stores DYNAMIC for a table written with no ROW_FORMAT, with DEFAULT or with DYNAMIC,
+// and prints `ROW_FORMAT = DYNAMIC` on all three, so the three are one stored form.
+// COMPACT, REDUNDANT, COMPRESSED and CONDENSED are stored as written and are
+// significant. TestOracle_OceanBaseRowFormat holds each of these to the engine.
 func (n *Normalizer) IgnoreRowFormat(table *Table) bool {
-	rf := strings.ToUpper(strings.TrimSpace(table.RowFormat))
-	return rf == "" || rf == "DEFAULT"
+	switch strings.ToUpper(strings.TrimSpace(table.RowFormat)) {
+	case "", "DEFAULT", "DYNAMIC":
+		return true
+	}
+	return false
 }
 
 // ---------------------------------------------------------------------------
@@ -1310,8 +1313,10 @@ func (n *Normalizer) CanonicalComment(comment string) string {
 // ---------------------------------------------------------------------------
 
 // CanonicalIndexColumn returns a comparison key for one index column part, including
-// its prefix length (entry prefix-index) and its DESC direction (entry index-desc-asc).
-// Explicit ASC is the default and never contributes.
+// its prefix length (entry prefix-index). The direction is not part of it: OceanBase
+// takes DESC on an index column and stores the column ascending (SHOW CREATE TABLE
+// prints no DESC, and information_schema.STATISTICS says A), so a written DESC is not
+// schema. TestOracle_OceanBaseIndexOrderAndType holds this to the engine.
 func (n *Normalizer) CanonicalIndexColumn(ic *IndexColumn) string {
 	var b strings.Builder
 	if ic.Expr != "" {
@@ -1323,9 +1328,6 @@ func (n *Normalizer) CanonicalIndexColumn(ic *IndexColumn) string {
 	}
 	if ic.Length > 0 {
 		fmt.Fprintf(&b, "(%d)", ic.Length)
-	}
-	if ic.Descending {
-		b.WriteString(" desc")
 	}
 	return b.String()
 }

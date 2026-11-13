@@ -67,7 +67,7 @@ var fulltextChangeCases = []struct{ from, to string }{
 }
 
 // indexDiffs returns the index entries of a diff from one table definition to another.
-func indexDiffs(t *testing.T, fromDDL, toDDL string) []IndexDiffEntry {
+func indexDiffs(t testing.TB, fromDDL, toDDL string) []IndexDiffEntry {
 	t.Helper()
 	sc := serverCharsetFor(MySQL80)
 	from, _ := loadOneTable(t, sc, fromDDL, "t")
@@ -193,7 +193,7 @@ func TestOracle_OceanBaseFulltextParserEcho(t *testing.T) {
 	o := oceanBaseOracle(t)
 	ctx := context.Background()
 	for i, tc := range fulltextEchoCases {
-		t.Run(tc.user, func(t *testing.T) {
+		t.Run(tc.user, gapped(func(t testing.TB) {
 			dbName := fmt.Sprintf("obft_%d", i)
 			readback, err := storeAndRead(ctx, o, dbName, fulltextTable(tc.user), "t")
 			if err != nil {
@@ -209,9 +209,9 @@ func TestOracle_OceanBaseFulltextParserEcho(t *testing.T) {
 					t.Errorf("%s %s:\n  from: %s\n  to:   %s", d[0].Name, d[0].Action, pair[0], pair[1])
 				}
 			}
-		})
+		}))
 	}
-	t.Run("create table like", func(t *testing.T) {
+	t.Run("create table like", gapped(func(t testing.TB) {
 		if _, err := storeAndRead(ctx, o, "obft_like", fulltextLikeSource, "src"); err != nil {
 			t.Fatal(err)
 		}
@@ -229,9 +229,9 @@ func TestOracle_OceanBaseFulltextParserEcho(t *testing.T) {
 		if d := indexDiffs(t, fulltextLikeSource+";\nCREATE TABLE t LIKE src;", readback); len(d) > 0 {
 			t.Errorf("%s %s against the copy's readback\n%s", d[0].Name, d[0].Action, readback)
 		}
-	})
+	}))
 	for i, tc := range fulltextChangeCases {
-		t.Run(tc.from+" -> "+tc.to, func(t *testing.T) {
+		t.Run(tc.from+" -> "+tc.to, gapped(func(t testing.TB) {
 			dbName := fmt.Sprintf("obftchg_%d", i)
 			readback, err := storeAndRead(ctx, o, dbName, fulltextTable(tc.from), "t")
 			if err != nil {
@@ -241,6 +241,6 @@ func TestOracle_OceanBaseFulltextParserEcho(t *testing.T) {
 			if d := indexDiffs(t, readback, fulltextTable(tc.to)); len(d) != 1 || d[0].Action != DiffModify {
 				t.Errorf("diff from the readback = %+v, want one index MODIFY\n%s", d, readback)
 			}
-		})
+		}))
 	}
 }

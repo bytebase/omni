@@ -2,7 +2,6 @@ package catalog
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"strings"
 	"testing"
@@ -124,9 +123,9 @@ func TestOracle_ForeignKeyMigrationApplyCorrectness(t *testing.T) {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
 		for _, fc := range fkMigrationCases() {
-			t.Run(fmt.Sprintf("%s/%s", o.name, fc.id), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%s/%s", o.name, fc.id), gapped(func(t testing.TB) {
 				assertFKApplyCorrect(t, o, n, fc)
-			})
+			}))
 		}
 	}
 }
@@ -135,7 +134,7 @@ func TestOracle_ForeignKeyMigrationApplyCorrectness(t *testing.T) {
 // (parent + child) from the engine's own readbacks (authentic stored form), generates the plan,
 // builds a real database in state `from`, applies the plan one statement at a time, reads the
 // child back, and asserts the child canonicalizes equal to `to` (both directions).
-func assertFKApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, fc fkMigrationCase) {
+func assertFKApplyCorrect(t testing.TB, o *oracleConn, n *Normalizer, fc fkMigrationCase) {
 	t.Helper()
 	slug := strings.ReplaceAll(fc.id, "-", "_")
 	sc := serverCharsetFor(o.version)
@@ -151,7 +150,7 @@ func assertFKApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, fc fkMigra
 	plan := GenerateMigrationWithNormalizer(fromCat, toCat, diff, n)
 
 	// Build a real database in state `from` on ONE dedicated connection (USE must stick).
-	conn, err := o.db.Conn(ctx)
+	conn, err := o.session(ctx)
 	if err != nil {
 		t.Fatalf("[%s] grab conn: %v", o.name, err)
 	}
@@ -166,7 +165,8 @@ func assertFKApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, fc fkMigra
 	}
 	for _, s := range setup {
 		if _, err := conn.ExecContext(ctx, s); err != nil {
-			t.Skipf("[%s] could not set up `from` state for %s: %q: %v", o.name, fc.id, s, err)
+			o.refused(t, err, "could not set up `from` state for %s: %q", fc.id, s)
+			return
 		}
 	}
 
@@ -201,7 +201,7 @@ func assertFKApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, fc fkMigra
 // loadResultChildSchema reads the parent `p` back from the live apply db and combines it with the
 // already-read result child DDL into a single-catalog schema (wrapped in the logical db), so the
 // result catalog has the same parent+child shape as `to` and FK references resolve on both sides.
-func loadResultChildSchema(t *testing.T, o *oracleConn, conn *sql.Conn, logicalDB, sc, childDDL string) *Catalog {
+func loadResultChildSchema(t testing.TB, o *oracleConn, conn oracleSession, logicalDB, sc, childDDL string) *Catalog {
 	t.Helper()
 	ctx := context.Background()
 	var nm, parentDDL string
@@ -223,10 +223,10 @@ func loadResultChildSchema(t *testing.T, o *oracleConn, conn *sql.Conn, logicalD
 // non-empty no-op plan is a normalization/ordering bug.
 func TestOracle_ForeignKeyMigrationIdempotence(t *testing.T) {
 	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+		o := oceanBaseOracle(t)
 		n := NormalizerFor(version)
 		for _, fc := range fkDiffCases() {
-			t.Run(fmt.Sprintf("%s/%s", o.name, fc.id), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%s/%s", o.name, fc.id), gapped(func(t testing.TB) {
 				slug := strings.ReplaceAll(fc.id, "-", "_")
 				cat := loadFKSchema(t, o, "fkidem", "fkidem_"+slug, fc.parentDDL, fc.childDDL)
 				diff := DiffWithNormalizer(cat, cat, n)
@@ -235,7 +235,7 @@ func TestOracle_ForeignKeyMigrationIdempotence(t *testing.T) {
 					t.Errorf("[%s] NON-EMPTY NO-OP PLAN for %s (FK normalization/ordering bug):\n%s",
 						o.name, fc.id, plan.SQL())
 				}
-			})
+			}))
 		}
 	}
 }
@@ -312,9 +312,9 @@ func TestOracle_ForeignKeyMultiTableApplyCorrectness(t *testing.T) {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
 		for _, mc := range fkMultiCases() {
-			t.Run(fmt.Sprintf("%s/%s", o.name, mc.id), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%s/%s", o.name, mc.id), gapped(func(t testing.TB) {
 				assertFKMultiApplyCorrect(t, o, n, mc)
-			})
+			}))
 		}
 	}
 }
@@ -323,7 +323,7 @@ func TestOracle_ForeignKeyMultiTableApplyCorrectness(t *testing.T) {
 // reading every table back (authentic stored form), generates the plan, builds the `from` state,
 // applies the plan one statement at a time, and asserts every `to` table's readback canonicalizes
 // equal to `to`.
-func assertFKMultiApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, mc fkMultiCase) {
+func assertFKMultiApplyCorrect(t testing.TB, o *oracleConn, n *Normalizer, mc fkMultiCase) {
 	t.Helper()
 	slug := strings.ReplaceAll(mc.id, "-", "_")
 	sc := serverCharsetFor(o.version)
@@ -336,7 +336,7 @@ func assertFKMultiApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, mc fk
 	diff := DiffWithNormalizer(fromCat, toCat, n)
 	plan := GenerateMigrationWithNormalizer(fromCat, toCat, diff, n)
 
-	conn, err := o.db.Conn(ctx)
+	conn, err := o.session(ctx)
 	if err != nil {
 		t.Fatalf("[%s] grab conn: %v", o.name, err)
 	}
@@ -350,7 +350,8 @@ func assertFKMultiApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, mc fk
 	setup = append(setup, splitSemiStatements(mc.fromSQL)...)
 	for _, s := range setup {
 		if _, err := conn.ExecContext(ctx, s); err != nil {
-			t.Skipf("[%s] could not set up `from` for %s: %q: %v", o.name, mc.id, s, err)
+			o.refused(t, err, "could not set up `from` for %s: %q", mc.id, s)
+			return
 		}
 	}
 	for _, op := range plan.Ops {
@@ -388,7 +389,7 @@ func assertFKMultiApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, mc fk
 // loadMultiSchema applies a full multi-table schema to a throwaway db, reads every base table back,
 // and reloads all of them wrapped in a FIXED logical db (so the from/to catalogs share a database
 // identity and FK references resolve identically).
-func loadMultiSchema(t *testing.T, o *oracleConn, logicalDB, execDB, sc, schemaSQL string) *Catalog {
+func loadMultiSchema(t testing.TB, o *oracleConn, logicalDB, execDB, sc, schemaSQL string) *Catalog {
 	t.Helper()
 	ctx := context.Background()
 	setup := []string{
@@ -399,7 +400,8 @@ func loadMultiSchema(t *testing.T, o *oracleConn, logicalDB, execDB, sc, schemaS
 	setup = append(setup, splitSemiStatements(schemaSQL)...)
 	for _, s := range setup {
 		if _, err := o.db.ExecContext(ctx, s); err != nil {
-			t.Skipf("[%s] setup failed (may be expected): %q: %v", o.name, s, err)
+			o.refused(t, err, "setup failed: %q", s)
+			return nil
 		}
 	}
 	// Discover the base tables in deterministic order.
@@ -430,7 +432,7 @@ func loadMultiSchema(t *testing.T, o *oracleConn, logicalDB, execDB, sc, schemaS
 		if err := row.Scan(&nm, &ddl); err != nil {
 			t.Fatalf("[%s] SHOW CREATE %s: %v", o.name, tbl, err)
 		}
-		b.WriteString(ddl + ";\n")
+		b.WriteString(rehomed(ddl, execDB, logicalDB) + ";\n")
 	}
 	cat, err := LoadSQL(b.String())
 	if err != nil {
@@ -456,9 +458,9 @@ func splitSemiStatements(s string) []string {
 // index. This is the generate-side guard against errno 1061 (duplicate key name).
 func TestOracle_ForeignKeyAddReusesExistingIndex(t *testing.T) {
 	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+		o := oceanBaseOracle(t)
 		n := NormalizerFor(version)
-		t.Run(o.name+"/add-fk-no-extra-index-op", func(t *testing.T) {
+		t.Run(o.name+"/add-fk-no-extra-index-op", gapped(func(t testing.TB) {
 			from := loadFKSchema(t, o, "fkreuse", "fkreuse_f", fkParentSingle,
 				"CREATE TABLE c (id INT PRIMARY KEY, pid INT, KEY my_idx (pid))")
 			to := loadFKSchema(t, o, "fkreuse", "fkreuse_t", fkParentSingle,
@@ -482,6 +484,6 @@ func TestOracle_ForeignKeyAddReusesExistingIndex(t *testing.T) {
 			if addIdx != 0 {
 				t.Errorf("[%s] expected NO ADD INDEX (user index reused), got %d:\n%s", o.name, addIdx, plan.SQL())
 			}
-		})
+		}))
 	}
 }

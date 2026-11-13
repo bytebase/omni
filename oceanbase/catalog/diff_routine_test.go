@@ -89,7 +89,7 @@ func routineIdempotenceProbes() []routineProbe {
 // loadRoutineReadback applies a CREATE FUNCTION/PROCEDURE in a throwaway database, reads back its
 // SHOW CREATE form (the engine's canonical stored form), and reloads it into a catalog under
 // dbName. It returns the catalog + the routine's authentic stored DDL.
-func (o *oracleConn) loadRoutineReadback(t *testing.T, dbName, createSQL, kind, name string) (*Catalog, string, bool) {
+func (o *oracleConn) loadRoutineReadback(t testing.TB, dbName, createSQL, kind, name string) (*Catalog, string, bool) {
 	t.Helper()
 	ctx := context.Background()
 	sc := serverCharsetFor(o.version)
@@ -101,7 +101,8 @@ func (o *oracleConn) loadRoutineReadback(t *testing.T, dbName, createSQL, kind, 
 	}
 	for _, s := range stmts {
 		if _, err := o.db.ExecContext(ctx, s); err != nil {
-			t.Logf("[%s] exec failed (may be expected): %q: %v", o.name, s, err)
+			t.Logf("[%s] exec failed: %q: %v", o.name, s, err)
+			o.refusal = fmt.Errorf("%q: %w", s, err)
 			return nil, "", false
 		}
 	}
@@ -120,7 +121,7 @@ func (o *oracleConn) loadRoutineReadback(t *testing.T, dbName, createSQL, kind, 
 // showCreateRoutine runs SHOW CREATE FUNCTION/PROCEDURE and returns the create DDL column. The
 // statement returns six columns (Name, sql_mode, Create <kind>, character_set_client,
 // collation_connection, Database Collation); only the third (the DDL) is needed.
-func (o *oracleConn) showCreateRoutine(t *testing.T, dbName, kind, name string) (string, bool) {
+func (o *oracleConn) showCreateRoutine(t testing.TB, dbName, kind, name string) (string, bool) {
 	t.Helper()
 	var c1, c2, c3, c4, c5, c6 sql.NullString
 	row := o.db.QueryRowContext(context.Background(), fmt.Sprintf("SHOW CREATE %s %s.%s", kind, dbName, name))
@@ -135,15 +136,16 @@ func (o *oracleConn) showCreateRoutine(t *testing.T, dbName, kind, name string) 
 // engine readback diffs EMPTY, and the stored form self-diffs empty, on every supported version.
 func TestOracle_RoutineDiffIdempotence(t *testing.T) {
 	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+		o := oceanBaseOracle(t)
 		n := NormalizerFor(version)
 		sc := serverCharsetFor(version)
 		for _, probe := range routineIdempotenceProbes() {
-			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), gapped(func(t testing.TB) {
 				db := routineProbeDB + "_" + strings.ReplaceAll(probe.id, "-", "_")
 				storedCat, rb, ok := o.loadRoutineReadback(t, db, probe.create, probe.kind, probe.name)
 				if !ok {
-					t.Skipf("[%s] could not obtain readback for %s", o.name, probe.id)
+					o.refused(t, nil, "could not obtain readback for %s", probe.id)
+					return
 				}
 
 				// Idempotence spine: the stored form self-diffs empty.
@@ -170,7 +172,7 @@ func TestOracle_RoutineDiffIdempotence(t *testing.T) {
 					t.Errorf("[%s] CANONICALIZATION (reverse): stored vs user not empty for %s: %s",
 						o.name, probe.id, describeRoutineDiff(d))
 				}
-			})
+			}))
 		}
 	}
 }
@@ -186,7 +188,7 @@ func TestOracle_SysProcedureAdjacentLiterals(t *testing.T) {
 	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(o.version)
-		t.Run(o.name, func(t *testing.T) {
+		t.Run(o.name, gapped(func(t testing.TB) {
 			rb, ok := o.showCreateRoutine(t, "sys", "PROCEDURE", "ps_trace_thread")
 			if !ok {
 				t.Skipf("[%s] sys.ps_trace_thread unavailable (stripped sys schema?)", o.name)
@@ -200,7 +202,7 @@ func TestOracle_SysProcedureAdjacentLiterals(t *testing.T) {
 				t.Errorf("[%s] self-diff of stock sys.ps_trace_thread not empty: %s",
 					o.name, describeRoutineDiff(d))
 			}
-		})
+		}))
 	}
 }
 

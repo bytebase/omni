@@ -168,11 +168,11 @@ func fkDiffCases() []fkDiffCase {
 // that exact name and the FK resolves.
 func TestOracle_ForeignKeySameDBQualifierNoDiff(t *testing.T) {
 	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+		o := oceanBaseOracle(t)
 		n := NormalizerFor(version)
 		sc := serverCharsetFor(o.version)
 		ctx := context.Background()
-		t.Run(o.name+"/same-db-qualifier", func(t *testing.T) {
+		t.Run(o.name+"/same-db-qualifier", gapped(func(t testing.TB) {
 			const db = "fksdq"
 			// Apply with an explicit same-db qualifier in the real db named `fksdq`.
 			stmts := []string{
@@ -184,7 +184,8 @@ func TestOracle_ForeignKeySameDBQualifierNoDiff(t *testing.T) {
 			}
 			for _, s := range stmts {
 				if _, err := o.db.ExecContext(ctx, s); err != nil {
-					t.Skipf("[%s] setup: %q: %v", o.name, s, err)
+					o.refused(t, err, "setup: %q", s)
+					return
 				}
 			}
 			// Stored form: read both tables back (the qualifier is stripped).
@@ -217,14 +218,14 @@ func TestOracle_ForeignKeySameDBQualifierNoDiff(t *testing.T) {
 			if d := DiffWithNormalizer(storedCat, userCat, n); !d.IsEmpty() {
 				t.Errorf("[%s] (reverse) same-db qualifier phantom-diffs: %s", o.name, describeForeignKeyDiff(d))
 			}
-		})
+		}))
 	}
 }
 
 // loadFKSchema applies parent+child in a throwaway db, then reloads BOTH tables wrapped in a FIXED
 // logical db name so the from/to catalogs share a database identity. Returns the reloaded catalog.
 // Skips the subtest if the engine rejects the setup DDL.
-func loadFKSchema(t *testing.T, o *oracleConn, logicalDB, execDB, parentDDL, childDDL string) *Catalog {
+func loadFKSchema(t testing.TB, o *oracleConn, logicalDB, execDB, parentDDL, childDDL string) *Catalog {
 	t.Helper()
 	ctx := context.Background()
 	sc := serverCharsetFor(o.version)
@@ -237,7 +238,8 @@ func loadFKSchema(t *testing.T, o *oracleConn, logicalDB, execDB, parentDDL, chi
 	}
 	for _, s := range stmts {
 		if _, err := o.db.ExecContext(ctx, s); err != nil {
-			t.Skipf("[%s] setup failed (may be expected): %q: %v", o.name, s, err)
+			o.refused(t, err, "setup failed: %q", s)
+			return nil
 		}
 	}
 	var b strings.Builder
@@ -248,7 +250,7 @@ func loadFKSchema(t *testing.T, o *oracleConn, logicalDB, execDB, parentDDL, chi
 		if err := row.Scan(&nm, &ddl); err != nil {
 			t.Fatalf("[%s] SHOW CREATE %s: %v", o.name, tbl, err)
 		}
-		b.WriteString(ddl + ";\n")
+		b.WriteString(rehomed(ddl, execDB, logicalDB) + ";\n")
 	}
 	cat, err := LoadSQL(b.String())
 	if err != nil {
@@ -262,10 +264,10 @@ func loadFKSchema(t *testing.T, o *oracleConn, logicalDB, execDB, parentDDL, chi
 // + auto-name normalization), on every supported version.
 func TestOracle_ForeignKeyDiffIdempotence(t *testing.T) {
 	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+		o := oceanBaseOracle(t)
 		n := NormalizerFor(version)
 		for _, fc := range fkDiffCases() {
-			t.Run(fmt.Sprintf("%s/%s", o.name, fc.id), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%s/%s", o.name, fc.id), gapped(func(t testing.TB) {
 				slug := strings.ReplaceAll(fc.id, "-", "_")
 				// Stored form (engine readback) — the idempotence spine.
 				storedCat := loadFKSchema(t, o, "fkdiff", "fkdiff_s_"+slug, fc.parentDDL, fc.childDDL)
@@ -290,7 +292,7 @@ func TestOracle_ForeignKeyDiffIdempotence(t *testing.T) {
 					t.Errorf("[%s] CANONICALIZATION (reverse): stored vs user not empty for %s: %s",
 						o.name, fc.id, describeForeignKeyDiff(d))
 				}
-			})
+			}))
 		}
 	}
 }
@@ -298,7 +300,7 @@ func TestOracle_ForeignKeyDiffIdempotence(t *testing.T) {
 // loadUserFKSchema loads the raw user parent+child DDL (no engine round-trip) wrapped in the same
 // FIXED logical db as loadFKSchema, so the user and stored catalogs share a database identity and
 // only the FK canonicalization is under test.
-func loadUserFKSchema(t *testing.T, serverCharset, parentDDL, childDDL string) *Catalog {
+func loadUserFKSchema(t testing.TB, serverCharset, parentDDL, childDDL string) *Catalog {
 	t.Helper()
 	wrapped := fmt.Sprintf("CREATE DATABASE fkdiff DEFAULT CHARSET=%s;\nUSE fkdiff;\n%s;\n%s;",
 		serverCharset, parentDDL, childDDL)
@@ -334,7 +336,7 @@ func describeForeignKeyDiff(d *SchemaDiff) string {
 // loads two real engine readbacks and asserts the expected FK DiffAction.
 func TestOracle_ForeignKeyDiffNonEmptyCorrect(t *testing.T) {
 	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+		o := oceanBaseOracle(t)
 		n := NormalizerFor(version)
 
 		cases := []struct {
@@ -364,7 +366,7 @@ func TestOracle_ForeignKeyDiffNonEmptyCorrect(t *testing.T) {
 				"fk", DiffModify},
 		}
 		for _, tc := range cases {
-			t.Run(o.name+"/"+tc.name, func(t *testing.T) {
+			t.Run(o.name+"/"+tc.name, gapped(func(t testing.TB) {
 				slug := strings.ReplaceAll(tc.name, "-", "_")
 				from := loadFKSchema(t, o, "fknec", "fknec_f_"+slug, fkParentSingle, tc.fromChild)
 				to := loadFKSchema(t, o, "fknec", "fknec_t_"+slug, fkParentSingle, tc.toChild)
@@ -383,7 +385,7 @@ func TestOracle_ForeignKeyDiffNonEmptyCorrect(t *testing.T) {
 				if got == nil || got.Action != tc.wantFKA {
 					t.Fatalf("[%s] want fk %s %s, got %s", o.name, tc.wantFK, tc.wantFKA, describeForeignKeyDiff(d))
 				}
-			})
+			}))
 		}
 	}
 }

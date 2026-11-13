@@ -3,8 +3,13 @@ package catalog
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
+	"maps"
+	"runtime"
+	"slices"
 	"strings"
+	"sync"
 	"testing"
 
 	gomysql "github.com/go-sql-driver/mysql"
@@ -12,44 +17,301 @@ import (
 	"github.com/bytebase/omni/oceanbase/internal/testcontainer"
 )
 
-// The OceanBase oracle for this package. The TestOracle_* family answers for the
-// behavior this engine inherits from MySQL, against live 8.0; this file is
-// the one that answers for OceanBase itself.
-// oceanBaseOracle opens the test's connection to OceanBase: a replay of its
-// tape, or the pinned server in a recording (testcontainer.Open). The pool
-// holds one connection, so the database showCreate selects with USE stays
-// selected.
+// The OceanBase oracle for this package: every TestOracle_* that has moved off the
+// MySQL container asks it. The ones that have not moved still call connectOracle.
 //
-// The version is MySQL80, the only one, and the probes below measure that it fits:
-// every probe either canonicalizes empty or disagrees only in the ROW_FORMAT echo.
-// 4.3.5 does report a 5.7 version string, and does print 5.7-style widths, but the
-// stored form it prints is the one MySQL80's normalizer reproduces: 8.0 strips widths
-// from both sides. This test is what holds that, and a wrong normalizer shows up here
-// as a non-empty diff rather than as a phantom change in a user's release.
-func oceanBaseOracle(t *testing.T) *oracleConn {
+// oceanBaseOracle opens the test's connection to OceanBase: a replay of its tape, or the
+// pinned server in a recording (testcontainer.OpenWith). The pool holds one connection,
+// so a database selected with USE stays selected, and nothing needs db.Conn to pin one:
+// a helper that asks the pool while its caller holds that connection waits forever.
+//
+// The version is MySQL80, the only one, and the probes measure that it fits. 4.3.5 does
+// report a 5.7 version string, and does print 5.7-style widths, but the stored form it
+// prints is the one MySQL80's normalizer reproduces: 8.0 strips widths from both sides.
+// A wrong normalizer shows up as a non-empty diff rather than as a phantom change in a
+// user's release.
+func oceanBaseOracle(t testing.TB) *oracleConn {
 	t.Helper()
-	return &oracleConn{db: testcontainer.Open(t), version: MySQL80, name: "oceanbase"}
+	o := &oracleConn{
+		db:      testcontainer.OpenWith(t, testcontainer.Options{MultiStatements: true}),
+		version: MySQL80,
+		name:    "oceanbase",
+	}
+	top := t.Name()
+	t.Cleanup(func() {
+		// A run of chosen subtests leaves the others' entries unvisited.
+		if t.Failed() || strings.Contains(testRunFlag(), "/") {
+			return
+		}
+		for _, name := range slices.Sorted(maps.Keys(obRefused)) {
+			if _, seen := obRefusedSeen.Load(name); !seen && strings.HasPrefix(name, top+"/") {
+				t.Errorf("obRefused lists %s (%s), but the probe did not end in that refusal: remove the entry", name, obRefused[name].what)
+			}
+		}
+		for _, name := range slices.Sorted(maps.Keys(obGaps)) {
+			if _, seen := obGapsSeen.Load(name); !seen && strings.HasPrefix(name, top+"/") {
+				t.Errorf("obGaps lists %s, but no such probe ran under knownGap: remove the entry", name)
+			}
+		}
+	})
+	return o
 }
 
-// obUnsupportedForms are the probe ids OceanBase itself will not accept, with the
-// construct it rejects. The engine answers 1064 for each, so it stores no form to
-// compare; any other probe failing to apply means the oracle stopped answering.
+func testRunFlag() string {
+	if f := flag.Lookup("test.run"); f != nil {
+		return f.Value.String()
+	}
+	return ""
+}
+
+// A refusal is how OceanBase answers a form it will not take.
+type refusal struct {
+	errno uint16
+	what  string // the construct, for the log
+}
+
+// obRefused lists the probes whose form OceanBase refuses, by subtest name. The probes
+// were written for MySQL; where OceanBase will not take one, the engine stores nothing
+// to compare and the probe ends there. refused holds every entry to the engine in both
+// directions: a refusal that is not listed fails its test, and so does a listed probe
+// that no longer ends in its refusal.
 //
-// Read against 5.7.25-OceanBase_CE-v4.3.5.6 on 2026-10-30.
-var obUnsupportedForms = map[string]string{
-	"binary-modifier-utf8mb4":  "the BINARY column modifier",
-	"adjacent-literal-default": "adjacent string literals in DEFAULT",
+// Read against 5.7.25-OceanBase_CE-v4.3.5.6.
+var obRefused = map[string]refusal{
+	"TestOracle_DiffIdempotence/oceanbase/binary-modifier-after-charset":               {1064, "BINARY after CHARACTER SET in a column's type"},
+	"TestOracle_DiffIdempotence/oceanbase/adjacent-literal-default-double-quoted":      {1064, `a double-quoted literal with a neighbour, "x" 'y', in DEFAULT`},
+	"TestOracle_MigrationIdempotence/oceanbase/binary-modifier-after-charset":          {1064, "BINARY after CHARACTER SET in a column's type"},
+	"TestOracle_MigrationIdempotence/oceanbase/adjacent-literal-default-double-quoted": {1064, `a double-quoted literal with a neighbour, "x" 'y', in DEFAULT`},
+	"TestOracle_PartitionChangeDetected/oceanbase/toggle-linear":                       {1064, "LINEAR KEY partitioning"},
+
+	"TestOracle_PartitionDiffIdempotence/oceanbase/key-algorithm-1":      {1064, "KEY ALGORITHM = n partitioning"},
+	"TestOracle_PartitionDiffIdempotence/oceanbase/key-algorithm-2":      {1064, "KEY ALGORITHM = n partitioning"},
+	"TestOracle_PartitionDiffIdempotence/oceanbase/linear-hash":          {1064, "LINEAR HASH partitioning"},
+	"TestOracle_PartitionDiffIdempotence/oceanbase/linear-key":           {1064, "LINEAR KEY partitioning"},
+	"TestOracle_PartitionMigrationIdempotence/oceanbase/key-algorithm-1": {1064, "KEY ALGORITHM = n partitioning"},
+	"TestOracle_PartitionMigrationIdempotence/oceanbase/key-algorithm-2": {1064, "KEY ALGORITHM = n partitioning"},
+	"TestOracle_PartitionMigrationIdempotence/oceanbase/linear-hash":     {1064, "LINEAR HASH partitioning"},
+	"TestOracle_PartitionMigrationIdempotence/oceanbase/linear-key":      {1064, "LINEAR KEY partitioning"},
+
+	"TestOracle_PhantomDiffElimination/oceanbase/char-binary-attribute-ascii-explicit": {1064, "BINARY after CHARACTER SET in a column's type"},
+	"TestOracle_PhantomDiffElimination/oceanbase/char-binary-attribute-utf8-alias":     {1064, "BINARY after CHARACTER SET in a column's type"},
+	"TestOracle_PhantomDiffElimination/oceanbase/functional-default-json":              {1101, "a default on a JSON column"},
 }
 
-// obEchoedRowFormat is the ROW_FORMAT OceanBase stores for a table whose DDL declares
-// none. MySQL echoes ROW_FORMAT only when the user declared a non-DEFAULT value, and
-// rowFormatChanged rests on that: the undeclared user side canonicalizes to "" while
-// the readback's DYNAMIC is significant, so on OceanBase every table whose DDL omits
-// ROW_FORMAT phantom-diffs MODIFY. Normalizing the echo away needs an engine axis the
-// version-keyed Normalizer does not have, so this test records the disagreement exactly
-// rather than skipping over it: notRowFormatEcho tolerates that one shape and fails on
-// anything else. Adding the axis empties these diffs and makes the tolerance unreachable.
-const obEchoedRowFormat = "DYNAMIC"
+var obRefusedSeen sync.Map
+
+// refused ends a probe whose statement the engine would not take. err is the engine's
+// answer, or nil when the helper that gave up kept it in o.refusal. On OceanBase the
+// probe passes only if obRefused records this subtest with the error number the engine
+// answered; anything else fails. The caller returns after it.
+//
+// On the MySQL oracle, which the tests that have not moved still ask, it skips, as
+// those tests always have.
+func (o *oracleConn) refused(t testing.TB, err error, format string, args ...any) {
+	t.Helper()
+	if err == nil {
+		err = o.refusal
+	}
+	o.refusal = nil
+	why := fmt.Sprintf(format, args...)
+	if o.name != "oceanbase" {
+		t.Skipf("[%s] %s: %v", o.name, why, err)
+	}
+	var myErr *gomysql.MySQLError
+	if !errors.As(err, &myErr) {
+		t.Fatalf("%s, and not because OceanBase refused a statement: %v", why, err)
+	}
+	want, ok := obRefused[t.Name()]
+	if !ok {
+		t.Fatalf("%s: OceanBase answers %v. obRefused does not record that for %s: name the construct there, or fix the probe", why, err, t.Name())
+	}
+	if want.errno != myErr.Number {
+		t.Fatalf("%s: OceanBase answers %v, but obRefused records %d (%s)", why, err, want.errno, want.what)
+	}
+	obRefusedSeen.Store(t.Name(), true)
+	t.Logf("OceanBase does not take %s (%d), so it stores no form to compare", want.what, myErr.Number)
+}
+
+// A gap is a probe this catalog fails on OceanBase today.
+type gap struct {
+	why   string   // what the catalog gets wrong
+	fails []string // a phrase from each failure the probe reports, in order
+}
+
+// obGaps lists the probes that fail on OceanBase today, by subtest name: bugs and missing
+// pieces of this catalog and its parser that are not fixed yet, and two readbacks of
+// OceanBase's that are not the text it was given. The engine's side of each is on the
+// probe's tape. knownGap runs a listed probe and passes it only while it fails exactly
+// as recorded, so an entry cannot hide anything else and cannot outlive its gap: a fix
+// fails the probe until the entry is removed.
+//
+// This is the work list. An entry is not a way to make a new failure pass.
+var obGaps = map[string]gap{
+	"TestOracle_CheckDiffIdempotence/oceanbase/between": {
+		"OceanBase stores BETWEEN over constant bounds as two comparisons, ((`a` >= 1) and (`a` <= 10)), in a CHECK, a generated column and a view; the catalog keeps BETWEEN, so the CHECK differs from its own readback",
+		twoWays("CANONICALIZATION: user form vs stored form not empty", "CANONICALIZATION (reverse): stored vs user not empty"),
+	},
+	"TestOracle_PhantomDiffElimination/oceanbase/column-charset-echo-80": {
+		"OceanBase's default collation for utf8mb4 is utf8mb4_general_ci, which a readback leaves out; the catalog takes the default to be MySQL 8.0's utf8mb4_0900_ai_ci, so a column written COLLATE utf8mb4_general_ci differs from its own readback",
+		[]string{`PHANTOM DIFF on column "a"`},
+	},
+
+	// BINARY before CHARACTER SET is OceanBase's order (`VARCHAR string_length_i
+	// opt_binary opt_charset`), and the parser here reads only the order OceanBase
+	// refuses, so it cannot load a column OceanBase takes.
+	"TestOracle_DiffIdempotence/oceanbase/binary-modifier-before-charset":      binaryBeforeCharset,
+	"TestOracle_MigrationIdempotence/oceanbase/binary-modifier-before-charset": binaryBeforeCharset,
+
+	// A multi-valued index. The parser does not read json_query's RETURNING clause, so a
+	// table that has such an index does not load from its own readback.
+	"TestOracle_IndexDiffIdempotence/oceanbase/mv-unsigned":  multiValuedIndex,
+	"TestOracle_IndexDiffIdempotence/oceanbase/mv-char":      multiValuedIndex,
+	"TestOracle_IndexDiffIdempotence/oceanbase/mv-decimal":   multiValuedIndex,
+	"TestOracle_IndexDiffIdempotence/oceanbase/mv-date":      multiValuedIndex,
+	"TestOracle_IndexDiffIdempotence/oceanbase/mv-composite": multiValuedIndex,
+
+	// SHOW CREATE FUNCTION prints a COMMENT without its escapes, so the readback is not
+	// the comment the routine has. information_schema.ROUTINES is where to read it.
+	"TestOracle_RoutineDiffIdempotence/oceanbase/fn-comment-quote": {
+		"OceanBase's SHOW CREATE FUNCTION prints a COMMENT's quote unescaped, COMMENT 'it's here', which does not parse",
+		[]string{"reload of routine readback failed"},
+	},
+	"TestOracle_RoutineDiffIdempotence/oceanbase/fn-comment-backslash": {
+		`OceanBase's SHOW CREATE FUNCTION prints a COMMENT's backslash unescaped, COMMENT 'a\b' for the comment a\b, which reads back as another comment`,
+		twoWays("CANONICALIZATION: user vs stored not empty", "CANONICALIZATION (reverse): stored vs user not empty"),
+	},
+
+	// What OceanBase rewrites in a view's body. The canonical body does not follow yet,
+	// so each of these views differs from its own readback.
+	"TestOracle_ViewIdempotence/oceanbase/cte":                              viewBody("OceanBase prints WITH RECURSIVE for a CTE written without RECURSIVE"),
+	"TestOracle_ViewIdempotence/oceanbase/explicit-columns":                 viewBody("OceanBase folds a view's column list into the aliases of its select list: CREATE VIEW v (p, q) AS SELECT a, b reads back as select a AS p, b AS q"),
+	"TestOracle_ViewIdempotence/oceanbase/view-on-view-explicit-cols":       viewBody("OceanBase folds a view's column list into the aliases of its select list"),
+	"TestOracle_ViewIdempotence/oceanbase/paren-subquery-compare-if":        viewBody("OceanBase stores IF(c, a, b) as (case when c then a else b end)"),
+	"TestOracle_ViewIdempotence/oceanbase/paren-subquery-compare-if-depth2": viewBody("OceanBase stores IF(c, a, b) as (case when c then a else b end)"),
+	"TestOracle_ViewIdempotence/oceanbase/paren-subquery-in-depth2":         viewBody("OceanBase stores x IN ((subquery)) as x = any (subquery)"),
+	"TestOracle_ViewIdempotence/oceanbase/paren-subquery-setop-compare":     viewBody("OceanBase prints each branch of a UNION in parentheses"),
+	"TestOracle_ViewIdempotence/oceanbase/union":                            viewBody("OceanBase prints each branch of a UNION in parentheses"),
+	"TestOracle_ViewIdempotence/oceanbase/trim-keyword-forms":               viewBody("OceanBase stores TRIM('x' FROM s) as trim(both 'x' from s)"),
+	"TestOracle_ViewIdempotence/oceanbase/weight-string-forms": {
+		"OceanBase prints WEIGHT_STRING as its internal five-argument call, weight_string(`s`,0,4,64,0), which the parser does not read",
+		[]string{"load stored SDL failed"},
+	},
+}
+
+var binaryBeforeCharset = gap{
+	"OceanBase takes VARCHAR(10) BINARY CHARACTER SET ascii and refuses CHARACTER SET ascii BINARY; the parser reads the second and not the first",
+	[]string{"LoadSQL failed"},
+}
+
+var multiValuedIndex = gap{
+	"OceanBase prints a multi-valued index as json_query(`j`,'$.ids' RETURNING unsigned WITHOUT ARRAY WRAPPER asis error on error null on empty null on mismatch), which the parser does not read",
+	[]string{"LoadSQL failed"},
+}
+
+// twoWays is the pair of failures of a form that differs from its readback: once each way.
+func twoWays(forward, reverse string) []string { return []string{forward, reverse} }
+
+// viewBody is the gap of a view whose body OceanBase stores in other words.
+func viewBody(why string) gap {
+	return gap{why, twoWays("CANONICALIZATION: user vs stored not empty", "CANONICALIZATION (reverse): stored vs user not empty")}
+}
+
+var obGapsSeen sync.Map
+
+// knownGap runs body as the probe t. For a probe obGaps lists, body runs on a recorder
+// in place of t, and the probe passes only if body failed with the recorded failures and
+// no others.
+func knownGap(t *testing.T, body func(t testing.TB)) {
+	t.Helper()
+	g, known := obGaps[t.Name()]
+	if !known {
+		body(t)
+		return
+	}
+	obGapsSeen.Store(t.Name(), true)
+	if wrong := gapVerdict(g, recorded(t, body)); wrong != "" {
+		t.Fatal(wrong)
+	}
+	t.Logf("known gap: %s", g.why)
+}
+
+// gapped makes body the body of a probe's subtest, run under knownGap:
+// t.Run(name, gapped(func(t testing.TB) { ... })).
+func gapped(body func(t testing.TB)) func(*testing.T) {
+	return func(t *testing.T) {
+		t.Helper()
+		knownGap(t, body)
+	}
+}
+
+// recorded runs body on a recorder and returns the failures it reported. body gets a
+// goroutine of its own, so a Fatalf on the recorder ends body and not the test.
+func recorded(t testing.TB, body func(t testing.TB)) []string {
+	rec := &recorder{TB: t}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		body(rec)
+	}()
+	<-done
+	return rec.failures
+}
+
+// gapVerdict says why failures are not what g records, or "" when they are: as many
+// failures, each holding its phrase.
+func gapVerdict(g gap, failures []string) string {
+	if len(failures) == 0 {
+		return fmt.Sprintf("obGaps lists this probe (%s), but it passes: the gap is closed, remove the entry", g.why)
+	}
+	matches := len(failures) == len(g.fails)
+	for i := 0; matches && i < len(g.fails); i++ {
+		matches = strings.Contains(failures[i], g.fails[i])
+	}
+	if matches {
+		return ""
+	}
+	return fmt.Sprintf("obGaps records %d failures for this probe (%s): %q\nIt now fails %d times:\n%s",
+		len(g.fails), g.why, g.fails, len(failures), strings.Join(failures, "\n---\n"))
+}
+
+// recorder is the t of a probe that is expected to fail: it keeps the failures.
+type recorder struct {
+	testing.TB
+	failures []string
+}
+
+func (r *recorder) Errorf(format string, args ...any) {
+	r.failures = append(r.failures, fmt.Sprintf(format, args...))
+}
+func (r *recorder) Error(args ...any) { r.failures = append(r.failures, fmt.Sprint(args...)) }
+func (r *recorder) Fail()             { r.failures = append(r.failures, "Fail") }
+func (r *recorder) Failed() bool      { return len(r.failures) > 0 }
+func (r *recorder) Fatalf(format string, args ...any) {
+	r.Errorf(format, args...)
+	runtime.Goexit()
+}
+func (r *recorder) Fatal(args ...any) {
+	r.Error(args...)
+	runtime.Goexit()
+}
+func (r *recorder) FailNow() {
+	r.Fail()
+	runtime.Goexit()
+}
+
+// A skip would leave the probe unrun, which is the one thing a recorded gap must not be.
+func (r *recorder) Skipf(format string, args ...any) { r.Fatalf("skipped: "+format, args...) }
+func (r *recorder) Skip(args ...any)                 { r.Fatal(append([]any{"skipped: "}, args...)...) }
+func (r *recorder) SkipNow()                         { r.Fatal("skipped") }
+
+// rehomed returns a readback taken in database phys as it reads in database logical.
+// OceanBase prints a foreign key's referenced table with its database, REFERENCES
+// `phys`.`p`, where MySQL prints the bare name for a table of the same database. A
+// harness that loads a readback under another name has to take the reference along,
+// or the load answers 1824: no such table.
+func rehomed(ddl, phys, logical string) string {
+	return strings.ReplaceAll(ddl, "`"+phys+"`.", "`"+logical+"`.")
+}
 
 // storeAndRead applies createSQL to OceanBase and returns the form it stores. Unlike
 // oracleConn.showCreate it keeps the error, so the caller can tell a form the engine
@@ -71,30 +333,6 @@ func storeAndRead(ctx context.Context, o *oracleConn, dbName, createSQL, table s
 		return "", fmt.Errorf("show create %s: %w", table, err)
 	}
 	return ddl, nil
-}
-
-// TestOracle_OceanBaseCanonicalization applies each representative form to a live
-// OceanBase, reads the stored form back, and requires the catalog's user form and that
-// stored form to canonicalize equal — TestOracle_DiffIdempotence's property, answered by
-// the engine Bytebase runs instead of by MySQL standing in for it.
-//
-// Nothing here is skipped. A form OceanBase rejects must be named in obUnsupportedForms,
-// and a non-empty diff must be the obEchoedRowFormat disagreement alone; every other
-// failure, a stored form that will not parse included, fails the test.
-func TestOracle_OceanBaseCanonicalization(t *testing.T) {
-	o := oceanBaseOracle(t)
-	ctx := context.Background()
-	for _, probe := range diffIdempotenceProbes() {
-		t.Run(probe.id, func(t *testing.T) {
-			dbName := "ob_" + strings.ReplaceAll(probe.id, "-", "_")
-			readback, err := storeAndRead(ctx, o, dbName, probe.create, probe.table)
-			if err != nil {
-				requireFormOceanBaseRejects(t, probe.id, err)
-				return
-			}
-			assertDiffEmptyOrRowFormatEcho(t, o, readback, probe.create, probe.table)
-		})
-	}
 }
 
 // TestOracle_OceanBaseIndexScopeEcho pins that the index scope OceanBase echoes does not
@@ -120,7 +358,7 @@ func TestOracle_OceanBaseIndexScopeEcho(t *testing.T) {
 		// layout or a templated table phantom-diffs against its own readback.
 		{"subpartition template", "CREATE TABLE t (a INT, b INT) PARTITION BY HASH(a) PARTITIONS 2 SUBPARTITION BY KEY(b) SUBPARTITION TEMPLATE (SUBPARTITION s0, SUBPARTITION s1)"},
 	} {
-		t.Run(probe.id, func(t *testing.T) {
+		t.Run(probe.id, gapped(func(t testing.TB) {
 			readback, err := storeAndRead(ctx, o, "obscope_"+strings.ReplaceAll(probe.id, " ", "_"), probe.create, "t")
 			if err != nil {
 				t.Fatalf("OceanBase would not take the form: %v", err)
@@ -132,9 +370,8 @@ func TestOracle_OceanBaseIndexScopeEcho(t *testing.T) {
 			d := DiffWithNormalizer(userCat, storedCat, n)
 			_, _ = userTbl, storedTbl
 			// Only the index half is asserted here. A partitioned table also differs at
-			// the partition level on this engine, and every table differs by the
-			// obEchoedRowFormat gap, both recorded elsewhere; this probe exists to catch
-			// the scope echo reading as a change.
+			// the partition level on this engine, which is recorded elsewhere; this probe
+			// exists to catch the scope echo reading as a change.
 			for _, te := range d.Tables {
 				for _, ie := range te.Indexes {
 					t.Errorf("index %s reported %s, so the echoed scope read as a change\n  user:   %s\n  stored: %s",
@@ -149,167 +386,78 @@ func TestOracle_OceanBaseIndexScopeEcho(t *testing.T) {
 					}
 				}
 			}
-		})
+		}))
 	}
 }
 
-// requireFormOceanBaseRejects accepts the one apply failure this test tolerates: the
-// engine answering 1064 for a form obUnsupportedForms names. A different error means the
-// oracle is broken, and an unlisted probe means the dialect moved and nobody said so.
-func requireFormOceanBaseRejects(t *testing.T, id string, err error) {
-	t.Helper()
-	var myErr *gomysql.MySQLError
-	if !errors.As(err, &myErr) || myErr.Number != 1064 {
-		t.Fatalf("applying %s failed for a reason other than OceanBase rejecting the form: %v", id, err)
-	}
-	why, ok := obUnsupportedForms[id]
-	if !ok {
-		t.Fatalf("OceanBase rejects %s, which is not recorded as unsupported: name the construct in obUnsupportedForms or fix the probe: %v", id, err)
-	}
-	t.Logf("OceanBase does not accept %s (%s), so it stores no form to compare", id, why)
-}
-
-// assertDiffEmptyOrRowFormatEcho is assertDiffEmptyAgainstReadback over a stored form the
-// caller already read back, with the obEchoedRowFormat tolerance. Both self-diffs must
-// still be empty, and user against stored must be empty or that echo alone in each
-// direction, since Drop and Add are direction-sensitive.
-func assertDiffEmptyOrRowFormatEcho(t *testing.T, o *oracleConn, readback, userDDL, table string) {
+// assertDiffEmptyAgainstStored takes a form and what the engine stored for it, and
+// requires the two to canonicalize equal: each self-diffs empty, and user against stored
+// is empty in both directions, since Drop and Add are direction-sensitive.
+func assertDiffEmptyAgainstStored(t testing.TB, o *oracleConn, readback, userDDL, table string) {
 	t.Helper()
 	sc := serverCharsetFor(o.version)
 	n := NormalizerFor(o.version)
-	userCat, userTbl := loadOneTable(t, sc, userDDL, table)
-	storedCat, storedTbl := loadOneTable(t, sc, readback, table)
+	userCat, _ := loadOneTable(t, sc, userDDL, table)
+	storedCat, _ := loadOneTable(t, sc, readback, table)
 
 	if d := DiffWithNormalizer(storedCat, storedCat, n); !d.IsEmpty() {
-		t.Errorf("IDEMPOTENCE: self-diff of stored form not empty for %s:\n  stored: %s\n  diff: %s",
-			table, strings.TrimSpace(readback), describeDiff(d))
+		t.Errorf("[%s] IDEMPOTENCE: self-diff of stored form not empty for %s:\n  stored: %s\n  diff: %s",
+			o.name, table, strings.TrimSpace(readback), describeDiff(d))
 	}
 	if d := DiffWithNormalizer(userCat, userCat, n); !d.IsEmpty() {
-		t.Errorf("self-diff of user form not empty for %s:\n  user: %s\n  diff: %s",
-			table, strings.TrimSpace(userDDL), describeDiff(d))
+		t.Errorf("[%s] self-diff of user form not empty for %s:\n  user: %s\n  diff: %s",
+			o.name, table, strings.TrimSpace(userDDL), describeDiff(d))
 	}
-	for _, dir := range []struct {
-		name     string
-		from, to *Catalog
-	}{
-		{"user vs stored", userCat, storedCat},
-		{"stored vs user", storedCat, userCat},
-	} {
-		d := DiffWithNormalizer(dir.from, dir.to, n)
-		if d.IsEmpty() {
-			continue
-		}
-		if why := notRowFormatEcho(d, userTbl, storedTbl, table, n); why != "" {
-			t.Errorf("CANONICALIZATION (%s) for %s: %s\n  user:   %s\n  stored: %s\n  diff: %s",
-				dir.name, table, why, strings.TrimSpace(userDDL), strings.TrimSpace(readback), describeDiff(d))
-		}
+	// The headline property: user form vs engine-stored form must collapse to empty.
+	if d := DiffWithNormalizer(userCat, storedCat, n); !d.IsEmpty() {
+		t.Errorf("[%s] CANONICALIZATION: user form vs stored form not empty for %s:\n  user:   %s\n  stored: %s\n  diff: %s",
+			o.name, table, strings.TrimSpace(userDDL), strings.TrimSpace(readback), describeDiff(d))
+	}
+	if d := DiffWithNormalizer(storedCat, userCat, n); !d.IsEmpty() {
+		t.Errorf("[%s] CANONICALIZATION (reverse): stored vs user not empty for %s:\n  diff: %s",
+			o.name, table, describeDiff(d))
 	}
 }
 
-// notRowFormatEcho reports why a non-empty diff is more than the obEchoedRowFormat
-// disagreement, or "" when it is exactly that. It requires the diff to carry nothing but
-// one MODIFY on this table with no sub-object entry, and requires every table option
-// tableOptionsChanged compares except ROW_FORMAT to agree — so a column, index,
-// constraint, partition, engine, charset, collation or comment phantom fails here instead
-// of passing as the known gap. The two sides are named by role, not by diff direction,
-// because only "the user declared none and the engine echoed DYNAMIC" is tolerated: a
-// readback that echoed some other format disagrees with the user's own declaration and is
-// a real difference.
-func notRowFormatEcho(d *SchemaDiff, userTbl, storedTbl *Table, table string, n *Normalizer) string {
-	switch {
-	case len(d.Views) > 0 || len(d.Functions) > 0 || len(d.Procedures) > 0 || len(d.Triggers) > 0 || len(d.Events) > 0:
-		return "the diff reaches objects other than the table"
-	case len(d.Tables) != 1:
-		return fmt.Sprintf("the diff names %d tables, not 1", len(d.Tables))
-	}
-	e := d.Tables[0]
-	switch {
-	case e.Action != DiffModify:
-		return fmt.Sprintf("the table is %s, not MODIFY", e.Action)
-	case !strings.EqualFold(e.Name, table):
-		return fmt.Sprintf("the diff names table %q, not %q", e.Name, table)
-	case len(e.Columns) > 0 || len(e.Indexes) > 0 || len(e.Constraints) > 0 || len(e.ForeignKeys) > 0 || len(e.Checks) > 0 || e.PartitionChanged:
-		return "the table differs in a column, index, constraint or partition, not only in its options"
-	case n.CanonicalEngine(userTbl) != n.CanonicalEngine(storedTbl):
-		return fmt.Sprintf("the storage engines disagree: %q vs %q", n.CanonicalEngine(userTbl), n.CanonicalEngine(storedTbl))
-	case foldCharset(userTbl.Charset) != foldCharset(storedTbl.Charset):
-		return fmt.Sprintf("the charsets disagree: %q vs %q", userTbl.Charset, storedTbl.Charset)
-	case n.effectiveTableCollation(userTbl) != n.effectiveTableCollation(storedTbl):
-		return fmt.Sprintf("the collations disagree: %q vs %q", n.effectiveTableCollation(userTbl), n.effectiveTableCollation(storedTbl))
-	case n.CanonicalComment(userTbl.Comment) != n.CanonicalComment(storedTbl.Comment):
-		return fmt.Sprintf("the comments disagree: %q vs %q", userTbl.Comment, storedTbl.Comment)
-	case !n.IgnoreRowFormat(userTbl) || !strings.EqualFold(storedTbl.RowFormat, obEchoedRowFormat):
-		return fmt.Sprintf("the ROW_FORMAT disagreement is %q against %q, not an undeclared form against the echoed %s",
-			userTbl.RowFormat, storedTbl.RowFormat, obEchoedRowFormat)
-	}
-	return ""
-}
-
-// TestNotRowFormatEcho pins what the obEchoedRowFormat tolerance will and will not
-// excuse. notRowFormatEcho is a pure verdict over a diff and the two table forms, so this
-// needs no engine — and without it the tolerance above is only as narrow as it looks.
-func TestNotRowFormatEcho(t *testing.T) {
-	const table = "t"
-	undeclared := &Table{Name: table, Charset: "utf8mb4"}
-	echoed := &Table{Name: table, Charset: "utf8mb4", RowFormat: obEchoedRowFormat}
-	modify := func(mutate func(*TableDiffEntry)) *SchemaDiff {
-		e := TableDiffEntry{Action: DiffModify, Name: table}
-		if mutate != nil {
-			mutate(&e)
-		}
-		return &SchemaDiff{Tables: []TableDiffEntry{e}}
-	}
-
+// TestKnownGapHoldsAProbeToItsRecordedFailures pins what obGaps lets through: a probe
+// that fails as recorded, and nothing else. It needs no engine.
+func TestKnownGapHoldsAProbeToItsRecordedFailures(t *testing.T) {
+	g := gap{why: "why", fails: []string{"first", "second"}}
 	tests := []struct {
-		name         string
-		diff         *SchemaDiff
-		user, stored *Table
-		tolerated    bool
+		name     string
+		failures []string
+		passes   bool
 	}{
-		{"the echo itself", modify(nil), undeclared, echoed, true},
-		{"ROW_FORMAT=DEFAULT is undeclared too", modify(nil), &Table{Name: table, Charset: "utf8mb4", RowFormat: "DEFAULT"}, echoed, true},
-		{"a column also differs", modify(func(e *TableDiffEntry) {
-			e.Columns = []ColumnDiffEntry{{Action: DiffModify, Name: "a"}}
-		}), undeclared, echoed, false},
-		{"an index also differs", modify(func(e *TableDiffEntry) {
-			e.Indexes = []IndexDiffEntry{{Action: DiffAdd, Name: "ia"}}
-		}), undeclared, echoed, false},
-		{"a constraint also differs", modify(func(e *TableDiffEntry) {
-			e.Constraints = []ConstraintDiffEntry{{Action: DiffAdd, Name: "pk"}}
-		}), undeclared, echoed, false},
-		{"the partitioning also differs", modify(func(e *TableDiffEntry) {
-			e.PartitionChanged = true
-		}), undeclared, echoed, false},
-		// The collations are held equal because the collation check behind the charset
-		// one would otherwise catch any differing charset by itself.
-		{"the charsets differ while the collations agree", modify(nil),
-			&Table{Name: table, Charset: "latin1", Collation: "utf8mb4_bin"},
-			&Table{Name: table, Charset: "utf8mb4", Collation: "utf8mb4_bin", RowFormat: obEchoedRowFormat}, false},
-		{"the collations differ", modify(nil), &Table{Name: table, Charset: "utf8mb4", Collation: "utf8mb4_bin"}, echoed, false},
-		{"the engines differ", modify(nil), &Table{Name: table, Charset: "utf8mb4", Engine: "MyISAM"}, echoed, false},
-		{"the comments differ", modify(nil), &Table{Name: table, Charset: "utf8mb4", Comment: "mine"}, echoed, false},
-		{"the user declared a format too", modify(nil), &Table{Name: table, Charset: "utf8mb4", RowFormat: "COMPRESSED"}, echoed, false},
-		{"the engine echoed another format", modify(nil), undeclared, &Table{Name: table, Charset: "utf8mb4", RowFormat: "COMPRESSED"}, false},
-		{"the table is dropped, not modified", &SchemaDiff{
-			Tables: []TableDiffEntry{{Action: DiffDrop, Name: table}},
-		}, undeclared, echoed, false},
-		{"the diff names another table", modify(func(e *TableDiffEntry) { e.Name = "other" }), undeclared, echoed, false},
-		{"two tables differ", &SchemaDiff{
-			Tables: []TableDiffEntry{{Action: DiffModify, Name: table}, {Action: DiffModify, Name: "u"}},
-		}, undeclared, echoed, false},
-		{"a view also differs", &SchemaDiff{
-			Tables: []TableDiffEntry{{Action: DiffModify, Name: table}},
-			Views:  []ViewDiffEntry{{Action: DiffAdd, Name: "v"}},
-		}, undeclared, echoed, false},
+		{"fails as recorded", []string{"the first thing", "the second thing"}, true},
+		{"passes: the gap is closed", nil, false},
+		{"fails once more", []string{"first", "second", "third"}, false},
+		{"fails once less", []string{"first"}, false},
+		{"fails otherwise", []string{"first", "another"}, false},
+		{"fails in another order", []string{"second", "first"}, false},
 	}
-
-	n := NormalizerFor(MySQL80)
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			why := notRowFormatEcho(tc.diff, tc.user, tc.stored, table, n)
-			if tolerated := why == ""; tolerated != tc.tolerated {
-				t.Fatalf("tolerated = %v, want %v (verdict %q)", tolerated, tc.tolerated, why)
+			if wrong := gapVerdict(g, tc.failures); (wrong == "") != tc.passes {
+				t.Errorf("verdict %q, want passes = %v", wrong, tc.passes)
 			}
 		})
+	}
+
+	// The recorder keeps every failure, stops at a fatal one, and reports nothing.
+	reached := false
+	got := recorded(t, func(t testing.TB) {
+		t.Errorf("one %d", 1)
+		t.Error("two")
+		if !t.Failed() {
+			panic("the recorder forgot its failures")
+		}
+		t.Fatalf("three")
+		reached = true
+	})
+	if want := []string{"one 1", "two", "three"}; !slices.Equal(got, want) || reached {
+		t.Errorf("recorded %q (ran past the fatal failure: %v), want %q", got, reached, want)
+	}
+	if got := recorded(t, func(t testing.TB) { t.Skipf("no %s", "readback") }); !slices.Equal(got, []string{"skipped: no readback"}) {
+		t.Errorf("a skip was recorded as %q, want a failure", got)
 	}
 }

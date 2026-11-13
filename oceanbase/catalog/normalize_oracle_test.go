@@ -31,7 +31,35 @@ type oracleConn struct {
 	db      *sql.DB
 	version Version
 	name    string
+	// refusal is the engine's answer to the statement a helper last gave up on. A
+	// helper that returns "no stored form" keeps it here, and refused reads it.
+	refusal error
 }
+
+// An oracleSession is the connection a probe keeps for all its statements, so that a
+// USE holds from one to the next.
+type oracleSession interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+	Close() error
+}
+
+// session returns the connection a probe runs all its statements on. The MySQL oracle
+// pins one from its pool. A tape's stream is one connection already, and pinning it
+// would leave nothing for a helper that asks o.db: that helper would wait forever, with
+// the server idle. So on OceanBase the session is the pool itself, and closing it does
+// nothing.
+func (o *oracleConn) session(ctx context.Context) (oracleSession, error) {
+	if o.name == "oceanbase" {
+		return poolSession{o.db}, nil
+	}
+	return o.db.Conn(ctx)
+}
+
+type poolSession struct{ *sql.DB }
+
+func (poolSession) Close() error { return nil }
 
 func dsnOr(env, def string) string {
 	if v := os.Getenv(env); v != "" {
@@ -43,7 +71,7 @@ func dsnOr(env, def string) string {
 // connectOracle dials the engine for version: the OMNI_MYSQL80_DSN override if
 // set, else the conventional local instance, else the package-shared
 // testcontainer fallback (oracle_fallback_test.go).
-func connectOracle(t *testing.T, version Version) *oracleConn {
+func connectOracle(t testing.TB, version Version) *oracleConn {
 	t.Helper()
 	const env, def, name = "OMNI_MYSQL80_DSN", "root:010424@tcp(127.0.0.1:13306)/?multiStatements=true", "8.0"
 	dsn, explicit := os.Getenv(env), true
@@ -77,7 +105,7 @@ func dialOracle(dsn string) (*sql.DB, error) {
 
 // showCreate applies the CREATE statements in a throwaway database and returns the
 // SHOW CREATE TABLE readback for the named table.
-func (o *oracleConn) showCreate(t *testing.T, dbName, createSQL, table string) (string, bool) {
+func (o *oracleConn) showCreate(t testing.TB, dbName, createSQL, table string) (string, bool) {
 	t.Helper()
 	ctx := context.Background()
 	stmts := []string{
@@ -88,9 +116,10 @@ func (o *oracleConn) showCreate(t *testing.T, dbName, createSQL, table string) (
 	}
 	for _, s := range stmts {
 		if _, err := o.db.ExecContext(ctx, s); err != nil {
-			// An input the engine rejects is not a
-			// canonicalizer failure; the caller decides whether that is expected.
-			t.Logf("[%s] exec failed (may be expected): %q: %v", o.name, s, err)
+			// An input the engine rejects is not a canonicalizer failure; the caller
+			// ends the probe with refused, which decides whether that was expected.
+			t.Logf("[%s] exec failed: %q: %v", o.name, s, err)
+			o.refusal = fmt.Errorf("%q: %w", s, err)
 			return "", false
 		}
 	}
@@ -98,6 +127,7 @@ func (o *oracleConn) showCreate(t *testing.T, dbName, createSQL, table string) (
 	row := o.db.QueryRowContext(ctx, fmt.Sprintf("SHOW CREATE TABLE %s.%s", dbName, table))
 	if err := row.Scan(&name, &ddl); err != nil {
 		t.Logf("[%s] SHOW CREATE failed: %v", o.name, err)
+		o.refusal = fmt.Errorf("SHOW CREATE TABLE %s.%s: %w", dbName, table, err)
 		return "", false
 	}
 	return ddl, true
@@ -108,7 +138,7 @@ func (o *oracleConn) showCreate(t *testing.T, dbName, createSQL, table string) (
 // server default (utf8mb4 on the 8.0 box) so that table-charset inheritance resolves
 // identically on both the user-input and the SHOW CREATE readback sides — without this,
 // db-inherited charset rules (e.g. column-charset-echo-80) would not be comparable.
-func loadColumn(t *testing.T, serverCharset, createSQL, table, column string) (*Table, *Column) {
+func loadColumn(t testing.TB, serverCharset, createSQL, table, column string) (*Table, *Column) {
 	t.Helper()
 	wrapped := fmt.Sprintf("CREATE DATABASE nrmdb DEFAULT CHARSET=%s;\nUSE nrmdb;\n%s", serverCharset, createSQL)
 	cat, err := LoadSQL(wrapped)
@@ -134,11 +164,12 @@ func serverCharsetFor(Version) string { return "utf8mb4" }
 
 // assertPhantomFree is the core assertion: input form and stored readback must produce
 // the same canonical column key for the engine's version.
-func assertPhantomFree(t *testing.T, o *oracleConn, dbName, inputDDL, table, column string) {
+func assertPhantomFree(t testing.TB, o *oracleConn, dbName, inputDDL, table, column string) {
 	t.Helper()
 	readback, ok := o.showCreate(t, dbName, inputDDL, table)
 	if !ok {
-		t.Skipf("[%s] could not obtain readback for %s.%s", o.name, table, column)
+		o.refused(t, nil, "could not obtain readback for %s.%s", table, column)
+		return
 	}
 	// The readback is a CREATE TABLE we can reload through the same loader.
 	readbackCreate := normalizeReadbackForLoad(readback)
@@ -312,10 +343,14 @@ func normalizationProbes() []ruleProbe {
 		{"generated-expr-string-introducer",
 			"CREATE TABLE t_gen2 (a VARCHAR(20), e VARCHAR(20) GENERATED ALWAYS AS (CONCAT(a,'x')) VIRTUAL) DEFAULT CHARSET=utf8mb4",
 			"t_gen2", []string{"e"}},
-		// functional default — 8.0 only.
+		// functional default.
 		{"functional-default",
-			"CREATE TABLE t_funcdef (a INT DEFAULT (1+1), b VARCHAR(36) DEFAULT (UUID()), c JSON DEFAULT (JSON_ARRAY()))",
-			"t_funcdef", []string{"a", "b", "c"}},
+			"CREATE TABLE t_funcdef (a INT DEFAULT (1+1), b VARCHAR(36) DEFAULT (UUID()))",
+			"t_funcdef", []string{"a", "b"}},
+		// OceanBase gives a JSON column no default, an expression included (1101).
+		{"functional-default-json",
+			"CREATE TABLE t_funcjson (c JSON DEFAULT (JSON_ARRAY()))",
+			"t_funcjson", []string{"c"}},
 		// TIMESTAMP magic — both, opposite behavior.
 		{"timestamp-magic",
 			"CREATE TABLE t_ts (a TIMESTAMP, b TIMESTAMP NULL, d TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
@@ -327,15 +362,15 @@ func normalizationProbes() []ruleProbe {
 }
 
 func TestOracle_PhantomDiffElimination(t *testing.T) {
-	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+	for range oracleVersions() {
+		o := oceanBaseOracle(t)
 		for _, probe := range normalizationProbes() {
-			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), gapped(func(t testing.TB) {
 				db := "nrm_" + strings.ReplaceAll(probe.id, "-", "_")
 				for _, c := range probe.columns {
 					assertPhantomFree(t, o, db, probe.create, probe.table, c)
 				}
-			})
+			}))
 		}
 	}
 }
@@ -346,12 +381,12 @@ func TestOracle_PhantomDiffElimination(t *testing.T) {
 // a phantom one). Each asserts two real, different MySQL schemas produce different keys,
 // loaded through the real engine's SHOW CREATE so the catalog state is authentic.
 func TestOracle_MissedDiffGuards(t *testing.T) {
-	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+	for range oracleVersions() {
+		o := oceanBaseOracle(t)
 		sc := serverCharsetFor(o.version)
 		n := NormalizerFor(o.version)
 
-		t.Run(o.name+"/bare-column-follows-table-collation", func(t *testing.T) {
+		t.Run(o.name+"/bare-column-follows-table-collation", gapped(func(t testing.TB) {
 			// A bare column inherits the table COLLATE; changing the table COLLATE must
 			// change the bare column's canonical key (else the column change is invisible).
 			ddlA := "CREATE TABLE t (a VARCHAR(10)) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci"
@@ -359,7 +394,8 @@ func TestOracle_MissedDiffGuards(t *testing.T) {
 			rbA, okA := o.showCreate(t, "mdg_a", ddlA, "t")
 			rbB, okB := o.showCreate(t, "mdg_b", ddlB, "t")
 			if !okA || !okB {
-				t.Skip("could not obtain readbacks")
+				o.refused(t, nil, "could not obtain readbacks")
+				return
 			}
 			tA, cA := loadColumn(t, sc, rbA, "t", "a")
 			tB, cB := loadColumn(t, sc, rbB, "t", "a")
@@ -367,9 +403,9 @@ func TestOracle_MissedDiffGuards(t *testing.T) {
 				t.Errorf("[%s] bare column must follow table COLLATE change:\n A=%s\n B=%s",
 					o.name, n.CanonicalColumn(tA, cA), n.CanonicalColumn(tB, cB))
 			}
-		})
+		}))
 
-		t.Run(o.name+"/binary-modifier-vs-plain-collation", func(t *testing.T) {
+		t.Run(o.name+"/binary-modifier-vs-plain-collation", gapped(func(t testing.TB) {
 			// BINARY-modifier over-collapse guard: `varchar BINARY` resolves to the
 			// `<cs>_bin` collation, which is a GENUINE difference from a plain `varchar`
 			// (table-default collation). The fix must not make them share a key, else a
@@ -379,7 +415,8 @@ func TestOracle_MissedDiffGuards(t *testing.T) {
 			ddl := "CREATE TABLE t (b VARCHAR(10) BINARY, p VARCHAR(10)) DEFAULT CHARSET=utf8mb4"
 			rb, ok := o.showCreate(t, "mdg_bin", ddl, "t")
 			if !ok {
-				t.Skip("could not obtain readback")
+				o.refused(t, nil, "could not obtain readback")
+				return
 			}
 			tbl, bCol := loadColumn(t, sc, rb, "t", "b")
 			_, pCol := loadColumn(t, sc, rb, "t", "p")
@@ -387,9 +424,9 @@ func TestOracle_MissedDiffGuards(t *testing.T) {
 				t.Errorf("[%s] varchar BINARY (_bin) and plain varchar (default) must differ:\n  b=%s\n  p=%s",
 					o.name, n.CanonicalColumn(tbl, bCol), n.CanonicalColumn(tbl, pCol))
 			}
-		})
+		}))
 
-		t.Run(o.name+"/year-numeric-zero-vs-string-zero", func(t *testing.T) {
+		t.Run(o.name+"/year-numeric-zero-vs-string-zero", gapped(func(t testing.TB) {
 			// YEAR over-collapse guard: numeric DEFAULT 0 stores the zero year (0000) while
 			// string DEFAULT '0' stores 2000 — genuinely different values that must NOT share
 			// a canonical key. Loaded from the real engine's readback so the stored forms are
@@ -397,7 +434,8 @@ func TestOracle_MissedDiffGuards(t *testing.T) {
 			ddl := "CREATE TABLE t (n YEAR DEFAULT 0, s YEAR DEFAULT '0')"
 			rb, ok := o.showCreate(t, "mdg_year0", ddl, "t")
 			if !ok {
-				t.Skip("could not obtain readback")
+				o.refused(t, nil, "could not obtain readback")
+				return
 			}
 			tbl, nCol := loadColumn(t, sc, rb, "t", "n")
 			_, sCol := loadColumn(t, sc, rb, "t", "s")
@@ -405,6 +443,6 @@ func TestOracle_MissedDiffGuards(t *testing.T) {
 				t.Errorf("[%s] YEAR numeric 0 (0000) and string '0' (2000) must differ:\n  n=%s\n  s=%s",
 					o.name, n.CanonicalDefault(nCol), n.CanonicalDefault(sCol))
 			}
-		})
+		}))
 	}
 }

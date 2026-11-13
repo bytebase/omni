@@ -95,7 +95,7 @@ func TestOracle_CastArrayStoredForms(t *testing.T) {
 	}
 	for _, written := range slices.Sorted(maps.Keys(castArrayForms)) {
 		stored := castArrayForms[written]
-		t.Run(written, func(t *testing.T) {
+		t.Run(written, gapped(func(t testing.TB) {
 			if _, err := o.db.ExecContext(ctx, "CREATE OR REPLACE VIEW v AS SELECT CAST(a AS "+written+") x FROM zz"); err != nil {
 				t.Fatal(err)
 			}
@@ -106,7 +106,7 @@ func TestOracle_CastArrayStoredForms(t *testing.T) {
 			if !strings.Contains(ddl, " as "+stored+")") {
 				t.Errorf("the server stored %s, recorded %q", ddl, stored)
 			}
-		})
+		}))
 	}
 }
 

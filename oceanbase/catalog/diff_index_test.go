@@ -186,7 +186,7 @@ func TestDiffIndex_RicherIndexOnFKColumnsKept(t *testing.T) {
 }
 
 // mustGetTable returns the named table from a catalog or fails the test.
-func mustGetTable(t *testing.T, cat *Catalog, name string) *Table {
+func mustGetTable(t testing.TB, cat *Catalog, name string) *Table {
 	t.Helper()
 	for _, db := range cat.Databases() {
 		if tt := db.GetTable(name); tt != nil {
@@ -311,26 +311,31 @@ func TestDiffIndex_FKImplicitUserNamedConstraint(t *testing.T) {
 	}
 }
 
-// TestCanonicalIndex_DescAndKeyBlockSize asserts two normalization decisions in canonicalIndex
-// directly: DESC is significant and an index KEY_BLOCK_SIZE is not, matching the live-engine
-// behavior proven in the oracle tests.
-func TestCanonicalIndex_DescAndKeyBlockSize(t *testing.T) {
-	n80 := NormalizerFor(MySQL80)
-
-	asc := &Index{Name: "k", Visible: true, Columns: []*IndexColumn{{Name: "a"}, {Name: "b"}}}
-	desc := &Index{Name: "k", Visible: true, Columns: []*IndexColumn{{Name: "a"}, {Name: "b", Descending: true}}}
-
-	// DESC distinguishes.
-	if canonicalIndex(asc, n80) == canonicalIndex(desc, n80) {
-		t.Errorf("8.0: ASC and DESC index keys must differ")
+// TestCanonicalIndex_WhatOceanBaseDoesNotStore asserts what canonicalIndex leaves out because
+// OceanBase does not keep it: a column's DESC, the USING type, and an index KEY_BLOCK_SIZE.
+// TestOracle_OceanBaseIndexOrderAndType asks the engine.
+func TestCanonicalIndex_WhatOceanBaseDoesNotStore(t *testing.T) {
+	n := NormalizerFor(MySQL80)
+	plain := &Index{Name: "k", Visible: true, Columns: []*IndexColumn{{Name: "a"}, {Name: "b"}}}
+	for name, other := range map[string]*Index{
+		"DESC":           {Name: "k", Visible: true, Columns: []*IndexColumn{{Name: "a"}, {Name: "b", Descending: true}}},
+		"USING BTREE":    {Name: "k", Visible: true, IndexType: "BTREE", Columns: []*IndexColumn{{Name: "a"}, {Name: "b"}}},
+		"USING HASH":     {Name: "k", Visible: true, IndexType: "HASH", Columns: []*IndexColumn{{Name: "a"}, {Name: "b"}}},
+		"KEY_BLOCK_SIZE": {Name: "k", Visible: true, KeyBlockSize: 4, Columns: []*IndexColumn{{Name: "a"}, {Name: "b"}}},
+	} {
+		if canonicalIndex(plain, n) != canonicalIndex(other, n) {
+			t.Errorf("%s is not stored, and must not be part of the key", name)
+		}
 	}
-
-	plain := &Index{Name: "k", Visible: true, Columns: []*IndexColumn{{Name: "a"}}}
-	kbs := &Index{Name: "k", Visible: true, KeyBlockSize: 4, Columns: []*IndexColumn{{Name: "a"}}}
-
-	// An index KEY_BLOCK_SIZE is absorbed by the engine, so it is dropped from the key.
-	if canonicalIndex(plain, n80) != canonicalIndex(kbs, n80) {
-		t.Errorf("8.0: index KEY_BLOCK_SIZE must be ignored in the key")
+	// What it does keep still tells indexes apart.
+	for name, other := range map[string]*Index{
+		"another column": {Name: "k", Visible: true, Columns: []*IndexColumn{{Name: "a"}, {Name: "c"}}},
+		"a prefix":       {Name: "k", Visible: true, Columns: []*IndexColumn{{Name: "a"}, {Name: "b", Length: 4}}},
+		"UNIQUE":         {Name: "k", Visible: true, Unique: true, Columns: []*IndexColumn{{Name: "a"}, {Name: "b"}}},
+	} {
+		if canonicalIndex(plain, n) == canonicalIndex(other, n) {
+			t.Errorf("%s must change the key", name)
+		}
 	}
 }
 

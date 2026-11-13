@@ -30,7 +30,7 @@ import (
 // applyAndReadback applies a single CREATE TABLE in a throwaway database and returns the
 // SHOW CREATE TABLE readback (the engine's canonical stored form). It reuses oracleConn
 // from normalize_oracle_test.go.
-func (o *oracleConn) applyAndReadback(t *testing.T, dbName, createSQL, table string) (string, bool) {
+func (o *oracleConn) applyAndReadback(t testing.TB, dbName, createSQL, table string) (string, bool) {
 	t.Helper()
 	return o.showCreate(t, dbName, createSQL, table)
 }
@@ -38,7 +38,7 @@ func (o *oracleConn) applyAndReadback(t *testing.T, dbName, createSQL, table str
 // loadOneTable loads a CREATE TABLE (wrapped in a database whose default charset matches
 // the oracle box, so table-charset inheritance resolves identically on both sides) and
 // returns the named table.
-func loadOneTable(t *testing.T, serverCharset, createSQL, table string) (*Catalog, *Table) {
+func loadOneTable(t testing.TB, serverCharset, createSQL, table string) (*Catalog, *Table) {
 	t.Helper()
 	wrapped := fmt.Sprintf("CREATE DATABASE diffdb DEFAULT CHARSET=%s;\nUSE diffdb;\n%s", serverCharset, createSQL)
 	cat, err := LoadSQL(wrapped)
@@ -64,37 +64,16 @@ func loadOneTable(t *testing.T, serverCharset, createSQL, table string) (*Catalo
 //   - Diff(storedCat, storedCat) is empty (idempotence spine, gate 1)
 //   - Diff(userCat, userCat) is empty     (user form self-consistency)
 //
-// all under a version-correct Normalizer.
-func assertDiffEmptyAgainstReadback(t *testing.T, o *oracleConn, dbName, userDDL, table string) {
+// all under a version-correct Normalizer. A form the engine will not take has no stored
+// form: the probe ends in refused.
+func assertDiffEmptyAgainstReadback(t testing.TB, o *oracleConn, dbName, userDDL, table string) {
 	t.Helper()
 	readback, ok := o.applyAndReadback(t, dbName, userDDL, table)
 	if !ok {
-		t.Skipf("[%s] could not obtain readback for %s", o.name, table)
+		o.refused(t, nil, "could not obtain readback for %s", table)
+		return
 	}
-	sc := serverCharsetFor(o.version)
-	n := NormalizerFor(o.version)
-
-	userCat, _ := loadOneTable(t, sc, userDDL, table)
-	storedCat, _ := loadOneTable(t, sc, readback, table)
-
-	if d := DiffWithNormalizer(storedCat, storedCat, n); !d.IsEmpty() {
-		t.Errorf("[%s] IDEMPOTENCE: self-diff of stored form not empty for %s:\n  stored: %s\n  diff: %s",
-			o.name, table, strings.TrimSpace(readback), describeDiff(d))
-	}
-	if d := DiffWithNormalizer(userCat, userCat, n); !d.IsEmpty() {
-		t.Errorf("[%s] self-diff of user form not empty for %s:\n  user: %s\n  diff: %s",
-			o.name, table, strings.TrimSpace(userDDL), describeDiff(d))
-	}
-	// The headline property: user form vs engine-stored form must collapse to empty.
-	if d := DiffWithNormalizer(userCat, storedCat, n); !d.IsEmpty() {
-		t.Errorf("[%s] CANONICALIZATION: user form vs stored form not empty for %s:\n  user:   %s\n  stored: %s\n  diff: %s",
-			o.name, table, strings.TrimSpace(userDDL), strings.TrimSpace(readback), describeDiff(d))
-	}
-	// Symmetry: stored vs user must also be empty (Drop/Add are direction-sensitive).
-	if d := DiffWithNormalizer(storedCat, userCat, n); !d.IsEmpty() {
-		t.Errorf("[%s] CANONICALIZATION (reverse): stored vs user not empty for %s:\n  diff: %s",
-			o.name, table, describeDiff(d))
-	}
+	assertDiffEmptyAgainstStored(t, o, readback, userDDL, table)
 }
 
 // describeDiff renders a compact human description of a SchemaDiff for failure output.
@@ -161,7 +140,12 @@ func diffIdempotenceProbes() []diffProbe {
 		// pair — the regression was a phantom MODIFY COLUMN on every no-op. Covers varchar/char/
 		// text/tinytext on a utf8mb4 table (-> utf8mb4_bin) plus an explicit ascii column
 		// (-> ascii_bin). (entry char-binary-attribute)
-		{"binary-modifier-utf8mb4", "CREATE TABLE t (id INT PRIMARY KEY, k VARCHAR(128) BINARY NOT NULL, c CHAR(5) BINARY, tx TEXT BINARY, ti TINYTEXT BINARY, ac VARCHAR(10) CHARACTER SET ascii BINARY) DEFAULT CHARSET=utf8mb4", "t"},
+		{"binary-modifier-utf8mb4", "CREATE TABLE t (id INT PRIMARY KEY, k VARCHAR(128) BINARY NOT NULL, c CHAR(5) BINARY, tx TEXT BINARY, ti TINYTEXT BINARY) DEFAULT CHARSET=utf8mb4", "t"},
+		// OceanBase's grammar puts BINARY before the charset (`VARCHAR string_length_i
+		// opt_binary opt_charset`): it takes the first of these and refuses the second.
+		// The parser here has the order the other way round (obGaps, obRefused).
+		{"binary-modifier-before-charset", "CREATE TABLE t (id INT PRIMARY KEY, ac VARCHAR(10) BINARY CHARACTER SET ascii) DEFAULT CHARSET=utf8mb4", "t"},
+		{"binary-modifier-after-charset", "CREATE TABLE t (id INT PRIMARY KEY, ac VARCHAR(10) CHARACTER SET ascii BINARY) DEFAULT CHARSET=utf8mb4", "t"},
 		// latin1 table -> latin1_bin.
 		{"binary-modifier-latin1", "CREATE TABLE t (id INT PRIMARY KEY, a VARCHAR(50) BINARY) DEFAULT CHARSET=latin1", "t"},
 		// comment escaping (table COMMENT carries an embedded single-quoted token `'c'` via
@@ -186,7 +170,10 @@ func diffIdempotenceProbes() []diffProbe {
 		// adjacent string-literal concatenation in a bare column DEFAULT: the user form
 		// DEFAULT 'x' 'y' ('x' 'y' 'z', "x" 'y') is stored as the folded DEFAULT 'xy'
 		// ('xyz', 'xy') — the user form must diff EMPTY against that readback.
-		{"adjacent-literal-default", `CREATE TABLE t (id INT PRIMARY KEY, a VARCHAR(20) DEFAULT 'x' 'y', b VARCHAR(20) DEFAULT 'x' 'y' 'z', c VARCHAR(20) DEFAULT "x" 'y')`, "t"},
+		{"adjacent-literal-default", `CREATE TABLE t (id INT PRIMARY KEY, a VARCHAR(20) DEFAULT 'x' 'y', b VARCHAR(20) DEFAULT 'x' 'y' 'z')`, "t"},
+		// OceanBase folds single-quoted neighbours, as above, and refuses a double-quoted
+		// literal with a neighbour.
+		{"adjacent-literal-default-double-quoted", `CREATE TABLE t (id INT PRIMARY KEY, c VARCHAR(20) DEFAULT "x" 'y')`, "t"},
 		// adjacency inside LIST COLUMNS partition values: VALUES IN ('a' 'b') is stored
 		// folded as VALUES IN ('ab').
 		{"adjacent-literal-partition", "CREATE TABLE t (c VARCHAR(10) NOT NULL PRIMARY KEY) PARTITION BY LIST COLUMNS(c) (PARTITION p0 VALUES IN ('a' 'b'), PARTITION p1 VALUES IN ('z'))", "t"},
@@ -201,13 +188,13 @@ func diffIdempotenceProbes() []diffProbe {
 // TestOracle_DiffIdempotence proves gate 1 & 2 for every form: user DDL vs its engine
 // readback diffs EMPTY, and the stored form self-diffs empty, on every supported version.
 func TestOracle_DiffIdempotence(t *testing.T) {
-	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+	for range oracleVersions() {
+		o := oceanBaseOracle(t)
 		for _, probe := range diffIdempotenceProbes() {
-			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), gapped(func(t testing.TB) {
 				db := "diff_" + strings.ReplaceAll(probe.id, "-", "_")
 				assertDiffEmptyAgainstReadback(t, o, db, probe.create, probe.table)
-			})
+			}))
 		}
 	}
 }
@@ -216,13 +203,13 @@ func TestOracle_DiffIdempotence(t *testing.T) {
 // and an index) loaded from its real engine readbacks self-diffs empty — the realistic
 // release-path idempotence check, not just single-table forms.
 func TestOracle_DiffMultiTableRoundTrip(t *testing.T) {
-	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+	for range oracleVersions() {
+		o := oceanBaseOracle(t)
 		sc := serverCharsetFor(o.version)
 		n := NormalizerFor(o.version)
 		ctx := context.Background()
 
-		t.Run(o.name+"/two-tables-fk", func(t *testing.T) {
+		t.Run(o.name+"/two-tables-fk", gapped(func(t testing.TB) {
 			dbName := "diff_multi"
 			stmts := []string{
 				fmt.Sprintf("DROP DATABASE IF EXISTS %s", dbName),
@@ -233,7 +220,8 @@ func TestOracle_DiffMultiTableRoundTrip(t *testing.T) {
 			}
 			for _, s := range stmts {
 				if _, err := o.db.ExecContext(ctx, s); err != nil {
-					t.Skipf("[%s] setup failed (may be expected): %q: %v", o.name, s, err)
+					o.refused(t, err, "setup failed: %q", s)
+					return
 				}
 			}
 			// Read back both tables and reload as a single schema.
@@ -255,7 +243,7 @@ func TestOracle_DiffMultiTableRoundTrip(t *testing.T) {
 			if d := DiffWithNormalizer(cat, cat, n); !d.IsEmpty() {
 				t.Errorf("[%s] multi-table self-diff not empty: %s", o.name, describeDiff(d))
 			}
-		})
+		}))
 	}
 }
 
@@ -264,8 +252,8 @@ func TestOracle_DiffMultiTableRoundTrip(t *testing.T) {
 // (Apply-correctness — that the generated DDL transforms from into to — is generate-
 // core's gate; here we assert the SchemaDiff content is structurally right.)
 func TestOracle_DiffNonEmptyCorrect(t *testing.T) {
-	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+	for range oracleVersions() {
+		o := oceanBaseOracle(t)
 		sc := serverCharsetFor(o.version)
 		n := NormalizerFor(o.version)
 
@@ -301,11 +289,12 @@ func TestOracle_DiffNonEmptyCorrect(t *testing.T) {
 				"t", DiffModify, "v", DiffModify},
 		}
 		for _, tc := range cases {
-			t.Run(o.name+"/"+tc.name, func(t *testing.T) {
+			t.Run(o.name+"/"+tc.name, gapped(func(t testing.TB) {
 				rbFrom, ok1 := o.showCreate(t, "diff_nf", tc.fromDDL, tc.wantTable)
 				rbTo, ok2 := o.showCreate(t, "diff_nt", tc.toDDL, tc.wantTable)
 				if !ok1 || !ok2 {
-					t.Skipf("[%s] could not obtain readbacks", o.name)
+					o.refused(t, nil, "could not obtain readbacks")
+					return
 				}
 				fromCat, _ := loadOneTable(t, sc, rbFrom, tc.wantTable)
 				toCat, _ := loadOneTable(t, sc, rbTo, tc.wantTable)
@@ -318,7 +307,7 @@ func TestOracle_DiffNonEmptyCorrect(t *testing.T) {
 				if ce == nil || ce.Action != tc.wantColA {
 					t.Fatalf("[%s] want col %s %s, got %s", o.name, tc.wantCol, tc.wantColA, describeDiff(d))
 				}
-			})
+			}))
 		}
 	}
 }

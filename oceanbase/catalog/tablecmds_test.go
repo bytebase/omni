@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func mustExec(t *testing.T, c *Catalog, sql string) {
+func mustExec(t testing.TB, c *Catalog, sql string) {
 	t.Helper()
 	results, err := c.Exec(sql, nil)
 	if err != nil {

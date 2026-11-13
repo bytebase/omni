@@ -256,7 +256,7 @@ var reorganizeSubpartitionedAlters = []string{
 func TestOracle_OceanBaseAddPartitionSubpartitions(t *testing.T) {
 	o := oceanBaseOracle(t)
 	ctx := context.Background()
-	t.Run("reorganize", func(t *testing.T) {
+	t.Run("reorganize", gapped(func(t testing.TB) {
 		if _, err := storeAndRead(ctx, o, "obreorg", "CREATE TABLE t (a INT, b INT, PRIMARY KEY (a, b)) PARTITION BY RANGE(a) SUBPARTITION BY HASH(b) SUBPARTITION TEMPLATE (SUBPARTITION s0, SUBPARTITION s1) (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (20))", "t"); err != nil {
 			t.Fatal(err)
 		}
@@ -268,9 +268,9 @@ func TestOracle_OceanBaseAddPartitionSubpartitions(t *testing.T) {
 				t.Errorf("OceanBase answered %v for %q, want 1235", err, alter)
 			}
 		}
-	})
+	}))
 	for i, sc := range addPartitionScenarios {
-		t.Run(sc.name, func(t *testing.T) {
+		t.Run(sc.name, gapped(func(t testing.TB) {
 			dbName := fmt.Sprintf("obaddpart_%d", i)
 			readback, err := storeAndRead(ctx, o, dbName, sc.ddl[0], "t")
 			if err != nil {
@@ -311,6 +311,6 @@ func TestOracle_OceanBaseAddPartitionSubpartitions(t *testing.T) {
 			if got := partitionLayout(stored); strings.Join(got, " ") != strings.Join(sc.layout, " ") {
 				t.Errorf("the catalog reads OceanBase's SHOW CREATE TABLE as %v, want %v\n%s", got, sc.layout, readback)
 			}
-		})
+		}))
 	}
 }

@@ -1,20 +1,20 @@
 -- pin: default oceanbase/oceanbase-ce:4.3.5.6-106000012026040916 sha256:31086a6900c21c479c2bcd942b6a28c53b17a51f4e9b9eb8eafcc596adfcd2e3 v4.3.5_CE_BP6
 
-== TestOracle_OceanBaseCanonicalization default#1
+== TestOracle_DiffIdempotence default#1
 > exec
-| DROP DATABASE IF EXISTS ob_int_widths
+| DROP DATABASE IF EXISTS diff_int_widths
 < ok 0 0
 > exec
-| CREATE DATABASE ob_int_widths
+| CREATE DATABASE diff_int_widths
 < ok 1 0
 > exec
-| USE ob_int_widths
+| USE diff_int_widths
 < ok 0 0
 > exec
 | CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT(11), b BIGINT(20), c INT, p TINYINT, h INT UNSIGNED)
 < ok 0 0
 > query
-| SHOW CREATE TABLE ob_int_widths.t
+| SHOW CREATE TABLE diff_int_widths.t
 < result
 < column "Table" "VARCHAR"
 < column "Create Table" "TEXT"
@@ -32,19 +32,19 @@
 |   PRIMARY KEY (`id`)
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
-| DROP DATABASE IF EXISTS ob_boolean
+| DROP DATABASE IF EXISTS diff_boolean
 < ok 0 0
 > exec
-| CREATE DATABASE ob_boolean
+| CREATE DATABASE diff_boolean
 < ok 1 0
 > exec
-| USE ob_boolean
+| USE diff_boolean
 < ok 0 0
 > exec
 | CREATE TABLE t (id INT PRIMARY KEY, m BOOLEAN, n BOOL, d TINYINT(1))
 < ok 0 0
 > query
-| SHOW CREATE TABLE ob_boolean.t
+| SHOW CREATE TABLE diff_boolean.t
 < result
 < column "Table" "VARCHAR"
 < column "Create Table" "TEXT"
@@ -60,19 +60,19 @@
 |   PRIMARY KEY (`id`)
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
-| DROP DATABASE IF EXISTS ob_numeric
+| DROP DATABASE IF EXISTS diff_numeric
 < ok 0 0
 > exec
-| CREATE DATABASE ob_numeric
+| CREATE DATABASE diff_numeric
 < ok 1 0
 > exec
-| USE ob_numeric
+| USE diff_numeric
 < ok 0 0
 > exec
 | CREATE TABLE t (id INT PRIMARY KEY, a DECIMAL, b DECIMAL(10,2), d NUMERIC, j REAL, f FLOAT)
 < ok 0 0
 > query
-| SHOW CREATE TABLE ob_numeric.t
+| SHOW CREATE TABLE diff_numeric.t
 < result
 < column "Table" "VARCHAR"
 < column "Create Table" "TEXT"
@@ -90,19 +90,19 @@
 |   PRIMARY KEY (`id`)
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
-| DROP DATABASE IF EXISTS ob_char_bit_year
+| DROP DATABASE IF EXISTS diff_char_bit_year
 < ok 0 0
 > exec
-| CREATE DATABASE ob_char_bit_year
+| CREATE DATABASE diff_char_bit_year
 < ok 1 0
 > exec
-| USE ob_char_bit_year
+| USE diff_char_bit_year
 < ok 0 0
 > exec
 | CREATE TABLE t (id INT PRIMARY KEY, a CHAR, d BINARY, c BIT, y YEAR)
 < ok 0 0
 > query
-| SHOW CREATE TABLE ob_char_bit_year.t
+| SHOW CREATE TABLE diff_char_bit_year.t
 < result
 < column "Table" "VARCHAR"
 < column "Create Table" "TEXT"
@@ -119,19 +119,19 @@
 |   PRIMARY KEY (`id`)
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
-| DROP DATABASE IF EXISTS ob_defaults
+| DROP DATABASE IF EXISTS diff_defaults
 < ok 0 0
 > exec
-| CREATE DATABASE ob_defaults
+| CREATE DATABASE diff_defaults
 < ok 1 0
 > exec
-| USE ob_defaults
+| USE diff_defaults
 < ok 0 0
 > exec
 | CREATE TABLE t (id INT PRIMARY KEY, a INT DEFAULT 0, b INT DEFAULT '7', f DECIMAL(10,2) DEFAULT 0, c VARCHAR(20) DEFAULT 'x', j BOOLEAN DEFAULT TRUE)
 < ok 0 0
 > query
-| SHOW CREATE TABLE ob_defaults.t
+| SHOW CREATE TABLE diff_defaults.t
 < result
 < column "Table" "VARCHAR"
 < column "Create Table" "TEXT"
@@ -149,19 +149,19 @@
 |   PRIMARY KEY (`id`)
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
-| DROP DATABASE IF EXISTS ob_bigint_unsigned_max_default
+| DROP DATABASE IF EXISTS diff_bigint_unsigned_max_default
 < ok 0 0
 > exec
-| CREATE DATABASE ob_bigint_unsigned_max_default
+| CREATE DATABASE diff_bigint_unsigned_max_default
 < ok 1 0
 > exec
-| USE ob_bigint_unsigned_max_default
+| USE diff_bigint_unsigned_max_default
 < ok 0 0
 > exec
 | CREATE TABLE t (id INT PRIMARY KEY, big BIGINT UNSIGNED NOT NULL DEFAULT 18446744073709551615, mid BIGINT UNSIGNED NOT NULL DEFAULT 9223372036854775808)
 < ok 0 0
 > query
-| SHOW CREATE TABLE ob_bigint_unsigned_max_default.t
+| SHOW CREATE TABLE diff_bigint_unsigned_max_default.t
 < result
 < column "Table" "VARCHAR"
 < column "Create Table" "TEXT"
@@ -176,19 +176,19 @@
 |   PRIMARY KEY (`id`)
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
-| DROP DATABASE IF EXISTS ob_bigint_signed_boundary_default
+| DROP DATABASE IF EXISTS diff_bigint_signed_boundary_default
 < ok 0 0
 > exec
-| CREATE DATABASE ob_bigint_signed_boundary_default
+| CREATE DATABASE diff_bigint_signed_boundary_default
 < ok 1 0
 > exec
-| USE ob_bigint_signed_boundary_default
+| USE diff_bigint_signed_boundary_default
 < ok 0 0
 > exec
 | CREATE TABLE t (id INT PRIMARY KEY, lo BIGINT NOT NULL DEFAULT -9223372036854775808, hi BIGINT NOT NULL DEFAULT 9223372036854775807)
 < ok 0 0
 > query
-| SHOW CREATE TABLE ob_bigint_signed_boundary_default.t
+| SHOW CREATE TABLE diff_bigint_signed_boundary_default.t
 < result
 < column "Table" "VARCHAR"
 < column "Create Table" "TEXT"
@@ -203,19 +203,19 @@
 |   PRIMARY KEY (`id`)
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
-| DROP DATABASE IF EXISTS ob_bit_default_forms
+| DROP DATABASE IF EXISTS diff_bit_default_forms
 < ok 0 0
 > exec
-| CREATE DATABASE ob_bit_default_forms
+| CREATE DATABASE diff_bit_default_forms
 < ok 1 0
 > exec
-| USE ob_bit_default_forms
+| USE diff_bit_default_forms
 < ok 0 0
 > exec
 | CREATE TABLE t (id INT PRIMARY KEY, a BIT(8) NOT NULL DEFAULT b'0', b BIT(8) NOT NULL DEFAULT 0x05, c BIT(8) NOT NULL DEFAULT 5, d BIT(16) NOT NULL DEFAULT 'AB')
 < ok 0 0
 > query
-| SHOW CREATE TABLE ob_bit_default_forms.t
+| SHOW CREATE TABLE diff_bit_default_forms.t
 < result
 < column "Table" "VARCHAR"
 < column "Create Table" "TEXT"
@@ -232,19 +232,19 @@
 |   PRIMARY KEY (`id`)
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
-| DROP DATABASE IF EXISTS ob_year_default
+| DROP DATABASE IF EXISTS diff_year_default
 < ok 0 0
 > exec
-| CREATE DATABASE ob_year_default
+| CREATE DATABASE diff_year_default
 < ok 1 0
 > exec
-| USE ob_year_default
+| USE diff_year_default
 < ok 0 0
 > exec
 | CREATE TABLE t (id INT PRIMARY KEY, a YEAR NOT NULL DEFAULT 2000, b YEAR NOT NULL DEFAULT 1999, c YEAR NOT NULL DEFAULT 99, d YEAR NOT NULL DEFAULT 0)
 < ok 0 0
 > query
-| SHOW CREATE TABLE ob_year_default.t
+| SHOW CREATE TABLE diff_year_default.t
 < result
 < column "Table" "VARCHAR"
 < column "Create Table" "TEXT"
@@ -261,19 +261,19 @@
 |   PRIMARY KEY (`id`)
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
-| DROP DATABASE IF EXISTS ob_nullability
+| DROP DATABASE IF EXISTS diff_nullability
 < ok 0 0
 > exec
-| CREATE DATABASE ob_nullability
+| CREATE DATABASE diff_nullability
 < ok 1 0
 > exec
-| USE ob_nullability
+| USE diff_nullability
 < ok 0 0
 > exec
 | CREATE TABLE t (id INT, a INT NULL, b INT DEFAULT NULL, d VARCHAR(10) NULL, PRIMARY KEY (id))
 < ok 0 0
 > query
-| SHOW CREATE TABLE ob_nullability.t
+| SHOW CREATE TABLE diff_nullability.t
 < result
 < column "Table" "VARCHAR"
 < column "Create Table" "TEXT"
@@ -289,19 +289,19 @@
 |   PRIMARY KEY (`id`)
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
-| DROP DATABASE IF EXISTS ob_enum_set
+| DROP DATABASE IF EXISTS diff_enum_set
 < ok 0 0
 > exec
-| CREATE DATABASE ob_enum_set
+| CREATE DATABASE diff_enum_set
 < ok 1 0
 > exec
-| USE ob_enum_set
+| USE diff_enum_set
 < ok 0 0
 > exec
 | CREATE TABLE t (id INT PRIMARY KEY, a ENUM('x','y','z'), b SET('a','b','c'), e ENUM("dq1","dq2"))
 < ok 0 0
 > query
-| SHOW CREATE TABLE ob_enum_set.t
+| SHOW CREATE TABLE diff_enum_set.t
 < result
 < column "Table" "VARCHAR"
 < column "Create Table" "TEXT"
@@ -317,19 +317,19 @@
 |   PRIMARY KEY (`id`)
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
-| DROP DATABASE IF EXISTS ob_generated
+| DROP DATABASE IF EXISTS diff_generated
 < ok 0 0
 > exec
-| CREATE DATABASE ob_generated
+| CREATE DATABASE diff_generated
 < ok 1 0
 > exec
-| USE ob_generated
+| USE diff_generated
 < ok 0 0
 > exec
 | CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT GENERATED ALWAYS AS (a+1) VIRTUAL, c INT GENERATED ALWAYS AS ( a * 2 ) STORED, d INT AS (a+1))
 < ok 0 0
 > query
-| SHOW CREATE TABLE ob_generated.t
+| SHOW CREATE TABLE diff_generated.t
 < result
 < column "Table" "VARCHAR"
 < column "Create Table" "TEXT"
@@ -346,19 +346,19 @@
 |   PRIMARY KEY (`id`)
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
-| DROP DATABASE IF EXISTS ob_implicit_table_opts
+| DROP DATABASE IF EXISTS diff_implicit_table_opts
 < ok 0 0
 > exec
-| CREATE DATABASE ob_implicit_table_opts
+| CREATE DATABASE diff_implicit_table_opts
 < ok 1 0
 > exec
-| USE ob_implicit_table_opts
+| USE diff_implicit_table_opts
 < ok 0 0
 > exec
 | CREATE TABLE t (id INT PRIMARY KEY, a VARCHAR(10))
 < ok 0 0
 > query
-| SHOW CREATE TABLE ob_implicit_table_opts.t
+| SHOW CREATE TABLE diff_implicit_table_opts.t
 < result
 < column "Table" "VARCHAR"
 < column "Create Table" "TEXT"
@@ -372,19 +372,19 @@
 |   PRIMARY KEY (`id`)
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
-| DROP DATABASE IF EXISTS ob_charset_echo
+| DROP DATABASE IF EXISTS diff_charset_echo
 < ok 0 0
 > exec
-| CREATE DATABASE ob_charset_echo
+| CREATE DATABASE diff_charset_echo
 < ok 1 0
 > exec
-| USE ob_charset_echo
+| USE diff_charset_echo
 < ok 0 0
 > exec
 | CREATE TABLE t (id INT PRIMARY KEY, a VARCHAR(10) CHARACTER SET utf8mb4, b VARCHAR(10)) DEFAULT CHARSET=utf8mb4
 < ok 0 0
 > query
-| SHOW CREATE TABLE ob_charset_echo.t
+| SHOW CREATE TABLE diff_charset_echo.t
 < result
 < column "Table" "VARCHAR"
 < column "Create Table" "TEXT"
@@ -399,32 +399,87 @@
 |   PRIMARY KEY (`id`)
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
-| DROP DATABASE IF EXISTS ob_binary_modifier_utf8mb4
+| DROP DATABASE IF EXISTS diff_binary_modifier_utf8mb4
 < ok 0 0
 > exec
-| CREATE DATABASE ob_binary_modifier_utf8mb4
+| CREATE DATABASE diff_binary_modifier_utf8mb4
 < ok 1 0
 > exec
-| USE ob_binary_modifier_utf8mb4
+| USE diff_binary_modifier_utf8mb4
 < ok 0 0
 > exec
-| CREATE TABLE t (id INT PRIMARY KEY, k VARCHAR(128) BINARY NOT NULL, c CHAR(5) BINARY, tx TEXT BINARY, ti TINYTEXT BINARY, ac VARCHAR(10) CHARACTER SET ascii BINARY) DEFAULT CHARSET=utf8mb4
+| CREATE TABLE t (id INT PRIMARY KEY, k VARCHAR(128) BINARY NOT NULL, c CHAR(5) BINARY, tx TEXT BINARY, ti TINYTEXT BINARY) DEFAULT CHARSET=utf8mb4
+< ok 0 0
+> query
+| SHOW CREATE TABLE diff_binary_modifier_utf8mb4.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) NOT NULL,
+|   `k` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+|   `c` char(5) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+|   `tx` text CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+|   `ti` tinytext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS diff_binary_modifier_before_charset
+< ok 0 0
+> exec
+| CREATE DATABASE diff_binary_modifier_before_charset
+< ok 1 0
+> exec
+| USE diff_binary_modifier_before_charset
+< ok 0 0
+> exec
+| CREATE TABLE t (id INT PRIMARY KEY, ac VARCHAR(10) BINARY CHARACTER SET ascii) DEFAULT CHARSET=utf8mb4
+< ok 0 0
+> query
+| SHOW CREATE TABLE diff_binary_modifier_before_charset.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) NOT NULL,
+|   `ac` varchar(10) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS diff_binary_modifier_after_charset
+< ok 0 0
+> exec
+| CREATE DATABASE diff_binary_modifier_after_charset
+< ok 1 0
+> exec
+| USE diff_binary_modifier_after_charset
+< ok 0 0
+> exec
+| CREATE TABLE t (id INT PRIMARY KEY, ac VARCHAR(10) CHARACTER SET ascii BINARY) DEFAULT CHARSET=utf8mb4
 < error
 | 1064 42000 …near 'BINARY) DEFAULT CHARSET=utf8mb4' at line 1
 > exec
-| DROP DATABASE IF EXISTS ob_binary_modifier_latin1
+| DROP DATABASE IF EXISTS diff_binary_modifier_latin1
 < ok 0 0
 > exec
-| CREATE DATABASE ob_binary_modifier_latin1
+| CREATE DATABASE diff_binary_modifier_latin1
 < ok 1 0
 > exec
-| USE ob_binary_modifier_latin1
+| USE diff_binary_modifier_latin1
 < ok 0 0
 > exec
 | CREATE TABLE t (id INT PRIMARY KEY, a VARCHAR(50) BINARY) DEFAULT CHARSET=latin1
 < ok 0 0
 > query
-| SHOW CREATE TABLE ob_binary_modifier_latin1.t
+| SHOW CREATE TABLE diff_binary_modifier_latin1.t
 < result
 < column "Table" "VARCHAR"
 < column "Create Table" "TEXT"
@@ -438,19 +493,19 @@
 |   PRIMARY KEY (`id`)
 | ) ORGANIZATION INDEX DEFAULT CHARSET = latin1 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
-| DROP DATABASE IF EXISTS ob_comment
+| DROP DATABASE IF EXISTS diff_comment
 < ok 0 0
 > exec
-| CREATE DATABASE ob_comment
+| CREATE DATABASE diff_comment
 < ok 1 0
 > exec
-| USE ob_comment
+| USE diff_comment
 < ok 0 0
 > exec
 | CREATE TABLE t (id INT PRIMARY KEY, a INT COMMENT 'has ''quote'' inside') COMMENT='tbl ''c'''
 < ok 0 0
 > query
-| SHOW CREATE TABLE ob_comment.t
+| SHOW CREATE TABLE diff_comment.t
 < result
 < column "Table" "VARCHAR"
 < column "Create Table" "TEXT"
@@ -464,19 +519,19 @@
 |   PRIMARY KEY (`id`)
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0 COMMENT = 'tbl \'c\''
 > exec
-| DROP DATABASE IF EXISTS ob_autoinc
+| DROP DATABASE IF EXISTS diff_autoinc
 < ok 0 0
 > exec
-| CREATE DATABASE ob_autoinc
+| CREATE DATABASE diff_autoinc
 < ok 1 0
 > exec
-| USE ob_autoinc
+| USE diff_autoinc
 < ok 0 0
 > exec
 | CREATE TABLE t (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, a INT) AUTO_INCREMENT=100
 < ok 0 0
 > query
-| SHOW CREATE TABLE ob_autoinc.t
+| SHOW CREATE TABLE diff_autoinc.t
 < result
 < column "Table" "VARCHAR"
 < column "Create Table" "TEXT"
@@ -490,19 +545,19 @@
 |   PRIMARY KEY (`id`)
 | ) ORGANIZATION INDEX AUTO_INCREMENT = 100 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
-| DROP DATABASE IF EXISTS ob_timestamp
+| DROP DATABASE IF EXISTS diff_timestamp
 < ok 0 0
 > exec
-| CREATE DATABASE ob_timestamp
+| CREATE DATABASE diff_timestamp
 < ok 1 0
 > exec
-| USE ob_timestamp
+| USE diff_timestamp
 < ok 0 0
 > exec
 | CREATE TABLE t (id INT PRIMARY KEY, a TIMESTAMP, b TIMESTAMP NULL, d TIMESTAMP DEFAULT CURRENT_TIMESTAMP)
 < ok 0 0
 > query
-| SHOW CREATE TABLE ob_timestamp.t
+| SHOW CREATE TABLE diff_timestamp.t
 < result
 < column "Table" "VARCHAR"
 < column "Create Table" "TEXT"
@@ -518,19 +573,19 @@
 |   PRIMARY KEY (`id`)
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
-| DROP DATABASE IF EXISTS ob_datetime_default
+| DROP DATABASE IF EXISTS diff_datetime_default
 < ok 0 0
 > exec
-| CREATE DATABASE ob_datetime_default
+| CREATE DATABASE diff_datetime_default
 < ok 1 0
 > exec
-| USE ob_datetime_default
+| USE diff_datetime_default
 < ok 0 0
 > exec
 | CREATE TABLE t (id INT PRIMARY KEY, g DATETIME DEFAULT CURRENT_TIMESTAMP, h DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)
 < ok 0 0
 > query
-| SHOW CREATE TABLE ob_datetime_default.t
+| SHOW CREATE TABLE diff_datetime_default.t
 < result
 < column "Table" "VARCHAR"
 < column "Create Table" "TEXT"
@@ -545,19 +600,19 @@
 |   PRIMARY KEY (`id`)
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
-| DROP DATABASE IF EXISTS ob_functional_default
+| DROP DATABASE IF EXISTS diff_functional_default
 < ok 0 0
 > exec
-| CREATE DATABASE ob_functional_default
+| CREATE DATABASE diff_functional_default
 < ok 1 0
 > exec
-| USE ob_functional_default
+| USE diff_functional_default
 < ok 0 0
 > exec
 | CREATE TABLE t (id INT PRIMARY KEY, a INT DEFAULT (1+1), b VARCHAR(36) DEFAULT (UUID()))
 < ok 0 0
 > query
-| SHOW CREATE TABLE ob_functional_default.t
+| SHOW CREATE TABLE diff_functional_default.t
 < result
 < column "Table" "VARCHAR"
 < column "Create Table" "TEXT"
@@ -572,19 +627,19 @@
 |   PRIMARY KEY (`id`)
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
-| DROP DATABASE IF EXISTS ob_gen_introducer
+| DROP DATABASE IF EXISTS diff_gen_introducer
 < ok 0 0
 > exec
-| CREATE DATABASE ob_gen_introducer
+| CREATE DATABASE diff_gen_introducer
 < ok 1 0
 > exec
-| USE ob_gen_introducer
+| USE diff_gen_introducer
 < ok 0 0
 > exec
 | CREATE TABLE t (id INT PRIMARY KEY, a VARCHAR(20), e VARCHAR(20) GENERATED ALWAYS AS (CONCAT(a,'x')) VIRTUAL) DEFAULT CHARSET=utf8mb4
 < ok 0 0
 > query
-| SHOW CREATE TABLE ob_gen_introducer.t
+| SHOW CREATE TABLE diff_gen_introducer.t
 < result
 < column "Table" "VARCHAR"
 < column "Create Table" "TEXT"
@@ -599,19 +654,19 @@
 |   PRIMARY KEY (`id`)
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
-| DROP DATABASE IF EXISTS ob_multi_column
+| DROP DATABASE IF EXISTS diff_multi_column
 < ok 0 0
 > exec
-| CREATE DATABASE ob_multi_column
+| CREATE DATABASE diff_multi_column
 < ok 1 0
 > exec
-| USE ob_multi_column
+| USE diff_multi_column
 < ok 0 0
 > exec
 | CREATE TABLE t (id INT NOT NULL, c1 VARCHAR(10), c2 INT DEFAULT 0, c3 DATE, c4 DECIMAL(8,3), PRIMARY KEY (id))
 < ok 0 0
 > query
-| SHOW CREATE TABLE ob_multi_column.t
+| SHOW CREATE TABLE diff_multi_column.t
 < result
 < column "Table" "VARCHAR"
 < column "Create Table" "TEXT"
@@ -628,19 +683,19 @@
 |   PRIMARY KEY (`id`)
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
-| DROP DATABASE IF EXISTS ob_row_format_explicit
+| DROP DATABASE IF EXISTS diff_row_format_explicit
 < ok 0 0
 > exec
-| CREATE DATABASE ob_row_format_explicit
+| CREATE DATABASE diff_row_format_explicit
 < ok 1 0
 > exec
-| USE ob_row_format_explicit
+| USE diff_row_format_explicit
 < ok 0 0
 > exec
 | CREATE TABLE t (id INT PRIMARY KEY) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8
 < ok 0 0
 > query
-| SHOW CREATE TABLE ob_row_format_explicit.t
+| SHOW CREATE TABLE diff_row_format_explicit.t
 < result
 < column "Table" "VARCHAR"
 < column "Create Table" "TEXT"
@@ -653,32 +708,59 @@
 |   PRIMARY KEY (`id`)
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = COMPRESSED COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
-| DROP DATABASE IF EXISTS ob_adjacent_literal_default
+| DROP DATABASE IF EXISTS diff_adjacent_literal_default
 < ok 0 0
 > exec
-| CREATE DATABASE ob_adjacent_literal_default
+| CREATE DATABASE diff_adjacent_literal_default
 < ok 1 0
 > exec
-| USE ob_adjacent_literal_default
+| USE diff_adjacent_literal_default
 < ok 0 0
 > exec
-| CREATE TABLE t (id INT PRIMARY KEY, a VARCHAR(20) DEFAULT 'x' 'y', b VARCHAR(20) DEFAULT 'x' 'y' 'z', c VARCHAR(20) DEFAULT "x" 'y')
+| CREATE TABLE t (id INT PRIMARY KEY, a VARCHAR(20) DEFAULT 'x' 'y', b VARCHAR(20) DEFAULT 'x' 'y' 'z')
+< ok 0 0
+> query
+| SHOW CREATE TABLE diff_adjacent_literal_default.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) NOT NULL,
+|   `a` varchar(20) DEFAULT 'xy',
+|   `b` varchar(20) DEFAULT 'xyz',
+|   PRIMARY KEY (`id`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS diff_adjacent_literal_default_double_quoted
+< ok 0 0
+> exec
+| CREATE DATABASE diff_adjacent_literal_default_double_quoted
+< ok 1 0
+> exec
+| USE diff_adjacent_literal_default_double_quoted
+< ok 0 0
+> exec
+| CREATE TABLE t (id INT PRIMARY KEY, c VARCHAR(20) DEFAULT "x" 'y')
 < error
 | 1064 42000 …near 'FROM DUAL' at line 1
 > exec
-| DROP DATABASE IF EXISTS ob_adjacent_literal_partition
+| DROP DATABASE IF EXISTS diff_adjacent_literal_partition
 < ok 0 0
 > exec
-| CREATE DATABASE ob_adjacent_literal_partition
+| CREATE DATABASE diff_adjacent_literal_partition
 < ok 1 0
 > exec
-| USE ob_adjacent_literal_partition
+| USE diff_adjacent_literal_partition
 < ok 0 0
 > exec
 | CREATE TABLE t (c VARCHAR(10) NOT NULL PRIMARY KEY) PARTITION BY LIST COLUMNS(c) (PARTITION p0 VALUES IN ('a' 'b'), PARTITION p1 VALUES IN ('z'))
 < ok 0 0
 > query
-| SHOW CREATE TABLE ob_adjacent_literal_partition.t
+| SHOW CREATE TABLE diff_adjacent_literal_partition.t
 < result
 < column "Table" "VARCHAR"
 < column "Create Table" "TEXT"
@@ -694,19 +776,19 @@
 | (partition `p0` values in ('ab'),
 | partition `p1` values in ('z'))
 > exec
-| DROP DATABASE IF EXISTS ob_adjacent_literal_default_introducer
+| DROP DATABASE IF EXISTS diff_adjacent_literal_default_introducer
 < ok 0 0
 > exec
-| CREATE DATABASE ob_adjacent_literal_default_introducer
+| CREATE DATABASE diff_adjacent_literal_default_introducer
 < ok 1 0
 > exec
-| USE ob_adjacent_literal_default_introducer
+| USE diff_adjacent_literal_default_introducer
 < ok 0 0
 > exec
 | CREATE TABLE t (id INT PRIMARY KEY, a VARCHAR(20) CHARACTER SET utf8mb4 DEFAULT _utf8mb4'x' 'y', b VARCHAR(20) CHARACTER SET utf8mb4 DEFAULT _utf8mb4'z') DEFAULT CHARSET=utf8mb4
 < ok 0 0
 > query
-| SHOW CREATE TABLE ob_adjacent_literal_default_introducer.t
+| SHOW CREATE TABLE diff_adjacent_literal_default_introducer.t
 < result
 < column "Table" "VARCHAR"
 < column "Create Table" "TEXT"

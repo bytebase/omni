@@ -128,9 +128,10 @@ func compareTable(key tableKey, from, to *Table, n *Normalizer) (TableDiffEntry,
 //     resolver uses);
 //   - the table COMMENT content (CanonicalComment);
 //   - ROW_FORMAT, but ONLY when normalize-core says it is significant: IgnoreRowFormat
-//     returns true for an empty/DEFAULT format (environment-dependent, not reconstructible
-//     from DDL) and false for an explicit non-default value — so a real DYNAMIC↔COMPRESSED
-//     change is detected while a phantom default↔unspecified change is not.
+//     returns true for the format OceanBase gives every table that declares none
+//     (unstated, DEFAULT or DYNAMIC) and false for any other — so a real
+//     DYNAMIC↔COMPRESSED change is detected while the DYNAMIC a readback always carries
+//     is not read as one.
 //
 // AUTO_INCREMENT=N is a live next-value counter, never schema, so it is unconditionally
 // not compared (the constant-true IgnoreTableAutoIncrement documents that choice).
@@ -154,26 +155,17 @@ func tableOptionsChanged(from, to *Table, n *Normalizer) bool {
 }
 
 // rowFormatChanged reports whether the table ROW_FORMAT differs in a way that matters.
-// ROW_FORMAT in both the target SDL and the synced SHOW CREATE readback is a DECLARED
-// option, not the table's physical row format: the oracle confirms SHOW CREATE echoes
-// ROW_FORMAT=X iff the user explicitly declared a non-DEFAULT value (a bare table, and a
-// ROW_FORMAT=DEFAULT table, both read back with NO clause; an explicit ROW_FORMAT=DYNAMIC
-// — even though DYNAMIC is the 8.0 physical default — IS echoed). So both sides are the
-// same kind of declared-option string and are compared directly.
+// OceanBase prints a ROW_FORMAT on every table: DYNAMIC for one written with no
+// ROW_FORMAT, with DEFAULT or with DYNAMIC, and the written format for any other. So a
+// readback's DYNAMIC is not a declaration, and the three spellings are one value.
 //
-// The ignore DECISION is owned by normalize-core's IgnoreRowFormat (empty / DEFAULT →
-// ignorable, mapped to "" here; an explicit non-default value is significant). The
+// The ignore DECISION is owned by normalize-core's IgnoreRowFormat (unstated / DEFAULT /
+// DYNAMIC → ignorable, mapped to "" here; any other format is significant). The
 // comparison is then:
 //   - both ignorable → no diff;
-//   - otherwise compare the canonical values (ignorable normalized to "") — so an
-//     explicit COMPRESSED vs an unspecified/DEFAULT side IS a real change (the user is
-//     adding or removing a recorded create-option), while a bare side and a
-//     ROW_FORMAT=DEFAULT side still compare equal (both "").
-//
-// Normalizing ignorable → "" (NOT to a physical default like DYNAMIC) keeps the result
-// independent of innodb_default_row_format, the environment dependency flag
-// row-format-default-source warns about: a bare table never acquires a phantom format.
-// FLAG: if normalize-core grows a CanonicalRowFormat key, compare those instead — see PR.
+//   - otherwise compare the canonical values (ignorable normalized to "") — so COMPRESSED
+//     against an unstated or DYNAMIC side IS a real change, while a bare side and a
+//     readback's DYNAMIC compare equal (both "").
 func rowFormatChanged(from, to *Table, n *Normalizer) bool {
 	if n.IgnoreRowFormat(from) && n.IgnoreRowFormat(to) {
 		return false
@@ -182,9 +174,9 @@ func rowFormatChanged(from, to *Table, n *Normalizer) bool {
 }
 
 // canonicalRowFormat returns the table's declared ROW_FORMAT, or "" when normalize-core
-// deems it ignorable (empty / DEFAULT). The value match in rowFormatChanged is a plain
-// case-insensitive compare because ROW_FORMAT names (DYNAMIC, COMPRESSED, COMPACT,
-// REDUNDANT) have no aliasing or version rules.
+// deems it ignorable (unstated / DEFAULT / DYNAMIC). The value match in rowFormatChanged
+// is a plain case-insensitive compare because the other ROW_FORMAT names (COMPRESSED,
+// COMPACT, REDUNDANT, CONDENSED) have no aliasing or version rules.
 func canonicalRowFormat(t *Table, n *Normalizer) string {
 	if n.IgnoreRowFormat(t) {
 		return ""

@@ -486,23 +486,21 @@ func TestIgnoreInDiff_AutoIncrementCounter(t *testing.T) {
 }
 
 func TestIgnoreInDiff_RowFormatDefault(t *testing.T) {
-	// ROW_FORMAT is ignored when it is empty/the environment default; a user-set value
-	// is not ignored. (flag row-format-default-source: exclude unless explicitly set)
+	// OceanBase stores DYNAMIC for a table written with no ROW_FORMAT, with DEFAULT or
+	// with DYNAMIC, so none of the three is a declaration; every other format is.
+	// TestOracle_OceanBaseRowFormat asks the engine.
 	n := NormalizerFor(MySQL80)
-	if !n.IgnoreRowFormat(&Table{RowFormat: ""}) {
-		t.Fatal("default (empty) ROW_FORMAT must be ignored")
+	for _, rf := range []string{"", "DEFAULT", "DYNAMIC", "dynamic", " Dynamic "} {
+		if !n.IgnoreRowFormat(&Table{RowFormat: rf}) {
+			t.Errorf("ROW_FORMAT %q is what an undeclared table stores, and must be ignored", rf)
+		}
 	}
-	if !n.IgnoreRowFormat(&Table{RowFormat: "DEFAULT"}) {
-		t.Fatal("ROW_FORMAT=DEFAULT must be ignored")
-	}
-	if n.IgnoreRowFormat(&Table{RowFormat: "DYNAMIC"}) {
-		t.Fatal("explicit ROW_FORMAT=DYNAMIC must NOT be ignored")
+	for _, rf := range []string{"COMPACT", "REDUNDANT", "COMPRESSED", "CONDENSED", "compressed"} {
+		if n.IgnoreRowFormat(&Table{RowFormat: rf}) {
+			t.Errorf("ROW_FORMAT %q is stored as written, and must not be ignored", rf)
+		}
 	}
 }
-
-// ---------------------------------------------------------------------------
-// Comments — content comparison, decoded. (entry comment-escaping)
-// ---------------------------------------------------------------------------
 
 func TestCanonicalComment_ContentIsAlreadyDecoded(t *testing.T) {
 	n := NormalizerFor(MySQL80)
@@ -521,17 +519,14 @@ func TestCanonicalComment_ContentIsAlreadyDecoded(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Index column direction — descending is version-flagged. (entry index-desc-asc)
+// Index column direction: OceanBase stores every index column ascending.
 // ---------------------------------------------------------------------------
 
-func TestCanonicalIndexColumn_Descending(t *testing.T) {
-	descCol := &IndexColumn{Name: "a", Descending: true}
-	ascCol := &IndexColumn{Name: "a", Descending: false}
-
-	// 8.0 supports descending: DESC and ASC produce different keys.
-	n80 := NormalizerFor(MySQL80)
-	if n80.CanonicalIndexColumn(descCol) == n80.CanonicalIndexColumn(ascCol) {
-		t.Fatal("8.0: DESC and ASC index columns must differ")
+func TestCanonicalIndexColumn_DirectionIsNotStored(t *testing.T) {
+	n := NormalizerFor(MySQL80)
+	desc, asc := &IndexColumn{Name: "a", Descending: true}, &IndexColumn{Name: "a"}
+	if n.CanonicalIndexColumn(desc) != n.CanonicalIndexColumn(asc) {
+		t.Fatal("OceanBase stores a DESC index column ascending, so DESC and ASC must share a key")
 	}
 }
 

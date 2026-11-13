@@ -230,9 +230,9 @@ func TestOracle_AutoIncGroupingApplyCorrectness(t *testing.T) {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
 		for _, probe := range autoIncMigrationProbes() {
-			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), gapped(func(t testing.TB) {
 				assertApplyCorrect(t, o, n, probe)
-			})
+			}))
 		}
 	}
 }
@@ -242,17 +242,18 @@ func TestOracle_AutoIncGroupingApplyCorrectness(t *testing.T) {
 // must never manufacture ops on a no-op release), and the user-form round-trip must be empty.
 func TestOracle_AutoIncGroupingIdempotence(t *testing.T) {
 	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+		o := oceanBaseOracle(t)
 		n := NormalizerFor(version)
 		for _, probe := range autoIncMigrationProbes() {
 			if strings.TrimSpace(probe.toDDL) == "" {
 				continue
 			}
-			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), gapped(func(t testing.TB) {
 				dbName := "aig_idem_" + strings.ReplaceAll(probe.id, "-", "_")
 				cat, _, rb, ok := o.catalogFromReadback(t, dbName, probe.toDDL, probe.table)
 				if !ok {
-					t.Skipf("[%s] could not obtain readback for %s", o.name, probe.id)
+					o.refused(t, nil, "could not obtain readback for %s", probe.id)
+					return
 				}
 				diff := DiffWithNormalizer(cat, cat, n)
 				plan := GenerateMigrationWithNormalizer(cat, cat, diff, n)
@@ -267,7 +268,7 @@ func TestOracle_AutoIncGroupingIdempotence(t *testing.T) {
 					t.Errorf("[%s] NON-EMPTY ROUND-TRIP PLAN for %s:\n  user:   %s\n  stored: %s\n  plan:\n%s",
 						o.name, probe.id, strings.TrimSpace(probe.toDDL), strings.TrimSpace(rb), rtPlan.SQL())
 				}
-			})
+			}))
 		}
 	}
 }
@@ -318,9 +319,9 @@ func TestOracle_AutoIncGroupingFKImplicitBacking(t *testing.T) {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
 		for _, mc := range cases {
-			t.Run(fmt.Sprintf("%s/%s", o.name, mc.id), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%s/%s", o.name, mc.id), gapped(func(t testing.TB) {
 				assertFKMultiApplyCorrect(t, o, n, mc)
-			})
+			}))
 		}
 	}
 }

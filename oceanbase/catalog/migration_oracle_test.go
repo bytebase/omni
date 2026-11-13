@@ -35,7 +35,7 @@ import (
 // CREATE, and loads it into a catalog (wrapped with the box's server charset so table-charset
 // inheritance resolves identically to loadOneTable). It returns the catalog + the table's
 // authentic stored form.
-func (o *oracleConn) catalogFromReadback(t *testing.T, dbName, createSQL, table string) (*Catalog, *Table, string, bool) {
+func (o *oracleConn) catalogFromReadback(t testing.TB, dbName, createSQL, table string) (*Catalog, *Table, string, bool) {
 	t.Helper()
 	rb, ok := o.showCreate(t, dbName, createSQL, table)
 	if !ok {
@@ -230,9 +230,9 @@ func TestOracle_MigrationApplyCorrectness(t *testing.T) {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
 		for _, probe := range migrationProbes() {
-			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), gapped(func(t testing.TB) {
 				assertApplyCorrect(t, o, n, probe)
-			})
+			}))
 		}
 	}
 }
@@ -240,7 +240,7 @@ func TestOracle_MigrationApplyCorrectness(t *testing.T) {
 // assertApplyCorrect is the core gate-2 assertion. It loads from/to catalogs from the
 // engine's own readbacks, generates the plan, applies it to a from-state database, reads the
 // result back, and asserts the result canonicalizes equal to `to` (in both directions).
-func assertApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p migrationProbe) {
+func assertApplyCorrect(t testing.TB, o *oracleConn, n *Normalizer, p migrationProbe) {
 	t.Helper()
 
 	// Each probe gets its OWN apply database (and its own throwaway readback databases) so the
@@ -255,7 +255,7 @@ func assertApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p migrationP
 
 	// One pinned connection for ALL of this probe's statements (readbacks + setup + apply), so the
 	// pool never lands a `USE` on a different connection than the next statement.
-	conn, err := o.db.Conn(ctx)
+	conn, err := o.session(ctx)
 	if err != nil {
 		t.Fatalf("[%s] grab conn: %v", o.name, err)
 	}
@@ -272,7 +272,8 @@ func assertApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p migrationP
 			createSQL,
 		} {
 			if _, err := conn.ExecContext(ctx, s); err != nil {
-				t.Logf("[%s] %s readback setup failed (may be expected): %q: %v", o.name, p.id, s, err)
+				t.Logf("[%s] %s readback setup failed: %q: %v", o.name, p.id, s, err)
+				o.refusal = fmt.Errorf("%q: %w", s, err)
 				return "", false
 			}
 		}
@@ -293,7 +294,8 @@ func assertApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p migrationP
 	if tableInTo {
 		rb, ok := readbackVia(applyDB+"_to", p.toDDL, p.table)
 		if !ok {
-			t.Skipf("[%s] could not obtain `to` readback for %s", o.name, p.id)
+			o.refused(t, nil, "could not obtain `to` readback for %s", p.id)
+			return
 		}
 		toCat, _ = loadOnePartTable(t, applyDB, sc, rb, p.table)
 	} else {
@@ -305,7 +307,8 @@ func assertApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p migrationP
 	if tableInFrom {
 		rb, ok := readbackVia(applyDB+"_from", p.fromDDL, p.table)
 		if !ok {
-			t.Skipf("[%s] could not obtain `from` readback for %s", o.name, p.id)
+			o.refused(t, nil, "could not obtain `from` readback for %s", p.id)
+			return
 		}
 		fromCat, _ = loadOnePartTable(t, applyDB, sc, rb, p.table)
 	} else {
@@ -327,7 +330,8 @@ func assertApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p migrationP
 	}
 	for _, s := range setup {
 		if _, err := conn.ExecContext(ctx, s); err != nil {
-			t.Skipf("[%s] could not set up `from` state for %s: %q: %v", o.name, p.id, s, err)
+			o.refused(t, err, "could not set up `from` state for %s: %q", p.id, s)
+			return
 		}
 	}
 
@@ -387,7 +391,7 @@ func assertApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p migrationP
 // tape replays only the requests it recorded. The result stays well under the 64-character
 // identifier limit even with the harness's `_to` / `_from` throwaway suffixes appended. The
 // `pa_` prefix mirrors the partition harness's convention (assertPartitionApplyCorrect).
-func applyDBName(t *testing.T, probeID string) string {
+func applyDBName(t testing.TB, probeID string) string {
 	t.Helper()
 	slug := strings.ReplaceAll(probeID, "-", "_")
 	if len(slug) > 40 {
@@ -403,16 +407,17 @@ func applyDBName(t *testing.T, probeID string) string {
 // diff → generate) emits nothing. A non-empty no-op plan is a bug.
 func TestOracle_MigrationIdempotence(t *testing.T) {
 	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+		o := oceanBaseOracle(t)
 		n := NormalizerFor(version)
 		// Reuse the diff idempotence corpus (the same high-risk forms), but assert the PLAN is
 		// empty rather than just the diff.
 		for _, probe := range diffIdempotenceProbes() {
-			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), gapped(func(t testing.TB) {
 				// Load the engine's stored form of the schema.
 				cat, _, rb, ok := o.catalogFromReadback(t, "gen_idem_"+strings.ReplaceAll(probe.id, "-", "_"), probe.create, probe.table)
 				if !ok {
-					t.Skipf("[%s] could not obtain readback for %s", o.name, probe.id)
+					o.refused(t, nil, "could not obtain readback for %s", probe.id)
+					return
 				}
 				// Self-plan must be empty (idempotence spine).
 				diff := DiffWithNormalizer(cat, cat, n)
@@ -432,7 +437,7 @@ func TestOracle_MigrationIdempotence(t *testing.T) {
 					t.Errorf("[%s] NON-EMPTY ROUND-TRIP PLAN (user vs stored) for %s:\n  user:   %s\n  stored: %s\n  plan:\n%s",
 						o.name, probe.id, strings.TrimSpace(probe.create), strings.TrimSpace(rb), rtPlan.SQL())
 				}
-			})
+			}))
 		}
 	}
 }
@@ -455,19 +460,19 @@ func TestOracle_BigintUnsignedExactValue(t *testing.T) {
 		{"int64-min", "BIGINT", "-9223372036854775808"},
 	}
 	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+		o := oceanBaseOracle(t)
 		n := NormalizerFor(version)
 		sc := serverCharsetFor(o.version)
 		ctx := context.Background()
 		for _, c := range cases {
-			t.Run(o.name+"/"+c.id, func(t *testing.T) {
+			t.Run(o.name+"/"+c.id, gapped(func(t testing.TB) {
 				applyDB := applyDBName(t, "bigexact_"+c.id)
 				fromDDL := fmt.Sprintf("CREATE TABLE t (id INT PRIMARY KEY, big %s NOT NULL DEFAULT 0)", c.colType)
 				toDDL := fmt.Sprintf("CREATE TABLE t (id INT PRIMARY KEY, big %s NOT NULL DEFAULT %s)", c.colType, c.def)
 
 				// One pinned connection for all statements so a pooled USE never lands on a
 				// different connection than the next statement.
-				conn, err := o.db.Conn(ctx)
+				conn, err := o.session(ctx)
 				if err != nil {
 					t.Fatalf("[%s] grab conn: %v", o.name, err)
 				}
@@ -497,11 +502,13 @@ func TestOracle_BigintUnsignedExactValue(t *testing.T) {
 				// qualifies tables as `applyDB`.`t` — the db we set up and apply in below.
 				fromRB, ok := readbackVia(applyDB+"_from", fromDDL)
 				if !ok {
-					t.Skipf("[%s] could not obtain `from` readback", o.name)
+					o.refused(t, nil, "could not obtain `from` readback")
+					return
 				}
 				toRB, ok := readbackVia(applyDB+"_to", toDDL)
 				if !ok {
-					t.Skipf("[%s] could not obtain `to` readback", o.name)
+					o.refused(t, nil, "could not obtain `to` readback")
+					return
 				}
 				fromCat, _ := loadOnePartTable(t, applyDB, sc, fromRB, "t")
 				toCat, _ := loadOnePartTable(t, applyDB, sc, toRB, "t")
@@ -527,7 +534,8 @@ func TestOracle_BigintUnsignedExactValue(t *testing.T) {
 					fromDDL,
 				} {
 					if _, err := conn.ExecContext(ctx, s); err != nil {
-						t.Skipf("[%s] could not set up from-state: %q: %v", o.name, s, err)
+						o.refused(t, err, "could not set up from-state: %q", s)
+						return
 					}
 				}
 				for _, op := range plan.Ops {
@@ -547,7 +555,7 @@ func TestOracle_BigintUnsignedExactValue(t *testing.T) {
 					t.Errorf("[%s] EXACT-VALUE CORRUPTION: stored default = %q, want %q (plan:\n%s)",
 						o.name, storedDefault, c.def, plan.SQL())
 				}
-			})
+			}))
 		}
 	}
 }

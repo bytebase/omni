@@ -11,7 +11,7 @@ import (
 // migration_trigger_oracle_test.go.
 
 // loadTriggerCatalog loads an SDL snippet (wrapped in a utf8mb4 database) and returns the catalog.
-func loadTriggerCatalog(t *testing.T, body string) *Catalog {
+func loadTriggerCatalog(t testing.TB, body string) *Catalog {
 	t.Helper()
 	cat, err := LoadSDL("CREATE DATABASE d DEFAULT CHARSET=utf8mb4;\nUSE d;\n" + body)
 	if err != nil {
@@ -21,7 +21,7 @@ func loadTriggerCatalog(t *testing.T, body string) *Catalog {
 }
 
 // triggerEntry returns the single trigger diff entry for name, or fails.
-func triggerEntry(t *testing.T, d *SchemaDiff, name string) *TriggerDiffEntry {
+func triggerEntry(t testing.TB, d *SchemaDiff, name string) *TriggerDiffEntry {
 	t.Helper()
 	for i := range d.Triggers {
 		if strings.EqualFold(d.Triggers[i].Name, name) {
@@ -321,7 +321,7 @@ CREATE TRIGGER bi BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1;`)
 	}
 }
 
-func singleTriggerOp(t *testing.T, plan *MigrationPlan, typ MigrationOpType) MigrationOp {
+func singleTriggerOp(t testing.TB, plan *MigrationPlan, typ MigrationOpType) MigrationOp {
 	t.Helper()
 	var found []MigrationOp
 	for _, op := range plan.Ops {

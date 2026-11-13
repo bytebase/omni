@@ -130,7 +130,8 @@ func (o Options) live(t testing.TB, pin enginetest.Pin) driver.Connector {
 }
 
 // Codec renders go-sql-driver's *mysql.MySQLError as "<number> <sqlstate>
-// <message>", with - for a missing SQLSTATE.
+// <message>", with - for a missing SQLSTATE. It is also the tape's Renamer
+// (MadeUp, StandIn).
 //
 // Every syntax error of OceanBase's parser opens with the same 122
 // characters, and a parser package's tapes hold tens of thousands, so a
@@ -175,6 +176,21 @@ func (Codec) DecodeError(text string) error {
 		copy(me.SQLState[:], f[1])
 	}
 	return me
+}
+
+// madeUp matches the name OceanBase gives a foreign key or a CHECK written
+// without one: the table's name, _OBFK_ or _OBCHECK_, and the time it was made
+// in microseconds, so a different name on every run.
+var madeUp = regexp.MustCompile(`_OB(?:FK|CHECK)_\d{16}`)
+
+// MadeUp and StandIn make Codec a tape.Renamer: a tape holds a stand-in for
+// each made-up name, and the test reads the stand-in too.
+func (Codec) MadeUp() *regexp.Regexp { return madeUp }
+
+// StandIn keeps the name's shape and counts where the engine wrote the time:
+// _OBFK_0000000000000001 for the first name a test meets.
+func (Codec) StandIn(name string, n int) string {
+	return fmt.Sprintf("%s%016d", name[:strings.LastIndexByte(name, '_')+1], n)
 }
 
 // OceanBaseImage is the build the recorded OceanBase verdicts were read on. The

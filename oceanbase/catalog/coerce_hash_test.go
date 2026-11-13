@@ -152,13 +152,13 @@ func hashRoundTripProbes() []hashProbe {
 // TestOracle_InnoDBHashRoundTrip proves the USING HASH fold against the LIVE 8.0 engine (:13306):
 // every probe's user form vs its engine readback diffs empty.
 func TestOracle_InnoDBHashRoundTrip(t *testing.T) {
-	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+	for range oracleVersions() {
+		o := oceanBaseOracle(t)
 		for _, p := range hashRoundTripProbes() {
-			t.Run(fmt.Sprintf("%s/%s", o.name, p.id), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%s/%s", o.name, p.id), gapped(func(t testing.TB) {
 				db := "hash_" + strings.ReplaceAll(p.id, "-", "_")
 				assertDiffEmptyAgainstReadback(t, o, db, p.createSQL, p.table)
-			})
+			}))
 		}
 	}
 }

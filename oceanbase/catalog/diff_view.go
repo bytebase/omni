@@ -122,8 +122,8 @@ func viewsChanged(a, b *View, n *Normalizer) bool {
 // canonicalView returns a single stable comparison key for a view, folding the attributes that
 // survive into MySQL's stored form:
 //   - the SELECT body, canonicalized by canonicalViewBody (own-database qualifier stripped);
-//   - ALGORITHM (UNDEFINED/MERGE/TEMPTABLE), upper-cased, defaulting to UNDEFINED;
-//   - SQL SECURITY (DEFINER/INVOKER), upper-cased, defaulting to DEFINER;
+//   - not ALGORITHM and not SQL SECURITY, which OceanBase takes and does not keep
+//     (canonicalViewAlgorithm, canonicalViewSQLSecurity);
 //   - WITH [CASCADED|LOCAL] CHECK OPTION, upper-cased ("" when absent);
 //   - the explicit column list, when the view states one.
 //
@@ -142,23 +142,21 @@ func canonicalView(v *View, _ *Normalizer) string {
 	return encodeKeyFields(fields...)
 }
 
-// canonicalViewAlgorithm returns the upper-cased ALGORITHM, defaulting to UNDEFINED (the form
-// SHOW CREATE VIEW emits when none was specified). The loader already defaults it on load, so
-// this is belt-and-suspenders for a view assembled without going through createView.
-func canonicalViewAlgorithm(v *View) string {
-	if v.Algorithm == "" {
-		return "UNDEFINED"
-	}
-	return strings.ToUpper(v.Algorithm)
+// canonicalViewAlgorithm returns the view's ALGORITHM as a key fragment, which on OceanBase
+// is empty for every view. OceanBase takes ALGORITHM = MERGE or TEMPTABLE and keeps neither:
+// SHOW CREATE VIEW prints no ALGORITHM and no dictionary view has a column for it. So a
+// written ALGORITHM is not schema, and a view must not differ from its own readback by it.
+// TestOracle_OceanBaseViewOptions holds this to the engine.
+func canonicalViewAlgorithm(*View) string {
+	return ""
 }
 
-// canonicalViewSQLSecurity returns the upper-cased SQL SECURITY, defaulting to DEFINER (the
-// SHOW CREATE VIEW default), mirroring canonicalViewAlgorithm.
-func canonicalViewSQLSecurity(v *View) string {
-	if v.SqlSecurity == "" {
-		return "DEFINER"
-	}
-	return strings.ToUpper(v.SqlSecurity)
+// canonicalViewSQLSecurity returns the view's SQL SECURITY as a key fragment, which on
+// OceanBase is empty for every view, for the same reason: it takes SQL SECURITY INVOKER,
+// prints none in SHOW CREATE VIEW, and reports SECURITY_TYPE NONE for every view in
+// information_schema.VIEWS.
+func canonicalViewSQLSecurity(*View) string {
+	return ""
 }
 
 // canonicalViewBody returns the view's SELECT body in a database-qualifier-neutral canonical form:

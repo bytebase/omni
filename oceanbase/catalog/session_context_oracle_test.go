@@ -25,7 +25,7 @@ import (
 
 const scOracleDB = "byt9832_sc_apply"
 
-// sessionExecer is the part of *sql.Conn the setup helpers use.
+// sessionExecer is the part of oracleSession the setup helpers use.
 type sessionExecer interface {
 	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
 }
@@ -54,11 +54,11 @@ func execUnderSession(t testing.TB, conn sessionExecer, ctx context.Context, sql
 func TestOracle_RoutineRecreatePreservesSQLMode(t *testing.T) {
 	const origMode = "PIPES_AS_CONCAT,NO_BACKSLASH_ESCAPES"
 	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+		o := oceanBaseOracle(t)
 		n := NormalizerFor(version)
-		t.Run(o.name, func(t *testing.T) {
+		t.Run(o.name, gapped(func(t testing.TB) {
 			ctx := context.Background()
-			conn, err := o.db.Conn(ctx)
+			conn, err := o.session(ctx)
 			if err != nil {
 				t.Fatalf("grab conn: %v", err)
 			}
@@ -110,7 +110,7 @@ func TestOracle_RoutineRecreatePreservesSQLMode(t *testing.T) {
 			if got != origMode {
 				t.Fatalf("[%s] routine sql_mode not preserved across recreate: got %q want %q\nplan:\n%s", o.name, got, origMode, plan.SQL())
 			}
-		})
+		}))
 	}
 }
 
@@ -122,9 +122,9 @@ func TestOracle_EventAlterPreservesSQLMode(t *testing.T) {
 	for _, version := range oracleVersions() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
-		t.Run(o.name, func(t *testing.T) {
+		t.Run(o.name, gapped(func(t testing.TB) {
 			ctx := context.Background()
-			conn, err := o.db.Conn(ctx)
+			conn, err := o.session(ctx)
 			if err != nil {
 				t.Fatalf("grab conn: %v", err)
 			}
@@ -186,13 +186,13 @@ func TestOracle_EventAlterPreservesSQLMode(t *testing.T) {
 			if gotTZ != origTZ {
 				t.Fatalf("[%s] event time_zone changed unexpectedly: got %q want %q", o.name, gotTZ, origTZ)
 			}
-		})
+		}))
 	}
 }
 
 // mustLoadUnderDB loads a single bare CREATE under db name `db` via LoadSQL, matching the
 // identity keying the oracle uses; it fails the test on a load error.
-func mustLoadUnderDB(t *testing.T, db, ddl string, version Version) *Catalog {
+func mustLoadUnderDB(t testing.TB, db, ddl string, version Version) *Catalog {
 	t.Helper()
 	c, err := LoadSQLWithVersionHelper(fmt.Sprintf("CREATE DATABASE %s DEFAULT CHARSET=%s;\nUSE %s;\n%s", db, serverCharsetFor(version), db, ddl), version)
 	if err != nil {
@@ -213,7 +213,7 @@ func LoadSQLWithVersionHelper(sqlText string, version Version) (*Catalog, error)
 }
 
 // routineSQLMode reads information_schema.ROUTINES.SQL_MODE for a routine.
-func routineSQLMode(t *testing.T, conn *sql.Conn, ctx context.Context, db, name string) string {
+func routineSQLMode(t testing.TB, conn oracleSession, ctx context.Context, db, name string) string {
 	t.Helper()
 	var mode sql.NullString
 	row := conn.QueryRowContext(ctx,
@@ -225,7 +225,7 @@ func routineSQLMode(t *testing.T, conn *sql.Conn, ctx context.Context, db, name 
 }
 
 // eventSQLModeTZ reads information_schema.EVENTS.SQL_MODE and TIME_ZONE for an event.
-func eventSQLModeTZ(t *testing.T, conn *sql.Conn, ctx context.Context, db, name string) (string, string) {
+func eventSQLModeTZ(t testing.TB, conn oracleSession, ctx context.Context, db, name string) (string, string) {
 	t.Helper()
 	var mode, tz sql.NullString
 	row := conn.QueryRowContext(ctx,

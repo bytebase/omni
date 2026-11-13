@@ -88,17 +88,18 @@ func TestOracle_SRIDPresenceCreateTableLike(t *testing.T) {
 		{"clone-srid-4326", "CREATE TABLE src (id INT PRIMARY KEY, g GEOMETRY NOT NULL SRID 4326)", "4326", "/*!80003 SRID 4326 */"},
 		{"clone-srid-none", "CREATE TABLE src (id INT PRIMARY KEY, g GEOMETRY NOT NULL)", "", ""},
 	}
-	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+	for range oracleVersions() {
+		o := oceanBaseOracle(t)
 		sc := serverCharsetFor(o.version)
 		n := NormalizerFor(o.version)
 		for _, c := range cases {
-			t.Run(o.name+"/"+c.id, func(t *testing.T) {
+			t.Run(o.name+"/"+c.id, gapped(func(t testing.TB) {
 				// Apply source + LIKE clone on the engine, read back the CLONE.
 				createBoth := c.src + ";\nCREATE TABLE clone LIKE src"
 				rbClone, ok := o.showCreate(t, "srid_like_"+strings.ReplaceAll(c.id, "-", "_"), createBoth, "clone")
 				if !ok {
-					t.Skipf("[%s] could not obtain clone readback", o.name)
+					o.refused(t, nil, "could not obtain clone readback")
+					return
 				}
 				// User side: load the two-statement SDL and pull the clone's column g (this
 				// exercises the omni loader's createTableLike). Stored side: load the engine's
@@ -140,7 +141,7 @@ func TestOracle_SRIDPresenceCreateTableLike(t *testing.T) {
 				if c.expSQL == "" && strings.Contains(got, "SRID") {
 					t.Errorf("[%s] %s: clone g render %q must NOT contain a SRID clause", o.name, c.id, got)
 				}
-			})
+			}))
 		}
 	}
 }
@@ -150,10 +151,10 @@ func TestOracle_SRIDPresenceCreateTableLike(t *testing.T) {
 // on MySQL 8.0.
 func TestOracle_SRIDPresenceIdempotence(t *testing.T) {
 	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+		o := oceanBaseOracle(t)
 		n := NormalizerFor(version)
 		for _, probe := range sridIdempotenceProbes() {
-			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), gapped(func(t testing.TB) {
 				db := "srid_" + strings.ReplaceAll(probe.id, "-", "_")
 				// Gate 1a + 2 (canonicalization): user form vs stored readback empty, both directions.
 				assertDiffEmptyAgainstReadback(t, o, db, probe.create, probe.table)
@@ -163,7 +164,8 @@ func TestOracle_SRIDPresenceIdempotence(t *testing.T) {
 				// column without SRID).
 				cat, _, rb, ok := o.catalogFromReadback(t, db+"_idem", probe.create, probe.table)
 				if !ok {
-					t.Skipf("[%s] could not obtain readback for %s", o.name, probe.id)
+					o.refused(t, nil, "could not obtain readback for %s", probe.id)
+					return
 				}
 				if plan := GenerateMigrationWithNormalizer(cat, cat, DiffWithNormalizer(cat, cat, n), n); plan.SQL() != "" {
 					t.Errorf("[%s] NON-EMPTY NO-OP PLAN for %s (SRID presence normalization bug):\n  stored: %s\n  plan:\n%s",
@@ -174,7 +176,7 @@ func TestOracle_SRIDPresenceIdempotence(t *testing.T) {
 					t.Errorf("[%s] NON-EMPTY ROUND-TRIP PLAN (user vs stored) for %s:\n  user:   %s\n  stored: %s\n  plan:\n%s",
 						o.name, probe.id, strings.TrimSpace(probe.create), strings.TrimSpace(rb), rtPlan.SQL())
 				}
-			})
+			}))
 		}
 	}
 }
@@ -184,8 +186,8 @@ func TestOracle_SRIDPresenceIdempotence(t *testing.T) {
 // canonical keys — otherwise add/remove/change of an explicit SRID 0 is an invisible no-op.
 // Each pair is loaded from the real engine's SHOW CREATE so the stored forms are authentic.
 func TestOracle_SRIDPresenceDistinctness(t *testing.T) {
-	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+	for range oracleVersions() {
+		o := oceanBaseOracle(t)
 		sc := serverCharsetFor(o.version)
 		n := NormalizerFor(o.version)
 
@@ -194,7 +196,8 @@ func TestOracle_SRIDPresenceDistinctness(t *testing.T) {
 		ddl := "CREATE TABLE t (id INT PRIMARY KEY, gz GEOMETRY NOT NULL SRID 0, gn GEOMETRY NOT NULL, gf GEOMETRY NOT NULL SRID 4326)"
 		rb, ok := o.showCreate(t, "srid_distinct", ddl, "t")
 		if !ok {
-			t.Skipf("[%s] could not obtain readback", o.name)
+			o.refused(t, nil, "could not obtain readback")
+			return
 		}
 		tbl, zCol := loadColumn(t, sc, rb, "t", "gz")
 		_, nCol := loadColumn(t, sc, rb, "t", "gn")
@@ -207,23 +210,23 @@ func TestOracle_SRIDPresenceDistinctness(t *testing.T) {
 		kn := n.CanonicalColumn(tbl, nCol)
 		kf := n.CanonicalColumn(tbl, fCol)
 
-		t.Run(o.name+"/srid-zero-vs-none", func(t *testing.T) {
+		t.Run(o.name+"/srid-zero-vs-none", gapped(func(t testing.TB) {
 			// The headline distinctness: SRID 0 (present, value 0) must differ from no-SRID.
 			if kz == kn {
 				t.Errorf("[%s] SRID 0 and no-SRID must produce DIFFERENT keys (else add/remove SRID 0 is a no-op):\n  srid0: %s\n  none:  %s",
 					o.name, kz, kn)
 			}
-		})
-		t.Run(o.name+"/srid-zero-vs-4326", func(t *testing.T) {
+		}))
+		t.Run(o.name+"/srid-zero-vs-4326", gapped(func(t testing.TB) {
 			if kz == kf {
 				t.Errorf("[%s] SRID 0 and SRID 4326 must produce DIFFERENT keys:\n  srid0:    %s\n  srid4326: %s", o.name, kz, kf)
 			}
-		})
-		t.Run(o.name+"/srid-none-vs-4326", func(t *testing.T) {
+		}))
+		t.Run(o.name+"/srid-none-vs-4326", gapped(func(t testing.TB) {
 			if kn == kf {
 				t.Errorf("[%s] no-SRID and SRID 4326 must produce DIFFERENT keys:\n  none:     %s\n  srid4326: %s", o.name, kn, kf)
 			}
-		})
+		}))
 	}
 }
 
@@ -273,9 +276,9 @@ func TestOracle_SRIDPresenceApplyCorrectness(t *testing.T) {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
 		for _, probe := range sridMigrationProbes() {
-			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), gapped(func(t testing.TB) {
 				assertApplyCorrect(t, o, n, probe)
-			})
+			}))
 		}
 	}
 }
@@ -288,7 +291,7 @@ func TestOracle_SRIDPresenceApplyCorrectness(t *testing.T) {
 // emit no SRID clause, an add of SRID 0 must emit `SRID 0`.
 func TestOracle_SRIDPresenceEmitsClause(t *testing.T) {
 	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+		o := oceanBaseOracle(t)
 		n := NormalizerFor(version)
 		sc := serverCharsetFor(o.version)
 
@@ -313,12 +316,13 @@ func TestOracle_SRIDPresenceEmitsClause(t *testing.T) {
 				"CREATE TABLE t (id INT PRIMARY KEY, g GEOMETRY NOT NULL SRID 0)", "SRID 0", ""},
 		}
 		for _, c := range cases {
-			t.Run(o.name+"/"+c.id, func(t *testing.T) {
+			t.Run(o.name+"/"+c.id, gapped(func(t testing.TB) {
 				// Load from/to from the engine's own readbacks so the catalog is authentic.
 				rbFrom, ok1 := o.showCreate(t, "srid_emit_f", c.fromDDL, "t")
 				rbTo, ok2 := o.showCreate(t, "srid_emit_t", c.toDDL, "t")
 				if !ok1 || !ok2 {
-					t.Skipf("[%s] could not obtain readbacks", o.name)
+					o.refused(t, nil, "could not obtain readbacks")
+					return
 				}
 				fromCat, _ := loadOneTable(t, sc, rbFrom, "t")
 				toCat, _ := loadOneTable(t, sc, rbTo, "t")
@@ -334,7 +338,7 @@ func TestOracle_SRIDPresenceEmitsClause(t *testing.T) {
 				if c.wantNotPlan != "" && strings.Contains(sql, c.wantNotPlan) {
 					t.Errorf("[%s] %s: plan must NOT contain %q (SRID leaked on a remove):\n%s", o.name, c.id, c.wantNotPlan, sql)
 				}
-			})
+			}))
 		}
 	}
 }

@@ -70,13 +70,13 @@ func checkDiffProbes() []diffProbe {
 // TestOracle_CheckDiffIdempotence proves gates 1 & 2 for every 8.0 CHECK form: the user DDL vs its
 // engine readback diffs EMPTY, and the stored form self-diffs empty.
 func TestOracle_CheckDiffIdempotence(t *testing.T) {
-	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+	for range oracleVersions() {
+		o := oceanBaseOracle(t)
 		for _, probe := range checkDiffProbes() {
-			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), gapped(func(t testing.TB) {
 				db := "chk_" + strings.ReplaceAll(probe.id, "-", "_")
 				assertDiffEmptyAgainstReadback(t, o, db, probe.create, probe.table)
-			})
+			}))
 		}
 	}
 }
@@ -85,7 +85,7 @@ func TestOracle_CheckDiffIdempotence(t *testing.T) {
 // (from, to) check changes on 8.0 (loaded from real engine readbacks): an added, dropped, modified
 // (expression change), and enforced-state-flipped check each produce the expected CheckDiffEntry.
 func TestOracle_CheckDiffNonEmptyCorrect(t *testing.T) {
-	o := connectOracle(t, MySQL80)
+	o := oceanBaseOracle(t)
 	n := NormalizerFor(MySQL80)
 	sc := serverCharsetFor(MySQL80)
 
@@ -114,11 +114,12 @@ func TestOracle_CheckDiffNonEmptyCorrect(t *testing.T) {
 			"ck", DiffModify},
 	}
 	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, gapped(func(t testing.TB) {
 			rbFrom, ok1 := o.showCreate(t, "chk_nf", tc.fromDDL, "t")
 			rbTo, ok2 := o.showCreate(t, "chk_nt", tc.toDDL, "t")
 			if !ok1 || !ok2 {
-				t.Skipf("[8.0] could not obtain readbacks")
+				o.refused(t, nil, "could not obtain readbacks")
+				return
 			}
 			fromCat, _ := loadOneTable(t, sc, rbFrom, "t")
 			toCat, _ := loadOneTable(t, sc, rbTo, "t")
@@ -131,7 +132,7 @@ func TestOracle_CheckDiffNonEmptyCorrect(t *testing.T) {
 			if ce == nil || ce.Action != tc.wantCheck {
 				t.Fatalf("[8.0] want check %s %s, got %s", tc.wantName, tc.wantCheck, describeChecks(d))
 			}
-		})
+		}))
 	}
 }
 

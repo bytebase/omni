@@ -151,8 +151,9 @@ func tableOptionAlterOp(database, name string, from, to *Table, n *Normalizer) (
 }
 
 // canonicalRowFormatValue returns the ROW_FORMAT value to emit when it changed. An
-// ignorable (empty/DEFAULT) target side yields "DEFAULT" (reset to engine default); an
-// explicit value is emitted verbatim. This mirrors rowFormatChanged's significance rule.
+// ignorable (unstated/DEFAULT/DYNAMIC) target side yields "DEFAULT", which OceanBase
+// stores as DYNAMIC, the format of a table that declares none; any other value is emitted
+// verbatim. This mirrors rowFormatChanged's significance rule.
 func canonicalRowFormatValue(t *Table, n *Normalizer) string {
 	if n.IgnoreRowFormat(t) {
 		return "DEFAULT"

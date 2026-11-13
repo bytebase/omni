@@ -106,19 +106,19 @@ func orderingProbes() []orderingProbe {
 // engines: the generated plan applies cleanly in emitted order and converges.
 func TestOracle_CrossObjectOrderingApplyCorrectness(t *testing.T) {
 	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+		o := oceanBaseOracle(t)
 		n := NormalizerFor(version)
 		for _, probe := range orderingProbes() {
-			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), gapped(func(t testing.TB) {
 				assertOrderingApplyCorrect(t, o, n, probe)
-			})
+			}))
 		}
 	}
 }
 
 // assertOrderingApplyCorrect is the per-probe gate-2 driver (mirrors assertViewApplyCorrect, plus
 // functions in the readback set and an explicit convergence check).
-func assertOrderingApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p orderingProbe) {
+func assertOrderingApplyCorrect(t testing.TB, o *oracleConn, n *Normalizer, p orderingProbe) {
 	t.Helper()
 	slug := strings.ReplaceAll(p.id, "-", "_")
 	ctx := context.Background()
@@ -138,11 +138,13 @@ func assertOrderingApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p or
 	fromTables, fromViews, fromFunctions := orderingObjectNames(p.from)
 	toCat := loadOrderingSchemaFromEngine(t, o, toDB, applyDB, p.to, p.tables, p.views, p.functions)
 	if toCat == nil {
-		t.Skipf("[%s] could not obtain `to` readback for %s", o.name, p.id)
+		o.refused(t, nil, "could not obtain `to` readback for %s", p.id)
+		return
 	}
 	fromCat := loadOrderingSchemaFromEngine(t, o, fromDB, applyDB, p.from, fromTables, fromViews, fromFunctions)
 	if fromCat == nil {
-		t.Skipf("[%s] could not obtain `from` readback for %s", o.name, p.id)
+		o.refused(t, nil, "could not obtain `from` readback for %s", p.id)
+		return
 	}
 
 	diff := DiffWithNormalizer(fromCat, toCat, n)
@@ -150,7 +152,7 @@ func assertOrderingApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p or
 
 	// Build a real database in `from` state and apply the plan statement-by-statement, in emitted
 	// order, on one connection. A mis-ordered plan fails HERE (Error 1305 for the CREATE probes).
-	conn, err := o.db.Conn(ctx)
+	conn, err := o.session(ctx)
 	if err != nil {
 		t.Fatalf("[%s] grab conn: %v", o.name, err)
 	}
@@ -163,7 +165,8 @@ func assertOrderingApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p or
 	}, p.from...)
 	for _, s := range setup {
 		if _, err := conn.ExecContext(ctx, s); err != nil {
-			t.Skipf("[%s] could not set up `from` state for %s: %q: %v", o.name, p.id, s, err)
+			o.refused(t, err, "could not set up `from` state for %s: %q", p.id, s)
+			return
 		}
 	}
 	for _, op := range plan.Ops {
@@ -202,7 +205,7 @@ func assertOrderingApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p or
 }
 
 // assertOrderingObjectsGone asserts the views/functions dropped by the plan no longer exist.
-func assertOrderingObjectsGone(t *testing.T, o *oracleConn, conn *sql.Conn, applyDB string, p orderingProbe, fromViews, fromFunctions []string) {
+func assertOrderingObjectsGone(t testing.TB, o *oracleConn, conn oracleSession, applyDB string, p orderingProbe, fromViews, fromFunctions []string) {
 	t.Helper()
 	ctx := context.Background()
 	inTo := func(names []string, n string) bool {
@@ -241,7 +244,7 @@ func assertOrderingObjectsGone(t *testing.T, o *oracleConn, conn *sql.Conn, appl
 // as-is — no rewrite is needed because SHOW CREATE FUNCTION returns an unqualified name and a
 // verbatim-stored body (the probes never db-qualify), live-verified on both versions, unlike
 // SHOW CREATE VIEW whose stored body IS db-qualified.
-func (o *oracleConn) dumpOrderingSchemaSDL(t *testing.T, conn *sql.Conn, physDB, logicalDB string, tables, views, functions []string) (string, bool) {
+func (o *oracleConn) dumpOrderingSchemaSDL(t testing.TB, conn oracleSession, physDB, logicalDB string, tables, views, functions []string) (string, bool) {
 	t.Helper()
 	sdl, ok := o.dumpViewSchemaSDL(t, conn, physDB, logicalDB, tables, views)
 	if !ok {
@@ -264,7 +267,7 @@ func (o *oracleConn) dumpOrderingSchemaSDL(t *testing.T, conn *sql.Conn, physDB,
 // tables + views + functions, and loads them into a catalog re-homed under the logical db
 // (version-aware). Returns nil on any apply/dump failure (the caller skips). An empty setup yields
 // an empty catalog.
-func loadOrderingSchemaFromEngine(t *testing.T, o *oracleConn, physDB, logicalDB string, setup, tables, views, functions []string) *Catalog {
+func loadOrderingSchemaFromEngine(t testing.TB, o *oracleConn, physDB, logicalDB string, setup, tables, views, functions []string) *Catalog {
 	t.Helper()
 	if len(setup) == 0 {
 		return New()

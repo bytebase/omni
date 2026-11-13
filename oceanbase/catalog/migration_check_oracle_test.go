@@ -104,8 +104,8 @@ func TestOracle_CheckMigrationApplyCorrectness(t *testing.T) {
 	o := connectOracle(t, MySQL80)
 	n := NormalizerFor(MySQL80)
 	for _, probe := range checkMigrationProbes() {
-		t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), gapped(func(t testing.TB) {
 			assertApplyCorrect(t, o, n, probe)
-		})
+		}))
 	}
 }

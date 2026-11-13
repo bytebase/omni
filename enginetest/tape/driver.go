@@ -27,6 +27,12 @@ type session struct {
 	// poison ends the recording of this stream's file. Recording only.
 	poison func() error
 
+	// renamer and names give the engine's made-up names their stand-ins.
+	// Both are nil in a replay, whose tape already holds the stand-ins, and
+	// for an engine that makes up no names.
+	renamer Renamer
+	names   *names
+
 	mu     sync.Mutex
 	want   []exchange // replay: the tape; recording: the committed stream, if any
 	next   int
@@ -100,6 +106,92 @@ func (s *session) spelledNow(a answer) answer {
 		a.err = text
 	}
 	return a
+}
+
+// names is the stand-ins one test's recording has given out. The streams of
+// a test share it: a name made up on one connection can come back on another.
+type names struct {
+	mu      sync.Mutex
+	standIn map[string]string // the engine's name to its stand-in
+	real    map[string]string // and back
+}
+
+func newNames() *names {
+	return &names{standIn: map[string]string{}, real: map[string]string{}}
+}
+
+// hide replaces each made-up name in text with its stand-in, giving a name
+// seen for the first time the next one.
+func (s *session) hide(text string) string {
+	if s.renamer == nil {
+		return text
+	}
+	n := s.names
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	return s.renamer.MadeUp().ReplaceAllStringFunc(text, func(name string) string {
+		if _, ok := n.real[name]; ok {
+			return name // a stand-in the test sent, echoed back
+		}
+		if _, ok := n.standIn[name]; !ok {
+			in := s.renamer.StandIn(name, len(n.standIn)+1)
+			n.standIn[name], n.real[in] = in, name
+		}
+		return n.standIn[name]
+	})
+}
+
+// show puts the engine's own names back where the test sent their stand-ins.
+func (s *session) show(text string) string {
+	if s.renamer == nil {
+		return text
+	}
+	n := s.names
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	return s.renamer.MadeUp().ReplaceAllStringFunc(text, func(name string) string {
+		if real, ok := n.real[name]; ok {
+			return real
+		}
+		return name
+	})
+}
+
+// hideAnswer is hide over everything in an answer the engine wrote.
+func (s *session) hideAnswer(a answer) answer {
+	if s.renamer == nil {
+		return a
+	}
+	a.err = s.hide(a.err)
+	for _, set := range a.sets {
+		for _, row := range set.rows {
+			for i, v := range row {
+				if v.kind == "bytes" || v.kind == "string" {
+					row[i].text = s.hide(v.text)
+				}
+			}
+		}
+	}
+	return a
+}
+
+// showRequest is show over a request's text and its text arguments: what the
+// live server is sent. The tape keeps the request as the test wrote it.
+func (s *session) showRequest(query string, args []driver.NamedValue) (string, []driver.NamedValue) {
+	if s.renamer == nil {
+		return query, args
+	}
+	out := make([]driver.NamedValue, len(args))
+	for i, a := range args {
+		switch v := a.Value.(type) {
+		case string:
+			a.Value = s.show(v)
+		case []byte:
+			a.Value = []byte(s.show(string(v)))
+		}
+		out[i] = a
+	}
+	return s.show(query), out
 }
 
 // errorAnswer turns an error the live server returned into an answer. An
@@ -244,7 +336,8 @@ func (c *conn) ExecContext(ctx context.Context, query string, args []driver.Name
 		if !ok {
 			return nil, errors.New("tape: the live driver has no ExecContext")
 		}
-		res, err := ex.ExecContext(ctx, query, args)
+		liveQuery, liveArgs := c.s.showRequest(query, args)
+		res, err := ex.ExecContext(ctx, liveQuery, liveArgs)
 		switch {
 		case errors.Is(err, driver.ErrSkip):
 			return nil, errPrepared
@@ -259,6 +352,7 @@ func (c *conn) ExecContext(ctx context.Context, query string, args []driver.Name
 				a.lastID = strconv.FormatInt(n, 10)
 			}
 		}
+		a = c.s.hideAnswer(a)
 		c.s.record(req, a)
 	}
 	if a, err = c.s.result(a); err != nil {
@@ -297,7 +391,8 @@ func (c *conn) QueryContext(ctx context.Context, query string, args []driver.Nam
 		if !ok {
 			return nil, errors.New("tape: the live driver has no QueryContext")
 		}
-		lr, err := q.QueryContext(ctx, query, args)
+		liveQuery, liveArgs := c.s.showRequest(query, args)
+		lr, err := q.QueryContext(ctx, liveQuery, liveArgs)
 		switch {
 		case errors.Is(err, driver.ErrSkip):
 			return nil, errPrepared
@@ -309,6 +404,7 @@ func (c *conn) QueryContext(ctx context.Context, query string, args []driver.Nam
 				a = c.s.errorAnswer(err)
 			}
 		}
+		a = c.s.hideAnswer(a)
 		c.s.record(req, a)
 	}
 	if a, err = c.s.result(a); err != nil {

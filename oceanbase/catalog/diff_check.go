@@ -1,8 +1,11 @@
 package catalog
 
 import (
+	"maps"
+	"slices"
 	"sort"
 	"strconv"
+	"strings"
 )
 
 // MySQL SDL diff — CHECK constraints (8.0.16+ only).
@@ -24,9 +27,15 @@ import (
 //
 // An expression whose surface form differs from its SHOW CREATE readback but whose stored form is
 // identical (e.g. `a>0` vs the readback's `(`a` > 0)`) therefore produces no phantom diff.
+//
+// One case is not decided by the name. OceanBase names a CHECK written without a name
+// `<table>_OBCHECK_<time>`, which this catalog's loader cannot reproduce: it names the same
+// constraint `<table>_chk_<N>`. Two CHECKs that differ only in such names are one constraint
+// (forgetMadeUpRenames), or every unnamed CHECK would be dropped and added again on each release.
 func diffChecks(from, to *Table, n *Normalizer) []CheckDiffEntry {
 	fromMap := checkMap(from)
 	toMap := checkMap(to)
+	forgetMadeUpRenames(fromMap, toMap, madeUpCheckName, func(con *Constraint) string { return canonicalCheck(con, n) })
 
 	var result []CheckDiffEntry
 
@@ -112,4 +121,56 @@ func canonicalCheck(con *Constraint, n *Normalizer) string {
 		"expr", n.CanonicalCheckExpr(con.CheckExpr),
 		"enforced", strconv.FormatBool(!con.NotEnforced),
 	)
+}
+
+// madeUpCheckName reports whether a CHECK's name is one nobody wrote: the name this catalog's
+// loader gives a CHECK written without one, `<table>_chk_<N>` as MySQL does, or the name
+// OceanBase gives it, `<table>_OBCHECK_<time in microseconds>`.
+func madeUpCheckName(con *Constraint) bool {
+	return madeUpName(con, "_chk_", "_obcheck_")
+}
+
+// madeUpName reports whether con's name is its table's name, loaderInfix and digits, or any
+// prefix, engineInfix and digits. The engine's own names are told by the infix alone: nobody
+// writes one, and a renamed table keeps the names made under its old name.
+func madeUpName(con *Constraint, loaderInfix, engineInfix string) bool {
+	name := toLower(con.Name)
+	if con.Table != nil {
+		if n, ok := strings.CutPrefix(name, toLower(con.Table.Name)+loaderInfix); ok && n != "" && isAllDigits(n) {
+			return true
+		}
+	}
+	if i := strings.LastIndex(name, engineInfix); i >= 0 {
+		n := name[i+len(engineInfix):]
+		return n != "" && isAllDigits(n)
+	}
+	return false
+}
+
+// forgetMadeUpRenames deletes from both maps every pair of constraints that is one constraint
+// under two names nobody wrote: a name only one side has, made up on both sides, over the same
+// definition. A constraint both sides name alike is left for the caller to compare, and so is
+// one whose name somebody wrote: giving an unnamed constraint a name is a change.
+//
+// Definitions can repeat, so the pairing counts: two unnamed copies on one side and one on the
+// other leave one over.
+func forgetMadeUpRenames(from, to map[string]*Constraint, madeUp func(*Constraint) bool, definition func(*Constraint) string) {
+	unpaired := map[string][]string{} // definition to the names `to` alone has for it
+	for _, name := range slices.Sorted(maps.Keys(to)) {
+		if _, both := from[name]; !both && madeUp(to[name]) {
+			def := definition(to[name])
+			unpaired[def] = append(unpaired[def], name)
+		}
+	}
+	for _, name := range slices.Sorted(maps.Keys(from)) {
+		if _, both := to[name]; both || !madeUp(from[name]) {
+			continue
+		}
+		def := definition(from[name])
+		if names := unpaired[def]; len(names) > 0 {
+			delete(from, name)
+			delete(to, names[0])
+			unpaired[def] = names[1:]
+		}
+	}
 }

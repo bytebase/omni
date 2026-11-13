@@ -24,7 +24,7 @@ func findEvent(d *SchemaDiff, name string) *EventDiffEntry {
 
 const evDBDDL = "CREATE DATABASE app DEFAULT CHARSET=utf8mb4;\nUSE app;\n"
 
-func diffEventsOnly(t *testing.T, fromSQL, toSQL string) *SchemaDiff {
+func diffEventsOnly(t testing.TB, fromSQL, toSQL string) *SchemaDiff {
 	t.Helper()
 	from := loadCat(t, evDBDDL+fromSQL)
 	to := loadCat(t, evDBDDL+toSQL)
@@ -298,7 +298,7 @@ func TestGenerateEventDDL_DropPhaseBeforeCreate(t *testing.T) {
 	}
 }
 
-func genEventPlan(t *testing.T, fromSQL, toSQL string) string {
+func genEventPlan(t testing.TB, fromSQL, toSQL string) string {
 	t.Helper()
 	var from, to *Catalog
 	if strings.TrimSpace(fromSQL) == "" {
@@ -316,7 +316,7 @@ func genEventPlan(t *testing.T, fromSQL, toSQL string) string {
 	return GenerateMigrationWithNormalizer(from, to, diff, n).SQL()
 }
 
-func mustContain(t *testing.T, haystack, needle string) {
+func mustContain(t testing.TB, haystack, needle string) {
 	t.Helper()
 	if !strings.Contains(haystack, needle) {
 		t.Errorf("expected to contain:\n  %q\ngot:\n  %q", needle, haystack)

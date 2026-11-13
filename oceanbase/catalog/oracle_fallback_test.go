@@ -29,7 +29,7 @@ var oracleFallback struct {
 
 // fallbackOracle returns the shared fallback engine, starting it on first use.
 // It fails the test when the engine cannot start.
-func fallbackOracle(t *testing.T) *sql.DB {
+func fallbackOracle(t testing.TB) *sql.DB {
 	t.Helper()
 	eng := &oracleFallback
 	eng.once.Do(func() {

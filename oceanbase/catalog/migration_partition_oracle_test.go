@@ -30,7 +30,7 @@ import (
 // loadOnePartTable wraps a CREATE TABLE in a NAMED database (so each probe gets an isolated apply
 // DB, not the shared `diffdb`) whose default charset matches the oracle box, and returns the named
 // table. Mirrors loadOneTable but with a caller-chosen database name.
-func loadOnePartTable(t *testing.T, dbName, serverCharset, createSQL, table string) (*Catalog, *Table) {
+func loadOnePartTable(t testing.TB, dbName, serverCharset, createSQL, table string) (*Catalog, *Table) {
 	t.Helper()
 	wrapped := fmt.Sprintf("CREATE DATABASE %s DEFAULT CHARSET=%s;\nUSE %s;\n%s", dbName, serverCharset, dbName, createSQL)
 	cat, err := LoadSQL(wrapped)
@@ -50,7 +50,7 @@ func loadOnePartTable(t *testing.T, dbName, serverCharset, createSQL, table stri
 // stored forms), generates the plan, applies it to a from-state database, reads the result back,
 // and asserts the result canonicalizes equal to `to` (both directions). Each probe uses its own
 // database (pa_<slug>), on ONE dedicated connection, so the test is hermetic.
-func assertPartitionApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p migrationProbe) {
+func assertPartitionApplyCorrect(t testing.TB, o *oracleConn, n *Normalizer, p migrationProbe) {
 	t.Helper()
 
 	slug := strings.ReplaceAll(p.id, "-", "_")
@@ -60,7 +60,7 @@ func assertPartitionApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p m
 
 	// One pinned connection for ALL of this probe's statements (readbacks + apply), so the
 	// pool never lands a `USE` on a different connection than the next statement.
-	conn, err := o.db.Conn(ctx)
+	conn, err := o.session(ctx)
 	if err != nil {
 		t.Fatalf("[%s] grab conn: %v", o.name, err)
 	}
@@ -75,7 +75,8 @@ func assertPartitionApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p m
 			createSQL,
 		} {
 			if _, err := conn.ExecContext(ctx, s); err != nil {
-				t.Logf("[%s] %s readback setup failed (may be expected): %q: %v", o.name, p.id, s, err)
+				t.Logf("[%s] %s readback setup failed: %q: %v", o.name, p.id, s, err)
+				o.refusal = fmt.Errorf("%q: %w", s, err)
 				return "", false
 			}
 		}
@@ -97,7 +98,8 @@ func assertPartitionApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p m
 	if tableInTo {
 		rb, ok := readbackVia("pto_"+slug, p.toDDL, p.table)
 		if !ok {
-			t.Skipf("[%s] could not obtain `to` readback for %s", o.name, p.id)
+			o.refused(t, nil, "could not obtain `to` readback for %s", p.id)
+			return
 		}
 		toCat, _ = loadOnePartTable(t, applyDB, sc, rb, p.table)
 	} else {
@@ -106,7 +108,8 @@ func assertPartitionApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p m
 	if tableInFrom {
 		rb, ok := readbackVia("pfrom_"+slug, p.fromDDL, p.table)
 		if !ok {
-			t.Skipf("[%s] could not obtain `from` readback for %s", o.name, p.id)
+			o.refused(t, nil, "could not obtain `from` readback for %s", p.id)
+			return
 		}
 		fromCat, _ = loadOnePartTable(t, applyDB, sc, rb, p.table)
 	} else {
@@ -127,7 +130,8 @@ func assertPartitionApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p m
 	}
 	for _, s := range setup {
 		if _, err := conn.ExecContext(ctx, s); err != nil {
-			t.Skipf("[%s] could not set up `from` state for %s: %q: %v", o.name, p.id, s, err)
+			o.refused(t, err, "could not set up `from` state for %s: %q", p.id, s)
+			return
 		}
 	}
 	for _, op := range plan.Ops {
@@ -276,9 +280,9 @@ func TestOracle_PartitionApplyCorrectness(t *testing.T) {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
 		for _, p := range partitionMigrationProbes() {
-			t.Run(fmt.Sprintf("%s/%s", o.name, p.id), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%s/%s", o.name, p.id), gapped(func(t testing.TB) {
 				assertPartitionApplyCorrect(t, o, n, p)
-			})
+			}))
 		}
 	}
 }
@@ -288,14 +292,15 @@ func TestOracle_PartitionApplyCorrectness(t *testing.T) {
 // plan is empty too. A non-empty no-op plan is a partition normalization/ordering bug.
 func TestOracle_PartitionMigrationIdempotence(t *testing.T) {
 	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+		o := oceanBaseOracle(t)
 		n := NormalizerFor(version)
 		for _, probe := range partitionDiffProbes() {
-			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), gapped(func(t testing.TB) {
 				slug := strings.ReplaceAll(probe.id, "-", "_")
 				cat, _, rb, ok := o.catalogFromReadback(t, "pgen_idem_"+slug, probe.create, probe.table)
 				if !ok {
-					t.Skipf("[%s] could not obtain readback for %s", o.name, probe.id)
+					o.refused(t, nil, "could not obtain readback for %s", probe.id)
+					return
 				}
 				diff := DiffWithNormalizer(cat, cat, n)
 				plan := GenerateMigrationWithNormalizer(cat, cat, diff, n)
@@ -310,7 +315,7 @@ func TestOracle_PartitionMigrationIdempotence(t *testing.T) {
 					t.Errorf("[%s] NON-EMPTY ROUND-TRIP PLAN (user vs stored) for %s:\n  user:   %s\n  stored: %s\n  plan:\n%s",
 						o.name, probe.id, strings.TrimSpace(probe.create), strings.TrimSpace(rb), rtPlan.SQL())
 				}
-			})
+			}))
 		}
 	}
 }

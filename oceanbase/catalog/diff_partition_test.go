@@ -98,13 +98,13 @@ func partitionDiffProbes() []diffProbe {
 // vs its engine readback diffs EMPTY (PartitionChanged=false), and the stored form self-diffs
 // empty, on every supported version.
 func TestOracle_PartitionDiffIdempotence(t *testing.T) {
-	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+	for range oracleVersions() {
+		o := oceanBaseOracle(t)
 		for _, probe := range partitionDiffProbes() {
-			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%s/%s", o.name, probe.id), gapped(func(t testing.TB) {
 				db := "part_" + strings.ReplaceAll(probe.id, "-", "_")
 				assertDiffEmptyAgainstReadback(t, o, db, probe.create, probe.table)
-			})
+			}))
 		}
 	}
 }
@@ -165,15 +165,16 @@ func partitionChangeCases() []partitionChangeCase {
 // idempotence proof.
 func TestOracle_PartitionChangeDetected(t *testing.T) {
 	for _, version := range oracleVersions() {
-		o := connectOracle(t, version)
+		o := oceanBaseOracle(t)
 		n := NormalizerFor(version)
 		for _, tc := range partitionChangeCases() {
-			t.Run(fmt.Sprintf("%s/%s", o.name, tc.id), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%s/%s", o.name, tc.id), gapped(func(t testing.TB) {
 				slug := strings.ReplaceAll(tc.id, "-", "_")
 				fromCat, _, _, ok1 := o.catalogFromReadback(t, "pc_from_"+slug, tc.fromDDL, tc.table)
 				toCat, _, _, ok2 := o.catalogFromReadback(t, "pc_to_"+slug, tc.toDDL, tc.table)
 				if !ok1 || !ok2 {
-					t.Skipf("[%s] could not obtain readbacks for %s", o.name, tc.id)
+					o.refused(t, nil, "could not obtain readbacks for %s", tc.id)
+					return
 				}
 				d := DiffWithNormalizer(fromCat, toCat, n)
 				te := findTable(d, tc.table)
@@ -183,7 +184,7 @@ func TestOracle_PartitionChangeDetected(t *testing.T) {
 				if !te.PartitionChanged {
 					t.Errorf("[%s] %s: expected PartitionChanged=true, got false (table action %s)", o.name, tc.id, te.Action)
 				}
-			})
+			}))
 		}
 	}
 }
@@ -213,5 +214,48 @@ func TestDiffPartition_SubpartitionTemplate(t *testing.T) {
 	rendered := loadCat(t, two).ShowCreateTable("app", "t")
 	if !strings.Contains(rendered, "SUBPARTITION p0ss0") || !strings.Contains(rendered, "SUBPARTITION p1ss1") {
 		t.Errorf("the rendered form states no subpartitions:\n%s", rendered)
+	}
+}
+
+// TestDiffPartition_CountAndListAreOneForm pins that a partition count and the list it
+// stands for compare equal: OceanBase stores `PARTITIONS 4` as p0 ... p3 and prints the
+// list, and `SUBPARTITIONS 2` as a template of two. It needs no engine;
+// TestOracle_PartitionDiffIdempotence asks OceanBase for the stored forms used here.
+func TestDiffPartition_CountAndListAreOneForm(t *testing.T) {
+	const cols = "CREATE TABLE t (id INT NOT NULL, d DATE NOT NULL, PRIMARY KEY (id, d)) "
+	tests := []struct {
+		name            string
+		written, stored string
+		same            bool
+	}{
+		{"HASH by count",
+			"PARTITION BY HASH (id) PARTITIONS 4",
+			"partition by hash(`id`)\n(partition `p0`,\npartition `p1`,\npartition `p2`,\npartition `p3`)", true},
+		{"KEY by count",
+			"PARTITION BY KEY (id) PARTITIONS 3",
+			"partition by key(`id`)\n(partition `p0`,\npartition `p1`,\npartition `p2`)", true},
+		{"subpartitions by count",
+			"PARTITION BY RANGE (YEAR(d)) SUBPARTITION BY HASH (id) SUBPARTITIONS 2 (PARTITION p0 VALUES LESS THAN (2010), PARTITION p1 VALUES LESS THAN MAXVALUE)",
+			"partition by range(year(`d`)) subpartition by hash(`id`) subpartition template (\nsubpartition `p0`,\nsubpartition `p1`)\n(partition `p0` values less than (2010),\npartition `p1` values less than (MAXVALUE))", true},
+		{"another count",
+			"PARTITION BY HASH (id) PARTITIONS 3",
+			"partition by hash(`id`)\n(partition `p0`,\npartition `p1`,\npartition `p2`,\npartition `p3`)", false},
+		{"other names",
+			"PARTITION BY HASH (id) PARTITIONS 2",
+			"partition by hash(`id`)\n(partition `a`,\npartition `b`)", false},
+		{"another subpartition count",
+			"PARTITION BY RANGE (YEAR(d)) SUBPARTITION BY HASH (id) SUBPARTITIONS 3 (PARTITION p0 VALUES LESS THAN (2010), PARTITION p1 VALUES LESS THAN MAXVALUE)",
+			"partition by range(year(`d`)) subpartition by hash(`id`) subpartition template (\nsubpartition `p0`,\nsubpartition `p1`)\n(partition `p0` values less than (2010),\npartition `p1` values less than (MAXVALUE))", false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			written := loadCat(t, dbDDL+cols+tc.written+";")
+			stored := loadCat(t, dbDDL+cols+tc.stored+";")
+			for _, d := range []*SchemaDiff{Diff(written, stored), Diff(stored, written)} {
+				if d.IsEmpty() != tc.same {
+					t.Errorf("diff empty = %v, want %v: %+v", d.IsEmpty(), tc.same, d.Tables)
+				}
+			}
+		})
 	}
 }

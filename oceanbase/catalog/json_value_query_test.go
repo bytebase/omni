@@ -108,7 +108,7 @@ func TestOracle_JSONValueStoredForms(t *testing.T) {
 	stored := regexp.MustCompile(`json_value\(.*\)`)
 
 	for _, clauses := range jsonValueStoredForms {
-		t.Run(clauses, func(t *testing.T) {
+		t.Run(clauses, gapped(func(t testing.TB) {
 			table := "CREATE TABLE g (a JSON, b VARCHAR(600) AS (JSON_VALUE(a, '$.b' " + clauses + ")))"
 			server, err := storeAndRead(ctx, o, "zz_json_value", table, "g")
 			if err != nil {
@@ -135,12 +135,12 @@ func TestOracle_JSONValueStoredForms(t *testing.T) {
 			if call := deparsedCall(t, c, viewCall); !strings.Contains(serverView, call) {
 				t.Errorf("view:\nomni:   %s\nserver: %s", call, serverView)
 			}
-		})
+		}))
 	}
 }
 
 // deparsedCall is the text the parser's deparser writes for the call.
-func deparsedCall(t *testing.T, c *Catalog, call string) string {
+func deparsedCall(t testing.TB, c *Catalog, call string) string {
 	t.Helper()
 	stmts, err := parser.Parse("SELECT " + call)
 	if err != nil {
@@ -172,7 +172,7 @@ func TestOracle_NumberIsDecimal(t *testing.T) {
 	defer cancel()
 	stored := regexp.MustCompile("`a` [^,\\n]*")
 	for _, column := range []string{"NUMBER", "NUMBER(5)", "NUMBER(5,2)", "NUMBER(5,2) UNSIGNED"} {
-		t.Run(column, func(t *testing.T) {
+		t.Run(column, gapped(func(t testing.TB) {
 			table := "CREATE TABLE g (a " + column + ")"
 			server, err := storeAndRead(ctx, o, "zz_number", table, "g")
 			if err != nil {
@@ -185,7 +185,7 @@ func TestOracle_NumberIsDecimal(t *testing.T) {
 			if got, want := stored.FindString(c.ShowCreateTable("d", "g")), stored.FindString(server); got != want {
 				t.Errorf("omni: %s\nserver: %s", got, want)
 			}
-		})
+		}))
 	}
 }
 
@@ -198,7 +198,7 @@ func TestOracle_JSONValueFunctionalIndex(t *testing.T) {
 	for _, returning := range []string{"", "RETURNING SIGNED", "RETURNING CHAR(10)", "RETURNING DECIMAL(5,2)",
 		"RETURNING DATETIME(3)", "RETURNING DOUBLE", "RETURNING JSON", "RETURNING CHAR", "RETURNING CHAR(512)",
 		"RETURNING CHAR(513)", "RETURNING BINARY(3)", "RETURNING YEAR"} {
-		t.Run(returning, func(t *testing.T) {
+		t.Run(returning, gapped(func(t testing.TB) {
 			table := "CREATE TABLE f (a JSON, KEY k ((JSON_VALUE(a, '$.x' " + returning + "))))"
 			serverCode := 0
 			if _, err := storeAndRead(ctx, o, "zz_json_value_index", table, "f"); err != nil {
@@ -221,7 +221,7 @@ func TestOracle_JSONValueFunctionalIndex(t *testing.T) {
 			if catalogCode != serverCode {
 				t.Errorf("catalog answered %d, the server %d", catalogCode, serverCode)
 			}
-		})
+		}))
 	}
 }
 
@@ -277,7 +277,7 @@ func TestOracle_JSONValueAlias(t *testing.T) {
 		"JSON_VALUE(a, '$' DEFAULT -1 ON ERROR)",
 		"JSON_VALUE(a, '$' RETURNING CHAR(3) TRUNCATE ASCII)",
 	} {
-		t.Run(form, func(t *testing.T) {
+		t.Run(form, gapped(func(t testing.TB) {
 			if _, err := o.db.ExecContext(ctx, "CREATE OR REPLACE VIEW v AS SELECT "+form+" FROM t"); err != nil {
 				t.Fatal(err)
 			}
@@ -294,7 +294,7 @@ func TestOracle_JSONValueAlias(t *testing.T) {
 			if m := alias.FindStringSubmatch(text); m == nil || m[1] != server {
 				t.Errorf("omni names it from %q, the server %q", text, server)
 			}
-		})
+		}))
 	}
 }
 
@@ -307,7 +307,7 @@ func TestOracle_GeneratedString(t *testing.T) {
 	defer cancel()
 	stored := regexp.MustCompile("AS \\((.*)\\) VIRTUAL")
 	for _, expr := range []string{"'it''s'", "_latin1 X'27'", "_latin1 X'5c'", `'a\\b'`} {
-		t.Run(expr, func(t *testing.T) {
+		t.Run(expr, gapped(func(t testing.TB) {
 			table := "CREATE TABLE g (a VARCHAR(10) AS (" + expr + "))"
 			server, err := storeAndRead(ctx, o, "zz_generated_string", table, "g")
 			if err != nil {
@@ -327,6 +327,6 @@ func TestOracle_GeneratedString(t *testing.T) {
 			if _, err := again.Exec("CREATE DATABASE d; USE d; "+got, nil); err != nil {
 				t.Fatalf("%s does not read back: %v", got, err)
 			}
-		})
+		}))
 	}
 }

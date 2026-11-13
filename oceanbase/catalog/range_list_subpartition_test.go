@@ -216,7 +216,7 @@ var rangeListAddPartitionScenarios = []struct {
 
 // requirePartitionsEqual loads two forms of a table and requires the same layout with
 // bounds and no partition diff between them, in either direction.
-func requirePartitionsEqual(t *testing.T, a, b string, layout []string) {
+func requirePartitionsEqual(t testing.TB, a, b string, layout []string) {
 	t.Helper()
 	sc := serverCharsetFor(MySQL80)
 	n := NormalizerFor(MySQL80)
@@ -297,7 +297,7 @@ func TestRangeListSubpartitionRendering(t *testing.T) {
 func TestOracle_OceanBaseRangeListSubpartitions(t *testing.T) {
 	o := oceanBaseOracle(t)
 	ctx := context.Background()
-	check := func(t *testing.T, dbName string, ddl []string, recorded string, layout []string) {
+	check := func(t testing.TB, dbName string, ddl []string, recorded string, layout []string) {
 		t.Helper()
 		if _, err := storeAndRead(ctx, o, dbName, ddl[0], "t"); err != nil {
 			t.Fatalf("OceanBase would not take the table: %v", err)
@@ -351,17 +351,17 @@ func TestOracle_OceanBaseRangeListSubpartitions(t *testing.T) {
 		requirePartitionsEqual(t, strings.Join(ddl, ";\n")+";", readback, layout)
 	}
 	for i, tc := range rangeListSubpartitionCases {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, gapped(func(t testing.TB) {
 			check(t, fmt.Sprintf("obrlsub_%d", i), []string{tc.ddl}, tc.readback, tc.layout)
-		})
+		}))
 	}
 	for i, sc := range rangeListAddPartitionScenarios {
-		t.Run(sc.name, func(t *testing.T) {
+		t.Run(sc.name, gapped(func(t testing.TB) {
 			check(t, fmt.Sprintf("obrladd_%d", i), sc.ddl, sc.readback, sc.layout)
-		})
+		}))
 	}
 	for i, tc := range subpartitionBoundKindRefusals {
-		t.Run("refused "+tc.ddl, func(t *testing.T) {
+		t.Run("refused "+tc.ddl, gapped(func(t testing.TB) {
 			dbName := fmt.Sprintf("obrlkind_%d", i)
 			setup := tc.setup
 			if setup == "" {
@@ -376,7 +376,7 @@ func TestOracle_OceanBaseRangeListSubpartitions(t *testing.T) {
 			if !errors.As(err, &myErr) || myErr.Number != 1210 {
 				t.Errorf("OceanBase answered %v, want 1210", err)
 			}
-		})
+		}))
 	}
 }
 

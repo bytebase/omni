@@ -87,6 +87,16 @@ func partitionSpecWithResolvedEngine(t *Table, n *Normalizer) *PartitionInfo {
 	engine := n.CanonicalEngine(t) // lower-cased effective engine; never returns ""
 
 	out := *pi
+	// How the partitions were written is not part of the key, only what they are. The
+	// loader resolves `PARTITIONS 4` to p0 ... p3 and `SUBPARTITIONS 2` to a template of
+	// two under every partition, and that is the form OceanBase stores and prints: a
+	// table written with a count reads back with its partitions listed. Left in the key,
+	// the count made every such table differ from its own readback.
+	// TestOracle_PartitionDiffIdempotence holds this to the engine.
+	if len(pi.Partitions) > 0 {
+		out.NumParts = 0
+		out.UseDefaultSubpartitions, out.UseDefaultNumSubpartitions = false, false
+	}
 	out.Algorithm = foldKeyAlgorithm(pi.Algorithm)
 	out.SubAlgo = foldKeyAlgorithm(pi.SubAlgo)
 	out.Expr = n.CanonicalPartitionExpr(pi.Expr)
