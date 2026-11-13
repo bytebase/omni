@@ -1,7 +1,6 @@
 package catalog
 
 import (
-	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -216,13 +215,7 @@ func quantifiedOracleQueries() []string {
 // TestQuantifiedComparisonMySQL runs each query and its DeparseQuery text on
 // MySQL 8.0 and requires the same answer: the same rows, or the same error.
 func TestQuantifiedComparisonMySQL(t *testing.T) {
-	ctx := context.Background()
-	d, err := testcontainer.MySQL80.Database(ctx, "mysql_catalog_quantified")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { d.Close(ctx) })
-	db, name := d.DB, d.Name
+	db, name := testcontainer.OpenDatabase(t, "mysql_catalog_quantified"), testcontainer.DatabaseName("mysql_catalog_quantified")
 	for _, stmt := range strings.Split(quantifiedSchema, ";\n") {
 		if _, err := db.Exec(stmt); err != nil {
 			t.Fatalf("%s: %v", stmt, err)
