@@ -587,7 +587,7 @@ After step 0 the engines are independent. Order:
   - the query of a view or CREATE TABLE ... SELECT, resolved before the name (132, #854)
   - partition names and commands (91, #861)
   - a key's columns: missing (1072) or not text for FULLTEXT (1283) (71, #858)
-  - a key's parts and block size, before its name (46)
+  - a key's parts and block size, before its name (46, #887)
   - a column's definition, before its name (45, #871)
   - a CREATE TABLE with no visible column (44, #864)
   - names looked up in OceanBase's order (30, #880)
