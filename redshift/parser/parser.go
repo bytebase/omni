@@ -5,6 +5,7 @@
 package parser
 
 import (
+	"errors"
 	"fmt"
 
 	nodes "github.com/bytebase/omni/redshift/ast"
@@ -1523,6 +1524,14 @@ func (p *Parser) lexerError() *ParseError {
 	tok := p.cur
 	if tok.Type != 0 && p.hasNext && p.nextBuf.Type == 0 {
 		tok = p.nextBuf
+	}
+	var se *scanError
+	if errors.As(p.lexer.Err, &se) {
+		pos := tok.Loc
+		if se.noPos {
+			pos = -1
+		}
+		return &ParseError{Code: se.code, Message: se.msg, Position: pos}
 	}
 	text := p.tokenText(tok)
 	if tok.Type == 0 && tok.Loc >= 0 && tok.End > tok.Loc && tok.End <= len(p.source) {
