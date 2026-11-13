@@ -75,6 +75,12 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 	}
 
 	// [LOCAL]
+	// opt_from_keyword, then opt_local: `LOAD DATA FROM LOCAL INFILE`. FROM
+	// before S3 is Aurora's S3 source, read below.
+	if p.cur.Type == kwFROM && p.peekNext().Type != kwS3 {
+		p.advance()
+	}
+
 	if p.cur.Type == kwLOCAL {
 		stmt.Local = true
 		p.advance()
@@ -102,12 +108,35 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 			return nil, err
 		}
 	default:
-		if _, err := p.expect(kwINFILE); err != nil {
+		// load_source_type: INFILE or URL, then the file name, which is
+		// required; then opt_source_count and opt_source_order.
+		//
+		// Ref: load_stmt in MySQL 8.0 sql/sql_yacc.yy.
+		if _, ok := p.match(kwURL); ok {
+			stmt.SourceURL = true
+		} else if _, err := p.expect(kwINFILE); err != nil {
 			return nil, err
 		}
-		if p.cur.Type == tokSCONST {
-			stmt.Infile = p.cur.Str
+		if p.cur.Type != tokSCONST {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.Infile = p.advance().Str
+		// COUNT n; COUNT is a word the action checks when the lexer gives an
+		// identifier.
+		if p.cur.Type == kwCOUNT || (p.cur.Type == tokIDENT && strings.EqualFold(p.cur.Str, "count") && p.peekNext().isNum()) {
 			p.advance()
+			if !p.cur.isNum() {
+				return nil, p.syntaxErrorAtCur()
+			}
+			stmt.SourceCount = int(p.advance().Ival)
+		}
+		if _, ok := p.match(kwIN); ok {
+			for _, kw := range []int{kwPRIMARY, kwKEY, kwORDER} {
+				if _, err := p.expect(kw); err != nil {
+					return nil, err
+				}
+			}
+			stmt.InPrimaryKeyOrder = true
 		}
 	}
 
@@ -119,8 +148,12 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 	}
 
 	// INTO TABLE tbl_name
-	p.match(kwINTO)
-	p.match(kwTABLE)
+	// INTO TABLE, both words required.
+	for _, kw := range []int{kwINTO, kwTABLE} {
+		if _, err := p.expect(kw); err != nil {
+			return nil, err
+		}
+	}
 
 	// Completion: after INTO TABLE, offer table_ref candidates.
 	p.checkCursor()
@@ -214,11 +247,16 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 	if p.cur.Type == kwIGNORE {
 		p.advance()
 		// The count is NUM: mysql:8.0 answers 1064 for IGNORE 2147483648 LINES.
-		if p.cur.isNum() {
-			stmt.IgnoreRows = int(p.cur.Ival)
-			p.advance()
+		// opt_ignore_lines: IGNORE NUM {LINES | ROWS}, whole; NUM is no wider
+		// than 31 bits.
+		if !p.cur.isNum() {
+			return nil, p.syntaxErrorAtCur()
 		}
-		p.match(kwLINES, kwROWS)
+		stmt.IgnoreRows = int(p.cur.Ival)
+		p.advance()
+		if _, ok := p.match(kwLINES, kwROWS); !ok {
+			return nil, p.syntaxErrorAtCur()
+		}
 	}
 
 	// [(col_name_or_user_var, ...)]
@@ -256,6 +294,17 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 			}
 			p.advance()
 		}
+	}
+
+	// opt_load_algorithm: ALGORITHM = BULK.
+	if _, ok := p.match(kwALGORITHM); ok {
+		if _, err := p.expect('='); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(kwBULK); err != nil {
+			return nil, err
+		}
+		stmt.AlgorithmBulk = true
 	}
 
 	stmt.Loc.End = p.prev.End
@@ -475,6 +524,10 @@ func (p *Parser) parseColumnOrUserVarList() ([]nodes.ExprNode, error) {
 	}
 	p.advance()
 	var out []nodes.ExprNode
+	// opt_field_or_var_spec: '(' ')' or '(' fields_or_vars ')'.
+	if _, ok := p.match(')'); ok {
+		return out, nil
+	}
 	for {
 		if p.isUserVariable() {
 			v, err := p.parseVariableRef()
@@ -494,7 +547,9 @@ func (p *Parser) parseColumnOrUserVarList() ([]nodes.ExprNode, error) {
 		}
 		p.advance()
 	}
-	p.match(')')
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 	return out, nil
 }
 

@@ -1918,22 +1918,28 @@ func (p *Parser) parseLoadIndexIntoCacheStmt(start int) (*nodes.LoadIndexIntoCac
 		// [PARTITION (partition_list | ALL)]
 		if p.cur.Type == kwPARTITION {
 			p.advance()
-			if p.cur.Type == '(' {
+			// adm_partition: PARTITION '(' {ALL | name, ...} ')', whole.
+			if _, err := p.expect('('); err != nil {
+				return nil, err
+			}
+			if p.cur.Type == kwALL {
+				entry.Partitions = []string{"ALL"}
 				p.advance()
-				if p.cur.Type == kwALL {
-					entry.Partitions = []string{"ALL"}
-					p.advance()
-				} else {
-					for {
-						name, _, _ := p.parseIdentifier()
-						entry.Partitions = append(entry.Partitions, name)
-						if p.cur.Type != ',' {
-							break
-						}
-						p.advance()
+			} else {
+				for {
+					name, _, err := p.parseIdentifier()
+					if err != nil {
+						return nil, err
 					}
+					entry.Partitions = append(entry.Partitions, name)
+					if p.cur.Type != ',' {
+						break
+					}
+					p.advance()
 				}
-				p.match(')')
+			}
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
 			}
 		}
 
@@ -1957,8 +1963,8 @@ func (p *Parser) parseLoadIndexIntoCacheStmt(start int) (*nodes.LoadIndexIntoCac
 		// [IGNORE LEAVES]
 		if p.cur.Type == kwIGNORE {
 			p.advance()
-			if p.cur.Type == kwLEAVES {
-				p.advance()
+			if _, err := p.expect(kwLEAVES); err != nil {
+				return nil, err
 			}
 			entry.IgnoreLeaves = true
 		}
