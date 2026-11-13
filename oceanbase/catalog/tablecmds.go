@@ -20,6 +20,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	if err != nil {
 		return err
 	}
+	if err := checkSomeColumnVisible(stmt); err != nil {
+		return err
+	}
 	if err := checkKeyOptions(stmt.Constraints); err != nil {
 		return err
 	}
@@ -1273,7 +1276,26 @@ func checkSubpartitionBoundKinds(subType nodes.PartitionType, subs []*nodes.SubP
 	return nil
 }
 
+// checkSomeColumnVisible refuses a table element list with no visible column, as
+// (KEY (b)) or (b INT INVISIBLE): OceanBase answers 4028 before it looks at the name
+// (1050), the query of a CREATE TABLE ... SELECT, or anything the list names
+// (TestOracle_OceanBaseTableWithoutColumns).
+func checkSomeColumnVisible(stmt *nodes.CreateTableStmt) error {
+	if len(stmt.Columns) == 0 && len(stmt.Constraints) == 0 {
+		return nil // no element list: CREATE TABLE ... LIKE or ... SELECT alone
+	}
+	for _, col := range stmt.Columns {
+		if !slices.ContainsFunc(col.Constraints, func(cc *nodes.ColumnConstraint) bool { return cc.Type == nodes.ColConstrInvisible }) {
+			return nil
+		}
+	}
+	return &Error{Code: 4028, SQLState: "HY000", Message: "table must have at least one column that is not invisible"}
+}
+
 func validatePartitionClause(tbl *Table, pc *nodes.PartitionClause) error {
+	if err := checkPartitionNames(tbl, pc); err != nil {
+		return err
+	}
 	if pc.SubPartExpr != nil || len(pc.SubPartColumns) > 0 {
 		for _, pd := range pc.Partitions {
 			if err := checkSubpartitionBoundKinds(pc.SubPartType, pd.SubPartitions); err != nil {
