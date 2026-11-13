@@ -1778,6 +1778,18 @@ func writeLoadDataStmt(sb *strings.Builder, n *LoadDataStmt) {
 	if n.IgnoreRows > 0 {
 		fmt.Fprintf(sb, " :ignore_rows %d", n.IgnoreRows)
 	}
+	if n.SourceURL {
+		sb.WriteString(" :url true")
+	}
+	if n.SourceCount != 0 {
+		fmt.Fprintf(sb, " :count %d", n.SourceCount)
+	}
+	if n.InPrimaryKeyOrder {
+		sb.WriteString(" :in_primary_key_order true")
+	}
+	if n.AlgorithmBulk {
+		sb.WriteString(" :algorithm_bulk true")
+	}
 	sb.WriteString("}")
 }
 

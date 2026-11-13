@@ -398,7 +398,10 @@ func (p *Parser) parseLoadDispatch() (nodes.Node, error) {
 		return p.parseLoadIndexIntoCacheStmt(start)
 	}
 
-	// Fall through to LOAD DATA / LOAD XML
+	// LOAD DATA or LOAD XML (data_or_xml); any other word is a 1064.
+	if p.cur.Type != kwDATA && p.cur.Type != kwXML {
+		return nil, p.syntaxErrorAtCur()
+	}
 	return p.parseLoadDataStmt(start)
 }
 

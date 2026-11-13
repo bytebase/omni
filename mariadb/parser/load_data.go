@@ -59,10 +59,11 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 	if _, err := p.expect(kwINFILE); err != nil {
 		return nil, err
 	}
-	if p.cur.Type == tokSCONST {
-		stmt.Infile = p.cur.Str
-		p.advance()
+	// The file name is required (load: INFILE TEXT_STRING_filesystem).
+	if p.cur.Type != tokSCONST {
+		return nil, p.syntaxErrorAtCur()
 	}
+	stmt.Infile = p.advance().Str
 
 	// [REPLACE | IGNORE]
 	if _, ok := p.match(kwREPLACE); ok {
@@ -72,8 +73,12 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 	}
 
 	// INTO TABLE tbl_name
-	p.match(kwINTO)
-	p.match(kwTABLE)
+	// INTO TABLE, both words required.
+	for _, kw := range []int{kwINTO, kwTABLE} {
+		if _, err := p.expect(kw); err != nil {
+			return nil, err
+		}
+	}
 
 	// Completion: after INTO TABLE, offer table_ref candidates.
 	p.checkCursor()
@@ -90,7 +95,7 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 	stmt.Table = ref
 
 	// [PARTITION (partition_name, ...)] (LOAD DATA only)
-	if !isXML && p.cur.Type == kwPARTITION {
+	if p.cur.Type == kwPARTITION {
 		p.advance()
 		parts, err := p.parseParenIdentList()
 		if err != nil {
@@ -123,17 +128,19 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 		stmt.CharacterSet = name
 	}
 
-	// [ROWS IDENTIFIED BY '<tagname>'] (LOAD XML only)
-	if isXML && p.cur.Type == kwROWS {
+	// [ROWS IDENTIFIED BY '<tagname>'], whole: opt_xml_rows_identified_by,
+	// which the grammar gives LOAD DATA as well as LOAD XML.
+	if p.cur.Type == kwROWS {
 		p.advance()
-		if p.cur.Type == kwIDENTIFIED {
-			p.advance()
-			p.match(kwBY)
-			if p.cur.Type == tokSCONST {
-				stmt.RowsIdentifiedBy = p.cur.Str
-				p.advance()
+		for _, kw := range []int{kwIDENTIFIED, kwBY} {
+			if _, err := p.expect(kw); err != nil {
+				return nil, err
 			}
 		}
+		if p.cur.Type != tokSCONST {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.RowsIdentifiedBy = p.advance().Str
 	}
 
 	// [{FIELDS | COLUMNS} ...]
@@ -156,11 +163,16 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 	if p.cur.Type == kwIGNORE {
 		p.advance()
 		// The count is NUM: mariadb:11.8.8 answers 1064 for IGNORE 2147483648 LINES.
-		if p.cur.isNum() {
-			stmt.IgnoreRows = int(p.cur.Ival)
-			p.advance()
+		// opt_ignore_lines: IGNORE NUM {LINES | ROWS}, whole; NUM is no wider
+		// than 31 bits.
+		if !p.cur.isNum() {
+			return nil, p.syntaxErrorAtCur()
 		}
-		p.match(kwLINES, kwROWS)
+		stmt.IgnoreRows = int(p.cur.Ival)
+		p.advance()
+		if _, ok := p.match(kwLINES, kwROWS); !ok {
+			return nil, p.syntaxErrorAtCur()
+		}
 	}
 
 	// [(col_name_or_user_var, ...)]
@@ -361,6 +373,10 @@ func (p *Parser) parseColumnOrUserVarList() ([]nodes.ExprNode, error) {
 	}
 	p.advance()
 	var out []nodes.ExprNode
+	// opt_field_or_var_spec: '(' ')' or '(' fields_or_vars ')'.
+	if _, ok := p.match(')'); ok {
+		return out, nil
+	}
 	for {
 		if p.isUserVariable() {
 			v, err := p.parseVariableRef()
@@ -380,7 +396,9 @@ func (p *Parser) parseColumnOrUserVarList() ([]nodes.ExprNode, error) {
 		}
 		p.advance()
 	}
-	p.match(')')
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 	return out, nil
 }
 
