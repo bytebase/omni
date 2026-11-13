@@ -747,16 +747,16 @@ accept	accept	engine	column_ref/relation_name_._column_name	SELECT a . a
 reject	reject	engine	column_ref/relation_name_._column_name!drop-1	SELECT . a
 reject	reject	engine	column_ref/relation_name_._column_name!drop-3	SELECT a .
 accept	accept	engine	column_ref/relation_name_._column_name!insert	SELECT a . a zzz
-reject	accept	engine	column_ref/relation_name_._mysql_reserved_keyword	SELECT a . ACCESSIBLE
+accept	accept	engine	column_ref/relation_name_._mysql_reserved_keyword	SELECT a . ACCESSIBLE
 reject	reject	engine	column_ref/relation_name_._mysql_reserved_keyword!drop-1	SELECT . ACCESSIBLE
 reject	reject	engine	column_ref/relation_name_._mysql_reserved_keyword!drop-2	SELECT a ACCESSIBLE
-reject	accept	engine	column_ref/relation_name_._mysql_reserved_keyword!insert	SELECT a . ACCESSIBLE zzz
+accept	accept	engine	column_ref/relation_name_._mysql_reserved_keyword!insert	SELECT a . ACCESSIBLE zzz
 accept	accept	engine	column_ref/relation_name_._mysql_reserved_keyword!swap	SELECT a . ACCESSID
-reject	accept	engine	column_ref/mysql_reserved_keyword_._mysql_reserved_keyword	SELECT ACCESSIBLE . ACCESSIBLE
+accept	accept	engine	column_ref/mysql_reserved_keyword_._mysql_reserved_keyword	SELECT ACCESSIBLE . ACCESSIBLE
 reject	reject	engine	column_ref/mysql_reserved_keyword_._mysql_reserved_keyword!drop-2	SELECT ACCESSIBLE ACCESSIBLE
 reject	reject	engine	column_ref/mysql_reserved_keyword_._mysql_reserved_keyword!drop-3	SELECT ACCESSIBLE .
-reject	accept	engine	column_ref/mysql_reserved_keyword_._mysql_reserved_keyword!insert	SELECT ACCESSIBLE . ACCESSIBLE zzz
-reject	accept	engine	column_ref/mysql_reserved_keyword_._mysql_reserved_keyword!swap	SELECT ACCESSID . ACCESSIBLE
+accept	accept	engine	column_ref/mysql_reserved_keyword_._mysql_reserved_keyword!insert	SELECT ACCESSIBLE . ACCESSIBLE zzz
+accept	accept	engine	column_ref/mysql_reserved_keyword_._mysql_reserved_keyword!swap	SELECT ACCESSID . ACCESSIBLE
 accept	accept	engine	column_ref/id_dot_id	SELECT a.a
 accept	accept	engine	column_ref/id_dot_id!insert	SELECT a.a zzz
 accept	accept	engine	column_ref/relation_name_._*	SELECT a . *
@@ -769,18 +769,18 @@ reject	reject	engine	column_ref/relation_name_._relation_name_._column_name!drop
 accept	accept	engine	column_ref/relation_name_._relation_name_._column_name!drop-4	SELECT a . a a
 reject	reject	engine	column_ref/relation_name_._relation_name_._column_name!drop-5	SELECT a . a .
 accept	accept	engine	column_ref/relation_name_._relation_name_._column_name!insert	SELECT a . a . a zzz
-reject	accept	engine	column_ref/relation_name_._relation_name_._mysql_reserved_keyword	SELECT a . a . ACCESSIBLE
+accept	accept	engine	column_ref/relation_name_._relation_name_._mysql_reserved_keyword	SELECT a . a . ACCESSIBLE
 reject	reject	engine	column_ref/relation_name_._relation_name_._mysql_reserved_keyword!drop-2	SELECT a a . ACCESSIBLE
 reject	reject	engine	column_ref/relation_name_._relation_name_._mysql_reserved_keyword!drop-3	SELECT a . . ACCESSIBLE
 reject	reject	engine	column_ref/relation_name_._relation_name_._mysql_reserved_keyword!drop-4	SELECT a . a ACCESSIBLE
-reject	accept	engine	column_ref/relation_name_._relation_name_._mysql_reserved_keyword!insert	SELECT a . a . ACCESSIBLE zzz
+accept	accept	engine	column_ref/relation_name_._relation_name_._mysql_reserved_keyword!insert	SELECT a . a . ACCESSIBLE zzz
 accept	accept	engine	column_ref/relation_name_._relation_name_._mysql_reserved_keyword!swap	SELECT a . a . ACCESSID
-reject	accept	engine	column_ref/relation_name_._mysql_reserved_keyword_._mysql_reserved_keyword	SELECT a . ACCESSIBLE . ACCESSIBLE
+accept	accept	engine	column_ref/relation_name_._mysql_reserved_keyword_._mysql_reserved_keyword	SELECT a . ACCESSIBLE . ACCESSIBLE
 reject	reject	engine	column_ref/relation_name_._mysql_reserved_keyword_._mysql_reserved_keyword!drop-2	SELECT a ACCESSIBLE . ACCESSIBLE
 reject	reject	engine	column_ref/relation_name_._mysql_reserved_keyword_._mysql_reserved_keyword!drop-4	SELECT a . ACCESSIBLE ACCESSIBLE
 reject	reject	engine	column_ref/relation_name_._mysql_reserved_keyword_._mysql_reserved_keyword!drop-5	SELECT a . ACCESSIBLE .
-reject	accept	engine	column_ref/relation_name_._mysql_reserved_keyword_._mysql_reserved_keyword!insert	SELECT a . ACCESSIBLE . ACCESSIBLE zzz
-reject	accept	engine	column_ref/relation_name_._mysql_reserved_keyword_._mysql_reserved_keyword!swap	SELECT a . ACCESSID . ACCESSIBLE
+accept	accept	engine	column_ref/relation_name_._mysql_reserved_keyword_._mysql_reserved_keyword!insert	SELECT a . ACCESSIBLE . ACCESSIBLE zzz
+accept	accept	engine	column_ref/relation_name_._mysql_reserved_keyword_._mysql_reserved_keyword!swap	SELECT a . ACCESSID . ACCESSIBLE
 accept	accept	engine	column_ref/id_dot_id_dot_id	SELECT a.a.a
 accept	accept	engine	column_ref/id_dot_id_dot_id!insert	SELECT a.a.a zzz
 accept	accept	engine	column_ref/relation_name_._relation_name_._*	SELECT a . a . *
@@ -793,24 +793,24 @@ accept	accept	engine	column_ref/id_dot_id_._*	SELECT a.a . *
 reject	reject	engine	column_ref/id_dot_id_._*!drop-2	SELECT a.a *
 reject	reject	engine	column_ref/id_dot_id_._*!drop-3	SELECT a.a .
 reject	reject	engine	column_ref/id_dot_id_._*!insert	SELECT a.a . * zzz
-reject	accept	engine	column_ref/._relation_name_._column_name	SELECT . a . a
+accept	accept	engine	column_ref/._relation_name_._column_name	SELECT . a . a
 reject	reject	engine	column_ref/._relation_name_._column_name!drop-2	SELECT . . a
 reject	reject	engine	column_ref/._relation_name_._column_name!drop-3	SELECT . a a
 reject	reject	engine	column_ref/._relation_name_._column_name!drop-4	SELECT . a .
-reject	accept	engine	column_ref/._relation_name_._column_name!insert	SELECT . a . a zzz
-reject	accept	engine	column_ref/._relation_name_._mysql_reserved_keyword	SELECT . a . ACCESSIBLE
+accept	accept	engine	column_ref/._relation_name_._column_name!insert	SELECT . a . a zzz
+accept	accept	engine	column_ref/._relation_name_._mysql_reserved_keyword	SELECT . a . ACCESSIBLE
 reject	reject	engine	column_ref/._relation_name_._mysql_reserved_keyword!drop-2	SELECT . . ACCESSIBLE
 reject	reject	engine	column_ref/._relation_name_._mysql_reserved_keyword!drop-3	SELECT . a ACCESSIBLE
-reject	accept	engine	column_ref/._relation_name_._mysql_reserved_keyword!insert	SELECT . a . ACCESSIBLE zzz
-reject	accept	engine	column_ref/._relation_name_._mysql_reserved_keyword!swap	SELECT . a . ACCESSID
-reject	accept	engine	column_ref/._mysql_reserved_keyword_._mysql_reserved_keyword	SELECT . ACCESSIBLE . ACCESSIBLE
+accept	accept	engine	column_ref/._relation_name_._mysql_reserved_keyword!insert	SELECT . a . ACCESSIBLE zzz
+accept	accept	engine	column_ref/._relation_name_._mysql_reserved_keyword!swap	SELECT . a . ACCESSID
+accept	accept	engine	column_ref/._mysql_reserved_keyword_._mysql_reserved_keyword	SELECT . ACCESSIBLE . ACCESSIBLE
 reject	reject	engine	column_ref/._mysql_reserved_keyword_._mysql_reserved_keyword!drop-3	SELECT . ACCESSIBLE ACCESSIBLE
 reject	reject	engine	column_ref/._mysql_reserved_keyword_._mysql_reserved_keyword!drop-4	SELECT . ACCESSIBLE .
-reject	accept	engine	column_ref/._mysql_reserved_keyword_._mysql_reserved_keyword!insert	SELECT . ACCESSIBLE . ACCESSIBLE zzz
-reject	accept	engine	column_ref/._mysql_reserved_keyword_._mysql_reserved_keyword!swap	SELECT . ACCESSID . ACCESSIBLE
-reject	accept	engine	column_ref/._id_dot_id	SELECT . a.a
+accept	accept	engine	column_ref/._mysql_reserved_keyword_._mysql_reserved_keyword!insert	SELECT . ACCESSIBLE . ACCESSIBLE zzz
+accept	accept	engine	column_ref/._mysql_reserved_keyword_._mysql_reserved_keyword!swap	SELECT . ACCESSID . ACCESSIBLE
+accept	accept	engine	column_ref/._id_dot_id	SELECT . a.a
 reject	reject	engine	column_ref/._id_dot_id!drop-2	SELECT .
-reject	accept	engine	column_ref/._id_dot_id!insert	SELECT . a.a zzz
+accept	accept	engine	column_ref/._id_dot_id!insert	SELECT . a.a zzz
 reject	reject	engine	column_ref/FORCE	SELECT FORCE
 reject	reject	engine	column_ref/FORCE!insert	SELECT FORCE zzz
 accept	accept	engine	column_ref/FORCE!swap	SELECT FORCE_REFRESH_LOCATION_CACHE
@@ -7836,17 +7836,17 @@ reject	reject	engine	no_param_column_ref/relation_name_._column_name!drop-2	INSE
 reject	reject	engine	no_param_column_ref/relation_name_._column_name!drop-3	INSERT a SET a . = a
 reject	reject	engine	no_param_column_ref/relation_name_._column_name!truncate	INSERT a SET a .
 reject	reject	engine	no_param_column_ref/relation_name_._column_name!insert	INSERT a SET a . a zzz = a
-reject	accept	engine	no_param_column_ref/relation_name_._mysql_reserved_keyword	INSERT a SET a . ACCESSIBLE = a
+accept	accept	engine	no_param_column_ref/relation_name_._mysql_reserved_keyword	INSERT a SET a . ACCESSIBLE = a
 reject	reject	engine	no_param_column_ref/relation_name_._mysql_reserved_keyword!drop-1	INSERT a SET . ACCESSIBLE = a
 reject	reject	engine	no_param_column_ref/relation_name_._mysql_reserved_keyword!drop-2	INSERT a SET a ACCESSIBLE = a
 reject	reject	engine	no_param_column_ref/relation_name_._mysql_reserved_keyword!insert	INSERT a SET a . ACCESSIBLE zzz = a
 accept	accept	engine	no_param_column_ref/relation_name_._mysql_reserved_keyword!swap	INSERT a SET a . ACCESSID = a
-reject	accept	engine	no_param_column_ref/mysql_reserved_keyword_._mysql_reserved_keyword	INSERT a SET ACCESSIBLE . ACCESSIBLE = a
+accept	accept	engine	no_param_column_ref/mysql_reserved_keyword_._mysql_reserved_keyword	INSERT a SET ACCESSIBLE . ACCESSIBLE = a
 reject	reject	engine	no_param_column_ref/mysql_reserved_keyword_._mysql_reserved_keyword!drop-2	INSERT a SET ACCESSIBLE ACCESSIBLE = a
 reject	reject	engine	no_param_column_ref/mysql_reserved_keyword_._mysql_reserved_keyword!drop-3	INSERT a SET ACCESSIBLE . = a
 reject	reject	engine	no_param_column_ref/mysql_reserved_keyword_._mysql_reserved_keyword!truncate	INSERT a SET ACCESSIBLE .
 reject	reject	engine	no_param_column_ref/mysql_reserved_keyword_._mysql_reserved_keyword!insert	INSERT a SET ACCESSIBLE . ACCESSIBLE zzz = a
-reject	accept	engine	no_param_column_ref/mysql_reserved_keyword_._mysql_reserved_keyword!swap	INSERT a SET ACCESSID . ACCESSIBLE = a
+accept	accept	engine	no_param_column_ref/mysql_reserved_keyword_._mysql_reserved_keyword!swap	INSERT a SET ACCESSID . ACCESSIBLE = a
 accept	accept	engine	no_param_column_ref/id_dot_id	INSERT a SET a.a = a
 reject	reject	engine	no_param_column_ref/id_dot_id!insert	INSERT a SET a.a zzz = a
 accept	accept	engine	no_param_column_ref/relation_name_._*	INSERT a SET a . * = a
@@ -7860,19 +7860,19 @@ reject	reject	engine	no_param_column_ref/relation_name_._relation_name_._column_
 reject	reject	engine	no_param_column_ref/relation_name_._relation_name_._column_name!drop-5	INSERT a SET a . a . = a
 reject	reject	engine	no_param_column_ref/relation_name_._relation_name_._column_name!truncate	INSERT a SET a . a .
 reject	reject	engine	no_param_column_ref/relation_name_._relation_name_._column_name!insert	INSERT a SET a . a . a zzz = a
-reject	accept	engine	no_param_column_ref/relation_name_._relation_name_._mysql_reserved_keyword	INSERT a SET a . a . ACCESSIBLE = a
+accept	accept	engine	no_param_column_ref/relation_name_._relation_name_._mysql_reserved_keyword	INSERT a SET a . a . ACCESSIBLE = a
 reject	reject	engine	no_param_column_ref/relation_name_._relation_name_._mysql_reserved_keyword!drop-2	INSERT a SET a a . ACCESSIBLE = a
 reject	reject	engine	no_param_column_ref/relation_name_._relation_name_._mysql_reserved_keyword!drop-3	INSERT a SET a . . ACCESSIBLE = a
 reject	reject	engine	no_param_column_ref/relation_name_._relation_name_._mysql_reserved_keyword!drop-4	INSERT a SET a . a ACCESSIBLE = a
 reject	reject	engine	no_param_column_ref/relation_name_._relation_name_._mysql_reserved_keyword!insert	INSERT a SET a . a . ACCESSIBLE zzz = a
 accept	accept	engine	no_param_column_ref/relation_name_._relation_name_._mysql_reserved_keyword!swap	INSERT a SET a . a . ACCESSID = a
-reject	accept	engine	no_param_column_ref/relation_name_._mysql_reserved_keyword_._mysql_reserved_keyword	INSERT a SET a . ACCESSIBLE . ACCESSIBLE = a
+accept	accept	engine	no_param_column_ref/relation_name_._mysql_reserved_keyword_._mysql_reserved_keyword	INSERT a SET a . ACCESSIBLE . ACCESSIBLE = a
 reject	reject	engine	no_param_column_ref/relation_name_._mysql_reserved_keyword_._mysql_reserved_keyword!drop-2	INSERT a SET a ACCESSIBLE . ACCESSIBLE = a
 reject	reject	engine	no_param_column_ref/relation_name_._mysql_reserved_keyword_._mysql_reserved_keyword!drop-4	INSERT a SET a . ACCESSIBLE ACCESSIBLE = a
 reject	reject	engine	no_param_column_ref/relation_name_._mysql_reserved_keyword_._mysql_reserved_keyword!drop-5	INSERT a SET a . ACCESSIBLE . = a
 reject	reject	engine	no_param_column_ref/relation_name_._mysql_reserved_keyword_._mysql_reserved_keyword!truncate	INSERT a SET a . ACCESSIBLE .
 reject	reject	engine	no_param_column_ref/relation_name_._mysql_reserved_keyword_._mysql_reserved_keyword!insert	INSERT a SET a . ACCESSIBLE . ACCESSIBLE zzz = a
-reject	accept	engine	no_param_column_ref/relation_name_._mysql_reserved_keyword_._mysql_reserved_keyword!swap	INSERT a SET a . ACCESSID . ACCESSIBLE = a
+accept	accept	engine	no_param_column_ref/relation_name_._mysql_reserved_keyword_._mysql_reserved_keyword!swap	INSERT a SET a . ACCESSID . ACCESSIBLE = a
 accept	accept	engine	no_param_column_ref/id_dot_id_dot_id	INSERT a SET a.a.a = a
 reject	reject	engine	no_param_column_ref/id_dot_id_dot_id!insert	INSERT a SET a.a.a zzz = a
 accept	accept	engine	no_param_column_ref/relation_name_._relation_name_._*	INSERT a SET a . a . * = a
@@ -7886,24 +7886,24 @@ reject	reject	engine	no_param_column_ref/id_dot_id_._*!drop-2	INSERT a SET a.a *
 reject	reject	engine	no_param_column_ref/id_dot_id_._*!drop-3	INSERT a SET a.a . = a
 reject	reject	engine	no_param_column_ref/id_dot_id_._*!truncate	INSERT a SET a.a .
 reject	reject	engine	no_param_column_ref/id_dot_id_._*!insert	INSERT a SET a.a . * zzz = a
-reject	accept	engine	no_param_column_ref/._relation_name_._column_name	INSERT a SET . a . a = a
+accept	accept	engine	no_param_column_ref/._relation_name_._column_name	INSERT a SET . a . a = a
 reject	reject	engine	no_param_column_ref/._relation_name_._column_name!drop-2	INSERT a SET . . a = a
 reject	reject	engine	no_param_column_ref/._relation_name_._column_name!drop-3	INSERT a SET . a a = a
 reject	reject	engine	no_param_column_ref/._relation_name_._column_name!drop-4	INSERT a SET . a . = a
 reject	reject	engine	no_param_column_ref/._relation_name_._column_name!truncate	INSERT a SET . a .
 reject	reject	engine	no_param_column_ref/._relation_name_._column_name!insert	INSERT a SET . a . a zzz = a
-reject	accept	engine	no_param_column_ref/._relation_name_._mysql_reserved_keyword	INSERT a SET . a . ACCESSIBLE = a
+accept	accept	engine	no_param_column_ref/._relation_name_._mysql_reserved_keyword	INSERT a SET . a . ACCESSIBLE = a
 reject	reject	engine	no_param_column_ref/._relation_name_._mysql_reserved_keyword!drop-2	INSERT a SET . . ACCESSIBLE = a
 reject	reject	engine	no_param_column_ref/._relation_name_._mysql_reserved_keyword!drop-3	INSERT a SET . a ACCESSIBLE = a
 reject	reject	engine	no_param_column_ref/._relation_name_._mysql_reserved_keyword!insert	INSERT a SET . a . ACCESSIBLE zzz = a
-reject	accept	engine	no_param_column_ref/._relation_name_._mysql_reserved_keyword!swap	INSERT a SET . a . ACCESSID = a
-reject	accept	engine	no_param_column_ref/._mysql_reserved_keyword_._mysql_reserved_keyword	INSERT a SET . ACCESSIBLE . ACCESSIBLE = a
+accept	accept	engine	no_param_column_ref/._relation_name_._mysql_reserved_keyword!swap	INSERT a SET . a . ACCESSID = a
+accept	accept	engine	no_param_column_ref/._mysql_reserved_keyword_._mysql_reserved_keyword	INSERT a SET . ACCESSIBLE . ACCESSIBLE = a
 reject	reject	engine	no_param_column_ref/._mysql_reserved_keyword_._mysql_reserved_keyword!drop-3	INSERT a SET . ACCESSIBLE ACCESSIBLE = a
 reject	reject	engine	no_param_column_ref/._mysql_reserved_keyword_._mysql_reserved_keyword!drop-4	INSERT a SET . ACCESSIBLE . = a
 reject	reject	engine	no_param_column_ref/._mysql_reserved_keyword_._mysql_reserved_keyword!truncate	INSERT a SET . ACCESSIBLE .
 reject	reject	engine	no_param_column_ref/._mysql_reserved_keyword_._mysql_reserved_keyword!insert	INSERT a SET . ACCESSIBLE . ACCESSIBLE zzz = a
-reject	accept	engine	no_param_column_ref/._mysql_reserved_keyword_._mysql_reserved_keyword!swap	INSERT a SET . ACCESSID . ACCESSIBLE = a
-reject	accept	engine	no_param_column_ref/._id_dot_id	INSERT a SET . a.a = a
+accept	accept	engine	no_param_column_ref/._mysql_reserved_keyword_._mysql_reserved_keyword!swap	INSERT a SET . ACCESSID . ACCESSIBLE = a
+accept	accept	engine	no_param_column_ref/._id_dot_id	INSERT a SET . a.a = a
 reject	reject	engine	no_param_column_ref/._id_dot_id!drop-2	INSERT a SET . = a
 reject	reject	engine	no_param_column_ref/._id_dot_id!truncate	INSERT a SET .
 reject	reject	engine	no_param_column_ref/._id_dot_id!insert	INSERT a SET . a.a zzz = a

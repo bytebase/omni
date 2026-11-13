@@ -18,6 +18,11 @@ type Parser struct {
 
 	castShiftHalf bool // the inner of ARRAY<ARRAY<...>> has closed half of a >> (see parseCastArrayElement)
 
+	// reservedColumnRef is the last column reference read in a form column_ref has and
+	// column_definition_ref lacks: with a leading dot, or with a reserved word for a
+	// name. The JSON arrows refuse it as their left operand.
+	reservedColumnRef *nodes.ColumnRef
+
 	// parenRunStart and parenRunPast cache the last firstTokenPastParens scan:
 	// the offset of the run's first '(' and the first token past the run.
 	parenRunStart int
