@@ -30,12 +30,14 @@ var (
 	sysZoneList    = sysList(sysStr, sysOptComma) // zone_list
 	sysStrList     = sysList(sysStr, sysComma)    // resource_pool_list
 	sysIDList      = sysList(sysInt, sysComma)    // id_list
-	sysUserVar     = sysLeaf(func(p *Parser) bool {
+	// USER_VARIABLE: @name, or the @ and the quoted name after it, which reach
+	// this parser as two tokens and parseVariableRef reads whole.
+	sysUserVar = sysLeaf(func(p *Parser) bool {
 		if !p.isUserVariable() {
 			return false
 		}
-		p.advance()
-		return true
+		_, err := p.parseVariableRef()
+		return err == nil
 	})
 	// var_name: a name that is none of the words a role may not be called.
 	sysVarName = sysLeaf(func(p *Parser) bool {
@@ -46,7 +48,9 @@ var (
 		return err == nil
 	})
 	// sys_var_and_val_list: var_name {TO | = | :=} {expr | ON | BINARY | DEFAULT}.
-	sysVarAssigns = sysList(sysSeq(sysVarName, sysAlt("TO", sysTok('='), sysTok(tokAssign)), sysAlt("ON", "BINARY", "DEFAULT", sysExpr)), sysComma)
+	// The expression is tried first: BINARY also opens one, as in x = BINARY 'a',
+	// and a list keeps the first reading of an item that matches.
+	sysVarAssigns = sysList(sysSeq(sysVarName, sysAlt("TO", sysTok('='), sysTok(tokAssign)), sysAlt(sysExpr, "ON", "BINARY", "DEFAULT")), sysComma)
 
 	// tenant_option, and the list that may be empty before its first comma.
 	sysTenantOption = sysAlt(
@@ -63,6 +67,9 @@ var (
 		sysSeq(sysOpt("DEFAULT"), "TABLEGROUP", sysEq, sysAlt("NULL", sysName)),
 	)
 	sysTenantOptions = sysLooseList(sysTenantOption)
+	// clone_tenant_option. A clone takes exactly two, with a comma between:
+	// clone_tenant_option_list is no list.
+	sysCloneOption = sysSeq(sysAlt("RESOURCE_POOL", "UNIT"), sysEq, sysNS)
 	// The same list with an option in it.
 	sysSomeTenantOptions = sysSeq(sysOptComma, sysList(sysTenantOption, sysComma))
 
@@ -160,7 +167,7 @@ var clusterForms = map[string]sysPat{
 			sysOpt(sysAlt(sysSeq("SET VARIABLES", sysVarAssigns), sysSeq("SET", sysVarAssigns), sysSeq("VARIABLES", sysVarAssigns)))),
 		// clone_tenant_stmt.
 		sysForm("TENANT", sysIfNotExists, sysObjName, "FROM", sysName, sysOpt("USING SNAPSHOT", sysName),
-			"WITH", sysList(sysSeq(sysAlt("RESOURCE_POOL", "UNIT"), sysEq, sysNS), sysComma)),
+			"WITH", sysCloneOption, sysComma, sysCloneOption),
 		sysForm("STANDBY TENANT", sysIfNotExists, sysObjName, sysOpt("LOG_RESTORE_SOURCE", sysEq, sysConf), sysTenantOptions),
 		sysForm("RESOURCE UNIT", sysIfNotExists, sysObjName, sysUnitOptions),
 		sysForm("RESOURCE POOL", sysIfNotExists, sysObjName, sysLooseList(sysAlt(
