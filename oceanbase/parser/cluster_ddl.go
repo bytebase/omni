@@ -1,0 +1,144 @@
+package parser
+
+import (
+	nodes "github.com/bytebase/omni/oceanbase/ast"
+)
+
+// OceanBase's cluster objects: tenants, resource units and resource pools.
+// Their statements are a name and a list of `WORD [=] value` options, so they
+// are written as alter_system.go writes ALTER SYSTEM: a table of forms, one
+// per alternative, over the same matchers. Each parses into a ClusterDDLStmt
+// that names the statement and its object.
+//
+// Ref: create_tenant_stmt, clone_tenant_stmt, create_standby_tenant_stmt, alter_tenant_stmt,
+// drop_tenant_stmt, create_resource_stmt, alter_resource_stmt and
+// drop_resource_stmt in sql_parser_mysql_mode.y (oceanbase v4.3.5_CE_BP6).
+// Their rows in testdata/compat.tsv hold every alternative, and its
+// near-misses, to the pinned server.
+var (
+	// sysObjName is the relation_name that names the statement's object.
+	sysObjName = sysLeaf(func(p *Parser) bool {
+		name, _, err := p.parseIdent()
+		if err != nil {
+			return false
+		}
+		p.sys.name = name
+		return true
+	})
+	sysIfNotExists = sysOpt("IF NOT EXISTS")
+	sysIfExists    = sysOpt("IF EXISTS")
+	sysZoneList    = sysList(sysStr, sysOptComma) // zone_list
+	sysStrList     = sysList(sysStr, sysComma)    // resource_pool_list
+	sysIDList      = sysList(sysInt, sysComma)    // id_list
+	sysUserVar     = sysLeaf(func(p *Parser) bool {
+		if !p.isUserVariable() {
+			return false
+		}
+		p.advance()
+		return true
+	})
+	// var_name: a name that is none of the words a role may not be called.
+	sysVarName = sysLeaf(func(p *Parser) bool {
+		if isAmbiguousRoleWord(p.cur.Type) {
+			return false
+		}
+		_, _, err := p.parseIdent()
+		return err == nil
+	})
+	// sys_var_and_val_list: var_name {TO | = | :=} {expr | ON | BINARY | DEFAULT}.
+	sysVarAssigns = sysList(sysSeq(sysVarName, sysAlt("TO", sysTok('='), sysTok(tokAssign)), sysAlt("ON", "BINARY", "DEFAULT", sysExpr)), sysComma)
+
+	// tenant_option, and the list that may be empty before its first comma.
+	sysTenantOption = sysAlt(
+		sysSeq(sysAlt("LOGONLY_REPLICA_NUM", "REPLICA_NUM", "PROGRESSIVE_MERGE_NUM"), sysEq, sysInt),
+		sysSeq("LOCALITY", sysEq, sysStr, sysOpt("FORCE")),
+		sysSeq("PRIMARY_ZONE", sysEq, sysAlt("DEFAULT", "RANDOM", sysUserVar, sysNS)),
+		sysSeq("RESOURCE_POOL_LIST", sysEq, sysTok('('), sysStrList, sysTok(')')),
+		sysSeq(sysAlt("ENABLE_ARBITRATION_SERVICE", "ENABLE_EXTENDED_ROWID"), sysEq, sysBool),
+		sysSeq("ZONE_LIST", sysEq, sysTok('('), sysZoneList, sysTok(')')),
+		sysSeq(sysAlt("CHARSET", "CHARACTER SET"), sysEq, sysAlt(sysNameOB, sysStr, "BINARY", "ASCII")),
+		sysSeq("COLLATE", sysEq, sysAlt(sysNameOB, sysStr)),
+		"READ ONLY", "READ WRITE",
+		sysSeq("COMMENT", sysEq, sysStr),
+		sysSeq(sysOpt("DEFAULT"), "TABLEGROUP", sysEq, sysAlt("NULL", sysName)),
+	)
+	sysTenantOptions = sysLooseList(sysTenantOption)
+	// The same list with an option in it.
+	sysSomeTenantOptions = sysSeq(sysOptComma, sysList(sysTenantOption, sysComma))
+
+	sysUnitOptions = sysLooseList(sysSeq(sysAlt("MIN_CPU", "MIN_IOPS", "MAX_CPU", "MEMORY_SIZE", "MAX_IOPS", "IOPS_WEIGHT",
+		"LOG_DISK_SIZE", "DATA_DISK_SIZE", "MAX_NET_BANDWIDTH", "NET_BANDWIDTH_WEIGHT"), sysEq, sysConf))
+	sysPoolZoneList = sysSeq("ZONE_LIST", sysEq, sysTok('('), sysZoneList, sysTok(')'))
+	sysParenStrs    = sysSeq(sysTok('('), sysStrList, sysTok(')'))
+)
+
+// clusterForms holds, for each word a cluster statement opens with, the forms
+// that follow it.
+var clusterForms = map[string]sysPat{
+	"CREATE": sysAlt(
+		sysForm("TENANT", sysIfNotExists, sysObjName, sysTenantOptions,
+			sysOpt(sysAlt(sysSeq("SET VARIABLES", sysVarAssigns), sysSeq("SET", sysVarAssigns), sysSeq("VARIABLES", sysVarAssigns)))),
+		// clone_tenant_stmt.
+		sysForm("TENANT", sysIfNotExists, sysObjName, "FROM", sysName, sysOpt("USING SNAPSHOT", sysName),
+			"WITH", sysList(sysSeq(sysAlt("RESOURCE_POOL", "UNIT"), sysEq, sysNS), sysComma)),
+		sysForm("STANDBY TENANT", sysIfNotExists, sysObjName, sysOpt("LOG_RESTORE_SOURCE", sysEq, sysConf), sysTenantOptions),
+		sysForm("RESOURCE UNIT", sysIfNotExists, sysObjName, sysUnitOptions),
+		sysForm("RESOURCE POOL", sysIfNotExists, sysObjName, sysLooseList(sysAlt(
+			sysSeq("UNIT", sysEq, sysNS), sysSeq("UNIT_NUM", sysEq, sysInt), sysPoolZoneList, sysSeq("REPLICA_TYPE", sysEq, sysStr)))),
+	),
+	"ALTER": sysAlt(
+		sysForm("TENANT", sysObjName, "RENAME GLOBAL_NAME TO", sysName),
+		sysForm("TENANT", sysObjName, sysAlt("LOCK", "UNLOCK")),
+		// The rule lets both the options and the variables be empty, and its
+		// action then refuses the statement: ALTER TENANT t and ALTER TENANT t SET
+		// are 1064s.
+		sysForm("TENANT", sysAlt("ALL", sysObjName), sysOptSet, sysAlt(
+			sysSeq(sysSomeTenantOptions, sysOpt("VARIABLES", sysVarAssigns)),
+			sysSeq("VARIABLES", sysVarAssigns))),
+		sysForm("RESOURCE UNIT", sysObjName, sysUnitOptions),
+		sysForm("RESOURCE POOL", "MERGE", sysParenStrs, "INTO", sysParenStrs),
+		sysForm("RESOURCE POOL", sysObjName, "SPLIT INTO", sysParenStrs, "ON", sysTok('('), sysZoneList, sysTok(')')),
+		sysForm("RESOURCE POOL", sysObjName, sysList(sysAlt(
+			sysSeq("UNIT", sysEq, sysNS),
+			sysSeq("UNIT_NUM", sysEq, sysInt, sysOpt("DELETE UNIT", sysEq, sysTok('('), sysIDList, sysTok(')'))),
+			sysPoolZoneList), sysComma)),
+		sysForm("RESOURCE TENANT", sysObjName, "UNIT_NUM", sysEq, sysInt, sysOpt("DELETE UNIT_GROUP", sysEq, sysTok('('), sysIDList, sysTok(')'))),
+	),
+	"DROP": sysAlt(
+		sysForm("TENANT", sysIfExists, sysObjName, sysOpt(sysAlt("FORCE", "PURGE"))),
+		sysForm("RESOURCE UNIT", sysIfExists, sysObjName),
+		sysForm("RESOURCE POOL", sysIfExists, sysObjName),
+	),
+}
+
+// clusterObjectAhead reports whether the token after CREATE, ALTER or DROP
+// opens a cluster statement: TENANT, STANDBY TENANT, or RESOURCE before UNIT,
+// POOL or TENANT.
+func (p *Parser) clusterObjectAhead() bool {
+	switch {
+	case p.isBareWord("TENANT"):
+		return true
+	case p.isBareWord("STANDBY"):
+		return p.nextIsBareWord("TENANT")
+	case p.isBareWord("RESOURCE"):
+		return p.nextIsBareWord("UNIT", "POOL", "TENANT")
+	}
+	return false
+}
+
+// parseClusterDDL parses a cluster statement after verb, the word it opened
+// with, when one stands there.
+func (p *Parser) parseClusterDDL(start int, verb string) (nodes.Node, bool, error) {
+	if !p.clusterObjectAhead() {
+		return nil, false, nil
+	}
+	object, err := p.matchSystemForms(clusterForms[verb])
+	if err != nil {
+		return nil, true, err
+	}
+	return &nodes.ClusterDDLStmt{
+		Loc:    nodes.Loc{Start: start, End: p.prev.End},
+		Action: verb + " " + object,
+		Name:   p.sys.name,
+	}, true, nil
+}

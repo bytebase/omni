@@ -2033,6 +2033,20 @@ type AlterSystemStmt struct {
 func (s *AlterSystemStmt) nodeTag()  {}
 func (s *AlterSystemStmt) stmtNode() {}
 
+// ClusterDDLStmt is a statement on one of OceanBase's cluster objects: a
+// tenant, a resource unit or a resource pool. Action is the statement and its
+// object as the grammar writes them ("CREATE TENANT", "ALTER RESOURCE POOL"),
+// and Name the object's name, empty where the statement names none (ALTER
+// TENANT ALL). The options are parsed and not kept.
+type ClusterDDLStmt struct {
+	Loc    Loc
+	Action string
+	Name   string
+}
+
+func (s *ClusterDDLStmt) nodeTag()  {}
+func (s *ClusterDDLStmt) stmtNode() {}
+
 // KillStmt represents a KILL statement.
 type KillStmt struct {
 	Loc          Loc

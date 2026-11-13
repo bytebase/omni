@@ -370,12 +370,12 @@ reject	reject	engine	stmt/create_mview_stmt!drop-6	CREATE MATERIALIZED VIEW a AS
 reject	reject	engine	stmt/create_mview_stmt!drop-7	CREATE MATERIALIZED VIEW a AS SELECT
 reject	accept	engine	stmt/create_mview_stmt!insert	CREATE MATERIALIZED VIEW a AS SELECT a zzz
 reject	reject	engine	stmt/create_mview_stmt!swap	CREATE_TIMESTAMP MATERIALIZED VIEW a AS SELECT a
-reject	accept	engine	stmt/create_tenant_stmt	CREATE TENANT a
+accept	accept	engine	stmt/create_tenant_stmt	CREATE TENANT a
 reject	reject	engine	stmt/create_tenant_stmt!drop-1	TENANT a
 reject	reject	engine	stmt/create_tenant_stmt!drop-3	CREATE TENANT
 reject	reject	engine	stmt/create_tenant_stmt!insert	CREATE TENANT a zzz
 reject	reject	engine	stmt/create_tenant_stmt!swap	CREATE_TIMESTAMP TENANT a
-reject	accept	engine	stmt/create_standby_tenant_stmt	CREATE STANDBY TENANT a
+accept	accept	engine	stmt/create_standby_tenant_stmt	CREATE STANDBY TENANT a
 reject	reject	engine	stmt/create_standby_tenant_stmt!drop-1	STANDBY TENANT a
 reject	reject	engine	stmt/create_standby_tenant_stmt!drop-3	CREATE STANDBY a
 reject	reject	engine	stmt/create_standby_tenant_stmt!drop-4	CREATE STANDBY TENANT
@@ -385,7 +385,7 @@ reject	reject	engine	stmt/alter_tenant_stmt	ALTER TENANT a
 reject	reject	engine	stmt/alter_tenant_stmt!drop-3	ALTER TENANT
 reject	reject	engine	stmt/alter_tenant_stmt!insert	ALTER TENANT a zzz
 reject	reject	engine	stmt/alter_tenant_stmt!swap	ALWAYS TENANT a
-reject	accept	engine	stmt/drop_tenant_stmt	DROP TENANT a
+accept	accept	engine	stmt/drop_tenant_stmt	DROP TENANT a
 reject	reject	engine	stmt/drop_tenant_stmt!drop-3	DROP TENANT
 reject	reject	engine	stmt/drop_tenant_stmt!insert	DROP TENANT a zzz
 reject	reject	engine	stmt/drop_tenant_stmt!swap	DUAL TENANT a
@@ -402,20 +402,20 @@ reject	reject	engine	stmt/drop_restore_point_stmt!drop-3	DROP RESTORE a
 reject	reject	engine	stmt/drop_restore_point_stmt!drop-4	DROP RESTORE POINT
 reject	reject	engine	stmt/drop_restore_point_stmt!insert	DROP RESTORE POINT a zzz
 reject	reject	engine	stmt/drop_restore_point_stmt!swap	DUAL RESTORE POINT a
-reject	accept	engine	stmt/create_resource_stmt	CREATE RESOURCE UNIT a
+accept	accept	engine	stmt/create_resource_stmt	CREATE RESOURCE UNIT a
 reject	reject	engine	stmt/create_resource_stmt!drop-1	RESOURCE UNIT a
 reject	reject	engine	stmt/create_resource_stmt!drop-2	CREATE UNIT a
 reject	reject	engine	stmt/create_resource_stmt!drop-3	CREATE RESOURCE a
 reject	reject	engine	stmt/create_resource_stmt!drop-4	CREATE RESOURCE UNIT
 reject	reject	engine	stmt/create_resource_stmt!insert	CREATE RESOURCE UNIT a zzz
 reject	reject	engine	stmt/create_resource_stmt!swap	CREATE_TIMESTAMP RESOURCE UNIT a
-reject	accept	engine	stmt/alter_resource_stmt	ALTER RESOURCE UNIT a
+accept	accept	engine	stmt/alter_resource_stmt	ALTER RESOURCE UNIT a
 reject	reject	engine	stmt/alter_resource_stmt!drop-2	ALTER UNIT a
 reject	reject	engine	stmt/alter_resource_stmt!drop-3	ALTER RESOURCE a
 reject	reject	engine	stmt/alter_resource_stmt!drop-4	ALTER RESOURCE UNIT
 reject	reject	engine	stmt/alter_resource_stmt!insert	ALTER RESOURCE UNIT a zzz
 reject	reject	engine	stmt/alter_resource_stmt!swap	ALWAYS RESOURCE UNIT a
-reject	accept	engine	stmt/drop_resource_stmt	DROP RESOURCE UNIT a
+accept	accept	engine	stmt/drop_resource_stmt	DROP RESOURCE UNIT a
 reject	reject	engine	stmt/drop_resource_stmt!drop-2	DROP UNIT a
 reject	reject	engine	stmt/drop_resource_stmt!drop-3	DROP RESOURCE a
 reject	reject	engine	stmt/drop_resource_stmt!drop-4	DROP RESOURCE UNIT
@@ -632,7 +632,7 @@ reject	reject	engine	stmt/drop_tenant_snapshot_stmt!drop-1	SNAPSHOT a
 reject	reject	engine	stmt/drop_tenant_snapshot_stmt!drop-3	DROP SNAPSHOT
 reject	reject	engine	stmt/drop_tenant_snapshot_stmt!insert	DROP SNAPSHOT a zzz
 reject	reject	engine	stmt/drop_tenant_snapshot_stmt!swap	DUAL SNAPSHOT a
-reject	accept	engine	stmt/clone_tenant_stmt	CREATE TENANT a FROM a WITH RESOURCE_POOL a, RESOURCE_POOL a
+accept	accept	engine	stmt/clone_tenant_stmt	CREATE TENANT a FROM a WITH RESOURCE_POOL a, RESOURCE_POOL a
 reject	reject	engine	stmt/clone_tenant_stmt!drop-1	TENANT a FROM a WITH RESOURCE_POOL a, RESOURCE_POOL a
 reject	reject	engine	stmt/clone_tenant_stmt!drop-2	CREATE a FROM a WITH RESOURCE_POOL a, RESOURCE_POOL a
 reject	reject	engine	stmt/clone_tenant_stmt!drop-3	CREATE TENANT FROM a WITH RESOURCE_POOL a, RESOURCE_POOL a
@@ -3202,94 +3202,94 @@ reject	reject	engine	update_asgn_list/update_asgn_list_,_update_asgn_factor!drop
 reject	reject	engine	update_asgn_list/update_asgn_list_,_update_asgn_factor!drop-7	INSERT a SET a = a, a =
 reject	reject	engine	update_asgn_list/update_asgn_list_,_update_asgn_factor!insert	INSERT a SET a = a, a = a zzz
 accept	accept	engine	update_asgn_factor/no_param_column_ref_COMP_EQ_expr_or_default	INSERT a SET a = a
-reject	accept	engine	create_resource_stmt/create_with_opt_hint_RESOURCE_UNIT_opt_if_not_exists_relation_name_opt_resource_unit_option_list	CREATE RESOURCE UNIT a
-reject	accept	engine	create_resource_stmt/create_with_opt_hint_RESOURCE_POOL_opt_if_not_exists_relation_name_opt_create_resource_pool_option_list	CREATE RESOURCE POOL a
+accept	accept	engine	create_resource_stmt/create_with_opt_hint_RESOURCE_UNIT_opt_if_not_exists_relation_name_opt_resource_unit_option_list	CREATE RESOURCE UNIT a
+accept	accept	engine	create_resource_stmt/create_with_opt_hint_RESOURCE_POOL_opt_if_not_exists_relation_name_opt_create_resource_pool_option_list	CREATE RESOURCE POOL a
 reject	reject	engine	create_resource_stmt/create_with_opt_hint_RESOURCE_POOL_opt_if_not_exists_relation_name_opt_create_resource_pool_option_list!drop-1	RESOURCE POOL a
 reject	reject	engine	create_resource_stmt/create_with_opt_hint_RESOURCE_POOL_opt_if_not_exists_relation_name_opt_create_resource_pool_option_list!drop-2	CREATE POOL a
 reject	reject	engine	create_resource_stmt/create_with_opt_hint_RESOURCE_POOL_opt_if_not_exists_relation_name_opt_create_resource_pool_option_list!drop-4	CREATE RESOURCE POOL
 reject	reject	engine	create_resource_stmt/create_with_opt_hint_RESOURCE_POOL_opt_if_not_exists_relation_name_opt_create_resource_pool_option_list!insert	CREATE RESOURCE POOL a zzz
 reject	reject	engine	create_resource_stmt/create_with_opt_hint_RESOURCE_POOL_opt_if_not_exists_relation_name_opt_create_resource_pool_option_list!swap	CREATE_TIMESTAMP RESOURCE POOL a
-reject	accept	engine	opt_resource_unit_option_list/resource_unit_option	CREATE RESOURCE UNIT a MIN_CPU 's'
+accept	accept	engine	opt_resource_unit_option_list/resource_unit_option	CREATE RESOURCE UNIT a MIN_CPU 's'
 reject	reject	engine	opt_resource_unit_option_list/resource_unit_option!drop-1	CREATE RESOURCE UNIT a 's'
 reject	reject	engine	opt_resource_unit_option_list/resource_unit_option!drop-2	CREATE RESOURCE UNIT a MIN_CPU
 reject	reject	engine	opt_resource_unit_option_list/resource_unit_option!insert	CREATE RESOURCE UNIT a MIN_CPU 's' zzz
-reject	accept	engine	opt_resource_unit_option_list/opt_resource_unit_option_list_,_resource_unit_option	CREATE RESOURCE UNIT a, MIN_CPU 's'
+accept	accept	engine	opt_resource_unit_option_list/opt_resource_unit_option_list_,_resource_unit_option	CREATE RESOURCE UNIT a, MIN_CPU 's'
 reject	reject	engine	opt_resource_unit_option_list/opt_resource_unit_option_list_,_resource_unit_option!drop-2	CREATE RESOURCE UNIT a, 's'
 reject	reject	engine	opt_resource_unit_option_list/opt_resource_unit_option_list_,_resource_unit_option!drop-3	CREATE RESOURCE UNIT a, MIN_CPU
 reject	reject	engine	opt_resource_unit_option_list/opt_resource_unit_option_list_,_resource_unit_option!insert	CREATE RESOURCE UNIT a, MIN_CPU 's' zzz
-reject	accept	engine	opt_resource_unit_option_list/opt_resource_unit_option_list_,_resource_unit_option!swap	CREATE RESOURCE UNIT a, MIN_IOPS 's'
-reject	accept	engine	opt_resource_unit_option_list/%empty	CREATE RESOURCE UNIT a
-reject	accept	engine	resource_unit_option/MIN_CPU_opt_equal_mark_conf_const	CREATE RESOURCE UNIT a MIN_CPU 's'
-reject	accept	engine	resource_unit_option/MIN_IOPS_opt_equal_mark_conf_const	CREATE RESOURCE UNIT a MIN_IOPS 's'
+accept	accept	engine	opt_resource_unit_option_list/opt_resource_unit_option_list_,_resource_unit_option!swap	CREATE RESOURCE UNIT a, MIN_IOPS 's'
+accept	accept	engine	opt_resource_unit_option_list/%empty	CREATE RESOURCE UNIT a
+accept	accept	engine	resource_unit_option/MIN_CPU_opt_equal_mark_conf_const	CREATE RESOURCE UNIT a MIN_CPU 's'
+accept	accept	engine	resource_unit_option/MIN_IOPS_opt_equal_mark_conf_const	CREATE RESOURCE UNIT a MIN_IOPS 's'
 reject	reject	engine	resource_unit_option/MIN_IOPS_opt_equal_mark_conf_const!drop-2	CREATE RESOURCE UNIT a MIN_IOPS
 reject	reject	engine	resource_unit_option/MIN_IOPS_opt_equal_mark_conf_const!insert	CREATE RESOURCE UNIT a MIN_IOPS 's' zzz
 reject	reject	engine	resource_unit_option/MIN_IOPS_opt_equal_mark_conf_const!swap	CREATE RESOURCE UNIT a MIN_MAX 's'
-reject	accept	engine	resource_unit_option/MAX_CPU_opt_equal_mark_conf_const	CREATE RESOURCE UNIT a MAX_CPU 's'
+accept	accept	engine	resource_unit_option/MAX_CPU_opt_equal_mark_conf_const	CREATE RESOURCE UNIT a MAX_CPU 's'
 reject	reject	engine	resource_unit_option/MAX_CPU_opt_equal_mark_conf_const!drop-2	CREATE RESOURCE UNIT a MAX_CPU
 reject	reject	engine	resource_unit_option/MAX_CPU_opt_equal_mark_conf_const!insert	CREATE RESOURCE UNIT a MAX_CPU 's' zzz
 reject	reject	engine	resource_unit_option/MAX_CPU_opt_equal_mark_conf_const!swap	CREATE RESOURCE UNIT a MAX_FILE_SIZE 's'
-reject	accept	engine	resource_unit_option/MEMORY_SIZE_opt_equal_mark_conf_const	CREATE RESOURCE UNIT a MEMORY_SIZE 's'
+accept	accept	engine	resource_unit_option/MEMORY_SIZE_opt_equal_mark_conf_const	CREATE RESOURCE UNIT a MEMORY_SIZE 's'
 reject	reject	engine	resource_unit_option/MEMORY_SIZE_opt_equal_mark_conf_const!drop-2	CREATE RESOURCE UNIT a MEMORY_SIZE
 reject	reject	engine	resource_unit_option/MEMORY_SIZE_opt_equal_mark_conf_const!insert	CREATE RESOURCE UNIT a MEMORY_SIZE 's' zzz
 reject	reject	engine	resource_unit_option/MEMORY_SIZE_opt_equal_mark_conf_const!swap	CREATE RESOURCE UNIT a MEMSTORE_PERCENT 's'
-reject	accept	engine	resource_unit_option/MAX_IOPS_opt_equal_mark_conf_const	CREATE RESOURCE UNIT a MAX_IOPS 's'
+accept	accept	engine	resource_unit_option/MAX_IOPS_opt_equal_mark_conf_const	CREATE RESOURCE UNIT a MAX_IOPS 's'
 reject	reject	engine	resource_unit_option/MAX_IOPS_opt_equal_mark_conf_const!drop-2	CREATE RESOURCE UNIT a MAX_IOPS
 reject	reject	engine	resource_unit_option/MAX_IOPS_opt_equal_mark_conf_const!insert	CREATE RESOURCE UNIT a MAX_IOPS 's' zzz
-reject	accept	engine	resource_unit_option/IOPS_WEIGHT_opt_equal_mark_conf_const	CREATE RESOURCE UNIT a IOPS_WEIGHT 's'
+accept	accept	engine	resource_unit_option/IOPS_WEIGHT_opt_equal_mark_conf_const	CREATE RESOURCE UNIT a IOPS_WEIGHT 's'
 reject	reject	engine	resource_unit_option/IOPS_WEIGHT_opt_equal_mark_conf_const!drop-2	CREATE RESOURCE UNIT a IOPS_WEIGHT
 reject	reject	engine	resource_unit_option/IOPS_WEIGHT_opt_equal_mark_conf_const!insert	CREATE RESOURCE UNIT a IOPS_WEIGHT 's' zzz
 reject	reject	engine	resource_unit_option/IOPS_WEIGHT_opt_equal_mark_conf_const!swap	CREATE RESOURCE UNIT a IO_AFTER_GTIDS 's'
-reject	accept	engine	resource_unit_option/LOG_DISK_SIZE_opt_equal_mark_conf_const	CREATE RESOURCE UNIT a LOG_DISK_SIZE 's'
+accept	accept	engine	resource_unit_option/LOG_DISK_SIZE_opt_equal_mark_conf_const	CREATE RESOURCE UNIT a LOG_DISK_SIZE 's'
 reject	reject	engine	resource_unit_option/LOG_DISK_SIZE_opt_equal_mark_conf_const!drop-2	CREATE RESOURCE UNIT a LOG_DISK_SIZE
 reject	reject	engine	resource_unit_option/LOG_DISK_SIZE_opt_equal_mark_conf_const!insert	CREATE RESOURCE UNIT a LOG_DISK_SIZE 's' zzz
 reject	reject	engine	resource_unit_option/LOG_DISK_SIZE_opt_equal_mark_conf_const!swap	CREATE RESOURCE UNIT a LOG_LEVEL 's'
-reject	accept	engine	resource_unit_option/DATA_DISK_SIZE_opt_equal_mark_conf_const	CREATE RESOURCE UNIT a DATA_DISK_SIZE 's'
+accept	accept	engine	resource_unit_option/DATA_DISK_SIZE_opt_equal_mark_conf_const	CREATE RESOURCE UNIT a DATA_DISK_SIZE 's'
 reject	reject	engine	resource_unit_option/DATA_DISK_SIZE_opt_equal_mark_conf_const!drop-2	CREATE RESOURCE UNIT a DATA_DISK_SIZE
 reject	reject	engine	resource_unit_option/DATA_DISK_SIZE_opt_equal_mark_conf_const!insert	CREATE RESOURCE UNIT a DATA_DISK_SIZE 's' zzz
 reject	reject	engine	resource_unit_option/DATA_DISK_SIZE_opt_equal_mark_conf_const!swap	CREATE RESOURCE UNIT a DATA_SOURCE 's'
-reject	accept	engine	resource_unit_option/MAX_NET_BANDWIDTH_opt_equal_mark_conf_const	CREATE RESOURCE UNIT a MAX_NET_BANDWIDTH 's'
+accept	accept	engine	resource_unit_option/MAX_NET_BANDWIDTH_opt_equal_mark_conf_const	CREATE RESOURCE UNIT a MAX_NET_BANDWIDTH 's'
 reject	reject	engine	resource_unit_option/MAX_NET_BANDWIDTH_opt_equal_mark_conf_const!drop-2	CREATE RESOURCE UNIT a MAX_NET_BANDWIDTH
 reject	reject	engine	resource_unit_option/MAX_NET_BANDWIDTH_opt_equal_mark_conf_const!insert	CREATE RESOURCE UNIT a MAX_NET_BANDWIDTH 's' zzz
 reject	reject	engine	resource_unit_option/MAX_NET_BANDWIDTH_opt_equal_mark_conf_const!swap	CREATE RESOURCE UNIT a MAX_NGRAM_SIZE 's'
-reject	accept	engine	resource_unit_option/NET_BANDWIDTH_WEIGHT_opt_equal_mark_conf_const	CREATE RESOURCE UNIT a NET_BANDWIDTH_WEIGHT 's'
+accept	accept	engine	resource_unit_option/NET_BANDWIDTH_WEIGHT_opt_equal_mark_conf_const	CREATE RESOURCE UNIT a NET_BANDWIDTH_WEIGHT 's'
 reject	reject	engine	resource_unit_option/NET_BANDWIDTH_WEIGHT_opt_equal_mark_conf_const!drop-2	CREATE RESOURCE UNIT a NET_BANDWIDTH_WEIGHT
 reject	reject	engine	resource_unit_option/NET_BANDWIDTH_WEIGHT_opt_equal_mark_conf_const!insert	CREATE RESOURCE UNIT a NET_BANDWIDTH_WEIGHT 's' zzz
 reject	reject	engine	resource_unit_option/NET_BANDWIDTH_WEIGHT_opt_equal_mark_conf_const!swap	CREATE RESOURCE UNIT a NEVER 's'
-reject	accept	engine	opt_create_resource_pool_option_list/create_resource_pool_option	CREATE RESOURCE POOL a UNIT a
+accept	accept	engine	opt_create_resource_pool_option_list/create_resource_pool_option	CREATE RESOURCE POOL a UNIT a
 reject	reject	engine	opt_create_resource_pool_option_list/create_resource_pool_option!drop-1	CREATE RESOURCE POOL a a
 reject	reject	engine	opt_create_resource_pool_option_list/create_resource_pool_option!drop-2	CREATE RESOURCE POOL a UNIT
 reject	reject	engine	opt_create_resource_pool_option_list/create_resource_pool_option!insert	CREATE RESOURCE POOL a UNIT a zzz
 reject	reject	engine	opt_create_resource_pool_option_list/create_resource_pool_option!swap	CREATE RESOURCE POOL a UNIT_GROUP a
-reject	accept	engine	opt_create_resource_pool_option_list/opt_create_resource_pool_option_list_,_create_resource_pool_option	CREATE RESOURCE POOL a, UNIT a
+accept	accept	engine	opt_create_resource_pool_option_list/opt_create_resource_pool_option_list_,_create_resource_pool_option	CREATE RESOURCE POOL a, UNIT a
 reject	reject	engine	opt_create_resource_pool_option_list/opt_create_resource_pool_option_list_,_create_resource_pool_option!drop-2	CREATE RESOURCE POOL a, a
 reject	reject	engine	opt_create_resource_pool_option_list/opt_create_resource_pool_option_list_,_create_resource_pool_option!drop-3	CREATE RESOURCE POOL a, UNIT
 reject	reject	engine	opt_create_resource_pool_option_list/opt_create_resource_pool_option_list_,_create_resource_pool_option!insert	CREATE RESOURCE POOL a, UNIT a zzz
 reject	reject	engine	opt_create_resource_pool_option_list/opt_create_resource_pool_option_list_,_create_resource_pool_option!swap	CREATE RESOURCE POOL a, UNIT_GROUP a
-reject	accept	engine	opt_create_resource_pool_option_list/%empty	CREATE RESOURCE POOL a
-reject	accept	engine	create_resource_pool_option/UNIT_opt_equal_mark_relation_name_or_string	CREATE RESOURCE POOL a UNIT a
-reject	accept	engine	create_resource_pool_option/UNIT_NUM_opt_equal_mark_INTNUM	CREATE RESOURCE POOL a UNIT_NUM 1
+accept	accept	engine	opt_create_resource_pool_option_list/%empty	CREATE RESOURCE POOL a
+accept	accept	engine	create_resource_pool_option/UNIT_opt_equal_mark_relation_name_or_string	CREATE RESOURCE POOL a UNIT a
+accept	accept	engine	create_resource_pool_option/UNIT_NUM_opt_equal_mark_INTNUM	CREATE RESOURCE POOL a UNIT_NUM 1
 reject	reject	engine	create_resource_pool_option/UNIT_NUM_opt_equal_mark_INTNUM!drop-1	CREATE RESOURCE POOL a 1
 reject	reject	engine	create_resource_pool_option/UNIT_NUM_opt_equal_mark_INTNUM!drop-2	CREATE RESOURCE POOL a UNIT_NUM
 reject	reject	engine	create_resource_pool_option/UNIT_NUM_opt_equal_mark_INTNUM!insert	CREATE RESOURCE POOL a UNIT_NUM 1 zzz
 reject	reject	engine	create_resource_pool_option/UNIT_NUM_opt_equal_mark_INTNUM!swap	CREATE RESOURCE POOL a UNKNOWN 1
-reject	accept	engine	create_resource_pool_option/ZONE_LIST_opt_equal_mark_(_zone_list_)	CREATE RESOURCE POOL a ZONE_LIST('s')
+accept	accept	engine	create_resource_pool_option/ZONE_LIST_opt_equal_mark_(_zone_list_)	CREATE RESOURCE POOL a ZONE_LIST('s')
 reject	reject	engine	create_resource_pool_option/ZONE_LIST_opt_equal_mark_(_zone_list_)!drop-1	CREATE RESOURCE POOL a('s')
 reject	reject	engine	create_resource_pool_option/ZONE_LIST_opt_equal_mark_(_zone_list_)!drop-2	CREATE RESOURCE POOL a ZONE_LIST 's')
 reject	reject	engine	create_resource_pool_option/ZONE_LIST_opt_equal_mark_(_zone_list_)!drop-3	CREATE RESOURCE POOL a ZONE_LIST()
 reject	reject	engine	create_resource_pool_option/ZONE_LIST_opt_equal_mark_(_zone_list_)!drop-4	CREATE RESOURCE POOL a ZONE_LIST('s'
 reject	reject	engine	create_resource_pool_option/ZONE_LIST_opt_equal_mark_(_zone_list_)!insert	CREATE RESOURCE POOL a ZONE_LIST('s') zzz
 reject	reject	engine	create_resource_pool_option/ZONE_LIST_opt_equal_mark_(_zone_list_)!swap	CREATE RESOURCE POOL a ZONE_TYPE('s')
-reject	accept	engine	create_resource_pool_option/REPLICA_TYPE_opt_equal_mark_STRING_VALUE	CREATE RESOURCE POOL a REPLICA_TYPE 's'
+accept	accept	engine	create_resource_pool_option/REPLICA_TYPE_opt_equal_mark_STRING_VALUE	CREATE RESOURCE POOL a REPLICA_TYPE 's'
 reject	reject	engine	create_resource_pool_option/REPLICA_TYPE_opt_equal_mark_STRING_VALUE!drop-1	CREATE RESOURCE POOL a 's'
 reject	reject	engine	create_resource_pool_option/REPLICA_TYPE_opt_equal_mark_STRING_VALUE!drop-2	CREATE RESOURCE POOL a REPLICA_TYPE
 reject	reject	engine	create_resource_pool_option/REPLICA_TYPE_opt_equal_mark_STRING_VALUE!insert	CREATE RESOURCE POOL a REPLICA_TYPE 's' zzz
 reject	reject	engine	create_resource_pool_option/REPLICA_TYPE_opt_equal_mark_STRING_VALUE!swap	CREATE RESOURCE POOL a REPORT 's'
-reject	accept	engine	alter_resource_pool_option_list/alter_resource_pool_option	ALTER RESOURCE POOL a UNIT a
+accept	accept	engine	alter_resource_pool_option_list/alter_resource_pool_option	ALTER RESOURCE POOL a UNIT a
 reject	reject	engine	alter_resource_pool_option_list/alter_resource_pool_option!drop-1	ALTER RESOURCE POOL a a
 reject	reject	engine	alter_resource_pool_option_list/alter_resource_pool_option!drop-2	ALTER RESOURCE POOL a UNIT
 reject	reject	engine	alter_resource_pool_option_list/alter_resource_pool_option!insert	ALTER RESOURCE POOL a UNIT a zzz
 reject	reject	engine	alter_resource_pool_option_list/alter_resource_pool_option!swap	ALTER RESOURCE POOL a UNIT_GROUP a
-reject	accept	engine	alter_resource_pool_option_list/alter_resource_pool_option_list_,_alter_resource_pool_option	ALTER RESOURCE POOL a UNIT a, UNIT a
+accept	accept	engine	alter_resource_pool_option_list/alter_resource_pool_option_list_,_alter_resource_pool_option	ALTER RESOURCE POOL a UNIT a, UNIT a
 reject	reject	engine	alter_resource_pool_option_list/alter_resource_pool_option_list_,_alter_resource_pool_option!drop-1	ALTER RESOURCE POOL a a, UNIT a
 reject	reject	engine	alter_resource_pool_option_list/alter_resource_pool_option_list_,_alter_resource_pool_option!drop-2	ALTER RESOURCE POOL a UNIT, UNIT a
 reject	reject	engine	alter_resource_pool_option_list/alter_resource_pool_option_list_,_alter_resource_pool_option!drop-3	ALTER RESOURCE POOL a UNIT a UNIT a
@@ -3297,45 +3297,45 @@ reject	reject	engine	alter_resource_pool_option_list/alter_resource_pool_option_
 reject	reject	engine	alter_resource_pool_option_list/alter_resource_pool_option_list_,_alter_resource_pool_option!drop-5	ALTER RESOURCE POOL a UNIT a, UNIT
 reject	reject	engine	alter_resource_pool_option_list/alter_resource_pool_option_list_,_alter_resource_pool_option!insert	ALTER RESOURCE POOL a UNIT a, UNIT a zzz
 reject	reject	engine	alter_resource_pool_option_list/alter_resource_pool_option_list_,_alter_resource_pool_option!swap	ALTER RESOURCE POOL a UNIT_GROUP a, UNIT a
-reject	accept	engine	id_list/INTNUM	ALTER RESOURCE POOL a UNIT_NUM 1 DELETE UNIT(1)
+accept	accept	engine	id_list/INTNUM	ALTER RESOURCE POOL a UNIT_NUM 1 DELETE UNIT(1)
 reject	reject	engine	id_list/INTNUM!drop-1	ALTER RESOURCE POOL a UNIT_NUM 1 DELETE UNIT()
 reject	reject	engine	id_list/INTNUM!truncate	ALTER RESOURCE POOL a UNIT_NUM 1 DELETE UNIT(
 reject	reject	engine	id_list/INTNUM!insert	ALTER RESOURCE POOL a UNIT_NUM 1 DELETE UNIT(1 zzz)
-reject	accept	engine	id_list/id_list_,_INTNUM	ALTER RESOURCE POOL a UNIT_NUM 1 DELETE UNIT(1, 1)
+accept	accept	engine	id_list/id_list_,_INTNUM	ALTER RESOURCE POOL a UNIT_NUM 1 DELETE UNIT(1, 1)
 reject	reject	engine	id_list/id_list_,_INTNUM!drop-1	ALTER RESOURCE POOL a UNIT_NUM 1 DELETE UNIT(, 1)
 reject	reject	engine	id_list/id_list_,_INTNUM!drop-2	ALTER RESOURCE POOL a UNIT_NUM 1 DELETE UNIT(1 1)
 reject	reject	engine	id_list/id_list_,_INTNUM!drop-3	ALTER RESOURCE POOL a UNIT_NUM 1 DELETE UNIT(1,)
 reject	reject	engine	id_list/id_list_,_INTNUM!truncate	ALTER RESOURCE POOL a UNIT_NUM 1 DELETE UNIT(1,
 reject	reject	engine	id_list/id_list_,_INTNUM!insert	ALTER RESOURCE POOL a UNIT_NUM 1 DELETE UNIT(1, 1 zzz)
-reject	accept	engine	opt_shrink_unit_option/DELETE_UNIT_opt_equal_mark_(_id_list_)	ALTER RESOURCE POOL a UNIT_NUM 1 DELETE UNIT(1)
+accept	accept	engine	opt_shrink_unit_option/DELETE_UNIT_opt_equal_mark_(_id_list_)	ALTER RESOURCE POOL a UNIT_NUM 1 DELETE UNIT(1)
 reject	reject	engine	opt_shrink_unit_option/DELETE_UNIT_opt_equal_mark_(_id_list_)!drop-1	ALTER RESOURCE POOL a UNIT_NUM 1 UNIT(1)
 reject	reject	engine	opt_shrink_unit_option/DELETE_UNIT_opt_equal_mark_(_id_list_)!drop-2	ALTER RESOURCE POOL a UNIT_NUM 1 DELETE(1)
 reject	reject	engine	opt_shrink_unit_option/DELETE_UNIT_opt_equal_mark_(_id_list_)!drop-3	ALTER RESOURCE POOL a UNIT_NUM 1 DELETE UNIT 1)
 reject	reject	engine	opt_shrink_unit_option/DELETE_UNIT_opt_equal_mark_(_id_list_)!drop-5	ALTER RESOURCE POOL a UNIT_NUM 1 DELETE UNIT(1
 reject	reject	engine	opt_shrink_unit_option/DELETE_UNIT_opt_equal_mark_(_id_list_)!insert	ALTER RESOURCE POOL a UNIT_NUM 1 DELETE UNIT(1) zzz
 reject	reject	engine	opt_shrink_unit_option/DELETE_UNIT_opt_equal_mark_(_id_list_)!swap	ALTER RESOURCE POOL a UNIT_NUM 1 DELETE_INSERT UNIT(1)
-reject	accept	engine	opt_shrink_unit_option/%empty	ALTER RESOURCE POOL a UNIT_NUM 1
+accept	accept	engine	opt_shrink_unit_option/%empty	ALTER RESOURCE POOL a UNIT_NUM 1
 reject	reject	engine	opt_shrink_unit_option/%empty!insert	ALTER RESOURCE POOL a UNIT_NUM 1 zzz
-reject	accept	engine	alter_resource_pool_option/UNIT_opt_equal_mark_relation_name_or_string	ALTER RESOURCE POOL a UNIT a
-reject	accept	engine	alter_resource_pool_option/UNIT_NUM_opt_equal_mark_INTNUM_opt_shrink_unit_option	ALTER RESOURCE POOL a UNIT_NUM 1
+accept	accept	engine	alter_resource_pool_option/UNIT_opt_equal_mark_relation_name_or_string	ALTER RESOURCE POOL a UNIT a
+accept	accept	engine	alter_resource_pool_option/UNIT_NUM_opt_equal_mark_INTNUM_opt_shrink_unit_option	ALTER RESOURCE POOL a UNIT_NUM 1
 reject	reject	engine	alter_resource_pool_option/UNIT_NUM_opt_equal_mark_INTNUM_opt_shrink_unit_option!drop-1	ALTER RESOURCE POOL a 1
 reject	reject	engine	alter_resource_pool_option/UNIT_NUM_opt_equal_mark_INTNUM_opt_shrink_unit_option!drop-2	ALTER RESOURCE POOL a UNIT_NUM
 reject	reject	engine	alter_resource_pool_option/UNIT_NUM_opt_equal_mark_INTNUM_opt_shrink_unit_option!swap	ALTER RESOURCE POOL a UNKNOWN 1
-reject	accept	engine	alter_resource_pool_option/ZONE_LIST_opt_equal_mark_(_zone_list_)	ALTER RESOURCE POOL a ZONE_LIST('s')
+accept	accept	engine	alter_resource_pool_option/ZONE_LIST_opt_equal_mark_(_zone_list_)	ALTER RESOURCE POOL a ZONE_LIST('s')
 reject	reject	engine	alter_resource_pool_option/ZONE_LIST_opt_equal_mark_(_zone_list_)!drop-1	ALTER RESOURCE POOL a('s')
 reject	reject	engine	alter_resource_pool_option/ZONE_LIST_opt_equal_mark_(_zone_list_)!drop-2	ALTER RESOURCE POOL a ZONE_LIST 's')
 reject	reject	engine	alter_resource_pool_option/ZONE_LIST_opt_equal_mark_(_zone_list_)!drop-3	ALTER RESOURCE POOL a ZONE_LIST()
 reject	reject	engine	alter_resource_pool_option/ZONE_LIST_opt_equal_mark_(_zone_list_)!drop-4	ALTER RESOURCE POOL a ZONE_LIST('s'
 reject	reject	engine	alter_resource_pool_option/ZONE_LIST_opt_equal_mark_(_zone_list_)!insert	ALTER RESOURCE POOL a ZONE_LIST('s') zzz
 reject	reject	engine	alter_resource_pool_option/ZONE_LIST_opt_equal_mark_(_zone_list_)!swap	ALTER RESOURCE POOL a ZONE_TYPE('s')
-reject	accept	engine	alter_resource_stmt/alter_with_opt_hint_RESOURCE_UNIT_relation_name_opt_resource_unit_option_list	ALTER RESOURCE UNIT a
-reject	accept	engine	alter_resource_stmt/alter_with_opt_hint_RESOURCE_POOL_relation_name_alter_resource_pool_option_list	ALTER RESOURCE POOL a UNIT a
+accept	accept	engine	alter_resource_stmt/alter_with_opt_hint_RESOURCE_UNIT_relation_name_opt_resource_unit_option_list	ALTER RESOURCE UNIT a
+accept	accept	engine	alter_resource_stmt/alter_with_opt_hint_RESOURCE_POOL_relation_name_alter_resource_pool_option_list	ALTER RESOURCE POOL a UNIT a
 reject	reject	engine	alter_resource_stmt/alter_with_opt_hint_RESOURCE_POOL_relation_name_alter_resource_pool_option_list!drop-1	RESOURCE POOL a UNIT a
 reject	reject	engine	alter_resource_stmt/alter_with_opt_hint_RESOURCE_POOL_relation_name_alter_resource_pool_option_list!drop-2	ALTER POOL a UNIT a
 reject	reject	engine	alter_resource_stmt/alter_with_opt_hint_RESOURCE_POOL_relation_name_alter_resource_pool_option_list!drop-3	ALTER RESOURCE a UNIT a
 reject	reject	engine	alter_resource_stmt/alter_with_opt_hint_RESOURCE_POOL_relation_name_alter_resource_pool_option_list!drop-4	ALTER RESOURCE POOL UNIT a
 reject	reject	engine	alter_resource_stmt/alter_with_opt_hint_RESOURCE_POOL_relation_name_alter_resource_pool_option_list!swap	ALWAYS RESOURCE POOL a UNIT a
-reject	accept	engine	alter_resource_stmt/alter_with_opt_hint_RESOURCE_POOL_relation_name_SPLIT_INTO_(_resource_pool_list_)_ON_(_zone_list_)	ALTER RESOURCE POOL a SPLIT INTO('s') ON('s')
+accept	accept	engine	alter_resource_stmt/alter_with_opt_hint_RESOURCE_POOL_relation_name_SPLIT_INTO_(_resource_pool_list_)_ON_(_zone_list_)	ALTER RESOURCE POOL a SPLIT INTO('s') ON('s')
 reject	reject	engine	alter_resource_stmt/alter_with_opt_hint_RESOURCE_POOL_relation_name_SPLIT_INTO_(_resource_pool_list_)_ON_(_zone_list_)!drop-1	RESOURCE POOL a SPLIT INTO('s') ON('s')
 reject	reject	engine	alter_resource_stmt/alter_with_opt_hint_RESOURCE_POOL_relation_name_SPLIT_INTO_(_resource_pool_list_)_ON_(_zone_list_)!drop-2	ALTER POOL a SPLIT INTO('s') ON('s')
 reject	reject	engine	alter_resource_stmt/alter_with_opt_hint_RESOURCE_POOL_relation_name_SPLIT_INTO_(_resource_pool_list_)_ON_(_zone_list_)!drop-3	ALTER RESOURCE a SPLIT INTO('s') ON('s')
@@ -3351,7 +3351,7 @@ reject	reject	engine	alter_resource_stmt/alter_with_opt_hint_RESOURCE_POOL_relat
 reject	reject	engine	alter_resource_stmt/alter_with_opt_hint_RESOURCE_POOL_relation_name_SPLIT_INTO_(_resource_pool_list_)_ON_(_zone_list_)!drop-13	ALTER RESOURCE POOL a SPLIT INTO('s') ON('s'
 reject	reject	engine	alter_resource_stmt/alter_with_opt_hint_RESOURCE_POOL_relation_name_SPLIT_INTO_(_resource_pool_list_)_ON_(_zone_list_)!insert	ALTER RESOURCE POOL a SPLIT INTO('s') ON('s') zzz
 reject	reject	engine	alter_resource_stmt/alter_with_opt_hint_RESOURCE_POOL_relation_name_SPLIT_INTO_(_resource_pool_list_)_ON_(_zone_list_)!swap	ALWAYS RESOURCE POOL a SPLIT INTO('s') ON('s')
-reject	accept	engine	alter_resource_stmt/alter_with_opt_hint_RESOURCE_POOL_MERGE_(_resource_pool_list_)_INTO_(_resource_pool_list_)	ALTER RESOURCE POOL MERGE('s') INTO('s')
+accept	accept	engine	alter_resource_stmt/alter_with_opt_hint_RESOURCE_POOL_MERGE_(_resource_pool_list_)_INTO_(_resource_pool_list_)	ALTER RESOURCE POOL MERGE('s') INTO('s')
 reject	reject	engine	alter_resource_stmt/alter_with_opt_hint_RESOURCE_POOL_MERGE_(_resource_pool_list_)_INTO_(_resource_pool_list_)!drop-1	RESOURCE POOL MERGE('s') INTO('s')
 reject	reject	engine	alter_resource_stmt/alter_with_opt_hint_RESOURCE_POOL_MERGE_(_resource_pool_list_)_INTO_(_resource_pool_list_)!drop-2	ALTER POOL MERGE('s') INTO('s')
 reject	reject	engine	alter_resource_stmt/alter_with_opt_hint_RESOURCE_POOL_MERGE_(_resource_pool_list_)_INTO_(_resource_pool_list_)!drop-3	ALTER RESOURCE MERGE('s') INTO('s')
@@ -3365,7 +3365,7 @@ reject	reject	engine	alter_resource_stmt/alter_with_opt_hint_RESOURCE_POOL_MERGE
 reject	reject	engine	alter_resource_stmt/alter_with_opt_hint_RESOURCE_POOL_MERGE_(_resource_pool_list_)_INTO_(_resource_pool_list_)!drop-11	ALTER RESOURCE POOL MERGE('s') INTO('s'
 reject	reject	engine	alter_resource_stmt/alter_with_opt_hint_RESOURCE_POOL_MERGE_(_resource_pool_list_)_INTO_(_resource_pool_list_)!insert	ALTER RESOURCE POOL MERGE('s') INTO('s') zzz
 reject	reject	engine	alter_resource_stmt/alter_with_opt_hint_RESOURCE_POOL_MERGE_(_resource_pool_list_)_INTO_(_resource_pool_list_)!swap	ALWAYS RESOURCE POOL MERGE('s') INTO('s')
-reject	accept	engine	alter_resource_stmt/alter_with_opt_hint_RESOURCE_TENANT_relation_name_UNIT_NUM_opt_equal_mark_INTNUM_opt_shrink_tenant_unit_option	ALTER RESOURCE TENANT a UNIT_NUM 1
+accept	accept	engine	alter_resource_stmt/alter_with_opt_hint_RESOURCE_TENANT_relation_name_UNIT_NUM_opt_equal_mark_INTNUM_opt_shrink_tenant_unit_option	ALTER RESOURCE TENANT a UNIT_NUM 1
 reject	reject	engine	alter_resource_stmt/alter_with_opt_hint_RESOURCE_TENANT_relation_name_UNIT_NUM_opt_equal_mark_INTNUM_opt_shrink_tenant_unit_option!drop-1	RESOURCE TENANT a UNIT_NUM 1
 reject	reject	engine	alter_resource_stmt/alter_with_opt_hint_RESOURCE_TENANT_relation_name_UNIT_NUM_opt_equal_mark_INTNUM_opt_shrink_tenant_unit_option!drop-2	ALTER TENANT a UNIT_NUM 1
 reject	reject	engine	alter_resource_stmt/alter_with_opt_hint_RESOURCE_TENANT_relation_name_UNIT_NUM_opt_equal_mark_INTNUM_opt_shrink_tenant_unit_option!drop-3	ALTER RESOURCE a UNIT_NUM 1
@@ -3374,7 +3374,7 @@ reject	reject	engine	alter_resource_stmt/alter_with_opt_hint_RESOURCE_TENANT_rel
 reject	reject	engine	alter_resource_stmt/alter_with_opt_hint_RESOURCE_TENANT_relation_name_UNIT_NUM_opt_equal_mark_INTNUM_opt_shrink_tenant_unit_option!drop-6	ALTER RESOURCE TENANT a UNIT_NUM
 reject	reject	engine	alter_resource_stmt/alter_with_opt_hint_RESOURCE_TENANT_relation_name_UNIT_NUM_opt_equal_mark_INTNUM_opt_shrink_tenant_unit_option!insert	ALTER RESOURCE TENANT a UNIT_NUM 1 zzz
 reject	reject	engine	alter_resource_stmt/alter_with_opt_hint_RESOURCE_TENANT_relation_name_UNIT_NUM_opt_equal_mark_INTNUM_opt_shrink_tenant_unit_option!swap	ALWAYS RESOURCE TENANT a UNIT_NUM 1
-reject	accept	engine	opt_shrink_tenant_unit_option/DELETE_UNIT_GROUP_opt_equal_mark_(_id_list_)	ALTER RESOURCE TENANT a UNIT_NUM 1 DELETE UNIT_GROUP(1)
+accept	accept	engine	opt_shrink_tenant_unit_option/DELETE_UNIT_GROUP_opt_equal_mark_(_id_list_)	ALTER RESOURCE TENANT a UNIT_NUM 1 DELETE UNIT_GROUP(1)
 reject	reject	engine	opt_shrink_tenant_unit_option/DELETE_UNIT_GROUP_opt_equal_mark_(_id_list_)!drop-1	ALTER RESOURCE TENANT a UNIT_NUM 1 UNIT_GROUP(1)
 reject	reject	engine	opt_shrink_tenant_unit_option/DELETE_UNIT_GROUP_opt_equal_mark_(_id_list_)!drop-2	ALTER RESOURCE TENANT a UNIT_NUM 1 DELETE(1)
 reject	reject	engine	opt_shrink_tenant_unit_option/DELETE_UNIT_GROUP_opt_equal_mark_(_id_list_)!drop-3	ALTER RESOURCE TENANT a UNIT_NUM 1 DELETE UNIT_GROUP 1)
@@ -3382,115 +3382,115 @@ reject	reject	engine	opt_shrink_tenant_unit_option/DELETE_UNIT_GROUP_opt_equal_m
 reject	reject	engine	opt_shrink_tenant_unit_option/DELETE_UNIT_GROUP_opt_equal_mark_(_id_list_)!drop-5	ALTER RESOURCE TENANT a UNIT_NUM 1 DELETE UNIT_GROUP(1
 reject	reject	engine	opt_shrink_tenant_unit_option/DELETE_UNIT_GROUP_opt_equal_mark_(_id_list_)!insert	ALTER RESOURCE TENANT a UNIT_NUM 1 DELETE UNIT_GROUP(1) zzz
 reject	reject	engine	opt_shrink_tenant_unit_option/DELETE_UNIT_GROUP_opt_equal_mark_(_id_list_)!swap	ALTER RESOURCE TENANT a UNIT_NUM 1 DELETE_INSERT UNIT_GROUP(1)
-reject	accept	engine	opt_shrink_tenant_unit_option/%empty	ALTER RESOURCE TENANT a UNIT_NUM 1
-reject	accept	engine	drop_resource_stmt/DROP_RESOURCE_UNIT_opt_if_exists_relation_name	DROP RESOURCE UNIT a
-reject	accept	engine	drop_resource_stmt/DROP_RESOURCE_POOL_opt_if_exists_relation_name	DROP RESOURCE POOL a
+accept	accept	engine	opt_shrink_tenant_unit_option/%empty	ALTER RESOURCE TENANT a UNIT_NUM 1
+accept	accept	engine	drop_resource_stmt/DROP_RESOURCE_UNIT_opt_if_exists_relation_name	DROP RESOURCE UNIT a
+accept	accept	engine	drop_resource_stmt/DROP_RESOURCE_POOL_opt_if_exists_relation_name	DROP RESOURCE POOL a
 reject	reject	engine	drop_resource_stmt/DROP_RESOURCE_POOL_opt_if_exists_relation_name!drop-2	DROP POOL a
 reject	reject	engine	drop_resource_stmt/DROP_RESOURCE_POOL_opt_if_exists_relation_name!drop-4	DROP RESOURCE POOL
 reject	reject	engine	drop_resource_stmt/DROP_RESOURCE_POOL_opt_if_exists_relation_name!insert	DROP RESOURCE POOL a zzz
 reject	reject	engine	drop_resource_stmt/DROP_RESOURCE_POOL_opt_if_exists_relation_name!swap	DUAL RESOURCE POOL a
-reject	accept	engine	create_tenant_stmt/create_with_opt_hint_TENANT_opt_if_not_exists_relation_name_opt_tenant_option_list_opt_set_sys_var	CREATE TENANT a
-reject	accept	engine	create_standby_tenant_stmt/CREATE_STANDBY_TENANT_opt_if_not_exists_relation_name_log_restore_source_option_opt_tenant_option_list	CREATE STANDBY TENANT a
-reject	accept	engine	log_restore_source_option/LOG_RESTORE_SOURCE_opt_equal_mark_conf_const	CREATE STANDBY TENANT a LOG_RESTORE_SOURCE 's'
+accept	accept	engine	create_tenant_stmt/create_with_opt_hint_TENANT_opt_if_not_exists_relation_name_opt_tenant_option_list_opt_set_sys_var	CREATE TENANT a
+accept	accept	engine	create_standby_tenant_stmt/CREATE_STANDBY_TENANT_opt_if_not_exists_relation_name_log_restore_source_option_opt_tenant_option_list	CREATE STANDBY TENANT a
+accept	accept	engine	log_restore_source_option/LOG_RESTORE_SOURCE_opt_equal_mark_conf_const	CREATE STANDBY TENANT a LOG_RESTORE_SOURCE 's'
 reject	reject	engine	log_restore_source_option/LOG_RESTORE_SOURCE_opt_equal_mark_conf_const!drop-1	CREATE STANDBY TENANT a 's'
 reject	reject	engine	log_restore_source_option/LOG_RESTORE_SOURCE_opt_equal_mark_conf_const!drop-2	CREATE STANDBY TENANT a LOG_RESTORE_SOURCE
 reject	reject	engine	log_restore_source_option/LOG_RESTORE_SOURCE_opt_equal_mark_conf_const!insert	CREATE STANDBY TENANT a LOG_RESTORE_SOURCE 's' zzz
 reject	reject	engine	log_restore_source_option/LOG_RESTORE_SOURCE_opt_equal_mark_conf_const!swap	CREATE STANDBY TENANT a LONGBLOB 's'
-reject	accept	engine	log_restore_source_option/%empty	CREATE STANDBY TENANT a
-reject	accept	engine	opt_tenant_option_list/tenant_option	CREATE TENANT a LOGONLY_REPLICA_NUM 1
+accept	accept	engine	log_restore_source_option/%empty	CREATE STANDBY TENANT a
+accept	accept	engine	opt_tenant_option_list/tenant_option	CREATE TENANT a LOGONLY_REPLICA_NUM 1
 reject	reject	engine	opt_tenant_option_list/tenant_option!drop-1	CREATE TENANT a 1
 reject	reject	engine	opt_tenant_option_list/tenant_option!drop-2	CREATE TENANT a LOGONLY_REPLICA_NUM
 reject	reject	engine	opt_tenant_option_list/tenant_option!insert	CREATE TENANT a LOGONLY_REPLICA_NUM 1 zzz
 reject	reject	engine	opt_tenant_option_list/tenant_option!swap	CREATE TENANT a LOGS 1
-reject	accept	engine	opt_tenant_option_list/opt_tenant_option_list_,_tenant_option	CREATE TENANT a, LOGONLY_REPLICA_NUM 1
+accept	accept	engine	opt_tenant_option_list/opt_tenant_option_list_,_tenant_option	CREATE TENANT a, LOGONLY_REPLICA_NUM 1
 reject	reject	engine	opt_tenant_option_list/opt_tenant_option_list_,_tenant_option!drop-2	CREATE TENANT a, 1
 reject	reject	engine	opt_tenant_option_list/opt_tenant_option_list_,_tenant_option!drop-3	CREATE TENANT a, LOGONLY_REPLICA_NUM
 reject	reject	engine	opt_tenant_option_list/opt_tenant_option_list_,_tenant_option!insert	CREATE TENANT a, LOGONLY_REPLICA_NUM 1 zzz
 reject	reject	engine	opt_tenant_option_list/opt_tenant_option_list_,_tenant_option!swap	CREATE TENANT a, LOGS 1
-reject	accept	engine	opt_tenant_option_list/%empty	CREATE TENANT a
-reject	accept	engine	tenant_option/LOGONLY_REPLICA_NUM_opt_equal_mark_INTNUM	CREATE TENANT a LOGONLY_REPLICA_NUM 1
-reject	accept	engine	tenant_option/LOCALITY_opt_equal_mark_STRING_VALUE_opt_force	CREATE TENANT a LOCALITY 's'
+accept	accept	engine	opt_tenant_option_list/%empty	CREATE TENANT a
+accept	accept	engine	tenant_option/LOGONLY_REPLICA_NUM_opt_equal_mark_INTNUM	CREATE TENANT a LOGONLY_REPLICA_NUM 1
+accept	accept	engine	tenant_option/LOCALITY_opt_equal_mark_STRING_VALUE_opt_force	CREATE TENANT a LOCALITY 's'
 reject	reject	engine	tenant_option/LOCALITY_opt_equal_mark_STRING_VALUE_opt_force!drop-1	CREATE TENANT a 's'
 reject	reject	engine	tenant_option/LOCALITY_opt_equal_mark_STRING_VALUE_opt_force!drop-2	CREATE TENANT a LOCALITY
 reject	reject	engine	tenant_option/LOCALITY_opt_equal_mark_STRING_VALUE_opt_force!insert	CREATE TENANT a LOCALITY 's' zzz
 reject	reject	engine	tenant_option/LOCALITY_opt_equal_mark_STRING_VALUE_opt_force!swap	CREATE TENANT a LOCALTIME 's'
-reject	accept	engine	tenant_option/REPLICA_NUM_opt_equal_mark_INTNUM	CREATE TENANT a REPLICA_NUM 1
+accept	accept	engine	tenant_option/REPLICA_NUM_opt_equal_mark_INTNUM	CREATE TENANT a REPLICA_NUM 1
 reject	reject	engine	tenant_option/REPLICA_NUM_opt_equal_mark_INTNUM!drop-2	CREATE TENANT a REPLICA_NUM
 reject	reject	engine	tenant_option/REPLICA_NUM_opt_equal_mark_INTNUM!insert	CREATE TENANT a REPLICA_NUM 1 zzz
 reject	reject	engine	tenant_option/REPLICA_NUM_opt_equal_mark_INTNUM!swap	CREATE TENANT a REPLICA_TYPE 1
-reject	accept	engine	tenant_option/PRIMARY_ZONE_opt_equal_mark_primary_zone_name	CREATE TENANT a PRIMARY_ZONE DEFAULT
+accept	accept	engine	tenant_option/PRIMARY_ZONE_opt_equal_mark_primary_zone_name	CREATE TENANT a PRIMARY_ZONE DEFAULT
 reject	reject	engine	tenant_option/PRIMARY_ZONE_opt_equal_mark_primary_zone_name!drop-1	CREATE TENANT a DEFAULT
 reject	reject	engine	tenant_option/PRIMARY_ZONE_opt_equal_mark_primary_zone_name!drop-2	CREATE TENANT a PRIMARY_ZONE
 reject	reject	engine	tenant_option/PRIMARY_ZONE_opt_equal_mark_primary_zone_name!insert	CREATE TENANT a PRIMARY_ZONE DEFAULT zzz
 reject	reject	engine	tenant_option/PRIMARY_ZONE_opt_equal_mark_primary_zone_name!swap	CREATE TENANT a PRIORITY DEFAULT
-reject	accept	engine	tenant_option/RESOURCE_POOL_LIST_opt_equal_mark_(_resource_pool_list_)	CREATE TENANT a RESOURCE_POOL_LIST('s')
+accept	accept	engine	tenant_option/RESOURCE_POOL_LIST_opt_equal_mark_(_resource_pool_list_)	CREATE TENANT a RESOURCE_POOL_LIST('s')
 reject	reject	engine	tenant_option/RESOURCE_POOL_LIST_opt_equal_mark_(_resource_pool_list_)!drop-1	CREATE TENANT a('s')
 reject	reject	engine	tenant_option/RESOURCE_POOL_LIST_opt_equal_mark_(_resource_pool_list_)!drop-2	CREATE TENANT a RESOURCE_POOL_LIST 's')
 reject	reject	engine	tenant_option/RESOURCE_POOL_LIST_opt_equal_mark_(_resource_pool_list_)!drop-3	CREATE TENANT a RESOURCE_POOL_LIST()
 reject	reject	engine	tenant_option/RESOURCE_POOL_LIST_opt_equal_mark_(_resource_pool_list_)!drop-4	CREATE TENANT a RESOURCE_POOL_LIST('s'
 reject	reject	engine	tenant_option/RESOURCE_POOL_LIST_opt_equal_mark_(_resource_pool_list_)!insert	CREATE TENANT a RESOURCE_POOL_LIST('s') zzz
 reject	reject	engine	tenant_option/RESOURCE_POOL_LIST_opt_equal_mark_(_resource_pool_list_)!swap	CREATE TENANT a RESPECT('s')
-reject	accept	engine	tenant_option/ENABLE_ARBITRATION_SERVICE_opt_equal_mark_BOOL_VALUE	CREATE TENANT a ENABLE_ARBITRATION_SERVICE TRUE
+accept	accept	engine	tenant_option/ENABLE_ARBITRATION_SERVICE_opt_equal_mark_BOOL_VALUE	CREATE TENANT a ENABLE_ARBITRATION_SERVICE TRUE
 reject	reject	engine	tenant_option/ENABLE_ARBITRATION_SERVICE_opt_equal_mark_BOOL_VALUE!drop-1	CREATE TENANT a TRUE
 reject	reject	engine	tenant_option/ENABLE_ARBITRATION_SERVICE_opt_equal_mark_BOOL_VALUE!drop-2	CREATE TENANT a ENABLE_ARBITRATION_SERVICE
 reject	reject	engine	tenant_option/ENABLE_ARBITRATION_SERVICE_opt_equal_mark_BOOL_VALUE!insert	CREATE TENANT a ENABLE_ARBITRATION_SERVICE TRUE zzz
-reject	accept	engine	tenant_option/ZONE_LIST_opt_equal_mark_(_zone_list_)	CREATE TENANT a ZONE_LIST('s')
+accept	accept	engine	tenant_option/ZONE_LIST_opt_equal_mark_(_zone_list_)	CREATE TENANT a ZONE_LIST('s')
 reject	reject	engine	tenant_option/ZONE_LIST_opt_equal_mark_(_zone_list_)!drop-2	CREATE TENANT a ZONE_LIST 's')
 reject	reject	engine	tenant_option/ZONE_LIST_opt_equal_mark_(_zone_list_)!drop-3	CREATE TENANT a ZONE_LIST()
 reject	reject	engine	tenant_option/ZONE_LIST_opt_equal_mark_(_zone_list_)!drop-4	CREATE TENANT a ZONE_LIST('s'
 reject	reject	engine	tenant_option/ZONE_LIST_opt_equal_mark_(_zone_list_)!insert	CREATE TENANT a ZONE_LIST('s') zzz
 reject	reject	engine	tenant_option/ZONE_LIST_opt_equal_mark_(_zone_list_)!swap	CREATE TENANT a ZONE_TYPE('s')
-reject	accept	engine	tenant_option/charset_key_opt_equal_mark_charset_name	CREATE TENANT a CHARSET a
+accept	accept	engine	tenant_option/charset_key_opt_equal_mark_charset_name	CREATE TENANT a CHARSET a
 reject	reject	engine	tenant_option/charset_key_opt_equal_mark_charset_name!drop-1	CREATE TENANT a a
 reject	reject	engine	tenant_option/charset_key_opt_equal_mark_charset_name!drop-2	CREATE TENANT a CHARSET
 reject	reject	engine	tenant_option/charset_key_opt_equal_mark_charset_name!insert	CREATE TENANT a CHARSET a zzz
 reject	reject	engine	tenant_option/charset_key_opt_equal_mark_charset_name!swap	CREATE TENANT a CHECK a
-reject	accept	engine	tenant_option/COLLATE_opt_equal_mark_collation_name	CREATE TENANT a COLLATE a
+accept	accept	engine	tenant_option/COLLATE_opt_equal_mark_collation_name	CREATE TENANT a COLLATE a
 reject	reject	engine	tenant_option/COLLATE_opt_equal_mark_collation_name!drop-2	CREATE TENANT a COLLATE
 reject	reject	engine	tenant_option/COLLATE_opt_equal_mark_collation_name!insert	CREATE TENANT a COLLATE a zzz
 reject	reject	engine	tenant_option/COLLATE_opt_equal_mark_collation_name!swap	CREATE TENANT a COLLATION a
-reject	accept	engine	tenant_option/read_only_or_write	CREATE TENANT a READ ONLY
+accept	accept	engine	tenant_option/read_only_or_write	CREATE TENANT a READ ONLY
 reject	reject	engine	tenant_option/read_only_or_write!drop-1	CREATE TENANT a ONLY
 reject	reject	engine	tenant_option/read_only_or_write!drop-2	CREATE TENANT a READ
 reject	reject	engine	tenant_option/read_only_or_write!insert	CREATE TENANT a READ ONLY zzz
 reject	reject	engine	tenant_option/read_only_or_write!swap	CREATE TENANT a READS ONLY
-reject	accept	engine	tenant_option/COMMENT_opt_equal_mark_STRING_VALUE	CREATE TENANT a COMMENT 's'
+accept	accept	engine	tenant_option/COMMENT_opt_equal_mark_STRING_VALUE	CREATE TENANT a COMMENT 's'
 reject	reject	engine	tenant_option/COMMENT_opt_equal_mark_STRING_VALUE!drop-2	CREATE TENANT a COMMENT
 reject	reject	engine	tenant_option/COMMENT_opt_equal_mark_STRING_VALUE!insert	CREATE TENANT a COMMENT 's' zzz
 reject	reject	engine	tenant_option/COMMENT_opt_equal_mark_STRING_VALUE!swap	CREATE TENANT a COMMIT 's'
-reject	accept	engine	tenant_option/default_tablegroup	CREATE TENANT a TABLEGROUP a
+accept	accept	engine	tenant_option/default_tablegroup	CREATE TENANT a TABLEGROUP a
 reject	reject	engine	tenant_option/default_tablegroup!drop-2	CREATE TENANT a TABLEGROUP
 reject	reject	engine	tenant_option/default_tablegroup!insert	CREATE TENANT a TABLEGROUP a zzz
 reject	reject	engine	tenant_option/default_tablegroup!swap	CREATE TENANT a TABLEGROUPS a
-reject	accept	engine	tenant_option/PROGRESSIVE_MERGE_NUM_opt_equal_mark_INTNUM	CREATE TENANT a PROGRESSIVE_MERGE_NUM 1
+accept	accept	engine	tenant_option/PROGRESSIVE_MERGE_NUM_opt_equal_mark_INTNUM	CREATE TENANT a PROGRESSIVE_MERGE_NUM 1
 reject	reject	engine	tenant_option/PROGRESSIVE_MERGE_NUM_opt_equal_mark_INTNUM!drop-2	CREATE TENANT a PROGRESSIVE_MERGE_NUM
 reject	reject	engine	tenant_option/PROGRESSIVE_MERGE_NUM_opt_equal_mark_INTNUM!insert	CREATE TENANT a PROGRESSIVE_MERGE_NUM 1 zzz
 reject	reject	engine	tenant_option/PROGRESSIVE_MERGE_NUM_opt_equal_mark_INTNUM!swap	CREATE TENANT a PROJECT_NAME 1
-reject	accept	engine	tenant_option/ENABLE_EXTENDED_ROWID_opt_equal_mark_BOOL_VALUE	CREATE TENANT a ENABLE_EXTENDED_ROWID TRUE
+accept	accept	engine	tenant_option/ENABLE_EXTENDED_ROWID_opt_equal_mark_BOOL_VALUE	CREATE TENANT a ENABLE_EXTENDED_ROWID TRUE
 reject	reject	engine	tenant_option/ENABLE_EXTENDED_ROWID_opt_equal_mark_BOOL_VALUE!drop-2	CREATE TENANT a ENABLE_EXTENDED_ROWID
 reject	reject	engine	tenant_option/ENABLE_EXTENDED_ROWID_opt_equal_mark_BOOL_VALUE!insert	CREATE TENANT a ENABLE_EXTENDED_ROWID TRUE zzz
 reject	reject	engine	tenant_option/ENABLE_EXTENDED_ROWID_opt_equal_mark_BOOL_VALUE!swap	CREATE TENANT a ENABLE_MACRO_BLOCK_BLOOM_FILTER TRUE
-reject	accept	engine	opt_set_sys_var/SET_sys_var_and_val_list	CREATE TENANT a SET a TO a
+accept	accept	engine	opt_set_sys_var/SET_sys_var_and_val_list	CREATE TENANT a SET a TO a
 reject	reject	engine	opt_set_sys_var/SET_sys_var_and_val_list!drop-1	CREATE TENANT a a TO a
 reject	reject	engine	opt_set_sys_var/SET_sys_var_and_val_list!drop-2	CREATE TENANT a SET TO a
 reject	reject	engine	opt_set_sys_var/SET_sys_var_and_val_list!drop-3	CREATE TENANT a SET a a
 reject	reject	engine	opt_set_sys_var/SET_sys_var_and_val_list!drop-4	CREATE TENANT a SET a TO
 reject	reject	engine	opt_set_sys_var/SET_sys_var_and_val_list!insert	CREATE TENANT a SET a TO a zzz
 reject	reject	engine	opt_set_sys_var/SET_sys_var_and_val_list!swap	CREATE TENANT a SETS a TO a
-reject	accept	engine	opt_set_sys_var/SET_VARIABLES_sys_var_and_val_list	CREATE TENANT a SET VARIABLES a TO a
-reject	accept	engine	opt_set_sys_var/SET_VARIABLES_sys_var_and_val_list!drop-3	CREATE TENANT a SET VARIABLES TO a
+accept	accept	engine	opt_set_sys_var/SET_VARIABLES_sys_var_and_val_list	CREATE TENANT a SET VARIABLES a TO a
+accept	accept	engine	opt_set_sys_var/SET_VARIABLES_sys_var_and_val_list!drop-3	CREATE TENANT a SET VARIABLES TO a
 reject	reject	engine	opt_set_sys_var/SET_VARIABLES_sys_var_and_val_list!drop-4	CREATE TENANT a SET VARIABLES a a
 reject	reject	engine	opt_set_sys_var/SET_VARIABLES_sys_var_and_val_list!drop-5	CREATE TENANT a SET VARIABLES a TO
 reject	reject	engine	opt_set_sys_var/SET_VARIABLES_sys_var_and_val_list!insert	CREATE TENANT a SET VARIABLES a TO a zzz
 reject	reject	engine	opt_set_sys_var/SET_VARIABLES_sys_var_and_val_list!swap	CREATE TENANT a SETS VARIABLES a TO a
-reject	accept	engine	opt_set_sys_var/VARIABLES_sys_var_and_val_list	CREATE TENANT a VARIABLES a TO a
+accept	accept	engine	opt_set_sys_var/VARIABLES_sys_var_and_val_list	CREATE TENANT a VARIABLES a TO a
 reject	reject	engine	opt_set_sys_var/VARIABLES_sys_var_and_val_list!drop-2	CREATE TENANT a VARIABLES TO a
 reject	reject	engine	opt_set_sys_var/VARIABLES_sys_var_and_val_list!drop-3	CREATE TENANT a VARIABLES a a
 reject	reject	engine	opt_set_sys_var/VARIABLES_sys_var_and_val_list!drop-4	CREATE TENANT a VARIABLES a TO
 reject	reject	engine	opt_set_sys_var/VARIABLES_sys_var_and_val_list!insert	CREATE TENANT a VARIABLES a TO a zzz
 reject	reject	engine	opt_set_sys_var/VARIABLES_sys_var_and_val_list!swap	CREATE TENANT a VARIANCE a TO a
-reject	accept	engine	opt_set_sys_var/%empty	CREATE TENANT a
-reject	accept	engine	opt_global_sys_vars_set/VARIABLES_sys_var_and_val_list	ALTER TENANT a VARIABLES a TO a
+accept	accept	engine	opt_set_sys_var/%empty	CREATE TENANT a
+accept	accept	engine	opt_global_sys_vars_set/VARIABLES_sys_var_and_val_list	ALTER TENANT a VARIABLES a TO a
 reject	reject	engine	opt_global_sys_vars_set/VARIABLES_sys_var_and_val_list!drop-1	ALTER TENANT a a TO a
 reject	reject	engine	opt_global_sys_vars_set/VARIABLES_sys_var_and_val_list!drop-2	ALTER TENANT a VARIABLES TO a
 reject	reject	engine	opt_global_sys_vars_set/VARIABLES_sys_var_and_val_list!drop-3	ALTER TENANT a VARIABLES a a
@@ -3498,17 +3498,17 @@ reject	reject	engine	opt_global_sys_vars_set/VARIABLES_sys_var_and_val_list!drop
 reject	reject	engine	opt_global_sys_vars_set/VARIABLES_sys_var_and_val_list!insert	ALTER TENANT a VARIABLES a TO a zzz
 reject	reject	engine	opt_global_sys_vars_set/VARIABLES_sys_var_and_val_list!swap	ALTER TENANT a VARIANCE a TO a
 reject	reject	engine	opt_global_sys_vars_set/%empty	ALTER TENANT a
-reject	accept	engine	zone_list/STRING_VALUE	CREATE TENANT a ZONE_LIST('s')
+accept	accept	engine	zone_list/STRING_VALUE	CREATE TENANT a ZONE_LIST('s')
 reject	reject	engine	zone_list/STRING_VALUE!truncate	CREATE TENANT a ZONE_LIST(
 reject	reject	engine	zone_list/STRING_VALUE!insert	CREATE TENANT a ZONE_LIST('s' zzz)
-reject	accept	engine	zone_list/zone_list_opt_comma_STRING_VALUE	CREATE TENANT a ZONE_LIST('s' 's')
+accept	accept	engine	zone_list/zone_list_opt_comma_STRING_VALUE	CREATE TENANT a ZONE_LIST('s' 's')
 reject	reject	engine	zone_list/zone_list_opt_comma_STRING_VALUE!insert	CREATE TENANT a ZONE_LIST('s' 's' zzz)
-reject	accept	engine	resource_pool_list/STRING_VALUE	CREATE TENANT a RESOURCE_POOL_LIST('s')
+accept	accept	engine	resource_pool_list/STRING_VALUE	CREATE TENANT a RESOURCE_POOL_LIST('s')
 reject	reject	engine	resource_pool_list/STRING_VALUE!truncate	CREATE TENANT a RESOURCE_POOL_LIST(
 reject	reject	engine	resource_pool_list/STRING_VALUE!insert	CREATE TENANT a RESOURCE_POOL_LIST('s' zzz)
-reject	accept	engine	resource_pool_list/resource_pool_list_,_STRING_VALUE	CREATE TENANT a RESOURCE_POOL_LIST('s', 's')
+accept	accept	engine	resource_pool_list/resource_pool_list_,_STRING_VALUE	CREATE TENANT a RESOURCE_POOL_LIST('s', 's')
 reject	reject	engine	resource_pool_list/resource_pool_list_,_STRING_VALUE!drop-1	CREATE TENANT a RESOURCE_POOL_LIST(, 's')
-reject	accept	engine	resource_pool_list/resource_pool_list_,_STRING_VALUE!drop-2	CREATE TENANT a RESOURCE_POOL_LIST('s' 's')
+accept	accept	engine	resource_pool_list/resource_pool_list_,_STRING_VALUE!drop-2	CREATE TENANT a RESOURCE_POOL_LIST('s' 's')
 reject	reject	engine	resource_pool_list/resource_pool_list_,_STRING_VALUE!drop-3	CREATE TENANT a RESOURCE_POOL_LIST('s',)
 reject	reject	engine	resource_pool_list/resource_pool_list_,_STRING_VALUE!truncate	CREATE TENANT a RESOURCE_POOL_LIST('s',
 reject	reject	engine	resource_pool_list/resource_pool_list_,_STRING_VALUE!insert	CREATE TENANT a RESOURCE_POOL_LIST('s', 's' zzz)
@@ -3518,7 +3518,7 @@ reject	reject	engine	alter_tenant_stmt/alter_with_opt_hint_TENANT_ALL_opt_set_op
 reject	reject	engine	alter_tenant_stmt/alter_with_opt_hint_TENANT_ALL_opt_set_opt_tenant_option_list_opt_global_sys_vars_set!drop-2	ALTER ALL
 reject	reject	engine	alter_tenant_stmt/alter_with_opt_hint_TENANT_ALL_opt_set_opt_tenant_option_list_opt_global_sys_vars_set!insert	ALTER TENANT ALL zzz
 reject	reject	engine	alter_tenant_stmt/alter_with_opt_hint_TENANT_ALL_opt_set_opt_tenant_option_list_opt_global_sys_vars_set!swap	ALWAYS TENANT ALL
-reject	accept	engine	alter_tenant_stmt/alter_with_opt_hint_TENANT_relation_name_RENAME_GLOBAL_NAME_TO_relation_name	ALTER TENANT a RENAME GLOBAL_NAME TO a
+accept	accept	engine	alter_tenant_stmt/alter_with_opt_hint_TENANT_relation_name_RENAME_GLOBAL_NAME_TO_relation_name	ALTER TENANT a RENAME GLOBAL_NAME TO a
 reject	reject	engine	alter_tenant_stmt/alter_with_opt_hint_TENANT_relation_name_RENAME_GLOBAL_NAME_TO_relation_name!drop-1	TENANT a RENAME GLOBAL_NAME TO a
 reject	reject	engine	alter_tenant_stmt/alter_with_opt_hint_TENANT_relation_name_RENAME_GLOBAL_NAME_TO_relation_name!drop-2	ALTER a RENAME GLOBAL_NAME TO a
 reject	reject	engine	alter_tenant_stmt/alter_with_opt_hint_TENANT_relation_name_RENAME_GLOBAL_NAME_TO_relation_name!drop-3	ALTER TENANT RENAME GLOBAL_NAME TO a
@@ -3528,7 +3528,7 @@ reject	reject	engine	alter_tenant_stmt/alter_with_opt_hint_TENANT_relation_name_
 reject	reject	engine	alter_tenant_stmt/alter_with_opt_hint_TENANT_relation_name_RENAME_GLOBAL_NAME_TO_relation_name!drop-7	ALTER TENANT a RENAME GLOBAL_NAME TO
 reject	reject	engine	alter_tenant_stmt/alter_with_opt_hint_TENANT_relation_name_RENAME_GLOBAL_NAME_TO_relation_name!insert	ALTER TENANT a RENAME GLOBAL_NAME TO a zzz
 reject	reject	engine	alter_tenant_stmt/alter_with_opt_hint_TENANT_relation_name_RENAME_GLOBAL_NAME_TO_relation_name!swap	ALWAYS TENANT a RENAME GLOBAL_NAME TO a
-reject	accept	engine	alter_tenant_stmt/alter_with_opt_hint_TENANT_relation_name_lock_spec_mysql57	ALTER TENANT a LOCK
+accept	accept	engine	alter_tenant_stmt/alter_with_opt_hint_TENANT_relation_name_lock_spec_mysql57	ALTER TENANT a LOCK
 reject	reject	engine	alter_tenant_stmt/alter_with_opt_hint_TENANT_relation_name_lock_spec_mysql57!drop-1	TENANT a LOCK
 reject	reject	engine	alter_tenant_stmt/alter_with_opt_hint_TENANT_relation_name_lock_spec_mysql57!drop-2	ALTER a LOCK
 reject	reject	engine	alter_tenant_stmt/alter_with_opt_hint_TENANT_relation_name_lock_spec_mysql57!drop-3	ALTER TENANT LOCK
@@ -3556,27 +3556,27 @@ reject	reject	engine	drop_tenant_snapshot_stmt/DROP_SNAPSHOT_relation_name_FOR_T
 reject	reject	engine	drop_tenant_snapshot_stmt/DROP_SNAPSHOT_relation_name_FOR_TENANT_relation_name!insert	DROP SNAPSHOT a FOR TENANT a zzz
 reject	reject	engine	drop_tenant_snapshot_stmt/DROP_SNAPSHOT_relation_name_FOR_TENANT_relation_name!swap	DUAL SNAPSHOT a FOR TENANT a
 reject	accept	engine	drop_tenant_snapshot_stmt/DROP_SNAPSHOT_relation_name	DROP SNAPSHOT a
-reject	accept	engine	clone_tenant_stmt/create_with_opt_hint_TENANT_opt_if_not_exists_relation_name_FROM_relation_name_clone_snapshot_option_WITH_clone_tenant_option_list	CREATE TENANT a FROM a WITH RESOURCE_POOL a, RESOURCE_POOL a
-reject	accept	engine	clone_snapshot_option/USING_SNAPSHOT_relation_name	CREATE TENANT a FROM a USING SNAPSHOT a WITH RESOURCE_POOL a, RESOURCE_POOL a
+accept	accept	engine	clone_tenant_stmt/create_with_opt_hint_TENANT_opt_if_not_exists_relation_name_FROM_relation_name_clone_snapshot_option_WITH_clone_tenant_option_list	CREATE TENANT a FROM a WITH RESOURCE_POOL a, RESOURCE_POOL a
+accept	accept	engine	clone_snapshot_option/USING_SNAPSHOT_relation_name	CREATE TENANT a FROM a USING SNAPSHOT a WITH RESOURCE_POOL a, RESOURCE_POOL a
 reject	reject	engine	clone_snapshot_option/USING_SNAPSHOT_relation_name!drop-1	CREATE TENANT a FROM a SNAPSHOT a WITH RESOURCE_POOL a, RESOURCE_POOL a
 reject	reject	engine	clone_snapshot_option/USING_SNAPSHOT_relation_name!drop-2	CREATE TENANT a FROM a USING a WITH RESOURCE_POOL a, RESOURCE_POOL a
 reject	reject	engine	clone_snapshot_option/USING_SNAPSHOT_relation_name!drop-3	CREATE TENANT a FROM a USING SNAPSHOT WITH RESOURCE_POOL a, RESOURCE_POOL a
 reject	reject	engine	clone_snapshot_option/USING_SNAPSHOT_relation_name!truncate	CREATE TENANT a FROM a USING SNAPSHOT
 reject	reject	engine	clone_snapshot_option/USING_SNAPSHOT_relation_name!insert	CREATE TENANT a FROM a USING SNAPSHOT a zzz WITH RESOURCE_POOL a, RESOURCE_POOL a
 reject	reject	engine	clone_snapshot_option/USING_SNAPSHOT_relation_name!swap	CREATE TENANT a FROM a UTC_DATE SNAPSHOT a WITH RESOURCE_POOL a, RESOURCE_POOL a
-reject	accept	engine	clone_snapshot_option/%empty	CREATE TENANT a FROM a WITH RESOURCE_POOL a, RESOURCE_POOL a
+accept	accept	engine	clone_snapshot_option/%empty	CREATE TENANT a FROM a WITH RESOURCE_POOL a, RESOURCE_POOL a
 reject	reject	engine	clone_snapshot_option/%empty!insert	CREATE TENANT a FROM a zzz WITH RESOURCE_POOL a, RESOURCE_POOL a
-reject	accept	engine	clone_tenant_option/RESOURCE_POOL_opt_equal_mark_relation_name_or_string	CREATE TENANT a FROM a WITH RESOURCE_POOL a, RESOURCE_POOL a
+accept	accept	engine	clone_tenant_option/RESOURCE_POOL_opt_equal_mark_relation_name_or_string	CREATE TENANT a FROM a WITH RESOURCE_POOL a, RESOURCE_POOL a
 reject	reject	engine	clone_tenant_option/RESOURCE_POOL_opt_equal_mark_relation_name_or_string!truncate	CREATE TENANT a FROM a WITH RESOURCE_POOL
 reject	reject	engine	clone_tenant_option/RESOURCE_POOL_opt_equal_mark_relation_name_or_string!insert	CREATE TENANT a FROM a WITH RESOURCE_POOL a zzz, RESOURCE_POOL a
 reject	reject	engine	clone_tenant_option/RESOURCE_POOL_opt_equal_mark_relation_name_or_string!swap	CREATE TENANT a FROM a WITH RESOURCE_POOL_LIST a, RESOURCE_POOL a
-reject	accept	engine	clone_tenant_option/UNIT_opt_equal_mark_relation_name_or_string	CREATE TENANT a FROM a WITH UNIT a, RESOURCE_POOL a
+accept	accept	engine	clone_tenant_option/UNIT_opt_equal_mark_relation_name_or_string	CREATE TENANT a FROM a WITH UNIT a, RESOURCE_POOL a
 reject	reject	engine	clone_tenant_option/UNIT_opt_equal_mark_relation_name_or_string!drop-2	CREATE TENANT a FROM a WITH UNIT, RESOURCE_POOL a
 reject	reject	engine	clone_tenant_option/UNIT_opt_equal_mark_relation_name_or_string!truncate	CREATE TENANT a FROM a WITH UNIT
 reject	reject	engine	clone_tenant_option/UNIT_opt_equal_mark_relation_name_or_string!insert	CREATE TENANT a FROM a WITH UNIT a zzz, RESOURCE_POOL a
 reject	reject	engine	clone_tenant_option/UNIT_opt_equal_mark_relation_name_or_string!swap	CREATE TENANT a FROM a WITH UNIT_GROUP a, RESOURCE_POOL a
-reject	accept	engine	clone_tenant_option_list/clone_tenant_option_,_clone_tenant_option	CREATE TENANT a FROM a WITH RESOURCE_POOL a, RESOURCE_POOL a
-reject	accept	engine	drop_tenant_stmt/DROP_TENANT_opt_if_exists_relation_name_opt_force_purge	DROP TENANT a
+accept	accept	engine	clone_tenant_option_list/clone_tenant_option_,_clone_tenant_option	CREATE TENANT a FROM a WITH RESOURCE_POOL a, RESOURCE_POOL a
+accept	accept	engine	drop_tenant_stmt/DROP_TENANT_opt_if_exists_relation_name_opt_force_purge	DROP TENANT a
 reject	accept	engine	create_restore_point_stmt/create_with_opt_hint_RESTORE_POINT_relation_name	CREATE RESTORE POINT a
 reject	accept	engine	drop_restore_point_stmt/DROP_RESTORE_POINT_relation_name	DROP RESTORE POINT a
 reject	accept	engine	create_catalog_stmt/create_with_opt_hint_EXTERNAL_CATALOG_opt_if_not_exists_relation_name_PROPERTIES_opt_equal_mark_(_external_properties_list_)	CREATE EXTERNAL CATALOG a PROPERTIES(TYPE = 's')
@@ -3900,17 +3900,17 @@ reject	reject	engine	load_data_extended_option/BADFILE_opt_equal_mark_STRING_VAL
 reject	reject	engine	load_data_extended_option/BADFILE_opt_equal_mark_STRING_VALUE!insert	LOAD DATA INFILE 's' INTO TABLE a BADFILE 's' zzz
 reject	reject	engine	load_data_extended_option/BADFILE_opt_equal_mark_STRING_VALUE!swap	LOAD DATA INFILE 's' INTO TABLE a BALANCE 's'
 accept	accept	engine	use_database_stmt/USE_database_with_catalog_factor	USE a
-reject	accept	engine	opt_force/FORCE	CREATE TENANT a LOCALITY 's' FORCE
+accept	accept	engine	opt_force/FORCE	CREATE TENANT a LOCALITY 's' FORCE
 reject	reject	engine	opt_force/FORCE!insert	CREATE TENANT a LOCALITY 's' FORCE zzz
 reject	reject	engine	opt_force/FORCE!swap	CREATE TENANT a LOCALITY 's' FORCE_REFRESH_LOCATION_CACHE
-reject	accept	engine	opt_force/%empty	CREATE TENANT a LOCALITY 's'
-reject	accept	engine	opt_force_purge/FORCE	DROP TENANT a FORCE
+accept	accept	engine	opt_force/%empty	CREATE TENANT a LOCALITY 's'
+accept	accept	engine	opt_force_purge/FORCE	DROP TENANT a FORCE
 reject	reject	engine	opt_force_purge/FORCE!insert	DROP TENANT a FORCE zzz
 reject	reject	engine	opt_force_purge/FORCE!swap	DROP TENANT a FORCE_REFRESH_LOCATION_CACHE
-reject	accept	engine	opt_force_purge/PURGE	DROP TENANT a PURGE
+accept	accept	engine	opt_force_purge/PURGE	DROP TENANT a PURGE
 reject	reject	engine	opt_force_purge/PURGE!insert	DROP TENANT a PURGE zzz
 reject	reject	engine	opt_force_purge/PURGE!swap	DROP TENANT a PUSHDOWN
-reject	accept	engine	opt_force_purge/%empty	DROP TENANT a
+accept	accept	engine	opt_force_purge/%empty	DROP TENANT a
 accept	accept	engine	special_table_type/TEMPORARY	CREATE TEMPORARY TABLE a SELECT a
 reject	reject	engine	special_table_type/TEMPORARY!insert	CREATE TEMPORARY zzz TABLE a SELECT a
 reject	reject	engine	special_table_type/TEMPORARY!swap	CREATE TEMPTABLE TABLE a SELECT a
@@ -5168,14 +5168,14 @@ reject	reject	engine	table_option_list/table_option_,_table_option_list!drop-3	C
 reject	reject	engine	table_option_list/table_option_,_table_option_list!truncate	CREATE TABLE a NOPARALLEL,
 reject	reject	engine	table_option_list/table_option_,_table_option_list!insert	CREATE TABLE a NOPARALLEL, NOPARALLEL zzz SELECT a
 reject	reject	engine	table_option_list/table_option_,_table_option_list!swap	CREATE TABLE a NORMAL, NOPARALLEL SELECT a
-reject	accept	engine	primary_zone_name/DEFAULT	CREATE TENANT a PRIMARY_ZONE DEFAULT
-reject	accept	engine	primary_zone_name/DEFAULT!swap	CREATE TENANT a PRIMARY_ZONE DEFAULT_AUTH
-reject	accept	engine	primary_zone_name/RANDOM	CREATE TENANT a PRIMARY_ZONE RANDOM
+accept	accept	engine	primary_zone_name/DEFAULT	CREATE TENANT a PRIMARY_ZONE DEFAULT
+accept	accept	engine	primary_zone_name/DEFAULT!swap	CREATE TENANT a PRIMARY_ZONE DEFAULT_AUTH
+accept	accept	engine	primary_zone_name/RANDOM	CREATE TENANT a PRIMARY_ZONE RANDOM
 reject	reject	engine	primary_zone_name/RANDOM!insert	CREATE TENANT a PRIMARY_ZONE RANDOM zzz
-reject	accept	engine	primary_zone_name/RANDOM!swap	CREATE TENANT a PRIMARY_ZONE RANDOM_LOCAL
-reject	accept	engine	primary_zone_name/USER_VARIABLE	CREATE TENANT a PRIMARY_ZONE @v
+accept	accept	engine	primary_zone_name/RANDOM!swap	CREATE TENANT a PRIMARY_ZONE RANDOM_LOCAL
+accept	accept	engine	primary_zone_name/USER_VARIABLE	CREATE TENANT a PRIMARY_ZONE @v
 reject	reject	engine	primary_zone_name/USER_VARIABLE!insert	CREATE TENANT a PRIMARY_ZONE @v zzz
-reject	accept	engine	primary_zone_name/relation_name_or_string	CREATE TENANT a PRIMARY_ZONE a
+accept	accept	engine	primary_zone_name/relation_name_or_string	CREATE TENANT a PRIMARY_ZONE a
 reject	reject	engine	primary_zone_name/relation_name_or_string!insert	CREATE TENANT a PRIMARY_ZONE a zzz
 accept	accept	engine	tablespace/NAME_OB	CREATE TABLESPACE a
 accept	accept	engine	table_option/TABLE_MODE_opt_equal_mark_STRING_VALUE	ALTER TABLE a TABLE_MODE 's'
@@ -12691,9 +12691,9 @@ reject	reject	engine	rename_list/rename_list_,_rename_info!drop-7	RENAME USER 's
 reject	reject	engine	rename_list/rename_list_,_rename_info!insert	RENAME USER 's' TO 's', 's' TO 's' zzz
 reject	reject	engine	rename_list/rename_list_,_rename_info!swap	RENAME USER 's' TOPK 's', 's' TO 's'
 accept	accept	engine	lock_user_stmt/alter_with_opt_hint_USER_user_list_ACCOUNT_lock_spec_mysql57	ALTER USER 's' ACCOUNT LOCK
-reject	accept	engine	lock_spec_mysql57/LOCK_	ALTER TENANT a LOCK
+accept	accept	engine	lock_spec_mysql57/LOCK_	ALTER TENANT a LOCK
 reject	reject	engine	lock_spec_mysql57/LOCK_!swap	ALTER TENANT a LOCKED
-reject	accept	engine	lock_spec_mysql57/UNLOCK	ALTER TENANT a UNLOCK
+accept	accept	engine	lock_spec_mysql57/UNLOCK	ALTER TENANT a UNLOCK
 reject	reject	engine	lock_spec_mysql57/UNLOCK!insert	ALTER TENANT a UNLOCK zzz
 reject	reject	engine	lock_spec_mysql57/UNLOCK!swap	ALTER TENANT a UNLOCKED
 accept	accept	engine	lock_tables_stmt/LOCK__table_or_tables_lock_table_list	LOCK TABLE a READ
@@ -13291,9 +13291,9 @@ accept	accept	engine	preparable_stmt/text_string	PREPARE a FROM 's'
 accept	accept	engine	preparable_stmt/USER_VARIABLE	PREPARE a FROM @v
 reject	reject	engine	preparable_stmt/USER_VARIABLE!insert	PREPARE a FROM @v zzz
 accept	accept	engine	variable_set_stmt/SET_var_and_val_list	SET NAMES a
-reject	accept	engine	sys_var_and_val_list/sys_var_and_val	CREATE TENANT a SET a TO a
+accept	accept	engine	sys_var_and_val_list/sys_var_and_val	CREATE TENANT a SET a TO a
 reject	reject	engine	sys_var_and_val_list/sys_var_and_val!swap	CREATE TENANT a SET a TOPK a
-reject	accept	engine	sys_var_and_val_list/sys_var_and_val_list_,_sys_var_and_val	CREATE TENANT a SET a TO a, a TO a
+accept	accept	engine	sys_var_and_val_list/sys_var_and_val_list_,_sys_var_and_val	CREATE TENANT a SET a TO a, a TO a
 reject	reject	engine	sys_var_and_val_list/sys_var_and_val_list_,_sys_var_and_val!drop-1	CREATE TENANT a SET TO a, a TO a
 reject	reject	engine	sys_var_and_val_list/sys_var_and_val_list_,_sys_var_and_val!drop-2	CREATE TENANT a SET a a, a TO a
 reject	reject	engine	sys_var_and_val_list/sys_var_and_val_list_,_sys_var_and_val!drop-3	CREATE TENANT a SET a TO, a TO a
