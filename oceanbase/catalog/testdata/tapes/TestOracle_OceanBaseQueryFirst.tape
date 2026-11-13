@@ -120,3 +120,15 @@
 | CREATE VIEW v22 AS SELECT b FROM a UNION ALL SELECT b FROM a ORDER BY zz
 < error
 | 1054 42S22 Unknown column 'zz' in 'order clause'
+> exec
+| CREATE VIEW v23 AS SELECT x.column_0 FROM (VALUES ROW(1)) x
+< ok 0 0
+> exec
+| CREATE VIEW v24 AS VALUES ROW(1) ORDER BY column_0
+< ok 0 0
+> exec
+| CREATE VIEW v25 AS SELECT 2 AS q, b FROM a ORDER BY q
+< ok 0 0
+> exec
+| CREATE VIEW v26 AS SELECT d.`(1)` FROM (SELECT (1)) d
+< ok 0 0

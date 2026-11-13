@@ -379,8 +379,11 @@ func collectQueryTableRefs(sel *nodes.SelectStmt, outer map[string]bool, refs *[
 	})
 }
 
-// collectTopLevelCTEs gathers the CTEs declared in the top-level scope of a query,
-// in the order they are written, as collectTopLevelCTENames gathers their names.
+// collectTopLevelCTEs gathers the CTEs this query declares, in the order written.
+// A set-operation branch or a parenthesized query that carries a WITH of its own
+// is a query in its own right, and collectQueryTableRefs reads it with that scope:
+// SELECT b FROM a UNION ALL (WITH a AS (...) SELECT b FROM a) reads the object a
+// in its left arm, which a shared scope would mask.
 func collectTopLevelCTEs(sel *nodes.SelectStmt, out *[]*nodes.CommonTableExpr) {
 	if sel == nil {
 		return
@@ -390,30 +393,6 @@ func collectTopLevelCTEs(sel *nodes.SelectStmt, out *[]*nodes.CommonTableExpr) {
 			*out = append(*out, cte)
 		}
 	}
-	collectTopLevelCTEs(sel.Left, out)
-	collectTopLevelCTEs(sel.Right, out)
-	collectTopLevelCTEs(sel.ParenSource, out)
-}
-
-// collectTopLevelCTENames adds the CTE names declared in the top-level scope of a
-// query into names. The top-level scope spans the query's own WITH clause plus the
-// set-operation branches and parenthesized wrapper that share that scope; it does
-// not descend into FROM-clause subqueries or CTE bodies (those open their own
-// scopes).
-func collectTopLevelCTENames(sel *nodes.SelectStmt, names map[string]bool) {
-	if sel == nil {
-		return
-	}
-	for _, cte := range sel.CTEs {
-		if cte != nil && cte.Name != "" {
-			names[toLower(cte.Name)] = true
-		}
-	}
-	// UNION/INTERSECT/EXCEPT branches and a parenthesized wrapper share the
-	// enclosing WITH scope.
-	collectTopLevelCTENames(sel.Left, names)
-	collectTopLevelCTENames(sel.Right, names)
-	collectTopLevelCTENames(sel.ParenSource, names)
 }
 
 // ---------------------------------------------------------------------------

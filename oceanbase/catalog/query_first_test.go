@@ -34,6 +34,8 @@ func TestQueryFirstReadsWhatTheAnalyzerCannotRefuse(t *testing.T) {
 		{"CREATE VIEW v AS SELECT d.`(1)` FROM (SELECT (1)) d", 0},
 		{"CREATE VIEW v AS SELECT d.`zz` FROM (SELECT 4) d", 1054},
 		{"CREATE VIEW v AS WITH RECURSIVE r AS (SELECT 1+1 UNION ALL SELECT 3 FROM r WHERE 0) SELECT `1+1` FROM r", 0},
+		{"CREATE VIEW v AS SELECT x.column_0 FROM (VALUES ROW(1)) x", 0},
+		{"CREATE VIEW v AS VALUES ROW(1) ORDER BY column_0", 0},
 	} {
 		c, err := LoadSQL("CREATE DATABASE d; USE d; CREATE TABLE a (b INT)")
 		if err != nil {
@@ -67,6 +69,10 @@ func TestAnalyzedQueryKeptOnlyWhenItIsFaithful(t *testing.T) {
 		{"CREATE VIEW v AS WITH c AS (SELECT 1 AS x) (SELECT x FROM c) ORDER BY x", ""},
 		{"CREATE VIEW v AS WITH c AS (SELECT 1 AS x) (SELECT x FROM c)", ""},
 		{"CREATE VIEW v AS WITH c AS (SELECT 1 AS x) SELECT x FROM c", "with `c`(`x`) as (select 1 as `x`) select `c`.`x` from `c`"},
+		// An ordering through an alias of a number would read back as that column's
+		// position, so the query is kept unanalyzed rather than changed.
+		{"CREATE VIEW v AS SELECT 2 AS q, b FROM a ORDER BY q", ""},
+		{"CREATE VIEW v AS SELECT 99 AS q, b FROM a ORDER BY q", ""},
 	} {
 		c, err := LoadSQL("CREATE DATABASE d; USE d; CREATE TABLE a (b INT); CREATE TABLE z (c INT)")
 		if err != nil {

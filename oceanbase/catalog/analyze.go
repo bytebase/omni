@@ -39,6 +39,12 @@ func (c *Catalog) analyzeSelectStmtWithCTEs(stmt *nodes.SelectStmt, parentScope 
 	}
 
 	scope := newScopeWithParent(parentScope)
+	if stmt.ValuesSource != nil {
+		// The analyzer reads no VALUES into a target list, so it knows none of the
+		// columns such a query has: column_0 and its kin are not missing, only
+		// unseen, and nothing naming them is refused.
+		scope.namesUncertain = true
+	}
 
 	// Step 0: Process CTEs (WITH clause). The query sees its own, then those of
 	// the queries around it.
@@ -553,6 +559,9 @@ func (c *Catalog) analyzeGroupBy(groupBy []*nodes.OrderByItem, q *Query, scope *
 			varExpr, ok := analyzed.(*VarExprQ)
 			if !ok {
 				if te, levels := scope.selectAlias(n.Column); te != nil && levels == 0 && te.Expr == analyzed {
+					if aliasOfOrdinalLiteral(te.Expr) {
+						return errOrderByAliasLiteral
+					}
 					q.GroupClause = append(q.GroupClause, &SortGroupClauseQ{TargetIdx: te.ResNo})
 					continue
 				}
@@ -721,6 +730,9 @@ func (c *Catalog) analyzeOrderBy(orderBy []*nodes.OrderByItem, q *Query, scope *
 			varExpr, ok := analyzed.(*VarExprQ)
 			if !ok {
 				if te, levels := scope.selectAlias(n.Column); te != nil && levels == 0 && te.Expr == analyzed {
+					if aliasOfOrdinalLiteral(te.Expr) {
+						return errOrderByAliasLiteral
+					}
 					q.SortClause = append(q.SortClause, &SortGroupClauseQ{TargetIdx: te.ResNo, Descending: desc, NullsFirst: nullsFirst})
 					continue
 				}
@@ -1131,6 +1143,12 @@ func (c *Catalog) analyzeParenthesized(stmt *nodes.SelectStmt, parentScope *anal
 // which analyzeColumnRef resolves but cannot write into this query's IR.
 var errOuterAlias = errors.New("a subquery names an outer query's select alias, which the analyzed query cannot hold")
 
+// errOrderByAliasLiteral is an ORDER BY or GROUP BY naming a select alias whose
+// value is a bare number, which an analyzed query cannot hold apart from an
+// ordinal: SELECT 2 AS q ... ORDER BY q would read back as ORDER BY 2, the
+// second column.
+var errOrderByAliasLiteral = errors.New("an ordering names an alias of a number, which the analyzed query cannot hold")
+
 var errParenthesizedOuter = errors.New("a parenthesized query's own WITH, ORDER BY or LIMIT has no place in the analyzed query")
 
 // visibleCTEs is the CTEs the queries around a query make visible: inherited, then
@@ -1201,4 +1219,20 @@ func selectDerivesNames(sel *nodes.SelectStmt) bool {
 		}
 	}
 	return false
+}
+
+// aliasOfOrdinalLiteral reports an analyzed expression a clause cannot name through
+// its alias and still read back the same: a bare whole number, which ORDER BY and
+// GROUP BY take as a column's position.
+func aliasOfOrdinalLiteral(expr AnalyzedExpr) bool {
+	cst, ok := expr.(*ConstExprQ)
+	if !ok || cst.IsNull || cst.IsString || cst.Keyword || cst.Value == "" {
+		return false
+	}
+	for _, r := range cst.Value {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
 }

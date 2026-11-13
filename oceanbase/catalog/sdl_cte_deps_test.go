@@ -18,6 +18,10 @@ func TestSDLViewReadThroughSameNamedCTE(t *testing.T) {
 		// the object's where it stands, whichever order the views are written in.
 		"CREATE DATABASE d; USE d; CREATE VIEW v AS WITH c AS (SELECT b FROM a), a AS (SELECT 2 AS b) SELECT b FROM c; CREATE VIEW a AS SELECT 1 AS b",
 		"CREATE DATABASE d; USE d; CREATE VIEW a AS SELECT 1 AS b; CREATE VIEW v AS WITH c AS (SELECT b FROM a), a AS (SELECT 2 AS b) SELECT b FROM c",
+		// A set-operation branch's own WITH is local to it, so the other arm's
+		// reference to an object of that name is still a dependency.
+		"CREATE DATABASE d; USE d; CREATE VIEW v AS SELECT b FROM a UNION ALL (WITH a AS (SELECT 2 AS b) SELECT b FROM a); CREATE VIEW a AS SELECT 1 AS b",
+		"CREATE DATABASE d; USE d; CREATE VIEW a AS SELECT 1 AS b; CREATE VIEW v AS SELECT b FROM a UNION ALL (WITH a AS (SELECT 2 AS b) SELECT b FROM a)",
 		// A WITH inside a subquery keeps its own scope.
 		"CREATE DATABASE d; USE d; CREATE VIEW v AS SELECT x FROM (WITH c AS (SELECT 1 AS x) SELECT x FROM c) s",
 	} {
