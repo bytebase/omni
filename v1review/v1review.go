@@ -62,6 +62,12 @@ type Finding struct {
 	Pattern string
 	// Detail is the compile error's text, set with PatternInvalid.
 	Detail string
+	// Search is the text the V1 advisor searched the statement for to find
+	// the finding's line, which can differ from Name: the source spelling
+	// where Name is lower-cased, say. It is set only on a finding the V1
+	// advisor placed that way; the caller repeats the search, and uses
+	// Start and End for every other finding.
+	Search string
 	// Start and End are the byte range that anchors the finding in the
 	// text the statements were parsed from: the node the V1 advisor took
 	// its line from, which each engine's rule function names. Where the V1
