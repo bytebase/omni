@@ -3,6 +3,7 @@ package catalog
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	nodes "github.com/bytebase/omni/oceanbase/ast"
@@ -880,6 +881,9 @@ func (c *Catalog) analyzeRecursiveCTE(cte *nodes.CommonTableExpr, parentScope *a
 		ColumnNames: colNames,
 		Query:       larg, // temporary — will be replaced
 		Recursive:   true,
+		// The recursive arm reads these names too, so the seed's uncertainty is
+		// the self-reference's: WITH RECURSIVE r AS (SELECT 1+1 UNION ALL ...).
+		namesUncertain: len(cte.Columns) == 0 && larg.namesUncertain,
 	}
 	cteMap[strings.ToLower(cte.Name)] = tempCTE
 
@@ -913,13 +917,14 @@ func (c *Catalog) analyzeRecursiveCTE(cte *nodes.CommonTableExpr, parentScope *a
 	}
 
 	q := &Query{
-		CommandType: CmdSelect,
-		SetOp:       setOp,
-		AllSetOp:    stmt.SetAll,
-		LArg:        larg,
-		RArg:        rarg,
-		TargetList:  targetList,
-		JoinTree:    &JoinTreeQ{},
+		CommandType:    CmdSelect,
+		SetOp:          setOp,
+		AllSetOp:       stmt.SetAll,
+		LArg:           larg,
+		RArg:           rarg,
+		TargetList:     targetList,
+		JoinTree:       &JoinTreeQ{},
+		namesUncertain: larg.namesUncertain,
 	}
 	return q, nil
 }
@@ -1176,8 +1181,15 @@ func selectDerivesNames(sel *nodes.SelectStmt) bool {
 			}
 			expr = p.Expr
 		}
-		switch expr.(type) {
-		case *nodes.ColumnRef, *nodes.StarExpr, *nodes.IntLit, *nodes.StringLit, *nodes.FloatLit, *nodes.BoolLit, *nodes.NullLit:
+		switch e := expr.(type) {
+		case *nodes.ColumnRef, *nodes.StarExpr, *nodes.StringLit, *nodes.FloatLit, *nodes.BoolLit, *nodes.NullLit:
+		case *nodes.IntLit:
+			// OceanBase names a number by the text written and deriveColumnName by
+			// its value, so 0004 and 0x10 come out 4 and 16
+			// (TestViewNamesAndJoinColumnsOracle).
+			if e.Text != "" && e.Text != strconv.FormatInt(e.Value, 10) {
+				return true
+			}
 		default:
 			return true
 		}

@@ -331,12 +331,53 @@ func selectTableRefs(sel *nodes.SelectStmt) []*nodes.TableRef {
 
 	var refs []*nodes.TableRef
 	nodes.Inspect(sel, func(n nodes.Node) bool {
+		if cte, ok := n.(*nodes.CommonTableExpr); ok {
+			// A CTE's body stands outside its own name unless the WITH is
+			// RECURSIVE: in WITH a AS (SELECT b FROM a), the a inside is the real
+			// table, and missing that edge let a view load before the view it
+			// reads (TestSDLViewReadThroughSameNamedCTE).
+			refs = append(refs, cteBodyTableRefs(cte, cteNames)...)
+			return false
+		}
 		if tr, ok := n.(*nodes.TableRef); ok {
 			// Only unqualified references can match a CTE name; a schema-qualified
 			// reference always denotes a real object.
 			if tr.Schema == "" && cteNames[toLower(tr.Name)] {
 				return true
 			}
+			refs = append(refs, tr)
+		}
+		return true
+	})
+	return refs
+}
+
+// cteBodyTableRefs returns the real objects a CTE's body reads. outer is the names
+// in scope around it; the CTE's own name is one of them only when it is recursive.
+func cteBodyTableRefs(cte *nodes.CommonTableExpr, outer map[string]bool) []*nodes.TableRef {
+	if cte == nil || cte.Select == nil {
+		return nil
+	}
+	visible := make(map[string]bool, len(outer))
+	for name := range outer {
+		visible[name] = true
+	}
+	if !cte.Recursive {
+		delete(visible, toLower(cte.Name))
+	}
+	inner := make(map[string]bool, len(visible))
+	for name := range visible {
+		inner[name] = true
+	}
+	collectTopLevelCTENames(cte.Select, inner)
+
+	var refs []*nodes.TableRef
+	nodes.Inspect(cte.Select, func(n nodes.Node) bool {
+		if nested, ok := n.(*nodes.CommonTableExpr); ok {
+			refs = append(refs, cteBodyTableRefs(nested, inner)...)
+			return false
+		}
+		if tr, ok := n.(*nodes.TableRef); ok && !(tr.Schema == "" && inner[toLower(tr.Name)]) {
 			refs = append(refs, tr)
 		}
 		return true
