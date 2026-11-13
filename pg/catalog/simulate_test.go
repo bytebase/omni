@@ -101,15 +101,19 @@ func simulationEngine(t testing.TB) func(simulate.Fixture, string) (simulate.Ans
 //     columns (type, collation, default or generation, identity, NOT NULL),
 //     parents and partition key, or as a partition of its parent; then its
 //     local constraints, the indexes no constraint and no parent index
-//     makes, its comments, and the sequences its columns own;
+//     makes, its replica identity and row security, its comments, and the
+//     sequences its columns own;
 //   - a view or materialized view, with its options, query, indexes and
 //     comments.
 //
-// Storage, statistics, ownership, privileges, replica identity and row
-// security are not written, so a statement that changes only those stores
-// the schema it found. Every name is the stored one, quoted as needed.
+// What Diff compares of a table is written, so the catalog is held to all of
+// it; Diff also compares a table's owner, which no row reaches with a schema
+// to compare, since the role the statements name does not exist. Storage,
+// statistics and privileges, which Diff does not read, are not written.
+// Every name is the stored one, quoted as needed.
 const simulationFormsQuery = `WITH rel AS (
 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 	FROM pg_catalog.pg_class c
 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -162,7 +166,17 @@ SELECT kind, relname, text FROM (
 		|| r.options || E';\n'
 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-		|| coalesce(x.text, '') || m.text
+		|| coalesce(x.text, '')
+		|| CASE r.relreplident
+			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+			ELSE '' END
+		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+		|| m.text
 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid

@@ -364,15 +364,15 @@ ok	42704	engine	one_table@table	alter_table_cmd/OWNER_TO_RoleSpec	ALTER TABLE a 
 0A000	42704	engine	one_table@table	alter_table_cmd/SET_TABLESPACE_name	ALTER TABLE a SET TABLESPACE a
 ok	22023	engine	one_table@table	alter_table_cmd/SET_reloptions	ALTER TABLE a SET(a)
 ok:89dfe8890ac5	ok:89dfe8890ac5	engine	one_table@table	alter_table_cmd/RESET_reloptions	ALTER TABLE a RESET(a)
-ok	ok:89dfe8890ac5	engine	one_table@table	alter_table_cmd/REPLICA_IDENTITY_P_replica_identity	ALTER TABLE a REPLICA IDENTITY NOTHING
-ok	ok:89dfe8890ac5	engine	one_table@table	alter_table_cmd/ENABLE_P_ROW_LEVEL_SECURITY	ALTER TABLE a ENABLE ROW LEVEL SECURITY
+ok:d0360d486a94	ok:d0360d486a94	engine	one_table@table	alter_table_cmd/REPLICA_IDENTITY_P_replica_identity	ALTER TABLE a REPLICA IDENTITY NOTHING
+ok:04d4edd85705	ok:04d4edd85705	engine	one_table@table	alter_table_cmd/ENABLE_P_ROW_LEVEL_SECURITY	ALTER TABLE a ENABLE ROW LEVEL SECURITY
 ok:89dfe8890ac5	ok:89dfe8890ac5	engine	one_table@table	alter_table_cmd/DISABLE_P_ROW_LEVEL_SECURITY	ALTER TABLE a DISABLE ROW LEVEL SECURITY
-ok	ok:89dfe8890ac5	engine	one_table@table	alter_table_cmd/FORCE_ROW_LEVEL_SECURITY	ALTER TABLE a FORCE ROW LEVEL SECURITY
+ok:265528c9d471	ok:265528c9d471	engine	one_table@table	alter_table_cmd/FORCE_ROW_LEVEL_SECURITY	ALTER TABLE a FORCE ROW LEVEL SECURITY
 ok:89dfe8890ac5	ok:89dfe8890ac5	engine	one_table@table	alter_table_cmd/NO_FORCE_ROW_LEVEL_SECURITY	ALTER TABLE a NO FORCE ROW LEVEL SECURITY
 0A000	42809	engine	one_table@table	alter_table_cmd/alter_generic_options	ALTER TABLE a OPTIONS(a 's')
 42703	42703	engine	one_table@table	opt_collate_clause/COLLATE_any_name	ALTER TABLE a ALTER a TYPE a COLLATE a
 42703	42703	engine	one_table@table	alter_using/USING_a_expr	ALTER TABLE a ALTER a TYPE a USING a
-ok	ok:89dfe8890ac5	engine	one_table@table	replica_identity/FULL	ALTER TABLE a REPLICA IDENTITY FULL
+ok:6f26dd7fde0c	ok:6f26dd7fde0c	engine	one_table@table	replica_identity/FULL	ALTER TABLE a REPLICA IDENTITY FULL
 ok	ok:89dfe8890ac5	engine	one_table@table	replica_identity/DEFAULT	ALTER TABLE a REPLICA IDENTITY DEFAULT
 42704	42809	engine	one_table@table	replica_identity/USING_INDEX_name	ALTER TABLE a REPLICA IDENTITY USING INDEX a
 ok	22023	engine	one_table@table	reloption_list/reloption_list_,_reloption_elem	ALTER TABLE a SET(a, a)
@@ -635,15 +635,15 @@ ok	42704	engine	one_table@column	alter_table_cmd/OWNER_TO_RoleSpec	ALTER TABLE a
 0A000	42704	engine	one_table@column	alter_table_cmd/SET_TABLESPACE_name	ALTER TABLE a SET TABLESPACE a
 ok	22023	engine	one_table@column	alter_table_cmd/SET_reloptions	ALTER TABLE a SET(a)
 ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	alter_table_cmd/RESET_reloptions	ALTER TABLE a RESET(a)
-ok	ok:43e147cb2649	engine	one_table@column	alter_table_cmd/REPLICA_IDENTITY_P_replica_identity	ALTER TABLE a REPLICA IDENTITY NOTHING
-ok	ok:43e147cb2649	engine	one_table@column	alter_table_cmd/ENABLE_P_ROW_LEVEL_SECURITY	ALTER TABLE a ENABLE ROW LEVEL SECURITY
+ok:3504cb0f527e	ok:3504cb0f527e	engine	one_table@column	alter_table_cmd/REPLICA_IDENTITY_P_replica_identity	ALTER TABLE a REPLICA IDENTITY NOTHING
+ok:ec73f45ed0f0	ok:ec73f45ed0f0	engine	one_table@column	alter_table_cmd/ENABLE_P_ROW_LEVEL_SECURITY	ALTER TABLE a ENABLE ROW LEVEL SECURITY
 ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	alter_table_cmd/DISABLE_P_ROW_LEVEL_SECURITY	ALTER TABLE a DISABLE ROW LEVEL SECURITY
-ok	ok:43e147cb2649	engine	one_table@column	alter_table_cmd/FORCE_ROW_LEVEL_SECURITY	ALTER TABLE a FORCE ROW LEVEL SECURITY
+ok:617eeec9c7e5	ok:617eeec9c7e5	engine	one_table@column	alter_table_cmd/FORCE_ROW_LEVEL_SECURITY	ALTER TABLE a FORCE ROW LEVEL SECURITY
 ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	alter_table_cmd/NO_FORCE_ROW_LEVEL_SECURITY	ALTER TABLE a NO FORCE ROW LEVEL SECURITY
 0A000	42809	engine	one_table@column	alter_table_cmd/alter_generic_options	ALTER TABLE a OPTIONS(a 's')
 42804	42704	engine	one_table@column	opt_collate_clause/COLLATE_any_name	ALTER TABLE a ALTER a TYPE a COLLATE a
 42804	42P16	engine	one_table@column	alter_using/USING_a_expr	ALTER TABLE a ALTER a TYPE a USING a
-ok	ok:43e147cb2649	engine	one_table@column	replica_identity/FULL	ALTER TABLE a REPLICA IDENTITY FULL
+ok:ac9996e09582	ok:ac9996e09582	engine	one_table@column	replica_identity/FULL	ALTER TABLE a REPLICA IDENTITY FULL
 ok	ok:43e147cb2649	engine	one_table@column	replica_identity/DEFAULT	ALTER TABLE a REPLICA IDENTITY DEFAULT
 42704	42809	engine	one_table@column	replica_identity/USING_INDEX_name	ALTER TABLE a REPLICA IDENTITY USING INDEX a
 ok	22023	engine	one_table@column	reloption_list/reloption_list_,_reloption_elem	ALTER TABLE a SET(a, a)

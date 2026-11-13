@@ -43,6 +43,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -95,7 +96,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -156,6 +167,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -208,7 +220,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -269,6 +291,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -321,7 +344,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -371,6 +404,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -423,7 +457,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -513,6 +557,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -565,7 +610,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -646,6 +701,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -698,7 +754,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -750,6 +816,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -802,7 +869,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -874,6 +951,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -926,7 +1004,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -1008,6 +1096,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -1060,7 +1149,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -1112,6 +1211,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -1164,7 +1264,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -1216,6 +1326,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -1268,7 +1379,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -2140,6 +2261,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -2192,7 +2314,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -2282,6 +2414,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -2334,7 +2467,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -2809,6 +2952,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -2861,7 +3005,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -2951,6 +3105,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -3003,7 +3158,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -3084,6 +3249,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -3136,7 +3302,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -3197,6 +3373,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -3249,7 +3426,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -3299,6 +3486,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -3351,7 +3539,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -3393,6 +3591,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -3445,7 +3644,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -3665,6 +3874,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -3717,7 +3927,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -3769,6 +3989,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -3821,7 +4042,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -3863,6 +4094,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -3915,7 +4147,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -4267,6 +4509,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -4319,7 +4562,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -4371,6 +4624,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -4423,7 +4677,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -4475,6 +4739,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -4527,7 +4792,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -4579,6 +4854,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -4631,7 +4907,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -4683,6 +4969,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -4735,7 +5022,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -4787,6 +5084,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -4839,7 +5137,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -4891,6 +5199,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -4943,7 +5252,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -4995,6 +5314,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -5047,7 +5367,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -5099,6 +5429,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -5151,7 +5482,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -5243,6 +5584,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -5295,7 +5637,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -5347,6 +5699,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -5399,7 +5752,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -5451,6 +5814,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -5503,7 +5867,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -5555,6 +5929,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -5607,7 +5982,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -5649,6 +6034,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -5701,7 +6087,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -5898,6 +6294,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -5950,7 +6347,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -6055,6 +6462,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -6107,7 +6515,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -6159,6 +6577,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -6211,7 +6630,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -6274,6 +6703,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -6326,7 +6756,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -6368,6 +6808,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -6420,7 +6861,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -6882,6 +7333,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -6934,7 +7386,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -7027,6 +7489,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -7079,7 +7542,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -7131,6 +7604,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -7183,7 +7657,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -7235,6 +7719,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -7287,7 +7772,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -7329,6 +7824,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -7381,7 +7877,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -7423,6 +7929,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -7475,7 +7982,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -7547,6 +8064,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -7599,7 +8117,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -7641,6 +8169,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -7693,7 +8222,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -7745,6 +8284,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -7797,7 +8337,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -7839,6 +8389,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -7891,7 +8442,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -8054,6 +8615,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -8106,7 +8668,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -8148,6 +8720,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -8200,7 +8773,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -8229,6 +8812,7 @@
 | CREATE TABLE a (b integer NOT NULL, c integer, d integer);
 | ALTER TABLE a ADD CONSTRAINT a_pkey PRIMARY KEY (b);
 | CREATE INDEX a_d_idx ON public.a USING btree (d);
+| ALTER TABLE a REPLICA IDENTITY NOTHING;
 |
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
@@ -8242,6 +8826,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -8294,7 +8879,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -8323,6 +8918,7 @@
 | CREATE TABLE a (b integer NOT NULL, c integer, d integer);
 | ALTER TABLE a ADD CONSTRAINT a_pkey PRIMARY KEY (b);
 | CREATE INDEX a_d_idx ON public.a USING btree (d);
+| ALTER TABLE a ENABLE ROW LEVEL SECURITY;
 |
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
@@ -8336,6 +8932,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -8388,7 +8985,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -8430,6 +9037,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -8482,7 +9090,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -8511,6 +9129,7 @@
 | CREATE TABLE a (b integer NOT NULL, c integer, d integer);
 | ALTER TABLE a ADD CONSTRAINT a_pkey PRIMARY KEY (b);
 | CREATE INDEX a_d_idx ON public.a USING btree (d);
+| ALTER TABLE a FORCE ROW LEVEL SECURITY;
 |
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
@@ -8524,6 +9143,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -8576,7 +9196,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -8649,6 +9279,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -8701,7 +9332,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -8730,6 +9371,7 @@
 | CREATE TABLE a (b integer NOT NULL, c integer, d integer);
 | ALTER TABLE a ADD CONSTRAINT a_pkey PRIMARY KEY (b);
 | CREATE INDEX a_d_idx ON public.a USING btree (d);
+| ALTER TABLE a REPLICA IDENTITY FULL;
 |
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
@@ -8743,6 +9385,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -8795,7 +9438,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -8927,6 +9580,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -8979,7 +9633,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -9051,6 +9715,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -9103,7 +9768,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -9155,6 +9830,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -9207,7 +9883,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -9259,6 +9945,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -9311,7 +9998,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -9825,6 +10522,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -9877,7 +10575,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -9950,6 +10658,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -10002,7 +10711,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -10055,6 +10774,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -10107,7 +10827,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -10357,6 +11087,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -10409,7 +11140,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -10518,6 +11259,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -10570,7 +11312,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -10602,6 +11354,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -10654,7 +11407,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -10696,6 +11459,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -10748,7 +11512,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -10800,6 +11574,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -10852,7 +11627,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -11016,6 +11801,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -11068,7 +11854,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -11617,6 +12413,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -11669,7 +12466,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -11722,6 +12529,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -11774,7 +12582,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -11816,6 +12634,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -11868,7 +12687,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -11973,6 +12802,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -12025,7 +12855,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -12057,6 +12897,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -12109,7 +12950,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -12162,6 +13013,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -12214,7 +13066,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -12277,6 +13139,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -12329,7 +13192,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -12371,6 +13244,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -12423,7 +13297,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -12465,6 +13349,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -12517,7 +13402,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -12779,6 +13674,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -12831,7 +13727,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -12883,6 +13789,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -12935,7 +13842,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -12977,6 +13894,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -13029,7 +13947,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -13071,6 +13999,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -13123,7 +14052,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -13165,6 +14104,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -13217,7 +14157,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -13279,6 +14229,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -13331,7 +14282,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -13373,6 +14334,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -13425,7 +14387,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -13487,6 +14459,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -13539,7 +14512,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -13631,6 +14614,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -13683,7 +14667,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -13725,6 +14719,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -13777,7 +14772,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -13870,6 +14875,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -13922,7 +14928,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -13974,6 +14990,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -14026,7 +15043,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -14078,6 +15105,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -14130,7 +15158,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -14172,6 +15210,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -14224,7 +15263,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -14266,6 +15315,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -14318,7 +15368,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -14390,6 +15450,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -14442,7 +15503,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -14484,6 +15555,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -14536,7 +15608,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -14588,6 +15670,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -14640,7 +15723,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -14682,6 +15775,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -14734,7 +15828,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -14897,6 +16001,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -14949,7 +16054,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -14991,6 +16106,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -15043,7 +16159,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -15072,6 +16198,7 @@
 | CREATE TABLE a (b integer NOT NULL, a integer, d integer);
 | ALTER TABLE a ADD CONSTRAINT a_pkey PRIMARY KEY (b);
 | CREATE INDEX a_d_idx ON public.a USING btree (d);
+| ALTER TABLE a REPLICA IDENTITY NOTHING;
 |
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
@@ -15085,6 +16212,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -15137,7 +16265,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -15166,6 +16304,7 @@
 | CREATE TABLE a (b integer NOT NULL, a integer, d integer);
 | ALTER TABLE a ADD CONSTRAINT a_pkey PRIMARY KEY (b);
 | CREATE INDEX a_d_idx ON public.a USING btree (d);
+| ALTER TABLE a ENABLE ROW LEVEL SECURITY;
 |
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
@@ -15179,6 +16318,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -15231,7 +16371,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -15273,6 +16423,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -15325,7 +16476,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -15354,6 +16515,7 @@
 | CREATE TABLE a (b integer NOT NULL, a integer, d integer);
 | ALTER TABLE a ADD CONSTRAINT a_pkey PRIMARY KEY (b);
 | CREATE INDEX a_d_idx ON public.a USING btree (d);
+| ALTER TABLE a FORCE ROW LEVEL SECURITY;
 |
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
@@ -15367,6 +16529,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -15419,7 +16582,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -15492,6 +16665,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -15544,7 +16718,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -15573,6 +16757,7 @@
 | CREATE TABLE a (b integer NOT NULL, a integer, d integer);
 | ALTER TABLE a ADD CONSTRAINT a_pkey PRIMARY KEY (b);
 | CREATE INDEX a_d_idx ON public.a USING btree (d);
+| ALTER TABLE a REPLICA IDENTITY FULL;
 |
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
@@ -15586,6 +16771,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -15638,7 +16824,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -15770,6 +16966,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -15822,7 +17019,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -15894,6 +17101,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -15946,7 +17154,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -15998,6 +17216,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -16050,7 +17269,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -16102,6 +17331,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -16154,7 +17384,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -16466,6 +17706,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -16518,7 +17759,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -16613,6 +17864,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -16665,7 +17917,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -16719,6 +17981,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -16771,7 +18034,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -16926,6 +18199,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -16978,7 +18252,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -17051,6 +18335,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -17103,7 +18388,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -17156,6 +18451,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -17208,7 +18504,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -17458,6 +18764,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -17510,7 +18817,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -17619,6 +18936,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -17671,7 +18989,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -17703,6 +19031,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -17755,7 +19084,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -17797,6 +19136,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -17849,7 +19189,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -17901,6 +19251,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -17953,7 +19304,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -17995,6 +19356,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -18047,7 +19409,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -18089,6 +19461,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -18141,7 +19514,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -18204,6 +19587,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -18256,7 +19640,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -18371,6 +19765,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -18423,7 +19818,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -18476,6 +19881,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -18528,7 +19934,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -18581,6 +19997,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -18633,7 +20050,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -18896,6 +20323,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -18948,7 +20376,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -19226,6 +20664,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -19278,7 +20717,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -20306,6 +21755,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -20358,7 +21808,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -20649,6 +22109,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -20701,7 +22162,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -20753,6 +22224,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -20805,7 +22277,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -20858,6 +22340,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -20910,7 +22393,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -21467,6 +22960,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -21519,7 +23013,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -21592,6 +23096,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -21644,7 +23149,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -21697,6 +23212,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -21749,7 +23265,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -22010,6 +23536,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -22062,7 +23589,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -22103,6 +23640,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -22155,7 +23693,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -22196,6 +23744,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -22248,7 +23797,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -22322,6 +23881,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -22374,7 +23934,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
@@ -23124,6 +24694,7 @@
 > query
 | WITH rel AS (
 | 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
 | 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 | 	FROM pg_catalog.pg_class c
 | 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
@@ -23176,7 +24747,17 @@
 | 		|| r.options || E';\n'
 | 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
 | 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
-| 		|| coalesce(x.text, '') || m.text
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
 | 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
 | 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
 | 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
