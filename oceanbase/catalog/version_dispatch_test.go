@@ -285,7 +285,6 @@ func TestOracle_VersionDispatchBareCharset(t *testing.T) {
 				t.Fatalf("[%s] expected a non-empty change diff for the added column", o.name)
 			}
 			plan := GenerateMigrationWithNormalizer(fromCat, toPlusCat, diff, n)
-			planSQL := plan.SQL()
 
 			ctx := context.Background()
 			conn, err := o.session(ctx)
@@ -306,11 +305,8 @@ func TestOracle_VersionDispatchBareCharset(t *testing.T) {
 					return
 				}
 			}
-			for _, op := range plan.Ops {
-				if _, err := conn.ExecContext(ctx, op.SQL); err != nil {
-					t.Fatalf("[%s] APPLY FAILED:\n  stmt: %s\n  err: %v\n  plan:\n%s",
-						o.name, op.SQL, err, planSQL)
-				}
+			if !o.applyPlan(t, conn, plan) {
+				return
 			}
 			// Converge: read back, reload, re-diff against target → empty.
 			var nm, ddl string

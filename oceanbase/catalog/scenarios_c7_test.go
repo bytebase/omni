@@ -43,7 +43,7 @@ func TestScenario_C7(t *testing.T) {
 		}
 	})
 
-	// --- 7.2 FK creates implicit backing index --------------------------
+	// --- 7.2 FK creates no index ----------------------------------------
 	t.Run("7_2_fk_implicit_index", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
@@ -69,18 +69,9 @@ CREATE TABLE c (a INT, CONSTRAINT c_ibfk_1 FOREIGN KEY (a) REFERENCES p(id));`)
 			t.Errorf("omni: table c missing")
 			return
 		}
-		// omni gap: the catalog adds MySQL's backing index on column a.
-		hasBackingIdx := false
-		for _, idx := range tbl.Indexes {
-			if len(idx.Columns) >= 1 && strings.EqualFold(idx.Columns[0].Name, "a") {
-				hasBackingIdx = true
-				if idx.Name != "c_ibfk_1" {
-					t.Errorf("omni: backing index name = %q, want c_ibfk_1", idx.Name)
-				}
-				break
-			}
+		if len(tbl.Indexes) != 0 {
+			t.Errorf("omni: expected no index on c, got %d", len(tbl.Indexes))
 		}
-		assertBoolEq(t, "omni FK backing index exists", hasBackingIdx, true)
 	})
 
 	// --- 7.3 USING HASH coerced to BTREE on InnoDB ----------------------

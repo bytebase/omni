@@ -12,18 +12,17 @@ import (
 // The oracle apply-correctness proof for the foreign-key generator (correctness-protocol.md gate
 // 2), against OceanBase. For representative (from, to) pairs covering every FK
 // variant, the generated ALTER TABLE ... ADD/DROP FOREIGN KEY DDL applied to a real `from`
-// database must yield a child table whose canonical form equals `to`. This file ALSO proves the
-// index↔FK interaction explicitly (the contract with the merged index node):
-//   - ADD FK reusing a user index (no duplicate backing index);
-//   - ADD FK auto-creating a backing index;
-//   - DROP FK leaving / dropping the backing index (the FK node owns the leftover);
-//   - FK column change (DROP+ADD with the backing index handled).
+// database must yield a child table whose canonical form equals `to`.
+//
+// The cases were written for MySQL, where a foreign key has an index of its own, and each
+// case's comment names what MySQL does with it. OceanBase makes no such index
+// (TestOracle_OceanBaseForeignKeyIndex): here every index is one the schema declares, and
+// the last cases are OceanBase's own, where a foreign key that lives holds the last index
+// over its columns.
 //
 // FKs always span a parent and a child, so the harness is multi-table: it sets up parent `p` +
-// child `c` in state `from`, runs the FULL plan (table/column/index DDL from the other nodes is
-// inert here since only the child's FK differs, but the FK ops include the PhasePost ordering and
-// backing-index drops), reads the child back, and compares. The harness reuses oceanBaseOracle /
-// serverCharsetFor from the shared oracle tests.
+// child `c` in state `from`, runs the FULL plan, reads the child back, and compares. The
+// harness reuses oceanBaseOracle / serverCharsetFor from the shared oracle tests.
 
 // fkMigrationCase is one apply-correctness case: transform child `c` (referencing parent `p`) from
 // fromChild to toChild. parentDDL is shared by both states. An empty fromChild/toChild means the
@@ -112,12 +111,36 @@ func fkMigrationCases() []fkMigrationCase {
 		{"add-second-fk", fkParentSingle,
 			"CREATE TABLE c (id INT PRIMARY KEY, pa INT, pb INT, CONSTRAINT fka FOREIGN KEY (pa) REFERENCES p(a))",
 			"CREATE TABLE c (id INT PRIMARY KEY, pa INT, pb INT, CONSTRAINT fka FOREIGN KEY (pa) REFERENCES p(a), CONSTRAINT fkb FOREIGN KEY (pb) REFERENCES p(b))"},
+
+		// ---- an index a live foreign key holds (OceanBase's own) ----
+		// The last index over the foreign key's column goes and the foreign key stays:
+		// OceanBase refuses the DROP INDEX (5320) until the foreign key is dropped, so the
+		// plan drops it first and adds it back.
+		{"drop-last-index-under-fk", fkParentSingle,
+			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, KEY my_idx (pid), CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))",
+			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))"},
+		// It is replaced by another, which is not there yet when it goes.
+		{"replace-last-index-under-fk", fkParentSingle,
+			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, KEY a1 (pid), CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))",
+			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, UNIQUE KEY a2 (pid), CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))"},
+		// One of two goes: the other is left for the foreign key, which is not touched.
+		{"drop-one-of-two-indexes-under-fk", fkParentSingle,
+			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, KEY a1 (pid), KEY a2 (pid), CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))",
+			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, KEY a1 (pid), CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))"},
+		// The primary key is that index: DROP PRIMARY KEY alone is refused (4714).
+		{"drop-primary-key-under-fk", fkParentSingle,
+			"CREATE TABLE c (pid INT NOT NULL, x INT NOT NULL, PRIMARY KEY (pid), CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))",
+			"CREATE TABLE c (pid INT NOT NULL, x INT NOT NULL, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))"},
+		// Replacing it in one statement is taken, with the foreign key in place.
+		{"replace-primary-key-under-fk", fkParentSingle,
+			"CREATE TABLE c (pid INT NOT NULL, x INT NOT NULL, PRIMARY KEY (pid), CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))",
+			"CREATE TABLE c (pid INT NOT NULL, x INT NOT NULL, PRIMARY KEY (x), CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))"},
 	}
 }
 
 // TestOracle_ForeignKeyMigrationApplyCorrectness proves gate 2 for every FK case: the generated
 // DDL transforms a real `from` database into a `to`-equal one (child compared via canonical
-// readback), including the PhasePost ordering and backing-index handling.
+// readback), including the PhasePost ordering.
 func TestOracle_ForeignKeyMigrationApplyCorrectness(t *testing.T) {
 	for _, version := range oracleVersions() {
 		o := oceanBaseOracle(t)
@@ -158,11 +181,8 @@ func assertFKApplyCorrect(t testing.TB, o *oracleConn, n *Normalizer, fc fkMigra
 	defer func() { _ = conn.Close() }()
 
 	// Apply the migration statements one at a time on the same connection.
-	for _, op := range plan.Ops {
-		if _, err := conn.ExecContext(ctx, op.SQL); err != nil {
-			t.Fatalf("[%s] APPLY FAILED for %s:\n  stmt: %s\n  err: %v\n  full plan:\n%s",
-				o.name, fc.id, op.SQL, err, plan.SQL())
-		}
+	if !o.applyPlan(t, conn, plan) {
+		return
 	}
 
 	// Read the child back and compare to `to`'s child. Wrap both in the same logical db (the diff
@@ -288,6 +308,13 @@ func fkMultiCases() []fkMultiCase {
 			"CREATE TABLE p (id INT NOT NULL PRIMARY KEY); CREATE TABLE c (id INT PRIMARY KEY, pid INT, FOREIGN KEY (pid) REFERENCES p(id), FOREIGN KEY (pid) REFERENCES p(id))",
 			"CREATE TABLE p (id INT NOT NULL PRIMARY KEY); CREATE TABLE c (id INT PRIMARY KEY, pid INT)",
 			[]string{"p", "c"}},
+		// OceanBase's own: the primary key of a table a foreign key references is replaced.
+		// DROP PRIMARY KEY alone is refused on such a table (4714), whichever of its keys the
+		// foreign key names, so the plan replaces the key in one statement.
+		{"replace-primary-key-of-referenced-table",
+			"CREATE TABLE p (id INT NOT NULL, u INT NOT NULL, PRIMARY KEY (id), UNIQUE KEY uu (u)); CREATE TABLE c (id INT PRIMARY KEY, pu INT, CONSTRAINT fk FOREIGN KEY (pu) REFERENCES p(u))",
+			"CREATE TABLE p (id INT NOT NULL, u INT NOT NULL, PRIMARY KEY (id, u), UNIQUE KEY uu (u)); CREATE TABLE c (id INT PRIMARY KEY, pu INT, CONSTRAINT fk FOREIGN KEY (pu) REFERENCES p(u))",
+			[]string{"p", "c"}},
 	}
 }
 
@@ -333,11 +360,8 @@ func assertFKMultiApplyCorrect(t testing.TB, o *oracleConn, n *Normalizer, mc fk
 	}
 	defer func() { _ = conn.Close() }()
 
-	for _, op := range plan.Ops {
-		if _, err := conn.ExecContext(ctx, op.SQL); err != nil {
-			t.Fatalf("[%s] APPLY FAILED for %s:\n  stmt: %s\n  err: %v\n  full plan:\n%s",
-				o.name, mc.id, op.SQL, err, plan.SQL())
-		}
+	if !o.applyPlan(t, conn, plan) {
+		return
 	}
 
 	// Read every `to` table back and compare to `to`. foreign_key_checks=0 guards a forward FK

@@ -1420,9 +1420,36 @@
 | CREATE TABLE t (id INT NOT NULL, dt DATE NOT NULL, PRIMARY KEY (id, dt)) PARTITION BY RANGE (YEAR(dt)) (PARTITION p0 VALUES LESS THAN (2010), PARTITION pmax VALUES LESS THAN MAXVALUE)
 < ok 0 0
 > exec
-| ALTER TABLE `pa_repartition_drop_old_key_column`.`t` REMOVE PARTITIONING
-< error
-| 1064 42000 …near 'PARTITIONING' at line 1
+| ALTER TABLE `pa_repartition_drop_old_key_column`.`t` /*!50100 PARTITION BY HASH (`id`)
+| (PARTITION p0 ENGINE = innodb,
+|  PARTITION p1 ENGINE = innodb,
+|  PARTITION p2 ENGINE = innodb,
+|  PARTITION p3 ENGINE = innodb) */
+< ok 0 0
+> exec
+| ALTER TABLE `pa_repartition_drop_old_key_column`.`t` DROP PRIMARY KEY, ADD PRIMARY KEY (`id`)
+< ok 0 0
+> exec
+| ALTER TABLE `pa_repartition_drop_old_key_column`.`t` DROP COLUMN `dt`
+< ok 0 0
+> query
+| SHOW CREATE TABLE pa_repartition_drop_old_key_column.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by hash(`id`)
+| (partition `p0`,
+| partition `p1`,
+| partition `p2`,
+| partition `p3`)
 > exec
 | DROP DATABASE IF EXISTS pto_repartition_drop_special_col
 < ok 0 0
@@ -1495,9 +1522,32 @@
 | CREATE TABLE t (`a-b` INT NOT NULL, id INT NOT NULL, PRIMARY KEY (`a-b`, id)) PARTITION BY HASH (`a-b`) PARTITIONS 4
 < ok 0 0
 > exec
-| ALTER TABLE `pa_repartition_drop_special_col`.`t` REMOVE PARTITIONING
-< error
-| 1064 42000 …near 'PARTITIONING' at line 1
+| ALTER TABLE `pa_repartition_drop_special_col`.`t` /*!50100 PARTITION BY HASH (`id`)
+| (PARTITION p0 ENGINE = innodb,
+|  PARTITION p1 ENGINE = innodb) */
+< ok 0 0
+> exec
+| ALTER TABLE `pa_repartition_drop_special_col`.`t` DROP PRIMARY KEY, ADD PRIMARY KEY (`id`)
+< ok 0 0
+> exec
+| ALTER TABLE `pa_repartition_drop_special_col`.`t` DROP COLUMN `a-b`
+< ok 0 0
+> query
+| SHOW CREATE TABLE pa_repartition_drop_special_col.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by hash(`id`)
+| (partition `p0`,
+| partition `p1`)
 > exec
 | DROP DATABASE IF EXISTS pto_create_range_bound_arith
 < ok 0 0

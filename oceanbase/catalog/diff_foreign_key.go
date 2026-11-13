@@ -35,10 +35,8 @@ import (
 // `<table>_ibfk_<N>`. Two foreign keys that differ only in such names are one key
 // (forgetMadeUpRenames in diff_check.go).
 //
-// FK-implicit backing indexes are NOT this differ's concern here — they are diffed (and
-// excluded) by the index node (diff_index.go fkImplicitIndexNames). This differ only reports
-// the FK constraint change; the generator (migration_foreign_key.go) owns the lifecycle of the
-// leftover backing index that MySQL leaves after a DROP FOREIGN KEY.
+// No index is this differ's concern: a foreign key has none of its own on OceanBase
+// (diff_index.go), so this differ reports only the constraint.
 func diffForeignKeys(from, to *Table, n *Normalizer) []ForeignKeyDiffEntry {
 	fromMap := foreignKeyMap(from)
 	toMap := foreignKeyMap(to)

@@ -551,8 +551,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			}
 		}
 		tbl.Constraints = append(tbl.Constraints, fkCon)
-		// Add implicit backing index for FK if needed.
-		ensureFKBackingIndex(tbl, fkIndexName(con), cols, buildIndexColumns(con))
+		// No index is made for it: see the foreign keys of CREATE TABLE.
 
 	case nodes.ConstrCheck:
 		conName := con.Name
@@ -719,8 +718,8 @@ func (c *Catalog) alterDropConstraint(tbl *Table, cmd *nodes.AlterTableCmd) erro
 		return errCantDropKey(name)
 	}
 
-	// For FK constraints, MySQL keeps the backing index when dropping the FK.
-	// For other constraints (e.g., PRIMARY KEY), also remove the corresponding index.
+	// A foreign key has no index of its own, so an index of its name is another object and
+	// stays. For other constraints (e.g., PRIMARY KEY), also remove the corresponding index.
 	if !isForeignKey {
 		for i, idx := range tbl.Indexes {
 			if toLower(idx.Name) == key {

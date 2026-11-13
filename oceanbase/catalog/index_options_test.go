@@ -252,9 +252,10 @@ func TestVectorIndexStoringMigration(t *testing.T) {
 	}
 }
 
-// TestStoringKeepsAnIndexOutOfTheBackingSet: an index that stores columns is no index a foreign
-// key made for itself, however it is named, so the diff and the plan both see it.
-func TestStoringKeepsAnIndexOutOfTheBackingSet(t *testing.T) {
+// TestStoringOnAnIndexOverAForeignKey: an index over a foreign key's column, named as MySQL
+// would name the one it adds, is the user's like any other, so the diff and the plan both
+// see its STORING.
+func TestStoringOnAnIndexOverAForeignKey(t *testing.T) {
 	load := func(storing string) *Catalog {
 		c := New()
 		mustExec(t, c, "CREATE DATABASE d; USE d; CREATE TABLE p (id INT PRIMARY KEY); "+

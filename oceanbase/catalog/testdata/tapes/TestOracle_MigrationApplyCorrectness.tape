@@ -2353,7 +2353,180 @@
 |   PRIMARY KEY (`id`)
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
-| ALTER TABLE `pa_modify_generated_expr_3ab763b0`.`t` MODIFY COLUMN `g` int GENERATED ALWAYS AS (((`a` + 2))) STORED
+| ALTER TABLE `pa_modify_generated_expr_3ab763b0`.`t` DROP COLUMN `g`
+< ok 0 0
+> exec
+| ALTER TABLE `pa_modify_generated_expr_3ab763b0`.`t` ADD COLUMN `g` int GENERATED ALWAYS AS (((`a` + 2))) STORED
+< ok 0 0
+> query
+| SHOW CREATE TABLE pa_modify_generated_expr_3ab763b0.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `g` int(11) GENERATED ALWAYS AS ((`a` + 2)) STORED,
+|   PRIMARY KEY (`id`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS pa_modify_generated_expr_indexed_12220534_to
+< ok 0 0
+> exec
+| CREATE DATABASE pa_modify_generated_expr_indexed_12220534_to DEFAULT CHARSET=utf8mb4
+< ok 1 0
+> exec
+| USE pa_modify_generated_expr_indexed_12220534_to
+< ok 0 0
+> exec
+| CREATE TABLE t (id INT PRIMARY KEY, a INT, g INT GENERATED ALWAYS AS (a+2) VIRTUAL, KEY kg (g), KEY kga (g, a), KEY ka (a))
+< ok 0 0
+> query
+| SHOW CREATE TABLE pa_modify_generated_expr_indexed_12220534_to.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `g` int(11) GENERATED ALWAYS AS ((`a` + 2)) VIRTUAL,
+|   PRIMARY KEY (`id`),
+|   KEY `kg` (`g`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `kga` (`g`, `a`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `ka` (`a`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS pa_modify_generated_expr_indexed_12220534
+< ok 0 0
+> exec
+| CREATE DATABASE pa_modify_generated_expr_indexed_12220534 DEFAULT CHARSET=utf8mb4
+< ok 1 0
+> exec
+| USE pa_modify_generated_expr_indexed_12220534
+< ok 0 0
+> exec
+| CREATE TABLE t (id INT PRIMARY KEY, a INT, g INT GENERATED ALWAYS AS (a+1) VIRTUAL, KEY kg (g), KEY kga (g, a), KEY ka (a))
+< ok 0 0
+> query
+| SHOW CREATE TABLE pa_modify_generated_expr_indexed_12220534.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `g` int(11) GENERATED ALWAYS AS ((`a` + 1)) VIRTUAL,
+|   PRIMARY KEY (`id`),
+|   KEY `kg` (`g`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `kga` (`g`, `a`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `ka` (`a`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| ALTER TABLE `pa_modify_generated_expr_indexed_12220534`.`t` DROP INDEX `kg`
+< ok 0 0
+> exec
+| ALTER TABLE `pa_modify_generated_expr_indexed_12220534`.`t` DROP INDEX `kga`
+< ok 0 0
+> exec
+| ALTER TABLE `pa_modify_generated_expr_indexed_12220534`.`t` DROP COLUMN `g`
+< ok 0 0
+> exec
+| ALTER TABLE `pa_modify_generated_expr_indexed_12220534`.`t` ADD COLUMN `g` int GENERATED ALWAYS AS (((`a` + 2))) VIRTUAL
+< ok 0 0
+> exec
+| ALTER TABLE `pa_modify_generated_expr_indexed_12220534`.`t` ADD KEY `kg` (`g`) LOCAL
+< ok 0 0
+> exec
+| ALTER TABLE `pa_modify_generated_expr_indexed_12220534`.`t` ADD KEY `kga` (`g`,`a`) LOCAL
+< ok 0 0
+> query
+| SHOW CREATE TABLE pa_modify_generated_expr_indexed_12220534.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `g` int(11) GENERATED ALWAYS AS ((`a` + 2)) VIRTUAL,
+|   PRIMARY KEY (`id`),
+|   KEY `ka` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `kg` (`g`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `kga` (`g`, `a`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS pa_modify_generated_expr_under_check_760670ca_to
+< ok 0 0
+> exec
+| CREATE DATABASE pa_modify_generated_expr_under_check_760670ca_to DEFAULT CHARSET=utf8mb4
+< ok 1 0
+> exec
+| USE pa_modify_generated_expr_under_check_760670ca_to
+< ok 0 0
+> exec
+| CREATE TABLE t (id INT PRIMARY KEY, a INT, g INT GENERATED ALWAYS AS (a+2) STORED, CONSTRAINT c_g CHECK (g > 0))
+< ok 0 0
+> query
+| SHOW CREATE TABLE pa_modify_generated_expr_under_check_760670ca_to.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `g` int(11) GENERATED ALWAYS AS ((`a` + 2)) STORED,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `c_g` CHECK ((`g` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS pa_modify_generated_expr_under_check_760670ca
+< ok 0 0
+> exec
+| CREATE DATABASE pa_modify_generated_expr_under_check_760670ca DEFAULT CHARSET=utf8mb4
+< ok 1 0
+> exec
+| USE pa_modify_generated_expr_under_check_760670ca
+< ok 0 0
+> exec
+| CREATE TABLE t (id INT PRIMARY KEY, a INT, g INT GENERATED ALWAYS AS (a+1) STORED, CONSTRAINT c_g CHECK (g > 0))
+< ok 0 0
+> query
+| SHOW CREATE TABLE pa_modify_generated_expr_under_check_760670ca.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `id` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `g` int(11) GENERATED ALWAYS AS ((`a` + 1)) STORED,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `c_g` CHECK ((`g` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| ALTER TABLE `pa_modify_generated_expr_under_check_760670ca`.`t` MODIFY COLUMN `g` int GENERATED ALWAYS AS (((`a` + 2))) STORED
 < error
 | 1235 0A000 Modify generated column definition not supported
 > exec

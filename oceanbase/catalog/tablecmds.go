@@ -126,15 +126,6 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	hasPK := false
 	autoIncrementColumn := ""
 
-	// Defer FK backing index creation until after all explicit indexes are added,
-	// so that explicit indexes can satisfy FK requirements without creating duplicates.
-	type pendingFK struct {
-		conName string
-		cols    []string
-		idxCols []*IndexColumn
-	}
-	var pendingFKs []pendingFK
-
 	// unnamedFKCount counts FKs that received an auto-generated name in this
 	// CREATE TABLE statement. Matches MySQL 8.0's generate_fk_name() counter,
 	// which is initialized to 0 for CREATE TABLE and incremented per unnamed FK,
@@ -519,8 +510,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				OnDelete:    refActionToString(con.OnDelete),
 				OnUpdate:    refActionToString(con.OnUpdate),
 			})
-			// Defer implicit backing index for FK until after all explicit indexes are added.
-			pendingFKs = append(pendingFKs, pendingFK{conName: fkIndexName(con), cols: cols, idxCols: buildIndexColumns(con)})
+			// No index is made for the foreign key: OceanBase makes none, where MySQL
+			// adds one when no index serves it. TestOracle_OceanBaseForeignKeyIndex
+			// holds this to the engine.
 
 		case nodes.ConstrCheck:
 			conName := con.Name
@@ -662,11 +654,6 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			addGeneratedInvisiblePrimaryKey(tbl)
 			hasPK = true
 		}
-	}
-
-	// Process deferred FK backing indexes now that all explicit indexes are in place.
-	for _, fk := range pendingFKs {
-		ensureFKBackingIndex(tbl, fk.conName, fk.cols, fk.idxCols)
 	}
 
 	// Validate foreign key constraints (unless foreign_key_checks=0).
@@ -1673,60 +1660,6 @@ func validateNonPrimaryIndexName(name string) error {
 		return errWrongNameForIndex(name)
 	}
 	return nil
-}
-
-// hasIndexCoveringColumns returns true if the table already has an index whose
-// leading columns match the given FK columns (left-prefix match). MySQL 8.0
-// reuses such an index instead of creating an implicit backing index for the FK.
-func hasIndexCoveringColumns(tbl *Table, fkCols []string) bool {
-	for _, idx := range tbl.Indexes {
-		if len(idx.Columns) < len(fkCols) {
-			continue
-		}
-		match := true
-		for i, col := range fkCols {
-			if !strings.EqualFold(idx.Columns[i].Name, col) {
-				match = false
-				break
-			}
-		}
-		if match {
-			return true
-		}
-	}
-	return false
-}
-
-// fkIndexName returns the name of the index a foreign key adds when none
-// serves it: the CONSTRAINT symbol, else the name after FOREIGN KEY, else
-// "" for one named after its first column. The foreign key itself takes
-// the symbol, or a generated name without one, never the name after
-// FOREIGN KEY (verified on 8.0.46).
-func fkIndexName(con *nodes.Constraint) string {
-	if con.Name != "" {
-		return con.Name
-	}
-	return con.IndexName
-}
-
-// ensureFKBackingIndex creates an implicit backing index for FK columns
-// if no existing index already covers them (MySQL 8.0 behavior).
-// MySQL uses the constraint name as the index name when provided;
-// otherwise falls back to the first column name via allocIndexName.
-func ensureFKBackingIndex(tbl *Table, conName string, cols []string, idxCols []*IndexColumn) {
-	if hasIndexCoveringColumns(tbl, cols) {
-		return
-	}
-	idxName := conName
-	if idxName == "" {
-		idxName = allocIndexName(tbl, cols[0])
-	}
-	tbl.Indexes = append(tbl.Indexes, &Index{
-		Name:    idxName,
-		Table:   tbl,
-		Columns: idxCols,
-		Visible: true,
-	})
 }
 
 func indexNameExists(tbl *Table, name string) bool {

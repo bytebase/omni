@@ -261,6 +261,11 @@ func sridMigrationProbes() []migrationProbe {
 		{"add-column-with-srid-zero", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY)",
 			"CREATE TABLE t (id INT PRIMARY KEY, g GEOMETRY NOT NULL SRID 0)"},
+		// ---- a NOT NULL spatial column changed with its SRID kept: OceanBase takes the
+		//      MODIFY only from nullable (1138), so the plan goes through nullable ----
+		{"modify-not-null-keeping-srid", "t",
+			"CREATE TABLE t (id INT PRIMARY KEY, g GEOMETRY NOT NULL SRID 0)",
+			"CREATE TABLE t (id INT PRIMARY KEY, g GEOMETRY NOT NULL SRID 0 COMMENT 'c')"},
 		// ---- CREATE table with a SRID-0 column + spatial index (from empty) ----
 		{"create-srid-zero-spatial-index", "t", "",
 			"CREATE TABLE t (id INT PRIMARY KEY, g GEOMETRY NOT NULL SRID 0, SPATIAL INDEX sp_g (g))"},

@@ -97,10 +97,8 @@ func TestOracle_RoutineRecreatePreservesSQLMode(t *testing.T) {
 			if _, err := conn.ExecContext(ctx, "SET SESSION sql_mode = "+quoteStringLiteral(deployMode)); err != nil {
 				t.Fatalf("[%s] set deploy mode: %v", o.name, err)
 			}
-			for _, op := range plan.Ops {
-				if _, err := conn.ExecContext(ctx, op.SQL); err != nil {
-					t.Fatalf("[%s] APPLY FAILED:\n  stmt: %s\n  err: %v\n  plan:\n%s", o.name, op.SQL, err, plan.SQL())
-				}
+			if !o.applyPlan(t, conn, plan) {
+				return
 			}
 
 			got := routineSQLMode(t, conn, ctx, db, "f")
@@ -169,10 +167,8 @@ func TestOracle_EventAlterPreservesSQLMode(t *testing.T) {
 			if _, err := conn.ExecContext(ctx, "SET SESSION sql_mode = "+quoteStringLiteral(deployMode)); err != nil {
 				t.Fatalf("[%s] set deploy mode: %v", o.name, err)
 			}
-			for _, op := range plan.Ops {
-				if _, err := conn.ExecContext(ctx, op.SQL); err != nil {
-					t.Fatalf("[%s] APPLY FAILED:\n  stmt: %s\n  err: %v\n  plan:\n%s", o.name, op.SQL, err, plan.SQL())
-				}
+			if !o.applyPlan(t, conn, plan) {
+				return
 			}
 
 			gotMode, gotTZ := eventSQLModeTZ(t, conn, ctx, db, "e")
