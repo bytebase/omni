@@ -36,8 +36,10 @@ const (
 // parses, where the grammar gives the name a rule of its own: MariaDB's
 // charset_name is any identifier, and an unknown one answers before a later
 // syntax error, so the rows that pass through it would all read as
-// accepted. The rule's own alternatives keep their rows, written from
-// their own symbols.
+// accepted. It is also for the plainest expression, where the grammar's
+// order does not make it a name: PartiQL lists CURRENT_USER first among its
+// one-token terms, so exprTerm is sampled as a name. The rule's own
+// alternatives keep their rows, written from their own symbols.
 type Tokens struct {
 	forms map[string]string
 }

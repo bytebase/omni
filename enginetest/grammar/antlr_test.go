@@ -393,3 +393,324 @@ fragment N : [nN] ; fragment I : [iI] ; fragment G : [gG] ;
 		}
 	}
 }
+
+// TestReadANTLRReservesTheWordsItsLexerSpells pins what a vendor's lexer
+// rules say of keywords. ANTLR gives a text two rules match to the one
+// written first, so a word a token spells before the identifier rule is
+// never a name, except where a parser rule lets the token stand for one, as
+// name does for FIRST. A grammar with no lexer rules, as one converted from
+// docs is, reserves nothing this way.
+func TestReadANTLRReservesTheWordsItsLexerSpells(t *testing.T) {
+	const parser = `grammar S;
+s : K_SELECT name (K_FROM name)? ('LIMIT' NUMBER)? ;
+name : ID | K_FIRST ;
+`
+	const lexer = `K_SELECT : S E L E C T ;
+K_FROM : F R O M ;
+K_FIRST : 'FIRST' ;
+ORDER : 'ASC' | 'DESC' ;
+ID : [a-zA-Z_] [a-zA-Z_0-9]* ;
+NUMBER : [0-9]+ ;
+LATE : 'late' ;
+fragment S : [sS] ; fragment E : [eE] ; fragment L : [lL] ; fragment C : [cC] ; fragment T : [tT] ;
+fragment F : ('f'|'F') ; fragment R : 'r' | 'R' ; fragment O : ('O' | 'o') ; fragment M : 'm' ;
+`
+	g, err := ReadANTLR("\ufeff"+parser+lexer, tokens(map[string]string{"ID": "a", "NUMBER": "1"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := g.Recognizer()
+	for sql, want := range map[string]bool{
+		"SELECT a":          true,
+		"SELECT a FROM a":   true,
+		"SELECT first":      true,  // the parser rule admits the keyword
+		"SELECT from":       false, // a keyword spelled ('f'|'F') ('r'|'R') ..., as ANTLR 3 grammars do
+		"SELECT a from a":   true,
+		"SELECT a frox a":   false, // and it is no class of names
+		"SELECT select":     false,
+		"SELECT a FROM asc": false, // a word of a token of several spellings
+		"SELECT limit":      false, // a literal of a parser rule
+		"SELECT a LIMIT 1":  true,
+		"SELECT late":       true, // spelled after the last class token: ID takes it
+		"SELECT s":          true, // a fragment is no token
+	} {
+		if got := rec.Accepts(sql); got != want {
+			t.Errorf("Accepts(%q) = %v, want %v", sql, got, want)
+		}
+	}
+
+	docs, err := ReadANTLR(`grammar D;
+s : 'SELECT' ID ('FROM' ID)? ;
+`, tokens(map[string]string{"ID": "a"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !docs.Recognizer().Accepts("SELECT from") {
+		t.Error("a grammar with no lexer rules reserved a word: only its token table can")
+	}
+}
+
+// TestRecognizerTellsQuotedNamesByTheirQuotes pins the classes of names: a
+// token sampled by a bare name takes a name however it is quoted, and one
+// sampled in quotes takes only names in those quotes, as PartiQL's lexer
+// reads "a" as an identifier and `a` as an Ion value.
+func TestRecognizerTellsQuotedNamesByTheirQuotes(t *testing.T) {
+	g, err := ReadANTLR(`grammar S;
+s : 'SELECT' ( ID | QUOTED | ION 'ION' ) ;
+`, tokens(map[string]string{"ID": "a", "QUOTED": `"a"`, "ION": "`1`"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := g.Recognizer()
+	for sql, want := range map[string]bool{
+		"SELECT b":           true,
+		`SELECT "b"`:         true,
+		"SELECT `b`":         true, // ID is sampled bare: a name in any quotes
+		`SELECT "b" ION`:     false,
+		"SELECT `{a:1}` ION": true,
+		"SELECT b ION":       false,
+	} {
+		if got := rec.Accepts(sql); got != want {
+			t.Errorf("Accepts(%q) = %v, want %v", sql, got, want)
+		}
+	}
+}
+
+// TestReadANTLRSamplesARuleFromTheTokenTable pins a token table row that
+// names a rule of a .g4, as one may name a rule of a bison grammar: other
+// rules' rows write its text where it stands, and its own alternatives keep
+// their rows.
+func TestReadANTLRSamplesARuleFromTheTokenTable(t *testing.T) {
+	g, err := ReadANTLR(`grammar S;
+s : 'SELECT' term ('+' term)? ;
+term : 'CURRENT_USER' | ID ;
+`, tokens(map[string]string{"ID": "a", "term": "a"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows, _ := g.Rows()
+	got := map[string]string{}
+	for _, r := range rows {
+		got[r.Rule] = r.Statement
+	}
+	for rule, want := range map[string]string{
+		"s(+_term)?/+_term": "SELECT a + a",
+		"term/CURRENT_USER": "SELECT CURRENT_USER",
+		"term/ID":           "SELECT a",
+	} {
+		if got[rule] != want {
+			t.Errorf("%s = %q, want %q", rule, got[rule], want)
+		}
+	}
+}
+
+// TestReadANTLRReservesOnlyWhatNoEarlierClassTakes pins precedence against
+// the class token that matches the word, not the last class token: a
+// keyword written after an identifier rule that matches it is never
+// produced, so its word stays a name, whatever class rules follow.
+func TestReadANTLRReservesOnlyWhatNoEarlierClassTakes(t *testing.T) {
+	g, err := ReadANTLR(`grammar S;
+s : 'SELECT' ID ;
+ID : [a-zA-Z_][a-zA-Z_0-9]* ;
+LATE : 'late' ;
+EARLY_NUMBER : [0-9]+ ;
+FIRST : 'first' ;
+WS : [ \t\r\n]+ -> skip ;
+`, tokens(map[string]string{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := g.Recognizer()
+	for sql, want := range map[string]bool{
+		"SELECT late":  true, // ID is written first and matches it
+		"SELECT first": true,
+		"SELECT a":     true,
+	} {
+		if got := rec.Accepts(sql); got != want {
+			t.Errorf("Accepts(%q) = %v, want %v", sql, got, want)
+		}
+	}
+
+	// A class written first that does not match the word leaves it reserved,
+	// and a caseInsensitive grammar's [A-Z] matches either case.
+	g, err = ReadANTLR(`grammar S;
+options { caseInsensitive = true; }
+s : 'SELECT' ID ;
+NUMBER : [0-9]+ ;
+FROM : 'FROM' ;
+ID : [A-Z_][A-Z_0-9]* ;
+LATE : 'late' ;
+`, tokens(map[string]string{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec = g.Recognizer()
+	for sql, want := range map[string]bool{
+		"SELECT from": false, // NUMBER does not match it: FROM takes it
+		"SELECT late": true,  // ID matches it in either case
+	} {
+		if got := rec.Accepts(sql); got != want {
+			t.Errorf("caseInsensitive: Accepts(%q) = %v, want %v", sql, got, want)
+		}
+	}
+}
+
+// TestReadANTLRKeepsTheCaseOfStringSpellings pins what case folding
+// touches: a keyword spelled in either case is one word, but a token whose
+// spellings are strings that differ in case keeps each, since the
+// recognizer compares a string exactly.
+func TestReadANTLRKeepsTheCaseOfStringSpellings(t *testing.T) {
+	g, err := ReadANTLR(`grammar S;
+s : 'SELECT' VALUE ;
+VALUE : '\'a\'' | '\'A\'' ;
+`, tokens(map[string]string{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := g.Recognizer()
+	for sql, want := range map[string]bool{
+		"SELECT 'a'": true,
+		"SELECT 'A'": true,
+		"SELECT 'b'": false,
+	} {
+		if got := rec.Accepts(sql); got != want {
+			t.Errorf("Accepts(%q) = %v, want %v", sql, got, want)
+		}
+	}
+
+	// A keyword spelled letter by letter, longer than maxSpellings would
+	// allow were each case a text of its own, is still one keyword.
+	g, err = ReadANTLR(`grammar S;
+s : 'SELECT' K_KEYSPACES ID ;
+K_KEYSPACES : K E Y S P A C E S ;
+ID : [a-z]+ ;
+fragment K : ('k'|'K') ; fragment E : ('e'|'E') ; fragment Y : ('y'|'Y') ; fragment S : ('s'|'S') ;
+fragment P : ('p'|'P') ; fragment A : ('a'|'A') ; fragment C : ('c'|'C') ;
+`, tokens(map[string]string{"ID": "a"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec = g.Recognizer()
+	for sql, want := range map[string]bool{
+		"SELECT keyspaces a": true,
+		"SELECT KeySpaces a": true,
+		"SELECT keyspace a":  false,
+		"SELECT a keyspaces": false, // reserved: no name
+	} {
+		if got := rec.Accepts(sql); got != want {
+			t.Errorf("long keyword: Accepts(%q) = %v, want %v", sql, got, want)
+		}
+	}
+}
+
+// TestTokenTablePicksASpelling pins a token table row for a token of a few
+// spellings: rows write the spelling it names, and the recognizer still
+// matches every spelling the lexer rule has.
+func TestTokenTablePicksASpelling(t *testing.T) {
+	g, err := ReadANTLR(`grammar S;
+s : 'DROP' K_TABLE ID ;
+K_TABLE : 'COLUMNFAMILY' | 'TABLE' ;
+ID : [a-z]+ ;
+`, tokens(map[string]string{"ID": "a", "K_TABLE": "TABLE"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows, _ := g.Rows()
+	if rows[0].Statement != "DROP TABLE a" {
+		t.Errorf("first row %q, want DROP TABLE a", rows[0].Statement)
+	}
+	rec := g.Recognizer()
+	for sql, want := range map[string]bool{
+		"DROP TABLE a":        true,
+		"DROP columnfamily a": true,
+		"DROP VIEW a":         false,
+	} {
+		if got := rec.Accepts(sql); got != want {
+			t.Errorf("Accepts(%q) = %v, want %v", sql, got, want)
+		}
+	}
+}
+
+// TestParserLiteralTakesItsLexerRulesPrecedence pins a parser literal that
+// a lexer rule spells alone: it is that rule's token, so an identifier rule
+// written before it takes the word, while a literal no rule spells is an
+// implicit token defined first.
+func TestParserLiteralTakesItsLexerRulesPrecedence(t *testing.T) {
+	g, err := ReadANTLR(`grammar S;
+s : 'SELECT' ID | 'late' | 'early' ;
+ID : [a-z]+ ;
+LATE : 'late' ;
+`, tokens(map[string]string{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := g.Recognizer()
+	for sql, want := range map[string]bool{
+		"SELECT late":  true, // ID is written before LATE, which 'late' names
+		"late":         true,
+		"SELECT early": false, // 'early' is an implicit token, ahead of ID
+		"early":        true,
+	} {
+		if got := rec.Accepts(sql); got != want {
+			t.Errorf("Accepts(%q) = %v, want %v", sql, got, want)
+		}
+	}
+}
+
+// TestCaseIsKeptInsideAQuotedToken pins folding against a string token
+// built from pieces: '\” ('a' | 'A') '\” is two texts, not one.
+func TestCaseIsKeptInsideAQuotedToken(t *testing.T) {
+	for _, value := range []string{`'\'' ('a' | 'A') '\''`, `'\'' [aA] '\''`, `'\'' LETTER '\'' ; fragment LETTER : 'a' | 'A'`} {
+		g, err := ReadANTLR("grammar S;\ns : 'SELECT' VALUE ;\nVALUE : "+value+" ;\n", tokens(map[string]string{}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		rec := g.Recognizer()
+		for sql, want := range map[string]bool{"SELECT 'a'": true, "SELECT 'A'": true, "SELECT 'b'": false} {
+			if got := rec.Accepts(sql); got != want {
+				t.Errorf("VALUE : %s: Accepts(%q) = %v, want %v", value, sql, got, want)
+			}
+		}
+	}
+}
+
+// TestCaseIsFoldedOutsideQuotes pins a keyword with punctuation, as
+// Cassandra's '-' N A N: it is one text in capitals, matched in any case.
+func TestCaseIsFoldedOutsideQuotes(t *testing.T) {
+	g, err := ReadANTLR(`grammar S;
+s : 'SELECT' K_NEGATIVE_NAN ;
+K_NEGATIVE_NAN : '-' N A N ;
+fragment N : ('n'|'N') ; fragment A : ('a'|'A') ;
+`, tokens(map[string]string{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rows, _ := g.Rows(); rows[0].Statement != "SELECT -NAN" {
+		t.Errorf("first row %q, want SELECT -NAN", rows[0].Statement)
+	}
+	rec := g.Recognizer()
+	for sql, want := range map[string]bool{"SELECT -nan": true, "SELECT -NaN": true, "SELECT -na": false} {
+		if got := rec.Accepts(sql); got != want {
+			t.Errorf("Accepts(%q) = %v, want %v", sql, got, want)
+		}
+	}
+}
+
+// TestUnreachableTokensReserveNothing pins a token the token table marks
+// unreachable: the lexer never produces it, so its word stays a name.
+func TestUnreachableTokensReserveNothing(t *testing.T) {
+	g, err := ReadANTLR(`grammar S;
+s : 'SELECT' ID | 'SELECT' DIALECT_ONLY 'X' ;
+DIALECT_ONLY : 'special' ;
+ID : [a-z]+ ;
+`, tokens(map[string]string{"DIALECT_ONLY": Unreachable}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := g.Recognizer()
+	for sql, want := range map[string]bool{"SELECT special": true, "SELECT special X": false} {
+		if got := rec.Accepts(sql); got != want {
+			t.Errorf("Accepts(%q) = %v, want %v", sql, got, want)
+		}
+	}
+}
