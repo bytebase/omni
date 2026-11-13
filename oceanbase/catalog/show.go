@@ -489,11 +489,11 @@ func showConstraint(con *Constraint) string {
 		b.WriteString(strings.Join(refCols, ", "))
 		b.WriteString(")")
 
-		// ON DELETE — omit if RESTRICT or NO ACTION (MySQL defaults).
+		// ON DELETE — omitted when it is the default.
 		if con.OnDelete != "" && !isFKDefault(con.OnDelete) {
 			b.WriteString(fmt.Sprintf(" ON DELETE %s", strings.ToUpper(con.OnDelete)))
 		}
-		// ON UPDATE — omit if RESTRICT or NO ACTION (MySQL defaults).
+		// ON UPDATE — omitted when it is the default.
 		if con.OnUpdate != "" && !isFKDefault(con.OnUpdate) {
 			b.WriteString(fmt.Sprintf(" ON UPDATE %s", strings.ToUpper(con.OnUpdate)))
 		}
@@ -607,9 +607,10 @@ func unquoteTableOption(s string) string {
 
 // isFKDefault returns true if the action is a MySQL FK default that should not be shown.
 // MySQL 8.0 hides NO ACTION (the implicit default) but shows RESTRICT when explicitly specified.
+// isFKDefault reports whether action is what an omitted ON DELETE or ON UPDATE reads as,
+// which is RESTRICT in OceanBase (refActionToString).
 func isFKDefault(action string) bool {
-	upper := strings.ToUpper(action)
-	return upper == "NO ACTION"
+	return strings.EqualFold(action, "RESTRICT")
 }
 
 func isEnumSetType(dt string) bool {

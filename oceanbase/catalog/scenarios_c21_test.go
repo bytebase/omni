@@ -217,8 +217,6 @@ CREATE TABLE child (p INT, FOREIGN KEY (p) REFERENCES parent(id));`
 			&deleteRule, &updateRule)
 		assertStringEq(t, "oracle DELETE_RULE", deleteRule, "RESTRICT")
 		assertStringEq(t, "oracle UPDATE_RULE", updateRule, "RESTRICT")
-		// omni gap: the catalog renders an omitted action as NO ACTION, as
-		// MySQL does (refActionToString maps RefActNone to it).
 		tbl := c.GetDatabase("testdb").GetTable("child")
 		if tbl == nil {
 			t.Errorf("omni: table child missing")
@@ -235,8 +233,8 @@ CREATE TABLE child (p INT, FOREIGN KEY (p) REFERENCES parent(id));`
 			t.Errorf("omni: FK constraint missing on child")
 			return
 		}
-		assertStringEq(t, "omni FK OnDelete", fk.OnDelete, "NO ACTION")
-		assertStringEq(t, "omni FK OnUpdate", fk.OnUpdate, "NO ACTION")
+		assertStringEq(t, "omni FK OnDelete", fk.OnDelete, "RESTRICT")
+		assertStringEq(t, "omni FK OnUpdate", fk.OnUpdate, "RESTRICT")
 	})
 
 	// --- 21.6 FK ON DELETE present, ON UPDATE omitted ---------------------
@@ -274,9 +272,8 @@ CREATE TABLE child (p INT, FOREIGN KEY (p) REFERENCES parent(id) ON DELETE CASCA
 			t.Errorf("omni: FK constraint missing")
 			return
 		}
-		// omni gap: NO ACTION for the omitted ON UPDATE, as in MySQL.
 		assertStringEq(t, "omni FK OnDelete", fk.OnDelete, "CASCADE")
-		assertStringEq(t, "omni FK OnUpdate", fk.OnUpdate, "NO ACTION")
+		assertStringEq(t, "omni FK OnUpdate", fk.OnUpdate, "RESTRICT")
 	})
 
 	// --- 21.7 CREATE INDEX without USING -> nullptr (engine picks) --------

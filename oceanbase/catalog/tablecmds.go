@@ -382,7 +382,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		switch con.Type {
 		case nodes.ConstrPrimaryKey:
 			if hasPK {
-				return errMultiplePriKey()
+				return errDuplicatedPriKey()
 			}
 			if err := validatePrimaryKeyColumns(tbl, cols); err != nil {
 				return err
@@ -461,8 +461,13 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			if conName == "" {
 				conName = c.madeUpConstraintName(tableName, madeUpForeignKeyInfix)
 			}
-			if foreignKeyConstraintNameExists(db, tbl, conName) {
-				return errFKDupName(conName)
+			// A name twice in one table is 1215 and a name another table's key has is
+			// 1022, where MySQL answers ER_FK_DUP_NAME (1826) for both.
+			if constraintNameExistsInTable(tbl, ConForeignKey, conName) {
+				return errCannotAddForeign()
+			}
+			if foreignKeyConstraintNameExists(db, nil, conName) {
+				return errFKDupName(tableName)
 			}
 			refDB := ""
 			refTable := ""
@@ -1462,7 +1467,10 @@ func (c *Catalog) validateForeignKeys(db *Database, tbl *Table) error {
 	return nil
 }
 
-// validateSingleFK validates a single FK constraint against its referenced table.
+// validateSingleFK validates a single FK constraint against its referenced table, as
+// OceanBase does (TestOracle_OceanBaseKeyErrors): the table and the columns on both sides
+// are there, the action is not SET DEFAULT, the referenced columns lead an index, and the
+// types match. A generated column, VIRTUAL or STORED, may stand on either side.
 func (c *Catalog) validateSingleFK(db *Database, tbl *Table, con *Constraint) error {
 	// Resolve the referenced table.
 	refDBName := con.RefDatabase
@@ -1484,13 +1492,25 @@ func (c *Catalog) validateSingleFK(db *Database, tbl *Table, con *Constraint) er
 	}
 
 	if refTbl == nil {
-		return errFKNoRefTable(con.RefTable)
+		return errFKNoRefTable()
+	}
+	for _, colName := range con.Columns {
+		if tbl.GetColumn(colName) == nil {
+			return errFKNoSuchColumn()
+		}
+	}
+	for _, colName := range con.RefColumns {
+		if refTbl.GetColumn(colName) == nil {
+			return errFKNoSuchColumn()
+		}
+	}
+	if strings.EqualFold(con.OnDelete, "SET DEFAULT") || strings.EqualFold(con.OnUpdate, "SET DEFAULT") {
+		return errCannotAddForeign()
 	}
 
-	// Check that referenced columns have an index (PK or UNIQUE or KEY)
-	// that starts with the referenced columns in order.
+	// The referenced columns are the leading columns of an index, in any order.
 	if !hasIndexOnColumns(refTbl, con.RefColumns) {
-		return errFKMissingIndex(con.Name, con.RefTable)
+		return errCannotAddForeign()
 	}
 
 	// Check column type compatibility.
@@ -1506,14 +1526,8 @@ func (c *Catalog) validateSingleFK(db *Database, tbl *Table, con *Constraint) er
 		if (strings.EqualFold(con.OnDelete, "SET NULL") || strings.EqualFold(con.OnUpdate, "SET NULL")) && !col.Nullable {
 			return &Error{Code: 1830, SQLState: "HY000", Message: "Column cannot be NOT NULL: needed in a foreign key constraint"}
 		}
-		if col.Generated != nil && !col.Generated.Stored {
-			return errFKCannotUseVirtualColumn(colName)
-		}
-		if refCol.Generated != nil && !refCol.Generated.Stored {
-			return errFKCannotUseVirtualColumn(con.RefColumns[i])
-		}
 		if !fkTypesCompatible(col, refCol) {
-			return errFKIncompatibleColumns(colName, con.RefColumns[i], con.Name)
+			return errCannotAddForeign()
 		}
 	}
 
@@ -1523,13 +1537,17 @@ func (c *Catalog) validateSingleFK(db *Database, tbl *Table, con *Constraint) er
 // hasIndexOnColumns checks whether a table has an index (PK, UNIQUE, or regular KEY)
 // whose leading columns match the given columns.
 func hasIndexOnColumns(tbl *Table, cols []string) bool {
+	want := make(map[string]bool, len(cols))
+	for _, col := range cols {
+		want[toLower(col)] = true
+	}
 	for _, idx := range tbl.Indexes {
-		if len(idx.Columns) < len(cols) {
+		if len(idx.Columns) < len(want) {
 			continue
 		}
 		match := true
-		for i, col := range cols {
-			if toLower(idx.Columns[i].Name) != toLower(col) {
+		for _, ic := range idx.Columns[:len(want)] {
+			if !want[toLower(ic.Name)] {
 				match = false
 				break
 			}
@@ -2609,6 +2627,8 @@ func refActionToString(action nodes.ReferenceAction) string {
 	case nodes.RefActNoAction:
 		return "NO ACTION"
 	default:
-		return "NO ACTION"
+		// An omitted action reads RESTRICT in OceanBase, in information_schema and in
+		// SHOW CREATE TABLE, where MySQL reads NO ACTION (TestScenario_C21, 21.5).
+		return "RESTRICT"
 	}
 }

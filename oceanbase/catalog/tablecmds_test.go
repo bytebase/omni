@@ -176,8 +176,9 @@ func TestCreateTableMultiplePK(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected *Error, got %T", results[0].Error)
 	}
-	if catErr.Code != ErrMultiplePriKey {
-		t.Errorf("expected error code %d, got %d", ErrMultiplePriKey, catErr.Code)
+	// A column's PRIMARY KEY and a PRIMARY KEY constraint: OceanBase answers 1062.
+	if catErr.Code != ErrDupEntry {
+		t.Errorf("expected error code %d, got %d", ErrDupEntry, catErr.Code)
 	}
 }
 
