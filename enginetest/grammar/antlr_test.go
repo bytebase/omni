@@ -602,3 +602,31 @@ fragment P : ('p'|'P') ; fragment A : ('a'|'A') ; fragment C : ('c'|'C') ;
 		}
 	}
 }
+
+// TestTokenTablePicksASpelling pins a token table row for a token of a few
+// spellings: rows write the spelling it names, and the recognizer still
+// matches every spelling the lexer rule has.
+func TestTokenTablePicksASpelling(t *testing.T) {
+	g, err := ReadANTLR(`grammar S;
+s : 'DROP' K_TABLE ID ;
+K_TABLE : 'COLUMNFAMILY' | 'TABLE' ;
+ID : [a-z]+ ;
+`, tokens(map[string]string{"ID": "a", "K_TABLE": "TABLE"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows, _ := g.Rows()
+	if rows[0].Statement != "DROP TABLE a" {
+		t.Errorf("first row %q, want DROP TABLE a", rows[0].Statement)
+	}
+	rec := g.Recognizer()
+	for sql, want := range map[string]bool{
+		"DROP TABLE a":        true,
+		"DROP columnfamily a": true,
+		"DROP VIEW a":         false,
+	} {
+		if got := rec.Accepts(sql); got != want {
+			t.Errorf("Accepts(%q) = %v, want %v", sql, got, want)
+		}
+	}
+}
