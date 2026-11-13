@@ -8378,14 +8378,14 @@ reject@17	reject@17	engine	opt_hold/WITHOUT_HOLD!swap	DECLARE a CURSOR WORK HOLD
 accept	accept	engine	SelectStmt/select_no_parens	SELECT
 accept	accept	engine	SelectStmt/select_with_parens	(SELECT)
 reject@6	reject@6	engine	SelectStmt/select_with_parens!drop-1	SELECT)
-accept	reject@1	engine	SelectStmt/select_with_parens!drop-2	()
+reject@1	reject@1	engine	SelectStmt/select_with_parens!drop-2	()
 reject@7	reject@7	engine	SelectStmt/select_with_parens!drop-3	(SELECT
 reject@9	reject@9	engine	SelectStmt/select_with_parens!insert	(SELECT) zzz
 reject@1	reject@1	engine	SelectStmt/select_with_parens!swap	(SEQUENCE)
 accept	accept	engine	select_with_parens/(_select_no_parens_)	(SELECT)
 accept	accept	engine	select_with_parens/(_select_with_parens_)	((SELECT))
 reject@8	reject@8	engine	select_with_parens/(_select_with_parens_)!drop-1	(SELECT))
-accept	reject@2	engine	select_with_parens/(_select_with_parens_)!drop-3	(())
+reject@2	reject@2	engine	select_with_parens/(_select_with_parens_)!drop-3	(())
 reject@9	reject@9	engine	select_with_parens/(_select_with_parens_)!drop-4	((SELECT)
 reject@11	reject@11	engine	select_with_parens/(_select_with_parens_)!insert	((SELECT)) zzz
 reject@2	reject@2	engine	select_with_parens/(_select_with_parens_)!swap	((SEQUENCE))
@@ -8399,7 +8399,7 @@ reject@0	reject@0	engine	select_no_parens/select_clause_sort_clause!swap	SEQUENC
 accept	accept	engine	select_no_parens/select_clause_opt_sort_clause_for_locking_clause_opt_select_limit	SELECT FOR UPDATE
 reject@0	reject@0	engine	select_no_parens/select_clause_opt_sort_clause_for_locking_clause_opt_select_limit!drop-1	FOR UPDATE
 accept	accept	engine	select_no_parens/select_clause_opt_sort_clause_for_locking_clause_opt_select_limit!drop-2	SELECT UPDATE
-accept	reject@10	engine	select_no_parens/select_clause_opt_sort_clause_for_locking_clause_opt_select_limit!drop-3	SELECT FOR
+reject@10	reject@10	engine	select_no_parens/select_clause_opt_sort_clause_for_locking_clause_opt_select_limit!drop-3	SELECT FOR
 reject@0	reject@0	engine	select_no_parens/select_clause_opt_sort_clause_for_locking_clause_opt_select_limit!swap	SEQUENCE FOR UPDATE
 accept	accept	engine	select_no_parens/select_clause_opt_sort_clause_select_limit_opt_for_locking_clause	SELECT LIMIT a
 reject@0	reject@0	engine	select_no_parens/select_clause_opt_sort_clause_select_limit_opt_for_locking_clause!drop-1	LIMIT a
@@ -8438,7 +8438,7 @@ reject@10	reject@10	engine	select_no_parens/with_clause_select_clause_opt_sort_c
 reject@17	reject@17	engine	select_no_parens/with_clause_select_clause_opt_sort_clause_for_locking_clause_opt_select_limit!drop-6	WITH a AS(SELECT SELECT FOR UPDATE
 reject@18	reject@18	engine	select_no_parens/with_clause_select_clause_opt_sort_clause_for_locking_clause_opt_select_limit!drop-7	WITH a AS(SELECT) FOR UPDATE
 accept	accept	engine	select_no_parens/with_clause_select_clause_opt_sort_clause_for_locking_clause_opt_select_limit!drop-8	WITH a AS(SELECT) SELECT UPDATE
-accept	reject@28	engine	select_no_parens/with_clause_select_clause_opt_sort_clause_for_locking_clause_opt_select_limit!drop-9	WITH a AS(SELECT) SELECT FOR
+reject@28	reject@28	engine	select_no_parens/with_clause_select_clause_opt_sort_clause_for_locking_clause_opt_select_limit!drop-9	WITH a AS(SELECT) SELECT FOR
 reject@36	reject@36	engine	select_no_parens/with_clause_select_clause_opt_sort_clause_for_locking_clause_opt_select_limit!insert	WITH a AS(SELECT) SELECT FOR UPDATE zzz
 reject@0	reject@0	engine	select_no_parens/with_clause_select_clause_opt_sort_clause_for_locking_clause_opt_select_limit!swap	WITHIN a AS(SELECT) SELECT FOR UPDATE
 accept	accept	engine	select_no_parens/with_clause_select_clause_opt_sort_clause_select_limit_opt_for_locking_clause	WITH a AS(SELECT) SELECT LIMIT a
@@ -8459,14 +8459,14 @@ accept	accept	engine	select_clause/simple_select!insert	SELECT zzz UNION SELECT
 reject@0	reject@0	engine	select_clause/simple_select!swap	SEQUENCE UNION SELECT
 accept	accept	engine	select_clause/select_with_parens	(SELECT) UNION SELECT
 reject@6	reject@6	engine	select_clause/select_with_parens!drop-1	SELECT) UNION SELECT
-reject@3	reject@1	engine	select_clause/select_with_parens!drop-2	() UNION SELECT
+reject@1	reject@1	engine	select_clause/select_with_parens!drop-2	() UNION SELECT
 reject@20	reject@20	engine	select_clause/select_with_parens!drop-3	(SELECT UNION SELECT
 reject@9	reject@9	engine	select_clause/select_with_parens!insert	(SELECT) zzz UNION SELECT
 reject@1	reject@1	engine	select_clause/select_with_parens!swap	(SEQUENCE) UNION SELECT
 accept	accept	engine	simple_select/SELECT_opt_all_clause_opt_target_list_into_clause_from_clause_where_clause_group_clause_having_clause_window_clause	SELECT
 accept	accept	engine	simple_select/SELECT_distinct_clause_target_list_into_clause_from_clause_where_clause_group_clause_having_clause_window_clause	SELECT DISTINCT a
 reject@0	reject@0	engine	simple_select/SELECT_distinct_clause_target_list_into_clause_from_clause_where_clause_group_clause_having_clause_window_clause!drop-1	DISTINCT a
-accept	reject@15	engine	simple_select/SELECT_distinct_clause_target_list_into_clause_from_clause_where_clause_group_clause_having_clause_window_clause!drop-3	SELECT DISTINCT
+reject@15	reject@15	engine	simple_select/SELECT_distinct_clause_target_list_into_clause_from_clause_where_clause_group_clause_having_clause_window_clause!drop-3	SELECT DISTINCT
 accept	accept	engine	simple_select/SELECT_distinct_clause_target_list_into_clause_from_clause_where_clause_group_clause_having_clause_window_clause!insert	SELECT DISTINCT a zzz
 reject@0	reject@0	engine	simple_select/SELECT_distinct_clause_target_list_into_clause_from_clause_where_clause_group_clause_having_clause_window_clause!swap	SEQUENCE DISTINCT a
 accept	accept	engine	simple_select/values_clause	VALUES(a)
@@ -8481,16 +8481,16 @@ reject@8	reject@8	engine	simple_select/TABLE_relation_expr!insert	TABLE a zzz
 reject@0	reject@0	engine	simple_select/TABLE_relation_expr!swap	TABLES a
 accept	accept	engine	simple_select/select_clause_UNION_set_quantifier_select_clause	SELECT UNION SELECT
 reject@7	reject@7	engine	simple_select/select_clause_UNION_set_quantifier_select_clause!drop-2	SELECT SELECT
-accept	reject@12	engine	simple_select/select_clause_UNION_set_quantifier_select_clause!drop-3	SELECT UNION
+reject@12	reject@12	engine	simple_select/select_clause_UNION_set_quantifier_select_clause!drop-3	SELECT UNION
 accept	accept	engine	simple_select/select_clause_UNION_set_quantifier_select_clause!insert	SELECT UNION SELECT zzz
 accept	accept	engine	simple_select/select_clause_INTERSECT_set_quantifier_select_clause	SELECT INTERSECT SELECT
 reject@0	reject@0	engine	simple_select/select_clause_INTERSECT_set_quantifier_select_clause!drop-1	INTERSECT SELECT
-accept	reject@16	engine	simple_select/select_clause_INTERSECT_set_quantifier_select_clause!drop-3	SELECT INTERSECT
+reject@16	reject@16	engine	simple_select/select_clause_INTERSECT_set_quantifier_select_clause!drop-3	SELECT INTERSECT
 accept	accept	engine	simple_select/select_clause_INTERSECT_set_quantifier_select_clause!insert	SELECT INTERSECT SELECT zzz
 reject@0	reject@0	engine	simple_select/select_clause_INTERSECT_set_quantifier_select_clause!swap	SEQUENCE INTERSECT SELECT
 accept	accept	engine	simple_select/select_clause_EXCEPT_set_quantifier_select_clause	SELECT EXCEPT SELECT
 reject@0	reject@0	engine	simple_select/select_clause_EXCEPT_set_quantifier_select_clause!drop-1	EXCEPT SELECT
-accept	reject@13	engine	simple_select/select_clause_EXCEPT_set_quantifier_select_clause!drop-3	SELECT EXCEPT
+reject@13	reject@13	engine	simple_select/select_clause_EXCEPT_set_quantifier_select_clause!drop-3	SELECT EXCEPT
 accept	accept	engine	simple_select/select_clause_EXCEPT_set_quantifier_select_clause!insert	SELECT EXCEPT SELECT zzz
 reject@0	reject@0	engine	simple_select/select_clause_EXCEPT_set_quantifier_select_clause!swap	SEQUENCE EXCEPT SELECT
 accept	accept	engine	with_clause/WITH_cte_list	WITH a AS(SELECT) SELECT
@@ -8530,15 +8530,15 @@ reject@9	reject@9	engine	opt_materialized/MATERIALIZED!truncate	WITH a AS
 reject@23	reject@23	engine	opt_materialized/MATERIALIZED!insert	WITH a AS MATERIALIZED zzz(SELECT) SELECT
 reject@10	reject@10	engine	opt_materialized/MATERIALIZED!swap	WITH a AS MAXVALUE(SELECT) SELECT
 accept	accept	engine	opt_materialized/NOT_MATERIALIZED	WITH a AS NOT MATERIALIZED(SELECT) SELECT
-reject@10	reject@13	engine	opt_materialized/NOT_MATERIALIZED!drop-2	WITH a AS NOT(SELECT) SELECT
-reject@10	reject@13	engine	opt_materialized/NOT_MATERIALIZED!truncate	WITH a AS NOT
+reject@13	reject@13	engine	opt_materialized/NOT_MATERIALIZED!drop-2	WITH a AS NOT(SELECT) SELECT
+reject@13	reject@13	engine	opt_materialized/NOT_MATERIALIZED!truncate	WITH a AS NOT
 reject@27	reject@27	engine	opt_materialized/NOT_MATERIALIZED!insert	WITH a AS NOT MATERIALIZED zzz(SELECT) SELECT
 reject@10	reject@10	engine	opt_materialized/NOT_MATERIALIZED!swap	WITH a AS NOTHING MATERIALIZED(SELECT) SELECT
 accept	accept	engine	opt_materialized/%empty	WITH a AS(SELECT) SELECT
 reject@10	reject@10	engine	opt_materialized/%empty!insert	WITH a AS zzz(SELECT) SELECT
 accept	accept	engine	opt_search_clause/SEARCH_DEPTH_FIRST_P_BY_columnList_SET_ColId	WITH a AS(SELECT) SEARCH DEPTH FIRST BY a SET a SELECT
 reject@18	reject@18	engine	opt_search_clause/SEARCH_DEPTH_FIRST_P_BY_columnList_SET_ColId!drop-1	WITH a AS(SELECT) DEPTH FIRST BY a SET a SELECT
-accept	reject@25	engine	opt_search_clause/SEARCH_DEPTH_FIRST_P_BY_columnList_SET_ColId!drop-2	WITH a AS(SELECT) SEARCH FIRST BY a SET a SELECT
+reject@25	reject@25	engine	opt_search_clause/SEARCH_DEPTH_FIRST_P_BY_columnList_SET_ColId!drop-2	WITH a AS(SELECT) SEARCH FIRST BY a SET a SELECT
 reject@31	reject@31	engine	opt_search_clause/SEARCH_DEPTH_FIRST_P_BY_columnList_SET_ColId!drop-3	WITH a AS(SELECT) SEARCH DEPTH BY a SET a SELECT
 reject@37	reject@37	engine	opt_search_clause/SEARCH_DEPTH_FIRST_P_BY_columnList_SET_ColId!drop-4	WITH a AS(SELECT) SEARCH DEPTH FIRST a SET a SELECT
 reject@44	reject@44	engine	opt_search_clause/SEARCH_DEPTH_FIRST_P_BY_columnList_SET_ColId!drop-5	WITH a AS(SELECT) SEARCH DEPTH FIRST BY SET a SELECT
@@ -8564,9 +8564,9 @@ reject@28	reject@28	engine	opt_cycle_clause/CYCLE_columnList_SET_ColId_TO_AexprC
 reject@26	reject@26	engine	opt_cycle_clause/CYCLE_columnList_SET_ColId_TO_AexprConst_DEFAULT_AexprConst_USING_ColId!drop-3	WITH a AS(SELECT) CYCLE a a TO 1 DEFAULT 1 USING a SELECT
 reject@30	reject@30	engine	opt_cycle_clause/CYCLE_columnList_SET_ColId_TO_AexprConst_DEFAULT_AexprConst_USING_ColId!drop-4	WITH a AS(SELECT) CYCLE a SET TO 1 DEFAULT 1 USING a SELECT
 reject@32	reject@32	engine	opt_cycle_clause/CYCLE_columnList_SET_ColId_TO_AexprConst_DEFAULT_AexprConst_USING_ColId!drop-5	WITH a AS(SELECT) CYCLE a SET a 1 DEFAULT 1 USING a SELECT
-reject@43	reject@35	engine	opt_cycle_clause/CYCLE_columnList_SET_ColId_TO_AexprConst_DEFAULT_AexprConst_USING_ColId!drop-6	WITH a AS(SELECT) CYCLE a SET a TO DEFAULT 1 USING a SELECT
+reject@35	reject@35	engine	opt_cycle_clause/CYCLE_columnList_SET_ColId_TO_AexprConst_DEFAULT_AexprConst_USING_ColId!drop-6	WITH a AS(SELECT) CYCLE a SET a TO DEFAULT 1 USING a SELECT
 reject@37	reject@37	engine	opt_cycle_clause/CYCLE_columnList_SET_ColId_TO_AexprConst_DEFAULT_AexprConst_USING_ColId!drop-7	WITH a AS(SELECT) CYCLE a SET a TO 1 1 USING a SELECT
-accept	reject@45	engine	opt_cycle_clause/CYCLE_columnList_SET_ColId_TO_AexprConst_DEFAULT_AexprConst_USING_ColId!drop-8	WITH a AS(SELECT) CYCLE a SET a TO 1 DEFAULT USING a SELECT
+reject@45	reject@45	engine	opt_cycle_clause/CYCLE_columnList_SET_ColId_TO_AexprConst_DEFAULT_AexprConst_USING_ColId!drop-8	WITH a AS(SELECT) CYCLE a SET a TO 1 DEFAULT USING a SELECT
 reject@47	reject@47	engine	opt_cycle_clause/CYCLE_columnList_SET_ColId_TO_AexprConst_DEFAULT_AexprConst_USING_ColId!drop-9	WITH a AS(SELECT) CYCLE a SET a TO 1 DEFAULT 1 a SELECT
 reject@53	reject@53	engine	opt_cycle_clause/CYCLE_columnList_SET_ColId_TO_AexprConst_DEFAULT_AexprConst_USING_ColId!drop-10	WITH a AS(SELECT) CYCLE a SET a TO 1 DEFAULT 1 USING SELECT
 reject@52	reject@52	engine	opt_cycle_clause/CYCLE_columnList_SET_ColId_TO_AexprConst_DEFAULT_AexprConst_USING_ColId!truncate	WITH a AS(SELECT) CYCLE a SET a TO 1 DEFAULT 1 USING
@@ -8725,13 +8725,13 @@ reject@21	reject@21	engine	limit_clause/FETCH_first_or_next_select_fetch_first_v
 reject@24	reject@24	engine	limit_clause/FETCH_first_or_next_select_fetch_first_value_row_or_rows_ONLY!drop-5	SELECT FETCH FIRST a ROW
 reject@30	reject@30	engine	limit_clause/FETCH_first_or_next_select_fetch_first_value_row_or_rows_ONLY!insert	SELECT FETCH FIRST a ROW ONLY zzz
 reject@20	reject@20	engine	limit_clause/FETCH_first_or_next_select_fetch_first_value_row_or_rows_ONLY!swap	SELECT FILTER FIRST a ROW ONLY
-reject@7	reject	engine	limit_clause/FETCH_first_or_next_select_fetch_first_value_row_or_rows_WITH_TIES	SELECT FETCH FIRST a ROW WITH TIES
+reject	reject	engine	limit_clause/FETCH_first_or_next_select_fetch_first_value_row_or_rows_WITH_TIES	SELECT FETCH FIRST a ROW WITH TIES
 reject@15	reject@15	engine	limit_clause/FETCH_first_or_next_select_fetch_first_value_row_or_rows_WITH_TIES!drop-1	SELECT FIRST a ROW WITH TIES
 reject@13	reject@13	engine	limit_clause/FETCH_first_or_next_select_fetch_first_value_row_or_rows_WITH_TIES!drop-2	SELECT FETCH a ROW WITH TIES
 reject@21	reject@21	engine	limit_clause/FETCH_first_or_next_select_fetch_first_value_row_or_rows_WITH_TIES!drop-4	SELECT FETCH FIRST a WITH TIES
 reject@25	reject@25	engine	limit_clause/FETCH_first_or_next_select_fetch_first_value_row_or_rows_WITH_TIES!drop-5	SELECT FETCH FIRST a ROW TIES
 reject@29	reject@29	engine	limit_clause/FETCH_first_or_next_select_fetch_first_value_row_or_rows_WITH_TIES!drop-6	SELECT FETCH FIRST a ROW WITH
-reject@7	reject	engine	limit_clause/FETCH_first_or_next_select_fetch_first_value_row_or_rows_WITH_TIES!insert	SELECT FETCH FIRST a ROW WITH TIES zzz
+reject	reject	engine	limit_clause/FETCH_first_or_next_select_fetch_first_value_row_or_rows_WITH_TIES!insert	SELECT FETCH FIRST a ROW WITH TIES zzz
 reject@20	reject@20	engine	limit_clause/FETCH_first_or_next_select_fetch_first_value_row_or_rows_WITH_TIES!swap	SELECT FILTER FIRST a ROW WITH TIES
 accept	accept	engine	limit_clause/FETCH_first_or_next_row_or_rows_ONLY	SELECT FETCH FIRST ROW ONLY
 reject@17	reject@17	engine	limit_clause/FETCH_first_or_next_row_or_rows_ONLY!drop-1	SELECT FIRST ROW ONLY
@@ -8740,17 +8740,17 @@ reject@19	reject@19	engine	limit_clause/FETCH_first_or_next_row_or_rows_ONLY!dro
 reject@22	reject@22	engine	limit_clause/FETCH_first_or_next_row_or_rows_ONLY!drop-4	SELECT FETCH FIRST ROW
 reject@28	reject@28	engine	limit_clause/FETCH_first_or_next_row_or_rows_ONLY!insert	SELECT FETCH FIRST ROW ONLY zzz
 reject@20	reject@20	engine	limit_clause/FETCH_first_or_next_row_or_rows_ONLY!swap	SELECT FILTER FIRST ROW ONLY
-reject@7	reject	engine	limit_clause/FETCH_first_or_next_row_or_rows_WITH_TIES	SELECT FETCH FIRST ROW WITH TIES
+reject	reject	engine	limit_clause/FETCH_first_or_next_row_or_rows_WITH_TIES	SELECT FETCH FIRST ROW WITH TIES
 reject@17	reject@17	engine	limit_clause/FETCH_first_or_next_row_or_rows_WITH_TIES!drop-1	SELECT FIRST ROW WITH TIES
 reject@13	reject@13	engine	limit_clause/FETCH_first_or_next_row_or_rows_WITH_TIES!drop-2	SELECT FETCH ROW WITH TIES
 reject@19	reject@19	engine	limit_clause/FETCH_first_or_next_row_or_rows_WITH_TIES!drop-3	SELECT FETCH FIRST WITH TIES
 reject@23	reject@23	engine	limit_clause/FETCH_first_or_next_row_or_rows_WITH_TIES!drop-4	SELECT FETCH FIRST ROW TIES
 reject@27	reject@27	engine	limit_clause/FETCH_first_or_next_row_or_rows_WITH_TIES!drop-5	SELECT FETCH FIRST ROW WITH
-reject@7	reject	engine	limit_clause/FETCH_first_or_next_row_or_rows_WITH_TIES!insert	SELECT FETCH FIRST ROW WITH TIES zzz
+reject	reject	engine	limit_clause/FETCH_first_or_next_row_or_rows_WITH_TIES!insert	SELECT FETCH FIRST ROW WITH TIES zzz
 reject@20	reject@20	engine	limit_clause/FETCH_first_or_next_row_or_rows_WITH_TIES!swap	SELECT FILTER FIRST ROW WITH TIES
 accept	accept	engine	offset_clause/OFFSET_select_offset_value	SELECT OFFSET a
 accept	accept	engine	offset_clause/OFFSET_select_fetch_first_value_row_or_rows	SELECT OFFSET a ROW
-reject@17	accept	engine	offset_clause/OFFSET_select_fetch_first_value_row_or_rows!drop-2	SELECT OFFSET ROW
+accept	accept	engine	offset_clause/OFFSET_select_fetch_first_value_row_or_rows!drop-2	SELECT OFFSET ROW
 reject@20	reject@20	engine	offset_clause/OFFSET_select_fetch_first_value_row_or_rows!insert	SELECT OFFSET a ROW zzz
 reject@14	reject@14	engine	offset_clause/OFFSET_select_fetch_first_value_row_or_rows!swap	SELECT OIDS a ROW
 accept	accept	engine	select_limit_value/a_expr	SELECT LIMIT a
@@ -8762,11 +8762,11 @@ accept	accept	engine	select_fetch_first_value/c_expr	SELECT OFFSET a ROW
 reject@16	reject@16	engine	select_fetch_first_value/c_expr!insert	SELECT OFFSET a zzz ROW
 accept	accept	engine	select_fetch_first_value/+_I_or_F_const	SELECT OFFSET + 1 ROW
 accept	accept	engine	select_fetch_first_value/+_I_or_F_const!drop-1	SELECT OFFSET 1 ROW
-reject@19	accept	engine	select_fetch_first_value/+_I_or_F_const!drop-2	SELECT OFFSET + ROW
+accept	accept	engine	select_fetch_first_value/+_I_or_F_const!drop-2	SELECT OFFSET + ROW
 reject@15	reject@15	engine	select_fetch_first_value/+_I_or_F_const!truncate	SELECT OFFSET +
 reject@18	reject@18	engine	select_fetch_first_value/+_I_or_F_const!insert	SELECT OFFSET + 1 zzz ROW
 accept	accept	engine	select_fetch_first_value/-_I_or_F_const	SELECT OFFSET - 1 ROW
-reject@19	accept	engine	select_fetch_first_value/-_I_or_F_const!drop-2	SELECT OFFSET - ROW
+accept	accept	engine	select_fetch_first_value/-_I_or_F_const!drop-2	SELECT OFFSET - ROW
 reject@15	reject@15	engine	select_fetch_first_value/-_I_or_F_const!truncate	SELECT OFFSET -
 reject@18	reject@18	engine	select_fetch_first_value/-_I_or_F_const!insert	SELECT OFFSET - 1 zzz ROW
 accept	accept	engine	I_or_F_const/Iconst	SELECT OFFSET + 1 ROW
@@ -8787,7 +8787,7 @@ accept	accept	engine	group_clause/GROUP_P_BY_set_quantifier_group_by_list	SELECT
 reject@13	reject@13	engine	group_clause/GROUP_P_BY_set_quantifier_group_by_list!drop-2	SELECT GROUP a
 reject@15	reject@15	engine	group_clause/GROUP_P_BY_set_quantifier_group_by_list!drop-3	SELECT GROUP BY
 reject@18	reject@18	engine	group_clause/GROUP_P_BY_set_quantifier_group_by_list!insert	SELECT GROUP BY a zzz
-reject@16	reject@19	engine	group_clause/GROUP_P_BY_set_quantifier_group_by_list!swap	SELECT GROUPING BY a
+reject@19	reject@19	engine	group_clause/GROUP_P_BY_set_quantifier_group_by_list!swap	SELECT GROUPING BY a
 accept	accept	engine	group_clause/%empty	SELECT
 accept	accept	engine	group_by_list/group_by_item	SELECT GROUP BY a
 accept	accept	engine	group_by_list/group_by_list_,_group_by_item	SELECT GROUP BY a, a
@@ -8826,7 +8826,7 @@ accept	accept	engine	rollup_clause/ROLLUP_(_expr_list_)	SELECT GROUP BY ROLLUP(a
 accept	accept	engine	cube_clause/CUBE_(_expr_list_)	SELECT GROUP BY CUBE(a)
 accept	accept	engine	grouping_sets_clause/GROUPING_SETS_(_group_by_list_)	SELECT GROUP BY GROUPING SETS(a)
 accept	accept	engine	having_clause/HAVING_a_expr	SELECT HAVING a
-accept	reject@13	engine	having_clause/HAVING_a_expr!drop-2	SELECT HAVING
+reject@13	reject@13	engine	having_clause/HAVING_a_expr!drop-2	SELECT HAVING
 reject@16	reject@16	engine	having_clause/HAVING_a_expr!insert	SELECT HAVING a zzz
 accept	accept	engine	having_clause/HAVING_a_expr!swap	SELECT HEADER a
 accept	accept	engine	having_clause/%empty	SELECT
@@ -8840,16 +8840,16 @@ reject@21	reject@21	engine	for_locking_clause/FOR_READ_ONLY!insert	SELECT FOR RE
 reject@18	reject@18	engine	for_locking_clause/FOR_READ_ONLY!swap	SELECT FORCE READ ONLY
 accept	accept	engine	opt_for_locking_clause/for_locking_clause	SELECT LIMIT a FOR UPDATE
 reject@15	reject@15	engine	opt_for_locking_clause/for_locking_clause!drop-1	SELECT LIMIT a UPDATE
-accept	reject@18	engine	opt_for_locking_clause/for_locking_clause!drop-2	SELECT LIMIT a FOR
+reject@18	reject@18	engine	opt_for_locking_clause/for_locking_clause!drop-2	SELECT LIMIT a FOR
 reject@26	reject@26	engine	opt_for_locking_clause/for_locking_clause!insert	SELECT LIMIT a FOR UPDATE zzz
 reject@15	reject@15	engine	opt_for_locking_clause/for_locking_clause!swap	SELECT LIMIT a FORCE UPDATE
 accept	accept	engine	opt_for_locking_clause/%empty	SELECT LIMIT a
 accept	accept	engine	for_locking_items/for_locking_item	SELECT FOR UPDATE
 accept	accept	engine	for_locking_items/for_locking_items_for_locking_item	SELECT FOR UPDATE FOR UPDATE
 accept	accept	engine	for_locking_items/for_locking_items_for_locking_item!drop-1	SELECT UPDATE FOR UPDATE
-accept	reject@11	engine	for_locking_items/for_locking_items_for_locking_item!drop-2	SELECT FOR FOR UPDATE
+reject@11	reject@11	engine	for_locking_items/for_locking_items_for_locking_item!drop-2	SELECT FOR FOR UPDATE
 reject@18	reject@18	engine	for_locking_items/for_locking_items_for_locking_item!drop-3	SELECT FOR UPDATE UPDATE
-accept	reject@21	engine	for_locking_items/for_locking_items_for_locking_item!drop-4	SELECT FOR UPDATE FOR
+reject@21	reject@21	engine	for_locking_items/for_locking_items_for_locking_item!drop-4	SELECT FOR UPDATE FOR
 reject@29	reject@29	engine	for_locking_items/for_locking_items_for_locking_item!insert	SELECT FOR UPDATE FOR UPDATE zzz
 accept	accept	engine	for_locking_items/for_locking_items_for_locking_item!swap	SELECT FORCE UPDATE FOR UPDATE
 accept	accept	engine	for_locking_item/for_locking_strength_locked_rels_list_opt_nowait_or_skip	SELECT FOR UPDATE
@@ -8857,8 +8857,8 @@ accept	accept	engine	for_locking_strength/FOR_UPDATE	SELECT FOR UPDATE
 accept	accept	engine	for_locking_strength/FOR_NO_KEY_UPDATE	SELECT FOR NO KEY UPDATE
 reject@14	reject@14	engine	for_locking_strength/FOR_NO_KEY_UPDATE!drop-1	SELECT NO KEY UPDATE
 reject@15	reject@15	engine	for_locking_strength/FOR_NO_KEY_UPDATE!drop-2	SELECT FOR KEY UPDATE
-accept	reject@14	engine	for_locking_strength/FOR_NO_KEY_UPDATE!drop-3	SELECT FOR NO UPDATE
-accept	reject@17	engine	for_locking_strength/FOR_NO_KEY_UPDATE!drop-4	SELECT FOR NO KEY
+reject@14	reject@14	engine	for_locking_strength/FOR_NO_KEY_UPDATE!drop-3	SELECT FOR NO UPDATE
+reject@17	reject@17	engine	for_locking_strength/FOR_NO_KEY_UPDATE!drop-4	SELECT FOR NO KEY
 reject@25	reject@25	engine	for_locking_strength/FOR_NO_KEY_UPDATE!insert	SELECT FOR NO KEY UPDATE zzz
 reject@16	reject@16	engine	for_locking_strength/FOR_NO_KEY_UPDATE!swap	SELECT FORCE NO KEY UPDATE
 accept	accept	engine	for_locking_strength/FOR_SHARE	SELECT FOR SHARE
@@ -8867,7 +8867,7 @@ reject@17	reject@17	engine	for_locking_strength/FOR_SHARE!insert	SELECT FOR SHAR
 accept	accept	engine	for_locking_strength/FOR_SHARE!swap	SELECT FORCE SHARE
 accept	accept	engine	for_locking_strength/FOR_KEY_SHARE	SELECT FOR KEY SHARE
 accept	accept	engine	for_locking_strength/FOR_KEY_SHARE!drop-1	SELECT KEY SHARE
-accept	reject@14	engine	for_locking_strength/FOR_KEY_SHARE!drop-3	SELECT FOR KEY
+reject@14	reject@14	engine	for_locking_strength/FOR_KEY_SHARE!drop-3	SELECT FOR KEY
 reject@21	reject@21	engine	for_locking_strength/FOR_KEY_SHARE!insert	SELECT FOR KEY SHARE zzz
 reject@17	reject@17	engine	for_locking_strength/FOR_KEY_SHARE!swap	SELECT FORCE KEY SHARE
 accept	accept	engine	locked_rels_list/OF_qualified_name_list	SELECT FOR UPDATE OF a
@@ -8890,7 +8890,7 @@ reject@0	reject@0	engine	values_clause/values_clause_,_(_expr_list_)!swap	VARCHA
 accept	accept	engine	from_clause/FROM_from_list	SELECT FROM a
 reject@11	reject@11	engine	from_clause/FROM_from_list!drop-2	SELECT FROM
 accept	accept	engine	from_clause/FROM_from_list!insert	SELECT FROM a zzz
-reject@7	reject@12	engine	from_clause/FROM_from_list!swap	SELECT FULL a
+reject@12	reject@12	engine	from_clause/FROM_from_list!swap	SELECT FULL a
 accept	accept	engine	from_clause/%empty	SELECT
 accept	accept	engine	from_list/table_ref	SELECT FROM a
 accept	accept	engine	from_list/from_list_,_table_ref	SELECT FROM a, a
@@ -8899,23 +8899,23 @@ reject@14	reject@14	engine	from_list/from_list_,_table_ref!drop-3	SELECT FROM a,
 accept	accept	engine	from_list/from_list_,_table_ref!insert	SELECT FROM a, a zzz
 accept	accept	engine	table_ref/relation_expr_opt_alias_clause	SELECT FROM a
 accept	accept	engine	table_ref/relation_expr_opt_alias_clause_tablesample_clause	SELECT FROM a TABLESAMPLE a(a)
-reject@12	reject@24	engine	table_ref/relation_expr_opt_alias_clause_tablesample_clause!drop-1	SELECT FROM TABLESAMPLE a(a)
+reject@24	reject@24	engine	table_ref/relation_expr_opt_alias_clause_tablesample_clause!drop-1	SELECT FROM TABLESAMPLE a(a)
 reject@25	reject@25	engine	table_ref/relation_expr_opt_alias_clause_tablesample_clause!drop-3	SELECT FROM a TABLESAMPLE(a)
 reject@28	reject@28	engine	table_ref/relation_expr_opt_alias_clause_tablesample_clause!drop-4	SELECT FROM a TABLESAMPLE a a)
 reject@28	reject@28	engine	table_ref/relation_expr_opt_alias_clause_tablesample_clause!drop-5	SELECT FROM a TABLESAMPLE a()
-accept	reject@29	engine	table_ref/relation_expr_opt_alias_clause_tablesample_clause!drop-6	SELECT FROM a TABLESAMPLE a(a
+reject@29	reject@29	engine	table_ref/relation_expr_opt_alias_clause_tablesample_clause!drop-6	SELECT FROM a TABLESAMPLE a(a
 reject@31	reject@31	engine	table_ref/relation_expr_opt_alias_clause_tablesample_clause!insert	SELECT FROM a TABLESAMPLE a(a) zzz
 reject@25	reject@25	engine	table_ref/relation_expr_opt_alias_clause_tablesample_clause!swap	SELECT FROM a TABLESPACE a(a)
 accept	accept	engine	table_ref/func_table_func_alias_clause	SELECT FROM CURRENT_DATE
 accept	accept	engine	table_ref/func_table_func_alias_clause!insert	SELECT FROM CURRENT_DATE zzz
 accept	accept	engine	table_ref/func_table_func_alias_clause!swap	SELECT FROM CURRENT_ROLE
 accept	accept	engine	table_ref/LATERAL_P_func_table_func_alias_clause	SELECT FROM LATERAL CURRENT_DATE
-accept	reject@19	engine	table_ref/LATERAL_P_func_table_func_alias_clause!drop-2	SELECT FROM LATERAL
+reject@19	reject@19	engine	table_ref/LATERAL_P_func_table_func_alias_clause!drop-2	SELECT FROM LATERAL
 accept	accept	engine	table_ref/LATERAL_P_func_table_func_alias_clause!insert	SELECT FROM LATERAL CURRENT_DATE zzz
 reject@12	reject@12	engine	table_ref/LATERAL_P_func_table_func_alias_clause!swap	SELECT FROM LEADING CURRENT_DATE
 accept	accept	engine	table_ref/xmltable_opt_alias_clause	SELECT FROM XMLTABLE(a PASSING a COLUMNS a a)
 reject@22	reject@22	engine	table_ref/xmltable_opt_alias_clause!drop-1	SELECT FROM(a PASSING a COLUMNS a a)
-reject@21	reject@23	engine	table_ref/xmltable_opt_alias_clause!drop-2	SELECT FROM XMLTABLE a PASSING a COLUMNS a a)
+reject@23	reject@23	engine	table_ref/xmltable_opt_alias_clause!drop-2	SELECT FROM XMLTABLE a PASSING a COLUMNS a a)
 reject@29	reject@29	engine	table_ref/xmltable_opt_alias_clause!drop-3	SELECT FROM XMLTABLE(PASSING a COLUMNS a a)
 reject@23	reject@23	engine	table_ref/xmltable_opt_alias_clause!drop-4	SELECT FROM XMLTABLE(a a COLUMNS a a)
 reject@39	reject@39	engine	table_ref/xmltable_opt_alias_clause!drop-5	SELECT FROM XMLTABLE(a PASSING COLUMNS a a)
@@ -8943,12 +8943,12 @@ accept	accept	engine	table_ref/select_with_parens_opt_alias_clause!insert	SELECT
 reject@20	reject@20	engine	table_ref/select_with_parens_opt_alias_clause!swap	SELECT FROM(SEQUENCE)
 accept	accept	engine	table_ref/LATERAL_P_select_with_parens_opt_alias_clause	SELECT FROM LATERAL(SELECT)
 reject@20	reject@20	engine	table_ref/LATERAL_P_select_with_parens_opt_alias_clause!drop-2	SELECT FROM LATERAL SELECT)
-reject@21	reject@20	engine	table_ref/LATERAL_P_select_with_parens_opt_alias_clause!drop-3	SELECT FROM LATERAL()
+reject@20	reject@20	engine	table_ref/LATERAL_P_select_with_parens_opt_alias_clause!drop-3	SELECT FROM LATERAL()
 reject@26	reject@26	engine	table_ref/LATERAL_P_select_with_parens_opt_alias_clause!drop-4	SELECT FROM LATERAL(SELECT
 accept	accept	engine	table_ref/LATERAL_P_select_with_parens_opt_alias_clause!insert	SELECT FROM LATERAL(SELECT) zzz
 reject@12	reject@12	engine	table_ref/LATERAL_P_select_with_parens_opt_alias_clause!swap	SELECT FROM LEADING(SELECT)
 accept	accept	engine	table_ref/joined_table	SELECT FROM a CROSS JOIN a
-reject@12	reject@18	engine	table_ref/joined_table!drop-1	SELECT FROM CROSS JOIN a
+reject@18	reject@18	engine	table_ref/joined_table!drop-1	SELECT FROM CROSS JOIN a
 reject@20	reject@20	engine	table_ref/joined_table!drop-2	SELECT FROM a JOIN a
 reject@20	reject@20	engine	table_ref/joined_table!drop-3	SELECT FROM a CROSS a
 reject@24	reject@24	engine	table_ref/joined_table!drop-4	SELECT FROM a CROSS JOIN
@@ -8956,7 +8956,7 @@ accept	accept	engine	table_ref/joined_table!insert	SELECT FROM a CROSS JOIN a zz
 reject@24	reject@24	engine	table_ref/joined_table!swap	SELECT FROM a CSV JOIN a
 accept	accept	engine	table_ref/(_joined_table_)_alias_clause	SELECT FROM(a CROSS JOIN a) a
 reject@26	reject@26	engine	table_ref/(_joined_table_)_alias_clause!drop-1	SELECT FROM a CROSS JOIN a) a
-reject@12	reject@18	engine	table_ref/(_joined_table_)_alias_clause!drop-2	SELECT FROM(CROSS JOIN a) a
+reject@18	reject@18	engine	table_ref/(_joined_table_)_alias_clause!drop-2	SELECT FROM(CROSS JOIN a) a
 reject@20	reject@20	engine	table_ref/(_joined_table_)_alias_clause!drop-3	SELECT FROM(a JOIN a) a
 reject@20	reject@20	engine	table_ref/(_joined_table_)_alias_clause!drop-4	SELECT FROM(a CROSS a) a
 reject@24	reject@24	engine	table_ref/(_joined_table_)_alias_clause!drop-5	SELECT FROM(a CROSS JOIN) a
@@ -8965,7 +8965,7 @@ reject@30	reject@30	engine	table_ref/(_joined_table_)_alias_clause!insert	SELECT
 reject@24	reject@24	engine	table_ref/(_joined_table_)_alias_clause!swap	SELECT FROM(a CSV JOIN a) a
 reject@26	reject@26	engine	table_ref/json_table_opt_alias_clause	SELECT FROM JSON_TABLE(a, a COLUMNS(a a))
 reject@13	reject@13	engine	table_ref/json_table_opt_alias_clause!drop-1	SELECT FROM(a, a COLUMNS(a a))
-reject@23	reject@38	engine	table_ref/json_table_opt_alias_clause!drop-2	SELECT FROM JSON_TABLE a, a COLUMNS(a a))
+reject@38	reject@38	engine	table_ref/json_table_opt_alias_clause!drop-2	SELECT FROM JSON_TABLE a, a COLUMNS(a a))
 reject@23	reject@23	engine	table_ref/json_table_opt_alias_clause!drop-3	SELECT FROM JSON_TABLE(, a COLUMNS(a a))
 reject@25	reject@25	engine	table_ref/json_table_opt_alias_clause!drop-4	SELECT FROM JSON_TABLE(a a COLUMNS(a a))
 reject@36	reject@36	engine	table_ref/json_table_opt_alias_clause!drop-5	SELECT FROM JSON_TABLE(a, COLUMNS(a a))
@@ -8989,7 +8989,7 @@ reject@34	reject@34	engine	table_ref/LATERAL_P_json_table_opt_alias_clause!inser
 reject@12	reject@12	engine	table_ref/LATERAL_P_json_table_opt_alias_clause!swap	SELECT FROM LEADING JSON_TABLE(a, a COLUMNS(a a))
 accept	accept	engine	joined_table/(_joined_table_)	SELECT FROM(a CROSS JOIN a)
 reject@26	reject@26	engine	joined_table/(_joined_table_)!drop-1	SELECT FROM a CROSS JOIN a)
-reject@12	reject@18	engine	joined_table/(_joined_table_)!drop-2	SELECT FROM(CROSS JOIN a)
+reject@18	reject@18	engine	joined_table/(_joined_table_)!drop-2	SELECT FROM(CROSS JOIN a)
 reject@20	reject@20	engine	joined_table/(_joined_table_)!drop-3	SELECT FROM(a JOIN a)
 reject@20	reject@20	engine	joined_table/(_joined_table_)!drop-4	SELECT FROM(a CROSS a)
 reject@24	reject@24	engine	joined_table/(_joined_table_)!drop-5	SELECT FROM(a CROSS JOIN)
@@ -8998,30 +8998,30 @@ accept	accept	engine	joined_table/(_joined_table_)!insert	SELECT FROM(a CROSS JO
 reject@24	reject@24	engine	joined_table/(_joined_table_)!swap	SELECT FROM(a CSV JOIN a)
 accept	accept	engine	joined_table/table_ref_CROSS_JOIN_table_ref	SELECT FROM a CROSS JOIN a
 accept	accept	engine	joined_table/table_ref_join_type_JOIN_table_ref_join_qual	SELECT FROM a FULL JOIN a ON a
-reject@12	reject@17	engine	joined_table/table_ref_join_type_JOIN_table_ref_join_qual!drop-1	SELECT FROM FULL JOIN a ON a
+reject@17	reject@17	engine	joined_table/table_ref_join_type_JOIN_table_ref_join_qual!drop-1	SELECT FROM FULL JOIN a ON a
 reject@19	reject@19	engine	joined_table/table_ref_join_type_JOIN_table_ref_join_qual!drop-3	SELECT FROM a FULL a ON a
 reject@24	reject@24	engine	joined_table/table_ref_join_type_JOIN_table_ref_join_qual!drop-4	SELECT FROM a FULL JOIN ON a
 reject@27	reject@27	engine	joined_table/table_ref_join_type_JOIN_table_ref_join_qual!drop-5	SELECT FROM a FULL JOIN a a
-accept	reject@28	engine	joined_table/table_ref_join_type_JOIN_table_ref_join_qual!drop-6	SELECT FROM a FULL JOIN a ON
+reject@28	reject@28	engine	joined_table/table_ref_join_type_JOIN_table_ref_join_qual!drop-6	SELECT FROM a FULL JOIN a ON
 reject@31	reject@31	engine	joined_table/table_ref_join_type_JOIN_table_ref_join_qual!insert	SELECT FROM a FULL JOIN a ON a zzz
 accept	accept	engine	joined_table/table_ref_join_type_JOIN_table_ref_join_qual!swap	SELECT FROM a FUNCTION JOIN a ON a
 accept	accept	engine	joined_table/table_ref_JOIN_table_ref_join_qual	SELECT FROM a JOIN a ON a
-reject@12	reject@17	engine	joined_table/table_ref_JOIN_table_ref_join_qual!drop-1	SELECT FROM JOIN a ON a
+reject@17	reject@17	engine	joined_table/table_ref_JOIN_table_ref_join_qual!drop-1	SELECT FROM JOIN a ON a
 reject@16	reject@16	engine	joined_table/table_ref_JOIN_table_ref_join_qual!drop-2	SELECT FROM a a ON a
 reject@19	reject@19	engine	joined_table/table_ref_JOIN_table_ref_join_qual!drop-3	SELECT FROM a JOIN ON a
 reject@22	reject@22	engine	joined_table/table_ref_JOIN_table_ref_join_qual!drop-4	SELECT FROM a JOIN a a
-accept	reject@23	engine	joined_table/table_ref_JOIN_table_ref_join_qual!drop-5	SELECT FROM a JOIN a ON
+reject@23	reject@23	engine	joined_table/table_ref_JOIN_table_ref_join_qual!drop-5	SELECT FROM a JOIN a ON
 reject@26	reject@26	engine	joined_table/table_ref_JOIN_table_ref_join_qual!insert	SELECT FROM a JOIN a ON a zzz
 reject@19	reject@19	engine	joined_table/table_ref_JOIN_table_ref_join_qual!swap	SELECT FROM a JSON a ON a
 accept	accept	engine	joined_table/table_ref_NATURAL_join_type_JOIN_table_ref	SELECT FROM a NATURAL FULL JOIN a
-reject@12	reject@20	engine	joined_table/table_ref_NATURAL_join_type_JOIN_table_ref!drop-1	SELECT FROM NATURAL FULL JOIN a
+reject@20	reject@20	engine	joined_table/table_ref_NATURAL_join_type_JOIN_table_ref!drop-1	SELECT FROM NATURAL FULL JOIN a
 reject@25	reject@25	engine	joined_table/table_ref_NATURAL_join_type_JOIN_table_ref!drop-2	SELECT FROM a FULL JOIN a
 reject@27	reject@27	engine	joined_table/table_ref_NATURAL_join_type_JOIN_table_ref!drop-4	SELECT FROM a NATURAL FULL a
 reject@31	reject@31	engine	joined_table/table_ref_NATURAL_join_type_JOIN_table_ref!drop-5	SELECT FROM a NATURAL FULL JOIN
 accept	accept	engine	joined_table/table_ref_NATURAL_join_type_JOIN_table_ref!insert	SELECT FROM a NATURAL FULL JOIN a zzz
 reject@31	reject@31	engine	joined_table/table_ref_NATURAL_join_type_JOIN_table_ref!swap	SELECT FROM a NCHAR FULL JOIN a
 accept	accept	engine	joined_table/table_ref_NATURAL_JOIN_table_ref	SELECT FROM a NATURAL JOIN a
-reject@12	reject@20	engine	joined_table/table_ref_NATURAL_JOIN_table_ref!drop-1	SELECT FROM NATURAL JOIN a
+reject@20	reject@20	engine	joined_table/table_ref_NATURAL_JOIN_table_ref!drop-1	SELECT FROM NATURAL JOIN a
 reject@22	reject@22	engine	joined_table/table_ref_NATURAL_JOIN_table_ref!drop-3	SELECT FROM a NATURAL a
 reject@26	reject@26	engine	joined_table/table_ref_NATURAL_JOIN_table_ref!drop-4	SELECT FROM a NATURAL JOIN
 accept	accept	engine	joined_table/table_ref_NATURAL_JOIN_table_ref!insert	SELECT FROM a NATURAL JOIN a zzz
@@ -9029,19 +9029,19 @@ reject@26	reject@26	engine	joined_table/table_ref_NATURAL_JOIN_table_ref!swap	SE
 accept	accept	engine	alias_clause/AS_ColId_(_name_list_)	SELECT FROM a AS a(a)
 reject@16	reject@16	engine	alias_clause/AS_ColId_(_name_list_)!drop-2	SELECT FROM a AS(a)
 reject@19	reject@19	engine	alias_clause/AS_ColId_(_name_list_)!drop-3	SELECT FROM a AS a a)
-accept	reject@19	engine	alias_clause/AS_ColId_(_name_list_)!drop-4	SELECT FROM a AS a()
-accept	reject@20	engine	alias_clause/AS_ColId_(_name_list_)!drop-5	SELECT FROM a AS a(a
+reject@19	reject@19	engine	alias_clause/AS_ColId_(_name_list_)!drop-4	SELECT FROM a AS a()
+reject@20	reject@20	engine	alias_clause/AS_ColId_(_name_list_)!drop-5	SELECT FROM a AS a(a
 reject@22	reject@22	engine	alias_clause/AS_ColId_(_name_list_)!insert	SELECT FROM a AS a(a) zzz
 reject@14	reject@14	engine	alias_clause/AS_ColId_(_name_list_)!swap	SELECT FROM a ASC a(a)
 accept	accept	engine	alias_clause/AS_ColId	SELECT FROM a AS a
-accept	reject@16	engine	alias_clause/AS_ColId!drop-2	SELECT FROM a AS
+reject@16	reject@16	engine	alias_clause/AS_ColId!drop-2	SELECT FROM a AS
 reject@19	reject@19	engine	alias_clause/AS_ColId!insert	SELECT FROM a AS a zzz
 reject@14	reject@14	engine	alias_clause/AS_ColId!swap	SELECT FROM a ASC a
 accept	accept	engine	alias_clause/ColId_(_name_list_)	SELECT FROM a a(a)
 accept	accept	engine	alias_clause/ColId_(_name_list_)!drop-1	SELECT FROM a(a)
 reject@16	reject@16	engine	alias_clause/ColId_(_name_list_)!drop-2	SELECT FROM a a a)
-accept	reject@16	engine	alias_clause/ColId_(_name_list_)!drop-3	SELECT FROM a a()
-accept	reject@17	engine	alias_clause/ColId_(_name_list_)!drop-4	SELECT FROM a a(a
+reject@16	reject@16	engine	alias_clause/ColId_(_name_list_)!drop-3	SELECT FROM a a()
+reject@17	reject@17	engine	alias_clause/ColId_(_name_list_)!drop-4	SELECT FROM a a(a
 reject@19	reject@19	engine	alias_clause/ColId_(_name_list_)!insert	SELECT FROM a a(a) zzz
 accept	accept	engine	alias_clause/ColId	SELECT FROM a a
 reject@16	reject@16	engine	alias_clause/ColId!insert	SELECT FROM a a zzz
@@ -9059,20 +9059,20 @@ reject@27	reject@27	engine	func_alias_clause/alias_clause!insert	SELECT FROM CUR
 accept	accept	engine	func_alias_clause/AS_(_TableFuncElementList_)	SELECT FROM CURRENT_DATE AS(a a)
 reject@24	reject@24	engine	func_alias_clause/AS_(_TableFuncElementList_)!drop-1	SELECT FROM CURRENT_DATE(a a)
 reject@30	reject@30	engine	func_alias_clause/AS_(_TableFuncElementList_)!drop-2	SELECT FROM CURRENT_DATE AS a a)
-accept	reject@29	engine	func_alias_clause/AS_(_TableFuncElementList_)!drop-3	SELECT FROM CURRENT_DATE AS(a)
-accept	reject@31	engine	func_alias_clause/AS_(_TableFuncElementList_)!drop-5	SELECT FROM CURRENT_DATE AS(a a
+reject@29	reject@29	engine	func_alias_clause/AS_(_TableFuncElementList_)!drop-3	SELECT FROM CURRENT_DATE AS(a)
+reject@31	reject@31	engine	func_alias_clause/AS_(_TableFuncElementList_)!drop-5	SELECT FROM CURRENT_DATE AS(a a
 reject@33	reject@33	engine	func_alias_clause/AS_(_TableFuncElementList_)!insert	SELECT FROM CURRENT_DATE AS(a a) zzz
 reject@25	reject@25	engine	func_alias_clause/AS_(_TableFuncElementList_)!swap	SELECT FROM CURRENT_DATE ASC(a a)
 accept	accept	engine	func_alias_clause/AS_ColId_(_TableFuncElementList_)	SELECT FROM CURRENT_DATE AS a(a a)
 reject@30	reject@30	engine	func_alias_clause/AS_ColId_(_TableFuncElementList_)!drop-3	SELECT FROM CURRENT_DATE AS a a a)
 accept	accept	engine	func_alias_clause/AS_ColId_(_TableFuncElementList_)!drop-4	SELECT FROM CURRENT_DATE AS a(a)
-accept	reject@33	engine	func_alias_clause/AS_ColId_(_TableFuncElementList_)!drop-6	SELECT FROM CURRENT_DATE AS a(a a
+reject@33	reject@33	engine	func_alias_clause/AS_ColId_(_TableFuncElementList_)!drop-6	SELECT FROM CURRENT_DATE AS a(a a
 reject@35	reject@35	engine	func_alias_clause/AS_ColId_(_TableFuncElementList_)!insert	SELECT FROM CURRENT_DATE AS a(a a) zzz
 reject@25	reject@25	engine	func_alias_clause/AS_ColId_(_TableFuncElementList_)!swap	SELECT FROM CURRENT_DATE ASC a(a a)
 accept	accept	engine	func_alias_clause/ColId_(_TableFuncElementList_)	SELECT FROM CURRENT_DATE a(a a)
 reject@27	reject@27	engine	func_alias_clause/ColId_(_TableFuncElementList_)!drop-2	SELECT FROM CURRENT_DATE a a a)
 accept	accept	engine	func_alias_clause/ColId_(_TableFuncElementList_)!drop-3	SELECT FROM CURRENT_DATE a(a)
-accept	reject@30	engine	func_alias_clause/ColId_(_TableFuncElementList_)!drop-5	SELECT FROM CURRENT_DATE a(a a
+reject@30	reject@30	engine	func_alias_clause/ColId_(_TableFuncElementList_)!drop-5	SELECT FROM CURRENT_DATE a(a a
 reject@32	reject@32	engine	func_alias_clause/ColId_(_TableFuncElementList_)!insert	SELECT FROM CURRENT_DATE a(a a) zzz
 accept	accept	engine	func_alias_clause/%empty	SELECT FROM CURRENT_DATE
 accept	accept	engine	join_type/FULL_opt_outer	SELECT FROM a NATURAL FULL JOIN a
@@ -9135,17 +9135,17 @@ accept	accept	engine	tablesample_clause/TABLESAMPLE_func_name_(_expr_list_)_opt_
 accept	accept	engine	opt_repeatable_clause/REPEATABLE_(_a_expr_)	SELECT FROM a TABLESAMPLE a(a) REPEATABLE(a)
 reject@30	reject@30	engine	opt_repeatable_clause/REPEATABLE_(_a_expr_)!drop-1	SELECT FROM a TABLESAMPLE a(a)(a)
 reject@42	reject@42	engine	opt_repeatable_clause/REPEATABLE_(_a_expr_)!drop-2	SELECT FROM a TABLESAMPLE a(a) REPEATABLE a)
-accept	reject@42	engine	opt_repeatable_clause/REPEATABLE_(_a_expr_)!drop-3	SELECT FROM a TABLESAMPLE a(a) REPEATABLE()
-accept	reject@43	engine	opt_repeatable_clause/REPEATABLE_(_a_expr_)!drop-4	SELECT FROM a TABLESAMPLE a(a) REPEATABLE(a
+reject@42	reject@42	engine	opt_repeatable_clause/REPEATABLE_(_a_expr_)!drop-3	SELECT FROM a TABLESAMPLE a(a) REPEATABLE()
+reject@43	reject@43	engine	opt_repeatable_clause/REPEATABLE_(_a_expr_)!drop-4	SELECT FROM a TABLESAMPLE a(a) REPEATABLE(a
 reject@45	reject@45	engine	opt_repeatable_clause/REPEATABLE_(_a_expr_)!insert	SELECT FROM a TABLESAMPLE a(a) REPEATABLE(a) zzz
 reject@31	reject@31	engine	opt_repeatable_clause/REPEATABLE_(_a_expr_)!swap	SELECT FROM a TABLESAMPLE a(a) REPLACE(a)
 accept	accept	engine	opt_repeatable_clause/%empty	SELECT FROM a TABLESAMPLE a(a)
 accept	accept	engine	func_table/func_expr_windowless_opt_ordinality	SELECT FROM CURRENT_DATE
 accept	accept	engine	func_table/ROWS_FROM_(_rowsfrom_list_)_opt_ordinality	SELECT FROM ROWS FROM(CURRENT_DATE)
 reject@12	reject@12	engine	func_table/ROWS_FROM_(_rowsfrom_list_)_opt_ordinality!drop-1	SELECT FROM FROM(CURRENT_DATE)
-reject@16	accept	engine	func_table/ROWS_FROM_(_rowsfrom_list_)_opt_ordinality!drop-2	SELECT FROM ROWS(CURRENT_DATE)
+accept	accept	engine	func_table/ROWS_FROM_(_rowsfrom_list_)_opt_ordinality!drop-2	SELECT FROM ROWS(CURRENT_DATE)
 reject@22	reject@22	engine	func_table/ROWS_FROM_(_rowsfrom_list_)_opt_ordinality!drop-3	SELECT FROM ROWS FROM CURRENT_DATE)
-accept	reject@22	engine	func_table/ROWS_FROM_(_rowsfrom_list_)_opt_ordinality!drop-4	SELECT FROM ROWS FROM()
+reject@22	reject@22	engine	func_table/ROWS_FROM_(_rowsfrom_list_)_opt_ordinality!drop-4	SELECT FROM ROWS FROM()
 reject@34	reject@34	engine	func_table/ROWS_FROM_(_rowsfrom_list_)_opt_ordinality!drop-5	SELECT FROM ROWS FROM(CURRENT_DATE
 accept	accept	engine	func_table/ROWS_FROM_(_rowsfrom_list_)_opt_ordinality!insert	SELECT FROM ROWS FROM(CURRENT_DATE) zzz
 reject@17	reject@17	engine	func_table/ROWS_FROM_(_rowsfrom_list_)_opt_ordinality!swap	SELECT FROM RULE FROM(CURRENT_DATE)
@@ -9155,16 +9155,16 @@ reject@35	reject@35	engine	rowsfrom_item/func_expr_windowless_opt_col_def_list!i
 accept	accept	engine	rowsfrom_item/func_expr_windowless_opt_col_def_list!swap	SELECT FROM ROWS FROM(CURRENT_ROLE)
 accept	accept	engine	rowsfrom_list/rowsfrom_item	SELECT FROM ROWS FROM(CURRENT_DATE)
 accept	accept	engine	rowsfrom_list/rowsfrom_list_,_rowsfrom_item	SELECT FROM ROWS FROM(CURRENT_DATE, CURRENT_DATE)
-accept	reject@22	engine	rowsfrom_list/rowsfrom_list_,_rowsfrom_item!drop-1	SELECT FROM ROWS FROM(, CURRENT_DATE)
+reject@22	reject@22	engine	rowsfrom_list/rowsfrom_list_,_rowsfrom_item!drop-1	SELECT FROM ROWS FROM(, CURRENT_DATE)
 reject@35	reject@35	engine	rowsfrom_list/rowsfrom_list_,_rowsfrom_item!drop-2	SELECT FROM ROWS FROM(CURRENT_DATE CURRENT_DATE)
-accept	reject@35	engine	rowsfrom_list/rowsfrom_list_,_rowsfrom_item!drop-3	SELECT FROM ROWS FROM(CURRENT_DATE,)
+reject@35	reject@35	engine	rowsfrom_list/rowsfrom_list_,_rowsfrom_item!drop-3	SELECT FROM ROWS FROM(CURRENT_DATE,)
 reject@35	reject@35	engine	rowsfrom_list/rowsfrom_list_,_rowsfrom_item!truncate	SELECT FROM ROWS FROM(CURRENT_DATE,
 reject@49	reject@49	engine	rowsfrom_list/rowsfrom_list_,_rowsfrom_item!insert	SELECT FROM ROWS FROM(CURRENT_DATE, CURRENT_DATE zzz)
 accept	accept	engine	rowsfrom_list/rowsfrom_list_,_rowsfrom_item!swap	SELECT FROM ROWS FROM(CURRENT_ROLE, CURRENT_DATE)
 accept	accept	engine	opt_col_def_list/AS_(_TableFuncElementList_)	SELECT FROM ROWS FROM(CURRENT_DATE AS(a a))
 reject@34	reject@34	engine	opt_col_def_list/AS_(_TableFuncElementList_)!drop-1	SELECT FROM ROWS FROM(CURRENT_DATE(a a))
-reject@35	reject@38	engine	opt_col_def_list/AS_(_TableFuncElementList_)!drop-2	SELECT FROM ROWS FROM(CURRENT_DATE AS a a))
-accept	reject@39	engine	opt_col_def_list/AS_(_TableFuncElementList_)!drop-3	SELECT FROM ROWS FROM(CURRENT_DATE AS(a))
+reject@38	reject@38	engine	opt_col_def_list/AS_(_TableFuncElementList_)!drop-2	SELECT FROM ROWS FROM(CURRENT_DATE AS a a))
+reject@39	reject@39	engine	opt_col_def_list/AS_(_TableFuncElementList_)!drop-3	SELECT FROM ROWS FROM(CURRENT_DATE AS(a))
 reject@42	reject@42	engine	opt_col_def_list/AS_(_TableFuncElementList_)!drop-5	SELECT FROM ROWS FROM(CURRENT_DATE AS(a a)
 reject@41	reject@41	engine	opt_col_def_list/AS_(_TableFuncElementList_)!truncate	SELECT FROM ROWS FROM(CURRENT_DATE AS(a a
 reject@43	reject@43	engine	opt_col_def_list/AS_(_TableFuncElementList_)!insert	SELECT FROM ROWS FROM(CURRENT_DATE AS(a a) zzz)
@@ -9208,8 +9208,8 @@ reject@26	reject@26	engine	TableFuncElementList/TableFuncElementList_,_TableFunc
 accept	accept	engine	TableFuncElement/ColId_Typename_opt_collate_clause	ALTER TYPE a ADD ATTRIBUTE a a
 accept	accept	engine	xmltable/XMLTABLE_(_c_expr_xmlexists_argument_COLUMNS_xmltable_column_list_)	SELECT FROM XMLTABLE(a PASSING a COLUMNS a a)
 accept	accept	engine	xmltable/XMLTABLE_(_XMLNAMESPACES_(_xml_namespace_list_)_,_c_expr_xmlexists_argument_COLUMNS_xmltable_column_list_)	SELECT FROM XMLTABLE(XMLNAMESPACES(DEFAULT a), a PASSING a COLUMNS a a)
-reject@34	reject@25	engine	xmltable/XMLTABLE_(_XMLNAMESPACES_(_xml_namespace_list_)_,_c_expr_xmlexists_argument_COLUMNS_xmltable_column_list_)!drop-1	SELECT FROM(XMLNAMESPACES(DEFAULT a), a PASSING a COLUMNS a a)
-reject@21	reject@35	engine	xmltable/XMLTABLE_(_XMLNAMESPACES_(_xml_namespace_list_)_,_c_expr_xmlexists_argument_COLUMNS_xmltable_column_list_)!drop-2	SELECT FROM XMLTABLE XMLNAMESPACES(DEFAULT a), a PASSING a COLUMNS a a)
+reject@25	reject@25	engine	xmltable/XMLTABLE_(_XMLNAMESPACES_(_xml_namespace_list_)_,_c_expr_xmlexists_argument_COLUMNS_xmltable_column_list_)!drop-1	SELECT FROM(XMLNAMESPACES(DEFAULT a), a PASSING a COLUMNS a a)
+reject@35	reject@35	engine	xmltable/XMLTABLE_(_XMLNAMESPACES_(_xml_namespace_list_)_,_c_expr_xmlexists_argument_COLUMNS_xmltable_column_list_)!drop-2	SELECT FROM XMLTABLE XMLNAMESPACES(DEFAULT a), a PASSING a COLUMNS a a)
 reject@30	reject@30	engine	xmltable/XMLTABLE_(_XMLNAMESPACES_(_xml_namespace_list_)_,_c_expr_xmlexists_argument_COLUMNS_xmltable_column_list_)!drop-3	SELECT FROM XMLTABLE((DEFAULT a), a PASSING a COLUMNS a a)
 reject@35	reject@35	engine	xmltable/XMLTABLE_(_XMLNAMESPACES_(_xml_namespace_list_)_,_c_expr_xmlexists_argument_COLUMNS_xmltable_column_list_)!drop-4	SELECT FROM XMLTABLE(XMLNAMESPACES DEFAULT a), a PASSING a COLUMNS a a)
 reject@36	reject@36	engine	xmltable/XMLTABLE_(_XMLNAMESPACES_(_xml_namespace_list_)_,_c_expr_xmlexists_argument_COLUMNS_xmltable_column_list_)!drop-5	SELECT FROM XMLTABLE(XMLNAMESPACES(a), a PASSING a COLUMNS a a)
@@ -9223,7 +9223,7 @@ reject@59	reject@59	engine	xmltable/XMLTABLE_(_XMLNAMESPACES_(_xml_namespace_lis
 reject@68	reject@68	engine	xmltable/XMLTABLE_(_XMLNAMESPACES_(_xml_namespace_list_)_,_c_expr_xmlexists_argument_COLUMNS_xmltable_column_list_)!drop-13	SELECT FROM XMLTABLE(XMLNAMESPACES(DEFAULT a), a PASSING a COLUMNS a)
 reject@70	reject@70	engine	xmltable/XMLTABLE_(_XMLNAMESPACES_(_xml_namespace_list_)_,_c_expr_xmlexists_argument_COLUMNS_xmltable_column_list_)!drop-15	SELECT FROM XMLTABLE(XMLNAMESPACES(DEFAULT a), a PASSING a COLUMNS a a
 accept	accept	engine	xmltable/XMLTABLE_(_XMLNAMESPACES_(_xml_namespace_list_)_,_c_expr_xmlexists_argument_COLUMNS_xmltable_column_list_)!insert	SELECT FROM XMLTABLE(XMLNAMESPACES(DEFAULT a), a PASSING a COLUMNS a a) zzz
-reject@39	reject@30	engine	xmltable/XMLTABLE_(_XMLNAMESPACES_(_xml_namespace_list_)_,_c_expr_xmlexists_argument_COLUMNS_xmltable_column_list_)!swap	SELECT FROM YEAR(XMLNAMESPACES(DEFAULT a), a PASSING a COLUMNS a a)
+reject@30	reject@30	engine	xmltable/XMLTABLE_(_XMLNAMESPACES_(_xml_namespace_list_)_,_c_expr_xmlexists_argument_COLUMNS_xmltable_column_list_)!swap	SELECT FROM YEAR(XMLNAMESPACES(DEFAULT a), a PASSING a COLUMNS a a)
 accept	accept	engine	xmltable_column_list/xmltable_column_el	SELECT FROM XMLTABLE(a PASSING a COLUMNS a a)
 reject@42	reject@42	engine	xmltable_column_list/xmltable_column_el!truncate	SELECT FROM XMLTABLE(a PASSING a COLUMNS a
 reject@48	reject@48	engine	xmltable_column_list/xmltable_column_el!insert	SELECT FROM XMLTABLE(a PASSING a COLUMNS a a zzz)
@@ -9317,10 +9317,10 @@ reject@53	reject@53	engine	json_table_column_definition/ColId_FOR_ORDINALITY!ins
 reject@44	reject@44	engine	json_table_column_definition/ColId_FOR_ORDINALITY!swap	SELECT FROM JSON_TABLE(a, a COLUMNS(a FORCE ORDINALITY))
 reject@26	reject@26	engine	json_table_column_definition/ColId_Typename_json_table_column_path_clause_opt_json_wrapper_behavior_json_quotes_clause_opt_json_behavior_clause_opt	SELECT FROM JSON_TABLE(a, a COLUMNS(a a))
 reject@26	reject@26	engine	json_table_column_definition/ColId_Typename_json_format_clause_json_table_column_path_clause_opt_json_wrapper_behavior_json_quotes_clause_opt_json_behavior_clause_opt	SELECT FROM JSON_TABLE(a, a COLUMNS(a a FORMAT JSON))
-reject@45	reject@38	engine	json_table_column_definition/ColId_Typename_json_format_clause_json_table_column_path_clause_opt_json_wrapper_behavior_json_quotes_clause_opt_json_behavior_clause_opt!drop-1	SELECT FROM JSON_TABLE(a, a COLUMNS(a FORMAT JSON))
+reject@38	reject@38	engine	json_table_column_definition/ColId_Typename_json_format_clause_json_table_column_path_clause_opt_json_wrapper_behavior_json_quotes_clause_opt_json_behavior_clause_opt!drop-1	SELECT FROM JSON_TABLE(a, a COLUMNS(a FORMAT JSON))
 reject@40	reject@40	engine	json_table_column_definition/ColId_Typename_json_format_clause_json_table_column_path_clause_opt_json_wrapper_behavior_json_quotes_clause_opt_json_behavior_clause_opt!drop-3	SELECT FROM JSON_TABLE(a, a COLUMNS(a a JSON))
-reject@46	reject@40	engine	json_table_column_definition/ColId_Typename_json_format_clause_json_table_column_path_clause_opt_json_wrapper_behavior_json_quotes_clause_opt_json_behavior_clause_opt!drop-4	SELECT FROM JSON_TABLE(a, a COLUMNS(a a FORMAT))
-reject@46	reject@40	engine	json_table_column_definition/ColId_Typename_json_format_clause_json_table_column_path_clause_opt_json_wrapper_behavior_json_quotes_clause_opt_json_behavior_clause_opt!truncate	SELECT FROM JSON_TABLE(a, a COLUMNS(a a FORMAT
+reject@40	reject@40	engine	json_table_column_definition/ColId_Typename_json_format_clause_json_table_column_path_clause_opt_json_wrapper_behavior_json_quotes_clause_opt_json_behavior_clause_opt!drop-4	SELECT FROM JSON_TABLE(a, a COLUMNS(a a FORMAT))
+reject@40	reject@40	engine	json_table_column_definition/ColId_Typename_json_format_clause_json_table_column_path_clause_opt_json_wrapper_behavior_json_quotes_clause_opt_json_behavior_clause_opt!truncate	SELECT FROM JSON_TABLE(a, a COLUMNS(a a FORMAT
 reject@52	reject@52	engine	json_table_column_definition/ColId_Typename_json_format_clause_json_table_column_path_clause_opt_json_wrapper_behavior_json_quotes_clause_opt_json_behavior_clause_opt!insert	SELECT FROM JSON_TABLE(a, a COLUMNS(a a FORMAT JSON zzz))
 reject@40	reject@40	engine	json_table_column_definition/ColId_Typename_json_format_clause_json_table_column_path_clause_opt_json_wrapper_behavior_json_quotes_clause_opt_json_behavior_clause_opt!swap	SELECT FROM JSON_TABLE(a, a COLUMNS(a a FORWARD JSON))
 reject@26	reject@26	engine	json_table_column_definition/ColId_Typename_EXISTS_json_table_column_path_clause_opt_json_on_error_clause_opt	SELECT FROM JSON_TABLE(a, a COLUMNS(a a EXISTS))
@@ -9330,7 +9330,7 @@ reject@47	reject@47	engine	json_table_column_definition/ColId_Typename_EXISTS_js
 reject@40	reject@40	engine	json_table_column_definition/ColId_Typename_EXISTS_json_table_column_path_clause_opt_json_on_error_clause_opt!swap	SELECT FROM JSON_TABLE(a, a COLUMNS(a a EXPLAIN))
 reject@26	reject@26	engine	json_table_column_definition/NESTED_path_opt_Sconst_COLUMNS_(_json_table_column_definition_list_)	SELECT FROM JSON_TABLE(a, a COLUMNS(NESTED 's' COLUMNS(a a)))
 reject@36	reject@36	engine	json_table_column_definition/NESTED_path_opt_Sconst_COLUMNS_(_json_table_column_definition_list_)!drop-1	SELECT FROM JSON_TABLE(a, a COLUMNS('s' COLUMNS(a a)))
-reject@43	reject@53	engine	json_table_column_definition/NESTED_path_opt_Sconst_COLUMNS_(_json_table_column_definition_list_)!drop-2	SELECT FROM JSON_TABLE(a, a COLUMNS(NESTED COLUMNS(a a)))
+reject@53	reject@53	engine	json_table_column_definition/NESTED_path_opt_Sconst_COLUMNS_(_json_table_column_definition_list_)!drop-2	SELECT FROM JSON_TABLE(a, a COLUMNS(NESTED COLUMNS(a a)))
 reject@46	reject@46	engine	json_table_column_definition/NESTED_path_opt_Sconst_COLUMNS_(_json_table_column_definition_list_)!drop-3	SELECT FROM JSON_TABLE(a, a COLUMNS(NESTED 's'(a a)))
 reject@55	reject@55	engine	json_table_column_definition/NESTED_path_opt_Sconst_COLUMNS_(_json_table_column_definition_list_)!drop-4	SELECT FROM JSON_TABLE(a, a COLUMNS(NESTED 's' COLUMNS a a)))
 reject@56	reject@56	engine	json_table_column_definition/NESTED_path_opt_Sconst_COLUMNS_(_json_table_column_definition_list_)!drop-5	SELECT FROM JSON_TABLE(a, a COLUMNS(NESTED 's' COLUMNS(a)))
@@ -9355,7 +9355,7 @@ reject@42	reject@42	engine	path_opt/PATH!truncate	SELECT FROM JSON_TABLE(a, a CO
 reject@48	reject@48	engine	path_opt/PATH!insert	SELECT FROM JSON_TABLE(a, a COLUMNS(NESTED PATH zzz 's' COLUMNS(a a)))
 reject@43	reject@43	engine	path_opt/PATH!swap	SELECT FROM JSON_TABLE(a, a COLUMNS(NESTED PLACING 's' COLUMNS(a a)))
 reject@26	reject@26	engine	path_opt/%empty	SELECT FROM JSON_TABLE(a, a COLUMNS(NESTED 's' COLUMNS(a a)))
-reject@43	reject@47	engine	path_opt/%empty!insert	SELECT FROM JSON_TABLE(a, a COLUMNS(NESTED zzz 's' COLUMNS(a a)))
+reject@47	reject@47	engine	path_opt/%empty!insert	SELECT FROM JSON_TABLE(a, a COLUMNS(NESTED zzz 's' COLUMNS(a a)))
 reject@26	reject@26	engine	json_table_column_path_clause_opt/PATH_Sconst	SELECT FROM JSON_TABLE(a, a COLUMNS(a a PATH 's'))
 reject@40	reject@40	engine	json_table_column_path_clause_opt/PATH_Sconst!drop-1	SELECT FROM JSON_TABLE(a, a COLUMNS(a a 's'))
 reject@44	reject@44	engine	json_table_column_path_clause_opt/PATH_Sconst!drop-2	SELECT FROM JSON_TABLE(a, a COLUMNS(a a PATH))
@@ -9437,7 +9437,7 @@ accept	accept	engine	ConstTypename/ConstDatetime	SELECT TIMESTAMP 's'
 reject@21	reject@21	engine	ConstTypename/ConstDatetime!insert	SELECT TIMESTAMP zzz 's'
 reject@7	reject@7	engine	ConstTypename/ConstDatetime!swap	SELECT TO 's'
 accept	accept	engine	ConstTypename/JsonType	SELECT JSON 's'
-reject@12	reject@16	engine	ConstTypename/JsonType!insert	SELECT JSON zzz 's'
+reject@16	reject@16	engine	ConstTypename/JsonType!insert	SELECT JSON zzz 's'
 reject@18	reject@18	engine	ConstTypename/JsonType!swap	SELECT JSON_ARRAY 's'
 accept	accept	engine	GenericType/type_function_name_opt_type_modifiers	DROP TYPE a
 accept	accept	engine	GenericType/type_function_name_attrs_opt_type_modifiers	DROP TYPE a.a
@@ -9499,11 +9499,11 @@ accept	accept	engine	Bit/BitWithoutLength	DROP TYPE BIT
 accept	accept	engine	ConstBit/BitWithLength	SELECT BIT(a) 's'
 reject@10	reject@10	engine	ConstBit/BitWithLength!drop-1	SELECT(a) 's'
 reject@12	reject@12	engine	ConstBit/BitWithLength!drop-2	SELECT BIT a) 's'
-reject@13	reject@11	engine	ConstBit/BitWithLength!drop-3	SELECT BIT() 's'
+reject@11	reject@11	engine	ConstBit/BitWithLength!drop-3	SELECT BIT() 's'
 reject@16	reject@16	engine	ConstBit/BitWithLength!drop-4	SELECT BIT(a 's'
 reject@12	reject@12	engine	ConstBit/BitWithLength!truncate	SELECT BIT(a
-reject@18	reject@14	engine	ConstBit/BitWithLength!insert	SELECT BIT(a) zzz 's'
-reject@18	reject@14	engine	ConstBit/BitWithLength!swap	SELECT BOOLEAN(a) 's'
+reject@14	reject@14	engine	ConstBit/BitWithLength!insert	SELECT BIT(a) zzz 's'
+reject@14	reject@14	engine	ConstBit/BitWithLength!swap	SELECT BOOLEAN(a) 's'
 accept	accept	engine	ConstBit/BitWithoutLength	SELECT BIT 's'
 accept	accept	engine	BitWithLength/BIT_opt_varying_(_expr_list_)	DROP TYPE BIT(a)
 accept	accept	engine	BitWithoutLength/BIT_opt_varying	DROP TYPE BIT
@@ -9517,11 +9517,11 @@ accept	accept	engine	Character/CharacterWithoutLength	DROP TYPE CHARACTER
 accept	accept	engine	ConstCharacter/CharacterWithLength	SELECT CHARACTER(1) 's'
 reject@10	reject@10	engine	ConstCharacter/CharacterWithLength!drop-1	SELECT(1) 's'
 reject@17	reject@17	engine	ConstCharacter/CharacterWithLength!drop-2	SELECT CHARACTER 1) 's'
-reject@19	reject@17	engine	ConstCharacter/CharacterWithLength!drop-3	SELECT CHARACTER() 's'
+reject@17	reject@17	engine	ConstCharacter/CharacterWithLength!drop-3	SELECT CHARACTER() 's'
 reject@19	reject@19	engine	ConstCharacter/CharacterWithLength!drop-4	SELECT CHARACTER(1 's'
 reject@18	reject@18	engine	ConstCharacter/CharacterWithLength!truncate	SELECT CHARACTER(1
-reject@24	reject@20	engine	ConstCharacter/CharacterWithLength!insert	SELECT CHARACTER(1) zzz 's'
-reject@26	accept	engine	ConstCharacter/CharacterWithLength!swap	SELECT CHARACTERISTICS(1) 's'
+reject@20	reject@20	engine	ConstCharacter/CharacterWithLength!insert	SELECT CHARACTER(1) zzz 's'
+accept	accept	engine	ConstCharacter/CharacterWithLength!swap	SELECT CHARACTERISTICS(1) 's'
 accept	accept	engine	ConstCharacter/CharacterWithoutLength	SELECT CHARACTER 's'
 accept	accept	engine	CharacterWithLength/character_(_Iconst_)	DROP TYPE CHARACTER(1)
 accept	accept	engine	CharacterWithoutLength/character	DROP TYPE CHARACTER
@@ -9658,7 +9658,7 @@ accept	accept	engine	a_expr/a_expr_AT_LOCAL!drop-1	SELECT AT LOCAL
 accept	accept	engine	a_expr/a_expr_AT_LOCAL!insert	SELECT a AT LOCAL zzz
 reject@16	reject@16	engine	a_expr/a_expr_AT_LOCAL!swap	SELECT a ATOMIC LOCAL
 accept	accept	engine	a_expr/+_a_expr	SELECT + a
-accept	reject@8	engine	a_expr/+_a_expr!drop-2	SELECT +
+reject@8	reject@8	engine	a_expr/+_a_expr!drop-2	SELECT +
 accept	accept	engine	a_expr/+_a_expr!insert	SELECT + a zzz
 accept	accept	engine	a_expr/-_a_expr	SELECT - a
 reject@8	reject@8	engine	a_expr/-_a_expr!drop-2	SELECT -
@@ -9729,10 +9729,10 @@ accept	accept	engine	a_expr/NOT_a_expr!insert	SELECT NOT a zzz
 accept	accept	engine	a_expr/NOT_a_expr!swap	SELECT NOTHING a
 accept	accept	engine	a_expr/NOT_LA_a_expr	SELECT NOT a
 accept	accept	engine	a_expr/a_expr_LIKE_a_expr	SELECT a LIKE a
-reject@7	reject@12	engine	a_expr/a_expr_LIKE_a_expr!drop-1	SELECT LIKE a
+reject@12	reject@12	engine	a_expr/a_expr_LIKE_a_expr!drop-1	SELECT LIKE a
 accept	accept	engine	a_expr/a_expr_LIKE_a_expr!insert	SELECT a LIKE a zzz
 accept	accept	engine	a_expr/a_expr_LIKE_a_expr_ESCAPE_a_expr	SELECT a LIKE a ESCAPE a
-reject@7	reject@12	engine	a_expr/a_expr_LIKE_a_expr_ESCAPE_a_expr!drop-1	SELECT LIKE a ESCAPE a
+reject@12	reject@12	engine	a_expr/a_expr_LIKE_a_expr_ESCAPE_a_expr!drop-1	SELECT LIKE a ESCAPE a
 reject@11	reject@11	engine	a_expr/a_expr_LIKE_a_expr_ESCAPE_a_expr!drop-2	SELECT a a ESCAPE a
 accept	accept	engine	a_expr/a_expr_LIKE_a_expr_ESCAPE_a_expr!drop-3	SELECT a LIKE ESCAPE a
 accept	accept	engine	a_expr/a_expr_LIKE_a_expr_ESCAPE_a_expr!drop-4	SELECT a LIKE a a
@@ -9740,13 +9740,13 @@ reject@22	reject@22	engine	a_expr/a_expr_LIKE_a_expr_ESCAPE_a_expr!drop-5	SELECT
 accept	accept	engine	a_expr/a_expr_LIKE_a_expr_ESCAPE_a_expr!insert	SELECT a LIKE a ESCAPE a zzz
 reject@17	reject@17	engine	a_expr/a_expr_LIKE_a_expr_ESCAPE_a_expr!swap	SELECT a LIMIT a ESCAPE a
 accept	accept	engine	a_expr/a_expr_NOT_LA_LIKE_a_expr	SELECT a NOT LIKE a
-reject@7	reject@16	engine	a_expr/a_expr_NOT_LA_LIKE_a_expr!drop-1	SELECT NOT LIKE a
+reject@16	reject@16	engine	a_expr/a_expr_NOT_LA_LIKE_a_expr!drop-1	SELECT NOT LIKE a
 reject@13	reject@13	engine	a_expr/a_expr_NOT_LA_LIKE_a_expr!drop-3	SELECT a NOT a
 reject@17	reject@17	engine	a_expr/a_expr_NOT_LA_LIKE_a_expr!drop-4	SELECT a NOT LIKE
 accept	accept	engine	a_expr/a_expr_NOT_LA_LIKE_a_expr!insert	SELECT a NOT LIKE a zzz
 reject@17	reject@17	engine	a_expr/a_expr_NOT_LA_LIKE_a_expr!swap	SELECT a NOTHING LIKE a
 accept	accept	engine	a_expr/a_expr_NOT_LA_LIKE_a_expr_ESCAPE_a_expr	SELECT a NOT LIKE a ESCAPE a
-reject@7	reject@16	engine	a_expr/a_expr_NOT_LA_LIKE_a_expr_ESCAPE_a_expr!drop-1	SELECT NOT LIKE a ESCAPE a
+reject@16	reject@16	engine	a_expr/a_expr_NOT_LA_LIKE_a_expr_ESCAPE_a_expr!drop-1	SELECT NOT LIKE a ESCAPE a
 reject@13	reject@13	engine	a_expr/a_expr_NOT_LA_LIKE_a_expr_ESCAPE_a_expr!drop-3	SELECT a NOT a ESCAPE a
 accept	accept	engine	a_expr/a_expr_NOT_LA_LIKE_a_expr_ESCAPE_a_expr!drop-4	SELECT a NOT LIKE ESCAPE a
 accept	accept	engine	a_expr/a_expr_NOT_LA_LIKE_a_expr_ESCAPE_a_expr!drop-5	SELECT a NOT LIKE a a
@@ -9754,37 +9754,37 @@ reject@26	reject@26	engine	a_expr/a_expr_NOT_LA_LIKE_a_expr_ESCAPE_a_expr!drop-6
 accept	accept	engine	a_expr/a_expr_NOT_LA_LIKE_a_expr_ESCAPE_a_expr!insert	SELECT a NOT LIKE a ESCAPE a zzz
 reject@17	reject@17	engine	a_expr/a_expr_NOT_LA_LIKE_a_expr_ESCAPE_a_expr!swap	SELECT a NOTHING LIKE a ESCAPE a
 accept	accept	engine	a_expr/a_expr_ILIKE_a_expr	SELECT a ILIKE a
-reject@7	reject@13	engine	a_expr/a_expr_ILIKE_a_expr!drop-1	SELECT ILIKE a
+reject@13	reject@13	engine	a_expr/a_expr_ILIKE_a_expr!drop-1	SELECT ILIKE a
 accept	accept	engine	a_expr/a_expr_ILIKE_a_expr!insert	SELECT a ILIKE a zzz
 reject@19	reject@19	engine	a_expr/a_expr_ILIKE_a_expr!swap	SELECT a IMMEDIATE a
 accept	accept	engine	a_expr/a_expr_ILIKE_a_expr_ESCAPE_a_expr	SELECT a ILIKE a ESCAPE a
-reject@7	reject@13	engine	a_expr/a_expr_ILIKE_a_expr_ESCAPE_a_expr!drop-1	SELECT ILIKE a ESCAPE a
+reject@13	reject@13	engine	a_expr/a_expr_ILIKE_a_expr_ESCAPE_a_expr!drop-1	SELECT ILIKE a ESCAPE a
 accept	accept	engine	a_expr/a_expr_ILIKE_a_expr_ESCAPE_a_expr!drop-3	SELECT a ILIKE ESCAPE a
 accept	accept	engine	a_expr/a_expr_ILIKE_a_expr_ESCAPE_a_expr!drop-4	SELECT a ILIKE a a
 reject@23	reject@23	engine	a_expr/a_expr_ILIKE_a_expr_ESCAPE_a_expr!drop-5	SELECT a ILIKE a ESCAPE
 accept	accept	engine	a_expr/a_expr_ILIKE_a_expr_ESCAPE_a_expr!insert	SELECT a ILIKE a ESCAPE a zzz
 reject@19	reject@19	engine	a_expr/a_expr_ILIKE_a_expr_ESCAPE_a_expr!swap	SELECT a IMMEDIATE a ESCAPE a
 accept	accept	engine	a_expr/a_expr_NOT_LA_ILIKE_a_expr	SELECT a NOT ILIKE a
-reject@7	reject@17	engine	a_expr/a_expr_NOT_LA_ILIKE_a_expr!drop-1	SELECT NOT ILIKE a
+reject@17	reject@17	engine	a_expr/a_expr_NOT_LA_ILIKE_a_expr!drop-1	SELECT NOT ILIKE a
 reject@18	reject@18	engine	a_expr/a_expr_NOT_LA_ILIKE_a_expr!drop-4	SELECT a NOT ILIKE
 accept	accept	engine	a_expr/a_expr_NOT_LA_ILIKE_a_expr!insert	SELECT a NOT ILIKE a zzz
 reject@17	reject@17	engine	a_expr/a_expr_NOT_LA_ILIKE_a_expr!swap	SELECT a NOTHING ILIKE a
 accept	accept	engine	a_expr/a_expr_NOT_LA_ILIKE_a_expr_ESCAPE_a_expr	SELECT a NOT ILIKE a ESCAPE a
-reject@7	reject@17	engine	a_expr/a_expr_NOT_LA_ILIKE_a_expr_ESCAPE_a_expr!drop-1	SELECT NOT ILIKE a ESCAPE a
+reject@17	reject@17	engine	a_expr/a_expr_NOT_LA_ILIKE_a_expr_ESCAPE_a_expr!drop-1	SELECT NOT ILIKE a ESCAPE a
 accept	accept	engine	a_expr/a_expr_NOT_LA_ILIKE_a_expr_ESCAPE_a_expr!drop-4	SELECT a NOT ILIKE ESCAPE a
 accept	accept	engine	a_expr/a_expr_NOT_LA_ILIKE_a_expr_ESCAPE_a_expr!drop-5	SELECT a NOT ILIKE a a
 reject@27	reject@27	engine	a_expr/a_expr_NOT_LA_ILIKE_a_expr_ESCAPE_a_expr!drop-6	SELECT a NOT ILIKE a ESCAPE
 accept	accept	engine	a_expr/a_expr_NOT_LA_ILIKE_a_expr_ESCAPE_a_expr!insert	SELECT a NOT ILIKE a ESCAPE a zzz
 reject@17	reject@17	engine	a_expr/a_expr_NOT_LA_ILIKE_a_expr_ESCAPE_a_expr!swap	SELECT a NOTHING ILIKE a ESCAPE a
 accept	accept	engine	a_expr/a_expr_SIMILAR_TO_a_expr	SELECT a SIMILAR TO a
-reject@7	reject@15	engine	a_expr/a_expr_SIMILAR_TO_a_expr!drop-1	SELECT SIMILAR TO a
+reject@15	reject@15	engine	a_expr/a_expr_SIMILAR_TO_a_expr!drop-1	SELECT SIMILAR TO a
 reject@9	reject@9	engine	a_expr/a_expr_SIMILAR_TO_a_expr!drop-2	SELECT a TO a
 reject@17	reject@17	engine	a_expr/a_expr_SIMILAR_TO_a_expr!drop-3	SELECT a SIMILAR a
 reject@19	reject@19	engine	a_expr/a_expr_SIMILAR_TO_a_expr!drop-4	SELECT a SIMILAR TO
 accept	accept	engine	a_expr/a_expr_SIMILAR_TO_a_expr!insert	SELECT a SIMILAR TO a zzz
 reject@16	reject@16	engine	a_expr/a_expr_SIMILAR_TO_a_expr!swap	SELECT a SIMPLE TO a
 accept	accept	engine	a_expr/a_expr_SIMILAR_TO_a_expr_ESCAPE_a_expr	SELECT a SIMILAR TO a ESCAPE a
-reject@7	reject@15	engine	a_expr/a_expr_SIMILAR_TO_a_expr_ESCAPE_a_expr!drop-1	SELECT SIMILAR TO a ESCAPE a
+reject@15	reject@15	engine	a_expr/a_expr_SIMILAR_TO_a_expr_ESCAPE_a_expr!drop-1	SELECT SIMILAR TO a ESCAPE a
 reject@9	reject@9	engine	a_expr/a_expr_SIMILAR_TO_a_expr_ESCAPE_a_expr!drop-2	SELECT a TO a ESCAPE a
 reject@17	reject@17	engine	a_expr/a_expr_SIMILAR_TO_a_expr_ESCAPE_a_expr!drop-3	SELECT a SIMILAR a ESCAPE a
 accept	accept	engine	a_expr/a_expr_SIMILAR_TO_a_expr_ESCAPE_a_expr!drop-4	SELECT a SIMILAR TO ESCAPE a
@@ -9793,14 +9793,14 @@ reject@28	reject@28	engine	a_expr/a_expr_SIMILAR_TO_a_expr_ESCAPE_a_expr!drop-6	
 accept	accept	engine	a_expr/a_expr_SIMILAR_TO_a_expr_ESCAPE_a_expr!insert	SELECT a SIMILAR TO a ESCAPE a zzz
 reject@16	reject@16	engine	a_expr/a_expr_SIMILAR_TO_a_expr_ESCAPE_a_expr!swap	SELECT a SIMPLE TO a ESCAPE a
 accept	accept	engine	a_expr/a_expr_NOT_LA_SIMILAR_TO_a_expr	SELECT a NOT SIMILAR TO a
-reject@7	reject@19	engine	a_expr/a_expr_NOT_LA_SIMILAR_TO_a_expr!drop-1	SELECT NOT SIMILAR TO a
+reject@19	reject@19	engine	a_expr/a_expr_NOT_LA_SIMILAR_TO_a_expr!drop-1	SELECT NOT SIMILAR TO a
 reject@13	reject@13	engine	a_expr/a_expr_NOT_LA_SIMILAR_TO_a_expr!drop-3	SELECT a NOT TO a
 reject@21	reject@21	engine	a_expr/a_expr_NOT_LA_SIMILAR_TO_a_expr!drop-4	SELECT a NOT SIMILAR a
 reject@23	reject@23	engine	a_expr/a_expr_NOT_LA_SIMILAR_TO_a_expr!drop-5	SELECT a NOT SIMILAR TO
 accept	accept	engine	a_expr/a_expr_NOT_LA_SIMILAR_TO_a_expr!insert	SELECT a NOT SIMILAR TO a zzz
 reject@17	reject@17	engine	a_expr/a_expr_NOT_LA_SIMILAR_TO_a_expr!swap	SELECT a NOTHING SIMILAR TO a
 accept	accept	engine	a_expr/a_expr_NOT_LA_SIMILAR_TO_a_expr_ESCAPE_a_expr	SELECT a NOT SIMILAR TO a ESCAPE a
-reject@7	reject@19	engine	a_expr/a_expr_NOT_LA_SIMILAR_TO_a_expr_ESCAPE_a_expr!drop-1	SELECT NOT SIMILAR TO a ESCAPE a
+reject@19	reject@19	engine	a_expr/a_expr_NOT_LA_SIMILAR_TO_a_expr_ESCAPE_a_expr!drop-1	SELECT NOT SIMILAR TO a ESCAPE a
 reject@13	reject@13	engine	a_expr/a_expr_NOT_LA_SIMILAR_TO_a_expr_ESCAPE_a_expr!drop-3	SELECT a NOT TO a ESCAPE a
 reject@21	reject@21	engine	a_expr/a_expr_NOT_LA_SIMILAR_TO_a_expr_ESCAPE_a_expr!drop-4	SELECT a NOT SIMILAR a ESCAPE a
 accept	accept	engine	a_expr/a_expr_NOT_LA_SIMILAR_TO_a_expr_ESCAPE_a_expr!drop-5	SELECT a NOT SIMILAR TO ESCAPE a
@@ -9809,60 +9809,60 @@ reject@32	reject@32	engine	a_expr/a_expr_NOT_LA_SIMILAR_TO_a_expr_ESCAPE_a_expr!
 accept	accept	engine	a_expr/a_expr_NOT_LA_SIMILAR_TO_a_expr_ESCAPE_a_expr!insert	SELECT a NOT SIMILAR TO a ESCAPE a zzz
 reject@17	reject@17	engine	a_expr/a_expr_NOT_LA_SIMILAR_TO_a_expr_ESCAPE_a_expr!swap	SELECT a NOTHING SIMILAR TO a ESCAPE a
 accept	accept	engine	a_expr/a_expr_IS_NULL_P	SELECT a IS NULL
-reject@7	reject@10	engine	a_expr/a_expr_IS_NULL_P!drop-1	SELECT IS NULL
+reject@10	reject@10	engine	a_expr/a_expr_IS_NULL_P!drop-1	SELECT IS NULL
 accept	accept	engine	a_expr/a_expr_IS_NULL_P!insert	SELECT a IS NULL zzz
 accept	accept	engine	a_expr/a_expr_IS_NULL_P!swap	SELECT a ISNULL NULL
 accept	accept	engine	a_expr/a_expr_ISNULL	SELECT a ISNULL
-reject@7	reject@13	engine	a_expr/a_expr_ISNULL!drop-1	SELECT ISNULL
+reject@13	reject@13	engine	a_expr/a_expr_ISNULL!drop-1	SELECT ISNULL
 accept	accept	engine	a_expr/a_expr_ISNULL!insert	SELECT a ISNULL zzz
 accept	accept	engine	a_expr/a_expr_IS_NOT_NULL_P	SELECT a IS NOT NULL
-reject@7	reject@10	engine	a_expr/a_expr_IS_NOT_NULL_P!drop-1	SELECT IS NOT NULL
+reject@10	reject@10	engine	a_expr/a_expr_IS_NOT_NULL_P!drop-1	SELECT IS NOT NULL
 reject@13	reject@13	engine	a_expr/a_expr_IS_NOT_NULL_P!drop-2	SELECT a NOT NULL
 reject@15	reject@15	engine	a_expr/a_expr_IS_NOT_NULL_P!drop-4	SELECT a IS NOT
 accept	accept	engine	a_expr/a_expr_IS_NOT_NULL_P!insert	SELECT a IS NOT NULL zzz
 reject@20	reject@20	engine	a_expr/a_expr_IS_NOT_NULL_P!swap	SELECT a ISNULL NOT NULL
 accept	accept	engine	a_expr/a_expr_NOTNULL	SELECT a NOTNULL
-reject@7	reject@14	engine	a_expr/a_expr_NOTNULL!drop-1	SELECT NOTNULL
+reject@14	reject@14	engine	a_expr/a_expr_NOTNULL!drop-1	SELECT NOTNULL
 accept	accept	engine	a_expr/a_expr_NOTNULL!insert	SELECT a NOTNULL zzz
-accept	reject@7	engine	a_expr/row_OVERLAPS_row	SELECT ROW() OVERLAPS ROW()
+reject@7	reject@7	engine	a_expr/row_OVERLAPS_row	SELECT ROW() OVERLAPS ROW()
 reject@7	reject@7	engine	a_expr/row_OVERLAPS_row!drop-1	SELECT() OVERLAPS ROW()
 reject@10	reject@10	engine	a_expr/row_OVERLAPS_row!drop-2	SELECT ROW) OVERLAPS ROW()
-reject@11	reject@20	engine	a_expr/row_OVERLAPS_row!drop-3	SELECT ROW(OVERLAPS ROW()
+reject@20	reject@20	engine	a_expr/row_OVERLAPS_row!drop-3	SELECT ROW(OVERLAPS ROW()
 reject@16	reject@16	engine	a_expr/row_OVERLAPS_row!drop-4	SELECT ROW() ROW()
 reject@22	reject@22	engine	a_expr/row_OVERLAPS_row!drop-5	SELECT ROW() OVERLAPS()
 reject@25	reject@25	engine	a_expr/row_OVERLAPS_row!drop-6	SELECT ROW() OVERLAPS ROW)
 reject@26	reject@26	engine	a_expr/row_OVERLAPS_row!drop-7	SELECT ROW() OVERLAPS ROW(
-accept	reject@7	engine	a_expr/row_OVERLAPS_row!insert	SELECT ROW() OVERLAPS ROW() zzz
-accept	reject@14	engine	a_expr/row_OVERLAPS_row!swap	SELECT ROWS() OVERLAPS ROW()
+reject@7	reject@7	engine	a_expr/row_OVERLAPS_row!insert	SELECT ROW() OVERLAPS ROW() zzz
+reject@14	reject@14	engine	a_expr/row_OVERLAPS_row!swap	SELECT ROWS() OVERLAPS ROW()
 accept	accept	engine	a_expr/a_expr_IS_TRUE_P	SELECT a IS TRUE
-reject@7	reject@10	engine	a_expr/a_expr_IS_TRUE_P!drop-1	SELECT IS TRUE
+reject@10	reject@10	engine	a_expr/a_expr_IS_TRUE_P!drop-1	SELECT IS TRUE
 accept	accept	engine	a_expr/a_expr_IS_TRUE_P!insert	SELECT a IS TRUE zzz
 accept	accept	engine	a_expr/a_expr_IS_TRUE_P!swap	SELECT a ISNULL TRUE
 accept	accept	engine	a_expr/a_expr_IS_NOT_TRUE_P	SELECT a IS NOT TRUE
-reject@7	reject@10	engine	a_expr/a_expr_IS_NOT_TRUE_P!drop-1	SELECT IS NOT TRUE
+reject@10	reject@10	engine	a_expr/a_expr_IS_NOT_TRUE_P!drop-1	SELECT IS NOT TRUE
 reject@13	reject@13	engine	a_expr/a_expr_IS_NOT_TRUE_P!drop-2	SELECT a NOT TRUE
 accept	accept	engine	a_expr/a_expr_IS_NOT_TRUE_P!insert	SELECT a IS NOT TRUE zzz
 reject@20	reject@20	engine	a_expr/a_expr_IS_NOT_TRUE_P!swap	SELECT a ISNULL NOT TRUE
 accept	accept	engine	a_expr/a_expr_IS_FALSE_P	SELECT a IS FALSE
-reject@7	reject@10	engine	a_expr/a_expr_IS_FALSE_P!drop-1	SELECT IS FALSE
+reject@10	reject@10	engine	a_expr/a_expr_IS_FALSE_P!drop-1	SELECT IS FALSE
 accept	accept	engine	a_expr/a_expr_IS_FALSE_P!insert	SELECT a IS FALSE zzz
 accept	accept	engine	a_expr/a_expr_IS_FALSE_P!swap	SELECT a ISNULL FALSE
 accept	accept	engine	a_expr/a_expr_IS_NOT_FALSE_P	SELECT a IS NOT FALSE
-reject@7	reject@10	engine	a_expr/a_expr_IS_NOT_FALSE_P!drop-1	SELECT IS NOT FALSE
+reject@10	reject@10	engine	a_expr/a_expr_IS_NOT_FALSE_P!drop-1	SELECT IS NOT FALSE
 reject@13	reject@13	engine	a_expr/a_expr_IS_NOT_FALSE_P!drop-2	SELECT a NOT FALSE
 accept	accept	engine	a_expr/a_expr_IS_NOT_FALSE_P!insert	SELECT a IS NOT FALSE zzz
 reject@20	reject@20	engine	a_expr/a_expr_IS_NOT_FALSE_P!swap	SELECT a ISNULL NOT FALSE
 accept	accept	engine	a_expr/a_expr_IS_UNKNOWN	SELECT a IS UNKNOWN
-reject@7	reject@10	engine	a_expr/a_expr_IS_UNKNOWN!drop-1	SELECT IS UNKNOWN
+reject@10	reject@10	engine	a_expr/a_expr_IS_UNKNOWN!drop-1	SELECT IS UNKNOWN
 accept	accept	engine	a_expr/a_expr_IS_UNKNOWN!insert	SELECT a IS UNKNOWN zzz
 accept	accept	engine	a_expr/a_expr_IS_UNKNOWN!swap	SELECT a ISNULL UNKNOWN
 accept	accept	engine	a_expr/a_expr_IS_NOT_UNKNOWN	SELECT a IS NOT UNKNOWN
-reject@7	reject@10	engine	a_expr/a_expr_IS_NOT_UNKNOWN!drop-1	SELECT IS NOT UNKNOWN
+reject@10	reject@10	engine	a_expr/a_expr_IS_NOT_UNKNOWN!drop-1	SELECT IS NOT UNKNOWN
 reject@13	reject@13	engine	a_expr/a_expr_IS_NOT_UNKNOWN!drop-2	SELECT a NOT UNKNOWN
 accept	accept	engine	a_expr/a_expr_IS_NOT_UNKNOWN!insert	SELECT a IS NOT UNKNOWN zzz
 reject@20	reject@20	engine	a_expr/a_expr_IS_NOT_UNKNOWN!swap	SELECT a ISNULL NOT UNKNOWN
 accept	accept	engine	a_expr/a_expr_IS_DISTINCT_FROM_a_expr	SELECT a IS DISTINCT FROM a
-reject@7	reject@10	engine	a_expr/a_expr_IS_DISTINCT_FROM_a_expr!drop-1	SELECT IS DISTINCT FROM a
+reject@10	reject@10	engine	a_expr/a_expr_IS_DISTINCT_FROM_a_expr!drop-1	SELECT IS DISTINCT FROM a
 accept	accept	engine	a_expr/a_expr_IS_DISTINCT_FROM_a_expr!drop-2	SELECT a DISTINCT FROM a
 accept	accept	engine	a_expr/a_expr_IS_DISTINCT_FROM_a_expr!drop-3	SELECT a IS FROM a
 reject@21	reject@21	engine	a_expr/a_expr_IS_DISTINCT_FROM_a_expr!drop-4	SELECT a IS DISTINCT a
@@ -9870,7 +9870,7 @@ reject@25	reject@25	engine	a_expr/a_expr_IS_DISTINCT_FROM_a_expr!drop-5	SELECT a
 accept	accept	engine	a_expr/a_expr_IS_DISTINCT_FROM_a_expr!insert	SELECT a IS DISTINCT FROM a zzz
 accept	accept	engine	a_expr/a_expr_IS_DISTINCT_FROM_a_expr!swap	SELECT a ISNULL DISTINCT FROM a
 accept	accept	engine	a_expr/a_expr_IS_NOT_DISTINCT_FROM_a_expr	SELECT a IS NOT DISTINCT FROM a
-reject@7	reject@10	engine	a_expr/a_expr_IS_NOT_DISTINCT_FROM_a_expr!drop-1	SELECT IS NOT DISTINCT FROM a
+reject@10	reject@10	engine	a_expr/a_expr_IS_NOT_DISTINCT_FROM_a_expr!drop-1	SELECT IS NOT DISTINCT FROM a
 reject@13	reject@13	engine	a_expr/a_expr_IS_NOT_DISTINCT_FROM_a_expr!drop-2	SELECT a NOT DISTINCT FROM a
 reject@16	reject@16	engine	a_expr/a_expr_IS_NOT_DISTINCT_FROM_a_expr!drop-4	SELECT a IS NOT FROM a
 reject@25	reject@25	engine	a_expr/a_expr_IS_NOT_DISTINCT_FROM_a_expr!drop-5	SELECT a IS NOT DISTINCT a
@@ -9886,7 +9886,7 @@ reject@22	reject@22	engine	a_expr/a_expr_BETWEEN_opt_asymmetric_b_expr_AND_a_exp
 accept	accept	engine	a_expr/a_expr_BETWEEN_opt_asymmetric_b_expr_AND_a_expr!insert	SELECT a BETWEEN a AND a zzz
 reject@16	reject@16	engine	a_expr/a_expr_BETWEEN_opt_asymmetric_b_expr_AND_a_expr!swap	SELECT a BIGINT a AND a
 accept	accept	engine	a_expr/a_expr_NOT_LA_BETWEEN_opt_asymmetric_b_expr_AND_a_expr	SELECT a NOT BETWEEN a AND a
-reject@7	reject@21	engine	a_expr/a_expr_NOT_LA_BETWEEN_opt_asymmetric_b_expr_AND_a_expr!drop-1	SELECT NOT BETWEEN a AND a
+reject@21	reject@21	engine	a_expr/a_expr_NOT_LA_BETWEEN_opt_asymmetric_b_expr_AND_a_expr!drop-1	SELECT NOT BETWEEN a AND a
 reject@13	reject@13	engine	a_expr/a_expr_NOT_LA_BETWEEN_opt_asymmetric_b_expr_AND_a_expr!drop-3	SELECT a NOT a AND a
 reject@21	reject@21	engine	a_expr/a_expr_NOT_LA_BETWEEN_opt_asymmetric_b_expr_AND_a_expr!drop-4	SELECT a NOT BETWEEN AND a
 reject@23	reject@23	engine	a_expr/a_expr_NOT_LA_BETWEEN_opt_asymmetric_b_expr_AND_a_expr!drop-5	SELECT a NOT BETWEEN a a
@@ -9902,7 +9902,7 @@ reject@32	reject@32	engine	a_expr/a_expr_BETWEEN_SYMMETRIC_b_expr_AND_a_expr!dro
 accept	accept	engine	a_expr/a_expr_BETWEEN_SYMMETRIC_b_expr_AND_a_expr!insert	SELECT a BETWEEN SYMMETRIC a AND a zzz
 reject@16	reject@16	engine	a_expr/a_expr_BETWEEN_SYMMETRIC_b_expr_AND_a_expr!swap	SELECT a BIGINT SYMMETRIC a AND a
 accept	accept	engine	a_expr/a_expr_NOT_LA_BETWEEN_SYMMETRIC_b_expr_AND_a_expr	SELECT a NOT BETWEEN SYMMETRIC a AND a
-reject@7	reject@29	engine	a_expr/a_expr_NOT_LA_BETWEEN_SYMMETRIC_b_expr_AND_a_expr!drop-1	SELECT NOT BETWEEN SYMMETRIC a AND a
+reject@29	reject@29	engine	a_expr/a_expr_NOT_LA_BETWEEN_SYMMETRIC_b_expr_AND_a_expr!drop-1	SELECT NOT BETWEEN SYMMETRIC a AND a
 reject@13	reject@13	engine	a_expr/a_expr_NOT_LA_BETWEEN_SYMMETRIC_b_expr_AND_a_expr!drop-3	SELECT a NOT SYMMETRIC a AND a
 reject@31	reject@31	engine	a_expr/a_expr_NOT_LA_BETWEEN_SYMMETRIC_b_expr_AND_a_expr!drop-5	SELECT a NOT BETWEEN SYMMETRIC AND a
 reject@33	reject@33	engine	a_expr/a_expr_NOT_LA_BETWEEN_SYMMETRIC_b_expr_AND_a_expr!drop-6	SELECT a NOT BETWEEN SYMMETRIC a a
@@ -9918,7 +9918,7 @@ reject@18	reject@18	engine	a_expr/a_expr_IN_P_in_expr!drop-5	SELECT a IN(SELECT
 accept	accept	engine	a_expr/a_expr_IN_P_in_expr!insert	SELECT a IN(SELECT) zzz
 reject@16	reject@16	engine	a_expr/a_expr_IN_P_in_expr!swap	SELECT a INCLUDE(SELECT)
 accept	accept	engine	a_expr/a_expr_NOT_LA_IN_P_in_expr	SELECT a NOT IN(SELECT)
-reject@7	reject@11	engine	a_expr/a_expr_NOT_LA_IN_P_in_expr!drop-1	SELECT NOT IN(SELECT)
+reject@11	reject@11	engine	a_expr/a_expr_NOT_LA_IN_P_in_expr!drop-1	SELECT NOT IN(SELECT)
 reject@12	reject@12	engine	a_expr/a_expr_NOT_LA_IN_P_in_expr!drop-3	SELECT a NOT(SELECT)
 reject@16	reject@16	engine	a_expr/a_expr_NOT_LA_IN_P_in_expr!drop-4	SELECT a NOT IN SELECT)
 reject@16	reject@16	engine	a_expr/a_expr_NOT_LA_IN_P_in_expr!drop-5	SELECT a NOT IN()
@@ -9930,7 +9930,7 @@ reject@9	reject@9	engine	a_expr/a_expr_subquery_Op_sub_type_select_with_parens!d
 reject@12	reject@12	engine	a_expr/a_expr_subquery_Op_sub_type_select_with_parens!drop-2	SELECT a ANY(SELECT)
 accept	accept	engine	a_expr/a_expr_subquery_Op_sub_type_select_with_parens!drop-3	SELECT a ~(SELECT)
 reject@15	reject@15	engine	a_expr/a_expr_subquery_Op_sub_type_select_with_parens!drop-4	SELECT a ~ ANY SELECT)
-accept	reject@15	engine	a_expr/a_expr_subquery_Op_sub_type_select_with_parens!drop-5	SELECT a ~ ANY()
+reject@15	reject@15	engine	a_expr/a_expr_subquery_Op_sub_type_select_with_parens!drop-5	SELECT a ~ ANY()
 reject@21	reject@21	engine	a_expr/a_expr_subquery_Op_sub_type_select_with_parens!drop-6	SELECT a ~ ANY(SELECT
 accept	accept	engine	a_expr/a_expr_subquery_Op_sub_type_select_with_parens!insert	SELECT a ~ ANY(SELECT) zzz
 accept	accept	engine	a_expr/a_expr_subquery_Op_sub_type_select_with_parens!swap	SELECT a ~ ARRAY(SELECT)
@@ -9943,47 +9943,47 @@ reject@16	reject@16	engine	a_expr/a_expr_subquery_Op_sub_type_(_a_expr_)!drop-6	
 accept	accept	engine	a_expr/a_expr_subquery_Op_sub_type_(_a_expr_)!insert	SELECT a ~ ANY(a) zzz
 reject@17	reject@17	engine	a_expr/a_expr_subquery_Op_sub_type_(_a_expr_)!swap	SELECT a ~ ARRAY(a)
 reject@7	reject@7	engine	a_expr/UNIQUE_opt_unique_null_treatment_select_with_parens	SELECT UNIQUE(SELECT)
-reject@7	reject@14	engine	a_expr/UNIQUE_opt_unique_null_treatment_select_with_parens!drop-2	SELECT UNIQUE SELECT)
-reject@7	reject@14	engine	a_expr/UNIQUE_opt_unique_null_treatment_select_with_parens!drop-3	SELECT UNIQUE()
-reject@7	reject@20	engine	a_expr/UNIQUE_opt_unique_null_treatment_select_with_parens!drop-4	SELECT UNIQUE(SELECT
+reject@14	reject@14	engine	a_expr/UNIQUE_opt_unique_null_treatment_select_with_parens!drop-2	SELECT UNIQUE SELECT)
+reject@14	reject@14	engine	a_expr/UNIQUE_opt_unique_null_treatment_select_with_parens!drop-3	SELECT UNIQUE()
+reject@20	reject@20	engine	a_expr/UNIQUE_opt_unique_null_treatment_select_with_parens!drop-4	SELECT UNIQUE(SELECT
 reject@7	reject@7	engine	a_expr/UNIQUE_opt_unique_null_treatment_select_with_parens!insert	SELECT UNIQUE(SELECT) zzz
 reject@15	reject@15	engine	a_expr/UNIQUE_opt_unique_null_treatment_select_with_parens!swap	SELECT UNKNOWN(SELECT)
 accept	accept	engine	a_expr/a_expr_IS_DOCUMENT_P	SELECT a IS DOCUMENT
-reject@7	reject@10	engine	a_expr/a_expr_IS_DOCUMENT_P!drop-1	SELECT IS DOCUMENT
+reject@10	reject@10	engine	a_expr/a_expr_IS_DOCUMENT_P!drop-1	SELECT IS DOCUMENT
 accept	accept	engine	a_expr/a_expr_IS_DOCUMENT_P!insert	SELECT a IS DOCUMENT zzz
 accept	accept	engine	a_expr/a_expr_IS_DOCUMENT_P!swap	SELECT a ISNULL DOCUMENT
 accept	accept	engine	a_expr/a_expr_IS_NOT_DOCUMENT_P	SELECT a IS NOT DOCUMENT
-reject@7	reject@10	engine	a_expr/a_expr_IS_NOT_DOCUMENT_P!drop-1	SELECT IS NOT DOCUMENT
+reject@10	reject@10	engine	a_expr/a_expr_IS_NOT_DOCUMENT_P!drop-1	SELECT IS NOT DOCUMENT
 reject@13	reject@13	engine	a_expr/a_expr_IS_NOT_DOCUMENT_P!drop-2	SELECT a NOT DOCUMENT
 accept	accept	engine	a_expr/a_expr_IS_NOT_DOCUMENT_P!insert	SELECT a IS NOT DOCUMENT zzz
 reject@20	reject@20	engine	a_expr/a_expr_IS_NOT_DOCUMENT_P!swap	SELECT a ISNULL NOT DOCUMENT
 accept	accept	engine	a_expr/a_expr_IS_NORMALIZED	SELECT a IS NORMALIZED
-reject@7	reject@10	engine	a_expr/a_expr_IS_NORMALIZED!drop-1	SELECT IS NORMALIZED
+reject@10	reject@10	engine	a_expr/a_expr_IS_NORMALIZED!drop-1	SELECT IS NORMALIZED
 accept	accept	engine	a_expr/a_expr_IS_NORMALIZED!insert	SELECT a IS NORMALIZED zzz
 accept	accept	engine	a_expr/a_expr_IS_NORMALIZED!swap	SELECT a ISNULL NORMALIZED
 accept	accept	engine	a_expr/a_expr_IS_unicode_normal_form_NORMALIZED	SELECT a IS NFC NORMALIZED
-reject@7	reject@10	engine	a_expr/a_expr_IS_unicode_normal_form_NORMALIZED!drop-1	SELECT IS NFC NORMALIZED
+reject@10	reject@10	engine	a_expr/a_expr_IS_unicode_normal_form_NORMALIZED!drop-1	SELECT IS NFC NORMALIZED
 reject@13	reject@13	engine	a_expr/a_expr_IS_unicode_normal_form_NORMALIZED!drop-2	SELECT a NFC NORMALIZED
 reject@15	reject@15	engine	a_expr/a_expr_IS_unicode_normal_form_NORMALIZED!drop-4	SELECT a IS NFC
 accept	accept	engine	a_expr/a_expr_IS_unicode_normal_form_NORMALIZED!insert	SELECT a IS NFC NORMALIZED zzz
 reject@20	reject@20	engine	a_expr/a_expr_IS_unicode_normal_form_NORMALIZED!swap	SELECT a ISNULL NFC NORMALIZED
 accept	accept	engine	a_expr/a_expr_IS_NOT_NORMALIZED	SELECT a IS NOT NORMALIZED
-reject@7	reject@10	engine	a_expr/a_expr_IS_NOT_NORMALIZED!drop-1	SELECT IS NOT NORMALIZED
+reject@10	reject@10	engine	a_expr/a_expr_IS_NOT_NORMALIZED!drop-1	SELECT IS NOT NORMALIZED
 reject@13	reject@13	engine	a_expr/a_expr_IS_NOT_NORMALIZED!drop-2	SELECT a NOT NORMALIZED
 accept	accept	engine	a_expr/a_expr_IS_NOT_NORMALIZED!insert	SELECT a IS NOT NORMALIZED zzz
 reject@20	reject@20	engine	a_expr/a_expr_IS_NOT_NORMALIZED!swap	SELECT a ISNULL NOT NORMALIZED
 accept	accept	engine	a_expr/a_expr_IS_NOT_unicode_normal_form_NORMALIZED	SELECT a IS NOT NFC NORMALIZED
-reject@7	reject@10	engine	a_expr/a_expr_IS_NOT_unicode_normal_form_NORMALIZED!drop-1	SELECT IS NOT NFC NORMALIZED
+reject@10	reject@10	engine	a_expr/a_expr_IS_NOT_unicode_normal_form_NORMALIZED!drop-1	SELECT IS NOT NFC NORMALIZED
 reject@13	reject@13	engine	a_expr/a_expr_IS_NOT_unicode_normal_form_NORMALIZED!drop-2	SELECT a NOT NFC NORMALIZED
 reject@19	reject@19	engine	a_expr/a_expr_IS_NOT_unicode_normal_form_NORMALIZED!drop-5	SELECT a IS NOT NFC
 accept	accept	engine	a_expr/a_expr_IS_NOT_unicode_normal_form_NORMALIZED!insert	SELECT a IS NOT NFC NORMALIZED zzz
 reject@20	reject@20	engine	a_expr/a_expr_IS_NOT_unicode_normal_form_NORMALIZED!swap	SELECT a ISNULL NOT NFC NORMALIZED
 accept	accept	engine	a_expr/a_expr_IS_json_predicate_type_constraint_json_key_uniqueness_constraint_opt	SELECT a IS JSON
-reject@7	reject@10	engine	a_expr/a_expr_IS_json_predicate_type_constraint_json_key_uniqueness_constraint_opt!drop-1	SELECT IS JSON
+reject@10	reject@10	engine	a_expr/a_expr_IS_json_predicate_type_constraint_json_key_uniqueness_constraint_opt!drop-1	SELECT IS JSON
 accept	accept	engine	a_expr/a_expr_IS_json_predicate_type_constraint_json_key_uniqueness_constraint_opt!insert	SELECT a IS JSON zzz
 accept	accept	engine	a_expr/a_expr_IS_json_predicate_type_constraint_json_key_uniqueness_constraint_opt!swap	SELECT a ISNULL JSON
 accept	accept	engine	a_expr/a_expr_IS_NOT_json_predicate_type_constraint_json_key_uniqueness_constraint_opt	SELECT a IS NOT JSON
-reject@7	reject@10	engine	a_expr/a_expr_IS_NOT_json_predicate_type_constraint_json_key_uniqueness_constraint_opt!drop-1	SELECT IS NOT JSON
+reject@10	reject@10	engine	a_expr/a_expr_IS_NOT_json_predicate_type_constraint_json_key_uniqueness_constraint_opt!drop-1	SELECT IS NOT JSON
 reject@13	reject@13	engine	a_expr/a_expr_IS_NOT_json_predicate_type_constraint_json_key_uniqueness_constraint_opt!drop-2	SELECT a NOT JSON
 accept	accept	engine	a_expr/a_expr_IS_NOT_json_predicate_type_constraint_json_key_uniqueness_constraint_opt!insert	SELECT a IS NOT JSON zzz
 reject@20	reject@20	engine	a_expr/a_expr_IS_NOT_json_predicate_type_constraint_json_key_uniqueness_constraint_opt!swap	SELECT a ISNULL NOT JSON
@@ -10055,7 +10055,7 @@ accept	accept	engine	b_expr/qual_Op_b_expr	CREATE DOMAIN a a DEFAULT ~ a
 reject@27	reject@27	engine	b_expr/qual_Op_b_expr!drop-2	CREATE DOMAIN a a DEFAULT ~
 reject@30	reject@30	engine	b_expr/qual_Op_b_expr!insert	CREATE DOMAIN a a DEFAULT ~ a zzz
 accept	accept	engine	b_expr/b_expr_IS_DISTINCT_FROM_b_expr	CREATE DOMAIN a a DEFAULT a IS DISTINCT FROM a
-reject@26	reject@29	engine	b_expr/b_expr_IS_DISTINCT_FROM_b_expr!drop-1	CREATE DOMAIN a a DEFAULT IS DISTINCT FROM a
+reject@29	reject@29	engine	b_expr/b_expr_IS_DISTINCT_FROM_b_expr!drop-1	CREATE DOMAIN a a DEFAULT IS DISTINCT FROM a
 reject@28	reject@28	engine	b_expr/b_expr_IS_DISTINCT_FROM_b_expr!drop-2	CREATE DOMAIN a a DEFAULT a DISTINCT FROM a
 reject@31	reject@31	engine	b_expr/b_expr_IS_DISTINCT_FROM_b_expr!drop-3	CREATE DOMAIN a a DEFAULT a IS FROM a
 reject@40	reject@40	engine	b_expr/b_expr_IS_DISTINCT_FROM_b_expr!drop-4	CREATE DOMAIN a a DEFAULT a IS DISTINCT a
@@ -10063,7 +10063,7 @@ reject@44	reject@44	engine	b_expr/b_expr_IS_DISTINCT_FROM_b_expr!drop-5	CREATE D
 reject@47	reject@47	engine	b_expr/b_expr_IS_DISTINCT_FROM_b_expr!insert	CREATE DOMAIN a a DEFAULT a IS DISTINCT FROM a zzz
 reject@28	reject@28	engine	b_expr/b_expr_IS_DISTINCT_FROM_b_expr!swap	CREATE DOMAIN a a DEFAULT a ISNULL DISTINCT FROM a
 accept	accept	engine	b_expr/b_expr_IS_NOT_DISTINCT_FROM_b_expr	CREATE DOMAIN a a DEFAULT a IS NOT DISTINCT FROM a
-reject@26	reject@29	engine	b_expr/b_expr_IS_NOT_DISTINCT_FROM_b_expr!drop-1	CREATE DOMAIN a a DEFAULT IS NOT DISTINCT FROM a
+reject@29	reject@29	engine	b_expr/b_expr_IS_NOT_DISTINCT_FROM_b_expr!drop-1	CREATE DOMAIN a a DEFAULT IS NOT DISTINCT FROM a
 reject@32	reject@32	engine	b_expr/b_expr_IS_NOT_DISTINCT_FROM_b_expr!drop-2	CREATE DOMAIN a a DEFAULT a NOT DISTINCT FROM a
 reject@35	reject@35	engine	b_expr/b_expr_IS_NOT_DISTINCT_FROM_b_expr!drop-4	CREATE DOMAIN a a DEFAULT a IS NOT FROM a
 reject@44	reject@44	engine	b_expr/b_expr_IS_NOT_DISTINCT_FROM_b_expr!drop-5	CREATE DOMAIN a a DEFAULT a IS NOT DISTINCT a
@@ -10071,15 +10071,15 @@ reject@48	reject@48	engine	b_expr/b_expr_IS_NOT_DISTINCT_FROM_b_expr!drop-6	CREA
 reject@51	reject@51	engine	b_expr/b_expr_IS_NOT_DISTINCT_FROM_b_expr!insert	CREATE DOMAIN a a DEFAULT a IS NOT DISTINCT FROM a zzz
 reject@28	reject@28	engine	b_expr/b_expr_IS_NOT_DISTINCT_FROM_b_expr!swap	CREATE DOMAIN a a DEFAULT a ISNULL NOT DISTINCT FROM a
 accept	accept	engine	b_expr/b_expr_IS_DOCUMENT_P	CREATE DOMAIN a a DEFAULT a IS DOCUMENT
-reject@26	reject@29	engine	b_expr/b_expr_IS_DOCUMENT_P!drop-1	CREATE DOMAIN a a DEFAULT IS DOCUMENT
+reject@29	reject@29	engine	b_expr/b_expr_IS_DOCUMENT_P!drop-1	CREATE DOMAIN a a DEFAULT IS DOCUMENT
 reject@28	reject@28	engine	b_expr/b_expr_IS_DOCUMENT_P!drop-2	CREATE DOMAIN a a DEFAULT a DOCUMENT
-accept	reject@30	engine	b_expr/b_expr_IS_DOCUMENT_P!drop-3	CREATE DOMAIN a a DEFAULT a IS
+reject@30	reject@30	engine	b_expr/b_expr_IS_DOCUMENT_P!drop-3	CREATE DOMAIN a a DEFAULT a IS
 reject@40	reject@40	engine	b_expr/b_expr_IS_DOCUMENT_P!insert	CREATE DOMAIN a a DEFAULT a IS DOCUMENT zzz
 reject@28	reject@28	engine	b_expr/b_expr_IS_DOCUMENT_P!swap	CREATE DOMAIN a a DEFAULT a ISNULL DOCUMENT
 accept	accept	engine	b_expr/b_expr_IS_NOT_DOCUMENT_P	CREATE DOMAIN a a DEFAULT a IS NOT DOCUMENT
-reject@26	reject@29	engine	b_expr/b_expr_IS_NOT_DOCUMENT_P!drop-1	CREATE DOMAIN a a DEFAULT IS NOT DOCUMENT
+reject@29	reject@29	engine	b_expr/b_expr_IS_NOT_DOCUMENT_P!drop-1	CREATE DOMAIN a a DEFAULT IS NOT DOCUMENT
 reject@32	reject@32	engine	b_expr/b_expr_IS_NOT_DOCUMENT_P!drop-2	CREATE DOMAIN a a DEFAULT a NOT DOCUMENT
-accept	reject@34	engine	b_expr/b_expr_IS_NOT_DOCUMENT_P!drop-4	CREATE DOMAIN a a DEFAULT a IS NOT
+reject@34	reject@34	engine	b_expr/b_expr_IS_NOT_DOCUMENT_P!drop-4	CREATE DOMAIN a a DEFAULT a IS NOT
 reject@44	reject@44	engine	b_expr/b_expr_IS_NOT_DOCUMENT_P!insert	CREATE DOMAIN a a DEFAULT a IS NOT DOCUMENT zzz
 reject@28	reject@28	engine	b_expr/b_expr_IS_NOT_DOCUMENT_P!swap	CREATE DOMAIN a a DEFAULT a ISNULL NOT DOCUMENT
 accept	accept	engine	c_expr/columnref	SELECT a
@@ -10095,9 +10095,9 @@ accept	accept	engine	c_expr/(_a_expr_)_opt_indirection!insert	SELECT(a) zzz
 accept	accept	engine	c_expr/case_expr	SELECT CASE WHEN a THEN a END
 reject@7	reject@7	engine	c_expr/case_expr!drop-1	SELECT WHEN a THEN a END
 reject@14	reject@14	engine	c_expr/case_expr!drop-2	SELECT CASE a THEN a END
-accept	reject@17	engine	c_expr/case_expr!drop-3	SELECT CASE WHEN THEN a END
+reject@17	reject@17	engine	c_expr/case_expr!drop-3	SELECT CASE WHEN THEN a END
 reject@19	reject@19	engine	c_expr/case_expr!drop-4	SELECT CASE WHEN a a END
-accept	reject@24	engine	c_expr/case_expr!drop-5	SELECT CASE WHEN a THEN END
+reject@24	reject@24	engine	c_expr/case_expr!drop-5	SELECT CASE WHEN a THEN END
 reject@25	reject@25	engine	c_expr/case_expr!drop-6	SELECT CASE WHEN a THEN a
 accept	accept	engine	c_expr/case_expr!insert	SELECT CASE WHEN a THEN a END zzz
 reject@12	reject@12	engine	c_expr/case_expr!swap	SELECT CAST WHEN a THEN a END
@@ -10113,11 +10113,11 @@ reject@7	reject@7	engine	c_expr/select_with_parens_indirection!drop-1	SELECT SEL
 reject@7	reject@7	engine	c_expr/select_with_parens_indirection!drop-2	SELECT().a
 reject@13	reject@13	engine	c_expr/select_with_parens_indirection!drop-3	SELECT(SELECT.a
 accept	accept	engine	c_expr/select_with_parens_indirection!drop-4	SELECT(SELECT) a
-accept	reject@15	engine	c_expr/select_with_parens_indirection!drop-5	SELECT(SELECT).
+reject@15	reject@15	engine	c_expr/select_with_parens_indirection!drop-5	SELECT(SELECT).
 accept	accept	engine	c_expr/select_with_parens_indirection!insert	SELECT(SELECT).a zzz
 accept	accept	engine	c_expr/select_with_parens_indirection!swap	SELECT(SEQUENCE).a
 accept	accept	engine	c_expr/EXISTS_select_with_parens	SELECT EXISTS(SELECT)
-reject@14	reject@20	engine	c_expr/EXISTS_select_with_parens!drop-2	SELECT EXISTS SELECT)
+reject@20	reject@20	engine	c_expr/EXISTS_select_with_parens!drop-2	SELECT EXISTS SELECT)
 reject@14	reject@14	engine	c_expr/EXISTS_select_with_parens!drop-3	SELECT EXISTS()
 reject@20	reject@20	engine	c_expr/EXISTS_select_with_parens!drop-4	SELECT EXISTS(SELECT
 accept	accept	engine	c_expr/EXISTS_select_with_parens!insert	SELECT EXISTS(SELECT) zzz
@@ -10147,7 +10147,7 @@ reject@9	reject@9	engine	c_expr/implicit_row!drop-4	SELECT(a,)
 reject@11	reject@11	engine	c_expr/implicit_row!drop-5	SELECT(a, a
 accept	accept	engine	c_expr/implicit_row!insert	SELECT(a, a) zzz
 accept	accept	engine	c_expr/GROUPING_(_expr_list_)	SELECT GROUPING(a)
-reject@16	reject@17	engine	c_expr/GROUPING_(_expr_list_)!drop-2	SELECT GROUPING a)
+reject@17	reject@17	engine	c_expr/GROUPING_(_expr_list_)!drop-2	SELECT GROUPING a)
 reject@16	reject@16	engine	c_expr/GROUPING_(_expr_list_)!drop-3	SELECT GROUPING()
 reject@17	reject@17	engine	c_expr/GROUPING_(_expr_list_)!drop-4	SELECT GROUPING(a
 accept	accept	engine	c_expr/GROUPING_(_expr_list_)!insert	SELECT GROUPING(a) zzz
@@ -10197,7 +10197,7 @@ accept	accept	engine	func_expr/func_application_within_group_clause_filter_claus
 reject@9	reject@9	engine	func_expr/func_application_within_group_clause_filter_clause_over_clause!drop-3	SELECT a(
 accept	accept	engine	func_expr/func_application_within_group_clause_filter_clause_over_clause!insert	SELECT a() zzz
 accept	accept	engine	func_expr/json_aggregate_func_filter_clause_over_clause	SELECT JSON_ARRAYAGG(a)
-reject@21	reject@22	engine	func_expr/json_aggregate_func_filter_clause_over_clause!drop-2	SELECT JSON_ARRAYAGG a)
+reject@22	reject@22	engine	func_expr/json_aggregate_func_filter_clause_over_clause!drop-2	SELECT JSON_ARRAYAGG a)
 reject@21	reject@21	engine	func_expr/json_aggregate_func_filter_clause_over_clause!drop-3	SELECT JSON_ARRAYAGG()
 reject@22	reject@22	engine	func_expr/json_aggregate_func_filter_clause_over_clause!drop-4	SELECT JSON_ARRAYAGG(a
 accept	accept	engine	func_expr/json_aggregate_func_filter_clause_over_clause!insert	SELECT JSON_ARRAYAGG(a) zzz
@@ -10217,7 +10217,7 @@ accept	accept	engine	func_expr_windowless/json_aggregate_func!insert	SELECT FROM
 reject@25	reject@25	engine	func_expr_windowless/json_aggregate_func!swap	SELECT FROM JSON_EXISTS(a)
 accept	accept	engine	func_expr_common_subexpr/COLLATION_FOR_(_a_expr_)	SELECT COLLATION FOR(a)
 reject@10	reject@10	engine	func_expr_common_subexpr/COLLATION_FOR_(_a_expr_)!drop-1	SELECT FOR(a)
-reject@16	accept	engine	func_expr_common_subexpr/COLLATION_FOR_(_a_expr_)!drop-2	SELECT COLLATION(a)
+accept	accept	engine	func_expr_common_subexpr/COLLATION_FOR_(_a_expr_)!drop-2	SELECT COLLATION(a)
 reject@21	reject@21	engine	func_expr_common_subexpr/COLLATION_FOR_(_a_expr_)!drop-3	SELECT COLLATION FOR a)
 reject@21	reject@21	engine	func_expr_common_subexpr/COLLATION_FOR_(_a_expr_)!drop-4	SELECT COLLATION FOR()
 reject@22	reject@22	engine	func_expr_common_subexpr/COLLATION_FOR_(_a_expr_)!drop-5	SELECT COLLATION FOR(a
@@ -10285,7 +10285,7 @@ accept	accept	engine	func_expr_common_subexpr/CAST_(_a_expr_AS_Typename_)!insert
 reject@17	reject@17	engine	func_expr_common_subexpr/CAST_(_a_expr_AS_Typename_)!swap	SELECT CATALOG(a AS a)
 accept	accept	engine	func_expr_common_subexpr/EXTRACT_(_extract_list_)	SELECT EXTRACT(a FROM a)
 reject@9	reject@9	engine	func_expr_common_subexpr/EXTRACT_(_extract_list_)!drop-1	SELECT(a FROM a)
-reject@15	reject@23	engine	func_expr_common_subexpr/EXTRACT_(_extract_list_)!drop-2	SELECT EXTRACT a FROM a)
+reject@23	reject@23	engine	func_expr_common_subexpr/EXTRACT_(_extract_list_)!drop-2	SELECT EXTRACT a FROM a)
 reject@15	reject@15	engine	func_expr_common_subexpr/EXTRACT_(_extract_list_)!drop-3	SELECT EXTRACT(FROM a)
 reject@17	reject@17	engine	func_expr_common_subexpr/EXTRACT_(_extract_list_)!drop-4	SELECT EXTRACT(a a)
 reject@21	reject@21	engine	func_expr_common_subexpr/EXTRACT_(_extract_list_)!drop-5	SELECT EXTRACT(a FROM)
@@ -10293,14 +10293,14 @@ reject@23	reject@23	engine	func_expr_common_subexpr/EXTRACT_(_extract_list_)!dro
 accept	accept	engine	func_expr_common_subexpr/EXTRACT_(_extract_list_)!insert	SELECT EXTRACT(a FROM a) zzz
 reject@12	reject@12	engine	func_expr_common_subexpr/EXTRACT_(_extract_list_)!swap	SELECT FALSE(a FROM a)
 accept	accept	engine	func_expr_common_subexpr/NORMALIZE_(_a_expr_)	SELECT NORMALIZE(a)
-reject@17	reject@18	engine	func_expr_common_subexpr/NORMALIZE_(_a_expr_)!drop-2	SELECT NORMALIZE a)
+reject@18	reject@18	engine	func_expr_common_subexpr/NORMALIZE_(_a_expr_)!drop-2	SELECT NORMALIZE a)
 reject@17	reject@17	engine	func_expr_common_subexpr/NORMALIZE_(_a_expr_)!drop-3	SELECT NORMALIZE()
 reject@18	reject@18	engine	func_expr_common_subexpr/NORMALIZE_(_a_expr_)!drop-4	SELECT NORMALIZE(a
 accept	accept	engine	func_expr_common_subexpr/NORMALIZE_(_a_expr_)!insert	SELECT NORMALIZE(a) zzz
 accept	accept	engine	func_expr_common_subexpr/NORMALIZE_(_a_expr_)!swap	SELECT NORMALIZED(a)
 accept	accept	engine	func_expr_common_subexpr/NORMALIZE_(_a_expr_,_unicode_normal_form_)	SELECT NORMALIZE(a, NFC)
 accept	accept	engine	func_expr_common_subexpr/NORMALIZE_(_a_expr_,_unicode_normal_form_)!drop-1	SELECT(a, NFC)
-reject@17	reject@23	engine	func_expr_common_subexpr/NORMALIZE_(_a_expr_,_unicode_normal_form_)!drop-2	SELECT NORMALIZE a, NFC)
+reject@23	reject@23	engine	func_expr_common_subexpr/NORMALIZE_(_a_expr_,_unicode_normal_form_)!drop-2	SELECT NORMALIZE a, NFC)
 reject@17	reject@17	engine	func_expr_common_subexpr/NORMALIZE_(_a_expr_,_unicode_normal_form_)!drop-3	SELECT NORMALIZE(, NFC)
 reject@19	reject@19	engine	func_expr_common_subexpr/NORMALIZE_(_a_expr_,_unicode_normal_form_)!drop-4	SELECT NORMALIZE(a NFC)
 reject@19	reject@19	engine	func_expr_common_subexpr/NORMALIZE_(_a_expr_,_unicode_normal_form_)!drop-5	SELECT NORMALIZE(a,)
@@ -10309,7 +10309,7 @@ accept	accept	engine	func_expr_common_subexpr/NORMALIZE_(_a_expr_,_unicode_norma
 accept	accept	engine	func_expr_common_subexpr/NORMALIZE_(_a_expr_,_unicode_normal_form_)!swap	SELECT NORMALIZED(a, NFC)
 accept	accept	engine	func_expr_common_subexpr/OVERLAY_(_overlay_list_)	SELECT OVERLAY(a PLACING a FROM a)
 reject@9	reject@9	engine	func_expr_common_subexpr/OVERLAY_(_overlay_list_)!drop-1	SELECT(a PLACING a FROM a)
-reject@15	reject@17	engine	func_expr_common_subexpr/OVERLAY_(_overlay_list_)!drop-2	SELECT OVERLAY a PLACING a FROM a)
+reject@17	reject@17	engine	func_expr_common_subexpr/OVERLAY_(_overlay_list_)!drop-2	SELECT OVERLAY a PLACING a FROM a)
 reject@15	reject@15	engine	func_expr_common_subexpr/OVERLAY_(_overlay_list_)!drop-3	SELECT OVERLAY(PLACING a FROM a)
 reject@17	reject@17	engine	func_expr_common_subexpr/OVERLAY_(_overlay_list_)!drop-4	SELECT OVERLAY(a a FROM a)
 reject@25	reject@25	engine	func_expr_common_subexpr/OVERLAY_(_overlay_list_)!drop-5	SELECT OVERLAY(a PLACING FROM a)
@@ -10325,7 +10325,7 @@ accept	accept	engine	func_expr_common_subexpr/OVERLAY_(_func_arg_list_opt_)!inse
 accept	accept	engine	func_expr_common_subexpr/OVERLAY_(_func_arg_list_opt_)!swap	SELECT OVERRIDING()
 accept	accept	engine	func_expr_common_subexpr/POSITION_(_position_list_)	SELECT POSITION(a IN a)
 reject@12	reject@12	engine	func_expr_common_subexpr/POSITION_(_position_list_)!drop-1	SELECT(a IN a)
-reject@16	reject@18	engine	func_expr_common_subexpr/POSITION_(_position_list_)!drop-2	SELECT POSITION a IN a)
+reject@18	reject@18	engine	func_expr_common_subexpr/POSITION_(_position_list_)!drop-2	SELECT POSITION a IN a)
 reject@16	reject@16	engine	func_expr_common_subexpr/POSITION_(_position_list_)!drop-3	SELECT POSITION(IN a)
 reject@18	reject@18	engine	func_expr_common_subexpr/POSITION_(_position_list_)!drop-4	SELECT POSITION(a a)
 reject@20	reject@20	engine	func_expr_common_subexpr/POSITION_(_position_list_)!drop-5	SELECT POSITION(a IN)
@@ -10333,7 +10333,7 @@ reject@22	reject@22	engine	func_expr_common_subexpr/POSITION_(_position_list_)!d
 accept	accept	engine	func_expr_common_subexpr/POSITION_(_position_list_)!insert	SELECT POSITION(a IN a) zzz
 reject@22	reject@22	engine	func_expr_common_subexpr/POSITION_(_position_list_)!swap	SELECT PRECEDING(a IN a)
 accept	accept	engine	func_expr_common_subexpr/SUBSTRING_(_substr_list_)	SELECT SUBSTRING(a FROM a)
-reject@17	reject@25	engine	func_expr_common_subexpr/SUBSTRING_(_substr_list_)!drop-2	SELECT SUBSTRING a FROM a)
+reject@25	reject@25	engine	func_expr_common_subexpr/SUBSTRING_(_substr_list_)!drop-2	SELECT SUBSTRING a FROM a)
 reject@17	reject@17	engine	func_expr_common_subexpr/SUBSTRING_(_substr_list_)!drop-3	SELECT SUBSTRING(FROM a)
 reject@19	reject@19	engine	func_expr_common_subexpr/SUBSTRING_(_substr_list_)!drop-4	SELECT SUBSTRING(a a)
 reject@23	reject@23	engine	func_expr_common_subexpr/SUBSTRING_(_substr_list_)!drop-5	SELECT SUBSTRING(a FROM)
@@ -10346,7 +10346,7 @@ reject@17	reject@17	engine	func_expr_common_subexpr/SUBSTRING_(_func_arg_list_op
 accept	accept	engine	func_expr_common_subexpr/SUBSTRING_(_func_arg_list_opt_)!insert	SELECT SUBSTRING() zzz
 accept	accept	engine	func_expr_common_subexpr/SUBSTRING_(_func_arg_list_opt_)!swap	SELECT SUPPORT()
 accept	accept	engine	func_expr_common_subexpr/TREAT_(_a_expr_AS_Typename_)	SELECT TREAT(a AS a)
-reject@13	reject@15	engine	func_expr_common_subexpr/TREAT_(_a_expr_AS_Typename_)!drop-2	SELECT TREAT a AS a)
+reject@15	reject@15	engine	func_expr_common_subexpr/TREAT_(_a_expr_AS_Typename_)!drop-2	SELECT TREAT a AS a)
 reject@13	reject@13	engine	func_expr_common_subexpr/TREAT_(_a_expr_AS_Typename_)!drop-3	SELECT TREAT(AS a)
 reject@15	reject@15	engine	func_expr_common_subexpr/TREAT_(_a_expr_AS_Typename_)!drop-4	SELECT TREAT(a a)
 reject@17	reject@17	engine	func_expr_common_subexpr/TREAT_(_a_expr_AS_Typename_)!drop-5	SELECT TREAT(a AS)
@@ -10355,33 +10355,33 @@ accept	accept	engine	func_expr_common_subexpr/TREAT_(_a_expr_AS_Typename_)!inser
 reject@17	reject@17	engine	func_expr_common_subexpr/TREAT_(_a_expr_AS_Typename_)!swap	SELECT TRIGGER(a AS a)
 accept	accept	engine	func_expr_common_subexpr/TRIM_(_BOTH_trim_list_)	SELECT TRIM(BOTH a)
 reject@7	reject@7	engine	func_expr_common_subexpr/TRIM_(_BOTH_trim_list_)!drop-1	SELECT(BOTH a)
-reject@12	reject@17	engine	func_expr_common_subexpr/TRIM_(_BOTH_trim_list_)!drop-2	SELECT TRIM BOTH a)
+reject@17	reject@17	engine	func_expr_common_subexpr/TRIM_(_BOTH_trim_list_)!drop-2	SELECT TRIM BOTH a)
 reject@16	reject@16	engine	func_expr_common_subexpr/TRIM_(_BOTH_trim_list_)!drop-4	SELECT TRIM(BOTH)
 reject@18	reject@18	engine	func_expr_common_subexpr/TRIM_(_BOTH_trim_list_)!drop-5	SELECT TRIM(BOTH a
 accept	accept	engine	func_expr_common_subexpr/TRIM_(_BOTH_trim_list_)!insert	SELECT TRIM(BOTH a) zzz
 reject@11	reject@11	engine	func_expr_common_subexpr/TRIM_(_BOTH_trim_list_)!swap	SELECT TRUE(BOTH a)
 accept	accept	engine	func_expr_common_subexpr/TRIM_(_LEADING_trim_list_)	SELECT TRIM(LEADING a)
 reject@7	reject@7	engine	func_expr_common_subexpr/TRIM_(_LEADING_trim_list_)!drop-1	SELECT(LEADING a)
-reject@12	reject@20	engine	func_expr_common_subexpr/TRIM_(_LEADING_trim_list_)!drop-2	SELECT TRIM LEADING a)
+reject@20	reject@20	engine	func_expr_common_subexpr/TRIM_(_LEADING_trim_list_)!drop-2	SELECT TRIM LEADING a)
 reject@19	reject@19	engine	func_expr_common_subexpr/TRIM_(_LEADING_trim_list_)!drop-4	SELECT TRIM(LEADING)
 reject@21	reject@21	engine	func_expr_common_subexpr/TRIM_(_LEADING_trim_list_)!drop-5	SELECT TRIM(LEADING a
 accept	accept	engine	func_expr_common_subexpr/TRIM_(_LEADING_trim_list_)!insert	SELECT TRIM(LEADING a) zzz
 reject@11	reject@11	engine	func_expr_common_subexpr/TRIM_(_LEADING_trim_list_)!swap	SELECT TRUE(LEADING a)
 accept	accept	engine	func_expr_common_subexpr/TRIM_(_TRAILING_trim_list_)	SELECT TRIM(TRAILING a)
 reject@7	reject@7	engine	func_expr_common_subexpr/TRIM_(_TRAILING_trim_list_)!drop-1	SELECT(TRAILING a)
-reject@12	reject@21	engine	func_expr_common_subexpr/TRIM_(_TRAILING_trim_list_)!drop-2	SELECT TRIM TRAILING a)
+reject@21	reject@21	engine	func_expr_common_subexpr/TRIM_(_TRAILING_trim_list_)!drop-2	SELECT TRIM TRAILING a)
 reject@20	reject@20	engine	func_expr_common_subexpr/TRIM_(_TRAILING_trim_list_)!drop-4	SELECT TRIM(TRAILING)
 reject@22	reject@22	engine	func_expr_common_subexpr/TRIM_(_TRAILING_trim_list_)!drop-5	SELECT TRIM(TRAILING a
 accept	accept	engine	func_expr_common_subexpr/TRIM_(_TRAILING_trim_list_)!insert	SELECT TRIM(TRAILING a) zzz
 reject@11	reject@11	engine	func_expr_common_subexpr/TRIM_(_TRAILING_trim_list_)!swap	SELECT TRUE(TRAILING a)
 accept	accept	engine	func_expr_common_subexpr/TRIM_(_trim_list_)	SELECT TRIM(a)
-reject@12	reject@13	engine	func_expr_common_subexpr/TRIM_(_trim_list_)!drop-2	SELECT TRIM a)
+reject@13	reject@13	engine	func_expr_common_subexpr/TRIM_(_trim_list_)!drop-2	SELECT TRIM a)
 reject@12	reject@12	engine	func_expr_common_subexpr/TRIM_(_trim_list_)!drop-3	SELECT TRIM()
 reject@13	reject@13	engine	func_expr_common_subexpr/TRIM_(_trim_list_)!drop-4	SELECT TRIM(a
 accept	accept	engine	func_expr_common_subexpr/TRIM_(_trim_list_)!insert	SELECT TRIM(a) zzz
 reject@11	reject@11	engine	func_expr_common_subexpr/TRIM_(_trim_list_)!swap	SELECT TRUE(a)
 accept	accept	engine	func_expr_common_subexpr/NULLIF_(_a_expr_,_a_expr_)	SELECT NULLIF(a, a)
-reject@14	reject@18	engine	func_expr_common_subexpr/NULLIF_(_a_expr_,_a_expr_)!drop-2	SELECT NULLIF a, a)
+reject@18	reject@18	engine	func_expr_common_subexpr/NULLIF_(_a_expr_,_a_expr_)!drop-2	SELECT NULLIF a, a)
 reject@14	reject@14	engine	func_expr_common_subexpr/NULLIF_(_a_expr_,_a_expr_)!drop-3	SELECT NULLIF(, a)
 reject@16	reject@16	engine	func_expr_common_subexpr/NULLIF_(_a_expr_,_a_expr_)!drop-4	SELECT NULLIF(a a)
 reject@16	reject@16	engine	func_expr_common_subexpr/NULLIF_(_a_expr_,_a_expr_)!drop-5	SELECT NULLIF(a,)
@@ -10389,39 +10389,39 @@ reject@18	reject@18	engine	func_expr_common_subexpr/NULLIF_(_a_expr_,_a_expr_)!d
 accept	accept	engine	func_expr_common_subexpr/NULLIF_(_a_expr_,_a_expr_)!insert	SELECT NULLIF(a, a) zzz
 accept	accept	engine	func_expr_common_subexpr/NULLIF_(_a_expr_,_a_expr_)!swap	SELECT NULLS(a, a)
 accept	accept	engine	func_expr_common_subexpr/COALESCE_(_expr_list_)	SELECT COALESCE(a)
-reject@16	reject@17	engine	func_expr_common_subexpr/COALESCE_(_expr_list_)!drop-2	SELECT COALESCE a)
+reject@17	reject@17	engine	func_expr_common_subexpr/COALESCE_(_expr_list_)!drop-2	SELECT COALESCE a)
 reject@16	reject@16	engine	func_expr_common_subexpr/COALESCE_(_expr_list_)!drop-3	SELECT COALESCE()
 reject@17	reject@17	engine	func_expr_common_subexpr/COALESCE_(_expr_list_)!drop-4	SELECT COALESCE(a
 accept	accept	engine	func_expr_common_subexpr/COALESCE_(_expr_list_)!insert	SELECT COALESCE(a) zzz
 reject@7	reject@7	engine	func_expr_common_subexpr/COALESCE_(_expr_list_)!swap	SELECT COLLATE(a)
 accept	accept	engine	func_expr_common_subexpr/GREATEST_(_expr_list_)	SELECT GREATEST(a)
-reject@16	reject@17	engine	func_expr_common_subexpr/GREATEST_(_expr_list_)!drop-2	SELECT GREATEST a)
+reject@17	reject@17	engine	func_expr_common_subexpr/GREATEST_(_expr_list_)!drop-2	SELECT GREATEST a)
 reject@16	reject@16	engine	func_expr_common_subexpr/GREATEST_(_expr_list_)!drop-3	SELECT GREATEST()
 reject@17	reject@17	engine	func_expr_common_subexpr/GREATEST_(_expr_list_)!drop-4	SELECT GREATEST(a
 accept	accept	engine	func_expr_common_subexpr/GREATEST_(_expr_list_)!insert	SELECT GREATEST(a) zzz
 reject@12	reject@12	engine	func_expr_common_subexpr/GREATEST_(_expr_list_)!swap	SELECT GROUP(a)
 accept	accept	engine	func_expr_common_subexpr/LEAST_(_expr_list_)	SELECT LEAST(a)
-reject@13	reject@14	engine	func_expr_common_subexpr/LEAST_(_expr_list_)!drop-2	SELECT LEAST a)
+reject@14	reject@14	engine	func_expr_common_subexpr/LEAST_(_expr_list_)!drop-2	SELECT LEAST a)
 reject@13	reject@13	engine	func_expr_common_subexpr/LEAST_(_expr_list_)!drop-3	SELECT LEAST()
 reject@14	reject@14	engine	func_expr_common_subexpr/LEAST_(_expr_list_)!drop-4	SELECT LEAST(a
 accept	accept	engine	func_expr_common_subexpr/LEAST_(_expr_list_)!insert	SELECT LEAST(a) zzz
 accept	accept	engine	func_expr_common_subexpr/LEAST_(_expr_list_)!swap	SELECT LEFT(a)
 accept	accept	engine	func_expr_common_subexpr/XMLCONCAT_(_expr_list_)	SELECT XMLCONCAT(a)
-reject@17	reject@18	engine	func_expr_common_subexpr/XMLCONCAT_(_expr_list_)!drop-2	SELECT XMLCONCAT a)
+reject@18	reject@18	engine	func_expr_common_subexpr/XMLCONCAT_(_expr_list_)!drop-2	SELECT XMLCONCAT a)
 reject@17	reject@17	engine	func_expr_common_subexpr/XMLCONCAT_(_expr_list_)!drop-3	SELECT XMLCONCAT()
 reject@18	reject@18	engine	func_expr_common_subexpr/XMLCONCAT_(_expr_list_)!drop-4	SELECT XMLCONCAT(a
 accept	accept	engine	func_expr_common_subexpr/XMLCONCAT_(_expr_list_)!insert	SELECT XMLCONCAT(a) zzz
 reject@18	reject@18	engine	func_expr_common_subexpr/XMLCONCAT_(_expr_list_)!swap	SELECT XMLELEMENT(a)
 accept	accept	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_)	SELECT XMLELEMENT(NAME a)
 reject@12	reject@12	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_)!drop-1	SELECT(NAME a)
-reject@18	reject@23	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_)!drop-2	SELECT XMLELEMENT NAME a)
+reject@23	reject@23	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_)!drop-2	SELECT XMLELEMENT NAME a)
 reject@22	reject@22	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_)!drop-4	SELECT XMLELEMENT(NAME)
 reject@24	reject@24	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_)!drop-5	SELECT XMLELEMENT(NAME a
 accept	accept	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_)!insert	SELECT XMLELEMENT(NAME a) zzz
 reject@22	reject@22	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_)!swap	SELECT XMLEXISTS(NAME a)
 accept	accept	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_)	SELECT XMLELEMENT(NAME a, XMLATTRIBUTES(a))
 reject@12	reject@12	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_)!drop-1	SELECT(NAME a, XMLATTRIBUTES(a))
-reject@18	reject@23	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_)!drop-2	SELECT XMLELEMENT NAME a, XMLATTRIBUTES(a))
+reject@23	reject@23	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_)!drop-2	SELECT XMLELEMENT NAME a, XMLATTRIBUTES(a))
 reject@18	reject@18	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_)!drop-3	SELECT XMLELEMENT(a, XMLATTRIBUTES(a))
 reject@22	reject@22	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_)!drop-4	SELECT XMLELEMENT(NAME, XMLATTRIBUTES(a))
 reject@25	reject@25	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_)!drop-5	SELECT XMLELEMENT(NAME a XMLATTRIBUTES(a))
@@ -10433,7 +10433,7 @@ accept	accept	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml
 reject@22	reject@22	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_)!swap	SELECT XMLEXISTS(NAME a, XMLATTRIBUTES(a))
 accept	accept	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_expr_list_)	SELECT XMLELEMENT(NAME a, a)
 reject@12	reject@12	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_expr_list_)!drop-1	SELECT(NAME a, a)
-reject@18	reject@23	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_expr_list_)!drop-2	SELECT XMLELEMENT NAME a, a)
+reject@23	reject@23	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_expr_list_)!drop-2	SELECT XMLELEMENT NAME a, a)
 reject@18	reject@18	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_expr_list_)!drop-3	SELECT XMLELEMENT(a, a)
 reject@22	reject@22	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_expr_list_)!drop-4	SELECT XMLELEMENT(NAME, a)
 reject@25	reject@25	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_expr_list_)!drop-5	SELECT XMLELEMENT(NAME a a)
@@ -10443,7 +10443,7 @@ accept	accept	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_exp
 reject@22	reject@22	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_expr_list_)!swap	SELECT XMLEXISTS(NAME a, a)
 accept	accept	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_,_expr_list_)	SELECT XMLELEMENT(NAME a, XMLATTRIBUTES(a), a)
 reject@12	reject@12	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_,_expr_list_)!drop-1	SELECT(NAME a, XMLATTRIBUTES(a), a)
-reject@18	reject@23	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_,_expr_list_)!drop-2	SELECT XMLELEMENT NAME a, XMLATTRIBUTES(a), a)
+reject@23	reject@23	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_,_expr_list_)!drop-2	SELECT XMLELEMENT NAME a, XMLATTRIBUTES(a), a)
 reject@18	reject@18	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_,_expr_list_)!drop-3	SELECT XMLELEMENT(a, XMLATTRIBUTES(a), a)
 reject@22	reject@22	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_,_expr_list_)!drop-4	SELECT XMLELEMENT(NAME, XMLATTRIBUTES(a), a)
 reject@25	reject@25	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_,_expr_list_)!drop-5	SELECT XMLELEMENT(NAME a XMLATTRIBUTES(a), a)
@@ -10458,7 +10458,7 @@ accept	accept	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml
 reject@22	reject@22	engine	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_,_expr_list_)!swap	SELECT XMLEXISTS(NAME a, XMLATTRIBUTES(a), a)
 accept	accept	engine	func_expr_common_subexpr/XMLEXISTS_(_c_expr_xmlexists_argument_)	SELECT XMLEXISTS(a PASSING a)
 reject@9	reject@9	engine	func_expr_common_subexpr/XMLEXISTS_(_c_expr_xmlexists_argument_)!drop-1	SELECT(a PASSING a)
-reject@17	reject@19	engine	func_expr_common_subexpr/XMLEXISTS_(_c_expr_xmlexists_argument_)!drop-2	SELECT XMLEXISTS a PASSING a)
+reject@19	reject@19	engine	func_expr_common_subexpr/XMLEXISTS_(_c_expr_xmlexists_argument_)!drop-2	SELECT XMLEXISTS a PASSING a)
 reject@25	reject@25	engine	func_expr_common_subexpr/XMLEXISTS_(_c_expr_xmlexists_argument_)!drop-3	SELECT XMLEXISTS(PASSING a)
 reject@19	reject@19	engine	func_expr_common_subexpr/XMLEXISTS_(_c_expr_xmlexists_argument_)!drop-4	SELECT XMLEXISTS(a a)
 reject@26	reject@26	engine	func_expr_common_subexpr/XMLEXISTS_(_c_expr_xmlexists_argument_)!drop-5	SELECT XMLEXISTS(a PASSING)
@@ -10466,28 +10466,28 @@ reject@28	reject@28	engine	func_expr_common_subexpr/XMLEXISTS_(_c_expr_xmlexists
 accept	accept	engine	func_expr_common_subexpr/XMLEXISTS_(_c_expr_xmlexists_argument_)!insert	SELECT XMLEXISTS(a PASSING a) zzz
 reject@19	reject@19	engine	func_expr_common_subexpr/XMLEXISTS_(_c_expr_xmlexists_argument_)!swap	SELECT XMLFOREST(a PASSING a)
 accept	accept	engine	func_expr_common_subexpr/XMLFOREST_(_xml_attribute_list_)	SELECT XMLFOREST(a)
-reject@17	reject@18	engine	func_expr_common_subexpr/XMLFOREST_(_xml_attribute_list_)!drop-2	SELECT XMLFOREST a)
+reject@18	reject@18	engine	func_expr_common_subexpr/XMLFOREST_(_xml_attribute_list_)!drop-2	SELECT XMLFOREST a)
 reject@17	reject@17	engine	func_expr_common_subexpr/XMLFOREST_(_xml_attribute_list_)!drop-3	SELECT XMLFOREST()
 reject@18	reject@18	engine	func_expr_common_subexpr/XMLFOREST_(_xml_attribute_list_)!drop-4	SELECT XMLFOREST(a
 accept	accept	engine	func_expr_common_subexpr/XMLFOREST_(_xml_attribute_list_)!insert	SELECT XMLFOREST(a) zzz
-accept	reject@20	engine	func_expr_common_subexpr/XMLFOREST_(_xml_attribute_list_)!swap	SELECT XMLNAMESPACES(a)
+reject@20	reject@20	engine	func_expr_common_subexpr/XMLFOREST_(_xml_attribute_list_)!swap	SELECT XMLNAMESPACES(a)
 accept	accept	engine	func_expr_common_subexpr/XMLPARSE_(_document_or_content_a_expr_xml_whitespace_option_)	SELECT XMLPARSE(DOCUMENT a)
 reject@16	reject@16	engine	func_expr_common_subexpr/XMLPARSE_(_document_or_content_a_expr_xml_whitespace_option_)!drop-1	SELECT(DOCUMENT a)
-reject@16	reject@25	engine	func_expr_common_subexpr/XMLPARSE_(_document_or_content_a_expr_xml_whitespace_option_)!drop-2	SELECT XMLPARSE DOCUMENT a)
+reject@25	reject@25	engine	func_expr_common_subexpr/XMLPARSE_(_document_or_content_a_expr_xml_whitespace_option_)!drop-2	SELECT XMLPARSE DOCUMENT a)
 reject@16	reject@16	engine	func_expr_common_subexpr/XMLPARSE_(_document_or_content_a_expr_xml_whitespace_option_)!drop-3	SELECT XMLPARSE(a)
 reject@24	reject@24	engine	func_expr_common_subexpr/XMLPARSE_(_document_or_content_a_expr_xml_whitespace_option_)!drop-4	SELECT XMLPARSE(DOCUMENT)
 reject@26	reject@26	engine	func_expr_common_subexpr/XMLPARSE_(_document_or_content_a_expr_xml_whitespace_option_)!drop-5	SELECT XMLPARSE(DOCUMENT a
 accept	accept	engine	func_expr_common_subexpr/XMLPARSE_(_document_or_content_a_expr_xml_whitespace_option_)!insert	SELECT XMLPARSE(DOCUMENT a) zzz
 reject@13	reject@13	engine	func_expr_common_subexpr/XMLPARSE_(_document_or_content_a_expr_xml_whitespace_option_)!swap	SELECT XMLPI(DOCUMENT a)
 accept	accept	engine	func_expr_common_subexpr/XMLPI_(_NAME_P_ColLabel_)	SELECT XMLPI(NAME a)
-reject@13	reject@18	engine	func_expr_common_subexpr/XMLPI_(_NAME_P_ColLabel_)!drop-2	SELECT XMLPI NAME a)
+reject@18	reject@18	engine	func_expr_common_subexpr/XMLPI_(_NAME_P_ColLabel_)!drop-2	SELECT XMLPI NAME a)
 reject@13	reject@13	engine	func_expr_common_subexpr/XMLPI_(_NAME_P_ColLabel_)!drop-3	SELECT XMLPI(a)
 reject@17	reject@17	engine	func_expr_common_subexpr/XMLPI_(_NAME_P_ColLabel_)!drop-4	SELECT XMLPI(NAME)
 reject@19	reject@19	engine	func_expr_common_subexpr/XMLPI_(_NAME_P_ColLabel_)!drop-5	SELECT XMLPI(NAME a
 accept	accept	engine	func_expr_common_subexpr/XMLPI_(_NAME_P_ColLabel_)!insert	SELECT XMLPI(NAME a) zzz
 reject@20	reject@20	engine	func_expr_common_subexpr/XMLPI_(_NAME_P_ColLabel_)!swap	SELECT XMLROOT(NAME a)
 accept	accept	engine	func_expr_common_subexpr/XMLPI_(_NAME_P_ColLabel_,_a_expr_)	SELECT XMLPI(NAME a, a)
-reject@13	reject@18	engine	func_expr_common_subexpr/XMLPI_(_NAME_P_ColLabel_,_a_expr_)!drop-2	SELECT XMLPI NAME a, a)
+reject@18	reject@18	engine	func_expr_common_subexpr/XMLPI_(_NAME_P_ColLabel_,_a_expr_)!drop-2	SELECT XMLPI NAME a, a)
 reject@13	reject@13	engine	func_expr_common_subexpr/XMLPI_(_NAME_P_ColLabel_,_a_expr_)!drop-3	SELECT XMLPI(a, a)
 reject@17	reject@17	engine	func_expr_common_subexpr/XMLPI_(_NAME_P_ColLabel_,_a_expr_)!drop-4	SELECT XMLPI(NAME, a)
 reject@20	reject@20	engine	func_expr_common_subexpr/XMLPI_(_NAME_P_ColLabel_,_a_expr_)!drop-5	SELECT XMLPI(NAME a a)
@@ -10497,7 +10497,7 @@ accept	accept	engine	func_expr_common_subexpr/XMLPI_(_NAME_P_ColLabel_,_a_expr_)
 reject@20	reject@20	engine	func_expr_common_subexpr/XMLPI_(_NAME_P_ColLabel_,_a_expr_)!swap	SELECT XMLROOT(NAME a, a)
 accept	accept	engine	func_expr_common_subexpr/XMLROOT_(_a_expr_,_xml_root_version_opt_xml_root_standalone_)	SELECT XMLROOT(a, VERSION a)
 reject@18	reject@18	engine	func_expr_common_subexpr/XMLROOT_(_a_expr_,_xml_root_version_opt_xml_root_standalone_)!drop-1	SELECT(a, VERSION a)
-reject@15	reject@27	engine	func_expr_common_subexpr/XMLROOT_(_a_expr_,_xml_root_version_opt_xml_root_standalone_)!drop-2	SELECT XMLROOT a, VERSION a)
+reject@27	reject@27	engine	func_expr_common_subexpr/XMLROOT_(_a_expr_,_xml_root_version_opt_xml_root_standalone_)!drop-2	SELECT XMLROOT a, VERSION a)
 reject@15	reject@15	engine	func_expr_common_subexpr/XMLROOT_(_a_expr_,_xml_root_version_opt_xml_root_standalone_)!drop-3	SELECT XMLROOT(, VERSION a)
 reject@17	reject@17	engine	func_expr_common_subexpr/XMLROOT_(_a_expr_,_xml_root_version_opt_xml_root_standalone_)!drop-4	SELECT XMLROOT(a VERSION a)
 reject@18	reject@18	engine	func_expr_common_subexpr/XMLROOT_(_a_expr_,_xml_root_version_opt_xml_root_standalone_)!drop-5	SELECT XMLROOT(a, a)
@@ -10507,22 +10507,22 @@ accept	accept	engine	func_expr_common_subexpr/XMLROOT_(_a_expr_,_xml_root_versio
 reject@20	reject@20	engine	func_expr_common_subexpr/XMLROOT_(_a_expr_,_xml_root_version_opt_xml_root_standalone_)!swap	SELECT XMLSERIALIZE(a, VERSION a)
 accept	accept	engine	func_expr_common_subexpr/XMLSERIALIZE_(_document_or_content_a_expr_AS_SimpleTypename_xml_indent_option_)	SELECT XMLSERIALIZE(DOCUMENT a AS a)
 reject@16	reject@16	engine	func_expr_common_subexpr/XMLSERIALIZE_(_document_or_content_a_expr_AS_SimpleTypename_xml_indent_option_)!drop-1	SELECT(DOCUMENT a AS a)
-reject@20	reject@29	engine	func_expr_common_subexpr/XMLSERIALIZE_(_document_or_content_a_expr_AS_SimpleTypename_xml_indent_option_)!drop-2	SELECT XMLSERIALIZE DOCUMENT a AS a)
+reject@29	reject@29	engine	func_expr_common_subexpr/XMLSERIALIZE_(_document_or_content_a_expr_AS_SimpleTypename_xml_indent_option_)!drop-2	SELECT XMLSERIALIZE DOCUMENT a AS a)
 reject@20	reject@20	engine	func_expr_common_subexpr/XMLSERIALIZE_(_document_or_content_a_expr_AS_SimpleTypename_xml_indent_option_)!drop-3	SELECT XMLSERIALIZE(a AS a)
 reject@29	reject@29	engine	func_expr_common_subexpr/XMLSERIALIZE_(_document_or_content_a_expr_AS_SimpleTypename_xml_indent_option_)!drop-4	SELECT XMLSERIALIZE(DOCUMENT AS a)
 reject@31	reject@31	engine	func_expr_common_subexpr/XMLSERIALIZE_(_document_or_content_a_expr_AS_SimpleTypename_xml_indent_option_)!drop-5	SELECT XMLSERIALIZE(DOCUMENT a a)
 reject@33	reject@33	engine	func_expr_common_subexpr/XMLSERIALIZE_(_document_or_content_a_expr_AS_SimpleTypename_xml_indent_option_)!drop-6	SELECT XMLSERIALIZE(DOCUMENT a AS)
 reject@35	reject@35	engine	func_expr_common_subexpr/XMLSERIALIZE_(_document_or_content_a_expr_AS_SimpleTypename_xml_indent_option_)!drop-7	SELECT XMLSERIALIZE(DOCUMENT a AS a
 accept	accept	engine	func_expr_common_subexpr/XMLSERIALIZE_(_document_or_content_a_expr_AS_SimpleTypename_xml_indent_option_)!insert	SELECT XMLSERIALIZE(DOCUMENT a AS a) zzz
-reject@25	reject@15	engine	func_expr_common_subexpr/XMLSERIALIZE_(_document_or_content_a_expr_AS_SimpleTypename_xml_indent_option_)!swap	SELECT XMLTABLE(DOCUMENT a AS a)
+reject@15	reject@15	engine	func_expr_common_subexpr/XMLSERIALIZE_(_document_or_content_a_expr_AS_SimpleTypename_xml_indent_option_)!swap	SELECT XMLTABLE(DOCUMENT a AS a)
 accept	accept	engine	func_expr_common_subexpr/JSON_OBJECT_(_func_arg_list_)	SELECT JSON_OBJECT(a)
-reject@19	reject@20	engine	func_expr_common_subexpr/JSON_OBJECT_(_func_arg_list_)!drop-2	SELECT JSON_OBJECT a)
+reject@20	reject@20	engine	func_expr_common_subexpr/JSON_OBJECT_(_func_arg_list_)!drop-2	SELECT JSON_OBJECT a)
 reject@20	reject@20	engine	func_expr_common_subexpr/JSON_OBJECT_(_func_arg_list_)!drop-4	SELECT JSON_OBJECT(a
 accept	accept	engine	func_expr_common_subexpr/JSON_OBJECT_(_func_arg_list_)!insert	SELECT JSON_OBJECT(a) zzz
 reject@23	reject@23	engine	func_expr_common_subexpr/JSON_OBJECT_(_func_arg_list_)!swap	SELECT JSON_OBJECTAGG(a)
 accept	accept	engine	func_expr_common_subexpr/JSON_OBJECT_(_json_name_and_value_list_json_object_constructor_null_clause_opt_json_key_uniqueness_constraint_opt_json_returning_clause_opt_)	SELECT JSON_OBJECT(a VALUE a)
 reject@9	reject@9	engine	func_expr_common_subexpr/JSON_OBJECT_(_json_name_and_value_list_json_object_constructor_null_clause_opt_json_key_uniqueness_constraint_opt_json_returning_clause_opt_)!drop-1	SELECT(a VALUE a)
-reject@19	reject@21	engine	func_expr_common_subexpr/JSON_OBJECT_(_json_name_and_value_list_json_object_constructor_null_clause_opt_json_key_uniqueness_constraint_opt_json_returning_clause_opt_)!drop-2	SELECT JSON_OBJECT a VALUE a)
+reject@21	reject@21	engine	func_expr_common_subexpr/JSON_OBJECT_(_json_name_and_value_list_json_object_constructor_null_clause_opt_json_key_uniqueness_constraint_opt_json_returning_clause_opt_)!drop-2	SELECT JSON_OBJECT a VALUE a)
 reject@25	reject@25	engine	func_expr_common_subexpr/JSON_OBJECT_(_json_name_and_value_list_json_object_constructor_null_clause_opt_json_key_uniqueness_constraint_opt_json_returning_clause_opt_)!drop-3	SELECT JSON_OBJECT(VALUE a)
 reject@21	reject@21	engine	func_expr_common_subexpr/JSON_OBJECT_(_json_name_and_value_list_json_object_constructor_null_clause_opt_json_key_uniqueness_constraint_opt_json_returning_clause_opt_)!drop-4	SELECT JSON_OBJECT(a a)
 reject@26	reject@26	engine	func_expr_common_subexpr/JSON_OBJECT_(_json_name_and_value_list_json_object_constructor_null_clause_opt_json_key_uniqueness_constraint_opt_json_returning_clause_opt_)!drop-5	SELECT JSON_OBJECT(a VALUE)
@@ -10534,11 +10534,11 @@ reject@19	reject@19	engine	func_expr_common_subexpr/JSON_OBJECT_(_json_returning
 accept	accept	engine	func_expr_common_subexpr/JSON_OBJECT_(_json_returning_clause_opt_)!insert	SELECT JSON_OBJECT() zzz
 reject@22	reject@22	engine	func_expr_common_subexpr/JSON_OBJECT_(_json_returning_clause_opt_)!swap	SELECT JSON_OBJECTAGG()
 accept	accept	engine	func_expr_common_subexpr/JSON_ARRAY_(_json_value_expr_list_json_array_constructor_null_clause_opt_json_returning_clause_opt_)	SELECT JSON_ARRAY(a)
-reject@18	reject@19	engine	func_expr_common_subexpr/JSON_ARRAY_(_json_value_expr_list_json_array_constructor_null_clause_opt_json_returning_clause_opt_)!drop-2	SELECT JSON_ARRAY a)
+reject@19	reject@19	engine	func_expr_common_subexpr/JSON_ARRAY_(_json_value_expr_list_json_array_constructor_null_clause_opt_json_returning_clause_opt_)!drop-2	SELECT JSON_ARRAY a)
 reject@19	reject@19	engine	func_expr_common_subexpr/JSON_ARRAY_(_json_value_expr_list_json_array_constructor_null_clause_opt_json_returning_clause_opt_)!drop-4	SELECT JSON_ARRAY(a
 accept	accept	engine	func_expr_common_subexpr/JSON_ARRAY_(_json_value_expr_list_json_array_constructor_null_clause_opt_json_returning_clause_opt_)!insert	SELECT JSON_ARRAY(a) zzz
 accept	accept	engine	func_expr_common_subexpr/JSON_ARRAY_(_select_no_parens_json_format_clause_opt_json_returning_clause_opt_)	SELECT JSON_ARRAY(SELECT)
-reject@18	reject@24	engine	func_expr_common_subexpr/JSON_ARRAY_(_select_no_parens_json_format_clause_opt_json_returning_clause_opt_)!drop-2	SELECT JSON_ARRAY SELECT)
+reject@24	reject@24	engine	func_expr_common_subexpr/JSON_ARRAY_(_select_no_parens_json_format_clause_opt_json_returning_clause_opt_)!drop-2	SELECT JSON_ARRAY SELECT)
 reject@24	reject@24	engine	func_expr_common_subexpr/JSON_ARRAY_(_select_no_parens_json_format_clause_opt_json_returning_clause_opt_)!drop-4	SELECT JSON_ARRAY(SELECT
 accept	accept	engine	func_expr_common_subexpr/JSON_ARRAY_(_select_no_parens_json_format_clause_opt_json_returning_clause_opt_)!insert	SELECT JSON_ARRAY(SELECT) zzz
 reject@21	reject@21	engine	func_expr_common_subexpr/JSON_ARRAY_(_select_no_parens_json_format_clause_opt_json_returning_clause_opt_)!swap	SELECT JSON_ARRAYAGG(SELECT)
@@ -10547,28 +10547,28 @@ reject@17	reject@17	engine	func_expr_common_subexpr/JSON_ARRAY_(_json_returning_
 reject@18	reject@18	engine	func_expr_common_subexpr/JSON_ARRAY_(_json_returning_clause_opt_)!drop-3	SELECT JSON_ARRAY(
 accept	accept	engine	func_expr_common_subexpr/JSON_ARRAY_(_json_returning_clause_opt_)!insert	SELECT JSON_ARRAY() zzz
 accept	accept	engine	func_expr_common_subexpr/JSON_(_json_value_expr_json_key_uniqueness_constraint_opt_)	SELECT JSON(a)
-reject@12	reject@13	engine	func_expr_common_subexpr/JSON_(_json_value_expr_json_key_uniqueness_constraint_opt_)!drop-2	SELECT JSON a)
+reject@13	reject@13	engine	func_expr_common_subexpr/JSON_(_json_value_expr_json_key_uniqueness_constraint_opt_)!drop-2	SELECT JSON a)
 reject@12	reject@12	engine	func_expr_common_subexpr/JSON_(_json_value_expr_json_key_uniqueness_constraint_opt_)!drop-3	SELECT JSON()
 reject@13	reject@13	engine	func_expr_common_subexpr/JSON_(_json_value_expr_json_key_uniqueness_constraint_opt_)!drop-4	SELECT JSON(a
 accept	accept	engine	func_expr_common_subexpr/JSON_(_json_value_expr_json_key_uniqueness_constraint_opt_)!insert	SELECT JSON(a) zzz
 accept	accept	engine	func_expr_common_subexpr/JSON_SCALAR_(_a_expr_)	SELECT JSON_SCALAR(a)
-reject@19	reject@20	engine	func_expr_common_subexpr/JSON_SCALAR_(_a_expr_)!drop-2	SELECT JSON_SCALAR a)
+reject@20	reject@20	engine	func_expr_common_subexpr/JSON_SCALAR_(_a_expr_)!drop-2	SELECT JSON_SCALAR a)
 reject@19	reject@19	engine	func_expr_common_subexpr/JSON_SCALAR_(_a_expr_)!drop-3	SELECT JSON_SCALAR()
 reject@20	reject@20	engine	func_expr_common_subexpr/JSON_SCALAR_(_a_expr_)!drop-4	SELECT JSON_SCALAR(a
 accept	accept	engine	func_expr_common_subexpr/JSON_SCALAR_(_a_expr_)!insert	SELECT JSON_SCALAR(a) zzz
 accept	accept	engine	func_expr_common_subexpr/JSON_SERIALIZE_(_json_value_expr_json_returning_clause_opt_)	SELECT JSON_SERIALIZE(a)
-reject@22	reject@23	engine	func_expr_common_subexpr/JSON_SERIALIZE_(_json_value_expr_json_returning_clause_opt_)!drop-2	SELECT JSON_SERIALIZE a)
+reject@23	reject@23	engine	func_expr_common_subexpr/JSON_SERIALIZE_(_json_value_expr_json_returning_clause_opt_)!drop-2	SELECT JSON_SERIALIZE a)
 reject@22	reject@22	engine	func_expr_common_subexpr/JSON_SERIALIZE_(_json_value_expr_json_returning_clause_opt_)!drop-3	SELECT JSON_SERIALIZE()
 reject@23	reject@23	engine	func_expr_common_subexpr/JSON_SERIALIZE_(_json_value_expr_json_returning_clause_opt_)!drop-4	SELECT JSON_SERIALIZE(a
 accept	accept	engine	func_expr_common_subexpr/JSON_SERIALIZE_(_json_value_expr_json_returning_clause_opt_)!insert	SELECT JSON_SERIALIZE(a) zzz
-accept	reject@17	engine	func_expr_common_subexpr/JSON_SERIALIZE_(_json_value_expr_json_returning_clause_opt_)!swap	SELECT JSON_TABLE(a)
+reject@17	reject@17	engine	func_expr_common_subexpr/JSON_SERIALIZE_(_json_value_expr_json_returning_clause_opt_)!swap	SELECT JSON_TABLE(a)
 accept	accept	engine	func_expr_common_subexpr/MERGE_ACTION_(_)	SELECT MERGE_ACTION()
 reject@19	reject@19	engine	func_expr_common_subexpr/MERGE_ACTION_(_)!drop-2	SELECT MERGE_ACTION)
 reject@20	reject@20	engine	func_expr_common_subexpr/MERGE_ACTION_(_)!drop-3	SELECT MERGE_ACTION(
 accept	accept	engine	func_expr_common_subexpr/MERGE_ACTION_(_)!insert	SELECT MERGE_ACTION() zzz
 accept	accept	engine	func_expr_common_subexpr/MERGE_ACTION_(_)!swap	SELECT METHOD()
 accept	accept	engine	func_expr_common_subexpr/JSON_QUERY_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_returning_clause_opt_json_wrapper_behavior_json_quotes_clause_opt_json_behavior_clause_opt_)	SELECT JSON_QUERY(a, a)
-reject@18	reject@22	engine	func_expr_common_subexpr/JSON_QUERY_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_returning_clause_opt_json_wrapper_behavior_json_quotes_clause_opt_json_behavior_clause_opt_)!drop-2	SELECT JSON_QUERY a, a)
+reject@22	reject@22	engine	func_expr_common_subexpr/JSON_QUERY_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_returning_clause_opt_json_wrapper_behavior_json_quotes_clause_opt_json_behavior_clause_opt_)!drop-2	SELECT JSON_QUERY a, a)
 reject@18	reject@18	engine	func_expr_common_subexpr/JSON_QUERY_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_returning_clause_opt_json_wrapper_behavior_json_quotes_clause_opt_json_behavior_clause_opt_)!drop-3	SELECT JSON_QUERY(, a)
 reject@20	reject@20	engine	func_expr_common_subexpr/JSON_QUERY_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_returning_clause_opt_json_wrapper_behavior_json_quotes_clause_opt_json_behavior_clause_opt_)!drop-4	SELECT JSON_QUERY(a a)
 reject@20	reject@20	engine	func_expr_common_subexpr/JSON_QUERY_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_returning_clause_opt_json_wrapper_behavior_json_quotes_clause_opt_json_behavior_clause_opt_)!drop-5	SELECT JSON_QUERY(a,)
@@ -10576,7 +10576,7 @@ reject@22	reject@22	engine	func_expr_common_subexpr/JSON_QUERY_(_json_value_expr
 accept	accept	engine	func_expr_common_subexpr/JSON_QUERY_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_returning_clause_opt_json_wrapper_behavior_json_quotes_clause_opt_json_behavior_clause_opt_)!insert	SELECT JSON_QUERY(a, a) zzz
 reject@20	reject@20	engine	func_expr_common_subexpr/JSON_QUERY_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_returning_clause_opt_json_wrapper_behavior_json_quotes_clause_opt_json_behavior_clause_opt_)!swap	SELECT JSON_SCALAR(a, a)
 accept	accept	engine	func_expr_common_subexpr/JSON_EXISTS_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_on_error_clause_opt_)	SELECT JSON_EXISTS(a, a)
-reject@19	reject@23	engine	func_expr_common_subexpr/JSON_EXISTS_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_on_error_clause_opt_)!drop-2	SELECT JSON_EXISTS a, a)
+reject@23	reject@23	engine	func_expr_common_subexpr/JSON_EXISTS_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_on_error_clause_opt_)!drop-2	SELECT JSON_EXISTS a, a)
 reject@19	reject@19	engine	func_expr_common_subexpr/JSON_EXISTS_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_on_error_clause_opt_)!drop-3	SELECT JSON_EXISTS(, a)
 reject@21	reject@21	engine	func_expr_common_subexpr/JSON_EXISTS_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_on_error_clause_opt_)!drop-4	SELECT JSON_EXISTS(a a)
 reject@21	reject@21	engine	func_expr_common_subexpr/JSON_EXISTS_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_on_error_clause_opt_)!drop-5	SELECT JSON_EXISTS(a,)
@@ -10584,7 +10584,7 @@ reject@23	reject@23	engine	func_expr_common_subexpr/JSON_EXISTS_(_json_value_exp
 accept	accept	engine	func_expr_common_subexpr/JSON_EXISTS_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_on_error_clause_opt_)!insert	SELECT JSON_EXISTS(a, a) zzz
 accept	accept	engine	func_expr_common_subexpr/JSON_EXISTS_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_on_error_clause_opt_)!swap	SELECT JSON_OBJECT(a, a)
 accept	accept	engine	func_expr_common_subexpr/JSON_VALUE_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_returning_clause_opt_json_behavior_clause_opt_)	SELECT JSON_VALUE(a, a)
-reject@18	reject@22	engine	func_expr_common_subexpr/JSON_VALUE_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_returning_clause_opt_json_behavior_clause_opt_)!drop-2	SELECT JSON_VALUE a, a)
+reject@22	reject@22	engine	func_expr_common_subexpr/JSON_VALUE_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_returning_clause_opt_json_behavior_clause_opt_)!drop-2	SELECT JSON_VALUE a, a)
 reject@18	reject@18	engine	func_expr_common_subexpr/JSON_VALUE_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_returning_clause_opt_json_behavior_clause_opt_)!drop-3	SELECT JSON_VALUE(, a)
 reject@20	reject@20	engine	func_expr_common_subexpr/JSON_VALUE_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_returning_clause_opt_json_behavior_clause_opt_)!drop-4	SELECT JSON_VALUE(a a)
 reject@20	reject@20	engine	func_expr_common_subexpr/JSON_VALUE_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_returning_clause_opt_json_behavior_clause_opt_)!drop-5	SELECT JSON_VALUE(a,)
@@ -10598,7 +10598,7 @@ reject@18	reject@18	engine	xml_root_version/VERSION_P_a_expr!swap	SELECT XMLROOT
 accept	accept	engine	xml_root_version/VERSION_P_NO_VALUE_P	SELECT XMLROOT(a, VERSION NO VALUE)
 reject@18	reject@18	engine	xml_root_version/VERSION_P_NO_VALUE_P!drop-1	SELECT XMLROOT(a, NO VALUE)
 accept	accept	engine	xml_root_version/VERSION_P_NO_VALUE_P!drop-2	SELECT XMLROOT(a, VERSION VALUE)
-reject@28	accept	engine	xml_root_version/VERSION_P_NO_VALUE_P!drop-3	SELECT XMLROOT(a, VERSION NO)
+accept	accept	engine	xml_root_version/VERSION_P_NO_VALUE_P!drop-3	SELECT XMLROOT(a, VERSION NO)
 reject@28	reject@28	engine	xml_root_version/VERSION_P_NO_VALUE_P!truncate	SELECT XMLROOT(a, VERSION NO
 reject@35	reject@35	engine	xml_root_version/VERSION_P_NO_VALUE_P!insert	SELECT XMLROOT(a, VERSION NO VALUE zzz)
 reject@18	reject@18	engine	xml_root_version/VERSION_P_NO_VALUE_P!swap	SELECT XMLROOT(a, VIEW NO VALUE)
@@ -10651,8 +10651,8 @@ accept	accept	engine	xml_indent_option/INDENT	SELECT XMLSERIALIZE(DOCUMENT a AS 
 reject@43	reject@43	engine	xml_indent_option/INDENT!insert	SELECT XMLSERIALIZE(DOCUMENT a AS a INDENT zzz)
 reject@36	reject@36	engine	xml_indent_option/INDENT!swap	SELECT XMLSERIALIZE(DOCUMENT a AS a INDEX)
 accept	accept	engine	xml_indent_option/NO_INDENT	SELECT XMLSERIALIZE(DOCUMENT a AS a NO INDENT)
-reject@36	reject@38	engine	xml_indent_option/NO_INDENT!drop-2	SELECT XMLSERIALIZE(DOCUMENT a AS a NO)
-reject@36	reject@38	engine	xml_indent_option/NO_INDENT!truncate	SELECT XMLSERIALIZE(DOCUMENT a AS a NO
+reject@38	reject@38	engine	xml_indent_option/NO_INDENT!drop-2	SELECT XMLSERIALIZE(DOCUMENT a AS a NO)
+reject@38	reject@38	engine	xml_indent_option/NO_INDENT!truncate	SELECT XMLSERIALIZE(DOCUMENT a AS a NO
 reject@46	reject@46	engine	xml_indent_option/NO_INDENT!insert	SELECT XMLSERIALIZE(DOCUMENT a AS a NO INDENT zzz)
 reject@36	reject@36	engine	xml_indent_option/NO_INDENT!swap	SELECT XMLSERIALIZE(DOCUMENT a AS a NONE INDENT)
 accept	accept	engine	xml_indent_option/%empty	SELECT XMLSERIALIZE(DOCUMENT a AS a)
@@ -10720,7 +10720,7 @@ accept	accept	engine	filter_clause/FILTER_(_WHERE_a_expr_)	SELECT a() FILTER(WHE
 reject@10	reject@10	engine	filter_clause/FILTER_(_WHERE_a_expr_)!drop-1	SELECT a()(WHERE a)
 reject@18	reject@18	engine	filter_clause/FILTER_(_WHERE_a_expr_)!drop-2	SELECT a() FILTER WHERE a)
 reject@18	reject@18	engine	filter_clause/FILTER_(_WHERE_a_expr_)!drop-3	SELECT a() FILTER(a)
-accept	reject@23	engine	filter_clause/FILTER_(_WHERE_a_expr_)!drop-4	SELECT a() FILTER(WHERE)
+reject@23	reject@23	engine	filter_clause/FILTER_(_WHERE_a_expr_)!drop-4	SELECT a() FILTER(WHERE)
 reject@25	reject@25	engine	filter_clause/FILTER_(_WHERE_a_expr_)!drop-5	SELECT a() FILTER(WHERE a
 accept	accept	engine	filter_clause/FILTER_(_WHERE_a_expr_)!insert	SELECT a() FILTER(WHERE a) zzz
 reject@19	reject@19	engine	filter_clause/FILTER_(_WHERE_a_expr_)!swap	SELECT a() FINALIZE(WHERE a)
@@ -10729,7 +10729,7 @@ accept	accept	engine	window_clause/WINDOW_window_definition_list	SELECT WINDOW a
 reject@11	reject@11	engine	window_clause/WINDOW_window_definition_list!drop-1	SELECT a AS()
 reject@14	reject@14	engine	window_clause/WINDOW_window_definition_list!drop-2	SELECT WINDOW AS()
 reject@15	reject@15	engine	window_clause/WINDOW_window_definition_list!drop-3	SELECT WINDOW a()
-reject@19	reject@18	engine	window_clause/WINDOW_window_definition_list!drop-4	SELECT WINDOW a AS)
+reject@18	reject@18	engine	window_clause/WINDOW_window_definition_list!drop-4	SELECT WINDOW a AS)
 reject@19	reject@19	engine	window_clause/WINDOW_window_definition_list!drop-5	SELECT WINDOW a AS(
 reject@21	reject@21	engine	window_clause/WINDOW_window_definition_list!insert	SELECT WINDOW a AS() zzz
 reject@7	reject@7	engine	window_clause/WINDOW_window_definition_list!swap	SELECT WITH a AS()
@@ -10739,12 +10739,12 @@ reject@16	reject@16	engine	window_definition_list/window_definition!swap	SELECT 
 accept	accept	engine	window_definition_list/window_definition_list_,_window_definition	SELECT WINDOW a AS(), a AS()
 reject@14	reject@14	engine	window_definition_list/window_definition_list_,_window_definition!drop-1	SELECT WINDOW AS(), a AS()
 reject@15	reject@15	engine	window_definition_list/window_definition_list_,_window_definition!drop-2	SELECT WINDOW a(), a AS()
-reject@19	reject@18	engine	window_definition_list/window_definition_list_,_window_definition!drop-3	SELECT WINDOW a AS), a AS()
+reject@18	reject@18	engine	window_definition_list/window_definition_list_,_window_definition!drop-3	SELECT WINDOW a AS), a AS()
 reject@19	reject@19	engine	window_definition_list/window_definition_list_,_window_definition!drop-4	SELECT WINDOW a AS(, a AS()
 reject@21	reject@21	engine	window_definition_list/window_definition_list_,_window_definition!drop-5	SELECT WINDOW a AS() a AS()
 reject@22	reject@22	engine	window_definition_list/window_definition_list_,_window_definition!drop-6	SELECT WINDOW a AS(), AS()
 reject@23	reject@23	engine	window_definition_list/window_definition_list_,_window_definition!drop-7	SELECT WINDOW a AS(), a()
-reject@27	reject@26	engine	window_definition_list/window_definition_list_,_window_definition!drop-8	SELECT WINDOW a AS(), a AS)
+reject@26	reject@26	engine	window_definition_list/window_definition_list_,_window_definition!drop-8	SELECT WINDOW a AS(), a AS)
 reject@27	reject@27	engine	window_definition_list/window_definition_list_,_window_definition!drop-9	SELECT WINDOW a AS(), a AS(
 reject@29	reject@29	engine	window_definition_list/window_definition_list_,_window_definition!insert	SELECT WINDOW a AS(), a AS() zzz
 reject@16	reject@16	engine	window_definition_list/window_definition_list_,_window_definition!swap	SELECT WINDOW a ASC(), a AS()
@@ -10754,12 +10754,12 @@ reject@10	reject@10	engine	over_clause/OVER_window_specification!drop-1	SELECT a
 reject@15	reject@15	engine	over_clause/OVER_window_specification!drop-2	SELECT a() OVER)
 reject@16	reject@16	engine	over_clause/OVER_window_specification!drop-3	SELECT a() OVER(
 accept	accept	engine	over_clause/OVER_window_specification!insert	SELECT a() OVER() zzz
-reject@20	reject@11	engine	over_clause/OVER_window_specification!swap	SELECT a() OVERLAPS()
+reject@11	reject@11	engine	over_clause/OVER_window_specification!swap	SELECT a() OVERLAPS()
 accept	accept	engine	over_clause/OVER_ColId	SELECT a() OVER a
 accept	accept	engine	over_clause/OVER_ColId!drop-1	SELECT a() a
 reject@15	reject@15	engine	over_clause/OVER_ColId!drop-2	SELECT a() OVER
 accept	accept	engine	over_clause/OVER_ColId!insert	SELECT a() OVER a zzz
-accept	reject@11	engine	over_clause/OVER_ColId!swap	SELECT a() OVERLAPS a
+reject@11	reject@11	engine	over_clause/OVER_ColId!swap	SELECT a() OVERLAPS a
 accept	accept	engine	over_clause/%empty	SELECT a()
 accept	accept	engine	window_specification/(_opt_existing_window_name_opt_partition_clause_opt_sort_clause_opt_frame_clause_)	SELECT WINDOW a AS()
 accept	accept	engine	opt_existing_window_name/ColId	SELECT WINDOW a AS(a)
@@ -10776,41 +10776,41 @@ reject@27	reject@27	engine	opt_partition_clause/PARTITION_BY_expr_list!swap	SELE
 accept	accept	engine	opt_partition_clause/%empty	SELECT WINDOW a AS()
 accept	accept	engine	opt_frame_clause/RANGE_frame_extent_opt_window_exclusion_clause	SELECT WINDOW a AS(RANGE UNBOUNDED PRECEDING)
 reject@29	reject@29	engine	opt_frame_clause/RANGE_frame_extent_opt_window_exclusion_clause!drop-1	SELECT WINDOW a AS(UNBOUNDED PRECEDING)
-accept	reject@34	engine	opt_frame_clause/RANGE_frame_extent_opt_window_exclusion_clause!drop-2	SELECT WINDOW a AS(RANGE PRECEDING)
-accept	reject@34	engine	opt_frame_clause/RANGE_frame_extent_opt_window_exclusion_clause!drop-3	SELECT WINDOW a AS(RANGE UNBOUNDED)
+reject@34	reject@34	engine	opt_frame_clause/RANGE_frame_extent_opt_window_exclusion_clause!drop-2	SELECT WINDOW a AS(RANGE PRECEDING)
+reject@34	reject@34	engine	opt_frame_clause/RANGE_frame_extent_opt_window_exclusion_clause!drop-3	SELECT WINDOW a AS(RANGE UNBOUNDED)
 reject@34	reject@34	engine	opt_frame_clause/RANGE_frame_extent_opt_window_exclusion_clause!truncate	SELECT WINDOW a AS(RANGE UNBOUNDED
 reject@45	reject@45	engine	opt_frame_clause/RANGE_frame_extent_opt_window_exclusion_clause!insert	SELECT WINDOW a AS(RANGE UNBOUNDED PRECEDING zzz)
 reject@24	reject@24	engine	opt_frame_clause/RANGE_frame_extent_opt_window_exclusion_clause!swap	SELECT WINDOW a AS(READ UNBOUNDED PRECEDING)
 accept	accept	engine	opt_frame_clause/ROWS_frame_extent_opt_window_exclusion_clause	SELECT WINDOW a AS(ROWS UNBOUNDED PRECEDING)
-accept	reject@33	engine	opt_frame_clause/ROWS_frame_extent_opt_window_exclusion_clause!drop-2	SELECT WINDOW a AS(ROWS PRECEDING)
-accept	reject@33	engine	opt_frame_clause/ROWS_frame_extent_opt_window_exclusion_clause!drop-3	SELECT WINDOW a AS(ROWS UNBOUNDED)
+reject@33	reject@33	engine	opt_frame_clause/ROWS_frame_extent_opt_window_exclusion_clause!drop-2	SELECT WINDOW a AS(ROWS PRECEDING)
+reject@33	reject@33	engine	opt_frame_clause/ROWS_frame_extent_opt_window_exclusion_clause!drop-3	SELECT WINDOW a AS(ROWS UNBOUNDED)
 reject@33	reject@33	engine	opt_frame_clause/ROWS_frame_extent_opt_window_exclusion_clause!truncate	SELECT WINDOW a AS(ROWS UNBOUNDED
 reject@44	reject@44	engine	opt_frame_clause/ROWS_frame_extent_opt_window_exclusion_clause!insert	SELECT WINDOW a AS(ROWS UNBOUNDED PRECEDING zzz)
 reject@24	reject@24	engine	opt_frame_clause/ROWS_frame_extent_opt_window_exclusion_clause!swap	SELECT WINDOW a AS(RULE UNBOUNDED PRECEDING)
 accept	accept	engine	opt_frame_clause/GROUPS_frame_extent_opt_window_exclusion_clause	SELECT WINDOW a AS(GROUPS UNBOUNDED PRECEDING)
-accept	reject@35	engine	opt_frame_clause/GROUPS_frame_extent_opt_window_exclusion_clause!drop-2	SELECT WINDOW a AS(GROUPS PRECEDING)
-accept	reject@35	engine	opt_frame_clause/GROUPS_frame_extent_opt_window_exclusion_clause!drop-3	SELECT WINDOW a AS(GROUPS UNBOUNDED)
+reject@35	reject@35	engine	opt_frame_clause/GROUPS_frame_extent_opt_window_exclusion_clause!drop-2	SELECT WINDOW a AS(GROUPS PRECEDING)
+reject@35	reject@35	engine	opt_frame_clause/GROUPS_frame_extent_opt_window_exclusion_clause!drop-3	SELECT WINDOW a AS(GROUPS UNBOUNDED)
 reject@35	reject@35	engine	opt_frame_clause/GROUPS_frame_extent_opt_window_exclusion_clause!truncate	SELECT WINDOW a AS(GROUPS UNBOUNDED
 reject@46	reject@46	engine	opt_frame_clause/GROUPS_frame_extent_opt_window_exclusion_clause!insert	SELECT WINDOW a AS(GROUPS UNBOUNDED PRECEDING zzz)
 reject@27	reject@27	engine	opt_frame_clause/GROUPS_frame_extent_opt_window_exclusion_clause!swap	SELECT WINDOW a AS(HANDLER UNBOUNDED PRECEDING)
 accept	accept	engine	opt_frame_clause/%empty	SELECT WINDOW a AS()
 accept	accept	engine	frame_extent/frame_bound	SELECT WINDOW a AS(RANGE UNBOUNDED PRECEDING)
 accept	accept	engine	frame_extent/frame_bound!swap	SELECT WINDOW a AS(RANGE UNCOMMITTED PRECEDING)
-accept	reject@57	engine	frame_extent/BETWEEN_frame_bound_AND_frame_bound	SELECT WINDOW a AS(RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED PRECEDING)
+reject@57	reject@57	engine	frame_extent/BETWEEN_frame_bound_AND_frame_bound	SELECT WINDOW a AS(RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED PRECEDING)
 reject@45	reject@45	engine	frame_extent/BETWEEN_frame_bound_AND_frame_bound!drop-1	SELECT WINDOW a AS(RANGE UNBOUNDED PRECEDING AND UNBOUNDED PRECEDING)
 reject@66	reject@66	engine	frame_extent/BETWEEN_frame_bound_AND_frame_bound!drop-2	SELECT WINDOW a AS(RANGE BETWEEN PRECEDING AND UNBOUNDED PRECEDING)
-accept	reject@66	engine	frame_extent/BETWEEN_frame_bound_AND_frame_bound!drop-3	SELECT WINDOW a AS(RANGE BETWEEN UNBOUNDED AND UNBOUNDED PRECEDING)
+reject@66	reject@66	engine	frame_extent/BETWEEN_frame_bound_AND_frame_bound!drop-3	SELECT WINDOW a AS(RANGE BETWEEN UNBOUNDED AND UNBOUNDED PRECEDING)
 reject@53	reject@53	engine	frame_extent/BETWEEN_frame_bound_AND_frame_bound!drop-4	SELECT WINDOW a AS(RANGE BETWEEN UNBOUNDED PRECEDING UNBOUNDED PRECEDING)
-accept	reject@66	engine	frame_extent/BETWEEN_frame_bound_AND_frame_bound!drop-5	SELECT WINDOW a AS(RANGE BETWEEN UNBOUNDED PRECEDING AND PRECEDING)
-accept	reject@66	engine	frame_extent/BETWEEN_frame_bound_AND_frame_bound!drop-6	SELECT WINDOW a AS(RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED)
+reject@66	reject@66	engine	frame_extent/BETWEEN_frame_bound_AND_frame_bound!drop-5	SELECT WINDOW a AS(RANGE BETWEEN UNBOUNDED PRECEDING AND PRECEDING)
+reject@66	reject@66	engine	frame_extent/BETWEEN_frame_bound_AND_frame_bound!drop-6	SELECT WINDOW a AS(RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED)
 reject@66	reject@66	engine	frame_extent/BETWEEN_frame_bound_AND_frame_bound!truncate	SELECT WINDOW a AS(RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED
-reject@77	reject@57	engine	frame_extent/BETWEEN_frame_bound_AND_frame_bound!insert	SELECT WINDOW a AS(RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED PRECEDING zzz)
+reject@57	reject@57	engine	frame_extent/BETWEEN_frame_bound_AND_frame_bound!insert	SELECT WINDOW a AS(RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED PRECEDING zzz)
 reject@32	reject@32	engine	frame_extent/BETWEEN_frame_bound_AND_frame_bound!swap	SELECT WINDOW a AS(RANGE BIGINT UNBOUNDED PRECEDING AND UNBOUNDED PRECEDING)
 accept	accept	engine	frame_bound/UNBOUNDED_PRECEDING	SELECT WINDOW a AS(RANGE UNBOUNDED PRECEDING)
-accept	reject@25	engine	frame_bound/UNBOUNDED_FOLLOWING	SELECT WINDOW a AS(RANGE UNBOUNDED FOLLOWING)
-accept	reject@34	engine	frame_bound/UNBOUNDED_FOLLOWING!drop-1	SELECT WINDOW a AS(RANGE FOLLOWING)
-reject@45	reject@25	engine	frame_bound/UNBOUNDED_FOLLOWING!insert	SELECT WINDOW a AS(RANGE UNBOUNDED FOLLOWING zzz)
-accept	reject@25	engine	frame_bound/UNBOUNDED_FOLLOWING!swap	SELECT WINDOW a AS(RANGE UNCOMMITTED FOLLOWING)
+reject@25	reject@25	engine	frame_bound/UNBOUNDED_FOLLOWING	SELECT WINDOW a AS(RANGE UNBOUNDED FOLLOWING)
+reject@34	reject@34	engine	frame_bound/UNBOUNDED_FOLLOWING!drop-1	SELECT WINDOW a AS(RANGE FOLLOWING)
+reject@25	reject@25	engine	frame_bound/UNBOUNDED_FOLLOWING!insert	SELECT WINDOW a AS(RANGE UNBOUNDED FOLLOWING zzz)
+reject@25	reject@25	engine	frame_bound/UNBOUNDED_FOLLOWING!swap	SELECT WINDOW a AS(RANGE UNCOMMITTED FOLLOWING)
 accept	accept	engine	frame_bound/CURRENT_P_ROW	SELECT WINDOW a AS(RANGE CURRENT ROW)
 reject@28	reject@28	engine	frame_bound/CURRENT_P_ROW!drop-1	SELECT WINDOW a AS(RANGE ROW)
 reject@32	reject@32	engine	frame_bound/CURRENT_P_ROW!drop-2	SELECT WINDOW a AS(RANGE CURRENT)
@@ -10818,12 +10818,12 @@ reject@32	reject@32	engine	frame_bound/CURRENT_P_ROW!truncate	SELECT WINDOW a AS
 reject@37	reject@37	engine	frame_bound/CURRENT_P_ROW!insert	SELECT WINDOW a AS(RANGE CURRENT ROW zzz)
 reject@41	reject@41	engine	frame_bound/CURRENT_P_ROW!swap	SELECT WINDOW a AS(RANGE CURRENT_CATALOG ROW)
 accept	accept	engine	frame_bound/a_expr_PRECEDING	SELECT WINDOW a AS(RANGE a PRECEDING)
-accept	reject@26	engine	frame_bound/a_expr_PRECEDING!drop-2	SELECT WINDOW a AS(RANGE a)
+reject@26	reject@26	engine	frame_bound/a_expr_PRECEDING!drop-2	SELECT WINDOW a AS(RANGE a)
 reject@26	reject@26	engine	frame_bound/a_expr_PRECEDING!truncate	SELECT WINDOW a AS(RANGE a
 reject@37	reject@37	engine	frame_bound/a_expr_PRECEDING!insert	SELECT WINDOW a AS(RANGE a PRECEDING zzz)
 reject@27	reject@27	engine	frame_bound/a_expr_PRECEDING!swap	SELECT WINDOW a AS(RANGE a PRECISION)
-accept	reject@25	engine	frame_bound/a_expr_FOLLOWING	SELECT WINDOW a AS(RANGE a FOLLOWING)
-reject@37	reject@25	engine	frame_bound/a_expr_FOLLOWING!insert	SELECT WINDOW a AS(RANGE a FOLLOWING zzz)
+reject@25	reject@25	engine	frame_bound/a_expr_FOLLOWING	SELECT WINDOW a AS(RANGE a FOLLOWING)
+reject@25	reject@25	engine	frame_bound/a_expr_FOLLOWING!insert	SELECT WINDOW a AS(RANGE a FOLLOWING zzz)
 reject@27	reject@27	engine	frame_bound/a_expr_FOLLOWING!swap	SELECT WINDOW a AS(RANGE a FOR)
 accept	accept	engine	opt_window_exclusion_clause/EXCLUDE_CURRENT_P_ROW	SELECT WINDOW a AS(RANGE UNBOUNDED PRECEDING EXCLUDE CURRENT ROW)
 reject@45	reject@45	engine	opt_window_exclusion_clause/EXCLUDE_CURRENT_P_ROW!drop-1	SELECT WINDOW a AS(RANGE UNBOUNDED PRECEDING CURRENT ROW)
@@ -10834,7 +10834,7 @@ reject@65	reject@65	engine	opt_window_exclusion_clause/EXCLUDE_CURRENT_P_ROW!ins
 reject@45	reject@45	engine	opt_window_exclusion_clause/EXCLUDE_CURRENT_P_ROW!swap	SELECT WINDOW a AS(RANGE UNBOUNDED PRECEDING EXCLUDING CURRENT ROW)
 accept	accept	engine	opt_window_exclusion_clause/EXCLUDE_GROUP_P	SELECT WINDOW a AS(RANGE UNBOUNDED PRECEDING EXCLUDE GROUP)
 reject@45	reject@45	engine	opt_window_exclusion_clause/EXCLUDE_GROUP_P!drop-1	SELECT WINDOW a AS(RANGE UNBOUNDED PRECEDING GROUP)
-accept	reject@52	engine	opt_window_exclusion_clause/EXCLUDE_GROUP_P!drop-2	SELECT WINDOW a AS(RANGE UNBOUNDED PRECEDING EXCLUDE)
+reject@52	reject@52	engine	opt_window_exclusion_clause/EXCLUDE_GROUP_P!drop-2	SELECT WINDOW a AS(RANGE UNBOUNDED PRECEDING EXCLUDE)
 reject@52	reject@52	engine	opt_window_exclusion_clause/EXCLUDE_GROUP_P!truncate	SELECT WINDOW a AS(RANGE UNBOUNDED PRECEDING EXCLUDE
 reject@59	reject@59	engine	opt_window_exclusion_clause/EXCLUDE_GROUP_P!insert	SELECT WINDOW a AS(RANGE UNBOUNDED PRECEDING EXCLUDE GROUP zzz)
 reject@45	reject@45	engine	opt_window_exclusion_clause/EXCLUDE_GROUP_P!swap	SELECT WINDOW a AS(RANGE UNBOUNDED PRECEDING EXCLUDING GROUP)
@@ -10850,24 +10850,24 @@ reject@55	reject@55	engine	opt_window_exclusion_clause/EXCLUDE_NO_OTHERS!truncat
 reject@63	reject@63	engine	opt_window_exclusion_clause/EXCLUDE_NO_OTHERS!insert	SELECT WINDOW a AS(RANGE UNBOUNDED PRECEDING EXCLUDE NO OTHERS zzz)
 reject@45	reject@45	engine	opt_window_exclusion_clause/EXCLUDE_NO_OTHERS!swap	SELECT WINDOW a AS(RANGE UNBOUNDED PRECEDING EXCLUDING NO OTHERS)
 accept	accept	engine	opt_window_exclusion_clause/%empty	SELECT WINDOW a AS(RANGE UNBOUNDED PRECEDING)
-accept	reject@7	engine	row/ROW_(_expr_list_)	SELECT ROW(a) OVERLAPS ROW()
-accept	reject@10	engine	row/ROW_(_expr_list_)!drop-1	SELECT(a) OVERLAPS ROW()
-reject@11	reject@12	engine	row/ROW_(_expr_list_)!drop-2	SELECT ROW a) OVERLAPS ROW()
-reject@27	reject@13	engine	row/ROW_(_expr_list_)!drop-4	SELECT ROW(a OVERLAPS ROW()
+reject@7	reject@7	engine	row/ROW_(_expr_list_)	SELECT ROW(a) OVERLAPS ROW()
+reject@10	reject@10	engine	row/ROW_(_expr_list_)!drop-1	SELECT(a) OVERLAPS ROW()
+reject@12	reject@12	engine	row/ROW_(_expr_list_)!drop-2	SELECT ROW a) OVERLAPS ROW()
+reject@13	reject@13	engine	row/ROW_(_expr_list_)!drop-4	SELECT ROW(a OVERLAPS ROW()
 reject@12	reject@12	engine	row/ROW_(_expr_list_)!truncate	SELECT ROW(a
 reject@18	reject@18	engine	row/ROW_(_expr_list_)!insert	SELECT ROW(a) zzz OVERLAPS ROW()
-accept	reject@15	engine	row/ROW_(_expr_list_)!swap	SELECT ROWS(a) OVERLAPS ROW()
-accept	reject@7	engine	row/ROW_(_)	SELECT ROW() OVERLAPS ROW()
+reject@15	reject@15	engine	row/ROW_(_expr_list_)!swap	SELECT ROWS(a) OVERLAPS ROW()
+reject@7	reject@7	engine	row/ROW_(_)	SELECT ROW() OVERLAPS ROW()
 reject@17	reject@17	engine	row/ROW_(_)!insert	SELECT ROW() zzz OVERLAPS ROW()
-accept	reject@22	engine	row/(_expr_list_,_a_expr_)	SELECT(a, a) OVERLAPS ROW()
+reject@22	reject@22	engine	row/(_expr_list_,_a_expr_)	SELECT(a, a) OVERLAPS ROW()
 reject@11	reject@11	engine	row/(_expr_list_,_a_expr_)!drop-1	SELECT a, a) OVERLAPS ROW()
 reject@7	reject@7	engine	row/(_expr_list_,_a_expr_)!drop-2	SELECT(, a) OVERLAPS ROW()
 reject@9	reject@9	engine	row/(_expr_list_,_a_expr_)!drop-3	SELECT(a a) OVERLAPS ROW()
 reject@9	reject@9	engine	row/(_expr_list_,_a_expr_)!drop-4	SELECT(a,) OVERLAPS ROW()
-reject@26	reject@12	engine	row/(_expr_list_,_a_expr_)!drop-5	SELECT(a, a OVERLAPS ROW()
+reject@12	reject@12	engine	row/(_expr_list_,_a_expr_)!drop-5	SELECT(a, a OVERLAPS ROW()
 reject@17	reject@17	engine	row/(_expr_list_,_a_expr_)!insert	SELECT(a, a) zzz OVERLAPS ROW()
 accept	accept	engine	explicit_row/ROW_(_expr_list_)	SELECT ROW(a)
-reject@11	reject@12	engine	explicit_row/ROW_(_expr_list_)!drop-2	SELECT ROW a)
+reject@12	reject@12	engine	explicit_row/ROW_(_expr_list_)!drop-2	SELECT ROW a)
 accept	accept	engine	explicit_row/ROW_(_expr_list_)!insert	SELECT ROW(a) zzz
 accept	accept	engine	explicit_row/ROW_(_expr_list_)!swap	SELECT ROWS(a)
 accept	accept	engine	explicit_row/ROW_(_)	SELECT ROW()
@@ -10908,13 +10908,13 @@ accept	accept	engine	MathOp/NOT_EQUALS	CREATE OPERATOR <>(a)
 reject@19	reject@19	engine	MathOp/NOT_EQUALS!insert	CREATE OPERATOR <> zzz(a)
 accept	accept	engine	qual_Op/Op	SELECT ~ a
 accept	accept	engine	qual_Op/Op!insert	SELECT ~ zzz a
-reject@17	accept	engine	qual_Op/OPERATOR_(_any_operator_)	SELECT OPERATOR(~) a
+accept	accept	engine	qual_Op/OPERATOR_(_any_operator_)	SELECT OPERATOR(~) a
 reject@8	reject@8	engine	qual_Op/OPERATOR_(_any_operator_)!drop-1	SELECT(~) a
 reject@17	reject@17	engine	qual_Op/OPERATOR_(_any_operator_)!drop-2	SELECT OPERATOR ~) a
-accept	reject@16	engine	qual_Op/OPERATOR_(_any_operator_)!drop-3	SELECT OPERATOR() a
-reject@19	reject@18	engine	qual_Op/OPERATOR_(_any_operator_)!drop-4	SELECT OPERATOR(~ a
+reject@16	reject@16	engine	qual_Op/OPERATOR_(_any_operator_)!drop-3	SELECT OPERATOR() a
+reject@18	reject@18	engine	qual_Op/OPERATOR_(_any_operator_)!drop-4	SELECT OPERATOR(~ a
 reject@17	reject@17	engine	qual_Op/OPERATOR_(_any_operator_)!truncate	SELECT OPERATOR(~
-reject@17	accept	engine	qual_Op/OPERATOR_(_any_operator_)!insert	SELECT OPERATOR(~) zzz a
+accept	accept	engine	qual_Op/OPERATOR_(_any_operator_)!insert	SELECT OPERATOR(~) zzz a
 reject@15	reject@15	engine	qual_Op/OPERATOR_(_any_operator_)!swap	SELECT OPTION(~) a
 accept	accept	engine	qual_all_Op/all_Op	SELECT ORDER BY a USING ~
 accept	accept	engine	qual_all_Op/OPERATOR_(_any_operator_)	SELECT ORDER BY a USING OPERATOR(~)
@@ -11091,7 +11091,7 @@ reject@22	reject@22	engine	substr_list/a_expr_FOR_a_expr!truncate	SELECT SUBSTRI
 reject@25	reject@25	engine	substr_list/a_expr_FOR_a_expr!insert	SELECT SUBSTRING(a FOR a zzz)
 reject@19	reject@19	engine	substr_list/a_expr_FOR_a_expr!swap	SELECT SUBSTRING(a FORCE a)
 accept	accept	engine	substr_list/a_expr_SIMILAR_a_expr_ESCAPE_a_expr	SELECT SUBSTRING(a SIMILAR a ESCAPE a)
-reject@17	reject@25	engine	substr_list/a_expr_SIMILAR_a_expr_ESCAPE_a_expr!drop-1	SELECT SUBSTRING(SIMILAR a ESCAPE a)
+reject@25	reject@25	engine	substr_list/a_expr_SIMILAR_a_expr_ESCAPE_a_expr!drop-1	SELECT SUBSTRING(SIMILAR a ESCAPE a)
 reject@19	reject@19	engine	substr_list/a_expr_SIMILAR_a_expr_ESCAPE_a_expr!drop-2	SELECT SUBSTRING(a a ESCAPE a)
 reject@34	reject@34	engine	substr_list/a_expr_SIMILAR_a_expr_ESCAPE_a_expr!drop-3	SELECT SUBSTRING(a SIMILAR ESCAPE a)
 reject@29	reject@29	engine	substr_list/a_expr_SIMILAR_a_expr_ESCAPE_a_expr!drop-4	SELECT SUBSTRING(a SIMILAR a a)
@@ -11109,7 +11109,7 @@ accept	accept	engine	trim_list/FROM_expr_list	SELECT TRIM(FROM a)
 reject@16	reject@16	engine	trim_list/FROM_expr_list!drop-2	SELECT TRIM(FROM)
 reject@16	reject@16	engine	trim_list/FROM_expr_list!truncate	SELECT TRIM(FROM
 reject@19	reject@19	engine	trim_list/FROM_expr_list!insert	SELECT TRIM(FROM a zzz)
-reject@12	reject@17	engine	trim_list/FROM_expr_list!swap	SELECT TRIM(FULL a)
+reject@17	reject@17	engine	trim_list/FROM_expr_list!swap	SELECT TRIM(FULL a)
 accept	accept	engine	trim_list/expr_list	SELECT TRIM(a)
 reject@12	reject@12	engine	trim_list/expr_list!truncate	SELECT TRIM(
 reject@14	reject@14	engine	trim_list/expr_list!insert	SELECT TRIM(a zzz)
@@ -11126,20 +11126,20 @@ reject@26	reject@26	engine	when_clause_list/when_clause!insert	SELECT CASE WHEN 
 reject@12	reject@12	engine	when_clause_list/when_clause!swap	SELECT CASE WHERE a THEN a END
 accept	accept	engine	when_clause_list/when_clause_list_when_clause	SELECT CASE WHEN a THEN a WHEN a THEN a END
 reject@14	reject@14	engine	when_clause_list/when_clause_list_when_clause!drop-1	SELECT CASE a THEN a WHEN a THEN a END
-accept	reject@17	engine	when_clause_list/when_clause_list_when_clause!drop-2	SELECT CASE WHEN THEN a WHEN a THEN a END
+reject@17	reject@17	engine	when_clause_list/when_clause_list_when_clause!drop-2	SELECT CASE WHEN THEN a WHEN a THEN a END
 reject@19	reject@19	engine	when_clause_list/when_clause_list_when_clause!drop-3	SELECT CASE WHEN a a WHEN a THEN a END
-accept	reject@24	engine	when_clause_list/when_clause_list_when_clause!drop-4	SELECT CASE WHEN a THEN WHEN a THEN a END
+reject@24	reject@24	engine	when_clause_list/when_clause_list_when_clause!drop-4	SELECT CASE WHEN a THEN WHEN a THEN a END
 reject@26	reject@26	engine	when_clause_list/when_clause_list_when_clause!drop-5	SELECT CASE WHEN a THEN a a THEN a END
-accept	reject@31	engine	when_clause_list/when_clause_list_when_clause!drop-6	SELECT CASE WHEN a THEN a WHEN THEN a END
+reject@31	reject@31	engine	when_clause_list/when_clause_list_when_clause!drop-6	SELECT CASE WHEN a THEN a WHEN THEN a END
 reject@33	reject@33	engine	when_clause_list/when_clause_list_when_clause!drop-7	SELECT CASE WHEN a THEN a WHEN a a END
-accept	reject@38	engine	when_clause_list/when_clause_list_when_clause!drop-8	SELECT CASE WHEN a THEN a WHEN a THEN END
+reject@38	reject@38	engine	when_clause_list/when_clause_list_when_clause!drop-8	SELECT CASE WHEN a THEN a WHEN a THEN END
 reject@37	reject@37	engine	when_clause_list/when_clause_list_when_clause!truncate	SELECT CASE WHEN a THEN a WHEN a THEN
 reject@40	reject@40	engine	when_clause_list/when_clause_list_when_clause!insert	SELECT CASE WHEN a THEN a WHEN a THEN a zzz END
 reject@12	reject@12	engine	when_clause_list/when_clause_list_when_clause!swap	SELECT CASE WHERE a THEN a WHEN a THEN a END
 accept	accept	engine	when_clause/WHEN_a_expr_THEN_a_expr	SELECT CASE WHEN a THEN a END
 accept	accept	engine	case_default/ELSE_a_expr	SELECT CASE WHEN a THEN a ELSE a END
 reject@26	reject@26	engine	case_default/ELSE_a_expr!drop-1	SELECT CASE WHEN a THEN a a END
-accept	reject@31	engine	case_default/ELSE_a_expr!drop-2	SELECT CASE WHEN a THEN a ELSE END
+reject@31	reject@31	engine	case_default/ELSE_a_expr!drop-2	SELECT CASE WHEN a THEN a ELSE END
 reject@30	reject@30	engine	case_default/ELSE_a_expr!truncate	SELECT CASE WHEN a THEN a ELSE
 reject@33	reject@33	engine	case_default/ELSE_a_expr!insert	SELECT CASE WHEN a THEN a ELSE a zzz END
 reject@26	reject@26	engine	case_default/ELSE_a_expr!swap	SELECT CASE WHEN a THEN a EMPTY a END
@@ -11332,7 +11332,7 @@ reject@21	reject@21	engine	json_value_expr/a_expr_json_format_clause_opt!truncat
 reject@23	reject@23	engine	json_value_expr/a_expr_json_format_clause_opt!insert	SELECT JSON_ARRAYAGG(a zzz)
 reject	reject	engine	json_format_clause/FORMAT_LA_JSON_ENCODING_name	SELECT JSON_ARRAYAGG(a FORMAT JSON ENCODING a)
 reject@23	reject@23	engine	json_format_clause/FORMAT_LA_JSON_ENCODING_name!drop-1	SELECT JSON_ARRAYAGG(a JSON ENCODING a)
-reject@30	reject@23	engine	json_format_clause/FORMAT_LA_JSON_ENCODING_name!drop-2	SELECT JSON_ARRAYAGG(a FORMAT ENCODING a)
+reject@23	reject@23	engine	json_format_clause/FORMAT_LA_JSON_ENCODING_name!drop-2	SELECT JSON_ARRAYAGG(a FORMAT ENCODING a)
 reject@35	reject@35	engine	json_format_clause/FORMAT_LA_JSON_ENCODING_name!drop-3	SELECT JSON_ARRAYAGG(a FORMAT JSON a)
 reject@43	reject@43	engine	json_format_clause/FORMAT_LA_JSON_ENCODING_name!drop-4	SELECT JSON_ARRAYAGG(a FORMAT JSON ENCODING)
 reject@43	reject@43	engine	json_format_clause/FORMAT_LA_JSON_ENCODING_name!truncate	SELECT JSON_ARRAYAGG(a FORMAT JSON ENCODING
@@ -11340,8 +11340,8 @@ reject	reject	engine	json_format_clause/FORMAT_LA_JSON_ENCODING_name!insert	SELE
 reject@23	reject@23	engine	json_format_clause/FORMAT_LA_JSON_ENCODING_name!swap	SELECT JSON_ARRAYAGG(a FORWARD JSON ENCODING a)
 accept	accept	engine	json_format_clause/FORMAT_LA_JSON	SELECT JSON_ARRAYAGG(a FORMAT JSON)
 reject@23	reject@23	engine	json_format_clause/FORMAT_LA_JSON!drop-1	SELECT JSON_ARRAYAGG(a JSON)
-reject@29	reject@23	engine	json_format_clause/FORMAT_LA_JSON!drop-2	SELECT JSON_ARRAYAGG(a FORMAT)
-reject@29	reject@23	engine	json_format_clause/FORMAT_LA_JSON!truncate	SELECT JSON_ARRAYAGG(a FORMAT
+reject@23	reject@23	engine	json_format_clause/FORMAT_LA_JSON!drop-2	SELECT JSON_ARRAYAGG(a FORMAT)
+reject@23	reject@23	engine	json_format_clause/FORMAT_LA_JSON!truncate	SELECT JSON_ARRAYAGG(a FORMAT
 reject@35	reject@35	engine	json_format_clause/FORMAT_LA_JSON!insert	SELECT JSON_ARRAYAGG(a FORMAT JSON zzz)
 reject@23	reject@23	engine	json_format_clause/FORMAT_LA_JSON!swap	SELECT JSON_ARRAYAGG(a FORWARD JSON)
 accept	accept	engine	json_format_clause_opt/json_format_clause	SELECT JSON_ARRAYAGG(a FORMAT JSON)
@@ -11402,12 +11402,12 @@ accept	accept	engine	json_predicate_type_constraint/JSON_SCALAR!insert	SELECT a 
 reject@12	reject@12	engine	json_predicate_type_constraint/JSON_SCALAR!swap	SELECT a IS JSON_ARRAY SCALAR
 accept	accept	engine	json_key_uniqueness_constraint_opt/WITH_UNIQUE_KEYS	SELECT a IS JSON WITH UNIQUE KEYS
 reject@24	reject@24	engine	json_key_uniqueness_constraint_opt/WITH_UNIQUE_KEYS!drop-1	SELECT a IS JSON UNIQUE KEYS
-reject@17	reject@22	engine	json_key_uniqueness_constraint_opt/WITH_UNIQUE_KEYS!drop-2	SELECT a IS JSON WITH KEYS
+reject@22	reject@22	engine	json_key_uniqueness_constraint_opt/WITH_UNIQUE_KEYS!drop-2	SELECT a IS JSON WITH KEYS
 accept	accept	engine	json_key_uniqueness_constraint_opt/WITH_UNIQUE_KEYS!insert	SELECT a IS JSON WITH UNIQUE KEYS zzz
 reject@17	reject@17	engine	json_key_uniqueness_constraint_opt/WITH_UNIQUE_KEYS!swap	SELECT a IS JSON WITHIN UNIQUE KEYS
 accept	accept	engine	json_key_uniqueness_constraint_opt/WITH_UNIQUE	SELECT a IS JSON WITH UNIQUE
 accept	accept	engine	json_key_uniqueness_constraint_opt/WITH_UNIQUE!drop-1	SELECT a IS JSON UNIQUE
-reject@17	reject@21	engine	json_key_uniqueness_constraint_opt/WITH_UNIQUE!drop-2	SELECT a IS JSON WITH
+reject@21	reject@21	engine	json_key_uniqueness_constraint_opt/WITH_UNIQUE!drop-2	SELECT a IS JSON WITH
 accept	accept	engine	json_key_uniqueness_constraint_opt/WITH_UNIQUE!insert	SELECT a IS JSON WITH UNIQUE zzz
 reject@17	reject@17	engine	json_key_uniqueness_constraint_opt/WITH_UNIQUE!swap	SELECT a IS JSON WITHIN UNIQUE
 accept	accept	engine	json_key_uniqueness_constraint_opt/WITHOUT_UNIQUE_KEYS	SELECT a IS JSON WITHOUT UNIQUE KEYS
@@ -11483,7 +11483,7 @@ reject@20	reject@20	engine	json_value_expr_list/json_value_expr_list_,_json_valu
 reject@20	reject@20	engine	json_value_expr_list/json_value_expr_list_,_json_value_expr!truncate	SELECT JSON_ARRAY(a,
 reject@23	reject@23	engine	json_value_expr_list/json_value_expr_list_,_json_value_expr!insert	SELECT JSON_ARRAY(a, a zzz)
 accept	accept	engine	json_aggregate_func/JSON_OBJECTAGG_(_json_name_and_value_json_object_constructor_null_clause_opt_json_key_uniqueness_constraint_opt_json_returning_clause_opt_)	SELECT JSON_OBJECTAGG(a VALUE a)
-reject@22	reject@24	engine	json_aggregate_func/JSON_OBJECTAGG_(_json_name_and_value_json_object_constructor_null_clause_opt_json_key_uniqueness_constraint_opt_json_returning_clause_opt_)!drop-2	SELECT JSON_OBJECTAGG a VALUE a)
+reject@24	reject@24	engine	json_aggregate_func/JSON_OBJECTAGG_(_json_name_and_value_json_object_constructor_null_clause_opt_json_key_uniqueness_constraint_opt_json_returning_clause_opt_)!drop-2	SELECT JSON_OBJECTAGG a VALUE a)
 reject@31	reject@31	engine	json_aggregate_func/JSON_OBJECTAGG_(_json_name_and_value_json_object_constructor_null_clause_opt_json_key_uniqueness_constraint_opt_json_returning_clause_opt_)!drop-6	SELECT JSON_OBJECTAGG(a VALUE a
 accept	accept	engine	json_aggregate_func/JSON_OBJECTAGG_(_json_name_and_value_json_object_constructor_null_clause_opt_json_key_uniqueness_constraint_opt_json_returning_clause_opt_)!insert	SELECT JSON_OBJECTAGG(a VALUE a) zzz
 reject@20	reject@20	engine	json_aggregate_func/JSON_OBJECTAGG_(_json_name_and_value_json_object_constructor_null_clause_opt_json_key_uniqueness_constraint_opt_json_returning_clause_opt_)!swap	SELECT JSON_QUERY(a VALUE a)
@@ -11505,7 +11505,7 @@ reject@9	reject@9	engine	target_list/target_list_,_target_el!drop-3	SELECT a,
 accept	accept	engine	target_list/target_list_,_target_el!insert	SELECT a, a zzz
 accept	accept	engine	target_el/a_expr_AS_ColLabel	SELECT a AS a
 reject@7	reject@7	engine	target_el/a_expr_AS_ColLabel!drop-1	SELECT AS a
-accept	reject@11	engine	target_el/a_expr_AS_ColLabel!drop-3	SELECT a AS
+reject@11	reject@11	engine	target_el/a_expr_AS_ColLabel!drop-3	SELECT a AS
 reject@14	reject@14	engine	target_el/a_expr_AS_ColLabel!insert	SELECT a AS a zzz
 reject@13	reject@13	engine	target_el/a_expr_AS_ColLabel!swap	SELECT a ASC a
 accept	accept	engine	target_el/a_expr_BareColLabel	SELECT a a
@@ -11550,12 +11550,12 @@ accept	accept	engine	AexprConst/XCONST	SELECT X'1F'
 accept	accept	engine	AexprConst/XCONST!insert	SELECT X'1F' zzz
 accept	accept	engine	AexprConst/func_name_Sconst	SELECT a 's'
 accept	accept	engine	AexprConst/func_name_Sconst!insert	SELECT a 's' zzz
-reject@12	accept	engine	AexprConst/func_name_(_func_arg_list_opt_sort_clause_)_Sconst	SELECT a(a) 's'
+accept	accept	engine	AexprConst/func_name_(_func_arg_list_opt_sort_clause_)_Sconst	SELECT a(a) 's'
 reject@10	reject@10	engine	AexprConst/func_name_(_func_arg_list_opt_sort_clause_)_Sconst!drop-2	SELECT a a) 's'
 reject@11	reject@11	engine	AexprConst/func_name_(_func_arg_list_opt_sort_clause_)_Sconst!drop-3	SELECT a() 's'
 reject@14	reject@14	engine	AexprConst/func_name_(_func_arg_list_opt_sort_clause_)_Sconst!drop-4	SELECT a(a 's'
 accept	accept	engine	AexprConst/func_name_(_func_arg_list_opt_sort_clause_)_Sconst!drop-5	SELECT a(a)
-reject@12	accept	engine	AexprConst/func_name_(_func_arg_list_opt_sort_clause_)_Sconst!insert	SELECT a(a) 's' zzz
+accept	accept	engine	AexprConst/func_name_(_func_arg_list_opt_sort_clause_)_Sconst!insert	SELECT a(a) 's' zzz
 accept	accept	engine	AexprConst/ConstTypename_Sconst	SELECT INT 's'
 accept	accept	engine	AexprConst/ConstTypename_Sconst!drop-2	SELECT INT
 accept	accept	engine	AexprConst/ConstTypename_Sconst!insert	SELECT INT 's' zzz
@@ -11565,9 +11565,9 @@ accept	accept	engine	AexprConst/ConstInterval_Sconst_opt_interval!insert	SELECT 
 reject@12	reject@12	engine	AexprConst/ConstInterval_Sconst_opt_interval!swap	SELECT INTO 's'
 accept	accept	engine	AexprConst/ConstInterval_(_Iconst_)_Sconst	SELECT INTERVAL(1) 's'
 reject@16	reject@16	engine	AexprConst/ConstInterval_(_Iconst_)_Sconst!drop-2	SELECT INTERVAL 1) 's'
-reject@18	reject@16	engine	AexprConst/ConstInterval_(_Iconst_)_Sconst!drop-3	SELECT INTERVAL() 's'
+reject@16	reject@16	engine	AexprConst/ConstInterval_(_Iconst_)_Sconst!drop-3	SELECT INTERVAL() 's'
 reject@18	reject@18	engine	AexprConst/ConstInterval_(_Iconst_)_Sconst!drop-4	SELECT INTERVAL(1 's'
-accept	reject@18	engine	AexprConst/ConstInterval_(_Iconst_)_Sconst!drop-5	SELECT INTERVAL(1)
+reject@18	reject@18	engine	AexprConst/ConstInterval_(_Iconst_)_Sconst!drop-5	SELECT INTERVAL(1)
 accept	accept	engine	AexprConst/ConstInterval_(_Iconst_)_Sconst!insert	SELECT INTERVAL(1) 's' zzz
 reject@11	reject@11	engine	AexprConst/ConstInterval_(_Iconst_)_Sconst!swap	SELECT INTO(1) 's'
 accept	accept	engine	AexprConst/TRUE_P	SELECT TRUE
@@ -11578,7 +11578,7 @@ accept	accept	engine	AexprConst/FALSE_P!insert	SELECT FALSE zzz
 accept	accept	engine	AexprConst/FALSE_P!swap	SELECT FAMILY
 accept	accept	engine	AexprConst/NULL_P	SELECT NULL
 accept	accept	engine	AexprConst/NULL_P!insert	SELECT NULL zzz
-reject@13	accept	engine	AexprConst/NULL_P!swap	SELECT NULLIF
+accept	accept	engine	AexprConst/NULL_P!swap	SELECT NULLIF
 accept	accept	engine	Iconst/ICONST	SELECT 1
 accept	accept	engine	Sconst/SCONST	DO 's'
 accept	accept	engine	SignedIconst/Iconst	FETCH 1 a
@@ -13022,7 +13022,7 @@ accept	accept	engine	bare_label_keyword/ESCAPE	SELECT a ESCAPE
 reject@16	reject@16	engine	bare_label_keyword/ESCAPE!insert	SELECT a ESCAPE zzz
 accept	accept	engine	bare_label_keyword/EVENT	SELECT a EVENT
 reject@15	reject@15	engine	bare_label_keyword/EVENT!insert	SELECT a EVENT zzz
-accept	reject@15	engine	bare_label_keyword/EVENT!swap	SELECT a EXCEPT
+reject@15	reject@15	engine	bare_label_keyword/EVENT!swap	SELECT a EXCEPT
 accept	accept	engine	bare_label_keyword/EXCLUDE	SELECT a EXCLUDE
 reject@17	reject@17	engine	bare_label_keyword/EXCLUDE!insert	SELECT a EXCLUDE zzz
 accept	accept	engine	bare_label_keyword/EXCLUDING	SELECT a EXCLUDING
@@ -13056,7 +13056,7 @@ accept	accept	engine	bare_label_keyword/FLOAT_P	SELECT a FLOAT
 reject@15	reject@15	engine	bare_label_keyword/FLOAT_P!insert	SELECT a FLOAT zzz
 accept	accept	engine	bare_label_keyword/FOLLOWING	SELECT a FOLLOWING
 reject@19	reject@19	engine	bare_label_keyword/FOLLOWING!insert	SELECT a FOLLOWING zzz
-accept	reject@12	engine	bare_label_keyword/FOLLOWING!swap	SELECT a FOR
+reject@12	reject@12	engine	bare_label_keyword/FOLLOWING!swap	SELECT a FOR
 accept	accept	engine	bare_label_keyword/FORCE	SELECT a FORCE
 reject@15	reject@15	engine	bare_label_keyword/FORCE!insert	SELECT a FORCE zzz
 accept	accept	engine	bare_label_keyword/FOREIGN	SELECT a FOREIGN
@@ -13090,7 +13090,7 @@ accept	accept	engine	bare_label_keyword/GROUPS	SELECT a GROUPS
 reject@16	reject@16	engine	bare_label_keyword/GROUPS!insert	SELECT a GROUPS zzz
 accept	accept	engine	bare_label_keyword/HANDLER	SELECT a HANDLER
 reject@17	reject@17	engine	bare_label_keyword/HANDLER!insert	SELECT a HANDLER zzz
-accept	reject@15	engine	bare_label_keyword/HANDLER!swap	SELECT a HAVING
+reject@15	reject@15	engine	bare_label_keyword/HANDLER!swap	SELECT a HAVING
 accept	accept	engine	bare_label_keyword/HEADER_P	SELECT a HEADER
 reject@16	reject@16	engine	bare_label_keyword/HEADER_P!insert	SELECT a HEADER zzz
 accept	accept	engine	bare_label_keyword/HOLD	SELECT a HOLD
@@ -13148,7 +13148,7 @@ accept	accept	engine	bare_label_keyword/INT_P	SELECT a INT
 reject@13	reject@13	engine	bare_label_keyword/INT_P!insert	SELECT a INT zzz
 accept	accept	engine	bare_label_keyword/INTEGER	SELECT a INTEGER
 reject@17	reject@17	engine	bare_label_keyword/INTEGER!insert	SELECT a INTEGER zzz
-accept	reject@18	engine	bare_label_keyword/INTEGER!swap	SELECT a INTERSECT
+reject@18	reject@18	engine	bare_label_keyword/INTEGER!swap	SELECT a INTERSECT
 accept	accept	engine	bare_label_keyword/INTERVAL	SELECT a INTERVAL
 reject@18	reject@18	engine	bare_label_keyword/INTERVAL!insert	SELECT a INTERVAL zzz
 reject@13	reject@13	engine	bare_label_keyword/INTERVAL!swap	SELECT a INTO
@@ -13615,7 +13615,7 @@ accept	accept	engine	bare_label_keyword/UNCONDITIONAL	SELECT a UNCONDITIONAL
 reject@23	reject@23	engine	bare_label_keyword/UNCONDITIONAL!insert	SELECT a UNCONDITIONAL zzz
 accept	accept	engine	bare_label_keyword/UNENCRYPTED	SELECT a UNENCRYPTED
 reject@21	reject@21	engine	bare_label_keyword/UNENCRYPTED!insert	SELECT a UNENCRYPTED zzz
-accept	reject@14	engine	bare_label_keyword/UNENCRYPTED!swap	SELECT a UNION
+reject@14	reject@14	engine	bare_label_keyword/UNENCRYPTED!swap	SELECT a UNION
 accept	accept	engine	bare_label_keyword/UNIQUE	SELECT a UNIQUE
 reject@16	reject@16	engine	bare_label_keyword/UNIQUE!insert	SELECT a UNIQUE zzz
 accept	accept	engine	bare_label_keyword/UNKNOWN	SELECT a UNKNOWN
@@ -14109,7 +14109,7 @@ accept	accept	engine	suite:paren-fuzz	SELECT * FROM (T RIGHT OUTER JOIN W USING 
 reject@35	reject@35	engine	suite:paren-fuzz	SELECT * FROM (W RIGHT OUTER JOIN T)
 accept	accept	engine	suite:paren-fuzz	SELECT * FROM (VALUES (1), (2)) AS t1
 accept	accept	engine	suite:paren-fuzz	SELECT * FROM U, LATERAL (VALUES (1, 2), (3, 4)) AS sub (c1, c2, c3)
-reject@27	reject@21	engine	suite:paren-fuzz	SELECT * FROM VALUES (1), (2))
+reject@21	reject@21	engine	suite:paren-fuzz	SELECT * FROM VALUES (1), (2))
 accept	accept	engine	suite:paren-fuzz	SELECT * FROM ((SELECT a FROM T) INTERSECT (SELECT a FROM T WHERE a > 0)) AS alias
 reject@37	reject@37	engine	suite:paren-fuzz	SELECT * FROM (U NATURAL LEFT JOIN W ON T.a = U.a)
 accept	accept	engine	suite:paren-fuzz	SELECT * FROM (SELECT a FROM T WHERE a > 0) AS t1 (c1, c2)
@@ -14172,7 +14172,7 @@ accept	accept	engine	suite:paren-fuzz	SELECT * FROM (T RIGHT OUTER JOIN T ON FAL
 accept	accept	engine	suite:paren-fuzz	SELECT * FROM ((SELECT a FROM T WHERE a > 0) UNION (SELECT 1 UNION SELECT 2)) AS alias
 accept	accept	engine	suite:paren-fuzz	SELECT * FROM (SELECT a FROM T WHERE a > 0) AS sub (c1)
 accept	accept	engine	suite:paren-fuzz	SELECT * FROM (foo NATURAL JOIN W)
-reject@30	reject@21	engine	suite:paren-fuzz	SELECT * FROM VALUES (1, 2), (3, 4))
+reject@21	reject@21	engine	suite:paren-fuzz	SELECT * FROM VALUES (1, 2), (3, 4))
 accept	accept	engine	suite:paren-fuzz	SELECT * FROM ((SELECT 1) UNION (SELECT 1)) AS sub
 accept	accept	engine	suite:paren-fuzz	SELECT * FROM (VALUES (1), (2)) AS sub (c1, c2)
 accept	accept	engine	suite:paren-fuzz	SELECT * FROM (VALUES (1), (2) UNION SELECT 1 UNION SELECT 2) AS sub

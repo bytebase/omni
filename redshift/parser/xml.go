@@ -271,7 +271,10 @@ func (p *Parser) parseXmlSerialize() (nodes.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	indent := p.parseXmlIndentOption()
+	indent, err := p.parseXmlIndentOption()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
@@ -289,7 +292,9 @@ func (p *Parser) parseXmlRootVersion() (nodes.Node, error) {
 	if _, err := p.expect(VERSION_P); err != nil {
 		return nil, err
 	}
-	if p.cur.Type == NO {
+	// NO is an unreserved keyword: before any token but VALUE it is a
+	// column name, starting the a_expr (VERSION no).
+	if p.isXmlRootNoValueStart() {
 		p.advance()
 		if _, err := p.expect(VALUE_P); err != nil {
 			return nil, err
@@ -393,20 +398,20 @@ func (p *Parser) parseDocumentOrContent() (int64, error) {
 }
 
 // parseXmlIndentOption parses optional INDENT | NO INDENT.
-func (p *Parser) parseXmlIndentOption() int64 {
+//
+//	xml_indent_option: INDENT | NO INDENT | /*EMPTY*/
+func (p *Parser) parseXmlIndentOption() (int64, error) {
 	if p.cur.Type == INDENT {
 		p.advance()
-		return 1
+		return 1, nil
 	}
 	if p.cur.Type == NO {
-		next := p.peekNext()
-		if next.Type == INDENT {
-			p.advance() // consume NO
-			p.advance() // consume INDENT
-			return 0
+		p.advance() // consume NO
+		if _, err := p.expect(INDENT); err != nil {
+			return 0, err
 		}
 	}
-	return 0
+	return 0, nil
 }
 
 // parseXmlWhitespaceOption parses optional PRESERVE WHITESPACE | STRIP WHITESPACE.

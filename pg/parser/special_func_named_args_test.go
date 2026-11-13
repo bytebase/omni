@@ -50,3 +50,19 @@ func TestSubstringPlainCall(t *testing.T) {
 		}
 	}
 }
+
+// TestFuncOnlyTakesNoTypedConst: func_expr_windowless (index expressions,
+// ROWS FROM) has no AexprConst, so func_name(args) 'string' is refused
+// there and stays a typed constant elsewhere.
+func TestFuncOnlyTakesNoTypedConst(t *testing.T) {
+	for _, sql := range []string{"CREATE INDEX i ON t (f(1) 's')", "SELECT * FROM ROWS FROM (f(1) 's')"} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) accepted", sql)
+		}
+	}
+	for _, sql := range []string{"SELECT f(1) 's'", "CREATE INDEX i ON t (f(g(1) 's'))", "SELECT * FROM ROWS FROM (f(1))"} {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q): %v", sql, err)
+		}
+	}
+}

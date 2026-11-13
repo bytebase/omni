@@ -42,6 +42,12 @@ func (p *Parser) isColLabel() bool {
 	return false
 }
 
+// isColNameKeyword reports whether the current token is a col_name_keyword.
+func (p *Parser) isColNameKeyword() bool {
+	kw := LookupKeyword(p.cur.Str)
+	return kw != nil && kw.Token == p.cur.Type && kw.Category == ColNameKeyword
+}
+
 // isTypeFunctionName returns true if the current token can be used as a type_function_name.
 //
 //	type_function_name: IDENT | unreserved_keyword | type_func_name_keyword
@@ -86,6 +92,18 @@ func isColIdToken(tok Token) bool {
 	}
 	if kw := LookupKeyword(tok.Str); kw != nil && kw.Token == tok.Type {
 		return kw.Category == UnreservedKeyword || kw.Category == ColNameKeyword
+	}
+	return false
+}
+
+// isNameToken reports whether tok is IDENT or a keyword no category
+// reserves: an unreserved, column name, or type or function name keyword.
+func isNameToken(tok Token) bool {
+	if tok.Type == IDENT {
+		return true
+	}
+	if kw := LookupKeyword(tok.Str); kw != nil && kw.Token == tok.Type {
+		return kw.Category != ReservedKeyword
 	}
 	return false
 }
@@ -474,7 +492,7 @@ func (p *Parser) parseIndirectionEl() (nodes.Node, error) {
 		}
 
 		// Parse first expression
-		expr, err := p.parseAExpr(0)
+		expr, err := p.parseRequiredAExpr(0)
 		if err != nil {
 			return nil, err
 		}

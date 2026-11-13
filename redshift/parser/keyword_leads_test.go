@@ -42,3 +42,44 @@ func TestVarNameDotNeedsColId(t *testing.T) {
 		}
 	}
 }
+
+// TestFrameAndFetchLeadPredicates checks isFrameDirectionStart and
+// isFetchOptionStart against the whole Keywords table.
+func TestFrameAndFetchLeadPredicates(t *testing.T) {
+	for _, kw := range Keywords {
+		tok := Token{Type: kw.Token, Str: kw.Name}
+		if got, want := isFrameDirectionStart(tok), kw.Token == PRECEDING || kw.Token == FOLLOWING; got != want {
+			t.Errorf("isFrameDirectionStart(%q) = %v, want %v", kw.Name, got, want)
+		}
+	}
+}
+
+// TestClauseLeadPredicates holds isJsonFormatStart, isRowsFromStart and
+// isBareAliasStart to the statements that decide them: each keyword leads
+// its clause only before the token that continues it.
+func TestClauseLeadPredicates(t *testing.T) {
+	for _, sql := range []string{
+		"SELECT JSON_SERIALIZE(a FORMAT JSON)",
+		"SELECT format FROM t",
+		"SELECT * FROM ROWS FROM (f(1))",
+		"SELECT * FROM rows(1)",
+		"SELECT * FROM t a",
+		"SELECT * FROM t AS a(b)",
+		"SELECT * FROM t JOIN u ON true",
+		"SELECT XMLROOT(a, VERSION NO VALUE)",
+		"SELECT XMLROOT(a, VERSION no)",
+		"SELECT * FROM JSON_TABLE('[]', '$' COLUMNS (NESTED PATH '$' COLUMNS (a int)))",
+		"SELECT * FROM JSON_TABLE('[]', '$' COLUMNS (nested int))",
+		"SELECT count(*) OVER (ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING)",
+		"SELECT count(*) OVER (ROWS current PRECEDING)",
+	} {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q): %v", sql, err)
+		}
+	}
+	for _, sql := range []string{"SELECT JSON_SERIALIZE(a FORMAT)", "SELECT * FROM ROWS FROM f(1)"} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) accepted", sql)
+		}
+	}
+}

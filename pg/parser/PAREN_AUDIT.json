@@ -464,8 +464,8 @@
     "suspicion_notes": null
   },
   {
-    "site": "expr.go:2577",
-    "function": "parseFuncApplication",
+    "site": "expr.go:3111",
+    "function": "parseFuncCall",
     "nonterminals": [
       "func_application"
     ],

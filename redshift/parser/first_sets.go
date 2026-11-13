@@ -239,6 +239,29 @@ func (p *Parser) startsTableConstraint() bool {
 	return true
 }
 
+// startsColNameKeywordColumnRef reports whether the current token, a
+// col_name_keyword where a c_expr starts, is the ColId of a columnref
+// rather than the lead of a form of its own. Each such form goes on with
+// '(' (row, EXISTS select_with_parens, and func_expr_common_subexpr's
+// COALESCE, NULLIF, XMLROOT, JSON_OBJECT and the rest) or is a typed
+// constant (ConstTypename Sconst, ConstInterval Sconst); and func_name,
+// which an Sconst may follow, takes no col_name_keyword. Before any other
+// token the keyword names a column: SELECT nullif, OFFSET row.
+//
+// Grammar reference: c_expr, columnref and func_expr_common_subexpr in
+// postgres/src/backend/parser/gram.y. No PG oracle test: the set is a
+// keyword category, which TestStartsColNameKeywordColumnRef checks against
+// the whole Keywords table.
+func (p *Parser) startsColNameKeywordColumnRef() bool {
+	if !p.isColNameKeyword() {
+		return false
+	}
+	if next := p.peekNext().Type; next == '(' || next == SCONST {
+		return false
+	}
+	return !p.isAExprConstTypeCast()
+}
+
 // selectLimitLeadTokens is the FIRST set of select_limit: a limit_clause
 // starts with LIMIT or FETCH, an offset_clause with OFFSET.
 //
@@ -373,6 +396,56 @@ func (p *Parser) isSeqOptElemStart() bool {
 // holds to PostgreSQL.
 func (p *Parser) isSeqOptElemLead() bool {
 	return slices.Contains(seqOptElemLeadTokens, p.cur.Type)
+}
+
+// isFrameDirectionStart reports whether tok is PRECEDING or FOLLOWING, which
+// follow UNBOUNDED or the a_expr in a frame_bound.
+func isFrameDirectionStart(tok Token) bool {
+	return tok.Type == PRECEDING || tok.Type == FOLLOWING
+}
+
+// isJsonFormatStart reports whether a json_format_clause starts at the
+// current token. PostgreSQL's lexer makes FORMAT before JSON a FORMAT_LA,
+// the token json_format_clause starts with; any other FORMAT is the
+// unreserved keyword, a name.
+func (p *Parser) isJsonFormatStart() bool {
+	return p.cur.Type == FORMAT && p.keywordLeads(func(t Token) bool { return t.Type == JSON })
+}
+
+// isRowsFromStart reports whether func_table's ROWS FROM '(' rowsfrom_list
+// ')' starts at the current token. ROWS is an unreserved keyword: before
+// any token but FROM it is a relation or function name, as in
+// FROM rows(1).
+func (p *Parser) isRowsFromStart() bool {
+	return p.cur.Type == ROWS && p.keywordLeads(func(t Token) bool { return t.Type == FROM })
+}
+
+// isBareAliasStart reports whether the current token is the ColId of an
+// alias_clause without AS: a ColId that does not lead the clause or join
+// that may follow a table_ref.
+func (p *Parser) isBareAliasStart() bool {
+	return p.isColId() && !p.isReservedForClause() && !p.isJoinKeyword()
+}
+
+// isXmlRootNoValueStart reports whether xml_root_version's NO VALUE starts at
+// the current token. NO is unreserved: before anything but VALUE it is an
+// a_expr, the version (XMLROOT(a, VERSION no)).
+func (p *Parser) isXmlRootNoValueStart() bool {
+	return p.cur.Type == NO && p.keywordLeads(func(t Token) bool { return t.Type == VALUE_P })
+}
+
+// isJsonNestedColumnStart reports whether json_table_column_definition's
+// NESTED [PATH] Sconst starts at the current token. NESTED is unreserved:
+// before anything but PATH or a string it is a column name.
+func (p *Parser) isJsonNestedColumnStart() bool {
+	return p.cur.Type == NESTED && p.keywordLeads(func(t Token) bool { return t.Type == PATH || t.Type == SCONST })
+}
+
+// isFrameCurrentRowStart reports whether frame_bound's CURRENT_P ROW starts
+// at the current token. CURRENT is unreserved: before anything but ROW it
+// is a column name in the bound's a_expr (frame_bound: a_expr PRECEDING).
+func (p *Parser) isFrameCurrentRowStart() bool {
+	return p.cur.Type == CURRENT_P && p.keywordLeads(func(t Token) bool { return t.Type == ROW })
 }
 
 // isFuncTypeStart reports whether the current token starts a func_type

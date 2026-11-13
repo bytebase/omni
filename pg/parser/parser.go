@@ -33,9 +33,18 @@ type Parser struct {
 	parenRunPast    Token         // first token past that run
 
 	depth int // nesting depth of the productions being parsed (see enterNesting)
+	// funcOnlyAt is 1 + the byte offset of the func_expr_windowless being
+	// parsed, where gram.y takes a function call but no AexprConst, so
+	// func_name(args) 'string' is no typed constant there; 0 outside one.
+	funcOnlyAt int
 	// targetDepth is the depth at which the expression of the target_el being
 	// parsed is complete, where a keyword may be its bare label; 0 outside one.
 	targetDepth int
+	// lastRow is the node the row production parsed last made, and
+	// lastRowEnd the end of its ')': a c_expr that is that node and ends
+	// there is the row itself, not a parenthesized expression holding it.
+	lastRow    nodes.Node
+	lastRowEnd int
 
 	// Completion mode fields.
 	completing   bool          // true when collecting completion candidates

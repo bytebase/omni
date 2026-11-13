@@ -21,7 +21,12 @@ func (p *Parser) parseFuncExprWindowless() (nodes.Node, error) {
 	// func_expr_common_subexpr keywords are handled by parseCExpr which
 	// already dispatches COALESCE, GREATEST, LEAST, CAST, etc.
 	// For func_application, we need a name followed by '('.
-	// We delegate to parseCExpr which handles both cases.
+	// We delegate to parseCExpr which handles both cases, telling it the
+	// call at this position takes no typed constant (gram.y's
+	// func_expr_windowless has no AexprConst).
+	saved := p.funcOnlyAt
+	p.funcOnlyAt = p.pos() + 1
+	defer func() { p.funcOnlyAt = saved }()
 	return p.parseCExpr()
 }
 
