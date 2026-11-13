@@ -1978,6 +1978,9 @@ type AnalyzeTableStmt struct {
 	Buckets          int      // WITH N BUCKETS
 	// UsingData is never set: OceanBase's UPDATE HISTOGRAM takes no USING DATA.
 	UsingData string
+	// Statistics is "COMPUTE" or "ESTIMATE" for ANALYZE TABLE t [PARTITION (p)]
+	// {COMPUTE | ESTIMATE} STATISTICS ..., whose clauses are parsed and not kept.
+	Statistics string
 }
 
 func (s *AnalyzeTableStmt) nodeTag()  {}
@@ -2044,12 +2047,13 @@ func (s *AlterSystemStmt) nodeTag()  {}
 func (s *AlterSystemStmt) stmtNode() {}
 
 // ObjectDDLStmt is a CREATE, ALTER or DROP of an OceanBase object this parser
-// keeps no tree for: a tenant, a resource unit or pool, a tablegroup or a
-// sequence. Action is
-// the statement and its object as the grammar writes them ("CREATE TENANT",
-// "ALTER RESOURCE POOL"); Schema and Name are the object's name, Name empty
-// where the statement names none (ALTER TENANT ALL). The options are parsed
-// and not kept.
+// keeps no tree for: a tenant, a resource unit or pool, a tablegroup, a
+// sequence, an outline, a tenant snapshot, a concurrent limiting rule or a
+// sensitive rule. Action is the statement and its object as the grammar writes
+// them ("CREATE TENANT", "ALTER RESOURCE POOL", "CREATE OR REPLACE FORMAT
+// OUTLINE"); Schema and Name are the object's name, Name empty where the
+// statement names none (ALTER TENANT ALL, CREATE SNAPSHOT). The options, and
+// an outline's statements, are parsed and not kept.
 type ObjectDDLStmt struct {
 	Loc    Loc
 	Action string

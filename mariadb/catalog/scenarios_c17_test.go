@@ -1,6 +1,8 @@
 package catalog
 
 import (
+	"maps"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -47,6 +49,8 @@ func TestScenario_C17(t *testing.T) {
 		case nil:
 			return 0, false
 		case int64:
+			return int(x), true
+		case uint64:
 			return int(x), true
 		case []byte:
 			n := 0
@@ -286,7 +290,8 @@ func TestScenario_C17(t *testing.T) {
 			"v6b": {"utf8mb4", "utf8mb4_0900_ai_ci"},
 			"v6c": {"utf8mb4", "utf8mb4_0900_ai_ci"},
 		}
-		for view, w := range cases {
+		for _, view := range slices.Sorted(maps.Keys(cases)) {
+			w := cases[view]
 			if cs, co, ok := c17OracleViewCol(t, view, "c"); ok {
 				assertStringEq(t, "oracle "+view+".c CHARACTER_SET_NAME", cs, w.cs)
 				assertStringEq(t, "oracle "+view+".c COLLATION_NAME", co, w.co)
@@ -314,11 +319,9 @@ func TestScenario_C17(t *testing.T) {
 		ddl := `CREATE VIEW v7 AS SELECT CONCAT(a, CONVERT(b USING utf8mb4)) AS c FROM t`
 		_, oracleErr := mc.db.ExecContext(mc.ctx, ddl)
 		if oracleErr != nil {
-			// If MySQL rejects even one-sided CONVERT, the scenario has no
-			// oracle ground truth to compare omni against. Record this so the
-			// scenario can be refined and return — do NOT assert omni-side
-			// behavior against a missing oracle.
-			t.Skipf("17.7 oracle rejected one-sided CONVERT; scenario needs two-sided wrap. err=%v", oracleErr)
+			// MariaDB takes the one-sided CONVERT, measured on the pinned
+			// server: without it there is nothing to compare omni against.
+			t.Fatalf("17.7 oracle rejected one-sided CONVERT: %v", oracleErr)
 			return
 		}
 		if cs, co, ok := c17OracleViewCol(t, "v7", "c"); ok {
