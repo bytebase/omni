@@ -843,8 +843,17 @@ func listElement(seq []*node) (int, bool) {
 		return optional + 1, true
 	}
 	if i >= 0 && seq[i].tok != nil && seq[i].tok.kind == nKeyword {
-		// READ [ , WRITE ] [ , ... ]: a keyword is the required part.
-		return optional + 1, true
+		// READ [ , WRITE ] [ , ... ]: a keyword is the required part. A
+		// run of keywords that is the whole sequence before it, as
+		// EVOLVE SCHEMA [ , ... ] is, is one privilege.
+		k := 1
+		for i-k >= 0 && seq[i-k].tok != nil && seq[i-k].tok.kind == nKeyword {
+			k++
+		}
+		if i-k >= 0 || optional > 0 {
+			k = 1
+		}
+		return optional + k, true
 	}
 	depth, k := 0, 0
 	for ; i >= 0; i-- {

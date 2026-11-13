@@ -59,6 +59,8 @@ func TestNotationReadsAsANTLR(t *testing.T) {
 		{"SET [ SECRETS = ( <s> ) | all | none ]", "'SET' ('SECRETS' '=' '(' ID ')' | 'SECRETS' '=' 'all' | 'SECRETS' '=' 'none')"},
 		{"DESC[RIBE] RESULT '<query_id>'", "('DESC' | 'DESCRIBE') 'RESULT' STRING"},
 		{"STORAGE_PROVIDER = '{ S3 | S3CHINA }'", "'STORAGE_PROVIDER' '=' ('\\'S3\\'' | '\\'S3CHINA\\'')"},
+		// A sequence of keywords alone repeats whole.
+		{"EVOLVE SCHEMA [ , ... ]", "'EVOLVE' 'SCHEMA' (',' 'EVOLVE' 'SCHEMA')*"},
 		// X [ , Y ] [ , ... ] repeats the comma-led group.
 		{"( <c1> <col1_type> NOT NULL [ , <c2> <col2_type> NOT NULL ] [ , ... ] )", "'(' ID DATA_TYPE 'NOT' 'NULL' (',' ID DATA_TYPE 'NOT' 'NULL')* ')'"},
 		// UNSET's list takes every optional clause after the names.

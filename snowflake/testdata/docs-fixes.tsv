@@ -126,3 +126,5 @@ create-catalog-integration-rest	OAUTH_ALLOWED_SCOPES = ('<scope_1>', '<scope_2>'
 alter-database	DATA_QUALITY_MONITORING_SETTINGS = <yaml_spec>	DATA_QUALITY_MONITORING_SETTINGS = '<yaml_spec>'	the settings are a quoted (dollar-quoted) YAML string, as the parameters say
 create-task	AFTER <string> [ , <string> , ... ]	AFTER <task_name> [ , <task_name> , ... ]	AFTER names predecessor tasks, as the parameters and examples write them
 alter-task	AFTER <string> [ , <string> , ... ]	AFTER <task_name> [ , <task_name> , ... ]	AFTER names predecessor tasks, as the parameters and examples write them
+alter-pipe	MODIFIED_AFTER = <start_time>	MODIFIED_AFTER = '<start_time>'	the start time is a quoted ISO 8601 timestamp, as the parameters say
+create-cortex-search	VECTOR INDEXES <column_specification> [ , ... ]	VECTOR INDEXES { <text_column_name> [ ( model = '<embedding_model>' ) ] | <vector_column_name> [ ( query_model = '<embedding_model>' ) ] } [ , ... ]	the parameters list the column specifications: a text column with a model, or a vector column with a query_model
