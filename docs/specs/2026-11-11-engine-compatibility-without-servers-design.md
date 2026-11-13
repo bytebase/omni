@@ -107,7 +107,8 @@ func omniVerdict(sql string) string {
 | --- | --- |
 | Equals the `omni` cell | Pass. The row is an agreement or a known gap. |
 | Differs from the cell, equals `expected` | Fail: a gap closed. Rerun with `-update-compat` to commit it. |
-| Differs from both | Fail: a regression. |
+| Differs from both, and the cell was a gap | Fail: a known gap is now another one, as a rejection at another byte is. `-update-compat` commits it too. |
+| Differs from the cell, which equalled `expected` | Fail: a regression. |
 | The row is `?` | Fail: not judged yet. |
 
 Recording both columns is what makes this work. Thousands of known gaps pass quietly, and the one statement a change breaks fails by name:
@@ -155,7 +156,7 @@ Each engine with a server has one function that reads the server's answer as a v
 | Engines | Verdict from |
 | --- | --- |
 | mysql, mariadb, tidb, oceanbase | `PREPARE`, read by TiDB's `prepareVerdict` |
-| pg, redshift | SQLSTATE `42601` from the `SELECT 1/0` probe |
+| pg, redshift | The `SELECT 1/0` probe, read by `compat.RawParseVerdict`: the server parses the whole text first, so any error but the probe's own division by zero is the parser's, at the position it reports |
 | mssql | `SET PARSEONLY ON` |
 | oracle | `DBMS_SQL.PARSE` |
 | trino, doris, starrocks, googlesql | The engine's error name or message |
@@ -437,7 +438,7 @@ Each guard is a test or a CI step (`go run ./enginetest/cmd/compatcheck origin/m
 | Risk | Guard |
 | --- | --- |
 | A change breaks a row omni handled | The row checker fails (§2.1). |
-| A regression is committed as the new `omni` | CI fails if an `omni` cell changes to anything but its row's `expected`. |
+| A regression is committed as the new `omni` | CI fails if an `omni` cell that equalled its row's `expected` changes. |
 | `expected` is edited to pass | CI fails if an `expected` cell changes, unless it was `?` or the PR bumps a pin. |
 | A `grammar` or `docs` cell is written by hand | CI reruns the recognizer on new and changed rows. |
 | Generated rows are added, removed or edited by hand | `TestCompatibility` regenerates them from the pinned grammar and diffs. A recording rewrites them. |
