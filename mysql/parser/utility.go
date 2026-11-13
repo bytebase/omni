@@ -625,60 +625,54 @@ func (p *Parser) parseHandlerReadStmt(start int, table *nodes.TableRef) (*nodes.
 		Table: table,
 	}
 
-	// Determine if this is a direction keyword (FIRST/NEXT/PREV/LAST) or an index name
+	// handler_scan_function (FIRST or NEXT) with no index, or an index and
+	// handler_rkey_function: FIRST, NEXT, PREV, LAST, or a comparison and its
+	// parenthesized values.
+	//
+	// Ref: handler_stmt, handler_scan_function, handler_rkey_function and
+	// handler_rkey_mode in MySQL 8.0 sql/sql_yacc.yy.
 	switch p.cur.Type {
-	case kwFIRST:
-		stmt.Direction = "FIRST"
-		p.advance()
-	case kwNEXT:
-		stmt.Direction = "NEXT"
-		p.advance()
-	case kwPREV:
-		stmt.Direction = "PREV"
-		p.advance()
-	case kwLAST:
-		stmt.Direction = "LAST"
-		p.advance()
+	case kwFIRST, kwNEXT:
+		stmt.Direction = strings.ToUpper(p.advance().Str)
 	default:
-		// Must be an index name followed by direction or comparison
-		if p.isIdentToken() {
-			idx, _, err := p.parseIdentifier()
-			if err != nil {
+		if !p.isIdentToken() {
+			return nil, p.syntaxErrorAtCur()
+		}
+		idx, _, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Index = idx
+		switch p.cur.Type {
+		case kwFIRST, kwNEXT, kwPREV, kwLAST:
+			stmt.Direction = strings.ToUpper(p.advance().Str)
+		case '=', '<', '>', tokLessEq, tokGreaterEq:
+			stmt.KeyMode = p.advance().Str
+			if stmt.KeyMode == "" {
+				stmt.KeyMode = string(rune(p.prev.Type))
+			}
+			if _, err := p.expect('('); err != nil {
 				return nil, err
 			}
-			stmt.Index = idx
-
-			// Direction keyword after index name
-			switch p.cur.Type {
-			case kwFIRST:
-				stmt.Direction = "FIRST"
-				p.advance()
-			case kwNEXT:
-				stmt.Direction = "NEXT"
-				p.advance()
-			case kwPREV:
-				stmt.Direction = "PREV"
-				p.advance()
-			case kwLAST:
-				stmt.Direction = "LAST"
-				p.advance()
-			case '=', '<', '>':
-				// Comparison operator with value list — skip operator and value list
-				p.advance()
-				if p.cur.Type == '=' || p.cur.Type == '>' {
-					p.advance() // for <= or >=
+			for {
+				v, err := p.parseExpr()
+				if err != nil {
+					return nil, err
 				}
-				if p.cur.Type == '(' {
-					p.advance()
-					for p.cur.Type != ')' && p.cur.Type != tokEOF {
-						p.advance()
-					}
-					if p.cur.Type == ')' {
-						p.advance()
-					}
+				if v == nil {
+					return nil, p.syntaxErrorAtCur()
 				}
-				stmt.Direction = "NEXT" // default
+				stmt.KeyValues = append(stmt.KeyValues, v)
+				if p.cur.Type != ',' {
+					break
+				}
+				p.advance()
 			}
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
+		default:
+			return nil, p.syntaxErrorAtCur()
 		}
 	}
 

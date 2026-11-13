@@ -6460,8 +6460,8 @@ func TestParseHandlerRead(t *testing.T) {
 	tests := []string{
 		"HANDLER t1 READ FIRST",
 		"HANDLER t1 READ NEXT",
-		"HANDLER t1 READ PREV",
-		"HANDLER t1 READ LAST",
+		"HANDLER t1 READ idx1 PREV",
+		"HANDLER t1 READ idx1 LAST",
 		"HANDLER t1 READ idx FIRST",
 		"HANDLER t1 READ idx NEXT",
 		"HANDLER t1 READ NEXT LIMIT 5",

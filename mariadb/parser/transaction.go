@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/mariadb/ast"
 )
 
@@ -27,8 +29,11 @@ func (p *Parser) parseBeginStmt() (*nodes.BeginStmt, error) {
 		for {
 			if p.cur.Type == kwWITH {
 				p.advance()
-				p.match(kwCONSISTENT)
-				p.match(kwSNAPSHOT)
+				for _, kw := range []int{kwCONSISTENT, kwSNAPSHOT} {
+					if _, err := p.expect(kw); err != nil {
+						return nil, err
+					}
+				}
 				stmt.WithConsistentSnapshot = true
 			} else if p.cur.Type == kwREAD {
 				p.advance()
@@ -36,6 +41,11 @@ func (p *Parser) parseBeginStmt() (*nodes.BeginStmt, error) {
 					stmt.ReadOnly = true
 				} else if _, ok := p.match(kwWRITE); ok {
 					stmt.ReadWrite = true
+				} else {
+					return nil, p.syntaxErrorAtCur()
+				}
+				if stmt.ReadOnly && stmt.ReadWrite {
+					return nil, p.syntaxErrorAtTok(p.prev)
 				}
 			} else {
 				break
@@ -92,9 +102,13 @@ func (p *Parser) parseCommitStmt() (*nodes.CommitStmt, error) {
 		p.advance()
 		if p.cur.Type == kwNO {
 			p.advance()
-			p.match(kwCHAIN)
+			if _, err := p.expect(kwCHAIN); err != nil {
+				return nil, err
+			}
 		} else {
-			p.match(kwCHAIN)
+			if _, err := p.expect(kwCHAIN); err != nil {
+				return nil, err
+			}
 			stmt.Chain = true
 		}
 	}
@@ -102,7 +116,9 @@ func (p *Parser) parseCommitStmt() (*nodes.CommitStmt, error) {
 	// [NO] RELEASE
 	if p.cur.Type == kwNO {
 		p.advance()
-		p.match(kwRELEASE)
+		if _, err := p.expect(kwRELEASE); err != nil {
+			return nil, err
+		}
 	} else if _, ok := p.match(kwRELEASE); ok {
 		stmt.Release = true
 	}
@@ -159,9 +175,13 @@ func (p *Parser) parseRollbackStmt() (*nodes.RollbackStmt, error) {
 		p.advance()
 		if p.cur.Type == kwNO {
 			p.advance()
-			p.match(kwCHAIN)
+			if _, err := p.expect(kwCHAIN); err != nil {
+				return nil, err
+			}
 		} else {
-			p.match(kwCHAIN)
+			if _, err := p.expect(kwCHAIN); err != nil {
+				return nil, err
+			}
 			stmt.Chain = true
 		}
 	}
@@ -169,7 +189,9 @@ func (p *Parser) parseRollbackStmt() (*nodes.RollbackStmt, error) {
 	// [NO] RELEASE
 	if p.cur.Type == kwNO {
 		p.advance()
-		p.match(kwRELEASE)
+		if _, err := p.expect(kwRELEASE); err != nil {
+			return nil, err
+		}
 	} else if _, ok := p.match(kwRELEASE); ok {
 		stmt.Release = true
 	}
@@ -212,7 +234,9 @@ func (p *Parser) parseSavepointStmt() (*nodes.SavepointStmt, error) {
 func (p *Parser) parseReleaseSavepointStmt() (*nodes.SavepointStmt, error) {
 	start := p.pos()
 	p.advance() // consume RELEASE
-	p.match(kwSAVEPOINT)
+	if _, err := p.expect(kwSAVEPOINT); err != nil {
+		return nil, err
+	}
 
 	// Completion: after RELEASE SAVEPOINT, identifier context.
 	p.checkCursor()
@@ -294,13 +318,27 @@ func (p *Parser) parseLockTablesStmt(start int) (*nodes.LockTablesStmt, error) {
 				lt.LockType = "READ"
 			}
 		} else if _, ok := p.match(kwLOW_PRIORITY); ok {
-			p.match(kwWRITE)
+			if _, err := p.expect(kwWRITE); err != nil {
+				return nil, err
+			}
 			lt.LockType = "LOW_PRIORITY WRITE"
 		} else if _, ok := p.match(kwWRITE); ok {
 			lt.LockType = "WRITE"
+			if p.atConcurrent() {
+				p.advance()
+				lt.LockType = "WRITE CONCURRENT"
+			}
+		} else {
+			// lock_option is required (table_lock in MariaDB 11.8 sql/sql_yacc.yy).
+			return nil, p.syntaxErrorAtCur()
 		}
 
 		lt.Loc.End = p.prev.End
+		// A table is named once in the list, by its alias where it has one
+		// (ER_NONUNIQ_TABLE, 1066).
+		if err := refuseLockDuplicate(stmt.Tables, lt); err != nil {
+			return nil, err
+		}
 		stmt.Tables = append(stmt.Tables, lt)
 
 		if p.cur.Type != ',' {
@@ -510,7 +548,9 @@ func (p *Parser) parseXAStmt() (*nodes.XAStmt, error) {
 			stmt.Suspend = true
 			if p.cur.Type == kwFOR {
 				p.advance()
-				p.match(kwMIGRATE)
+				if _, err := p.expect(kwMIGRATE); err != nil {
+					return nil, err
+				}
 				stmt.Migrate = true
 			}
 		}
@@ -533,7 +573,9 @@ func (p *Parser) parseXAStmt() (*nodes.XAStmt, error) {
 		}
 		stmt.Xid = xid
 		if _, ok := p.match(kwONE); ok {
-			p.match(kwPHASE)
+			if _, err := p.expect(kwPHASE); err != nil {
+				return nil, err
+			}
 			stmt.OnePhase = true
 		}
 
@@ -551,8 +593,8 @@ func (p *Parser) parseXAStmt() (*nodes.XAStmt, error) {
 		p.advance()
 		if _, ok := p.match(kwCONVERT); ok {
 			// CONVERT XID
-			if p.cur.Type == kwXID {
-				p.advance()
+			if _, err := p.expect(kwXID); err != nil {
+				return nil, err
 			}
 			stmt.Convert = true
 		}
@@ -570,30 +612,40 @@ func (p *Parser) parseXAStmt() (*nodes.XAStmt, error) {
 
 // parseXid parses an xid: gtrid [, bqual [, formatID]].
 func (p *Parser) parseXid() ([]nodes.ExprNode, error) {
+	// xid: text_string [, text_string [, ulong_num]], where text_string is one
+	// string, hex or bit token: adjacent strings do not fold here, so
+	// `XA BEGIN 's' 's'` is a 1064.
+	//
+	// Ref: xid and text_string in MariaDB 11.8 sql/sql_yacc.yy.
 	var parts []nodes.ExprNode
-
-	gtrid, err := p.parseExpr()
-	if err != nil {
+	part := func() error {
+		if p.cur.Type != tokSCONST && p.cur.Type != tokXCONST && p.cur.Type != tokBCONST {
+			return p.syntaxErrorAtCur()
+		}
+		tok := p.cur
+		e, err := p.parseExpr()
+		if err != nil {
+			return err
+		}
+		if e == nil || p.prev.Loc != tok.Loc {
+			return p.syntaxErrorAtTok(tok)
+		}
+		parts = append(parts, e)
+		return nil
+	}
+	if err := part(); err != nil {
 		return nil, err
 	}
-	if gtrid == nil {
-		return nil, p.syntaxErrorAtCur()
-	}
-	parts = append(parts, gtrid)
-
 	if p.cur.Type == ',' {
 		p.advance()
-		bqual, err := p.parseExpr()
-		if err != nil {
+		if err := part(); err != nil {
 			return nil, err
 		}
-		if bqual == nil {
-			return nil, p.syntaxErrorAtCur()
-		}
-		parts = append(parts, bqual)
-
 		if p.cur.Type == ',' {
 			p.advance()
+			if p.cur.Type != tokICONST && p.cur.Type != tokFCONST && p.cur.Type != tokXCONST {
+				return nil, p.syntaxErrorAtCur()
+			}
 			formatID, err := p.parseExpr()
 			if err != nil {
 				return nil, err
@@ -604,6 +656,32 @@ func (p *Parser) parseXid() ([]nodes.ExprNode, error) {
 			parts = append(parts, formatID)
 		}
 	}
-
 	return parts, nil
+}
+
+// refuseLockDuplicate refuses a LOCK TABLES entry whose name, its alias where
+// it has one, an earlier entry already took.
+func refuseLockDuplicate(earlier []*nodes.LockTable, lt *nodes.LockTable) error {
+	key := func(t *nodes.LockTable) (string, string) {
+		if t.Table.Alias != "" {
+			return "", strings.ToLower(t.Table.Alias)
+		}
+		return strings.ToLower(t.Table.Schema), strings.ToLower(t.Table.Name)
+	}
+	db, name := key(lt)
+	for _, e := range earlier {
+		if d, n := key(e); d == db && n == name {
+			return &ParseError{Message: "Not unique table/alias: '" + name + "'", Position: lt.Loc.Start}
+		}
+	}
+	return nil
+}
+
+// atConcurrent reports whether CONCURRENT, a keyword this lexer does not know,
+// is the current token, written bare.
+func (p *Parser) atConcurrent() bool {
+	if p.cur.Type != tokIDENT && p.cur.Type < 700 {
+		return false
+	}
+	return strings.EqualFold(p.inputText(p.cur.Loc, p.cur.End), "CONCURRENT")
 }
