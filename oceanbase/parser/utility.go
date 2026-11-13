@@ -139,7 +139,7 @@ var analyzeStatisticsForms = func() sysPat {
 	item := sysAlt(size, sysSeq(column, sysOpt(size)))
 	// use_partition: names, or an external table's column = value pairs.
 	usePartition := sysLeaf(func(p *Parser) bool {
-		return p.parseUsePartition(&nodes.TableRef{}) == nil
+		return p.cur.Type == kwPARTITION && p.parseUsePartition(&nodes.TableRef{}) == nil
 	})
 	forClause := sysOpt(sysAlt(
 		"FOR TABLE",

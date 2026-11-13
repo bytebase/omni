@@ -39,6 +39,8 @@ func TestAnalyzeStatisticsClause(t *testing.T) {
 		"ANALYZE TABLE t DROP HISTOGRAM ON a WITH 8 BUCKETS",
 		"ANALYZE TABLE t COMPUTE STATISTICS SAMPLE 5 ROWS", // only ESTIMATE samples
 		"ANALYZE TABLE t PARTITION (p0)",
+		"ANALYZE TABLE t COMPUTE (p) COMPUTE STATISTICS", // the partition needs PARTITION
+		"ANALYZE TABLE t ESTIMATE (region = 'us') ESTIMATE STATISTICS",
 	} {
 		if _, err := Parse(sql); err == nil {
 			t.Errorf("Parse(%q) was accepted", sql)
