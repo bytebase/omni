@@ -85,8 +85,8 @@ func (p *Parser) parseExecuteStmt() (nodes.Node, error) {
 func (p *Parser) parseDeallocateStmt() (nodes.Node, error) {
 	p.advance() // consume DEALLOCATE
 
-	// Optional PREPARE keyword
-	if p.cur.Type == PREPARE {
+	// Optional PREPARE keyword, or the name prepare
+	if p.cur.Type == PREPARE && p.keywordLeads(func(t Token) bool { return t.Type == ALL || isColIdToken(t) }) {
 		p.advance()
 	}
 

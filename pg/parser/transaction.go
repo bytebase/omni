@@ -143,7 +143,7 @@ func (p *Parser) parseTransactionStmtInner() (nodes.Node, error) {
 		p.parseOptTransaction()
 		if p.cur.Type == TO {
 			p.advance() // consume TO
-			if p.cur.Type == SAVEPOINT {
+			if p.cur.Type == SAVEPOINT && p.keywordLeads(isColIdToken) {
 				p.advance() // consume SAVEPOINT
 			}
 			name, err := p.parseColId()
@@ -177,7 +177,7 @@ func (p *Parser) parseTransactionStmtInner() (nodes.Node, error) {
 
 	case RELEASE:
 		p.advance() // consume RELEASE
-		if p.cur.Type == SAVEPOINT {
+		if p.cur.Type == SAVEPOINT && p.keywordLeads(isColIdToken) {
 			p.advance() // consume SAVEPOINT
 		}
 		name, err := p.parseColId()

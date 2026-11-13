@@ -541,6 +541,27 @@ func (p *Parser) parseOptEncoding() string {
 	}
 }
 
+// varNameFormKind returns the token SHOW and RESET dispatch on. TIME,
+// TRANSACTION and SESSION lead their own forms only before ZONE, ISOLATION
+// and AUTHORIZATION; otherwise each is a var_name, and IDENT stands for it.
+func (p *Parser) varNameFormKind() int {
+	var follow int
+	switch p.cur.Type {
+	case TIME:
+		follow = ZONE
+	case TRANSACTION:
+		follow = ISOLATION
+	case SESSION:
+		follow = AUTHORIZATION
+	default:
+		return p.cur.Type
+	}
+	if !p.keywordLeads(func(t Token) bool { return t.Type == follow }) {
+		return IDENT
+	}
+	return p.cur.Type
+}
+
 // parseVariableShowStmt parses a SHOW statement. The SHOW keyword has already
 // been consumed by the caller.
 //
@@ -556,7 +577,7 @@ func (p *Parser) parseVariableShowStmt() (nodes.Node, error) {
 	if p.isRedshiftShowStart() {
 		return p.parseRedshiftShowStmt(loc)
 	}
-	switch p.cur.Type {
+	switch p.varNameFormKind() {
 	case TIME:
 		p.advance() // consume TIME
 		if _, err := p.expect(ZONE); err != nil {
@@ -614,7 +635,7 @@ func (p *Parser) parseVariableShowStmt() (nodes.Node, error) {
 //	| SESSION AUTHORIZATION
 func (p *Parser) parseVariableResetStmt() (nodes.Node, error) {
 	loc := p.prev.Loc // RESET was already consumed
-	switch p.cur.Type {
+	switch p.varNameFormKind() {
 	case TIME:
 		p.advance() // consume TIME
 		if _, err := p.expect(ZONE); err != nil {

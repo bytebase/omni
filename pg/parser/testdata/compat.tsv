@@ -1386,7 +1386,7 @@ accept	accept	engine	VariableResetStmt/RESET_reset_rest	RESET a
 accept	accept	engine	reset_rest/generic_reset	RESET a
 accept	accept	engine	reset_rest/TIME_ZONE	RESET TIME ZONE
 accept	accept	engine	reset_rest/TIME_ZONE!drop-1	RESET ZONE
-reject@10	accept	engine	reset_rest/TIME_ZONE!drop-2	RESET TIME
+accept	accept	engine	reset_rest/TIME_ZONE!drop-2	RESET TIME
 reject@16	reject@16	engine	reset_rest/TIME_ZONE!insert	RESET TIME ZONE zzz
 reject@16	reject@16	engine	reset_rest/TIME_ZONE!swap	RESET TIMESTAMP ZONE
 accept	accept	engine	reset_rest/TRANSACTION_ISOLATION_LEVEL	RESET TRANSACTION ISOLATION LEVEL
@@ -1397,7 +1397,7 @@ reject@34	reject@34	engine	reset_rest/TRANSACTION_ISOLATION_LEVEL!insert	RESET T
 reject@16	reject@16	engine	reset_rest/TRANSACTION_ISOLATION_LEVEL!swap	RESET TRANSFORM ISOLATION LEVEL
 accept	accept	engine	reset_rest/SESSION_AUTHORIZATION	RESET SESSION AUTHORIZATION
 reject@6	reject@6	engine	reset_rest/SESSION_AUTHORIZATION!drop-1	RESET AUTHORIZATION
-reject@13	accept	engine	reset_rest/SESSION_AUTHORIZATION!drop-2	RESET SESSION
+accept	accept	engine	reset_rest/SESSION_AUTHORIZATION!drop-2	RESET SESSION
 reject@28	reject@28	engine	reset_rest/SESSION_AUTHORIZATION!insert	RESET SESSION AUTHORIZATION zzz
 reject@6	reject@6	engine	reset_rest/SESSION_AUTHORIZATION!swap	RESET SESSION_USER AUTHORIZATION
 accept	accept	engine	generic_reset/var_name	RESET a
@@ -1425,7 +1425,7 @@ accept	accept	engine	VariableShowStmt/SHOW_var_name	SHOW a
 accept	accept	engine	VariableShowStmt/SHOW_TIME_ZONE	SHOW TIME ZONE
 reject@0	reject@0	engine	VariableShowStmt/SHOW_TIME_ZONE!drop-1	TIME ZONE
 accept	accept	engine	VariableShowStmt/SHOW_TIME_ZONE!drop-2	SHOW ZONE
-reject@9	accept	engine	VariableShowStmt/SHOW_TIME_ZONE!drop-3	SHOW TIME
+accept	accept	engine	VariableShowStmt/SHOW_TIME_ZONE!drop-3	SHOW TIME
 reject@15	reject@15	engine	VariableShowStmt/SHOW_TIME_ZONE!insert	SHOW TIME ZONE zzz
 reject@0	reject@0	engine	VariableShowStmt/SHOW_TIME_ZONE!swap	SIMILAR TIME ZONE
 accept	accept	engine	VariableShowStmt/SHOW_TRANSACTION_ISOLATION_LEVEL	SHOW TRANSACTION ISOLATION LEVEL
@@ -1438,7 +1438,7 @@ reject@0	reject@0	engine	VariableShowStmt/SHOW_TRANSACTION_ISOLATION_LEVEL!swap	
 accept	accept	engine	VariableShowStmt/SHOW_SESSION_AUTHORIZATION	SHOW SESSION AUTHORIZATION
 reject@0	reject@0	engine	VariableShowStmt/SHOW_SESSION_AUTHORIZATION!drop-1	SESSION AUTHORIZATION
 reject@5	reject@5	engine	VariableShowStmt/SHOW_SESSION_AUTHORIZATION!drop-2	SHOW AUTHORIZATION
-reject@12	accept	engine	VariableShowStmt/SHOW_SESSION_AUTHORIZATION!drop-3	SHOW SESSION
+accept	accept	engine	VariableShowStmt/SHOW_SESSION_AUTHORIZATION!drop-3	SHOW SESSION
 reject@27	reject@27	engine	VariableShowStmt/SHOW_SESSION_AUTHORIZATION!insert	SHOW SESSION AUTHORIZATION zzz
 reject@0	reject@0	engine	VariableShowStmt/SHOW_SESSION_AUTHORIZATION!swap	SIMILAR SESSION AUTHORIZATION
 accept	accept	engine	VariableShowStmt/SHOW_ALL	SHOW ALL
@@ -4923,19 +4923,19 @@ reject@10	reject@10	engine	fetch_args/from_in_cursor_name!drop-2	FETCH FROM
 reject@13	reject@13	engine	fetch_args/from_in_cursor_name!insert	FETCH FROM a zzz
 reject@6	reject@6	engine	fetch_args/from_in_cursor_name!swap	FETCH FULL a
 accept	accept	engine	fetch_args/NEXT_opt_from_in_cursor_name	FETCH NEXT a
-reject@10	accept	engine	fetch_args/NEXT_opt_from_in_cursor_name!drop-2	FETCH NEXT
+accept	accept	engine	fetch_args/NEXT_opt_from_in_cursor_name!drop-2	FETCH NEXT
 reject@13	reject@13	engine	fetch_args/NEXT_opt_from_in_cursor_name!insert	FETCH NEXT a zzz
 reject@10	reject@10	engine	fetch_args/NEXT_opt_from_in_cursor_name!swap	FETCH NFC a
 accept	accept	engine	fetch_args/PRIOR_opt_from_in_cursor_name	FETCH PRIOR a
-reject@11	accept	engine	fetch_args/PRIOR_opt_from_in_cursor_name!drop-2	FETCH PRIOR
+accept	accept	engine	fetch_args/PRIOR_opt_from_in_cursor_name!drop-2	FETCH PRIOR
 reject@14	reject@14	engine	fetch_args/PRIOR_opt_from_in_cursor_name!insert	FETCH PRIOR a zzz
 reject@17	reject@17	engine	fetch_args/PRIOR_opt_from_in_cursor_name!swap	FETCH PRIVILEGES a
 accept	accept	engine	fetch_args/FIRST_P_opt_from_in_cursor_name	FETCH FIRST a
-reject@11	accept	engine	fetch_args/FIRST_P_opt_from_in_cursor_name!drop-2	FETCH FIRST
+accept	accept	engine	fetch_args/FIRST_P_opt_from_in_cursor_name!drop-2	FETCH FIRST
 reject@14	reject@14	engine	fetch_args/FIRST_P_opt_from_in_cursor_name!insert	FETCH FIRST a zzz
 reject@12	reject@12	engine	fetch_args/FIRST_P_opt_from_in_cursor_name!swap	FETCH FLOAT a
 accept	accept	engine	fetch_args/LAST_P_opt_from_in_cursor_name	FETCH LAST a
-reject@10	accept	engine	fetch_args/LAST_P_opt_from_in_cursor_name!drop-2	FETCH LAST
+accept	accept	engine	fetch_args/LAST_P_opt_from_in_cursor_name!drop-2	FETCH LAST
 reject@13	reject@13	engine	fetch_args/LAST_P_opt_from_in_cursor_name!insert	FETCH LAST a zzz
 reject@6	reject@6	engine	fetch_args/LAST_P_opt_from_in_cursor_name!swap	FETCH LATERAL a
 accept	accept	engine	fetch_args/ABSOLUTE_P_SignedIconst_opt_from_in_cursor_name	FETCH ABSOLUTE 1 a
@@ -4956,7 +4956,7 @@ reject@9	reject@9	engine	fetch_args/ALL_opt_from_in_cursor_name!drop-2	FETCH ALL
 reject@12	reject@12	engine	fetch_args/ALL_opt_from_in_cursor_name!insert	FETCH ALL a zzz
 reject@11	reject@11	engine	fetch_args/ALL_opt_from_in_cursor_name!swap	FETCH ALSO a
 accept	accept	engine	fetch_args/FORWARD_opt_from_in_cursor_name	FETCH FORWARD a
-reject@13	accept	engine	fetch_args/FORWARD_opt_from_in_cursor_name!drop-2	FETCH FORWARD
+accept	accept	engine	fetch_args/FORWARD_opt_from_in_cursor_name!drop-2	FETCH FORWARD
 reject@16	reject@16	engine	fetch_args/FORWARD_opt_from_in_cursor_name!insert	FETCH FORWARD a zzz
 reject@6	reject@6	engine	fetch_args/FORWARD_opt_from_in_cursor_name!swap	FETCH FREEZE a
 accept	accept	engine	fetch_args/FORWARD_SignedIconst_opt_from_in_cursor_name	FETCH FORWARD 1 a
@@ -4968,7 +4968,7 @@ reject@17	reject@17	engine	fetch_args/FORWARD_ALL_opt_from_in_cursor_name!drop-3
 reject@20	reject@20	engine	fetch_args/FORWARD_ALL_opt_from_in_cursor_name!insert	FETCH FORWARD ALL a zzz
 reject@6	reject@6	engine	fetch_args/FORWARD_ALL_opt_from_in_cursor_name!swap	FETCH FREEZE ALL a
 accept	accept	engine	fetch_args/BACKWARD_opt_from_in_cursor_name	FETCH BACKWARD a
-reject@14	accept	engine	fetch_args/BACKWARD_opt_from_in_cursor_name!drop-2	FETCH BACKWARD
+accept	accept	engine	fetch_args/BACKWARD_opt_from_in_cursor_name!drop-2	FETCH BACKWARD
 reject@17	reject@17	engine	fetch_args/BACKWARD_opt_from_in_cursor_name!insert	FETCH BACKWARD a zzz
 reject@13	reject@13	engine	fetch_args/BACKWARD_opt_from_in_cursor_name!swap	FETCH BEFORE a
 accept	accept	engine	fetch_args/BACKWARD_SignedIconst_opt_from_in_cursor_name	FETCH BACKWARD 1 a
@@ -7326,7 +7326,7 @@ reject@9	reject@9	engine	TransactionStmt/SAVEPOINT_ColId!drop-2	SAVEPOINT
 reject@12	reject@12	engine	TransactionStmt/SAVEPOINT_ColId!insert	SAVEPOINT a zzz
 reject@0	reject@0	engine	TransactionStmt/SAVEPOINT_ColId!swap	SCALAR a
 accept	accept	engine	TransactionStmt/RELEASE_SAVEPOINT_ColId	RELEASE SAVEPOINT a
-reject@17	accept	engine	TransactionStmt/RELEASE_SAVEPOINT_ColId!drop-3	RELEASE SAVEPOINT
+accept	accept	engine	TransactionStmt/RELEASE_SAVEPOINT_ColId!drop-3	RELEASE SAVEPOINT
 reject@20	reject@20	engine	TransactionStmt/RELEASE_SAVEPOINT_ColId!insert	RELEASE SAVEPOINT a zzz
 reject@0	reject@0	engine	TransactionStmt/RELEASE_SAVEPOINT_ColId!swap	RENAME SAVEPOINT a
 accept	accept	engine	TransactionStmt/RELEASE_ColId	RELEASE a
@@ -7336,7 +7336,7 @@ reject@0	reject@0	engine	TransactionStmt/RELEASE_ColId!swap	RENAME a
 accept	accept	engine	TransactionStmt/ROLLBACK_opt_transaction_TO_SAVEPOINT_ColId	ROLLBACK TO SAVEPOINT a
 reject@0	reject@0	engine	TransactionStmt/ROLLBACK_opt_transaction_TO_SAVEPOINT_ColId!drop-1	TO SAVEPOINT a
 reject@9	reject@9	engine	TransactionStmt/ROLLBACK_opt_transaction_TO_SAVEPOINT_ColId!drop-2	ROLLBACK SAVEPOINT a
-reject@21	accept	engine	TransactionStmt/ROLLBACK_opt_transaction_TO_SAVEPOINT_ColId!drop-4	ROLLBACK TO SAVEPOINT
+accept	accept	engine	TransactionStmt/ROLLBACK_opt_transaction_TO_SAVEPOINT_ColId!drop-4	ROLLBACK TO SAVEPOINT
 reject@24	reject@24	engine	TransactionStmt/ROLLBACK_opt_transaction_TO_SAVEPOINT_ColId!insert	ROLLBACK TO SAVEPOINT a zzz
 reject@0	reject@0	engine	TransactionStmt/ROLLBACK_opt_transaction_TO_SAVEPOINT_ColId!swap	ROLLUP TO SAVEPOINT a
 accept	accept	engine	TransactionStmt/ROLLBACK_opt_transaction_TO_ColId	ROLLBACK TO a
@@ -8004,7 +8004,7 @@ accept	accept	engine	execute_param_clause/%empty	EXECUTE a
 accept	accept	engine	DeallocateStmt/DEALLOCATE_name	DEALLOCATE a
 accept	accept	engine	DeallocateStmt/DEALLOCATE_PREPARE_name	DEALLOCATE PREPARE a
 reject@9	reject@9	engine	DeallocateStmt/DEALLOCATE_PREPARE_name!drop-1	PREPARE a
-reject@18	accept	engine	DeallocateStmt/DEALLOCATE_PREPARE_name!drop-3	DEALLOCATE PREPARE
+accept	accept	engine	DeallocateStmt/DEALLOCATE_PREPARE_name!drop-3	DEALLOCATE PREPARE
 reject@21	reject@21	engine	DeallocateStmt/DEALLOCATE_PREPARE_name!insert	DEALLOCATE PREPARE a zzz
 reject@0	reject@0	engine	DeallocateStmt/DEALLOCATE_PREPARE_name!swap	DEC PREPARE a
 accept	accept	engine	DeallocateStmt/DEALLOCATE_ALL	DEALLOCATE ALL
@@ -8600,15 +8600,15 @@ reject@14	reject@14	engine	into_clause/INTO_OptTempTableName!insert	SELECT INTO 
 accept	accept	engine	into_clause/INTO_OptTempTableName!swap	SELECT INVOKER a
 accept	accept	engine	into_clause/%empty	SELECT
 accept	accept	engine	OptTempTableName/TEMPORARY_opt_table_qualified_name	SELECT INTO TEMPORARY a
-reject@21	accept	engine	OptTempTableName/TEMPORARY_opt_table_qualified_name!drop-2	SELECT INTO TEMPORARY
+accept	accept	engine	OptTempTableName/TEMPORARY_opt_table_qualified_name!drop-2	SELECT INTO TEMPORARY
 reject@24	reject@24	engine	OptTempTableName/TEMPORARY_opt_table_qualified_name!insert	SELECT INTO TEMPORARY a zzz
 reject@17	reject@17	engine	OptTempTableName/TEMPORARY_opt_table_qualified_name!swap	SELECT INTO TEXT a
 accept	accept	engine	OptTempTableName/TEMP_opt_table_qualified_name	SELECT INTO TEMP a
-reject@16	accept	engine	OptTempTableName/TEMP_opt_table_qualified_name!drop-2	SELECT INTO TEMP
+accept	accept	engine	OptTempTableName/TEMP_opt_table_qualified_name!drop-2	SELECT INTO TEMP
 reject@19	reject@19	engine	OptTempTableName/TEMP_opt_table_qualified_name!insert	SELECT INTO TEMP a zzz
 reject@21	reject@21	engine	OptTempTableName/TEMP_opt_table_qualified_name!swap	SELECT INTO TEMPLATE a
 accept	accept	engine	OptTempTableName/LOCAL_TEMPORARY_opt_table_qualified_name	SELECT INTO LOCAL TEMPORARY a
-accept	reject@18	engine	OptTempTableName/LOCAL_TEMPORARY_opt_table_qualified_name!drop-2	SELECT INTO LOCAL a
+reject@18	reject@18	engine	OptTempTableName/LOCAL_TEMPORARY_opt_table_qualified_name!drop-2	SELECT INTO LOCAL a
 reject@27	reject@27	engine	OptTempTableName/LOCAL_TEMPORARY_opt_table_qualified_name!drop-3	SELECT INTO LOCAL TEMPORARY
 reject@30	reject@30	engine	OptTempTableName/LOCAL_TEMPORARY_opt_table_qualified_name!insert	SELECT INTO LOCAL TEMPORARY a zzz
 reject@12	reject@12	engine	OptTempTableName/LOCAL_TEMPORARY_opt_table_qualified_name!swap	SELECT INTO LOCALTIME TEMPORARY a
@@ -8617,7 +8617,7 @@ reject@22	reject@22	engine	OptTempTableName/LOCAL_TEMP_opt_table_qualified_name!
 reject@25	reject@25	engine	OptTempTableName/LOCAL_TEMP_opt_table_qualified_name!insert	SELECT INTO LOCAL TEMP a zzz
 reject@12	reject@12	engine	OptTempTableName/LOCAL_TEMP_opt_table_qualified_name!swap	SELECT INTO LOCALTIME TEMP a
 accept	accept	engine	OptTempTableName/GLOBAL_TEMPORARY_opt_table_qualified_name	SELECT INTO GLOBAL TEMPORARY a
-accept	reject@19	engine	OptTempTableName/GLOBAL_TEMPORARY_opt_table_qualified_name!drop-2	SELECT INTO GLOBAL a
+reject@19	reject@19	engine	OptTempTableName/GLOBAL_TEMPORARY_opt_table_qualified_name!drop-2	SELECT INTO GLOBAL a
 reject@28	reject@28	engine	OptTempTableName/GLOBAL_TEMPORARY_opt_table_qualified_name!drop-3	SELECT INTO GLOBAL TEMPORARY
 reject@31	reject@31	engine	OptTempTableName/GLOBAL_TEMPORARY_opt_table_qualified_name!insert	SELECT INTO GLOBAL TEMPORARY a zzz
 reject@12	reject@12	engine	OptTempTableName/GLOBAL_TEMPORARY_opt_table_qualified_name!swap	SELECT INTO GRANT TEMPORARY a
@@ -8626,7 +8626,7 @@ reject@23	reject@23	engine	OptTempTableName/GLOBAL_TEMP_opt_table_qualified_name
 reject@26	reject@26	engine	OptTempTableName/GLOBAL_TEMP_opt_table_qualified_name!insert	SELECT INTO GLOBAL TEMP a zzz
 reject@12	reject@12	engine	OptTempTableName/GLOBAL_TEMP_opt_table_qualified_name!swap	SELECT INTO GRANT TEMP a
 accept	accept	engine	OptTempTableName/UNLOGGED_opt_table_qualified_name	SELECT INTO UNLOGGED a
-reject@20	accept	engine	OptTempTableName/UNLOGGED_opt_table_qualified_name!drop-2	SELECT INTO UNLOGGED
+accept	accept	engine	OptTempTableName/UNLOGGED_opt_table_qualified_name!drop-2	SELECT INTO UNLOGGED
 reject@23	reject@23	engine	OptTempTableName/UNLOGGED_opt_table_qualified_name!insert	SELECT INTO UNLOGGED a zzz
 reject@18	reject@18	engine	OptTempTableName/UNLOGGED_opt_table_qualified_name!swap	SELECT INTO UNTIL a
 accept	accept	engine	OptTempTableName/TABLE_qualified_name	SELECT INTO TABLE a

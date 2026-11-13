@@ -126,6 +126,14 @@ func (p *Parser) parseFetchStmt() (*nodes.FetchStmt, error) {
 //
 // Ref: gram.y fetch_args
 func (p *Parser) parseFetchArgs() (*nodes.FetchStmt, error) {
+	// A direction keyword with nothing after it names the cursor: fetch_args: cursor_name.
+	if p.cur.Type != IDENT && !p.collectMode() && p.isColId() && !p.keywordLeads(func(t Token) bool { return !isStmtEndToken(t) }) {
+		name, err := p.parseCursorName()
+		if err != nil {
+			return nil, err
+		}
+		return &nodes.FetchStmt{Direction: nodes.FETCH_FORWARD, HowMany: 1, Portalname: name}, nil
+	}
 	switch p.cur.Type {
 	case NEXT:
 		p.advance() // consume NEXT
@@ -136,7 +144,7 @@ func (p *Parser) parseFetchArgs() (*nodes.FetchStmt, error) {
 		}
 		return &nodes.FetchStmt{
 			Direction:  nodes.FETCH_FORWARD,
-			HowMany:   1,
+			HowMany:    1,
 			Portalname: name,
 		}, nil
 
@@ -149,7 +157,7 @@ func (p *Parser) parseFetchArgs() (*nodes.FetchStmt, error) {
 		}
 		return &nodes.FetchStmt{
 			Direction:  nodes.FETCH_BACKWARD,
-			HowMany:   1,
+			HowMany:    1,
 			Portalname: name,
 		}, nil
 
@@ -162,7 +170,7 @@ func (p *Parser) parseFetchArgs() (*nodes.FetchStmt, error) {
 		}
 		return &nodes.FetchStmt{
 			Direction:  nodes.FETCH_ABSOLUTE,
-			HowMany:   1,
+			HowMany:    1,
 			Portalname: name,
 		}, nil
 
@@ -175,7 +183,7 @@ func (p *Parser) parseFetchArgs() (*nodes.FetchStmt, error) {
 		}
 		return &nodes.FetchStmt{
 			Direction:  nodes.FETCH_ABSOLUTE,
-			HowMany:   -1,
+			HowMany:    -1,
 			Portalname: name,
 		}, nil
 
@@ -189,7 +197,7 @@ func (p *Parser) parseFetchArgs() (*nodes.FetchStmt, error) {
 		}
 		return &nodes.FetchStmt{
 			Direction:  nodes.FETCH_ABSOLUTE,
-			HowMany:   howMany,
+			HowMany:    howMany,
 			Portalname: name,
 		}, nil
 
@@ -203,7 +211,7 @@ func (p *Parser) parseFetchArgs() (*nodes.FetchStmt, error) {
 		}
 		return &nodes.FetchStmt{
 			Direction:  nodes.FETCH_RELATIVE,
-			HowMany:   howMany,
+			HowMany:    howMany,
 			Portalname: name,
 		}, nil
 
@@ -216,7 +224,7 @@ func (p *Parser) parseFetchArgs() (*nodes.FetchStmt, error) {
 		}
 		return &nodes.FetchStmt{
 			Direction:  nodes.FETCH_FORWARD,
-			HowMany:   nodes.FETCH_ALL,
+			HowMany:    nodes.FETCH_ALL,
 			Portalname: name,
 		}, nil
 
@@ -232,7 +240,7 @@ func (p *Parser) parseFetchArgs() (*nodes.FetchStmt, error) {
 			}
 			return &nodes.FetchStmt{
 				Direction:  nodes.FETCH_FORWARD,
-				HowMany:   nodes.FETCH_ALL,
+				HowMany:    nodes.FETCH_ALL,
 				Portalname: name,
 			}, nil
 		}
@@ -245,7 +253,7 @@ func (p *Parser) parseFetchArgs() (*nodes.FetchStmt, error) {
 			}
 			return &nodes.FetchStmt{
 				Direction:  nodes.FETCH_FORWARD,
-				HowMany:   howMany,
+				HowMany:    howMany,
 				Portalname: name,
 			}, nil
 		}
@@ -257,7 +265,7 @@ func (p *Parser) parseFetchArgs() (*nodes.FetchStmt, error) {
 		}
 		return &nodes.FetchStmt{
 			Direction:  nodes.FETCH_FORWARD,
-			HowMany:   1,
+			HowMany:    1,
 			Portalname: name,
 		}, nil
 
@@ -273,7 +281,7 @@ func (p *Parser) parseFetchArgs() (*nodes.FetchStmt, error) {
 			}
 			return &nodes.FetchStmt{
 				Direction:  nodes.FETCH_BACKWARD,
-				HowMany:   nodes.FETCH_ALL,
+				HowMany:    nodes.FETCH_ALL,
 				Portalname: name,
 			}, nil
 		}
@@ -286,7 +294,7 @@ func (p *Parser) parseFetchArgs() (*nodes.FetchStmt, error) {
 			}
 			return &nodes.FetchStmt{
 				Direction:  nodes.FETCH_BACKWARD,
-				HowMany:   howMany,
+				HowMany:    howMany,
 				Portalname: name,
 			}, nil
 		}
@@ -298,7 +306,7 @@ func (p *Parser) parseFetchArgs() (*nodes.FetchStmt, error) {
 		}
 		return &nodes.FetchStmt{
 			Direction:  nodes.FETCH_BACKWARD,
-			HowMany:   1,
+			HowMany:    1,
 			Portalname: name,
 		}, nil
 
@@ -311,7 +319,7 @@ func (p *Parser) parseFetchArgs() (*nodes.FetchStmt, error) {
 		}
 		return &nodes.FetchStmt{
 			Direction:  nodes.FETCH_FORWARD,
-			HowMany:   1,
+			HowMany:    1,
 			Portalname: name,
 		}, nil
 
@@ -325,7 +333,7 @@ func (p *Parser) parseFetchArgs() (*nodes.FetchStmt, error) {
 		}
 		return &nodes.FetchStmt{
 			Direction:  nodes.FETCH_FORWARD,
-			HowMany:   howMany,
+			HowMany:    howMany,
 			Portalname: name,
 		}, nil
 
@@ -337,7 +345,7 @@ func (p *Parser) parseFetchArgs() (*nodes.FetchStmt, error) {
 		}
 		return &nodes.FetchStmt{
 			Direction:  nodes.FETCH_FORWARD,
-			HowMany:   1,
+			HowMany:    1,
 			Portalname: name,
 		}, nil
 	}

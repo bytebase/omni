@@ -295,7 +295,7 @@ func (p *Parser) parseSetResetClause() (*nodes.VariableSetStmt, error) {
 //	    | TRANSACTION ISOLATION LEVEL
 //	    | SESSION AUTHORIZATION
 func (p *Parser) parseResetRest() nodes.Node {
-	switch p.cur.Type {
+	switch p.varNameFormKind() {
 	case TIME:
 		p.advance()
 		p.expect(ZONE)
