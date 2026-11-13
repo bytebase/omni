@@ -162,6 +162,9 @@ func TestElidedTextIsNotConverted(t *testing.T) {
 			t.Errorf("%s: got %v, want docs.ErrElided", in, err)
 		}
 	}
+	if _, err := docs.Form(dialect, "ALTER X <name> <tagAction>"); err == nil || !strings.Contains(err.Error(), "tagAction") {
+		t.Errorf("an undefined fragment in angle brackets: got %v", err)
+	}
 	if _, err := docs.Form(dialect, "ALTER X { tableAction }"); err == nil || !strings.Contains(err.Error(), "tableAction") {
 		t.Errorf("an undefined fragment: got %v", err)
 	}

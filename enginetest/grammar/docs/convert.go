@@ -201,6 +201,9 @@ var valueChoiceLine = regexp.MustCompile(`(?m)^(\s*)([A-Z][A-Z0-9_]*\s*=\s*)([^\
 // countKey is a property that holds a count: of seconds, days, or things.
 var countKey = regexp.MustCompile(`_(SECONDS|MINUTES|HOURS|DAYS|COUNT)$`)
 
+// camelName is a placeholder written as a fragment's name, <tagAction>.
+var camelName = regexp.MustCompile(`^[a-z]+[A-Z][A-Za-z]*$`)
+
 // listName is the name of a list of settings, which a fragment holds.
 var listName = regexp.MustCompile(`(parameters|params|options|properties)$`)
 
@@ -731,6 +734,11 @@ func (c *converter) token(t ntok) (string, error) {
 		}
 		if c.defs[t.text] {
 			return c.fragName(t.text), nil
+		}
+		if camelName.MatchString(t.text) {
+			// <tagAction> names a fragment, as tagAction ::= would define,
+			// not text to fill in.
+			return "", fmt.Errorf("%w fragment %q: the page does not define it", errUndefined, t.text)
 		}
 		return c.d.Classify(t.text), nil
 	case nFragment:

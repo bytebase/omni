@@ -139,7 +139,12 @@ func report(pages []pageGrammar) {
 	for r := range reasons {
 		rs = append(rs, r)
 	}
-	sort.Slice(rs, func(i, j int) bool { return reasons[rs[i]] > reasons[rs[j]] })
+	sort.Slice(rs, func(i, j int) bool {
+		if reasons[rs[i]] != reasons[rs[j]] {
+			return reasons[rs[i]] > reasons[rs[j]]
+		}
+		return rs[i] < rs[j]
+	})
 	for _, r := range rs {
 		fmt.Printf("  %4d %s\n", reasons[r], r)
 	}
