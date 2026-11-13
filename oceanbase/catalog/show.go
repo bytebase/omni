@@ -647,6 +647,11 @@ func escapeComment(s string) string {
 
 // showPartitioning renders the partition clause for SHOW CREATE TABLE.
 // MySQL 8.0 outputs partitioning after table options with specific formatting.
+// quoteSplitSize writes a split size as the string literal SIZE takes.
+func quoteSplitSize(size string) string {
+	return "'" + strings.ReplaceAll(size, "'", "''") + "'"
+}
+
 func showPartitioning(pi *PartitionInfo) string {
 	var b strings.Builder
 
@@ -678,6 +683,15 @@ func showPartitioning(pi *PartitionInfo) string {
 		} else {
 			b.WriteString(fmt.Sprintf("KEY (%s)", formatPartitionColumnsPlain(pi.Columns)))
 		}
+	}
+
+	// A RANGE partitioning's split size, and automatic partitioning, which takes
+	// no partition list (opt_range_partition_info and auto_partition_option).
+	if pi.SplitSize != "" {
+		b.WriteString(" SIZE (" + quoteSplitSize(pi.SplitSize) + ")")
+	}
+	if pi.AutoSize != "" {
+		b.WriteString(" PARTITION SIZE " + pi.AutoSize + " PARTITIONS AUTO")
 	}
 
 	// Subpartition clause.
