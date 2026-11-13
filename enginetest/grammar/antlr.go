@@ -84,10 +84,16 @@ func ReadANTLR(src string, tokens *Tokens) (*Grammar, error) {
 				}
 			}
 		}
-		// One text, in whatever case: a keyword.
+		// One text, in whatever case: a keyword. A token of a few texts is
+		// sampled by its first, in capitals where it is a word.
 		fixed := finite && len(texts) == 1
-		if fixed {
+		if finite && len(texts) > 0 {
 			text, sampled = texts[0], true
+		}
+		if _, ok := g.termText[name]; ok && finite && len(texts) > 1 {
+			// The token table picks the spelling rows write, as TABLE for
+			// Cassandra's COLUMNFAMILY | TABLE; the token still matches each.
+			g.spellings[name] = texts
 		}
 		if _, ok := g.termText[name]; ok || g.unreachable[name] || !sampled {
 			continue
