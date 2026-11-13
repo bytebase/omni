@@ -239,6 +239,7 @@ func splitStatements(filename string, lines []processedLine) []ExtractedStmt {
 	inCopyData := false
 	parenDepth := 0         // tracks nesting depth of (...) in normal SQL
 	atomicDepth := 0        // tracks nesting depth of BEGIN ATOMIC ... END blocks
+	atomicCaseDepth := 0    // tracks CASE ... END expressions inside BEGIN ATOMIC
 	lastWord := ""          // previous completed word (uppercase)
 	currentWord := []byte{} // word currently being accumulated
 
@@ -254,6 +255,11 @@ func splitStatements(filename string, lines []processedLine) []ExtractedStmt {
 
 		if word == "ATOMIC" && lastWord == "BEGIN" {
 			atomicDepth++
+		} else if word == "CASE" && atomicDepth > 0 {
+			atomicCaseDepth++
+		} else if word == "END" && atomicCaseDepth > 0 {
+			// A CASE closes wherever it stands, inside parentheses too.
+			atomicCaseDepth--
 		} else if word == "END" && atomicDepth > 0 && parenDepth == 0 {
 			atomicDepth--
 		}
@@ -280,6 +286,7 @@ func splitStatements(filename string, lines []processedLine) []ExtractedStmt {
 		stmtStartLine = 0
 		parenDepth = 0
 		atomicDepth = 0
+		atomicCaseDepth = 0
 		lastWord = ""
 		currentWord = currentWord[:0]
 	}

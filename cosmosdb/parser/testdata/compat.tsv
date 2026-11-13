@@ -1,0 +1,452 @@
+# pin: default github.com/Azure/azure-cosmos-dotnet-v3@2e0cc9f2549053887ea3e9091b4f438a7a0bb443 sha256:936de164cde4ada3584fa008117b075d5b3edf02018d08d808341d4451e621de 3.64.0
+# columns: omni, expected, source, rule, statement
+accept	accept	grammar	program/sql_query_EOF	SELECT *
+reject	reject	grammar	program/sql_query_EOF!drop-1	*
+reject	reject	grammar	program/sql_query_EOF!drop-2	SELECT
+reject	reject	grammar	program/sql_query_EOF!insert	SELECT * zzz
+reject	reject	grammar	program/sql_query_EOF!swap	TOP *
+accept	accept	grammar	sql_query/select_clause_(from_clause)?_(where_clause)?_(group_by_~64ffb781	SELECT *
+accept	accept	grammar	sql_query(from_clause)?/%empty	SELECT *
+accept	accept	grammar	sql_query(from_clause)?/from_clause	SELECT * FROM c
+reject	reject	grammar	sql_query(from_clause)?/from_clause!drop-1	SELECT * c
+reject	reject	grammar	sql_query(from_clause)?/from_clause!drop-2	SELECT * FROM
+accept	accept	grammar	sql_query(from_clause)?/from_clause!insert	SELECT * FROM c zzz
+reject	reject	grammar	sql_query(from_clause)?/from_clause!swap	SELECT * GROUP c
+accept	accept	grammar	sql_query(where_clause)?/%empty	SELECT *
+accept	accept	grammar	sql_query(where_clause)?/where_clause	SELECT * WHERE c
+reject	reject	grammar	sql_query(where_clause)?/where_clause!drop-2	SELECT * WHERE
+reject	reject	grammar	sql_query(where_clause)?/where_clause!insert	SELECT * WHERE c zzz
+reject	reject	grammar	sql_query(where_clause)?/where_clause!swap	SELECT * ALL c
+accept	accept	grammar	sql_query(group_by_clause)?/%empty	SELECT *
+accept	accept	grammar	sql_query(group_by_clause)?/group_by_clause	SELECT * GROUP BY c
+reject	reject	grammar	sql_query(group_by_clause)?/group_by_clause!drop-1	SELECT * BY c
+reject	reject	grammar	sql_query(group_by_clause)?/group_by_clause!drop-3	SELECT * GROUP BY
+reject	reject	grammar	sql_query(group_by_clause)?/group_by_clause!insert	SELECT * GROUP BY c zzz
+reject	reject	grammar	sql_query(group_by_clause)?/group_by_clause!swap	SELECT * IN BY c
+accept	accept	grammar	sql_query(order_by_clause)?/%empty	SELECT *
+accept	accept	grammar	sql_query(order_by_clause)?/order_by_clause	SELECT * ORDER BY c
+reject	reject	grammar	sql_query(order_by_clause)?/order_by_clause!drop-2	SELECT * ORDER c
+reject	reject	grammar	sql_query(order_by_clause)?/order_by_clause!drop-3	SELECT * ORDER BY
+reject	reject	grammar	sql_query(order_by_clause)?/order_by_clause!insert	SELECT * ORDER BY c zzz
+reject	reject	grammar	sql_query(order_by_clause)?/order_by_clause!swap	SELECT * RANK BY c
+accept	accept	grammar	sql_query(offset_limit_clause)?/%empty	SELECT *
+accept	accept	grammar	sql_query(offset_limit_clause)?/offset_limit_clause	SELECT * OFFSET 1 LIMIT 1
+reject	reject	grammar	sql_query(offset_limit_clause)?/offset_limit_clause!drop-1	SELECT * 1 LIMIT 1
+reject	reject	grammar	sql_query(offset_limit_clause)?/offset_limit_clause!drop-2	SELECT * OFFSET LIMIT 1
+reject	reject	grammar	sql_query(offset_limit_clause)?/offset_limit_clause!drop-3	SELECT * OFFSET 1 1
+reject	reject	grammar	sql_query(offset_limit_clause)?/offset_limit_clause!drop-4	SELECT * OFFSET 1 LIMIT
+reject	reject	grammar	sql_query(offset_limit_clause)?/offset_limit_clause!insert	SELECT * OFFSET 1 LIMIT 1 zzz
+reject	reject	grammar	sql_query(offset_limit_clause)?/offset_limit_clause!swap	SELECT * OR 1 LIMIT 1
+accept	accept	grammar	select_clause/K_SELECT_(K_DISTINCT)?_(top_spec)?_selection	SELECT *
+accept	accept	grammar	select_clause(K_DISTINCT)?/%empty	SELECT *
+reject	reject	grammar	select_clause(K_DISTINCT)?/%empty!insert	SELECT zzz *
+accept	accept	grammar	select_clause(K_DISTINCT)?/K_DISTINCT	SELECT DISTINCT *
+reject	reject	grammar	select_clause(K_DISTINCT)?/K_DISTINCT!insert	SELECT DISTINCT zzz *
+reject	reject	grammar	select_clause(K_DISTINCT)?/K_DISTINCT!swap	SELECT ESCAPE *
+accept	accept	grammar	select_clause(top_spec)?/%empty	SELECT *
+accept	accept	grammar	select_clause(top_spec)?/top_spec	SELECT TOP 1 *
+reject	reject	grammar	select_clause(top_spec)?/top_spec!drop-1	SELECT 1 *
+reject	reject	grammar	select_clause(top_spec)?/top_spec!drop-2	SELECT TOP *
+reject	reject	grammar	select_clause(top_spec)?/top_spec!truncate	SELECT TOP
+reject	reject	grammar	select_clause(top_spec)?/top_spec!insert	SELECT TOP 1 zzz *
+reject	reject	grammar	select_clause(top_spec)?/top_spec!swap	SELECT VALUE 1 *
+accept	accept	grammar	top_spec/K_TOP_(NUMERIC_LITERAL|PARAMETER)	SELECT TOP 1 *
+accept	accept	grammar	top_spec(NUMERIC_LITERAL|PARAMETER)/NUMERIC_LITERAL	SELECT TOP 1 *
+reject	accept	grammar	top_spec(NUMERIC_LITERAL|PARAMETER)/PARAMETER	SELECT TOP @a *
+reject	reject	grammar	top_spec(NUMERIC_LITERAL|PARAMETER)/PARAMETER!insert	SELECT TOP @a zzz *
+accept	accept	grammar	selection/select_star_spec	SELECT *
+accept	accept	grammar	selection/select_value_spec	SELECT VALUE c
+reject	reject	grammar	selection/select_value_spec!drop-2	SELECT VALUE
+accept	accept	docs	selection/select_value_spec!insert	SELECT VALUE c zzz
+reject	reject	grammar	selection/select_value_spec!swap	SELECT WHERE c
+accept	accept	grammar	selection/select_list_spec	SELECT c
+accept	accept	docs	selection/select_list_spec!insert	SELECT c zzz
+accept	accept	grammar	select_star_spec/*	SELECT *
+accept	accept	grammar	select_value_spec/K_VALUE_scalar_expression	SELECT VALUE c
+accept	accept	grammar	select_list_spec/select_item_(,_select_item)*	SELECT c
+accept	accept	grammar	select_list_spec(,_select_item)*/%empty	SELECT c
+accept	accept	grammar	select_list_spec(,_select_item)*/,_select_item_(,_select_item)*	SELECT c, c
+accept	accept	docs	select_list_spec(,_select_item)*/,_select_item_(,_select_item)*!drop-1	SELECT c c
+reject	reject	grammar	select_list_spec(,_select_item)*/,_select_item_(,_select_item)*!drop-2	SELECT c,
+accept	accept	docs	select_list_spec(,_select_item)*/,_select_item_(,_select_item)*!insert	SELECT c, c zzz
+accept	accept	grammar	select_item/scalar_expression_(K_AS_identifier)?	SELECT c
+accept	accept	grammar	select_item(K_AS_identifier)?/%empty	SELECT c
+accept	accept	grammar	select_item(K_AS_identifier)?/K_AS_identifier	SELECT c AS c
+reject	reject	grammar	select_item(K_AS_identifier)?/K_AS_identifier!drop-2	SELECT c AS
+reject	reject	grammar	select_item(K_AS_identifier)?/K_AS_identifier!insert	SELECT c AS c zzz
+reject	reject	grammar	select_item(K_AS_identifier)?/K_AS_identifier!swap	SELECT c ASC c
+accept	accept	grammar	from_clause/K_FROM_collection_expression	SELECT * FROM c
+accept	accept	grammar	collection_expression/collection_(K_AS?_identifier)?	SELECT * FROM c
+accept	accept	grammar	collection_expression/identifier_K_IN_collection	SELECT * FROM c IN c
+accept	reject	grammar	collection_expression/identifier_K_IN_collection!drop-1	SELECT * FROM IN c
+reject	reject	grammar	collection_expression/identifier_K_IN_collection!drop-3	SELECT * FROM c IN
+reject	reject	grammar	collection_expression/identifier_K_IN_collection!insert	SELECT * FROM c IN c zzz
+accept	accept	grammar	collection_expression/collection_expression_K_JOIN_collection_expression	SELECT * FROM c JOIN c
+accept	reject	grammar	collection_expression/collection_expression_K_JOIN_collection_expression!drop-1	SELECT * FROM JOIN c
+reject	reject	grammar	collection_expression/collection_expression_K_JOIN_collection_expression!drop-3	SELECT * FROM c JOIN
+accept	accept	grammar	collection_expression/collection_expression_K_JOIN_collection_expression!insert	SELECT * FROM c JOIN c zzz
+reject	reject	grammar	collection_expression/collection_expression_K_JOIN_collection_expression!swap	SELECT * FROM c LAST c
+accept	accept	grammar	collection_expression(K_AS?_identifier)?/%empty	SELECT * FROM c
+accept	accept	grammar	collection_expression(K_AS?_identifier)?/(K_AS)?_identifier	SELECT * FROM c c
+reject	reject	grammar	collection_expression(K_AS?_identifier)?/(K_AS)?_identifier!insert	SELECT * FROM c c zzz
+accept	accept	grammar	collection_expression(K_AS)?/%empty	SELECT * FROM c c
+reject	reject	grammar	collection_expression(K_AS)?/%empty!insert	SELECT * FROM c zzz c
+accept	accept	grammar	collection_expression(K_AS)?/K_AS	SELECT * FROM c AS c
+reject	reject	grammar	collection_expression(K_AS)?/K_AS!insert	SELECT * FROM c AS zzz c
+reject	reject	grammar	collection_expression(K_AS)?/K_AS!swap	SELECT * FROM c ASC c
+accept	accept	grammar	collection/identifier_(path_expression)?	SELECT * FROM c
+accept	accept	grammar	collection/(_sql_query_)	SELECT * FROM(SELECT *)
+reject	reject	grammar	collection/(_sql_query_)!drop-1	SELECT * FROM SELECT *)
+reject	reject	grammar	collection/(_sql_query_)!drop-2	SELECT * FROM(*)
+reject	reject	grammar	collection/(_sql_query_)!drop-3	SELECT * FROM(SELECT)
+reject	reject	grammar	collection/(_sql_query_)!drop-4	SELECT * FROM(SELECT *
+accept	accept	grammar	collection/(_sql_query_)!insert	SELECT * FROM(SELECT *) zzz
+reject	reject	grammar	collection/(_sql_query_)!swap	SELECT * FROM(TOP *)
+accept	accept	grammar	collection(path_expression)?/%empty	SELECT * FROM c
+accept	accept	grammar	collection(path_expression)?/path_expression	SELECT * FROM c
+accept	accept	grammar	path_expression/path_expression_._identifier	SELECT * FROM c.c
+reject	reject	grammar	path_expression/path_expression_._identifier!drop-2	SELECT * FROM c.
+accept	accept	grammar	path_expression/path_expression_._identifier!insert	SELECT * FROM c.c zzz
+accept	accept	grammar	path_expression/path_expression_[_NUMERIC_LITERAL_]	SELECT * FROM c [ 1 ]
+reject	reject	grammar	path_expression/path_expression_[_NUMERIC_LITERAL_]!drop-1	SELECT * FROM c 1 ]
+reject	reject	grammar	path_expression/path_expression_[_NUMERIC_LITERAL_]!drop-2	SELECT * FROM c [ ]
+reject	reject	grammar	path_expression/path_expression_[_NUMERIC_LITERAL_]!drop-3	SELECT * FROM c [ 1
+accept	accept	grammar	path_expression/path_expression_[_NUMERIC_LITERAL_]!insert	SELECT * FROM c [ 1 ] zzz
+accept	accept	grammar	path_expression/path_expression_[_STRING_LITERAL_]	SELECT * FROM c [ 's' ]
+reject	reject	grammar	path_expression/path_expression_[_STRING_LITERAL_]!drop-1	SELECT * FROM c 's' ]
+reject	reject	grammar	path_expression/path_expression_[_STRING_LITERAL_]!drop-3	SELECT * FROM c [ 's'
+accept	accept	grammar	path_expression/path_expression_[_STRING_LITERAL_]!insert	SELECT * FROM c [ 's' ] zzz
+accept	accept	grammar	path_expression/%empty	SELECT * FROM c
+accept	accept	grammar	where_clause/K_WHERE_scalar_expression	SELECT * WHERE c
+accept	accept	grammar	group_by_clause/K_GROUP_K_BY_scalar_expression_list	SELECT * GROUP BY c
+accept	accept	grammar	order_by_clause/K_ORDER_K_BY_order_by_items	SELECT * ORDER BY c
+accept	accept	grammar	order_by_clause/K_ORDER_K_BY_K_RANK_score_expression_order_by_items	SELECT * ORDER BY RANK c()
+reject	reject	grammar	order_by_clause/K_ORDER_K_BY_K_RANK_score_expression_order_by_items!drop-1	SELECT * BY RANK c()
+reject	reject	grammar	order_by_clause/K_ORDER_K_BY_K_RANK_score_expression_order_by_items!drop-2	SELECT * ORDER RANK c()
+accept	accept	grammar	order_by_clause/K_ORDER_K_BY_K_RANK_score_expression_order_by_items!drop-3	SELECT * ORDER BY c()
+reject	reject	grammar	order_by_clause/K_ORDER_K_BY_K_RANK_score_expression_order_by_items!drop-4	SELECT * ORDER BY RANK()
+reject	reject	grammar	order_by_clause/K_ORDER_K_BY_K_RANK_score_expression_order_by_items!drop-5	SELECT * ORDER BY RANK c)
+reject	reject	grammar	order_by_clause/K_ORDER_K_BY_K_RANK_score_expression_order_by_items!drop-6	SELECT * ORDER BY RANK c(
+reject	reject	grammar	order_by_clause/K_ORDER_K_BY_K_RANK_score_expression_order_by_items!insert	SELECT * ORDER BY RANK c() zzz
+reject	reject	grammar	order_by_clause/K_ORDER_K_BY_K_RANK_score_expression_order_by_items!swap	SELECT * RANK BY RANK c()
+accept	accept	grammar	score_expression_order_by_items/score_expression_order_by_item_(,_score_expression_orde~02e05b2b	SELECT * ORDER BY RANK c()
+accept	accept	grammar	score_expression_order_by_items(,_score_expression_order_by_item)*/%empty	SELECT * ORDER BY RANK c()
+accept	accept	grammar	score_expression_order_by_items(,_score_expression_order_by_item)*/,_score_expression_order_by_item_(,_score_expression_or~9f4a15bb	SELECT * ORDER BY RANK c(), c()
+reject	reject	grammar	score_expression_order_by_items(,_score_expression_order_by_item)*/,_score_expression_order_by_item_(,_score_expression_or~9f4a15bb!drop-1	SELECT * ORDER BY RANK c() c()
+reject	reject	grammar	score_expression_order_by_items(,_score_expression_order_by_item)*/,_score_expression_order_by_item_(,_score_expression_or~9f4a15bb!drop-2	SELECT * ORDER BY RANK c(),()
+reject	reject	grammar	score_expression_order_by_items(,_score_expression_order_by_item)*/,_score_expression_order_by_item_(,_score_expression_or~9f4a15bb!drop-3	SELECT * ORDER BY RANK c(), c)
+reject	reject	grammar	score_expression_order_by_items(,_score_expression_order_by_item)*/,_score_expression_order_by_item_(,_score_expression_or~9f4a15bb!drop-4	SELECT * ORDER BY RANK c(), c(
+reject	reject	grammar	score_expression_order_by_items(,_score_expression_order_by_item)*/,_score_expression_order_by_item_(,_score_expression_or~9f4a15bb!insert	SELECT * ORDER BY RANK c(), c() zzz
+accept	accept	grammar	score_expression_order_by_item/function_call_scalar_expression_(sort_order)?	SELECT * ORDER BY RANK c()
+accept	accept	grammar	score_expression_order_by_item(sort_order)?/%empty	SELECT * ORDER BY RANK c()
+reject	accept	grammar	score_expression_order_by_item(sort_order)?/sort_order	SELECT * ORDER BY RANK c() ASC
+reject	reject	grammar	score_expression_order_by_item(sort_order)?/sort_order!insert	SELECT * ORDER BY RANK c() ASC zzz
+reject	reject	grammar	score_expression_order_by_item(sort_order)?/sort_order!swap	SELECT * ORDER BY RANK c() BETWEEN
+accept	accept	grammar	order_by_items/order_by_item_(,_order_by_item)*	SELECT * ORDER BY c
+accept	accept	grammar	order_by_items(,_order_by_item)*/%empty	SELECT * ORDER BY c
+accept	accept	grammar	order_by_items(,_order_by_item)*/,_order_by_item_(,_order_by_item)*	SELECT * ORDER BY c, c
+reject	reject	grammar	order_by_items(,_order_by_item)*/,_order_by_item_(,_order_by_item)*!drop-1	SELECT * ORDER BY c c
+reject	reject	grammar	order_by_items(,_order_by_item)*/,_order_by_item_(,_order_by_item)*!drop-2	SELECT * ORDER BY c,
+reject	reject	grammar	order_by_items(,_order_by_item)*/,_order_by_item_(,_order_by_item)*!insert	SELECT * ORDER BY c, c zzz
+accept	accept	grammar	order_by_item/scalar_expression_(sort_order)?	SELECT * ORDER BY c
+accept	accept	grammar	order_by_item(sort_order)?/%empty	SELECT * ORDER BY c
+accept	accept	grammar	order_by_item(sort_order)?/sort_order	SELECT * ORDER BY c ASC
+reject	reject	grammar	order_by_item(sort_order)?/sort_order!insert	SELECT * ORDER BY c ASC zzz
+reject	reject	grammar	order_by_item(sort_order)?/sort_order!swap	SELECT * ORDER BY c BETWEEN
+accept	accept	grammar	sort_order/K_ASC	SELECT * ORDER BY c ASC
+accept	accept	grammar	sort_order/K_DESC	SELECT * ORDER BY c DESC
+reject	reject	grammar	sort_order/K_DESC!insert	SELECT * ORDER BY c DESC zzz
+reject	reject	grammar	sort_order/K_DESC!swap	SELECT * ORDER BY c DISTINCT
+accept	accept	grammar	offset_limit_clause/K_OFFSET_offset_count_K_LIMIT_limit_count	SELECT * OFFSET 1 LIMIT 1
+accept	accept	grammar	offset_count/NUMERIC_LITERAL	SELECT * OFFSET 1 LIMIT 1
+reject	reject	grammar	offset_count/NUMERIC_LITERAL!truncate	SELECT * OFFSET
+reject	reject	grammar	offset_count/NUMERIC_LITERAL!insert	SELECT * OFFSET 1 zzz LIMIT 1
+accept	accept	grammar	offset_count/PARAMETER	SELECT * OFFSET @a LIMIT 1
+reject	reject	grammar	offset_count/PARAMETER!insert	SELECT * OFFSET @a zzz LIMIT 1
+accept	accept	grammar	limit_count/NUMERIC_LITERAL	SELECT * OFFSET 1 LIMIT 1
+accept	accept	grammar	limit_count/PARAMETER	SELECT * OFFSET 1 LIMIT @a
+reject	reject	grammar	limit_count/PARAMETER!insert	SELECT * OFFSET 1 LIMIT @a zzz
+accept	accept	grammar	scalar_expression/scalar_expression_?_scalar_expression_COLON_scalar_expression	SELECT c ? c : c
+reject	reject	grammar	scalar_expression/scalar_expression_?_scalar_expression_COLON_scalar_expression!drop-1	SELECT ? c : c
+reject	reject	grammar	scalar_expression/scalar_expression_?_scalar_expression_COLON_scalar_expression!drop-2	SELECT c c : c
+reject	reject	grammar	scalar_expression/scalar_expression_?_scalar_expression_COLON_scalar_expression!drop-3	SELECT c ? : c
+reject	reject	grammar	scalar_expression/scalar_expression_?_scalar_expression_COLON_scalar_expression!drop-4	SELECT c ? c c
+reject	reject	grammar	scalar_expression/scalar_expression_?_scalar_expression_COLON_scalar_expression!drop-5	SELECT c ? c :
+accept	accept	docs	scalar_expression/scalar_expression_?_scalar_expression_COLON_scalar_expression!insert	SELECT c ? c : c zzz
+accept	accept	grammar	scalar_expression/scalar_expression_??_scalar_expression	SELECT c ?? c
+reject	reject	grammar	scalar_expression/scalar_expression_??_scalar_expression!drop-1	SELECT ?? c
+reject	reject	grammar	scalar_expression/scalar_expression_??_scalar_expression!drop-3	SELECT c ??
+accept	accept	docs	scalar_expression/scalar_expression_??_scalar_expression!insert	SELECT c ?? c zzz
+accept	accept	grammar	scalar_expression/logical_scalar_expression	SELECT c
+accept	accept	grammar	scalar_expression/binary_scalar_expression_(K_NOT)?_K_BETWEEN_binary_scal~460212dc	SELECT c BETWEEN c AND c
+reject	reject	grammar	scalar_expression/binary_scalar_expression_(K_NOT)?_K_BETWEEN_binary_scal~460212dc!drop-1	SELECT BETWEEN c AND c
+reject	reject	grammar	scalar_expression/binary_scalar_expression_(K_NOT)?_K_BETWEEN_binary_scal~460212dc!drop-2	SELECT c c AND c
+reject	reject	grammar	scalar_expression/binary_scalar_expression_(K_NOT)?_K_BETWEEN_binary_scal~460212dc!drop-3	SELECT c BETWEEN AND c
+reject	reject	grammar	scalar_expression/binary_scalar_expression_(K_NOT)?_K_BETWEEN_binary_scal~460212dc!drop-4	SELECT c BETWEEN c c
+reject	reject	grammar	scalar_expression/binary_scalar_expression_(K_NOT)?_K_BETWEEN_binary_scal~460212dc!drop-5	SELECT c BETWEEN c AND
+accept	accept	docs	scalar_expression/binary_scalar_expression_(K_NOT)?_K_BETWEEN_binary_scal~460212dc!insert	SELECT c BETWEEN c AND c zzz
+reject	reject	grammar	scalar_expression/binary_scalar_expression_(K_NOT)?_K_BETWEEN_binary_scal~460212dc!swap	SELECT c BY c AND c
+accept	accept	grammar	scalar_expression(K_NOT)?/%empty	SELECT c BETWEEN c AND c
+reject	reject	grammar	scalar_expression(K_NOT)?/%empty!insert	SELECT c zzz BETWEEN c AND c
+accept	accept	grammar	scalar_expression(K_NOT)?/K_NOT	SELECT c NOT BETWEEN c AND c
+reject	reject	grammar	scalar_expression(K_NOT)?/K_NOT!insert	SELECT c NOT zzz BETWEEN c AND c
+reject	reject	grammar	scalar_expression(K_NOT)?/K_NOT!swap	SELECT c OFFSET BETWEEN c AND c
+accept	accept	grammar	logical_scalar_expression/binary_scalar_expression	SELECT c
+accept	accept	grammar	logical_scalar_expression/in_scalar_expression	SELECT c IN(c)
+accept	reject	grammar	logical_scalar_expression/in_scalar_expression!drop-1	SELECT IN(c)
+reject	reject	grammar	logical_scalar_expression/in_scalar_expression!drop-3	SELECT c IN c)
+accept	reject	grammar	logical_scalar_expression/in_scalar_expression!drop-4	SELECT c IN()
+reject	reject	grammar	logical_scalar_expression/in_scalar_expression!drop-5	SELECT c IN(c
+accept	accept	docs	logical_scalar_expression/in_scalar_expression!insert	SELECT c IN(c) zzz
+reject	reject	grammar	logical_scalar_expression/in_scalar_expression!swap	SELECT c JOIN(c)
+accept	accept	grammar	logical_scalar_expression/like_scalar_expression	SELECT c LIKE c
+accept	reject	grammar	logical_scalar_expression/like_scalar_expression!drop-1	SELECT LIKE c
+reject	reject	grammar	logical_scalar_expression/like_scalar_expression!drop-3	SELECT c LIKE
+accept	accept	docs	logical_scalar_expression/like_scalar_expression!insert	SELECT c LIKE c zzz
+reject	reject	grammar	logical_scalar_expression/like_scalar_expression!swap	SELECT c LIMIT c
+accept	accept	grammar	logical_scalar_expression/logical_scalar_expression_K_AND_logical_scalar_expression	SELECT c AND c
+reject	reject	grammar	logical_scalar_expression/logical_scalar_expression_K_AND_logical_scalar_expression!drop-1	SELECT AND c
+reject	reject	grammar	logical_scalar_expression/logical_scalar_expression_K_AND_logical_scalar_expression!drop-3	SELECT c AND
+accept	accept	docs	logical_scalar_expression/logical_scalar_expression_K_AND_logical_scalar_expression!insert	SELECT c AND c zzz
+reject	reject	grammar	logical_scalar_expression/logical_scalar_expression_K_AND_logical_scalar_expression!swap	SELECT c ARRAY c
+accept	accept	grammar	logical_scalar_expression/logical_scalar_expression_K_OR_logical_scalar_expression	SELECT c OR c
+reject	reject	grammar	logical_scalar_expression/logical_scalar_expression_K_OR_logical_scalar_expression!drop-1	SELECT OR c
+reject	reject	grammar	logical_scalar_expression/logical_scalar_expression_K_OR_logical_scalar_expression!drop-3	SELECT c OR
+accept	accept	docs	logical_scalar_expression/logical_scalar_expression_K_OR_logical_scalar_expression!insert	SELECT c OR c zzz
+reject	reject	grammar	logical_scalar_expression/logical_scalar_expression_K_OR_logical_scalar_expression!swap	SELECT c ORDER c
+accept	accept	grammar	in_scalar_expression/binary_scalar_expression_(K_NOT)?_K_IN_(_scalar_express~f4e65963	SELECT c IN(c)
+accept	accept	grammar	in_scalar_expression(K_NOT)?/%empty	SELECT c IN(c)
+reject	reject	grammar	in_scalar_expression(K_NOT)?/%empty!insert	SELECT c zzz IN(c)
+accept	accept	grammar	in_scalar_expression(K_NOT)?/K_NOT	SELECT c NOT IN(c)
+reject	reject	grammar	in_scalar_expression(K_NOT)?/K_NOT!insert	SELECT c NOT zzz IN(c)
+reject	reject	grammar	in_scalar_expression(K_NOT)?/K_NOT!swap	SELECT c OFFSET IN(c)
+accept	accept	grammar	like_scalar_expression/binary_scalar_expression_(K_NOT)?_K_LIKE_binary_scalar_~55dfb64e	SELECT c LIKE c
+accept	accept	grammar	like_scalar_expression(K_NOT)?/%empty	SELECT c LIKE c
+reject	reject	grammar	like_scalar_expression(K_NOT)?/%empty!insert	SELECT c zzz LIKE c
+accept	accept	grammar	like_scalar_expression(K_NOT)?/K_NOT	SELECT c NOT LIKE c
+reject	reject	grammar	like_scalar_expression(K_NOT)?/K_NOT!insert	SELECT c NOT zzz LIKE c
+reject	reject	grammar	like_scalar_expression(K_NOT)?/K_NOT!swap	SELECT c OFFSET LIKE c
+accept	accept	grammar	like_scalar_expression(escape_expression)?/%empty	SELECT c LIKE c
+accept	accept	grammar	like_scalar_expression(escape_expression)?/escape_expression	SELECT c LIKE c ESCAPE 's'
+reject	reject	grammar	like_scalar_expression(escape_expression)?/escape_expression!drop-1	SELECT c LIKE c 's'
+reject	reject	grammar	like_scalar_expression(escape_expression)?/escape_expression!drop-2	SELECT c LIKE c ESCAPE
+accept	accept	docs	like_scalar_expression(escape_expression)?/escape_expression!insert	SELECT c LIKE c ESCAPE 's' zzz
+reject	reject	grammar	like_scalar_expression(escape_expression)?/escape_expression!swap	SELECT c LIKE c EXISTS 's'
+accept	accept	grammar	escape_expression/K_ESCAPE_STRING_LITERAL	SELECT c LIKE c ESCAPE 's'
+accept	accept	grammar	binary_scalar_expression/unary_scalar_expression	SELECT c
+accept	accept	grammar	binary_scalar_expression/binary_scalar_expression_multiplicative_operator_binary~7234960c	SELECT c * c
+reject	reject	grammar	binary_scalar_expression/binary_scalar_expression_multiplicative_operator_binary~7234960c!drop-3	SELECT c *
+accept	accept	docs	binary_scalar_expression/binary_scalar_expression_multiplicative_operator_binary~7234960c!insert	SELECT c * c zzz
+accept	accept	grammar	binary_scalar_expression/binary_scalar_expression_additive_operator_binary_scala~d6767365	SELECT c + c
+reject	reject	grammar	binary_scalar_expression/binary_scalar_expression_additive_operator_binary_scala~d6767365!drop-3	SELECT c +
+accept	accept	docs	binary_scalar_expression/binary_scalar_expression_additive_operator_binary_scala~d6767365!insert	SELECT c + c zzz
+accept	accept	grammar	binary_scalar_expression/binary_scalar_expression_relational_operator_binary_sca~36460961	SELECT c < c
+reject	reject	grammar	binary_scalar_expression/binary_scalar_expression_relational_operator_binary_sca~36460961!drop-1	SELECT < c
+reject	reject	grammar	binary_scalar_expression/binary_scalar_expression_relational_operator_binary_sca~36460961!drop-3	SELECT c <
+accept	accept	docs	binary_scalar_expression/binary_scalar_expression_relational_operator_binary_sca~36460961!insert	SELECT c < c zzz
+accept	accept	grammar	binary_scalar_expression/binary_scalar_expression_equality_operator_binary_scala~eeccbab8	SELECT c = c
+reject	reject	grammar	binary_scalar_expression/binary_scalar_expression_equality_operator_binary_scala~eeccbab8!drop-1	SELECT = c
+reject	reject	grammar	binary_scalar_expression/binary_scalar_expression_equality_operator_binary_scala~eeccbab8!drop-3	SELECT c =
+accept	accept	docs	binary_scalar_expression/binary_scalar_expression_equality_operator_binary_scala~eeccbab8!insert	SELECT c = c zzz
+accept	accept	grammar	binary_scalar_expression/binary_scalar_expression_bitwise_and_operator_binary_sc~19570aca	SELECT c & c
+reject	reject	grammar	binary_scalar_expression/binary_scalar_expression_bitwise_and_operator_binary_sc~19570aca!drop-1	SELECT & c
+reject	reject	grammar	binary_scalar_expression/binary_scalar_expression_bitwise_and_operator_binary_sc~19570aca!drop-3	SELECT c &
+accept	accept	docs	binary_scalar_expression/binary_scalar_expression_bitwise_and_operator_binary_sc~19570aca!insert	SELECT c & c zzz
+accept	accept	grammar	binary_scalar_expression/binary_scalar_expression_bitwise_exclusive_or_operator_~814cd630	SELECT c ^ c
+reject	reject	grammar	binary_scalar_expression/binary_scalar_expression_bitwise_exclusive_or_operator_~814cd630!drop-1	SELECT ^ c
+reject	reject	grammar	binary_scalar_expression/binary_scalar_expression_bitwise_exclusive_or_operator_~814cd630!drop-3	SELECT c ^
+accept	accept	docs	binary_scalar_expression/binary_scalar_expression_bitwise_exclusive_or_operator_~814cd630!insert	SELECT c ^ c zzz
+accept	accept	grammar	binary_scalar_expression/binary_scalar_expression_bitwise_inclusive_or_operator_~46397c8d	SELECT c | c
+reject	reject	grammar	binary_scalar_expression/binary_scalar_expression_bitwise_inclusive_or_operator_~46397c8d!drop-1	SELECT | c
+reject	reject	grammar	binary_scalar_expression/binary_scalar_expression_bitwise_inclusive_or_operator_~46397c8d!drop-3	SELECT c |
+accept	accept	docs	binary_scalar_expression/binary_scalar_expression_bitwise_inclusive_or_operator_~46397c8d!insert	SELECT c | c zzz
+accept	accept	grammar	binary_scalar_expression/binary_scalar_expression_string_concat_operator_binary_~40888572	SELECT c || c
+reject	reject	grammar	binary_scalar_expression/binary_scalar_expression_string_concat_operator_binary_~40888572!drop-1	SELECT || c
+reject	reject	grammar	binary_scalar_expression/binary_scalar_expression_string_concat_operator_binary_~40888572!drop-3	SELECT c ||
+accept	accept	docs	binary_scalar_expression/binary_scalar_expression_string_concat_operator_binary_~40888572!insert	SELECT c || c zzz
+accept	accept	grammar	multiplicative_operator/*	SELECT c * c
+accept	accept	docs	multiplicative_operator/*!insert	SELECT c * zzz c
+accept	accept	grammar	multiplicative_operator/SLASH	SELECT c / c
+accept	accept	docs	multiplicative_operator/SLASH!insert	SELECT c / zzz c
+accept	accept	grammar	multiplicative_operator/%	SELECT c % c
+accept	accept	docs	multiplicative_operator/%!insert	SELECT c % zzz c
+accept	accept	grammar	additive_operator/+	SELECT c + c
+accept	accept	docs	additive_operator/+!insert	SELECT c + zzz c
+accept	accept	grammar	additive_operator/-	SELECT c - c
+accept	accept	docs	additive_operator/-!insert	SELECT c - zzz c
+accept	accept	grammar	relational_operator/<	SELECT c < c
+accept	accept	docs	relational_operator/<!insert	SELECT c < zzz c
+accept	accept	grammar	relational_operator/>	SELECT c > c
+accept	accept	docs	relational_operator/>!insert	SELECT c > zzz c
+accept	accept	grammar	relational_operator/>=	SELECT c >= c
+accept	accept	docs	relational_operator/>=!insert	SELECT c >= zzz c
+accept	accept	grammar	relational_operator/<=	SELECT c <= c
+accept	accept	docs	relational_operator/<=!insert	SELECT c <= zzz c
+accept	accept	grammar	equality_operator/=	SELECT c = c
+accept	accept	docs	equality_operator/=!insert	SELECT c = zzz c
+accept	accept	grammar	equality_operator/!=	SELECT c != c
+accept	accept	docs	equality_operator/!=!insert	SELECT c != zzz c
+accept	accept	grammar	bitwise_and_operator/&	SELECT c & c
+accept	accept	docs	bitwise_and_operator/&!insert	SELECT c & zzz c
+accept	accept	grammar	bitwise_exclusive_or_operator/^	SELECT c ^ c
+accept	accept	docs	bitwise_exclusive_or_operator/^!insert	SELECT c ^ zzz c
+accept	accept	grammar	bitwise_inclusive_or_operator/|	SELECT c | c
+accept	accept	docs	bitwise_inclusive_or_operator/|!insert	SELECT c | zzz c
+accept	accept	grammar	string_concat_operator/||	SELECT c || c
+accept	accept	docs	string_concat_operator/||!insert	SELECT c || zzz c
+accept	accept	grammar	unary_scalar_expression/primary_expression	SELECT c
+accept	accept	grammar	unary_scalar_expression/unary_operator_unary_scalar_expression	SELECT - c
+reject	reject	grammar	unary_scalar_expression/unary_operator_unary_scalar_expression!drop-2	SELECT -
+accept	accept	docs	unary_scalar_expression/unary_operator_unary_scalar_expression!insert	SELECT - c zzz
+accept	accept	grammar	unary_operator/-	SELECT - c
+accept	accept	docs	unary_operator/-!insert	SELECT - zzz c
+accept	accept	grammar	unary_operator/+	SELECT + c
+accept	accept	docs	unary_operator/+!insert	SELECT + zzz c
+accept	accept	grammar	unary_operator/~	SELECT ~ c
+accept	accept	docs	unary_operator/~!insert	SELECT ~ zzz c
+accept	accept	grammar	unary_operator/K_NOT	SELECT NOT c
+accept	accept	docs	unary_operator/K_NOT!insert	SELECT NOT zzz c
+accept	reject	grammar	unary_operator/K_NOT!swap	SELECT OFFSET c
+accept	accept	grammar	primary_expression/identifier	SELECT c
+accept	accept	grammar	primary_expression/PARAMETER	SELECT @a
+accept	accept	docs	primary_expression/PARAMETER!insert	SELECT @a zzz
+accept	accept	grammar	primary_expression/literal	SELECT 's'
+accept	accept	docs	primary_expression/literal!insert	SELECT 's' zzz
+accept	accept	grammar	primary_expression/[_(scalar_expression_list)?_]	SELECT [ ]
+reject	reject	grammar	primary_expression/[_(scalar_expression_list)?_]!drop-1	SELECT ]
+reject	reject	grammar	primary_expression/[_(scalar_expression_list)?_]!drop-2	SELECT [
+accept	accept	docs	primary_expression/[_(scalar_expression_list)?_]!insert	SELECT [ ] zzz
+accept	accept	grammar	primary_expression/{_(object_property_list)?_}	SELECT { }
+reject	reject	grammar	primary_expression/{_(object_property_list)?_}!drop-1	SELECT }
+reject	reject	grammar	primary_expression/{_(object_property_list)?_}!drop-2	SELECT {
+accept	accept	docs	primary_expression/{_(object_property_list)?_}!insert	SELECT { } zzz
+accept	accept	grammar	primary_expression/(_scalar_expression_)	SELECT(c)
+reject	reject	grammar	primary_expression/(_scalar_expression_)!drop-1	SELECT c)
+reject	reject	grammar	primary_expression/(_scalar_expression_)!drop-2	SELECT()
+reject	reject	grammar	primary_expression/(_scalar_expression_)!drop-3	SELECT(c
+accept	accept	docs	primary_expression/(_scalar_expression_)!insert	SELECT(c) zzz
+accept	accept	grammar	primary_expression/(_sql_query_)	SELECT(SELECT *)
+reject	reject	grammar	primary_expression/(_sql_query_)!drop-1	SELECT SELECT *)
+reject	reject	grammar	primary_expression/(_sql_query_)!drop-2	SELECT(*)
+reject	reject	grammar	primary_expression/(_sql_query_)!drop-3	SELECT(SELECT)
+reject	reject	grammar	primary_expression/(_sql_query_)!drop-4	SELECT(SELECT *
+accept	accept	docs	primary_expression/(_sql_query_)!insert	SELECT(SELECT *) zzz
+reject	reject	grammar	primary_expression/(_sql_query_)!swap	SELECT(TOP *)
+accept	accept	grammar	primary_expression/primary_expression_._identifier	SELECT c.c
+reject	reject	grammar	primary_expression/primary_expression_._identifier!drop-1	SELECT.c
+reject	reject	grammar	primary_expression/primary_expression_._identifier!drop-3	SELECT c.
+accept	accept	docs	primary_expression/primary_expression_._identifier!insert	SELECT c.c zzz
+accept	accept	grammar	primary_expression/primary_expression_[_scalar_expression_]	SELECT c [ c ]
+reject	reject	grammar	primary_expression/primary_expression_[_scalar_expression_]!drop-2	SELECT c c ]
+reject	reject	grammar	primary_expression/primary_expression_[_scalar_expression_]!drop-3	SELECT c [ ]
+reject	reject	grammar	primary_expression/primary_expression_[_scalar_expression_]!drop-4	SELECT c [ c
+accept	accept	docs	primary_expression/primary_expression_[_scalar_expression_]!insert	SELECT c [ c ] zzz
+accept	accept	grammar	primary_expression/K_EXISTS_(_sql_query_)	SELECT EXISTS(SELECT *)
+reject	reject	grammar	primary_expression/K_EXISTS_(_sql_query_)!drop-2	SELECT EXISTS SELECT *)
+reject	reject	grammar	primary_expression/K_EXISTS_(_sql_query_)!drop-3	SELECT EXISTS(*)
+reject	reject	grammar	primary_expression/K_EXISTS_(_sql_query_)!drop-4	SELECT EXISTS(SELECT)
+reject	reject	grammar	primary_expression/K_EXISTS_(_sql_query_)!drop-5	SELECT EXISTS(SELECT *
+accept	accept	docs	primary_expression/K_EXISTS_(_sql_query_)!insert	SELECT EXISTS(SELECT *) zzz
+accept	accept	grammar	primary_expression/K_ARRAY_(_sql_query_)	SELECT ARRAY(SELECT *)
+reject	reject	grammar	primary_expression/K_ARRAY_(_sql_query_)!drop-2	SELECT ARRAY SELECT *)
+reject	reject	grammar	primary_expression/K_ARRAY_(_sql_query_)!drop-3	SELECT ARRAY(*)
+reject	reject	grammar	primary_expression/K_ARRAY_(_sql_query_)!drop-4	SELECT ARRAY(SELECT)
+reject	reject	grammar	primary_expression/K_ARRAY_(_sql_query_)!drop-5	SELECT ARRAY(SELECT *
+accept	accept	docs	primary_expression/K_ARRAY_(_sql_query_)!insert	SELECT ARRAY(SELECT *) zzz
+reject	reject	grammar	primary_expression/K_ARRAY_(_sql_query_)!swap	SELECT AS(SELECT *)
+reject	accept	grammar	primary_expression/K_ALL_(_sql_query_)	SELECT ALL(SELECT *)
+reject	reject	grammar	primary_expression/K_ALL_(_sql_query_)!drop-2	SELECT ALL SELECT *)
+accept	reject	grammar	primary_expression/K_ALL_(_sql_query_)!drop-3	SELECT ALL(*)
+reject	reject	grammar	primary_expression/K_ALL_(_sql_query_)!drop-4	SELECT ALL(SELECT)
+reject	reject	grammar	primary_expression/K_ALL_(_sql_query_)!drop-5	SELECT ALL(SELECT *
+reject	accept	docs	primary_expression/K_ALL_(_sql_query_)!insert	SELECT ALL(SELECT *) zzz
+reject	reject	grammar	primary_expression/K_ALL_(_sql_query_)!swap	SELECT AND(SELECT *)
+reject	accept	grammar	primary_expression/K_FIRST_(_sql_query_)	SELECT FIRST(SELECT *)
+reject	reject	grammar	primary_expression/K_FIRST_(_sql_query_)!drop-2	SELECT FIRST SELECT *)
+accept	reject	grammar	primary_expression/K_FIRST_(_sql_query_)!drop-3	SELECT FIRST(*)
+reject	reject	grammar	primary_expression/K_FIRST_(_sql_query_)!drop-4	SELECT FIRST(SELECT)
+reject	reject	grammar	primary_expression/K_FIRST_(_sql_query_)!drop-5	SELECT FIRST(SELECT *
+reject	accept	docs	primary_expression/K_FIRST_(_sql_query_)!insert	SELECT FIRST(SELECT *) zzz
+reject	reject	grammar	primary_expression/K_FIRST_(_sql_query_)!swap	SELECT FROM(SELECT *)
+reject	accept	grammar	primary_expression/K_LAST_(_sql_query_)	SELECT LAST(SELECT *)
+reject	reject	grammar	primary_expression/K_LAST_(_sql_query_)!drop-2	SELECT LAST SELECT *)
+accept	reject	grammar	primary_expression/K_LAST_(_sql_query_)!drop-3	SELECT LAST(*)
+reject	reject	grammar	primary_expression/K_LAST_(_sql_query_)!drop-4	SELECT LAST(SELECT)
+reject	reject	grammar	primary_expression/K_LAST_(_sql_query_)!drop-5	SELECT LAST(SELECT *
+reject	accept	docs	primary_expression/K_LAST_(_sql_query_)!insert	SELECT LAST(SELECT *) zzz
+reject	reject	grammar	primary_expression/K_LAST_(_sql_query_)!swap	SELECT LEFT(SELECT *)
+accept	accept	grammar	primary_expression/function_call_scalar_expression	SELECT c()
+reject	reject	grammar	primary_expression/function_call_scalar_expression!drop-3	SELECT c(
+accept	accept	docs	primary_expression/function_call_scalar_expression!insert	SELECT c() zzz
+accept	accept	grammar	primary_expression(scalar_expression_list)?/%empty	SELECT [ ]
+accept	accept	grammar	primary_expression(scalar_expression_list)?/%empty!insert	SELECT [ zzz ]
+accept	accept	grammar	primary_expression(scalar_expression_list)?/scalar_expression_list	SELECT [ c ]
+reject	reject	grammar	primary_expression(scalar_expression_list)?/scalar_expression_list!insert	SELECT [ c zzz ]
+accept	accept	grammar	primary_expression(object_property_list)?/%empty	SELECT { }
+reject	reject	grammar	primary_expression(object_property_list)?/%empty!insert	SELECT { zzz }
+accept	accept	grammar	primary_expression(object_property_list)?/object_property_list	SELECT { 's' : c }
+reject	reject	grammar	primary_expression(object_property_list)?/object_property_list!drop-1	SELECT { : c }
+reject	reject	grammar	primary_expression(object_property_list)?/object_property_list!drop-2	SELECT { 's' c }
+reject	reject	grammar	primary_expression(object_property_list)?/object_property_list!drop-3	SELECT { 's' : }
+reject	reject	grammar	primary_expression(object_property_list)?/object_property_list!truncate	SELECT { 's' :
+reject	reject	grammar	primary_expression(object_property_list)?/object_property_list!insert	SELECT { 's' : c zzz }
+accept	accept	grammar	function_call_scalar_expression/(K_UDF_.)?_identifier_(_(scalar_expression_list)?_)	SELECT c()
+accept	accept	grammar	function_call_scalar_expression/K_LEFT_(_(scalar_expression_list)?_)	SELECT LEFT()
+reject	reject	grammar	function_call_scalar_expression/K_LEFT_(_(scalar_expression_list)?_)!drop-2	SELECT LEFT)
+reject	reject	grammar	function_call_scalar_expression/K_LEFT_(_(scalar_expression_list)?_)!drop-3	SELECT LEFT(
+accept	accept	docs	function_call_scalar_expression/K_LEFT_(_(scalar_expression_list)?_)!insert	SELECT LEFT() zzz
+accept	reject	grammar	function_call_scalar_expression/K_LEFT_(_(scalar_expression_list)?_)!swap	SELECT LIKE()
+accept	accept	grammar	function_call_scalar_expression/K_RIGHT_(_(scalar_expression_list)?_)	SELECT RIGHT()
+reject	reject	grammar	function_call_scalar_expression/K_RIGHT_(_(scalar_expression_list)?_)!drop-2	SELECT RIGHT)
+reject	reject	grammar	function_call_scalar_expression/K_RIGHT_(_(scalar_expression_list)?_)!drop-3	SELECT RIGHT(
+accept	accept	docs	function_call_scalar_expression/K_RIGHT_(_(scalar_expression_list)?_)!insert	SELECT RIGHT() zzz
+reject	reject	grammar	function_call_scalar_expression/K_RIGHT_(_(scalar_expression_list)?_)!swap	SELECT SELECT()
+accept	accept	grammar	function_call_scalar_expression(K_UDF_.)?/%empty	SELECT c()
+reject	reject	grammar	function_call_scalar_expression(K_UDF_.)?/%empty!insert	SELECT zzz c()
+accept	accept	grammar	function_call_scalar_expression(K_UDF_.)?/K_UDF_.	SELECT udf.c()
+reject	reject	grammar	function_call_scalar_expression(K_UDF_.)?/K_UDF_.!drop-1	SELECT.c()
+reject	reject	grammar	function_call_scalar_expression(K_UDF_.)?/K_UDF_.!drop-2	SELECT udf c()
+reject	reject	grammar	function_call_scalar_expression(K_UDF_.)?/K_UDF_.!truncate	SELECT udf
+reject	reject	grammar	function_call_scalar_expression(K_UDF_.)?/K_UDF_.!insert	SELECT udf.zzz c()
+accept	accept	grammar	function_call_scalar_expression(scalar_expression_list)?/%empty	SELECT c()
+accept	accept	grammar	function_call_scalar_expression(scalar_expression_list)?/%empty!insert	SELECT c(zzz)
+accept	accept	grammar	function_call_scalar_expression(scalar_expression_list)?/scalar_expression_list	SELECT c(c)
+reject	reject	grammar	function_call_scalar_expression(scalar_expression_list)?/scalar_expression_list!insert	SELECT c(c zzz)
+accept	accept	grammar	scalar_expression_list/scalar_expression_(,_scalar_expression)*	SELECT [ c ]
+accept	accept	grammar	scalar_expression_list(,_scalar_expression)*/%empty	SELECT [ c ]
+accept	accept	grammar	scalar_expression_list(,_scalar_expression)*/,_scalar_expression_(,_scalar_expression)*	SELECT [ c, c ]
+reject	reject	grammar	scalar_expression_list(,_scalar_expression)*/,_scalar_expression_(,_scalar_expression)*!drop-1	SELECT [ c c ]
+reject	reject	grammar	scalar_expression_list(,_scalar_expression)*/,_scalar_expression_(,_scalar_expression)*!drop-2	SELECT [ c, ]
+reject	reject	grammar	scalar_expression_list(,_scalar_expression)*/,_scalar_expression_(,_scalar_expression)*!truncate	SELECT [ c,
+reject	reject	grammar	scalar_expression_list(,_scalar_expression)*/,_scalar_expression_(,_scalar_expression)*!insert	SELECT [ c, c zzz ]
+accept	accept	grammar	object_property_list/object_property_(,_object_property)*	SELECT { 's' : c }
+accept	accept	grammar	object_property_list(,_object_property)*/%empty	SELECT { 's' : c }
+accept	accept	grammar	object_property_list(,_object_property)*/,_object_property_(,_object_property)*	SELECT { 's' : c, 's' : c }
+reject	reject	grammar	object_property_list(,_object_property)*/,_object_property_(,_object_property)*!drop-1	SELECT { 's' : c 's' : c }
+reject	reject	grammar	object_property_list(,_object_property)*/,_object_property_(,_object_property)*!drop-2	SELECT { 's' : c, : c }
+reject	reject	grammar	object_property_list(,_object_property)*/,_object_property_(,_object_property)*!drop-3	SELECT { 's' : c, 's' c }
+reject	reject	grammar	object_property_list(,_object_property)*/,_object_property_(,_object_property)*!drop-4	SELECT { 's' : c, 's' : }
+reject	reject	grammar	object_property_list(,_object_property)*/,_object_property_(,_object_property)*!truncate	SELECT { 's' : c, 's' :
+reject	reject	grammar	object_property_list(,_object_property)*/,_object_property_(,_object_property)*!insert	SELECT { 's' : c, 's' : c zzz }
+accept	accept	grammar	object_property/STRING_LITERAL_COLON_scalar_expression	SELECT { 's' : c }
+accept	accept	grammar	identifier/LEX_IDENTIFIER	SELECT c
+accept	accept	grammar	identifier/K_ALL	SELECT ALL
+accept	accept	docs	identifier/K_ALL!insert	SELECT ALL zzz
+reject	reject	grammar	identifier/K_ALL!swap	SELECT AND
+accept	accept	grammar	identifier/K_FIRST	SELECT FIRST
+accept	accept	docs	identifier/K_FIRST!insert	SELECT FIRST zzz
+reject	reject	grammar	identifier/K_FIRST!swap	SELECT FROM
+accept	accept	grammar	identifier/K_LAST	SELECT LAST
+accept	accept	docs	identifier/K_LAST!insert	SELECT LAST zzz
+accept	reject	grammar	identifier/K_LAST!swap	SELECT LEFT
+accept	accept	grammar	literal/STRING_LITERAL	SELECT 's'
+accept	accept	grammar	literal/NUMERIC_LITERAL	SELECT 1
+accept	accept	docs	literal/NUMERIC_LITERAL!insert	SELECT 1 zzz
+accept	accept	grammar	literal/K_TRUE	SELECT true
+accept	accept	docs	literal/K_TRUE!insert	SELECT true zzz
+accept	accept	grammar	literal/K_FALSE	SELECT false
+accept	accept	docs	literal/K_FALSE!insert	SELECT false zzz
+accept	accept	grammar	literal/K_NULL	SELECT null
+accept	accept	docs	literal/K_NULL!insert	SELECT null zzz
+accept	accept	grammar	literal/K_UNDEFINED	SELECT undefined
+accept	accept	docs	literal/K_UNDEFINED!insert	SELECT undefined zzz

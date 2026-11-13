@@ -178,9 +178,17 @@ func (p *Parser) parseAlterExtensionContents(loc int, extname string, action int
 		p.advance()
 		if p.cur.Type == CLASS {
 			p.advance()
-			anyName, _ := p.parseAnyName()
-			p.expect(USING)
-			usingName, _ := p.parseName()
+			anyName, err := p.parseAnyName()
+			if err != nil {
+				return nil, err
+			}
+			if _, err := p.expect(USING); err != nil {
+				return nil, err
+			}
+			usingName, err := p.parseName()
+			if err != nil {
+				return nil, err
+			}
 			obj := &nodes.List{Items: append([]nodes.Node{&nodes.String{Str: usingName}}, anyName.Items...)}
 			return &nodes.AlterExtensionContentsStmt{
 				Extname: extname, Action: action,
@@ -190,9 +198,17 @@ func (p *Parser) parseAlterExtensionContents(loc int, extname string, action int
 		}
 		if p.cur.Type == FAMILY {
 			p.advance()
-			anyName, _ := p.parseAnyName()
-			p.expect(USING)
-			usingName, _ := p.parseName()
+			anyName, err := p.parseAnyName()
+			if err != nil {
+				return nil, err
+			}
+			if _, err := p.expect(USING); err != nil {
+				return nil, err
+			}
+			usingName, err := p.parseName()
+			if err != nil {
+				return nil, err
+			}
 			obj := &nodes.List{Items: append([]nodes.Node{&nodes.String{Str: usingName}}, anyName.Items...)}
 			return &nodes.AlterExtensionContentsStmt{
 				Extname: extname, Action: action,
