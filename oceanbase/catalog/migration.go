@@ -72,6 +72,7 @@ const (
 	OpModifyColumn    MigrationOpType = "ModifyColumn" // MySQL MODIFY COLUMN (in-place redefine)
 	OpAddIndex        MigrationOpType = "AddIndex"     // breadth (index node)
 	OpDropIndex       MigrationOpType = "DropIndex"    // breadth
+	OpAlterIndex      MigrationOpType = "AlterIndex"   // ALTER INDEX ... VISIBLE | INVISIBLE
 	OpAddConstraint   MigrationOpType = "AddConstraint"
 	OpDropConstraint  MigrationOpType = "DropConstraint"
 	OpAddForeignKey   MigrationOpType = "AddForeignKey" // breadth (FK node)

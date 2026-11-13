@@ -81,7 +81,7 @@ func addIndexOpsForNewTable(entry *TableDiffEntry, n *Normalizer) []MigrationOp 
 		if inlined != nil && idx == inlined {
 			continue // inline in CREATE TABLE (AUTO_INCREMENT supporting key)
 		}
-		ops = append(ops, addIndexOp(entry, table, idx, n))
+		ops = append(ops, addIndexOps(entry, table, idx, n)...)
 	}
 	return ops
 }
@@ -100,7 +100,7 @@ func indexOpsForModifiedTable(entry *TableDiffEntry, n *Normalizer) []MigrationO
 			if ie.To == nil {
 				continue
 			}
-			ops = append(ops, addIndexOp(entry, table, ie.To, n))
+			ops = append(ops, addIndexOps(entry, table, ie.To, n)...)
 		case DiffDrop:
 			if ie.From == nil {
 				continue
@@ -117,11 +117,61 @@ func indexOpsForModifiedTable(entry *TableDiffEntry, n *Normalizer) []MigrationO
 				ops = append(ops, primaryKeyModifyOps(entry, table, ie.To, n)...)
 				continue
 			}
+			// An index that differs only in being visible keeps its data: ALTER INDEX says
+			// so, where DROP and ADD would build it again.
+			if onlyVisibilityDiffers(ie.From, ie.To, n) {
+				ops = append(ops, alterIndexVisibilityOp(entry, table, ie.To))
+				continue
+			}
 			ops = append(ops, dropIndexOp(entry, table, ie.From))
-			ops = append(ops, addIndexOp(entry, table, ie.To, n))
+			ops = append(ops, addIndexOps(entry, table, ie.To, n)...)
 		}
 	}
 	return ops
+}
+
+// addIndexOps is addIndexOp, followed for an invisible index by the statement that hides
+// it. OceanBase's ALTER TABLE ... ADD KEY does not take INVISIBLE, written plainly or as
+// /*!80000 INVISIBLE */: the index comes out visible. CREATE TABLE, CREATE INDEX and ALTER
+// INDEX do take it, so the index is added and then hidden.
+// TestOracle_OceanBaseInvisibleIndex holds each of these to the engine.
+func addIndexOps(entry *TableDiffEntry, table string, idx *Index, n *Normalizer) []MigrationOp {
+	ops := []MigrationOp{addIndexOp(entry, table, idx, n)}
+	if !idx.Visible && !idx.Primary && !idx.Vector {
+		ops = append(ops, alterIndexVisibilityOp(entry, table, idx))
+	}
+	return ops
+}
+
+// alterIndexVisibilityOp builds the ALTER TABLE ... ALTER INDEX that makes idx as visible as
+// it says. It sorts with the index's ADD and after it, and is a statement of its own: it
+// carries no alterClause, so it never folds into the ALTER TABLE that adds the index.
+func alterIndexVisibilityOp(entry *TableDiffEntry, table string, idx *Index) MigrationOp {
+	visibility := "VISIBLE"
+	if !idx.Visible {
+		visibility = "INVISIBLE"
+	}
+	return MigrationOp{
+		Type:         OpAlterIndex,
+		Database:     entry.Database,
+		ObjectName:   entry.Name,
+		ParentObject: entry.Name,
+		SQL:          fmt.Sprintf("ALTER TABLE %s ALTER INDEX %s %s", table, migrationQuoteIdent(idx.Name), visibility),
+		Phase:        PhaseMain,
+		Priority:     priorityIndex,
+		sortName:     indexSortName(entry.Database, entry.Name, idx.Name),
+	}
+}
+
+// onlyVisibilityDiffers reports whether two versions of an index are the same but for
+// VISIBLE and INVISIBLE.
+func onlyVisibilityDiffers(from, to *Index, n *Normalizer) bool {
+	if from.Visible == to.Visible || from.Primary || to.Primary {
+		return false
+	}
+	shown := *from
+	shown.Visible = to.Visible
+	return canonicalIndex(&shown, n) == canonicalIndex(to, n)
 }
 
 // addIndexOp builds an ALTER TABLE ... ADD <index> op. A PRIMARY KEY uses ADD PRIMARY KEY; every
