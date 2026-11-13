@@ -782,7 +782,7 @@ statement
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-account
 alterAccount
-    : 'ALTER' 'ACCOUNT' 'SET' (alterAccount_accountProperties? | alterAccount_accountParams? | alterAccount_objectParams? | alterAccount_sessionParams?)
+    : 'ALTER' 'ACCOUNT' 'SET' (alterAccount_accountProperties | alterAccount_accountParams | alterAccount_objectParams | alterAccount_sessionParams)
     | 'ALTER' 'ACCOUNT' 'UNSET' ID (',' ID)*
     | 'ALTER' 'ACCOUNT' 'SET' 'RESOURCE_MONITOR' '=' ID
     | 'ALTER' 'ACCOUNT' 'ADD' 'ORGANIZATION' 'USER' 'GROUP' ID
@@ -1285,8 +1285,8 @@ alterExternalVolume
     | 'ALTER' 'EXTERNAL' 'VOLUME' ('IF' 'EXISTS')? ID 'SET' 'COMMENT' '=' STRING
     ;
 alterExternalVolume_cloudProviderParams
-    : 'STORAGE_PROVIDER' '=' '\'{ S3 | S3CHINA | S3GOV }\'' 'STORAGE_AWS_ROLE_ARN' '=' STRING 'STORAGE_BASE_URL' '=' STRING ('STORAGE_AWS_ACCESS_POINT_ARN' '=' STRING)? ('ENCRYPTION' '=' '(' ('TYPE' '=' '\'AWS_SSE_S3\'')? | ('TYPE' '=' '\'AWS_SSE_KMS\'' ('KMS_KEY_ID' '=' STRING)?)? | ('TYPE' '=' '\'NONE\'')? ')')? ('USE_PRIVATELINK_ENDPOINT' '=' ('TRUE' | 'FALSE'))?
-    | 'STORAGE_PROVIDER' '=' '\'GCS\'' 'STORAGE_BASE_URL' '=' STRING ('ENCRYPTION' '=' '(' ('TYPE' '=' '\'GCS_SSE_KMS\'')? ('KMS_KEY_ID' '=' STRING)? | ('TYPE' '=' '\'NONE\'')? ')')?
+    : 'STORAGE_PROVIDER' '=' '\'{ S3 | S3CHINA | S3GOV }\'' 'STORAGE_AWS_ROLE_ARN' '=' STRING 'STORAGE_BASE_URL' '=' STRING ('STORAGE_AWS_ACCESS_POINT_ARN' '=' STRING)? ('ENCRYPTION' '=' '(' (('TYPE' '=' '\'AWS_SSE_S3\'')? | ('TYPE' '=' '\'AWS_SSE_KMS\'' ('KMS_KEY_ID' '=' STRING)?)? | ('TYPE' '=' '\'NONE\'')?) ')')? ('USE_PRIVATELINK_ENDPOINT' '=' ('TRUE' | 'FALSE'))?
+    | 'STORAGE_PROVIDER' '=' '\'GCS\'' 'STORAGE_BASE_URL' '=' STRING ('ENCRYPTION' '=' '(' (('TYPE' '=' '\'GCS_SSE_KMS\'')? ('KMS_KEY_ID' '=' STRING)? | ('TYPE' '=' '\'NONE\'')?) ')')?
     | 'STORAGE_PROVIDER' '=' '\'AZURE\'' 'AZURE_TENANT_ID' '=' STRING ('USE_PRIVATELINK_ENDPOINT' '=' ('TRUE' | 'FALSE'))? 'STORAGE_BASE_URL' '=' STRING
     ;
 
@@ -2144,9 +2144,9 @@ alterStage
     | 'ALTER' 'STAGE' ('IF' 'EXISTS')? ID 'SET' (alterStage_externalStageParams ('FILE_FORMAT' '=' '(' ('FORMAT_NAME' '=' STRING | 'TYPE' '=' ('CSV' | 'JSON' | 'AVRO' | 'ORC' | 'PARQUET' | 'XML' | 'CUSTOM') alterStage_formatTypeOptions?) ')')? ('COMMENT' '=' STRING)? | 'FILE_FORMAT' '=' '(' ('FORMAT_NAME' '=' STRING | 'TYPE' '=' ('CSV' | 'JSON' | 'AVRO' | 'ORC' | 'PARQUET' | 'XML' | 'CUSTOM') alterStage_formatTypeOptions?) ')' ('COMMENT' '=' STRING)? | 'COMMENT' '=' STRING)
     ;
 alterStage_externalStageParams
-    : 'URL' '=' STRING ('AWS_ACCESS_POINT_ARN' '=' STRING)? ('STORAGE_INTEGRATION' '=' ID | 'CREDENTIALS' '=' '(' ('AWS_KEY_ID' '=' STRING 'AWS_SECRET_KEY' '=' STRING ('AWS_TOKEN' '=' STRING)? | 'AWS_ROLE' '=' STRING) ')')? ('ENCRYPTION' '=' '(' ('TYPE' '=' '\'AWS_CSE\'')? 'MASTER_KEY' '=' STRING | 'TYPE' '=' '\'AWS_SSE_S3\'' | 'TYPE' '=' '\'AWS_SSE_KMS\'' ('KMS_KEY_ID' '=' STRING)? | 'TYPE' '=' '\'NONE\'' ')')? ('USE_PRIVATELINK_ENDPOINT' '=' ('TRUE' | 'FALSE'))?
-    | ('URL' '=' STRING)? ('STORAGE_INTEGRATION' '=' ID)? ('ENCRYPTION' '=' '(' 'TYPE' '=' '\'GCS_SSE_KMS\'' ('KMS_KEY_ID' '=' STRING)? | 'TYPE' '=' '\'NONE\'' ')')?
-    | ('URL' '=' STRING)? ('STORAGE_INTEGRATION' '=' ID | 'CREDENTIALS' '=' '(' ('AZURE_SAS_TOKEN' '=' STRING)? ')')? ('ENCRYPTION' '=' '(' 'TYPE' '=' '\'AZURE_CSE\'' ('MASTER_KEY' '=' STRING)? | 'TYPE' '=' '\'NONE\'' ')')? ('USE_PRIVATELINK_ENDPOINT' '=' ('TRUE' | 'FALSE'))?
+    : 'URL' '=' STRING ('AWS_ACCESS_POINT_ARN' '=' STRING)? ('STORAGE_INTEGRATION' '=' ID | 'CREDENTIALS' '=' '(' ('AWS_KEY_ID' '=' STRING 'AWS_SECRET_KEY' '=' STRING ('AWS_TOKEN' '=' STRING)? | 'AWS_ROLE' '=' STRING) ')')? ('ENCRYPTION' '=' '(' (('TYPE' '=' '\'AWS_CSE\'')? 'MASTER_KEY' '=' STRING | 'TYPE' '=' '\'AWS_SSE_S3\'' | 'TYPE' '=' '\'AWS_SSE_KMS\'' ('KMS_KEY_ID' '=' STRING)? | 'TYPE' '=' '\'NONE\'') ')')? ('USE_PRIVATELINK_ENDPOINT' '=' ('TRUE' | 'FALSE'))?
+    | ('URL' '=' STRING)? ('STORAGE_INTEGRATION' '=' ID)? ('ENCRYPTION' '=' '(' ('TYPE' '=' '\'GCS_SSE_KMS\'' ('KMS_KEY_ID' '=' STRING)? | 'TYPE' '=' '\'NONE\'') ')')?
+    | ('URL' '=' STRING)? ('STORAGE_INTEGRATION' '=' ID | 'CREDENTIALS' '=' '(' ('AZURE_SAS_TOKEN' '=' STRING)? ')')? ('ENCRYPTION' '=' '(' ('TYPE' '=' '\'AZURE_CSE\'' ('MASTER_KEY' '=' STRING)? | 'TYPE' '=' '\'NONE\'') ')')? ('USE_PRIVATELINK_ENDPOINT' '=' ('TRUE' | 'FALSE'))?
     ;
 alterStage_formatTypeOptions
     : ('COMPRESSION' '=' ('AUTO' | 'GZIP' | 'BZ2' | 'BROTLI' | 'ZSTD' | 'DEFLATE' | 'RAW_DEFLATE' | 'NONE') | 'RECORD_DELIMITER' '=' (STRING | 'NONE') | 'FIELD_DELIMITER' '=' (STRING | 'NONE') | 'MULTI_LINE' '=' ('TRUE' | 'FALSE') | 'FILE_EXTENSION' '=' STRING | 'PARSE_HEADER' '=' ('TRUE' | 'FALSE') | 'SKIP_HEADER' '=' NUMBER | 'SKIP_BLANK_LINES' '=' ('TRUE' | 'FALSE') | 'DATE_FORMAT' '=' (STRING | 'AUTO') | 'TIME_FORMAT' '=' (STRING | 'AUTO') | 'TIMESTAMP_FORMAT' '=' (STRING | 'AUTO') | 'BINARY_FORMAT' '=' ('HEX' | 'BASE64' | 'UTF8') | 'ESCAPE' '=' (STRING | 'NONE') | 'ESCAPE_UNENCLOSED_FIELD' '=' (STRING | 'NONE') | 'TRIM_SPACE' '=' ('TRUE' | 'FALSE') | 'FIELD_OPTIONALLY_ENCLOSED_BY' '=' (STRING | 'NONE') | 'NULL_IF' '=' '(' STRING (',' STRING)* ')' | 'ERROR_ON_COLUMN_COUNT_MISMATCH' '=' ('TRUE' | 'FALSE') | 'REPLACE_INVALID_CHARACTERS' '=' ('TRUE' | 'FALSE') | 'EMPTY_FIELD_AS_NULL' '=' ('TRUE' | 'FALSE') | 'SKIP_BYTE_ORDER_MARK' '=' ('TRUE' | 'FALSE') | 'ENCODING' '=' (STRING | 'UTF8') | 'ENABLE_OCTAL' '=' ('TRUE' | 'FALSE') | 'ALLOW_DUPLICATE' '=' ('TRUE' | 'FALSE') | 'STRIP_OUTER_ARRAY' '=' ('TRUE' | 'FALSE') | 'STRIP_NULL_VALUES' '=' ('TRUE' | 'FALSE') | 'IGNORE_UTF8_ERRORS' '=' ('TRUE' | 'FALSE') | 'COMPRESSION' '=' ('AUTO' | 'GZIP' | 'BROTLI' | 'ZSTD' | 'DEFLATE' | 'RAW_DEFLATE' | 'NONE') | 'COMPRESSION' '=' ('AUTO' | 'LZO' | 'SNAPPY' | 'NONE') | 'SNAPPY_COMPRESSION' '=' ('TRUE' | 'FALSE') | 'BINARY_AS_TEXT' '=' ('TRUE' | 'FALSE') | 'USE_LOGICAL_TYPE' '=' ('TRUE' | 'FALSE') | 'USE_VECTORIZED_SCANNER' '=' ('TRUE' | 'FALSE') | 'PRESERVE_SPACE' '=' ('TRUE' | 'FALSE') | 'STRIP_OUTER_ELEMENT' '=' ('TRUE' | 'FALSE') | 'DISABLE_AUTO_CONVERT' '=' ('TRUE' | 'FALSE'))+
@@ -2618,8 +2618,8 @@ copyIntoLocation_externalStage
     : STAGE
     ;
 copyIntoLocation_externalLocation
-    : STRING ('STORAGE_INTEGRATION' '=' ID | 'CREDENTIALS' '=' '(' 'AWS_KEY_ID' '=' STRING 'AWS_SECRET_KEY' '=' STRING ('AWS_TOKEN' '=' STRING)? ')')? ('ENCRYPTION' '=' '(' ('TYPE' '=' '\'AWS_CSE\'')? ('MASTER_KEY' '=' STRING)? | ('TYPE' '=' '\'AWS_SSE_S3\'')? | ('TYPE' '=' '\'AWS_SSE_KMS\'' ('KMS_KEY_ID' '=' STRING)?)? | ('TYPE' '=' '\'NONE\'')? ')')?
-    | STRING ('STORAGE_INTEGRATION' '=' ID)? ('ENCRYPTION' '=' '(' ('TYPE' '=' '\'GCS_SSE_KMS\'')? ('KMS_KEY_ID' '=' STRING)? | ('TYPE' '=' '\'NONE\'')? ')')?
+    : STRING ('STORAGE_INTEGRATION' '=' ID | 'CREDENTIALS' '=' '(' 'AWS_KEY_ID' '=' STRING 'AWS_SECRET_KEY' '=' STRING ('AWS_TOKEN' '=' STRING)? ')')? ('ENCRYPTION' '=' '(' (('TYPE' '=' '\'AWS_CSE\'')? ('MASTER_KEY' '=' STRING)? | ('TYPE' '=' '\'AWS_SSE_S3\'')? | ('TYPE' '=' '\'AWS_SSE_KMS\'' ('KMS_KEY_ID' '=' STRING)?)? | ('TYPE' '=' '\'NONE\'')?) ')')?
+    | STRING ('STORAGE_INTEGRATION' '=' ID)? ('ENCRYPTION' '=' '(' (('TYPE' '=' '\'GCS_SSE_KMS\'')? ('KMS_KEY_ID' '=' STRING)? | ('TYPE' '=' '\'NONE\'')?) ')')?
     | STRING ('STORAGE_INTEGRATION' '=' ID | 'CREDENTIALS' '=' '(' ('AZURE_SAS_TOKEN' '=' STRING)? ')')? ('ENCRYPTION' '=' '(' ('TYPE' '=' ('\'AZURE_CSE\'' | '\'NONE\''))? ('MASTER_KEY' '=' STRING)? ')')?
     ;
 copyIntoLocation_formatTypeOptions
@@ -2642,8 +2642,8 @@ copyIntoTable_externalStage
     : STAGE
     ;
 copyIntoTable_externalLocation
-    : STRING ('STORAGE_INTEGRATION' '=' ID | 'CREDENTIALS' '=' '(' 'AWS_KEY_ID' '=' STRING 'AWS_SECRET_KEY' '=' STRING ('AWS_TOKEN' '=' STRING)? ')')? ('ENCRYPTION' '=' '(' ('TYPE' '=' '\'AWS_CSE\'')? ('MASTER_KEY' '=' STRING)? | ('TYPE' '=' '\'AWS_SSE_S3\'')? | ('TYPE' '=' '\'AWS_SSE_KMS\'' ('KMS_KEY_ID' '=' STRING)?)? | ('TYPE' '=' '\'NONE\'')? ')')?
-    | STRING ('STORAGE_INTEGRATION' '=' ID)? ('ENCRYPTION' '=' '(' ('TYPE' '=' '\'GCS_SSE_KMS\'')? ('KMS_KEY_ID' '=' STRING)? | ('TYPE' '=' '\'NONE\'')? ')')?
+    : STRING ('STORAGE_INTEGRATION' '=' ID | 'CREDENTIALS' '=' '(' 'AWS_KEY_ID' '=' STRING 'AWS_SECRET_KEY' '=' STRING ('AWS_TOKEN' '=' STRING)? ')')? ('ENCRYPTION' '=' '(' (('TYPE' '=' '\'AWS_CSE\'')? ('MASTER_KEY' '=' STRING)? | ('TYPE' '=' '\'AWS_SSE_S3\'')? | ('TYPE' '=' '\'AWS_SSE_KMS\'' ('KMS_KEY_ID' '=' STRING)?)? | ('TYPE' '=' '\'NONE\'')?) ')')?
+    | STRING ('STORAGE_INTEGRATION' '=' ID)? ('ENCRYPTION' '=' '(' (('TYPE' '=' '\'GCS_SSE_KMS\'')? ('KMS_KEY_ID' '=' STRING)? | ('TYPE' '=' '\'NONE\'')?) ')')?
     | STRING ('STORAGE_INTEGRATION' '=' ID | 'CREDENTIALS' '=' '(' ('AZURE_SAS_TOKEN' '=' STRING)? ')')? ('ENCRYPTION' '=' '(' ('TYPE' '=' ('\'AZURE_CSE\'' | '\'NONE\''))? ('MASTER_KEY' '=' STRING)? ')')?
     ;
 copyIntoTable_formatTypeOptions
@@ -3090,7 +3090,7 @@ createIcebergTableSnowflake_partitionExpression
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-image-repository
 createImageRepository
-    : 'CREATE' ('OR' 'REPLACE')? 'IMAGE' 'REPOSITORY' ('IF' 'NOT' 'EXISTS')? ID ('ENCRYPTION' '=' '(' 'TYPE' '=' '\'SNOWFLAKE_FULL\'' | 'TYPE' '=' '\'SNOWFLAKE_SSE\'' ')')? ('COMMENT' '=' STRING)? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')?
+    : 'CREATE' ('OR' 'REPLACE')? 'IMAGE' 'REPOSITORY' ('IF' 'NOT' 'EXISTS')? ID ('ENCRYPTION' '=' '(' ('TYPE' '=' '\'SNOWFLAKE_FULL\'' | 'TYPE' '=' '\'SNOWFLAKE_SSE\'') ')')? ('COMMENT' '=' STRING)? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-index
@@ -3490,7 +3490,7 @@ createSemanticView_logicalTable
     : (ID 'AS')? ID ('PRIMARY' 'KEY' '(' ID (',' ID)* ')')? ('UNIQUE' '(' ID (',' ID)* ')')? ('CONSTRAINT' ID? 'DISTINCT' 'RANGE' 'BETWEEN' ID 'AND' ID 'EXCLUSIVE')? ('WITH' 'SYNONYMS' '='? '(' STRING (',' STRING)* ')')? ('COMMENT' '=' STRING)? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')?
     ;
 createSemanticView_relationshipDef
-    : (ID 'AS')? ID '(' ID (',' ID)* ')' 'REFERENCES' ID ('(' 'ASOF'? ID (',' ID)* | 'BETWEEN' ID 'AND' ID 'EXCLUSIVE' ')')?
+    : (ID 'AS')? ID '(' ID (',' ID)* ')' 'REFERENCES' ID ('(' ('ASOF'? ID (',' ID)* | 'BETWEEN' ID 'AND' ID 'EXCLUSIVE') ')')?
     ;
 createSemanticView_factExpression
     : (('PRIVATE' | 'PUBLIC'))? ID '.' ID ('LABELS' '=' '(' 'FILTER' ')')? 'AS' EXPR ('WITH' 'SYNONYMS' '='? '(' STRING (',' STRING)* ')')? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('COMMENT' '=' STRING)?
@@ -3557,13 +3557,13 @@ createStage
     | 'CREATE' ('OR' 'REPLACE')? (('TEMP' | 'TEMPORARY'))? 'STAGE' ('IF' 'NOT' 'EXISTS')? ID createStage_externalStageParams createStage_directoryTableParams ('FILE_FORMAT' '=' '(' ('FORMAT_NAME' '=' STRING | 'TYPE' '=' ('CSV' | 'JSON' | 'AVRO' | 'ORC' | 'PARQUET' | 'XML' | 'CUSTOM') createStage_formatTypeOptions?) ')')? ('COMMENT' '=' STRING)? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')?
     ;
 createStage_internalStageParams
-    : ('ENCRYPTION' '=' '(' 'TYPE' '=' '\'SNOWFLAKE_FULL\'' | 'TYPE' '=' '\'SNOWFLAKE_SSE\'' ')')?
+    : ('ENCRYPTION' '=' '(' ('TYPE' '=' '\'SNOWFLAKE_FULL\'' | 'TYPE' '=' '\'SNOWFLAKE_SSE\'') ')')?
     ;
 createStage_externalStageParams
-    : 'URL' '=' STRING ('AWS_ACCESS_POINT_ARN' '=' STRING)? ('STORAGE_INTEGRATION' '=' ID | 'CREDENTIALS' '=' '(' ('AWS_KEY_ID' '=' STRING 'AWS_SECRET_KEY' '=' STRING ('AWS_TOKEN' '=' STRING)? | 'AWS_ROLE' '=' STRING) ')')? ('ENCRYPTION' '=' '(' ('TYPE' '=' '\'AWS_CSE\'')? 'MASTER_KEY' '=' STRING | 'TYPE' '=' '\'AWS_SSE_S3\'' | 'TYPE' '=' '\'AWS_SSE_KMS\'' ('KMS_KEY_ID' '=' STRING)? | 'TYPE' '=' '\'NONE\'' ')')? ('USE_PRIVATELINK_ENDPOINT' '=' ('TRUE' | 'FALSE'))?
-    | 'URL' '=' STRING ('STORAGE_INTEGRATION' '=' ID)? ('ENCRYPTION' '=' '(' 'TYPE' '=' '\'GCS_SSE_KMS\'' ('KMS_KEY_ID' '=' STRING)? | 'TYPE' '=' '\'NONE\'' ')')? ('USE_PRIVATELINK_ENDPOINT' '=' ('TRUE' | 'FALSE'))?
-    | 'URL' '=' STRING ('STORAGE_INTEGRATION' '=' ID | 'CREDENTIALS' '=' '(' ('AZURE_SAS_TOKEN' '=' STRING)? ')')? ('ENCRYPTION' '=' '(' 'TYPE' '=' '\'AZURE_CSE\'' 'MASTER_KEY' '=' STRING | 'TYPE' '=' '\'NONE\'' ')')? ('USE_PRIVATELINK_ENDPOINT' '=' ('TRUE' | 'FALSE'))?
-    | 'URL' '=' STRING ('STORAGE_INTEGRATION' '=' ID | 'CREDENTIALS' '=' '(' ('AZURE_SAS_TOKEN' '=' STRING)? ')')? ('ENCRYPTION' '=' '(' 'TYPE' '=' '\'AZURE_CSE\'' 'MASTER_KEY' '=' STRING | 'TYPE' '=' '\'NONE\'' ')')?
+    : 'URL' '=' STRING ('AWS_ACCESS_POINT_ARN' '=' STRING)? ('STORAGE_INTEGRATION' '=' ID | 'CREDENTIALS' '=' '(' ('AWS_KEY_ID' '=' STRING 'AWS_SECRET_KEY' '=' STRING ('AWS_TOKEN' '=' STRING)? | 'AWS_ROLE' '=' STRING) ')')? ('ENCRYPTION' '=' '(' (('TYPE' '=' '\'AWS_CSE\'')? 'MASTER_KEY' '=' STRING | 'TYPE' '=' '\'AWS_SSE_S3\'' | 'TYPE' '=' '\'AWS_SSE_KMS\'' ('KMS_KEY_ID' '=' STRING)? | 'TYPE' '=' '\'NONE\'') ')')? ('USE_PRIVATELINK_ENDPOINT' '=' ('TRUE' | 'FALSE'))?
+    | 'URL' '=' STRING ('STORAGE_INTEGRATION' '=' ID)? ('ENCRYPTION' '=' '(' ('TYPE' '=' '\'GCS_SSE_KMS\'' ('KMS_KEY_ID' '=' STRING)? | 'TYPE' '=' '\'NONE\'') ')')? ('USE_PRIVATELINK_ENDPOINT' '=' ('TRUE' | 'FALSE'))?
+    | 'URL' '=' STRING ('STORAGE_INTEGRATION' '=' ID | 'CREDENTIALS' '=' '(' ('AZURE_SAS_TOKEN' '=' STRING)? ')')? ('ENCRYPTION' '=' '(' ('TYPE' '=' '\'AZURE_CSE\'' 'MASTER_KEY' '=' STRING | 'TYPE' '=' '\'NONE\'') ')')? ('USE_PRIVATELINK_ENDPOINT' '=' ('TRUE' | 'FALSE'))?
+    | 'URL' '=' STRING ('STORAGE_INTEGRATION' '=' ID | 'CREDENTIALS' '=' '(' ('AZURE_SAS_TOKEN' '=' STRING)? ')')? ('ENCRYPTION' '=' '(' ('TYPE' '=' '\'AZURE_CSE\'' 'MASTER_KEY' '=' STRING | 'TYPE' '=' '\'NONE\'') ')')?
     | 'URL' '=' '\'s3compat://{bucket}[/{path}/]\'' 'ENDPOINT' '=' STRING ('CREDENTIALS' '=' '(' 'AWS_KEY_ID' '=' STRING 'AWS_SECRET_KEY' '=' STRING ')')?
     ;
 createStage_directoryTableParams

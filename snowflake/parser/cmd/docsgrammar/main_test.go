@@ -33,6 +33,9 @@ func TestNotationReadsAsANTLR(t *testing.T) {
 		{"COMMENT = '<string_literal>'", "'COMMENT' '=' STRING"},
 		{"TYPE = 'SNOWPARK-OPTIMIZED'", "'TYPE' '=' '\\'SNOWPARK-OPTIMIZED\\''"},
 		{"FROM @[<namespace>.]<stage_name>[/<path>/]", "'FROM' STAGE"},
+		// A | inside SQL's parentheses chooses within them.
+		{"[ ENCRYPTION = ( TYPE = 'A' | TYPE = 'B' ) ]", "('ENCRYPTION' '=' '(' ('TYPE' '=' '\\'A\\'' | 'TYPE' '=' '\\'B\\'') ')')?"},
+		{"ALTER T [ ( ] <c> DROP DEFAULT [ ) ]", "'ALTER' 'T' ('(')? ID 'DROP' 'DEFAULT' (')')?"},
 		{"SELECT $<col_position> FROM <t>", "'SELECT' POSITION 'FROM' ID"},
 		{"API_PROVIDER = { aws_api_gateway | azure_api_management }", "'API_PROVIDER' '=' ('aws_api_gateway' | 'azure_api_management')"},
 		{"SHOW TABLES IN { ACCOUNT | DATABASE | }", "'SHOW' 'TABLES' 'IN' ('ACCOUNT' | 'DATABASE')"},
@@ -56,6 +59,7 @@ func TestSetSetsAtLeastOne(t *testing.T) {
 		"ALTER X <name> SET [ A = <num> ] [ B = <num> ]":     "'ALTER' 'X' ID 'SET' ('A' '=' NUMBER ('B' '=' NUMBER)? | 'B' '=' NUMBER)",
 		"ALTER X <name> SET { [ A = <num> ] [ B = <num> ] }": "'ALTER' 'X' ID 'SET' ('A' '=' NUMBER ('B' '=' NUMBER)? | 'B' '=' NUMBER)",
 		"ALTER X <name> SET A = <num> [ B = <num> ]":         "'ALTER' 'X' ID 'SET' 'A' '=' NUMBER ('B' '=' NUMBER)?",
+		"ALTER X SET { [ A = <num> ] | [ B = <num> ] }":      "'ALTER' 'X' 'SET' ('A' '=' NUMBER | 'B' '=' NUMBER)",
 	} {
 		if got := form(t, in); got != want {
 			t.Errorf("%s\n got %s\nwant %s", in, got, want)

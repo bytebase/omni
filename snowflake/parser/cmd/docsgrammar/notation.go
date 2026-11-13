@@ -208,7 +208,12 @@ func parseNotation(toks []ntok) ([][]*node, error) {
 type nparser struct {
 	toks []ntok
 	i    int
+	// parens counts the literal ( the parser is inside, where a ) ends a
+	// sequence as ] and } do.
+	parens int
 }
+
+func isLiteral(t ntok, text string) bool { return t.kind == nLiteral && t.text == text }
 
 func (p *nparser) alts() ([][]*node, error) {
 	var out [][]*node
@@ -230,10 +235,34 @@ func (p *nparser) seq() ([]*node, error) {
 	var out []*node
 	for p.i < len(p.toks) {
 		t := p.toks[p.i]
-		switch t.kind {
-		case nBar, nClose:
+		switch {
+		case t.kind == nBar || t.kind == nClose || p.parens > 0 && isLiteral(t, ")"):
 			return out, nil
-		case nOpen:
+		case isLiteral(t, "("):
+			// ( ... ) is SQL's own, but a | inside it chooses within it:
+			// ENCRYPTION = ( TYPE = 'A' | TYPE = 'B' ). Where no ) closes
+			// it at this level, as in [ ( ], it is a plain literal.
+			start := p.i
+			p.i++
+			p.parens++
+			alts, err := p.alts()
+			p.parens--
+			if err != nil || p.i >= len(p.toks) || !isLiteral(p.toks[p.i], ")") {
+				p.i = start + 1
+				tok := t
+				out = append(out, &node{tok: &tok})
+				continue
+			}
+			p.i++
+			open, closeTok := t, p.toks[p.i-1]
+			out = append(out, &node{tok: &open})
+			if len(alts) == 1 {
+				out = append(out, alts[0]...)
+			} else {
+				out = append(out, &node{alts: alts, brace: true})
+			}
+			out = append(out, &node{tok: &closeTok})
+		case t.kind == nOpen:
 			p.i++
 			alts, err := p.alts()
 			if err != nil {
@@ -322,39 +351,50 @@ func atLeastOneAfterSet(seq []*node) []*node {
 		if n.tok == nil || n.tok.kind != nKeyword || (n.tok.text != "SET" && n.tok.text != "UNSET") {
 			continue
 		}
-		run := seq[i+1:]
-		if len(run) == 1 && run[0].tok == nil && run[0].brace && run[0].op == 0 && len(run[0].alts) == 1 {
-			// SET { [ A ] [ B ] }: the same, in braces.
-			inner := run[0].alts[0]
-			wrapped := atLeastOneAfterSet(append([]*node{n}, inner...))
-			if len(wrapped) == 2 {
-				return append(append([]*node(nil), seq[:i]...), wrapped...)
-			}
-			return seq
-		}
-		if len(run) == 0 {
-			return seq
-		}
-		for _, r := range run {
-			if r.tok != nil || r.brace || (r.op != '?' && r.op != '*') {
-				return seq
-			}
-		}
-		choice := &node{brace: true}
-		for j, r := range run {
-			req := *r
-			if req.op == '?' {
-				req.op = 0
-				req.brace = true
-			} else {
-				req.op = '+'
-			}
-			alt := append([]*node{&req}, run[j+1:]...)
-			choice.alts = append(choice.alts, alt)
-		}
-		return append(append([]*node(nil), seq[:i+1]...), choice)
+		run := requireOne(seq[i+1:])
+		return append(append([]*node(nil), seq[:i+1]...), run...)
 	}
 	return seq
+}
+
+// requireOne returns a sequence that derives what seq does, less the
+// empty text: a run of optional parts becomes a choice of which comes
+// first, and a choice in braces needs one of its branches non-empty.
+//
+//	[ A ] [ B ]          { A [ B ] | B }
+//	{ [ A ] | [ B ] }    { A | B }
+func requireOne(seq []*node) []*node {
+	if len(seq) == 0 {
+		return seq
+	}
+	if len(seq) == 1 && seq[0].tok == nil && seq[0].brace && seq[0].op == 0 {
+		choice := &node{brace: true}
+		for _, alt := range seq[0].alts {
+			if len(alt) == 0 {
+				continue
+			}
+			choice.alts = append(choice.alts, requireOne(alt))
+		}
+		return []*node{choice}
+	}
+	for _, r := range seq {
+		if r.tok != nil || r.brace || (r.op != '?' && r.op != '*') {
+			return seq
+		}
+	}
+	choice := &node{brace: true}
+	for j, r := range seq {
+		req := *r
+		if req.op == '?' {
+			req.op = 0
+			req.brace = true
+		} else {
+			req.op = '+'
+		}
+		alt := append([]*node{&req}, seq[j+1:]...)
+		choice.alts = append(choice.alts, alt)
+	}
+	return []*node{choice}
 }
 
 func resolveSeqEllipses(seq []*node) ([]*node, error) {
