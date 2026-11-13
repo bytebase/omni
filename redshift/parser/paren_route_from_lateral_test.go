@@ -2,21 +2,21 @@ package parser
 
 import "testing"
 
-// TestParenOracleFromLateral transcribes pg/parser/SCENARIOS-pg-paren-dispatch.md §2.6
-// (FROM-clause LATERAL interactions corpus) into oracle probes. Each case
+// TestParenRouteFromLateral transcribes pg/parser/SCENARIOS-pg-paren-dispatch.md §2.6
+// (FROM-clause LATERAL interactions corpus) into routing cases. Each case
 // asserts the OmniStatus omni must emit to be PG-17 aligned for a FROM list
 // whose second item is LATERAL-prefixed.
 //
 // Classifier note: the LATERAL-prefixed node in §2.6 scenarios lives at
 // `FromClause.Items[1]` (Items[0] is the anchor relation T). We drive the
-// accept cases through assertParenParityAt(..., index=1, expected) so the
+// accept cases through assertParenRouteAt(..., index=1, expected) so the
 // classifier actually inspects the LATERAL routing result — OmniSubquery
 // for (SELECT …) bodies, OmniOther for XMLTABLE/JSON_TABLE (RangeTableFunc/
 // JsonTable). The PG-reject case (LATERAL with a joined_table operand)
 // must surface as OmniRejected because the whole SELECT fails to parse;
-// for that case we use plain assertParenParity — the parse error aborts
+// for that case we use plain assertParenRoute — the parse error aborts
 // classification before any FROM item is reached. This matches the
-// invariant assertParenParity/assertParenParityAt enforce: PGReject iff
+// invariant assertParenRoute/assertParenRouteAt enforce: PGReject iff
 // OmniRejected.
 //
 // Coverage outline:
@@ -26,12 +26,11 @@ import "testing"
 //   - LATERAL json_table
 //
 // Fixture table T with columns (a, b, x, y, doc xml) is created by
-// StartParenOracle (see paren_oracle_test.go). The JSON_TABLE scenario
+// the PostgreSQL oracle these cases were measured on. The JSON_TABLE scenario
 // references T.doc, which is xml — PG will raise a datatype_mismatch
 // (semantic, not 42601), so classifyPG still reports Accept. The grammar
 // decision is what §2.6 cares about.
-func TestParenOracleFromLateral(t *testing.T) {
-	o := StartParenOracle(t)
+func TestParenRouteFromLateral(t *testing.T) {
 
 	cases := []struct {
 		name     string
@@ -117,7 +116,7 @@ func TestParenOracleFromLateral(t *testing.T) {
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			assertParenParityAt(t, o, tc.sql, tc.index, tc.expected)
+			assertParenRouteAt(t, tc.sql, tc.index, tc.expected)
 		})
 	}
 }

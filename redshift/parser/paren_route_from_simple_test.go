@@ -2,11 +2,11 @@ package parser
 
 import "testing"
 
-// TestParenOracleFromSimple transcribes pg/parser/SCENARIOS-pg-paren-dispatch.md §2.2
-// (FROM-clause simple-shape corpus) into oracle probes. Each case names the
+// TestParenRouteFromSimple transcribes pg/parser/SCENARIOS-pg-paren-dispatch.md §2.2
+// (FROM-clause simple-shape corpus) into routing cases. Each case names the
 // canonical FROM-item shape and asserts the OmniStatus the harness must see
 // to be PG-17 aligned. Table fixtures T, U, V, W are pre-created by
-// StartParenOracle; see paren_oracle_test.go.
+// the PostgreSQL oracle these cases were measured on.
 //
 // The section covers 21 canonical shapes split into three buckets:
 //   - single paren-wrapped relation / malformed content → PGReject/OmniRejected
@@ -18,8 +18,7 @@ import "testing"
 // These probes are the baseline fence for `(` dispatch on FROM items:
 // §2.3/§2.4/§2.5 layer subquery, nested-join, and mixed-shape variants on
 // top of the same infrastructure.
-func TestParenOracleFromSimple(t *testing.T) {
-	o := StartParenOracle(t)
+func TestParenRouteFromSimple(t *testing.T) {
 
 	cases := []struct {
 		name     string
@@ -141,7 +140,7 @@ func TestParenOracleFromSimple(t *testing.T) {
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			assertParenParity(t, o, tc.sql, tc.expected)
+			assertParenRoute(t, tc.sql, tc.expected)
 		})
 	}
 }

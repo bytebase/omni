@@ -7,7 +7,7 @@ import (
 	nodes "github.com/bytebase/omni/redshift/ast"
 )
 
-// TestParenOracleArray transcribes pg/parser/SCENARIOS-pg-paren-dispatch.md §3.3
+// TestParenRouteArray transcribes pg/parser/SCENARIOS-pg-paren-dispatch.md §3.3
 // (parseArrayCExpr oracle corpus) into PG 17 testcontainer-backed
 // parity probes. The §1.3 and §1.4 handwritten tests in
 // paren_array_expr_test.go carry omni's AST-shape obligations
@@ -38,10 +38,9 @@ import (
 //     OmniOther. The explicit cast variant `ARRAY[]::int[]` is fully
 //     accepted by PG (cast resolves element type at analyze time).
 //
-// Fixture (from paren_oracle_test.go): table `foo(a int)` is used
+// Fixture (of the PostgreSQL oracle these cases were measured on): table `foo(a int)` is used
 // for `ARRAY(TABLE foo)`; tables T/U/V/W cover SELECT-list anchors.
-func TestParenOracleArray(t *testing.T) {
-	o := StartParenOracle(t)
+func TestParenRouteArray(t *testing.T) {
 
 	// --- Scenario 1: ARRAY[...] A_ArrayExpr vs ARRAY(...) SubLink ---
 	// Parity probe for the two branches of parseArrayCExpr. PG must
@@ -88,7 +87,7 @@ func TestParenOracleArray(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				// Oracle parity first: PG must accept; omni must accept.
 				// Items[0] is T (RangeVar) so we expect OmniOther.
-				assertParenParity(t, o, tc.sql, OmniOther)
+				assertParenRoute(t, tc.sql, OmniOther)
 
 				// AST shape confirmation: parse locally and inspect the
 				// target-list expression. This guards against omni silently
@@ -143,7 +142,7 @@ func TestParenOracleArray(t *testing.T) {
 		for _, tc := range nestedCases {
 			tc := tc
 			t.Run(tc.name, func(t *testing.T) {
-				assertParenParity(t, o, tc.sql, OmniOther)
+				assertParenRoute(t, tc.sql, OmniOther)
 			})
 		}
 	})
@@ -198,7 +197,7 @@ func TestParenOracleArray(t *testing.T) {
 		for _, tc := range castCases {
 			tc := tc
 			t.Run(tc.name, func(t *testing.T) {
-				assertParenParity(t, o, tc.sql, OmniOther)
+				assertParenRoute(t, tc.sql, OmniOther)
 			})
 		}
 	})
@@ -234,7 +233,7 @@ func TestParenOracleArray(t *testing.T) {
 			},
 			{
 				name: "TABLE body",
-				// `foo` is a pre-created fixture (see paren_oracle_test.go).
+				// `foo` is a pre-created fixture .
 				sql: `SELECT ARRAY(TABLE foo) FROM T`,
 			},
 			{
@@ -262,7 +261,7 @@ func TestParenOracleArray(t *testing.T) {
 		for _, tc := range sublinkCases {
 			tc := tc
 			t.Run(tc.name, func(t *testing.T) {
-				assertParenParity(t, o, tc.sql, OmniOther)
+				assertParenRoute(t, tc.sql, OmniOther)
 			})
 		}
 	})
@@ -270,7 +269,7 @@ func TestParenOracleArray(t *testing.T) {
 	// --- Scenario 5: negative cases — PG rejects, omni must too ---
 	// Each SQL here violates the parseArrayCExpr content contract. PG
 	// emits 42601 at the offending token; classifyPG returns
-	// PGReject; assertParenParity requires omni to also reject. The
+	// PGReject; assertParenRoute requires omni to also reject. The
 	// ARRAY[] case is the documented exception: PG's raw parser
 	// ACCEPTS it (see paren_array_expr_test.go §1.3 notes); the
 	// semantic error at analyze is 42P18, not 42601. So ARRAY[] is
@@ -336,31 +335,16 @@ func TestParenOracleArray(t *testing.T) {
 		for _, tc := range rejectCases {
 			tc := tc
 			t.Run(tc.name, func(t *testing.T) {
-				assertParenParity(t, o, tc.sql, OmniRejected)
+				assertParenRoute(t, tc.sql, OmniRejected)
 			})
 		}
 	})
 
 	// --- Scenario 5 continuation: ARRAY[] raw-parse accept ---
-	// Pinned as its own subtest because the expected parity is
-	// Accept/Accept with a SEMANTIC PG error that classifyPG maps to
-	// PGAccept (42P18 indeterminate_datatype, NOT 42601). This is the
-	// one "grammar-accepts-but-analyze-rejects" entry in §3.3.
+	// PostgreSQL's raw parser takes an empty ARRAY[] and only analysis
+	// refuses it (42P18), so the parser accepts it too.
 	t.Run("ARRAY[] raw parse accepts (analyze-only reject)", func(t *testing.T) {
-		// Run the probe manually so we can assert classifyPG's
-		// PG-Accept classification (the mismatch detector's parity
-		// check would also catch a drift, but this explicit assertion
-		// documents the intent).
-		sql := `SELECT ARRAY[] FROM T`
-		r := ProbeParen(o.ctx, o, sql)
-		if r.PGStatus != PGAccept {
-			t.Errorf("expected PGAccept (42P18 is not 42601), got PG=%s err=%q",
-				r.PGStatus, r.PGError)
-		}
-		if r.OmniStatus != OmniOther {
-			t.Errorf("expected OmniOther (FROM item is RangeVar T), got omni=%s err=%q",
-				r.OmniStatus, r.OmniError)
-		}
+		assertParenRoute(t, `SELECT ARRAY[] FROM T`, OmniOther)
 	})
 
 	// --- Extra accept-parity probe: ARRAY with no FROM clause ---
@@ -378,7 +362,7 @@ func TestParenOracleArray(t *testing.T) {
 		for i, sql := range noFromCases {
 			sql := sql
 			t.Run(fmt.Sprintf("case %d", i+1), func(t *testing.T) {
-				assertParenParity(t, o, sql, OmniOther)
+				assertParenRoute(t, sql, OmniOther)
 			})
 		}
 	})

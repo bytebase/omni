@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// TestParenOracleIn transcribes pg/parser/SCENARIOS-pg-paren-dispatch.md §3.1
+// TestParenRouteIn transcribes pg/parser/SCENARIOS-pg-paren-dispatch.md §3.1
 // (parseInExpr oracle corpus) into PG 17 testcontainer-backed parity
 // probes. The §1.1 handwritten tests in paren_in_expr_test.go cover
 // omni's accept/reject + AST-shape obligations. §3.1 extends those to
@@ -25,14 +25,13 @@ import (
 //     not routing classification — the §1.1 handwritten suite carries
 //     the routing-shape proofs.
 //
-// Fixture (from paren_oracle_test.go):
+// Fixture (of the PostgreSQL oracle these cases were measured on):
 //
 //	T(a int, b int, x int, y int, doc xml)
 //	U(a int, b int, x int, y int)
 //	V(a int, b int)
 //	foo(a int)
-func TestParenOracleIn(t *testing.T) {
-	o := StartParenOracle(t)
+func TestParenRouteIn(t *testing.T) {
 
 	type probe struct {
 		name     string
@@ -185,7 +184,7 @@ func TestParenOracleIn(t *testing.T) {
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			assertParenParity(t, o, tc.sql, tc.expected)
+			assertParenRoute(t, tc.sql, tc.expected)
 		})
 	}
 
@@ -194,6 +193,6 @@ func TestParenOracleIn(t *testing.T) {
 	// subtest so the expected-status override is explicit.
 	t.Run("IN in JOIN ON", func(t *testing.T) {
 		sql := `SELECT * FROM T JOIN U ON T.a IN (SELECT a FROM V)`
-		assertParenParity(t, o, sql, OmniJoinedTable)
+		assertParenRoute(t, sql, OmniJoinedTable)
 	})
 }
