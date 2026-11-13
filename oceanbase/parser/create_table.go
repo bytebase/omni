@@ -1361,7 +1361,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 	case kwROW_FORMAT:
 		p.advance()
 		p.match('=')
-		val, err := p.consumeOptionValue()
+		val, err := p.parseWordOf(rowFormatWords)
 		if err != nil {
 			return nil, false, err
 		}
@@ -1499,10 +1499,17 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 
 	// Handle keyword-token-based table options: COMPRESSION, INSERT_METHOD.
 	if p.cur.Type == kwCOMPRESSION || p.cur.Type == kwINSERT_METHOD {
+		insertMethod := p.cur.Type == kwINSERT_METHOD
 		optName := p.cur.Str
 		p.advance()
 		p.match('=')
-		val, err := p.consumeOptionValue()
+		var val string
+		var err error
+		if insertMethod {
+			val, err = p.parseWordOf(insertMethodWords)
+		} else {
+			val, err = p.consumeOptionValue()
+		}
 		if err != nil {
 			return nil, false, err
 		}
@@ -1694,6 +1701,27 @@ func (p *Parser) dynamicPartitionPolicyKey() (string, bool) {
 		}
 	}
 	return "", false
+}
+
+// The words an option takes, each list a rule of sql_parser_mysql_mode.y
+// (oceanbase v4.3.5_CE_BP6): algorithm_opt and lock_opt for ALTER TABLE's
+// ALGORITHM and LOCK, row_format_option, merge_insert_types for INSERT_METHOD,
+// and view_algorithm. Any other word is a 1064.
+var (
+	alterAlgorithmWords = []string{"DEFAULT", "INPLACE", "COPY", "INSTANT"}
+	alterLockWords      = []string{"DEFAULT", "NONE", "SHARED", "EXCLUSIVE"}
+	rowFormatWords      = []string{"REDUNDANT", "COMPACT", "DYNAMIC", "COMPRESSED", "CONDENSED", "DEFAULT"}
+	insertMethodWords   = []string{"NO", "FIRST", "LAST"}
+	viewAlgorithmWords  = []string{"UNDEFINED", "MERGE", "TEMPTABLE"}
+)
+
+// parseWordOf reads the current token where it is one of words, written bare,
+// and returns it as written.
+func (p *Parser) parseWordOf(words []string) (string, error) {
+	if _, ok := p.curBareWordOf(words); !ok {
+		return "", p.syntaxErrorAtCur()
+	}
+	return p.advance().Str, nil
 }
 
 // isBareWord reports whether the current token is word, in any case and not

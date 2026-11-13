@@ -7729,38 +7729,48 @@ func TestParseCreateTablespace(t *testing.T) {
 			want: `{CREATE_TABLESPACE :loc 0 :name ts1 :datafile "ts1.ibd" :engine InnoDB}`,
 		},
 		{
-			sql:  "CREATE UNDO TABLESPACE ts1 ADD DATAFILE 'undo_ts1.ibu'",
-			want: `{CREATE_TABLESPACE :loc 0 :undo true :name ts1 :datafile "undo_ts1.ibu"}`,
+			sql:  "CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' FILE_BLOCK_SIZE = 16384 ENGINE InnoDB",
+			want: `{CREATE_TABLESPACE :loc 0 :name ts1 :datafile "ts1.ibd" :file_block_size 16384 :engine InnoDB}`,
 		},
 		{
-			sql:  "CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' FILE_BLOCK_SIZE = 16384 ENCRYPTION = 'Y' ENGINE InnoDB",
-			want: `{CREATE_TABLESPACE :loc 0 :name ts1 :datafile "ts1.ibd" :file_block_size 16384 :encryption "Y" :engine InnoDB}`,
+			sql:  "CREATE TABLESPACE ts1 ENCRYPTION = 'Y'",
+			want: `{CREATE_TABLESPACE :loc 0 :name ts1 :encryption "Y"}`,
 		},
 		{
-			sql:  "CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' AUTOEXTEND_SIZE = 4M",
-			want: `{CREATE_TABLESPACE :loc 0 :name ts1 :datafile "ts1.ibd" :autoextend_size 4M}`,
+			sql:  "CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' AUTOEXTEND_SIZE = 4194304",
+			want: `{CREATE_TABLESPACE :loc 0 :name ts1 :datafile "ts1.ibd" :autoextend_size 4194304}`,
 		},
 		{
-			sql:  "CREATE TABLESPACE ts1 USE LOGFILE GROUP lg1",
+			sql:  "CREATE TABLESPACE ts1 USE LOGFILE GROUP 'lg1'",
 			want: `{CREATE_TABLESPACE :loc 0 :name ts1 :use_logfile_group lg1}`,
 		},
 		{
-			sql:  "CREATE TABLESPACE ts1 EXTENT_SIZE = 1M INITIAL_SIZE = 256M MAX_SIZE = 512M",
-			want: `{CREATE_TABLESPACE :loc 0 :name ts1 :extent_size 1M :initial_size 256M :max_size 512M}`,
+			sql:  "CREATE TABLESPACE ts1 EXTENT_SIZE = 1 INITIAL_SIZE = 256 MAX_SIZE = 512",
+			want: `{CREATE_TABLESPACE :loc 0 :name ts1 :extent_size 1 :initial_size 256 :max_size 512}`,
 		},
 		{
 			sql:  "CREATE TABLESPACE ts1 NODEGROUP = 1 WAIT COMMENT = 'test ts' ENGINE NDB",
 			want: `{CREATE_TABLESPACE :loc 0 :name ts1 :nodegroup 1 :wait true :comment "test ts" :engine NDB}`,
-		},
-		{
-			sql:  "CREATE TABLESPACE ts1 ENGINE_ATTRIBUTE = '{\"key\": \"val\"}'",
-			want: `{CREATE_TABLESPACE :loc 0 :name ts1 :engine_attribute "{\"key\": \"val\"}"}`,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.sql, func(t *testing.T) {
 			ParseAndCompare(t, tt.sql, tt.want)
 		})
+	}
+	// MySQL's forms that OceanBase's create_tablespace_stmt does not have
+	// (sql_parser_mysql_mode.y, v4.3.5_CE_BP6): UNDO, ENCRYPTION beside other options,
+	// a size with a unit, a logfile group by name, ENGINE_ATTRIBUTE.
+	for _, sql := range []string{
+		"CREATE UNDO TABLESPACE ts1 ADD DATAFILE 'undo_ts1.ibu'",
+		"CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENCRYPTION = 'Y'",
+		"CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' AUTOEXTEND_SIZE = 4M",
+		"CREATE TABLESPACE ts1 USE LOGFILE GROUP lg1",
+		"CREATE TABLESPACE ts1 ENGINE_ATTRIBUTE = '{}'",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) parsed; OceanBase answers 1064", sql)
+		}
 	}
 }
 
@@ -7782,24 +7792,12 @@ func TestParseAlterTablespace(t *testing.T) {
 			want: `{ALTER_TABLESPACE :loc 0 :name ts1 :add_datafile "ts1.ibd" :engine NDB}`,
 		},
 		{
-			sql:  "ALTER UNDO TABLESPACE ts1 ADD DATAFILE 'undo.ibu'",
-			want: `{ALTER_TABLESPACE :loc 0 :undo true :name ts1 :add_datafile "undo.ibu"}`,
-		},
-		{
-			sql:  "ALTER TABLESPACE ts1 RENAME TO ts2",
-			want: `{ALTER_TABLESPACE :loc 0 :name ts1 :rename_to ts2}`,
-		},
-		{
-			sql:  "ALTER TABLESPACE ts1 AUTOEXTEND_SIZE = 4M",
-			want: `{ALTER_TABLESPACE :loc 0 :name ts1 :autoextend_size 4M}`,
-		},
-		{
 			sql:  "ALTER TABLESPACE ts1 ENCRYPTION = 'Y'",
 			want: `{ALTER_TABLESPACE :loc 0 :name ts1 :encryption "Y"}`,
 		},
 		{
-			sql:  "ALTER TABLESPACE ts1 ENGINE_ATTRIBUTE = '{\"key\": \"val\"}'",
-			want: `{ALTER_TABLESPACE :loc 0 :name ts1 :engine_attribute "{\"key\": \"val\"}"}`,
+			sql:  "ALTER TABLESPACE ts1 SET ENCRYPTION 'N', ENCRYPTION 'Y'",
+			want: `{ALTER_TABLESPACE :loc 0 :name ts1 :encryption "Y"}`,
 		},
 		{
 			sql:  "ALTER TABLESPACE ts1 ADD DATAFILE 'f.ibd' WAIT ENGINE NDB",
@@ -7810,6 +7808,21 @@ func TestParseAlterTablespace(t *testing.T) {
 		t.Run(tt.sql, func(t *testing.T) {
 			ParseAndCompare(t, tt.sql, tt.want)
 		})
+	}
+	// MySQL's forms that OceanBase's alter_tablespace_stmt does not have
+	// (sql_parser_mysql_mode.y, v4.3.5_CE_BP6): UNDO, RENAME TO, AUTOEXTEND_SIZE,
+	// ENGINE_ATTRIBUTE, SET ACTIVE, and no option at all.
+	for _, sql := range []string{
+		"ALTER UNDO TABLESPACE ts1 ADD DATAFILE 'undo.ibu'",
+		"ALTER TABLESPACE ts1 RENAME TO ts2",
+		"ALTER TABLESPACE ts1 AUTOEXTEND_SIZE = 4194304",
+		"ALTER TABLESPACE ts1 ENGINE_ATTRIBUTE = '{}'",
+		"ALTER UNDO TABLESPACE myts SET ACTIVE",
+		"ALTER TABLESPACE ts1",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) parsed; OceanBase answers 1064", sql)
+		}
 	}
 }
 
@@ -7826,15 +7839,15 @@ func TestParseDropTablespace(t *testing.T) {
 			sql:  "DROP TABLESPACE ts1 ENGINE = InnoDB",
 			want: "{DROP_TABLESPACE :loc 0 :name ts1 :engine InnoDB}",
 		},
-		{
-			sql:  "DROP UNDO TABLESPACE ts1",
-			want: "{DROP_TABLESPACE :loc 0 :undo true :name ts1}",
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.sql, func(t *testing.T) {
 			ParseAndCompare(t, tt.sql, tt.want)
 		})
+	}
+	// drop_tablespace_stmt has no UNDO.
+	if _, err := Parse("DROP UNDO TABLESPACE ts1"); err == nil {
+		t.Error("Parse(DROP UNDO TABLESPACE ts1) parsed; OceanBase answers 1064")
 	}
 }
 
@@ -8492,28 +8505,21 @@ func TestParseAlterInstanceRotateKey(t *testing.T) {
 	ParseAndCheck(t, "ALTER INSTANCE ROTATE INNODB MASTER KEY")
 }
 
-func TestParseAlterInstanceRedoLog(t *testing.T) {
-	tests := []string{
+// TestParseAlterInstanceMySQLForms: MySQL's ALTER INSTANCE actions, which this
+// package held when it was forked from mysql. OceanBase has one,
+// rotate_master_key_stmt (sql_parser_mysql_mode.y, v4.3.5_CE_BP6), and answers
+// 1064 for the rest.
+func TestParseAlterInstanceMySQLForms(t *testing.T) {
+	for _, sql := range []string{
 		"ALTER INSTANCE ENABLE INNODB REDO_LOG",
 		"ALTER INSTANCE DISABLE INNODB REDO_LOG",
-	}
-	for _, sql := range tests {
-		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
-		})
-	}
-}
-
-func TestParseAlterInstanceReloadTLS(t *testing.T) {
-	tests := []string{
 		"ALTER INSTANCE RELOAD TLS",
 		"ALTER INSTANCE RELOAD TLS NO ROLLBACK ON ERROR",
 		"ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_main",
-	}
-	for _, sql := range tests {
-		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
-		})
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) parsed; OceanBase answers 1064", sql)
+		}
 	}
 }
 
@@ -9467,18 +9473,6 @@ func TestParseFlushBinaryLogs(t *testing.T) {
 	}
 }
 
-func TestParseAlterUndoTablespaceSetActive(t *testing.T) {
-	tests := []string{
-		"ALTER UNDO TABLESPACE myts SET ACTIVE",
-		"ALTER UNDO TABLESPACE myts SET INACTIVE",
-	}
-	for _, sql := range tests {
-		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
-		})
-	}
-}
-
 // --- Batch 70: depth_fix_set_persist_show_full ---
 
 func TestParseSetPersist(t *testing.T) {
@@ -10340,19 +10334,7 @@ func TestParseIndexHints(t *testing.T) {
 }
 
 func TestParseAlterInstance(t *testing.T) {
-	tests := []string{
-		"ALTER INSTANCE ROTATE INNODB MASTER KEY",
-		"ALTER INSTANCE ENABLE INNODB REDO_LOG",
-		"ALTER INSTANCE DISABLE INNODB REDO_LOG",
-		"ALTER INSTANCE RELOAD TLS",
-		"ALTER INSTANCE RELOAD TLS NO ROLLBACK ON ERROR",
-		"ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_main",
-	}
-	for _, sql := range tests {
-		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
-		})
-	}
+	ParseAndCheck(t, "ALTER INSTANCE ROTATE INNODB MASTER KEY")
 }
 
 // --- Batch 85: depth_fix_show_event_value_capture ---
@@ -10704,42 +10686,45 @@ func TestParseChecksumTableExtended(t *testing.T) {
 	})
 }
 
+// The engine of a logfile group is NAME_OB or a string (opt_ts_engine in
+// sql_parser_mysql_mode.y, v4.3.5_CE_BP6): NDB and NDBCLUSTER are keywords
+// there, so they are written quoted. A size is an INTNUM, with no unit.
 func TestParseCreateLogfileGroup(t *testing.T) {
 	tests := []struct {
 		sql  string
 		want string
 	}{
 		{
-			sql:  "CREATE LOGFILE GROUP lg1 ADD UNDOFILE 'undo1.dat' ENGINE = NDB",
+			sql:  "CREATE LOGFILE GROUP lg1 ADD UNDOFILE 'undo1.dat' ENGINE = 'NDB'",
 			want: `{CREATE_LOGFILE_GROUP :loc 0 :name lg1 :undo_file "undo1.dat" :engine NDB}`,
 		},
 		{
-			sql:  "CREATE LOGFILE GROUP lg1 ADD UNDOFILE 'undo1.dat' INITIAL_SIZE = 16M ENGINE NDB",
-			want: `{CREATE_LOGFILE_GROUP :loc 0 :name lg1 :undo_file "undo1.dat" :initial_size 16M :engine NDB}`,
+			sql:  "CREATE LOGFILE GROUP lg1 ADD UNDOFILE 'undo1.dat' INITIAL_SIZE = 16 ENGINE 'NDB'",
+			want: `{CREATE_LOGFILE_GROUP :loc 0 :name lg1 :undo_file "undo1.dat" :initial_size 16 :engine NDB}`,
 		},
 		{
-			sql:  "CREATE LOGFILE GROUP lg1 ADD UNDOFILE 'undo1.dat' UNDO_BUFFER_SIZE = 8M ENGINE = NDBCLUSTER",
-			want: `{CREATE_LOGFILE_GROUP :loc 0 :name lg1 :undo_file "undo1.dat" :undo_buffer_size 8M :engine NDBCLUSTER}`,
+			sql:  "CREATE LOGFILE GROUP lg1 ADD UNDOFILE 'undo1.dat' UNDO_BUFFER_SIZE = 8 ENGINE = 'NDBCLUSTER'",
+			want: `{CREATE_LOGFILE_GROUP :loc 0 :name lg1 :undo_file "undo1.dat" :undo_buffer_size 8 :engine NDBCLUSTER}`,
 		},
 		{
-			sql:  "CREATE LOGFILE GROUP lg1 ADD UNDOFILE 'undo1.dat' REDO_BUFFER_SIZE 32M ENGINE = NDB",
-			want: `{CREATE_LOGFILE_GROUP :loc 0 :name lg1 :undo_file "undo1.dat" :redo_buffer_size 32M :engine NDB}`,
+			sql:  "CREATE LOGFILE GROUP lg1 ADD UNDOFILE 'undo1.dat' REDO_BUFFER_SIZE 32 ENGINE = 'NDB'",
+			want: `{CREATE_LOGFILE_GROUP :loc 0 :name lg1 :undo_file "undo1.dat" :redo_buffer_size 32 :engine NDB}`,
 		},
 		{
-			sql:  "CREATE LOGFILE GROUP lg1 ADD UNDOFILE 'undo1.dat' NODEGROUP = 0 ENGINE = NDB",
+			sql:  "CREATE LOGFILE GROUP lg1 ADD UNDOFILE 'undo1.dat' NODEGROUP = 0 ENGINE = 'NDB'",
 			want: `{CREATE_LOGFILE_GROUP :loc 0 :name lg1 :undo_file "undo1.dat" :nodegroup 0 :engine NDB}`,
 		},
 		{
-			sql:  "CREATE LOGFILE GROUP lg1 ADD UNDOFILE 'undo1.dat' WAIT ENGINE = NDB",
+			sql:  "CREATE LOGFILE GROUP lg1 ADD UNDOFILE 'undo1.dat' WAIT ENGINE = 'NDB'",
 			want: `{CREATE_LOGFILE_GROUP :loc 0 :name lg1 :undo_file "undo1.dat" :wait true :engine NDB}`,
 		},
 		{
-			sql:  "CREATE LOGFILE GROUP lg1 ADD UNDOFILE 'undo1.dat' COMMENT = 'test group' ENGINE = NDB",
+			sql:  "CREATE LOGFILE GROUP lg1 ADD UNDOFILE 'undo1.dat' COMMENT = 'test group' ENGINE = 'NDB'",
 			want: `{CREATE_LOGFILE_GROUP :loc 0 :name lg1 :undo_file "undo1.dat" :comment "test group" :engine NDB}`,
 		},
 		{
-			sql:  "CREATE LOGFILE GROUP lg1 ADD UNDOFILE 'undo1.dat' INITIAL_SIZE 16M UNDO_BUFFER_SIZE 8M REDO_BUFFER_SIZE 32M NODEGROUP 0 WAIT COMMENT 'full opts' ENGINE NDB",
-			want: `{CREATE_LOGFILE_GROUP :loc 0 :name lg1 :undo_file "undo1.dat" :initial_size 16M :undo_buffer_size 8M :redo_buffer_size 32M :nodegroup 0 :wait true :comment "full opts" :engine NDB}`,
+			sql:  "CREATE LOGFILE GROUP lg1 ADD UNDOFILE 'undo1.dat' INITIAL_SIZE 16 UNDO_BUFFER_SIZE 8 REDO_BUFFER_SIZE 32 NODEGROUP 0 WAIT COMMENT 'full opts' ENGINE 'NDB'",
+			want: `{CREATE_LOGFILE_GROUP :loc 0 :name lg1 :undo_file "undo1.dat" :initial_size 16 :undo_buffer_size 8 :redo_buffer_size 32 :nodegroup 0 :wait true :comment "full opts" :engine NDB}`,
 		},
 	}
 	for _, tt := range tests {
@@ -10755,20 +10740,20 @@ func TestParseAlterLogfileGroup(t *testing.T) {
 		want string
 	}{
 		{
-			sql:  "ALTER LOGFILE GROUP lg1 ADD UNDOFILE 'undo2.dat' ENGINE = NDB",
+			sql:  "ALTER LOGFILE GROUP lg1 ADD UNDOFILE 'undo2.dat' ENGINE = 'NDB'",
 			want: `{ALTER_LOGFILE_GROUP :loc 0 :name lg1 :undo_file "undo2.dat" :engine NDB}`,
 		},
 		{
-			sql:  "ALTER LOGFILE GROUP lg1 ADD UNDOFILE 'undo2.dat' INITIAL_SIZE = 32M ENGINE NDB",
-			want: `{ALTER_LOGFILE_GROUP :loc 0 :name lg1 :undo_file "undo2.dat" :initial_size 32M :engine NDB}`,
+			sql:  "ALTER LOGFILE GROUP lg1 ADD UNDOFILE 'undo2.dat' INITIAL_SIZE = 32 ENGINE 'NDB'",
+			want: `{ALTER_LOGFILE_GROUP :loc 0 :name lg1 :undo_file "undo2.dat" :initial_size 32 :engine NDB}`,
 		},
 		{
-			sql:  "ALTER LOGFILE GROUP lg1 ADD UNDOFILE 'undo2.dat' WAIT ENGINE = NDBCLUSTER",
+			sql:  "ALTER LOGFILE GROUP lg1 ADD UNDOFILE 'undo2.dat' WAIT ENGINE = 'NDBCLUSTER'",
 			want: `{ALTER_LOGFILE_GROUP :loc 0 :name lg1 :undo_file "undo2.dat" :wait true :engine NDBCLUSTER}`,
 		},
 		{
-			sql:  "ALTER LOGFILE GROUP lg1 ADD UNDOFILE 'undo2.dat' INITIAL_SIZE 16M WAIT ENGINE NDB",
-			want: `{ALTER_LOGFILE_GROUP :loc 0 :name lg1 :undo_file "undo2.dat" :initial_size 16M :wait true :engine NDB}`,
+			sql:  "ALTER LOGFILE GROUP lg1 ADD UNDOFILE 'undo2.dat' INITIAL_SIZE 16 WAIT ENGINE 'NDB'",
+			want: `{ALTER_LOGFILE_GROUP :loc 0 :name lg1 :undo_file "undo2.dat" :initial_size 16 :wait true :engine NDB}`,
 		},
 	}
 	for _, tt := range tests {
@@ -10784,11 +10769,11 @@ func TestParseDropLogfileGroup(t *testing.T) {
 		want string
 	}{
 		{
-			sql:  "DROP LOGFILE GROUP lg1 ENGINE = NDB",
+			sql:  "DROP LOGFILE GROUP lg1 ENGINE = 'NDB'",
 			want: "{DROP_LOGFILE_GROUP :loc 0 :name lg1 :engine NDB}",
 		},
 		{
-			sql:  "DROP LOGFILE GROUP lg1 ENGINE NDBCLUSTER",
+			sql:  "DROP LOGFILE GROUP lg1 ENGINE 'NDBCLUSTER'",
 			want: "{DROP_LOGFILE_GROUP :loc 0 :name lg1 :engine NDBCLUSTER}",
 		},
 	}
