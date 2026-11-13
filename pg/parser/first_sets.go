@@ -267,6 +267,36 @@ func (p *Parser) isSelectLimitStart() bool {
 	return selectLimitLeadSet[p.cur.Type]
 }
 
+// createStmtTailLeadTokens is the FIRST set of what follows CREATE TABLE's
+// name in CreateStmt: '(' OptTableElementList, OF any_name, PARTITION OF.
+// Any other token goes on with create_as_target, whose table_access_method_clause,
+// OptWith, OnCommitOption and OptTableSpace come before AS.
+//
+// Grammar reference: CreateStmt and create_as_target in
+// postgres/src/backend/parser/gram.y.
+//
+// DO NOT extend this list without also extending finishCreateStmt's
+// dispatch in parser.go, and vice versa.
+var createStmtTailLeadTokens = []int{'(', OF, PARTITION}
+
+var createStmtTailLeadSet = func() map[int]bool {
+	m := make(map[int]bool, len(createStmtTailLeadTokens))
+	for _, t := range createStmtTailLeadTokens {
+		m[t] = true
+	}
+	return m
+}()
+
+// isCreateStmtTailStart reports whether the token after CREATE TABLE's name
+// goes on with CreateStmt rather than create_as_target.
+//
+// No PG oracle test: '(' and the reserved OF and PARTITION start nothing
+// else there, so TestIsCreateStmtTailStartMatchesSlice checks the predicate
+// against the whole Keywords table instead.
+func (p *Parser) isCreateStmtTailStart() bool {
+	return createStmtTailLeadSet[p.cur.Type]
+}
+
 // isFuncTypeStart reports whether the current token starts a func_type
 // production.
 //

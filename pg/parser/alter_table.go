@@ -52,7 +52,7 @@ func (p *Parser) parseAlterTable(alterLoc int) (nodes.Node, error) {
 
 	// ALTER TABLE ALL IN TABLESPACE ...
 	if p.cur.Type == ALL {
-		return p.parseAlterTableMoveAll(int(nodes.OBJECT_TABLE), alterLoc), nil
+		return p.parseAlterTableMoveAll(int(nodes.OBJECT_TABLE), alterLoc)
 	}
 
 	// IF EXISTS
@@ -113,7 +113,7 @@ func (p *Parser) parseAlterIndex(alterLoc int) (nodes.Node, error) {
 
 	// ALTER INDEX ALL IN TABLESPACE ...
 	if p.cur.Type == ALL {
-		return p.parseAlterTableMoveAll(int(nodes.OBJECT_INDEX), alterLoc), nil
+		return p.parseAlterTableMoveAll(int(nodes.OBJECT_INDEX), alterLoc)
 	}
 
 	// IF EXISTS
@@ -366,7 +366,7 @@ func (p *Parser) parseAlterMaterializedView(alterLoc int) (nodes.Node, error) {
 
 	// ALTER MATERIALIZED VIEW ALL IN TABLESPACE ...
 	if p.cur.Type == ALL {
-		return p.parseAlterTableMoveAll(int(nodes.OBJECT_MATVIEW), alterLoc), nil
+		return p.parseAlterTableMoveAll(int(nodes.OBJECT_MATVIEW), alterLoc)
 	}
 
 	missingOk := false
@@ -565,22 +565,41 @@ func (p *Parser) parseAlterForeignTable(alterLoc int) (nodes.Node, error) {
 // parseAlterTableMoveAll parses ALTER TABLE/INDEX/MATERIALIZED VIEW ALL IN TABLESPACE ...
 //
 //	ALTER TABLE ALL IN TABLESPACE name [OWNED BY role_list] SET TABLESPACE name [NOWAIT]
-func (p *Parser) parseAlterTableMoveAll(objType int, alterLoc int) *nodes.AlterTableMoveAllStmt {
+func (p *Parser) parseAlterTableMoveAll(objType int, alterLoc int) (*nodes.AlterTableMoveAllStmt, error) {
 	p.advance() // consume ALL
-	p.expect(IN_P)
-	p.expect(TABLESPACE)
-	origTs, _ := p.parseName()
+	if _, err := p.expect(IN_P); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(TABLESPACE); err != nil {
+		return nil, err
+	}
+	origTs, err := p.parseName()
+	if err != nil {
+		return nil, err
+	}
 
 	var roles *nodes.List
 	if p.cur.Type == OWNED {
 		p.advance() // OWNED
-		p.expect(BY)
-		roles = p.parseRoleList()
+		if _, err := p.expect(BY); err != nil {
+			return nil, err
+		}
+		roles, err = p.parseRoleList()
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	p.expect(SET)
-	p.expect(TABLESPACE)
-	newTs, _ := p.parseName()
+	if _, err := p.expect(SET); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(TABLESPACE); err != nil {
+		return nil, err
+	}
+	newTs, err := p.parseName()
+	if err != nil {
+		return nil, err
+	}
 
 	nowait := false
 	if p.cur.Type == NOWAIT {
@@ -595,7 +614,7 @@ func (p *Parser) parseAlterTableMoveAll(objType int, alterLoc int) *nodes.AlterT
 		NewTablespacename:  newTs,
 		Nowait:             nowait,
 		Loc:                nodes.Loc{Start: alterLoc, End: p.prev.End},
-	}
+	}, nil
 }
 
 // parseAlterTableRename parses the RENAME forms of ALTER TABLE and ALTER
@@ -749,7 +768,7 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 	case ALTER:
 		cmd, err = p.parseAlterTableAlter()
 	case OWNER:
-		cmd, err = p.parseAlterTableOwner(), nil
+		cmd, err = p.parseAlterTableOwner()
 	case VALIDATE:
 		cmd, err = p.parseAlterTableValidate(), nil
 	case INHERIT:
@@ -1326,14 +1345,19 @@ func (p *Parser) parseAlterColumnAddGenerated(colname string) (*nodes.AlterTable
 }
 
 // parseAlterTableOwner handles OWNER TO RoleSpec.
-func (p *Parser) parseAlterTableOwner() *nodes.AlterTableCmd {
+func (p *Parser) parseAlterTableOwner() (*nodes.AlterTableCmd, error) {
 	p.advance() // consume OWNER
-	p.expect(TO)
-	roleSpec := p.parseRoleSpec()
+	if _, err := p.expect(TO); err != nil {
+		return nil, err
+	}
+	roleSpec, err := p.parseRoleSpec()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.AlterTableCmd{
 		Subtype:  int(nodes.AT_ChangeOwner),
 		Newowner: roleSpec,
-	}
+	}, nil
 }
 
 // parseAlterTableValidate handles VALIDATE CONSTRAINT name.
@@ -1746,8 +1770,8 @@ func (p *Parser) parseOptDropBehavior() int {
 
 // parseRoleSpec parses a RoleSpec.
 //
-//	RoleSpec: ColId | CURRENT_ROLE | CURRENT_USER | SESSION_USER
-func (p *Parser) parseRoleSpec() *nodes.RoleSpec {
+//	RoleSpec: NonReservedWord | CURRENT_ROLE | CURRENT_USER | SESSION_USER
+func (p *Parser) parseRoleSpec() (*nodes.RoleSpec, error) {
 	loc := p.pos()
 	var rs *nodes.RoleSpec
 	switch p.cur.Type {
@@ -1761,26 +1785,35 @@ func (p *Parser) parseRoleSpec() *nodes.RoleSpec {
 		p.advance()
 		rs = &nodes.RoleSpec{Roletype: int(nodes.ROLESPEC_SESSION_USER)}
 	default:
-		name, _ := p.parseColId()
+		name, err := p.parseNonReservedWord()
+		if err != nil {
+			return nil, err
+		}
 		rs = &nodes.RoleSpec{
 			Roletype: int(nodes.ROLESPEC_CSTRING),
 			Rolename: name,
 		}
 	}
-	rs.Loc = nodes.Loc{Start: loc, End: p.pos()}
-	return rs
+	rs.Loc = nodes.Loc{Start: loc, End: p.prev.End}
+	return rs, nil
 }
 
 // parseRoleList parses role_list: RoleSpec [, RoleSpec ...]
-func (p *Parser) parseRoleList() *nodes.List {
-	rs := p.parseRoleSpec()
+func (p *Parser) parseRoleList() (*nodes.List, error) {
+	rs, err := p.parseRoleSpec()
+	if err != nil {
+		return nil, err
+	}
 	items := []nodes.Node{rs}
 	for p.cur.Type == ',' {
 		p.advance()
-		rs = p.parseRoleSpec()
+		rs, err = p.parseRoleSpec()
+		if err != nil {
+			return nil, err
+		}
 		items = append(items, rs)
 	}
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: items}, nil
 }
 
 // parseSignedIconst parses SignedIconst: Iconst | '+' Iconst | '-' Iconst

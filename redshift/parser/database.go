@@ -175,7 +175,10 @@ func (p *Parser) parseAlterDatabaseDispatch(stmtLoc int) (nodes.Node, error) {
 		if _, err := p.expect(TO); err != nil {
 			return nil, err
 		}
-		roleSpec := p.parseRoleSpec()
+		roleSpec, err := p.parseRoleSpec()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterOwnerStmt{
 			ObjectType: nodes.OBJECT_DATABASE,
 			Object:     &nodes.String{Str: name},

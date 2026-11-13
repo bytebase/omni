@@ -1218,17 +1218,10 @@ func (p *Parser) isCreateTableElement() bool {
 // startsCreateAsTail reports whether the token after CREATE TABLE's name
 // goes on with create_as_target (gram.y: qualified_name opt_column_list
 // table_access_method_clause OptWith OnCommitOption OptTableSpace AS ...).
-// CreateStmt goes on only with '(', OF or PARTITION OF. Redshift's table
+// CreateStmt goes on only with isCreateStmtTailStart's tokens. Redshift's table
 // attributes (DISTSTYLE, SORTKEY, ...) belong to the CTAS tail here.
 func (p *Parser) startsCreateAsTail() bool {
-	if p.collectMode() {
-		return false
-	}
-	switch p.cur.Type {
-	case '(', OF, PARTITION:
-		return false
-	}
-	return true
+	return !p.collectMode() && !p.isCreateStmtTailStart()
 }
 
 // finishCTAS completes parsing a CTAS statement after names and optional column

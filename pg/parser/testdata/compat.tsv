@@ -48,7 +48,7 @@ accept	reject@31	engine	stmt/AlterDefaultPrivilegesStmt!drop-5	ALTER DEFAULT PRI
 reject@38	reject@38	engine	stmt/AlterDefaultPrivilegesStmt!drop-6	ALTER DEFAULT PRIVILEGES GRANT SELECT TABLES TO a
 accept	reject@41	engine	stmt/AlterDefaultPrivilegesStmt!drop-7	ALTER DEFAULT PRIVILEGES GRANT SELECT ON TO a
 reject@48	reject@48	engine	stmt/AlterDefaultPrivilegesStmt!drop-8	ALTER DEFAULT PRIVILEGES GRANT SELECT ON TABLES a
-accept	reject@50	engine	stmt/AlterDefaultPrivilegesStmt!drop-9	ALTER DEFAULT PRIVILEGES GRANT SELECT ON TABLES TO
+reject@50	reject@50	engine	stmt/AlterDefaultPrivilegesStmt!drop-9	ALTER DEFAULT PRIVILEGES GRANT SELECT ON TABLES TO
 reject@53	reject@53	engine	stmt/AlterDefaultPrivilegesStmt!insert	ALTER DEFAULT PRIVILEGES GRANT SELECT ON TABLES TO a zzz
 reject@0	reject@0	engine	stmt/AlterDefaultPrivilegesStmt!swap	ALWAYS DEFAULT PRIVILEGES GRANT SELECT ON TABLES TO a
 accept	accept	engine	stmt/AlterDomainStmt	ALTER DOMAIN a DROP DEFAULT
@@ -115,7 +115,7 @@ reject@6	reject@6	engine	stmt/AlterGroupStmt!drop-2	ALTER a ADD USER a
 reject@16	reject@16	engine	stmt/AlterGroupStmt!drop-3	ALTER GROUP ADD USER a
 reject@14	reject@14	engine	stmt/AlterGroupStmt!drop-4	ALTER GROUP a USER a
 reject@18	reject@18	engine	stmt/AlterGroupStmt!drop-5	ALTER GROUP a ADD a
-accept	reject@22	engine	stmt/AlterGroupStmt!drop-6	ALTER GROUP a ADD USER
+reject@22	reject@22	engine	stmt/AlterGroupStmt!drop-6	ALTER GROUP a ADD USER
 reject@25	reject@25	engine	stmt/AlterGroupStmt!insert	ALTER GROUP a ADD USER a zzz
 reject@0	reject@0	engine	stmt/AlterGroupStmt!swap	ALWAYS GROUP a ADD USER a
 accept	accept	engine	stmt/AlterObjectDependsStmt	ALTER FUNCTION AUTHORIZATION DEPENDS ON EXTENSION a
@@ -143,7 +143,7 @@ reject@6	reject@6	engine	stmt/AlterOwnerStmt!drop-2	ALTER a OWNER TO a
 reject@22	reject@22	engine	stmt/AlterOwnerStmt!drop-3	ALTER COLLATION OWNER TO a
 reject@18	reject@18	engine	stmt/AlterOwnerStmt!drop-4	ALTER COLLATION a TO a
 reject@24	reject@24	engine	stmt/AlterOwnerStmt!drop-5	ALTER COLLATION a OWNER a
-accept	reject@26	engine	stmt/AlterOwnerStmt!drop-6	ALTER COLLATION a OWNER TO
+reject@26	reject@26	engine	stmt/AlterOwnerStmt!drop-6	ALTER COLLATION a OWNER TO
 reject@29	reject@29	engine	stmt/AlterOwnerStmt!insert	ALTER COLLATION a OWNER TO a zzz
 reject@0	reject@0	engine	stmt/AlterOwnerStmt!swap	ALWAYS COLLATION a OWNER TO a
 accept	reject@18	engine	stmt/AlterOperatorStmt	ALTER OPERATOR ~(a) SET(a)
@@ -234,7 +234,7 @@ reject@23	reject@23	engine	stmt/AlterRoleSetStmt!insert	ALTER ROLE a SET NAMES z
 reject@0	reject@0	engine	stmt/AlterRoleSetStmt!swap	ALWAYS ROLE a SET NAMES
 accept	accept	engine	stmt/AlterRoleStmt	ALTER ROLE a
 reject@0	reject@0	engine	stmt/AlterRoleStmt!drop-1	ROLE a
-accept	reject@10	engine	stmt/AlterRoleStmt!drop-3	ALTER ROLE
+reject@10	reject@10	engine	stmt/AlterRoleStmt!drop-3	ALTER ROLE
 reject@13	reject@13	engine	stmt/AlterRoleStmt!insert	ALTER ROLE a zzz
 reject@0	reject@0	engine	stmt/AlterRoleStmt!swap	ALWAYS ROLE a
 accept	accept	engine	stmt/AlterSubscriptionStmt	ALTER SUBSCRIPTION a ENABLE
@@ -438,7 +438,7 @@ reject@20	reject@20	engine	stmt/CreateFunctionStmt!insert	CREATE FUNCTION a() zz
 reject@0	reject@0	engine	stmt/CreateFunctionStmt!swap	CROSS FUNCTION a()
 accept	accept	engine	stmt/CreateGroupStmt	CREATE GROUP a
 reject@0	reject@0	engine	stmt/CreateGroupStmt!drop-1	GROUP a
-accept	reject@12	engine	stmt/CreateGroupStmt!drop-3	CREATE GROUP
+reject@12	reject@12	engine	stmt/CreateGroupStmt!drop-3	CREATE GROUP
 reject@15	reject@15	engine	stmt/CreateGroupStmt!insert	CREATE GROUP a zzz
 reject@0	reject@0	engine	stmt/CreateGroupStmt!swap	CROSS GROUP a
 accept	accept	engine	stmt/CreateMatViewStmt	CREATE MATERIALIZED VIEW a AS SELECT
@@ -592,12 +592,12 @@ reject@47	reject@47	engine	stmt/CreateEventTrigStmt!drop-11	CREATE EVENT TRIGGER
 reject@49	reject@49	engine	stmt/CreateEventTrigStmt!insert	CREATE EVENT TRIGGER a ON a EXECUTE FUNCTION a() zzz
 reject@0	reject@0	engine	stmt/CreateEventTrigStmt!swap	CROSS EVENT TRIGGER a ON a EXECUTE FUNCTION a()
 accept	accept	engine	stmt/CreateRoleStmt	CREATE ROLE a
-accept	reject@11	engine	stmt/CreateRoleStmt!drop-3	CREATE ROLE
+reject@11	reject@11	engine	stmt/CreateRoleStmt!drop-3	CREATE ROLE
 reject@14	reject@14	engine	stmt/CreateRoleStmt!insert	CREATE ROLE a zzz
 reject@0	reject@0	engine	stmt/CreateRoleStmt!swap	CROSS ROLE a
 accept	accept	engine	stmt/CreateUserStmt	CREATE USER a
 reject@0	reject@0	engine	stmt/CreateUserStmt!drop-1	USER a
-accept	reject@11	engine	stmt/CreateUserStmt!drop-3	CREATE USER
+reject@11	reject@11	engine	stmt/CreateUserStmt!drop-3	CREATE USER
 reject@14	reject@14	engine	stmt/CreateUserStmt!insert	CREATE USER a zzz
 reject@0	reject@0	engine	stmt/CreateUserStmt!swap	CROSS USER a
 accept	accept	engine	stmt/CreateUserMappingStmt	CREATE USER MAPPING FOR a SERVER a
@@ -677,7 +677,7 @@ accept	accept	engine	stmt/DropOwnedStmt	DROP OWNED BY a
 reject@0	reject@0	engine	stmt/DropOwnedStmt!drop-1	OWNED BY a
 reject@5	reject@5	engine	stmt/DropOwnedStmt!drop-2	DROP BY a
 reject@11	reject@11	engine	stmt/DropOwnedStmt!drop-3	DROP OWNED a
-accept	reject@13	engine	stmt/DropOwnedStmt!drop-4	DROP OWNED BY
+reject@13	reject@13	engine	stmt/DropOwnedStmt!drop-4	DROP OWNED BY
 reject@16	reject@16	engine	stmt/DropOwnedStmt!insert	DROP OWNED BY a zzz
 reject@0	reject@0	engine	stmt/DropOwnedStmt!swap	EACH OWNED BY a
 accept	accept	engine	stmt/DropStmt	DROP TABLE a
@@ -705,7 +705,7 @@ accept	reject@29	engine	stmt/DropTransformStmt!drop-6	DROP TRANSFORM FOR a LANGU
 reject@32	reject@32	engine	stmt/DropTransformStmt!insert	DROP TRANSFORM FOR a LANGUAGE a zzz
 reject@0	reject@0	engine	stmt/DropTransformStmt!swap	EACH TRANSFORM FOR a LANGUAGE a
 accept	accept	engine	stmt/DropRoleStmt	DROP ROLE a
-accept	reject@9	engine	stmt/DropRoleStmt!drop-3	DROP ROLE
+reject@9	reject@9	engine	stmt/DropRoleStmt!drop-3	DROP ROLE
 reject@12	reject@12	engine	stmt/DropRoleStmt!insert	DROP ROLE a zzz
 reject@0	reject@0	engine	stmt/DropRoleStmt!swap	EACH ROLE a
 accept	accept	engine	stmt/DropUserMappingStmt	DROP USER MAPPING FOR a SERVER a
@@ -739,14 +739,14 @@ accept	reject@6	engine	stmt/GrantStmt!drop-2	GRANT ON a TO a
 reject@13	reject@13	engine	stmt/GrantStmt!drop-3	GRANT SELECT a TO a
 reject@16	reject@16	engine	stmt/GrantStmt!drop-4	GRANT SELECT ON TO a
 reject@18	reject@18	engine	stmt/GrantStmt!drop-5	GRANT SELECT ON a a
-accept	reject@20	engine	stmt/GrantStmt!drop-6	GRANT SELECT ON a TO
+reject@20	reject@20	engine	stmt/GrantStmt!drop-6	GRANT SELECT ON a TO
 reject@23	reject@23	engine	stmt/GrantStmt!insert	GRANT SELECT ON a TO a zzz
 reject@0	reject@0	engine	stmt/GrantStmt!swap	GRANTED SELECT ON a TO a
 accept	accept	engine	stmt/GrantRoleStmt	GRANT SELECT TO a
 reject@7	reject@7	engine	stmt/GrantRoleStmt!drop-1	SELECT TO a
 accept	reject@6	engine	stmt/GrantRoleStmt!drop-2	GRANT TO a
 reject@13	reject@13	engine	stmt/GrantRoleStmt!drop-3	GRANT SELECT a
-accept	reject@15	engine	stmt/GrantRoleStmt!drop-4	GRANT SELECT TO
+reject@15	reject@15	engine	stmt/GrantRoleStmt!drop-4	GRANT SELECT TO
 reject@18	reject@18	engine	stmt/GrantRoleStmt!insert	GRANT SELECT TO a zzz
 reject@0	reject@0	engine	stmt/GrantRoleStmt!swap	GRANTED SELECT TO a
 accept	accept	engine	stmt/ImportForeignSchemaStmt	IMPORT FOREIGN SCHEMA a FROM SERVER a INTO a
@@ -826,9 +826,9 @@ accept	accept	engine	stmt/ReassignOwnedStmt	REASSIGN OWNED BY a TO a
 reject@0	reject@0	engine	stmt/ReassignOwnedStmt!drop-1	OWNED BY a TO a
 reject@9	reject@9	engine	stmt/ReassignOwnedStmt!drop-2	REASSIGN BY a TO a
 reject@15	reject@15	engine	stmt/ReassignOwnedStmt!drop-3	REASSIGN OWNED a TO a
-accept	reject@18	engine	stmt/ReassignOwnedStmt!drop-4	REASSIGN OWNED BY TO a
+reject@18	reject@18	engine	stmt/ReassignOwnedStmt!drop-4	REASSIGN OWNED BY TO a
 reject@20	reject@20	engine	stmt/ReassignOwnedStmt!drop-5	REASSIGN OWNED BY a a
-accept	reject@22	engine	stmt/ReassignOwnedStmt!drop-6	REASSIGN OWNED BY a TO
+reject@22	reject@22	engine	stmt/ReassignOwnedStmt!drop-6	REASSIGN OWNED BY a TO
 reject@25	reject@25	engine	stmt/ReassignOwnedStmt!insert	REASSIGN OWNED BY a TO a zzz
 reject@0	reject@0	engine	stmt/ReassignOwnedStmt!swap	RECHECK OWNED BY a TO a
 accept	accept	engine	stmt/ReindexStmt	REINDEX SYSTEM
@@ -874,13 +874,13 @@ accept	reject@7	engine	stmt/RevokeStmt!drop-2	REVOKE ON a FROM a
 reject@14	reject@14	engine	stmt/RevokeStmt!drop-3	REVOKE SELECT a FROM a
 reject@17	reject@17	engine	stmt/RevokeStmt!drop-4	REVOKE SELECT ON FROM a
 reject@19	reject@19	engine	stmt/RevokeStmt!drop-5	REVOKE SELECT ON a a
-accept	reject@23	engine	stmt/RevokeStmt!drop-6	REVOKE SELECT ON a FROM
+reject@23	reject@23	engine	stmt/RevokeStmt!drop-6	REVOKE SELECT ON a FROM
 reject@26	reject@26	engine	stmt/RevokeStmt!insert	REVOKE SELECT ON a FROM a zzz
 reject@0	reject@0	engine	stmt/RevokeStmt!swap	RIGHT SELECT ON a FROM a
 accept	accept	engine	stmt/RevokeRoleStmt	REVOKE SELECT FROM a
 accept	reject@7	engine	stmt/RevokeRoleStmt!drop-2	REVOKE FROM a
 reject@14	reject@14	engine	stmt/RevokeRoleStmt!drop-3	REVOKE SELECT a
-accept	reject@18	engine	stmt/RevokeRoleStmt!drop-4	REVOKE SELECT FROM
+reject@18	reject@18	engine	stmt/RevokeRoleStmt!drop-4	REVOKE SELECT FROM
 reject@21	reject@21	engine	stmt/RevokeRoleStmt!insert	REVOKE SELECT FROM a zzz
 reject@0	reject@0	engine	stmt/RevokeRoleStmt!swap	RIGHT SELECT FROM a
 accept	accept	engine	stmt/RuleStmt	CREATE RULE a AS ON SELECT TO a DO NOTHING
@@ -1033,27 +1033,27 @@ reject@23	reject@23	engine	CreateOptRoleElem/SYSID_Iconst!insert	CREATE GROUP a 
 reject@15	reject@15	engine	CreateOptRoleElem/SYSID_Iconst!swap	CREATE GROUP a SYSTEM 1
 accept	accept	engine	CreateOptRoleElem/ADMIN_role_list	CREATE GROUP a ADMIN a
 reject@15	reject@15	engine	CreateOptRoleElem/ADMIN_role_list!drop-1	CREATE GROUP a a
-accept	reject@20	engine	CreateOptRoleElem/ADMIN_role_list!drop-2	CREATE GROUP a ADMIN
+reject@20	reject@20	engine	CreateOptRoleElem/ADMIN_role_list!drop-2	CREATE GROUP a ADMIN
 reject@23	reject@23	engine	CreateOptRoleElem/ADMIN_role_list!insert	CREATE GROUP a ADMIN a zzz
 reject@15	reject@15	engine	CreateOptRoleElem/ADMIN_role_list!swap	CREATE GROUP a AFTER a
 accept	accept	engine	CreateOptRoleElem/ROLE_role_list	CREATE GROUP a ROLE a
-accept	reject@19	engine	CreateOptRoleElem/ROLE_role_list!drop-2	CREATE GROUP a ROLE
+reject@19	reject@19	engine	CreateOptRoleElem/ROLE_role_list!drop-2	CREATE GROUP a ROLE
 reject@22	reject@22	engine	CreateOptRoleElem/ROLE_role_list!insert	CREATE GROUP a ROLE a zzz
 reject@15	reject@15	engine	CreateOptRoleElem/ROLE_role_list!swap	CREATE GROUP a ROLLBACK a
 accept	accept	engine	CreateOptRoleElem/IN_P_ROLE_role_list	CREATE GROUP a IN ROLE a
 accept	reject@18	engine	CreateOptRoleElem/IN_P_ROLE_role_list!drop-2	CREATE GROUP a IN a
-accept	reject@22	engine	CreateOptRoleElem/IN_P_ROLE_role_list!drop-3	CREATE GROUP a IN ROLE
+reject@22	reject@22	engine	CreateOptRoleElem/IN_P_ROLE_role_list!drop-3	CREATE GROUP a IN ROLE
 reject@25	reject@25	engine	CreateOptRoleElem/IN_P_ROLE_role_list!insert	CREATE GROUP a IN ROLE a zzz
 reject@15	reject@15	engine	CreateOptRoleElem/IN_P_ROLE_role_list!swap	CREATE GROUP a INCLUDE ROLE a
 accept	accept	engine	CreateOptRoleElem/IN_P_GROUP_P_role_list	CREATE GROUP a IN GROUP a
 reject@15	reject@15	engine	CreateOptRoleElem/IN_P_GROUP_P_role_list!drop-1	CREATE GROUP a GROUP a
-accept	reject@23	engine	CreateOptRoleElem/IN_P_GROUP_P_role_list!drop-3	CREATE GROUP a IN GROUP
+reject@23	reject@23	engine	CreateOptRoleElem/IN_P_GROUP_P_role_list!drop-3	CREATE GROUP a IN GROUP
 reject@26	reject@26	engine	CreateOptRoleElem/IN_P_GROUP_P_role_list!insert	CREATE GROUP a IN GROUP a zzz
 reject@15	reject@15	engine	CreateOptRoleElem/IN_P_GROUP_P_role_list!swap	CREATE GROUP a INCLUDE GROUP a
 accept	accept	engine	CreateUserStmt/CREATE_USER_RoleId_opt_with_OptRoleList	CREATE USER a
 accept	accept	engine	AlterRoleStmt/ALTER_ROLE_RoleSpec_opt_with_AlterOptRoleList	ALTER ROLE a
 accept	accept	engine	AlterRoleStmt/ALTER_USER_RoleSpec_opt_with_AlterOptRoleList	ALTER USER a
-accept	reject@10	engine	AlterRoleStmt/ALTER_USER_RoleSpec_opt_with_AlterOptRoleList!drop-3	ALTER USER
+reject@10	reject@10	engine	AlterRoleStmt/ALTER_USER_RoleSpec_opt_with_AlterOptRoleList!drop-3	ALTER USER
 reject@13	reject@13	engine	AlterRoleStmt/ALTER_USER_RoleSpec_opt_with_AlterOptRoleList!insert	ALTER USER a zzz
 reject@0	reject@0	engine	AlterRoleStmt/ALTER_USER_RoleSpec_opt_with_AlterOptRoleList!swap	ALWAYS USER a
 accept	accept	engine	opt_in_database/%empty	ALTER ROLE a SET NAMES
@@ -1092,29 +1092,29 @@ reject@0	reject@0	engine	DropRoleStmt/DROP_ROLE_IF_P_EXISTS_role_list!drop-1	ROL
 reject@5	reject@5	engine	DropRoleStmt/DROP_ROLE_IF_P_EXISTS_role_list!drop-2	DROP IF EXISTS a
 reject@17	reject@17	engine	DropRoleStmt/DROP_ROLE_IF_P_EXISTS_role_list!drop-3	DROP ROLE EXISTS a
 reject@13	reject@13	engine	DropRoleStmt/DROP_ROLE_IF_P_EXISTS_role_list!drop-4	DROP ROLE IF a
-accept	reject@19	engine	DropRoleStmt/DROP_ROLE_IF_P_EXISTS_role_list!drop-5	DROP ROLE IF EXISTS
+reject@19	reject@19	engine	DropRoleStmt/DROP_ROLE_IF_P_EXISTS_role_list!drop-5	DROP ROLE IF EXISTS
 reject@22	reject@22	engine	DropRoleStmt/DROP_ROLE_IF_P_EXISTS_role_list!insert	DROP ROLE IF EXISTS a zzz
 reject@0	reject@0	engine	DropRoleStmt/DROP_ROLE_IF_P_EXISTS_role_list!swap	EACH ROLE IF EXISTS a
 accept	accept	engine	DropRoleStmt/DROP_USER_role_list	DROP USER a
-accept	reject@9	engine	DropRoleStmt/DROP_USER_role_list!drop-3	DROP USER
+reject@9	reject@9	engine	DropRoleStmt/DROP_USER_role_list!drop-3	DROP USER
 reject@12	reject@12	engine	DropRoleStmt/DROP_USER_role_list!insert	DROP USER a zzz
 reject@0	reject@0	engine	DropRoleStmt/DROP_USER_role_list!swap	EACH USER a
 accept	accept	engine	DropRoleStmt/DROP_USER_IF_P_EXISTS_role_list	DROP USER IF EXISTS a
 reject@0	reject@0	engine	DropRoleStmt/DROP_USER_IF_P_EXISTS_role_list!drop-1	USER IF EXISTS a
 reject@17	reject@17	engine	DropRoleStmt/DROP_USER_IF_P_EXISTS_role_list!drop-3	DROP USER EXISTS a
 reject@13	reject@13	engine	DropRoleStmt/DROP_USER_IF_P_EXISTS_role_list!drop-4	DROP USER IF a
-accept	reject@19	engine	DropRoleStmt/DROP_USER_IF_P_EXISTS_role_list!drop-5	DROP USER IF EXISTS
+reject@19	reject@19	engine	DropRoleStmt/DROP_USER_IF_P_EXISTS_role_list!drop-5	DROP USER IF EXISTS
 reject@22	reject@22	engine	DropRoleStmt/DROP_USER_IF_P_EXISTS_role_list!insert	DROP USER IF EXISTS a zzz
 reject@0	reject@0	engine	DropRoleStmt/DROP_USER_IF_P_EXISTS_role_list!swap	EACH USER IF EXISTS a
 accept	accept	engine	DropRoleStmt/DROP_GROUP_P_role_list	DROP GROUP a
-accept	reject@10	engine	DropRoleStmt/DROP_GROUP_P_role_list!drop-3	DROP GROUP
+reject@10	reject@10	engine	DropRoleStmt/DROP_GROUP_P_role_list!drop-3	DROP GROUP
 reject@13	reject@13	engine	DropRoleStmt/DROP_GROUP_P_role_list!insert	DROP GROUP a zzz
 reject@0	reject@0	engine	DropRoleStmt/DROP_GROUP_P_role_list!swap	EACH GROUP a
 accept	accept	engine	DropRoleStmt/DROP_GROUP_P_IF_P_EXISTS_role_list	DROP GROUP IF EXISTS a
 reject@0	reject@0	engine	DropRoleStmt/DROP_GROUP_P_IF_P_EXISTS_role_list!drop-1	GROUP IF EXISTS a
 reject@18	reject@18	engine	DropRoleStmt/DROP_GROUP_P_IF_P_EXISTS_role_list!drop-3	DROP GROUP EXISTS a
 reject@14	reject@14	engine	DropRoleStmt/DROP_GROUP_P_IF_P_EXISTS_role_list!drop-4	DROP GROUP IF a
-accept	reject@20	engine	DropRoleStmt/DROP_GROUP_P_IF_P_EXISTS_role_list!drop-5	DROP GROUP IF EXISTS
+reject@20	reject@20	engine	DropRoleStmt/DROP_GROUP_P_IF_P_EXISTS_role_list!drop-5	DROP GROUP IF EXISTS
 reject@23	reject@23	engine	DropRoleStmt/DROP_GROUP_P_IF_P_EXISTS_role_list!insert	DROP GROUP IF EXISTS a zzz
 reject@0	reject@0	engine	DropRoleStmt/DROP_GROUP_P_IF_P_EXISTS_role_list!swap	EACH GROUP IF EXISTS a
 accept	accept	engine	CreateGroupStmt/CREATE_GROUP_P_RoleId_opt_with_OptRoleList	CREATE GROUP a
@@ -1128,7 +1128,7 @@ reject@18	reject@18	engine	add_drop/DROP!swap	ALTER EXTENSION a EACH EXTENSION a
 accept	accept	engine	CreateSchemaStmt/CREATE_SCHEMA_opt_single_name_AUTHORIZATION_RoleSpec_OptSchemaEltList	CREATE SCHEMA AUTHORIZATION a
 reject@0	reject@0	engine	CreateSchemaStmt/CREATE_SCHEMA_opt_single_name_AUTHORIZATION_RoleSpec_OptSchemaEltList!drop-1	SCHEMA AUTHORIZATION a
 reject@0	reject@7	engine	CreateSchemaStmt/CREATE_SCHEMA_opt_single_name_AUTHORIZATION_RoleSpec_OptSchemaEltList!drop-2	CREATE AUTHORIZATION a
-accept	reject@27	engine	CreateSchemaStmt/CREATE_SCHEMA_opt_single_name_AUTHORIZATION_RoleSpec_OptSchemaEltList!drop-4	CREATE SCHEMA AUTHORIZATION
+reject@27	reject@27	engine	CreateSchemaStmt/CREATE_SCHEMA_opt_single_name_AUTHORIZATION_RoleSpec_OptSchemaEltList!drop-4	CREATE SCHEMA AUTHORIZATION
 reject@30	reject@30	engine	CreateSchemaStmt/CREATE_SCHEMA_opt_single_name_AUTHORIZATION_RoleSpec_OptSchemaEltList!insert	CREATE SCHEMA AUTHORIZATION a zzz
 reject@0	reject@0	engine	CreateSchemaStmt/CREATE_SCHEMA_opt_single_name_AUTHORIZATION_RoleSpec_OptSchemaEltList!swap	CROSS SCHEMA AUTHORIZATION a
 accept	accept	engine	CreateSchemaStmt/CREATE_SCHEMA_ColId_OptSchemaEltList	CREATE SCHEMA a
@@ -1138,7 +1138,7 @@ reject@0	reject@7	engine	CreateSchemaStmt/CREATE_SCHEMA_IF_P_NOT_EXISTS_opt_sing
 reject@14	reject@14	engine	CreateSchemaStmt/CREATE_SCHEMA_IF_P_NOT_EXISTS_opt_single_name_AUTHORIZATION_RoleSpec_OptSchemaEltList!drop-3	CREATE SCHEMA NOT EXISTS AUTHORIZATION a
 reject@17	reject@17	engine	CreateSchemaStmt/CREATE_SCHEMA_IF_P_NOT_EXISTS_opt_single_name_AUTHORIZATION_RoleSpec_OptSchemaEltList!drop-4	CREATE SCHEMA IF EXISTS AUTHORIZATION a
 reject@21	reject@21	engine	CreateSchemaStmt/CREATE_SCHEMA_IF_P_NOT_EXISTS_opt_single_name_AUTHORIZATION_RoleSpec_OptSchemaEltList!drop-5	CREATE SCHEMA IF NOT AUTHORIZATION a
-accept	reject@41	engine	CreateSchemaStmt/CREATE_SCHEMA_IF_P_NOT_EXISTS_opt_single_name_AUTHORIZATION_RoleSpec_OptSchemaEltList!drop-7	CREATE SCHEMA IF NOT EXISTS AUTHORIZATION
+reject@41	reject@41	engine	CreateSchemaStmt/CREATE_SCHEMA_IF_P_NOT_EXISTS_opt_single_name_AUTHORIZATION_RoleSpec_OptSchemaEltList!drop-7	CREATE SCHEMA IF NOT EXISTS AUTHORIZATION
 reject@44	reject@44	engine	CreateSchemaStmt/CREATE_SCHEMA_IF_P_NOT_EXISTS_opt_single_name_AUTHORIZATION_RoleSpec_OptSchemaEltList!insert	CREATE SCHEMA IF NOT EXISTS AUTHORIZATION a zzz
 reject@0	reject@0	engine	CreateSchemaStmt/CREATE_SCHEMA_IF_P_NOT_EXISTS_opt_single_name_AUTHORIZATION_RoleSpec_OptSchemaEltList!swap	CROSS SCHEMA IF NOT EXISTS AUTHORIZATION a
 accept	accept	engine	CreateSchemaStmt/CREATE_SCHEMA_IF_P_NOT_EXISTS_ColId_OptSchemaEltList	CREATE SCHEMA IF NOT EXISTS a
@@ -1197,7 +1197,7 @@ accept	reject@22	engine	schema_stmt/GrantStmt!drop-2	CREATE SCHEMA a GRANT ON a 
 reject@29	reject@29	engine	schema_stmt/GrantStmt!drop-3	CREATE SCHEMA a GRANT SELECT a TO a
 reject@32	reject@32	engine	schema_stmt/GrantStmt!drop-4	CREATE SCHEMA a GRANT SELECT ON TO a
 reject@34	reject@34	engine	schema_stmt/GrantStmt!drop-5	CREATE SCHEMA a GRANT SELECT ON a a
-accept	reject@36	engine	schema_stmt/GrantStmt!drop-6	CREATE SCHEMA a GRANT SELECT ON a TO
+reject@36	reject@36	engine	schema_stmt/GrantStmt!drop-6	CREATE SCHEMA a GRANT SELECT ON a TO
 reject@39	reject@39	engine	schema_stmt/GrantStmt!insert	CREATE SCHEMA a GRANT SELECT ON a TO a zzz
 reject@16	reject@16	engine	schema_stmt/GrantStmt!swap	CREATE SCHEMA a GRANTED SELECT ON a TO a
 accept	accept	engine	schema_stmt/ViewStmt	CREATE SCHEMA a CREATE VIEW a AS SELECT
@@ -1509,27 +1509,27 @@ accept	accept	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_SET_TAB
 reject@6	reject@6	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!drop-1	TABLE ALL IN TABLESPACE a SET TABLESPACE a
 reject@6	reject@6	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!drop-2	ALTER ALL IN TABLESPACE a SET TABLESPACE a
 reject@12	reject@12	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!drop-3	ALTER TABLE IN TABLESPACE a SET TABLESPACE a
-accept	reject@16	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!drop-4	ALTER TABLE ALL TABLESPACE a SET TABLESPACE a
-accept	reject@19	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!drop-5	ALTER TABLE ALL IN a SET TABLESPACE a
-accept	reject@34	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!drop-6	ALTER TABLE ALL IN TABLESPACE SET TABLESPACE a
-accept	reject@32	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!drop-7	ALTER TABLE ALL IN TABLESPACE a TABLESPACE a
-accept	reject@36	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!drop-8	ALTER TABLE ALL IN TABLESPACE a SET a
-accept	reject@46	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!drop-9	ALTER TABLE ALL IN TABLESPACE a SET TABLESPACE
+reject@16	reject@16	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!drop-4	ALTER TABLE ALL TABLESPACE a SET TABLESPACE a
+reject@19	reject@19	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!drop-5	ALTER TABLE ALL IN a SET TABLESPACE a
+reject@34	reject@34	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!drop-6	ALTER TABLE ALL IN TABLESPACE SET TABLESPACE a
+reject@32	reject@32	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!drop-7	ALTER TABLE ALL IN TABLESPACE a TABLESPACE a
+reject@36	reject@36	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!drop-8	ALTER TABLE ALL IN TABLESPACE a SET a
+reject@46	reject@46	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!drop-9	ALTER TABLE ALL IN TABLESPACE a SET TABLESPACE
 reject@49	reject@49	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!insert	ALTER TABLE ALL IN TABLESPACE a SET TABLESPACE a zzz
 reject@0	reject@0	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!swap	ALWAYS TABLE ALL IN TABLESPACE a SET TABLESPACE a
 accept	accept	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait	ALTER TABLE ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a
 reject@6	reject@6	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-1	TABLE ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a
 reject@6	reject@6	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-2	ALTER ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a
 reject@12	reject@12	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-3	ALTER TABLE IN TABLESPACE a OWNED BY a SET TABLESPACE a
-accept	reject@16	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-4	ALTER TABLE ALL TABLESPACE a OWNED BY a SET TABLESPACE a
-accept	reject@19	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-5	ALTER TABLE ALL IN a OWNED BY a SET TABLESPACE a
-reject@39	reject@36	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-6	ALTER TABLE ALL IN TABLESPACE OWNED BY a SET TABLESPACE a
-reject@35	reject@32	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-7	ALTER TABLE ALL IN TABLESPACE a BY a SET TABLESPACE a
-accept	reject@38	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-8	ALTER TABLE ALL IN TABLESPACE a OWNED a SET TABLESPACE a
-accept	reject@45	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-9	ALTER TABLE ALL IN TABLESPACE a OWNED BY SET TABLESPACE a
-accept	reject@43	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-10	ALTER TABLE ALL IN TABLESPACE a OWNED BY a TABLESPACE a
-accept	reject@47	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-11	ALTER TABLE ALL IN TABLESPACE a OWNED BY a SET a
-accept	reject@57	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-12	ALTER TABLE ALL IN TABLESPACE a OWNED BY a SET TABLESPACE
+reject@16	reject@16	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-4	ALTER TABLE ALL TABLESPACE a OWNED BY a SET TABLESPACE a
+reject@19	reject@19	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-5	ALTER TABLE ALL IN a OWNED BY a SET TABLESPACE a
+reject@36	reject@36	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-6	ALTER TABLE ALL IN TABLESPACE OWNED BY a SET TABLESPACE a
+reject@32	reject@32	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-7	ALTER TABLE ALL IN TABLESPACE a BY a SET TABLESPACE a
+reject@38	reject@38	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-8	ALTER TABLE ALL IN TABLESPACE a OWNED a SET TABLESPACE a
+reject@45	reject@45	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-9	ALTER TABLE ALL IN TABLESPACE a OWNED BY SET TABLESPACE a
+reject@43	reject@43	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-10	ALTER TABLE ALL IN TABLESPACE a OWNED BY a TABLESPACE a
+reject@47	reject@47	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-11	ALTER TABLE ALL IN TABLESPACE a OWNED BY a SET a
+reject@57	reject@57	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-12	ALTER TABLE ALL IN TABLESPACE a OWNED BY a SET TABLESPACE
 reject@60	reject@60	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!insert	ALTER TABLE ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a zzz
 reject@0	reject@0	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!swap	ALWAYS TABLE ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a
 accept	accept	engine	AlterTableStmt/ALTER_INDEX_qualified_name_alter_table_cmds	ALTER INDEX a DROP a
@@ -1560,26 +1560,26 @@ reject@0	reject@0	engine	AlterTableStmt/ALTER_INDEX_qualified_name_index_partiti
 accept	accept	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait	ALTER INDEX ALL IN TABLESPACE a SET TABLESPACE a
 reject@0	reject@0	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!drop-1	INDEX ALL IN TABLESPACE a SET TABLESPACE a
 reject@12	reject@12	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!drop-3	ALTER INDEX IN TABLESPACE a SET TABLESPACE a
-accept	reject@16	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!drop-4	ALTER INDEX ALL TABLESPACE a SET TABLESPACE a
-accept	reject@19	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!drop-5	ALTER INDEX ALL IN a SET TABLESPACE a
-accept	reject@34	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!drop-6	ALTER INDEX ALL IN TABLESPACE SET TABLESPACE a
-accept	reject@32	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!drop-7	ALTER INDEX ALL IN TABLESPACE a TABLESPACE a
-accept	reject@36	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!drop-8	ALTER INDEX ALL IN TABLESPACE a SET a
-accept	reject@46	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!drop-9	ALTER INDEX ALL IN TABLESPACE a SET TABLESPACE
+reject@16	reject@16	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!drop-4	ALTER INDEX ALL TABLESPACE a SET TABLESPACE a
+reject@19	reject@19	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!drop-5	ALTER INDEX ALL IN a SET TABLESPACE a
+reject@34	reject@34	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!drop-6	ALTER INDEX ALL IN TABLESPACE SET TABLESPACE a
+reject@32	reject@32	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!drop-7	ALTER INDEX ALL IN TABLESPACE a TABLESPACE a
+reject@36	reject@36	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!drop-8	ALTER INDEX ALL IN TABLESPACE a SET a
+reject@46	reject@46	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!drop-9	ALTER INDEX ALL IN TABLESPACE a SET TABLESPACE
 reject@49	reject@49	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!insert	ALTER INDEX ALL IN TABLESPACE a SET TABLESPACE a zzz
 reject@0	reject@0	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!swap	ALWAYS INDEX ALL IN TABLESPACE a SET TABLESPACE a
 accept	accept	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait	ALTER INDEX ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a
 reject@0	reject@0	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-1	INDEX ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a
 reject@12	reject@12	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-3	ALTER INDEX IN TABLESPACE a OWNED BY a SET TABLESPACE a
-accept	reject@16	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-4	ALTER INDEX ALL TABLESPACE a OWNED BY a SET TABLESPACE a
-accept	reject@19	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-5	ALTER INDEX ALL IN a OWNED BY a SET TABLESPACE a
-reject@39	reject@36	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-6	ALTER INDEX ALL IN TABLESPACE OWNED BY a SET TABLESPACE a
-reject@35	reject@32	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-7	ALTER INDEX ALL IN TABLESPACE a BY a SET TABLESPACE a
-accept	reject@38	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-8	ALTER INDEX ALL IN TABLESPACE a OWNED a SET TABLESPACE a
-accept	reject@45	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-9	ALTER INDEX ALL IN TABLESPACE a OWNED BY SET TABLESPACE a
-accept	reject@43	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-10	ALTER INDEX ALL IN TABLESPACE a OWNED BY a TABLESPACE a
-accept	reject@47	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-11	ALTER INDEX ALL IN TABLESPACE a OWNED BY a SET a
-accept	reject@57	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-12	ALTER INDEX ALL IN TABLESPACE a OWNED BY a SET TABLESPACE
+reject@16	reject@16	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-4	ALTER INDEX ALL TABLESPACE a OWNED BY a SET TABLESPACE a
+reject@19	reject@19	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-5	ALTER INDEX ALL IN a OWNED BY a SET TABLESPACE a
+reject@36	reject@36	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-6	ALTER INDEX ALL IN TABLESPACE OWNED BY a SET TABLESPACE a
+reject@32	reject@32	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-7	ALTER INDEX ALL IN TABLESPACE a BY a SET TABLESPACE a
+reject@38	reject@38	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-8	ALTER INDEX ALL IN TABLESPACE a OWNED a SET TABLESPACE a
+reject@45	reject@45	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-9	ALTER INDEX ALL IN TABLESPACE a OWNED BY SET TABLESPACE a
+reject@43	reject@43	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-10	ALTER INDEX ALL IN TABLESPACE a OWNED BY a TABLESPACE a
+reject@47	reject@47	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-11	ALTER INDEX ALL IN TABLESPACE a OWNED BY a SET a
+reject@57	reject@57	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-12	ALTER INDEX ALL IN TABLESPACE a OWNED BY a SET TABLESPACE
 reject@60	reject@60	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!insert	ALTER INDEX ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a zzz
 reject@0	reject@0	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!swap	ALWAYS INDEX ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a
 reject@17	accept	engine	AlterTableStmt/ALTER_SEQUENCE_qualified_name_alter_table_cmds	ALTER SEQUENCE a DROP a
@@ -1637,12 +1637,12 @@ reject@0	reject@0	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESP
 reject@11	reject@11	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!drop-2	ALTER VIEW ALL IN TABLESPACE a SET TABLESPACE a
 reject@19	reject@19	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!drop-3	ALTER MATERIALIZED ALL IN TABLESPACE a SET TABLESPACE a
 reject@24	reject@24	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!drop-4	ALTER MATERIALIZED VIEW IN TABLESPACE a SET TABLESPACE a
-accept	reject@28	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!drop-5	ALTER MATERIALIZED VIEW ALL TABLESPACE a SET TABLESPACE a
-accept	reject@31	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!drop-6	ALTER MATERIALIZED VIEW ALL IN a SET TABLESPACE a
-accept	reject@46	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!drop-7	ALTER MATERIALIZED VIEW ALL IN TABLESPACE SET TABLESPACE a
-accept	reject@44	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!drop-8	ALTER MATERIALIZED VIEW ALL IN TABLESPACE a TABLESPACE a
-accept	reject@48	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!drop-9	ALTER MATERIALIZED VIEW ALL IN TABLESPACE a SET a
-accept	reject@58	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!drop-10	ALTER MATERIALIZED VIEW ALL IN TABLESPACE a SET TABLESPACE
+reject@28	reject@28	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!drop-5	ALTER MATERIALIZED VIEW ALL TABLESPACE a SET TABLESPACE a
+reject@31	reject@31	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!drop-6	ALTER MATERIALIZED VIEW ALL IN a SET TABLESPACE a
+reject@46	reject@46	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!drop-7	ALTER MATERIALIZED VIEW ALL IN TABLESPACE SET TABLESPACE a
+reject@44	reject@44	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!drop-8	ALTER MATERIALIZED VIEW ALL IN TABLESPACE a TABLESPACE a
+reject@48	reject@48	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!drop-9	ALTER MATERIALIZED VIEW ALL IN TABLESPACE a SET a
+reject@58	reject@58	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!drop-10	ALTER MATERIALIZED VIEW ALL IN TABLESPACE a SET TABLESPACE
 reject@61	reject@61	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!insert	ALTER MATERIALIZED VIEW ALL IN TABLESPACE a SET TABLESPACE a zzz
 reject@0	reject@0	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!swap	ALWAYS MATERIALIZED VIEW ALL IN TABLESPACE a SET TABLESPACE a
 accept	accept	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait	ALTER MATERIALIZED VIEW ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a
@@ -1650,15 +1650,15 @@ reject@0	reject@0	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESP
 reject@11	reject@11	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-2	ALTER VIEW ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a
 reject@19	reject@19	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-3	ALTER MATERIALIZED ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a
 reject@24	reject@24	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-4	ALTER MATERIALIZED VIEW IN TABLESPACE a OWNED BY a SET TABLESPACE a
-accept	reject@28	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-5	ALTER MATERIALIZED VIEW ALL TABLESPACE a OWNED BY a SET TABLESPACE a
-accept	reject@31	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-6	ALTER MATERIALIZED VIEW ALL IN a OWNED BY a SET TABLESPACE a
-reject@51	reject@48	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-7	ALTER MATERIALIZED VIEW ALL IN TABLESPACE OWNED BY a SET TABLESPACE a
-reject@47	reject@44	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-8	ALTER MATERIALIZED VIEW ALL IN TABLESPACE a BY a SET TABLESPACE a
-accept	reject@50	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-9	ALTER MATERIALIZED VIEW ALL IN TABLESPACE a OWNED a SET TABLESPACE a
-accept	reject@57	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-10	ALTER MATERIALIZED VIEW ALL IN TABLESPACE a OWNED BY SET TABLESPACE a
-accept	reject@55	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-11	ALTER MATERIALIZED VIEW ALL IN TABLESPACE a OWNED BY a TABLESPACE a
-accept	reject@59	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-12	ALTER MATERIALIZED VIEW ALL IN TABLESPACE a OWNED BY a SET a
-accept	reject@69	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-13	ALTER MATERIALIZED VIEW ALL IN TABLESPACE a OWNED BY a SET TABLESPACE
+reject@28	reject@28	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-5	ALTER MATERIALIZED VIEW ALL TABLESPACE a OWNED BY a SET TABLESPACE a
+reject@31	reject@31	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-6	ALTER MATERIALIZED VIEW ALL IN a OWNED BY a SET TABLESPACE a
+reject@48	reject@48	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-7	ALTER MATERIALIZED VIEW ALL IN TABLESPACE OWNED BY a SET TABLESPACE a
+reject@44	reject@44	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-8	ALTER MATERIALIZED VIEW ALL IN TABLESPACE a BY a SET TABLESPACE a
+reject@50	reject@50	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-9	ALTER MATERIALIZED VIEW ALL IN TABLESPACE a OWNED a SET TABLESPACE a
+reject@57	reject@57	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-10	ALTER MATERIALIZED VIEW ALL IN TABLESPACE a OWNED BY SET TABLESPACE a
+reject@55	reject@55	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-11	ALTER MATERIALIZED VIEW ALL IN TABLESPACE a OWNED BY a TABLESPACE a
+reject@59	reject@59	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-12	ALTER MATERIALIZED VIEW ALL IN TABLESPACE a OWNED BY a SET a
+reject@69	reject@69	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-13	ALTER MATERIALIZED VIEW ALL IN TABLESPACE a OWNED BY a SET TABLESPACE
 reject@72	reject@72	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!insert	ALTER MATERIALIZED VIEW ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a zzz
 reject@0	reject@0	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!swap	ALWAYS MATERIALIZED VIEW ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a
 accept	accept	engine	AlterTableStmt/ALTER_FOREIGN_TABLE_relation_expr_alter_table_cmds	ALTER FOREIGN TABLE a DROP a
@@ -2016,8 +2016,8 @@ reject@21	reject@21	engine	alter_table_cmd/NOT_OF!insert	ALTER TABLE a NOT OF zz
 reject@14	reject@14	engine	alter_table_cmd/NOT_OF!swap	ALTER TABLE a NOTHING OF
 accept	accept	engine	alter_table_cmd/OWNER_TO_RoleSpec	ALTER TABLE a OWNER TO a
 reject@14	reject@14	engine	alter_table_cmd/OWNER_TO_RoleSpec!drop-1	ALTER TABLE a TO a
-accept	reject@20	engine	alter_table_cmd/OWNER_TO_RoleSpec!drop-2	ALTER TABLE a OWNER a
-accept	reject@22	engine	alter_table_cmd/OWNER_TO_RoleSpec!drop-3	ALTER TABLE a OWNER TO
+reject@20	reject@20	engine	alter_table_cmd/OWNER_TO_RoleSpec!drop-2	ALTER TABLE a OWNER a
+reject@22	reject@22	engine	alter_table_cmd/OWNER_TO_RoleSpec!drop-3	ALTER TABLE a OWNER TO
 reject@25	reject@25	engine	alter_table_cmd/OWNER_TO_RoleSpec!insert	ALTER TABLE a OWNER TO a zzz
 reject@14	reject@14	engine	alter_table_cmd/OWNER_TO_RoleSpec!swap	ALTER TABLE a PARALLEL TO a
 accept	accept	engine	alter_table_cmd/SET_ACCESS_METHOD_set_access_method_name	ALTER TABLE a SET ACCESS METHOD a
@@ -3200,7 +3200,7 @@ reject@17	reject@17	engine	SeqOptElem/OWNED_BY_any_name!drop-1	ALTER SEQUENCE a 
 accept	reject@23	engine	SeqOptElem/OWNED_BY_any_name!drop-2	ALTER SEQUENCE a OWNED a
 accept	reject@25	engine	SeqOptElem/OWNED_BY_any_name!drop-3	ALTER SEQUENCE a OWNED BY
 reject@28	reject@28	engine	SeqOptElem/OWNED_BY_any_name!insert	ALTER SEQUENCE a OWNED BY a zzz
-reject@26	reject@23	engine	SeqOptElem/OWNED_BY_any_name!swap	ALTER SEQUENCE a OWNER BY a
+reject@23	reject@23	engine	SeqOptElem/OWNED_BY_any_name!swap	ALTER SEQUENCE a OWNER BY a
 accept	accept	engine	SeqOptElem/SEQUENCE_NAME_P_any_name	ALTER SEQUENCE a SEQUENCE NAME a
 reject@17	reject@17	engine	SeqOptElem/SEQUENCE_NAME_P_any_name!drop-1	ALTER SEQUENCE a NAME a
 accept	reject@26	engine	SeqOptElem/SEQUENCE_NAME_P_any_name!drop-2	ALTER SEQUENCE a SEQUENCE a
@@ -3733,13 +3733,13 @@ reject@20	reject@20	engine	RowSecurityOptionalWithCheck/WITH_CHECK_(_a_expr_)!sw
 accept	accept	engine	RowSecurityOptionalWithCheck/%empty	ALTER POLICY a ON a
 accept	accept	engine	RowSecurityDefaultToRole/TO_role_list	CREATE POLICY a ON a TO a
 reject@21	reject@21	engine	RowSecurityDefaultToRole/TO_role_list!drop-1	CREATE POLICY a ON a a
-accept	reject@23	engine	RowSecurityDefaultToRole/TO_role_list!drop-2	CREATE POLICY a ON a TO
+reject@23	reject@23	engine	RowSecurityDefaultToRole/TO_role_list!drop-2	CREATE POLICY a ON a TO
 reject@26	reject@26	engine	RowSecurityDefaultToRole/TO_role_list!insert	CREATE POLICY a ON a TO a zzz
 reject@21	reject@21	engine	RowSecurityDefaultToRole/TO_role_list!swap	CREATE POLICY a ON a TRAILING a
 accept	accept	engine	RowSecurityDefaultToRole/%empty	CREATE POLICY a ON a
 accept	accept	engine	RowSecurityOptionalToRole/TO_role_list	ALTER POLICY a ON a TO a
 reject@20	reject@20	engine	RowSecurityOptionalToRole/TO_role_list!drop-1	ALTER POLICY a ON a a
-accept	reject@22	engine	RowSecurityOptionalToRole/TO_role_list!drop-2	ALTER POLICY a ON a TO
+reject@22	reject@22	engine	RowSecurityOptionalToRole/TO_role_list!drop-2	ALTER POLICY a ON a TO
 reject@25	reject@25	engine	RowSecurityOptionalToRole/TO_role_list!insert	ALTER POLICY a ON a TO a zzz
 reject@20	reject@20	engine	RowSecurityOptionalToRole/TO_role_list!swap	ALTER POLICY a ON a TRAILING a
 accept	accept	engine	RowSecurityOptionalToRole/%empty	ALTER POLICY a ON a
@@ -5000,7 +5000,7 @@ accept	reject@24	engine	RevokeStmt/REVOKE_GRANT_OPTION_FOR_privileges_ON_privile
 reject@31	reject@31	engine	RevokeStmt/REVOKE_GRANT_OPTION_FOR_privileges_ON_privilege_target_FROM_grantee_list_opt_granted_by_opt_drop_behavior!drop-6	REVOKE GRANT OPTION FOR SELECT a FROM a
 reject@34	reject@34	engine	RevokeStmt/REVOKE_GRANT_OPTION_FOR_privileges_ON_privilege_target_FROM_grantee_list_opt_granted_by_opt_drop_behavior!drop-7	REVOKE GRANT OPTION FOR SELECT ON FROM a
 reject@36	reject@36	engine	RevokeStmt/REVOKE_GRANT_OPTION_FOR_privileges_ON_privilege_target_FROM_grantee_list_opt_granted_by_opt_drop_behavior!drop-8	REVOKE GRANT OPTION FOR SELECT ON a a
-accept	reject@40	engine	RevokeStmt/REVOKE_GRANT_OPTION_FOR_privileges_ON_privilege_target_FROM_grantee_list_opt_granted_by_opt_drop_behavior!drop-9	REVOKE GRANT OPTION FOR SELECT ON a FROM
+reject@40	reject@40	engine	RevokeStmt/REVOKE_GRANT_OPTION_FOR_privileges_ON_privilege_target_FROM_grantee_list_opt_granted_by_opt_drop_behavior!drop-9	REVOKE GRANT OPTION FOR SELECT ON a FROM
 reject@43	reject@43	engine	RevokeStmt/REVOKE_GRANT_OPTION_FOR_privileges_ON_privilege_target_FROM_grantee_list_opt_granted_by_opt_drop_behavior!insert	REVOKE GRANT OPTION FOR SELECT ON a FROM a zzz
 reject@0	reject@0	engine	RevokeStmt/REVOKE_GRANT_OPTION_FOR_privileges_ON_privilege_target_FROM_grantee_list_opt_granted_by_opt_drop_behavior!swap	RIGHT GRANT OPTION FOR SELECT ON a FROM a
 accept	accept	engine	privileges/privilege_list	GRANT SELECT ON a TO a
@@ -5195,13 +5195,13 @@ reject@41	reject@41	engine	privilege_target/ALL_ROUTINES_IN_P_SCHEMA_name_list!i
 reject@21	reject@21	engine	privilege_target/ALL_ROUTINES_IN_P_SCHEMA_name_list!swap	GRANT SELECT ON ALSO ROUTINES IN SCHEMA a TO a
 accept	accept	engine	grantee_list/grantee	GRANT SELECT ON a TO a
 accept	accept	engine	grantee_list/grantee_list_,_grantee	GRANT SELECT ON a TO a, a
-accept	reject@20	engine	grantee_list/grantee_list_,_grantee!drop-1	GRANT SELECT ON a TO, a
+reject@20	reject@20	engine	grantee_list/grantee_list_,_grantee!drop-1	GRANT SELECT ON a TO, a
 reject@23	reject@23	engine	grantee_list/grantee_list_,_grantee!drop-2	GRANT SELECT ON a TO a a
-accept	reject@23	engine	grantee_list/grantee_list_,_grantee!drop-3	GRANT SELECT ON a TO a,
+reject@23	reject@23	engine	grantee_list/grantee_list_,_grantee!drop-3	GRANT SELECT ON a TO a,
 reject@26	reject@26	engine	grantee_list/grantee_list_,_grantee!insert	GRANT SELECT ON a TO a, a zzz
 accept	accept	engine	grantee/RoleSpec	GRANT SELECT ON a TO a
 accept	accept	engine	grantee/GROUP_P_RoleSpec	GRANT SELECT ON a TO GROUP a
-accept	reject@26	engine	grantee/GROUP_P_RoleSpec!drop-2	GRANT SELECT ON a TO GROUP
+reject@26	reject@26	engine	grantee/GROUP_P_RoleSpec!drop-2	GRANT SELECT ON a TO GROUP
 reject@29	reject@29	engine	grantee/GROUP_P_RoleSpec!insert	GRANT SELECT ON a TO GROUP a zzz
 reject@30	reject@30	engine	grantee/GROUP_P_RoleSpec!swap	GRANT SELECT ON a TO GROUPING a
 accept	accept	engine	opt_grant_grant_option/WITH_GRANT_OPTION	GRANT SELECT ON a TO a WITH GRANT OPTION
@@ -5216,7 +5216,7 @@ reject@23	accept	engine	GrantRoleStmt/GRANT_privilege_list_TO_role_list_WITH_gra
 reject@7	reject@7	engine	GrantRoleStmt/GRANT_privilege_list_TO_role_list_WITH_grant_role_opt_list_opt_granted_by!drop-1	SELECT TO a WITH a OPTION
 reject@16	reject@6	engine	GrantRoleStmt/GRANT_privilege_list_TO_role_list_WITH_grant_role_opt_list_opt_granted_by!drop-2	GRANT TO a WITH a OPTION
 reject@13	reject@13	engine	GrantRoleStmt/GRANT_privilege_list_TO_role_list_WITH_grant_role_opt_list_opt_granted_by!drop-3	GRANT SELECT a WITH a OPTION
-reject@21	reject@16	engine	GrantRoleStmt/GRANT_privilege_list_TO_role_list_WITH_grant_role_opt_list_opt_granted_by!drop-4	GRANT SELECT TO WITH a OPTION
+reject@16	reject@16	engine	GrantRoleStmt/GRANT_privilege_list_TO_role_list_WITH_grant_role_opt_list_opt_granted_by!drop-4	GRANT SELECT TO WITH a OPTION
 reject@18	reject@18	engine	GrantRoleStmt/GRANT_privilege_list_TO_role_list_WITH_grant_role_opt_list_opt_granted_by!drop-5	GRANT SELECT TO a a OPTION
 reject@23	reject@29	engine	GrantRoleStmt/GRANT_privilege_list_TO_role_list_WITH_grant_role_opt_list_opt_granted_by!drop-6	GRANT SELECT TO a WITH OPTION
 reject@23	reject@24	engine	GrantRoleStmt/GRANT_privilege_list_TO_role_list_WITH_grant_role_opt_list_opt_granted_by!drop-7	GRANT SELECT TO a WITH a
@@ -5230,7 +5230,7 @@ reject@9	reject@9	engine	RevokeRoleStmt/REVOKE_ColId_OPTION_FOR_privilege_list_F
 reject@16	reject@16	engine	RevokeRoleStmt/REVOKE_ColId_OPTION_FOR_privilege_list_FROM_role_list_opt_granted_by_opt_drop_behavior!drop-4	REVOKE a OPTION SELECT FROM a
 accept	reject@20	engine	RevokeRoleStmt/REVOKE_ColId_OPTION_FOR_privilege_list_FROM_role_list_opt_granted_by_opt_drop_behavior!drop-5	REVOKE a OPTION FOR FROM a
 reject@27	reject@27	engine	RevokeRoleStmt/REVOKE_ColId_OPTION_FOR_privilege_list_FROM_role_list_opt_granted_by_opt_drop_behavior!drop-6	REVOKE a OPTION FOR SELECT a
-accept	reject@31	engine	RevokeRoleStmt/REVOKE_ColId_OPTION_FOR_privilege_list_FROM_role_list_opt_granted_by_opt_drop_behavior!drop-7	REVOKE a OPTION FOR SELECT FROM
+reject@31	reject@31	engine	RevokeRoleStmt/REVOKE_ColId_OPTION_FOR_privilege_list_FROM_role_list_opt_granted_by_opt_drop_behavior!drop-7	REVOKE a OPTION FOR SELECT FROM
 reject@34	reject@34	engine	RevokeRoleStmt/REVOKE_ColId_OPTION_FOR_privilege_list_FROM_role_list_opt_granted_by_opt_drop_behavior!insert	REVOKE a OPTION FOR SELECT FROM a zzz
 reject@0	reject@0	engine	RevokeRoleStmt/REVOKE_ColId_OPTION_FOR_privilege_list_FROM_role_list_opt_granted_by_opt_drop_behavior!swap	RIGHT a OPTION FOR SELECT FROM a
 reject@23	accept	engine	grant_role_opt_list/grant_role_opt_list_,_grant_role_opt	GRANT SELECT TO a WITH a OPTION, a OPTION
@@ -5253,8 +5253,8 @@ reject@23	reject@31	engine	grant_role_opt_value/FALSE_P!insert	GRANT SELECT TO a
 reject@23	reject@25	engine	grant_role_opt_value/FALSE_P!swap	GRANT SELECT TO a WITH a FAMILY
 accept	accept	engine	opt_granted_by/GRANTED_BY_RoleSpec	GRANT SELECT TO a GRANTED BY a
 reject@18	reject@18	engine	opt_granted_by/GRANTED_BY_RoleSpec!drop-1	GRANT SELECT TO a BY a
-accept	reject@26	engine	opt_granted_by/GRANTED_BY_RoleSpec!drop-2	GRANT SELECT TO a GRANTED a
-accept	reject@28	engine	opt_granted_by/GRANTED_BY_RoleSpec!drop-3	GRANT SELECT TO a GRANTED BY
+reject@26	reject@26	engine	opt_granted_by/GRANTED_BY_RoleSpec!drop-2	GRANT SELECT TO a GRANTED a
+reject@28	reject@28	engine	opt_granted_by/GRANTED_BY_RoleSpec!drop-3	GRANT SELECT TO a GRANTED BY
 reject@31	reject@31	engine	opt_granted_by/GRANTED_BY_RoleSpec!insert	GRANT SELECT TO a GRANTED BY a zzz
 reject@18	reject@18	engine	opt_granted_by/GRANTED_BY_RoleSpec!swap	GRANT SELECT TO a GREATEST BY a
 accept	accept	engine	opt_granted_by/%empty	GRANT SELECT TO a
@@ -5272,14 +5272,14 @@ accept	accept	engine	DefACLOption/IN_P_SCHEMA_name_list	ALTER DEFAULT PRIVILEGES
 accept	accept	engine	DefACLOption/FOR_ROLE_role_list	ALTER DEFAULT PRIVILEGES FOR ROLE a GRANT SELECT ON TABLES TO a
 reject@25	reject@25	engine	DefACLOption/FOR_ROLE_role_list!drop-1	ALTER DEFAULT PRIVILEGES ROLE a GRANT SELECT ON TABLES TO a
 accept	reject@29	engine	DefACLOption/FOR_ROLE_role_list!drop-2	ALTER DEFAULT PRIVILEGES FOR a GRANT SELECT ON TABLES TO a
-accept	reject@34	engine	DefACLOption/FOR_ROLE_role_list!drop-3	ALTER DEFAULT PRIVILEGES FOR ROLE GRANT SELECT ON TABLES TO a
-accept	reject@33	engine	DefACLOption/FOR_ROLE_role_list!truncate	ALTER DEFAULT PRIVILEGES FOR ROLE
+reject@34	reject@34	engine	DefACLOption/FOR_ROLE_role_list!drop-3	ALTER DEFAULT PRIVILEGES FOR ROLE GRANT SELECT ON TABLES TO a
+reject@33	reject@33	engine	DefACLOption/FOR_ROLE_role_list!truncate	ALTER DEFAULT PRIVILEGES FOR ROLE
 reject@36	reject@36	engine	DefACLOption/FOR_ROLE_role_list!insert	ALTER DEFAULT PRIVILEGES FOR ROLE a zzz GRANT SELECT ON TABLES TO a
 reject@25	reject@25	engine	DefACLOption/FOR_ROLE_role_list!swap	ALTER DEFAULT PRIVILEGES FORCE ROLE a GRANT SELECT ON TABLES TO a
 accept	accept	engine	DefACLOption/FOR_USER_role_list	ALTER DEFAULT PRIVILEGES FOR USER a GRANT SELECT ON TABLES TO a
 reject@25	reject@25	engine	DefACLOption/FOR_USER_role_list!drop-1	ALTER DEFAULT PRIVILEGES USER a GRANT SELECT ON TABLES TO a
-accept	reject@34	engine	DefACLOption/FOR_USER_role_list!drop-3	ALTER DEFAULT PRIVILEGES FOR USER GRANT SELECT ON TABLES TO a
-accept	reject@33	engine	DefACLOption/FOR_USER_role_list!truncate	ALTER DEFAULT PRIVILEGES FOR USER
+reject@34	reject@34	engine	DefACLOption/FOR_USER_role_list!drop-3	ALTER DEFAULT PRIVILEGES FOR USER GRANT SELECT ON TABLES TO a
+reject@33	reject@33	engine	DefACLOption/FOR_USER_role_list!truncate	ALTER DEFAULT PRIVILEGES FOR USER
 reject@36	reject@36	engine	DefACLOption/FOR_USER_role_list!insert	ALTER DEFAULT PRIVILEGES FOR USER a zzz GRANT SELECT ON TABLES TO a
 reject@25	reject@25	engine	DefACLOption/FOR_USER_role_list!swap	ALTER DEFAULT PRIVILEGES FORCE USER a GRANT SELECT ON TABLES TO a
 accept	accept	engine	DefACLAction/GRANT_privileges_ON_defacl_privilege_target_TO_grantee_list_opt_grant_grant_option	ALTER DEFAULT PRIVILEGES GRANT SELECT ON TABLES TO a
@@ -5290,7 +5290,7 @@ accept	reject@32	engine	DefACLAction/REVOKE_privileges_ON_defacl_privilege_targe
 reject@39	reject@39	engine	DefACLAction/REVOKE_privileges_ON_defacl_privilege_target_FROM_grantee_list_opt_drop_behavior!drop-3	ALTER DEFAULT PRIVILEGES REVOKE SELECT TABLES FROM a
 accept	reject@42	engine	DefACLAction/REVOKE_privileges_ON_defacl_privilege_target_FROM_grantee_list_opt_drop_behavior!drop-4	ALTER DEFAULT PRIVILEGES REVOKE SELECT ON FROM a
 reject@49	reject@49	engine	DefACLAction/REVOKE_privileges_ON_defacl_privilege_target_FROM_grantee_list_opt_drop_behavior!drop-5	ALTER DEFAULT PRIVILEGES REVOKE SELECT ON TABLES a
-accept	reject@53	engine	DefACLAction/REVOKE_privileges_ON_defacl_privilege_target_FROM_grantee_list_opt_drop_behavior!drop-6	ALTER DEFAULT PRIVILEGES REVOKE SELECT ON TABLES FROM
+reject@53	reject@53	engine	DefACLAction/REVOKE_privileges_ON_defacl_privilege_target_FROM_grantee_list_opt_drop_behavior!drop-6	ALTER DEFAULT PRIVILEGES REVOKE SELECT ON TABLES FROM
 reject@56	reject@56	engine	DefACLAction/REVOKE_privileges_ON_defacl_privilege_target_FROM_grantee_list_opt_drop_behavior!insert	ALTER DEFAULT PRIVILEGES REVOKE SELECT ON TABLES FROM a zzz
 reject@25	reject@25	engine	DefACLAction/REVOKE_privileges_ON_defacl_privilege_target_FROM_grantee_list_opt_drop_behavior!swap	ALTER DEFAULT PRIVILEGES RIGHT SELECT ON TABLES FROM a
 accept	accept	engine	DefACLAction/REVOKE_GRANT_OPTION_FOR_privileges_ON_defacl_privilege_target_FROM_grantee_list_opt_drop_behavior	ALTER DEFAULT PRIVILEGES REVOKE GRANT OPTION FOR SELECT ON TABLES FROM a
@@ -5302,7 +5302,7 @@ accept	reject@49	engine	DefACLAction/REVOKE_GRANT_OPTION_FOR_privileges_ON_defac
 reject@56	reject@56	engine	DefACLAction/REVOKE_GRANT_OPTION_FOR_privileges_ON_defacl_privilege_target_FROM_grantee_list_opt_drop_behavior!drop-6	ALTER DEFAULT PRIVILEGES REVOKE GRANT OPTION FOR SELECT TABLES FROM a
 accept	reject@59	engine	DefACLAction/REVOKE_GRANT_OPTION_FOR_privileges_ON_defacl_privilege_target_FROM_grantee_list_opt_drop_behavior!drop-7	ALTER DEFAULT PRIVILEGES REVOKE GRANT OPTION FOR SELECT ON FROM a
 reject@66	reject@66	engine	DefACLAction/REVOKE_GRANT_OPTION_FOR_privileges_ON_defacl_privilege_target_FROM_grantee_list_opt_drop_behavior!drop-8	ALTER DEFAULT PRIVILEGES REVOKE GRANT OPTION FOR SELECT ON TABLES a
-accept	reject@70	engine	DefACLAction/REVOKE_GRANT_OPTION_FOR_privileges_ON_defacl_privilege_target_FROM_grantee_list_opt_drop_behavior!drop-9	ALTER DEFAULT PRIVILEGES REVOKE GRANT OPTION FOR SELECT ON TABLES FROM
+reject@70	reject@70	engine	DefACLAction/REVOKE_GRANT_OPTION_FOR_privileges_ON_defacl_privilege_target_FROM_grantee_list_opt_drop_behavior!drop-9	ALTER DEFAULT PRIVILEGES REVOKE GRANT OPTION FOR SELECT ON TABLES FROM
 reject@73	reject@73	engine	DefACLAction/REVOKE_GRANT_OPTION_FOR_privileges_ON_defacl_privilege_target_FROM_grantee_list_opt_drop_behavior!insert	ALTER DEFAULT PRIVILEGES REVOKE GRANT OPTION FOR SELECT ON TABLES FROM a zzz
 reject@25	reject@25	engine	DefACLAction/REVOKE_GRANT_OPTION_FOR_privileges_ON_defacl_privilege_target_FROM_grantee_list_opt_drop_behavior!swap	ALTER DEFAULT PRIVILEGES RIGHT GRANT OPTION FOR SELECT ON TABLES FROM a
 accept	accept	engine	defacl_privilege_target/TABLES	ALTER DEFAULT PRIVILEGES GRANT SELECT ON TABLES TO a
@@ -6897,7 +6897,7 @@ reject@18	reject@18	engine	AlterOwnerStmt/ALTER_AGGREGATE_aggregate_with_argtype
 reject@18	reject@18	engine	AlterOwnerStmt/ALTER_AGGREGATE_aggregate_with_argtypes_OWNER_TO_RoleSpec!drop-5	ALTER AGGREGATE a() OWNER TO a
 reject@20	reject@20	engine	AlterOwnerStmt/ALTER_AGGREGATE_aggregate_with_argtypes_OWNER_TO_RoleSpec!drop-6	ALTER AGGREGATE a(* OWNER TO a
 reject@27	reject@27	engine	AlterOwnerStmt/ALTER_AGGREGATE_aggregate_with_argtypes_OWNER_TO_RoleSpec!drop-8	ALTER AGGREGATE a(*) OWNER a
-accept	reject@29	engine	AlterOwnerStmt/ALTER_AGGREGATE_aggregate_with_argtypes_OWNER_TO_RoleSpec!drop-9	ALTER AGGREGATE a(*) OWNER TO
+reject@29	reject@29	engine	AlterOwnerStmt/ALTER_AGGREGATE_aggregate_with_argtypes_OWNER_TO_RoleSpec!drop-9	ALTER AGGREGATE a(*) OWNER TO
 reject@32	reject@32	engine	AlterOwnerStmt/ALTER_AGGREGATE_aggregate_with_argtypes_OWNER_TO_RoleSpec!insert	ALTER AGGREGATE a(*) OWNER TO a zzz
 reject@0	reject@0	engine	AlterOwnerStmt/ALTER_AGGREGATE_aggregate_with_argtypes_OWNER_TO_RoleSpec!swap	ALWAYS AGGREGATE a(*) OWNER TO a
 accept	accept	engine	AlterOwnerStmt/ALTER_COLLATION_any_name_OWNER_TO_RoleSpec	ALTER COLLATION a OWNER TO a
@@ -6905,21 +6905,21 @@ accept	accept	engine	AlterOwnerStmt/ALTER_CONVERSION_P_any_name_OWNER_TO_RoleSpe
 reject@0	reject@0	engine	AlterOwnerStmt/ALTER_CONVERSION_P_any_name_OWNER_TO_RoleSpec!drop-1	CONVERSION a OWNER TO a
 reject@23	reject@23	engine	AlterOwnerStmt/ALTER_CONVERSION_P_any_name_OWNER_TO_RoleSpec!drop-3	ALTER CONVERSION OWNER TO a
 reject@25	reject@25	engine	AlterOwnerStmt/ALTER_CONVERSION_P_any_name_OWNER_TO_RoleSpec!drop-5	ALTER CONVERSION a OWNER a
-accept	reject@27	engine	AlterOwnerStmt/ALTER_CONVERSION_P_any_name_OWNER_TO_RoleSpec!drop-6	ALTER CONVERSION a OWNER TO
+reject@27	reject@27	engine	AlterOwnerStmt/ALTER_CONVERSION_P_any_name_OWNER_TO_RoleSpec!drop-6	ALTER CONVERSION a OWNER TO
 reject@30	reject@30	engine	AlterOwnerStmt/ALTER_CONVERSION_P_any_name_OWNER_TO_RoleSpec!insert	ALTER CONVERSION a OWNER TO a zzz
 reject@0	reject@0	engine	AlterOwnerStmt/ALTER_CONVERSION_P_any_name_OWNER_TO_RoleSpec!swap	ALWAYS CONVERSION a OWNER TO a
 accept	accept	engine	AlterOwnerStmt/ALTER_DATABASE_name_OWNER_TO_RoleSpec	ALTER DATABASE a OWNER TO a
 reject@0	reject@0	engine	AlterOwnerStmt/ALTER_DATABASE_name_OWNER_TO_RoleSpec!drop-1	DATABASE a OWNER TO a
 reject@21	reject@21	engine	AlterOwnerStmt/ALTER_DATABASE_name_OWNER_TO_RoleSpec!drop-3	ALTER DATABASE OWNER TO a
 reject@23	accept	engine	AlterOwnerStmt/ALTER_DATABASE_name_OWNER_TO_RoleSpec!drop-5	ALTER DATABASE a OWNER a
-accept	reject@25	engine	AlterOwnerStmt/ALTER_DATABASE_name_OWNER_TO_RoleSpec!drop-6	ALTER DATABASE a OWNER TO
+reject@25	reject@25	engine	AlterOwnerStmt/ALTER_DATABASE_name_OWNER_TO_RoleSpec!drop-6	ALTER DATABASE a OWNER TO
 reject@28	reject@28	engine	AlterOwnerStmt/ALTER_DATABASE_name_OWNER_TO_RoleSpec!insert	ALTER DATABASE a OWNER TO a zzz
 reject@0	reject@0	engine	AlterOwnerStmt/ALTER_DATABASE_name_OWNER_TO_RoleSpec!swap	ALWAYS DATABASE a OWNER TO a
 accept	accept	engine	AlterOwnerStmt/ALTER_DOMAIN_P_any_name_OWNER_TO_RoleSpec	ALTER DOMAIN a OWNER TO a
 reject@0	reject@0	engine	AlterOwnerStmt/ALTER_DOMAIN_P_any_name_OWNER_TO_RoleSpec!drop-1	DOMAIN a OWNER TO a
 reject@19	reject@19	engine	AlterOwnerStmt/ALTER_DOMAIN_P_any_name_OWNER_TO_RoleSpec!drop-3	ALTER DOMAIN OWNER TO a
 reject@21	reject@21	engine	AlterOwnerStmt/ALTER_DOMAIN_P_any_name_OWNER_TO_RoleSpec!drop-5	ALTER DOMAIN a OWNER a
-accept	reject@23	engine	AlterOwnerStmt/ALTER_DOMAIN_P_any_name_OWNER_TO_RoleSpec!drop-6	ALTER DOMAIN a OWNER TO
+reject@23	reject@23	engine	AlterOwnerStmt/ALTER_DOMAIN_P_any_name_OWNER_TO_RoleSpec!drop-6	ALTER DOMAIN a OWNER TO
 reject@26	reject@26	engine	AlterOwnerStmt/ALTER_DOMAIN_P_any_name_OWNER_TO_RoleSpec!insert	ALTER DOMAIN a OWNER TO a zzz
 reject@0	reject@0	engine	AlterOwnerStmt/ALTER_DOMAIN_P_any_name_OWNER_TO_RoleSpec!swap	ALWAYS DOMAIN a OWNER TO a
 accept	accept	engine	AlterOwnerStmt/ALTER_FUNCTION_function_with_argtypes_OWNER_TO_RoleSpec	ALTER FUNCTION AUTHORIZATION OWNER TO a
@@ -6927,14 +6927,14 @@ reject@0	reject@0	engine	AlterOwnerStmt/ALTER_FUNCTION_function_with_argtypes_OW
 reject@6	reject@6	engine	AlterOwnerStmt/ALTER_FUNCTION_function_with_argtypes_OWNER_TO_RoleSpec!drop-2	ALTER AUTHORIZATION OWNER TO a
 reject@21	reject@21	engine	AlterOwnerStmt/ALTER_FUNCTION_function_with_argtypes_OWNER_TO_RoleSpec!drop-3	ALTER FUNCTION OWNER TO a
 reject@35	reject@35	engine	AlterOwnerStmt/ALTER_FUNCTION_function_with_argtypes_OWNER_TO_RoleSpec!drop-5	ALTER FUNCTION AUTHORIZATION OWNER a
-accept	reject@37	engine	AlterOwnerStmt/ALTER_FUNCTION_function_with_argtypes_OWNER_TO_RoleSpec!drop-6	ALTER FUNCTION AUTHORIZATION OWNER TO
+reject@37	reject@37	engine	AlterOwnerStmt/ALTER_FUNCTION_function_with_argtypes_OWNER_TO_RoleSpec!drop-6	ALTER FUNCTION AUTHORIZATION OWNER TO
 reject@40	reject@40	engine	AlterOwnerStmt/ALTER_FUNCTION_function_with_argtypes_OWNER_TO_RoleSpec!insert	ALTER FUNCTION AUTHORIZATION OWNER TO a zzz
 reject@0	reject@0	engine	AlterOwnerStmt/ALTER_FUNCTION_function_with_argtypes_OWNER_TO_RoleSpec!swap	ALWAYS FUNCTION AUTHORIZATION OWNER TO a
 accept	accept	engine	AlterOwnerStmt/ALTER_opt_procedural_LANGUAGE_name_OWNER_TO_RoleSpec	ALTER LANGUAGE a OWNER TO a
 reject@0	reject@0	engine	AlterOwnerStmt/ALTER_opt_procedural_LANGUAGE_name_OWNER_TO_RoleSpec!drop-1	LANGUAGE a OWNER TO a
 reject@21	reject@21	engine	AlterOwnerStmt/ALTER_opt_procedural_LANGUAGE_name_OWNER_TO_RoleSpec!drop-3	ALTER LANGUAGE OWNER TO a
 reject@23	reject@23	engine	AlterOwnerStmt/ALTER_opt_procedural_LANGUAGE_name_OWNER_TO_RoleSpec!drop-5	ALTER LANGUAGE a OWNER a
-accept	reject@25	engine	AlterOwnerStmt/ALTER_opt_procedural_LANGUAGE_name_OWNER_TO_RoleSpec!drop-6	ALTER LANGUAGE a OWNER TO
+reject@25	reject@25	engine	AlterOwnerStmt/ALTER_opt_procedural_LANGUAGE_name_OWNER_TO_RoleSpec!drop-6	ALTER LANGUAGE a OWNER TO
 reject@28	reject@28	engine	AlterOwnerStmt/ALTER_opt_procedural_LANGUAGE_name_OWNER_TO_RoleSpec!insert	ALTER LANGUAGE a OWNER TO a zzz
 reject@0	reject@0	engine	AlterOwnerStmt/ALTER_opt_procedural_LANGUAGE_name_OWNER_TO_RoleSpec!swap	ALWAYS LANGUAGE a OWNER TO a
 accept	accept	engine	AlterOwnerStmt/ALTER_LARGE_P_OBJECT_P_NumericOnly_OWNER_TO_RoleSpec	ALTER LARGE OBJECT 1.5 OWNER TO a
@@ -6944,7 +6944,7 @@ reject@12	reject@12	engine	AlterOwnerStmt/ALTER_LARGE_P_OBJECT_P_NumericOnly_OWN
 accept	reject@19	engine	AlterOwnerStmt/ALTER_LARGE_P_OBJECT_P_NumericOnly_OWNER_TO_RoleSpec!drop-4	ALTER LARGE OBJECT OWNER TO a
 reject@23	reject@23	engine	AlterOwnerStmt/ALTER_LARGE_P_OBJECT_P_NumericOnly_OWNER_TO_RoleSpec!drop-5	ALTER LARGE OBJECT 1.5 TO a
 reject@29	reject@29	engine	AlterOwnerStmt/ALTER_LARGE_P_OBJECT_P_NumericOnly_OWNER_TO_RoleSpec!drop-6	ALTER LARGE OBJECT 1.5 OWNER a
-accept	reject@31	engine	AlterOwnerStmt/ALTER_LARGE_P_OBJECT_P_NumericOnly_OWNER_TO_RoleSpec!drop-7	ALTER LARGE OBJECT 1.5 OWNER TO
+reject@31	reject@31	engine	AlterOwnerStmt/ALTER_LARGE_P_OBJECT_P_NumericOnly_OWNER_TO_RoleSpec!drop-7	ALTER LARGE OBJECT 1.5 OWNER TO
 reject@34	reject@34	engine	AlterOwnerStmt/ALTER_LARGE_P_OBJECT_P_NumericOnly_OWNER_TO_RoleSpec!insert	ALTER LARGE OBJECT 1.5 OWNER TO a zzz
 reject@0	reject@0	engine	AlterOwnerStmt/ALTER_LARGE_P_OBJECT_P_NumericOnly_OWNER_TO_RoleSpec!swap	ALWAYS LARGE OBJECT 1.5 OWNER TO a
 accept	reject@18	engine	AlterOwnerStmt/ALTER_OPERATOR_operator_with_argtypes_OWNER_TO_RoleSpec	ALTER OPERATOR ~(a) OWNER TO a
@@ -6956,7 +6956,7 @@ reject@17	reject@17	engine	AlterOwnerStmt/ALTER_OPERATOR_operator_with_argtypes_
 reject@19	reject@19	engine	AlterOwnerStmt/ALTER_OPERATOR_operator_with_argtypes_OWNER_TO_RoleSpec!drop-6	ALTER OPERATOR ~(a OWNER TO a
 reject@20	reject@18	engine	AlterOwnerStmt/ALTER_OPERATOR_operator_with_argtypes_OWNER_TO_RoleSpec!drop-7	ALTER OPERATOR ~(a) TO a
 reject@26	reject@18	engine	AlterOwnerStmt/ALTER_OPERATOR_operator_with_argtypes_OWNER_TO_RoleSpec!drop-8	ALTER OPERATOR ~(a) OWNER a
-accept	reject@18	engine	AlterOwnerStmt/ALTER_OPERATOR_operator_with_argtypes_OWNER_TO_RoleSpec!drop-9	ALTER OPERATOR ~(a) OWNER TO
+reject@28	reject@18	engine	AlterOwnerStmt/ALTER_OPERATOR_operator_with_argtypes_OWNER_TO_RoleSpec!drop-9	ALTER OPERATOR ~(a) OWNER TO
 reject@31	reject@18	engine	AlterOwnerStmt/ALTER_OPERATOR_operator_with_argtypes_OWNER_TO_RoleSpec!insert	ALTER OPERATOR ~(a) OWNER TO a zzz
 reject@0	reject@0	engine	AlterOwnerStmt/ALTER_OPERATOR_operator_with_argtypes_OWNER_TO_RoleSpec!swap	ALWAYS OPERATOR ~(a) OWNER TO a
 accept	accept	engine	AlterOwnerStmt/ALTER_OPERATOR_CLASS_any_name_USING_name_OWNER_TO_RoleSpec	ALTER OPERATOR CLASS a USING a OWNER TO a
@@ -6967,7 +6967,7 @@ reject@21	reject@21	engine	AlterOwnerStmt/ALTER_OPERATOR_CLASS_any_name_USING_na
 reject@23	reject@23	engine	AlterOwnerStmt/ALTER_OPERATOR_CLASS_any_name_USING_name_OWNER_TO_RoleSpec!drop-5	ALTER OPERATOR CLASS a a OWNER TO a
 reject@35	reject@35	engine	AlterOwnerStmt/ALTER_OPERATOR_CLASS_any_name_USING_name_OWNER_TO_RoleSpec!drop-6	ALTER OPERATOR CLASS a USING OWNER TO a
 reject@37	reject@37	engine	AlterOwnerStmt/ALTER_OPERATOR_CLASS_any_name_USING_name_OWNER_TO_RoleSpec!drop-8	ALTER OPERATOR CLASS a USING a OWNER a
-accept	reject@39	engine	AlterOwnerStmt/ALTER_OPERATOR_CLASS_any_name_USING_name_OWNER_TO_RoleSpec!drop-9	ALTER OPERATOR CLASS a USING a OWNER TO
+reject@39	reject@39	engine	AlterOwnerStmt/ALTER_OPERATOR_CLASS_any_name_USING_name_OWNER_TO_RoleSpec!drop-9	ALTER OPERATOR CLASS a USING a OWNER TO
 reject@42	reject@42	engine	AlterOwnerStmt/ALTER_OPERATOR_CLASS_any_name_USING_name_OWNER_TO_RoleSpec!insert	ALTER OPERATOR CLASS a USING a OWNER TO a zzz
 reject@0	reject@0	engine	AlterOwnerStmt/ALTER_OPERATOR_CLASS_any_name_USING_name_OWNER_TO_RoleSpec!swap	ALWAYS OPERATOR CLASS a USING a OWNER TO a
 accept	accept	engine	AlterOwnerStmt/ALTER_OPERATOR_FAMILY_any_name_USING_name_OWNER_TO_RoleSpec	ALTER OPERATOR FAMILY a USING a OWNER TO a
@@ -6977,49 +6977,49 @@ reject@22	reject@22	engine	AlterOwnerStmt/ALTER_OPERATOR_FAMILY_any_name_USING_n
 reject@24	reject@24	engine	AlterOwnerStmt/ALTER_OPERATOR_FAMILY_any_name_USING_name_OWNER_TO_RoleSpec!drop-5	ALTER OPERATOR FAMILY a a OWNER TO a
 reject@36	reject@36	engine	AlterOwnerStmt/ALTER_OPERATOR_FAMILY_any_name_USING_name_OWNER_TO_RoleSpec!drop-6	ALTER OPERATOR FAMILY a USING OWNER TO a
 reject@38	reject@38	engine	AlterOwnerStmt/ALTER_OPERATOR_FAMILY_any_name_USING_name_OWNER_TO_RoleSpec!drop-8	ALTER OPERATOR FAMILY a USING a OWNER a
-accept	reject@40	engine	AlterOwnerStmt/ALTER_OPERATOR_FAMILY_any_name_USING_name_OWNER_TO_RoleSpec!drop-9	ALTER OPERATOR FAMILY a USING a OWNER TO
+reject@40	reject@40	engine	AlterOwnerStmt/ALTER_OPERATOR_FAMILY_any_name_USING_name_OWNER_TO_RoleSpec!drop-9	ALTER OPERATOR FAMILY a USING a OWNER TO
 reject@43	reject@43	engine	AlterOwnerStmt/ALTER_OPERATOR_FAMILY_any_name_USING_name_OWNER_TO_RoleSpec!insert	ALTER OPERATOR FAMILY a USING a OWNER TO a zzz
 reject@0	reject@0	engine	AlterOwnerStmt/ALTER_OPERATOR_FAMILY_any_name_USING_name_OWNER_TO_RoleSpec!swap	ALWAYS OPERATOR FAMILY a USING a OWNER TO a
 accept	accept	engine	AlterOwnerStmt/ALTER_PROCEDURE_function_with_argtypes_OWNER_TO_RoleSpec	ALTER PROCEDURE AUTHORIZATION OWNER TO a
 reject@0	reject@0	engine	AlterOwnerStmt/ALTER_PROCEDURE_function_with_argtypes_OWNER_TO_RoleSpec!drop-1	PROCEDURE AUTHORIZATION OWNER TO a
 reject@22	reject@22	engine	AlterOwnerStmt/ALTER_PROCEDURE_function_with_argtypes_OWNER_TO_RoleSpec!drop-3	ALTER PROCEDURE OWNER TO a
 reject@36	reject@36	engine	AlterOwnerStmt/ALTER_PROCEDURE_function_with_argtypes_OWNER_TO_RoleSpec!drop-5	ALTER PROCEDURE AUTHORIZATION OWNER a
-accept	reject@38	engine	AlterOwnerStmt/ALTER_PROCEDURE_function_with_argtypes_OWNER_TO_RoleSpec!drop-6	ALTER PROCEDURE AUTHORIZATION OWNER TO
+reject@38	reject@38	engine	AlterOwnerStmt/ALTER_PROCEDURE_function_with_argtypes_OWNER_TO_RoleSpec!drop-6	ALTER PROCEDURE AUTHORIZATION OWNER TO
 reject@41	reject@41	engine	AlterOwnerStmt/ALTER_PROCEDURE_function_with_argtypes_OWNER_TO_RoleSpec!insert	ALTER PROCEDURE AUTHORIZATION OWNER TO a zzz
 reject@0	reject@0	engine	AlterOwnerStmt/ALTER_PROCEDURE_function_with_argtypes_OWNER_TO_RoleSpec!swap	ALWAYS PROCEDURE AUTHORIZATION OWNER TO a
 accept	accept	engine	AlterOwnerStmt/ALTER_ROUTINE_function_with_argtypes_OWNER_TO_RoleSpec	ALTER ROUTINE AUTHORIZATION OWNER TO a
 reject@0	reject@0	engine	AlterOwnerStmt/ALTER_ROUTINE_function_with_argtypes_OWNER_TO_RoleSpec!drop-1	ROUTINE AUTHORIZATION OWNER TO a
 reject@20	reject@20	engine	AlterOwnerStmt/ALTER_ROUTINE_function_with_argtypes_OWNER_TO_RoleSpec!drop-3	ALTER ROUTINE OWNER TO a
 reject@34	reject@34	engine	AlterOwnerStmt/ALTER_ROUTINE_function_with_argtypes_OWNER_TO_RoleSpec!drop-5	ALTER ROUTINE AUTHORIZATION OWNER a
-accept	reject@36	engine	AlterOwnerStmt/ALTER_ROUTINE_function_with_argtypes_OWNER_TO_RoleSpec!drop-6	ALTER ROUTINE AUTHORIZATION OWNER TO
+reject@36	reject@36	engine	AlterOwnerStmt/ALTER_ROUTINE_function_with_argtypes_OWNER_TO_RoleSpec!drop-6	ALTER ROUTINE AUTHORIZATION OWNER TO
 reject@39	reject@39	engine	AlterOwnerStmt/ALTER_ROUTINE_function_with_argtypes_OWNER_TO_RoleSpec!insert	ALTER ROUTINE AUTHORIZATION OWNER TO a zzz
 reject@0	reject@0	engine	AlterOwnerStmt/ALTER_ROUTINE_function_with_argtypes_OWNER_TO_RoleSpec!swap	ALWAYS ROUTINE AUTHORIZATION OWNER TO a
 accept	accept	engine	AlterOwnerStmt/ALTER_SCHEMA_name_OWNER_TO_RoleSpec	ALTER SCHEMA a OWNER TO a
 reject@0	reject@0	engine	AlterOwnerStmt/ALTER_SCHEMA_name_OWNER_TO_RoleSpec!drop-1	SCHEMA a OWNER TO a
 reject@19	reject@19	engine	AlterOwnerStmt/ALTER_SCHEMA_name_OWNER_TO_RoleSpec!drop-3	ALTER SCHEMA OWNER TO a
 reject@21	reject@21	engine	AlterOwnerStmt/ALTER_SCHEMA_name_OWNER_TO_RoleSpec!drop-5	ALTER SCHEMA a OWNER a
-accept	reject@23	engine	AlterOwnerStmt/ALTER_SCHEMA_name_OWNER_TO_RoleSpec!drop-6	ALTER SCHEMA a OWNER TO
+reject@23	reject@23	engine	AlterOwnerStmt/ALTER_SCHEMA_name_OWNER_TO_RoleSpec!drop-6	ALTER SCHEMA a OWNER TO
 reject@26	reject@26	engine	AlterOwnerStmt/ALTER_SCHEMA_name_OWNER_TO_RoleSpec!insert	ALTER SCHEMA a OWNER TO a zzz
 reject@0	reject@0	engine	AlterOwnerStmt/ALTER_SCHEMA_name_OWNER_TO_RoleSpec!swap	ALWAYS SCHEMA a OWNER TO a
 accept	accept	engine	AlterOwnerStmt/ALTER_TYPE_P_any_name_OWNER_TO_RoleSpec	ALTER TYPE a OWNER TO a
 reject@0	reject@0	engine	AlterOwnerStmt/ALTER_TYPE_P_any_name_OWNER_TO_RoleSpec!drop-1	TYPE a OWNER TO a
 reject@17	reject@17	engine	AlterOwnerStmt/ALTER_TYPE_P_any_name_OWNER_TO_RoleSpec!drop-3	ALTER TYPE OWNER TO a
 reject@19	reject@19	engine	AlterOwnerStmt/ALTER_TYPE_P_any_name_OWNER_TO_RoleSpec!drop-5	ALTER TYPE a OWNER a
-accept	reject@21	engine	AlterOwnerStmt/ALTER_TYPE_P_any_name_OWNER_TO_RoleSpec!drop-6	ALTER TYPE a OWNER TO
+reject@21	reject@21	engine	AlterOwnerStmt/ALTER_TYPE_P_any_name_OWNER_TO_RoleSpec!drop-6	ALTER TYPE a OWNER TO
 reject@24	reject@24	engine	AlterOwnerStmt/ALTER_TYPE_P_any_name_OWNER_TO_RoleSpec!insert	ALTER TYPE a OWNER TO a zzz
 reject@0	reject@0	engine	AlterOwnerStmt/ALTER_TYPE_P_any_name_OWNER_TO_RoleSpec!swap	ALWAYS TYPE a OWNER TO a
 accept	accept	engine	AlterOwnerStmt/ALTER_TABLESPACE_name_OWNER_TO_RoleSpec	ALTER TABLESPACE a OWNER TO a
 reject@0	reject@0	engine	AlterOwnerStmt/ALTER_TABLESPACE_name_OWNER_TO_RoleSpec!drop-1	TABLESPACE a OWNER TO a
 reject@23	reject@23	engine	AlterOwnerStmt/ALTER_TABLESPACE_name_OWNER_TO_RoleSpec!drop-3	ALTER TABLESPACE OWNER TO a
 reject@25	reject@25	engine	AlterOwnerStmt/ALTER_TABLESPACE_name_OWNER_TO_RoleSpec!drop-5	ALTER TABLESPACE a OWNER a
-accept	reject@27	engine	AlterOwnerStmt/ALTER_TABLESPACE_name_OWNER_TO_RoleSpec!drop-6	ALTER TABLESPACE a OWNER TO
+reject@27	reject@27	engine	AlterOwnerStmt/ALTER_TABLESPACE_name_OWNER_TO_RoleSpec!drop-6	ALTER TABLESPACE a OWNER TO
 reject@30	reject@30	engine	AlterOwnerStmt/ALTER_TABLESPACE_name_OWNER_TO_RoleSpec!insert	ALTER TABLESPACE a OWNER TO a zzz
 reject@0	reject@0	engine	AlterOwnerStmt/ALTER_TABLESPACE_name_OWNER_TO_RoleSpec!swap	ALWAYS TABLESPACE a OWNER TO a
 accept	accept	engine	AlterOwnerStmt/ALTER_STATISTICS_any_name_OWNER_TO_RoleSpec	ALTER STATISTICS a OWNER TO a
 reject@0	reject@0	engine	AlterOwnerStmt/ALTER_STATISTICS_any_name_OWNER_TO_RoleSpec!drop-1	STATISTICS a OWNER TO a
 reject@23	reject@23	engine	AlterOwnerStmt/ALTER_STATISTICS_any_name_OWNER_TO_RoleSpec!drop-3	ALTER STATISTICS OWNER TO a
 reject@25	reject@25	engine	AlterOwnerStmt/ALTER_STATISTICS_any_name_OWNER_TO_RoleSpec!drop-5	ALTER STATISTICS a OWNER a
-accept	reject@27	engine	AlterOwnerStmt/ALTER_STATISTICS_any_name_OWNER_TO_RoleSpec!drop-6	ALTER STATISTICS a OWNER TO
+reject@27	reject@27	engine	AlterOwnerStmt/ALTER_STATISTICS_any_name_OWNER_TO_RoleSpec!drop-6	ALTER STATISTICS a OWNER TO
 reject@30	reject@30	engine	AlterOwnerStmt/ALTER_STATISTICS_any_name_OWNER_TO_RoleSpec!insert	ALTER STATISTICS a OWNER TO a zzz
 reject@0	reject@0	engine	AlterOwnerStmt/ALTER_STATISTICS_any_name_OWNER_TO_RoleSpec!swap	ALWAYS STATISTICS a OWNER TO a
 accept	accept	engine	AlterOwnerStmt/ALTER_TEXT_P_SEARCH_DICTIONARY_any_name_OWNER_TO_RoleSpec	ALTER TEXT SEARCH DICTIONARY a OWNER TO a
@@ -7029,7 +7029,7 @@ reject@11	reject@11	engine	AlterOwnerStmt/ALTER_TEXT_P_SEARCH_DICTIONARY_any_nam
 reject@18	reject@18	engine	AlterOwnerStmt/ALTER_TEXT_P_SEARCH_DICTIONARY_any_name_OWNER_TO_RoleSpec!drop-4	ALTER TEXT SEARCH a OWNER TO a
 reject@35	reject@35	engine	AlterOwnerStmt/ALTER_TEXT_P_SEARCH_DICTIONARY_any_name_OWNER_TO_RoleSpec!drop-5	ALTER TEXT SEARCH DICTIONARY OWNER TO a
 reject@37	reject@37	engine	AlterOwnerStmt/ALTER_TEXT_P_SEARCH_DICTIONARY_any_name_OWNER_TO_RoleSpec!drop-7	ALTER TEXT SEARCH DICTIONARY a OWNER a
-accept	reject@39	engine	AlterOwnerStmt/ALTER_TEXT_P_SEARCH_DICTIONARY_any_name_OWNER_TO_RoleSpec!drop-8	ALTER TEXT SEARCH DICTIONARY a OWNER TO
+reject@39	reject@39	engine	AlterOwnerStmt/ALTER_TEXT_P_SEARCH_DICTIONARY_any_name_OWNER_TO_RoleSpec!drop-8	ALTER TEXT SEARCH DICTIONARY a OWNER TO
 reject@42	reject@42	engine	AlterOwnerStmt/ALTER_TEXT_P_SEARCH_DICTIONARY_any_name_OWNER_TO_RoleSpec!insert	ALTER TEXT SEARCH DICTIONARY a OWNER TO a zzz
 reject@0	reject@0	engine	AlterOwnerStmt/ALTER_TEXT_P_SEARCH_DICTIONARY_any_name_OWNER_TO_RoleSpec!swap	ALWAYS TEXT SEARCH DICTIONARY a OWNER TO a
 accept	accept	engine	AlterOwnerStmt/ALTER_TEXT_P_SEARCH_CONFIGURATION_any_name_OWNER_TO_RoleSpec	ALTER TEXT SEARCH CONFIGURATION a OWNER TO a
@@ -7038,7 +7038,7 @@ reject@6	reject@6	engine	AlterOwnerStmt/ALTER_TEXT_P_SEARCH_CONFIGURATION_any_na
 reject@11	reject@11	engine	AlterOwnerStmt/ALTER_TEXT_P_SEARCH_CONFIGURATION_any_name_OWNER_TO_RoleSpec!drop-3	ALTER TEXT CONFIGURATION a OWNER TO a
 reject@38	reject@38	engine	AlterOwnerStmt/ALTER_TEXT_P_SEARCH_CONFIGURATION_any_name_OWNER_TO_RoleSpec!drop-5	ALTER TEXT SEARCH CONFIGURATION OWNER TO a
 reject@40	reject@40	engine	AlterOwnerStmt/ALTER_TEXT_P_SEARCH_CONFIGURATION_any_name_OWNER_TO_RoleSpec!drop-7	ALTER TEXT SEARCH CONFIGURATION a OWNER a
-accept	reject@42	engine	AlterOwnerStmt/ALTER_TEXT_P_SEARCH_CONFIGURATION_any_name_OWNER_TO_RoleSpec!drop-8	ALTER TEXT SEARCH CONFIGURATION a OWNER TO
+reject@42	reject@42	engine	AlterOwnerStmt/ALTER_TEXT_P_SEARCH_CONFIGURATION_any_name_OWNER_TO_RoleSpec!drop-8	ALTER TEXT SEARCH CONFIGURATION a OWNER TO
 reject@45	reject@45	engine	AlterOwnerStmt/ALTER_TEXT_P_SEARCH_CONFIGURATION_any_name_OWNER_TO_RoleSpec!insert	ALTER TEXT SEARCH CONFIGURATION a OWNER TO a zzz
 reject@0	reject@0	engine	AlterOwnerStmt/ALTER_TEXT_P_SEARCH_CONFIGURATION_any_name_OWNER_TO_RoleSpec!swap	ALWAYS TEXT SEARCH CONFIGURATION a OWNER TO a
 accept	accept	engine	AlterOwnerStmt/ALTER_FOREIGN_DATA_P_WRAPPER_name_OWNER_TO_RoleSpec	ALTER FOREIGN DATA WRAPPER a OWNER TO a
@@ -7048,14 +7048,14 @@ reject@14	reject@14	engine	AlterOwnerStmt/ALTER_FOREIGN_DATA_P_WRAPPER_name_OWNE
 reject@19	reject@19	engine	AlterOwnerStmt/ALTER_FOREIGN_DATA_P_WRAPPER_name_OWNER_TO_RoleSpec!drop-4	ALTER FOREIGN DATA a OWNER TO a
 reject@33	reject@33	engine	AlterOwnerStmt/ALTER_FOREIGN_DATA_P_WRAPPER_name_OWNER_TO_RoleSpec!drop-5	ALTER FOREIGN DATA WRAPPER OWNER TO a
 reject@35	reject@35	engine	AlterOwnerStmt/ALTER_FOREIGN_DATA_P_WRAPPER_name_OWNER_TO_RoleSpec!drop-7	ALTER FOREIGN DATA WRAPPER a OWNER a
-accept	reject@37	engine	AlterOwnerStmt/ALTER_FOREIGN_DATA_P_WRAPPER_name_OWNER_TO_RoleSpec!drop-8	ALTER FOREIGN DATA WRAPPER a OWNER TO
+reject@37	reject@37	engine	AlterOwnerStmt/ALTER_FOREIGN_DATA_P_WRAPPER_name_OWNER_TO_RoleSpec!drop-8	ALTER FOREIGN DATA WRAPPER a OWNER TO
 reject@40	reject@40	engine	AlterOwnerStmt/ALTER_FOREIGN_DATA_P_WRAPPER_name_OWNER_TO_RoleSpec!insert	ALTER FOREIGN DATA WRAPPER a OWNER TO a zzz
 reject@0	reject@0	engine	AlterOwnerStmt/ALTER_FOREIGN_DATA_P_WRAPPER_name_OWNER_TO_RoleSpec!swap	ALWAYS FOREIGN DATA WRAPPER a OWNER TO a
 accept	accept	engine	AlterOwnerStmt/ALTER_SERVER_name_OWNER_TO_RoleSpec	ALTER SERVER a OWNER TO a
 reject@0	reject@0	engine	AlterOwnerStmt/ALTER_SERVER_name_OWNER_TO_RoleSpec!drop-1	SERVER a OWNER TO a
 reject@19	reject@19	engine	AlterOwnerStmt/ALTER_SERVER_name_OWNER_TO_RoleSpec!drop-3	ALTER SERVER OWNER TO a
 reject@21	reject@21	engine	AlterOwnerStmt/ALTER_SERVER_name_OWNER_TO_RoleSpec!drop-5	ALTER SERVER a OWNER a
-accept	reject@23	engine	AlterOwnerStmt/ALTER_SERVER_name_OWNER_TO_RoleSpec!drop-6	ALTER SERVER a OWNER TO
+reject@23	reject@23	engine	AlterOwnerStmt/ALTER_SERVER_name_OWNER_TO_RoleSpec!drop-6	ALTER SERVER a OWNER TO
 reject@26	reject@26	engine	AlterOwnerStmt/ALTER_SERVER_name_OWNER_TO_RoleSpec!insert	ALTER SERVER a OWNER TO a zzz
 reject@0	reject@0	engine	AlterOwnerStmt/ALTER_SERVER_name_OWNER_TO_RoleSpec!swap	ALWAYS SERVER a OWNER TO a
 accept	accept	engine	AlterOwnerStmt/ALTER_EVENT_TRIGGER_name_OWNER_TO_RoleSpec	ALTER EVENT TRIGGER a OWNER TO a
@@ -7064,21 +7064,21 @@ reject@16	reject@16	engine	AlterOwnerStmt/ALTER_EVENT_TRIGGER_name_OWNER_TO_Role
 reject@12	reject@12	engine	AlterOwnerStmt/ALTER_EVENT_TRIGGER_name_OWNER_TO_RoleSpec!drop-3	ALTER EVENT a OWNER TO a
 reject@26	reject@26	engine	AlterOwnerStmt/ALTER_EVENT_TRIGGER_name_OWNER_TO_RoleSpec!drop-4	ALTER EVENT TRIGGER OWNER TO a
 reject@28	reject@28	engine	AlterOwnerStmt/ALTER_EVENT_TRIGGER_name_OWNER_TO_RoleSpec!drop-6	ALTER EVENT TRIGGER a OWNER a
-accept	reject@30	engine	AlterOwnerStmt/ALTER_EVENT_TRIGGER_name_OWNER_TO_RoleSpec!drop-7	ALTER EVENT TRIGGER a OWNER TO
+reject@30	reject@30	engine	AlterOwnerStmt/ALTER_EVENT_TRIGGER_name_OWNER_TO_RoleSpec!drop-7	ALTER EVENT TRIGGER a OWNER TO
 reject@33	reject@33	engine	AlterOwnerStmt/ALTER_EVENT_TRIGGER_name_OWNER_TO_RoleSpec!insert	ALTER EVENT TRIGGER a OWNER TO a zzz
 reject@0	reject@0	engine	AlterOwnerStmt/ALTER_EVENT_TRIGGER_name_OWNER_TO_RoleSpec!swap	ALWAYS EVENT TRIGGER a OWNER TO a
 accept	accept	engine	AlterOwnerStmt/ALTER_PUBLICATION_name_OWNER_TO_RoleSpec	ALTER PUBLICATION a OWNER TO a
 reject@0	reject@0	engine	AlterOwnerStmt/ALTER_PUBLICATION_name_OWNER_TO_RoleSpec!drop-1	PUBLICATION a OWNER TO a
 reject@24	reject@24	engine	AlterOwnerStmt/ALTER_PUBLICATION_name_OWNER_TO_RoleSpec!drop-3	ALTER PUBLICATION OWNER TO a
 reject@26	reject@26	engine	AlterOwnerStmt/ALTER_PUBLICATION_name_OWNER_TO_RoleSpec!drop-5	ALTER PUBLICATION a OWNER a
-accept	reject@28	engine	AlterOwnerStmt/ALTER_PUBLICATION_name_OWNER_TO_RoleSpec!drop-6	ALTER PUBLICATION a OWNER TO
+reject@28	reject@28	engine	AlterOwnerStmt/ALTER_PUBLICATION_name_OWNER_TO_RoleSpec!drop-6	ALTER PUBLICATION a OWNER TO
 reject@31	reject@31	engine	AlterOwnerStmt/ALTER_PUBLICATION_name_OWNER_TO_RoleSpec!insert	ALTER PUBLICATION a OWNER TO a zzz
 reject@0	reject@0	engine	AlterOwnerStmt/ALTER_PUBLICATION_name_OWNER_TO_RoleSpec!swap	ALWAYS PUBLICATION a OWNER TO a
 accept	accept	engine	AlterOwnerStmt/ALTER_SUBSCRIPTION_name_OWNER_TO_RoleSpec	ALTER SUBSCRIPTION a OWNER TO a
 reject@0	reject@0	engine	AlterOwnerStmt/ALTER_SUBSCRIPTION_name_OWNER_TO_RoleSpec!drop-1	SUBSCRIPTION a OWNER TO a
 reject@25	reject@25	engine	AlterOwnerStmt/ALTER_SUBSCRIPTION_name_OWNER_TO_RoleSpec!drop-3	ALTER SUBSCRIPTION OWNER TO a
 reject@27	reject@27	engine	AlterOwnerStmt/ALTER_SUBSCRIPTION_name_OWNER_TO_RoleSpec!drop-5	ALTER SUBSCRIPTION a OWNER a
-accept	reject@29	engine	AlterOwnerStmt/ALTER_SUBSCRIPTION_name_OWNER_TO_RoleSpec!drop-6	ALTER SUBSCRIPTION a OWNER TO
+reject@29	reject@29	engine	AlterOwnerStmt/ALTER_SUBSCRIPTION_name_OWNER_TO_RoleSpec!drop-6	ALTER SUBSCRIPTION a OWNER TO
 reject@32	reject@32	engine	AlterOwnerStmt/ALTER_SUBSCRIPTION_name_OWNER_TO_RoleSpec!insert	ALTER SUBSCRIPTION a OWNER TO a zzz
 reject@0	reject@0	engine	AlterOwnerStmt/ALTER_SUBSCRIPTION_name_OWNER_TO_RoleSpec!swap	ALWAYS SUBSCRIPTION a OWNER TO a
 accept	accept	engine	CreatePublicationStmt/CREATE_PUBLICATION_name_opt_definition	CREATE PUBLICATION a
@@ -11603,9 +11603,9 @@ reject@24	reject@24	engine	RoleSpec/SESSION_USER!insert	ALTER ROLE SESSION_USER 
 accept	accept	engine	RoleSpec/SESSION_USER!swap	ALTER ROLE SET
 accept	accept	engine	role_list/RoleSpec	DROP ROLE a
 accept	accept	engine	role_list/role_list_,_RoleSpec	DROP ROLE a, a
-accept	reject@9	engine	role_list/role_list_,_RoleSpec!drop-1	DROP ROLE, a
+reject@9	reject@9	engine	role_list/role_list_,_RoleSpec!drop-1	DROP ROLE, a
 reject@12	reject@12	engine	role_list/role_list_,_RoleSpec!drop-2	DROP ROLE a a
-accept	reject@12	engine	role_list/role_list_,_RoleSpec!drop-3	DROP ROLE a,
+reject@12	reject@12	engine	role_list/role_list_,_RoleSpec!drop-3	DROP ROLE a,
 reject@15	reject@15	engine	role_list/role_list_,_RoleSpec!insert	DROP ROLE a, a zzz
 accept	accept	engine	ColId/IDENT	ANALYZE a
 accept	accept	engine	ColId/unreserved_keyword	ANALYZE ABORT
@@ -11626,8 +11626,8 @@ accept	accept	engine	NonReservedWord/unreserved_keyword!swap	ALTER ROLE ABSENT
 accept	accept	engine	NonReservedWord/col_name_keyword	ALTER ROLE BETWEEN
 reject@19	reject@19	engine	NonReservedWord/col_name_keyword!insert	ALTER ROLE BETWEEN zzz
 accept	accept	engine	NonReservedWord/col_name_keyword!swap	ALTER ROLE BIGINT
-reject@11	accept	engine	NonReservedWord/type_func_name_keyword	ALTER ROLE AUTHORIZATION
-reject@11	reject@25	engine	NonReservedWord/type_func_name_keyword!insert	ALTER ROLE AUTHORIZATION zzz
+accept	accept	engine	NonReservedWord/type_func_name_keyword	ALTER ROLE AUTHORIZATION
+reject@25	reject@25	engine	NonReservedWord/type_func_name_keyword!insert	ALTER ROLE AUTHORIZATION zzz
 accept	accept	engine	NonReservedWord/type_func_name_keyword!swap	ALTER ROLE BACKWARD
 accept	accept	engine	ColLabel/IDENT	ANALYZE a.a
 accept	accept	engine	ColLabel/unreserved_keyword	ANALYZE a.ABORT
@@ -12491,71 +12491,71 @@ accept	accept	engine	col_name_keyword/XMLSERIALIZE	ANALYZE XMLSERIALIZE
 reject@21	reject@21	engine	col_name_keyword/XMLSERIALIZE!insert	ANALYZE XMLSERIALIZE zzz
 accept	accept	engine	col_name_keyword/XMLTABLE	ANALYZE XMLTABLE
 reject@17	reject@17	engine	col_name_keyword/XMLTABLE!insert	ANALYZE XMLTABLE zzz
-reject@11	accept	engine	type_func_name_keyword/AUTHORIZATION	ALTER ROLE AUTHORIZATION
-reject@11	accept	engine	type_func_name_keyword/BINARY	ALTER ROLE BINARY
-reject@11	reject@18	engine	type_func_name_keyword/BINARY!insert	ALTER ROLE BINARY zzz
+accept	accept	engine	type_func_name_keyword/AUTHORIZATION	ALTER ROLE AUTHORIZATION
+accept	accept	engine	type_func_name_keyword/BINARY	ALTER ROLE BINARY
+reject@18	reject@18	engine	type_func_name_keyword/BINARY!insert	ALTER ROLE BINARY zzz
 accept	accept	engine	type_func_name_keyword/BINARY!swap	ALTER ROLE BIT
-reject@11	accept	engine	type_func_name_keyword/COLLATION	ALTER ROLE COLLATION
-reject@11	reject@21	engine	type_func_name_keyword/COLLATION!insert	ALTER ROLE COLLATION zzz
+accept	accept	engine	type_func_name_keyword/COLLATION	ALTER ROLE COLLATION
+reject@21	reject@21	engine	type_func_name_keyword/COLLATION!insert	ALTER ROLE COLLATION zzz
 reject@11	reject@11	engine	type_func_name_keyword/COLLATION!swap	ALTER ROLE COLUMN
-reject@11	accept	engine	type_func_name_keyword/CONCURRENTLY	ALTER ROLE CONCURRENTLY
-reject@11	reject@24	engine	type_func_name_keyword/CONCURRENTLY!insert	ALTER ROLE CONCURRENTLY zzz
+accept	accept	engine	type_func_name_keyword/CONCURRENTLY	ALTER ROLE CONCURRENTLY
+reject@24	reject@24	engine	type_func_name_keyword/CONCURRENTLY!insert	ALTER ROLE CONCURRENTLY zzz
 accept	accept	engine	type_func_name_keyword/CONCURRENTLY!swap	ALTER ROLE CONDITIONAL
-reject@11	accept	engine	type_func_name_keyword/CROSS	ALTER ROLE CROSS
-reject@11	reject@17	engine	type_func_name_keyword/CROSS!insert	ALTER ROLE CROSS zzz
+accept	accept	engine	type_func_name_keyword/CROSS	ALTER ROLE CROSS
+reject@17	reject@17	engine	type_func_name_keyword/CROSS!insert	ALTER ROLE CROSS zzz
 accept	accept	engine	type_func_name_keyword/CROSS!swap	ALTER ROLE CSV
-reject@11	accept	engine	type_func_name_keyword/CURRENT_SCHEMA	ALTER ROLE CURRENT_SCHEMA
-reject@11	reject@26	engine	type_func_name_keyword/CURRENT_SCHEMA!insert	ALTER ROLE CURRENT_SCHEMA zzz
+accept	accept	engine	type_func_name_keyword/CURRENT_SCHEMA	ALTER ROLE CURRENT_SCHEMA
+reject@26	reject@26	engine	type_func_name_keyword/CURRENT_SCHEMA!insert	ALTER ROLE CURRENT_SCHEMA zzz
 reject@11	reject@11	engine	type_func_name_keyword/CURRENT_SCHEMA!swap	ALTER ROLE CURRENT_TIME
-reject@11	accept	engine	type_func_name_keyword/FREEZE	ALTER ROLE FREEZE
-reject@11	reject@18	engine	type_func_name_keyword/FREEZE!insert	ALTER ROLE FREEZE zzz
+accept	accept	engine	type_func_name_keyword/FREEZE	ALTER ROLE FREEZE
+reject@18	reject@18	engine	type_func_name_keyword/FREEZE!insert	ALTER ROLE FREEZE zzz
 reject@11	reject@11	engine	type_func_name_keyword/FREEZE!swap	ALTER ROLE FROM
-reject@11	accept	engine	type_func_name_keyword/FULL	ALTER ROLE FULL
-reject@11	reject@16	engine	type_func_name_keyword/FULL!insert	ALTER ROLE FULL zzz
+accept	accept	engine	type_func_name_keyword/FULL	ALTER ROLE FULL
+reject@16	reject@16	engine	type_func_name_keyword/FULL!insert	ALTER ROLE FULL zzz
 accept	accept	engine	type_func_name_keyword/FULL!swap	ALTER ROLE FUNCTION
-reject@11	accept	engine	type_func_name_keyword/ILIKE	ALTER ROLE ILIKE
-reject@11	reject@17	engine	type_func_name_keyword/ILIKE!insert	ALTER ROLE ILIKE zzz
+accept	accept	engine	type_func_name_keyword/ILIKE	ALTER ROLE ILIKE
+reject@17	reject@17	engine	type_func_name_keyword/ILIKE!insert	ALTER ROLE ILIKE zzz
 accept	accept	engine	type_func_name_keyword/ILIKE!swap	ALTER ROLE IMMEDIATE
-reject@11	accept	engine	type_func_name_keyword/INNER_P	ALTER ROLE INNER
-reject@11	reject@17	engine	type_func_name_keyword/INNER_P!insert	ALTER ROLE INNER zzz
+accept	accept	engine	type_func_name_keyword/INNER_P	ALTER ROLE INNER
+reject@17	reject@17	engine	type_func_name_keyword/INNER_P!insert	ALTER ROLE INNER zzz
 accept	accept	engine	type_func_name_keyword/INNER_P!swap	ALTER ROLE INOUT
-reject@11	accept	engine	type_func_name_keyword/IS	ALTER ROLE IS
-reject@11	reject@14	engine	type_func_name_keyword/IS!insert	ALTER ROLE IS zzz
-reject@11	accept	engine	type_func_name_keyword/ISNULL	ALTER ROLE ISNULL
-reject@11	reject@18	engine	type_func_name_keyword/ISNULL!insert	ALTER ROLE ISNULL zzz
+accept	accept	engine	type_func_name_keyword/IS	ALTER ROLE IS
+reject@14	reject@14	engine	type_func_name_keyword/IS!insert	ALTER ROLE IS zzz
+accept	accept	engine	type_func_name_keyword/ISNULL	ALTER ROLE ISNULL
+reject@18	reject@18	engine	type_func_name_keyword/ISNULL!insert	ALTER ROLE ISNULL zzz
 accept	accept	engine	type_func_name_keyword/ISNULL!swap	ALTER ROLE ISOLATION
-reject@11	accept	engine	type_func_name_keyword/JOIN	ALTER ROLE JOIN
-reject@11	reject@16	engine	type_func_name_keyword/JOIN!insert	ALTER ROLE JOIN zzz
+accept	accept	engine	type_func_name_keyword/JOIN	ALTER ROLE JOIN
+reject@16	reject@16	engine	type_func_name_keyword/JOIN!insert	ALTER ROLE JOIN zzz
 accept	accept	engine	type_func_name_keyword/JOIN!swap	ALTER ROLE JSON
-reject@11	accept	engine	type_func_name_keyword/LEFT	ALTER ROLE LEFT
-reject@11	reject@16	engine	type_func_name_keyword/LEFT!insert	ALTER ROLE LEFT zzz
+accept	accept	engine	type_func_name_keyword/LEFT	ALTER ROLE LEFT
+reject@16	reject@16	engine	type_func_name_keyword/LEFT!insert	ALTER ROLE LEFT zzz
 accept	accept	engine	type_func_name_keyword/LEFT!swap	ALTER ROLE LEVEL
-reject@11	accept	engine	type_func_name_keyword/LIKE	ALTER ROLE LIKE
-reject@11	reject@16	engine	type_func_name_keyword/LIKE!insert	ALTER ROLE LIKE zzz
+accept	accept	engine	type_func_name_keyword/LIKE	ALTER ROLE LIKE
+reject@16	reject@16	engine	type_func_name_keyword/LIKE!insert	ALTER ROLE LIKE zzz
 reject@11	reject@11	engine	type_func_name_keyword/LIKE!swap	ALTER ROLE LIMIT
-reject@11	accept	engine	type_func_name_keyword/NATURAL	ALTER ROLE NATURAL
-reject@11	reject@19	engine	type_func_name_keyword/NATURAL!insert	ALTER ROLE NATURAL zzz
+accept	accept	engine	type_func_name_keyword/NATURAL	ALTER ROLE NATURAL
+reject@19	reject@19	engine	type_func_name_keyword/NATURAL!insert	ALTER ROLE NATURAL zzz
 accept	accept	engine	type_func_name_keyword/NATURAL!swap	ALTER ROLE NCHAR
-reject@11	accept	engine	type_func_name_keyword/NOTNULL	ALTER ROLE NOTNULL
-reject@11	reject@19	engine	type_func_name_keyword/NOTNULL!insert	ALTER ROLE NOTNULL zzz
+accept	accept	engine	type_func_name_keyword/NOTNULL	ALTER ROLE NOTNULL
+reject@19	reject@19	engine	type_func_name_keyword/NOTNULL!insert	ALTER ROLE NOTNULL zzz
 accept	accept	engine	type_func_name_keyword/NOTNULL!swap	ALTER ROLE NOWAIT
-reject@11	accept	engine	type_func_name_keyword/OUTER_P	ALTER ROLE OUTER
-reject@11	reject@17	engine	type_func_name_keyword/OUTER_P!insert	ALTER ROLE OUTER zzz
+accept	accept	engine	type_func_name_keyword/OUTER_P	ALTER ROLE OUTER
+reject@17	reject@17	engine	type_func_name_keyword/OUTER_P!insert	ALTER ROLE OUTER zzz
 accept	accept	engine	type_func_name_keyword/OUTER_P!swap	ALTER ROLE OVER
-reject@11	accept	engine	type_func_name_keyword/OVERLAPS	ALTER ROLE OVERLAPS
-reject@11	reject@20	engine	type_func_name_keyword/OVERLAPS!insert	ALTER ROLE OVERLAPS zzz
+accept	accept	engine	type_func_name_keyword/OVERLAPS	ALTER ROLE OVERLAPS
+reject@20	reject@20	engine	type_func_name_keyword/OVERLAPS!insert	ALTER ROLE OVERLAPS zzz
 accept	accept	engine	type_func_name_keyword/OVERLAPS!swap	ALTER ROLE OVERLAY
-reject@11	accept	engine	type_func_name_keyword/RIGHT	ALTER ROLE RIGHT
-reject@11	reject@17	engine	type_func_name_keyword/RIGHT!insert	ALTER ROLE RIGHT zzz
+accept	accept	engine	type_func_name_keyword/RIGHT	ALTER ROLE RIGHT
+reject@17	reject@17	engine	type_func_name_keyword/RIGHT!insert	ALTER ROLE RIGHT zzz
 accept	accept	engine	type_func_name_keyword/RIGHT!swap	ALTER ROLE ROLE
-reject@11	accept	engine	type_func_name_keyword/SIMILAR	ALTER ROLE SIMILAR
-reject@11	reject@19	engine	type_func_name_keyword/SIMILAR!insert	ALTER ROLE SIMILAR zzz
+accept	accept	engine	type_func_name_keyword/SIMILAR	ALTER ROLE SIMILAR
+reject@19	reject@19	engine	type_func_name_keyword/SIMILAR!insert	ALTER ROLE SIMILAR zzz
 accept	accept	engine	type_func_name_keyword/SIMILAR!swap	ALTER ROLE SIMPLE
-reject@11	accept	engine	type_func_name_keyword/TABLESAMPLE	ALTER ROLE TABLESAMPLE
-reject@11	reject@23	engine	type_func_name_keyword/TABLESAMPLE!insert	ALTER ROLE TABLESAMPLE zzz
+accept	accept	engine	type_func_name_keyword/TABLESAMPLE	ALTER ROLE TABLESAMPLE
+reject@23	reject@23	engine	type_func_name_keyword/TABLESAMPLE!insert	ALTER ROLE TABLESAMPLE zzz
 accept	accept	engine	type_func_name_keyword/TABLESAMPLE!swap	ALTER ROLE TABLESPACE
-reject@11	accept	engine	type_func_name_keyword/VERBOSE	ALTER ROLE VERBOSE
-reject@11	reject@19	engine	type_func_name_keyword/VERBOSE!insert	ALTER ROLE VERBOSE zzz
+accept	accept	engine	type_func_name_keyword/VERBOSE	ALTER ROLE VERBOSE
+reject@19	reject@19	engine	type_func_name_keyword/VERBOSE!insert	ALTER ROLE VERBOSE zzz
 accept	accept	engine	type_func_name_keyword/VERBOSE!swap	ALTER ROLE VERSION
 accept	accept	engine	reserved_keyword/ALL	ANALYZE a.ALL
 accept	accept	engine	reserved_keyword/ANALYSE	ANALYZE a.ANALYSE
