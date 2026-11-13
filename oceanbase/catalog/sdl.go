@@ -323,46 +323,76 @@ func sdlRefs(stmt nodes.Node, currentDB string) []objectKey {
 // approximating the shadow set is safe because a stray edge to a non-existent
 // object is simply ignored by extractSDLDeps.
 func selectTableRefs(sel *nodes.SelectStmt) []*nodes.TableRef {
-	if sel == nil {
-		return nil
-	}
-	cteNames := make(map[string]bool)
-	collectTopLevelCTENames(sel, cteNames)
-
 	var refs []*nodes.TableRef
-	nodes.Inspect(sel, func(n nodes.Node) bool {
-		if tr, ok := n.(*nodes.TableRef); ok {
-			// Only unqualified references can match a CTE name; a schema-qualified
-			// reference always denotes a real object.
-			if tr.Schema == "" && cteNames[toLower(tr.Name)] {
-				return true
-			}
-			refs = append(refs, tr)
-		}
-		return true
-	})
+	collectQueryTableRefs(sel, nil, &refs)
 	return refs
 }
 
-// collectTopLevelCTENames adds the CTE names declared in the top-level scope of a
-// query into names. The top-level scope spans the query's own WITH clause plus the
-// set-operation branches and parenthesized wrapper that share that scope; it does
-// not descend into FROM-clause subqueries or CTE bodies (those open their own
-// scopes).
-func collectTopLevelCTENames(sel *nodes.SelectStmt, names map[string]bool) {
+// collectQueryTableRefs appends the real objects sel reads. outer is the CTE names
+// in scope around it. A WITH's own names come into scope one at a time, as
+// analyzeCTEs brings them: a body sees the CTEs declared before it, and its own
+// name only when the WITH is RECURSIVE. Masking a name a body does not yet have
+// loses a dependency, and an SDL load then runs a view before the view it reads.
+func collectQueryTableRefs(sel *nodes.SelectStmt, outer map[string]bool, refs *[]*nodes.TableRef) {
+	if sel == nil {
+		return
+	}
+	var ctes []*nodes.CommonTableExpr
+	collectTopLevelCTEs(sel, &ctes)
+
+	visible := make(map[string]bool, len(outer)+len(ctes))
+	for name := range outer {
+		visible[name] = true
+	}
+	for _, cte := range ctes {
+		body := make(map[string]bool, len(visible)+1)
+		for name := range visible {
+			body[name] = true
+		}
+		if cte.Recursive {
+			body[toLower(cte.Name)] = true
+		}
+		collectQueryTableRefs(cte.Select, body, refs)
+		visible[toLower(cte.Name)] = true
+	}
+
+	// The query itself, which sees every name its WITH declares. A CTE body was
+	// read above, and a subquery with a WITH of its own is read with this scope.
+	nodes.Inspect(sel, func(n nodes.Node) bool {
+		switch node := n.(type) {
+		case *nodes.CommonTableExpr:
+			return false
+		case *nodes.SelectStmt:
+			if node != sel && len(node.CTEs) > 0 {
+				collectQueryTableRefs(node, visible, refs)
+				return false
+			}
+		case *nodes.TableRef:
+			// Only unqualified references can match a CTE name; a schema-qualified
+			// reference always denotes a real object.
+			if node.Schema == "" && visible[toLower(node.Name)] {
+				return true
+			}
+			*refs = append(*refs, node)
+		}
+		return true
+	})
+}
+
+// collectTopLevelCTEs gathers the CTEs this query declares, in the order written.
+// A set-operation branch or a parenthesized query that carries a WITH of its own
+// is a query in its own right, and collectQueryTableRefs reads it with that scope:
+// SELECT b FROM a UNION ALL (WITH a AS (...) SELECT b FROM a) reads the object a
+// in its left arm, which a shared scope would mask.
+func collectTopLevelCTEs(sel *nodes.SelectStmt, out *[]*nodes.CommonTableExpr) {
 	if sel == nil {
 		return
 	}
 	for _, cte := range sel.CTEs {
 		if cte != nil && cte.Name != "" {
-			names[toLower(cte.Name)] = true
+			*out = append(*out, cte)
 		}
 	}
-	// UNION/INTERSECT/EXCEPT branches and a parenthesized wrapper share the
-	// enclosing WITH scope.
-	collectTopLevelCTENames(sel.Left, names)
-	collectTopLevelCTENames(sel.Right, names)
-	collectTopLevelCTENames(sel.ParenSource, names)
 }
 
 // ---------------------------------------------------------------------------
