@@ -714,3 +714,50 @@ ID : [a-z]+ ;
 		}
 	}
 }
+
+// TestReservationChecksEveryCase pins a keyword of either case after a
+// case-sensitive identifier rule: [a-z]+ takes late, so late is a name,
+// even though it does not take LATE.
+func TestReservationChecksEveryCase(t *testing.T) {
+	for _, late := range []string{"[lL] [aA] [tT] [eE]", "L A T E ; fragment L : [lL] ; fragment A : [aA] ; fragment T : [tT] ; fragment E : [eE]"} {
+		g, err := ReadANTLR("grammar S;\ns : 'SELECT' ID ;\nID : [a-z]+ ;\nLATE : "+late+" ;\n", tokens(map[string]string{}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !g.Recognizer().Accepts("SELECT late") {
+			t.Errorf("LATE : %s: SELECT late rejected", late)
+		}
+	}
+	// A keyword no case of which an earlier rule takes stays reserved.
+	g, err := ReadANTLR(`grammar S;
+s : 'SELECT' ID ;
+LATE : [lL] [aA] [tT] [eE] ;
+ID : [a-z]+ ;
+`, tokens(map[string]string{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g.Recognizer().Accepts("SELECT late") {
+		t.Error("LATE before ID: SELECT late accepted")
+	}
+}
+
+// TestReservationChecksOnlyRealSpellings pins a keyword of too many case
+// spellings to list: only the forms the rule matches count, so a fixed
+// capital X keeps xabcdefg, which ID takes, from unreserving XABCDEFG.
+func TestReservationChecksOnlyRealSpellings(t *testing.T) {
+	g, err := ReadANTLR(`grammar S;
+s : 'SELECT' ID ;
+ID : [a-z]+ ;
+KW : 'X' [aA] [bB] [cC] [dD] [eE] [fF] [gG] ;
+`, tokens(map[string]string{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := g.Recognizer()
+	for sql, want := range map[string]bool{"SELECT XABCDEFG": false, "SELECT abc": true} {
+		if got := rec.Accepts(sql); got != want {
+			t.Errorf("Accepts(%q) = %v, want %v", sql, got, want)
+		}
+	}
+}
