@@ -79,6 +79,14 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 	// before S3 is Aurora's S3 source, read below.
 	if p.cur.Type == kwFROM && p.peekNext().Type != kwS3 {
 		p.advance()
+		// Completion: LOAD DATA FROM | → S3, or the file source.
+		p.checkCursor()
+		if p.collectMode() {
+			for _, kw := range []int{kwS3, kwLOCAL, kwINFILE, kwURL} {
+				p.addTokenCandidate(kw)
+			}
+			return nil, &ParseError{Message: "collecting"}
+		}
 	}
 
 	if p.cur.Type == kwLOCAL {
