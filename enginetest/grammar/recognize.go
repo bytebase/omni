@@ -17,7 +17,8 @@ import (
 // (an all-caps word) or by several tokens, matches only that text, words
 // without regard to case. A token sampled by one name, string, number or
 // variable stands for its class: it matches any token of that kind, and a
-// name class takes no word the token table marks reserved. So it knows no
+// name class takes no word the token table marks reserved. A name sampled
+// in quotes is the class of names in those quotes, and no bare word. So it knows no
 // more of the engine's lexer than the samples show: a hint or a comment the
 // lexer reads as a token is skipped as a comment.
 type Recognizer struct {
@@ -441,6 +442,11 @@ func (r *Recognizer) matchesAt(in []ltok, k int) []termMatch {
 	for _, id := range r.class[classOf(tk)] {
 		out = append(out, termMatch{id, 1})
 	}
+	if tk.kind == kName && tk.quoted {
+		for _, id := range r.class[nameClass] {
+			out = append(out, termMatch{id, 1})
+		}
+	}
 	return out
 }
 
@@ -464,15 +470,25 @@ type ltok struct {
 	quoted bool
 }
 
-// classOf is the class a token stands for when a sample: its kind, and for
-// a variable its sigil, so a stage @a and a column $1 are told apart.
+// classOf is the class a token stands for when a sample: its kind, for a
+// variable its sigil, so a stage @a and a column $1 are told apart, and for
+// a quoted name its quote, so PartiQL's "a", a name, and `a`, an Ion value,
+// are.
 func classOf(t ltok) string {
 	c := string(rune('0' + t.kind))
-	if t.kind == kVar {
+	switch {
+	case t.kind == kVar:
 		c += t.text[:len(t.text)-len(strings.TrimLeft(t.text, "@$"))]
+	case t.kind == kName && t.quoted:
+		c += t.text[:1]
 	}
 	return c
 }
+
+// nameClass is the class of a token sampled by an unquoted name. It takes
+// a quoted name too, in any quotes: a grammar from docs samples one name
+// for both.
+var nameClass = classOf(ltok{kind: kName})
 
 // key is what an exact match compares: a word without regard to case,
 // anything else as written.
