@@ -5650,14 +5650,14 @@ reject	reject	engine	ttl_unit/MONTH!swap	ALTER TABLE a TTL(a + INTERVAL 1 MOVE)
 accept	accept	engine	ttl_unit/YEAR	ALTER TABLE a TTL(a + INTERVAL 1 YEAR)
 reject	reject	engine	ttl_unit/YEAR!insert	ALTER TABLE a TTL(a + INTERVAL 1 YEAR zzz)
 reject	reject	engine	ttl_unit/YEAR!swap	ALTER TABLE a TTL(a + INTERVAL 1 YEAR_MONTH)
-reject	accept	engine	relation_name_or_string/relation_name	SHOW PARAMETERS TENANT a
+accept	accept	engine	relation_name_or_string/relation_name	SHOW PARAMETERS TENANT a
 reject	reject	engine	relation_name_or_string/relation_name!drop-1	SHOW PARAMETERS TENANT
 reject	reject	engine	relation_name_or_string/relation_name!insert	SHOW PARAMETERS TENANT a zzz
-reject	accept	engine	relation_name_or_string/STRING_VALUE	SHOW PARAMETERS TENANT 's'
+accept	accept	engine	relation_name_or_string/STRING_VALUE	SHOW PARAMETERS TENANT 's'
 reject	reject	engine	relation_name_or_string/STRING_VALUE!insert	SHOW PARAMETERS TENANT 's' zzz
-reject	accept	engine	relation_name_or_string/ALL	SHOW PARAMETERS TENANT ALL
+accept	accept	engine	relation_name_or_string/ALL	SHOW PARAMETERS TENANT ALL
 reject	reject	engine	relation_name_or_string/ALL!insert	SHOW PARAMETERS TENANT ALL zzz
-reject	accept	engine	relation_name_or_string/ALL!swap	SHOW PARAMETERS TENANT ALLOW
+accept	accept	engine	relation_name_or_string/ALL!swap	SHOW PARAMETERS TENANT ALLOW
 accept	accept	engine	opt_equal_mark/COMP_EQ	ALTER DATABASE CHARSET = a
 reject	reject	engine	opt_equal_mark/COMP_EQ!insert	ALTER DATABASE CHARSET = zzz a
 accept	accept	engine	opt_equal_mark/%empty	ALTER DATABASE CHARSET a
@@ -11894,7 +11894,7 @@ accept	accept	engine	show_stmt/SHOW_TRIGGERS_opt_from_or_in_database_clause_opt_
 reject	reject	engine	show_stmt/SHOW_TRIGGERS_opt_from_or_in_database_clause_opt_show_condition!drop-1	TRIGGERS
 reject	reject	engine	show_stmt/SHOW_TRIGGERS_opt_from_or_in_database_clause_opt_show_condition!insert	SHOW TRIGGERS zzz
 reject	reject	engine	show_stmt/SHOW_TRIGGERS_opt_from_or_in_database_clause_opt_show_condition!swap	SHUTDOWN TRIGGERS
-reject	accept	engine	show_stmt/SHOW_SERVER_STATUS_opt_show_condition	SHOW SERVER STATUS
+accept	accept	engine	show_stmt/SHOW_SERVER_STATUS_opt_show_condition	SHOW SERVER STATUS
 reject	reject	engine	show_stmt/SHOW_SERVER_STATUS_opt_show_condition!drop-1	SERVER STATUS
 reject	reject	engine	show_stmt/SHOW_SERVER_STATUS_opt_show_condition!drop-3	SHOW SERVER
 reject	reject	engine	show_stmt/SHOW_SERVER_STATUS_opt_show_condition!insert	SHOW SERVER STATUS zzz
@@ -11903,7 +11903,7 @@ accept	accept	engine	show_stmt/SHOW_opt_scope_VARIABLES_opt_show_condition	SHOW 
 reject	reject	engine	show_stmt/SHOW_opt_scope_VARIABLES_opt_show_condition!drop-1	VARIABLES
 reject	reject	engine	show_stmt/SHOW_opt_scope_VARIABLES_opt_show_condition!insert	SHOW VARIABLES zzz
 reject	reject	engine	show_stmt/SHOW_opt_scope_VARIABLES_opt_show_condition!swap	SHUTDOWN VARIABLES
-reject	accept	engine	show_stmt/SHOW_SCHEMA	SHOW SCHEMA
+accept	accept	engine	show_stmt/SHOW_SCHEMA	SHOW SCHEMA
 reject	reject	engine	show_stmt/SHOW_SCHEMA!drop-1	SCHEMA
 reject	reject	engine	show_stmt/SHOW_SCHEMA!insert	SHOW SCHEMA zzz
 reject	reject	engine	show_stmt/SHOW_SCHEMA!swap	SHUTDOWN SCHEMA
@@ -11913,7 +11913,7 @@ reject	reject	engine	show_stmt/SHOW_create_with_opt_hint_database_or_schema_opt_
 reject	reject	engine	show_stmt/SHOW_create_with_opt_hint_database_or_schema_opt_if_not_exists_database_factor!drop-4	SHOW CREATE DATABASE
 reject	reject	engine	show_stmt/SHOW_create_with_opt_hint_database_or_schema_opt_if_not_exists_database_factor!insert	SHOW CREATE DATABASE a zzz
 reject	reject	engine	show_stmt/SHOW_create_with_opt_hint_database_or_schema_opt_if_not_exists_database_factor!swap	SHUTDOWN CREATE DATABASE a
-reject	accept	engine	show_stmt/SHOW_create_with_opt_hint_CATALOG_relation_name	SHOW CREATE CATALOG a
+accept	accept	engine	show_stmt/SHOW_create_with_opt_hint_CATALOG_relation_name	SHOW CREATE CATALOG a
 reject	reject	engine	show_stmt/SHOW_create_with_opt_hint_CATALOG_relation_name!drop-1	CREATE CATALOG a
 reject	reject	engine	show_stmt/SHOW_create_with_opt_hint_CATALOG_relation_name!drop-2	SHOW CATALOG a
 reject	reject	engine	show_stmt/SHOW_create_with_opt_hint_CATALOG_relation_name!drop-4	SHOW CREATE CATALOG
@@ -11984,11 +11984,11 @@ reject	reject	engine	show_stmt/SHOW_GRANTS_opt_for_grant_user_opt_using_role!swa
 accept	accept	engine	show_stmt/SHOW_charset_key_opt_show_condition	SHOW CHARSET
 reject	reject	engine	show_stmt/SHOW_charset_key_opt_show_condition!drop-1	CHARSET
 reject	reject	engine	show_stmt/SHOW_charset_key_opt_show_condition!swap	SHUTDOWN CHARSET
-reject	accept	engine	show_stmt/SHOW_TRACE_opt_show_condition	SHOW TRACE
+accept	accept	engine	show_stmt/SHOW_TRACE_opt_show_condition	SHOW TRACE
 reject	reject	engine	show_stmt/SHOW_TRACE_opt_show_condition!drop-1	TRACE
 reject	reject	engine	show_stmt/SHOW_TRACE_opt_show_condition!insert	SHOW TRACE zzz
 reject	reject	engine	show_stmt/SHOW_TRACE_opt_show_condition!swap	SHUTDOWN TRACE
-reject	accept	engine	show_stmt/SHOW_TRACE_FORMAT_COMP_EQ_STRING_VALUE_opt_show_condition	SHOW TRACE FORMAT = 's'
+accept	accept	engine	show_stmt/SHOW_TRACE_FORMAT_COMP_EQ_STRING_VALUE_opt_show_condition	SHOW TRACE FORMAT = 's'
 reject	reject	engine	show_stmt/SHOW_TRACE_FORMAT_COMP_EQ_STRING_VALUE_opt_show_condition!drop-1	TRACE FORMAT = 's'
 reject	reject	engine	show_stmt/SHOW_TRACE_FORMAT_COMP_EQ_STRING_VALUE_opt_show_condition!drop-2	SHOW FORMAT = 's'
 reject	reject	engine	show_stmt/SHOW_TRACE_FORMAT_COMP_EQ_STRING_VALUE_opt_show_condition!drop-3	SHOW TRACE = 's'
@@ -12000,7 +12000,7 @@ accept	accept	engine	show_stmt/SHOW_COLLATION_opt_show_condition	SHOW COLLATION
 reject	reject	engine	show_stmt/SHOW_COLLATION_opt_show_condition!drop-1	COLLATION
 reject	reject	engine	show_stmt/SHOW_COLLATION_opt_show_condition!insert	SHOW COLLATION zzz
 reject	reject	engine	show_stmt/SHOW_COLLATION_opt_show_condition!swap	SHUTDOWN COLLATION
-reject	accept	engine	show_stmt/SHOW_PARAMETERS_opt_show_condition_opt_tenant_name	SHOW PARAMETERS
+accept	accept	engine	show_stmt/SHOW_PARAMETERS_opt_show_condition_opt_tenant_name	SHOW PARAMETERS
 reject	reject	engine	show_stmt/SHOW_PARAMETERS_opt_show_condition_opt_tenant_name!drop-1	PARAMETERS
 reject	reject	engine	show_stmt/SHOW_PARAMETERS_opt_show_condition_opt_tenant_name!insert	SHOW PARAMETERS zzz
 reject	reject	engine	show_stmt/SHOW_PARAMETERS_opt_show_condition_opt_tenant_name!swap	SHUTDOWN PARAMETERS
@@ -12014,7 +12014,7 @@ accept	accept	engine	show_stmt/SHOW_opt_full_PROCESSLIST	SHOW PROCESSLIST
 reject	reject	engine	show_stmt/SHOW_opt_full_PROCESSLIST!drop-1	PROCESSLIST
 reject	reject	engine	show_stmt/SHOW_opt_full_PROCESSLIST!insert	SHOW PROCESSLIST zzz
 reject	reject	engine	show_stmt/SHOW_opt_full_PROCESSLIST!swap	SHUTDOWN PROCESSLIST
-reject	accept	engine	show_stmt/SHOW_TABLEGROUPS_opt_show_condition	SHOW TABLEGROUPS
+accept	accept	engine	show_stmt/SHOW_TABLEGROUPS_opt_show_condition	SHOW TABLEGROUPS
 reject	reject	engine	show_stmt/SHOW_TABLEGROUPS_opt_show_condition!drop-1	TABLEGROUPS
 reject	reject	engine	show_stmt/SHOW_TABLEGROUPS_opt_show_condition!insert	SHOW TABLEGROUPS zzz
 reject	reject	engine	show_stmt/SHOW_TABLEGROUPS_opt_show_condition!swap	SHUTDOWN TABLEGROUPS
@@ -12022,11 +12022,11 @@ accept	accept	engine	show_stmt/SHOW_opt_scope_STATUS_opt_show_condition	SHOW STA
 reject	reject	engine	show_stmt/SHOW_opt_scope_STATUS_opt_show_condition!drop-1	STATUS
 reject	reject	engine	show_stmt/SHOW_opt_scope_STATUS_opt_show_condition!insert	SHOW STATUS zzz
 reject	reject	engine	show_stmt/SHOW_opt_scope_STATUS_opt_show_condition!swap	SHUTDOWN STATUS
-reject	accept	engine	show_stmt/SHOW_TENANT_opt_status	SHOW TENANT
+accept	accept	engine	show_stmt/SHOW_TENANT_opt_status	SHOW TENANT
 reject	reject	engine	show_stmt/SHOW_TENANT_opt_status!drop-1	TENANT
 reject	reject	engine	show_stmt/SHOW_TENANT_opt_status!insert	SHOW TENANT zzz
 reject	reject	engine	show_stmt/SHOW_TENANT_opt_status!swap	SHUTDOWN TENANT
-reject	accept	engine	show_stmt/SHOW_create_with_opt_hint_TENANT_relation_name	SHOW CREATE TENANT a
+accept	accept	engine	show_stmt/SHOW_create_with_opt_hint_TENANT_relation_name	SHOW CREATE TENANT a
 reject	reject	engine	show_stmt/SHOW_create_with_opt_hint_TENANT_relation_name!drop-2	SHOW TENANT a
 reject	reject	engine	show_stmt/SHOW_create_with_opt_hint_TENANT_relation_name!drop-4	SHOW CREATE TENANT
 reject	reject	engine	show_stmt/SHOW_create_with_opt_hint_TENANT_relation_name!insert	SHOW CREATE TENANT a zzz
@@ -12047,25 +12047,25 @@ accept	accept	engine	show_stmt/SHOW_PROFILES	SHOW PROFILES
 reject	reject	engine	show_stmt/SHOW_PROFILES!drop-1	PROFILES
 reject	reject	engine	show_stmt/SHOW_PROFILES!insert	SHOW PROFILES zzz
 reject	reject	engine	show_stmt/SHOW_PROFILES!swap	SHUTDOWN PROFILES
-reject	accept	engine	show_stmt/SHOW_QUERY_RESPONSE_TIME	SHOW QUERY_RESPONSE_TIME
+accept	accept	engine	show_stmt/SHOW_QUERY_RESPONSE_TIME	SHOW QUERY_RESPONSE_TIME
 reject	reject	engine	show_stmt/SHOW_QUERY_RESPONSE_TIME!drop-1	QUERY_RESPONSE_TIME
 reject	reject	engine	show_stmt/SHOW_QUERY_RESPONSE_TIME!insert	SHOW QUERY_RESPONSE_TIME zzz
 reject	reject	engine	show_stmt/SHOW_QUERY_RESPONSE_TIME!swap	SHUTDOWN QUERY_RESPONSE_TIME
-reject	accept	engine	show_stmt/SHOW_RECYCLEBIN	SHOW RECYCLEBIN
+accept	accept	engine	show_stmt/SHOW_RECYCLEBIN	SHOW RECYCLEBIN
 reject	reject	engine	show_stmt/SHOW_RECYCLEBIN!insert	SHOW RECYCLEBIN zzz
 reject	reject	engine	show_stmt/SHOW_RECYCLEBIN!swap	SHUTDOWN RECYCLEBIN
-reject	accept	engine	show_stmt/SHOW_create_with_opt_hint_TABLEGROUP_relation_name	SHOW CREATE TABLEGROUP a
+accept	accept	engine	show_stmt/SHOW_create_with_opt_hint_TABLEGROUP_relation_name	SHOW CREATE TABLEGROUP a
 reject	reject	engine	show_stmt/SHOW_create_with_opt_hint_TABLEGROUP_relation_name!drop-2	SHOW TABLEGROUP a
 reject	reject	engine	show_stmt/SHOW_create_with_opt_hint_TABLEGROUP_relation_name!drop-4	SHOW CREATE TABLEGROUP
 reject	reject	engine	show_stmt/SHOW_create_with_opt_hint_TABLEGROUP_relation_name!insert	SHOW CREATE TABLEGROUP a zzz
 reject	reject	engine	show_stmt/SHOW_create_with_opt_hint_TABLEGROUP_relation_name!swap	SHUTDOWN CREATE TABLEGROUP a
-reject	accept	engine	show_stmt/SHOW_RESTORE_PREVIEW	SHOW RESTORE PREVIEW
+accept	accept	engine	show_stmt/SHOW_RESTORE_PREVIEW	SHOW RESTORE PREVIEW
 reject	reject	engine	show_stmt/SHOW_RESTORE_PREVIEW!drop-1	RESTORE PREVIEW
 reject	reject	engine	show_stmt/SHOW_RESTORE_PREVIEW!drop-2	SHOW PREVIEW
 reject	reject	engine	show_stmt/SHOW_RESTORE_PREVIEW!drop-3	SHOW RESTORE
 reject	reject	engine	show_stmt/SHOW_RESTORE_PREVIEW!insert	SHOW RESTORE PREVIEW zzz
 reject	reject	engine	show_stmt/SHOW_RESTORE_PREVIEW!swap	SHUTDOWN RESTORE PREVIEW
-reject	accept	engine	show_stmt/SHOW_SEQUENCES_opt_show_condition_opt_from_or_in_database_clause	SHOW SEQUENCES
+accept	accept	engine	show_stmt/SHOW_SEQUENCES_opt_show_condition_opt_from_or_in_database_clause	SHOW SEQUENCES
 reject	reject	engine	show_stmt/SHOW_SEQUENCES_opt_show_condition_opt_from_or_in_database_clause!drop-1	SEQUENCES
 reject	reject	engine	show_stmt/SHOW_SEQUENCES_opt_show_condition_opt_from_or_in_database_clause!insert	SHOW SEQUENCES zzz
 reject	reject	engine	show_stmt/SHOW_SEQUENCES_opt_show_condition_opt_from_or_in_database_clause!swap	SHUTDOWN SEQUENCES
@@ -12081,12 +12081,12 @@ reject	reject	engine	show_stmt/SHOW_OPEN_TABLES_opt_from_or_in_database_clause_o
 reject	reject	engine	show_stmt/SHOW_OPEN_TABLES_opt_from_or_in_database_clause_opt_show_condition!drop-3	SHOW OPEN
 reject	reject	engine	show_stmt/SHOW_OPEN_TABLES_opt_from_or_in_database_clause_opt_show_condition!insert	SHOW OPEN TABLES zzz
 reject	reject	engine	show_stmt/SHOW_OPEN_TABLES_opt_from_or_in_database_clause_opt_show_condition!swap	SHUTDOWN OPEN TABLES
-reject	accept	engine	show_stmt/SHOW_JOB_STATUS	SHOW JOB STATUS
+accept	accept	engine	show_stmt/SHOW_JOB_STATUS	SHOW JOB STATUS
 reject	reject	engine	show_stmt/SHOW_JOB_STATUS!drop-1	JOB STATUS
 reject	reject	engine	show_stmt/SHOW_JOB_STATUS!drop-3	SHOW JOB
 reject	reject	engine	show_stmt/SHOW_JOB_STATUS!insert	SHOW JOB STATUS zzz
 reject	reject	engine	show_stmt/SHOW_JOB_STATUS!swap	SHUTDOWN JOB STATUS
-reject	accept	engine	show_stmt/SHOW_JOB_STATUS_WHERE_JOB_COMP_EQ_STRING_VALUE	SHOW JOB STATUS WHERE JOB = 's'
+accept	accept	engine	show_stmt/SHOW_JOB_STATUS_WHERE_JOB_COMP_EQ_STRING_VALUE	SHOW JOB STATUS WHERE JOB = 's'
 reject	reject	engine	show_stmt/SHOW_JOB_STATUS_WHERE_JOB_COMP_EQ_STRING_VALUE!drop-1	JOB STATUS WHERE JOB = 's'
 accept	accept	engine	show_stmt/SHOW_JOB_STATUS_WHERE_JOB_COMP_EQ_STRING_VALUE!drop-2	SHOW STATUS WHERE JOB = 's'
 reject	reject	engine	show_stmt/SHOW_JOB_STATUS_WHERE_JOB_COMP_EQ_STRING_VALUE!drop-3	SHOW JOB WHERE JOB = 's'
@@ -12107,23 +12107,23 @@ accept	reject	engine	show_stmt/CHECK_TABLE_table_list!drop-2	CHECK a
 reject	reject	engine	show_stmt/CHECK_TABLE_table_list!drop-3	CHECK TABLE
 reject	reject	engine	show_stmt/CHECK_TABLE_table_list!insert	CHECK TABLE a zzz
 reject	reject	engine	show_stmt/CHECK_TABLE_table_list!swap	CHECKPOINT TABLE a
-reject	accept	engine	show_stmt/SHOW_CATALOGS	SHOW CATALOGS
+accept	accept	engine	show_stmt/SHOW_CATALOGS	SHOW CATALOGS
 reject	reject	engine	show_stmt/SHOW_CATALOGS!drop-1	CATALOGS
 reject	reject	engine	show_stmt/SHOW_CATALOGS!insert	SHOW CATALOGS zzz
 reject	reject	engine	show_stmt/SHOW_CATALOGS!swap	SHUTDOWN CATALOGS
-reject	accept	engine	show_stmt/SHOW_SENSITIVE_RULES_show_sensitive_rule_option	SHOW SENSITIVE RULES
+accept	accept	engine	show_stmt/SHOW_SENSITIVE_RULES_show_sensitive_rule_option	SHOW SENSITIVE RULES
 reject	reject	engine	show_stmt/SHOW_SENSITIVE_RULES_show_sensitive_rule_option!drop-1	SENSITIVE RULES
 reject	reject	engine	show_stmt/SHOW_SENSITIVE_RULES_show_sensitive_rule_option!drop-2	SHOW RULES
 reject	reject	engine	show_stmt/SHOW_SENSITIVE_RULES_show_sensitive_rule_option!drop-3	SHOW SENSITIVE
 reject	reject	engine	show_stmt/SHOW_SENSITIVE_RULES_show_sensitive_rule_option!insert	SHOW SENSITIVE RULES zzz
 reject	reject	engine	show_stmt/SHOW_SENSITIVE_RULES_show_sensitive_rule_option!swap	SHUTDOWN SENSITIVE RULES
-reject	accept	engine	show_sensitive_rule_option/opt_show_condition	SHOW SENSITIVE RULES
-reject	accept	engine	show_sensitive_rule_option/from_or_in_relation_factor_opt_from_or_in_database_clause_opt_show_condition	SHOW SENSITIVE RULES FROM a
+accept	accept	engine	show_sensitive_rule_option/opt_show_condition	SHOW SENSITIVE RULES
+accept	accept	engine	show_sensitive_rule_option/from_or_in_relation_factor_opt_from_or_in_database_clause_opt_show_condition	SHOW SENSITIVE RULES FROM a
 reject	reject	engine	show_sensitive_rule_option/from_or_in_relation_factor_opt_from_or_in_database_clause_opt_show_condition!drop-1	SHOW SENSITIVE RULES a
 reject	reject	engine	show_sensitive_rule_option/from_or_in_relation_factor_opt_from_or_in_database_clause_opt_show_condition!drop-2	SHOW SENSITIVE RULES FROM
 reject	reject	engine	show_sensitive_rule_option/from_or_in_relation_factor_opt_from_or_in_database_clause_opt_show_condition!insert	SHOW SENSITIVE RULES FROM a zzz
 reject	reject	engine	show_sensitive_rule_option/from_or_in_relation_factor_opt_from_or_in_database_clause_opt_show_condition!swap	SHOW SENSITIVE RULES FROZEN a
-reject	accept	engine	show_sensitive_rule_option/from_or_in_DATABASE_database_factor_opt_show_condition	SHOW SENSITIVE RULES FROM DATABASE a
+accept	accept	engine	show_sensitive_rule_option/from_or_in_DATABASE_database_factor_opt_show_condition	SHOW SENSITIVE RULES FROM DATABASE a
 reject	reject	engine	show_sensitive_rule_option/from_or_in_DATABASE_database_factor_opt_show_condition!drop-1	SHOW SENSITIVE RULES DATABASE a
 reject	reject	engine	show_sensitive_rule_option/from_or_in_DATABASE_database_factor_opt_show_condition!drop-3	SHOW SENSITIVE RULES FROM DATABASE
 reject	reject	engine	show_sensitive_rule_option/from_or_in_DATABASE_database_factor_opt_show_condition!insert	SHOW SENSITIVE RULES FROM DATABASE a zzz
@@ -12179,7 +12179,7 @@ accept	accept	engine	opt_for_grant_user/FOR_CURRENT_USER_(_)	SHOW GRANTS FOR CUR
 reject	reject	engine	opt_for_grant_user/FOR_CURRENT_USER_(_)!drop-1	SHOW GRANTS CURRENT_USER()
 reject	reject	engine	opt_for_grant_user/FOR_CURRENT_USER_(_)!drop-2	SHOW GRANTS FOR()
 reject	reject	engine	opt_for_grant_user/FOR_CURRENT_USER_(_)!drop-3	SHOW GRANTS FOR CURRENT_USER)
-accept	reject	engine	opt_for_grant_user/FOR_CURRENT_USER_(_)!drop-4	SHOW GRANTS FOR CURRENT_USER(
+reject	reject	engine	opt_for_grant_user/FOR_CURRENT_USER_(_)!drop-4	SHOW GRANTS FOR CURRENT_USER(
 reject	reject	engine	opt_for_grant_user/FOR_CURRENT_USER_(_)!insert	SHOW GRANTS FOR CURRENT_USER() zzz
 reject	reject	engine	opt_for_grant_user/FOR_CURRENT_USER_(_)!swap	SHOW GRANTS FORCE CURRENT_USER()
 reject	reject	engine	opt_using_role/USING_role_list	SHOW GRANTS USING 's'
@@ -12188,7 +12188,7 @@ reject	reject	engine	opt_using_role/USING_role_list!drop-2	SHOW GRANTS USING
 reject	reject	engine	opt_using_role/USING_role_list!insert	SHOW GRANTS USING 's' zzz
 reject	reject	engine	opt_using_role/USING_role_list!swap	SHOW GRANTS UTC_DATE 's'
 accept	accept	engine	opt_using_role/%empty	SHOW GRANTS
-reject	accept	engine	opt_status/STATUS	SHOW DATABASES STATUS
+accept	accept	engine	opt_status/STATUS	SHOW DATABASES STATUS
 reject	reject	engine	opt_status/STATUS!insert	SHOW DATABASES STATUS zzz
 reject	reject	engine	opt_status/STATUS!swap	SHOW DATABASES STD
 accept	accept	engine	opt_status/%empty	SHOW DATABASES
@@ -12203,7 +12203,7 @@ reject	reject	engine	opt_scope/GLOBAL!swap	SHOW GLOBAL_NAME VARIABLES
 accept	accept	engine	opt_scope/SESSION	SHOW SESSION VARIABLES
 reject	reject	engine	opt_scope/SESSION!insert	SHOW SESSION zzz VARIABLES
 reject	reject	engine	opt_scope/SESSION!swap	SHOW SESSION_USER VARIABLES
-reject	accept	engine	opt_scope/LOCAL	SHOW LOCAL VARIABLES
+accept	accept	engine	opt_scope/LOCAL	SHOW LOCAL VARIABLES
 reject	reject	engine	opt_scope/LOCAL!insert	SHOW LOCAL zzz VARIABLES
 reject	reject	engine	opt_scope/LOCAL!swap	SHOW LOCALITY VARIABLES
 accept	accept	engine	opt_scope/%empty	SHOW VARIABLES
@@ -12247,10 +12247,10 @@ reject	reject	engine	opt_show_condition/LIKE_STRING_VALUE!drop-1	SHOW TABLES 's'
 reject	reject	engine	opt_show_condition/LIKE_STRING_VALUE!drop-2	SHOW TABLES LIKE
 reject	reject	engine	opt_show_condition/LIKE_STRING_VALUE!insert	SHOW TABLES LIKE 's' zzz
 reject	reject	engine	opt_show_condition/LIKE_STRING_VALUE!swap	SHOW TABLES LIMIT 's'
-reject	accept	engine	opt_show_condition/LIKE_STRING_VALUE_ESCAPE_STRING_VALUE	SHOW TABLES LIKE 's' ESCAPE 's'
+accept	accept	engine	opt_show_condition/LIKE_STRING_VALUE_ESCAPE_STRING_VALUE	SHOW TABLES LIKE 's' ESCAPE 's'
 reject	reject	engine	opt_show_condition/LIKE_STRING_VALUE_ESCAPE_STRING_VALUE!drop-1	SHOW TABLES 's' ESCAPE 's'
 reject	reject	engine	opt_show_condition/LIKE_STRING_VALUE_ESCAPE_STRING_VALUE!drop-2	SHOW TABLES LIKE ESCAPE 's'
-reject	accept	engine	opt_show_condition/LIKE_STRING_VALUE_ESCAPE_STRING_VALUE!drop-3	SHOW TABLES LIKE 's' 's'
+accept	accept	engine	opt_show_condition/LIKE_STRING_VALUE_ESCAPE_STRING_VALUE!drop-3	SHOW TABLES LIKE 's' 's'
 reject	reject	engine	opt_show_condition/LIKE_STRING_VALUE_ESCAPE_STRING_VALUE!drop-4	SHOW TABLES LIKE 's' ESCAPE
 reject	reject	engine	opt_show_condition/LIKE_STRING_VALUE_ESCAPE_STRING_VALUE!insert	SHOW TABLES LIKE 's' ESCAPE 's' zzz
 reject	reject	engine	opt_show_condition/LIKE_STRING_VALUE_ESCAPE_STRING_VALUE!swap	SHOW TABLES LIMIT 's' ESCAPE 's'
@@ -12586,7 +12586,7 @@ reject	reject	engine	user_host_or_current_user/CURRENT_USER!swap	SHOW CREATE USE
 accept	accept	engine	user_host_or_current_user/CURRENT_USER_(_)	SHOW CREATE USER CURRENT_USER()
 reject	reject	engine	user_host_or_current_user/CURRENT_USER_(_)!drop-1	SHOW CREATE USER()
 reject	reject	engine	user_host_or_current_user/CURRENT_USER_(_)!drop-2	SHOW CREATE USER CURRENT_USER)
-accept	reject	engine	user_host_or_current_user/CURRENT_USER_(_)!drop-3	SHOW CREATE USER CURRENT_USER(
+reject	reject	engine	user_host_or_current_user/CURRENT_USER_(_)!drop-3	SHOW CREATE USER CURRENT_USER(
 reject	reject	engine	user_host_or_current_user/CURRENT_USER_(_)!insert	SHOW CREATE USER CURRENT_USER() zzz
 reject	reject	engine	user_host_or_current_user/CURRENT_USER_(_)!swap	SHOW CREATE USER CURSOR()
 accept	accept	engine	user_with_host_name/user_opt_host_name	DROP USER 's'
@@ -16183,11 +16183,11 @@ reject	reject	engine	namespace_expr/NAMESPACE_opt_equal_mark_STRING_VALUE!insert
 reject	reject	engine	namespace_expr/NAMESPACE_opt_equal_mark_STRING_VALUE!swap	ALTER SYSTEM FLUSH ALL CACHE NATIONAL 's'
 accept	accept	engine	opt_namespace/namespace_expr	ALTER SYSTEM FLUSH ALL CACHE NAMESPACE 's'
 accept	accept	engine	opt_namespace/%empty	ALTER SYSTEM FLUSH ALL CACHE
-reject	accept	engine	tenant_name/TENANT_opt_equal_mark_relation_name_or_string	SHOW PARAMETERS TENANT a
+accept	accept	engine	tenant_name/TENANT_opt_equal_mark_relation_name_or_string	SHOW PARAMETERS TENANT a
 reject	reject	engine	tenant_name/TENANT_opt_equal_mark_relation_name_or_string!drop-1	SHOW PARAMETERS a
 reject	reject	engine	tenant_name/TENANT_opt_equal_mark_relation_name_or_string!swap	SHOW PARAMETERS TENANT_ID a
-reject	accept	engine	opt_tenant_name/tenant_name	SHOW PARAMETERS TENANT a
-reject	accept	engine	opt_tenant_name/%empty	SHOW PARAMETERS
+accept	accept	engine	opt_tenant_name/tenant_name	SHOW PARAMETERS TENANT a
+accept	accept	engine	opt_tenant_name/%empty	SHOW PARAMETERS
 accept	accept	engine	opt_tenant_info/TENANT_ID_opt_equal_mark_INTNUM	ALTER SYSTEM BACKUP BACKUPSET ALL TENANT_ID 1
 reject	reject	engine	opt_tenant_info/TENANT_ID_opt_equal_mark_INTNUM!drop-1	ALTER SYSTEM BACKUP BACKUPSET ALL 1
 reject	reject	engine	opt_tenant_info/TENANT_ID_opt_equal_mark_INTNUM!drop-2	ALTER SYSTEM BACKUP BACKUPSET ALL TENANT_ID
