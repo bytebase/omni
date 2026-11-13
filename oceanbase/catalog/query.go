@@ -524,6 +524,10 @@ type CommonTableExprQ struct {
 
 	// Recursive marks WITH RECURSIVE CTEs.
 	Recursive bool
+
+	// namesUncertain marks a CTE with a column the analyzer cannot name as
+	// OceanBase does (selectDerivesNames).
+	namesUncertain bool
 }
 
 // =============================================================================

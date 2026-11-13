@@ -29,6 +29,33 @@ type analyzerScope struct {
 	// select item by its alias, as WHERE may not. A name a table in scope has
 	// keeps meaning that column (selectAlias).
 	aliases map[string]*TargetEntryQ
+
+	// ctes is the CTEs this query sees, its own and its enclosing queries'.
+	ctes map[string]*CommonTableExprQ
+
+	// namesUncertain is set when a derived table or CTE in scope has a column the
+	// analyzer cannot name as OceanBase does (selectDerivesNames). A name that then
+	// fails to resolve is not known to be missing, and its error is no refusal.
+	namesUncertain bool
+}
+
+// uncertain reports whether this scope or one around it has uncertain names.
+func (s *analyzerScope) uncertain() bool {
+	for ; s != nil; s = s.parent {
+		if s.namesUncertain {
+			return true
+		}
+	}
+	return false
+}
+
+// unsure turns err into a plain error when names in scope are uncertain, so it
+// reads as an analysis that could not finish rather than OceanBase's refusal.
+func (s *analyzerScope) unsure(err error) error {
+	if err != nil && s.uncertain() {
+		return fmt.Errorf("%v (a derived column's name is not known)", err)
+	}
+	return err
 }
 
 // selectAliases maps the names of the select list's items to them, the first of
@@ -156,7 +183,7 @@ func (s *analyzerScope) resolveColumnFull(colName string) (int, int, int, error)
 			return rteIdx, attNum, parentLevels + 1, nil
 		}
 	}
-	return 0, 0, 0, err
+	return 0, 0, 0, s.unsure(err)
 }
 
 // resolveQualifiedColumnFull resolves a qualified column, trying parent scopes
@@ -172,7 +199,7 @@ func (s *analyzerScope) resolveQualifiedColumnFull(tableName, colName string) (i
 			return rteIdx, attNum, parentLevels + 1, nil
 		}
 	}
-	return 0, 0, 0, err
+	return 0, 0, 0, s.unsure(err)
 }
 
 // allEntries returns all scope entries in registration order.
