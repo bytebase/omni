@@ -1,6 +1,6 @@
 # Engine compatibility without servers in CI
 
-Status: draft, 2026-11-12. Step 0 is built: `enginetest/compat`, `enginetest/grammar` and TiDB's `compat.tsv` (11,058 rows, recorded on the pinned server in 9 seconds), and `enginetest/tape` with `tidb/catalog` on tapes (131 tapes, 3.1 MB, recorded in 90 seconds; replay takes 1.6 seconds and starts no server). OceanBase has step 1: 20,407 rows, judged on the pinned server in three minutes, 17,728 agreeing (Appendix A). Its step 2 is done but for `simulate.tsv`: `oceanbase/parser`, `oceanbase/validate`, 162 tests of `oceanbase/catalog` and the four oracle tests of `oceanbase/review` replay tapes (253 tapes, 9.7 MB), and nothing under `oceanbase/` starts a server outside a recording. The 162 are the tests that always asked OceanBase, every oracle test written against MySQL, moved with the fixes they needed and with what still fails recorded (Appendix A), and 77 of the 107 container tests: each asserts OceanBase's answer and, under an `omni gap:` comment, what the catalog still answers as MySQL does. The other 30 container tests and 210 subtests compared MySQL's `SHOW CREATE` text and were deleted (D3). `review`'s walk lists the server's objects (§4.4), and its MySQL oracles were pointed at OceanBase or, where they held what only MySQL has, deleted (Appendix A). A spike measured OceanBase and Snowflake first. Its code was lost. The other engines' grammars were located, not run.
+Status: draft, 2026-11-12. Step 0 is built: `enginetest/compat`, `enginetest/grammar` and TiDB's `compat.tsv` (11,058 rows, recorded on the pinned server in 9 seconds), and `enginetest/tape` with `tidb/catalog` on tapes (131 tapes, 3.1 MB, recorded in 90 seconds; replay takes 1.6 seconds and starts no server). OceanBase has step 1: 20,407 rows, judged on the pinned server in three minutes, 19,289 agreeing (Appendix A). Its step 2 is done but for `simulate.tsv`: `oceanbase/parser`, `oceanbase/validate`, 162 tests of `oceanbase/catalog` and the four oracle tests of `oceanbase/review` replay tapes (253 tapes, 9.7 MB), and nothing under `oceanbase/` starts a server outside a recording. The 162 are the tests that always asked OceanBase, every oracle test written against MySQL, moved with the fixes they needed and with what still fails recorded (Appendix A), and 77 of the 107 container tests: each asserts OceanBase's answer and, under an `omni gap:` comment, what the catalog still answers as MySQL does. The other 30 container tests and 210 subtests compared MySQL's `SHOW CREATE` text and were deleted (D3). `review`'s walk lists the server's objects (§4.4), and its MySQL oracles were pointed at OceanBase or, where they held what only MySQL has, deleted (Appendix A). A spike measured OceanBase and Snowflake first. Its code was lost. The other engines' grammars were located, not run.
 
 ## 1. Summary
 
@@ -36,7 +36,7 @@ Four terms are used throughout:
 3. **Agreeing:** on every row, omni's answer equals the judge's.
 4. **Replaying:** every tape replays.
 
-Until then, the disagreeing rows are the work list: 2,679 for OceanBase today. The guards in §7 make that count only fall, and once it reaches zero any disagreement fails CI.
+Until then, the disagreeing rows are the work list: 1,118 for OceanBase today. The guards in §7 make that count only fall, and once it reaches zero any disagreement fails CI.
 
 **What that does not claim:**
 - **Statements no row covers.** Rows sample an infinite language. A statement outside them is unknown until someone adds it as a row, and then it is covered for good.
@@ -499,10 +499,30 @@ After step 0 the engines are independent. Order:
 
 | Statements | Total | Agree | Only engine accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
-| One per alternative | 5,071 | 3,306 | 1,736 | 29 |
-| Near-misses | 15,336 | 14,422 | 527 | 387 |
+| One per alternative | 5,071 | 4,440 | 602 | 29 |
+| Near-misses | 15,336 | 14,849 | 105 | 382 |
 
-- **2,679 disagreements,** untriaged. Among the alternatives only OceanBase accepts, the largest groups by leading words are `ALTER SYSTEM` (399), `EXPLAIN` (231, of which 205 are names with a leading dot), `ALTER TABLE` (175), `SELECT` (166) and `DELETE` (131).
+- **1,118 disagreements,** down from the 2,679 first recorded (2026-11-13). Closed since: names with a leading dot or a reserved word after a dot (585), `ALTER SYSTEM` (417), table options (109), `tbl_name`'s clauses (109), tenants and resources (104), tablegroups and sequences (85), `AUDIT` (71), `EXPLAIN` (43), and 38 before those.
+- **What is left,** by what the statement is:
+
+  | Rows | Omni rejects | Omni accepts | What | Why it is left |
+  | --- | --- | --- | --- | --- |
+  | 184 | 159 | 25 | `SELECT` | Many small rules: `UNNEST`, `RB_ITERATE`, `JSON_TABLE` columns, natural join types, grouping sets, a flashback on a derived table |
+  | 119 | 86 | 33 | `ALTER TABLE` | Partition actions, column attributes, skip indexes, and MySQL's `ALGORITHM` and `LOCK` values OceanBase refuses |
+  | 101 | 101 | 0 | Materialized views and their logs | Not read at all; a view's query and columns want a tree, not a matcher |
+  | 99 | 16 | 83 | `SERVER`, `TABLESPACE`, `LOGFILE GROUP`, `INSTANCE` | MySQL statements OceanBase parses only as mocks, with fewer options than omni inherited |
+  | 94 | 0 | 94 | Function calls | A keyword of OceanBase's that names no function (`SELECT gts(a)`), and a keyword function called with no argument (`SELECT date()`): needs the callable keywords measured on the server |
+  | 77 | 72 | 5 | Concurrent limiting rules, sensitive rules, outlines, snapshots | Not read; the same matchers would do |
+  | 70 | 63 | 7 | External tables and files | `SOURCE()`, `FILES()` and a location as a table, `ALTER EXTERNAL TABLE`, `LOAD DATA`'s OceanBase options |
+  | 51 | 51 | 0 | `FOR COLUMNS`, `FOR ALL` | Not statements: `method_opt` is the grammar of a `DBMS_STATS` argument, which the parser also reaches as a `stmt`. Left as they are |
+  | 45 | 4 | 41 | Privileges in `GRANT` and `REVOKE` | omni takes MySQL's privilege names; OceanBase has its own list |
+  | 33 | 31 | 2 | `CREATE TABLE` | Column groups, automatic partitioning, and `TABLESPACE` options |
+  | 30 | 28 | 2 | `SHOW` | `SHOW PARAMETERS`, `SHOW TABLEGROUPS`, `SHOW SEQUENCES` and others |
+  | 28 | 0 | 28 | `GET DIAGNOSTICS` | Near-misses omni reads past: a missing item, a misspelt `DIAGNOSTICS` |
+  | 20 | 15 | 5 | `ANALYZE` | `COMPUTE` and `ESTIMATE STATISTICS` are not read, and a histogram clause missing a word is |
+  | 17 | 1 | 16 | Transactions and locks | `START TRANSACTION` and `LOCK TABLES` forms OceanBase refuses |
+  | 6 | 6 | 0 | Catalog-qualified names and database links | `catalog.d.t` and `t @link` need a field `TableRef` does not have |
+  | 144 | 74 | 70 | Everything else | No group over nine rows: users, `CACHE INDEX`, `HANDLER`, `FLASHBACK`, `PURGE`, `DUMP` |
 - **A carrier can hide its alternatives.** A row is the shortest statement that reaches an alternative, and where omni rejects that carrier, every alternative behind it disagrees for one reason. Fixing the carrier is what shows the rest.
 - **Two statements crash the server** (three rows). Their verdict comes from the probe (§2.3).
 
