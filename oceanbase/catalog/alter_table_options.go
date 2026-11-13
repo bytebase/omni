@@ -277,6 +277,10 @@ func decodeOptionString(text string) (string, int) {
 // or the written text of anything else.
 func unquoteOption(value string) string {
 	toks := lexOption(value)
+	if len(toks) > 0 && toks[0].punct == '=' {
+		// The option's optional =, which a comment before it keeps in the text.
+		toks = toks[1:]
+	}
 	if len(toks) == 1 {
 		return toks[0].text
 	}

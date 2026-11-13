@@ -20,6 +20,8 @@ func TestAlterTableOptionText(t *testing.T) {
 		{"ALTER TABLE r DYNAMIC_PARTITION_POLICY (TIME_UNIT = 'DAY' TIME_UNIT = 'DAY')", 1210},
 		{"ALTER TABLE r TABLE_MODE 'nor' 'mal'", 0},
 		{"ALTER TABLE r TABLE_MODE 'no' 'pe'", 1235},
+		{"ALTER TABLE r TABLE_MODE /*x*/ = 'normal'", 0},
+		{"ALTER TABLE r STORAGE_FORMAT_VERSION /*x*/ = 4", 0},
 	} {
 		if got := omniCode(c, tc.sql); got != tc.code {
 			t.Errorf("%s: got %d, want %d", tc.sql, got, tc.code)
