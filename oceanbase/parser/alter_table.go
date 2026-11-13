@@ -85,6 +85,18 @@ func (p *Parser) parseAlterTableStmt(start int) (*nodes.AlterTableStmt, error) {
 				return nil, err
 			}
 			stmt.Commands = append(stmt.Commands, cmd)
+			// {ADD | DROP} COLUMN GROUP is a statement of its own, alter_table_stmt's
+			// alter_column_group_option, and no alter_table_action: it stands with no
+			// other action before or after it (sql_parser_mysql_mode.y,
+			// oceanbase v4.3.5_CE_BP6).
+			if cmd.Type == nodes.ATAddColumnGroup || cmd.Type == nodes.ATDropColumnGroup {
+				if len(stmt.Commands) > 1 {
+					return nil, &ParseError{Message: "syntax error", Position: cmd.Loc.Start}
+				}
+				if p.cur.Type == ',' {
+					return nil, p.syntaxErrorAtCur()
+				}
+			}
 			if cmd.Type == nodes.ATTableOption {
 				more, err := p.parseMoreAlterTableOptions()
 				if err != nil {

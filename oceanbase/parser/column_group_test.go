@@ -33,6 +33,11 @@ func TestColumnGroup(t *testing.T) {
 		"CREATE TABLE t (a INT) WITH COLUMN GROUP (ALL)",
 		"CREATE TABLE t (a INT, PRIMARY KEY (a) WITH COLUMN GROUP (ALL COLUMNS))", // a primary key takes none
 		"ALTER TABLE t ADD COLUMN GROUP (g ())",
+		// A column group action is a statement of its own, with no other action.
+		"ALTER TABLE t ADD COLUMN GROUP (ALL COLUMNS), ADD COLUMN b INT",
+		"ALTER TABLE t ADD COLUMN b INT, ADD COLUMN GROUP (ALL COLUMNS)",
+		"ALTER TABLE t DROP COLUMN GROUP (EACH COLUMN), DROP COLUMN b",
+		"ALTER TABLE t COMMENT 'x', DROP COLUMN GROUP (ALL COLUMNS)",
 	} {
 		if _, err := Parse(sql); err == nil {
 			t.Errorf("Parse(%q) was accepted", sql)
