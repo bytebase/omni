@@ -148,6 +148,16 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 		return c.alterDropPartition(tbl, cmd)
 	case nodes.ATTruncatePartition:
 		return c.alterTruncatePartition(tbl, cmd)
+	case nodes.ATDropSubpartition:
+		return c.alterDropSubpartition(tbl, cmd)
+	case nodes.ATTruncateSubpartition, nodes.ATAlterPartitionStorageCachePolicy:
+		// A data operation and a cache policy, neither of which the catalog keeps.
+		if tbl.Partitioning == nil {
+			return errNotPartitioned()
+		}
+		return nil
+	case nodes.ATAddSubpartition:
+		return c.alterAddSubpartition(tbl, cmd)
 	case nodes.ATCoalescePartition:
 		return c.alterCoalescePartition(tbl, cmd)
 	case nodes.ATReorganizePartition:
@@ -1348,6 +1358,59 @@ func (c *Catalog) alterTruncatePartition(tbl *Table, cmd *nodes.AlterTableCmd) e
 		return errNotPartitioned()
 	}
 	// Truncate is a data operation; for DDL catalog purposes, it's a no-op.
+	return nil
+}
+
+// alterDropSubpartition drops named subpartitions from every partition that
+// lists them. OceanBase refuses it on a table without partitions with 1505
+// (simulate.tsv); no fixture holds a subpartitioned table yet, so the rest
+// follows alterDropPartition and is not measured.
+func (c *Catalog) alterDropSubpartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
+	if tbl.Partitioning == nil {
+		return errNotPartitioned()
+	}
+	dropSet := make(map[string]bool)
+	for _, name := range cmd.PartitionNames {
+		dropSet[toLower(name)] = true
+	}
+	for _, pd := range tbl.Partitioning.Partitions {
+		var remaining []*SubPartitionDefInfo
+		for _, spd := range pd.SubPartitions {
+			if !dropSet[toLower(spd.Name)] {
+				remaining = append(remaining, spd)
+			}
+		}
+		pd.SubPartitions = remaining
+	}
+	return nil
+}
+
+// alterAddSubpartition adds subpartitions to one partition: MODIFY PARTITION p
+// ADD SUBPARTITION (...). OceanBase refuses it on a table without partitions
+// with 1505 (simulate.tsv); the rest follows addedPartitionSubpartitions and is
+// not measured, since no fixture holds a subpartitioned table yet.
+func (c *Catalog) alterAddSubpartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
+	if tbl.Partitioning == nil {
+		return errNotPartitioned()
+	}
+	if len(cmd.PartitionDefs) == 0 {
+		return nil
+	}
+	added := cmd.PartitionDefs[0]
+	for _, pd := range tbl.Partitioning.Partitions {
+		if toLower(pd.Name) != toLower(cmd.Name) {
+			continue
+		}
+		for _, spd := range added.SubPartitions {
+			spdi := &SubPartitionDefInfo{Name: spd.Name, Engine: pd.Engine, Comment: pd.Comment}
+			if spd.Values != nil {
+				spdi.ValueExpr = partitionValueToString(spd.Values, partitionTypeFromString(tbl.Partitioning.SubType))
+			}
+			pd.SubPartitions = append(pd.SubPartitions, spdi)
+		}
+		tbl.Partitioning.UseDefaultSubpartitions = false
+		tbl.Partitioning.UseDefaultNumSubpartitions = false
+	}
 	return nil
 }
 

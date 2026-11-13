@@ -928,10 +928,10 @@ ok	1517	engine	one_table@table	hash_partition_list/hash_partition_list_,_hash_pa
 1500	1500	engine	one_table@table	opt_subpartition_list/opt_list_subpartition_list	ALTER TABLE a PARTITION BY KEY()(PARTITION a(SUBPARTITION a VALUES IN(a)))
 1500	1500	engine	one_table@table	hash_subpartition_list/hash_subpartition_list_,_hash_subpartition_element	ALTER TABLE a PARTITION BY KEY()(PARTITION a(SUBPARTITION a, SUBPARTITION a))
 ok	ok:509600a00022	engine	one_table@table	opt_engine_option/ENGINE__COMP_EQ_INNODB	ALTER TABLE a PARTITION BY KEY()(PARTITION a ENGINE = INNODB)
-ok	1505	engine	one_table@table	opt_range_subpartition_list/(_range_subpartition_list_)	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES LESS THAN MAXVALUE)
-ok	1505	engine	one_table@table	range_subpartition_list/range_subpartition_list_,_range_subpartition_element	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES LESS THAN MAXVALUE, SUBPARTITION a VALUES LESS THAN MAXVALUE)
-ok	1505	engine	one_table@table	opt_list_subpartition_list/(_list_subpartition_list_)	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES IN(a))
-ok	1505	engine	one_table@table	list_subpartition_list/list_subpartition_list_,_list_subpartition_element	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES IN(a), SUBPARTITION a VALUES IN(a))
+1505	1505	engine	one_table@table	opt_range_subpartition_list/(_range_subpartition_list_)	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES LESS THAN MAXVALUE)
+1505	1505	engine	one_table@table	range_subpartition_list/range_subpartition_list_,_range_subpartition_element	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES LESS THAN MAXVALUE, SUBPARTITION a VALUES LESS THAN MAXVALUE)
+1505	1505	engine	one_table@table	opt_list_subpartition_list/(_list_subpartition_list_)	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES IN(a))
+1505	1505	engine	one_table@table	list_subpartition_list/list_subpartition_list_,_list_subpartition_element	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES IN(a), SUBPARTITION a VALUES IN(a))
 1505	1505	engine	one_table@table	list_partition_expr/(_DEFAULT_)	ALTER TABLE a ADD PARTITION(PARTITION a VALUES IN(DEFAULT))
 1505	1505	engine	one_table@table	list_partition_expr/(_DEFAULT_)!swap	ALTER TABLE a ADD PARTITION(PARTITION a VALUES IN(DEFAULT_AUTH))
 1505	1505	engine	one_table@table	list_expr/list_expr_,_expr	ALTER TABLE a ADD PARTITION(PARTITION a VALUES IN(a, a))
@@ -1068,16 +1068,16 @@ ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	lock_opt/SHARED	ALTER TAB
 ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	lock_opt/EXCLUSIVE	ALTER TABLE a LOCK EXCLUSIVE
 1064	3821	engine	one_table@table	alter_constraint_option/DROP_CONSTRAINT_(_name_list_)	ALTER TABLE a DROP CONSTRAINT(a)
 1064	3821	engine	one_table@table	alter_constraint_option/DROP_CHECK_(_name_list_)	ALTER TABLE a DROP CHECK(a)
-ok	1505	engine	one_table@table	alter_partition_option/DROP_SUBPARTITION_drop_partition_name_list	ALTER TABLE a DROP SUBPARTITION a
+1505	1505	engine	one_table@table	alter_partition_option/DROP_SUBPARTITION_drop_partition_name_list	ALTER TABLE a DROP SUBPARTITION a
 1091	1091	engine	one_table@table	alter_partition_option/DROP_SUBPARTITION_drop_partition_name_list!drop-3	ALTER TABLE a DROP SUBPARTITION
-ok	1505	engine	one_table@table	alter_partition_option/DROP_SUBPARTITION_drop_partition_name_list!insert	ALTER TABLE a DROP SUBPARTITION a zzz
-ok	1505	engine	one_table@table	alter_partition_option/alter_with_opt_hint_PARTITION_name_list_STORAGE_CACHE_POLICY_COMP_EQ_STRING_VALUE	ALTER TABLE a ALTER PARTITION a STORAGE_CACHE_POLICY = 's'
-ok	1505	engine	one_table@table	alter_partition_option/alter_with_opt_hint_SUBPARTITION_name_list_STORAGE_CACHE_POLICY_COMP_EQ_STRING_VALUE	ALTER TABLE a ALTER SUBPARTITION a STORAGE_CACHE_POLICY = 's'
+1505	1505	engine	one_table@table	alter_partition_option/DROP_SUBPARTITION_drop_partition_name_list!insert	ALTER TABLE a DROP SUBPARTITION a zzz
+1505	1505	engine	one_table@table	alter_partition_option/alter_with_opt_hint_PARTITION_name_list_STORAGE_CACHE_POLICY_COMP_EQ_STRING_VALUE	ALTER TABLE a ALTER PARTITION a STORAGE_CACHE_POLICY = 's'
+1505	1505	engine	one_table@table	alter_partition_option/alter_with_opt_hint_SUBPARTITION_name_list_STORAGE_CACHE_POLICY_COMP_EQ_STRING_VALUE	ALTER TABLE a ALTER SUBPARTITION a STORAGE_CACHE_POLICY = 's'
 1505	1505	engine	one_table@table	alter_partition_option/REORGANIZE_PARTITION_name_list_INTO_opt_partition_range_or_list	ALTER TABLE a REORGANIZE PARTITION a INTO(PARTITION a VALUES LESS THAN MAXVALUE)
 1505	1505	engine	one_table@table	alter_partition_option/TRUNCATE_PARTITION_name_list	ALTER TABLE a TRUNCATE PARTITION a
 1505	1505	engine	one_table@table	alter_partition_option/TRUNCATE_PARTITION_name_list!insert	ALTER TABLE a TRUNCATE PARTITION a zzz
-ok	1505	engine	one_table@table	alter_partition_option/TRUNCATE_SUBPARTITION_name_list	ALTER TABLE a TRUNCATE SUBPARTITION a
-ok	1505	engine	one_table@table	alter_partition_option/TRUNCATE_SUBPARTITION_name_list!insert	ALTER TABLE a TRUNCATE SUBPARTITION a zzz
+1505	1505	engine	one_table@table	alter_partition_option/TRUNCATE_SUBPARTITION_name_list	ALTER TABLE a TRUNCATE SUBPARTITION a
+1505	1505	engine	one_table@table	alter_partition_option/TRUNCATE_SUBPARTITION_name_list!insert	ALTER TABLE a TRUNCATE SUBPARTITION a zzz
 1505	1505	engine	one_table@table	alter_partition_option/EXCHANGE_PARTITION_relation_name_WITH_TABLE_relation_factor_WITHOUT_VALIDATION	ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a WITHOUT VALIDATION
 1505	1505	engine	one_table@table	drop_partition_name_list/(_name_list_)	ALTER TABLE a DROP PARTITION(a)
 1072	1072	engine	one_table@table	alter_index_option/ADD_add_unique_key_opt	ALTER TABLE a ADD UNIQUE(a)
@@ -1497,10 +1497,10 @@ ok	1517	engine	one_table@column	hash_partition_list/hash_partition_list_,_hash_p
 1500	1500	engine	one_table@column	opt_subpartition_list/opt_list_subpartition_list	ALTER TABLE a PARTITION BY KEY()(PARTITION a(SUBPARTITION a VALUES IN(a)))
 1500	1500	engine	one_table@column	hash_subpartition_list/hash_subpartition_list_,_hash_subpartition_element	ALTER TABLE a PARTITION BY KEY()(PARTITION a(SUBPARTITION a, SUBPARTITION a))
 ok	ok:f2971bd4adee	engine	one_table@column	opt_engine_option/ENGINE__COMP_EQ_INNODB	ALTER TABLE a PARTITION BY KEY()(PARTITION a ENGINE = INNODB)
-ok	1505	engine	one_table@column	opt_range_subpartition_list/(_range_subpartition_list_)	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES LESS THAN MAXVALUE)
-ok	1505	engine	one_table@column	range_subpartition_list/range_subpartition_list_,_range_subpartition_element	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES LESS THAN MAXVALUE, SUBPARTITION a VALUES LESS THAN MAXVALUE)
-ok	1505	engine	one_table@column	opt_list_subpartition_list/(_list_subpartition_list_)	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES IN(a))
-ok	1505	engine	one_table@column	list_subpartition_list/list_subpartition_list_,_list_subpartition_element	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES IN(a), SUBPARTITION a VALUES IN(a))
+1505	1505	engine	one_table@column	opt_range_subpartition_list/(_range_subpartition_list_)	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES LESS THAN MAXVALUE)
+1505	1505	engine	one_table@column	range_subpartition_list/range_subpartition_list_,_range_subpartition_element	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES LESS THAN MAXVALUE, SUBPARTITION a VALUES LESS THAN MAXVALUE)
+1505	1505	engine	one_table@column	opt_list_subpartition_list/(_list_subpartition_list_)	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES IN(a))
+1505	1505	engine	one_table@column	list_subpartition_list/list_subpartition_list_,_list_subpartition_element	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES IN(a), SUBPARTITION a VALUES IN(a))
 1505	1505	engine	one_table@column	list_partition_expr/(_DEFAULT_)	ALTER TABLE a ADD PARTITION(PARTITION a VALUES IN(DEFAULT))
 1505	1505	engine	one_table@column	list_partition_expr/(_DEFAULT_)!swap	ALTER TABLE a ADD PARTITION(PARTITION a VALUES IN(DEFAULT_AUTH))
 1505	1505	engine	one_table@column	list_expr/list_expr_,_expr	ALTER TABLE a ADD PARTITION(PARTITION a VALUES IN(a, a))
@@ -1637,16 +1637,16 @@ ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	lock_opt/SHARED	ALTER TA
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	lock_opt/EXCLUSIVE	ALTER TABLE a LOCK EXCLUSIVE
 1064	3821	engine	one_table@column	alter_constraint_option/DROP_CONSTRAINT_(_name_list_)	ALTER TABLE a DROP CONSTRAINT(a)
 1064	3821	engine	one_table@column	alter_constraint_option/DROP_CHECK_(_name_list_)	ALTER TABLE a DROP CHECK(a)
-ok	1505	engine	one_table@column	alter_partition_option/DROP_SUBPARTITION_drop_partition_name_list	ALTER TABLE a DROP SUBPARTITION a
+1505	1505	engine	one_table@column	alter_partition_option/DROP_SUBPARTITION_drop_partition_name_list	ALTER TABLE a DROP SUBPARTITION a
 1091	1091	engine	one_table@column	alter_partition_option/DROP_SUBPARTITION_drop_partition_name_list!drop-3	ALTER TABLE a DROP SUBPARTITION
-ok	1505	engine	one_table@column	alter_partition_option/DROP_SUBPARTITION_drop_partition_name_list!insert	ALTER TABLE a DROP SUBPARTITION a zzz
-ok	1505	engine	one_table@column	alter_partition_option/alter_with_opt_hint_PARTITION_name_list_STORAGE_CACHE_POLICY_COMP_EQ_STRING_VALUE	ALTER TABLE a ALTER PARTITION a STORAGE_CACHE_POLICY = 's'
-ok	1505	engine	one_table@column	alter_partition_option/alter_with_opt_hint_SUBPARTITION_name_list_STORAGE_CACHE_POLICY_COMP_EQ_STRING_VALUE	ALTER TABLE a ALTER SUBPARTITION a STORAGE_CACHE_POLICY = 's'
+1505	1505	engine	one_table@column	alter_partition_option/DROP_SUBPARTITION_drop_partition_name_list!insert	ALTER TABLE a DROP SUBPARTITION a zzz
+1505	1505	engine	one_table@column	alter_partition_option/alter_with_opt_hint_PARTITION_name_list_STORAGE_CACHE_POLICY_COMP_EQ_STRING_VALUE	ALTER TABLE a ALTER PARTITION a STORAGE_CACHE_POLICY = 's'
+1505	1505	engine	one_table@column	alter_partition_option/alter_with_opt_hint_SUBPARTITION_name_list_STORAGE_CACHE_POLICY_COMP_EQ_STRING_VALUE	ALTER TABLE a ALTER SUBPARTITION a STORAGE_CACHE_POLICY = 's'
 1505	1505	engine	one_table@column	alter_partition_option/REORGANIZE_PARTITION_name_list_INTO_opt_partition_range_or_list	ALTER TABLE a REORGANIZE PARTITION a INTO(PARTITION a VALUES LESS THAN MAXVALUE)
 1505	1505	engine	one_table@column	alter_partition_option/TRUNCATE_PARTITION_name_list	ALTER TABLE a TRUNCATE PARTITION a
 1505	1505	engine	one_table@column	alter_partition_option/TRUNCATE_PARTITION_name_list!insert	ALTER TABLE a TRUNCATE PARTITION a zzz
-ok	1505	engine	one_table@column	alter_partition_option/TRUNCATE_SUBPARTITION_name_list	ALTER TABLE a TRUNCATE SUBPARTITION a
-ok	1505	engine	one_table@column	alter_partition_option/TRUNCATE_SUBPARTITION_name_list!insert	ALTER TABLE a TRUNCATE SUBPARTITION a zzz
+1505	1505	engine	one_table@column	alter_partition_option/TRUNCATE_SUBPARTITION_name_list	ALTER TABLE a TRUNCATE SUBPARTITION a
+1505	1505	engine	one_table@column	alter_partition_option/TRUNCATE_SUBPARTITION_name_list!insert	ALTER TABLE a TRUNCATE SUBPARTITION a zzz
 1505	1505	engine	one_table@column	alter_partition_option/EXCHANGE_PARTITION_relation_name_WITH_TABLE_relation_factor_WITHOUT_VALIDATION	ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a WITHOUT VALIDATION
 1505	1505	engine	one_table@column	drop_partition_name_list/(_name_list_)	ALTER TABLE a DROP PARTITION(a)
 ok:9e65dfde7e19	ok:9e65dfde7e19	engine	one_table@column	alter_index_option/ADD_add_unique_key_opt	ALTER TABLE a ADD UNIQUE(a)
@@ -2066,10 +2066,10 @@ ok	1517	engine	one_table@index	hash_partition_list/hash_partition_list_,_hash_pa
 1500	1500	engine	one_table@index	opt_subpartition_list/opt_list_subpartition_list	ALTER TABLE a PARTITION BY KEY()(PARTITION a(SUBPARTITION a VALUES IN(a)))
 1500	1500	engine	one_table@index	hash_subpartition_list/hash_subpartition_list_,_hash_subpartition_element	ALTER TABLE a PARTITION BY KEY()(PARTITION a(SUBPARTITION a, SUBPARTITION a))
 ok	ok:4c9e15aeb927	engine	one_table@index	opt_engine_option/ENGINE__COMP_EQ_INNODB	ALTER TABLE a PARTITION BY KEY()(PARTITION a ENGINE = INNODB)
-ok	1505	engine	one_table@index	opt_range_subpartition_list/(_range_subpartition_list_)	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES LESS THAN MAXVALUE)
-ok	1505	engine	one_table@index	range_subpartition_list/range_subpartition_list_,_range_subpartition_element	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES LESS THAN MAXVALUE, SUBPARTITION a VALUES LESS THAN MAXVALUE)
-ok	1505	engine	one_table@index	opt_list_subpartition_list/(_list_subpartition_list_)	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES IN(a))
-ok	1505	engine	one_table@index	list_subpartition_list/list_subpartition_list_,_list_subpartition_element	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES IN(a), SUBPARTITION a VALUES IN(a))
+1505	1505	engine	one_table@index	opt_range_subpartition_list/(_range_subpartition_list_)	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES LESS THAN MAXVALUE)
+1505	1505	engine	one_table@index	range_subpartition_list/range_subpartition_list_,_range_subpartition_element	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES LESS THAN MAXVALUE, SUBPARTITION a VALUES LESS THAN MAXVALUE)
+1505	1505	engine	one_table@index	opt_list_subpartition_list/(_list_subpartition_list_)	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES IN(a))
+1505	1505	engine	one_table@index	list_subpartition_list/list_subpartition_list_,_list_subpartition_element	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES IN(a), SUBPARTITION a VALUES IN(a))
 1505	1505	engine	one_table@index	list_partition_expr/(_DEFAULT_)	ALTER TABLE a ADD PARTITION(PARTITION a VALUES IN(DEFAULT))
 1505	1505	engine	one_table@index	list_partition_expr/(_DEFAULT_)!swap	ALTER TABLE a ADD PARTITION(PARTITION a VALUES IN(DEFAULT_AUTH))
 1505	1505	engine	one_table@index	list_expr/list_expr_,_expr	ALTER TABLE a ADD PARTITION(PARTITION a VALUES IN(a, a))
@@ -2206,16 +2206,16 @@ ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	lock_opt/SHARED	ALTER TAB
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	lock_opt/EXCLUSIVE	ALTER TABLE a LOCK EXCLUSIVE
 1064	3821	engine	one_table@index	alter_constraint_option/DROP_CONSTRAINT_(_name_list_)	ALTER TABLE a DROP CONSTRAINT(a)
 1064	3821	engine	one_table@index	alter_constraint_option/DROP_CHECK_(_name_list_)	ALTER TABLE a DROP CHECK(a)
-ok	1505	engine	one_table@index	alter_partition_option/DROP_SUBPARTITION_drop_partition_name_list	ALTER TABLE a DROP SUBPARTITION a
+1505	1505	engine	one_table@index	alter_partition_option/DROP_SUBPARTITION_drop_partition_name_list	ALTER TABLE a DROP SUBPARTITION a
 1091	1091	engine	one_table@index	alter_partition_option/DROP_SUBPARTITION_drop_partition_name_list!drop-3	ALTER TABLE a DROP SUBPARTITION
-ok	1505	engine	one_table@index	alter_partition_option/DROP_SUBPARTITION_drop_partition_name_list!insert	ALTER TABLE a DROP SUBPARTITION a zzz
-ok	1505	engine	one_table@index	alter_partition_option/alter_with_opt_hint_PARTITION_name_list_STORAGE_CACHE_POLICY_COMP_EQ_STRING_VALUE	ALTER TABLE a ALTER PARTITION a STORAGE_CACHE_POLICY = 's'
-ok	1505	engine	one_table@index	alter_partition_option/alter_with_opt_hint_SUBPARTITION_name_list_STORAGE_CACHE_POLICY_COMP_EQ_STRING_VALUE	ALTER TABLE a ALTER SUBPARTITION a STORAGE_CACHE_POLICY = 's'
+1505	1505	engine	one_table@index	alter_partition_option/DROP_SUBPARTITION_drop_partition_name_list!insert	ALTER TABLE a DROP SUBPARTITION a zzz
+1505	1505	engine	one_table@index	alter_partition_option/alter_with_opt_hint_PARTITION_name_list_STORAGE_CACHE_POLICY_COMP_EQ_STRING_VALUE	ALTER TABLE a ALTER PARTITION a STORAGE_CACHE_POLICY = 's'
+1505	1505	engine	one_table@index	alter_partition_option/alter_with_opt_hint_SUBPARTITION_name_list_STORAGE_CACHE_POLICY_COMP_EQ_STRING_VALUE	ALTER TABLE a ALTER SUBPARTITION a STORAGE_CACHE_POLICY = 's'
 1505	1505	engine	one_table@index	alter_partition_option/REORGANIZE_PARTITION_name_list_INTO_opt_partition_range_or_list	ALTER TABLE a REORGANIZE PARTITION a INTO(PARTITION a VALUES LESS THAN MAXVALUE)
 1505	1505	engine	one_table@index	alter_partition_option/TRUNCATE_PARTITION_name_list	ALTER TABLE a TRUNCATE PARTITION a
 1505	1505	engine	one_table@index	alter_partition_option/TRUNCATE_PARTITION_name_list!insert	ALTER TABLE a TRUNCATE PARTITION a zzz
-ok	1505	engine	one_table@index	alter_partition_option/TRUNCATE_SUBPARTITION_name_list	ALTER TABLE a TRUNCATE SUBPARTITION a
-ok	1505	engine	one_table@index	alter_partition_option/TRUNCATE_SUBPARTITION_name_list!insert	ALTER TABLE a TRUNCATE SUBPARTITION a zzz
+1505	1505	engine	one_table@index	alter_partition_option/TRUNCATE_SUBPARTITION_name_list	ALTER TABLE a TRUNCATE SUBPARTITION a
+1505	1505	engine	one_table@index	alter_partition_option/TRUNCATE_SUBPARTITION_name_list!insert	ALTER TABLE a TRUNCATE SUBPARTITION a zzz
 1505	1505	engine	one_table@index	alter_partition_option/EXCHANGE_PARTITION_relation_name_WITH_TABLE_relation_factor_WITHOUT_VALIDATION	ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a WITHOUT VALIDATION
 1505	1505	engine	one_table@index	drop_partition_name_list/(_name_list_)	ALTER TABLE a DROP PARTITION(a)
 ok:25c111463945	ok:25c111463945	engine	one_table@index	alter_index_option/ADD_add_unique_key_opt	ALTER TABLE a ADD UNIQUE(a)
