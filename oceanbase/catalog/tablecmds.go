@@ -2249,9 +2249,16 @@ func formatColumnType(dt *nodes.DataType) string {
 		return "bigint(20) unsigned"
 	}
 
-	// OceanBase writes the vector type in upper case, the one type it does: `v` VECTOR(3).
-	if name == "vector" {
+	// OceanBase writes the vector type in upper case: `v` VECTOR(3). Its collection
+	// types too, with their elements, `a` ARRAY(TINYINT) and `a` MAP(TINYINT,TINYINT),
+	// and SPARSEVECTOR, while roaringbitmap stays in lower case (simulate.tsv's tape).
+	switch name {
+	case "vector":
 		return fmt.Sprintf("VECTOR(%d)", dt.Length)
+	case "array", "map":
+		return deparse.CollectionType(dt)
+	case "sparsevector":
+		return "SPARSEVECTOR"
 	}
 
 	var buf strings.Builder

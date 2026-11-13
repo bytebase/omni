@@ -2145,6 +2145,13 @@ func CastArrayType(dt *ast.DataType) string {
 	return b.String()
 }
 
+// CollectionType writes an ARRAY or MAP column type as OceanBase 4.3.5.6 prints it in
+// SHOW CREATE TABLE: ARRAY(TINYINT), ARRAY(ARRAY(TINYINT)), MAP(TINYINT,TINYINT), the
+// elements in capitals and without a display width, as a cast's are.
+func CollectionType(dt *ast.DataType) string {
+	return castArrayElement(dt)
+}
+
 // castArrayLeaf writes an ARRAY whose element is no ARRAY.
 func castArrayLeaf(dt *ast.DataType) string {
 	if dt.ArrayElem == nil {
