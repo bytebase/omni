@@ -73,8 +73,15 @@ func (c *Catalog) analyzeSelectStmtWithCTEs(stmt *nodes.SelectStmt, parentScope 
 		q.JoinTree.Quals = analyzed
 	}
 
-	// GROUP BY, HAVING and ORDER BY may name a select item by its alias.
+	// GROUP BY, HAVING and ORDER BY may name a select item by its alias, and the
+	// aliases this scope holds are deriveColumnName's reading of the select list,
+	// so from here a name they do not resolve is not known to be missing: ORDER BY
+	// `b+1` over SELECT b+1 is the engine's to take, as it is through a
+	// parenthesized query or a UNION. WHERE, read above, keeps its certainty.
 	scope.aliases = selectAliases(q.TargetList)
+	if selectDerivesNames(stmt) {
+		scope.namesUncertain = true
+	}
 
 	// Step 4: GROUP BY
 	if len(stmt.GroupBy) > 0 {

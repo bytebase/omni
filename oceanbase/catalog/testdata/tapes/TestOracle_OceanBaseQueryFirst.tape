@@ -148,3 +148,13 @@
 > exec
 | CREATE VIEW w5 AS WITH RECURSIVE r(x) AS ((SELECT 1 UNION ALL SELECT x+1 FROM r WHERE x<3)) SELECT * FROM r
 < ok 0 0
+> exec
+| CREATE VIEW w6 AS SELECT b+1 FROM a ORDER BY `b+1`
+< ok 0 0
+> exec
+| CREATE VIEW w7 AS SELECT count(*) FROM a ORDER BY `count(*)`
+< ok 0 0
+> exec
+| CREATE VIEW w8 AS SELECT b+1 FROM a WHERE zz = 1
+< error
+| 1054 42S22 Unknown column 'zz' in 'where clause'
