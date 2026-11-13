@@ -2031,47 +2031,94 @@ func (p *Parser) parseDropResourceGroupStmt(start int) (*nodes.DropResourceGroup
 //	  | RELOAD TLS [FOR CHANNEL {mysql_main | mysql_admin}] [NO ROLLBACK ON ERROR]
 //	  | RELOAD KEYRING
 //	}
+//
+// Ref: alter_instance_action in MySQL 8.0 sql/sql_yacc.yy. ROTATE takes an
+// ident_or_text, ENABLE and DISABLE two idents, which the actions hold to
+// INNODB, BINLOG and REDO_LOG in any case (syntax_error_at otherwise), and
+// FOR CHANNEL takes an ident.
 func (p *Parser) parseAlterInstanceStmt(start int) (*nodes.AlterInstanceStmt, error) {
 	p.advance() // consume INSTANCE
 
-	stmt := &nodes.AlterInstanceStmt{
-		Loc: nodes.Loc{Start: start},
-	}
+	stmt := &nodes.AlterInstanceStmt{Loc: nodes.Loc{Start: start}}
 
-	// Collect action words until end of statement or special clauses
-	var words []string
-	for p.cur.Type != tokEOF && p.cur.Type != ';' {
-		// Check for FOR CHANNEL
-		if p.cur.Type == kwFOR {
-			p.advance() // consume FOR
-			p.advance() // consume CHANNEL (identifier)
-			name, _, _ := p.parseIdentifier()
-			stmt.Channel = name
-			continue
-		}
-		// Check for NO ROLLBACK ON ERROR
-		if p.cur.Type == kwNO {
-			p.advance() // consume NO
-			p.advance() // consume ROLLBACK (identifier)
-			p.advance() // consume ON
-			p.advance() // consume ERROR (identifier)
-			stmt.NoRollbackOnError = true
-			continue
-		}
-		if p.cur.Type == tokIDENT || p.cur.Type >= 700 {
-			name, _, _ := p.parseKeywordOrIdent()
-			words = append(words, name)
+	// expectWord reads an ident (or, with text, an ident_or_text) that the
+	// action holds to one of words.
+	expectWord := func(text bool, words ...string) (string, error) {
+		at := p.cur
+		var name string
+		var err error
+		if text {
+			name, _, err = p.parseIdentOrText()
 		} else {
-			break
+			name, _, err = p.parseIdent()
 		}
+		if err != nil {
+			return "", err
+		}
+		for _, w := range words {
+			if strings.EqualFold(name, w) {
+				return w, nil
+			}
+		}
+		return "", p.syntaxErrorAtTok(at)
 	}
 
-	stmt.Action = ""
-	for i, w := range words {
-		if i > 0 {
-			stmt.Action += " "
+	switch p.cur.Type {
+	case kwROTATE:
+		p.advance()
+		which, err := expectWord(true, "INNODB", "BINLOG")
+		if err != nil {
+			return nil, err
 		}
-		stmt.Action += w
+		for _, kw := range []int{kwMASTER, kwKEY} {
+			if _, err := p.expect(kw); err != nil {
+				return nil, err
+			}
+		}
+		stmt.Action = "ROTATE " + which + " MASTER KEY"
+	case kwENABLE, kwDISABLE:
+		verb := strings.ToUpper(p.advance().Str)
+		if _, err := expectWord(false, "INNODB"); err != nil {
+			return nil, err
+		}
+		if _, err := expectWord(false, "REDO_LOG"); err != nil {
+			return nil, err
+		}
+		stmt.Action = verb + " INNODB REDO_LOG"
+	case kwRELOAD:
+		p.advance()
+		switch p.cur.Type {
+		case kwKEYRING:
+			p.advance()
+			stmt.Action = "RELOAD KEYRING"
+		case kwTLS:
+			p.advance()
+			stmt.Action = "RELOAD TLS"
+			if p.cur.Type == kwFOR {
+				p.advance()
+				if _, err := p.expect(kwCHANNEL); err != nil {
+					return nil, err
+				}
+				name, _, err := p.parseIdent()
+				if err != nil {
+					return nil, err
+				}
+				stmt.Channel = name
+			}
+			if p.cur.Type == kwNO {
+				p.advance()
+				for _, kw := range []int{kwROLLBACK, kwON, kwERROR_KW} {
+					if _, err := p.expect(kw); err != nil {
+						return nil, err
+					}
+				}
+				stmt.NoRollbackOnError = true
+			}
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
+	default:
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	stmt.Loc.End = p.prev.End
@@ -2082,8 +2129,11 @@ func (p *Parser) parseAlterInstanceStmt(start int) (*nodes.AlterInstanceStmt, er
 // LOCK already consumed. p.cur is INSTANCE.
 func (p *Parser) parseLockInstanceStmt(start int) (*nodes.LockInstanceStmt, error) {
 	p.advance() // consume INSTANCE
-	p.advance() // consume FOR
-	p.advance() // consume BACKUP
+	for _, kw := range []int{kwFOR, kwBACKUP} {
+		if _, err := p.expect(kw); err != nil {
+			return nil, err
+		}
+	}
 
 	stmt := &nodes.LockInstanceStmt{
 		Loc: nodes.Loc{Start: start, End: p.prev.End},

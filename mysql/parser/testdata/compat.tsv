@@ -41,10 +41,10 @@ reject	reject	engine	simple_statement/alter_function_stmt!swap	ALWAYS FUNCTION u
 accept	accept	engine	simple_statement/alter_instance_stmt	ALTER INSTANCE RELOAD TLS;
 reject	reject	engine	simple_statement/alter_instance_stmt!drop-1	INSTANCE RELOAD TLS;
 reject	reject	engine	simple_statement/alter_instance_stmt!drop-2	ALTER RELOAD TLS;
-accept	reject	engine	simple_statement/alter_instance_stmt!drop-3	ALTER INSTANCE TLS;
-accept	reject	engine	simple_statement/alter_instance_stmt!drop-4	ALTER INSTANCE RELOAD;
-accept	reject	engine	simple_statement/alter_instance_stmt!truncate	ALTER INSTANCE RELOAD
-accept	reject	engine	simple_statement/alter_instance_stmt!insert	ALTER INSTANCE RELOAD TLS zzz;
+reject	reject	engine	simple_statement/alter_instance_stmt!drop-3	ALTER INSTANCE TLS;
+reject	reject	engine	simple_statement/alter_instance_stmt!drop-4	ALTER INSTANCE RELOAD;
+reject	reject	engine	simple_statement/alter_instance_stmt!truncate	ALTER INSTANCE RELOAD
+reject	reject	engine	simple_statement/alter_instance_stmt!insert	ALTER INSTANCE RELOAD TLS zzz;
 reject	reject	engine	simple_statement/alter_instance_stmt!swap	ALWAYS INSTANCE RELOAD TLS;
 accept	accept	engine	simple_statement/alter_logfile_stmt	ALTER LOGFILE GROUP utf8mb4 ADD UNDOFILE 's';
 reject	reject	engine	simple_statement/alter_logfile_stmt!drop-1	LOGFILE GROUP utf8mb4 ADD UNDOFILE 's';
@@ -10893,9 +10893,9 @@ accept	accept	engine	lock/LOCK_SYM_table_or_tables_table_lock_list	LOCK TABLE ut
 accept	accept	engine	lock/LOCK_SYM_INSTANCE_SYM_FOR_SYM_BACKUP_SYM	LOCK INSTANCE FOR BACKUP;
 reject	reject	engine	lock/LOCK_SYM_INSTANCE_SYM_FOR_SYM_BACKUP_SYM!drop-1	INSTANCE FOR BACKUP;
 reject	reject	engine	lock/LOCK_SYM_INSTANCE_SYM_FOR_SYM_BACKUP_SYM!drop-2	LOCK FOR BACKUP;
-accept	reject	engine	lock/LOCK_SYM_INSTANCE_SYM_FOR_SYM_BACKUP_SYM!drop-3	LOCK INSTANCE BACKUP;
-accept	reject	engine	lock/LOCK_SYM_INSTANCE_SYM_FOR_SYM_BACKUP_SYM!drop-4	LOCK INSTANCE FOR;
-accept	reject	engine	lock/LOCK_SYM_INSTANCE_SYM_FOR_SYM_BACKUP_SYM!truncate	LOCK INSTANCE FOR
+reject	reject	engine	lock/LOCK_SYM_INSTANCE_SYM_FOR_SYM_BACKUP_SYM!drop-3	LOCK INSTANCE BACKUP;
+reject	reject	engine	lock/LOCK_SYM_INSTANCE_SYM_FOR_SYM_BACKUP_SYM!drop-4	LOCK INSTANCE FOR;
+reject	reject	engine	lock/LOCK_SYM_INSTANCE_SYM_FOR_SYM_BACKUP_SYM!truncate	LOCK INSTANCE FOR
 reject	reject	engine	lock/LOCK_SYM_INSTANCE_SYM_FOR_SYM_BACKUP_SYM!insert	LOCK INSTANCE FOR BACKUP zzz;
 reject	reject	engine	lock/LOCK_SYM_INSTANCE_SYM_FOR_SYM_BACKUP_SYM!swap	LOCKED INSTANCE FOR BACKUP;
 accept	accept	engine	table_or_tables/TABLE_SYM	FLUSH TABLE;
@@ -10936,63 +10936,63 @@ reject	reject	engine	unlock/UNLOCK_SYM_INSTANCE_SYM!swap	UNREGISTER INSTANCE;
 accept	accept	engine	shutdown_stmt/SHUTDOWN	SHUTDOWN;
 accept	accept	engine	restart_server_stmt/RESTART_SYM	RESTART;
 accept	accept	engine	alter_instance_stmt/ALTER_INSTANCE_SYM_alter_instance_action	ALTER INSTANCE RELOAD TLS;
-accept	reject	engine	alter_instance_action/ROTATE_SYM_ident_or_text_MASTER_SYM_KEY_SYM	ALTER INSTANCE ROTATE utf8mb4 MASTER KEY;
-accept	reject	engine	alter_instance_action/ROTATE_SYM_ident_or_text_MASTER_SYM_KEY_SYM!drop-1	ALTER INSTANCE utf8mb4 MASTER KEY;
-accept	reject	engine	alter_instance_action/ROTATE_SYM_ident_or_text_MASTER_SYM_KEY_SYM!drop-2	ALTER INSTANCE ROTATE MASTER KEY;
-accept	reject	engine	alter_instance_action/ROTATE_SYM_ident_or_text_MASTER_SYM_KEY_SYM!drop-3	ALTER INSTANCE ROTATE utf8mb4 KEY;
-accept	reject	engine	alter_instance_action/ROTATE_SYM_ident_or_text_MASTER_SYM_KEY_SYM!drop-4	ALTER INSTANCE ROTATE utf8mb4 MASTER;
-accept	reject	engine	alter_instance_action/ROTATE_SYM_ident_or_text_MASTER_SYM_KEY_SYM!truncate	ALTER INSTANCE ROTATE utf8mb4 MASTER
-accept	reject	engine	alter_instance_action/ROTATE_SYM_ident_or_text_MASTER_SYM_KEY_SYM!insert	ALTER INSTANCE ROTATE utf8mb4 MASTER KEY zzz;
-accept	reject	engine	alter_instance_action/ROTATE_SYM_ident_or_text_MASTER_SYM_KEY_SYM!swap	ALTER INSTANCE ROUTINE utf8mb4 MASTER KEY;
+reject	reject	engine	alter_instance_action/ROTATE_SYM_ident_or_text_MASTER_SYM_KEY_SYM	ALTER INSTANCE ROTATE utf8mb4 MASTER KEY;
+reject	reject	engine	alter_instance_action/ROTATE_SYM_ident_or_text_MASTER_SYM_KEY_SYM!drop-1	ALTER INSTANCE utf8mb4 MASTER KEY;
+reject	reject	engine	alter_instance_action/ROTATE_SYM_ident_or_text_MASTER_SYM_KEY_SYM!drop-2	ALTER INSTANCE ROTATE MASTER KEY;
+reject	reject	engine	alter_instance_action/ROTATE_SYM_ident_or_text_MASTER_SYM_KEY_SYM!drop-3	ALTER INSTANCE ROTATE utf8mb4 KEY;
+reject	reject	engine	alter_instance_action/ROTATE_SYM_ident_or_text_MASTER_SYM_KEY_SYM!drop-4	ALTER INSTANCE ROTATE utf8mb4 MASTER;
+reject	reject	engine	alter_instance_action/ROTATE_SYM_ident_or_text_MASTER_SYM_KEY_SYM!truncate	ALTER INSTANCE ROTATE utf8mb4 MASTER
+reject	reject	engine	alter_instance_action/ROTATE_SYM_ident_or_text_MASTER_SYM_KEY_SYM!insert	ALTER INSTANCE ROTATE utf8mb4 MASTER KEY zzz;
+reject	reject	engine	alter_instance_action/ROTATE_SYM_ident_or_text_MASTER_SYM_KEY_SYM!swap	ALTER INSTANCE ROUTINE utf8mb4 MASTER KEY;
 accept	accept	engine	alter_instance_action/RELOAD_TLS_SYM	ALTER INSTANCE RELOAD TLS;
-accept	reject	engine	alter_instance_action/RELOAD_TLS_SYM!swap	ALTER INSTANCE REMOVE TLS;
+reject	reject	engine	alter_instance_action/RELOAD_TLS_SYM!swap	ALTER INSTANCE REMOVE TLS;
 accept	accept	engine	alter_instance_action/RELOAD_TLS_SYM_NO_SYM_ROLLBACK_SYM_ON_SYM_ERROR_SYM	ALTER INSTANCE RELOAD TLS NO ROLLBACK ON ERROR;
-accept	reject	engine	alter_instance_action/RELOAD_TLS_SYM_NO_SYM_ROLLBACK_SYM_ON_SYM_ERROR_SYM!drop-1	ALTER INSTANCE TLS NO ROLLBACK ON ERROR;
-accept	reject	engine	alter_instance_action/RELOAD_TLS_SYM_NO_SYM_ROLLBACK_SYM_ON_SYM_ERROR_SYM!drop-2	ALTER INSTANCE RELOAD NO ROLLBACK ON ERROR;
-accept	reject	engine	alter_instance_action/RELOAD_TLS_SYM_NO_SYM_ROLLBACK_SYM_ON_SYM_ERROR_SYM!drop-3	ALTER INSTANCE RELOAD TLS ROLLBACK ON ERROR;
-accept	reject	engine	alter_instance_action/RELOAD_TLS_SYM_NO_SYM_ROLLBACK_SYM_ON_SYM_ERROR_SYM!drop-4	ALTER INSTANCE RELOAD TLS NO ON ERROR;
-accept	reject	engine	alter_instance_action/RELOAD_TLS_SYM_NO_SYM_ROLLBACK_SYM_ON_SYM_ERROR_SYM!drop-5	ALTER INSTANCE RELOAD TLS NO ROLLBACK ERROR;
-accept	reject	engine	alter_instance_action/RELOAD_TLS_SYM_NO_SYM_ROLLBACK_SYM_ON_SYM_ERROR_SYM!drop-6	ALTER INSTANCE RELOAD TLS NO ROLLBACK ON;
-accept	reject	engine	alter_instance_action/RELOAD_TLS_SYM_NO_SYM_ROLLBACK_SYM_ON_SYM_ERROR_SYM!truncate	ALTER INSTANCE RELOAD TLS NO ROLLBACK ON
-accept	reject	engine	alter_instance_action/RELOAD_TLS_SYM_NO_SYM_ROLLBACK_SYM_ON_SYM_ERROR_SYM!insert	ALTER INSTANCE RELOAD TLS NO ROLLBACK ON ERROR zzz;
-accept	reject	engine	alter_instance_action/RELOAD_TLS_SYM_NO_SYM_ROLLBACK_SYM_ON_SYM_ERROR_SYM!swap	ALTER INSTANCE REMOVE TLS NO ROLLBACK ON ERROR;
+reject	reject	engine	alter_instance_action/RELOAD_TLS_SYM_NO_SYM_ROLLBACK_SYM_ON_SYM_ERROR_SYM!drop-1	ALTER INSTANCE TLS NO ROLLBACK ON ERROR;
+reject	reject	engine	alter_instance_action/RELOAD_TLS_SYM_NO_SYM_ROLLBACK_SYM_ON_SYM_ERROR_SYM!drop-2	ALTER INSTANCE RELOAD NO ROLLBACK ON ERROR;
+reject	reject	engine	alter_instance_action/RELOAD_TLS_SYM_NO_SYM_ROLLBACK_SYM_ON_SYM_ERROR_SYM!drop-3	ALTER INSTANCE RELOAD TLS ROLLBACK ON ERROR;
+reject	reject	engine	alter_instance_action/RELOAD_TLS_SYM_NO_SYM_ROLLBACK_SYM_ON_SYM_ERROR_SYM!drop-4	ALTER INSTANCE RELOAD TLS NO ON ERROR;
+reject	reject	engine	alter_instance_action/RELOAD_TLS_SYM_NO_SYM_ROLLBACK_SYM_ON_SYM_ERROR_SYM!drop-5	ALTER INSTANCE RELOAD TLS NO ROLLBACK ERROR;
+reject	reject	engine	alter_instance_action/RELOAD_TLS_SYM_NO_SYM_ROLLBACK_SYM_ON_SYM_ERROR_SYM!drop-6	ALTER INSTANCE RELOAD TLS NO ROLLBACK ON;
+reject	reject	engine	alter_instance_action/RELOAD_TLS_SYM_NO_SYM_ROLLBACK_SYM_ON_SYM_ERROR_SYM!truncate	ALTER INSTANCE RELOAD TLS NO ROLLBACK ON
+reject	reject	engine	alter_instance_action/RELOAD_TLS_SYM_NO_SYM_ROLLBACK_SYM_ON_SYM_ERROR_SYM!insert	ALTER INSTANCE RELOAD TLS NO ROLLBACK ON ERROR zzz;
+reject	reject	engine	alter_instance_action/RELOAD_TLS_SYM_NO_SYM_ROLLBACK_SYM_ON_SYM_ERROR_SYM!swap	ALTER INSTANCE REMOVE TLS NO ROLLBACK ON ERROR;
 accept	accept	engine	alter_instance_action/RELOAD_TLS_SYM_FOR_SYM_CHANNEL_SYM_ident	ALTER INSTANCE RELOAD TLS FOR CHANNEL utf8mb4;
-accept	reject	engine	alter_instance_action/RELOAD_TLS_SYM_FOR_SYM_CHANNEL_SYM_ident!drop-1	ALTER INSTANCE TLS FOR CHANNEL utf8mb4;
-accept	reject	engine	alter_instance_action/RELOAD_TLS_SYM_FOR_SYM_CHANNEL_SYM_ident!drop-2	ALTER INSTANCE RELOAD FOR CHANNEL utf8mb4;
-accept	reject	engine	alter_instance_action/RELOAD_TLS_SYM_FOR_SYM_CHANNEL_SYM_ident!drop-3	ALTER INSTANCE RELOAD TLS CHANNEL utf8mb4;
-accept	reject	engine	alter_instance_action/RELOAD_TLS_SYM_FOR_SYM_CHANNEL_SYM_ident!drop-4	ALTER INSTANCE RELOAD TLS FOR utf8mb4;
-accept	reject	engine	alter_instance_action/RELOAD_TLS_SYM_FOR_SYM_CHANNEL_SYM_ident!drop-5	ALTER INSTANCE RELOAD TLS FOR CHANNEL;
-accept	reject	engine	alter_instance_action/RELOAD_TLS_SYM_FOR_SYM_CHANNEL_SYM_ident!truncate	ALTER INSTANCE RELOAD TLS FOR CHANNEL
-accept	reject	engine	alter_instance_action/RELOAD_TLS_SYM_FOR_SYM_CHANNEL_SYM_ident!insert	ALTER INSTANCE RELOAD TLS FOR CHANNEL utf8mb4 zzz;
-accept	reject	engine	alter_instance_action/RELOAD_TLS_SYM_FOR_SYM_CHANNEL_SYM_ident!swap	ALTER INSTANCE REMOVE TLS FOR CHANNEL utf8mb4;
+reject	reject	engine	alter_instance_action/RELOAD_TLS_SYM_FOR_SYM_CHANNEL_SYM_ident!drop-1	ALTER INSTANCE TLS FOR CHANNEL utf8mb4;
+reject	reject	engine	alter_instance_action/RELOAD_TLS_SYM_FOR_SYM_CHANNEL_SYM_ident!drop-2	ALTER INSTANCE RELOAD FOR CHANNEL utf8mb4;
+reject	reject	engine	alter_instance_action/RELOAD_TLS_SYM_FOR_SYM_CHANNEL_SYM_ident!drop-3	ALTER INSTANCE RELOAD TLS CHANNEL utf8mb4;
+reject	reject	engine	alter_instance_action/RELOAD_TLS_SYM_FOR_SYM_CHANNEL_SYM_ident!drop-4	ALTER INSTANCE RELOAD TLS FOR utf8mb4;
+reject	reject	engine	alter_instance_action/RELOAD_TLS_SYM_FOR_SYM_CHANNEL_SYM_ident!drop-5	ALTER INSTANCE RELOAD TLS FOR CHANNEL;
+reject	reject	engine	alter_instance_action/RELOAD_TLS_SYM_FOR_SYM_CHANNEL_SYM_ident!truncate	ALTER INSTANCE RELOAD TLS FOR CHANNEL
+reject	reject	engine	alter_instance_action/RELOAD_TLS_SYM_FOR_SYM_CHANNEL_SYM_ident!insert	ALTER INSTANCE RELOAD TLS FOR CHANNEL utf8mb4 zzz;
+reject	reject	engine	alter_instance_action/RELOAD_TLS_SYM_FOR_SYM_CHANNEL_SYM_ident!swap	ALTER INSTANCE REMOVE TLS FOR CHANNEL utf8mb4;
 accept	accept	engine	alter_instance_action/RELOAD_TLS_SYM_FOR_SYM_CHANNEL_SYM_ident_NO_SYM_ROLLBACK_SYM_ON_SYM_ERROR_SYM	ALTER INSTANCE RELOAD TLS FOR CHANNEL utf8mb4 NO ROLLBACK ON ERROR;
-accept	reject	engine	alter_instance_action/RELOAD_TLS_SYM_FOR_SYM_CHANNEL_SYM_ident_NO_SYM_ROLLBACK_SYM_ON_SYM_ERROR_SYM!drop-1	ALTER INSTANCE TLS FOR CHANNEL utf8mb4 NO ROLLBACK ON ERROR;
-accept	reject	engine	alter_instance_action/RELOAD_TLS_SYM_FOR_SYM_CHANNEL_SYM_ident_NO_SYM_ROLLBACK_SYM_ON_SYM_ERROR_SYM!drop-2	ALTER INSTANCE RELOAD FOR CHANNEL utf8mb4 NO ROLLBACK ON ERROR;
-accept	reject	engine	alter_instance_action/RELOAD_TLS_SYM_FOR_SYM_CHANNEL_SYM_ident_NO_SYM_ROLLBACK_SYM_ON_SYM_ERROR_SYM!drop-3	ALTER INSTANCE RELOAD TLS CHANNEL utf8mb4 NO ROLLBACK ON ERROR;
-accept	reject	engine	alter_instance_action/RELOAD_TLS_SYM_FOR_SYM_CHANNEL_SYM_ident_NO_SYM_ROLLBACK_SYM_ON_SYM_ERROR_SYM!drop-4	ALTER INSTANCE RELOAD TLS FOR utf8mb4 NO ROLLBACK ON ERROR;
-accept	reject	engine	alter_instance_action/RELOAD_TLS_SYM_FOR_SYM_CHANNEL_SYM_ident_NO_SYM_ROLLBACK_SYM_ON_SYM_ERROR_SYM!drop-5	ALTER INSTANCE RELOAD TLS FOR CHANNEL NO ROLLBACK ON ERROR;
-accept	reject	engine	alter_instance_action/RELOAD_TLS_SYM_FOR_SYM_CHANNEL_SYM_ident_NO_SYM_ROLLBACK_SYM_ON_SYM_ERROR_SYM!drop-6	ALTER INSTANCE RELOAD TLS FOR CHANNEL utf8mb4 ROLLBACK ON ERROR;
-accept	reject	engine	alter_instance_action/RELOAD_TLS_SYM_FOR_SYM_CHANNEL_SYM_ident_NO_SYM_ROLLBACK_SYM_ON_SYM_ERROR_SYM!drop-7	ALTER INSTANCE RELOAD TLS FOR CHANNEL utf8mb4 NO ON ERROR;
-accept	reject	engine	alter_instance_action/RELOAD_TLS_SYM_FOR_SYM_CHANNEL_SYM_ident_NO_SYM_ROLLBACK_SYM_ON_SYM_ERROR_SYM!drop-8	ALTER INSTANCE RELOAD TLS FOR CHANNEL utf8mb4 NO ROLLBACK ERROR;
-accept	reject	engine	alter_instance_action/RELOAD_TLS_SYM_FOR_SYM_CHANNEL_SYM_ident_NO_SYM_ROLLBACK_SYM_ON_SYM_ERROR_SYM!drop-9	ALTER INSTANCE RELOAD TLS FOR CHANNEL utf8mb4 NO ROLLBACK ON;
-accept	reject	engine	alter_instance_action/RELOAD_TLS_SYM_FOR_SYM_CHANNEL_SYM_ident_NO_SYM_ROLLBACK_SYM_ON_SYM_ERROR_SYM!truncate	ALTER INSTANCE RELOAD TLS FOR CHANNEL utf8mb4 NO ROLLBACK ON
-accept	reject	engine	alter_instance_action/RELOAD_TLS_SYM_FOR_SYM_CHANNEL_SYM_ident_NO_SYM_ROLLBACK_SYM_ON_SYM_ERROR_SYM!insert	ALTER INSTANCE RELOAD TLS FOR CHANNEL utf8mb4 NO ROLLBACK ON ERROR zzz;
-accept	reject	engine	alter_instance_action/RELOAD_TLS_SYM_FOR_SYM_CHANNEL_SYM_ident_NO_SYM_ROLLBACK_SYM_ON_SYM_ERROR_SYM!swap	ALTER INSTANCE REMOVE TLS FOR CHANNEL utf8mb4 NO ROLLBACK ON ERROR;
-accept	reject	engine	alter_instance_action/ENABLE_SYM_ident_ident	ALTER INSTANCE ENABLE utf8mb4 utf8mb4;
-accept	reject	engine	alter_instance_action/ENABLE_SYM_ident_ident!drop-1	ALTER INSTANCE utf8mb4 utf8mb4;
-accept	reject	engine	alter_instance_action/ENABLE_SYM_ident_ident!drop-2	ALTER INSTANCE ENABLE utf8mb4;
-accept	reject	engine	alter_instance_action/ENABLE_SYM_ident_ident!truncate	ALTER INSTANCE ENABLE utf8mb4
-accept	reject	engine	alter_instance_action/ENABLE_SYM_ident_ident!insert	ALTER INSTANCE ENABLE utf8mb4 utf8mb4 zzz;
-accept	reject	engine	alter_instance_action/ENABLE_SYM_ident_ident!swap	ALTER INSTANCE ENCLOSED utf8mb4 utf8mb4;
-accept	reject	engine	alter_instance_action/DISABLE_SYM_ident_ident	ALTER INSTANCE DISABLE utf8mb4 utf8mb4;
-accept	reject	engine	alter_instance_action/DISABLE_SYM_ident_ident!drop-2	ALTER INSTANCE DISABLE utf8mb4;
-accept	reject	engine	alter_instance_action/DISABLE_SYM_ident_ident!truncate	ALTER INSTANCE DISABLE utf8mb4
-accept	reject	engine	alter_instance_action/DISABLE_SYM_ident_ident!insert	ALTER INSTANCE DISABLE utf8mb4 utf8mb4 zzz;
-accept	reject	engine	alter_instance_action/DISABLE_SYM_ident_ident!swap	ALTER INSTANCE DISCARD utf8mb4 utf8mb4;
+reject	reject	engine	alter_instance_action/RELOAD_TLS_SYM_FOR_SYM_CHANNEL_SYM_ident_NO_SYM_ROLLBACK_SYM_ON_SYM_ERROR_SYM!drop-1	ALTER INSTANCE TLS FOR CHANNEL utf8mb4 NO ROLLBACK ON ERROR;
+reject	reject	engine	alter_instance_action/RELOAD_TLS_SYM_FOR_SYM_CHANNEL_SYM_ident_NO_SYM_ROLLBACK_SYM_ON_SYM_ERROR_SYM!drop-2	ALTER INSTANCE RELOAD FOR CHANNEL utf8mb4 NO ROLLBACK ON ERROR;
+reject	reject	engine	alter_instance_action/RELOAD_TLS_SYM_FOR_SYM_CHANNEL_SYM_ident_NO_SYM_ROLLBACK_SYM_ON_SYM_ERROR_SYM!drop-3	ALTER INSTANCE RELOAD TLS CHANNEL utf8mb4 NO ROLLBACK ON ERROR;
+reject	reject	engine	alter_instance_action/RELOAD_TLS_SYM_FOR_SYM_CHANNEL_SYM_ident_NO_SYM_ROLLBACK_SYM_ON_SYM_ERROR_SYM!drop-4	ALTER INSTANCE RELOAD TLS FOR utf8mb4 NO ROLLBACK ON ERROR;
+reject	reject	engine	alter_instance_action/RELOAD_TLS_SYM_FOR_SYM_CHANNEL_SYM_ident_NO_SYM_ROLLBACK_SYM_ON_SYM_ERROR_SYM!drop-5	ALTER INSTANCE RELOAD TLS FOR CHANNEL NO ROLLBACK ON ERROR;
+reject	reject	engine	alter_instance_action/RELOAD_TLS_SYM_FOR_SYM_CHANNEL_SYM_ident_NO_SYM_ROLLBACK_SYM_ON_SYM_ERROR_SYM!drop-6	ALTER INSTANCE RELOAD TLS FOR CHANNEL utf8mb4 ROLLBACK ON ERROR;
+reject	reject	engine	alter_instance_action/RELOAD_TLS_SYM_FOR_SYM_CHANNEL_SYM_ident_NO_SYM_ROLLBACK_SYM_ON_SYM_ERROR_SYM!drop-7	ALTER INSTANCE RELOAD TLS FOR CHANNEL utf8mb4 NO ON ERROR;
+reject	reject	engine	alter_instance_action/RELOAD_TLS_SYM_FOR_SYM_CHANNEL_SYM_ident_NO_SYM_ROLLBACK_SYM_ON_SYM_ERROR_SYM!drop-8	ALTER INSTANCE RELOAD TLS FOR CHANNEL utf8mb4 NO ROLLBACK ERROR;
+reject	reject	engine	alter_instance_action/RELOAD_TLS_SYM_FOR_SYM_CHANNEL_SYM_ident_NO_SYM_ROLLBACK_SYM_ON_SYM_ERROR_SYM!drop-9	ALTER INSTANCE RELOAD TLS FOR CHANNEL utf8mb4 NO ROLLBACK ON;
+reject	reject	engine	alter_instance_action/RELOAD_TLS_SYM_FOR_SYM_CHANNEL_SYM_ident_NO_SYM_ROLLBACK_SYM_ON_SYM_ERROR_SYM!truncate	ALTER INSTANCE RELOAD TLS FOR CHANNEL utf8mb4 NO ROLLBACK ON
+reject	reject	engine	alter_instance_action/RELOAD_TLS_SYM_FOR_SYM_CHANNEL_SYM_ident_NO_SYM_ROLLBACK_SYM_ON_SYM_ERROR_SYM!insert	ALTER INSTANCE RELOAD TLS FOR CHANNEL utf8mb4 NO ROLLBACK ON ERROR zzz;
+reject	reject	engine	alter_instance_action/RELOAD_TLS_SYM_FOR_SYM_CHANNEL_SYM_ident_NO_SYM_ROLLBACK_SYM_ON_SYM_ERROR_SYM!swap	ALTER INSTANCE REMOVE TLS FOR CHANNEL utf8mb4 NO ROLLBACK ON ERROR;
+reject	reject	engine	alter_instance_action/ENABLE_SYM_ident_ident	ALTER INSTANCE ENABLE utf8mb4 utf8mb4;
+reject	reject	engine	alter_instance_action/ENABLE_SYM_ident_ident!drop-1	ALTER INSTANCE utf8mb4 utf8mb4;
+reject	reject	engine	alter_instance_action/ENABLE_SYM_ident_ident!drop-2	ALTER INSTANCE ENABLE utf8mb4;
+reject	reject	engine	alter_instance_action/ENABLE_SYM_ident_ident!truncate	ALTER INSTANCE ENABLE utf8mb4
+reject	reject	engine	alter_instance_action/ENABLE_SYM_ident_ident!insert	ALTER INSTANCE ENABLE utf8mb4 utf8mb4 zzz;
+reject	reject	engine	alter_instance_action/ENABLE_SYM_ident_ident!swap	ALTER INSTANCE ENCLOSED utf8mb4 utf8mb4;
+reject	reject	engine	alter_instance_action/DISABLE_SYM_ident_ident	ALTER INSTANCE DISABLE utf8mb4 utf8mb4;
+reject	reject	engine	alter_instance_action/DISABLE_SYM_ident_ident!drop-2	ALTER INSTANCE DISABLE utf8mb4;
+reject	reject	engine	alter_instance_action/DISABLE_SYM_ident_ident!truncate	ALTER INSTANCE DISABLE utf8mb4
+reject	reject	engine	alter_instance_action/DISABLE_SYM_ident_ident!insert	ALTER INSTANCE DISABLE utf8mb4 utf8mb4 zzz;
+reject	reject	engine	alter_instance_action/DISABLE_SYM_ident_ident!swap	ALTER INSTANCE DISCARD utf8mb4 utf8mb4;
 accept	accept	engine	alter_instance_action/RELOAD_KEYRING_SYM	ALTER INSTANCE RELOAD KEYRING;
-accept	reject	engine	alter_instance_action/RELOAD_KEYRING_SYM!drop-1	ALTER INSTANCE KEYRING;
-accept	reject	engine	alter_instance_action/RELOAD_KEYRING_SYM!insert	ALTER INSTANCE RELOAD KEYRING zzz;
-accept	reject	engine	alter_instance_action/RELOAD_KEYRING_SYM!swap	ALTER INSTANCE REMOVE KEYRING;
+reject	reject	engine	alter_instance_action/RELOAD_KEYRING_SYM!drop-1	ALTER INSTANCE KEYRING;
+reject	reject	engine	alter_instance_action/RELOAD_KEYRING_SYM!insert	ALTER INSTANCE RELOAD KEYRING zzz;
+reject	reject	engine	alter_instance_action/RELOAD_KEYRING_SYM!swap	ALTER INSTANCE REMOVE KEYRING;
 accept	accept	engine	handler_stmt/HANDLER_SYM_table_ident_OPEN_SYM_opt_table_alias	HANDLER utf8mb4 OPEN;
 accept	accept	engine	handler_stmt/HANDLER_SYM_ident_CLOSE_SYM	HANDLER utf8mb4 CLOSE;
 reject	reject	engine	handler_stmt/HANDLER_SYM_ident_CLOSE_SYM!drop-1	utf8mb4 CLOSE;
