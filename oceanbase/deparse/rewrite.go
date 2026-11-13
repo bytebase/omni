@@ -184,8 +184,13 @@ func rewriteExpr(node ast.ExprNode) ast.ExprNode {
 
 // foldBetween returns the two comparisons OceanBase stores for a BETWEEN over constant
 // bounds, without the negation of a NOT BETWEEN.
+//
+// The fold writes the tested operand twice, so BETWEENs nested in the operand double the
+// text at every level: twenty of them turn 368 bytes into 25 MB. An operand past
+// maxFoldedOperand nodes therefore keeps its BETWEEN, which costs such a view a
+// difference from its readback and bounds what one statement can make the catalog hold.
 func foldBetween(n *ast.BetweenExpr) (ast.ExprNode, bool) {
-	if !isConstantBound(n.Low) || !isConstantBound(n.High) {
+	if !isConstantBound(n.Low) || !isConstantBound(n.High) || largerThan(n.Expr, maxFoldedOperand) {
 		return nil, false
 	}
 	return &ast.BinaryExpr{
@@ -235,6 +240,23 @@ func FoldBetween(node ast.ExprNode) ast.ExprNode {
 		}
 	}
 	return node
+}
+
+// maxFoldedOperand is the size of the largest operand a BETWEEN is folded over, in nodes.
+// It holds the operands people write, a column or an expression over a few, and stops
+// the third level of a nest.
+const maxFoldedOperand = 32
+
+// largerThan reports whether an expression has more than limit nodes, counting a subtree
+// two nodes share once for each, as it is written. It stops at the limit, so it costs no
+// more than the limit however far a fold has already spread the tree.
+func largerThan(node ast.ExprNode, limit int) bool {
+	count := 0
+	ast.Inspect(node, func(ast.Node) bool {
+		count++
+		return count <= limit
+	})
+	return count > limit
 }
 
 // isConstantBound reports whether a bound of BETWEEN is a literal, or arithmetic over
