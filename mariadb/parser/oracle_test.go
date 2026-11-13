@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"github.com/testcontainers/testcontainers-go"
+
+	"github.com/bytebase/omni/mariadb/internal/testcontainer"
 )
 
 type parserOracle struct {
@@ -71,5 +73,6 @@ func (e *sharedEngine) terminate() {
 func TestMain(m *testing.M) {
 	code := m.Run()
 	sharedMariaDB118.terminate()
+	testcontainer.Terminate()
 	os.Exit(code)
 }
