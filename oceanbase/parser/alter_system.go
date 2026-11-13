@@ -30,9 +30,12 @@ type sysPat func(p *Parser, k func() bool) bool
 // sysMatch is what a match keeps beside the scan position: the furthest token
 // a matcher refused, for the error, and the statement's naming words.
 type sysMatch struct {
-	far    Token
-	hasFar bool
-	action string
+	far     Token
+	hasFar  bool
+	action  string
+	nameEnd int    // where the naming words of the form end
+	schema  string // the object the statement names, where a form reads one
+	name    string
 }
 
 // sysMiss records the current token as one no matcher took.
@@ -184,7 +187,7 @@ func sysForm(name string, clauses ...any) sysPat {
 	words, rest := sysSeq(name), sysSeq(clauses...)
 	return func(p *Parser, k func() bool) bool {
 		return words(p, func() bool {
-			p.sys.action = name
+			p.sys.action, p.sys.nameEnd = name, p.prev.End
 			return rest(p, k)
 		})
 	}
@@ -204,7 +207,9 @@ var (
 		}
 		return true
 	})
-	sysInt = sysTok(tokICONST) // INTNUM
+	// INTNUM: an integer of up to 64 bits, which is what the lexer's integer token
+	// holds. A longer run of digits is a DECIMAL_VAL (number_token_forms_test.go).
+	sysInt = sysTok(tokICONST)
 
 	// relation_name: NAME_OB or an unreserved keyword.
 	sysName = sysLeaf(func(p *Parser) bool {
@@ -218,7 +223,8 @@ var (
 	})
 	// relation_name_or_string: relation_name | STRING_VALUE | ALL.
 	sysNS = sysAlt(sysName, sysStr, "ALL")
-	// int_or_decimal.
+	// int_or_decimal: INTNUM | DECIMAL_VAL. A run of digits is one or the other at
+	// any width: an INTNUM up to 64 bits, a DECIMAL_VAL past them.
 	sysNumber = sysAlt(sysInt, sysTok(tokFCONST))
 	// text_string: STRING_VALUE | HEX_STRING_VALUE | BIN_STRING_VALUE.
 	sysText = sysAlt(sysStr, sysTok(tokXCONST), sysTok(tokBCONST))

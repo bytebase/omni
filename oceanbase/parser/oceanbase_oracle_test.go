@@ -59,12 +59,12 @@ type grammarCase struct {
 // Read against 5.7.25-OceanBase_CE-v4.3.5.6 on 2026-10-30: the engine parses all ten,
 // so each is grammar this parser owes, not a guess at OceanBase's dialect.
 var oceanBaseOnlyGrammar = []grammarCase{
-	{name: "create tablegroup", sql: "CREATE TABLEGROUP obprobe_tg1 PARTITION BY HASH PARTITIONS 8", pending: true},
-	{name: "alter table set tablegroup", sql: "ALTER TABLE obprobe_t SET TABLEGROUP obprobe_tg1", pending: true},
-	{name: "tablegroup table option", sql: "CREATE TABLE obprobe_t2 (a INT) TABLEGROUP = obprobe_tg1", pending: true},
+	{name: "create tablegroup", sql: "CREATE TABLEGROUP obprobe_tg1 PARTITION BY HASH PARTITIONS 8"},
+	{name: "alter table set tablegroup", sql: "ALTER TABLE obprobe_t SET TABLEGROUP obprobe_tg1"},
+	{name: "tablegroup table option", sql: "CREATE TABLE obprobe_t2 (a INT) TABLEGROUP = obprobe_tg1"},
 	{name: "create outline", sql: "CREATE OUTLINE obprobe_ol1 ON SELECT * FROM obprobe_t", pending: true},
-	{name: "create resource unit", sql: "CREATE RESOURCE UNIT obprobe_u1 MAX_CPU = 2, MEMORY_SIZE = '2G'", pending: true},
-	{name: "create resource pool", sql: "CREATE RESOURCE POOL obprobe_p1 UNIT = 'obprobe_u1', UNIT_NUM = 1", pending: true},
+	{name: "create resource unit", sql: "CREATE RESOURCE UNIT obprobe_u1 MAX_CPU = 2, MEMORY_SIZE = '2G'"},
+	{name: "create resource pool", sql: "CREATE RESOURCE POOL obprobe_p1 UNIT = 'obprobe_u1', UNIT_NUM = 1"},
 	{name: "create external table", sql: "CREATE EXTERNAL TABLE obprobe_ext (a INT) LOCATION = '/tmp/obprobe' FORMAT (TYPE = 'CSV')", pending: true},
 	{name: "create materialized view", sql: "CREATE MATERIALIZED VIEW obprobe_mv1 REFRESH COMPLETE ON DEMAND AS SELECT a FROM obprobe_t", pending: true},
 	{name: "column group", sql: "CREATE TABLE obprobe_t3 (a INT) WITH COLUMN GROUP(all columns, each column)", pending: true},
@@ -114,8 +114,7 @@ var oceanBaseOnlyGrammar = []grammarCase{
 	// parse until this parser took HEAP (read on 2026-11-02).
 	{name: "organization heap", sql: "CREATE TABLE obprobe_oh (a INT PRIMARY KEY) ORGANIZATION HEAP"},
 	// ALTER TABLE ... SET takes any table option, not only TABLEGROUP (read on
-	// 2026-11-02), and this parser reads it (alterTableSetCases). SET TABLEGROUP above
-	// stays pending with the TABLEGROUP option itself.
+	// 2026-11-02), and this parser reads it (alterTableSetCases).
 	{name: "alter table set table option", sql: "ALTER TABLE obprobe_t SET PCTFREE = 5"},
 	{name: "alter table set dynamic partition policy", sql: "ALTER TABLE obprobe_t SET DYNAMIC_PARTITION_POLICY (ENABLE = FALSE)"},
 }

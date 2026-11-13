@@ -2,22 +2,11 @@
 
 == TestOracle_OceanBaseIndexTypes default#1
 > exec
-| DROP DATABASE IF EXISTS obindextypes
-< ok 0 0
-> exec
-| CREATE DATABASE obindextypes
-< ok 1 0
-> exec
-| USE obindextypes
-< ok 0 0
-> exec
 | CREATE TABLE t1 (a INT, KEY k (a))
 < ok 0 0
 > query
 | SELECT DISTINCT INDEX_TYPE FROM information_schema.STATISTICS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND INDEX_NAME = ?
-: string
-| obindextypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?
 : string
 | t1
 : string
@@ -32,9 +21,7 @@
 < ok 0 0
 > query
 | SELECT DISTINCT INDEX_TYPE FROM information_schema.STATISTICS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND INDEX_NAME = ?
-: string
-| obindextypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?
 : string
 | t2
 : string
@@ -49,9 +36,7 @@
 < ok 0 0
 > query
 | SELECT DISTINCT INDEX_TYPE FROM information_schema.STATISTICS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND INDEX_NAME = ?
-: string
-| obindextypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?
 : string
 | t3
 : string
@@ -66,9 +51,7 @@
 < ok 0 0
 > query
 | SELECT DISTINCT INDEX_TYPE FROM information_schema.STATISTICS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND INDEX_NAME = ?
-: string
-| obindextypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?
 : string
 | t4
 : string
@@ -83,9 +66,7 @@
 < ok 0 0
 > query
 | SELECT DISTINCT INDEX_TYPE FROM information_schema.STATISTICS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND INDEX_NAME = ?
-: string
-| obindextypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?
 : string
 | t5
 : string
@@ -103,9 +84,7 @@
 < ok 0 0
 > query
 | SELECT DISTINCT INDEX_TYPE FROM information_schema.STATISTICS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND INDEX_NAME = ?
-: string
-| obindextypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?
 : string
 | t6
 : string
@@ -123,9 +102,7 @@
 < ok 0 0
 > query
 | SELECT DISTINCT INDEX_TYPE FROM information_schema.STATISTICS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND INDEX_NAME = ?
-: string
-| obindextypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?
 : string
 | t7
 : string
@@ -140,9 +117,7 @@
 < ok 0 0
 > query
 | SELECT DISTINCT INDEX_TYPE FROM information_schema.STATISTICS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND INDEX_NAME = ?
-: string
-| obindextypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?
 : string
 | t8
 : string
@@ -157,9 +132,7 @@
 < ok 0 0
 > query
 | SELECT DISTINCT INDEX_TYPE FROM information_schema.STATISTICS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND INDEX_NAME = ?
-: string
-| obindextypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?
 : string
 | t9
 : string
@@ -177,9 +150,7 @@
 < ok 0 0
 > query
 | SELECT DISTINCT INDEX_TYPE FROM information_schema.STATISTICS
-| 				WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND INDEX_NAME = ?
-: string
-| obindextypes
+| 				WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?
 : string
 | t11
 : string

@@ -163,7 +163,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			}
 			if isNationalStringType(colDef.TypeName.Name) {
 				// OceanBase's national character set is utf8mb4, where MySQL's is utf8mb3.
+				// A national type names its character set as CHARACTER SET does, so its
+				// collation is that character set's and not its table's
+				// (TestOracle_OceanBaseNationalCollation).
 				col.Charset = "utf8mb4"
+				col.CharsetExplicit = true
 			}
 			if colDef.TypeName.Charset != "" {
 				col.Charset = normalizeCharsetName(colDef.TypeName.Charset)
@@ -190,9 +194,10 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				col.Charset = tbl.Charset
 			}
 			if col.Collation == "" {
-				// If column charset differs from table charset, use the default
-				// collation for the column's charset, not the table's collation.
-				if !strings.EqualFold(col.Charset, tbl.Charset) {
+				// A column that names its character set, or has another than its
+				// table's, takes that character set's default collation, not the
+				// table's collation.
+				if col.CharsetExplicit || !strings.EqualFold(col.Charset, tbl.Charset) {
 					if dc, ok := defaultCollationForCharset[toLower(col.Charset)]; ok {
 						col.Collation = dc
 					}
@@ -272,7 +277,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				// Add check constraint.
 				conName := cc.Name
 				if conName == "" {
-					conName = c.madeUpConstraintName(tableName, madeUpCheckInfix)
+					conName = c.madeUpConstraintName(tableName, madeUpCheckInfix, func(name string) bool {
+						return checkConstraintNameExists(db, tbl, name)
+					})
 				}
 				if checkConstraintNameExists(db, tbl, conName) {
 					return errCheckConstraintDupName(conName)
@@ -460,7 +467,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		case nodes.ConstrForeignKey:
 			conName := con.Name
 			if conName == "" {
-				conName = c.madeUpConstraintName(tableName, madeUpForeignKeyInfix)
+				conName = c.madeUpConstraintName(tableName, madeUpForeignKeyInfix, func(name string) bool {
+					return foreignKeyConstraintNameExists(db, tbl, name)
+				})
 			}
 			// A name twice in one table is 1215 and a name another table's key has is
 			// 1022, where MySQL answers ER_FK_DUP_NAME (1826) for both.
@@ -494,7 +503,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		case nodes.ConstrCheck:
 			conName := con.Name
 			if conName == "" {
-				conName = c.madeUpConstraintName(tableName, madeUpCheckInfix)
+				conName = c.madeUpConstraintName(tableName, madeUpCheckInfix, func(name string) bool {
+					return checkConstraintNameExists(db, tbl, name)
+				})
 			}
 			if checkConstraintNameExists(db, tbl, conName) {
 				return errCheckConstraintDupName(conName)

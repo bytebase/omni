@@ -22,7 +22,10 @@
 // here joins the V2 standard rule set.
 package v1review
 
-import "regexp"
+import (
+	"regexp"
+	"strings"
+)
 
 // Code names the condition a finding reports; each rule function documents
 // the codes it uses.
@@ -33,6 +36,15 @@ const (
 	NameMismatch Code = "name-mismatch"
 	// NameTooLong: a name exceeds the configured length.
 	NameTooLong Code = "name-too-long"
+	// PatternInvalid: a template rule's pattern, expanded for one object,
+	// does not compile, so that object's name could not be judged. Detail
+	// holds the compile error.
+	PatternInvalid Code = "pattern-invalid"
+	// NameIsKeyword: a name is a keyword in the table the engine's V1
+	// advisor checked names against.
+	NameIsKeyword Code = "name-is-keyword"
+	// NameCaseMismatch: a name is not in the configured letter case.
+	NameCaseMismatch Code = "name-case-mismatch"
 )
 
 // Finding is one violation a rule function reports, in statement order.
@@ -42,10 +54,27 @@ type Finding struct {
 	// Name is the judged identifier, the text the V1 advisor matched and
 	// printed.
 	Name string
+	// Table is the table the judged object belongs to, as the V1 advisor
+	// printed it. Rules whose advice does not name a table leave it empty.
+	Table string
+	// Pattern is the pattern the name was held to. Template rules set it,
+	// since theirs differs per object; other rules leave it empty.
+	Pattern string
+	// Detail is the compile error's text, set with PatternInvalid.
+	Detail string
+	// Search is the text the V1 advisor searched the statement for to find
+	// the finding's line, which can differ from Name: the source spelling
+	// where Name is lower-cased, say. It is set only on a finding the V1
+	// advisor placed that way; the caller repeats the search, and uses
+	// Start and End for every other finding.
+	Search string
 	// Start and End are the byte range that anchors the finding in the
-	// text the statements were parsed from, where the V1 advisor anchored
-	// it: each engine's rule function documents which node that is. Both 0
-	// means the AST kept no range; the caller then anchors the statement.
+	// text the statements were parsed from: the node the V1 advisor took
+	// its line from, which each engine's rule function names. Where the V1
+	// advisor took its line from the statement text instead, by searching
+	// it for the name or reading where the statement starts, the range is
+	// the statement's and the caller keeps that computation. Both 0 means
+	// the AST kept no range.
 	Start, End int
 }
 
@@ -67,4 +96,52 @@ func (c NamingConfig) Compile() (*regexp.Regexp, error) {
 		return nil, nil
 	}
 	return regexp.Compile(c.Pattern)
+}
+
+// CaseConfig configures an identifier case rule; Bytebase builds it from the
+// V1 NamingCaseRulePayload.
+type CaseConfig struct {
+	// Upper requires upper case; false requires lower case.
+	Upper bool
+}
+
+// The tokens a template rule's Format may hold. Which of them a rule gives
+// values to is the rule's own: an index rule the table and its column list,
+// a foreign key rule the four referencing and referenced names.
+const (
+	TableToken             = "{{table}}"
+	ColumnListToken        = "{{column_list}}"
+	ReferencingTableToken  = "{{referencing_table}}"
+	ReferencingColumnToken = "{{referencing_column}}"
+	ReferencedTableToken   = "{{referenced_table}}"
+	ReferencedColumnToken  = "{{referenced_column}}"
+)
+
+// TemplateConfig configures a naming rule whose pattern depends on the object
+// it names; Bytebase builds it from the V1 NamingRulePayload after checking
+// that Format holds only tokens its rule allows.
+type TemplateConfig struct {
+	// Format is an RE2 regular expression holding tokens such as {{table}},
+	// each replaced by the object's own value before the pattern is compiled.
+	Format string
+	// MaxLength is the longest allowed name, counted in bytes. 0 means no
+	// limit.
+	MaxLength int
+}
+
+var templateToken = regexp.MustCompile(`{{[^{}]+}}`)
+
+// Expand returns Format compiled for one object: each token Format holds, in
+// the order it writes them, is replaced everywhere by its value, and a token
+// with no value is left as written. A value goes in as it is, not quoted, so
+// one holding a regular expression metacharacter changes the pattern and may
+// keep it from compiling; the V1 advisors do the same.
+func (c TemplateConfig) Expand(values map[string]string) (*regexp.Regexp, error) {
+	pattern := c.Format
+	for _, token := range templateToken.FindAllString(c.Format, -1) {
+		if value, ok := values[token]; ok {
+			pattern = strings.ReplaceAll(pattern, token, value)
+		}
+	}
+	return regexp.Compile(pattern)
 }

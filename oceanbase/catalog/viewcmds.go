@@ -283,6 +283,17 @@ func inferViewExprNullable(expr nodes.ExprNode, relations map[string]viewRelatio
 	switch e := expr.(type) {
 	case *nodes.ColumnRef:
 		return inferViewColumnRefNullable(e, relations)
+	case *nodes.CaseExpr:
+		// A CASE is nullable when a result is, or when it has no ELSE.
+		if e.Default == nil || inferViewExprNullable(e.Default, relations) {
+			return true
+		}
+		for _, w := range e.Whens {
+			if inferViewExprNullable(w.Result, relations) {
+				return true
+			}
+		}
+		return false
 	case *nodes.FuncCallExpr:
 		// COUNT reads nullable in a view of OceanBase's, where MySQL's reads NOT NULL.
 		if isViewStringMetadataNullableFunc(e.Name) || strings.EqualFold(e.Name, "count") {
@@ -409,6 +420,26 @@ func inferViewExprCollation(expr nodes.ExprNode, relations map[string]viewRelati
 		return inferViewExprCollation(e.Expr, relations)
 	case *nodes.FuncCallExpr:
 		return inferViewFuncCollation(e, relations)
+	case *nodes.CaseExpr:
+		// The character set of a CASE is that of its results together.
+		results := make([]nodes.ExprNode, 0, len(e.Whens)+1)
+		for _, w := range e.Whens {
+			results = append(results, w.Result)
+		}
+		if e.Default != nil {
+			results = append(results, e.Default)
+		}
+		var out viewCollationInfo
+		for _, result := range results {
+			ci, err := inferViewExprCollation(result, relations)
+			if err != nil {
+				return viewCollationInfo{}, err
+			}
+			if out, err = aggregateViewCollations(out, ci, "case"); err != nil {
+				return viewCollationInfo{}, err
+			}
+		}
+		return out, nil
 	case *nodes.ParenExpr:
 		return inferViewExprCollation(e.Expr, relations)
 	case *nodes.BinaryExpr:
