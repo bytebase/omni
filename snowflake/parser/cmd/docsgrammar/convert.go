@@ -268,8 +268,12 @@ var camelName = regexp.MustCompile(`^[a-z]+[A-Z][A-Za-z]*$`)
 // X ,\n ... repeats X.
 var omittedTail = regexp.MustCompile(`[^,\s][ \t]*\n[ \t]*\.\.\.\s*$`)
 
-// timeTravelOffset is Time Travel's OFFSET, a negative number of seconds.
-var timeTravelOffset = regexp.MustCompile(`OFFSET => <time_difference>`)
+// timeTravelOffset is Time Travel's OFFSET, a negative number of seconds,
+// and timeTravelStatement its STATEMENT, a query ID, which is a string.
+var (
+	timeTravelOffset    = regexp.MustCompile(`OFFSET => <time_difference>`)
+	timeTravelStatement = regexp.MustCompile(`STATEMENT => <(id|query_id)>`)
+)
 
 // listName is the name of a list of settings, which a fragment holds.
 var listName = regexp.MustCompile(`(parameters|params|options|properties)$`)
@@ -310,13 +314,15 @@ func convertPage(slug string, blocks []string, fixes []*fix) pageGrammar {
 	}
 	offset := false
 	for i, b := range blocks {
-		if fixed := timeTravelOffset.ReplaceAllString(b, "OFFSET => -<seconds>"); fixed != b {
+		fixed := timeTravelOffset.ReplaceAllString(b, "OFFSET => -<seconds>")
+		fixed = timeTravelStatement.ReplaceAllString(fixed, "STATEMENT => '<query_id>'")
+		if fixed != b {
 			blocks[i] = fixed
 			offset = true
 		}
 	}
 	if offset {
-		pg.fixes = append(pg.fixes, "read: OFFSET => <time_difference> is a negative number of seconds, -N, as the Time Travel parameters say")
+		pg.fixes = append(pg.fixes, "read: Time Travel's OFFSET is a negative number of seconds, -N, and its STATEMENT a quoted query ID, as the Time Travel parameters say")
 	}
 	for i, b := range blocks {
 		if fixed := missingBar.ReplaceAllString(b, "$1 |\n$2"); fixed != b {

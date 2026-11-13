@@ -586,7 +586,6 @@ accept	accept	docs	statement/alterIcebergTableAlterColumnSetDataType!drop-2	ALTE
 reject	undocumented	docs	statement/alterIcebergTableAlterColumnSetDataType!drop-3	ALTER ICEBERG a ALTER COLUMN a SET DATA TYPE INT
 reject	undocumented	docs	statement/alterIcebergTableAlterColumnSetDataType!drop-4	ALTER ICEBERG TABLE ALTER COLUMN a SET DATA TYPE INT
 reject	undocumented	docs	statement/alterIcebergTableAlterColumnSetDataType!drop-5	ALTER ICEBERG TABLE a COLUMN a SET DATA TYPE INT
-reject	undocumented	docs	statement/alterIcebergTableAlterColumnSetDataType!drop-6	ALTER ICEBERG TABLE a ALTER a SET DATA TYPE INT
 reject	undocumented	docs	statement/alterIcebergTableAlterColumnSetDataType!drop-7	ALTER ICEBERG TABLE a ALTER COLUMN SET DATA TYPE INT
 reject	undocumented	docs	statement/alterIcebergTableAlterColumnSetDataType!drop-8	ALTER ICEBERG TABLE a ALTER COLUMN a DATA TYPE INT
 reject	undocumented	docs	statement/alterIcebergTableAlterColumnSetDataType!drop-9	ALTER ICEBERG TABLE a ALTER COLUMN a SET TYPE INT
@@ -14338,52 +14337,27 @@ reject	undocumented	docs	alterIcebergTable_clusteringAction(SUSPEND|RESUME)/SUSP
 reject	accept	docs	alterIcebergTable_clusteringAction(SUSPEND|RESUME)/RESUME	ALTER ICEBERG TABLE a RESUME RECLUSTER
 reject	undocumented	docs	alterIcebergTable_clusteringAction(SUSPEND|RESUME)/RESUME!insert	ALTER ICEBERG TABLE a RESUME zzz RECLUSTER
 reject	undocumented	docs	alterIcebergTable_clusteringAction(SUSPEND|RESUME)/RESUME!swap	ALTER ICEBERG TABLE a RETAIN RECLUSTER
-reject	accept	docs	alterIcebergTable_tableColumnAction/(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bd4d0487)	ALTER ICEBERG TABLE a DROP a
-reject	accept	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bd4d0487)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_(DEFAULT_ID~ed5f2d3a	ALTER ICEBERG TABLE a ADD a INT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bd4d0487)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_(DEFAULT_ID~ed5f2d3a!drop-1	ALTER ICEBERG TABLE a a INT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bd4d0487)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_(DEFAULT_ID~ed5f2d3a!drop-2	ALTER ICEBERG TABLE a ADD INT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bd4d0487)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_(DEFAULT_ID~ed5f2d3a!drop-3	ALTER ICEBERG TABLE a ADD a
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bd4d0487)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_(DEFAULT_ID~ed5f2d3a!insert	ALTER ICEBERG TABLE a ADD a INT zzz
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bd4d0487)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_(DEFAULT_ID~ed5f2d3a!swap	ALTER ICEBERG TABLE a ADDITIONAL_CREATION_BLOCKLIST a INT
-reject	accept	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bd4d0487)/RENAME_COLUMN_ID_TO_ID	ALTER ICEBERG TABLE a RENAME COLUMN a TO a
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bd4d0487)/RENAME_COLUMN_ID_TO_ID!drop-1	ALTER ICEBERG TABLE a COLUMN a TO a
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bd4d0487)/RENAME_COLUMN_ID_TO_ID!drop-2	ALTER ICEBERG TABLE a RENAME a TO a
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bd4d0487)/RENAME_COLUMN_ID_TO_ID!drop-3	ALTER ICEBERG TABLE a RENAME COLUMN TO a
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bd4d0487)/RENAME_COLUMN_ID_TO_ID!drop-4	ALTER ICEBERG TABLE a RENAME COLUMN a a
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bd4d0487)/RENAME_COLUMN_ID_TO_ID!drop-5	ALTER ICEBERG TABLE a RENAME COLUMN a TO
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bd4d0487)/RENAME_COLUMN_ID_TO_ID!insert	ALTER ICEBERG TABLE a RENAME COLUMN a TO a zzz
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bd4d0487)/RENAME_COLUMN_ID_TO_ID!swap	ALTER ICEBERG TABLE a REPLACE COLUMN a TO a
-reject	accept	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bd4d0487)/(ALTER|MODIFY)_((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bd4d0487)/(ALTER|MODIFY)_((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)!drop-1	ALTER ICEBERG TABLE a, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bd4d0487)/(ALTER|MODIFY)_((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)!drop-2	ALTER ICEBERG TABLE a ALTER a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bd4d0487)/(ALTER|MODIFY)_((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)!drop-3	ALTER ICEBERG TABLE a ALTER, NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bd4d0487)/(ALTER|MODIFY)_((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)!drop-4	ALTER ICEBERG TABLE a ALTER, a NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bd4d0487)/(ALTER|MODIFY)_((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)!drop-5	ALTER ICEBERG TABLE a ALTER, a NOT, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bd4d0487)/(ALTER|MODIFY)_((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)!drop-6	ALTER ICEBERG TABLE a ALTER, a NOT NULL a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bd4d0487)/(ALTER|MODIFY)_((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)!drop-7	ALTER ICEBERG TABLE a ALTER, a NOT NULL, INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bd4d0487)/(ALTER|MODIFY)_((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)!drop-8	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bd4d0487)/(ALTER|MODIFY)_((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)!drop-9	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bd4d0487)/(ALTER|MODIFY)_((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)!drop-10	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bd4d0487)/(ALTER|MODIFY)_((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)!drop-11	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bd4d0487)/(ALTER|MODIFY)_((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)!drop-12	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT, a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bd4d0487)/(ALTER|MODIFY)_((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)!drop-13	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's' a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bd4d0487)/(ALTER|MODIFY)_((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)!drop-14	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bd4d0487)/(ALTER|MODIFY)_((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)!drop-15	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bd4d0487)/(ALTER|MODIFY)_((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)!drop-16	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bd4d0487)/(ALTER|MODIFY)_((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)!drop-17	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bd4d0487)/(ALTER|MODIFY)_((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)!drop-18	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bd4d0487)/(ALTER|MODIFY)_((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)!drop-19	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bd4d0487)/(ALTER|MODIFY)_((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)!drop-20	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bd4d0487)/(ALTER|MODIFY)_((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)!drop-21	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bd4d0487)/(ALTER|MODIFY)_((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)!drop-22	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bd4d0487)/(ALTER|MODIFY)_((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)!drop-23	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bd4d0487)/(ALTER|MODIFY)_((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)!drop-24	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bd4d0487)/(ALTER|MODIFY)_((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)!drop-25	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bd4d0487)/(ALTER|MODIFY)_((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)!drop-26	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bd4d0487)/(ALTER|MODIFY)_((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)!drop-27	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bd4d0487)/(ALTER|MODIFY)_((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)!insert	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT zzz
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bd4d0487)/(ALTER|MODIFY)_((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)!swap	ALTER ICEBERG TABLE a ALWAYS, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	accept	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~bd4d0487)/DROP_(COLUMN)?_(IF_EXISTS)?_ID_(,_ID)*	ALTER ICEBERG TABLE a DROP a
+reject	accept	docs	alterIcebergTable_tableColumnAction/(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~ae60f2ab)	ALTER ICEBERG TABLE a DROP a
+reject	accept	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~ae60f2ab)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_(DEFAULT_ID~ed5f2d3a	ALTER ICEBERG TABLE a ADD a INT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~ae60f2ab)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_(DEFAULT_ID~ed5f2d3a!drop-1	ALTER ICEBERG TABLE a a INT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~ae60f2ab)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_(DEFAULT_ID~ed5f2d3a!drop-2	ALTER ICEBERG TABLE a ADD INT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~ae60f2ab)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_(DEFAULT_ID~ed5f2d3a!drop-3	ALTER ICEBERG TABLE a ADD a
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~ae60f2ab)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_(DEFAULT_ID~ed5f2d3a!insert	ALTER ICEBERG TABLE a ADD a INT zzz
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~ae60f2ab)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_(DEFAULT_ID~ed5f2d3a!swap	ALTER ICEBERG TABLE a ADDITIONAL_CREATION_BLOCKLIST a INT
+reject	accept	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~ae60f2ab)/RENAME_COLUMN_ID_TO_ID	ALTER ICEBERG TABLE a RENAME COLUMN a TO a
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~ae60f2ab)/RENAME_COLUMN_ID_TO_ID!drop-1	ALTER ICEBERG TABLE a COLUMN a TO a
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~ae60f2ab)/RENAME_COLUMN_ID_TO_ID!drop-2	ALTER ICEBERG TABLE a RENAME a TO a
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~ae60f2ab)/RENAME_COLUMN_ID_TO_ID!drop-3	ALTER ICEBERG TABLE a RENAME COLUMN TO a
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~ae60f2ab)/RENAME_COLUMN_ID_TO_ID!drop-4	ALTER ICEBERG TABLE a RENAME COLUMN a a
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~ae60f2ab)/RENAME_COLUMN_ID_TO_ID!drop-5	ALTER ICEBERG TABLE a RENAME COLUMN a TO
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~ae60f2ab)/RENAME_COLUMN_ID_TO_ID!insert	ALTER ICEBERG TABLE a RENAME COLUMN a TO a zzz
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~ae60f2ab)/RENAME_COLUMN_ID_TO_ID!swap	ALTER ICEBERG TABLE a REPLACE COLUMN a TO a
+reject	accept	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~ae60f2ab)/(ALTER|MODIFY)_((_COLUMN?_ID_((SET?_NOT_NULL|DROP_NO~70a1dd6f)	ALTER ICEBERG TABLE a ALTER a INT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~ae60f2ab)/(ALTER|MODIFY)_((_COLUMN?_ID_((SET?_NOT_NULL|DROP_NO~70a1dd6f)!drop-2	ALTER ICEBERG TABLE a ALTER INT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~ae60f2ab)/(ALTER|MODIFY)_((_COLUMN?_ID_((SET?_NOT_NULL|DROP_NO~70a1dd6f)!drop-3	ALTER ICEBERG TABLE a ALTER a
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~ae60f2ab)/(ALTER|MODIFY)_((_COLUMN?_ID_((SET?_NOT_NULL|DROP_NO~70a1dd6f)!insert	ALTER ICEBERG TABLE a ALTER a INT zzz
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~ae60f2ab)/(ALTER|MODIFY)_((_COLUMN?_ID_((SET?_NOT_NULL|DROP_NO~70a1dd6f)!swap	ALTER ICEBERG TABLE a ALWAYS a INT
+reject	accept	docs	alterIcebergTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~ae60f2ab)/DROP_(COLUMN)?_(IF_EXISTS)?_ID_(,_ID)*	ALTER ICEBERG TABLE a DROP a
 reject	accept	docs	alterIcebergTable_tableColumnAction(COLUMN)?/%empty	ALTER ICEBERG TABLE a DROP a
 reject	undocumented	docs	alterIcebergTable_tableColumnAction(COLUMN)?/%empty!insert	ALTER ICEBERG TABLE a DROP zzz a
 reject	accept	docs	alterIcebergTable_tableColumnAction(COLUMN)?/COLUMN	ALTER ICEBERG TABLE a DROP COLUMN a
@@ -14414,83 +14388,79 @@ reject	undocumented	docs	alterIcebergTable_tableColumnAction(COLLATE_STRING)?/CO
 reject	undocumented	docs	alterIcebergTable_tableColumnAction(COLLATE_STRING)?/COLLATE_STRING!drop-2	ALTER ICEBERG TABLE a ADD a INT COLLATE
 reject	undocumented	docs	alterIcebergTable_tableColumnAction(COLLATE_STRING)?/COLLATE_STRING!insert	ALTER ICEBERG TABLE a ADD a INT COLLATE 's' zzz
 reject	undocumented	docs	alterIcebergTable_tableColumnAction(COLLATE_STRING)?/COLLATE_STRING!swap	ALTER ICEBERG TABLE a ADD a INT COLUMN 's'
-reject	accept	docs	alterIcebergTable_tableColumnAction(ALTER|MODIFY)/ALTER	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ALTER|MODIFY)/ALTER!insert	ALTER ICEBERG TABLE a ALTER zzz, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	accept	docs	alterIcebergTable_tableColumnAction(ALTER|MODIFY)/MODIFY	ALTER ICEBERG TABLE a MODIFY, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ALTER|MODIFY)/MODIFY!insert	ALTER ICEBERG TABLE a MODIFY zzz, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(ALTER|MODIFY)/MODIFY!swap	ALTER ICEBERG TABLE a MONITOR, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	accept	docs	alterIcebergTable_tableColumnAction((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)/(_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL)_,_(COLUM~32dbddfa	ALTER ICEBERG TABLE a ALTER(, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT)
-reject	undocumented	docs	alterIcebergTable_tableColumnAction((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)/(_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL)_,_(COLUM~32dbddfa!drop-1	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT)
-reject	undocumented	docs	alterIcebergTable_tableColumnAction((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)/(_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL)_,_(COLUM~32dbddfa!drop-2	ALTER ICEBERG TABLE a ALTER(a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT)
-reject	undocumented	docs	alterIcebergTable_tableColumnAction((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)/(_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL)_,_(COLUM~32dbddfa!drop-3	ALTER ICEBERG TABLE a ALTER(, NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT)
-reject	undocumented	docs	alterIcebergTable_tableColumnAction((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)/(_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL)_,_(COLUM~32dbddfa!drop-4	ALTER ICEBERG TABLE a ALTER(, a NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT)
-reject	undocumented	docs	alterIcebergTable_tableColumnAction((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)/(_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL)_,_(COLUM~32dbddfa!drop-5	ALTER ICEBERG TABLE a ALTER(, a NOT, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT)
-reject	undocumented	docs	alterIcebergTable_tableColumnAction((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)/(_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL)_,_(COLUM~32dbddfa!drop-6	ALTER ICEBERG TABLE a ALTER(, a NOT NULL a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT)
-reject	undocumented	docs	alterIcebergTable_tableColumnAction((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)/(_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL)_,_(COLUM~32dbddfa!drop-7	ALTER ICEBERG TABLE a ALTER(, a NOT NULL, INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT)
-reject	undocumented	docs	alterIcebergTable_tableColumnAction((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)/(_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL)_,_(COLUM~32dbddfa!drop-8	ALTER ICEBERG TABLE a ALTER(, a NOT NULL, a, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT)
-reject	undocumented	docs	alterIcebergTable_tableColumnAction((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)/(_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL)_,_(COLUM~32dbddfa!drop-9	ALTER ICEBERG TABLE a ALTER(, a NOT NULL, a INT a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT)
-reject	undocumented	docs	alterIcebergTable_tableColumnAction((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)/(_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL)_,_(COLUM~32dbddfa!drop-10	ALTER ICEBERG TABLE a ALTER(, a NOT NULL, a INT, COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT)
-reject	undocumented	docs	alterIcebergTable_tableColumnAction((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)/(_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL)_,_(COLUM~32dbddfa!drop-11	ALTER ICEBERG TABLE a ALTER(, a NOT NULL, a INT, a 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT)
-reject	undocumented	docs	alterIcebergTable_tableColumnAction((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)/(_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL)_,_(COLUM~32dbddfa!drop-12	ALTER ICEBERG TABLE a ALTER(, a NOT NULL, a INT, a COMMENT, a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT)
-reject	undocumented	docs	alterIcebergTable_tableColumnAction((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)/(_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL)_,_(COLUM~32dbddfa!drop-13	ALTER ICEBERG TABLE a ALTER(, a NOT NULL, a INT, a COMMENT 's' a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT)
-reject	undocumented	docs	alterIcebergTable_tableColumnAction((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)/(_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL)_,_(COLUM~32dbddfa!drop-14	ALTER ICEBERG TABLE a ALTER(, a NOT NULL, a INT, a COMMENT 's', UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT)
-reject	undocumented	docs	alterIcebergTable_tableColumnAction((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)/(_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL)_,_(COLUM~32dbddfa!drop-15	ALTER ICEBERG TABLE a ALTER(, a NOT NULL, a INT, a COMMENT 's', a COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT)
-reject	undocumented	docs	alterIcebergTable_tableColumnAction((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)/(_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL)_,_(COLUM~32dbddfa!drop-16	ALTER ICEBERG TABLE a ALTER(, a NOT NULL, a INT, a COMMENT 's', a UNSET, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT)
-reject	undocumented	docs	alterIcebergTable_tableColumnAction((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)/(_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL)_,_(COLUM~32dbddfa!drop-17	ALTER ICEBERG TABLE a ALTER(, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT a SET WRITE DEFAULT a, a DROP WRITE DEFAULT)
-reject	undocumented	docs	alterIcebergTable_tableColumnAction((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)/(_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL)_,_(COLUM~32dbddfa!drop-18	ALTER ICEBERG TABLE a ALTER(, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, SET WRITE DEFAULT a, a DROP WRITE DEFAULT)
-reject	undocumented	docs	alterIcebergTable_tableColumnAction((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)/(_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL)_,_(COLUM~32dbddfa!drop-19	ALTER ICEBERG TABLE a ALTER(, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a WRITE DEFAULT a, a DROP WRITE DEFAULT)
-reject	undocumented	docs	alterIcebergTable_tableColumnAction((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)/(_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL)_,_(COLUM~32dbddfa!drop-20	ALTER ICEBERG TABLE a ALTER(, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET DEFAULT a, a DROP WRITE DEFAULT)
-reject	undocumented	docs	alterIcebergTable_tableColumnAction((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)/(_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL)_,_(COLUM~32dbddfa!drop-21	ALTER ICEBERG TABLE a ALTER(, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE a, a DROP WRITE DEFAULT)
-reject	undocumented	docs	alterIcebergTable_tableColumnAction((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)/(_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL)_,_(COLUM~32dbddfa!drop-22	ALTER ICEBERG TABLE a ALTER(, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT, a DROP WRITE DEFAULT)
-reject	undocumented	docs	alterIcebergTable_tableColumnAction((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)/(_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL)_,_(COLUM~32dbddfa!drop-23	ALTER ICEBERG TABLE a ALTER(, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a a DROP WRITE DEFAULT)
-reject	undocumented	docs	alterIcebergTable_tableColumnAction((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)/(_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL)_,_(COLUM~32dbddfa!drop-24	ALTER ICEBERG TABLE a ALTER(, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, DROP WRITE DEFAULT)
-reject	undocumented	docs	alterIcebergTable_tableColumnAction((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)/(_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL)_,_(COLUM~32dbddfa!drop-25	ALTER ICEBERG TABLE a ALTER(, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a WRITE DEFAULT)
-reject	undocumented	docs	alterIcebergTable_tableColumnAction((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)/(_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL)_,_(COLUM~32dbddfa!drop-26	ALTER ICEBERG TABLE a ALTER(, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP DEFAULT)
-reject	undocumented	docs	alterIcebergTable_tableColumnAction((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)/(_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL)_,_(COLUM~32dbddfa!drop-27	ALTER ICEBERG TABLE a ALTER(, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE)
-reject	undocumented	docs	alterIcebergTable_tableColumnAction((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)/(_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL)_,_(COLUM~32dbddfa!drop-28	ALTER ICEBERG TABLE a ALTER(, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)/(_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL)_,_(COLUM~32dbddfa!insert	ALTER ICEBERG TABLE a ALTER(, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT) zzz
-reject	undocumented	docs	alterIcebergTable_tableColumnAction((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)/(_,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL)_,_(COLUM~32dbddfa!swap	ALTER ICEBERG TABLE a ALTER(, a NOTEBOOK NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT)
-reject	accept	docs	alterIcebergTable_tableColumnAction((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)/,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL)_,_(COLUMN)~9c5cc612	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction((_,_COLUMN?_ID_(SET?_NOT_NULL|DROP_N~ef6945cc)/,_(COLUMN)?_ID_(SET?_NOT_NULL|DROP_NOT_NULL)_,_(COLUMN)~9c5cc612!swap	ALTER ICEBERG TABLE a ALTER, a NOTEBOOK NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	accept	docs	alterIcebergTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/(SET)?_NOT_NULL	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/(SET)?_NOT_NULL!truncate	ALTER ICEBERG TABLE a ALTER, a NOT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/(SET)?_NOT_NULL!insert	ALTER ICEBERG TABLE a ALTER, a NOT NULL zzz, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	accept	docs	alterIcebergTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL	ALTER ICEBERG TABLE a ALTER, a DROP NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL!drop-2	ALTER ICEBERG TABLE a ALTER, a DROP NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL!drop-3	ALTER ICEBERG TABLE a ALTER, a DROP NOT, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL!truncate	ALTER ICEBERG TABLE a ALTER, a DROP NOT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL!insert	ALTER ICEBERG TABLE a ALTER, a DROP NOT NULL zzz, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL!swap	ALTER ICEBERG TABLE a ALTER, a DROP_FROM_SOURCE_CATALOG NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	accept	docs	alterIcebergTable_tableColumnAction(SET)?/%empty	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET)?/%empty!insert	ALTER ICEBERG TABLE a ALTER, a zzz NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	accept	docs	alterIcebergTable_tableColumnAction(SET)?/SET	ALTER ICEBERG TABLE a ALTER, a SET NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET)?/SET!truncate	ALTER ICEBERG TABLE a ALTER, a
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET)?/SET!insert	ALTER ICEBERG TABLE a ALTER, a SET zzz NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET)?/SET!swap	ALTER ICEBERG TABLE a ALTER, a SETS NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	accept	docs	alterIcebergTable_tableColumnAction((SET_DATA)?_TYPE)?/%empty	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction((SET_DATA)?_TYPE)?/%empty!insert	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a zzz INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	accept	docs	alterIcebergTable_tableColumnAction((SET_DATA)?_TYPE)?/(SET_DATA)?_TYPE	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a TYPE INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction((SET_DATA)?_TYPE)?/(SET_DATA)?_TYPE!truncate	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a
-reject	undocumented	docs	alterIcebergTable_tableColumnAction((SET_DATA)?_TYPE)?/(SET_DATA)?_TYPE!insert	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a TYPE zzz INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction((SET_DATA)?_TYPE)?/(SET_DATA)?_TYPE!swap	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a TYPES INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	accept	docs	alterIcebergTable_tableColumnAction(SET_DATA)?/%empty	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a TYPE INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET_DATA)?/%empty!insert	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a zzz TYPE INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	accept	docs	alterIcebergTable_tableColumnAction(SET_DATA)?/SET_DATA	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a SET DATA TYPE INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET_DATA)?/SET_DATA!drop-1	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a DATA TYPE INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET_DATA)?/SET_DATA!drop-2	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a SET TYPE INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET_DATA)?/SET_DATA!truncate	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a SET
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET_DATA)?/SET_DATA!insert	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a SET DATA zzz TYPE INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET_DATA)?/SET_DATA!swap	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a SETS DATA TYPE INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	accept	docs	alterIcebergTable_tableColumnAction(,_COLUMN?_ID)*/%empty	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	accept	docs	alterIcebergTable_tableColumnAction(,_COLUMN?_ID)*/,_(COLUMN)?_ID_(,_COLUMN?_ID)*	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT, a
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(,_COLUMN?_ID)*/,_(COLUMN)?_ID_(,_COLUMN?_ID)*!drop-1	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT a
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(,_COLUMN?_ID)*/,_(COLUMN)?_ID_(,_COLUMN?_ID)*!drop-2	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT,
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(,_COLUMN?_ID)*/,_(COLUMN)?_ID_(,_COLUMN?_ID)*!insert	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT, a zzz
-reject	accept	docs	alterIcebergTable_tableColumnAction(,_DEFAULT_(,_COLUMN?_ID)*)*/%empty	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT
-reject	accept	docs	alterIcebergTable_tableColumnAction(,_DEFAULT_(,_COLUMN?_ID)*)*/,_DEFAULT_(,_COLUMN?_ID)*_(,_DEFAULT_(,_COLUMN?_ID)*)*	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT, DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(,_DEFAULT_(,_COLUMN?_ID)*)*/,_DEFAULT_(,_COLUMN?_ID)*_(,_DEFAULT_(,_COLUMN?_ID)*)*!drop-1	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT DEFAULT
-reject	undocumented	docs	alterIcebergTable_tableColumnAction(,_DEFAULT_(,_COLUMN?_ID)*)*/,_DEFAULT_(,_COLUMN?_ID)*_(,_DEFAULT_(,_COLUMN?_ID)*)*!insert	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT, DEFAULT zzz
-reject	accept	docs	alterIcebergTable_tableColumnAction(,_DEFAULT_(,_COLUMN?_ID)*)*/,_DEFAULT_(,_COLUMN?_ID)*_(,_DEFAULT_(,_COLUMN?_ID)*)*!swap	ALTER ICEBERG TABLE a ALTER, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a SET WRITE DEFAULT a, a DROP WRITE DEFAULT, DEFAULT_DBT_VERSION
+reject	accept	docs	alterIcebergTable_tableColumnAction(ALTER|MODIFY)/ALTER	ALTER ICEBERG TABLE a ALTER a INT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ALTER|MODIFY)/ALTER!insert	ALTER ICEBERG TABLE a ALTER zzz a INT
+reject	accept	docs	alterIcebergTable_tableColumnAction(ALTER|MODIFY)/MODIFY	ALTER ICEBERG TABLE a MODIFY a INT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ALTER|MODIFY)/MODIFY!insert	ALTER ICEBERG TABLE a MODIFY zzz a INT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(ALTER|MODIFY)/MODIFY!swap	ALTER ICEBERG TABLE a MONITOR a INT
+reject	accept	docs	alterIcebergTable_tableColumnAction((_COLUMN?_ID_((SET?_NOT_NULL|DROP_NO~70a1dd6f)/(_(COLUMN)?_ID_((SET?_NOT_NULL|DROP_NOT_NULL)|((SET_~70~bce0ec38	ALTER ICEBERG TABLE a ALTER(a INT)
+reject	undocumented	docs	alterIcebergTable_tableColumnAction((_COLUMN?_ID_((SET?_NOT_NULL|DROP_NO~70a1dd6f)/(_(COLUMN)?_ID_((SET?_NOT_NULL|DROP_NOT_NULL)|((SET_~70~bce0ec38!drop-1	ALTER ICEBERG TABLE a ALTER a INT)
+reject	undocumented	docs	alterIcebergTable_tableColumnAction((_COLUMN?_ID_((SET?_NOT_NULL|DROP_NO~70a1dd6f)/(_(COLUMN)?_ID_((SET?_NOT_NULL|DROP_NOT_NULL)|((SET_~70~bce0ec38!drop-2	ALTER ICEBERG TABLE a ALTER(INT)
+reject	undocumented	docs	alterIcebergTable_tableColumnAction((_COLUMN?_ID_((SET?_NOT_NULL|DROP_NO~70a1dd6f)/(_(COLUMN)?_ID_((SET?_NOT_NULL|DROP_NOT_NULL)|((SET_~70~bce0ec38!drop-3	ALTER ICEBERG TABLE a ALTER(a)
+reject	undocumented	docs	alterIcebergTable_tableColumnAction((_COLUMN?_ID_((SET?_NOT_NULL|DROP_NO~70a1dd6f)/(_(COLUMN)?_ID_((SET?_NOT_NULL|DROP_NOT_NULL)|((SET_~70~bce0ec38!drop-4	ALTER ICEBERG TABLE a ALTER(a INT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction((_COLUMN?_ID_((SET?_NOT_NULL|DROP_NO~70a1dd6f)/(_(COLUMN)?_ID_((SET?_NOT_NULL|DROP_NOT_NULL)|((SET_~70~bce0ec38!insert	ALTER ICEBERG TABLE a ALTER(a INT) zzz
+reject	undocumented	docs	alterIcebergTable_tableColumnAction((_COLUMN?_ID_((SET?_NOT_NULL|DROP_NO~70a1dd6f)/(_(COLUMN)?_ID_((SET?_NOT_NULL|DROP_NOT_NULL)|((SET_~70~bce0ec38!swap	ALTER ICEBERG TABLE a ALTER(a INTEGER)
+reject	accept	docs	alterIcebergTable_tableColumnAction((_COLUMN?_ID_((SET?_NOT_NULL|DROP_NO~70a1dd6f)/(COLUMN)?_ID_((SET?_NOT_NULL|DROP_NOT_NULL)|((SET_~70d6~e70c3a41	ALTER ICEBERG TABLE a ALTER a INT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction((_COLUMN?_ID_((SET?_NOT_NULL|DROP_NO~70a1dd6f)/(COLUMN)?_ID_((SET?_NOT_NULL|DROP_NOT_NULL)|((SET_~70d6~e70c3a41!swap	ALTER ICEBERG TABLE a ALTER a INTEGER
+reject	accept	docs	alterIcebergTable_tableColumnAction((SET?_NOT_NULL|DROP_NOT_NULL)|((SET_~70d65bd2)/(SET?_NOT_NULL|DROP_NOT_NULL)	ALTER ICEBERG TABLE a ALTER a NOT NULL
+reject	undocumented	docs	alterIcebergTable_tableColumnAction((SET?_NOT_NULL|DROP_NOT_NULL)|((SET_~70d65bd2)/(SET?_NOT_NULL|DROP_NOT_NULL)!drop-1	ALTER ICEBERG TABLE a ALTER a NULL
+reject	undocumented	docs	alterIcebergTable_tableColumnAction((SET?_NOT_NULL|DROP_NOT_NULL)|((SET_~70d65bd2)/(SET?_NOT_NULL|DROP_NOT_NULL)!drop-2	ALTER ICEBERG TABLE a ALTER a NOT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction((SET?_NOT_NULL|DROP_NOT_NULL)|((SET_~70d65bd2)/(SET?_NOT_NULL|DROP_NOT_NULL)!insert	ALTER ICEBERG TABLE a ALTER a NOT NULL zzz
+reject	undocumented	docs	alterIcebergTable_tableColumnAction((SET?_NOT_NULL|DROP_NOT_NULL)|((SET_~70d65bd2)/(SET?_NOT_NULL|DROP_NOT_NULL)!swap	ALTER ICEBERG TABLE a ALTER a NOTEBOOK NULL
+reject	accept	docs	alterIcebergTable_tableColumnAction((SET?_NOT_NULL|DROP_NOT_NULL)|((SET_~70d65bd2)/((SET_DATA)?_TYPE)?_DATA_TYPE	ALTER ICEBERG TABLE a ALTER a INT
+reject	accept	docs	alterIcebergTable_tableColumnAction((SET?_NOT_NULL|DROP_NOT_NULL)|((SET_~70d65bd2)/COMMENT_STRING	ALTER ICEBERG TABLE a ALTER a COMMENT 's'
+reject	undocumented	docs	alterIcebergTable_tableColumnAction((SET?_NOT_NULL|DROP_NOT_NULL)|((SET_~70d65bd2)/COMMENT_STRING!drop-1	ALTER ICEBERG TABLE a ALTER a 's'
+reject	undocumented	docs	alterIcebergTable_tableColumnAction((SET?_NOT_NULL|DROP_NOT_NULL)|((SET_~70d65bd2)/COMMENT_STRING!drop-2	ALTER ICEBERG TABLE a ALTER a COMMENT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction((SET?_NOT_NULL|DROP_NOT_NULL)|((SET_~70d65bd2)/COMMENT_STRING!insert	ALTER ICEBERG TABLE a ALTER a COMMENT 's' zzz
+reject	undocumented	docs	alterIcebergTable_tableColumnAction((SET?_NOT_NULL|DROP_NOT_NULL)|((SET_~70d65bd2)/COMMENT_STRING!swap	ALTER ICEBERG TABLE a ALTER a COMMENTS 's'
+reject	accept	docs	alterIcebergTable_tableColumnAction((SET?_NOT_NULL|DROP_NOT_NULL)|((SET_~70d65bd2)/UNSET_COMMENT	ALTER ICEBERG TABLE a ALTER a UNSET COMMENT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction((SET?_NOT_NULL|DROP_NOT_NULL)|((SET_~70d65bd2)/UNSET_COMMENT!drop-2	ALTER ICEBERG TABLE a ALTER a UNSET
+reject	undocumented	docs	alterIcebergTable_tableColumnAction((SET?_NOT_NULL|DROP_NOT_NULL)|((SET_~70d65bd2)/UNSET_COMMENT!insert	ALTER ICEBERG TABLE a ALTER a UNSET COMMENT zzz
+reject	undocumented	docs	alterIcebergTable_tableColumnAction((SET?_NOT_NULL|DROP_NOT_NULL)|((SET_~70d65bd2)/UNSET_COMMENT!swap	ALTER ICEBERG TABLE a ALTER a UNSUPPORTED_DDL_ACTION COMMENT
+reject	accept	docs	alterIcebergTable_tableColumnAction((SET?_NOT_NULL|DROP_NOT_NULL)|((SET_~70d65bd2)/SET_WRITE_DEFAULT_ID	ALTER ICEBERG TABLE a ALTER a SET WRITE DEFAULT a
+reject	undocumented	docs	alterIcebergTable_tableColumnAction((SET?_NOT_NULL|DROP_NOT_NULL)|((SET_~70d65bd2)/SET_WRITE_DEFAULT_ID!drop-1	ALTER ICEBERG TABLE a ALTER a WRITE DEFAULT a
+reject	undocumented	docs	alterIcebergTable_tableColumnAction((SET?_NOT_NULL|DROP_NOT_NULL)|((SET_~70d65bd2)/SET_WRITE_DEFAULT_ID!drop-2	ALTER ICEBERG TABLE a ALTER a SET DEFAULT a
+reject	undocumented	docs	alterIcebergTable_tableColumnAction((SET?_NOT_NULL|DROP_NOT_NULL)|((SET_~70d65bd2)/SET_WRITE_DEFAULT_ID!drop-3	ALTER ICEBERG TABLE a ALTER a SET WRITE a
+reject	undocumented	docs	alterIcebergTable_tableColumnAction((SET?_NOT_NULL|DROP_NOT_NULL)|((SET_~70d65bd2)/SET_WRITE_DEFAULT_ID!drop-4	ALTER ICEBERG TABLE a ALTER a SET WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction((SET?_NOT_NULL|DROP_NOT_NULL)|((SET_~70d65bd2)/SET_WRITE_DEFAULT_ID!insert	ALTER ICEBERG TABLE a ALTER a SET WRITE DEFAULT a zzz
+reject	undocumented	docs	alterIcebergTable_tableColumnAction((SET?_NOT_NULL|DROP_NOT_NULL)|((SET_~70d65bd2)/SET_WRITE_DEFAULT_ID!swap	ALTER ICEBERG TABLE a ALTER a SETS WRITE DEFAULT a
+reject	accept	docs	alterIcebergTable_tableColumnAction((SET?_NOT_NULL|DROP_NOT_NULL)|((SET_~70d65bd2)/DROP_WRITE_DEFAULT	ALTER ICEBERG TABLE a ALTER a DROP WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction((SET?_NOT_NULL|DROP_NOT_NULL)|((SET_~70d65bd2)/DROP_WRITE_DEFAULT!drop-1	ALTER ICEBERG TABLE a ALTER a WRITE DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction((SET?_NOT_NULL|DROP_NOT_NULL)|((SET_~70d65bd2)/DROP_WRITE_DEFAULT!drop-2	ALTER ICEBERG TABLE a ALTER a DROP DEFAULT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction((SET?_NOT_NULL|DROP_NOT_NULL)|((SET_~70d65bd2)/DROP_WRITE_DEFAULT!drop-3	ALTER ICEBERG TABLE a ALTER a DROP WRITE
+reject	undocumented	docs	alterIcebergTable_tableColumnAction((SET?_NOT_NULL|DROP_NOT_NULL)|((SET_~70d65bd2)/DROP_WRITE_DEFAULT!insert	ALTER ICEBERG TABLE a ALTER a DROP WRITE DEFAULT zzz
+reject	undocumented	docs	alterIcebergTable_tableColumnAction((SET?_NOT_NULL|DROP_NOT_NULL)|((SET_~70d65bd2)/DROP_WRITE_DEFAULT!swap	ALTER ICEBERG TABLE a ALTER a DROP_FROM_SOURCE_CATALOG WRITE DEFAULT
+reject	accept	docs	alterIcebergTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/(SET)?_NOT_NULL	ALTER ICEBERG TABLE a ALTER a NOT NULL
+reject	accept	docs	alterIcebergTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL	ALTER ICEBERG TABLE a ALTER a DROP NOT NULL
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL!drop-2	ALTER ICEBERG TABLE a ALTER a DROP NULL
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL!drop-3	ALTER ICEBERG TABLE a ALTER a DROP NOT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL!insert	ALTER ICEBERG TABLE a ALTER a DROP NOT NULL zzz
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL!swap	ALTER ICEBERG TABLE a ALTER a DROP_FROM_SOURCE_CATALOG NOT NULL
+reject	accept	docs	alterIcebergTable_tableColumnAction(SET)?/%empty	ALTER ICEBERG TABLE a ALTER a NOT NULL
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET)?/%empty!insert	ALTER ICEBERG TABLE a ALTER a zzz NOT NULL
+reject	accept	docs	alterIcebergTable_tableColumnAction(SET)?/SET	ALTER ICEBERG TABLE a ALTER a SET NOT NULL
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET)?/SET!insert	ALTER ICEBERG TABLE a ALTER a SET zzz NOT NULL
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET)?/SET!swap	ALTER ICEBERG TABLE a ALTER a SETS NOT NULL
+reject	accept	docs	alterIcebergTable_tableColumnAction((SET_DATA)?_TYPE)?/%empty	ALTER ICEBERG TABLE a ALTER a INT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction((SET_DATA)?_TYPE)?/%empty!insert	ALTER ICEBERG TABLE a ALTER a zzz INT
+reject	accept	docs	alterIcebergTable_tableColumnAction((SET_DATA)?_TYPE)?/(SET_DATA)?_TYPE	ALTER ICEBERG TABLE a ALTER a TYPE INT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction((SET_DATA)?_TYPE)?/(SET_DATA)?_TYPE!insert	ALTER ICEBERG TABLE a ALTER a TYPE zzz INT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction((SET_DATA)?_TYPE)?/(SET_DATA)?_TYPE!swap	ALTER ICEBERG TABLE a ALTER a TYPES INT
+reject	accept	docs	alterIcebergTable_tableColumnAction(SET_DATA)?/%empty	ALTER ICEBERG TABLE a ALTER a TYPE INT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET_DATA)?/%empty!insert	ALTER ICEBERG TABLE a ALTER a zzz TYPE INT
+reject	accept	docs	alterIcebergTable_tableColumnAction(SET_DATA)?/SET_DATA	ALTER ICEBERG TABLE a ALTER a SET DATA TYPE INT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET_DATA)?/SET_DATA!drop-1	ALTER ICEBERG TABLE a ALTER a DATA TYPE INT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET_DATA)?/SET_DATA!drop-2	ALTER ICEBERG TABLE a ALTER a SET TYPE INT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET_DATA)?/SET_DATA!truncate	ALTER ICEBERG TABLE a ALTER a SET
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET_DATA)?/SET_DATA!insert	ALTER ICEBERG TABLE a ALTER a SET DATA zzz TYPE INT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(SET_DATA)?/SET_DATA!swap	ALTER ICEBERG TABLE a ALTER a SETS DATA TYPE INT
+reject	accept	docs	alterIcebergTable_tableColumnAction(,_COLUMN?_ID_((SET?_NOT_NULL|DROP_NO~96af7849)*/%empty	ALTER ICEBERG TABLE a ALTER a INT
+reject	accept	docs	alterIcebergTable_tableColumnAction(,_COLUMN?_ID_((SET?_NOT_NULL|DROP_NO~96af7849)*/,_(COLUMN)?_ID_((SET?_NOT_NULL|DROP_NOT_NULL)|((SET_~70~5228d5a8	ALTER ICEBERG TABLE a ALTER a INT, a INT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(,_COLUMN?_ID_((SET?_NOT_NULL|DROP_NO~96af7849)*/,_(COLUMN)?_ID_((SET?_NOT_NULL|DROP_NOT_NULL)|((SET_~70~5228d5a8!drop-1	ALTER ICEBERG TABLE a ALTER a INT a INT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(,_COLUMN?_ID_((SET?_NOT_NULL|DROP_NO~96af7849)*/,_(COLUMN)?_ID_((SET?_NOT_NULL|DROP_NOT_NULL)|((SET_~70~5228d5a8!drop-2	ALTER ICEBERG TABLE a ALTER a INT, INT
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(,_COLUMN?_ID_((SET?_NOT_NULL|DROP_NO~96af7849)*/,_(COLUMN)?_ID_((SET?_NOT_NULL|DROP_NOT_NULL)|((SET_~70~5228d5a8!drop-3	ALTER ICEBERG TABLE a ALTER a INT, a
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(,_COLUMN?_ID_((SET?_NOT_NULL|DROP_NO~96af7849)*/,_(COLUMN)?_ID_((SET?_NOT_NULL|DROP_NOT_NULL)|((SET_~70~5228d5a8!insert	ALTER ICEBERG TABLE a ALTER a INT, a INT zzz
+reject	undocumented	docs	alterIcebergTable_tableColumnAction(,_COLUMN?_ID_((SET?_NOT_NULL|DROP_NO~96af7849)*/,_(COLUMN)?_ID_((SET?_NOT_NULL|DROP_NOT_NULL)|((SET_~70~5228d5a8!swap	ALTER ICEBERG TABLE a ALTER a INT, a INTEGER
 reject	accept	docs	alterIcebergTable_tableColumnAction(IF_EXISTS)?/%empty	ALTER ICEBERG TABLE a DROP a
 reject	accept	docs	alterIcebergTable_tableColumnAction(IF_EXISTS)?/IF_EXISTS	ALTER ICEBERG TABLE a DROP IF EXISTS a
 reject	undocumented	docs	alterIcebergTable_tableColumnAction(IF_EXISTS)?/IF_EXISTS!drop-1	ALTER ICEBERG TABLE a DROP EXISTS a
@@ -30587,15 +30557,15 @@ reject	undocumented	docs	createCatalogIntegrationSnowflakePostgres_restConfigPar
 reject	undocumented	docs	createCatalogIntegrationSnowflakePostgres_restConfigParams(CATALOG_NAME_=_STRING)?/CATALOG_NAME_=_STRING!truncate	CREATE CATALOG INTEGRATION a CATALOG_SOURCE = SNOWFLAKE_POSTGRES TABLE_FORMAT = ICEBERG REST_CONFIG =(POSTGRES_INSTANCE = 's' ACCESS_DELEGATION_MODE = VENDED_CREDENTIALS CATALOG_NAME =
 reject	undocumented	docs	createCatalogIntegrationSnowflakePostgres_restConfigParams(CATALOG_NAME_=_STRING)?/CATALOG_NAME_=_STRING!insert	CREATE CATALOG INTEGRATION a CATALOG_SOURCE = SNOWFLAKE_POSTGRES TABLE_FORMAT = ICEBERG REST_CONFIG =(POSTGRES_INSTANCE = 's' ACCESS_DELEGATION_MODE = VENDED_CREDENTIALS CATALOG_NAME = 's' zzz) ENABLED = TRUE
 reject	undocumented	docs	createCatalogIntegrationSnowflakePostgres_restConfigParams(CATALOG_NAME_=_STRING)?/CATALOG_NAME_=_STRING!swap	CREATE CATALOG INTEGRATION a CATALOG_SOURCE = SNOWFLAKE_POSTGRES TABLE_FORMAT = ICEBERG REST_CONFIG =(POSTGRES_INSTANCE = 's' ACCESS_DELEGATION_MODE = VENDED_CREDENTIALS CATALOG_NAMESPACE = 's') ENABLED = TRUE
-accept	accept	docs	createClone/CREATE_(OR_REPLACE)?_DYNAMIC_TABLE_ID_CLONE_ID_((AT|BEF~67797772	CREATE DYNAMIC TABLE a CLONE a
-accept	accept	docs	createClone/CREATE_(OR_REPLACE)?_EVENT_TABLE_ID_CLONE_ID_((AT|BEFOR~6ca929f0	CREATE EVENT TABLE a CLONE a
-reject	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_EVENT_TABLE_ID_CLONE_ID_((AT|BEFOR~6ca929f0!drop-1	EVENT TABLE a CLONE a
-reject	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_EVENT_TABLE_ID_CLONE_ID_((AT|BEFOR~6ca929f0!drop-3	CREATE EVENT a CLONE a
-accept	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_EVENT_TABLE_ID_CLONE_ID_((AT|BEFOR~6ca929f0!drop-4	CREATE EVENT TABLE CLONE a
-accept	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_EVENT_TABLE_ID_CLONE_ID_((AT|BEFOR~6ca929f0!drop-5	CREATE EVENT TABLE a a
-accept	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_EVENT_TABLE_ID_CLONE_ID_((AT|BEFOR~6ca929f0!drop-6	CREATE EVENT TABLE a CLONE
-accept	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_EVENT_TABLE_ID_CLONE_ID_((AT|BEFOR~6ca929f0!insert	CREATE EVENT TABLE a CLONE a zzz
-reject	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_EVENT_TABLE_ID_CLONE_ID_((AT|BEFOR~6ca929f0!swap	CREATION EVENT TABLE a CLONE a
+accept	accept	docs	createClone/CREATE_(OR_REPLACE)?_DYNAMIC_TABLE_ID_CLONE_ID_((AT|BEF~fcceb6eb	CREATE DYNAMIC TABLE a CLONE a
+accept	accept	docs	createClone/CREATE_(OR_REPLACE)?_EVENT_TABLE_ID_CLONE_ID_((AT|BEFOR~73fd8b15	CREATE EVENT TABLE a CLONE a
+reject	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_EVENT_TABLE_ID_CLONE_ID_((AT|BEFOR~73fd8b15!drop-1	EVENT TABLE a CLONE a
+reject	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_EVENT_TABLE_ID_CLONE_ID_((AT|BEFOR~73fd8b15!drop-3	CREATE EVENT a CLONE a
+accept	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_EVENT_TABLE_ID_CLONE_ID_((AT|BEFOR~73fd8b15!drop-4	CREATE EVENT TABLE CLONE a
+accept	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_EVENT_TABLE_ID_CLONE_ID_((AT|BEFOR~73fd8b15!drop-5	CREATE EVENT TABLE a a
+accept	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_EVENT_TABLE_ID_CLONE_ID_((AT|BEFOR~73fd8b15!drop-6	CREATE EVENT TABLE a CLONE
+accept	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_EVENT_TABLE_ID_CLONE_ID_((AT|BEFOR~73fd8b15!insert	CREATE EVENT TABLE a CLONE a zzz
+reject	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_EVENT_TABLE_ID_CLONE_ID_((AT|BEFOR~73fd8b15!swap	CREATION EVENT TABLE a CLONE a
 reject	accept	docs	createClone/CREATE_(OR_REPLACE)?_DATABASE_ROLE_(IF_NOT_EXISTS)?_ID_CLONE_ID	CREATE DATABASE ROLE a CLONE a
 reject	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_DATABASE_ROLE_(IF_NOT_EXISTS)?_ID_CLONE_ID!drop-1	DATABASE ROLE a CLONE a
 reject	undocumented	docs	createClone/CREATE_(OR_REPLACE)?_DATABASE_ROLE_(IF_NOT_EXISTS)?_ID_CLONE_ID!drop-2	CREATE ROLE a CLONE a
@@ -30611,40 +30581,39 @@ reject	undocumented	docs	createClone(OR_REPLACE)?/OR_REPLACE!drop-1	CREATE REPLA
 reject	undocumented	docs	createClone(OR_REPLACE)?/OR_REPLACE!drop-2	CREATE OR DYNAMIC TABLE a CLONE a
 reject	undocumented	docs	createClone(OR_REPLACE)?/OR_REPLACE!insert	CREATE OR REPLACE zzz DYNAMIC TABLE a CLONE a
 reject	undocumented	docs	createClone(OR_REPLACE)?/OR_REPLACE!swap	CREATE ORC REPLACE DYNAMIC TABLE a CLONE a
-accept	accept	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/%empty	CREATE DYNAMIC TABLE a CLONE a
-accept	accept	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)	CREATE DYNAMIC TABLE a CLONE a AT(TIMESTAMP => 's')
-reject	undocumented	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)!drop-1	CREATE DYNAMIC TABLE a CLONE a(TIMESTAMP => 's')
-reject	undocumented	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)!drop-2	CREATE DYNAMIC TABLE a CLONE a AT TIMESTAMP => 's')
-reject	undocumented	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)!drop-3	CREATE DYNAMIC TABLE a CLONE a AT(=> 's')
-reject	undocumented	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)!drop-4	CREATE DYNAMIC TABLE a CLONE a AT(TIMESTAMP 's')
-reject	undocumented	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)!drop-5	CREATE DYNAMIC TABLE a CLONE a AT(TIMESTAMP =>)
-reject	undocumented	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)!drop-6	CREATE DYNAMIC TABLE a CLONE a AT(TIMESTAMP => 's'
-reject	undocumented	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)!insert	CREATE DYNAMIC TABLE a CLONE a AT(TIMESTAMP => 's') zzz
-reject	undocumented	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)!swap	CREATE DYNAMIC TABLE a CLONE a ATTACH(TIMESTAMP => 's')
+accept	accept	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9cec801c)?/%empty	CREATE DYNAMIC TABLE a CLONE a
+accept	accept	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9cec801c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)_)	CREATE DYNAMIC TABLE a CLONE a AT(TIMESTAMP => 's')
+reject	undocumented	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9cec801c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)_)!drop-1	CREATE DYNAMIC TABLE a CLONE a(TIMESTAMP => 's')
+reject	undocumented	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9cec801c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)_)!drop-2	CREATE DYNAMIC TABLE a CLONE a AT TIMESTAMP => 's')
+reject	undocumented	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9cec801c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)_)!drop-3	CREATE DYNAMIC TABLE a CLONE a AT(=> 's')
+reject	undocumented	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9cec801c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)_)!drop-4	CREATE DYNAMIC TABLE a CLONE a AT(TIMESTAMP 's')
+reject	undocumented	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9cec801c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)_)!drop-5	CREATE DYNAMIC TABLE a CLONE a AT(TIMESTAMP =>)
+reject	undocumented	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9cec801c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)_)!drop-6	CREATE DYNAMIC TABLE a CLONE a AT(TIMESTAMP => 's'
+reject	undocumented	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9cec801c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)_)!insert	CREATE DYNAMIC TABLE a CLONE a AT(TIMESTAMP => 's') zzz
+reject	undocumented	docs	createClone((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9cec801c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)_)!swap	CREATE DYNAMIC TABLE a CLONE a ATTACH(TIMESTAMP => 's')
 accept	accept	docs	createClone(AT|BEFORE)/AT	CREATE DYNAMIC TABLE a CLONE a AT(TIMESTAMP => 's')
 reject	undocumented	docs	createClone(AT|BEFORE)/AT!insert	CREATE DYNAMIC TABLE a CLONE a AT zzz(TIMESTAMP => 's')
 accept	accept	docs	createClone(AT|BEFORE)/BEFORE	CREATE DYNAMIC TABLE a CLONE a BEFORE(TIMESTAMP => 's')
 reject	undocumented	docs	createClone(AT|BEFORE)/BEFORE!insert	CREATE DYNAMIC TABLE a CLONE a BEFORE zzz(TIMESTAMP => 's')
 reject	undocumented	docs	createClone(AT|BEFORE)/BEFORE!swap	CREATE DYNAMIC TABLE a CLONE a BEGIN(TIMESTAMP => 's')
-accept	accept	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/TIMESTAMP_=>_STRING	CREATE DYNAMIC TABLE a CLONE a AT(TIMESTAMP => 's')
-reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/TIMESTAMP_=>_STRING!truncate	CREATE DYNAMIC TABLE a CLONE a AT(TIMESTAMP =>
-reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/TIMESTAMP_=>_STRING!insert	CREATE DYNAMIC TABLE a CLONE a AT(TIMESTAMP => 's' zzz)
-reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/TIMESTAMP_=>_STRING!swap	CREATE DYNAMIC TABLE a CLONE a AT(TIMESTAMP_COLUMN => 's')
-accept	accept	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/OFFSET_=>_-_NUMBER	CREATE DYNAMIC TABLE a CLONE a AT(OFFSET => - 1)
-reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/OFFSET_=>_-_NUMBER!drop-1	CREATE DYNAMIC TABLE a CLONE a AT(=> - 1)
-reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/OFFSET_=>_-_NUMBER!drop-2	CREATE DYNAMIC TABLE a CLONE a AT(OFFSET - 1)
-accept	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/OFFSET_=>_-_NUMBER!drop-3	CREATE DYNAMIC TABLE a CLONE a AT(OFFSET => 1)
-reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/OFFSET_=>_-_NUMBER!drop-4	CREATE DYNAMIC TABLE a CLONE a AT(OFFSET => -)
-reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/OFFSET_=>_-_NUMBER!truncate	CREATE DYNAMIC TABLE a CLONE a AT(OFFSET => -
-reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/OFFSET_=>_-_NUMBER!insert	CREATE DYNAMIC TABLE a CLONE a AT(OFFSET => - 1 zzz)
-reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/OFFSET_=>_-_NUMBER!swap	CREATE DYNAMIC TABLE a CLONE a AT(OIDC => - 1)
-accept	accept	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/STATEMENT_=>_ID	CREATE DYNAMIC TABLE a CLONE a AT(STATEMENT => a)
-reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/STATEMENT_=>_ID!drop-1	CREATE DYNAMIC TABLE a CLONE a AT(=> a)
-reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/STATEMENT_=>_ID!drop-2	CREATE DYNAMIC TABLE a CLONE a AT(STATEMENT a)
-reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/STATEMENT_=>_ID!drop-3	CREATE DYNAMIC TABLE a CLONE a AT(STATEMENT =>)
-reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/STATEMENT_=>_ID!truncate	CREATE DYNAMIC TABLE a CLONE a AT(STATEMENT =>
-reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/STATEMENT_=>_ID!insert	CREATE DYNAMIC TABLE a CLONE a AT(STATEMENT => a zzz)
-reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/STATEMENT_=>_ID!swap	CREATE DYNAMIC TABLE a CLONE a AT(STATEMENT_QUEUED_TIMEOUT_IN_SECONDS => a)
+accept	accept	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/TIMESTAMP_=>_STRING	CREATE DYNAMIC TABLE a CLONE a AT(TIMESTAMP => 's')
+reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/TIMESTAMP_=>_STRING!truncate	CREATE DYNAMIC TABLE a CLONE a AT(TIMESTAMP =>
+reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/TIMESTAMP_=>_STRING!insert	CREATE DYNAMIC TABLE a CLONE a AT(TIMESTAMP => 's' zzz)
+reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/TIMESTAMP_=>_STRING!swap	CREATE DYNAMIC TABLE a CLONE a AT(TIMESTAMP_COLUMN => 's')
+accept	accept	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/OFFSET_=>_-_NUMBER	CREATE DYNAMIC TABLE a CLONE a AT(OFFSET => - 1)
+reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/OFFSET_=>_-_NUMBER!drop-1	CREATE DYNAMIC TABLE a CLONE a AT(=> - 1)
+reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/OFFSET_=>_-_NUMBER!drop-2	CREATE DYNAMIC TABLE a CLONE a AT(OFFSET - 1)
+accept	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/OFFSET_=>_-_NUMBER!drop-3	CREATE DYNAMIC TABLE a CLONE a AT(OFFSET => 1)
+reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/OFFSET_=>_-_NUMBER!drop-4	CREATE DYNAMIC TABLE a CLONE a AT(OFFSET => -)
+reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/OFFSET_=>_-_NUMBER!truncate	CREATE DYNAMIC TABLE a CLONE a AT(OFFSET => -
+reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/OFFSET_=>_-_NUMBER!insert	CREATE DYNAMIC TABLE a CLONE a AT(OFFSET => - 1 zzz)
+reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/OFFSET_=>_-_NUMBER!swap	CREATE DYNAMIC TABLE a CLONE a AT(OIDC => - 1)
+accept	accept	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/STATEMENT_=>_STRING	CREATE DYNAMIC TABLE a CLONE a AT(STATEMENT => 's')
+reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/STATEMENT_=>_STRING!drop-2	CREATE DYNAMIC TABLE a CLONE a AT(STATEMENT 's')
+reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/STATEMENT_=>_STRING!drop-3	CREATE DYNAMIC TABLE a CLONE a AT(STATEMENT =>)
+reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/STATEMENT_=>_STRING!truncate	CREATE DYNAMIC TABLE a CLONE a AT(STATEMENT =>
+reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/STATEMENT_=>_STRING!insert	CREATE DYNAMIC TABLE a CLONE a AT(STATEMENT => 's' zzz)
+reject	undocumented	docs	createClone(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/STATEMENT_=>_STRING!swap	CREATE DYNAMIC TABLE a CLONE a AT(STATEMENT_QUEUED_TIMEOUT_IN_SECONDS => 's')
 accept	accept	docs	createClone(TARGET_LAG_=_(STRING|DOWNSTREAM)_WAR~7a1972f0)?/%empty	CREATE DYNAMIC TABLE a CLONE a
 reject	accept	docs	createClone(TARGET_LAG_=_(STRING|DOWNSTREAM)_WAR~7a1972f0)?/TARGET_LAG_=_(STRING|DOWNSTREAM)_WAREHOUSE_=_ID	CREATE DYNAMIC TABLE a CLONE a TARGET_LAG = 's' WAREHOUSE = a
 reject	undocumented	docs	createClone(TARGET_LAG_=_(STRING|DOWNSTREAM)_WAR~7a1972f0)?/TARGET_LAG_=_(STRING|DOWNSTREAM)_WAREHOUSE_=_ID!drop-1	CREATE DYNAMIC TABLE a CLONE a = 's' WAREHOUSE = a
@@ -31127,7 +31096,7 @@ reject	undocumented	docs	createDataMovementRule(COMMENT_=_STRING)?/COMMENT_=_STR
 reject	undocumented	docs	createDataMovementRule(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE DATA MOVEMENT RULE a TYPE = 's' MAX_ROWS AS() RETURNS INTEGER ->(1) COMMENT =
 reject	undocumented	docs	createDataMovementRule(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE DATA MOVEMENT RULE a TYPE = 's' MAX_ROWS AS() RETURNS INTEGER ->(1) COMMENT = 's' zzz
 reject	undocumented	docs	createDataMovementRule(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE DATA MOVEMENT RULE a TYPE = 's' MAX_ROWS AS() RETURNS INTEGER ->(1) COMMENTS = 's'
-accept	accept	docs	createDatabase/CREATE_(OR_REPLACE)?_(TRANSIENT)?_DATABASE_(IF_NOT_EXIS~e6dbbb00	CREATE DATABASE a
+accept	accept	docs	createDatabase/CREATE_(OR_REPLACE)?_(TRANSIENT)?_DATABASE_(IF_NOT_EXIS~e059a6f8	CREATE DATABASE a
 reject	accept	docs	createDatabase/CREATE_DATABASE_ID_FROM_BACKUP_SET_ID_IDENTIFIER_STRING	CREATE DATABASE a FROM BACKUP SET a IDENTIFIER 's'
 reject	undocumented	docs	createDatabase/CREATE_DATABASE_ID_FROM_BACKUP_SET_ID_IDENTIFIER_STRING!drop-1	DATABASE a FROM BACKUP SET a IDENTIFIER 's'
 reject	undocumented	docs	createDatabase/CREATE_DATABASE_ID_FROM_BACKUP_SET_ID_IDENTIFIER_STRING!drop-2	CREATE a FROM BACKUP SET a IDENTIFIER 's'
@@ -31192,46 +31161,45 @@ reject	undocumented	docs	createDatabase(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CRE
 reject	undocumented	docs	createDatabase(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE DATABASE IF NOT
 reject	undocumented	docs	createDatabase(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE DATABASE IF NOT EXISTS zzz a
 reject	undocumented	docs	createDatabase(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE DATABASE IGNORE NOT EXISTS a
-accept	accept	docs	createDatabase(CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=~69fc560a)?/%empty	CREATE DATABASE a
-accept	accept	docs	createDatabase(CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=~69fc560a)?/CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12~212bd809	CREATE DATABASE a CLONE a
-reject	undocumented	docs	createDatabase(CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=~69fc560a)?/CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12~212bd809!drop-1	CREATE DATABASE a a
-reject	undocumented	docs	createDatabase(CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=~69fc560a)?/CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12~212bd809!drop-2	CREATE DATABASE a CLONE
-reject	undocumented	docs	createDatabase(CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=~69fc560a)?/CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12~212bd809!insert	CREATE DATABASE a CLONE a zzz
-reject	undocumented	docs	createDatabase(CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=~69fc560a)?/CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12~212bd809!swap	CREATE DATABASE a CLOUD_PROVIDER a
-accept	accept	docs	createDatabase((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/%empty	CREATE DATABASE a CLONE a
-accept	accept	docs	createDatabase((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)	CREATE DATABASE a CLONE a AT(TIMESTAMP => 's')
-reject	undocumented	docs	createDatabase((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)!drop-1	CREATE DATABASE a CLONE a(TIMESTAMP => 's')
-reject	undocumented	docs	createDatabase((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)!drop-2	CREATE DATABASE a CLONE a AT TIMESTAMP => 's')
-reject	undocumented	docs	createDatabase((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)!drop-3	CREATE DATABASE a CLONE a AT(=> 's')
-reject	undocumented	docs	createDatabase((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)!drop-4	CREATE DATABASE a CLONE a AT(TIMESTAMP 's')
-reject	undocumented	docs	createDatabase((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)!drop-5	CREATE DATABASE a CLONE a AT(TIMESTAMP =>)
-reject	undocumented	docs	createDatabase((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)!drop-6	CREATE DATABASE a CLONE a AT(TIMESTAMP => 's'
-reject	undocumented	docs	createDatabase((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)!insert	CREATE DATABASE a CLONE a AT(TIMESTAMP => 's') zzz
-reject	undocumented	docs	createDatabase((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)!swap	CREATE DATABASE a CLONE a ATTACH(TIMESTAMP => 's')
+accept	accept	docs	createDatabase(CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=~e4de0d55)?/%empty	CREATE DATABASE a
+accept	accept	docs	createDatabase(CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=~e4de0d55)?/CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9cec801c~e920c741	CREATE DATABASE a CLONE a
+reject	undocumented	docs	createDatabase(CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=~e4de0d55)?/CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9cec801c~e920c741!drop-1	CREATE DATABASE a a
+reject	undocumented	docs	createDatabase(CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=~e4de0d55)?/CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9cec801c~e920c741!drop-2	CREATE DATABASE a CLONE
+reject	undocumented	docs	createDatabase(CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=~e4de0d55)?/CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9cec801c~e920c741!insert	CREATE DATABASE a CLONE a zzz
+reject	undocumented	docs	createDatabase(CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=~e4de0d55)?/CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9cec801c~e920c741!swap	CREATE DATABASE a CLOUD_PROVIDER a
+accept	accept	docs	createDatabase((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9cec801c)?/%empty	CREATE DATABASE a CLONE a
+accept	accept	docs	createDatabase((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9cec801c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)_)	CREATE DATABASE a CLONE a AT(TIMESTAMP => 's')
+reject	undocumented	docs	createDatabase((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9cec801c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)_)!drop-1	CREATE DATABASE a CLONE a(TIMESTAMP => 's')
+reject	undocumented	docs	createDatabase((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9cec801c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)_)!drop-2	CREATE DATABASE a CLONE a AT TIMESTAMP => 's')
+reject	undocumented	docs	createDatabase((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9cec801c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)_)!drop-3	CREATE DATABASE a CLONE a AT(=> 's')
+reject	undocumented	docs	createDatabase((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9cec801c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)_)!drop-4	CREATE DATABASE a CLONE a AT(TIMESTAMP 's')
+reject	undocumented	docs	createDatabase((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9cec801c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)_)!drop-5	CREATE DATABASE a CLONE a AT(TIMESTAMP =>)
+reject	undocumented	docs	createDatabase((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9cec801c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)_)!drop-6	CREATE DATABASE a CLONE a AT(TIMESTAMP => 's'
+reject	undocumented	docs	createDatabase((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9cec801c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)_)!insert	CREATE DATABASE a CLONE a AT(TIMESTAMP => 's') zzz
+reject	undocumented	docs	createDatabase((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9cec801c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)_)!swap	CREATE DATABASE a CLONE a ATTACH(TIMESTAMP => 's')
 accept	accept	docs	createDatabase(AT|BEFORE)/AT	CREATE DATABASE a CLONE a AT(TIMESTAMP => 's')
 reject	undocumented	docs	createDatabase(AT|BEFORE)/AT!insert	CREATE DATABASE a CLONE a AT zzz(TIMESTAMP => 's')
 accept	accept	docs	createDatabase(AT|BEFORE)/BEFORE	CREATE DATABASE a CLONE a BEFORE(TIMESTAMP => 's')
 reject	undocumented	docs	createDatabase(AT|BEFORE)/BEFORE!insert	CREATE DATABASE a CLONE a BEFORE zzz(TIMESTAMP => 's')
 reject	undocumented	docs	createDatabase(AT|BEFORE)/BEFORE!swap	CREATE DATABASE a CLONE a BEGIN(TIMESTAMP => 's')
-accept	accept	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/TIMESTAMP_=>_STRING	CREATE DATABASE a CLONE a AT(TIMESTAMP => 's')
-reject	undocumented	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/TIMESTAMP_=>_STRING!truncate	CREATE DATABASE a CLONE a AT(TIMESTAMP =>
-reject	undocumented	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/TIMESTAMP_=>_STRING!insert	CREATE DATABASE a CLONE a AT(TIMESTAMP => 's' zzz)
-reject	undocumented	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/TIMESTAMP_=>_STRING!swap	CREATE DATABASE a CLONE a AT(TIMESTAMP_COLUMN => 's')
-accept	accept	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/OFFSET_=>_-_NUMBER	CREATE DATABASE a CLONE a AT(OFFSET => - 1)
-reject	undocumented	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/OFFSET_=>_-_NUMBER!drop-1	CREATE DATABASE a CLONE a AT(=> - 1)
-reject	undocumented	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/OFFSET_=>_-_NUMBER!drop-2	CREATE DATABASE a CLONE a AT(OFFSET - 1)
-accept	undocumented	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/OFFSET_=>_-_NUMBER!drop-3	CREATE DATABASE a CLONE a AT(OFFSET => 1)
-reject	undocumented	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/OFFSET_=>_-_NUMBER!drop-4	CREATE DATABASE a CLONE a AT(OFFSET => -)
-reject	undocumented	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/OFFSET_=>_-_NUMBER!truncate	CREATE DATABASE a CLONE a AT(OFFSET => -
-reject	undocumented	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/OFFSET_=>_-_NUMBER!insert	CREATE DATABASE a CLONE a AT(OFFSET => - 1 zzz)
-reject	undocumented	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/OFFSET_=>_-_NUMBER!swap	CREATE DATABASE a CLONE a AT(OIDC => - 1)
-accept	accept	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/STATEMENT_=>_ID	CREATE DATABASE a CLONE a AT(STATEMENT => a)
-reject	undocumented	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/STATEMENT_=>_ID!drop-1	CREATE DATABASE a CLONE a AT(=> a)
-reject	undocumented	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/STATEMENT_=>_ID!drop-2	CREATE DATABASE a CLONE a AT(STATEMENT a)
-reject	undocumented	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/STATEMENT_=>_ID!drop-3	CREATE DATABASE a CLONE a AT(STATEMENT =>)
-reject	undocumented	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/STATEMENT_=>_ID!truncate	CREATE DATABASE a CLONE a AT(STATEMENT =>
-reject	undocumented	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/STATEMENT_=>_ID!insert	CREATE DATABASE a CLONE a AT(STATEMENT => a zzz)
-reject	undocumented	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/STATEMENT_=>_ID!swap	CREATE DATABASE a CLONE a AT(STATEMENT_QUEUED_TIMEOUT_IN_SECONDS => a)
+accept	accept	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/TIMESTAMP_=>_STRING	CREATE DATABASE a CLONE a AT(TIMESTAMP => 's')
+reject	undocumented	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/TIMESTAMP_=>_STRING!truncate	CREATE DATABASE a CLONE a AT(TIMESTAMP =>
+reject	undocumented	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/TIMESTAMP_=>_STRING!insert	CREATE DATABASE a CLONE a AT(TIMESTAMP => 's' zzz)
+reject	undocumented	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/TIMESTAMP_=>_STRING!swap	CREATE DATABASE a CLONE a AT(TIMESTAMP_COLUMN => 's')
+accept	accept	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/OFFSET_=>_-_NUMBER	CREATE DATABASE a CLONE a AT(OFFSET => - 1)
+reject	undocumented	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/OFFSET_=>_-_NUMBER!drop-1	CREATE DATABASE a CLONE a AT(=> - 1)
+reject	undocumented	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/OFFSET_=>_-_NUMBER!drop-2	CREATE DATABASE a CLONE a AT(OFFSET - 1)
+accept	undocumented	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/OFFSET_=>_-_NUMBER!drop-3	CREATE DATABASE a CLONE a AT(OFFSET => 1)
+reject	undocumented	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/OFFSET_=>_-_NUMBER!drop-4	CREATE DATABASE a CLONE a AT(OFFSET => -)
+reject	undocumented	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/OFFSET_=>_-_NUMBER!truncate	CREATE DATABASE a CLONE a AT(OFFSET => -
+reject	undocumented	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/OFFSET_=>_-_NUMBER!insert	CREATE DATABASE a CLONE a AT(OFFSET => - 1 zzz)
+reject	undocumented	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/OFFSET_=>_-_NUMBER!swap	CREATE DATABASE a CLONE a AT(OIDC => - 1)
+accept	accept	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/STATEMENT_=>_STRING	CREATE DATABASE a CLONE a AT(STATEMENT => 's')
+reject	undocumented	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/STATEMENT_=>_STRING!drop-2	CREATE DATABASE a CLONE a AT(STATEMENT 's')
+reject	undocumented	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/STATEMENT_=>_STRING!drop-3	CREATE DATABASE a CLONE a AT(STATEMENT =>)
+reject	undocumented	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/STATEMENT_=>_STRING!truncate	CREATE DATABASE a CLONE a AT(STATEMENT =>
+reject	undocumented	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/STATEMENT_=>_STRING!insert	CREATE DATABASE a CLONE a AT(STATEMENT => 's' zzz)
+reject	undocumented	docs	createDatabase(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/STATEMENT_=>_STRING!swap	CREATE DATABASE a CLONE a AT(STATEMENT_QUEUED_TIMEOUT_IN_SECONDS => 's')
 accept	accept	docs	createDatabase(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)?/%empty	CREATE DATABASE a CLONE a
 reject	accept	docs	createDatabase(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)?/IGNORE_TABLES_WITH_INSUFFICIENT_DATA_RETENTION	CREATE DATABASE a CLONE a IGNORE TABLES WITH INSUFFICIENT DATA RETENTION
 reject	undocumented	docs	createDatabase(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)?/IGNORE_TABLES_WITH_INSUFFICIENT_DATA_RETENTION!drop-1	CREATE DATABASE a CLONE a TABLES WITH INSUFFICIENT DATA RETENTION
@@ -31749,7 +31717,7 @@ reject	undocumented	docs	createDcmProject(COMMENT_=_STRING)?/COMMENT_=_STRING!dr
 reject	undocumented	docs	createDcmProject(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE DCM PROJECT a COMMENT =
 reject	undocumented	docs	createDcmProject(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE DCM PROJECT a COMMENT = 's' zzz
 reject	undocumented	docs	createDcmProject(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE DCM PROJECT a COMMENTS = 's'
-accept	accept	docs	createDynamicTable/CREATE_(OR_REPLACE)?_(TRANSIENT)?_DYNAMIC_TABLE_(IF_NOT~139e8b92	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a AS SELECT 1
+accept	accept	docs	createDynamicTable/CREATE_(OR_REPLACE)?_(TRANSIENT)?_DYNAMIC_TABLE_(IF_NOT~04507a3a	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a AS SELECT 1
 accept	accept	docs	createDynamicTable(OR_REPLACE)?/%empty	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a AS SELECT 1
 reject	undocumented	docs	createDynamicTable(OR_REPLACE)?/%empty!insert	CREATE zzz DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a AS SELECT 1
 accept	accept	docs	createDynamicTable(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a AS SELECT 1
@@ -32077,43 +32045,42 @@ accept	undocumented	docs	createDynamicTable(BACKFILL_FROM_ID)?/BACKFILL_FROM_ID!
 reject	undocumented	docs	createDynamicTable(BACKFILL_FROM_ID)?/BACKFILL_FROM_ID!truncate	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a BACKFILL FROM
 accept	undocumented	docs	createDynamicTable(BACKFILL_FROM_ID)?/BACKFILL_FROM_ID!insert	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a BACKFILL FROM a zzz AS SELECT 1
 accept	undocumented	docs	createDynamicTable(BACKFILL_FROM_ID)?/BACKFILL_FROM_ID!swap	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a BACKGROUND_INSTALL FROM a AS SELECT 1
-accept	accept	docs	createDynamicTable(START_AT_(_(STREAM_=>_STRING|TIMESTA~e3dd8843)?/%empty	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a AS SELECT 1
-reject	accept	docs	createDynamicTable(START_AT_(_(STREAM_=>_STRING|TIMESTA~e3dd8843)?/START_AT_(_(STREAM_=>_STRING|TIMESTAMP_=>_STRING~401c09a4)_)	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(STREAM => 's') AS SELECT 1
-reject	undocumented	docs	createDynamicTable(START_AT_(_(STREAM_=>_STRING|TIMESTA~e3dd8843)?/START_AT_(_(STREAM_=>_STRING|TIMESTAMP_=>_STRING~401c09a4)_)!drop-1	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a AT(STREAM => 's') AS SELECT 1
-reject	undocumented	docs	createDynamicTable(START_AT_(_(STREAM_=>_STRING|TIMESTA~e3dd8843)?/START_AT_(_(STREAM_=>_STRING|TIMESTAMP_=>_STRING~401c09a4)_)!drop-2	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START(STREAM => 's') AS SELECT 1
-reject	undocumented	docs	createDynamicTable(START_AT_(_(STREAM_=>_STRING|TIMESTA~e3dd8843)?/START_AT_(_(STREAM_=>_STRING|TIMESTAMP_=>_STRING~401c09a4)_)!drop-3	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT STREAM => 's') AS SELECT 1
-reject	undocumented	docs	createDynamicTable(START_AT_(_(STREAM_=>_STRING|TIMESTA~e3dd8843)?/START_AT_(_(STREAM_=>_STRING|TIMESTAMP_=>_STRING~401c09a4)_)!drop-4	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(=> 's') AS SELECT 1
-reject	undocumented	docs	createDynamicTable(START_AT_(_(STREAM_=>_STRING|TIMESTA~e3dd8843)?/START_AT_(_(STREAM_=>_STRING|TIMESTAMP_=>_STRING~401c09a4)_)!drop-5	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(STREAM 's') AS SELECT 1
-reject	undocumented	docs	createDynamicTable(START_AT_(_(STREAM_=>_STRING|TIMESTA~e3dd8843)?/START_AT_(_(STREAM_=>_STRING|TIMESTAMP_=>_STRING~401c09a4)_)!drop-6	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(STREAM =>) AS SELECT 1
-reject	undocumented	docs	createDynamicTable(START_AT_(_(STREAM_=>_STRING|TIMESTA~e3dd8843)?/START_AT_(_(STREAM_=>_STRING|TIMESTAMP_=>_STRING~401c09a4)_)!drop-7	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(STREAM => 's' AS SELECT 1
-reject	undocumented	docs	createDynamicTable(START_AT_(_(STREAM_=>_STRING|TIMESTA~e3dd8843)?/START_AT_(_(STREAM_=>_STRING|TIMESTAMP_=>_STRING~401c09a4)_)!truncate	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(STREAM => 's'
-reject	undocumented	docs	createDynamicTable(START_AT_(_(STREAM_=>_STRING|TIMESTA~e3dd8843)?/START_AT_(_(STREAM_=>_STRING|TIMESTAMP_=>_STRING~401c09a4)_)!insert	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(STREAM => 's') zzz AS SELECT 1
-reject	undocumented	docs	createDynamicTable(START_AT_(_(STREAM_=>_STRING|TIMESTA~e3dd8843)?/START_AT_(_(STREAM_=>_STRING|TIMESTAMP_=>_STRING~401c09a4)_)!swap	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a STARTS AT(STREAM => 's') AS SELECT 1
-reject	accept	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~401c09a4)/STREAM_=>_STRING	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(STREAM => 's') AS SELECT 1
-reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~401c09a4)/STREAM_=>_STRING!truncate	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(STREAM =>
-reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~401c09a4)/STREAM_=>_STRING!insert	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(STREAM => 's' zzz) AS SELECT 1
-reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~401c09a4)/STREAM_=>_STRING!swap	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(STREAMLIT => 's') AS SELECT 1
-reject	accept	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~401c09a4)/TIMESTAMP_=>_STRING	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(TIMESTAMP => 's') AS SELECT 1
-reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~401c09a4)/TIMESTAMP_=>_STRING!drop-2	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(TIMESTAMP 's') AS SELECT 1
-reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~401c09a4)/TIMESTAMP_=>_STRING!drop-3	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(TIMESTAMP =>) AS SELECT 1
-reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~401c09a4)/TIMESTAMP_=>_STRING!truncate	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(TIMESTAMP =>
-reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~401c09a4)/TIMESTAMP_=>_STRING!insert	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(TIMESTAMP => 's' zzz) AS SELECT 1
-reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~401c09a4)/TIMESTAMP_=>_STRING!swap	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(TIMESTAMP_COLUMN => 's') AS SELECT 1
-reject	accept	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~401c09a4)/STATEMENT_=>_ID	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(STATEMENT => a) AS SELECT 1
-reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~401c09a4)/STATEMENT_=>_ID!drop-1	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(=> a) AS SELECT 1
-reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~401c09a4)/STATEMENT_=>_ID!drop-2	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(STATEMENT a) AS SELECT 1
-reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~401c09a4)/STATEMENT_=>_ID!drop-3	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(STATEMENT =>) AS SELECT 1
-reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~401c09a4)/STATEMENT_=>_ID!truncate	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(STATEMENT =>
-reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~401c09a4)/STATEMENT_=>_ID!insert	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(STATEMENT => a zzz) AS SELECT 1
-reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~401c09a4)/STATEMENT_=>_ID!swap	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(STATEMENT_QUEUED_TIMEOUT_IN_SECONDS => a) AS SELECT 1
-reject	accept	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~401c09a4)/OFFSET_=>_-_NUMBER	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(OFFSET => - 1) AS SELECT 1
-reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~401c09a4)/OFFSET_=>_-_NUMBER!drop-1	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(=> - 1) AS SELECT 1
-reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~401c09a4)/OFFSET_=>_-_NUMBER!drop-2	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(OFFSET - 1) AS SELECT 1
-reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~401c09a4)/OFFSET_=>_-_NUMBER!drop-3	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(OFFSET => 1) AS SELECT 1
-reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~401c09a4)/OFFSET_=>_-_NUMBER!drop-4	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(OFFSET => -) AS SELECT 1
-reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~401c09a4)/OFFSET_=>_-_NUMBER!truncate	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(OFFSET => -
-reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~401c09a4)/OFFSET_=>_-_NUMBER!insert	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(OFFSET => - 1 zzz) AS SELECT 1
-reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~401c09a4)/OFFSET_=>_-_NUMBER!swap	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(OIDC => - 1) AS SELECT 1
+accept	accept	docs	createDynamicTable(START_AT_(_(STREAM_=>_STRING|TIMESTA~624933f7)?/%empty	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a AS SELECT 1
+reject	accept	docs	createDynamicTable(START_AT_(_(STREAM_=>_STRING|TIMESTA~624933f7)?/START_AT_(_(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)_)	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(STREAM => 's') AS SELECT 1
+reject	undocumented	docs	createDynamicTable(START_AT_(_(STREAM_=>_STRING|TIMESTA~624933f7)?/START_AT_(_(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)_)!drop-1	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a AT(STREAM => 's') AS SELECT 1
+reject	undocumented	docs	createDynamicTable(START_AT_(_(STREAM_=>_STRING|TIMESTA~624933f7)?/START_AT_(_(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)_)!drop-2	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START(STREAM => 's') AS SELECT 1
+reject	undocumented	docs	createDynamicTable(START_AT_(_(STREAM_=>_STRING|TIMESTA~624933f7)?/START_AT_(_(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)_)!drop-3	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT STREAM => 's') AS SELECT 1
+reject	undocumented	docs	createDynamicTable(START_AT_(_(STREAM_=>_STRING|TIMESTA~624933f7)?/START_AT_(_(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)_)!drop-4	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(=> 's') AS SELECT 1
+reject	undocumented	docs	createDynamicTable(START_AT_(_(STREAM_=>_STRING|TIMESTA~624933f7)?/START_AT_(_(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)_)!drop-5	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(STREAM 's') AS SELECT 1
+reject	undocumented	docs	createDynamicTable(START_AT_(_(STREAM_=>_STRING|TIMESTA~624933f7)?/START_AT_(_(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)_)!drop-6	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(STREAM =>) AS SELECT 1
+reject	undocumented	docs	createDynamicTable(START_AT_(_(STREAM_=>_STRING|TIMESTA~624933f7)?/START_AT_(_(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)_)!drop-7	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(STREAM => 's' AS SELECT 1
+reject	undocumented	docs	createDynamicTable(START_AT_(_(STREAM_=>_STRING|TIMESTA~624933f7)?/START_AT_(_(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)_)!truncate	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(STREAM => 's'
+reject	undocumented	docs	createDynamicTable(START_AT_(_(STREAM_=>_STRING|TIMESTA~624933f7)?/START_AT_(_(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)_)!insert	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(STREAM => 's') zzz AS SELECT 1
+reject	undocumented	docs	createDynamicTable(START_AT_(_(STREAM_=>_STRING|TIMESTA~624933f7)?/START_AT_(_(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)_)!swap	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a STARTS AT(STREAM => 's') AS SELECT 1
+reject	accept	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)/STREAM_=>_STRING	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(STREAM => 's') AS SELECT 1
+reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)/STREAM_=>_STRING!truncate	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(STREAM =>
+reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)/STREAM_=>_STRING!insert	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(STREAM => 's' zzz) AS SELECT 1
+reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)/STREAM_=>_STRING!swap	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(STREAMLIT => 's') AS SELECT 1
+reject	accept	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)/TIMESTAMP_=>_STRING	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(TIMESTAMP => 's') AS SELECT 1
+reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)/TIMESTAMP_=>_STRING!drop-2	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(TIMESTAMP 's') AS SELECT 1
+reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)/TIMESTAMP_=>_STRING!drop-3	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(TIMESTAMP =>) AS SELECT 1
+reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)/TIMESTAMP_=>_STRING!truncate	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(TIMESTAMP =>
+reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)/TIMESTAMP_=>_STRING!insert	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(TIMESTAMP => 's' zzz) AS SELECT 1
+reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)/TIMESTAMP_=>_STRING!swap	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(TIMESTAMP_COLUMN => 's') AS SELECT 1
+reject	accept	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)/STATEMENT_=>_STRING	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(STATEMENT => 's') AS SELECT 1
+reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)/STATEMENT_=>_STRING!drop-2	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(STATEMENT 's') AS SELECT 1
+reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)/STATEMENT_=>_STRING!drop-3	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(STATEMENT =>) AS SELECT 1
+reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)/STATEMENT_=>_STRING!truncate	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(STATEMENT =>
+reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)/STATEMENT_=>_STRING!insert	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(STATEMENT => 's' zzz) AS SELECT 1
+reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)/STATEMENT_=>_STRING!swap	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(STATEMENT_QUEUED_TIMEOUT_IN_SECONDS => 's') AS SELECT 1
+reject	accept	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)/OFFSET_=>_-_NUMBER	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(OFFSET => - 1) AS SELECT 1
+reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)/OFFSET_=>_-_NUMBER!drop-1	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(=> - 1) AS SELECT 1
+reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)/OFFSET_=>_-_NUMBER!drop-2	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(OFFSET - 1) AS SELECT 1
+reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)/OFFSET_=>_-_NUMBER!drop-3	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(OFFSET => 1) AS SELECT 1
+reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)/OFFSET_=>_-_NUMBER!drop-4	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(OFFSET => -) AS SELECT 1
+reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)/OFFSET_=>_-_NUMBER!truncate	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(OFFSET => -
+reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)/OFFSET_=>_-_NUMBER!insert	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(OFFSET => - 1 zzz) AS SELECT 1
+reject	undocumented	docs	createDynamicTable(STREAM_=>_STRING|TIMESTAMP_=>_STRING~99e06dae)/OFFSET_=>_-_NUMBER!swap	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a START AT(OIDC => - 1) AS SELECT 1
 accept	accept	docs	createDynamicTable(EXECUTE_AS_USER_ID_(USE_SECONDARY_RO~c0d0abdf)?/%empty	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a AS SELECT 1
 reject	accept	docs	createDynamicTable(EXECUTE_AS_USER_ID_(USE_SECONDARY_RO~c0d0abdf)?/EXECUTE_AS_USER_ID_(USE_SECONDARY_ROLES_(ALL|NONE|ID_(,_ID)*))?	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a EXECUTE AS USER a AS SELECT 1
 reject	undocumented	docs	createDynamicTable(EXECUTE_AS_USER_ID_(USE_SECONDARY_RO~c0d0abdf)?/EXECUTE_AS_USER_ID_(USE_SECONDARY_ROLES_(ALL|NONE|ID_(,_ID)*))?!drop-1	CREATE DYNAMIC TABLE a(a INT) TARGET_LAG = 's' WAREHOUSE = a AS USER a AS SELECT 1
@@ -38960,7 +38927,7 @@ reject	undocumented	docs	createRowAccessPolicy(COMMENT_=_STRING)?/COMMENT_=_STRI
 reject	undocumented	docs	createRowAccessPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE ROW ACCESS POLICY a AS(a INT) RETURNS BOOLEAN -> a COMMENT =
 accept	undocumented	docs	createRowAccessPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE ROW ACCESS POLICY a AS(a INT) RETURNS BOOLEAN -> a COMMENT = 's' zzz
 accept	undocumented	docs	createRowAccessPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE ROW ACCESS POLICY a AS(a INT) RETURNS BOOLEAN -> a COMMENTS = 's'
-accept	accept	docs	createSchema/CREATE_(OR_REPLACE)?_(TRANSIENT)?_SCHEMA_(IF_NOT_EXISTS~d458f81c	CREATE SCHEMA a
+accept	accept	docs	createSchema/CREATE_(OR_REPLACE)?_(TRANSIENT)?_SCHEMA_(IF_NOT_EXISTS~00e5cef3	CREATE SCHEMA a
 reject	accept	docs	createSchema/CREATE_SCHEMA_ID_FROM_BACKUP_SET_ID_IDENTIFIER_STRING	CREATE SCHEMA a FROM BACKUP SET a IDENTIFIER 's'
 reject	undocumented	docs	createSchema/CREATE_SCHEMA_ID_FROM_BACKUP_SET_ID_IDENTIFIER_STRING!drop-1	SCHEMA a FROM BACKUP SET a IDENTIFIER 's'
 reject	undocumented	docs	createSchema/CREATE_SCHEMA_ID_FROM_BACKUP_SET_ID_IDENTIFIER_STRING!drop-3	CREATE SCHEMA FROM BACKUP SET a IDENTIFIER 's'
@@ -38992,46 +38959,45 @@ reject	undocumented	docs	createSchema(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREAT
 reject	undocumented	docs	createSchema(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE SCHEMA IF NOT
 reject	undocumented	docs	createSchema(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE SCHEMA IF NOT EXISTS zzz a
 reject	undocumented	docs	createSchema(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE SCHEMA IGNORE NOT EXISTS a
-accept	accept	docs	createSchema(CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=~69fc560a)?/%empty	CREATE SCHEMA a
-accept	accept	docs	createSchema(CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=~69fc560a)?/CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12~212bd809	CREATE SCHEMA a CLONE a
-reject	undocumented	docs	createSchema(CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=~69fc560a)?/CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12~212bd809!drop-1	CREATE SCHEMA a a
-reject	undocumented	docs	createSchema(CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=~69fc560a)?/CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12~212bd809!drop-2	CREATE SCHEMA a CLONE
-reject	undocumented	docs	createSchema(CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=~69fc560a)?/CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12~212bd809!insert	CREATE SCHEMA a CLONE a zzz
-reject	undocumented	docs	createSchema(CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=~69fc560a)?/CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12~212bd809!swap	CREATE SCHEMA a CLOUD_PROVIDER a
-accept	accept	docs	createSchema((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/%empty	CREATE SCHEMA a CLONE a
-accept	accept	docs	createSchema((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)	CREATE SCHEMA a CLONE a AT(TIMESTAMP => 's')
-reject	undocumented	docs	createSchema((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)!drop-1	CREATE SCHEMA a CLONE a(TIMESTAMP => 's')
-reject	undocumented	docs	createSchema((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)!drop-2	CREATE SCHEMA a CLONE a AT TIMESTAMP => 's')
-reject	undocumented	docs	createSchema((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)!drop-3	CREATE SCHEMA a CLONE a AT(=> 's')
-reject	undocumented	docs	createSchema((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)!drop-4	CREATE SCHEMA a CLONE a AT(TIMESTAMP 's')
-reject	undocumented	docs	createSchema((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)!drop-5	CREATE SCHEMA a CLONE a AT(TIMESTAMP =>)
-reject	undocumented	docs	createSchema((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)!drop-6	CREATE SCHEMA a CLONE a AT(TIMESTAMP => 's'
-reject	undocumented	docs	createSchema((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)!insert	CREATE SCHEMA a CLONE a AT(TIMESTAMP => 's') zzz
-reject	undocumented	docs	createSchema((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~1c33cb12)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)_)!swap	CREATE SCHEMA a CLONE a ATTACH(TIMESTAMP => 's')
+accept	accept	docs	createSchema(CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=~e4de0d55)?/%empty	CREATE SCHEMA a
+accept	accept	docs	createSchema(CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=~e4de0d55)?/CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9cec801c~e920c741	CREATE SCHEMA a CLONE a
+reject	undocumented	docs	createSchema(CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=~e4de0d55)?/CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9cec801c~e920c741!drop-1	CREATE SCHEMA a a
+reject	undocumented	docs	createSchema(CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=~e4de0d55)?/CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9cec801c~e920c741!drop-2	CREATE SCHEMA a CLONE
+reject	undocumented	docs	createSchema(CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=~e4de0d55)?/CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9cec801c~e920c741!insert	CREATE SCHEMA a CLONE a zzz
+reject	undocumented	docs	createSchema(CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=~e4de0d55)?/CLONE_ID_((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9cec801c~e920c741!swap	CREATE SCHEMA a CLOUD_PROVIDER a
+accept	accept	docs	createSchema((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9cec801c)?/%empty	CREATE SCHEMA a CLONE a
+accept	accept	docs	createSchema((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9cec801c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)_)	CREATE SCHEMA a CLONE a AT(TIMESTAMP => 's')
+reject	undocumented	docs	createSchema((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9cec801c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)_)!drop-1	CREATE SCHEMA a CLONE a(TIMESTAMP => 's')
+reject	undocumented	docs	createSchema((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9cec801c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)_)!drop-2	CREATE SCHEMA a CLONE a AT TIMESTAMP => 's')
+reject	undocumented	docs	createSchema((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9cec801c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)_)!drop-3	CREATE SCHEMA a CLONE a AT(=> 's')
+reject	undocumented	docs	createSchema((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9cec801c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)_)!drop-4	CREATE SCHEMA a CLONE a AT(TIMESTAMP 's')
+reject	undocumented	docs	createSchema((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9cec801c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)_)!drop-5	CREATE SCHEMA a CLONE a AT(TIMESTAMP =>)
+reject	undocumented	docs	createSchema((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9cec801c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)_)!drop-6	CREATE SCHEMA a CLONE a AT(TIMESTAMP => 's'
+reject	undocumented	docs	createSchema((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9cec801c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)_)!insert	CREATE SCHEMA a CLONE a AT(TIMESTAMP => 's') zzz
+reject	undocumented	docs	createSchema((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~9cec801c)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)_)!swap	CREATE SCHEMA a CLONE a ATTACH(TIMESTAMP => 's')
 accept	accept	docs	createSchema(AT|BEFORE)/AT	CREATE SCHEMA a CLONE a AT(TIMESTAMP => 's')
 reject	undocumented	docs	createSchema(AT|BEFORE)/AT!insert	CREATE SCHEMA a CLONE a AT zzz(TIMESTAMP => 's')
 accept	accept	docs	createSchema(AT|BEFORE)/BEFORE	CREATE SCHEMA a CLONE a BEFORE(TIMESTAMP => 's')
 reject	undocumented	docs	createSchema(AT|BEFORE)/BEFORE!insert	CREATE SCHEMA a CLONE a BEFORE zzz(TIMESTAMP => 's')
 reject	undocumented	docs	createSchema(AT|BEFORE)/BEFORE!swap	CREATE SCHEMA a CLONE a BEGIN(TIMESTAMP => 's')
-accept	accept	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/TIMESTAMP_=>_STRING	CREATE SCHEMA a CLONE a AT(TIMESTAMP => 's')
-reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/TIMESTAMP_=>_STRING!truncate	CREATE SCHEMA a CLONE a AT(TIMESTAMP =>
-reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/TIMESTAMP_=>_STRING!insert	CREATE SCHEMA a CLONE a AT(TIMESTAMP => 's' zzz)
-reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/TIMESTAMP_=>_STRING!swap	CREATE SCHEMA a CLONE a AT(TIMESTAMP_COLUMN => 's')
-accept	accept	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/OFFSET_=>_-_NUMBER	CREATE SCHEMA a CLONE a AT(OFFSET => - 1)
-reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/OFFSET_=>_-_NUMBER!drop-1	CREATE SCHEMA a CLONE a AT(=> - 1)
-reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/OFFSET_=>_-_NUMBER!drop-2	CREATE SCHEMA a CLONE a AT(OFFSET - 1)
-accept	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/OFFSET_=>_-_NUMBER!drop-3	CREATE SCHEMA a CLONE a AT(OFFSET => 1)
-reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/OFFSET_=>_-_NUMBER!drop-4	CREATE SCHEMA a CLONE a AT(OFFSET => -)
-reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/OFFSET_=>_-_NUMBER!truncate	CREATE SCHEMA a CLONE a AT(OFFSET => -
-reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/OFFSET_=>_-_NUMBER!insert	CREATE SCHEMA a CLONE a AT(OFFSET => - 1 zzz)
-reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/OFFSET_=>_-_NUMBER!swap	CREATE SCHEMA a CLONE a AT(OIDC => - 1)
-accept	accept	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/STATEMENT_=>_ID	CREATE SCHEMA a CLONE a AT(STATEMENT => a)
-reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/STATEMENT_=>_ID!drop-1	CREATE SCHEMA a CLONE a AT(=> a)
-reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/STATEMENT_=>_ID!drop-2	CREATE SCHEMA a CLONE a AT(STATEMENT a)
-reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/STATEMENT_=>_ID!drop-3	CREATE SCHEMA a CLONE a AT(STATEMENT =>)
-reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/STATEMENT_=>_ID!truncate	CREATE SCHEMA a CLONE a AT(STATEMENT =>
-reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/STATEMENT_=>_ID!insert	CREATE SCHEMA a CLONE a AT(STATEMENT => a zzz)
-reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~8f65691b)/STATEMENT_=>_ID!swap	CREATE SCHEMA a CLONE a AT(STATEMENT_QUEUED_TIMEOUT_IN_SECONDS => a)
+accept	accept	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/TIMESTAMP_=>_STRING	CREATE SCHEMA a CLONE a AT(TIMESTAMP => 's')
+reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/TIMESTAMP_=>_STRING!truncate	CREATE SCHEMA a CLONE a AT(TIMESTAMP =>
+reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/TIMESTAMP_=>_STRING!insert	CREATE SCHEMA a CLONE a AT(TIMESTAMP => 's' zzz)
+reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/TIMESTAMP_=>_STRING!swap	CREATE SCHEMA a CLONE a AT(TIMESTAMP_COLUMN => 's')
+accept	accept	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/OFFSET_=>_-_NUMBER	CREATE SCHEMA a CLONE a AT(OFFSET => - 1)
+reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/OFFSET_=>_-_NUMBER!drop-1	CREATE SCHEMA a CLONE a AT(=> - 1)
+reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/OFFSET_=>_-_NUMBER!drop-2	CREATE SCHEMA a CLONE a AT(OFFSET - 1)
+accept	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/OFFSET_=>_-_NUMBER!drop-3	CREATE SCHEMA a CLONE a AT(OFFSET => 1)
+reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/OFFSET_=>_-_NUMBER!drop-4	CREATE SCHEMA a CLONE a AT(OFFSET => -)
+reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/OFFSET_=>_-_NUMBER!truncate	CREATE SCHEMA a CLONE a AT(OFFSET => -
+reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/OFFSET_=>_-_NUMBER!insert	CREATE SCHEMA a CLONE a AT(OFFSET => - 1 zzz)
+reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/OFFSET_=>_-_NUMBER!swap	CREATE SCHEMA a CLONE a AT(OIDC => - 1)
+accept	accept	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/STATEMENT_=>_STRING	CREATE SCHEMA a CLONE a AT(STATEMENT => 's')
+reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/STATEMENT_=>_STRING!drop-2	CREATE SCHEMA a CLONE a AT(STATEMENT 's')
+reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/STATEMENT_=>_STRING!drop-3	CREATE SCHEMA a CLONE a AT(STATEMENT =>)
+reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/STATEMENT_=>_STRING!truncate	CREATE SCHEMA a CLONE a AT(STATEMENT =>
+reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/STATEMENT_=>_STRING!insert	CREATE SCHEMA a CLONE a AT(STATEMENT => 's' zzz)
+reject	undocumented	docs	createSchema(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~1d62ad45)/STATEMENT_=>_STRING!swap	CREATE SCHEMA a CLONE a AT(STATEMENT_QUEUED_TIMEOUT_IN_SECONDS => 's')
 accept	accept	docs	createSchema(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)?/%empty	CREATE SCHEMA a CLONE a
 reject	accept	docs	createSchema(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)?/IGNORE_TABLES_WITH_INSUFFICIENT_DATA_RETENTION	CREATE SCHEMA a CLONE a IGNORE TABLES WITH INSUFFICIENT DATA RETENTION
 reject	undocumented	docs	createSchema(IGNORE_TABLES_WITH_INSUFFICIENT_DATA~f5b37699)?/IGNORE_TABLES_WITH_INSUFFICIENT_DATA_RETENTION!drop-1	CREATE SCHEMA a CLONE a TABLES WITH INSUFFICIENT DATA RETENTION
@@ -42454,7 +42420,7 @@ reject	undocumented	docs	createStorageLifecyclePolicy(,_ID_=_STRING)*/,_ID_=_STR
 reject	undocumented	docs	createStorageLifecyclePolicy(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!drop-4	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> a TAG(a = 's', a =)
 reject	undocumented	docs	createStorageLifecyclePolicy(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!truncate	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> a TAG(a = 's', a =
 reject	undocumented	docs	createStorageLifecyclePolicy(,_ID_=_STRING)*/,_ID_=_STRING_(,_ID_=_STRING)*!insert	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> a TAG(a = 's', a = 's' zzz)
-accept	accept	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~5c054d0a	CREATE STREAM a ON TABLE a
+accept	accept	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~ed8e525a	CREATE STREAM a ON TABLE a
 reject	accept	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~f03c8dd8	CREATE STREAM a ON EVENT TABLE a
 reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~f03c8dd8!drop-1	STREAM a ON EVENT TABLE a
 reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~f03c8dd8!drop-2	CREATE a ON EVENT TABLE a
@@ -42464,15 +42430,15 @@ reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS
 reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~f03c8dd8!drop-7	CREATE STREAM a ON EVENT TABLE
 reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~f03c8dd8!insert	CREATE STREAM a ON EVENT TABLE a zzz
 reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~f03c8dd8!swap	CREATION STREAM a ON EVENT TABLE a
-accept	accept	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~84878139	CREATE STREAM a ON EXTERNAL TABLE a
-reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~84878139!drop-1	STREAM a ON EXTERNAL TABLE a
-reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~84878139!drop-2	CREATE a ON EXTERNAL TABLE a
-reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~84878139!drop-3	CREATE STREAM ON EXTERNAL TABLE a
-reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~84878139!drop-4	CREATE STREAM a EXTERNAL TABLE a
-reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~84878139!drop-6	CREATE STREAM a ON EXTERNAL a
-reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~84878139!drop-7	CREATE STREAM a ON EXTERNAL TABLE
-accept	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~84878139!insert	CREATE STREAM a ON EXTERNAL TABLE a zzz
-reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~84878139!swap	CREATION STREAM a ON EXTERNAL TABLE a
+accept	accept	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~f1ad008f	CREATE STREAM a ON EXTERNAL TABLE a
+reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~f1ad008f!drop-1	STREAM a ON EXTERNAL TABLE a
+reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~f1ad008f!drop-2	CREATE a ON EXTERNAL TABLE a
+reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~f1ad008f!drop-3	CREATE STREAM ON EXTERNAL TABLE a
+reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~f1ad008f!drop-4	CREATE STREAM a EXTERNAL TABLE a
+reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~f1ad008f!drop-6	CREATE STREAM a ON EXTERNAL a
+reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~f1ad008f!drop-7	CREATE STREAM a ON EXTERNAL TABLE
+accept	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~f1ad008f!insert	CREATE STREAM a ON EXTERNAL TABLE a zzz
+reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~f1ad008f!swap	CREATION STREAM a ON EXTERNAL TABLE a
 accept	accept	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~21aa7538	CREATE STREAM a ON STAGE a
 reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~21aa7538!drop-1	STREAM a ON STAGE a
 reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~21aa7538!drop-2	CREATE a ON STAGE a
@@ -42490,14 +42456,14 @@ reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS
 reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~d29c6153!drop-7	CREATE STREAM a ON DYNAMIC TABLE
 reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~d29c6153!insert	CREATE STREAM a ON DYNAMIC TABLE a zzz
 reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~d29c6153!swap	CREATION STREAM a ON DYNAMIC TABLE a
-accept	accept	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~d456480a	CREATE STREAM a ON VIEW a
-reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~d456480a!drop-1	STREAM a ON VIEW a
-reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~d456480a!drop-2	CREATE a ON VIEW a
-reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~d456480a!drop-3	CREATE STREAM ON VIEW a
-reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~d456480a!drop-4	CREATE STREAM a VIEW a
-reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~d456480a!drop-6	CREATE STREAM a ON VIEW
-accept	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~d456480a!insert	CREATE STREAM a ON VIEW a zzz
-reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~d456480a!swap	CREATION STREAM a ON VIEW a
+accept	accept	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~07d81bd4	CREATE STREAM a ON VIEW a
+reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~07d81bd4!drop-1	STREAM a ON VIEW a
+reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~07d81bd4!drop-2	CREATE a ON VIEW a
+reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~07d81bd4!drop-3	CREATE STREAM ON VIEW a
+reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~07d81bd4!drop-4	CREATE STREAM a VIEW a
+reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~07d81bd4!drop-6	CREATE STREAM a ON VIEW
+accept	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~07d81bd4!insert	CREATE STREAM a ON VIEW a zzz
+reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_(IF_NOT_EXISTS)?_ID_(WITH?_~07d81bd4!swap	CREATION STREAM a ON VIEW a
 accept	accept	docs	createStream(OR_REPLACE)?/%empty	CREATE STREAM a ON TABLE a
 reject	undocumented	docs	createStream(OR_REPLACE)?/%empty!insert	CREATE zzz STREAM a ON TABLE a
 accept	accept	docs	createStream(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE STREAM a ON TABLE a
@@ -42548,46 +42514,45 @@ reject	undocumented	docs	createStream(COPY_GRANTS)?/COPY_GRANTS!drop-2	CREATE ST
 reject	undocumented	docs	createStream(COPY_GRANTS)?/COPY_GRANTS!truncate	CREATE STREAM a COPY
 reject	undocumented	docs	createStream(COPY_GRANTS)?/COPY_GRANTS!insert	CREATE STREAM a COPY GRANTS zzz ON TABLE a
 reject	undocumented	docs	createStream(COPY_GRANTS)?/COPY_GRANTS!swap	CREATE STREAM a CORE GRANTS ON TABLE a
-accept	accept	docs	createStream((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~f73ba08a)?/%empty	CREATE STREAM a ON TABLE a
-accept	accept	docs	createStream((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~f73ba08a)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)_)	CREATE STREAM a ON TABLE a AT(TIMESTAMP => 's')
-reject	undocumented	docs	createStream((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~f73ba08a)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)_)!drop-1	CREATE STREAM a ON TABLE a(TIMESTAMP => 's')
-reject	undocumented	docs	createStream((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~f73ba08a)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)_)!drop-2	CREATE STREAM a ON TABLE a AT TIMESTAMP => 's')
-reject	undocumented	docs	createStream((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~f73ba08a)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)_)!drop-3	CREATE STREAM a ON TABLE a AT(=> 's')
-reject	undocumented	docs	createStream((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~f73ba08a)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)_)!drop-4	CREATE STREAM a ON TABLE a AT(TIMESTAMP 's')
-reject	undocumented	docs	createStream((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~f73ba08a)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)_)!drop-5	CREATE STREAM a ON TABLE a AT(TIMESTAMP =>)
-reject	undocumented	docs	createStream((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~f73ba08a)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)_)!drop-6	CREATE STREAM a ON TABLE a AT(TIMESTAMP => 's'
-accept	undocumented	docs	createStream((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~f73ba08a)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)_)!insert	CREATE STREAM a ON TABLE a AT(TIMESTAMP => 's') zzz
-reject	undocumented	docs	createStream((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~f73ba08a)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)_)!swap	CREATE STREAM a ON TABLE a ATTACH(TIMESTAMP => 's')
+accept	accept	docs	createStream((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~0fe8fba9)?/%empty	CREATE STREAM a ON TABLE a
+accept	accept	docs	createStream((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~0fe8fba9)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~26ad3c76)_)	CREATE STREAM a ON TABLE a AT(TIMESTAMP => 's')
+reject	undocumented	docs	createStream((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~0fe8fba9)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~26ad3c76)_)!drop-1	CREATE STREAM a ON TABLE a(TIMESTAMP => 's')
+reject	undocumented	docs	createStream((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~0fe8fba9)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~26ad3c76)_)!drop-2	CREATE STREAM a ON TABLE a AT TIMESTAMP => 's')
+reject	undocumented	docs	createStream((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~0fe8fba9)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~26ad3c76)_)!drop-3	CREATE STREAM a ON TABLE a AT(=> 's')
+reject	undocumented	docs	createStream((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~0fe8fba9)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~26ad3c76)_)!drop-4	CREATE STREAM a ON TABLE a AT(TIMESTAMP 's')
+reject	undocumented	docs	createStream((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~0fe8fba9)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~26ad3c76)_)!drop-5	CREATE STREAM a ON TABLE a AT(TIMESTAMP =>)
+reject	undocumented	docs	createStream((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~0fe8fba9)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~26ad3c76)_)!drop-6	CREATE STREAM a ON TABLE a AT(TIMESTAMP => 's'
+accept	undocumented	docs	createStream((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~0fe8fba9)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~26ad3c76)_)!insert	CREATE STREAM a ON TABLE a AT(TIMESTAMP => 's') zzz
+reject	undocumented	docs	createStream((AT|BEFORE)_(_(TIMESTAMP_=>_STRING|O~0fe8fba9)?/(AT|BEFORE)_(_(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~26ad3c76)_)!swap	CREATE STREAM a ON TABLE a ATTACH(TIMESTAMP => 's')
 accept	accept	docs	createStream(AT|BEFORE)/AT	CREATE STREAM a ON TABLE a AT(TIMESTAMP => 's')
 reject	undocumented	docs	createStream(AT|BEFORE)/AT!insert	CREATE STREAM a ON TABLE a AT zzz(TIMESTAMP => 's')
 accept	accept	docs	createStream(AT|BEFORE)/BEFORE	CREATE STREAM a ON TABLE a BEFORE(TIMESTAMP => 's')
 reject	undocumented	docs	createStream(AT|BEFORE)/BEFORE!insert	CREATE STREAM a ON TABLE a BEFORE zzz(TIMESTAMP => 's')
 reject	undocumented	docs	createStream(AT|BEFORE)/BEFORE!swap	CREATE STREAM a ON TABLE a BEGIN(TIMESTAMP => 's')
-accept	accept	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/TIMESTAMP_=>_STRING	CREATE STREAM a ON TABLE a AT(TIMESTAMP => 's')
-reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/TIMESTAMP_=>_STRING!truncate	CREATE STREAM a ON TABLE a AT(TIMESTAMP =>
-reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/TIMESTAMP_=>_STRING!insert	CREATE STREAM a ON TABLE a AT(TIMESTAMP => 's' zzz)
-accept	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/TIMESTAMP_=>_STRING!swap	CREATE STREAM a ON TABLE a AT(TIMESTAMP_COLUMN => 's')
-accept	accept	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/OFFSET_=>_-_NUMBER	CREATE STREAM a ON TABLE a AT(OFFSET => - 1)
-reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/OFFSET_=>_-_NUMBER!drop-1	CREATE STREAM a ON TABLE a AT(=> - 1)
-reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/OFFSET_=>_-_NUMBER!drop-2	CREATE STREAM a ON TABLE a AT(OFFSET - 1)
-accept	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/OFFSET_=>_-_NUMBER!drop-3	CREATE STREAM a ON TABLE a AT(OFFSET => 1)
-reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/OFFSET_=>_-_NUMBER!drop-4	CREATE STREAM a ON TABLE a AT(OFFSET => -)
-reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/OFFSET_=>_-_NUMBER!truncate	CREATE STREAM a ON TABLE a AT(OFFSET => -
-reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/OFFSET_=>_-_NUMBER!insert	CREATE STREAM a ON TABLE a AT(OFFSET => - 1 zzz)
-accept	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/OFFSET_=>_-_NUMBER!swap	CREATE STREAM a ON TABLE a AT(OIDC => - 1)
-accept	accept	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/STATEMENT_=>_ID	CREATE STREAM a ON TABLE a AT(STATEMENT => a)
-reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/STATEMENT_=>_ID!drop-1	CREATE STREAM a ON TABLE a AT(=> a)
-reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/STATEMENT_=>_ID!drop-2	CREATE STREAM a ON TABLE a AT(STATEMENT a)
-reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/STATEMENT_=>_ID!drop-3	CREATE STREAM a ON TABLE a AT(STATEMENT =>)
-reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/STATEMENT_=>_ID!truncate	CREATE STREAM a ON TABLE a AT(STATEMENT =>
-reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/STATEMENT_=>_ID!insert	CREATE STREAM a ON TABLE a AT(STATEMENT => a zzz)
-accept	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/STATEMENT_=>_ID!swap	CREATE STREAM a ON TABLE a AT(STATEMENT_QUEUED_TIMEOUT_IN_SECONDS => a)
-accept	accept	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/STREAM_=>_STRING	CREATE STREAM a ON TABLE a AT(STREAM => 's')
-reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/STREAM_=>_STRING!drop-2	CREATE STREAM a ON TABLE a AT(STREAM 's')
-reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/STREAM_=>_STRING!drop-3	CREATE STREAM a ON TABLE a AT(STREAM =>)
-reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/STREAM_=>_STRING!truncate	CREATE STREAM a ON TABLE a AT(STREAM =>
-reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/STREAM_=>_STRING!insert	CREATE STREAM a ON TABLE a AT(STREAM => 's' zzz)
-accept	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~4a5f0c9e)/STREAM_=>_STRING!swap	CREATE STREAM a ON TABLE a AT(STREAMLIT => 's')
+accept	accept	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~26ad3c76)/TIMESTAMP_=>_STRING	CREATE STREAM a ON TABLE a AT(TIMESTAMP => 's')
+reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~26ad3c76)/TIMESTAMP_=>_STRING!truncate	CREATE STREAM a ON TABLE a AT(TIMESTAMP =>
+reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~26ad3c76)/TIMESTAMP_=>_STRING!insert	CREATE STREAM a ON TABLE a AT(TIMESTAMP => 's' zzz)
+accept	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~26ad3c76)/TIMESTAMP_=>_STRING!swap	CREATE STREAM a ON TABLE a AT(TIMESTAMP_COLUMN => 's')
+accept	accept	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~26ad3c76)/OFFSET_=>_-_NUMBER	CREATE STREAM a ON TABLE a AT(OFFSET => - 1)
+reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~26ad3c76)/OFFSET_=>_-_NUMBER!drop-1	CREATE STREAM a ON TABLE a AT(=> - 1)
+reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~26ad3c76)/OFFSET_=>_-_NUMBER!drop-2	CREATE STREAM a ON TABLE a AT(OFFSET - 1)
+accept	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~26ad3c76)/OFFSET_=>_-_NUMBER!drop-3	CREATE STREAM a ON TABLE a AT(OFFSET => 1)
+reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~26ad3c76)/OFFSET_=>_-_NUMBER!drop-4	CREATE STREAM a ON TABLE a AT(OFFSET => -)
+reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~26ad3c76)/OFFSET_=>_-_NUMBER!truncate	CREATE STREAM a ON TABLE a AT(OFFSET => -
+reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~26ad3c76)/OFFSET_=>_-_NUMBER!insert	CREATE STREAM a ON TABLE a AT(OFFSET => - 1 zzz)
+accept	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~26ad3c76)/OFFSET_=>_-_NUMBER!swap	CREATE STREAM a ON TABLE a AT(OIDC => - 1)
+accept	accept	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~26ad3c76)/STATEMENT_=>_STRING	CREATE STREAM a ON TABLE a AT(STATEMENT => 's')
+reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~26ad3c76)/STATEMENT_=>_STRING!drop-2	CREATE STREAM a ON TABLE a AT(STATEMENT 's')
+reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~26ad3c76)/STATEMENT_=>_STRING!drop-3	CREATE STREAM a ON TABLE a AT(STATEMENT =>)
+reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~26ad3c76)/STATEMENT_=>_STRING!truncate	CREATE STREAM a ON TABLE a AT(STATEMENT =>
+reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~26ad3c76)/STATEMENT_=>_STRING!insert	CREATE STREAM a ON TABLE a AT(STATEMENT => 's' zzz)
+accept	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~26ad3c76)/STATEMENT_=>_STRING!swap	CREATE STREAM a ON TABLE a AT(STATEMENT_QUEUED_TIMEOUT_IN_SECONDS => 's')
+accept	accept	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~26ad3c76)/STREAM_=>_STRING	CREATE STREAM a ON TABLE a AT(STREAM => 's')
+reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~26ad3c76)/STREAM_=>_STRING!drop-2	CREATE STREAM a ON TABLE a AT(STREAM 's')
+reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~26ad3c76)/STREAM_=>_STRING!drop-3	CREATE STREAM a ON TABLE a AT(STREAM =>)
+reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~26ad3c76)/STREAM_=>_STRING!truncate	CREATE STREAM a ON TABLE a AT(STREAM =>
+reject	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~26ad3c76)/STREAM_=>_STRING!insert	CREATE STREAM a ON TABLE a AT(STREAM => 's' zzz)
+accept	undocumented	docs	createStream(TIMESTAMP_=>_STRING|OFFSET_=>_-_NUMB~26ad3c76)/STREAM_=>_STRING!swap	CREATE STREAM a ON TABLE a AT(STREAMLIT => 's')
 accept	accept	docs	createStream(APPEND_ONLY_=_TRUE|APPEND_ONLY_=_FALSE)?/%empty	CREATE STREAM a ON TABLE a
 accept	accept	docs	createStream(APPEND_ONLY_=_TRUE|APPEND_ONLY_=_FALSE)?/APPEND_ONLY_=_TRUE	CREATE STREAM a ON TABLE a APPEND_ONLY = TRUE
 reject	undocumented	docs	createStream(APPEND_ONLY_=_TRUE|APPEND_ONLY_=_FALSE)?/APPEND_ONLY_=_TRUE!drop-1	CREATE STREAM a ON TABLE a = TRUE
@@ -46451,7 +46416,7 @@ accept	accept	docs	dropWarehouse(IF_EXISTS)?/IF_EXISTS!truncate	DROP WAREHOUSE I
 reject	undocumented	docs	dropWarehouse(IF_EXISTS)?/IF_EXISTS!insert	DROP WAREHOUSE IF EXISTS zzz a
 reject	undocumented	docs	dropWarehouse(IF_EXISTS)?/IF_EXISTS!swap	DROP WAREHOUSE IGNORE EXISTS a
 reject	accept	docs	executeAlert/EXECUTE_ALERT_ID	EXECUTE ALERT a
-reject	accept	docs	executeDbtProject/EXECUTE_DBT_PROJECT_(IF_EXISTS)?_ID_(ARGS_=_STRING)?_(D~31886813	EXECUTE DBT PROJECT a
+reject	accept	docs	executeDbtProject/EXECUTE_DBT_PROJECT_(IF_EXISTS)?_ID_(ARGS_=_STRING)?_(D~4717e8b0	EXECUTE DBT PROJECT a
 reject	accept	docs	executeDbtProject(IF_EXISTS)?/%empty	EXECUTE DBT PROJECT a
 reject	undocumented	docs	executeDbtProject(IF_EXISTS)?/%empty!insert	EXECUTE DBT PROJECT zzz a
 reject	accept	docs	executeDbtProject(IF_EXISTS)?/IF_EXISTS	EXECUTE DBT PROJECT IF EXISTS a
@@ -46467,13 +46432,12 @@ reject	undocumented	docs	executeDbtProject(ARGS_=_STRING)?/ARGS_=_STRING!drop-2	
 reject	undocumented	docs	executeDbtProject(ARGS_=_STRING)?/ARGS_=_STRING!drop-3	EXECUTE DBT PROJECT a ARGS =
 reject	undocumented	docs	executeDbtProject(ARGS_=_STRING)?/ARGS_=_STRING!insert	EXECUTE DBT PROJECT a ARGS = 's' zzz
 reject	undocumented	docs	executeDbtProject(ARGS_=_STRING)?/ARGS_=_STRING!swap	EXECUTE DBT PROJECT a ARGUMENTS = 's'
-reject	accept	docs	executeDbtProject(DBT_VERSION_=_'version_number')?/%empty	EXECUTE DBT PROJECT a
-reject	accept	docs	executeDbtProject(DBT_VERSION_=_'version_number')?/DBT_VERSION_=_'version_number'	EXECUTE DBT PROJECT a DBT_VERSION = 'version_number'
-reject	undocumented	docs	executeDbtProject(DBT_VERSION_=_'version_number')?/DBT_VERSION_=_'version_number'!drop-1	EXECUTE DBT PROJECT a = 'version_number'
-reject	undocumented	docs	executeDbtProject(DBT_VERSION_=_'version_number')?/DBT_VERSION_=_'version_number'!drop-2	EXECUTE DBT PROJECT a DBT_VERSION 'version_number'
-reject	undocumented	docs	executeDbtProject(DBT_VERSION_=_'version_number')?/DBT_VERSION_=_'version_number'!drop-3	EXECUTE DBT PROJECT a DBT_VERSION =
-reject	undocumented	docs	executeDbtProject(DBT_VERSION_=_'version_number')?/DBT_VERSION_=_'version_number'!insert	EXECUTE DBT PROJECT a DBT_VERSION = 'version_number' zzz
-reject	undocumented	docs	executeDbtProject(DBT_VERSION_=_'version_number')?/DBT_VERSION_=_'version_number'!swap	EXECUTE DBT PROJECT a DCM = 'version_number'
+reject	accept	docs	executeDbtProject(DBT_VERSION_=_STRING)?/%empty	EXECUTE DBT PROJECT a
+reject	accept	docs	executeDbtProject(DBT_VERSION_=_STRING)?/DBT_VERSION_=_STRING	EXECUTE DBT PROJECT a DBT_VERSION = 's'
+reject	undocumented	docs	executeDbtProject(DBT_VERSION_=_STRING)?/DBT_VERSION_=_STRING!drop-2	EXECUTE DBT PROJECT a DBT_VERSION 's'
+reject	undocumented	docs	executeDbtProject(DBT_VERSION_=_STRING)?/DBT_VERSION_=_STRING!drop-3	EXECUTE DBT PROJECT a DBT_VERSION =
+reject	undocumented	docs	executeDbtProject(DBT_VERSION_=_STRING)?/DBT_VERSION_=_STRING!insert	EXECUTE DBT PROJECT a DBT_VERSION = 's' zzz
+reject	undocumented	docs	executeDbtProject(DBT_VERSION_=_STRING)?/DBT_VERSION_=_STRING!swap	EXECUTE DBT PROJECT a DCM = 's'
 reject	accept	docs	executeDbtProject(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))?/%empty	EXECUTE DBT PROJECT a
 reject	accept	docs	executeDbtProject(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))?/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)	EXECUTE DBT PROJECT a EXTERNAL_ACCESS_INTEGRATIONS =(a)
 reject	undocumented	docs	executeDbtProject(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))?/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)!drop-1	EXECUTE DBT PROJECT a =(a)
