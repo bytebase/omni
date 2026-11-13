@@ -4454,7 +4454,7 @@ reject@12	reject@12	engine	DropStmt/DROP_TYPE_P_type_name_list_opt_drop_behavior
 reject@0	reject@0	engine	DropStmt/DROP_TYPE_P_type_name_list_opt_drop_behavior!swap	EACH TYPE a
 accept	accept	engine	DropStmt/DROP_TYPE_P_IF_P_EXISTS_type_name_list_opt_drop_behavior	DROP TYPE IF EXISTS a
 reject@0	reject@0	engine	DropStmt/DROP_TYPE_P_IF_P_EXISTS_type_name_list_opt_drop_behavior!drop-1	TYPE IF EXISTS a
-reject@17	reject@10	engine	DropStmt/DROP_TYPE_P_IF_P_EXISTS_type_name_list_opt_drop_behavior!drop-3	DROP TYPE EXISTS a
+reject@10	reject@10	engine	DropStmt/DROP_TYPE_P_IF_P_EXISTS_type_name_list_opt_drop_behavior!drop-3	DROP TYPE EXISTS a
 reject@13	reject@13	engine	DropStmt/DROP_TYPE_P_IF_P_EXISTS_type_name_list_opt_drop_behavior!drop-4	DROP TYPE IF a
 reject@19	reject@19	engine	DropStmt/DROP_TYPE_P_IF_P_EXISTS_type_name_list_opt_drop_behavior!drop-5	DROP TYPE IF EXISTS
 reject@22	reject@22	engine	DropStmt/DROP_TYPE_P_IF_P_EXISTS_type_name_list_opt_drop_behavior!insert	DROP TYPE IF EXISTS a zzz
@@ -4466,7 +4466,7 @@ reject@14	reject@14	engine	DropStmt/DROP_DOMAIN_P_type_name_list_opt_drop_behavi
 reject@0	reject@0	engine	DropStmt/DROP_DOMAIN_P_type_name_list_opt_drop_behavior!swap	EACH DOMAIN a
 accept	accept	engine	DropStmt/DROP_DOMAIN_P_IF_P_EXISTS_type_name_list_opt_drop_behavior	DROP DOMAIN IF EXISTS a
 reject@0	reject@0	engine	DropStmt/DROP_DOMAIN_P_IF_P_EXISTS_type_name_list_opt_drop_behavior!drop-1	DOMAIN IF EXISTS a
-reject@19	reject@12	engine	DropStmt/DROP_DOMAIN_P_IF_P_EXISTS_type_name_list_opt_drop_behavior!drop-3	DROP DOMAIN EXISTS a
+reject@12	reject@12	engine	DropStmt/DROP_DOMAIN_P_IF_P_EXISTS_type_name_list_opt_drop_behavior!drop-3	DROP DOMAIN EXISTS a
 reject@15	reject@15	engine	DropStmt/DROP_DOMAIN_P_IF_P_EXISTS_type_name_list_opt_drop_behavior!drop-4	DROP DOMAIN IF a
 reject@21	reject@21	engine	DropStmt/DROP_DOMAIN_P_IF_P_EXISTS_type_name_list_opt_drop_behavior!drop-5	DROP DOMAIN IF EXISTS
 reject@24	reject@24	engine	DropStmt/DROP_DOMAIN_P_IF_P_EXISTS_type_name_list_opt_drop_behavior!insert	DROP DOMAIN IF EXISTS a zzz
@@ -9364,41 +9364,41 @@ reject@49	reject@49	engine	json_table_column_path_clause_opt/PATH_Sconst!insert	
 reject@40	reject@40	engine	json_table_column_path_clause_opt/PATH_Sconst!swap	SELECT FROM JSON_TABLE(a, a COLUMNS(a a PLACING 's'))
 accept	reject@26	engine	json_table_column_path_clause_opt/%empty	SELECT FROM JSON_TABLE(a, a COLUMNS(a a))
 accept	accept	engine	Typename/SimpleTypename_opt_array_bounds	DROP TYPE a
-reject@16	accept	engine	Typename/SETOF_SimpleTypename_opt_array_bounds	DROP TYPE SETOF a
-accept	reject@15	engine	Typename/SETOF_SimpleTypename_opt_array_bounds!drop-2	DROP TYPE SETOF
-reject@16	reject@18	engine	Typename/SETOF_SimpleTypename_opt_array_bounds!insert	DROP TYPE SETOF a zzz
+accept	accept	engine	Typename/SETOF_SimpleTypename_opt_array_bounds	DROP TYPE SETOF a
+reject@15	reject@15	engine	Typename/SETOF_SimpleTypename_opt_array_bounds!drop-2	DROP TYPE SETOF
+reject@18	reject@18	engine	Typename/SETOF_SimpleTypename_opt_array_bounds!insert	DROP TYPE SETOF a zzz
 reject@15	reject@15	engine	Typename/SETOF_SimpleTypename_opt_array_bounds!swap	DROP TYPE SETS a
-reject@12	accept	engine	Typename/SimpleTypename_ARRAY_[_Iconst_]	DROP TYPE a ARRAY [ 1 ]
+accept	accept	engine	Typename/SimpleTypename_ARRAY_[_Iconst_]	DROP TYPE a ARRAY [ 1 ]
 reject@10	reject@10	engine	Typename/SimpleTypename_ARRAY_[_Iconst_]!drop-1	DROP TYPE ARRAY [ 1 ]
-reject@12	reject@18	engine	Typename/SimpleTypename_ARRAY_[_Iconst_]!drop-3	DROP TYPE a ARRAY 1 ]
-reject@12	reject@20	engine	Typename/SimpleTypename_ARRAY_[_Iconst_]!drop-4	DROP TYPE a ARRAY [ ]
-reject@12	reject@21	engine	Typename/SimpleTypename_ARRAY_[_Iconst_]!drop-5	DROP TYPE a ARRAY [ 1
-reject@12	reject@24	engine	Typename/SimpleTypename_ARRAY_[_Iconst_]!insert	DROP TYPE a ARRAY [ 1 ] zzz
+reject@18	reject@18	engine	Typename/SimpleTypename_ARRAY_[_Iconst_]!drop-3	DROP TYPE a ARRAY 1 ]
+reject@20	reject@20	engine	Typename/SimpleTypename_ARRAY_[_Iconst_]!drop-4	DROP TYPE a ARRAY [ ]
+reject@21	reject@21	engine	Typename/SimpleTypename_ARRAY_[_Iconst_]!drop-5	DROP TYPE a ARRAY [ 1
+reject@24	reject@24	engine	Typename/SimpleTypename_ARRAY_[_Iconst_]!insert	DROP TYPE a ARRAY [ 1 ] zzz
 reject@12	reject@12	engine	Typename/SimpleTypename_ARRAY_[_Iconst_]!swap	DROP TYPE a AS [ 1 ]
-reject@16	accept	engine	Typename/SETOF_SimpleTypename_ARRAY_[_Iconst_]	DROP TYPE SETOF a ARRAY [ 1 ]
+accept	accept	engine	Typename/SETOF_SimpleTypename_ARRAY_[_Iconst_]	DROP TYPE SETOF a ARRAY [ 1 ]
 reject@16	reject@16	engine	Typename/SETOF_SimpleTypename_ARRAY_[_Iconst_]!drop-2	DROP TYPE SETOF ARRAY [ 1 ]
-reject@16	accept	engine	Typename/SETOF_SimpleTypename_ARRAY_[_Iconst_]!drop-3	DROP TYPE SETOF a [ 1 ]
-reject@16	reject@24	engine	Typename/SETOF_SimpleTypename_ARRAY_[_Iconst_]!drop-4	DROP TYPE SETOF a ARRAY 1 ]
-reject@16	reject@26	engine	Typename/SETOF_SimpleTypename_ARRAY_[_Iconst_]!drop-5	DROP TYPE SETOF a ARRAY [ ]
-reject@16	reject@27	engine	Typename/SETOF_SimpleTypename_ARRAY_[_Iconst_]!drop-6	DROP TYPE SETOF a ARRAY [ 1
-reject@16	reject@30	engine	Typename/SETOF_SimpleTypename_ARRAY_[_Iconst_]!insert	DROP TYPE SETOF a ARRAY [ 1 ] zzz
+accept	accept	engine	Typename/SETOF_SimpleTypename_ARRAY_[_Iconst_]!drop-3	DROP TYPE SETOF a [ 1 ]
+reject@24	reject@24	engine	Typename/SETOF_SimpleTypename_ARRAY_[_Iconst_]!drop-4	DROP TYPE SETOF a ARRAY 1 ]
+reject@26	reject@26	engine	Typename/SETOF_SimpleTypename_ARRAY_[_Iconst_]!drop-5	DROP TYPE SETOF a ARRAY [ ]
+reject@27	reject@27	engine	Typename/SETOF_SimpleTypename_ARRAY_[_Iconst_]!drop-6	DROP TYPE SETOF a ARRAY [ 1
+reject@30	reject@30	engine	Typename/SETOF_SimpleTypename_ARRAY_[_Iconst_]!insert	DROP TYPE SETOF a ARRAY [ 1 ] zzz
 reject@15	reject@15	engine	Typename/SETOF_SimpleTypename_ARRAY_[_Iconst_]!swap	DROP TYPE SETS a ARRAY [ 1 ]
-reject@12	accept	engine	Typename/SimpleTypename_ARRAY	DROP TYPE a ARRAY
+accept	accept	engine	Typename/SimpleTypename_ARRAY	DROP TYPE a ARRAY
 reject@10	reject@10	engine	Typename/SimpleTypename_ARRAY!drop-1	DROP TYPE ARRAY
-reject@12	reject@18	engine	Typename/SimpleTypename_ARRAY!insert	DROP TYPE a ARRAY zzz
+reject@18	reject@18	engine	Typename/SimpleTypename_ARRAY!insert	DROP TYPE a ARRAY zzz
 reject@12	reject@12	engine	Typename/SimpleTypename_ARRAY!swap	DROP TYPE a AS
-reject@16	accept	engine	Typename/SETOF_SimpleTypename_ARRAY	DROP TYPE SETOF a ARRAY
+accept	accept	engine	Typename/SETOF_SimpleTypename_ARRAY	DROP TYPE SETOF a ARRAY
 reject@16	reject@16	engine	Typename/SETOF_SimpleTypename_ARRAY!drop-2	DROP TYPE SETOF ARRAY
-reject@16	reject@24	engine	Typename/SETOF_SimpleTypename_ARRAY!insert	DROP TYPE SETOF a ARRAY zzz
+reject@24	reject@24	engine	Typename/SETOF_SimpleTypename_ARRAY!insert	DROP TYPE SETOF a ARRAY zzz
 reject@15	reject@15	engine	Typename/SETOF_SimpleTypename_ARRAY!swap	DROP TYPE SETS a ARRAY
-reject@12	accept	engine	opt_array_bounds/opt_array_bounds_[_]	DROP TYPE a [ ]
+accept	accept	engine	opt_array_bounds/opt_array_bounds_[_]	DROP TYPE a [ ]
 reject@12	reject@12	engine	opt_array_bounds/opt_array_bounds_[_]!drop-1	DROP TYPE a ]
-reject@12	reject@13	engine	opt_array_bounds/opt_array_bounds_[_]!drop-2	DROP TYPE a [
-reject@12	reject@16	engine	opt_array_bounds/opt_array_bounds_[_]!insert	DROP TYPE a [ ] zzz
-reject@12	accept	engine	opt_array_bounds/opt_array_bounds_[_Iconst_]	DROP TYPE a [ 1 ]
+reject@13	reject@13	engine	opt_array_bounds/opt_array_bounds_[_]!drop-2	DROP TYPE a [
+reject@16	reject@16	engine	opt_array_bounds/opt_array_bounds_[_]!insert	DROP TYPE a [ ] zzz
+accept	accept	engine	opt_array_bounds/opt_array_bounds_[_Iconst_]	DROP TYPE a [ 1 ]
 reject@12	reject@12	engine	opt_array_bounds/opt_array_bounds_[_Iconst_]!drop-1	DROP TYPE a 1 ]
-reject@12	reject@15	engine	opt_array_bounds/opt_array_bounds_[_Iconst_]!drop-3	DROP TYPE a [ 1
-reject@12	reject@18	engine	opt_array_bounds/opt_array_bounds_[_Iconst_]!insert	DROP TYPE a [ 1 ] zzz
+reject@15	reject@15	engine	opt_array_bounds/opt_array_bounds_[_Iconst_]!drop-3	DROP TYPE a [ 1
+reject@18	reject@18	engine	opt_array_bounds/opt_array_bounds_[_Iconst_]!insert	DROP TYPE a [ 1 ] zzz
 accept	accept	engine	opt_array_bounds/%empty	DROP TYPE a
 accept	accept	engine	SimpleTypename/GenericType	DROP TYPE a
 accept	accept	engine	SimpleTypename/Numeric	DROP TYPE INT
@@ -9414,16 +9414,16 @@ reject@10	reject@10	engine	SimpleTypename/ConstDatetime!swap	DROP TYPE TO
 accept	accept	engine	SimpleTypename/ConstInterval_opt_interval	DROP TYPE INTERVAL
 reject@19	reject@19	engine	SimpleTypename/ConstInterval_opt_interval!insert	DROP TYPE INTERVAL zzz
 reject@10	reject@10	engine	SimpleTypename/ConstInterval_opt_interval!swap	DROP TYPE INTO
-reject@18	accept	engine	SimpleTypename/ConstInterval_(_Iconst_)	DROP TYPE INTERVAL(1)
+accept	accept	engine	SimpleTypename/ConstInterval_(_Iconst_)	DROP TYPE INTERVAL(1)
 reject@9	reject@9	engine	SimpleTypename/ConstInterval_(_Iconst_)!drop-1	DROP TYPE(1)
 reject@19	reject@19	engine	SimpleTypename/ConstInterval_(_Iconst_)!drop-2	DROP TYPE INTERVAL 1)
-reject@18	reject@19	engine	SimpleTypename/ConstInterval_(_Iconst_)!drop-3	DROP TYPE INTERVAL()
-reject@18	reject@20	engine	SimpleTypename/ConstInterval_(_Iconst_)!drop-4	DROP TYPE INTERVAL(1
-reject@18	reject@22	engine	SimpleTypename/ConstInterval_(_Iconst_)!insert	DROP TYPE INTERVAL(1) zzz
+reject@19	reject@19	engine	SimpleTypename/ConstInterval_(_Iconst_)!drop-3	DROP TYPE INTERVAL()
+reject@20	reject@20	engine	SimpleTypename/ConstInterval_(_Iconst_)!drop-4	DROP TYPE INTERVAL(1
+reject@22	reject@22	engine	SimpleTypename/ConstInterval_(_Iconst_)!insert	DROP TYPE INTERVAL(1) zzz
 reject@10	reject@10	engine	SimpleTypename/ConstInterval_(_Iconst_)!swap	DROP TYPE INTO(1)
 accept	accept	engine	SimpleTypename/JsonType	DROP TYPE JSON
 reject@15	reject@15	engine	SimpleTypename/JsonType!insert	DROP TYPE JSON zzz
-accept	reject@10	engine	SimpleTypename/JsonType!swap	DROP TYPE JSON_ARRAY
+reject@10	reject@10	engine	SimpleTypename/JsonType!swap	DROP TYPE JSON_ARRAY
 accept	accept	engine	ConstTypename/Numeric	SELECT INT 's'
 reject@15	reject@15	engine	ConstTypename/Numeric!insert	SELECT INT zzz 's'
 accept	accept	engine	ConstTypename/Numeric!swap	SELECT INTEGER 's'
@@ -9442,13 +9442,13 @@ reject@18	reject@18	engine	ConstTypename/JsonType!swap	SELECT JSON_ARRAY 's'
 accept	accept	engine	GenericType/type_function_name_opt_type_modifiers	DROP TYPE a
 accept	accept	engine	GenericType/type_function_name_attrs_opt_type_modifiers	DROP TYPE a.a
 reject@9	reject@9	engine	GenericType/type_function_name_attrs_opt_type_modifiers!drop-1	DROP TYPE.a
-accept	reject@12	engine	GenericType/type_function_name_attrs_opt_type_modifiers!drop-3	DROP TYPE a.
+reject@12	reject@12	engine	GenericType/type_function_name_attrs_opt_type_modifiers!drop-3	DROP TYPE a.
 reject@14	reject@14	engine	GenericType/type_function_name_attrs_opt_type_modifiers!insert	DROP TYPE a.a zzz
-reject@11	accept	engine	opt_type_modifiers/(_expr_list_)	DROP TYPE a(a)
+accept	accept	engine	opt_type_modifiers/(_expr_list_)	DROP TYPE a(a)
 reject@12	reject@12	engine	opt_type_modifiers/(_expr_list_)!drop-1	DROP TYPE a a)
-reject@11	reject@12	engine	opt_type_modifiers/(_expr_list_)!drop-2	DROP TYPE a()
-reject@11	reject@13	engine	opt_type_modifiers/(_expr_list_)!drop-3	DROP TYPE a(a
-reject@11	reject@15	engine	opt_type_modifiers/(_expr_list_)!insert	DROP TYPE a(a) zzz
+reject@12	reject@12	engine	opt_type_modifiers/(_expr_list_)!drop-2	DROP TYPE a()
+reject@13	reject@13	engine	opt_type_modifiers/(_expr_list_)!drop-3	DROP TYPE a(a
+reject@15	reject@15	engine	opt_type_modifiers/(_expr_list_)!insert	DROP TYPE a(a) zzz
 accept	accept	engine	opt_type_modifiers/%empty	DROP TYPE a
 accept	accept	engine	Numeric/INT_P	DROP TYPE INT
 accept	accept	engine	Numeric/INTEGER	DROP TYPE INTEGER
@@ -9459,17 +9459,17 @@ reject@19	reject@19	engine	Numeric/SMALLINT!insert	DROP TYPE SMALLINT zzz
 accept	accept	engine	Numeric/SMALLINT!swap	DROP TYPE SNAPSHOT
 accept	accept	engine	Numeric/BIGINT	DROP TYPE BIGINT
 reject@17	reject@17	engine	Numeric/BIGINT!insert	DROP TYPE BIGINT zzz
-reject@10	accept	engine	Numeric/BIGINT!swap	DROP TYPE BINARY
+accept	accept	engine	Numeric/BIGINT!swap	DROP TYPE BINARY
 accept	accept	engine	Numeric/REAL	DROP TYPE REAL
 reject@15	reject@15	engine	Numeric/REAL!insert	DROP TYPE REAL zzz
 accept	accept	engine	Numeric/REAL!swap	DROP TYPE REASSIGN
 accept	accept	engine	Numeric/FLOAT_P_opt_float	DROP TYPE FLOAT
 reject@16	reject@16	engine	Numeric/FLOAT_P_opt_float!insert	DROP TYPE FLOAT zzz
 accept	accept	engine	Numeric/FLOAT_P_opt_float!swap	DROP TYPE FOLLOWING
-reject@17	accept	engine	Numeric/DOUBLE_P_PRECISION	DROP TYPE DOUBLE PRECISION
-accept	reject@10	engine	Numeric/DOUBLE_P_PRECISION!drop-1	DROP TYPE PRECISION
+accept	accept	engine	Numeric/DOUBLE_P_PRECISION	DROP TYPE DOUBLE PRECISION
+reject@10	reject@10	engine	Numeric/DOUBLE_P_PRECISION!drop-1	DROP TYPE PRECISION
 accept	accept	engine	Numeric/DOUBLE_P_PRECISION!drop-2	DROP TYPE DOUBLE
-reject@17	reject@27	engine	Numeric/DOUBLE_P_PRECISION!insert	DROP TYPE DOUBLE PRECISION zzz
+reject@27	reject@27	engine	Numeric/DOUBLE_P_PRECISION!insert	DROP TYPE DOUBLE PRECISION zzz
 reject@15	reject@15	engine	Numeric/DOUBLE_P_PRECISION!swap	DROP TYPE DROP PRECISION
 accept	accept	engine	Numeric/DECIMAL_P_opt_type_modifiers	DROP TYPE DECIMAL
 reject@18	reject@18	engine	Numeric/DECIMAL_P_opt_type_modifiers!insert	DROP TYPE DECIMAL zzz
@@ -9482,18 +9482,18 @@ accept	accept	engine	Numeric/NUMERIC_opt_type_modifiers!swap	DROP TYPE OBJECT
 accept	accept	engine	Numeric/BOOLEAN_P	DROP TYPE BOOLEAN
 reject@18	reject@18	engine	Numeric/BOOLEAN_P!insert	DROP TYPE BOOLEAN zzz
 reject@10	reject@10	engine	Numeric/BOOLEAN_P!swap	DROP TYPE BOTH
-reject@15	accept	engine	opt_float/(_Iconst_)	DROP TYPE FLOAT(1)
+accept	accept	engine	opt_float/(_Iconst_)	DROP TYPE FLOAT(1)
 reject@16	reject@16	engine	opt_float/(_Iconst_)!drop-1	DROP TYPE FLOAT 1)
-reject@15	reject@16	engine	opt_float/(_Iconst_)!drop-2	DROP TYPE FLOAT()
-reject@15	reject@17	engine	opt_float/(_Iconst_)!drop-3	DROP TYPE FLOAT(1
-reject@15	reject@19	engine	opt_float/(_Iconst_)!insert	DROP TYPE FLOAT(1) zzz
+reject@16	reject@16	engine	opt_float/(_Iconst_)!drop-2	DROP TYPE FLOAT()
+reject@17	reject@17	engine	opt_float/(_Iconst_)!drop-3	DROP TYPE FLOAT(1
+reject@19	reject@19	engine	opt_float/(_Iconst_)!insert	DROP TYPE FLOAT(1) zzz
 accept	accept	engine	opt_float/%empty	DROP TYPE FLOAT
-reject@13	accept	engine	Bit/BitWithLength	DROP TYPE BIT(a)
+accept	accept	engine	Bit/BitWithLength	DROP TYPE BIT(a)
 reject@9	reject@9	engine	Bit/BitWithLength!drop-1	DROP TYPE(a)
 reject@14	reject@14	engine	Bit/BitWithLength!drop-2	DROP TYPE BIT a)
-reject@13	reject@14	engine	Bit/BitWithLength!drop-3	DROP TYPE BIT()
-reject@13	reject@15	engine	Bit/BitWithLength!drop-4	DROP TYPE BIT(a
-reject@13	reject@17	engine	Bit/BitWithLength!insert	DROP TYPE BIT(a) zzz
+reject@14	reject@14	engine	Bit/BitWithLength!drop-3	DROP TYPE BIT()
+reject@15	reject@15	engine	Bit/BitWithLength!drop-4	DROP TYPE BIT(a
+reject@17	reject@17	engine	Bit/BitWithLength!insert	DROP TYPE BIT(a) zzz
 reject@17	reject@17	engine	Bit/BitWithLength!swap	DROP TYPE BOOLEAN(a)
 accept	accept	engine	Bit/BitWithoutLength	DROP TYPE BIT
 accept	accept	engine	ConstBit/BitWithLength	SELECT BIT(a) 's'
@@ -9505,14 +9505,14 @@ reject@12	reject@12	engine	ConstBit/BitWithLength!truncate	SELECT BIT(a
 reject@18	reject@14	engine	ConstBit/BitWithLength!insert	SELECT BIT(a) zzz 's'
 reject@18	reject@14	engine	ConstBit/BitWithLength!swap	SELECT BOOLEAN(a) 's'
 accept	accept	engine	ConstBit/BitWithoutLength	SELECT BIT 's'
-reject@13	accept	engine	BitWithLength/BIT_opt_varying_(_expr_list_)	DROP TYPE BIT(a)
+accept	accept	engine	BitWithLength/BIT_opt_varying_(_expr_list_)	DROP TYPE BIT(a)
 accept	accept	engine	BitWithoutLength/BIT_opt_varying	DROP TYPE BIT
-reject@19	accept	engine	Character/CharacterWithLength	DROP TYPE CHARACTER(1)
+accept	accept	engine	Character/CharacterWithLength	DROP TYPE CHARACTER(1)
 reject@20	reject@20	engine	Character/CharacterWithLength!drop-2	DROP TYPE CHARACTER 1)
-reject@19	reject@20	engine	Character/CharacterWithLength!drop-3	DROP TYPE CHARACTER()
-reject@19	reject@21	engine	Character/CharacterWithLength!drop-4	DROP TYPE CHARACTER(1
-reject@19	reject@23	engine	Character/CharacterWithLength!insert	DROP TYPE CHARACTER(1) zzz
-reject@25	accept	engine	Character/CharacterWithLength!swap	DROP TYPE CHARACTERISTICS(1)
+reject@20	reject@20	engine	Character/CharacterWithLength!drop-3	DROP TYPE CHARACTER()
+reject@21	reject@21	engine	Character/CharacterWithLength!drop-4	DROP TYPE CHARACTER(1
+reject@23	reject@23	engine	Character/CharacterWithLength!insert	DROP TYPE CHARACTER(1) zzz
+accept	accept	engine	Character/CharacterWithLength!swap	DROP TYPE CHARACTERISTICS(1)
 accept	accept	engine	Character/CharacterWithoutLength	DROP TYPE CHARACTER
 accept	accept	engine	ConstCharacter/CharacterWithLength	SELECT CHARACTER(1) 's'
 reject@10	reject@10	engine	ConstCharacter/CharacterWithLength!drop-1	SELECT(1) 's'
@@ -9523,7 +9523,7 @@ reject@18	reject@18	engine	ConstCharacter/CharacterWithLength!truncate	SELECT CH
 reject@24	reject@20	engine	ConstCharacter/CharacterWithLength!insert	SELECT CHARACTER(1) zzz 's'
 reject@26	accept	engine	ConstCharacter/CharacterWithLength!swap	SELECT CHARACTERISTICS(1) 's'
 accept	accept	engine	ConstCharacter/CharacterWithoutLength	SELECT CHARACTER 's'
-reject@19	accept	engine	CharacterWithLength/character_(_Iconst_)	DROP TYPE CHARACTER(1)
+accept	accept	engine	CharacterWithLength/character_(_Iconst_)	DROP TYPE CHARACTER(1)
 accept	accept	engine	CharacterWithoutLength/character	DROP TYPE CHARACTER
 accept	accept	engine	character/CHARACTER_opt_varying	DROP TYPE CHARACTER
 accept	accept	engine	character/CHAR_P_opt_varying	DROP TYPE CHAR
@@ -9531,108 +9531,108 @@ reject@15	reject@15	engine	character/CHAR_P_opt_varying!insert	DROP TYPE CHAR zz
 accept	accept	engine	character/VARCHAR	DROP TYPE VARCHAR
 reject@18	reject@18	engine	character/VARCHAR!insert	DROP TYPE VARCHAR zzz
 reject@10	reject@10	engine	character/VARCHAR!swap	DROP TYPE VARIADIC
-reject@19	accept	engine	character/NATIONAL_CHARACTER_opt_varying	DROP TYPE NATIONAL CHARACTER
-accept	reject@18	engine	character/NATIONAL_CHARACTER_opt_varying!drop-2	DROP TYPE NATIONAL
-reject@19	reject@29	engine	character/NATIONAL_CHARACTER_opt_varying!insert	DROP TYPE NATIONAL CHARACTER zzz
-reject@10	reject@18	engine	character/NATIONAL_CHARACTER_opt_varying!swap	DROP TYPE NATURAL CHARACTER
-reject@19	accept	engine	character/NATIONAL_CHAR_P_opt_varying	DROP TYPE NATIONAL CHAR
-reject@19	reject@24	engine	character/NATIONAL_CHAR_P_opt_varying!insert	DROP TYPE NATIONAL CHAR zzz
-reject@10	reject@18	engine	character/NATIONAL_CHAR_P_opt_varying!swap	DROP TYPE NATURAL CHAR
+accept	accept	engine	character/NATIONAL_CHARACTER_opt_varying	DROP TYPE NATIONAL CHARACTER
+reject@18	reject@18	engine	character/NATIONAL_CHARACTER_opt_varying!drop-2	DROP TYPE NATIONAL
+reject@29	reject@29	engine	character/NATIONAL_CHARACTER_opt_varying!insert	DROP TYPE NATIONAL CHARACTER zzz
+reject@18	reject@18	engine	character/NATIONAL_CHARACTER_opt_varying!swap	DROP TYPE NATURAL CHARACTER
+accept	accept	engine	character/NATIONAL_CHAR_P_opt_varying	DROP TYPE NATIONAL CHAR
+reject@24	reject@24	engine	character/NATIONAL_CHAR_P_opt_varying!insert	DROP TYPE NATIONAL CHAR zzz
+reject@18	reject@18	engine	character/NATIONAL_CHAR_P_opt_varying!swap	DROP TYPE NATURAL CHAR
 accept	accept	engine	character/NCHAR_opt_varying	DROP TYPE NCHAR
 reject@16	reject@16	engine	character/NCHAR_opt_varying!insert	DROP TYPE NCHAR zzz
 accept	accept	engine	character/NCHAR_opt_varying!swap	DROP TYPE NESTED
-reject@14	accept	engine	opt_varying/VARYING	DROP TYPE BIT VARYING
-reject@14	reject@22	engine	opt_varying/VARYING!insert	DROP TYPE BIT VARYING zzz
+accept	accept	engine	opt_varying/VARYING	DROP TYPE BIT VARYING
+reject@22	reject@22	engine	opt_varying/VARYING!insert	DROP TYPE BIT VARYING zzz
 reject@14	reject@14	engine	opt_varying/VARYING!swap	DROP TYPE BIT VERBOSE
 accept	accept	engine	opt_varying/%empty	DROP TYPE BIT
-reject@19	accept	engine	ConstDatetime/TIMESTAMP_(_Iconst_)_opt_timezone	DROP TYPE TIMESTAMP(1)
+accept	accept	engine	ConstDatetime/TIMESTAMP_(_Iconst_)_opt_timezone	DROP TYPE TIMESTAMP(1)
 reject@20	reject@20	engine	ConstDatetime/TIMESTAMP_(_Iconst_)_opt_timezone!drop-2	DROP TYPE TIMESTAMP 1)
-reject@19	reject@20	engine	ConstDatetime/TIMESTAMP_(_Iconst_)_opt_timezone!drop-3	DROP TYPE TIMESTAMP()
-reject@19	reject@21	engine	ConstDatetime/TIMESTAMP_(_Iconst_)_opt_timezone!drop-4	DROP TYPE TIMESTAMP(1
-reject@19	reject@23	engine	ConstDatetime/TIMESTAMP_(_Iconst_)_opt_timezone!insert	DROP TYPE TIMESTAMP(1) zzz
+reject@20	reject@20	engine	ConstDatetime/TIMESTAMP_(_Iconst_)_opt_timezone!drop-3	DROP TYPE TIMESTAMP()
+reject@21	reject@21	engine	ConstDatetime/TIMESTAMP_(_Iconst_)_opt_timezone!drop-4	DROP TYPE TIMESTAMP(1
+reject@23	reject@23	engine	ConstDatetime/TIMESTAMP_(_Iconst_)_opt_timezone!insert	DROP TYPE TIMESTAMP(1) zzz
 reject@10	reject@10	engine	ConstDatetime/TIMESTAMP_(_Iconst_)_opt_timezone!swap	DROP TYPE TO(1)
 accept	accept	engine	ConstDatetime/TIMESTAMP_opt_timezone	DROP TYPE TIMESTAMP
-reject@14	accept	engine	ConstDatetime/TIME_(_Iconst_)_opt_timezone	DROP TYPE TIME(1)
+accept	accept	engine	ConstDatetime/TIME_(_Iconst_)_opt_timezone	DROP TYPE TIME(1)
 reject@15	reject@15	engine	ConstDatetime/TIME_(_Iconst_)_opt_timezone!drop-2	DROP TYPE TIME 1)
-reject@14	reject@15	engine	ConstDatetime/TIME_(_Iconst_)_opt_timezone!drop-3	DROP TYPE TIME()
-reject@14	reject@16	engine	ConstDatetime/TIME_(_Iconst_)_opt_timezone!drop-4	DROP TYPE TIME(1
-reject@14	reject@18	engine	ConstDatetime/TIME_(_Iconst_)_opt_timezone!insert	DROP TYPE TIME(1) zzz
+reject@15	reject@15	engine	ConstDatetime/TIME_(_Iconst_)_opt_timezone!drop-3	DROP TYPE TIME()
+reject@16	reject@16	engine	ConstDatetime/TIME_(_Iconst_)_opt_timezone!drop-4	DROP TYPE TIME(1
+reject@18	reject@18	engine	ConstDatetime/TIME_(_Iconst_)_opt_timezone!insert	DROP TYPE TIME(1) zzz
 accept	accept	engine	ConstDatetime/TIME_opt_timezone	DROP TYPE TIME
 reject@15	reject@15	engine	ConstDatetime/TIME_opt_timezone!insert	DROP TYPE TIME zzz
 accept	accept	engine	ConstInterval/INTERVAL	DROP TYPE INTERVAL
-reject@20	accept	engine	opt_timezone/WITH_LA_TIME_ZONE	DROP TYPE TIMESTAMP WITH TIME ZONE
+accept	accept	engine	opt_timezone/WITH_LA_TIME_ZONE	DROP TYPE TIMESTAMP WITH TIME ZONE
 reject@20	reject@20	engine	opt_timezone/WITH_LA_TIME_ZONE!drop-1	DROP TYPE TIMESTAMP TIME ZONE
 reject@20	reject@20	engine	opt_timezone/WITH_LA_TIME_ZONE!drop-2	DROP TYPE TIMESTAMP WITH ZONE
-reject@20	reject@29	engine	opt_timezone/WITH_LA_TIME_ZONE!drop-3	DROP TYPE TIMESTAMP WITH TIME
-reject@20	reject@35	engine	opt_timezone/WITH_LA_TIME_ZONE!insert	DROP TYPE TIMESTAMP WITH TIME ZONE zzz
+reject@29	reject@29	engine	opt_timezone/WITH_LA_TIME_ZONE!drop-3	DROP TYPE TIMESTAMP WITH TIME
+reject@35	reject@35	engine	opt_timezone/WITH_LA_TIME_ZONE!insert	DROP TYPE TIMESTAMP WITH TIME ZONE zzz
 reject@20	reject@20	engine	opt_timezone/WITH_LA_TIME_ZONE!swap	DROP TYPE TIMESTAMP WITHIN TIME ZONE
-reject@20	accept	engine	opt_timezone/WITHOUT_LA_TIME_ZONE	DROP TYPE TIMESTAMP WITHOUT TIME ZONE
+accept	accept	engine	opt_timezone/WITHOUT_LA_TIME_ZONE	DROP TYPE TIMESTAMP WITHOUT TIME ZONE
 reject@20	reject@20	engine	opt_timezone/WITHOUT_LA_TIME_ZONE!drop-2	DROP TYPE TIMESTAMP WITHOUT ZONE
-reject@20	reject@32	engine	opt_timezone/WITHOUT_LA_TIME_ZONE!drop-3	DROP TYPE TIMESTAMP WITHOUT TIME
-reject@20	reject@38	engine	opt_timezone/WITHOUT_LA_TIME_ZONE!insert	DROP TYPE TIMESTAMP WITHOUT TIME ZONE zzz
+reject@32	reject@32	engine	opt_timezone/WITHOUT_LA_TIME_ZONE!drop-3	DROP TYPE TIMESTAMP WITHOUT TIME
+reject@38	reject@38	engine	opt_timezone/WITHOUT_LA_TIME_ZONE!insert	DROP TYPE TIMESTAMP WITHOUT TIME ZONE zzz
 reject@20	reject@20	engine	opt_timezone/WITHOUT_LA_TIME_ZONE!swap	DROP TYPE TIMESTAMP WORK TIME ZONE
 accept	accept	engine	opt_timezone/%empty	DROP TYPE TIMESTAMP
-reject@19	accept	engine	opt_interval/YEAR_P	DROP TYPE INTERVAL YEAR
-reject@19	reject@24	engine	opt_interval/YEAR_P!insert	DROP TYPE INTERVAL YEAR zzz
+accept	accept	engine	opt_interval/YEAR_P	DROP TYPE INTERVAL YEAR
+reject@24	reject@24	engine	opt_interval/YEAR_P!insert	DROP TYPE INTERVAL YEAR zzz
 reject@19	reject@19	engine	opt_interval/YEAR_P!swap	DROP TYPE INTERVAL YES
-reject@19	accept	engine	opt_interval/MONTH_P	DROP TYPE INTERVAL MONTH
-reject@19	reject@25	engine	opt_interval/MONTH_P!insert	DROP TYPE INTERVAL MONTH zzz
+accept	accept	engine	opt_interval/MONTH_P	DROP TYPE INTERVAL MONTH
+reject@25	reject@25	engine	opt_interval/MONTH_P!insert	DROP TYPE INTERVAL MONTH zzz
 reject@19	reject@19	engine	opt_interval/MONTH_P!swap	DROP TYPE INTERVAL MOVE
-reject@19	accept	engine	opt_interval/DAY_P	DROP TYPE INTERVAL DAY
-reject@19	reject@23	engine	opt_interval/DAY_P!insert	DROP TYPE INTERVAL DAY zzz
+accept	accept	engine	opt_interval/DAY_P	DROP TYPE INTERVAL DAY
+reject@23	reject@23	engine	opt_interval/DAY_P!insert	DROP TYPE INTERVAL DAY zzz
 reject@19	reject@19	engine	opt_interval/DAY_P!swap	DROP TYPE INTERVAL DEALLOCATE
-reject@19	accept	engine	opt_interval/HOUR_P	DROP TYPE INTERVAL HOUR
-reject@19	reject@24	engine	opt_interval/HOUR_P!insert	DROP TYPE INTERVAL HOUR zzz
+accept	accept	engine	opt_interval/HOUR_P	DROP TYPE INTERVAL HOUR
+reject@24	reject@24	engine	opt_interval/HOUR_P!insert	DROP TYPE INTERVAL HOUR zzz
 reject@19	reject@19	engine	opt_interval/HOUR_P!swap	DROP TYPE INTERVAL IDENTITY
-reject@19	accept	engine	opt_interval/MINUTE_P	DROP TYPE INTERVAL MINUTE
-reject@19	reject@26	engine	opt_interval/MINUTE_P!insert	DROP TYPE INTERVAL MINUTE zzz
+accept	accept	engine	opt_interval/MINUTE_P	DROP TYPE INTERVAL MINUTE
+reject@26	reject@26	engine	opt_interval/MINUTE_P!insert	DROP TYPE INTERVAL MINUTE zzz
 reject@19	reject@19	engine	opt_interval/MINUTE_P!swap	DROP TYPE INTERVAL MINVALUE
-reject@19	accept	engine	opt_interval/interval_second	DROP TYPE INTERVAL SECOND
-reject@19	reject@26	engine	opt_interval/interval_second!insert	DROP TYPE INTERVAL SECOND zzz
+accept	accept	engine	opt_interval/interval_second	DROP TYPE INTERVAL SECOND
+reject@26	reject@26	engine	opt_interval/interval_second!insert	DROP TYPE INTERVAL SECOND zzz
 reject@19	reject@19	engine	opt_interval/interval_second!swap	DROP TYPE INTERVAL SECURITY
-reject@19	accept	engine	opt_interval/YEAR_P_TO_MONTH_P	DROP TYPE INTERVAL YEAR TO MONTH
+accept	accept	engine	opt_interval/YEAR_P_TO_MONTH_P	DROP TYPE INTERVAL YEAR TO MONTH
 reject@19	reject@19	engine	opt_interval/YEAR_P_TO_MONTH_P!drop-1	DROP TYPE INTERVAL TO MONTH
-reject@19	reject@24	engine	opt_interval/YEAR_P_TO_MONTH_P!drop-2	DROP TYPE INTERVAL YEAR MONTH
-reject@19	reject@26	engine	opt_interval/YEAR_P_TO_MONTH_P!drop-3	DROP TYPE INTERVAL YEAR TO
-reject@19	reject@33	engine	opt_interval/YEAR_P_TO_MONTH_P!insert	DROP TYPE INTERVAL YEAR TO MONTH zzz
+reject@24	reject@24	engine	opt_interval/YEAR_P_TO_MONTH_P!drop-2	DROP TYPE INTERVAL YEAR MONTH
+reject@26	reject@26	engine	opt_interval/YEAR_P_TO_MONTH_P!drop-3	DROP TYPE INTERVAL YEAR TO
+reject@33	reject@33	engine	opt_interval/YEAR_P_TO_MONTH_P!insert	DROP TYPE INTERVAL YEAR TO MONTH zzz
 reject@19	reject@19	engine	opt_interval/YEAR_P_TO_MONTH_P!swap	DROP TYPE INTERVAL YES TO MONTH
-reject@19	accept	engine	opt_interval/DAY_P_TO_HOUR_P	DROP TYPE INTERVAL DAY TO HOUR
+accept	accept	engine	opt_interval/DAY_P_TO_HOUR_P	DROP TYPE INTERVAL DAY TO HOUR
 reject@19	reject@19	engine	opt_interval/DAY_P_TO_HOUR_P!drop-1	DROP TYPE INTERVAL TO HOUR
-reject@19	reject@23	engine	opt_interval/DAY_P_TO_HOUR_P!drop-2	DROP TYPE INTERVAL DAY HOUR
-reject@19	reject@25	engine	opt_interval/DAY_P_TO_HOUR_P!drop-3	DROP TYPE INTERVAL DAY TO
-reject@19	reject@31	engine	opt_interval/DAY_P_TO_HOUR_P!insert	DROP TYPE INTERVAL DAY TO HOUR zzz
+reject@23	reject@23	engine	opt_interval/DAY_P_TO_HOUR_P!drop-2	DROP TYPE INTERVAL DAY HOUR
+reject@25	reject@25	engine	opt_interval/DAY_P_TO_HOUR_P!drop-3	DROP TYPE INTERVAL DAY TO
+reject@31	reject@31	engine	opt_interval/DAY_P_TO_HOUR_P!insert	DROP TYPE INTERVAL DAY TO HOUR zzz
 reject@19	reject@19	engine	opt_interval/DAY_P_TO_HOUR_P!swap	DROP TYPE INTERVAL DEALLOCATE TO HOUR
-reject@19	accept	engine	opt_interval/DAY_P_TO_MINUTE_P	DROP TYPE INTERVAL DAY TO MINUTE
+accept	accept	engine	opt_interval/DAY_P_TO_MINUTE_P	DROP TYPE INTERVAL DAY TO MINUTE
 reject@19	reject@19	engine	opt_interval/DAY_P_TO_MINUTE_P!drop-1	DROP TYPE INTERVAL TO MINUTE
-reject@19	reject@23	engine	opt_interval/DAY_P_TO_MINUTE_P!drop-2	DROP TYPE INTERVAL DAY MINUTE
-reject@19	reject@33	engine	opt_interval/DAY_P_TO_MINUTE_P!insert	DROP TYPE INTERVAL DAY TO MINUTE zzz
+reject@23	reject@23	engine	opt_interval/DAY_P_TO_MINUTE_P!drop-2	DROP TYPE INTERVAL DAY MINUTE
+reject@33	reject@33	engine	opt_interval/DAY_P_TO_MINUTE_P!insert	DROP TYPE INTERVAL DAY TO MINUTE zzz
 reject@19	reject@19	engine	opt_interval/DAY_P_TO_MINUTE_P!swap	DROP TYPE INTERVAL DEALLOCATE TO MINUTE
-reject@19	accept	engine	opt_interval/DAY_P_TO_interval_second	DROP TYPE INTERVAL DAY TO SECOND
+accept	accept	engine	opt_interval/DAY_P_TO_interval_second	DROP TYPE INTERVAL DAY TO SECOND
 reject@19	reject@19	engine	opt_interval/DAY_P_TO_interval_second!drop-1	DROP TYPE INTERVAL TO SECOND
-reject@19	reject@23	engine	opt_interval/DAY_P_TO_interval_second!drop-2	DROP TYPE INTERVAL DAY SECOND
-reject@19	reject@33	engine	opt_interval/DAY_P_TO_interval_second!insert	DROP TYPE INTERVAL DAY TO SECOND zzz
+reject@23	reject@23	engine	opt_interval/DAY_P_TO_interval_second!drop-2	DROP TYPE INTERVAL DAY SECOND
+reject@33	reject@33	engine	opt_interval/DAY_P_TO_interval_second!insert	DROP TYPE INTERVAL DAY TO SECOND zzz
 reject@19	reject@19	engine	opt_interval/DAY_P_TO_interval_second!swap	DROP TYPE INTERVAL DEALLOCATE TO SECOND
-reject@19	accept	engine	opt_interval/HOUR_P_TO_MINUTE_P	DROP TYPE INTERVAL HOUR TO MINUTE
-reject@19	reject@24	engine	opt_interval/HOUR_P_TO_MINUTE_P!drop-2	DROP TYPE INTERVAL HOUR MINUTE
-reject@19	reject@26	engine	opt_interval/HOUR_P_TO_MINUTE_P!drop-3	DROP TYPE INTERVAL HOUR TO
-reject@19	reject@34	engine	opt_interval/HOUR_P_TO_MINUTE_P!insert	DROP TYPE INTERVAL HOUR TO MINUTE zzz
+accept	accept	engine	opt_interval/HOUR_P_TO_MINUTE_P	DROP TYPE INTERVAL HOUR TO MINUTE
+reject@24	reject@24	engine	opt_interval/HOUR_P_TO_MINUTE_P!drop-2	DROP TYPE INTERVAL HOUR MINUTE
+reject@26	reject@26	engine	opt_interval/HOUR_P_TO_MINUTE_P!drop-3	DROP TYPE INTERVAL HOUR TO
+reject@34	reject@34	engine	opt_interval/HOUR_P_TO_MINUTE_P!insert	DROP TYPE INTERVAL HOUR TO MINUTE zzz
 reject@19	reject@19	engine	opt_interval/HOUR_P_TO_MINUTE_P!swap	DROP TYPE INTERVAL IDENTITY TO MINUTE
-reject@19	accept	engine	opt_interval/HOUR_P_TO_interval_second	DROP TYPE INTERVAL HOUR TO SECOND
-reject@19	reject@24	engine	opt_interval/HOUR_P_TO_interval_second!drop-2	DROP TYPE INTERVAL HOUR SECOND
-reject@19	reject@34	engine	opt_interval/HOUR_P_TO_interval_second!insert	DROP TYPE INTERVAL HOUR TO SECOND zzz
+accept	accept	engine	opt_interval/HOUR_P_TO_interval_second	DROP TYPE INTERVAL HOUR TO SECOND
+reject@24	reject@24	engine	opt_interval/HOUR_P_TO_interval_second!drop-2	DROP TYPE INTERVAL HOUR SECOND
+reject@34	reject@34	engine	opt_interval/HOUR_P_TO_interval_second!insert	DROP TYPE INTERVAL HOUR TO SECOND zzz
 reject@19	reject@19	engine	opt_interval/HOUR_P_TO_interval_second!swap	DROP TYPE INTERVAL IDENTITY TO SECOND
-reject@19	accept	engine	opt_interval/MINUTE_P_TO_interval_second	DROP TYPE INTERVAL MINUTE TO SECOND
-reject@19	reject@26	engine	opt_interval/MINUTE_P_TO_interval_second!drop-2	DROP TYPE INTERVAL MINUTE SECOND
-reject@19	reject@28	engine	opt_interval/MINUTE_P_TO_interval_second!drop-3	DROP TYPE INTERVAL MINUTE TO
-reject@19	reject@36	engine	opt_interval/MINUTE_P_TO_interval_second!insert	DROP TYPE INTERVAL MINUTE TO SECOND zzz
+accept	accept	engine	opt_interval/MINUTE_P_TO_interval_second	DROP TYPE INTERVAL MINUTE TO SECOND
+reject@26	reject@26	engine	opt_interval/MINUTE_P_TO_interval_second!drop-2	DROP TYPE INTERVAL MINUTE SECOND
+reject@28	reject@28	engine	opt_interval/MINUTE_P_TO_interval_second!drop-3	DROP TYPE INTERVAL MINUTE TO
+reject@36	reject@36	engine	opt_interval/MINUTE_P_TO_interval_second!insert	DROP TYPE INTERVAL MINUTE TO SECOND zzz
 reject@19	reject@19	engine	opt_interval/MINUTE_P_TO_interval_second!swap	DROP TYPE INTERVAL MINVALUE TO SECOND
 accept	accept	engine	opt_interval/%empty	DROP TYPE INTERVAL
-reject@19	accept	engine	interval_second/SECOND_P	DROP TYPE INTERVAL SECOND
-reject@19	accept	engine	interval_second/SECOND_P_(_Iconst_)	DROP TYPE INTERVAL SECOND(1)
-reject@19	reject@26	engine	interval_second/SECOND_P_(_Iconst_)!drop-2	DROP TYPE INTERVAL SECOND 1)
-reject@19	reject@26	engine	interval_second/SECOND_P_(_Iconst_)!drop-3	DROP TYPE INTERVAL SECOND()
-reject@19	reject@27	engine	interval_second/SECOND_P_(_Iconst_)!drop-4	DROP TYPE INTERVAL SECOND(1
-reject@19	reject@29	engine	interval_second/SECOND_P_(_Iconst_)!insert	DROP TYPE INTERVAL SECOND(1) zzz
+accept	accept	engine	interval_second/SECOND_P	DROP TYPE INTERVAL SECOND
+accept	accept	engine	interval_second/SECOND_P_(_Iconst_)	DROP TYPE INTERVAL SECOND(1)
+reject@26	reject@26	engine	interval_second/SECOND_P_(_Iconst_)!drop-2	DROP TYPE INTERVAL SECOND 1)
+reject@26	reject@26	engine	interval_second/SECOND_P_(_Iconst_)!drop-3	DROP TYPE INTERVAL SECOND()
+reject@27	reject@27	engine	interval_second/SECOND_P_(_Iconst_)!drop-4	DROP TYPE INTERVAL SECOND(1
+reject@29	reject@29	engine	interval_second/SECOND_P_(_Iconst_)!insert	DROP TYPE INTERVAL SECOND(1) zzz
 reject@19	reject@19	engine	interval_second/SECOND_P_(_Iconst_)!swap	DROP TYPE INTERVAL SECURITY(1)
 accept	accept	engine	JsonType/JSON	DROP TYPE JSON
 accept	accept	engine	a_expr/c_expr	SELECT a
@@ -11616,8 +11616,8 @@ accept	accept	engine	type_function_name/IDENT	DROP TYPE a
 accept	accept	engine	type_function_name/unreserved_keyword	DROP TYPE ABORT
 reject@16	reject@16	engine	type_function_name/unreserved_keyword!insert	DROP TYPE ABORT zzz
 accept	accept	engine	type_function_name/unreserved_keyword!swap	DROP TYPE ABSENT
-reject@10	accept	engine	type_function_name/type_func_name_keyword	DROP TYPE AUTHORIZATION
-reject@10	reject@24	engine	type_function_name/type_func_name_keyword!insert	DROP TYPE AUTHORIZATION zzz
+accept	accept	engine	type_function_name/type_func_name_keyword	DROP TYPE AUTHORIZATION
+reject@24	reject@24	engine	type_function_name/type_func_name_keyword!insert	DROP TYPE AUTHORIZATION zzz
 accept	accept	engine	type_function_name/type_func_name_keyword!swap	DROP TYPE BACKWARD
 accept	accept	engine	NonReservedWord/IDENT	ALTER ROLE a
 accept	accept	engine	NonReservedWord/unreserved_keyword	ALTER ROLE ABORT

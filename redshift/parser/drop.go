@@ -238,7 +238,7 @@ func (p *Parser) parseDropTypeOrDomain(objType nodes.ObjectType) (nodes.Node, er
 
 	missingOk := p.parseOptIfExists()
 
-	objects, err := p.parseAnyNameList()
+	objects, err := p.parseDropTypeNameList()
 	if err != nil {
 		return nil, err
 	}
@@ -251,6 +251,35 @@ func (p *Parser) parseDropTypeOrDomain(objType nodes.ObjectType) (nodes.Node, er
 		Behavior:   behavior,
 		Missing_ok: missingOk,
 	}, nil
+}
+
+// parseDropTypeNameList parses the types of DROP TYPE and DROP DOMAIN.
+//
+//	type_name_list: Typename | type_name_list ',' Typename
+//
+// gram.y (DropStmt) takes any Typename. A plain name is given as its list
+// of strings, as any_name gives it; one with modifiers, array bounds or
+// SETOF stays a TypeName.
+func (p *Parser) parseDropTypeNameList() (*nodes.List, error) {
+	var items []nodes.Node
+	for {
+		start := p.pos()
+		tn, err := p.parseTypename()
+		if err != nil {
+			return nil, err
+		}
+		if tn.Typmods == nil && tn.ArrayBounds == nil && !tn.Setof && !tn.PctType {
+			items = append(items, tn.Names)
+		} else {
+			tn.Loc = nodes.Loc{Start: start, End: p.prev.End}
+			items = append(items, tn)
+		}
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	return &nodes.List{Items: items}, nil
 }
 
 // parseDropNameList parses DROP statements that use name_list (simple names, not qualified).
