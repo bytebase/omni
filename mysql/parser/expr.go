@@ -2981,7 +2981,17 @@ func (p *Parser) parseODBCEscape() (nodes.ExprNode, error) {
 	if _, err := p.expect('}'); err != nil {
 		return nil, err
 	}
-	if lit, ok := expr.(*nodes.StringLit); ok {
+	// Parentheses are transparent here, as `'(' expr ')'` is in the grammar:
+	// `{d ('2020-01-01')}` is the DATE too.
+	inner := expr
+	for {
+		pe, ok := inner.(*nodes.ParenExpr)
+		if !ok {
+			break
+		}
+		inner = pe.Expr
+	}
+	if lit, ok := inner.(*nodes.StringLit); ok {
 		// The word is compared as written: `{D '...'}` is the string.
 		kind := map[string]string{"d": "DATE", "t": "TIME", "ts": "TIMESTAMP"}[word]
 		if kind != "" && odbcTemporalValid(kind, lit.Value) {
