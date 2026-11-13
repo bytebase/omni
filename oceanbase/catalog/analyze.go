@@ -28,7 +28,7 @@ func (c *Catalog) analyzeSelectStmtWithCTEs(stmt *nodes.SelectStmt, parentScope 
 	if stmt.SetOp != nodes.SetOpNone {
 		return c.analyzeSetOpWithCTEs(stmt, parentScope, inheritedCTEMap)
 	}
-	if stmt.ParenSource != nil && len(stmt.CTEs) == 0 {
+	if stmt.ParenSource != nil {
 		return c.analyzeParenthesized(stmt, parentScope, inheritedCTEMap)
 	}
 
@@ -1058,15 +1058,30 @@ func (c *Catalog) AnalyzeStandaloneExpr(expr nodes.ExprNode, table *Table) (Anal
 	return analyzeExpr(c, expr, scope)
 }
 
-// analyzeParenthesized analyzes ( query ) ORDER BY ... LIMIT ...: the inner query,
-// then the outer clauses against its result columns, as a set operation's are read,
-// so a name they do not resolve is refused. A Query has no layer for the outer
-// clauses, so when there are any the result is errParenthesizedOuter, a plain error:
-// the analysis did not fail, but returning the inner query alone would drop them.
+// analyzeParenthesized analyzes [WITH ...] ( query ) ORDER BY ... LIMIT ...: the
+// wrapper's CTEs, then the query inside it, then the outer clauses against its
+// result columns, as a set operation's are read, so a name they do not resolve is
+// refused. A Query holds neither the outer clauses nor a WITH that stands outside
+// the query it belongs to, so with either the result is errParenthesizedOuter, a
+// plain error: the analysis did not fail, but the query alone would drop them.
 func (c *Catalog) analyzeParenthesized(stmt *nodes.SelectStmt, parentScope *analyzerScope, inheritedCTEMap map[string]*CommonTableExprQ) (*Query, error) {
-	inner, err := c.analyzeSelectStmtWithCTEs(stmt.ParenSource, parentScope, inheritedCTEMap)
-	if err != nil || (len(stmt.OrderBy) == 0 && stmt.Limit == nil) {
-		return inner, err
+	cteMap := inheritedCTEMap
+	if len(stmt.CTEs) > 0 {
+		// The wrapper's WITH, which the query inside it reads. Its CTEList belongs to
+		// no query this returns, so holder takes it and the IR is dropped below.
+		var holder Query
+		m, err := c.analyzeCTEs(stmt.CTEs, &holder, parentScope, visibleCTEs(parentScope, inheritedCTEMap))
+		if err != nil {
+			return nil, err
+		}
+		cteMap = m
+	}
+	inner, err := c.analyzeSelectStmtWithCTEs(stmt.ParenSource, parentScope, cteMap)
+	if err != nil {
+		return nil, err
+	}
+	if len(stmt.CTEs) == 0 && len(stmt.OrderBy) == 0 && stmt.Limit == nil {
+		return inner, nil
 	}
 	outer := &Query{CommandType: CmdSelect, JoinTree: &JoinTreeQ{}}
 	var cols []*Column
@@ -1096,7 +1111,7 @@ func (c *Catalog) analyzeParenthesized(stmt *nodes.SelectStmt, parentScope *anal
 // which analyzeColumnRef resolves but cannot write into this query's IR.
 var errOuterAlias = errors.New("a subquery names an outer query's select alias, which the analyzed query cannot hold")
 
-var errParenthesizedOuter = errors.New("a parenthesized query's own ORDER BY or LIMIT has no place in the analyzed query")
+var errParenthesizedOuter = errors.New("a parenthesized query's own WITH, ORDER BY or LIMIT has no place in the analyzed query")
 
 // visibleCTEs is the CTEs the queries around a query make visible: inherited, then
 // those of each enclosing scope, the nearest first.

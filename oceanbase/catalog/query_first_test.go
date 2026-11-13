@@ -21,6 +21,8 @@ func TestQueryFirstReadsWhatTheAnalyzerCannotRefuse(t *testing.T) {
 		{"CREATE VIEW v AS (SELECT b FROM a) ORDER BY zz", 1054},
 		{"CREATE VIEW v AS SELECT zz FROM (SELECT b FROM a) d", 1054},
 		{"CREATE VIEW v AS WITH c AS (SELECT 1 AS x) SELECT zz FROM c", 1054},
+		{"CREATE VIEW v AS WITH c AS (SELECT 1 AS x) (SELECT zz FROM c)", 1054},
+		{"CREATE VIEW v AS WITH c AS (SELECT 1 AS x) (SELECT x FROM c) ORDER BY zz", 1054},
 		{"CREATE VIEW v AS SELECT zz FROM DUAL", 1054},
 	} {
 		c, err := LoadSQL("CREATE DATABASE d; USE d; CREATE TABLE a (b INT)")
@@ -36,13 +38,14 @@ func TestQueryFirstReadsWhatTheAnalyzerCannotRefuse(t *testing.T) {
 	}
 }
 
-// TestOuterAliasInSubqueryKeepsNoQuery holds the other half of that bargain: a
-// subquery may name the select list of a query around it, which the engine takes
-// (TestOracle_OceanBaseQueryFirst), and the view is created — but the alias's
-// expression counts range tables from the outer query, so no analyzed query is
-// kept rather than one whose references read the wrong table. An alias of the
-// query's own select list is unaffected and keeps its query.
-func TestOuterAliasInSubqueryKeepsNoQuery(t *testing.T) {
+// TestAnalyzedQueryKeptOnlyWhenItIsFaithful holds the other half of that bargain:
+// a query the engine takes (TestOracle_OceanBaseQueryFirst) creates its view, and
+// an analyzed query is kept only where it says what the statement said. A subquery
+// naming an outer select alias keeps none, since the alias's expression counts
+// range tables from the outer query; so does a parenthesized query, whose own WITH,
+// ORDER BY and LIMIT a Query has no layer for. An alias of the query's own select
+// list, and a plain WITH, are unaffected and keep theirs.
+func TestAnalyzedQueryKeptOnlyWhenItIsFaithful(t *testing.T) {
 	for _, tc := range []struct {
 		sql string
 		ir  string
@@ -51,6 +54,9 @@ func TestOuterAliasInSubqueryKeepsNoQuery(t *testing.T) {
 		{"CREATE VIEW v AS SELECT b AS q FROM a ORDER BY (SELECT q)", ""},
 		{"CREATE VIEW v AS SELECT b AS q FROM a GROUP BY q HAVING (SELECT q) > 0", ""},
 		{"CREATE VIEW v AS SELECT b AS q FROM a ORDER BY q", "select `a`.`b` as `q` from `d`.`a` order by `a`.`b`"},
+		{"CREATE VIEW v AS WITH c AS (SELECT 1 AS x) (SELECT x FROM c) ORDER BY x", ""},
+		{"CREATE VIEW v AS WITH c AS (SELECT 1 AS x) (SELECT x FROM c)", ""},
+		{"CREATE VIEW v AS WITH c AS (SELECT 1 AS x) SELECT x FROM c", "with `c`(`x`) as (select 1 as `x`) select `c`.`x` from `c`"},
 	} {
 		c, err := LoadSQL("CREATE DATABASE d; USE d; CREATE TABLE a (b INT); CREATE TABLE z (c INT)")
 		if err != nil {

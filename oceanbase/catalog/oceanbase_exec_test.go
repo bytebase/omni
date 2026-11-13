@@ -362,6 +362,10 @@ func TestOracle_OceanBaseQueryFirst(t *testing.T) {
 			{"CREATE VIEW v9 AS SELECT b AS q FROM a GROUP BY q HAVING (SELECT q) > 0", taken},
 			{"CREATE VIEW v10 AS SELECT b AS q FROM a ORDER BY (SELECT zz)", 1054},
 			{"CREATE VIEW v11 AS SELECT b AS q FROM a WHERE (SELECT q) > 0", 1054},
+			{"CREATE VIEW v12 AS WITH c AS (SELECT 1 AS x) (SELECT x FROM c) ORDER BY x", taken},
+			{"CREATE VIEW v13 AS WITH c AS (SELECT 1 AS x) (SELECT x FROM c)", taken},
+			{"CREATE VIEW v14 AS WITH c AS (SELECT 1 AS x) (SELECT x FROM c) ORDER BY zz", 1054},
+			{"CREATE VIEW v15 AS WITH c AS (SELECT 1 AS x) (SELECT zz FROM c)", 1054},
 		}},
 	})
 }

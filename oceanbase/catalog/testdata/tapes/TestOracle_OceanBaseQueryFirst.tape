@@ -83,3 +83,17 @@
 | CREATE VIEW v11 AS SELECT b AS q FROM a WHERE (SELECT q) > 0
 < error
 | 1054 42S22 Unknown column 'q' in 'field list'
+> exec
+| CREATE VIEW v12 AS WITH c AS (SELECT 1 AS x) (SELECT x FROM c) ORDER BY x
+< ok 0 0
+> exec
+| CREATE VIEW v13 AS WITH c AS (SELECT 1 AS x) (SELECT x FROM c)
+< ok 0 0
+> exec
+| CREATE VIEW v14 AS WITH c AS (SELECT 1 AS x) (SELECT x FROM c) ORDER BY zz
+< error
+| 1054 42S22 Unknown column 'zz' in 'order clause'
+> exec
+| CREATE VIEW v15 AS WITH c AS (SELECT 1 AS x) (SELECT zz FROM c)
+< error
+| 1054 42S22 Unknown column 'zz' in 'field list'
