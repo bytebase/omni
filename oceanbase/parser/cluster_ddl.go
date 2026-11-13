@@ -4,17 +4,17 @@ import (
 	nodes "github.com/bytebase/omni/oceanbase/ast"
 )
 
-// OceanBase's cluster objects: tenants, resource units and resource pools.
-// Their statements are a name and a list of `WORD [=] value` options, so they
-// are written as alter_system.go writes ALTER SYSTEM: a table of forms, one
-// per alternative, over the same matchers. Each parses into a ObjectDDLStmt
-// that names the statement and its object.
+// OceanBase's own objects: tenants, resource units and pools, tablegroups and
+// sequences. Their statements are a name and a list of `WORD [=] value`
+// options, so they are written as alter_system.go writes ALTER SYSTEM: a table
+// of forms, one per alternative, over the same matchers. Each parses into an
+// ObjectDDLStmt that names the statement and its object.
 //
-// Ref: create_tenant_stmt, clone_tenant_stmt, create_standby_tenant_stmt, alter_tenant_stmt,
-// drop_tenant_stmt, create_resource_stmt, alter_resource_stmt and
-// drop_resource_stmt in sql_parser_mysql_mode.y (oceanbase v4.3.5_CE_BP6).
-// Their rows in testdata/compat.tsv hold every alternative, and its
-// near-misses, to the pinned server.
+// Ref: create_tenant_stmt, clone_tenant_stmt, create_standby_tenant_stmt,
+// alter_tenant_stmt, drop_tenant_stmt, create_resource_stmt,
+// alter_resource_stmt and drop_resource_stmt in sql_parser_mysql_mode.y
+// (oceanbase v4.3.5_CE_BP6). Their rows in testdata/compat.tsv hold every
+// alternative, and its near-misses, to the pinned server.
 var (
 	// sysObjName is the relation_name that names the statement's object.
 	sysObjName = sysLeaf(func(p *Parser) bool {
@@ -79,7 +79,87 @@ var (
 	sysParenStrs    = sysSeq(sysTok('('), sysStrList, sysTok(')'))
 )
 
-// clusterForms holds, for each word a cluster statement opens with, the forms
+// A tablegroup's options and partitioning, and a sequence's options.
+//
+// Ref: create_tablegroup_stmt, alter_tablegroup_stmt, drop_tablegroup_stmt,
+// create_sequence_stmt, alter_sequence_stmt and drop_sequence_stmt in
+// sql_parser_mysql_mode.y (oceanbase v4.3.5_CE_BP6).
+var (
+	// sysObjFactor is the relation_factor that names the statement's object.
+	sysObjFactor = sysLeaf(func(p *Parser) bool {
+		ref, err := p.parseRelationFactor()
+		if err != nil {
+			return false
+		}
+		p.sys.schema, p.sys.name = ref.Schema, ref.Name
+		return true
+	})
+	sysRelFactor = sysLeaf(func(p *Parser) bool {
+		_, err := p.parseRelationFactor()
+		return err == nil
+	})
+	// name_list: NAME_OB | unreserved_keyword | name_list [','] NAME_OB. The first
+	// name may be a keyword, and each one after it is a NAME_OB, with a comma
+	// before it or without.
+	sysNameList = sysSeq(sysName, sysOpt(sysList(sysSeq(sysOptComma, sysNameOB), sysSeq())))
+
+	sysTablegroupOption = sysAlt(
+		sysSeq(sysAlt("TABLEGROUP_ID", "MAX_USED_PART_ID"), sysEq, sysInt),
+		sysSeq("BINDING", sysEq, sysBool),
+		sysSeq("SHARDING", sysEq, sysStr),
+	)
+	// tablegroup_option_list is right-recursive:
+	//
+	//	list: space_separated | option ',' list
+	//
+	// so options that end in a comma come first and a run with no comma ends
+	// the list: `A, B C` parses and `A B, C` does not.
+	sysTablegroupOptions = sysSeq(
+		sysOpt(sysList(sysSeq(sysTablegroupOption, sysComma), sysSeq())),
+		sysList(sysTablegroupOption, sysSeq()))
+
+	sysEngineOption = sysOpt("ENGINE", sysTok('='), "INNODB")                                          // opt_engine_option
+	sysRangeExpr    = sysAlt("MAXVALUE", sysSeq(sysTok('('), sysList(sysExpr, sysComma), sysTok(')'))) // range_partition_expr
+	sysListExpr     = sysSeq(sysTok('('), sysAlt("DEFAULT", sysList(sysExpr, sysComma)), sysTok(')'))  // list_partition_expr
+	sysRangeSubpart = sysSeq("SUBPARTITION", sysRelFactor, "VALUES LESS THAN", sysRangeExpr, sysEngineOption)
+	sysListSubpart  = sysSeq("SUBPARTITION", sysRelFactor, "VALUES IN", sysListExpr, sysEngineOption)
+	sysHashSubpart  = sysSeq("SUBPARTITION", sysRelFactor, sysEngineOption)
+	// opt_subpartition_list.
+	sysSubpartList = sysOpt(sysAlt(sysParens(sysHashSubpart), sysParens(sysRangeSubpart), sysParens(sysListSubpart)))
+	sysRangeParts  = sysParens(sysSeq("PARTITION", sysRelFactor, "VALUES LESS THAN", sysRangeExpr, sysOpt("ID", sysInt), sysEngineOption, sysSubpartList))
+	sysListParts   = sysParens(sysSeq("PARTITION", sysRelFactor, "VALUES IN", sysListExpr, sysOpt("ID", sysInt), sysEngineOption, sysSubpartList))
+	// tg_subpartition_option. A tablegroup names no column: its keys are counted.
+	sysTablegroupSubpart = sysOpt(sysAlt(
+		sysSeq("SUBPARTITION BY RANGE", sysOpt("COLUMNS", sysInt), "SUBPARTITION TEMPLATE", sysParens(sysRangeSubpart)),
+		sysSeq("SUBPARTITION BY LIST", sysOpt("COLUMNS", sysInt), "SUBPARTITION TEMPLATE", sysParens(sysListSubpart)),
+		sysSeq("SUBPARTITION BY HASH", sysOpt("SUBPARTITIONS", sysInt)),
+		sysSeq("SUBPARTITION BY KEY", sysInt, sysOpt("SUBPARTITIONS", sysInt)),
+	))
+	sysOptPartitions = sysOpt("PARTITIONS", sysInt)
+	// opt_tg_partition_option, without its empty alternative.
+	sysTablegroupPartition = sysAlt(
+		sysSeq("PARTITION BY HASH", sysTablegroupSubpart, sysOptPartitions),
+		sysSeq("PARTITION BY KEY", sysInt, sysTablegroupSubpart, sysOptPartitions),
+		sysSeq("PARTITION BY RANGE", sysOpt("COLUMNS", sysInt), sysTablegroupSubpart, sysOptPartitions, sysRangeParts),
+		sysSeq("PARTITION BY LIST", sysOpt("COLUMNS", sysInt), sysTablegroupSubpart, sysOptPartitions, sysListParts),
+	)
+	sysPartsOfEither = sysAlt(sysRangeParts, sysListParts) // opt_partition_range_or_list
+
+	// simple_num and sequence_option.
+	sysSimpleNum      = sysSeq(sysOpt(sysAlt(sysTok('+'), sysTok('-'))), sysNumber)
+	sysSequenceOption = sysAlt(
+		sysSeq(sysAlt("INCREMENT BY", "START WITH", "MAXVALUE", "MINVALUE", "CACHE"), sysSimpleNum),
+		"NOMAXVALUE", "NOMINVALUE", "CYCLE", "NOCYCLE", "NOCACHE", "ORDER", "NOORDER", "RESTART",
+	)
+	sysSequenceOptions = sysOpt(sysList(sysSequenceOption, sysSeq()))
+)
+
+// sysParens is a comma-separated list of item in parentheses.
+func sysParens(item sysPat) sysPat {
+	return sysSeq(sysTok('('), sysList(item, sysComma), sysTok(')'))
+}
+
+// clusterForms holds, for each word an object statement opens with, the forms
 // that follow it.
 var clusterForms = map[string]sysPat{
 	"CREATE": sysAlt(
@@ -92,6 +172,8 @@ var clusterForms = map[string]sysPat{
 		sysForm("RESOURCE UNIT", sysIfNotExists, sysObjName, sysUnitOptions),
 		sysForm("RESOURCE POOL", sysIfNotExists, sysObjName, sysLooseList(sysAlt(
 			sysSeq("UNIT", sysEq, sysNS), sysSeq("UNIT_NUM", sysEq, sysInt), sysPoolZoneList, sysSeq("REPLICA_TYPE", sysEq, sysStr)))),
+		sysForm("TABLEGROUP", sysIfNotExists, sysObjName, sysOpt(sysTablegroupOptions), sysOpt(sysTablegroupPartition)),
+		sysForm("SEQUENCE", sysIfNotExists, sysObjFactor, sysSequenceOptions),
 	),
 	"ALTER": sysAlt(
 		sysForm("TENANT", sysObjName, "RENAME GLOBAL_NAME TO", sysName),
@@ -110,11 +192,25 @@ var clusterForms = map[string]sysPat{
 			sysSeq("UNIT_NUM", sysEq, sysInt, sysOpt("DELETE UNIT", sysEq, sysTok('('), sysIDList, sysTok(')'))),
 			sysPoolZoneList), sysComma)),
 		sysForm("RESOURCE TENANT", sysObjName, "UNIT_NUM", sysEq, sysInt, sysOpt("DELETE UNIT_GROUP", sysEq, sysTok('('), sysIDList, sysTok(')'))),
+		sysForm("TABLEGROUP", sysObjName, "ADD", sysOpt("TABLE"), sysList(sysRelFactor, sysComma)),
+		// alter_tablegroup_actions: [SET] options, with a comma between two runs.
+		sysForm("TABLEGROUP", sysObjName, sysList(sysSeq(sysOptSet, sysList(sysTablegroupOption, sysSeq())), sysComma)),
+		// alter_tg_partition_option.
+		sysForm("TABLEGROUP", sysObjName, sysAlt(
+			sysSeq("DROP PARTITION", sysAlt(sysNameList, sysSeq(sysTok('('), sysNameList, sysTok(')')))),
+			sysSeq("ADD PARTITION", sysPartsOfEither),
+			sysTablegroupPartition,
+			sysSeq("REORGANIZE PARTITION", sysNameList, "INTO", sysPartsOfEither),
+			sysSeq("TRUNCATE PARTITION", sysNameList),
+		)),
+		sysForm("SEQUENCE", sysObjFactor, sysSequenceOptions),
 	),
 	"DROP": sysAlt(
 		sysForm("TENANT", sysIfExists, sysObjName, sysOpt(sysAlt("FORCE", "PURGE"))),
 		sysForm("RESOURCE UNIT", sysIfExists, sysObjName),
 		sysForm("RESOURCE POOL", sysIfExists, sysObjName),
+		sysForm("TABLEGROUP", sysIfExists, sysObjName),
+		sysForm("SEQUENCE", sysIfExists, sysObjFactor),
 	),
 }
 
@@ -140,11 +236,11 @@ func (p *Parser) curIsNotNormalKeyword() bool {
 }
 
 // clusterObjectAhead reports whether the token after CREATE, ALTER or DROP
-// opens a cluster statement: TENANT, STANDBY TENANT, or RESOURCE before UNIT,
-// POOL or TENANT.
+// opens one of these statements: TENANT, TABLEGROUP, SEQUENCE, STANDBY TENANT,
+// or RESOURCE before UNIT, POOL or TENANT.
 func (p *Parser) clusterObjectAhead() bool {
 	switch {
-	case p.isBareWord("TENANT"):
+	case p.isBareWord("TENANT"), p.isBareWord("TABLEGROUP"), p.isBareWord("SEQUENCE"):
 		return true
 	case p.isBareWord("STANDBY"):
 		return p.nextIsBareWord("TENANT")
@@ -167,6 +263,7 @@ func (p *Parser) parseClusterDDL(start int, verb string) (nodes.Node, bool, erro
 	return &nodes.ObjectDDLStmt{
 		Loc:    nodes.Loc{Start: start, End: p.prev.End},
 		Action: verb + " " + object,
+		Schema: p.sys.schema,
 		Name:   p.sys.name,
 	}, true, nil
 }

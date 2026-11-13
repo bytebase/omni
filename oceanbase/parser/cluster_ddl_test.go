@@ -6,7 +6,7 @@ import (
 	nodes "github.com/bytebase/omni/oceanbase/ast"
 )
 
-// TestClusterDDL pins the action and the name a cluster statement parses
+// TestClusterDDL pins the action and the name an object statement parses
 // into. Whether each form parses is held to OceanBase by its rows in
 // testdata/compat.tsv.
 func TestClusterDDL(t *testing.T) {
@@ -25,6 +25,27 @@ func TestClusterDDL(t *testing.T) {
 		{"ALTER RESOURCE POOL MERGE ('p1', 'p2') INTO ('p3')", "ALTER RESOURCE POOL", ""},
 		{"ALTER RESOURCE TENANT t1 UNIT_NUM = 2", "ALTER RESOURCE TENANT", "t1"},
 		{"DROP RESOURCE UNIT IF EXISTS u1", "DROP RESOURCE UNIT", "u1"},
+		{"CREATE TABLEGROUP IF NOT EXISTS tg1 SHARDING = 'ADAPTIVE' PARTITION BY RANGE COLUMNS 1 PARTITIONS 2 (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN MAXVALUE)", "CREATE TABLEGROUP", "tg1"},
+		{"ALTER TABLEGROUP tg1 ADD TABLE t1, d.t2", "ALTER TABLEGROUP", "tg1"},
+		{"ALTER TABLEGROUP tg1 SET SHARDING = 'NONE'", "ALTER TABLEGROUP", "tg1"},
+		{"ALTER TABLEGROUP tg1 DROP PARTITION (p0, p1)", "ALTER TABLEGROUP", "tg1"},
+		{"DROP TABLEGROUP IF EXISTS tg1", "DROP TABLEGROUP", "tg1"},
+		{"CREATE SEQUENCE IF NOT EXISTS d.s1 START WITH 1 INCREMENT BY -1 NOMAXVALUE CACHE 20 NOCYCLE", "CREATE SEQUENCE", "s1"},
+		{"ALTER SEQUENCE s1 RESTART MAXVALUE 100", "ALTER SEQUENCE", "s1"},
+		{"DROP SEQUENCE IF EXISTS d.s1", "DROP SEQUENCE", "s1"},
+		// simple_num is an INTNUM, which runs to 64 bits, or a DECIMAL_VAL past them.
+		{"CREATE SEQUENCE s1 MINVALUE -9223372036854775808 MAXVALUE 9223372036854775807", "CREATE SEQUENCE", "s1"},
+		{"CREATE SEQUENCE s1 MAXVALUE 18446744073709551616", "CREATE SEQUENCE", "s1"},
+		// A partition count is an INTNUM too.
+		{"CREATE TABLEGROUP tg1 PARTITION BY HASH SUBPARTITION BY HASH SUBPARTITIONS 18446744073709551615 PARTITIONS 9223372036854775808", "CREATE TABLEGROUP", "tg1"},
+		// name_list opens with a keyword or a NAME_OB, and goes on with NAME_OBs.
+		{"ALTER TABLEGROUP tg1 DROP PARTITION ACCESS_INFO, p1", "ALTER TABLEGROUP", "tg1"},
+		{"ALTER TABLEGROUP tg1 TRUNCATE PARTITION ACCESS_INFO p1, p2", "ALTER TABLEGROUP", "tg1"},
+		{"ALTER TABLEGROUP tg1 DROP PARTITION p0 p1", "ALTER TABLEGROUP", "tg1"},
+		// tablegroup_option_list: the options with a comma, then a run without one.
+		{"CREATE TABLEGROUP tg1 BINDING TRUE, SHARDING 'NONE' MAX_USED_PART_ID 1", "CREATE TABLEGROUP", "tg1"},
+		{"CREATE TABLEGROUP tg1 BINDING TRUE, SHARDING 'NONE', MAX_USED_PART_ID 1", "CREATE TABLEGROUP", "tg1"},
+		{"CREATE TABLEGROUP tg1 BINDING TRUE SHARDING 'NONE' MAX_USED_PART_ID 1", "CREATE TABLEGROUP", "tg1"},
 		// A variable's value is an expression before it is a bare BINARY.
 		{"CREATE TENANT t1 SET x = BINARY 'a', y = BINARY, z = ON", "CREATE TENANT", "t1"},
 		{"ALTER TENANT t1 VARIABLES x = BINARY 'a'", "ALTER TENANT", "t1"},
@@ -61,6 +82,14 @@ func TestClusterDDL(t *testing.T) {
 		"CREATE TENANT t2 FROM t1 WITH RESOURCE_POOL p1",                   // a clone takes two options
 		"CREATE TENANT t2 FROM t1 WITH RESOURCE_POOL p1, UNIT u1, UNIT u2", // and no more
 		"DROP RESOURCE GROUP g1",                                           // MySQL's, which OceanBase has not
+		"CREATE TABLEGROUP tg1 PARTITION BY RANGE (c) (PARTITION p0 VALUES LESS THAN (10))", // a tablegroup names no column
+		"CREATE SEQUENCE s1 START 1",
+		"ALTER TABLEGROUP tg1",
+		"CREATE TABLEGROUP tg1 PARTITION BY HASH PARTITIONS 18446744073709551616", // past 64 bits a number is a decimal
+		"CREATE TABLEGROUP tg1 BINDING TRUE SHARDING 'NONE', MAX_USED_PART_ID 1",  // no comma after a run without one
+		"CREATE TABLEGROUP tg1 BINDING TRUE,",
+		"ALTER TABLEGROUP tg1 DROP PARTITION p0, ACCESS_INFO", // only the first name may be a keyword
+		"DROP RESOURCE GROUP g1",                              // MySQL's, which OceanBase has not
 	} {
 		if _, err := Parse(sql); err == nil {
 			t.Errorf("Parse(%q) was accepted", sql)

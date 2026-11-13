@@ -421,16 +421,16 @@ reject	reject	engine	stmt/drop_resource_stmt!drop-3	DROP RESOURCE a
 reject	reject	engine	stmt/drop_resource_stmt!drop-4	DROP RESOURCE UNIT
 reject	reject	engine	stmt/drop_resource_stmt!insert	DROP RESOURCE UNIT a zzz
 reject	reject	engine	stmt/drop_resource_stmt!swap	DUAL RESOURCE UNIT a
-reject	accept	engine	stmt/create_tablegroup_stmt	CREATE TABLEGROUP a
+accept	accept	engine	stmt/create_tablegroup_stmt	CREATE TABLEGROUP a
 reject	reject	engine	stmt/create_tablegroup_stmt!drop-1	TABLEGROUP a
 reject	reject	engine	stmt/create_tablegroup_stmt!drop-3	CREATE TABLEGROUP
 reject	reject	engine	stmt/create_tablegroup_stmt!insert	CREATE TABLEGROUP a zzz
 reject	reject	engine	stmt/create_tablegroup_stmt!swap	CREATE_TIMESTAMP TABLEGROUP a
-reject	accept	engine	stmt/drop_tablegroup_stmt	DROP TABLEGROUP a
+accept	accept	engine	stmt/drop_tablegroup_stmt	DROP TABLEGROUP a
 reject	reject	engine	stmt/drop_tablegroup_stmt!drop-3	DROP TABLEGROUP
 reject	reject	engine	stmt/drop_tablegroup_stmt!insert	DROP TABLEGROUP a zzz
 reject	reject	engine	stmt/drop_tablegroup_stmt!swap	DUAL TABLEGROUP a
-reject	accept	engine	stmt/alter_tablegroup_stmt	ALTER TABLEGROUP a ADD a
+accept	accept	engine	stmt/alter_tablegroup_stmt	ALTER TABLEGROUP a ADD a
 reject	reject	engine	stmt/alter_tablegroup_stmt!drop-1	TABLEGROUP a ADD a
 reject	reject	engine	stmt/alter_tablegroup_stmt!drop-2	ALTER a ADD a
 reject	reject	engine	stmt/alter_tablegroup_stmt!drop-3	ALTER TABLEGROUP ADD a
@@ -537,16 +537,16 @@ reject	reject	engine	stmt/drop_dblink_stmt!drop-2	DROP LINK a
 accept	accept	engine	stmt/drop_dblink_stmt!drop-4	DROP DATABASE LINK
 reject	reject	engine	stmt/drop_dblink_stmt!insert	DROP DATABASE LINK a zzz
 reject	reject	engine	stmt/drop_dblink_stmt!swap	DUAL DATABASE LINK a
-reject	accept	engine	stmt/create_sequence_stmt	CREATE SEQUENCE a
+accept	accept	engine	stmt/create_sequence_stmt	CREATE SEQUENCE a
 reject	reject	engine	stmt/create_sequence_stmt!drop-1	SEQUENCE a
 reject	reject	engine	stmt/create_sequence_stmt!drop-3	CREATE SEQUENCE
 reject	reject	engine	stmt/create_sequence_stmt!insert	CREATE SEQUENCE a zzz
 reject	reject	engine	stmt/create_sequence_stmt!swap	CREATE_TIMESTAMP SEQUENCE a
-reject	accept	engine	stmt/alter_sequence_stmt	ALTER SEQUENCE a
+accept	accept	engine	stmt/alter_sequence_stmt	ALTER SEQUENCE a
 reject	reject	engine	stmt/alter_sequence_stmt!drop-3	ALTER SEQUENCE
 reject	reject	engine	stmt/alter_sequence_stmt!insert	ALTER SEQUENCE a zzz
 reject	reject	engine	stmt/alter_sequence_stmt!swap	ALWAYS SEQUENCE a
-reject	accept	engine	stmt/drop_sequence_stmt	DROP SEQUENCE a
+accept	accept	engine	stmt/drop_sequence_stmt	DROP SEQUENCE a
 reject	reject	engine	stmt/drop_sequence_stmt!drop-3	DROP SEQUENCE
 reject	reject	engine	stmt/drop_sequence_stmt!insert	DROP SEQUENCE a zzz
 reject	reject	engine	stmt/drop_sequence_stmt!swap	DUAL SEQUENCE a
@@ -6404,19 +6404,19 @@ reject	reject	engine	range_expr_list/range_expr_list_,_expr!drop-2	ALTER TABLE a
 reject	reject	engine	range_expr_list/range_expr_list_,_expr!drop-3	ALTER TABLE a ADD PARTITION(PARTITION a VALUES LESS THAN(a,))
 reject	reject	engine	range_expr_list/range_expr_list_,_expr!truncate	ALTER TABLE a ADD PARTITION(PARTITION a VALUES LESS THAN(a,
 reject	reject	engine	range_expr_list/range_expr_list_,_expr!insert	ALTER TABLE a ADD PARTITION(PARTITION a VALUES LESS THAN(a, a zzz))
-reject	accept	engine	opt_partitions/PARTITIONS_INTNUM	CREATE TABLEGROUP a PARTITION BY HASH PARTITIONS 1
+accept	accept	engine	opt_partitions/PARTITIONS_INTNUM	CREATE TABLEGROUP a PARTITION BY HASH PARTITIONS 1
 reject	reject	engine	opt_partitions/PARTITIONS_INTNUM!drop-1	CREATE TABLEGROUP a PARTITION BY HASH 1
 reject	reject	engine	opt_partitions/PARTITIONS_INTNUM!drop-2	CREATE TABLEGROUP a PARTITION BY HASH PARTITIONS
 reject	reject	engine	opt_partitions/PARTITIONS_INTNUM!insert	CREATE TABLEGROUP a PARTITION BY HASH PARTITIONS 1 zzz
 reject	reject	engine	opt_partitions/PARTITIONS_INTNUM!swap	CREATE TABLEGROUP a PARTITION BY HASH PARTITION_ID 1
-reject	accept	engine	opt_partitions/%empty	CREATE TABLEGROUP a PARTITION BY HASH
+accept	accept	engine	opt_partitions/%empty	CREATE TABLEGROUP a PARTITION BY HASH
 reject	reject	engine	opt_partitions/%empty!insert	CREATE TABLEGROUP a PARTITION BY HASH zzz
-reject	accept	engine	opt_subpartitions/SUBPARTITIONS_INTNUM	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITION BY HASH SUBPARTITIONS 1
+accept	accept	engine	opt_subpartitions/SUBPARTITIONS_INTNUM	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITION BY HASH SUBPARTITIONS 1
 reject	reject	engine	opt_subpartitions/SUBPARTITIONS_INTNUM!drop-1	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITION BY HASH 1
 reject	reject	engine	opt_subpartitions/SUBPARTITIONS_INTNUM!drop-2	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITION BY HASH SUBPARTITIONS
 reject	reject	engine	opt_subpartitions/SUBPARTITIONS_INTNUM!insert	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITION BY HASH SUBPARTITIONS 1 zzz
 reject	reject	engine	opt_subpartitions/SUBPARTITIONS_INTNUM!swap	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITION BY HASH SUBSTR 1
-reject	accept	engine	opt_subpartitions/%empty	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITION BY HASH
+accept	accept	engine	opt_subpartitions/%empty	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITION BY HASH
 reject	reject	engine	opt_subpartitions/%empty!insert	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITION BY HASH zzz
 accept	accept	engine	int_or_decimal/INTNUM	ALTER TABLE a AUTO_INCREMENT 1
 accept	accept	engine	int_or_decimal/DECIMAL_VAL	ALTER TABLE a AUTO_INCREMENT 1.5
@@ -6426,19 +6426,19 @@ reject	reject	engine	index_or_heap/INDEX!swap	ALTER TABLE a ORGANIZATION INDEXED
 accept	accept	engine	index_or_heap/HEAP	ALTER TABLE a ORGANIZATION HEAP
 reject	reject	engine	index_or_heap/HEAP!insert	ALTER TABLE a ORGANIZATION HEAP zzz
 reject	reject	engine	index_or_heap/HEAP!swap	ALTER TABLE a ORGANIZATION HELP
-reject	accept	engine	opt_tg_partition_option/tg_hash_partition_option	CREATE TABLEGROUP a PARTITION BY HASH
+accept	accept	engine	opt_tg_partition_option/tg_hash_partition_option	CREATE TABLEGROUP a PARTITION BY HASH
 reject	reject	engine	opt_tg_partition_option/tg_hash_partition_option!drop-1	CREATE TABLEGROUP a BY HASH
 reject	reject	engine	opt_tg_partition_option/tg_hash_partition_option!drop-2	CREATE TABLEGROUP a PARTITION HASH
 reject	reject	engine	opt_tg_partition_option/tg_hash_partition_option!drop-3	CREATE TABLEGROUP a PARTITION BY
 reject	reject	engine	opt_tg_partition_option/tg_hash_partition_option!swap	CREATE TABLEGROUP a PARTITIONING BY HASH
-reject	accept	engine	opt_tg_partition_option/tg_key_partition_option	CREATE TABLEGROUP a PARTITION BY KEY 1
+accept	accept	engine	opt_tg_partition_option/tg_key_partition_option	CREATE TABLEGROUP a PARTITION BY KEY 1
 reject	reject	engine	opt_tg_partition_option/tg_key_partition_option!drop-1	CREATE TABLEGROUP a BY KEY 1
 reject	reject	engine	opt_tg_partition_option/tg_key_partition_option!drop-2	CREATE TABLEGROUP a PARTITION KEY 1
 reject	reject	engine	opt_tg_partition_option/tg_key_partition_option!drop-3	CREATE TABLEGROUP a PARTITION BY 1
 reject	reject	engine	opt_tg_partition_option/tg_key_partition_option!drop-4	CREATE TABLEGROUP a PARTITION BY KEY
 reject	reject	engine	opt_tg_partition_option/tg_key_partition_option!insert	CREATE TABLEGROUP a PARTITION BY KEY 1 zzz
 reject	reject	engine	opt_tg_partition_option/tg_key_partition_option!swap	CREATE TABLEGROUP a PARTITIONING BY KEY 1
-reject	accept	engine	opt_tg_partition_option/tg_range_partition_option	CREATE TABLEGROUP a PARTITION BY RANGE(PARTITION a VALUES LESS THAN MAXVALUE)
+accept	accept	engine	opt_tg_partition_option/tg_range_partition_option	CREATE TABLEGROUP a PARTITION BY RANGE(PARTITION a VALUES LESS THAN MAXVALUE)
 reject	reject	engine	opt_tg_partition_option/tg_range_partition_option!drop-1	CREATE TABLEGROUP a BY RANGE(PARTITION a VALUES LESS THAN MAXVALUE)
 reject	reject	engine	opt_tg_partition_option/tg_range_partition_option!drop-2	CREATE TABLEGROUP a PARTITION RANGE(PARTITION a VALUES LESS THAN MAXVALUE)
 reject	reject	engine	opt_tg_partition_option/tg_range_partition_option!drop-3	CREATE TABLEGROUP a PARTITION BY(PARTITION a VALUES LESS THAN MAXVALUE)
@@ -6452,7 +6452,7 @@ reject	reject	engine	opt_tg_partition_option/tg_range_partition_option!drop-10	C
 reject	reject	engine	opt_tg_partition_option/tg_range_partition_option!drop-11	CREATE TABLEGROUP a PARTITION BY RANGE(PARTITION a VALUES LESS THAN MAXVALUE
 reject	reject	engine	opt_tg_partition_option/tg_range_partition_option!insert	CREATE TABLEGROUP a PARTITION BY RANGE(PARTITION a VALUES LESS THAN MAXVALUE) zzz
 reject	reject	engine	opt_tg_partition_option/tg_range_partition_option!swap	CREATE TABLEGROUP a PARTITIONING BY RANGE(PARTITION a VALUES LESS THAN MAXVALUE)
-reject	accept	engine	opt_tg_partition_option/tg_list_partition_option	CREATE TABLEGROUP a PARTITION BY LIST(PARTITION a VALUES IN(a))
+accept	accept	engine	opt_tg_partition_option/tg_list_partition_option	CREATE TABLEGROUP a PARTITION BY LIST(PARTITION a VALUES IN(a))
 reject	reject	engine	opt_tg_partition_option/tg_list_partition_option!drop-1	CREATE TABLEGROUP a BY LIST(PARTITION a VALUES IN(a))
 reject	reject	engine	opt_tg_partition_option/tg_list_partition_option!drop-2	CREATE TABLEGROUP a PARTITION LIST(PARTITION a VALUES IN(a))
 reject	reject	engine	opt_tg_partition_option/tg_list_partition_option!drop-3	CREATE TABLEGROUP a PARTITION BY(PARTITION a VALUES IN(a))
@@ -6466,11 +6466,11 @@ reject	reject	engine	opt_tg_partition_option/tg_list_partition_option!drop-10	CR
 reject	reject	engine	opt_tg_partition_option/tg_list_partition_option!drop-11	CREATE TABLEGROUP a PARTITION BY LIST(PARTITION a VALUES IN(a)
 reject	reject	engine	opt_tg_partition_option/tg_list_partition_option!insert	CREATE TABLEGROUP a PARTITION BY LIST(PARTITION a VALUES IN(a)) zzz
 reject	reject	engine	opt_tg_partition_option/tg_list_partition_option!swap	CREATE TABLEGROUP a PARTITIONING BY LIST(PARTITION a VALUES IN(a))
-reject	accept	engine	opt_tg_partition_option/%empty	CREATE TABLEGROUP a
-reject	accept	engine	tg_hash_partition_option/PARTITION_BY_HASH_tg_subpartition_option_opt_partitions	CREATE TABLEGROUP a PARTITION BY HASH
-reject	accept	engine	tg_key_partition_option/PARTITION_BY_KEY_INTNUM_tg_subpartition_option_opt_partitions	CREATE TABLEGROUP a PARTITION BY KEY 1
-reject	accept	engine	tg_range_partition_option/PARTITION_BY_RANGE_tg_subpartition_option_opt_partitions_opt_range_partition_list	CREATE TABLEGROUP a PARTITION BY RANGE(PARTITION a VALUES LESS THAN MAXVALUE)
-reject	accept	engine	tg_range_partition_option/PARTITION_BY_RANGE_COLUMNS_INTNUM_tg_subpartition_option_opt_partitions_opt_range_partition_list	CREATE TABLEGROUP a PARTITION BY RANGE COLUMNS 1(PARTITION a VALUES LESS THAN MAXVALUE)
+accept	accept	engine	opt_tg_partition_option/%empty	CREATE TABLEGROUP a
+accept	accept	engine	tg_hash_partition_option/PARTITION_BY_HASH_tg_subpartition_option_opt_partitions	CREATE TABLEGROUP a PARTITION BY HASH
+accept	accept	engine	tg_key_partition_option/PARTITION_BY_KEY_INTNUM_tg_subpartition_option_opt_partitions	CREATE TABLEGROUP a PARTITION BY KEY 1
+accept	accept	engine	tg_range_partition_option/PARTITION_BY_RANGE_tg_subpartition_option_opt_partitions_opt_range_partition_list	CREATE TABLEGROUP a PARTITION BY RANGE(PARTITION a VALUES LESS THAN MAXVALUE)
+accept	accept	engine	tg_range_partition_option/PARTITION_BY_RANGE_COLUMNS_INTNUM_tg_subpartition_option_opt_partitions_opt_range_partition_list	CREATE TABLEGROUP a PARTITION BY RANGE COLUMNS 1(PARTITION a VALUES LESS THAN MAXVALUE)
 reject	reject	engine	tg_range_partition_option/PARTITION_BY_RANGE_COLUMNS_INTNUM_tg_subpartition_option_opt_partitions_opt_range_partition_list!drop-1	CREATE TABLEGROUP a BY RANGE COLUMNS 1(PARTITION a VALUES LESS THAN MAXVALUE)
 reject	reject	engine	tg_range_partition_option/PARTITION_BY_RANGE_COLUMNS_INTNUM_tg_subpartition_option_opt_partitions_opt_range_partition_list!drop-2	CREATE TABLEGROUP a PARTITION RANGE COLUMNS 1(PARTITION a VALUES LESS THAN MAXVALUE)
 reject	reject	engine	tg_range_partition_option/PARTITION_BY_RANGE_COLUMNS_INTNUM_tg_subpartition_option_opt_partitions_opt_range_partition_list!drop-3	CREATE TABLEGROUP a PARTITION BY COLUMNS 1(PARTITION a VALUES LESS THAN MAXVALUE)
@@ -6486,8 +6486,8 @@ reject	reject	engine	tg_range_partition_option/PARTITION_BY_RANGE_COLUMNS_INTNUM
 reject	reject	engine	tg_range_partition_option/PARTITION_BY_RANGE_COLUMNS_INTNUM_tg_subpartition_option_opt_partitions_opt_range_partition_list!drop-13	CREATE TABLEGROUP a PARTITION BY RANGE COLUMNS 1(PARTITION a VALUES LESS THAN MAXVALUE
 reject	reject	engine	tg_range_partition_option/PARTITION_BY_RANGE_COLUMNS_INTNUM_tg_subpartition_option_opt_partitions_opt_range_partition_list!insert	CREATE TABLEGROUP a PARTITION BY RANGE COLUMNS 1(PARTITION a VALUES LESS THAN MAXVALUE) zzz
 reject	reject	engine	tg_range_partition_option/PARTITION_BY_RANGE_COLUMNS_INTNUM_tg_subpartition_option_opt_partitions_opt_range_partition_list!swap	CREATE TABLEGROUP a PARTITIONING BY RANGE COLUMNS 1(PARTITION a VALUES LESS THAN MAXVALUE)
-reject	accept	engine	tg_list_partition_option/PARTITION_BY_BISON_LIST_tg_subpartition_option_opt_partitions_opt_list_partition_list	CREATE TABLEGROUP a PARTITION BY LIST(PARTITION a VALUES IN(a))
-reject	accept	engine	tg_list_partition_option/PARTITION_BY_BISON_LIST_COLUMNS_INTNUM_tg_subpartition_option_opt_partitions_opt_list_partition_list	CREATE TABLEGROUP a PARTITION BY LIST COLUMNS 1(PARTITION a VALUES IN(a))
+accept	accept	engine	tg_list_partition_option/PARTITION_BY_BISON_LIST_tg_subpartition_option_opt_partitions_opt_list_partition_list	CREATE TABLEGROUP a PARTITION BY LIST(PARTITION a VALUES IN(a))
+accept	accept	engine	tg_list_partition_option/PARTITION_BY_BISON_LIST_COLUMNS_INTNUM_tg_subpartition_option_opt_partitions_opt_list_partition_list	CREATE TABLEGROUP a PARTITION BY LIST COLUMNS 1(PARTITION a VALUES IN(a))
 reject	reject	engine	tg_list_partition_option/PARTITION_BY_BISON_LIST_COLUMNS_INTNUM_tg_subpartition_option_opt_partitions_opt_list_partition_list!drop-1	CREATE TABLEGROUP a BY LIST COLUMNS 1(PARTITION a VALUES IN(a))
 reject	reject	engine	tg_list_partition_option/PARTITION_BY_BISON_LIST_COLUMNS_INTNUM_tg_subpartition_option_opt_partitions_opt_list_partition_list!drop-2	CREATE TABLEGROUP a PARTITION LIST COLUMNS 1(PARTITION a VALUES IN(a))
 reject	reject	engine	tg_list_partition_option/PARTITION_BY_BISON_LIST_COLUMNS_INTNUM_tg_subpartition_option_opt_partitions_opt_list_partition_list!drop-3	CREATE TABLEGROUP a PARTITION BY COLUMNS 1(PARTITION a VALUES IN(a))
@@ -6503,7 +6503,7 @@ reject	reject	engine	tg_list_partition_option/PARTITION_BY_BISON_LIST_COLUMNS_IN
 reject	reject	engine	tg_list_partition_option/PARTITION_BY_BISON_LIST_COLUMNS_INTNUM_tg_subpartition_option_opt_partitions_opt_list_partition_list!drop-13	CREATE TABLEGROUP a PARTITION BY LIST COLUMNS 1(PARTITION a VALUES IN(a)
 reject	reject	engine	tg_list_partition_option/PARTITION_BY_BISON_LIST_COLUMNS_INTNUM_tg_subpartition_option_opt_partitions_opt_list_partition_list!insert	CREATE TABLEGROUP a PARTITION BY LIST COLUMNS 1(PARTITION a VALUES IN(a)) zzz
 reject	reject	engine	tg_list_partition_option/PARTITION_BY_BISON_LIST_COLUMNS_INTNUM_tg_subpartition_option_opt_partitions_opt_list_partition_list!swap	CREATE TABLEGROUP a PARTITIONING BY LIST COLUMNS 1(PARTITION a VALUES IN(a))
-reject	accept	engine	tg_subpartition_option/SUBPARTITION_BY_RANGE_SUBPARTITION_TEMPLATE_opt_range_subpartition_list	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITION BY RANGE SUBPARTITION TEMPLATE(SUBPARTITION a VALUES LESS THAN MAXVALUE)
+accept	accept	engine	tg_subpartition_option/SUBPARTITION_BY_RANGE_SUBPARTITION_TEMPLATE_opt_range_subpartition_list	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITION BY RANGE SUBPARTITION TEMPLATE(SUBPARTITION a VALUES LESS THAN MAXVALUE)
 reject	reject	engine	tg_subpartition_option/SUBPARTITION_BY_RANGE_SUBPARTITION_TEMPLATE_opt_range_subpartition_list!drop-1	CREATE TABLEGROUP a PARTITION BY HASH BY RANGE SUBPARTITION TEMPLATE(SUBPARTITION a VALUES LESS THAN MAXVALUE)
 reject	reject	engine	tg_subpartition_option/SUBPARTITION_BY_RANGE_SUBPARTITION_TEMPLATE_opt_range_subpartition_list!drop-2	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITION RANGE SUBPARTITION TEMPLATE(SUBPARTITION a VALUES LESS THAN MAXVALUE)
 reject	reject	engine	tg_subpartition_option/SUBPARTITION_BY_RANGE_SUBPARTITION_TEMPLATE_opt_range_subpartition_list!drop-3	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITION BY SUBPARTITION TEMPLATE(SUBPARTITION a VALUES LESS THAN MAXVALUE)
@@ -6519,7 +6519,7 @@ reject	reject	engine	tg_subpartition_option/SUBPARTITION_BY_RANGE_SUBPARTITION_T
 reject	reject	engine	tg_subpartition_option/SUBPARTITION_BY_RANGE_SUBPARTITION_TEMPLATE_opt_range_subpartition_list!drop-13	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITION BY RANGE SUBPARTITION TEMPLATE(SUBPARTITION a VALUES LESS THAN MAXVALUE
 reject	reject	engine	tg_subpartition_option/SUBPARTITION_BY_RANGE_SUBPARTITION_TEMPLATE_opt_range_subpartition_list!insert	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITION BY RANGE SUBPARTITION TEMPLATE(SUBPARTITION a VALUES LESS THAN MAXVALUE) zzz
 reject	reject	engine	tg_subpartition_option/SUBPARTITION_BY_RANGE_SUBPARTITION_TEMPLATE_opt_range_subpartition_list!swap	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITIONS BY RANGE SUBPARTITION TEMPLATE(SUBPARTITION a VALUES LESS THAN MAXVALUE)
-reject	accept	engine	tg_subpartition_option/SUBPARTITION_BY_RANGE_COLUMNS_INTNUM_SUBPARTITION_TEMPLATE_opt_range_subpartition_list	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITION BY RANGE COLUMNS 1 SUBPARTITION TEMPLATE(SUBPARTITION a VALUES LESS THAN MAXVALUE)
+accept	accept	engine	tg_subpartition_option/SUBPARTITION_BY_RANGE_COLUMNS_INTNUM_SUBPARTITION_TEMPLATE_opt_range_subpartition_list	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITION BY RANGE COLUMNS 1 SUBPARTITION TEMPLATE(SUBPARTITION a VALUES LESS THAN MAXVALUE)
 reject	reject	engine	tg_subpartition_option/SUBPARTITION_BY_RANGE_COLUMNS_INTNUM_SUBPARTITION_TEMPLATE_opt_range_subpartition_list!drop-1	CREATE TABLEGROUP a PARTITION BY HASH BY RANGE COLUMNS 1 SUBPARTITION TEMPLATE(SUBPARTITION a VALUES LESS THAN MAXVALUE)
 reject	reject	engine	tg_subpartition_option/SUBPARTITION_BY_RANGE_COLUMNS_INTNUM_SUBPARTITION_TEMPLATE_opt_range_subpartition_list!drop-2	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITION RANGE COLUMNS 1 SUBPARTITION TEMPLATE(SUBPARTITION a VALUES LESS THAN MAXVALUE)
 reject	reject	engine	tg_subpartition_option/SUBPARTITION_BY_RANGE_COLUMNS_INTNUM_SUBPARTITION_TEMPLATE_opt_range_subpartition_list!drop-3	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITION BY COLUMNS 1 SUBPARTITION TEMPLATE(SUBPARTITION a VALUES LESS THAN MAXVALUE)
@@ -6537,19 +6537,19 @@ reject	reject	engine	tg_subpartition_option/SUBPARTITION_BY_RANGE_COLUMNS_INTNUM
 reject	reject	engine	tg_subpartition_option/SUBPARTITION_BY_RANGE_COLUMNS_INTNUM_SUBPARTITION_TEMPLATE_opt_range_subpartition_list!drop-15	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITION BY RANGE COLUMNS 1 SUBPARTITION TEMPLATE(SUBPARTITION a VALUES LESS THAN MAXVALUE
 reject	reject	engine	tg_subpartition_option/SUBPARTITION_BY_RANGE_COLUMNS_INTNUM_SUBPARTITION_TEMPLATE_opt_range_subpartition_list!insert	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITION BY RANGE COLUMNS 1 SUBPARTITION TEMPLATE(SUBPARTITION a VALUES LESS THAN MAXVALUE) zzz
 reject	reject	engine	tg_subpartition_option/SUBPARTITION_BY_RANGE_COLUMNS_INTNUM_SUBPARTITION_TEMPLATE_opt_range_subpartition_list!swap	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITIONS BY RANGE COLUMNS 1 SUBPARTITION TEMPLATE(SUBPARTITION a VALUES LESS THAN MAXVALUE)
-reject	accept	engine	tg_subpartition_option/SUBPARTITION_BY_HASH_opt_subpartitions	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITION BY HASH
+accept	accept	engine	tg_subpartition_option/SUBPARTITION_BY_HASH_opt_subpartitions	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITION BY HASH
 reject	reject	engine	tg_subpartition_option/SUBPARTITION_BY_HASH_opt_subpartitions!drop-1	CREATE TABLEGROUP a PARTITION BY HASH BY HASH
 reject	reject	engine	tg_subpartition_option/SUBPARTITION_BY_HASH_opt_subpartitions!drop-2	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITION HASH
 reject	reject	engine	tg_subpartition_option/SUBPARTITION_BY_HASH_opt_subpartitions!drop-3	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITION BY
 reject	reject	engine	tg_subpartition_option/SUBPARTITION_BY_HASH_opt_subpartitions!swap	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITIONS BY HASH
-reject	accept	engine	tg_subpartition_option/SUBPARTITION_BY_KEY_INTNUM_opt_subpartitions	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITION BY KEY 1
+accept	accept	engine	tg_subpartition_option/SUBPARTITION_BY_KEY_INTNUM_opt_subpartitions	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITION BY KEY 1
 reject	reject	engine	tg_subpartition_option/SUBPARTITION_BY_KEY_INTNUM_opt_subpartitions!drop-1	CREATE TABLEGROUP a PARTITION BY HASH BY KEY 1
 reject	reject	engine	tg_subpartition_option/SUBPARTITION_BY_KEY_INTNUM_opt_subpartitions!drop-2	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITION KEY 1
 reject	reject	engine	tg_subpartition_option/SUBPARTITION_BY_KEY_INTNUM_opt_subpartitions!drop-3	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITION BY 1
 reject	reject	engine	tg_subpartition_option/SUBPARTITION_BY_KEY_INTNUM_opt_subpartitions!drop-4	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITION BY KEY
 reject	reject	engine	tg_subpartition_option/SUBPARTITION_BY_KEY_INTNUM_opt_subpartitions!insert	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITION BY KEY 1 zzz
 reject	reject	engine	tg_subpartition_option/SUBPARTITION_BY_KEY_INTNUM_opt_subpartitions!swap	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITIONS BY KEY 1
-reject	accept	engine	tg_subpartition_option/SUBPARTITION_BY_BISON_LIST_SUBPARTITION_TEMPLATE_opt_list_subpartition_list	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITION BY LIST SUBPARTITION TEMPLATE(SUBPARTITION a VALUES IN(a))
+accept	accept	engine	tg_subpartition_option/SUBPARTITION_BY_BISON_LIST_SUBPARTITION_TEMPLATE_opt_list_subpartition_list	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITION BY LIST SUBPARTITION TEMPLATE(SUBPARTITION a VALUES IN(a))
 reject	reject	engine	tg_subpartition_option/SUBPARTITION_BY_BISON_LIST_SUBPARTITION_TEMPLATE_opt_list_subpartition_list!drop-1	CREATE TABLEGROUP a PARTITION BY HASH BY LIST SUBPARTITION TEMPLATE(SUBPARTITION a VALUES IN(a))
 reject	reject	engine	tg_subpartition_option/SUBPARTITION_BY_BISON_LIST_SUBPARTITION_TEMPLATE_opt_list_subpartition_list!drop-2	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITION LIST SUBPARTITION TEMPLATE(SUBPARTITION a VALUES IN(a))
 reject	reject	engine	tg_subpartition_option/SUBPARTITION_BY_BISON_LIST_SUBPARTITION_TEMPLATE_opt_list_subpartition_list!drop-3	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITION BY SUBPARTITION TEMPLATE(SUBPARTITION a VALUES IN(a))
@@ -6565,7 +6565,7 @@ reject	reject	engine	tg_subpartition_option/SUBPARTITION_BY_BISON_LIST_SUBPARTIT
 reject	reject	engine	tg_subpartition_option/SUBPARTITION_BY_BISON_LIST_SUBPARTITION_TEMPLATE_opt_list_subpartition_list!drop-13	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITION BY LIST SUBPARTITION TEMPLATE(SUBPARTITION a VALUES IN(a)
 reject	reject	engine	tg_subpartition_option/SUBPARTITION_BY_BISON_LIST_SUBPARTITION_TEMPLATE_opt_list_subpartition_list!insert	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITION BY LIST SUBPARTITION TEMPLATE(SUBPARTITION a VALUES IN(a)) zzz
 reject	reject	engine	tg_subpartition_option/SUBPARTITION_BY_BISON_LIST_SUBPARTITION_TEMPLATE_opt_list_subpartition_list!swap	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITIONS BY LIST SUBPARTITION TEMPLATE(SUBPARTITION a VALUES IN(a))
-reject	accept	engine	tg_subpartition_option/SUBPARTITION_BY_BISON_LIST_COLUMNS_INTNUM_SUBPARTITION_TEMPLATE_opt_list_subpartition_list	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITION BY LIST COLUMNS 1 SUBPARTITION TEMPLATE(SUBPARTITION a VALUES IN(a))
+accept	accept	engine	tg_subpartition_option/SUBPARTITION_BY_BISON_LIST_COLUMNS_INTNUM_SUBPARTITION_TEMPLATE_opt_list_subpartition_list	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITION BY LIST COLUMNS 1 SUBPARTITION TEMPLATE(SUBPARTITION a VALUES IN(a))
 reject	reject	engine	tg_subpartition_option/SUBPARTITION_BY_BISON_LIST_COLUMNS_INTNUM_SUBPARTITION_TEMPLATE_opt_list_subpartition_list!drop-1	CREATE TABLEGROUP a PARTITION BY HASH BY LIST COLUMNS 1 SUBPARTITION TEMPLATE(SUBPARTITION a VALUES IN(a))
 reject	reject	engine	tg_subpartition_option/SUBPARTITION_BY_BISON_LIST_COLUMNS_INTNUM_SUBPARTITION_TEMPLATE_opt_list_subpartition_list!drop-2	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITION LIST COLUMNS 1 SUBPARTITION TEMPLATE(SUBPARTITION a VALUES IN(a))
 reject	reject	engine	tg_subpartition_option/SUBPARTITION_BY_BISON_LIST_COLUMNS_INTNUM_SUBPARTITION_TEMPLATE_opt_list_subpartition_list!drop-3	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITION BY COLUMNS 1 SUBPARTITION TEMPLATE(SUBPARTITION a VALUES IN(a))
@@ -6583,7 +6583,7 @@ reject	reject	engine	tg_subpartition_option/SUBPARTITION_BY_BISON_LIST_COLUMNS_I
 reject	reject	engine	tg_subpartition_option/SUBPARTITION_BY_BISON_LIST_COLUMNS_INTNUM_SUBPARTITION_TEMPLATE_opt_list_subpartition_list!drop-15	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITION BY LIST COLUMNS 1 SUBPARTITION TEMPLATE(SUBPARTITION a VALUES IN(a)
 reject	reject	engine	tg_subpartition_option/SUBPARTITION_BY_BISON_LIST_COLUMNS_INTNUM_SUBPARTITION_TEMPLATE_opt_list_subpartition_list!insert	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITION BY LIST COLUMNS 1 SUBPARTITION TEMPLATE(SUBPARTITION a VALUES IN(a)) zzz
 reject	reject	engine	tg_subpartition_option/SUBPARTITION_BY_BISON_LIST_COLUMNS_INTNUM_SUBPARTITION_TEMPLATE_opt_list_subpartition_list!swap	CREATE TABLEGROUP a PARTITION BY HASH SUBPARTITIONS BY LIST COLUMNS 1 SUBPARTITION TEMPLATE(SUBPARTITION a VALUES IN(a))
-reject	accept	engine	tg_subpartition_option/%empty	CREATE TABLEGROUP a PARTITION BY HASH
+accept	accept	engine	tg_subpartition_option/%empty	CREATE TABLEGROUP a PARTITION BY HASH
 accept	accept	engine	row_format_option/REDUNDANT	ALTER TABLE a ROW_FORMAT REDUNDANT
 accept	reject	engine	row_format_option/REDUNDANT!swap	ALTER TABLE a ROW_FORMAT REFERENCES
 accept	accept	engine	row_format_option/COMPACT	ALTER TABLE a ROW_FORMAT COMPACT
@@ -6869,10 +6869,10 @@ reject	reject	engine	external_file_format/IGNORE_LAST_EMPTY_COLUMN_COMP_EQ_BOOL_
 reject	reject	engine	external_file_format/IGNORE_LAST_EMPTY_COLUMN_COMP_EQ_BOOL_VALUE!truncate	ALTER TABLE a FORMAT(IGNORE_LAST_EMPTY_COLUMN =
 reject	reject	engine	external_file_format/IGNORE_LAST_EMPTY_COLUMN_COMP_EQ_BOOL_VALUE!insert	ALTER TABLE a FORMAT(IGNORE_LAST_EMPTY_COLUMN = TRUE zzz)
 reject	reject	engine	external_file_format/IGNORE_LAST_EMPTY_COLUMN_COMP_EQ_BOOL_VALUE!swap	ALTER TABLE a FORMAT(IGNORE_SERVER_IDS = TRUE)
-reject	accept	engine	create_tablegroup_stmt/create_with_opt_hint_TABLEGROUP_opt_if_not_exists_relation_name_opt_tablegroup_option_list_opt_tg_partition_option	CREATE TABLEGROUP a
-reject	accept	engine	drop_tablegroup_stmt/DROP_TABLEGROUP_opt_if_exists_relation_name	DROP TABLEGROUP a
-reject	accept	engine	alter_tablegroup_stmt/alter_with_opt_hint_TABLEGROUP_relation_name_ADD_opt_table_table_list	ALTER TABLEGROUP a ADD a
-reject	accept	engine	alter_tablegroup_stmt/alter_with_opt_hint_TABLEGROUP_relation_name_alter_tablegroup_actions	ALTER TABLEGROUP a TABLEGROUP_ID 1
+accept	accept	engine	create_tablegroup_stmt/create_with_opt_hint_TABLEGROUP_opt_if_not_exists_relation_name_opt_tablegroup_option_list_opt_tg_partition_option	CREATE TABLEGROUP a
+accept	accept	engine	drop_tablegroup_stmt/DROP_TABLEGROUP_opt_if_exists_relation_name	DROP TABLEGROUP a
+accept	accept	engine	alter_tablegroup_stmt/alter_with_opt_hint_TABLEGROUP_relation_name_ADD_opt_table_table_list	ALTER TABLEGROUP a ADD a
+accept	accept	engine	alter_tablegroup_stmt/alter_with_opt_hint_TABLEGROUP_relation_name_alter_tablegroup_actions	ALTER TABLEGROUP a TABLEGROUP_ID 1
 reject	reject	engine	alter_tablegroup_stmt/alter_with_opt_hint_TABLEGROUP_relation_name_alter_tablegroup_actions!drop-1	TABLEGROUP a TABLEGROUP_ID 1
 reject	reject	engine	alter_tablegroup_stmt/alter_with_opt_hint_TABLEGROUP_relation_name_alter_tablegroup_actions!drop-2	ALTER a TABLEGROUP_ID 1
 reject	reject	engine	alter_tablegroup_stmt/alter_with_opt_hint_TABLEGROUP_relation_name_alter_tablegroup_actions!drop-3	ALTER TABLEGROUP TABLEGROUP_ID 1
@@ -6880,63 +6880,63 @@ reject	reject	engine	alter_tablegroup_stmt/alter_with_opt_hint_TABLEGROUP_relati
 reject	reject	engine	alter_tablegroup_stmt/alter_with_opt_hint_TABLEGROUP_relation_name_alter_tablegroup_actions!drop-5	ALTER TABLEGROUP a TABLEGROUP_ID
 reject	reject	engine	alter_tablegroup_stmt/alter_with_opt_hint_TABLEGROUP_relation_name_alter_tablegroup_actions!insert	ALTER TABLEGROUP a TABLEGROUP_ID 1 zzz
 reject	reject	engine	alter_tablegroup_stmt/alter_with_opt_hint_TABLEGROUP_relation_name_alter_tablegroup_actions!swap	ALWAYS TABLEGROUP a TABLEGROUP_ID 1
-reject	accept	engine	alter_tablegroup_stmt/alter_with_opt_hint_TABLEGROUP_relation_name_alter_tg_partition_option	ALTER TABLEGROUP a DROP PARTITION a
+accept	accept	engine	alter_tablegroup_stmt/alter_with_opt_hint_TABLEGROUP_relation_name_alter_tg_partition_option	ALTER TABLEGROUP a DROP PARTITION a
 reject	reject	engine	alter_tablegroup_stmt/alter_with_opt_hint_TABLEGROUP_relation_name_alter_tg_partition_option!drop-1	TABLEGROUP a DROP PARTITION a
 reject	reject	engine	alter_tablegroup_stmt/alter_with_opt_hint_TABLEGROUP_relation_name_alter_tg_partition_option!drop-2	ALTER a DROP PARTITION a
 reject	reject	engine	alter_tablegroup_stmt/alter_with_opt_hint_TABLEGROUP_relation_name_alter_tg_partition_option!drop-3	ALTER TABLEGROUP DROP PARTITION a
 reject	reject	engine	alter_tablegroup_stmt/alter_with_opt_hint_TABLEGROUP_relation_name_alter_tg_partition_option!drop-4	ALTER TABLEGROUP a PARTITION a
 reject	reject	engine	alter_tablegroup_stmt/alter_with_opt_hint_TABLEGROUP_relation_name_alter_tg_partition_option!drop-5	ALTER TABLEGROUP a DROP a
 reject	reject	engine	alter_tablegroup_stmt/alter_with_opt_hint_TABLEGROUP_relation_name_alter_tg_partition_option!drop-6	ALTER TABLEGROUP a DROP PARTITION
-reject	accept	engine	alter_tablegroup_stmt/alter_with_opt_hint_TABLEGROUP_relation_name_alter_tg_partition_option!insert	ALTER TABLEGROUP a DROP PARTITION a zzz
+accept	accept	engine	alter_tablegroup_stmt/alter_with_opt_hint_TABLEGROUP_relation_name_alter_tg_partition_option!insert	ALTER TABLEGROUP a DROP PARTITION a zzz
 reject	reject	engine	alter_tablegroup_stmt/alter_with_opt_hint_TABLEGROUP_relation_name_alter_tg_partition_option!swap	ALWAYS TABLEGROUP a DROP PARTITION a
-reject	accept	engine	opt_tablegroup_option_list/tablegroup_option_list	CREATE TABLEGROUP a TABLEGROUP_ID 1
+accept	accept	engine	opt_tablegroup_option_list/tablegroup_option_list	CREATE TABLEGROUP a TABLEGROUP_ID 1
 reject	reject	engine	opt_tablegroup_option_list/tablegroup_option_list!drop-1	CREATE TABLEGROUP a 1
 reject	reject	engine	opt_tablegroup_option_list/tablegroup_option_list!drop-2	CREATE TABLEGROUP a TABLEGROUP_ID
 reject	reject	engine	opt_tablegroup_option_list/tablegroup_option_list!insert	CREATE TABLEGROUP a TABLEGROUP_ID 1 zzz
 reject	reject	engine	opt_tablegroup_option_list/tablegroup_option_list!swap	CREATE TABLEGROUP a TABLES 1
-reject	accept	engine	opt_tablegroup_option_list/%empty	CREATE TABLEGROUP a
-reject	accept	engine	tablegroup_option_list_space_seperated/tablegroup_option	CREATE TABLEGROUP a TABLEGROUP_ID 1
-reject	accept	engine	tablegroup_option_list_space_seperated/tablegroup_option_tablegroup_option_list_space_seperated	CREATE TABLEGROUP a TABLEGROUP_ID 1 TABLEGROUP_ID 1
+accept	accept	engine	opt_tablegroup_option_list/%empty	CREATE TABLEGROUP a
+accept	accept	engine	tablegroup_option_list_space_seperated/tablegroup_option	CREATE TABLEGROUP a TABLEGROUP_ID 1
+accept	accept	engine	tablegroup_option_list_space_seperated/tablegroup_option_tablegroup_option_list_space_seperated	CREATE TABLEGROUP a TABLEGROUP_ID 1 TABLEGROUP_ID 1
 reject	reject	engine	tablegroup_option_list_space_seperated/tablegroup_option_tablegroup_option_list_space_seperated!drop-1	CREATE TABLEGROUP a 1 TABLEGROUP_ID 1
 reject	reject	engine	tablegroup_option_list_space_seperated/tablegroup_option_tablegroup_option_list_space_seperated!drop-2	CREATE TABLEGROUP a TABLEGROUP_ID TABLEGROUP_ID 1
 reject	reject	engine	tablegroup_option_list_space_seperated/tablegroup_option_tablegroup_option_list_space_seperated!drop-3	CREATE TABLEGROUP a TABLEGROUP_ID 1 1
 reject	reject	engine	tablegroup_option_list_space_seperated/tablegroup_option_tablegroup_option_list_space_seperated!drop-4	CREATE TABLEGROUP a TABLEGROUP_ID 1 TABLEGROUP_ID
 reject	reject	engine	tablegroup_option_list_space_seperated/tablegroup_option_tablegroup_option_list_space_seperated!insert	CREATE TABLEGROUP a TABLEGROUP_ID 1 TABLEGROUP_ID 1 zzz
 reject	reject	engine	tablegroup_option_list_space_seperated/tablegroup_option_tablegroup_option_list_space_seperated!swap	CREATE TABLEGROUP a TABLES 1 TABLEGROUP_ID 1
-reject	accept	engine	tablegroup_option_list/tablegroup_option_list_space_seperated	CREATE TABLEGROUP a TABLEGROUP_ID 1
-reject	accept	engine	tablegroup_option_list/tablegroup_option_,_tablegroup_option_list	CREATE TABLEGROUP a TABLEGROUP_ID 1, TABLEGROUP_ID 1
+accept	accept	engine	tablegroup_option_list/tablegroup_option_list_space_seperated	CREATE TABLEGROUP a TABLEGROUP_ID 1
+accept	accept	engine	tablegroup_option_list/tablegroup_option_,_tablegroup_option_list	CREATE TABLEGROUP a TABLEGROUP_ID 1, TABLEGROUP_ID 1
 reject	reject	engine	tablegroup_option_list/tablegroup_option_,_tablegroup_option_list!drop-1	CREATE TABLEGROUP a 1, TABLEGROUP_ID 1
 reject	reject	engine	tablegroup_option_list/tablegroup_option_,_tablegroup_option_list!drop-2	CREATE TABLEGROUP a TABLEGROUP_ID, TABLEGROUP_ID 1
 reject	reject	engine	tablegroup_option_list/tablegroup_option_,_tablegroup_option_list!drop-4	CREATE TABLEGROUP a TABLEGROUP_ID 1, 1
 reject	reject	engine	tablegroup_option_list/tablegroup_option_,_tablegroup_option_list!drop-5	CREATE TABLEGROUP a TABLEGROUP_ID 1, TABLEGROUP_ID
 reject	reject	engine	tablegroup_option_list/tablegroup_option_,_tablegroup_option_list!insert	CREATE TABLEGROUP a TABLEGROUP_ID 1, TABLEGROUP_ID 1 zzz
 reject	reject	engine	tablegroup_option_list/tablegroup_option_,_tablegroup_option_list!swap	CREATE TABLEGROUP a TABLES 1, TABLEGROUP_ID 1
-reject	accept	engine	tablegroup_option/TABLEGROUP_ID_opt_equal_mark_INTNUM	CREATE TABLEGROUP a TABLEGROUP_ID 1
-reject	accept	engine	tablegroup_option/BINDING_opt_equal_mark_BOOL_VALUE	CREATE TABLEGROUP a BINDING TRUE
+accept	accept	engine	tablegroup_option/TABLEGROUP_ID_opt_equal_mark_INTNUM	CREATE TABLEGROUP a TABLEGROUP_ID 1
+accept	accept	engine	tablegroup_option/BINDING_opt_equal_mark_BOOL_VALUE	CREATE TABLEGROUP a BINDING TRUE
 reject	reject	engine	tablegroup_option/BINDING_opt_equal_mark_BOOL_VALUE!drop-1	CREATE TABLEGROUP a TRUE
 reject	reject	engine	tablegroup_option/BINDING_opt_equal_mark_BOOL_VALUE!drop-2	CREATE TABLEGROUP a BINDING
 reject	reject	engine	tablegroup_option/BINDING_opt_equal_mark_BOOL_VALUE!insert	CREATE TABLEGROUP a BINDING TRUE zzz
 reject	reject	engine	tablegroup_option/BINDING_opt_equal_mark_BOOL_VALUE!swap	CREATE TABLEGROUP a BINLOG TRUE
-reject	accept	engine	tablegroup_option/SHARDING_opt_equal_mark_STRING_VALUE	CREATE TABLEGROUP a SHARDING 's'
+accept	accept	engine	tablegroup_option/SHARDING_opt_equal_mark_STRING_VALUE	CREATE TABLEGROUP a SHARDING 's'
 reject	reject	engine	tablegroup_option/SHARDING_opt_equal_mark_STRING_VALUE!drop-1	CREATE TABLEGROUP a 's'
 reject	reject	engine	tablegroup_option/SHARDING_opt_equal_mark_STRING_VALUE!drop-2	CREATE TABLEGROUP a SHARDING
 reject	reject	engine	tablegroup_option/SHARDING_opt_equal_mark_STRING_VALUE!insert	CREATE TABLEGROUP a SHARDING 's' zzz
 reject	reject	engine	tablegroup_option/SHARDING_opt_equal_mark_STRING_VALUE!swap	CREATE TABLEGROUP a SHARE 's'
-reject	accept	engine	tablegroup_option/MAX_USED_PART_ID_opt_equal_mark_INTNUM	CREATE TABLEGROUP a MAX_USED_PART_ID 1
+accept	accept	engine	tablegroup_option/MAX_USED_PART_ID_opt_equal_mark_INTNUM	CREATE TABLEGROUP a MAX_USED_PART_ID 1
 reject	reject	engine	tablegroup_option/MAX_USED_PART_ID_opt_equal_mark_INTNUM!drop-2	CREATE TABLEGROUP a MAX_USED_PART_ID
 reject	reject	engine	tablegroup_option/MAX_USED_PART_ID_opt_equal_mark_INTNUM!insert	CREATE TABLEGROUP a MAX_USED_PART_ID 1 zzz
 reject	reject	engine	tablegroup_option/MAX_USED_PART_ID_opt_equal_mark_INTNUM!swap	CREATE TABLEGROUP a MAX_USER_CONNECTIONS 1
-reject	accept	engine	alter_tablegroup_actions/alter_tablegroup_action	ALTER TABLEGROUP a TABLEGROUP_ID 1
+accept	accept	engine	alter_tablegroup_actions/alter_tablegroup_action	ALTER TABLEGROUP a TABLEGROUP_ID 1
 reject	reject	engine	alter_tablegroup_actions/alter_tablegroup_action!swap	ALTER TABLEGROUP a TABLES 1
-reject	accept	engine	alter_tablegroup_actions/alter_tablegroup_actions_,_alter_tablegroup_action	ALTER TABLEGROUP a TABLEGROUP_ID 1, TABLEGROUP_ID 1
+accept	accept	engine	alter_tablegroup_actions/alter_tablegroup_actions_,_alter_tablegroup_action	ALTER TABLEGROUP a TABLEGROUP_ID 1, TABLEGROUP_ID 1
 reject	reject	engine	alter_tablegroup_actions/alter_tablegroup_actions_,_alter_tablegroup_action!drop-1	ALTER TABLEGROUP a 1, TABLEGROUP_ID 1
 reject	reject	engine	alter_tablegroup_actions/alter_tablegroup_actions_,_alter_tablegroup_action!drop-2	ALTER TABLEGROUP a TABLEGROUP_ID, TABLEGROUP_ID 1
-reject	accept	engine	alter_tablegroup_actions/alter_tablegroup_actions_,_alter_tablegroup_action!drop-3	ALTER TABLEGROUP a TABLEGROUP_ID 1 TABLEGROUP_ID 1
+accept	accept	engine	alter_tablegroup_actions/alter_tablegroup_actions_,_alter_tablegroup_action!drop-3	ALTER TABLEGROUP a TABLEGROUP_ID 1 TABLEGROUP_ID 1
 reject	reject	engine	alter_tablegroup_actions/alter_tablegroup_actions_,_alter_tablegroup_action!drop-4	ALTER TABLEGROUP a TABLEGROUP_ID 1, 1
 reject	reject	engine	alter_tablegroup_actions/alter_tablegroup_actions_,_alter_tablegroup_action!drop-5	ALTER TABLEGROUP a TABLEGROUP_ID 1, TABLEGROUP_ID
 reject	reject	engine	alter_tablegroup_actions/alter_tablegroup_actions_,_alter_tablegroup_action!insert	ALTER TABLEGROUP a TABLEGROUP_ID 1, TABLEGROUP_ID 1 zzz
 reject	reject	engine	alter_tablegroup_actions/alter_tablegroup_actions_,_alter_tablegroup_action!swap	ALTER TABLEGROUP a TABLES 1, TABLEGROUP_ID 1
-reject	accept	engine	alter_tablegroup_action/opt_set_tablegroup_option_list_space_seperated	ALTER TABLEGROUP a TABLEGROUP_ID 1
+accept	accept	engine	alter_tablegroup_action/opt_set_tablegroup_option_list_space_seperated	ALTER TABLEGROUP a TABLEGROUP_ID 1
 reject	accept	engine	default_tablegroup/opt_default_mark_TABLEGROUP_opt_equal_mark_relation_name	ALTER DATABASE TABLEGROUP a
 reject	accept	engine	default_tablegroup/opt_default_mark_TABLEGROUP_opt_equal_mark_NULLX	ALTER DATABASE TABLEGROUP NULL
 reject	reject	engine	default_tablegroup/opt_default_mark_TABLEGROUP_opt_equal_mark_NULLX!drop-1	ALTER DATABASE NULL
@@ -12728,75 +12728,75 @@ accept	accept	engine	opt_local/LOCAL	LOCK TABLE a READ LOCAL
 reject	reject	engine	opt_local/LOCAL!insert	LOCK TABLE a READ LOCAL zzz
 reject	reject	engine	opt_local/LOCAL!swap	LOCK TABLE a READ LOCALITY
 accept	accept	engine	opt_local/%empty	LOCK TABLE a READ
-reject	accept	engine	create_sequence_stmt/create_with_opt_hint_SEQUENCE_opt_if_not_exists_relation_factor_opt_sequence_option_list	CREATE SEQUENCE a
-reject	accept	engine	opt_sequence_option_list/sequence_option_list	CREATE SEQUENCE a NOMAXVALUE
+accept	accept	engine	create_sequence_stmt/create_with_opt_hint_SEQUENCE_opt_if_not_exists_relation_factor_opt_sequence_option_list	CREATE SEQUENCE a
+accept	accept	engine	opt_sequence_option_list/sequence_option_list	CREATE SEQUENCE a NOMAXVALUE
 reject	reject	engine	opt_sequence_option_list/sequence_option_list!insert	CREATE SEQUENCE a NOMAXVALUE zzz
-reject	accept	engine	opt_sequence_option_list/%empty	CREATE SEQUENCE a
-reject	accept	engine	sequence_option_list/sequence_option	CREATE SEQUENCE a NOMAXVALUE
-reject	accept	engine	sequence_option_list/sequence_option_list_sequence_option	CREATE SEQUENCE a NOMAXVALUE NOMAXVALUE
+accept	accept	engine	opt_sequence_option_list/%empty	CREATE SEQUENCE a
+accept	accept	engine	sequence_option_list/sequence_option	CREATE SEQUENCE a NOMAXVALUE
+accept	accept	engine	sequence_option_list/sequence_option_list_sequence_option	CREATE SEQUENCE a NOMAXVALUE NOMAXVALUE
 reject	reject	engine	sequence_option_list/sequence_option_list_sequence_option!insert	CREATE SEQUENCE a NOMAXVALUE NOMAXVALUE zzz
-reject	accept	engine	sequence_option_list/sequence_option_list_sequence_option!swap	CREATE SEQUENCE a NOMINVALUE NOMAXVALUE
-reject	accept	engine	sequence_option/INCREMENT_BY_simple_num	CREATE SEQUENCE a INCREMENT BY 1
+accept	accept	engine	sequence_option_list/sequence_option_list_sequence_option!swap	CREATE SEQUENCE a NOMINVALUE NOMAXVALUE
+accept	accept	engine	sequence_option/INCREMENT_BY_simple_num	CREATE SEQUENCE a INCREMENT BY 1
 reject	reject	engine	sequence_option/INCREMENT_BY_simple_num!drop-1	CREATE SEQUENCE a BY 1
 reject	reject	engine	sequence_option/INCREMENT_BY_simple_num!drop-2	CREATE SEQUENCE a INCREMENT 1
 reject	reject	engine	sequence_option/INCREMENT_BY_simple_num!drop-3	CREATE SEQUENCE a INCREMENT BY
 reject	reject	engine	sequence_option/INCREMENT_BY_simple_num!insert	CREATE SEQUENCE a INCREMENT BY 1 zzz
 reject	reject	engine	sequence_option/INCREMENT_BY_simple_num!swap	CREATE SEQUENCE a INCREMENTAL BY 1
-reject	accept	engine	sequence_option/START_WITH_simple_num	CREATE SEQUENCE a START WITH 1
+accept	accept	engine	sequence_option/START_WITH_simple_num	CREATE SEQUENCE a START WITH 1
 reject	reject	engine	sequence_option/START_WITH_simple_num!drop-1	CREATE SEQUENCE a WITH 1
 reject	reject	engine	sequence_option/START_WITH_simple_num!drop-2	CREATE SEQUENCE a START 1
 reject	reject	engine	sequence_option/START_WITH_simple_num!drop-3	CREATE SEQUENCE a START WITH
 reject	reject	engine	sequence_option/START_WITH_simple_num!insert	CREATE SEQUENCE a START WITH 1 zzz
 reject	reject	engine	sequence_option/START_WITH_simple_num!swap	CREATE SEQUENCE a STARTING WITH 1
-reject	accept	engine	sequence_option/MAXVALUE_simple_num	CREATE SEQUENCE a MAXVALUE 1
+accept	accept	engine	sequence_option/MAXVALUE_simple_num	CREATE SEQUENCE a MAXVALUE 1
 reject	reject	engine	sequence_option/MAXVALUE_simple_num!drop-1	CREATE SEQUENCE a 1
 reject	reject	engine	sequence_option/MAXVALUE_simple_num!drop-2	CREATE SEQUENCE a MAXVALUE
 reject	reject	engine	sequence_option/MAXVALUE_simple_num!insert	CREATE SEQUENCE a MAXVALUE 1 zzz
 reject	reject	engine	sequence_option/MAXVALUE_simple_num!swap	CREATE SEQUENCE a MAX_CONCURRENCY 1
-reject	accept	engine	sequence_option/NOMAXVALUE	CREATE SEQUENCE a NOMAXVALUE
-reject	accept	engine	sequence_option/MINVALUE_simple_num	CREATE SEQUENCE a MINVALUE 1
+accept	accept	engine	sequence_option/NOMAXVALUE	CREATE SEQUENCE a NOMAXVALUE
+accept	accept	engine	sequence_option/MINVALUE_simple_num	CREATE SEQUENCE a MINVALUE 1
 reject	reject	engine	sequence_option/MINVALUE_simple_num!drop-2	CREATE SEQUENCE a MINVALUE
 reject	reject	engine	sequence_option/MINVALUE_simple_num!insert	CREATE SEQUENCE a MINVALUE 1 zzz
 reject	reject	engine	sequence_option/MINVALUE_simple_num!swap	CREATE SEQUENCE a MIN_CPU 1
-reject	accept	engine	sequence_option/NOMINVALUE	CREATE SEQUENCE a NOMINVALUE
+accept	accept	engine	sequence_option/NOMINVALUE	CREATE SEQUENCE a NOMINVALUE
 reject	reject	engine	sequence_option/NOMINVALUE!insert	CREATE SEQUENCE a NOMINVALUE zzz
 reject	reject	engine	sequence_option/NOMINVALUE!swap	CREATE SEQUENCE a NONE
-reject	accept	engine	sequence_option/CYCLE	CREATE SEQUENCE a CYCLE
+accept	accept	engine	sequence_option/CYCLE	CREATE SEQUENCE a CYCLE
 reject	reject	engine	sequence_option/CYCLE!insert	CREATE SEQUENCE a CYCLE zzz
 reject	reject	engine	sequence_option/CYCLE!swap	CREATE SEQUENCE a DAG
-reject	accept	engine	sequence_option/NOCYCLE	CREATE SEQUENCE a NOCYCLE
+accept	accept	engine	sequence_option/NOCYCLE	CREATE SEQUENCE a NOCYCLE
 reject	reject	engine	sequence_option/NOCYCLE!insert	CREATE SEQUENCE a NOCYCLE zzz
 reject	reject	engine	sequence_option/NOCYCLE!swap	CREATE SEQUENCE a NODEGROUP
-reject	accept	engine	sequence_option/CACHE_simple_num	CREATE SEQUENCE a CACHE 1
+accept	accept	engine	sequence_option/CACHE_simple_num	CREATE SEQUENCE a CACHE 1
 reject	reject	engine	sequence_option/CACHE_simple_num!drop-2	CREATE SEQUENCE a CACHE
 reject	reject	engine	sequence_option/CACHE_simple_num!insert	CREATE SEQUENCE a CACHE 1 zzz
 reject	reject	engine	sequence_option/CACHE_simple_num!swap	CREATE SEQUENCE a CALC_PARTITION_ID 1
-reject	accept	engine	sequence_option/NOCACHE	CREATE SEQUENCE a NOCACHE
+accept	accept	engine	sequence_option/NOCACHE	CREATE SEQUENCE a NOCACHE
 reject	reject	engine	sequence_option/NOCACHE!insert	CREATE SEQUENCE a NOCACHE zzz
-reject	accept	engine	sequence_option/ORDER	CREATE SEQUENCE a ORDER
+accept	accept	engine	sequence_option/ORDER	CREATE SEQUENCE a ORDER
 reject	reject	engine	sequence_option/ORDER!insert	CREATE SEQUENCE a ORDER zzz
 reject	reject	engine	sequence_option/ORDER!swap	CREATE SEQUENCE a ORDERED
-reject	accept	engine	sequence_option/NOORDER	CREATE SEQUENCE a NOORDER
+accept	accept	engine	sequence_option/NOORDER	CREATE SEQUENCE a NOORDER
 reject	reject	engine	sequence_option/NOORDER!insert	CREATE SEQUENCE a NOORDER zzz
 reject	reject	engine	sequence_option/NOORDER!swap	CREATE SEQUENCE a NOPARALLEL
-reject	accept	engine	sequence_option/RESTART	CREATE SEQUENCE a RESTART
+accept	accept	engine	sequence_option/RESTART	CREATE SEQUENCE a RESTART
 reject	reject	engine	sequence_option/RESTART!insert	CREATE SEQUENCE a RESTART zzz
 reject	reject	engine	sequence_option/RESTART!swap	CREATE SEQUENCE a RESTORE
-reject	accept	engine	simple_num/+_INTNUM	CREATE SEQUENCE a MAXVALUE + 1
+accept	accept	engine	simple_num/+_INTNUM	CREATE SEQUENCE a MAXVALUE + 1
 reject	reject	engine	simple_num/+_INTNUM!drop-2	CREATE SEQUENCE a MAXVALUE +
 reject	reject	engine	simple_num/+_INTNUM!insert	CREATE SEQUENCE a MAXVALUE + 1 zzz
-reject	accept	engine	simple_num/-_INTNUM	CREATE SEQUENCE a MAXVALUE - 1
+accept	accept	engine	simple_num/-_INTNUM	CREATE SEQUENCE a MAXVALUE - 1
 reject	reject	engine	simple_num/-_INTNUM!drop-2	CREATE SEQUENCE a MAXVALUE -
 reject	reject	engine	simple_num/-_INTNUM!insert	CREATE SEQUENCE a MAXVALUE - 1 zzz
-reject	accept	engine	simple_num/INTNUM	CREATE SEQUENCE a MAXVALUE 1
-reject	accept	engine	simple_num/+_DECIMAL_VAL	CREATE SEQUENCE a MAXVALUE + 1.5
+accept	accept	engine	simple_num/INTNUM	CREATE SEQUENCE a MAXVALUE 1
+accept	accept	engine	simple_num/+_DECIMAL_VAL	CREATE SEQUENCE a MAXVALUE + 1.5
 reject	reject	engine	simple_num/+_DECIMAL_VAL!insert	CREATE SEQUENCE a MAXVALUE + 1.5 zzz
-reject	accept	engine	simple_num/-_DECIMAL_VAL	CREATE SEQUENCE a MAXVALUE - 1.5
+accept	accept	engine	simple_num/-_DECIMAL_VAL	CREATE SEQUENCE a MAXVALUE - 1.5
 reject	reject	engine	simple_num/-_DECIMAL_VAL!insert	CREATE SEQUENCE a MAXVALUE - 1.5 zzz
-reject	accept	engine	simple_num/DECIMAL_VAL	CREATE SEQUENCE a MAXVALUE 1.5
+accept	accept	engine	simple_num/DECIMAL_VAL	CREATE SEQUENCE a MAXVALUE 1.5
 reject	reject	engine	simple_num/DECIMAL_VAL!insert	CREATE SEQUENCE a MAXVALUE 1.5 zzz
-reject	accept	engine	drop_sequence_stmt/DROP_SEQUENCE_opt_if_exists_relation_factor	DROP SEQUENCE a
-reject	accept	engine	alter_sequence_stmt/alter_with_opt_hint_SEQUENCE_relation_factor_opt_sequence_option_list	ALTER SEQUENCE a
+accept	accept	engine	drop_sequence_stmt/DROP_SEQUENCE_opt_if_exists_relation_factor	DROP SEQUENCE a
+accept	accept	engine	alter_sequence_stmt/alter_with_opt_hint_SEQUENCE_relation_factor_opt_sequence_option_list	ALTER SEQUENCE a
 reject	accept	engine	create_dblink_stmt/create_with_opt_hint_DATABASE_LINK_dblink_CONNECT_TO_user_tenant_DATABASE_database_factor_IDENTIFIED_BY_password_ip_port_opt_cluster	CREATE DATABASE LINK a CONNECT TO 's' @v DATABASE a IDENTIFIED BY 's' SERVER 's'
 reject	accept	engine	create_dblink_stmt/create_with_opt_hint_DATABASE_LINK_IF_not_EXISTS_dblink_CONNECT_TO_user_tenant_DATABASE_database_factor_IDENTIFIED_BY_password_ip_port_opt_cluster	CREATE DATABASE LINK IF NOT EXISTS a CONNECT TO 's' @v DATABASE a IDENTIFIED BY 's' SERVER 's'
 reject	reject	engine	create_dblink_stmt/create_with_opt_hint_DATABASE_LINK_IF_not_EXISTS_dblink_CONNECT_TO_user_tenant_DATABASE_database_factor_IDENTIFIED_BY_password_ip_port_opt_cluster!drop-1	DATABASE LINK IF NOT EXISTS a CONNECT TO 's' @v DATABASE a IDENTIFIED BY 's' SERVER 's'
@@ -13876,9 +13876,9 @@ accept	accept	engine	opt_partition_range_or_list/opt_range_partition_list	ALTER 
 accept	accept	engine	opt_partition_range_or_list/opt_list_partition_list	ALTER TABLE a ADD PARTITION(PARTITION a VALUES IN(a))
 reject	accept	engine	opt_subpartition_range_or_list/opt_range_subpartition_list	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES LESS THAN MAXVALUE)
 reject	accept	engine	opt_subpartition_range_or_list/opt_list_subpartition_list	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES IN(a))
-reject	accept	engine	alter_tg_partition_option/DROP_PARTITION_drop_partition_name_list	ALTER TABLEGROUP a DROP PARTITION a
+accept	accept	engine	alter_tg_partition_option/DROP_PARTITION_drop_partition_name_list	ALTER TABLEGROUP a DROP PARTITION a
 reject	reject	engine	alter_tg_partition_option/DROP_PARTITION_drop_partition_name_list!swap	ALTER TABLEGROUP a DUAL PARTITION a
-reject	accept	engine	alter_tg_partition_option/ADD_PARTITION_opt_partition_range_or_list	ALTER TABLEGROUP a ADD PARTITION(PARTITION a VALUES LESS THAN MAXVALUE)
+accept	accept	engine	alter_tg_partition_option/ADD_PARTITION_opt_partition_range_or_list	ALTER TABLEGROUP a ADD PARTITION(PARTITION a VALUES LESS THAN MAXVALUE)
 reject	reject	engine	alter_tg_partition_option/ADD_PARTITION_opt_partition_range_or_list!drop-1	ALTER TABLEGROUP a PARTITION(PARTITION a VALUES LESS THAN MAXVALUE)
 reject	reject	engine	alter_tg_partition_option/ADD_PARTITION_opt_partition_range_or_list!drop-2	ALTER TABLEGROUP a ADD(PARTITION a VALUES LESS THAN MAXVALUE)
 reject	reject	engine	alter_tg_partition_option/ADD_PARTITION_opt_partition_range_or_list!drop-3	ALTER TABLEGROUP a ADD PARTITION PARTITION a VALUES LESS THAN MAXVALUE)
@@ -13891,13 +13891,13 @@ reject	reject	engine	alter_tg_partition_option/ADD_PARTITION_opt_partition_range
 reject	reject	engine	alter_tg_partition_option/ADD_PARTITION_opt_partition_range_or_list!drop-10	ALTER TABLEGROUP a ADD PARTITION(PARTITION a VALUES LESS THAN MAXVALUE
 reject	reject	engine	alter_tg_partition_option/ADD_PARTITION_opt_partition_range_or_list!insert	ALTER TABLEGROUP a ADD PARTITION(PARTITION a VALUES LESS THAN MAXVALUE) zzz
 reject	reject	engine	alter_tg_partition_option/ADD_PARTITION_opt_partition_range_or_list!swap	ALTER TABLEGROUP a ADDDATE PARTITION(PARTITION a VALUES LESS THAN MAXVALUE)
-reject	accept	engine	alter_tg_partition_option/modify_tg_partition_info	ALTER TABLEGROUP a PARTITION BY HASH
+accept	accept	engine	alter_tg_partition_option/modify_tg_partition_info	ALTER TABLEGROUP a PARTITION BY HASH
 reject	reject	engine	alter_tg_partition_option/modify_tg_partition_info!drop-1	ALTER TABLEGROUP a BY HASH
 reject	reject	engine	alter_tg_partition_option/modify_tg_partition_info!drop-2	ALTER TABLEGROUP a PARTITION HASH
 reject	reject	engine	alter_tg_partition_option/modify_tg_partition_info!drop-3	ALTER TABLEGROUP a PARTITION BY
 reject	reject	engine	alter_tg_partition_option/modify_tg_partition_info!insert	ALTER TABLEGROUP a PARTITION BY HASH zzz
 reject	reject	engine	alter_tg_partition_option/modify_tg_partition_info!swap	ALTER TABLEGROUP a PARTITIONING BY HASH
-reject	accept	engine	alter_tg_partition_option/REORGANIZE_PARTITION_name_list_INTO_opt_partition_range_or_list	ALTER TABLEGROUP a REORGANIZE PARTITION a INTO(PARTITION a VALUES LESS THAN MAXVALUE)
+accept	accept	engine	alter_tg_partition_option/REORGANIZE_PARTITION_name_list_INTO_opt_partition_range_or_list	ALTER TABLEGROUP a REORGANIZE PARTITION a INTO(PARTITION a VALUES LESS THAN MAXVALUE)
 reject	reject	engine	alter_tg_partition_option/REORGANIZE_PARTITION_name_list_INTO_opt_partition_range_or_list!drop-1	ALTER TABLEGROUP a PARTITION a INTO(PARTITION a VALUES LESS THAN MAXVALUE)
 reject	reject	engine	alter_tg_partition_option/REORGANIZE_PARTITION_name_list_INTO_opt_partition_range_or_list!drop-2	ALTER TABLEGROUP a REORGANIZE a INTO(PARTITION a VALUES LESS THAN MAXVALUE)
 reject	reject	engine	alter_tg_partition_option/REORGANIZE_PARTITION_name_list_INTO_opt_partition_range_or_list!drop-3	ALTER TABLEGROUP a REORGANIZE PARTITION INTO(PARTITION a VALUES LESS THAN MAXVALUE)
@@ -13912,10 +13912,10 @@ reject	reject	engine	alter_tg_partition_option/REORGANIZE_PARTITION_name_list_IN
 reject	reject	engine	alter_tg_partition_option/REORGANIZE_PARTITION_name_list_INTO_opt_partition_range_or_list!drop-12	ALTER TABLEGROUP a REORGANIZE PARTITION a INTO(PARTITION a VALUES LESS THAN MAXVALUE
 reject	reject	engine	alter_tg_partition_option/REORGANIZE_PARTITION_name_list_INTO_opt_partition_range_or_list!insert	ALTER TABLEGROUP a REORGANIZE PARTITION a INTO(PARTITION a VALUES LESS THAN MAXVALUE) zzz
 reject	reject	engine	alter_tg_partition_option/REORGANIZE_PARTITION_name_list_INTO_opt_partition_range_or_list!swap	ALTER TABLEGROUP a REPAIR PARTITION a INTO(PARTITION a VALUES LESS THAN MAXVALUE)
-reject	accept	engine	alter_tg_partition_option/TRUNCATE_PARTITION_name_list	ALTER TABLEGROUP a TRUNCATE PARTITION a
+accept	accept	engine	alter_tg_partition_option/TRUNCATE_PARTITION_name_list	ALTER TABLEGROUP a TRUNCATE PARTITION a
 reject	reject	engine	alter_tg_partition_option/TRUNCATE_PARTITION_name_list!drop-2	ALTER TABLEGROUP a TRUNCATE a
 reject	reject	engine	alter_tg_partition_option/TRUNCATE_PARTITION_name_list!drop-3	ALTER TABLEGROUP a TRUNCATE PARTITION
-reject	accept	engine	alter_tg_partition_option/TRUNCATE_PARTITION_name_list!insert	ALTER TABLEGROUP a TRUNCATE PARTITION a zzz
+accept	accept	engine	alter_tg_partition_option/TRUNCATE_PARTITION_name_list!insert	ALTER TABLEGROUP a TRUNCATE PARTITION a zzz
 reject	reject	engine	alter_tg_partition_option/TRUNCATE_PARTITION_name_list!swap	ALTER TABLEGROUP a TTL PARTITION a
 accept	accept	engine	drop_partition_name_list/name_list	ALTER TABLE a DROP PARTITION a
 reject	accept	engine	drop_partition_name_list/(_name_list_)	ALTER TABLE a DROP PARTITION(a)
@@ -13927,15 +13927,15 @@ accept	accept	engine	modify_partition_info/hash_partition_option	ALTER TABLE a P
 accept	accept	engine	modify_partition_info/key_partition_option	ALTER TABLE a PARTITION BY KEY()
 reject	accept	engine	modify_partition_info/range_partition_option	ALTER TABLE a PARTITION BY RANGE()
 accept	accept	engine	modify_partition_info/list_partition_option	ALTER TABLE a PARTITION BY LIST(a)(PARTITION a VALUES IN(a))
-reject	accept	engine	modify_tg_partition_info/tg_hash_partition_option	ALTER TABLEGROUP a PARTITION BY HASH
-reject	accept	engine	modify_tg_partition_info/tg_key_partition_option	ALTER TABLEGROUP a PARTITION BY KEY 1
+accept	accept	engine	modify_tg_partition_info/tg_hash_partition_option	ALTER TABLEGROUP a PARTITION BY HASH
+accept	accept	engine	modify_tg_partition_info/tg_key_partition_option	ALTER TABLEGROUP a PARTITION BY KEY 1
 reject	reject	engine	modify_tg_partition_info/tg_key_partition_option!drop-1	ALTER TABLEGROUP a BY KEY 1
 reject	reject	engine	modify_tg_partition_info/tg_key_partition_option!drop-2	ALTER TABLEGROUP a PARTITION KEY 1
 reject	reject	engine	modify_tg_partition_info/tg_key_partition_option!drop-3	ALTER TABLEGROUP a PARTITION BY 1
 reject	reject	engine	modify_tg_partition_info/tg_key_partition_option!drop-4	ALTER TABLEGROUP a PARTITION BY KEY
 reject	reject	engine	modify_tg_partition_info/tg_key_partition_option!insert	ALTER TABLEGROUP a PARTITION BY KEY 1 zzz
 reject	reject	engine	modify_tg_partition_info/tg_key_partition_option!swap	ALTER TABLEGROUP a PARTITIONING BY KEY 1
-reject	accept	engine	modify_tg_partition_info/tg_range_partition_option	ALTER TABLEGROUP a PARTITION BY RANGE(PARTITION a VALUES LESS THAN MAXVALUE)
+accept	accept	engine	modify_tg_partition_info/tg_range_partition_option	ALTER TABLEGROUP a PARTITION BY RANGE(PARTITION a VALUES LESS THAN MAXVALUE)
 reject	reject	engine	modify_tg_partition_info/tg_range_partition_option!drop-1	ALTER TABLEGROUP a BY RANGE(PARTITION a VALUES LESS THAN MAXVALUE)
 reject	reject	engine	modify_tg_partition_info/tg_range_partition_option!drop-2	ALTER TABLEGROUP a PARTITION RANGE(PARTITION a VALUES LESS THAN MAXVALUE)
 reject	reject	engine	modify_tg_partition_info/tg_range_partition_option!drop-3	ALTER TABLEGROUP a PARTITION BY(PARTITION a VALUES LESS THAN MAXVALUE)
@@ -13949,7 +13949,7 @@ reject	reject	engine	modify_tg_partition_info/tg_range_partition_option!drop-10	
 reject	reject	engine	modify_tg_partition_info/tg_range_partition_option!drop-11	ALTER TABLEGROUP a PARTITION BY RANGE(PARTITION a VALUES LESS THAN MAXVALUE
 reject	reject	engine	modify_tg_partition_info/tg_range_partition_option!insert	ALTER TABLEGROUP a PARTITION BY RANGE(PARTITION a VALUES LESS THAN MAXVALUE) zzz
 reject	reject	engine	modify_tg_partition_info/tg_range_partition_option!swap	ALTER TABLEGROUP a PARTITIONING BY RANGE(PARTITION a VALUES LESS THAN MAXVALUE)
-reject	accept	engine	modify_tg_partition_info/tg_list_partition_option	ALTER TABLEGROUP a PARTITION BY LIST(PARTITION a VALUES IN(a))
+accept	accept	engine	modify_tg_partition_info/tg_list_partition_option	ALTER TABLEGROUP a PARTITION BY LIST(PARTITION a VALUES IN(a))
 reject	reject	engine	modify_tg_partition_info/tg_list_partition_option!drop-1	ALTER TABLEGROUP a BY LIST(PARTITION a VALUES IN(a))
 reject	reject	engine	modify_tg_partition_info/tg_list_partition_option!drop-2	ALTER TABLEGROUP a PARTITION LIST(PARTITION a VALUES IN(a))
 reject	reject	engine	modify_tg_partition_info/tg_list_partition_option!drop-3	ALTER TABLEGROUP a PARTITION BY(PARTITION a VALUES IN(a))
