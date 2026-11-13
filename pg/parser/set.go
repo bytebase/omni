@@ -67,8 +67,19 @@ func (p *Parser) parseVariableSetStmt() (nodes.Node, error) {
 func (p *Parser) parseSetRest() (nodes.Node, error) {
 	switch p.cur.Type {
 	case TRANSACTION:
+		// TRANSACTION SNAPSHOT Sconst is set_rest_more's.
+		if p.peekNext().Type == SNAPSHOT {
+			return p.parseSetRestMore()
+		}
 		p.advance() // consume TRANSACTION
-		modes, _ := p.parseTransactionModeListOrEmpty()
+		modes, err := p.parseTransactionModeListOrEmpty()
+		if err != nil {
+			return nil, err
+		}
+		if modes == nil && !p.collectMode() {
+			// set_rest: TRANSACTION transaction_mode_list, which is not empty.
+			return nil, p.syntaxErrorAtCur()
+		}
 		return &nodes.VariableSetStmt{
 			Kind: nodes.VAR_SET_MULTI,
 			Name: "TRANSACTION",
@@ -125,7 +136,10 @@ func (p *Parser) parseSetRestMore() (nodes.Node, error) {
 			return nil, err
 		}
 		zoneType := p.cur.Type
-		val := p.parseZoneValue()
+		val, err := p.parseZoneValue()
+		if err != nil {
+			return nil, err
+		}
 		if val == nil && zoneType != DEFAULT && zoneType != LOCAL {
 			return nil, p.syntaxErrorAtCur()
 		}
@@ -509,31 +523,70 @@ func (p *Parser) tryOptBooleanOrString() (string, bool) {
 //	| NumericOnly   -> A_Const{Integer/Float}
 //	| DEFAULT       -> nil (signals SET DEFAULT)
 //	| LOCAL         -> nil (signals SET DEFAULT)
-func (p *Parser) parseZoneValue() nodes.Node {
+func (p *Parser) parseZoneValue() (nodes.Node, error) {
 	loc := p.pos()
 	switch p.cur.Type {
-	case SCONST:
-		s := p.cur.Str
+	case SCONST, IDENT:
+		s := p.advance().Str
+		return &nodes.A_Const{Val: &nodes.String{Str: s}, Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
+	case DEFAULT, LOCAL:
 		p.advance()
-		return &nodes.A_Const{Val: &nodes.String{Str: s}, Loc: nodes.Loc{Start: loc, End: p.pos()}}
-	case IDENT:
-		s := p.cur.Str
-		p.advance()
-		return &nodes.A_Const{Val: &nodes.String{Str: s}, Loc: nodes.Loc{Start: loc, End: p.pos()}}
-	case DEFAULT:
-		p.advance()
-		return nil
-	case LOCAL:
-		p.advance()
-		return nil
+		return nil, nil
+	case INTERVAL:
+		return p.parseZoneInterval()
 	default:
-		// Try NumericOnly
 		if num := p.tryParseNumericOnly(); num != nil {
-			return &nodes.A_Const{Val: num, Loc: nodes.Loc{Start: loc, End: p.pos()}}
+			return &nodes.A_Const{Val: num, Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 		}
-		// Interval handling etc. would go here, but for now this covers the tests.
-		return nil
+		return nil, nil
 	}
+}
+
+// parseZoneInterval parses zone_value's interval forms, a string cast to
+// interval.
+//
+//	ConstInterval Sconst opt_interval
+//	| ConstInterval '(' Iconst ')' Sconst
+//
+// gram.y refuses an opt_interval other than HOUR, MINUTE or HOUR TO MINUTE,
+// at the field.
+func (p *Parser) parseZoneInterval() (nodes.Node, error) {
+	start := p.pos()
+	p.advance() // consume INTERVAL
+	tn := makeTypeName("interval")
+	if p.cur.Type == '(' {
+		p.advance()
+		if p.cur.Type != ICONST {
+			return nil, p.syntaxErrorAtCur()
+		}
+		prec := p.advance().Ival
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		tn.Typmods = &nodes.List{Items: []nodes.Node{makeIntConst(int64(nodes.INTERVAL_FULL_RANGE)), makeIntConst(prec)}}
+	}
+	tn.Loc = nodes.Loc{Start: start, End: p.prev.End}
+	strLoc := p.pos()
+	if p.cur.Type != SCONST {
+		return nil, p.syntaxErrorAtCur()
+	}
+	str := p.advance().Str
+	arg := &nodes.A_Const{Val: &nodes.String{Str: str}, Loc: nodes.Loc{Start: strLoc, End: p.prev.End}}
+	if tn.Typmods == nil {
+		fieldLoc := p.pos()
+		typmods, err := p.parseOptInterval()
+		if err != nil {
+			return nil, err
+		}
+		if typmods != nil {
+			mask := typmods.Items[0].(*nodes.A_Const).Val.(*nodes.Integer).Ival
+			if mask&^int64(nodes.INTERVAL_MASK_HOUR|nodes.INTERVAL_MASK_MINUTE) != 0 {
+				return nil, &ParseError{Message: "time zone interval must be HOUR or HOUR TO MINUTE", Position: fieldLoc}
+			}
+			tn.Typmods = typmods
+		}
+	}
+	return &nodes.TypeCast{Arg: arg, TypeName: tn, Loc: nodes.Loc{Start: start, End: p.prev.End}}, nil
 }
 
 // parseOptEncoding parses opt_encoding.
