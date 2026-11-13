@@ -1,6 +1,6 @@
 # Engine compatibility without servers in CI
 
-Status: draft, 2026-11-12. Step 0 is built: `enginetest/compat`, `enginetest/grammar` and TiDB's `compat.tsv` (11,058 rows, recorded on the pinned server in 9 seconds), and `enginetest/tape` with `tidb/catalog` on tapes (131 tapes, 3.1 MB, recorded in 90 seconds; replay takes 1.6 seconds and starts no server). OceanBase has step 1: 20,407 rows, judged on the pinned server in three minutes, 19,289 agreeing (Appendix A). Its step 2 is done but for `simulate.tsv`: `oceanbase/parser`, `oceanbase/validate`, 162 tests of `oceanbase/catalog` and the four oracle tests of `oceanbase/review` replay tapes (253 tapes, 9.7 MB), and nothing under `oceanbase/` starts a server outside a recording. The 162 are the tests that always asked OceanBase, every oracle test written against MySQL, moved with the fixes they needed and with what still fails recorded (Appendix A), and 77 of the 107 container tests: each asserts OceanBase's answer and, under an `omni gap:` comment, what the catalog still answers as MySQL does. The other 30 container tests and 210 subtests compared MySQL's `SHOW CREATE` text and were deleted (D3). `review`'s walk lists the server's objects (§4.4), and its MySQL oracles were pointed at OceanBase or, where they held what only MySQL has, deleted (Appendix A). A spike measured OceanBase and Snowflake first. Its code was lost. The other engines' grammars were located, not run.
+Status: draft, 2026-11-13. Step 0 is built: `enginetest/compat`, `enginetest/grammar` and TiDB's `compat.tsv` (11,058 rows, recorded on the pinned server in 9 seconds), and `enginetest/tape` with `tidb/catalog` on tapes (131 tapes, 3.1 MB, recorded in 90 seconds; replay takes 1.6 seconds and starts no server). OceanBase has step 1: 20,407 rows, judged on the pinned server in three minutes, 19,289 agreeing (Appendix A). Its step 2 is done: `oceanbase/parser`, `oceanbase/validate`, 162 tests of `oceanbase/catalog` and the four oracle tests of `oceanbase/review` replay tapes (253 tapes, 9.7 MB), nothing under `oceanbase/` starts a server outside a recording, and `oceanbase/catalog/testdata/simulate.tsv` holds one fixture: 2,276 rows, recorded in ten minutes at 0.25 seconds a row, 1,133 agreeing (§3, Appendix A). The 162 are the tests that always asked OceanBase, every oracle test written against MySQL, moved with the fixes they needed and with what still fails recorded (Appendix A), and 77 of the 107 container tests: each asserts OceanBase's answer and, under an `omni gap:` comment, what the catalog still answers as MySQL does. The other 30 container tests and 210 subtests compared MySQL's `SHOW CREATE` text and were deleted (D3). `review`'s walk lists the server's objects (§4.4), and its MySQL oracles were pointed at OceanBase or, where they held what only MySQL has, deleted (Appendix A). A spike measured OceanBase and Snowflake first. Its code was lost. The other engines' grammars were located, not run.
 
 ## 1. Summary
 
@@ -36,7 +36,7 @@ Four terms are used throughout:
 3. **Agreeing:** on every row, omni's answer equals the judge's.
 4. **Replaying:** every tape replays.
 
-Until then, the disagreeing rows are the work list: 1,118 for OceanBase today. The guards in §7 make that count only fall, and once it reaches zero any disagreement fails CI.
+Until then, the disagreeing rows are the work list: 1,118 of `compat.tsv` for OceanBase today, and 1,143 of `simulate.tsv`. The guards in §7 make that count only fall, and once it reaches zero any disagreement fails CI.
 
 **What that does not claim:**
 - **Statements no row covers.** Rows sample an infinite language. A statement outside them is unknown until someone adds it as a row, and then it is covered for good.
@@ -177,34 +177,42 @@ The two recognizers are weaker judges, in known ways:
 Omni's catalog simulates DDL. `catalog.Exec` either changes the schema as the engine would, or refuses with the engine's error code. `simulate.tsv` holds the engine's side of that. One row, traced:
 
 ```text
-fixture one_table     CREATE TABLE t (a INT PRIMARY KEY, b INT, KEY idx_b (b))
-statement             ALTER TABLE t ADD COLUMN a INT
-engine                error 1060 (duplicate column)
-omni, catalog.Exec    error 1060                      → the row agrees
+fixture one_table@column   CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+statement                  ALTER TABLE a ADD a MEDIUMINT
+engine                     error 1060 (duplicate column)
+omni, catalog.Exec         error 1060                      → the row agrees
 ```
 
-Rows are generated: every DDL statement the engine accepts in `compat.tsv`, on each fixture, with each object name filled three ways.
+Rows are generated: every statement of the simulated families that the engine accepts in `compat.tsv`, once, on each fixture. Four rows of `oceanbase/catalog/testdata/simulate.tsv`:
 
 ```text
 # columns: omni, expected, source, fixture, rule, statement
-ok:7c21…	ok:7c21…	engine	one_table	alter_table_action/ADD_COLUMN@exists	ALTER TABLE t ADD COLUMN c INT
-1060	1060	engine	one_table	alter_table_action/ADD_COLUMN@collides	ALTER TABLE t ADD COLUMN a INT
-ok:3f9a…	1146	engine	one_table	alter_table_action/ADD_COLUMN@missing	ALTER TABLE nosuch ADD COLUMN c INT
+ok:f3b055810eeb	ok:f3b055810eeb	engine	one_table@table	int_type_i/MEDIUMINT	ALTER TABLE a ADD a MEDIUMINT
+1060	1060	engine	one_table@column	int_type_i/MEDIUMINT	ALTER TABLE a ADD a MEDIUMINT
+ok	ok:f4692f929084	engine	one_table@table	data_type/NCHAR_VARCHAR_string_length_i_opt_binary	ALTER TABLE a ADD a NCHAR VARCHAR(1)
+ok	1072	engine	one_table@table	sort_column_list/sort_column_key	ALTER TABLE a ADD KEY(a)
 ```
 
-These rows show the format. No simulation has been run.
+1. An agreement: both take the statement, and omni stores the schema OceanBase stores.
+2. An agreement on a refusal: the same error code.
+3. A gap: both take it, and omni stores another schema.
+4. A gap: omni takes what OceanBase refuses.
 
-- **Fixtures** are a few committed starting schemas in `<engine>/catalog/testdata/fixtures/`: an empty database, one table with keys, a foreign-key pair, a partitioned table, a view.
-- **Names.** The grammar doesn't say which symbols must name an existing object. `references.tsv` does, in tens of rows per engine. The generator fills each with a name that exists, one that is missing, and one that collides.
-- **Outcomes** are an error code, or `ok:<hash>`. The hash is of the database's stored form after the statement: every object's `SHOW CREATE`, in name order. So an `ok` row agrees only when omni stores what the engine stores. The texts are on a tape (§4), so a mismatch prints a diff.
-- **Everything else is §2.1:** the same columns plus `fixture`, the same checker, the same guards. The test is `TestSimulation`.
+- **Fixtures** are committed starting schemas, `<engine>/catalog/testdata/fixtures/<name>.sql`. OceanBase has the first, one table with keys.
+- **Names are filled in the fixture, not the statement.** A `compat.tsv` statement writes `a` for every name it holds, so it runs as written and the fixture decides what it finds. `one_table` comes in four namings: `@missing` names nothing `a`, `@table` the table, `@column` a column of it too, `@index` an index of it too. There is no `references.tsv`. The cost: a statement whose names must differ, such as `CREATE TABLE a(a TINYTEXT, a TINYINT)`, is refused on every naming. OceanBase takes 250 of the 569 statements on at least one.
+- **Families.** The engine's test lists the leading words it simulates. OceanBase's are the statements on tables, indexes and views, whose whole effect is in the database a row reads back. Databases, sequences, materialized views and server objects are not simulated yet.
+- **Outcomes** are an error code, or `ok:<hash>`: the first 12 hex digits of the SHA-256 of every table's and view's `SHOW CREATE`, in name order, with the names the engine makes up counted in order. Omni's cell holds the engine's hash when its catalog stores the same schema, and a bare `ok` when it takes the statement and stores another, or the engine refuses.
+- **The same schema** is the engine test's to decide. OceanBase's loads the `SHOW CREATE` texts into a second catalog and takes `Diff` in both directions, the test every oracle of `oceanbase/catalog` uses: the catalog prints MySQL's text, which equalled OceanBase's for 2 of 43 schemas measured.
+- **The conversation is on a tape** (§4), `testdata/tapes/TestSimulation.tape`. Per row: the database dropped and built from the fixture, the statement, and after a statement the engine took, each object's `SHOW CREATE`. None of it reads omni. A replay works the engine's outcome out of the tape and fails a row whose `expected` cell is anything else, so neither file is edited without the other.
+- **Everything else is §2.1,** with one more move: the same columns plus `fixture`, the same checker (`enginetest/simulate`), `-update-compat`, and the guards in `compatcheck`. A syntax verdict is right or wrong; an outcome can be wrong in many ways, so a fix can take a row from one difference to another, as a parser fix turns omni's 1064 into the catalog's answer. That fails the test until `-update-compat` commits it. Only a row that agreed and no longer does is a regression. The test is `TestSimulation`. `-simulate-show=<text>` prints the fixture, the engine's schema and what omni would change to reach it, for the rows that hold the text.
+- **A recording runs every row,** since a tape is written whole: a new row or fixture costs the full run. An answer that differs from the committed one at the same pin fails the recording.
 
-**Walk-through reads the same rows.** For each row, the walk runs on the fixture and the statement:
+**Walk-through is to read the same rows,** and does not yet. For each row, the walk runs on the fixture and the statement:
 - On an `ok` row, any finding fails.
 - On a refused row, a finding must name the engine's code, or claim only facts true of the fixture.
 - Silence passes, since the walk must never be wrong but may be unsure. How often it finds the refusal is printed.
 
-**Cost is unmeasured, and measuring it is the first job.** At about 5 seconds per row on OceanBase, 1,000 statements × 5 fixtures × 3 names would take about 20 hours to record. Rollout starts with one fixture. Docs engines have no `simulate.tsv`, since docs rarely name the error a statement raises.
+**Cost, measured:** 0.25 seconds a row on OceanBase, so its 2,276 rows record in ten minutes (Appendix A). The 5 seconds a row this section first guessed would have made 1,000 statements × 5 fixtures × 3 names a 20-hour recording; at the measured rate it is under an hour. Docs engines have no `simulate.tsv`, since docs rarely name the error a statement raises.
 
 ## 4. Hand-written tests: tapes
 
@@ -355,6 +363,7 @@ default	oceanbase/oceanbase-ce:4.3.5.6-106000012026040916	sha256:…	v4.3.5_CE_B
 enginetest/                          shared by every engine, knows none of them
   grammar/                           .y and .g4 readers, converters, generator, recognizers
   compat/                            the row checker, prepareVerdict
+  simulate/                          the row checker of simulate.tsv
   tape/                              record and replay
   cmd/compatcheck/                   the CI guards that compare a PR's files with its base
 
@@ -365,7 +374,6 @@ oceanbase/
   parser/testdata/compat.tsv
   catalog/testdata/simulate.tsv
   catalog/testdata/fixtures/         starting schemas
-  catalog/testdata/references.tsv
   <package>/testdata/tapes/          one .tape per test
   internal/testcontainer/            Open(t), the error codec, the live connector
 ```
@@ -382,7 +390,7 @@ oceanbase/
 | Omni's walk-through findings | No | — |
 | SQL omni generates, or where `Split` cuts | **Yes:** record the affected tests | — |
 | A hand-written test | **Yes:** record that test | — |
-| A new row, fixture or reference | **Yes:** judge it | No: the recognizer judges |
+| A new row or fixture | **Yes:** judge it; for `simulate.tsv`, record every row | No: the recognizer judges |
 | The pin | **Yes:** record the whole engine | Regenerate, or re-convert the docs |
 
 **Fix a gap.** No server.
@@ -491,7 +499,7 @@ After step 0 the engines are independent. Order:
 - **D3. MySQL tests in OceanBase and MariaDB.** Recommended: point them at their own engine and record, deleting only tests of MySQL-only behavior.
 - **D4. Shared `enginetest`.** Decided: allowed, like `review/walk/walktest`, rather than 18 copies. `AGENTS.md` lists it.
 - **D5. A verify lane.** Nothing in §7 catches an engine answer written by hand. Option: a third mode, `OMNI_RECORD=verify`, asks the engine again, fails on any difference, and writes nothing. The self-hosted runner runs it on just the tests and rows a PR changed, so most PRs still start no server. The alternative is to trust review.
-- **D6. Queries.** Stored form proves omni reads DDL as the engine does. The same check reaches queries by wrapping each accepted `SELECT` row in `CREATE VIEW`: the engine's stored view text is its own reading of the query. It works where omni's catalog renders views (pg, the MySQL family), and it multiplies the size of `simulate.tsv`. Recommended: decide once step 2 has measured what a row costs.
+- **D6. Queries.** Stored form proves omni reads DDL as the engine does. The same check reaches queries by wrapping each accepted `SELECT` row in `CREATE VIEW`: the engine's stored view text is its own reading of the query. It works where omni's catalog renders views (pg, the MySQL family), and it multiplies the size of `simulate.tsv`. Recommended: decide once step 2 has measured what a row costs. It has: 0.25 seconds on OceanBase (Appendix A), so a view for each accepted `SELECT` row is minutes of recording, not hours.
 
 ## Appendix A. Measured results
 
@@ -561,6 +569,22 @@ After step 0 the engines are independent. Order:
 - **Scan rules:** 12 of the 15 cases run whole. OceanBase stops the other three (1235, 1091, 4028), which each case records. Three cases were added: two in the forms OceanBase takes, and the `DROP CONSTRAINT` of a unique key, which it refuses (3940).
 - **Column drops:** OceanBase leaves the table its key in all 118 cases: 70 stop at the drop (1235, `drop rowkey column is not supported`), 41 at another error before it, and 7 setups are refused. `ReviewOceanBase` reports nothing on any, since it judges no `DROP COLUMN`.
 - **Prior backup** was deleted: Bytebase takes none on OceanBase, and `ReviewOceanBase` answers the request before the rule that test held to MySQL runs.
+
+**OceanBase, `simulate.tsv`.** Recorded 2026-11-13 on the pinned server: the 569 table, index and view statements OceanBase accepts in `compat.tsv`, on the four namings of `one_table`.
+
+| Fixture | Rows | OceanBase takes | Agree | Only OceanBase takes | Only omni takes | Both take, another schema | Both refuse, another code |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `one_table@missing` | 569 | 4 | 422 | 1 | 40 | 0 | 106 |
+| `one_table@table` | 569 | 200 | 197 | 23 | 163 | 15 | 171 |
+| `one_table@column` | 569 | 122 | 256 | 13 | 121 | 6 | 173 |
+| `one_table@index` | 569 | 124 | 258 | 13 | 120 | 6 | 172 |
+| All | 2,276 | 450 | 1,133 | 50 | 444 | 27 | 622 |
+
+- **Cost: 0.25 seconds a row.** The 2,276 rows recorded in 9m43s on one connection, the server's start included, and in 10m58s a second time on a busier box. A spike of 300 rows first measured 0.28 seconds: 0.21 to drop the database and build the fixture, 0.05 for the statement, 0.015 to read the schema back. The tape is 0.96 MB, 5,447 requests, and the test replays in 0.3 seconds. Two recordings on fresh servers left the same two files.
+- **1,143 rows disagree,** untriaged, down from the 1,259 first recorded: the parser now reads OceanBase's table options, so their statements reach the catalog. 444 omni takes and OceanBase refuses (249 at the recording), since the catalog applies most of those options without the engine's checks. 27 both take, and omni stores another schema. At the recording, 710 were statements omni's parser rejected, the `compat.tsv` gaps of 181 statements, 86 of them rows OceanBase takes; of the 249, most were refused as not supported (1235, 43 rows), for a key column that does not exist (1072, 42) and for an unknown column (1054, 40); and 72 of the other codes were omni's 1050 where OceanBase answers 1054.
+- **OceanBase takes 250 of the 569 statements on some naming,** 450 rows, and omni stores its schema on 373. The other 319 statements are refused on all four: a `SELECT a` with no table behind it (1054, 57 statements), forms the release does not support (1235, 42), partition changes to a table that has none (1505, 33), an external table's options (4016, 31). A partitioned fixture and names that differ within a statement are what reach them.
+- **A refused statement changed nothing** in the spike, 0 of 237. The file does not hold that: every row builds its fixture again.
+- **Text is not the test.** OceanBase's `SHOW CREATE TABLE` equalled the catalog's in 2 of the 43 schemas the spike took; `Diff` against the loaded text was empty in 39.
 
 **OceanBase, the spike.** An earlier run with cruder sample tokens, kept for comparison. TiDB's generator produced 3,969 accepted statements and 15,560 near-misses. All were judged on a real server with `PREPARE`, in about 3.5 minutes.
 
