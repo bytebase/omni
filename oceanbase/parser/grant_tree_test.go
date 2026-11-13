@@ -253,3 +253,19 @@ func TestGrantCatalogObjectType(t *testing.T) {
 		}
 	}
 }
+
+// TestRoleGrantNames holds a role grant's names to unreserved_keyword_for_role_name:
+// every unreserved keyword but unreserved_keyword_ambiguous_roles, so RESTART names
+// a role and SUPER, a privilege word, and DUAL, a reserved one, do not.
+func TestRoleGrantNames(t *testing.T) {
+	for _, sql := range []string{"GRANT restart TO u", "REVOKE restart FROM u", "GRANT r1, `super` TO u"} {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q): %v", sql, err)
+		}
+	}
+	for _, sql := range []string{"GRANT super TO u", "GRANT DUAL TO u", "GRANT OPTION TO u", "GRANT select TO u"} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) was accepted", sql)
+		}
+	}
+}

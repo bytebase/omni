@@ -429,9 +429,10 @@ func (p *Parser) parsePrivOrRoleElem() (privOrRole, error) {
 	// role name, so a role grant that names one is refused: GRANT DELETE TO u,
 	// GRANT SUPER TO u. A backquoted word is a name.
 	privWord := !p.backtickQuotedAt(p.cur.Loc) && rolePrivilegeWords[strings.ToUpper(p.cur.Str)]
-	// A role is NAME_OB or unreserved_keyword_for_role_name: a reserved word,
-	// or one of the words a role may not be called, is none.
-	notRole := p.cur.Type >= 700 && !isRoleKeyword(p.cur.Type)
+	// A role is NAME_OB or unreserved_keyword_for_role_name, which is every
+	// unreserved keyword but unreserved_keyword_ambiguous_roles: a reserved word,
+	// or one of those, is none. RESTART is a role name; SUPER is not.
+	notRole := p.cur.Type >= 700 && (isReserved(p.cur.Type) || isAmbiguousRoleWord(p.cur.Type))
 	name, word, err := p.parsePrivilegeName()
 	if err != nil {
 		return privOrRole{}, err
