@@ -109,3 +109,17 @@ the new ones:
 ```bash
 go test ./pg/parser/ -run '^TestParenFuzzRows$' -update-compat
 ```
+
+## `tapes/`: the oracle tests' recordings
+
+Every other test here that asks PostgreSQL something reaches it through
+`testcontainer.Open` (`pg/internal/testcontainer`) and replays
+`tapes/<Test>.tape`: each request the test sends, and the pinned server's
+answer. `enginetest/tape` describes the format and what fails a replay. After
+changing what a test sends, record it:
+
+```bash
+OMNI_RECORD=1 go test ./pg/parser/ -run '^TestName$'
+```
+
+The whole package records in about 15 seconds: 26 tapes, 16,686 requests.
