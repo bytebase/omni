@@ -659,8 +659,8 @@ func (p *Parser) parseDeleteHistory(stmt *nodes.DeleteStmt) (*nodes.DeleteStmt, 
 	}
 	if p.cur.Type == kwBEFORE {
 		p.advance()
-		// SYSTEM_TIME is a keyword this lexer does not know.
-		if !p.atWord("SYSTEM_TIME") {
+		// SYSTEM_TIME is a keyword this lexer does not know, written bare.
+		if (p.cur.Type != tokIDENT && p.cur.Type < 700) || !strings.EqualFold(p.inputText(p.cur.Loc, p.cur.End), "SYSTEM_TIME") {
 			return nil, p.syntaxErrorAtCur()
 		}
 		p.advance()
@@ -672,15 +672,6 @@ func (p *Parser) parseDeleteHistory(stmt *nodes.DeleteStmt) (*nodes.DeleteStmt, 
 	}
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
-}
-
-// atWord reports whether the current token is word written bare, for a keyword
-// of MariaDB's this lexer does not know.
-func (p *Parser) atWord(word string) bool {
-	if p.cur.Type != tokIDENT && p.cur.Type < 700 {
-		return false
-	}
-	return strings.EqualFold(p.inputText(p.cur.Loc, p.cur.End), word)
 }
 
 // parseHistoryPoint reads history_point: TIMESTAMP 'datetime', whose action
