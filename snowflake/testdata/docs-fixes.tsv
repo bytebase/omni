@@ -43,3 +43,4 @@ create-database-catalog-linked	  CATALOG = '<catalog_int>',\n  [ ALLOWED_NAMESPA
 alter-dynamic-table	{ SET | UNSET } COMMENT = '<string_literal>'	{ SET COMMENT = '<string_literal>' | UNSET COMMENT }	UNSET names a property without its value, as the page's parameters say
 create-notification-integration-queue-inbound-azure	  AZURE_TENANT_ID = '<ad_directory_id>';	  AZURE_TENANT_ID = '<ad_directory_id>'	a ; ends the statement before the parameters the page lists after it
 create-notification-integration-queue-outbound-azure	  AZURE_TENANT_ID = '<ad_directory_id>';	  AZURE_TENANT_ID = '<ad_directory_id>'	a ; ends the statement before the parameters the page lists after it
+alter-notebook	  [ SECRETS = ('<secret_variable_name>' = <secret_name>) [ , ... ] ]	  [ SECRETS = ('<secret_variable_name>' = <secret_name> [ , ... ] ) ]	SECRETS: the mappings repeat inside the parentheses, as the page's parameters and CREATE FUNCTION write them

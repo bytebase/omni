@@ -39,9 +39,11 @@ func TestNotationReadsAsANTLR(t *testing.T) {
 		{"UPDATE <t> SET <col_name> = <value> [ , ... ]", "'UPDATE' ID 'SET' ID '=' ID (',' ID '=' ID)*"},
 		// Optional clauses with commas between: one or more, a comma between each two.
 		{"ALTER T <name> SET [ A = <num> ], [ B = <num> ] [ C = <num> ], [ D ],", "'ALTER' 'T' ID 'SET' ('A' '=' NUMBER | 'B' '=' NUMBER | 'C' '=' NUMBER | 'D') (',' ('A' '=' NUMBER | 'B' '=' NUMBER | 'C' '=' NUMBER | 'D'))*"},
-		{"ALTER VIEW <name> UNSET [ SECURE ] [ COMMENT = '<string_literal>' ]", "'ALTER' 'VIEW' ID 'UNSET' ('SECURE' 'COMMENT'? | 'COMMENT')"},
+		{"ALTER VIEW <name> UNSET [ SECURE ] [ COMMENT = '<string_literal>' ]", "'ALTER' 'VIEW' ID 'UNSET' ('SECURE' | 'COMMENT') (',' ('SECURE' | 'COMMENT'))*"},
 		{"ON_ERROR = { CONTINUE | SKIP_FILE_<num> | 'SKIP_FILE_<num>%' }", "'ON_ERROR' '=' ('CONTINUE' | 'SKIP_FILE_1' | STRING)"},
 		{"( <col_name> <col_type> [ , <col_name> <col_type> [ DEFAULT <expr> ] [ ... ] ] )", "'(' ID DATA_TYPE (',' ID DATA_TYPE ('DEFAULT' EXPR)?)* ')'"},
+		{"ALTER T <name> MODIFY [ ( ] COLUMN <c> DROP DEFAULT [ ) ]", "'ALTER' 'T' ID 'MODIFY' ('(' 'COLUMN' ID 'DROP' 'DEFAULT' ')' | 'COLUMN' ID 'DROP' 'DEFAULT')"},
+		{"ALTER P <name> UNSET [ MIN_LENGTH ] [ MAX_LENGTH ] [ COMMENT ]", "'ALTER' 'P' ID 'UNSET' ('MIN_LENGTH' | 'MAX_LENGTH' | 'COMMENT') (',' ('MIN_LENGTH' | 'MAX_LENGTH' | 'COMMENT'))*"},
 		{"GRANT READ [ , WRITE ] [ , ... ]", "'GRANT' 'READ' (',' 'WRITE')? (',' 'READ' (',' 'WRITE')?)*"},
 		{"VALUES ( <v> ) [ , ... ]", "'VALUES' '(' ID ')' (',' '(' ID ')')*"},
 		// The element is the target with its optional alias.
@@ -56,7 +58,7 @@ func TestNotationReadsAsANTLR(t *testing.T) {
 		{"STORAGE_PROVIDER = '{ S3 | S3CHINA }'", "'STORAGE_PROVIDER' '=' ('\\'S3\\'' | '\\'S3CHINA\\'')"},
 		// A | inside SQL's parentheses chooses within them.
 		{"[ ENCRYPTION = ( TYPE = 'A' | TYPE = 'B' ) ]", "('ENCRYPTION' '=' '(' ('TYPE' '=' '\\'A\\'' | 'TYPE' '=' '\\'B\\'') ')')?"},
-		{"ALTER T [ ( ] <c> DROP DEFAULT [ ) ]", "'ALTER' 'T' ('(')? ID 'DROP' 'DEFAULT' (')')?"},
+		{"ALTER T [ ( ] <c> DROP DEFAULT [ ) ]", "'ALTER' 'T' ('(' ID 'DROP' 'DEFAULT' ')' | ID 'DROP' 'DEFAULT')"},
 		{"SELECT $<col_position> FROM <t>", "'SELECT' POSITION 'FROM' ID"},
 		{"API_PROVIDER = { aws_api_gateway | azure_api_management }", "'API_PROVIDER' '=' ('aws_api_gateway' | 'azure_api_management')"},
 		{"SHOW TABLES IN { ACCOUNT | DATABASE | }", "'SHOW' 'TABLES' 'IN' ('ACCOUNT' | 'DATABASE')"},

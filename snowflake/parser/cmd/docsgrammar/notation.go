@@ -410,7 +410,64 @@ func resolveSeq(seq []*node) ([]*node, error) {
 	if err != nil {
 		return nil, err
 	}
-	return atLeastOneAfterSet(commaOptions(unsetNamesOnly(out))), nil
+	return atLeastOneAfterSet(commaOptions(unsetList(unsetNamesOnly(pairParens(out))))), nil
+}
+
+// pairParens reads [ ( ] X [ ) ] as ( X ) or X: SQL's parentheses come
+// in pairs, though the docs mark each optional.
+func pairParens(seq []*node) []*node {
+	only := func(n *node, text string) bool {
+		return n.tok == nil && !n.brace && n.op == '?' && len(n.alts) == 1 && len(n.alts[0]) == 1 &&
+			n.alts[0][0].tok != nil && isLiteral(*n.alts[0][0].tok, text)
+	}
+	for i := range seq {
+		if !only(seq[i], "(") {
+			continue
+		}
+		for j := i + 1; j < len(seq); j++ {
+			if !only(seq[j], ")") {
+				continue
+			}
+			mid := seq[i+1 : j]
+			open, closeTok := seq[i].alts[0][0], seq[j].alts[0][0]
+			withParens := append(append([]*node{open}, mid...), closeTok)
+			choice := &node{alts: [][]*node{withParens, append([]*node(nil), mid...)}, brace: true}
+			out := append(append([]*node(nil), seq[:i]...), choice)
+			return pairParens(append(out, seq[j+1:]...))
+		}
+	}
+	return seq
+}
+
+// unsetList reads property names UNSET lists one per bracket,
+//
+//	UNSET [ PASSWORD_MIN_LENGTH ] [ PASSWORD_MAX_LENGTH ] ...
+//
+// as one or more of them with commas between, as UNSET takes them.
+func unsetList(seq []*node) []*node {
+	name := func(n *node) bool {
+		return n.tok == nil && !n.brace && n.op == '?' && len(n.alts) == 1 && len(n.alts[0]) == 1 &&
+			n.alts[0][0].tok != nil && n.alts[0][0].tok.kind == nKeyword
+	}
+	for i, n := range seq {
+		if n.tok == nil || n.tok.kind != nKeyword || n.tok.text != "UNSET" {
+			continue
+		}
+		j := i + 1
+		for j < len(seq) && name(seq[j]) {
+			j++
+		}
+		if j-i-1 < 2 {
+			return seq
+		}
+		choice := &node{brace: true}
+		for _, r := range seq[i+1 : j] {
+			choice.alts = append(choice.alts, r.alts[0])
+		}
+		out := append(append([]*node(nil), seq[:i+1]...), choice, repeatAfterComma(choice))
+		return append(out, seq[j:]...)
+	}
+	return seq
 }
 
 // unsetNamesOnly reads a property UNSET lists with a value,
