@@ -85,3 +85,43 @@ func TestCreateSchemaIfNotExistsMatchesPG(t *testing.T) {
 		{"CREATE SCHEMA AUTHORIZATION r CREATE TABLE n (id int)", true},
 	})
 }
+
+// TestRoutineBodyStatementsMatchPG pins routine_body_stmt_list: every
+// statement of a BEGIN ATOMIC body, the empty one included, ends in a
+// semicolon. The parser took a body without them, and looped forever on a
+// token no statement starts with.
+func TestRoutineBodyStatementsMatchPG(t *testing.T) {
+	assertSyntaxMatchesPG(t, []syntaxCase{
+		{"CREATE FUNCTION f() RETURNS int LANGUAGE sql BEGIN ATOMIC RETURN 1; END", true},
+		{"CREATE FUNCTION f() RETURNS int LANGUAGE sql BEGIN ATOMIC SELECT 1; RETURN 2; END", true},
+		{"CREATE FUNCTION f() LANGUAGE sql BEGIN ATOMIC END", true},
+		{"CREATE FUNCTION f() LANGUAGE sql BEGIN ATOMIC ; END", true},
+		{"CREATE FUNCTION f() LANGUAGE sql BEGIN ATOMIC ; ; SELECT 1; END", true},
+		{"CREATE FUNCTION f() RETURNS int LANGUAGE sql BEGIN ATOMIC RETURN 1 END", false},
+		{"CREATE FUNCTION f() RETURNS int LANGUAGE sql BEGIN ATOMIC SELECT 1; RETURN 2 END", false},
+		{"CREATE FUNCTION a() BEGIN ATOMIC; zzz END", false},
+		{"CREATE FUNCTION a() BEGIN ATOMIC zzz END", false},
+		{"CREATE FUNCTION a() BEGIN ATOMIC zzz; END", false},
+		{"CREATE FUNCTION a() BEGIN ATOMIC a; END", false},
+		{"CREATE FUNCTION a() BEGIN ATOMIC RETURN a zzz; END", false},
+		{"CREATE FUNCTION a() BEGIN ATOMIC RETURNING a; END", false},
+	})
+}
+
+// TestMissingNamesMatchPG pins four statements that leave out a name the
+// grammar requires. The parser panicked on each: it read the name's parts
+// after failing to parse it.
+func TestMissingNamesMatchPG(t *testing.T) {
+	assertSyntaxMatchesPG(t, []syntaxCase{
+		{"ALTER EXTENSION a ADD OPERATOR CLASS b USING c", true},
+		{"ALTER EXTENSION a ADD OPERATOR FAMILY b USING c", true},
+		{"ALTER EXTENSION a ADD OPERATOR CLASS USING a", false},
+		{"ALTER EXTENSION a ADD OPERATOR FAMILY USING a", false},
+		{"ALTER EXTENSION a ADD OPERATOR CLASS b c", false},
+		{"ALTER EXTENSION a ADD OPERATOR FAMILY b USING", false},
+		{"CREATE FUNCTION a(b c.d%TYPE) RETURNS int LANGUAGE sql RETURN 1", true},
+		{"CREATE FUNCTION a(a.% TYPE)", false},
+		{"ALTER SYSTEM SET a TO TRUE", true},
+		{"ALTER SYSTEM SET TO TRUE", false},
+	})
+}

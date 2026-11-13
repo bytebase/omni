@@ -755,6 +755,11 @@ func (p *Parser) parseAlterSystemStmt() (nodes.Node, error) {
 		if err != nil {
 			return nil, err
 		}
+		// generic_set starts with var_name (gram.y: generic_set); with
+		// none, parseGenericSetOrFromCurrent returns no statement.
+		if setstmt == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		return &nodes.AlterSystemStmt{
 			Setstmt: setstmt.(*nodes.VariableSetStmt),
 			Loc:     nodes.Loc{Start: loc, End: p.prev.End},
