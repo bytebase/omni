@@ -121,9 +121,8 @@ func (p *Parser) parseDropStmtInner() (nodes.Node, error) {
 		return p.parseDropOperatorClassOrFamily()
 	case TABLESPACE:
 		return p.parseDropTableSpaceStmt()
-	// exhaustive: gram.y:6815 — caller handles nil via outer error
 	default:
-		return nil, nil
+		return nil, p.syntaxErrorAtCur()
 	}
 }
 
@@ -369,7 +368,10 @@ func (p *Parser) parseDropOnObject(objType nodes.ObjectType) (nodes.Node, error)
 	missingOk := p.parseOptIfExists()
 
 	// parse name (the trigger/policy/rule name)
-	objName, _ := p.parseName()
+	objName, err := p.parseName()
+	if err != nil {
+		return nil, err
+	}
 
 	// ON
 	if _, err := p.expect(ON); err != nil {
@@ -759,9 +761,11 @@ func (p *Parser) parseOperatorWithArgtypes() (*nodes.ObjectWithArgs, error) {
 	if err != nil {
 		return nil, err
 	}
-	owa := &nodes.ObjectWithArgs{Objname: opName}
-	owa.Objargs, _ = p.parseOperArgtypes()
-	return owa, nil
+	args, err := p.parseOperArgtypes()
+	if err != nil {
+		return nil, err
+	}
+	return &nodes.ObjectWithArgs{Objname: opName, Objargs: args}, nil
 }
 
 // parseDropFuncStmt parses DROP FUNCTION/PROCEDURE/ROUTINE (RemoveFuncStmt).

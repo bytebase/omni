@@ -130,7 +130,10 @@ func (p *Parser) parseAlterIndex(alterLoc int) (nodes.Node, error) {
 
 	// qualified_name
 	nameStart := p.pos()
-	names, _ := p.parseQualifiedName()
+	names, err := p.parseQualifiedName()
+	if err != nil {
+		return nil, err
+	}
 	rv := makeRangeVarFromAnyName(names, nodes.Loc{Start: nameStart, End: p.prev.End})
 
 	// Check for RENAME
@@ -139,7 +142,10 @@ func (p *Parser) parseAlterIndex(alterLoc int) (nodes.Node, error) {
 		if _, err := p.expect(TO); err != nil {
 			return nil, err
 		}
-		newname, _ := p.parseName()
+		newname, err := p.parseName()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.RenameStmt{
 			RenameType: nodes.OBJECT_INDEX,
 			Relation:   rv,
@@ -192,7 +198,10 @@ func (p *Parser) parseAlterIndex(alterLoc int) (nodes.Node, error) {
 		if _, err := p.expect(EXTENSION); err != nil {
 			return nil, err
 		}
-		extname, _ := p.parseName()
+		extname, err := p.parseName()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterObjectDependsStmt{
 			ObjectType: nodes.OBJECT_INDEX,
 			Relation:   rv,
@@ -325,7 +334,10 @@ func (p *Parser) parseAlterView(alterLoc int) (nodes.Node, error) {
 	}
 
 	nameStart := p.pos()
-	names, _ := p.parseQualifiedName()
+	names, err := p.parseQualifiedName()
+	if err != nil {
+		return nil, err
+	}
 	rv := makeRangeVarFromAnyName(names, nodes.Loc{Start: nameStart, End: p.prev.End})
 
 	// Check for RENAME
@@ -337,7 +349,10 @@ func (p *Parser) parseAlterView(alterLoc int) (nodes.Node, error) {
 	if p.cur.Type == SET && p.peekNext().Type == SCHEMA {
 		p.advance() // consume SET
 		p.advance() // consume SCHEMA
-		newschema, _ := p.parseName()
+		newschema, err := p.parseName()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterObjectSchemaStmt{
 			ObjectType: nodes.OBJECT_VIEW,
 			Relation:   rv,
@@ -381,7 +396,10 @@ func (p *Parser) parseAlterMaterializedView(alterLoc int) (nodes.Node, error) {
 	}
 
 	nameStart := p.pos()
-	names, _ := p.parseQualifiedName()
+	names, err := p.parseQualifiedName()
+	if err != nil {
+		return nil, err
+	}
 	rv := makeRangeVarFromAnyName(names, nodes.Loc{Start: nameStart, End: p.prev.End})
 
 	// Check for RENAME
@@ -393,7 +411,10 @@ func (p *Parser) parseAlterMaterializedView(alterLoc int) (nodes.Node, error) {
 	if p.cur.Type == SET && p.peekNext().Type == SCHEMA {
 		p.advance() // consume SET
 		p.advance() // consume SCHEMA
-		newschema, _ := p.parseName()
+		newschema, err := p.parseName()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterObjectSchemaStmt{
 			ObjectType: nodes.OBJECT_MATVIEW,
 			Relation:   rv,
@@ -412,7 +433,10 @@ func (p *Parser) parseAlterMaterializedView(alterLoc int) (nodes.Node, error) {
 		if _, err := p.expect(EXTENSION); err != nil {
 			return nil, err
 		}
-		extname, _ := p.parseName()
+		extname, err := p.parseName()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterObjectDependsStmt{
 			ObjectType: nodes.OBJECT_MATVIEW,
 			Relation:   rv,

@@ -211,17 +211,21 @@ func (p *Parser) parseAlterTypeStmt() (nodes.Node, error) {
 		case VALUE_P:
 			// ALTER TYPE name RENAME VALUE 'old' TO 'new'
 			p.advance() // consume VALUE
-			oldval := p.cur.Str
-			p.advance() // consume Sconst
+			oldval, err := p.expect(SCONST)
+			if err != nil {
+				return nil, err
+			}
 			if _, err := p.expect(TO); err != nil {
 				return nil, err
 			}
-			newval := p.cur.Str
-			p.advance() // consume Sconst
+			newval, err := p.expect(SCONST)
+			if err != nil {
+				return nil, err
+			}
 			return &nodes.AlterEnumStmt{
 				Typname: names,
-				Oldval:  oldval,
-				Newval:  newval,
+				Oldval:  oldval.Str,
+				Newval:  newval.Str,
 				Loc:     nodes.Loc{Start: loc, End: p.prev.End},
 			}, nil
 		case ATTRIBUTE:
@@ -278,9 +282,8 @@ func (p *Parser) parseAlterTypeStmt() (nodes.Node, error) {
 			Options:  opts,
 			Loc:      nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
-	// exhaustive: gram.y:10273 — caller handles nil via outer error
 	default:
-		return nil, nil
+		return nil, p.syntaxErrorAtCur()
 	}
 }
 
@@ -302,25 +305,25 @@ func (p *Parser) parseAlterEnumAddValue(typname *nodes.List) (*nodes.AlterEnumSt
 		skipIfExists = true
 	}
 
-	newval := p.cur.Str
-	p.advance() // consume Sconst
+	newval, err := p.expect(SCONST)
+	if err != nil {
+		return nil, err
+	}
 
 	stmt := &nodes.AlterEnumStmt{
 		Typname:            typname,
-		Newval:             newval,
+		Newval:             newval.Str,
 		SkipIfNewvalExists: skipIfExists,
 	}
 
-	if p.cur.Type == BEFORE {
+	if p.cur.Type == BEFORE || p.cur.Type == AFTER {
+		stmt.NewvalIsAfter = p.cur.Type == AFTER
 		p.advance()
-		stmt.NewvalNeighbor = p.cur.Str
-		p.advance()
-		stmt.NewvalIsAfter = false
-	} else if p.cur.Type == AFTER {
-		p.advance()
-		stmt.NewvalNeighbor = p.cur.Str
-		p.advance()
-		stmt.NewvalIsAfter = true
+		neighbor, err := p.expect(SCONST)
+		if err != nil {
+			return nil, err
+		}
+		stmt.NewvalNeighbor = neighbor.Str
 	}
 
 	return stmt, nil
@@ -696,9 +699,8 @@ func (p *Parser) parseAlterDomainOwnerOrOther() (nodes.Node, error) {
 			Object:     names,
 			Newname:    newname,
 		}, nil
-	// exhaustive: gram.y:11522 — caller handles nil via outer error
 	default:
-		return nil, nil
+		return nil, p.syntaxErrorAtCur()
 	}
 }
 
@@ -829,9 +831,8 @@ func (p *Parser) parseAlterSchemaOwner() (nodes.Node, error) {
 			Options:    options,
 			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
-	// exhaustive: gram.y AlterOwnerStmt/RenameStmt inline — caller handles nil via outer error
 	default:
-		return nil, nil
+		return nil, p.syntaxErrorAtCur()
 	}
 }
 
@@ -900,9 +901,8 @@ func (p *Parser) parseAlterCollationStmt() (nodes.Node, error) {
 			Newschema:  newschema,
 			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
-	// exhaustive: gram.y ALTER COLLATION inline — caller handles nil via outer error
 	default:
-		return nil, nil
+		return nil, p.syntaxErrorAtCur()
 	}
 }
 
@@ -965,9 +965,8 @@ func (p *Parser) parseAlterConversionStmt() (nodes.Node, error) {
 			Newschema:  newschema,
 			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
-	// exhaustive: gram.y ALTER CONVERSION inline — caller handles nil via outer error
 	default:
-		return nil, nil
+		return nil, p.syntaxErrorAtCur()
 	}
 }
 
@@ -1030,9 +1029,8 @@ func (p *Parser) parseAlterAggregateStmt() (nodes.Node, error) {
 			Newschema:  newschema,
 			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
-	// exhaustive: gram.y ALTER AGGREGATE inline — caller handles nil via outer error
 	default:
-		return nil, nil
+		return nil, p.syntaxErrorAtCur()
 	}
 }
 
@@ -1092,9 +1090,8 @@ func (p *Parser) parseAlterTextSearchStmt() (nodes.Node, error) {
 		return p.parseAlterTSParserOrTemplate(nodes.OBJECT_TSPARSER, loc)
 	case TEMPLATE:
 		return p.parseAlterTSParserOrTemplate(nodes.OBJECT_TSTEMPLATE, loc)
-	// exhaustive: gram.y ALTER TEXT SEARCH kind (DICTIONARY/CONFIGURATION/PARSER/TEMPLATE) — caller handles nil via outer error
 	default:
-		return nil, nil
+		return nil, p.syntaxErrorAtCur()
 	}
 }
 
@@ -1162,9 +1159,8 @@ func (p *Parser) parseAlterTSDictionary(loc int) (nodes.Node, error) {
 			Newschema:  newschema,
 			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
-	// exhaustive: gram.y ALTER TS DICTIONARY inline — caller handles nil via outer error
 	default:
-		return nil, nil
+		return nil, p.syntaxErrorAtCur()
 	}
 }
 
@@ -1350,9 +1346,8 @@ func (p *Parser) parseAlterTSConfiguration(loc int) (nodes.Node, error) {
 			Newschema:  newschema,
 			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
-	// exhaustive: gram.y ALTER TS CONFIGURATION inline — caller handles nil via outer error
 	default:
-		return nil, nil
+		return nil, p.syntaxErrorAtCur()
 	}
 }
 
@@ -1394,9 +1389,8 @@ func (p *Parser) parseAlterTSParserOrTemplate(objtype nodes.ObjectType, loc int)
 			Newschema:  newschema,
 			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
-	// exhaustive: gram.y ALTER TS PARSER/TEMPLATE inline — caller handles nil via outer error
 	default:
-		return nil, nil
+		return nil, p.syntaxErrorAtCur()
 	}
 }
 
@@ -1447,9 +1441,8 @@ func (p *Parser) parseAlterLanguageStmt() (nodes.Node, error) {
 			Newowner:   roleSpec,
 			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
-	// exhaustive: gram.y ALTER LANGUAGE inline — caller handles nil via outer error
 	default:
-		return nil, nil
+		return nil, p.syntaxErrorAtCur()
 	}
 }
 
@@ -1465,7 +1458,10 @@ func (p *Parser) parseAlterLargeObjectStmt() (nodes.Node, error) {
 	if _, err := p.expect(OBJECT_P); err != nil {
 		return nil, err
 	}
-	numVal := p.parseNumericOnly()
+	numVal, err := p.parseNumericOnlyRequired()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(OWNER); err != nil {
 		return nil, err
 	}
@@ -1553,9 +1549,8 @@ func (p *Parser) parseAlterEventTriggerOwner() (nodes.Node, error) {
 			Tgenabled: 'D',
 			Loc:       nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
-	// exhaustive: gram.y ALTER EVENT TRIGGER inline — caller handles nil via outer error
 	default:
-		return nil, nil
+		return nil, p.syntaxErrorAtCur()
 	}
 }
 
@@ -1627,9 +1622,8 @@ func (p *Parser) parseAlterTablespaceOwner() (nodes.Node, error) {
 			IsReset:        true,
 			Loc:            nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
-	// exhaustive: gram.y ALTER TABLESPACE inline — caller handles nil via outer error
 	default:
-		return nil, nil
+		return nil, p.syntaxErrorAtCur()
 	}
 }
 

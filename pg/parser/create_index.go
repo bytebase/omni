@@ -48,12 +48,24 @@ func (p *Parser) parseIndexStmt() (*nodes.IndexStmt, error) {
 			return nil, err
 		}
 		ifNotExists = true
-		idxname, _ = p.parseName()
+		name, err := p.parseName()
+		if err != nil {
+			return nil, err
+		}
+		idxname = name
 	} else if p.cur.Type == ON {
 		// unnamed index — skip to ON
 	} else {
-		// opt_single_name: could be a name or empty (ON follows)
-		idxname, _ = p.parseName()
+		// opt_single_name: a name, or nothing before ON
+		if p.collectMode() {
+			p.addTokenCandidate(ON)
+			return nil, errCollecting
+		}
+		name, err := p.parseName()
+		if err != nil {
+			return nil, err
+		}
+		idxname = name
 	}
 
 	// ON
@@ -71,7 +83,9 @@ func (p *Parser) parseIndexStmt() (*nodes.IndexStmt, error) {
 	accessMethod := ""
 	if p.cur.Type == USING {
 		p.advance()
-		accessMethod, _ = p.parseName()
+		if accessMethod, err = p.parseName(); err != nil {
+			return nil, err
+		}
 	}
 
 	// '(' index_params ')'
@@ -124,7 +138,10 @@ func (p *Parser) parseIndexStmt() (*nodes.IndexStmt, error) {
 	}
 
 	// where_clause
-	whereClause, _ := p.parseWhereClause()
+	whereClause, err := p.parseWhereClause()
+	if err != nil {
+		return nil, err
+	}
 
 	return &nodes.IndexStmt{
 		Idxname:              idxname,

@@ -44,8 +44,14 @@ func (p *Parser) parseCreatePublicationStmt() (nodes.Node, error) {
 		}
 
 		// pub_obj_list
-		pubobjects := p.parsePubObjList()
+		pubobjects, shapes, err := p.parsePubObjList()
+		if err != nil {
+			return nil, err
+		}
 		options := p.parseOptDefinition()
+		if err := p.checkPubObjList(pubobjects, shapes); err != nil {
+			return nil, err
+		}
 		return &nodes.CreatePublicationStmt{
 			Pubname:    name,
 			Options:    options,
@@ -135,7 +141,13 @@ func (p *Parser) parseAlterPublicationStmt() (nodes.Node, error) {
 		}
 		// SET pub_obj_list
 		p.advance() // consume SET
-		pubobjects := p.parsePubObjList()
+		pubobjects, shapes, err := p.parsePubObjList()
+		if err != nil {
+			return nil, err
+		}
+		if err := p.checkPubObjList(pubobjects, shapes); err != nil {
+			return nil, err
+		}
 		return &nodes.AlterPublicationStmt{
 			Pubname:    name,
 			Pubobjects: pubobjects,
@@ -144,7 +156,13 @@ func (p *Parser) parseAlterPublicationStmt() (nodes.Node, error) {
 		}, nil
 	case ADD_P:
 		p.advance() // consume ADD
-		pubobjects := p.parsePubObjList()
+		pubobjects, shapes, err := p.parsePubObjList()
+		if err != nil {
+			return nil, err
+		}
+		if err := p.checkPubObjList(pubobjects, shapes); err != nil {
+			return nil, err
+		}
 		return &nodes.AlterPublicationStmt{
 			Pubname:    name,
 			Pubobjects: pubobjects,
@@ -153,16 +171,27 @@ func (p *Parser) parseAlterPublicationStmt() (nodes.Node, error) {
 		}, nil
 	case DROP:
 		p.advance() // consume DROP
-		pubobjects := p.parsePubObjList()
+		pubobjects, shapes, err := p.parsePubObjList()
+		if err != nil {
+			return nil, err
+		}
+		if err := p.checkPubObjList(pubobjects, shapes); err != nil {
+			return nil, err
+		}
 		return &nodes.AlterPublicationStmt{
 			Pubname:    name,
 			Pubobjects: pubobjects,
 			Action:     nodes.DEFELEM_DROP,
 			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
-	// exhaustive: gram.y:10668 — caller handles nil via outer error
 	default:
-		return nil, nil
+		if p.collectMode() {
+			for _, t := range []int{OWNER, RENAME, SET, ADD_P, DROP} {
+				p.addTokenCandidate(t)
+			}
+			return nil, errCollecting
+		}
+		return nil, p.syntaxErrorAtCur()
 	}
 }
 
@@ -170,20 +199,80 @@ func (p *Parser) parseAlterPublicationStmt() (nodes.Node, error) {
 // pub_obj_list / PublicationObjSpec
 // =============================================================================
 
-// parsePubObjList parses pub_obj_list.
+// pubObjShape records how a PublicationObjSpec was written, which
+// checkPubObjList needs and the AST does not keep.
+type pubObjShape struct {
+	loc      int  // gram.y's pubobj->location
+	name     bool // a bare ColId: gram.y keeps it as a name
+	pubtable bool // gram.y built a PublicationTable for it
+	cols     bool
+	where    bool
+}
+
+// parsePubObjList parses pub_obj_list. The caller checks the list with
+// checkPubObjList where gram.y calls preprocess_pubobj_list.
 //
 //	pub_obj_list:
 //	    PublicationObjSpec
 //	    | pub_obj_list ',' PublicationObjSpec
-func (p *Parser) parsePubObjList() *nodes.List {
-	obj := p.parsePublicationObjSpec()
-	items := []nodes.Node{obj}
-	for p.cur.Type == ',' {
-		p.advance()
-		obj = p.parsePublicationObjSpec()
+func (p *Parser) parsePubObjList() (*nodes.List, []pubObjShape, error) {
+	var items []nodes.Node
+	var shapes []pubObjShape
+	for {
+		obj, shape, err := p.parsePublicationObjSpec()
+		if err != nil {
+			return nil, nil, err
+		}
 		items = append(items, obj)
+		shapes = append(shapes, shape)
+		if p.cur.Type != ',' {
+			return &nodes.List{Items: items}, shapes, nil
+		}
+		p.advance()
 	}
-	return &nodes.List{Items: items}
+}
+
+// checkPubObjList reports the errors gram.y's preprocess_pubobj_list raises
+// as syntax errors: a list that starts with a bare name, a bare
+// CURRENT_SCHEMA after TABLE, and a table-only clause on a schema.
+func (p *Parser) checkPubObjList(list *nodes.List, shapes []pubObjShape) error {
+	if p.collectMode() || list == nil {
+		return nil
+	}
+	prev := nodes.PUBLICATIONOBJ_CONTINUATION
+	for i, item := range list.Items {
+		obj := item.(*nodes.PublicationObjSpec)
+		shape := shapes[i]
+		objtype := obj.Pubobjtype
+		if objtype == nodes.PUBLICATIONOBJ_CONTINUATION {
+			if i == 0 {
+				return &ParseError{Message: "invalid publication object list", Position: shape.loc}
+			}
+			objtype = prev
+		}
+		switch objtype {
+		case nodes.PUBLICATIONOBJ_TABLE:
+			if !shape.name && !shape.pubtable {
+				return &ParseError{Message: "invalid table name", Position: shape.loc}
+			}
+		case nodes.PUBLICATIONOBJ_TABLES_IN_SCHEMA, nodes.PUBLICATIONOBJ_TABLES_IN_CUR_SCHEMA:
+			switch {
+			case shape.where:
+				return &ParseError{Message: "WHERE clause not allowed for schema", Position: shape.loc}
+			case shape.cols:
+				return &ParseError{Message: "column specification not allowed for schema", Position: shape.loc}
+			case shape.pubtable:
+				return &ParseError{Message: "invalid schema name", Position: shape.loc}
+			}
+			if shape.name {
+				objtype = nodes.PUBLICATIONOBJ_TABLES_IN_SCHEMA
+			} else {
+				objtype = nodes.PUBLICATIONOBJ_TABLES_IN_CUR_SCHEMA
+			}
+		}
+		prev = objtype
+	}
+	return nil
 }
 
 // parsePublicationObjSpec parses PublicationObjSpec.
@@ -192,99 +281,141 @@ func (p *Parser) parsePubObjList() *nodes.List {
 //	    TABLE relation_expr opt_column_list OptWhereClause
 //	    | TABLES IN_P SCHEMA ColId
 //	    | TABLES IN_P SCHEMA CURRENT_SCHEMA
-//	    | relation_expr opt_column_list OptWhereClause     (CONTINUATION)
-//	    | CURRENT_SCHEMA                                   (CONTINUATION)
-func (p *Parser) parsePublicationObjSpec() *nodes.PublicationObjSpec {
+//	    | ColId opt_column_list OptWhereClause                 (CONTINUATION)
+//	    | ColId indirection opt_column_list OptWhereClause     (CONTINUATION)
+//	    | extended_relation_expr opt_column_list OptWhereClause (CONTINUATION)
+//	    | CURRENT_SCHEMA                                       (CONTINUATION)
+//
+// TABLES is an unreserved keyword, so without IN after it it is the ColId of
+// a continuation.
+func (p *Parser) parsePublicationObjSpec() (*nodes.PublicationObjSpec, pubObjShape, error) {
 	loc := p.pos()
 
 	if p.cur.Type == TABLE {
 		p.advance() // consume TABLE
-		ptLoc := p.pos()
-		rel, _ := p.parseRelationExpr()
-		cols, _ := p.parseOptColumnList()
-		where := p.parseOptWhereClausePub()
-		pt := &nodes.PublicationTable{
-			Relation: rel,
-			Columns:  cols,
-			Loc:      nodes.Loc{Start: ptLoc, End: p.prev.End},
-		}
-		if where != nil {
-			pt.WhereClause = where
-			pt.Loc.End = p.prev.End
+		pt, _, err := p.parsePublicationTable()
+		if err != nil {
+			return nil, pubObjShape{}, err
 		}
 		return &nodes.PublicationObjSpec{
 			Pubobjtype: nodes.PUBLICATIONOBJ_TABLE,
 			Pubtable:   pt,
 			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
-		}
+		}, pubObjShape{loc: loc, pubtable: true}, nil
 	}
 
-	if p.cur.Type == TABLES {
+	if p.cur.Type == TABLES && (p.peekNext().Type == IN_P || p.completingAtNext()) {
 		p.advance() // consume TABLES
-		p.expect(IN_P)
-		p.expect(SCHEMA)
-		if p.cur.Type == CURRENT_SCHEMA {
+		if _, err := p.expect(IN_P); err != nil {
+			return nil, pubObjShape{}, err
+		}
+		if _, err := p.expect(SCHEMA); err != nil {
+			return nil, pubObjShape{}, err
+		}
+		schemaLoc := p.pos()
+		if p.cur.Type == CURRENT_SCHEMA && !p.collectMode() {
 			p.advance()
-			// PG accepts OptWhereClause here at parse time and errors
-			// at semantic time; match its permissiveness.
-			p.parseOptWhereClausePub()
 			return &nodes.PublicationObjSpec{
 				Pubobjtype: nodes.PUBLICATIONOBJ_TABLES_IN_CUR_SCHEMA,
 				Loc:        nodes.Loc{Start: loc, End: p.prev.End},
-			}
+			}, pubObjShape{loc: schemaLoc}, nil
 		}
-		schemaName, _ := p.parseColId()
-		// PG accepts a trailing WHERE (...) here at parse time, then
-		// rejects at validation. omni matches parse-time permissiveness.
-		p.parseOptWhereClausePub()
+		schemaName, err := p.parseColId()
+		if err != nil {
+			return nil, pubObjShape{}, err
+		}
 		return &nodes.PublicationObjSpec{
 			Pubobjtype: nodes.PUBLICATIONOBJ_TABLES_IN_SCHEMA,
 			Name:       schemaName,
 			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
-		}
+		}, pubObjShape{loc: schemaLoc, name: true}, nil
 	}
 
-	if p.cur.Type == CURRENT_SCHEMA {
+	if p.cur.Type == CURRENT_SCHEMA && !p.collectMode() {
 		p.advance()
 		return &nodes.PublicationObjSpec{
 			Pubobjtype: nodes.PUBLICATIONOBJ_CONTINUATION,
 			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
-		}
+		}, pubObjShape{loc: loc}, nil
 	}
 
-	// CONTINUATION: relation_expr opt_column_list OptWhereClause
-	ptLoc := p.pos()
-	rel, _ := p.parseRelationExpr()
-	cols, _ := p.parseOptColumnList()
-	where := p.parseOptWhereClausePub()
-	pt := &nodes.PublicationTable{
-		Relation: rel,
-		Columns:  cols,
-		Loc:      nodes.Loc{Start: ptLoc, End: p.prev.End},
+	// CONTINUATION: a table or schema name, with an optional column list
+	// and row filter.
+	pt, extended, err := p.parsePublicationTable()
+	if err != nil {
+		return nil, pubObjShape{}, err
 	}
-	if where != nil {
-		pt.WhereClause = where
-		pt.Loc.End = p.prev.End
+	rel := pt.Relation
+	shape := pubObjShape{loc: loc, cols: pt.Columns != nil, where: pt.WhereClause != nil}
+	switch {
+	case extended:
+		// gram.y's extended_relation_expr alternative never sets
+		// pubobj->location, so PostgreSQL reports it at offset 0 of the
+		// query; omni points at the statement instead.
+		shape.loc = p.stmtStart
+		shape.pubtable = true
+	case rel.Schemaname != "" || rel.Catalogname != "":
+		shape.pubtable = true
+	default:
+		shape.pubtable = shape.cols || shape.where
+		shape.name = !shape.pubtable
 	}
 	return &nodes.PublicationObjSpec{
 		Pubobjtype: nodes.PUBLICATIONOBJ_CONTINUATION,
 		Pubtable:   pt,
 		Loc:        nodes.Loc{Start: loc, End: p.prev.End},
+	}, shape, nil
+}
+
+// parsePublicationTable parses relation_expr opt_column_list OptWhereClause,
+// and reports whether the relation_expr was an extended_relation_expr
+// (name *, ONLY name, ONLY (name)).
+func (p *Parser) parsePublicationTable() (*nodes.PublicationTable, bool, error) {
+	ptLoc := p.pos()
+	extended := p.cur.Type == ONLY
+	rel, err := p.parseRelationExpr()
+	if err != nil {
+		return nil, false, err
 	}
+	extended = extended || p.prev.Type == '*'
+	cols, err := p.parseOptColumnList()
+	if err != nil {
+		return nil, false, err
+	}
+	where, err := p.parseOptWhereClausePub()
+	if err != nil {
+		return nil, false, err
+	}
+	return &nodes.PublicationTable{
+		Relation:    rel,
+		Columns:     cols,
+		WhereClause: where,
+		Loc:         nodes.Loc{Start: ptLoc, End: p.prev.End},
+	}, extended, nil
 }
 
 // parseOptWhereClausePub parses the OptWhereClause for publication objects.
 //
 //	OptWhereClause: WHERE '(' a_expr ')' | /* EMPTY */
-func (p *Parser) parseOptWhereClausePub() nodes.Node {
+func (p *Parser) parseOptWhereClausePub() (nodes.Node, error) {
 	if p.cur.Type != WHERE {
-		return nil
+		return nil, nil
 	}
 	p.advance() // consume WHERE
-	p.expect('(')
-	expr, _ := p.parseAExpr(0)
-	p.expect(')')
-	return expr
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	expr, err := p.parseAExpr(0)
+	if err != nil {
+		return nil, err
+	}
+	if expr == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return expr, nil
 }
 
 // =============================================================================
@@ -489,7 +620,13 @@ func (p *Parser) parseAlterSubscriptionStmt() (nodes.Node, error) {
 				Loc:         nodes.Loc{Start: loc, End: p.prev.End},
 			}, nil
 		}
-		return nil, nil
+		p.advance() // consume SET
+		if p.collectMode() {
+			p.addTokenCandidate('(')
+			p.addTokenCandidate(PUBLICATION)
+			return nil, errCollecting
+		}
+		return nil, p.syntaxErrorAtCur()
 
 	case ADD_P:
 		p.advance() // consume ADD
@@ -527,9 +664,14 @@ func (p *Parser) parseAlterSubscriptionStmt() (nodes.Node, error) {
 			Options:     options,
 		}, nil
 
-	// exhaustive: gram.y:10734 — caller handles nil via outer error
 	default:
-		return nil, nil
+		if p.collectMode() {
+			for _, t := range []int{OWNER, RENAME, CONNECTION, REFRESH, ENABLE_P, DISABLE_P, SKIP, SET, ADD_P, DROP} {
+				p.addTokenCandidate(t)
+			}
+			return nil, errCollecting
+		}
+		return nil, p.syntaxErrorAtCur()
 	}
 }
 
@@ -560,7 +702,10 @@ func (p *Parser) parseCreateRuleStmt(replace bool, stmtLoc int) (nodes.Node, err
 	}
 
 	// event: SELECT | UPDATE | DELETE | INSERT
-	event := p.parseRuleEvent()
+	event, err := p.parseRuleEvent()
+	if err != nil {
+		return nil, err
+	}
 
 	if _, err := p.expect(TO); err != nil {
 		return nil, err
@@ -595,7 +740,10 @@ func (p *Parser) parseCreateRuleStmt(replace bool, stmtLoc int) (nodes.Node, err
 	}
 
 	// RuleActionList: NOTHING | RuleActionStmt | '(' RuleActionMulti ')'
-	actions := p.parseRuleActionList()
+	actions, err := p.parseRuleActionList()
+	if err != nil {
+		return nil, err
+	}
 
 	return &nodes.RuleStmt{
 		Replace:     replace,
@@ -612,24 +760,28 @@ func (p *Parser) parseCreateRuleStmt(replace bool, stmtLoc int) (nodes.Node, err
 // parseRuleEvent parses the event keyword for a rule.
 //
 //	event: SELECT | UPDATE | DELETE_P | INSERT
-func (p *Parser) parseRuleEvent() int {
+func (p *Parser) parseRuleEvent() (int, error) {
 	switch p.cur.Type {
 	case SELECT:
 		p.advance()
-		return int(nodes.CMD_SELECT)
+		return int(nodes.CMD_SELECT), nil
 	case UPDATE:
 		p.advance()
-		return int(nodes.CMD_UPDATE)
+		return int(nodes.CMD_UPDATE), nil
 	case DELETE_P:
 		p.advance()
-		return int(nodes.CMD_DELETE)
+		return int(nodes.CMD_DELETE), nil
 	case INSERT:
 		p.advance()
-		return int(nodes.CMD_INSERT)
-	default:
-		p.advance() // consume whatever is there
-		return int(nodes.CMD_SELECT)
+		return int(nodes.CMD_INSERT), nil
 	}
+	if p.collectMode() {
+		for _, t := range []int{SELECT, UPDATE, DELETE_P, INSERT} {
+			p.addTokenCandidate(t)
+		}
+		return 0, errCollecting
+	}
+	return 0, p.syntaxErrorAtCur()
 }
 
 // parseRuleActionList parses RuleActionList.
@@ -638,25 +790,30 @@ func (p *Parser) parseRuleEvent() int {
 //	    NOTHING
 //	    | RuleActionStmt
 //	    | '(' RuleActionMulti ')'
-func (p *Parser) parseRuleActionList() *nodes.List {
+func (p *Parser) parseRuleActionList() (*nodes.List, error) {
 	if p.cur.Type == NOTHING {
 		p.advance()
-		return nil
+		return nil, nil
 	}
 
 	if p.cur.Type == '(' {
 		p.advance() // consume '('
-		actions := p.parseRuleActionMulti()
-		p.expect(')')
-		return actions
+		actions, err := p.parseRuleActionMulti()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		return actions, nil
 	}
 
 	// Single RuleActionStmt
-	stmt, _ := p.parseRuleActionStmt()
-	if stmt == nil {
-		return nil
+	stmt, err := p.parseRuleActionStmt()
+	if err != nil {
+		return nil, err
 	}
-	return &nodes.List{Items: []nodes.Node{stmt}}
+	return &nodes.List{Items: []nodes.Node{stmt}}, nil
 }
 
 // parseRuleActionMulti parses RuleActionMulti.
@@ -664,31 +821,27 @@ func (p *Parser) parseRuleActionList() *nodes.List {
 //	RuleActionMulti:
 //	    RuleActionMulti ';' RuleActionStmtOrEmpty
 //	    | RuleActionStmtOrEmpty
-func (p *Parser) parseRuleActionMulti() *nodes.List {
+func (p *Parser) parseRuleActionMulti() (*nodes.List, error) {
 	var items []nodes.Node
-
-	// First item
-	stmt, _ := p.parseRuleActionStmt()
-	if stmt != nil {
-		items = append(items, stmt)
-	}
-
-	for p.cur.Type == ';' {
-		p.advance()
-		// RuleActionStmtOrEmpty - could be empty (just ';')
-		if p.cur.Type == ')' || p.cur.Type == ';' || p.cur.Type == 0 {
-			continue
-		}
-		stmt, _ = p.parseRuleActionStmt()
-		if stmt != nil {
+	for {
+		// RuleActionStmtOrEmpty: RuleActionStmt | /*EMPTY*/
+		if p.cur.Type != ')' && p.cur.Type != ';' {
+			stmt, err := p.parseRuleActionStmt()
+			if err != nil {
+				return nil, err
+			}
 			items = append(items, stmt)
 		}
+		if p.cur.Type != ';' {
+			break
+		}
+		p.advance()
 	}
 
 	if len(items) == 0 {
-		return nil
+		return nil, nil
 	}
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: items}, nil
 }
 
 // parseRuleActionStmt parses a single rule action statement.
@@ -700,10 +853,17 @@ func (p *Parser) parseRuleActionStmt() (nodes.Node, error) {
 		// WITH is in the SELECT FIRST set but dispatches to parseWithStmt
 		// rather than parseSelectNoParens, so handle it as a sub-branch
 		// inside the isSelectStart() gate.
+		var stmt nodes.Node
+		var err error
 		if p.cur.Type == WITH {
-			return p.parseWithStmt()
+			stmt, err = p.parseWithStmt()
+		} else {
+			stmt, err = p.parseSelectNoParens()
 		}
-		return p.parseSelectNoParens()
+		if err == nil && stmt == nil {
+			err = p.syntaxErrorAtCur()
+		}
+		return stmt, err
 	}
 	switch p.cur.Type {
 	case INSERT:
@@ -715,8 +875,6 @@ func (p *Parser) parseRuleActionStmt() (nodes.Node, error) {
 	case NOTIFY:
 		p.advance() // consume NOTIFY
 		return p.parseNotifyStmt()
-	// exhaustive: gram.y:10903 RuleActionStmt — caller handles nil via outer error (post-KB-2a)
-	default:
-		return nil, nil
 	}
+	return nil, p.syntaxErrorAtCur()
 }
