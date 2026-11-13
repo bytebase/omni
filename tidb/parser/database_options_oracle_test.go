@@ -169,24 +169,19 @@ var databaseOptionCases = []databaseOptionCase{
 // and any other server error means the text parsed and failed later.
 func TestDatabaseOptionsOracle(t *testing.T) {
 	tc := startTiDB(t)
-	assertTiDBVersion(t, tc)
-	for i, dbc := range databaseOptionCases {
+	for _, dbc := range databaseOptionCases {
 		t.Run(dbc.sql, func(t *testing.T) {
-			previous := "<start of cases>"
-			if i > 0 {
-				previous = databaseOptionCases[i-1].sql
-			}
-			accepts, _, err := tc.syntaxVerdict(t, dbc.sql, previous)
+			accepts, err := tc.prepareSyntax(dbc.sql)
 			if err != nil {
 				t.Fatalf("no verdict: %v", err)
 			}
 			if accepts != dbc.accept {
-				t.Fatalf("TiDB %s accepts=%v, want %v for %q", tidbCorpusVersion, accepts, dbc.accept, dbc.sql)
+				t.Fatalf("TiDB %s accepts=%v, want %v for %q", tidbRelease, accepts, dbc.accept, dbc.sql)
 			}
 			_, perr := Parse(dbc.sql)
 			if omniAccepts := perr == nil; omniAccepts != dbc.accept {
 				t.Errorf("DIVERGENCE omni accepts=%v, TiDB %s accepts=%v for %q: %v",
-					omniAccepts, tidbCorpusVersion, dbc.accept, dbc.sql, perr)
+					omniAccepts, tidbRelease, dbc.accept, dbc.sql, perr)
 			}
 		})
 	}
