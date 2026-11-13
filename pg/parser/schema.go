@@ -399,7 +399,11 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
-		stmt.Comment = p.parseCommentText()
+		text, err := p.parseCommentText()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Comment = text
 		return stmt, nil
 
 	case TYPE_P:
@@ -413,7 +417,11 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
-		stmt.Comment = p.parseCommentText()
+		text, err := p.parseCommentText()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Comment = text
 		return stmt, nil
 
 	case DOMAIN_P:
@@ -427,7 +435,11 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
-		stmt.Comment = p.parseCommentText()
+		text, err := p.parseCommentText()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Comment = text
 		return stmt, nil
 
 	case CONSTRAINT:
@@ -450,7 +462,11 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 			if _, err := p.expect(IS); err != nil {
 				return nil, err
 			}
-			stmt.Comment = p.parseCommentText()
+			text, err := p.parseCommentText()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Comment = text
 			return stmt, nil
 		}
 		stmt.Objtype = nodes.OBJECT_TABCONSTRAINT
@@ -462,7 +478,11 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
-		stmt.Comment = p.parseCommentText()
+		text, err := p.parseCommentText()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Comment = text
 		return stmt, nil
 
 	case LARGE_P:
@@ -475,7 +495,11 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
-		stmt.Comment = p.parseCommentText()
+		text, err := p.parseCommentText()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Comment = text
 		return stmt, nil
 
 	case CAST:
@@ -502,7 +526,11 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
-		stmt.Comment = p.parseCommentText()
+		text, err := p.parseCommentText()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Comment = text
 		return stmt, nil
 
 	case EVENT:
@@ -519,7 +547,11 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
-		stmt.Comment = p.parseCommentText()
+		text, err := p.parseCommentText()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Comment = text
 		return stmt, nil
 
 	case TRANSFORM:
@@ -543,7 +575,11 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
-		stmt.Comment = p.parseCommentText()
+		text, err := p.parseCommentText()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Comment = text
 		return stmt, nil
 
 	case OPERATOR:
@@ -566,7 +602,11 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 			if _, err := p.expect(IS); err != nil {
 				return nil, err
 			}
-			stmt.Comment = p.parseCommentText()
+			text, err := p.parseCommentText()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Comment = text
 			return stmt, nil
 		}
 		if p.cur.Type == FAMILY {
@@ -587,7 +627,11 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 			if _, err := p.expect(IS); err != nil {
 				return nil, err
 			}
-			stmt.Comment = p.parseCommentText()
+			text, err := p.parseCommentText()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Comment = text
 			return stmt, nil
 		}
 		stmt.Objtype = nodes.OBJECT_OPERATOR
@@ -595,7 +639,11 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
-		stmt.Comment = p.parseCommentText()
+		text, err := p.parseCommentText()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Comment = text
 		return stmt, nil
 
 	case AGGREGATE:
@@ -609,7 +657,11 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
-		stmt.Comment = p.parseCommentText()
+		text, err := p.parseCommentText()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Comment = text
 		return stmt, nil
 
 	case FUNCTION:
@@ -623,7 +675,11 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
-		stmt.Comment = p.parseCommentText()
+		text, err := p.parseCommentText()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Comment = text
 		return stmt, nil
 
 	case PROCEDURE:
@@ -637,7 +693,11 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
-		stmt.Comment = p.parseCommentText()
+		text, err := p.parseCommentText()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Comment = text
 		return stmt, nil
 
 	case ROUTINE:
@@ -651,7 +711,11 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
-		stmt.Comment = p.parseCommentText()
+		text, err := p.parseCommentText()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Comment = text
 		return stmt, nil
 
 	case FOREIGN:
@@ -670,7 +734,11 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 			if _, err := p.expect(IS); err != nil {
 				return nil, err
 			}
-			stmt.Comment = p.parseCommentText()
+			text, err := p.parseCommentText()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Comment = text
 			return stmt, nil
 		}
 		if _, err := p.expect(TABLE); err != nil {
@@ -685,7 +753,11 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
-		stmt.Comment = p.parseCommentText()
+		text, err := p.parseCommentText()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Comment = text
 		return stmt, nil
 
 	case MATERIALIZED:
@@ -702,7 +774,11 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
-		stmt.Comment = p.parseCommentText()
+		text, err := p.parseCommentText()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Comment = text
 		return stmt, nil
 
 	default:
@@ -724,7 +800,11 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 			if _, err := p.expect(IS); err != nil {
 				return nil, err
 			}
-			stmt.Comment = p.parseCommentText()
+			text, err := p.parseCommentText()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Comment = text
 			return stmt, nil
 		}
 
@@ -739,7 +819,11 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 			if _, err := p.expect(IS); err != nil {
 				return nil, err
 			}
-			stmt.Comment = p.parseCommentText()
+			text, err := p.parseCommentText()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Comment = text
 			return stmt, nil
 		}
 
@@ -753,22 +837,25 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
-		stmt.Comment = p.parseCommentText()
+		text, err := p.parseCommentText()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Comment = text
 		return stmt, nil
 	}
 }
 
-// parseCommentText parses comment_text: Sconst | NULL_P
-func (p *Parser) parseCommentText() string {
-	if p.cur.Type == NULL_P {
+// parseCommentText parses comment_text: Sconst | NULL_P.
+func (p *Parser) parseCommentText() (string, error) {
+	switch p.cur.Type {
+	case NULL_P:
 		p.advance()
-		return ""
+		return "", nil
+	case SCONST:
+		return p.advance().Str, nil
 	}
-	if p.cur.Type == SCONST {
-		tok := p.advance()
-		return tok.Str
-	}
-	return ""
+	return "", p.syntaxErrorAtCur()
 }
 
 // tryParseObjectTypeName tries to parse object_type_name.

@@ -317,7 +317,7 @@ reject@8	reject@8	engine	stmt/CommentStmt!drop-2	COMMENT TABLE a IS 's'
 accept	reject@11	engine	stmt/CommentStmt!drop-3	COMMENT ON a IS 's'
 reject@17	reject@17	engine	stmt/CommentStmt!drop-4	COMMENT ON TABLE IS 's'
 reject@19	reject@19	engine	stmt/CommentStmt!drop-5	COMMENT ON TABLE a 's'
-accept	reject@21	engine	stmt/CommentStmt!drop-6	COMMENT ON TABLE a IS
+reject@21	reject@21	engine	stmt/CommentStmt!drop-6	COMMENT ON TABLE a IS
 reject@26	reject@26	engine	stmt/CommentStmt!insert	COMMENT ON TABLE a IS 's' zzz
 reject@0	reject@0	engine	stmt/CommentStmt!swap	COMMENTS ON TABLE a IS 's'
 accept	accept	engine	stmt/ConstraintsSetStmt	SET CONSTRAINTS ALL DEFERRED
@@ -4641,7 +4641,7 @@ reject@0	reject@0	engine	CommentStmt/COMMENT_ON_COLUMN_any_name_IS_comment_text!
 reject@8	reject@8	engine	CommentStmt/COMMENT_ON_COLUMN_any_name_IS_comment_text!drop-2	COMMENT COLUMN a IS 's'
 reject@18	reject@18	engine	CommentStmt/COMMENT_ON_COLUMN_any_name_IS_comment_text!drop-4	COMMENT ON COLUMN IS 's'
 reject@20	reject@20	engine	CommentStmt/COMMENT_ON_COLUMN_any_name_IS_comment_text!drop-5	COMMENT ON COLUMN a 's'
-accept	reject@22	engine	CommentStmt/COMMENT_ON_COLUMN_any_name_IS_comment_text!drop-6	COMMENT ON COLUMN a IS
+reject@22	reject@22	engine	CommentStmt/COMMENT_ON_COLUMN_any_name_IS_comment_text!drop-6	COMMENT ON COLUMN a IS
 reject@27	reject@27	engine	CommentStmt/COMMENT_ON_COLUMN_any_name_IS_comment_text!insert	COMMENT ON COLUMN a IS 's' zzz
 reject@0	reject@0	engine	CommentStmt/COMMENT_ON_COLUMN_any_name_IS_comment_text!swap	COMMENTS ON COLUMN a IS 's'
 accept	accept	engine	CommentStmt/COMMENT_ON_object_type_name_name_IS_comment_text	COMMENT ON EXTENSION a IS 's'
@@ -4649,7 +4649,7 @@ reject@0	reject@0	engine	CommentStmt/COMMENT_ON_object_type_name_name_IS_comment
 reject@8	reject@8	engine	CommentStmt/COMMENT_ON_object_type_name_name_IS_comment_text!drop-2	COMMENT EXTENSION a IS 's'
 reject@21	reject@21	engine	CommentStmt/COMMENT_ON_object_type_name_name_IS_comment_text!drop-4	COMMENT ON EXTENSION IS 's'
 reject@23	reject@23	engine	CommentStmt/COMMENT_ON_object_type_name_name_IS_comment_text!drop-5	COMMENT ON EXTENSION a 's'
-accept	reject@25	engine	CommentStmt/COMMENT_ON_object_type_name_name_IS_comment_text!drop-6	COMMENT ON EXTENSION a IS
+reject@25	reject@25	engine	CommentStmt/COMMENT_ON_object_type_name_name_IS_comment_text!drop-6	COMMENT ON EXTENSION a IS
 reject@30	reject@30	engine	CommentStmt/COMMENT_ON_object_type_name_name_IS_comment_text!insert	COMMENT ON EXTENSION a IS 's' zzz
 reject@0	reject@0	engine	CommentStmt/COMMENT_ON_object_type_name_name_IS_comment_text!swap	COMMENTS ON EXTENSION a IS 's'
 accept	accept	engine	CommentStmt/COMMENT_ON_TYPE_P_Typename_IS_comment_text	COMMENT ON TYPE a IS 's'
@@ -4657,7 +4657,7 @@ reject@0	reject@0	engine	CommentStmt/COMMENT_ON_TYPE_P_Typename_IS_comment_text!
 reject@8	reject@8	engine	CommentStmt/COMMENT_ON_TYPE_P_Typename_IS_comment_text!drop-2	COMMENT TYPE a IS 's'
 reject@16	reject@19	engine	CommentStmt/COMMENT_ON_TYPE_P_Typename_IS_comment_text!drop-4	COMMENT ON TYPE IS 's'
 reject@18	reject@18	engine	CommentStmt/COMMENT_ON_TYPE_P_Typename_IS_comment_text!drop-5	COMMENT ON TYPE a 's'
-accept	reject@20	engine	CommentStmt/COMMENT_ON_TYPE_P_Typename_IS_comment_text!drop-6	COMMENT ON TYPE a IS
+reject@20	reject@20	engine	CommentStmt/COMMENT_ON_TYPE_P_Typename_IS_comment_text!drop-6	COMMENT ON TYPE a IS
 reject@25	reject@25	engine	CommentStmt/COMMENT_ON_TYPE_P_Typename_IS_comment_text!insert	COMMENT ON TYPE a IS 's' zzz
 reject@0	reject@0	engine	CommentStmt/COMMENT_ON_TYPE_P_Typename_IS_comment_text!swap	COMMENTS ON TYPE a IS 's'
 accept	accept	engine	CommentStmt/COMMENT_ON_DOMAIN_P_Typename_IS_comment_text	COMMENT ON DOMAIN a IS 's'
@@ -4665,7 +4665,7 @@ reject@0	reject@0	engine	CommentStmt/COMMENT_ON_DOMAIN_P_Typename_IS_comment_tex
 reject@8	reject@8	engine	CommentStmt/COMMENT_ON_DOMAIN_P_Typename_IS_comment_text!drop-2	COMMENT DOMAIN a IS 's'
 reject@18	reject@21	engine	CommentStmt/COMMENT_ON_DOMAIN_P_Typename_IS_comment_text!drop-4	COMMENT ON DOMAIN IS 's'
 reject@20	reject@20	engine	CommentStmt/COMMENT_ON_DOMAIN_P_Typename_IS_comment_text!drop-5	COMMENT ON DOMAIN a 's'
-accept	reject@22	engine	CommentStmt/COMMENT_ON_DOMAIN_P_Typename_IS_comment_text!drop-6	COMMENT ON DOMAIN a IS
+reject@22	reject@22	engine	CommentStmt/COMMENT_ON_DOMAIN_P_Typename_IS_comment_text!drop-6	COMMENT ON DOMAIN a IS
 reject@27	reject@27	engine	CommentStmt/COMMENT_ON_DOMAIN_P_Typename_IS_comment_text!insert	COMMENT ON DOMAIN a IS 's' zzz
 reject@0	reject@0	engine	CommentStmt/COMMENT_ON_DOMAIN_P_Typename_IS_comment_text!swap	COMMENTS ON DOMAIN a IS 's'
 accept	accept	engine	CommentStmt/COMMENT_ON_AGGREGATE_aggregate_with_argtypes_IS_comment_text	COMMENT ON AGGREGATE a(*) IS 's'
@@ -4677,7 +4677,7 @@ reject@23	reject@23	engine	CommentStmt/COMMENT_ON_AGGREGATE_aggregate_with_argty
 reject@23	reject@23	engine	CommentStmt/COMMENT_ON_AGGREGATE_aggregate_with_argtypes_IS_comment_text!drop-6	COMMENT ON AGGREGATE a() IS 's'
 accept	reject@25	engine	CommentStmt/COMMENT_ON_AGGREGATE_aggregate_with_argtypes_IS_comment_text!drop-7	COMMENT ON AGGREGATE a(* IS 's'
 reject@26	reject@26	engine	CommentStmt/COMMENT_ON_AGGREGATE_aggregate_with_argtypes_IS_comment_text!drop-8	COMMENT ON AGGREGATE a(*) 's'
-accept	reject@28	engine	CommentStmt/COMMENT_ON_AGGREGATE_aggregate_with_argtypes_IS_comment_text!drop-9	COMMENT ON AGGREGATE a(*) IS
+reject@28	reject@28	engine	CommentStmt/COMMENT_ON_AGGREGATE_aggregate_with_argtypes_IS_comment_text!drop-9	COMMENT ON AGGREGATE a(*) IS
 reject@33	reject@33	engine	CommentStmt/COMMENT_ON_AGGREGATE_aggregate_with_argtypes_IS_comment_text!insert	COMMENT ON AGGREGATE a(*) IS 's' zzz
 reject@0	reject@0	engine	CommentStmt/COMMENT_ON_AGGREGATE_aggregate_with_argtypes_IS_comment_text!swap	COMMENTS ON AGGREGATE a(*) IS 's'
 accept	accept	engine	CommentStmt/COMMENT_ON_FUNCTION_function_with_argtypes_IS_comment_text	COMMENT ON FUNCTION AUTHORIZATION IS 's'
@@ -4686,7 +4686,7 @@ reject@8	reject@8	engine	CommentStmt/COMMENT_ON_FUNCTION_function_with_argtypes_
 reject@11	reject@11	engine	CommentStmt/COMMENT_ON_FUNCTION_function_with_argtypes_IS_comment_text!drop-3	COMMENT ON AUTHORIZATION IS 's'
 reject@23	reject@23	engine	CommentStmt/COMMENT_ON_FUNCTION_function_with_argtypes_IS_comment_text!drop-4	COMMENT ON FUNCTION IS 's'
 reject@34	reject@34	engine	CommentStmt/COMMENT_ON_FUNCTION_function_with_argtypes_IS_comment_text!drop-5	COMMENT ON FUNCTION AUTHORIZATION 's'
-accept	reject@36	engine	CommentStmt/COMMENT_ON_FUNCTION_function_with_argtypes_IS_comment_text!drop-6	COMMENT ON FUNCTION AUTHORIZATION IS
+reject@36	reject@36	engine	CommentStmt/COMMENT_ON_FUNCTION_function_with_argtypes_IS_comment_text!drop-6	COMMENT ON FUNCTION AUTHORIZATION IS
 reject@41	reject@41	engine	CommentStmt/COMMENT_ON_FUNCTION_function_with_argtypes_IS_comment_text!insert	COMMENT ON FUNCTION AUTHORIZATION IS 's' zzz
 reject@0	reject@0	engine	CommentStmt/COMMENT_ON_FUNCTION_function_with_argtypes_IS_comment_text!swap	COMMENTS ON FUNCTION AUTHORIZATION IS 's'
 accept	reject@23	engine	CommentStmt/COMMENT_ON_OPERATOR_operator_with_argtypes_IS_comment_text	COMMENT ON OPERATOR ~(a) IS 's'
@@ -4698,7 +4698,7 @@ reject@22	reject@22	engine	CommentStmt/COMMENT_ON_OPERATOR_operator_with_argtype
 accept	reject@22	engine	CommentStmt/COMMENT_ON_OPERATOR_operator_with_argtypes_IS_comment_text!drop-6	COMMENT ON OPERATOR ~() IS 's'
 accept	reject@24	engine	CommentStmt/COMMENT_ON_OPERATOR_operator_with_argtypes_IS_comment_text!drop-7	COMMENT ON OPERATOR ~(a IS 's'
 reject@25	reject@23	engine	CommentStmt/COMMENT_ON_OPERATOR_operator_with_argtypes_IS_comment_text!drop-8	COMMENT ON OPERATOR ~(a) 's'
-accept	reject@23	engine	CommentStmt/COMMENT_ON_OPERATOR_operator_with_argtypes_IS_comment_text!drop-9	COMMENT ON OPERATOR ~(a) IS
+reject@27	reject@23	engine	CommentStmt/COMMENT_ON_OPERATOR_operator_with_argtypes_IS_comment_text!drop-9	COMMENT ON OPERATOR ~(a) IS
 reject@32	reject@23	engine	CommentStmt/COMMENT_ON_OPERATOR_operator_with_argtypes_IS_comment_text!insert	COMMENT ON OPERATOR ~(a) IS 's' zzz
 reject@0	reject@0	engine	CommentStmt/COMMENT_ON_OPERATOR_operator_with_argtypes_IS_comment_text!swap	COMMENTS ON OPERATOR ~(a) IS 's'
 accept	accept	engine	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_any_name_IS_comment_text	COMMENT ON CONSTRAINT a ON a IS 's'
@@ -4709,7 +4709,7 @@ reject@22	reject@22	engine	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_any_name_IS
 reject@24	reject@24	engine	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_any_name_IS_comment_text!drop-5	COMMENT ON CONSTRAINT a a IS 's'
 reject@27	reject@27	engine	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_any_name_IS_comment_text!drop-6	COMMENT ON CONSTRAINT a ON IS 's'
 reject@29	reject@29	engine	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_any_name_IS_comment_text!drop-7	COMMENT ON CONSTRAINT a ON a 's'
-accept	reject@31	engine	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_any_name_IS_comment_text!drop-8	COMMENT ON CONSTRAINT a ON a IS
+reject@31	reject@31	engine	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_any_name_IS_comment_text!drop-8	COMMENT ON CONSTRAINT a ON a IS
 reject@36	reject@36	engine	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_any_name_IS_comment_text!insert	COMMENT ON CONSTRAINT a ON a IS 's' zzz
 reject@0	reject@0	engine	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_any_name_IS_comment_text!swap	COMMENTS ON CONSTRAINT a ON a IS 's'
 accept	accept	engine	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_DOMAIN_P_any_name_IS_comment_text	COMMENT ON CONSTRAINT a ON DOMAIN a IS 's'
@@ -4720,7 +4720,7 @@ reject@22	reject@22	engine	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_DOMAIN_P_an
 reject@24	reject@24	engine	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_DOMAIN_P_any_name_IS_comment_text!drop-5	COMMENT ON CONSTRAINT a DOMAIN a IS 's'
 reject@34	accept	engine	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_DOMAIN_P_any_name_IS_comment_text!drop-7	COMMENT ON CONSTRAINT a ON DOMAIN IS 's'
 reject@36	reject@36	engine	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_DOMAIN_P_any_name_IS_comment_text!drop-8	COMMENT ON CONSTRAINT a ON DOMAIN a 's'
-accept	reject@38	engine	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_DOMAIN_P_any_name_IS_comment_text!drop-9	COMMENT ON CONSTRAINT a ON DOMAIN a IS
+reject@38	reject@38	engine	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_DOMAIN_P_any_name_IS_comment_text!drop-9	COMMENT ON CONSTRAINT a ON DOMAIN a IS
 reject@43	reject@43	engine	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_DOMAIN_P_any_name_IS_comment_text!insert	COMMENT ON CONSTRAINT a ON DOMAIN a IS 's' zzz
 reject@0	reject@0	engine	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_DOMAIN_P_any_name_IS_comment_text!swap	COMMENTS ON CONSTRAINT a ON DOMAIN a IS 's'
 accept	accept	engine	CommentStmt/COMMENT_ON_object_type_name_on_any_name_name_ON_any_name_IS_comment_text	COMMENT ON POLICY a ON a IS 's'
@@ -4730,7 +4730,7 @@ reject@18	reject@18	engine	CommentStmt/COMMENT_ON_object_type_name_on_any_name_n
 reject@20	reject@20	engine	CommentStmt/COMMENT_ON_object_type_name_on_any_name_name_ON_any_name_IS_comment_text!drop-5	COMMENT ON POLICY a a IS 's'
 reject@23	reject@23	engine	CommentStmt/COMMENT_ON_object_type_name_on_any_name_name_ON_any_name_IS_comment_text!drop-6	COMMENT ON POLICY a ON IS 's'
 reject@25	reject@25	engine	CommentStmt/COMMENT_ON_object_type_name_on_any_name_name_ON_any_name_IS_comment_text!drop-7	COMMENT ON POLICY a ON a 's'
-accept	reject@27	engine	CommentStmt/COMMENT_ON_object_type_name_on_any_name_name_ON_any_name_IS_comment_text!drop-8	COMMENT ON POLICY a ON a IS
+reject@27	reject@27	engine	CommentStmt/COMMENT_ON_object_type_name_on_any_name_name_ON_any_name_IS_comment_text!drop-8	COMMENT ON POLICY a ON a IS
 reject@32	reject@32	engine	CommentStmt/COMMENT_ON_object_type_name_on_any_name_name_ON_any_name_IS_comment_text!insert	COMMENT ON POLICY a ON a IS 's' zzz
 reject@0	reject@0	engine	CommentStmt/COMMENT_ON_object_type_name_on_any_name_name_ON_any_name_IS_comment_text!swap	COMMENTS ON POLICY a ON a IS 's'
 accept	accept	engine	CommentStmt/COMMENT_ON_PROCEDURE_function_with_argtypes_IS_comment_text	COMMENT ON PROCEDURE AUTHORIZATION IS 's'
@@ -4738,7 +4738,7 @@ reject@0	reject@0	engine	CommentStmt/COMMENT_ON_PROCEDURE_function_with_argtypes
 reject@8	reject@8	engine	CommentStmt/COMMENT_ON_PROCEDURE_function_with_argtypes_IS_comment_text!drop-2	COMMENT PROCEDURE AUTHORIZATION IS 's'
 reject@24	reject@24	engine	CommentStmt/COMMENT_ON_PROCEDURE_function_with_argtypes_IS_comment_text!drop-4	COMMENT ON PROCEDURE IS 's'
 reject@35	reject@35	engine	CommentStmt/COMMENT_ON_PROCEDURE_function_with_argtypes_IS_comment_text!drop-5	COMMENT ON PROCEDURE AUTHORIZATION 's'
-accept	reject@37	engine	CommentStmt/COMMENT_ON_PROCEDURE_function_with_argtypes_IS_comment_text!drop-6	COMMENT ON PROCEDURE AUTHORIZATION IS
+reject@37	reject@37	engine	CommentStmt/COMMENT_ON_PROCEDURE_function_with_argtypes_IS_comment_text!drop-6	COMMENT ON PROCEDURE AUTHORIZATION IS
 reject@42	reject@42	engine	CommentStmt/COMMENT_ON_PROCEDURE_function_with_argtypes_IS_comment_text!insert	COMMENT ON PROCEDURE AUTHORIZATION IS 's' zzz
 reject@0	reject@0	engine	CommentStmt/COMMENT_ON_PROCEDURE_function_with_argtypes_IS_comment_text!swap	COMMENTS ON PROCEDURE AUTHORIZATION IS 's'
 accept	accept	engine	CommentStmt/COMMENT_ON_ROUTINE_function_with_argtypes_IS_comment_text	COMMENT ON ROUTINE AUTHORIZATION IS 's'
@@ -4746,7 +4746,7 @@ reject@0	reject@0	engine	CommentStmt/COMMENT_ON_ROUTINE_function_with_argtypes_I
 reject@8	reject@8	engine	CommentStmt/COMMENT_ON_ROUTINE_function_with_argtypes_IS_comment_text!drop-2	COMMENT ROUTINE AUTHORIZATION IS 's'
 reject@22	reject@22	engine	CommentStmt/COMMENT_ON_ROUTINE_function_with_argtypes_IS_comment_text!drop-4	COMMENT ON ROUTINE IS 's'
 reject@33	reject@33	engine	CommentStmt/COMMENT_ON_ROUTINE_function_with_argtypes_IS_comment_text!drop-5	COMMENT ON ROUTINE AUTHORIZATION 's'
-accept	reject@35	engine	CommentStmt/COMMENT_ON_ROUTINE_function_with_argtypes_IS_comment_text!drop-6	COMMENT ON ROUTINE AUTHORIZATION IS
+reject@35	reject@35	engine	CommentStmt/COMMENT_ON_ROUTINE_function_with_argtypes_IS_comment_text!drop-6	COMMENT ON ROUTINE AUTHORIZATION IS
 reject@40	reject@40	engine	CommentStmt/COMMENT_ON_ROUTINE_function_with_argtypes_IS_comment_text!insert	COMMENT ON ROUTINE AUTHORIZATION IS 's' zzz
 reject@0	reject@0	engine	CommentStmt/COMMENT_ON_ROUTINE_function_with_argtypes_IS_comment_text!swap	COMMENTS ON ROUTINE AUTHORIZATION IS 's'
 accept	accept	engine	CommentStmt/COMMENT_ON_TRANSFORM_FOR_Typename_LANGUAGE_name_IS_comment_text	COMMENT ON TRANSFORM FOR a LANGUAGE a IS 's'
@@ -4758,7 +4758,7 @@ reject@34	reject@34	engine	CommentStmt/COMMENT_ON_TRANSFORM_FOR_Typename_LANGUAG
 reject@27	reject@27	engine	CommentStmt/COMMENT_ON_TRANSFORM_FOR_Typename_LANGUAGE_name_IS_comment_text!drop-6	COMMENT ON TRANSFORM FOR a a IS 's'
 reject@36	reject@36	engine	CommentStmt/COMMENT_ON_TRANSFORM_FOR_Typename_LANGUAGE_name_IS_comment_text!drop-7	COMMENT ON TRANSFORM FOR a LANGUAGE IS 's'
 reject@38	reject@38	engine	CommentStmt/COMMENT_ON_TRANSFORM_FOR_Typename_LANGUAGE_name_IS_comment_text!drop-8	COMMENT ON TRANSFORM FOR a LANGUAGE a 's'
-accept	reject@40	engine	CommentStmt/COMMENT_ON_TRANSFORM_FOR_Typename_LANGUAGE_name_IS_comment_text!drop-9	COMMENT ON TRANSFORM FOR a LANGUAGE a IS
+reject@40	reject@40	engine	CommentStmt/COMMENT_ON_TRANSFORM_FOR_Typename_LANGUAGE_name_IS_comment_text!drop-9	COMMENT ON TRANSFORM FOR a LANGUAGE a IS
 reject@45	reject@45	engine	CommentStmt/COMMENT_ON_TRANSFORM_FOR_Typename_LANGUAGE_name_IS_comment_text!insert	COMMENT ON TRANSFORM FOR a LANGUAGE a IS 's' zzz
 reject@0	reject@0	engine	CommentStmt/COMMENT_ON_TRANSFORM_FOR_Typename_LANGUAGE_name_IS_comment_text!swap	COMMENTS ON TRANSFORM FOR a LANGUAGE a IS 's'
 accept	accept	engine	CommentStmt/COMMENT_ON_OPERATOR_CLASS_any_name_USING_name_IS_comment_text	COMMENT ON OPERATOR CLASS a USING a IS 's'
@@ -4770,7 +4770,7 @@ reject@26	reject@26	engine	CommentStmt/COMMENT_ON_OPERATOR_CLASS_any_name_USING_
 reject@28	reject@28	engine	CommentStmt/COMMENT_ON_OPERATOR_CLASS_any_name_USING_name_IS_comment_text!drop-6	COMMENT ON OPERATOR CLASS a a IS 's'
 reject@34	reject@34	engine	CommentStmt/COMMENT_ON_OPERATOR_CLASS_any_name_USING_name_IS_comment_text!drop-7	COMMENT ON OPERATOR CLASS a USING IS 's'
 reject@36	reject@36	engine	CommentStmt/COMMENT_ON_OPERATOR_CLASS_any_name_USING_name_IS_comment_text!drop-8	COMMENT ON OPERATOR CLASS a USING a 's'
-accept	reject@38	engine	CommentStmt/COMMENT_ON_OPERATOR_CLASS_any_name_USING_name_IS_comment_text!drop-9	COMMENT ON OPERATOR CLASS a USING a IS
+reject@38	reject@38	engine	CommentStmt/COMMENT_ON_OPERATOR_CLASS_any_name_USING_name_IS_comment_text!drop-9	COMMENT ON OPERATOR CLASS a USING a IS
 reject@43	reject@43	engine	CommentStmt/COMMENT_ON_OPERATOR_CLASS_any_name_USING_name_IS_comment_text!insert	COMMENT ON OPERATOR CLASS a USING a IS 's' zzz
 reject@0	reject@0	engine	CommentStmt/COMMENT_ON_OPERATOR_CLASS_any_name_USING_name_IS_comment_text!swap	COMMENTS ON OPERATOR CLASS a USING a IS 's'
 accept	accept	engine	CommentStmt/COMMENT_ON_OPERATOR_FAMILY_any_name_USING_name_IS_comment_text	COMMENT ON OPERATOR FAMILY a USING a IS 's'
@@ -4781,7 +4781,7 @@ reject@27	reject@27	engine	CommentStmt/COMMENT_ON_OPERATOR_FAMILY_any_name_USING
 reject@29	reject@29	engine	CommentStmt/COMMENT_ON_OPERATOR_FAMILY_any_name_USING_name_IS_comment_text!drop-6	COMMENT ON OPERATOR FAMILY a a IS 's'
 reject@35	reject@35	engine	CommentStmt/COMMENT_ON_OPERATOR_FAMILY_any_name_USING_name_IS_comment_text!drop-7	COMMENT ON OPERATOR FAMILY a USING IS 's'
 reject@37	reject@37	engine	CommentStmt/COMMENT_ON_OPERATOR_FAMILY_any_name_USING_name_IS_comment_text!drop-8	COMMENT ON OPERATOR FAMILY a USING a 's'
-accept	reject@39	engine	CommentStmt/COMMENT_ON_OPERATOR_FAMILY_any_name_USING_name_IS_comment_text!drop-9	COMMENT ON OPERATOR FAMILY a USING a IS
+reject@39	reject@39	engine	CommentStmt/COMMENT_ON_OPERATOR_FAMILY_any_name_USING_name_IS_comment_text!drop-9	COMMENT ON OPERATOR FAMILY a USING a IS
 reject@44	reject@44	engine	CommentStmt/COMMENT_ON_OPERATOR_FAMILY_any_name_USING_name_IS_comment_text!insert	COMMENT ON OPERATOR FAMILY a USING a IS 's' zzz
 reject@0	reject@0	engine	CommentStmt/COMMENT_ON_OPERATOR_FAMILY_any_name_USING_name_IS_comment_text!swap	COMMENTS ON OPERATOR FAMILY a USING a IS 's'
 accept	accept	engine	CommentStmt/COMMENT_ON_LARGE_P_OBJECT_P_NumericOnly_IS_comment_text	COMMENT ON LARGE OBJECT 1.5 IS 's'
@@ -4791,7 +4791,7 @@ reject@18	reject@11	engine	CommentStmt/COMMENT_ON_LARGE_P_OBJECT_P_NumericOnly_I
 reject@17	reject@17	engine	CommentStmt/COMMENT_ON_LARGE_P_OBJECT_P_NumericOnly_IS_comment_text!drop-4	COMMENT ON LARGE 1.5 IS 's'
 accept	reject@24	engine	CommentStmt/COMMENT_ON_LARGE_P_OBJECT_P_NumericOnly_IS_comment_text!drop-5	COMMENT ON LARGE OBJECT IS 's'
 reject@28	reject@28	engine	CommentStmt/COMMENT_ON_LARGE_P_OBJECT_P_NumericOnly_IS_comment_text!drop-6	COMMENT ON LARGE OBJECT 1.5 's'
-accept	reject@30	engine	CommentStmt/COMMENT_ON_LARGE_P_OBJECT_P_NumericOnly_IS_comment_text!drop-7	COMMENT ON LARGE OBJECT 1.5 IS
+reject@30	reject@30	engine	CommentStmt/COMMENT_ON_LARGE_P_OBJECT_P_NumericOnly_IS_comment_text!drop-7	COMMENT ON LARGE OBJECT 1.5 IS
 reject@35	reject@35	engine	CommentStmt/COMMENT_ON_LARGE_P_OBJECT_P_NumericOnly_IS_comment_text!insert	COMMENT ON LARGE OBJECT 1.5 IS 's' zzz
 reject@0	reject@0	engine	CommentStmt/COMMENT_ON_LARGE_P_OBJECT_P_NumericOnly_IS_comment_text!swap	COMMENTS ON LARGE OBJECT 1.5 IS 's'
 accept	accept	engine	CommentStmt/COMMENT_ON_CAST_(_Typename_AS_Typename_)_IS_comment_text	COMMENT ON CAST(a AS a) IS 's'
@@ -4804,7 +4804,7 @@ reject@18	reject@18	engine	CommentStmt/COMMENT_ON_CAST_(_Typename_AS_Typename_)_
 reject@20	reject@20	engine	CommentStmt/COMMENT_ON_CAST_(_Typename_AS_Typename_)_IS_comment_text!drop-7	COMMENT ON CAST(a AS) IS 's'
 reject@23	reject@23	engine	CommentStmt/COMMENT_ON_CAST_(_Typename_AS_Typename_)_IS_comment_text!drop-8	COMMENT ON CAST(a AS a IS 's'
 reject@24	reject@24	engine	CommentStmt/COMMENT_ON_CAST_(_Typename_AS_Typename_)_IS_comment_text!drop-9	COMMENT ON CAST(a AS a) 's'
-accept	reject@26	engine	CommentStmt/COMMENT_ON_CAST_(_Typename_AS_Typename_)_IS_comment_text!drop-10	COMMENT ON CAST(a AS a) IS
+reject@26	reject@26	engine	CommentStmt/COMMENT_ON_CAST_(_Typename_AS_Typename_)_IS_comment_text!drop-10	COMMENT ON CAST(a AS a) IS
 reject@31	reject@31	engine	CommentStmt/COMMENT_ON_CAST_(_Typename_AS_Typename_)_IS_comment_text!insert	COMMENT ON CAST(a AS a) IS 's' zzz
 reject@0	reject@0	engine	CommentStmt/COMMENT_ON_CAST_(_Typename_AS_Typename_)_IS_comment_text!swap	COMMENTS ON CAST(a AS a) IS 's'
 accept	accept	engine	comment_text/Sconst	COMMENT ON TABLE a IS 's'
