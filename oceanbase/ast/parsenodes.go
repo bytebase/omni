@@ -2033,6 +2033,22 @@ type AlterSystemStmt struct {
 func (s *AlterSystemStmt) nodeTag()  {}
 func (s *AlterSystemStmt) stmtNode() {}
 
+// ObjectDDLStmt is a CREATE, ALTER or DROP of an OceanBase object this parser
+// keeps no tree for: a tenant, a resource unit or a resource pool. Action is
+// the statement and its object as the grammar writes them ("CREATE TENANT",
+// "ALTER RESOURCE POOL"); Schema and Name are the object's name, Name empty
+// where the statement names none (ALTER TENANT ALL). The options are parsed
+// and not kept.
+type ObjectDDLStmt struct {
+	Loc    Loc
+	Action string
+	Schema string
+	Name   string
+}
+
+func (s *ObjectDDLStmt) nodeTag()  {}
+func (s *ObjectDDLStmt) stmtNode() {}
+
 // KillStmt represents a KILL statement.
 type KillStmt struct {
 	Loc          Loc

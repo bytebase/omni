@@ -125,6 +125,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeFlushStmt(sb, n)
 	case *KillStmt:
 		writeKillStmt(sb, n)
+	case *ObjectDDLStmt:
+		fmt.Fprintf(sb, "{OBJECT_DDL :loc %d :action %q :name %s}", n.Loc.Start, n.Action, n.Name)
 	case *AlterSystemStmt:
 		fmt.Fprintf(sb, "{ALTER_SYSTEM :loc %d :action %q}", n.Loc.Start, n.Action)
 	case *DoStmt:

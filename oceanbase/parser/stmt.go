@@ -406,6 +406,10 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		return p.parseCreateOrReplace(start)
 	}
 
+	if stmt, ok, err := p.parseClusterDDL(start, "CREATE"); ok {
+		return stmt, err
+	}
+
 	temporary := false
 
 	// UNDO TABLESPACE
@@ -629,6 +633,10 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 		return nil, &ParseError{Message: "expected TABLESPACE after UNDO", Position: p.cur.Loc}
 	}
 
+	if stmt, ok, err := p.parseClusterDDL(start, "ALTER"); ok {
+		return stmt, err
+	}
+
 	// ALTER DISKGROUP is one of alter_system_stmt's alternatives.
 	if p.isBareWord("DISKGROUP") {
 		return p.parseAlterDiskgroupStmt(start)
@@ -721,6 +729,10 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 			p.addTokenCandidate(t)
 		}
 		return nil, &ParseError{Message: "collecting"}
+	}
+
+	if stmt, ok, err := p.parseClusterDDL(start, "DROP"); ok {
+		return stmt, err
 	}
 
 	// UNDO TABLESPACE
