@@ -2700,14 +2700,14 @@ reject	undocumented	docs	statement/createPasswordPolicy!drop-3	CREATE PASSWORD a
 reject	undocumented	docs	statement/createPasswordPolicy!drop-4	CREATE PASSWORD POLICY
 accept	undocumented	docs	statement/createPasswordPolicy!insert	CREATE PASSWORD POLICY a zzz
 reject	undocumented	docs	statement/createPasswordPolicy!swap	CREATION PASSWORD POLICY a
-reject	accept	docs	statement/createPipe	CREATE PIPE a AS SELECT 1
-reject	undocumented	docs	statement/createPipe!drop-1	PIPE a AS SELECT 1
-reject	undocumented	docs	statement/createPipe!drop-2	CREATE a AS SELECT 1
-reject	undocumented	docs	statement/createPipe!drop-3	CREATE PIPE AS SELECT 1
-reject	undocumented	docs	statement/createPipe!drop-4	CREATE PIPE a SELECT 1
+accept	accept	docs	statement/createPipe	CREATE PIPE a AS COPY INTO a FROM @a
+reject	undocumented	docs	statement/createPipe!drop-1	PIPE a AS COPY INTO a FROM @a
+reject	undocumented	docs	statement/createPipe!drop-2	CREATE a AS COPY INTO a FROM @a
+reject	undocumented	docs	statement/createPipe!drop-3	CREATE PIPE AS COPY INTO a FROM @a
+reject	undocumented	docs	statement/createPipe!drop-4	CREATE PIPE a COPY INTO a FROM @a
 reject	undocumented	docs	statement/createPipe!drop-5	CREATE PIPE a AS
-reject	undocumented	docs	statement/createPipe!insert	CREATE PIPE a AS SELECT 1 zzz
-reject	undocumented	docs	statement/createPipe!swap	CREATION PIPE a AS SELECT 1
+accept	undocumented	docs	statement/createPipe!insert	CREATE PIPE a AS COPY INTO a FROM @a zzz
+reject	undocumented	docs	statement/createPipe!swap	CREATION PIPE a AS COPY INTO a FROM @a
 reject	accept	docs	statement/createPostgresInstance	CREATE POSTGRES INSTANCE a FORK a
 reject	undocumented	docs	statement/createPostgresInstance!drop-1	POSTGRES INSTANCE a FORK a
 reject	undocumented	docs	statement/createPostgresInstance!drop-2	CREATE INSTANCE a FORK a
@@ -3145,24 +3145,16 @@ accept	undocumented	docs	statement/createTable!drop-6	CREATE TABLE a(a)
 reject	undocumented	docs	statement/createTable!drop-7	CREATE TABLE a(a INT
 reject	undocumented	docs	statement/createTable!insert	CREATE TABLE a(a INT) zzz
 reject	undocumented	docs	statement/createTable!swap	CREATION TABLE a(a INT)
-reject	accept	docs	statement/createTableConstraint	CREATE TABLE a(a a UNIQUE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	statement/createTableConstraint!drop-1	TABLE a(a a UNIQUE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	statement/createTableConstraint!drop-2	CREATE a(a a UNIQUE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	statement/createTableConstraint!drop-3	CREATE TABLE(a a UNIQUE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	statement/createTableConstraint!drop-4	CREATE TABLE a a a UNIQUE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	statement/createTableConstraint!drop-5	CREATE TABLE a(a UNIQUE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	statement/createTableConstraint!drop-7	CREATE TABLE a(a a) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	statement/createTableConstraint!drop-8	CREATE TABLE a(a a UNIQUE ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	statement/createTableConstraint!drop-9	CREATE TABLE a(a a UNIQUE) TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	statement/createTableConstraint!drop-10	CREATE TABLE a(a a UNIQUE) ALTER a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	statement/createTableConstraint!drop-11	CREATE TABLE a(a a UNIQUE) ALTER TABLE ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	statement/createTableConstraint!drop-12	CREATE TABLE a(a a UNIQUE) ALTER TABLE a COLUMN a INT UNIQUE
-reject	undocumented	docs	statement/createTableConstraint!drop-13	CREATE TABLE a(a a UNIQUE) ALTER TABLE a ADD a INT UNIQUE
-reject	undocumented	docs	statement/createTableConstraint!drop-14	CREATE TABLE a(a a UNIQUE) ALTER TABLE a ADD COLUMN INT UNIQUE
-reject	undocumented	docs	statement/createTableConstraint!drop-15	CREATE TABLE a(a a UNIQUE) ALTER TABLE a ADD COLUMN a UNIQUE
-reject	undocumented	docs	statement/createTableConstraint!drop-16	CREATE TABLE a(a a UNIQUE) ALTER TABLE a ADD COLUMN a INT
-reject	undocumented	docs	statement/createTableConstraint!insert	CREATE TABLE a(a a UNIQUE) ALTER TABLE a ADD COLUMN a INT UNIQUE zzz
-reject	undocumented	docs	statement/createTableConstraint!swap	CREATION TABLE a(a a UNIQUE) ALTER TABLE a ADD COLUMN a INT UNIQUE
+reject	accept	docs	statement/createTableConstraint	CREATE TABLE a(a a UNIQUE)
+reject	undocumented	docs	statement/createTableConstraint!drop-1	TABLE a(a a UNIQUE)
+reject	undocumented	docs	statement/createTableConstraint!drop-2	CREATE a(a a UNIQUE)
+reject	undocumented	docs	statement/createTableConstraint!drop-3	CREATE TABLE(a a UNIQUE)
+reject	undocumented	docs	statement/createTableConstraint!drop-4	CREATE TABLE a a a UNIQUE)
+accept	undocumented	docs	statement/createTableConstraint!drop-5	CREATE TABLE a(a UNIQUE)
+reject	undocumented	docs	statement/createTableConstraint!drop-7	CREATE TABLE a(a a)
+reject	undocumented	docs	statement/createTableConstraint!drop-8	CREATE TABLE a(a a UNIQUE
+reject	undocumented	docs	statement/createTableConstraint!insert	CREATE TABLE a(a a UNIQUE) zzz
+reject	undocumented	docs	statement/createTableConstraint!swap	CREATION TABLE a(a a UNIQUE)
 accept	accept	docs	statement/createTag	CREATE TAG a
 reject	undocumented	docs	statement/createTag!drop-1	TAG a
 reject	undocumented	docs	statement/createTag!drop-3	CREATE TAG
@@ -3214,6 +3206,7 @@ reject	undocumented	docs	statement/createVersionedSchema!insert	CREATE OR ALTER 
 reject	undocumented	docs	statement/createVersionedSchema!swap	CREATION OR ALTER VERSIONED SCHEMA a
 accept	accept	docs	statement/createView	CREATE VIEW a AS SELECT 1
 reject	undocumented	docs	statement/createView!drop-1	VIEW a AS SELECT 1
+reject	undocumented	docs	statement/createView!drop-2	CREATE a AS SELECT 1
 reject	undocumented	docs	statement/createView!drop-3	CREATE VIEW AS SELECT 1
 reject	undocumented	docs	statement/createView!drop-4	CREATE VIEW a SELECT 1
 reject	undocumented	docs	statement/createView!drop-5	CREATE VIEW a AS
@@ -38276,69 +38269,69 @@ reject	undocumented	docs	createPasswordPolicy(COMMENT_=_STRING)?/COMMENT_=_STRIN
 reject	undocumented	docs	createPasswordPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE PASSWORD POLICY a COMMENT =
 accept	undocumented	docs	createPasswordPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE PASSWORD POLICY a COMMENT = 's' zzz
 accept	undocumented	docs	createPasswordPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE PASSWORD POLICY a COMMENTS = 's'
-reject	accept	docs	createPipe/CREATE_(OR_REPLACE)?_PIPE_(IF_NOT_EXISTS)?_ID_(AUTO_ING~4443e90c	CREATE PIPE a AS SELECT 1
-reject	accept	docs	createPipe(OR_REPLACE)?/%empty	CREATE PIPE a AS SELECT 1
-reject	undocumented	docs	createPipe(OR_REPLACE)?/%empty!insert	CREATE zzz PIPE a AS SELECT 1
-reject	accept	docs	createPipe(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE PIPE a AS SELECT 1
-reject	undocumented	docs	createPipe(OR_REPLACE)?/OR_REPLACE!drop-1	CREATE REPLACE PIPE a AS SELECT 1
-reject	undocumented	docs	createPipe(OR_REPLACE)?/OR_REPLACE!drop-2	CREATE OR PIPE a AS SELECT 1
-reject	undocumented	docs	createPipe(OR_REPLACE)?/OR_REPLACE!insert	CREATE OR REPLACE zzz PIPE a AS SELECT 1
-reject	undocumented	docs	createPipe(OR_REPLACE)?/OR_REPLACE!swap	CREATE ORC REPLACE PIPE a AS SELECT 1
-reject	accept	docs	createPipe(IF_NOT_EXISTS)?/%empty	CREATE PIPE a AS SELECT 1
-reject	undocumented	docs	createPipe(IF_NOT_EXISTS)?/%empty!insert	CREATE PIPE zzz a AS SELECT 1
-reject	accept	docs	createPipe(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE PIPE IF NOT EXISTS a AS SELECT 1
-reject	undocumented	docs	createPipe(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE PIPE NOT EXISTS a AS SELECT 1
-reject	undocumented	docs	createPipe(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE PIPE IF EXISTS a AS SELECT 1
-reject	undocumented	docs	createPipe(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE PIPE IF NOT a AS SELECT 1
+accept	accept	docs	createPipe/CREATE_(OR_REPLACE)?_PIPE_(IF_NOT_EXISTS)?_ID_(AUTO_ING~97074a94	CREATE PIPE a AS COPY INTO a FROM @a
+accept	accept	docs	createPipe(OR_REPLACE)?/%empty	CREATE PIPE a AS COPY INTO a FROM @a
+reject	undocumented	docs	createPipe(OR_REPLACE)?/%empty!insert	CREATE zzz PIPE a AS COPY INTO a FROM @a
+accept	accept	docs	createPipe(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE PIPE a AS COPY INTO a FROM @a
+reject	undocumented	docs	createPipe(OR_REPLACE)?/OR_REPLACE!drop-1	CREATE REPLACE PIPE a AS COPY INTO a FROM @a
+reject	undocumented	docs	createPipe(OR_REPLACE)?/OR_REPLACE!drop-2	CREATE OR PIPE a AS COPY INTO a FROM @a
+reject	undocumented	docs	createPipe(OR_REPLACE)?/OR_REPLACE!insert	CREATE OR REPLACE zzz PIPE a AS COPY INTO a FROM @a
+reject	undocumented	docs	createPipe(OR_REPLACE)?/OR_REPLACE!swap	CREATE ORC REPLACE PIPE a AS COPY INTO a FROM @a
+accept	accept	docs	createPipe(IF_NOT_EXISTS)?/%empty	CREATE PIPE a AS COPY INTO a FROM @a
+accept	undocumented	docs	createPipe(IF_NOT_EXISTS)?/%empty!insert	CREATE PIPE zzz a AS COPY INTO a FROM @a
+accept	accept	docs	createPipe(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE PIPE IF NOT EXISTS a AS COPY INTO a FROM @a
+accept	undocumented	docs	createPipe(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE PIPE NOT EXISTS a AS COPY INTO a FROM @a
+accept	undocumented	docs	createPipe(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE PIPE IF EXISTS a AS COPY INTO a FROM @a
+reject	undocumented	docs	createPipe(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE PIPE IF NOT a AS COPY INTO a FROM @a
 reject	undocumented	docs	createPipe(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE PIPE IF NOT
-reject	undocumented	docs	createPipe(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE PIPE IF NOT EXISTS zzz a AS SELECT 1
-reject	undocumented	docs	createPipe(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE PIPE IGNORE NOT EXISTS a AS SELECT 1
-reject	accept	docs	createPipe(AUTO_INGEST_=_(TRUE|FALSE)?)?/%empty	CREATE PIPE a AS SELECT 1
-reject	undocumented	docs	createPipe(AUTO_INGEST_=_(TRUE|FALSE)?)?/%empty!insert	CREATE PIPE a zzz AS SELECT 1
-reject	accept	docs	createPipe(AUTO_INGEST_=_(TRUE|FALSE)?)?/AUTO_INGEST_=_(TRUE|FALSE)?	CREATE PIPE a AUTO_INGEST = AS SELECT 1
-reject	undocumented	docs	createPipe(AUTO_INGEST_=_(TRUE|FALSE)?)?/AUTO_INGEST_=_(TRUE|FALSE)?!drop-1	CREATE PIPE a = AS SELECT 1
-reject	undocumented	docs	createPipe(AUTO_INGEST_=_(TRUE|FALSE)?)?/AUTO_INGEST_=_(TRUE|FALSE)?!drop-2	CREATE PIPE a AUTO_INGEST AS SELECT 1
+accept	undocumented	docs	createPipe(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE PIPE IF NOT EXISTS zzz a AS COPY INTO a FROM @a
+accept	undocumented	docs	createPipe(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE PIPE IGNORE NOT EXISTS a AS COPY INTO a FROM @a
+accept	accept	docs	createPipe(AUTO_INGEST_=_(TRUE|FALSE)?)?/%empty	CREATE PIPE a AS COPY INTO a FROM @a
+accept	undocumented	docs	createPipe(AUTO_INGEST_=_(TRUE|FALSE)?)?/%empty!insert	CREATE PIPE a zzz AS COPY INTO a FROM @a
+reject	accept	docs	createPipe(AUTO_INGEST_=_(TRUE|FALSE)?)?/AUTO_INGEST_=_(TRUE|FALSE)?	CREATE PIPE a AUTO_INGEST = AS COPY INTO a FROM @a
+reject	undocumented	docs	createPipe(AUTO_INGEST_=_(TRUE|FALSE)?)?/AUTO_INGEST_=_(TRUE|FALSE)?!drop-1	CREATE PIPE a = AS COPY INTO a FROM @a
+accept	undocumented	docs	createPipe(AUTO_INGEST_=_(TRUE|FALSE)?)?/AUTO_INGEST_=_(TRUE|FALSE)?!drop-2	CREATE PIPE a AUTO_INGEST AS COPY INTO a FROM @a
 reject	undocumented	docs	createPipe(AUTO_INGEST_=_(TRUE|FALSE)?)?/AUTO_INGEST_=_(TRUE|FALSE)?!truncate	CREATE PIPE a AUTO_INGEST
-reject	undocumented	docs	createPipe(AUTO_INGEST_=_(TRUE|FALSE)?)?/AUTO_INGEST_=_(TRUE|FALSE)?!insert	CREATE PIPE a AUTO_INGEST = zzz AS SELECT 1
-reject	undocumented	docs	createPipe(AUTO_INGEST_=_(TRUE|FALSE)?)?/AUTO_INGEST_=_(TRUE|FALSE)?!swap	CREATE PIPE a AUTO_REFRESH = AS SELECT 1
-reject	accept	docs	createPipe(TRUE|FALSE)?/%empty	CREATE PIPE a AUTO_INGEST = AS SELECT 1
-reject	accept	docs	createPipe(TRUE|FALSE)?/TRUE	CREATE PIPE a AUTO_INGEST = TRUE AS SELECT 1
+accept	undocumented	docs	createPipe(AUTO_INGEST_=_(TRUE|FALSE)?)?/AUTO_INGEST_=_(TRUE|FALSE)?!insert	CREATE PIPE a AUTO_INGEST = zzz AS COPY INTO a FROM @a
+reject	undocumented	docs	createPipe(AUTO_INGEST_=_(TRUE|FALSE)?)?/AUTO_INGEST_=_(TRUE|FALSE)?!swap	CREATE PIPE a AUTO_REFRESH = AS COPY INTO a FROM @a
+reject	accept	docs	createPipe(TRUE|FALSE)?/%empty	CREATE PIPE a AUTO_INGEST = AS COPY INTO a FROM @a
+accept	accept	docs	createPipe(TRUE|FALSE)?/TRUE	CREATE PIPE a AUTO_INGEST = TRUE AS COPY INTO a FROM @a
 reject	undocumented	docs	createPipe(TRUE|FALSE)?/TRUE!truncate	CREATE PIPE a AUTO_INGEST =
-reject	undocumented	docs	createPipe(TRUE|FALSE)?/TRUE!insert	CREATE PIPE a AUTO_INGEST = TRUE zzz AS SELECT 1
-reject	undocumented	docs	createPipe(TRUE|FALSE)?/TRUE!swap	CREATE PIPE a AUTO_INGEST = TRUNCATE AS SELECT 1
-reject	accept	docs	createPipe(TRUE|FALSE)?/FALSE	CREATE PIPE a AUTO_INGEST = FALSE AS SELECT 1
-reject	undocumented	docs	createPipe(TRUE|FALSE)?/FALSE!insert	CREATE PIPE a AUTO_INGEST = FALSE zzz AS SELECT 1
-reject	undocumented	docs	createPipe(TRUE|FALSE)?/FALSE!swap	CREATE PIPE a AUTO_INGEST = FAMILIES AS SELECT 1
-reject	accept	docs	createPipe(ERROR_INTEGRATION_=_ID)?/%empty	CREATE PIPE a AS SELECT 1
-reject	accept	docs	createPipe(ERROR_INTEGRATION_=_ID)?/ERROR_INTEGRATION_=_ID	CREATE PIPE a ERROR_INTEGRATION = a AS SELECT 1
-reject	undocumented	docs	createPipe(ERROR_INTEGRATION_=_ID)?/ERROR_INTEGRATION_=_ID!drop-1	CREATE PIPE a = a AS SELECT 1
-reject	undocumented	docs	createPipe(ERROR_INTEGRATION_=_ID)?/ERROR_INTEGRATION_=_ID!drop-2	CREATE PIPE a ERROR_INTEGRATION a AS SELECT 1
-reject	undocumented	docs	createPipe(ERROR_INTEGRATION_=_ID)?/ERROR_INTEGRATION_=_ID!drop-3	CREATE PIPE a ERROR_INTEGRATION = AS SELECT 1
+accept	undocumented	docs	createPipe(TRUE|FALSE)?/TRUE!insert	CREATE PIPE a AUTO_INGEST = TRUE zzz AS COPY INTO a FROM @a
+accept	undocumented	docs	createPipe(TRUE|FALSE)?/TRUE!swap	CREATE PIPE a AUTO_INGEST = TRUNCATE AS COPY INTO a FROM @a
+accept	accept	docs	createPipe(TRUE|FALSE)?/FALSE	CREATE PIPE a AUTO_INGEST = FALSE AS COPY INTO a FROM @a
+accept	undocumented	docs	createPipe(TRUE|FALSE)?/FALSE!insert	CREATE PIPE a AUTO_INGEST = FALSE zzz AS COPY INTO a FROM @a
+accept	undocumented	docs	createPipe(TRUE|FALSE)?/FALSE!swap	CREATE PIPE a AUTO_INGEST = FAMILIES AS COPY INTO a FROM @a
+accept	accept	docs	createPipe(ERROR_INTEGRATION_=_ID)?/%empty	CREATE PIPE a AS COPY INTO a FROM @a
+accept	accept	docs	createPipe(ERROR_INTEGRATION_=_ID)?/ERROR_INTEGRATION_=_ID	CREATE PIPE a ERROR_INTEGRATION = a AS COPY INTO a FROM @a
+reject	undocumented	docs	createPipe(ERROR_INTEGRATION_=_ID)?/ERROR_INTEGRATION_=_ID!drop-1	CREATE PIPE a = a AS COPY INTO a FROM @a
+accept	undocumented	docs	createPipe(ERROR_INTEGRATION_=_ID)?/ERROR_INTEGRATION_=_ID!drop-2	CREATE PIPE a ERROR_INTEGRATION a AS COPY INTO a FROM @a
+reject	undocumented	docs	createPipe(ERROR_INTEGRATION_=_ID)?/ERROR_INTEGRATION_=_ID!drop-3	CREATE PIPE a ERROR_INTEGRATION = AS COPY INTO a FROM @a
 reject	undocumented	docs	createPipe(ERROR_INTEGRATION_=_ID)?/ERROR_INTEGRATION_=_ID!truncate	CREATE PIPE a ERROR_INTEGRATION =
-reject	undocumented	docs	createPipe(ERROR_INTEGRATION_=_ID)?/ERROR_INTEGRATION_=_ID!insert	CREATE PIPE a ERROR_INTEGRATION = a zzz AS SELECT 1
-reject	undocumented	docs	createPipe(ERROR_INTEGRATION_=_ID)?/ERROR_INTEGRATION_=_ID!swap	CREATE PIPE a ERROR_LOGGING = a AS SELECT 1
-reject	accept	docs	createPipe(AWS_SNS_TOPIC_=_STRING)?/%empty	CREATE PIPE a AS SELECT 1
-reject	accept	docs	createPipe(AWS_SNS_TOPIC_=_STRING)?/AWS_SNS_TOPIC_=_STRING	CREATE PIPE a AWS_SNS_TOPIC = 's' AS SELECT 1
-reject	undocumented	docs	createPipe(AWS_SNS_TOPIC_=_STRING)?/AWS_SNS_TOPIC_=_STRING!drop-1	CREATE PIPE a = 's' AS SELECT 1
-reject	undocumented	docs	createPipe(AWS_SNS_TOPIC_=_STRING)?/AWS_SNS_TOPIC_=_STRING!drop-2	CREATE PIPE a AWS_SNS_TOPIC 's' AS SELECT 1
-reject	undocumented	docs	createPipe(AWS_SNS_TOPIC_=_STRING)?/AWS_SNS_TOPIC_=_STRING!drop-3	CREATE PIPE a AWS_SNS_TOPIC = AS SELECT 1
+accept	undocumented	docs	createPipe(ERROR_INTEGRATION_=_ID)?/ERROR_INTEGRATION_=_ID!insert	CREATE PIPE a ERROR_INTEGRATION = a zzz AS COPY INTO a FROM @a
+accept	undocumented	docs	createPipe(ERROR_INTEGRATION_=_ID)?/ERROR_INTEGRATION_=_ID!swap	CREATE PIPE a ERROR_LOGGING = a AS COPY INTO a FROM @a
+accept	accept	docs	createPipe(AWS_SNS_TOPIC_=_STRING)?/%empty	CREATE PIPE a AS COPY INTO a FROM @a
+accept	accept	docs	createPipe(AWS_SNS_TOPIC_=_STRING)?/AWS_SNS_TOPIC_=_STRING	CREATE PIPE a AWS_SNS_TOPIC = 's' AS COPY INTO a FROM @a
+reject	undocumented	docs	createPipe(AWS_SNS_TOPIC_=_STRING)?/AWS_SNS_TOPIC_=_STRING!drop-1	CREATE PIPE a = 's' AS COPY INTO a FROM @a
+reject	undocumented	docs	createPipe(AWS_SNS_TOPIC_=_STRING)?/AWS_SNS_TOPIC_=_STRING!drop-2	CREATE PIPE a AWS_SNS_TOPIC 's' AS COPY INTO a FROM @a
+reject	undocumented	docs	createPipe(AWS_SNS_TOPIC_=_STRING)?/AWS_SNS_TOPIC_=_STRING!drop-3	CREATE PIPE a AWS_SNS_TOPIC = AS COPY INTO a FROM @a
 reject	undocumented	docs	createPipe(AWS_SNS_TOPIC_=_STRING)?/AWS_SNS_TOPIC_=_STRING!truncate	CREATE PIPE a AWS_SNS_TOPIC =
-reject	undocumented	docs	createPipe(AWS_SNS_TOPIC_=_STRING)?/AWS_SNS_TOPIC_=_STRING!insert	CREATE PIPE a AWS_SNS_TOPIC = 's' zzz AS SELECT 1
-reject	undocumented	docs	createPipe(AWS_SNS_TOPIC_=_STRING)?/AWS_SNS_TOPIC_=_STRING!swap	CREATE PIPE a AWS_SNS_TOPIC_ARN = 's' AS SELECT 1
-reject	accept	docs	createPipe(INTEGRATION_=_STRING)?/%empty	CREATE PIPE a AS SELECT 1
-reject	accept	docs	createPipe(INTEGRATION_=_STRING)?/INTEGRATION_=_STRING	CREATE PIPE a INTEGRATION = 's' AS SELECT 1
-reject	undocumented	docs	createPipe(INTEGRATION_=_STRING)?/INTEGRATION_=_STRING!drop-2	CREATE PIPE a INTEGRATION 's' AS SELECT 1
-reject	undocumented	docs	createPipe(INTEGRATION_=_STRING)?/INTEGRATION_=_STRING!drop-3	CREATE PIPE a INTEGRATION = AS SELECT 1
+accept	undocumented	docs	createPipe(AWS_SNS_TOPIC_=_STRING)?/AWS_SNS_TOPIC_=_STRING!insert	CREATE PIPE a AWS_SNS_TOPIC = 's' zzz AS COPY INTO a FROM @a
+accept	undocumented	docs	createPipe(AWS_SNS_TOPIC_=_STRING)?/AWS_SNS_TOPIC_=_STRING!swap	CREATE PIPE a AWS_SNS_TOPIC_ARN = 's' AS COPY INTO a FROM @a
+accept	accept	docs	createPipe(INTEGRATION_=_STRING)?/%empty	CREATE PIPE a AS COPY INTO a FROM @a
+accept	accept	docs	createPipe(INTEGRATION_=_STRING)?/INTEGRATION_=_STRING	CREATE PIPE a INTEGRATION = 's' AS COPY INTO a FROM @a
+reject	undocumented	docs	createPipe(INTEGRATION_=_STRING)?/INTEGRATION_=_STRING!drop-2	CREATE PIPE a INTEGRATION 's' AS COPY INTO a FROM @a
+reject	undocumented	docs	createPipe(INTEGRATION_=_STRING)?/INTEGRATION_=_STRING!drop-3	CREATE PIPE a INTEGRATION = AS COPY INTO a FROM @a
 reject	undocumented	docs	createPipe(INTEGRATION_=_STRING)?/INTEGRATION_=_STRING!truncate	CREATE PIPE a INTEGRATION =
-reject	undocumented	docs	createPipe(INTEGRATION_=_STRING)?/INTEGRATION_=_STRING!insert	CREATE PIPE a INTEGRATION = 's' zzz AS SELECT 1
-reject	undocumented	docs	createPipe(INTEGRATION_=_STRING)?/INTEGRATION_=_STRING!swap	CREATE PIPE a INTEGRATIONS = 's' AS SELECT 1
-reject	accept	docs	createPipe(COMMENT_=_STRING)?/%empty	CREATE PIPE a AS SELECT 1
-reject	accept	docs	createPipe(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE PIPE a COMMENT = 's' AS SELECT 1
-reject	undocumented	docs	createPipe(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	CREATE PIPE a COMMENT 's' AS SELECT 1
-reject	undocumented	docs	createPipe(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE PIPE a COMMENT = AS SELECT 1
+accept	undocumented	docs	createPipe(INTEGRATION_=_STRING)?/INTEGRATION_=_STRING!insert	CREATE PIPE a INTEGRATION = 's' zzz AS COPY INTO a FROM @a
+accept	undocumented	docs	createPipe(INTEGRATION_=_STRING)?/INTEGRATION_=_STRING!swap	CREATE PIPE a INTEGRATIONS = 's' AS COPY INTO a FROM @a
+accept	accept	docs	createPipe(COMMENT_=_STRING)?/%empty	CREATE PIPE a AS COPY INTO a FROM @a
+accept	accept	docs	createPipe(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE PIPE a COMMENT = 's' AS COPY INTO a FROM @a
+reject	undocumented	docs	createPipe(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	CREATE PIPE a COMMENT 's' AS COPY INTO a FROM @a
+reject	undocumented	docs	createPipe(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE PIPE a COMMENT = AS COPY INTO a FROM @a
 reject	undocumented	docs	createPipe(COMMENT_=_STRING)?/COMMENT_=_STRING!truncate	CREATE PIPE a COMMENT =
-reject	undocumented	docs	createPipe(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE PIPE a COMMENT = 's' zzz AS SELECT 1
-reject	undocumented	docs	createPipe(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE PIPE a COMMENTS = 's' AS SELECT 1
+accept	undocumented	docs	createPipe(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE PIPE a COMMENT = 's' zzz AS COPY INTO a FROM @a
+accept	undocumented	docs	createPipe(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE PIPE a COMMENTS = 's' AS COPY INTO a FROM @a
 reject	accept	docs	createPostgresInstance/CREATE_POSTGRES_INSTANCE_(IF_NOT_EXISTS)?_ID_COMPUTE_FA~c67b8c1a	CREATE POSTGRES INSTANCE a COMPUTE_FAMILY = 's' STORAGE_SIZE_GB = a AUTHENTICATION_AUTHORITY = POSTGRES
 reject	undocumented	docs	createPostgresInstance/CREATE_POSTGRES_INSTANCE_(IF_NOT_EXISTS)?_ID_COMPUTE_FA~c67b8c1a!drop-1	POSTGRES INSTANCE a COMPUTE_FAMILY = 's' STORAGE_SIZE_GB = a AUTHENTICATION_AUTHORITY = POSTGRES
 reject	undocumented	docs	createPostgresInstance/CREATE_POSTGRES_INSTANCE_(IF_NOT_EXISTS)?_ID_COMPUTE_FA~c67b8c1a!drop-2	CREATE INSTANCE a COMPUTE_FAMILY = 's' STORAGE_SIZE_GB = a AUTHENTICATION_AUTHORITY = POSTGRES
@@ -43602,252 +43595,260 @@ reject	accept	docs	createTable_outoflineConstraint(COMMENT_STRING)?/COMMENT_STRI
 reject	undocumented	docs	createTable_outoflineConstraint(COMMENT_STRING)?/COMMENT_STRING!truncate	CREATE TABLE a(a INT, UNIQUE COMMENT
 reject	undocumented	docs	createTable_outoflineConstraint(COMMENT_STRING)?/COMMENT_STRING!insert	CREATE TABLE a(a INT, UNIQUE COMMENT 's' zzz)
 reject	undocumented	docs	createTable_outoflineConstraint(COMMENT_STRING)?/COMMENT_STRING!swap	CREATE TABLE a(a INT, UNIQUE COMMENTS 's')
-reject	accept	docs	createTableConstraint/CREATE_TABLE_ID_(_ID_ID_(NOT_NULL)?_(createTableConstra~55e2a254	CREATE TABLE a(a a UNIQUE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint(NOT_NULL)?/%empty	CREATE TABLE a(a a UNIQUE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint(NOT_NULL)?/%empty!insert	CREATE TABLE a(a a zzz UNIQUE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint(NOT_NULL)?/NOT_NULL	CREATE TABLE a(a a NOT NULL UNIQUE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint(NOT_NULL)?/NOT_NULL!drop-1	CREATE TABLE a(a a NULL UNIQUE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint(NOT_NULL)?/NOT_NULL!drop-2	CREATE TABLE a(a a NOT UNIQUE) ALTER TABLE a ADD COLUMN a INT UNIQUE
+reject	accept	docs	createTableConstraint/CREATE_TABLE_ID_(_ID_ID_(NOT_NULL)?_(createTableConstra~136b6047	CREATE TABLE a(a a UNIQUE)
+accept	accept	docs	createTableConstraint/ALTER_TABLE_ID_ADD_COLUMN_ID_DATA_TYPE_(NOT_NULL)?_(cre~60951f91	ALTER TABLE a ADD COLUMN a INT UNIQUE
+reject	undocumented	docs	createTableConstraint/ALTER_TABLE_ID_ADD_COLUMN_ID_DATA_TYPE_(NOT_NULL)?_(cre~60951f91!drop-1	TABLE a ADD COLUMN a INT UNIQUE
+reject	undocumented	docs	createTableConstraint/ALTER_TABLE_ID_ADD_COLUMN_ID_DATA_TYPE_(NOT_NULL)?_(cre~60951f91!drop-2	ALTER a ADD COLUMN a INT UNIQUE
+reject	undocumented	docs	createTableConstraint/ALTER_TABLE_ID_ADD_COLUMN_ID_DATA_TYPE_(NOT_NULL)?_(cre~60951f91!drop-3	ALTER TABLE ADD COLUMN a INT UNIQUE
+reject	undocumented	docs	createTableConstraint/ALTER_TABLE_ID_ADD_COLUMN_ID_DATA_TYPE_(NOT_NULL)?_(cre~60951f91!drop-4	ALTER TABLE a COLUMN a INT UNIQUE
+accept	undocumented	docs	createTableConstraint/ALTER_TABLE_ID_ADD_COLUMN_ID_DATA_TYPE_(NOT_NULL)?_(cre~60951f91!drop-6	ALTER TABLE a ADD COLUMN INT UNIQUE
+accept	undocumented	docs	createTableConstraint/ALTER_TABLE_ID_ADD_COLUMN_ID_DATA_TYPE_(NOT_NULL)?_(cre~60951f91!drop-7	ALTER TABLE a ADD COLUMN a UNIQUE
+reject	accept	docs	createTableConstraint/ALTER_TABLE_ID_ADD_COLUMN_ID_DATA_TYPE_(NOT_NULL)?_(cre~60951f91!insert	ALTER TABLE a ADD COLUMN a INT UNIQUE zzz
+reject	undocumented	docs	createTableConstraint/ALTER_TABLE_ID_ADD_COLUMN_ID_DATA_TYPE_(NOT_NULL)?_(cre~60951f91!swap	ALWAYS TABLE a ADD COLUMN a INT UNIQUE
+reject	accept	docs	createTableConstraint(NOT_NULL)?/%empty	CREATE TABLE a(a a UNIQUE)
+reject	undocumented	docs	createTableConstraint(NOT_NULL)?/%empty!insert	CREATE TABLE a(a a zzz UNIQUE)
+reject	accept	docs	createTableConstraint(NOT_NULL)?/NOT_NULL	CREATE TABLE a(a a NOT NULL UNIQUE)
+reject	undocumented	docs	createTableConstraint(NOT_NULL)?/NOT_NULL!drop-1	CREATE TABLE a(a a NULL UNIQUE)
+reject	undocumented	docs	createTableConstraint(NOT_NULL)?/NOT_NULL!drop-2	CREATE TABLE a(a a NOT UNIQUE)
 reject	undocumented	docs	createTableConstraint(NOT_NULL)?/NOT_NULL!truncate	CREATE TABLE a(a a NOT
-reject	undocumented	docs	createTableConstraint(NOT_NULL)?/NOT_NULL!insert	CREATE TABLE a(a a NOT NULL zzz UNIQUE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint(NOT_NULL)?/NOT_NULL!swap	CREATE TABLE a(a a NOTEBOOK NULL UNIQUE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint(createTableConstraint_inlineUniquePK~187bb269)/createTableConstraint_inlineUniquePK	CREATE TABLE a(a a UNIQUE) ALTER TABLE a ADD COLUMN a INT UNIQUE
+reject	undocumented	docs	createTableConstraint(NOT_NULL)?/NOT_NULL!insert	CREATE TABLE a(a a NOT NULL zzz UNIQUE)
+reject	undocumented	docs	createTableConstraint(NOT_NULL)?/NOT_NULL!swap	CREATE TABLE a(a a NOTEBOOK NULL UNIQUE)
+reject	accept	docs	createTableConstraint(createTableConstraint_inlineUniquePK~187bb269)/createTableConstraint_inlineUniquePK	CREATE TABLE a(a a UNIQUE)
 reject	undocumented	docs	createTableConstraint(createTableConstraint_inlineUniquePK~187bb269)/createTableConstraint_inlineUniquePK!truncate	CREATE TABLE a(a a
-reject	undocumented	docs	createTableConstraint(createTableConstraint_inlineUniquePK~187bb269)/createTableConstraint_inlineUniquePK!insert	CREATE TABLE a(a a UNIQUE zzz) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint(createTableConstraint_inlineUniquePK~187bb269)/createTableConstraint_inlineUniquePK!swap	CREATE TABLE a(a a UNPUBLISH) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint(createTableConstraint_inlineUniquePK~187bb269)/createTableConstraint_inlineFK	CREATE TABLE a(a a REFERENCES a) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint(createTableConstraint_inlineUniquePK~187bb269)/createTableConstraint_inlineFK!drop-1	CREATE TABLE a(a a a) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint(createTableConstraint_inlineUniquePK~187bb269)/createTableConstraint_inlineFK!drop-2	CREATE TABLE a(a a REFERENCES) ALTER TABLE a ADD COLUMN a INT UNIQUE
+reject	undocumented	docs	createTableConstraint(createTableConstraint_inlineUniquePK~187bb269)/createTableConstraint_inlineUniquePK!insert	CREATE TABLE a(a a UNIQUE zzz)
+reject	undocumented	docs	createTableConstraint(createTableConstraint_inlineUniquePK~187bb269)/createTableConstraint_inlineUniquePK!swap	CREATE TABLE a(a a UNPUBLISH)
+reject	accept	docs	createTableConstraint(createTableConstraint_inlineUniquePK~187bb269)/createTableConstraint_inlineFK	CREATE TABLE a(a a REFERENCES a)
+reject	undocumented	docs	createTableConstraint(createTableConstraint_inlineUniquePK~187bb269)/createTableConstraint_inlineFK!drop-1	CREATE TABLE a(a a a)
+reject	undocumented	docs	createTableConstraint(createTableConstraint_inlineUniquePK~187bb269)/createTableConstraint_inlineFK!drop-2	CREATE TABLE a(a a REFERENCES)
 reject	undocumented	docs	createTableConstraint(createTableConstraint_inlineUniquePK~187bb269)/createTableConstraint_inlineFK!truncate	CREATE TABLE a(a a REFERENCES
-reject	undocumented	docs	createTableConstraint(createTableConstraint_inlineUniquePK~187bb269)/createTableConstraint_inlineFK!insert	CREATE TABLE a(a a REFERENCES a zzz) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint(createTableConstraint_inlineUniquePK~187bb269)/createTableConstraint_inlineFK!swap	CREATE TABLE a(a a REFERENCE_USAGE a) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint(createTableConstraint_inlineUniquePK~187bb269)/createTableConstraint_inlineCH	CREATE TABLE a(a a CHECK(1)) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint(createTableConstraint_inlineUniquePK~187bb269)/createTableConstraint_inlineCH!drop-1	CREATE TABLE a(a a(1)) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint(createTableConstraint_inlineUniquePK~187bb269)/createTableConstraint_inlineCH!drop-2	CREATE TABLE a(a a CHECK 1)) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint(createTableConstraint_inlineUniquePK~187bb269)/createTableConstraint_inlineCH!drop-3	CREATE TABLE a(a a CHECK()) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint(createTableConstraint_inlineUniquePK~187bb269)/createTableConstraint_inlineCH!drop-4	CREATE TABLE a(a a CHECK(1) ALTER TABLE a ADD COLUMN a INT UNIQUE
+reject	undocumented	docs	createTableConstraint(createTableConstraint_inlineUniquePK~187bb269)/createTableConstraint_inlineFK!insert	CREATE TABLE a(a a REFERENCES a zzz)
+reject	undocumented	docs	createTableConstraint(createTableConstraint_inlineUniquePK~187bb269)/createTableConstraint_inlineFK!swap	CREATE TABLE a(a a REFERENCE_USAGE a)
+reject	accept	docs	createTableConstraint(createTableConstraint_inlineUniquePK~187bb269)/createTableConstraint_inlineCH	CREATE TABLE a(a a CHECK(1))
+reject	undocumented	docs	createTableConstraint(createTableConstraint_inlineUniquePK~187bb269)/createTableConstraint_inlineCH!drop-1	CREATE TABLE a(a a(1))
+reject	undocumented	docs	createTableConstraint(createTableConstraint_inlineUniquePK~187bb269)/createTableConstraint_inlineCH!drop-2	CREATE TABLE a(a a CHECK 1))
+reject	undocumented	docs	createTableConstraint(createTableConstraint_inlineUniquePK~187bb269)/createTableConstraint_inlineCH!drop-3	CREATE TABLE a(a a CHECK())
+reject	undocumented	docs	createTableConstraint(createTableConstraint_inlineUniquePK~187bb269)/createTableConstraint_inlineCH!drop-4	CREATE TABLE a(a a CHECK(1)
 reject	undocumented	docs	createTableConstraint(createTableConstraint_inlineUniquePK~187bb269)/createTableConstraint_inlineCH!truncate	CREATE TABLE a(a a CHECK(1
-reject	undocumented	docs	createTableConstraint(createTableConstraint_inlineUniquePK~187bb269)/createTableConstraint_inlineCH!insert	CREATE TABLE a(a a CHECK(1) zzz) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint(createTableConstraint_inlineUniquePK~187bb269)/createTableConstraint_inlineCH!swap	CREATE TABLE a(a a CLASS(1)) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint(,_ID_ID_(NOT_NULL)?_(createTableCons~0c084b32)?/%empty	CREATE TABLE a(a a UNIQUE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint(,_ID_ID_(NOT_NULL)?_(createTableCons~0c084b32)?/,_ID_ID_(NOT_NULL)?_(createTableConstraint_inlineUnique~a04de7a6	CREATE TABLE a(a a UNIQUE, a a UNIQUE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint(,_ID_ID_(NOT_NULL)?_(createTableCons~0c084b32)?/,_ID_ID_(NOT_NULL)?_(createTableConstraint_inlineUnique~a04de7a6!drop-1	CREATE TABLE a(a a UNIQUE a a UNIQUE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint(,_ID_ID_(NOT_NULL)?_(createTableCons~0c084b32)?/,_ID_ID_(NOT_NULL)?_(createTableConstraint_inlineUnique~a04de7a6!drop-2	CREATE TABLE a(a a UNIQUE, a UNIQUE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint(,_ID_ID_(NOT_NULL)?_(createTableCons~0c084b32)?/,_ID_ID_(NOT_NULL)?_(createTableConstraint_inlineUnique~a04de7a6!drop-4	CREATE TABLE a(a a UNIQUE, a a) ALTER TABLE a ADD COLUMN a INT UNIQUE
+reject	undocumented	docs	createTableConstraint(createTableConstraint_inlineUniquePK~187bb269)/createTableConstraint_inlineCH!insert	CREATE TABLE a(a a CHECK(1) zzz)
+reject	undocumented	docs	createTableConstraint(createTableConstraint_inlineUniquePK~187bb269)/createTableConstraint_inlineCH!swap	CREATE TABLE a(a a CLASS(1))
+reject	accept	docs	createTableConstraint(,_ID_ID_(NOT_NULL)?_(createTableCons~0c084b32)?/%empty	CREATE TABLE a(a a UNIQUE)
+reject	accept	docs	createTableConstraint(,_ID_ID_(NOT_NULL)?_(createTableCons~0c084b32)?/,_ID_ID_(NOT_NULL)?_(createTableConstraint_inlineUnique~a04de7a6	CREATE TABLE a(a a UNIQUE, a a UNIQUE)
+reject	undocumented	docs	createTableConstraint(,_ID_ID_(NOT_NULL)?_(createTableCons~0c084b32)?/,_ID_ID_(NOT_NULL)?_(createTableConstraint_inlineUnique~a04de7a6!drop-1	CREATE TABLE a(a a UNIQUE a a UNIQUE)
+reject	undocumented	docs	createTableConstraint(,_ID_ID_(NOT_NULL)?_(createTableCons~0c084b32)?/,_ID_ID_(NOT_NULL)?_(createTableConstraint_inlineUnique~a04de7a6!drop-2	CREATE TABLE a(a a UNIQUE, a UNIQUE)
+reject	undocumented	docs	createTableConstraint(,_ID_ID_(NOT_NULL)?_(createTableCons~0c084b32)?/,_ID_ID_(NOT_NULL)?_(createTableConstraint_inlineUnique~a04de7a6!drop-4	CREATE TABLE a(a a UNIQUE, a a)
 reject	undocumented	docs	createTableConstraint(,_ID_ID_(NOT_NULL)?_(createTableCons~0c084b32)?/,_ID_ID_(NOT_NULL)?_(createTableConstraint_inlineUnique~a04de7a6!truncate	CREATE TABLE a(a a UNIQUE, a a
-reject	undocumented	docs	createTableConstraint(,_ID_ID_(NOT_NULL)?_(createTableCons~0c084b32)?/,_ID_ID_(NOT_NULL)?_(createTableConstraint_inlineUnique~a04de7a6!insert	CREATE TABLE a(a a UNIQUE, a a UNIQUE zzz) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint(,_ID_ID_(NOT_NULL)?_(createTableCons~0c084b32)?/,_ID_ID_(NOT_NULL)?_(createTableConstraint_inlineUnique~a04de7a6!swap	CREATE TABLE a(a a UNIQUE, a a UNPUBLISH) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint(,_(,_ID_ID_(NOT_NULL)?_(createTableC~04b22c4b)*/%empty	CREATE TABLE a(a a UNIQUE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint(,_(,_ID_ID_(NOT_NULL)?_(createTableC~04b22c4b)*/,_(,_ID_ID_(NOT_NULL)?_(createTableCons~0c084b32)?_(,_(~17b5563e	CREATE TABLE a(a a UNIQUE,) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint(,_(,_ID_ID_(NOT_NULL)?_(createTableC~04b22c4b)*/,_(,_ID_ID_(NOT_NULL)?_(createTableCons~0c084b32)?_(,_(~17b5563e!truncate	CREATE TABLE a(a a UNIQUE
-reject	undocumented	docs	createTableConstraint(,_(,_ID_ID_(NOT_NULL)?_(createTableC~04b22c4b)*/,_(,_ID_ID_(NOT_NULL)?_(createTableCons~0c084b32)?_(,_(~17b5563e!insert	CREATE TABLE a(a a UNIQUE, zzz) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineUniquePK/(CONSTRAINT_ID)?_(UNIQUE|PRIMARY_KEY)_(NOT?_ENFORCED)?_~47c2fdf2	CREATE TABLE a(a a UNIQUE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineUniquePK(CONSTRAINT_ID)?/%empty	CREATE TABLE a(a a UNIQUE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineUniquePK(CONSTRAINT_ID)?/CONSTRAINT_ID	CREATE TABLE a(a a CONSTRAINT a UNIQUE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineUniquePK(CONSTRAINT_ID)?/CONSTRAINT_ID!drop-1	CREATE TABLE a(a a a UNIQUE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineUniquePK(CONSTRAINT_ID)?/CONSTRAINT_ID!drop-2	CREATE TABLE a(a a CONSTRAINT UNIQUE) ALTER TABLE a ADD COLUMN a INT UNIQUE
+reject	undocumented	docs	createTableConstraint(,_ID_ID_(NOT_NULL)?_(createTableCons~0c084b32)?/,_ID_ID_(NOT_NULL)?_(createTableConstraint_inlineUnique~a04de7a6!insert	CREATE TABLE a(a a UNIQUE, a a UNIQUE zzz)
+reject	undocumented	docs	createTableConstraint(,_ID_ID_(NOT_NULL)?_(createTableCons~0c084b32)?/,_ID_ID_(NOT_NULL)?_(createTableConstraint_inlineUnique~a04de7a6!swap	CREATE TABLE a(a a UNIQUE, a a UNPUBLISH)
+reject	accept	docs	createTableConstraint(,_(,_ID_ID_(NOT_NULL)?_(createTableC~04b22c4b)*/%empty	CREATE TABLE a(a a UNIQUE)
+reject	accept	docs	createTableConstraint(,_(,_ID_ID_(NOT_NULL)?_(createTableC~04b22c4b)*/,_(,_ID_ID_(NOT_NULL)?_(createTableCons~0c084b32)?_(,_(~17b5563e	CREATE TABLE a(a a UNIQUE,)
+reject	undocumented	docs	createTableConstraint(,_(,_ID_ID_(NOT_NULL)?_(createTableC~04b22c4b)*/,_(,_ID_ID_(NOT_NULL)?_(createTableCons~0c084b32)?_(,_(~17b5563e!insert	CREATE TABLE a(a a UNIQUE, zzz)
+reject	accept	docs	createTableConstraint_inlineUniquePK/(CONSTRAINT_ID)?_(UNIQUE|PRIMARY_KEY)_(NOT?_ENFORCED)?_~47c2fdf2	CREATE TABLE a(a a UNIQUE)
+reject	accept	docs	createTableConstraint_inlineUniquePK(CONSTRAINT_ID)?/%empty	CREATE TABLE a(a a UNIQUE)
+reject	accept	docs	createTableConstraint_inlineUniquePK(CONSTRAINT_ID)?/CONSTRAINT_ID	CREATE TABLE a(a a CONSTRAINT a UNIQUE)
+reject	undocumented	docs	createTableConstraint_inlineUniquePK(CONSTRAINT_ID)?/CONSTRAINT_ID!drop-1	CREATE TABLE a(a a a UNIQUE)
+reject	undocumented	docs	createTableConstraint_inlineUniquePK(CONSTRAINT_ID)?/CONSTRAINT_ID!drop-2	CREATE TABLE a(a a CONSTRAINT UNIQUE)
 reject	undocumented	docs	createTableConstraint_inlineUniquePK(CONSTRAINT_ID)?/CONSTRAINT_ID!truncate	CREATE TABLE a(a a CONSTRAINT
-reject	undocumented	docs	createTableConstraint_inlineUniquePK(CONSTRAINT_ID)?/CONSTRAINT_ID!insert	CREATE TABLE a(a a CONSTRAINT a zzz UNIQUE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineUniquePK(CONSTRAINT_ID)?/CONSTRAINT_ID!swap	CREATE TABLE a(a a CONSUMER a UNIQUE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineUniquePK(UNIQUE|PRIMARY_KEY)/UNIQUE	CREATE TABLE a(a a UNIQUE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineUniquePK(UNIQUE|PRIMARY_KEY)/PRIMARY_KEY	CREATE TABLE a(a a PRIMARY KEY) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineUniquePK(UNIQUE|PRIMARY_KEY)/PRIMARY_KEY!drop-1	CREATE TABLE a(a a KEY) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineUniquePK(UNIQUE|PRIMARY_KEY)/PRIMARY_KEY!drop-2	CREATE TABLE a(a a PRIMARY) ALTER TABLE a ADD COLUMN a INT UNIQUE
+reject	undocumented	docs	createTableConstraint_inlineUniquePK(CONSTRAINT_ID)?/CONSTRAINT_ID!insert	CREATE TABLE a(a a CONSTRAINT a zzz UNIQUE)
+reject	undocumented	docs	createTableConstraint_inlineUniquePK(CONSTRAINT_ID)?/CONSTRAINT_ID!swap	CREATE TABLE a(a a CONSUMER a UNIQUE)
+reject	accept	docs	createTableConstraint_inlineUniquePK(UNIQUE|PRIMARY_KEY)/UNIQUE	CREATE TABLE a(a a UNIQUE)
+reject	accept	docs	createTableConstraint_inlineUniquePK(UNIQUE|PRIMARY_KEY)/PRIMARY_KEY	CREATE TABLE a(a a PRIMARY KEY)
+reject	undocumented	docs	createTableConstraint_inlineUniquePK(UNIQUE|PRIMARY_KEY)/PRIMARY_KEY!drop-1	CREATE TABLE a(a a KEY)
+reject	undocumented	docs	createTableConstraint_inlineUniquePK(UNIQUE|PRIMARY_KEY)/PRIMARY_KEY!drop-2	CREATE TABLE a(a a PRIMARY)
 reject	undocumented	docs	createTableConstraint_inlineUniquePK(UNIQUE|PRIMARY_KEY)/PRIMARY_KEY!truncate	CREATE TABLE a(a a PRIMARY
-reject	undocumented	docs	createTableConstraint_inlineUniquePK(UNIQUE|PRIMARY_KEY)/PRIMARY_KEY!insert	CREATE TABLE a(a a PRIMARY KEY zzz) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineUniquePK(UNIQUE|PRIMARY_KEY)/PRIMARY_KEY!swap	CREATE TABLE a(a a PRIVACY KEY) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineUniquePK(NOT?_ENFORCED)?/%empty	CREATE TABLE a(a a UNIQUE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineUniquePK(NOT?_ENFORCED)?/(NOT)?_ENFORCED	CREATE TABLE a(a a UNIQUE ENFORCED) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineUniquePK(NOT?_ENFORCED)?/(NOT)?_ENFORCED!insert	CREATE TABLE a(a a UNIQUE ENFORCED zzz) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineUniquePK(NOT?_ENFORCED)?/(NOT)?_ENFORCED!swap	CREATE TABLE a(a a UNIQUE ENFORCE_LENGTH) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineUniquePK(NOT)?/%empty	CREATE TABLE a(a a UNIQUE ENFORCED) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineUniquePK(NOT)?/%empty!insert	CREATE TABLE a(a a UNIQUE zzz ENFORCED) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineUniquePK(NOT)?/NOT	CREATE TABLE a(a a UNIQUE NOT ENFORCED) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineUniquePK(NOT)?/NOT!insert	CREATE TABLE a(a a UNIQUE NOT zzz ENFORCED) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineUniquePK(NOT)?/NOT!swap	CREATE TABLE a(a a UNIQUE NOTEBOOK ENFORCED) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineUniquePK(NOT?_DEFERRABLE)?/%empty	CREATE TABLE a(a a UNIQUE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineUniquePK(NOT?_DEFERRABLE)?/(NOT)?_DEFERRABLE	CREATE TABLE a(a a UNIQUE DEFERRABLE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineUniquePK(NOT?_DEFERRABLE)?/(NOT)?_DEFERRABLE!insert	CREATE TABLE a(a a UNIQUE DEFERRABLE zzz) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineUniquePK(NOT?_DEFERRABLE)?/(NOT)?_DEFERRABLE!swap	CREATE TABLE a(a a UNIQUE DEFERRED) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineUniquePK(INITIALLY_(DEFERRED|IMMEDIATE))?/%empty	CREATE TABLE a(a a UNIQUE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineUniquePK(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)	CREATE TABLE a(a a UNIQUE INITIALLY DEFERRED) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineUniquePK(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!drop-2	CREATE TABLE a(a a UNIQUE INITIALLY) ALTER TABLE a ADD COLUMN a INT UNIQUE
+reject	undocumented	docs	createTableConstraint_inlineUniquePK(UNIQUE|PRIMARY_KEY)/PRIMARY_KEY!insert	CREATE TABLE a(a a PRIMARY KEY zzz)
+reject	undocumented	docs	createTableConstraint_inlineUniquePK(UNIQUE|PRIMARY_KEY)/PRIMARY_KEY!swap	CREATE TABLE a(a a PRIVACY KEY)
+reject	accept	docs	createTableConstraint_inlineUniquePK(NOT?_ENFORCED)?/%empty	CREATE TABLE a(a a UNIQUE)
+reject	accept	docs	createTableConstraint_inlineUniquePK(NOT?_ENFORCED)?/(NOT)?_ENFORCED	CREATE TABLE a(a a UNIQUE ENFORCED)
+reject	undocumented	docs	createTableConstraint_inlineUniquePK(NOT?_ENFORCED)?/(NOT)?_ENFORCED!insert	CREATE TABLE a(a a UNIQUE ENFORCED zzz)
+reject	undocumented	docs	createTableConstraint_inlineUniquePK(NOT?_ENFORCED)?/(NOT)?_ENFORCED!swap	CREATE TABLE a(a a UNIQUE ENFORCE_LENGTH)
+reject	accept	docs	createTableConstraint_inlineUniquePK(NOT)?/%empty	CREATE TABLE a(a a UNIQUE ENFORCED)
+reject	undocumented	docs	createTableConstraint_inlineUniquePK(NOT)?/%empty!insert	CREATE TABLE a(a a UNIQUE zzz ENFORCED)
+reject	accept	docs	createTableConstraint_inlineUniquePK(NOT)?/NOT	CREATE TABLE a(a a UNIQUE NOT ENFORCED)
+reject	undocumented	docs	createTableConstraint_inlineUniquePK(NOT)?/NOT!insert	CREATE TABLE a(a a UNIQUE NOT zzz ENFORCED)
+reject	undocumented	docs	createTableConstraint_inlineUniquePK(NOT)?/NOT!swap	CREATE TABLE a(a a UNIQUE NOTEBOOK ENFORCED)
+reject	accept	docs	createTableConstraint_inlineUniquePK(NOT?_DEFERRABLE)?/%empty	CREATE TABLE a(a a UNIQUE)
+reject	accept	docs	createTableConstraint_inlineUniquePK(NOT?_DEFERRABLE)?/(NOT)?_DEFERRABLE	CREATE TABLE a(a a UNIQUE DEFERRABLE)
+reject	undocumented	docs	createTableConstraint_inlineUniquePK(NOT?_DEFERRABLE)?/(NOT)?_DEFERRABLE!insert	CREATE TABLE a(a a UNIQUE DEFERRABLE zzz)
+reject	undocumented	docs	createTableConstraint_inlineUniquePK(NOT?_DEFERRABLE)?/(NOT)?_DEFERRABLE!swap	CREATE TABLE a(a a UNIQUE DEFERRED)
+reject	accept	docs	createTableConstraint_inlineUniquePK(INITIALLY_(DEFERRED|IMMEDIATE))?/%empty	CREATE TABLE a(a a UNIQUE)
+reject	accept	docs	createTableConstraint_inlineUniquePK(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)	CREATE TABLE a(a a UNIQUE INITIALLY DEFERRED)
+reject	undocumented	docs	createTableConstraint_inlineUniquePK(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!drop-2	CREATE TABLE a(a a UNIQUE INITIALLY)
 reject	undocumented	docs	createTableConstraint_inlineUniquePK(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!truncate	CREATE TABLE a(a a UNIQUE INITIALLY
-reject	undocumented	docs	createTableConstraint_inlineUniquePK(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!insert	CREATE TABLE a(a a UNIQUE INITIALLY DEFERRED zzz) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineUniquePK(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!swap	CREATE TABLE a(a a UNIQUE INITIALLY_SUSPENDED DEFERRED) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineUniquePK(DEFERRED|IMMEDIATE)/DEFERRED	CREATE TABLE a(a a UNIQUE INITIALLY DEFERRED) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineUniquePK(DEFERRED|IMMEDIATE)/DEFERRED!swap	CREATE TABLE a(a a UNIQUE INITIALLY DEFINITION) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineUniquePK(DEFERRED|IMMEDIATE)/IMMEDIATE	CREATE TABLE a(a a UNIQUE INITIALLY IMMEDIATE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineUniquePK(DEFERRED|IMMEDIATE)/IMMEDIATE!insert	CREATE TABLE a(a a UNIQUE INITIALLY IMMEDIATE zzz) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineUniquePK(DEFERRED|IMMEDIATE)/IMMEDIATE!swap	CREATE TABLE a(a a UNIQUE INITIALLY IMMEDIATELY) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineUniquePK((ENABLE|DISABLE))?/%empty	CREATE TABLE a(a a UNIQUE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineUniquePK((ENABLE|DISABLE))?/(ENABLE|DISABLE)	CREATE TABLE a(a a UNIQUE ENABLE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineUniquePK((ENABLE|DISABLE))?/(ENABLE|DISABLE)!insert	CREATE TABLE a(a a UNIQUE ENABLE zzz) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineUniquePK((ENABLE|DISABLE))?/(ENABLE|DISABLE)!swap	CREATE TABLE a(a a UNIQUE ENABLED) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineUniquePK(ENABLE|DISABLE)/ENABLE	CREATE TABLE a(a a UNIQUE ENABLE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineUniquePK(ENABLE|DISABLE)/DISABLE	CREATE TABLE a(a a UNIQUE DISABLE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineUniquePK(ENABLE|DISABLE)/DISABLE!insert	CREATE TABLE a(a a UNIQUE DISABLE zzz) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineUniquePK(ENABLE|DISABLE)/DISABLE!swap	CREATE TABLE a(a a UNIQUE DISABLED) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineUniquePK((VALIDATE|NOVALIDATE))?/%empty	CREATE TABLE a(a a UNIQUE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineUniquePK((VALIDATE|NOVALIDATE))?/(VALIDATE|NOVALIDATE)	CREATE TABLE a(a a UNIQUE VALIDATE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineUniquePK((VALIDATE|NOVALIDATE))?/(VALIDATE|NOVALIDATE)!insert	CREATE TABLE a(a a UNIQUE VALIDATE zzz) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineUniquePK((VALIDATE|NOVALIDATE))?/(VALIDATE|NOVALIDATE)!swap	CREATE TABLE a(a a UNIQUE VALIDATION_MODE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineUniquePK(VALIDATE|NOVALIDATE)/VALIDATE	CREATE TABLE a(a a UNIQUE VALIDATE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineUniquePK(VALIDATE|NOVALIDATE)/NOVALIDATE	CREATE TABLE a(a a UNIQUE NOVALIDATE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineUniquePK(VALIDATE|NOVALIDATE)/NOVALIDATE!insert	CREATE TABLE a(a a UNIQUE NOVALIDATE zzz) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineUniquePK(VALIDATE|NOVALIDATE)/NOVALIDATE!swap	CREATE TABLE a(a a UNIQUE NO_OVERLAP) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineUniquePK((RELY|NORELY))?/%empty	CREATE TABLE a(a a UNIQUE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineUniquePK((RELY|NORELY))?/(RELY|NORELY)	CREATE TABLE a(a a UNIQUE RELY) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineUniquePK((RELY|NORELY))?/(RELY|NORELY)!insert	CREATE TABLE a(a a UNIQUE RELY zzz) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineUniquePK((RELY|NORELY))?/(RELY|NORELY)!swap	CREATE TABLE a(a a UNIQUE REMOVE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineUniquePK(RELY|NORELY)/RELY	CREATE TABLE a(a a UNIQUE RELY) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineUniquePK(RELY|NORELY)/NORELY	CREATE TABLE a(a a UNIQUE NORELY) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineUniquePK(RELY|NORELY)/NORELY!insert	CREATE TABLE a(a a UNIQUE NORELY zzz) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineUniquePK(RELY|NORELY)/NORELY!swap	CREATE TABLE a(a a UNIQUE NOT) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineFK/(CONSTRAINT_ID)?_(FOREIGN_KEY)?_REFERENCES_ID_((_ID_))?~ee416b02	CREATE TABLE a(a a REFERENCES a) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineFK(CONSTRAINT_ID)?/%empty	CREATE TABLE a(a a REFERENCES a) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(CONSTRAINT_ID)?/%empty!insert	CREATE TABLE a(a a zzz REFERENCES a) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineFK(CONSTRAINT_ID)?/CONSTRAINT_ID	CREATE TABLE a(a a CONSTRAINT a REFERENCES a) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(CONSTRAINT_ID)?/CONSTRAINT_ID!drop-1	CREATE TABLE a(a a a REFERENCES a) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(CONSTRAINT_ID)?/CONSTRAINT_ID!drop-2	CREATE TABLE a(a a CONSTRAINT REFERENCES a) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(CONSTRAINT_ID)?/CONSTRAINT_ID!insert	CREATE TABLE a(a a CONSTRAINT a zzz REFERENCES a) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(CONSTRAINT_ID)?/CONSTRAINT_ID!swap	CREATE TABLE a(a a CONSUMER a REFERENCES a) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineFK(FOREIGN_KEY)?/%empty	CREATE TABLE a(a a REFERENCES a) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineFK(FOREIGN_KEY)?/FOREIGN_KEY	CREATE TABLE a(a a FOREIGN KEY REFERENCES a) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(FOREIGN_KEY)?/FOREIGN_KEY!drop-1	CREATE TABLE a(a a KEY REFERENCES a) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(FOREIGN_KEY)?/FOREIGN_KEY!drop-2	CREATE TABLE a(a a FOREIGN REFERENCES a) ALTER TABLE a ADD COLUMN a INT UNIQUE
+reject	undocumented	docs	createTableConstraint_inlineUniquePK(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!insert	CREATE TABLE a(a a UNIQUE INITIALLY DEFERRED zzz)
+reject	undocumented	docs	createTableConstraint_inlineUniquePK(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!swap	CREATE TABLE a(a a UNIQUE INITIALLY_SUSPENDED DEFERRED)
+reject	accept	docs	createTableConstraint_inlineUniquePK(DEFERRED|IMMEDIATE)/DEFERRED	CREATE TABLE a(a a UNIQUE INITIALLY DEFERRED)
+reject	undocumented	docs	createTableConstraint_inlineUniquePK(DEFERRED|IMMEDIATE)/DEFERRED!swap	CREATE TABLE a(a a UNIQUE INITIALLY DEFINITION)
+reject	accept	docs	createTableConstraint_inlineUniquePK(DEFERRED|IMMEDIATE)/IMMEDIATE	CREATE TABLE a(a a UNIQUE INITIALLY IMMEDIATE)
+reject	undocumented	docs	createTableConstraint_inlineUniquePK(DEFERRED|IMMEDIATE)/IMMEDIATE!insert	CREATE TABLE a(a a UNIQUE INITIALLY IMMEDIATE zzz)
+reject	undocumented	docs	createTableConstraint_inlineUniquePK(DEFERRED|IMMEDIATE)/IMMEDIATE!swap	CREATE TABLE a(a a UNIQUE INITIALLY IMMEDIATELY)
+reject	accept	docs	createTableConstraint_inlineUniquePK((ENABLE|DISABLE))?/%empty	CREATE TABLE a(a a UNIQUE)
+reject	accept	docs	createTableConstraint_inlineUniquePK((ENABLE|DISABLE))?/(ENABLE|DISABLE)	CREATE TABLE a(a a UNIQUE ENABLE)
+reject	undocumented	docs	createTableConstraint_inlineUniquePK((ENABLE|DISABLE))?/(ENABLE|DISABLE)!insert	CREATE TABLE a(a a UNIQUE ENABLE zzz)
+reject	undocumented	docs	createTableConstraint_inlineUniquePK((ENABLE|DISABLE))?/(ENABLE|DISABLE)!swap	CREATE TABLE a(a a UNIQUE ENABLED)
+reject	accept	docs	createTableConstraint_inlineUniquePK(ENABLE|DISABLE)/ENABLE	CREATE TABLE a(a a UNIQUE ENABLE)
+reject	accept	docs	createTableConstraint_inlineUniquePK(ENABLE|DISABLE)/DISABLE	CREATE TABLE a(a a UNIQUE DISABLE)
+reject	undocumented	docs	createTableConstraint_inlineUniquePK(ENABLE|DISABLE)/DISABLE!insert	CREATE TABLE a(a a UNIQUE DISABLE zzz)
+reject	undocumented	docs	createTableConstraint_inlineUniquePK(ENABLE|DISABLE)/DISABLE!swap	CREATE TABLE a(a a UNIQUE DISABLED)
+reject	accept	docs	createTableConstraint_inlineUniquePK((VALIDATE|NOVALIDATE))?/%empty	CREATE TABLE a(a a UNIQUE)
+reject	accept	docs	createTableConstraint_inlineUniquePK((VALIDATE|NOVALIDATE))?/(VALIDATE|NOVALIDATE)	CREATE TABLE a(a a UNIQUE VALIDATE)
+reject	undocumented	docs	createTableConstraint_inlineUniquePK((VALIDATE|NOVALIDATE))?/(VALIDATE|NOVALIDATE)!insert	CREATE TABLE a(a a UNIQUE VALIDATE zzz)
+reject	undocumented	docs	createTableConstraint_inlineUniquePK((VALIDATE|NOVALIDATE))?/(VALIDATE|NOVALIDATE)!swap	CREATE TABLE a(a a UNIQUE VALIDATION_MODE)
+reject	accept	docs	createTableConstraint_inlineUniquePK(VALIDATE|NOVALIDATE)/VALIDATE	CREATE TABLE a(a a UNIQUE VALIDATE)
+reject	accept	docs	createTableConstraint_inlineUniquePK(VALIDATE|NOVALIDATE)/NOVALIDATE	CREATE TABLE a(a a UNIQUE NOVALIDATE)
+reject	undocumented	docs	createTableConstraint_inlineUniquePK(VALIDATE|NOVALIDATE)/NOVALIDATE!insert	CREATE TABLE a(a a UNIQUE NOVALIDATE zzz)
+reject	undocumented	docs	createTableConstraint_inlineUniquePK(VALIDATE|NOVALIDATE)/NOVALIDATE!swap	CREATE TABLE a(a a UNIQUE NO_OVERLAP)
+reject	accept	docs	createTableConstraint_inlineUniquePK((RELY|NORELY))?/%empty	CREATE TABLE a(a a UNIQUE)
+reject	accept	docs	createTableConstraint_inlineUniquePK((RELY|NORELY))?/(RELY|NORELY)	CREATE TABLE a(a a UNIQUE RELY)
+reject	undocumented	docs	createTableConstraint_inlineUniquePK((RELY|NORELY))?/(RELY|NORELY)!insert	CREATE TABLE a(a a UNIQUE RELY zzz)
+reject	undocumented	docs	createTableConstraint_inlineUniquePK((RELY|NORELY))?/(RELY|NORELY)!swap	CREATE TABLE a(a a UNIQUE REMOVE)
+reject	accept	docs	createTableConstraint_inlineUniquePK(RELY|NORELY)/RELY	CREATE TABLE a(a a UNIQUE RELY)
+reject	accept	docs	createTableConstraint_inlineUniquePK(RELY|NORELY)/NORELY	CREATE TABLE a(a a UNIQUE NORELY)
+reject	undocumented	docs	createTableConstraint_inlineUniquePK(RELY|NORELY)/NORELY!insert	CREATE TABLE a(a a UNIQUE NORELY zzz)
+reject	undocumented	docs	createTableConstraint_inlineUniquePK(RELY|NORELY)/NORELY!swap	CREATE TABLE a(a a UNIQUE NOT)
+reject	accept	docs	createTableConstraint_inlineFK/(CONSTRAINT_ID)?_(FOREIGN_KEY)?_REFERENCES_ID_((_ID_))?~ee416b02	CREATE TABLE a(a a REFERENCES a)
+reject	accept	docs	createTableConstraint_inlineFK(CONSTRAINT_ID)?/%empty	CREATE TABLE a(a a REFERENCES a)
+reject	undocumented	docs	createTableConstraint_inlineFK(CONSTRAINT_ID)?/%empty!insert	CREATE TABLE a(a a zzz REFERENCES a)
+reject	accept	docs	createTableConstraint_inlineFK(CONSTRAINT_ID)?/CONSTRAINT_ID	CREATE TABLE a(a a CONSTRAINT a REFERENCES a)
+reject	undocumented	docs	createTableConstraint_inlineFK(CONSTRAINT_ID)?/CONSTRAINT_ID!drop-1	CREATE TABLE a(a a a REFERENCES a)
+reject	undocumented	docs	createTableConstraint_inlineFK(CONSTRAINT_ID)?/CONSTRAINT_ID!drop-2	CREATE TABLE a(a a CONSTRAINT REFERENCES a)
+reject	undocumented	docs	createTableConstraint_inlineFK(CONSTRAINT_ID)?/CONSTRAINT_ID!insert	CREATE TABLE a(a a CONSTRAINT a zzz REFERENCES a)
+reject	undocumented	docs	createTableConstraint_inlineFK(CONSTRAINT_ID)?/CONSTRAINT_ID!swap	CREATE TABLE a(a a CONSUMER a REFERENCES a)
+reject	accept	docs	createTableConstraint_inlineFK(FOREIGN_KEY)?/%empty	CREATE TABLE a(a a REFERENCES a)
+reject	accept	docs	createTableConstraint_inlineFK(FOREIGN_KEY)?/FOREIGN_KEY	CREATE TABLE a(a a FOREIGN KEY REFERENCES a)
+reject	undocumented	docs	createTableConstraint_inlineFK(FOREIGN_KEY)?/FOREIGN_KEY!drop-1	CREATE TABLE a(a a KEY REFERENCES a)
+reject	undocumented	docs	createTableConstraint_inlineFK(FOREIGN_KEY)?/FOREIGN_KEY!drop-2	CREATE TABLE a(a a FOREIGN REFERENCES a)
 reject	undocumented	docs	createTableConstraint_inlineFK(FOREIGN_KEY)?/FOREIGN_KEY!truncate	CREATE TABLE a(a a FOREIGN
-reject	undocumented	docs	createTableConstraint_inlineFK(FOREIGN_KEY)?/FOREIGN_KEY!insert	CREATE TABLE a(a a FOREIGN KEY zzz REFERENCES a) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(FOREIGN_KEY)?/FOREIGN_KEY!swap	CREATE TABLE a(a a FORK KEY REFERENCES a) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineFK((_ID_))?/%empty	CREATE TABLE a(a a REFERENCES a) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineFK((_ID_))?/(_ID_)	CREATE TABLE a(a a REFERENCES a(a)) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK((_ID_))?/(_ID_)!drop-1	CREATE TABLE a(a a REFERENCES a a)) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK((_ID_))?/(_ID_)!drop-2	CREATE TABLE a(a a REFERENCES a()) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK((_ID_))?/(_ID_)!drop-3	CREATE TABLE a(a a REFERENCES a(a) ALTER TABLE a ADD COLUMN a INT UNIQUE
+reject	undocumented	docs	createTableConstraint_inlineFK(FOREIGN_KEY)?/FOREIGN_KEY!insert	CREATE TABLE a(a a FOREIGN KEY zzz REFERENCES a)
+reject	undocumented	docs	createTableConstraint_inlineFK(FOREIGN_KEY)?/FOREIGN_KEY!swap	CREATE TABLE a(a a FORK KEY REFERENCES a)
+reject	accept	docs	createTableConstraint_inlineFK((_ID_))?/%empty	CREATE TABLE a(a a REFERENCES a)
+reject	accept	docs	createTableConstraint_inlineFK((_ID_))?/(_ID_)	CREATE TABLE a(a a REFERENCES a(a))
+reject	undocumented	docs	createTableConstraint_inlineFK((_ID_))?/(_ID_)!drop-1	CREATE TABLE a(a a REFERENCES a a))
+reject	undocumented	docs	createTableConstraint_inlineFK((_ID_))?/(_ID_)!drop-2	CREATE TABLE a(a a REFERENCES a())
+reject	undocumented	docs	createTableConstraint_inlineFK((_ID_))?/(_ID_)!drop-3	CREATE TABLE a(a a REFERENCES a(a)
 reject	undocumented	docs	createTableConstraint_inlineFK((_ID_))?/(_ID_)!truncate	CREATE TABLE a(a a REFERENCES a(a
-reject	undocumented	docs	createTableConstraint_inlineFK((_ID_))?/(_ID_)!insert	CREATE TABLE a(a a REFERENCES a(a) zzz) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineFK(MATCH_(FULL|SIMPLE|PARTIAL))?/%empty	CREATE TABLE a(a a REFERENCES a) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineFK(MATCH_(FULL|SIMPLE|PARTIAL))?/MATCH_(FULL|SIMPLE|PARTIAL)	CREATE TABLE a(a a REFERENCES a MATCH FULL) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(MATCH_(FULL|SIMPLE|PARTIAL))?/MATCH_(FULL|SIMPLE|PARTIAL)!drop-1	CREATE TABLE a(a a REFERENCES a FULL) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(MATCH_(FULL|SIMPLE|PARTIAL))?/MATCH_(FULL|SIMPLE|PARTIAL)!drop-2	CREATE TABLE a(a a REFERENCES a MATCH) ALTER TABLE a ADD COLUMN a INT UNIQUE
+reject	undocumented	docs	createTableConstraint_inlineFK((_ID_))?/(_ID_)!insert	CREATE TABLE a(a a REFERENCES a(a) zzz)
+reject	accept	docs	createTableConstraint_inlineFK(MATCH_(FULL|SIMPLE|PARTIAL))?/%empty	CREATE TABLE a(a a REFERENCES a)
+reject	accept	docs	createTableConstraint_inlineFK(MATCH_(FULL|SIMPLE|PARTIAL))?/MATCH_(FULL|SIMPLE|PARTIAL)	CREATE TABLE a(a a REFERENCES a MATCH FULL)
+reject	undocumented	docs	createTableConstraint_inlineFK(MATCH_(FULL|SIMPLE|PARTIAL))?/MATCH_(FULL|SIMPLE|PARTIAL)!drop-1	CREATE TABLE a(a a REFERENCES a FULL)
+reject	undocumented	docs	createTableConstraint_inlineFK(MATCH_(FULL|SIMPLE|PARTIAL))?/MATCH_(FULL|SIMPLE|PARTIAL)!drop-2	CREATE TABLE a(a a REFERENCES a MATCH)
 reject	undocumented	docs	createTableConstraint_inlineFK(MATCH_(FULL|SIMPLE|PARTIAL))?/MATCH_(FULL|SIMPLE|PARTIAL)!truncate	CREATE TABLE a(a a REFERENCES a MATCH
-reject	undocumented	docs	createTableConstraint_inlineFK(MATCH_(FULL|SIMPLE|PARTIAL))?/MATCH_(FULL|SIMPLE|PARTIAL)!insert	CREATE TABLE a(a a REFERENCES a MATCH FULL zzz) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(MATCH_(FULL|SIMPLE|PARTIAL))?/MATCH_(FULL|SIMPLE|PARTIAL)!swap	CREATE TABLE a(a a REFERENCES a MATCHED FULL) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineFK(FULL|SIMPLE|PARTIAL)/FULL	CREATE TABLE a(a a REFERENCES a MATCH FULL) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(FULL|SIMPLE|PARTIAL)/FULL!swap	CREATE TABLE a(a a REFERENCES a MATCH FULL_INDEX_BUILD_INTERVAL_DAYS) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineFK(FULL|SIMPLE|PARTIAL)/SIMPLE	CREATE TABLE a(a a REFERENCES a MATCH SIMPLE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(FULL|SIMPLE|PARTIAL)/SIMPLE!insert	CREATE TABLE a(a a REFERENCES a MATCH SIMPLE zzz) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(FULL|SIMPLE|PARTIAL)/SIMPLE!swap	CREATE TABLE a(a a REFERENCES a MATCH SIMULATED_DATA_SHARING_CONSUMER) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineFK(FULL|SIMPLE|PARTIAL)/PARTIAL	CREATE TABLE a(a a REFERENCES a MATCH PARTIAL) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(FULL|SIMPLE|PARTIAL)/PARTIAL!insert	CREATE TABLE a(a a REFERENCES a MATCH PARTIAL zzz) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(FULL|SIMPLE|PARTIAL)/PARTIAL!swap	CREATE TABLE a(a a REFERENCES a MATCH PARTITION) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineFK(ON_(UPDATE_(CASCADE|SET_NULL|SET_DEF~25b12049)?/%empty	CREATE TABLE a(a a REFERENCES a) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineFK(ON_(UPDATE_(CASCADE|SET_NULL|SET_DEF~25b12049)?/ON_(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?_(DE~a5729fae	CREATE TABLE a(a a REFERENCES a ON) ALTER TABLE a ADD COLUMN a INT UNIQUE
+reject	undocumented	docs	createTableConstraint_inlineFK(MATCH_(FULL|SIMPLE|PARTIAL))?/MATCH_(FULL|SIMPLE|PARTIAL)!insert	CREATE TABLE a(a a REFERENCES a MATCH FULL zzz)
+reject	undocumented	docs	createTableConstraint_inlineFK(MATCH_(FULL|SIMPLE|PARTIAL))?/MATCH_(FULL|SIMPLE|PARTIAL)!swap	CREATE TABLE a(a a REFERENCES a MATCHED FULL)
+reject	accept	docs	createTableConstraint_inlineFK(FULL|SIMPLE|PARTIAL)/FULL	CREATE TABLE a(a a REFERENCES a MATCH FULL)
+reject	undocumented	docs	createTableConstraint_inlineFK(FULL|SIMPLE|PARTIAL)/FULL!swap	CREATE TABLE a(a a REFERENCES a MATCH FULL_INDEX_BUILD_INTERVAL_DAYS)
+reject	accept	docs	createTableConstraint_inlineFK(FULL|SIMPLE|PARTIAL)/SIMPLE	CREATE TABLE a(a a REFERENCES a MATCH SIMPLE)
+reject	undocumented	docs	createTableConstraint_inlineFK(FULL|SIMPLE|PARTIAL)/SIMPLE!insert	CREATE TABLE a(a a REFERENCES a MATCH SIMPLE zzz)
+reject	undocumented	docs	createTableConstraint_inlineFK(FULL|SIMPLE|PARTIAL)/SIMPLE!swap	CREATE TABLE a(a a REFERENCES a MATCH SIMULATED_DATA_SHARING_CONSUMER)
+reject	accept	docs	createTableConstraint_inlineFK(FULL|SIMPLE|PARTIAL)/PARTIAL	CREATE TABLE a(a a REFERENCES a MATCH PARTIAL)
+reject	undocumented	docs	createTableConstraint_inlineFK(FULL|SIMPLE|PARTIAL)/PARTIAL!insert	CREATE TABLE a(a a REFERENCES a MATCH PARTIAL zzz)
+reject	undocumented	docs	createTableConstraint_inlineFK(FULL|SIMPLE|PARTIAL)/PARTIAL!swap	CREATE TABLE a(a a REFERENCES a MATCH PARTITION)
+reject	accept	docs	createTableConstraint_inlineFK(ON_(UPDATE_(CASCADE|SET_NULL|SET_DEF~25b12049)?/%empty	CREATE TABLE a(a a REFERENCES a)
+reject	accept	docs	createTableConstraint_inlineFK(ON_(UPDATE_(CASCADE|SET_NULL|SET_DEF~25b12049)?/ON_(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?_(DE~a5729fae	CREATE TABLE a(a a REFERENCES a ON)
 reject	undocumented	docs	createTableConstraint_inlineFK(ON_(UPDATE_(CASCADE|SET_NULL|SET_DEF~25b12049)?/ON_(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?_(DE~a5729fae!truncate	CREATE TABLE a(a a REFERENCES a
-reject	undocumented	docs	createTableConstraint_inlineFK(ON_(UPDATE_(CASCADE|SET_NULL|SET_DEF~25b12049)?/ON_(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?_(DE~a5729fae!insert	CREATE TABLE a(a a REFERENCES a ON zzz) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(ON_(UPDATE_(CASCADE|SET_NULL|SET_DEF~25b12049)?/ON_(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?_(DE~a5729fae!swap	CREATE TABLE a(a a REFERENCES a ONBOARDING_QUESTION) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineFK(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?/%empty	CREATE TABLE a(a a REFERENCES a ON) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineFK(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?/UPDATE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)	CREATE TABLE a(a a REFERENCES a ON UPDATE CASCADE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?/UPDATE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)!drop-1	CREATE TABLE a(a a REFERENCES a ON CASCADE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?/UPDATE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)!drop-2	CREATE TABLE a(a a REFERENCES a ON UPDATE) ALTER TABLE a ADD COLUMN a INT UNIQUE
+reject	undocumented	docs	createTableConstraint_inlineFK(ON_(UPDATE_(CASCADE|SET_NULL|SET_DEF~25b12049)?/ON_(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?_(DE~a5729fae!insert	CREATE TABLE a(a a REFERENCES a ON zzz)
+reject	undocumented	docs	createTableConstraint_inlineFK(ON_(UPDATE_(CASCADE|SET_NULL|SET_DEF~25b12049)?/ON_(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?_(DE~a5729fae!swap	CREATE TABLE a(a a REFERENCES a ONBOARDING_QUESTION)
+reject	accept	docs	createTableConstraint_inlineFK(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?/%empty	CREATE TABLE a(a a REFERENCES a ON)
+reject	accept	docs	createTableConstraint_inlineFK(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?/UPDATE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)	CREATE TABLE a(a a REFERENCES a ON UPDATE CASCADE)
+reject	undocumented	docs	createTableConstraint_inlineFK(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?/UPDATE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)!drop-1	CREATE TABLE a(a a REFERENCES a ON CASCADE)
+reject	undocumented	docs	createTableConstraint_inlineFK(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?/UPDATE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)!drop-2	CREATE TABLE a(a a REFERENCES a ON UPDATE)
 reject	undocumented	docs	createTableConstraint_inlineFK(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?/UPDATE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)!truncate	CREATE TABLE a(a a REFERENCES a ON UPDATE
-reject	undocumented	docs	createTableConstraint_inlineFK(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?/UPDATE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)!insert	CREATE TABLE a(a a REFERENCES a ON UPDATE CASCADE zzz) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?/UPDATE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)!swap	CREATE TABLE a(a a REFERENCES a ON UPGRADE CASCADE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/CASCADE	CREATE TABLE a(a a REFERENCES a ON UPDATE CASCADE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/CASCADE!swap	CREATE TABLE a(a a REFERENCES a ON UPDATE CASES) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_NULL	CREATE TABLE a(a a REFERENCES a ON UPDATE SET NULL) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_NULL!drop-1	CREATE TABLE a(a a REFERENCES a ON UPDATE NULL) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_NULL!drop-2	CREATE TABLE a(a a REFERENCES a ON UPDATE SET) ALTER TABLE a ADD COLUMN a INT UNIQUE
+reject	undocumented	docs	createTableConstraint_inlineFK(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?/UPDATE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)!insert	CREATE TABLE a(a a REFERENCES a ON UPDATE CASCADE zzz)
+reject	undocumented	docs	createTableConstraint_inlineFK(UPDATE_(CASCADE|SET_NULL|SET_DEFAULT~32b32285)?/UPDATE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)!swap	CREATE TABLE a(a a REFERENCES a ON UPGRADE CASCADE)
+reject	accept	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/CASCADE	CREATE TABLE a(a a REFERENCES a ON UPDATE CASCADE)
+reject	undocumented	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/CASCADE!swap	CREATE TABLE a(a a REFERENCES a ON UPDATE CASES)
+reject	accept	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_NULL	CREATE TABLE a(a a REFERENCES a ON UPDATE SET NULL)
+reject	undocumented	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_NULL!drop-1	CREATE TABLE a(a a REFERENCES a ON UPDATE NULL)
+reject	undocumented	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_NULL!drop-2	CREATE TABLE a(a a REFERENCES a ON UPDATE SET)
 reject	undocumented	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_NULL!truncate	CREATE TABLE a(a a REFERENCES a ON UPDATE SET
-reject	undocumented	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_NULL!insert	CREATE TABLE a(a a REFERENCES a ON UPDATE SET NULL zzz) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_NULL!swap	CREATE TABLE a(a a REFERENCES a ON UPDATE SETS NULL) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_DEFAULT	CREATE TABLE a(a a REFERENCES a ON UPDATE SET DEFAULT) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_DEFAULT!drop-1	CREATE TABLE a(a a REFERENCES a ON UPDATE DEFAULT) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_DEFAULT!insert	CREATE TABLE a(a a REFERENCES a ON UPDATE SET DEFAULT zzz) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_DEFAULT!swap	CREATE TABLE a(a a REFERENCES a ON UPDATE SETS DEFAULT) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/RESTRICT	CREATE TABLE a(a a REFERENCES a ON UPDATE RESTRICT) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/RESTRICT!insert	CREATE TABLE a(a a REFERENCES a ON UPDATE RESTRICT zzz) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/RESTRICT!swap	CREATE TABLE a(a a REFERENCES a ON UPDATE RESTRICTED) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/NO_ACTION	CREATE TABLE a(a a REFERENCES a ON UPDATE NO ACTION) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/NO_ACTION!drop-1	CREATE TABLE a(a a REFERENCES a ON UPDATE ACTION) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/NO_ACTION!drop-2	CREATE TABLE a(a a REFERENCES a ON UPDATE NO) ALTER TABLE a ADD COLUMN a INT UNIQUE
+reject	undocumented	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_NULL!insert	CREATE TABLE a(a a REFERENCES a ON UPDATE SET NULL zzz)
+reject	undocumented	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_NULL!swap	CREATE TABLE a(a a REFERENCES a ON UPDATE SETS NULL)
+reject	accept	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_DEFAULT	CREATE TABLE a(a a REFERENCES a ON UPDATE SET DEFAULT)
+reject	undocumented	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_DEFAULT!drop-1	CREATE TABLE a(a a REFERENCES a ON UPDATE DEFAULT)
+reject	undocumented	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_DEFAULT!insert	CREATE TABLE a(a a REFERENCES a ON UPDATE SET DEFAULT zzz)
+reject	undocumented	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/SET_DEFAULT!swap	CREATE TABLE a(a a REFERENCES a ON UPDATE SETS DEFAULT)
+reject	accept	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/RESTRICT	CREATE TABLE a(a a REFERENCES a ON UPDATE RESTRICT)
+reject	undocumented	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/RESTRICT!insert	CREATE TABLE a(a a REFERENCES a ON UPDATE RESTRICT zzz)
+reject	undocumented	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/RESTRICT!swap	CREATE TABLE a(a a REFERENCES a ON UPDATE RESTRICTED)
+reject	accept	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/NO_ACTION	CREATE TABLE a(a a REFERENCES a ON UPDATE NO ACTION)
+reject	undocumented	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/NO_ACTION!drop-1	CREATE TABLE a(a a REFERENCES a ON UPDATE ACTION)
+reject	undocumented	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/NO_ACTION!drop-2	CREATE TABLE a(a a REFERENCES a ON UPDATE NO)
 reject	undocumented	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/NO_ACTION!truncate	CREATE TABLE a(a a REFERENCES a ON UPDATE NO
-reject	undocumented	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/NO_ACTION!insert	CREATE TABLE a(a a REFERENCES a ON UPDATE NO ACTION zzz) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/NO_ACTION!swap	CREATE TABLE a(a a REFERENCES a ON UPDATE NODES ACTION) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineFK(DELETE_(CASCADE|SET_NULL|SET_DEFAULT~73828552)?/%empty	CREATE TABLE a(a a REFERENCES a ON) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineFK(DELETE_(CASCADE|SET_NULL|SET_DEFAULT~73828552)?/DELETE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)	CREATE TABLE a(a a REFERENCES a ON DELETE CASCADE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(DELETE_(CASCADE|SET_NULL|SET_DEFAULT~73828552)?/DELETE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)!drop-2	CREATE TABLE a(a a REFERENCES a ON DELETE) ALTER TABLE a ADD COLUMN a INT UNIQUE
+reject	undocumented	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/NO_ACTION!insert	CREATE TABLE a(a a REFERENCES a ON UPDATE NO ACTION zzz)
+reject	undocumented	docs	createTableConstraint_inlineFK(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)/NO_ACTION!swap	CREATE TABLE a(a a REFERENCES a ON UPDATE NODES ACTION)
+reject	accept	docs	createTableConstraint_inlineFK(DELETE_(CASCADE|SET_NULL|SET_DEFAULT~73828552)?/%empty	CREATE TABLE a(a a REFERENCES a ON)
+reject	accept	docs	createTableConstraint_inlineFK(DELETE_(CASCADE|SET_NULL|SET_DEFAULT~73828552)?/DELETE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)	CREATE TABLE a(a a REFERENCES a ON DELETE CASCADE)
+reject	undocumented	docs	createTableConstraint_inlineFK(DELETE_(CASCADE|SET_NULL|SET_DEFAULT~73828552)?/DELETE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)!drop-2	CREATE TABLE a(a a REFERENCES a ON DELETE)
 reject	undocumented	docs	createTableConstraint_inlineFK(DELETE_(CASCADE|SET_NULL|SET_DEFAULT~73828552)?/DELETE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)!truncate	CREATE TABLE a(a a REFERENCES a ON DELETE
-reject	undocumented	docs	createTableConstraint_inlineFK(DELETE_(CASCADE|SET_NULL|SET_DEFAULT~73828552)?/DELETE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)!insert	CREATE TABLE a(a a REFERENCES a ON DELETE CASCADE zzz) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(DELETE_(CASCADE|SET_NULL|SET_DEFAULT~73828552)?/DELETE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)!swap	CREATE TABLE a(a a REFERENCES a ON DELTA CASCADE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineFK(NOT?_ENFORCED)?/%empty	CREATE TABLE a(a a REFERENCES a) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineFK(NOT?_ENFORCED)?/(NOT)?_ENFORCED	CREATE TABLE a(a a REFERENCES a ENFORCED) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(NOT?_ENFORCED)?/(NOT)?_ENFORCED!insert	CREATE TABLE a(a a REFERENCES a ENFORCED zzz) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(NOT?_ENFORCED)?/(NOT)?_ENFORCED!swap	CREATE TABLE a(a a REFERENCES a ENFORCE_LENGTH) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineFK(NOT)?/%empty	CREATE TABLE a(a a REFERENCES a ENFORCED) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(NOT)?/%empty!insert	CREATE TABLE a(a a REFERENCES a zzz ENFORCED) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineFK(NOT)?/NOT	CREATE TABLE a(a a REFERENCES a NOT ENFORCED) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(NOT)?/NOT!insert	CREATE TABLE a(a a REFERENCES a NOT zzz ENFORCED) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(NOT)?/NOT!swap	CREATE TABLE a(a a REFERENCES a NOTEBOOK ENFORCED) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineFK(NOT?_DEFERRABLE)?/%empty	CREATE TABLE a(a a REFERENCES a) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineFK(NOT?_DEFERRABLE)?/(NOT)?_DEFERRABLE	CREATE TABLE a(a a REFERENCES a DEFERRABLE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(NOT?_DEFERRABLE)?/(NOT)?_DEFERRABLE!insert	CREATE TABLE a(a a REFERENCES a DEFERRABLE zzz) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(NOT?_DEFERRABLE)?/(NOT)?_DEFERRABLE!swap	CREATE TABLE a(a a REFERENCES a DEFERRED) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineFK(INITIALLY_(DEFERRED|IMMEDIATE))?/%empty	CREATE TABLE a(a a REFERENCES a) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineFK(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)	CREATE TABLE a(a a REFERENCES a INITIALLY DEFERRED) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!drop-2	CREATE TABLE a(a a REFERENCES a INITIALLY) ALTER TABLE a ADD COLUMN a INT UNIQUE
+reject	undocumented	docs	createTableConstraint_inlineFK(DELETE_(CASCADE|SET_NULL|SET_DEFAULT~73828552)?/DELETE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)!insert	CREATE TABLE a(a a REFERENCES a ON DELETE CASCADE zzz)
+reject	undocumented	docs	createTableConstraint_inlineFK(DELETE_(CASCADE|SET_NULL|SET_DEFAULT~73828552)?/DELETE_(CASCADE|SET_NULL|SET_DEFAULT|RESTRIC~5e44841a)!swap	CREATE TABLE a(a a REFERENCES a ON DELTA CASCADE)
+reject	accept	docs	createTableConstraint_inlineFK(NOT?_ENFORCED)?/%empty	CREATE TABLE a(a a REFERENCES a)
+reject	accept	docs	createTableConstraint_inlineFK(NOT?_ENFORCED)?/(NOT)?_ENFORCED	CREATE TABLE a(a a REFERENCES a ENFORCED)
+reject	undocumented	docs	createTableConstraint_inlineFK(NOT?_ENFORCED)?/(NOT)?_ENFORCED!insert	CREATE TABLE a(a a REFERENCES a ENFORCED zzz)
+reject	undocumented	docs	createTableConstraint_inlineFK(NOT?_ENFORCED)?/(NOT)?_ENFORCED!swap	CREATE TABLE a(a a REFERENCES a ENFORCE_LENGTH)
+reject	accept	docs	createTableConstraint_inlineFK(NOT)?/%empty	CREATE TABLE a(a a REFERENCES a ENFORCED)
+reject	undocumented	docs	createTableConstraint_inlineFK(NOT)?/%empty!insert	CREATE TABLE a(a a REFERENCES a zzz ENFORCED)
+reject	accept	docs	createTableConstraint_inlineFK(NOT)?/NOT	CREATE TABLE a(a a REFERENCES a NOT ENFORCED)
+reject	undocumented	docs	createTableConstraint_inlineFK(NOT)?/NOT!insert	CREATE TABLE a(a a REFERENCES a NOT zzz ENFORCED)
+reject	undocumented	docs	createTableConstraint_inlineFK(NOT)?/NOT!swap	CREATE TABLE a(a a REFERENCES a NOTEBOOK ENFORCED)
+reject	accept	docs	createTableConstraint_inlineFK(NOT?_DEFERRABLE)?/%empty	CREATE TABLE a(a a REFERENCES a)
+reject	accept	docs	createTableConstraint_inlineFK(NOT?_DEFERRABLE)?/(NOT)?_DEFERRABLE	CREATE TABLE a(a a REFERENCES a DEFERRABLE)
+reject	undocumented	docs	createTableConstraint_inlineFK(NOT?_DEFERRABLE)?/(NOT)?_DEFERRABLE!insert	CREATE TABLE a(a a REFERENCES a DEFERRABLE zzz)
+reject	undocumented	docs	createTableConstraint_inlineFK(NOT?_DEFERRABLE)?/(NOT)?_DEFERRABLE!swap	CREATE TABLE a(a a REFERENCES a DEFERRED)
+reject	accept	docs	createTableConstraint_inlineFK(INITIALLY_(DEFERRED|IMMEDIATE))?/%empty	CREATE TABLE a(a a REFERENCES a)
+reject	accept	docs	createTableConstraint_inlineFK(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)	CREATE TABLE a(a a REFERENCES a INITIALLY DEFERRED)
+reject	undocumented	docs	createTableConstraint_inlineFK(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!drop-2	CREATE TABLE a(a a REFERENCES a INITIALLY)
 reject	undocumented	docs	createTableConstraint_inlineFK(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!truncate	CREATE TABLE a(a a REFERENCES a INITIALLY
-reject	undocumented	docs	createTableConstraint_inlineFK(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!insert	CREATE TABLE a(a a REFERENCES a INITIALLY DEFERRED zzz) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!swap	CREATE TABLE a(a a REFERENCES a INITIALLY_SUSPENDED DEFERRED) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineFK(DEFERRED|IMMEDIATE)/DEFERRED	CREATE TABLE a(a a REFERENCES a INITIALLY DEFERRED) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(DEFERRED|IMMEDIATE)/DEFERRED!swap	CREATE TABLE a(a a REFERENCES a INITIALLY DEFINITION) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineFK(DEFERRED|IMMEDIATE)/IMMEDIATE	CREATE TABLE a(a a REFERENCES a INITIALLY IMMEDIATE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(DEFERRED|IMMEDIATE)/IMMEDIATE!insert	CREATE TABLE a(a a REFERENCES a INITIALLY IMMEDIATE zzz) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(DEFERRED|IMMEDIATE)/IMMEDIATE!swap	CREATE TABLE a(a a REFERENCES a INITIALLY IMMEDIATELY) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineFK((ENABLE|DISABLE))?/%empty	CREATE TABLE a(a a REFERENCES a) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineFK((ENABLE|DISABLE))?/(ENABLE|DISABLE)	CREATE TABLE a(a a REFERENCES a ENABLE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK((ENABLE|DISABLE))?/(ENABLE|DISABLE)!insert	CREATE TABLE a(a a REFERENCES a ENABLE zzz) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK((ENABLE|DISABLE))?/(ENABLE|DISABLE)!swap	CREATE TABLE a(a a REFERENCES a ENABLED) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineFK(ENABLE|DISABLE)/ENABLE	CREATE TABLE a(a a REFERENCES a ENABLE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineFK(ENABLE|DISABLE)/DISABLE	CREATE TABLE a(a a REFERENCES a DISABLE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(ENABLE|DISABLE)/DISABLE!insert	CREATE TABLE a(a a REFERENCES a DISABLE zzz) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(ENABLE|DISABLE)/DISABLE!swap	CREATE TABLE a(a a REFERENCES a DISABLED) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineFK((VALIDATE|NOVALIDATE))?/%empty	CREATE TABLE a(a a REFERENCES a) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineFK((VALIDATE|NOVALIDATE))?/(VALIDATE|NOVALIDATE)	CREATE TABLE a(a a REFERENCES a VALIDATE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK((VALIDATE|NOVALIDATE))?/(VALIDATE|NOVALIDATE)!insert	CREATE TABLE a(a a REFERENCES a VALIDATE zzz) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK((VALIDATE|NOVALIDATE))?/(VALIDATE|NOVALIDATE)!swap	CREATE TABLE a(a a REFERENCES a VALIDATION_MODE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineFK(VALIDATE|NOVALIDATE)/VALIDATE	CREATE TABLE a(a a REFERENCES a VALIDATE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineFK(VALIDATE|NOVALIDATE)/NOVALIDATE	CREATE TABLE a(a a REFERENCES a NOVALIDATE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(VALIDATE|NOVALIDATE)/NOVALIDATE!insert	CREATE TABLE a(a a REFERENCES a NOVALIDATE zzz) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(VALIDATE|NOVALIDATE)/NOVALIDATE!swap	CREATE TABLE a(a a REFERENCES a NO_OVERLAP) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineFK((RELY|NORELY))?/%empty	CREATE TABLE a(a a REFERENCES a) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineFK((RELY|NORELY))?/(RELY|NORELY)	CREATE TABLE a(a a REFERENCES a RELY) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK((RELY|NORELY))?/(RELY|NORELY)!insert	CREATE TABLE a(a a REFERENCES a RELY zzz) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK((RELY|NORELY))?/(RELY|NORELY)!swap	CREATE TABLE a(a a REFERENCES a REMOVE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineFK(RELY|NORELY)/RELY	CREATE TABLE a(a a REFERENCES a RELY) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineFK(RELY|NORELY)/NORELY	CREATE TABLE a(a a REFERENCES a NORELY) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(RELY|NORELY)/NORELY!insert	CREATE TABLE a(a a REFERENCES a NORELY zzz) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineFK(RELY|NORELY)/NORELY!swap	CREATE TABLE a(a a REFERENCES a NOT) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineCH/(CONSTRAINT_ID)?_CHECK_(_EXPR_)_(ENABLE_(VALIDATE|NOVALIDATE))?	CREATE TABLE a(a a CHECK(1)) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineCH(CONSTRAINT_ID)?/%empty	CREATE TABLE a(a a CHECK(1)) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineCH(CONSTRAINT_ID)?/%empty!insert	CREATE TABLE a(a a zzz CHECK(1)) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineCH(CONSTRAINT_ID)?/CONSTRAINT_ID	CREATE TABLE a(a a CONSTRAINT a CHECK(1)) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineCH(CONSTRAINT_ID)?/CONSTRAINT_ID!drop-1	CREATE TABLE a(a a a CHECK(1)) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineCH(CONSTRAINT_ID)?/CONSTRAINT_ID!drop-2	CREATE TABLE a(a a CONSTRAINT CHECK(1)) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineCH(CONSTRAINT_ID)?/CONSTRAINT_ID!insert	CREATE TABLE a(a a CONSTRAINT a zzz CHECK(1)) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineCH(CONSTRAINT_ID)?/CONSTRAINT_ID!swap	CREATE TABLE a(a a CONSUMER a CHECK(1)) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineCH(ENABLE_(VALIDATE|NOVALIDATE))?/%empty	CREATE TABLE a(a a CHECK(1)) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineCH(ENABLE_(VALIDATE|NOVALIDATE))?/ENABLE_(VALIDATE|NOVALIDATE)	CREATE TABLE a(a a CHECK(1) ENABLE VALIDATE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineCH(ENABLE_(VALIDATE|NOVALIDATE))?/ENABLE_(VALIDATE|NOVALIDATE)!drop-1	CREATE TABLE a(a a CHECK(1) VALIDATE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineCH(ENABLE_(VALIDATE|NOVALIDATE))?/ENABLE_(VALIDATE|NOVALIDATE)!drop-2	CREATE TABLE a(a a CHECK(1) ENABLE) ALTER TABLE a ADD COLUMN a INT UNIQUE
+reject	undocumented	docs	createTableConstraint_inlineFK(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!insert	CREATE TABLE a(a a REFERENCES a INITIALLY DEFERRED zzz)
+reject	undocumented	docs	createTableConstraint_inlineFK(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!swap	CREATE TABLE a(a a REFERENCES a INITIALLY_SUSPENDED DEFERRED)
+reject	accept	docs	createTableConstraint_inlineFK(DEFERRED|IMMEDIATE)/DEFERRED	CREATE TABLE a(a a REFERENCES a INITIALLY DEFERRED)
+reject	undocumented	docs	createTableConstraint_inlineFK(DEFERRED|IMMEDIATE)/DEFERRED!swap	CREATE TABLE a(a a REFERENCES a INITIALLY DEFINITION)
+reject	accept	docs	createTableConstraint_inlineFK(DEFERRED|IMMEDIATE)/IMMEDIATE	CREATE TABLE a(a a REFERENCES a INITIALLY IMMEDIATE)
+reject	undocumented	docs	createTableConstraint_inlineFK(DEFERRED|IMMEDIATE)/IMMEDIATE!insert	CREATE TABLE a(a a REFERENCES a INITIALLY IMMEDIATE zzz)
+reject	undocumented	docs	createTableConstraint_inlineFK(DEFERRED|IMMEDIATE)/IMMEDIATE!swap	CREATE TABLE a(a a REFERENCES a INITIALLY IMMEDIATELY)
+reject	accept	docs	createTableConstraint_inlineFK((ENABLE|DISABLE))?/%empty	CREATE TABLE a(a a REFERENCES a)
+reject	accept	docs	createTableConstraint_inlineFK((ENABLE|DISABLE))?/(ENABLE|DISABLE)	CREATE TABLE a(a a REFERENCES a ENABLE)
+reject	undocumented	docs	createTableConstraint_inlineFK((ENABLE|DISABLE))?/(ENABLE|DISABLE)!insert	CREATE TABLE a(a a REFERENCES a ENABLE zzz)
+reject	undocumented	docs	createTableConstraint_inlineFK((ENABLE|DISABLE))?/(ENABLE|DISABLE)!swap	CREATE TABLE a(a a REFERENCES a ENABLED)
+reject	accept	docs	createTableConstraint_inlineFK(ENABLE|DISABLE)/ENABLE	CREATE TABLE a(a a REFERENCES a ENABLE)
+reject	accept	docs	createTableConstraint_inlineFK(ENABLE|DISABLE)/DISABLE	CREATE TABLE a(a a REFERENCES a DISABLE)
+reject	undocumented	docs	createTableConstraint_inlineFK(ENABLE|DISABLE)/DISABLE!insert	CREATE TABLE a(a a REFERENCES a DISABLE zzz)
+reject	undocumented	docs	createTableConstraint_inlineFK(ENABLE|DISABLE)/DISABLE!swap	CREATE TABLE a(a a REFERENCES a DISABLED)
+reject	accept	docs	createTableConstraint_inlineFK((VALIDATE|NOVALIDATE))?/%empty	CREATE TABLE a(a a REFERENCES a)
+reject	accept	docs	createTableConstraint_inlineFK((VALIDATE|NOVALIDATE))?/(VALIDATE|NOVALIDATE)	CREATE TABLE a(a a REFERENCES a VALIDATE)
+reject	undocumented	docs	createTableConstraint_inlineFK((VALIDATE|NOVALIDATE))?/(VALIDATE|NOVALIDATE)!insert	CREATE TABLE a(a a REFERENCES a VALIDATE zzz)
+reject	undocumented	docs	createTableConstraint_inlineFK((VALIDATE|NOVALIDATE))?/(VALIDATE|NOVALIDATE)!swap	CREATE TABLE a(a a REFERENCES a VALIDATION_MODE)
+reject	accept	docs	createTableConstraint_inlineFK(VALIDATE|NOVALIDATE)/VALIDATE	CREATE TABLE a(a a REFERENCES a VALIDATE)
+reject	accept	docs	createTableConstraint_inlineFK(VALIDATE|NOVALIDATE)/NOVALIDATE	CREATE TABLE a(a a REFERENCES a NOVALIDATE)
+reject	undocumented	docs	createTableConstraint_inlineFK(VALIDATE|NOVALIDATE)/NOVALIDATE!insert	CREATE TABLE a(a a REFERENCES a NOVALIDATE zzz)
+reject	undocumented	docs	createTableConstraint_inlineFK(VALIDATE|NOVALIDATE)/NOVALIDATE!swap	CREATE TABLE a(a a REFERENCES a NO_OVERLAP)
+reject	accept	docs	createTableConstraint_inlineFK((RELY|NORELY))?/%empty	CREATE TABLE a(a a REFERENCES a)
+reject	accept	docs	createTableConstraint_inlineFK((RELY|NORELY))?/(RELY|NORELY)	CREATE TABLE a(a a REFERENCES a RELY)
+reject	undocumented	docs	createTableConstraint_inlineFK((RELY|NORELY))?/(RELY|NORELY)!insert	CREATE TABLE a(a a REFERENCES a RELY zzz)
+reject	undocumented	docs	createTableConstraint_inlineFK((RELY|NORELY))?/(RELY|NORELY)!swap	CREATE TABLE a(a a REFERENCES a REMOVE)
+reject	accept	docs	createTableConstraint_inlineFK(RELY|NORELY)/RELY	CREATE TABLE a(a a REFERENCES a RELY)
+reject	accept	docs	createTableConstraint_inlineFK(RELY|NORELY)/NORELY	CREATE TABLE a(a a REFERENCES a NORELY)
+reject	undocumented	docs	createTableConstraint_inlineFK(RELY|NORELY)/NORELY!insert	CREATE TABLE a(a a REFERENCES a NORELY zzz)
+reject	undocumented	docs	createTableConstraint_inlineFK(RELY|NORELY)/NORELY!swap	CREATE TABLE a(a a REFERENCES a NOT)
+reject	accept	docs	createTableConstraint_inlineCH/(CONSTRAINT_ID)?_CHECK_(_EXPR_)_(ENABLE_(VALIDATE|NOVALIDATE))?	CREATE TABLE a(a a CHECK(1))
+reject	accept	docs	createTableConstraint_inlineCH(CONSTRAINT_ID)?/%empty	CREATE TABLE a(a a CHECK(1))
+reject	undocumented	docs	createTableConstraint_inlineCH(CONSTRAINT_ID)?/%empty!insert	CREATE TABLE a(a a zzz CHECK(1))
+reject	accept	docs	createTableConstraint_inlineCH(CONSTRAINT_ID)?/CONSTRAINT_ID	CREATE TABLE a(a a CONSTRAINT a CHECK(1))
+reject	undocumented	docs	createTableConstraint_inlineCH(CONSTRAINT_ID)?/CONSTRAINT_ID!drop-1	CREATE TABLE a(a a a CHECK(1))
+reject	undocumented	docs	createTableConstraint_inlineCH(CONSTRAINT_ID)?/CONSTRAINT_ID!drop-2	CREATE TABLE a(a a CONSTRAINT CHECK(1))
+reject	undocumented	docs	createTableConstraint_inlineCH(CONSTRAINT_ID)?/CONSTRAINT_ID!insert	CREATE TABLE a(a a CONSTRAINT a zzz CHECK(1))
+reject	undocumented	docs	createTableConstraint_inlineCH(CONSTRAINT_ID)?/CONSTRAINT_ID!swap	CREATE TABLE a(a a CONSUMER a CHECK(1))
+reject	accept	docs	createTableConstraint_inlineCH(ENABLE_(VALIDATE|NOVALIDATE))?/%empty	CREATE TABLE a(a a CHECK(1))
+reject	accept	docs	createTableConstraint_inlineCH(ENABLE_(VALIDATE|NOVALIDATE))?/ENABLE_(VALIDATE|NOVALIDATE)	CREATE TABLE a(a a CHECK(1) ENABLE VALIDATE)
+reject	undocumented	docs	createTableConstraint_inlineCH(ENABLE_(VALIDATE|NOVALIDATE))?/ENABLE_(VALIDATE|NOVALIDATE)!drop-1	CREATE TABLE a(a a CHECK(1) VALIDATE)
+reject	undocumented	docs	createTableConstraint_inlineCH(ENABLE_(VALIDATE|NOVALIDATE))?/ENABLE_(VALIDATE|NOVALIDATE)!drop-2	CREATE TABLE a(a a CHECK(1) ENABLE)
 reject	undocumented	docs	createTableConstraint_inlineCH(ENABLE_(VALIDATE|NOVALIDATE))?/ENABLE_(VALIDATE|NOVALIDATE)!truncate	CREATE TABLE a(a a CHECK(1) ENABLE
-reject	undocumented	docs	createTableConstraint_inlineCH(ENABLE_(VALIDATE|NOVALIDATE))?/ENABLE_(VALIDATE|NOVALIDATE)!insert	CREATE TABLE a(a a CHECK(1) ENABLE VALIDATE zzz) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineCH(ENABLE_(VALIDATE|NOVALIDATE))?/ENABLE_(VALIDATE|NOVALIDATE)!swap	CREATE TABLE a(a a CHECK(1) ENABLED VALIDATE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineCH(VALIDATE|NOVALIDATE)/VALIDATE	CREATE TABLE a(a a CHECK(1) ENABLE VALIDATE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineCH(VALIDATE|NOVALIDATE)/VALIDATE!swap	CREATE TABLE a(a a CHECK(1) ENABLE VALIDATION_MODE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	accept	docs	createTableConstraint_inlineCH(VALIDATE|NOVALIDATE)/NOVALIDATE	CREATE TABLE a(a a CHECK(1) ENABLE NOVALIDATE) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineCH(VALIDATE|NOVALIDATE)/NOVALIDATE!insert	CREATE TABLE a(a a CHECK(1) ENABLE NOVALIDATE zzz) ALTER TABLE a ADD COLUMN a INT UNIQUE
-reject	undocumented	docs	createTableConstraint_inlineCH(VALIDATE|NOVALIDATE)/NOVALIDATE!swap	CREATE TABLE a(a a CHECK(1) ENABLE NO_OVERLAP) ALTER TABLE a ADD COLUMN a INT UNIQUE
+reject	undocumented	docs	createTableConstraint_inlineCH(ENABLE_(VALIDATE|NOVALIDATE))?/ENABLE_(VALIDATE|NOVALIDATE)!insert	CREATE TABLE a(a a CHECK(1) ENABLE VALIDATE zzz)
+reject	undocumented	docs	createTableConstraint_inlineCH(ENABLE_(VALIDATE|NOVALIDATE))?/ENABLE_(VALIDATE|NOVALIDATE)!swap	CREATE TABLE a(a a CHECK(1) ENABLED VALIDATE)
+reject	accept	docs	createTableConstraint_inlineCH(VALIDATE|NOVALIDATE)/VALIDATE	CREATE TABLE a(a a CHECK(1) ENABLE VALIDATE)
+reject	undocumented	docs	createTableConstraint_inlineCH(VALIDATE|NOVALIDATE)/VALIDATE!swap	CREATE TABLE a(a a CHECK(1) ENABLE VALIDATION_MODE)
+reject	accept	docs	createTableConstraint_inlineCH(VALIDATE|NOVALIDATE)/NOVALIDATE	CREATE TABLE a(a a CHECK(1) ENABLE NOVALIDATE)
+reject	undocumented	docs	createTableConstraint_inlineCH(VALIDATE|NOVALIDATE)/NOVALIDATE!insert	CREATE TABLE a(a a CHECK(1) ENABLE NOVALIDATE zzz)
+reject	undocumented	docs	createTableConstraint_inlineCH(VALIDATE|NOVALIDATE)/NOVALIDATE!swap	CREATE TABLE a(a a CHECK(1) ENABLE NO_OVERLAP)
 accept	accept	docs	createTag/CREATE_(OR_REPLACE)?_TAG_(IF_NOT_EXISTS)?_ID_(ALLOWED_V~ed2c0cce	CREATE TAG a
 accept	accept	docs	createTag(OR_REPLACE)?/%empty	CREATE TAG a
 reject	undocumented	docs	createTag(OR_REPLACE)?/%empty!insert	CREATE zzz TAG a

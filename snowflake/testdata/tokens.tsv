@@ -16,6 +16,7 @@ STRING	's'	single-quoted string constant; a $$dollar-quoted$$ one is a string to
 NUMBER	1	numeric constant: [+-][digits][.digits][e[+-]digits]
 EXPR	1	an expression; the command pages give no expression grammar, so a constant
 QUERY	SELECT 1	a query; the command pages give no query grammar beyond SELECT's list
+COPY_STATEMENT	COPY INTO a FROM @a	<copy_statement>: a COPY INTO <table> statement, as CREATE PIPE's body is
 DATA_TYPE	INT	a data type; INT is a synonym of NUMBER(38,0)
 STAGE	@a	@<stage>: a named stage
 POSITION	$1	$<col_position>: a column of a staged file by its position

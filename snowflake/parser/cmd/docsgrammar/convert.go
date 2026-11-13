@@ -22,12 +22,13 @@ const (
 	tObjectType  = "OBJECT_TYPE"
 	tObjectTypes = "OBJECT_TYPES"
 	tFile        = "FILE"
+	tCopy        = "COPY_STATEMENT"
 )
 
 var (
 	exprName   = regexp.MustCompile(`(^|_)(expr|exprs|expression|condition|predicate)(_?[0-9]+|_|$)`)
 	numberName = regexp.MustCompile(`(^|_)(num|number|integer|int|n|rows|seconds|minutes|hours|days|bytes|count|percent|ptus|buckets|interval|ms)(_?[0-9]+|_|$)|^(initial|start|min|max|step)_value$|^increment$`)
-	queryName  = regexp.MustCompile(`^(query|subquery|select_statement|statement|dml_statement|copy_statement)$`)
+	queryName  = regexp.MustCompile(`^(query|subquery|select_statement|statement|dml_statement)$`)
 	typeName   = regexp.MustCompile(`(^|_)(data_type|col_type|arg_type|structured_type)(_?[0-9]+|_|$)|^type$|^arg_data_type`)
 	stringName = regexp.MustCompile(`(^|_|-)(string|literal)(_?[0-9]+|_|-|$)`)
 )
@@ -42,6 +43,8 @@ func placeholderClass(name string) string {
 		return tObjectType
 	case n == "object_type_plural":
 		return tObjectTypes
+	case n == "copy_statement":
+		return tCopy
 	case queryName.MatchString(n):
 		return tQuery
 	case typeName.MatchString(n):
@@ -83,10 +86,16 @@ type codeLine struct {
 var defHead = regexp.MustCompile(`^\s*([A-Za-z_][A-Za-z0-9_]*)\s*(\([^)]*\))?\s*::=\s*`)
 
 // statementWords returns the words a statement form on a page can start
-// with: its slug's first word, in each spelling Snowflake takes, and WITH.
+// with: its slug's first word, in each spelling Snowflake takes, WITH, and
+// the DDL verbs, which a page about one statement may show another of (the
+// constraint page's CREATE TABLE and ALTER TABLE). None of them starts a
+// clause.
 func statementWords(slug string) map[string]bool {
 	first, _, _ := strings.Cut(slug, "-")
 	words := map[string]bool{strings.ToUpper(first): true, "WITH": true}
+	for _, w := range []string{"CREATE", "ALTER", "DROP", "UNDROP", "SHOW", "DESC", "DESCRIBE", "GRANT", "REVOKE"} {
+		words[w] = true
+	}
 	for _, same := range [][]string{{"DESC", "DESCRIBE"}, {"LS", "LIST"}, {"RM", "REMOVE"}, {"BEGIN", "START"}} {
 		for _, w := range same {
 			if words[w] {
@@ -176,7 +185,11 @@ func repeatsHead(line string, lines []codeLine) bool {
 // words.
 func startsForm(line string, starts map[string]bool) bool {
 	word := strings.FieldsFunc(line, func(r rune) bool { return !unicode.IsLetter(r) && r != '_' })
-	return len(word) > 0 && starts[word[0]] && strings.HasPrefix(line, word[0])
+	if len(word) == 0 || !starts[word[0]] || !strings.HasPrefix(line, word[0]) {
+		return false
+	}
+	// COMMENT = '...' sets a property; it is not a statement.
+	return !strings.HasPrefix(strings.TrimSpace(line[len(word[0]):]), "=")
 }
 
 func hasCode(lines []codeLine) bool {
@@ -738,11 +751,11 @@ func writeG4(pin string, pages []pageGrammar) string {
 // lists, converted by snowflake/parser/cmd/docsgrammar. Do not edit it:
 // correct a page's text in docs-fixes.tsv and run the converter again.
 //
-// Keywords are literals. ID, STRING, NUMBER, EXPR, QUERY, DATA_TYPE, STAGE, FILE,
-// POSITION, OBJECT_TYPE and OBJECT_TYPES are the values the docs write as
-// <placeholders>; tokens.tsv samples them. A form a page writes with ...
-// for text it leaves out, or with a word it never defines, is not converted
-// and is listed under its page.
+// Keywords are literals. ID, STRING, NUMBER, EXPR, QUERY, COPY_STATEMENT,
+// DATA_TYPE, STAGE, FILE, POSITION, OBJECT_TYPE and OBJECT_TYPES are the
+// values the docs write as <placeholders>; tokens.tsv samples them. A
+// form a page writes with ... for text it leaves out, or with a word it
+// never defines, is not converted and is listed under its page.
 `)
 	fmt.Fprintf(&b, "//\n// pin: %s\n\ngrammar SnowflakeDocs;\n\nstatement\n", pin)
 	first := true
@@ -798,7 +811,7 @@ func writeRule(b *strings.Builder, name string, alts []string) {
 // classes lists the token classes a grammar uses, for the report.
 func classes(g4 string) []string {
 	var out []string
-	for _, c := range []string{tName, tString, tNumber, tExpr, tQuery, tType, tStage, tPosition, tObjectType, tObjectTypes, tFile} {
+	for _, c := range []string{tName, tString, tNumber, tExpr, tQuery, tType, tStage, tPosition, tObjectType, tObjectTypes, tFile, tCopy} {
 		if containsWord(g4, c) {
 			out = append(out, c)
 		}

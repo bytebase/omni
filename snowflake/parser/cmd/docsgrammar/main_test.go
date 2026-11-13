@@ -200,6 +200,19 @@ COPY INTO <t>
 	}
 }
 
+// TestAPageMayShowAnotherStatement pins that a DDL verb at the start of a
+// line starts a form of its own, on a page about another statement, and
+// that a property named like one does not.
+func TestAPageMayShowAnotherStatement(t *testing.T) {
+	pg := convertPage("create-table-constraint", []string{`CREATE TABLE <name> ( <col_name> <col_type> )
+COMMENT = '<string_literal>'
+ALTER TABLE <name> ADD COLUMN <col_name> <col_type>`}, nil)
+	want := []string{"'CREATE' 'TABLE' ID '(' ID DATA_TYPE ')' 'COMMENT' '=' STRING", "'ALTER' 'TABLE' ID 'ADD' 'COLUMN' ID DATA_TYPE"}
+	if strings.Join(pg.forms, "\n") != strings.Join(want, "\n") {
+		t.Errorf("forms:\n%s", strings.Join(pg.forms, "\n"))
+	}
+}
+
 func TestFixesApplyToTheirPage(t *testing.T) {
 	fixes := []*fix{{page: "get", find: "'<p>''", replace: "'<p>'", reason: "a quote too many"}}
 	pg := convertPage("get", []string{"GET <s> [ PATTERN = '<p>'' ]"}, fixes)
@@ -212,7 +225,7 @@ func TestPlaceholderClasses(t *testing.T) {
 	for name, want := range map[string]string{
 		"name": tName, "table_name": tName, "integer": tNumber, "num": tNumber, "rows": tNumber,
 		"expr": tExpr, "boolean_expr": tExpr, "condition": tExpr, "query": tQuery,
-		"col_type": tType, "arg_data_type": tType, "string_literal": tString,
+		"col_type": tType, "arg_data_type": tType, "string_literal": tString, "copy_statement": tCopy,
 		"object_type": tObjectType, "object_type_plural": tObjectTypes, "integration_name": tName,
 	} {
 		if got := placeholderClass(name); got != want {

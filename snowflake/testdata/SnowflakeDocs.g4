@@ -3,11 +3,11 @@
 // lists, converted by snowflake/parser/cmd/docsgrammar. Do not edit it:
 // correct a page's text in docs-fixes.tsv and run the converter again.
 //
-// Keywords are literals. ID, STRING, NUMBER, EXPR, QUERY, DATA_TYPE, STAGE, FILE,
-// POSITION, OBJECT_TYPE and OBJECT_TYPES are the values the docs write as
-// <placeholders>; tokens.tsv samples them. A form a page writes with ...
-// for text it leaves out, or with a word it never defines, is not converted
-// and is listed under its page.
+// Keywords are literals. ID, STRING, NUMBER, EXPR, QUERY, COPY_STATEMENT,
+// DATA_TYPE, STAGE, FILE, POSITION, OBJECT_TYPE and OBJECT_TYPES are the
+// values the docs write as <placeholders>; tokens.tsv samples them. A
+// form a page writes with ... for text it leaves out, or with a word it
+// never defines, is not converted and is listed under its page.
 //
 // pin: default https://docs.snowflake.com/en/sql-reference/sql-all sha256:3e7cc99e0a8fc07c137e129a9f0c5f4438be6088e0fd05d6d7c1a5c0e1797a1f 2026-11-13
 
@@ -3324,7 +3324,7 @@ createPasswordPolicy
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-pipe
 createPipe
-    : 'CREATE' ('OR' 'REPLACE')? 'PIPE' ('IF' 'NOT' 'EXISTS')? ID ('AUTO_INGEST' '=' ('TRUE' | 'FALSE')?)? ('ERROR_INTEGRATION' '=' ID)? ('AWS_SNS_TOPIC' '=' STRING)? ('INTEGRATION' '=' STRING)? ('COMMENT' '=' STRING)? 'AS' QUERY
+    : 'CREATE' ('OR' 'REPLACE')? 'PIPE' ('IF' 'NOT' 'EXISTS')? ID ('AUTO_INGEST' '=' ('TRUE' | 'FALSE')?)? ('ERROR_INTEGRATION' '=' ID)? ('AWS_SNS_TOPIC' '=' STRING)? ('INTEGRATION' '=' STRING)? ('COMMENT' '=' STRING)? 'AS' COPY_STATEMENT
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-postgres-instance
@@ -3637,7 +3637,8 @@ createTable_outoflineConstraint
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-table-constraint
 createTableConstraint
-    : 'CREATE' 'TABLE' ID '(' ID ID ('NOT' 'NULL')? (createTableConstraint_inlineUniquePK | createTableConstraint_inlineFK | createTableConstraint_inlineCH) (',' ID ID ('NOT' 'NULL')? (createTableConstraint_inlineUniquePK | createTableConstraint_inlineFK | createTableConstraint_inlineCH))? (',' (',' ID ID ('NOT' 'NULL')? (createTableConstraint_inlineUniquePK | createTableConstraint_inlineFK | createTableConstraint_inlineCH))?)* ')' 'ALTER' 'TABLE' ID 'ADD' 'COLUMN' ID DATA_TYPE ('NOT' 'NULL')? (createTableConstraint_inlineUniquePK | createTableConstraint_inlineFK | createTableConstraint_inlineCH)
+    : 'CREATE' 'TABLE' ID '(' ID ID ('NOT' 'NULL')? (createTableConstraint_inlineUniquePK | createTableConstraint_inlineFK | createTableConstraint_inlineCH) (',' ID ID ('NOT' 'NULL')? (createTableConstraint_inlineUniquePK | createTableConstraint_inlineFK | createTableConstraint_inlineCH))? (',' (',' ID ID ('NOT' 'NULL')? (createTableConstraint_inlineUniquePK | createTableConstraint_inlineFK | createTableConstraint_inlineCH))?)* ')'
+    | 'ALTER' 'TABLE' ID 'ADD' 'COLUMN' ID DATA_TYPE ('NOT' 'NULL')? (createTableConstraint_inlineUniquePK | createTableConstraint_inlineFK | createTableConstraint_inlineCH)
     ;
 createTableConstraint_inlineUniquePK
     : ('CONSTRAINT' ID)? ('UNIQUE' | 'PRIMARY' 'KEY') ('NOT'? 'ENFORCED')? ('NOT'? 'DEFERRABLE')? ('INITIALLY' ('DEFERRED' | 'IMMEDIATE'))? (('ENABLE' | 'DISABLE'))? (('VALIDATE' | 'NOVALIDATE'))? (('RELY' | 'NORELY'))?
