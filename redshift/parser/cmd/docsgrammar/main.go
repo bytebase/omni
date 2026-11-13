@@ -148,22 +148,23 @@ func notation(block string) string {
 // docs reads as a choice of them: "where grant_or_revoke_clause is one of:"
 // lists whole GRANT and REVOKE forms, a blank line between each two.
 func variants(text string) string {
-	lines := strings.Split(text, "\n")
 	var out []string
-	inDef, blank := false, false
-	for _, l := range lines {
+	// In a definition, whether a line of its code was seen, and a blank
+	// line after one.
+	inDef, code, blank := false, false, false
+	for _, l := range strings.Split(text, "\n") {
 		t := strings.TrimSpace(l)
 		switch {
 		case strings.HasSuffix(t, "::="):
-			inDef, blank = true, false
+			inDef, code, blank = true, false, false
 		case t == "":
-			blank = blank || inDef && len(out) > 0 && !strings.HasSuffix(strings.TrimSpace(out[len(out)-1]), "::=")
-			out = append(out, l)
-			continue
-		case blank && inDef:
-			out = append(out, "--")
+			blank = code
+		default:
+			if blank {
+				out = append(out, "--")
+			}
+			blank, code = false, inDef
 		}
-		blank = false
 		out = append(out, l)
 	}
 	return strings.Join(out, "\n")
