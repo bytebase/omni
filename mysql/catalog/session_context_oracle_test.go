@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/bytebase/omni/mysql/internal/testcontainer"
 	"strings"
 	"testing"
 
@@ -58,11 +59,8 @@ func TestOracle_RoutineRecreatePreservesSQLMode(t *testing.T) {
 		n := NormalizerFor(version)
 		t.Run(o.name, func(t *testing.T) {
 			ctx := context.Background()
-			conn, err := o.db.Conn(ctx)
-			if err != nil {
-				t.Fatalf("grab conn: %v", err)
-			}
-			defer func() { _ = conn.Close() }()
+			// A connection of its own: the test's other one stays free for the helpers.
+			conn := testcontainer.OpenRoot(t, testcontainer.Options{MultiStatements: true})
 
 			db := scOracleDB + "_rtn"
 			// Deploy session runs under a DIFFERENT (default-ish) mode so a bare recreate would
@@ -124,11 +122,8 @@ func TestOracle_EventAlterPreservesSQLMode(t *testing.T) {
 		n := NormalizerFor(version)
 		t.Run(o.name, func(t *testing.T) {
 			ctx := context.Background()
-			conn, err := o.db.Conn(ctx)
-			if err != nil {
-				t.Fatalf("grab conn: %v", err)
-			}
-			defer func() { _ = conn.Close() }()
+			// A connection of its own: the test's other one stays free for the helpers.
+			conn := testcontainer.OpenRoot(t, testcontainer.Options{MultiStatements: true})
 
 			db := scOracleDB + "_evt"
 			deployMode := "STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION"
@@ -213,7 +208,7 @@ func LoadSQLWithVersionHelper(sqlText string, version Version) (*Catalog, error)
 }
 
 // routineSQLMode reads information_schema.ROUTINES.SQL_MODE for a routine.
-func routineSQLMode(t *testing.T, conn *sql.Conn, ctx context.Context, db, name string) string {
+func routineSQLMode(t *testing.T, conn *sql.DB, ctx context.Context, db, name string) string {
 	t.Helper()
 	var mode sql.NullString
 	row := conn.QueryRowContext(ctx,
@@ -225,7 +220,7 @@ func routineSQLMode(t *testing.T, conn *sql.Conn, ctx context.Context, db, name 
 }
 
 // eventSQLModeTZ reads information_schema.EVENTS.SQL_MODE and TIME_ZONE for an event.
-func eventSQLModeTZ(t *testing.T, conn *sql.Conn, ctx context.Context, db, name string) (string, string) {
+func eventSQLModeTZ(t *testing.T, conn *sql.DB, ctx context.Context, db, name string) (string, string) {
 	t.Helper()
 	var mode, tz sql.NullString
 	row := conn.QueryRowContext(ctx,

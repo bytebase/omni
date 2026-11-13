@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/bytebase/omni/mysql/internal/testcontainer"
 	"strings"
 	"testing"
 
@@ -345,13 +346,11 @@ func viewIdempotenceProbes() []viewSchemaProbe {
 // applyViewSchema drops + recreates dbName with the box's server charset and applies every setup
 // statement on a single dedicated connection (database/sql pools connections, so USE must share
 // the connection with the following statements). Returns the connection (caller closes) or skips.
-func (o *oracleConn) applyViewSchema(t *testing.T, dbName string, setup []string) (*sql.Conn, bool) {
+func (o *oracleConn) applyViewSchema(t *testing.T, dbName string, setup []string) (*sql.DB, bool) {
 	t.Helper()
 	ctx := context.Background()
-	conn, err := o.db.Conn(ctx)
-	if err != nil {
-		t.Fatalf("[%s] grab conn: %v", o.name, err)
-	}
+	// A connection of its own: the test's other one stays free for the helpers.
+	conn := testcontainer.OpenRoot(t, testcontainer.Options{MultiStatements: true})
 	stmts := append([]string{
 		"DROP DATABASE IF EXISTS " + dbName,
 		fmt.Sprintf("CREATE DATABASE %s DEFAULT CHARSET=%s", dbName, serverCharsetFor(o.version)),
@@ -359,7 +358,7 @@ func (o *oracleConn) applyViewSchema(t *testing.T, dbName string, setup []string
 	}, setup...)
 	for _, s := range stmts {
 		if _, err := conn.ExecContext(ctx, s); err != nil {
-			t.Logf("[%s] view schema setup failed (may be expected): %q: %v", o.name, s, err)
+			t.Logf("[%s] view schema setup failed : %q: %v", o.name, s, err)
 			_ = conn.Close()
 			return nil, false
 		}
@@ -374,7 +373,7 @@ func (o *oracleConn) applyViewSchema(t *testing.T, dbName string, setup []string
 // to `logicalDB`, so both the `from` and `to` catalogs (and the apply database) share one database
 // name and the generated DDL qualifies objects under it. Views are dumped in the given order
 // (dependency order); LoadSDL re-sorts anyway.
-func (o *oracleConn) dumpViewSchemaSDL(t *testing.T, conn *sql.Conn, physDB, logicalDB string, tables, views []string) (string, bool) {
+func (o *oracleConn) dumpViewSchemaSDL(t *testing.T, conn *sql.DB, physDB, logicalDB string, tables, views []string) (string, bool) {
 	t.Helper()
 	ctx := context.Background()
 	var b strings.Builder
@@ -442,13 +441,13 @@ func TestOracle_ViewIdempotence(t *testing.T) {
 				dbName := "videm_" + strings.ReplaceAll(probe.id, "-", "_")
 				conn, ok := o.applyViewSchema(t, dbName, probe.setup)
 				if !ok {
-					t.Skipf("[%s] could not apply schema for %s", o.name, probe.id)
+					t.Fatalf("[%s] could not apply schema for %s", o.name, probe.id)
 				}
 				defer func() { _ = conn.Close() }()
 
 				storedSDL, ok := o.dumpViewSchemaSDL(t, conn, dbName, dbName, probe.tables, probe.views)
 				if !ok {
-					t.Skipf("[%s] could not dump readback for %s", o.name, probe.id)
+					t.Fatalf("[%s] could not dump readback for %s", o.name, probe.id)
 				}
 				userSDL := userFormSDL(o, dbName, probe.setup)
 
@@ -673,13 +672,13 @@ func assertViewApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p viewMi
 	// Build the `to` catalog from the engine's readback of the `to` schema, re-homed to `vt`.
 	toCat := loadSchemaFromEngine(t, o, "vgen_to_"+slug, applyDB, p.to, p.tables, p.views)
 	if toCat == nil {
-		t.Skipf("[%s] could not obtain `to` readback for %s", o.name, p.id)
+		t.Fatalf("[%s] could not obtain `to` readback for %s", o.name, p.id)
 	}
 	// Build the `from` catalog likewise (its objects determine the readback set).
 	fromTables, fromViews := schemaObjectNames(p.from)
 	fromCat := loadSchemaFromEngine(t, o, "vgen_from_"+slug, applyDB, p.from, fromTables, fromViews)
 	if fromCat == nil {
-		t.Skipf("[%s] could not obtain `from` readback for %s", o.name, p.id)
+		t.Fatalf("[%s] could not obtain `from` readback for %s", o.name, p.id)
 	}
 
 	diff := DiffWithNormalizer(fromCat, toCat, n)
@@ -688,11 +687,8 @@ func assertViewApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p viewMi
 	// Build a real database in state `from` (wrapped in `vt`, the database both catalogs load
 	// under via dumpViewSchemaSDL/userFormSDL → matches the plan's `vt`.`obj` qualification).
 	ctx := context.Background()
-	conn, err := o.db.Conn(ctx)
-	if err != nil {
-		t.Fatalf("[%s] grab conn: %v", o.name, err)
-	}
-	defer func() { _ = conn.Close() }()
+	// A connection of its own: the test's other one stays free for the helpers.
+	conn := testcontainer.OpenRoot(t, testcontainer.Options{MultiStatements: true})
 
 	setup := []string{
 		"DROP DATABASE IF EXISTS " + applyDB,
@@ -702,7 +698,7 @@ func assertViewApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p viewMi
 	setup = append(setup, p.from...)
 	for _, s := range setup {
 		if _, err := conn.ExecContext(ctx, s); err != nil {
-			t.Skipf("[%s] could not set up `from` state for %s: %q: %v", o.name, p.id, s, err)
+			t.Fatalf("[%s] could not set up `from` state for %s: %q: %v", o.name, p.id, s, err)
 		}
 	}
 
@@ -833,7 +829,7 @@ func TestOracle_SysMetricsViewRoundTrip(t *testing.T) {
 	var name, ddl, csClient, coll string
 	row := o.db.QueryRowContext(ctx, "SHOW CREATE VIEW sys.metrics")
 	if err := row.Scan(&name, &ddl, &csClient, &coll); err != nil {
-		t.Skipf("[%s] SHOW CREATE VIEW sys.metrics failed (sys schema not installed?): %v", o.name, err)
+		t.Fatalf("[%s] SHOW CREATE VIEW sys.metrics failed (sys schema not installed?): %v", o.name, err)
 	}
 
 	readbackSDL := "CREATE DATABASE sys;\nUSE sys;\n" + ddl + ";\n"

@@ -26,42 +26,64 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	if err := checkKeyOptions(stmt.Constraints); err != nil {
 		return err
 	}
+	// OceanBase reads the column groups before the name, so a group it refuses
+	// beats 1050 and IF NOT EXISTS (TestOracle_OceanBaseColumnGroups).
+	var groups ColumnGroups
+	if stmt.ColumnGroup != "" {
+		if groups, err = readColumnGroups(stmt.ColumnGroup); err != nil {
+			return err
+		}
+	}
 
 	tableName := stmt.Table.Name
 	key := toLower(tableName)
 
-	// Check for duplicate table or view with the same name.
-	if db.Tables[key] != nil {
-		if stmt.IfNotExists {
-			return nil
+	// The name is checked last: OceanBase reads the whole definition first, so
+	// CREATE TABLE t (x INT, x INT) is 1060 when t exists, even with IF NOT EXISTS
+	// (TestOracle_OceanBaseNameOrder). nameTaken answers for it; done is set when
+	// IF NOT EXISTS makes the statement do nothing.
+	nameTaken := func() (done bool, err error) {
+		if db.Tables[key] != nil {
+			if stmt.IfNotExists {
+				return true, nil
+			}
+			return false, errDupTable(tableName)
 		}
-		return errDupTable(tableName)
+		if db.Views[key] != nil {
+			return false, errDupTable(tableName)
+		}
+		return false, nil
 	}
-	if db.Views[key] != nil {
-		return errDupTable(tableName)
-	}
+
+	// A constraint name that collides with another table's is the engine's answer
+	// only once this table's own name is free: CREATE TABLE IF NOT EXISTS a, with a
+	// there already, does nothing whatever its constraints are named, while a name
+	// the definition itself repeats is refused before that (TestOracle_OceanBaseNameOrder).
+	var laterCheckNames, laterForeignKeyNames []string
 
 	// CREATE TABLE ... LIKE
 	if stmt.Like != nil {
-		return c.createTableLike(db, tableName, key, stmt)
+		return c.createTableLike(db, tableName, key, stmt, nameTaken)
 	}
 
 	// CREATE TABLE ... AS SELECT (CTAS) — not supported yet, skip silently
 	if stmt.Select != nil && len(stmt.Columns) == 0 {
-		return nil
+		_, err := nameTaken()
+		return err
 	}
 
 	tbl := &Table{
-		Name:        tableName,
-		Database:    db,
-		Columns:     make([]*Column, 0, len(stmt.Columns)),
-		colByName:   make(map[string]int),
-		Indexes:     make([]*Index, 0),
-		Constraints: make([]*Constraint, 0),
-		Charset:     db.Charset,
-		Collation:   db.Collation,
-		Engine:      "",
-		Temporary:   stmt.Temporary,
+		Name:         tableName,
+		Database:     db,
+		Columns:      make([]*Column, 0, len(stmt.Columns)),
+		colByName:    make(map[string]int),
+		Indexes:      make([]*Index, 0),
+		Constraints:  make([]*Constraint, 0),
+		Charset:      db.Charset,
+		Collation:    db.Collation,
+		Engine:       "",
+		Temporary:    stmt.Temporary,
+		ColumnGroups: groups,
 	}
 
 	// Apply table options.
@@ -290,9 +312,10 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 						return checkConstraintNameExists(db, tbl, name)
 					})
 				}
-				if checkConstraintNameExists(db, tbl, conName) {
+				if constraintNameExistsInTable(tbl, ConCheck, conName) {
 					return errCheckConstraintDupName(conName)
 				}
+				laterCheckNames = append(laterCheckNames, conName)
 				if err := validateColumnCheckReferences(colDef.Name, conName, cc.Expr); err != nil {
 					return err
 				}
@@ -490,9 +513,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			if constraintNameExistsInTable(tbl, ConForeignKey, conName) {
 				return errCannotAddForeign()
 			}
-			if foreignKeyConstraintNameExists(db, nil, conName) {
-				return errFKDupName(tableName)
-			}
+			laterForeignKeyNames = append(laterForeignKeyNames, conName)
 			refDB := ""
 			refTable := ""
 			if con.RefTable != nil {
@@ -524,9 +545,10 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			if err := checkTableCheckExpr(tbl, conName, con.Expr); err != nil {
 				return err
 			}
-			if checkConstraintNameExists(db, tbl, conName) {
+			if constraintNameExistsInTable(tbl, ConCheck, conName) {
 				return errCheckConstraintDupName(conName)
 			}
+			laterCheckNames = append(laterCheckNames, conName)
 			if err := validateCheckExpr(conName, con.Expr); err != nil {
 				return err
 			}
@@ -668,6 +690,21 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	// columns are present in the table.
 	c.analyzeTableExpressions(tbl, stmt)
 
+	if done, err := nameTaken(); done || err != nil {
+		return err
+	}
+	// The table's own name is free, so a constraint name another table holds is
+	// now the answer. The pending table is not in db yet, so it matches none.
+	for _, name := range laterCheckNames {
+		if checkConstraintNameExists(db, nil, name) {
+			return errCheckConstraintDupName(name)
+		}
+	}
+	for _, name := range laterForeignKeyNames {
+		if foreignKeyConstraintNameExists(db, nil, name) {
+			return errFKDupName(tableName)
+		}
+	}
 	db.Tables[key] = tbl
 	return nil
 }
@@ -755,6 +792,8 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 	pi := &PartitionInfo{
 		Linear:     pc.Linear,
 		NumParts:   pc.NumParts,
+		SplitSize:  pc.SplitSize,
+		AutoSize:   pc.AutoSize,
 		keyColumns: partitionKeyColumns(tbl, pc),
 	}
 	if pi.NumParts == 0 && len(pc.Partitions) == 0 && (pc.Type == nodes.PartitionHash || pc.Type == nodes.PartitionKey) {
@@ -1317,7 +1356,9 @@ func validatePartitionClause(tbl *Table, pc *nodes.PartitionClause) error {
 			}
 		}
 	}
-	if (pc.Type == nodes.PartitionRange || pc.Type == nodes.PartitionList) && len(pc.Partitions) == 0 {
+	// Automatic partitioning (PARTITION SIZE ... PARTITIONS AUTO) lists no
+	// partitions: the engine makes them as the table grows.
+	if (pc.Type == nodes.PartitionRange || pc.Type == nodes.PartitionList) && len(pc.Partitions) == 0 && pc.AutoSize == "" {
 		return &Error{Code: 1492, SQLState: "HY000", Message: "Partitions must be defined for RANGE/LIST partitioning"}
 	}
 	if pc.Type == nodes.PartitionRange {
@@ -2310,9 +2351,16 @@ func formatColumnType(dt *nodes.DataType) string {
 		return "bigint(20) unsigned"
 	}
 
-	// OceanBase writes the vector type in upper case, the one type it does: `v` VECTOR(3).
-	if name == "vector" {
+	// OceanBase writes the vector type in upper case: `v` VECTOR(3). Its collection
+	// types too, with their elements, `a` ARRAY(TINYINT) and `a` MAP(TINYINT,TINYINT),
+	// and SPARSEVECTOR, while roaringbitmap stays in lower case (simulate.tsv's tape).
+	switch name {
+	case "vector":
 		return fmt.Sprintf("VECTOR(%d)", dt.Length)
+	case "array", "map":
+		return deparse.CollectionType(canonicalCollection(dt))
+	case "sparsevector":
+		return "SPARSEVECTOR"
 	}
 
 	var buf strings.Builder
@@ -2385,6 +2433,25 @@ func normalizedColumnDataType(dt *nodes.DataType) string {
 		return promoteBlobType(dt.Length)
 	}
 	return name
+}
+
+// canonicalCollection returns an ARRAY or MAP type with every element's name in its
+// canonical spelling, NUMERIC as DECIMAL and INTEGER as INT, so two spellings of one
+// type store the same text and Diff sees no change between them.
+func canonicalCollection(dt *nodes.DataType) *nodes.DataType {
+	if dt == nil {
+		return nil
+	}
+	c := *dt
+	switch name := normalizedTypeName(dt.Name); name {
+	case "boolean", "array", "map":
+		// BOOLEAN stays itself for the writer, which prints it as TINYINT.
+	default:
+		c.Name = name
+	}
+	c.ArrayElem = canonicalCollection(dt.ArrayElem)
+	c.MapKey = canonicalCollection(dt.MapKey)
+	return &c
 }
 
 func normalizedTypeName(name string) string {
@@ -2545,16 +2612,24 @@ func escapeEnumValue(s string) string {
 
 // createTableLike implements CREATE TABLE t2 LIKE t1.
 // It copies the structure (columns, indexes, constraints) from the source table.
-func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nodes.CreateTableStmt) error {
+func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nodes.CreateTableStmt, nameTaken func() (bool, error)) error {
 	// Resolve source table.
 	srcDBName := stmt.Like.Schema
 	srcDB, err := c.resolveDatabase(srcDBName)
 	if err != nil {
 		return err
 	}
+	// A table copied onto its own name is 1066, before the source is looked up (1146)
+	// and before the name (1050).
+	if srcDB == db && toLower(stmt.Like.Name) == key {
+		return errNotUniqueTable(tableName)
+	}
 	srcTbl := srcDB.GetTable(stmt.Like.Name)
 	if srcTbl == nil {
 		return errNoSuchTable(srcDB.Name, stmt.Like.Name)
+	}
+	if done, err := nameTaken(); done || err != nil {
+		return err
 	}
 
 	tbl := &Table{
@@ -2583,6 +2658,7 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 		Checksum:         srcTbl.Checksum,
 		DelayKeyWrite:    srcTbl.DelayKeyWrite,
 		Temporary:        stmt.Temporary,
+		ColumnGroups:     srcTbl.ColumnGroups, // OceanBase copies them (TestOracle_OceanBaseColumnGroups)
 	}
 
 	// Copy columns.

@@ -64,9 +64,11 @@ type Suite struct {
 
 // Check holds omni to the suite's compat.tsv. A row passes when omni still
 // gives the verdict its omni cell records: an agreement, or a known gap. A
-// row fails when omni's verdict moved: to the expected one (a gap closed;
-// rerun with -update-compat to commit it), or away from it (a regression),
-// and when it has not been judged.
+// row fails when omni's verdict moved, and when it has not been judged. A
+// row that agreed and no longer does is a regression. Any other move is
+// committed with -update-compat: a gap that closed, and a known gap that is
+// now another one, as when a parser that accepted what the judge rejects
+// comes to reject it somewhere else (reject@<byte>).
 func Check(t *testing.T, s Suite) {
 	t.Helper()
 	check(t, s)
@@ -180,7 +182,7 @@ func check(t testing.TB, s Suite) {
 	}
 
 	var tally tally
-	var unjudged, closed, regressed []string
+	var unjudged, closed, shifted, regressed []string
 	for i := range f.Rows {
 		r := &f.Rows[i]
 		now := s.Omni(r.Statement)
@@ -197,22 +199,23 @@ func check(t testing.TB, s Suite) {
 				changed = true
 			}
 		case now == r.Omni:
-		case now == r.Expected:
-			if *updateCompat {
-				r.Omni = now
-				changed = true
-			} else {
-				closed = append(closed, describe(s.Path, *r, now))
-			}
-		default:
+		case r.Omni == r.Expected:
 			regressed = append(regressed, describe(s.Path, *r, now)+fmt.Sprintf("    the row records omni %s\n", r.Omni))
+		case *updateCompat:
+			r.Omni = now
+			changed = true
+		case now == r.Expected:
+			closed = append(closed, describe(s.Path, *r, now))
+		default:
+			shifted = append(shifted, describe(s.Path, *r, now)+fmt.Sprintf("    the row records omni %s\n", r.Omni))
 		}
 		tally.add(*r, now)
 	}
 	report(t, "not judged yet. Record them:\n  "+record, unjudged)
 	report(t, "the judge's cell is not what its recognizer gives: the grammar changed, or the cell was edited. Record them:\n  "+record, moved)
 	report(t, "a gap closed: omni now says what the judge says. Commit it:\n  "+run+" -update-compat", closed)
-	report(t, "a regression: omni moved away from the verdict its row records", regressed)
+	report(t, "a known gap is now another one. Commit it:\n  "+run+" -update-compat", shifted)
+	report(t, "a regression: omni agreed with the judge and no longer does", regressed)
 	tally.log(t, s.Path, f.Pin)
 
 	if changed {

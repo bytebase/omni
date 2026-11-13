@@ -69,7 +69,7 @@ func assertDiffEmptyAgainstReadback(t *testing.T, o *oracleConn, dbName, userDDL
 	t.Helper()
 	readback, ok := o.applyAndReadback(t, dbName, userDDL, table)
 	if !ok {
-		t.Skipf("[%s] could not obtain readback for %s", o.name, table)
+		t.Fatalf("[%s] could not obtain readback for %s", o.name, table)
 	}
 	sc := serverCharsetFor(o.version)
 	n := NormalizerFor(o.version)
@@ -233,7 +233,7 @@ func TestOracle_DiffMultiTableRoundTrip(t *testing.T) {
 			}
 			for _, s := range stmts {
 				if _, err := o.db.ExecContext(ctx, s); err != nil {
-					t.Skipf("[%s] setup failed (may be expected): %q: %v", o.name, s, err)
+					t.Fatalf("[%s] setup failed : %q: %v", o.name, s, err)
 				}
 			}
 			// Read back both tables and reload as a single schema.
@@ -305,7 +305,7 @@ func TestOracle_DiffNonEmptyCorrect(t *testing.T) {
 				rbFrom, ok1 := o.showCreate(t, "diff_nf", tc.fromDDL, tc.wantTable)
 				rbTo, ok2 := o.showCreate(t, "diff_nt", tc.toDDL, tc.wantTable)
 				if !ok1 || !ok2 {
-					t.Skipf("[%s] could not obtain readbacks", o.name)
+					t.Fatalf("[%s] could not obtain readbacks", o.name)
 				}
 				fromCat, _ := loadOneTable(t, sc, rbFrom, tc.wantTable)
 				toCat, _ := loadOneTable(t, sc, rbTo, tc.wantTable)

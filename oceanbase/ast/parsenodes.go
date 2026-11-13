@@ -189,6 +189,7 @@ type CreateTableStmt struct {
 	Select      *SelectStmt // CREATE TABLE ... AS SELECT
 	Ignore      bool        // IGNORE before SELECT in CTAS
 	Replace     bool        // REPLACE before SELECT in CTAS
+	ColumnGroup string      // WITH COLUMN GROUP (...): the list as written
 }
 
 func (s *CreateTableStmt) nodeTag()  {}
@@ -267,6 +268,10 @@ const (
 	// MODIFY PARTITION name ADD SUBPARTITION (...): Name is the partition and
 	// PartitionDefs holds one PartitionDef whose SubPartitions are added.
 	ATAddSubpartition
+	// {ADD | DROP} COLUMN GROUP (...) [DELAYED]: Name is the list as written,
+	// and Option, where DELAYED stands, names it.
+	ATAddColumnGroup
+	ATDropColumnGroup
 )
 
 // AlterTableCmd represents a single ALTER TABLE operation.
@@ -330,6 +335,7 @@ type CreateIndexStmt struct {
 	Options      []*IndexOption
 	Algorithm    string
 	Lock         string
+	ColumnGroup  string // WITH COLUMN GROUP (...): the list as written
 }
 
 func (s *CreateIndexStmt) nodeTag()  {}
@@ -548,6 +554,7 @@ type Constraint struct {
 	OnUpdate     ReferenceAction
 	Match        string // FULL, PARTIAL, SIMPLE
 	NotEnforced  bool   // for CHECK ... NOT ENFORCED
+	ColumnGroup  string // WITH COLUMN GROUP (...) of a key: the list as written
 }
 
 func (c *Constraint) nodeTag() {}
@@ -596,6 +603,12 @@ type PartitionClause struct {
 	// gives every partition the same subpartitions. MySQL has no template and
 	// repeats them per partition instead.
 	SubPartTemplate []*SubPartitionDef
+	// SplitSize is a RANGE partitioning's SIZE('size'), the tablet size it splits
+	// at (auto_split_tablet_size_option).
+	SplitSize string
+	// AutoSize is auto_partition_option's PARTITION SIZE value, as written, AUTO
+	// included; empty when the table is not partitioned automatically.
+	AutoSize string
 }
 
 func (p *PartitionClause) nodeTag() {}
@@ -651,7 +664,8 @@ type DataType struct {
 	Binary     bool      // standalone BINARY modifier
 	EnumValues []string  // for ENUM and SET types
 	ArrayDim   int       // not used in MySQL, but here for consistency
-	ArrayElem  *DataType // the element of a cast to ARRAY, itself an ARRAY when they nest
+	ArrayElem  *DataType // the element of an ARRAY, itself an ARRAY when they nest; a MAP's value
+	MapKey     *DataType // a MAP's key
 	SRID       int       // Spatial Reference ID for spatial types (valid only when HasSRID)
 	// HasSRID records whether the column declared an explicit SRID clause at all. MySQL
 	// treats `SRID 0` as present-and-distinct from a column with no SRID clause (SHOW

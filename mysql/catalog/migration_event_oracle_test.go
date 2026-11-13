@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/bytebase/omni/mysql/internal/testcontainer"
 	"strings"
 	"testing"
 
@@ -53,7 +54,7 @@ func loadOneEvent(t *testing.T, serverCharset, createSQL, event string) (*Catalo
 // returns the SHOW CREATE EVENT readback (the engine's canonical stored form) as a reloadable
 // CREATE EVENT statement. Returns ok=false (and logs) when the version rejects the input — the
 // caller decides whether that is expected (e.g. 5.7 rejecting a far-future AT value).
-func eventReadback(t *testing.T, conn *sql.Conn, name, sc, dbName, createSQL, event string) (string, bool) {
+func eventReadback(t *testing.T, conn *sql.DB, name, sc, dbName, createSQL, event string) (string, bool) {
 	t.Helper()
 	ctx := context.Background()
 	for _, s := range []string{
@@ -63,7 +64,7 @@ func eventReadback(t *testing.T, conn *sql.Conn, name, sc, dbName, createSQL, ev
 		createSQL,
 	} {
 		if _, err := conn.ExecContext(ctx, s); err != nil {
-			t.Logf("[%s] event readback setup failed (may be expected): %q: %v", name, s, err)
+			t.Logf("[%s] event readback setup failed : %q: %v", name, s, err)
 			return "", false
 		}
 	}
@@ -77,7 +78,7 @@ func eventReadback(t *testing.T, conn *sql.Conn, name, sc, dbName, createSQL, ev
 // scanShowCreateEvent runs SHOW CREATE EVENT and returns the "Create Event" column. The result set
 // has seven columns: Event, sql_mode, time_zone, Create Event, character_set_client,
 // collation_connection, Database Collation.
-func scanShowCreateEvent(conn *sql.Conn, dbName, event string) (string, bool) {
+func scanShowCreateEvent(conn *sql.DB, dbName, event string) (string, bool) {
 	var name, sqlMode, tz, ddl, csClient, collConn, dbColl string
 	row := conn.QueryRowContext(context.Background(), fmt.Sprintf("SHOW CREATE EVENT %s.%s", dbName, event))
 	if err := row.Scan(&name, &sqlMode, &tz, &ddl, &csClient, &collConn, &dbColl); err != nil {
@@ -123,18 +124,15 @@ func TestOracle_EventIdempotence(t *testing.T) {
 		o := connectOracle(t, version)
 		sc := serverCharsetFor(version)
 		n := NormalizerFor(version)
-		ctx := context.Background()
-		conn, err := o.db.Conn(ctx)
-		if err != nil {
-			t.Fatalf("[%s] grab conn: %v", o.name, err)
-		}
+		// A connection of its own: the test's other one stays free for the helpers.
+		conn := testcontainer.OpenRoot(t, testcontainer.Options{MultiStatements: true})
 
 		for _, p := range eventIdempotenceProbes() {
 			t.Run(fmt.Sprintf("%s/%s", o.name, p.id), func(t *testing.T) {
 				slug := strings.ReplaceAll(p.id, "-", "_")
 				rb, ok := eventReadback(t, conn, o.name, sc, "ev_idem_"+slug, p.create, p.event)
 				if !ok {
-					t.Skipf("[%s] could not obtain readback for %s", o.name, p.id)
+					t.Fatalf("[%s] could not obtain readback for %s", o.name, p.id)
 				}
 
 				userCat, _ := loadOneEvent(t, sc, p.create, p.event)
@@ -234,11 +232,8 @@ func assertEventApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, sc, id,
 	slug := strings.ReplaceAll(id, "-", "_")
 	applyDB := "eva_" + slug
 	ctx := context.Background()
-	conn, err := o.db.Conn(ctx)
-	if err != nil {
-		t.Fatalf("[%s] grab conn: %v", o.name, err)
-	}
-	defer func() { _ = conn.Close() }()
+	// A connection of its own: the test's other one stays free for the helpers.
+	conn := testcontainer.OpenRoot(t, testcontainer.Options{MultiStatements: true})
 
 	eventInTo := strings.TrimSpace(toCreate) != ""
 	eventInFrom := strings.TrimSpace(fromCreate) != ""
@@ -247,7 +242,7 @@ func assertEventApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, sc, id,
 	if eventInTo {
 		rb, ok := eventReadback(t, conn, o.name, sc, "evto_"+slug, toCreate, event)
 		if !ok {
-			t.Skipf("[%s] could not obtain `to` readback for %s", o.name, id)
+			t.Fatalf("[%s] could not obtain `to` readback for %s", o.name, id)
 		}
 		toCat, _ = loadOneEvent(t, sc, rb, event)
 	} else {
@@ -256,7 +251,7 @@ func assertEventApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, sc, id,
 	if eventInFrom {
 		rb, ok := eventReadback(t, conn, o.name, sc, "evfrom_"+slug, fromCreate, event)
 		if !ok {
-			t.Skipf("[%s] could not obtain `from` readback for %s", o.name, id)
+			t.Fatalf("[%s] could not obtain `from` readback for %s", o.name, id)
 		}
 		fromCat, _ = loadOneEvent(t, sc, rb, event)
 	} else {
@@ -276,7 +271,7 @@ func assertEventApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, sc, id,
 	}
 	for _, s := range setup {
 		if _, err := conn.ExecContext(ctx, s); err != nil {
-			t.Skipf("[%s] could not set up `from` state for %s: %q: %v", o.name, id, s, err)
+			t.Fatalf("[%s] could not set up `from` state for %s: %q: %v", o.name, id, s, err)
 		}
 	}
 	for _, op := range plan.Ops {

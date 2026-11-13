@@ -3,6 +3,7 @@ package catalog
 import (
 	"context"
 	"fmt"
+	"github.com/bytebase/omni/mysql/internal/testcontainer"
 	"strings"
 	"testing"
 
@@ -150,11 +151,8 @@ func assertFKApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, fc fkMigra
 	plan := GenerateMigrationWithNormalizer(fromCat, toCat, diff, n)
 
 	// Build a real database in state `from` on ONE dedicated connection (USE must stick).
-	conn, err := o.db.Conn(ctx)
-	if err != nil {
-		t.Fatalf("[%s] grab conn: %v", o.name, err)
-	}
-	defer func() { _ = conn.Close() }()
+	// A connection of its own: the test's other one stays free for the helpers.
+	conn := testcontainer.OpenRoot(t, testcontainer.Options{MultiStatements: true})
 
 	setup := []string{
 		"DROP DATABASE IF EXISTS " + logicalDB,
@@ -165,7 +163,7 @@ func assertFKApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, fc fkMigra
 	}
 	for _, s := range setup {
 		if _, err := conn.ExecContext(ctx, s); err != nil {
-			t.Skipf("[%s] could not set up `from` state for %s: %q: %v", o.name, fc.id, s, err)
+			t.Fatalf("[%s] could not set up `from` state for %s: %q: %v", o.name, fc.id, s, err)
 		}
 	}
 
@@ -335,11 +333,8 @@ func assertFKMultiApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, mc fk
 	diff := DiffWithNormalizer(fromCat, toCat, n)
 	plan := GenerateMigrationWithNormalizer(fromCat, toCat, diff, n)
 
-	conn, err := o.db.Conn(ctx)
-	if err != nil {
-		t.Fatalf("[%s] grab conn: %v", o.name, err)
-	}
-	defer func() { _ = conn.Close() }()
+	// A connection of its own: the test's other one stays free for the helpers.
+	conn := testcontainer.OpenRoot(t, testcontainer.Options{MultiStatements: true})
 
 	setup := []string{
 		"DROP DATABASE IF EXISTS " + logicalDB,
@@ -349,7 +344,7 @@ func assertFKMultiApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, mc fk
 	setup = append(setup, splitSemiStatements(mc.fromSQL)...)
 	for _, s := range setup {
 		if _, err := conn.ExecContext(ctx, s); err != nil {
-			t.Skipf("[%s] could not set up `from` for %s: %q: %v", o.name, mc.id, s, err)
+			t.Fatalf("[%s] could not set up `from` for %s: %q: %v", o.name, mc.id, s, err)
 		}
 	}
 	for _, op := range plan.Ops {
@@ -398,7 +393,7 @@ func loadMultiSchema(t *testing.T, o *oracleConn, logicalDB, execDB, sc, schemaS
 	setup = append(setup, splitSemiStatements(schemaSQL)...)
 	for _, s := range setup {
 		if _, err := o.db.ExecContext(ctx, s); err != nil {
-			t.Skipf("[%s] setup failed (may be expected): %q: %v", o.name, s, err)
+			t.Fatalf("[%s] setup failed : %q: %v", o.name, s, err)
 		}
 	}
 	// Discover the base tables in deterministic order.

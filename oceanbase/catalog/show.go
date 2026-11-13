@@ -153,6 +153,11 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 		b.WriteString(showPartitioning(tbl.Partitioning))
 	}
 
+	// OceanBase prints the column groups last, after the partitioning.
+	if !tbl.ColumnGroups.IsEmpty() {
+		b.WriteString(" WITH COLUMN GROUP(" + tbl.ColumnGroups.String() + ")")
+	}
+
 	return b.String()
 }
 
@@ -647,6 +652,11 @@ func escapeComment(s string) string {
 
 // showPartitioning renders the partition clause for SHOW CREATE TABLE.
 // MySQL 8.0 outputs partitioning after table options with specific formatting.
+// quoteSplitSize writes a split size as the string literal SIZE takes.
+func quoteSplitSize(size string) string {
+	return "'" + strings.ReplaceAll(size, "'", "''") + "'"
+}
+
 func showPartitioning(pi *PartitionInfo) string {
 	var b strings.Builder
 
@@ -704,6 +714,16 @@ func showPartitioning(pi *PartitionInfo) string {
 		if pi.UseDefaultSubpartitions && !pi.UseDefaultNumSubpartitions && pi.NumSubParts > 0 {
 			b.WriteString(fmt.Sprintf("\nSUBPARTITIONS %d", pi.NumSubParts))
 		}
+	}
+
+	// A RANGE partitioning's split size, after its subpartitioning and before its
+	// partition list as the parser reads it, and automatic partitioning, which takes
+	// neither (opt_range_partition_info and auto_partition_option).
+	if pi.SplitSize != "" {
+		b.WriteString(" SIZE (" + quoteSplitSize(pi.SplitSize) + ")")
+	}
+	if pi.AutoSize != "" {
+		b.WriteString(" PARTITION SIZE " + pi.AutoSize + " PARTITIONS AUTO")
 	}
 
 	// Partition definitions.

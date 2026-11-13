@@ -85,6 +85,18 @@ func (p *Parser) parseAlterTableStmt(start int) (*nodes.AlterTableStmt, error) {
 				return nil, err
 			}
 			stmt.Commands = append(stmt.Commands, cmd)
+			// {ADD | DROP} COLUMN GROUP is a statement of its own, alter_table_stmt's
+			// alter_column_group_option, and no alter_table_action: it stands with no
+			// other action before or after it (sql_parser_mysql_mode.y,
+			// oceanbase v4.3.5_CE_BP6).
+			if cmd.Type == nodes.ATAddColumnGroup || cmd.Type == nodes.ATDropColumnGroup {
+				if len(stmt.Commands) > 1 {
+					return nil, &ParseError{Message: "syntax error", Position: cmd.Loc.Start}
+				}
+				if p.cur.Type == ',' {
+					return nil, p.syntaxErrorAtCur()
+				}
+			}
 			if cmd.Type == nodes.ATTableOption {
 				more, err := p.parseMoreAlterTableOptions()
 				if err != nil {
@@ -438,7 +450,7 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 	case kwPARTITION:
 		// PARTITION BY ... (repartition)
 		if p.peekNext().Type == kwBY {
-			part, err := p.parsePartitionClause()
+			part, err := p.parsePartitionClause(false)
 			if err != nil {
 				return nil, err
 			}
@@ -502,6 +514,12 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 			p.addTokenCandidate(t)
 		}
 		return nil, &ParseError{Message: "collecting"}
+	}
+
+	// ADD COLUMN GROUP (...) [DELAYED]. GROUP is reserved, so no column is called
+	// it.
+	if p.cur.Type == kwCOLUMN && p.peekNext().Type == kwGROUP {
+		return p.parseAlterColumnGroup(cmd, nodes.ATAddColumnGroup)
 	}
 
 	// ADD PARTITION (partition_definition, ...). MySQL also takes ADD PARTITION
@@ -592,6 +610,28 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 	return cmd, nil
 }
 
+// parseAlterColumnGroup parses {ADD | DROP} COLUMN GROUP ( column_group_list )
+// [DELAYED] at COLUMN.
+//
+// Ref: alter_column_group_option and alter_column_group_delayed_desc in
+// sql_parser_mysql_mode.y (oceanbase v4.3.5_CE_BP6, line 19967).
+func (p *Parser) parseAlterColumnGroup(cmd *nodes.AlterTableCmd, typ nodes.AlterTableCmdType) (*nodes.AlterTableCmd, error) {
+	p.advance() // consume COLUMN
+	p.advance() // consume GROUP
+	list, err := p.parseColumnGroupList()
+	if err != nil {
+		return nil, err
+	}
+	cmd.Type, cmd.Name = typ, list
+	if p.isBareWord("DELAYED") {
+		start := p.pos()
+		p.advance()
+		cmd.Option = &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "DELAYED"}
+	}
+	cmd.Loc.End = p.prev.End
+	return cmd, nil
+}
+
 // parseAlterDrop parses DROP operations.
 //
 // Ref: the DROP arms of alter_list_item in MySQL 8.0.46 sql/sql_yacc.yy:
@@ -601,6 +641,11 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 // CASCADE. No arm takes IF EXISTS, which is MariaDB syntax.
 func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, error) {
 	p.advance() // consume DROP
+
+	// DROP COLUMN GROUP (...) [DELAYED].
+	if p.cur.Type == kwCOLUMN && p.peekNext().Type == kwGROUP {
+		return p.parseAlterColumnGroup(cmd, nodes.ATDropColumnGroup)
+	}
 
 	// Completion: after DROP, offer what can be dropped.
 	p.checkCursor()
