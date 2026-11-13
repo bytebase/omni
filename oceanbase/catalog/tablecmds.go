@@ -1682,10 +1682,8 @@ func validateIndexColumns(tbl *Table, idxCols []*IndexColumn, fulltext, spatial 
 			return errKeyColumnNotExist(ic.Name)
 		}
 		if fulltext {
-			switch toLower(col.DataType) {
-			case "char", "varchar", "tinytext", "text", "mediumtext", "longtext":
-			default:
-				return &Error{Code: 1283, SQLState: "HY000", Message: "A FTS index may only contain a text type column."}
+			if err := fulltextColumnError(col); err != nil {
+				return err
 			}
 		}
 		if spatial {
@@ -1704,6 +1702,19 @@ func validateIndexColumns(tbl *Table, idxCols []*IndexColumn, fulltext, spatial 
 		}
 	}
 	return nil
+}
+
+// fulltextColumnError is OceanBase's 1283 for a FULLTEXT column that is not CHAR,
+// VARCHAR or TEXT: SQLSTATE HY000 and its own text for a binary or BLOB column,
+// 42000 for any other (TestOracle_OceanBaseKeyColumns's tape).
+func fulltextColumnError(col *Column) error {
+	switch toLower(col.DataType) {
+	case "char", "varchar", "tinytext", "text", "mediumtext", "longtext":
+		return nil
+	case "binary", "varbinary", "tinyblob", "blob", "mediumblob", "longblob":
+		return &Error{Code: 1283, SQLState: "HY000", Message: "Column cannot be part of FULLTEXT index"}
+	}
+	return &Error{Code: 1283, SQLState: "42000", Message: "A FTS index may only contain a text type column."}
 }
 
 // missingExprColumn returns the first column a key part's expression reads that the

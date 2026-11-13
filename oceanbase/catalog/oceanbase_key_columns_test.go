@@ -1,6 +1,9 @@
 package catalog
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 // TestOracle_OceanBaseKeyColumns holds validateIndexColumns to the engine: a key's
 // columns exist, in a functional key part too, unless the same ALTER TABLE adds them
@@ -29,4 +32,27 @@ func TestOracle_OceanBaseKeyColumns(t *testing.T) {
 			{"ALTER TABLE a ADD FULLTEXT (v, t)", taken},
 		}},
 	})
+}
+
+// TestFulltextColumnSQLState holds the SQLSTATE of each 1283 to what
+// TestOracle_OceanBaseKeyColumns's tape recorded, which runExecSteps does not compare.
+func TestFulltextColumnSQLState(t *testing.T) {
+	c, err := LoadSQL("CREATE DATABASE d; USE d; CREATE TABLE a (b INT PRIMARY KEY, c INT, vb VARBINARY(10), j JSON)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct{ sql, state string }{
+		{"ALTER TABLE a ADD FULLTEXT (c)", "42000"},
+		{"ALTER TABLE a ADD FULLTEXT (j)", "42000"},
+		{"ALTER TABLE a ADD FULLTEXT (vb)", "HY000"},
+	} {
+		results, err := c.Exec(tc.sql, nil)
+		if err != nil {
+			t.Fatalf("%s: %v", tc.sql, err)
+		}
+		var refusal *Error
+		if !errors.As(results[0].Error, &refusal) || refusal.Code != 1283 || refusal.SQLState != tc.state {
+			t.Errorf("%s: got %v, want 1283 (%s)", tc.sql, results[0].Error, tc.state)
+		}
+	}
 }
