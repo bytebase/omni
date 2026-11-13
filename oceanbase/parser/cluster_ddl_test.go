@@ -81,7 +81,7 @@ func TestClusterDDL(t *testing.T) {
 		"ALTER TENANT t1 VARIABLES access = 1",
 		"CREATE TENANT t2 FROM t1 WITH RESOURCE_POOL p1",                   // a clone takes two options
 		"CREATE TENANT t2 FROM t1 WITH RESOURCE_POOL p1, UNIT u1, UNIT u2", // and no more
-		"DROP RESOURCE GROUP g1", // MySQL's, which OceanBase has not
+		"DROP RESOURCE GROUP g1",                                           // MySQL's, which OceanBase has not
 		"CREATE TABLEGROUP tg1 PARTITION BY RANGE (c) (PARTITION p0 VALUES LESS THAN (10))", // a tablegroup names no column
 		"CREATE SEQUENCE s1 START 1",
 		"ALTER TABLEGROUP tg1",
@@ -89,7 +89,7 @@ func TestClusterDDL(t *testing.T) {
 		"CREATE TABLEGROUP tg1 BINDING TRUE SHARDING 'NONE', MAX_USED_PART_ID 1",  // no comma after a run without one
 		"CREATE TABLEGROUP tg1 BINDING TRUE,",
 		"ALTER TABLEGROUP tg1 DROP PARTITION p0, ACCESS_INFO", // only the first name may be a keyword
-		"DROP RESOURCE GROUP g1",                                           // MySQL's, which OceanBase has not
+		"DROP RESOURCE GROUP g1",                              // MySQL's, which OceanBase has not
 	} {
 		if _, err := Parse(sql); err == nil {
 			t.Errorf("Parse(%q) was accepted", sql)
