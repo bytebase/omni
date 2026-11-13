@@ -1268,6 +1268,9 @@ func checkSubpartitionBoundKinds(subType nodes.PartitionType, subs []*nodes.SubP
 }
 
 func validatePartitionClause(tbl *Table, pc *nodes.PartitionClause) error {
+	if err := checkPartitionNames(tbl, pc); err != nil {
+		return err
+	}
 	if pc.SubPartExpr != nil || len(pc.SubPartColumns) > 0 {
 		for _, pd := range pc.Partitions {
 			if err := checkSubpartitionBoundKinds(pc.SubPartType, pd.SubPartitions); err != nil {
