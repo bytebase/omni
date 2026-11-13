@@ -10,7 +10,6 @@ import "testing"
 // valid, and the modifier combinations the server refuses.
 func TestDescExplainSynonym(t *testing.T) {
 	tc := startTiDB(t)
-	assertTiDBVersion(t, tc)
 	tails := []string{
 		"SELECT 1",
 		"FORMAT = 'brief' SELECT max(a) FROM t",
@@ -32,7 +31,7 @@ func TestDescExplainSynonym(t *testing.T) {
 	for _, tail := range tails {
 		for _, kw := range []string{"EXPLAIN", "DESC", "DESCRIBE"} {
 			sql := kw + " " + tail
-			tidbAccepts, _, err := tc.syntaxVerdict(t, sql, "<desc synonym test>")
+			tidbAccepts, err := tc.prepareSyntax(sql)
 			if err != nil {
 				t.Fatalf("no verdict for %q: %v", sql, err)
 			}

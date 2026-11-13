@@ -8,7 +8,6 @@ import "testing"
 // NULL, which round-trips.
 func TestNullBackslashN(t *testing.T) {
 	tc := startTiDB(t)
-	assertTiDBVersion(t, tc)
 	for _, sql := range []string{
 		`select \N`,
 		`select \N from test`,
@@ -20,7 +19,7 @@ func TestNullBackslashN(t *testing.T) {
 		`select \n`, // lowercase: not NULL
 		`select \M`, // other letter: not NULL
 	} {
-		tidbAccepts, _, err := tc.syntaxVerdict(t, sql, "<backslash-N test>")
+		tidbAccepts, err := tc.prepareSyntax(sql)
 		if err != nil {
 			t.Fatalf("no verdict for %q: %v", sql, err)
 		}

@@ -6,8 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
-	"os"
-	"strconv"
 	"testing"
 
 	gomysql "github.com/go-sql-driver/mysql"
@@ -142,24 +140,26 @@ func sweepExpr(r *rand.Rand, depth int) string {
 	return atoms[r.Intn(len(atoms))]
 }
 
+// operatorSweepN and operatorSweepSeed size and seed the sweep. Its tape holds
+// one request per expression, so another size or seed needs a recording.
+const (
+	operatorSweepN          = 1000
+	operatorSweepSeed int64 = 1
+)
+
 // TestOperatorSweepMatchesEngine asks the engine two questions about random
 // expressions. Does it parse them, compared with Parse? And for those it does, does
 // `(expr) <=> (exprShape(tree))` hold? The second is what a verdict corpus cannot do:
 // the engine evaluates the text as written and the grouping this parser gave it, so a
 // wrong tree shows as a wrong value with no evaluator or expected tree written here.
 //
-// OPERATOR_SWEEP_N and OPERATOR_SWEEP_SEED size and seed it; a failure names the seed.
+// The comparison sends the grouping Parse gave, so a change to how an operator
+// expression is read changes what the test sends, and needs a recording.
 func TestOperatorSweepMatchesEngine(t *testing.T) {
 	o := startMariaDB(t)
 	db := o.db
 	ctx := o.ctx
-	n, seed := 1000, int64(1)
-	if v, err := strconv.Atoi(os.Getenv("OPERATOR_SWEEP_N")); err == nil {
-		n = v
-	}
-	if v, err := strconv.ParseInt(os.Getenv("OPERATOR_SWEEP_SEED"), 10, 64); err == nil {
-		seed = v
-	}
+	n, seed := operatorSweepN, operatorSweepSeed
 	r := rand.New(rand.NewSource(seed))
 	var compared int
 	for i := 0; i < n; i++ {

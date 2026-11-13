@@ -359,10 +359,10 @@ func TestCreateTableOptionsRejected(t *testing.T) {
 // reading of its grammar file.
 func TestCreateTableOptionsMatchTiDB(t *testing.T) {
 	tc := startTiDB(t)
-	for want, cases := range map[bool][]string{
+	for want, cases := range byVerdict(map[bool][]string{
 		true:  createTableOptionsAccepted,
 		false: createTableOptionsRejected,
-	} {
+	}) {
 		for _, sql := range cases {
 			t.Run(sql, func(t *testing.T) {
 				accepts, err := tc.prepareSyntax(sql)

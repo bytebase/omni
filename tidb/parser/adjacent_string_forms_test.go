@@ -53,7 +53,7 @@ func TestAdjacentStringForms(t *testing.T) {
 		t.Run(c.sql, func(t *testing.T) {
 			got, err := parsesAsOneStatement(c.sql)
 			if got != c.accept {
-				t.Errorf("Parse(%q) accepts=%v, want %v (TiDB %s): %v", c.sql, got, c.accept, tidbCorpusVersion, err)
+				t.Errorf("Parse(%q) accepts=%v, want %v (TiDB %s): %v", c.sql, got, c.accept, tidbRelease, err)
 			}
 		})
 	}

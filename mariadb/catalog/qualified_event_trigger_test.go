@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -140,7 +142,8 @@ func qualifiedCatalogState(c *Catalog) string {
 func TestQualifiedEventsAndTriggers(t *testing.T) {
 	db := mariadbDatabase(t)
 	const setup = "CREATE TABLE a.t (id INT); CREATE TABLE b.t (id INT); CREATE TABLE b.only_b (id INT)"
-	for name, script := range qualifiedNameScripts {
+	for _, name := range slices.Sorted(maps.Keys(qualifiedNameScripts)) {
+		script := qualifiedNameScripts[name]
 		t.Run(name, func(t *testing.T) {
 			ctx := context.Background()
 			conn, err := db.Conn(ctx)

@@ -40,6 +40,9 @@ type Grammar struct {
 	// lexer rule matches, as [A-Z_][A-Z0-9_]* is of identifiers, however
 	// the sample is capitalized.
 	patterned map[string]bool
+	// ruleText gives the text written where a rule stands in another rule's
+	// row, for the rules the token table samples (see Tokens).
+	ruleText map[string]string
 }
 
 // A rule is one left-hand side and its alternatives, in source order.
@@ -67,7 +70,15 @@ type symbol struct {
 // every terminal whose declaration does not spell it: literal classes such
 // as identifiers and numbers, and tokens the lexer forms from other text.
 // Every other terminal is sampled by its %token text.
-func ReadBison(src string, tokens *Tokens) (*Grammar, error) {
+//
+// defined names the conditions the grammar is built with, for a file that
+// holds more than one grammar between %ifdef lines (see Conditional). A
+// file with no such line needs none.
+func ReadBison(src string, tokens *Tokens, defined ...string) (*Grammar, error) {
+	src, err := Conditional(src, defined...)
+	if err != nil {
+		return nil, err
+	}
 	decls, gram, err := splitSections(src)
 	if err != nil {
 		return nil, err
@@ -77,6 +88,18 @@ func ReadBison(src string, tokens *Tokens) (*Grammar, error) {
 
 	if err := g.readRules(lexGrammar(gram)); err != nil {
 		return nil, err
+	}
+	for _, r := range g.rules {
+		form, ok := tokens.forms[r.name]
+		if !ok {
+			continue
+		}
+		switch form {
+		case Spaced, Unreachable, Empty:
+			return nil, fmt.Errorf("tokens.tsv gives the rule %s the form %s, which is a token's: a rule's row holds the text written for it", r.name, form)
+		}
+		g.ruleText[r.name] = form
+		delete(g.termText, r.name)
 	}
 	if g.start == "" {
 		g.start = g.rules[0].name
@@ -100,6 +123,7 @@ func newGrammar(tokens *Tokens) *Grammar {
 		reserved:    map[string]bool{},
 		fixed:       map[string]bool{},
 		patterned:   map[string]bool{},
+		ruleText:    map[string]string{},
 	}
 	for name, form := range tokens.forms {
 		switch form {

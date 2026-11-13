@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 	"testing"
 )
@@ -432,7 +433,7 @@ func checkSetVariableNameSweep(t *testing.T, accepts func(sql string) bool) {
 	t.Helper()
 	for _, position := range setVariableNamePositions {
 		gap := setVariableNameGap[position]
-		for word := range keywords {
+		for _, word := range slices.Sorted(maps.Keys(keywords)) {
 			sql := fmt.Sprintf(position, word)
 			server := accepts(sql)
 			omni, err := parsesAsOneStatement(sql)

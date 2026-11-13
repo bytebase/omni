@@ -7,7 +7,6 @@ import "testing"
 // the corpus is, and this test is what keeps each a recording.
 func TestNumberTokenFormsMatchTiDB(t *testing.T) {
 	tc := startTiDB(t)
-	assertTiDBVersion(t, tc)
 	for _, c := range numberTokenStatements() {
 		t.Run(c.sql, func(t *testing.T) {
 			accepts, err := tc.prepareSyntax(c.sql)
