@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 
 	nodes "github.com/bytebase/omni/oceanbase/ast"
@@ -833,7 +834,8 @@ func duplicateViewColumn(sel *nodes.SelectStmt, explicit []string, aliased map[*
 // the new name could be a column of a table, which a bare name binds to first, so the
 // alias stands for the item's expression, as OceanBase writes it: ORDER BY x + 1, for a
 // written a AS x, is stored as order by (t.a + 1). That substitution waits for the rewrite
-// pass (aliasBindings.substitute), so no expression is rewritten twice.
+// pass (aliasBindings.substitute), so no expression is rewritten twice. A query nested in
+// any of them is a scope of its own, whose aliases are not these.
 func aliasViewColumns(sel *nodes.SelectStmt, columns []string) (map[string]string, aliasBindings) {
 	if sel == nil || len(columns) == 0 {
 		return nil, nil
@@ -849,7 +851,7 @@ func aliasViewColumns(sel *nodes.SelectStmt, columns []string) (map[string]strin
 		bindings = append(bindings, right...)
 	case len(sel.TargetList) == len(columns):
 		renamed = map[string]string{}
-		leaf := aliasBinding{sel: sel, renamed: renamed, items: map[string]aliasItem{}}
+		leaf := aliasBinding{sel: sel, items: map[string]aliasItem{}}
 		for i, target := range sel.TargetList {
 			rt, ok := target.(*nodes.ResTarget)
 			if !ok {
@@ -888,9 +890,8 @@ func aliasViewColumns(sel *nodes.SelectStmt, columns []string) (map[string]strin
 type aliasBindings []aliasBinding
 
 type aliasBinding struct {
-	sel     *nodes.SelectStmt
-	renamed map[string]string    // old alias, lower-cased, to the new name
-	items   map[string]aliasItem // old alias, lower-cased, to the item it named
+	sel   *nodes.SelectStmt
+	items map[string]aliasItem // old alias, lower-cased, to the item it named
 }
 
 type aliasItem struct {
@@ -901,7 +902,7 @@ type aliasItem struct {
 // substitute puts each renamed item's expression where its old alias stands in the
 // SELECT's GROUP BY, HAVING and ORDER BY. A GROUP BY item that is the alias alone, of an
 // item that is a constant, becomes the item's position: a constant there would read as
-// one. An alias under an expression the substitution does not reach takes the new name.
+// one. A query nested in them is a scope of its own and is left alone.
 func (bs aliasBindings) substitute() {
 	for _, b := range bs {
 		for _, item := range b.sel.GroupBy {
@@ -917,61 +918,68 @@ func (bs aliasBindings) substitute() {
 		for _, item := range b.sel.OrderBy {
 			item.Expr = b.substituteIn(item.Expr)
 		}
-		for _, item := range b.sel.GroupBy {
-			followAliases(item.Expr, b.renamed)
-		}
-		followAliases(b.sel.Having, b.renamed)
-		for _, item := range b.sel.OrderBy {
-			followAliases(item.Expr, b.renamed)
-		}
 	}
 }
 
+// substituteIn returns expr with every reference to a renamed alias replaced by its
+// item's expression. It reaches every expression a node holds, in a field, a list or a
+// clause of its own (a CASE's WHEN, a window's ORDER BY), and stops at a nested query.
 func (b aliasBinding) substituteIn(expr nodes.ExprNode) nodes.ExprNode {
 	if expr == nil {
 		return nil
 	}
-	sub := b.substituteIn
-	switch e := expr.(type) {
-	case *nodes.ColumnRef:
-		if name, ok := aliasReference(e); ok {
-			if it, ok := b.items[name]; ok {
-				return it.target.Val
+	if name, ok := aliasReference(expr); ok {
+		if it, ok := b.items[name]; ok {
+			return it.target.Val
+		}
+		return expr
+	}
+	b.substituteFields(reflect.ValueOf(expr))
+	return expr
+}
+
+var exprNodeType = reflect.TypeOf((*nodes.ExprNode)(nil)).Elem()
+
+// substituteFields substitutes in the expression fields of the node v points to. Only
+// fields of expression type are set: a Loc, a name or a flag is never written.
+func (b aliasBinding) substituteFields(v reflect.Value) {
+	if v.Kind() != reflect.Pointer || v.IsNil() {
+		return
+	}
+	if _, nested := v.Interface().(*nodes.SelectStmt); nested {
+		return
+	}
+	v = v.Elem()
+	if v.Kind() != reflect.Struct {
+		return
+	}
+	for i := 0; i < v.NumField(); i++ {
+		f := v.Field(i)
+		if !f.CanSet() {
+			continue
+		}
+		switch t := f.Type(); {
+		case t == exprNodeType:
+			b.substituteValue(f)
+		case t.Kind() == reflect.Slice && t.Elem() == exprNodeType:
+			for j := 0; j < f.Len(); j++ {
+				b.substituteValue(f.Index(j))
+			}
+		case t.Kind() == reflect.Pointer && t.Elem().Kind() == reflect.Struct:
+			b.substituteFields(f)
+		case t.Kind() == reflect.Slice && t.Elem().Kind() == reflect.Pointer && t.Elem().Elem().Kind() == reflect.Struct:
+			for j := 0; j < f.Len(); j++ {
+				b.substituteFields(f.Index(j))
 			}
 		}
-	case *nodes.ParenExpr:
-		e.Expr = sub(e.Expr)
-	case *nodes.BinaryExpr:
-		e.Left, e.Right = sub(e.Left), sub(e.Right)
-	case *nodes.UnaryExpr:
-		e.Operand = sub(e.Operand)
-	case *nodes.FuncCallExpr:
-		for i, arg := range e.Args {
-			e.Args[i] = sub(arg)
-		}
-	case *nodes.CaseExpr:
-		e.Operand = sub(e.Operand)
-		for _, w := range e.Whens {
-			w.Cond, w.Result = sub(w.Cond), sub(w.Result)
-		}
-		e.Default = sub(e.Default)
-	case *nodes.InExpr:
-		e.Expr = sub(e.Expr)
-		for i, item := range e.List {
-			e.List[i] = sub(item)
-		}
-	case *nodes.BetweenExpr:
-		e.Expr, e.Low, e.High = sub(e.Expr), sub(e.Low), sub(e.High)
-	case *nodes.LikeExpr:
-		e.Expr, e.Pattern, e.Escape = sub(e.Expr), sub(e.Pattern), sub(e.Escape)
-	case *nodes.IsExpr:
-		e.Expr = sub(e.Expr)
-	case *nodes.CastExpr:
-		e.Expr = sub(e.Expr)
-	case *nodes.CollateExpr:
-		e.Expr = sub(e.Expr)
 	}
-	return expr
+}
+
+func (b aliasBinding) substituteValue(f reflect.Value) {
+	if f.IsNil() {
+		return
+	}
+	f.Set(reflect.ValueOf(b.substituteIn(f.Interface().(nodes.ExprNode))))
 }
 
 // aliasReference returns the lower-cased name a bare column reference holds: one written
@@ -992,12 +1000,16 @@ func isConstantLiteral(expr nodes.ExprNode) bool {
 	return false
 }
 
-// followAliases rewrites the references to renamed aliases in expr to the new names.
+// followAliases rewrites the references to renamed aliases in expr to the new names. A
+// query nested in expr is a scope of its own and is left alone.
 func followAliases(expr nodes.ExprNode, renamed map[string]string) {
 	if expr == nil || len(renamed) == 0 {
 		return
 	}
 	nodes.Inspect(expr, func(n nodes.Node) bool {
+		if _, nested := n.(*nodes.SelectStmt); nested {
+			return false
+		}
 		if name, ok := aliasReference(asExpr(n)); ok {
 			if to, ok := renamed[name]; ok {
 				n.(*nodes.ColumnRef).Column = to

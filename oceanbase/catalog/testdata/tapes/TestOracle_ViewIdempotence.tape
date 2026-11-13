@@ -2314,6 +2314,50 @@
 : bytes
 | utf8mb4_general_ci
 > exec
+| DROP DATABASE IF EXISTS videm_explicit_columns_order_by_convert
+< ok 0 0
+> exec
+| CREATE DATABASE videm_explicit_columns_order_by_convert DEFAULT CHARSET=utf8mb4
+< ok 1 0
+> exec
+| USE videm_explicit_columns_order_by_convert
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT, b INT)
+< ok 0 0
+> exec
+| CREATE VIEW v (b) AS SELECT a AS x FROM t ORDER BY CONVERT(x, SIGNED)
+< ok 0 0
+> query
+| SHOW CREATE TABLE videm_explicit_columns_order_by_convert.t
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL,
+|   `b` int(11) DEFAULT NULL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE VIEW videm_explicit_columns_order_by_convert.v
+< result
+< column "View" "VARCHAR"
+< column "Create View" "TEXT"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| v
+: bytes
+| CREATE VIEW `v` AS select `videm_explicit_columns_order_by_convert`.`t`.`a` AS `b` from `videm_explicit_columns_order_by_convert`.`t` order by cast(`videm_explicit_columns_order_by_convert`.`t`.`a` as signed)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> exec
 | DROP DATABASE IF EXISTS videm_explicit_columns_group_by
 < ok 0 0
 > exec

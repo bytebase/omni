@@ -301,6 +301,10 @@ func viewIdempotenceProbes() []viewSchemaProbe {
 			"CREATE TABLE t (a INT, p INT)",
 			"CREATE VIEW v (p) AS SELECT a AS x FROM t ORDER BY x + 1",
 		}, []string{"t"}, []string{"v"}},
+		{"explicit-columns-order-by-convert", []string{
+			"CREATE TABLE t (a INT, b INT)",
+			"CREATE VIEW v (b) AS SELECT a AS x FROM t ORDER BY CONVERT(x, SIGNED)",
+		}, []string{"t"}, []string{"v"}},
 		{"explicit-columns-group-by", []string{
 			"CREATE TABLE t (a INT, p INT)",
 			"CREATE VIEW v (p, n) AS SELECT a AS x, count(*) AS c FROM t GROUP BY x HAVING c > 0 ORDER BY c DESC",
