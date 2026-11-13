@@ -1,8 +1,8 @@
 package catalog
 
 // Facts about built-in functions that pg_proc.dat, the source of
-// pg_proc_generated.go, does not hold. TestBuiltinProcExtrasMatchPostgres
-// checks these tables against a PostgreSQL 18 server.
+// pg_proc_generated.go, does not hold. pg/catalog's TestBuiltinProcExtrasMatchPostgres
+// checks its copy of these tables against a PostgreSQL 18 server.
 
 // builtinProcArgDefaults is pg_proc.pronargdefaults for each built-in
 // function that has parameter defaults. PostgreSQL declares those defaults in

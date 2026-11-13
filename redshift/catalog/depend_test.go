@@ -125,7 +125,7 @@ func TestDropSchemaCascadeCleansAllDeps(t *testing.T) {
 
 // DROP COLUMN checks the dependents of the dropped column, not of the whole
 // table: a CHECK on another column does not block it. Verified against
-// PostgreSQL 17 by TestDependencyPG17Oracle.
+// PostgreSQL 17 by pg/catalog's TestDependencyPG17Oracle.
 func TestDropColumnBesideCheckOnAnotherColumn(t *testing.T) {
 	c := New()
 	execSQL(t, c, `CREATE TABLE t (id int PRIMARY KEY, n int CHECK (n > 0))`)

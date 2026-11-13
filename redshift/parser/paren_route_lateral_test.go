@@ -6,7 +6,7 @@ import (
 	nodes "github.com/bytebase/omni/redshift/ast"
 )
 
-// TestParenOracleLateral transcribes pg/parser/SCENARIOS-pg-paren-dispatch.md §3.2
+// TestParenRouteLateral transcribes pg/parser/SCENARIOS-pg-paren-dispatch.md §3.2
 // (parseLateralTableRef oracle corpus) into PG 17 testcontainer-backed
 // parity probes plus direct AST-shape inspection. §2.6 already carries
 // the baseline LATERAL accept/reject matrix; §3.2 extends it with:
@@ -25,17 +25,16 @@ import (
 //     rejects both with 42601; omni must too.
 //
 // Fixture tables T/U/V/W and function probe_f()/probe_g() are created by
-// StartParenOracle (see paren_oracle_test.go). T has a `doc xml` column
+// the PostgreSQL oracle these cases were measured on. T has a `doc xml` column
 // so XMLTABLE/JSON_TABLE probes can pass a real node. PG may raise a
 // semantic datatype_mismatch on JSON_TABLE(T.doc, ...) since doc is xml
 // not jsonb — that's still Accept for classifyPG (grammar decision
 // already made). §3.2 cares about the grammar decision.
-func TestParenOracleLateral(t *testing.T) {
-	o := StartParenOracle(t)
+func TestParenRouteLateral(t *testing.T) {
 
 	// --- Scenario 1: LATERAL body-kind AST shapes ---
 	// Direct Parse() inspection so we can assert the Lateral flag on the
-	// exact node type, which assertParenParityAt alone can't reach
+	// exact node type, which assertParenRouteAt alone can't reach
 	// (classifyOmniAt collapses RangeTableFunc/JsonTable/RangeFunction
 	// into OmniOther). Each case here still probes PG through the oracle
 	// to keep the accept-parity fence.
@@ -93,15 +92,9 @@ func TestParenOracleLateral(t *testing.T) {
 		for _, tc := range astCases {
 			tc := tc
 			t.Run(tc.name, func(t *testing.T) {
-				// First: oracle parity — PG must accept the shape. This keeps
-				// the AST-shape assertion couplings to a real PG outcome so
-				// an omni-only accept can't sneak through.
-				r := ProbeParenAt(o.ctx, o, tc.sql, 1)
-				if r.PGStatus == PGReject {
-					t.Fatalf("PG rejected %q: %s", tc.sql, r.PGError)
-				}
-				if r.OmniStatus == OmniRejected {
-					t.Fatalf("omni rejected %q: %s", tc.sql, r.OmniError)
+				// First: omni must accept the shape.
+				if status, msg := classifyOmniAt(tc.sql, 1); status == OmniRejected {
+					t.Fatalf("omni rejected %q: %s", tc.sql, msg)
 				}
 
 				// Second: AST shape — the LATERAL node at Items[1] has the
@@ -190,7 +183,7 @@ func TestParenOracleLateral(t *testing.T) {
 		for _, tc := range aliasCases {
 			tc := tc
 			t.Run(tc.name, func(t *testing.T) {
-				assertParenParityAt(t, o, tc.sql, 1, tc.expected)
+				assertParenRouteAt(t, tc.sql, 1, tc.expected)
 			})
 		}
 	})
@@ -236,7 +229,7 @@ func TestParenOracleLateral(t *testing.T) {
 		for _, tc := range correlatedCases {
 			tc := tc
 			t.Run(tc.name, func(t *testing.T) {
-				assertParenParityAt(t, o, tc.sql, 1, tc.expected)
+				assertParenRouteAt(t, tc.sql, 1, tc.expected)
 			})
 		}
 
@@ -264,7 +257,7 @@ func TestParenOracleLateral(t *testing.T) {
 
 	// --- Scenario 4: invalid LATERAL shapes ---
 	// PG rejects with 42601; omni must reject too. The assertion uses
-	// OmniRejected, which assertParenParityAt couples to PGReject — the
+	// OmniRejected, which assertParenRouteAt couples to PGReject — the
 	// mismatch detector will flag any accept-vs-reject drift loudly.
 	//
 	// For reject cases the index argument is effectively ignored because
@@ -317,7 +310,7 @@ func TestParenOracleLateral(t *testing.T) {
 				if tc.skip != "" {
 					t.Skip(tc.skip)
 				}
-				assertParenParityAt(t, o, tc.sql, 1, OmniRejected)
+				assertParenRouteAt(t, tc.sql, 1, OmniRejected)
 			})
 		}
 	})

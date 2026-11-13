@@ -115,9 +115,8 @@ func (p *Parser) isTypenameStart() bool {
 // (`a_expr COLLATE any_name`), not an expression starter. Adding it
 // would make isAExprStart over-permissive.
 //
-// DO NOT extend without also extending the renderExpression continuation
-// map in first_set_oracle_test.go. The oracle test
-// TestAExprLeadTokensMatchPG enforces parity against PG 17.
+// Keep it in step with pg/parser's aExprLeadTokens, whose oracle test
+// TestAExprLeadTokensMatchPG holds it to PostgreSQL 17.
 var aExprLeadTokens = []int{
 	// Literals (lex tokens, no category)
 	ICONST, FCONST, SCONST, BCONST, XCONST,

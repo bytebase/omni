@@ -2,8 +2,8 @@ package parser
 
 import "testing"
 
-// TestParenOracleFromSubquery transcribes pg/parser/SCENARIOS-pg-paren-dispatch.md §2.3
-// (FROM-clause subquery-shape corpus) into oracle probes. Each case asserts
+// TestParenRouteFromSubquery transcribes pg/parser/SCENARIOS-pg-paren-dispatch.md §2.3
+// (FROM-clause subquery-shape corpus) into routing cases. Each case asserts
 // the OmniStatus omni must emit to be PG-17 aligned for a paren-wrapped
 // SELECT/VALUES/TABLE/WITH/set-op subquery FROM item.
 //
@@ -16,9 +16,8 @@ import "testing"
 //     parenthesized operands which historically misrouted to joined_table.
 //
 // Fixture tables T/U/V/W and function probe_f() are created by
-// StartParenOracle (see paren_oracle_test.go).
-func TestParenOracleFromSubquery(t *testing.T) {
-	o := StartParenOracle(t)
+// the PostgreSQL oracle these cases were measured on.
+func TestParenRouteFromSubquery(t *testing.T) {
 
 	cases := []struct {
 		name     string
@@ -148,7 +147,7 @@ func TestParenOracleFromSubquery(t *testing.T) {
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			assertParenParity(t, o, tc.sql, tc.expected)
+			assertParenRoute(t, tc.sql, tc.expected)
 		})
 	}
 }

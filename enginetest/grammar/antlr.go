@@ -559,6 +559,11 @@ func (p *antlrParser) element() (element, error) {
 	case t.kind == aIdent:
 		e.sym = &symbol{text: t.text}
 		p.i++
+		// A rule's arguments, as predicate[$valueExpression.ctx], are the
+		// generated parser's and carry no symbol.
+		if a, ok := p.peek(); ok && a.kind == aArg {
+			p.i++
+		}
 	case t.kind == aString:
 		e.sym = &symbol{text: t.text, literal: true}
 		if l := labelText(t.text); l != t.text {
@@ -575,8 +580,13 @@ func (p *antlrParser) element() (element, error) {
 			return e, err
 		}
 		e.group = alts
+	case t.kind == aPunct && t.text == "." && p.g.termText["."] != "":
+		// The wildcard, any one token, where the token table gives the
+		// text rows write for it: Trino's methodName : {isKeyword()}? .
+		e.sym = &symbol{text: "."}
+		p.i++
 	case t.kind == aPunct && (t.text == "~" || t.text == "."):
-		return e, p.errorf("%s in a parser rule: no shortest text to write for it", t.text)
+		return e, p.errorf("%s in a parser rule: no shortest text to write for it; for ., the token table may give one", t.text)
 	default:
 		return e, p.errorf("unexpected %q", t.text)
 	}

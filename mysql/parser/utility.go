@@ -766,9 +766,12 @@ func (p *Parser) parseHandlerStmt() (nodes.StmtNode, error) {
 //
 // The list is a select list's, so an item may be a wildcard, and the bare `*`
 // its first item only: MySQL 8.0 parses `DO *` and `DO t.*`, refusing them past
-// the parser with 1096 and 1051, and answers 1064 for `DO 1, *`.
+// the parser with 1096 and 1051, and answers 1064 for `DO 1, *`. An expression
+// takes a select item's alias too (`DO 1 a`, `DO 1 AS 's'`), which the server
+// parses and drops.
 //
-// Ref: do_stmt, `DO_SYM select_item_list`, in MySQL 8.0 sql/sql_yacc.yy.
+// Ref: do_stmt, `DO_SYM select_item_list`, and select_item, `expr
+// select_alias`, in MySQL 8.0 sql/sql_yacc.yy.
 func (p *Parser) parseDoStmt() (*nodes.DoStmt, error) {
 	start := p.pos()
 	p.advance() // consume DO
@@ -779,10 +782,7 @@ func (p *Parser) parseDoStmt() (*nodes.DoStmt, error) {
 		if len(stmt.Exprs) > 0 && p.cur.Type == '*' {
 			return nil, p.syntaxErrorAtCur()
 		}
-		expr, err := p.parseSelectWildcard()
-		if err == nil && expr == nil {
-			expr, err = p.parseExpr()
-		}
+		expr, err := p.parseSelectExpr()
 		if err != nil {
 			return nil, err
 		}

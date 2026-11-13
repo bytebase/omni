@@ -241,7 +241,7 @@ accept	accept	engine	simple_statement/describe_stmt!insert	DESC utf8mb4 zzz;
 accept	accept	engine	simple_statement/do_stmt	DO utf8mb4;
 reject	reject	engine	simple_statement/do_stmt!drop-2	DO;
 reject	reject	engine	simple_statement/do_stmt!truncate	DO
-reject	accept	engine	simple_statement/do_stmt!insert	DO utf8mb4 zzz;
+accept	accept	engine	simple_statement/do_stmt!insert	DO utf8mb4 zzz;
 reject	reject	engine	simple_statement/do_stmt!swap	DOUBLE utf8mb4;
 accept	accept	engine	simple_statement/drop_database_stmt	DROP DATABASE utf8mb4;
 reject	reject	engine	simple_statement/drop_database_stmt!drop-2	DROP utf8mb4;
@@ -3748,17 +3748,17 @@ reject	reject	engine	type_datetime_precision/(_NUM_)!drop-3	ALTER TABLE utf8mb4 
 reject	reject	engine	type_datetime_precision/(_NUM_)!truncate	ALTER TABLE utf8mb4 ADD utf8mb4 TIME(1
 reject	reject	engine	type_datetime_precision/(_NUM_)!insert	ALTER TABLE utf8mb4 ADD utf8mb4 TIME(1) zzz;
 accept	accept	engine	func_datetime_precision/%empty	DO CURRENT_TIME;
-reject	accept	engine	func_datetime_precision/%empty!insert	DO CURRENT_TIME zzz;
+accept	accept	engine	func_datetime_precision/%empty!insert	DO CURRENT_TIME zzz;
 accept	accept	engine	func_datetime_precision/(_)	DO CURRENT_TIME();
 reject	reject	engine	func_datetime_precision/(_)!drop-1	DO CURRENT_TIME);
 reject	reject	engine	func_datetime_precision/(_)!drop-2	DO CURRENT_TIME(;
 reject	reject	engine	func_datetime_precision/(_)!truncate	DO CURRENT_TIME(
-reject	accept	engine	func_datetime_precision/(_)!insert	DO CURRENT_TIME() zzz;
+accept	accept	engine	func_datetime_precision/(_)!insert	DO CURRENT_TIME() zzz;
 accept	accept	engine	func_datetime_precision/(_NUM_)	DO CURRENT_TIME(1);
 reject	reject	engine	func_datetime_precision/(_NUM_)!drop-1	DO CURRENT_TIME 1);
 reject	reject	engine	func_datetime_precision/(_NUM_)!drop-3	DO CURRENT_TIME(1;
 reject	reject	engine	func_datetime_precision/(_NUM_)!truncate	DO CURRENT_TIME(1
-reject	accept	engine	func_datetime_precision/(_NUM_)!insert	DO CURRENT_TIME(1) zzz;
+accept	accept	engine	func_datetime_precision/(_NUM_)!insert	DO CURRENT_TIME(1) zzz;
 accept	accept	engine	field_options/%empty	ALTER TABLE utf8mb4 ADD utf8mb4 INT;
 accept	accept	engine	field_options/field_opt_list	ALTER TABLE utf8mb4 ADD utf8mb4 INT SIGNED;
 reject	reject	engine	field_options/field_opt_list!insert	ALTER TABLE utf8mb4 ADD utf8mb4 INT SIGNED zzz;
@@ -3924,7 +3924,7 @@ accept	accept	engine	storage_media/MEMORY_SYM	ALTER TABLE utf8mb4 ADD utf8mb4 IN
 reject	reject	engine	storage_media/MEMORY_SYM!insert	ALTER TABLE utf8mb4 ADD utf8mb4 INT STORAGE MEMORY zzz;
 reject	reject	engine	storage_media/MEMORY_SYM!swap	ALTER TABLE utf8mb4 ADD utf8mb4 INT STORAGE MERGE;
 accept	accept	engine	now/NOW_SYM_func_datetime_precision	DO CURRENT_TIMESTAMP;
-reject	accept	engine	now/NOW_SYM_func_datetime_precision!insert	DO CURRENT_TIMESTAMP zzz;
+accept	accept	engine	now/NOW_SYM_func_datetime_precision!insert	DO CURRENT_TIMESTAMP zzz;
 accept	accept	engine	now_or_signed_literal/now	ALTER TABLE utf8mb4 ADD utf8mb4 INT DEFAULT CURRENT_TIMESTAMP;
 reject	reject	engine	now_or_signed_literal/now!swap	ALTER TABLE utf8mb4 ADD utf8mb4 INT DEFAULT CURRENT_USER;
 accept	accept	engine	now_or_signed_literal/signed_literal_or_null	ALTER TABLE utf8mb4 ADD utf8mb4 INT DEFAULT 's';
@@ -5694,7 +5694,7 @@ accept	accept	engine	select_item_list/select_item_list_,_select_item	DO utf8mb4,
 reject	reject	engine	select_item_list/select_item_list_,_select_item!drop-1	DO, utf8mb4;
 reject	reject	engine	select_item_list/select_item_list_,_select_item!drop-3	DO utf8mb4,;
 reject	reject	engine	select_item_list/select_item_list_,_select_item!truncate	DO utf8mb4,
-reject	accept	engine	select_item_list/select_item_list_,_select_item!insert	DO utf8mb4, utf8mb4 zzz;
+accept	accept	engine	select_item_list/select_item_list_,_select_item!insert	DO utf8mb4, utf8mb4 zzz;
 accept	accept	engine	select_item_list/select_item	DO utf8mb4;
 accept	accept	engine	select_item_list/*	DO *;
 reject	reject	engine	select_item_list/*!insert	DO * zzz;
@@ -5706,99 +5706,99 @@ reject	reject	engine	select_item/table_wild!truncate	DO utf8mb4.
 reject	reject	engine	select_item/table_wild!insert	DO utf8mb4.* zzz;
 accept	accept	engine	select_item/expr_select_alias	DO utf8mb4;
 accept	accept	engine	select_alias/%empty	DO utf8mb4;
-reject	accept	engine	select_alias/AS_ident	DO utf8mb4 AS utf8mb4;
+accept	accept	engine	select_alias/AS_ident	DO utf8mb4 AS utf8mb4;
 reject	reject	engine	select_alias/AS_ident!drop-2	DO utf8mb4 AS;
 reject	reject	engine	select_alias/AS_ident!truncate	DO utf8mb4 AS
 reject	reject	engine	select_alias/AS_ident!insert	DO utf8mb4 AS utf8mb4 zzz;
 reject	reject	engine	select_alias/AS_ident!swap	DO utf8mb4 ASC utf8mb4;
-reject	accept	engine	select_alias/AS_TEXT_STRING_validated	DO utf8mb4 AS 's';
+accept	accept	engine	select_alias/AS_TEXT_STRING_validated	DO utf8mb4 AS 's';
 reject	reject	engine	select_alias/AS_TEXT_STRING_validated!insert	DO utf8mb4 AS 's' zzz;
 reject	reject	engine	select_alias/AS_TEXT_STRING_validated!swap	DO utf8mb4 ASC 's';
-reject	accept	engine	select_alias/ident	DO utf8mb4 utf8mb4;
+accept	accept	engine	select_alias/ident	DO utf8mb4 utf8mb4;
 accept	accept	engine	select_alias/ident!truncate	DO utf8mb4
 reject	reject	engine	select_alias/ident!insert	DO utf8mb4 utf8mb4 zzz;
-reject	accept	engine	select_alias/TEXT_STRING_validated	DO utf8mb4 's';
+accept	accept	engine	select_alias/TEXT_STRING_validated	DO utf8mb4 's';
 reject	reject	engine	select_alias/TEXT_STRING_validated!insert	DO utf8mb4 's' zzz;
 accept	accept	engine	optional_braces/%empty	DO CURRENT_USER;
-reject	accept	engine	optional_braces/%empty!insert	DO CURRENT_USER zzz;
+accept	accept	engine	optional_braces/%empty!insert	DO CURRENT_USER zzz;
 accept	accept	engine	optional_braces/(_)	DO CURRENT_USER();
 reject	reject	engine	optional_braces/(_)!drop-1	DO CURRENT_USER);
 reject	reject	engine	optional_braces/(_)!drop-2	DO CURRENT_USER(;
 reject	reject	engine	optional_braces/(_)!truncate	DO CURRENT_USER(
-reject	accept	engine	optional_braces/(_)!insert	DO CURRENT_USER() zzz;
+accept	accept	engine	optional_braces/(_)!insert	DO CURRENT_USER() zzz;
 accept	accept	engine	expr/expr_or_expr	DO utf8mb4 OR utf8mb4;
 reject	reject	engine	expr/expr_or_expr!drop-1	DO OR utf8mb4;
 reject	reject	engine	expr/expr_or_expr!drop-3	DO utf8mb4 OR;
 reject	reject	engine	expr/expr_or_expr!truncate	DO utf8mb4 OR
-reject	accept	engine	expr/expr_or_expr!insert	DO utf8mb4 OR utf8mb4 zzz;
+accept	accept	engine	expr/expr_or_expr!insert	DO utf8mb4 OR utf8mb4 zzz;
 reject	reject	engine	expr/expr_or_expr!swap	DO utf8mb4 ORDER utf8mb4;
 accept	accept	engine	expr/expr_XOR_expr	DO utf8mb4 XOR utf8mb4;
 reject	reject	engine	expr/expr_XOR_expr!drop-1	DO XOR utf8mb4;
 reject	reject	engine	expr/expr_XOR_expr!drop-3	DO utf8mb4 XOR;
 reject	reject	engine	expr/expr_XOR_expr!truncate	DO utf8mb4 XOR
-reject	accept	engine	expr/expr_XOR_expr!insert	DO utf8mb4 XOR utf8mb4 zzz;
+accept	accept	engine	expr/expr_XOR_expr!insert	DO utf8mb4 XOR utf8mb4 zzz;
 reject	reject	engine	expr/expr_XOR_expr!swap	DO utf8mb4 YEAR utf8mb4;
 accept	accept	engine	expr/expr_and_expr	DO utf8mb4 AND utf8mb4;
 reject	reject	engine	expr/expr_and_expr!drop-1	DO AND utf8mb4;
 reject	reject	engine	expr/expr_and_expr!drop-3	DO utf8mb4 AND;
 reject	reject	engine	expr/expr_and_expr!truncate	DO utf8mb4 AND
-reject	accept	engine	expr/expr_and_expr!insert	DO utf8mb4 AND utf8mb4 zzz;
+accept	accept	engine	expr/expr_and_expr!insert	DO utf8mb4 AND utf8mb4 zzz;
 reject	reject	engine	expr/expr_and_expr!swap	DO utf8mb4 ANY utf8mb4;
 accept	accept	engine	expr/NOT_SYM_expr	DO NOT utf8mb4;
 reject	reject	engine	expr/NOT_SYM_expr!drop-2	DO NOT;
 reject	reject	engine	expr/NOT_SYM_expr!truncate	DO NOT
-reject	accept	engine	expr/NOT_SYM_expr!insert	DO NOT utf8mb4 zzz;
-reject	accept	engine	expr/NOT_SYM_expr!swap	DO NOWAIT utf8mb4;
+accept	accept	engine	expr/NOT_SYM_expr!insert	DO NOT utf8mb4 zzz;
+accept	accept	engine	expr/NOT_SYM_expr!swap	DO NOWAIT utf8mb4;
 accept	accept	engine	expr/bool_pri_IS_TRUE_SYM	DO utf8mb4 IS TRUE;
 reject	reject	engine	expr/bool_pri_IS_TRUE_SYM!drop-1	DO IS TRUE;
 reject	reject	engine	expr/bool_pri_IS_TRUE_SYM!drop-2	DO utf8mb4 TRUE;
 reject	reject	engine	expr/bool_pri_IS_TRUE_SYM!drop-3	DO utf8mb4 IS;
 reject	reject	engine	expr/bool_pri_IS_TRUE_SYM!truncate	DO utf8mb4 IS
-reject	accept	engine	expr/bool_pri_IS_TRUE_SYM!insert	DO utf8mb4 IS TRUE zzz;
+accept	accept	engine	expr/bool_pri_IS_TRUE_SYM!insert	DO utf8mb4 IS TRUE zzz;
 reject	reject	engine	expr/bool_pri_IS_TRUE_SYM!swap	DO utf8mb4 ISOLATION TRUE;
 accept	accept	engine	expr/bool_pri_IS_not_TRUE_SYM	DO utf8mb4 IS NOT TRUE;
 reject	reject	engine	expr/bool_pri_IS_not_TRUE_SYM!drop-1	DO IS NOT TRUE;
 reject	reject	engine	expr/bool_pri_IS_not_TRUE_SYM!drop-2	DO utf8mb4 NOT TRUE;
 reject	reject	engine	expr/bool_pri_IS_not_TRUE_SYM!drop-4	DO utf8mb4 IS NOT;
 reject	reject	engine	expr/bool_pri_IS_not_TRUE_SYM!truncate	DO utf8mb4 IS NOT
-reject	accept	engine	expr/bool_pri_IS_not_TRUE_SYM!insert	DO utf8mb4 IS NOT TRUE zzz;
+accept	accept	engine	expr/bool_pri_IS_not_TRUE_SYM!insert	DO utf8mb4 IS NOT TRUE zzz;
 reject	reject	engine	expr/bool_pri_IS_not_TRUE_SYM!swap	DO utf8mb4 ISOLATION NOT TRUE;
 accept	accept	engine	expr/bool_pri_IS_FALSE_SYM	DO utf8mb4 IS FALSE;
 reject	reject	engine	expr/bool_pri_IS_FALSE_SYM!drop-1	DO IS FALSE;
 reject	reject	engine	expr/bool_pri_IS_FALSE_SYM!drop-2	DO utf8mb4 FALSE;
-reject	accept	engine	expr/bool_pri_IS_FALSE_SYM!insert	DO utf8mb4 IS FALSE zzz;
+accept	accept	engine	expr/bool_pri_IS_FALSE_SYM!insert	DO utf8mb4 IS FALSE zzz;
 reject	reject	engine	expr/bool_pri_IS_FALSE_SYM!swap	DO utf8mb4 ISOLATION FALSE;
 accept	accept	engine	expr/bool_pri_IS_not_FALSE_SYM	DO utf8mb4 IS NOT FALSE;
 reject	reject	engine	expr/bool_pri_IS_not_FALSE_SYM!drop-1	DO IS NOT FALSE;
 reject	reject	engine	expr/bool_pri_IS_not_FALSE_SYM!drop-2	DO utf8mb4 NOT FALSE;
-reject	accept	engine	expr/bool_pri_IS_not_FALSE_SYM!insert	DO utf8mb4 IS NOT FALSE zzz;
+accept	accept	engine	expr/bool_pri_IS_not_FALSE_SYM!insert	DO utf8mb4 IS NOT FALSE zzz;
 reject	reject	engine	expr/bool_pri_IS_not_FALSE_SYM!swap	DO utf8mb4 ISOLATION NOT FALSE;
 accept	accept	engine	expr/bool_pri_IS_UNKNOWN_SYM	DO utf8mb4 IS UNKNOWN;
 reject	reject	engine	expr/bool_pri_IS_UNKNOWN_SYM!drop-1	DO IS UNKNOWN;
-reject	accept	engine	expr/bool_pri_IS_UNKNOWN_SYM!drop-2	DO utf8mb4 UNKNOWN;
-reject	accept	engine	expr/bool_pri_IS_UNKNOWN_SYM!insert	DO utf8mb4 IS UNKNOWN zzz;
+accept	accept	engine	expr/bool_pri_IS_UNKNOWN_SYM!drop-2	DO utf8mb4 UNKNOWN;
+accept	accept	engine	expr/bool_pri_IS_UNKNOWN_SYM!insert	DO utf8mb4 IS UNKNOWN zzz;
 reject	reject	engine	expr/bool_pri_IS_UNKNOWN_SYM!swap	DO utf8mb4 ISOLATION UNKNOWN;
 accept	accept	engine	expr/bool_pri_IS_not_UNKNOWN_SYM	DO utf8mb4 IS NOT UNKNOWN;
 reject	reject	engine	expr/bool_pri_IS_not_UNKNOWN_SYM!drop-1	DO IS NOT UNKNOWN;
 reject	reject	engine	expr/bool_pri_IS_not_UNKNOWN_SYM!drop-2	DO utf8mb4 NOT UNKNOWN;
-reject	accept	engine	expr/bool_pri_IS_not_UNKNOWN_SYM!insert	DO utf8mb4 IS NOT UNKNOWN zzz;
+accept	accept	engine	expr/bool_pri_IS_not_UNKNOWN_SYM!insert	DO utf8mb4 IS NOT UNKNOWN zzz;
 reject	reject	engine	expr/bool_pri_IS_not_UNKNOWN_SYM!swap	DO utf8mb4 ISOLATION NOT UNKNOWN;
 accept	accept	engine	expr/bool_pri	DO utf8mb4;
 accept	accept	engine	bool_pri/bool_pri_IS_NULL_SYM	DO utf8mb4 IS NULL;
 reject	reject	engine	bool_pri/bool_pri_IS_NULL_SYM!drop-1	DO IS NULL;
 reject	reject	engine	bool_pri/bool_pri_IS_NULL_SYM!drop-2	DO utf8mb4 NULL;
-reject	accept	engine	bool_pri/bool_pri_IS_NULL_SYM!insert	DO utf8mb4 IS NULL zzz;
+accept	accept	engine	bool_pri/bool_pri_IS_NULL_SYM!insert	DO utf8mb4 IS NULL zzz;
 reject	reject	engine	bool_pri/bool_pri_IS_NULL_SYM!swap	DO utf8mb4 ISOLATION NULL;
 accept	accept	engine	bool_pri/bool_pri_IS_not_NULL_SYM	DO utf8mb4 IS NOT NULL;
 reject	reject	engine	bool_pri/bool_pri_IS_not_NULL_SYM!drop-1	DO IS NOT NULL;
 reject	reject	engine	bool_pri/bool_pri_IS_not_NULL_SYM!drop-2	DO utf8mb4 NOT NULL;
-reject	accept	engine	bool_pri/bool_pri_IS_not_NULL_SYM!insert	DO utf8mb4 IS NOT NULL zzz;
+accept	accept	engine	bool_pri/bool_pri_IS_not_NULL_SYM!insert	DO utf8mb4 IS NOT NULL zzz;
 reject	reject	engine	bool_pri/bool_pri_IS_not_NULL_SYM!swap	DO utf8mb4 ISOLATION NOT NULL;
 accept	accept	engine	bool_pri/bool_pri_comp_op_predicate	DO utf8mb4 = utf8mb4;
 reject	reject	engine	bool_pri/bool_pri_comp_op_predicate!drop-1	DO = utf8mb4;
 reject	reject	engine	bool_pri/bool_pri_comp_op_predicate!drop-3	DO utf8mb4 =;
 reject	reject	engine	bool_pri/bool_pri_comp_op_predicate!truncate	DO utf8mb4 =
-reject	accept	engine	bool_pri/bool_pri_comp_op_predicate!insert	DO utf8mb4 = utf8mb4 zzz;
+accept	accept	engine	bool_pri/bool_pri_comp_op_predicate!insert	DO utf8mb4 = utf8mb4 zzz;
 accept	accept	engine	bool_pri/bool_pri_comp_op_all_or_any_table_subquery	DO utf8mb4 = ALL(SELECT utf8mb4);
 reject	reject	engine	bool_pri/bool_pri_comp_op_all_or_any_table_subquery!drop-1	DO = ALL(SELECT utf8mb4);
 reject	reject	engine	bool_pri/bool_pri_comp_op_all_or_any_table_subquery!drop-2	DO utf8mb4 ALL(SELECT utf8mb4);
@@ -5808,7 +5808,7 @@ reject	reject	engine	bool_pri/bool_pri_comp_op_all_or_any_table_subquery!drop-5	
 reject	reject	engine	bool_pri/bool_pri_comp_op_all_or_any_table_subquery!drop-6	DO utf8mb4 = ALL(SELECT);
 reject	reject	engine	bool_pri/bool_pri_comp_op_all_or_any_table_subquery!drop-7	DO utf8mb4 = ALL(SELECT utf8mb4;
 reject	reject	engine	bool_pri/bool_pri_comp_op_all_or_any_table_subquery!truncate	DO utf8mb4 = ALL(SELECT utf8mb4
-reject	accept	engine	bool_pri/bool_pri_comp_op_all_or_any_table_subquery!insert	DO utf8mb4 = ALL(SELECT utf8mb4) zzz;
+accept	accept	engine	bool_pri/bool_pri_comp_op_all_or_any_table_subquery!insert	DO utf8mb4 = ALL(SELECT utf8mb4) zzz;
 reject	reject	engine	bool_pri/bool_pri_comp_op_all_or_any_table_subquery!swap	DO utf8mb4 = ALTER(SELECT utf8mb4);
 accept	accept	engine	bool_pri/predicate	DO utf8mb4;
 accept	accept	engine	predicate/bit_expr_IN_SYM_table_subquery	DO utf8mb4 IN(SELECT utf8mb4);
@@ -5818,7 +5818,7 @@ reject	reject	engine	predicate/bit_expr_IN_SYM_table_subquery!drop-3	DO utf8mb4 
 reject	reject	engine	predicate/bit_expr_IN_SYM_table_subquery!drop-5	DO utf8mb4 IN(SELECT);
 reject	reject	engine	predicate/bit_expr_IN_SYM_table_subquery!drop-6	DO utf8mb4 IN(SELECT utf8mb4;
 reject	reject	engine	predicate/bit_expr_IN_SYM_table_subquery!truncate	DO utf8mb4 IN(SELECT utf8mb4
-reject	accept	engine	predicate/bit_expr_IN_SYM_table_subquery!insert	DO utf8mb4 IN(SELECT utf8mb4) zzz;
+accept	accept	engine	predicate/bit_expr_IN_SYM_table_subquery!insert	DO utf8mb4 IN(SELECT utf8mb4) zzz;
 reject	reject	engine	predicate/bit_expr_IN_SYM_table_subquery!swap	DO utf8mb4 INACTIVE(SELECT utf8mb4);
 accept	accept	engine	predicate/bit_expr_not_IN_SYM_table_subquery	DO utf8mb4 NOT IN(SELECT utf8mb4);
 reject	reject	engine	predicate/bit_expr_not_IN_SYM_table_subquery!drop-1	DO NOT IN(SELECT utf8mb4);
@@ -5827,7 +5827,7 @@ reject	reject	engine	predicate/bit_expr_not_IN_SYM_table_subquery!drop-4	DO utf8
 reject	reject	engine	predicate/bit_expr_not_IN_SYM_table_subquery!drop-6	DO utf8mb4 NOT IN(SELECT);
 reject	reject	engine	predicate/bit_expr_not_IN_SYM_table_subquery!drop-7	DO utf8mb4 NOT IN(SELECT utf8mb4;
 reject	reject	engine	predicate/bit_expr_not_IN_SYM_table_subquery!truncate	DO utf8mb4 NOT IN(SELECT utf8mb4
-reject	accept	engine	predicate/bit_expr_not_IN_SYM_table_subquery!insert	DO utf8mb4 NOT IN(SELECT utf8mb4) zzz;
+accept	accept	engine	predicate/bit_expr_not_IN_SYM_table_subquery!insert	DO utf8mb4 NOT IN(SELECT utf8mb4) zzz;
 reject	reject	engine	predicate/bit_expr_not_IN_SYM_table_subquery!swap	DO utf8mb4 NOWAIT IN(SELECT utf8mb4);
 accept	accept	engine	predicate/bit_expr_IN_SYM_(_expr_)	DO utf8mb4 IN(utf8mb4);
 reject	reject	engine	predicate/bit_expr_IN_SYM_(_expr_)!drop-1	DO IN(utf8mb4);
@@ -5835,7 +5835,7 @@ reject	reject	engine	predicate/bit_expr_IN_SYM_(_expr_)!drop-3	DO utf8mb4 IN utf
 reject	reject	engine	predicate/bit_expr_IN_SYM_(_expr_)!drop-4	DO utf8mb4 IN();
 reject	reject	engine	predicate/bit_expr_IN_SYM_(_expr_)!drop-5	DO utf8mb4 IN(utf8mb4;
 reject	reject	engine	predicate/bit_expr_IN_SYM_(_expr_)!truncate	DO utf8mb4 IN(utf8mb4
-reject	accept	engine	predicate/bit_expr_IN_SYM_(_expr_)!insert	DO utf8mb4 IN(utf8mb4) zzz;
+accept	accept	engine	predicate/bit_expr_IN_SYM_(_expr_)!insert	DO utf8mb4 IN(utf8mb4) zzz;
 reject	reject	engine	predicate/bit_expr_IN_SYM_(_expr_)!swap	DO utf8mb4 INACTIVE(utf8mb4);
 accept	accept	engine	predicate/bit_expr_IN_SYM_(_expr_,_expr_list_)	DO utf8mb4 IN(utf8mb4, utf8mb4);
 reject	reject	engine	predicate/bit_expr_IN_SYM_(_expr_,_expr_list_)!drop-1	DO IN(utf8mb4, utf8mb4);
@@ -5845,7 +5845,7 @@ reject	reject	engine	predicate/bit_expr_IN_SYM_(_expr_,_expr_list_)!drop-5	DO ut
 reject	reject	engine	predicate/bit_expr_IN_SYM_(_expr_,_expr_list_)!drop-6	DO utf8mb4 IN(utf8mb4,);
 reject	reject	engine	predicate/bit_expr_IN_SYM_(_expr_,_expr_list_)!drop-7	DO utf8mb4 IN(utf8mb4, utf8mb4;
 reject	reject	engine	predicate/bit_expr_IN_SYM_(_expr_,_expr_list_)!truncate	DO utf8mb4 IN(utf8mb4, utf8mb4
-reject	accept	engine	predicate/bit_expr_IN_SYM_(_expr_,_expr_list_)!insert	DO utf8mb4 IN(utf8mb4, utf8mb4) zzz;
+accept	accept	engine	predicate/bit_expr_IN_SYM_(_expr_,_expr_list_)!insert	DO utf8mb4 IN(utf8mb4, utf8mb4) zzz;
 reject	reject	engine	predicate/bit_expr_IN_SYM_(_expr_,_expr_list_)!swap	DO utf8mb4 INACTIVE(utf8mb4, utf8mb4);
 accept	accept	engine	predicate/bit_expr_not_IN_SYM_(_expr_)	DO utf8mb4 NOT IN(utf8mb4);
 reject	reject	engine	predicate/bit_expr_not_IN_SYM_(_expr_)!drop-1	DO NOT IN(utf8mb4);
@@ -5854,7 +5854,7 @@ reject	reject	engine	predicate/bit_expr_not_IN_SYM_(_expr_)!drop-4	DO utf8mb4 NO
 reject	reject	engine	predicate/bit_expr_not_IN_SYM_(_expr_)!drop-5	DO utf8mb4 NOT IN();
 reject	reject	engine	predicate/bit_expr_not_IN_SYM_(_expr_)!drop-6	DO utf8mb4 NOT IN(utf8mb4;
 reject	reject	engine	predicate/bit_expr_not_IN_SYM_(_expr_)!truncate	DO utf8mb4 NOT IN(utf8mb4
-reject	accept	engine	predicate/bit_expr_not_IN_SYM_(_expr_)!insert	DO utf8mb4 NOT IN(utf8mb4) zzz;
+accept	accept	engine	predicate/bit_expr_not_IN_SYM_(_expr_)!insert	DO utf8mb4 NOT IN(utf8mb4) zzz;
 reject	reject	engine	predicate/bit_expr_not_IN_SYM_(_expr_)!swap	DO utf8mb4 NOWAIT IN(utf8mb4);
 accept	accept	engine	predicate/bit_expr_not_IN_SYM_(_expr_,_expr_list_)	DO utf8mb4 NOT IN(utf8mb4, utf8mb4);
 reject	reject	engine	predicate/bit_expr_not_IN_SYM_(_expr_,_expr_list_)!drop-1	DO NOT IN(utf8mb4, utf8mb4);
@@ -5865,7 +5865,7 @@ reject	reject	engine	predicate/bit_expr_not_IN_SYM_(_expr_,_expr_list_)!drop-6	D
 reject	reject	engine	predicate/bit_expr_not_IN_SYM_(_expr_,_expr_list_)!drop-7	DO utf8mb4 NOT IN(utf8mb4,);
 reject	reject	engine	predicate/bit_expr_not_IN_SYM_(_expr_,_expr_list_)!drop-8	DO utf8mb4 NOT IN(utf8mb4, utf8mb4;
 reject	reject	engine	predicate/bit_expr_not_IN_SYM_(_expr_,_expr_list_)!truncate	DO utf8mb4 NOT IN(utf8mb4, utf8mb4
-reject	accept	engine	predicate/bit_expr_not_IN_SYM_(_expr_,_expr_list_)!insert	DO utf8mb4 NOT IN(utf8mb4, utf8mb4) zzz;
+accept	accept	engine	predicate/bit_expr_not_IN_SYM_(_expr_,_expr_list_)!insert	DO utf8mb4 NOT IN(utf8mb4, utf8mb4) zzz;
 reject	reject	engine	predicate/bit_expr_not_IN_SYM_(_expr_,_expr_list_)!swap	DO utf8mb4 NOWAIT IN(utf8mb4, utf8mb4);
 accept	accept	engine	predicate/bit_expr_MEMBER_SYM_opt_of_(_simple_expr_)	DO utf8mb4 MEMBER(utf8mb4);
 reject	reject	engine	predicate/bit_expr_MEMBER_SYM_opt_of_(_simple_expr_)!drop-1	DO MEMBER(utf8mb4);
@@ -5873,7 +5873,7 @@ reject	reject	engine	predicate/bit_expr_MEMBER_SYM_opt_of_(_simple_expr_)!drop-3
 reject	reject	engine	predicate/bit_expr_MEMBER_SYM_opt_of_(_simple_expr_)!drop-4	DO utf8mb4 MEMBER();
 reject	reject	engine	predicate/bit_expr_MEMBER_SYM_opt_of_(_simple_expr_)!drop-5	DO utf8mb4 MEMBER(utf8mb4;
 reject	reject	engine	predicate/bit_expr_MEMBER_SYM_opt_of_(_simple_expr_)!truncate	DO utf8mb4 MEMBER(utf8mb4
-reject	accept	engine	predicate/bit_expr_MEMBER_SYM_opt_of_(_simple_expr_)!insert	DO utf8mb4 MEMBER(utf8mb4) zzz;
+accept	accept	engine	predicate/bit_expr_MEMBER_SYM_opt_of_(_simple_expr_)!insert	DO utf8mb4 MEMBER(utf8mb4) zzz;
 reject	reject	engine	predicate/bit_expr_MEMBER_SYM_opt_of_(_simple_expr_)!swap	DO utf8mb4 MEMORY(utf8mb4);
 accept	accept	engine	predicate/bit_expr_BETWEEN_SYM_bit_expr_AND_SYM_predicate	DO utf8mb4 BETWEEN utf8mb4 AND utf8mb4;
 reject	reject	engine	predicate/bit_expr_BETWEEN_SYM_bit_expr_AND_SYM_predicate!drop-1	DO BETWEEN utf8mb4 AND utf8mb4;
@@ -5882,7 +5882,7 @@ reject	reject	engine	predicate/bit_expr_BETWEEN_SYM_bit_expr_AND_SYM_predicate!d
 reject	reject	engine	predicate/bit_expr_BETWEEN_SYM_bit_expr_AND_SYM_predicate!drop-4	DO utf8mb4 BETWEEN utf8mb4 utf8mb4;
 reject	reject	engine	predicate/bit_expr_BETWEEN_SYM_bit_expr_AND_SYM_predicate!drop-5	DO utf8mb4 BETWEEN utf8mb4 AND;
 reject	reject	engine	predicate/bit_expr_BETWEEN_SYM_bit_expr_AND_SYM_predicate!truncate	DO utf8mb4 BETWEEN utf8mb4 AND
-reject	accept	engine	predicate/bit_expr_BETWEEN_SYM_bit_expr_AND_SYM_predicate!insert	DO utf8mb4 BETWEEN utf8mb4 AND utf8mb4 zzz;
+accept	accept	engine	predicate/bit_expr_BETWEEN_SYM_bit_expr_AND_SYM_predicate!insert	DO utf8mb4 BETWEEN utf8mb4 AND utf8mb4 zzz;
 reject	reject	engine	predicate/bit_expr_BETWEEN_SYM_bit_expr_AND_SYM_predicate!swap	DO utf8mb4 BIGINT utf8mb4 AND utf8mb4;
 accept	accept	engine	predicate/bit_expr_not_BETWEEN_SYM_bit_expr_AND_SYM_predicate	DO utf8mb4 NOT BETWEEN utf8mb4 AND utf8mb4;
 reject	reject	engine	predicate/bit_expr_not_BETWEEN_SYM_bit_expr_AND_SYM_predicate!drop-1	DO NOT BETWEEN utf8mb4 AND utf8mb4;
@@ -5891,57 +5891,57 @@ reject	reject	engine	predicate/bit_expr_not_BETWEEN_SYM_bit_expr_AND_SYM_predica
 reject	reject	engine	predicate/bit_expr_not_BETWEEN_SYM_bit_expr_AND_SYM_predicate!drop-5	DO utf8mb4 NOT BETWEEN utf8mb4 utf8mb4;
 reject	reject	engine	predicate/bit_expr_not_BETWEEN_SYM_bit_expr_AND_SYM_predicate!drop-6	DO utf8mb4 NOT BETWEEN utf8mb4 AND;
 reject	reject	engine	predicate/bit_expr_not_BETWEEN_SYM_bit_expr_AND_SYM_predicate!truncate	DO utf8mb4 NOT BETWEEN utf8mb4 AND
-reject	accept	engine	predicate/bit_expr_not_BETWEEN_SYM_bit_expr_AND_SYM_predicate!insert	DO utf8mb4 NOT BETWEEN utf8mb4 AND utf8mb4 zzz;
+accept	accept	engine	predicate/bit_expr_not_BETWEEN_SYM_bit_expr_AND_SYM_predicate!insert	DO utf8mb4 NOT BETWEEN utf8mb4 AND utf8mb4 zzz;
 reject	reject	engine	predicate/bit_expr_not_BETWEEN_SYM_bit_expr_AND_SYM_predicate!swap	DO utf8mb4 NOWAIT BETWEEN utf8mb4 AND utf8mb4;
 accept	accept	engine	predicate/bit_expr_SOUNDS_SYM_LIKE_bit_expr	DO utf8mb4 SOUNDS LIKE utf8mb4;
 accept	accept	engine	predicate/bit_expr_SOUNDS_SYM_LIKE_bit_expr!drop-1	DO SOUNDS LIKE utf8mb4;
 reject	reject	engine	predicate/bit_expr_SOUNDS_SYM_LIKE_bit_expr!drop-3	DO utf8mb4 SOUNDS utf8mb4;
 reject	reject	engine	predicate/bit_expr_SOUNDS_SYM_LIKE_bit_expr!drop-4	DO utf8mb4 SOUNDS LIKE;
 reject	reject	engine	predicate/bit_expr_SOUNDS_SYM_LIKE_bit_expr!truncate	DO utf8mb4 SOUNDS LIKE
-reject	accept	engine	predicate/bit_expr_SOUNDS_SYM_LIKE_bit_expr!insert	DO utf8mb4 SOUNDS LIKE utf8mb4 zzz;
+accept	accept	engine	predicate/bit_expr_SOUNDS_SYM_LIKE_bit_expr!insert	DO utf8mb4 SOUNDS LIKE utf8mb4 zzz;
 reject	reject	engine	predicate/bit_expr_SOUNDS_SYM_LIKE_bit_expr!swap	DO utf8mb4 SOURCE LIKE utf8mb4;
 accept	accept	engine	predicate/bit_expr_LIKE_simple_expr	DO utf8mb4 LIKE utf8mb4;
 reject	reject	engine	predicate/bit_expr_LIKE_simple_expr!drop-1	DO LIKE utf8mb4;
 reject	reject	engine	predicate/bit_expr_LIKE_simple_expr!drop-3	DO utf8mb4 LIKE;
 reject	reject	engine	predicate/bit_expr_LIKE_simple_expr!truncate	DO utf8mb4 LIKE
-reject	accept	engine	predicate/bit_expr_LIKE_simple_expr!insert	DO utf8mb4 LIKE utf8mb4 zzz;
+accept	accept	engine	predicate/bit_expr_LIKE_simple_expr!insert	DO utf8mb4 LIKE utf8mb4 zzz;
 reject	reject	engine	predicate/bit_expr_LIKE_simple_expr!swap	DO utf8mb4 LIMIT utf8mb4;
 accept	accept	engine	predicate/bit_expr_LIKE_simple_expr_ESCAPE_SYM_simple_expr	DO utf8mb4 LIKE utf8mb4 ESCAPE utf8mb4;
 reject	reject	engine	predicate/bit_expr_LIKE_simple_expr_ESCAPE_SYM_simple_expr!drop-1	DO LIKE utf8mb4 ESCAPE utf8mb4;
 reject	reject	engine	predicate/bit_expr_LIKE_simple_expr_ESCAPE_SYM_simple_expr!drop-2	DO utf8mb4 utf8mb4 ESCAPE utf8mb4;
-reject	accept	engine	predicate/bit_expr_LIKE_simple_expr_ESCAPE_SYM_simple_expr!drop-3	DO utf8mb4 LIKE ESCAPE utf8mb4;
-reject	accept	engine	predicate/bit_expr_LIKE_simple_expr_ESCAPE_SYM_simple_expr!drop-4	DO utf8mb4 LIKE utf8mb4 utf8mb4;
+accept	accept	engine	predicate/bit_expr_LIKE_simple_expr_ESCAPE_SYM_simple_expr!drop-3	DO utf8mb4 LIKE ESCAPE utf8mb4;
+accept	accept	engine	predicate/bit_expr_LIKE_simple_expr_ESCAPE_SYM_simple_expr!drop-4	DO utf8mb4 LIKE utf8mb4 utf8mb4;
 reject	reject	engine	predicate/bit_expr_LIKE_simple_expr_ESCAPE_SYM_simple_expr!drop-5	DO utf8mb4 LIKE utf8mb4 ESCAPE;
 reject	reject	engine	predicate/bit_expr_LIKE_simple_expr_ESCAPE_SYM_simple_expr!truncate	DO utf8mb4 LIKE utf8mb4 ESCAPE
-reject	accept	engine	predicate/bit_expr_LIKE_simple_expr_ESCAPE_SYM_simple_expr!insert	DO utf8mb4 LIKE utf8mb4 ESCAPE utf8mb4 zzz;
+accept	accept	engine	predicate/bit_expr_LIKE_simple_expr_ESCAPE_SYM_simple_expr!insert	DO utf8mb4 LIKE utf8mb4 ESCAPE utf8mb4 zzz;
 reject	reject	engine	predicate/bit_expr_LIKE_simple_expr_ESCAPE_SYM_simple_expr!swap	DO utf8mb4 LIMIT utf8mb4 ESCAPE utf8mb4;
 accept	accept	engine	predicate/bit_expr_not_LIKE_simple_expr	DO utf8mb4 NOT LIKE utf8mb4;
 reject	reject	engine	predicate/bit_expr_not_LIKE_simple_expr!drop-1	DO NOT LIKE utf8mb4;
 reject	reject	engine	predicate/bit_expr_not_LIKE_simple_expr!drop-3	DO utf8mb4 NOT utf8mb4;
 reject	reject	engine	predicate/bit_expr_not_LIKE_simple_expr!drop-4	DO utf8mb4 NOT LIKE;
 reject	reject	engine	predicate/bit_expr_not_LIKE_simple_expr!truncate	DO utf8mb4 NOT LIKE
-reject	accept	engine	predicate/bit_expr_not_LIKE_simple_expr!insert	DO utf8mb4 NOT LIKE utf8mb4 zzz;
+accept	accept	engine	predicate/bit_expr_not_LIKE_simple_expr!insert	DO utf8mb4 NOT LIKE utf8mb4 zzz;
 reject	reject	engine	predicate/bit_expr_not_LIKE_simple_expr!swap	DO utf8mb4 NOWAIT LIKE utf8mb4;
 accept	accept	engine	predicate/bit_expr_not_LIKE_simple_expr_ESCAPE_SYM_simple_expr	DO utf8mb4 NOT LIKE utf8mb4 ESCAPE utf8mb4;
 reject	reject	engine	predicate/bit_expr_not_LIKE_simple_expr_ESCAPE_SYM_simple_expr!drop-1	DO NOT LIKE utf8mb4 ESCAPE utf8mb4;
 reject	reject	engine	predicate/bit_expr_not_LIKE_simple_expr_ESCAPE_SYM_simple_expr!drop-3	DO utf8mb4 NOT utf8mb4 ESCAPE utf8mb4;
-reject	accept	engine	predicate/bit_expr_not_LIKE_simple_expr_ESCAPE_SYM_simple_expr!drop-4	DO utf8mb4 NOT LIKE ESCAPE utf8mb4;
-reject	accept	engine	predicate/bit_expr_not_LIKE_simple_expr_ESCAPE_SYM_simple_expr!drop-5	DO utf8mb4 NOT LIKE utf8mb4 utf8mb4;
+accept	accept	engine	predicate/bit_expr_not_LIKE_simple_expr_ESCAPE_SYM_simple_expr!drop-4	DO utf8mb4 NOT LIKE ESCAPE utf8mb4;
+accept	accept	engine	predicate/bit_expr_not_LIKE_simple_expr_ESCAPE_SYM_simple_expr!drop-5	DO utf8mb4 NOT LIKE utf8mb4 utf8mb4;
 reject	reject	engine	predicate/bit_expr_not_LIKE_simple_expr_ESCAPE_SYM_simple_expr!drop-6	DO utf8mb4 NOT LIKE utf8mb4 ESCAPE;
 reject	reject	engine	predicate/bit_expr_not_LIKE_simple_expr_ESCAPE_SYM_simple_expr!truncate	DO utf8mb4 NOT LIKE utf8mb4 ESCAPE
-reject	accept	engine	predicate/bit_expr_not_LIKE_simple_expr_ESCAPE_SYM_simple_expr!insert	DO utf8mb4 NOT LIKE utf8mb4 ESCAPE utf8mb4 zzz;
+accept	accept	engine	predicate/bit_expr_not_LIKE_simple_expr_ESCAPE_SYM_simple_expr!insert	DO utf8mb4 NOT LIKE utf8mb4 ESCAPE utf8mb4 zzz;
 reject	reject	engine	predicate/bit_expr_not_LIKE_simple_expr_ESCAPE_SYM_simple_expr!swap	DO utf8mb4 NOWAIT LIKE utf8mb4 ESCAPE utf8mb4;
 accept	accept	engine	predicate/bit_expr_REGEXP_bit_expr	DO utf8mb4 REGEXP utf8mb4;
 reject	reject	engine	predicate/bit_expr_REGEXP_bit_expr!drop-1	DO REGEXP utf8mb4;
 reject	reject	engine	predicate/bit_expr_REGEXP_bit_expr!drop-3	DO utf8mb4 REGEXP;
 reject	reject	engine	predicate/bit_expr_REGEXP_bit_expr!truncate	DO utf8mb4 REGEXP
-reject	accept	engine	predicate/bit_expr_REGEXP_bit_expr!insert	DO utf8mb4 REGEXP utf8mb4 zzz;
+accept	accept	engine	predicate/bit_expr_REGEXP_bit_expr!insert	DO utf8mb4 REGEXP utf8mb4 zzz;
 reject	reject	engine	predicate/bit_expr_REGEXP_bit_expr!swap	DO utf8mb4 REGISTRATION utf8mb4;
 accept	accept	engine	predicate/bit_expr_not_REGEXP_bit_expr	DO utf8mb4 NOT REGEXP utf8mb4;
 reject	reject	engine	predicate/bit_expr_not_REGEXP_bit_expr!drop-1	DO NOT REGEXP utf8mb4;
 reject	reject	engine	predicate/bit_expr_not_REGEXP_bit_expr!drop-4	DO utf8mb4 NOT REGEXP;
 reject	reject	engine	predicate/bit_expr_not_REGEXP_bit_expr!truncate	DO utf8mb4 NOT REGEXP
-reject	accept	engine	predicate/bit_expr_not_REGEXP_bit_expr!insert	DO utf8mb4 NOT REGEXP utf8mb4 zzz;
+accept	accept	engine	predicate/bit_expr_not_REGEXP_bit_expr!insert	DO utf8mb4 NOT REGEXP utf8mb4 zzz;
 reject	reject	engine	predicate/bit_expr_not_REGEXP_bit_expr!swap	DO utf8mb4 NOWAIT REGEXP utf8mb4;
 accept	accept	engine	predicate/bit_expr	DO utf8mb4;
 accept	accept	engine	opt_of/OF_SYM	DO utf8mb4 MEMBER OF(utf8mb4);
@@ -5954,106 +5954,106 @@ accept	accept	engine	bit_expr/bit_expr_|_bit_expr	DO utf8mb4 | utf8mb4;
 reject	reject	engine	bit_expr/bit_expr_|_bit_expr!drop-1	DO | utf8mb4;
 reject	reject	engine	bit_expr/bit_expr_|_bit_expr!drop-3	DO utf8mb4 |;
 reject	reject	engine	bit_expr/bit_expr_|_bit_expr!truncate	DO utf8mb4 |
-reject	accept	engine	bit_expr/bit_expr_|_bit_expr!insert	DO utf8mb4 | utf8mb4 zzz;
+accept	accept	engine	bit_expr/bit_expr_|_bit_expr!insert	DO utf8mb4 | utf8mb4 zzz;
 accept	accept	engine	bit_expr/bit_expr_&_bit_expr	DO utf8mb4 & utf8mb4;
 reject	reject	engine	bit_expr/bit_expr_&_bit_expr!drop-1	DO & utf8mb4;
 reject	reject	engine	bit_expr/bit_expr_&_bit_expr!drop-3	DO utf8mb4 &;
 reject	reject	engine	bit_expr/bit_expr_&_bit_expr!truncate	DO utf8mb4 &
-reject	accept	engine	bit_expr/bit_expr_&_bit_expr!insert	DO utf8mb4 & utf8mb4 zzz;
+accept	accept	engine	bit_expr/bit_expr_&_bit_expr!insert	DO utf8mb4 & utf8mb4 zzz;
 accept	accept	engine	bit_expr/bit_expr_SHIFT_LEFT_bit_expr	DO utf8mb4 << utf8mb4;
 reject	reject	engine	bit_expr/bit_expr_SHIFT_LEFT_bit_expr!drop-1	DO << utf8mb4;
 reject	reject	engine	bit_expr/bit_expr_SHIFT_LEFT_bit_expr!drop-3	DO utf8mb4 <<;
 reject	reject	engine	bit_expr/bit_expr_SHIFT_LEFT_bit_expr!truncate	DO utf8mb4 <<
-reject	accept	engine	bit_expr/bit_expr_SHIFT_LEFT_bit_expr!insert	DO utf8mb4 << utf8mb4 zzz;
+accept	accept	engine	bit_expr/bit_expr_SHIFT_LEFT_bit_expr!insert	DO utf8mb4 << utf8mb4 zzz;
 accept	accept	engine	bit_expr/bit_expr_SHIFT_RIGHT_bit_expr	DO utf8mb4 >> utf8mb4;
 reject	reject	engine	bit_expr/bit_expr_SHIFT_RIGHT_bit_expr!drop-1	DO >> utf8mb4;
 reject	reject	engine	bit_expr/bit_expr_SHIFT_RIGHT_bit_expr!drop-3	DO utf8mb4 >>;
 reject	reject	engine	bit_expr/bit_expr_SHIFT_RIGHT_bit_expr!truncate	DO utf8mb4 >>
-reject	accept	engine	bit_expr/bit_expr_SHIFT_RIGHT_bit_expr!insert	DO utf8mb4 >> utf8mb4 zzz;
+accept	accept	engine	bit_expr/bit_expr_SHIFT_RIGHT_bit_expr!insert	DO utf8mb4 >> utf8mb4 zzz;
 accept	accept	engine	bit_expr/bit_expr_+_bit_expr	DO utf8mb4 + utf8mb4;
 reject	reject	engine	bit_expr/bit_expr_+_bit_expr!drop-3	DO utf8mb4 +;
 reject	reject	engine	bit_expr/bit_expr_+_bit_expr!truncate	DO utf8mb4 +
-reject	accept	engine	bit_expr/bit_expr_+_bit_expr!insert	DO utf8mb4 + utf8mb4 zzz;
+accept	accept	engine	bit_expr/bit_expr_+_bit_expr!insert	DO utf8mb4 + utf8mb4 zzz;
 accept	accept	engine	bit_expr/bit_expr_-_bit_expr	DO utf8mb4 - utf8mb4;
 reject	reject	engine	bit_expr/bit_expr_-_bit_expr!drop-3	DO utf8mb4 -;
 reject	reject	engine	bit_expr/bit_expr_-_bit_expr!truncate	DO utf8mb4 -
-reject	accept	engine	bit_expr/bit_expr_-_bit_expr!insert	DO utf8mb4 - utf8mb4 zzz;
+accept	accept	engine	bit_expr/bit_expr_-_bit_expr!insert	DO utf8mb4 - utf8mb4 zzz;
 accept	accept	engine	bit_expr/bit_expr_+_INTERVAL_SYM_expr_interval	DO utf8mb4 + INTERVAL utf8mb4 DAY;
-accept	reject	engine	bit_expr/bit_expr_+_INTERVAL_SYM_expr_interval!drop-1	DO + INTERVAL utf8mb4 DAY;
+reject	reject	engine	bit_expr/bit_expr_+_INTERVAL_SYM_expr_interval!drop-1	DO + INTERVAL utf8mb4 DAY;
 reject	reject	engine	bit_expr/bit_expr_+_INTERVAL_SYM_expr_interval!drop-2	DO utf8mb4 INTERVAL utf8mb4 DAY;
-reject	accept	engine	bit_expr/bit_expr_+_INTERVAL_SYM_expr_interval!drop-3	DO utf8mb4 + utf8mb4 DAY;
+accept	accept	engine	bit_expr/bit_expr_+_INTERVAL_SYM_expr_interval!drop-3	DO utf8mb4 + utf8mb4 DAY;
 reject	reject	engine	bit_expr/bit_expr_+_INTERVAL_SYM_expr_interval!drop-4	DO utf8mb4 + INTERVAL DAY;
 reject	reject	engine	bit_expr/bit_expr_+_INTERVAL_SYM_expr_interval!drop-5	DO utf8mb4 + INTERVAL utf8mb4;
 reject	reject	engine	bit_expr/bit_expr_+_INTERVAL_SYM_expr_interval!truncate	DO utf8mb4 + INTERVAL utf8mb4
-reject	accept	engine	bit_expr/bit_expr_+_INTERVAL_SYM_expr_interval!insert	DO utf8mb4 + INTERVAL utf8mb4 DAY zzz;
+accept	accept	engine	bit_expr/bit_expr_+_INTERVAL_SYM_expr_interval!insert	DO utf8mb4 + INTERVAL utf8mb4 DAY zzz;
 reject	reject	engine	bit_expr/bit_expr_+_INTERVAL_SYM_expr_interval!swap	DO utf8mb4 + INTO utf8mb4 DAY;
 accept	accept	engine	bit_expr/bit_expr_-_INTERVAL_SYM_expr_interval	DO utf8mb4 - INTERVAL utf8mb4 DAY;
 accept	reject	engine	bit_expr/bit_expr_-_INTERVAL_SYM_expr_interval!drop-1	DO - INTERVAL utf8mb4 DAY;
-reject	accept	engine	bit_expr/bit_expr_-_INTERVAL_SYM_expr_interval!drop-3	DO utf8mb4 - utf8mb4 DAY;
+accept	accept	engine	bit_expr/bit_expr_-_INTERVAL_SYM_expr_interval!drop-3	DO utf8mb4 - utf8mb4 DAY;
 reject	reject	engine	bit_expr/bit_expr_-_INTERVAL_SYM_expr_interval!drop-4	DO utf8mb4 - INTERVAL DAY;
 reject	reject	engine	bit_expr/bit_expr_-_INTERVAL_SYM_expr_interval!drop-5	DO utf8mb4 - INTERVAL utf8mb4;
 reject	reject	engine	bit_expr/bit_expr_-_INTERVAL_SYM_expr_interval!truncate	DO utf8mb4 - INTERVAL utf8mb4
-reject	accept	engine	bit_expr/bit_expr_-_INTERVAL_SYM_expr_interval!insert	DO utf8mb4 - INTERVAL utf8mb4 DAY zzz;
+accept	accept	engine	bit_expr/bit_expr_-_INTERVAL_SYM_expr_interval!insert	DO utf8mb4 - INTERVAL utf8mb4 DAY zzz;
 reject	reject	engine	bit_expr/bit_expr_-_INTERVAL_SYM_expr_interval!swap	DO utf8mb4 - INTO utf8mb4 DAY;
 accept	accept	engine	bit_expr/bit_expr_*_bit_expr	DO utf8mb4 * utf8mb4;
 reject	reject	engine	bit_expr/bit_expr_*_bit_expr!drop-1	DO * utf8mb4;
 reject	reject	engine	bit_expr/bit_expr_*_bit_expr!truncate	DO utf8mb4 *
-reject	accept	engine	bit_expr/bit_expr_*_bit_expr!insert	DO utf8mb4 * utf8mb4 zzz;
+accept	accept	engine	bit_expr/bit_expr_*_bit_expr!insert	DO utf8mb4 * utf8mb4 zzz;
 accept	accept	engine	bit_expr/bit_expr_/_bit_expr	DO utf8mb4 / utf8mb4;
 reject	reject	engine	bit_expr/bit_expr_/_bit_expr!drop-1	DO / utf8mb4;
 reject	reject	engine	bit_expr/bit_expr_/_bit_expr!drop-3	DO utf8mb4 /;
 reject	reject	engine	bit_expr/bit_expr_/_bit_expr!truncate	DO utf8mb4 /
-reject	accept	engine	bit_expr/bit_expr_/_bit_expr!insert	DO utf8mb4 / utf8mb4 zzz;
+accept	accept	engine	bit_expr/bit_expr_/_bit_expr!insert	DO utf8mb4 / utf8mb4 zzz;
 accept	accept	engine	bit_expr/bit_expr_%_bit_expr	DO utf8mb4 % utf8mb4;
 reject	reject	engine	bit_expr/bit_expr_%_bit_expr!drop-1	DO % utf8mb4;
 reject	reject	engine	bit_expr/bit_expr_%_bit_expr!drop-3	DO utf8mb4 %;
 reject	reject	engine	bit_expr/bit_expr_%_bit_expr!truncate	DO utf8mb4 %
-reject	accept	engine	bit_expr/bit_expr_%_bit_expr!insert	DO utf8mb4 % utf8mb4 zzz;
+accept	accept	engine	bit_expr/bit_expr_%_bit_expr!insert	DO utf8mb4 % utf8mb4 zzz;
 accept	accept	engine	bit_expr/bit_expr_DIV_SYM_bit_expr	DO utf8mb4 DIV utf8mb4;
 reject	reject	engine	bit_expr/bit_expr_DIV_SYM_bit_expr!drop-1	DO DIV utf8mb4;
 reject	reject	engine	bit_expr/bit_expr_DIV_SYM_bit_expr!drop-3	DO utf8mb4 DIV;
 reject	reject	engine	bit_expr/bit_expr_DIV_SYM_bit_expr!truncate	DO utf8mb4 DIV
-reject	accept	engine	bit_expr/bit_expr_DIV_SYM_bit_expr!insert	DO utf8mb4 DIV utf8mb4 zzz;
+accept	accept	engine	bit_expr/bit_expr_DIV_SYM_bit_expr!insert	DO utf8mb4 DIV utf8mb4 zzz;
 reject	reject	engine	bit_expr/bit_expr_DIV_SYM_bit_expr!swap	DO utf8mb4 DO utf8mb4;
 accept	accept	engine	bit_expr/bit_expr_MOD_SYM_bit_expr	DO utf8mb4 MOD utf8mb4;
 reject	reject	engine	bit_expr/bit_expr_MOD_SYM_bit_expr!drop-1	DO MOD utf8mb4;
 reject	reject	engine	bit_expr/bit_expr_MOD_SYM_bit_expr!drop-3	DO utf8mb4 MOD;
 reject	reject	engine	bit_expr/bit_expr_MOD_SYM_bit_expr!truncate	DO utf8mb4 MOD
-reject	accept	engine	bit_expr/bit_expr_MOD_SYM_bit_expr!insert	DO utf8mb4 MOD utf8mb4 zzz;
+accept	accept	engine	bit_expr/bit_expr_MOD_SYM_bit_expr!insert	DO utf8mb4 MOD utf8mb4 zzz;
 reject	reject	engine	bit_expr/bit_expr_MOD_SYM_bit_expr!swap	DO utf8mb4 MODE utf8mb4;
 accept	accept	engine	bit_expr/bit_expr_^_bit_expr	DO utf8mb4 ^ utf8mb4;
 reject	reject	engine	bit_expr/bit_expr_^_bit_expr!drop-1	DO ^ utf8mb4;
 reject	reject	engine	bit_expr/bit_expr_^_bit_expr!drop-3	DO utf8mb4 ^;
 reject	reject	engine	bit_expr/bit_expr_^_bit_expr!truncate	DO utf8mb4 ^
-reject	accept	engine	bit_expr/bit_expr_^_bit_expr!insert	DO utf8mb4 ^ utf8mb4 zzz;
+accept	accept	engine	bit_expr/bit_expr_^_bit_expr!insert	DO utf8mb4 ^ utf8mb4 zzz;
 accept	accept	engine	bit_expr/simple_expr	DO utf8mb4;
 accept	accept	engine	or/OR_SYM	DO utf8mb4 OR utf8mb4;
-reject	accept	engine	or/OR_SYM!insert	DO utf8mb4 OR zzz utf8mb4;
+accept	accept	engine	or/OR_SYM!insert	DO utf8mb4 OR zzz utf8mb4;
 accept	accept	engine	or/OR2_SYM	DO utf8mb4 || utf8mb4;
-reject	accept	engine	or/OR2_SYM!insert	DO utf8mb4 || zzz utf8mb4;
+accept	accept	engine	or/OR2_SYM!insert	DO utf8mb4 || zzz utf8mb4;
 accept	accept	engine	and/AND_SYM	DO utf8mb4 AND utf8mb4;
-reject	accept	engine	and/AND_SYM!insert	DO utf8mb4 AND zzz utf8mb4;
+accept	accept	engine	and/AND_SYM!insert	DO utf8mb4 AND zzz utf8mb4;
 accept	accept	engine	and/AND_AND_SYM	DO utf8mb4 && utf8mb4;
-reject	accept	engine	and/AND_AND_SYM!insert	DO utf8mb4 && zzz utf8mb4;
+accept	accept	engine	and/AND_AND_SYM!insert	DO utf8mb4 && zzz utf8mb4;
 accept	accept	engine	not/NOT_SYM	DO utf8mb4 IS NOT TRUE;
 reject	reject	engine	not/NOT_SYM!insert	DO utf8mb4 IS NOT zzz TRUE;
 reject	reject	engine	not/NOT_SYM!swap	DO utf8mb4 IS NOWAIT TRUE;
 accept	accept	engine	not2/!	DO ! utf8mb4;
-reject	accept	engine	not2/!!insert	DO ! zzz utf8mb4;
+accept	accept	engine	not2/!!insert	DO ! zzz utf8mb4;
 accept	accept	engine	comp_op/EQ	DO utf8mb4 = utf8mb4;
-reject	accept	engine	comp_op/EQ!insert	DO utf8mb4 = zzz utf8mb4;
+accept	accept	engine	comp_op/EQ!insert	DO utf8mb4 = zzz utf8mb4;
 accept	accept	engine	comp_op/EQUAL_SYM	DO utf8mb4 <=> utf8mb4;
-reject	accept	engine	comp_op/EQUAL_SYM!insert	DO utf8mb4 <=> zzz utf8mb4;
+accept	accept	engine	comp_op/EQUAL_SYM!insert	DO utf8mb4 <=> zzz utf8mb4;
 accept	accept	engine	comp_op/GE	DO utf8mb4 >= utf8mb4;
-reject	accept	engine	comp_op/GE!insert	DO utf8mb4 >= zzz utf8mb4;
+accept	accept	engine	comp_op/GE!insert	DO utf8mb4 >= zzz utf8mb4;
 accept	accept	engine	comp_op/GT_SYM	DO utf8mb4 > utf8mb4;
-reject	accept	engine	comp_op/GT_SYM!insert	DO utf8mb4 > zzz utf8mb4;
+accept	accept	engine	comp_op/GT_SYM!insert	DO utf8mb4 > zzz utf8mb4;
 accept	accept	engine	comp_op/LE	DO utf8mb4 <= utf8mb4;
-reject	accept	engine	comp_op/LE!insert	DO utf8mb4 <= zzz utf8mb4;
+accept	accept	engine	comp_op/LE!insert	DO utf8mb4 <= zzz utf8mb4;
 accept	accept	engine	comp_op/LT	DO utf8mb4 < utf8mb4;
-reject	accept	engine	comp_op/LT!insert	DO utf8mb4 < zzz utf8mb4;
+accept	accept	engine	comp_op/LT!insert	DO utf8mb4 < zzz utf8mb4;
 accept	accept	engine	comp_op/NE	DO utf8mb4 <> utf8mb4;
-reject	accept	engine	comp_op/NE!insert	DO utf8mb4 <> zzz utf8mb4;
+accept	accept	engine	comp_op/NE!insert	DO utf8mb4 <> zzz utf8mb4;
 accept	accept	engine	all_or_any/ALL	DO utf8mb4 = ALL(SELECT utf8mb4);
 reject	reject	engine	all_or_any/ALL!insert	DO utf8mb4 = ALL zzz(SELECT utf8mb4);
 accept	accept	engine	all_or_any/ANY_SYM	DO utf8mb4 = ANY(SELECT utf8mb4);
@@ -6063,46 +6063,46 @@ accept	accept	engine	simple_expr/simple_ident	DO utf8mb4;
 accept	accept	engine	simple_expr/function_call_keyword	DO CURRENT_USER;
 reject	reject	engine	simple_expr/function_call_keyword!swap	DO CURSOR;
 accept	accept	engine	simple_expr/function_call_nonkeyword	DO CURRENT_DATE;
-reject	accept	engine	simple_expr/function_call_nonkeyword!insert	DO CURRENT_DATE zzz;
+accept	accept	engine	simple_expr/function_call_nonkeyword!insert	DO CURRENT_DATE zzz;
 accept	accept	engine	simple_expr/function_call_generic	DO utf8mb4();
 reject	reject	engine	simple_expr/function_call_generic!drop-1	DO();
 reject	reject	engine	simple_expr/function_call_generic!drop-2	DO utf8mb4);
 reject	reject	engine	simple_expr/function_call_generic!drop-3	DO utf8mb4(;
 reject	reject	engine	simple_expr/function_call_generic!truncate	DO utf8mb4(
-reject	accept	engine	simple_expr/function_call_generic!insert	DO utf8mb4() zzz;
+accept	accept	engine	simple_expr/function_call_generic!insert	DO utf8mb4() zzz;
 accept	accept	engine	simple_expr/function_call_conflict	DO DATABASE();
 reject	reject	engine	simple_expr/function_call_conflict!drop-2	DO DATABASE);
 reject	reject	engine	simple_expr/function_call_conflict!drop-3	DO DATABASE(;
 reject	reject	engine	simple_expr/function_call_conflict!truncate	DO DATABASE(
-reject	accept	engine	simple_expr/function_call_conflict!insert	DO DATABASE() zzz;
+accept	accept	engine	simple_expr/function_call_conflict!insert	DO DATABASE() zzz;
 reject	reject	engine	simple_expr/function_call_conflict!swap	DO DATABASES();
 accept	accept	engine	simple_expr/simple_expr_COLLATE_SYM_ident_or_text	DO utf8mb4 COLLATE utf8mb4;
 reject	reject	engine	simple_expr/simple_expr_COLLATE_SYM_ident_or_text!drop-1	DO COLLATE utf8mb4;
 reject	reject	engine	simple_expr/simple_expr_COLLATE_SYM_ident_or_text!drop-3	DO utf8mb4 COLLATE;
 reject	reject	engine	simple_expr/simple_expr_COLLATE_SYM_ident_or_text!truncate	DO utf8mb4 COLLATE
-reject	accept	engine	simple_expr/simple_expr_COLLATE_SYM_ident_or_text!insert	DO utf8mb4 COLLATE utf8mb4 zzz;
+accept	accept	engine	simple_expr/simple_expr_COLLATE_SYM_ident_or_text!insert	DO utf8mb4 COLLATE utf8mb4 zzz;
 reject	reject	engine	simple_expr/simple_expr_COLLATE_SYM_ident_or_text!swap	DO utf8mb4 COLLATION utf8mb4;
 accept	accept	engine	simple_expr/literal_or_null	DO 's';
-reject	accept	engine	simple_expr/literal_or_null!insert	DO 's' zzz;
+accept	accept	engine	simple_expr/literal_or_null!insert	DO 's' zzz;
 accept	accept	engine	simple_expr/param_marker	DO ?;
-reject	accept	engine	simple_expr/param_marker!insert	DO ? zzz;
+accept	accept	engine	simple_expr/param_marker!insert	DO ? zzz;
 accept	accept	engine	simple_expr/rvalue_system_or_user_variable	DO@utf8mb4;
 reject	accept	engine	simple_expr/rvalue_system_or_user_variable!drop-2	DO@;
 reject	accept	engine	simple_expr/rvalue_system_or_user_variable!truncate	DO@
-reject	accept	engine	simple_expr/rvalue_system_or_user_variable!insert	DO@utf8mb4 zzz;
+accept	accept	engine	simple_expr/rvalue_system_or_user_variable!insert	DO@utf8mb4 zzz;
 accept	accept	engine	simple_expr/in_expression_user_variable_assignment	DO@utf8mb4 := utf8mb4;
 reject	reject	engine	simple_expr/in_expression_user_variable_assignment!drop-1	DO utf8mb4 := utf8mb4;
 reject	accept	engine	simple_expr/in_expression_user_variable_assignment!drop-2	DO@:= utf8mb4;
-reject	accept	engine	simple_expr/in_expression_user_variable_assignment!drop-3	DO@utf8mb4 utf8mb4;
+accept	accept	engine	simple_expr/in_expression_user_variable_assignment!drop-3	DO@utf8mb4 utf8mb4;
 reject	reject	engine	simple_expr/in_expression_user_variable_assignment!drop-4	DO@utf8mb4 :=;
 reject	reject	engine	simple_expr/in_expression_user_variable_assignment!truncate	DO@utf8mb4 :=
-reject	accept	engine	simple_expr/in_expression_user_variable_assignment!insert	DO@utf8mb4 := utf8mb4 zzz;
+accept	accept	engine	simple_expr/in_expression_user_variable_assignment!insert	DO@utf8mb4 := utf8mb4 zzz;
 accept	accept	engine	simple_expr/set_function_specification	DO AVG(utf8mb4);
 reject	reject	engine	simple_expr/set_function_specification!drop-2	DO AVG utf8mb4);
 reject	reject	engine	simple_expr/set_function_specification!drop-3	DO AVG();
 reject	reject	engine	simple_expr/set_function_specification!drop-4	DO AVG(utf8mb4;
 reject	reject	engine	simple_expr/set_function_specification!truncate	DO AVG(utf8mb4
-reject	accept	engine	simple_expr/set_function_specification!insert	DO AVG(utf8mb4) zzz;
+accept	accept	engine	simple_expr/set_function_specification!insert	DO AVG(utf8mb4) zzz;
 reject	reject	engine	simple_expr/set_function_specification!swap	DO AVG_ROW_LENGTH(utf8mb4);
 accept	accept	engine	simple_expr/window_func_call	DO ROW_NUMBER() OVER utf8mb4;
 reject	reject	engine	simple_expr/window_func_call!drop-1	DO() OVER utf8mb4;
@@ -6111,35 +6111,35 @@ reject	reject	engine	simple_expr/window_func_call!drop-3	DO ROW_NUMBER(OVER utf8
 reject	reject	engine	simple_expr/window_func_call!drop-4	DO ROW_NUMBER() utf8mb4;
 reject	reject	engine	simple_expr/window_func_call!drop-5	DO ROW_NUMBER() OVER;
 reject	reject	engine	simple_expr/window_func_call!truncate	DO ROW_NUMBER() OVER
-reject	accept	engine	simple_expr/window_func_call!insert	DO ROW_NUMBER() OVER utf8mb4 zzz;
+accept	accept	engine	simple_expr/window_func_call!insert	DO ROW_NUMBER() OVER utf8mb4 zzz;
 reject	reject	engine	simple_expr/window_func_call!swap	DO RTREE() OVER utf8mb4;
 accept	accept	engine	simple_expr/+_simple_expr	DO + utf8mb4;
 reject	reject	engine	simple_expr/+_simple_expr!drop-2	DO +;
 reject	reject	engine	simple_expr/+_simple_expr!truncate	DO +
-reject	accept	engine	simple_expr/+_simple_expr!insert	DO + utf8mb4 zzz;
+accept	accept	engine	simple_expr/+_simple_expr!insert	DO + utf8mb4 zzz;
 accept	accept	engine	simple_expr/-_simple_expr	DO - utf8mb4;
 reject	reject	engine	simple_expr/-_simple_expr!drop-2	DO -;
 reject	reject	engine	simple_expr/-_simple_expr!truncate	DO -
-reject	accept	engine	simple_expr/-_simple_expr!insert	DO - utf8mb4 zzz;
+accept	accept	engine	simple_expr/-_simple_expr!insert	DO - utf8mb4 zzz;
 accept	accept	engine	simple_expr/~_simple_expr	DO ~ utf8mb4;
 reject	reject	engine	simple_expr/~_simple_expr!drop-2	DO ~;
 reject	reject	engine	simple_expr/~_simple_expr!truncate	DO ~
-reject	accept	engine	simple_expr/~_simple_expr!insert	DO ~ utf8mb4 zzz;
+accept	accept	engine	simple_expr/~_simple_expr!insert	DO ~ utf8mb4 zzz;
 accept	accept	engine	simple_expr/not2_simple_expr	DO ! utf8mb4;
 reject	reject	engine	simple_expr/not2_simple_expr!drop-2	DO !;
 reject	reject	engine	simple_expr/not2_simple_expr!truncate	DO !
-reject	accept	engine	simple_expr/not2_simple_expr!insert	DO ! utf8mb4 zzz;
+accept	accept	engine	simple_expr/not2_simple_expr!insert	DO ! utf8mb4 zzz;
 accept	accept	engine	simple_expr/row_subquery	DO(SELECT utf8mb4);
 reject	reject	engine	simple_expr/row_subquery!drop-1	DO SELECT utf8mb4);
 reject	reject	engine	simple_expr/row_subquery!drop-3	DO(SELECT);
 reject	reject	engine	simple_expr/row_subquery!drop-4	DO(SELECT utf8mb4;
 reject	reject	engine	simple_expr/row_subquery!truncate	DO(SELECT utf8mb4
-reject	accept	engine	simple_expr/row_subquery!insert	DO(SELECT utf8mb4) zzz;
+accept	accept	engine	simple_expr/row_subquery!insert	DO(SELECT utf8mb4) zzz;
 reject	reject	engine	simple_expr/row_subquery!swap	DO(SENSITIVE utf8mb4);
 accept	accept	engine	simple_expr/(_expr_)	DO(utf8mb4);
 reject	reject	engine	simple_expr/(_expr_)!drop-3	DO(utf8mb4;
 reject	reject	engine	simple_expr/(_expr_)!truncate	DO(utf8mb4
-reject	accept	engine	simple_expr/(_expr_)!insert	DO(utf8mb4) zzz;
+accept	accept	engine	simple_expr/(_expr_)!insert	DO(utf8mb4) zzz;
 accept	accept	engine	simple_expr/(_expr_,_expr_list_)	DO(utf8mb4, utf8mb4);
 reject	reject	engine	simple_expr/(_expr_,_expr_list_)!drop-1	DO utf8mb4, utf8mb4);
 reject	reject	engine	simple_expr/(_expr_,_expr_list_)!drop-2	DO(, utf8mb4);
@@ -6147,7 +6147,7 @@ reject	reject	engine	simple_expr/(_expr_,_expr_list_)!drop-3	DO(utf8mb4 utf8mb4)
 reject	reject	engine	simple_expr/(_expr_,_expr_list_)!drop-4	DO(utf8mb4,);
 reject	reject	engine	simple_expr/(_expr_,_expr_list_)!drop-5	DO(utf8mb4, utf8mb4;
 reject	reject	engine	simple_expr/(_expr_,_expr_list_)!truncate	DO(utf8mb4, utf8mb4
-reject	accept	engine	simple_expr/(_expr_,_expr_list_)!insert	DO(utf8mb4, utf8mb4) zzz;
+accept	accept	engine	simple_expr/(_expr_,_expr_list_)!insert	DO(utf8mb4, utf8mb4) zzz;
 accept	accept	engine	simple_expr/ROW_SYM_(_expr_,_expr_list_)	DO ROW(utf8mb4, utf8mb4);
 reject	reject	engine	simple_expr/ROW_SYM_(_expr_,_expr_list_)!drop-2	DO ROW utf8mb4, utf8mb4);
 reject	reject	engine	simple_expr/ROW_SYM_(_expr_,_expr_list_)!drop-3	DO ROW(, utf8mb4);
@@ -6155,7 +6155,7 @@ reject	reject	engine	simple_expr/ROW_SYM_(_expr_,_expr_list_)!drop-4	DO ROW(utf8
 reject	reject	engine	simple_expr/ROW_SYM_(_expr_,_expr_list_)!drop-5	DO ROW(utf8mb4,);
 reject	reject	engine	simple_expr/ROW_SYM_(_expr_,_expr_list_)!drop-6	DO ROW(utf8mb4, utf8mb4;
 reject	reject	engine	simple_expr/ROW_SYM_(_expr_,_expr_list_)!truncate	DO ROW(utf8mb4, utf8mb4
-reject	accept	engine	simple_expr/ROW_SYM_(_expr_,_expr_list_)!insert	DO ROW(utf8mb4, utf8mb4) zzz;
+accept	accept	engine	simple_expr/ROW_SYM_(_expr_,_expr_list_)!insert	DO ROW(utf8mb4, utf8mb4) zzz;
 reject	reject	engine	simple_expr/ROW_SYM_(_expr_,_expr_list_)!swap	DO ROWS(utf8mb4, utf8mb4);
 accept	accept	engine	simple_expr/EXISTS_table_subquery	DO EXISTS(SELECT utf8mb4);
 reject	reject	engine	simple_expr/EXISTS_table_subquery!drop-2	DO EXISTS SELECT utf8mb4);
@@ -6163,7 +6163,7 @@ reject	reject	engine	simple_expr/EXISTS_table_subquery!drop-3	DO EXISTS(utf8mb4)
 reject	reject	engine	simple_expr/EXISTS_table_subquery!drop-4	DO EXISTS(SELECT);
 reject	reject	engine	simple_expr/EXISTS_table_subquery!drop-5	DO EXISTS(SELECT utf8mb4;
 reject	reject	engine	simple_expr/EXISTS_table_subquery!truncate	DO EXISTS(SELECT utf8mb4
-reject	accept	engine	simple_expr/EXISTS_table_subquery!insert	DO EXISTS(SELECT utf8mb4) zzz;
+accept	accept	engine	simple_expr/EXISTS_table_subquery!insert	DO EXISTS(SELECT utf8mb4) zzz;
 reject	reject	engine	simple_expr/EXISTS_table_subquery!swap	DO EXIT(SELECT utf8mb4);
 reject	accept	engine	simple_expr/{_ident_expr_}	DO { utf8mb4 utf8mb4 };
 reject	reject	engine	simple_expr/{_ident_expr_}!drop-1	DO utf8mb4 utf8mb4 };
@@ -6184,8 +6184,8 @@ reject	reject	engine	simple_expr/MATCH_ident_list_arg_AGAINST_(_bit_expr_fulltex
 accept	accept	engine	simple_expr/BINARY_SYM_simple_expr	DO BINARY utf8mb4;
 reject	reject	engine	simple_expr/BINARY_SYM_simple_expr!drop-2	DO BINARY;
 reject	reject	engine	simple_expr/BINARY_SYM_simple_expr!truncate	DO BINARY
-reject	accept	engine	simple_expr/BINARY_SYM_simple_expr!insert	DO BINARY utf8mb4 zzz;
-reject	accept	engine	simple_expr/BINARY_SYM_simple_expr!swap	DO BINLOG utf8mb4;
+accept	accept	engine	simple_expr/BINARY_SYM_simple_expr!insert	DO BINARY utf8mb4 zzz;
+accept	accept	engine	simple_expr/BINARY_SYM_simple_expr!swap	DO BINLOG utf8mb4;
 accept	accept	engine	simple_expr/CAST_SYM_(_expr_AS_cast_type_opt_array_cast_)	DO CAST(utf8mb4 AS BINARY);
 reject	reject	engine	simple_expr/CAST_SYM_(_expr_AS_cast_type_opt_array_cast_)!drop-1	DO(utf8mb4 AS BINARY);
 reject	reject	engine	simple_expr/CAST_SYM_(_expr_AS_cast_type_opt_array_cast_)!drop-2	DO CAST utf8mb4 AS BINARY);
@@ -6194,7 +6194,7 @@ reject	reject	engine	simple_expr/CAST_SYM_(_expr_AS_cast_type_opt_array_cast_)!d
 reject	reject	engine	simple_expr/CAST_SYM_(_expr_AS_cast_type_opt_array_cast_)!drop-5	DO CAST(utf8mb4 AS);
 reject	reject	engine	simple_expr/CAST_SYM_(_expr_AS_cast_type_opt_array_cast_)!drop-6	DO CAST(utf8mb4 AS BINARY;
 reject	reject	engine	simple_expr/CAST_SYM_(_expr_AS_cast_type_opt_array_cast_)!truncate	DO CAST(utf8mb4 AS BINARY
-reject	accept	engine	simple_expr/CAST_SYM_(_expr_AS_cast_type_opt_array_cast_)!insert	DO CAST(utf8mb4 AS BINARY) zzz;
+accept	accept	engine	simple_expr/CAST_SYM_(_expr_AS_cast_type_opt_array_cast_)!insert	DO CAST(utf8mb4 AS BINARY) zzz;
 reject	reject	engine	simple_expr/CAST_SYM_(_expr_AS_cast_type_opt_array_cast_)!swap	DO CATALOG_NAME(utf8mb4 AS BINARY);
 reject	reject	engine	simple_expr/CAST_SYM_(_expr_AT_SYM_LOCAL_SYM_AS_cast_type_opt_array_cast_)	DO CAST(utf8mb4 AT LOCAL AS BINARY);
 reject	reject	engine	simple_expr/CAST_SYM_(_expr_AT_SYM_LOCAL_SYM_AS_cast_type_opt_array_cast_)!drop-1	DO(utf8mb4 AT LOCAL AS BINARY);
@@ -6230,7 +6230,7 @@ reject	reject	engine	simple_expr/CASE_SYM_opt_expr_when_list_opt_else_END!drop-4
 reject	reject	engine	simple_expr/CASE_SYM_opt_expr_when_list_opt_else_END!drop-5	DO CASE WHEN utf8mb4 THEN END;
 reject	reject	engine	simple_expr/CASE_SYM_opt_expr_when_list_opt_else_END!drop-6	DO CASE WHEN utf8mb4 THEN utf8mb4;
 reject	reject	engine	simple_expr/CASE_SYM_opt_expr_when_list_opt_else_END!truncate	DO CASE WHEN utf8mb4 THEN utf8mb4
-reject	accept	engine	simple_expr/CASE_SYM_opt_expr_when_list_opt_else_END!insert	DO CASE WHEN utf8mb4 THEN utf8mb4 END zzz;
+accept	accept	engine	simple_expr/CASE_SYM_opt_expr_when_list_opt_else_END!insert	DO CASE WHEN utf8mb4 THEN utf8mb4 END zzz;
 reject	reject	engine	simple_expr/CASE_SYM_opt_expr_when_list_opt_else_END!swap	DO CAST WHEN utf8mb4 THEN utf8mb4 END;
 accept	accept	engine	simple_expr/CONVERT_SYM_(_expr_,_cast_type_)	DO CONVERT(utf8mb4, BINARY);
 reject	reject	engine	simple_expr/CONVERT_SYM_(_expr_,_cast_type_)!drop-1	DO(utf8mb4, BINARY);
@@ -6240,7 +6240,7 @@ reject	reject	engine	simple_expr/CONVERT_SYM_(_expr_,_cast_type_)!drop-4	DO CONV
 reject	reject	engine	simple_expr/CONVERT_SYM_(_expr_,_cast_type_)!drop-5	DO CONVERT(utf8mb4,);
 reject	reject	engine	simple_expr/CONVERT_SYM_(_expr_,_cast_type_)!drop-6	DO CONVERT(utf8mb4, BINARY;
 reject	reject	engine	simple_expr/CONVERT_SYM_(_expr_,_cast_type_)!truncate	DO CONVERT(utf8mb4, BINARY
-reject	accept	engine	simple_expr/CONVERT_SYM_(_expr_,_cast_type_)!insert	DO CONVERT(utf8mb4, BINARY) zzz;
+accept	accept	engine	simple_expr/CONVERT_SYM_(_expr_,_cast_type_)!insert	DO CONVERT(utf8mb4, BINARY) zzz;
 reject	reject	engine	simple_expr/CONVERT_SYM_(_expr_,_cast_type_)!swap	DO COUNT(utf8mb4, BINARY);
 accept	accept	engine	simple_expr/CONVERT_SYM_(_expr_USING_charset_name_)	DO CONVERT(utf8mb4 USING utf8mb4);
 reject	reject	engine	simple_expr/CONVERT_SYM_(_expr_USING_charset_name_)!drop-1	DO(utf8mb4 USING utf8mb4);
@@ -6250,21 +6250,21 @@ reject	reject	engine	simple_expr/CONVERT_SYM_(_expr_USING_charset_name_)!drop-4	
 reject	reject	engine	simple_expr/CONVERT_SYM_(_expr_USING_charset_name_)!drop-5	DO CONVERT(utf8mb4 USING);
 reject	reject	engine	simple_expr/CONVERT_SYM_(_expr_USING_charset_name_)!drop-6	DO CONVERT(utf8mb4 USING utf8mb4;
 reject	reject	engine	simple_expr/CONVERT_SYM_(_expr_USING_charset_name_)!truncate	DO CONVERT(utf8mb4 USING utf8mb4
-reject	accept	engine	simple_expr/CONVERT_SYM_(_expr_USING_charset_name_)!insert	DO CONVERT(utf8mb4 USING utf8mb4) zzz;
+accept	accept	engine	simple_expr/CONVERT_SYM_(_expr_USING_charset_name_)!insert	DO CONVERT(utf8mb4 USING utf8mb4) zzz;
 reject	reject	engine	simple_expr/CONVERT_SYM_(_expr_USING_charset_name_)!swap	DO COUNT(utf8mb4 USING utf8mb4);
 accept	accept	engine	simple_expr/DEFAULT_SYM_(_simple_ident_)	DO DEFAULT(utf8mb4);
 reject	reject	engine	simple_expr/DEFAULT_SYM_(_simple_ident_)!drop-2	DO DEFAULT utf8mb4);
 reject	reject	engine	simple_expr/DEFAULT_SYM_(_simple_ident_)!drop-3	DO DEFAULT();
 reject	reject	engine	simple_expr/DEFAULT_SYM_(_simple_ident_)!drop-4	DO DEFAULT(utf8mb4;
 reject	reject	engine	simple_expr/DEFAULT_SYM_(_simple_ident_)!truncate	DO DEFAULT(utf8mb4
-reject	accept	engine	simple_expr/DEFAULT_SYM_(_simple_ident_)!insert	DO DEFAULT(utf8mb4) zzz;
+accept	accept	engine	simple_expr/DEFAULT_SYM_(_simple_ident_)!insert	DO DEFAULT(utf8mb4) zzz;
 reject	reject	engine	simple_expr/DEFAULT_SYM_(_simple_ident_)!swap	DO DEFAULT_AUTH(utf8mb4);
 accept	accept	engine	simple_expr/VALUES_(_simple_ident_nospvar_)	DO VALUES(utf8mb4);
 reject	reject	engine	simple_expr/VALUES_(_simple_ident_nospvar_)!drop-2	DO VALUES utf8mb4);
 reject	reject	engine	simple_expr/VALUES_(_simple_ident_nospvar_)!drop-3	DO VALUES();
 reject	reject	engine	simple_expr/VALUES_(_simple_ident_nospvar_)!drop-4	DO VALUES(utf8mb4;
 reject	reject	engine	simple_expr/VALUES_(_simple_ident_nospvar_)!truncate	DO VALUES(utf8mb4
-reject	accept	engine	simple_expr/VALUES_(_simple_ident_nospvar_)!insert	DO VALUES(utf8mb4) zzz;
+accept	accept	engine	simple_expr/VALUES_(_simple_ident_nospvar_)!insert	DO VALUES(utf8mb4) zzz;
 reject	reject	engine	simple_expr/VALUES_(_simple_ident_nospvar_)!swap	DO VARBINARY(utf8mb4);
 accept	accept	engine	simple_expr/INTERVAL_SYM_expr_interval_+_expr	DO INTERVAL utf8mb4 DAY + utf8mb4;
 reject	reject	engine	simple_expr/INTERVAL_SYM_expr_interval_+_expr!drop-1	DO utf8mb4 DAY + utf8mb4;
@@ -6273,18 +6273,18 @@ reject	reject	engine	simple_expr/INTERVAL_SYM_expr_interval_+_expr!drop-3	DO INT
 reject	reject	engine	simple_expr/INTERVAL_SYM_expr_interval_+_expr!drop-4	DO INTERVAL utf8mb4 DAY utf8mb4;
 reject	reject	engine	simple_expr/INTERVAL_SYM_expr_interval_+_expr!drop-5	DO INTERVAL utf8mb4 DAY +;
 reject	reject	engine	simple_expr/INTERVAL_SYM_expr_interval_+_expr!truncate	DO INTERVAL utf8mb4 DAY +
-reject	accept	engine	simple_expr/INTERVAL_SYM_expr_interval_+_expr!insert	DO INTERVAL utf8mb4 DAY + utf8mb4 zzz;
+accept	accept	engine	simple_expr/INTERVAL_SYM_expr_interval_+_expr!insert	DO INTERVAL utf8mb4 DAY + utf8mb4 zzz;
 reject	reject	engine	simple_expr/INTERVAL_SYM_expr_interval_+_expr!swap	DO INTO utf8mb4 DAY + utf8mb4;
 accept	accept	engine	simple_expr/simple_ident_JSON_SEPARATOR_SYM_TEXT_STRING_literal	DO utf8mb4 -> 's';
 reject	reject	engine	simple_expr/simple_ident_JSON_SEPARATOR_SYM_TEXT_STRING_literal!drop-1	DO -> 's';
 reject	reject	engine	simple_expr/simple_ident_JSON_SEPARATOR_SYM_TEXT_STRING_literal!drop-3	DO utf8mb4 ->;
 reject	reject	engine	simple_expr/simple_ident_JSON_SEPARATOR_SYM_TEXT_STRING_literal!truncate	DO utf8mb4 ->
-reject	accept	engine	simple_expr/simple_ident_JSON_SEPARATOR_SYM_TEXT_STRING_literal!insert	DO utf8mb4 -> 's' zzz;
+accept	accept	engine	simple_expr/simple_ident_JSON_SEPARATOR_SYM_TEXT_STRING_literal!insert	DO utf8mb4 -> 's' zzz;
 accept	accept	engine	simple_expr/simple_ident_JSON_UNQUOTED_SEPARATOR_SYM_TEXT_STRING_literal	DO utf8mb4 ->> 's';
 reject	reject	engine	simple_expr/simple_ident_JSON_UNQUOTED_SEPARATOR_SYM_TEXT_STRING_literal!drop-1	DO ->> 's';
 reject	reject	engine	simple_expr/simple_ident_JSON_UNQUOTED_SEPARATOR_SYM_TEXT_STRING_literal!drop-3	DO utf8mb4 ->>;
 reject	reject	engine	simple_expr/simple_ident_JSON_UNQUOTED_SEPARATOR_SYM_TEXT_STRING_literal!truncate	DO utf8mb4 ->>
-reject	accept	engine	simple_expr/simple_ident_JSON_UNQUOTED_SEPARATOR_SYM_TEXT_STRING_literal!insert	DO utf8mb4 ->> 's' zzz;
+accept	accept	engine	simple_expr/simple_ident_JSON_UNQUOTED_SEPARATOR_SYM_TEXT_STRING_literal!insert	DO utf8mb4 ->> 's' zzz;
 accept	accept	engine	opt_array_cast/%empty	DO CAST(utf8mb4 AS BINARY);
 reject	reject	engine	opt_array_cast/%empty!insert	DO CAST(utf8mb4 AS BINARY zzz);
 reject	reject	engine	opt_array_cast/ARRAY_SYM	DO CAST(utf8mb4 AS BINARY ARRAY);
@@ -6295,7 +6295,7 @@ reject	reject	engine	function_call_keyword/CHAR_SYM_(_expr_list_)!drop-2	DO CHAR
 reject	reject	engine	function_call_keyword/CHAR_SYM_(_expr_list_)!drop-3	DO CHAR();
 reject	reject	engine	function_call_keyword/CHAR_SYM_(_expr_list_)!drop-4	DO CHAR(utf8mb4;
 reject	reject	engine	function_call_keyword/CHAR_SYM_(_expr_list_)!truncate	DO CHAR(utf8mb4
-reject	accept	engine	function_call_keyword/CHAR_SYM_(_expr_list_)!insert	DO CHAR(utf8mb4) zzz;
+accept	accept	engine	function_call_keyword/CHAR_SYM_(_expr_list_)!insert	DO CHAR(utf8mb4) zzz;
 accept	accept	engine	function_call_keyword/CHAR_SYM_(_expr_list_USING_charset_name_)	DO CHAR(utf8mb4 USING utf8mb4);
 reject	reject	engine	function_call_keyword/CHAR_SYM_(_expr_list_USING_charset_name_)!drop-2	DO CHAR utf8mb4 USING utf8mb4);
 reject	reject	engine	function_call_keyword/CHAR_SYM_(_expr_list_USING_charset_name_)!drop-3	DO CHAR(USING utf8mb4);
@@ -6303,7 +6303,7 @@ reject	reject	engine	function_call_keyword/CHAR_SYM_(_expr_list_USING_charset_na
 reject	reject	engine	function_call_keyword/CHAR_SYM_(_expr_list_USING_charset_name_)!drop-5	DO CHAR(utf8mb4 USING);
 reject	reject	engine	function_call_keyword/CHAR_SYM_(_expr_list_USING_charset_name_)!drop-6	DO CHAR(utf8mb4 USING utf8mb4;
 reject	reject	engine	function_call_keyword/CHAR_SYM_(_expr_list_USING_charset_name_)!truncate	DO CHAR(utf8mb4 USING utf8mb4
-reject	accept	engine	function_call_keyword/CHAR_SYM_(_expr_list_USING_charset_name_)!insert	DO CHAR(utf8mb4 USING utf8mb4) zzz;
+accept	accept	engine	function_call_keyword/CHAR_SYM_(_expr_list_USING_charset_name_)!insert	DO CHAR(utf8mb4 USING utf8mb4) zzz;
 reject	reject	engine	function_call_keyword/CHAR_SYM_(_expr_list_USING_charset_name_)!swap	DO CHARSET(utf8mb4 USING utf8mb4);
 accept	accept	engine	function_call_keyword/CURRENT_USER_optional_braces	DO CURRENT_USER;
 accept	accept	engine	function_call_keyword/DATE_SYM_(_expr_)	DO DATE(utf8mb4);
@@ -6311,21 +6311,21 @@ reject	reject	engine	function_call_keyword/DATE_SYM_(_expr_)!drop-2	DO DATE utf8
 accept	reject	engine	function_call_keyword/DATE_SYM_(_expr_)!drop-3	DO DATE();
 reject	reject	engine	function_call_keyword/DATE_SYM_(_expr_)!drop-4	DO DATE(utf8mb4;
 reject	reject	engine	function_call_keyword/DATE_SYM_(_expr_)!truncate	DO DATE(utf8mb4
-reject	accept	engine	function_call_keyword/DATE_SYM_(_expr_)!insert	DO DATE(utf8mb4) zzz;
+accept	accept	engine	function_call_keyword/DATE_SYM_(_expr_)!insert	DO DATE(utf8mb4) zzz;
 reject	reject	engine	function_call_keyword/DATE_SYM_(_expr_)!swap	DO DATETIME(utf8mb4);
 accept	accept	engine	function_call_keyword/DAY_SYM_(_expr_)	DO DAY(utf8mb4);
 reject	reject	engine	function_call_keyword/DAY_SYM_(_expr_)!drop-2	DO DAY utf8mb4);
 accept	reject	engine	function_call_keyword/DAY_SYM_(_expr_)!drop-3	DO DAY();
 reject	reject	engine	function_call_keyword/DAY_SYM_(_expr_)!drop-4	DO DAY(utf8mb4;
 reject	reject	engine	function_call_keyword/DAY_SYM_(_expr_)!truncate	DO DAY(utf8mb4
-reject	accept	engine	function_call_keyword/DAY_SYM_(_expr_)!insert	DO DAY(utf8mb4) zzz;
+accept	accept	engine	function_call_keyword/DAY_SYM_(_expr_)!insert	DO DAY(utf8mb4) zzz;
 reject	reject	engine	function_call_keyword/DAY_SYM_(_expr_)!swap	DO DAY_HOUR(utf8mb4);
 accept	accept	engine	function_call_keyword/HOUR_SYM_(_expr_)	DO HOUR(utf8mb4);
 reject	reject	engine	function_call_keyword/HOUR_SYM_(_expr_)!drop-2	DO HOUR utf8mb4);
 accept	reject	engine	function_call_keyword/HOUR_SYM_(_expr_)!drop-3	DO HOUR();
 reject	reject	engine	function_call_keyword/HOUR_SYM_(_expr_)!drop-4	DO HOUR(utf8mb4;
 reject	reject	engine	function_call_keyword/HOUR_SYM_(_expr_)!truncate	DO HOUR(utf8mb4
-reject	accept	engine	function_call_keyword/HOUR_SYM_(_expr_)!insert	DO HOUR(utf8mb4) zzz;
+accept	accept	engine	function_call_keyword/HOUR_SYM_(_expr_)!insert	DO HOUR(utf8mb4) zzz;
 reject	reject	engine	function_call_keyword/HOUR_SYM_(_expr_)!swap	DO HOUR_MICROSECOND(utf8mb4);
 accept	accept	engine	function_call_keyword/INSERT_SYM_(_expr_,_expr_,_expr_,_expr_)	DO INSERT(utf8mb4, utf8mb4, utf8mb4, utf8mb4);
 accept	accept	engine	function_call_keyword/INSERT_SYM_(_expr_,_expr_,_expr_,_expr_)!drop-1	DO(utf8mb4, utf8mb4, utf8mb4, utf8mb4);
@@ -6339,7 +6339,7 @@ reject	reject	engine	function_call_keyword/INSERT_SYM_(_expr_,_expr_,_expr_,_exp
 reject	reject	engine	function_call_keyword/INSERT_SYM_(_expr_,_expr_,_expr_,_expr_)!drop-9	DO INSERT(utf8mb4, utf8mb4, utf8mb4,);
 reject	reject	engine	function_call_keyword/INSERT_SYM_(_expr_,_expr_,_expr_,_expr_)!drop-10	DO INSERT(utf8mb4, utf8mb4, utf8mb4, utf8mb4;
 reject	reject	engine	function_call_keyword/INSERT_SYM_(_expr_,_expr_,_expr_,_expr_)!truncate	DO INSERT(utf8mb4, utf8mb4, utf8mb4, utf8mb4
-reject	accept	engine	function_call_keyword/INSERT_SYM_(_expr_,_expr_,_expr_,_expr_)!insert	DO INSERT(utf8mb4, utf8mb4, utf8mb4, utf8mb4) zzz;
+accept	accept	engine	function_call_keyword/INSERT_SYM_(_expr_,_expr_,_expr_,_expr_)!insert	DO INSERT(utf8mb4, utf8mb4, utf8mb4, utf8mb4) zzz;
 reject	reject	engine	function_call_keyword/INSERT_SYM_(_expr_,_expr_,_expr_,_expr_)!swap	DO INSERT_METHOD(utf8mb4, utf8mb4, utf8mb4, utf8mb4);
 accept	accept	engine	function_call_keyword/INTERVAL_SYM_(_expr_,_expr_)	DO INTERVAL(utf8mb4, utf8mb4);
 reject	reject	engine	function_call_keyword/INTERVAL_SYM_(_expr_,_expr_)!drop-2	DO INTERVAL utf8mb4, utf8mb4);
@@ -6348,7 +6348,7 @@ reject	reject	engine	function_call_keyword/INTERVAL_SYM_(_expr_,_expr_)!drop-4	D
 reject	reject	engine	function_call_keyword/INTERVAL_SYM_(_expr_,_expr_)!drop-5	DO INTERVAL(utf8mb4,);
 reject	reject	engine	function_call_keyword/INTERVAL_SYM_(_expr_,_expr_)!drop-6	DO INTERVAL(utf8mb4, utf8mb4;
 reject	reject	engine	function_call_keyword/INTERVAL_SYM_(_expr_,_expr_)!truncate	DO INTERVAL(utf8mb4, utf8mb4
-reject	accept	engine	function_call_keyword/INTERVAL_SYM_(_expr_,_expr_)!insert	DO INTERVAL(utf8mb4, utf8mb4) zzz;
+accept	accept	engine	function_call_keyword/INTERVAL_SYM_(_expr_,_expr_)!insert	DO INTERVAL(utf8mb4, utf8mb4) zzz;
 reject	reject	engine	function_call_keyword/INTERVAL_SYM_(_expr_,_expr_)!swap	DO INTO(utf8mb4, utf8mb4);
 accept	accept	engine	function_call_keyword/INTERVAL_SYM_(_expr_,_expr_,_expr_list_)	DO INTERVAL(utf8mb4, utf8mb4, utf8mb4);
 accept	accept	engine	function_call_keyword/INTERVAL_SYM_(_expr_,_expr_,_expr_list_)!drop-1	DO(utf8mb4, utf8mb4, utf8mb4);
@@ -6360,7 +6360,7 @@ reject	reject	engine	function_call_keyword/INTERVAL_SYM_(_expr_,_expr_,_expr_lis
 reject	reject	engine	function_call_keyword/INTERVAL_SYM_(_expr_,_expr_,_expr_list_)!drop-7	DO INTERVAL(utf8mb4, utf8mb4,);
 reject	reject	engine	function_call_keyword/INTERVAL_SYM_(_expr_,_expr_,_expr_list_)!drop-8	DO INTERVAL(utf8mb4, utf8mb4, utf8mb4;
 reject	reject	engine	function_call_keyword/INTERVAL_SYM_(_expr_,_expr_,_expr_list_)!truncate	DO INTERVAL(utf8mb4, utf8mb4, utf8mb4
-reject	accept	engine	function_call_keyword/INTERVAL_SYM_(_expr_,_expr_,_expr_list_)!insert	DO INTERVAL(utf8mb4, utf8mb4, utf8mb4) zzz;
+accept	accept	engine	function_call_keyword/INTERVAL_SYM_(_expr_,_expr_,_expr_list_)!insert	DO INTERVAL(utf8mb4, utf8mb4, utf8mb4) zzz;
 reject	reject	engine	function_call_keyword/INTERVAL_SYM_(_expr_,_expr_,_expr_list_)!swap	DO INTO(utf8mb4, utf8mb4, utf8mb4);
 accept	accept	engine	function_call_keyword/JSON_VALUE_SYM_(_simple_expr_,_text_literal_opt_returning_type_opt_on_empty_or_error_)	DO JSON_VALUE(utf8mb4, 's');
 accept	accept	engine	function_call_keyword/JSON_VALUE_SYM_(_simple_expr_,_text_literal_opt_returning_type_opt_on_empty_or_error_)!drop-1	DO(utf8mb4, 's');
@@ -6370,7 +6370,7 @@ reject	reject	engine	function_call_keyword/JSON_VALUE_SYM_(_simple_expr_,_text_l
 reject	reject	engine	function_call_keyword/JSON_VALUE_SYM_(_simple_expr_,_text_literal_opt_returning_type_opt_on_empty_or_error_)!drop-5	DO JSON_VALUE(utf8mb4,);
 reject	reject	engine	function_call_keyword/JSON_VALUE_SYM_(_simple_expr_,_text_literal_opt_returning_type_opt_on_empty_or_error_)!drop-6	DO JSON_VALUE(utf8mb4, 's';
 reject	reject	engine	function_call_keyword/JSON_VALUE_SYM_(_simple_expr_,_text_literal_opt_returning_type_opt_on_empty_or_error_)!truncate	DO JSON_VALUE(utf8mb4, 's'
-reject	accept	engine	function_call_keyword/JSON_VALUE_SYM_(_simple_expr_,_text_literal_opt_returning_type_opt_on_empty_or_error_)!insert	DO JSON_VALUE(utf8mb4, 's') zzz;
+accept	accept	engine	function_call_keyword/JSON_VALUE_SYM_(_simple_expr_,_text_literal_opt_returning_type_opt_on_empty_or_error_)!insert	DO JSON_VALUE(utf8mb4, 's') zzz;
 reject	reject	engine	function_call_keyword/JSON_VALUE_SYM_(_simple_expr_,_text_literal_opt_returning_type_opt_on_empty_or_error_)!swap	DO KEY(utf8mb4, 's');
 accept	accept	engine	function_call_keyword/LEFT_(_expr_,_expr_)	DO LEFT(utf8mb4, utf8mb4);
 reject	reject	engine	function_call_keyword/LEFT_(_expr_,_expr_)!drop-2	DO LEFT utf8mb4, utf8mb4);
@@ -6379,21 +6379,21 @@ reject	reject	engine	function_call_keyword/LEFT_(_expr_,_expr_)!drop-4	DO LEFT(u
 reject	reject	engine	function_call_keyword/LEFT_(_expr_,_expr_)!drop-5	DO LEFT(utf8mb4,);
 reject	reject	engine	function_call_keyword/LEFT_(_expr_,_expr_)!drop-6	DO LEFT(utf8mb4, utf8mb4;
 reject	reject	engine	function_call_keyword/LEFT_(_expr_,_expr_)!truncate	DO LEFT(utf8mb4, utf8mb4
-reject	accept	engine	function_call_keyword/LEFT_(_expr_,_expr_)!insert	DO LEFT(utf8mb4, utf8mb4) zzz;
+accept	accept	engine	function_call_keyword/LEFT_(_expr_,_expr_)!insert	DO LEFT(utf8mb4, utf8mb4) zzz;
 reject	reject	engine	function_call_keyword/LEFT_(_expr_,_expr_)!swap	DO LESS(utf8mb4, utf8mb4);
 accept	accept	engine	function_call_keyword/MINUTE_SYM_(_expr_)	DO MINUTE(utf8mb4);
 reject	reject	engine	function_call_keyword/MINUTE_SYM_(_expr_)!drop-2	DO MINUTE utf8mb4);
 accept	reject	engine	function_call_keyword/MINUTE_SYM_(_expr_)!drop-3	DO MINUTE();
 reject	reject	engine	function_call_keyword/MINUTE_SYM_(_expr_)!drop-4	DO MINUTE(utf8mb4;
 reject	reject	engine	function_call_keyword/MINUTE_SYM_(_expr_)!truncate	DO MINUTE(utf8mb4
-reject	accept	engine	function_call_keyword/MINUTE_SYM_(_expr_)!insert	DO MINUTE(utf8mb4) zzz;
+accept	accept	engine	function_call_keyword/MINUTE_SYM_(_expr_)!insert	DO MINUTE(utf8mb4) zzz;
 reject	reject	engine	function_call_keyword/MINUTE_SYM_(_expr_)!swap	DO MINUTE_MICROSECOND(utf8mb4);
 accept	accept	engine	function_call_keyword/MONTH_SYM_(_expr_)	DO MONTH(utf8mb4);
 reject	reject	engine	function_call_keyword/MONTH_SYM_(_expr_)!drop-2	DO MONTH utf8mb4);
 accept	reject	engine	function_call_keyword/MONTH_SYM_(_expr_)!drop-3	DO MONTH();
 reject	reject	engine	function_call_keyword/MONTH_SYM_(_expr_)!drop-4	DO MONTH(utf8mb4;
 reject	reject	engine	function_call_keyword/MONTH_SYM_(_expr_)!truncate	DO MONTH(utf8mb4
-reject	accept	engine	function_call_keyword/MONTH_SYM_(_expr_)!insert	DO MONTH(utf8mb4) zzz;
+accept	accept	engine	function_call_keyword/MONTH_SYM_(_expr_)!insert	DO MONTH(utf8mb4) zzz;
 accept	accept	engine	function_call_keyword/RIGHT_(_expr_,_expr_)	DO RIGHT(utf8mb4, utf8mb4);
 reject	reject	engine	function_call_keyword/RIGHT_(_expr_,_expr_)!drop-2	DO RIGHT utf8mb4, utf8mb4);
 reject	reject	engine	function_call_keyword/RIGHT_(_expr_,_expr_)!drop-3	DO RIGHT(, utf8mb4);
@@ -6401,27 +6401,27 @@ reject	reject	engine	function_call_keyword/RIGHT_(_expr_,_expr_)!drop-4	DO RIGHT
 reject	reject	engine	function_call_keyword/RIGHT_(_expr_,_expr_)!drop-5	DO RIGHT(utf8mb4,);
 reject	reject	engine	function_call_keyword/RIGHT_(_expr_,_expr_)!drop-6	DO RIGHT(utf8mb4, utf8mb4;
 reject	reject	engine	function_call_keyword/RIGHT_(_expr_,_expr_)!truncate	DO RIGHT(utf8mb4, utf8mb4
-reject	accept	engine	function_call_keyword/RIGHT_(_expr_,_expr_)!insert	DO RIGHT(utf8mb4, utf8mb4) zzz;
+accept	accept	engine	function_call_keyword/RIGHT_(_expr_,_expr_)!insert	DO RIGHT(utf8mb4, utf8mb4) zzz;
 reject	reject	engine	function_call_keyword/RIGHT_(_expr_,_expr_)!swap	DO ROLE(utf8mb4, utf8mb4);
 accept	accept	engine	function_call_keyword/SECOND_SYM_(_expr_)	DO SECOND(utf8mb4);
 reject	reject	engine	function_call_keyword/SECOND_SYM_(_expr_)!drop-2	DO SECOND utf8mb4);
 accept	reject	engine	function_call_keyword/SECOND_SYM_(_expr_)!drop-3	DO SECOND();
 reject	reject	engine	function_call_keyword/SECOND_SYM_(_expr_)!drop-4	DO SECOND(utf8mb4;
 reject	reject	engine	function_call_keyword/SECOND_SYM_(_expr_)!truncate	DO SECOND(utf8mb4
-reject	accept	engine	function_call_keyword/SECOND_SYM_(_expr_)!insert	DO SECOND(utf8mb4) zzz;
+accept	accept	engine	function_call_keyword/SECOND_SYM_(_expr_)!insert	DO SECOND(utf8mb4) zzz;
 reject	reject	engine	function_call_keyword/SECOND_SYM_(_expr_)!swap	DO SECONDARY(utf8mb4);
 accept	accept	engine	function_call_keyword/TIME_SYM_(_expr_)	DO TIME(utf8mb4);
 reject	reject	engine	function_call_keyword/TIME_SYM_(_expr_)!drop-2	DO TIME utf8mb4);
 accept	reject	engine	function_call_keyword/TIME_SYM_(_expr_)!drop-3	DO TIME();
 reject	reject	engine	function_call_keyword/TIME_SYM_(_expr_)!drop-4	DO TIME(utf8mb4;
 reject	reject	engine	function_call_keyword/TIME_SYM_(_expr_)!truncate	DO TIME(utf8mb4
-reject	accept	engine	function_call_keyword/TIME_SYM_(_expr_)!insert	DO TIME(utf8mb4) zzz;
+accept	accept	engine	function_call_keyword/TIME_SYM_(_expr_)!insert	DO TIME(utf8mb4) zzz;
 accept	accept	engine	function_call_keyword/TIMESTAMP_SYM_(_expr_)	DO TIMESTAMP(utf8mb4);
 reject	reject	engine	function_call_keyword/TIMESTAMP_SYM_(_expr_)!drop-2	DO TIMESTAMP utf8mb4);
 accept	reject	engine	function_call_keyword/TIMESTAMP_SYM_(_expr_)!drop-3	DO TIMESTAMP();
 reject	reject	engine	function_call_keyword/TIMESTAMP_SYM_(_expr_)!drop-4	DO TIMESTAMP(utf8mb4;
 reject	reject	engine	function_call_keyword/TIMESTAMP_SYM_(_expr_)!truncate	DO TIMESTAMP(utf8mb4
-reject	accept	engine	function_call_keyword/TIMESTAMP_SYM_(_expr_)!insert	DO TIMESTAMP(utf8mb4) zzz;
+accept	accept	engine	function_call_keyword/TIMESTAMP_SYM_(_expr_)!insert	DO TIMESTAMP(utf8mb4) zzz;
 reject	reject	engine	function_call_keyword/TIMESTAMP_SYM_(_expr_)!swap	DO TIMESTAMPADD(utf8mb4);
 accept	accept	engine	function_call_keyword/TIMESTAMP_SYM_(_expr_,_expr_)	DO TIMESTAMP(utf8mb4, utf8mb4);
 reject	reject	engine	function_call_keyword/TIMESTAMP_SYM_(_expr_,_expr_)!drop-2	DO TIMESTAMP utf8mb4, utf8mb4);
@@ -6430,14 +6430,14 @@ reject	reject	engine	function_call_keyword/TIMESTAMP_SYM_(_expr_,_expr_)!drop-4	
 reject	reject	engine	function_call_keyword/TIMESTAMP_SYM_(_expr_,_expr_)!drop-5	DO TIMESTAMP(utf8mb4,);
 reject	reject	engine	function_call_keyword/TIMESTAMP_SYM_(_expr_,_expr_)!drop-6	DO TIMESTAMP(utf8mb4, utf8mb4;
 reject	reject	engine	function_call_keyword/TIMESTAMP_SYM_(_expr_,_expr_)!truncate	DO TIMESTAMP(utf8mb4, utf8mb4
-reject	accept	engine	function_call_keyword/TIMESTAMP_SYM_(_expr_,_expr_)!insert	DO TIMESTAMP(utf8mb4, utf8mb4) zzz;
+accept	accept	engine	function_call_keyword/TIMESTAMP_SYM_(_expr_,_expr_)!insert	DO TIMESTAMP(utf8mb4, utf8mb4) zzz;
 reject	reject	engine	function_call_keyword/TIMESTAMP_SYM_(_expr_,_expr_)!swap	DO TIMESTAMPADD(utf8mb4, utf8mb4);
 accept	accept	engine	function_call_keyword/TRIM_(_expr_)	DO TRIM(utf8mb4);
 reject	reject	engine	function_call_keyword/TRIM_(_expr_)!drop-2	DO TRIM utf8mb4);
 reject	reject	engine	function_call_keyword/TRIM_(_expr_)!drop-3	DO TRIM();
 reject	reject	engine	function_call_keyword/TRIM_(_expr_)!drop-4	DO TRIM(utf8mb4;
 reject	reject	engine	function_call_keyword/TRIM_(_expr_)!truncate	DO TRIM(utf8mb4
-reject	accept	engine	function_call_keyword/TRIM_(_expr_)!insert	DO TRIM(utf8mb4) zzz;
+accept	accept	engine	function_call_keyword/TRIM_(_expr_)!insert	DO TRIM(utf8mb4) zzz;
 reject	reject	engine	function_call_keyword/TRIM_(_expr_)!swap	DO TRUE(utf8mb4);
 accept	accept	engine	function_call_keyword/TRIM_(_LEADING_expr_FROM_expr_)	DO TRIM(LEADING utf8mb4 FROM utf8mb4);
 reject	reject	engine	function_call_keyword/TRIM_(_LEADING_expr_FROM_expr_)!drop-1	DO(LEADING utf8mb4 FROM utf8mb4);
@@ -6446,7 +6446,7 @@ reject	reject	engine	function_call_keyword/TRIM_(_LEADING_expr_FROM_expr_)!drop-
 reject	reject	engine	function_call_keyword/TRIM_(_LEADING_expr_FROM_expr_)!drop-6	DO TRIM(LEADING utf8mb4 FROM);
 reject	reject	engine	function_call_keyword/TRIM_(_LEADING_expr_FROM_expr_)!drop-7	DO TRIM(LEADING utf8mb4 FROM utf8mb4;
 reject	reject	engine	function_call_keyword/TRIM_(_LEADING_expr_FROM_expr_)!truncate	DO TRIM(LEADING utf8mb4 FROM utf8mb4
-reject	accept	engine	function_call_keyword/TRIM_(_LEADING_expr_FROM_expr_)!insert	DO TRIM(LEADING utf8mb4 FROM utf8mb4) zzz;
+accept	accept	engine	function_call_keyword/TRIM_(_LEADING_expr_FROM_expr_)!insert	DO TRIM(LEADING utf8mb4 FROM utf8mb4) zzz;
 reject	reject	engine	function_call_keyword/TRIM_(_LEADING_expr_FROM_expr_)!swap	DO TRUE(LEADING utf8mb4 FROM utf8mb4);
 accept	accept	engine	function_call_keyword/TRIM_(_TRAILING_expr_FROM_expr_)	DO TRIM(TRAILING utf8mb4 FROM utf8mb4);
 reject	reject	engine	function_call_keyword/TRIM_(_TRAILING_expr_FROM_expr_)!drop-1	DO(TRAILING utf8mb4 FROM utf8mb4);
@@ -6455,7 +6455,7 @@ reject	reject	engine	function_call_keyword/TRIM_(_TRAILING_expr_FROM_expr_)!drop
 reject	reject	engine	function_call_keyword/TRIM_(_TRAILING_expr_FROM_expr_)!drop-6	DO TRIM(TRAILING utf8mb4 FROM);
 reject	reject	engine	function_call_keyword/TRIM_(_TRAILING_expr_FROM_expr_)!drop-7	DO TRIM(TRAILING utf8mb4 FROM utf8mb4;
 reject	reject	engine	function_call_keyword/TRIM_(_TRAILING_expr_FROM_expr_)!truncate	DO TRIM(TRAILING utf8mb4 FROM utf8mb4
-reject	accept	engine	function_call_keyword/TRIM_(_TRAILING_expr_FROM_expr_)!insert	DO TRIM(TRAILING utf8mb4 FROM utf8mb4) zzz;
+accept	accept	engine	function_call_keyword/TRIM_(_TRAILING_expr_FROM_expr_)!insert	DO TRIM(TRAILING utf8mb4 FROM utf8mb4) zzz;
 reject	reject	engine	function_call_keyword/TRIM_(_TRAILING_expr_FROM_expr_)!swap	DO TRUE(TRAILING utf8mb4 FROM utf8mb4);
 accept	accept	engine	function_call_keyword/TRIM_(_BOTH_expr_FROM_expr_)	DO TRIM(BOTH utf8mb4 FROM utf8mb4);
 reject	reject	engine	function_call_keyword/TRIM_(_BOTH_expr_FROM_expr_)!drop-1	DO(BOTH utf8mb4 FROM utf8mb4);
@@ -6464,7 +6464,7 @@ reject	reject	engine	function_call_keyword/TRIM_(_BOTH_expr_FROM_expr_)!drop-5	D
 reject	reject	engine	function_call_keyword/TRIM_(_BOTH_expr_FROM_expr_)!drop-6	DO TRIM(BOTH utf8mb4 FROM);
 reject	reject	engine	function_call_keyword/TRIM_(_BOTH_expr_FROM_expr_)!drop-7	DO TRIM(BOTH utf8mb4 FROM utf8mb4;
 reject	reject	engine	function_call_keyword/TRIM_(_BOTH_expr_FROM_expr_)!truncate	DO TRIM(BOTH utf8mb4 FROM utf8mb4
-reject	accept	engine	function_call_keyword/TRIM_(_BOTH_expr_FROM_expr_)!insert	DO TRIM(BOTH utf8mb4 FROM utf8mb4) zzz;
+accept	accept	engine	function_call_keyword/TRIM_(_BOTH_expr_FROM_expr_)!insert	DO TRIM(BOTH utf8mb4 FROM utf8mb4) zzz;
 reject	reject	engine	function_call_keyword/TRIM_(_BOTH_expr_FROM_expr_)!swap	DO TRUE(BOTH utf8mb4 FROM utf8mb4);
 accept	accept	engine	function_call_keyword/TRIM_(_LEADING_FROM_expr_)	DO TRIM(LEADING FROM utf8mb4);
 reject	reject	engine	function_call_keyword/TRIM_(_LEADING_FROM_expr_)!drop-1	DO(LEADING FROM utf8mb4);
@@ -6474,7 +6474,7 @@ reject	reject	engine	function_call_keyword/TRIM_(_LEADING_FROM_expr_)!drop-4	DO 
 reject	reject	engine	function_call_keyword/TRIM_(_LEADING_FROM_expr_)!drop-5	DO TRIM(LEADING FROM);
 reject	reject	engine	function_call_keyword/TRIM_(_LEADING_FROM_expr_)!drop-6	DO TRIM(LEADING FROM utf8mb4;
 reject	reject	engine	function_call_keyword/TRIM_(_LEADING_FROM_expr_)!truncate	DO TRIM(LEADING FROM utf8mb4
-reject	accept	engine	function_call_keyword/TRIM_(_LEADING_FROM_expr_)!insert	DO TRIM(LEADING FROM utf8mb4) zzz;
+accept	accept	engine	function_call_keyword/TRIM_(_LEADING_FROM_expr_)!insert	DO TRIM(LEADING FROM utf8mb4) zzz;
 reject	reject	engine	function_call_keyword/TRIM_(_LEADING_FROM_expr_)!swap	DO TRUE(LEADING FROM utf8mb4);
 accept	accept	engine	function_call_keyword/TRIM_(_TRAILING_FROM_expr_)	DO TRIM(TRAILING FROM utf8mb4);
 reject	reject	engine	function_call_keyword/TRIM_(_TRAILING_FROM_expr_)!drop-1	DO(TRAILING FROM utf8mb4);
@@ -6483,7 +6483,7 @@ reject	reject	engine	function_call_keyword/TRIM_(_TRAILING_FROM_expr_)!drop-4	DO
 reject	reject	engine	function_call_keyword/TRIM_(_TRAILING_FROM_expr_)!drop-5	DO TRIM(TRAILING FROM);
 reject	reject	engine	function_call_keyword/TRIM_(_TRAILING_FROM_expr_)!drop-6	DO TRIM(TRAILING FROM utf8mb4;
 reject	reject	engine	function_call_keyword/TRIM_(_TRAILING_FROM_expr_)!truncate	DO TRIM(TRAILING FROM utf8mb4
-reject	accept	engine	function_call_keyword/TRIM_(_TRAILING_FROM_expr_)!insert	DO TRIM(TRAILING FROM utf8mb4) zzz;
+accept	accept	engine	function_call_keyword/TRIM_(_TRAILING_FROM_expr_)!insert	DO TRIM(TRAILING FROM utf8mb4) zzz;
 reject	reject	engine	function_call_keyword/TRIM_(_TRAILING_FROM_expr_)!swap	DO TRUE(TRAILING FROM utf8mb4);
 accept	accept	engine	function_call_keyword/TRIM_(_BOTH_FROM_expr_)	DO TRIM(BOTH FROM utf8mb4);
 reject	reject	engine	function_call_keyword/TRIM_(_BOTH_FROM_expr_)!drop-1	DO(BOTH FROM utf8mb4);
@@ -6492,7 +6492,7 @@ reject	reject	engine	function_call_keyword/TRIM_(_BOTH_FROM_expr_)!drop-4	DO TRI
 reject	reject	engine	function_call_keyword/TRIM_(_BOTH_FROM_expr_)!drop-5	DO TRIM(BOTH FROM);
 reject	reject	engine	function_call_keyword/TRIM_(_BOTH_FROM_expr_)!drop-6	DO TRIM(BOTH FROM utf8mb4;
 reject	reject	engine	function_call_keyword/TRIM_(_BOTH_FROM_expr_)!truncate	DO TRIM(BOTH FROM utf8mb4
-reject	accept	engine	function_call_keyword/TRIM_(_BOTH_FROM_expr_)!insert	DO TRIM(BOTH FROM utf8mb4) zzz;
+accept	accept	engine	function_call_keyword/TRIM_(_BOTH_FROM_expr_)!insert	DO TRIM(BOTH FROM utf8mb4) zzz;
 reject	reject	engine	function_call_keyword/TRIM_(_BOTH_FROM_expr_)!swap	DO TRUE(BOTH FROM utf8mb4);
 accept	accept	engine	function_call_keyword/TRIM_(_expr_FROM_expr_)	DO TRIM(utf8mb4 FROM utf8mb4);
 reject	reject	engine	function_call_keyword/TRIM_(_expr_FROM_expr_)!drop-1	DO(utf8mb4 FROM utf8mb4);
@@ -6501,20 +6501,20 @@ reject	reject	engine	function_call_keyword/TRIM_(_expr_FROM_expr_)!drop-4	DO TRI
 reject	reject	engine	function_call_keyword/TRIM_(_expr_FROM_expr_)!drop-5	DO TRIM(utf8mb4 FROM);
 reject	reject	engine	function_call_keyword/TRIM_(_expr_FROM_expr_)!drop-6	DO TRIM(utf8mb4 FROM utf8mb4;
 reject	reject	engine	function_call_keyword/TRIM_(_expr_FROM_expr_)!truncate	DO TRIM(utf8mb4 FROM utf8mb4
-reject	accept	engine	function_call_keyword/TRIM_(_expr_FROM_expr_)!insert	DO TRIM(utf8mb4 FROM utf8mb4) zzz;
+accept	accept	engine	function_call_keyword/TRIM_(_expr_FROM_expr_)!insert	DO TRIM(utf8mb4 FROM utf8mb4) zzz;
 reject	reject	engine	function_call_keyword/TRIM_(_expr_FROM_expr_)!swap	DO TRUE(utf8mb4 FROM utf8mb4);
 accept	accept	engine	function_call_keyword/USER_(_)	DO USER();
 reject	reject	engine	function_call_keyword/USER_(_)!drop-2	DO USER);
 reject	reject	engine	function_call_keyword/USER_(_)!drop-3	DO USER(;
 reject	reject	engine	function_call_keyword/USER_(_)!truncate	DO USER(
-reject	accept	engine	function_call_keyword/USER_(_)!insert	DO USER() zzz;
+accept	accept	engine	function_call_keyword/USER_(_)!insert	DO USER() zzz;
 reject	reject	engine	function_call_keyword/USER_(_)!swap	DO USER_RESOURCES();
 accept	accept	engine	function_call_keyword/YEAR_SYM_(_expr_)	DO YEAR(utf8mb4);
 reject	reject	engine	function_call_keyword/YEAR_SYM_(_expr_)!drop-2	DO YEAR utf8mb4);
 accept	reject	engine	function_call_keyword/YEAR_SYM_(_expr_)!drop-3	DO YEAR();
 reject	reject	engine	function_call_keyword/YEAR_SYM_(_expr_)!drop-4	DO YEAR(utf8mb4;
 reject	reject	engine	function_call_keyword/YEAR_SYM_(_expr_)!truncate	DO YEAR(utf8mb4
-reject	accept	engine	function_call_keyword/YEAR_SYM_(_expr_)!insert	DO YEAR(utf8mb4) zzz;
+accept	accept	engine	function_call_keyword/YEAR_SYM_(_expr_)!insert	DO YEAR(utf8mb4) zzz;
 reject	reject	engine	function_call_keyword/YEAR_SYM_(_expr_)!swap	DO YEAR_MONTH(utf8mb4);
 accept	accept	engine	function_call_nonkeyword/ADDDATE_SYM_(_expr_,_expr_)	DO ADDDATE(utf8mb4, utf8mb4);
 reject	reject	engine	function_call_nonkeyword/ADDDATE_SYM_(_expr_,_expr_)!drop-2	DO ADDDATE utf8mb4, utf8mb4);
@@ -6523,7 +6523,7 @@ reject	reject	engine	function_call_nonkeyword/ADDDATE_SYM_(_expr_,_expr_)!drop-4
 reject	reject	engine	function_call_nonkeyword/ADDDATE_SYM_(_expr_,_expr_)!drop-5	DO ADDDATE(utf8mb4,);
 reject	reject	engine	function_call_nonkeyword/ADDDATE_SYM_(_expr_,_expr_)!drop-6	DO ADDDATE(utf8mb4, utf8mb4;
 reject	reject	engine	function_call_nonkeyword/ADDDATE_SYM_(_expr_,_expr_)!truncate	DO ADDDATE(utf8mb4, utf8mb4
-reject	accept	engine	function_call_nonkeyword/ADDDATE_SYM_(_expr_,_expr_)!insert	DO ADDDATE(utf8mb4, utf8mb4) zzz;
+accept	accept	engine	function_call_nonkeyword/ADDDATE_SYM_(_expr_,_expr_)!insert	DO ADDDATE(utf8mb4, utf8mb4) zzz;
 reject	reject	engine	function_call_nonkeyword/ADDDATE_SYM_(_expr_,_expr_)!swap	DO ADMIN(utf8mb4, utf8mb4);
 accept	accept	engine	function_call_nonkeyword/ADDDATE_SYM_(_expr_,_INTERVAL_SYM_expr_interval_)	DO ADDDATE(utf8mb4, INTERVAL utf8mb4 DAY);
 accept	reject	engine	function_call_nonkeyword/ADDDATE_SYM_(_expr_,_INTERVAL_SYM_expr_interval_)!drop-1	DO(utf8mb4, INTERVAL utf8mb4 DAY);
@@ -6535,7 +6535,7 @@ reject	reject	engine	function_call_nonkeyword/ADDDATE_SYM_(_expr_,_INTERVAL_SYM_
 reject	reject	engine	function_call_nonkeyword/ADDDATE_SYM_(_expr_,_INTERVAL_SYM_expr_interval_)!drop-7	DO ADDDATE(utf8mb4, INTERVAL utf8mb4);
 reject	reject	engine	function_call_nonkeyword/ADDDATE_SYM_(_expr_,_INTERVAL_SYM_expr_interval_)!drop-8	DO ADDDATE(utf8mb4, INTERVAL utf8mb4 DAY;
 reject	reject	engine	function_call_nonkeyword/ADDDATE_SYM_(_expr_,_INTERVAL_SYM_expr_interval_)!truncate	DO ADDDATE(utf8mb4, INTERVAL utf8mb4 DAY
-reject	accept	engine	function_call_nonkeyword/ADDDATE_SYM_(_expr_,_INTERVAL_SYM_expr_interval_)!insert	DO ADDDATE(utf8mb4, INTERVAL utf8mb4 DAY) zzz;
+accept	accept	engine	function_call_nonkeyword/ADDDATE_SYM_(_expr_,_INTERVAL_SYM_expr_interval_)!insert	DO ADDDATE(utf8mb4, INTERVAL utf8mb4 DAY) zzz;
 reject	reject	engine	function_call_nonkeyword/ADDDATE_SYM_(_expr_,_INTERVAL_SYM_expr_interval_)!swap	DO ADMIN(utf8mb4, INTERVAL utf8mb4 DAY);
 accept	accept	engine	function_call_nonkeyword/CURDATE_optional_braces	DO CURRENT_DATE;
 accept	accept	engine	function_call_nonkeyword/CURTIME_func_datetime_precision	DO CURRENT_TIME;
@@ -6548,7 +6548,7 @@ reject	reject	engine	function_call_nonkeyword/DATE_ADD_INTERVAL_(_expr_,_INTERVA
 reject	reject	engine	function_call_nonkeyword/DATE_ADD_INTERVAL_(_expr_,_INTERVAL_SYM_expr_interval_)!drop-7	DO DATE_ADD(utf8mb4, INTERVAL utf8mb4);
 reject	reject	engine	function_call_nonkeyword/DATE_ADD_INTERVAL_(_expr_,_INTERVAL_SYM_expr_interval_)!drop-8	DO DATE_ADD(utf8mb4, INTERVAL utf8mb4 DAY;
 reject	reject	engine	function_call_nonkeyword/DATE_ADD_INTERVAL_(_expr_,_INTERVAL_SYM_expr_interval_)!truncate	DO DATE_ADD(utf8mb4, INTERVAL utf8mb4 DAY
-reject	accept	engine	function_call_nonkeyword/DATE_ADD_INTERVAL_(_expr_,_INTERVAL_SYM_expr_interval_)!insert	DO DATE_ADD(utf8mb4, INTERVAL utf8mb4 DAY) zzz;
+accept	accept	engine	function_call_nonkeyword/DATE_ADD_INTERVAL_(_expr_,_INTERVAL_SYM_expr_interval_)!insert	DO DATE_ADD(utf8mb4, INTERVAL utf8mb4 DAY) zzz;
 accept	accept	engine	function_call_nonkeyword/DATE_SUB_INTERVAL_(_expr_,_INTERVAL_SYM_expr_interval_)	DO DATE_SUB(utf8mb4, INTERVAL utf8mb4 DAY);
 reject	reject	engine	function_call_nonkeyword/DATE_SUB_INTERVAL_(_expr_,_INTERVAL_SYM_expr_interval_)!drop-2	DO DATE_SUB utf8mb4, INTERVAL utf8mb4 DAY);
 reject	reject	engine	function_call_nonkeyword/DATE_SUB_INTERVAL_(_expr_,_INTERVAL_SYM_expr_interval_)!drop-3	DO DATE_SUB(, INTERVAL utf8mb4 DAY);
@@ -6558,7 +6558,7 @@ reject	reject	engine	function_call_nonkeyword/DATE_SUB_INTERVAL_(_expr_,_INTERVA
 reject	reject	engine	function_call_nonkeyword/DATE_SUB_INTERVAL_(_expr_,_INTERVAL_SYM_expr_interval_)!drop-7	DO DATE_SUB(utf8mb4, INTERVAL utf8mb4);
 reject	reject	engine	function_call_nonkeyword/DATE_SUB_INTERVAL_(_expr_,_INTERVAL_SYM_expr_interval_)!drop-8	DO DATE_SUB(utf8mb4, INTERVAL utf8mb4 DAY;
 reject	reject	engine	function_call_nonkeyword/DATE_SUB_INTERVAL_(_expr_,_INTERVAL_SYM_expr_interval_)!truncate	DO DATE_SUB(utf8mb4, INTERVAL utf8mb4 DAY
-reject	accept	engine	function_call_nonkeyword/DATE_SUB_INTERVAL_(_expr_,_INTERVAL_SYM_expr_interval_)!insert	DO DATE_SUB(utf8mb4, INTERVAL utf8mb4 DAY) zzz;
+accept	accept	engine	function_call_nonkeyword/DATE_SUB_INTERVAL_(_expr_,_INTERVAL_SYM_expr_interval_)!insert	DO DATE_SUB(utf8mb4, INTERVAL utf8mb4 DAY) zzz;
 reject	reject	engine	function_call_nonkeyword/DATE_SUB_INTERVAL_(_expr_,_INTERVAL_SYM_expr_interval_)!swap	DO DAY(utf8mb4, INTERVAL utf8mb4 DAY);
 accept	accept	engine	function_call_nonkeyword/EXTRACT_SYM_(_interval_FROM_expr_)	DO EXTRACT(DAY FROM utf8mb4);
 reject	reject	engine	function_call_nonkeyword/EXTRACT_SYM_(_interval_FROM_expr_)!drop-1	DO(DAY FROM utf8mb4);
@@ -6568,7 +6568,7 @@ reject	reject	engine	function_call_nonkeyword/EXTRACT_SYM_(_interval_FROM_expr_)
 reject	reject	engine	function_call_nonkeyword/EXTRACT_SYM_(_interval_FROM_expr_)!drop-5	DO EXTRACT(DAY FROM);
 reject	reject	engine	function_call_nonkeyword/EXTRACT_SYM_(_interval_FROM_expr_)!drop-6	DO EXTRACT(DAY FROM utf8mb4;
 reject	reject	engine	function_call_nonkeyword/EXTRACT_SYM_(_interval_FROM_expr_)!truncate	DO EXTRACT(DAY FROM utf8mb4
-reject	accept	engine	function_call_nonkeyword/EXTRACT_SYM_(_interval_FROM_expr_)!insert	DO EXTRACT(DAY FROM utf8mb4) zzz;
+accept	accept	engine	function_call_nonkeyword/EXTRACT_SYM_(_interval_FROM_expr_)!insert	DO EXTRACT(DAY FROM utf8mb4) zzz;
 reject	reject	engine	function_call_nonkeyword/EXTRACT_SYM_(_interval_FROM_expr_)!swap	DO FACTOR(DAY FROM utf8mb4);
 accept	accept	engine	function_call_nonkeyword/GET_FORMAT_(_date_time_type_,_expr_)	DO GET_FORMAT(DATE, utf8mb4);
 accept	accept	engine	function_call_nonkeyword/GET_FORMAT_(_date_time_type_,_expr_)!drop-1	DO(DATE, utf8mb4);
@@ -6578,7 +6578,7 @@ reject	reject	engine	function_call_nonkeyword/GET_FORMAT_(_date_time_type_,_expr
 reject	reject	engine	function_call_nonkeyword/GET_FORMAT_(_date_time_type_,_expr_)!drop-5	DO GET_FORMAT(DATE,);
 reject	reject	engine	function_call_nonkeyword/GET_FORMAT_(_date_time_type_,_expr_)!drop-6	DO GET_FORMAT(DATE, utf8mb4;
 reject	reject	engine	function_call_nonkeyword/GET_FORMAT_(_date_time_type_,_expr_)!truncate	DO GET_FORMAT(DATE, utf8mb4
-reject	accept	engine	function_call_nonkeyword/GET_FORMAT_(_date_time_type_,_expr_)!insert	DO GET_FORMAT(DATE, utf8mb4) zzz;
+accept	accept	engine	function_call_nonkeyword/GET_FORMAT_(_date_time_type_,_expr_)!insert	DO GET_FORMAT(DATE, utf8mb4) zzz;
 reject	reject	engine	function_call_nonkeyword/GET_FORMAT_(_date_time_type_,_expr_)!swap	DO GET_MASTER_PUBLIC_KEY(DATE, utf8mb4);
 accept	accept	engine	function_call_nonkeyword/now	DO CURRENT_TIMESTAMP;
 accept	accept	engine	function_call_nonkeyword/POSITION_SYM_(_bit_expr_IN_SYM_expr_)	DO POSITION(utf8mb4 IN utf8mb4);
@@ -6589,7 +6589,7 @@ reject	reject	engine	function_call_nonkeyword/POSITION_SYM_(_bit_expr_IN_SYM_exp
 reject	reject	engine	function_call_nonkeyword/POSITION_SYM_(_bit_expr_IN_SYM_expr_)!drop-5	DO POSITION(utf8mb4 IN);
 reject	reject	engine	function_call_nonkeyword/POSITION_SYM_(_bit_expr_IN_SYM_expr_)!drop-6	DO POSITION(utf8mb4 IN utf8mb4;
 reject	reject	engine	function_call_nonkeyword/POSITION_SYM_(_bit_expr_IN_SYM_expr_)!truncate	DO POSITION(utf8mb4 IN utf8mb4
-reject	accept	engine	function_call_nonkeyword/POSITION_SYM_(_bit_expr_IN_SYM_expr_)!insert	DO POSITION(utf8mb4 IN utf8mb4) zzz;
+accept	accept	engine	function_call_nonkeyword/POSITION_SYM_(_bit_expr_IN_SYM_expr_)!insert	DO POSITION(utf8mb4 IN utf8mb4) zzz;
 reject	reject	engine	function_call_nonkeyword/POSITION_SYM_(_bit_expr_IN_SYM_expr_)!swap	DO PRECEDES(utf8mb4 IN utf8mb4);
 accept	accept	engine	function_call_nonkeyword/SUBDATE_SYM_(_expr_,_expr_)	DO SUBDATE(utf8mb4, utf8mb4);
 reject	reject	engine	function_call_nonkeyword/SUBDATE_SYM_(_expr_,_expr_)!drop-2	DO SUBDATE utf8mb4, utf8mb4);
@@ -6598,7 +6598,7 @@ reject	reject	engine	function_call_nonkeyword/SUBDATE_SYM_(_expr_,_expr_)!drop-4
 reject	reject	engine	function_call_nonkeyword/SUBDATE_SYM_(_expr_,_expr_)!drop-5	DO SUBDATE(utf8mb4,);
 reject	reject	engine	function_call_nonkeyword/SUBDATE_SYM_(_expr_,_expr_)!drop-6	DO SUBDATE(utf8mb4, utf8mb4;
 reject	reject	engine	function_call_nonkeyword/SUBDATE_SYM_(_expr_,_expr_)!truncate	DO SUBDATE(utf8mb4, utf8mb4
-reject	accept	engine	function_call_nonkeyword/SUBDATE_SYM_(_expr_,_expr_)!insert	DO SUBDATE(utf8mb4, utf8mb4) zzz;
+accept	accept	engine	function_call_nonkeyword/SUBDATE_SYM_(_expr_,_expr_)!insert	DO SUBDATE(utf8mb4, utf8mb4) zzz;
 reject	reject	engine	function_call_nonkeyword/SUBDATE_SYM_(_expr_,_expr_)!swap	DO SUBJECT(utf8mb4, utf8mb4);
 accept	accept	engine	function_call_nonkeyword/SUBDATE_SYM_(_expr_,_INTERVAL_SYM_expr_interval_)	DO SUBDATE(utf8mb4, INTERVAL utf8mb4 DAY);
 reject	reject	engine	function_call_nonkeyword/SUBDATE_SYM_(_expr_,_INTERVAL_SYM_expr_interval_)!drop-2	DO SUBDATE utf8mb4, INTERVAL utf8mb4 DAY);
@@ -6609,7 +6609,7 @@ reject	reject	engine	function_call_nonkeyword/SUBDATE_SYM_(_expr_,_INTERVAL_SYM_
 reject	reject	engine	function_call_nonkeyword/SUBDATE_SYM_(_expr_,_INTERVAL_SYM_expr_interval_)!drop-7	DO SUBDATE(utf8mb4, INTERVAL utf8mb4);
 reject	reject	engine	function_call_nonkeyword/SUBDATE_SYM_(_expr_,_INTERVAL_SYM_expr_interval_)!drop-8	DO SUBDATE(utf8mb4, INTERVAL utf8mb4 DAY;
 reject	reject	engine	function_call_nonkeyword/SUBDATE_SYM_(_expr_,_INTERVAL_SYM_expr_interval_)!truncate	DO SUBDATE(utf8mb4, INTERVAL utf8mb4 DAY
-reject	accept	engine	function_call_nonkeyword/SUBDATE_SYM_(_expr_,_INTERVAL_SYM_expr_interval_)!insert	DO SUBDATE(utf8mb4, INTERVAL utf8mb4 DAY) zzz;
+accept	accept	engine	function_call_nonkeyword/SUBDATE_SYM_(_expr_,_INTERVAL_SYM_expr_interval_)!insert	DO SUBDATE(utf8mb4, INTERVAL utf8mb4 DAY) zzz;
 reject	reject	engine	function_call_nonkeyword/SUBDATE_SYM_(_expr_,_INTERVAL_SYM_expr_interval_)!swap	DO SUBJECT(utf8mb4, INTERVAL utf8mb4 DAY);
 accept	accept	engine	function_call_nonkeyword/SUBSTRING_(_expr_,_expr_,_expr_)	DO SUBSTRING(utf8mb4, utf8mb4, utf8mb4);
 reject	reject	engine	function_call_nonkeyword/SUBSTRING_(_expr_,_expr_,_expr_)!drop-2	DO SUBSTRING utf8mb4, utf8mb4, utf8mb4);
@@ -6620,7 +6620,7 @@ reject	reject	engine	function_call_nonkeyword/SUBSTRING_(_expr_,_expr_,_expr_)!d
 reject	reject	engine	function_call_nonkeyword/SUBSTRING_(_expr_,_expr_,_expr_)!drop-7	DO SUBSTRING(utf8mb4, utf8mb4,);
 reject	reject	engine	function_call_nonkeyword/SUBSTRING_(_expr_,_expr_,_expr_)!drop-8	DO SUBSTRING(utf8mb4, utf8mb4, utf8mb4;
 reject	reject	engine	function_call_nonkeyword/SUBSTRING_(_expr_,_expr_,_expr_)!truncate	DO SUBSTRING(utf8mb4, utf8mb4, utf8mb4
-reject	accept	engine	function_call_nonkeyword/SUBSTRING_(_expr_,_expr_,_expr_)!insert	DO SUBSTRING(utf8mb4, utf8mb4, utf8mb4) zzz;
+accept	accept	engine	function_call_nonkeyword/SUBSTRING_(_expr_,_expr_,_expr_)!insert	DO SUBSTRING(utf8mb4, utf8mb4, utf8mb4) zzz;
 reject	reject	engine	function_call_nonkeyword/SUBSTRING_(_expr_,_expr_,_expr_)!swap	DO SUM(utf8mb4, utf8mb4, utf8mb4);
 accept	accept	engine	function_call_nonkeyword/SUBSTRING_(_expr_,_expr_)	DO SUBSTRING(utf8mb4, utf8mb4);
 reject	reject	engine	function_call_nonkeyword/SUBSTRING_(_expr_,_expr_)!drop-2	DO SUBSTRING utf8mb4, utf8mb4);
@@ -6629,7 +6629,7 @@ reject	reject	engine	function_call_nonkeyword/SUBSTRING_(_expr_,_expr_)!drop-4	D
 reject	reject	engine	function_call_nonkeyword/SUBSTRING_(_expr_,_expr_)!drop-5	DO SUBSTRING(utf8mb4,);
 reject	reject	engine	function_call_nonkeyword/SUBSTRING_(_expr_,_expr_)!drop-6	DO SUBSTRING(utf8mb4, utf8mb4;
 reject	reject	engine	function_call_nonkeyword/SUBSTRING_(_expr_,_expr_)!truncate	DO SUBSTRING(utf8mb4, utf8mb4
-reject	accept	engine	function_call_nonkeyword/SUBSTRING_(_expr_,_expr_)!insert	DO SUBSTRING(utf8mb4, utf8mb4) zzz;
+accept	accept	engine	function_call_nonkeyword/SUBSTRING_(_expr_,_expr_)!insert	DO SUBSTRING(utf8mb4, utf8mb4) zzz;
 reject	reject	engine	function_call_nonkeyword/SUBSTRING_(_expr_,_expr_)!swap	DO SUM(utf8mb4, utf8mb4);
 accept	accept	engine	function_call_nonkeyword/SUBSTRING_(_expr_FROM_expr_FOR_SYM_expr_)	DO SUBSTRING(utf8mb4 FROM utf8mb4 FOR utf8mb4);
 reject	reject	engine	function_call_nonkeyword/SUBSTRING_(_expr_FROM_expr_FOR_SYM_expr_)!drop-1	DO(utf8mb4 FROM utf8mb4 FOR utf8mb4);
@@ -6641,7 +6641,7 @@ reject	reject	engine	function_call_nonkeyword/SUBSTRING_(_expr_FROM_expr_FOR_SYM
 reject	reject	engine	function_call_nonkeyword/SUBSTRING_(_expr_FROM_expr_FOR_SYM_expr_)!drop-7	DO SUBSTRING(utf8mb4 FROM utf8mb4 FOR);
 reject	reject	engine	function_call_nonkeyword/SUBSTRING_(_expr_FROM_expr_FOR_SYM_expr_)!drop-8	DO SUBSTRING(utf8mb4 FROM utf8mb4 FOR utf8mb4;
 reject	reject	engine	function_call_nonkeyword/SUBSTRING_(_expr_FROM_expr_FOR_SYM_expr_)!truncate	DO SUBSTRING(utf8mb4 FROM utf8mb4 FOR utf8mb4
-reject	accept	engine	function_call_nonkeyword/SUBSTRING_(_expr_FROM_expr_FOR_SYM_expr_)!insert	DO SUBSTRING(utf8mb4 FROM utf8mb4 FOR utf8mb4) zzz;
+accept	accept	engine	function_call_nonkeyword/SUBSTRING_(_expr_FROM_expr_FOR_SYM_expr_)!insert	DO SUBSTRING(utf8mb4 FROM utf8mb4 FOR utf8mb4) zzz;
 reject	reject	engine	function_call_nonkeyword/SUBSTRING_(_expr_FROM_expr_FOR_SYM_expr_)!swap	DO SUM(utf8mb4 FROM utf8mb4 FOR utf8mb4);
 accept	accept	engine	function_call_nonkeyword/SUBSTRING_(_expr_FROM_expr_)	DO SUBSTRING(utf8mb4 FROM utf8mb4);
 reject	reject	engine	function_call_nonkeyword/SUBSTRING_(_expr_FROM_expr_)!drop-2	DO SUBSTRING utf8mb4 FROM utf8mb4);
@@ -6649,10 +6649,10 @@ reject	reject	engine	function_call_nonkeyword/SUBSTRING_(_expr_FROM_expr_)!drop-
 reject	reject	engine	function_call_nonkeyword/SUBSTRING_(_expr_FROM_expr_)!drop-5	DO SUBSTRING(utf8mb4 FROM);
 reject	reject	engine	function_call_nonkeyword/SUBSTRING_(_expr_FROM_expr_)!drop-6	DO SUBSTRING(utf8mb4 FROM utf8mb4;
 reject	reject	engine	function_call_nonkeyword/SUBSTRING_(_expr_FROM_expr_)!truncate	DO SUBSTRING(utf8mb4 FROM utf8mb4
-reject	accept	engine	function_call_nonkeyword/SUBSTRING_(_expr_FROM_expr_)!insert	DO SUBSTRING(utf8mb4 FROM utf8mb4) zzz;
+accept	accept	engine	function_call_nonkeyword/SUBSTRING_(_expr_FROM_expr_)!insert	DO SUBSTRING(utf8mb4 FROM utf8mb4) zzz;
 reject	reject	engine	function_call_nonkeyword/SUBSTRING_(_expr_FROM_expr_)!swap	DO SUM(utf8mb4 FROM utf8mb4);
 accept	accept	engine	function_call_nonkeyword/SYSDATE_func_datetime_precision	DO SYSDATE;
-reject	accept	engine	function_call_nonkeyword/SYSDATE_func_datetime_precision!insert	DO SYSDATE zzz;
+accept	accept	engine	function_call_nonkeyword/SYSDATE_func_datetime_precision!insert	DO SYSDATE zzz;
 reject	reject	engine	function_call_nonkeyword/SYSDATE_func_datetime_precision!swap	DO SYSTEM;
 accept	accept	engine	function_call_nonkeyword/TIMESTAMP_ADD_(_interval_time_stamp_,_expr_,_expr_)	DO TIMESTAMPADD(DAY, utf8mb4, utf8mb4);
 accept	accept	engine	function_call_nonkeyword/TIMESTAMP_ADD_(_interval_time_stamp_,_expr_,_expr_)!drop-1	DO(DAY, utf8mb4, utf8mb4);
@@ -6664,7 +6664,7 @@ reject	reject	engine	function_call_nonkeyword/TIMESTAMP_ADD_(_interval_time_stam
 reject	reject	engine	function_call_nonkeyword/TIMESTAMP_ADD_(_interval_time_stamp_,_expr_,_expr_)!drop-7	DO TIMESTAMPADD(DAY, utf8mb4,);
 reject	reject	engine	function_call_nonkeyword/TIMESTAMP_ADD_(_interval_time_stamp_,_expr_,_expr_)!drop-8	DO TIMESTAMPADD(DAY, utf8mb4, utf8mb4;
 reject	reject	engine	function_call_nonkeyword/TIMESTAMP_ADD_(_interval_time_stamp_,_expr_,_expr_)!truncate	DO TIMESTAMPADD(DAY, utf8mb4, utf8mb4
-reject	accept	engine	function_call_nonkeyword/TIMESTAMP_ADD_(_interval_time_stamp_,_expr_,_expr_)!insert	DO TIMESTAMPADD(DAY, utf8mb4, utf8mb4) zzz;
+accept	accept	engine	function_call_nonkeyword/TIMESTAMP_ADD_(_interval_time_stamp_,_expr_,_expr_)!insert	DO TIMESTAMPADD(DAY, utf8mb4, utf8mb4) zzz;
 accept	accept	engine	function_call_nonkeyword/TIMESTAMP_DIFF_(_interval_time_stamp_,_expr_,_expr_)	DO TIMESTAMPDIFF(DAY, utf8mb4, utf8mb4);
 reject	reject	engine	function_call_nonkeyword/TIMESTAMP_DIFF_(_interval_time_stamp_,_expr_,_expr_)!drop-2	DO TIMESTAMPDIFF DAY, utf8mb4, utf8mb4);
 reject	reject	engine	function_call_nonkeyword/TIMESTAMP_DIFF_(_interval_time_stamp_,_expr_,_expr_)!drop-3	DO TIMESTAMPDIFF(, utf8mb4, utf8mb4);
@@ -6674,14 +6674,14 @@ reject	reject	engine	function_call_nonkeyword/TIMESTAMP_DIFF_(_interval_time_sta
 reject	reject	engine	function_call_nonkeyword/TIMESTAMP_DIFF_(_interval_time_stamp_,_expr_,_expr_)!drop-7	DO TIMESTAMPDIFF(DAY, utf8mb4,);
 reject	reject	engine	function_call_nonkeyword/TIMESTAMP_DIFF_(_interval_time_stamp_,_expr_,_expr_)!drop-8	DO TIMESTAMPDIFF(DAY, utf8mb4, utf8mb4;
 reject	reject	engine	function_call_nonkeyword/TIMESTAMP_DIFF_(_interval_time_stamp_,_expr_,_expr_)!truncate	DO TIMESTAMPDIFF(DAY, utf8mb4, utf8mb4
-reject	accept	engine	function_call_nonkeyword/TIMESTAMP_DIFF_(_interval_time_stamp_,_expr_,_expr_)!insert	DO TIMESTAMPDIFF(DAY, utf8mb4, utf8mb4) zzz;
+accept	accept	engine	function_call_nonkeyword/TIMESTAMP_DIFF_(_interval_time_stamp_,_expr_,_expr_)!insert	DO TIMESTAMPDIFF(DAY, utf8mb4, utf8mb4) zzz;
 reject	reject	engine	function_call_nonkeyword/TIMESTAMP_DIFF_(_interval_time_stamp_,_expr_,_expr_)!swap	DO TINYBLOB(DAY, utf8mb4, utf8mb4);
 accept	accept	engine	function_call_nonkeyword/UTC_DATE_SYM_optional_braces	DO UTC_DATE;
-reject	accept	engine	function_call_nonkeyword/UTC_DATE_SYM_optional_braces!insert	DO UTC_DATE zzz;
+accept	accept	engine	function_call_nonkeyword/UTC_DATE_SYM_optional_braces!insert	DO UTC_DATE zzz;
 accept	accept	engine	function_call_nonkeyword/UTC_TIME_SYM_func_datetime_precision	DO UTC_TIME;
-reject	accept	engine	function_call_nonkeyword/UTC_TIME_SYM_func_datetime_precision!insert	DO UTC_TIME zzz;
+accept	accept	engine	function_call_nonkeyword/UTC_TIME_SYM_func_datetime_precision!insert	DO UTC_TIME zzz;
 accept	accept	engine	function_call_nonkeyword/UTC_TIMESTAMP_SYM_func_datetime_precision	DO UTC_TIMESTAMP;
-reject	accept	engine	function_call_nonkeyword/UTC_TIMESTAMP_SYM_func_datetime_precision!insert	DO UTC_TIMESTAMP zzz;
+accept	accept	engine	function_call_nonkeyword/UTC_TIMESTAMP_SYM_func_datetime_precision!insert	DO UTC_TIMESTAMP zzz;
 accept	accept	engine	function_call_nonkeyword/UTC_TIMESTAMP_SYM_func_datetime_precision!swap	DO VALIDATION;
 accept	accept	engine	opt_returning_type/%empty	DO JSON_VALUE(utf8mb4, 's');
 reject	reject	engine	opt_returning_type/%empty!insert	DO JSON_VALUE(utf8mb4, 's' zzz);
@@ -6696,28 +6696,28 @@ reject	reject	engine	function_call_conflict/ASCII_SYM_(_expr_)!drop-2	DO ASCII u
 accept	reject	engine	function_call_conflict/ASCII_SYM_(_expr_)!drop-3	DO ASCII();
 reject	reject	engine	function_call_conflict/ASCII_SYM_(_expr_)!drop-4	DO ASCII(utf8mb4;
 reject	reject	engine	function_call_conflict/ASCII_SYM_(_expr_)!truncate	DO ASCII(utf8mb4
-reject	accept	engine	function_call_conflict/ASCII_SYM_(_expr_)!insert	DO ASCII(utf8mb4) zzz;
+accept	accept	engine	function_call_conflict/ASCII_SYM_(_expr_)!insert	DO ASCII(utf8mb4) zzz;
 reject	reject	engine	function_call_conflict/ASCII_SYM_(_expr_)!swap	DO ASENSITIVE(utf8mb4);
 accept	accept	engine	function_call_conflict/CHARSET_(_expr_)	DO CHARSET(utf8mb4);
 reject	reject	engine	function_call_conflict/CHARSET_(_expr_)!drop-2	DO CHARSET utf8mb4);
 accept	reject	engine	function_call_conflict/CHARSET_(_expr_)!drop-3	DO CHARSET();
 reject	reject	engine	function_call_conflict/CHARSET_(_expr_)!drop-4	DO CHARSET(utf8mb4;
 reject	reject	engine	function_call_conflict/CHARSET_(_expr_)!truncate	DO CHARSET(utf8mb4
-reject	accept	engine	function_call_conflict/CHARSET_(_expr_)!insert	DO CHARSET(utf8mb4) zzz;
+accept	accept	engine	function_call_conflict/CHARSET_(_expr_)!insert	DO CHARSET(utf8mb4) zzz;
 reject	reject	engine	function_call_conflict/CHARSET_(_expr_)!swap	DO CHECK(utf8mb4);
 accept	accept	engine	function_call_conflict/COALESCE_(_expr_list_)	DO COALESCE(utf8mb4);
 reject	reject	engine	function_call_conflict/COALESCE_(_expr_list_)!drop-2	DO COALESCE utf8mb4);
 accept	reject	engine	function_call_conflict/COALESCE_(_expr_list_)!drop-3	DO COALESCE();
 reject	reject	engine	function_call_conflict/COALESCE_(_expr_list_)!drop-4	DO COALESCE(utf8mb4;
 reject	reject	engine	function_call_conflict/COALESCE_(_expr_list_)!truncate	DO COALESCE(utf8mb4
-reject	accept	engine	function_call_conflict/COALESCE_(_expr_list_)!insert	DO COALESCE(utf8mb4) zzz;
+accept	accept	engine	function_call_conflict/COALESCE_(_expr_list_)!insert	DO COALESCE(utf8mb4) zzz;
 reject	reject	engine	function_call_conflict/COALESCE_(_expr_list_)!swap	DO CODE(utf8mb4);
 accept	accept	engine	function_call_conflict/COLLATION_SYM_(_expr_)	DO COLLATION(utf8mb4);
 reject	reject	engine	function_call_conflict/COLLATION_SYM_(_expr_)!drop-2	DO COLLATION utf8mb4);
 accept	reject	engine	function_call_conflict/COLLATION_SYM_(_expr_)!drop-3	DO COLLATION();
 reject	reject	engine	function_call_conflict/COLLATION_SYM_(_expr_)!drop-4	DO COLLATION(utf8mb4;
 reject	reject	engine	function_call_conflict/COLLATION_SYM_(_expr_)!truncate	DO COLLATION(utf8mb4
-reject	accept	engine	function_call_conflict/COLLATION_SYM_(_expr_)!insert	DO COLLATION(utf8mb4) zzz;
+accept	accept	engine	function_call_conflict/COLLATION_SYM_(_expr_)!insert	DO COLLATION(utf8mb4) zzz;
 reject	reject	engine	function_call_conflict/COLLATION_SYM_(_expr_)!swap	DO COLUMN(utf8mb4);
 accept	accept	engine	function_call_conflict/DATABASE_(_)	DO DATABASE();
 accept	accept	engine	function_call_conflict/IF_(_expr_,_expr_,_expr_)	DO IF(utf8mb4, utf8mb4, utf8mb4);
@@ -6729,7 +6729,7 @@ reject	reject	engine	function_call_conflict/IF_(_expr_,_expr_,_expr_)!drop-6	DO 
 reject	reject	engine	function_call_conflict/IF_(_expr_,_expr_,_expr_)!drop-7	DO IF(utf8mb4, utf8mb4,);
 reject	reject	engine	function_call_conflict/IF_(_expr_,_expr_,_expr_)!drop-8	DO IF(utf8mb4, utf8mb4, utf8mb4;
 reject	reject	engine	function_call_conflict/IF_(_expr_,_expr_,_expr_)!truncate	DO IF(utf8mb4, utf8mb4, utf8mb4
-reject	accept	engine	function_call_conflict/IF_(_expr_,_expr_,_expr_)!insert	DO IF(utf8mb4, utf8mb4, utf8mb4) zzz;
+accept	accept	engine	function_call_conflict/IF_(_expr_,_expr_,_expr_)!insert	DO IF(utf8mb4, utf8mb4, utf8mb4) zzz;
 reject	reject	engine	function_call_conflict/IF_(_expr_,_expr_,_expr_)!swap	DO IGNORE(utf8mb4, utf8mb4, utf8mb4);
 accept	accept	engine	function_call_conflict/FORMAT_SYM_(_expr_,_expr_)	DO FORMAT(utf8mb4, utf8mb4);
 reject	reject	engine	function_call_conflict/FORMAT_SYM_(_expr_,_expr_)!drop-2	DO FORMAT utf8mb4, utf8mb4);
@@ -6738,7 +6738,7 @@ reject	reject	engine	function_call_conflict/FORMAT_SYM_(_expr_,_expr_)!drop-4	DO
 reject	reject	engine	function_call_conflict/FORMAT_SYM_(_expr_,_expr_)!drop-5	DO FORMAT(utf8mb4,);
 reject	reject	engine	function_call_conflict/FORMAT_SYM_(_expr_,_expr_)!drop-6	DO FORMAT(utf8mb4, utf8mb4;
 reject	reject	engine	function_call_conflict/FORMAT_SYM_(_expr_,_expr_)!truncate	DO FORMAT(utf8mb4, utf8mb4
-reject	accept	engine	function_call_conflict/FORMAT_SYM_(_expr_,_expr_)!insert	DO FORMAT(utf8mb4, utf8mb4) zzz;
+accept	accept	engine	function_call_conflict/FORMAT_SYM_(_expr_,_expr_)!insert	DO FORMAT(utf8mb4, utf8mb4) zzz;
 reject	reject	engine	function_call_conflict/FORMAT_SYM_(_expr_,_expr_)!swap	DO FOUND(utf8mb4, utf8mb4);
 accept	accept	engine	function_call_conflict/FORMAT_SYM_(_expr_,_expr_,_expr_)	DO FORMAT(utf8mb4, utf8mb4, utf8mb4);
 reject	reject	engine	function_call_conflict/FORMAT_SYM_(_expr_,_expr_,_expr_)!drop-2	DO FORMAT utf8mb4, utf8mb4, utf8mb4);
@@ -6749,14 +6749,14 @@ reject	reject	engine	function_call_conflict/FORMAT_SYM_(_expr_,_expr_,_expr_)!dr
 reject	reject	engine	function_call_conflict/FORMAT_SYM_(_expr_,_expr_,_expr_)!drop-7	DO FORMAT(utf8mb4, utf8mb4,);
 reject	reject	engine	function_call_conflict/FORMAT_SYM_(_expr_,_expr_,_expr_)!drop-8	DO FORMAT(utf8mb4, utf8mb4, utf8mb4;
 reject	reject	engine	function_call_conflict/FORMAT_SYM_(_expr_,_expr_,_expr_)!truncate	DO FORMAT(utf8mb4, utf8mb4, utf8mb4
-reject	accept	engine	function_call_conflict/FORMAT_SYM_(_expr_,_expr_,_expr_)!insert	DO FORMAT(utf8mb4, utf8mb4, utf8mb4) zzz;
+accept	accept	engine	function_call_conflict/FORMAT_SYM_(_expr_,_expr_,_expr_)!insert	DO FORMAT(utf8mb4, utf8mb4, utf8mb4) zzz;
 reject	reject	engine	function_call_conflict/FORMAT_SYM_(_expr_,_expr_,_expr_)!swap	DO FOUND(utf8mb4, utf8mb4, utf8mb4);
 accept	accept	engine	function_call_conflict/MICROSECOND_SYM_(_expr_)	DO MICROSECOND(utf8mb4);
 reject	reject	engine	function_call_conflict/MICROSECOND_SYM_(_expr_)!drop-2	DO MICROSECOND utf8mb4);
 accept	reject	engine	function_call_conflict/MICROSECOND_SYM_(_expr_)!drop-3	DO MICROSECOND();
 reject	reject	engine	function_call_conflict/MICROSECOND_SYM_(_expr_)!drop-4	DO MICROSECOND(utf8mb4;
 reject	reject	engine	function_call_conflict/MICROSECOND_SYM_(_expr_)!truncate	DO MICROSECOND(utf8mb4
-reject	accept	engine	function_call_conflict/MICROSECOND_SYM_(_expr_)!insert	DO MICROSECOND(utf8mb4) zzz;
+accept	accept	engine	function_call_conflict/MICROSECOND_SYM_(_expr_)!insert	DO MICROSECOND(utf8mb4) zzz;
 reject	reject	engine	function_call_conflict/MICROSECOND_SYM_(_expr_)!swap	DO MIGRATE(utf8mb4);
 accept	accept	engine	function_call_conflict/MOD_SYM_(_expr_,_expr_)	DO MOD(utf8mb4, utf8mb4);
 reject	reject	engine	function_call_conflict/MOD_SYM_(_expr_,_expr_)!drop-2	DO MOD utf8mb4, utf8mb4);
@@ -6765,14 +6765,14 @@ reject	reject	engine	function_call_conflict/MOD_SYM_(_expr_,_expr_)!drop-4	DO MO
 reject	reject	engine	function_call_conflict/MOD_SYM_(_expr_,_expr_)!drop-5	DO MOD(utf8mb4,);
 reject	reject	engine	function_call_conflict/MOD_SYM_(_expr_,_expr_)!drop-6	DO MOD(utf8mb4, utf8mb4;
 reject	reject	engine	function_call_conflict/MOD_SYM_(_expr_,_expr_)!truncate	DO MOD(utf8mb4, utf8mb4
-reject	accept	engine	function_call_conflict/MOD_SYM_(_expr_,_expr_)!insert	DO MOD(utf8mb4, utf8mb4) zzz;
+accept	accept	engine	function_call_conflict/MOD_SYM_(_expr_,_expr_)!insert	DO MOD(utf8mb4, utf8mb4) zzz;
 reject	reject	engine	function_call_conflict/MOD_SYM_(_expr_,_expr_)!swap	DO MODE(utf8mb4, utf8mb4);
 accept	accept	engine	function_call_conflict/QUARTER_SYM_(_expr_)	DO QUARTER(utf8mb4);
 reject	reject	engine	function_call_conflict/QUARTER_SYM_(_expr_)!drop-2	DO QUARTER utf8mb4);
 accept	reject	engine	function_call_conflict/QUARTER_SYM_(_expr_)!drop-3	DO QUARTER();
 reject	reject	engine	function_call_conflict/QUARTER_SYM_(_expr_)!drop-4	DO QUARTER(utf8mb4;
 reject	reject	engine	function_call_conflict/QUARTER_SYM_(_expr_)!truncate	DO QUARTER(utf8mb4
-reject	accept	engine	function_call_conflict/QUARTER_SYM_(_expr_)!insert	DO QUARTER(utf8mb4) zzz;
+accept	accept	engine	function_call_conflict/QUARTER_SYM_(_expr_)!insert	DO QUARTER(utf8mb4) zzz;
 reject	reject	engine	function_call_conflict/QUARTER_SYM_(_expr_)!swap	DO QUERY(utf8mb4);
 accept	accept	engine	function_call_conflict/REPEAT_SYM_(_expr_,_expr_)	DO REPEAT(utf8mb4, utf8mb4);
 reject	reject	engine	function_call_conflict/REPEAT_SYM_(_expr_,_expr_)!drop-2	DO REPEAT utf8mb4, utf8mb4);
@@ -6781,7 +6781,7 @@ reject	reject	engine	function_call_conflict/REPEAT_SYM_(_expr_,_expr_)!drop-4	DO
 reject	reject	engine	function_call_conflict/REPEAT_SYM_(_expr_,_expr_)!drop-5	DO REPEAT(utf8mb4,);
 reject	reject	engine	function_call_conflict/REPEAT_SYM_(_expr_,_expr_)!drop-6	DO REPEAT(utf8mb4, utf8mb4;
 reject	reject	engine	function_call_conflict/REPEAT_SYM_(_expr_,_expr_)!truncate	DO REPEAT(utf8mb4, utf8mb4
-reject	accept	engine	function_call_conflict/REPEAT_SYM_(_expr_,_expr_)!insert	DO REPEAT(utf8mb4, utf8mb4) zzz;
+accept	accept	engine	function_call_conflict/REPEAT_SYM_(_expr_,_expr_)!insert	DO REPEAT(utf8mb4, utf8mb4) zzz;
 reject	reject	engine	function_call_conflict/REPEAT_SYM_(_expr_,_expr_)!swap	DO REPEATABLE(utf8mb4, utf8mb4);
 accept	accept	engine	function_call_conflict/REPLACE_SYM_(_expr_,_expr_,_expr_)	DO REPLACE(utf8mb4, utf8mb4, utf8mb4);
 reject	reject	engine	function_call_conflict/REPLACE_SYM_(_expr_,_expr_,_expr_)!drop-2	DO REPLACE utf8mb4, utf8mb4, utf8mb4);
@@ -6792,20 +6792,20 @@ reject	reject	engine	function_call_conflict/REPLACE_SYM_(_expr_,_expr_,_expr_)!d
 reject	reject	engine	function_call_conflict/REPLACE_SYM_(_expr_,_expr_,_expr_)!drop-7	DO REPLACE(utf8mb4, utf8mb4,);
 reject	reject	engine	function_call_conflict/REPLACE_SYM_(_expr_,_expr_,_expr_)!drop-8	DO REPLACE(utf8mb4, utf8mb4, utf8mb4;
 reject	reject	engine	function_call_conflict/REPLACE_SYM_(_expr_,_expr_,_expr_)!truncate	DO REPLACE(utf8mb4, utf8mb4, utf8mb4
-reject	accept	engine	function_call_conflict/REPLACE_SYM_(_expr_,_expr_,_expr_)!insert	DO REPLACE(utf8mb4, utf8mb4, utf8mb4) zzz;
+accept	accept	engine	function_call_conflict/REPLACE_SYM_(_expr_,_expr_,_expr_)!insert	DO REPLACE(utf8mb4, utf8mb4, utf8mb4) zzz;
 reject	reject	engine	function_call_conflict/REPLACE_SYM_(_expr_,_expr_,_expr_)!swap	DO REPLICA(utf8mb4, utf8mb4, utf8mb4);
 accept	accept	engine	function_call_conflict/REVERSE_SYM_(_expr_)	DO REVERSE(utf8mb4);
 reject	reject	engine	function_call_conflict/REVERSE_SYM_(_expr_)!drop-2	DO REVERSE utf8mb4);
 accept	reject	engine	function_call_conflict/REVERSE_SYM_(_expr_)!drop-3	DO REVERSE();
 reject	reject	engine	function_call_conflict/REVERSE_SYM_(_expr_)!drop-4	DO REVERSE(utf8mb4;
 reject	reject	engine	function_call_conflict/REVERSE_SYM_(_expr_)!truncate	DO REVERSE(utf8mb4
-reject	accept	engine	function_call_conflict/REVERSE_SYM_(_expr_)!insert	DO REVERSE(utf8mb4) zzz;
+accept	accept	engine	function_call_conflict/REVERSE_SYM_(_expr_)!insert	DO REVERSE(utf8mb4) zzz;
 reject	reject	engine	function_call_conflict/REVERSE_SYM_(_expr_)!swap	DO REVOKE(utf8mb4);
 accept	accept	engine	function_call_conflict/ROW_COUNT_SYM_(_)	DO ROW_COUNT();
 reject	reject	engine	function_call_conflict/ROW_COUNT_SYM_(_)!drop-2	DO ROW_COUNT);
 reject	reject	engine	function_call_conflict/ROW_COUNT_SYM_(_)!drop-3	DO ROW_COUNT(;
 reject	reject	engine	function_call_conflict/ROW_COUNT_SYM_(_)!truncate	DO ROW_COUNT(
-reject	accept	engine	function_call_conflict/ROW_COUNT_SYM_(_)!insert	DO ROW_COUNT() zzz;
+accept	accept	engine	function_call_conflict/ROW_COUNT_SYM_(_)!insert	DO ROW_COUNT() zzz;
 reject	reject	engine	function_call_conflict/ROW_COUNT_SYM_(_)!swap	DO ROW_FORMAT();
 accept	accept	engine	function_call_conflict/TRUNCATE_SYM_(_expr_,_expr_)	DO TRUNCATE(utf8mb4, utf8mb4);
 reject	reject	engine	function_call_conflict/TRUNCATE_SYM_(_expr_,_expr_)!drop-2	DO TRUNCATE utf8mb4, utf8mb4);
@@ -6814,14 +6814,14 @@ reject	reject	engine	function_call_conflict/TRUNCATE_SYM_(_expr_,_expr_)!drop-4	
 reject	reject	engine	function_call_conflict/TRUNCATE_SYM_(_expr_,_expr_)!drop-5	DO TRUNCATE(utf8mb4,);
 reject	reject	engine	function_call_conflict/TRUNCATE_SYM_(_expr_,_expr_)!drop-6	DO TRUNCATE(utf8mb4, utf8mb4;
 reject	reject	engine	function_call_conflict/TRUNCATE_SYM_(_expr_,_expr_)!truncate	DO TRUNCATE(utf8mb4, utf8mb4
-reject	accept	engine	function_call_conflict/TRUNCATE_SYM_(_expr_,_expr_)!insert	DO TRUNCATE(utf8mb4, utf8mb4) zzz;
+accept	accept	engine	function_call_conflict/TRUNCATE_SYM_(_expr_,_expr_)!insert	DO TRUNCATE(utf8mb4, utf8mb4) zzz;
 reject	reject	engine	function_call_conflict/TRUNCATE_SYM_(_expr_,_expr_)!swap	DO TYPE(utf8mb4, utf8mb4);
 accept	accept	engine	function_call_conflict/WEEK_SYM_(_expr_)	DO WEEK(utf8mb4);
 reject	reject	engine	function_call_conflict/WEEK_SYM_(_expr_)!drop-2	DO WEEK utf8mb4);
 accept	reject	engine	function_call_conflict/WEEK_SYM_(_expr_)!drop-3	DO WEEK();
 reject	reject	engine	function_call_conflict/WEEK_SYM_(_expr_)!drop-4	DO WEEK(utf8mb4;
 reject	reject	engine	function_call_conflict/WEEK_SYM_(_expr_)!truncate	DO WEEK(utf8mb4
-reject	accept	engine	function_call_conflict/WEEK_SYM_(_expr_)!insert	DO WEEK(utf8mb4) zzz;
+accept	accept	engine	function_call_conflict/WEEK_SYM_(_expr_)!insert	DO WEEK(utf8mb4) zzz;
 accept	accept	engine	function_call_conflict/WEEK_SYM_(_expr_,_expr_)	DO WEEK(utf8mb4, utf8mb4);
 reject	reject	engine	function_call_conflict/WEEK_SYM_(_expr_,_expr_)!drop-2	DO WEEK utf8mb4, utf8mb4);
 reject	reject	engine	function_call_conflict/WEEK_SYM_(_expr_,_expr_)!drop-3	DO WEEK(, utf8mb4);
@@ -6829,14 +6829,14 @@ reject	reject	engine	function_call_conflict/WEEK_SYM_(_expr_,_expr_)!drop-4	DO W
 reject	reject	engine	function_call_conflict/WEEK_SYM_(_expr_,_expr_)!drop-5	DO WEEK(utf8mb4,);
 reject	reject	engine	function_call_conflict/WEEK_SYM_(_expr_,_expr_)!drop-6	DO WEEK(utf8mb4, utf8mb4;
 reject	reject	engine	function_call_conflict/WEEK_SYM_(_expr_,_expr_)!truncate	DO WEEK(utf8mb4, utf8mb4
-reject	accept	engine	function_call_conflict/WEEK_SYM_(_expr_,_expr_)!insert	DO WEEK(utf8mb4, utf8mb4) zzz;
+accept	accept	engine	function_call_conflict/WEEK_SYM_(_expr_,_expr_)!insert	DO WEEK(utf8mb4, utf8mb4) zzz;
 reject	reject	engine	function_call_conflict/WEEK_SYM_(_expr_,_expr_)!swap	DO WEIGHT_STRING(utf8mb4, utf8mb4);
 accept	accept	engine	function_call_conflict/WEIGHT_STRING_SYM_(_expr_)	DO WEIGHT_STRING(utf8mb4);
 reject	reject	engine	function_call_conflict/WEIGHT_STRING_SYM_(_expr_)!drop-2	DO WEIGHT_STRING utf8mb4);
 reject	reject	engine	function_call_conflict/WEIGHT_STRING_SYM_(_expr_)!drop-3	DO WEIGHT_STRING();
 reject	reject	engine	function_call_conflict/WEIGHT_STRING_SYM_(_expr_)!drop-4	DO WEIGHT_STRING(utf8mb4;
 reject	reject	engine	function_call_conflict/WEIGHT_STRING_SYM_(_expr_)!truncate	DO WEIGHT_STRING(utf8mb4
-reject	accept	engine	function_call_conflict/WEIGHT_STRING_SYM_(_expr_)!insert	DO WEIGHT_STRING(utf8mb4) zzz;
+accept	accept	engine	function_call_conflict/WEIGHT_STRING_SYM_(_expr_)!insert	DO WEIGHT_STRING(utf8mb4) zzz;
 reject	reject	engine	function_call_conflict/WEIGHT_STRING_SYM_(_expr_)!swap	DO WHEN(utf8mb4);
 accept	accept	engine	function_call_conflict/WEIGHT_STRING_SYM_(_expr_AS_CHAR_SYM_ws_num_codepoints_)	DO WEIGHT_STRING(utf8mb4 AS CHAR(1));
 reject	reject	engine	function_call_conflict/WEIGHT_STRING_SYM_(_expr_AS_CHAR_SYM_ws_num_codepoints_)!drop-1	DO(utf8mb4 AS CHAR(1));
@@ -6845,7 +6845,7 @@ reject	reject	engine	function_call_conflict/WEIGHT_STRING_SYM_(_expr_AS_CHAR_SYM
 reject	reject	engine	function_call_conflict/WEIGHT_STRING_SYM_(_expr_AS_CHAR_SYM_ws_num_codepoints_)!drop-4	DO WEIGHT_STRING(utf8mb4 CHAR(1));
 reject	reject	engine	function_call_conflict/WEIGHT_STRING_SYM_(_expr_AS_CHAR_SYM_ws_num_codepoints_)!drop-5	DO WEIGHT_STRING(utf8mb4 AS(1));
 reject	reject	engine	function_call_conflict/WEIGHT_STRING_SYM_(_expr_AS_CHAR_SYM_ws_num_codepoints_)!truncate	DO WEIGHT_STRING(utf8mb4 AS CHAR(1)
-reject	accept	engine	function_call_conflict/WEIGHT_STRING_SYM_(_expr_AS_CHAR_SYM_ws_num_codepoints_)!insert	DO WEIGHT_STRING(utf8mb4 AS CHAR(1)) zzz;
+accept	accept	engine	function_call_conflict/WEIGHT_STRING_SYM_(_expr_AS_CHAR_SYM_ws_num_codepoints_)!insert	DO WEIGHT_STRING(utf8mb4 AS CHAR(1)) zzz;
 reject	reject	engine	function_call_conflict/WEIGHT_STRING_SYM_(_expr_AS_CHAR_SYM_ws_num_codepoints_)!swap	DO WHEN(utf8mb4 AS CHAR(1));
 accept	accept	engine	function_call_conflict/WEIGHT_STRING_SYM_(_expr_AS_BINARY_SYM_ws_num_codepoints_)	DO WEIGHT_STRING(utf8mb4 AS BINARY(1));
 reject	reject	engine	function_call_conflict/WEIGHT_STRING_SYM_(_expr_AS_BINARY_SYM_ws_num_codepoints_)!drop-1	DO(utf8mb4 AS BINARY(1));
@@ -6856,7 +6856,7 @@ reject	reject	engine	function_call_conflict/WEIGHT_STRING_SYM_(_expr_AS_BINARY_S
 reject	reject	engine	function_call_conflict/WEIGHT_STRING_SYM_(_expr_AS_BINARY_SYM_ws_num_codepoints_)!drop-7	DO WEIGHT_STRING(utf8mb4 AS BINARY());
 reject	reject	engine	function_call_conflict/WEIGHT_STRING_SYM_(_expr_AS_BINARY_SYM_ws_num_codepoints_)!drop-8	DO WEIGHT_STRING(utf8mb4 AS BINARY(1);
 reject	reject	engine	function_call_conflict/WEIGHT_STRING_SYM_(_expr_AS_BINARY_SYM_ws_num_codepoints_)!truncate	DO WEIGHT_STRING(utf8mb4 AS BINARY(1)
-reject	accept	engine	function_call_conflict/WEIGHT_STRING_SYM_(_expr_AS_BINARY_SYM_ws_num_codepoints_)!insert	DO WEIGHT_STRING(utf8mb4 AS BINARY(1)) zzz;
+accept	accept	engine	function_call_conflict/WEIGHT_STRING_SYM_(_expr_AS_BINARY_SYM_ws_num_codepoints_)!insert	DO WEIGHT_STRING(utf8mb4 AS BINARY(1)) zzz;
 reject	reject	engine	function_call_conflict/WEIGHT_STRING_SYM_(_expr_AS_BINARY_SYM_ws_num_codepoints_)!swap	DO WHEN(utf8mb4 AS BINARY(1));
 reject	accept	engine	function_call_conflict/WEIGHT_STRING_SYM_(_expr_,_ulong_num_,_ulong_num_,_ulong_num_)	DO WEIGHT_STRING(utf8mb4, 1, 1, 1);
 accept	accept	engine	function_call_conflict/WEIGHT_STRING_SYM_(_expr_,_ulong_num_,_ulong_num_,_ulong_num_)!drop-1	DO(utf8mb4, 1, 1, 1);
@@ -6876,7 +6876,7 @@ accept	accept	engine	function_call_conflict/geometry_function	DO GEOMETRYCOLLECT
 reject	reject	engine	function_call_conflict/geometry_function!drop-2	DO GEOMETRYCOLLECTION);
 reject	reject	engine	function_call_conflict/geometry_function!drop-3	DO GEOMETRYCOLLECTION(;
 reject	reject	engine	function_call_conflict/geometry_function!truncate	DO GEOMETRYCOLLECTION(
-reject	accept	engine	function_call_conflict/geometry_function!insert	DO GEOMETRYCOLLECTION() zzz;
+accept	accept	engine	function_call_conflict/geometry_function!insert	DO GEOMETRYCOLLECTION() zzz;
 reject	reject	engine	function_call_conflict/geometry_function!swap	DO GET();
 accept	accept	engine	geometry_function/GEOMETRYCOLLECTION_SYM_(_opt_expr_list_)	DO GEOMETRYCOLLECTION();
 accept	accept	engine	geometry_function/LINESTRING_SYM_(_expr_list_)	DO LINESTRING(utf8mb4);
@@ -6884,26 +6884,26 @@ reject	reject	engine	geometry_function/LINESTRING_SYM_(_expr_list_)!drop-2	DO LI
 accept	reject	engine	geometry_function/LINESTRING_SYM_(_expr_list_)!drop-3	DO LINESTRING();
 reject	reject	engine	geometry_function/LINESTRING_SYM_(_expr_list_)!drop-4	DO LINESTRING(utf8mb4;
 reject	reject	engine	geometry_function/LINESTRING_SYM_(_expr_list_)!truncate	DO LINESTRING(utf8mb4
-reject	accept	engine	geometry_function/LINESTRING_SYM_(_expr_list_)!insert	DO LINESTRING(utf8mb4) zzz;
+accept	accept	engine	geometry_function/LINESTRING_SYM_(_expr_list_)!insert	DO LINESTRING(utf8mb4) zzz;
 reject	reject	engine	geometry_function/LINESTRING_SYM_(_expr_list_)!swap	DO LIST(utf8mb4);
 accept	accept	engine	geometry_function/MULTILINESTRING_SYM_(_expr_list_)	DO MULTILINESTRING(utf8mb4);
 reject	reject	engine	geometry_function/MULTILINESTRING_SYM_(_expr_list_)!drop-2	DO MULTILINESTRING utf8mb4);
 accept	reject	engine	geometry_function/MULTILINESTRING_SYM_(_expr_list_)!drop-3	DO MULTILINESTRING();
 reject	reject	engine	geometry_function/MULTILINESTRING_SYM_(_expr_list_)!drop-4	DO MULTILINESTRING(utf8mb4;
 reject	reject	engine	geometry_function/MULTILINESTRING_SYM_(_expr_list_)!truncate	DO MULTILINESTRING(utf8mb4
-reject	accept	engine	geometry_function/MULTILINESTRING_SYM_(_expr_list_)!insert	DO MULTILINESTRING(utf8mb4) zzz;
+accept	accept	engine	geometry_function/MULTILINESTRING_SYM_(_expr_list_)!insert	DO MULTILINESTRING(utf8mb4) zzz;
 accept	accept	engine	geometry_function/MULTIPOINT_SYM_(_expr_list_)	DO MULTIPOINT(utf8mb4);
 reject	reject	engine	geometry_function/MULTIPOINT_SYM_(_expr_list_)!drop-2	DO MULTIPOINT utf8mb4);
 accept	reject	engine	geometry_function/MULTIPOINT_SYM_(_expr_list_)!drop-3	DO MULTIPOINT();
 reject	reject	engine	geometry_function/MULTIPOINT_SYM_(_expr_list_)!drop-4	DO MULTIPOINT(utf8mb4;
 reject	reject	engine	geometry_function/MULTIPOINT_SYM_(_expr_list_)!truncate	DO MULTIPOINT(utf8mb4
-reject	accept	engine	geometry_function/MULTIPOINT_SYM_(_expr_list_)!insert	DO MULTIPOINT(utf8mb4) zzz;
+accept	accept	engine	geometry_function/MULTIPOINT_SYM_(_expr_list_)!insert	DO MULTIPOINT(utf8mb4) zzz;
 accept	accept	engine	geometry_function/MULTIPOLYGON_SYM_(_expr_list_)	DO MULTIPOLYGON(utf8mb4);
 reject	reject	engine	geometry_function/MULTIPOLYGON_SYM_(_expr_list_)!drop-2	DO MULTIPOLYGON utf8mb4);
 accept	reject	engine	geometry_function/MULTIPOLYGON_SYM_(_expr_list_)!drop-3	DO MULTIPOLYGON();
 reject	reject	engine	geometry_function/MULTIPOLYGON_SYM_(_expr_list_)!drop-4	DO MULTIPOLYGON(utf8mb4;
 reject	reject	engine	geometry_function/MULTIPOLYGON_SYM_(_expr_list_)!truncate	DO MULTIPOLYGON(utf8mb4
-reject	accept	engine	geometry_function/MULTIPOLYGON_SYM_(_expr_list_)!insert	DO MULTIPOLYGON(utf8mb4) zzz;
+accept	accept	engine	geometry_function/MULTIPOLYGON_SYM_(_expr_list_)!insert	DO MULTIPOLYGON(utf8mb4) zzz;
 reject	reject	engine	geometry_function/MULTIPOLYGON_SYM_(_expr_list_)!swap	DO MUTEX(utf8mb4);
 accept	accept	engine	geometry_function/POINT_SYM_(_expr_,_expr_)	DO POINT(utf8mb4, utf8mb4);
 reject	reject	engine	geometry_function/POINT_SYM_(_expr_,_expr_)!drop-2	DO POINT utf8mb4, utf8mb4);
@@ -6912,14 +6912,14 @@ reject	reject	engine	geometry_function/POINT_SYM_(_expr_,_expr_)!drop-4	DO POINT
 reject	reject	engine	geometry_function/POINT_SYM_(_expr_,_expr_)!drop-5	DO POINT(utf8mb4,);
 reject	reject	engine	geometry_function/POINT_SYM_(_expr_,_expr_)!drop-6	DO POINT(utf8mb4, utf8mb4;
 reject	reject	engine	geometry_function/POINT_SYM_(_expr_,_expr_)!truncate	DO POINT(utf8mb4, utf8mb4
-reject	accept	engine	geometry_function/POINT_SYM_(_expr_,_expr_)!insert	DO POINT(utf8mb4, utf8mb4) zzz;
+accept	accept	engine	geometry_function/POINT_SYM_(_expr_,_expr_)!insert	DO POINT(utf8mb4, utf8mb4) zzz;
 accept	accept	engine	geometry_function/POINT_SYM_(_expr_,_expr_)!swap	DO POLYGON(utf8mb4, utf8mb4);
 accept	accept	engine	geometry_function/POLYGON_SYM_(_expr_list_)	DO POLYGON(utf8mb4);
 reject	reject	engine	geometry_function/POLYGON_SYM_(_expr_list_)!drop-2	DO POLYGON utf8mb4);
 accept	reject	engine	geometry_function/POLYGON_SYM_(_expr_list_)!drop-3	DO POLYGON();
 reject	reject	engine	geometry_function/POLYGON_SYM_(_expr_list_)!drop-4	DO POLYGON(utf8mb4;
 reject	reject	engine	geometry_function/POLYGON_SYM_(_expr_list_)!truncate	DO POLYGON(utf8mb4
-reject	accept	engine	geometry_function/POLYGON_SYM_(_expr_list_)!insert	DO POLYGON(utf8mb4) zzz;
+accept	accept	engine	geometry_function/POLYGON_SYM_(_expr_list_)!insert	DO POLYGON(utf8mb4) zzz;
 reject	reject	engine	geometry_function/POLYGON_SYM_(_expr_list_)!swap	DO PORT(utf8mb4);
 accept	accept	engine	function_call_generic/IDENT_sys_(_opt_udf_expr_list_)	DO utf8mb4();
 accept	accept	engine	function_call_generic/ident_._ident_(_opt_expr_list_)	DO utf8mb4.utf8mb4();
@@ -6929,7 +6929,7 @@ reject	reject	engine	function_call_generic/ident_._ident_(_opt_expr_list_)!drop-
 reject	reject	engine	function_call_generic/ident_._ident_(_opt_expr_list_)!drop-4	DO utf8mb4.utf8mb4);
 reject	reject	engine	function_call_generic/ident_._ident_(_opt_expr_list_)!drop-5	DO utf8mb4.utf8mb4(;
 reject	reject	engine	function_call_generic/ident_._ident_(_opt_expr_list_)!truncate	DO utf8mb4.utf8mb4(
-reject	accept	engine	function_call_generic/ident_._ident_(_opt_expr_list_)!insert	DO utf8mb4.utf8mb4() zzz;
+accept	accept	engine	function_call_generic/ident_._ident_(_opt_expr_list_)!insert	DO utf8mb4.utf8mb4() zzz;
 reject	accept	engine	fulltext_options/opt_natural_language_mode_opt_query_expansion	DO MATCH utf8mb4 AGAINST(utf8mb4);
 reject	reject	engine	fulltext_options/opt_natural_language_mode_opt_query_expansion!insert	DO MATCH utf8mb4 AGAINST(utf8mb4 zzz);
 reject	accept	engine	fulltext_options/IN_SYM_BOOLEAN_SYM_MODE_SYM	DO MATCH utf8mb4 AGAINST(utf8mb4 IN BOOLEAN MODE);
@@ -6974,7 +6974,7 @@ reject	reject	engine	set_function_specification/grouping_operation!drop-2	DO GRO
 accept	reject	engine	set_function_specification/grouping_operation!drop-3	DO GROUPING();
 reject	reject	engine	set_function_specification/grouping_operation!drop-4	DO GROUPING(utf8mb4;
 reject	reject	engine	set_function_specification/grouping_operation!truncate	DO GROUPING(utf8mb4
-reject	accept	engine	set_function_specification/grouping_operation!insert	DO GROUPING(utf8mb4) zzz;
+accept	accept	engine	set_function_specification/grouping_operation!insert	DO GROUPING(utf8mb4) zzz;
 reject	reject	engine	set_function_specification/grouping_operation!swap	DO GROUPS(utf8mb4);
 accept	accept	engine	sum_expr/AVG_SYM_(_in_sum_expr_)_opt_windowing_clause	DO AVG(utf8mb4);
 accept	accept	engine	sum_expr/AVG_SYM_(_DISTINCT_in_sum_expr_)_opt_windowing_clause	DO AVG(DISTINCT utf8mb4);
@@ -6983,26 +6983,26 @@ reject	reject	engine	sum_expr/AVG_SYM_(_DISTINCT_in_sum_expr_)_opt_windowing_cla
 reject	reject	engine	sum_expr/AVG_SYM_(_DISTINCT_in_sum_expr_)_opt_windowing_clause!drop-4	DO AVG(DISTINCT);
 reject	reject	engine	sum_expr/AVG_SYM_(_DISTINCT_in_sum_expr_)_opt_windowing_clause!drop-5	DO AVG(DISTINCT utf8mb4;
 reject	reject	engine	sum_expr/AVG_SYM_(_DISTINCT_in_sum_expr_)_opt_windowing_clause!truncate	DO AVG(DISTINCT utf8mb4
-reject	accept	engine	sum_expr/AVG_SYM_(_DISTINCT_in_sum_expr_)_opt_windowing_clause!insert	DO AVG(DISTINCT utf8mb4) zzz;
+accept	accept	engine	sum_expr/AVG_SYM_(_DISTINCT_in_sum_expr_)_opt_windowing_clause!insert	DO AVG(DISTINCT utf8mb4) zzz;
 reject	reject	engine	sum_expr/AVG_SYM_(_DISTINCT_in_sum_expr_)_opt_windowing_clause!swap	DO AVG_ROW_LENGTH(DISTINCT utf8mb4);
 accept	accept	engine	sum_expr/BIT_AND_SYM_(_in_sum_expr_)_opt_windowing_clause	DO BIT_AND(utf8mb4);
 reject	reject	engine	sum_expr/BIT_AND_SYM_(_in_sum_expr_)_opt_windowing_clause!drop-2	DO BIT_AND utf8mb4);
 reject	reject	engine	sum_expr/BIT_AND_SYM_(_in_sum_expr_)_opt_windowing_clause!drop-3	DO BIT_AND();
 reject	reject	engine	sum_expr/BIT_AND_SYM_(_in_sum_expr_)_opt_windowing_clause!drop-4	DO BIT_AND(utf8mb4;
 reject	reject	engine	sum_expr/BIT_AND_SYM_(_in_sum_expr_)_opt_windowing_clause!truncate	DO BIT_AND(utf8mb4
-reject	accept	engine	sum_expr/BIT_AND_SYM_(_in_sum_expr_)_opt_windowing_clause!insert	DO BIT_AND(utf8mb4) zzz;
+accept	accept	engine	sum_expr/BIT_AND_SYM_(_in_sum_expr_)_opt_windowing_clause!insert	DO BIT_AND(utf8mb4) zzz;
 accept	accept	engine	sum_expr/BIT_OR_SYM_(_in_sum_expr_)_opt_windowing_clause	DO BIT_OR(utf8mb4);
 reject	reject	engine	sum_expr/BIT_OR_SYM_(_in_sum_expr_)_opt_windowing_clause!drop-2	DO BIT_OR utf8mb4);
 reject	reject	engine	sum_expr/BIT_OR_SYM_(_in_sum_expr_)_opt_windowing_clause!drop-3	DO BIT_OR();
 reject	reject	engine	sum_expr/BIT_OR_SYM_(_in_sum_expr_)_opt_windowing_clause!drop-4	DO BIT_OR(utf8mb4;
 reject	reject	engine	sum_expr/BIT_OR_SYM_(_in_sum_expr_)_opt_windowing_clause!truncate	DO BIT_OR(utf8mb4
-reject	accept	engine	sum_expr/BIT_OR_SYM_(_in_sum_expr_)_opt_windowing_clause!insert	DO BIT_OR(utf8mb4) zzz;
+accept	accept	engine	sum_expr/BIT_OR_SYM_(_in_sum_expr_)_opt_windowing_clause!insert	DO BIT_OR(utf8mb4) zzz;
 accept	accept	engine	sum_expr/JSON_ARRAYAGG_(_in_sum_expr_)_opt_windowing_clause	DO JSON_ARRAYAGG(utf8mb4);
 reject	reject	engine	sum_expr/JSON_ARRAYAGG_(_in_sum_expr_)_opt_windowing_clause!drop-2	DO JSON_ARRAYAGG utf8mb4);
 reject	reject	engine	sum_expr/JSON_ARRAYAGG_(_in_sum_expr_)_opt_windowing_clause!drop-3	DO JSON_ARRAYAGG();
 reject	reject	engine	sum_expr/JSON_ARRAYAGG_(_in_sum_expr_)_opt_windowing_clause!drop-4	DO JSON_ARRAYAGG(utf8mb4;
 reject	reject	engine	sum_expr/JSON_ARRAYAGG_(_in_sum_expr_)_opt_windowing_clause!truncate	DO JSON_ARRAYAGG(utf8mb4
-reject	accept	engine	sum_expr/JSON_ARRAYAGG_(_in_sum_expr_)_opt_windowing_clause!insert	DO JSON_ARRAYAGG(utf8mb4) zzz;
+accept	accept	engine	sum_expr/JSON_ARRAYAGG_(_in_sum_expr_)_opt_windowing_clause!insert	DO JSON_ARRAYAGG(utf8mb4) zzz;
 reject	reject	engine	sum_expr/JSON_ARRAYAGG_(_in_sum_expr_)_opt_windowing_clause!swap	DO JSON_OBJECTAGG(utf8mb4);
 accept	accept	engine	sum_expr/JSON_OBJECTAGG_(_in_sum_expr_,_in_sum_expr_)_opt_windowing_clause	DO JSON_OBJECTAGG(utf8mb4, utf8mb4);
 reject	reject	engine	sum_expr/JSON_OBJECTAGG_(_in_sum_expr_,_in_sum_expr_)_opt_windowing_clause!drop-2	DO JSON_OBJECTAGG utf8mb4, utf8mb4);
@@ -7011,14 +7011,14 @@ reject	reject	engine	sum_expr/JSON_OBJECTAGG_(_in_sum_expr_,_in_sum_expr_)_opt_w
 reject	reject	engine	sum_expr/JSON_OBJECTAGG_(_in_sum_expr_,_in_sum_expr_)_opt_windowing_clause!drop-5	DO JSON_OBJECTAGG(utf8mb4,);
 reject	reject	engine	sum_expr/JSON_OBJECTAGG_(_in_sum_expr_,_in_sum_expr_)_opt_windowing_clause!drop-6	DO JSON_OBJECTAGG(utf8mb4, utf8mb4;
 reject	reject	engine	sum_expr/JSON_OBJECTAGG_(_in_sum_expr_,_in_sum_expr_)_opt_windowing_clause!truncate	DO JSON_OBJECTAGG(utf8mb4, utf8mb4
-reject	accept	engine	sum_expr/JSON_OBJECTAGG_(_in_sum_expr_,_in_sum_expr_)_opt_windowing_clause!insert	DO JSON_OBJECTAGG(utf8mb4, utf8mb4) zzz;
+accept	accept	engine	sum_expr/JSON_OBJECTAGG_(_in_sum_expr_,_in_sum_expr_)_opt_windowing_clause!insert	DO JSON_OBJECTAGG(utf8mb4, utf8mb4) zzz;
 reject	reject	engine	sum_expr/JSON_OBJECTAGG_(_in_sum_expr_,_in_sum_expr_)_opt_windowing_clause!swap	DO JSON_TABLE(utf8mb4, utf8mb4);
 accept	accept	engine	sum_expr/ST_COLLECT_SYM_(_in_sum_expr_)_opt_windowing_clause	DO ST_COLLECT(utf8mb4);
 reject	reject	engine	sum_expr/ST_COLLECT_SYM_(_in_sum_expr_)_opt_windowing_clause!drop-2	DO ST_COLLECT utf8mb4);
 accept	reject	engine	sum_expr/ST_COLLECT_SYM_(_in_sum_expr_)_opt_windowing_clause!drop-3	DO ST_COLLECT();
 reject	reject	engine	sum_expr/ST_COLLECT_SYM_(_in_sum_expr_)_opt_windowing_clause!drop-4	DO ST_COLLECT(utf8mb4;
 reject	reject	engine	sum_expr/ST_COLLECT_SYM_(_in_sum_expr_)_opt_windowing_clause!truncate	DO ST_COLLECT(utf8mb4
-reject	accept	engine	sum_expr/ST_COLLECT_SYM_(_in_sum_expr_)_opt_windowing_clause!insert	DO ST_COLLECT(utf8mb4) zzz;
+accept	accept	engine	sum_expr/ST_COLLECT_SYM_(_in_sum_expr_)_opt_windowing_clause!insert	DO ST_COLLECT(utf8mb4) zzz;
 reject	reject	engine	sum_expr/ST_COLLECT_SYM_(_in_sum_expr_)_opt_windowing_clause!swap	DO SUBCLASS_ORIGIN(utf8mb4);
 reject	accept	engine	sum_expr/ST_COLLECT_SYM_(_DISTINCT_in_sum_expr_)_opt_windowing_clause	DO ST_COLLECT(DISTINCT utf8mb4);
 reject	reject	engine	sum_expr/ST_COLLECT_SYM_(_DISTINCT_in_sum_expr_)_opt_windowing_clause!drop-2	DO ST_COLLECT DISTINCT utf8mb4);
@@ -7032,7 +7032,7 @@ reject	reject	engine	sum_expr/BIT_XOR_SYM_(_in_sum_expr_)_opt_windowing_clause!d
 reject	reject	engine	sum_expr/BIT_XOR_SYM_(_in_sum_expr_)_opt_windowing_clause!drop-3	DO BIT_XOR();
 reject	reject	engine	sum_expr/BIT_XOR_SYM_(_in_sum_expr_)_opt_windowing_clause!drop-4	DO BIT_XOR(utf8mb4;
 reject	reject	engine	sum_expr/BIT_XOR_SYM_(_in_sum_expr_)_opt_windowing_clause!truncate	DO BIT_XOR(utf8mb4
-reject	accept	engine	sum_expr/BIT_XOR_SYM_(_in_sum_expr_)_opt_windowing_clause!insert	DO BIT_XOR(utf8mb4) zzz;
+accept	accept	engine	sum_expr/BIT_XOR_SYM_(_in_sum_expr_)_opt_windowing_clause!insert	DO BIT_XOR(utf8mb4) zzz;
 reject	reject	engine	sum_expr/BIT_XOR_SYM_(_in_sum_expr_)_opt_windowing_clause!swap	DO BLOB(utf8mb4);
 accept	accept	engine	sum_expr/COUNT_SYM_(_opt_all_*_)_opt_windowing_clause	DO COUNT(*);
 reject	reject	engine	sum_expr/COUNT_SYM_(_opt_all_*_)_opt_windowing_clause!drop-1	DO(*);
@@ -7040,95 +7040,95 @@ reject	reject	engine	sum_expr/COUNT_SYM_(_opt_all_*_)_opt_windowing_clause!drop-
 reject	reject	engine	sum_expr/COUNT_SYM_(_opt_all_*_)_opt_windowing_clause!drop-3	DO COUNT();
 reject	reject	engine	sum_expr/COUNT_SYM_(_opt_all_*_)_opt_windowing_clause!drop-4	DO COUNT(*;
 reject	reject	engine	sum_expr/COUNT_SYM_(_opt_all_*_)_opt_windowing_clause!truncate	DO COUNT(*
-reject	accept	engine	sum_expr/COUNT_SYM_(_opt_all_*_)_opt_windowing_clause!insert	DO COUNT(*) zzz;
+accept	accept	engine	sum_expr/COUNT_SYM_(_opt_all_*_)_opt_windowing_clause!insert	DO COUNT(*) zzz;
 reject	reject	engine	sum_expr/COUNT_SYM_(_opt_all_*_)_opt_windowing_clause!swap	DO CPU(*);
 accept	accept	engine	sum_expr/COUNT_SYM_(_in_sum_expr_)_opt_windowing_clause	DO COUNT(utf8mb4);
 reject	reject	engine	sum_expr/COUNT_SYM_(_in_sum_expr_)_opt_windowing_clause!drop-2	DO COUNT utf8mb4);
 reject	reject	engine	sum_expr/COUNT_SYM_(_in_sum_expr_)_opt_windowing_clause!drop-4	DO COUNT(utf8mb4;
 reject	reject	engine	sum_expr/COUNT_SYM_(_in_sum_expr_)_opt_windowing_clause!truncate	DO COUNT(utf8mb4
-reject	accept	engine	sum_expr/COUNT_SYM_(_in_sum_expr_)_opt_windowing_clause!insert	DO COUNT(utf8mb4) zzz;
+accept	accept	engine	sum_expr/COUNT_SYM_(_in_sum_expr_)_opt_windowing_clause!insert	DO COUNT(utf8mb4) zzz;
 reject	reject	engine	sum_expr/COUNT_SYM_(_in_sum_expr_)_opt_windowing_clause!swap	DO CPU(utf8mb4);
 accept	accept	engine	sum_expr/COUNT_SYM_(_DISTINCT_expr_list_)_opt_windowing_clause	DO COUNT(DISTINCT utf8mb4);
 reject	reject	engine	sum_expr/COUNT_SYM_(_DISTINCT_expr_list_)_opt_windowing_clause!drop-2	DO COUNT DISTINCT utf8mb4);
 reject	reject	engine	sum_expr/COUNT_SYM_(_DISTINCT_expr_list_)_opt_windowing_clause!drop-4	DO COUNT(DISTINCT);
 reject	reject	engine	sum_expr/COUNT_SYM_(_DISTINCT_expr_list_)_opt_windowing_clause!drop-5	DO COUNT(DISTINCT utf8mb4;
 reject	reject	engine	sum_expr/COUNT_SYM_(_DISTINCT_expr_list_)_opt_windowing_clause!truncate	DO COUNT(DISTINCT utf8mb4
-reject	accept	engine	sum_expr/COUNT_SYM_(_DISTINCT_expr_list_)_opt_windowing_clause!insert	DO COUNT(DISTINCT utf8mb4) zzz;
+accept	accept	engine	sum_expr/COUNT_SYM_(_DISTINCT_expr_list_)_opt_windowing_clause!insert	DO COUNT(DISTINCT utf8mb4) zzz;
 reject	reject	engine	sum_expr/COUNT_SYM_(_DISTINCT_expr_list_)_opt_windowing_clause!swap	DO CPU(DISTINCT utf8mb4);
 accept	accept	engine	sum_expr/MIN_SYM_(_in_sum_expr_)_opt_windowing_clause	DO MIN(utf8mb4);
 reject	reject	engine	sum_expr/MIN_SYM_(_in_sum_expr_)_opt_windowing_clause!drop-2	DO MIN utf8mb4);
 reject	reject	engine	sum_expr/MIN_SYM_(_in_sum_expr_)_opt_windowing_clause!drop-3	DO MIN();
 reject	reject	engine	sum_expr/MIN_SYM_(_in_sum_expr_)_opt_windowing_clause!drop-4	DO MIN(utf8mb4;
 reject	reject	engine	sum_expr/MIN_SYM_(_in_sum_expr_)_opt_windowing_clause!truncate	DO MIN(utf8mb4
-reject	accept	engine	sum_expr/MIN_SYM_(_in_sum_expr_)_opt_windowing_clause!insert	DO MIN(utf8mb4) zzz;
+accept	accept	engine	sum_expr/MIN_SYM_(_in_sum_expr_)_opt_windowing_clause!insert	DO MIN(utf8mb4) zzz;
 accept	accept	engine	sum_expr/MIN_SYM_(_DISTINCT_in_sum_expr_)_opt_windowing_clause	DO MIN(DISTINCT utf8mb4);
 reject	reject	engine	sum_expr/MIN_SYM_(_DISTINCT_in_sum_expr_)_opt_windowing_clause!drop-2	DO MIN DISTINCT utf8mb4);
 reject	reject	engine	sum_expr/MIN_SYM_(_DISTINCT_in_sum_expr_)_opt_windowing_clause!drop-4	DO MIN(DISTINCT);
 reject	reject	engine	sum_expr/MIN_SYM_(_DISTINCT_in_sum_expr_)_opt_windowing_clause!drop-5	DO MIN(DISTINCT utf8mb4;
 reject	reject	engine	sum_expr/MIN_SYM_(_DISTINCT_in_sum_expr_)_opt_windowing_clause!truncate	DO MIN(DISTINCT utf8mb4
-reject	accept	engine	sum_expr/MIN_SYM_(_DISTINCT_in_sum_expr_)_opt_windowing_clause!insert	DO MIN(DISTINCT utf8mb4) zzz;
+accept	accept	engine	sum_expr/MIN_SYM_(_DISTINCT_in_sum_expr_)_opt_windowing_clause!insert	DO MIN(DISTINCT utf8mb4) zzz;
 reject	reject	engine	sum_expr/MIN_SYM_(_DISTINCT_in_sum_expr_)_opt_windowing_clause!swap	DO MINUTE(DISTINCT utf8mb4);
 accept	accept	engine	sum_expr/MAX_SYM_(_in_sum_expr_)_opt_windowing_clause	DO MAX(utf8mb4);
 reject	reject	engine	sum_expr/MAX_SYM_(_in_sum_expr_)_opt_windowing_clause!drop-2	DO MAX utf8mb4);
 reject	reject	engine	sum_expr/MAX_SYM_(_in_sum_expr_)_opt_windowing_clause!drop-3	DO MAX();
 reject	reject	engine	sum_expr/MAX_SYM_(_in_sum_expr_)_opt_windowing_clause!drop-4	DO MAX(utf8mb4;
 reject	reject	engine	sum_expr/MAX_SYM_(_in_sum_expr_)_opt_windowing_clause!truncate	DO MAX(utf8mb4
-reject	accept	engine	sum_expr/MAX_SYM_(_in_sum_expr_)_opt_windowing_clause!insert	DO MAX(utf8mb4) zzz;
+accept	accept	engine	sum_expr/MAX_SYM_(_in_sum_expr_)_opt_windowing_clause!insert	DO MAX(utf8mb4) zzz;
 reject	reject	engine	sum_expr/MAX_SYM_(_in_sum_expr_)_opt_windowing_clause!swap	DO MAXVALUE(utf8mb4);
 accept	accept	engine	sum_expr/MAX_SYM_(_DISTINCT_in_sum_expr_)_opt_windowing_clause	DO MAX(DISTINCT utf8mb4);
 reject	reject	engine	sum_expr/MAX_SYM_(_DISTINCT_in_sum_expr_)_opt_windowing_clause!drop-2	DO MAX DISTINCT utf8mb4);
 reject	reject	engine	sum_expr/MAX_SYM_(_DISTINCT_in_sum_expr_)_opt_windowing_clause!drop-4	DO MAX(DISTINCT);
 reject	reject	engine	sum_expr/MAX_SYM_(_DISTINCT_in_sum_expr_)_opt_windowing_clause!drop-5	DO MAX(DISTINCT utf8mb4;
 reject	reject	engine	sum_expr/MAX_SYM_(_DISTINCT_in_sum_expr_)_opt_windowing_clause!truncate	DO MAX(DISTINCT utf8mb4
-reject	accept	engine	sum_expr/MAX_SYM_(_DISTINCT_in_sum_expr_)_opt_windowing_clause!insert	DO MAX(DISTINCT utf8mb4) zzz;
+accept	accept	engine	sum_expr/MAX_SYM_(_DISTINCT_in_sum_expr_)_opt_windowing_clause!insert	DO MAX(DISTINCT utf8mb4) zzz;
 reject	reject	engine	sum_expr/MAX_SYM_(_DISTINCT_in_sum_expr_)_opt_windowing_clause!swap	DO MAXVALUE(DISTINCT utf8mb4);
 accept	accept	engine	sum_expr/STD_SYM_(_in_sum_expr_)_opt_windowing_clause	DO STD(utf8mb4);
 reject	reject	engine	sum_expr/STD_SYM_(_in_sum_expr_)_opt_windowing_clause!drop-2	DO STD utf8mb4);
 reject	reject	engine	sum_expr/STD_SYM_(_in_sum_expr_)_opt_windowing_clause!drop-3	DO STD();
 reject	reject	engine	sum_expr/STD_SYM_(_in_sum_expr_)_opt_windowing_clause!drop-4	DO STD(utf8mb4;
 reject	reject	engine	sum_expr/STD_SYM_(_in_sum_expr_)_opt_windowing_clause!truncate	DO STD(utf8mb4
-reject	accept	engine	sum_expr/STD_SYM_(_in_sum_expr_)_opt_windowing_clause!insert	DO STD(utf8mb4) zzz;
+accept	accept	engine	sum_expr/STD_SYM_(_in_sum_expr_)_opt_windowing_clause!insert	DO STD(utf8mb4) zzz;
 accept	accept	engine	sum_expr/VARIANCE_SYM_(_in_sum_expr_)_opt_windowing_clause	DO VARIANCE(utf8mb4);
 reject	reject	engine	sum_expr/VARIANCE_SYM_(_in_sum_expr_)_opt_windowing_clause!drop-2	DO VARIANCE utf8mb4);
 reject	reject	engine	sum_expr/VARIANCE_SYM_(_in_sum_expr_)_opt_windowing_clause!drop-3	DO VARIANCE();
 reject	reject	engine	sum_expr/VARIANCE_SYM_(_in_sum_expr_)_opt_windowing_clause!drop-4	DO VARIANCE(utf8mb4;
 reject	reject	engine	sum_expr/VARIANCE_SYM_(_in_sum_expr_)_opt_windowing_clause!truncate	DO VARIANCE(utf8mb4
-reject	accept	engine	sum_expr/VARIANCE_SYM_(_in_sum_expr_)_opt_windowing_clause!insert	DO VARIANCE(utf8mb4) zzz;
+accept	accept	engine	sum_expr/VARIANCE_SYM_(_in_sum_expr_)_opt_windowing_clause!insert	DO VARIANCE(utf8mb4) zzz;
 reject	reject	engine	sum_expr/VARIANCE_SYM_(_in_sum_expr_)_opt_windowing_clause!swap	DO VARYING(utf8mb4);
 accept	accept	engine	sum_expr/STDDEV_SAMP_SYM_(_in_sum_expr_)_opt_windowing_clause	DO STDDEV_SAMP(utf8mb4);
 reject	reject	engine	sum_expr/STDDEV_SAMP_SYM_(_in_sum_expr_)_opt_windowing_clause!drop-2	DO STDDEV_SAMP utf8mb4);
 reject	reject	engine	sum_expr/STDDEV_SAMP_SYM_(_in_sum_expr_)_opt_windowing_clause!drop-3	DO STDDEV_SAMP();
 reject	reject	engine	sum_expr/STDDEV_SAMP_SYM_(_in_sum_expr_)_opt_windowing_clause!drop-4	DO STDDEV_SAMP(utf8mb4;
 reject	reject	engine	sum_expr/STDDEV_SAMP_SYM_(_in_sum_expr_)_opt_windowing_clause!truncate	DO STDDEV_SAMP(utf8mb4
-reject	accept	engine	sum_expr/STDDEV_SAMP_SYM_(_in_sum_expr_)_opt_windowing_clause!insert	DO STDDEV_SAMP(utf8mb4) zzz;
+accept	accept	engine	sum_expr/STDDEV_SAMP_SYM_(_in_sum_expr_)_opt_windowing_clause!insert	DO STDDEV_SAMP(utf8mb4) zzz;
 reject	reject	engine	sum_expr/STDDEV_SAMP_SYM_(_in_sum_expr_)_opt_windowing_clause!swap	DO STOP(utf8mb4);
 accept	accept	engine	sum_expr/VAR_SAMP_SYM_(_in_sum_expr_)_opt_windowing_clause	DO VAR_SAMP(utf8mb4);
 reject	reject	engine	sum_expr/VAR_SAMP_SYM_(_in_sum_expr_)_opt_windowing_clause!drop-2	DO VAR_SAMP utf8mb4);
 reject	reject	engine	sum_expr/VAR_SAMP_SYM_(_in_sum_expr_)_opt_windowing_clause!drop-3	DO VAR_SAMP();
 reject	reject	engine	sum_expr/VAR_SAMP_SYM_(_in_sum_expr_)_opt_windowing_clause!drop-4	DO VAR_SAMP(utf8mb4;
 reject	reject	engine	sum_expr/VAR_SAMP_SYM_(_in_sum_expr_)_opt_windowing_clause!truncate	DO VAR_SAMP(utf8mb4
-reject	accept	engine	sum_expr/VAR_SAMP_SYM_(_in_sum_expr_)_opt_windowing_clause!insert	DO VAR_SAMP(utf8mb4) zzz;
+accept	accept	engine	sum_expr/VAR_SAMP_SYM_(_in_sum_expr_)_opt_windowing_clause!insert	DO VAR_SAMP(utf8mb4) zzz;
 reject	reject	engine	sum_expr/VAR_SAMP_SYM_(_in_sum_expr_)_opt_windowing_clause!swap	DO VCPU(utf8mb4);
 accept	accept	engine	sum_expr/SUM_SYM_(_in_sum_expr_)_opt_windowing_clause	DO SUM(utf8mb4);
 reject	reject	engine	sum_expr/SUM_SYM_(_in_sum_expr_)_opt_windowing_clause!drop-2	DO SUM utf8mb4);
 reject	reject	engine	sum_expr/SUM_SYM_(_in_sum_expr_)_opt_windowing_clause!drop-3	DO SUM();
 reject	reject	engine	sum_expr/SUM_SYM_(_in_sum_expr_)_opt_windowing_clause!drop-4	DO SUM(utf8mb4;
 reject	reject	engine	sum_expr/SUM_SYM_(_in_sum_expr_)_opt_windowing_clause!truncate	DO SUM(utf8mb4
-reject	accept	engine	sum_expr/SUM_SYM_(_in_sum_expr_)_opt_windowing_clause!insert	DO SUM(utf8mb4) zzz;
+accept	accept	engine	sum_expr/SUM_SYM_(_in_sum_expr_)_opt_windowing_clause!insert	DO SUM(utf8mb4) zzz;
 reject	reject	engine	sum_expr/SUM_SYM_(_in_sum_expr_)_opt_windowing_clause!swap	DO SUPER(utf8mb4);
 accept	accept	engine	sum_expr/SUM_SYM_(_DISTINCT_in_sum_expr_)_opt_windowing_clause	DO SUM(DISTINCT utf8mb4);
 reject	reject	engine	sum_expr/SUM_SYM_(_DISTINCT_in_sum_expr_)_opt_windowing_clause!drop-2	DO SUM DISTINCT utf8mb4);
 reject	reject	engine	sum_expr/SUM_SYM_(_DISTINCT_in_sum_expr_)_opt_windowing_clause!drop-4	DO SUM(DISTINCT);
 reject	reject	engine	sum_expr/SUM_SYM_(_DISTINCT_in_sum_expr_)_opt_windowing_clause!drop-5	DO SUM(DISTINCT utf8mb4;
 reject	reject	engine	sum_expr/SUM_SYM_(_DISTINCT_in_sum_expr_)_opt_windowing_clause!truncate	DO SUM(DISTINCT utf8mb4
-reject	accept	engine	sum_expr/SUM_SYM_(_DISTINCT_in_sum_expr_)_opt_windowing_clause!insert	DO SUM(DISTINCT utf8mb4) zzz;
+accept	accept	engine	sum_expr/SUM_SYM_(_DISTINCT_in_sum_expr_)_opt_windowing_clause!insert	DO SUM(DISTINCT utf8mb4) zzz;
 reject	reject	engine	sum_expr/SUM_SYM_(_DISTINCT_in_sum_expr_)_opt_windowing_clause!swap	DO SUPER(DISTINCT utf8mb4);
 accept	accept	engine	sum_expr/GROUP_CONCAT_SYM_(_opt_distinct_expr_list_opt_gorder_clause_opt_gconcat_separator_)_opt_windowing_clause	DO GROUP_CONCAT(utf8mb4);
 reject	reject	engine	sum_expr/GROUP_CONCAT_SYM_(_opt_distinct_expr_list_opt_gorder_clause_opt_gconcat_separator_)_opt_windowing_clause!drop-2	DO GROUP_CONCAT utf8mb4);
 reject	reject	engine	sum_expr/GROUP_CONCAT_SYM_(_opt_distinct_expr_list_opt_gorder_clause_opt_gconcat_separator_)_opt_windowing_clause!drop-3	DO GROUP_CONCAT();
 reject	reject	engine	sum_expr/GROUP_CONCAT_SYM_(_opt_distinct_expr_list_opt_gorder_clause_opt_gconcat_separator_)_opt_windowing_clause!drop-4	DO GROUP_CONCAT(utf8mb4;
 reject	reject	engine	sum_expr/GROUP_CONCAT_SYM_(_opt_distinct_expr_list_opt_gorder_clause_opt_gconcat_separator_)_opt_windowing_clause!truncate	DO GROUP_CONCAT(utf8mb4
-reject	accept	engine	sum_expr/GROUP_CONCAT_SYM_(_opt_distinct_expr_list_opt_gorder_clause_opt_gconcat_separator_)_opt_windowing_clause!insert	DO GROUP_CONCAT(utf8mb4) zzz;
+accept	accept	engine	sum_expr/GROUP_CONCAT_SYM_(_opt_distinct_expr_list_opt_gorder_clause_opt_gconcat_separator_)_opt_windowing_clause!insert	DO GROUP_CONCAT(utf8mb4) zzz;
 reject	reject	engine	sum_expr/GROUP_CONCAT_SYM_(_opt_distinct_expr_list_opt_gorder_clause_opt_gconcat_separator_)_opt_windowing_clause!swap	DO GROUP_REPLICATION(utf8mb4);
 accept	accept	engine	window_func_call/ROW_NUMBER_SYM_(_)_windowing_clause	DO ROW_NUMBER() OVER utf8mb4;
 accept	accept	engine	window_func_call/RANK_SYM_(_)_windowing_clause	DO RANK() OVER utf8mb4;
@@ -7137,7 +7137,7 @@ reject	reject	engine	window_func_call/RANK_SYM_(_)_windowing_clause!drop-3	DO RA
 reject	reject	engine	window_func_call/RANK_SYM_(_)_windowing_clause!drop-4	DO RANK() utf8mb4;
 reject	reject	engine	window_func_call/RANK_SYM_(_)_windowing_clause!drop-5	DO RANK() OVER;
 reject	reject	engine	window_func_call/RANK_SYM_(_)_windowing_clause!truncate	DO RANK() OVER
-reject	accept	engine	window_func_call/RANK_SYM_(_)_windowing_clause!insert	DO RANK() OVER utf8mb4 zzz;
+accept	accept	engine	window_func_call/RANK_SYM_(_)_windowing_clause!insert	DO RANK() OVER utf8mb4 zzz;
 reject	reject	engine	window_func_call/RANK_SYM_(_)_windowing_clause!swap	DO READ() OVER utf8mb4;
 accept	accept	engine	window_func_call/DENSE_RANK_SYM_(_)_windowing_clause	DO DENSE_RANK() OVER utf8mb4;
 reject	reject	engine	window_func_call/DENSE_RANK_SYM_(_)_windowing_clause!drop-2	DO DENSE_RANK) OVER utf8mb4;
@@ -7145,7 +7145,7 @@ reject	reject	engine	window_func_call/DENSE_RANK_SYM_(_)_windowing_clause!drop-3
 reject	reject	engine	window_func_call/DENSE_RANK_SYM_(_)_windowing_clause!drop-4	DO DENSE_RANK() utf8mb4;
 reject	reject	engine	window_func_call/DENSE_RANK_SYM_(_)_windowing_clause!drop-5	DO DENSE_RANK() OVER;
 reject	reject	engine	window_func_call/DENSE_RANK_SYM_(_)_windowing_clause!truncate	DO DENSE_RANK() OVER
-reject	accept	engine	window_func_call/DENSE_RANK_SYM_(_)_windowing_clause!insert	DO DENSE_RANK() OVER utf8mb4 zzz;
+accept	accept	engine	window_func_call/DENSE_RANK_SYM_(_)_windowing_clause!insert	DO DENSE_RANK() OVER utf8mb4 zzz;
 reject	reject	engine	window_func_call/DENSE_RANK_SYM_(_)_windowing_clause!swap	DO DESC() OVER utf8mb4;
 accept	accept	engine	window_func_call/CUME_DIST_SYM_(_)_windowing_clause	DO CUME_DIST() OVER utf8mb4;
 reject	reject	engine	window_func_call/CUME_DIST_SYM_(_)_windowing_clause!drop-2	DO CUME_DIST) OVER utf8mb4;
@@ -7153,7 +7153,7 @@ reject	reject	engine	window_func_call/CUME_DIST_SYM_(_)_windowing_clause!drop-3	
 reject	reject	engine	window_func_call/CUME_DIST_SYM_(_)_windowing_clause!drop-4	DO CUME_DIST() utf8mb4;
 reject	reject	engine	window_func_call/CUME_DIST_SYM_(_)_windowing_clause!drop-5	DO CUME_DIST() OVER;
 reject	reject	engine	window_func_call/CUME_DIST_SYM_(_)_windowing_clause!truncate	DO CUME_DIST() OVER
-reject	accept	engine	window_func_call/CUME_DIST_SYM_(_)_windowing_clause!insert	DO CUME_DIST() OVER utf8mb4 zzz;
+accept	accept	engine	window_func_call/CUME_DIST_SYM_(_)_windowing_clause!insert	DO CUME_DIST() OVER utf8mb4 zzz;
 reject	reject	engine	window_func_call/CUME_DIST_SYM_(_)_windowing_clause!swap	DO CURRENT() OVER utf8mb4;
 accept	accept	engine	window_func_call/PERCENT_RANK_SYM_(_)_windowing_clause	DO PERCENT_RANK() OVER utf8mb4;
 reject	reject	engine	window_func_call/PERCENT_RANK_SYM_(_)_windowing_clause!drop-2	DO PERCENT_RANK) OVER utf8mb4;
@@ -7161,7 +7161,7 @@ reject	reject	engine	window_func_call/PERCENT_RANK_SYM_(_)_windowing_clause!drop
 reject	reject	engine	window_func_call/PERCENT_RANK_SYM_(_)_windowing_clause!drop-4	DO PERCENT_RANK() utf8mb4;
 reject	reject	engine	window_func_call/PERCENT_RANK_SYM_(_)_windowing_clause!drop-5	DO PERCENT_RANK() OVER;
 reject	reject	engine	window_func_call/PERCENT_RANK_SYM_(_)_windowing_clause!truncate	DO PERCENT_RANK() OVER
-reject	accept	engine	window_func_call/PERCENT_RANK_SYM_(_)_windowing_clause!insert	DO PERCENT_RANK() OVER utf8mb4 zzz;
+accept	accept	engine	window_func_call/PERCENT_RANK_SYM_(_)_windowing_clause!insert	DO PERCENT_RANK() OVER utf8mb4 zzz;
 reject	reject	engine	window_func_call/PERCENT_RANK_SYM_(_)_windowing_clause!swap	DO PERSIST() OVER utf8mb4;
 accept	accept	engine	window_func_call/NTILE_SYM_(_stable_integer_)_windowing_clause	DO NTILE(1) OVER utf8mb4;
 reject	reject	engine	window_func_call/NTILE_SYM_(_stable_integer_)_windowing_clause!drop-1	DO(1) OVER utf8mb4;
@@ -7171,7 +7171,7 @@ reject	reject	engine	window_func_call/NTILE_SYM_(_stable_integer_)_windowing_cla
 reject	reject	engine	window_func_call/NTILE_SYM_(_stable_integer_)_windowing_clause!drop-5	DO NTILE(1) utf8mb4;
 reject	reject	engine	window_func_call/NTILE_SYM_(_stable_integer_)_windowing_clause!drop-6	DO NTILE(1) OVER;
 reject	reject	engine	window_func_call/NTILE_SYM_(_stable_integer_)_windowing_clause!truncate	DO NTILE(1) OVER
-reject	accept	engine	window_func_call/NTILE_SYM_(_stable_integer_)_windowing_clause!insert	DO NTILE(1) OVER utf8mb4 zzz;
+accept	accept	engine	window_func_call/NTILE_SYM_(_stable_integer_)_windowing_clause!insert	DO NTILE(1) OVER utf8mb4 zzz;
 reject	reject	engine	window_func_call/NTILE_SYM_(_stable_integer_)_windowing_clause!swap	DO NULL(1) OVER utf8mb4;
 accept	accept	engine	window_func_call/LEAD_SYM_(_expr_opt_lead_lag_info_)_opt_null_treatment_windowing_clause	DO LEAD(utf8mb4) OVER utf8mb4;
 reject	reject	engine	window_func_call/LEAD_SYM_(_expr_opt_lead_lag_info_)_opt_null_treatment_windowing_clause!drop-1	DO(utf8mb4) OVER utf8mb4;
@@ -7181,7 +7181,7 @@ reject	reject	engine	window_func_call/LEAD_SYM_(_expr_opt_lead_lag_info_)_opt_nu
 reject	reject	engine	window_func_call/LEAD_SYM_(_expr_opt_lead_lag_info_)_opt_null_treatment_windowing_clause!drop-5	DO LEAD(utf8mb4) utf8mb4;
 reject	reject	engine	window_func_call/LEAD_SYM_(_expr_opt_lead_lag_info_)_opt_null_treatment_windowing_clause!drop-6	DO LEAD(utf8mb4) OVER;
 reject	reject	engine	window_func_call/LEAD_SYM_(_expr_opt_lead_lag_info_)_opt_null_treatment_windowing_clause!truncate	DO LEAD(utf8mb4) OVER
-reject	accept	engine	window_func_call/LEAD_SYM_(_expr_opt_lead_lag_info_)_opt_null_treatment_windowing_clause!insert	DO LEAD(utf8mb4) OVER utf8mb4 zzz;
+accept	accept	engine	window_func_call/LEAD_SYM_(_expr_opt_lead_lag_info_)_opt_null_treatment_windowing_clause!insert	DO LEAD(utf8mb4) OVER utf8mb4 zzz;
 reject	reject	engine	window_func_call/LEAD_SYM_(_expr_opt_lead_lag_info_)_opt_null_treatment_windowing_clause!swap	DO LEADING(utf8mb4) OVER utf8mb4;
 accept	accept	engine	window_func_call/LAG_SYM_(_expr_opt_lead_lag_info_)_opt_null_treatment_windowing_clause	DO LAG(utf8mb4) OVER utf8mb4;
 reject	reject	engine	window_func_call/LAG_SYM_(_expr_opt_lead_lag_info_)_opt_null_treatment_windowing_clause!drop-2	DO LAG utf8mb4) OVER utf8mb4;
@@ -7190,7 +7190,7 @@ reject	reject	engine	window_func_call/LAG_SYM_(_expr_opt_lead_lag_info_)_opt_nul
 reject	reject	engine	window_func_call/LAG_SYM_(_expr_opt_lead_lag_info_)_opt_null_treatment_windowing_clause!drop-5	DO LAG(utf8mb4) utf8mb4;
 reject	reject	engine	window_func_call/LAG_SYM_(_expr_opt_lead_lag_info_)_opt_null_treatment_windowing_clause!drop-6	DO LAG(utf8mb4) OVER;
 reject	reject	engine	window_func_call/LAG_SYM_(_expr_opt_lead_lag_info_)_opt_null_treatment_windowing_clause!truncate	DO LAG(utf8mb4) OVER
-reject	accept	engine	window_func_call/LAG_SYM_(_expr_opt_lead_lag_info_)_opt_null_treatment_windowing_clause!insert	DO LAG(utf8mb4) OVER utf8mb4 zzz;
+accept	accept	engine	window_func_call/LAG_SYM_(_expr_opt_lead_lag_info_)_opt_null_treatment_windowing_clause!insert	DO LAG(utf8mb4) OVER utf8mb4 zzz;
 reject	reject	engine	window_func_call/LAG_SYM_(_expr_opt_lead_lag_info_)_opt_null_treatment_windowing_clause!swap	DO LANGUAGE(utf8mb4) OVER utf8mb4;
 accept	accept	engine	window_func_call/FIRST_VALUE_SYM_(_expr_)_opt_null_treatment_windowing_clause	DO FIRST_VALUE(utf8mb4) OVER utf8mb4;
 reject	reject	engine	window_func_call/FIRST_VALUE_SYM_(_expr_)_opt_null_treatment_windowing_clause!drop-2	DO FIRST_VALUE utf8mb4) OVER utf8mb4;
@@ -7199,7 +7199,7 @@ reject	reject	engine	window_func_call/FIRST_VALUE_SYM_(_expr_)_opt_null_treatmen
 reject	reject	engine	window_func_call/FIRST_VALUE_SYM_(_expr_)_opt_null_treatment_windowing_clause!drop-5	DO FIRST_VALUE(utf8mb4) utf8mb4;
 reject	reject	engine	window_func_call/FIRST_VALUE_SYM_(_expr_)_opt_null_treatment_windowing_clause!drop-6	DO FIRST_VALUE(utf8mb4) OVER;
 reject	reject	engine	window_func_call/FIRST_VALUE_SYM_(_expr_)_opt_null_treatment_windowing_clause!truncate	DO FIRST_VALUE(utf8mb4) OVER
-reject	accept	engine	window_func_call/FIRST_VALUE_SYM_(_expr_)_opt_null_treatment_windowing_clause!insert	DO FIRST_VALUE(utf8mb4) OVER utf8mb4 zzz;
+accept	accept	engine	window_func_call/FIRST_VALUE_SYM_(_expr_)_opt_null_treatment_windowing_clause!insert	DO FIRST_VALUE(utf8mb4) OVER utf8mb4 zzz;
 reject	reject	engine	window_func_call/FIRST_VALUE_SYM_(_expr_)_opt_null_treatment_windowing_clause!swap	DO FIXED(utf8mb4) OVER utf8mb4;
 accept	accept	engine	window_func_call/LAST_VALUE_SYM_(_expr_)_opt_null_treatment_windowing_clause	DO LAST_VALUE(utf8mb4) OVER utf8mb4;
 reject	reject	engine	window_func_call/LAST_VALUE_SYM_(_expr_)_opt_null_treatment_windowing_clause!drop-2	DO LAST_VALUE utf8mb4) OVER utf8mb4;
@@ -7208,7 +7208,7 @@ reject	reject	engine	window_func_call/LAST_VALUE_SYM_(_expr_)_opt_null_treatment
 reject	reject	engine	window_func_call/LAST_VALUE_SYM_(_expr_)_opt_null_treatment_windowing_clause!drop-5	DO LAST_VALUE(utf8mb4) utf8mb4;
 reject	reject	engine	window_func_call/LAST_VALUE_SYM_(_expr_)_opt_null_treatment_windowing_clause!drop-6	DO LAST_VALUE(utf8mb4) OVER;
 reject	reject	engine	window_func_call/LAST_VALUE_SYM_(_expr_)_opt_null_treatment_windowing_clause!truncate	DO LAST_VALUE(utf8mb4) OVER
-reject	accept	engine	window_func_call/LAST_VALUE_SYM_(_expr_)_opt_null_treatment_windowing_clause!insert	DO LAST_VALUE(utf8mb4) OVER utf8mb4 zzz;
+accept	accept	engine	window_func_call/LAST_VALUE_SYM_(_expr_)_opt_null_treatment_windowing_clause!insert	DO LAST_VALUE(utf8mb4) OVER utf8mb4 zzz;
 reject	reject	engine	window_func_call/LAST_VALUE_SYM_(_expr_)_opt_null_treatment_windowing_clause!swap	DO LATERAL(utf8mb4) OVER utf8mb4;
 accept	accept	engine	window_func_call/NTH_VALUE_SYM_(_expr_,_simple_expr_)_opt_from_first_last_opt_null_treatment_windowing_clause	DO NTH_VALUE(utf8mb4, utf8mb4) OVER utf8mb4;
 reject	reject	engine	window_func_call/NTH_VALUE_SYM_(_expr_,_simple_expr_)_opt_from_first_last_opt_null_treatment_windowing_clause!drop-1	DO(utf8mb4, utf8mb4) OVER utf8mb4;
@@ -7220,7 +7220,7 @@ reject	reject	engine	window_func_call/NTH_VALUE_SYM_(_expr_,_simple_expr_)_opt_f
 reject	reject	engine	window_func_call/NTH_VALUE_SYM_(_expr_,_simple_expr_)_opt_from_first_last_opt_null_treatment_windowing_clause!drop-7	DO NTH_VALUE(utf8mb4, utf8mb4) utf8mb4;
 reject	reject	engine	window_func_call/NTH_VALUE_SYM_(_expr_,_simple_expr_)_opt_from_first_last_opt_null_treatment_windowing_clause!drop-8	DO NTH_VALUE(utf8mb4, utf8mb4) OVER;
 reject	reject	engine	window_func_call/NTH_VALUE_SYM_(_expr_,_simple_expr_)_opt_from_first_last_opt_null_treatment_windowing_clause!truncate	DO NTH_VALUE(utf8mb4, utf8mb4) OVER
-reject	accept	engine	window_func_call/NTH_VALUE_SYM_(_expr_,_simple_expr_)_opt_from_first_last_opt_null_treatment_windowing_clause!insert	DO NTH_VALUE(utf8mb4, utf8mb4) OVER utf8mb4 zzz;
+accept	accept	engine	window_func_call/NTH_VALUE_SYM_(_expr_,_simple_expr_)_opt_from_first_last_opt_null_treatment_windowing_clause!insert	DO NTH_VALUE(utf8mb4, utf8mb4) OVER utf8mb4 zzz;
 reject	reject	engine	window_func_call/NTH_VALUE_SYM_(_expr_,_simple_expr_)_opt_from_first_last_opt_null_treatment_windowing_clause!swap	DO NTILE(utf8mb4, utf8mb4) OVER utf8mb4;
 accept	accept	engine	opt_lead_lag_info/%empty	DO LEAD(utf8mb4) OVER utf8mb4;
 reject	reject	engine	opt_lead_lag_info/%empty!insert	DO LEAD(utf8mb4 zzz) OVER utf8mb4;
@@ -7274,10 +7274,10 @@ reject	reject	engine	opt_from_first_last/FROM_LAST_SYM!insert	DO NTH_VALUE(utf8m
 reject	reject	engine	opt_from_first_last/FROM_LAST_SYM!swap	DO NTH_VALUE(utf8mb4, utf8mb4) FULL LAST OVER utf8mb4;
 accept	accept	engine	opt_windowing_clause/%empty	DO AVG(utf8mb4);
 accept	accept	engine	opt_windowing_clause/windowing_clause	DO AVG(utf8mb4) OVER utf8mb4;
-reject	accept	engine	opt_windowing_clause/windowing_clause!drop-1	DO AVG(utf8mb4) utf8mb4;
+accept	accept	engine	opt_windowing_clause/windowing_clause!drop-1	DO AVG(utf8mb4) utf8mb4;
 reject	reject	engine	opt_windowing_clause/windowing_clause!drop-2	DO AVG(utf8mb4) OVER;
 reject	reject	engine	opt_windowing_clause/windowing_clause!truncate	DO AVG(utf8mb4) OVER
-reject	accept	engine	opt_windowing_clause/windowing_clause!insert	DO AVG(utf8mb4) OVER utf8mb4 zzz;
+accept	accept	engine	opt_windowing_clause/windowing_clause!insert	DO AVG(utf8mb4) OVER utf8mb4 zzz;
 reject	reject	engine	opt_windowing_clause/windowing_clause!swap	DO AVG(utf8mb4) OWNER utf8mb4;
 accept	accept	engine	windowing_clause/OVER_SYM_window_name_or_spec	DO ROW_NUMBER() OVER utf8mb4;
 reject	reject	engine	windowing_clause/OVER_SYM_window_name_or_spec!swap	DO ROW_NUMBER() OWNER utf8mb4;
@@ -7286,7 +7286,7 @@ accept	accept	engine	window_name_or_spec/window_spec	DO ROW_NUMBER() OVER();
 reject	reject	engine	window_name_or_spec/window_spec!drop-1	DO ROW_NUMBER() OVER);
 reject	reject	engine	window_name_or_spec/window_spec!drop-2	DO ROW_NUMBER() OVER(;
 reject	reject	engine	window_name_or_spec/window_spec!truncate	DO ROW_NUMBER() OVER(
-reject	accept	engine	window_name_or_spec/window_spec!insert	DO ROW_NUMBER() OVER() zzz;
+accept	accept	engine	window_name_or_spec/window_spec!insert	DO ROW_NUMBER() OVER() zzz;
 accept	accept	engine	window_name/ident	DO ROW_NUMBER() OVER utf8mb4;
 accept	accept	engine	window_spec/(_window_spec_details_)	DO ROW_NUMBER() OVER();
 accept	accept	engine	window_spec_details/opt_existing_window_name_opt_partition_clause_opt_window_order_by_clause_opt_window_frame_clause	DO ROW_NUMBER() OVER();
@@ -7420,7 +7420,7 @@ accept	accept	engine	rvalue_system_or_user_variable/@_ident_or_text	DO@utf8mb4;
 accept	accept	engine	rvalue_system_or_user_variable/@_@_opt_rvalue_system_variable_type_rvalue_system_variable	DO@@utf8mb4;
 reject	reject	engine	rvalue_system_or_user_variable/@_@_opt_rvalue_system_variable_type_rvalue_system_variable!drop-3	DO@@;
 reject	reject	engine	rvalue_system_or_user_variable/@_@_opt_rvalue_system_variable_type_rvalue_system_variable!truncate	DO@@
-reject	accept	engine	rvalue_system_or_user_variable/@_@_opt_rvalue_system_variable_type_rvalue_system_variable!insert	DO@@utf8mb4 zzz;
+accept	accept	engine	rvalue_system_or_user_variable/@_@_opt_rvalue_system_variable_type_rvalue_system_variable!insert	DO@@utf8mb4 zzz;
 accept	accept	engine	opt_distinct/%empty	DO GROUP_CONCAT(utf8mb4);
 reject	reject	engine	opt_distinct/%empty!insert	DO GROUP_CONCAT(zzz utf8mb4);
 accept	accept	engine	opt_distinct/DISTINCT	DO GROUP_CONCAT(DISTINCT utf8mb4);
@@ -7966,54 +7966,54 @@ reject	reject	engine	ident_string_list/ident_string_list_,_ident!truncate	ALTER 
 reject	reject	engine	ident_string_list/ident_string_list_,_ident!insert	ALTER TABLE utf8mb4 DROP PARTITION utf8mb4, utf8mb4 zzz;
 accept	accept	engine	interval/interval_time_stamp	DO utf8mb4 + INTERVAL utf8mb4 DAY;
 accept	accept	engine	interval/DAY_HOUR_SYM	DO utf8mb4 + INTERVAL utf8mb4 DAY_HOUR;
-reject	accept	engine	interval/DAY_HOUR_SYM!insert	DO utf8mb4 + INTERVAL utf8mb4 DAY_HOUR zzz;
+accept	accept	engine	interval/DAY_HOUR_SYM!insert	DO utf8mb4 + INTERVAL utf8mb4 DAY_HOUR zzz;
 accept	accept	engine	interval/DAY_MICROSECOND_SYM	DO utf8mb4 + INTERVAL utf8mb4 DAY_MICROSECOND;
-reject	accept	engine	interval/DAY_MICROSECOND_SYM!insert	DO utf8mb4 + INTERVAL utf8mb4 DAY_MICROSECOND zzz;
+accept	accept	engine	interval/DAY_MICROSECOND_SYM!insert	DO utf8mb4 + INTERVAL utf8mb4 DAY_MICROSECOND zzz;
 accept	accept	engine	interval/DAY_MINUTE_SYM	DO utf8mb4 + INTERVAL utf8mb4 DAY_MINUTE;
-reject	accept	engine	interval/DAY_MINUTE_SYM!insert	DO utf8mb4 + INTERVAL utf8mb4 DAY_MINUTE zzz;
+accept	accept	engine	interval/DAY_MINUTE_SYM!insert	DO utf8mb4 + INTERVAL utf8mb4 DAY_MINUTE zzz;
 accept	accept	engine	interval/DAY_SECOND_SYM	DO utf8mb4 + INTERVAL utf8mb4 DAY_SECOND;
-reject	accept	engine	interval/DAY_SECOND_SYM!insert	DO utf8mb4 + INTERVAL utf8mb4 DAY_SECOND zzz;
+accept	accept	engine	interval/DAY_SECOND_SYM!insert	DO utf8mb4 + INTERVAL utf8mb4 DAY_SECOND zzz;
 reject	reject	engine	interval/DAY_SECOND_SYM!swap	DO utf8mb4 + INTERVAL utf8mb4 DEALLOCATE;
 accept	accept	engine	interval/HOUR_MICROSECOND_SYM	DO utf8mb4 + INTERVAL utf8mb4 HOUR_MICROSECOND;
-reject	accept	engine	interval/HOUR_MICROSECOND_SYM!insert	DO utf8mb4 + INTERVAL utf8mb4 HOUR_MICROSECOND zzz;
+accept	accept	engine	interval/HOUR_MICROSECOND_SYM!insert	DO utf8mb4 + INTERVAL utf8mb4 HOUR_MICROSECOND zzz;
 accept	accept	engine	interval/HOUR_MINUTE_SYM	DO utf8mb4 + INTERVAL utf8mb4 HOUR_MINUTE;
-reject	accept	engine	interval/HOUR_MINUTE_SYM!insert	DO utf8mb4 + INTERVAL utf8mb4 HOUR_MINUTE zzz;
+accept	accept	engine	interval/HOUR_MINUTE_SYM!insert	DO utf8mb4 + INTERVAL utf8mb4 HOUR_MINUTE zzz;
 accept	accept	engine	interval/HOUR_SECOND_SYM	DO utf8mb4 + INTERVAL utf8mb4 HOUR_SECOND;
-reject	accept	engine	interval/HOUR_SECOND_SYM!insert	DO utf8mb4 + INTERVAL utf8mb4 HOUR_SECOND zzz;
+accept	accept	engine	interval/HOUR_SECOND_SYM!insert	DO utf8mb4 + INTERVAL utf8mb4 HOUR_SECOND zzz;
 reject	reject	engine	interval/HOUR_SECOND_SYM!swap	DO utf8mb4 + INTERVAL utf8mb4 IDENTIFIED;
 accept	accept	engine	interval/MINUTE_MICROSECOND_SYM	DO utf8mb4 + INTERVAL utf8mb4 MINUTE_MICROSECOND;
-reject	accept	engine	interval/MINUTE_MICROSECOND_SYM!insert	DO utf8mb4 + INTERVAL utf8mb4 MINUTE_MICROSECOND zzz;
+accept	accept	engine	interval/MINUTE_MICROSECOND_SYM!insert	DO utf8mb4 + INTERVAL utf8mb4 MINUTE_MICROSECOND zzz;
 accept	accept	engine	interval/MINUTE_SECOND_SYM	DO utf8mb4 + INTERVAL utf8mb4 MINUTE_SECOND;
-reject	accept	engine	interval/MINUTE_SECOND_SYM!insert	DO utf8mb4 + INTERVAL utf8mb4 MINUTE_SECOND zzz;
+accept	accept	engine	interval/MINUTE_SECOND_SYM!insert	DO utf8mb4 + INTERVAL utf8mb4 MINUTE_SECOND zzz;
 reject	reject	engine	interval/MINUTE_SECOND_SYM!swap	DO utf8mb4 + INTERVAL utf8mb4 MIN_ROWS;
 accept	accept	engine	interval/SECOND_MICROSECOND_SYM	DO utf8mb4 + INTERVAL utf8mb4 SECOND_MICROSECOND;
-reject	accept	engine	interval/SECOND_MICROSECOND_SYM!insert	DO utf8mb4 + INTERVAL utf8mb4 SECOND_MICROSECOND zzz;
+accept	accept	engine	interval/SECOND_MICROSECOND_SYM!insert	DO utf8mb4 + INTERVAL utf8mb4 SECOND_MICROSECOND zzz;
 reject	reject	engine	interval/SECOND_MICROSECOND_SYM!swap	DO utf8mb4 + INTERVAL utf8mb4 SECURITY;
 accept	accept	engine	interval/YEAR_MONTH_SYM	DO utf8mb4 + INTERVAL utf8mb4 YEAR_MONTH;
-reject	accept	engine	interval/YEAR_MONTH_SYM!insert	DO utf8mb4 + INTERVAL utf8mb4 YEAR_MONTH zzz;
+accept	accept	engine	interval/YEAR_MONTH_SYM!insert	DO utf8mb4 + INTERVAL utf8mb4 YEAR_MONTH zzz;
 reject	reject	engine	interval/YEAR_MONTH_SYM!swap	DO utf8mb4 + INTERVAL utf8mb4 ZEROFILL;
 accept	accept	engine	interval_time_stamp/DAY_SYM	DO utf8mb4 + INTERVAL utf8mb4 DAY;
 accept	accept	engine	interval_time_stamp/WEEK_SYM	DO utf8mb4 + INTERVAL utf8mb4 WEEK;
-reject	accept	engine	interval_time_stamp/WEEK_SYM!insert	DO utf8mb4 + INTERVAL utf8mb4 WEEK zzz;
+accept	accept	engine	interval_time_stamp/WEEK_SYM!insert	DO utf8mb4 + INTERVAL utf8mb4 WEEK zzz;
 reject	reject	engine	interval_time_stamp/WEEK_SYM!swap	DO utf8mb4 + INTERVAL utf8mb4 WEIGHT_STRING;
 accept	accept	engine	interval_time_stamp/HOUR_SYM	DO utf8mb4 + INTERVAL utf8mb4 HOUR;
-reject	accept	engine	interval_time_stamp/HOUR_SYM!insert	DO utf8mb4 + INTERVAL utf8mb4 HOUR zzz;
+accept	accept	engine	interval_time_stamp/HOUR_SYM!insert	DO utf8mb4 + INTERVAL utf8mb4 HOUR zzz;
 accept	accept	engine	interval_time_stamp/MINUTE_SYM	DO utf8mb4 + INTERVAL utf8mb4 MINUTE;
-reject	accept	engine	interval_time_stamp/MINUTE_SYM!insert	DO utf8mb4 + INTERVAL utf8mb4 MINUTE zzz;
+accept	accept	engine	interval_time_stamp/MINUTE_SYM!insert	DO utf8mb4 + INTERVAL utf8mb4 MINUTE zzz;
 accept	accept	engine	interval_time_stamp/MONTH_SYM	DO utf8mb4 + INTERVAL utf8mb4 MONTH;
-reject	accept	engine	interval_time_stamp/MONTH_SYM!insert	DO utf8mb4 + INTERVAL utf8mb4 MONTH zzz;
+accept	accept	engine	interval_time_stamp/MONTH_SYM!insert	DO utf8mb4 + INTERVAL utf8mb4 MONTH zzz;
 reject	reject	engine	interval_time_stamp/MONTH_SYM!swap	DO utf8mb4 + INTERVAL utf8mb4 MULTILINESTRING;
 accept	accept	engine	interval_time_stamp/QUARTER_SYM	DO utf8mb4 + INTERVAL utf8mb4 QUARTER;
-reject	accept	engine	interval_time_stamp/QUARTER_SYM!insert	DO utf8mb4 + INTERVAL utf8mb4 QUARTER zzz;
+accept	accept	engine	interval_time_stamp/QUARTER_SYM!insert	DO utf8mb4 + INTERVAL utf8mb4 QUARTER zzz;
 reject	reject	engine	interval_time_stamp/QUARTER_SYM!swap	DO utf8mb4 + INTERVAL utf8mb4 QUERY;
 accept	accept	engine	interval_time_stamp/SECOND_SYM	DO utf8mb4 + INTERVAL utf8mb4 SECOND;
-reject	accept	engine	interval_time_stamp/SECOND_SYM!insert	DO utf8mb4 + INTERVAL utf8mb4 SECOND zzz;
+accept	accept	engine	interval_time_stamp/SECOND_SYM!insert	DO utf8mb4 + INTERVAL utf8mb4 SECOND zzz;
 reject	reject	engine	interval_time_stamp/SECOND_SYM!swap	DO utf8mb4 + INTERVAL utf8mb4 SECONDARY;
 accept	accept	engine	interval_time_stamp/MICROSECOND_SYM	DO utf8mb4 + INTERVAL utf8mb4 MICROSECOND;
-reject	accept	engine	interval_time_stamp/MICROSECOND_SYM!insert	DO utf8mb4 + INTERVAL utf8mb4 MICROSECOND zzz;
+accept	accept	engine	interval_time_stamp/MICROSECOND_SYM!insert	DO utf8mb4 + INTERVAL utf8mb4 MICROSECOND zzz;
 reject	reject	engine	interval_time_stamp/MICROSECOND_SYM!swap	DO utf8mb4 + INTERVAL utf8mb4 MIGRATE;
 accept	accept	engine	interval_time_stamp/YEAR_SYM	DO utf8mb4 + INTERVAL utf8mb4 YEAR;
-reject	accept	engine	interval_time_stamp/YEAR_SYM!insert	DO utf8mb4 + INTERVAL utf8mb4 YEAR zzz;
+accept	accept	engine	interval_time_stamp/YEAR_SYM!insert	DO utf8mb4 + INTERVAL utf8mb4 YEAR zzz;
 accept	accept	engine	date_time_type/DATE_SYM	DO GET_FORMAT(DATE, utf8mb4);
 reject	reject	engine	date_time_type/DATE_SYM!truncate	DO GET_FORMAT(
 reject	reject	engine	date_time_type/DATE_SYM!insert	DO GET_FORMAT(DATE zzz, utf8mb4);
@@ -9236,14 +9236,14 @@ reject	reject	engine	opt_load_algorithm/ALGORITHM_SYM_EQ_BULK_SYM!insert	LOAD DA
 reject	reject	engine	opt_load_algorithm/ALGORITHM_SYM_EQ_BULK_SYM!swap	LOAD DATA INFILE 's' INTO TABLE utf8mb4 ALL = BULK;
 accept	accept	engine	text_literal/TEXT_STRING	DO 's';
 accept	accept	engine	text_literal/NCHAR_STRING	DO N's';
-reject	accept	engine	text_literal/NCHAR_STRING!insert	DO N's' zzz;
+accept	accept	engine	text_literal/NCHAR_STRING!insert	DO N's' zzz;
 accept	accept	engine	text_literal/UNDERSCORE_CHARSET_TEXT_STRING	DO _utf8mb4 's';
 reject	reject	engine	text_literal/UNDERSCORE_CHARSET_TEXT_STRING!drop-2	DO _utf8mb4;
 reject	reject	engine	text_literal/UNDERSCORE_CHARSET_TEXT_STRING!truncate	DO _utf8mb4
-reject	accept	engine	text_literal/UNDERSCORE_CHARSET_TEXT_STRING!insert	DO _utf8mb4 's' zzz;
+accept	accept	engine	text_literal/UNDERSCORE_CHARSET_TEXT_STRING!insert	DO _utf8mb4 's' zzz;
 accept	accept	engine	text_literal/text_literal_TEXT_STRING_literal	DO 's' 's';
 accept	accept	engine	text_literal/text_literal_TEXT_STRING_literal!truncate	DO 's'
-reject	accept	engine	text_literal/text_literal_TEXT_STRING_literal!insert	DO 's' 's' zzz;
+accept	accept	engine	text_literal/text_literal_TEXT_STRING_literal!insert	DO 's' 's' zzz;
 accept	accept	engine	text_string/TEXT_STRING_literal	DESC utf8mb4 's';
 reject	accept	engine	text_string/HEX_NUM	DESC utf8mb4 0x1;
 reject	reject	engine	text_string/HEX_NUM!insert	DESC utf8mb4 0x1 zzz;
@@ -9265,52 +9265,52 @@ accept	accept	engine	signed_literal_or_null/null_as_literal	ALTER TABLE utf8mb4 
 reject	reject	engine	signed_literal_or_null/null_as_literal!insert	ALTER TABLE utf8mb4 ADD utf8mb4 INT DEFAULT NULL zzz;
 reject	reject	engine	signed_literal_or_null/null_as_literal!swap	ALTER TABLE utf8mb4 ADD utf8mb4 INT DEFAULT NULLS;
 accept	accept	engine	null_as_literal/NULL_SYM	DO NULL;
-reject	accept	engine	null_as_literal/NULL_SYM!insert	DO NULL zzz;
+accept	accept	engine	null_as_literal/NULL_SYM!insert	DO NULL zzz;
 accept	accept	engine	null_as_literal/NULL_SYM!swap	DO NULLS;
 accept	accept	engine	literal/text_literal	DO 's';
 accept	accept	engine	literal/NUM_literal	DO 1;
-reject	accept	engine	literal/NUM_literal!insert	DO 1 zzz;
+accept	accept	engine	literal/NUM_literal!insert	DO 1 zzz;
 accept	accept	engine	literal/temporal_literal	DO DATE 's';
 accept	accept	engine	literal/temporal_literal!drop-2	DO DATE;
 accept	accept	engine	literal/temporal_literal!truncate	DO DATE
-reject	accept	engine	literal/temporal_literal!insert	DO DATE 's' zzz;
-reject	accept	engine	literal/temporal_literal!swap	DO DATETIME 's';
+accept	accept	engine	literal/temporal_literal!insert	DO DATE 's' zzz;
+accept	accept	engine	literal/temporal_literal!swap	DO DATETIME 's';
 accept	accept	engine	literal/FALSE_SYM	DO FALSE;
-reject	accept	engine	literal/FALSE_SYM!insert	DO FALSE zzz;
+accept	accept	engine	literal/FALSE_SYM!insert	DO FALSE zzz;
 accept	accept	engine	literal/FALSE_SYM!swap	DO FAST;
 accept	accept	engine	literal/TRUE_SYM	DO TRUE;
-reject	accept	engine	literal/TRUE_SYM!insert	DO TRUE zzz;
+accept	accept	engine	literal/TRUE_SYM!insert	DO TRUE zzz;
 accept	accept	engine	literal/TRUE_SYM!swap	DO TRUNCATE;
 accept	accept	engine	literal/HEX_NUM	DO 0x1;
-reject	accept	engine	literal/HEX_NUM!insert	DO 0x1 zzz;
+accept	accept	engine	literal/HEX_NUM!insert	DO 0x1 zzz;
 accept	accept	engine	literal/BIN_NUM	DO b'1';
-reject	accept	engine	literal/BIN_NUM!insert	DO b'1' zzz;
+accept	accept	engine	literal/BIN_NUM!insert	DO b'1' zzz;
 accept	accept	engine	literal/UNDERSCORE_CHARSET_HEX_NUM	DO _utf8mb4 0x1;
-reject	accept	engine	literal/UNDERSCORE_CHARSET_HEX_NUM!insert	DO _utf8mb4 0x1 zzz;
+accept	accept	engine	literal/UNDERSCORE_CHARSET_HEX_NUM!insert	DO _utf8mb4 0x1 zzz;
 accept	accept	engine	literal/UNDERSCORE_CHARSET_BIN_NUM	DO _utf8mb4 b'1';
-reject	accept	engine	literal/UNDERSCORE_CHARSET_BIN_NUM!insert	DO _utf8mb4 b'1' zzz;
+accept	accept	engine	literal/UNDERSCORE_CHARSET_BIN_NUM!insert	DO _utf8mb4 b'1' zzz;
 accept	accept	engine	literal_or_null/literal	DO 's';
 accept	accept	engine	literal_or_null/null_as_literal	DO NULL;
 accept	accept	engine	NUM_literal/int64_literal	DO 1;
 accept	accept	engine	NUM_literal/DECIMAL_NUM	DO 1.5;
-reject	accept	engine	NUM_literal/DECIMAL_NUM!insert	DO 1.5 zzz;
+accept	accept	engine	NUM_literal/DECIMAL_NUM!insert	DO 1.5 zzz;
 accept	accept	engine	NUM_literal/FLOAT_NUM	DO 1e0;
-reject	accept	engine	NUM_literal/FLOAT_NUM!insert	DO 1e0 zzz;
+accept	accept	engine	NUM_literal/FLOAT_NUM!insert	DO 1e0 zzz;
 accept	accept	engine	int64_literal/NUM	DO 1;
 accept	accept	engine	int64_literal/LONG_NUM	DO 4294967296;
-reject	accept	engine	int64_literal/LONG_NUM!insert	DO 4294967296 zzz;
+accept	accept	engine	int64_literal/LONG_NUM!insert	DO 4294967296 zzz;
 accept	accept	engine	int64_literal/ULONGLONG_NUM	DO 18446744073709551615;
-reject	accept	engine	int64_literal/ULONGLONG_NUM!insert	DO 18446744073709551615 zzz;
+accept	accept	engine	int64_literal/ULONGLONG_NUM!insert	DO 18446744073709551615 zzz;
 accept	accept	engine	temporal_literal/DATE_SYM_TEXT_STRING	DO DATE 's';
 accept	accept	engine	temporal_literal/TIME_SYM_TEXT_STRING	DO TIME 's';
 accept	accept	engine	temporal_literal/TIME_SYM_TEXT_STRING!drop-2	DO TIME;
 accept	accept	engine	temporal_literal/TIME_SYM_TEXT_STRING!truncate	DO TIME
-reject	accept	engine	temporal_literal/TIME_SYM_TEXT_STRING!insert	DO TIME 's' zzz;
+accept	accept	engine	temporal_literal/TIME_SYM_TEXT_STRING!insert	DO TIME 's' zzz;
 accept	accept	engine	temporal_literal/TIMESTAMP_SYM_TEXT_STRING	DO TIMESTAMP 's';
 accept	accept	engine	temporal_literal/TIMESTAMP_SYM_TEXT_STRING!drop-2	DO TIMESTAMP;
 accept	accept	engine	temporal_literal/TIMESTAMP_SYM_TEXT_STRING!truncate	DO TIMESTAMP
-reject	accept	engine	temporal_literal/TIMESTAMP_SYM_TEXT_STRING!insert	DO TIMESTAMP 's' zzz;
-reject	accept	engine	temporal_literal/TIMESTAMP_SYM_TEXT_STRING!swap	DO TIMESTAMPADD 's';
+accept	accept	engine	temporal_literal/TIMESTAMP_SYM_TEXT_STRING!insert	DO TIMESTAMP 's' zzz;
+accept	accept	engine	temporal_literal/TIMESTAMP_SYM_TEXT_STRING!swap	DO TIMESTAMPADD 's';
 reject	accept	engine	opt_interval/%empty	DO CAST(utf8mb4 AT TIME ZONE 's' AS DATETIME);
 reject	reject	engine	opt_interval/%empty!insert	DO CAST(utf8mb4 AT TIME ZONE zzz 's' AS DATETIME);
 reject	accept	engine	opt_interval/INTERVAL_SYM	DO CAST(utf8mb4 AT TIME ZONE INTERVAL 's' AS DATETIME);
@@ -9332,7 +9332,7 @@ accept	accept	engine	grouping_expr/expr	SELECT utf8mb4 GROUP BY utf8mb4;
 accept	accept	engine	simple_ident/ident	DO utf8mb4;
 accept	accept	engine	simple_ident/simple_ident_q	DO utf8mb4.utf8mb4;
 reject	reject	engine	simple_ident/simple_ident_q!drop-1	DO.utf8mb4;
-reject	accept	engine	simple_ident/simple_ident_q!insert	DO utf8mb4.utf8mb4 zzz;
+accept	accept	engine	simple_ident/simple_ident_q!insert	DO utf8mb4.utf8mb4 zzz;
 accept	accept	engine	simple_ident_nospvar/ident	DO VALUES(utf8mb4);
 reject	reject	engine	simple_ident_nospvar/ident!truncate	DO VALUES(
 reject	reject	engine	simple_ident_nospvar/ident!insert	DO VALUES(utf8mb4 zzz);
@@ -9347,8 +9347,8 @@ accept	accept	engine	simple_ident_q/ident_._ident_._ident	DO utf8mb4.utf8mb4.utf
 reject	reject	engine	simple_ident_q/ident_._ident_._ident!drop-1	DO.utf8mb4.utf8mb4;
 reject	reject	engine	simple_ident_q/ident_._ident_._ident!drop-2	DO utf8mb4 utf8mb4.utf8mb4;
 reject	reject	engine	simple_ident_q/ident_._ident_._ident!drop-3	DO utf8mb4..utf8mb4;
-reject	accept	engine	simple_ident_q/ident_._ident_._ident!drop-4	DO utf8mb4.utf8mb4 utf8mb4;
-reject	accept	engine	simple_ident_q/ident_._ident_._ident!insert	DO utf8mb4.utf8mb4.utf8mb4 zzz;
+accept	accept	engine	simple_ident_q/ident_._ident_._ident!drop-4	DO utf8mb4.utf8mb4 utf8mb4;
+accept	accept	engine	simple_ident_q/ident_._ident_._ident!insert	DO utf8mb4.utf8mb4.utf8mb4 zzz;
 accept	accept	engine	table_ident/ident	DESC utf8mb4;
 accept	accept	engine	table_ident/ident_._ident	DESC utf8mb4.utf8mb4;
 reject	reject	engine	table_ident/ident_._ident!drop-1	DESC.utf8mb4;
@@ -9376,7 +9376,7 @@ reject	reject	engine	TEXT_STRING_hash/TEXT_STRING_sys!truncate	ALTER USER utf8mb
 reject	reject	engine	TEXT_STRING_hash/TEXT_STRING_sys!insert	ALTER USER utf8mb4 IDENTIFIED WITH utf8mb4 AS 's' zzz;
 accept	accept	engine	TEXT_STRING_hash/HEX_NUM	ALTER USER utf8mb4 IDENTIFIED WITH utf8mb4 AS 0x1;
 reject	reject	engine	TEXT_STRING_hash/HEX_NUM!insert	ALTER USER utf8mb4 IDENTIFIED WITH utf8mb4 AS 0x1 zzz;
-reject	accept	engine	TEXT_STRING_validated/TEXT_STRING	DO utf8mb4 's';
+accept	accept	engine	TEXT_STRING_validated/TEXT_STRING	DO utf8mb4 's';
 accept	accept	engine	ident/IDENT_sys	CALL utf8mb4;
 accept	accept	engine	ident/ident_keyword	CALL ACTION;
 reject	reject	engine	ident/ident_keyword!insert	CALL ACTION zzz;
@@ -10729,22 +10729,22 @@ accept	accept	engine	opt_var_type/SESSION_SYM	SHOW SESSION STATUS;
 reject	reject	engine	opt_var_type/SESSION_SYM!insert	SHOW SESSION zzz STATUS;
 reject	reject	engine	opt_var_type/SESSION_SYM!swap	SHOW SET STATUS;
 accept	accept	engine	opt_rvalue_system_variable_type/%empty	DO@@utf8mb4;
-reject	accept	engine	opt_rvalue_system_variable_type/%empty!insert	DO@@zzz utf8mb4;
+accept	accept	engine	opt_rvalue_system_variable_type/%empty!insert	DO@@zzz utf8mb4;
 accept	accept	engine	opt_rvalue_system_variable_type/GLOBAL_SYM_.	DO@@GLOBAL.utf8mb4;
 reject	reject	engine	opt_rvalue_system_variable_type/GLOBAL_SYM_.!drop-1	DO@@.utf8mb4;
 reject	reject	engine	opt_rvalue_system_variable_type/GLOBAL_SYM_.!drop-2	DO@@GLOBAL utf8mb4;
-accept	reject	engine	opt_rvalue_system_variable_type/GLOBAL_SYM_.!truncate	DO@@GLOBAL
-reject	accept	engine	opt_rvalue_system_variable_type/GLOBAL_SYM_.!insert	DO@@GLOBAL.zzz utf8mb4;
+reject	reject	engine	opt_rvalue_system_variable_type/GLOBAL_SYM_.!truncate	DO@@GLOBAL
+accept	accept	engine	opt_rvalue_system_variable_type/GLOBAL_SYM_.!insert	DO@@GLOBAL.zzz utf8mb4;
 reject	reject	engine	opt_rvalue_system_variable_type/GLOBAL_SYM_.!swap	DO@@GRANT.utf8mb4;
 accept	accept	engine	opt_rvalue_system_variable_type/LOCAL_SYM_.	DO@@LOCAL.utf8mb4;
 reject	reject	engine	opt_rvalue_system_variable_type/LOCAL_SYM_.!drop-2	DO@@LOCAL utf8mb4;
-accept	reject	engine	opt_rvalue_system_variable_type/LOCAL_SYM_.!truncate	DO@@LOCAL
-reject	accept	engine	opt_rvalue_system_variable_type/LOCAL_SYM_.!insert	DO@@LOCAL.zzz utf8mb4;
+reject	reject	engine	opt_rvalue_system_variable_type/LOCAL_SYM_.!truncate	DO@@LOCAL
+accept	accept	engine	opt_rvalue_system_variable_type/LOCAL_SYM_.!insert	DO@@LOCAL.zzz utf8mb4;
 reject	reject	engine	opt_rvalue_system_variable_type/LOCAL_SYM_.!swap	DO@@LOCK.utf8mb4;
 accept	accept	engine	opt_rvalue_system_variable_type/SESSION_SYM_.	DO@@SESSION.utf8mb4;
 reject	reject	engine	opt_rvalue_system_variable_type/SESSION_SYM_.!drop-2	DO@@SESSION utf8mb4;
-accept	reject	engine	opt_rvalue_system_variable_type/SESSION_SYM_.!truncate	DO@@SESSION
-reject	accept	engine	opt_rvalue_system_variable_type/SESSION_SYM_.!insert	DO@@SESSION.zzz utf8mb4;
+reject	reject	engine	opt_rvalue_system_variable_type/SESSION_SYM_.!truncate	DO@@SESSION
+accept	accept	engine	opt_rvalue_system_variable_type/SESSION_SYM_.!insert	DO@@SESSION.zzz utf8mb4;
 reject	reject	engine	opt_rvalue_system_variable_type/SESSION_SYM_.!swap	DO@@SET.utf8mb4;
 accept	accept	engine	opt_set_var_ident_type/%empty	SET@@utf8mb4 = utf8mb4;
 reject	reject	engine	opt_set_var_ident_type/%empty!insert	SET@@zzz utf8mb4 = utf8mb4;
@@ -10816,10 +10816,10 @@ reject	reject	engine	lvalue_variable/DEFAULT_SYM_._ident!insert	SET DEFAULT.utf8
 accept	accept	engine	lvalue_variable/DEFAULT_SYM_._ident!swap	SET DEFAULT_AUTH.utf8mb4 = utf8mb4;
 accept	accept	engine	rvalue_system_variable/ident_or_text	DO@@utf8mb4;
 accept	accept	engine	rvalue_system_variable/ident_or_text_._ident	DO@@utf8mb4.utf8mb4;
-reject	accept	engine	rvalue_system_variable/ident_or_text_._ident!drop-2	DO@@utf8mb4 utf8mb4;
+accept	accept	engine	rvalue_system_variable/ident_or_text_._ident!drop-2	DO@@utf8mb4 utf8mb4;
 reject	reject	engine	rvalue_system_variable/ident_or_text_._ident!drop-3	DO@@utf8mb4.;
 reject	reject	engine	rvalue_system_variable/ident_or_text_._ident!truncate	DO@@utf8mb4.
-reject	accept	engine	rvalue_system_variable/ident_or_text_._ident!insert	DO@@utf8mb4.utf8mb4 zzz;
+accept	accept	engine	rvalue_system_variable/ident_or_text_._ident!insert	DO@@utf8mb4.utf8mb4 zzz;
 accept	accept	engine	transaction_characteristics/transaction_access_mode_opt_isolation_level	SET TRANSACTION READ ONLY;
 reject	reject	engine	transaction_characteristics/transaction_access_mode_opt_isolation_level!swap	SET TRANSACTION READS ONLY;
 accept	accept	engine	transaction_characteristics/isolation_level_opt_transaction_access_mode	SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
