@@ -47,7 +47,7 @@ func TestVerifyCorpus(t *testing.T) {
 		}
 	}
 	if len(corpusFiles) == 0 {
-		t.Skip("No corpus files found in mysql/quality/corpus/")
+		t.Fatal("No corpus files found in mysql/quality/corpus/")
 	}
 
 	var stats corpusVerifyStats

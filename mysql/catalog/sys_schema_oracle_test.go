@@ -3,6 +3,7 @@ package catalog
 import (
 	"context"
 	"fmt"
+	"github.com/bytebase/omni/mysql/internal/testcontainer"
 	"strings"
 	"testing"
 )
@@ -39,7 +40,7 @@ func TestOracle_SysSchemaDogfood(t *testing.T) {
 	rows, err := o.db.QueryContext(ctx,
 		"SELECT table_name FROM information_schema.views WHERE table_schema='sys' ORDER BY table_name")
 	if err != nil {
-		t.Skipf("[%s] cannot enumerate sys views: %v", o.name, err)
+		t.Fatalf("[%s] cannot enumerate sys views: %v", o.name, err)
 	}
 	var viewNames []string
 	for rows.Next() {
@@ -54,7 +55,7 @@ func TestOracle_SysSchemaDogfood(t *testing.T) {
 	}
 	_ = rows.Close()
 	if len(viewNames) == 0 {
-		t.Skipf("[%s] sys schema has no views (not installed?)", o.name)
+		t.Fatalf("[%s] sys schema has no views (not installed?)", o.name)
 	}
 
 	var dump strings.Builder
@@ -101,11 +102,8 @@ func TestOracle_SysSchemaDogfood(t *testing.T) {
 	// performance_schema objects, so every generated body is parsed and
 	// validated by the live engine exactly as rendered.
 	const scratch = "tudsdl_sysdf"
-	conn, err := o.db.Conn(ctx)
-	if err != nil {
-		t.Fatalf("[%s] grab conn: %v", o.name, err)
-	}
-	defer func() { _ = conn.Close() }()
+	// A connection of its own: the test's other one stays free for the helpers.
+	conn := testcontainer.OpenRoot(t, testcontainer.Options{MultiStatements: true})
 	defer func() {
 		_, _ = conn.ExecContext(ctx, "DROP DATABASE IF EXISTS "+scratch)
 	}()
