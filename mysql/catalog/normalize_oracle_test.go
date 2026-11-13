@@ -4,12 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"os"
 	"strings"
 	"testing"
-	"time"
 
-	_ "github.com/go-sql-driver/mysql"
+	"github.com/bytebase/omni/mysql/internal/testcontainer"
 )
 
 // The oracle proof for normalize-core. For every normalization.md entry, this applies
@@ -23,9 +21,8 @@ import (
 // canonicalizer disagrees with what the engine actually stores, which would produce a
 // phantom diff forever. These tests are the correctness spine (correctness-protocol.md).
 //
-// Connection: the local oracle instance from the work order, overridable via env,
-// with a shared testcontainer fallback when it is not reachable
-// (oracle_fallback_test.go), so the proof also runs unattended in CI.
+// Connection: the test's tape, or the pinned server in a recording
+// (testcontainer.OpenEmptyWith).
 
 type oracleConn struct {
 	db      *sql.DB
@@ -33,46 +30,12 @@ type oracleConn struct {
 	name    string
 }
 
-func dsnOr(env, def string) string {
-	if v := os.Getenv(env); v != "" {
-		return v
-	}
-	return def
-}
-
-// connectOracle dials the engine for version: the OMNI_MYSQL80_DSN override if
-// set, else the conventional local instance, else the package-shared
-// testcontainer fallback (oracle_fallback_test.go).
+// connectOracle returns the test's root connection to MySQL, on a server that
+// holds nothing an earlier test left (see testcontainer.OpenEmptyWith). Each
+// call is a stream of its own; a request may hold several statements.
 func connectOracle(t *testing.T, version Version) *oracleConn {
 	t.Helper()
-	const env, def, name = "OMNI_MYSQL80_DSN", "root:010424@tcp(127.0.0.1:13306)/?multiStatements=true", "8.0"
-	dsn, explicit := os.Getenv(env), true
-	if dsn == "" {
-		dsn, explicit = def, false
-	}
-	db, err := dialOracle(dsn)
-	if err == nil {
-		t.Cleanup(func() { _ = db.Close() })
-		return &oracleConn{db: db, version: version, name: name}
-	}
-	if explicit {
-		t.Fatalf("oracle %s at $%s unreachable in CI: %v", name, env, err)
-	}
-	return &oracleConn{db: fallbackOracle(t), version: version, name: name}
-}
-
-func dialOracle(dsn string) (*sql.DB, error) {
-	db, err := sql.Open("mysql", dsn)
-	if err != nil {
-		return nil, err
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	if err := db.PingContext(ctx); err != nil {
-		_ = db.Close()
-		return nil, err
-	}
-	return db, nil
+	return &oracleConn{db: testcontainer.OpenEmptyWith(t, testcontainer.Options{MultiStatements: true}), version: version, name: "8.0"}
 }
 
 // showCreate applies the CREATE statements in a throwaway database and returns the
@@ -90,7 +53,7 @@ func (o *oracleConn) showCreate(t *testing.T, dbName, createSQL, table string) (
 		if _, err := o.db.ExecContext(ctx, s); err != nil {
 			// An input the engine rejects is not a
 			// canonicalizer failure; the caller decides whether that is expected.
-			t.Logf("[%s] exec failed (may be expected): %q: %v", o.name, s, err)
+			t.Logf("[%s] exec failed : %q: %v", o.name, s, err)
 			return "", false
 		}
 	}
@@ -138,7 +101,7 @@ func assertPhantomFree(t *testing.T, o *oracleConn, dbName, inputDDL, table, col
 	t.Helper()
 	readback, ok := o.showCreate(t, dbName, inputDDL, table)
 	if !ok {
-		t.Skipf("[%s] could not obtain readback for %s.%s", o.name, table, column)
+		t.Fatalf("[%s] could not obtain readback for %s.%s", o.name, table, column)
 	}
 	// The readback is a CREATE TABLE we can reload through the same loader.
 	readbackCreate := normalizeReadbackForLoad(readback)
@@ -359,7 +322,7 @@ func TestOracle_MissedDiffGuards(t *testing.T) {
 			rbA, okA := o.showCreate(t, "mdg_a", ddlA, "t")
 			rbB, okB := o.showCreate(t, "mdg_b", ddlB, "t")
 			if !okA || !okB {
-				t.Skip("could not obtain readbacks")
+				t.Fatal("could not obtain readbacks")
 			}
 			tA, cA := loadColumn(t, sc, rbA, "t", "a")
 			tB, cB := loadColumn(t, sc, rbB, "t", "a")
@@ -379,7 +342,7 @@ func TestOracle_MissedDiffGuards(t *testing.T) {
 			ddl := "CREATE TABLE t (b VARCHAR(10) BINARY, p VARCHAR(10)) DEFAULT CHARSET=utf8mb4"
 			rb, ok := o.showCreate(t, "mdg_bin", ddl, "t")
 			if !ok {
-				t.Skip("could not obtain readback")
+				t.Fatal("could not obtain readback")
 			}
 			tbl, bCol := loadColumn(t, sc, rb, "t", "b")
 			_, pCol := loadColumn(t, sc, rb, "t", "p")
@@ -397,7 +360,7 @@ func TestOracle_MissedDiffGuards(t *testing.T) {
 			ddl := "CREATE TABLE t (n YEAR DEFAULT 0, s YEAR DEFAULT '0')"
 			rb, ok := o.showCreate(t, "mdg_year0", ddl, "t")
 			if !ok {
-				t.Skip("could not obtain readback")
+				t.Fatal("could not obtain readback")
 			}
 			tbl, nCol := loadColumn(t, sc, rb, "t", "n")
 			_, sCol := loadColumn(t, sc, rb, "t", "s")

@@ -6,7 +6,9 @@ import (
 	nodes "github.com/bytebase/omni/mysql/ast"
 	"github.com/bytebase/omni/mysql/deparse"
 	"github.com/bytebase/omni/mysql/parser"
+	"maps"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
@@ -152,12 +154,14 @@ func TestJSONValueStoredInConstraintsAndIndexes(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
-	for name, table := range map[string]string{
+	cases := map[string]string{
 		"check":      "CREATE TABLE g (a JSON, CONSTRAINT c CHECK (JSON_VALUE(a, '$.b' RETURNING SIGNED DEFAULT 7 ON EMPTY) > 0))",
 		"index":      "CREATE TABLE g (a JSON, KEY k ((JSON_VALUE(a, '$.b' RETURNING SIGNED DEFAULT 7 ON EMPTY))))",
 		"default":    "CREATE TABLE g (a JSON, b INT DEFAULT (JSON_VALUE(a, '$.b' RETURNING SIGNED DEFAULT 7 ON EMPTY)))",
 		"stored col": "CREATE TABLE g (a JSON, b INT AS (JSON_VALUE(a, '$.b' RETURNING SIGNED DEFAULT 7 ON EMPTY)) STORED)",
-	} {
+	}
+	for _, name := range slices.Sorted(maps.Keys(cases)) {
+		table := cases[name]
 		t.Run(name, func(t *testing.T) {
 			if err := ctr.execSQL("DROP TABLE IF EXISTS g"); err != nil {
 				t.Fatal(err)
@@ -253,7 +257,7 @@ func TestStringLiteralKeepsItsKind(t *testing.T) {
 	if _, err := c.Exec("CREATE DATABASE d; USE d", nil); err != nil {
 		t.Fatal(err)
 	}
-	for sql, want := range map[string]string{
+	cases := map[string]string{
 		"SELECT '001' AS x":               "select '001' as `x`",
 		"SELECT '1.5' AS x":               "select '1.5' as `x`",
 		"SELECT 'TRUE' AS x":              "select 'TRUE' as `x`",
@@ -266,7 +270,9 @@ func TestStringLiteralKeepsItsKind(t *testing.T) {
 		"SELECT 'it''s' AS x":             "select 'it\\'s' as `x`",
 		"SELECT 1 AS x":                   "select 1 as `x`",
 		"SELECT 1.5 AS x":                 "select 1.5 as `x`",
-	} {
+	}
+	for _, sql := range slices.Sorted(maps.Keys(cases)) {
+		want := cases[sql]
 		t.Run(sql, func(t *testing.T) {
 			_, first, second := roundTrip(t, c, sql)
 			if first != want {
