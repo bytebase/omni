@@ -149,7 +149,9 @@ func TestWalkThrough_2_2_RenameTableUnknownSource(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	assertError(t, results[0].Error, ErrNoSuchTable)
+	// OceanBase answers 1017, File not exist, where MySQL answers 1146
+	// (TestOracle_OceanBaseNameOrder).
+	assertError(t, results[0].Error, 1017)
 }
 
 func TestWalkThrough_2_2_RenameTableToExistingTarget(t *testing.T) {

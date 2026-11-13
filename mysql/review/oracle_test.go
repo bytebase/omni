@@ -7,15 +7,12 @@ import (
 	"os"
 	"sort"
 	"strings"
-	"sync"
 	"testing"
 
-	_ "github.com/go-sql-driver/mysql"
-	"github.com/testcontainers/testcontainers-go"
-	tcmysql "github.com/testcontainers/testcontainers-go/modules/mysql"
-
+	"github.com/bytebase/omni/enginetest/tape"
 	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/mysql/ast"
+	"github.com/bytebase/omni/mysql/internal/testcontainer"
 	"github.com/bytebase/omni/review"
 )
 
@@ -35,63 +32,22 @@ INSERT INTO plain VALUES (1, 1), (2, 2);
 CREATE VIEW pv AS SELECT id, note FROM p;
 `
 
-var mysqlOracle struct {
-	once      sync.Once
-	container testcontainers.Container
-	db        *sql.DB
-	err       error
-}
-
+// TestMain runs the tests through the tape harness, and removes the servers a
+// recording started.
 func TestMain(m *testing.M) {
-	code := m.Run()
-	if mysqlOracle.container != nil {
-		_ = mysqlOracle.db.Close()
-		_ = testcontainers.TerminateContainer(mysqlOracle.container)
-	}
-	for _, e := range walkServers.dbs {
-		if e.db != nil {
-			_ = e.db.Close()
-		}
-	}
-	for _, c := range walkServers.containers {
-		_ = testcontainers.TerminateContainer(c)
-	}
+	code := tape.Main(m)
+	testcontainer.Terminate()
 	os.Exit(code)
 }
 
-// startMySQL returns the MySQL 8.0 the oracle tests of this package ask,
-// started once.
-func startMySQL(t *testing.T) *sql.DB {
-	t.Helper()
-	mysqlOracle.once.Do(func() {
-		ctx := context.Background()
-		c, err := tcmysql.Run(ctx, "mysql:8.0", tcmysql.WithDatabase("shop"), tcmysql.WithUsername("root"), tcmysql.WithPassword("test"))
-		if err != nil {
-			mysqlOracle.err = err
-			return
-		}
-		mysqlOracle.container = c
-		dsn, err := c.ConnectionString(ctx, "multiStatements=true")
-		if err != nil {
-			mysqlOracle.err = err
-			return
-		}
-		mysqlOracle.db, mysqlOracle.err = sql.Open("mysql", dsn)
-		if mysqlOracle.err == nil {
-			mysqlOracle.err = mysqlOracle.db.PingContext(ctx)
-		}
-	})
-	if mysqlOracle.err != nil {
-		t.Fatalf("mysql oracle unavailable: %v", mysqlOracle.err)
-	}
-	return mysqlOracle.db
-}
-
 // resetOracle recreates the shop database from oracleBase, and an empty
-// bbdataarchive, on a connection of its own with shop selected.
-func resetOracle(t *testing.T, db *sql.DB) *sql.Conn {
+// bbdataarchive, on a connection of its own with shop selected: a stream of
+// the test's tape, on a server that holds nothing an earlier test left (see
+// testcontainer.OpenEmptyWith).
+func resetOracle(t *testing.T) *sql.Conn {
 	t.Helper()
 	ctx := context.Background()
+	db := testcontainer.OpenEmptyWith(t, testcontainer.Options{MultiStatements: true})
 	conn, err := db.Conn(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -221,7 +177,7 @@ func syncSchema(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 		return nil
 	})
 	query(`SELECT c.TABLE_NAME, c.CONSTRAINT_NAME, k.CHECK_CLAUSE FROM information_schema.TABLE_CONSTRAINTS c JOIN information_schema.CHECK_CONSTRAINTS k
-		ON k.CONSTRAINT_SCHEMA = c.CONSTRAINT_SCHEMA AND k.CONSTRAINT_NAME = c.CONSTRAINT_NAME WHERE c.CONSTRAINT_SCHEMA = 'shop' AND c.CONSTRAINT_TYPE = 'CHECK'`, func(r *sql.Rows) error {
+		ON k.CONSTRAINT_SCHEMA = c.CONSTRAINT_SCHEMA AND k.CONSTRAINT_NAME = c.CONSTRAINT_NAME WHERE c.CONSTRAINT_SCHEMA = 'shop' AND c.CONSTRAINT_TYPE = 'CHECK' ORDER BY c.TABLE_NAME, c.CONSTRAINT_NAME`, func(r *sql.Rows) error {
 		var tbl, name, clause string
 		if err := r.Scan(&tbl, &name, &clause); err != nil {
 			return err
@@ -231,7 +187,7 @@ func syncSchema(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 		}
 		return nil
 	})
-	query(`SELECT EVENT_OBJECT_TABLE, TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'shop'`, func(r *sql.Rows) error {
+	query(`SELECT EVENT_OBJECT_TABLE, TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'shop' ORDER BY TRIGGER_NAME`, func(r *sql.Rows) error {
 		var tbl, name string
 		if err := r.Scan(&tbl, &name); err != nil {
 			return err
@@ -283,7 +239,6 @@ func parseChange(t *testing.T, change string) []statement {
 // finding on a statement must mean that query fails; for a complete case,
 // every query that fails must have a finding.
 func TestPriorBackupAgainstMySQL(t *testing.T) {
-	db := startMySQL(t)
 	tests := []struct {
 		name     string
 		change   string
@@ -310,7 +265,7 @@ func TestPriorBackupAgainstMySQL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			conn := resetOracle(t, db)
+			conn := resetOracle(t)
 			schema := syncSchema(t, conn)
 			result, err := Review(context.Background(), tt.change, review.Options{
 				Rules:  []review.Rule{review.PriorBackup},
@@ -467,7 +422,6 @@ func backupQueries(sql string, n ast.Node) []backupQuery {
 // the change without one. Every finding must match; for a complete case,
 // every expected finding must be reported.
 func TestScanRulesAgainstMySQL(t *testing.T) {
-	db := startMySQL(t)
 	tests := []struct {
 		name     string
 		change   string
@@ -491,7 +445,7 @@ func TestScanRulesAgainstMySQL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			conn := resetOracle(t, db)
+			conn := resetOracle(t)
 			schema := syncSchema(t, conn)
 			result, err := Review(context.Background(), tt.change, review.Options{
 				Rules: []review.Rule{review.DisallowDropConstraint, review.RequirePrimaryKey},
@@ -539,7 +493,7 @@ func constraintSet(t *testing.T, conn *sql.Conn) map[string]bool {
 			WHERE k.CONSTRAINT_SCHEMA = c.CONSTRAINT_SCHEMA AND k.TABLE_NAME = c.TABLE_NAME AND k.CONSTRAINT_NAME = c.CONSTRAINT_NAME),
 			(SELECT ck.CHECK_CLAUSE FROM information_schema.CHECK_CONSTRAINTS ck
 			WHERE ck.CONSTRAINT_SCHEMA = c.CONSTRAINT_SCHEMA AND ck.CONSTRAINT_NAME = c.CONSTRAINT_NAME), '')
-		FROM information_schema.TABLE_CONSTRAINTS c WHERE c.CONSTRAINT_SCHEMA = 'shop'`)
+		FROM information_schema.TABLE_CONSTRAINTS c WHERE c.CONSTRAINT_SCHEMA = 'shop' ORDER BY c.TABLE_NAME, c.CONSTRAINT_TYPE, c.CONSTRAINT_NAME`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -562,7 +516,7 @@ func primaryKeyed(t *testing.T, conn *sql.Conn) (keyed, all map[string]bool) {
 	keyed, all = make(map[string]bool), make(map[string]bool)
 	rows, err := conn.QueryContext(ctx, `SELECT t.TABLE_NAME, c.CONSTRAINT_NAME IS NOT NULL FROM information_schema.TABLES t
 		LEFT JOIN information_schema.TABLE_CONSTRAINTS c ON c.TABLE_SCHEMA = t.TABLE_SCHEMA AND c.TABLE_NAME = t.TABLE_NAME AND c.CONSTRAINT_TYPE = 'PRIMARY KEY'
-		WHERE t.TABLE_SCHEMA = 'shop' AND t.TABLE_TYPE = 'BASE TABLE'`)
+		WHERE t.TABLE_SCHEMA = 'shop' AND t.TABLE_TYPE = 'BASE TABLE' ORDER BY t.TABLE_NAME`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -641,7 +595,6 @@ func scanTruth(t *testing.T, conn *sql.Conn, change string) map[string]bool {
 //
 // mysql: https://dev.mysql.com/doc/refman/8.0/en/alter-table.html#alter-table-add-drop-column
 func TestColumnDropAgainstMySQL(t *testing.T) {
-	db := startMySQL(t)
 	tests := []struct {
 		name   string
 		setup  string
@@ -807,7 +760,7 @@ func TestColumnDropAgainstMySQL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			conn := resetOracle(t, db)
+			conn := resetOracle(t)
 			ctx := context.Background()
 			if _, err := conn.ExecContext(ctx, tt.setup); err != nil {
 				t.Fatalf("setup: %v", err)

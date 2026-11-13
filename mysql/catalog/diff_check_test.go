@@ -118,7 +118,7 @@ func TestOracle_CheckDiffNonEmptyCorrect(t *testing.T) {
 			rbFrom, ok1 := o.showCreate(t, "chk_nf", tc.fromDDL, "t")
 			rbTo, ok2 := o.showCreate(t, "chk_nt", tc.toDDL, "t")
 			if !ok1 || !ok2 {
-				t.Skipf("[8.0] could not obtain readbacks")
+				t.Fatalf("[8.0] could not obtain readbacks")
 			}
 			fromCat, _ := loadOneTable(t, sc, rbFrom, "t")
 			toCat, _ := loadOneTable(t, sc, rbTo, "t")

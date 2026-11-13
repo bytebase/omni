@@ -98,7 +98,7 @@ func TestOracle_SRIDPresenceCreateTableLike(t *testing.T) {
 				createBoth := c.src + ";\nCREATE TABLE clone LIKE src"
 				rbClone, ok := o.showCreate(t, "srid_like_"+strings.ReplaceAll(c.id, "-", "_"), createBoth, "clone")
 				if !ok {
-					t.Skipf("[%s] could not obtain clone readback", o.name)
+					t.Fatalf("[%s] could not obtain clone readback", o.name)
 				}
 				// User side: load the two-statement SDL and pull the clone's column g (this
 				// exercises the omni loader's createTableLike). Stored side: load the engine's
@@ -163,7 +163,7 @@ func TestOracle_SRIDPresenceIdempotence(t *testing.T) {
 				// column without SRID).
 				cat, _, rb, ok := o.catalogFromReadback(t, db+"_idem", probe.create, probe.table)
 				if !ok {
-					t.Skipf("[%s] could not obtain readback for %s", o.name, probe.id)
+					t.Fatalf("[%s] could not obtain readback for %s", o.name, probe.id)
 				}
 				if plan := GenerateMigrationWithNormalizer(cat, cat, DiffWithNormalizer(cat, cat, n), n); plan.SQL() != "" {
 					t.Errorf("[%s] NON-EMPTY NO-OP PLAN for %s (SRID presence normalization bug):\n  stored: %s\n  plan:\n%s",
@@ -194,7 +194,7 @@ func TestOracle_SRIDPresenceDistinctness(t *testing.T) {
 		ddl := "CREATE TABLE t (id INT PRIMARY KEY, gz GEOMETRY NOT NULL SRID 0, gn GEOMETRY NOT NULL, gf GEOMETRY NOT NULL SRID 4326)"
 		rb, ok := o.showCreate(t, "srid_distinct", ddl, "t")
 		if !ok {
-			t.Skipf("[%s] could not obtain readback", o.name)
+			t.Fatalf("[%s] could not obtain readback", o.name)
 		}
 		tbl, zCol := loadColumn(t, sc, rb, "t", "gz")
 		_, nCol := loadColumn(t, sc, rb, "t", "gn")
@@ -318,7 +318,7 @@ func TestOracle_SRIDPresenceEmitsClause(t *testing.T) {
 				rbFrom, ok1 := o.showCreate(t, "srid_emit_f", c.fromDDL, "t")
 				rbTo, ok2 := o.showCreate(t, "srid_emit_t", c.toDDL, "t")
 				if !ok1 || !ok2 {
-					t.Skipf("[%s] could not obtain readbacks", o.name)
+					t.Fatalf("[%s] could not obtain readbacks", o.name)
 				}
 				fromCat, _ := loadOneTable(t, sc, rbFrom, "t")
 				toCat, _ := loadOneTable(t, sc, rbTo, "t")

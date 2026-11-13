@@ -8,12 +8,8 @@ func (c *Catalog) renameTable(stmt *nodes.RenameTableStmt) error {
 		if err != nil {
 			return err
 		}
-		oldKey := toLower(pair.Old.Name)
-		tbl := oldDB.Tables[oldKey]
-		if tbl == nil {
-			return errNoSuchTable(oldDB.Name, pair.Old.Name)
-		}
-
+		// OceanBase checks the new name (1050) before the old one, and answers 1017 for
+		// a table that is not there (TestOracle_OceanBaseNameOrder).
 		newDB, err := c.resolveDatabase(pair.New.Schema)
 		if err != nil {
 			return err
@@ -21,6 +17,11 @@ func (c *Catalog) renameTable(stmt *nodes.RenameTableStmt) error {
 		newKey := toLower(pair.New.Name)
 		if newDB.Tables[newKey] != nil {
 			return errDupTable(pair.New.Name)
+		}
+		oldKey := toLower(pair.Old.Name)
+		tbl := oldDB.Tables[oldKey]
+		if tbl == nil {
+			return &Error{Code: 1017, SQLState: "HY000", Message: "File not exist"}
 		}
 
 		delete(oldDB.Tables, oldKey)

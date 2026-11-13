@@ -1,0 +1,238 @@
+-- pin: default mysql:8.0.46 sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b mysql-8.0.46
+
+== TestRangeColumnsMaxvalue_Oracle default#1
+> exec
+| CREATE DATABASE IF NOT EXISTS rc_test
+< ok 1 0
+> exec
+| USE rc_test
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS rc1
+< ok 0 0
+> exec
+| CREATE TABLE rc1 (a INT, b INT) PARTITION BY RANGE COLUMNS(a, b) (PARTITION p0 VALUES LESS THAN (5, MAXVALUE), PARTITION p1 VALUES LESS THAN (MAXVALUE, MAXVALUE))
+< ok 0 0
+> query
+| SHOW CREATE TABLE rc1
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| rc1
+: bytes
+| CREATE TABLE `rc1` (
+|   `a` int DEFAULT NULL,
+|   `b` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY RANGE  COLUMNS(a,b)
+| (PARTITION p0 VALUES LESS THAN (5,MAXVALUE) ENGINE = InnoDB,
+|  PARTITION p1 VALUES LESS THAN (MAXVALUE,MAXVALUE) ENGINE = InnoDB) */
+> exec
+| DROP TABLE IF EXISTS rc2
+< ok 0 0
+> exec
+| CREATE TABLE rc2 (a INT, b VARCHAR(10), c DATE) PARTITION BY RANGE COLUMNS(a, b, c) (PARTITION p0 VALUES LESS THAN (1, 'm', MAXVALUE), PARTITION p1 VALUES LESS THAN (MAXVALUE, MAXVALUE, MAXVALUE))
+< ok 0 0
+> query
+| SHOW CREATE TABLE rc2
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| rc2
+: bytes
+| CREATE TABLE `rc2` (
+|   `a` int DEFAULT NULL,
+|   `b` varchar(10) DEFAULT NULL,
+|   `c` date DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY RANGE  COLUMNS(a,b,c)
+| (PARTITION p0 VALUES LESS THAN (1,'m',MAXVALUE) ENGINE = InnoDB,
+|  PARTITION p1 VALUES LESS THAN (MAXVALUE,MAXVALUE,MAXVALUE) ENGINE = InnoDB) */
+> exec
+| DROP TABLE IF EXISTS rc3
+< ok 0 0
+> exec
+| CREATE TABLE rc3 (a INT, b INT) PARTITION BY RANGE COLUMNS(a, b) (PARTITION p0 VALUES LESS THAN (5, 10))
+< ok 0 0
+> exec
+| ALTER TABLE rc3 ADD PARTITION (PARTITION p1 VALUES LESS THAN (10, MAXVALUE))
+< ok 0 0
+> query
+| SHOW CREATE TABLE rc3
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| rc3
+: bytes
+| CREATE TABLE `rc3` (
+|   `a` int DEFAULT NULL,
+|   `b` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY RANGE  COLUMNS(a,b)
+| (PARTITION p0 VALUES LESS THAN (5,10) ENGINE = InnoDB,
+|  PARTITION p1 VALUES LESS THAN (10,MAXVALUE) ENGINE = InnoDB) */
+> exec
+| DROP TABLE IF EXISTS rc4
+< ok 0 0
+> exec
+| CREATE TABLE rc4 (a INT, b INT) PARTITION BY RANGE COLUMNS(a, b) (PARTITION p0 VALUES LESS THAN (5, MAXVALUE), PARTITION p1 VALUES LESS THAN (6, 1))
+< ok 0 0
+> query
+| SHOW CREATE TABLE rc4
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| rc4
+: bytes
+| CREATE TABLE `rc4` (
+|   `a` int DEFAULT NULL,
+|   `b` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY RANGE  COLUMNS(a,b)
+| (PARTITION p0 VALUES LESS THAN (5,MAXVALUE) ENGINE = InnoDB,
+|  PARTITION p1 VALUES LESS THAN (6,1) ENGINE = InnoDB) */
+> exec
+| DROP TABLE IF EXISTS rc5
+< ok 0 0
+> exec
+| CREATE TABLE rc5 (a VARCHAR(10), b INT) PARTITION BY RANGE COLUMNS(a, b) (PARTITION p0 VALUES LESS THAN ('a', MAXVALUE), PARTITION p1 VALUES LESS THAN ('b', 1))
+< ok 0 0
+> query
+| SHOW CREATE TABLE rc5
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| rc5
+: bytes
+| CREATE TABLE `rc5` (
+|   `a` varchar(10) DEFAULT NULL,
+|   `b` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY RANGE  COLUMNS(a,b)
+| (PARTITION p0 VALUES LESS THAN ('a',MAXVALUE) ENGINE = InnoDB,
+|  PARTITION p1 VALUES LESS THAN ('b',1) ENGINE = InnoDB) */
+> exec
+| DROP TABLE IF EXISTS rr1
+< ok 0 0
+> exec
+| CREATE TABLE rr1 (a INT) PARTITION BY RANGE COLUMNS(a) (PARTITION p0 VALUES LESS THAN (MAXVALUE), PARTITION p1 VALUES LESS THAN (10))
+< error
+| 1493 HY000 VALUES LESS THAN value must be strictly increasing for each partition
+> exec
+| DROP TABLE IF EXISTS rr2
+< ok 0 0
+> exec
+| CREATE TABLE rr2 (a INT, b INT) PARTITION BY RANGE COLUMNS(a, b) (PARTITION p0 VALUES LESS THAN (MAXVALUE, MAXVALUE), PARTITION p1 VALUES LESS THAN (MAXVALUE, MAXVALUE))
+< error
+| 1493 HY000 VALUES LESS THAN value must be strictly increasing for each partition
+> exec
+| DROP TABLE IF EXISTS rr3
+< ok 0 0
+> exec
+| CREATE TABLE rr3 (a INT, b INT) PARTITION BY RANGE COLUMNS(a, b) (PARTITION p0 VALUES LESS THAN (MAXVALUE, 5), PARTITION p1 VALUES LESS THAN (MAXVALUE, 10))
+< error
+| 1493 HY000 VALUES LESS THAN value must be strictly increasing for each partition
+> exec
+| DROP TABLE IF EXISTS rr4
+< ok 0 0
+> exec
+| CREATE TABLE rr4 (a INT, b INT) PARTITION BY RANGE COLUMNS(a, b) (PARTITION p0 VALUES LESS THAN (5, MAXVALUE), PARTITION p1 VALUES LESS THAN (5, 10))
+< error
+| 1493 HY000 VALUES LESS THAN value must be strictly increasing for each partition
+> exec
+| DROP TABLE IF EXISTS rr5
+< ok 0 0
+> exec
+| CREATE TABLE rr5 (a VARCHAR(10), b INT) PARTITION BY RANGE COLUMNS(a, b) (PARTITION p0 VALUES LESS THAN ('b', MAXVALUE), PARTITION p1 VALUES LESS THAN ('a', 1))
+< error
+| 1493 HY000 VALUES LESS THAN value must be strictly increasing for each partition
+> exec
+| DROP TABLE IF EXISTS rc6
+< ok 0 0
+> exec
+| CREATE TABLE rc6 (a VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_spanish2_ci) PARTITION BY RANGE COLUMNS(a) (PARTITION p0 VALUES LESS THAN ('cz'), PARTITION p1 VALUES LESS THAN ('ch'))
+< ok 0 0
+> query
+| SHOW CREATE TABLE rc6
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| rc6
+: bytes
+| CREATE TABLE `rc6` (
+|   `a` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_spanish2_ci DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY RANGE  COLUMNS(a)
+| (PARTITION p0 VALUES LESS THAN ('cz') ENGINE = InnoDB,
+|  PARTITION p1 VALUES LESS THAN ('ch') ENGINE = InnoDB) */
+> exec
+| DROP TABLE IF EXISTS rc8
+< ok 0 0
+> exec
+| CREATE TABLE rc8 (a DATE) PARTITION BY RANGE COLUMNS(a) (PARTITION p0 VALUES LESS THAN ('2020-9-1'), PARTITION p1 VALUES LESS THAN ('2020-10-01'))
+< ok 0 0
+> query
+| SHOW CREATE TABLE rc8
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| rc8
+: bytes
+| CREATE TABLE `rc8` (
+|   `a` date DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY RANGE  COLUMNS(a)
+| (PARTITION p0 VALUES LESS THAN ('2020-9-1') ENGINE = InnoDB,
+|  PARTITION p1 VALUES LESS THAN ('2020-10-01') ENGINE = InnoDB) */
+> exec
+| DROP TABLE IF EXISTS rc10
+< ok 0 0
+> exec
+| CREATE TABLE rc10 (a DATE) PARTITION BY RANGE COLUMNS(a) (PARTITION p0 VALUES LESS THAN ('70-01-01'), PARTITION p1 VALUES LESS THAN ('69-01-01'))
+< ok 0 0
+> query
+| SHOW CREATE TABLE rc10
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| rc10
+: bytes
+| CREATE TABLE `rc10` (
+|   `a` date DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY RANGE  COLUMNS(a)
+| (PARTITION p0 VALUES LESS THAN ('70-01-01') ENGINE = InnoDB,
+|  PARTITION p1 VALUES LESS THAN ('69-01-01') ENGINE = InnoDB) */
+> exec
+| DROP TABLE IF EXISTS rr7
+< ok 0 0
+> exec
+| CREATE TABLE rr7 (a DATE) PARTITION BY RANGE COLUMNS(a) (PARTITION p0 VALUES LESS THAN ('2021-01-01'), PARTITION p1 VALUES LESS THAN ('2020-12-31'))
+< error
+| 1493 HY000 VALUES LESS THAN value must be strictly increasing for each partition
+> exec
+| DROP TABLE IF EXISTS rr6
+< ok 0 0
+> exec
+| CREATE TABLE rr6 (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN MAXVALUE, PARTITION p1 VALUES LESS THAN (10))
+< error
+| 1481 HY000 MAXVALUE can only be used in last partition definition
+> exec
+| DROP DATABASE IF EXISTS rc_test
+< ok 8 0
