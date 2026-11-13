@@ -672,7 +672,7 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 	case kwDATABASES:
 		stmt.Type = "DATABASES"
 		p.advance()
-		if err := p.parseShowLikeOrWhere(stmt); err != nil {
+		if err := p.parseShowDatabasesTail(stmt); err != nil {
 			return nil, err
 		}
 
@@ -878,7 +878,10 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 				p.advance()
 				if p.cur.Type == '(' {
 					p.advance()
-					p.match(')')
+					// CURRENT_USER '(' ')': a '(' with no ')' is a 1064.
+					if _, err := p.expect(')'); err != nil {
+						return nil, err
+					}
 				}
 				stmt.ForUser = &nodes.UserSpec{
 					Loc:  nodes.Loc{Start: start, End: p.prev.End},
@@ -892,9 +895,27 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 				stmt.ForUser = user
 			}
 		default:
-			// SHOW CREATE with nothing after it, or with an object this
-			// engine has no SHOW CREATE for, is a 1064.
-			return nil, p.syntaxErrorAtCur()
+			// SHOW CREATE {CATALOG | TENANT | TABLEGROUP} relation_name, which
+			// OceanBase has and MySQL does not (show_stmt, line 16105 on).
+			for _, object := range []string{"CATALOG", "TENANT", "TABLEGROUP"} {
+				if p.isBareWord(object) {
+					stmt.Type = "CREATE " + object
+					p.advance()
+					ref := &nodes.TableRef{Loc: nodes.Loc{Start: p.pos()}}
+					name, _, err := p.parseIdent()
+					if err != nil {
+						return nil, err
+					}
+					ref.Name, ref.Loc.End = name, p.prev.End
+					stmt.From = ref
+					break
+				}
+			}
+			if stmt.Type == "" {
+				// SHOW CREATE with nothing after it, or with an object this
+				// engine has no SHOW CREATE for, is a 1064.
+				return nil, p.syntaxErrorAtCur()
+			}
 		}
 
 	case kwEXTENDED:
@@ -1032,9 +1053,10 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			return nil, err
 		}
 
-	case kwGLOBAL, kwSESSION:
+	case kwGLOBAL, kwSESSION, kwLOCAL:
+		// opt_scope: LOCAL is SESSION, as the grammar's action writes it.
 		scope := "GLOBAL"
-		if p.cur.Type == kwSESSION {
+		if p.cur.Type != kwGLOBAL {
 			scope = "SESSION"
 		}
 		p.advance()
@@ -1473,7 +1495,10 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 					// Optional ()
 					if p.cur.Type == '(' {
 						p.advance()
-						p.match(')')
+						// CURRENT_USER '(' ')': a '(' with no ')' is a 1064.
+						if _, err := p.expect(')'); err != nil {
+							return nil, err
+						}
 					}
 					stmt.ForUser = &nodes.UserSpec{
 						Loc:  nodes.Loc{Start: start, End: p.prev.End},
@@ -1536,7 +1561,11 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			// SHOW SCHEMAS (synonym for SHOW DATABASES)
 			stmt.Type = "DATABASES"
 			p.advance()
-			if err := p.parseShowLikeOrWhere(stmt); err != nil {
+			if err := p.parseShowDatabasesTail(stmt); err != nil {
+				return nil, err
+			}
+		} else if ok, err := p.parseOceanBaseShow(stmt); ok {
+			if err != nil {
 				return nil, err
 			}
 		} else {
@@ -1590,22 +1619,46 @@ func (p *Parser) parseShowChannel(stmt *nodes.ShowStmt) error {
 	return nil
 }
 
-// parseShowLikeOrWhere parses the optional LIKE or WHERE of a SHOW statement.
-// The two read different things: LIKE takes MySQL's TEXT_STRING_sys
-// (sql_yacc.yy, opt_wild_or_where: LIKE_SYM TEXT_STRING_sys), one string
-// literal and nothing else, while WHERE takes a whole expression. Reading an
-// expression after LIKE took far more than the engine does -- `LIKE @v`,
-// `LIKE concat('a','%')`, `LIKE 1`, `LIKE ('t')`, `LIKE -1`, `LIKE NULL`, and
-// a second filter in `LIKE 't' LIKE 'u'` and `LIKE 't' AND 1`, every one of
-// them a 1064.
+// parseShowLikeOrWhere parses opt_show_condition, the optional LIKE or WHERE
+// of a SHOW statement:
+//
+//	LIKE 'pattern' [ESCAPE 'c'] | WHERE expr
+//
+// LIKE takes one string literal and nothing else, while WHERE takes a whole
+// expression. Reading an expression after LIKE took far more than the engine
+// does -- `LIKE @v`, `LIKE concat('a','%')`, `LIKE 1`, `LIKE ('t')`, `LIKE -1`,
+// `LIKE NULL`, and a second filter in `LIKE 't' LIKE 'u'` and `LIKE 't' AND 1`,
+// every one of them a 1064. Strings side by side are one literal, so `LIKE 'a'
+// 'b'` reads `ab`. The grammar's action refuses an escape that is not one byte.
+// The escape is read and not kept.
+//
+// Ref: opt_show_condition in sql_parser_mysql_mode.y (oceanbase v4.3.5_CE_BP6,
+// line 16548).
 func (p *Parser) parseShowLikeOrWhere(stmt *nodes.ShowStmt) error {
 	if p.cur.Type == kwLIKE {
 		p.advance()
 		if p.cur.Type != tokSCONST {
 			return p.syntaxErrorAtCur()
 		}
-		tok := p.advance()
-		stmt.Like = &nodes.StringLit{Loc: nodes.Loc{Start: tok.Loc, End: p.prev.End}, Value: tok.Str}
+		lit := &nodes.StringLit{Loc: nodes.Loc{Start: p.cur.Loc}}
+		for p.cur.Type == tokSCONST {
+			lit.Value += p.advance().Str
+		}
+		lit.Loc.End = p.prev.End
+		stmt.Like = lit
+		if p.cur.Type == kwESCAPE {
+			p.advance()
+			if p.cur.Type != tokSCONST {
+				return p.syntaxErrorAtCur()
+			}
+			at, escape := p.cur, ""
+			for p.cur.Type == tokSCONST {
+				escape += p.advance().Str
+			}
+			if len(escape) != 1 {
+				return &ParseError{Message: "Incorrect arguments to ESCAPE", Position: at.Loc}
+			}
+		}
 	} else if p.cur.Type == kwWHERE {
 		p.advance()
 		expr, err := p.parseExpr()
@@ -1618,6 +1671,16 @@ func (p *Parser) parseShowLikeOrWhere(stmt *nodes.ShowStmt) error {
 		stmt.Where = expr
 	}
 	return nil
+}
+
+// parseShowDatabasesTail parses what follows SHOW {DATABASES | SCHEMAS}:
+// opt_status, then opt_show_condition.
+func (p *Parser) parseShowDatabasesTail(stmt *nodes.ShowStmt) error {
+	if p.cur.Type == kwSTATUS {
+		p.advance()
+		stmt.Type = "DATABASES STATUS"
+	}
+	return p.parseShowLikeOrWhere(stmt)
 }
 
 // parseShowFromLikeOrWhere parses optional FROM|IN db, LIKE, or WHERE for SHOW statements.
