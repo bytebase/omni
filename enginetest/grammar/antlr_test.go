@@ -253,3 +253,61 @@ func TestANTLRLiteralsAreTheirOwnText(t *testing.T) {
 		t.Errorf("the recognizer does not read the keyword as itself")
 	}
 }
+
+// TestANTLRGroupsThatReadAlikeStayApart pins that two groups whose labels
+// read the same, a literal holding _ and two literals, are two rules.
+func TestANTLRGroupsThatReadAlikeStayApart(t *testing.T) {
+	g, err := ReadANTLR("grammar S; s : ('A_B')? 'X' ('A' 'B')? ;", tokens(nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := g.Recognizer()
+	for sql, want := range map[string]bool{"X A B": true, "A_B X": true, "X A_B": false, "A B X": false} {
+		if got := rec.Accepts(sql); got != want {
+			t.Errorf("Accepts(%q) = %v, want %v", sql, got, want)
+		}
+	}
+	rows, _ := g.Rows()
+	labels := map[string]string{}
+	for _, r := range rows {
+		labels[r.Rule] = r.Statement
+	}
+	if labels["s(A_B)?/A_B"] != "A_B X" || labels["s(A_B)?#2/A_B"] != "X A B" {
+		t.Errorf("rows:\n%s", render(rows))
+	}
+}
+
+// TestRecognizerRefusesWhatTheLexerCannotRead pins three tokens no
+// statement may match: a quote never closed, a token the lexer never
+// produces, and a keyword a lexer rule spells in lowercase, which is that
+// word and not a class of names.
+func TestRecognizerRefusesWhatTheLexerCannotRead(t *testing.T) {
+	g, err := ReadANTLR(`grammar S;
+options { caseInsensitive = true; }
+s : SELECT NAME STR? | 'GET' NEVER | 'SHOW' QID ;
+SELECT : 'select' ;
+NAME : [a-z]+ ;
+STR : '\'' (~'\'')* '\'' ;
+QID : '"' (~'"')* '"' ;
+`, tokens(map[string]string{"NEVER": Unreachable}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := g.Recognizer()
+	for sql, want := range map[string]bool{
+		"SELECT a":        true,
+		"select a 'it'":   true,
+		"SELECT a 'oops":  false,
+		"SELECT a $$oops": false,
+		`SHOW "a"`:        true,
+		`SHOW "a`:         false,
+		"delete a":        false,
+		`"other" a`:       false,
+		"GET NEVER":       false,
+		"GET":             false,
+	} {
+		if got := rec.Accepts(sql); got != want {
+			t.Errorf("Accepts(%q) = %v, want %v", sql, got, want)
+		}
+	}
+}

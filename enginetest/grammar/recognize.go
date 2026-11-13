@@ -121,9 +121,15 @@ func (g *Grammar) Recognizer() *Recognizer {
 		}
 		id := len(r.terms)
 		termID[key] = id
+		if !sym.literal && g.unreachable[sym.text] {
+			// A token the lexer never produces matches nothing: one bad
+			// token, indexed nowhere, so it is neither read nor empty.
+			r.terms = append(r.terms, cterm{toks: []ltok{{kind: kBad}}})
+			return id
+		}
 		toks := r.lex(g.sample(sym))
 		t := cterm{toks: toks}
-		if !sym.literal && len(toks) == 1 {
+		if !sym.literal && !g.fixed[sym.text] && len(toks) == 1 {
 			switch tk := toks[0]; tk.kind {
 			case kName:
 				if tk.quoted || !keywordText.MatchString(tk.text) {
@@ -426,6 +432,7 @@ const (
 	kNumber       // 1, 1.5, 1e3, .5, 0x1F
 	kVar          // @v, @@v, $1, $v
 	kPunct        // an operator or punctuation mark
+	kBad          // a quote never closed; it matches no terminal
 )
 
 type ltok struct {
@@ -495,20 +502,21 @@ func (r *Recognizer) lex(s string) []ltok {
 		case c == '/' && i+1 < n && rs[i+1] == '*':
 			i = skipBlockComment(rs, i)
 		case c == '\'':
-			j := quoted(rs, i, '\'')
-			out = append(out, ltok{kind: kString, text: string(rs[i:j])})
+			j, closed := quoted(rs, i, '\'')
+			out = append(out, ltok{kind: closedKind(closed, kString), text: string(rs[i:j])})
 			i = j
 		case c == '$' && i+1 < n && rs[i+1] == '$':
 			j := i + 2
 			for j+1 < n && !(rs[j] == '$' && rs[j+1] == '$') {
 				j++
 			}
+			closed := j+1 < n
 			j = min(j+2, n)
-			out = append(out, ltok{kind: kString, text: string(rs[i:j])})
+			out = append(out, ltok{kind: closedKind(closed, kString), text: string(rs[i:j])})
 			i = j
 		case c == '"' || c == '`':
-			j := quoted(rs, i, c)
-			out = append(out, ltok{kind: kName, text: string(rs[i:j]), quoted: true})
+			j, closed := quoted(rs, i, c)
+			out = append(out, ltok{kind: closedKind(closed, kName), text: string(rs[i:j]), quoted: true})
 			i = j
 		case unicode.IsDigit(c) || (c == '.' && i+1 < n && unicode.IsDigit(rs[i+1])):
 			j := number(rs, i)
@@ -531,8 +539,8 @@ func (r *Recognizer) lex(s string) []ltok {
 			}
 			if j-i == 1 && j < n && rs[j] == '\'' {
 				// A prefixed string: N'...', X'...', B'...', E'...'.
-				k := quoted(rs, j, '\'')
-				out = append(out, ltok{kind: kString, text: string(rs[i:k])})
+				k, closed := quoted(rs, j, '\'')
+				out = append(out, ltok{kind: closedKind(closed, kString), text: string(rs[i:k])})
 				i = k
 				continue
 			}
@@ -558,8 +566,8 @@ func (r *Recognizer) lex(s string) []ltok {
 }
 
 // quoted returns the index past a quoted run opened at i, where a doubled
-// quote or a backslash escapes one.
-func quoted(rs []rune, i int, q rune) int {
+// quote or a backslash escapes one, and whether the run was closed.
+func quoted(rs []rune, i int, q rune) (int, bool) {
 	j := i + 1
 	for j < len(rs) {
 		switch {
@@ -568,12 +576,21 @@ func quoted(rs []rune, i int, q rune) int {
 		case rs[j] == q && j+1 < len(rs) && rs[j+1] == q:
 			j += 2
 		case rs[j] == q:
-			return j + 1
+			return j + 1, true
 		default:
 			j++
 		}
 	}
-	return len(rs)
+	return len(rs), false
+}
+
+// closedKind is kind for a quoted run that was closed, and kBad for one
+// that ran to the end of the text.
+func closedKind(closed bool, kind lkind) lkind {
+	if closed {
+		return kind
+	}
+	return kBad
 }
 
 func number(rs []rune, i int) int {
