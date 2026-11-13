@@ -4650,7 +4650,7 @@ accept	accept	engine	rename/RENAME_table_or_tables_opt_if_exists_table_to_table_
 accept	accept	engine	rename/RENAME_USER_SYM_clear_privileges_rename_list	RENAME USER a TO a;
 reject	reject	engine	rename/RENAME_USER_SYM_clear_privileges_rename_list!drop-1	USER a TO a;
 reject	reject	engine	rename/RENAME_USER_SYM_clear_privileges_rename_list!drop-3	RENAME USER TO a;
-accept	reject	engine	rename/RENAME_USER_SYM_clear_privileges_rename_list!drop-4	RENAME USER a a;
+reject	reject	engine	rename/RENAME_USER_SYM_clear_privileges_rename_list!drop-4	RENAME USER a a;
 reject	reject	engine	rename/RENAME_USER_SYM_clear_privileges_rename_list!drop-5	RENAME USER a TO;
 reject	reject	engine	rename/RENAME_USER_SYM_clear_privileges_rename_list!truncate	RENAME USER a TO
 reject	reject	engine	rename/RENAME_USER_SYM_clear_privileges_rename_list!insert	RENAME USER a TO a zzz;
@@ -4659,11 +4659,11 @@ accept	accept	engine	rename_list/user_TO_SYM_user	RENAME USER a TO a;
 reject	reject	engine	rename_list/user_TO_SYM_user!swap	RENAME USER a TRAILING a;
 accept	accept	engine	rename_list/rename_list_,_user_TO_SYM_user	RENAME USER a TO a, a TO a;
 reject	reject	engine	rename_list/rename_list_,_user_TO_SYM_user!drop-1	RENAME USER TO a, a TO a;
-accept	reject	engine	rename_list/rename_list_,_user_TO_SYM_user!drop-2	RENAME USER a a, a TO a;
+reject	reject	engine	rename_list/rename_list_,_user_TO_SYM_user!drop-2	RENAME USER a a, a TO a;
 reject	reject	engine	rename_list/rename_list_,_user_TO_SYM_user!drop-3	RENAME USER a TO, a TO a;
 reject	reject	engine	rename_list/rename_list_,_user_TO_SYM_user!drop-4	RENAME USER a TO a a TO a;
 reject	reject	engine	rename_list/rename_list_,_user_TO_SYM_user!drop-5	RENAME USER a TO a, TO a;
-accept	reject	engine	rename_list/rename_list_,_user_TO_SYM_user!drop-6	RENAME USER a TO a, a a;
+reject	reject	engine	rename_list/rename_list_,_user_TO_SYM_user!drop-6	RENAME USER a TO a, a a;
 reject	reject	engine	rename_list/rename_list_,_user_TO_SYM_user!drop-7	RENAME USER a TO a, a TO;
 reject	reject	engine	rename_list/rename_list_,_user_TO_SYM_user!truncate	RENAME USER a TO a, a TO
 reject	reject	engine	rename_list/rename_list_,_user_TO_SYM_user!insert	RENAME USER a TO a, a TO a zzz;
@@ -11487,10 +11487,10 @@ reject	reject	engine	isolation_types/SERIALIZABLE_SYM!swap	SET TRANSACTION ISOLA
 accept	accept	engine	text_or_password/TEXT_STRING	SET PASSWORD = 's';
 accept	accept	engine	text_or_password/PASSWORD_SYM_(_TEXT_STRING_)	SET PASSWORD = PASSWORD('s');
 reject	reject	engine	text_or_password/PASSWORD_SYM_(_TEXT_STRING_)!drop-1	SET PASSWORD =('s');
-accept	reject	engine	text_or_password/PASSWORD_SYM_(_TEXT_STRING_)!drop-2	SET PASSWORD = PASSWORD 's');
-accept	reject	engine	text_or_password/PASSWORD_SYM_(_TEXT_STRING_)!drop-3	SET PASSWORD = PASSWORD();
-accept	reject	engine	text_or_password/PASSWORD_SYM_(_TEXT_STRING_)!drop-4	SET PASSWORD = PASSWORD('s';
-accept	reject	engine	text_or_password/PASSWORD_SYM_(_TEXT_STRING_)!truncate	SET PASSWORD = PASSWORD('s'
+reject	reject	engine	text_or_password/PASSWORD_SYM_(_TEXT_STRING_)!drop-2	SET PASSWORD = PASSWORD 's');
+reject	reject	engine	text_or_password/PASSWORD_SYM_(_TEXT_STRING_)!drop-3	SET PASSWORD = PASSWORD();
+reject	reject	engine	text_or_password/PASSWORD_SYM_(_TEXT_STRING_)!drop-4	SET PASSWORD = PASSWORD('s';
+reject	reject	engine	text_or_password/PASSWORD_SYM_(_TEXT_STRING_)!truncate	SET PASSWORD = PASSWORD('s'
 reject	reject	engine	text_or_password/PASSWORD_SYM_(_TEXT_STRING_)!insert	SET PASSWORD = PASSWORD('s') zzz;
 reject	reject	engine	text_or_password/PASSWORD_SYM_(_TEXT_STRING_)!swap	SET PASSWORD = PATH('s');
 reject	accept	engine	text_or_password/OLD_PASSWORD_SYM_(_TEXT_STRING_)	SET PASSWORD = OLD_PASSWORD('s');
@@ -11636,7 +11636,7 @@ accept	accept	engine	revoke_command/ALL_opt_privileges_,_GRANT_OPTION_FROM_user_
 reject	reject	engine	revoke_command/ALL_opt_privileges_,_GRANT_OPTION_FROM_user_and_role_list!drop-1	REVOKE, GRANT OPTION FROM a;
 reject	reject	engine	revoke_command/ALL_opt_privileges_,_GRANT_OPTION_FROM_user_and_role_list!drop-2	REVOKE ALL GRANT OPTION FROM a;
 reject	reject	engine	revoke_command/ALL_opt_privileges_,_GRANT_OPTION_FROM_user_and_role_list!drop-3	REVOKE ALL, OPTION FROM a;
-accept	reject	engine	revoke_command/ALL_opt_privileges_,_GRANT_OPTION_FROM_user_and_role_list!drop-4	REVOKE ALL, GRANT FROM a;
+reject	reject	engine	revoke_command/ALL_opt_privileges_,_GRANT_OPTION_FROM_user_and_role_list!drop-4	REVOKE ALL, GRANT FROM a;
 reject	reject	engine	revoke_command/ALL_opt_privileges_,_GRANT_OPTION_FROM_user_and_role_list!drop-5	REVOKE ALL, GRANT OPTION a;
 reject	reject	engine	revoke_command/ALL_opt_privileges_,_GRANT_OPTION_FROM_user_and_role_list!drop-6	REVOKE ALL, GRANT OPTION FROM;
 reject	reject	engine	revoke_command/ALL_opt_privileges_,_GRANT_OPTION_FROM_user_and_role_list!truncate	REVOKE ALL, GRANT OPTION FROM
@@ -11955,13 +11955,13 @@ reject	reject	engine	object_privilege/SHOW_CREATE_ROUTINE_SYM!drop-3	GRANT SHOW 
 reject	reject	engine	object_privilege/SHOW_CREATE_ROUTINE_SYM!truncate	GRANT SHOW CREATE
 reject	reject	engine	object_privilege/SHOW_CREATE_ROUTINE_SYM!insert	GRANT SHOW CREATE ROUTINE zzz ON * TO a;
 reject	reject	engine	object_privilege/SHOW_CREATE_ROUTINE_SYM!swap	GRANT SHUTDOWN CREATE ROUTINE ON * TO a;
-accept	reject	engine	opt_and/%empty	ALTER USER a REQUIRE SUBJECT 's' SUBJECT 's';
+reject	reject	engine	opt_and/%empty	ALTER USER a REQUIRE SUBJECT 's' SUBJECT 's';
 reject	reject	engine	opt_and/%empty!insert	ALTER USER a REQUIRE SUBJECT 's' zzz SUBJECT 's';
-accept	reject	engine	opt_and/AND_SYM	ALTER USER a REQUIRE SUBJECT 's' AND SUBJECT 's';
+reject	reject	engine	opt_and/AND_SYM	ALTER USER a REQUIRE SUBJECT 's' AND SUBJECT 's';
 accept	accept	engine	opt_and/AND_SYM!truncate	ALTER USER a REQUIRE SUBJECT 's'
 reject	reject	engine	opt_and/AND_SYM!insert	ALTER USER a REQUIRE SUBJECT 's' AND zzz SUBJECT 's';
 reject	reject	engine	opt_and/AND_SYM!swap	ALTER USER a REQUIRE SUBJECT 's' ANY SUBJECT 's';
-accept	reject	engine	require_list/require_list_element_opt_and_require_list	ALTER USER a REQUIRE SUBJECT 's' SUBJECT 's';
+reject	reject	engine	require_list/require_list_element_opt_and_require_list	ALTER USER a REQUIRE SUBJECT 's' SUBJECT 's';
 reject	reject	engine	require_list/require_list_element_opt_and_require_list!drop-1	ALTER USER a REQUIRE 's' SUBJECT 's';
 reject	reject	engine	require_list/require_list_element_opt_and_require_list!drop-2	ALTER USER a REQUIRE SUBJECT SUBJECT 's';
 reject	reject	engine	require_list/require_list_element_opt_and_require_list!drop-3	ALTER USER a REQUIRE SUBJECT 's' 's';
