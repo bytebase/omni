@@ -718,6 +718,11 @@ type FuncCallExpr struct {
 	// ordinary call to whatever function has that name.
 	JSONValueArm bool
 	Using        string // CHAR(n, ... USING charset_name): the character set as written ("" = no USING)
+	// FromFirstLast and NullTreatment are a window function's opt_from_first_last
+	// (NTH_VALUE: FROM FIRST, FROM LAST) and opt_null_treatment (RESPECT NULLS,
+	// IGNORE NULLS), "" when not written.
+	FromFirstLast string
+	NullTreatment string
 }
 
 // JSONValueOptions is what JSON_VALUE takes after its path. The call's document and path are
@@ -1194,10 +1199,11 @@ func (w *WindowDef) nodeTag() {}
 
 // WindowFrame represents a window frame specification.
 type WindowFrame struct {
-	Loc   Loc
-	Type  WindowFrameType
-	Start *WindowFrameBound
-	End   *WindowFrameBound
+	Loc     Loc
+	Type    WindowFrameType
+	Start   *WindowFrameBound
+	End     *WindowFrameBound
+	Exclude string // CURRENT ROW, GROUP, TIES or NO OTHERS ("" when no EXCLUDE is written)
 }
 
 func (f *WindowFrame) nodeTag() {}

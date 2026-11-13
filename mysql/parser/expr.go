@@ -1045,6 +1045,30 @@ func (p *Parser) finishFuncCall(fc *nodes.FuncCallExpr, builtin bool) (nodes.Exp
 			if len(fc.Args) < bounds[0] || len(fc.Args) > bounds[1] {
 				return nil, p.syntaxErrorAtCur()
 			}
+			// NTH_VALUE's opt_from_first_last, then the opt_null_treatment of
+			// LEAD, LAG, FIRST_VALUE, LAST_VALUE and NTH_VALUE.
+			if fc.Name == "NTH_VALUE" && p.cur.Type == kwFROM {
+				p.advance()
+				switch p.cur.Type {
+				case kwFIRST:
+					fc.FromFirstLast = "FROM FIRST"
+				case kwLAST:
+					fc.FromFirstLast = "FROM LAST"
+				default:
+					return nil, p.syntaxErrorAtCur()
+				}
+				p.advance()
+			}
+			switch fc.Name {
+			case "LEAD", "LAG", "FIRST_VALUE", "LAST_VALUE", "NTH_VALUE":
+				if p.cur.Type == kwRESPECT || p.cur.Type == kwIGNORE {
+					word := strings.ToUpper(p.advance().Str)
+					if _, err := p.expect(kwNULLS); err != nil {
+						return nil, err
+					}
+					fc.NullTreatment = word + " NULLS"
+				}
+			}
 			if p.cur.Type != kwOVER {
 				return nil, p.syntaxErrorAtCur()
 			}
@@ -1247,9 +1271,10 @@ func (p *Parser) parseFrameClause() (*nodes.WindowFrame, error) {
 		return nil, &ParseError{Message: "collecting"}
 	}
 
-	// frame_extent: frame_start | BETWEEN frame_start AND frame_end
+	// frame_extent: frame_start | BETWEEN frame_bound AND frame_bound. A lone
+	// bound is a window_frame_start, which never FOLLOWING.
 	if _, ok := p.match(kwBETWEEN); ok {
-		startBound, err := p.parseFrameBound()
+		startBound, err := p.parseFrameBound(false)
 		if err != nil {
 			return nil, err
 		}
@@ -1257,65 +1282,111 @@ func (p *Parser) parseFrameClause() (*nodes.WindowFrame, error) {
 		if _, err := p.expect(kwAND); err != nil {
 			return nil, err
 		}
-		endBound, err := p.parseFrameBound()
+		endBound, err := p.parseFrameBound(false)
 		if err != nil {
 			return nil, err
 		}
 		frame.End = endBound
 	} else {
-		// Single frame_start
-		startBound, err := p.parseFrameBound()
+		startBound, err := p.parseFrameBound(true)
 		if err != nil {
 			return nil, err
 		}
 		frame.Start = startBound
 	}
 
+	// opt_window_frame_exclusion.
+	if _, ok := p.match(kwEXCLUDE); ok {
+		switch p.cur.Type {
+		case kwCURRENT:
+			p.advance()
+			if _, err := p.expect(kwROW); err != nil {
+				return nil, err
+			}
+			frame.Exclude = "CURRENT ROW"
+		case kwGROUP:
+			p.advance()
+			frame.Exclude = "GROUP"
+		case kwTIES:
+			p.advance()
+			frame.Exclude = "TIES"
+		case kwNO:
+			p.advance()
+			if _, err := p.expect(kwOTHERS); err != nil {
+				return nil, err
+			}
+			frame.Exclude = "NO OTHERS"
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
+	}
+
 	frame.Loc.End = p.prev.End
 	return frame, nil
 }
 
-// parseFrameBound parses a window frame bound.
-func (p *Parser) parseFrameBound() (*nodes.WindowFrameBound, error) {
+// parseFrameBound parses a window frame bound: window_frame_start, or with
+// between window_frame_bound, which may also be FOLLOWING.
+//
+// Ref: window_frame_start and window_frame_bound in MySQL 8.0 sql/sql_yacc.yy: UNBOUNDED, CURRENT ROW, NUM_literal, param_marker
+// or INTERVAL expr interval, and PRECEDING, or with BETWEEN FOLLOWING.
+func (p *Parser) parseFrameBound(single bool) (*nodes.WindowFrameBound, error) {
 	start := p.pos()
+	at := p.cur
 	bound := &nodes.WindowFrameBound{Loc: nodes.Loc{Start: start}}
 
 	if p.cur.Type == kwCURRENT {
 		p.advance()
-		p.match(kwROW)
-		bound.Type = nodes.BoundCurrentRow
-	} else if p.cur.Type == kwUNBOUNDED {
-		p.advance()
-		if _, ok := p.match(kwPRECEDING); ok {
-			bound.Type = nodes.BoundUnboundedPreceding
-		} else if _, ok := p.match(kwFOLLOWING); ok {
-			bound.Type = nodes.BoundUnboundedFollowing
-		} else {
-			return nil, &ParseError{
-				Message:  "expected PRECEDING or FOLLOWING after UNBOUNDED",
-				Position: p.cur.Loc,
-			}
+		if _, err := p.expect(kwROW); err != nil {
+			return nil, err
 		}
+		bound.Type = nodes.BoundCurrentRow
+		bound.Loc.End = p.prev.End
+		return bound, nil
+	}
+	if p.cur.Type == kwUNBOUNDED {
+		p.advance()
+	} else if p.cur.Type == kwINTERVAL {
+		// INTERVAL expr interval: the literal, not the INTERVAL(a, b) function.
+		expr, err := p.parseIntervalExpr()
+		if err != nil {
+			return nil, err
+		}
+		if _, ok := expr.(*nodes.IntervalExpr); !ok {
+			return nil, p.syntaxErrorAtCur()
+		}
+		bound.Offset = expr
 	} else {
-		// expr PRECEDING | expr FOLLOWING
+		// NUM_literal or param_marker, a token of its own: `1 + 1 PRECEDING`
+		// and `a PRECEDING` are 1064s.
 		expr, err := p.parseExpr()
 		if err != nil {
 			return nil, err
 		}
-		if expr == nil {
-			return nil, p.syntaxErrorAtCur()
+		switch expr.(type) {
+		case *nodes.IntLit, *nodes.FloatLit, *nodes.ParamMarkerExpr:
+		default:
+			return nil, p.syntaxErrorAtTok(at)
 		}
 		bound.Offset = expr
-		if _, ok := p.match(kwPRECEDING); ok {
-			bound.Type = nodes.BoundPreceding
-		} else if _, ok := p.match(kwFOLLOWING); ok {
-			bound.Type = nodes.BoundFollowing
-		} else {
-			return nil, &ParseError{
-				Message:  "expected PRECEDING or FOLLOWING",
-				Position: p.cur.Loc,
-			}
-		}
+	}
+	following := false
+	if _, ok := p.match(kwPRECEDING); ok {
+		following = false
+	} else if _, ok := p.match(kwFOLLOWING); ok && !single {
+		following = true
+	} else {
+		return nil, p.syntaxErrorAtCur()
+	}
+	switch {
+	case bound.Offset == nil && following:
+		bound.Type = nodes.BoundUnboundedFollowing
+	case bound.Offset == nil:
+		bound.Type = nodes.BoundUnboundedPreceding
+	case following:
+		bound.Type = nodes.BoundFollowing
+	default:
+		bound.Type = nodes.BoundPreceding
 	}
 
 	bound.Loc.End = p.prev.End

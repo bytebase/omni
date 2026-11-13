@@ -1286,10 +1286,11 @@ func (w *WindowDef) nodeTag() {}
 
 // WindowFrame represents a window frame specification.
 type WindowFrame struct {
-	Loc   Loc
-	Type  WindowFrameType
-	Start *WindowFrameBound
-	End   *WindowFrameBound
+	Loc     Loc
+	Type    WindowFrameType
+	Start   *WindowFrameBound
+	End     *WindowFrameBound
+	Exclude string // CURRENT ROW, GROUP, TIES or NO OTHERS ("" when no EXCLUDE is written)
 }
 
 func (f *WindowFrame) nodeTag() {}
