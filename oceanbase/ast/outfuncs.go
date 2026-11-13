@@ -127,6 +127,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeKillStmt(sb, n)
 	case *ObjectDDLStmt:
 		fmt.Fprintf(sb, "{OBJECT_DDL :loc %d :action %q :name %s}", n.Loc.Start, n.Action, n.Name)
+	case *AuditStmt:
+		fmt.Fprintf(sb, "{AUDIT :loc %d :noaudit %t}", n.Loc.Start, n.NoAudit)
 	case *AlterSystemStmt:
 		fmt.Fprintf(sb, "{ALTER_SYSTEM :loc %d :action %q}", n.Loc.Start, n.Action)
 	case *DoStmt:
