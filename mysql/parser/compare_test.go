@@ -7853,8 +7853,8 @@ func TestParseAlterTablespace(t *testing.T) {
 			want: `{ALTER_TABLESPACE :loc 0 :name ts1 :add_datafile "ts1.ibd" :engine NDB}`,
 		},
 		{
-			sql:  "ALTER UNDO TABLESPACE ts1 ADD DATAFILE 'undo.ibu'",
-			want: `{ALTER_TABLESPACE :loc 0 :undo true :name ts1 :add_datafile "undo.ibu"}`,
+			sql:  "ALTER UNDO TABLESPACE ts1 SET INACTIVE",
+			want: `{ALTER_TABLESPACE :loc 0 :undo true :name ts1 :set_inactive true}`,
 		},
 		{
 			sql:  "ALTER TABLESPACE ts1 RENAME TO ts2",
@@ -8444,7 +8444,7 @@ func TestParseChangeReplicationSource(t *testing.T) {
 		"CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS = (1, 2, 3)",
 		"CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS = ()",
 		// FOR CHANNEL
-		"CHANGE REPLICATION SOURCE TO SOURCE_HOST = 'host1' FOR CHANNEL ch1",
+		"CHANGE REPLICATION SOURCE TO SOURCE_HOST = 'host1' FOR CHANNEL 'ch1'",
 		// SSL options
 		"CHANGE REPLICATION SOURCE TO SOURCE_SSL = 1, SOURCE_SSL_CA = '/etc/ssl/ca.pem', SOURCE_SSL_CERT = '/etc/ssl/cert.pem'",
 		// Many options combined
@@ -8479,7 +8479,7 @@ func TestParseChangeReplicationSourceOptions(t *testing.T) {
 			want: "{CHANGE_REPLICATION_SOURCE :loc 0 :options ({REPL_OPT :loc 29 :name IGNORE_SERVER_IDS :ids (1 2)})}",
 		},
 		{
-			sql:  "CHANGE REPLICATION SOURCE TO SOURCE_HOST = 'host1' FOR CHANNEL ch1",
+			sql:  "CHANGE REPLICATION SOURCE TO SOURCE_HOST = 'host1' FOR CHANNEL 'ch1'",
 			want: "{CHANGE_REPLICATION_SOURCE :loc 0 :options ({REPL_OPT :loc 29 :name SOURCE_HOST :val host1}) :channel ch1}",
 		},
 	}
@@ -8517,7 +8517,7 @@ func TestParseChangeReplicationFilter(t *testing.T) {
 		// Empty filter list
 		"CHANGE REPLICATION FILTER REPLICATE_DO_DB = ()",
 		// FOR CHANNEL
-		"CHANGE REPLICATION FILTER REPLICATE_DO_DB = (db1) FOR CHANNEL ch1",
+		"CHANGE REPLICATION FILTER REPLICATE_DO_DB = (db1) FOR CHANNEL 'ch1'",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
@@ -8535,8 +8535,8 @@ func TestParseStartReplica(t *testing.T) {
 		"START REPLICA IO_THREAD",
 		"START REPLICA SQL_THREAD",
 		"START REPLICA IO_THREAD, SQL_THREAD",
-		"START REPLICA FOR CHANNEL ch1",
-		"START REPLICA IO_THREAD FOR CHANNEL ch1",
+		"START REPLICA FOR CHANNEL 'ch1'",
+		"START REPLICA IO_THREAD FOR CHANNEL 'ch1'",
 		"START REPLICA UNTIL SOURCE_LOG_FILE = 'binlog.000002', SOURCE_LOG_POS = 1234",
 		"START REPLICA UNTIL SQL_BEFORE_GTIDS = '3E11FA47-71CA-11E1-9E33-C80AA9429562:1-5'",
 		"START REPLICA UNTIL SQL_AFTER_MTS_GAPS",
@@ -8557,7 +8557,7 @@ func TestParseStopReplica(t *testing.T) {
 		"STOP REPLICA IO_THREAD",
 		"STOP REPLICA SQL_THREAD",
 		"STOP REPLICA IO_THREAD, SQL_THREAD",
-		"STOP REPLICA FOR CHANNEL ch1",
+		"STOP REPLICA FOR CHANNEL 'ch1'",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
@@ -8571,8 +8571,8 @@ func TestParseResetReplica(t *testing.T) {
 		"RESET REPLICA",
 		"RESET SLAVE",
 		"RESET REPLICA ALL",
-		"RESET REPLICA FOR CHANNEL ch1",
-		"RESET REPLICA ALL FOR CHANNEL ch1",
+		"RESET REPLICA FOR CHANNEL 'ch1'",
+		"RESET REPLICA ALL FOR CHANNEL 'ch1'",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
@@ -8939,7 +8939,7 @@ func TestParseChangeMasterTo(t *testing.T) {
 		// Empty IGNORE_SERVER_IDS
 		"CHANGE MASTER TO IGNORE_SERVER_IDS = ()",
 		// FOR CHANNEL
-		"CHANGE MASTER TO MASTER_HOST = 'host1' FOR CHANNEL ch1",
+		"CHANGE MASTER TO MASTER_HOST = 'host1' FOR CHANNEL 'ch1'",
 		// SSL options
 		"CHANGE MASTER TO MASTER_SSL = 1, MASTER_SSL_CA = '/ca.pem', MASTER_SSL_CERT = '/cert.pem'",
 	}
@@ -8968,7 +8968,7 @@ func TestParseChangeMasterToOptions(t *testing.T) {
 			want: "{CHANGE_MASTER :loc 0 :options ({REPL_OPT :loc 17 :name PRIVILEGE_CHECKS_USER :val NULL})}",
 		},
 		{
-			sql:  "CHANGE MASTER TO MASTER_HOST = 'host1' FOR CHANNEL ch1",
+			sql:  "CHANGE MASTER TO MASTER_HOST = 'host1' FOR CHANNEL 'ch1'",
 			want: "{CHANGE_MASTER :loc 0 :options ({REPL_OPT :loc 17 :name MASTER_HOST :val host1}) :channel ch1}",
 		},
 	}
@@ -12958,5 +12958,25 @@ func TestBlockCommentDoesNotHidePredicate(t *testing.T) {
 	}
 	if where.Op != ast.BinOpOr {
 		t.Errorf("expected top-level WHERE operator OR, got %v", where.Op)
+	}
+}
+
+// TestSTCollectSpaced: ST_COLLECT is a keyword only right before '(', so with a
+// space it is a generic call, which takes any arguments and no DISTINCT or
+// window.
+func TestSTCollectSpaced(t *testing.T) {
+	for _, tc := range []struct {
+		sql    string
+		accept bool
+	}{
+		{"SELECT ST_COLLECT(a)", true},
+		{"SELECT ST_COLLECT(DISTINCT a)", true},
+		{"SELECT ST_COLLECT()", false},
+		{"SELECT ST_COLLECT (1, 2)", true},
+		{"SELECT ST_COLLECT (DISTINCT a)", false},
+	} {
+		if _, err := Parse(tc.sql); (err == nil) != tc.accept {
+			t.Errorf("Parse(%q) error = %v, want accept %v", tc.sql, err, tc.accept)
+		}
 	}
 }

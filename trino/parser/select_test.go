@@ -186,31 +186,6 @@ func TestSelect_RejectCorpusRejected(t *testing.T) {
 	}
 }
 
-// TestSelect_OracleDifferential is the authoritative accept/reject gate: for
-// every form in both corpora, omni's Parse accept/reject must equal Trino 481's
-// accept/reject. Skipped when no oracle is reachable.
-func TestSelect_OracleDifferential(t *testing.T) {
-	o := connectOracle(t)
-	check := func(t *testing.T, sql string) {
-		_, errs := parseForTest(sql)
-		omniAccepts := len(errs) == 0
-		trinoAccepts, ok := oracleAccepts(t, o, sql)
-		if !ok {
-			t.Skip("oracle unreachable for this case")
-		}
-		if omniAccepts != trinoAccepts {
-			t.Errorf("MISMATCH sql=%q: omni accepts=%v (errs=%v), Trino accepts=%v",
-				sql, omniAccepts, errs, trinoAccepts)
-		}
-	}
-	for _, sql := range selectAcceptCorpus {
-		t.Run("accept/"+truncateName(sql), func(t *testing.T) { check(t, sql) })
-	}
-	for _, sql := range selectRejectCorpus {
-		t.Run("reject/"+truncateName(sql), func(t *testing.T) { check(t, sql) })
-	}
-}
-
 // ---------------------------------------------------------------------------
 // structural tests (precedence / clause shapes the accept/reject gate can't see)
 // ---------------------------------------------------------------------------

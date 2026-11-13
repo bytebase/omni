@@ -1292,10 +1292,11 @@ func (w *WindowDef) nodeTag() {}
 
 // WindowFrame represents a window frame specification.
 type WindowFrame struct {
-	Loc   Loc
-	Type  WindowFrameType
-	Start *WindowFrameBound
-	End   *WindowFrameBound
+	Loc     Loc
+	Type    WindowFrameType
+	Start   *WindowFrameBound
+	End     *WindowFrameBound
+	Exclude string // CURRENT ROW, GROUP, TIES or NO OTHERS ("" when no EXCLUDE is written)
 }
 
 func (f *WindowFrame) nodeTag() {}
@@ -1978,7 +1979,23 @@ type AnalyzeTableStmt struct {
 	HistogramColumns []string // column names
 	Buckets          int      // WITH N BUCKETS
 	UsingData        string   // USING DATA 'json_data'
+	// Persistent holds each table's PERSISTENT FOR clause, in the order written.
+	Persistent []*AnalyzePersistent
 }
+
+// AnalyzePersistent is MariaDB's PERSISTENT FOR clause after one table of
+// ANALYZE TABLE: ALL, or COLUMNS {ALL | (col, ...)} INDEXES {ALL | (idx, ...)}.
+type AnalyzePersistent struct {
+	Loc        Loc
+	TableIndex int      // the table of Tables it follows
+	All        bool     // PERSISTENT FOR ALL
+	ColumnsAll bool     // COLUMNS ALL
+	Columns    []string // COLUMNS (col, ...)
+	IndexesAll bool     // INDEXES ALL
+	Indexes    []string // INDEXES (idx, ...); PRIMARY names the primary key
+}
+
+func (n *AnalyzePersistent) nodeTag() {}
 
 func (s *AnalyzeTableStmt) nodeTag()  {}
 func (s *AnalyzeTableStmt) stmtNode() {}
@@ -1996,6 +2013,7 @@ func (s *OptimizeTableStmt) stmtNode() {}
 // CheckTableStmt represents a CHECK TABLE statement.
 type CheckTableStmt struct {
 	Loc     Loc
+	View    bool // CHECK VIEW
 	Tables  []*TableRef
 	Options []string
 }
@@ -2011,6 +2029,9 @@ type RepairTableStmt struct {
 	Quick           bool
 	Extended        bool
 	UseFrm          bool
+	Force           bool
+	View            bool   // REPAIR VIEW
+	ViewOption      string // REPAIR VIEW's FOR UPGRADE or FROM MYSQL
 }
 
 func (s *RepairTableStmt) nodeTag()  {}
@@ -3053,7 +3074,8 @@ type StartReplicaStmt struct {
 	Password    string // PASSWORD = 'pass'
 	DefaultAuth string // DEFAULT_AUTH = 'plugin'
 	PluginDir   string // PLUGIN_DIR = 'dir'
-	Channel     string // FOR CHANNEL channel
+	Channel     string // the connection name, or FOR CHANNEL channel
+	AllSlaves   bool   // START ALL SLAVES
 }
 
 func (s *StartReplicaStmt) nodeTag()  {}
@@ -3068,7 +3090,8 @@ type StopReplicaStmt struct {
 	Loc       Loc
 	IOThread  bool   // IO_THREAD specified
 	SQLThread bool   // SQL_THREAD specified
-	Channel   string // FOR CHANNEL channel
+	Channel   string // the connection name, or FOR CHANNEL channel
+	AllSlaves bool   // STOP ALL SLAVES
 }
 
 func (s *StopReplicaStmt) nodeTag()  {}

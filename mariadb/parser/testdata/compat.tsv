@@ -63,21 +63,21 @@ reject	reject	engine	verb_clause/call!swap	CASCADE a;
 accept	accept	engine	verb_clause/change	CHANGE MASTER TO MASTER_HOST = 's';
 reject	reject	engine	verb_clause/change!drop-1	MASTER TO MASTER_HOST = 's';
 reject	reject	engine	verb_clause/change!drop-2	CHANGE TO MASTER_HOST = 's';
-accept	reject	engine	verb_clause/change!drop-3	CHANGE MASTER MASTER_HOST = 's';
+reject	reject	engine	verb_clause/change!drop-3	CHANGE MASTER MASTER_HOST = 's';
 reject	reject	engine	verb_clause/change!drop-4	CHANGE MASTER TO = 's';
-accept	reject	engine	verb_clause/change!drop-5	CHANGE MASTER TO MASTER_HOST 's';
+reject	reject	engine	verb_clause/change!drop-5	CHANGE MASTER TO MASTER_HOST 's';
 reject	reject	engine	verb_clause/change!drop-6	CHANGE MASTER TO MASTER_HOST =;
 reject	reject	engine	verb_clause/change!truncate	CHANGE MASTER TO MASTER_HOST =
 reject	reject	engine	verb_clause/change!insert	CHANGE MASTER TO MASTER_HOST = 's' zzz;
 reject	reject	engine	verb_clause/change!swap	CHANGED MASTER TO MASTER_HOST = 's';
 accept	accept	engine	verb_clause/check	CHECK TABLE a;
-accept	reject	engine	verb_clause/check!drop-2	CHECK a;
+reject	reject	engine	verb_clause/check!drop-2	CHECK a;
 reject	reject	engine	verb_clause/check!drop-3	CHECK TABLE;
 reject	reject	engine	verb_clause/check!truncate	CHECK TABLE
 reject	reject	engine	verb_clause/check!insert	CHECK TABLE a zzz;
 reject	reject	engine	verb_clause/check!swap	CHECKPOINT TABLE a;
 accept	accept	engine	verb_clause/checksum	CHECKSUM TABLE a;
-accept	reject	engine	verb_clause/checksum!drop-2	CHECKSUM a;
+reject	reject	engine	verb_clause/checksum!drop-2	CHECKSUM a;
 reject	reject	engine	verb_clause/checksum!drop-3	CHECKSUM TABLE;
 reject	reject	engine	verb_clause/checksum!truncate	CHECKSUM TABLE
 reject	reject	engine	verb_clause/checksum!insert	CHECKSUM TABLE a zzz;
@@ -142,8 +142,8 @@ reject	reject	engine	verb_clause/get_diagnostics!drop-1	DIAGNOSTICS @a = NUMBER;
 reject	reject	engine	verb_clause/get_diagnostics!drop-2	GET @a = NUMBER;
 reject	reject	engine	verb_clause/get_diagnostics!drop-3	GET DIAGNOSTICS = NUMBER;
 reject	reject	engine	verb_clause/get_diagnostics!drop-4	GET DIAGNOSTICS @a NUMBER;
-accept	reject	engine	verb_clause/get_diagnostics!drop-5	GET DIAGNOSTICS @a =;
-accept	reject	engine	verb_clause/get_diagnostics!truncate	GET DIAGNOSTICS @a =
+reject	reject	engine	verb_clause/get_diagnostics!drop-5	GET DIAGNOSTICS @a =;
+reject	reject	engine	verb_clause/get_diagnostics!truncate	GET DIAGNOSTICS @a =
 reject	reject	engine	verb_clause/get_diagnostics!insert	GET DIAGNOSTICS @a = NUMBER zzz;
 reject	reject	engine	verb_clause/get_diagnostics!swap	GET_FORMAT DIAGNOSTICS @a = NUMBER;
 accept	accept	engine	verb_clause/grant	GRANT a TO a;
@@ -274,7 +274,7 @@ reject	reject	engine	verb_clause/rename!truncate	RENAME TABLE a TO
 reject	reject	engine	verb_clause/rename!insert	RENAME TABLE a TO a zzz;
 reject	reject	engine	verb_clause/rename!swap	REORGANIZE TABLE a TO a;
 accept	accept	engine	verb_clause/repair	REPAIR TABLE a;
-accept	reject	engine	verb_clause/repair!drop-2	REPAIR a;
+reject	reject	engine	verb_clause/repair!drop-2	REPAIR a;
 reject	reject	engine	verb_clause/repair!drop-3	REPAIR TABLE;
 reject	reject	engine	verb_clause/repair!truncate	REPAIR TABLE
 reject	reject	engine	verb_clause/repair!insert	REPAIR TABLE a zzz;
@@ -422,195 +422,195 @@ accept	accept	engine	change/CHANGE_MASTER_SYM_optional_connection_name_TO_SYM_ma
 accept	accept	engine	master_defs/master_def	CHANGE MASTER TO MASTER_HOST = 's';
 accept	accept	engine	master_defs/master_defs_,_master_def	CHANGE MASTER TO MASTER_HOST = 's', MASTER_HOST = 's';
 reject	reject	engine	master_defs/master_defs_,_master_def!drop-1	CHANGE MASTER TO = 's', MASTER_HOST = 's';
-accept	reject	engine	master_defs/master_defs_,_master_def!drop-2	CHANGE MASTER TO MASTER_HOST 's', MASTER_HOST = 's';
+reject	reject	engine	master_defs/master_defs_,_master_def!drop-2	CHANGE MASTER TO MASTER_HOST 's', MASTER_HOST = 's';
 reject	reject	engine	master_defs/master_defs_,_master_def!drop-3	CHANGE MASTER TO MASTER_HOST =, MASTER_HOST = 's';
 reject	reject	engine	master_defs/master_defs_,_master_def!drop-4	CHANGE MASTER TO MASTER_HOST = 's' MASTER_HOST = 's';
 reject	reject	engine	master_defs/master_defs_,_master_def!drop-5	CHANGE MASTER TO MASTER_HOST = 's', = 's';
-accept	reject	engine	master_defs/master_defs_,_master_def!drop-6	CHANGE MASTER TO MASTER_HOST = 's', MASTER_HOST 's';
+reject	reject	engine	master_defs/master_defs_,_master_def!drop-6	CHANGE MASTER TO MASTER_HOST = 's', MASTER_HOST 's';
 reject	reject	engine	master_defs/master_defs_,_master_def!drop-7	CHANGE MASTER TO MASTER_HOST = 's', MASTER_HOST =;
 reject	reject	engine	master_defs/master_defs_,_master_def!truncate	CHANGE MASTER TO MASTER_HOST = 's', MASTER_HOST =
 reject	reject	engine	master_defs/master_defs_,_master_def!insert	CHANGE MASTER TO MASTER_HOST = 's', MASTER_HOST = 's' zzz;
 accept	accept	engine	master_defs/master_defs_,_master_def!swap	CHANGE MASTER TO MASTER_LOG_FILE = 's', MASTER_HOST = 's';
 accept	accept	engine	master_def/MASTER_HOST_SYM_=_TEXT_STRING_sys	CHANGE MASTER TO MASTER_HOST = 's';
 accept	accept	engine	master_def/MASTER_USER_SYM_=_TEXT_STRING_sys	CHANGE MASTER TO MASTER_USER = 's';
-accept	reject	engine	master_def/MASTER_USER_SYM_=_TEXT_STRING_sys!drop-2	CHANGE MASTER TO MASTER_USER 's';
+reject	reject	engine	master_def/MASTER_USER_SYM_=_TEXT_STRING_sys!drop-2	CHANGE MASTER TO MASTER_USER 's';
 reject	reject	engine	master_def/MASTER_USER_SYM_=_TEXT_STRING_sys!drop-3	CHANGE MASTER TO MASTER_USER =;
 reject	reject	engine	master_def/MASTER_USER_SYM_=_TEXT_STRING_sys!truncate	CHANGE MASTER TO MASTER_USER =
 reject	reject	engine	master_def/MASTER_USER_SYM_=_TEXT_STRING_sys!insert	CHANGE MASTER TO MASTER_USER = 's' zzz;
-accept	reject	engine	master_def/MASTER_USER_SYM_=_TEXT_STRING_sys!swap	CHANGE MASTER TO MASTER_USE_GTID = 's';
+reject	reject	engine	master_def/MASTER_USER_SYM_=_TEXT_STRING_sys!swap	CHANGE MASTER TO MASTER_USE_GTID = 's';
 accept	accept	engine	master_def/MASTER_PASSWORD_SYM_=_TEXT_STRING_sys	CHANGE MASTER TO MASTER_PASSWORD = 's';
-accept	reject	engine	master_def/MASTER_PASSWORD_SYM_=_TEXT_STRING_sys!drop-2	CHANGE MASTER TO MASTER_PASSWORD 's';
+reject	reject	engine	master_def/MASTER_PASSWORD_SYM_=_TEXT_STRING_sys!drop-2	CHANGE MASTER TO MASTER_PASSWORD 's';
 reject	reject	engine	master_def/MASTER_PASSWORD_SYM_=_TEXT_STRING_sys!drop-3	CHANGE MASTER TO MASTER_PASSWORD =;
 reject	reject	engine	master_def/MASTER_PASSWORD_SYM_=_TEXT_STRING_sys!truncate	CHANGE MASTER TO MASTER_PASSWORD =
 reject	reject	engine	master_def/MASTER_PASSWORD_SYM_=_TEXT_STRING_sys!insert	CHANGE MASTER TO MASTER_PASSWORD = 's' zzz;
-accept	reject	engine	master_def/MASTER_PASSWORD_SYM_=_TEXT_STRING_sys!swap	CHANGE MASTER TO MASTER_PORT = 's';
+reject	reject	engine	master_def/MASTER_PASSWORD_SYM_=_TEXT_STRING_sys!swap	CHANGE MASTER TO MASTER_PORT = 's';
 accept	accept	engine	master_def/MASTER_PORT_SYM_=_ulong_num	CHANGE MASTER TO MASTER_PORT = 1;
 reject	reject	engine	master_def/MASTER_PORT_SYM_=_ulong_num!drop-1	CHANGE MASTER TO = 1;
-accept	reject	engine	master_def/MASTER_PORT_SYM_=_ulong_num!drop-2	CHANGE MASTER TO MASTER_PORT 1;
+reject	reject	engine	master_def/MASTER_PORT_SYM_=_ulong_num!drop-2	CHANGE MASTER TO MASTER_PORT 1;
 reject	reject	engine	master_def/MASTER_PORT_SYM_=_ulong_num!drop-3	CHANGE MASTER TO MASTER_PORT =;
 reject	reject	engine	master_def/MASTER_PORT_SYM_=_ulong_num!truncate	CHANGE MASTER TO MASTER_PORT =
 reject	reject	engine	master_def/MASTER_PORT_SYM_=_ulong_num!insert	CHANGE MASTER TO MASTER_PORT = 1 zzz;
-accept	reject	engine	master_def/MASTER_PORT_SYM_=_ulong_num!swap	CHANGE MASTER TO MASTER_SERVER_ID = 1;
+reject	reject	engine	master_def/MASTER_PORT_SYM_=_ulong_num!swap	CHANGE MASTER TO MASTER_SERVER_ID = 1;
 accept	accept	engine	master_def/MASTER_CONNECT_RETRY_SYM_=_ulong_num	CHANGE MASTER TO MASTER_CONNECT_RETRY = 1;
-accept	reject	engine	master_def/MASTER_CONNECT_RETRY_SYM_=_ulong_num!drop-2	CHANGE MASTER TO MASTER_CONNECT_RETRY 1;
+reject	reject	engine	master_def/MASTER_CONNECT_RETRY_SYM_=_ulong_num!drop-2	CHANGE MASTER TO MASTER_CONNECT_RETRY 1;
 reject	reject	engine	master_def/MASTER_CONNECT_RETRY_SYM_=_ulong_num!drop-3	CHANGE MASTER TO MASTER_CONNECT_RETRY =;
 reject	reject	engine	master_def/MASTER_CONNECT_RETRY_SYM_=_ulong_num!truncate	CHANGE MASTER TO MASTER_CONNECT_RETRY =
 reject	reject	engine	master_def/MASTER_CONNECT_RETRY_SYM_=_ulong_num!insert	CHANGE MASTER TO MASTER_CONNECT_RETRY = 1 zzz;
 accept	accept	engine	master_def/MASTER_DELAY_SYM_=_ulong_num	CHANGE MASTER TO MASTER_DELAY = 1;
-accept	reject	engine	master_def/MASTER_DELAY_SYM_=_ulong_num!drop-2	CHANGE MASTER TO MASTER_DELAY 1;
+reject	reject	engine	master_def/MASTER_DELAY_SYM_=_ulong_num!drop-2	CHANGE MASTER TO MASTER_DELAY 1;
 reject	reject	engine	master_def/MASTER_DELAY_SYM_=_ulong_num!drop-3	CHANGE MASTER TO MASTER_DELAY =;
 reject	reject	engine	master_def/MASTER_DELAY_SYM_=_ulong_num!truncate	CHANGE MASTER TO MASTER_DELAY =
 reject	reject	engine	master_def/MASTER_DELAY_SYM_=_ulong_num!insert	CHANGE MASTER TO MASTER_DELAY = 1 zzz;
 accept	accept	engine	master_def/MASTER_SSL_SYM_=_ulong_num	CHANGE MASTER TO MASTER_SSL = 1;
-accept	reject	engine	master_def/MASTER_SSL_SYM_=_ulong_num!drop-2	CHANGE MASTER TO MASTER_SSL 1;
+reject	reject	engine	master_def/MASTER_SSL_SYM_=_ulong_num!drop-2	CHANGE MASTER TO MASTER_SSL 1;
 reject	reject	engine	master_def/MASTER_SSL_SYM_=_ulong_num!drop-3	CHANGE MASTER TO MASTER_SSL =;
 reject	reject	engine	master_def/MASTER_SSL_SYM_=_ulong_num!truncate	CHANGE MASTER TO MASTER_SSL =
 reject	reject	engine	master_def/MASTER_SSL_SYM_=_ulong_num!insert	CHANGE MASTER TO MASTER_SSL = 1 zzz;
-accept	reject	engine	master_def/MASTER_SSL_SYM_=_ulong_num!swap	CHANGE MASTER TO MASTER_SSL_CA = 1;
+reject	reject	engine	master_def/MASTER_SSL_SYM_=_ulong_num!swap	CHANGE MASTER TO MASTER_SSL_CA = 1;
 accept	accept	engine	master_def/MASTER_SSL_CA_SYM_=_TEXT_STRING_sys	CHANGE MASTER TO MASTER_SSL_CA = 's';
-accept	reject	engine	master_def/MASTER_SSL_CA_SYM_=_TEXT_STRING_sys!drop-2	CHANGE MASTER TO MASTER_SSL_CA 's';
+reject	reject	engine	master_def/MASTER_SSL_CA_SYM_=_TEXT_STRING_sys!drop-2	CHANGE MASTER TO MASTER_SSL_CA 's';
 reject	reject	engine	master_def/MASTER_SSL_CA_SYM_=_TEXT_STRING_sys!drop-3	CHANGE MASTER TO MASTER_SSL_CA =;
 reject	reject	engine	master_def/MASTER_SSL_CA_SYM_=_TEXT_STRING_sys!truncate	CHANGE MASTER TO MASTER_SSL_CA =
 reject	reject	engine	master_def/MASTER_SSL_CA_SYM_=_TEXT_STRING_sys!insert	CHANGE MASTER TO MASTER_SSL_CA = 's' zzz;
 accept	accept	engine	master_def/MASTER_SSL_CAPATH_SYM_=_TEXT_STRING_sys	CHANGE MASTER TO MASTER_SSL_CAPATH = 's';
-accept	reject	engine	master_def/MASTER_SSL_CAPATH_SYM_=_TEXT_STRING_sys!drop-2	CHANGE MASTER TO MASTER_SSL_CAPATH 's';
+reject	reject	engine	master_def/MASTER_SSL_CAPATH_SYM_=_TEXT_STRING_sys!drop-2	CHANGE MASTER TO MASTER_SSL_CAPATH 's';
 reject	reject	engine	master_def/MASTER_SSL_CAPATH_SYM_=_TEXT_STRING_sys!drop-3	CHANGE MASTER TO MASTER_SSL_CAPATH =;
 reject	reject	engine	master_def/MASTER_SSL_CAPATH_SYM_=_TEXT_STRING_sys!truncate	CHANGE MASTER TO MASTER_SSL_CAPATH =
 reject	reject	engine	master_def/MASTER_SSL_CAPATH_SYM_=_TEXT_STRING_sys!insert	CHANGE MASTER TO MASTER_SSL_CAPATH = 's' zzz;
 accept	accept	engine	master_def/MASTER_SSL_CERT_SYM_=_TEXT_STRING_sys	CHANGE MASTER TO MASTER_SSL_CERT = 's';
-accept	reject	engine	master_def/MASTER_SSL_CERT_SYM_=_TEXT_STRING_sys!drop-2	CHANGE MASTER TO MASTER_SSL_CERT 's';
+reject	reject	engine	master_def/MASTER_SSL_CERT_SYM_=_TEXT_STRING_sys!drop-2	CHANGE MASTER TO MASTER_SSL_CERT 's';
 reject	reject	engine	master_def/MASTER_SSL_CERT_SYM_=_TEXT_STRING_sys!drop-3	CHANGE MASTER TO MASTER_SSL_CERT =;
 reject	reject	engine	master_def/MASTER_SSL_CERT_SYM_=_TEXT_STRING_sys!truncate	CHANGE MASTER TO MASTER_SSL_CERT =
 reject	reject	engine	master_def/MASTER_SSL_CERT_SYM_=_TEXT_STRING_sys!insert	CHANGE MASTER TO MASTER_SSL_CERT = 's' zzz;
 accept	accept	engine	master_def/MASTER_SSL_CIPHER_SYM_=_TEXT_STRING_sys	CHANGE MASTER TO MASTER_SSL_CIPHER = 's';
-accept	reject	engine	master_def/MASTER_SSL_CIPHER_SYM_=_TEXT_STRING_sys!drop-2	CHANGE MASTER TO MASTER_SSL_CIPHER 's';
+reject	reject	engine	master_def/MASTER_SSL_CIPHER_SYM_=_TEXT_STRING_sys!drop-2	CHANGE MASTER TO MASTER_SSL_CIPHER 's';
 reject	reject	engine	master_def/MASTER_SSL_CIPHER_SYM_=_TEXT_STRING_sys!drop-3	CHANGE MASTER TO MASTER_SSL_CIPHER =;
 reject	reject	engine	master_def/MASTER_SSL_CIPHER_SYM_=_TEXT_STRING_sys!truncate	CHANGE MASTER TO MASTER_SSL_CIPHER =
 reject	reject	engine	master_def/MASTER_SSL_CIPHER_SYM_=_TEXT_STRING_sys!insert	CHANGE MASTER TO MASTER_SSL_CIPHER = 's' zzz;
 accept	accept	engine	master_def/MASTER_SSL_KEY_SYM_=_TEXT_STRING_sys	CHANGE MASTER TO MASTER_SSL_KEY = 's';
-accept	reject	engine	master_def/MASTER_SSL_KEY_SYM_=_TEXT_STRING_sys!drop-2	CHANGE MASTER TO MASTER_SSL_KEY 's';
+reject	reject	engine	master_def/MASTER_SSL_KEY_SYM_=_TEXT_STRING_sys!drop-2	CHANGE MASTER TO MASTER_SSL_KEY 's';
 reject	reject	engine	master_def/MASTER_SSL_KEY_SYM_=_TEXT_STRING_sys!drop-3	CHANGE MASTER TO MASTER_SSL_KEY =;
 reject	reject	engine	master_def/MASTER_SSL_KEY_SYM_=_TEXT_STRING_sys!truncate	CHANGE MASTER TO MASTER_SSL_KEY =
 reject	reject	engine	master_def/MASTER_SSL_KEY_SYM_=_TEXT_STRING_sys!insert	CHANGE MASTER TO MASTER_SSL_KEY = 's' zzz;
-accept	reject	engine	master_def/MASTER_SSL_KEY_SYM_=_TEXT_STRING_sys!swap	CHANGE MASTER TO MASTER_SSL_VERIFY_SERVER_CERT = 's';
+reject	reject	engine	master_def/MASTER_SSL_KEY_SYM_=_TEXT_STRING_sys!swap	CHANGE MASTER TO MASTER_SSL_VERIFY_SERVER_CERT = 's';
 accept	accept	engine	master_def/MASTER_SSL_VERIFY_SERVER_CERT_SYM_=_ulong_num	CHANGE MASTER TO MASTER_SSL_VERIFY_SERVER_CERT = 1;
-accept	reject	engine	master_def/MASTER_SSL_VERIFY_SERVER_CERT_SYM_=_ulong_num!drop-2	CHANGE MASTER TO MASTER_SSL_VERIFY_SERVER_CERT 1;
+reject	reject	engine	master_def/MASTER_SSL_VERIFY_SERVER_CERT_SYM_=_ulong_num!drop-2	CHANGE MASTER TO MASTER_SSL_VERIFY_SERVER_CERT 1;
 reject	reject	engine	master_def/MASTER_SSL_VERIFY_SERVER_CERT_SYM_=_ulong_num!drop-3	CHANGE MASTER TO MASTER_SSL_VERIFY_SERVER_CERT =;
 reject	reject	engine	master_def/MASTER_SSL_VERIFY_SERVER_CERT_SYM_=_ulong_num!truncate	CHANGE MASTER TO MASTER_SSL_VERIFY_SERVER_CERT =
 reject	reject	engine	master_def/MASTER_SSL_VERIFY_SERVER_CERT_SYM_=_ulong_num!insert	CHANGE MASTER TO MASTER_SSL_VERIFY_SERVER_CERT = 1 zzz;
-accept	reject	engine	master_def/MASTER_SSL_VERIFY_SERVER_CERT_SYM_=_ulong_num!swap	CHANGE MASTER TO MASTER_USER = 1;
+reject	reject	engine	master_def/MASTER_SSL_VERIFY_SERVER_CERT_SYM_=_ulong_num!swap	CHANGE MASTER TO MASTER_USER = 1;
 accept	accept	engine	master_def/MASTER_SSL_CRL_SYM_=_TEXT_STRING_sys	CHANGE MASTER TO MASTER_SSL_CRL = 's';
-accept	reject	engine	master_def/MASTER_SSL_CRL_SYM_=_TEXT_STRING_sys!drop-2	CHANGE MASTER TO MASTER_SSL_CRL 's';
+reject	reject	engine	master_def/MASTER_SSL_CRL_SYM_=_TEXT_STRING_sys!drop-2	CHANGE MASTER TO MASTER_SSL_CRL 's';
 reject	reject	engine	master_def/MASTER_SSL_CRL_SYM_=_TEXT_STRING_sys!drop-3	CHANGE MASTER TO MASTER_SSL_CRL =;
 reject	reject	engine	master_def/MASTER_SSL_CRL_SYM_=_TEXT_STRING_sys!truncate	CHANGE MASTER TO MASTER_SSL_CRL =
 reject	reject	engine	master_def/MASTER_SSL_CRL_SYM_=_TEXT_STRING_sys!insert	CHANGE MASTER TO MASTER_SSL_CRL = 's' zzz;
 accept	accept	engine	master_def/MASTER_SSL_CRLPATH_SYM_=_TEXT_STRING_sys	CHANGE MASTER TO MASTER_SSL_CRLPATH = 's';
-accept	reject	engine	master_def/MASTER_SSL_CRLPATH_SYM_=_TEXT_STRING_sys!drop-2	CHANGE MASTER TO MASTER_SSL_CRLPATH 's';
+reject	reject	engine	master_def/MASTER_SSL_CRLPATH_SYM_=_TEXT_STRING_sys!drop-2	CHANGE MASTER TO MASTER_SSL_CRLPATH 's';
 reject	reject	engine	master_def/MASTER_SSL_CRLPATH_SYM_=_TEXT_STRING_sys!drop-3	CHANGE MASTER TO MASTER_SSL_CRLPATH =;
 reject	reject	engine	master_def/MASTER_SSL_CRLPATH_SYM_=_TEXT_STRING_sys!truncate	CHANGE MASTER TO MASTER_SSL_CRLPATH =
 reject	reject	engine	master_def/MASTER_SSL_CRLPATH_SYM_=_TEXT_STRING_sys!insert	CHANGE MASTER TO MASTER_SSL_CRLPATH = 's' zzz;
 accept	accept	engine	master_def/MASTER_HEARTBEAT_PERIOD_SYM_=_opt_plus_NUM_literal	CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD = 1;
-accept	reject	engine	master_def/MASTER_HEARTBEAT_PERIOD_SYM_=_opt_plus_NUM_literal!drop-2	CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD 1;
+reject	reject	engine	master_def/MASTER_HEARTBEAT_PERIOD_SYM_=_opt_plus_NUM_literal!drop-2	CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD 1;
 reject	reject	engine	master_def/MASTER_HEARTBEAT_PERIOD_SYM_=_opt_plus_NUM_literal!drop-3	CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD =;
 reject	reject	engine	master_def/MASTER_HEARTBEAT_PERIOD_SYM_=_opt_plus_NUM_literal!truncate	CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD =
 reject	reject	engine	master_def/MASTER_HEARTBEAT_PERIOD_SYM_=_opt_plus_NUM_literal!insert	CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD = 1 zzz;
-accept	reject	engine	master_def/MASTER_HEARTBEAT_PERIOD_SYM_=_opt_plus_NUM_literal!swap	CHANGE MASTER TO MASTER_HOST = 1;
+reject	reject	engine	master_def/MASTER_HEARTBEAT_PERIOD_SYM_=_opt_plus_NUM_literal!swap	CHANGE MASTER TO MASTER_HOST = 1;
 accept	accept	engine	master_def/IGNORE_SERVER_IDS_SYM_=_(_ignore_server_id_list_)	CHANGE MASTER TO IGNORE_SERVER_IDS =();
 reject	reject	engine	master_def/IGNORE_SERVER_IDS_SYM_=_(_ignore_server_id_list_)!drop-1	CHANGE MASTER TO =();
-accept	reject	engine	master_def/IGNORE_SERVER_IDS_SYM_=_(_ignore_server_id_list_)!drop-2	CHANGE MASTER TO IGNORE_SERVER_IDS();
-accept	reject	engine	master_def/IGNORE_SERVER_IDS_SYM_=_(_ignore_server_id_list_)!drop-3	CHANGE MASTER TO IGNORE_SERVER_IDS =);
+reject	reject	engine	master_def/IGNORE_SERVER_IDS_SYM_=_(_ignore_server_id_list_)!drop-2	CHANGE MASTER TO IGNORE_SERVER_IDS();
+reject	reject	engine	master_def/IGNORE_SERVER_IDS_SYM_=_(_ignore_server_id_list_)!drop-3	CHANGE MASTER TO IGNORE_SERVER_IDS =);
 reject	reject	engine	master_def/IGNORE_SERVER_IDS_SYM_=_(_ignore_server_id_list_)!drop-4	CHANGE MASTER TO IGNORE_SERVER_IDS =(;
 reject	reject	engine	master_def/IGNORE_SERVER_IDS_SYM_=_(_ignore_server_id_list_)!truncate	CHANGE MASTER TO IGNORE_SERVER_IDS =(
 reject	reject	engine	master_def/IGNORE_SERVER_IDS_SYM_=_(_ignore_server_id_list_)!insert	CHANGE MASTER TO IGNORE_SERVER_IDS =() zzz;
 reject	reject	engine	master_def/IGNORE_SERVER_IDS_SYM_=_(_ignore_server_id_list_)!swap	CHANGE MASTER TO IMMEDIATE =();
-reject	accept	engine	master_def/DO_DOMAIN_IDS_SYM_=_(_do_domain_id_list_)	CHANGE MASTER TO DO_DOMAIN_IDS =();
+accept	accept	engine	master_def/DO_DOMAIN_IDS_SYM_=_(_do_domain_id_list_)	CHANGE MASTER TO DO_DOMAIN_IDS =();
 reject	reject	engine	master_def/DO_DOMAIN_IDS_SYM_=_(_do_domain_id_list_)!drop-2	CHANGE MASTER TO DO_DOMAIN_IDS();
 reject	reject	engine	master_def/DO_DOMAIN_IDS_SYM_=_(_do_domain_id_list_)!drop-3	CHANGE MASTER TO DO_DOMAIN_IDS =);
 reject	reject	engine	master_def/DO_DOMAIN_IDS_SYM_=_(_do_domain_id_list_)!drop-4	CHANGE MASTER TO DO_DOMAIN_IDS =(;
 reject	reject	engine	master_def/DO_DOMAIN_IDS_SYM_=_(_do_domain_id_list_)!truncate	CHANGE MASTER TO DO_DOMAIN_IDS =(
 reject	reject	engine	master_def/DO_DOMAIN_IDS_SYM_=_(_do_domain_id_list_)!insert	CHANGE MASTER TO DO_DOMAIN_IDS =() zzz;
 reject	reject	engine	master_def/DO_DOMAIN_IDS_SYM_=_(_do_domain_id_list_)!swap	CHANGE MASTER TO DROP =();
-reject	accept	engine	master_def/IGNORE_DOMAIN_IDS_SYM_=_(_ignore_domain_id_list_)	CHANGE MASTER TO IGNORE_DOMAIN_IDS =();
+accept	accept	engine	master_def/IGNORE_DOMAIN_IDS_SYM_=_(_ignore_domain_id_list_)	CHANGE MASTER TO IGNORE_DOMAIN_IDS =();
 reject	reject	engine	master_def/IGNORE_DOMAIN_IDS_SYM_=_(_ignore_domain_id_list_)!drop-2	CHANGE MASTER TO IGNORE_DOMAIN_IDS();
 reject	reject	engine	master_def/IGNORE_DOMAIN_IDS_SYM_=_(_ignore_domain_id_list_)!drop-3	CHANGE MASTER TO IGNORE_DOMAIN_IDS =);
 reject	reject	engine	master_def/IGNORE_DOMAIN_IDS_SYM_=_(_ignore_domain_id_list_)!drop-4	CHANGE MASTER TO IGNORE_DOMAIN_IDS =(;
 reject	reject	engine	master_def/IGNORE_DOMAIN_IDS_SYM_=_(_ignore_domain_id_list_)!truncate	CHANGE MASTER TO IGNORE_DOMAIN_IDS =(
 reject	reject	engine	master_def/IGNORE_DOMAIN_IDS_SYM_=_(_ignore_domain_id_list_)!insert	CHANGE MASTER TO IGNORE_DOMAIN_IDS =() zzz;
 accept	accept	engine	master_def/master_file_def	CHANGE MASTER TO MASTER_LOG_FILE = 's';
-accept	reject	engine	master_def/master_file_def!drop-2	CHANGE MASTER TO MASTER_LOG_FILE 's';
+reject	reject	engine	master_def/master_file_def!drop-2	CHANGE MASTER TO MASTER_LOG_FILE 's';
 reject	reject	engine	master_def/master_file_def!drop-3	CHANGE MASTER TO MASTER_LOG_FILE =;
 reject	reject	engine	master_def/master_file_def!truncate	CHANGE MASTER TO MASTER_LOG_FILE =
 reject	reject	engine	master_def/master_file_def!insert	CHANGE MASTER TO MASTER_LOG_FILE = 's' zzz;
-accept	reject	engine	master_def/master_file_def!swap	CHANGE MASTER TO MASTER_LOG_POS = 's';
+reject	reject	engine	master_def/master_file_def!swap	CHANGE MASTER TO MASTER_LOG_POS = 's';
 accept	accept	engine	ignore_server_id_list/%empty	CHANGE MASTER TO IGNORE_SERVER_IDS =();
 reject	reject	engine	ignore_server_id_list/%empty!insert	CHANGE MASTER TO IGNORE_SERVER_IDS =(zzz);
 accept	accept	engine	ignore_server_id_list/ignore_server_id	CHANGE MASTER TO IGNORE_SERVER_IDS =(1);
 reject	reject	engine	ignore_server_id_list/ignore_server_id!insert	CHANGE MASTER TO IGNORE_SERVER_IDS =(1 zzz);
-reject	accept	engine	ignore_server_id_list/ignore_server_id_list_,_ignore_server_id	CHANGE MASTER TO IGNORE_SERVER_IDS =(, 1);
+accept	accept	engine	ignore_server_id_list/ignore_server_id_list_,_ignore_server_id	CHANGE MASTER TO IGNORE_SERVER_IDS =(, 1);
 reject	reject	engine	ignore_server_id_list/ignore_server_id_list_,_ignore_server_id!drop-2	CHANGE MASTER TO IGNORE_SERVER_IDS =(,);
 reject	reject	engine	ignore_server_id_list/ignore_server_id_list_,_ignore_server_id!truncate	CHANGE MASTER TO IGNORE_SERVER_IDS =(,
 reject	reject	engine	ignore_server_id_list/ignore_server_id_list_,_ignore_server_id!insert	CHANGE MASTER TO IGNORE_SERVER_IDS =(, 1 zzz);
 accept	accept	engine	ignore_server_id/ulong_num	CHANGE MASTER TO IGNORE_SERVER_IDS =(1);
-reject	accept	engine	do_domain_id_list/%empty	CHANGE MASTER TO DO_DOMAIN_IDS =();
+accept	accept	engine	do_domain_id_list/%empty	CHANGE MASTER TO DO_DOMAIN_IDS =();
 reject	reject	engine	do_domain_id_list/%empty!insert	CHANGE MASTER TO DO_DOMAIN_IDS =(zzz);
-reject	accept	engine	do_domain_id_list/do_domain_id	CHANGE MASTER TO DO_DOMAIN_IDS =(1);
+accept	accept	engine	do_domain_id_list/do_domain_id	CHANGE MASTER TO DO_DOMAIN_IDS =(1);
 reject	reject	engine	do_domain_id_list/do_domain_id!insert	CHANGE MASTER TO DO_DOMAIN_IDS =(1 zzz);
-reject	accept	engine	do_domain_id_list/do_domain_id_list_,_do_domain_id	CHANGE MASTER TO DO_DOMAIN_IDS =(, 1);
+accept	accept	engine	do_domain_id_list/do_domain_id_list_,_do_domain_id	CHANGE MASTER TO DO_DOMAIN_IDS =(, 1);
 reject	reject	engine	do_domain_id_list/do_domain_id_list_,_do_domain_id!drop-2	CHANGE MASTER TO DO_DOMAIN_IDS =(,);
 reject	reject	engine	do_domain_id_list/do_domain_id_list_,_do_domain_id!truncate	CHANGE MASTER TO DO_DOMAIN_IDS =(,
 reject	reject	engine	do_domain_id_list/do_domain_id_list_,_do_domain_id!insert	CHANGE MASTER TO DO_DOMAIN_IDS =(, 1 zzz);
-reject	accept	engine	do_domain_id/ulong_num	CHANGE MASTER TO DO_DOMAIN_IDS =(1);
-reject	accept	engine	ignore_domain_id_list/%empty	CHANGE MASTER TO IGNORE_DOMAIN_IDS =();
+accept	accept	engine	do_domain_id/ulong_num	CHANGE MASTER TO DO_DOMAIN_IDS =(1);
+accept	accept	engine	ignore_domain_id_list/%empty	CHANGE MASTER TO IGNORE_DOMAIN_IDS =();
 reject	reject	engine	ignore_domain_id_list/%empty!insert	CHANGE MASTER TO IGNORE_DOMAIN_IDS =(zzz);
-reject	accept	engine	ignore_domain_id_list/ignore_domain_id	CHANGE MASTER TO IGNORE_DOMAIN_IDS =(1);
+accept	accept	engine	ignore_domain_id_list/ignore_domain_id	CHANGE MASTER TO IGNORE_DOMAIN_IDS =(1);
 reject	reject	engine	ignore_domain_id_list/ignore_domain_id!insert	CHANGE MASTER TO IGNORE_DOMAIN_IDS =(1 zzz);
-reject	accept	engine	ignore_domain_id_list/ignore_domain_id_list_,_ignore_domain_id	CHANGE MASTER TO IGNORE_DOMAIN_IDS =(, 1);
+accept	accept	engine	ignore_domain_id_list/ignore_domain_id_list_,_ignore_domain_id	CHANGE MASTER TO IGNORE_DOMAIN_IDS =(, 1);
 reject	reject	engine	ignore_domain_id_list/ignore_domain_id_list_,_ignore_domain_id!drop-2	CHANGE MASTER TO IGNORE_DOMAIN_IDS =(,);
 reject	reject	engine	ignore_domain_id_list/ignore_domain_id_list_,_ignore_domain_id!truncate	CHANGE MASTER TO IGNORE_DOMAIN_IDS =(,
 reject	reject	engine	ignore_domain_id_list/ignore_domain_id_list_,_ignore_domain_id!insert	CHANGE MASTER TO IGNORE_DOMAIN_IDS =(, 1 zzz);
-reject	accept	engine	ignore_domain_id/ulong_num	CHANGE MASTER TO IGNORE_DOMAIN_IDS =(1);
+accept	accept	engine	ignore_domain_id/ulong_num	CHANGE MASTER TO IGNORE_DOMAIN_IDS =(1);
 accept	accept	engine	master_file_def/MASTER_LOG_FILE_SYM_=_TEXT_STRING_sys	CHANGE MASTER TO MASTER_LOG_FILE = 's';
 accept	accept	engine	master_file_def/MASTER_LOG_POS_SYM_=_ulonglong_num	CHANGE MASTER TO MASTER_LOG_POS = 1;
-accept	reject	engine	master_file_def/MASTER_LOG_POS_SYM_=_ulonglong_num!drop-2	CHANGE MASTER TO MASTER_LOG_POS 1;
+reject	reject	engine	master_file_def/MASTER_LOG_POS_SYM_=_ulonglong_num!drop-2	CHANGE MASTER TO MASTER_LOG_POS 1;
 reject	reject	engine	master_file_def/MASTER_LOG_POS_SYM_=_ulonglong_num!drop-3	CHANGE MASTER TO MASTER_LOG_POS =;
 reject	reject	engine	master_file_def/MASTER_LOG_POS_SYM_=_ulonglong_num!truncate	CHANGE MASTER TO MASTER_LOG_POS =
 reject	reject	engine	master_file_def/MASTER_LOG_POS_SYM_=_ulonglong_num!insert	CHANGE MASTER TO MASTER_LOG_POS = 1 zzz;
-accept	reject	engine	master_file_def/MASTER_LOG_POS_SYM_=_ulonglong_num!swap	CHANGE MASTER TO MASTER_PASSWORD = 1;
+reject	reject	engine	master_file_def/MASTER_LOG_POS_SYM_=_ulonglong_num!swap	CHANGE MASTER TO MASTER_PASSWORD = 1;
 accept	accept	engine	master_file_def/RELAY_LOG_FILE_SYM_=_TEXT_STRING_sys	CHANGE MASTER TO RELAY_LOG_FILE = 's';
-accept	reject	engine	master_file_def/RELAY_LOG_FILE_SYM_=_TEXT_STRING_sys!drop-2	CHANGE MASTER TO RELAY_LOG_FILE 's';
+reject	reject	engine	master_file_def/RELAY_LOG_FILE_SYM_=_TEXT_STRING_sys!drop-2	CHANGE MASTER TO RELAY_LOG_FILE 's';
 reject	reject	engine	master_file_def/RELAY_LOG_FILE_SYM_=_TEXT_STRING_sys!drop-3	CHANGE MASTER TO RELAY_LOG_FILE =;
 reject	reject	engine	master_file_def/RELAY_LOG_FILE_SYM_=_TEXT_STRING_sys!truncate	CHANGE MASTER TO RELAY_LOG_FILE =
 reject	reject	engine	master_file_def/RELAY_LOG_FILE_SYM_=_TEXT_STRING_sys!insert	CHANGE MASTER TO RELAY_LOG_FILE = 's' zzz;
-accept	reject	engine	master_file_def/RELAY_LOG_FILE_SYM_=_TEXT_STRING_sys!swap	CHANGE MASTER TO RELAY_LOG_POS = 's';
+reject	reject	engine	master_file_def/RELAY_LOG_FILE_SYM_=_TEXT_STRING_sys!swap	CHANGE MASTER TO RELAY_LOG_POS = 's';
 accept	accept	engine	master_file_def/RELAY_LOG_POS_SYM_=_ulong_num	CHANGE MASTER TO RELAY_LOG_POS = 1;
-accept	reject	engine	master_file_def/RELAY_LOG_POS_SYM_=_ulong_num!drop-2	CHANGE MASTER TO RELAY_LOG_POS 1;
+reject	reject	engine	master_file_def/RELAY_LOG_POS_SYM_=_ulong_num!drop-2	CHANGE MASTER TO RELAY_LOG_POS 1;
 reject	reject	engine	master_file_def/RELAY_LOG_POS_SYM_=_ulong_num!drop-3	CHANGE MASTER TO RELAY_LOG_POS =;
 reject	reject	engine	master_file_def/RELAY_LOG_POS_SYM_=_ulong_num!truncate	CHANGE MASTER TO RELAY_LOG_POS =
 reject	reject	engine	master_file_def/RELAY_LOG_POS_SYM_=_ulong_num!insert	CHANGE MASTER TO RELAY_LOG_POS = 1 zzz;
-accept	reject	engine	master_file_def/RELAY_LOG_POS_SYM_=_ulong_num!swap	CHANGE MASTER TO RELAY_THREAD = 1;
+reject	reject	engine	master_file_def/RELAY_LOG_POS_SYM_=_ulong_num!swap	CHANGE MASTER TO RELAY_THREAD = 1;
 accept	accept	engine	master_file_def/MASTER_USE_GTID_SYM_=_CURRENT_POS_SYM	CHANGE MASTER TO MASTER_USE_GTID = CURRENT_POS;
 reject	reject	engine	master_file_def/MASTER_USE_GTID_SYM_=_CURRENT_POS_SYM!drop-1	CHANGE MASTER TO = CURRENT_POS;
-accept	reject	engine	master_file_def/MASTER_USE_GTID_SYM_=_CURRENT_POS_SYM!drop-2	CHANGE MASTER TO MASTER_USE_GTID CURRENT_POS;
+reject	reject	engine	master_file_def/MASTER_USE_GTID_SYM_=_CURRENT_POS_SYM!drop-2	CHANGE MASTER TO MASTER_USE_GTID CURRENT_POS;
 reject	reject	engine	master_file_def/MASTER_USE_GTID_SYM_=_CURRENT_POS_SYM!drop-3	CHANGE MASTER TO MASTER_USE_GTID =;
 reject	reject	engine	master_file_def/MASTER_USE_GTID_SYM_=_CURRENT_POS_SYM!truncate	CHANGE MASTER TO MASTER_USE_GTID =
 reject	reject	engine	master_file_def/MASTER_USE_GTID_SYM_=_CURRENT_POS_SYM!insert	CHANGE MASTER TO MASTER_USE_GTID = CURRENT_POS zzz;
-accept	reject	engine	master_file_def/MASTER_USE_GTID_SYM_=_CURRENT_POS_SYM!swap	CHANGE MASTER TO MATCH = CURRENT_POS;
+reject	reject	engine	master_file_def/MASTER_USE_GTID_SYM_=_CURRENT_POS_SYM!swap	CHANGE MASTER TO MATCH = CURRENT_POS;
 accept	accept	engine	master_file_def/MASTER_USE_GTID_SYM_=_SLAVE_POS_SYM	CHANGE MASTER TO MASTER_USE_GTID = SLAVE_POS;
 reject	reject	engine	master_file_def/MASTER_USE_GTID_SYM_=_SLAVE_POS_SYM!drop-1	CHANGE MASTER TO = SLAVE_POS;
-accept	reject	engine	master_file_def/MASTER_USE_GTID_SYM_=_SLAVE_POS_SYM!drop-2	CHANGE MASTER TO MASTER_USE_GTID SLAVE_POS;
+reject	reject	engine	master_file_def/MASTER_USE_GTID_SYM_=_SLAVE_POS_SYM!drop-2	CHANGE MASTER TO MASTER_USE_GTID SLAVE_POS;
 reject	reject	engine	master_file_def/MASTER_USE_GTID_SYM_=_SLAVE_POS_SYM!insert	CHANGE MASTER TO MASTER_USE_GTID = SLAVE_POS zzz;
-accept	reject	engine	master_file_def/MASTER_USE_GTID_SYM_=_SLAVE_POS_SYM!swap	CHANGE MASTER TO MATCH = SLAVE_POS;
+reject	reject	engine	master_file_def/MASTER_USE_GTID_SYM_=_SLAVE_POS_SYM!swap	CHANGE MASTER TO MATCH = SLAVE_POS;
 accept	accept	engine	master_file_def/MASTER_USE_GTID_SYM_=_NO_SYM	CHANGE MASTER TO MASTER_USE_GTID = NO;
 reject	reject	engine	master_file_def/MASTER_USE_GTID_SYM_=_NO_SYM!drop-1	CHANGE MASTER TO = NO;
-accept	reject	engine	master_file_def/MASTER_USE_GTID_SYM_=_NO_SYM!drop-2	CHANGE MASTER TO MASTER_USE_GTID NO;
+reject	reject	engine	master_file_def/MASTER_USE_GTID_SYM_=_NO_SYM!drop-2	CHANGE MASTER TO MASTER_USE_GTID NO;
 reject	reject	engine	master_file_def/MASTER_USE_GTID_SYM_=_NO_SYM!insert	CHANGE MASTER TO MASTER_USE_GTID = NO zzz;
-accept	reject	engine	master_file_def/MASTER_USE_GTID_SYM_=_NO_SYM!swap	CHANGE MASTER TO MATCH = NO;
+reject	reject	engine	master_file_def/MASTER_USE_GTID_SYM_=_NO_SYM!swap	CHANGE MASTER TO MATCH = NO;
 accept	accept	engine	master_file_def/MASTER_DEMOTE_TO_SLAVE_SYM_=_bool	CHANGE MASTER TO MASTER_DEMOTE_TO_SLAVE = 1;
-accept	reject	engine	master_file_def/MASTER_DEMOTE_TO_SLAVE_SYM_=_bool!drop-2	CHANGE MASTER TO MASTER_DEMOTE_TO_SLAVE 1;
+reject	reject	engine	master_file_def/MASTER_DEMOTE_TO_SLAVE_SYM_=_bool!drop-2	CHANGE MASTER TO MASTER_DEMOTE_TO_SLAVE 1;
 reject	reject	engine	master_file_def/MASTER_DEMOTE_TO_SLAVE_SYM_=_bool!drop-3	CHANGE MASTER TO MASTER_DEMOTE_TO_SLAVE =;
 reject	reject	engine	master_file_def/MASTER_DEMOTE_TO_SLAVE_SYM_=_bool!truncate	CHANGE MASTER TO MASTER_DEMOTE_TO_SLAVE =
 reject	reject	engine	master_file_def/MASTER_DEMOTE_TO_SLAVE_SYM_=_bool!insert	CHANGE MASTER TO MASTER_DEMOTE_TO_SLAVE = 1 zzz;
-accept	reject	engine	master_file_def/MASTER_DEMOTE_TO_SLAVE_SYM_=_bool!swap	CHANGE MASTER TO MASTER_GTID_POS = 1;
+reject	reject	engine	master_file_def/MASTER_DEMOTE_TO_SLAVE_SYM_=_bool!swap	CHANGE MASTER TO MASTER_GTID_POS = 1;
 accept	accept	engine	optional_connection_name/%empty	FLUSH SLAVE;
 reject	reject	engine	optional_connection_name/%empty!insert	FLUSH SLAVE zzz;
 accept	accept	engine	optional_connection_name/connection_name	FLUSH SLAVE 's';
@@ -753,16 +753,16 @@ accept	accept	engine	create/create_or_replace_server_def	CREATE SERVER a FOREIGN
 reject	reject	engine	create/create_or_replace_server_def!drop-1	SERVER a FOREIGN DATA WRAPPER a OPTIONS(USER 's');
 reject	reject	engine	create/create_or_replace_server_def!drop-2	CREATE a FOREIGN DATA WRAPPER a OPTIONS(USER 's');
 reject	reject	engine	create/create_or_replace_server_def!drop-3	CREATE SERVER FOREIGN DATA WRAPPER a OPTIONS(USER 's');
-accept	reject	engine	create/create_or_replace_server_def!drop-4	CREATE SERVER a DATA WRAPPER a OPTIONS(USER 's');
-accept	reject	engine	create/create_or_replace_server_def!drop-5	CREATE SERVER a FOREIGN WRAPPER a OPTIONS(USER 's');
-accept	reject	engine	create/create_or_replace_server_def!drop-6	CREATE SERVER a FOREIGN DATA a OPTIONS(USER 's');
+reject	reject	engine	create/create_or_replace_server_def!drop-4	CREATE SERVER a DATA WRAPPER a OPTIONS(USER 's');
+reject	reject	engine	create/create_or_replace_server_def!drop-5	CREATE SERVER a FOREIGN WRAPPER a OPTIONS(USER 's');
+reject	reject	engine	create/create_or_replace_server_def!drop-6	CREATE SERVER a FOREIGN DATA a OPTIONS(USER 's');
 reject	reject	engine	create/create_or_replace_server_def!drop-7	CREATE SERVER a FOREIGN DATA WRAPPER OPTIONS(USER 's');
 reject	reject	engine	create/create_or_replace_server_def!drop-8	CREATE SERVER a FOREIGN DATA WRAPPER a(USER 's');
-accept	reject	engine	create/create_or_replace_server_def!drop-9	CREATE SERVER a FOREIGN DATA WRAPPER a OPTIONS USER 's');
-accept	reject	engine	create/create_or_replace_server_def!drop-10	CREATE SERVER a FOREIGN DATA WRAPPER a OPTIONS('s');
-accept	reject	engine	create/create_or_replace_server_def!drop-11	CREATE SERVER a FOREIGN DATA WRAPPER a OPTIONS(USER);
-accept	reject	engine	create/create_or_replace_server_def!drop-12	CREATE SERVER a FOREIGN DATA WRAPPER a OPTIONS(USER 's';
-accept	reject	engine	create/create_or_replace_server_def!truncate	CREATE SERVER a FOREIGN DATA WRAPPER a OPTIONS(USER 's'
+reject	reject	engine	create/create_or_replace_server_def!drop-9	CREATE SERVER a FOREIGN DATA WRAPPER a OPTIONS USER 's');
+reject	reject	engine	create/create_or_replace_server_def!drop-10	CREATE SERVER a FOREIGN DATA WRAPPER a OPTIONS('s');
+reject	reject	engine	create/create_or_replace_server_def!drop-11	CREATE SERVER a FOREIGN DATA WRAPPER a OPTIONS(USER);
+reject	reject	engine	create/create_or_replace_server_def!drop-12	CREATE SERVER a FOREIGN DATA WRAPPER a OPTIONS(USER 's';
+reject	reject	engine	create/create_or_replace_server_def!truncate	CREATE SERVER a FOREIGN DATA WRAPPER a OPTIONS(USER 's'
 reject	reject	engine	create/create_or_replace_server_def!insert	CREATE SERVER a FOREIGN DATA WRAPPER a OPTIONS(USER 's') zzz;
 reject	reject	engine	create/create_or_replace_server_def!swap	CROSS SERVER a FOREIGN DATA WRAPPER a OPTIONS(USER 's');
 reject	accept	engine	create/create_routine	CREATE PACKAGE a END;
@@ -851,66 +851,66 @@ reject	reject	engine	force_lookahead/%empty!insert	ALTER EVENT a DO COMMIT zzz;
 accept	accept	engine	server_def/SERVER_SYM_opt_if_not_exists_ident_or_text_FOREIGN_DATA_SYM_WRAPPER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)	CREATE SERVER a FOREIGN DATA WRAPPER a OPTIONS(USER 's');
 reject	reject	engine	server_def/SERVER_SYM_opt_if_not_exists_ident_or_text_FOREIGN_DATA_SYM_WRAPPER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)!swap	CREATE SESSION a FOREIGN DATA WRAPPER a OPTIONS(USER 's');
 accept	accept	engine	server_options_list/server_option	ALTER SERVER a OPTIONS(USER 's');
-accept	reject	engine	server_options_list/server_option!drop-1	ALTER SERVER a OPTIONS('s');
-accept	reject	engine	server_options_list/server_option!drop-2	ALTER SERVER a OPTIONS(USER);
-accept	reject	engine	server_options_list/server_option!truncate	ALTER SERVER a OPTIONS(USER
-accept	reject	engine	server_options_list/server_option!insert	ALTER SERVER a OPTIONS(USER 's' zzz);
-accept	reject	engine	server_options_list/server_option!swap	ALTER SERVER a OPTIONS(USER_RESOURCES 's');
-accept	reject	engine	server_options_list/server_options_list_,_server_option	ALTER SERVER a OPTIONS(USER 's', USER 's');
-accept	reject	engine	server_options_list/server_options_list_,_server_option!drop-1	ALTER SERVER a OPTIONS('s', USER 's');
-accept	reject	engine	server_options_list/server_options_list_,_server_option!drop-2	ALTER SERVER a OPTIONS(USER, USER 's');
-accept	reject	engine	server_options_list/server_options_list_,_server_option!drop-3	ALTER SERVER a OPTIONS(USER 's' USER 's');
-accept	reject	engine	server_options_list/server_options_list_,_server_option!drop-4	ALTER SERVER a OPTIONS(USER 's', 's');
-accept	reject	engine	server_options_list/server_options_list_,_server_option!drop-5	ALTER SERVER a OPTIONS(USER 's', USER);
-accept	reject	engine	server_options_list/server_options_list_,_server_option!truncate	ALTER SERVER a OPTIONS(USER 's', USER
-accept	reject	engine	server_options_list/server_options_list_,_server_option!insert	ALTER SERVER a OPTIONS(USER 's', USER 's' zzz);
-accept	reject	engine	server_options_list/server_options_list_,_server_option!swap	ALTER SERVER a OPTIONS(USER_RESOURCES 's', USER 's');
+reject	reject	engine	server_options_list/server_option!drop-1	ALTER SERVER a OPTIONS('s');
+reject	reject	engine	server_options_list/server_option!drop-2	ALTER SERVER a OPTIONS(USER);
+reject	reject	engine	server_options_list/server_option!truncate	ALTER SERVER a OPTIONS(USER
+reject	reject	engine	server_options_list/server_option!insert	ALTER SERVER a OPTIONS(USER 's' zzz);
+reject	reject	engine	server_options_list/server_option!swap	ALTER SERVER a OPTIONS(USER_RESOURCES 's');
+reject	reject	engine	server_options_list/server_options_list_,_server_option	ALTER SERVER a OPTIONS(USER 's', USER 's');
+reject	reject	engine	server_options_list/server_options_list_,_server_option!drop-1	ALTER SERVER a OPTIONS('s', USER 's');
+reject	reject	engine	server_options_list/server_options_list_,_server_option!drop-2	ALTER SERVER a OPTIONS(USER, USER 's');
+reject	reject	engine	server_options_list/server_options_list_,_server_option!drop-3	ALTER SERVER a OPTIONS(USER 's' USER 's');
+reject	reject	engine	server_options_list/server_options_list_,_server_option!drop-4	ALTER SERVER a OPTIONS(USER 's', 's');
+reject	reject	engine	server_options_list/server_options_list_,_server_option!drop-5	ALTER SERVER a OPTIONS(USER 's', USER);
+reject	reject	engine	server_options_list/server_options_list_,_server_option!truncate	ALTER SERVER a OPTIONS(USER 's', USER
+reject	reject	engine	server_options_list/server_options_list_,_server_option!insert	ALTER SERVER a OPTIONS(USER 's', USER 's' zzz);
+reject	reject	engine	server_options_list/server_options_list_,_server_option!swap	ALTER SERVER a OPTIONS(USER_RESOURCES 's', USER 's');
 accept	accept	engine	server_option/USER_SYM_TEXT_STRING_sys	ALTER SERVER a OPTIONS(USER 's');
 accept	accept	engine	server_option/HOST_SYM_TEXT_STRING_sys	ALTER SERVER a OPTIONS(HOST 's');
-accept	reject	engine	server_option/HOST_SYM_TEXT_STRING_sys!drop-2	ALTER SERVER a OPTIONS(HOST);
-accept	reject	engine	server_option/HOST_SYM_TEXT_STRING_sys!truncate	ALTER SERVER a OPTIONS(HOST
-accept	reject	engine	server_option/HOST_SYM_TEXT_STRING_sys!insert	ALTER SERVER a OPTIONS(HOST 's' zzz);
-accept	reject	engine	server_option/HOST_SYM_TEXT_STRING_sys!swap	ALTER SERVER a OPTIONS(HOSTS 's');
+reject	reject	engine	server_option/HOST_SYM_TEXT_STRING_sys!drop-2	ALTER SERVER a OPTIONS(HOST);
+reject	reject	engine	server_option/HOST_SYM_TEXT_STRING_sys!truncate	ALTER SERVER a OPTIONS(HOST
+reject	reject	engine	server_option/HOST_SYM_TEXT_STRING_sys!insert	ALTER SERVER a OPTIONS(HOST 's' zzz);
+reject	reject	engine	server_option/HOST_SYM_TEXT_STRING_sys!swap	ALTER SERVER a OPTIONS(HOSTS 's');
 accept	accept	engine	server_option/DATABASE_TEXT_STRING_sys	ALTER SERVER a OPTIONS(DATABASE 's');
-accept	reject	engine	server_option/DATABASE_TEXT_STRING_sys!drop-2	ALTER SERVER a OPTIONS(DATABASE);
-accept	reject	engine	server_option/DATABASE_TEXT_STRING_sys!truncate	ALTER SERVER a OPTIONS(DATABASE
-accept	reject	engine	server_option/DATABASE_TEXT_STRING_sys!insert	ALTER SERVER a OPTIONS(DATABASE 's' zzz);
-accept	reject	engine	server_option/DATABASE_TEXT_STRING_sys!swap	ALTER SERVER a OPTIONS(DATABASES 's');
+reject	reject	engine	server_option/DATABASE_TEXT_STRING_sys!drop-2	ALTER SERVER a OPTIONS(DATABASE);
+reject	reject	engine	server_option/DATABASE_TEXT_STRING_sys!truncate	ALTER SERVER a OPTIONS(DATABASE
+reject	reject	engine	server_option/DATABASE_TEXT_STRING_sys!insert	ALTER SERVER a OPTIONS(DATABASE 's' zzz);
+reject	reject	engine	server_option/DATABASE_TEXT_STRING_sys!swap	ALTER SERVER a OPTIONS(DATABASES 's');
 accept	accept	engine	server_option/OWNER_SYM_TEXT_STRING_sys	ALTER SERVER a OPTIONS(OWNER 's');
-accept	reject	engine	server_option/OWNER_SYM_TEXT_STRING_sys!drop-2	ALTER SERVER a OPTIONS(OWNER);
-accept	reject	engine	server_option/OWNER_SYM_TEXT_STRING_sys!truncate	ALTER SERVER a OPTIONS(OWNER
-accept	reject	engine	server_option/OWNER_SYM_TEXT_STRING_sys!insert	ALTER SERVER a OPTIONS(OWNER 's' zzz);
+reject	reject	engine	server_option/OWNER_SYM_TEXT_STRING_sys!drop-2	ALTER SERVER a OPTIONS(OWNER);
+reject	reject	engine	server_option/OWNER_SYM_TEXT_STRING_sys!truncate	ALTER SERVER a OPTIONS(OWNER
+reject	reject	engine	server_option/OWNER_SYM_TEXT_STRING_sys!insert	ALTER SERVER a OPTIONS(OWNER 's' zzz);
 accept	reject	engine	server_option/OWNER_SYM_TEXT_STRING_sys!swap	ALTER SERVER a OPTIONS(PACKAGE 's');
 accept	accept	engine	server_option/PASSWORD_SYM_TEXT_STRING_sys	ALTER SERVER a OPTIONS(PASSWORD 's');
-accept	reject	engine	server_option/PASSWORD_SYM_TEXT_STRING_sys!drop-2	ALTER SERVER a OPTIONS(PASSWORD);
-accept	reject	engine	server_option/PASSWORD_SYM_TEXT_STRING_sys!truncate	ALTER SERVER a OPTIONS(PASSWORD
-accept	reject	engine	server_option/PASSWORD_SYM_TEXT_STRING_sys!insert	ALTER SERVER a OPTIONS(PASSWORD 's' zzz);
-accept	reject	engine	server_option/PASSWORD_SYM_TEXT_STRING_sys!swap	ALTER SERVER a OPTIONS(PATH 's');
+reject	reject	engine	server_option/PASSWORD_SYM_TEXT_STRING_sys!drop-2	ALTER SERVER a OPTIONS(PASSWORD);
+reject	reject	engine	server_option/PASSWORD_SYM_TEXT_STRING_sys!truncate	ALTER SERVER a OPTIONS(PASSWORD
+reject	reject	engine	server_option/PASSWORD_SYM_TEXT_STRING_sys!insert	ALTER SERVER a OPTIONS(PASSWORD 's' zzz);
+reject	reject	engine	server_option/PASSWORD_SYM_TEXT_STRING_sys!swap	ALTER SERVER a OPTIONS(PATH 's');
 accept	accept	engine	server_option/SOCKET_SYM_TEXT_STRING_sys	ALTER SERVER a OPTIONS(SOCKET 's');
-accept	reject	engine	server_option/SOCKET_SYM_TEXT_STRING_sys!drop-2	ALTER SERVER a OPTIONS(SOCKET);
-accept	reject	engine	server_option/SOCKET_SYM_TEXT_STRING_sys!truncate	ALTER SERVER a OPTIONS(SOCKET
-accept	reject	engine	server_option/SOCKET_SYM_TEXT_STRING_sys!insert	ALTER SERVER a OPTIONS(SOCKET 's' zzz);
+reject	reject	engine	server_option/SOCKET_SYM_TEXT_STRING_sys!drop-2	ALTER SERVER a OPTIONS(SOCKET);
+reject	reject	engine	server_option/SOCKET_SYM_TEXT_STRING_sys!truncate	ALTER SERVER a OPTIONS(SOCKET
+reject	reject	engine	server_option/SOCKET_SYM_TEXT_STRING_sys!insert	ALTER SERVER a OPTIONS(SOCKET 's' zzz);
 accept	reject	engine	server_option/SOCKET_SYM_TEXT_STRING_sys!swap	ALTER SERVER a OPTIONS(SOFT 's');
 accept	accept	engine	server_option/PORT_SYM_ulong_num	ALTER SERVER a OPTIONS(PORT 1);
-accept	reject	engine	server_option/PORT_SYM_ulong_num!drop-1	ALTER SERVER a OPTIONS(1);
-accept	reject	engine	server_option/PORT_SYM_ulong_num!drop-2	ALTER SERVER a OPTIONS(PORT);
-accept	reject	engine	server_option/PORT_SYM_ulong_num!truncate	ALTER SERVER a OPTIONS(PORT
-accept	reject	engine	server_option/PORT_SYM_ulong_num!insert	ALTER SERVER a OPTIONS(PORT 1 zzz);
-accept	reject	engine	server_option/PORT_SYM_ulong_num!swap	ALTER SERVER a OPTIONS(PORTION 1);
-accept	reject	engine	server_option/PORT_SYM_TEXT_STRING_sys	ALTER SERVER a OPTIONS(PORT 's');
-accept	reject	engine	server_option/PORT_SYM_TEXT_STRING_sys!insert	ALTER SERVER a OPTIONS(PORT 's' zzz);
-accept	reject	engine	server_option/PORT_SYM_TEXT_STRING_sys!swap	ALTER SERVER a OPTIONS(PORTION 's');
+reject	reject	engine	server_option/PORT_SYM_ulong_num!drop-1	ALTER SERVER a OPTIONS(1);
+reject	reject	engine	server_option/PORT_SYM_ulong_num!drop-2	ALTER SERVER a OPTIONS(PORT);
+reject	reject	engine	server_option/PORT_SYM_ulong_num!truncate	ALTER SERVER a OPTIONS(PORT
+reject	reject	engine	server_option/PORT_SYM_ulong_num!insert	ALTER SERVER a OPTIONS(PORT 1 zzz);
+reject	reject	engine	server_option/PORT_SYM_ulong_num!swap	ALTER SERVER a OPTIONS(PORTION 1);
+reject	reject	engine	server_option/PORT_SYM_TEXT_STRING_sys	ALTER SERVER a OPTIONS(PORT 's');
+reject	reject	engine	server_option/PORT_SYM_TEXT_STRING_sys!insert	ALTER SERVER a OPTIONS(PORT 's' zzz);
+reject	reject	engine	server_option/PORT_SYM_TEXT_STRING_sys!swap	ALTER SERVER a OPTIONS(PORTION 's');
 accept	accept	engine	server_option/IDENT_sys_TEXT_STRING_sys	ALTER SERVER a OPTIONS(a 's');
-accept	reject	engine	server_option/IDENT_sys_TEXT_STRING_sys!drop-2	ALTER SERVER a OPTIONS(a);
-accept	reject	engine	server_option/IDENT_sys_TEXT_STRING_sys!truncate	ALTER SERVER a OPTIONS(a
-accept	reject	engine	server_option/IDENT_sys_TEXT_STRING_sys!insert	ALTER SERVER a OPTIONS(a 's' zzz);
+reject	reject	engine	server_option/IDENT_sys_TEXT_STRING_sys!drop-2	ALTER SERVER a OPTIONS(a);
+reject	reject	engine	server_option/IDENT_sys_TEXT_STRING_sys!truncate	ALTER SERVER a OPTIONS(a
+reject	reject	engine	server_option/IDENT_sys_TEXT_STRING_sys!insert	ALTER SERVER a OPTIONS(a 's' zzz);
 accept	accept	engine	event_tail/remember_name_opt_if_not_exists_sp_name_ON_SCHEDULE_SYM_ev_schedule_time_opt_ev_on_completion_opt_ev_status_opt_ev_comment_DO_SYM_ev_sql_stmt	CREATE EVENT a ON SCHEDULE AT a DO COMMIT;
 reject	reject	engine	event_tail/remember_name_opt_if_not_exists_sp_name_ON_SCHEDULE_SYM_ev_schedule_time_opt_ev_on_completion_opt_ev_status_opt_ev_comment_DO_SYM_ev_sql_stmt!swap	CREATE EVENT a ONE SCHEDULE AT a DO COMMIT;
 accept	accept	engine	ev_schedule_time/EVERY_SYM_expr_interval_ev_starts_ev_ends	ALTER EVENT a ON SCHEDULE EVERY a DAY;
 reject	reject	engine	ev_schedule_time/EVERY_SYM_expr_interval_ev_starts_ev_ends!drop-1	ALTER EVENT a ON SCHEDULE a DAY;
-accept	reject	engine	ev_schedule_time/EVERY_SYM_expr_interval_ev_starts_ev_ends!drop-2	ALTER EVENT a ON SCHEDULE EVERY DAY;
-accept	reject	engine	ev_schedule_time/EVERY_SYM_expr_interval_ev_starts_ev_ends!drop-3	ALTER EVENT a ON SCHEDULE EVERY a;
-accept	reject	engine	ev_schedule_time/EVERY_SYM_expr_interval_ev_starts_ev_ends!truncate	ALTER EVENT a ON SCHEDULE EVERY a
+reject	reject	engine	ev_schedule_time/EVERY_SYM_expr_interval_ev_starts_ev_ends!drop-2	ALTER EVENT a ON SCHEDULE EVERY DAY;
+reject	reject	engine	ev_schedule_time/EVERY_SYM_expr_interval_ev_starts_ev_ends!drop-3	ALTER EVENT a ON SCHEDULE EVERY a;
+reject	reject	engine	ev_schedule_time/EVERY_SYM_expr_interval_ev_starts_ev_ends!truncate	ALTER EVENT a ON SCHEDULE EVERY a
 reject	reject	engine	ev_schedule_time/EVERY_SYM_expr_interval_ev_starts_ev_ends!insert	ALTER EVENT a ON SCHEDULE EVERY a DAY zzz;
 reject	reject	engine	ev_schedule_time/EVERY_SYM_expr_interval_ev_starts_ev_ends!swap	ALTER EVENT a ON SCHEDULE EXAMINED a DAY;
 accept	accept	engine	ev_schedule_time/AT_SYM_expr	ALTER EVENT a ON SCHEDULE AT a;
@@ -919,10 +919,10 @@ reject	reject	engine	ev_schedule_time/AT_SYM_expr!drop-2	ALTER EVENT a ON SCHEDU
 reject	reject	engine	ev_schedule_time/AT_SYM_expr!truncate	ALTER EVENT a ON SCHEDULE AT
 reject	reject	engine	ev_schedule_time/AT_SYM_expr!insert	ALTER EVENT a ON SCHEDULE AT a zzz;
 reject	reject	engine	ev_schedule_time/AT_SYM_expr!swap	ALTER EVENT a ON SCHEDULE ATOMIC a;
-accept	reject	engine	opt_ev_status/%empty	ALTER EVENT a;
+reject	reject	engine	opt_ev_status/%empty	ALTER EVENT a;
 reject	reject	engine	opt_ev_status/%empty!insert	ALTER EVENT a zzz;
 accept	accept	engine	opt_ev_status/ENABLE_SYM	ALTER EVENT a ENABLE;
-accept	reject	engine	opt_ev_status/ENABLE_SYM!truncate	ALTER EVENT a
+reject	reject	engine	opt_ev_status/ENABLE_SYM!truncate	ALTER EVENT a
 reject	reject	engine	opt_ev_status/ENABLE_SYM!insert	ALTER EVENT a ENABLE zzz;
 reject	reject	engine	opt_ev_status/ENABLE_SYM!swap	ALTER EVENT a ENCLOSED;
 accept	accept	engine	opt_ev_status/DISABLE_SYM_ON_SLAVE	ALTER EVENT a DISABLE ON SLAVE;
@@ -960,11 +960,11 @@ reject	reject	engine	opt_ev_on_completion/ev_on_completion!swap	CREATE EVENT a O
 accept	accept	engine	ev_on_completion/ON_COMPLETION_SYM_opt_not_PRESERVE_SYM	ALTER EVENT a ON COMPLETION PRESERVE;
 reject	reject	engine	ev_on_completion/ON_COMPLETION_SYM_opt_not_PRESERVE_SYM!drop-1	ALTER EVENT a COMPLETION PRESERVE;
 reject	reject	engine	ev_on_completion/ON_COMPLETION_SYM_opt_not_PRESERVE_SYM!drop-2	ALTER EVENT a ON PRESERVE;
-accept	reject	engine	ev_on_completion/ON_COMPLETION_SYM_opt_not_PRESERVE_SYM!drop-3	ALTER EVENT a ON COMPLETION;
-accept	reject	engine	ev_on_completion/ON_COMPLETION_SYM_opt_not_PRESERVE_SYM!truncate	ALTER EVENT a ON COMPLETION
+reject	reject	engine	ev_on_completion/ON_COMPLETION_SYM_opt_not_PRESERVE_SYM!drop-3	ALTER EVENT a ON COMPLETION;
+reject	reject	engine	ev_on_completion/ON_COMPLETION_SYM_opt_not_PRESERVE_SYM!truncate	ALTER EVENT a ON COMPLETION
 reject	reject	engine	ev_on_completion/ON_COMPLETION_SYM_opt_not_PRESERVE_SYM!insert	ALTER EVENT a ON COMPLETION PRESERVE zzz;
 reject	reject	engine	ev_on_completion/ON_COMPLETION_SYM_opt_not_PRESERVE_SYM!swap	ALTER EVENT a ONE COMPLETION PRESERVE;
-accept	reject	engine	opt_ev_comment/%empty	ALTER EVENT a;
+reject	reject	engine	opt_ev_comment/%empty	ALTER EVENT a;
 accept	accept	engine	opt_ev_comment/COMMENT_SYM_TEXT_STRING_sys	ALTER EVENT a COMMENT 's';
 reject	reject	engine	opt_ev_comment/COMMENT_SYM_TEXT_STRING_sys!drop-1	ALTER EVENT a 's';
 reject	reject	engine	opt_ev_comment/COMMENT_SYM_TEXT_STRING_sys!drop-2	ALTER EVENT a COMMENT;
@@ -1332,15 +1332,15 @@ reject	reject	engine	sp_cond/sqlstate!drop-2	BEGIN NOT ATOMIC DECLARE a CONDITIO
 reject	reject	engine	sp_cond/sqlstate!truncate	BEGIN NOT ATOMIC DECLARE a CONDITION FOR SQLSTATE
 reject	reject	engine	sp_cond/sqlstate!insert	BEGIN NOT ATOMIC DECLARE a CONDITION FOR SQLSTATE 's' zzz; END;
 reject	reject	engine	sp_cond/sqlstate!swap	BEGIN NOT ATOMIC DECLARE a CONDITION FOR SQLWARNING 's'; END;
-accept	reject	engine	sqlstate/SQLSTATE_SYM_opt_value_TEXT_STRING_literal	RESIGNAL SQLSTATE 's';
+reject	reject	engine	sqlstate/SQLSTATE_SYM_opt_value_TEXT_STRING_literal	RESIGNAL SQLSTATE 's';
 reject	reject	engine	sqlstate/SQLSTATE_SYM_opt_value_TEXT_STRING_literal!drop-1	RESIGNAL 's';
 reject	reject	engine	sqlstate/SQLSTATE_SYM_opt_value_TEXT_STRING_literal!drop-2	RESIGNAL SQLSTATE;
 reject	reject	engine	sqlstate/SQLSTATE_SYM_opt_value_TEXT_STRING_literal!truncate	RESIGNAL SQLSTATE
 reject	reject	engine	sqlstate/SQLSTATE_SYM_opt_value_TEXT_STRING_literal!insert	RESIGNAL SQLSTATE 's' zzz;
 reject	reject	engine	sqlstate/SQLSTATE_SYM_opt_value_TEXT_STRING_literal!swap	RESIGNAL SQLWARNING 's';
-accept	reject	engine	opt_value/%empty	RESIGNAL SQLSTATE 's';
+reject	reject	engine	opt_value/%empty	RESIGNAL SQLSTATE 's';
 reject	reject	engine	opt_value/%empty!insert	RESIGNAL SQLSTATE zzz 's';
-accept	reject	engine	opt_value/VALUE_SYM	RESIGNAL SQLSTATE VALUE 's';
+reject	reject	engine	opt_value/VALUE_SYM	RESIGNAL SQLSTATE VALUE 's';
 reject	reject	engine	opt_value/VALUE_SYM!insert	RESIGNAL SQLSTATE VALUE zzz 's';
 reject	reject	engine	opt_value/VALUE_SYM!swap	RESIGNAL SQLSTATE VALUES 's';
 reject	accept	engine	sp_hcond/sp_cond	BEGIN NOT ATOMIC DECLARE EXIT HANDLER FOR 1 COMMIT; END;
@@ -1362,7 +1362,7 @@ accept	reject	engine	signal_stmt/SIGNAL_SYM_signal_value_opt_set_signal_informat
 accept	reject	engine	signal_value/ident	RESIGNAL a;
 accept	accept	engine	signal_value/ident!truncate	RESIGNAL
 reject	reject	engine	signal_value/ident!insert	RESIGNAL a zzz;
-accept	reject	engine	signal_value/sqlstate	RESIGNAL SQLSTATE 's';
+reject	reject	engine	signal_value/sqlstate	RESIGNAL SQLSTATE 's';
 accept	accept	engine	opt_signal_value/%empty	RESIGNAL;
 accept	reject	engine	opt_signal_value/signal_value	RESIGNAL a;
 accept	accept	engine	opt_set_signal_information/%empty	RESIGNAL;
@@ -1375,8 +1375,8 @@ reject	reject	engine	opt_set_signal_information/SET_signal_information_item_list
 reject	reject	engine	opt_set_signal_information/SET_signal_information_item_list!insert	RESIGNAL SET CLASS_ORIGIN = 's' zzz;
 reject	reject	engine	opt_set_signal_information/SET_signal_information_item_list!swap	RESIGNAL SETVAL CLASS_ORIGIN = 's';
 accept	accept	engine	signal_information_item_list/signal_condition_information_item_name_=_signal_allowed_expr	RESIGNAL SET CLASS_ORIGIN = 's';
-accept	reject	engine	signal_information_item_list/signal_condition_information_item_name_=_signal_allowed_expr!swap	RESIGNAL SET CLIENT = 's';
-accept	reject	engine	signal_information_item_list/signal_information_item_list_,_signal_condition_information_item_name_=_signal_allowed_expr	RESIGNAL SET CLASS_ORIGIN = 's', CLASS_ORIGIN = 's';
+reject	reject	engine	signal_information_item_list/signal_condition_information_item_name_=_signal_allowed_expr!swap	RESIGNAL SET CLIENT = 's';
+reject	reject	engine	signal_information_item_list/signal_information_item_list_,_signal_condition_information_item_name_=_signal_allowed_expr	RESIGNAL SET CLASS_ORIGIN = 's', CLASS_ORIGIN = 's';
 reject	reject	engine	signal_information_item_list/signal_information_item_list_,_signal_condition_information_item_name_=_signal_allowed_expr!drop-1	RESIGNAL SET = 's', CLASS_ORIGIN = 's';
 reject	reject	engine	signal_information_item_list/signal_information_item_list_,_signal_condition_information_item_name_=_signal_allowed_expr!drop-2	RESIGNAL SET CLASS_ORIGIN 's', CLASS_ORIGIN = 's';
 reject	reject	engine	signal_information_item_list/signal_information_item_list_,_signal_condition_information_item_name_=_signal_allowed_expr!drop-3	RESIGNAL SET CLASS_ORIGIN =, CLASS_ORIGIN = 's';
@@ -1386,7 +1386,7 @@ reject	reject	engine	signal_information_item_list/signal_information_item_list_,
 reject	reject	engine	signal_information_item_list/signal_information_item_list_,_signal_condition_information_item_name_=_signal_allowed_expr!drop-7	RESIGNAL SET CLASS_ORIGIN = 's', CLASS_ORIGIN =;
 reject	reject	engine	signal_information_item_list/signal_information_item_list_,_signal_condition_information_item_name_=_signal_allowed_expr!truncate	RESIGNAL SET CLASS_ORIGIN = 's', CLASS_ORIGIN =
 reject	reject	engine	signal_information_item_list/signal_information_item_list_,_signal_condition_information_item_name_=_signal_allowed_expr!insert	RESIGNAL SET CLASS_ORIGIN = 's', CLASS_ORIGIN = 's' zzz;
-accept	reject	engine	signal_information_item_list/signal_information_item_list_,_signal_condition_information_item_name_=_signal_allowed_expr!swap	RESIGNAL SET CLIENT = 's', CLASS_ORIGIN = 's';
+reject	reject	engine	signal_information_item_list/signal_information_item_list_,_signal_condition_information_item_name_=_signal_allowed_expr!swap	RESIGNAL SET CLIENT = 's', CLASS_ORIGIN = 's';
 accept	accept	engine	signal_allowed_expr/literal	RESIGNAL SET CLASS_ORIGIN = 's';
 accept	accept	engine	signal_allowed_expr/variable	RESIGNAL SET CLASS_ORIGIN =@a;
 reject	reject	engine	signal_allowed_expr/variable!drop-2	RESIGNAL SET CLASS_ORIGIN =@;
@@ -1399,38 +1399,38 @@ reject	reject	engine	signal_condition_information_item_name/CLASS_ORIGIN_SYM!tru
 reject	reject	engine	signal_condition_information_item_name/CLASS_ORIGIN_SYM!insert	RESIGNAL SET CLASS_ORIGIN zzz = 's';
 accept	accept	engine	signal_condition_information_item_name/SUBCLASS_ORIGIN_SYM	RESIGNAL SET SUBCLASS_ORIGIN = 's';
 reject	reject	engine	signal_condition_information_item_name/SUBCLASS_ORIGIN_SYM!insert	RESIGNAL SET SUBCLASS_ORIGIN zzz = 's';
-accept	reject	engine	signal_condition_information_item_name/SUBCLASS_ORIGIN_SYM!swap	RESIGNAL SET SUBDATE = 's';
+reject	reject	engine	signal_condition_information_item_name/SUBCLASS_ORIGIN_SYM!swap	RESIGNAL SET SUBDATE = 's';
 accept	accept	engine	signal_condition_information_item_name/CONSTRAINT_CATALOG_SYM	RESIGNAL SET CONSTRAINT_CATALOG = 's';
 reject	reject	engine	signal_condition_information_item_name/CONSTRAINT_CATALOG_SYM!insert	RESIGNAL SET CONSTRAINT_CATALOG zzz = 's';
 accept	accept	engine	signal_condition_information_item_name/CONSTRAINT_SCHEMA_SYM	RESIGNAL SET CONSTRAINT_SCHEMA = 's';
 reject	reject	engine	signal_condition_information_item_name/CONSTRAINT_SCHEMA_SYM!insert	RESIGNAL SET CONSTRAINT_SCHEMA zzz = 's';
-accept	reject	engine	signal_condition_information_item_name/CONSTRAINT_SCHEMA_SYM!swap	RESIGNAL SET CONTAINS = 's';
+reject	reject	engine	signal_condition_information_item_name/CONSTRAINT_SCHEMA_SYM!swap	RESIGNAL SET CONTAINS = 's';
 accept	accept	engine	signal_condition_information_item_name/CONSTRAINT_NAME_SYM	RESIGNAL SET CONSTRAINT_NAME = 's';
 reject	reject	engine	signal_condition_information_item_name/CONSTRAINT_NAME_SYM!insert	RESIGNAL SET CONSTRAINT_NAME zzz = 's';
 accept	accept	engine	signal_condition_information_item_name/CATALOG_NAME_SYM	RESIGNAL SET CATALOG_NAME = 's';
 reject	reject	engine	signal_condition_information_item_name/CATALOG_NAME_SYM!insert	RESIGNAL SET CATALOG_NAME zzz = 's';
-accept	reject	engine	signal_condition_information_item_name/CATALOG_NAME_SYM!swap	RESIGNAL SET CHAIN = 's';
+reject	reject	engine	signal_condition_information_item_name/CATALOG_NAME_SYM!swap	RESIGNAL SET CHAIN = 's';
 accept	accept	engine	signal_condition_information_item_name/SCHEMA_NAME_SYM	RESIGNAL SET SCHEMA_NAME = 's';
 reject	reject	engine	signal_condition_information_item_name/SCHEMA_NAME_SYM!insert	RESIGNAL SET SCHEMA_NAME zzz = 's';
-accept	reject	engine	signal_condition_information_item_name/SCHEMA_NAME_SYM!swap	RESIGNAL SET SECOND = 's';
+reject	reject	engine	signal_condition_information_item_name/SCHEMA_NAME_SYM!swap	RESIGNAL SET SECOND = 's';
 accept	accept	engine	signal_condition_information_item_name/TABLE_NAME_SYM	RESIGNAL SET TABLE_NAME = 's';
 reject	reject	engine	signal_condition_information_item_name/TABLE_NAME_SYM!insert	RESIGNAL SET TABLE_NAME zzz = 's';
-accept	reject	engine	signal_condition_information_item_name/TABLE_NAME_SYM!swap	RESIGNAL SET TEMPORARY = 's';
+reject	reject	engine	signal_condition_information_item_name/TABLE_NAME_SYM!swap	RESIGNAL SET TEMPORARY = 's';
 accept	accept	engine	signal_condition_information_item_name/COLUMN_NAME_SYM	RESIGNAL SET COLUMN_NAME = 's';
 reject	reject	engine	signal_condition_information_item_name/COLUMN_NAME_SYM!insert	RESIGNAL SET COLUMN_NAME zzz = 's';
-accept	reject	engine	signal_condition_information_item_name/COLUMN_NAME_SYM!swap	RESIGNAL SET COMMENT = 's';
+reject	reject	engine	signal_condition_information_item_name/COLUMN_NAME_SYM!swap	RESIGNAL SET COMMENT = 's';
 accept	accept	engine	signal_condition_information_item_name/CURSOR_NAME_SYM	RESIGNAL SET CURSOR_NAME = 's';
 reject	reject	engine	signal_condition_information_item_name/CURSOR_NAME_SYM!insert	RESIGNAL SET CURSOR_NAME zzz = 's';
-accept	reject	engine	signal_condition_information_item_name/CURSOR_NAME_SYM!swap	RESIGNAL SET CYCLE = 's';
+reject	reject	engine	signal_condition_information_item_name/CURSOR_NAME_SYM!swap	RESIGNAL SET CYCLE = 's';
 accept	accept	engine	signal_condition_information_item_name/MESSAGE_TEXT_SYM	RESIGNAL SET MESSAGE_TEXT = 's';
 reject	reject	engine	signal_condition_information_item_name/MESSAGE_TEXT_SYM!insert	RESIGNAL SET MESSAGE_TEXT zzz = 's';
-accept	reject	engine	signal_condition_information_item_name/MESSAGE_TEXT_SYM!swap	RESIGNAL SET MICROSECOND = 's';
+reject	reject	engine	signal_condition_information_item_name/MESSAGE_TEXT_SYM!swap	RESIGNAL SET MICROSECOND = 's';
 accept	accept	engine	signal_condition_information_item_name/MYSQL_ERRNO_SYM	RESIGNAL SET MYSQL_ERRNO = 's';
 reject	reject	engine	signal_condition_information_item_name/MYSQL_ERRNO_SYM!insert	RESIGNAL SET MYSQL_ERRNO zzz = 's';
-accept	reject	engine	signal_condition_information_item_name/MYSQL_ERRNO_SYM!swap	RESIGNAL SET NAME = 's';
+reject	reject	engine	signal_condition_information_item_name/MYSQL_ERRNO_SYM!swap	RESIGNAL SET NAME = 's';
 accept	accept	engine	signal_condition_information_item_name/ROW_NUMBER_SYM	RESIGNAL SET ROW_NUMBER = 's';
 reject	reject	engine	signal_condition_information_item_name/ROW_NUMBER_SYM!insert	RESIGNAL SET ROW_NUMBER zzz = 's';
-accept	reject	engine	signal_condition_information_item_name/ROW_NUMBER_SYM!swap	RESIGNAL SET RTREE = 's';
+reject	reject	engine	signal_condition_information_item_name/ROW_NUMBER_SYM!swap	RESIGNAL SET RTREE = 's';
 accept	accept	engine	resignal_stmt/RESIGNAL_SYM_opt_signal_value_opt_set_signal_information	RESIGNAL;
 accept	accept	engine	get_diagnostics/GET_SYM_which_area_DIAGNOSTICS_SYM_diagnostics_information	GET DIAGNOSTICS @a = NUMBER;
 accept	accept	engine	which_area/%empty	GET DIAGNOSTICS @a = NUMBER;
@@ -1440,14 +1440,14 @@ reject	reject	engine	which_area/CURRENT_SYM!truncate	GET
 reject	reject	engine	which_area/CURRENT_SYM!insert	GET CURRENT zzz DIAGNOSTICS @a = NUMBER;
 reject	reject	engine	which_area/CURRENT_SYM!swap	GET CURRENT_DATE DIAGNOSTICS @a = NUMBER;
 accept	accept	engine	diagnostics_information/statement_information	GET DIAGNOSTICS @a = NUMBER;
-accept	reject	engine	diagnostics_information/statement_information!swap	GET DIAGNOSTICS @a = NUMERIC;
+reject	reject	engine	diagnostics_information/statement_information!swap	GET DIAGNOSTICS @a = NUMERIC;
 accept	accept	engine	diagnostics_information/CONDITION_SYM_condition_number_condition_information	GET DIAGNOSTICS CONDITION 's' @a = CLASS_ORIGIN;
 reject	reject	engine	diagnostics_information/CONDITION_SYM_condition_number_condition_information!drop-1	GET DIAGNOSTICS 's' @a = CLASS_ORIGIN;
 reject	reject	engine	diagnostics_information/CONDITION_SYM_condition_number_condition_information!drop-2	GET DIAGNOSTICS CONDITION @a = CLASS_ORIGIN;
 reject	reject	engine	diagnostics_information/CONDITION_SYM_condition_number_condition_information!drop-3	GET DIAGNOSTICS CONDITION 's' = CLASS_ORIGIN;
 reject	reject	engine	diagnostics_information/CONDITION_SYM_condition_number_condition_information!drop-4	GET DIAGNOSTICS CONDITION 's' @a CLASS_ORIGIN;
-accept	reject	engine	diagnostics_information/CONDITION_SYM_condition_number_condition_information!drop-5	GET DIAGNOSTICS CONDITION 's' @a =;
-accept	reject	engine	diagnostics_information/CONDITION_SYM_condition_number_condition_information!truncate	GET DIAGNOSTICS CONDITION 's' @a =
+reject	reject	engine	diagnostics_information/CONDITION_SYM_condition_number_condition_information!drop-5	GET DIAGNOSTICS CONDITION 's' @a =;
+reject	reject	engine	diagnostics_information/CONDITION_SYM_condition_number_condition_information!truncate	GET DIAGNOSTICS CONDITION 's' @a =
 reject	reject	engine	diagnostics_information/CONDITION_SYM_condition_number_condition_information!insert	GET DIAGNOSTICS CONDITION 's' @a = CLASS_ORIGIN zzz;
 reject	reject	engine	diagnostics_information/CONDITION_SYM_condition_number_condition_information!swap	GET DIAGNOSTICS CONNECTION 's' @a = CLASS_ORIGIN;
 accept	accept	engine	statement_information/statement_information_item	GET DIAGNOSTICS @a = NUMBER;
@@ -1458,10 +1458,10 @@ reject	reject	engine	statement_information/statement_information_,_statement_inf
 reject	reject	engine	statement_information/statement_information_,_statement_information_item!drop-4	GET DIAGNOSTICS @a = NUMBER @a = NUMBER;
 reject	reject	engine	statement_information/statement_information_,_statement_information_item!drop-5	GET DIAGNOSTICS @a = NUMBER, = NUMBER;
 reject	reject	engine	statement_information/statement_information_,_statement_information_item!drop-6	GET DIAGNOSTICS @a = NUMBER, @a NUMBER;
-accept	reject	engine	statement_information/statement_information_,_statement_information_item!drop-7	GET DIAGNOSTICS @a = NUMBER, @a =;
-accept	reject	engine	statement_information/statement_information_,_statement_information_item!truncate	GET DIAGNOSTICS @a = NUMBER, @a =
+reject	reject	engine	statement_information/statement_information_,_statement_information_item!drop-7	GET DIAGNOSTICS @a = NUMBER, @a =;
+reject	reject	engine	statement_information/statement_information_,_statement_information_item!truncate	GET DIAGNOSTICS @a = NUMBER, @a =
 reject	reject	engine	statement_information/statement_information_,_statement_information_item!insert	GET DIAGNOSTICS @a = NUMBER, @a = NUMBER zzz;
-accept	reject	engine	statement_information/statement_information_,_statement_information_item!swap	GET DIAGNOSTICS @a = NUMERIC, @a = NUMBER;
+reject	reject	engine	statement_information/statement_information_,_statement_information_item!swap	GET DIAGNOSTICS @a = NUMERIC, @a = NUMBER;
 accept	accept	engine	statement_information_item/simple_target_specification_=_statement_information_item_name	GET DIAGNOSTICS @a = NUMBER;
 accept	reject	engine	simple_target_specification/ident_cli	GET DIAGNOSTICS a = NUMBER;
 reject	reject	engine	simple_target_specification/ident_cli!truncate	GET DIAGNOSTICS
@@ -1473,12 +1473,12 @@ reject	reject	engine	simple_target_specification/@_ident_or_text!insert	GET DIAG
 accept	accept	engine	statement_information_item_name/NUMBER_MARIADB_SYM	GET DIAGNOSTICS @a = NUMBER;
 accept	accept	engine	statement_information_item_name/ROW_COUNT_SYM	GET DIAGNOSTICS @a = ROW_COUNT;
 reject	reject	engine	statement_information_item_name/ROW_COUNT_SYM!insert	GET DIAGNOSTICS @a = ROW_COUNT zzz;
-accept	reject	engine	statement_information_item_name/ROW_COUNT_SYM!swap	GET DIAGNOSTICS @a = ROW_FORMAT;
+reject	reject	engine	statement_information_item_name/ROW_COUNT_SYM!swap	GET DIAGNOSTICS @a = ROW_FORMAT;
 accept	accept	engine	condition_number/signal_allowed_expr	GET DIAGNOSTICS CONDITION 's' @a = CLASS_ORIGIN;
 reject	reject	engine	condition_number/signal_allowed_expr!truncate	GET DIAGNOSTICS CONDITION
 reject	reject	engine	condition_number/signal_allowed_expr!insert	GET DIAGNOSTICS CONDITION 's' zzz @a = CLASS_ORIGIN;
 accept	accept	engine	condition_information/condition_information_item	GET DIAGNOSTICS CONDITION 's' @a = CLASS_ORIGIN;
-accept	reject	engine	condition_information/condition_information_item!swap	GET DIAGNOSTICS CONDITION 's' @a = CLIENT;
+reject	reject	engine	condition_information/condition_information_item!swap	GET DIAGNOSTICS CONDITION 's' @a = CLIENT;
 accept	accept	engine	condition_information/condition_information_,_condition_information_item	GET DIAGNOSTICS CONDITION 's' @a = CLASS_ORIGIN, @a = CLASS_ORIGIN;
 reject	reject	engine	condition_information/condition_information_,_condition_information_item!drop-1	GET DIAGNOSTICS CONDITION 's' = CLASS_ORIGIN, @a = CLASS_ORIGIN;
 reject	reject	engine	condition_information/condition_information_,_condition_information_item!drop-2	GET DIAGNOSTICS CONDITION 's' @a CLASS_ORIGIN, @a = CLASS_ORIGIN;
@@ -1486,49 +1486,49 @@ reject	reject	engine	condition_information/condition_information_,_condition_inf
 reject	reject	engine	condition_information/condition_information_,_condition_information_item!drop-4	GET DIAGNOSTICS CONDITION 's' @a = CLASS_ORIGIN @a = CLASS_ORIGIN;
 reject	reject	engine	condition_information/condition_information_,_condition_information_item!drop-5	GET DIAGNOSTICS CONDITION 's' @a = CLASS_ORIGIN, = CLASS_ORIGIN;
 reject	reject	engine	condition_information/condition_information_,_condition_information_item!drop-6	GET DIAGNOSTICS CONDITION 's' @a = CLASS_ORIGIN, @a CLASS_ORIGIN;
-accept	reject	engine	condition_information/condition_information_,_condition_information_item!drop-7	GET DIAGNOSTICS CONDITION 's' @a = CLASS_ORIGIN, @a =;
-accept	reject	engine	condition_information/condition_information_,_condition_information_item!truncate	GET DIAGNOSTICS CONDITION 's' @a = CLASS_ORIGIN, @a =
+reject	reject	engine	condition_information/condition_information_,_condition_information_item!drop-7	GET DIAGNOSTICS CONDITION 's' @a = CLASS_ORIGIN, @a =;
+reject	reject	engine	condition_information/condition_information_,_condition_information_item!truncate	GET DIAGNOSTICS CONDITION 's' @a = CLASS_ORIGIN, @a =
 reject	reject	engine	condition_information/condition_information_,_condition_information_item!insert	GET DIAGNOSTICS CONDITION 's' @a = CLASS_ORIGIN, @a = CLASS_ORIGIN zzz;
-accept	reject	engine	condition_information/condition_information_,_condition_information_item!swap	GET DIAGNOSTICS CONDITION 's' @a = CLIENT, @a = CLASS_ORIGIN;
+reject	reject	engine	condition_information/condition_information_,_condition_information_item!swap	GET DIAGNOSTICS CONDITION 's' @a = CLIENT, @a = CLASS_ORIGIN;
 accept	accept	engine	condition_information_item/simple_target_specification_=_condition_information_item_name	GET DIAGNOSTICS CONDITION 's' @a = CLASS_ORIGIN;
 accept	accept	engine	condition_information_item_name/CLASS_ORIGIN_SYM	GET DIAGNOSTICS CONDITION 's' @a = CLASS_ORIGIN;
 accept	accept	engine	condition_information_item_name/SUBCLASS_ORIGIN_SYM	GET DIAGNOSTICS CONDITION 's' @a = SUBCLASS_ORIGIN;
 reject	reject	engine	condition_information_item_name/SUBCLASS_ORIGIN_SYM!insert	GET DIAGNOSTICS CONDITION 's' @a = SUBCLASS_ORIGIN zzz;
-accept	reject	engine	condition_information_item_name/SUBCLASS_ORIGIN_SYM!swap	GET DIAGNOSTICS CONDITION 's' @a = SUBDATE;
+reject	reject	engine	condition_information_item_name/SUBCLASS_ORIGIN_SYM!swap	GET DIAGNOSTICS CONDITION 's' @a = SUBDATE;
 accept	accept	engine	condition_information_item_name/CONSTRAINT_CATALOG_SYM	GET DIAGNOSTICS CONDITION 's' @a = CONSTRAINT_CATALOG;
 reject	reject	engine	condition_information_item_name/CONSTRAINT_CATALOG_SYM!insert	GET DIAGNOSTICS CONDITION 's' @a = CONSTRAINT_CATALOG zzz;
 accept	accept	engine	condition_information_item_name/CONSTRAINT_SCHEMA_SYM	GET DIAGNOSTICS CONDITION 's' @a = CONSTRAINT_SCHEMA;
 reject	reject	engine	condition_information_item_name/CONSTRAINT_SCHEMA_SYM!insert	GET DIAGNOSTICS CONDITION 's' @a = CONSTRAINT_SCHEMA zzz;
-accept	reject	engine	condition_information_item_name/CONSTRAINT_SCHEMA_SYM!swap	GET DIAGNOSTICS CONDITION 's' @a = CONTAINS;
+reject	reject	engine	condition_information_item_name/CONSTRAINT_SCHEMA_SYM!swap	GET DIAGNOSTICS CONDITION 's' @a = CONTAINS;
 accept	accept	engine	condition_information_item_name/CONSTRAINT_NAME_SYM	GET DIAGNOSTICS CONDITION 's' @a = CONSTRAINT_NAME;
 reject	reject	engine	condition_information_item_name/CONSTRAINT_NAME_SYM!insert	GET DIAGNOSTICS CONDITION 's' @a = CONSTRAINT_NAME zzz;
 accept	accept	engine	condition_information_item_name/CATALOG_NAME_SYM	GET DIAGNOSTICS CONDITION 's' @a = CATALOG_NAME;
 reject	reject	engine	condition_information_item_name/CATALOG_NAME_SYM!insert	GET DIAGNOSTICS CONDITION 's' @a = CATALOG_NAME zzz;
-accept	reject	engine	condition_information_item_name/CATALOG_NAME_SYM!swap	GET DIAGNOSTICS CONDITION 's' @a = CHAIN;
+reject	reject	engine	condition_information_item_name/CATALOG_NAME_SYM!swap	GET DIAGNOSTICS CONDITION 's' @a = CHAIN;
 accept	accept	engine	condition_information_item_name/SCHEMA_NAME_SYM	GET DIAGNOSTICS CONDITION 's' @a = SCHEMA_NAME;
 reject	reject	engine	condition_information_item_name/SCHEMA_NAME_SYM!insert	GET DIAGNOSTICS CONDITION 's' @a = SCHEMA_NAME zzz;
-accept	reject	engine	condition_information_item_name/SCHEMA_NAME_SYM!swap	GET DIAGNOSTICS CONDITION 's' @a = SECOND;
+reject	reject	engine	condition_information_item_name/SCHEMA_NAME_SYM!swap	GET DIAGNOSTICS CONDITION 's' @a = SECOND;
 accept	accept	engine	condition_information_item_name/TABLE_NAME_SYM	GET DIAGNOSTICS CONDITION 's' @a = TABLE_NAME;
 reject	reject	engine	condition_information_item_name/TABLE_NAME_SYM!insert	GET DIAGNOSTICS CONDITION 's' @a = TABLE_NAME zzz;
-accept	reject	engine	condition_information_item_name/TABLE_NAME_SYM!swap	GET DIAGNOSTICS CONDITION 's' @a = TEMPORARY;
+reject	reject	engine	condition_information_item_name/TABLE_NAME_SYM!swap	GET DIAGNOSTICS CONDITION 's' @a = TEMPORARY;
 accept	accept	engine	condition_information_item_name/COLUMN_NAME_SYM	GET DIAGNOSTICS CONDITION 's' @a = COLUMN_NAME;
 reject	reject	engine	condition_information_item_name/COLUMN_NAME_SYM!insert	GET DIAGNOSTICS CONDITION 's' @a = COLUMN_NAME zzz;
-accept	reject	engine	condition_information_item_name/COLUMN_NAME_SYM!swap	GET DIAGNOSTICS CONDITION 's' @a = COMMENT;
+reject	reject	engine	condition_information_item_name/COLUMN_NAME_SYM!swap	GET DIAGNOSTICS CONDITION 's' @a = COMMENT;
 accept	accept	engine	condition_information_item_name/CURSOR_NAME_SYM	GET DIAGNOSTICS CONDITION 's' @a = CURSOR_NAME;
 reject	reject	engine	condition_information_item_name/CURSOR_NAME_SYM!insert	GET DIAGNOSTICS CONDITION 's' @a = CURSOR_NAME zzz;
-accept	reject	engine	condition_information_item_name/CURSOR_NAME_SYM!swap	GET DIAGNOSTICS CONDITION 's' @a = CYCLE;
+reject	reject	engine	condition_information_item_name/CURSOR_NAME_SYM!swap	GET DIAGNOSTICS CONDITION 's' @a = CYCLE;
 accept	accept	engine	condition_information_item_name/MESSAGE_TEXT_SYM	GET DIAGNOSTICS CONDITION 's' @a = MESSAGE_TEXT;
 reject	reject	engine	condition_information_item_name/MESSAGE_TEXT_SYM!insert	GET DIAGNOSTICS CONDITION 's' @a = MESSAGE_TEXT zzz;
-accept	reject	engine	condition_information_item_name/MESSAGE_TEXT_SYM!swap	GET DIAGNOSTICS CONDITION 's' @a = MICROSECOND;
+reject	reject	engine	condition_information_item_name/MESSAGE_TEXT_SYM!swap	GET DIAGNOSTICS CONDITION 's' @a = MICROSECOND;
 accept	accept	engine	condition_information_item_name/MYSQL_ERRNO_SYM	GET DIAGNOSTICS CONDITION 's' @a = MYSQL_ERRNO;
 reject	reject	engine	condition_information_item_name/MYSQL_ERRNO_SYM!insert	GET DIAGNOSTICS CONDITION 's' @a = MYSQL_ERRNO zzz;
-accept	reject	engine	condition_information_item_name/MYSQL_ERRNO_SYM!swap	GET DIAGNOSTICS CONDITION 's' @a = NAME;
+reject	reject	engine	condition_information_item_name/MYSQL_ERRNO_SYM!swap	GET DIAGNOSTICS CONDITION 's' @a = NAME;
 accept	accept	engine	condition_information_item_name/RETURNED_SQLSTATE_SYM	GET DIAGNOSTICS CONDITION 's' @a = RETURNED_SQLSTATE;
 reject	reject	engine	condition_information_item_name/RETURNED_SQLSTATE_SYM!insert	GET DIAGNOSTICS CONDITION 's' @a = RETURNED_SQLSTATE zzz;
-accept	reject	engine	condition_information_item_name/RETURNED_SQLSTATE_SYM!swap	GET DIAGNOSTICS CONDITION 's' @a = RETURNING;
+reject	reject	engine	condition_information_item_name/RETURNED_SQLSTATE_SYM!swap	GET DIAGNOSTICS CONDITION 's' @a = RETURNING;
 accept	accept	engine	condition_information_item_name/ROW_NUMBER_SYM	GET DIAGNOSTICS CONDITION 's' @a = ROW_NUMBER;
 reject	reject	engine	condition_information_item_name/ROW_NUMBER_SYM!insert	GET DIAGNOSTICS CONDITION 's' @a = ROW_NUMBER zzz;
-accept	reject	engine	condition_information_item_name/ROW_NUMBER_SYM!swap	GET DIAGNOSTICS CONDITION 's' @a = RTREE;
+reject	reject	engine	condition_information_item_name/ROW_NUMBER_SYM!swap	GET DIAGNOSTICS CONDITION 's' @a = RTREE;
 reject	reject	engine	sp_decl_ident/IDENT_sys	ALTER TABLE a ADD a a.INT;
 reject	reject	engine	sp_decl_ident/IDENT_sys!drop-1	ALTER TABLE a ADD a.INT;
 reject	reject	engine	sp_decl_ident/IDENT_sys!truncate	ALTER TABLE a ADD a
@@ -3795,7 +3795,7 @@ reject	reject	engine	alter/ALTER_definer_opt_opt_view_suid_VIEW_SYM_table_ident_
 reject	reject	engine	alter/ALTER_definer_opt_opt_view_suid_VIEW_SYM_table_ident_view_list_opt_AS_view_select_stmt_end!truncate	ALTER VIEW a AS SELECT
 accept	accept	engine	alter/ALTER_definer_opt_opt_view_suid_VIEW_SYM_table_ident_view_list_opt_AS_view_select_stmt_end!insert	ALTER VIEW a AS SELECT a zzz;
 reject	reject	engine	alter/ALTER_definer_opt_opt_view_suid_VIEW_SYM_table_ident_view_list_opt_AS_view_select_stmt_end!swap	ALWAYS VIEW a AS SELECT a;
-accept	reject	engine	alter/ALTER_definer_opt_remember_name_EVENT_SYM_sp_name_ev_alter_on_schedule_completion_opt_ev_rename_to_opt_ev_status_opt_ev_comment_opt_ev_sql_stmt	ALTER EVENT a;
+reject	reject	engine	alter/ALTER_definer_opt_remember_name_EVENT_SYM_sp_name_ev_alter_on_schedule_completion_opt_ev_rename_to_opt_ev_status_opt_ev_comment_opt_ev_sql_stmt	ALTER EVENT a;
 reject	reject	engine	alter/ALTER_definer_opt_remember_name_EVENT_SYM_sp_name_ev_alter_on_schedule_completion_opt_ev_rename_to_opt_ev_status_opt_ev_comment_opt_ev_sql_stmt!drop-1	EVENT a;
 reject	reject	engine	alter/ALTER_definer_opt_remember_name_EVENT_SYM_sp_name_ev_alter_on_schedule_completion_opt_ev_rename_to_opt_ev_status_opt_ev_comment_opt_ev_sql_stmt!drop-3	ALTER EVENT;
 reject	reject	engine	alter/ALTER_definer_opt_remember_name_EVENT_SYM_sp_name_ev_alter_on_schedule_completion_opt_ev_rename_to_opt_ev_status_opt_ev_comment_opt_ev_sql_stmt!truncate	ALTER EVENT
@@ -3805,9 +3805,9 @@ reject	reject	engine	alter/ALTER_SERVER_SYM_ident_or_text_OPTIONS_SYM_(_server_o
 reject	reject	engine	alter/ALTER_SERVER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)!drop-2	ALTER a OPTIONS(USER 's');
 reject	reject	engine	alter/ALTER_SERVER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)!drop-3	ALTER SERVER OPTIONS(USER 's');
 reject	reject	engine	alter/ALTER_SERVER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)!drop-4	ALTER SERVER a(USER 's');
-accept	reject	engine	alter/ALTER_SERVER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)!drop-5	ALTER SERVER a OPTIONS USER 's');
-accept	reject	engine	alter/ALTER_SERVER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)!drop-8	ALTER SERVER a OPTIONS(USER 's';
-accept	reject	engine	alter/ALTER_SERVER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)!truncate	ALTER SERVER a OPTIONS(USER 's'
+reject	reject	engine	alter/ALTER_SERVER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)!drop-5	ALTER SERVER a OPTIONS USER 's');
+reject	reject	engine	alter/ALTER_SERVER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)!drop-8	ALTER SERVER a OPTIONS(USER 's';
+reject	reject	engine	alter/ALTER_SERVER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)!truncate	ALTER SERVER a OPTIONS(USER 's'
 reject	reject	engine	alter/ALTER_SERVER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)!insert	ALTER SERVER a OPTIONS(USER 's') zzz;
 reject	reject	engine	alter/ALTER_SERVER_SYM_ident_or_text_OPTIONS_SYM_(_server_options_list_)!swap	ALWAYS SERVER a OPTIONS(USER 's');
 accept	accept	engine	alter/ALTER_USER_SYM_opt_if_exists_clear_privileges_grant_list_opt_require_clause_opt_resource_options_opt_account_locking_and_opt_password_expiration	ALTER USER a;
@@ -3869,7 +3869,7 @@ reject	reject	engine	opt_account_locking_and_opt_password_expiration/PASSWORD_SY
 reject	reject	engine	opt_account_locking_and_opt_password_expiration/PASSWORD_SYM_EXPIRE_SYM_opt_password_expire_option_ACCOUNT_SYM_account_locking_option!truncate	ALTER USER a PASSWORD EXPIRE ACCOUNT
 reject	reject	engine	opt_account_locking_and_opt_password_expiration/PASSWORD_SYM_EXPIRE_SYM_opt_password_expire_option_ACCOUNT_SYM_account_locking_option!insert	ALTER USER a PASSWORD EXPIRE ACCOUNT LOCK zzz;
 reject	reject	engine	opt_account_locking_and_opt_password_expiration/PASSWORD_SYM_EXPIRE_SYM_opt_password_expire_option_ACCOUNT_SYM_account_locking_option!swap	ALTER USER a PATH EXPIRE ACCOUNT LOCK;
-accept	reject	engine	ev_alter_on_schedule_completion/%empty	ALTER EVENT a;
+reject	reject	engine	ev_alter_on_schedule_completion/%empty	ALTER EVENT a;
 accept	accept	engine	ev_alter_on_schedule_completion/ON_SCHEDULE_SYM_ev_schedule_time	ALTER EVENT a ON SCHEDULE AT a;
 reject	reject	engine	ev_alter_on_schedule_completion/ON_SCHEDULE_SYM_ev_schedule_time!drop-1	ALTER EVENT a SCHEDULE AT a;
 reject	reject	engine	ev_alter_on_schedule_completion/ON_SCHEDULE_SYM_ev_schedule_time!drop-2	ALTER EVENT a ON AT a;
@@ -3882,19 +3882,19 @@ reject	reject	engine	ev_alter_on_schedule_completion/ON_SCHEDULE_SYM_ev_schedule
 reject	reject	engine	ev_alter_on_schedule_completion/ON_SCHEDULE_SYM_ev_schedule_time_ev_on_completion!drop-4	ALTER EVENT a ON SCHEDULE AT ON COMPLETION PRESERVE;
 reject	reject	engine	ev_alter_on_schedule_completion/ON_SCHEDULE_SYM_ev_schedule_time_ev_on_completion!drop-5	ALTER EVENT a ON SCHEDULE AT a COMPLETION PRESERVE;
 reject	reject	engine	ev_alter_on_schedule_completion/ON_SCHEDULE_SYM_ev_schedule_time_ev_on_completion!drop-6	ALTER EVENT a ON SCHEDULE AT a ON PRESERVE;
-accept	reject	engine	ev_alter_on_schedule_completion/ON_SCHEDULE_SYM_ev_schedule_time_ev_on_completion!drop-7	ALTER EVENT a ON SCHEDULE AT a ON COMPLETION;
-accept	reject	engine	ev_alter_on_schedule_completion/ON_SCHEDULE_SYM_ev_schedule_time_ev_on_completion!truncate	ALTER EVENT a ON SCHEDULE AT a ON COMPLETION
+reject	reject	engine	ev_alter_on_schedule_completion/ON_SCHEDULE_SYM_ev_schedule_time_ev_on_completion!drop-7	ALTER EVENT a ON SCHEDULE AT a ON COMPLETION;
+reject	reject	engine	ev_alter_on_schedule_completion/ON_SCHEDULE_SYM_ev_schedule_time_ev_on_completion!truncate	ALTER EVENT a ON SCHEDULE AT a ON COMPLETION
 reject	reject	engine	ev_alter_on_schedule_completion/ON_SCHEDULE_SYM_ev_schedule_time_ev_on_completion!insert	ALTER EVENT a ON SCHEDULE AT a ON COMPLETION PRESERVE zzz;
 reject	reject	engine	ev_alter_on_schedule_completion/ON_SCHEDULE_SYM_ev_schedule_time_ev_on_completion!swap	ALTER EVENT a ONE SCHEDULE AT a ON COMPLETION PRESERVE;
-accept	reject	engine	opt_ev_rename_to/%empty	ALTER EVENT a;
+reject	reject	engine	opt_ev_rename_to/%empty	ALTER EVENT a;
 accept	accept	engine	opt_ev_rename_to/RENAME_TO_SYM_sp_name	ALTER EVENT a RENAME TO a;
 reject	reject	engine	opt_ev_rename_to/RENAME_TO_SYM_sp_name!drop-1	ALTER EVENT a TO a;
-accept	reject	engine	opt_ev_rename_to/RENAME_TO_SYM_sp_name!drop-2	ALTER EVENT a RENAME a;
+reject	reject	engine	opt_ev_rename_to/RENAME_TO_SYM_sp_name!drop-2	ALTER EVENT a RENAME a;
 reject	reject	engine	opt_ev_rename_to/RENAME_TO_SYM_sp_name!drop-3	ALTER EVENT a RENAME TO;
 reject	reject	engine	opt_ev_rename_to/RENAME_TO_SYM_sp_name!truncate	ALTER EVENT a RENAME TO
 reject	reject	engine	opt_ev_rename_to/RENAME_TO_SYM_sp_name!insert	ALTER EVENT a RENAME TO a zzz;
 reject	reject	engine	opt_ev_rename_to/RENAME_TO_SYM_sp_name!swap	ALTER EVENT a REORGANIZE TO a;
-accept	reject	engine	opt_ev_sql_stmt/%empty	ALTER EVENT a;
+reject	reject	engine	opt_ev_sql_stmt/%empty	ALTER EVENT a;
 accept	accept	engine	opt_ev_sql_stmt/DO_SYM_ev_sql_stmt	ALTER EVENT a DO COMMIT;
 reject	reject	engine	opt_ev_sql_stmt/DO_SYM_ev_sql_stmt!drop-1	ALTER EVENT a COMMIT;
 reject	reject	engine	opt_ev_sql_stmt/DO_SYM_ev_sql_stmt!swap	ALTER EVENT a DOUBLE COMMIT;
@@ -4366,7 +4366,7 @@ accept	accept	engine	opt_to/AS	ALTER TABLE a RENAME AS a;
 reject	reject	engine	opt_to/AS!insert	ALTER TABLE a RENAME AS zzz a;
 reject	reject	engine	opt_to/AS!swap	ALTER TABLE a RENAME ASC a;
 accept	accept	engine	slave/START_SYM_SLAVE_optional_connection_name_slave_thread_opts_optional_for_channel_slave_until	START SLAVE;
-reject	accept	engine	slave/START_SYM_ALL_SLAVES_slave_thread_opts	START ALL SLAVES;
+accept	accept	engine	slave/START_SYM_ALL_SLAVES_slave_thread_opts	START ALL SLAVES;
 reject	reject	engine	slave/START_SYM_ALL_SLAVES_slave_thread_opts!drop-1	ALL SLAVES;
 reject	reject	engine	slave/START_SYM_ALL_SLAVES_slave_thread_opts!drop-2	START SLAVES;
 reject	reject	engine	slave/START_SYM_ALL_SLAVES_slave_thread_opts!drop-3	START ALL;
@@ -4378,7 +4378,7 @@ reject	reject	engine	slave/STOP_SYM_SLAVE_optional_connection_name_slave_thread_
 reject	reject	engine	slave/STOP_SYM_SLAVE_optional_connection_name_slave_thread_opts_optional_for_channel!truncate	STOP
 reject	reject	engine	slave/STOP_SYM_SLAVE_optional_connection_name_slave_thread_opts_optional_for_channel!insert	STOP SLAVE zzz;
 reject	reject	engine	slave/STOP_SYM_SLAVE_optional_connection_name_slave_thread_opts_optional_for_channel!swap	STORAGE SLAVE;
-reject	accept	engine	slave/STOP_SYM_ALL_SLAVES_slave_thread_opts	STOP ALL SLAVES;
+accept	accept	engine	slave/STOP_SYM_ALL_SLAVES_slave_thread_opts	STOP ALL SLAVES;
 reject	reject	engine	slave/STOP_SYM_ALL_SLAVES_slave_thread_opts!drop-2	STOP SLAVES;
 reject	reject	engine	slave/STOP_SYM_ALL_SLAVES_slave_thread_opts!drop-3	STOP ALL;
 reject	reject	engine	slave/STOP_SYM_ALL_SLAVES_slave_thread_opts!truncate	STOP ALL
@@ -4416,48 +4416,48 @@ reject	reject	engine	start_transaction_option/READ_SYM_WRITE_SYM!insert	START TR
 reject	reject	engine	start_transaction_option/READ_SYM_WRITE_SYM!swap	START TRANSACTION READS WRITE;
 accept	accept	engine	slave_thread_opts/slave_thread_opt_list	START SLAVE;
 accept	accept	engine	slave_thread_opt_list/slave_thread_opt	START SLAVE;
-reject	accept	engine	slave_thread_opt_list/slave_thread_opt_list_,_slave_thread_opt	START SLAVE,;
+accept	accept	engine	slave_thread_opt_list/slave_thread_opt_list_,_slave_thread_opt	START SLAVE,;
 accept	accept	engine	slave_thread_opt_list/slave_thread_opt_list_,_slave_thread_opt!truncate	START SLAVE
 reject	reject	engine	slave_thread_opt_list/slave_thread_opt_list_,_slave_thread_opt!insert	START SLAVE, zzz;
 accept	accept	engine	slave_thread_opt/%empty	START SLAVE;
 accept	accept	engine	slave_thread_opt/SQL_THREAD	START SLAVE SQL_THREAD;
 reject	reject	engine	slave_thread_opt/SQL_THREAD!insert	START SLAVE SQL_THREAD zzz;
 reject	reject	engine	slave_thread_opt/SQL_THREAD!swap	START SLAVE SSL;
-reject	accept	engine	slave_thread_opt/RELAY_THREAD	START SLAVE RELAY_THREAD;
+accept	accept	engine	slave_thread_opt/RELAY_THREAD	START SLAVE RELAY_THREAD;
 reject	reject	engine	slave_thread_opt/RELAY_THREAD!insert	START SLAVE RELAY_THREAD zzz;
 reject	reject	engine	slave_thread_opt/RELAY_THREAD!swap	START SLAVE RELEASE;
 accept	accept	engine	slave_until/%empty	START SLAVE;
-accept	reject	engine	slave_until/UNTIL_SYM_slave_until_opts	START SLAVE UNTIL MASTER_LOG_FILE = 's';
+reject	reject	engine	slave_until/UNTIL_SYM_slave_until_opts	START SLAVE UNTIL MASTER_LOG_FILE = 's';
 reject	reject	engine	slave_until/UNTIL_SYM_slave_until_opts!drop-1	START SLAVE MASTER_LOG_FILE = 's';
 reject	reject	engine	slave_until/UNTIL_SYM_slave_until_opts!drop-2	START SLAVE UNTIL = 's';
-accept	reject	engine	slave_until/UNTIL_SYM_slave_until_opts!drop-3	START SLAVE UNTIL MASTER_LOG_FILE 's';
+reject	reject	engine	slave_until/UNTIL_SYM_slave_until_opts!drop-3	START SLAVE UNTIL MASTER_LOG_FILE 's';
 reject	reject	engine	slave_until/UNTIL_SYM_slave_until_opts!drop-4	START SLAVE UNTIL MASTER_LOG_FILE =;
 reject	reject	engine	slave_until/UNTIL_SYM_slave_until_opts!truncate	START SLAVE UNTIL MASTER_LOG_FILE =
 reject	reject	engine	slave_until/UNTIL_SYM_slave_until_opts!insert	START SLAVE UNTIL MASTER_LOG_FILE = 's' zzz;
 reject	reject	engine	slave_until/UNTIL_SYM_slave_until_opts!swap	START SLAVE UPDATE MASTER_LOG_FILE = 's';
 accept	accept	engine	slave_until/UNTIL_SYM_MASTER_GTID_POS_SYM_=_TEXT_STRING_sys	START SLAVE UNTIL MASTER_GTID_POS = 's';
 reject	reject	engine	slave_until/UNTIL_SYM_MASTER_GTID_POS_SYM_=_TEXT_STRING_sys!drop-1	START SLAVE MASTER_GTID_POS = 's';
-accept	reject	engine	slave_until/UNTIL_SYM_MASTER_GTID_POS_SYM_=_TEXT_STRING_sys!drop-3	START SLAVE UNTIL MASTER_GTID_POS 's';
+reject	reject	engine	slave_until/UNTIL_SYM_MASTER_GTID_POS_SYM_=_TEXT_STRING_sys!drop-3	START SLAVE UNTIL MASTER_GTID_POS 's';
 reject	reject	engine	slave_until/UNTIL_SYM_MASTER_GTID_POS_SYM_=_TEXT_STRING_sys!drop-4	START SLAVE UNTIL MASTER_GTID_POS =;
 reject	reject	engine	slave_until/UNTIL_SYM_MASTER_GTID_POS_SYM_=_TEXT_STRING_sys!truncate	START SLAVE UNTIL MASTER_GTID_POS =
 reject	reject	engine	slave_until/UNTIL_SYM_MASTER_GTID_POS_SYM_=_TEXT_STRING_sys!insert	START SLAVE UNTIL MASTER_GTID_POS = 's' zzz;
 reject	reject	engine	slave_until/UNTIL_SYM_MASTER_GTID_POS_SYM_=_TEXT_STRING_sys!swap	START SLAVE UPDATE MASTER_GTID_POS = 's';
 accept	accept	engine	slave_until/UNTIL_SYM_SQL_AFTER_GTIDS_SYM_=_TEXT_STRING_sys	START SLAVE UNTIL SQL_AFTER_GTIDS = 's';
 reject	reject	engine	slave_until/UNTIL_SYM_SQL_AFTER_GTIDS_SYM_=_TEXT_STRING_sys!drop-1	START SLAVE SQL_AFTER_GTIDS = 's';
-accept	reject	engine	slave_until/UNTIL_SYM_SQL_AFTER_GTIDS_SYM_=_TEXT_STRING_sys!drop-3	START SLAVE UNTIL SQL_AFTER_GTIDS 's';
+reject	reject	engine	slave_until/UNTIL_SYM_SQL_AFTER_GTIDS_SYM_=_TEXT_STRING_sys!drop-3	START SLAVE UNTIL SQL_AFTER_GTIDS 's';
 reject	reject	engine	slave_until/UNTIL_SYM_SQL_AFTER_GTIDS_SYM_=_TEXT_STRING_sys!drop-4	START SLAVE UNTIL SQL_AFTER_GTIDS =;
 reject	reject	engine	slave_until/UNTIL_SYM_SQL_AFTER_GTIDS_SYM_=_TEXT_STRING_sys!truncate	START SLAVE UNTIL SQL_AFTER_GTIDS =
 reject	reject	engine	slave_until/UNTIL_SYM_SQL_AFTER_GTIDS_SYM_=_TEXT_STRING_sys!insert	START SLAVE UNTIL SQL_AFTER_GTIDS = 's' zzz;
 reject	reject	engine	slave_until/UNTIL_SYM_SQL_AFTER_GTIDS_SYM_=_TEXT_STRING_sys!swap	START SLAVE UPDATE SQL_AFTER_GTIDS = 's';
 accept	accept	engine	slave_until/UNTIL_SYM_SQL_BEFORE_GTIDS_SYM_=_TEXT_STRING_sys	START SLAVE UNTIL SQL_BEFORE_GTIDS = 's';
 reject	reject	engine	slave_until/UNTIL_SYM_SQL_BEFORE_GTIDS_SYM_=_TEXT_STRING_sys!drop-1	START SLAVE SQL_BEFORE_GTIDS = 's';
-accept	reject	engine	slave_until/UNTIL_SYM_SQL_BEFORE_GTIDS_SYM_=_TEXT_STRING_sys!drop-3	START SLAVE UNTIL SQL_BEFORE_GTIDS 's';
+reject	reject	engine	slave_until/UNTIL_SYM_SQL_BEFORE_GTIDS_SYM_=_TEXT_STRING_sys!drop-3	START SLAVE UNTIL SQL_BEFORE_GTIDS 's';
 reject	reject	engine	slave_until/UNTIL_SYM_SQL_BEFORE_GTIDS_SYM_=_TEXT_STRING_sys!drop-4	START SLAVE UNTIL SQL_BEFORE_GTIDS =;
 reject	reject	engine	slave_until/UNTIL_SYM_SQL_BEFORE_GTIDS_SYM_=_TEXT_STRING_sys!truncate	START SLAVE UNTIL SQL_BEFORE_GTIDS =
 reject	reject	engine	slave_until/UNTIL_SYM_SQL_BEFORE_GTIDS_SYM_=_TEXT_STRING_sys!insert	START SLAVE UNTIL SQL_BEFORE_GTIDS = 's' zzz;
 reject	reject	engine	slave_until/UNTIL_SYM_SQL_BEFORE_GTIDS_SYM_=_TEXT_STRING_sys!swap	START SLAVE UPDATE SQL_BEFORE_GTIDS = 's';
-accept	reject	engine	slave_until_opts/master_file_def	START SLAVE UNTIL MASTER_LOG_FILE = 's';
-accept	reject	engine	slave_until_opts/master_file_def!swap	START SLAVE UNTIL MASTER_LOG_POS = 's';
+reject	reject	engine	slave_until_opts/master_file_def	START SLAVE UNTIL MASTER_LOG_FILE = 's';
+reject	reject	engine	slave_until_opts/master_file_def!swap	START SLAVE UNTIL MASTER_LOG_POS = 's';
 reject	reject	engine	slave_until_opts/slave_until_opts_,_master_file_def	START SLAVE UNTIL MASTER_LOG_FILE = 's', MASTER_LOG_FILE = 's';
 reject	reject	engine	slave_until_opts/slave_until_opts_,_master_file_def!drop-1	START SLAVE UNTIL = 's', MASTER_LOG_FILE = 's';
 reject	reject	engine	slave_until_opts/slave_until_opts_,_master_file_def!drop-2	START SLAVE UNTIL MASTER_LOG_FILE 's', MASTER_LOG_FILE = 's';
@@ -4465,8 +4465,8 @@ reject	reject	engine	slave_until_opts/slave_until_opts_,_master_file_def!drop-3	
 reject	reject	engine	slave_until_opts/slave_until_opts_,_master_file_def!drop-4	START SLAVE UNTIL MASTER_LOG_FILE = 's' MASTER_LOG_FILE = 's';
 reject	reject	engine	slave_until_opts/slave_until_opts_,_master_file_def!drop-5	START SLAVE UNTIL MASTER_LOG_FILE = 's', = 's';
 reject	reject	engine	slave_until_opts/slave_until_opts_,_master_file_def!drop-6	START SLAVE UNTIL MASTER_LOG_FILE = 's', MASTER_LOG_FILE 's';
-accept	reject	engine	slave_until_opts/slave_until_opts_,_master_file_def!drop-7	START SLAVE UNTIL MASTER_LOG_FILE = 's', MASTER_LOG_FILE =;
-accept	reject	engine	slave_until_opts/slave_until_opts_,_master_file_def!truncate	START SLAVE UNTIL MASTER_LOG_FILE = 's', MASTER_LOG_FILE =
+reject	reject	engine	slave_until_opts/slave_until_opts_,_master_file_def!drop-7	START SLAVE UNTIL MASTER_LOG_FILE = 's', MASTER_LOG_FILE =;
+reject	reject	engine	slave_until_opts/slave_until_opts_,_master_file_def!truncate	START SLAVE UNTIL MASTER_LOG_FILE = 's', MASTER_LOG_FILE =
 reject	reject	engine	slave_until_opts/slave_until_opts_,_master_file_def!insert	START SLAVE UNTIL MASTER_LOG_FILE = 's', MASTER_LOG_FILE = 's' zzz;
 reject	reject	engine	slave_until_opts/slave_until_opts_,_master_file_def!swap	START SLAVE UNTIL MASTER_LOG_POS = 's', MASTER_LOG_FILE = 's';
 accept	accept	engine	checksum/CHECKSUM_SYM_table_or_tables_table_list_opt_checksum_type	CHECKSUM TABLE a;
@@ -4479,10 +4479,10 @@ accept	accept	engine	opt_checksum_type/EXTENDED_SYM	CHECKSUM TABLE a EXTENDED;
 reject	reject	engine	opt_checksum_type/EXTENDED_SYM!insert	CHECKSUM TABLE a EXTENDED zzz;
 reject	reject	engine	opt_checksum_type/EXTENDED_SYM!swap	CHECKSUM TABLE a EXTENT_SIZE;
 accept	accept	engine	repair_table_or_view/table_or_tables_table_list_opt_mi_repair_type	REPAIR TABLE a;
-reject	accept	engine	repair_table_or_view/table_or_tables_table_list_opt_mi_repair_type!swap	REPAIR TABLES a;
-reject	accept	engine	repair_table_or_view/VIEW_SYM_table_list_opt_view_repair_type	REPAIR VIEW a;
-accept	reject	engine	repair_table_or_view/VIEW_SYM_table_list_opt_view_repair_type!drop-2	REPAIR VIEW;
-accept	reject	engine	repair_table_or_view/VIEW_SYM_table_list_opt_view_repair_type!truncate	REPAIR VIEW
+accept	accept	engine	repair_table_or_view/table_or_tables_table_list_opt_mi_repair_type!swap	REPAIR TABLES a;
+accept	accept	engine	repair_table_or_view/VIEW_SYM_table_list_opt_view_repair_type	REPAIR VIEW a;
+reject	reject	engine	repair_table_or_view/VIEW_SYM_table_list_opt_view_repair_type!drop-2	REPAIR VIEW;
+reject	reject	engine	repair_table_or_view/VIEW_SYM_table_list_opt_view_repair_type!truncate	REPAIR VIEW
 reject	reject	engine	repair_table_or_view/VIEW_SYM_table_list_opt_view_repair_type!insert	REPAIR VIEW a zzz;
 reject	reject	engine	repair_table_or_view/VIEW_SYM_table_list_opt_view_repair_type!swap	REPAIR VIRTUAL a;
 accept	accept	engine	repair/REPAIR_opt_no_write_to_binlog_repair_table_or_view	REPAIR TABLE a;
@@ -4503,17 +4503,17 @@ reject	reject	engine	mi_repair_type/EXTENDED_SYM!swap	REPAIR TABLE a EXTENT_SIZE
 accept	accept	engine	mi_repair_type/USE_FRM	REPAIR TABLE a USE_FRM;
 reject	reject	engine	mi_repair_type/USE_FRM!insert	REPAIR TABLE a USE_FRM zzz;
 reject	reject	engine	mi_repair_type/USE_FRM!swap	REPAIR TABLE a USING;
-reject	accept	engine	mi_repair_type/FORCE_SYM	REPAIR TABLE a FORCE;
+accept	accept	engine	mi_repair_type/FORCE_SYM	REPAIR TABLE a FORCE;
 reject	reject	engine	mi_repair_type/FORCE_SYM!insert	REPAIR TABLE a FORCE zzz;
 reject	reject	engine	mi_repair_type/FORCE_SYM!swap	REPAIR TABLE a FOREIGN;
-reject	accept	engine	opt_view_repair_type/%empty	REPAIR VIEW a;
-reject	accept	engine	opt_view_repair_type/FOR_SYM_UPGRADE_SYM	REPAIR VIEW a FOR UPGRADE;
+accept	accept	engine	opt_view_repair_type/%empty	REPAIR VIEW a;
+accept	accept	engine	opt_view_repair_type/FOR_SYM_UPGRADE_SYM	REPAIR VIEW a FOR UPGRADE;
 reject	reject	engine	opt_view_repair_type/FOR_SYM_UPGRADE_SYM!drop-1	REPAIR VIEW a UPGRADE;
 reject	reject	engine	opt_view_repair_type/FOR_SYM_UPGRADE_SYM!drop-2	REPAIR VIEW a FOR;
 reject	reject	engine	opt_view_repair_type/FOR_SYM_UPGRADE_SYM!truncate	REPAIR VIEW a FOR
 reject	reject	engine	opt_view_repair_type/FOR_SYM_UPGRADE_SYM!insert	REPAIR VIEW a FOR UPGRADE zzz;
 reject	reject	engine	opt_view_repair_type/FOR_SYM_UPGRADE_SYM!swap	REPAIR VIEW a FORCE UPGRADE;
-reject	accept	engine	opt_view_repair_type/FROM_MYSQL_SYM	REPAIR VIEW a FROM MYSQL;
+accept	accept	engine	opt_view_repair_type/FROM_MYSQL_SYM	REPAIR VIEW a FROM MYSQL;
 reject	reject	engine	opt_view_repair_type/FROM_MYSQL_SYM!drop-1	REPAIR VIEW a MYSQL;
 reject	reject	engine	opt_view_repair_type/FROM_MYSQL_SYM!drop-2	REPAIR VIEW a FROM;
 reject	reject	engine	opt_view_repair_type/FROM_MYSQL_SYM!truncate	REPAIR VIEW a FROM
@@ -4529,16 +4529,16 @@ reject	reject	engine	analyze_table_list/analyze_table_list_,_analyze_table_elem_
 reject	reject	engine	analyze_table_list/analyze_table_list_,_analyze_table_elem_spec!insert	ANALYZE TABLE a, a zzz;
 accept	accept	engine	analyze_table_elem_spec/table_name_opt_persistent_stat_clause	ANALYZE TABLE a;
 accept	accept	engine	opt_persistent_stat_clause/%empty	ANALYZE TABLE a;
-reject	accept	engine	opt_persistent_stat_clause/PERSISTENT_SYM_FOR_SYM_persistent_stat_spec	ANALYZE TABLE a PERSISTENT FOR ALL;
+accept	accept	engine	opt_persistent_stat_clause/PERSISTENT_SYM_FOR_SYM_persistent_stat_spec	ANALYZE TABLE a PERSISTENT FOR ALL;
 reject	reject	engine	opt_persistent_stat_clause/PERSISTENT_SYM_FOR_SYM_persistent_stat_spec!drop-1	ANALYZE TABLE a FOR ALL;
 reject	reject	engine	opt_persistent_stat_clause/PERSISTENT_SYM_FOR_SYM_persistent_stat_spec!drop-2	ANALYZE TABLE a PERSISTENT ALL;
 reject	reject	engine	opt_persistent_stat_clause/PERSISTENT_SYM_FOR_SYM_persistent_stat_spec!drop-3	ANALYZE TABLE a PERSISTENT FOR;
 reject	reject	engine	opt_persistent_stat_clause/PERSISTENT_SYM_FOR_SYM_persistent_stat_spec!truncate	ANALYZE TABLE a PERSISTENT FOR
 reject	reject	engine	opt_persistent_stat_clause/PERSISTENT_SYM_FOR_SYM_persistent_stat_spec!insert	ANALYZE TABLE a PERSISTENT FOR ALL zzz;
 reject	reject	engine	opt_persistent_stat_clause/PERSISTENT_SYM_FOR_SYM_persistent_stat_spec!swap	ANALYZE TABLE a PHASE FOR ALL;
-reject	accept	engine	persistent_stat_spec/ALL	ANALYZE TABLE a PERSISTENT FOR ALL;
+accept	accept	engine	persistent_stat_spec/ALL	ANALYZE TABLE a PERSISTENT FOR ALL;
 reject	reject	engine	persistent_stat_spec/ALL!swap	ANALYZE TABLE a PERSISTENT FOR ALTER;
-reject	accept	engine	persistent_stat_spec/COLUMNS_persistent_column_stat_spec_INDEXES_persistent_index_stat_spec	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES ALL;
+accept	accept	engine	persistent_stat_spec/COLUMNS_persistent_column_stat_spec_INDEXES_persistent_index_stat_spec	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES ALL;
 reject	reject	engine	persistent_stat_spec/COLUMNS_persistent_column_stat_spec_INDEXES_persistent_index_stat_spec!drop-1	ANALYZE TABLE a PERSISTENT FOR ALL INDEXES ALL;
 reject	reject	engine	persistent_stat_spec/COLUMNS_persistent_column_stat_spec_INDEXES_persistent_index_stat_spec!drop-2	ANALYZE TABLE a PERSISTENT FOR COLUMNS INDEXES ALL;
 reject	reject	engine	persistent_stat_spec/COLUMNS_persistent_column_stat_spec_INDEXES_persistent_index_stat_spec!drop-3	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL ALL;
@@ -4546,42 +4546,42 @@ reject	reject	engine	persistent_stat_spec/COLUMNS_persistent_column_stat_spec_IN
 reject	reject	engine	persistent_stat_spec/COLUMNS_persistent_column_stat_spec_INDEXES_persistent_index_stat_spec!truncate	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES
 reject	reject	engine	persistent_stat_spec/COLUMNS_persistent_column_stat_spec_INDEXES_persistent_index_stat_spec!insert	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES ALL zzz;
 reject	reject	engine	persistent_stat_spec/COLUMNS_persistent_column_stat_spec_INDEXES_persistent_index_stat_spec!swap	ANALYZE TABLE a PERSISTENT FOR COLUMN_ADD ALL INDEXES ALL;
-reject	accept	engine	persistent_column_stat_spec/ALL	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES ALL;
+accept	accept	engine	persistent_column_stat_spec/ALL	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES ALL;
 reject	reject	engine	persistent_column_stat_spec/ALL!truncate	ANALYZE TABLE a PERSISTENT FOR COLUMNS
 reject	reject	engine	persistent_column_stat_spec/ALL!insert	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL zzz INDEXES ALL;
 reject	reject	engine	persistent_column_stat_spec/ALL!swap	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALTER INDEXES ALL;
-reject	accept	engine	persistent_column_stat_spec/(_table_column_list_)	ANALYZE TABLE a PERSISTENT FOR COLUMNS() INDEXES ALL;
+accept	accept	engine	persistent_column_stat_spec/(_table_column_list_)	ANALYZE TABLE a PERSISTENT FOR COLUMNS() INDEXES ALL;
 reject	reject	engine	persistent_column_stat_spec/(_table_column_list_)!drop-1	ANALYZE TABLE a PERSISTENT FOR COLUMNS) INDEXES ALL;
 reject	reject	engine	persistent_column_stat_spec/(_table_column_list_)!drop-2	ANALYZE TABLE a PERSISTENT FOR COLUMNS(INDEXES ALL;
 reject	reject	engine	persistent_column_stat_spec/(_table_column_list_)!truncate	ANALYZE TABLE a PERSISTENT FOR COLUMNS(
 reject	reject	engine	persistent_column_stat_spec/(_table_column_list_)!insert	ANALYZE TABLE a PERSISTENT FOR COLUMNS() zzz INDEXES ALL;
-reject	accept	engine	persistent_index_stat_spec/ALL	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES ALL;
+accept	accept	engine	persistent_index_stat_spec/ALL	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES ALL;
 reject	reject	engine	persistent_index_stat_spec/ALL!swap	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES ALTER;
-reject	accept	engine	persistent_index_stat_spec/(_table_index_list_)	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES();
+accept	accept	engine	persistent_index_stat_spec/(_table_index_list_)	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES();
 reject	reject	engine	persistent_index_stat_spec/(_table_index_list_)!drop-1	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES);
 reject	reject	engine	persistent_index_stat_spec/(_table_index_list_)!drop-2	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES(;
 reject	reject	engine	persistent_index_stat_spec/(_table_index_list_)!truncate	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES(
 reject	reject	engine	persistent_index_stat_spec/(_table_index_list_)!insert	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES() zzz;
-reject	accept	engine	table_column_list/%empty	ANALYZE TABLE a PERSISTENT FOR COLUMNS() INDEXES ALL;
-reject	accept	engine	table_column_list/%empty!insert	ANALYZE TABLE a PERSISTENT FOR COLUMNS(zzz) INDEXES ALL;
-reject	accept	engine	table_column_list/ident	ANALYZE TABLE a PERSISTENT FOR COLUMNS(a) INDEXES ALL;
+accept	accept	engine	table_column_list/%empty	ANALYZE TABLE a PERSISTENT FOR COLUMNS() INDEXES ALL;
+accept	accept	engine	table_column_list/%empty!insert	ANALYZE TABLE a PERSISTENT FOR COLUMNS(zzz) INDEXES ALL;
+accept	accept	engine	table_column_list/ident	ANALYZE TABLE a PERSISTENT FOR COLUMNS(a) INDEXES ALL;
 reject	reject	engine	table_column_list/ident!insert	ANALYZE TABLE a PERSISTENT FOR COLUMNS(a zzz) INDEXES ALL;
-reject	accept	engine	table_column_list/table_column_list_,_ident	ANALYZE TABLE a PERSISTENT FOR COLUMNS(, a) INDEXES ALL;
+accept	accept	engine	table_column_list/table_column_list_,_ident	ANALYZE TABLE a PERSISTENT FOR COLUMNS(, a) INDEXES ALL;
 reject	reject	engine	table_column_list/table_column_list_,_ident!drop-2	ANALYZE TABLE a PERSISTENT FOR COLUMNS(,) INDEXES ALL;
 reject	reject	engine	table_column_list/table_column_list_,_ident!truncate	ANALYZE TABLE a PERSISTENT FOR COLUMNS(,
 reject	reject	engine	table_column_list/table_column_list_,_ident!insert	ANALYZE TABLE a PERSISTENT FOR COLUMNS(, a zzz) INDEXES ALL;
-reject	accept	engine	table_index_list/%empty	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES();
-reject	accept	engine	table_index_list/%empty!insert	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES(zzz);
-reject	accept	engine	table_index_list/table_index_name	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES(a);
+accept	accept	engine	table_index_list/%empty	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES();
+accept	accept	engine	table_index_list/%empty!insert	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES(zzz);
+accept	accept	engine	table_index_list/table_index_name	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES(a);
 reject	reject	engine	table_index_list/table_index_name!insert	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES(a zzz);
-reject	accept	engine	table_index_list/table_index_list_,_table_index_name	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES(, a);
+accept	accept	engine	table_index_list/table_index_list_,_table_index_name	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES(, a);
 reject	reject	engine	table_index_list/table_index_list_,_table_index_name!drop-2	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES(,);
 reject	reject	engine	table_index_list/table_index_list_,_table_index_name!truncate	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES(,
 reject	reject	engine	table_index_list/table_index_list_,_table_index_name!insert	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES(, a zzz);
-reject	accept	engine	table_index_name/ident	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES(a);
-reject	accept	engine	table_index_name/PRIMARY_SYM	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES(PRIMARY);
+accept	accept	engine	table_index_name/ident	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES(a);
+accept	accept	engine	table_index_name/PRIMARY_SYM	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES(PRIMARY);
 reject	reject	engine	table_index_name/PRIMARY_SYM!insert	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES(PRIMARY zzz);
-reject	accept	engine	table_index_name/PRIMARY_SYM!swap	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES(PRIVILEGES);
+accept	accept	engine	table_index_name/PRIMARY_SYM!swap	ANALYZE TABLE a PERSISTENT FOR COLUMNS ALL INDEXES(PRIVILEGES);
 accept	accept	engine	binlog_base64_event/BINLOG_SYM_TEXT_STRING_sys	BINLOG 's';
 reject	accept	engine	binlog_base64_event/BINLOG_SYM_@_ident_or_text_,_@_ident_or_text	BINLOG@a,@a;
 reject	reject	engine	binlog_base64_event/BINLOG_SYM_@_ident_or_text_,_@_ident_or_text!drop-1	@a,@a;
@@ -4594,10 +4594,10 @@ reject	accept	engine	binlog_base64_event/BINLOG_SYM_@_ident_or_text_,_@_ident_or
 reject	reject	engine	binlog_base64_event/BINLOG_SYM_@_ident_or_text_,_@_ident_or_text!insert	BINLOG@a,@a zzz;
 reject	reject	engine	binlog_base64_event/BINLOG_SYM_@_ident_or_text_,_@_ident_or_text!swap	BIT@a,@a;
 accept	accept	engine	check_view_or_table/table_or_tables_table_list_opt_mi_check_type	CHECK TABLE a;
-reject	accept	engine	check_view_or_table/table_or_tables_table_list_opt_mi_check_type!swap	CHECK TABLES a;
-reject	accept	engine	check_view_or_table/VIEW_SYM_table_list_opt_view_check_type	CHECK VIEW a;
-accept	reject	engine	check_view_or_table/VIEW_SYM_table_list_opt_view_check_type!drop-2	CHECK VIEW;
-accept	reject	engine	check_view_or_table/VIEW_SYM_table_list_opt_view_check_type!truncate	CHECK VIEW
+accept	accept	engine	check_view_or_table/table_or_tables_table_list_opt_mi_check_type!swap	CHECK TABLES a;
+accept	accept	engine	check_view_or_table/VIEW_SYM_table_list_opt_view_check_type	CHECK VIEW a;
+reject	reject	engine	check_view_or_table/VIEW_SYM_table_list_opt_view_check_type!drop-2	CHECK VIEW;
+reject	reject	engine	check_view_or_table/VIEW_SYM_table_list_opt_view_check_type!truncate	CHECK VIEW
 reject	reject	engine	check_view_or_table/VIEW_SYM_table_list_opt_view_check_type!insert	CHECK VIEW a zzz;
 reject	reject	engine	check_view_or_table/VIEW_SYM_table_list_opt_view_check_type!swap	CHECK VIRTUAL a;
 accept	accept	engine	check/CHECK_SYM_check_view_or_table	CHECK TABLE a;
@@ -4626,12 +4626,12 @@ reject	reject	engine	mi_check_type/CHANGED!insert	CHECK TABLE a CHANGED zzz;
 reject	reject	engine	mi_check_type/CHANGED!swap	CHECK TABLE a CHANNEL;
 accept	accept	engine	mi_check_type/FOR_SYM_UPGRADE_SYM	CHECK TABLE a FOR UPGRADE;
 reject	reject	engine	mi_check_type/FOR_SYM_UPGRADE_SYM!drop-1	CHECK TABLE a UPGRADE;
-accept	reject	engine	mi_check_type/FOR_SYM_UPGRADE_SYM!drop-2	CHECK TABLE a FOR;
-accept	reject	engine	mi_check_type/FOR_SYM_UPGRADE_SYM!truncate	CHECK TABLE a FOR
+reject	reject	engine	mi_check_type/FOR_SYM_UPGRADE_SYM!drop-2	CHECK TABLE a FOR;
+reject	reject	engine	mi_check_type/FOR_SYM_UPGRADE_SYM!truncate	CHECK TABLE a FOR
 reject	reject	engine	mi_check_type/FOR_SYM_UPGRADE_SYM!insert	CHECK TABLE a FOR UPGRADE zzz;
 reject	reject	engine	mi_check_type/FOR_SYM_UPGRADE_SYM!swap	CHECK TABLE a FORCE UPGRADE;
-reject	accept	engine	opt_view_check_type/%empty	CHECK VIEW a;
-reject	accept	engine	opt_view_check_type/FOR_SYM_UPGRADE_SYM	CHECK VIEW a FOR UPGRADE;
+accept	accept	engine	opt_view_check_type/%empty	CHECK VIEW a;
+accept	accept	engine	opt_view_check_type/FOR_SYM_UPGRADE_SYM	CHECK VIEW a FOR UPGRADE;
 reject	reject	engine	opt_view_check_type/FOR_SYM_UPGRADE_SYM!drop-1	CHECK VIEW a UPGRADE;
 reject	reject	engine	opt_view_check_type/FOR_SYM_UPGRADE_SYM!drop-2	CHECK VIEW a FOR;
 reject	reject	engine	opt_view_check_type/FOR_SYM_UPGRADE_SYM!truncate	CHECK VIEW a FOR
@@ -4650,7 +4650,7 @@ accept	accept	engine	rename/RENAME_table_or_tables_opt_if_exists_table_to_table_
 accept	accept	engine	rename/RENAME_USER_SYM_clear_privileges_rename_list	RENAME USER a TO a;
 reject	reject	engine	rename/RENAME_USER_SYM_clear_privileges_rename_list!drop-1	USER a TO a;
 reject	reject	engine	rename/RENAME_USER_SYM_clear_privileges_rename_list!drop-3	RENAME USER TO a;
-accept	reject	engine	rename/RENAME_USER_SYM_clear_privileges_rename_list!drop-4	RENAME USER a a;
+reject	reject	engine	rename/RENAME_USER_SYM_clear_privileges_rename_list!drop-4	RENAME USER a a;
 reject	reject	engine	rename/RENAME_USER_SYM_clear_privileges_rename_list!drop-5	RENAME USER a TO;
 reject	reject	engine	rename/RENAME_USER_SYM_clear_privileges_rename_list!truncate	RENAME USER a TO
 reject	reject	engine	rename/RENAME_USER_SYM_clear_privileges_rename_list!insert	RENAME USER a TO a zzz;
@@ -4659,11 +4659,11 @@ accept	accept	engine	rename_list/user_TO_SYM_user	RENAME USER a TO a;
 reject	reject	engine	rename_list/user_TO_SYM_user!swap	RENAME USER a TRAILING a;
 accept	accept	engine	rename_list/rename_list_,_user_TO_SYM_user	RENAME USER a TO a, a TO a;
 reject	reject	engine	rename_list/rename_list_,_user_TO_SYM_user!drop-1	RENAME USER TO a, a TO a;
-accept	reject	engine	rename_list/rename_list_,_user_TO_SYM_user!drop-2	RENAME USER a a, a TO a;
+reject	reject	engine	rename_list/rename_list_,_user_TO_SYM_user!drop-2	RENAME USER a a, a TO a;
 reject	reject	engine	rename_list/rename_list_,_user_TO_SYM_user!drop-3	RENAME USER a TO, a TO a;
 reject	reject	engine	rename_list/rename_list_,_user_TO_SYM_user!drop-4	RENAME USER a TO a a TO a;
 reject	reject	engine	rename_list/rename_list_,_user_TO_SYM_user!drop-5	RENAME USER a TO a, TO a;
-accept	reject	engine	rename_list/rename_list_,_user_TO_SYM_user!drop-6	RENAME USER a TO a, a a;
+reject	reject	engine	rename_list/rename_list_,_user_TO_SYM_user!drop-6	RENAME USER a TO a, a a;
 reject	reject	engine	rename_list/rename_list_,_user_TO_SYM_user!drop-7	RENAME USER a TO a, a TO;
 reject	reject	engine	rename_list/rename_list_,_user_TO_SYM_user!truncate	RENAME USER a TO a, a TO
 reject	reject	engine	rename_list/rename_list_,_user_TO_SYM_user!insert	RENAME USER a TO a, a TO a zzz;
@@ -5574,7 +5574,7 @@ reject	reject	engine	column_default_non_parenthesized_expr/function_call_generic
 reject	reject	engine	column_default_non_parenthesized_expr/function_call_generic!insert	DO a() zzz;
 accept	accept	engine	column_default_non_parenthesized_expr/function_call_conflict	DO ASCII(a);
 reject	reject	engine	column_default_non_parenthesized_expr/function_call_conflict!drop-2	DO ASCII a);
-accept	reject	engine	column_default_non_parenthesized_expr/function_call_conflict!drop-3	DO ASCII();
+reject	reject	engine	column_default_non_parenthesized_expr/function_call_conflict!drop-3	DO ASCII();
 reject	reject	engine	column_default_non_parenthesized_expr/function_call_conflict!drop-4	DO ASCII(a;
 reject	reject	engine	column_default_non_parenthesized_expr/function_call_conflict!truncate	DO ASCII(a
 reject	reject	engine	column_default_non_parenthesized_expr/function_call_conflict!insert	DO ASCII(a) zzz;
@@ -5606,7 +5606,7 @@ reject	reject	engine	column_default_non_parenthesized_expr/window_func_expr!swap
 accept	accept	engine	column_default_non_parenthesized_expr/inverse_distribution_function	DO MEDIAN(a) OVER();
 reject	reject	engine	column_default_non_parenthesized_expr/inverse_distribution_function!drop-1	DO(a) OVER();
 reject	reject	engine	column_default_non_parenthesized_expr/inverse_distribution_function!drop-2	DO MEDIAN a) OVER();
-accept	reject	engine	column_default_non_parenthesized_expr/inverse_distribution_function!drop-3	DO MEDIAN() OVER();
+reject	reject	engine	column_default_non_parenthesized_expr/inverse_distribution_function!drop-3	DO MEDIAN() OVER();
 reject	reject	engine	column_default_non_parenthesized_expr/inverse_distribution_function!drop-4	DO MEDIAN(a OVER();
 reject	reject	engine	column_default_non_parenthesized_expr/inverse_distribution_function!drop-5	DO MEDIAN(a)();
 reject	reject	engine	column_default_non_parenthesized_expr/inverse_distribution_function!drop-6	DO MEDIAN(a) OVER);
@@ -5812,7 +5812,7 @@ reject	reject	engine	simple_expr/not2_simple_expr!insert	DO ! a zzz;
 accept	accept	engine	mysql_concatenation_expr/simple_expr	DO a;
 accept	accept	engine	function_call_keyword_timestamp/TIMESTAMP_(_expr_)	DO TIMESTAMP(a);
 reject	reject	engine	function_call_keyword_timestamp/TIMESTAMP_(_expr_)!drop-2	DO TIMESTAMP a);
-accept	reject	engine	function_call_keyword_timestamp/TIMESTAMP_(_expr_)!drop-3	DO TIMESTAMP();
+reject	reject	engine	function_call_keyword_timestamp/TIMESTAMP_(_expr_)!drop-3	DO TIMESTAMP();
 reject	reject	engine	function_call_keyword_timestamp/TIMESTAMP_(_expr_)!drop-4	DO TIMESTAMP(a;
 reject	reject	engine	function_call_keyword_timestamp/TIMESTAMP_(_expr_)!truncate	DO TIMESTAMP(a
 reject	reject	engine	function_call_keyword_timestamp/TIMESTAMP_(_expr_)!insert	DO TIMESTAMP(a) zzz;
@@ -5846,21 +5846,21 @@ accept	accept	engine	function_call_keyword/CURRENT_ROLE_optional_braces	DO CURRE
 reject	reject	engine	function_call_keyword/CURRENT_ROLE_optional_braces!insert	DO CURRENT_ROLE zzz;
 accept	accept	engine	function_call_keyword/DATE_SYM_(_expr_)	DO DATE(a);
 reject	reject	engine	function_call_keyword/DATE_SYM_(_expr_)!drop-2	DO DATE a);
-accept	reject	engine	function_call_keyword/DATE_SYM_(_expr_)!drop-3	DO DATE();
+reject	reject	engine	function_call_keyword/DATE_SYM_(_expr_)!drop-3	DO DATE();
 reject	reject	engine	function_call_keyword/DATE_SYM_(_expr_)!drop-4	DO DATE(a;
 reject	reject	engine	function_call_keyword/DATE_SYM_(_expr_)!truncate	DO DATE(a
 reject	reject	engine	function_call_keyword/DATE_SYM_(_expr_)!insert	DO DATE(a) zzz;
 reject	reject	engine	function_call_keyword/DATE_SYM_(_expr_)!swap	DO DATETIME(a);
 accept	accept	engine	function_call_keyword/DAY_SYM_(_expr_)	DO DAY(a);
 reject	reject	engine	function_call_keyword/DAY_SYM_(_expr_)!drop-2	DO DAY a);
-accept	reject	engine	function_call_keyword/DAY_SYM_(_expr_)!drop-3	DO DAY();
+reject	reject	engine	function_call_keyword/DAY_SYM_(_expr_)!drop-3	DO DAY();
 reject	reject	engine	function_call_keyword/DAY_SYM_(_expr_)!drop-4	DO DAY(a;
 reject	reject	engine	function_call_keyword/DAY_SYM_(_expr_)!truncate	DO DAY(a
 reject	reject	engine	function_call_keyword/DAY_SYM_(_expr_)!insert	DO DAY(a) zzz;
 reject	reject	engine	function_call_keyword/DAY_SYM_(_expr_)!swap	DO DAY_HOUR(a);
 accept	accept	engine	function_call_keyword/HOUR_SYM_(_expr_)	DO HOUR(a);
 reject	reject	engine	function_call_keyword/HOUR_SYM_(_expr_)!drop-2	DO HOUR a);
-accept	reject	engine	function_call_keyword/HOUR_SYM_(_expr_)!drop-3	DO HOUR();
+reject	reject	engine	function_call_keyword/HOUR_SYM_(_expr_)!drop-3	DO HOUR();
 reject	reject	engine	function_call_keyword/HOUR_SYM_(_expr_)!drop-4	DO HOUR(a;
 reject	reject	engine	function_call_keyword/HOUR_SYM_(_expr_)!truncate	DO HOUR(a
 reject	reject	engine	function_call_keyword/HOUR_SYM_(_expr_)!insert	DO HOUR(a) zzz;
@@ -5911,14 +5911,14 @@ reject	reject	engine	function_call_keyword/LEFT_(_expr_,_expr_)!insert	DO LEFT(a
 accept	accept	engine	function_call_keyword/LEFT_(_expr_,_expr_)!swap	DO LESS(a, a);
 accept	accept	engine	function_call_keyword/MINUTE_SYM_(_expr_)	DO MINUTE(a);
 reject	reject	engine	function_call_keyword/MINUTE_SYM_(_expr_)!drop-2	DO MINUTE a);
-accept	reject	engine	function_call_keyword/MINUTE_SYM_(_expr_)!drop-3	DO MINUTE();
+reject	reject	engine	function_call_keyword/MINUTE_SYM_(_expr_)!drop-3	DO MINUTE();
 reject	reject	engine	function_call_keyword/MINUTE_SYM_(_expr_)!drop-4	DO MINUTE(a;
 reject	reject	engine	function_call_keyword/MINUTE_SYM_(_expr_)!truncate	DO MINUTE(a
 reject	reject	engine	function_call_keyword/MINUTE_SYM_(_expr_)!insert	DO MINUTE(a) zzz;
 reject	reject	engine	function_call_keyword/MINUTE_SYM_(_expr_)!swap	DO MINUTE_MICROSECOND(a);
 accept	accept	engine	function_call_keyword/MONTH_SYM_(_expr_)	DO MONTH(a);
 reject	reject	engine	function_call_keyword/MONTH_SYM_(_expr_)!drop-2	DO MONTH a);
-accept	reject	engine	function_call_keyword/MONTH_SYM_(_expr_)!drop-3	DO MONTH();
+reject	reject	engine	function_call_keyword/MONTH_SYM_(_expr_)!drop-3	DO MONTH();
 reject	reject	engine	function_call_keyword/MONTH_SYM_(_expr_)!drop-4	DO MONTH(a;
 reject	reject	engine	function_call_keyword/MONTH_SYM_(_expr_)!truncate	DO MONTH(a
 reject	reject	engine	function_call_keyword/MONTH_SYM_(_expr_)!insert	DO MONTH(a) zzz;
@@ -5934,7 +5934,7 @@ reject	reject	engine	function_call_keyword/RIGHT_(_expr_,_expr_)!insert	DO RIGHT
 reject	reject	engine	function_call_keyword/RIGHT_(_expr_,_expr_)!swap	DO ROLE(a, a);
 accept	accept	engine	function_call_keyword/SECOND_SYM_(_expr_)	DO SECOND(a);
 reject	reject	engine	function_call_keyword/SECOND_SYM_(_expr_)!drop-2	DO SECOND a);
-accept	reject	engine	function_call_keyword/SECOND_SYM_(_expr_)!drop-3	DO SECOND();
+reject	reject	engine	function_call_keyword/SECOND_SYM_(_expr_)!drop-3	DO SECOND();
 reject	reject	engine	function_call_keyword/SECOND_SYM_(_expr_)!drop-4	DO SECOND(a;
 reject	reject	engine	function_call_keyword/SECOND_SYM_(_expr_)!truncate	DO SECOND(a
 reject	reject	engine	function_call_keyword/SECOND_SYM_(_expr_)!insert	DO SECOND(a) zzz;
@@ -5947,7 +5947,7 @@ reject	reject	engine	function_call_keyword/SESSION_USER_SYM_(_)!insert	DO SESSIO
 reject	reject	engine	function_call_keyword/SESSION_USER_SYM_(_)!swap	DO SET();
 accept	accept	engine	function_call_keyword/TIME_SYM_(_expr_)	DO TIME(a);
 reject	reject	engine	function_call_keyword/TIME_SYM_(_expr_)!drop-2	DO TIME a);
-accept	reject	engine	function_call_keyword/TIME_SYM_(_expr_)!drop-3	DO TIME();
+reject	reject	engine	function_call_keyword/TIME_SYM_(_expr_)!drop-3	DO TIME();
 reject	reject	engine	function_call_keyword/TIME_SYM_(_expr_)!drop-4	DO TIME(a;
 reject	reject	engine	function_call_keyword/TIME_SYM_(_expr_)!truncate	DO TIME(a
 reject	reject	engine	function_call_keyword/TIME_SYM_(_expr_)!insert	DO TIME(a) zzz;
@@ -5965,7 +5965,7 @@ reject	reject	engine	function_call_keyword/USER_SYM_(_)!insert	DO USER() zzz;
 accept	accept	engine	function_call_keyword/USER_SYM_(_)!swap	DO USER_RESOURCES();
 accept	accept	engine	function_call_keyword/YEAR_SYM_(_expr_)	DO YEAR(a);
 reject	reject	engine	function_call_keyword/YEAR_SYM_(_expr_)!drop-2	DO YEAR a);
-accept	reject	engine	function_call_keyword/YEAR_SYM_(_expr_)!drop-3	DO YEAR();
+reject	reject	engine	function_call_keyword/YEAR_SYM_(_expr_)!drop-3	DO YEAR();
 reject	reject	engine	function_call_keyword/YEAR_SYM_(_expr_)!drop-4	DO YEAR(a;
 reject	reject	engine	function_call_keyword/YEAR_SYM_(_expr_)!truncate	DO YEAR(a
 reject	reject	engine	function_call_keyword/YEAR_SYM_(_expr_)!insert	DO YEAR(a) zzz;
@@ -6201,7 +6201,7 @@ reject	reject	engine	function_call_nonkeyword/COLUMN_GET_SYM_(_expr_,_expr_AS_ca
 accept	accept	engine	function_call_conflict/ASCII_SYM_(_expr_)	DO ASCII(a);
 accept	accept	engine	function_call_conflict/CHARSET_(_expr_)	DO CHARSET(a);
 reject	reject	engine	function_call_conflict/CHARSET_(_expr_)!drop-2	DO CHARSET a);
-accept	reject	engine	function_call_conflict/CHARSET_(_expr_)!drop-3	DO CHARSET();
+reject	reject	engine	function_call_conflict/CHARSET_(_expr_)!drop-3	DO CHARSET();
 reject	reject	engine	function_call_conflict/CHARSET_(_expr_)!drop-4	DO CHARSET(a;
 reject	reject	engine	function_call_conflict/CHARSET_(_expr_)!truncate	DO CHARSET(a
 reject	reject	engine	function_call_conflict/CHARSET_(_expr_)!insert	DO CHARSET(a) zzz;
@@ -6219,7 +6219,7 @@ reject	reject	engine	function_call_conflict/IF_SYM_(_expr_,_expr_,_expr_)!insert
 reject	reject	engine	function_call_conflict/IF_SYM_(_expr_,_expr_,_expr_)!swap	DO IGNORE(a, a, a);
 accept	accept	engine	function_call_conflict/LAST_VALUE_(_expr_)	DO LAST_VALUE(a);
 reject	reject	engine	function_call_conflict/LAST_VALUE_(_expr_)!drop-2	DO LAST_VALUE a);
-accept	reject	engine	function_call_conflict/LAST_VALUE_(_expr_)!drop-3	DO LAST_VALUE();
+reject	reject	engine	function_call_conflict/LAST_VALUE_(_expr_)!drop-3	DO LAST_VALUE();
 reject	reject	engine	function_call_conflict/LAST_VALUE_(_expr_)!drop-4	DO LAST_VALUE(a;
 reject	reject	engine	function_call_conflict/LAST_VALUE_(_expr_)!truncate	DO LAST_VALUE(a
 reject	reject	engine	function_call_conflict/LAST_VALUE_(_expr_)!insert	DO LAST_VALUE(a) zzz;
@@ -6244,7 +6244,7 @@ reject	reject	engine	function_call_conflict/MOD_SYM_(_expr_,_expr_)!insert	DO MO
 accept	accept	engine	function_call_conflict/MOD_SYM_(_expr_,_expr_)!swap	DO MODE(a, a);
 accept	accept	engine	function_call_conflict/PASSWORD_SYM_(_expr_)	DO PASSWORD(a);
 reject	reject	engine	function_call_conflict/PASSWORD_SYM_(_expr_)!drop-2	DO PASSWORD a);
-accept	reject	engine	function_call_conflict/PASSWORD_SYM_(_expr_)!drop-3	DO PASSWORD();
+reject	reject	engine	function_call_conflict/PASSWORD_SYM_(_expr_)!drop-3	DO PASSWORD();
 reject	reject	engine	function_call_conflict/PASSWORD_SYM_(_expr_)!drop-4	DO PASSWORD(a;
 reject	reject	engine	function_call_conflict/PASSWORD_SYM_(_expr_)!truncate	DO PASSWORD(a
 reject	reject	engine	function_call_conflict/PASSWORD_SYM_(_expr_)!insert	DO PASSWORD(a) zzz;
@@ -6319,19 +6319,19 @@ reject	reject	engine	function_call_conflict/WEIGHT_STRING_SYM_(_expr_,_ulong_num
 reject	reject	engine	function_call_conflict/WEIGHT_STRING_SYM_(_expr_,_ulong_num_,_ulong_num_,_ulong_num_)!insert	DO WEIGHT_STRING(a, 1, 1, 1) zzz;
 reject	reject	engine	function_call_conflict/WEIGHT_STRING_SYM_(_expr_,_ulong_num_,_ulong_num_,_ulong_num_)!swap	DO WHEN(a, 1, 1, 1);
 accept	accept	engine	function_call_generic/ident_func_(_opt_udf_expr_list_)	DO a();
-accept	reject	engine	function_call_generic/CONTAINS_SYM_(_opt_expr_list_)	DO CONTAINS();
+reject	reject	engine	function_call_generic/CONTAINS_SYM_(_opt_expr_list_)	DO CONTAINS();
 reject	reject	engine	function_call_generic/CONTAINS_SYM_(_opt_expr_list_)!drop-2	DO CONTAINS);
 reject	reject	engine	function_call_generic/CONTAINS_SYM_(_opt_expr_list_)!drop-3	DO CONTAINS(;
 reject	reject	engine	function_call_generic/CONTAINS_SYM_(_opt_expr_list_)!truncate	DO CONTAINS(
 reject	reject	engine	function_call_generic/CONTAINS_SYM_(_opt_expr_list_)!insert	DO CONTAINS() zzz;
 accept	accept	engine	function_call_generic/CONTAINS_SYM_(_opt_expr_list_)!swap	DO CONTEXT();
-accept	reject	engine	function_call_generic/OVERLAPS_SYM_(_opt_expr_list_)	DO OVERLAPS();
+reject	reject	engine	function_call_generic/OVERLAPS_SYM_(_opt_expr_list_)	DO OVERLAPS();
 reject	reject	engine	function_call_generic/OVERLAPS_SYM_(_opt_expr_list_)!drop-2	DO OVERLAPS);
 reject	reject	engine	function_call_generic/OVERLAPS_SYM_(_opt_expr_list_)!drop-3	DO OVERLAPS(;
 reject	reject	engine	function_call_generic/OVERLAPS_SYM_(_opt_expr_list_)!truncate	DO OVERLAPS(
 reject	reject	engine	function_call_generic/OVERLAPS_SYM_(_opt_expr_list_)!insert	DO OVERLAPS() zzz;
 reject	reject	engine	function_call_generic/OVERLAPS_SYM_(_opt_expr_list_)!swap	DO OWNER();
-accept	reject	engine	function_call_generic/WITHIN_(_opt_expr_list_)	DO WITHIN();
+reject	reject	engine	function_call_generic/WITHIN_(_opt_expr_list_)	DO WITHIN();
 reject	reject	engine	function_call_generic/WITHIN_(_opt_expr_list_)!drop-2	DO WITHIN);
 reject	reject	engine	function_call_generic/WITHIN_(_opt_expr_list_)!drop-3	DO WITHIN(;
 reject	reject	engine	function_call_generic/WITHIN_(_opt_expr_list_)!truncate	DO WITHIN(
@@ -6851,9 +6851,9 @@ reject	reject	engine	cast_type_temporal/INTERVAL_SYM_DAY_SECOND_SYM_field_scale!
 reject	reject	engine	cast_type_temporal/INTERVAL_SYM_DAY_SECOND_SYM_field_scale!truncate	DO CAST(a AS INTERVAL DAY_SECOND(2147483648
 reject	reject	engine	cast_type_temporal/INTERVAL_SYM_DAY_SECOND_SYM_field_scale!insert	DO CAST(a AS INTERVAL DAY_SECOND(2147483648) zzz);
 reject	reject	engine	cast_type_temporal/INTERVAL_SYM_DAY_SECOND_SYM_field_scale!swap	DO CAST(a AS INTO DAY_SECOND(2147483648));
-accept	reject	engine	opt_expr_list/%empty	DO CONTAINS();
-accept	reject	engine	opt_expr_list/%empty!insert	DO CONTAINS(zzz);
-accept	reject	engine	opt_expr_list/expr_list	DO CONTAINS(a);
+reject	reject	engine	opt_expr_list/%empty	DO CONTAINS();
+reject	reject	engine	opt_expr_list/%empty!insert	DO CONTAINS(zzz);
+reject	reject	engine	opt_expr_list/expr_list	DO CONTAINS(a);
 reject	reject	engine	opt_expr_list/expr_list!insert	DO CONTAINS(a zzz);
 accept	accept	engine	expr_list/expr	DO a;
 accept	accept	engine	expr_list/expr_list_,_expr	DO a, a;
@@ -7510,7 +7510,7 @@ accept	accept	engine	window_frame_units/RANGE_SYM	DO ROW_NUMBER() OVER(RANGE UNB
 reject	reject	engine	window_frame_units/RANGE_SYM!insert	DO ROW_NUMBER() OVER(RANGE zzz UNBOUNDED PRECEDING);
 reject	reject	engine	window_frame_units/RANGE_SYM!swap	DO ROW_NUMBER() OVER(RANK UNBOUNDED PRECEDING);
 accept	accept	engine	window_frame_extent/window_frame_start	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING);
-accept	reject	engine	window_frame_extent/window_frame_start!swap	DO ROW_NUMBER() OVER(ROWS UNCOMMITTED PRECEDING);
+reject	reject	engine	window_frame_extent/window_frame_start!swap	DO ROW_NUMBER() OVER(ROWS UNCOMMITTED PRECEDING);
 accept	accept	engine	window_frame_extent/BETWEEN_SYM_window_frame_bound_AND_SYM_window_frame_bound	DO ROW_NUMBER() OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED PRECEDING);
 reject	reject	engine	window_frame_extent/BETWEEN_SYM_window_frame_bound_AND_SYM_window_frame_bound!drop-1	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING AND UNBOUNDED PRECEDING);
 reject	reject	engine	window_frame_extent/BETWEEN_SYM_window_frame_bound_AND_SYM_window_frame_bound!drop-2	DO ROW_NUMBER() OVER(ROWS BETWEEN PRECEDING AND UNBOUNDED PRECEDING);
@@ -7524,7 +7524,7 @@ reject	reject	engine	window_frame_extent/BETWEEN_SYM_window_frame_bound_AND_SYM_
 accept	accept	engine	window_frame_start/UNBOUNDED_SYM_PRECEDING_SYM	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING);
 accept	accept	engine	window_frame_start/CURRENT_SYM_ROW_SYM	DO ROW_NUMBER() OVER(ROWS CURRENT ROW);
 reject	reject	engine	window_frame_start/CURRENT_SYM_ROW_SYM!drop-1	DO ROW_NUMBER() OVER(ROWS ROW);
-accept	reject	engine	window_frame_start/CURRENT_SYM_ROW_SYM!drop-2	DO ROW_NUMBER() OVER(ROWS CURRENT);
+reject	reject	engine	window_frame_start/CURRENT_SYM_ROW_SYM!drop-2	DO ROW_NUMBER() OVER(ROWS CURRENT);
 reject	reject	engine	window_frame_start/CURRENT_SYM_ROW_SYM!truncate	DO ROW_NUMBER() OVER(ROWS CURRENT
 reject	reject	engine	window_frame_start/CURRENT_SYM_ROW_SYM!insert	DO ROW_NUMBER() OVER(ROWS CURRENT ROW zzz);
 reject	reject	engine	window_frame_start/CURRENT_SYM_ROW_SYM!swap	DO ROW_NUMBER() OVER(ROWS CURRENT_DATE ROW);
@@ -7536,35 +7536,35 @@ reject	reject	engine	window_frame_start/literal_PRECEDING_SYM!swap	DO ROW_NUMBER
 accept	accept	engine	window_frame_bound/window_frame_start	DO ROW_NUMBER() OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED PRECEDING);
 reject	reject	engine	window_frame_bound/window_frame_start!truncate	DO ROW_NUMBER() OVER(ROWS BETWEEN UNBOUNDED
 reject	reject	engine	window_frame_bound/window_frame_start!insert	DO ROW_NUMBER() OVER(ROWS BETWEEN UNBOUNDED PRECEDING zzz AND UNBOUNDED PRECEDING);
-accept	reject	engine	window_frame_bound/window_frame_start!swap	DO ROW_NUMBER() OVER(ROWS BETWEEN UNCOMMITTED PRECEDING AND UNBOUNDED PRECEDING);
+reject	reject	engine	window_frame_bound/window_frame_start!swap	DO ROW_NUMBER() OVER(ROWS BETWEEN UNCOMMITTED PRECEDING AND UNBOUNDED PRECEDING);
 accept	accept	engine	window_frame_bound/UNBOUNDED_SYM_FOLLOWING_SYM	DO ROW_NUMBER() OVER(ROWS BETWEEN UNBOUNDED FOLLOWING AND UNBOUNDED PRECEDING);
 reject	reject	engine	window_frame_bound/UNBOUNDED_SYM_FOLLOWING_SYM!drop-1	DO ROW_NUMBER() OVER(ROWS BETWEEN FOLLOWING AND UNBOUNDED PRECEDING);
 reject	reject	engine	window_frame_bound/UNBOUNDED_SYM_FOLLOWING_SYM!insert	DO ROW_NUMBER() OVER(ROWS BETWEEN UNBOUNDED FOLLOWING zzz AND UNBOUNDED PRECEDING);
-accept	reject	engine	window_frame_bound/UNBOUNDED_SYM_FOLLOWING_SYM!swap	DO ROW_NUMBER() OVER(ROWS BETWEEN UNCOMMITTED FOLLOWING AND UNBOUNDED PRECEDING);
+reject	reject	engine	window_frame_bound/UNBOUNDED_SYM_FOLLOWING_SYM!swap	DO ROW_NUMBER() OVER(ROWS BETWEEN UNCOMMITTED FOLLOWING AND UNBOUNDED PRECEDING);
 accept	accept	engine	window_frame_bound/literal_FOLLOWING_SYM	DO ROW_NUMBER() OVER(ROWS BETWEEN 's' FOLLOWING AND UNBOUNDED PRECEDING);
 reject	reject	engine	window_frame_bound/literal_FOLLOWING_SYM!drop-2	DO ROW_NUMBER() OVER(ROWS BETWEEN 's' AND UNBOUNDED PRECEDING);
 reject	reject	engine	window_frame_bound/literal_FOLLOWING_SYM!truncate	DO ROW_NUMBER() OVER(ROWS BETWEEN 's'
 reject	reject	engine	window_frame_bound/literal_FOLLOWING_SYM!insert	DO ROW_NUMBER() OVER(ROWS BETWEEN 's' FOLLOWING zzz AND UNBOUNDED PRECEDING);
 reject	reject	engine	window_frame_bound/literal_FOLLOWING_SYM!swap	DO ROW_NUMBER() OVER(ROWS BETWEEN 's' FOLLOWS AND UNBOUNDED PRECEDING);
 accept	accept	engine	opt_window_frame_exclusion/%empty	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING);
-reject	accept	engine	opt_window_frame_exclusion/EXCLUDE_SYM_CURRENT_SYM_ROW_SYM	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING EXCLUDE CURRENT ROW);
+accept	accept	engine	opt_window_frame_exclusion/EXCLUDE_SYM_CURRENT_SYM_ROW_SYM	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING EXCLUDE CURRENT ROW);
 reject	reject	engine	opt_window_frame_exclusion/EXCLUDE_SYM_CURRENT_SYM_ROW_SYM!drop-1	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING CURRENT ROW);
 reject	reject	engine	opt_window_frame_exclusion/EXCLUDE_SYM_CURRENT_SYM_ROW_SYM!drop-2	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING EXCLUDE ROW);
 reject	reject	engine	opt_window_frame_exclusion/EXCLUDE_SYM_CURRENT_SYM_ROW_SYM!drop-3	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING EXCLUDE CURRENT);
 reject	reject	engine	opt_window_frame_exclusion/EXCLUDE_SYM_CURRENT_SYM_ROW_SYM!truncate	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING EXCLUDE CURRENT
 reject	reject	engine	opt_window_frame_exclusion/EXCLUDE_SYM_CURRENT_SYM_ROW_SYM!insert	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING EXCLUDE CURRENT ROW zzz);
 reject	reject	engine	opt_window_frame_exclusion/EXCLUDE_SYM_CURRENT_SYM_ROW_SYM!swap	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING EXECUTE CURRENT ROW);
-reject	accept	engine	opt_window_frame_exclusion/EXCLUDE_SYM_GROUP_SYM	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING EXCLUDE GROUP);
+accept	accept	engine	opt_window_frame_exclusion/EXCLUDE_SYM_GROUP_SYM	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING EXCLUDE GROUP);
 reject	reject	engine	opt_window_frame_exclusion/EXCLUDE_SYM_GROUP_SYM!drop-1	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING GROUP);
 reject	reject	engine	opt_window_frame_exclusion/EXCLUDE_SYM_GROUP_SYM!drop-2	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING EXCLUDE);
 reject	reject	engine	opt_window_frame_exclusion/EXCLUDE_SYM_GROUP_SYM!truncate	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING EXCLUDE
 reject	reject	engine	opt_window_frame_exclusion/EXCLUDE_SYM_GROUP_SYM!insert	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING EXCLUDE GROUP zzz);
 reject	reject	engine	opt_window_frame_exclusion/EXCLUDE_SYM_GROUP_SYM!swap	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING EXECUTE GROUP);
-reject	accept	engine	opt_window_frame_exclusion/EXCLUDE_SYM_TIES_SYM	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING EXCLUDE TIES);
+accept	accept	engine	opt_window_frame_exclusion/EXCLUDE_SYM_TIES_SYM	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING EXCLUDE TIES);
 reject	reject	engine	opt_window_frame_exclusion/EXCLUDE_SYM_TIES_SYM!drop-1	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING TIES);
 reject	reject	engine	opt_window_frame_exclusion/EXCLUDE_SYM_TIES_SYM!insert	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING EXCLUDE TIES zzz);
 reject	reject	engine	opt_window_frame_exclusion/EXCLUDE_SYM_TIES_SYM!swap	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING EXECUTE TIES);
-reject	accept	engine	opt_window_frame_exclusion/EXCLUDE_SYM_NO_SYM_OTHERS_MARIADB_SYM	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING EXCLUDE NO OTHERS);
+accept	accept	engine	opt_window_frame_exclusion/EXCLUDE_SYM_NO_SYM_OTHERS_MARIADB_SYM	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING EXCLUDE NO OTHERS);
 reject	reject	engine	opt_window_frame_exclusion/EXCLUDE_SYM_NO_SYM_OTHERS_MARIADB_SYM!drop-1	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING NO OTHERS);
 reject	reject	engine	opt_window_frame_exclusion/EXCLUDE_SYM_NO_SYM_OTHERS_MARIADB_SYM!drop-2	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING EXCLUDE OTHERS);
 reject	reject	engine	opt_window_frame_exclusion/EXCLUDE_SYM_NO_SYM_OTHERS_MARIADB_SYM!drop-3	DO ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING EXCLUDE NO);
@@ -7893,10 +7893,10 @@ reject	reject	engine	choice/DEFAULT!swap	ALTER TABLE a PAGE_CHECKSUM DEFINER;
 accept	accept	engine	bool/ulong_num	CHANGE MASTER TO MASTER_DEMOTE_TO_SLAVE = 1;
 accept	accept	engine	bool/TRUE_SYM	CHANGE MASTER TO MASTER_DEMOTE_TO_SLAVE = TRUE;
 reject	reject	engine	bool/TRUE_SYM!insert	CHANGE MASTER TO MASTER_DEMOTE_TO_SLAVE = TRUE zzz;
-accept	reject	engine	bool/TRUE_SYM!swap	CHANGE MASTER TO MASTER_DEMOTE_TO_SLAVE = TRUNCATE;
+reject	reject	engine	bool/TRUE_SYM!swap	CHANGE MASTER TO MASTER_DEMOTE_TO_SLAVE = TRUNCATE;
 accept	accept	engine	bool/FALSE_SYM	CHANGE MASTER TO MASTER_DEMOTE_TO_SLAVE = FALSE;
 reject	reject	engine	bool/FALSE_SYM!insert	CHANGE MASTER TO MASTER_DEMOTE_TO_SLAVE = FALSE zzz;
-accept	reject	engine	bool/FALSE_SYM!swap	CHANGE MASTER TO MASTER_DEMOTE_TO_SLAVE = FAST;
+reject	reject	engine	bool/FALSE_SYM!swap	CHANGE MASTER TO MASTER_DEMOTE_TO_SLAVE = FAST;
 reject	accept	engine	procedure_clause/PROCEDURE_SYM_ident_(_procedure_list_)	SELECT a PROCEDURE a();
 reject	accept	engine	procedure_list/%empty	SELECT a PROCEDURE a();
 reject	accept	engine	procedure_list/%empty!insert	SELECT a PROCEDURE a(zzz);
@@ -8547,7 +8547,7 @@ reject	accept	engine	show_param/CREATE_PACKAGE_MARIADB_SYM_BODY_MARIADB_SYM_sp_n
 reject	accept	engine	show_param/CREATE_PACKAGE_MARIADB_SYM_BODY_MARIADB_SYM_sp_name!truncate	SHOW CREATE PACKAGE BODY
 reject	reject	engine	show_param/CREATE_PACKAGE_MARIADB_SYM_BODY_MARIADB_SYM_sp_name!insert	SHOW CREATE PACKAGE BODY a zzz;
 reject	reject	engine	show_param/CREATE_PACKAGE_MARIADB_SYM_BODY_MARIADB_SYM_sp_name!swap	SHOW CROSS PACKAGE BODY a;
-reject	accept	engine	show_param/CREATE_SERVER_SYM_ident_or_text	SHOW CREATE SERVER a;
+accept	accept	engine	show_param/CREATE_SERVER_SYM_ident_or_text	SHOW CREATE SERVER a;
 reject	reject	engine	show_param/CREATE_SERVER_SYM_ident_or_text!drop-1	SHOW SERVER a;
 reject	reject	engine	show_param/CREATE_SERVER_SYM_ident_or_text!drop-3	SHOW CREATE SERVER;
 reject	reject	engine	show_param/CREATE_SERVER_SYM_ident_or_text!truncate	SHOW CREATE SERVER
@@ -11487,10 +11487,10 @@ reject	reject	engine	isolation_types/SERIALIZABLE_SYM!swap	SET TRANSACTION ISOLA
 accept	accept	engine	text_or_password/TEXT_STRING	SET PASSWORD = 's';
 accept	accept	engine	text_or_password/PASSWORD_SYM_(_TEXT_STRING_)	SET PASSWORD = PASSWORD('s');
 reject	reject	engine	text_or_password/PASSWORD_SYM_(_TEXT_STRING_)!drop-1	SET PASSWORD =('s');
-accept	reject	engine	text_or_password/PASSWORD_SYM_(_TEXT_STRING_)!drop-2	SET PASSWORD = PASSWORD 's');
-accept	reject	engine	text_or_password/PASSWORD_SYM_(_TEXT_STRING_)!drop-3	SET PASSWORD = PASSWORD();
-accept	reject	engine	text_or_password/PASSWORD_SYM_(_TEXT_STRING_)!drop-4	SET PASSWORD = PASSWORD('s';
-accept	reject	engine	text_or_password/PASSWORD_SYM_(_TEXT_STRING_)!truncate	SET PASSWORD = PASSWORD('s'
+reject	reject	engine	text_or_password/PASSWORD_SYM_(_TEXT_STRING_)!drop-2	SET PASSWORD = PASSWORD 's');
+reject	reject	engine	text_or_password/PASSWORD_SYM_(_TEXT_STRING_)!drop-3	SET PASSWORD = PASSWORD();
+reject	reject	engine	text_or_password/PASSWORD_SYM_(_TEXT_STRING_)!drop-4	SET PASSWORD = PASSWORD('s';
+reject	reject	engine	text_or_password/PASSWORD_SYM_(_TEXT_STRING_)!truncate	SET PASSWORD = PASSWORD('s'
 reject	reject	engine	text_or_password/PASSWORD_SYM_(_TEXT_STRING_)!insert	SET PASSWORD = PASSWORD('s') zzz;
 reject	reject	engine	text_or_password/PASSWORD_SYM_(_TEXT_STRING_)!swap	SET PASSWORD = PATH('s');
 reject	accept	engine	text_or_password/OLD_PASSWORD_SYM_(_TEXT_STRING_)	SET PASSWORD = OLD_PASSWORD('s');
@@ -11636,7 +11636,7 @@ accept	accept	engine	revoke_command/ALL_opt_privileges_,_GRANT_OPTION_FROM_user_
 reject	reject	engine	revoke_command/ALL_opt_privileges_,_GRANT_OPTION_FROM_user_and_role_list!drop-1	REVOKE, GRANT OPTION FROM a;
 reject	reject	engine	revoke_command/ALL_opt_privileges_,_GRANT_OPTION_FROM_user_and_role_list!drop-2	REVOKE ALL GRANT OPTION FROM a;
 reject	reject	engine	revoke_command/ALL_opt_privileges_,_GRANT_OPTION_FROM_user_and_role_list!drop-3	REVOKE ALL, OPTION FROM a;
-accept	reject	engine	revoke_command/ALL_opt_privileges_,_GRANT_OPTION_FROM_user_and_role_list!drop-4	REVOKE ALL, GRANT FROM a;
+reject	reject	engine	revoke_command/ALL_opt_privileges_,_GRANT_OPTION_FROM_user_and_role_list!drop-4	REVOKE ALL, GRANT FROM a;
 reject	reject	engine	revoke_command/ALL_opt_privileges_,_GRANT_OPTION_FROM_user_and_role_list!drop-5	REVOKE ALL, GRANT OPTION a;
 reject	reject	engine	revoke_command/ALL_opt_privileges_,_GRANT_OPTION_FROM_user_and_role_list!drop-6	REVOKE ALL, GRANT OPTION FROM;
 reject	reject	engine	revoke_command/ALL_opt_privileges_,_GRANT_OPTION_FROM_user_and_role_list!truncate	REVOKE ALL, GRANT OPTION FROM
@@ -11955,13 +11955,13 @@ reject	reject	engine	object_privilege/SHOW_CREATE_ROUTINE_SYM!drop-3	GRANT SHOW 
 reject	reject	engine	object_privilege/SHOW_CREATE_ROUTINE_SYM!truncate	GRANT SHOW CREATE
 reject	reject	engine	object_privilege/SHOW_CREATE_ROUTINE_SYM!insert	GRANT SHOW CREATE ROUTINE zzz ON * TO a;
 reject	reject	engine	object_privilege/SHOW_CREATE_ROUTINE_SYM!swap	GRANT SHUTDOWN CREATE ROUTINE ON * TO a;
-accept	reject	engine	opt_and/%empty	ALTER USER a REQUIRE SUBJECT 's' SUBJECT 's';
+reject	reject	engine	opt_and/%empty	ALTER USER a REQUIRE SUBJECT 's' SUBJECT 's';
 reject	reject	engine	opt_and/%empty!insert	ALTER USER a REQUIRE SUBJECT 's' zzz SUBJECT 's';
-accept	reject	engine	opt_and/AND_SYM	ALTER USER a REQUIRE SUBJECT 's' AND SUBJECT 's';
+reject	reject	engine	opt_and/AND_SYM	ALTER USER a REQUIRE SUBJECT 's' AND SUBJECT 's';
 accept	accept	engine	opt_and/AND_SYM!truncate	ALTER USER a REQUIRE SUBJECT 's'
 reject	reject	engine	opt_and/AND_SYM!insert	ALTER USER a REQUIRE SUBJECT 's' AND zzz SUBJECT 's';
 reject	reject	engine	opt_and/AND_SYM!swap	ALTER USER a REQUIRE SUBJECT 's' ANY SUBJECT 's';
-accept	reject	engine	require_list/require_list_element_opt_and_require_list	ALTER USER a REQUIRE SUBJECT 's' SUBJECT 's';
+reject	reject	engine	require_list/require_list_element_opt_and_require_list	ALTER USER a REQUIRE SUBJECT 's' SUBJECT 's';
 reject	reject	engine	require_list/require_list_element_opt_and_require_list!drop-1	ALTER USER a REQUIRE 's' SUBJECT 's';
 reject	reject	engine	require_list/require_list_element_opt_and_require_list!drop-2	ALTER USER a REQUIRE SUBJECT SUBJECT 's';
 reject	reject	engine	require_list/require_list_element_opt_and_require_list!drop-3	ALTER USER a REQUIRE SUBJECT 's' 's';
@@ -12258,17 +12258,17 @@ accept	accept	engine	query_expression_option/SQL_CALC_FOUND_ROWS!insert	SELECT S
 accept	accept	engine	query_expression_option/ALL	SELECT ALL a;
 accept	accept	engine	query_expression_option/ALL!insert	SELECT ALL zzz a;
 reject	reject	engine	query_expression_option/ALL!swap	SELECT ALTER a;
-accept	reject	engine	definer_opt/no_definer	ALTER EVENT a;
+reject	reject	engine	definer_opt/no_definer	ALTER EVENT a;
 reject	reject	engine	definer_opt/no_definer!insert	ALTER zzz EVENT a;
-accept	reject	engine	definer_opt/definer	ALTER DEFINER = a EVENT a;
+reject	reject	engine	definer_opt/definer	ALTER DEFINER = a EVENT a;
 reject	reject	engine	definer_opt/definer!drop-1	ALTER = a EVENT a;
-accept	reject	engine	definer_opt/definer!drop-2	ALTER DEFINER a EVENT a;
+reject	reject	engine	definer_opt/definer!drop-2	ALTER DEFINER a EVENT a;
 reject	reject	engine	definer_opt/definer!drop-3	ALTER DEFINER = EVENT a;
 reject	reject	engine	definer_opt/definer!truncate	ALTER DEFINER =
 reject	reject	engine	definer_opt/definer!insert	ALTER DEFINER = a zzz EVENT a;
 reject	reject	engine	definer_opt/definer!swap	ALTER DELAYED = a EVENT a;
-accept	reject	engine	no_definer/%empty	ALTER EVENT a;
-accept	reject	engine	definer/DEFINER_SYM_=_user_or_role	ALTER DEFINER = a EVENT a;
+reject	reject	engine	no_definer/%empty	ALTER EVENT a;
+reject	reject	engine	definer/DEFINER_SYM_=_user_or_role	ALTER DEFINER = a EVENT a;
 accept	accept	engine	view_algorithm/ALGORITHM_SYM_=_UNDEFINED_SYM	ALTER ALGORITHM = UNDEFINED VIEW a AS SELECT a;
 reject	reject	engine	view_algorithm/ALGORITHM_SYM_=_UNDEFINED_SYM!truncate	ALTER ALGORITHM =
 reject	reject	engine	view_algorithm/ALGORITHM_SYM_=_UNDEFINED_SYM!insert	ALTER ALGORITHM = UNDEFINED zzz VIEW a AS SELECT a;

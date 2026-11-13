@@ -76,22 +76,12 @@ jobs:
 
       - name: Test
         if: steps.affected.outputs.pkgs != ''
-        # Each package starts its own servers, and Trino (a JVM sized to the
-        # host) is the heavy one, so its packages run one at a time, beside the
-        # rest. OceanBase's packages replay recorded answers and start no
-        # server. go test's default 10m per package is too tight: oracle/review
-        # takes 7 min, and over 10 on a busy runner. 20m leaves room and still
-        # lets a hung package print its goroutine dump before the job's
-        # 30-minute cap.
-        run: |
-          pkgs=$(go list ${{ steps.affected.outputs.pkgs }})
-          heavy='/trino/'
-          lane() { { grep -E "$1" <<< "$pkgs" || true; } | xargs -r go test -p=1 -count=1 -timeout=20m; }
-          lane "$heavy" & trino=$!
-          status=0
-          { grep -vE "$heavy" <<< "$pkgs" || true; } | xargs -r go test -p=8 -count=1 -timeout=20m || status=1
-          wait "$trino" || status=1
-          exit "$status"
+        # A package that still needs a server starts its own; the engines on
+        # tapes (pg, Trino, OceanBase, the MySQL family) start none. go test's
+        # default 10m per package is too tight: oracle/review takes 7 min, and
+        # over 10 on a busy runner. 20m leaves room and still lets a hung
+        # package print its goroutine dump before the job's 30-minute cap.
+        run: go test -p=8 -count=1 -timeout=20m ${{ steps.affected.outputs.pkgs }}
 
       - name: Nested modules (own go.mod, not reached by ./...)
         if: steps.affected.outputs.modules != ''
