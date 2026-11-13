@@ -411,8 +411,8 @@ reject	reject	engine	simple_statement/insert_stmt!swap	INSERT_METHOD utf8mb4 SEL
 accept	accept	engine	simple_statement/install_stmt	INSTALL COMPONENT 's';
 reject	reject	engine	simple_statement/install_stmt!drop-1	COMPONENT 's';
 reject	reject	engine	simple_statement/install_stmt!drop-2	INSTALL 's';
-accept	reject	engine	simple_statement/install_stmt!drop-3	INSTALL COMPONENT;
-accept	reject	engine	simple_statement/install_stmt!truncate	INSTALL COMPONENT
+reject	reject	engine	simple_statement/install_stmt!drop-3	INSTALL COMPONENT;
+reject	reject	engine	simple_statement/install_stmt!truncate	INSTALL COMPONENT
 reject	reject	engine	simple_statement/install_stmt!insert	INSTALL COMPONENT 's' zzz;
 reject	reject	engine	simple_statement/install_stmt!swap	INSTANCE COMPONENT 's';
 accept	accept	engine	simple_statement/kill	KILL utf8mb4;
@@ -450,8 +450,8 @@ reject	reject	engine	simple_statement/keycache_stmt!drop-1	INDEX utf8mb4 IN utf8
 reject	reject	engine	simple_statement/keycache_stmt!drop-2	CACHE utf8mb4 IN utf8mb4;
 reject	reject	engine	simple_statement/keycache_stmt!drop-3	CACHE INDEX IN utf8mb4;
 reject	reject	engine	simple_statement/keycache_stmt!drop-4	CACHE INDEX utf8mb4 utf8mb4;
-accept	reject	engine	simple_statement/keycache_stmt!drop-5	CACHE INDEX utf8mb4 IN;
-accept	reject	engine	simple_statement/keycache_stmt!truncate	CACHE INDEX utf8mb4 IN
+reject	reject	engine	simple_statement/keycache_stmt!drop-5	CACHE INDEX utf8mb4 IN;
+reject	reject	engine	simple_statement/keycache_stmt!truncate	CACHE INDEX utf8mb4 IN
 reject	reject	engine	simple_statement/keycache_stmt!insert	CACHE INDEX utf8mb4 IN utf8mb4 zzz;
 reject	reject	engine	simple_statement/keycache_stmt!swap	CALL INDEX utf8mb4 IN utf8mb4;
 accept	accept	engine	simple_statement/preload_stmt	LOAD INDEX INTO CACHE utf8mb4;
@@ -476,8 +476,8 @@ reject	reject	engine	simple_statement/purge!drop-1	MASTER LOGS TO 's';
 reject	reject	engine	simple_statement/purge!drop-2	PURGE LOGS TO 's';
 reject	reject	engine	simple_statement/purge!drop-3	PURGE MASTER TO 's';
 reject	reject	engine	simple_statement/purge!drop-4	PURGE MASTER LOGS 's';
-accept	reject	engine	simple_statement/purge!drop-5	PURGE MASTER LOGS TO;
-accept	reject	engine	simple_statement/purge!truncate	PURGE MASTER LOGS TO
+reject	reject	engine	simple_statement/purge!drop-5	PURGE MASTER LOGS TO;
+reject	reject	engine	simple_statement/purge!truncate	PURGE MASTER LOGS TO
 reject	reject	engine	simple_statement/purge!insert	PURGE MASTER LOGS TO 's' zzz;
 reject	reject	engine	simple_statement/purge!swap	QUARTER MASTER LOGS TO 's';
 accept	accept	engine	simple_statement/release	RELEASE SAVEPOINT utf8mb4;
@@ -5420,7 +5420,7 @@ reject	reject	engine	table_to_table_list/table_to_table_list_,_table_to_table!in
 reject	reject	engine	table_to_table_list/table_to_table_list_,_table_to_table!swap	RENAME TABLE utf8mb4 TRAILING utf8mb4, utf8mb4 TO utf8mb4;
 accept	accept	engine	table_to_table/table_ident_TO_SYM_table_ident	RENAME TABLE utf8mb4 TO utf8mb4;
 accept	accept	engine	keycache_stmt/CACHE_SYM_INDEX_SYM_keycache_list_IN_SYM_key_cache_name	CACHE INDEX utf8mb4 IN utf8mb4;
-reject	accept	engine	keycache_stmt/CACHE_SYM_INDEX_SYM_table_ident_adm_partition_opt_cache_key_list_IN_SYM_key_cache_name	CACHE INDEX utf8mb4 PARTITION(ALL) IN utf8mb4;
+accept	accept	engine	keycache_stmt/CACHE_SYM_INDEX_SYM_table_ident_adm_partition_opt_cache_key_list_IN_SYM_key_cache_name	CACHE INDEX utf8mb4 PARTITION(ALL) IN utf8mb4;
 reject	reject	engine	keycache_stmt/CACHE_SYM_INDEX_SYM_table_ident_adm_partition_opt_cache_key_list_IN_SYM_key_cache_name!drop-1	INDEX utf8mb4 PARTITION(ALL) IN utf8mb4;
 reject	reject	engine	keycache_stmt/CACHE_SYM_INDEX_SYM_table_ident_adm_partition_opt_cache_key_list_IN_SYM_key_cache_name!drop-2	CACHE utf8mb4 PARTITION(ALL) IN utf8mb4;
 reject	reject	engine	keycache_stmt/CACHE_SYM_INDEX_SYM_table_ident_adm_partition_opt_cache_key_list_IN_SYM_key_cache_name!drop-3	CACHE INDEX PARTITION(ALL) IN utf8mb4;
@@ -5444,7 +5444,7 @@ reject	reject	engine	keycache_list/keycache_list_,_assign_to_keycache!truncate	C
 reject	reject	engine	keycache_list/keycache_list_,_assign_to_keycache!insert	CACHE INDEX utf8mb4, utf8mb4 zzz IN utf8mb4;
 accept	accept	engine	assign_to_keycache/table_ident_opt_cache_key_list	CACHE INDEX utf8mb4 IN utf8mb4;
 accept	accept	engine	key_cache_name/ident	CACHE INDEX utf8mb4 IN utf8mb4;
-reject	accept	engine	key_cache_name/DEFAULT_SYM	CACHE INDEX utf8mb4 IN DEFAULT;
+accept	accept	engine	key_cache_name/DEFAULT_SYM	CACHE INDEX utf8mb4 IN DEFAULT;
 reject	reject	engine	key_cache_name/DEFAULT_SYM!insert	CACHE INDEX utf8mb4 IN DEFAULT zzz;
 accept	accept	engine	key_cache_name/DEFAULT_SYM!swap	CACHE INDEX utf8mb4 IN DEFAULT_AUTH;
 accept	accept	engine	preload_stmt/LOAD_INDEX_SYM_INTO_CACHE_SYM_table_ident_adm_partition_opt_cache_key_list_opt_ignore_leaves	LOAD INDEX INTO CACHE utf8mb4 PARTITION(ALL);
@@ -5469,12 +5469,12 @@ reject	reject	engine	preload_list/preload_list_,_preload_keys!drop-3	LOAD INDEX 
 reject	reject	engine	preload_list/preload_list_,_preload_keys!truncate	LOAD INDEX INTO CACHE utf8mb4,
 reject	reject	engine	preload_list/preload_list_,_preload_keys!insert	LOAD INDEX INTO CACHE utf8mb4, utf8mb4 zzz;
 accept	accept	engine	preload_keys/table_ident_opt_cache_key_list_opt_ignore_leaves	LOAD INDEX INTO CACHE utf8mb4;
-reject	accept	engine	adm_partition/PARTITION_SYM_(_all_or_alt_part_name_list_)	CACHE INDEX utf8mb4 PARTITION(ALL) IN utf8mb4;
+accept	accept	engine	adm_partition/PARTITION_SYM_(_all_or_alt_part_name_list_)	CACHE INDEX utf8mb4 PARTITION(ALL) IN utf8mb4;
 reject	reject	engine	adm_partition/PARTITION_SYM_(_all_or_alt_part_name_list_)!truncate	CACHE INDEX utf8mb4 PARTITION(ALL
 reject	reject	engine	adm_partition/PARTITION_SYM_(_all_or_alt_part_name_list_)!insert	CACHE INDEX utf8mb4 PARTITION(ALL) zzz IN utf8mb4;
 reject	reject	engine	adm_partition/PARTITION_SYM_(_all_or_alt_part_name_list_)!swap	CACHE INDEX utf8mb4 PARTITIONING(ALL) IN utf8mb4;
 accept	accept	engine	opt_cache_key_list/%empty	CACHE INDEX utf8mb4 IN utf8mb4;
-reject	accept	engine	opt_cache_key_list/key_or_index_(_opt_key_usage_list_)	CACHE INDEX utf8mb4 KEY() IN utf8mb4;
+accept	accept	engine	opt_cache_key_list/key_or_index_(_opt_key_usage_list_)	CACHE INDEX utf8mb4 KEY() IN utf8mb4;
 reject	reject	engine	opt_cache_key_list/key_or_index_(_opt_key_usage_list_)!drop-1	CACHE INDEX utf8mb4() IN utf8mb4;
 reject	reject	engine	opt_cache_key_list/key_or_index_(_opt_key_usage_list_)!drop-2	CACHE INDEX utf8mb4 KEY) IN utf8mb4;
 reject	reject	engine	opt_cache_key_list/key_or_index_(_opt_key_usage_list_)!drop-3	CACHE INDEX utf8mb4 KEY(IN utf8mb4;
@@ -8248,10 +8248,10 @@ reject	reject	engine	ulonglong_num/DECIMAL_NUM!insert	ALTER TABLE utf8mb4 MAX_RO
 accept	accept	engine	ulonglong_num/FLOAT_NUM	ALTER TABLE utf8mb4 MAX_ROWS 1e0;
 reject	reject	engine	ulonglong_num/FLOAT_NUM!insert	ALTER TABLE utf8mb4 MAX_ROWS 1e0 zzz;
 accept	accept	engine	real_ulonglong_num/NUM	RESET MASTER TO 1;
-accept	reject	engine	real_ulonglong_num/NUM!drop-1	RESET MASTER TO;
-accept	reject	engine	real_ulonglong_num/NUM!truncate	RESET MASTER TO
+reject	reject	engine	real_ulonglong_num/NUM!drop-1	RESET MASTER TO;
+reject	reject	engine	real_ulonglong_num/NUM!truncate	RESET MASTER TO
 reject	reject	engine	real_ulonglong_num/NUM!insert	RESET MASTER TO 1 zzz;
-reject	accept	engine	real_ulonglong_num/HEX_NUM	RESET MASTER TO 0x1;
+accept	accept	engine	real_ulonglong_num/HEX_NUM	RESET MASTER TO 0x1;
 reject	reject	engine	real_ulonglong_num/HEX_NUM!insert	RESET MASTER TO 0x1 zzz;
 reject	reject	engine	real_ulonglong_num/ULONGLONG_NUM	RESET MASTER TO 18446744073709551615;
 reject	reject	engine	real_ulonglong_num/ULONGLONG_NUM!insert	RESET MASTER TO 18446744073709551615 zzz;
@@ -8628,8 +8628,8 @@ accept	accept	engine	profile_defs/profile_def	SHOW PROFILE CPU;
 accept	accept	engine	profile_defs/profile_defs_,_profile_def	SHOW PROFILE CPU, CPU;
 reject	reject	engine	profile_defs/profile_defs_,_profile_def!drop-1	SHOW PROFILE, CPU;
 reject	reject	engine	profile_defs/profile_defs_,_profile_def!drop-2	SHOW PROFILE CPU CPU;
-accept	reject	engine	profile_defs/profile_defs_,_profile_def!drop-3	SHOW PROFILE CPU,;
-accept	reject	engine	profile_defs/profile_defs_,_profile_def!truncate	SHOW PROFILE CPU,
+reject	reject	engine	profile_defs/profile_defs_,_profile_def!drop-3	SHOW PROFILE CPU,;
+reject	reject	engine	profile_defs/profile_defs_,_profile_def!truncate	SHOW PROFILE CPU,
 reject	reject	engine	profile_defs/profile_defs_,_profile_def!insert	SHOW PROFILE CPU, CPU zzz;
 reject	reject	engine	profile_defs/profile_defs_,_profile_def!swap	SHOW PROFILE CREATE, CPU;
 accept	accept	engine	profile_def/CPU_SYM	SHOW PROFILE CPU;
@@ -8638,20 +8638,20 @@ reject	reject	engine	profile_def/MEMORY_SYM!insert	SHOW PROFILE MEMORY zzz;
 reject	reject	engine	profile_def/MEMORY_SYM!swap	SHOW PROFILE MERGE;
 accept	accept	engine	profile_def/BLOCK_SYM_IO_SYM	SHOW PROFILE BLOCK IO;
 reject	reject	engine	profile_def/BLOCK_SYM_IO_SYM!drop-1	SHOW PROFILE IO;
-accept	reject	engine	profile_def/BLOCK_SYM_IO_SYM!drop-2	SHOW PROFILE BLOCK;
-accept	reject	engine	profile_def/BLOCK_SYM_IO_SYM!truncate	SHOW PROFILE BLOCK
+reject	reject	engine	profile_def/BLOCK_SYM_IO_SYM!drop-2	SHOW PROFILE BLOCK;
+reject	reject	engine	profile_def/BLOCK_SYM_IO_SYM!truncate	SHOW PROFILE BLOCK
 reject	reject	engine	profile_def/BLOCK_SYM_IO_SYM!insert	SHOW PROFILE BLOCK IO zzz;
 reject	reject	engine	profile_def/BLOCK_SYM_IO_SYM!swap	SHOW PROFILE BOOL IO;
 accept	accept	engine	profile_def/CONTEXT_SYM_SWITCHES_SYM	SHOW PROFILE CONTEXT SWITCHES;
 reject	reject	engine	profile_def/CONTEXT_SYM_SWITCHES_SYM!drop-1	SHOW PROFILE SWITCHES;
-accept	reject	engine	profile_def/CONTEXT_SYM_SWITCHES_SYM!drop-2	SHOW PROFILE CONTEXT;
-accept	reject	engine	profile_def/CONTEXT_SYM_SWITCHES_SYM!truncate	SHOW PROFILE CONTEXT
+reject	reject	engine	profile_def/CONTEXT_SYM_SWITCHES_SYM!drop-2	SHOW PROFILE CONTEXT;
+reject	reject	engine	profile_def/CONTEXT_SYM_SWITCHES_SYM!truncate	SHOW PROFILE CONTEXT
 reject	reject	engine	profile_def/CONTEXT_SYM_SWITCHES_SYM!insert	SHOW PROFILE CONTEXT SWITCHES zzz;
 reject	reject	engine	profile_def/CONTEXT_SYM_SWITCHES_SYM!swap	SHOW PROFILE CONTINUE SWITCHES;
 accept	accept	engine	profile_def/PAGE_SYM_FAULTS_SYM	SHOW PROFILE PAGE FAULTS;
 reject	reject	engine	profile_def/PAGE_SYM_FAULTS_SYM!drop-1	SHOW PROFILE FAULTS;
-accept	reject	engine	profile_def/PAGE_SYM_FAULTS_SYM!drop-2	SHOW PROFILE PAGE;
-accept	reject	engine	profile_def/PAGE_SYM_FAULTS_SYM!truncate	SHOW PROFILE PAGE
+reject	reject	engine	profile_def/PAGE_SYM_FAULTS_SYM!drop-2	SHOW PROFILE PAGE;
+reject	reject	engine	profile_def/PAGE_SYM_FAULTS_SYM!truncate	SHOW PROFILE PAGE
 reject	reject	engine	profile_def/PAGE_SYM_FAULTS_SYM!insert	SHOW PROFILE PAGE FAULTS zzz;
 reject	reject	engine	profile_def/PAGE_SYM_FAULTS_SYM!swap	SHOW PROFILE PARSER FAULTS;
 accept	accept	engine	profile_def/IPC_SYM	SHOW PROFILE IPC;
@@ -8743,7 +8743,7 @@ accept	accept	engine	show_create_user_stmt/SHOW_CREATE_USER_user	SHOW CREATE USE
 accept	accept	engine	engine_or_all/ident_or_text	SHOW ENGINE utf8mb4 LOGS;
 reject	reject	engine	engine_or_all/ident_or_text!truncate	SHOW ENGINE
 reject	reject	engine	engine_or_all/ident_or_text!insert	SHOW ENGINE utf8mb4 zzz LOGS;
-reject	accept	engine	engine_or_all/ALL	SHOW ENGINE ALL LOGS;
+accept	accept	engine	engine_or_all/ALL	SHOW ENGINE ALL LOGS;
 reject	reject	engine	engine_or_all/ALL!insert	SHOW ENGINE ALL zzz LOGS;
 reject	reject	engine	engine_or_all/ALL!swap	SHOW ENGINE ALTER LOGS;
 accept	accept	engine	master_or_binary/MASTER_SYM	SHOW MASTER LOGS;
@@ -8972,33 +8972,33 @@ reject	reject	engine	reset_options/reset_options_,_reset_option!drop-2	RESET SLA
 reject	reject	engine	reset_options/reset_options_,_reset_option!drop-3	RESET SLAVE,;
 reject	reject	engine	reset_options/reset_options_,_reset_option!truncate	RESET SLAVE,
 reject	reject	engine	reset_options/reset_options_,_reset_option!insert	RESET SLAVE, SLAVE zzz;
-accept	reject	engine	reset_options/reset_options_,_reset_option!swap	RESET SLOW, SLAVE;
+reject	reject	engine	reset_options/reset_options_,_reset_option!swap	RESET SLOW, SLAVE;
 accept	accept	engine	reset_options/reset_option	RESET SLAVE;
-accept	reject	engine	reset_options/reset_option!swap	RESET SLOW;
+reject	reject	engine	reset_options/reset_option!swap	RESET SLOW;
 accept	accept	engine	opt_if_exists_ident/%empty	RESET PERSIST;
 accept	accept	engine	opt_if_exists_ident/if_exists_persisted_variable_ident	RESET PERSIST utf8mb4;
 accept	accept	engine	opt_if_exists_ident/if_exists_persisted_variable_ident!truncate	RESET PERSIST
 reject	reject	engine	opt_if_exists_ident/if_exists_persisted_variable_ident!insert	RESET PERSIST utf8mb4 zzz;
 accept	accept	engine	persisted_variable_ident/ident	RESET PERSIST utf8mb4;
-reject	accept	engine	persisted_variable_ident/ident_._ident	RESET PERSIST utf8mb4.utf8mb4;
+accept	accept	engine	persisted_variable_ident/ident_._ident	RESET PERSIST utf8mb4.utf8mb4;
 reject	reject	engine	persisted_variable_ident/ident_._ident!drop-1	RESET PERSIST.utf8mb4;
 reject	reject	engine	persisted_variable_ident/ident_._ident!drop-2	RESET PERSIST utf8mb4 utf8mb4;
 reject	reject	engine	persisted_variable_ident/ident_._ident!drop-3	RESET PERSIST utf8mb4.;
 reject	reject	engine	persisted_variable_ident/ident_._ident!truncate	RESET PERSIST utf8mb4.
 reject	reject	engine	persisted_variable_ident/ident_._ident!insert	RESET PERSIST utf8mb4.utf8mb4 zzz;
-reject	accept	engine	persisted_variable_ident/DEFAULT_SYM_._ident	RESET PERSIST DEFAULT.utf8mb4;
+accept	accept	engine	persisted_variable_ident/DEFAULT_SYM_._ident	RESET PERSIST DEFAULT.utf8mb4;
 reject	reject	engine	persisted_variable_ident/DEFAULT_SYM_._ident!drop-2	RESET PERSIST DEFAULT utf8mb4;
 reject	reject	engine	persisted_variable_ident/DEFAULT_SYM_._ident!drop-3	RESET PERSIST DEFAULT.;
 reject	reject	engine	persisted_variable_ident/DEFAULT_SYM_._ident!truncate	RESET PERSIST DEFAULT.
 reject	reject	engine	persisted_variable_ident/DEFAULT_SYM_._ident!insert	RESET PERSIST DEFAULT.utf8mb4 zzz;
-reject	accept	engine	persisted_variable_ident/DEFAULT_SYM_._ident!swap	RESET PERSIST DEFAULT_AUTH.utf8mb4;
+accept	accept	engine	persisted_variable_ident/DEFAULT_SYM_._ident!swap	RESET PERSIST DEFAULT_AUTH.utf8mb4;
 accept	accept	engine	reset_option/SLAVE_opt_replica_reset_options_opt_channel	RESET SLAVE;
 accept	accept	engine	reset_option/REPLICA_SYM_opt_replica_reset_options_opt_channel	RESET REPLICA;
 reject	reject	engine	reset_option/REPLICA_SYM_opt_replica_reset_options_opt_channel!insert	RESET REPLICA zzz;
-accept	reject	engine	reset_option/REPLICA_SYM_opt_replica_reset_options_opt_channel!swap	RESET REPLICAS;
+reject	reject	engine	reset_option/REPLICA_SYM_opt_replica_reset_options_opt_channel!swap	RESET REPLICAS;
 accept	accept	engine	reset_option/MASTER_SYM_source_reset_options	RESET MASTER;
 reject	reject	engine	reset_option/MASTER_SYM_source_reset_options!insert	RESET MASTER zzz;
-accept	reject	engine	reset_option/MASTER_SYM_source_reset_options!swap	RESET MASTER_AUTO_POSITION;
+reject	reject	engine	reset_option/MASTER_SYM_source_reset_options!swap	RESET MASTER_AUTO_POSITION;
 accept	accept	engine	opt_replica_reset_options/%empty	RESET SLAVE;
 accept	accept	engine	opt_replica_reset_options/ALL	RESET SLAVE ALL;
 accept	accept	engine	opt_replica_reset_options/ALL!truncate	RESET SLAVE
@@ -9010,7 +9010,7 @@ reject	reject	engine	source_reset_options/TO_SYM_real_ulonglong_num!drop-1	RESET
 reject	reject	engine	source_reset_options/TO_SYM_real_ulonglong_num!swap	RESET MASTER TRAILING 1;
 accept	accept	engine	purge/PURGE_purge_options	PURGE MASTER LOGS TO 's';
 accept	accept	engine	purge_options/master_or_binary_LOGS_SYM_purge_option	PURGE MASTER LOGS TO 's';
-accept	reject	engine	purge_options/master_or_binary_LOGS_SYM_purge_option!swap	PURGE MASTER_AUTO_POSITION LOGS TO 's';
+reject	reject	engine	purge_options/master_or_binary_LOGS_SYM_purge_option!swap	PURGE MASTER_AUTO_POSITION LOGS TO 's';
 accept	accept	engine	purge_option/TO_SYM_TEXT_STRING_sys	PURGE MASTER LOGS TO 's';
 reject	reject	engine	purge_option/TO_SYM_TEXT_STRING_sys!swap	PURGE MASTER LOGS TRAILING 's';
 accept	accept	engine	purge_option/BEFORE_SYM_expr	PURGE MASTER LOGS BEFORE utf8mb4;
@@ -10722,7 +10722,7 @@ reject	reject	engine	opt_var_type/%empty!insert	SHOW zzz STATUS;
 accept	accept	engine	opt_var_type/GLOBAL_SYM	SHOW GLOBAL STATUS;
 reject	reject	engine	opt_var_type/GLOBAL_SYM!insert	SHOW GLOBAL zzz STATUS;
 reject	reject	engine	opt_var_type/GLOBAL_SYM!swap	SHOW GRANT STATUS;
-reject	accept	engine	opt_var_type/LOCAL_SYM	SHOW LOCAL STATUS;
+accept	accept	engine	opt_var_type/LOCAL_SYM	SHOW LOCAL STATUS;
 reject	reject	engine	opt_var_type/LOCAL_SYM!insert	SHOW LOCAL zzz STATUS;
 reject	reject	engine	opt_var_type/LOCAL_SYM!swap	SHOW LOCK STATUS;
 accept	accept	engine	opt_var_type/SESSION_SYM	SHOW SESSION STATUS;
@@ -12144,11 +12144,11 @@ reject	reject	engine	opt_suspend/SUSPEND_SYM_FOR_SYM_MIGRATE_SYM!insert	XA END '
 reject	reject	engine	opt_suspend/SUSPEND_SYM_FOR_SYM_MIGRATE_SYM!swap	XA END 's' SWAPS FOR MIGRATE;
 accept	accept	engine	install_option_type/%empty	INSTALL COMPONENT 's' SET utf8mb4 = utf8mb4;
 reject	reject	engine	install_option_type/%empty!insert	INSTALL COMPONENT 's' SET zzz utf8mb4 = utf8mb4;
-reject	accept	engine	install_option_type/GLOBAL_SYM	INSTALL COMPONENT 's' SET GLOBAL utf8mb4 = utf8mb4;
+accept	accept	engine	install_option_type/GLOBAL_SYM	INSTALL COMPONENT 's' SET GLOBAL utf8mb4 = utf8mb4;
 reject	reject	engine	install_option_type/GLOBAL_SYM!truncate	INSTALL COMPONENT 's' SET
 reject	reject	engine	install_option_type/GLOBAL_SYM!insert	INSTALL COMPONENT 's' SET GLOBAL zzz utf8mb4 = utf8mb4;
 reject	reject	engine	install_option_type/GLOBAL_SYM!swap	INSTALL COMPONENT 's' SET GRANT utf8mb4 = utf8mb4;
-reject	accept	engine	install_option_type/PERSIST_SYM	INSTALL COMPONENT 's' SET PERSIST utf8mb4 = utf8mb4;
+accept	accept	engine	install_option_type/PERSIST_SYM	INSTALL COMPONENT 's' SET PERSIST utf8mb4 = utf8mb4;
 reject	reject	engine	install_option_type/PERSIST_SYM!insert	INSTALL COMPONENT 's' SET PERSIST zzz utf8mb4 = utf8mb4;
 reject	reject	engine	install_option_type/PERSIST_SYM!swap	INSTALL COMPONENT 's' SET PERSIST_ONLY utf8mb4 = utf8mb4;
 accept	accept	engine	install_set_rvalue/expr	INSTALL COMPONENT 's' SET utf8mb4 = utf8mb4;
@@ -12179,26 +12179,26 @@ reject	reject	engine	opt_install_set_value_list/SET_SYM_install_set_value_list!s
 accept	accept	engine	install_stmt/INSTALL_SYM_PLUGIN_SYM_ident_SONAME_SYM_TEXT_STRING_sys	INSTALL PLUGIN utf8mb4 SONAME 's';
 reject	reject	engine	install_stmt/INSTALL_SYM_PLUGIN_SYM_ident_SONAME_SYM_TEXT_STRING_sys!drop-1	PLUGIN utf8mb4 SONAME 's';
 reject	reject	engine	install_stmt/INSTALL_SYM_PLUGIN_SYM_ident_SONAME_SYM_TEXT_STRING_sys!drop-2	INSTALL utf8mb4 SONAME 's';
-accept	reject	engine	install_stmt/INSTALL_SYM_PLUGIN_SYM_ident_SONAME_SYM_TEXT_STRING_sys!drop-3	INSTALL PLUGIN SONAME 's';
-accept	reject	engine	install_stmt/INSTALL_SYM_PLUGIN_SYM_ident_SONAME_SYM_TEXT_STRING_sys!drop-4	INSTALL PLUGIN utf8mb4 's';
-accept	reject	engine	install_stmt/INSTALL_SYM_PLUGIN_SYM_ident_SONAME_SYM_TEXT_STRING_sys!drop-5	INSTALL PLUGIN utf8mb4 SONAME;
-accept	reject	engine	install_stmt/INSTALL_SYM_PLUGIN_SYM_ident_SONAME_SYM_TEXT_STRING_sys!truncate	INSTALL PLUGIN utf8mb4 SONAME
+reject	reject	engine	install_stmt/INSTALL_SYM_PLUGIN_SYM_ident_SONAME_SYM_TEXT_STRING_sys!drop-3	INSTALL PLUGIN SONAME 's';
+reject	reject	engine	install_stmt/INSTALL_SYM_PLUGIN_SYM_ident_SONAME_SYM_TEXT_STRING_sys!drop-4	INSTALL PLUGIN utf8mb4 's';
+reject	reject	engine	install_stmt/INSTALL_SYM_PLUGIN_SYM_ident_SONAME_SYM_TEXT_STRING_sys!drop-5	INSTALL PLUGIN utf8mb4 SONAME;
+reject	reject	engine	install_stmt/INSTALL_SYM_PLUGIN_SYM_ident_SONAME_SYM_TEXT_STRING_sys!truncate	INSTALL PLUGIN utf8mb4 SONAME
 reject	reject	engine	install_stmt/INSTALL_SYM_PLUGIN_SYM_ident_SONAME_SYM_TEXT_STRING_sys!insert	INSTALL PLUGIN utf8mb4 SONAME 's' zzz;
 reject	reject	engine	install_stmt/INSTALL_SYM_PLUGIN_SYM_ident_SONAME_SYM_TEXT_STRING_sys!swap	INSTANCE PLUGIN utf8mb4 SONAME 's';
 accept	accept	engine	install_stmt/INSTALL_SYM_COMPONENT_SYM_TEXT_STRING_sys_list_opt_install_set_value_list	INSTALL COMPONENT 's';
 accept	accept	engine	uninstall/UNINSTALL_SYM_PLUGIN_SYM_ident	UNINSTALL PLUGIN utf8mb4;
 accept	accept	engine	uninstall/UNINSTALL_SYM_COMPONENT_SYM_TEXT_STRING_sys_list	UNINSTALL COMPONENT 's';
 reject	reject	engine	uninstall/UNINSTALL_SYM_COMPONENT_SYM_TEXT_STRING_sys_list!drop-2	UNINSTALL 's';
-accept	reject	engine	uninstall/UNINSTALL_SYM_COMPONENT_SYM_TEXT_STRING_sys_list!drop-3	UNINSTALL COMPONENT;
-accept	reject	engine	uninstall/UNINSTALL_SYM_COMPONENT_SYM_TEXT_STRING_sys_list!truncate	UNINSTALL COMPONENT
+reject	reject	engine	uninstall/UNINSTALL_SYM_COMPONENT_SYM_TEXT_STRING_sys_list!drop-3	UNINSTALL COMPONENT;
+reject	reject	engine	uninstall/UNINSTALL_SYM_COMPONENT_SYM_TEXT_STRING_sys_list!truncate	UNINSTALL COMPONENT
 reject	reject	engine	uninstall/UNINSTALL_SYM_COMPONENT_SYM_TEXT_STRING_sys_list!insert	UNINSTALL COMPONENT 's' zzz;
 reject	reject	engine	uninstall/UNINSTALL_SYM_COMPONENT_SYM_TEXT_STRING_sys_list!swap	UNION COMPONENT 's';
 accept	accept	engine	TEXT_STRING_sys_list/TEXT_STRING_sys	INSTALL COMPONENT 's';
 accept	accept	engine	TEXT_STRING_sys_list/TEXT_STRING_sys_list_,_TEXT_STRING_sys	INSTALL COMPONENT 's', 's';
-accept	reject	engine	TEXT_STRING_sys_list/TEXT_STRING_sys_list_,_TEXT_STRING_sys!drop-1	INSTALL COMPONENT, 's';
+reject	reject	engine	TEXT_STRING_sys_list/TEXT_STRING_sys_list_,_TEXT_STRING_sys!drop-1	INSTALL COMPONENT, 's';
 reject	reject	engine	TEXT_STRING_sys_list/TEXT_STRING_sys_list_,_TEXT_STRING_sys!drop-2	INSTALL COMPONENT 's' 's';
-accept	reject	engine	TEXT_STRING_sys_list/TEXT_STRING_sys_list_,_TEXT_STRING_sys!drop-3	INSTALL COMPONENT 's',;
-accept	reject	engine	TEXT_STRING_sys_list/TEXT_STRING_sys_list_,_TEXT_STRING_sys!truncate	INSTALL COMPONENT 's',
+reject	reject	engine	TEXT_STRING_sys_list/TEXT_STRING_sys_list_,_TEXT_STRING_sys!drop-3	INSTALL COMPONENT 's',;
+reject	reject	engine	TEXT_STRING_sys_list/TEXT_STRING_sys_list_,_TEXT_STRING_sys!truncate	INSTALL COMPONENT 's',
 reject	reject	engine	TEXT_STRING_sys_list/TEXT_STRING_sys_list_,_TEXT_STRING_sys!insert	INSTALL COMPONENT 's', 's' zzz;
 accept	accept	engine	import_stmt/IMPORT_TABLE_SYM_FROM_TEXT_STRING_sys_list	IMPORT TABLE FROM 's';
 accept	accept	engine	clone_stmt/CLONE_SYM_LOCAL_SYM_DATA_SYM_DIRECTORY_SYM_opt_equal_TEXT_STRING_filesystem	CLONE LOCAL DATA DIRECTORY 's';

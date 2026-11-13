@@ -1183,6 +1183,14 @@ func (p *Parser) parseInstallStmt() (nodes.StmtNode, error) {
 	switch p.cur.Type {
 	case kwPLUGIN:
 		return p.parseInstallPluginStmt(start)
+	case kwSONAME:
+		// INSTALL SONAME 'library' (install in MariaDB 11.8 sql/sql_yacc.yy).
+		p.advance()
+		if p.cur.Type != tokSCONST {
+			return nil, p.syntaxErrorAtCur()
+		}
+		soname := p.advance().Str
+		return &nodes.InstallPluginStmt{Loc: nodes.Loc{Start: start, End: p.prev.End}, Soname: soname}, nil
 	case kwCOMPONENT:
 		return p.parseInstallComponentStmt(start)
 	default:
@@ -1199,20 +1207,35 @@ func (p *Parser) parseInstallStmt() (nodes.StmtNode, error) {
 func (p *Parser) parseInstallPluginStmt(start int) (*nodes.InstallPluginStmt, error) {
 	p.advance() // consume PLUGIN
 
+	ifNotExists := false
+	if _, ok := p.match(kwIF); ok {
+		for _, kw := range []int{kwNOT, kwEXISTS_KW} {
+			if _, err := p.expect(kw); err != nil {
+				return nil, err
+			}
+		}
+		ifNotExists = true
+	}
+
 	name, _, err := p.parseIdentifier()
 	if err != nil {
 		return nil, err
 	}
 
-	p.match(kwSONAME)
-
-	soname := p.cur.Str
-	p.expect(tokSCONST)
+	// SONAME 'library', whole (install in MariaDB 11.8 sql/sql_yacc.yy).
+	if _, err := p.expect(kwSONAME); err != nil {
+		return nil, err
+	}
+	if p.cur.Type != tokSCONST {
+		return nil, p.syntaxErrorAtCur()
+	}
+	soname := p.advance().Str
 
 	stmt := &nodes.InstallPluginStmt{
-		Loc:        nodes.Loc{Start: start},
-		PluginName: name,
-		Soname:     soname,
+		Loc:         nodes.Loc{Start: start},
+		IfNotExists: ifNotExists,
+		PluginName:  name,
+		Soname:      soname,
 	}
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
@@ -1233,9 +1256,10 @@ func (p *Parser) parseInstallComponentStmt(start int) (*nodes.InstallComponentSt
 	stmt := &nodes.InstallComponentStmt{Loc: nodes.Loc{Start: start}}
 
 	for {
-		comp := p.cur.Str
-		p.expect(tokSCONST)
-		stmt.Components = append(stmt.Components, comp)
+		if p.cur.Type != tokSCONST {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.Components = append(stmt.Components, p.advance().Str)
 		if p.cur.Type != ',' {
 			break
 		}
@@ -1277,6 +1301,23 @@ func (p *Parser) parseUninstallStmt() (nodes.StmtNode, error) {
 	switch p.cur.Type {
 	case kwPLUGIN:
 		return p.parseUninstallPluginStmt(start)
+	case kwSONAME:
+		// UNINSTALL SONAME [IF EXISTS] 'library' (uninstall in MariaDB 11.8
+		// sql/sql_yacc.yy).
+		p.advance()
+		stmt := &nodes.UninstallPluginStmt{Loc: nodes.Loc{Start: start}}
+		if _, ok := p.match(kwIF); ok {
+			if _, err := p.expect(kwEXISTS_KW); err != nil {
+				return nil, err
+			}
+			stmt.IfExists = true
+		}
+		if p.cur.Type != tokSCONST {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.Soname = p.advance().Str
+		stmt.Loc.End = p.prev.End
+		return stmt, nil
 	case kwCOMPONENT:
 		return p.parseUninstallComponentStmt(start)
 	default:
@@ -1293,6 +1334,14 @@ func (p *Parser) parseUninstallStmt() (nodes.StmtNode, error) {
 func (p *Parser) parseUninstallPluginStmt(start int) (*nodes.UninstallPluginStmt, error) {
 	p.advance() // consume PLUGIN
 
+	ifExists := false
+	if _, ok := p.match(kwIF); ok {
+		if _, err := p.expect(kwEXISTS_KW); err != nil {
+			return nil, err
+		}
+		ifExists = true
+	}
+
 	name, _, err := p.parseIdentifier()
 	if err != nil {
 		return nil, err
@@ -1300,6 +1349,7 @@ func (p *Parser) parseUninstallPluginStmt(start int) (*nodes.UninstallPluginStmt
 
 	stmt := &nodes.UninstallPluginStmt{
 		Loc:        nodes.Loc{Start: start},
+		IfExists:   ifExists,
 		PluginName: name,
 	}
 	stmt.Loc.End = p.prev.End
@@ -1315,9 +1365,10 @@ func (p *Parser) parseUninstallComponentStmt(start int) (*nodes.UninstallCompone
 	stmt := &nodes.UninstallComponentStmt{Loc: nodes.Loc{Start: start}}
 
 	for {
-		comp := p.cur.Str
-		p.expect(tokSCONST)
-		stmt.Components = append(stmt.Components, comp)
+		if p.cur.Type != tokSCONST {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.Components = append(stmt.Components, p.advance().Str)
 		if p.cur.Type != ',' {
 			break
 		}
@@ -1813,13 +1864,20 @@ func (p *Parser) parseBinlogStmt() (*nodes.BinlogStmt, error) {
 func (p *Parser) parseCacheIndexStmt() (*nodes.CacheIndexStmt, error) {
 	start := p.pos()
 	p.advance() // consume CACHE
-	p.advance() // consume INDEX
+	if _, err := p.expect(kwINDEX); err != nil {
+		return nil, err
+	}
 
 	stmt := &nodes.CacheIndexStmt{
 		Loc: nodes.Loc{Start: start},
 	}
 
-	// Parse table list
+	// A list of tables each with an optional key list, or one table with
+	// PARTITION (ALL | names) and a key list; then IN and the cache, a name or
+	// DEFAULT. A key list is INDEX or KEY and parenthesized names, maybe none.
+	//
+	// Ref: keycache_stmt, adm_partition and opt_cache_key_list in MariaDB 11.8
+	// sql/sql_yacc.yy.
 	for {
 		ref, err := p.parseTableRef()
 		if err != nil {
@@ -1827,42 +1885,76 @@ func (p *Parser) parseCacheIndexStmt() (*nodes.CacheIndexStmt, error) {
 		}
 		stmt.Tables = append(stmt.Tables, ref)
 
-		// Optional INDEX|KEY (idx1, idx2, ...)
-		if p.cur.Type == kwINDEX || p.cur.Type == kwKEY {
+		if len(stmt.Tables) == 1 && p.cur.Type == kwPARTITION {
 			p.advance()
-			if p.cur.Type == '(' {
-				idxList, err := p.parseParenIdentList()
-				if err != nil {
-					return nil, err
-				}
-				stmt.Indexes = idxList
+			if _, err := p.expect('('); err != nil {
+				return nil, err
 			}
-		}
-
-		// Optional PARTITION (p1, p2, ...) | PARTITION ALL
-		if p.cur.Type == kwPARTITION {
-			p.advance()
 			if _, ok := p.match(kwALL); ok {
 				stmt.Partitions = []string{"ALL"}
 			} else {
-				parts, err := p.parseParenIdentList()
-				if err != nil {
-					return nil, err
+				for {
+					name, _, err := p.parseIdentifier()
+					if err != nil {
+						return nil, err
+					}
+					stmt.Partitions = append(stmt.Partitions, name)
+					if p.cur.Type != ',' {
+						break
+					}
+					p.advance()
 				}
-				stmt.Partitions = parts
+			}
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
 			}
 		}
 
-		if p.cur.Type != ',' {
+		if p.cur.Type == kwINDEX || p.cur.Type == kwKEY {
+			p.advance()
+			if _, err := p.expect('('); err != nil {
+				return nil, err
+			}
+			stmt.Indexes = nil
+			if p.cur.Type != ')' {
+				for {
+					if p.cur.Type == kwPRIMARY {
+						stmt.Indexes = append(stmt.Indexes, "PRIMARY")
+						p.advance()
+					} else {
+						name, _, err := p.parseIdentifier()
+						if err != nil {
+							return nil, err
+						}
+						stmt.Indexes = append(stmt.Indexes, name)
+					}
+					if p.cur.Type != ',' {
+						break
+					}
+					p.advance()
+				}
+			}
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
+		}
+
+		if p.cur.Type != ',' || stmt.Partitions != nil {
 			break
 		}
 		p.advance()
 	}
 
-	// IN cache_name
-	if p.cur.Type == kwIN {
-		p.advance()
-		name, _, _ := p.parseIdentifier()
+	if _, err := p.expect(kwIN); err != nil {
+		return nil, err
+	}
+	if _, ok := p.match(kwDEFAULT); ok {
+		stmt.CacheName = "DEFAULT"
+	} else {
+		name, _, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
 		stmt.CacheName = name
 	}
 

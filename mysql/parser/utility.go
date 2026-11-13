@@ -1028,10 +1028,14 @@ func (p *Parser) parseInstallPluginStmt(start int) (*nodes.InstallPluginStmt, er
 		return nil, err
 	}
 
-	p.match(kwSONAME)
-
-	soname := p.cur.Str
-	p.expect(tokSCONST)
+	// SONAME 'library', whole (install in MySQL 8.0 sql/sql_yacc.yy).
+	if _, err := p.expect(kwSONAME); err != nil {
+		return nil, err
+	}
+	if p.cur.Type != tokSCONST {
+		return nil, p.syntaxErrorAtCur()
+	}
+	soname := p.advance().Str
 
 	stmt := &nodes.InstallPluginStmt{
 		Loc:        nodes.Loc{Start: start},
@@ -1057,9 +1061,10 @@ func (p *Parser) parseInstallComponentStmt(start int) (*nodes.InstallComponentSt
 	stmt := &nodes.InstallComponentStmt{Loc: nodes.Loc{Start: start}}
 
 	for {
-		comp := p.cur.Str
-		p.expect(tokSCONST)
-		stmt.Components = append(stmt.Components, comp)
+		if p.cur.Type != tokSCONST {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.Components = append(stmt.Components, p.advance().Str)
 		if p.cur.Type != ',' {
 			break
 		}
@@ -1071,11 +1076,17 @@ func (p *Parser) parseInstallComponentStmt(start int) (*nodes.InstallComponentSt
 	if p.cur.Type == kwSET {
 		p.advance() // consume SET
 		for {
+			// install_option_type: an assignment may name GLOBAL or PERSIST.
+			scope := ""
+			if p.cur.Type == kwGLOBAL || p.cur.Type == kwPERSIST {
+				scope = strings.ToUpper(p.advance().Str)
+			}
 			asgn, err := p.parseSetAssignment()
 			if err != nil {
 				return nil, err
 			}
 			stmt.SetVars = append(stmt.SetVars, asgn)
+			stmt.SetScopes = append(stmt.SetScopes, scope)
 			if p.cur.Type != ',' {
 				break
 			}
@@ -1139,9 +1150,10 @@ func (p *Parser) parseUninstallComponentStmt(start int) (*nodes.UninstallCompone
 	stmt := &nodes.UninstallComponentStmt{Loc: nodes.Loc{Start: start}}
 
 	for {
-		comp := p.cur.Str
-		p.expect(tokSCONST)
-		stmt.Components = append(stmt.Components, comp)
+		if p.cur.Type != tokSCONST {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.Components = append(stmt.Components, p.advance().Str)
 		if p.cur.Type != ',' {
 			break
 		}
@@ -2221,13 +2233,20 @@ func (p *Parser) parseBinlogStmt() (*nodes.BinlogStmt, error) {
 func (p *Parser) parseCacheIndexStmt() (*nodes.CacheIndexStmt, error) {
 	start := p.pos()
 	p.advance() // consume CACHE
-	p.advance() // consume INDEX
+	if _, err := p.expect(kwINDEX); err != nil {
+		return nil, err
+	}
 
 	stmt := &nodes.CacheIndexStmt{
 		Loc: nodes.Loc{Start: start},
 	}
 
-	// Parse table list
+	// A list of tables each with an optional key list, or one table with
+	// PARTITION (ALL | names) and a key list; then IN and the cache, a name or
+	// DEFAULT. A key list is INDEX or KEY and parenthesized names, maybe none.
+	//
+	// Ref: keycache_stmt, adm_partition and opt_cache_key_list in MySQL 8.0
+	// sql/sql_yacc.yy.
 	for {
 		ref, err := p.parseTableRef()
 		if err != nil {
@@ -2235,42 +2254,76 @@ func (p *Parser) parseCacheIndexStmt() (*nodes.CacheIndexStmt, error) {
 		}
 		stmt.Tables = append(stmt.Tables, ref)
 
-		// Optional INDEX|KEY (idx1, idx2, ...)
-		if p.cur.Type == kwINDEX || p.cur.Type == kwKEY {
+		if len(stmt.Tables) == 1 && p.cur.Type == kwPARTITION {
 			p.advance()
-			if p.cur.Type == '(' {
-				idxList, err := p.parseParenIdentList()
-				if err != nil {
-					return nil, err
-				}
-				stmt.Indexes = idxList
+			if _, err := p.expect('('); err != nil {
+				return nil, err
 			}
-		}
-
-		// Optional PARTITION (p1, p2, ...) | PARTITION ALL
-		if p.cur.Type == kwPARTITION {
-			p.advance()
 			if _, ok := p.match(kwALL); ok {
 				stmt.Partitions = []string{"ALL"}
 			} else {
-				parts, err := p.parseParenIdentList()
-				if err != nil {
-					return nil, err
+				for {
+					name, _, err := p.parseIdentifier()
+					if err != nil {
+						return nil, err
+					}
+					stmt.Partitions = append(stmt.Partitions, name)
+					if p.cur.Type != ',' {
+						break
+					}
+					p.advance()
 				}
-				stmt.Partitions = parts
+			}
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
 			}
 		}
 
-		if p.cur.Type != ',' {
+		if p.cur.Type == kwINDEX || p.cur.Type == kwKEY {
+			p.advance()
+			if _, err := p.expect('('); err != nil {
+				return nil, err
+			}
+			stmt.Indexes = nil
+			if p.cur.Type != ')' {
+				for {
+					if p.cur.Type == kwPRIMARY {
+						stmt.Indexes = append(stmt.Indexes, "PRIMARY")
+						p.advance()
+					} else {
+						name, _, err := p.parseIdentifier()
+						if err != nil {
+							return nil, err
+						}
+						stmt.Indexes = append(stmt.Indexes, name)
+					}
+					if p.cur.Type != ',' {
+						break
+					}
+					p.advance()
+				}
+			}
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
+		}
+
+		if p.cur.Type != ',' || stmt.Partitions != nil {
 			break
 		}
 		p.advance()
 	}
 
-	// IN cache_name
-	if p.cur.Type == kwIN {
-		p.advance()
-		name, _, _ := p.parseIdentifier()
+	if _, err := p.expect(kwIN); err != nil {
+		return nil, err
+	}
+	if _, ok := p.match(kwDEFAULT); ok {
+		stmt.CacheName = "DEFAULT"
+	} else {
+		name, _, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
 		stmt.CacheName = name
 	}
 
@@ -2393,15 +2446,43 @@ func (p *Parser) parseResetPersistStmt(start int) (*nodes.ResetPersistStmt, erro
 		Loc: nodes.Loc{Start: start},
 	}
 
+	// RESET PERSIST [[IF EXISTS] persisted_variable_ident], the name ident,
+	// ident.ident or DEFAULT.ident.
+	//
+	// Ref: reset and persisted_variable_ident in MySQL 8.0 sql/sql_yacc.yy.
 	if p.cur.Type == kwIF {
 		p.advance() // consume IF
-		p.advance() // consume EXISTS
+		if _, err := p.expect(kwEXISTS_KW); err != nil {
+			return nil, err
+		}
 		stmt.IfExists = true
+		if !p.isLvalueIdentToken() && p.cur.Type != kwDEFAULT {
+			return nil, p.syntaxErrorAtCur()
+		}
 	}
 
-	if p.isLvalueIdentToken() {
-		name, _, _ := p.parseLvalueIdent()
+	if p.cur.Type == kwDEFAULT && p.peekNext().Type == '.' {
+		p.advance()
+		p.advance()
+		name, _, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Variable = "DEFAULT." + name
+	} else if p.isLvalueIdentToken() {
+		name, _, err := p.parseLvalueIdent()
+		if err != nil {
+			return nil, err
+		}
 		stmt.Variable = name
+		if p.cur.Type == '.' {
+			p.advance()
+			suffix, _, err := p.parseIdentifier()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Variable += "." + suffix
+		}
 	}
 
 	stmt.Loc.End = p.prev.End

@@ -174,7 +174,7 @@ reject	reject	engine	verb_clause/insert!drop-4	INSERT a SELECT;
 reject	reject	engine	verb_clause/insert!truncate	INSERT a SELECT
 accept	accept	engine	verb_clause/insert!insert	INSERT a SELECT a zzz;
 reject	reject	engine	verb_clause/insert!swap	INSERT_METHOD a SELECT a;
-reject	accept	engine	verb_clause/install	INSTALL SONAME 's';
+accept	accept	engine	verb_clause/install	INSTALL SONAME 's';
 reject	reject	engine	verb_clause/install!drop-1	SONAME 's';
 reject	reject	engine	verb_clause/install!drop-2	INSTALL 's';
 reject	reject	engine	verb_clause/install!drop-3	INSTALL SONAME;
@@ -186,8 +186,8 @@ reject	reject	engine	verb_clause/keycache!drop-1	INDEX a IN a;
 reject	reject	engine	verb_clause/keycache!drop-2	CACHE a IN a;
 reject	reject	engine	verb_clause/keycache!drop-3	CACHE INDEX IN a;
 reject	reject	engine	verb_clause/keycache!drop-4	CACHE INDEX a a;
-accept	reject	engine	verb_clause/keycache!drop-5	CACHE INDEX a IN;
-accept	reject	engine	verb_clause/keycache!truncate	CACHE INDEX a IN
+reject	reject	engine	verb_clause/keycache!drop-5	CACHE INDEX a IN;
+reject	reject	engine	verb_clause/keycache!truncate	CACHE INDEX a IN
 reject	reject	engine	verb_clause/keycache!insert	CACHE INDEX a IN a zzz;
 reject	reject	engine	verb_clause/keycache!swap	CALL INDEX a IN a;
 accept	reject	engine	verb_clause/kill	KILL a;
@@ -254,8 +254,8 @@ reject	reject	engine	verb_clause/purge!drop-1	MASTER LOGS TO 's';
 reject	reject	engine	verb_clause/purge!drop-2	PURGE LOGS TO 's';
 reject	reject	engine	verb_clause/purge!drop-3	PURGE MASTER TO 's';
 reject	reject	engine	verb_clause/purge!drop-4	PURGE MASTER LOGS 's';
-accept	reject	engine	verb_clause/purge!drop-5	PURGE MASTER LOGS TO;
-accept	reject	engine	verb_clause/purge!truncate	PURGE MASTER LOGS TO
+reject	reject	engine	verb_clause/purge!drop-5	PURGE MASTER LOGS TO;
+reject	reject	engine	verb_clause/purge!truncate	PURGE MASTER LOGS TO
 reject	reject	engine	verb_clause/purge!insert	PURGE MASTER LOGS TO 's' zzz;
 reject	reject	engine	verb_clause/purge!swap	QUARTER MASTER LOGS TO 's';
 accept	accept	engine	verb_clause/release	RELEASE SAVEPOINT a;
@@ -4686,7 +4686,7 @@ accept	accept	engine	keycache/CACHE_SYM_INDEX_SYM_keycache_list_or_parts_IN_SYM_
 accept	accept	engine	keycache_list_or_parts/keycache_list	CACHE INDEX a IN a;
 reject	reject	engine	keycache_list_or_parts/keycache_list!truncate	CACHE INDEX
 reject	reject	engine	keycache_list_or_parts/keycache_list!insert	CACHE INDEX a zzz IN a;
-reject	accept	engine	keycache_list_or_parts/assign_to_keycache_parts	CACHE INDEX a PARTITION(ALL) IN a;
+accept	accept	engine	keycache_list_or_parts/assign_to_keycache_parts	CACHE INDEX a PARTITION(ALL) IN a;
 reject	reject	engine	keycache_list_or_parts/assign_to_keycache_parts!drop-1	CACHE INDEX PARTITION(ALL) IN a;
 reject	reject	engine	keycache_list_or_parts/assign_to_keycache_parts!drop-2	CACHE INDEX a(ALL) IN a;
 reject	reject	engine	keycache_list_or_parts/assign_to_keycache_parts!drop-3	CACHE INDEX a PARTITION ALL) IN a;
@@ -4703,9 +4703,9 @@ reject	reject	engine	keycache_list/keycache_list_,_assign_to_keycache!drop-3	CAC
 reject	reject	engine	keycache_list/keycache_list_,_assign_to_keycache!truncate	CACHE INDEX a,
 reject	reject	engine	keycache_list/keycache_list_,_assign_to_keycache!insert	CACHE INDEX a, a zzz IN a;
 accept	accept	engine	assign_to_keycache/table_ident_cache_keys_spec	CACHE INDEX a IN a;
-reject	accept	engine	assign_to_keycache_parts/table_ident_adm_partition_cache_keys_spec	CACHE INDEX a PARTITION(ALL) IN a;
+accept	accept	engine	assign_to_keycache_parts/table_ident_adm_partition_cache_keys_spec	CACHE INDEX a PARTITION(ALL) IN a;
 accept	accept	engine	key_cache_name/ident	CACHE INDEX a IN a;
-reject	accept	engine	key_cache_name/DEFAULT	CACHE INDEX a IN DEFAULT;
+accept	accept	engine	key_cache_name/DEFAULT	CACHE INDEX a IN DEFAULT;
 reject	reject	engine	key_cache_name/DEFAULT!insert	CACHE INDEX a IN DEFAULT zzz;
 accept	accept	engine	key_cache_name/DEFAULT!swap	CACHE INDEX a IN DEFINER;
 accept	accept	engine	preload/LOAD_INDEX_SYM_INTO_CACHE_SYM_preload_list_or_parts	LOAD INDEX INTO CACHE a;
@@ -4728,10 +4728,10 @@ reject	reject	engine	preload_list/preload_list_,_preload_keys!truncate	LOAD INDE
 reject	reject	engine	preload_list/preload_list_,_preload_keys!insert	LOAD INDEX INTO CACHE a, a zzz;
 accept	accept	engine	preload_keys/table_ident_cache_keys_spec_opt_ignore_leaves	LOAD INDEX INTO CACHE a;
 accept	accept	engine	preload_keys_parts/table_ident_adm_partition_cache_keys_spec_opt_ignore_leaves	LOAD INDEX INTO CACHE a PARTITION(ALL);
-reject	accept	engine	adm_partition/PARTITION_SYM_have_partitioning_(_all_or_alt_part_name_list_)	CACHE INDEX a PARTITION(ALL) IN a;
+accept	accept	engine	adm_partition/PARTITION_SYM_have_partitioning_(_all_or_alt_part_name_list_)	CACHE INDEX a PARTITION(ALL) IN a;
 accept	accept	engine	cache_keys_spec/cache_key_list_or_empty	CACHE INDEX a IN a;
 accept	accept	engine	cache_key_list_or_empty/%empty	CACHE INDEX a IN a;
-reject	accept	engine	cache_key_list_or_empty/key_or_index_(_opt_key_usage_list_)	CACHE INDEX a KEY() IN a;
+accept	accept	engine	cache_key_list_or_empty/key_or_index_(_opt_key_usage_list_)	CACHE INDEX a KEY() IN a;
 reject	reject	engine	cache_key_list_or_empty/key_or_index_(_opt_key_usage_list_)!drop-1	CACHE INDEX a() IN a;
 reject	reject	engine	cache_key_list_or_empty/key_or_index_(_opt_key_usage_list_)!drop-2	CACHE INDEX a KEY) IN a;
 reject	reject	engine	cache_key_list_or_empty/key_or_index_(_opt_key_usage_list_)!drop-3	CACHE INDEX a KEY(IN a;
@@ -7788,8 +7788,8 @@ accept	accept	engine	order_or_limit/order_clause_opt_limit_clause	SELECT a ORDER
 reject	reject	engine	order_or_limit/limit_clause	SELECT a LIMIT a;
 accept	accept	engine	opt_plus/%empty	RESET MASTER TO 1;
 reject	reject	engine	opt_plus/%empty!insert	RESET MASTER TO zzz 1;
-reject	accept	engine	opt_plus/+	RESET MASTER TO + 1;
-accept	reject	engine	opt_plus/+!truncate	RESET MASTER TO
+accept	accept	engine	opt_plus/+	RESET MASTER TO + 1;
+reject	reject	engine	opt_plus/+!truncate	RESET MASTER TO
 reject	reject	engine	opt_plus/+!insert	RESET MASTER TO + zzz 1;
 accept	accept	engine	int_num/opt_plus_NUM	ALTER USER a WITH MAX_USER_CONNECTIONS 1;
 reject	reject	engine	int_num/opt_plus_NUM!drop-1	ALTER USER a WITH MAX_USER_CONNECTIONS;
@@ -7800,9 +7800,9 @@ reject	reject	engine	int_num/-_NUM!drop-2	ALTER USER a WITH MAX_USER_CONNECTIONS
 reject	reject	engine	int_num/-_NUM!truncate	ALTER USER a WITH MAX_USER_CONNECTIONS -
 reject	reject	engine	int_num/-_NUM!insert	ALTER USER a WITH MAX_USER_CONNECTIONS - 1 zzz;
 accept	accept	engine	ulong_num/opt_plus_NUM	RESET MASTER TO 1;
-accept	reject	engine	ulong_num/opt_plus_NUM!drop-1	RESET MASTER TO;
+reject	reject	engine	ulong_num/opt_plus_NUM!drop-1	RESET MASTER TO;
 reject	reject	engine	ulong_num/opt_plus_NUM!insert	RESET MASTER TO 1 zzz;
-reject	accept	engine	ulong_num/HEX_NUM	RESET MASTER TO 0x41;
+accept	accept	engine	ulong_num/HEX_NUM	RESET MASTER TO 0x41;
 reject	reject	engine	ulong_num/HEX_NUM!insert	RESET MASTER TO 0x41 zzz;
 accept	accept	engine	ulong_num/opt_plus_LONG_NUM	RESET MASTER TO 2147483648;
 reject	reject	engine	ulong_num/opt_plus_LONG_NUM!insert	RESET MASTER TO 2147483648 zzz;
@@ -8298,8 +8298,8 @@ accept	accept	engine	profile_defs/profile_def	SHOW PROFILE CPU;
 accept	accept	engine	profile_defs/profile_defs_,_profile_def	SHOW PROFILE CPU, CPU;
 reject	reject	engine	profile_defs/profile_defs_,_profile_def!drop-1	SHOW PROFILE, CPU;
 reject	reject	engine	profile_defs/profile_defs_,_profile_def!drop-2	SHOW PROFILE CPU CPU;
-accept	reject	engine	profile_defs/profile_defs_,_profile_def!drop-3	SHOW PROFILE CPU,;
-accept	reject	engine	profile_defs/profile_defs_,_profile_def!truncate	SHOW PROFILE CPU,
+reject	reject	engine	profile_defs/profile_defs_,_profile_def!drop-3	SHOW PROFILE CPU,;
+reject	reject	engine	profile_defs/profile_defs_,_profile_def!truncate	SHOW PROFILE CPU,
 reject	reject	engine	profile_defs/profile_defs_,_profile_def!insert	SHOW PROFILE CPU, CPU zzz;
 reject	reject	engine	profile_defs/profile_defs_,_profile_def!swap	SHOW PROFILE CREATE, CPU;
 accept	accept	engine	profile_def/CPU_SYM	SHOW PROFILE CPU;
@@ -8308,20 +8308,20 @@ reject	reject	engine	profile_def/MEMORY_SYM!insert	SHOW PROFILE MEMORY zzz;
 reject	reject	engine	profile_def/MEMORY_SYM!swap	SHOW PROFILE MERGE;
 accept	accept	engine	profile_def/BLOCK_SYM_IO_SYM	SHOW PROFILE BLOCK IO;
 reject	reject	engine	profile_def/BLOCK_SYM_IO_SYM!drop-1	SHOW PROFILE IO;
-accept	reject	engine	profile_def/BLOCK_SYM_IO_SYM!drop-2	SHOW PROFILE BLOCK;
-accept	reject	engine	profile_def/BLOCK_SYM_IO_SYM!truncate	SHOW PROFILE BLOCK
+reject	reject	engine	profile_def/BLOCK_SYM_IO_SYM!drop-2	SHOW PROFILE BLOCK;
+reject	reject	engine	profile_def/BLOCK_SYM_IO_SYM!truncate	SHOW PROFILE BLOCK
 reject	reject	engine	profile_def/BLOCK_SYM_IO_SYM!insert	SHOW PROFILE BLOCK IO zzz;
 reject	reject	engine	profile_def/BLOCK_SYM_IO_SYM!swap	SHOW PROFILE BODY IO;
 accept	accept	engine	profile_def/CONTEXT_SYM_SWITCHES_SYM	SHOW PROFILE CONTEXT SWITCHES;
 reject	reject	engine	profile_def/CONTEXT_SYM_SWITCHES_SYM!drop-1	SHOW PROFILE SWITCHES;
-accept	reject	engine	profile_def/CONTEXT_SYM_SWITCHES_SYM!drop-2	SHOW PROFILE CONTEXT;
-accept	reject	engine	profile_def/CONTEXT_SYM_SWITCHES_SYM!truncate	SHOW PROFILE CONTEXT
+reject	reject	engine	profile_def/CONTEXT_SYM_SWITCHES_SYM!drop-2	SHOW PROFILE CONTEXT;
+reject	reject	engine	profile_def/CONTEXT_SYM_SWITCHES_SYM!truncate	SHOW PROFILE CONTEXT
 reject	reject	engine	profile_def/CONTEXT_SYM_SWITCHES_SYM!insert	SHOW PROFILE CONTEXT SWITCHES zzz;
 reject	reject	engine	profile_def/CONTEXT_SYM_SWITCHES_SYM!swap	SHOW PROFILE CONTINUE SWITCHES;
 accept	accept	engine	profile_def/PAGE_SYM_FAULTS_SYM	SHOW PROFILE PAGE FAULTS;
 reject	reject	engine	profile_def/PAGE_SYM_FAULTS_SYM!drop-1	SHOW PROFILE FAULTS;
-accept	reject	engine	profile_def/PAGE_SYM_FAULTS_SYM!drop-2	SHOW PROFILE PAGE;
-accept	reject	engine	profile_def/PAGE_SYM_FAULTS_SYM!truncate	SHOW PROFILE PAGE
+reject	reject	engine	profile_def/PAGE_SYM_FAULTS_SYM!drop-2	SHOW PROFILE PAGE;
+reject	reject	engine	profile_def/PAGE_SYM_FAULTS_SYM!truncate	SHOW PROFILE PAGE
 reject	reject	engine	profile_def/PAGE_SYM_FAULTS_SYM!insert	SHOW PROFILE PAGE FAULTS zzz;
 reject	reject	engine	profile_def/PAGE_SYM_FAULTS_SYM!swap	SHOW PROFILE PAGE_CHECKSUM FAULTS;
 accept	accept	engine	profile_def/IPC_SYM	SHOW PROFILE IPC;
@@ -8368,13 +8368,13 @@ reject	reject	engine	show_param/OPEN_SYM_TABLES_opt_db_wild_and_where!swap	SHOW 
 accept	accept	engine	show_param/PLUGINS_SYM	SHOW PLUGINS;
 reject	reject	engine	show_param/PLUGINS_SYM!insert	SHOW PLUGINS zzz;
 reject	reject	engine	show_param/PLUGINS_SYM!swap	SHOW PORT;
-reject	accept	engine	show_param/PLUGINS_SYM_SONAME_SYM_TEXT_STRING_sys	SHOW PLUGINS SONAME 's';
+accept	accept	engine	show_param/PLUGINS_SYM_SONAME_SYM_TEXT_STRING_sys	SHOW PLUGINS SONAME 's';
 reject	reject	engine	show_param/PLUGINS_SYM_SONAME_SYM_TEXT_STRING_sys!drop-1	SHOW SONAME 's';
 reject	reject	engine	show_param/PLUGINS_SYM_SONAME_SYM_TEXT_STRING_sys!drop-2	SHOW PLUGINS 's';
-reject	accept	engine	show_param/PLUGINS_SYM_SONAME_SYM_TEXT_STRING_sys!truncate	SHOW PLUGINS SONAME
+accept	accept	engine	show_param/PLUGINS_SYM_SONAME_SYM_TEXT_STRING_sys!truncate	SHOW PLUGINS SONAME
 reject	reject	engine	show_param/PLUGINS_SYM_SONAME_SYM_TEXT_STRING_sys!insert	SHOW PLUGINS SONAME 's' zzz;
 reject	reject	engine	show_param/PLUGINS_SYM_SONAME_SYM_TEXT_STRING_sys!swap	SHOW PORT SONAME 's';
-reject	accept	engine	show_param/PLUGINS_SYM_SONAME_SYM_wild_and_where	SHOW PLUGINS SONAME;
+accept	accept	engine	show_param/PLUGINS_SYM_SONAME_SYM_wild_and_where	SHOW PLUGINS SONAME;
 reject	reject	engine	show_param/PLUGINS_SYM_SONAME_SYM_wild_and_where!drop-1	SHOW SONAME;
 accept	accept	engine	show_param/PLUGINS_SYM_SONAME_SYM_wild_and_where!truncate	SHOW PLUGINS
 reject	reject	engine	show_param/PLUGINS_SYM_SONAME_SYM_wild_and_where!insert	SHOW PLUGINS SONAME zzz;
@@ -8385,7 +8385,7 @@ reject	reject	engine	show_param/ENGINE_SYM_known_storage_engines_show_engine_par
 reject	reject	engine	show_param/ENGINE_SYM_known_storage_engines_show_engine_param!truncate	SHOW ENGINE InnoDB
 reject	reject	engine	show_param/ENGINE_SYM_known_storage_engines_show_engine_param!insert	SHOW ENGINE InnoDB STATUS zzz;
 reject	reject	engine	show_param/ENGINE_SYM_known_storage_engines_show_engine_param!swap	SHOW ENGINES InnoDB STATUS;
-reject	accept	engine	show_param/ENGINE_SYM_ALL_show_engine_param	SHOW ENGINE ALL STATUS;
+accept	accept	engine	show_param/ENGINE_SYM_ALL_show_engine_param	SHOW ENGINE ALL STATUS;
 reject	reject	engine	show_param/ENGINE_SYM_ALL_show_engine_param!drop-1	SHOW ALL STATUS;
 reject	reject	engine	show_param/ENGINE_SYM_ALL_show_engine_param!drop-3	SHOW ENGINE ALL;
 reject	reject	engine	show_param/ENGINE_SYM_ALL_show_engine_param!truncate	SHOW ENGINE ALL
@@ -8927,19 +8927,19 @@ reject	reject	engine	reset_options/reset_options_,_reset_option!drop-2	RESET SLA
 reject	reject	engine	reset_options/reset_options_,_reset_option!drop-3	RESET SLAVE,;
 reject	reject	engine	reset_options/reset_options_,_reset_option!truncate	RESET SLAVE,
 reject	reject	engine	reset_options/reset_options_,_reset_option!insert	RESET SLAVE, SLAVE zzz;
-accept	reject	engine	reset_options/reset_options_,_reset_option!swap	RESET SLAVES, SLAVE;
+reject	reject	engine	reset_options/reset_options_,_reset_option!swap	RESET SLAVES, SLAVE;
 accept	accept	engine	reset_options/reset_option	RESET SLAVE;
-accept	reject	engine	reset_options/reset_option!swap	RESET SLAVES;
+reject	reject	engine	reset_options/reset_option!swap	RESET SLAVES;
 accept	accept	engine	reset_option/SLAVE_optional_connection_name_slave_reset_options_optional_for_channel	RESET SLAVE;
 accept	accept	engine	reset_option/MASTER_SYM_master_reset_options	RESET MASTER;
 reject	reject	engine	reset_option/MASTER_SYM_master_reset_options!insert	RESET MASTER zzz;
-accept	reject	engine	reset_option/MASTER_SYM_master_reset_options!swap	RESET MASTER_CONNECT_RETRY;
+reject	reject	engine	reset_option/MASTER_SYM_master_reset_options!swap	RESET MASTER_CONNECT_RETRY;
 accept	accept	engine	reset_option/QUERY_SYM_CACHE_SYM	RESET QUERY CACHE;
-accept	reject	engine	reset_option/QUERY_SYM_CACHE_SYM!drop-1	RESET CACHE;
-accept	reject	engine	reset_option/QUERY_SYM_CACHE_SYM!drop-2	RESET QUERY;
-accept	reject	engine	reset_option/QUERY_SYM_CACHE_SYM!truncate	RESET QUERY
-accept	reject	engine	reset_option/QUERY_SYM_CACHE_SYM!insert	RESET QUERY CACHE zzz;
-accept	reject	engine	reset_option/QUERY_SYM_CACHE_SYM!swap	RESET QUICK CACHE;
+reject	reject	engine	reset_option/QUERY_SYM_CACHE_SYM!drop-1	RESET CACHE;
+reject	reject	engine	reset_option/QUERY_SYM_CACHE_SYM!drop-2	RESET QUERY;
+reject	reject	engine	reset_option/QUERY_SYM_CACHE_SYM!truncate	RESET QUERY
+reject	reject	engine	reset_option/QUERY_SYM_CACHE_SYM!insert	RESET QUERY CACHE zzz;
+reject	reject	engine	reset_option/QUERY_SYM_CACHE_SYM!swap	RESET QUICK CACHE;
 accept	accept	engine	slave_reset_options/%empty	RESET SLAVE;
 accept	accept	engine	slave_reset_options/ALL	RESET SLAVE ALL;
 accept	accept	engine	slave_reset_options/ALL!truncate	RESET SLAVE
@@ -11264,7 +11264,7 @@ reject	reject	engine	opt_var_type/%empty!insert	SHOW zzz STATUS;
 accept	accept	engine	opt_var_type/GLOBAL_SYM	SHOW GLOBAL STATUS;
 reject	reject	engine	opt_var_type/GLOBAL_SYM!insert	SHOW GLOBAL zzz STATUS;
 reject	reject	engine	opt_var_type/GLOBAL_SYM!swap	SHOW GOTO STATUS;
-reject	accept	engine	opt_var_type/LOCAL_SYM	SHOW LOCAL STATUS;
+accept	accept	engine	opt_var_type/LOCAL_SYM	SHOW LOCAL STATUS;
 reject	reject	engine	opt_var_type/LOCAL_SYM!insert	SHOW LOCAL zzz STATUS;
 reject	reject	engine	opt_var_type/LOCAL_SYM!swap	SHOW LOCALTIMESTAMP STATUS;
 accept	accept	engine	opt_var_type/SESSION_SYM	SHOW SESSION STATUS;
@@ -12484,15 +12484,15 @@ reject	reject	engine	opt_migrate/FOR_SYM_MIGRATE_SYM!swap	XA END 's' SUSPEND FOR
 accept	accept	engine	install/INSTALL_SYM_PLUGIN_SYM_opt_if_not_exists_ident_SONAME_SYM_TEXT_STRING_sys	INSTALL PLUGIN a SONAME 's';
 reject	reject	engine	install/INSTALL_SYM_PLUGIN_SYM_opt_if_not_exists_ident_SONAME_SYM_TEXT_STRING_sys!drop-1	PLUGIN a SONAME 's';
 reject	reject	engine	install/INSTALL_SYM_PLUGIN_SYM_opt_if_not_exists_ident_SONAME_SYM_TEXT_STRING_sys!drop-2	INSTALL a SONAME 's';
-accept	reject	engine	install/INSTALL_SYM_PLUGIN_SYM_opt_if_not_exists_ident_SONAME_SYM_TEXT_STRING_sys!drop-3	INSTALL PLUGIN SONAME 's';
-accept	reject	engine	install/INSTALL_SYM_PLUGIN_SYM_opt_if_not_exists_ident_SONAME_SYM_TEXT_STRING_sys!drop-4	INSTALL PLUGIN a 's';
-accept	reject	engine	install/INSTALL_SYM_PLUGIN_SYM_opt_if_not_exists_ident_SONAME_SYM_TEXT_STRING_sys!drop-5	INSTALL PLUGIN a SONAME;
-accept	reject	engine	install/INSTALL_SYM_PLUGIN_SYM_opt_if_not_exists_ident_SONAME_SYM_TEXT_STRING_sys!truncate	INSTALL PLUGIN a SONAME
+reject	reject	engine	install/INSTALL_SYM_PLUGIN_SYM_opt_if_not_exists_ident_SONAME_SYM_TEXT_STRING_sys!drop-3	INSTALL PLUGIN SONAME 's';
+reject	reject	engine	install/INSTALL_SYM_PLUGIN_SYM_opt_if_not_exists_ident_SONAME_SYM_TEXT_STRING_sys!drop-4	INSTALL PLUGIN a 's';
+reject	reject	engine	install/INSTALL_SYM_PLUGIN_SYM_opt_if_not_exists_ident_SONAME_SYM_TEXT_STRING_sys!drop-5	INSTALL PLUGIN a SONAME;
+reject	reject	engine	install/INSTALL_SYM_PLUGIN_SYM_opt_if_not_exists_ident_SONAME_SYM_TEXT_STRING_sys!truncate	INSTALL PLUGIN a SONAME
 reject	reject	engine	install/INSTALL_SYM_PLUGIN_SYM_opt_if_not_exists_ident_SONAME_SYM_TEXT_STRING_sys!insert	INSTALL PLUGIN a SONAME 's' zzz;
 reject	reject	engine	install/INSTALL_SYM_PLUGIN_SYM_opt_if_not_exists_ident_SONAME_SYM_TEXT_STRING_sys!swap	INT PLUGIN a SONAME 's';
-reject	accept	engine	install/INSTALL_SYM_SONAME_SYM_TEXT_STRING_sys	INSTALL SONAME 's';
+accept	accept	engine	install/INSTALL_SYM_SONAME_SYM_TEXT_STRING_sys	INSTALL SONAME 's';
 accept	accept	engine	uninstall/UNINSTALL_SYM_PLUGIN_SYM_opt_if_exists_ident	UNINSTALL PLUGIN a;
-reject	accept	engine	uninstall/UNINSTALL_SYM_SONAME_SYM_opt_if_exists_TEXT_STRING_sys	UNINSTALL SONAME 's';
+accept	accept	engine	uninstall/UNINSTALL_SYM_SONAME_SYM_opt_if_exists_TEXT_STRING_sys	UNINSTALL SONAME 's';
 reject	reject	engine	uninstall/UNINSTALL_SYM_SONAME_SYM_opt_if_exists_TEXT_STRING_sys!drop-2	UNINSTALL 's';
 reject	reject	engine	uninstall/UNINSTALL_SYM_SONAME_SYM_opt_if_exists_TEXT_STRING_sys!drop-3	UNINSTALL SONAME;
 reject	reject	engine	uninstall/UNINSTALL_SYM_SONAME_SYM_opt_if_exists_TEXT_STRING_sys!truncate	UNINSTALL SONAME

@@ -4184,6 +4184,9 @@ func writeInstallPluginStmt(sb *strings.Builder, n *InstallPluginStmt) {
 	if n.Soname != "" {
 		fmt.Fprintf(sb, " :soname %q", n.Soname)
 	}
+	if n.IfNotExists {
+		sb.WriteString(" :if_not_exists true")
+	}
 	sb.WriteString("}")
 }
 
@@ -4191,6 +4194,12 @@ func writeUninstallPluginStmt(sb *strings.Builder, n *UninstallPluginStmt) {
 	sb.WriteString("{UNINSTALL_PLUGIN")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
 	fmt.Fprintf(sb, " :name %s", n.PluginName)
+	if n.IfExists {
+		sb.WriteString(" :if_exists true")
+	}
+	if n.Soname != "" {
+		fmt.Fprintf(sb, " :soname %q", n.Soname)
+	}
 	sb.WriteString("}")
 }
 

@@ -2685,9 +2685,10 @@ func (s *CloneStmt) stmtNode() {}
 
 // InstallPluginStmt represents an INSTALL PLUGIN statement.
 type InstallPluginStmt struct {
-	Loc        Loc
-	PluginName string // plugin name
-	Soname     string // shared library name
+	Loc         Loc
+	IfNotExists bool   // INSTALL PLUGIN IF NOT EXISTS
+	PluginName  string // plugin name ("" for INSTALL SONAME, every plugin of the library)
+	Soname      string // shared library name
 }
 
 func (s *InstallPluginStmt) nodeTag()  {}
@@ -2696,7 +2697,9 @@ func (s *InstallPluginStmt) stmtNode() {}
 // UninstallPluginStmt represents an UNINSTALL PLUGIN statement.
 type UninstallPluginStmt struct {
 	Loc        Loc
-	PluginName string // plugin name
+	IfExists   bool   // UNINSTALL {PLUGIN | SONAME} IF EXISTS
+	PluginName string // plugin name ("" for UNINSTALL SONAME)
+	Soname     string // UNINSTALL SONAME's shared library name
 }
 
 func (s *UninstallPluginStmt) nodeTag()  {}

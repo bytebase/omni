@@ -835,6 +835,22 @@
     "suspicion_notes": null
   },
   {
+    "site": "set.go:557",
+    "function": "parseZoneInterval",
+    "nonterminals": [
+      "zone_value"
+    ],
+    "ambiguity_present": false,
+    "current_technique": "T1",
+    "pg_reference": "gram.y zone_value: ConstInterval '(' Iconst ')' Sconst",
+    "aligned": "yes",
+    "blocked_by": null,
+    "cluster": "C3",
+    "priority": "low",
+    "proof_notes": "After SET TIME ZONE INTERVAL; optional parens for precision, then the string. Exercised by TestSetZoneInterval.",
+    "suspicion_notes": null
+  },
+  {
     "site": "type.go:687",
     "function": "parseIntervalSecond",
     "nonterminals": [
