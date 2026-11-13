@@ -582,7 +582,7 @@ reject	undocumented	docs	statement/alterIcebergTable!insert	ALTER ICEBERG TABLE 
 reject	undocumented	docs	statement/alterIcebergTable!swap	ALWAYS ICEBERG TABLE a SUSPEND RECLUSTER
 reject	accept	docs	statement/alterIcebergTableAlterColumnSetDataType	ALTER ICEBERG TABLE a ALTER COLUMN a SET DATA TYPE INT
 reject	undocumented	docs	statement/alterIcebergTableAlterColumnSetDataType!drop-1	ICEBERG TABLE a ALTER COLUMN a SET DATA TYPE INT
-accept	undocumented	docs	statement/alterIcebergTableAlterColumnSetDataType!drop-2	ALTER TABLE a ALTER COLUMN a SET DATA TYPE INT
+accept	accept	docs	statement/alterIcebergTableAlterColumnSetDataType!drop-2	ALTER TABLE a ALTER COLUMN a SET DATA TYPE INT
 reject	undocumented	docs	statement/alterIcebergTableAlterColumnSetDataType!drop-3	ALTER ICEBERG a ALTER COLUMN a SET DATA TYPE INT
 reject	undocumented	docs	statement/alterIcebergTableAlterColumnSetDataType!drop-4	ALTER ICEBERG TABLE ALTER COLUMN a SET DATA TYPE INT
 reject	undocumented	docs	statement/alterIcebergTableAlterColumnSetDataType!drop-5	ALTER ICEBERG TABLE a COLUMN a SET DATA TYPE INT
@@ -1201,38 +1201,15 @@ reject	undocumented	docs	statement/alterTable!drop-3	ALTER TABLE RECLUSTER
 reject	undocumented	docs	statement/alterTable!drop-4	ALTER TABLE a
 reject	undocumented	docs	statement/alterTable!insert	ALTER TABLE a RECLUSTER zzz
 reject	undocumented	docs	statement/alterTable!swap	ALWAYS TABLE a RECLUSTER
-accept	accept	docs	statement/alterTableColumn	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	statement/alterTableColumn!drop-1	TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	statement/alterTableColumn!drop-2	ALTER a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	statement/alterTableColumn!drop-3	ALTER TABLE ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	statement/alterTableColumn!drop-4	ALTER TABLE a a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	statement/alterTableColumn!drop-5	ALTER TABLE a ALTER DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	statement/alterTableColumn!drop-6	ALTER TABLE a ALTER a DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	statement/alterTableColumn!drop-7	ALTER TABLE a ALTER a DROP, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	statement/alterTableColumn!drop-8	ALTER TABLE a ALTER a DROP DEFAULT a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	statement/alterTableColumn!drop-9	ALTER TABLE a ALTER a DROP DEFAULT, SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	statement/alterTableColumn!drop-10	ALTER TABLE a ALTER a DROP DEFAULT, a DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	statement/alterTableColumn!drop-11	ALTER TABLE a ALTER a DROP DEFAULT, a SET a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	statement/alterTableColumn!drop-12	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	statement/alterTableColumn!drop-13	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	statement/alterTableColumn!drop-14	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a., a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	statement/alterTableColumn!drop-15	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	statement/alterTableColumn!drop-16	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	statement/alterTableColumn!drop-17	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	statement/alterTableColumn!drop-18	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	statement/alterTableColumn!drop-19	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	statement/alterTableColumn!drop-20	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	statement/alterTableColumn!drop-21	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	statement/alterTableColumn!drop-22	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	statement/alterTableColumn!drop-23	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	statement/alterTableColumn!drop-24	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a 's', a UNSET COMMENT
-reject	undocumented	docs	statement/alterTableColumn!drop-25	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT, a UNSET COMMENT
-reject	undocumented	docs	statement/alterTableColumn!drop-26	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's' a UNSET COMMENT
-reject	undocumented	docs	statement/alterTableColumn!drop-27	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', UNSET COMMENT
-reject	undocumented	docs	statement/alterTableColumn!drop-28	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a COMMENT
-reject	undocumented	docs	statement/alterTableColumn!drop-29	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET
-reject	undocumented	docs	statement/alterTableColumn!insert	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT zzz
-reject	undocumented	docs	statement/alterTableColumn!swap	ALWAYS TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
+accept	accept	docs	statement/alterTableColumn	ALTER TABLE a ALTER a INT
+reject	undocumented	docs	statement/alterTableColumn!drop-1	TABLE a ALTER a INT
+reject	undocumented	docs	statement/alterTableColumn!drop-2	ALTER a ALTER a INT
+reject	undocumented	docs	statement/alterTableColumn!drop-3	ALTER TABLE ALTER a INT
+reject	undocumented	docs	statement/alterTableColumn!drop-4	ALTER TABLE a a INT
+reject	undocumented	docs	statement/alterTableColumn!drop-5	ALTER TABLE a ALTER INT
+reject	undocumented	docs	statement/alterTableColumn!drop-6	ALTER TABLE a ALTER a
+reject	undocumented	docs	statement/alterTableColumn!insert	ALTER TABLE a ALTER a INT zzz
+reject	undocumented	docs	statement/alterTableColumn!swap	ALWAYS TABLE a ALTER a INT
 accept	accept	docs	statement/alterTableEventTable	ALTER TABLE a SUSPEND RECLUSTER
 reject	undocumented	docs	statement/alterTableEventTable!drop-1	TABLE a SUSPEND RECLUSTER
 reject	undocumented	docs	statement/alterTableEventTable!drop-2	ALTER a SUSPEND RECLUSTER
@@ -17948,17 +17925,17 @@ reject	undocumented	docs	alterProcedure/ALTER_PROCEDURE_(IF_EXISTS)?_ID_(_(DATA_
 reject	undocumented	docs	alterProcedure/ALTER_PROCEDURE_(IF_EXISTS)?_ID_(_(DATA_TYPE_(,_DATA_TY~62fc1163!drop-8	ALTER PROCEDURE a() RENAME TO
 reject	undocumented	docs	alterProcedure/ALTER_PROCEDURE_(IF_EXISTS)?_ID_(_(DATA_TYPE_(,_DATA_TY~62fc1163!insert	ALTER PROCEDURE a() RENAME TO a zzz
 reject	undocumented	docs	alterProcedure/ALTER_PROCEDURE_(IF_EXISTS)?_ID_(_(DATA_TYPE_(,_DATA_TY~62fc1163!swap	ALWAYS PROCEDURE a() RENAME TO a
-accept	accept	docs	alterProcedure/ALTER_PROCEDURE_(IF_EXISTS)?_ID_(_(DATA_TYPE_(,_DATA_TY~977667fb	ALTER PROCEDURE a() SET LOG_LEVEL = 's'
-reject	undocumented	docs	alterProcedure/ALTER_PROCEDURE_(IF_EXISTS)?_ID_(_(DATA_TYPE_(,_DATA_TY~977667fb!drop-1	PROCEDURE a() SET LOG_LEVEL = 's'
-reject	undocumented	docs	alterProcedure/ALTER_PROCEDURE_(IF_EXISTS)?_ID_(_(DATA_TYPE_(,_DATA_TY~977667fb!drop-3	ALTER PROCEDURE() SET LOG_LEVEL = 's'
-reject	undocumented	docs	alterProcedure/ALTER_PROCEDURE_(IF_EXISTS)?_ID_(_(DATA_TYPE_(,_DATA_TY~977667fb!drop-4	ALTER PROCEDURE a) SET LOG_LEVEL = 's'
-reject	undocumented	docs	alterProcedure/ALTER_PROCEDURE_(IF_EXISTS)?_ID_(_(DATA_TYPE_(,_DATA_TY~977667fb!drop-5	ALTER PROCEDURE a(SET LOG_LEVEL = 's'
-reject	undocumented	docs	alterProcedure/ALTER_PROCEDURE_(IF_EXISTS)?_ID_(_(DATA_TYPE_(,_DATA_TY~977667fb!drop-6	ALTER PROCEDURE a() LOG_LEVEL = 's'
-reject	undocumented	docs	alterProcedure/ALTER_PROCEDURE_(IF_EXISTS)?_ID_(_(DATA_TYPE_(,_DATA_TY~977667fb!drop-7	ALTER PROCEDURE a() SET = 's'
-reject	undocumented	docs	alterProcedure/ALTER_PROCEDURE_(IF_EXISTS)?_ID_(_(DATA_TYPE_(,_DATA_TY~977667fb!drop-8	ALTER PROCEDURE a() SET LOG_LEVEL 's'
-reject	undocumented	docs	alterProcedure/ALTER_PROCEDURE_(IF_EXISTS)?_ID_(_(DATA_TYPE_(,_DATA_TY~977667fb!drop-9	ALTER PROCEDURE a() SET LOG_LEVEL =
-accept	undocumented	docs	alterProcedure/ALTER_PROCEDURE_(IF_EXISTS)?_ID_(_(DATA_TYPE_(,_DATA_TY~977667fb!insert	ALTER PROCEDURE a() SET LOG_LEVEL = 's' zzz
-reject	undocumented	docs	alterProcedure/ALTER_PROCEDURE_(IF_EXISTS)?_ID_(_(DATA_TYPE_(,_DATA_TY~977667fb!swap	ALWAYS PROCEDURE a() SET LOG_LEVEL = 's'
+accept	accept	docs	alterProcedure/ALTER_PROCEDURE_(IF_EXISTS)?_ID_(_(DATA_TYPE_(,_DATA_TY~597a96a9	ALTER PROCEDURE a() SET LOG_LEVEL = 's'
+reject	undocumented	docs	alterProcedure/ALTER_PROCEDURE_(IF_EXISTS)?_ID_(_(DATA_TYPE_(,_DATA_TY~597a96a9!drop-1	PROCEDURE a() SET LOG_LEVEL = 's'
+reject	undocumented	docs	alterProcedure/ALTER_PROCEDURE_(IF_EXISTS)?_ID_(_(DATA_TYPE_(,_DATA_TY~597a96a9!drop-3	ALTER PROCEDURE() SET LOG_LEVEL = 's'
+reject	undocumented	docs	alterProcedure/ALTER_PROCEDURE_(IF_EXISTS)?_ID_(_(DATA_TYPE_(,_DATA_TY~597a96a9!drop-4	ALTER PROCEDURE a) SET LOG_LEVEL = 's'
+reject	undocumented	docs	alterProcedure/ALTER_PROCEDURE_(IF_EXISTS)?_ID_(_(DATA_TYPE_(,_DATA_TY~597a96a9!drop-5	ALTER PROCEDURE a(SET LOG_LEVEL = 's'
+reject	undocumented	docs	alterProcedure/ALTER_PROCEDURE_(IF_EXISTS)?_ID_(_(DATA_TYPE_(,_DATA_TY~597a96a9!drop-6	ALTER PROCEDURE a() LOG_LEVEL = 's'
+reject	undocumented	docs	alterProcedure/ALTER_PROCEDURE_(IF_EXISTS)?_ID_(_(DATA_TYPE_(,_DATA_TY~597a96a9!drop-7	ALTER PROCEDURE a() SET = 's'
+reject	undocumented	docs	alterProcedure/ALTER_PROCEDURE_(IF_EXISTS)?_ID_(_(DATA_TYPE_(,_DATA_TY~597a96a9!drop-8	ALTER PROCEDURE a() SET LOG_LEVEL 's'
+reject	undocumented	docs	alterProcedure/ALTER_PROCEDURE_(IF_EXISTS)?_ID_(_(DATA_TYPE_(,_DATA_TY~597a96a9!drop-9	ALTER PROCEDURE a() SET LOG_LEVEL =
+accept	undocumented	docs	alterProcedure/ALTER_PROCEDURE_(IF_EXISTS)?_ID_(_(DATA_TYPE_(,_DATA_TY~597a96a9!insert	ALTER PROCEDURE a() SET LOG_LEVEL = 's' zzz
+reject	undocumented	docs	alterProcedure/ALTER_PROCEDURE_(IF_EXISTS)?_ID_(_(DATA_TYPE_(,_DATA_TY~597a96a9!swap	ALWAYS PROCEDURE a() SET LOG_LEVEL = 's'
 accept	accept	docs	alterProcedure/ALTER_PROCEDURE_(IF_EXISTS)?_ID_(_(DATA_TYPE_(,_DATA_TY~dcd7687d	ALTER PROCEDURE a() UNSET COMMENT
 accept	accept	docs	alterProcedure/ALTER_PROCEDURE_(IF_EXISTS)?_ID_(_(DATA_TYPE_(,_DATA_TY~826768c8	ALTER PROCEDURE a() SET TAG a = 's'
 reject	undocumented	docs	alterProcedure/ALTER_PROCEDURE_(IF_EXISTS)?_ID_(_(DATA_TYPE_(,_DATA_TY~826768c8!drop-1	PROCEDURE a() SET TAG a = 's'
@@ -18026,31 +18003,33 @@ reject	undocumented	docs	alterProcedure(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*
 reject	undocumented	docs	alterProcedure(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!truncate	ALTER PROCEDURE a(INT,
 reject	undocumented	docs	alterProcedure(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!insert	ALTER PROCEDURE a(INT, INT zzz) UNSET COMMENT
 accept	undocumented	docs	alterProcedure(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!swap	ALTER PROCEDURE a(INT, INTEGER) UNSET COMMENT
-accept	accept	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~5e98cc21)/LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_STRING)?_(EXTERNAL_AC~cf4531a1	ALTER PROCEDURE a() SET LOG_LEVEL = 's'
-accept	undocumented	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~5e98cc21)/LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_STRING)?_(EXTERNAL_AC~cf4531a1!swap	ALTER PROCEDURE a() SET LZO = 's'
-accept	accept	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~5e98cc21)/TRACE_LEVEL_=_STRING_(EXTERNAL_ACCESS_INTEGRATIONS_=_ST~d275d94d	ALTER PROCEDURE a() SET TRACE_LEVEL = 's'
-reject	undocumented	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~5e98cc21)/TRACE_LEVEL_=_STRING_(EXTERNAL_ACCESS_INTEGRATIONS_=_ST~d275d94d!drop-2	ALTER PROCEDURE a() SET TRACE_LEVEL 's'
-reject	undocumented	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~5e98cc21)/TRACE_LEVEL_=_STRING_(EXTERNAL_ACCESS_INTEGRATIONS_=_ST~d275d94d!drop-3	ALTER PROCEDURE a() SET TRACE_LEVEL =
-accept	undocumented	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~5e98cc21)/TRACE_LEVEL_=_STRING_(EXTERNAL_ACCESS_INTEGRATIONS_=_ST~d275d94d!insert	ALTER PROCEDURE a() SET TRACE_LEVEL = 's' zzz
-accept	undocumented	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~5e98cc21)/TRACE_LEVEL_=_STRING_(EXTERNAL_ACCESS_INTEGRATIONS_=_ST~d275d94d!swap	ALTER PROCEDURE a() SET TRANSACTION = 's'
-accept	accept	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~5e98cc21)/EXTERNAL_ACCESS_INTEGRATIONS_=_STRING_(,_STRING)*_(SECR~9eb062e3	ALTER PROCEDURE a() SET EXTERNAL_ACCESS_INTEGRATIONS = 's'
-reject	undocumented	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~5e98cc21)/EXTERNAL_ACCESS_INTEGRATIONS_=_STRING_(,_STRING)*_(SECR~9eb062e3!drop-2	ALTER PROCEDURE a() SET EXTERNAL_ACCESS_INTEGRATIONS 's'
-reject	undocumented	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~5e98cc21)/EXTERNAL_ACCESS_INTEGRATIONS_=_STRING_(,_STRING)*_(SECR~9eb062e3!drop-3	ALTER PROCEDURE a() SET EXTERNAL_ACCESS_INTEGRATIONS =
-accept	undocumented	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~5e98cc21)/EXTERNAL_ACCESS_INTEGRATIONS_=_STRING_(,_STRING)*_(SECR~9eb062e3!insert	ALTER PROCEDURE a() SET EXTERNAL_ACCESS_INTEGRATIONS = 's' zzz
-accept	undocumented	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~5e98cc21)/EXTERNAL_ACCESS_INTEGRATIONS_=_STRING_(,_STRING)*_(SECR~9eb062e3!swap	ALTER PROCEDURE a() SET EXTERNAL_OAUTH = 's'
-reject	accept	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~5e98cc21)/SECRETS_=_STRING_=_ID_(,_STRING_=_ID)*_(COMMENT_=_STRING)?	ALTER PROCEDURE a() SET SECRETS = 's' = a
-reject	undocumented	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~5e98cc21)/SECRETS_=_STRING_=_ID_(,_STRING_=_ID)*_(COMMENT_=_STRING)?!drop-1	ALTER PROCEDURE a() SET = 's' = a
-reject	undocumented	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~5e98cc21)/SECRETS_=_STRING_=_ID_(,_STRING_=_ID)*_(COMMENT_=_STRING)?!drop-2	ALTER PROCEDURE a() SET SECRETS 's' = a
-reject	undocumented	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~5e98cc21)/SECRETS_=_STRING_=_ID_(,_STRING_=_ID)*_(COMMENT_=_STRING)?!drop-3	ALTER PROCEDURE a() SET SECRETS = = a
-accept	undocumented	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~5e98cc21)/SECRETS_=_STRING_=_ID_(,_STRING_=_ID)*_(COMMENT_=_STRING)?!drop-4	ALTER PROCEDURE a() SET SECRETS = 's' a
-reject	undocumented	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~5e98cc21)/SECRETS_=_STRING_=_ID_(,_STRING_=_ID)*_(COMMENT_=_STRING)?!drop-5	ALTER PROCEDURE a() SET SECRETS = 's' =
-reject	undocumented	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~5e98cc21)/SECRETS_=_STRING_=_ID_(,_STRING_=_ID)*_(COMMENT_=_STRING)?!insert	ALTER PROCEDURE a() SET SECRETS = 's' = a zzz
-reject	undocumented	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~5e98cc21)/SECRETS_=_STRING_=_ID_(,_STRING_=_ID)*_(COMMENT_=_STRING)?!swap	ALTER PROCEDURE a() SET SECRET_AUTHORIZATION = 's' = a
-accept	accept	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~5e98cc21)/COMMENT_=_STRING	ALTER PROCEDURE a() SET COMMENT = 's'
-reject	undocumented	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~5e98cc21)/COMMENT_=_STRING!drop-2	ALTER PROCEDURE a() SET COMMENT 's'
-reject	undocumented	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~5e98cc21)/COMMENT_=_STRING!drop-3	ALTER PROCEDURE a() SET COMMENT =
-accept	undocumented	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~5e98cc21)/COMMENT_=_STRING!insert	ALTER PROCEDURE a() SET COMMENT = 's' zzz
-accept	undocumented	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~5e98cc21)/COMMENT_=_STRING!swap	ALTER PROCEDURE a() SET COMMENTS = 's'
+accept	accept	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~b36f3204)/LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_STRING)?_(EXTERNAL_AC~3567cb0d	ALTER PROCEDURE a() SET LOG_LEVEL = 's'
+accept	undocumented	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~b36f3204)/LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_STRING)?_(EXTERNAL_AC~3567cb0d!swap	ALTER PROCEDURE a() SET LZO = 's'
+accept	accept	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~b36f3204)/TRACE_LEVEL_=_STRING_(EXTERNAL_ACCESS_INTEGRATIONS_=_ST~bebf3694	ALTER PROCEDURE a() SET TRACE_LEVEL = 's'
+reject	undocumented	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~b36f3204)/TRACE_LEVEL_=_STRING_(EXTERNAL_ACCESS_INTEGRATIONS_=_ST~bebf3694!drop-2	ALTER PROCEDURE a() SET TRACE_LEVEL 's'
+reject	undocumented	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~b36f3204)/TRACE_LEVEL_=_STRING_(EXTERNAL_ACCESS_INTEGRATIONS_=_ST~bebf3694!drop-3	ALTER PROCEDURE a() SET TRACE_LEVEL =
+accept	undocumented	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~b36f3204)/TRACE_LEVEL_=_STRING_(EXTERNAL_ACCESS_INTEGRATIONS_=_ST~bebf3694!insert	ALTER PROCEDURE a() SET TRACE_LEVEL = 's' zzz
+accept	undocumented	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~b36f3204)/TRACE_LEVEL_=_STRING_(EXTERNAL_ACCESS_INTEGRATIONS_=_ST~bebf3694!swap	ALTER PROCEDURE a() SET TRANSACTION = 's'
+accept	accept	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~b36f3204)/EXTERNAL_ACCESS_INTEGRATIONS_=_STRING_(,_STRING)*_(SECR~96718aef	ALTER PROCEDURE a() SET EXTERNAL_ACCESS_INTEGRATIONS = 's'
+reject	undocumented	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~b36f3204)/EXTERNAL_ACCESS_INTEGRATIONS_=_STRING_(,_STRING)*_(SECR~96718aef!drop-2	ALTER PROCEDURE a() SET EXTERNAL_ACCESS_INTEGRATIONS 's'
+reject	undocumented	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~b36f3204)/EXTERNAL_ACCESS_INTEGRATIONS_=_STRING_(,_STRING)*_(SECR~96718aef!drop-3	ALTER PROCEDURE a() SET EXTERNAL_ACCESS_INTEGRATIONS =
+accept	undocumented	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~b36f3204)/EXTERNAL_ACCESS_INTEGRATIONS_=_STRING_(,_STRING)*_(SECR~96718aef!insert	ALTER PROCEDURE a() SET EXTERNAL_ACCESS_INTEGRATIONS = 's' zzz
+accept	undocumented	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~b36f3204)/EXTERNAL_ACCESS_INTEGRATIONS_=_STRING_(,_STRING)*_(SECR~96718aef!swap	ALTER PROCEDURE a() SET EXTERNAL_OAUTH = 's'
+accept	accept	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~b36f3204)/SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_)_(COMMENT_=_STRING)?	ALTER PROCEDURE a() SET SECRETS =('s' = a)
+reject	undocumented	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~b36f3204)/SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_)_(COMMENT_=_STRING)?!drop-1	ALTER PROCEDURE a() SET =('s' = a)
+reject	undocumented	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~b36f3204)/SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_)_(COMMENT_=_STRING)?!drop-2	ALTER PROCEDURE a() SET SECRETS('s' = a)
+reject	undocumented	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~b36f3204)/SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_)_(COMMENT_=_STRING)?!drop-3	ALTER PROCEDURE a() SET SECRETS = 's' = a)
+reject	undocumented	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~b36f3204)/SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_)_(COMMENT_=_STRING)?!drop-4	ALTER PROCEDURE a() SET SECRETS =(= a)
+accept	undocumented	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~b36f3204)/SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_)_(COMMENT_=_STRING)?!drop-5	ALTER PROCEDURE a() SET SECRETS =('s' a)
+reject	undocumented	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~b36f3204)/SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_)_(COMMENT_=_STRING)?!drop-6	ALTER PROCEDURE a() SET SECRETS =('s' =)
+reject	undocumented	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~b36f3204)/SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_)_(COMMENT_=_STRING)?!drop-7	ALTER PROCEDURE a() SET SECRETS =('s' = a
+accept	undocumented	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~b36f3204)/SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_)_(COMMENT_=_STRING)?!insert	ALTER PROCEDURE a() SET SECRETS =('s' = a) zzz
+accept	undocumented	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~b36f3204)/SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_)_(COMMENT_=_STRING)?!swap	ALTER PROCEDURE a() SET SECRET_AUTHORIZATION =('s' = a)
+accept	accept	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~b36f3204)/COMMENT_=_STRING	ALTER PROCEDURE a() SET COMMENT = 's'
+reject	undocumented	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~b36f3204)/COMMENT_=_STRING!drop-2	ALTER PROCEDURE a() SET COMMENT 's'
+reject	undocumented	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~b36f3204)/COMMENT_=_STRING!drop-3	ALTER PROCEDURE a() SET COMMENT =
+accept	undocumented	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~b36f3204)/COMMENT_=_STRING!insert	ALTER PROCEDURE a() SET COMMENT = 's' zzz
+accept	undocumented	docs	alterProcedure(LOG_LEVEL_=_STRING_(TRACE_LEVEL_=_ST~b36f3204)/COMMENT_=_STRING!swap	ALTER PROCEDURE a() SET COMMENTS = 's'
 accept	accept	docs	alterProcedure(TRACE_LEVEL_=_STRING)?/%empty	ALTER PROCEDURE a() SET LOG_LEVEL = 's'
 accept	accept	docs	alterProcedure(TRACE_LEVEL_=_STRING)?/TRACE_LEVEL_=_STRING	ALTER PROCEDURE a() SET LOG_LEVEL = 's' TRACE_LEVEL = 's'
 reject	undocumented	docs	alterProcedure(TRACE_LEVEL_=_STRING)?/TRACE_LEVEL_=_STRING!drop-1	ALTER PROCEDURE a() SET LOG_LEVEL = 's' = 's'
@@ -18069,22 +18048,26 @@ reject	accept	docs	alterProcedure(,_STRING)*/,_STRING_(,_STRING)*	ALTER PROCEDUR
 reject	undocumented	docs	alterProcedure(,_STRING)*/,_STRING_(,_STRING)*!drop-1	ALTER PROCEDURE a() SET EXTERNAL_ACCESS_INTEGRATIONS = 's' 's'
 reject	undocumented	docs	alterProcedure(,_STRING)*/,_STRING_(,_STRING)*!drop-2	ALTER PROCEDURE a() SET EXTERNAL_ACCESS_INTEGRATIONS = 's',
 reject	undocumented	docs	alterProcedure(,_STRING)*/,_STRING_(,_STRING)*!insert	ALTER PROCEDURE a() SET EXTERNAL_ACCESS_INTEGRATIONS = 's', 's' zzz
-accept	accept	docs	alterProcedure(SECRETS_=_STRING_=_ID_(,_STRING_=_ID)*)?/%empty	ALTER PROCEDURE a() SET LOG_LEVEL = 's'
-reject	accept	docs	alterProcedure(SECRETS_=_STRING_=_ID_(,_STRING_=_ID)*)?/SECRETS_=_STRING_=_ID_(,_STRING_=_ID)*	ALTER PROCEDURE a() SET LOG_LEVEL = 's' SECRETS = 's' = a
-reject	undocumented	docs	alterProcedure(SECRETS_=_STRING_=_ID_(,_STRING_=_ID)*)?/SECRETS_=_STRING_=_ID_(,_STRING_=_ID)*!drop-1	ALTER PROCEDURE a() SET LOG_LEVEL = 's' = 's' = a
-reject	undocumented	docs	alterProcedure(SECRETS_=_STRING_=_ID_(,_STRING_=_ID)*)?/SECRETS_=_STRING_=_ID_(,_STRING_=_ID)*!drop-2	ALTER PROCEDURE a() SET LOG_LEVEL = 's' SECRETS 's' = a
-reject	undocumented	docs	alterProcedure(SECRETS_=_STRING_=_ID_(,_STRING_=_ID)*)?/SECRETS_=_STRING_=_ID_(,_STRING_=_ID)*!drop-3	ALTER PROCEDURE a() SET LOG_LEVEL = 's' SECRETS = = a
-accept	undocumented	docs	alterProcedure(SECRETS_=_STRING_=_ID_(,_STRING_=_ID)*)?/SECRETS_=_STRING_=_ID_(,_STRING_=_ID)*!drop-4	ALTER PROCEDURE a() SET LOG_LEVEL = 's' SECRETS = 's' a
-reject	undocumented	docs	alterProcedure(SECRETS_=_STRING_=_ID_(,_STRING_=_ID)*)?/SECRETS_=_STRING_=_ID_(,_STRING_=_ID)*!drop-5	ALTER PROCEDURE a() SET LOG_LEVEL = 's' SECRETS = 's' =
-reject	undocumented	docs	alterProcedure(SECRETS_=_STRING_=_ID_(,_STRING_=_ID)*)?/SECRETS_=_STRING_=_ID_(,_STRING_=_ID)*!insert	ALTER PROCEDURE a() SET LOG_LEVEL = 's' SECRETS = 's' = a zzz
-reject	undocumented	docs	alterProcedure(SECRETS_=_STRING_=_ID_(,_STRING_=_ID)*)?/SECRETS_=_STRING_=_ID_(,_STRING_=_ID)*!swap	ALTER PROCEDURE a() SET LOG_LEVEL = 's' SECRET_AUTHORIZATION = 's' = a
-reject	accept	docs	alterProcedure(,_STRING_=_ID)*/%empty	ALTER PROCEDURE a() SET SECRETS = 's' = a
-reject	accept	docs	alterProcedure(,_STRING_=_ID)*/,_STRING_=_ID_(,_STRING_=_ID)*	ALTER PROCEDURE a() SET SECRETS = 's' = a, 's' = a
-reject	undocumented	docs	alterProcedure(,_STRING_=_ID)*/,_STRING_=_ID_(,_STRING_=_ID)*!drop-1	ALTER PROCEDURE a() SET SECRETS = 's' = a 's' = a
-reject	undocumented	docs	alterProcedure(,_STRING_=_ID)*/,_STRING_=_ID_(,_STRING_=_ID)*!drop-2	ALTER PROCEDURE a() SET SECRETS = 's' = a, = a
-reject	undocumented	docs	alterProcedure(,_STRING_=_ID)*/,_STRING_=_ID_(,_STRING_=_ID)*!drop-3	ALTER PROCEDURE a() SET SECRETS = 's' = a, 's' a
-reject	undocumented	docs	alterProcedure(,_STRING_=_ID)*/,_STRING_=_ID_(,_STRING_=_ID)*!drop-4	ALTER PROCEDURE a() SET SECRETS = 's' = a, 's' =
-reject	undocumented	docs	alterProcedure(,_STRING_=_ID)*/,_STRING_=_ID_(,_STRING_=_ID)*!insert	ALTER PROCEDURE a() SET SECRETS = 's' = a, 's' = a zzz
+accept	accept	docs	alterProcedure(SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_))?/%empty	ALTER PROCEDURE a() SET LOG_LEVEL = 's'
+accept	accept	docs	alterProcedure(SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_))?/SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_)	ALTER PROCEDURE a() SET LOG_LEVEL = 's' SECRETS =('s' = a)
+reject	undocumented	docs	alterProcedure(SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_))?/SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_)!drop-1	ALTER PROCEDURE a() SET LOG_LEVEL = 's' =('s' = a)
+reject	undocumented	docs	alterProcedure(SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_))?/SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_)!drop-2	ALTER PROCEDURE a() SET LOG_LEVEL = 's' SECRETS('s' = a)
+reject	undocumented	docs	alterProcedure(SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_))?/SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_)!drop-3	ALTER PROCEDURE a() SET LOG_LEVEL = 's' SECRETS = 's' = a)
+reject	undocumented	docs	alterProcedure(SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_))?/SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_)!drop-4	ALTER PROCEDURE a() SET LOG_LEVEL = 's' SECRETS =(= a)
+accept	undocumented	docs	alterProcedure(SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_))?/SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_)!drop-5	ALTER PROCEDURE a() SET LOG_LEVEL = 's' SECRETS =('s' a)
+reject	undocumented	docs	alterProcedure(SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_))?/SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_)!drop-6	ALTER PROCEDURE a() SET LOG_LEVEL = 's' SECRETS =('s' =)
+reject	undocumented	docs	alterProcedure(SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_))?/SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_)!drop-7	ALTER PROCEDURE a() SET LOG_LEVEL = 's' SECRETS =('s' = a
+accept	undocumented	docs	alterProcedure(SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_))?/SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_)!insert	ALTER PROCEDURE a() SET LOG_LEVEL = 's' SECRETS =('s' = a) zzz
+accept	undocumented	docs	alterProcedure(SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_))?/SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_)!swap	ALTER PROCEDURE a() SET LOG_LEVEL = 's' SECRET_AUTHORIZATION =('s' = a)
+accept	accept	docs	alterProcedure(,_STRING_=_ID)*/%empty	ALTER PROCEDURE a() SET SECRETS =('s' = a)
+accept	undocumented	docs	alterProcedure(,_STRING_=_ID)*/%empty!insert	ALTER PROCEDURE a() SET SECRETS =('s' = a zzz)
+accept	accept	docs	alterProcedure(,_STRING_=_ID)*/,_STRING_=_ID_(,_STRING_=_ID)*	ALTER PROCEDURE a() SET SECRETS =('s' = a, 's' = a)
+accept	undocumented	docs	alterProcedure(,_STRING_=_ID)*/,_STRING_=_ID_(,_STRING_=_ID)*!drop-1	ALTER PROCEDURE a() SET SECRETS =('s' = a 's' = a)
+reject	undocumented	docs	alterProcedure(,_STRING_=_ID)*/,_STRING_=_ID_(,_STRING_=_ID)*!drop-2	ALTER PROCEDURE a() SET SECRETS =('s' = a, = a)
+accept	undocumented	docs	alterProcedure(,_STRING_=_ID)*/,_STRING_=_ID_(,_STRING_=_ID)*!drop-3	ALTER PROCEDURE a() SET SECRETS =('s' = a, 's' a)
+reject	undocumented	docs	alterProcedure(,_STRING_=_ID)*/,_STRING_=_ID_(,_STRING_=_ID)*!drop-4	ALTER PROCEDURE a() SET SECRETS =('s' = a, 's' =)
+reject	undocumented	docs	alterProcedure(,_STRING_=_ID)*/,_STRING_=_ID_(,_STRING_=_ID)*!truncate	ALTER PROCEDURE a() SET SECRETS =('s' = a, 's' =
+accept	undocumented	docs	alterProcedure(,_STRING_=_ID)*/,_STRING_=_ID_(,_STRING_=_ID)*!insert	ALTER PROCEDURE a() SET SECRETS =('s' = a, 's' = a zzz)
 accept	accept	docs	alterProcedure(COMMENT_=_STRING)?/%empty	ALTER PROCEDURE a() SET LOG_LEVEL = 's'
 accept	accept	docs	alterProcedure(COMMENT_=_STRING)?/COMMENT_=_STRING	ALTER PROCEDURE a() SET LOG_LEVEL = 's' COMMENT = 's'
 reject	undocumented	docs	alterProcedure(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	ALTER PROCEDURE a() SET LOG_LEVEL = 's' COMMENT 's'
@@ -23643,24 +23626,23 @@ reject	undocumented	docs	alterTable_clusteringAction(SUSPEND|RESUME)/SUSPEND!ins
 accept	accept	docs	alterTable_clusteringAction(SUSPEND|RESUME)/RESUME	ALTER TABLE a RESUME RECLUSTER
 reject	undocumented	docs	alterTable_clusteringAction(SUSPEND|RESUME)/RESUME!insert	ALTER TABLE a RESUME zzz RECLUSTER
 reject	undocumented	docs	alterTable_clusteringAction(SUSPEND|RESUME)/RESUME!swap	ALTER TABLE a RETAIN RECLUSTER
-accept	accept	docs	alterTable_tableColumnAction/(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~16663a69)	ALTER TABLE a DROP a
-accept	accept	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~16663a69)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_((GENERATED~eb4a1f7f	ALTER TABLE a ADD a INT
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~16663a69)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_((GENERATED~eb4a1f7f!drop-1	ALTER TABLE a a INT
-accept	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~16663a69)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_((GENERATED~eb4a1f7f!drop-2	ALTER TABLE a ADD INT
-accept	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~16663a69)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_((GENERATED~eb4a1f7f!drop-3	ALTER TABLE a ADD a
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~16663a69)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_((GENERATED~eb4a1f7f!insert	ALTER TABLE a ADD a INT zzz
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~16663a69)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_((GENERATED~eb4a1f7f!swap	ALTER TABLE a ADDITIONAL_CREATION_BLOCKLIST a INT
-accept	accept	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~16663a69)/RENAME_COLUMN_ID_TO_ID	ALTER TABLE a RENAME COLUMN a TO a
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~16663a69)/RENAME_COLUMN_ID_TO_ID!drop-1	ALTER TABLE a COLUMN a TO a
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~16663a69)/RENAME_COLUMN_ID_TO_ID!drop-2	ALTER TABLE a RENAME a TO a
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~16663a69)/RENAME_COLUMN_ID_TO_ID!drop-3	ALTER TABLE a RENAME COLUMN TO a
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~16663a69)/RENAME_COLUMN_ID_TO_ID!drop-4	ALTER TABLE a RENAME COLUMN a a
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~16663a69)/RENAME_COLUMN_ID_TO_ID!drop-5	ALTER TABLE a RENAME COLUMN a TO
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~16663a69)/RENAME_COLUMN_ID_TO_ID!insert	ALTER TABLE a RENAME COLUMN a TO a zzz
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~16663a69)/RENAME_COLUMN_ID_TO_ID!swap	ALTER TABLE a REPLACE COLUMN a TO a
-accept	accept	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~16663a69)/(ALTER|MODIFY)_((_COLUMN?_ID_DROP_DEFAULT_,_COLUMN?_~1649212b)	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~16663a69)/(ALTER|MODIFY)_((_COLUMN?_ID_DROP_DEFAULT_,_COLUMN?_~1649212b)!swap	ALTER TABLE a ALWAYS a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-accept	accept	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~16663a69)/DROP_(COLUMN)?_(IF_EXISTS)?_ID_(,_ID)*	ALTER TABLE a DROP a
+accept	accept	docs	alterTable_tableColumnAction/(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~e9ce4e29)	ALTER TABLE a DROP a
+accept	accept	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~e9ce4e29)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_((GENERATED~eb4a1f7f	ALTER TABLE a ADD a INT
+accept	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~e9ce4e29)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_((GENERATED~eb4a1f7f!drop-2	ALTER TABLE a ADD INT
+accept	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~e9ce4e29)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_((GENERATED~eb4a1f7f!drop-3	ALTER TABLE a ADD a
+reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~e9ce4e29)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_((GENERATED~eb4a1f7f!insert	ALTER TABLE a ADD a INT zzz
+reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~e9ce4e29)/ADD_(COLUMN)?_(IF_NOT_EXISTS)?_ID_DATA_TYPE_((GENERATED~eb4a1f7f!swap	ALTER TABLE a ADDITIONAL_CREATION_BLOCKLIST a INT
+accept	accept	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~e9ce4e29)/RENAME_COLUMN_ID_TO_ID	ALTER TABLE a RENAME COLUMN a TO a
+reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~e9ce4e29)/RENAME_COLUMN_ID_TO_ID!drop-1	ALTER TABLE a COLUMN a TO a
+reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~e9ce4e29)/RENAME_COLUMN_ID_TO_ID!drop-2	ALTER TABLE a RENAME a TO a
+reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~e9ce4e29)/RENAME_COLUMN_ID_TO_ID!drop-3	ALTER TABLE a RENAME COLUMN TO a
+reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~e9ce4e29)/RENAME_COLUMN_ID_TO_ID!drop-4	ALTER TABLE a RENAME COLUMN a a
+reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~e9ce4e29)/RENAME_COLUMN_ID_TO_ID!drop-5	ALTER TABLE a RENAME COLUMN a TO
+reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~e9ce4e29)/RENAME_COLUMN_ID_TO_ID!insert	ALTER TABLE a RENAME COLUMN a TO a zzz
+reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~e9ce4e29)/RENAME_COLUMN_ID_TO_ID!swap	ALTER TABLE a REPLACE COLUMN a TO a
+accept	accept	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~e9ce4e29)/(ALTER|MODIFY)_((_COLUMN?_ID_(DROP_DEFAULT|SET_DEFAU~edbfc647)	ALTER TABLE a ALTER a INT
+reject	undocumented	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~e9ce4e29)/(ALTER|MODIFY)_((_COLUMN?_ID_(DROP_DEFAULT|SET_DEFAU~edbfc647)!swap	ALTER TABLE a ALWAYS a INT
+accept	accept	docs	alterTable_tableColumnAction(ADD_COLUMN?_(IF_NOT_EXISTS)?_ID_DATA~e9ce4e29)/DROP_(COLUMN)?_(IF_EXISTS)?_ID_(,_ID)*	ALTER TABLE a DROP a
 accept	accept	docs	alterTable_tableColumnAction(COLUMN)?/%empty	ALTER TABLE a DROP a
 reject	undocumented	docs	alterTable_tableColumnAction(COLUMN)?/%empty!insert	ALTER TABLE a DROP zzz a
 accept	accept	docs	alterTable_tableColumnAction(COLUMN)?/COLUMN	ALTER TABLE a DROP COLUMN a
@@ -23743,83 +23725,79 @@ reject	undocumented	docs	alterTable_tableColumnAction(COLLATE_STRING)?/COLLATE_S
 reject	undocumented	docs	alterTable_tableColumnAction(COLLATE_STRING)?/COLLATE_STRING!drop-2	ALTER TABLE a ADD a INT COLLATE
 reject	undocumented	docs	alterTable_tableColumnAction(COLLATE_STRING)?/COLLATE_STRING!insert	ALTER TABLE a ADD a INT COLLATE 's' zzz
 reject	undocumented	docs	alterTable_tableColumnAction(COLLATE_STRING)?/COLLATE_STRING!swap	ALTER TABLE a ADD a INT COLUMN 's'
-accept	accept	docs	alterTable_tableColumnAction(ALTER|MODIFY)/ALTER	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(ALTER|MODIFY)/ALTER!insert	ALTER TABLE a ALTER zzz a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-accept	accept	docs	alterTable_tableColumnAction(ALTER|MODIFY)/MODIFY	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(ALTER|MODIFY)/MODIFY!insert	ALTER TABLE a MODIFY zzz a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(ALTER|MODIFY)/MODIFY!swap	ALTER TABLE a MONITOR a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-accept	accept	docs	alterTable_tableColumnAction((_COLUMN?_ID_DROP_DEFAULT_,_COLUMN?_~1649212b)/(_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SET_DEFAULT_~3026c7a5	ALTER TABLE a ALTER(a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT)
-reject	undocumented	docs	alterTable_tableColumnAction((_COLUMN?_ID_DROP_DEFAULT_,_COLUMN?_~1649212b)/(_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SET_DEFAULT_~3026c7a5!drop-1	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT)
-reject	undocumented	docs	alterTable_tableColumnAction((_COLUMN?_ID_DROP_DEFAULT_,_COLUMN?_~1649212b)/(_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SET_DEFAULT_~3026c7a5!drop-2	ALTER TABLE a ALTER(DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT)
-reject	undocumented	docs	alterTable_tableColumnAction((_COLUMN?_ID_DROP_DEFAULT_,_COLUMN?_~1649212b)/(_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SET_DEFAULT_~3026c7a5!drop-3	ALTER TABLE a ALTER(a DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT)
-reject	undocumented	docs	alterTable_tableColumnAction((_COLUMN?_ID_DROP_DEFAULT_,_COLUMN?_~1649212b)/(_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SET_DEFAULT_~3026c7a5!drop-4	ALTER TABLE a ALTER(a DROP, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT)
-reject	undocumented	docs	alterTable_tableColumnAction((_COLUMN?_ID_DROP_DEFAULT_,_COLUMN?_~1649212b)/(_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SET_DEFAULT_~3026c7a5!drop-5	ALTER TABLE a ALTER(a DROP DEFAULT a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT)
-reject	undocumented	docs	alterTable_tableColumnAction((_COLUMN?_ID_DROP_DEFAULT_,_COLUMN?_~1649212b)/(_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SET_DEFAULT_~3026c7a5!drop-6	ALTER TABLE a ALTER(a DROP DEFAULT, SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT)
-reject	undocumented	docs	alterTable_tableColumnAction((_COLUMN?_ID_DROP_DEFAULT_,_COLUMN?_~1649212b)/(_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SET_DEFAULT_~3026c7a5!drop-7	ALTER TABLE a ALTER(a DROP DEFAULT, a DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT)
-reject	undocumented	docs	alterTable_tableColumnAction((_COLUMN?_ID_DROP_DEFAULT_,_COLUMN?_~1649212b)/(_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SET_DEFAULT_~3026c7a5!drop-8	ALTER TABLE a ALTER(a DROP DEFAULT, a SET a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT)
-reject	undocumented	docs	alterTable_tableColumnAction((_COLUMN?_ID_DROP_DEFAULT_,_COLUMN?_~1649212b)/(_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SET_DEFAULT_~3026c7a5!drop-9	ALTER TABLE a ALTER(a DROP DEFAULT, a SET DEFAULT.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT)
-reject	undocumented	docs	alterTable_tableColumnAction((_COLUMN?_ID_DROP_DEFAULT_,_COLUMN?_~1649212b)/(_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SET_DEFAULT_~3026c7a5!drop-10	ALTER TABLE a ALTER(a DROP DEFAULT, a SET DEFAULT a NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT)
-reject	undocumented	docs	alterTable_tableColumnAction((_COLUMN?_ID_DROP_DEFAULT_,_COLUMN?_~1649212b)/(_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SET_DEFAULT_~3026c7a5!drop-11	ALTER TABLE a ALTER(a DROP DEFAULT, a SET DEFAULT a., a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT)
-reject	undocumented	docs	alterTable_tableColumnAction((_COLUMN?_ID_DROP_DEFAULT_,_COLUMN?_~1649212b)/(_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SET_DEFAULT_~3026c7a5!drop-12	ALTER TABLE a ALTER(a DROP DEFAULT, a SET DEFAULT a.NEXTVAL a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT)
-reject	undocumented	docs	alterTable_tableColumnAction((_COLUMN?_ID_DROP_DEFAULT_,_COLUMN?_~1649212b)/(_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SET_DEFAULT_~3026c7a5!drop-13	ALTER TABLE a ALTER(a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT)
-reject	undocumented	docs	alterTable_tableColumnAction((_COLUMN?_ID_DROP_DEFAULT_,_COLUMN?_~1649212b)/(_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SET_DEFAULT_~3026c7a5!drop-14	ALTER TABLE a ALTER(a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NULL, a INT, a COMMENT 's', a UNSET COMMENT)
-reject	undocumented	docs	alterTable_tableColumnAction((_COLUMN?_ID_DROP_DEFAULT_,_COLUMN?_~1649212b)/(_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SET_DEFAULT_~3026c7a5!drop-15	ALTER TABLE a ALTER(a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT, a INT, a COMMENT 's', a UNSET COMMENT)
-reject	undocumented	docs	alterTable_tableColumnAction((_COLUMN?_ID_DROP_DEFAULT_,_COLUMN?_~1649212b)/(_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SET_DEFAULT_~3026c7a5!drop-16	ALTER TABLE a ALTER(a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL a INT, a COMMENT 's', a UNSET COMMENT)
-reject	undocumented	docs	alterTable_tableColumnAction((_COLUMN?_ID_DROP_DEFAULT_,_COLUMN?_~1649212b)/(_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SET_DEFAULT_~3026c7a5!drop-17	ALTER TABLE a ALTER(a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, INT, a COMMENT 's', a UNSET COMMENT)
-reject	undocumented	docs	alterTable_tableColumnAction((_COLUMN?_ID_DROP_DEFAULT_,_COLUMN?_~1649212b)/(_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SET_DEFAULT_~3026c7a5!drop-18	ALTER TABLE a ALTER(a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a, a COMMENT 's', a UNSET COMMENT)
-reject	undocumented	docs	alterTable_tableColumnAction((_COLUMN?_ID_DROP_DEFAULT_,_COLUMN?_~1649212b)/(_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SET_DEFAULT_~3026c7a5!drop-19	ALTER TABLE a ALTER(a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT a COMMENT 's', a UNSET COMMENT)
-reject	undocumented	docs	alterTable_tableColumnAction((_COLUMN?_ID_DROP_DEFAULT_,_COLUMN?_~1649212b)/(_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SET_DEFAULT_~3026c7a5!drop-20	ALTER TABLE a ALTER(a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, COMMENT 's', a UNSET COMMENT)
-reject	undocumented	docs	alterTable_tableColumnAction((_COLUMN?_ID_DROP_DEFAULT_,_COLUMN?_~1649212b)/(_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SET_DEFAULT_~3026c7a5!drop-21	ALTER TABLE a ALTER(a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a 's', a UNSET COMMENT)
-reject	undocumented	docs	alterTable_tableColumnAction((_COLUMN?_ID_DROP_DEFAULT_,_COLUMN?_~1649212b)/(_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SET_DEFAULT_~3026c7a5!drop-22	ALTER TABLE a ALTER(a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT, a UNSET COMMENT)
-reject	undocumented	docs	alterTable_tableColumnAction((_COLUMN?_ID_DROP_DEFAULT_,_COLUMN?_~1649212b)/(_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SET_DEFAULT_~3026c7a5!drop-23	ALTER TABLE a ALTER(a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's' a UNSET COMMENT)
-reject	undocumented	docs	alterTable_tableColumnAction((_COLUMN?_ID_DROP_DEFAULT_,_COLUMN?_~1649212b)/(_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SET_DEFAULT_~3026c7a5!drop-24	ALTER TABLE a ALTER(a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', UNSET COMMENT)
-reject	undocumented	docs	alterTable_tableColumnAction((_COLUMN?_ID_DROP_DEFAULT_,_COLUMN?_~1649212b)/(_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SET_DEFAULT_~3026c7a5!drop-25	ALTER TABLE a ALTER(a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a COMMENT)
-reject	undocumented	docs	alterTable_tableColumnAction((_COLUMN?_ID_DROP_DEFAULT_,_COLUMN?_~1649212b)/(_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SET_DEFAULT_~3026c7a5!drop-26	ALTER TABLE a ALTER(a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET)
-reject	undocumented	docs	alterTable_tableColumnAction((_COLUMN?_ID_DROP_DEFAULT_,_COLUMN?_~1649212b)/(_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SET_DEFAULT_~3026c7a5!drop-27	ALTER TABLE a ALTER(a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction((_COLUMN?_ID_DROP_DEFAULT_,_COLUMN?_~1649212b)/(_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SET_DEFAULT_~3026c7a5!insert	ALTER TABLE a ALTER(a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT) zzz
-reject	undocumented	docs	alterTable_tableColumnAction((_COLUMN?_ID_DROP_DEFAULT_,_COLUMN?_~1649212b)/(_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SET_DEFAULT_~3026c7a5!swap	ALTER TABLE a ALTER(a DROP_FROM_SOURCE_CATALOG DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT)
-accept	accept	docs	alterTable_tableColumnAction((_COLUMN?_ID_DROP_DEFAULT_,_COLUMN?_~1649212b)/(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SET_DEFAULT_ID~833f4fb2	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction((_COLUMN?_ID_DROP_DEFAULT_,_COLUMN?_~1649212b)/(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SET_DEFAULT_ID~833f4fb2!swap	ALTER TABLE a ALTER a DROP_FROM_SOURCE_CATALOG DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-accept	accept	docs	alterTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/(SET)?_NOT_NULL	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/(SET)?_NOT_NULL!truncate	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT
-reject	undocumented	docs	alterTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/(SET)?_NOT_NULL!insert	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL zzz, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/(SET)?_NOT_NULL!swap	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOTEBOOK NULL, a INT, a COMMENT 's', a UNSET COMMENT
-accept	accept	docs	alterTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a DROP NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL!drop-2	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a DROP NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL!drop-3	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a DROP NOT, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL!truncate	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a DROP NOT
-reject	undocumented	docs	alterTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL!insert	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a DROP NOT NULL zzz, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL!swap	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a DROP_FROM_SOURCE_CATALOG NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-accept	accept	docs	alterTable_tableColumnAction(SET)?/%empty	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(SET)?/%empty!insert	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a zzz NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-accept	accept	docs	alterTable_tableColumnAction(SET)?/SET	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a SET NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(SET)?/SET!truncate	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a
-reject	undocumented	docs	alterTable_tableColumnAction(SET)?/SET!insert	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a SET zzz NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(SET)?/SET!swap	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a SETS NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-accept	accept	docs	alterTable_tableColumnAction((SET_DATA)?_TYPE)?/%empty	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction((SET_DATA)?_TYPE)?/%empty!insert	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a zzz INT, a COMMENT 's', a UNSET COMMENT
-accept	accept	docs	alterTable_tableColumnAction((SET_DATA)?_TYPE)?/(SET_DATA)?_TYPE	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a TYPE INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction((SET_DATA)?_TYPE)?/(SET_DATA)?_TYPE!truncate	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a
-reject	undocumented	docs	alterTable_tableColumnAction((SET_DATA)?_TYPE)?/(SET_DATA)?_TYPE!insert	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a TYPE zzz INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction((SET_DATA)?_TYPE)?/(SET_DATA)?_TYPE!swap	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a TYPES INT, a COMMENT 's', a UNSET COMMENT
-accept	accept	docs	alterTable_tableColumnAction(SET_DATA)?/%empty	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a TYPE INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(SET_DATA)?/%empty!insert	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a zzz TYPE INT, a COMMENT 's', a UNSET COMMENT
-accept	accept	docs	alterTable_tableColumnAction(SET_DATA)?/SET_DATA	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a SET DATA TYPE INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(SET_DATA)?/SET_DATA!drop-1	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a DATA TYPE INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(SET_DATA)?/SET_DATA!drop-2	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a SET TYPE INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(SET_DATA)?/SET_DATA!truncate	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a SET
-reject	undocumented	docs	alterTable_tableColumnAction(SET_DATA)?/SET_DATA!insert	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a SET DATA zzz TYPE INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(SET_DATA)?/SET_DATA!swap	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a SETS DATA TYPE INT, a COMMENT 's', a UNSET COMMENT
-accept	accept	docs	alterTable_tableColumnAction(,_COLUMN?_ID)*/%empty	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	accept	docs	alterTable_tableColumnAction(,_COLUMN?_ID)*/,_(COLUMN)?_ID_(,_COLUMN?_ID)*	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a
-reject	undocumented	docs	alterTable_tableColumnAction(,_COLUMN?_ID)*/,_(COLUMN)?_ID_(,_COLUMN?_ID)*!drop-1	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT a
-reject	undocumented	docs	alterTable_tableColumnAction(,_COLUMN?_ID)*/,_(COLUMN)?_ID_(,_COLUMN?_ID)*!drop-2	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT,
-reject	undocumented	docs	alterTable_tableColumnAction(,_COLUMN?_ID)*/,_(COLUMN)?_ID_(,_COLUMN?_ID)*!insert	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a zzz
-accept	accept	docs	alterTable_tableColumnAction(,_COMMENT_(,_COLUMN?_ID)*)*/%empty	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	accept	docs	alterTable_tableColumnAction(,_COMMENT_(,_COLUMN?_ID)*)*/,_COMMENT_(,_COLUMN?_ID)*_(,_COMMENT_(,_COLUMN?_ID)*)*	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(,_COMMENT_(,_COLUMN?_ID)*)*/,_COMMENT_(,_COLUMN?_ID)*_(,_COMMENT_(,_COLUMN?_ID)*)*!drop-1	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT COMMENT
-reject	undocumented	docs	alterTable_tableColumnAction(,_COMMENT_(,_COLUMN?_ID)*)*/,_COMMENT_(,_COLUMN?_ID)*_(,_COMMENT_(,_COLUMN?_ID)*)*!insert	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, COMMENT zzz
-reject	accept	docs	alterTable_tableColumnAction(,_COMMENT_(,_COLUMN?_ID)*)*/,_COMMENT_(,_COLUMN?_ID)*_(,_COMMENT_(,_COLUMN?_ID)*)*!swap	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, COMMENTS
+accept	accept	docs	alterTable_tableColumnAction(ALTER|MODIFY)/ALTER	ALTER TABLE a ALTER a INT
+reject	undocumented	docs	alterTable_tableColumnAction(ALTER|MODIFY)/ALTER!insert	ALTER TABLE a ALTER zzz a INT
+accept	accept	docs	alterTable_tableColumnAction(ALTER|MODIFY)/MODIFY	ALTER TABLE a MODIFY a INT
+reject	undocumented	docs	alterTable_tableColumnAction(ALTER|MODIFY)/MODIFY!insert	ALTER TABLE a MODIFY zzz a INT
+reject	undocumented	docs	alterTable_tableColumnAction(ALTER|MODIFY)/MODIFY!swap	ALTER TABLE a MONITOR a INT
+accept	accept	docs	alterTable_tableColumnAction((_COLUMN?_ID_(DROP_DEFAULT|SET_DEFAU~edbfc647)/(_(COLUMN)?_ID_(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42~9ffca201	ALTER TABLE a ALTER(a INT)
+reject	undocumented	docs	alterTable_tableColumnAction((_COLUMN?_ID_(DROP_DEFAULT|SET_DEFAU~edbfc647)/(_(COLUMN)?_ID_(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42~9ffca201!drop-1	ALTER TABLE a ALTER a INT)
+reject	undocumented	docs	alterTable_tableColumnAction((_COLUMN?_ID_(DROP_DEFAULT|SET_DEFAU~edbfc647)/(_(COLUMN)?_ID_(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42~9ffca201!drop-2	ALTER TABLE a ALTER(INT)
+reject	undocumented	docs	alterTable_tableColumnAction((_COLUMN?_ID_(DROP_DEFAULT|SET_DEFAU~edbfc647)/(_(COLUMN)?_ID_(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42~9ffca201!drop-3	ALTER TABLE a ALTER(a)
+reject	undocumented	docs	alterTable_tableColumnAction((_COLUMN?_ID_(DROP_DEFAULT|SET_DEFAU~edbfc647)/(_(COLUMN)?_ID_(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42~9ffca201!drop-4	ALTER TABLE a ALTER(a INT
+reject	undocumented	docs	alterTable_tableColumnAction((_COLUMN?_ID_(DROP_DEFAULT|SET_DEFAU~edbfc647)/(_(COLUMN)?_ID_(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42~9ffca201!insert	ALTER TABLE a ALTER(a INT) zzz
+accept	undocumented	docs	alterTable_tableColumnAction((_COLUMN?_ID_(DROP_DEFAULT|SET_DEFAU~edbfc647)/(_(COLUMN)?_ID_(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42~9ffca201!swap	ALTER TABLE a ALTER(a INTEGER)
+accept	accept	docs	alterTable_tableColumnAction((_COLUMN?_ID_(DROP_DEFAULT|SET_DEFAU~edbfc647)/(COLUMN)?_ID_(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42a8~6b0fbef2	ALTER TABLE a ALTER a INT
+accept	undocumented	docs	alterTable_tableColumnAction((_COLUMN?_ID_(DROP_DEFAULT|SET_DEFAU~edbfc647)/(COLUMN)?_ID_(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42a8~6b0fbef2!swap	ALTER TABLE a ALTER a INTEGER
+accept	accept	docs	alterTable_tableColumnAction(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42a8516f)/DROP_DEFAULT	ALTER TABLE a ALTER a DROP DEFAULT
+reject	undocumented	docs	alterTable_tableColumnAction(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42a8516f)/DROP_DEFAULT!drop-1	ALTER TABLE a ALTER a DEFAULT
+reject	undocumented	docs	alterTable_tableColumnAction(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42a8516f)/DROP_DEFAULT!drop-2	ALTER TABLE a ALTER a DROP
+reject	undocumented	docs	alterTable_tableColumnAction(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42a8516f)/DROP_DEFAULT!insert	ALTER TABLE a ALTER a DROP DEFAULT zzz
+reject	undocumented	docs	alterTable_tableColumnAction(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42a8516f)/DROP_DEFAULT!swap	ALTER TABLE a ALTER a DROP_FROM_SOURCE_CATALOG DEFAULT
+accept	accept	docs	alterTable_tableColumnAction(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42a8516f)/SET_DEFAULT_ID_._NEXTVAL	ALTER TABLE a ALTER a SET DEFAULT a.NEXTVAL
+reject	undocumented	docs	alterTable_tableColumnAction(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42a8516f)/SET_DEFAULT_ID_._NEXTVAL!drop-1	ALTER TABLE a ALTER a DEFAULT a.NEXTVAL
+reject	undocumented	docs	alterTable_tableColumnAction(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42a8516f)/SET_DEFAULT_ID_._NEXTVAL!drop-2	ALTER TABLE a ALTER a SET a.NEXTVAL
+reject	undocumented	docs	alterTable_tableColumnAction(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42a8516f)/SET_DEFAULT_ID_._NEXTVAL!drop-3	ALTER TABLE a ALTER a SET DEFAULT.NEXTVAL
+reject	undocumented	docs	alterTable_tableColumnAction(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42a8516f)/SET_DEFAULT_ID_._NEXTVAL!drop-4	ALTER TABLE a ALTER a SET DEFAULT a NEXTVAL
+reject	undocumented	docs	alterTable_tableColumnAction(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42a8516f)/SET_DEFAULT_ID_._NEXTVAL!drop-5	ALTER TABLE a ALTER a SET DEFAULT a.
+reject	undocumented	docs	alterTable_tableColumnAction(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42a8516f)/SET_DEFAULT_ID_._NEXTVAL!insert	ALTER TABLE a ALTER a SET DEFAULT a.NEXTVAL zzz
+reject	undocumented	docs	alterTable_tableColumnAction(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42a8516f)/SET_DEFAULT_ID_._NEXTVAL!swap	ALTER TABLE a ALTER a SETS DEFAULT a.NEXTVAL
+accept	accept	docs	alterTable_tableColumnAction(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42a8516f)/(SET?_NOT_NULL|DROP_NOT_NULL)	ALTER TABLE a ALTER a NOT NULL
+reject	undocumented	docs	alterTable_tableColumnAction(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42a8516f)/(SET?_NOT_NULL|DROP_NOT_NULL)!drop-1	ALTER TABLE a ALTER a NULL
+reject	undocumented	docs	alterTable_tableColumnAction(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42a8516f)/(SET?_NOT_NULL|DROP_NOT_NULL)!drop-2	ALTER TABLE a ALTER a NOT
+reject	undocumented	docs	alterTable_tableColumnAction(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42a8516f)/(SET?_NOT_NULL|DROP_NOT_NULL)!insert	ALTER TABLE a ALTER a NOT NULL zzz
+reject	undocumented	docs	alterTable_tableColumnAction(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42a8516f)/(SET?_NOT_NULL|DROP_NOT_NULL)!swap	ALTER TABLE a ALTER a NOTEBOOK NULL
+accept	accept	docs	alterTable_tableColumnAction(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42a8516f)/((SET_DATA)?_TYPE)?_DATA_TYPE	ALTER TABLE a ALTER a INT
+accept	accept	docs	alterTable_tableColumnAction(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42a8516f)/COMMENT_STRING	ALTER TABLE a ALTER a COMMENT 's'
+reject	undocumented	docs	alterTable_tableColumnAction(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42a8516f)/COMMENT_STRING!drop-1	ALTER TABLE a ALTER a 's'
+reject	undocumented	docs	alterTable_tableColumnAction(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42a8516f)/COMMENT_STRING!drop-2	ALTER TABLE a ALTER a COMMENT
+reject	undocumented	docs	alterTable_tableColumnAction(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42a8516f)/COMMENT_STRING!insert	ALTER TABLE a ALTER a COMMENT 's' zzz
+reject	undocumented	docs	alterTable_tableColumnAction(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42a8516f)/COMMENT_STRING!swap	ALTER TABLE a ALTER a COMMENTS 's'
+accept	accept	docs	alterTable_tableColumnAction(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42a8516f)/UNSET_COMMENT	ALTER TABLE a ALTER a UNSET COMMENT
+reject	undocumented	docs	alterTable_tableColumnAction(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42a8516f)/UNSET_COMMENT!drop-2	ALTER TABLE a ALTER a UNSET
+reject	undocumented	docs	alterTable_tableColumnAction(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42a8516f)/UNSET_COMMENT!insert	ALTER TABLE a ALTER a UNSET COMMENT zzz
+reject	undocumented	docs	alterTable_tableColumnAction(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42a8516f)/UNSET_COMMENT!swap	ALTER TABLE a ALTER a UNSUPPORTED_DDL_ACTION COMMENT
+accept	accept	docs	alterTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/(SET)?_NOT_NULL	ALTER TABLE a ALTER a NOT NULL
+accept	accept	docs	alterTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL	ALTER TABLE a ALTER a DROP NOT NULL
+reject	undocumented	docs	alterTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL!drop-2	ALTER TABLE a ALTER a DROP NULL
+reject	undocumented	docs	alterTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL!drop-3	ALTER TABLE a ALTER a DROP NOT
+reject	undocumented	docs	alterTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL!insert	ALTER TABLE a ALTER a DROP NOT NULL zzz
+reject	undocumented	docs	alterTable_tableColumnAction(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL!swap	ALTER TABLE a ALTER a DROP_FROM_SOURCE_CATALOG NOT NULL
+accept	accept	docs	alterTable_tableColumnAction(SET)?/%empty	ALTER TABLE a ALTER a NOT NULL
+reject	undocumented	docs	alterTable_tableColumnAction(SET)?/%empty!insert	ALTER TABLE a ALTER a zzz NOT NULL
+accept	accept	docs	alterTable_tableColumnAction(SET)?/SET	ALTER TABLE a ALTER a SET NOT NULL
+reject	undocumented	docs	alterTable_tableColumnAction(SET)?/SET!insert	ALTER TABLE a ALTER a SET zzz NOT NULL
+reject	undocumented	docs	alterTable_tableColumnAction(SET)?/SET!swap	ALTER TABLE a ALTER a SETS NOT NULL
+accept	accept	docs	alterTable_tableColumnAction((SET_DATA)?_TYPE)?/%empty	ALTER TABLE a ALTER a INT
+reject	undocumented	docs	alterTable_tableColumnAction((SET_DATA)?_TYPE)?/%empty!insert	ALTER TABLE a ALTER a zzz INT
+accept	accept	docs	alterTable_tableColumnAction((SET_DATA)?_TYPE)?/(SET_DATA)?_TYPE	ALTER TABLE a ALTER a TYPE INT
+reject	undocumented	docs	alterTable_tableColumnAction((SET_DATA)?_TYPE)?/(SET_DATA)?_TYPE!insert	ALTER TABLE a ALTER a TYPE zzz INT
+reject	undocumented	docs	alterTable_tableColumnAction((SET_DATA)?_TYPE)?/(SET_DATA)?_TYPE!swap	ALTER TABLE a ALTER a TYPES INT
+accept	accept	docs	alterTable_tableColumnAction(SET_DATA)?/%empty	ALTER TABLE a ALTER a TYPE INT
+reject	undocumented	docs	alterTable_tableColumnAction(SET_DATA)?/%empty!insert	ALTER TABLE a ALTER a zzz TYPE INT
+accept	accept	docs	alterTable_tableColumnAction(SET_DATA)?/SET_DATA	ALTER TABLE a ALTER a SET DATA TYPE INT
+reject	undocumented	docs	alterTable_tableColumnAction(SET_DATA)?/SET_DATA!drop-1	ALTER TABLE a ALTER a DATA TYPE INT
+reject	undocumented	docs	alterTable_tableColumnAction(SET_DATA)?/SET_DATA!drop-2	ALTER TABLE a ALTER a SET TYPE INT
+reject	undocumented	docs	alterTable_tableColumnAction(SET_DATA)?/SET_DATA!truncate	ALTER TABLE a ALTER a SET
+reject	undocumented	docs	alterTable_tableColumnAction(SET_DATA)?/SET_DATA!insert	ALTER TABLE a ALTER a SET DATA zzz TYPE INT
+reject	undocumented	docs	alterTable_tableColumnAction(SET_DATA)?/SET_DATA!swap	ALTER TABLE a ALTER a SETS DATA TYPE INT
+accept	accept	docs	alterTable_tableColumnAction(,_COLUMN?_ID_(DROP_DEFAULT|SET_DEFAU~7b1d1595)*/%empty	ALTER TABLE a ALTER a INT
+accept	accept	docs	alterTable_tableColumnAction(,_COLUMN?_ID_(DROP_DEFAULT|SET_DEFAU~7b1d1595)*/,_(COLUMN)?_ID_(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42~d0370238	ALTER TABLE a ALTER a INT, a INT
+reject	undocumented	docs	alterTable_tableColumnAction(,_COLUMN?_ID_(DROP_DEFAULT|SET_DEFAU~7b1d1595)*/,_(COLUMN)?_ID_(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42~d0370238!drop-1	ALTER TABLE a ALTER a INT a INT
+reject	undocumented	docs	alterTable_tableColumnAction(,_COLUMN?_ID_(DROP_DEFAULT|SET_DEFAU~7b1d1595)*/,_(COLUMN)?_ID_(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42~d0370238!drop-2	ALTER TABLE a ALTER a INT, INT
+reject	undocumented	docs	alterTable_tableColumnAction(,_COLUMN?_ID_(DROP_DEFAULT|SET_DEFAU~7b1d1595)*/,_(COLUMN)?_ID_(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42~d0370238!drop-3	ALTER TABLE a ALTER a INT, a
+reject	undocumented	docs	alterTable_tableColumnAction(,_COLUMN?_ID_(DROP_DEFAULT|SET_DEFAU~7b1d1595)*/,_(COLUMN)?_ID_(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42~d0370238!insert	ALTER TABLE a ALTER a INT, a INT zzz
+accept	undocumented	docs	alterTable_tableColumnAction(,_COLUMN?_ID_(DROP_DEFAULT|SET_DEFAU~7b1d1595)*/,_(COLUMN)?_ID_(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42~d0370238!swap	ALTER TABLE a ALTER a INT, a INTEGER
 accept	accept	docs	alterTable_tableColumnAction(IF_EXISTS)?/%empty	ALTER TABLE a DROP a
 accept	accept	docs	alterTable_tableColumnAction(IF_EXISTS)?/IF_EXISTS	ALTER TABLE a DROP IF EXISTS a
 reject	undocumented	docs	alterTable_tableColumnAction(IF_EXISTS)?/IF_EXISTS!drop-1	ALTER TABLE a DROP EXISTS a
@@ -24377,7 +24355,6 @@ reject	undocumented	docs	alterTable_constraintAction(ADD_alterTable_outoflineCon
 reject	undocumented	docs	alterTable_constraintAction(ADD_alterTable_outoflineConstraint|R~7f5fb115)/RENAME_CONSTRAINT_ID_TO_ID!swap	ALTER TABLE a REPLACE CONSTRAINT a TO a
 reject	accept	docs	alterTable_constraintAction(ADD_alterTable_outoflineConstraint|R~7f5fb115)/(ALTER|MODIFY)_(CONSTRAINT_ID|PRIMARY_KEY|UNIQUE|FOREIG~cbaec348	ALTER TABLE a ALTER UNIQUE(a)
 reject	undocumented	docs	alterTable_constraintAction(ADD_alterTable_outoflineConstraint|R~7f5fb115)/(ALTER|MODIFY)_(CONSTRAINT_ID|PRIMARY_KEY|UNIQUE|FOREIG~cbaec348!drop-1	ALTER TABLE a UNIQUE(a)
-reject	undocumented	docs	alterTable_constraintAction(ADD_alterTable_outoflineConstraint|R~7f5fb115)/(ALTER|MODIFY)_(CONSTRAINT_ID|PRIMARY_KEY|UNIQUE|FOREIG~cbaec348!drop-2	ALTER TABLE a ALTER(a)
 reject	undocumented	docs	alterTable_constraintAction(ADD_alterTable_outoflineConstraint|R~7f5fb115)/(ALTER|MODIFY)_(CONSTRAINT_ID|PRIMARY_KEY|UNIQUE|FOREIG~cbaec348!drop-3	ALTER TABLE a ALTER UNIQUE a)
 reject	undocumented	docs	alterTable_constraintAction(ADD_alterTable_outoflineConstraint|R~7f5fb115)/(ALTER|MODIFY)_(CONSTRAINT_ID|PRIMARY_KEY|UNIQUE|FOREIG~cbaec348!drop-4	ALTER TABLE a ALTER UNIQUE()
 reject	undocumented	docs	alterTable_constraintAction(ADD_alterTable_outoflineConstraint|R~7f5fb115)/(ALTER|MODIFY)_(CONSTRAINT_ID|PRIMARY_KEY|UNIQUE|FOREIG~cbaec348!drop-5	ALTER TABLE a ALTER UNIQUE(a
@@ -24537,27 +24514,31 @@ reject	accept	docs	alterTable_searchOptimizationAction(,_(ID|EXPR))*/,_(ID|EXPR)
 reject	undocumented	docs	alterTable_searchOptimizationAction(,_(ID|EXPR))*/,_(ID|EXPR)_(,_(ID|EXPR))*!drop-1	ALTER TABLE a DROP SEARCH OPTIMIZATION ON a a
 reject	undocumented	docs	alterTable_searchOptimizationAction(,_(ID|EXPR))*/,_(ID|EXPR)_(,_(ID|EXPR))*!drop-2	ALTER TABLE a DROP SEARCH OPTIMIZATION ON a,
 reject	undocumented	docs	alterTable_searchOptimizationAction(,_(ID|EXPR))*/,_(ID|EXPR)_(,_(ID|EXPR))*!insert	ALTER TABLE a DROP SEARCH OPTIMIZATION ON a, a zzz
-accept	accept	docs	alterTableColumn/ALTER_TABLE_ID_(ALTER|MODIFY)_((_COLUMN?_ID_DROP_DEFAUL~7e483025	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-accept	accept	docs	alterTableColumn(ALTER|MODIFY)/ALTER	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-accept	accept	docs	alterTableColumn(ALTER|MODIFY)/MODIFY	ALTER TABLE a MODIFY a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-accept	accept	docs	alterTableColumn((_COLUMN?_ID_DROP_DEFAULT_,_COLUMN?_~1649212b)/(_(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SET_DEFAULT_~3026c7a5	ALTER TABLE a ALTER(a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT)
-accept	accept	docs	alterTableColumn((_COLUMN?_ID_DROP_DEFAULT_,_COLUMN?_~1649212b)/(COLUMN)?_ID_DROP_DEFAULT_,_(COLUMN)?_ID_SET_DEFAULT_ID~833f4fb2	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-accept	accept	docs	alterTableColumn(COLUMN)?/%empty	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-accept	accept	docs	alterTableColumn(COLUMN)?/COLUMN	ALTER TABLE a ALTER COLUMN a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTableColumn(COLUMN)?/COLUMN!insert	ALTER TABLE a ALTER COLUMN zzz a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	undocumented	docs	alterTableColumn(COLUMN)?/COLUMN!swap	ALTER TABLE a ALTER COLUMNS a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-accept	accept	docs	alterTableColumn(SET?_NOT_NULL|DROP_NOT_NULL)/(SET)?_NOT_NULL	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-accept	accept	docs	alterTableColumn(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a DROP NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-accept	accept	docs	alterTableColumn(SET)?/%empty	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-accept	accept	docs	alterTableColumn(SET)?/SET	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a SET NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-accept	accept	docs	alterTableColumn((SET_DATA)?_TYPE)?/%empty	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-accept	accept	docs	alterTableColumn((SET_DATA)?_TYPE)?/(SET_DATA)?_TYPE	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a TYPE INT, a COMMENT 's', a UNSET COMMENT
-accept	accept	docs	alterTableColumn(SET_DATA)?/%empty	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a TYPE INT, a COMMENT 's', a UNSET COMMENT
-accept	accept	docs	alterTableColumn(SET_DATA)?/SET_DATA	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a SET DATA TYPE INT, a COMMENT 's', a UNSET COMMENT
-accept	accept	docs	alterTableColumn(,_COLUMN?_ID)*/%empty	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	accept	docs	alterTableColumn(,_COLUMN?_ID)*/,_(COLUMN)?_ID_(,_COLUMN?_ID)*	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, a
-accept	accept	docs	alterTableColumn(,_COMMENT_(,_COLUMN?_ID)*)*/%empty	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT
-reject	accept	docs	alterTableColumn(,_COMMENT_(,_COLUMN?_ID)*)*/,_COMMENT_(,_COLUMN?_ID)*_(,_COMMENT_(,_COLUMN?_ID)*)*	ALTER TABLE a ALTER a DROP DEFAULT, a SET DEFAULT a.NEXTVAL, a NOT NULL, a INT, a COMMENT 's', a UNSET COMMENT, COMMENT
+accept	accept	docs	alterTableColumn/ALTER_TABLE_ID_(ALTER|MODIFY)_((_COLUMN?_ID_(DROP_DEFAU~fb65bc5f	ALTER TABLE a ALTER a INT
+accept	accept	docs	alterTableColumn(ALTER|MODIFY)/ALTER	ALTER TABLE a ALTER a INT
+accept	accept	docs	alterTableColumn(ALTER|MODIFY)/MODIFY	ALTER TABLE a MODIFY a INT
+accept	accept	docs	alterTableColumn((_COLUMN?_ID_(DROP_DEFAULT|SET_DEFAU~edbfc647)/(_(COLUMN)?_ID_(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42~9ffca201	ALTER TABLE a ALTER(a INT)
+accept	accept	docs	alterTableColumn((_COLUMN?_ID_(DROP_DEFAULT|SET_DEFAU~edbfc647)/(COLUMN)?_ID_(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42a8~6b0fbef2	ALTER TABLE a ALTER a INT
+accept	accept	docs	alterTableColumn(COLUMN)?/%empty	ALTER TABLE a ALTER a INT
+accept	accept	docs	alterTableColumn(COLUMN)?/COLUMN	ALTER TABLE a ALTER COLUMN a INT
+reject	undocumented	docs	alterTableColumn(COLUMN)?/COLUMN!insert	ALTER TABLE a ALTER COLUMN zzz a INT
+reject	undocumented	docs	alterTableColumn(COLUMN)?/COLUMN!swap	ALTER TABLE a ALTER COLUMNS a INT
+accept	accept	docs	alterTableColumn(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42a8516f)/DROP_DEFAULT	ALTER TABLE a ALTER a DROP DEFAULT
+accept	accept	docs	alterTableColumn(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42a8516f)/SET_DEFAULT_ID_._NEXTVAL	ALTER TABLE a ALTER a SET DEFAULT a.NEXTVAL
+accept	accept	docs	alterTableColumn(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42a8516f)/(SET?_NOT_NULL|DROP_NOT_NULL)	ALTER TABLE a ALTER a NOT NULL
+accept	accept	docs	alterTableColumn(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42a8516f)/((SET_DATA)?_TYPE)?_DATA_TYPE	ALTER TABLE a ALTER a INT
+accept	accept	docs	alterTableColumn(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42a8516f)/COMMENT_STRING	ALTER TABLE a ALTER a COMMENT 's'
+accept	accept	docs	alterTableColumn(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42a8516f)/UNSET_COMMENT	ALTER TABLE a ALTER a UNSET COMMENT
+accept	accept	docs	alterTableColumn(SET?_NOT_NULL|DROP_NOT_NULL)/(SET)?_NOT_NULL	ALTER TABLE a ALTER a NOT NULL
+accept	accept	docs	alterTableColumn(SET?_NOT_NULL|DROP_NOT_NULL)/DROP_NOT_NULL	ALTER TABLE a ALTER a DROP NOT NULL
+accept	accept	docs	alterTableColumn(SET)?/%empty	ALTER TABLE a ALTER a NOT NULL
+accept	accept	docs	alterTableColumn(SET)?/SET	ALTER TABLE a ALTER a SET NOT NULL
+accept	accept	docs	alterTableColumn((SET_DATA)?_TYPE)?/%empty	ALTER TABLE a ALTER a INT
+accept	accept	docs	alterTableColumn((SET_DATA)?_TYPE)?/(SET_DATA)?_TYPE	ALTER TABLE a ALTER a TYPE INT
+accept	accept	docs	alterTableColumn(SET_DATA)?/%empty	ALTER TABLE a ALTER a TYPE INT
+accept	accept	docs	alterTableColumn(SET_DATA)?/SET_DATA	ALTER TABLE a ALTER a SET DATA TYPE INT
+accept	accept	docs	alterTableColumn(,_COLUMN?_ID_(DROP_DEFAULT|SET_DEFAU~7b1d1595)*/%empty	ALTER TABLE a ALTER a INT
+accept	accept	docs	alterTableColumn(,_COLUMN?_ID_(DROP_DEFAULT|SET_DEFAU~7b1d1595)*/,_(COLUMN)?_ID_(DROP_DEFAULT|SET_DEFAULT_ID_._NEXTVA~42~d0370238	ALTER TABLE a ALTER a INT, a INT
 accept	accept	docs	alterTableEventTable/ALTER_TABLE_(IF_EXISTS)?_ID_RENAME_TO_ID	ALTER TABLE a RENAME TO a
 accept	accept	docs	alterTableEventTable/ALTER_TABLE_(IF_EXISTS)?_ID_alterTableEventTable_cluste~9372cd43	ALTER TABLE a SUSPEND RECLUSTER
 reject	accept	docs	alterTableEventTable/ALTER_TABLE_(IF_EXISTS)?_ID_alterTableEventTable_dataGo~94d5fbed	ALTER TABLE a UNSET TAG a
@@ -34424,7 +34405,7 @@ reject	undocumented	docs	createIcebergTable/CREATE_(OR_REPLACE)?_(TRANSIENT)?_IC
 reject	accept	docs	createIcebergTable/CREATE_(OR_REPLACE)?_ICEBERG_TABLE_(IF_NOT_EXISTS)?_ID_~f585f956	CREATE ICEBERG TABLE a CATALOG_TABLE_NAME = 's'
 reject	accept	docs	createIcebergTable/CREATE_(OR_REPLACE)?_ICEBERG_TABLE_(IF_NOT_EXISTS)?_ID_~fafe7bed	CREATE ICEBERG TABLE a
 reject	accept	docs	createIcebergTable/CREATE_(OR_REPLACE)?_ICEBERG_TABLE_(IF_NOT_EXISTS)?_ID_~ed06743f	CREATE ICEBERG TABLE a BASE_LOCATION = 's'
-reject	accept	docs	createIcebergTable/CREATE_(OR_REPLACE)?_ICEBERG_TABLE_(IF_NOT_EXISTS)?_ID_~7e0ec89c	CREATE ICEBERG TABLE a BASE_LOCATION = 's'
+reject	accept	docs	createIcebergTable/CREATE_(OR_REPLACE)?_ICEBERG_TABLE_(IF_NOT_EXISTS)?_ID_~9f086264	CREATE ICEBERG TABLE a BASE_LOCATION = 's'
 reject	accept	docs	createIcebergTable/CREATE_(OR_REPLACE)?_ICEBERG_TABLE_(IF_NOT_EXISTS)?_ID_~b8ec8057	CREATE ICEBERG TABLE a METADATA_FILE_PATH = 's'
 reject	accept	docs	createIcebergTable(OR_REPLACE)?/%empty	CREATE ICEBERG TABLE a
 reject	undocumented	docs	createIcebergTable(OR_REPLACE)?/%empty!insert	CREATE zzz ICEBERG TABLE a
@@ -34865,37 +34846,31 @@ reject	accept	docs	createIcebergTable(PURGE)?/%empty	CREATE ICEBERG TABLE a
 reject	accept	docs	createIcebergTable(PURGE)?/PURGE	CREATE ICEBERG TABLE a PURGE
 reject	undocumented	docs	createIcebergTable(PURGE)?/PURGE!insert	CREATE ICEBERG TABLE a PURGE zzz
 reject	undocumented	docs	createIcebergTable(PURGE)?/PURGE!swap	CREATE ICEBERG TABLE a PUSH
-reject	accept	docs	createIcebergTable((_ID_DATA_TYPE_(NOT_NULL)?_(WITH?_MA~8e63d37b)?/%empty	CREATE ICEBERG TABLE a BASE_LOCATION = 's'
-reject	accept	docs	createIcebergTable((_ID_DATA_TYPE_(NOT_NULL)?_(WITH?_MA~8e63d37b)?/(_ID_DATA_TYPE_(NOT_NULL)?_(WITH?_MASKING_POLICY_ID_(US~562c83fc	CREATE ICEBERG TABLE a(a INT) BASE_LOCATION = 's'
-reject	undocumented	docs	createIcebergTable((_ID_DATA_TYPE_(NOT_NULL)?_(WITH?_MA~8e63d37b)?/(_ID_DATA_TYPE_(NOT_NULL)?_(WITH?_MASKING_POLICY_ID_(US~562c83fc!drop-1	CREATE ICEBERG TABLE a a INT) BASE_LOCATION = 's'
-reject	undocumented	docs	createIcebergTable((_ID_DATA_TYPE_(NOT_NULL)?_(WITH?_MA~8e63d37b)?/(_ID_DATA_TYPE_(NOT_NULL)?_(WITH?_MASKING_POLICY_ID_(US~562c83fc!drop-2	CREATE ICEBERG TABLE a(INT) BASE_LOCATION = 's'
-reject	undocumented	docs	createIcebergTable((_ID_DATA_TYPE_(NOT_NULL)?_(WITH?_MA~8e63d37b)?/(_ID_DATA_TYPE_(NOT_NULL)?_(WITH?_MASKING_POLICY_ID_(US~562c83fc!drop-3	CREATE ICEBERG TABLE a(a) BASE_LOCATION = 's'
-reject	undocumented	docs	createIcebergTable((_ID_DATA_TYPE_(NOT_NULL)?_(WITH?_MA~8e63d37b)?/(_ID_DATA_TYPE_(NOT_NULL)?_(WITH?_MASKING_POLICY_ID_(US~562c83fc!drop-4	CREATE ICEBERG TABLE a(a INT BASE_LOCATION = 's'
-reject	undocumented	docs	createIcebergTable((_ID_DATA_TYPE_(NOT_NULL)?_(WITH?_MA~8e63d37b)?/(_ID_DATA_TYPE_(NOT_NULL)?_(WITH?_MASKING_POLICY_ID_(US~562c83fc!insert	CREATE ICEBERG TABLE a(a INT) zzz BASE_LOCATION = 's'
-reject	undocumented	docs	createIcebergTable((_ID_DATA_TYPE_(NOT_NULL)?_(WITH?_MA~8e63d37b)?/(_ID_DATA_TYPE_(NOT_NULL)?_(WITH?_MASKING_POLICY_ID_(US~562c83fc!swap	CREATE ICEBERG TABLE a(a INTEGER) BASE_LOCATION = 's'
-reject	accept	docs	createIcebergTable(,_ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR|~acb0b7a1)?/%empty	CREATE ICEBERG TABLE a(a INT) BASE_LOCATION = 's'
-reject	undocumented	docs	createIcebergTable(,_ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR|~acb0b7a1)?/%empty!insert	CREATE ICEBERG TABLE a(a INT zzz) BASE_LOCATION = 's'
-reject	accept	docs	createIcebergTable(,_ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR|~acb0b7a1)?/,_ID_DATA_TYPE	CREATE ICEBERG TABLE a(a INT, a INT) BASE_LOCATION = 's'
-reject	undocumented	docs	createIcebergTable(,_ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR|~acb0b7a1)?/,_ID_DATA_TYPE!drop-1	CREATE ICEBERG TABLE a(a INT a INT) BASE_LOCATION = 's'
-reject	undocumented	docs	createIcebergTable(,_ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR|~acb0b7a1)?/,_ID_DATA_TYPE!drop-2	CREATE ICEBERG TABLE a(a INT, INT) BASE_LOCATION = 's'
-reject	undocumented	docs	createIcebergTable(,_ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR|~acb0b7a1)?/,_ID_DATA_TYPE!drop-3	CREATE ICEBERG TABLE a(a INT, a) BASE_LOCATION = 's'
-reject	undocumented	docs	createIcebergTable(,_ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR|~acb0b7a1)?/,_ID_DATA_TYPE!insert	CREATE ICEBERG TABLE a(a INT, a INT zzz) BASE_LOCATION = 's'
-reject	undocumented	docs	createIcebergTable(,_ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR|~acb0b7a1)?/,_ID_DATA_TYPE!swap	CREATE ICEBERG TABLE a(a INT, a INTEGER) BASE_LOCATION = 's'
-reject	accept	docs	createIcebergTable(,_ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR|~acb0b7a1)?/ID_DATA_TYPE_AS_EXPR	CREATE ICEBERG TABLE a(a INT a INT AS 1) BASE_LOCATION = 's'
-reject	undocumented	docs	createIcebergTable(,_ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR|~acb0b7a1)?/ID_DATA_TYPE_AS_EXPR!drop-1	CREATE ICEBERG TABLE a(a INT INT AS 1) BASE_LOCATION = 's'
-reject	undocumented	docs	createIcebergTable(,_ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR|~acb0b7a1)?/ID_DATA_TYPE_AS_EXPR!drop-2	CREATE ICEBERG TABLE a(a INT a AS 1) BASE_LOCATION = 's'
-reject	undocumented	docs	createIcebergTable(,_ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR|~acb0b7a1)?/ID_DATA_TYPE_AS_EXPR!drop-3	CREATE ICEBERG TABLE a(a INT a INT 1) BASE_LOCATION = 's'
-reject	undocumented	docs	createIcebergTable(,_ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR|~acb0b7a1)?/ID_DATA_TYPE_AS_EXPR!drop-4	CREATE ICEBERG TABLE a(a INT a INT AS) BASE_LOCATION = 's'
-reject	undocumented	docs	createIcebergTable(,_ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR|~acb0b7a1)?/ID_DATA_TYPE_AS_EXPR!truncate	CREATE ICEBERG TABLE a(a INT a INT AS
-reject	undocumented	docs	createIcebergTable(,_ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR|~acb0b7a1)?/ID_DATA_TYPE_AS_EXPR!insert	CREATE ICEBERG TABLE a(a INT a INT AS 1 zzz) BASE_LOCATION = 's'
-reject	undocumented	docs	createIcebergTable(,_ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR|~acb0b7a1)?/ID_DATA_TYPE_AS_EXPR!swap	CREATE ICEBERG TABLE a(a INT a INTEGER AS 1) BASE_LOCATION = 's'
-reject	accept	docs	createIcebergTable(,_ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR|~acb0b7a1)?/ID_DATA_TYPE_AS_EXPR_(createIcebergTable_inlineConstrai~cb75d9ab	CREATE ICEBERG TABLE a(a INT a INT AS 1) BASE_LOCATION = 's'
-reject	accept	docs	createIcebergTable(,_EXPR_createIcebergTable_inlineConstraint?)*/%empty	CREATE ICEBERG TABLE a(a INT a INT AS 1) BASE_LOCATION = 's'
-reject	accept	docs	createIcebergTable(,_EXPR_createIcebergTable_inlineConstraint?)*/,_EXPR_(createIcebergTable_inlineConstraint)?_(,_EXPR_c~8fae867d	CREATE ICEBERG TABLE a(a INT a INT AS 1, 1) BASE_LOCATION = 's'
-reject	undocumented	docs	createIcebergTable(,_EXPR_createIcebergTable_inlineConstraint?)*/,_EXPR_(createIcebergTable_inlineConstraint)?_(,_EXPR_c~8fae867d!drop-1	CREATE ICEBERG TABLE a(a INT a INT AS 1 1) BASE_LOCATION = 's'
-reject	undocumented	docs	createIcebergTable(,_EXPR_createIcebergTable_inlineConstraint?)*/,_EXPR_(createIcebergTable_inlineConstraint)?_(,_EXPR_c~8fae867d!drop-2	CREATE ICEBERG TABLE a(a INT a INT AS 1,) BASE_LOCATION = 's'
-reject	undocumented	docs	createIcebergTable(,_EXPR_createIcebergTable_inlineConstraint?)*/,_EXPR_(createIcebergTable_inlineConstraint)?_(,_EXPR_c~8fae867d!truncate	CREATE ICEBERG TABLE a(a INT a INT AS 1,
-reject	undocumented	docs	createIcebergTable(,_EXPR_createIcebergTable_inlineConstraint?)*/,_EXPR_(createIcebergTable_inlineConstraint)?_(,_EXPR_c~8fae867d!insert	CREATE ICEBERG TABLE a(a INT a INT AS 1, 1 zzz) BASE_LOCATION = 's'
+reject	accept	docs	createIcebergTable((_ID_DATA_TYPE_(NOT_NULL)?_(WITH?_MA~0675db9c)?/%empty	CREATE ICEBERG TABLE a BASE_LOCATION = 's'
+reject	accept	docs	createIcebergTable((_ID_DATA_TYPE_(NOT_NULL)?_(WITH?_MA~0675db9c)?/(_ID_DATA_TYPE_(NOT_NULL)?_(WITH?_MASKING_POLICY_ID_(US~39271bed	CREATE ICEBERG TABLE a(a INT) BASE_LOCATION = 's'
+reject	undocumented	docs	createIcebergTable((_ID_DATA_TYPE_(NOT_NULL)?_(WITH?_MA~0675db9c)?/(_ID_DATA_TYPE_(NOT_NULL)?_(WITH?_MASKING_POLICY_ID_(US~39271bed!drop-1	CREATE ICEBERG TABLE a a INT) BASE_LOCATION = 's'
+reject	undocumented	docs	createIcebergTable((_ID_DATA_TYPE_(NOT_NULL)?_(WITH?_MA~0675db9c)?/(_ID_DATA_TYPE_(NOT_NULL)?_(WITH?_MASKING_POLICY_ID_(US~39271bed!drop-2	CREATE ICEBERG TABLE a(INT) BASE_LOCATION = 's'
+reject	undocumented	docs	createIcebergTable((_ID_DATA_TYPE_(NOT_NULL)?_(WITH?_MA~0675db9c)?/(_ID_DATA_TYPE_(NOT_NULL)?_(WITH?_MASKING_POLICY_ID_(US~39271bed!drop-3	CREATE ICEBERG TABLE a(a) BASE_LOCATION = 's'
+reject	undocumented	docs	createIcebergTable((_ID_DATA_TYPE_(NOT_NULL)?_(WITH?_MA~0675db9c)?/(_ID_DATA_TYPE_(NOT_NULL)?_(WITH?_MASKING_POLICY_ID_(US~39271bed!drop-4	CREATE ICEBERG TABLE a(a INT BASE_LOCATION = 's'
+reject	undocumented	docs	createIcebergTable((_ID_DATA_TYPE_(NOT_NULL)?_(WITH?_MA~0675db9c)?/(_ID_DATA_TYPE_(NOT_NULL)?_(WITH?_MASKING_POLICY_ID_(US~39271bed!insert	CREATE ICEBERG TABLE a(a INT) zzz BASE_LOCATION = 's'
+reject	undocumented	docs	createIcebergTable((_ID_DATA_TYPE_(NOT_NULL)?_(WITH?_MA~0675db9c)?/(_ID_DATA_TYPE_(NOT_NULL)?_(WITH?_MASKING_POLICY_ID_(US~39271bed!swap	CREATE ICEBERG TABLE a(a INTEGER) BASE_LOCATION = 's'
+reject	accept	docs	createIcebergTable(,_(ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR~07fe75ff)*/%empty	CREATE ICEBERG TABLE a(a INT) BASE_LOCATION = 's'
+reject	undocumented	docs	createIcebergTable(,_(ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR~07fe75ff)*/%empty!insert	CREATE ICEBERG TABLE a(a INT zzz) BASE_LOCATION = 's'
+reject	accept	docs	createIcebergTable(,_(ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR~07fe75ff)*/,_(ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR)_(createIcebergTab~b611e3fe	CREATE ICEBERG TABLE a(a INT, a INT) BASE_LOCATION = 's'
+reject	undocumented	docs	createIcebergTable(,_(ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR~07fe75ff)*/,_(ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR)_(createIcebergTab~b611e3fe!drop-1	CREATE ICEBERG TABLE a(a INT a INT) BASE_LOCATION = 's'
+reject	undocumented	docs	createIcebergTable(,_(ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR~07fe75ff)*/,_(ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR)_(createIcebergTab~b611e3fe!drop-2	CREATE ICEBERG TABLE a(a INT, INT) BASE_LOCATION = 's'
+reject	undocumented	docs	createIcebergTable(,_(ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR~07fe75ff)*/,_(ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR)_(createIcebergTab~b611e3fe!drop-3	CREATE ICEBERG TABLE a(a INT, a) BASE_LOCATION = 's'
+reject	undocumented	docs	createIcebergTable(,_(ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR~07fe75ff)*/,_(ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR)_(createIcebergTab~b611e3fe!insert	CREATE ICEBERG TABLE a(a INT, a INT zzz) BASE_LOCATION = 's'
+reject	undocumented	docs	createIcebergTable(,_(ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR~07fe75ff)*/,_(ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR)_(createIcebergTab~b611e3fe!swap	CREATE ICEBERG TABLE a(a INT, a INTEGER) BASE_LOCATION = 's'
+reject	accept	docs	createIcebergTable(ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR)/ID_DATA_TYPE	CREATE ICEBERG TABLE a(a INT, a INT) BASE_LOCATION = 's'
+reject	accept	docs	createIcebergTable(ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR)/ID_DATA_TYPE_AS_EXPR	CREATE ICEBERG TABLE a(a INT, a INT AS 1) BASE_LOCATION = 's'
+reject	undocumented	docs	createIcebergTable(ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR)/ID_DATA_TYPE_AS_EXPR!drop-1	CREATE ICEBERG TABLE a(a INT, INT AS 1) BASE_LOCATION = 's'
+reject	undocumented	docs	createIcebergTable(ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR)/ID_DATA_TYPE_AS_EXPR!drop-2	CREATE ICEBERG TABLE a(a INT, a AS 1) BASE_LOCATION = 's'
+reject	undocumented	docs	createIcebergTable(ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR)/ID_DATA_TYPE_AS_EXPR!drop-3	CREATE ICEBERG TABLE a(a INT, a INT 1) BASE_LOCATION = 's'
+reject	undocumented	docs	createIcebergTable(ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR)/ID_DATA_TYPE_AS_EXPR!drop-4	CREATE ICEBERG TABLE a(a INT, a INT AS) BASE_LOCATION = 's'
+reject	undocumented	docs	createIcebergTable(ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR)/ID_DATA_TYPE_AS_EXPR!truncate	CREATE ICEBERG TABLE a(a INT, a INT AS
+reject	undocumented	docs	createIcebergTable(ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR)/ID_DATA_TYPE_AS_EXPR!insert	CREATE ICEBERG TABLE a(a INT, a INT AS 1 zzz) BASE_LOCATION = 's'
+reject	undocumented	docs	createIcebergTable(ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR)/ID_DATA_TYPE_AS_EXPR!swap	CREATE ICEBERG TABLE a(a INT, a INTEGER AS 1) BASE_LOCATION = 's'
 reject	accept	docs	createIcebergTable(PARTITION_BY_(_ID_(,_ID)*_))?/%empty	CREATE ICEBERG TABLE a BASE_LOCATION = 's'
 reject	accept	docs	createIcebergTable(PARTITION_BY_(_ID_(,_ID)*_))?/PARTITION_BY_(_ID_(,_ID)*_)	CREATE ICEBERG TABLE a PARTITION BY(a) BASE_LOCATION = 's'
 reject	undocumented	docs	createIcebergTable(PARTITION_BY_(_ID_(,_ID)*_))?/PARTITION_BY_(_ID_(,_ID)*_)!drop-1	CREATE ICEBERG TABLE a BY(a) BASE_LOCATION = 's'
@@ -35267,13 +35242,13 @@ reject	undocumented	docs	createIcebergTableIcebergFiles(,_ID_=_ID)*/,_ID_=_ID_(,
 reject	undocumented	docs	createIcebergTableIcebergFiles(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-4	CREATE ICEBERG TABLE a METADATA_FILE_PATH = 's' WITH CONTACT(a = a, a =)
 reject	undocumented	docs	createIcebergTableIcebergFiles(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!truncate	CREATE ICEBERG TABLE a METADATA_FILE_PATH = 's' WITH CONTACT(a = a, a =
 reject	undocumented	docs	createIcebergTableIcebergFiles(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!insert	CREATE ICEBERG TABLE a METADATA_FILE_PATH = 's' WITH CONTACT(a = a, a = a zzz)
-reject	accept	docs	createIcebergTableParquet/CREATE_(OR_REPLACE)?_ICEBERG_TABLE_(IF_NOT_EXISTS)?_ID_~29c1ae9f	CREATE ICEBERG TABLE a BASE_LOCATION = 's'
+reject	accept	docs	createIcebergTableParquet/CREATE_(OR_REPLACE)?_ICEBERG_TABLE_(IF_NOT_EXISTS)?_ID_~9f82d283	CREATE ICEBERG TABLE a BASE_LOCATION = 's'
 reject	accept	docs	createIcebergTableParquet(OR_REPLACE)?/%empty	CREATE ICEBERG TABLE a BASE_LOCATION = 's'
 reject	accept	docs	createIcebergTableParquet(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE ICEBERG TABLE a BASE_LOCATION = 's'
 reject	accept	docs	createIcebergTableParquet(IF_NOT_EXISTS)?/%empty	CREATE ICEBERG TABLE a BASE_LOCATION = 's'
 reject	accept	docs	createIcebergTableParquet(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE ICEBERG TABLE IF NOT EXISTS a BASE_LOCATION = 's'
-reject	accept	docs	createIcebergTableParquet((_ID_DATA_TYPE_(NOT_NULL)?_(WITH?_MA~333cfbfe)?/%empty	CREATE ICEBERG TABLE a BASE_LOCATION = 's'
-reject	accept	docs	createIcebergTableParquet((_ID_DATA_TYPE_(NOT_NULL)?_(WITH?_MA~333cfbfe)?/(_ID_DATA_TYPE_(NOT_NULL)?_(WITH?_MASKING_POLICY_ID_(US~ed06a878	CREATE ICEBERG TABLE a(a INT) BASE_LOCATION = 's'
+reject	accept	docs	createIcebergTableParquet((_ID_DATA_TYPE_(NOT_NULL)?_(WITH?_MA~999acd1e)?/%empty	CREATE ICEBERG TABLE a BASE_LOCATION = 's'
+reject	accept	docs	createIcebergTableParquet((_ID_DATA_TYPE_(NOT_NULL)?_(WITH?_MA~999acd1e)?/(_ID_DATA_TYPE_(NOT_NULL)?_(WITH?_MASKING_POLICY_ID_(US~6a211b73	CREATE ICEBERG TABLE a(a INT) BASE_LOCATION = 's'
 reject	accept	docs	createIcebergTableParquet(NOT_NULL)?/%empty	CREATE ICEBERG TABLE a(a INT) BASE_LOCATION = 's'
 reject	accept	docs	createIcebergTableParquet(NOT_NULL)?/NOT_NULL	CREATE ICEBERG TABLE a(a INT NOT NULL) BASE_LOCATION = 's'
 reject	undocumented	docs	createIcebergTableParquet(NOT_NULL)?/NOT_NULL!drop-1	CREATE ICEBERG TABLE a(a INT NULL) BASE_LOCATION = 's'
@@ -35315,12 +35290,10 @@ reject	accept	docs	createIcebergTableParquet(createIcebergTableParquet_inlineCon
 reject	accept	docs	createIcebergTableParquet(createIcebergTableParquet_inlineConstraint)?/createIcebergTableParquet_inlineConstraint	CREATE ICEBERG TABLE a(a INT UNIQUE) BASE_LOCATION = 's'
 reject	accept	docs	createIcebergTableParquet(createIcebergTableParquet_inlineConstraint)?/createIcebergTableParquet_inlineConstraint!insert	CREATE ICEBERG TABLE a(a INT UNIQUE zzz) BASE_LOCATION = 's'
 reject	undocumented	docs	createIcebergTableParquet(createIcebergTableParquet_inlineConstraint)?/createIcebergTableParquet_inlineConstraint!swap	CREATE ICEBERG TABLE a(a INT UNPUBLISH) BASE_LOCATION = 's'
-reject	accept	docs	createIcebergTableParquet(,_ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR|~f1c23c07)?/%empty	CREATE ICEBERG TABLE a(a INT) BASE_LOCATION = 's'
-reject	accept	docs	createIcebergTableParquet(,_ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR|~f1c23c07)?/,_ID_DATA_TYPE	CREATE ICEBERG TABLE a(a INT, a INT) BASE_LOCATION = 's'
-reject	accept	docs	createIcebergTableParquet(,_ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR|~f1c23c07)?/ID_DATA_TYPE_AS_EXPR	CREATE ICEBERG TABLE a(a INT a INT AS 1) BASE_LOCATION = 's'
-reject	accept	docs	createIcebergTableParquet(,_ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR|~f1c23c07)?/ID_DATA_TYPE_AS_EXPR_(createIcebergTableParquet_inlineC~ea7ebf80	CREATE ICEBERG TABLE a(a INT a INT AS 1) BASE_LOCATION = 's'
-reject	accept	docs	createIcebergTableParquet(,_EXPR_createIcebergTableParquet_inl~5f010734)*/%empty	CREATE ICEBERG TABLE a(a INT a INT AS 1) BASE_LOCATION = 's'
-reject	accept	docs	createIcebergTableParquet(,_EXPR_createIcebergTableParquet_inl~5f010734)*/,_EXPR_(createIcebergTableParquet_inlineConstraint)?_(,~1336f442	CREATE ICEBERG TABLE a(a INT a INT AS 1, 1) BASE_LOCATION = 's'
+reject	accept	docs	createIcebergTableParquet(,_(ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR~ebaae439)*/%empty	CREATE ICEBERG TABLE a(a INT) BASE_LOCATION = 's'
+reject	accept	docs	createIcebergTableParquet(,_(ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR~ebaae439)*/,_(ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR)_(createIcebergTab~4c8132e1	CREATE ICEBERG TABLE a(a INT, a INT) BASE_LOCATION = 's'
+reject	accept	docs	createIcebergTableParquet(ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR)/ID_DATA_TYPE	CREATE ICEBERG TABLE a(a INT, a INT) BASE_LOCATION = 's'
+reject	accept	docs	createIcebergTableParquet(ID_DATA_TYPE|ID_DATA_TYPE_AS_EXPR)/ID_DATA_TYPE_AS_EXPR	CREATE ICEBERG TABLE a(a INT, a INT AS 1) BASE_LOCATION = 's'
 reject	accept	docs	createIcebergTableParquet(,_createIcebergTableParquet_outoflin~9a82558d)*/%empty	CREATE ICEBERG TABLE a(a INT) BASE_LOCATION = 's'
 reject	accept	docs	createIcebergTableParquet(,_createIcebergTableParquet_outoflin~9a82558d)*/,_createIcebergTableParquet_outoflineConstraint_(,_crea~e2b5ea3f	CREATE ICEBERG TABLE a(a INT, UNIQUE) BASE_LOCATION = 's'
 reject	undocumented	docs	createIcebergTableParquet(,_createIcebergTableParquet_outoflin~9a82558d)*/,_createIcebergTableParquet_outoflineConstraint_(,_crea~e2b5ea3f!drop-2	CREATE ICEBERG TABLE a(a INT,) BASE_LOCATION = 's'
@@ -37994,7 +37967,7 @@ reject	undocumented	docs	createPasswordPolicy(COMMENT_=_STRING)?/COMMENT_=_STRIN
 reject	undocumented	docs	createPasswordPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE PASSWORD POLICY a COMMENT =
 accept	undocumented	docs	createPasswordPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE PASSWORD POLICY a COMMENT = 's' zzz
 accept	undocumented	docs	createPasswordPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE PASSWORD POLICY a COMMENTS = 's'
-accept	accept	docs	createPipe/CREATE_(OR_REPLACE)?_PIPE_(IF_NOT_EXISTS)?_ID_(AUTO_ING~97074a94	CREATE PIPE a AS COPY INTO a FROM @a
+accept	accept	docs	createPipe/CREATE_(OR_REPLACE)?_PIPE_(IF_NOT_EXISTS)?_ID_(AUTO_ING~8198db7e	CREATE PIPE a AS COPY INTO a FROM @a
 accept	accept	docs	createPipe(OR_REPLACE)?/%empty	CREATE PIPE a AS COPY INTO a FROM @a
 reject	undocumented	docs	createPipe(OR_REPLACE)?/%empty!insert	CREATE zzz PIPE a AS COPY INTO a FROM @a
 accept	accept	docs	createPipe(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE PIPE a AS COPY INTO a FROM @a
@@ -38011,22 +37984,20 @@ reject	undocumented	docs	createPipe(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE 
 reject	undocumented	docs	createPipe(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE PIPE IF NOT
 accept	undocumented	docs	createPipe(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE PIPE IF NOT EXISTS zzz a AS COPY INTO a FROM @a
 accept	undocumented	docs	createPipe(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE PIPE IGNORE NOT EXISTS a AS COPY INTO a FROM @a
-accept	accept	docs	createPipe(AUTO_INGEST_=_(TRUE|FALSE)?)?/%empty	CREATE PIPE a AS COPY INTO a FROM @a
-accept	undocumented	docs	createPipe(AUTO_INGEST_=_(TRUE|FALSE)?)?/%empty!insert	CREATE PIPE a zzz AS COPY INTO a FROM @a
-reject	accept	docs	createPipe(AUTO_INGEST_=_(TRUE|FALSE)?)?/AUTO_INGEST_=_(TRUE|FALSE)?	CREATE PIPE a AUTO_INGEST = AS COPY INTO a FROM @a
-reject	undocumented	docs	createPipe(AUTO_INGEST_=_(TRUE|FALSE)?)?/AUTO_INGEST_=_(TRUE|FALSE)?!drop-1	CREATE PIPE a = AS COPY INTO a FROM @a
-accept	undocumented	docs	createPipe(AUTO_INGEST_=_(TRUE|FALSE)?)?/AUTO_INGEST_=_(TRUE|FALSE)?!drop-2	CREATE PIPE a AUTO_INGEST AS COPY INTO a FROM @a
-reject	undocumented	docs	createPipe(AUTO_INGEST_=_(TRUE|FALSE)?)?/AUTO_INGEST_=_(TRUE|FALSE)?!truncate	CREATE PIPE a AUTO_INGEST
-accept	undocumented	docs	createPipe(AUTO_INGEST_=_(TRUE|FALSE)?)?/AUTO_INGEST_=_(TRUE|FALSE)?!insert	CREATE PIPE a AUTO_INGEST = zzz AS COPY INTO a FROM @a
-reject	undocumented	docs	createPipe(AUTO_INGEST_=_(TRUE|FALSE)?)?/AUTO_INGEST_=_(TRUE|FALSE)?!swap	CREATE PIPE a AUTO_REFRESH = AS COPY INTO a FROM @a
-reject	accept	docs	createPipe(TRUE|FALSE)?/%empty	CREATE PIPE a AUTO_INGEST = AS COPY INTO a FROM @a
-accept	accept	docs	createPipe(TRUE|FALSE)?/TRUE	CREATE PIPE a AUTO_INGEST = TRUE AS COPY INTO a FROM @a
-reject	undocumented	docs	createPipe(TRUE|FALSE)?/TRUE!truncate	CREATE PIPE a AUTO_INGEST =
-accept	undocumented	docs	createPipe(TRUE|FALSE)?/TRUE!insert	CREATE PIPE a AUTO_INGEST = TRUE zzz AS COPY INTO a FROM @a
-accept	undocumented	docs	createPipe(TRUE|FALSE)?/TRUE!swap	CREATE PIPE a AUTO_INGEST = TRUNCATE AS COPY INTO a FROM @a
-accept	accept	docs	createPipe(TRUE|FALSE)?/FALSE	CREATE PIPE a AUTO_INGEST = FALSE AS COPY INTO a FROM @a
-accept	undocumented	docs	createPipe(TRUE|FALSE)?/FALSE!insert	CREATE PIPE a AUTO_INGEST = FALSE zzz AS COPY INTO a FROM @a
-accept	undocumented	docs	createPipe(TRUE|FALSE)?/FALSE!swap	CREATE PIPE a AUTO_INGEST = FAMILIES AS COPY INTO a FROM @a
+accept	accept	docs	createPipe(AUTO_INGEST_=_(TRUE|FALSE))?/%empty	CREATE PIPE a AS COPY INTO a FROM @a
+accept	undocumented	docs	createPipe(AUTO_INGEST_=_(TRUE|FALSE))?/%empty!insert	CREATE PIPE a zzz AS COPY INTO a FROM @a
+accept	accept	docs	createPipe(AUTO_INGEST_=_(TRUE|FALSE))?/AUTO_INGEST_=_(TRUE|FALSE)	CREATE PIPE a AUTO_INGEST = TRUE AS COPY INTO a FROM @a
+reject	undocumented	docs	createPipe(AUTO_INGEST_=_(TRUE|FALSE))?/AUTO_INGEST_=_(TRUE|FALSE)!drop-1	CREATE PIPE a = TRUE AS COPY INTO a FROM @a
+accept	undocumented	docs	createPipe(AUTO_INGEST_=_(TRUE|FALSE))?/AUTO_INGEST_=_(TRUE|FALSE)!drop-2	CREATE PIPE a AUTO_INGEST TRUE AS COPY INTO a FROM @a
+reject	undocumented	docs	createPipe(AUTO_INGEST_=_(TRUE|FALSE))?/AUTO_INGEST_=_(TRUE|FALSE)!drop-3	CREATE PIPE a AUTO_INGEST = AS COPY INTO a FROM @a
+reject	undocumented	docs	createPipe(AUTO_INGEST_=_(TRUE|FALSE))?/AUTO_INGEST_=_(TRUE|FALSE)!truncate	CREATE PIPE a AUTO_INGEST =
+accept	undocumented	docs	createPipe(AUTO_INGEST_=_(TRUE|FALSE))?/AUTO_INGEST_=_(TRUE|FALSE)!insert	CREATE PIPE a AUTO_INGEST = TRUE zzz AS COPY INTO a FROM @a
+accept	undocumented	docs	createPipe(AUTO_INGEST_=_(TRUE|FALSE))?/AUTO_INGEST_=_(TRUE|FALSE)!swap	CREATE PIPE a AUTO_REFRESH = TRUE AS COPY INTO a FROM @a
+accept	accept	docs	createPipe(TRUE|FALSE)/TRUE	CREATE PIPE a AUTO_INGEST = TRUE AS COPY INTO a FROM @a
+accept	undocumented	docs	createPipe(TRUE|FALSE)/TRUE!swap	CREATE PIPE a AUTO_INGEST = TRUNCATE AS COPY INTO a FROM @a
+accept	accept	docs	createPipe(TRUE|FALSE)/FALSE	CREATE PIPE a AUTO_INGEST = FALSE AS COPY INTO a FROM @a
+accept	undocumented	docs	createPipe(TRUE|FALSE)/FALSE!insert	CREATE PIPE a AUTO_INGEST = FALSE zzz AS COPY INTO a FROM @a
+accept	undocumented	docs	createPipe(TRUE|FALSE)/FALSE!swap	CREATE PIPE a AUTO_INGEST = FAMILIES AS COPY INTO a FROM @a
 accept	accept	docs	createPipe(ERROR_INTEGRATION_=_ID)?/%empty	CREATE PIPE a AS COPY INTO a FROM @a
 accept	accept	docs	createPipe(ERROR_INTEGRATION_=_ID)?/ERROR_INTEGRATION_=_ID	CREATE PIPE a ERROR_INTEGRATION = a AS COPY INTO a FROM @a
 reject	undocumented	docs	createPipe(ERROR_INTEGRATION_=_ID)?/ERROR_INTEGRATION_=_ID!drop-1	CREATE PIPE a = a AS COPY INTO a FROM @a
@@ -50456,18 +50427,16 @@ reject	undocumented	docs	revokeDatabaseRole(RESTRICT|CASCADE)?/CASCADE!insert	RE
 reject	undocumented	docs	revokeDatabaseRole(RESTRICT|CASCADE)?/CASCADE!swap	REVOKE DATABASE ROLE a FROM ROLE a CASES
 accept	accept	docs	revokeDatabaseRoleShare/REVOKE_DATABASE_ROLE_ID_FROM_SHARE_ID	REVOKE DATABASE ROLE a FROM SHARE a
 accept	accept	docs	revokePrivilege/REVOKE_(GRANT_OPTION_FOR)?_((revokePrivilege_globalPriv~706c6b96	REVOKE AUDIT ON ACCOUNT FROM a
-accept	accept	docs	revokePrivilege/REVOKE_(GRANT_OPTION_FOR)?_((CREATE_SCHEMA|MODIFY|MONIT~8c5123d8	REVOKE DEVELOP ON WAREHOUSE a FROM DATABASE ROLE a
-reject	undocumented	docs	revokePrivilege/REVOKE_(GRANT_OPTION_FOR)?_((CREATE_SCHEMA|MODIFY|MONIT~8c5123d8!drop-1	DEVELOP ON WAREHOUSE a FROM DATABASE ROLE a
-reject	undocumented	docs	revokePrivilege/REVOKE_(GRANT_OPTION_FOR)?_((CREATE_SCHEMA|MODIFY|MONIT~8c5123d8!drop-2	REVOKE ON WAREHOUSE a FROM DATABASE ROLE a
-reject	undocumented	docs	revokePrivilege/REVOKE_(GRANT_OPTION_FOR)?_((CREATE_SCHEMA|MODIFY|MONIT~8c5123d8!drop-3	REVOKE DEVELOP WAREHOUSE a FROM DATABASE ROLE a
-reject	undocumented	docs	revokePrivilege/REVOKE_(GRANT_OPTION_FOR)?_((CREATE_SCHEMA|MODIFY|MONIT~8c5123d8!drop-4	REVOKE DEVELOP ON a FROM DATABASE ROLE a
-reject	undocumented	docs	revokePrivilege/REVOKE_(GRANT_OPTION_FOR)?_((CREATE_SCHEMA|MODIFY|MONIT~8c5123d8!drop-5	REVOKE DEVELOP ON WAREHOUSE FROM DATABASE ROLE a
-reject	undocumented	docs	revokePrivilege/REVOKE_(GRANT_OPTION_FOR)?_((CREATE_SCHEMA|MODIFY|MONIT~8c5123d8!drop-6	REVOKE DEVELOP ON WAREHOUSE a DATABASE ROLE a
-accept	accept	docs	revokePrivilege/REVOKE_(GRANT_OPTION_FOR)?_((CREATE_SCHEMA|MODIFY|MONIT~8c5123d8!drop-7	REVOKE DEVELOP ON WAREHOUSE a FROM ROLE a
-reject	undocumented	docs	revokePrivilege/REVOKE_(GRANT_OPTION_FOR)?_((CREATE_SCHEMA|MODIFY|MONIT~8c5123d8!drop-8	REVOKE DEVELOP ON WAREHOUSE a FROM DATABASE a
-reject	undocumented	docs	revokePrivilege/REVOKE_(GRANT_OPTION_FOR)?_((CREATE_SCHEMA|MODIFY|MONIT~8c5123d8!drop-9	REVOKE DEVELOP ON WAREHOUSE a FROM DATABASE ROLE
-reject	undocumented	docs	revokePrivilege/REVOKE_(GRANT_OPTION_FOR)?_((CREATE_SCHEMA|MODIFY|MONIT~8c5123d8!insert	REVOKE DEVELOP ON WAREHOUSE a FROM DATABASE ROLE a zzz
-reject	undocumented	docs	revokePrivilege/REVOKE_(GRANT_OPTION_FOR)?_((CREATE_SCHEMA|MODIFY|MONIT~8c5123d8!swap	ROLE DEVELOP ON WAREHOUSE a FROM DATABASE ROLE a
+accept	accept	docs	revokePrivilege/REVOKE_(GRANT_OPTION_FOR)?_((CREATE_SCHEMA|MODIFY|MONIT~9e265174	REVOKE AUDIT ON ACCOUNT FROM DATABASE ROLE a
+reject	undocumented	docs	revokePrivilege/REVOKE_(GRANT_OPTION_FOR)?_((CREATE_SCHEMA|MODIFY|MONIT~9e265174!drop-1	AUDIT ON ACCOUNT FROM DATABASE ROLE a
+reject	undocumented	docs	revokePrivilege/REVOKE_(GRANT_OPTION_FOR)?_((CREATE_SCHEMA|MODIFY|MONIT~9e265174!drop-2	REVOKE ON ACCOUNT FROM DATABASE ROLE a
+reject	undocumented	docs	revokePrivilege/REVOKE_(GRANT_OPTION_FOR)?_((CREATE_SCHEMA|MODIFY|MONIT~9e265174!drop-3	REVOKE AUDIT ACCOUNT FROM DATABASE ROLE a
+reject	undocumented	docs	revokePrivilege/REVOKE_(GRANT_OPTION_FOR)?_((CREATE_SCHEMA|MODIFY|MONIT~9e265174!drop-4	REVOKE AUDIT ON FROM DATABASE ROLE a
+reject	undocumented	docs	revokePrivilege/REVOKE_(GRANT_OPTION_FOR)?_((CREATE_SCHEMA|MODIFY|MONIT~9e265174!drop-5	REVOKE AUDIT ON ACCOUNT DATABASE ROLE a
+reject	undocumented	docs	revokePrivilege/REVOKE_(GRANT_OPTION_FOR)?_((CREATE_SCHEMA|MODIFY|MONIT~9e265174!drop-7	REVOKE AUDIT ON ACCOUNT FROM DATABASE a
+reject	undocumented	docs	revokePrivilege/REVOKE_(GRANT_OPTION_FOR)?_((CREATE_SCHEMA|MODIFY|MONIT~9e265174!drop-8	REVOKE AUDIT ON ACCOUNT FROM DATABASE ROLE
+reject	undocumented	docs	revokePrivilege/REVOKE_(GRANT_OPTION_FOR)?_((CREATE_SCHEMA|MODIFY|MONIT~9e265174!insert	REVOKE AUDIT ON ACCOUNT FROM DATABASE ROLE a zzz
+reject	undocumented	docs	revokePrivilege/REVOKE_(GRANT_OPTION_FOR)?_((CREATE_SCHEMA|MODIFY|MONIT~9e265174!swap	ROLE AUDIT ON ACCOUNT FROM DATABASE ROLE a
 accept	accept	docs	revokePrivilege(GRANT_OPTION_FOR)?/%empty	REVOKE AUDIT ON ACCOUNT FROM a
 accept	undocumented	docs	revokePrivilege(GRANT_OPTION_FOR)?/%empty!insert	REVOKE zzz AUDIT ON ACCOUNT FROM a
 accept	accept	docs	revokePrivilege(GRANT_OPTION_FOR)?/GRANT_OPTION_FOR	REVOKE GRANT OPTION FOR AUDIT ON ACCOUNT FROM a
@@ -50640,74 +50609,77 @@ reject	undocumented	docs	revokePrivilege(RESTRICT|CASCADE)?/RESTRICT!swap	REVOKE
 accept	accept	docs	revokePrivilege(RESTRICT|CASCADE)?/CASCADE	REVOKE AUDIT ON ACCOUNT FROM a CASCADE
 reject	undocumented	docs	revokePrivilege(RESTRICT|CASCADE)?/CASCADE!insert	REVOKE AUDIT ON ACCOUNT FROM a CASCADE zzz
 reject	undocumented	docs	revokePrivilege(RESTRICT|CASCADE)?/CASCADE!swap	REVOKE AUDIT ON ACCOUNT FROM a CASES
-accept	accept	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~2cd835f1)/(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)_(,_(CREATE_SCHEMA|~e200a7ac	REVOKE MODIFY ON DATABASE a AUDIT ON ACCOUNT FROM DATABASE ROLE a
-reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~2cd835f1)/(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)_(,_(CREATE_SCHEMA|~e200a7ac!drop-1	REVOKE ON DATABASE a AUDIT ON ACCOUNT FROM DATABASE ROLE a
-accept	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~2cd835f1)/(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)_(,_(CREATE_SCHEMA|~e200a7ac!drop-2	REVOKE MODIFY DATABASE a AUDIT ON ACCOUNT FROM DATABASE ROLE a
-accept	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~2cd835f1)/(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)_(,_(CREATE_SCHEMA|~e200a7ac!drop-3	REVOKE MODIFY ON a AUDIT ON ACCOUNT FROM DATABASE ROLE a
-accept	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~2cd835f1)/(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)_(,_(CREATE_SCHEMA|~e200a7ac!drop-4	REVOKE MODIFY ON DATABASE AUDIT ON ACCOUNT FROM DATABASE ROLE a
-accept	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~2cd835f1)/(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)_(,_(CREATE_SCHEMA|~e200a7ac!drop-5	REVOKE MODIFY ON DATABASE a ON ACCOUNT FROM DATABASE ROLE a
-accept	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~2cd835f1)/(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)_(,_(CREATE_SCHEMA|~e200a7ac!drop-6	REVOKE MODIFY ON DATABASE a AUDIT ACCOUNT FROM DATABASE ROLE a
-accept	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~2cd835f1)/(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)_(,_(CREATE_SCHEMA|~e200a7ac!drop-7	REVOKE MODIFY ON DATABASE a AUDIT ON FROM DATABASE ROLE a
-reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~2cd835f1)/(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)_(,_(CREATE_SCHEMA|~e200a7ac!truncate	REVOKE MODIFY ON DATABASE a AUDIT ON
-accept	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~2cd835f1)/(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)_(,_(CREATE_SCHEMA|~e200a7ac!insert	REVOKE MODIFY ON DATABASE a AUDIT ON ACCOUNT zzz FROM DATABASE ROLE a
-accept	accept	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~2cd835f1)/(revokePrivilege_accountObjectPrivile~16013ad6)_ON_(RES~57ac73ca	REVOKE DEVELOP ON WAREHOUSE a FROM DATABASE ROLE a
-accept	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~2cd835f1)/(revokePrivilege_accountObjectPrivile~16013ad6)_ON_(RES~57ac73ca!insert	REVOKE DEVELOP ON WAREHOUSE a zzz FROM DATABASE ROLE a
-accept	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~2cd835f1)/(revokePrivilege_accountObjectPrivile~16013ad6)_ON_(RES~57ac73ca!swap	REVOKE DIMENSIONS ON WAREHOUSE a FROM DATABASE ROLE a
-accept	accept	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~2cd835f1)/(revokePrivilege_schemaPrivileges|ALL~b6112b89)_ON_(SCH~1feca6b5	REVOKE APPLYBUDGET ON SCHEMA a FROM DATABASE ROLE a
-reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~2cd835f1)/(revokePrivilege_schemaPrivileges|ALL~b6112b89)_ON_(SCH~1feca6b5!drop-1	REVOKE ON SCHEMA a FROM DATABASE ROLE a
-reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~2cd835f1)/(revokePrivilege_schemaPrivileges|ALL~b6112b89)_ON_(SCH~1feca6b5!drop-2	REVOKE APPLYBUDGET SCHEMA a FROM DATABASE ROLE a
-reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~2cd835f1)/(revokePrivilege_schemaPrivileges|ALL~b6112b89)_ON_(SCH~1feca6b5!drop-3	REVOKE APPLYBUDGET ON a FROM DATABASE ROLE a
-reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~2cd835f1)/(revokePrivilege_schemaPrivileges|ALL~b6112b89)_ON_(SCH~1feca6b5!drop-4	REVOKE APPLYBUDGET ON SCHEMA FROM DATABASE ROLE a
-accept	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~2cd835f1)/(revokePrivilege_schemaPrivileges|ALL~b6112b89)_ON_(SCH~1feca6b5!insert	REVOKE APPLYBUDGET ON SCHEMA a zzz FROM DATABASE ROLE a
-accept	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~2cd835f1)/(revokePrivilege_schemaPrivileges|ALL~b6112b89)_ON_(SCH~1feca6b5!swap	REVOKE APPROVAL ON SCHEMA a FROM DATABASE ROLE a
-accept	accept	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~2cd835f1)/(revokePrivilege_schemaPrivileges|ALL~b6112b89)_ON_FUTU~5799bcec	REVOKE APPLYBUDGET ON FUTURE SCHEMAS IN DATABASE a FROM DATABASE ROLE a
-reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~2cd835f1)/(revokePrivilege_schemaPrivileges|ALL~b6112b89)_ON_FUTU~5799bcec!drop-1	REVOKE ON FUTURE SCHEMAS IN DATABASE a FROM DATABASE ROLE a
-reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~2cd835f1)/(revokePrivilege_schemaPrivileges|ALL~b6112b89)_ON_FUTU~5799bcec!drop-2	REVOKE APPLYBUDGET FUTURE SCHEMAS IN DATABASE a FROM DATABASE ROLE a
-accept	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~2cd835f1)/(revokePrivilege_schemaPrivileges|ALL~b6112b89)_ON_FUTU~5799bcec!drop-3	REVOKE APPLYBUDGET ON SCHEMAS IN DATABASE a FROM DATABASE ROLE a
-reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~2cd835f1)/(revokePrivilege_schemaPrivileges|ALL~b6112b89)_ON_FUTU~5799bcec!drop-4	REVOKE APPLYBUDGET ON FUTURE IN DATABASE a FROM DATABASE ROLE a
-reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~2cd835f1)/(revokePrivilege_schemaPrivileges|ALL~b6112b89)_ON_FUTU~5799bcec!drop-5	REVOKE APPLYBUDGET ON FUTURE SCHEMAS DATABASE a FROM DATABASE ROLE a
-reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~2cd835f1)/(revokePrivilege_schemaPrivileges|ALL~b6112b89)_ON_FUTU~5799bcec!drop-6	REVOKE APPLYBUDGET ON FUTURE SCHEMAS IN a FROM DATABASE ROLE a
-reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~2cd835f1)/(revokePrivilege_schemaPrivileges|ALL~b6112b89)_ON_FUTU~5799bcec!drop-7	REVOKE APPLYBUDGET ON FUTURE SCHEMAS IN DATABASE FROM DATABASE ROLE a
-reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~2cd835f1)/(revokePrivilege_schemaPrivileges|ALL~b6112b89)_ON_FUTU~5799bcec!insert	REVOKE APPLYBUDGET ON FUTURE SCHEMAS IN DATABASE a zzz FROM DATABASE ROLE a
-accept	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~2cd835f1)/(revokePrivilege_schemaPrivileges|ALL~b6112b89)_ON_FUTU~5799bcec!swap	REVOKE APPROVAL ON FUTURE SCHEMAS IN DATABASE a FROM DATABASE ROLE a
-accept	accept	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~2cd835f1)/(revokePrivilege_schemaObjectPrivileg~4caa2056)_ON_(OBJ~7c587be8	REVOKE MODIFY ON TABLE a FROM DATABASE ROLE a
-reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~2cd835f1)/(revokePrivilege_schemaObjectPrivileg~4caa2056)_ON_(OBJ~7c587be8!drop-1	REVOKE ON TABLE a FROM DATABASE ROLE a
-reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~2cd835f1)/(revokePrivilege_schemaObjectPrivileg~4caa2056)_ON_(OBJ~7c587be8!drop-2	REVOKE MODIFY TABLE a FROM DATABASE ROLE a
-reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~2cd835f1)/(revokePrivilege_schemaObjectPrivileg~4caa2056)_ON_(OBJ~7c587be8!drop-3	REVOKE MODIFY ON a FROM DATABASE ROLE a
-reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~2cd835f1)/(revokePrivilege_schemaObjectPrivileg~4caa2056)_ON_(OBJ~7c587be8!drop-4	REVOKE MODIFY ON TABLE FROM DATABASE ROLE a
-accept	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~2cd835f1)/(revokePrivilege_schemaObjectPrivileg~4caa2056)_ON_(OBJ~7c587be8!insert	REVOKE MODIFY ON TABLE a zzz FROM DATABASE ROLE a
-accept	accept	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~2cd835f1)/(revokePrivilege_schemaObjectPrivileg~4caa2056)_ON_(OBJ~7c587be8!swap	REVOKE MONITOR ON TABLE a FROM DATABASE ROLE a
-accept	accept	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~2cd835f1)/(revokePrivilege_schemaObjectPrivileg~4caa2056)_ON_FUTU~028bf1ff	REVOKE MODIFY ON FUTURE TABLES IN DATABASE a FROM DATABASE ROLE a
-reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~2cd835f1)/(revokePrivilege_schemaObjectPrivileg~4caa2056)_ON_FUTU~028bf1ff!drop-1	REVOKE ON FUTURE TABLES IN DATABASE a FROM DATABASE ROLE a
-reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~2cd835f1)/(revokePrivilege_schemaObjectPrivileg~4caa2056)_ON_FUTU~028bf1ff!drop-2	REVOKE MODIFY FUTURE TABLES IN DATABASE a FROM DATABASE ROLE a
-accept	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~2cd835f1)/(revokePrivilege_schemaObjectPrivileg~4caa2056)_ON_FUTU~028bf1ff!drop-3	REVOKE MODIFY ON TABLES IN DATABASE a FROM DATABASE ROLE a
-reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~2cd835f1)/(revokePrivilege_schemaObjectPrivileg~4caa2056)_ON_FUTU~028bf1ff!drop-4	REVOKE MODIFY ON FUTURE IN DATABASE a FROM DATABASE ROLE a
-reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~2cd835f1)/(revokePrivilege_schemaObjectPrivileg~4caa2056)_ON_FUTU~028bf1ff!drop-5	REVOKE MODIFY ON FUTURE TABLES DATABASE a FROM DATABASE ROLE a
-reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~2cd835f1)/(revokePrivilege_schemaObjectPrivileg~4caa2056)_ON_FUTU~028bf1ff!drop-6	REVOKE MODIFY ON FUTURE TABLES IN a FROM DATABASE ROLE a
-reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~2cd835f1)/(revokePrivilege_schemaObjectPrivileg~4caa2056)_ON_FUTU~028bf1ff!drop-7	REVOKE MODIFY ON FUTURE TABLES IN DATABASE FROM DATABASE ROLE a
-reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~2cd835f1)/(revokePrivilege_schemaObjectPrivileg~4caa2056)_ON_FUTU~028bf1ff!insert	REVOKE MODIFY ON FUTURE TABLES IN DATABASE a zzz FROM DATABASE ROLE a
-accept	accept	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~2cd835f1)/(revokePrivilege_schemaObjectPrivileg~4caa2056)_ON_FUTU~028bf1ff!swap	REVOKE MONITOR ON FUTURE TABLES IN DATABASE a FROM DATABASE ROLE a
-accept	accept	docs	revokePrivilege(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)/CREATE_SCHEMA	REVOKE CREATE SCHEMA ON DATABASE a AUDIT ON ACCOUNT FROM DATABASE ROLE a
-accept	undocumented	docs	revokePrivilege(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)/CREATE_SCHEMA!drop-1	REVOKE SCHEMA ON DATABASE a AUDIT ON ACCOUNT FROM DATABASE ROLE a
-accept	undocumented	docs	revokePrivilege(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)/CREATE_SCHEMA!drop-2	REVOKE CREATE ON DATABASE a AUDIT ON ACCOUNT FROM DATABASE ROLE a
+accept	accept	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)_(,_(CREATE_SCHEMA|~5cc05012	REVOKE MODIFY ON DATABASE a FROM DATABASE ROLE a
+reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)_(,_(CREATE_SCHEMA|~5cc05012!drop-1	REVOKE ON DATABASE a FROM DATABASE ROLE a
+reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)_(,_(CREATE_SCHEMA|~5cc05012!drop-2	REVOKE MODIFY DATABASE a FROM DATABASE ROLE a
+reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)_(,_(CREATE_SCHEMA|~5cc05012!drop-3	REVOKE MODIFY ON a FROM DATABASE ROLE a
+reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)_(,_(CREATE_SCHEMA|~5cc05012!drop-4	REVOKE MODIFY ON DATABASE FROM DATABASE ROLE a
+reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)_(,_(CREATE_SCHEMA|~5cc05012!truncate	REVOKE MODIFY ON DATABASE
+accept	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)_(,_(CREATE_SCHEMA|~5cc05012!insert	REVOKE MODIFY ON DATABASE a zzz FROM DATABASE ROLE a
+accept	accept	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(revokePrivilege_globalPrivileges|ALL~f8d8a902)_ON_ACCOUNT	REVOKE AUDIT ON ACCOUNT FROM DATABASE ROLE a
+reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(revokePrivilege_globalPrivileges|ALL~f8d8a902)_ON_ACCOUNT!insert	REVOKE AUDIT ON ACCOUNT zzz FROM DATABASE ROLE a
+accept	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(revokePrivilege_globalPrivileges|ALL~f8d8a902)_ON_ACCOUNT!swap	REVOKE AUTHENTICATION ON ACCOUNT FROM DATABASE ROLE a
+accept	accept	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(revokePrivilege_accountObjectPrivile~16013ad6)_ON_(RES~57ac73ca	REVOKE DEVELOP ON WAREHOUSE a FROM DATABASE ROLE a
+reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(revokePrivilege_accountObjectPrivile~16013ad6)_ON_(RES~57ac73ca!drop-1	REVOKE ON WAREHOUSE a FROM DATABASE ROLE a
+reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(revokePrivilege_accountObjectPrivile~16013ad6)_ON_(RES~57ac73ca!drop-2	REVOKE DEVELOP WAREHOUSE a FROM DATABASE ROLE a
+reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(revokePrivilege_accountObjectPrivile~16013ad6)_ON_(RES~57ac73ca!drop-3	REVOKE DEVELOP ON a FROM DATABASE ROLE a
+reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(revokePrivilege_accountObjectPrivile~16013ad6)_ON_(RES~57ac73ca!drop-4	REVOKE DEVELOP ON WAREHOUSE FROM DATABASE ROLE a
+accept	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(revokePrivilege_accountObjectPrivile~16013ad6)_ON_(RES~57ac73ca!insert	REVOKE DEVELOP ON WAREHOUSE a zzz FROM DATABASE ROLE a
+accept	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(revokePrivilege_accountObjectPrivile~16013ad6)_ON_(RES~57ac73ca!swap	REVOKE DIMENSIONS ON WAREHOUSE a FROM DATABASE ROLE a
+accept	accept	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(revokePrivilege_schemaPrivileges|ALL~b6112b89)_ON_(SCH~1feca6b5	REVOKE APPLYBUDGET ON SCHEMA a FROM DATABASE ROLE a
+reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(revokePrivilege_schemaPrivileges|ALL~b6112b89)_ON_(SCH~1feca6b5!drop-1	REVOKE ON SCHEMA a FROM DATABASE ROLE a
+reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(revokePrivilege_schemaPrivileges|ALL~b6112b89)_ON_(SCH~1feca6b5!drop-2	REVOKE APPLYBUDGET SCHEMA a FROM DATABASE ROLE a
+reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(revokePrivilege_schemaPrivileges|ALL~b6112b89)_ON_(SCH~1feca6b5!drop-3	REVOKE APPLYBUDGET ON a FROM DATABASE ROLE a
+reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(revokePrivilege_schemaPrivileges|ALL~b6112b89)_ON_(SCH~1feca6b5!drop-4	REVOKE APPLYBUDGET ON SCHEMA FROM DATABASE ROLE a
+accept	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(revokePrivilege_schemaPrivileges|ALL~b6112b89)_ON_(SCH~1feca6b5!insert	REVOKE APPLYBUDGET ON SCHEMA a zzz FROM DATABASE ROLE a
+accept	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(revokePrivilege_schemaPrivileges|ALL~b6112b89)_ON_(SCH~1feca6b5!swap	REVOKE APPROVAL ON SCHEMA a FROM DATABASE ROLE a
+accept	accept	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(revokePrivilege_schemaPrivileges|ALL~b6112b89)_ON_FUTU~5799bcec	REVOKE APPLYBUDGET ON FUTURE SCHEMAS IN DATABASE a FROM DATABASE ROLE a
+reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(revokePrivilege_schemaPrivileges|ALL~b6112b89)_ON_FUTU~5799bcec!drop-1	REVOKE ON FUTURE SCHEMAS IN DATABASE a FROM DATABASE ROLE a
+reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(revokePrivilege_schemaPrivileges|ALL~b6112b89)_ON_FUTU~5799bcec!drop-2	REVOKE APPLYBUDGET FUTURE SCHEMAS IN DATABASE a FROM DATABASE ROLE a
+accept	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(revokePrivilege_schemaPrivileges|ALL~b6112b89)_ON_FUTU~5799bcec!drop-3	REVOKE APPLYBUDGET ON SCHEMAS IN DATABASE a FROM DATABASE ROLE a
+reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(revokePrivilege_schemaPrivileges|ALL~b6112b89)_ON_FUTU~5799bcec!drop-4	REVOKE APPLYBUDGET ON FUTURE IN DATABASE a FROM DATABASE ROLE a
+reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(revokePrivilege_schemaPrivileges|ALL~b6112b89)_ON_FUTU~5799bcec!drop-5	REVOKE APPLYBUDGET ON FUTURE SCHEMAS DATABASE a FROM DATABASE ROLE a
+reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(revokePrivilege_schemaPrivileges|ALL~b6112b89)_ON_FUTU~5799bcec!drop-6	REVOKE APPLYBUDGET ON FUTURE SCHEMAS IN a FROM DATABASE ROLE a
+reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(revokePrivilege_schemaPrivileges|ALL~b6112b89)_ON_FUTU~5799bcec!drop-7	REVOKE APPLYBUDGET ON FUTURE SCHEMAS IN DATABASE FROM DATABASE ROLE a
+reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(revokePrivilege_schemaPrivileges|ALL~b6112b89)_ON_FUTU~5799bcec!insert	REVOKE APPLYBUDGET ON FUTURE SCHEMAS IN DATABASE a zzz FROM DATABASE ROLE a
+accept	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(revokePrivilege_schemaPrivileges|ALL~b6112b89)_ON_FUTU~5799bcec!swap	REVOKE APPROVAL ON FUTURE SCHEMAS IN DATABASE a FROM DATABASE ROLE a
+accept	accept	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(revokePrivilege_schemaObjectPrivileg~4caa2056)_ON_(OBJ~7c587be8	REVOKE MODIFY ON TABLE a FROM DATABASE ROLE a
+reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(revokePrivilege_schemaObjectPrivileg~4caa2056)_ON_(OBJ~7c587be8!drop-1	REVOKE ON TABLE a FROM DATABASE ROLE a
+reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(revokePrivilege_schemaObjectPrivileg~4caa2056)_ON_(OBJ~7c587be8!drop-2	REVOKE MODIFY TABLE a FROM DATABASE ROLE a
+reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(revokePrivilege_schemaObjectPrivileg~4caa2056)_ON_(OBJ~7c587be8!drop-4	REVOKE MODIFY ON TABLE FROM DATABASE ROLE a
+accept	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(revokePrivilege_schemaObjectPrivileg~4caa2056)_ON_(OBJ~7c587be8!insert	REVOKE MODIFY ON TABLE a zzz FROM DATABASE ROLE a
+accept	accept	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(revokePrivilege_schemaObjectPrivileg~4caa2056)_ON_(OBJ~7c587be8!swap	REVOKE MONITOR ON TABLE a FROM DATABASE ROLE a
+accept	accept	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(revokePrivilege_schemaObjectPrivileg~4caa2056)_ON_FUTU~028bf1ff	REVOKE MODIFY ON FUTURE TABLES IN DATABASE a FROM DATABASE ROLE a
+reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(revokePrivilege_schemaObjectPrivileg~4caa2056)_ON_FUTU~028bf1ff!drop-1	REVOKE ON FUTURE TABLES IN DATABASE a FROM DATABASE ROLE a
+reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(revokePrivilege_schemaObjectPrivileg~4caa2056)_ON_FUTU~028bf1ff!drop-2	REVOKE MODIFY FUTURE TABLES IN DATABASE a FROM DATABASE ROLE a
+accept	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(revokePrivilege_schemaObjectPrivileg~4caa2056)_ON_FUTU~028bf1ff!drop-3	REVOKE MODIFY ON TABLES IN DATABASE a FROM DATABASE ROLE a
+reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(revokePrivilege_schemaObjectPrivileg~4caa2056)_ON_FUTU~028bf1ff!drop-4	REVOKE MODIFY ON FUTURE IN DATABASE a FROM DATABASE ROLE a
+reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(revokePrivilege_schemaObjectPrivileg~4caa2056)_ON_FUTU~028bf1ff!drop-5	REVOKE MODIFY ON FUTURE TABLES DATABASE a FROM DATABASE ROLE a
+reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(revokePrivilege_schemaObjectPrivileg~4caa2056)_ON_FUTU~028bf1ff!drop-6	REVOKE MODIFY ON FUTURE TABLES IN a FROM DATABASE ROLE a
+reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(revokePrivilege_schemaObjectPrivileg~4caa2056)_ON_FUTU~028bf1ff!drop-7	REVOKE MODIFY ON FUTURE TABLES IN DATABASE FROM DATABASE ROLE a
+reject	undocumented	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(revokePrivilege_schemaObjectPrivileg~4caa2056)_ON_FUTU~028bf1ff!insert	REVOKE MODIFY ON FUTURE TABLES IN DATABASE a zzz FROM DATABASE ROLE a
+accept	accept	docs	revokePrivilege((CREATE_SCHEMA|MODIFY|MONITOR|USAGE)~e0020711)/(revokePrivilege_schemaObjectPrivileg~4caa2056)_ON_FUTU~028bf1ff!swap	REVOKE MONITOR ON FUTURE TABLES IN DATABASE a FROM DATABASE ROLE a
+accept	accept	docs	revokePrivilege(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)/CREATE_SCHEMA	REVOKE CREATE SCHEMA ON DATABASE a FROM DATABASE ROLE a
+accept	undocumented	docs	revokePrivilege(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)/CREATE_SCHEMA!drop-1	REVOKE SCHEMA ON DATABASE a FROM DATABASE ROLE a
+accept	undocumented	docs	revokePrivilege(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)/CREATE_SCHEMA!drop-2	REVOKE CREATE ON DATABASE a FROM DATABASE ROLE a
 reject	undocumented	docs	revokePrivilege(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)/CREATE_SCHEMA!truncate	REVOKE CREATE
-accept	undocumented	docs	revokePrivilege(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)/CREATE_SCHEMA!insert	REVOKE CREATE SCHEMA zzz ON DATABASE a AUDIT ON ACCOUNT FROM DATABASE ROLE a
-accept	undocumented	docs	revokePrivilege(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)/CREATE_SCHEMA!swap	REVOKE CREATION SCHEMA ON DATABASE a AUDIT ON ACCOUNT FROM DATABASE ROLE a
-accept	accept	docs	revokePrivilege(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)/MODIFY	REVOKE MODIFY ON DATABASE a AUDIT ON ACCOUNT FROM DATABASE ROLE a
-accept	undocumented	docs	revokePrivilege(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)/MODIFY!insert	REVOKE MODIFY zzz ON DATABASE a AUDIT ON ACCOUNT FROM DATABASE ROLE a
-accept	accept	docs	revokePrivilege(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)/MONITOR	REVOKE MONITOR ON DATABASE a AUDIT ON ACCOUNT FROM DATABASE ROLE a
-accept	undocumented	docs	revokePrivilege(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)/MONITOR!insert	REVOKE MONITOR zzz ON DATABASE a AUDIT ON ACCOUNT FROM DATABASE ROLE a
-accept	undocumented	docs	revokePrivilege(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)/MONITOR!swap	REVOKE MONITORS ON DATABASE a AUDIT ON ACCOUNT FROM DATABASE ROLE a
-accept	accept	docs	revokePrivilege(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)/USAGE	REVOKE USAGE ON DATABASE a AUDIT ON ACCOUNT FROM DATABASE ROLE a
-accept	undocumented	docs	revokePrivilege(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)/USAGE!insert	REVOKE USAGE zzz ON DATABASE a AUDIT ON ACCOUNT FROM DATABASE ROLE a
-accept	undocumented	docs	revokePrivilege(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)/USAGE!swap	REVOKE USE ON DATABASE a AUDIT ON ACCOUNT FROM DATABASE ROLE a
-accept	accept	docs	revokePrivilege(,_(CREATE_SCHEMA|MODIFY|MONITOR|USAGE))*/%empty	REVOKE MODIFY ON DATABASE a AUDIT ON ACCOUNT FROM DATABASE ROLE a
-accept	accept	docs	revokePrivilege(,_(CREATE_SCHEMA|MODIFY|MONITOR|USAGE))*/,_(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)_(,_(CREATE_SCHEM~e21e17e0	REVOKE MODIFY, MODIFY ON DATABASE a AUDIT ON ACCOUNT FROM DATABASE ROLE a
-accept	undocumented	docs	revokePrivilege(,_(CREATE_SCHEMA|MODIFY|MONITOR|USAGE))*/,_(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)_(,_(CREATE_SCHEM~e21e17e0!drop-1	REVOKE MODIFY MODIFY ON DATABASE a AUDIT ON ACCOUNT FROM DATABASE ROLE a
-reject	undocumented	docs	revokePrivilege(,_(CREATE_SCHEMA|MODIFY|MONITOR|USAGE))*/,_(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)_(,_(CREATE_SCHEM~e21e17e0!drop-2	REVOKE MODIFY, ON DATABASE a AUDIT ON ACCOUNT FROM DATABASE ROLE a
+accept	undocumented	docs	revokePrivilege(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)/CREATE_SCHEMA!insert	REVOKE CREATE SCHEMA zzz ON DATABASE a FROM DATABASE ROLE a
+accept	undocumented	docs	revokePrivilege(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)/CREATE_SCHEMA!swap	REVOKE CREATION SCHEMA ON DATABASE a FROM DATABASE ROLE a
+accept	accept	docs	revokePrivilege(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)/MODIFY	REVOKE MODIFY ON DATABASE a FROM DATABASE ROLE a
+accept	undocumented	docs	revokePrivilege(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)/MODIFY!insert	REVOKE MODIFY zzz ON DATABASE a FROM DATABASE ROLE a
+accept	accept	docs	revokePrivilege(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)/MONITOR	REVOKE MONITOR ON DATABASE a FROM DATABASE ROLE a
+accept	undocumented	docs	revokePrivilege(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)/MONITOR!insert	REVOKE MONITOR zzz ON DATABASE a FROM DATABASE ROLE a
+accept	undocumented	docs	revokePrivilege(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)/MONITOR!swap	REVOKE MONITORS ON DATABASE a FROM DATABASE ROLE a
+accept	accept	docs	revokePrivilege(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)/USAGE	REVOKE USAGE ON DATABASE a FROM DATABASE ROLE a
+accept	undocumented	docs	revokePrivilege(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)/USAGE!insert	REVOKE USAGE zzz ON DATABASE a FROM DATABASE ROLE a
+accept	undocumented	docs	revokePrivilege(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)/USAGE!swap	REVOKE USE ON DATABASE a FROM DATABASE ROLE a
+accept	accept	docs	revokePrivilege(,_(CREATE_SCHEMA|MODIFY|MONITOR|USAGE))*/%empty	REVOKE MODIFY ON DATABASE a FROM DATABASE ROLE a
+accept	accept	docs	revokePrivilege(,_(CREATE_SCHEMA|MODIFY|MONITOR|USAGE))*/,_(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)_(,_(CREATE_SCHEM~e21e17e0	REVOKE MODIFY, MODIFY ON DATABASE a FROM DATABASE ROLE a
+accept	undocumented	docs	revokePrivilege(,_(CREATE_SCHEMA|MODIFY|MONITOR|USAGE))*/,_(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)_(,_(CREATE_SCHEM~e21e17e0!drop-1	REVOKE MODIFY MODIFY ON DATABASE a FROM DATABASE ROLE a
+reject	undocumented	docs	revokePrivilege(,_(CREATE_SCHEMA|MODIFY|MONITOR|USAGE))*/,_(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)_(,_(CREATE_SCHEM~e21e17e0!drop-2	REVOKE MODIFY, ON DATABASE a FROM DATABASE ROLE a
 reject	undocumented	docs	revokePrivilege(,_(CREATE_SCHEMA|MODIFY|MONITOR|USAGE))*/,_(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)_(,_(CREATE_SCHEM~e21e17e0!truncate	REVOKE MODIFY,
-accept	undocumented	docs	revokePrivilege(,_(CREATE_SCHEMA|MODIFY|MONITOR|USAGE))*/,_(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)_(,_(CREATE_SCHEM~e21e17e0!insert	REVOKE MODIFY, MODIFY zzz ON DATABASE a AUDIT ON ACCOUNT FROM DATABASE ROLE a
-accept	accept	docs	revokePrivilege(,_(CREATE_SCHEMA|MODIFY|MONITOR|USAGE))*/,_(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)_(,_(CREATE_SCHEM~e21e17e0!swap	REVOKE MODIFY, MONITOR ON DATABASE a AUDIT ON ACCOUNT FROM DATABASE ROLE a
+accept	undocumented	docs	revokePrivilege(,_(CREATE_SCHEMA|MODIFY|MONITOR|USAGE))*/,_(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)_(,_(CREATE_SCHEM~e21e17e0!insert	REVOKE MODIFY, MODIFY zzz ON DATABASE a FROM DATABASE ROLE a
+accept	accept	docs	revokePrivilege(,_(CREATE_SCHEMA|MODIFY|MONITOR|USAGE))*/,_(CREATE_SCHEMA|MODIFY|MONITOR|USAGE)_(,_(CREATE_SCHEM~e21e17e0!swap	REVOKE MODIFY, MONITOR ON DATABASE a FROM DATABASE ROLE a
 accept	accept	docs	revokePrivilege(RESOURCE_MONITOR|WAREHOUSE|COMPUTE_P~884ed083)/RESOURCE_MONITOR	REVOKE DEVELOP ON RESOURCE MONITOR a FROM DATABASE ROLE a
 accept	undocumented	docs	revokePrivilege(RESOURCE_MONITOR|WAREHOUSE|COMPUTE_P~884ed083)/RESOURCE_MONITOR!drop-1	REVOKE DEVELOP ON MONITOR a FROM DATABASE ROLE a
 accept	undocumented	docs	revokePrivilege(RESOURCE_MONITOR|WAREHOUSE|COMPUTE_P~884ed083)/RESOURCE_MONITOR!drop-2	REVOKE DEVELOP ON RESOURCE a FROM DATABASE ROLE a
