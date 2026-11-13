@@ -32,16 +32,10 @@ var (
 		_, err := p.parseRelationFactor()
 		return err == nil
 	})
-	// audit_user: STRING_VALUE | NAME_OB | unreserved_keyword_normal, which
-	// leaves out the words a role may not be called and four more.
+	// audit_user: STRING_VALUE | NAME_OB | unreserved_keyword_normal.
 	sysAuditUser = sysAlt(sysStr, sysLeaf(func(p *Parser) bool {
-		if isAmbiguousRoleWord(p.cur.Type) {
+		if p.curIsNotNormalKeyword() {
 			return false
-		}
-		for _, w := range []string{"ACCESS", "PASSWORD", "MAXVALUE", "RANGE"} {
-			if p.isBareWord(w) {
-				return false
-			}
 		}
 		_, _, err := p.parseIdent()
 		return err == nil
