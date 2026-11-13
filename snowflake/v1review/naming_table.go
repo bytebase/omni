@@ -6,9 +6,11 @@ package v1review
 
 import (
 	"regexp"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/bytebase/omni/snowflake/ast"
+	"github.com/bytebase/omni/snowflake/parser"
 	"github.com/bytebase/omni/v1review"
 )
 
@@ -43,12 +45,12 @@ func NamingTable(stmts []ast.Node, cfg v1review.NamingConfig) ([]v1review.Findin
 				return false
 			case *ast.CreateTableStmt:
 				if v.Name != nil {
-					naming.check(v.Name.Loc, v.Name.Name.Name)
+					naming.checkIdent(v.Name.Loc, v.Name.Name)
 				}
 			case *ast.AlterTableStmt:
 				for _, a := range v.Actions {
 					if a != nil && a.Kind == ast.AlterTableRename && a.NewName != nil {
-						naming.check(a.NewName.Loc, a.NewName.Name.Name)
+						naming.checkIdent(a.NewName.Loc, a.NewName.Name)
 					}
 				}
 			}
@@ -63,6 +65,37 @@ type tableNaming struct {
 	pattern  *regexp.Regexp // nil requires nothing
 	max      int            // 0 means no limit
 	findings []v1review.Finding
+}
+
+// checkIdent judges a table name part. The parser keeps an IDENTIFIER(...)
+// name verbatim; a string literal argument is judged as the name it
+// spells, and a variable or bind argument, known only at run time, is not
+// judged.
+func (c *tableNaming) checkIdent(loc ast.Loc, ident ast.Ident) {
+	name := ident.Name
+	if !ident.Quoted && len(name) > len("IDENTIFIER(") && strings.EqualFold(name[:len("IDENTIFIER(")], "IDENTIFIER(") {
+		resolved, ok := identifierLiteral(name)
+		if !ok {
+			return
+		}
+		name = resolved
+	}
+	c.check(loc, name)
+}
+
+// identifierLiteral returns the table name an IDENTIFIER('...') string
+// literal spells, without its qualifiers, and false for any other argument.
+func identifierLiteral(expr string) (string, bool) {
+	arg := strings.TrimSpace(expr[len("IDENTIFIER(") : len(expr)-1])
+	if len(arg) < 2 || arg[0] != '\'' || arg[len(arg)-1] != '\'' {
+		return "", false
+	}
+	text := strings.ReplaceAll(arg[1:len(arg)-1], "''", "'")
+	obj, errs := parser.ParseObjectName(text)
+	if len(errs) > 0 || obj == nil {
+		return "", false
+	}
+	return obj.Name.Name, true
 }
 
 func (c *tableNaming) check(loc ast.Loc, name string) {

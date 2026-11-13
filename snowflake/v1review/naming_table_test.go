@@ -49,6 +49,21 @@ func TestNamingTable(t *testing.T) {
 			config: pattern,
 		},
 		{name: "create ok", sql: "CREATE TABLE order_item (id INT PRIMARY KEY);", config: pattern},
+		{name: "identifier literal judged by the name it spells", sql: "CREATE TABLE IDENTIFIER('order_item') (id INT);", config: pattern},
+		{name: "identifier literal qualifier not judged", sql: "CREATE TABLE IDENTIFIER('Shop.PUBLIC.order_item') (id INT);", config: pattern},
+		{
+			name:   "identifier literal mismatch",
+			sql:    `CREATE TABLE identifier('"OrderItem"') (id INT);`,
+			config: pattern,
+			want:   []finding{mismatch("OrderItem", `identifier('"OrderItem"')`)},
+		},
+		{name: "identifier variable not judged", sql: "CREATE TABLE IDENTIFIER($tbl) (id INT);", config: pattern},
+		{
+			name:   "identifier literal on rename",
+			sql:    "ALTER TABLE t RENAME TO IDENTIFIER('OrderItem');",
+			config: pattern,
+			want:   []finding{mismatch("OrderItem", "IDENTIFIER('OrderItem')")},
+		},
 		{
 			name:   "create mismatch",
 			sql:    "CREATE TABLE OrderItem (id INT PRIMARY KEY);",

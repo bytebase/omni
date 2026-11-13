@@ -35,6 +35,8 @@ func NamingTable(stmts []ast.Node, cfg v1review.NamingConfig) ([]v1review.Findin
 		}
 		ast.Inspect(stmt, func(n ast.Node) bool {
 			switch v := n.(type) {
+			case *ast.ExplainStmt:
+				return explainAnalyzes(v)
 			case *ast.CreateStmt:
 				if v.Relation != nil {
 					naming.check(v.Relation.Loc, v.Relation.Relname)

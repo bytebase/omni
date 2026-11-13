@@ -44,6 +44,14 @@ func TestNamingTable(t *testing.T) {
 		want   []finding
 	}{
 		{name: "create ok", sql: "CREATE TABLE order_item (id int PRIMARY KEY);", config: pattern},
+		{name: "plain explain creates nothing", sql: `EXPLAIN CREATE TABLE "BadName" AS SELECT 1;`, config: pattern},
+		{name: "explain generic plan creates nothing", sql: `EXPLAIN (ANALYZE, GENERIC_PLAN) CREATE TABLE "BadName" AS SELECT 1;`, config: pattern},
+		{
+			name:   "explain analyze creates the table",
+			sql:    `EXPLAIN ANALYZE CREATE TABLE "BadName" AS SELECT 1;`,
+			config: pattern,
+			want:   []finding{mismatch("BadName", `"BadName"`)},
+		},
 		{
 			name:   "create mismatch",
 			sql:    `CREATE TABLE "BadName" (id int PRIMARY KEY);`,
