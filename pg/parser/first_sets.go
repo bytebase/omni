@@ -269,26 +269,6 @@ func (p *Parser) isSelectLimitStart() bool {
 	return selectLimitLeadSet[p.cur.Type]
 }
 
-// numericOnlyLeadTokens is the FIRST set of NumericOnly: FCONST, '+' FCONST,
-// '-' FCONST, or SignedIconst (Iconst, '+' Iconst, '-' Iconst).
-//
-// Grammar reference: NumericOnly and SignedIconst in
-// postgres/src/backend/parser/gram.y.
-//
-// DO NOT extend this list without also extending parseNumericOnly in
-// sequence.go, and vice versa.
-var numericOnlyLeadTokens = []int{'+', '-', ICONST, FCONST}
-
-// isNumericOnlyStart reports whether the current token starts a NumericOnly,
-// where parseNumericOnlyList (GRANT ON LARGE OBJECT) needs one.
-//
-// No PG oracle test: the set holds no keyword, so
-// TestIsNumericOnlyStartMatchesSlice checks that the predicate accepts
-// exactly these tokens and no keyword.
-func (p *Parser) isNumericOnlyStart() bool {
-	return slices.Contains(numericOnlyLeadTokens, p.cur.Type)
-}
-
 // isOptTableQualifiedNameStart reports whether tok, the token after TEMP,
 // TEMPORARY or UNLOGGED in OptTempTableName, starts opt_table
 // qualified_name: TABLE or a ColId. Otherwise the keyword is the table's

@@ -208,7 +208,10 @@ func (p *Parser) finishGrantOnObject(loc int, allPrivs bool, privs *nodes.List) 
 	if err != nil {
 		return nil, err
 	}
-	grantOption := p.parseOptGrantGrantOption()
+	grantOption, err := p.parseOptGrantGrantOption()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.GrantStmt{
 		IsGrant: true, Targtype: targtype, Objtype: objtype,
 		Objects: objects, Privileges: privileges, Grantees: grantees,
@@ -392,8 +395,14 @@ func (p *Parser) parseGrantTarget() (nodes.GrantTargetType, nodes.ObjectType, *n
 		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_LANGUAGE, makeNameListAsAnyNameList(names), nil
 	case LARGE_P:
 		p.advance()
-		p.expect(OBJECT_P)
-		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_LARGEOBJECT, p.parseNumericOnlyList(), nil
+		if _, err := p.expect(OBJECT_P); err != nil {
+			return 0, 0, nil, err
+		}
+		list, err := p.parseNumericOnlyList()
+		if err != nil {
+			return 0, 0, nil, err
+		}
+		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_LARGEOBJECT, list, nil
 	case SCHEMA:
 		p.advance()
 		names, err := p.parseNameList()
@@ -419,14 +428,18 @@ func (p *Parser) parseGrantTarget() (nodes.GrantTargetType, nodes.ObjectType, *n
 		p.advance()
 		if p.cur.Type == DATA_P {
 			p.advance()
-			p.expect(WRAPPER)
+			if _, err := p.expect(WRAPPER); err != nil {
+				return 0, 0, nil, err
+			}
 			names, err := p.parseNameList()
 			if err != nil {
 				return 0, 0, nil, err
 			}
 			return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_FDW, makeNameListAsAnyNameList(names), nil
 		}
-		p.expect(SERVER)
+		if _, err := p.expect(SERVER); err != nil {
+			return 0, 0, nil, err
+		}
 		names, err := p.parseNameList()
 		if err != nil {
 			return 0, 0, nil, err
@@ -452,10 +465,22 @@ func (p *Parser) parseGrantTarget() (nodes.GrantTargetType, nodes.ObjectType, *n
 			p.advance()
 			objType = nodes.OBJECT_ROUTINE
 		default:
-			objType = nodes.OBJECT_TABLE
+			if p.collectMode() {
+				p.addTokenCandidate(TABLES)
+				p.addTokenCandidate(SEQUENCES)
+				p.addTokenCandidate(FUNCTIONS)
+				p.addTokenCandidate(PROCEDURES)
+				p.addTokenCandidate(ROUTINES)
+				return 0, 0, nil, errCollecting
+			}
+			return 0, 0, nil, p.syntaxErrorAtCur()
 		}
-		p.expect(IN_P)
-		p.expect(SCHEMA)
+		if _, err := p.expect(IN_P); err != nil {
+			return 0, 0, nil, err
+		}
+		if _, err := p.expect(SCHEMA); err != nil {
+			return 0, 0, nil, err
+		}
 		if p.collectMode() {
 			p.addRuleCandidate("qualified_name")
 			return nodes.ACL_TARGET_ALL_IN_SCHEMA, objType, nil, nil
@@ -737,21 +762,19 @@ func (p *Parser) parseRedshiftAssumeRoleAction() string {
 	return strings.Join(parts, "_")
 }
 
-func (p *Parser) parseNumericOnlyList() *nodes.List {
-	val := p.parseNumericOnly()
-	if val == nil {
-		return nil
-	}
-	result := &nodes.List{Items: []nodes.Node{val}}
-	for p.cur.Type == ',' {
-		p.advance()
-		val = p.parseNumericOnly()
-		if val == nil {
-			break
+func (p *Parser) parseNumericOnlyList() (*nodes.List, error) {
+	result := &nodes.List{}
+	for {
+		val, err := p.parseNumericOnlyRequired()
+		if err != nil {
+			return nil, err
 		}
 		result.Items = append(result.Items, val)
+		if p.cur.Type != ',' {
+			return result, nil
+		}
+		p.advance()
 	}
-	return result
 }
 
 func (p *Parser) parseGrantFunctionWithArgtypesList() (*nodes.List, error) {
@@ -1015,17 +1038,16 @@ func (p *Parser) parseGrantee() (*nodes.RoleSpec, error) {
 	return p.parseRoleSpec()
 }
 
-func (p *Parser) parseOptGrantGrantOption() bool {
-	if p.cur.Type == WITH {
-		next := p.peekNext()
-		if next.Type == GRANT {
-			p.advance()
-			p.advance()
-			p.expect(OPTION)
-			return true
-		}
+func (p *Parser) parseOptGrantGrantOption() (bool, error) {
+	if p.cur.Type != WITH || p.peekNext().Type != GRANT {
+		return false, nil
 	}
-	return false
+	p.advance()
+	p.advance()
+	if _, err := p.expect(OPTION); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func (p *Parser) parseOptGrantedBy() (*nodes.RoleSpec, error) {
