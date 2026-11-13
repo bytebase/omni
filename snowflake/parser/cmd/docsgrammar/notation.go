@@ -461,22 +461,33 @@ func resolveSeqEllipses(seq []*node) ([]*node, error) {
 				}
 				prev := out[len(out)-1]
 				switch {
-				case comma && prev.tok == nil && !prev.brace && prev.op == '?':
-					// [ X ] [ , ... ]: no X, or a list of them; a comma
-					// always has an X after it.
-					x := &node{alts: prev.alts, brace: true}
-					out[len(out)-1] = &node{alts: [][]*node{{x, repeatAfterComma(x)}}, op: '?'}
 				case comma:
-					// X [ , ... ] repeats the element before it: the run of
-					// values back to a keyword, <arg_name> <arg_data_type>
-					// or <col> = <value>, or else the one node before.
-					k := valueRun(out)
-					x := prev
-					if k > 1 {
-						x = &node{alts: [][]*node{append([]*node(nil), out[len(out)-k:]...)}, brace: true}
-						out = append(out[:len(out)-k], x)
+					// X [ , ... ] repeats the list element before it (see
+					// listElement). An element of optional parts only,
+					// ( [ <arg> <type> ] [ , ... ] ), makes the list optional,
+					// with an element after every comma.
+					k, required := listElement(out)
+					if k == 0 {
+						out = append(out, repeatAfterComma(prev))
+						break
 					}
-					out = append(out, repeatAfterComma(x))
+					elem := append([]*node(nil), out[len(out)-k:]...)
+					out = out[:len(out)-k]
+					if !required {
+						first := *elem[0]
+						first.op, first.brace = 0, true
+						elem[0] = &first
+					}
+					x := elem[0]
+					if len(elem) > 1 {
+						x = &node{alts: [][]*node{elem}, brace: true}
+					}
+					list := []*node{x, repeatAfterComma(x)}
+					if required {
+						out = append(out, list...)
+					} else {
+						out = append(out, &node{alts: [][]*node{list}, op: '?'})
+					}
 				default:
 					out[len(out)-1] = repeat(prev, '+')
 				}
@@ -569,31 +580,45 @@ func optionalList(n *node) bool {
 
 // isRepeatable reports whether X ... can repeat X: a value or a group, not
 // punctuation or a keyword, which ... after reads as text left out.
-// valueRun returns how many nodes at the end of seq are values or
-// punctuation, back to a keyword, a group, a comma or an unmatched (. A
-// parenthesised part, ( ... ), counts whole, whatever it holds.
-func valueRun(seq []*node) int {
-	k, depth := 0, 0
-	for i := len(seq) - 1; i >= 0; i-- {
+// listElement returns how many nodes at the end of seq are the list
+// element a [ , ... ] after them repeats, and whether it has a required
+// part. The element is any optional parts at the end, the required part
+// before them (a value, a choice in braces, or a parenthesised run), and
+// the values before that, back to a keyword, a comma, an unmatched ( or
+// another group:
+//
+//	{ <expr> | <col> } [ [ AS ] <alias> ]    <col_name> = <value>
+//	<arg_name> <arg_data_type>               ( <v> )
+func listElement(seq []*node) (int, bool) {
+	i := len(seq) - 1
+	for i >= 0 && seq[i].tok == nil && !seq[i].brace && (seq[i].op == '?' || seq[i].op == '*') {
+		i--
+	}
+	optional := len(seq) - 1 - i
+	if i >= 0 && seq[i].tok == nil && seq[i].brace && seq[i].op == 0 {
+		// A choice in braces is the required part; what comes before it is
+		// not the element's.
+		return optional + 1, true
+	}
+	depth, k := 0, 0
+	for ; i >= 0; i-- {
 		n := seq[i]
-		switch {
-		case n.tok != nil && isLiteral(*n.tok, ")"):
+		if n.tok != nil && isLiteral(*n.tok, ")") {
 			depth++
-		case n.tok != nil && isLiteral(*n.tok, "("):
+		} else if n.tok != nil && isLiteral(*n.tok, "(") {
 			if depth == 0 {
-				return k
+				break
 			}
 			depth--
-		case depth > 0:
-		case n.tok == nil || n.tok.kind == nKeyword || n.tok.kind == nFragment || isComma(n):
-			return k
+		} else if depth == 0 && (n.tok == nil || n.tok.kind == nKeyword || n.tok.kind == nFragment || isComma(n)) {
+			break
 		}
 		k++
 	}
 	if depth > 0 {
-		return 0
+		k = 0
 	}
-	return k
+	return optional + k, k > 0
 }
 
 // repeatedElement returns the length of the list element seq ends with

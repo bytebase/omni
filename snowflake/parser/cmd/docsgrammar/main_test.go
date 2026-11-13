@@ -38,6 +38,8 @@ func TestNotationReadsAsANTLR(t *testing.T) {
 		{"F ( [ <arg_name> <arg_data_type> [ , ... ] ] )", "'F' '(' (ID DATA_TYPE (',' ID DATA_TYPE)*)? ')'"},
 		{"UPDATE <t> SET <col_name> = <value> [ , ... ]", "'UPDATE' ID 'SET' ID '=' ID (',' ID '=' ID)*"},
 		{"VALUES ( <v> ) [ , ... ]", "'VALUES' '(' ID ')' (',' '(' ID ')')*"},
+		// The element is the target with its optional alias.
+		{"SELECT { <col_name> | <expr> } [ [ AS ] <col_alias> ] [ , ... ]", "'SELECT' (ID | EXPR) ('AS'? ID)? (',' (ID | EXPR) ('AS'? ID)?)*"},
 		// [ X ] [ , ... ]: an optional list, a comma always before an X.
 		{"F ( [ <arg_name> <arg_data_type> ] [ , ... ] )", "'F' '(' (ID DATA_TYPE (',' ID DATA_TYPE)*)? ')'"},
 		// [ X , ... ] is an optional list, commas kept.
