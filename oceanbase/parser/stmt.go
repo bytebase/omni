@@ -274,42 +274,7 @@ func (p *Parser) parseStartDispatch() (nodes.Node, error) {
 		return p.parseStartGroupReplicationStmt(start)
 	}
 
-	// Fall through to START TRANSACTION (parseBeginStmt expects p.cur is START or BEGIN)
-	// We already consumed START, so we need to handle TRANSACTION here
-	p.match(kwTRANSACTION)
-
-	// Completion: after START TRANSACTION, offer transaction characteristic keywords.
-	p.checkCursor()
-	if p.collectMode() {
-		p.addTokenCandidate(kwWITH)
-		p.addTokenCandidate(kwREAD)
-		return nil, &ParseError{Message: "collecting"}
-	}
-
-	stmt := &nodes.BeginStmt{Loc: nodes.Loc{Start: start}}
-	for {
-		if p.cur.Type == kwWITH {
-			p.advance()
-			p.match(kwCONSISTENT)
-			p.match(kwSNAPSHOT)
-			stmt.WithConsistentSnapshot = true
-		} else if p.cur.Type == kwREAD {
-			p.advance()
-			if _, ok := p.match(kwONLY); ok {
-				stmt.ReadOnly = true
-			} else if _, ok := p.match(kwWRITE); ok {
-				stmt.ReadWrite = true
-			}
-		} else {
-			break
-		}
-		if p.cur.Type != ',' {
-			break
-		}
-		p.advance()
-	}
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
+	return p.parseStartTransactionTail(start)
 }
 
 // parseResetDispatch dispatches RESET statements.
