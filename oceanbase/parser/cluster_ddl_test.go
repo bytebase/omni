@@ -6,7 +6,7 @@ import (
 	nodes "github.com/bytebase/omni/oceanbase/ast"
 )
 
-// TestClusterDDL pins the action and the name a cluster statement parses
+// TestClusterDDL pins the action and the name an object statement parses
 // into. Whether each form parses is held to OceanBase by its rows in
 // testdata/compat.tsv.
 func TestClusterDDL(t *testing.T) {
@@ -25,6 +25,14 @@ func TestClusterDDL(t *testing.T) {
 		{"ALTER RESOURCE POOL MERGE ('p1', 'p2') INTO ('p3')", "ALTER RESOURCE POOL", ""},
 		{"ALTER RESOURCE TENANT t1 UNIT_NUM = 2", "ALTER RESOURCE TENANT", "t1"},
 		{"DROP RESOURCE UNIT IF EXISTS u1", "DROP RESOURCE UNIT", "u1"},
+		{"CREATE TABLEGROUP IF NOT EXISTS tg1 SHARDING = 'ADAPTIVE' PARTITION BY RANGE COLUMNS 1 PARTITIONS 2 (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN MAXVALUE)", "CREATE TABLEGROUP", "tg1"},
+		{"ALTER TABLEGROUP tg1 ADD TABLE t1, d.t2", "ALTER TABLEGROUP", "tg1"},
+		{"ALTER TABLEGROUP tg1 SET SHARDING = 'NONE'", "ALTER TABLEGROUP", "tg1"},
+		{"ALTER TABLEGROUP tg1 DROP PARTITION (p0, p1)", "ALTER TABLEGROUP", "tg1"},
+		{"DROP TABLEGROUP IF EXISTS tg1", "DROP TABLEGROUP", "tg1"},
+		{"CREATE SEQUENCE IF NOT EXISTS d.s1 START WITH 1 INCREMENT BY -1 NOMAXVALUE CACHE 20 NOCYCLE", "CREATE SEQUENCE", "s1"},
+		{"ALTER SEQUENCE s1 RESTART MAXVALUE 100", "ALTER SEQUENCE", "s1"},
+		{"DROP SEQUENCE IF EXISTS d.s1", "DROP SEQUENCE", "s1"},
 	} {
 		list, err := Parse(tc.sql)
 		if err != nil {
@@ -46,6 +54,9 @@ func TestClusterDDL(t *testing.T) {
 		"CREATE TENANT",
 		"CREATE RESOURCE UNIT u1 MAX_CPU",
 		"DROP RESOURCE GROUP g1", // MySQL's, which OceanBase has not
+		"CREATE TABLEGROUP tg1 PARTITION BY RANGE (c) (PARTITION p0 VALUES LESS THAN (10))", // a tablegroup names no column
+		"CREATE SEQUENCE s1 START 1",
+		"ALTER TABLEGROUP tg1",
 	} {
 		if _, err := Parse(sql); err == nil {
 			t.Errorf("Parse(%q) was accepted", sql)

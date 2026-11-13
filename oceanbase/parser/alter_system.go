@@ -34,7 +34,8 @@ type sysMatch struct {
 	hasFar  bool
 	action  string
 	nameEnd int    // where the naming words of the form end
-	name    string // the object the statement names, where a form reads one
+	schema  string // the object the statement names, where a form reads one
+	name    string
 }
 
 // sysMiss records the current token as one no matcher took.
