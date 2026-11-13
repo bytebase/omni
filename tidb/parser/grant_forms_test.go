@@ -5,7 +5,7 @@ import "testing"
 // The forms the user and privilege statements take, and -- the point of this
 // file -- the forms they do not.
 //
-// The corpus in testdata/pingcap_parser_corpus.tsv is pingcap's own parser
+// The corpus in compat.tsv's suite:pingcap-parser rows is pingcap's own parser
 // test, and for this family it is almost all accepting rows: 30 of them moved
 // when this family was closed and none of them is a rejection. A reader that
 // took any word after IDENTIFIED WITH, any option after REQUIRE and any

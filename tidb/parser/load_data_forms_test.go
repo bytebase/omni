@@ -5,7 +5,7 @@ import "testing"
 // The forms TiDB's LOAD DATA and IMPORT INTO take, and -- the point of this
 // file -- the forms they do not.
 //
-// The corpus in testdata/pingcap_parser_corpus.tsv pins what pingcap's own
+// The corpus in compat.tsv's suite:pingcap-parser rows pins what pingcap's own
 // parser test writes for this family: 25 accepting rows and no rejection at
 // all. A reader that took any word after WITH, any value after DEFINED NULL
 // BY, and FORMAT anywhere would turn all 25 of them green while accepting
