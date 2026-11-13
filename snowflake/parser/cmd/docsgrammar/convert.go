@@ -19,6 +19,7 @@ const (
 	tType        = "DATA_TYPE"
 	tStage       = "STAGE"
 	tPosition    = "POSITION"
+	tVariable    = "VARIABLE"
 	tObjectType  = "OBJECT_TYPE"
 	tObjectTypes = "OBJECT_TYPES"
 	tFile        = "FILE"
@@ -1001,8 +1002,8 @@ func writeG4(pin string, pages []pageGrammar) string {
 // correct a page's text in docs-fixes.tsv and run the converter again.
 //
 // Keywords are literals. ID, STRING, NUMBER, EXPR, QUERY, COPY_STATEMENT,
-// DATA_TYPE, STAGE, FILE, POSITION, OBJECT_TYPE and OBJECT_TYPES are the
-// values the docs write as <placeholders>; tokens.tsv samples them. A
+// DATA_TYPE, STAGE, FILE, POSITION, VARIABLE, OBJECT_TYPE and OBJECT_TYPES
+// are the values the docs write as <placeholders>; tokens.tsv samples them. A
 // form a page writes with ... for text it leaves out, or with a word it
 // never defines, is not converted and is listed under its page.
 `)
@@ -1060,7 +1061,7 @@ func writeRule(b *strings.Builder, name string, alts []string) {
 // classes lists the token classes a grammar uses, for the report.
 func classes(g4 string) []string {
 	var out []string
-	for _, c := range []string{tName, tString, tNumber, tExpr, tQuery, tType, tStage, tPosition, tObjectType, tObjectTypes, tFile, tCopy} {
+	for _, c := range []string{tName, tString, tNumber, tExpr, tQuery, tType, tStage, tPosition, tVariable, tObjectType, tObjectTypes, tFile, tCopy} {
 		if containsWord(g4, c) {
 			out = append(out, c)
 		}

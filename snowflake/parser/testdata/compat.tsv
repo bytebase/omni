@@ -48468,11 +48468,11 @@ accept	accept	docs	executeImmediate/EXECUTE_IMMEDIATE_ID_(USING_(_ID_(,_ID)*_))?
 reject	undocumented	docs	executeImmediate/EXECUTE_IMMEDIATE_ID_(USING_(_ID_(,_ID)*_))?!drop-1	IMMEDIATE a
 reject	undocumented	docs	executeImmediate/EXECUTE_IMMEDIATE_ID_(USING_(_ID_(,_ID)*_))?!insert	EXECUTE IMMEDIATE a zzz
 reject	undocumented	docs	executeImmediate/EXECUTE_IMMEDIATE_ID_(USING_(_ID_(,_ID)*_))?!swap	EXECUTE_AS_ROLE IMMEDIATE a
-accept	accept	docs	executeImmediate/EXECUTE_IMMEDIATE_POSITION_(USING_(_ID_(,_ID)*_))?	EXECUTE IMMEDIATE $1
-reject	undocumented	docs	executeImmediate/EXECUTE_IMMEDIATE_POSITION_(USING_(_ID_(,_ID)*_))?!drop-1	IMMEDIATE $1
-reject	undocumented	docs	executeImmediate/EXECUTE_IMMEDIATE_POSITION_(USING_(_ID_(,_ID)*_))?!drop-2	EXECUTE $1
-reject	undocumented	docs	executeImmediate/EXECUTE_IMMEDIATE_POSITION_(USING_(_ID_(,_ID)*_))?!insert	EXECUTE IMMEDIATE $1 zzz
-reject	undocumented	docs	executeImmediate/EXECUTE_IMMEDIATE_POSITION_(USING_(_ID_(,_ID)*_))?!swap	EXECUTE_AS_ROLE IMMEDIATE $1
+accept	accept	docs	executeImmediate/EXECUTE_IMMEDIATE_VARIABLE_(USING_(_ID_(,_ID)*_))?	EXECUTE IMMEDIATE $a
+reject	undocumented	docs	executeImmediate/EXECUTE_IMMEDIATE_VARIABLE_(USING_(_ID_(,_ID)*_))?!drop-1	IMMEDIATE $a
+reject	undocumented	docs	executeImmediate/EXECUTE_IMMEDIATE_VARIABLE_(USING_(_ID_(,_ID)*_))?!drop-2	EXECUTE $a
+reject	undocumented	docs	executeImmediate/EXECUTE_IMMEDIATE_VARIABLE_(USING_(_ID_(,_ID)*_))?!insert	EXECUTE IMMEDIATE $a zzz
+reject	undocumented	docs	executeImmediate/EXECUTE_IMMEDIATE_VARIABLE_(USING_(_ID_(,_ID)*_))?!swap	EXECUTE_AS_ROLE IMMEDIATE $a
 accept	accept	docs	executeImmediate(USING_(_ID_(,_ID)*_))?/%empty	EXECUTE IMMEDIATE 's'
 accept	accept	docs	executeImmediate(USING_(_ID_(,_ID)*_))?/USING_(_ID_(,_ID)*_)	EXECUTE IMMEDIATE 's' USING(a)
 reject	undocumented	docs	executeImmediate(USING_(_ID_(,_ID)*_))?/USING_(_ID_(,_ID)*_)!drop-1	EXECUTE IMMEDIATE 's'(a)

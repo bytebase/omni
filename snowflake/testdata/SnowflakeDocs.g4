@@ -4,8 +4,8 @@
 // correct a page's text in docs-fixes.tsv and run the converter again.
 //
 // Keywords are literals. ID, STRING, NUMBER, EXPR, QUERY, COPY_STATEMENT,
-// DATA_TYPE, STAGE, FILE, POSITION, OBJECT_TYPE and OBJECT_TYPES are the
-// values the docs write as <placeholders>; tokens.tsv samples them. A
+// DATA_TYPE, STAGE, FILE, POSITION, VARIABLE, OBJECT_TYPE and OBJECT_TYPES
+// are the values the docs write as <placeholders>; tokens.tsv samples them. A
 // form a page writes with ... for text it leaves out, or with a word it
 // never defines, is not converted and is listed under its page.
 //
@@ -4892,7 +4892,7 @@ executeDcmProject_fromDeployment
 executeImmediate
     : 'EXECUTE' 'IMMEDIATE' STRING ('USING' '(' ID (',' ID)* ')')?
     | 'EXECUTE' 'IMMEDIATE' ID ('USING' '(' ID (',' ID)* ')')?
-    | 'EXECUTE' 'IMMEDIATE' POSITION ('USING' '(' ID (',' ID)* ')')?
+    | 'EXECUTE' 'IMMEDIATE' VARIABLE ('USING' '(' ID (',' ID)* ')')?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/execute-immediate-from

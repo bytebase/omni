@@ -196,7 +196,12 @@ func lexNotation(s string) ([]ntok, error) {
 			if m == "" {
 				return nil, fmt.Errorf("$ before %q", abbreviate(rest))
 			}
-			out = append(out, ntok{nTerminal, tPosition})
+			class := tPosition
+			if strings.Contains(m, "variable") {
+				// $<session_variable>: a session variable by its name.
+				class = tVariable
+			}
+			out = append(out, ntok{nTerminal, class})
 			i += 1 + len([]rune(m))
 		default:
 			op := string(c)
