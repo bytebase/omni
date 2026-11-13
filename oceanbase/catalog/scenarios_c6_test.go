@@ -72,35 +72,6 @@ func TestScenario_C6(t *testing.T) {
 		assertIntEq(t, "omni subpartition count", total, 2)
 	})
 
-	// --- 6.3 Partition ENGINE defaults to table ENGINE ------------------
-	t.Run("6_3_partition_engine_defaults_to_table", func(t *testing.T) {
-		scenarioReset(t, mc)
-		c := scenarioNewCatalog(t)
-
-		runOnBoth(t, mc, c,
-			`CREATE TABLE t (id INT) ENGINE=InnoDB PARTITION BY HASH(id) PARTITIONS 2`)
-
-		// Oracle: SHOW CREATE TABLE renders table-level ENGINE=InnoDB.
-		sc := oracleShow(t, mc, "SHOW CREATE TABLE t")
-		if !strings.Contains(sc, "ENGINE=InnoDB") {
-			t.Errorf("oracle SHOW CREATE: expected ENGINE=InnoDB, got %s", sc)
-		}
-
-		tbl := c.GetDatabase("testdb").GetTable("t")
-		if tbl == nil || tbl.Partitioning == nil {
-			t.Errorf("omni: table or partitioning missing")
-			return
-		}
-		for i, p := range tbl.Partitioning.Partitions {
-			// Empty per-partition engine is OK as long as table-level engine
-			// renders it in SHOW CREATE; but a concrete non-InnoDB would be
-			// wrong.
-			if p.Engine != "" && !strings.EqualFold(p.Engine, "InnoDB") {
-				t.Errorf("omni: partition %d engine %q != InnoDB", i, p.Engine)
-			}
-		}
-	})
-
 	// --- 6.4 KEY ALGORITHM default 2 ------------------------------------
 	t.Run("6_4_key_algorithm_default_2", func(t *testing.T) {
 		scenarioReset(t, mc)

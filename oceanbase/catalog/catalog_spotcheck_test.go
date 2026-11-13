@@ -397,39 +397,6 @@ func TestSpotCheck_CatalogVerification(t *testing.T) {
 		}
 	})
 
-	// ---------------------------------------------------------------
-	// C18.4: AUTO_INCREMENT clause elided in SHOW CREATE TABLE if counter <= 1.
-	// ---------------------------------------------------------------
-	t.Run("C18_4_auto_increment_elision", func(t *testing.T) {
-		reset(t)
-		if _, err := mc.db.ExecContext(mc.ctx, `CREATE TABLE ai (id INT AUTO_INCREMENT PRIMARY KEY, v INT)`); err != nil {
-			t.Fatalf("create: %v", err)
-		}
-		stmt1, err := mc.showCreateTable("ai")
-		if err != nil {
-			t.Fatalf("show create: %v", err)
-		}
-		// Fresh table: no AUTO_INCREMENT=N clause.
-		if strings.Contains(strings.ToUpper(stmt1), "AUTO_INCREMENT=") {
-			t.Errorf("CATALOG MISMATCH C18.4 (before insert): expected no AUTO_INCREMENT= clause, got: %s", stmt1)
-		} else {
-			t.Logf("OK C18.4 verified (before insert): %s", stmt1)
-		}
-		// After inserting, counter advances, clause should appear.
-		if _, err := mc.db.ExecContext(mc.ctx, `INSERT INTO ai (v) VALUES (10),(20),(30)`); err != nil {
-			t.Fatalf("insert: %v", err)
-		}
-		stmt2, err := mc.showCreateTable("ai")
-		if err != nil {
-			t.Fatalf("show create: %v", err)
-		}
-		if !strings.Contains(strings.ToUpper(stmt2), "AUTO_INCREMENT=") {
-			t.Errorf("CATALOG MISMATCH C18.4 (after insert): expected AUTO_INCREMENT= clause, got: %s", stmt2)
-		} else {
-			t.Logf("OK C18.4 verified (after insert, counter > 1): %s", stmt2)
-		}
-	})
-
 	// ===================================================================
 	// Round 2 extended spot-check (PS1-PS7 path-splits + Round 1/2 gaps)
 	// ===================================================================

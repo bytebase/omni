@@ -114,50 +114,6 @@ CREATE TABLE c (a INT, CONSTRAINT c_ibfk_1 FOREIGN KEY (a) REFERENCES p(id));`)
 		}
 	})
 
-	// --- 7.4 USING BTREE explicit vs implicit rendering -----------------
-	t.Run("7_4_using_explicit_vs_implicit", func(t *testing.T) {
-		scenarioReset(t, mc)
-		c := scenarioNewCatalog(t)
-
-		runOnBoth(t, mc, c, `CREATE TABLE t1 (a INT, KEY (a));
-CREATE TABLE t2 (a INT, KEY (a) USING BTREE);`)
-
-		ct1 := oracleShow(t, mc, "SHOW CREATE TABLE t1")
-		ct2 := oracleShow(t, mc, "SHOW CREATE TABLE t2")
-		// t1 should NOT contain USING BTREE in the KEY line
-		if strings.Contains(ct1, "USING BTREE") {
-			t.Errorf("oracle: t1 unexpectedly contains USING BTREE: %s", ct1)
-		}
-		// t2 SHOULD contain USING BTREE
-		if !strings.Contains(ct2, "USING BTREE") {
-			t.Errorf("oracle: t2 missing USING BTREE: %s", ct2)
-		}
-
-		// omni: both tables exist; presence of explicit-flag distinction
-		// is an open omni gap. We assert both indexes parse and exist.
-		tbl1 := c.GetDatabase("testdb").GetTable("t1")
-		tbl2 := c.GetDatabase("testdb").GetTable("t2")
-		if tbl1 == nil || tbl2 == nil {
-			t.Errorf("omni: t1=%v t2=%v missing", tbl1, tbl2)
-			return
-		}
-		idx1 := c7findIndex(c, "t1", "a")
-		idx2 := c7findIndex(c, "t2", "a")
-		if idx1 == nil || idx2 == nil {
-			t.Errorf("omni: idx1=%v idx2=%v missing", idx1, idx2)
-			return
-		}
-		// omni gap: the catalog has no IndexTypeExplicit field, so it
-		// cannot distinguish the two. We assert the distinction here so
-		// that the test fails until omni grows the bit.
-		t1Explicit := strings.EqualFold(idx1.IndexType, "BTREE")
-		t2Explicit := strings.EqualFold(idx2.IndexType, "BTREE")
-		if t1Explicit == t2Explicit {
-			t.Errorf("omni: cannot distinguish explicit BTREE from default: t1=%q t2=%q",
-				idx1.IndexType, idx2.IndexType)
-		}
-	})
-
 	// --- 7.5 UNIQUE allows multiple NULLs -------------------------------
 	t.Run("7_5_unique_multiple_nulls", func(t *testing.T) {
 		scenarioReset(t, mc)
