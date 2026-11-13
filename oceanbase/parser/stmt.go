@@ -274,42 +274,7 @@ func (p *Parser) parseStartDispatch() (nodes.Node, error) {
 		return p.parseStartGroupReplicationStmt(start)
 	}
 
-	// Fall through to START TRANSACTION (parseBeginStmt expects p.cur is START or BEGIN)
-	// We already consumed START, so we need to handle TRANSACTION here
-	p.match(kwTRANSACTION)
-
-	// Completion: after START TRANSACTION, offer transaction characteristic keywords.
-	p.checkCursor()
-	if p.collectMode() {
-		p.addTokenCandidate(kwWITH)
-		p.addTokenCandidate(kwREAD)
-		return nil, &ParseError{Message: "collecting"}
-	}
-
-	stmt := &nodes.BeginStmt{Loc: nodes.Loc{Start: start}}
-	for {
-		if p.cur.Type == kwWITH {
-			p.advance()
-			p.match(kwCONSISTENT)
-			p.match(kwSNAPSHOT)
-			stmt.WithConsistentSnapshot = true
-		} else if p.cur.Type == kwREAD {
-			p.advance()
-			if _, ok := p.match(kwONLY); ok {
-				stmt.ReadOnly = true
-			} else if _, ok := p.match(kwWRITE); ok {
-				stmt.ReadWrite = true
-			}
-		} else {
-			break
-		}
-		if p.cur.Type != ',' {
-			break
-		}
-		p.advance()
-	}
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
+	return p.parseStartTransactionTail(start)
 }
 
 // parseResetDispatch dispatches RESET statements.
@@ -416,15 +381,6 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 
 	temporary := false
 
-	// UNDO TABLESPACE
-	if p.cur.Type == kwUNDO {
-		p.advance()
-		if p.cur.Type == kwTABLESPACE {
-			return p.parseCreateTablespaceStmt(start, true)
-		}
-		return nil, &ParseError{Message: "expected TABLESPACE after UNDO", Position: p.cur.Loc}
-	}
-
 	// TEMPORARY
 	if p.cur.Type == kwTEMPORARY {
 		p.advance()
@@ -508,7 +464,7 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		return p.parseCreateRoleStmt(start)
 
 	case kwTABLESPACE:
-		return p.parseCreateTablespaceStmt(start, false)
+		return p.parseCreateTablespaceStmt(start)
 
 	case kwSERVER:
 		return p.parseCreateServerStmt(start)
@@ -628,15 +584,6 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 		return nil, &ParseError{Message: "collecting"}
 	}
 
-	// UNDO TABLESPACE
-	if p.cur.Type == kwUNDO {
-		p.advance()
-		if p.cur.Type == kwTABLESPACE {
-			return p.parseAlterTablespaceStmt(start, true)
-		}
-		return nil, &ParseError{Message: "expected TABLESPACE after UNDO", Position: p.cur.Loc}
-	}
-
 	if stmt, ok, err := p.parseClusterDDL(start, "ALTER"); ok {
 		return stmt, err
 	}
@@ -660,7 +607,7 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 		return p.parseAlterUserStmt(start)
 
 	case kwTABLESPACE:
-		return p.parseAlterTablespaceStmt(start, false)
+		return p.parseAlterTablespaceStmt(start)
 
 	case kwSERVER:
 		return p.parseAlterServerStmt(start)
@@ -739,15 +686,6 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 		return stmt, err
 	}
 
-	// UNDO TABLESPACE
-	if p.cur.Type == kwUNDO {
-		p.advance()
-		if p.cur.Type == kwTABLESPACE {
-			return p.parseDropTablespaceStmt(start, true)
-		}
-		return nil, &ParseError{Message: "expected TABLESPACE after UNDO", Position: p.cur.Loc}
-	}
-
 	temporary := false
 	if p.cur.Type == kwTEMPORARY {
 		p.advance()
@@ -786,7 +724,7 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 		return p.parseDropEventStmt(start)
 
 	case kwTABLESPACE:
-		return p.parseDropTablespaceStmt(start, false)
+		return p.parseDropTablespaceStmt(start)
 
 	case kwSERVER:
 		return p.parseDropServerStmt(start)

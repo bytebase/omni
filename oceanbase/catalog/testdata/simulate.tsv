@@ -46,21 +46,21 @@ ok	1054	engine	one_table@missing	ignore_or_replace/REPLACE	CREATE TABLE a REPLAC
 ok:6297af21f138	ok:6297af21f138	engine	one_table@missing	table_element_list/table_element!swap	CREATE TABLE a(a TINYTEXT)
 1060	1060	engine	one_table@missing	table_element_list/table_element_list_,_table_element	CREATE TABLE a(a TINYINT, a TINYINT)
 1060	1060	engine	one_table@missing	table_element_list/table_element_list_,_table_element!swap	CREATE TABLE a(a TINYTEXT, a TINYINT)
-ok	4028	engine	one_table@missing	table_element/constraint_definition	CREATE TABLE a(CHECK(a))
-ok	4028	engine	one_table@missing	table_element/CONSTRAINT_opt_constraint_name_PRIMARY_KEY_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment	CREATE TABLE a(CONSTRAINT PRIMARY KEY(a))
-ok	4028	engine	one_table@missing	table_element/PRIMARY_KEY_opt_index_name_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment	CREATE TABLE a(PRIMARY KEY(a))
-ok	4028	engine	one_table@missing	table_element/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option	CREATE TABLE a(KEY(a))
+4028	4028	engine	one_table@missing	table_element/constraint_definition	CREATE TABLE a(CHECK(a))
+4028	4028	engine	one_table@missing	table_element/CONSTRAINT_opt_constraint_name_PRIMARY_KEY_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment	CREATE TABLE a(CONSTRAINT PRIMARY KEY(a))
+4028	4028	engine	one_table@missing	table_element/PRIMARY_KEY_opt_index_name_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment	CREATE TABLE a(PRIMARY KEY(a))
+4028	4028	engine	one_table@missing	table_element/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option	CREATE TABLE a(KEY(a))
 1064	4028	engine	one_table@missing	table_element/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	CREATE TABLE a(KEY(a) WITH COLUMN GROUP(ALL COLUMNS))
-ok	4028	engine	one_table@missing	table_element/UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option	CREATE TABLE a(UNIQUE(a))
+4028	4028	engine	one_table@missing	table_element/UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option	CREATE TABLE a(UNIQUE(a))
 1064	4028	engine	one_table@missing	table_element/UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	CREATE TABLE a(UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS))
-ok	4028	engine	one_table@missing	table_element/CONSTRAINT_opt_constraint_name_UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(CONSTRAINT UNIQUE(a))
+4028	4028	engine	one_table@missing	table_element/CONSTRAINT_opt_constraint_name_UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(CONSTRAINT UNIQUE(a))
 1064	4028	engine	one_table@missing	table_element/CONSTRAINT_opt_constraint_name_UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_with_column_group	CREATE TABLE a(CONSTRAINT UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS))
-ok	4028	engine	one_table@missing	table_element/FULLTEXT_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_fulltext_index_option_list	CREATE TABLE a(FULLTEXT(a))
-ok	4028	engine	one_table@missing	table_element/VECTOR_key_or_index_opt_index_name_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(VECTOR KEY(a))
-5031	4028	engine	one_table@missing	table_element/CONSTRAINT_opt_constraint_name_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	CREATE TABLE a(CONSTRAINT FOREIGN KEY(a) REFERENCES a(a))
-ok	4028	engine	one_table@missing	table_element/SPATIAL_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(SPATIAL(a))
+4028	4028	engine	one_table@missing	table_element/FULLTEXT_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_fulltext_index_option_list	CREATE TABLE a(FULLTEXT(a))
+4028	4028	engine	one_table@missing	table_element/VECTOR_key_or_index_opt_index_name_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(VECTOR KEY(a))
+4028	4028	engine	one_table@missing	table_element/CONSTRAINT_opt_constraint_name_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	CREATE TABLE a(CONSTRAINT FOREIGN KEY(a) REFERENCES a(a))
+4028	4028	engine	one_table@missing	table_element/SPATIAL_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(SPATIAL(a))
 1064	4028	engine	one_table@missing	table_element/SPATIAL_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_with_column_group	CREATE TABLE a(SPATIAL(a) WITH COLUMN GROUP(ALL COLUMNS))
-5031	4028	engine	one_table@missing	table_element/FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a(a))
+4028	4028	engine	one_table@missing	table_element/FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a(a))
 1146	1146	engine	one_table@missing	opt_column_reference/REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	ALTER TABLE a ADD a TINYINT REFERENCES a(a)
 1146	1146	engine	one_table@missing	opt_column_reference/%empty	ALTER TABLE a ADD a TINYINT
 1146	1146	engine	one_table@missing	opt_reference_option_list/opt_reference_option_list_reference_option	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON UPDATE RESTRICT
@@ -615,21 +615,21 @@ ok	1054	engine	one_table@table	create_table_stmt/create_with_opt_hint_special_ta
 1050	1050	engine	one_table@table	table_element_list/table_element!swap	CREATE TABLE a(a TINYTEXT)
 1050	1060	engine	one_table@table	table_element_list/table_element_list_,_table_element	CREATE TABLE a(a TINYINT, a TINYINT)
 1050	1060	engine	one_table@table	table_element_list/table_element_list_,_table_element!swap	CREATE TABLE a(a TINYTEXT, a TINYINT)
-1050	4028	engine	one_table@table	table_element/constraint_definition	CREATE TABLE a(CHECK(a))
-1050	4028	engine	one_table@table	table_element/CONSTRAINT_opt_constraint_name_PRIMARY_KEY_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment	CREATE TABLE a(CONSTRAINT PRIMARY KEY(a))
-1050	4028	engine	one_table@table	table_element/PRIMARY_KEY_opt_index_name_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment	CREATE TABLE a(PRIMARY KEY(a))
-1050	4028	engine	one_table@table	table_element/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option	CREATE TABLE a(KEY(a))
+4028	4028	engine	one_table@table	table_element/constraint_definition	CREATE TABLE a(CHECK(a))
+4028	4028	engine	one_table@table	table_element/CONSTRAINT_opt_constraint_name_PRIMARY_KEY_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment	CREATE TABLE a(CONSTRAINT PRIMARY KEY(a))
+4028	4028	engine	one_table@table	table_element/PRIMARY_KEY_opt_index_name_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment	CREATE TABLE a(PRIMARY KEY(a))
+4028	4028	engine	one_table@table	table_element/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option	CREATE TABLE a(KEY(a))
 1064	4028	engine	one_table@table	table_element/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	CREATE TABLE a(KEY(a) WITH COLUMN GROUP(ALL COLUMNS))
-1050	4028	engine	one_table@table	table_element/UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option	CREATE TABLE a(UNIQUE(a))
+4028	4028	engine	one_table@table	table_element/UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option	CREATE TABLE a(UNIQUE(a))
 1064	4028	engine	one_table@table	table_element/UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	CREATE TABLE a(UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS))
-1050	4028	engine	one_table@table	table_element/CONSTRAINT_opt_constraint_name_UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(CONSTRAINT UNIQUE(a))
+4028	4028	engine	one_table@table	table_element/CONSTRAINT_opt_constraint_name_UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(CONSTRAINT UNIQUE(a))
 1064	4028	engine	one_table@table	table_element/CONSTRAINT_opt_constraint_name_UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_with_column_group	CREATE TABLE a(CONSTRAINT UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS))
-1050	4028	engine	one_table@table	table_element/FULLTEXT_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_fulltext_index_option_list	CREATE TABLE a(FULLTEXT(a))
-1050	4028	engine	one_table@table	table_element/VECTOR_key_or_index_opt_index_name_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(VECTOR KEY(a))
-1050	4028	engine	one_table@table	table_element/CONSTRAINT_opt_constraint_name_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	CREATE TABLE a(CONSTRAINT FOREIGN KEY(a) REFERENCES a(a))
-1050	4028	engine	one_table@table	table_element/SPATIAL_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(SPATIAL(a))
+4028	4028	engine	one_table@table	table_element/FULLTEXT_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_fulltext_index_option_list	CREATE TABLE a(FULLTEXT(a))
+4028	4028	engine	one_table@table	table_element/VECTOR_key_or_index_opt_index_name_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(VECTOR KEY(a))
+4028	4028	engine	one_table@table	table_element/CONSTRAINT_opt_constraint_name_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	CREATE TABLE a(CONSTRAINT FOREIGN KEY(a) REFERENCES a(a))
+4028	4028	engine	one_table@table	table_element/SPATIAL_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(SPATIAL(a))
 1064	4028	engine	one_table@table	table_element/SPATIAL_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_with_column_group	CREATE TABLE a(SPATIAL(a) WITH COLUMN GROUP(ALL COLUMNS))
-1050	4028	engine	one_table@table	table_element/FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a(a))
+4028	4028	engine	one_table@table	table_element/FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a(a))
 ok:c334bb7a669b	ok:c334bb7a669b	engine	one_table@table	opt_column_reference/REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	ALTER TABLE a ADD a TINYINT REFERENCES a(a)
 ok:c334bb7a669b	ok:c334bb7a669b	engine	one_table@table	opt_column_reference/%empty	ALTER TABLE a ADD a TINYINT
 ok:c334bb7a669b	ok:c334bb7a669b	engine	one_table@table	opt_reference_option_list/opt_reference_option_list_reference_option	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON UPDATE RESTRICT
@@ -887,57 +887,57 @@ ok	10502	engine	one_table@table	ttl_unit/YEAR	ALTER TABLE a TTL(a + INTERVAL 1 Y
 1064	1054	engine	one_table@table	partition_size/AUTO	CREATE TABLE a NOPARALLEL PARTITION BY RANGE() PARTITION SIZE AUTO PARTITIONS AUTO SELECT a
 1064	1054	engine	one_table@table	auto_range_type/PARTITION_BY_RANGE_(_expr_)	CREATE TABLE a NOPARALLEL PARTITION BY RANGE(a) PARTITION SIZE 's' PARTITIONS AUTO SELECT a
 1064	1054	engine	one_table@table	auto_range_type/PARTITION_BY_RANGE_COLUMNS_(_column_name_list_)	CREATE TABLE a NOPARALLEL PARTITION BY RANGE COLUMNS(a) PARTITION SIZE 's' PARTITIONS AUTO SELECT a
-1503	1054	engine	one_table@table	hash_partition_option/PARTITION_BY_HASH_(_expr_)_partition_options	ALTER TABLE a PARTITION BY HASH(a)
-1503	1054	engine	one_table@table	hash_partition_option/PARTITION_BY_HASH_(_expr_)_partition_options_opt_hash_partition_list	ALTER TABLE a PARTITION BY HASH(a)(PARTITION a)
-1503	1054	engine	one_table@table	list_partition_option/PARTITION_BY_BISON_LIST_(_expr_)_partition_options_opt_list_partition_list	ALTER TABLE a PARTITION BY LIST(a)(PARTITION a VALUES IN(a))
-1503	1054	engine	one_table@table	list_partition_option/PARTITION_BY_BISON_LIST_COLUMNS_(_column_name_list_)_partition_options_opt_list_partition_list	ALTER TABLE a PARTITION BY LIST COLUMNS(a)(PARTITION a VALUES IN(a))
-1503	1054	engine	one_table@table	key_partition_option/PARTITION_BY_KEY_(_column_name_list_)_partition_options	ALTER TABLE a PARTITION BY KEY(a)
-1503	1054	engine	one_table@table	key_partition_option/PARTITION_BY_KEY_(_column_name_list_)_partition_options_opt_hash_partition_list	ALTER TABLE a PARTITION BY KEY(a)(PARTITION a)
+1054	1054	engine	one_table@table	hash_partition_option/PARTITION_BY_HASH_(_expr_)_partition_options	ALTER TABLE a PARTITION BY HASH(a)
+1054	1054	engine	one_table@table	hash_partition_option/PARTITION_BY_HASH_(_expr_)_partition_options_opt_hash_partition_list	ALTER TABLE a PARTITION BY HASH(a)(PARTITION a)
+1054	1054	engine	one_table@table	list_partition_option/PARTITION_BY_BISON_LIST_(_expr_)_partition_options_opt_list_partition_list	ALTER TABLE a PARTITION BY LIST(a)(PARTITION a VALUES IN(a))
+1054	1054	engine	one_table@table	list_partition_option/PARTITION_BY_BISON_LIST_COLUMNS_(_column_name_list_)_partition_options_opt_list_partition_list	ALTER TABLE a PARTITION BY LIST COLUMNS(a)(PARTITION a VALUES IN(a))
+1054	1054	engine	one_table@table	key_partition_option/PARTITION_BY_KEY_(_column_name_list_)_partition_options	ALTER TABLE a PARTITION BY KEY(a)
+1054	1054	engine	one_table@table	key_partition_option/PARTITION_BY_KEY_(_column_name_list_)_partition_options_opt_hash_partition_list	ALTER TABLE a PARTITION BY KEY(a)(PARTITION a)
 ok	ok:f09a89150ba7	engine	one_table@table	key_partition_option/PARTITION_BY_KEY_(_)_partition_options	ALTER TABLE a PARTITION BY KEY()
 ok	ok:509600a00022	engine	one_table@table	key_partition_option/PARTITION_BY_KEY_(_)_partition_options_opt_hash_partition_list	ALTER TABLE a PARTITION BY KEY()(PARTITION a)
 1064	ok:66f73c3d490f	engine	one_table@table	range_partition_option/PARTITION_BY_RANGE_(_)_opt_partitions_opt_auto_split_tablet_size_option	ALTER TABLE a PARTITION BY RANGE()
-1503	1054	engine	one_table@table	range_partition_option/PARTITION_BY_RANGE_(_expr_)_partition_options_opt_range_partition_info	ALTER TABLE a PARTITION BY RANGE(a)
+1054	1054	engine	one_table@table	range_partition_option/PARTITION_BY_RANGE_(_expr_)_partition_options_opt_range_partition_info	ALTER TABLE a PARTITION BY RANGE(a)
 1064	ok:66f73c3d490f	engine	one_table@table	range_partition_option/PARTITION_BY_RANGE_COLUMNS_(_)_opt_partitions_opt_auto_split_tablet_size_option	ALTER TABLE a PARTITION BY RANGE COLUMNS()
-1503	1054	engine	one_table@table	range_partition_option/PARTITION_BY_RANGE_COLUMNS_(_column_name_list_)_partition_options_opt_range_partition_info	ALTER TABLE a PARTITION BY RANGE COLUMNS(a)
+1054	1054	engine	one_table@table	range_partition_option/PARTITION_BY_RANGE_COLUMNS_(_column_name_list_)_partition_options_opt_range_partition_info	ALTER TABLE a PARTITION BY RANGE COLUMNS(a)
 1064	1064	engine	one_table@table	opt_auto_split_tablet_size_option/auto_split_tablet_size_option	ALTER TABLE a PARTITION BY RANGE() SIZE('s')
 1064	1054	engine	one_table@table	opt_range_partition_info/auto_split_tablet_size_option_(_range_partition_list_)	ALTER TABLE a PARTITION BY RANGE(a) SIZE('s')(PARTITION a VALUES LESS THAN MAXVALUE)
 1064	1054	engine	one_table@table	opt_range_partition_info/auto_split_tablet_size_option	ALTER TABLE a PARTITION BY RANGE(a) SIZE('s')
-1503	1054	engine	one_table@table	opt_range_partition_info/(_range_partition_list_)	ALTER TABLE a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN MAXVALUE)
-1503	1054	engine	one_table@table	partition_options/partition_num_subpartition_option	ALTER TABLE a PARTITION BY KEY() PARTITIONS 1 SUBPARTITION BY RANGE(a)
-1503	1054	engine	one_table@table	partition_options/subpartition_option_partition_num	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY RANGE(a) PARTITIONS 1
-1503	1054	engine	one_table@table	partition_options/subpartition_option	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY RANGE(a)
+1054	1054	engine	one_table@table	opt_range_partition_info/(_range_partition_list_)	ALTER TABLE a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN MAXVALUE)
+1054	1054	engine	one_table@table	partition_options/partition_num_subpartition_option	ALTER TABLE a PARTITION BY KEY() PARTITIONS 1 SUBPARTITION BY RANGE(a)
+1054	1054	engine	one_table@table	partition_options/subpartition_option_partition_num	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY RANGE(a) PARTITIONS 1
+1054	1054	engine	one_table@table	partition_options/subpartition_option	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY RANGE(a)
 ok	ok:f09a89150ba7	engine	one_table@table	partition_options/partition_num	ALTER TABLE a PARTITION BY KEY() PARTITIONS 1
-1503	1054	engine	one_table@table	subpartition_option/subpartition_template_option	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY HASH(a) SUBPARTITION TEMPLATE(SUBPARTITION a)
-1503	1054	engine	one_table@table	subpartition_template_option/SUBPARTITION_BY_RANGE_(_expr_)_SUBPARTITION_TEMPLATE_opt_range_subpartition_list	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(SUBPARTITION a VALUES LESS THAN MAXVALUE)
-1503	1054	engine	one_table@table	subpartition_template_option/SUBPARTITION_BY_RANGE_COLUMNS_(_column_name_list_)_SUBPARTITION_TEMPLATE_opt_range_subpartition_list	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY RANGE COLUMNS(a) SUBPARTITION TEMPLATE(SUBPARTITION a VALUES LESS THAN MAXVALUE)
-1503	1054	engine	one_table@table	subpartition_template_option/SUBPARTITION_BY_BISON_LIST_(_expr_)_SUBPARTITION_TEMPLATE_opt_list_subpartition_list	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY LIST(a) SUBPARTITION TEMPLATE(SUBPARTITION a VALUES IN(a))
-1503	1054	engine	one_table@table	subpartition_template_option/SUBPARTITION_BY_BISON_LIST_COLUMNS_(_column_name_list_)_SUBPARTITION_TEMPLATE_opt_list_subpartition_list	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY LIST COLUMNS(a) SUBPARTITION TEMPLATE(SUBPARTITION a VALUES IN(a))
-1503	1054	engine	one_table@table	subpartition_template_option/SUBPARTITION_BY_KEY_(_column_name_list_)_SUBPARTITION_TEMPLATE_opt_hash_subpartition_list	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY KEY(a) SUBPARTITION TEMPLATE(SUBPARTITION a)
-1503	1054	engine	one_table@table	subpartition_individual_option/SUBPARTITION_BY_RANGE_COLUMNS_(_column_name_list_)	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY RANGE COLUMNS(a)
-1503	1054	engine	one_table@table	subpartition_individual_option/SUBPARTITION_BY_HASH_(_expr_)_opt_subpartitions	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY HASH(a)
-1503	1054	engine	one_table@table	subpartition_individual_option/SUBPARTITION_BY_BISON_LIST_(_expr_)	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY LIST(a)
-1503	1054	engine	one_table@table	subpartition_individual_option/SUBPARTITION_BY_BISON_LIST_COLUMNS_(_column_name_list_)	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY LIST COLUMNS(a)
-1503	1054	engine	one_table@table	subpartition_individual_option/SUBPARTITION_BY_KEY_(_column_name_list_)_opt_subpartitions	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY KEY(a)
+1054	1054	engine	one_table@table	subpartition_option/subpartition_template_option	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY HASH(a) SUBPARTITION TEMPLATE(SUBPARTITION a)
+1054	1054	engine	one_table@table	subpartition_template_option/SUBPARTITION_BY_RANGE_(_expr_)_SUBPARTITION_TEMPLATE_opt_range_subpartition_list	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(SUBPARTITION a VALUES LESS THAN MAXVALUE)
+1054	1054	engine	one_table@table	subpartition_template_option/SUBPARTITION_BY_RANGE_COLUMNS_(_column_name_list_)_SUBPARTITION_TEMPLATE_opt_range_subpartition_list	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY RANGE COLUMNS(a) SUBPARTITION TEMPLATE(SUBPARTITION a VALUES LESS THAN MAXVALUE)
+1054	1054	engine	one_table@table	subpartition_template_option/SUBPARTITION_BY_BISON_LIST_(_expr_)_SUBPARTITION_TEMPLATE_opt_list_subpartition_list	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY LIST(a) SUBPARTITION TEMPLATE(SUBPARTITION a VALUES IN(a))
+1054	1054	engine	one_table@table	subpartition_template_option/SUBPARTITION_BY_BISON_LIST_COLUMNS_(_column_name_list_)_SUBPARTITION_TEMPLATE_opt_list_subpartition_list	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY LIST COLUMNS(a) SUBPARTITION TEMPLATE(SUBPARTITION a VALUES IN(a))
+1054	1054	engine	one_table@table	subpartition_template_option/SUBPARTITION_BY_KEY_(_column_name_list_)_SUBPARTITION_TEMPLATE_opt_hash_subpartition_list	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY KEY(a) SUBPARTITION TEMPLATE(SUBPARTITION a)
+1054	1054	engine	one_table@table	subpartition_individual_option/SUBPARTITION_BY_RANGE_COLUMNS_(_column_name_list_)	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY RANGE COLUMNS(a)
+1054	1054	engine	one_table@table	subpartition_individual_option/SUBPARTITION_BY_HASH_(_expr_)_opt_subpartitions	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY HASH(a)
+1054	1054	engine	one_table@table	subpartition_individual_option/SUBPARTITION_BY_BISON_LIST_(_expr_)	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY LIST(a)
+1054	1054	engine	one_table@table	subpartition_individual_option/SUBPARTITION_BY_BISON_LIST_COLUMNS_(_column_name_list_)	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY LIST COLUMNS(a)
+1054	1054	engine	one_table@table	subpartition_individual_option/SUBPARTITION_BY_KEY_(_column_name_list_)_opt_subpartitions	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY KEY(a)
 ok	1517	engine	one_table@table	hash_partition_list/hash_partition_list_,_hash_partition_element	ALTER TABLE a PARTITION BY KEY()(PARTITION a, PARTITION a)
-error	1505	engine	one_table@table	opt_range_partition_list/(_range_partition_list_)	ALTER TABLE a ADD PARTITION(PARTITION a VALUES LESS THAN MAXVALUE)
-error	1505	engine	one_table@table	range_partition_list/range_partition_list_,_range_partition_element	ALTER TABLE a ADD PARTITION(PARTITION a VALUES LESS THAN MAXVALUE, PARTITION a VALUES LESS THAN MAXVALUE)
-error	1505	engine	one_table@table	opt_list_partition_list/(_list_partition_list_)	ALTER TABLE a ADD PARTITION(PARTITION a VALUES IN(a))
-error	1505	engine	one_table@table	list_partition_list/list_partition_list_,_list_partition_element	ALTER TABLE a ADD PARTITION(PARTITION a VALUES IN(a), PARTITION a VALUES IN(a))
-ok	1500	engine	one_table@table	opt_subpartition_list/opt_hash_subpartition_list	ALTER TABLE a PARTITION BY KEY()(PARTITION a(SUBPARTITION a))
-ok	1500	engine	one_table@table	opt_subpartition_list/opt_range_subpartition_list	ALTER TABLE a PARTITION BY KEY()(PARTITION a(SUBPARTITION a VALUES LESS THAN MAXVALUE))
-ok	1500	engine	one_table@table	opt_subpartition_list/opt_list_subpartition_list	ALTER TABLE a PARTITION BY KEY()(PARTITION a(SUBPARTITION a VALUES IN(a)))
-ok	1500	engine	one_table@table	hash_subpartition_list/hash_subpartition_list_,_hash_subpartition_element	ALTER TABLE a PARTITION BY KEY()(PARTITION a(SUBPARTITION a, SUBPARTITION a))
+1505	1505	engine	one_table@table	opt_range_partition_list/(_range_partition_list_)	ALTER TABLE a ADD PARTITION(PARTITION a VALUES LESS THAN MAXVALUE)
+1505	1505	engine	one_table@table	range_partition_list/range_partition_list_,_range_partition_element	ALTER TABLE a ADD PARTITION(PARTITION a VALUES LESS THAN MAXVALUE, PARTITION a VALUES LESS THAN MAXVALUE)
+1505	1505	engine	one_table@table	opt_list_partition_list/(_list_partition_list_)	ALTER TABLE a ADD PARTITION(PARTITION a VALUES IN(a))
+1505	1505	engine	one_table@table	list_partition_list/list_partition_list_,_list_partition_element	ALTER TABLE a ADD PARTITION(PARTITION a VALUES IN(a), PARTITION a VALUES IN(a))
+1500	1500	engine	one_table@table	opt_subpartition_list/opt_hash_subpartition_list	ALTER TABLE a PARTITION BY KEY()(PARTITION a(SUBPARTITION a))
+1500	1500	engine	one_table@table	opt_subpartition_list/opt_range_subpartition_list	ALTER TABLE a PARTITION BY KEY()(PARTITION a(SUBPARTITION a VALUES LESS THAN MAXVALUE))
+1500	1500	engine	one_table@table	opt_subpartition_list/opt_list_subpartition_list	ALTER TABLE a PARTITION BY KEY()(PARTITION a(SUBPARTITION a VALUES IN(a)))
+1500	1500	engine	one_table@table	hash_subpartition_list/hash_subpartition_list_,_hash_subpartition_element	ALTER TABLE a PARTITION BY KEY()(PARTITION a(SUBPARTITION a, SUBPARTITION a))
 ok	ok:509600a00022	engine	one_table@table	opt_engine_option/ENGINE__COMP_EQ_INNODB	ALTER TABLE a PARTITION BY KEY()(PARTITION a ENGINE = INNODB)
 ok	1505	engine	one_table@table	opt_range_subpartition_list/(_range_subpartition_list_)	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES LESS THAN MAXVALUE)
 ok	1505	engine	one_table@table	range_subpartition_list/range_subpartition_list_,_range_subpartition_element	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES LESS THAN MAXVALUE, SUBPARTITION a VALUES LESS THAN MAXVALUE)
 ok	1505	engine	one_table@table	opt_list_subpartition_list/(_list_subpartition_list_)	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES IN(a))
 ok	1505	engine	one_table@table	list_subpartition_list/list_subpartition_list_,_list_subpartition_element	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES IN(a), SUBPARTITION a VALUES IN(a))
-error	1505	engine	one_table@table	list_partition_expr/(_DEFAULT_)	ALTER TABLE a ADD PARTITION(PARTITION a VALUES IN(DEFAULT))
-error	1505	engine	one_table@table	list_partition_expr/(_DEFAULT_)!swap	ALTER TABLE a ADD PARTITION(PARTITION a VALUES IN(DEFAULT_AUTH))
-error	1505	engine	one_table@table	list_expr/list_expr_,_expr	ALTER TABLE a ADD PARTITION(PARTITION a VALUES IN(a, a))
-error	1505	engine	one_table@table	range_partition_expr/(_range_expr_list_)	ALTER TABLE a ADD PARTITION(PARTITION a VALUES LESS THAN(a))
+1505	1505	engine	one_table@table	list_partition_expr/(_DEFAULT_)	ALTER TABLE a ADD PARTITION(PARTITION a VALUES IN(DEFAULT))
+1505	1505	engine	one_table@table	list_partition_expr/(_DEFAULT_)!swap	ALTER TABLE a ADD PARTITION(PARTITION a VALUES IN(DEFAULT_AUTH))
+1505	1505	engine	one_table@table	list_expr/list_expr_,_expr	ALTER TABLE a ADD PARTITION(PARTITION a VALUES IN(a, a))
+1505	1505	engine	one_table@table	range_partition_expr/(_range_expr_list_)	ALTER TABLE a ADD PARTITION(PARTITION a VALUES LESS THAN(a))
 ok	ok:509600a00022	engine	one_table@table	opt_part_id/ID_INTNUM	ALTER TABLE a PARTITION BY KEY()(PARTITION a ID 1)
-error	1505	engine	one_table@table	range_expr_list/range_expr_list_,_expr	ALTER TABLE a ADD PARTITION(PARTITION a VALUES LESS THAN(a, a))
+1505	1505	engine	one_table@table	range_expr_list/range_expr_list_,_expr	ALTER TABLE a ADD PARTITION(PARTITION a VALUES LESS THAN(a, a))
 ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	int_or_decimal/DECIMAL_VAL	ALTER TABLE a AUTO_INCREMENT 1.5
 ok	1235	engine	one_table@table	index_or_heap/HEAP	ALTER TABLE a ORGANIZATION HEAP
 ok:97968c4a6f5d	ok:97968c4a6f5d	engine	one_table@table	row_format_option/COMPACT	ALTER TABLE a ROW_FORMAT COMPACT
@@ -1035,15 +1035,15 @@ ok	1072	engine	one_table@table	opt_index_using_algorithm/index_using_algorithm!d
 ok	1072	engine	one_table@table	index_using_algorithm/USING_HASH	ALTER TABLE a ADD KEY USING HASH(a)
 ok	1072	engine	one_table@table	index_using_algorithm/USING_HASH!drop-1	ALTER TABLE a ADD KEY HASH(a)
 1051	1066	engine	one_table@table	table_list/table_list_,_relation_factor	DROP TABLE a, a
-error	1505	engine	one_table@table	name_list/NAME_OB	ALTER TABLE a DROP PARTITION a
-error	1505	engine	one_table@table	name_list/NAME_OB!insert	ALTER TABLE a DROP PARTITION a zzz
-error	1505	engine	one_table@table	name_list/name_list_NAME_OB	ALTER TABLE a DROP PARTITION a a
-error	1505	engine	one_table@table	name_list/name_list_NAME_OB!insert	ALTER TABLE a DROP PARTITION a a zzz
-error	1505	engine	one_table@table	name_list/name_list_,_NAME_OB	ALTER TABLE a DROP PARTITION a, a
-error	1505	engine	one_table@table	name_list/name_list_,_NAME_OB!insert	ALTER TABLE a DROP PARTITION a, a zzz
-error	1505	engine	one_table@table	name_list/unreserved_keyword	ALTER TABLE a DROP PARTITION ACCESS_INFO
-error	1505	engine	one_table@table	name_list/unreserved_keyword!insert	ALTER TABLE a DROP PARTITION ACCESS_INFO zzz
-error	1505	engine	one_table@table	name_list/unreserved_keyword!swap	ALTER TABLE a DROP PARTITION ACCOUNT
+1505	1505	engine	one_table@table	name_list/NAME_OB	ALTER TABLE a DROP PARTITION a
+1505	1505	engine	one_table@table	name_list/NAME_OB!insert	ALTER TABLE a DROP PARTITION a zzz
+1505	1505	engine	one_table@table	name_list/name_list_NAME_OB	ALTER TABLE a DROP PARTITION a a
+1505	1505	engine	one_table@table	name_list/name_list_NAME_OB!insert	ALTER TABLE a DROP PARTITION a a zzz
+1505	1505	engine	one_table@table	name_list/name_list_,_NAME_OB	ALTER TABLE a DROP PARTITION a, a
+1505	1505	engine	one_table@table	name_list/name_list_,_NAME_OB!insert	ALTER TABLE a DROP PARTITION a, a zzz
+1505	1505	engine	one_table@table	name_list/unreserved_keyword	ALTER TABLE a DROP PARTITION ACCESS_INFO
+1505	1505	engine	one_table@table	name_list/unreserved_keyword!insert	ALTER TABLE a DROP PARTITION ACCESS_INFO zzz
+1505	1505	engine	one_table@table	name_list/unreserved_keyword!swap	ALTER TABLE a DROP PARTITION ACCOUNT
 1091	1091	engine	one_table@table	key_or_index/INDEX	ALTER TABLE a DROP INDEX a
 1050	1050	engine	one_table@table	rename_table_actions/rename_table_actions_,_rename_table_action	RENAME TABLE a TO a, a TO a
 1064	ok:8b06d49c8260	engine	one_table@table	alter_table_stmt/alter_with_opt_hint_TABLE_relation_factor_alter_column_group_option	ALTER TABLE a ADD COLUMN GROUP(ALL COLUMNS)
@@ -1073,13 +1073,13 @@ ok	1505	engine	one_table@table	alter_partition_option/DROP_SUBPARTITION_drop_par
 ok	1505	engine	one_table@table	alter_partition_option/DROP_SUBPARTITION_drop_partition_name_list!insert	ALTER TABLE a DROP SUBPARTITION a zzz
 ok	1505	engine	one_table@table	alter_partition_option/alter_with_opt_hint_PARTITION_name_list_STORAGE_CACHE_POLICY_COMP_EQ_STRING_VALUE	ALTER TABLE a ALTER PARTITION a STORAGE_CACHE_POLICY = 's'
 ok	1505	engine	one_table@table	alter_partition_option/alter_with_opt_hint_SUBPARTITION_name_list_STORAGE_CACHE_POLICY_COMP_EQ_STRING_VALUE	ALTER TABLE a ALTER SUBPARTITION a STORAGE_CACHE_POLICY = 's'
-error	1505	engine	one_table@table	alter_partition_option/REORGANIZE_PARTITION_name_list_INTO_opt_partition_range_or_list	ALTER TABLE a REORGANIZE PARTITION a INTO(PARTITION a VALUES LESS THAN MAXVALUE)
-error	1505	engine	one_table@table	alter_partition_option/TRUNCATE_PARTITION_name_list	ALTER TABLE a TRUNCATE PARTITION a
-error	1505	engine	one_table@table	alter_partition_option/TRUNCATE_PARTITION_name_list!insert	ALTER TABLE a TRUNCATE PARTITION a zzz
+1505	1505	engine	one_table@table	alter_partition_option/REORGANIZE_PARTITION_name_list_INTO_opt_partition_range_or_list	ALTER TABLE a REORGANIZE PARTITION a INTO(PARTITION a VALUES LESS THAN MAXVALUE)
+1505	1505	engine	one_table@table	alter_partition_option/TRUNCATE_PARTITION_name_list	ALTER TABLE a TRUNCATE PARTITION a
+1505	1505	engine	one_table@table	alter_partition_option/TRUNCATE_PARTITION_name_list!insert	ALTER TABLE a TRUNCATE PARTITION a zzz
 ok	1505	engine	one_table@table	alter_partition_option/TRUNCATE_SUBPARTITION_name_list	ALTER TABLE a TRUNCATE SUBPARTITION a
 ok	1505	engine	one_table@table	alter_partition_option/TRUNCATE_SUBPARTITION_name_list!insert	ALTER TABLE a TRUNCATE SUBPARTITION a zzz
-error	1505	engine	one_table@table	alter_partition_option/EXCHANGE_PARTITION_relation_name_WITH_TABLE_relation_factor_WITHOUT_VALIDATION	ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a WITHOUT VALIDATION
-error	1505	engine	one_table@table	drop_partition_name_list/(_name_list_)	ALTER TABLE a DROP PARTITION(a)
+1505	1505	engine	one_table@table	alter_partition_option/EXCHANGE_PARTITION_relation_name_WITH_TABLE_relation_factor_WITHOUT_VALIDATION	ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a WITHOUT VALIDATION
+1505	1505	engine	one_table@table	drop_partition_name_list/(_name_list_)	ALTER TABLE a DROP PARTITION(a)
 ok	1072	engine	one_table@table	alter_index_option/ADD_add_unique_key_opt	ALTER TABLE a ADD UNIQUE(a)
 ok	1072	engine	one_table@table	alter_index_option/ADD_add_spatial_index_opt	ALTER TABLE a ADD SPATIAL(a)
 1068	1068	engine	one_table@table	alter_index_option/ADD_add_constraint_pri_key_opt	ALTER TABLE a ADD CONSTRAINT PRIMARY KEY(a)
@@ -1184,21 +1184,21 @@ ok	1054	engine	one_table@column	create_table_stmt/create_with_opt_hint_special_t
 1050	1050	engine	one_table@column	table_element_list/table_element!swap	CREATE TABLE a(a TINYTEXT)
 1050	1060	engine	one_table@column	table_element_list/table_element_list_,_table_element	CREATE TABLE a(a TINYINT, a TINYINT)
 1050	1060	engine	one_table@column	table_element_list/table_element_list_,_table_element!swap	CREATE TABLE a(a TINYTEXT, a TINYINT)
-1050	4028	engine	one_table@column	table_element/constraint_definition	CREATE TABLE a(CHECK(a))
-1050	4028	engine	one_table@column	table_element/CONSTRAINT_opt_constraint_name_PRIMARY_KEY_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment	CREATE TABLE a(CONSTRAINT PRIMARY KEY(a))
-1050	4028	engine	one_table@column	table_element/PRIMARY_KEY_opt_index_name_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment	CREATE TABLE a(PRIMARY KEY(a))
-1050	4028	engine	one_table@column	table_element/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option	CREATE TABLE a(KEY(a))
+4028	4028	engine	one_table@column	table_element/constraint_definition	CREATE TABLE a(CHECK(a))
+4028	4028	engine	one_table@column	table_element/CONSTRAINT_opt_constraint_name_PRIMARY_KEY_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment	CREATE TABLE a(CONSTRAINT PRIMARY KEY(a))
+4028	4028	engine	one_table@column	table_element/PRIMARY_KEY_opt_index_name_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment	CREATE TABLE a(PRIMARY KEY(a))
+4028	4028	engine	one_table@column	table_element/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option	CREATE TABLE a(KEY(a))
 1064	4028	engine	one_table@column	table_element/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	CREATE TABLE a(KEY(a) WITH COLUMN GROUP(ALL COLUMNS))
-1050	4028	engine	one_table@column	table_element/UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option	CREATE TABLE a(UNIQUE(a))
+4028	4028	engine	one_table@column	table_element/UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option	CREATE TABLE a(UNIQUE(a))
 1064	4028	engine	one_table@column	table_element/UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	CREATE TABLE a(UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS))
-1050	4028	engine	one_table@column	table_element/CONSTRAINT_opt_constraint_name_UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(CONSTRAINT UNIQUE(a))
+4028	4028	engine	one_table@column	table_element/CONSTRAINT_opt_constraint_name_UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(CONSTRAINT UNIQUE(a))
 1064	4028	engine	one_table@column	table_element/CONSTRAINT_opt_constraint_name_UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_with_column_group	CREATE TABLE a(CONSTRAINT UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS))
-1050	4028	engine	one_table@column	table_element/FULLTEXT_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_fulltext_index_option_list	CREATE TABLE a(FULLTEXT(a))
-1050	4028	engine	one_table@column	table_element/VECTOR_key_or_index_opt_index_name_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(VECTOR KEY(a))
-1050	4028	engine	one_table@column	table_element/CONSTRAINT_opt_constraint_name_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	CREATE TABLE a(CONSTRAINT FOREIGN KEY(a) REFERENCES a(a))
-1050	4028	engine	one_table@column	table_element/SPATIAL_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(SPATIAL(a))
+4028	4028	engine	one_table@column	table_element/FULLTEXT_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_fulltext_index_option_list	CREATE TABLE a(FULLTEXT(a))
+4028	4028	engine	one_table@column	table_element/VECTOR_key_or_index_opt_index_name_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(VECTOR KEY(a))
+4028	4028	engine	one_table@column	table_element/CONSTRAINT_opt_constraint_name_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	CREATE TABLE a(CONSTRAINT FOREIGN KEY(a) REFERENCES a(a))
+4028	4028	engine	one_table@column	table_element/SPATIAL_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(SPATIAL(a))
 1064	4028	engine	one_table@column	table_element/SPATIAL_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_with_column_group	CREATE TABLE a(SPATIAL(a) WITH COLUMN GROUP(ALL COLUMNS))
-1050	4028	engine	one_table@column	table_element/FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a(a))
+4028	4028	engine	one_table@column	table_element/FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a(a))
 1060	1060	engine	one_table@column	opt_column_reference/REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	ALTER TABLE a ADD a TINYINT REFERENCES a(a)
 1060	1060	engine	one_table@column	opt_column_reference/%empty	ALTER TABLE a ADD a TINYINT
 1060	1060	engine	one_table@column	opt_reference_option_list/opt_reference_option_list_reference_option	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON UPDATE RESTRICT
@@ -1458,8 +1458,8 @@ ok	10503	engine	one_table@column	ttl_unit/YEAR	ALTER TABLE a TTL(a + INTERVAL 1 
 1064	1054	engine	one_table@column	auto_range_type/PARTITION_BY_RANGE_COLUMNS_(_column_name_list_)	CREATE TABLE a NOPARALLEL PARTITION BY RANGE COLUMNS(a) PARTITION SIZE 's' PARTITIONS AUTO SELECT a
 1503	1503	engine	one_table@column	hash_partition_option/PARTITION_BY_HASH_(_expr_)_partition_options	ALTER TABLE a PARTITION BY HASH(a)
 1503	1503	engine	one_table@column	hash_partition_option/PARTITION_BY_HASH_(_expr_)_partition_options_opt_hash_partition_list	ALTER TABLE a PARTITION BY HASH(a)(PARTITION a)
-1503	1054	engine	one_table@column	list_partition_option/PARTITION_BY_BISON_LIST_(_expr_)_partition_options_opt_list_partition_list	ALTER TABLE a PARTITION BY LIST(a)(PARTITION a VALUES IN(a))
-1503	1054	engine	one_table@column	list_partition_option/PARTITION_BY_BISON_LIST_COLUMNS_(_column_name_list_)_partition_options_opt_list_partition_list	ALTER TABLE a PARTITION BY LIST COLUMNS(a)(PARTITION a VALUES IN(a))
+1054	1054	engine	one_table@column	list_partition_option/PARTITION_BY_BISON_LIST_(_expr_)_partition_options_opt_list_partition_list	ALTER TABLE a PARTITION BY LIST(a)(PARTITION a VALUES IN(a))
+1054	1054	engine	one_table@column	list_partition_option/PARTITION_BY_BISON_LIST_COLUMNS_(_column_name_list_)_partition_options_opt_list_partition_list	ALTER TABLE a PARTITION BY LIST COLUMNS(a)(PARTITION a VALUES IN(a))
 1503	1503	engine	one_table@column	key_partition_option/PARTITION_BY_KEY_(_column_name_list_)_partition_options	ALTER TABLE a PARTITION BY KEY(a)
 1503	1503	engine	one_table@column	key_partition_option/PARTITION_BY_KEY_(_column_name_list_)_partition_options_opt_hash_partition_list	ALTER TABLE a PARTITION BY KEY(a)(PARTITION a)
 ok	ok:cf8feb37e772	engine	one_table@column	key_partition_option/PARTITION_BY_KEY_(_)_partition_options	ALTER TABLE a PARTITION BY KEY()
@@ -1479,8 +1479,8 @@ ok	ok:cf8feb37e772	engine	one_table@column	partition_options/partition_num	ALTER
 1503	1503	engine	one_table@column	subpartition_option/subpartition_template_option	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY HASH(a) SUBPARTITION TEMPLATE(SUBPARTITION a)
 1503	1503	engine	one_table@column	subpartition_template_option/SUBPARTITION_BY_RANGE_(_expr_)_SUBPARTITION_TEMPLATE_opt_range_subpartition_list	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(SUBPARTITION a VALUES LESS THAN MAXVALUE)
 1503	1503	engine	one_table@column	subpartition_template_option/SUBPARTITION_BY_RANGE_COLUMNS_(_column_name_list_)_SUBPARTITION_TEMPLATE_opt_range_subpartition_list	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY RANGE COLUMNS(a) SUBPARTITION TEMPLATE(SUBPARTITION a VALUES LESS THAN MAXVALUE)
-1503	1054	engine	one_table@column	subpartition_template_option/SUBPARTITION_BY_BISON_LIST_(_expr_)_SUBPARTITION_TEMPLATE_opt_list_subpartition_list	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY LIST(a) SUBPARTITION TEMPLATE(SUBPARTITION a VALUES IN(a))
-1503	1054	engine	one_table@column	subpartition_template_option/SUBPARTITION_BY_BISON_LIST_COLUMNS_(_column_name_list_)_SUBPARTITION_TEMPLATE_opt_list_subpartition_list	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY LIST COLUMNS(a) SUBPARTITION TEMPLATE(SUBPARTITION a VALUES IN(a))
+1054	1054	engine	one_table@column	subpartition_template_option/SUBPARTITION_BY_BISON_LIST_(_expr_)_SUBPARTITION_TEMPLATE_opt_list_subpartition_list	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY LIST(a) SUBPARTITION TEMPLATE(SUBPARTITION a VALUES IN(a))
+1054	1054	engine	one_table@column	subpartition_template_option/SUBPARTITION_BY_BISON_LIST_COLUMNS_(_column_name_list_)_SUBPARTITION_TEMPLATE_opt_list_subpartition_list	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY LIST COLUMNS(a) SUBPARTITION TEMPLATE(SUBPARTITION a VALUES IN(a))
 1503	1503	engine	one_table@column	subpartition_template_option/SUBPARTITION_BY_KEY_(_column_name_list_)_SUBPARTITION_TEMPLATE_opt_hash_subpartition_list	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY KEY(a) SUBPARTITION TEMPLATE(SUBPARTITION a)
 1503	1503	engine	one_table@column	subpartition_individual_option/SUBPARTITION_BY_RANGE_COLUMNS_(_column_name_list_)	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY RANGE COLUMNS(a)
 1503	1503	engine	one_table@column	subpartition_individual_option/SUBPARTITION_BY_HASH_(_expr_)_opt_subpartitions	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY HASH(a)
@@ -1488,25 +1488,25 @@ ok	ok:cf8feb37e772	engine	one_table@column	partition_options/partition_num	ALTER
 1503	1503	engine	one_table@column	subpartition_individual_option/SUBPARTITION_BY_BISON_LIST_COLUMNS_(_column_name_list_)	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY LIST COLUMNS(a)
 1503	1503	engine	one_table@column	subpartition_individual_option/SUBPARTITION_BY_KEY_(_column_name_list_)_opt_subpartitions	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY KEY(a)
 ok	1517	engine	one_table@column	hash_partition_list/hash_partition_list_,_hash_partition_element	ALTER TABLE a PARTITION BY KEY()(PARTITION a, PARTITION a)
-error	1505	engine	one_table@column	opt_range_partition_list/(_range_partition_list_)	ALTER TABLE a ADD PARTITION(PARTITION a VALUES LESS THAN MAXVALUE)
-error	1505	engine	one_table@column	range_partition_list/range_partition_list_,_range_partition_element	ALTER TABLE a ADD PARTITION(PARTITION a VALUES LESS THAN MAXVALUE, PARTITION a VALUES LESS THAN MAXVALUE)
-error	1505	engine	one_table@column	opt_list_partition_list/(_list_partition_list_)	ALTER TABLE a ADD PARTITION(PARTITION a VALUES IN(a))
-error	1505	engine	one_table@column	list_partition_list/list_partition_list_,_list_partition_element	ALTER TABLE a ADD PARTITION(PARTITION a VALUES IN(a), PARTITION a VALUES IN(a))
-ok	1500	engine	one_table@column	opt_subpartition_list/opt_hash_subpartition_list	ALTER TABLE a PARTITION BY KEY()(PARTITION a(SUBPARTITION a))
-ok	1500	engine	one_table@column	opt_subpartition_list/opt_range_subpartition_list	ALTER TABLE a PARTITION BY KEY()(PARTITION a(SUBPARTITION a VALUES LESS THAN MAXVALUE))
-ok	1500	engine	one_table@column	opt_subpartition_list/opt_list_subpartition_list	ALTER TABLE a PARTITION BY KEY()(PARTITION a(SUBPARTITION a VALUES IN(a)))
-ok	1500	engine	one_table@column	hash_subpartition_list/hash_subpartition_list_,_hash_subpartition_element	ALTER TABLE a PARTITION BY KEY()(PARTITION a(SUBPARTITION a, SUBPARTITION a))
+1505	1505	engine	one_table@column	opt_range_partition_list/(_range_partition_list_)	ALTER TABLE a ADD PARTITION(PARTITION a VALUES LESS THAN MAXVALUE)
+1505	1505	engine	one_table@column	range_partition_list/range_partition_list_,_range_partition_element	ALTER TABLE a ADD PARTITION(PARTITION a VALUES LESS THAN MAXVALUE, PARTITION a VALUES LESS THAN MAXVALUE)
+1505	1505	engine	one_table@column	opt_list_partition_list/(_list_partition_list_)	ALTER TABLE a ADD PARTITION(PARTITION a VALUES IN(a))
+1505	1505	engine	one_table@column	list_partition_list/list_partition_list_,_list_partition_element	ALTER TABLE a ADD PARTITION(PARTITION a VALUES IN(a), PARTITION a VALUES IN(a))
+1500	1500	engine	one_table@column	opt_subpartition_list/opt_hash_subpartition_list	ALTER TABLE a PARTITION BY KEY()(PARTITION a(SUBPARTITION a))
+1500	1500	engine	one_table@column	opt_subpartition_list/opt_range_subpartition_list	ALTER TABLE a PARTITION BY KEY()(PARTITION a(SUBPARTITION a VALUES LESS THAN MAXVALUE))
+1500	1500	engine	one_table@column	opt_subpartition_list/opt_list_subpartition_list	ALTER TABLE a PARTITION BY KEY()(PARTITION a(SUBPARTITION a VALUES IN(a)))
+1500	1500	engine	one_table@column	hash_subpartition_list/hash_subpartition_list_,_hash_subpartition_element	ALTER TABLE a PARTITION BY KEY()(PARTITION a(SUBPARTITION a, SUBPARTITION a))
 ok	ok:f2971bd4adee	engine	one_table@column	opt_engine_option/ENGINE__COMP_EQ_INNODB	ALTER TABLE a PARTITION BY KEY()(PARTITION a ENGINE = INNODB)
 ok	1505	engine	one_table@column	opt_range_subpartition_list/(_range_subpartition_list_)	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES LESS THAN MAXVALUE)
 ok	1505	engine	one_table@column	range_subpartition_list/range_subpartition_list_,_range_subpartition_element	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES LESS THAN MAXVALUE, SUBPARTITION a VALUES LESS THAN MAXVALUE)
 ok	1505	engine	one_table@column	opt_list_subpartition_list/(_list_subpartition_list_)	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES IN(a))
 ok	1505	engine	one_table@column	list_subpartition_list/list_subpartition_list_,_list_subpartition_element	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES IN(a), SUBPARTITION a VALUES IN(a))
-error	1505	engine	one_table@column	list_partition_expr/(_DEFAULT_)	ALTER TABLE a ADD PARTITION(PARTITION a VALUES IN(DEFAULT))
-error	1505	engine	one_table@column	list_partition_expr/(_DEFAULT_)!swap	ALTER TABLE a ADD PARTITION(PARTITION a VALUES IN(DEFAULT_AUTH))
-error	1505	engine	one_table@column	list_expr/list_expr_,_expr	ALTER TABLE a ADD PARTITION(PARTITION a VALUES IN(a, a))
-error	1505	engine	one_table@column	range_partition_expr/(_range_expr_list_)	ALTER TABLE a ADD PARTITION(PARTITION a VALUES LESS THAN(a))
+1505	1505	engine	one_table@column	list_partition_expr/(_DEFAULT_)	ALTER TABLE a ADD PARTITION(PARTITION a VALUES IN(DEFAULT))
+1505	1505	engine	one_table@column	list_partition_expr/(_DEFAULT_)!swap	ALTER TABLE a ADD PARTITION(PARTITION a VALUES IN(DEFAULT_AUTH))
+1505	1505	engine	one_table@column	list_expr/list_expr_,_expr	ALTER TABLE a ADD PARTITION(PARTITION a VALUES IN(a, a))
+1505	1505	engine	one_table@column	range_partition_expr/(_range_expr_list_)	ALTER TABLE a ADD PARTITION(PARTITION a VALUES LESS THAN(a))
 ok	ok:f2971bd4adee	engine	one_table@column	opt_part_id/ID_INTNUM	ALTER TABLE a PARTITION BY KEY()(PARTITION a ID 1)
-error	1505	engine	one_table@column	range_expr_list/range_expr_list_,_expr	ALTER TABLE a ADD PARTITION(PARTITION a VALUES LESS THAN(a, a))
+1505	1505	engine	one_table@column	range_expr_list/range_expr_list_,_expr	ALTER TABLE a ADD PARTITION(PARTITION a VALUES LESS THAN(a, a))
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	int_or_decimal/DECIMAL_VAL	ALTER TABLE a AUTO_INCREMENT 1.5
 ok	1235	engine	one_table@column	index_or_heap/HEAP	ALTER TABLE a ORGANIZATION HEAP
 ok:d937bc34a906	ok:d937bc34a906	engine	one_table@column	row_format_option/COMPACT	ALTER TABLE a ROW_FORMAT COMPACT
@@ -1604,15 +1604,15 @@ ok:c074959e710c	ok:c074959e710c	engine	one_table@column	opt_index_using_algorith
 ok:e5cac50200af	ok:e5cac50200af	engine	one_table@column	index_using_algorithm/USING_HASH	ALTER TABLE a ADD KEY USING HASH(a)
 ok:1894f59014d4	ok:1894f59014d4	engine	one_table@column	index_using_algorithm/USING_HASH!drop-1	ALTER TABLE a ADD KEY HASH(a)
 1051	1066	engine	one_table@column	table_list/table_list_,_relation_factor	DROP TABLE a, a
-error	1505	engine	one_table@column	name_list/NAME_OB	ALTER TABLE a DROP PARTITION a
-error	1505	engine	one_table@column	name_list/NAME_OB!insert	ALTER TABLE a DROP PARTITION a zzz
-error	1505	engine	one_table@column	name_list/name_list_NAME_OB	ALTER TABLE a DROP PARTITION a a
-error	1505	engine	one_table@column	name_list/name_list_NAME_OB!insert	ALTER TABLE a DROP PARTITION a a zzz
-error	1505	engine	one_table@column	name_list/name_list_,_NAME_OB	ALTER TABLE a DROP PARTITION a, a
-error	1505	engine	one_table@column	name_list/name_list_,_NAME_OB!insert	ALTER TABLE a DROP PARTITION a, a zzz
-error	1505	engine	one_table@column	name_list/unreserved_keyword	ALTER TABLE a DROP PARTITION ACCESS_INFO
-error	1505	engine	one_table@column	name_list/unreserved_keyword!insert	ALTER TABLE a DROP PARTITION ACCESS_INFO zzz
-error	1505	engine	one_table@column	name_list/unreserved_keyword!swap	ALTER TABLE a DROP PARTITION ACCOUNT
+1505	1505	engine	one_table@column	name_list/NAME_OB	ALTER TABLE a DROP PARTITION a
+1505	1505	engine	one_table@column	name_list/NAME_OB!insert	ALTER TABLE a DROP PARTITION a zzz
+1505	1505	engine	one_table@column	name_list/name_list_NAME_OB	ALTER TABLE a DROP PARTITION a a
+1505	1505	engine	one_table@column	name_list/name_list_NAME_OB!insert	ALTER TABLE a DROP PARTITION a a zzz
+1505	1505	engine	one_table@column	name_list/name_list_,_NAME_OB	ALTER TABLE a DROP PARTITION a, a
+1505	1505	engine	one_table@column	name_list/name_list_,_NAME_OB!insert	ALTER TABLE a DROP PARTITION a, a zzz
+1505	1505	engine	one_table@column	name_list/unreserved_keyword	ALTER TABLE a DROP PARTITION ACCESS_INFO
+1505	1505	engine	one_table@column	name_list/unreserved_keyword!insert	ALTER TABLE a DROP PARTITION ACCESS_INFO zzz
+1505	1505	engine	one_table@column	name_list/unreserved_keyword!swap	ALTER TABLE a DROP PARTITION ACCOUNT
 1091	1091	engine	one_table@column	key_or_index/INDEX	ALTER TABLE a DROP INDEX a
 1050	1050	engine	one_table@column	rename_table_actions/rename_table_actions_,_rename_table_action	RENAME TABLE a TO a, a TO a
 1064	ok:55cedbd601bb	engine	one_table@column	alter_table_stmt/alter_with_opt_hint_TABLE_relation_factor_alter_column_group_option	ALTER TABLE a ADD COLUMN GROUP(ALL COLUMNS)
@@ -1642,13 +1642,13 @@ ok	1505	engine	one_table@column	alter_partition_option/DROP_SUBPARTITION_drop_pa
 ok	1505	engine	one_table@column	alter_partition_option/DROP_SUBPARTITION_drop_partition_name_list!insert	ALTER TABLE a DROP SUBPARTITION a zzz
 ok	1505	engine	one_table@column	alter_partition_option/alter_with_opt_hint_PARTITION_name_list_STORAGE_CACHE_POLICY_COMP_EQ_STRING_VALUE	ALTER TABLE a ALTER PARTITION a STORAGE_CACHE_POLICY = 's'
 ok	1505	engine	one_table@column	alter_partition_option/alter_with_opt_hint_SUBPARTITION_name_list_STORAGE_CACHE_POLICY_COMP_EQ_STRING_VALUE	ALTER TABLE a ALTER SUBPARTITION a STORAGE_CACHE_POLICY = 's'
-error	1505	engine	one_table@column	alter_partition_option/REORGANIZE_PARTITION_name_list_INTO_opt_partition_range_or_list	ALTER TABLE a REORGANIZE PARTITION a INTO(PARTITION a VALUES LESS THAN MAXVALUE)
-error	1505	engine	one_table@column	alter_partition_option/TRUNCATE_PARTITION_name_list	ALTER TABLE a TRUNCATE PARTITION a
-error	1505	engine	one_table@column	alter_partition_option/TRUNCATE_PARTITION_name_list!insert	ALTER TABLE a TRUNCATE PARTITION a zzz
+1505	1505	engine	one_table@column	alter_partition_option/REORGANIZE_PARTITION_name_list_INTO_opt_partition_range_or_list	ALTER TABLE a REORGANIZE PARTITION a INTO(PARTITION a VALUES LESS THAN MAXVALUE)
+1505	1505	engine	one_table@column	alter_partition_option/TRUNCATE_PARTITION_name_list	ALTER TABLE a TRUNCATE PARTITION a
+1505	1505	engine	one_table@column	alter_partition_option/TRUNCATE_PARTITION_name_list!insert	ALTER TABLE a TRUNCATE PARTITION a zzz
 ok	1505	engine	one_table@column	alter_partition_option/TRUNCATE_SUBPARTITION_name_list	ALTER TABLE a TRUNCATE SUBPARTITION a
 ok	1505	engine	one_table@column	alter_partition_option/TRUNCATE_SUBPARTITION_name_list!insert	ALTER TABLE a TRUNCATE SUBPARTITION a zzz
-error	1505	engine	one_table@column	alter_partition_option/EXCHANGE_PARTITION_relation_name_WITH_TABLE_relation_factor_WITHOUT_VALIDATION	ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a WITHOUT VALIDATION
-error	1505	engine	one_table@column	drop_partition_name_list/(_name_list_)	ALTER TABLE a DROP PARTITION(a)
+1505	1505	engine	one_table@column	alter_partition_option/EXCHANGE_PARTITION_relation_name_WITH_TABLE_relation_factor_WITHOUT_VALIDATION	ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a WITHOUT VALIDATION
+1505	1505	engine	one_table@column	drop_partition_name_list/(_name_list_)	ALTER TABLE a DROP PARTITION(a)
 ok:9e65dfde7e19	ok:9e65dfde7e19	engine	one_table@column	alter_index_option/ADD_add_unique_key_opt	ALTER TABLE a ADD UNIQUE(a)
 1252	1687	engine	one_table@column	alter_index_option/ADD_add_spatial_index_opt	ALTER TABLE a ADD SPATIAL(a)
 1068	1068	engine	one_table@column	alter_index_option/ADD_add_constraint_pri_key_opt	ALTER TABLE a ADD CONSTRAINT PRIMARY KEY(a)
@@ -1753,21 +1753,21 @@ ok	1054	engine	one_table@index	create_table_stmt/create_with_opt_hint_special_ta
 1050	1050	engine	one_table@index	table_element_list/table_element!swap	CREATE TABLE a(a TINYTEXT)
 1050	1060	engine	one_table@index	table_element_list/table_element_list_,_table_element	CREATE TABLE a(a TINYINT, a TINYINT)
 1050	1060	engine	one_table@index	table_element_list/table_element_list_,_table_element!swap	CREATE TABLE a(a TINYTEXT, a TINYINT)
-1050	4028	engine	one_table@index	table_element/constraint_definition	CREATE TABLE a(CHECK(a))
-1050	4028	engine	one_table@index	table_element/CONSTRAINT_opt_constraint_name_PRIMARY_KEY_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment	CREATE TABLE a(CONSTRAINT PRIMARY KEY(a))
-1050	4028	engine	one_table@index	table_element/PRIMARY_KEY_opt_index_name_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment	CREATE TABLE a(PRIMARY KEY(a))
-1050	4028	engine	one_table@index	table_element/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option	CREATE TABLE a(KEY(a))
+4028	4028	engine	one_table@index	table_element/constraint_definition	CREATE TABLE a(CHECK(a))
+4028	4028	engine	one_table@index	table_element/CONSTRAINT_opt_constraint_name_PRIMARY_KEY_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment	CREATE TABLE a(CONSTRAINT PRIMARY KEY(a))
+4028	4028	engine	one_table@index	table_element/PRIMARY_KEY_opt_index_name_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment	CREATE TABLE a(PRIMARY KEY(a))
+4028	4028	engine	one_table@index	table_element/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option	CREATE TABLE a(KEY(a))
 1064	4028	engine	one_table@index	table_element/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	CREATE TABLE a(KEY(a) WITH COLUMN GROUP(ALL COLUMNS))
-1050	4028	engine	one_table@index	table_element/UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option	CREATE TABLE a(UNIQUE(a))
+4028	4028	engine	one_table@index	table_element/UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option	CREATE TABLE a(UNIQUE(a))
 1064	4028	engine	one_table@index	table_element/UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	CREATE TABLE a(UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS))
-1050	4028	engine	one_table@index	table_element/CONSTRAINT_opt_constraint_name_UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(CONSTRAINT UNIQUE(a))
+4028	4028	engine	one_table@index	table_element/CONSTRAINT_opt_constraint_name_UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(CONSTRAINT UNIQUE(a))
 1064	4028	engine	one_table@index	table_element/CONSTRAINT_opt_constraint_name_UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_with_column_group	CREATE TABLE a(CONSTRAINT UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS))
-1050	4028	engine	one_table@index	table_element/FULLTEXT_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_fulltext_index_option_list	CREATE TABLE a(FULLTEXT(a))
-1050	4028	engine	one_table@index	table_element/VECTOR_key_or_index_opt_index_name_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(VECTOR KEY(a))
-1050	4028	engine	one_table@index	table_element/CONSTRAINT_opt_constraint_name_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	CREATE TABLE a(CONSTRAINT FOREIGN KEY(a) REFERENCES a(a))
-1050	4028	engine	one_table@index	table_element/SPATIAL_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(SPATIAL(a))
+4028	4028	engine	one_table@index	table_element/FULLTEXT_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_fulltext_index_option_list	CREATE TABLE a(FULLTEXT(a))
+4028	4028	engine	one_table@index	table_element/VECTOR_key_or_index_opt_index_name_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(VECTOR KEY(a))
+4028	4028	engine	one_table@index	table_element/CONSTRAINT_opt_constraint_name_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	CREATE TABLE a(CONSTRAINT FOREIGN KEY(a) REFERENCES a(a))
+4028	4028	engine	one_table@index	table_element/SPATIAL_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(SPATIAL(a))
 1064	4028	engine	one_table@index	table_element/SPATIAL_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_with_column_group	CREATE TABLE a(SPATIAL(a) WITH COLUMN GROUP(ALL COLUMNS))
-1050	4028	engine	one_table@index	table_element/FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a(a))
+4028	4028	engine	one_table@index	table_element/FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a(a))
 1060	1060	engine	one_table@index	opt_column_reference/REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	ALTER TABLE a ADD a TINYINT REFERENCES a(a)
 1060	1060	engine	one_table@index	opt_column_reference/%empty	ALTER TABLE a ADD a TINYINT
 1060	1060	engine	one_table@index	opt_reference_option_list/opt_reference_option_list_reference_option	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON UPDATE RESTRICT
@@ -2027,8 +2027,8 @@ ok	10503	engine	one_table@index	ttl_unit/YEAR	ALTER TABLE a TTL(a + INTERVAL 1 Y
 1064	1054	engine	one_table@index	auto_range_type/PARTITION_BY_RANGE_COLUMNS_(_column_name_list_)	CREATE TABLE a NOPARALLEL PARTITION BY RANGE COLUMNS(a) PARTITION SIZE 's' PARTITIONS AUTO SELECT a
 1503	1503	engine	one_table@index	hash_partition_option/PARTITION_BY_HASH_(_expr_)_partition_options	ALTER TABLE a PARTITION BY HASH(a)
 1503	1503	engine	one_table@index	hash_partition_option/PARTITION_BY_HASH_(_expr_)_partition_options_opt_hash_partition_list	ALTER TABLE a PARTITION BY HASH(a)(PARTITION a)
-1503	1054	engine	one_table@index	list_partition_option/PARTITION_BY_BISON_LIST_(_expr_)_partition_options_opt_list_partition_list	ALTER TABLE a PARTITION BY LIST(a)(PARTITION a VALUES IN(a))
-1503	1054	engine	one_table@index	list_partition_option/PARTITION_BY_BISON_LIST_COLUMNS_(_column_name_list_)_partition_options_opt_list_partition_list	ALTER TABLE a PARTITION BY LIST COLUMNS(a)(PARTITION a VALUES IN(a))
+1054	1054	engine	one_table@index	list_partition_option/PARTITION_BY_BISON_LIST_(_expr_)_partition_options_opt_list_partition_list	ALTER TABLE a PARTITION BY LIST(a)(PARTITION a VALUES IN(a))
+1054	1054	engine	one_table@index	list_partition_option/PARTITION_BY_BISON_LIST_COLUMNS_(_column_name_list_)_partition_options_opt_list_partition_list	ALTER TABLE a PARTITION BY LIST COLUMNS(a)(PARTITION a VALUES IN(a))
 1503	1503	engine	one_table@index	key_partition_option/PARTITION_BY_KEY_(_column_name_list_)_partition_options	ALTER TABLE a PARTITION BY KEY(a)
 1503	1503	engine	one_table@index	key_partition_option/PARTITION_BY_KEY_(_column_name_list_)_partition_options_opt_hash_partition_list	ALTER TABLE a PARTITION BY KEY(a)(PARTITION a)
 ok	ok:283b765e5fd8	engine	one_table@index	key_partition_option/PARTITION_BY_KEY_(_)_partition_options	ALTER TABLE a PARTITION BY KEY()
@@ -2048,8 +2048,8 @@ ok	ok:283b765e5fd8	engine	one_table@index	partition_options/partition_num	ALTER 
 1503	1503	engine	one_table@index	subpartition_option/subpartition_template_option	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY HASH(a) SUBPARTITION TEMPLATE(SUBPARTITION a)
 1503	1503	engine	one_table@index	subpartition_template_option/SUBPARTITION_BY_RANGE_(_expr_)_SUBPARTITION_TEMPLATE_opt_range_subpartition_list	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(SUBPARTITION a VALUES LESS THAN MAXVALUE)
 1503	1503	engine	one_table@index	subpartition_template_option/SUBPARTITION_BY_RANGE_COLUMNS_(_column_name_list_)_SUBPARTITION_TEMPLATE_opt_range_subpartition_list	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY RANGE COLUMNS(a) SUBPARTITION TEMPLATE(SUBPARTITION a VALUES LESS THAN MAXVALUE)
-1503	1054	engine	one_table@index	subpartition_template_option/SUBPARTITION_BY_BISON_LIST_(_expr_)_SUBPARTITION_TEMPLATE_opt_list_subpartition_list	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY LIST(a) SUBPARTITION TEMPLATE(SUBPARTITION a VALUES IN(a))
-1503	1054	engine	one_table@index	subpartition_template_option/SUBPARTITION_BY_BISON_LIST_COLUMNS_(_column_name_list_)_SUBPARTITION_TEMPLATE_opt_list_subpartition_list	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY LIST COLUMNS(a) SUBPARTITION TEMPLATE(SUBPARTITION a VALUES IN(a))
+1054	1054	engine	one_table@index	subpartition_template_option/SUBPARTITION_BY_BISON_LIST_(_expr_)_SUBPARTITION_TEMPLATE_opt_list_subpartition_list	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY LIST(a) SUBPARTITION TEMPLATE(SUBPARTITION a VALUES IN(a))
+1054	1054	engine	one_table@index	subpartition_template_option/SUBPARTITION_BY_BISON_LIST_COLUMNS_(_column_name_list_)_SUBPARTITION_TEMPLATE_opt_list_subpartition_list	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY LIST COLUMNS(a) SUBPARTITION TEMPLATE(SUBPARTITION a VALUES IN(a))
 1503	1503	engine	one_table@index	subpartition_template_option/SUBPARTITION_BY_KEY_(_column_name_list_)_SUBPARTITION_TEMPLATE_opt_hash_subpartition_list	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY KEY(a) SUBPARTITION TEMPLATE(SUBPARTITION a)
 1503	1503	engine	one_table@index	subpartition_individual_option/SUBPARTITION_BY_RANGE_COLUMNS_(_column_name_list_)	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY RANGE COLUMNS(a)
 1503	1503	engine	one_table@index	subpartition_individual_option/SUBPARTITION_BY_HASH_(_expr_)_opt_subpartitions	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY HASH(a)
@@ -2057,25 +2057,25 @@ ok	ok:283b765e5fd8	engine	one_table@index	partition_options/partition_num	ALTER 
 1503	1503	engine	one_table@index	subpartition_individual_option/SUBPARTITION_BY_BISON_LIST_COLUMNS_(_column_name_list_)	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY LIST COLUMNS(a)
 1503	1503	engine	one_table@index	subpartition_individual_option/SUBPARTITION_BY_KEY_(_column_name_list_)_opt_subpartitions	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY KEY(a)
 ok	1517	engine	one_table@index	hash_partition_list/hash_partition_list_,_hash_partition_element	ALTER TABLE a PARTITION BY KEY()(PARTITION a, PARTITION a)
-error	1505	engine	one_table@index	opt_range_partition_list/(_range_partition_list_)	ALTER TABLE a ADD PARTITION(PARTITION a VALUES LESS THAN MAXVALUE)
-error	1505	engine	one_table@index	range_partition_list/range_partition_list_,_range_partition_element	ALTER TABLE a ADD PARTITION(PARTITION a VALUES LESS THAN MAXVALUE, PARTITION a VALUES LESS THAN MAXVALUE)
-error	1505	engine	one_table@index	opt_list_partition_list/(_list_partition_list_)	ALTER TABLE a ADD PARTITION(PARTITION a VALUES IN(a))
-error	1505	engine	one_table@index	list_partition_list/list_partition_list_,_list_partition_element	ALTER TABLE a ADD PARTITION(PARTITION a VALUES IN(a), PARTITION a VALUES IN(a))
-ok	1500	engine	one_table@index	opt_subpartition_list/opt_hash_subpartition_list	ALTER TABLE a PARTITION BY KEY()(PARTITION a(SUBPARTITION a))
-ok	1500	engine	one_table@index	opt_subpartition_list/opt_range_subpartition_list	ALTER TABLE a PARTITION BY KEY()(PARTITION a(SUBPARTITION a VALUES LESS THAN MAXVALUE))
-ok	1500	engine	one_table@index	opt_subpartition_list/opt_list_subpartition_list	ALTER TABLE a PARTITION BY KEY()(PARTITION a(SUBPARTITION a VALUES IN(a)))
-ok	1500	engine	one_table@index	hash_subpartition_list/hash_subpartition_list_,_hash_subpartition_element	ALTER TABLE a PARTITION BY KEY()(PARTITION a(SUBPARTITION a, SUBPARTITION a))
+1505	1505	engine	one_table@index	opt_range_partition_list/(_range_partition_list_)	ALTER TABLE a ADD PARTITION(PARTITION a VALUES LESS THAN MAXVALUE)
+1505	1505	engine	one_table@index	range_partition_list/range_partition_list_,_range_partition_element	ALTER TABLE a ADD PARTITION(PARTITION a VALUES LESS THAN MAXVALUE, PARTITION a VALUES LESS THAN MAXVALUE)
+1505	1505	engine	one_table@index	opt_list_partition_list/(_list_partition_list_)	ALTER TABLE a ADD PARTITION(PARTITION a VALUES IN(a))
+1505	1505	engine	one_table@index	list_partition_list/list_partition_list_,_list_partition_element	ALTER TABLE a ADD PARTITION(PARTITION a VALUES IN(a), PARTITION a VALUES IN(a))
+1500	1500	engine	one_table@index	opt_subpartition_list/opt_hash_subpartition_list	ALTER TABLE a PARTITION BY KEY()(PARTITION a(SUBPARTITION a))
+1500	1500	engine	one_table@index	opt_subpartition_list/opt_range_subpartition_list	ALTER TABLE a PARTITION BY KEY()(PARTITION a(SUBPARTITION a VALUES LESS THAN MAXVALUE))
+1500	1500	engine	one_table@index	opt_subpartition_list/opt_list_subpartition_list	ALTER TABLE a PARTITION BY KEY()(PARTITION a(SUBPARTITION a VALUES IN(a)))
+1500	1500	engine	one_table@index	hash_subpartition_list/hash_subpartition_list_,_hash_subpartition_element	ALTER TABLE a PARTITION BY KEY()(PARTITION a(SUBPARTITION a, SUBPARTITION a))
 ok	ok:4c9e15aeb927	engine	one_table@index	opt_engine_option/ENGINE__COMP_EQ_INNODB	ALTER TABLE a PARTITION BY KEY()(PARTITION a ENGINE = INNODB)
 ok	1505	engine	one_table@index	opt_range_subpartition_list/(_range_subpartition_list_)	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES LESS THAN MAXVALUE)
 ok	1505	engine	one_table@index	range_subpartition_list/range_subpartition_list_,_range_subpartition_element	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES LESS THAN MAXVALUE, SUBPARTITION a VALUES LESS THAN MAXVALUE)
 ok	1505	engine	one_table@index	opt_list_subpartition_list/(_list_subpartition_list_)	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES IN(a))
 ok	1505	engine	one_table@index	list_subpartition_list/list_subpartition_list_,_list_subpartition_element	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION(SUBPARTITION a VALUES IN(a), SUBPARTITION a VALUES IN(a))
-error	1505	engine	one_table@index	list_partition_expr/(_DEFAULT_)	ALTER TABLE a ADD PARTITION(PARTITION a VALUES IN(DEFAULT))
-error	1505	engine	one_table@index	list_partition_expr/(_DEFAULT_)!swap	ALTER TABLE a ADD PARTITION(PARTITION a VALUES IN(DEFAULT_AUTH))
-error	1505	engine	one_table@index	list_expr/list_expr_,_expr	ALTER TABLE a ADD PARTITION(PARTITION a VALUES IN(a, a))
-error	1505	engine	one_table@index	range_partition_expr/(_range_expr_list_)	ALTER TABLE a ADD PARTITION(PARTITION a VALUES LESS THAN(a))
+1505	1505	engine	one_table@index	list_partition_expr/(_DEFAULT_)	ALTER TABLE a ADD PARTITION(PARTITION a VALUES IN(DEFAULT))
+1505	1505	engine	one_table@index	list_partition_expr/(_DEFAULT_)!swap	ALTER TABLE a ADD PARTITION(PARTITION a VALUES IN(DEFAULT_AUTH))
+1505	1505	engine	one_table@index	list_expr/list_expr_,_expr	ALTER TABLE a ADD PARTITION(PARTITION a VALUES IN(a, a))
+1505	1505	engine	one_table@index	range_partition_expr/(_range_expr_list_)	ALTER TABLE a ADD PARTITION(PARTITION a VALUES LESS THAN(a))
 ok	ok:4c9e15aeb927	engine	one_table@index	opt_part_id/ID_INTNUM	ALTER TABLE a PARTITION BY KEY()(PARTITION a ID 1)
-error	1505	engine	one_table@index	range_expr_list/range_expr_list_,_expr	ALTER TABLE a ADD PARTITION(PARTITION a VALUES LESS THAN(a, a))
+1505	1505	engine	one_table@index	range_expr_list/range_expr_list_,_expr	ALTER TABLE a ADD PARTITION(PARTITION a VALUES LESS THAN(a, a))
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	int_or_decimal/DECIMAL_VAL	ALTER TABLE a AUTO_INCREMENT 1.5
 ok	1235	engine	one_table@index	index_or_heap/HEAP	ALTER TABLE a ORGANIZATION HEAP
 ok:97e6cc8e7fb0	ok:97e6cc8e7fb0	engine	one_table@index	row_format_option/COMPACT	ALTER TABLE a ROW_FORMAT COMPACT
@@ -2173,15 +2173,15 @@ ok:b1c3376df5ad	ok:b1c3376df5ad	engine	one_table@index	opt_index_using_algorithm
 ok:7c097d37a5bb	ok:7c097d37a5bb	engine	one_table@index	index_using_algorithm/USING_HASH	ALTER TABLE a ADD KEY USING HASH(a)
 ok:872adc6fc998	ok:872adc6fc998	engine	one_table@index	index_using_algorithm/USING_HASH!drop-1	ALTER TABLE a ADD KEY HASH(a)
 1051	1066	engine	one_table@index	table_list/table_list_,_relation_factor	DROP TABLE a, a
-error	1505	engine	one_table@index	name_list/NAME_OB	ALTER TABLE a DROP PARTITION a
-error	1505	engine	one_table@index	name_list/NAME_OB!insert	ALTER TABLE a DROP PARTITION a zzz
-error	1505	engine	one_table@index	name_list/name_list_NAME_OB	ALTER TABLE a DROP PARTITION a a
-error	1505	engine	one_table@index	name_list/name_list_NAME_OB!insert	ALTER TABLE a DROP PARTITION a a zzz
-error	1505	engine	one_table@index	name_list/name_list_,_NAME_OB	ALTER TABLE a DROP PARTITION a, a
-error	1505	engine	one_table@index	name_list/name_list_,_NAME_OB!insert	ALTER TABLE a DROP PARTITION a, a zzz
-error	1505	engine	one_table@index	name_list/unreserved_keyword	ALTER TABLE a DROP PARTITION ACCESS_INFO
-error	1505	engine	one_table@index	name_list/unreserved_keyword!insert	ALTER TABLE a DROP PARTITION ACCESS_INFO zzz
-error	1505	engine	one_table@index	name_list/unreserved_keyword!swap	ALTER TABLE a DROP PARTITION ACCOUNT
+1505	1505	engine	one_table@index	name_list/NAME_OB	ALTER TABLE a DROP PARTITION a
+1505	1505	engine	one_table@index	name_list/NAME_OB!insert	ALTER TABLE a DROP PARTITION a zzz
+1505	1505	engine	one_table@index	name_list/name_list_NAME_OB	ALTER TABLE a DROP PARTITION a a
+1505	1505	engine	one_table@index	name_list/name_list_NAME_OB!insert	ALTER TABLE a DROP PARTITION a a zzz
+1505	1505	engine	one_table@index	name_list/name_list_,_NAME_OB	ALTER TABLE a DROP PARTITION a, a
+1505	1505	engine	one_table@index	name_list/name_list_,_NAME_OB!insert	ALTER TABLE a DROP PARTITION a, a zzz
+1505	1505	engine	one_table@index	name_list/unreserved_keyword	ALTER TABLE a DROP PARTITION ACCESS_INFO
+1505	1505	engine	one_table@index	name_list/unreserved_keyword!insert	ALTER TABLE a DROP PARTITION ACCESS_INFO zzz
+1505	1505	engine	one_table@index	name_list/unreserved_keyword!swap	ALTER TABLE a DROP PARTITION ACCOUNT
 ok:7b0f12d09c84	ok:7b0f12d09c84	engine	one_table@index	key_or_index/INDEX	ALTER TABLE a DROP INDEX a
 1050	1050	engine	one_table@index	rename_table_actions/rename_table_actions_,_rename_table_action	RENAME TABLE a TO a, a TO a
 1064	ok:cc3e0d59ec45	engine	one_table@index	alter_table_stmt/alter_with_opt_hint_TABLE_relation_factor_alter_column_group_option	ALTER TABLE a ADD COLUMN GROUP(ALL COLUMNS)
@@ -2211,13 +2211,13 @@ ok	1505	engine	one_table@index	alter_partition_option/DROP_SUBPARTITION_drop_par
 ok	1505	engine	one_table@index	alter_partition_option/DROP_SUBPARTITION_drop_partition_name_list!insert	ALTER TABLE a DROP SUBPARTITION a zzz
 ok	1505	engine	one_table@index	alter_partition_option/alter_with_opt_hint_PARTITION_name_list_STORAGE_CACHE_POLICY_COMP_EQ_STRING_VALUE	ALTER TABLE a ALTER PARTITION a STORAGE_CACHE_POLICY = 's'
 ok	1505	engine	one_table@index	alter_partition_option/alter_with_opt_hint_SUBPARTITION_name_list_STORAGE_CACHE_POLICY_COMP_EQ_STRING_VALUE	ALTER TABLE a ALTER SUBPARTITION a STORAGE_CACHE_POLICY = 's'
-error	1505	engine	one_table@index	alter_partition_option/REORGANIZE_PARTITION_name_list_INTO_opt_partition_range_or_list	ALTER TABLE a REORGANIZE PARTITION a INTO(PARTITION a VALUES LESS THAN MAXVALUE)
-error	1505	engine	one_table@index	alter_partition_option/TRUNCATE_PARTITION_name_list	ALTER TABLE a TRUNCATE PARTITION a
-error	1505	engine	one_table@index	alter_partition_option/TRUNCATE_PARTITION_name_list!insert	ALTER TABLE a TRUNCATE PARTITION a zzz
+1505	1505	engine	one_table@index	alter_partition_option/REORGANIZE_PARTITION_name_list_INTO_opt_partition_range_or_list	ALTER TABLE a REORGANIZE PARTITION a INTO(PARTITION a VALUES LESS THAN MAXVALUE)
+1505	1505	engine	one_table@index	alter_partition_option/TRUNCATE_PARTITION_name_list	ALTER TABLE a TRUNCATE PARTITION a
+1505	1505	engine	one_table@index	alter_partition_option/TRUNCATE_PARTITION_name_list!insert	ALTER TABLE a TRUNCATE PARTITION a zzz
 ok	1505	engine	one_table@index	alter_partition_option/TRUNCATE_SUBPARTITION_name_list	ALTER TABLE a TRUNCATE SUBPARTITION a
 ok	1505	engine	one_table@index	alter_partition_option/TRUNCATE_SUBPARTITION_name_list!insert	ALTER TABLE a TRUNCATE SUBPARTITION a zzz
-error	1505	engine	one_table@index	alter_partition_option/EXCHANGE_PARTITION_relation_name_WITH_TABLE_relation_factor_WITHOUT_VALIDATION	ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a WITHOUT VALIDATION
-error	1505	engine	one_table@index	drop_partition_name_list/(_name_list_)	ALTER TABLE a DROP PARTITION(a)
+1505	1505	engine	one_table@index	alter_partition_option/EXCHANGE_PARTITION_relation_name_WITH_TABLE_relation_factor_WITHOUT_VALIDATION	ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a WITHOUT VALIDATION
+1505	1505	engine	one_table@index	drop_partition_name_list/(_name_list_)	ALTER TABLE a DROP PARTITION(a)
 ok:25c111463945	ok:25c111463945	engine	one_table@index	alter_index_option/ADD_add_unique_key_opt	ALTER TABLE a ADD UNIQUE(a)
 1252	1687	engine	one_table@index	alter_index_option/ADD_add_spatial_index_opt	ALTER TABLE a ADD SPATIAL(a)
 1068	1068	engine	one_table@index	alter_index_option/ADD_add_constraint_pri_key_opt	ALTER TABLE a ADD CONSTRAINT PRIMARY KEY(a)

@@ -17,18 +17,9 @@ import (
 // parsing (1193) counts as read.
 func (o *parserOracle) serverParses(t *testing.T, sql string) bool {
 	t.Helper()
-	conn, err := o.db.Conn(o.ctx)
-	if err != nil {
-		t.Fatalf("taking a connection for %q: %v", sql, err)
-	}
-	defer conn.Close()
 	prepare := func(text string) uint16 {
-		if _, err := conn.ExecContext(o.ctx, "SET @omni_name_form = ?", text); err != nil {
-			t.Fatalf("binding %q: %v", text, err)
-		}
-		_, err := conn.ExecContext(o.ctx, "PREPARE omni_name_form_stmt FROM @omni_name_form")
+		_, err := o.db.ExecContext(o.ctx, "PREPARE omni_name_form_stmt FROM ?", text)
 		if err == nil {
-			_, _ = conn.ExecContext(o.ctx, "DEALLOCATE PREPARE omni_name_form_stmt")
 			return 0
 		}
 		var myErr *gomysql.MySQLError
