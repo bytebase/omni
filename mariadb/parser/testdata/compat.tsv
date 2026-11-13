@@ -4906,30 +4906,30 @@ accept	accept	engine	select_options/%empty!insert	SELECT zzz a;
 accept	accept	engine	select_options/select_option_list	SELECT STRAIGHT_JOIN a;
 accept	accept	engine	select_options/select_option_list!insert	SELECT STRAIGHT_JOIN zzz a;
 accept	accept	engine	select_options/select_option_list!swap	SELECT STRING a;
-reject	accept	engine	opt_history_unit/%empty	DELETE HISTORY FROM a BEFORE SYSTEM_TIME a;
+accept	accept	engine	opt_history_unit/%empty	DELETE HISTORY FROM a BEFORE SYSTEM_TIME a;
 reject	reject	engine	opt_history_unit/%empty!insert	DELETE HISTORY FROM a BEFORE SYSTEM_TIME zzz a;
-reject	accept	engine	opt_history_unit/TRANSACTION_SYM	DELETE HISTORY FROM a BEFORE SYSTEM_TIME TRANSACTION a;
+accept	accept	engine	opt_history_unit/TRANSACTION_SYM	DELETE HISTORY FROM a BEFORE SYSTEM_TIME TRANSACTION a;
 reject	reject	engine	opt_history_unit/TRANSACTION_SYM!truncate	DELETE HISTORY FROM a BEFORE SYSTEM_TIME
 reject	reject	engine	opt_history_unit/TRANSACTION_SYM!insert	DELETE HISTORY FROM a BEFORE SYSTEM_TIME TRANSACTION zzz a;
 reject	reject	engine	opt_history_unit/TRANSACTION_SYM!swap	DELETE HISTORY FROM a BEFORE SYSTEM_TIME TRANSACTIONAL a;
-reject	accept	engine	opt_history_unit/TIMESTAMP	DELETE HISTORY FROM a BEFORE SYSTEM_TIME TIMESTAMP a;
+accept	accept	engine	opt_history_unit/TIMESTAMP	DELETE HISTORY FROM a BEFORE SYSTEM_TIME TIMESTAMP a;
 reject	reject	engine	opt_history_unit/TIMESTAMP!insert	DELETE HISTORY FROM a BEFORE SYSTEM_TIME TIMESTAMP zzz a;
 reject	reject	engine	opt_history_unit/TIMESTAMP!swap	DELETE HISTORY FROM a BEFORE SYSTEM_TIME TIMESTAMPADD a;
 reject	reject	engine	history_point/TIMESTAMP_TEXT_STRING	DELETE HISTORY FROM a BEFORE SYSTEM_TIME TIMESTAMP 's';
-reject	accept	engine	history_point/TIMESTAMP_TEXT_STRING!drop-1	DELETE HISTORY FROM a BEFORE SYSTEM_TIME 's';
+accept	accept	engine	history_point/TIMESTAMP_TEXT_STRING!drop-1	DELETE HISTORY FROM a BEFORE SYSTEM_TIME 's';
 reject	reject	engine	history_point/TIMESTAMP_TEXT_STRING!drop-2	DELETE HISTORY FROM a BEFORE SYSTEM_TIME TIMESTAMP;
 reject	reject	engine	history_point/TIMESTAMP_TEXT_STRING!truncate	DELETE HISTORY FROM a BEFORE SYSTEM_TIME TIMESTAMP
 reject	reject	engine	history_point/TIMESTAMP_TEXT_STRING!insert	DELETE HISTORY FROM a BEFORE SYSTEM_TIME TIMESTAMP 's' zzz;
 reject	reject	engine	history_point/TIMESTAMP_TEXT_STRING!swap	DELETE HISTORY FROM a BEFORE SYSTEM_TIME TIMESTAMPADD 's';
-reject	accept	engine	history_point/function_call_keyword_timestamp	DELETE HISTORY FROM a BEFORE SYSTEM_TIME TIMESTAMP(a);
-reject	accept	engine	history_point/function_call_keyword_timestamp!drop-1	DELETE HISTORY FROM a BEFORE SYSTEM_TIME(a);
+accept	accept	engine	history_point/function_call_keyword_timestamp	DELETE HISTORY FROM a BEFORE SYSTEM_TIME TIMESTAMP(a);
+accept	accept	engine	history_point/function_call_keyword_timestamp!drop-1	DELETE HISTORY FROM a BEFORE SYSTEM_TIME(a);
 reject	reject	engine	history_point/function_call_keyword_timestamp!drop-2	DELETE HISTORY FROM a BEFORE SYSTEM_TIME TIMESTAMP a);
 reject	reject	engine	history_point/function_call_keyword_timestamp!drop-3	DELETE HISTORY FROM a BEFORE SYSTEM_TIME TIMESTAMP();
 reject	reject	engine	history_point/function_call_keyword_timestamp!drop-4	DELETE HISTORY FROM a BEFORE SYSTEM_TIME TIMESTAMP(a;
 reject	reject	engine	history_point/function_call_keyword_timestamp!truncate	DELETE HISTORY FROM a BEFORE SYSTEM_TIME TIMESTAMP(a
 reject	reject	engine	history_point/function_call_keyword_timestamp!insert	DELETE HISTORY FROM a BEFORE SYSTEM_TIME TIMESTAMP(a) zzz;
 reject	reject	engine	history_point/function_call_keyword_timestamp!swap	DELETE HISTORY FROM a BEFORE SYSTEM_TIME TIMESTAMPADD(a);
-reject	accept	engine	history_point/opt_history_unit_bit_expr	DELETE HISTORY FROM a BEFORE SYSTEM_TIME a;
+accept	accept	engine	history_point/opt_history_unit_bit_expr	DELETE HISTORY FROM a BEFORE SYSTEM_TIME a;
 reject	reject	engine	history_point/opt_history_unit_bit_expr!drop-1	DELETE HISTORY FROM a BEFORE SYSTEM_TIME;
 reject	reject	engine	history_point/opt_history_unit_bit_expr!insert	DELETE HISTORY FROM a BEFORE SYSTEM_TIME a zzz;
 accept	accept	engine	for_portion_of_time_clause/FOR_SYM_PORTION_SYM_OF_SYM_remember_tok_start_ident_FROM_bit_expr_TO_SYM_bit_expr	DELETE FROM a FOR PORTION OF a FROM a TO a;
@@ -7052,7 +7052,7 @@ reject	reject	engine	table_function/JSON_TABLE_SYM_(_expr_,_json_text_literal_js
 reject	reject	engine	table_function/JSON_TABLE_SYM_(_expr_,_json_text_literal_json_table_columns_clause_)_opt_table_alias_clause!insert	DELETE a FROM JSON_TABLE(a, 's' COLUMNS(a FOR ORDINALITY)) zzz;
 reject	reject	engine	table_function/JSON_TABLE_SYM_(_expr_,_json_text_literal_json_table_columns_clause_)_opt_table_alias_clause!swap	DELETE a FROM KEY(a, 's' COLUMNS(a FOR ORDINALITY));
 accept	accept	engine	esc_table_ref/table_ref	DELETE a FROM a;
-reject	accept	engine	esc_table_ref/{_ident_table_ref_}	DELETE a FROM { a a };
+accept	accept	engine	esc_table_ref/{_ident_table_ref_}	DELETE a FROM { a a };
 reject	reject	engine	esc_table_ref/{_ident_table_ref_}!drop-1	DELETE a FROM a a };
 reject	reject	engine	esc_table_ref/{_ident_table_ref_}!drop-2	DELETE a FROM { a };
 reject	reject	engine	esc_table_ref/{_ident_table_ref_}!drop-4	DELETE a FROM { a a;
@@ -7258,43 +7258,43 @@ reject	reject	engine	opt_outer/OUTER	DELETE a FROM a NATURAL LEFT OUTER JOIN a;
 reject	reject	engine	opt_outer/OUTER!truncate	DELETE a FROM a NATURAL LEFT
 reject	reject	engine	opt_outer/OUTER!insert	DELETE a FROM a NATURAL LEFT OUTER zzz JOIN a;
 reject	reject	engine	opt_outer/OUTER!swap	DELETE a FROM a NATURAL LEFT OUTFILE JOIN a;
-reject	accept	engine	index_hint_clause/%empty	DELETE FROM a USE KEY();
+accept	accept	engine	index_hint_clause/%empty	DELETE FROM a USE KEY();
 reject	reject	engine	index_hint_clause/%empty!insert	DELETE FROM a USE KEY zzz();
-reject	accept	engine	index_hint_clause/FOR_SYM_JOIN_SYM	DELETE FROM a USE KEY FOR JOIN();
+accept	accept	engine	index_hint_clause/FOR_SYM_JOIN_SYM	DELETE FROM a USE KEY FOR JOIN();
 reject	reject	engine	index_hint_clause/FOR_SYM_JOIN_SYM!drop-1	DELETE FROM a USE KEY JOIN();
 reject	reject	engine	index_hint_clause/FOR_SYM_JOIN_SYM!drop-2	DELETE FROM a USE KEY FOR();
 reject	reject	engine	index_hint_clause/FOR_SYM_JOIN_SYM!truncate	DELETE FROM a USE KEY FOR
 reject	reject	engine	index_hint_clause/FOR_SYM_JOIN_SYM!insert	DELETE FROM a USE KEY FOR JOIN zzz();
 reject	reject	engine	index_hint_clause/FOR_SYM_JOIN_SYM!swap	DELETE FROM a USE KEY FORCE JOIN();
-reject	accept	engine	index_hint_clause/FOR_SYM_ORDER_SYM_BY	DELETE FROM a USE KEY FOR ORDER BY();
+accept	accept	engine	index_hint_clause/FOR_SYM_ORDER_SYM_BY	DELETE FROM a USE KEY FOR ORDER BY();
 reject	reject	engine	index_hint_clause/FOR_SYM_ORDER_SYM_BY!drop-1	DELETE FROM a USE KEY ORDER BY();
 reject	reject	engine	index_hint_clause/FOR_SYM_ORDER_SYM_BY!drop-2	DELETE FROM a USE KEY FOR BY();
 reject	reject	engine	index_hint_clause/FOR_SYM_ORDER_SYM_BY!drop-3	DELETE FROM a USE KEY FOR ORDER();
 reject	reject	engine	index_hint_clause/FOR_SYM_ORDER_SYM_BY!truncate	DELETE FROM a USE KEY FOR ORDER
 reject	reject	engine	index_hint_clause/FOR_SYM_ORDER_SYM_BY!insert	DELETE FROM a USE KEY FOR ORDER BY zzz();
 reject	reject	engine	index_hint_clause/FOR_SYM_ORDER_SYM_BY!swap	DELETE FROM a USE KEY FORCE ORDER BY();
-reject	accept	engine	index_hint_clause/FOR_SYM_GROUP_SYM_BY	DELETE FROM a USE KEY FOR GROUP BY();
+accept	accept	engine	index_hint_clause/FOR_SYM_GROUP_SYM_BY	DELETE FROM a USE KEY FOR GROUP BY();
 reject	reject	engine	index_hint_clause/FOR_SYM_GROUP_SYM_BY!drop-1	DELETE FROM a USE KEY GROUP BY();
 reject	reject	engine	index_hint_clause/FOR_SYM_GROUP_SYM_BY!drop-3	DELETE FROM a USE KEY FOR GROUP();
 reject	reject	engine	index_hint_clause/FOR_SYM_GROUP_SYM_BY!truncate	DELETE FROM a USE KEY FOR GROUP
 reject	reject	engine	index_hint_clause/FOR_SYM_GROUP_SYM_BY!insert	DELETE FROM a USE KEY FOR GROUP BY zzz();
 reject	reject	engine	index_hint_clause/FOR_SYM_GROUP_SYM_BY!swap	DELETE FROM a USE KEY FORCE GROUP BY();
-reject	accept	engine	index_hint_type/FORCE_SYM	DELETE FROM a FORCE KEY(a);
+accept	accept	engine	index_hint_type/FORCE_SYM	DELETE FROM a FORCE KEY(a);
 reject	reject	engine	index_hint_type/FORCE_SYM!drop-1	DELETE FROM a KEY(a);
 accept	accept	engine	index_hint_type/FORCE_SYM!truncate	DELETE FROM a
 reject	reject	engine	index_hint_type/FORCE_SYM!insert	DELETE FROM a FORCE zzz KEY(a);
 reject	reject	engine	index_hint_type/FORCE_SYM!swap	DELETE FROM a FOREIGN KEY(a);
-reject	accept	engine	index_hint_type/IGNORE_SYM	DELETE FROM a IGNORE KEY(a);
+accept	accept	engine	index_hint_type/IGNORE_SYM	DELETE FROM a IGNORE KEY(a);
 reject	reject	engine	index_hint_type/IGNORE_SYM!insert	DELETE FROM a IGNORE zzz KEY(a);
 reject	reject	engine	index_hint_type/IGNORE_SYM!swap	DELETE FROM a IGNORED KEY(a);
-reject	accept	engine	index_hint_definition/index_hint_type_key_or_index_index_hint_clause_(_key_usage_list_)	DELETE FROM a FORCE KEY(a);
+accept	accept	engine	index_hint_definition/index_hint_type_key_or_index_index_hint_clause_(_key_usage_list_)	DELETE FROM a FORCE KEY(a);
 reject	reject	engine	index_hint_definition/index_hint_type_key_or_index_index_hint_clause_(_key_usage_list_)!drop-2	DELETE FROM a FORCE(a);
 reject	reject	engine	index_hint_definition/index_hint_type_key_or_index_index_hint_clause_(_key_usage_list_)!drop-3	DELETE FROM a FORCE KEY a);
 reject	reject	engine	index_hint_definition/index_hint_type_key_or_index_index_hint_clause_(_key_usage_list_)!drop-4	DELETE FROM a FORCE KEY();
 reject	reject	engine	index_hint_definition/index_hint_type_key_or_index_index_hint_clause_(_key_usage_list_)!drop-5	DELETE FROM a FORCE KEY(a;
 reject	reject	engine	index_hint_definition/index_hint_type_key_or_index_index_hint_clause_(_key_usage_list_)!truncate	DELETE FROM a FORCE KEY(a
 reject	reject	engine	index_hint_definition/index_hint_type_key_or_index_index_hint_clause_(_key_usage_list_)!insert	DELETE FROM a FORCE KEY(a) zzz;
-reject	accept	engine	index_hint_definition/USE_SYM_key_or_index_index_hint_clause_(_opt_key_usage_list_)	DELETE FROM a USE KEY();
+accept	accept	engine	index_hint_definition/USE_SYM_key_or_index_index_hint_clause_(_opt_key_usage_list_)	DELETE FROM a USE KEY();
 reject	reject	engine	index_hint_definition/USE_SYM_key_or_index_index_hint_clause_(_opt_key_usage_list_)!drop-1	DELETE FROM a KEY();
 reject	reject	engine	index_hint_definition/USE_SYM_key_or_index_index_hint_clause_(_opt_key_usage_list_)!drop-2	DELETE FROM a USE();
 reject	reject	engine	index_hint_definition/USE_SYM_key_or_index_index_hint_clause_(_opt_key_usage_list_)!drop-3	DELETE FROM a USE KEY);
@@ -7302,8 +7302,8 @@ reject	reject	engine	index_hint_definition/USE_SYM_key_or_index_index_hint_claus
 reject	reject	engine	index_hint_definition/USE_SYM_key_or_index_index_hint_clause_(_opt_key_usage_list_)!truncate	DELETE FROM a USE KEY(
 reject	reject	engine	index_hint_definition/USE_SYM_key_or_index_index_hint_clause_(_opt_key_usage_list_)!insert	DELETE FROM a USE KEY() zzz;
 reject	reject	engine	index_hint_definition/USE_SYM_key_or_index_index_hint_clause_(_opt_key_usage_list_)!swap	DELETE FROM a USER KEY();
-reject	accept	engine	index_hints_list/index_hint_definition	DELETE FROM a USE KEY();
-reject	accept	engine	index_hints_list/index_hints_list_index_hint_definition	DELETE FROM a USE KEY() USE KEY();
+accept	accept	engine	index_hints_list/index_hint_definition	DELETE FROM a USE KEY();
+accept	accept	engine	index_hints_list/index_hints_list_index_hint_definition	DELETE FROM a USE KEY() USE KEY();
 reject	reject	engine	index_hints_list/index_hints_list_index_hint_definition!drop-1	DELETE FROM a KEY() USE KEY();
 reject	reject	engine	index_hints_list/index_hints_list_index_hint_definition!drop-2	DELETE FROM a USE() USE KEY();
 reject	reject	engine	index_hints_list/index_hints_list_index_hint_definition!drop-3	DELETE FROM a USE KEY) USE KEY();
@@ -7316,20 +7316,20 @@ reject	reject	engine	index_hints_list/index_hints_list_index_hint_definition!tru
 reject	reject	engine	index_hints_list/index_hints_list_index_hint_definition!insert	DELETE FROM a USE KEY() USE KEY() zzz;
 reject	reject	engine	index_hints_list/index_hints_list_index_hint_definition!swap	DELETE FROM a USER KEY() USE KEY();
 accept	accept	engine	opt_index_hints_list/%empty	DELETE FROM a;
-reject	accept	engine	opt_index_hints_list/index_hints_list	DELETE FROM a USE KEY();
+accept	accept	engine	opt_index_hints_list/index_hints_list	DELETE FROM a USE KEY();
 accept	accept	engine	opt_key_definition/opt_index_hints_list	DELETE FROM a;
-reject	accept	engine	opt_key_usage_list/%empty	DELETE FROM a USE KEY();
-reject	accept	engine	opt_key_usage_list/%empty!insert	DELETE FROM a USE KEY(zzz);
-reject	accept	engine	opt_key_usage_list/key_usage_list	DELETE FROM a USE KEY(a);
+accept	accept	engine	opt_key_usage_list/%empty	DELETE FROM a USE KEY();
+accept	accept	engine	opt_key_usage_list/%empty!insert	DELETE FROM a USE KEY(zzz);
+accept	accept	engine	opt_key_usage_list/key_usage_list	DELETE FROM a USE KEY(a);
 reject	reject	engine	opt_key_usage_list/key_usage_list!insert	DELETE FROM a USE KEY(a zzz);
-reject	accept	engine	key_usage_element/ident	DELETE FROM a FORCE KEY(a);
+accept	accept	engine	key_usage_element/ident	DELETE FROM a FORCE KEY(a);
 reject	reject	engine	key_usage_element/ident!truncate	DELETE FROM a FORCE KEY(
 reject	reject	engine	key_usage_element/ident!insert	DELETE FROM a FORCE KEY(a zzz);
-reject	accept	engine	key_usage_element/PRIMARY_SYM	DELETE FROM a FORCE KEY(PRIMARY);
+accept	accept	engine	key_usage_element/PRIMARY_SYM	DELETE FROM a FORCE KEY(PRIMARY);
 reject	reject	engine	key_usage_element/PRIMARY_SYM!insert	DELETE FROM a FORCE KEY(PRIMARY zzz);
-reject	accept	engine	key_usage_element/PRIMARY_SYM!swap	DELETE FROM a FORCE KEY(PRIVILEGES);
-reject	accept	engine	key_usage_list/key_usage_element	DELETE FROM a FORCE KEY(a);
-reject	accept	engine	key_usage_list/key_usage_list_,_key_usage_element	DELETE FROM a FORCE KEY(a, a);
+accept	accept	engine	key_usage_element/PRIMARY_SYM!swap	DELETE FROM a FORCE KEY(PRIVILEGES);
+accept	accept	engine	key_usage_list/key_usage_element	DELETE FROM a FORCE KEY(a);
+accept	accept	engine	key_usage_list/key_usage_list_,_key_usage_element	DELETE FROM a FORCE KEY(a, a);
 reject	reject	engine	key_usage_list/key_usage_list_,_key_usage_element!drop-1	DELETE FROM a FORCE KEY(, a);
 reject	reject	engine	key_usage_list/key_usage_list_,_key_usage_element!drop-2	DELETE FROM a FORCE KEY(a a);
 reject	reject	engine	key_usage_list/key_usage_list_,_key_usage_element!drop-3	DELETE FROM a FORCE KEY(a,);
@@ -7409,7 +7409,7 @@ reject	reject	engine	table_alias/%empty!insert	DELETE FROM a zzz a;
 accept	accept	engine	table_alias/AS	DELETE FROM a AS a;
 reject	reject	engine	table_alias/AS!insert	DELETE FROM a AS zzz a;
 reject	reject	engine	table_alias/AS!swap	DELETE FROM a ASC a;
-reject	accept	engine	table_alias/=	DELETE FROM a = a;
+accept	accept	engine	table_alias/=	DELETE FROM a = a;
 reject	reject	engine	table_alias/=!insert	DELETE FROM a = zzz a;
 accept	accept	engine	opt_table_alias_clause/%empty	DELETE FROM a;
 accept	accept	engine	opt_table_alias_clause/table_alias_clause	DELETE FROM a a;
@@ -8232,15 +8232,15 @@ accept	accept	engine	opt_low_priority/LOW_PRIORITY	UPDATE LOW_PRIORITY a SET a =
 accept	accept	engine	opt_low_priority/LOW_PRIORITY!insert	UPDATE LOW_PRIORITY zzz a SET a = DEFAULT;
 accept	accept	engine	opt_low_priority/LOW_PRIORITY!swap	UPDATE MASTER a SET a = DEFAULT;
 accept	accept	engine	delete/DELETE_SYM_delete_part2	DELETE FROM a;
-reject	accept	engine	opt_delete_system_time/%empty	DELETE HISTORY FROM a;
-reject	accept	engine	opt_delete_system_time/%empty!insert	DELETE HISTORY FROM a zzz;
-reject	accept	engine	opt_delete_system_time/BEFORE_SYM_SYSTEM_TIME_SYM_history_point	DELETE HISTORY FROM a BEFORE SYSTEM_TIME a;
+accept	accept	engine	opt_delete_system_time/%empty	DELETE HISTORY FROM a;
+accept	accept	engine	opt_delete_system_time/%empty!insert	DELETE HISTORY FROM a zzz;
+accept	accept	engine	opt_delete_system_time/BEFORE_SYM_SYSTEM_TIME_SYM_history_point	DELETE HISTORY FROM a BEFORE SYSTEM_TIME a;
 reject	reject	engine	opt_delete_system_time/BEFORE_SYM_SYSTEM_TIME_SYM_history_point!drop-1	DELETE HISTORY FROM a SYSTEM_TIME a;
 reject	reject	engine	opt_delete_system_time/BEFORE_SYM_SYSTEM_TIME_SYM_history_point!drop-2	DELETE HISTORY FROM a BEFORE a;
 reject	reject	engine	opt_delete_system_time/BEFORE_SYM_SYSTEM_TIME_SYM_history_point!swap	DELETE HISTORY FROM a BEGIN SYSTEM_TIME a;
 accept	accept	engine	delete_part2/opt_delete_options_single_multi	DELETE FROM a;
 reject	reject	engine	delete_part2/opt_delete_options_single_multi!swap	DELETE FULL a;
-reject	accept	engine	delete_part2/HISTORY_SYM_delete_single_table_opt_delete_system_time_stmt_end	DELETE HISTORY FROM a;
+accept	accept	engine	delete_part2/HISTORY_SYM_delete_single_table_opt_delete_system_time_stmt_end	DELETE HISTORY FROM a;
 reject	reject	engine	delete_part2/HISTORY_SYM_delete_single_table_opt_delete_system_time_stmt_end!drop-2	DELETE HISTORY a;
 reject	reject	engine	delete_part2/HISTORY_SYM_delete_single_table_opt_delete_system_time_stmt_end!drop-3	DELETE HISTORY FROM;
 reject	reject	engine	delete_part2/HISTORY_SYM_delete_single_table_opt_delete_system_time_stmt_end!truncate	DELETE HISTORY FROM

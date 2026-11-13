@@ -1722,6 +1722,24 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 		return nil, err
 	}
 	defer p.leaveNesting()
+	// { OJ table_reference }, ODBC's outer join escape: the reference itself.
+	//
+	// Ref: table_reference's `'{' OJ_SYM esc_table_reference '}'` in MySQL 8.0
+	// sql/sql_yacc.yy.
+	if p.cur.Type == '{' {
+		p.advance() // consume '{'
+		if _, err := p.expect(kwOJ); err != nil {
+			return nil, err
+		}
+		ref, err := p.parseTableReference()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect('}'); err != nil {
+			return nil, err
+		}
+		return ref, nil
+	}
 	// LATERAL (SELECT ...) — LATERAL derived table
 	if p.cur.Type == kwLATERAL {
 		latStart := p.pos()

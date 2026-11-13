@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"strconv"
 	"strings"
 
 	nodes "github.com/bytebase/omni/mariadb/ast"
@@ -244,6 +245,10 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 
 	stmt := &nodes.DeleteStmt{Loc: nodes.Loc{Start: start}}
 
+	if p.cur.Type == kwHISTORY {
+		return p.parseDeleteHistory(stmt)
+	}
+
 	// Optional modifiers
 	if _, ok := p.match(kwLOW_PRIORITY); ok {
 		stmt.LowPriority = true
@@ -264,43 +269,11 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 		}
 		stmt.Tables = tables
 
-		// Single-table: optional [AS] alias and PARTITION
+		// Single-table: optional [AS | =] alias, index hints and PARTITION
 		if len(tables) == 1 {
 			if tblRef, ok := tables[0].(*nodes.TableRef); ok {
-				// Optional [AS] alias
-				if _, ok := p.match(kwAS); ok {
-					if p.cur.Type == kwWINDOW {
-						return nil, p.syntaxErrorAtCur()
-					}
-					alias, _, err := p.parseIdent()
-					if err != nil {
-						return nil, err
-					}
-					tblRef.Alias = alias
-					tblRef.Loc.End = p.prev.End
-				} else if p.isIdentToken() && p.cur.Type != kwWINDOW {
-					// table_alias reads an ident, which is any unreserved
-					// keyword as well as a plain identifier, so
-					// `DELETE FROM t wait WHERE wait.a = 1` names an alias
-					// `wait` (container-verified, as are the `locked` and
-					// `nowait` forms). Testing for tokIDENT alone left any
-					// word registered as an unreserved keyword unconsumed.
-					alias, _, err := p.parseIdent()
-					if err != nil {
-						return nil, err
-					}
-					tblRef.Alias = alias
-					tblRef.Loc.End = p.prev.End
-				}
-				// Optional PARTITION (p0, p1, ...)
-				if p.cur.Type == kwPARTITION {
-					p.advance()
-					parts, err := p.parseParenIdentList()
-					if err != nil {
-						return nil, err
-					}
-					tblRef.Partitions = parts
-					tblRef.Loc.End = p.prev.End
+				if err := p.parseDeleteSingleTableTail(tblRef); err != nil {
+					return nil, err
 				}
 			}
 		}
@@ -615,4 +588,190 @@ func (p *Parser) parseUncheckedDeleteTableName() (*nodes.TableRef, error) {
 
 	ref.Loc.End = p.prev.End
 	return ref, nil
+}
+
+// parseDeleteSingleTableTail reads what follows a single-table DELETE's table:
+// opt_table_alias_clause, whose table_alias is AS, '=' or nothing,
+// opt_key_definition (index hints) and opt_use_partition.
+//
+// Ref: delete_single_table and table_alias in MariaDB 11.8 sql/sql_yacc.yy.
+func (p *Parser) parseDeleteSingleTableTail(tblRef *nodes.TableRef) error {
+	written := false
+	if _, ok := p.match(kwAS); ok {
+		written = true
+	} else if _, ok := p.match('='); ok {
+		written = true
+	}
+	// table_alias reads an ident, which is any unreserved keyword as well as a
+	// plain identifier, so `DELETE FROM t wait WHERE wait.a = 1` names an alias
+	// `wait` (container-verified, as are the `locked` and `nowait` forms).
+	if written || (p.isIdentToken() && p.cur.Type != kwWINDOW) {
+		if p.cur.Type == kwWINDOW {
+			return p.syntaxErrorAtCur()
+		}
+		alias, _, err := p.parseIdent()
+		if err != nil {
+			return err
+		}
+		tblRef.Alias = alias
+		tblRef.Loc.End = p.prev.End
+	}
+	if (p.cur.Type == kwUSE || p.cur.Type == kwFORCE || p.cur.Type == kwIGNORE) &&
+		(p.peekNext().Type == kwINDEX || p.peekNext().Type == kwKEY) {
+		hints, err := p.parseIndexHints()
+		if err != nil {
+			return err
+		}
+		tblRef.IndexHints = hints
+		tblRef.Loc.End = p.prev.End
+	}
+	if p.cur.Type == kwPARTITION {
+		p.advance()
+		parts, err := p.parseParenIdentList()
+		if err != nil {
+			return err
+		}
+		tblRef.Partitions = parts
+		tblRef.Loc.End = p.prev.End
+	}
+	return nil
+}
+
+// parseDeleteHistory reads `DELETE HISTORY delete_single_table
+// [BEFORE SYSTEM_TIME history_point]`, p.cur being HISTORY. history_point is
+// TIMESTAMP 'string', TIMESTAMP(...), or [TRANSACTION | TIMESTAMP] bit_expr.
+//
+// Ref: delete_part2, opt_delete_system_time and history_point in MariaDB 11.8
+// sql/sql_yacc.yy.
+func (p *Parser) parseDeleteHistory(stmt *nodes.DeleteStmt) (*nodes.DeleteStmt, error) {
+	p.advance() // consume HISTORY
+	stmt.History = true
+	if _, err := p.expect(kwFROM); err != nil {
+		return nil, err
+	}
+	ref, err := p.parseTableRef()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Tables = []nodes.TableExpr{ref}
+	if err := p.parseDeleteSingleTableTail(ref); err != nil {
+		return nil, err
+	}
+	if p.cur.Type == kwBEFORE {
+		p.advance()
+		// SYSTEM_TIME is a keyword this lexer does not know.
+		if !p.atWord("SYSTEM_TIME") {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		point, err := p.parseHistoryPoint(stmt)
+		if err != nil {
+			return nil, err
+		}
+		stmt.HistoryBefore = point
+	}
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
+}
+
+// atWord reports whether the current token is word written bare, for a keyword
+// of MariaDB's this lexer does not know.
+func (p *Parser) atWord(word string) bool {
+	if p.cur.Type != tokIDENT && p.cur.Type < 700 {
+		return false
+	}
+	return strings.EqualFold(p.inputText(p.cur.Loc, p.cur.End), word)
+}
+
+// parseHistoryPoint reads history_point: TIMESTAMP 'datetime', whose action
+// refuses a string that is no datetime; TIMESTAMP(expr [, expr]); or
+// [TRANSACTION | TIMESTAMP] bit_expr, the unit going to stmt.HistoryUnit.
+//
+// Ref: history_point and function_call_keyword_timestamp in MariaDB 11.8
+// sql/sql_yacc.yy.
+func (p *Parser) parseHistoryPoint(stmt *nodes.DeleteStmt) (nodes.ExprNode, error) {
+	switch {
+	case p.cur.Type == kwTIMESTAMP && p.peekNext().Type == tokSCONST:
+		start := p.pos()
+		p.advance() // consume TIMESTAMP
+		if !historyDatetimeValid(p.cur.Str) {
+			return nil, &ParseError{Message: "Incorrect DATETIME value: '" + p.cur.Str + "'", Position: p.cur.Loc}
+		}
+		val := p.advance().Str
+		return &nodes.TemporalLit{Loc: nodes.Loc{Start: start, End: p.prev.End}, Type: "TIMESTAMP", Value: val}, nil
+	case p.cur.Type == kwTIMESTAMP && p.peekNext().Type == '(':
+		start := p.pos()
+		p.advance() // consume TIMESTAMP
+		p.advance() // consume '('
+		fc := &nodes.FuncCallExpr{Loc: nodes.Loc{Start: start}, Name: "TIMESTAMP", HasParens: true}
+		for {
+			arg, err := p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
+			if arg == nil {
+				return nil, p.syntaxErrorAtCur()
+			}
+			fc.Args = append(fc.Args, arg)
+			if len(fc.Args) == 2 || p.cur.Type != ',' {
+				break
+			}
+			p.advance()
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		fc.Loc.End = p.prev.End
+		return fc, nil
+	case p.cur.Type == kwTIMESTAMP || p.cur.Type == kwTRANSACTION:
+		stmt.HistoryUnit = strings.ToUpper(p.advance().Str)
+	}
+	point, err := p.parseBitExpr()
+	if err != nil {
+		return nil, err
+	}
+	if point == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	return point, nil
+}
+
+// historyDatetimeValid reports whether s reads as a datetime: a date
+// YYYY-M-D, its fields in range, optionally followed by a time H:M[:S[.frac]].
+// The server's reader takes more spellings; this one refuses only text that is
+// none of these.
+func historyDatetimeValid(s string) bool {
+	d, t, hasTime := strings.Cut(strings.TrimSpace(s), " ")
+	parts := strings.Split(d, "-")
+	if len(parts) != 3 {
+		return false
+	}
+	var ymd [3]int
+	for i, f := range parts {
+		n, err := strconv.Atoi(f)
+		if err != nil || f == "" || f[0] == '+' || f[0] == '-' {
+			return false
+		}
+		ymd[i] = n
+	}
+	if ymd[1] < 1 || ymd[1] > 12 || ymd[2] < 1 || ymd[2] > 31 {
+		return false
+	}
+	if !hasTime {
+		return true
+	}
+	if i := strings.IndexByte(t, '.'); i >= 0 {
+		t = t[:i]
+	}
+	hms := strings.Split(t, ":")
+	if len(hms) < 2 || len(hms) > 3 {
+		return false
+	}
+	for i, f := range hms {
+		n, err := strconv.Atoi(f)
+		if err != nil || f == "" || f[0] == '+' || f[0] == '-' || n > [3]int{838, 59, 59}[i] {
+			return false
+		}
+	}
+	return true
 }

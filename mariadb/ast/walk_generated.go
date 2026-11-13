@@ -393,6 +393,7 @@ func walkChildren(v Visitor, node Node) {
 		for _, item := range n.Returning {
 			Walk(v, item)
 		}
+		Walk(v, n.HistoryBefore)
 	case *DiagnosticsItem:
 		Walk(v, n.Target)
 	case *DoStmt:
