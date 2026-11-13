@@ -38,6 +38,7 @@ All defined in `first_sets.go` and documented inline. Read the doc comment on ea
 | `isAExprStart` | `aExprLeadTokens` (32) | set + `isConstTypenameStart` + `isColId` | Yes — `TestAExprLeadTokensMatchPG` via `SELECT X` |
 | `isTableConstraintStart` | `tableConstraintLeadTokens` (6) | set only | No — TableConstraint is only reachable via CREATE/ALTER TABLE; in-Go positive/negative test instead |
 | `isSelectLimitStart` | `selectLimitLeadTokens` (3) | set only | No — LIMIT, OFFSET, and FETCH are reserved and start nothing else after a sort or locking clause; `TestIsSelectLimitStartMatchesSlice` checks the whole `Keywords` table |
+| `isNumericOnlyStart` | `numericOnlyLeadTokens` (4) | set only | No — the set holds no keyword; `TestIsNumericOnlyStartMatchesSlice` checks it accepts exactly these tokens |
 | `isBareColLabelStart` | `asLabelOnlyKeywords` (39, the complement) | IDENT, or a keyword not in the set | Yes — `TestBareColumnLabelsMatchPG` via `SELECT 1 X` |
 
 `startsTableConstraint` is the call-site form of `isTableConstraintStart`. EXCLUDE is the one unreserved lead, so it starts a constraint only when `USING` or `(` follows it, and names a column otherwise (`CREATE TABLE t (exclude int)`).

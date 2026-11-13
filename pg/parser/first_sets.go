@@ -1,5 +1,7 @@
 package parser
 
+import "slices"
+
 // simpleTypenameLeadTokens is the single source of truth for tokens that
 // unambiguously start a SimpleTypename production (excluding GenericType
 // which is covered by the type_function_name category check).
@@ -265,6 +267,26 @@ var selectLimitLeadSet = func() map[int]bool {
 // checks the predicate against the whole Keywords table instead.
 func (p *Parser) isSelectLimitStart() bool {
 	return selectLimitLeadSet[p.cur.Type]
+}
+
+// numericOnlyLeadTokens is the FIRST set of NumericOnly: FCONST, '+' FCONST,
+// '-' FCONST, or SignedIconst (Iconst, '+' Iconst, '-' Iconst).
+//
+// Grammar reference: NumericOnly and SignedIconst in
+// postgres/src/backend/parser/gram.y.
+//
+// DO NOT extend this list without also extending parseNumericOnly in
+// sequence.go, and vice versa.
+var numericOnlyLeadTokens = []int{'+', '-', ICONST, FCONST}
+
+// isNumericOnlyStart reports whether the current token starts a NumericOnly,
+// where parseNumericOnlyList (GRANT ON LARGE OBJECT) needs one.
+//
+// No PG oracle test: the set holds no keyword, so
+// TestIsNumericOnlyStartMatchesSlice checks that the predicate accepts
+// exactly these tokens and no keyword.
+func (p *Parser) isNumericOnlyStart() bool {
+	return slices.Contains(numericOnlyLeadTokens, p.cur.Type)
 }
 
 // isFuncTypeStart reports whether the current token starts a func_type

@@ -390,9 +390,7 @@ func (p *Parser) parseGrantObjectAnyNameList() (*nodes.List, error) {
 func (p *Parser) parseNumericOnlyList() (*nodes.List, error) {
 	result := &nodes.List{}
 	for {
-		switch p.cur.Type {
-		case '+', '-', ICONST, FCONST:
-		default:
+		if !p.isNumericOnlyStart() {
 			return nil, p.syntaxErrorAtCur()
 		}
 		result.Items = append(result.Items, p.parseNumericOnly())
