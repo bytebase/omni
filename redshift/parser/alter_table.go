@@ -284,9 +284,21 @@ func (p *Parser) parseAlterSequence(alterLoc int) (nodes.Node, error) {
 		}, nil
 	}
 
+	if p.collectMode() {
+		// Offer both alternatives at the cursor: alter_table_cmds and the
+		// SeqOptList.
+		if _, err := p.parseAlterTableCmds(); err != nil && err != errCollecting {
+			return nil, err
+		}
+		for _, t := range seqOptElemLeadTokens {
+			p.addTokenCandidate(t)
+		}
+		return nil, errCollecting
+	}
+
 	// Anything but a SeqOptElem goes through alter_table_cmds in the yacc
 	// grammar (OWNER TO, DROP, ...).
-	if !p.collectMode() && !p.isSeqOptElemStart() {
+	if !p.isSeqOptElemStart() {
 		rv := makeRangeVarFromAnyName(names, nameLoc)
 		cmds, err := p.parseAlterTableCmds()
 		if err != nil {

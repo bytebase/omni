@@ -27,6 +27,15 @@ func TestCollectAfterStrictForms(t *testing.T) {
 	if cs := Collect("ALTER ROLE r ", 13); len(cs.Tokens) == 0 {
 		t.Error("Collect after ALTER ROLE r offers nothing")
 	}
+	for _, c := range []struct {
+		sql string
+		off int
+		tok int
+	}{{"ALTER SEQUENCE s OWNER TO r", 17, OWNER}, {"ALTER SEQUENCE s ", 17, CYCLE}, {"ALTER DATABASE d OWNER ", 23, TO}} {
+		if cs := Collect(c.sql, c.off); !cs.HasToken(c.tok) {
+			t.Errorf("Collect(%q, %d) does not offer token %d", c.sql, c.off, c.tok)
+		}
+	}
 	q := "CREATE FUNCTION f() RETURNS int LANGUAGE sql AS 'select 1'"
 	if cs := Collect(q, 28); !slices.Contains(cs.Tokens, IDENT) {
 		t.Errorf("Collect(%q, 28) offers no type name", q)

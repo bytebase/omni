@@ -183,7 +183,7 @@ func (p *Parser) parseAlterDatabaseDispatch(stmtLoc int) (nodes.Node, error) {
 	case OWNER:
 		// ALTER DATABASE name OWNER TO RoleSpec; without TO, OWNER is a
 		// createdb_opt_name (OWNER [=] value).
-		if p.peekNext().Type != TO {
+		if p.peekNext().Type != TO && !p.completingAtNext() {
 			options, err := p.parseCreatedbOptList()
 			if err != nil {
 				return nil, err
