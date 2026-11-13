@@ -533,7 +533,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 	case nodes.ConstrForeignKey:
 		conName := con.Name
 		if conName == "" {
-			conName = c.madeUpConstraintName(tbl.Name, madeUpForeignKeyInfix)
+			conName = c.madeUpConstraintName(tbl.Name, madeUpForeignKeyInfix, func(name string) bool {
+				return foreignKeyConstraintNameExists(tbl.Database, nil, name)
+			})
 		}
 		if foreignKeyConstraintNameExists(tbl.Database, nil, conName) {
 			return errFKDupName(tbl.Name)
@@ -568,7 +570,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 	case nodes.ConstrCheck:
 		conName := con.Name
 		if conName == "" {
-			conName = c.madeUpConstraintName(tbl.Name, madeUpCheckInfix)
+			conName = c.madeUpConstraintName(tbl.Name, madeUpCheckInfix, func(name string) bool {
+				return checkConstraintNameExists(tbl.Database, nil, name)
+			})
 		}
 		if checkConstraintNameExists(tbl.Database, nil, conName) {
 			return errCheckConstraintDupName(conName)
@@ -979,7 +983,9 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 		col.DataType = normalizedColumnDataType(colDef.TypeName)
 		col.ColumnType = formatColumnType(colDef.TypeName)
 		if isNationalStringType(colDef.TypeName.Name) {
+			// As in CREATE TABLE: the national character set, named as CHARACTER SET is.
 			col.Charset = "utf8mb4"
+			col.CharsetExplicit = true
 		}
 		if colDef.TypeName.Charset != "" {
 			col.Charset = normalizeCharsetName(colDef.TypeName.Charset)
@@ -1000,9 +1006,9 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 			col.Charset = tbl.Charset
 		}
 		if col.Collation == "" {
-			// If column charset differs from table charset, use the default
-			// collation for the column's charset, not the table's collation.
-			if !strings.EqualFold(col.Charset, tbl.Charset) {
+			// A column that names its character set, or has another than its table's,
+			// takes that character set's default collation, not the table's collation.
+			if col.CharsetExplicit || !strings.EqualFold(col.Charset, tbl.Charset) {
 				if dc, ok := defaultCollationForCharset[toLower(col.Charset)]; ok {
 					col.Collation = dc
 				}
@@ -1464,8 +1470,10 @@ func reorganizeNeedsPrimaryKeyPrefix(tbl *Table) error {
 		return &Error{Code: 1235, SQLState: "0A000", Message: "reorganizing table without primary key(s) is not supported"}
 	}
 	key := tbl.Partitioning.Columns
-	if len(key) == 0 && isPlainIdentifier(tbl.Partitioning.Expr) {
-		key = []string{strings.Trim(tbl.Partitioning.Expr, "`")}
+	if len(key) == 0 {
+		if column, ok := partitionKeyColumn(tbl.Partitioning.Expr); ok {
+			key = []string{column}
+		}
 	}
 	matches := len(key) > 0 && len(key) <= len(pk.Columns)
 	for i := 0; matches && i < len(key); i++ {
@@ -1477,17 +1485,37 @@ func reorganizeNeedsPrimaryKeyPrefix(tbl *Table) error {
 	return nil
 }
 
-// isPlainIdentifier reports whether a partitioning expression is one column and nothing
-// else, backticked or not.
-func isPlainIdentifier(expr string) bool {
-	name := strings.Trim(strings.TrimSpace(expr), "`")
-	if name == "" {
-		return false
+// partitionKeyColumn returns the column a partitioning expression is, when it is one column
+// and nothing else: a bare name, or a name in backticks, which may hold anything and writes
+// a backtick of its own twice.
+func partitionKeyColumn(expr string) (string, bool) {
+	expr = strings.TrimSpace(expr)
+	if expr == "" {
+		return "", false
 	}
-	for _, r := range name {
-		if r != '_' && r != '$' && !unicode.IsLetter(r) && !unicode.IsDigit(r) {
-			return false
+	if expr[0] != '`' {
+		for _, r := range expr {
+			if r != '_' && r != '$' && !unicode.IsLetter(r) && !unicode.IsDigit(r) {
+				return "", false
+			}
+		}
+		return expr, true
+	}
+	var name strings.Builder
+	for i := 1; i < len(expr); i++ {
+		switch {
+		case expr[i] != '`':
+			name.WriteByte(expr[i])
+		case i+1 < len(expr) && expr[i+1] == '`':
+			name.WriteByte('`')
+			i++
+		default:
+			// The closing backtick: the expression is a column only if it ends here.
+			if i == len(expr)-1 && name.Len() > 0 {
+				return name.String(), true
+			}
+			return "", false
 		}
 	}
-	return true
+	return "", false
 }

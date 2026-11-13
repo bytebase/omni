@@ -283,6 +283,18 @@ func inferViewExprNullable(expr nodes.ExprNode, relations map[string]viewRelatio
 	switch e := expr.(type) {
 	case *nodes.ColumnRef:
 		return inferViewColumnRefNullable(e, relations)
+	case *nodes.CaseExpr:
+		// A CASE is nullable when a result is, or when it has no ELSE. IF(c, a, b) is
+		// one by now (deparse's rewrite), and reads as it did as a function.
+		if e.Default == nil || inferViewExprNullable(e.Default, relations) {
+			return true
+		}
+		for _, w := range e.Whens {
+			if inferViewExprNullable(w.Result, relations) {
+				return true
+			}
+		}
+		return false
 	case *nodes.FuncCallExpr:
 		// COUNT reads nullable in a view of OceanBase's, where MySQL's reads NOT NULL.
 		if isViewStringMetadataNullableFunc(e.Name) || strings.EqualFold(e.Name, "count") {
@@ -409,6 +421,26 @@ func inferViewExprCollation(expr nodes.ExprNode, relations map[string]viewRelati
 		return inferViewExprCollation(e.Expr, relations)
 	case *nodes.FuncCallExpr:
 		return inferViewFuncCollation(e, relations)
+	case *nodes.CaseExpr:
+		// The character set of a CASE is that of its results together.
+		results := make([]nodes.ExprNode, 0, len(e.Whens)+1)
+		for _, w := range e.Whens {
+			results = append(results, w.Result)
+		}
+		if e.Default != nil {
+			results = append(results, e.Default)
+		}
+		var out viewCollationInfo
+		for _, result := range results {
+			ci, err := inferViewExprCollation(result, relations)
+			if err != nil {
+				return viewCollationInfo{}, err
+			}
+			if out, err = aggregateViewCollations(out, ci, "case"); err != nil {
+				return viewCollationInfo{}, err
+			}
+		}
+		return out, nil
 	case *nodes.ParenExpr:
 		return inferViewExprCollation(e.Expr, relations)
 	case *nodes.BinaryExpr:
@@ -774,25 +806,65 @@ func duplicateViewColumn(sel *nodes.SelectStmt, explicit []string, aliased map[*
 
 // aliasViewColumns gives each SELECT a query joins the names of a view's column list, as
 // the aliases of its select items. A list of another length is left for the caller.
-func aliasViewColumns(sel *nodes.SelectStmt, columns []string) {
+//
+// An ORDER BY, GROUP BY or HAVING that names an item by the alias it had follows it to the
+// new one, in the SELECT and on the set operation or parentheses around it: the resolver
+// has written ORDER BY 1 as that alias by now, and the old name is no column of the body.
+// It returns the old names of the query's output columns, lower-cased, with their new ones.
+func aliasViewColumns(sel *nodes.SelectStmt, columns []string) map[string]string {
 	if sel == nil || len(columns) == 0 {
-		return
+		return nil
 	}
+	var renamed map[string]string
 	switch {
 	case sel.ParenSource != nil:
-		aliasViewColumns(sel.ParenSource, columns)
+		renamed = aliasViewColumns(sel.ParenSource, columns)
 	case sel.SetOp != nodes.SetOpNone:
-		aliasViewColumns(sel.Left, columns)
+		renamed = aliasViewColumns(sel.Left, columns)
 		aliasViewColumns(sel.Right, columns)
 	case len(sel.TargetList) == len(columns):
+		renamed = map[string]string{}
 		for i, target := range sel.TargetList {
-			if rt, ok := target.(*nodes.ResTarget); ok {
-				rt.Name = columns[i]
-			} else {
+			rt, ok := target.(*nodes.ResTarget)
+			if !ok {
 				sel.TargetList[i] = &nodes.ResTarget{Name: columns[i], Val: target}
+				continue
+			}
+			if old := toLower(rt.Name); old != "" && old != toLower(columns[i]) {
+				if _, twice := renamed[old]; !twice {
+					renamed[old] = columns[i]
+				}
+			}
+			rt.Name = columns[i]
+		}
+		for _, item := range sel.GroupBy {
+			followAliases(item.Expr, renamed)
+		}
+		followAliases(sel.Having, renamed)
+	default:
+		return nil
+	}
+	for _, item := range sel.OrderBy {
+		followAliases(item.Expr, renamed)
+	}
+	return renamed
+}
+
+// followAliases rewrites the references to renamed aliases in expr. A reference to an
+// alias is a column written with no table: the resolver has given every column of a table
+// its table by now.
+func followAliases(expr nodes.ExprNode, renamed map[string]string) {
+	if expr == nil || len(renamed) == 0 {
+		return
+	}
+	nodes.Inspect(expr, func(n nodes.Node) bool {
+		if cr, ok := n.(*nodes.ColumnRef); ok && cr.Table == "" && cr.Schema == "" && !cr.Star {
+			if name, ok := renamed[toLower(cr.Column)]; ok {
+				cr.Column = name
 			}
 		}
-	}
+		return true
+	})
 }
 
 // extractViewColumns extracts column names from a resolved SELECT target list.

@@ -335,6 +335,10 @@ func dropIndexOp(entry *TableDiffEntry, table string, idx *Index) MigrationOp {
 // emits it (SHOW CREATE drops the index-level value on 8.0), but the ADD carries what the
 // target states — the readback drops it and canonicalIndex ignores it, so the round-trip is
 // empty.
+//
+// An index the catalog named PRIMARY, after a first column of that name (allocIndexName), is
+// written without its name: OceanBase makes that name itself and refuses it written (1280),
+// as TestScenario_C1 holds in 1.8 and 1.10.
 func formatIndexDefinition(idx *Index, _ *Normalizer) string {
 	var b strings.Builder
 
@@ -342,13 +346,13 @@ func formatIndexDefinition(idx *Index, _ *Normalizer) string {
 	case idx.Primary:
 		b.WriteString("PRIMARY KEY (")
 	case idx.Unique:
-		fmt.Fprintf(&b, "UNIQUE KEY %s (", migrationQuoteIdent(idx.Name))
+		fmt.Fprintf(&b, "UNIQUE KEY %s(", writtenIndexName(idx))
 	case idx.Fulltext:
-		fmt.Fprintf(&b, "FULLTEXT KEY %s (", migrationQuoteIdent(idx.Name))
+		fmt.Fprintf(&b, "FULLTEXT KEY %s(", writtenIndexName(idx))
 	case idx.Spatial:
-		fmt.Fprintf(&b, "SPATIAL KEY %s (", migrationQuoteIdent(idx.Name))
+		fmt.Fprintf(&b, "SPATIAL KEY %s(", writtenIndexName(idx))
 	default:
-		fmt.Fprintf(&b, "KEY %s (", migrationQuoteIdent(idx.Name))
+		fmt.Fprintf(&b, "KEY %s(", writtenIndexName(idx))
 	}
 
 	cols := make([]string, 0, len(idx.Columns))
@@ -450,4 +454,13 @@ func indexOpRank(t MigrationOpType) int {
 // database.table.index.
 func indexSortName(database, table, index string) string {
 	return strings.ToLower(database) + "." + strings.ToLower(table) + "." + strings.ToLower(index)
+}
+
+// writtenIndexName is an index's name as ADD ... KEY writes it, with the space after it, or
+// nothing for the one name that cannot be written (formatIndexDefinition).
+func writtenIndexName(idx *Index) string {
+	if strings.EqualFold(idx.Name, "PRIMARY") {
+		return ""
+	}
+	return migrationQuoteIdent(idx.Name) + " "
 }

@@ -2,11 +2,14 @@ package catalog
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"testing"
 
 	gomysql "github.com/go-sql-driver/mysql"
+
+	"github.com/bytebase/omni/oceanbase/internal/testcontainer"
 )
 
 // What OceanBase answers to DDL the catalog simulates, where its answer is not MySQL's.
@@ -14,27 +17,31 @@ import (
 // number both must answer, 0 for a statement they take. The catalog's rules cite these
 // tests.
 
+// engineDatabase opens t's connection to a database of its own on OceanBase, empty, and
+// a catalog with a database of the same name selected. The name is the server's to give
+// (testcontainer.DatabaseName), so a test reads its schema as DATABASE().
+func engineDatabase(t *testing.T, label string) (*sql.DB, *Catalog, string) {
+	t.Helper()
+	db, name := testcontainer.OpenDatabase(t, label), testcontainer.DatabaseName(label)
+	c := New()
+	if code := omniCode(c, "CREATE DATABASE "+name+"; USE "+name); code != 0 {
+		t.Fatalf("omni: CREATE DATABASE %s: error %d", name, code)
+	}
+	return db, c, name
+}
+
 // runExecSteps runs each case's statements in a database of its own, on OceanBase and on
 // a catalog, and compares the error number of every one on both.
-func runExecSteps(t *testing.T, o *oracleConn, prefix string, cases []struct {
+func runExecSteps(t *testing.T, label string, cases []struct {
 	name  string
 	steps []engineStep
 }) {
 	ctx := context.Background()
 	for i, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			db := fmt.Sprintf("%s_%02d", prefix, i)
-			c := New()
-			for _, s := range []string{"DROP DATABASE IF EXISTS " + db, "CREATE DATABASE " + db, "USE " + db} {
-				if _, err := o.db.ExecContext(ctx, s); err != nil {
-					t.Fatalf("%s: %v", s, err)
-				}
-				if code := omniCode(c, s); code != 0 {
-					t.Fatalf("omni: %s: error %d", s, code)
-				}
-			}
+			db, c, _ := engineDatabase(t, fmt.Sprintf("%s_%02d", label, i))
 			for _, step := range tc.steps {
-				_, err := o.db.ExecContext(ctx, step.sql)
+				_, err := db.ExecContext(ctx, step.sql)
 				var got uint16
 				var myErr *gomysql.MySQLError
 				switch {
@@ -57,8 +64,7 @@ func runExecSteps(t *testing.T, o *oracleConn, prefix string, cases []struct {
 // TestOracle_OceanBaseKeyErrors holds to the engine the errors of a second primary key and
 // of a foreign key OceanBase will not add, and the foreign keys it takes that MySQL refuses.
 func TestOracle_OceanBaseKeyErrors(t *testing.T) {
-	o := oceanBaseOracle(t)
-	runExecSteps(t, o, "obkey", []struct {
+	runExecSteps(t, "oceanbase_catalog_keys", []struct {
 		name  string
 		steps []engineStep
 	}{
@@ -146,8 +152,7 @@ func TestOracle_OceanBaseKeyErrors(t *testing.T) {
 // with two columns of one name, the rename of an event that has started, a compressor that
 // is not OceanBase's, and REORGANIZE PARTITION on a table without a primary key.
 func TestOracle_OceanBaseRefusals(t *testing.T) {
-	o := oceanBaseOracle(t)
-	runExecSteps(t, o, "obrefuse", []struct {
+	runExecSteps(t, "oceanbase_catalog_refusals", []struct {
 		name  string
 		steps []engineStep
 	}{
@@ -235,6 +240,13 @@ func TestOracle_OceanBaseRefusals(t *testing.T) {
 			{"ALTER TABLE t6 REORGANIZE PARTITION p1 INTO (PARTITION p1a VALUES LESS THAN (20), PARTITION p1b VALUES LESS THAN (30))", 1235},
 			{"CREATE TABLE t7 (a INT NOT NULL, b INT NOT NULL, c INT NOT NULL, PRIMARY KEY (a, b, c)) PARTITION BY RANGE COLUMNS (a, b) (PARTITION p0 VALUES LESS THAN (10, 10), PARTITION p1 VALUES LESS THAN (30, 30))", taken},
 			{"ALTER TABLE t7 REORGANIZE PARTITION p1 INTO (PARTITION p1a VALUES LESS THAN (20, 20), PARTITION p1b VALUES LESS THAN (30, 30))", taken},
+			// A key written in backticks is a column like any other, whatever its name holds.
+			{"CREATE TABLE t8 (`val-id` INT NOT NULL, `a``b c` INT NOT NULL, PRIMARY KEY (`val-id`, `a``b c`)) PARTITION BY RANGE (`val-id`) (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (30))", taken},
+			{"ALTER TABLE t8 REORGANIZE PARTITION p1 INTO (PARTITION p1a VALUES LESS THAN (20), PARTITION p1b VALUES LESS THAN (30))", taken},
+			{"CREATE TABLE t9 (`val-id` INT NOT NULL, `a``b c` INT NOT NULL, PRIMARY KEY (`a``b c`, `val-id`)) PARTITION BY RANGE (`a``b c`) (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (30))", taken},
+			{"ALTER TABLE t9 REORGANIZE PARTITION p1 INTO (PARTITION p1a VALUES LESS THAN (20), PARTITION p1b VALUES LESS THAN (30))", taken},
+			{"CREATE TABLE t10 (`val-id` INT NOT NULL, id INT NOT NULL, PRIMARY KEY (id, `val-id`)) PARTITION BY RANGE (`val-id`) (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (30))", taken},
+			{"ALTER TABLE t10 REORGANIZE PARTITION p1 INTO (PARTITION p1a VALUES LESS THAN (20), PARTITION p1b VALUES LESS THAN (30))", 1235},
 		}},
 		{"MySQL's invisible primary key", []engineStep{
 			{"SET SESSION sql_generate_invisible_primary_key = 1", 1193},

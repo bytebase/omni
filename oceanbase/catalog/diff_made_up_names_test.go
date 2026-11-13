@@ -169,3 +169,68 @@ func TestMadeUpConstraintNames(t *testing.T) {
 		}
 	}
 }
+
+// A schema written by one catalog and loaded by another carries the names the first made
+// up, as names somebody wrote. The second catalog's count starts over, so it has to pass
+// over the names taken, or the first unnamed constraint it meets collides with one.
+func TestMadeUpNamesPassOverNamesTaken(t *testing.T) {
+	first := New()
+	if code := omniCode(first, `CREATE DATABASE d; USE d;
+		CREATE TABLE p (id INT PRIMARY KEY);
+		CREATE TABLE t (a INT, b INT, CHECK (a > 0), FOREIGN KEY (b) REFERENCES p (id));`); code != 0 {
+		t.Fatalf("setup: error %d", code)
+	}
+	second := New()
+	if code := omniCode(second, "CREATE DATABASE d; USE d; "+first.ShowCreateTable("d", "p")+"; "+first.ShowCreateTable("d", "t")); code != 0 {
+		t.Fatalf("reload: error %d\n%s", code, first.ShowCreateTable("d", "t"))
+	}
+	for _, stmt := range []string{
+		"ALTER TABLE t ADD CHECK (a < 10)",
+		"ALTER TABLE t ADD FOREIGN KEY (a) REFERENCES p (id)",
+		"CREATE TABLE u (a INT, CHECK (a > 0), FOREIGN KEY (a) REFERENCES p (id))",
+	} {
+		if code := omniCode(second, stmt); code != 0 {
+			t.Errorf("%s: error %d", stmt, code)
+		}
+	}
+	seen := map[string]bool{}
+	for _, name := range []string{"t", "u"} {
+		for _, con := range second.GetDatabase("d").GetTable(name).Constraints {
+			if con.Type != ConCheck && con.Type != ConForeignKey {
+				continue
+			}
+			if key := strings.ToLower(con.Name); seen[key] {
+				t.Errorf("two constraints are named %s", con.Name)
+			} else {
+				seen[key] = true
+			}
+		}
+	}
+	if len(seen) != 6 {
+		t.Errorf("want 6 constraints over t and u, got %d: %v", len(seen), seen)
+	}
+}
+
+// A unique key over a column named PRIMARY is named PRIMARY by the engine and by the
+// catalog, and that name cannot be written (1280), so a plan writes the key without one.
+// The statement is the one TestScenario_C1 sends OceanBase in 1.10.
+func TestMigration_LeavesTheNamePrimaryOut(t *testing.T) {
+	const without = "CREATE TABLE t (`PRIMARY` INT);"
+	const with = "CREATE TABLE t (`PRIMARY` INT, UNIQUE KEY (`PRIMARY`));"
+	for name, from := range map[string]string{"a key added": dbDDL + without, "a table created": dbDDL} {
+		t.Run(name, func(t *testing.T) {
+			fromCat, toCat := loadCat(t, from), loadCat(t, dbDDL+with)
+			plan := GenerateMigration(fromCat, toCat, Diff(fromCat, toCat)).SQL()
+			if !strings.Contains(plan, "UNIQUE KEY (`PRIMARY`)") {
+				t.Errorf("the plan does not write the key without its name:\n%s", plan)
+			}
+			// The plan runs on the catalog it was made for, and leaves the target.
+			if code := omniCode(fromCat, "USE app; "+plan); code != 0 {
+				t.Fatalf("the plan does not run: error %d\n%s", code, plan)
+			}
+			if d := Diff(fromCat, toCat); !d.IsEmpty() {
+				t.Errorf("the plan leaves a difference: %+v", d.Tables)
+			}
+		})
+	}
+}
