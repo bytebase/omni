@@ -26,6 +26,14 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	if err := checkKeyOptions(stmt.Constraints); err != nil {
 		return err
 	}
+	// OceanBase reads the column groups before the name, so a group it refuses
+	// beats 1050 and IF NOT EXISTS (TestOracle_OceanBaseColumnGroups).
+	var groups ColumnGroups
+	if stmt.ColumnGroup != "" {
+		if groups, err = readColumnGroups(stmt.ColumnGroup); err != nil {
+			return err
+		}
+	}
 
 	tableName := stmt.Table.Name
 	key := toLower(tableName)
@@ -52,16 +60,17 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	}
 
 	tbl := &Table{
-		Name:        tableName,
-		Database:    db,
-		Columns:     make([]*Column, 0, len(stmt.Columns)),
-		colByName:   make(map[string]int),
-		Indexes:     make([]*Index, 0),
-		Constraints: make([]*Constraint, 0),
-		Charset:     db.Charset,
-		Collation:   db.Collation,
-		Engine:      "",
-		Temporary:   stmt.Temporary,
+		Name:         tableName,
+		Database:     db,
+		Columns:      make([]*Column, 0, len(stmt.Columns)),
+		colByName:    make(map[string]int),
+		Indexes:      make([]*Index, 0),
+		Constraints:  make([]*Constraint, 0),
+		Charset:      db.Charset,
+		Collation:    db.Collation,
+		Engine:       "",
+		Temporary:    stmt.Temporary,
+		ColumnGroups: groups,
 	}
 
 	// Apply table options.
@@ -2580,6 +2589,7 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 		Checksum:         srcTbl.Checksum,
 		DelayKeyWrite:    srcTbl.DelayKeyWrite,
 		Temporary:        stmt.Temporary,
+		ColumnGroups:     srcTbl.ColumnGroups, // OceanBase copies them (TestOracle_OceanBaseColumnGroups)
 	}
 
 	// Copy columns.

@@ -30,6 +30,7 @@ type Table struct {
 	Checksum         string
 	DelayKeyWrite    string
 	Partitioning     *PartitionInfo
+	ColumnGroups     ColumnGroups // WITH COLUMN GROUP (...), and what ALTER TABLE adds and drops
 
 	// droppedByCleanup tracks indexes auto-removed by DROP COLUMN cleanup
 	// during multi-command ALTER TABLE. This allows a subsequent explicit

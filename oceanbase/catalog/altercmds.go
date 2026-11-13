@@ -157,6 +157,10 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 	case nodes.ATRemovePartitioning:
 		tbl.Partitioning = nil
 		return nil
+	case nodes.ATAddColumnGroup:
+		return alterAddColumnGroup(tbl, cmd)
+	case nodes.ATDropColumnGroup:
+		return alterDropColumnGroup(tbl, cmd)
 	default:
 		// Unsupported alter command; silently ignore.
 		return nil
