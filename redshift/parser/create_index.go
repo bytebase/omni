@@ -101,7 +101,10 @@ func (p *Parser) parseIndexStmt() (*nodes.IndexStmt, error) {
 	}
 
 	// opt_unique_null_treatment
-	nullsNotDistinct := p.parseOptUniqueNullTreatment()
+	nullsNotDistinct, err := p.parseOptUniqueNullTreatment()
+	if err != nil {
+		return nil, err
+	}
 
 	// opt_include
 	var includeParams *nodes.List
@@ -219,7 +222,11 @@ func (p *Parser) parseIndexElem() (*nodes.IndexElem, error) {
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
-		elem.Collation = p.parseOptCollate()
+		collation, err := p.parseOptCollate()
+		if err != nil {
+			return nil, err
+		}
+		elem.Collation = collation
 		opclass, opclassopts, err := p.parseIndexElemOpclass()
 		if err != nil {
 			return nil, err
@@ -245,7 +252,11 @@ func (p *Parser) parseIndexElem() (*nodes.IndexElem, error) {
 			elem.Name = name
 		}
 
-		elem.Collation = p.parseOptCollate()
+		collation, err := p.parseOptCollate()
+		if err != nil {
+			return nil, err
+		}
+		elem.Collation = collation
 		opclass, opclassopts, err := p.parseIndexElemOpclass()
 		if err != nil {
 			return nil, err
@@ -263,7 +274,11 @@ func (p *Parser) parseIndexElem() (*nodes.IndexElem, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		elem.Expr = expr
-		elem.Collation = p.parseOptCollate()
+		collation, err := p.parseOptCollate()
+		if err != nil {
+			return nil, err
+		}
+		elem.Collation = collation
 		opclass, opclassopts, err := p.parseIndexElemOpclass()
 		if err != nil {
 			return nil, err
@@ -291,15 +306,14 @@ func (p *Parser) parseIndexElemOpclass() (*nodes.List, *nodes.List, error) {
 		return nil, nil, nil
 	}
 
-	opclass := p.parseOptQualifiedName()
-	if opclass == nil {
-		return nil, nil, nil
+	opclass, err := p.parseOptQualifiedName()
+	if err != nil || opclass == nil {
+		return nil, nil, err
 	}
 
 	// Check for reloptions: '(' ... ')'
 	var opclassopts *nodes.List
 	if p.cur.Type == '(' {
-		var err error
 		if opclassopts, err = p.parseReloptions(); err != nil {
 			return nil, nil, err
 		}

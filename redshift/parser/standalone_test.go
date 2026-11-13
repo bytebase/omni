@@ -15,17 +15,11 @@ func parseOK(t *testing.T, sql string) {
 	}
 }
 
+// TestSetCatalog: gram.y's CATALOG_P Sconst action refuses SET CATALOG
+// with "current database cannot be changed" (0A000) at the string.
 func TestSetCatalog(t *testing.T) {
-	tests := []string{
-		"SET CATALOG 'test'",
-		"SET CATALOG 'mydb'",
-	}
-	for _, sql := range tests {
-		t.Run(sql, func(t *testing.T) {
-			parseOK(t, sql)
-			CheckLocations(t, sql)
-		})
-	}
+	parseFailsAt(t, "SET CATALOG 'test'", 12)
+	parseFailsAt(t, "ALTER ROLE r SET CATALOG 'mydb'", 25)
 }
 
 // parseFailsAt is a test helper that verifies Parse rejects sql with a

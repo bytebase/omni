@@ -477,7 +477,10 @@ func (p *Parser) parseCreateForeignTableStmt() (nodes.Node, error) {
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
-	inhRelations := p.parseOptInherit()
+	inhRelations, err := p.parseOptInherit()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(SERVER); err != nil {
 		return nil, err
 	}

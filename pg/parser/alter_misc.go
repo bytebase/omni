@@ -575,7 +575,7 @@ func (p *Parser) parseAlterDomainOwnerOrOther() (nodes.Node, error) {
 			// SET DEFAULT a_expr
 			p.advance() // consume SET
 			p.advance() // consume DEFAULT
-			expr, err := p.parseAExpr(0)
+			expr, err := p.parseRequiredAExpr(0)
 			if err != nil {
 				return nil, err
 			}
@@ -732,14 +732,8 @@ func (p *Parser) parseDomainConstraintForAlter(typname *nodes.List) (*nodes.Alte
 	case CHECK:
 		// DomainConstraintElem: CHECK '(' a_expr ')' ConstraintAttributeSpec
 		p.advance()
-		if _, err := p.expect('('); err != nil {
-			return nil, err
-		}
-		expr, err := p.parseAExpr(0)
+		expr, err := p.parseParenRequiredAExpr()
 		if err != nil {
-			return nil, err
-		}
-		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
 		constraint = &nodes.Constraint{
@@ -1036,6 +1030,12 @@ func (p *Parser) parseAggregateWithArgtypesLocal() (*nodes.ObjectWithArgs, error
 	funcname, err := p.parseFuncName()
 	if err != nil {
 		return nil, err
+	}
+	// aggr_args is required here, so its '(' is too.
+	if p.cur.Type != '(' {
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
 	}
 	aggrArgs, err := p.parseAggrArgs()
 	if err != nil {

@@ -105,9 +105,20 @@ func (p *Parser) parseSetRest() (nodes.Node, error) {
 		if next.Type == CHARACTERISTICS {
 			p.advance() // consume SESSION
 			p.advance() // consume CHARACTERISTICS
-			p.expect(AS)
-			p.expect(TRANSACTION)
-			modes, _ := p.parseTransactionModeListOrEmpty()
+			if _, err := p.expect(AS); err != nil {
+				return nil, err
+			}
+			if _, err := p.expect(TRANSACTION); err != nil {
+				return nil, err
+			}
+			modes, err := p.parseTransactionModeListOrEmpty()
+			if err != nil {
+				return nil, err
+			}
+			if modes == nil && !p.collectMode() {
+				// transaction_mode_list is not empty.
+				return nil, p.syntaxErrorAtCur()
+			}
 			return &nodes.VariableSetStmt{
 				Kind: nodes.VAR_SET_MULTI,
 				Name: "SESSION CHARACTERISTICS",
@@ -164,16 +175,14 @@ func (p *Parser) parseSetRestMore() (nodes.Node, error) {
 		return n, nil
 
 	case CATALOG_P:
-		// SET CATALOG Sconst — SQL-standard syntax to change the current database.
-		// PostgreSQL parses this but rejects it at execution time.
+		// SET CATALOG Sconst, the SQL-standard way to change the current
+		// database: gram.y refuses it in the action, at the string.
 		p.advance() // consume CATALOG
-		s := p.cur.Str
-		p.expect(SCONST)
-		return &nodes.VariableSetStmt{
-			Kind: nodes.VAR_SET_VALUE,
-			Name: "catalog",
-			Args: &nodes.List{Items: []nodes.Node{makeStringConst(s)}},
-		}, nil
+		tok, err := p.expect(SCONST)
+		if err != nil {
+			return nil, err
+		}
+		return nil, &ParseError{Code: "0A000", Message: "current database cannot be changed", Position: tok.Loc}
 
 	case SCHEMA:
 		p.advance() // consume SCHEMA

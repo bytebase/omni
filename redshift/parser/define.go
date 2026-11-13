@@ -18,18 +18,12 @@ func (p *Parser) parseDefineStmtAggregate(replace bool, stmtLoc int) (nodes.Node
 		return nil, err
 	}
 
-	// Save state to try new-style first (aggr_args definition).
-	savedCur := p.cur
-	savedPrev := p.prev
-	savedNext := p.nextBuf
-	savedHasNext := p.hasNext
-	savedLexerErr := p.lexer.Err
-	savedLexerPos := p.lexer.pos
-	savedLexerStart := p.lexer.start
-	savedLexerState := p.lexer.state
-
-	args, _ := p.parseAggrArgs()
-	if args != nil && p.cur.Type == '(' {
+	// Try the new-style form (aggr_args definition) first. Both forms
+	// start with '(': an aggr_args that fails to parse, or one no
+	// definition follows, means the old form, so the error is not
+	// returned and the token stream is rolled back.
+	snap := p.snapshotTokenStream()
+	if args, err := p.parseAggrArgs(); err == nil && args != nil && p.cur.Type == '(' {
 		def, err := p.parseDefinition()
 		if err != nil {
 			return nil, err
@@ -46,14 +40,7 @@ func (p *Parser) parseDefineStmtAggregate(replace bool, stmtLoc int) (nodes.Node
 	}
 
 	// Restore and try old-style
-	p.cur = savedCur
-	p.prev = savedPrev
-	p.nextBuf = savedNext
-	p.hasNext = savedHasNext
-	p.lexer.Err = savedLexerErr
-	p.lexer.pos = savedLexerPos
-	p.lexer.start = savedLexerStart
-	p.lexer.state = savedLexerState
+	p.restoreTokenStream(snap)
 
 	def, err := p.parseOldAggrDefinition()
 	if err != nil {
@@ -426,19 +413,13 @@ func (p *Parser) parseOldAggrElem() (*nodes.DefElem, error) {
 // parseAggrArgsList parses aggr_args_list: aggr_arg (',' aggr_arg)*.
 //
 // gram.y requires at least one aggr_arg, so "DROP AGGREGATE b()" is a syntax
-// error at the ")" token; "b(*)" is the no-argument form. parseFuncArg swallows
-// the parseFuncType error and returns a parameter with a nil ArgType when the
-// current token cannot start a type, so report the syntax error here and never
-// hand a typed-nil *TypeName to a caller.
+// error at the ")" token; "b(*)" is the no-argument form.
 func (p *Parser) parseAggrArgsList() (*nodes.List, error) {
 	var items []nodes.Node
 	for {
-		arg := p.parseFuncArg()
-		if arg == nil || arg.ArgType == nil {
-			if p.collectMode() {
-				return nil, errCollecting
-			}
-			return nil, p.syntaxErrorAtCur()
+		arg, err := p.parseFuncArg()
+		if err != nil {
+			return nil, err
 		}
 		items = append(items, arg)
 		if p.cur.Type != ',' {
@@ -1087,7 +1068,10 @@ func (p *Parser) parseFunctionWithArgtypes() (*nodes.ObjectWithArgs, error) {
 			p.advance()
 			return &nodes.ObjectWithArgs{Objname: funcname, Objargs: nil}, nil
 		}
-		args := p.parseFuncArgsList()
+		args, err := p.parseFuncArgsList()
+		if err != nil {
+			return nil, err
+		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
@@ -1097,15 +1081,22 @@ func (p *Parser) parseFunctionWithArgtypes() (*nodes.ObjectWithArgs, error) {
 	return &nodes.ObjectWithArgs{Objname: funcname, ArgsUnspecified: true}, nil
 }
 
-// parseFuncArgsList parses: func_arg (',' func_arg)*
-func (p *Parser) parseFuncArgsList() *nodes.List {
-	arg := p.parseFuncArg()
-	items := []nodes.Node{arg}
-	for p.cur.Type == ',' {
+// parseFuncArgsList parses func_args_list.
+//
+//	func_args_list: func_arg | func_args_list ',' func_arg
+func (p *Parser) parseFuncArgsList() (*nodes.List, error) {
+	var items []nodes.Node
+	for {
+		arg, err := p.parseFuncArg()
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, arg)
+		if p.cur.Type != ',' {
+			return &nodes.List{Items: items}, nil
+		}
 		p.advance()
-		items = append(items, p.parseFuncArg())
 	}
-	return &nodes.List{Items: items}
 }
 
 // extractArgTypes extracts TypeName nodes from a list of FunctionParameter.

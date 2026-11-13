@@ -250,7 +250,10 @@ func (p *Parser) parseAlterSequence(alterLoc int) (nodes.Node, error) {
 		if _, err := p.expect(TO); err != nil {
 			return nil, err
 		}
-		newname, _ := p.parseName()
+		newname, err := p.parseName()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.RenameStmt{
 			RenameType: nodes.OBJECT_SEQUENCE,
 			Relation:   rv,
@@ -265,7 +268,10 @@ func (p *Parser) parseAlterSequence(alterLoc int) (nodes.Node, error) {
 		rv := makeRangeVarFromAnyName(names, nameLoc)
 		p.advance() // consume SET
 		p.advance() // consume SCHEMA
-		newschema, _ := p.parseName()
+		newschema, err := p.parseName()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterObjectSchemaStmt{
 			ObjectType: nodes.OBJECT_SEQUENCE,
 			Relation:   rv,
@@ -1692,8 +1698,7 @@ func (p *Parser) parseAlterColumnTypeInner(colname string) (*nodes.AlterTableCmd
 	// transform analysis, not the raw parse tree)
 	if p.cur.Type == USING {
 		p.advance()
-		_, err = p.parseAExpr(0)
-		if err != nil {
+		if _, err = p.parseRequiredAExpr(0); err != nil {
 			return nil, err
 		}
 	}
@@ -2373,8 +2378,11 @@ func (p *Parser) parseAlterIdentityColumnOption() (nodes.Node, error) {
 		if hasWith {
 			p.advance()
 		}
-		if p.cur.Type == ICONST || p.cur.Type == FCONST || p.cur.Type == '+' || p.cur.Type == '-' {
-			val := p.parseNumericOnly()
+		if p.isNumericOnlyStart() {
+			val, err := p.parseNumericOnlyRequired()
+			if err != nil {
+				return nil, err
+			}
 			return makeDefElem("restart", val), nil
 		}
 		if hasWith {
