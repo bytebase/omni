@@ -1,8 +1,8 @@
 package v1review
 
-// The conditions the system rules and the storage engine rule report. An
-// allow-list or a length limit is passed to its rule function as a plain
-// value.
+// The conditions the system rules, the storage engine rule and the drop
+// database rule report. An allow-list or a length limit is passed to its
+// rule function as a plain value.
 const (
 	// CharsetNotAllowed: a character set is not in the allowed list. Name
 	// holds it as the V1 advisor printed it.
@@ -25,6 +25,13 @@ const (
 	// EngineNotInnoDB: a statement chooses a storage engine other than
 	// InnoDB.
 	EngineNotInnoDB Code = "engine-not-innodb"
+
+	// DatabaseNotCurrent: a statement drops a database other than the one
+	// the pre-change schema is of. Name holds the dropped database.
+	DatabaseNotCurrent Code = "database-not-current"
+	// DatabaseNotEmpty: a statement drops the pre-change schema's database
+	// while it holds a table. Name holds the dropped database.
+	DatabaseNotEmpty Code = "database-not-empty"
 )
 
 // The changes SchemaBackwardCompatibility reports as possibly breaking the
@@ -55,3 +62,21 @@ const (
 	IncompatibleDropMaybeNewSchema   Code = "incompatible-drop-maybe-new-schema"
 	IncompatibleDropMaybeNewTable    Code = "incompatible-drop-maybe-new-table"
 )
+
+// DatabaseName returns the name of the database the snapshot is of, "" when
+// there is no snapshot.
+func (s Schema) DatabaseName() string {
+	return s.Metadata.GetName()
+}
+
+// HasNoTable reports whether no schema of the snapshot lists a table. Among
+// schemas of the same name only the last is read, as the V1 advisors read
+// them.
+func (s Schema) HasNoTable() bool {
+	for _, schema := range lastOfEachName(s.Metadata.GetSchemas(), s.ObjectCaseSensitive, schemaNameOf) {
+		if len(schema.GetTables()) > 0 {
+			return false
+		}
+	}
+	return true
+}
