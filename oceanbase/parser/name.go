@@ -783,18 +783,25 @@ func (p *Parser) parseKeywordOrIdent() (string, int, error) {
 	}
 }
 
-// parseColumnRef parses a column reference, which may be qualified:
+// parseColumnRef reads column_ref outside an expression (no_param_column_ref has the
+// same forms): a column's name, alone or qualified. With r a relation_name, c a
+// column_name and K a word of mysql_reserved_keyword:
 //
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/identifier-qualifiers.html
+//	c | r.c | r.* | r.r.c | r.r.*
+//	r.K | K.K | r.r.K | r.K.K
+//	.r.c | .r.K | .K.K
 //
-//	column_ref:
-//	    identifier
-//	    | identifier '.' identifier
-//	    | identifier '.' identifier '.' identifier
-//	    | identifier '.' '*'
-//	    | identifier '.' identifier '.' '*'
+// A reserved word is a name only after a dot, or before a dot and another reserved
+// word, and a leading dot stands for no database and takes a table and a column after it.
+//
+// Ref: column_ref and no_param_column_ref in sql_parser_mysql_mode.y (oceanbase
+// v4.3.5_CE_BP6, lines 898 and 11301); TestColumnRefFormsOceanBaseOracle holds the
+// forms to the pinned server.
 func (p *Parser) parseColumnRef() (*nodes.ColumnRef, error) {
 	start := p.pos()
+	if p.cur.Type == '.' || p.reservedPairAhead() {
+		return p.parseReservedColumnRef()
+	}
 	name, _, err := p.parseIdent()
 	if err != nil {
 		return nil, err
@@ -818,6 +825,9 @@ func (p *Parser) parseColumnRef() (*nodes.ColumnRef, error) {
 			ref.Loc.End = p.prev.End
 			return ref, nil
 		}
+		if reservedNamesAfterDot[p.cur.Type] {
+			return p.parseColumnRefReservedTail(start, name)
+		}
 
 		name2, _, err := p.parseIdent()
 		if err != nil {
@@ -838,7 +848,7 @@ func (p *Parser) parseColumnRef() (*nodes.ColumnRef, error) {
 				return ref, nil
 			}
 
-			name3, _, err := p.parseIdent()
+			name3, err := p.parseNameAfterDot()
 			if err != nil {
 				return nil, err
 			}
@@ -855,6 +865,72 @@ func (p *Parser) parseColumnRef() (*nodes.ColumnRef, error) {
 	}
 
 	ref.Loc.End = p.prev.End
+	return ref, nil
+}
+
+// reservedPairAhead reports whether the current token opens column_ref's K.K: a word of
+// mysql_reserved_keyword, a dot, and another such word. Only there is a reserved word a
+// table's name without a name before it.
+func (p *Parser) reservedPairAhead() bool {
+	if !reservedNamesAfterDot[p.cur.Type] || p.peekNext().Type != '.' {
+		return false
+	}
+	s := p.saveScan()
+	p.advance()
+	p.advance()
+	ok := reservedNamesAfterDot[p.cur.Type]
+	p.restoreScan(s)
+	return ok
+}
+
+// parseReservedColumnRef reads the column_ref forms that open with a dot or with a
+// reserved word: K.K, .r.c, .r.K and .K.K.
+func (p *Parser) parseReservedColumnRef() (*nodes.ColumnRef, error) {
+	ref := &nodes.ColumnRef{Loc: nodes.Loc{Start: p.pos()}}
+	if p.cur.Type != '.' {
+		ref.Table = p.advance().Str
+		p.advance() // the dot reservedPairAhead saw
+		ref.Column = p.advance().Str
+		ref.Loc.End = p.prev.End
+		p.reservedColumnRef = ref
+		return ref, nil
+	}
+	p.advance() // the leading dot
+	tableReserved := reservedNamesAfterDot[p.cur.Type]
+	table, err := p.parseNameAfterDot()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect('.'); err != nil {
+		return nil, err
+	}
+	// After a reserved table name the column is reserved too.
+	if tableReserved && !reservedNamesAfterDot[p.cur.Type] {
+		return nil, p.syntaxErrorAtCur()
+	}
+	column, err := p.parseNameAfterDot()
+	if err != nil {
+		return nil, err
+	}
+	ref.Table, ref.Column = table, column
+	ref.Loc.End = p.prev.End
+	p.reservedColumnRef = ref
+	return ref, nil
+}
+
+// parseColumnRefReservedTail reads the rest of r.K and r.K.K, at the reserved word after
+// the first dot. A second dot takes another reserved word and nothing else.
+func (p *Parser) parseColumnRefReservedTail(start int, first string) (*nodes.ColumnRef, error) {
+	ref := &nodes.ColumnRef{Loc: nodes.Loc{Start: start}, Table: first, Column: p.advance().Str}
+	if p.cur.Type == '.' {
+		p.advance()
+		if !reservedNamesAfterDot[p.cur.Type] {
+			return nil, p.syntaxErrorAtCur()
+		}
+		ref.Schema, ref.Table, ref.Column = first, ref.Column, p.advance().Str
+	}
+	ref.Loc.End = p.prev.End
+	p.reservedColumnRef = ref
 	return ref, nil
 }
 
