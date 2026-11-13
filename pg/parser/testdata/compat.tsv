@@ -75,14 +75,14 @@ reject@22	reject@22	engine	stmt/AlterExtensionStmt!drop-3	ALTER EXTENSION UPDATE
 reject@17	reject@17	engine	stmt/AlterExtensionStmt!drop-4	ALTER EXTENSION a
 reject@25	reject@25	engine	stmt/AlterExtensionStmt!insert	ALTER EXTENSION a UPDATE zzz
 reject@0	reject@0	engine	stmt/AlterExtensionStmt!swap	ALWAYS EXTENSION a UPDATE
-reject@32	accept	engine	stmt/AlterExtensionContentsStmt	ALTER EXTENSION a ADD EXTENSION a
+accept	accept	engine	stmt/AlterExtensionContentsStmt	ALTER EXTENSION a ADD EXTENSION a
 reject@0	reject@0	engine	stmt/AlterExtensionContentsStmt!drop-1	EXTENSION a ADD EXTENSION a
 reject@6	reject@6	engine	stmt/AlterExtensionContentsStmt!drop-2	ALTER a ADD EXTENSION a
 reject@20	reject@20	engine	stmt/AlterExtensionContentsStmt!drop-3	ALTER EXTENSION ADD EXTENSION a
 reject@18	reject@18	engine	stmt/AlterExtensionContentsStmt!drop-4	ALTER EXTENSION a EXTENSION a
-accept	reject@22	engine	stmt/AlterExtensionContentsStmt!drop-5	ALTER EXTENSION a ADD a
-accept	reject@31	engine	stmt/AlterExtensionContentsStmt!drop-6	ALTER EXTENSION a ADD EXTENSION
-reject@32	reject@34	engine	stmt/AlterExtensionContentsStmt!insert	ALTER EXTENSION a ADD EXTENSION a zzz
+reject@22	reject@22	engine	stmt/AlterExtensionContentsStmt!drop-5	ALTER EXTENSION a ADD a
+reject@31	reject@31	engine	stmt/AlterExtensionContentsStmt!drop-6	ALTER EXTENSION a ADD EXTENSION
+reject@34	reject@34	engine	stmt/AlterExtensionContentsStmt!insert	ALTER EXTENSION a ADD EXTENSION a zzz
 reject@0	reject@0	engine	stmt/AlterExtensionContentsStmt!swap	ALWAYS EXTENSION a ADD EXTENSION a
 accept	accept	engine	stmt/AlterFdwStmt	ALTER FOREIGN DATA WRAPPER a HANDLER a
 reject@0	reject@0	engine	stmt/AlterFdwStmt!drop-1	FOREIGN DATA WRAPPER a HANDLER a
@@ -314,7 +314,7 @@ reject@0	reject@0	engine	stmt/ClusterStmt!swap	COALESCE
 accept	accept	engine	stmt/CommentStmt	COMMENT ON TABLE a IS 's'
 reject@0	reject@0	engine	stmt/CommentStmt!drop-1	ON TABLE a IS 's'
 reject@8	reject@8	engine	stmt/CommentStmt!drop-2	COMMENT TABLE a IS 's'
-accept	reject@11	engine	stmt/CommentStmt!drop-3	COMMENT ON a IS 's'
+reject@11	reject@11	engine	stmt/CommentStmt!drop-3	COMMENT ON a IS 's'
 reject@17	reject@17	engine	stmt/CommentStmt!drop-4	COMMENT ON TABLE IS 's'
 reject@19	reject@19	engine	stmt/CommentStmt!drop-5	COMMENT ON TABLE a 's'
 accept	reject@21	engine	stmt/CommentStmt!drop-6	COMMENT ON TABLE a IS
@@ -900,10 +900,10 @@ accept	accept	engine	stmt/SecLabelStmt	SECURITY LABEL ON TABLE a IS 's'
 reject@0	reject@0	engine	stmt/SecLabelStmt!drop-1	LABEL ON TABLE a IS 's'
 reject@9	reject@9	engine	stmt/SecLabelStmt!drop-2	SECURITY ON TABLE a IS 's'
 reject@15	reject@15	engine	stmt/SecLabelStmt!drop-3	SECURITY LABEL TABLE a IS 's'
-accept	reject@18	engine	stmt/SecLabelStmt!drop-4	SECURITY LABEL ON a IS 's'
+reject@18	reject@18	engine	stmt/SecLabelStmt!drop-4	SECURITY LABEL ON a IS 's'
 reject@24	reject@24	engine	stmt/SecLabelStmt!drop-5	SECURITY LABEL ON TABLE IS 's'
 reject@26	reject@26	engine	stmt/SecLabelStmt!drop-6	SECURITY LABEL ON TABLE a 's'
-accept	reject@28	engine	stmt/SecLabelStmt!drop-7	SECURITY LABEL ON TABLE a IS
+reject@28	reject@28	engine	stmt/SecLabelStmt!drop-7	SECURITY LABEL ON TABLE a IS
 reject@33	reject@33	engine	stmt/SecLabelStmt!insert	SECURITY LABEL ON TABLE a IS 's' zzz
 reject@13	reject@13	engine	stmt/SecLabelStmt!swap	SELECT LABEL ON TABLE a IS 's'
 accept	accept	engine	stmt/SelectStmt	SELECT
@@ -1119,11 +1119,11 @@ reject@23	reject@23	engine	DropRoleStmt/DROP_GROUP_P_IF_P_EXISTS_role_list!inser
 reject@0	reject@0	engine	DropRoleStmt/DROP_GROUP_P_IF_P_EXISTS_role_list!swap	EACH GROUP IF EXISTS a
 accept	accept	engine	CreateGroupStmt/CREATE_GROUP_P_RoleId_opt_with_OptRoleList	CREATE GROUP a
 accept	accept	engine	AlterGroupStmt/ALTER_GROUP_P_RoleSpec_add_drop_USER_role_list	ALTER GROUP a ADD USER a
-reject@32	accept	engine	add_drop/ADD_P	ALTER EXTENSION a ADD EXTENSION a
-reject@26	reject@22	engine	add_drop/ADD_P!insert	ALTER EXTENSION a ADD zzz EXTENSION a
+accept	accept	engine	add_drop/ADD_P	ALTER EXTENSION a ADD EXTENSION a
+reject@22	reject@22	engine	add_drop/ADD_P!insert	ALTER EXTENSION a ADD zzz EXTENSION a
 reject@18	reject@18	engine	add_drop/ADD_P!swap	ALTER EXTENSION a ADMIN EXTENSION a
-reject@33	accept	engine	add_drop/DROP	ALTER EXTENSION a DROP EXTENSION a
-reject@27	reject@23	engine	add_drop/DROP!insert	ALTER EXTENSION a DROP zzz EXTENSION a
+accept	accept	engine	add_drop/DROP	ALTER EXTENSION a DROP EXTENSION a
+reject@23	reject@23	engine	add_drop/DROP!insert	ALTER EXTENSION a DROP zzz EXTENSION a
 reject@18	reject@18	engine	add_drop/DROP!swap	ALTER EXTENSION a EACH EXTENSION a
 accept	accept	engine	CreateSchemaStmt/CREATE_SCHEMA_opt_single_name_AUTHORIZATION_RoleSpec_OptSchemaEltList	CREATE SCHEMA AUTHORIZATION a
 reject@0	reject@0	engine	CreateSchemaStmt/CREATE_SCHEMA_opt_single_name_AUTHORIZATION_RoleSpec_OptSchemaEltList!drop-1	SCHEMA AUTHORIZATION a
@@ -3335,13 +3335,13 @@ reject@30	reject@30	engine	alter_extension_opt_list/alter_extension_opt_list_alt
 reject@25	reject@25	engine	alter_extension_opt_list/alter_extension_opt_list_alter_extension_opt_item!swap	ALTER EXTENSION a UPDATE TRAILING a
 accept	accept	engine	alter_extension_opt_list/%empty	ALTER EXTENSION a UPDATE
 accept	accept	engine	alter_extension_opt_item/TO_NonReservedWord_or_Sconst	ALTER EXTENSION a UPDATE TO a
-reject@32	accept	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_object_type_name_name	ALTER EXTENSION a ADD EXTENSION a
+accept	accept	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_object_type_name_name	ALTER EXTENSION a ADD EXTENSION a
 accept	accept	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_object_type_any_name_any_name	ALTER EXTENSION a ADD TABLE a
 reject@0	reject@0	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_object_type_any_name_any_name!drop-1	EXTENSION a ADD TABLE a
 reject@6	reject@6	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_object_type_any_name_any_name!drop-2	ALTER a ADD TABLE a
 reject@20	reject@20	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_object_type_any_name_any_name!drop-3	ALTER EXTENSION ADD TABLE a
 reject@18	reject@18	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_object_type_any_name_any_name!drop-4	ALTER EXTENSION a TABLE a
-accept	reject@27	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_object_type_any_name_any_name!drop-6	ALTER EXTENSION a ADD TABLE
+reject@27	reject@27	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_object_type_any_name_any_name!drop-6	ALTER EXTENSION a ADD TABLE
 reject@30	reject@30	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_object_type_any_name_any_name!insert	ALTER EXTENSION a ADD TABLE a zzz
 reject@0	reject@0	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_object_type_any_name_any_name!swap	ALWAYS EXTENSION a ADD TABLE a
 accept	accept	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_AGGREGATE_aggregate_with_argtypes	ALTER EXTENSION a ADD AGGREGATE a(*)
@@ -3349,25 +3349,25 @@ reject@0	reject@0	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_dro
 reject@6	reject@6	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_AGGREGATE_aggregate_with_argtypes!drop-2	ALTER a ADD AGGREGATE a(*)
 reject@20	reject@20	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_AGGREGATE_aggregate_with_argtypes!drop-3	ALTER EXTENSION ADD AGGREGATE a(*)
 reject@18	reject@18	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_AGGREGATE_aggregate_with_argtypes!drop-4	ALTER EXTENSION a AGGREGATE a(*)
-reject@23	reject@22	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_AGGREGATE_aggregate_with_argtypes!drop-5	ALTER EXTENSION a ADD a(*)
+reject@22	reject@22	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_AGGREGATE_aggregate_with_argtypes!drop-5	ALTER EXTENSION a ADD a(*)
 reject@31	reject@31	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_AGGREGATE_aggregate_with_argtypes!drop-6	ALTER EXTENSION a ADD AGGREGATE(*)
 reject@34	reject@34	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_AGGREGATE_aggregate_with_argtypes!drop-7	ALTER EXTENSION a ADD AGGREGATE a *)
 reject@34	reject@34	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_AGGREGATE_aggregate_with_argtypes!drop-8	ALTER EXTENSION a ADD AGGREGATE a()
 reject@35	reject@35	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_AGGREGATE_aggregate_with_argtypes!drop-9	ALTER EXTENSION a ADD AGGREGATE a(*
 reject@37	reject@37	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_AGGREGATE_aggregate_with_argtypes!insert	ALTER EXTENSION a ADD AGGREGATE a(*) zzz
 reject@0	reject@0	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_AGGREGATE_aggregate_with_argtypes!swap	ALWAYS EXTENSION a ADD AGGREGATE a(*)
-reject@22	accept	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_CAST_(_Typename_AS_Typename_)	ALTER EXTENSION a ADD CAST(a AS a)
+accept	accept	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_CAST_(_Typename_AS_Typename_)	ALTER EXTENSION a ADD CAST(a AS a)
 reject@0	reject@0	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_CAST_(_Typename_AS_Typename_)!drop-1	EXTENSION a ADD CAST(a AS a)
 reject@6	reject@6	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_CAST_(_Typename_AS_Typename_)!drop-2	ALTER a ADD CAST(a AS a)
 reject@20	reject@20	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_CAST_(_Typename_AS_Typename_)!drop-3	ALTER EXTENSION ADD CAST(a AS a)
 reject@18	reject@18	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_CAST_(_Typename_AS_Typename_)!drop-4	ALTER EXTENSION a CAST(a AS a)
 reject@21	reject@21	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_CAST_(_Typename_AS_Typename_)!drop-5	ALTER EXTENSION a ADD(a AS a)
-reject@22	reject@27	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_CAST_(_Typename_AS_Typename_)!drop-6	ALTER EXTENSION a ADD CAST a AS a)
-reject@22	reject@27	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_CAST_(_Typename_AS_Typename_)!drop-7	ALTER EXTENSION a ADD CAST(AS a)
-reject@22	reject@29	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_CAST_(_Typename_AS_Typename_)!drop-8	ALTER EXTENSION a ADD CAST(a a)
-reject@22	reject@31	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_CAST_(_Typename_AS_Typename_)!drop-9	ALTER EXTENSION a ADD CAST(a AS)
-reject@22	reject@33	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_CAST_(_Typename_AS_Typename_)!drop-10	ALTER EXTENSION a ADD CAST(a AS a
-reject@22	reject@35	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_CAST_(_Typename_AS_Typename_)!insert	ALTER EXTENSION a ADD CAST(a AS a) zzz
+reject@27	reject@27	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_CAST_(_Typename_AS_Typename_)!drop-6	ALTER EXTENSION a ADD CAST a AS a)
+reject@27	reject@27	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_CAST_(_Typename_AS_Typename_)!drop-7	ALTER EXTENSION a ADD CAST(AS a)
+reject@29	reject@29	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_CAST_(_Typename_AS_Typename_)!drop-8	ALTER EXTENSION a ADD CAST(a a)
+reject@31	reject@31	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_CAST_(_Typename_AS_Typename_)!drop-9	ALTER EXTENSION a ADD CAST(a AS)
+reject@33	reject@33	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_CAST_(_Typename_AS_Typename_)!drop-10	ALTER EXTENSION a ADD CAST(a AS a
+reject@35	reject@35	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_CAST_(_Typename_AS_Typename_)!insert	ALTER EXTENSION a ADD CAST(a AS a) zzz
 reject@0	reject@0	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_CAST_(_Typename_AS_Typename_)!swap	ALWAYS EXTENSION a ADD CAST(a AS a)
 accept	accept	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_DOMAIN_P_Typename	ALTER EXTENSION a ADD DOMAIN a
 reject@0	reject@0	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_DOMAIN_P_Typename!drop-1	EXTENSION a ADD DOMAIN a
@@ -3383,7 +3383,7 @@ reject@6	reject@6	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_dro
 reject@20	reject@20	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_FUNCTION_function_with_argtypes!drop-3	ALTER EXTENSION ADD FUNCTION AUTHORIZATION
 reject@18	reject@18	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_FUNCTION_function_with_argtypes!drop-4	ALTER EXTENSION a FUNCTION AUTHORIZATION
 reject@22	reject@22	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_FUNCTION_function_with_argtypes!drop-5	ALTER EXTENSION a ADD AUTHORIZATION
-accept	reject@30	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_FUNCTION_function_with_argtypes!drop-6	ALTER EXTENSION a ADD FUNCTION
+reject@30	reject@30	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_FUNCTION_function_with_argtypes!drop-6	ALTER EXTENSION a ADD FUNCTION
 reject@45	reject@45	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_FUNCTION_function_with_argtypes!insert	ALTER EXTENSION a ADD FUNCTION AUTHORIZATION zzz
 reject@0	reject@0	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_FUNCTION_function_with_argtypes!swap	ALWAYS EXTENSION a ADD FUNCTION AUTHORIZATION
 accept	reject@34	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_OPERATOR_operator_with_argtypes	ALTER EXTENSION a ADD OPERATOR ~(a)
@@ -3392,10 +3392,10 @@ reject@6	reject@6	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_dro
 reject@20	reject@20	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_OPERATOR_operator_with_argtypes!drop-3	ALTER EXTENSION ADD OPERATOR ~(a)
 reject@18	reject@18	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_OPERATOR_operator_with_argtypes!drop-4	ALTER EXTENSION a OPERATOR ~(a)
 reject@22	reject@22	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_OPERATOR_operator_with_argtypes!drop-5	ALTER EXTENSION a ADD ~(a)
-accept	reject@30	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_OPERATOR_operator_with_argtypes!drop-6	ALTER EXTENSION a ADD OPERATOR(a)
-accept	reject@33	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_OPERATOR_operator_with_argtypes!drop-7	ALTER EXTENSION a ADD OPERATOR ~ a)
-accept	reject@33	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_OPERATOR_operator_with_argtypes!drop-8	ALTER EXTENSION a ADD OPERATOR ~()
-accept	reject@34	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_OPERATOR_operator_with_argtypes!drop-9	ALTER EXTENSION a ADD OPERATOR ~(a
+reject@30	reject@30	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_OPERATOR_operator_with_argtypes!drop-6	ALTER EXTENSION a ADD OPERATOR(a)
+reject@33	reject@33	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_OPERATOR_operator_with_argtypes!drop-7	ALTER EXTENSION a ADD OPERATOR ~ a)
+reject@33	reject@33	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_OPERATOR_operator_with_argtypes!drop-8	ALTER EXTENSION a ADD OPERATOR ~()
+reject@34	reject@34	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_OPERATOR_operator_with_argtypes!drop-9	ALTER EXTENSION a ADD OPERATOR ~(a
 reject@36	reject@34	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_OPERATOR_operator_with_argtypes!insert	ALTER EXTENSION a ADD OPERATOR ~(a) zzz
 reject@0	reject@0	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_OPERATOR_operator_with_argtypes!swap	ALWAYS EXTENSION a ADD OPERATOR ~(a)
 accept	accept	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_OPERATOR_CLASS_any_name_USING_name	ALTER EXTENSION a ADD OPERATOR CLASS a USING a
@@ -3403,7 +3403,7 @@ reject@0	reject@0	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_dro
 reject@6	reject@6	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_OPERATOR_CLASS_any_name_USING_name!drop-2	ALTER a ADD OPERATOR CLASS a USING a
 reject@20	reject@20	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_OPERATOR_CLASS_any_name_USING_name!drop-3	ALTER EXTENSION ADD OPERATOR CLASS a USING a
 reject@18	reject@18	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_OPERATOR_CLASS_any_name_USING_name!drop-4	ALTER EXTENSION a OPERATOR CLASS a USING a
-reject@28	reject@22	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_OPERATOR_CLASS_any_name_USING_name!drop-5	ALTER EXTENSION a ADD CLASS a USING a
+reject@22	reject@22	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_OPERATOR_CLASS_any_name_USING_name!drop-5	ALTER EXTENSION a ADD CLASS a USING a
 reject@33	reject@33	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_OPERATOR_CLASS_any_name_USING_name!drop-6	ALTER EXTENSION a ADD OPERATOR a USING a
 reject@37	reject@37	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_OPERATOR_CLASS_any_name_USING_name!drop-7	ALTER EXTENSION a ADD OPERATOR CLASS USING a
 reject@39	reject@39	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_OPERATOR_CLASS_any_name_USING_name!drop-8	ALTER EXTENSION a ADD OPERATOR CLASS a a
@@ -3415,7 +3415,7 @@ reject@0	reject@0	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_dro
 reject@6	reject@6	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_OPERATOR_FAMILY_any_name_USING_name!drop-2	ALTER a ADD OPERATOR FAMILY a USING a
 reject@20	reject@20	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_OPERATOR_FAMILY_any_name_USING_name!drop-3	ALTER EXTENSION ADD OPERATOR FAMILY a USING a
 reject@18	reject@18	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_OPERATOR_FAMILY_any_name_USING_name!drop-4	ALTER EXTENSION a OPERATOR FAMILY a USING a
-reject@29	reject@22	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_OPERATOR_FAMILY_any_name_USING_name!drop-5	ALTER EXTENSION a ADD FAMILY a USING a
+reject@22	reject@22	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_OPERATOR_FAMILY_any_name_USING_name!drop-5	ALTER EXTENSION a ADD FAMILY a USING a
 reject@38	reject@38	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_OPERATOR_FAMILY_any_name_USING_name!drop-7	ALTER EXTENSION a ADD OPERATOR FAMILY USING a
 reject@40	reject@40	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_OPERATOR_FAMILY_any_name_USING_name!drop-8	ALTER EXTENSION a ADD OPERATOR FAMILY a a
 reject@45	reject@45	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_OPERATOR_FAMILY_any_name_USING_name!drop-9	ALTER EXTENSION a ADD OPERATOR FAMILY a USING
@@ -3426,7 +3426,7 @@ reject@0	reject@0	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_dro
 reject@6	reject@6	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_PROCEDURE_function_with_argtypes!drop-2	ALTER a ADD PROCEDURE AUTHORIZATION
 reject@20	reject@20	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_PROCEDURE_function_with_argtypes!drop-3	ALTER EXTENSION ADD PROCEDURE AUTHORIZATION
 reject@18	reject@18	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_PROCEDURE_function_with_argtypes!drop-4	ALTER EXTENSION a PROCEDURE AUTHORIZATION
-accept	reject@31	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_PROCEDURE_function_with_argtypes!drop-6	ALTER EXTENSION a ADD PROCEDURE
+reject@31	reject@31	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_PROCEDURE_function_with_argtypes!drop-6	ALTER EXTENSION a ADD PROCEDURE
 reject@46	reject@46	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_PROCEDURE_function_with_argtypes!insert	ALTER EXTENSION a ADD PROCEDURE AUTHORIZATION zzz
 reject@0	reject@0	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_PROCEDURE_function_with_argtypes!swap	ALWAYS EXTENSION a ADD PROCEDURE AUTHORIZATION
 accept	accept	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_ROUTINE_function_with_argtypes	ALTER EXTENSION a ADD ROUTINE AUTHORIZATION
@@ -3434,20 +3434,20 @@ reject@0	reject@0	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_dro
 reject@6	reject@6	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_ROUTINE_function_with_argtypes!drop-2	ALTER a ADD ROUTINE AUTHORIZATION
 reject@20	reject@20	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_ROUTINE_function_with_argtypes!drop-3	ALTER EXTENSION ADD ROUTINE AUTHORIZATION
 reject@18	reject@18	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_ROUTINE_function_with_argtypes!drop-4	ALTER EXTENSION a ROUTINE AUTHORIZATION
-accept	reject@29	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_ROUTINE_function_with_argtypes!drop-6	ALTER EXTENSION a ADD ROUTINE
+reject@29	reject@29	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_ROUTINE_function_with_argtypes!drop-6	ALTER EXTENSION a ADD ROUTINE
 reject@44	reject@44	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_ROUTINE_function_with_argtypes!insert	ALTER EXTENSION a ADD ROUTINE AUTHORIZATION zzz
 reject@0	reject@0	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_ROUTINE_function_with_argtypes!swap	ALWAYS EXTENSION a ADD ROUTINE AUTHORIZATION
-reject@32	accept	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_TRANSFORM_FOR_Typename_LANGUAGE_name	ALTER EXTENSION a ADD TRANSFORM FOR a LANGUAGE a
+accept	accept	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_TRANSFORM_FOR_Typename_LANGUAGE_name	ALTER EXTENSION a ADD TRANSFORM FOR a LANGUAGE a
 reject@0	reject@0	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_TRANSFORM_FOR_Typename_LANGUAGE_name!drop-1	EXTENSION a ADD TRANSFORM FOR a LANGUAGE a
 reject@6	reject@6	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_TRANSFORM_FOR_Typename_LANGUAGE_name!drop-2	ALTER a ADD TRANSFORM FOR a LANGUAGE a
 reject@20	reject@20	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_TRANSFORM_FOR_Typename_LANGUAGE_name!drop-3	ALTER EXTENSION ADD TRANSFORM FOR a LANGUAGE a
 reject@18	reject@18	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_TRANSFORM_FOR_Typename_LANGUAGE_name!drop-4	ALTER EXTENSION a TRANSFORM FOR a LANGUAGE a
 reject@22	reject@22	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_TRANSFORM_FOR_Typename_LANGUAGE_name!drop-5	ALTER EXTENSION a ADD FOR a LANGUAGE a
 reject@32	reject@32	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_TRANSFORM_FOR_Typename_LANGUAGE_name!drop-6	ALTER EXTENSION a ADD TRANSFORM a LANGUAGE a
-reject@32	reject@45	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_TRANSFORM_FOR_Typename_LANGUAGE_name!drop-7	ALTER EXTENSION a ADD TRANSFORM FOR LANGUAGE a
-reject@32	reject@38	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_TRANSFORM_FOR_Typename_LANGUAGE_name!drop-8	ALTER EXTENSION a ADD TRANSFORM FOR a a
-reject@32	reject@46	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_TRANSFORM_FOR_Typename_LANGUAGE_name!drop-9	ALTER EXTENSION a ADD TRANSFORM FOR a LANGUAGE
-reject@32	reject@49	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_TRANSFORM_FOR_Typename_LANGUAGE_name!insert	ALTER EXTENSION a ADD TRANSFORM FOR a LANGUAGE a zzz
+reject@45	reject@45	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_TRANSFORM_FOR_Typename_LANGUAGE_name!drop-7	ALTER EXTENSION a ADD TRANSFORM FOR LANGUAGE a
+reject@38	reject@38	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_TRANSFORM_FOR_Typename_LANGUAGE_name!drop-8	ALTER EXTENSION a ADD TRANSFORM FOR a a
+reject@46	reject@46	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_TRANSFORM_FOR_Typename_LANGUAGE_name!drop-9	ALTER EXTENSION a ADD TRANSFORM FOR a LANGUAGE
+reject@49	reject@49	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_TRANSFORM_FOR_Typename_LANGUAGE_name!insert	ALTER EXTENSION a ADD TRANSFORM FOR a LANGUAGE a zzz
 reject@0	reject@0	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_TRANSFORM_FOR_Typename_LANGUAGE_name!swap	ALWAYS EXTENSION a ADD TRANSFORM FOR a LANGUAGE a
 accept	accept	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_TYPE_P_Typename	ALTER EXTENSION a ADD TYPE a
 reject@0	reject@0	engine	AlterExtensionContentsStmt/ALTER_EXTENSION_name_add_drop_TYPE_P_Typename!drop-1	EXTENSION a ADD TYPE a
@@ -4497,7 +4497,7 @@ accept	accept	engine	object_type_any_name/VIEW	DROP VIEW a
 reject@14	reject@14	engine	object_type_any_name/VIEW!insert	DROP VIEW zzz a
 reject@5	reject@5	engine	object_type_any_name/VIEW!swap	DROP VIEWS a
 accept	accept	engine	object_type_any_name/MATERIALIZED_VIEW	DROP MATERIALIZED VIEW a
-accept	reject@18	engine	object_type_any_name/MATERIALIZED_VIEW!drop-2	DROP MATERIALIZED a
+reject@18	reject@18	engine	object_type_any_name/MATERIALIZED_VIEW!drop-2	DROP MATERIALIZED a
 reject@17	reject@17	engine	object_type_any_name/MATERIALIZED_VIEW!truncate	DROP MATERIALIZED
 reject@27	reject@27	engine	object_type_any_name/MATERIALIZED_VIEW!insert	DROP MATERIALIZED VIEW zzz a
 reject@5	reject@5	engine	object_type_any_name/MATERIALIZED_VIEW!swap	DROP MAXVALUE VIEW a
@@ -4520,45 +4520,45 @@ reject@20	reject@20	engine	object_type_any_name/STATISTICS!insert	DROP STATISTIC
 reject@5	reject@5	engine	object_type_any_name/STATISTICS!swap	DROP STDIN a
 accept	accept	engine	object_type_any_name/TEXT_P_SEARCH_PARSER	DROP TEXT SEARCH PARSER a
 reject@5	reject@5	engine	object_type_any_name/TEXT_P_SEARCH_PARSER!drop-1	DROP SEARCH PARSER a
-accept	reject@10	engine	object_type_any_name/TEXT_P_SEARCH_PARSER!drop-2	DROP TEXT PARSER a
-accept	reject@17	engine	object_type_any_name/TEXT_P_SEARCH_PARSER!drop-3	DROP TEXT SEARCH a
+reject@10	reject@10	engine	object_type_any_name/TEXT_P_SEARCH_PARSER!drop-2	DROP TEXT PARSER a
+reject@17	reject@17	engine	object_type_any_name/TEXT_P_SEARCH_PARSER!drop-3	DROP TEXT SEARCH a
 reject@16	reject@16	engine	object_type_any_name/TEXT_P_SEARCH_PARSER!truncate	DROP TEXT SEARCH
 reject@28	reject@28	engine	object_type_any_name/TEXT_P_SEARCH_PARSER!insert	DROP TEXT SEARCH PARSER zzz a
 reject@5	reject@5	engine	object_type_any_name/TEXT_P_SEARCH_PARSER!swap	DROP THEN SEARCH PARSER a
 accept	accept	engine	object_type_any_name/TEXT_P_SEARCH_DICTIONARY	DROP TEXT SEARCH DICTIONARY a
 reject@5	reject@5	engine	object_type_any_name/TEXT_P_SEARCH_DICTIONARY!drop-1	DROP SEARCH DICTIONARY a
-accept	reject@10	engine	object_type_any_name/TEXT_P_SEARCH_DICTIONARY!drop-2	DROP TEXT DICTIONARY a
+reject@10	reject@10	engine	object_type_any_name/TEXT_P_SEARCH_DICTIONARY!drop-2	DROP TEXT DICTIONARY a
 reject@32	reject@32	engine	object_type_any_name/TEXT_P_SEARCH_DICTIONARY!insert	DROP TEXT SEARCH DICTIONARY zzz a
 reject@5	reject@5	engine	object_type_any_name/TEXT_P_SEARCH_DICTIONARY!swap	DROP THEN SEARCH DICTIONARY a
 accept	accept	engine	object_type_any_name/TEXT_P_SEARCH_TEMPLATE	DROP TEXT SEARCH TEMPLATE a
 reject@5	reject@5	engine	object_type_any_name/TEXT_P_SEARCH_TEMPLATE!drop-1	DROP SEARCH TEMPLATE a
-accept	reject@10	engine	object_type_any_name/TEXT_P_SEARCH_TEMPLATE!drop-2	DROP TEXT TEMPLATE a
+reject@10	reject@10	engine	object_type_any_name/TEXT_P_SEARCH_TEMPLATE!drop-2	DROP TEXT TEMPLATE a
 reject@30	reject@30	engine	object_type_any_name/TEXT_P_SEARCH_TEMPLATE!insert	DROP TEXT SEARCH TEMPLATE zzz a
 reject@5	reject@5	engine	object_type_any_name/TEXT_P_SEARCH_TEMPLATE!swap	DROP THEN SEARCH TEMPLATE a
 accept	accept	engine	object_type_any_name/TEXT_P_SEARCH_CONFIGURATION	DROP TEXT SEARCH CONFIGURATION a
 reject@5	reject@5	engine	object_type_any_name/TEXT_P_SEARCH_CONFIGURATION!drop-1	DROP SEARCH CONFIGURATION a
-accept	reject@10	engine	object_type_any_name/TEXT_P_SEARCH_CONFIGURATION!drop-2	DROP TEXT CONFIGURATION a
+reject@10	reject@10	engine	object_type_any_name/TEXT_P_SEARCH_CONFIGURATION!drop-2	DROP TEXT CONFIGURATION a
 reject@35	reject@35	engine	object_type_any_name/TEXT_P_SEARCH_CONFIGURATION!insert	DROP TEXT SEARCH CONFIGURATION zzz a
 reject@5	reject@5	engine	object_type_any_name/TEXT_P_SEARCH_CONFIGURATION!swap	DROP THEN SEARCH CONFIGURATION a
-reject@32	accept	engine	object_type_name/drop_type_name	ALTER EXTENSION a ADD EXTENSION a
-accept	reject@21	engine	object_type_name/drop_type_name!truncate	ALTER EXTENSION a ADD
-reject@32	reject@36	engine	object_type_name/drop_type_name!insert	ALTER EXTENSION a ADD EXTENSION zzz a
-reject@31	reject@22	engine	object_type_name/drop_type_name!swap	ALTER EXTENSION a ADD EXTERNAL a
+accept	accept	engine	object_type_name/drop_type_name	ALTER EXTENSION a ADD EXTENSION a
+reject@21	reject@21	engine	object_type_name/drop_type_name!truncate	ALTER EXTENSION a ADD
+reject@36	reject@36	engine	object_type_name/drop_type_name!insert	ALTER EXTENSION a ADD EXTENSION zzz a
+reject@22	reject@22	engine	object_type_name/drop_type_name!swap	ALTER EXTENSION a ADD EXTERNAL a
 accept	accept	engine	object_type_name/DATABASE	ALTER EXTENSION a ADD DATABASE a
 reject@35	reject@35	engine	object_type_name/DATABASE!insert	ALTER EXTENSION a ADD DATABASE zzz a
-reject@26	reject@22	engine	object_type_name/DATABASE!swap	ALTER EXTENSION a ADD DAY a
+reject@22	reject@22	engine	object_type_name/DATABASE!swap	ALTER EXTENSION a ADD DAY a
 accept	accept	engine	object_type_name/ROLE	ALTER EXTENSION a ADD ROLE a
 reject@31	reject@31	engine	object_type_name/ROLE!insert	ALTER EXTENSION a ADD ROLE zzz a
-reject@31	reject@22	engine	object_type_name/ROLE!swap	ALTER EXTENSION a ADD ROLLBACK a
+reject@22	reject@22	engine	object_type_name/ROLE!swap	ALTER EXTENSION a ADD ROLLBACK a
 accept	accept	engine	object_type_name/SUBSCRIPTION	ALTER EXTENSION a ADD SUBSCRIPTION a
 reject@39	reject@39	engine	object_type_name/SUBSCRIPTION!insert	ALTER EXTENSION a ADD SUBSCRIPTION zzz a
-reject@32	reject@22	engine	object_type_name/SUBSCRIPTION!swap	ALTER EXTENSION a ADD SUBSTRING a
+reject@22	reject@22	engine	object_type_name/SUBSCRIPTION!swap	ALTER EXTENSION a ADD SUBSTRING a
 accept	accept	engine	object_type_name/TABLESPACE	ALTER EXTENSION a ADD TABLESPACE a
 reject@37	reject@37	engine	object_type_name/TABLESPACE!insert	ALTER EXTENSION a ADD TABLESPACE zzz a
-reject@29	reject@22	engine	object_type_name/TABLESPACE!swap	ALTER EXTENSION a ADD TARGET a
+reject@22	reject@22	engine	object_type_name/TABLESPACE!swap	ALTER EXTENSION a ADD TARGET a
 accept	accept	engine	drop_type_name/ACCESS_METHOD	DROP ACCESS METHOD a
 reject@5	reject@5	engine	drop_type_name/ACCESS_METHOD!drop-1	DROP METHOD a
-accept	reject@12	engine	drop_type_name/ACCESS_METHOD!drop-2	DROP ACCESS a
+reject@12	reject@12	engine	drop_type_name/ACCESS_METHOD!drop-2	DROP ACCESS a
 reject@11	reject@11	engine	drop_type_name/ACCESS_METHOD!truncate	DROP ACCESS
 reject@23	reject@23	engine	drop_type_name/ACCESS_METHOD!insert	DROP ACCESS METHOD zzz a
 reject@5	reject@5	engine	drop_type_name/ACCESS_METHOD!swap	DROP ACTION METHOD a
@@ -4671,7 +4671,7 @@ reject@0	reject@0	engine	CommentStmt/COMMENT_ON_DOMAIN_P_Typename_IS_comment_tex
 accept	accept	engine	CommentStmt/COMMENT_ON_AGGREGATE_aggregate_with_argtypes_IS_comment_text	COMMENT ON AGGREGATE a(*) IS 's'
 reject@0	reject@0	engine	CommentStmt/COMMENT_ON_AGGREGATE_aggregate_with_argtypes_IS_comment_text!drop-1	ON AGGREGATE a(*) IS 's'
 reject@8	reject@8	engine	CommentStmt/COMMENT_ON_AGGREGATE_aggregate_with_argtypes_IS_comment_text!drop-2	COMMENT AGGREGATE a(*) IS 's'
-reject@12	reject@11	engine	CommentStmt/COMMENT_ON_AGGREGATE_aggregate_with_argtypes_IS_comment_text!drop-3	COMMENT ON a(*) IS 's'
+reject@11	reject@11	engine	CommentStmt/COMMENT_ON_AGGREGATE_aggregate_with_argtypes_IS_comment_text!drop-3	COMMENT ON a(*) IS 's'
 accept	reject@20	engine	CommentStmt/COMMENT_ON_AGGREGATE_aggregate_with_argtypes_IS_comment_text!drop-4	COMMENT ON AGGREGATE(*) IS 's'
 reject@23	reject@23	engine	CommentStmt/COMMENT_ON_AGGREGATE_aggregate_with_argtypes_IS_comment_text!drop-5	COMMENT ON AGGREGATE a *) IS 's'
 reject@23	reject@23	engine	CommentStmt/COMMENT_ON_AGGREGATE_aggregate_with_argtypes_IS_comment_text!drop-6	COMMENT ON AGGREGATE a() IS 's'
@@ -4704,7 +4704,7 @@ reject@0	reject@0	engine	CommentStmt/COMMENT_ON_OPERATOR_operator_with_argtypes_
 accept	accept	engine	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_any_name_IS_comment_text	COMMENT ON CONSTRAINT a ON a IS 's'
 reject@0	reject@0	engine	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_any_name_IS_comment_text!drop-1	ON CONSTRAINT a ON a IS 's'
 reject@8	reject@8	engine	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_any_name_IS_comment_text!drop-2	COMMENT CONSTRAINT a ON a IS 's'
-reject@13	reject@11	engine	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_any_name_IS_comment_text!drop-3	COMMENT ON a ON a IS 's'
+reject@11	reject@11	engine	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_any_name_IS_comment_text!drop-3	COMMENT ON a ON a IS 's'
 reject@22	reject@22	engine	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_any_name_IS_comment_text!drop-4	COMMENT ON CONSTRAINT ON a IS 's'
 reject@24	reject@24	engine	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_any_name_IS_comment_text!drop-5	COMMENT ON CONSTRAINT a a IS 's'
 reject@27	reject@27	engine	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_any_name_IS_comment_text!drop-6	COMMENT ON CONSTRAINT a ON IS 's'
@@ -4715,7 +4715,7 @@ reject@0	reject@0	engine	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_any_name_IS_c
 accept	accept	engine	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_DOMAIN_P_any_name_IS_comment_text	COMMENT ON CONSTRAINT a ON DOMAIN a IS 's'
 reject@0	reject@0	engine	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_DOMAIN_P_any_name_IS_comment_text!drop-1	ON CONSTRAINT a ON DOMAIN a IS 's'
 reject@8	reject@8	engine	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_DOMAIN_P_any_name_IS_comment_text!drop-2	COMMENT CONSTRAINT a ON DOMAIN a IS 's'
-reject@13	reject@11	engine	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_DOMAIN_P_any_name_IS_comment_text!drop-3	COMMENT ON a ON DOMAIN a IS 's'
+reject@11	reject@11	engine	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_DOMAIN_P_any_name_IS_comment_text!drop-3	COMMENT ON a ON DOMAIN a IS 's'
 reject@22	reject@22	engine	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_DOMAIN_P_any_name_IS_comment_text!drop-4	COMMENT ON CONSTRAINT ON DOMAIN a IS 's'
 reject@24	reject@24	engine	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_DOMAIN_P_any_name_IS_comment_text!drop-5	COMMENT ON CONSTRAINT a DOMAIN a IS 's'
 reject@34	accept	engine	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_DOMAIN_P_any_name_IS_comment_text!drop-7	COMMENT ON CONSTRAINT a ON DOMAIN IS 's'
@@ -4764,7 +4764,7 @@ reject@0	reject@0	engine	CommentStmt/COMMENT_ON_TRANSFORM_FOR_Typename_LANGUAGE_
 accept	accept	engine	CommentStmt/COMMENT_ON_OPERATOR_CLASS_any_name_USING_name_IS_comment_text	COMMENT ON OPERATOR CLASS a USING a IS 's'
 reject@0	reject@0	engine	CommentStmt/COMMENT_ON_OPERATOR_CLASS_any_name_USING_name_IS_comment_text!drop-1	ON OPERATOR CLASS a USING a IS 's'
 reject@8	reject@8	engine	CommentStmt/COMMENT_ON_OPERATOR_CLASS_any_name_USING_name_IS_comment_text!drop-2	COMMENT OPERATOR CLASS a USING a IS 's'
-reject@17	reject@11	engine	CommentStmt/COMMENT_ON_OPERATOR_CLASS_any_name_USING_name_IS_comment_text!drop-3	COMMENT ON CLASS a USING a IS 's'
+reject@11	reject@11	engine	CommentStmt/COMMENT_ON_OPERATOR_CLASS_any_name_USING_name_IS_comment_text!drop-3	COMMENT ON CLASS a USING a IS 's'
 reject@22	reject@22	engine	CommentStmt/COMMENT_ON_OPERATOR_CLASS_any_name_USING_name_IS_comment_text!drop-4	COMMENT ON OPERATOR a USING a IS 's'
 reject@26	reject@26	engine	CommentStmt/COMMENT_ON_OPERATOR_CLASS_any_name_USING_name_IS_comment_text!drop-5	COMMENT ON OPERATOR CLASS USING a IS 's'
 reject@28	reject@28	engine	CommentStmt/COMMENT_ON_OPERATOR_CLASS_any_name_USING_name_IS_comment_text!drop-6	COMMENT ON OPERATOR CLASS a a IS 's'
@@ -4776,7 +4776,7 @@ reject@0	reject@0	engine	CommentStmt/COMMENT_ON_OPERATOR_CLASS_any_name_USING_na
 accept	accept	engine	CommentStmt/COMMENT_ON_OPERATOR_FAMILY_any_name_USING_name_IS_comment_text	COMMENT ON OPERATOR FAMILY a USING a IS 's'
 reject@0	reject@0	engine	CommentStmt/COMMENT_ON_OPERATOR_FAMILY_any_name_USING_name_IS_comment_text!drop-1	ON OPERATOR FAMILY a USING a IS 's'
 reject@8	reject@8	engine	CommentStmt/COMMENT_ON_OPERATOR_FAMILY_any_name_USING_name_IS_comment_text!drop-2	COMMENT OPERATOR FAMILY a USING a IS 's'
-reject@18	reject@11	engine	CommentStmt/COMMENT_ON_OPERATOR_FAMILY_any_name_USING_name_IS_comment_text!drop-3	COMMENT ON FAMILY a USING a IS 's'
+reject@11	reject@11	engine	CommentStmt/COMMENT_ON_OPERATOR_FAMILY_any_name_USING_name_IS_comment_text!drop-3	COMMENT ON FAMILY a USING a IS 's'
 reject@27	reject@27	engine	CommentStmt/COMMENT_ON_OPERATOR_FAMILY_any_name_USING_name_IS_comment_text!drop-5	COMMENT ON OPERATOR FAMILY USING a IS 's'
 reject@29	reject@29	engine	CommentStmt/COMMENT_ON_OPERATOR_FAMILY_any_name_USING_name_IS_comment_text!drop-6	COMMENT ON OPERATOR FAMILY a a IS 's'
 reject@35	reject@35	engine	CommentStmt/COMMENT_ON_OPERATOR_FAMILY_any_name_USING_name_IS_comment_text!drop-7	COMMENT ON OPERATOR FAMILY a USING IS 's'
@@ -4787,9 +4787,9 @@ reject@0	reject@0	engine	CommentStmt/COMMENT_ON_OPERATOR_FAMILY_any_name_USING_n
 accept	accept	engine	CommentStmt/COMMENT_ON_LARGE_P_OBJECT_P_NumericOnly_IS_comment_text	COMMENT ON LARGE OBJECT 1.5 IS 's'
 reject@0	reject@0	engine	CommentStmt/COMMENT_ON_LARGE_P_OBJECT_P_NumericOnly_IS_comment_text!drop-1	ON LARGE OBJECT 1.5 IS 's'
 reject@8	reject@8	engine	CommentStmt/COMMENT_ON_LARGE_P_OBJECT_P_NumericOnly_IS_comment_text!drop-2	COMMENT LARGE OBJECT 1.5 IS 's'
-reject@18	reject@11	engine	CommentStmt/COMMENT_ON_LARGE_P_OBJECT_P_NumericOnly_IS_comment_text!drop-3	COMMENT ON OBJECT 1.5 IS 's'
+reject@11	reject@11	engine	CommentStmt/COMMENT_ON_LARGE_P_OBJECT_P_NumericOnly_IS_comment_text!drop-3	COMMENT ON OBJECT 1.5 IS 's'
 reject@17	reject@17	engine	CommentStmt/COMMENT_ON_LARGE_P_OBJECT_P_NumericOnly_IS_comment_text!drop-4	COMMENT ON LARGE 1.5 IS 's'
-accept	reject@24	engine	CommentStmt/COMMENT_ON_LARGE_P_OBJECT_P_NumericOnly_IS_comment_text!drop-5	COMMENT ON LARGE OBJECT IS 's'
+reject@24	reject@24	engine	CommentStmt/COMMENT_ON_LARGE_P_OBJECT_P_NumericOnly_IS_comment_text!drop-5	COMMENT ON LARGE OBJECT IS 's'
 reject@28	reject@28	engine	CommentStmt/COMMENT_ON_LARGE_P_OBJECT_P_NumericOnly_IS_comment_text!drop-6	COMMENT ON LARGE OBJECT 1.5 's'
 accept	reject@30	engine	CommentStmt/COMMENT_ON_LARGE_P_OBJECT_P_NumericOnly_IS_comment_text!drop-7	COMMENT ON LARGE OBJECT 1.5 IS
 reject@35	reject@35	engine	CommentStmt/COMMENT_ON_LARGE_P_OBJECT_P_NumericOnly_IS_comment_text!insert	COMMENT ON LARGE OBJECT 1.5 IS 's' zzz
@@ -4818,7 +4818,7 @@ reject@9	reject@9	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_COLUMN_any_
 reject@15	reject@15	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_COLUMN_any_name_IS_security_label!drop-3	SECURITY LABEL COLUMN a IS 's'
 reject@25	reject@25	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_COLUMN_any_name_IS_security_label!drop-5	SECURITY LABEL ON COLUMN IS 's'
 reject@27	reject@27	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_COLUMN_any_name_IS_security_label!drop-6	SECURITY LABEL ON COLUMN a 's'
-accept	reject@29	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_COLUMN_any_name_IS_security_label!drop-7	SECURITY LABEL ON COLUMN a IS
+reject@29	reject@29	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_COLUMN_any_name_IS_security_label!drop-7	SECURITY LABEL ON COLUMN a IS
 reject@34	reject@34	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_COLUMN_any_name_IS_security_label!insert	SECURITY LABEL ON COLUMN a IS 's' zzz
 reject@13	reject@13	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_COLUMN_any_name_IS_security_label!swap	SELECT LABEL ON COLUMN a IS 's'
 accept	accept	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_object_type_name_name_IS_security_label	SECURITY LABEL ON EXTENSION a IS 's'
@@ -4827,7 +4827,7 @@ reject@9	reject@9	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_object_type
 reject@15	reject@15	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_object_type_name_name_IS_security_label!drop-3	SECURITY LABEL EXTENSION a IS 's'
 reject@28	reject@28	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_object_type_name_name_IS_security_label!drop-5	SECURITY LABEL ON EXTENSION IS 's'
 reject@30	reject@30	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_object_type_name_name_IS_security_label!drop-6	SECURITY LABEL ON EXTENSION a 's'
-accept	reject@32	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_object_type_name_name_IS_security_label!drop-7	SECURITY LABEL ON EXTENSION a IS
+reject@32	reject@32	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_object_type_name_name_IS_security_label!drop-7	SECURITY LABEL ON EXTENSION a IS
 reject@37	reject@37	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_object_type_name_name_IS_security_label!insert	SECURITY LABEL ON EXTENSION a IS 's' zzz
 reject@13	reject@13	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_object_type_name_name_IS_security_label!swap	SELECT LABEL ON EXTENSION a IS 's'
 accept	accept	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_TYPE_P_Typename_IS_security_label	SECURITY LABEL ON TYPE a IS 's'
@@ -4836,7 +4836,7 @@ reject@9	reject@9	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_TYPE_P_Type
 reject@15	reject@15	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_TYPE_P_Typename_IS_security_label!drop-3	SECURITY LABEL TYPE a IS 's'
 reject@23	reject@26	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_TYPE_P_Typename_IS_security_label!drop-5	SECURITY LABEL ON TYPE IS 's'
 reject@25	reject@25	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_TYPE_P_Typename_IS_security_label!drop-6	SECURITY LABEL ON TYPE a 's'
-accept	reject@27	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_TYPE_P_Typename_IS_security_label!drop-7	SECURITY LABEL ON TYPE a IS
+reject@27	reject@27	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_TYPE_P_Typename_IS_security_label!drop-7	SECURITY LABEL ON TYPE a IS
 reject@32	reject@32	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_TYPE_P_Typename_IS_security_label!insert	SECURITY LABEL ON TYPE a IS 's' zzz
 reject@13	reject@13	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_TYPE_P_Typename_IS_security_label!swap	SELECT LABEL ON TYPE a IS 's'
 accept	accept	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_DOMAIN_P_Typename_IS_security_label	SECURITY LABEL ON DOMAIN a IS 's'
@@ -4845,20 +4845,20 @@ reject@9	reject@9	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_DOMAIN_P_Ty
 reject@15	reject@15	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_DOMAIN_P_Typename_IS_security_label!drop-3	SECURITY LABEL DOMAIN a IS 's'
 reject@25	reject@28	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_DOMAIN_P_Typename_IS_security_label!drop-5	SECURITY LABEL ON DOMAIN IS 's'
 reject@27	reject@27	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_DOMAIN_P_Typename_IS_security_label!drop-6	SECURITY LABEL ON DOMAIN a 's'
-accept	reject@29	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_DOMAIN_P_Typename_IS_security_label!drop-7	SECURITY LABEL ON DOMAIN a IS
+reject@29	reject@29	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_DOMAIN_P_Typename_IS_security_label!drop-7	SECURITY LABEL ON DOMAIN a IS
 reject@34	reject@34	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_DOMAIN_P_Typename_IS_security_label!insert	SECURITY LABEL ON DOMAIN a IS 's' zzz
 reject@13	reject@13	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_DOMAIN_P_Typename_IS_security_label!swap	SELECT LABEL ON DOMAIN a IS 's'
 accept	accept	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_AGGREGATE_aggregate_with_argtypes_IS_security_label	SECURITY LABEL ON AGGREGATE a(*) IS 's'
 reject@0	reject@0	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_AGGREGATE_aggregate_with_argtypes_IS_security_label!drop-1	LABEL ON AGGREGATE a(*) IS 's'
 reject@9	reject@9	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_AGGREGATE_aggregate_with_argtypes_IS_security_label!drop-2	SECURITY ON AGGREGATE a(*) IS 's'
 reject@15	reject@15	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_AGGREGATE_aggregate_with_argtypes_IS_security_label!drop-3	SECURITY LABEL AGGREGATE a(*) IS 's'
-reject@19	reject@18	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_AGGREGATE_aggregate_with_argtypes_IS_security_label!drop-4	SECURITY LABEL ON a(*) IS 's'
+reject@18	reject@18	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_AGGREGATE_aggregate_with_argtypes_IS_security_label!drop-4	SECURITY LABEL ON a(*) IS 's'
 accept	reject@27	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_AGGREGATE_aggregate_with_argtypes_IS_security_label!drop-5	SECURITY LABEL ON AGGREGATE(*) IS 's'
 reject@30	reject@30	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_AGGREGATE_aggregate_with_argtypes_IS_security_label!drop-6	SECURITY LABEL ON AGGREGATE a *) IS 's'
 reject@30	reject@30	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_AGGREGATE_aggregate_with_argtypes_IS_security_label!drop-7	SECURITY LABEL ON AGGREGATE a() IS 's'
 accept	reject@32	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_AGGREGATE_aggregate_with_argtypes_IS_security_label!drop-8	SECURITY LABEL ON AGGREGATE a(* IS 's'
 reject@33	reject@33	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_AGGREGATE_aggregate_with_argtypes_IS_security_label!drop-9	SECURITY LABEL ON AGGREGATE a(*) 's'
-accept	reject@35	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_AGGREGATE_aggregate_with_argtypes_IS_security_label!drop-10	SECURITY LABEL ON AGGREGATE a(*) IS
+reject@35	reject@35	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_AGGREGATE_aggregate_with_argtypes_IS_security_label!drop-10	SECURITY LABEL ON AGGREGATE a(*) IS
 reject@40	reject@40	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_AGGREGATE_aggregate_with_argtypes_IS_security_label!insert	SECURITY LABEL ON AGGREGATE a(*) IS 's' zzz
 reject@13	reject@13	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_AGGREGATE_aggregate_with_argtypes_IS_security_label!swap	SELECT LABEL ON AGGREGATE a(*) IS 's'
 accept	accept	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_FUNCTION_function_with_argtypes_IS_security_label	SECURITY LABEL ON FUNCTION AUTHORIZATION IS 's'
@@ -4868,19 +4868,19 @@ reject@15	reject@15	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_FUNCTION_
 reject@18	reject@18	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_FUNCTION_function_with_argtypes_IS_security_label!drop-4	SECURITY LABEL ON AUTHORIZATION IS 's'
 reject@30	reject@30	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_FUNCTION_function_with_argtypes_IS_security_label!drop-5	SECURITY LABEL ON FUNCTION IS 's'
 reject@41	reject@41	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_FUNCTION_function_with_argtypes_IS_security_label!drop-6	SECURITY LABEL ON FUNCTION AUTHORIZATION 's'
-accept	reject@43	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_FUNCTION_function_with_argtypes_IS_security_label!drop-7	SECURITY LABEL ON FUNCTION AUTHORIZATION IS
+reject@43	reject@43	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_FUNCTION_function_with_argtypes_IS_security_label!drop-7	SECURITY LABEL ON FUNCTION AUTHORIZATION IS
 reject@48	reject@48	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_FUNCTION_function_with_argtypes_IS_security_label!insert	SECURITY LABEL ON FUNCTION AUTHORIZATION IS 's' zzz
 reject@13	reject@13	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_FUNCTION_function_with_argtypes_IS_security_label!swap	SELECT LABEL ON FUNCTION AUTHORIZATION IS 's'
-reject@24	accept	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_LARGE_P_OBJECT_P_NumericOnly_IS_security_label	SECURITY LABEL ON LARGE OBJECT 1.5 IS 's'
+accept	accept	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_LARGE_P_OBJECT_P_NumericOnly_IS_security_label	SECURITY LABEL ON LARGE OBJECT 1.5 IS 's'
 reject@0	reject@0	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_LARGE_P_OBJECT_P_NumericOnly_IS_security_label!drop-1	LABEL ON LARGE OBJECT 1.5 IS 's'
 reject@9	reject@9	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_LARGE_P_OBJECT_P_NumericOnly_IS_security_label!drop-2	SECURITY ON LARGE OBJECT 1.5 IS 's'
 reject@15	reject@15	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_LARGE_P_OBJECT_P_NumericOnly_IS_security_label!drop-3	SECURITY LABEL LARGE OBJECT 1.5 IS 's'
-reject@25	reject@18	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_LARGE_P_OBJECT_P_NumericOnly_IS_security_label!drop-4	SECURITY LABEL ON OBJECT 1.5 IS 's'
+reject@18	reject@18	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_LARGE_P_OBJECT_P_NumericOnly_IS_security_label!drop-4	SECURITY LABEL ON OBJECT 1.5 IS 's'
 reject@24	reject@24	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_LARGE_P_OBJECT_P_NumericOnly_IS_security_label!drop-5	SECURITY LABEL ON LARGE 1.5 IS 's'
-reject@24	reject@31	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_LARGE_P_OBJECT_P_NumericOnly_IS_security_label!drop-6	SECURITY LABEL ON LARGE OBJECT IS 's'
-reject@24	reject@35	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_LARGE_P_OBJECT_P_NumericOnly_IS_security_label!drop-7	SECURITY LABEL ON LARGE OBJECT 1.5 's'
-reject@24	reject@37	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_LARGE_P_OBJECT_P_NumericOnly_IS_security_label!drop-8	SECURITY LABEL ON LARGE OBJECT 1.5 IS
-reject@24	reject@42	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_LARGE_P_OBJECT_P_NumericOnly_IS_security_label!insert	SECURITY LABEL ON LARGE OBJECT 1.5 IS 's' zzz
+reject@31	reject@31	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_LARGE_P_OBJECT_P_NumericOnly_IS_security_label!drop-6	SECURITY LABEL ON LARGE OBJECT IS 's'
+reject@35	reject@35	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_LARGE_P_OBJECT_P_NumericOnly_IS_security_label!drop-7	SECURITY LABEL ON LARGE OBJECT 1.5 's'
+reject@37	reject@37	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_LARGE_P_OBJECT_P_NumericOnly_IS_security_label!drop-8	SECURITY LABEL ON LARGE OBJECT 1.5 IS
+reject@42	reject@42	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_LARGE_P_OBJECT_P_NumericOnly_IS_security_label!insert	SECURITY LABEL ON LARGE OBJECT 1.5 IS 's' zzz
 reject@13	reject@13	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_LARGE_P_OBJECT_P_NumericOnly_IS_security_label!swap	SELECT LABEL ON LARGE OBJECT 1.5 IS 's'
 accept	accept	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_PROCEDURE_function_with_argtypes_IS_security_label	SECURITY LABEL ON PROCEDURE AUTHORIZATION IS 's'
 reject@0	reject@0	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_PROCEDURE_function_with_argtypes_IS_security_label!drop-1	LABEL ON PROCEDURE AUTHORIZATION IS 's'
@@ -4888,7 +4888,7 @@ reject@9	reject@9	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_PROCEDURE_f
 reject@15	reject@15	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_PROCEDURE_function_with_argtypes_IS_security_label!drop-3	SECURITY LABEL PROCEDURE AUTHORIZATION IS 's'
 reject@31	reject@31	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_PROCEDURE_function_with_argtypes_IS_security_label!drop-5	SECURITY LABEL ON PROCEDURE IS 's'
 reject@42	reject@42	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_PROCEDURE_function_with_argtypes_IS_security_label!drop-6	SECURITY LABEL ON PROCEDURE AUTHORIZATION 's'
-accept	reject@44	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_PROCEDURE_function_with_argtypes_IS_security_label!drop-7	SECURITY LABEL ON PROCEDURE AUTHORIZATION IS
+reject@44	reject@44	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_PROCEDURE_function_with_argtypes_IS_security_label!drop-7	SECURITY LABEL ON PROCEDURE AUTHORIZATION IS
 reject@49	reject@49	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_PROCEDURE_function_with_argtypes_IS_security_label!insert	SECURITY LABEL ON PROCEDURE AUTHORIZATION IS 's' zzz
 reject@13	reject@13	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_PROCEDURE_function_with_argtypes_IS_security_label!swap	SELECT LABEL ON PROCEDURE AUTHORIZATION IS 's'
 accept	accept	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_ROUTINE_function_with_argtypes_IS_security_label	SECURITY LABEL ON ROUTINE AUTHORIZATION IS 's'
@@ -4897,7 +4897,7 @@ reject@9	reject@9	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_ROUTINE_fun
 reject@15	reject@15	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_ROUTINE_function_with_argtypes_IS_security_label!drop-3	SECURITY LABEL ROUTINE AUTHORIZATION IS 's'
 reject@29	reject@29	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_ROUTINE_function_with_argtypes_IS_security_label!drop-5	SECURITY LABEL ON ROUTINE IS 's'
 reject@40	reject@40	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_ROUTINE_function_with_argtypes_IS_security_label!drop-6	SECURITY LABEL ON ROUTINE AUTHORIZATION 's'
-accept	reject@42	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_ROUTINE_function_with_argtypes_IS_security_label!drop-7	SECURITY LABEL ON ROUTINE AUTHORIZATION IS
+reject@42	reject@42	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_ROUTINE_function_with_argtypes_IS_security_label!drop-7	SECURITY LABEL ON ROUTINE AUTHORIZATION IS
 reject@47	reject@47	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_ROUTINE_function_with_argtypes_IS_security_label!insert	SECURITY LABEL ON ROUTINE AUTHORIZATION IS 's' zzz
 reject@13	reject@13	engine	SecLabelStmt/SECURITY_LABEL_opt_provider_ON_ROUTINE_function_with_argtypes_IS_security_label!swap	SELECT LABEL ON ROUTINE AUTHORIZATION IS 's'
 accept	accept	engine	opt_provider/FOR_NonReservedWord_or_Sconst	SECURITY LABEL FOR a ON TABLE a IS 's'
