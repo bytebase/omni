@@ -57,10 +57,10 @@ ok	4028	engine	one_table@missing	table_element/CONSTRAINT_opt_constraint_name_UN
 1064	4028	engine	one_table@missing	table_element/CONSTRAINT_opt_constraint_name_UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_with_column_group	CREATE TABLE a(CONSTRAINT UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS))
 ok	4028	engine	one_table@missing	table_element/FULLTEXT_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_fulltext_index_option_list	CREATE TABLE a(FULLTEXT(a))
 ok	4028	engine	one_table@missing	table_element/VECTOR_key_or_index_opt_index_name_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(VECTOR KEY(a))
-1822	4028	engine	one_table@missing	table_element/CONSTRAINT_opt_constraint_name_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	CREATE TABLE a(CONSTRAINT FOREIGN KEY(a) REFERENCES a(a))
+5031	4028	engine	one_table@missing	table_element/CONSTRAINT_opt_constraint_name_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	CREATE TABLE a(CONSTRAINT FOREIGN KEY(a) REFERENCES a(a))
 ok	4028	engine	one_table@missing	table_element/SPATIAL_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list	CREATE TABLE a(SPATIAL(a))
 1064	4028	engine	one_table@missing	table_element/SPATIAL_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_with_column_group	CREATE TABLE a(SPATIAL(a) WITH COLUMN GROUP(ALL COLUMNS))
-1822	4028	engine	one_table@missing	table_element/FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a(a))
+5031	4028	engine	one_table@missing	table_element/FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a(a))
 1146	1146	engine	one_table@missing	opt_column_reference/REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	ALTER TABLE a ADD a TINYINT REFERENCES a(a)
 1146	1146	engine	one_table@missing	opt_column_reference/%empty	ALTER TABLE a ADD a TINYINT
 1146	1146	engine	one_table@missing	opt_reference_option_list/opt_reference_option_list_reference_option	ALTER TABLE a ADD a TINYINT REFERENCES a(a) ON UPDATE RESTRICT
@@ -1100,8 +1100,8 @@ ok:483bc8269091	ok:483bc8269091	engine	one_table@table	alter_index_option/DROP_P
 1064	1072	engine	one_table@table	add_spatial_index_opt/(_add_spatial_index_)	ALTER TABLE a ADD(SPATIAL(a))
 1064	1072	engine	one_table@table	add_spatial_index/SPATIAL_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	ALTER TABLE a ADD SPATIAL(a) WITH COLUMN GROUP(ALL COLUMNS)
 1064	1068	engine	one_table@table	add_primary_key_opt/(_add_primary_key_)	ALTER TABLE a ADD(PRIMARY KEY(a))
-1822	1215	engine	one_table@table	alter_foreign_key_action/ADD_CONSTRAINT_opt_constraint_name_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	ALTER TABLE a ADD CONSTRAINT FOREIGN KEY(a) REFERENCES a(a)
-1822	1215	engine	one_table@table	alter_foreign_key_action/ADD_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a(a)
+5031	1215	engine	one_table@table	alter_foreign_key_action/ADD_CONSTRAINT_opt_constraint_name_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	ALTER TABLE a ADD CONSTRAINT FOREIGN KEY(a) REFERENCES a(a)
+5031	1215	engine	one_table@table	alter_foreign_key_action/ADD_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a(a)
 1061	1176	engine	one_table@table	visibility_option/INVISIBLE	ALTER TABLE a ALTER INDEX a INVISIBLE
 1064	1235	engine	one_table@table	alter_column_group_delayed_desc/DELAYED	ALTER TABLE a ADD COLUMN GROUP(ALL COLUMNS) DELAYED
 1064	4185	engine	one_table@table	alter_column_group_option/DROP_COLUMN_GROUP_(_column_group_list_)_alter_column_group_delayed_desc	ALTER TABLE a DROP COLUMN GROUP(ALL COLUMNS)
@@ -1669,8 +1669,8 @@ ok:773d846287e7	ok:773d846287e7	engine	one_table@column	alter_index_option/DROP_
 1064	1687	engine	one_table@column	add_spatial_index_opt/(_add_spatial_index_)	ALTER TABLE a ADD(SPATIAL(a))
 1064	1687	engine	one_table@column	add_spatial_index/SPATIAL_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	ALTER TABLE a ADD SPATIAL(a) WITH COLUMN GROUP(ALL COLUMNS)
 1064	1068	engine	one_table@column	add_primary_key_opt/(_add_primary_key_)	ALTER TABLE a ADD(PRIMARY KEY(a))
-1822	1215	engine	one_table@column	alter_foreign_key_action/ADD_CONSTRAINT_opt_constraint_name_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	ALTER TABLE a ADD CONSTRAINT FOREIGN KEY(a) REFERENCES a(a)
-1822	1215	engine	one_table@column	alter_foreign_key_action/ADD_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a(a)
+1215	1215	engine	one_table@column	alter_foreign_key_action/ADD_CONSTRAINT_opt_constraint_name_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	ALTER TABLE a ADD CONSTRAINT FOREIGN KEY(a) REFERENCES a(a)
+1215	1215	engine	one_table@column	alter_foreign_key_action/ADD_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a(a)
 1061	1176	engine	one_table@column	visibility_option/INVISIBLE	ALTER TABLE a ALTER INDEX a INVISIBLE
 1064	1235	engine	one_table@column	alter_column_group_delayed_desc/DELAYED	ALTER TABLE a ADD COLUMN GROUP(ALL COLUMNS) DELAYED
 1064	4185	engine	one_table@column	alter_column_group_option/DROP_COLUMN_GROUP_(_column_group_list_)_alter_column_group_delayed_desc	ALTER TABLE a DROP COLUMN GROUP(ALL COLUMNS)
@@ -2238,8 +2238,8 @@ ok	1061	engine	one_table@index	alter_index_option/RENAME_key_or_index_index_name
 1064	1687	engine	one_table@index	add_spatial_index_opt/(_add_spatial_index_)	ALTER TABLE a ADD(SPATIAL(a))
 1064	1687	engine	one_table@index	add_spatial_index/SPATIAL_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	ALTER TABLE a ADD SPATIAL(a) WITH COLUMN GROUP(ALL COLUMNS)
 1064	1068	engine	one_table@index	add_primary_key_opt/(_add_primary_key_)	ALTER TABLE a ADD(PRIMARY KEY(a))
-1822	1215	engine	one_table@index	alter_foreign_key_action/ADD_CONSTRAINT_opt_constraint_name_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	ALTER TABLE a ADD CONSTRAINT FOREIGN KEY(a) REFERENCES a(a)
-1822	1215	engine	one_table@index	alter_foreign_key_action/ADD_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a(a)
+1215	1215	engine	one_table@index	alter_foreign_key_action/ADD_CONSTRAINT_opt_constraint_name_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	ALTER TABLE a ADD CONSTRAINT FOREIGN KEY(a) REFERENCES a(a)
+1215	1215	engine	one_table@index	alter_foreign_key_action/ADD_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a(a)
 ok:ef33c88e5b07	ok:ef33c88e5b07	engine	one_table@index	visibility_option/INVISIBLE	ALTER TABLE a ALTER INDEX a INVISIBLE
 1064	1235	engine	one_table@index	alter_column_group_delayed_desc/DELAYED	ALTER TABLE a ADD COLUMN GROUP(ALL COLUMNS) DELAYED
 1064	4185	engine	one_table@index	alter_column_group_option/DROP_COLUMN_GROUP_(_column_group_list_)_alter_column_group_delayed_desc	ALTER TABLE a DROP COLUMN GROUP(ALL COLUMNS)
