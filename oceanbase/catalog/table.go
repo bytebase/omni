@@ -183,7 +183,13 @@ type View struct {
 	ColumnMetadata  []ViewColumn
 	ExplicitColumns bool   // true if the user specified a column list in CREATE VIEW
 	AnalyzedQuery   *Query // analyzed view body (populated on CREATE VIEW); nil if analysis failed
-	IsUpdatable     bool
+	// namesUncertain marks a view whose stored column names may not be the ones
+	// the engine gives: its body has an unaliased expression, which OceanBase
+	// names by its source text and the catalog by deriveColumnName's reading, or
+	// its body was not analyzed at all. A query reading such a view is not
+	// refused for a name it does not find (viewNameColumnGaps).
+	namesUncertain bool
+	IsUpdatable    bool
 }
 
 type ViewColumn struct {

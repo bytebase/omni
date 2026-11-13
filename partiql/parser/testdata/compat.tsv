@@ -1,0 +1,1912 @@
+# pin: default github.com/partiql/partiql-lang-kotlin@3a9ef181ce7ce654fd3c6e0d0d75732d317b8f19 sha256:9bf19a20c3d3ca3a6519a7b7d523c4e636df523b0c6c4e2cd396e4f12afd1ce3 v0.14.9
+# columns: omni, expected, source, rule, statement
+reject	accept	grammar	root/(EXPLAIN_(PAREN_LEFT_explainOption_(C~6734ff64)?_statement	a
+reject	reject	grammar	root/(EXPLAIN_(PAREN_LEFT_explainOption_(C~6734ff64)?_statement!insert	a zzz
+reject	accept	grammar	root(EXPLAIN_(PAREN_LEFT_explainOption_(C~6734ff64)?/%empty	a
+reject	reject	grammar	root(EXPLAIN_(PAREN_LEFT_explainOption_(C~6734ff64)?/%empty!insert	zzz a
+reject	accept	grammar	root(EXPLAIN_(PAREN_LEFT_explainOption_(C~6734ff64)?/EXPLAIN_(PAREN_LEFT_explainOption_(COMMA_expl~741c2bcb)?	EXPLAIN a
+reject	reject	grammar	root(EXPLAIN_(PAREN_LEFT_explainOption_(C~6734ff64)?/EXPLAIN_(PAREN_LEFT_explainOption_(COMMA_expl~741c2bcb)?!insert	EXPLAIN zzz a
+reject	reject	grammar	root(EXPLAIN_(PAREN_LEFT_explainOption_(C~6734ff64)?/EXPLAIN_(PAREN_LEFT_explainOption_(COMMA_expl~741c2bcb)?!swap	EXTERNAL a
+reject	accept	grammar	root(PAREN_LEFT_explainOption_(COMMA_expl~741c2bcb)?/%empty	EXPLAIN a
+reject	accept	grammar	root(PAREN_LEFT_explainOption_(COMMA_expl~741c2bcb)?/PAREN_LEFT_explainOption_(COMMA_explainOption)*_PAREN_RIGHT	EXPLAIN(TYPE a) a
+reject	reject	grammar	root(PAREN_LEFT_explainOption_(COMMA_expl~741c2bcb)?/PAREN_LEFT_explainOption_(COMMA_explainOption)*_PAREN_RIGHT!drop-1	EXPLAIN TYPE a) a
+reject	reject	grammar	root(PAREN_LEFT_explainOption_(COMMA_expl~741c2bcb)?/PAREN_LEFT_explainOption_(COMMA_explainOption)*_PAREN_RIGHT!drop-2	EXPLAIN() a
+reject	reject	grammar	root(PAREN_LEFT_explainOption_(COMMA_expl~741c2bcb)?/PAREN_LEFT_explainOption_(COMMA_explainOption)*_PAREN_RIGHT!drop-3	EXPLAIN(TYPE a a
+reject	reject	grammar	root(PAREN_LEFT_explainOption_(COMMA_expl~741c2bcb)?/PAREN_LEFT_explainOption_(COMMA_explainOption)*_PAREN_RIGHT!truncate	EXPLAIN(TYPE a
+reject	reject	grammar	root(PAREN_LEFT_explainOption_(COMMA_expl~741c2bcb)?/PAREN_LEFT_explainOption_(COMMA_explainOption)*_PAREN_RIGHT!insert	EXPLAIN(TYPE a) zzz a
+reject	accept	grammar	root(COMMA_explainOption)*/%empty	EXPLAIN(TYPE a) a
+reject	reject	grammar	root(COMMA_explainOption)*/%empty!insert	EXPLAIN(TYPE a zzz) a
+reject	reject	grammar	root(COMMA_explainOption)*/COMMA_explainOption_(COMMA_explainOption)*	EXPLAIN(TYPE a, TYPE a) a
+reject	reject	grammar	root(COMMA_explainOption)*/COMMA_explainOption_(COMMA_explainOption)*!drop-1	EXPLAIN(TYPE a TYPE a) a
+reject	reject	grammar	root(COMMA_explainOption)*/COMMA_explainOption_(COMMA_explainOption)*!drop-2	EXPLAIN(TYPE a,) a
+reject	reject	grammar	root(COMMA_explainOption)*/COMMA_explainOption_(COMMA_explainOption)*!truncate	EXPLAIN(TYPE a,
+reject	reject	grammar	root(COMMA_explainOption)*/COMMA_explainOption_(COMMA_explainOption)*!insert	EXPLAIN(TYPE a, TYPE a zzz) a
+reject	accept	grammar	statement/dql_(COLON_SEMI)?_EOF	a
+accept	accept	grammar	statement/dml_(COLON_SEMI)?_EOF	REMOVE a
+reject	reject	grammar	statement/dml_(COLON_SEMI)?_EOF!drop-2	REMOVE
+reject	reject	grammar	statement/dml_(COLON_SEMI)?_EOF!insert	REMOVE a zzz
+reject	reject	grammar	statement/dml_(COLON_SEMI)?_EOF!swap	REPLACE a
+accept	accept	grammar	statement/ddl_(COLON_SEMI)?_EOF	CREATE TABLE a
+reject	reject	grammar	statement/ddl_(COLON_SEMI)?_EOF!drop-1	TABLE a
+reject	reject	grammar	statement/ddl_(COLON_SEMI)?_EOF!drop-2	CREATE a
+reject	reject	grammar	statement/ddl_(COLON_SEMI)?_EOF!drop-3	CREATE TABLE
+reject	reject	grammar	statement/ddl_(COLON_SEMI)?_EOF!insert	CREATE TABLE a zzz
+reject	reject	grammar	statement/ddl_(COLON_SEMI)?_EOF!swap	CROSS TABLE a
+accept	accept	grammar	statement/execCommand_(COLON_SEMI)?_EOF	EXEC a
+reject	reject	grammar	statement/execCommand_(COLON_SEMI)?_EOF!drop-2	EXEC
+accept	accept	grammar	statement/execCommand_(COLON_SEMI)?_EOF!insert	EXEC a zzz
+accept	reject	grammar	statement/execCommand_(COLON_SEMI)?_EOF!swap	EXECUTE a
+reject	accept	grammar	statement(COLON_SEMI)?/%empty	a
+reject	accept	grammar	statement(COLON_SEMI)?/COLON_SEMI	a;
+reject	reject	grammar	statement(COLON_SEMI)?/COLON_SEMI!insert	a; zzz
+reject	reject	grammar	explainOption/IDENTIFIER_IDENTIFIER	EXPLAIN(a a) a
+reject	reject	grammar	explainOption/IDENTIFIER_IDENTIFIER!drop-1	EXPLAIN(a) a
+reject	reject	grammar	explainOption/IDENTIFIER_IDENTIFIER!truncate	EXPLAIN(a
+reject	reject	grammar	explainOption/IDENTIFIER_IDENTIFIER!insert	EXPLAIN(a a zzz) a
+accept	accept	grammar	asIdent/AS_symbolPrimitive	DELETE FROM a AS a
+reject	reject	grammar	asIdent/AS_symbolPrimitive!drop-2	DELETE FROM a AS
+reject	reject	grammar	asIdent/AS_symbolPrimitive!insert	DELETE FROM a AS a zzz
+reject	reject	grammar	asIdent/AS_symbolPrimitive!swap	DELETE FROM a ASC a
+accept	accept	grammar	atIdent/AT_symbolPrimitive	DELETE FROM a AT a
+reject	reject	grammar	atIdent/AT_symbolPrimitive!drop-2	DELETE FROM a AT
+reject	reject	grammar	atIdent/AT_symbolPrimitive!insert	DELETE FROM a AT a zzz
+reject	reject	grammar	atIdent/AT_symbolPrimitive!swap	DELETE FROM a AUTHORIZATION a
+accept	accept	grammar	byIdent/BY_symbolPrimitive	DELETE FROM a BY a
+reject	reject	grammar	byIdent/BY_symbolPrimitive!drop-2	DELETE FROM a BY
+reject	reject	grammar	byIdent/BY_symbolPrimitive!insert	DELETE FROM a BY a zzz
+reject	reject	grammar	byIdent/BY_symbolPrimitive!swap	DELETE FROM a CAN_CAST a
+accept	accept	grammar	symbolPrimitive/(IDENTIFIER|IDENTIFIER_QUOTED)	REMOVE a
+accept	accept	grammar	symbolPrimitive(IDENTIFIER|IDENTIFIER_QUOTED)/IDENTIFIER	REMOVE a
+accept	accept	grammar	symbolPrimitive(IDENTIFIER|IDENTIFIER_QUOTED)/IDENTIFIER_QUOTED	REMOVE "a"
+reject	reject	grammar	symbolPrimitive(IDENTIFIER|IDENTIFIER_QUOTED)/IDENTIFIER_QUOTED!insert	REMOVE "a" zzz
+reject	accept	grammar	dql/expr	a
+accept	accept	grammar	execCommand/EXEC_expr_(expr_(COMMA_expr)*)?	EXEC a
+accept	accept	grammar	execCommand(expr_(COMMA_expr)*)?/%empty	EXEC a
+accept	accept	grammar	execCommand(expr_(COMMA_expr)*)?/expr_(COMMA_expr)*	EXEC a a
+reject	reject	grammar	execCommand(expr_(COMMA_expr)*)?/expr_(COMMA_expr)*!insert	EXEC a a zzz
+accept	accept	grammar	execCommand(COMMA_expr)*/%empty	EXEC a a
+accept	accept	grammar	execCommand(COMMA_expr)*/COMMA_expr_(COMMA_expr)*	EXEC a a, a
+reject	reject	grammar	execCommand(COMMA_expr)*/COMMA_expr_(COMMA_expr)*!drop-1	EXEC a a a
+reject	reject	grammar	execCommand(COMMA_expr)*/COMMA_expr_(COMMA_expr)*!drop-2	EXEC a a,
+reject	reject	grammar	execCommand(COMMA_expr)*/COMMA_expr_(COMMA_expr)*!insert	EXEC a a, a zzz
+accept	accept	grammar	qualifiedName/(symbolPrimitive_PERIOD)*_symbolPrimitive	CREATE TABLE a
+accept	accept	grammar	qualifiedName(symbolPrimitive_PERIOD)*/%empty	CREATE TABLE a
+reject	reject	grammar	qualifiedName(symbolPrimitive_PERIOD)*/%empty!insert	CREATE TABLE zzz a
+reject	accept	grammar	qualifiedName(symbolPrimitive_PERIOD)*/symbolPrimitive_PERIOD_(symbolPrimitive_PERIOD)*	CREATE TABLE a.a
+reject	reject	grammar	qualifiedName(symbolPrimitive_PERIOD)*/symbolPrimitive_PERIOD_(symbolPrimitive_PERIOD)*!drop-1	CREATE TABLE.a
+reject	reject	grammar	qualifiedName(symbolPrimitive_PERIOD)*/symbolPrimitive_PERIOD_(symbolPrimitive_PERIOD)*!drop-2	CREATE TABLE a a
+reject	reject	grammar	qualifiedName(symbolPrimitive_PERIOD)*/symbolPrimitive_PERIOD_(symbolPrimitive_PERIOD)*!insert	CREATE TABLE a.zzz a
+reject	accept	grammar	columnName/symbolPrimitive	CREATE TABLE a(a NULL)
+reject	reject	grammar	columnName/symbolPrimitive!drop-1	CREATE TABLE a(NULL)
+reject	reject	grammar	columnName/symbolPrimitive!truncate	CREATE TABLE a(
+reject	accept	grammar	columnName/symbolPrimitive!insert	CREATE TABLE a(a zzz NULL)
+reject	accept	grammar	columnConstraintName/symbolPrimitive	CREATE TABLE a(a NULL CONSTRAINT a NULL)
+reject	reject	grammar	columnConstraintName/symbolPrimitive!drop-1	CREATE TABLE a(a NULL CONSTRAINT NULL)
+reject	reject	grammar	columnConstraintName/symbolPrimitive!truncate	CREATE TABLE a(a NULL CONSTRAINT
+reject	reject	grammar	columnConstraintName/symbolPrimitive!insert	CREATE TABLE a(a NULL CONSTRAINT a zzz NULL)
+accept	accept	grammar	ddl/createCommand	CREATE TABLE a
+accept	accept	grammar	ddl/dropCommand	DROP TABLE a
+reject	reject	grammar	ddl/dropCommand!drop-2	DROP a
+reject	reject	grammar	ddl/dropCommand!drop-3	DROP TABLE
+reject	reject	grammar	ddl/dropCommand!insert	DROP TABLE a zzz
+reject	reject	grammar	ddl/dropCommand!swap	ELSE TABLE a
+accept	accept	grammar	createCommand/CREATE_TABLE_qualifiedName_(PAREN_LEFT_tableDef_PAREN_RIGHT)?	CREATE TABLE a
+accept	accept	grammar	createCommand/CREATE_INDEX_ON_symbolPrimitive_PAREN_LEFT_pathSimple_(~5cb105a3	CREATE INDEX ON a(a)
+reject	reject	grammar	createCommand/CREATE_INDEX_ON_symbolPrimitive_PAREN_LEFT_pathSimple_(~5cb105a3!drop-1	INDEX ON a(a)
+reject	reject	grammar	createCommand/CREATE_INDEX_ON_symbolPrimitive_PAREN_LEFT_pathSimple_(~5cb105a3!drop-2	CREATE ON a(a)
+reject	reject	grammar	createCommand/CREATE_INDEX_ON_symbolPrimitive_PAREN_LEFT_pathSimple_(~5cb105a3!drop-3	CREATE INDEX a(a)
+reject	reject	grammar	createCommand/CREATE_INDEX_ON_symbolPrimitive_PAREN_LEFT_pathSimple_(~5cb105a3!drop-4	CREATE INDEX ON(a)
+reject	reject	grammar	createCommand/CREATE_INDEX_ON_symbolPrimitive_PAREN_LEFT_pathSimple_(~5cb105a3!drop-5	CREATE INDEX ON a a)
+reject	reject	grammar	createCommand/CREATE_INDEX_ON_symbolPrimitive_PAREN_LEFT_pathSimple_(~5cb105a3!drop-6	CREATE INDEX ON a()
+reject	reject	grammar	createCommand/CREATE_INDEX_ON_symbolPrimitive_PAREN_LEFT_pathSimple_(~5cb105a3!drop-7	CREATE INDEX ON a(a
+reject	reject	grammar	createCommand/CREATE_INDEX_ON_symbolPrimitive_PAREN_LEFT_pathSimple_(~5cb105a3!insert	CREATE INDEX ON a(a) zzz
+reject	reject	grammar	createCommand/CREATE_INDEX_ON_symbolPrimitive_PAREN_LEFT_pathSimple_(~5cb105a3!swap	CROSS INDEX ON a(a)
+accept	accept	grammar	createCommand(PAREN_LEFT_tableDef_PAREN_RIGHT)?/%empty	CREATE TABLE a
+reject	accept	grammar	createCommand(PAREN_LEFT_tableDef_PAREN_RIGHT)?/PAREN_LEFT_tableDef_PAREN_RIGHT	CREATE TABLE a(a NULL)
+reject	reject	grammar	createCommand(PAREN_LEFT_tableDef_PAREN_RIGHT)?/PAREN_LEFT_tableDef_PAREN_RIGHT!drop-1	CREATE TABLE a a NULL)
+reject	reject	grammar	createCommand(PAREN_LEFT_tableDef_PAREN_RIGHT)?/PAREN_LEFT_tableDef_PAREN_RIGHT!drop-3	CREATE TABLE a(a)
+reject	reject	grammar	createCommand(PAREN_LEFT_tableDef_PAREN_RIGHT)?/PAREN_LEFT_tableDef_PAREN_RIGHT!drop-4	CREATE TABLE a(a NULL
+reject	reject	grammar	createCommand(PAREN_LEFT_tableDef_PAREN_RIGHT)?/PAREN_LEFT_tableDef_PAREN_RIGHT!insert	CREATE TABLE a(a NULL) zzz
+reject	reject	grammar	createCommand(PAREN_LEFT_tableDef_PAREN_RIGHT)?/PAREN_LEFT_tableDef_PAREN_RIGHT!swap	CREATE TABLE a(a NULLIF)
+accept	accept	grammar	createCommand(COMMA_pathSimple)*/%empty	CREATE INDEX ON a(a)
+reject	reject	grammar	createCommand(COMMA_pathSimple)*/%empty!insert	CREATE INDEX ON a(a zzz)
+accept	accept	grammar	createCommand(COMMA_pathSimple)*/COMMA_pathSimple_(COMMA_pathSimple)*	CREATE INDEX ON a(a, a)
+reject	reject	grammar	createCommand(COMMA_pathSimple)*/COMMA_pathSimple_(COMMA_pathSimple)*!drop-1	CREATE INDEX ON a(a a)
+reject	reject	grammar	createCommand(COMMA_pathSimple)*/COMMA_pathSimple_(COMMA_pathSimple)*!drop-2	CREATE INDEX ON a(a,)
+reject	reject	grammar	createCommand(COMMA_pathSimple)*/COMMA_pathSimple_(COMMA_pathSimple)*!truncate	CREATE INDEX ON a(a,
+reject	reject	grammar	createCommand(COMMA_pathSimple)*/COMMA_pathSimple_(COMMA_pathSimple)*!insert	CREATE INDEX ON a(a, a zzz)
+accept	accept	grammar	dropCommand/DROP_TABLE_qualifiedName	DROP TABLE a
+accept	accept	grammar	dropCommand/DROP_INDEX_symbolPrimitive_ON_symbolPrimitive	DROP INDEX a ON a
+reject	reject	grammar	dropCommand/DROP_INDEX_symbolPrimitive_ON_symbolPrimitive!drop-1	INDEX a ON a
+reject	reject	grammar	dropCommand/DROP_INDEX_symbolPrimitive_ON_symbolPrimitive!drop-2	DROP a ON a
+reject	reject	grammar	dropCommand/DROP_INDEX_symbolPrimitive_ON_symbolPrimitive!drop-3	DROP INDEX ON a
+reject	reject	grammar	dropCommand/DROP_INDEX_symbolPrimitive_ON_symbolPrimitive!drop-4	DROP INDEX a a
+reject	reject	grammar	dropCommand/DROP_INDEX_symbolPrimitive_ON_symbolPrimitive!drop-5	DROP INDEX a ON
+reject	reject	grammar	dropCommand/DROP_INDEX_symbolPrimitive_ON_symbolPrimitive!insert	DROP INDEX a ON a zzz
+reject	reject	grammar	dropCommand/DROP_INDEX_symbolPrimitive_ON_symbolPrimitive!swap	ELSE INDEX a ON a
+reject	accept	grammar	tableDef/tableDefPart_(COMMA_tableDefPart)*	CREATE TABLE a(a NULL)
+reject	reject	grammar	tableDef/tableDefPart_(COMMA_tableDefPart)*!truncate	CREATE TABLE a(a
+reject	reject	grammar	tableDef/tableDefPart_(COMMA_tableDefPart)*!insert	CREATE TABLE a(a NULL zzz)
+reject	accept	grammar	tableDef(COMMA_tableDefPart)*/%empty	CREATE TABLE a(a NULL)
+reject	accept	grammar	tableDef(COMMA_tableDefPart)*/COMMA_tableDefPart_(COMMA_tableDefPart)*	CREATE TABLE a(a NULL, a NULL)
+reject	reject	grammar	tableDef(COMMA_tableDefPart)*/COMMA_tableDefPart_(COMMA_tableDefPart)*!drop-1	CREATE TABLE a(a NULL a NULL)
+reject	reject	grammar	tableDef(COMMA_tableDefPart)*/COMMA_tableDefPart_(COMMA_tableDefPart)*!drop-2	CREATE TABLE a(a NULL, NULL)
+reject	reject	grammar	tableDef(COMMA_tableDefPart)*/COMMA_tableDefPart_(COMMA_tableDefPart)*!drop-3	CREATE TABLE a(a NULL, a)
+reject	reject	grammar	tableDef(COMMA_tableDefPart)*/COMMA_tableDefPart_(COMMA_tableDefPart)*!truncate	CREATE TABLE a(a NULL, a
+reject	reject	grammar	tableDef(COMMA_tableDefPart)*/COMMA_tableDefPart_(COMMA_tableDefPart)*!insert	CREATE TABLE a(a NULL, a NULL zzz)
+reject	reject	grammar	tableDef(COMMA_tableDefPart)*/COMMA_tableDefPart_(COMMA_tableDefPart)*!swap	CREATE TABLE a(a NULL, a NULLIF)
+reject	accept	grammar	tableDefPart/columnName_type_(columnConstraint)*	CREATE TABLE a(a NULL)
+reject	accept	grammar	tableDefPart(columnConstraint)*/%empty	CREATE TABLE a(a NULL)
+reject	accept	grammar	tableDefPart(columnConstraint)*/columnConstraint_(columnConstraint)*	CREATE TABLE a(a NULL NULL)
+reject	reject	grammar	tableDefPart(columnConstraint)*/columnConstraint_(columnConstraint)*!insert	CREATE TABLE a(a NULL NULL zzz)
+reject	reject	grammar	tableDefPart(columnConstraint)*/columnConstraint_(columnConstraint)*!swap	CREATE TABLE a(a NULL NULLIF)
+reject	accept	grammar	columnConstraint/(CONSTRAINT_columnConstraintName)?_columnConstraintDef	CREATE TABLE a(a NULL NULL)
+reject	accept	grammar	columnConstraint(CONSTRAINT_columnConstraintName)?/%empty	CREATE TABLE a(a NULL NULL)
+reject	reject	grammar	columnConstraint(CONSTRAINT_columnConstraintName)?/%empty!insert	CREATE TABLE a(a NULL zzz NULL)
+reject	accept	grammar	columnConstraint(CONSTRAINT_columnConstraintName)?/CONSTRAINT_columnConstraintName	CREATE TABLE a(a NULL CONSTRAINT a NULL)
+reject	reject	grammar	columnConstraint(CONSTRAINT_columnConstraintName)?/CONSTRAINT_columnConstraintName!swap	CREATE TABLE a(a NULL CONSTRAINTS a NULL)
+reject	accept	grammar	columnConstraintDef/NOT_NULL	CREATE TABLE a(a NULL NOT NULL)
+reject	reject	grammar	columnConstraintDef/NOT_NULL!drop-2	CREATE TABLE a(a NULL NOT)
+reject	reject	grammar	columnConstraintDef/NOT_NULL!truncate	CREATE TABLE a(a NULL NOT
+reject	reject	grammar	columnConstraintDef/NOT_NULL!insert	CREATE TABLE a(a NULL NOT NULL zzz)
+reject	reject	grammar	columnConstraintDef/NOT_NULL!swap	CREATE TABLE a(a NULL NOTHING NULL)
+reject	accept	grammar	columnConstraintDef/NULL	CREATE TABLE a(a NULL NULL)
+accept	accept	grammar	dml/updateClause_(dmlBaseCommand)+_(whereClause)?_(returningClause)?	UPDATE a REMOVE a
+reject	reject	grammar	dml/updateClause_(dmlBaseCommand)+_(whereClause)?_(returningClause)?!drop-1	a REMOVE a
+reject	reject	grammar	dml/updateClause_(dmlBaseCommand)+_(whereClause)?_(returningClause)?!drop-2	UPDATE REMOVE a
+reject	reject	grammar	dml/updateClause_(dmlBaseCommand)+_(whereClause)?_(returningClause)?!drop-3	UPDATE a a
+reject	reject	grammar	dml/updateClause_(dmlBaseCommand)+_(whereClause)?_(returningClause)?!drop-4	UPDATE a REMOVE
+reject	reject	grammar	dml/updateClause_(dmlBaseCommand)+_(whereClause)?_(returningClause)?!insert	UPDATE a REMOVE a zzz
+reject	reject	grammar	dml/updateClause_(dmlBaseCommand)+_(whereClause)?_(returningClause)?!swap	UPPER a REMOVE a
+accept	accept	grammar	dml/fromClause_(whereClause)?_(dmlBaseCommand)+_(returningClause)?	FROM a REMOVE a
+reject	reject	grammar	dml/fromClause_(whereClause)?_(dmlBaseCommand)+_(returningClause)?!drop-2	FROM REMOVE a
+reject	reject	grammar	dml/fromClause_(whereClause)?_(dmlBaseCommand)+_(returningClause)?!drop-3	FROM a a
+reject	reject	grammar	dml/fromClause_(whereClause)?_(dmlBaseCommand)+_(returningClause)?!drop-4	FROM a REMOVE
+reject	reject	grammar	dml/fromClause_(whereClause)?_(dmlBaseCommand)+_(returningClause)?!insert	FROM a REMOVE a zzz
+reject	reject	grammar	dml/fromClause_(whereClause)?_(dmlBaseCommand)+_(returningClause)?!swap	FULL a REMOVE a
+accept	accept	grammar	dml/deleteCommand	DELETE FROM a
+reject	reject	grammar	dml/deleteCommand!drop-1	FROM a
+reject	reject	grammar	dml/deleteCommand!drop-2	DELETE a
+reject	reject	grammar	dml/deleteCommand!drop-3	DELETE FROM
+accept	accept	grammar	dml/deleteCommand!insert	DELETE FROM a zzz
+reject	reject	grammar	dml/deleteCommand!swap	DESC FROM a
+accept	accept	grammar	dml/insertCommandReturning	INSERT INTO a VALUE a
+reject	reject	grammar	dml/insertCommandReturning!drop-1	INTO a VALUE a
+reject	reject	grammar	dml/insertCommandReturning!drop-2	INSERT a VALUE a
+reject	reject	grammar	dml/insertCommandReturning!drop-3	INSERT INTO VALUE a
+reject	reject	grammar	dml/insertCommandReturning!drop-5	INSERT INTO a VALUE
+reject	reject	grammar	dml/insertCommandReturning!insert	INSERT INTO a VALUE a zzz
+reject	reject	grammar	dml/insertCommandReturning!swap	INT INTO a VALUE a
+accept	accept	grammar	dml/dmlBaseCommand	REMOVE a
+accept	accept	grammar	dml(dmlBaseCommand)+/dmlBaseCommand	UPDATE a REMOVE a
+reject	reject	grammar	dml(dmlBaseCommand)+/dmlBaseCommand!swap	UPDATE a REPLACE a
+accept	accept	grammar	dml(dmlBaseCommand)+/dmlBaseCommand_(dmlBaseCommand)+	UPDATE a REMOVE a REMOVE a
+reject	accept	grammar	dml(dmlBaseCommand)+/dmlBaseCommand_(dmlBaseCommand)+!drop-1	UPDATE a a REMOVE a
+reject	reject	grammar	dml(dmlBaseCommand)+/dmlBaseCommand_(dmlBaseCommand)+!drop-2	UPDATE a REMOVE REMOVE a
+reject	reject	grammar	dml(dmlBaseCommand)+/dmlBaseCommand_(dmlBaseCommand)+!drop-3	UPDATE a REMOVE a a
+reject	reject	grammar	dml(dmlBaseCommand)+/dmlBaseCommand_(dmlBaseCommand)+!drop-4	UPDATE a REMOVE a REMOVE
+reject	reject	grammar	dml(dmlBaseCommand)+/dmlBaseCommand_(dmlBaseCommand)+!insert	UPDATE a REMOVE a REMOVE a zzz
+reject	reject	grammar	dml(dmlBaseCommand)+/dmlBaseCommand_(dmlBaseCommand)+!swap	UPDATE a REPLACE a REMOVE a
+accept	accept	grammar	dml(whereClause)?/%empty	UPDATE a REMOVE a
+accept	accept	grammar	dml(whereClause)?/whereClause	UPDATE a REMOVE a WHERE a
+reject	reject	grammar	dml(whereClause)?/whereClause!drop-2	UPDATE a REMOVE a WHERE
+reject	reject	grammar	dml(whereClause)?/whereClause!insert	UPDATE a REMOVE a WHERE a zzz
+reject	reject	grammar	dml(whereClause)?/whereClause!swap	UPDATE a REMOVE a WITH a
+accept	accept	grammar	dml(returningClause)?/%empty	UPDATE a REMOVE a
+accept	accept	grammar	dml(returningClause)?/returningClause	UPDATE a REMOVE a RETURNING MODIFIED OLD *
+reject	reject	grammar	dml(returningClause)?/returningClause!drop-1	UPDATE a REMOVE a MODIFIED OLD *
+reject	reject	grammar	dml(returningClause)?/returningClause!drop-2	UPDATE a REMOVE a RETURNING OLD *
+reject	reject	grammar	dml(returningClause)?/returningClause!drop-3	UPDATE a REMOVE a RETURNING MODIFIED *
+reject	reject	grammar	dml(returningClause)?/returningClause!drop-4	UPDATE a REMOVE a RETURNING MODIFIED OLD
+reject	reject	grammar	dml(returningClause)?/returningClause!insert	UPDATE a REMOVE a RETURNING MODIFIED OLD * zzz
+reject	reject	grammar	dml(returningClause)?/returningClause!swap	UPDATE a REMOVE a REVOKE MODIFIED OLD *
+accept	accept	grammar	dmlBaseCommand/insertStatement	INSERT INTO a a
+reject	reject	grammar	dmlBaseCommand/insertStatement!drop-1	INTO a a
+reject	reject	grammar	dmlBaseCommand/insertStatement!drop-2	INSERT a a
+reject	reject	grammar	dmlBaseCommand/insertStatement!drop-3	INSERT INTO a
+reject	reject	grammar	dmlBaseCommand/insertStatement!insert	INSERT INTO a a zzz
+reject	reject	grammar	dmlBaseCommand/insertStatement!swap	INT INTO a a
+accept	accept	grammar	dmlBaseCommand/insertStatementLegacy	INSERT INTO a VALUE a
+reject	accept	grammar	dmlBaseCommand/setCommand	SET a = a
+reject	reject	grammar	dmlBaseCommand/setCommand!drop-2	SET = a
+reject	reject	grammar	dmlBaseCommand/setCommand!drop-3	SET a a
+reject	reject	grammar	dmlBaseCommand/setCommand!drop-4	SET a =
+reject	reject	grammar	dmlBaseCommand/setCommand!insert	SET a = a zzz
+reject	reject	grammar	dmlBaseCommand/setCommand!swap	SEXP a = a
+accept	accept	grammar	dmlBaseCommand/replaceCommand	REPLACE INTO a a
+reject	reject	grammar	dmlBaseCommand/replaceCommand!drop-2	REPLACE a a
+reject	reject	grammar	dmlBaseCommand/replaceCommand!drop-3	REPLACE INTO a
+reject	reject	grammar	dmlBaseCommand/replaceCommand!insert	REPLACE INTO a a zzz
+reject	reject	grammar	dmlBaseCommand/replaceCommand!swap	RESTRICT INTO a a
+accept	accept	grammar	dmlBaseCommand/removeCommand	REMOVE a
+accept	accept	grammar	dmlBaseCommand/upsertCommand	UPSERT INTO a a
+reject	reject	grammar	dmlBaseCommand/upsertCommand!drop-2	UPSERT a a
+reject	reject	grammar	dmlBaseCommand/upsertCommand!drop-3	UPSERT INTO a
+reject	reject	grammar	dmlBaseCommand/upsertCommand!insert	UPSERT INTO a a zzz
+reject	reject	grammar	dmlBaseCommand/upsertCommand!swap	USAGE INTO a a
+accept	accept	grammar	pathSimple/symbolPrimitive_(pathSimpleSteps)*	REMOVE a
+accept	accept	grammar	pathSimple(pathSimpleSteps)*/%empty	REMOVE a
+accept	accept	grammar	pathSimple(pathSimpleSteps)*/pathSimpleSteps_(pathSimpleSteps)*	REMOVE a.a
+reject	reject	grammar	pathSimple(pathSimpleSteps)*/pathSimpleSteps_(pathSimpleSteps)*!drop-1	REMOVE a a
+reject	reject	grammar	pathSimple(pathSimpleSteps)*/pathSimpleSteps_(pathSimpleSteps)*!drop-2	REMOVE a.
+reject	reject	grammar	pathSimple(pathSimpleSteps)*/pathSimpleSteps_(pathSimpleSteps)*!insert	REMOVE a.a zzz
+accept	reject	grammar	pathSimpleSteps/BRACKET_LEFT_literal_BRACKET_RIGHT	REMOVE a [ NULL ]
+reject	reject	grammar	pathSimpleSteps/BRACKET_LEFT_literal_BRACKET_RIGHT!drop-1	REMOVE a NULL ]
+reject	reject	grammar	pathSimpleSteps/BRACKET_LEFT_literal_BRACKET_RIGHT!drop-2	REMOVE a [ ]
+reject	reject	grammar	pathSimpleSteps/BRACKET_LEFT_literal_BRACKET_RIGHT!drop-3	REMOVE a [ NULL
+reject	reject	grammar	pathSimpleSteps/BRACKET_LEFT_literal_BRACKET_RIGHT!insert	REMOVE a [ NULL ] zzz
+reject	reject	grammar	pathSimpleSteps/BRACKET_LEFT_literal_BRACKET_RIGHT!swap	REMOVE a [ NULLIF ]
+accept	accept	grammar	pathSimpleSteps/BRACKET_LEFT_symbolPrimitive_BRACKET_RIGHT	REMOVE a [ a ]
+reject	reject	grammar	pathSimpleSteps/BRACKET_LEFT_symbolPrimitive_BRACKET_RIGHT!drop-1	REMOVE a a ]
+reject	reject	grammar	pathSimpleSteps/BRACKET_LEFT_symbolPrimitive_BRACKET_RIGHT!drop-3	REMOVE a [ a
+reject	reject	grammar	pathSimpleSteps/BRACKET_LEFT_symbolPrimitive_BRACKET_RIGHT!insert	REMOVE a [ a ] zzz
+accept	accept	grammar	pathSimpleSteps/PERIOD_symbolPrimitive	REMOVE a.a
+accept	accept	grammar	replaceCommand/REPLACE_INTO_symbolPrimitive_(asIdent)?_expr	REPLACE INTO a a
+accept	accept	grammar	replaceCommand(asIdent)?/%empty	REPLACE INTO a a
+reject	reject	grammar	replaceCommand(asIdent)?/%empty!insert	REPLACE INTO a zzz a
+accept	accept	grammar	replaceCommand(asIdent)?/asIdent	REPLACE INTO a AS a a
+reject	reject	grammar	replaceCommand(asIdent)?/asIdent!drop-1	REPLACE INTO a a a
+reject	reject	grammar	replaceCommand(asIdent)?/asIdent!drop-2	REPLACE INTO a AS a
+reject	reject	grammar	replaceCommand(asIdent)?/asIdent!truncate	REPLACE INTO a AS
+reject	reject	grammar	replaceCommand(asIdent)?/asIdent!insert	REPLACE INTO a AS a zzz a
+reject	reject	grammar	replaceCommand(asIdent)?/asIdent!swap	REPLACE INTO a ASC a a
+accept	accept	grammar	upsertCommand/UPSERT_INTO_symbolPrimitive_(asIdent)?_expr	UPSERT INTO a a
+accept	accept	grammar	upsertCommand(asIdent)?/%empty	UPSERT INTO a a
+reject	reject	grammar	upsertCommand(asIdent)?/%empty!insert	UPSERT INTO a zzz a
+accept	accept	grammar	upsertCommand(asIdent)?/asIdent	UPSERT INTO a AS a a
+reject	reject	grammar	upsertCommand(asIdent)?/asIdent!drop-1	UPSERT INTO a a a
+reject	reject	grammar	upsertCommand(asIdent)?/asIdent!drop-2	UPSERT INTO a AS a
+reject	reject	grammar	upsertCommand(asIdent)?/asIdent!truncate	UPSERT INTO a AS
+reject	reject	grammar	upsertCommand(asIdent)?/asIdent!insert	UPSERT INTO a AS a zzz a
+reject	reject	grammar	upsertCommand(asIdent)?/asIdent!swap	UPSERT INTO a ASC a a
+accept	accept	grammar	removeCommand/REMOVE_pathSimple	REMOVE a
+accept	accept	grammar	insertCommandReturning/INSERT_INTO_pathSimple_VALUE_expr_(AT_expr)?_(onConflic~d2666d60	INSERT INTO a VALUE a
+accept	accept	grammar	insertCommandReturning(AT_expr)?/%empty	INSERT INTO a VALUE a
+accept	accept	grammar	insertCommandReturning(AT_expr)?/AT_expr	INSERT INTO a VALUE a AT a
+reject	reject	grammar	insertCommandReturning(AT_expr)?/AT_expr!drop-1	INSERT INTO a VALUE a a
+reject	reject	grammar	insertCommandReturning(AT_expr)?/AT_expr!drop-2	INSERT INTO a VALUE a AT
+reject	reject	grammar	insertCommandReturning(AT_expr)?/AT_expr!insert	INSERT INTO a VALUE a AT a zzz
+reject	reject	grammar	insertCommandReturning(AT_expr)?/AT_expr!swap	INSERT INTO a VALUE a AUTHORIZATION a
+accept	accept	grammar	insertCommandReturning(onConflictLegacy)?/%empty	INSERT INTO a VALUE a
+accept	accept	grammar	insertCommandReturning(onConflictLegacy)?/onConflictLegacy	INSERT INTO a VALUE a ON CONFLICT WHERE a DO NOTHING
+reject	reject	grammar	insertCommandReturning(onConflictLegacy)?/onConflictLegacy!drop-1	INSERT INTO a VALUE a CONFLICT WHERE a DO NOTHING
+reject	reject	grammar	insertCommandReturning(onConflictLegacy)?/onConflictLegacy!drop-2	INSERT INTO a VALUE a ON WHERE a DO NOTHING
+reject	reject	grammar	insertCommandReturning(onConflictLegacy)?/onConflictLegacy!drop-3	INSERT INTO a VALUE a ON CONFLICT a DO NOTHING
+reject	reject	grammar	insertCommandReturning(onConflictLegacy)?/onConflictLegacy!drop-4	INSERT INTO a VALUE a ON CONFLICT WHERE DO NOTHING
+reject	reject	grammar	insertCommandReturning(onConflictLegacy)?/onConflictLegacy!drop-5	INSERT INTO a VALUE a ON CONFLICT WHERE a NOTHING
+reject	reject	grammar	insertCommandReturning(onConflictLegacy)?/onConflictLegacy!drop-6	INSERT INTO a VALUE a ON CONFLICT WHERE a DO
+reject	reject	grammar	insertCommandReturning(onConflictLegacy)?/onConflictLegacy!insert	INSERT INTO a VALUE a ON CONFLICT WHERE a DO NOTHING zzz
+reject	reject	grammar	insertCommandReturning(onConflictLegacy)?/onConflictLegacy!swap	INSERT INTO a VALUE a ONLY CONFLICT WHERE a DO NOTHING
+accept	accept	grammar	insertCommandReturning(returningClause)?/%empty	INSERT INTO a VALUE a
+accept	accept	grammar	insertCommandReturning(returningClause)?/returningClause	INSERT INTO a VALUE a RETURNING MODIFIED OLD *
+reject	reject	grammar	insertCommandReturning(returningClause)?/returningClause!drop-1	INSERT INTO a VALUE a MODIFIED OLD *
+reject	reject	grammar	insertCommandReturning(returningClause)?/returningClause!drop-2	INSERT INTO a VALUE a RETURNING OLD *
+reject	reject	grammar	insertCommandReturning(returningClause)?/returningClause!drop-3	INSERT INTO a VALUE a RETURNING MODIFIED *
+reject	reject	grammar	insertCommandReturning(returningClause)?/returningClause!drop-4	INSERT INTO a VALUE a RETURNING MODIFIED OLD
+reject	reject	grammar	insertCommandReturning(returningClause)?/returningClause!insert	INSERT INTO a VALUE a RETURNING MODIFIED OLD * zzz
+reject	reject	grammar	insertCommandReturning(returningClause)?/returningClause!swap	INSERT INTO a VALUE a REVOKE MODIFIED OLD *
+accept	accept	grammar	insertStatement/INSERT_INTO_symbolPrimitive_(asIdent)?_expr_(onConflict)?	INSERT INTO a a
+accept	accept	grammar	insertStatement(asIdent)?/%empty	INSERT INTO a a
+reject	reject	grammar	insertStatement(asIdent)?/%empty!insert	INSERT INTO a zzz a
+accept	accept	grammar	insertStatement(asIdent)?/asIdent	INSERT INTO a AS a a
+reject	reject	grammar	insertStatement(asIdent)?/asIdent!drop-1	INSERT INTO a a a
+reject	reject	grammar	insertStatement(asIdent)?/asIdent!drop-2	INSERT INTO a AS a
+reject	reject	grammar	insertStatement(asIdent)?/asIdent!truncate	INSERT INTO a AS
+reject	reject	grammar	insertStatement(asIdent)?/asIdent!insert	INSERT INTO a AS a zzz a
+reject	reject	grammar	insertStatement(asIdent)?/asIdent!swap	INSERT INTO a ASC a a
+accept	accept	grammar	insertStatement(onConflict)?/%empty	INSERT INTO a a
+accept	accept	grammar	insertStatement(onConflict)?/onConflict	INSERT INTO a a ON CONFLICT DO NOTHING
+reject	reject	grammar	insertStatement(onConflict)?/onConflict!drop-1	INSERT INTO a a CONFLICT DO NOTHING
+reject	reject	grammar	insertStatement(onConflict)?/onConflict!drop-2	INSERT INTO a a ON DO NOTHING
+reject	reject	grammar	insertStatement(onConflict)?/onConflict!drop-3	INSERT INTO a a ON CONFLICT NOTHING
+reject	reject	grammar	insertStatement(onConflict)?/onConflict!drop-4	INSERT INTO a a ON CONFLICT DO
+reject	reject	grammar	insertStatement(onConflict)?/onConflict!insert	INSERT INTO a a ON CONFLICT DO NOTHING zzz
+reject	reject	grammar	insertStatement(onConflict)?/onConflict!swap	INSERT INTO a a ONLY CONFLICT DO NOTHING
+accept	accept	grammar	onConflict/ON_CONFLICT_(conflictTarget)?_conflictAction	INSERT INTO a a ON CONFLICT DO NOTHING
+accept	accept	grammar	onConflict(conflictTarget)?/%empty	INSERT INTO a a ON CONFLICT DO NOTHING
+reject	reject	grammar	onConflict(conflictTarget)?/%empty!insert	INSERT INTO a a ON CONFLICT zzz DO NOTHING
+accept	accept	grammar	onConflict(conflictTarget)?/conflictTarget	INSERT INTO a a ON CONFLICT(a) DO NOTHING
+reject	reject	grammar	onConflict(conflictTarget)?/conflictTarget!drop-1	INSERT INTO a a ON CONFLICT a) DO NOTHING
+reject	reject	grammar	onConflict(conflictTarget)?/conflictTarget!drop-2	INSERT INTO a a ON CONFLICT() DO NOTHING
+reject	reject	grammar	onConflict(conflictTarget)?/conflictTarget!drop-3	INSERT INTO a a ON CONFLICT(a DO NOTHING
+reject	reject	grammar	onConflict(conflictTarget)?/conflictTarget!truncate	INSERT INTO a a ON CONFLICT(a
+reject	reject	grammar	onConflict(conflictTarget)?/conflictTarget!insert	INSERT INTO a a ON CONFLICT(a) zzz DO NOTHING
+accept	accept	grammar	insertStatementLegacy/INSERT_INTO_pathSimple_VALUE_expr_(AT_expr)?_(onConflictLegacy)?	INSERT INTO a VALUE a
+accept	accept	grammar	insertStatementLegacy(AT_expr)?/%empty	INSERT INTO a VALUE a
+accept	accept	grammar	insertStatementLegacy(AT_expr)?/AT_expr	INSERT INTO a VALUE a AT a
+accept	accept	grammar	insertStatementLegacy(onConflictLegacy)?/%empty	INSERT INTO a VALUE a
+accept	accept	grammar	insertStatementLegacy(onConflictLegacy)?/onConflictLegacy	INSERT INTO a VALUE a ON CONFLICT WHERE a DO NOTHING
+accept	accept	grammar	onConflictLegacy/ON_CONFLICT_WHERE_expr_DO_NOTHING	INSERT INTO a VALUE a ON CONFLICT WHERE a DO NOTHING
+accept	accept	grammar	conflictTarget/PAREN_LEFT_symbolPrimitive_(COMMA_symbolPrimitive)*_PAREN_RIGHT	INSERT INTO a a ON CONFLICT(a) DO NOTHING
+accept	accept	grammar	conflictTarget/ON_CONSTRAINT_constraintName	INSERT INTO a a ON CONFLICT ON CONSTRAINT a DO NOTHING
+reject	reject	grammar	conflictTarget/ON_CONSTRAINT_constraintName!drop-1	INSERT INTO a a ON CONFLICT CONSTRAINT a DO NOTHING
+reject	reject	grammar	conflictTarget/ON_CONSTRAINT_constraintName!drop-2	INSERT INTO a a ON CONFLICT ON a DO NOTHING
+reject	reject	grammar	conflictTarget/ON_CONSTRAINT_constraintName!drop-3	INSERT INTO a a ON CONFLICT ON CONSTRAINT DO NOTHING
+reject	reject	grammar	conflictTarget/ON_CONSTRAINT_constraintName!truncate	INSERT INTO a a ON CONFLICT ON CONSTRAINT
+reject	reject	grammar	conflictTarget/ON_CONSTRAINT_constraintName!insert	INSERT INTO a a ON CONFLICT ON CONSTRAINT a zzz DO NOTHING
+reject	reject	grammar	conflictTarget/ON_CONSTRAINT_constraintName!swap	INSERT INTO a a ON CONFLICT ONLY CONSTRAINT a DO NOTHING
+accept	accept	grammar	conflictTarget(COMMA_symbolPrimitive)*/%empty	INSERT INTO a a ON CONFLICT(a) DO NOTHING
+reject	reject	grammar	conflictTarget(COMMA_symbolPrimitive)*/%empty!insert	INSERT INTO a a ON CONFLICT(a zzz) DO NOTHING
+accept	accept	grammar	conflictTarget(COMMA_symbolPrimitive)*/COMMA_symbolPrimitive_(COMMA_symbolPrimitive)*	INSERT INTO a a ON CONFLICT(a, a) DO NOTHING
+reject	reject	grammar	conflictTarget(COMMA_symbolPrimitive)*/COMMA_symbolPrimitive_(COMMA_symbolPrimitive)*!drop-1	INSERT INTO a a ON CONFLICT(a a) DO NOTHING
+reject	reject	grammar	conflictTarget(COMMA_symbolPrimitive)*/COMMA_symbolPrimitive_(COMMA_symbolPrimitive)*!drop-2	INSERT INTO a a ON CONFLICT(a,) DO NOTHING
+reject	reject	grammar	conflictTarget(COMMA_symbolPrimitive)*/COMMA_symbolPrimitive_(COMMA_symbolPrimitive)*!truncate	INSERT INTO a a ON CONFLICT(a,
+reject	reject	grammar	conflictTarget(COMMA_symbolPrimitive)*/COMMA_symbolPrimitive_(COMMA_symbolPrimitive)*!insert	INSERT INTO a a ON CONFLICT(a, a zzz) DO NOTHING
+accept	accept	grammar	constraintName/symbolPrimitive	INSERT INTO a a ON CONFLICT ON CONSTRAINT a DO NOTHING
+accept	accept	grammar	conflictAction/DO_NOTHING	INSERT INTO a a ON CONFLICT DO NOTHING
+reject	reject	grammar	conflictAction/DO_NOTHING!swap	INSERT INTO a a ON CONFLICT DOMAIN NOTHING
+accept	accept	grammar	conflictAction/DO_REPLACE_doReplace	INSERT INTO a a ON CONFLICT DO REPLACE EXCLUDED
+reject	reject	grammar	conflictAction/DO_REPLACE_doReplace!drop-1	INSERT INTO a a ON CONFLICT REPLACE EXCLUDED
+reject	reject	grammar	conflictAction/DO_REPLACE_doReplace!drop-2	INSERT INTO a a ON CONFLICT DO EXCLUDED
+reject	reject	grammar	conflictAction/DO_REPLACE_doReplace!drop-3	INSERT INTO a a ON CONFLICT DO REPLACE
+reject	reject	grammar	conflictAction/DO_REPLACE_doReplace!insert	INSERT INTO a a ON CONFLICT DO REPLACE EXCLUDED zzz
+reject	reject	grammar	conflictAction/DO_REPLACE_doReplace!swap	INSERT INTO a a ON CONFLICT DOMAIN REPLACE EXCLUDED
+accept	accept	grammar	conflictAction/DO_UPDATE_doUpdate	INSERT INTO a a ON CONFLICT DO UPDATE EXCLUDED
+reject	reject	grammar	conflictAction/DO_UPDATE_doUpdate!drop-1	INSERT INTO a a ON CONFLICT UPDATE EXCLUDED
+reject	reject	grammar	conflictAction/DO_UPDATE_doUpdate!drop-3	INSERT INTO a a ON CONFLICT DO UPDATE
+reject	reject	grammar	conflictAction/DO_UPDATE_doUpdate!insert	INSERT INTO a a ON CONFLICT DO UPDATE EXCLUDED zzz
+reject	reject	grammar	conflictAction/DO_UPDATE_doUpdate!swap	INSERT INTO a a ON CONFLICT DOMAIN UPDATE EXCLUDED
+accept	accept	grammar	doReplace/EXCLUDED_(WHERE_expr)?	INSERT INTO a a ON CONFLICT DO REPLACE EXCLUDED
+reject	reject	grammar	doReplace/EXCLUDED_(WHERE_expr)?!swap	INSERT INTO a a ON CONFLICT DO REPLACE EXEC
+accept	accept	grammar	doReplace(WHERE_expr)?/%empty	INSERT INTO a a ON CONFLICT DO REPLACE EXCLUDED
+reject	accept	grammar	doReplace(WHERE_expr)?/WHERE_expr	INSERT INTO a a ON CONFLICT DO REPLACE EXCLUDED WHERE a
+reject	reject	grammar	doReplace(WHERE_expr)?/WHERE_expr!drop-1	INSERT INTO a a ON CONFLICT DO REPLACE EXCLUDED a
+reject	reject	grammar	doReplace(WHERE_expr)?/WHERE_expr!drop-2	INSERT INTO a a ON CONFLICT DO REPLACE EXCLUDED WHERE
+reject	reject	grammar	doReplace(WHERE_expr)?/WHERE_expr!insert	INSERT INTO a a ON CONFLICT DO REPLACE EXCLUDED WHERE a zzz
+reject	reject	grammar	doReplace(WHERE_expr)?/WHERE_expr!swap	INSERT INTO a a ON CONFLICT DO REPLACE EXCLUDED WITH a
+accept	accept	grammar	doUpdate/EXCLUDED_(WHERE_expr)?	INSERT INTO a a ON CONFLICT DO UPDATE EXCLUDED
+reject	reject	grammar	doUpdate/EXCLUDED_(WHERE_expr)?!swap	INSERT INTO a a ON CONFLICT DO UPDATE EXEC
+accept	accept	grammar	doUpdate(WHERE_expr)?/%empty	INSERT INTO a a ON CONFLICT DO UPDATE EXCLUDED
+reject	accept	grammar	doUpdate(WHERE_expr)?/WHERE_expr	INSERT INTO a a ON CONFLICT DO UPDATE EXCLUDED WHERE a
+reject	reject	grammar	doUpdate(WHERE_expr)?/WHERE_expr!drop-1	INSERT INTO a a ON CONFLICT DO UPDATE EXCLUDED a
+reject	reject	grammar	doUpdate(WHERE_expr)?/WHERE_expr!drop-2	INSERT INTO a a ON CONFLICT DO UPDATE EXCLUDED WHERE
+reject	reject	grammar	doUpdate(WHERE_expr)?/WHERE_expr!insert	INSERT INTO a a ON CONFLICT DO UPDATE EXCLUDED WHERE a zzz
+reject	reject	grammar	doUpdate(WHERE_expr)?/WHERE_expr!swap	INSERT INTO a a ON CONFLICT DO UPDATE EXCLUDED WITH a
+accept	accept	grammar	updateClause/UPDATE_tableBaseReference	UPDATE a REMOVE a
+reject	reject	grammar	updateClause/UPDATE_tableBaseReference!truncate	UPDATE
+reject	accept	grammar	updateClause/UPDATE_tableBaseReference!insert	UPDATE a zzz REMOVE a
+reject	accept	grammar	setCommand/SET_setAssignment_(COMMA_setAssignment)*	SET a = a
+reject	accept	grammar	setCommand(COMMA_setAssignment)*/%empty	SET a = a
+reject	accept	grammar	setCommand(COMMA_setAssignment)*/COMMA_setAssignment_(COMMA_setAssignment)*	SET a = a, a = a
+reject	reject	grammar	setCommand(COMMA_setAssignment)*/COMMA_setAssignment_(COMMA_setAssignment)*!drop-1	SET a = a a = a
+reject	reject	grammar	setCommand(COMMA_setAssignment)*/COMMA_setAssignment_(COMMA_setAssignment)*!drop-2	SET a = a, = a
+reject	reject	grammar	setCommand(COMMA_setAssignment)*/COMMA_setAssignment_(COMMA_setAssignment)*!drop-3	SET a = a, a a
+reject	reject	grammar	setCommand(COMMA_setAssignment)*/COMMA_setAssignment_(COMMA_setAssignment)*!drop-4	SET a = a, a =
+reject	reject	grammar	setCommand(COMMA_setAssignment)*/COMMA_setAssignment_(COMMA_setAssignment)*!insert	SET a = a, a = a zzz
+reject	accept	grammar	setAssignment/pathSimple_EQ_expr	SET a = a
+accept	accept	grammar	deleteCommand/DELETE_fromClauseSimple_(whereClause)?_(returningClause)?	DELETE FROM a
+accept	accept	grammar	deleteCommand(whereClause)?/%empty	DELETE FROM a
+accept	accept	grammar	deleteCommand(whereClause)?/whereClause	DELETE FROM a WHERE a
+reject	reject	grammar	deleteCommand(whereClause)?/whereClause!drop-2	DELETE FROM a WHERE
+reject	reject	grammar	deleteCommand(whereClause)?/whereClause!insert	DELETE FROM a WHERE a zzz
+reject	reject	grammar	deleteCommand(whereClause)?/whereClause!swap	DELETE FROM a WITH a
+accept	accept	grammar	deleteCommand(returningClause)?/%empty	DELETE FROM a
+accept	accept	grammar	deleteCommand(returningClause)?/returningClause	DELETE FROM a RETURNING MODIFIED OLD *
+reject	reject	grammar	deleteCommand(returningClause)?/returningClause!drop-1	DELETE FROM a MODIFIED OLD *
+reject	reject	grammar	deleteCommand(returningClause)?/returningClause!drop-2	DELETE FROM a RETURNING OLD *
+reject	reject	grammar	deleteCommand(returningClause)?/returningClause!drop-3	DELETE FROM a RETURNING MODIFIED *
+reject	reject	grammar	deleteCommand(returningClause)?/returningClause!drop-4	DELETE FROM a RETURNING MODIFIED OLD
+reject	reject	grammar	deleteCommand(returningClause)?/returningClause!insert	DELETE FROM a RETURNING MODIFIED OLD * zzz
+reject	reject	grammar	deleteCommand(returningClause)?/returningClause!swap	DELETE FROM a REVOKE MODIFIED OLD *
+accept	accept	grammar	returningClause/RETURNING_returningColumn_(COMMA_returningColumn)*	DELETE FROM a RETURNING MODIFIED OLD *
+accept	accept	grammar	returningClause(COMMA_returningColumn)*/%empty	DELETE FROM a RETURNING MODIFIED OLD *
+accept	accept	grammar	returningClause(COMMA_returningColumn)*/COMMA_returningColumn_(COMMA_returningColumn)*	DELETE FROM a RETURNING MODIFIED OLD *, MODIFIED OLD *
+reject	reject	grammar	returningClause(COMMA_returningColumn)*/COMMA_returningColumn_(COMMA_returningColumn)*!drop-1	DELETE FROM a RETURNING MODIFIED OLD * MODIFIED OLD *
+reject	reject	grammar	returningClause(COMMA_returningColumn)*/COMMA_returningColumn_(COMMA_returningColumn)*!drop-2	DELETE FROM a RETURNING MODIFIED OLD *, OLD *
+reject	reject	grammar	returningClause(COMMA_returningColumn)*/COMMA_returningColumn_(COMMA_returningColumn)*!drop-3	DELETE FROM a RETURNING MODIFIED OLD *, MODIFIED *
+reject	reject	grammar	returningClause(COMMA_returningColumn)*/COMMA_returningColumn_(COMMA_returningColumn)*!drop-4	DELETE FROM a RETURNING MODIFIED OLD *, MODIFIED OLD
+reject	reject	grammar	returningClause(COMMA_returningColumn)*/COMMA_returningColumn_(COMMA_returningColumn)*!insert	DELETE FROM a RETURNING MODIFIED OLD *, MODIFIED OLD * zzz
+reject	reject	grammar	returningClause(COMMA_returningColumn)*/COMMA_returningColumn_(COMMA_returningColumn)*!swap	DELETE FROM a RETURNING MODIFIED OLD *, MODULE OLD *
+accept	accept	grammar	returningColumn/(MODIFIED|ALL)_(OLD|NEW)_ASTERISK	DELETE FROM a RETURNING MODIFIED OLD *
+reject	reject	grammar	returningColumn/(MODIFIED|ALL)_(OLD|NEW)_ASTERISK!swap	DELETE FROM a RETURNING MODULE OLD *
+accept	accept	grammar	returningColumn/(MODIFIED|ALL)_(OLD|NEW)_expr	DELETE FROM a RETURNING MODIFIED OLD a
+reject	reject	grammar	returningColumn/(MODIFIED|ALL)_(OLD|NEW)_expr!drop-1	DELETE FROM a RETURNING OLD a
+reject	reject	grammar	returningColumn/(MODIFIED|ALL)_(OLD|NEW)_expr!drop-2	DELETE FROM a RETURNING MODIFIED a
+reject	reject	grammar	returningColumn/(MODIFIED|ALL)_(OLD|NEW)_expr!insert	DELETE FROM a RETURNING MODIFIED OLD a zzz
+reject	reject	grammar	returningColumn/(MODIFIED|ALL)_(OLD|NEW)_expr!swap	DELETE FROM a RETURNING MODULE OLD a
+accept	accept	grammar	returningColumn(MODIFIED|ALL)/MODIFIED	DELETE FROM a RETURNING MODIFIED OLD *
+reject	reject	grammar	returningColumn(MODIFIED|ALL)/MODIFIED!truncate	DELETE FROM a RETURNING
+reject	reject	grammar	returningColumn(MODIFIED|ALL)/MODIFIED!insert	DELETE FROM a RETURNING MODIFIED zzz OLD *
+accept	accept	grammar	returningColumn(MODIFIED|ALL)/ALL	DELETE FROM a RETURNING ALL OLD *
+reject	reject	grammar	returningColumn(MODIFIED|ALL)/ALL!insert	DELETE FROM a RETURNING ALL zzz OLD *
+reject	reject	grammar	returningColumn(MODIFIED|ALL)/ALL!swap	DELETE FROM a RETURNING ALLOCATE OLD *
+accept	accept	grammar	returningColumn(OLD|NEW)/OLD	DELETE FROM a RETURNING MODIFIED OLD *
+reject	reject	grammar	returningColumn(OLD|NEW)/OLD!truncate	DELETE FROM a RETURNING MODIFIED
+reject	reject	grammar	returningColumn(OLD|NEW)/OLD!insert	DELETE FROM a RETURNING MODIFIED OLD zzz *
+reject	reject	grammar	returningColumn(OLD|NEW)/OLD!swap	DELETE FROM a RETURNING MODIFIED ON *
+accept	accept	grammar	returningColumn(OLD|NEW)/NEW	DELETE FROM a RETURNING MODIFIED NEW *
+reject	reject	grammar	returningColumn(OLD|NEW)/NEW!insert	DELETE FROM a RETURNING MODIFIED NEW zzz *
+reject	reject	grammar	returningColumn(OLD|NEW)/NEW!swap	DELETE FROM a RETURNING MODIFIED NEXT *
+accept	accept	grammar	fromClauseSimple/FROM_pathSimple_(asIdent)?_(atIdent)?_(byIdent)?	DELETE FROM a
+reject	reject	grammar	fromClauseSimple/FROM_pathSimple_(asIdent)?_(atIdent)?_(byIdent)?!swap	DELETE FULL a
+accept	accept	grammar	fromClauseSimple/FROM_pathSimple_symbolPrimitive	DELETE FROM a a
+reject	reject	grammar	fromClauseSimple/FROM_pathSimple_symbolPrimitive!drop-1	DELETE a a
+reject	reject	grammar	fromClauseSimple/FROM_pathSimple_symbolPrimitive!insert	DELETE FROM a a zzz
+reject	reject	grammar	fromClauseSimple/FROM_pathSimple_symbolPrimitive!swap	DELETE FULL a a
+accept	accept	grammar	fromClauseSimple(asIdent)?/%empty	DELETE FROM a
+accept	accept	grammar	fromClauseSimple(asIdent)?/asIdent	DELETE FROM a AS a
+accept	accept	grammar	fromClauseSimple(atIdent)?/%empty	DELETE FROM a
+accept	accept	grammar	fromClauseSimple(atIdent)?/atIdent	DELETE FROM a AT a
+accept	accept	grammar	fromClauseSimple(byIdent)?/%empty	DELETE FROM a
+accept	accept	grammar	fromClauseSimple(byIdent)?/byIdent	DELETE FROM a BY a
+accept	accept	grammar	whereClause/WHERE_expr	DELETE FROM a WHERE a
+accept	accept	grammar	selectClause/SELECT_(setQuantifierStrategy)?_ASTERISK	SELECT * FROM a
+reject	reject	grammar	selectClause/SELECT_(setQuantifierStrategy)?_ASTERISK!drop-1	* FROM a
+reject	reject	grammar	selectClause/SELECT_(setQuantifierStrategy)?_ASTERISK!drop-2	SELECT FROM a
+reject	reject	grammar	selectClause/SELECT_(setQuantifierStrategy)?_ASTERISK!truncate	SELECT
+reject	reject	grammar	selectClause/SELECT_(setQuantifierStrategy)?_ASTERISK!insert	SELECT * zzz FROM a
+reject	reject	grammar	selectClause/SELECT_(setQuantifierStrategy)?_ASTERISK!swap	SESSION * FROM a
+accept	accept	grammar	selectClause/SELECT_(setQuantifierStrategy)?_projectionItems	SELECT a FROM a
+reject	reject	grammar	selectClause/SELECT_(setQuantifierStrategy)?_projectionItems!drop-1	a FROM a
+accept	accept	grammar	selectClause/SELECT_(setQuantifierStrategy)?_projectionItems!insert	SELECT a zzz FROM a
+reject	reject	grammar	selectClause/SELECT_(setQuantifierStrategy)?_projectionItems!swap	SESSION a FROM a
+accept	accept	grammar	selectClause/SELECT_(setQuantifierStrategy)?_VALUE_expr	SELECT VALUE a FROM a
+reject	reject	grammar	selectClause/SELECT_(setQuantifierStrategy)?_VALUE_expr!drop-1	VALUE a FROM a
+reject	reject	grammar	selectClause/SELECT_(setQuantifierStrategy)?_VALUE_expr!drop-3	SELECT VALUE FROM a
+reject	reject	grammar	selectClause/SELECT_(setQuantifierStrategy)?_VALUE_expr!truncate	SELECT VALUE
+reject	reject	grammar	selectClause/SELECT_(setQuantifierStrategy)?_VALUE_expr!insert	SELECT VALUE a zzz FROM a
+reject	reject	grammar	selectClause/SELECT_(setQuantifierStrategy)?_VALUE_expr!swap	SESSION VALUE a FROM a
+accept	accept	grammar	selectClause/PIVOT_expr_AT_expr	PIVOT a AT a FROM a
+reject	reject	grammar	selectClause/PIVOT_expr_AT_expr!drop-1	a AT a FROM a
+reject	reject	grammar	selectClause/PIVOT_expr_AT_expr!drop-2	PIVOT AT a FROM a
+reject	reject	grammar	selectClause/PIVOT_expr_AT_expr!drop-3	PIVOT a a FROM a
+reject	reject	grammar	selectClause/PIVOT_expr_AT_expr!drop-4	PIVOT a AT FROM a
+reject	reject	grammar	selectClause/PIVOT_expr_AT_expr!truncate	PIVOT a AT
+reject	reject	grammar	selectClause/PIVOT_expr_AT_expr!insert	PIVOT a AT a zzz FROM a
+reject	reject	grammar	selectClause/PIVOT_expr_AT_expr!swap	PLACING a AT a FROM a
+accept	accept	grammar	selectClause(setQuantifierStrategy)?/%empty	SELECT * FROM a
+reject	reject	grammar	selectClause(setQuantifierStrategy)?/%empty!insert	SELECT zzz * FROM a
+accept	accept	grammar	selectClause(setQuantifierStrategy)?/setQuantifierStrategy	SELECT DISTINCT * FROM a
+reject	reject	grammar	selectClause(setQuantifierStrategy)?/setQuantifierStrategy!insert	SELECT DISTINCT zzz * FROM a
+reject	reject	grammar	selectClause(setQuantifierStrategy)?/setQuantifierStrategy!swap	SELECT DO * FROM a
+accept	accept	grammar	projectionItems/projectionItem_(COMMA_projectionItem)*	SELECT a FROM a
+accept	accept	grammar	projectionItems(COMMA_projectionItem)*/%empty	SELECT a FROM a
+accept	accept	grammar	projectionItems(COMMA_projectionItem)*/COMMA_projectionItem_(COMMA_projectionItem)*	SELECT a, a FROM a
+reject	reject	grammar	projectionItems(COMMA_projectionItem)*/COMMA_projectionItem_(COMMA_projectionItem)*!drop-2	SELECT a, FROM a
+reject	reject	grammar	projectionItems(COMMA_projectionItem)*/COMMA_projectionItem_(COMMA_projectionItem)*!truncate	SELECT a,
+accept	accept	grammar	projectionItems(COMMA_projectionItem)*/COMMA_projectionItem_(COMMA_projectionItem)*!insert	SELECT a, a zzz FROM a
+accept	accept	grammar	projectionItem/expr_(AS?_symbolPrimitive)?	SELECT a FROM a
+accept	accept	grammar	projectionItem(AS?_symbolPrimitive)?/%empty	SELECT a FROM a
+accept	accept	grammar	projectionItem(AS?_symbolPrimitive)?/(AS)?_symbolPrimitive	SELECT a a FROM a
+reject	reject	grammar	projectionItem(AS?_symbolPrimitive)?/(AS)?_symbolPrimitive!truncate	SELECT a
+reject	reject	grammar	projectionItem(AS?_symbolPrimitive)?/(AS)?_symbolPrimitive!insert	SELECT a a zzz FROM a
+accept	accept	grammar	projectionItem(AS)?/%empty	SELECT a a FROM a
+reject	reject	grammar	projectionItem(AS)?/%empty!insert	SELECT a zzz a FROM a
+accept	accept	grammar	projectionItem(AS)?/AS	SELECT a AS a FROM a
+reject	reject	grammar	projectionItem(AS)?/AS!insert	SELECT a AS zzz a FROM a
+reject	reject	grammar	projectionItem(AS)?/AS!swap	SELECT a ASC a FROM a
+accept	accept	grammar	setQuantifierStrategy/DISTINCT	SELECT DISTINCT * FROM a
+accept	accept	grammar	setQuantifierStrategy/ALL	SELECT ALL * FROM a
+reject	reject	grammar	setQuantifierStrategy/ALL!insert	SELECT ALL zzz * FROM a
+reject	reject	grammar	setQuantifierStrategy/ALL!swap	SELECT ALLOCATE * FROM a
+accept	accept	grammar	letClause/LET_letBinding_(COMMA_letBinding)*	SELECT * FROM a LET a AS a
+reject	reject	grammar	letClause/LET_letBinding_(COMMA_letBinding)*!drop-1	SELECT * FROM a a AS a
+reject	reject	grammar	letClause/LET_letBinding_(COMMA_letBinding)*!drop-2	SELECT * FROM a LET AS a
+reject	reject	grammar	letClause/LET_letBinding_(COMMA_letBinding)*!drop-3	SELECT * FROM a LET a a
+reject	reject	grammar	letClause/LET_letBinding_(COMMA_letBinding)*!drop-4	SELECT * FROM a LET a AS
+reject	reject	grammar	letClause/LET_letBinding_(COMMA_letBinding)*!insert	SELECT * FROM a LET a AS a zzz
+reject	reject	grammar	letClause/LET_letBinding_(COMMA_letBinding)*!swap	SELECT * FROM a LEVEL a AS a
+accept	accept	grammar	letClause(COMMA_letBinding)*/%empty	SELECT * FROM a LET a AS a
+accept	accept	grammar	letClause(COMMA_letBinding)*/COMMA_letBinding_(COMMA_letBinding)*	SELECT * FROM a LET a AS a, a AS a
+reject	reject	grammar	letClause(COMMA_letBinding)*/COMMA_letBinding_(COMMA_letBinding)*!drop-1	SELECT * FROM a LET a AS a a AS a
+reject	reject	grammar	letClause(COMMA_letBinding)*/COMMA_letBinding_(COMMA_letBinding)*!drop-2	SELECT * FROM a LET a AS a, AS a
+reject	reject	grammar	letClause(COMMA_letBinding)*/COMMA_letBinding_(COMMA_letBinding)*!drop-3	SELECT * FROM a LET a AS a, a a
+reject	reject	grammar	letClause(COMMA_letBinding)*/COMMA_letBinding_(COMMA_letBinding)*!drop-4	SELECT * FROM a LET a AS a, a AS
+reject	reject	grammar	letClause(COMMA_letBinding)*/COMMA_letBinding_(COMMA_letBinding)*!insert	SELECT * FROM a LET a AS a, a AS a zzz
+reject	reject	grammar	letClause(COMMA_letBinding)*/COMMA_letBinding_(COMMA_letBinding)*!swap	SELECT * FROM a LET a AS a, a ASC a
+accept	accept	grammar	letBinding/expr_AS_symbolPrimitive	SELECT * FROM a LET a AS a
+reject	reject	grammar	letBinding/expr_AS_symbolPrimitive!swap	SELECT * FROM a LET a ASC a
+accept	accept	grammar	orderByClause/ORDER_BY_orderSortSpec_(COMMA_orderSortSpec)*	SELECT * FROM a ORDER BY a
+reject	reject	grammar	orderByClause/ORDER_BY_orderSortSpec_(COMMA_orderSortSpec)*!drop-2	SELECT * FROM a ORDER a
+reject	reject	grammar	orderByClause/ORDER_BY_orderSortSpec_(COMMA_orderSortSpec)*!drop-3	SELECT * FROM a ORDER BY
+reject	reject	grammar	orderByClause/ORDER_BY_orderSortSpec_(COMMA_orderSortSpec)*!insert	SELECT * FROM a ORDER BY a zzz
+reject	reject	grammar	orderByClause/ORDER_BY_orderSortSpec_(COMMA_orderSortSpec)*!swap	SELECT * FROM a OUTER BY a
+accept	accept	grammar	orderByClause(COMMA_orderSortSpec)*/%empty	SELECT * FROM a ORDER BY a
+accept	accept	grammar	orderByClause(COMMA_orderSortSpec)*/COMMA_orderSortSpec_(COMMA_orderSortSpec)*	SELECT * FROM a ORDER BY a, a
+reject	reject	grammar	orderByClause(COMMA_orderSortSpec)*/COMMA_orderSortSpec_(COMMA_orderSortSpec)*!drop-1	SELECT * FROM a ORDER BY a a
+reject	reject	grammar	orderByClause(COMMA_orderSortSpec)*/COMMA_orderSortSpec_(COMMA_orderSortSpec)*!drop-2	SELECT * FROM a ORDER BY a,
+reject	reject	grammar	orderByClause(COMMA_orderSortSpec)*/COMMA_orderSortSpec_(COMMA_orderSortSpec)*!insert	SELECT * FROM a ORDER BY a, a zzz
+accept	accept	grammar	orderSortSpec/expr_(ASC|DESC)?_(NULLS_(FIRST|LAST))?	SELECT * FROM a ORDER BY a
+accept	accept	grammar	orderSortSpec(ASC|DESC)?/%empty	SELECT * FROM a ORDER BY a
+accept	accept	grammar	orderSortSpec(ASC|DESC)?/ASC	SELECT * FROM a ORDER BY a ASC
+reject	reject	grammar	orderSortSpec(ASC|DESC)?/ASC!insert	SELECT * FROM a ORDER BY a ASC zzz
+reject	reject	grammar	orderSortSpec(ASC|DESC)?/ASC!swap	SELECT * FROM a ORDER BY a ASSERTION
+accept	accept	grammar	orderSortSpec(ASC|DESC)?/DESC	SELECT * FROM a ORDER BY a DESC
+reject	reject	grammar	orderSortSpec(ASC|DESC)?/DESC!insert	SELECT * FROM a ORDER BY a DESC zzz
+reject	reject	grammar	orderSortSpec(ASC|DESC)?/DESC!swap	SELECT * FROM a ORDER BY a DESCRIBE
+accept	accept	grammar	orderSortSpec(NULLS_(FIRST|LAST))?/%empty	SELECT * FROM a ORDER BY a
+accept	accept	grammar	orderSortSpec(NULLS_(FIRST|LAST))?/NULLS_(FIRST|LAST)	SELECT * FROM a ORDER BY a NULLS FIRST
+reject	reject	grammar	orderSortSpec(NULLS_(FIRST|LAST))?/NULLS_(FIRST|LAST)!drop-1	SELECT * FROM a ORDER BY a FIRST
+reject	reject	grammar	orderSortSpec(NULLS_(FIRST|LAST))?/NULLS_(FIRST|LAST)!drop-2	SELECT * FROM a ORDER BY a NULLS
+reject	reject	grammar	orderSortSpec(NULLS_(FIRST|LAST))?/NULLS_(FIRST|LAST)!insert	SELECT * FROM a ORDER BY a NULLS FIRST zzz
+reject	reject	grammar	orderSortSpec(NULLS_(FIRST|LAST))?/NULLS_(FIRST|LAST)!swap	SELECT * FROM a ORDER BY a NUMERIC FIRST
+accept	accept	grammar	orderSortSpec(FIRST|LAST)/FIRST	SELECT * FROM a ORDER BY a NULLS FIRST
+reject	reject	grammar	orderSortSpec(FIRST|LAST)/FIRST!swap	SELECT * FROM a ORDER BY a NULLS FLOAT
+accept	accept	grammar	orderSortSpec(FIRST|LAST)/LAST	SELECT * FROM a ORDER BY a NULLS LAST
+reject	reject	grammar	orderSortSpec(FIRST|LAST)/LAST!insert	SELECT * FROM a ORDER BY a NULLS LAST zzz
+reject	reject	grammar	orderSortSpec(FIRST|LAST)/LAST!swap	SELECT * FROM a ORDER BY a NULLS LATERAL
+accept	accept	grammar	groupClause/GROUP_(PARTIAL)?_BY_groupKey_(COMMA_groupKey)*_(groupAlias)?	SELECT * FROM a GROUP BY a
+reject	reject	grammar	groupClause/GROUP_(PARTIAL)?_BY_groupKey_(COMMA_groupKey)*_(groupAlias)?!drop-2	SELECT * FROM a GROUP a
+reject	reject	grammar	groupClause/GROUP_(PARTIAL)?_BY_groupKey_(COMMA_groupKey)*_(groupAlias)?!drop-3	SELECT * FROM a GROUP BY
+reject	reject	grammar	groupClause/GROUP_(PARTIAL)?_BY_groupKey_(COMMA_groupKey)*_(groupAlias)?!insert	SELECT * FROM a GROUP BY a zzz
+reject	reject	grammar	groupClause/GROUP_(PARTIAL)?_BY_groupKey_(COMMA_groupKey)*_(groupAlias)?!swap	SELECT * FROM a HAVING BY a
+accept	accept	grammar	groupClause(PARTIAL)?/%empty	SELECT * FROM a GROUP BY a
+reject	reject	grammar	groupClause(PARTIAL)?/%empty!insert	SELECT * FROM a GROUP zzz BY a
+accept	accept	grammar	groupClause(PARTIAL)?/PARTIAL	SELECT * FROM a GROUP PARTIAL BY a
+reject	reject	grammar	groupClause(PARTIAL)?/PARTIAL!truncate	SELECT * FROM a GROUP
+reject	reject	grammar	groupClause(PARTIAL)?/PARTIAL!insert	SELECT * FROM a GROUP PARTIAL zzz BY a
+reject	reject	grammar	groupClause(PARTIAL)?/PARTIAL!swap	SELECT * FROM a GROUP PARTITION BY a
+accept	accept	grammar	groupClause(COMMA_groupKey)*/%empty	SELECT * FROM a GROUP BY a
+accept	accept	grammar	groupClause(COMMA_groupKey)*/COMMA_groupKey_(COMMA_groupKey)*	SELECT * FROM a GROUP BY a, a
+reject	reject	grammar	groupClause(COMMA_groupKey)*/COMMA_groupKey_(COMMA_groupKey)*!drop-1	SELECT * FROM a GROUP BY a a
+reject	reject	grammar	groupClause(COMMA_groupKey)*/COMMA_groupKey_(COMMA_groupKey)*!drop-2	SELECT * FROM a GROUP BY a,
+reject	reject	grammar	groupClause(COMMA_groupKey)*/COMMA_groupKey_(COMMA_groupKey)*!insert	SELECT * FROM a GROUP BY a, a zzz
+accept	accept	grammar	groupClause(groupAlias)?/%empty	SELECT * FROM a GROUP BY a
+accept	accept	grammar	groupClause(groupAlias)?/groupAlias	SELECT * FROM a GROUP BY a GROUP AS a
+reject	reject	grammar	groupClause(groupAlias)?/groupAlias!drop-2	SELECT * FROM a GROUP BY a GROUP a
+reject	reject	grammar	groupClause(groupAlias)?/groupAlias!drop-3	SELECT * FROM a GROUP BY a GROUP AS
+reject	reject	grammar	groupClause(groupAlias)?/groupAlias!insert	SELECT * FROM a GROUP BY a GROUP AS a zzz
+reject	reject	grammar	groupClause(groupAlias)?/groupAlias!swap	SELECT * FROM a GROUP BY a HAVING AS a
+accept	accept	grammar	groupAlias/GROUP_AS_symbolPrimitive	SELECT * FROM a GROUP BY a GROUP AS a
+accept	accept	grammar	groupKey/exprSelect_(AS_symbolPrimitive)?	SELECT * FROM a GROUP BY a
+accept	accept	grammar	groupKey(AS_symbolPrimitive)?/%empty	SELECT * FROM a GROUP BY a
+accept	accept	grammar	groupKey(AS_symbolPrimitive)?/AS_symbolPrimitive	SELECT * FROM a GROUP BY a AS a
+reject	reject	grammar	groupKey(AS_symbolPrimitive)?/AS_symbolPrimitive!drop-2	SELECT * FROM a GROUP BY a AS
+reject	reject	grammar	groupKey(AS_symbolPrimitive)?/AS_symbolPrimitive!insert	SELECT * FROM a GROUP BY a AS a zzz
+reject	reject	grammar	groupKey(AS_symbolPrimitive)?/AS_symbolPrimitive!swap	SELECT * FROM a GROUP BY a ASC a
+reject	reject	grammar	over/OVER_PAREN_LEFT_(windowPartitionList)?_(windowSortSpecL~b1a36c73	LAG(a) OVER()
+reject	reject	grammar	over/OVER_PAREN_LEFT_(windowPartitionList)?_(windowSortSpecL~b1a36c73!drop-1	LAG(a)()
+reject	reject	grammar	over/OVER_PAREN_LEFT_(windowPartitionList)?_(windowSortSpecL~b1a36c73!drop-2	LAG(a) OVER)
+reject	reject	grammar	over/OVER_PAREN_LEFT_(windowPartitionList)?_(windowSortSpecL~b1a36c73!drop-3	LAG(a) OVER(
+reject	reject	grammar	over/OVER_PAREN_LEFT_(windowPartitionList)?_(windowSortSpecL~b1a36c73!insert	LAG(a) OVER() zzz
+reject	reject	grammar	over/OVER_PAREN_LEFT_(windowPartitionList)?_(windowSortSpecL~b1a36c73!swap	LAG(a) OVERLAPS()
+reject	reject	grammar	over(windowPartitionList)?/%empty	LAG(a) OVER()
+reject	reject	grammar	over(windowPartitionList)?/%empty!insert	LAG(a) OVER(zzz)
+reject	reject	grammar	over(windowPartitionList)?/windowPartitionList	LAG(a) OVER(PARTITION BY a)
+reject	reject	grammar	over(windowPartitionList)?/windowPartitionList!drop-1	LAG(a) OVER(BY a)
+reject	reject	grammar	over(windowPartitionList)?/windowPartitionList!drop-2	LAG(a) OVER(PARTITION a)
+reject	reject	grammar	over(windowPartitionList)?/windowPartitionList!drop-3	LAG(a) OVER(PARTITION BY)
+reject	reject	grammar	over(windowPartitionList)?/windowPartitionList!truncate	LAG(a) OVER(PARTITION BY
+reject	reject	grammar	over(windowPartitionList)?/windowPartitionList!insert	LAG(a) OVER(PARTITION BY a zzz)
+reject	reject	grammar	over(windowPartitionList)?/windowPartitionList!swap	LAG(a) OVER(PIVOT BY a)
+reject	reject	grammar	over(windowSortSpecList)?/%empty	LAG(a) OVER()
+reject	accept	grammar	over(windowSortSpecList)?/windowSortSpecList	LAG(a) OVER(ORDER BY a)
+reject	reject	grammar	over(windowSortSpecList)?/windowSortSpecList!drop-2	LAG(a) OVER(ORDER a)
+reject	reject	grammar	over(windowSortSpecList)?/windowSortSpecList!drop-3	LAG(a) OVER(ORDER BY)
+reject	reject	grammar	over(windowSortSpecList)?/windowSortSpecList!truncate	LAG(a) OVER(ORDER BY
+reject	reject	grammar	over(windowSortSpecList)?/windowSortSpecList!insert	LAG(a) OVER(ORDER BY a zzz)
+reject	reject	grammar	over(windowSortSpecList)?/windowSortSpecList!swap	LAG(a) OVER(OUTER BY a)
+reject	reject	grammar	windowPartitionList/PARTITION_BY_expr_(COMMA_expr)*	LAG(a) OVER(PARTITION BY a)
+reject	reject	grammar	windowPartitionList(COMMA_expr)*/%empty	LAG(a) OVER(PARTITION BY a)
+reject	reject	grammar	windowPartitionList(COMMA_expr)*/COMMA_expr_(COMMA_expr)*	LAG(a) OVER(PARTITION BY a, a)
+reject	reject	grammar	windowPartitionList(COMMA_expr)*/COMMA_expr_(COMMA_expr)*!drop-1	LAG(a) OVER(PARTITION BY a a)
+reject	reject	grammar	windowPartitionList(COMMA_expr)*/COMMA_expr_(COMMA_expr)*!drop-2	LAG(a) OVER(PARTITION BY a,)
+reject	reject	grammar	windowPartitionList(COMMA_expr)*/COMMA_expr_(COMMA_expr)*!truncate	LAG(a) OVER(PARTITION BY a,
+reject	reject	grammar	windowPartitionList(COMMA_expr)*/COMMA_expr_(COMMA_expr)*!insert	LAG(a) OVER(PARTITION BY a, a zzz)
+reject	accept	grammar	windowSortSpecList/ORDER_BY_orderSortSpec_(COMMA_orderSortSpec)*	LAG(a) OVER(ORDER BY a)
+reject	accept	grammar	windowSortSpecList(COMMA_orderSortSpec)*/%empty	LAG(a) OVER(ORDER BY a)
+reject	accept	grammar	windowSortSpecList(COMMA_orderSortSpec)*/COMMA_orderSortSpec_(COMMA_orderSortSpec)*	LAG(a) OVER(ORDER BY a, a)
+reject	reject	grammar	windowSortSpecList(COMMA_orderSortSpec)*/COMMA_orderSortSpec_(COMMA_orderSortSpec)*!drop-1	LAG(a) OVER(ORDER BY a a)
+reject	reject	grammar	windowSortSpecList(COMMA_orderSortSpec)*/COMMA_orderSortSpec_(COMMA_orderSortSpec)*!drop-2	LAG(a) OVER(ORDER BY a,)
+reject	reject	grammar	windowSortSpecList(COMMA_orderSortSpec)*/COMMA_orderSortSpec_(COMMA_orderSortSpec)*!truncate	LAG(a) OVER(ORDER BY a,
+reject	reject	grammar	windowSortSpecList(COMMA_orderSortSpec)*/COMMA_orderSortSpec_(COMMA_orderSortSpec)*!insert	LAG(a) OVER(ORDER BY a, a zzz)
+accept	accept	grammar	havingClause/HAVING_exprSelect	SELECT * FROM a HAVING a
+reject	reject	grammar	havingClause/HAVING_exprSelect!drop-2	SELECT * FROM a HAVING
+reject	reject	grammar	havingClause/HAVING_exprSelect!insert	SELECT * FROM a HAVING a zzz
+reject	reject	grammar	havingClause/HAVING_exprSelect!swap	SELECT * FROM a IDENTITY a
+reject	accept	grammar	excludeClause/EXCLUDE_excludeExpr_(COMMA_excludeExpr)*	SELECT * EXCLUDE a.a FROM a
+reject	reject	grammar	excludeClause/EXCLUDE_excludeExpr_(COMMA_excludeExpr)*!drop-1	SELECT * a.a FROM a
+reject	reject	grammar	excludeClause/EXCLUDE_excludeExpr_(COMMA_excludeExpr)*!drop-2	SELECT * EXCLUDE.a FROM a
+reject	reject	grammar	excludeClause/EXCLUDE_excludeExpr_(COMMA_excludeExpr)*!drop-3	SELECT * EXCLUDE a a FROM a
+reject	reject	grammar	excludeClause/EXCLUDE_excludeExpr_(COMMA_excludeExpr)*!drop-4	SELECT * EXCLUDE a.FROM a
+reject	reject	grammar	excludeClause/EXCLUDE_excludeExpr_(COMMA_excludeExpr)*!truncate	SELECT * EXCLUDE a.
+reject	reject	grammar	excludeClause/EXCLUDE_excludeExpr_(COMMA_excludeExpr)*!insert	SELECT * EXCLUDE a.a zzz FROM a
+reject	reject	grammar	excludeClause/EXCLUDE_excludeExpr_(COMMA_excludeExpr)*!swap	SELECT * EXCLUDED a.a FROM a
+reject	accept	grammar	excludeClause(COMMA_excludeExpr)*/%empty	SELECT * EXCLUDE a.a FROM a
+reject	accept	grammar	excludeClause(COMMA_excludeExpr)*/COMMA_excludeExpr_(COMMA_excludeExpr)*	SELECT * EXCLUDE a.a, a.a FROM a
+reject	reject	grammar	excludeClause(COMMA_excludeExpr)*/COMMA_excludeExpr_(COMMA_excludeExpr)*!drop-1	SELECT * EXCLUDE a.a a.a FROM a
+reject	reject	grammar	excludeClause(COMMA_excludeExpr)*/COMMA_excludeExpr_(COMMA_excludeExpr)*!drop-2	SELECT * EXCLUDE a.a,.a FROM a
+reject	reject	grammar	excludeClause(COMMA_excludeExpr)*/COMMA_excludeExpr_(COMMA_excludeExpr)*!drop-3	SELECT * EXCLUDE a.a, a a FROM a
+reject	reject	grammar	excludeClause(COMMA_excludeExpr)*/COMMA_excludeExpr_(COMMA_excludeExpr)*!drop-4	SELECT * EXCLUDE a.a, a.FROM a
+reject	reject	grammar	excludeClause(COMMA_excludeExpr)*/COMMA_excludeExpr_(COMMA_excludeExpr)*!truncate	SELECT * EXCLUDE a.a, a.
+reject	reject	grammar	excludeClause(COMMA_excludeExpr)*/COMMA_excludeExpr_(COMMA_excludeExpr)*!insert	SELECT * EXCLUDE a.a, a.a zzz FROM a
+reject	accept	grammar	excludeExpr/symbolPrimitive_(excludeExprSteps)+	SELECT * EXCLUDE a.a FROM a
+reject	accept	grammar	excludeExpr(excludeExprSteps)+/excludeExprSteps	SELECT * EXCLUDE a.a FROM a
+reject	accept	grammar	excludeExpr(excludeExprSteps)+/excludeExprSteps_(excludeExprSteps)+	SELECT * EXCLUDE a.a.a FROM a
+reject	reject	grammar	excludeExpr(excludeExprSteps)+/excludeExprSteps_(excludeExprSteps)+!drop-1	SELECT * EXCLUDE a a.a FROM a
+reject	reject	grammar	excludeExpr(excludeExprSteps)+/excludeExprSteps_(excludeExprSteps)+!drop-2	SELECT * EXCLUDE a..a FROM a
+reject	reject	grammar	excludeExpr(excludeExprSteps)+/excludeExprSteps_(excludeExprSteps)+!drop-3	SELECT * EXCLUDE a.a a FROM a
+reject	reject	grammar	excludeExpr(excludeExprSteps)+/excludeExprSteps_(excludeExprSteps)+!drop-4	SELECT * EXCLUDE a.a.FROM a
+reject	reject	grammar	excludeExpr(excludeExprSteps)+/excludeExprSteps_(excludeExprSteps)+!truncate	SELECT * EXCLUDE a.a.
+reject	reject	grammar	excludeExpr(excludeExprSteps)+/excludeExprSteps_(excludeExprSteps)+!insert	SELECT * EXCLUDE a.a.a zzz FROM a
+reject	accept	grammar	excludeExprSteps/PERIOD_symbolPrimitive	SELECT * EXCLUDE a.a FROM a
+reject	accept	grammar	excludeExprSteps/BRACKET_LEFT_LITERAL_STRING_BRACKET_RIGHT	SELECT * EXCLUDE a [ 's' ] FROM a
+reject	reject	grammar	excludeExprSteps/BRACKET_LEFT_LITERAL_STRING_BRACKET_RIGHT!drop-1	SELECT * EXCLUDE a 's' ] FROM a
+reject	reject	grammar	excludeExprSteps/BRACKET_LEFT_LITERAL_STRING_BRACKET_RIGHT!drop-2	SELECT * EXCLUDE a [ ] FROM a
+reject	reject	grammar	excludeExprSteps/BRACKET_LEFT_LITERAL_STRING_BRACKET_RIGHT!drop-3	SELECT * EXCLUDE a [ 's' FROM a
+reject	reject	grammar	excludeExprSteps/BRACKET_LEFT_LITERAL_STRING_BRACKET_RIGHT!truncate	SELECT * EXCLUDE a [ 's'
+reject	reject	grammar	excludeExprSteps/BRACKET_LEFT_LITERAL_STRING_BRACKET_RIGHT!insert	SELECT * EXCLUDE a [ 's' ] zzz FROM a
+reject	accept	grammar	excludeExprSteps/BRACKET_LEFT_LITERAL_INTEGER_BRACKET_RIGHT	SELECT * EXCLUDE a [ 1 ] FROM a
+reject	reject	grammar	excludeExprSteps/BRACKET_LEFT_LITERAL_INTEGER_BRACKET_RIGHT!drop-1	SELECT * EXCLUDE a 1 ] FROM a
+reject	reject	grammar	excludeExprSteps/BRACKET_LEFT_LITERAL_INTEGER_BRACKET_RIGHT!drop-3	SELECT * EXCLUDE a [ 1 FROM a
+reject	reject	grammar	excludeExprSteps/BRACKET_LEFT_LITERAL_INTEGER_BRACKET_RIGHT!truncate	SELECT * EXCLUDE a [ 1
+reject	reject	grammar	excludeExprSteps/BRACKET_LEFT_LITERAL_INTEGER_BRACKET_RIGHT!insert	SELECT * EXCLUDE a [ 1 ] zzz FROM a
+reject	accept	grammar	excludeExprSteps/BRACKET_LEFT_ASTERISK_BRACKET_RIGHT	SELECT * EXCLUDE a [ * ] FROM a
+reject	reject	grammar	excludeExprSteps/BRACKET_LEFT_ASTERISK_BRACKET_RIGHT!drop-1	SELECT * EXCLUDE a * ] FROM a
+reject	reject	grammar	excludeExprSteps/BRACKET_LEFT_ASTERISK_BRACKET_RIGHT!drop-3	SELECT * EXCLUDE a [ * FROM a
+reject	reject	grammar	excludeExprSteps/BRACKET_LEFT_ASTERISK_BRACKET_RIGHT!truncate	SELECT * EXCLUDE a [ *
+reject	reject	grammar	excludeExprSteps/BRACKET_LEFT_ASTERISK_BRACKET_RIGHT!insert	SELECT * EXCLUDE a [ * ] zzz FROM a
+reject	accept	grammar	excludeExprSteps/PERIOD_ASTERISK	SELECT * EXCLUDE a.* FROM a
+reject	reject	grammar	excludeExprSteps/PERIOD_ASTERISK!drop-1	SELECT * EXCLUDE a * FROM a
+reject	reject	grammar	excludeExprSteps/PERIOD_ASTERISK!insert	SELECT * EXCLUDE a.* zzz FROM a
+accept	accept	grammar	fromClause/FROM_tableReference	SELECT * FROM a
+reject	reject	grammar	fromClause/FROM_tableReference!drop-1	SELECT * a
+reject	reject	grammar	fromClause/FROM_tableReference!drop-2	SELECT * FROM
+accept	accept	grammar	fromClause/FROM_tableReference!insert	SELECT * FROM a zzz
+reject	reject	grammar	fromClause/FROM_tableReference!swap	SELECT * FULL a
+accept	accept	grammar	whereClauseSelect/WHERE_exprSelect	SELECT * FROM a WHERE a
+reject	reject	grammar	whereClauseSelect/WHERE_exprSelect!drop-2	SELECT * FROM a WHERE
+reject	reject	grammar	whereClauseSelect/WHERE_exprSelect!insert	SELECT * FROM a WHERE a zzz
+reject	reject	grammar	whereClauseSelect/WHERE_exprSelect!swap	SELECT * FROM a WITH a
+accept	accept	grammar	offsetByClause/OFFSET_exprSelect	SELECT * FROM a OFFSET a
+reject	reject	grammar	offsetByClause/OFFSET_exprSelect!drop-2	SELECT * FROM a OFFSET
+reject	reject	grammar	offsetByClause/OFFSET_exprSelect!insert	SELECT * FROM a OFFSET a zzz
+reject	reject	grammar	offsetByClause/OFFSET_exprSelect!swap	SELECT * FROM a OLD a
+accept	accept	grammar	limitClause/LIMIT_exprSelect	SELECT * FROM a LIMIT a
+reject	reject	grammar	limitClause/LIMIT_exprSelect!drop-2	SELECT * FROM a LIMIT
+reject	reject	grammar	limitClause/LIMIT_exprSelect!insert	SELECT * FROM a LIMIT a zzz
+reject	reject	grammar	limitClause/LIMIT_exprSelect!swap	SELECT * FROM a LIST a
+accept	accept	grammar	gpmlPattern/(matchSelector)?_matchPattern	SELECT * FROM a MATCH
+accept	reject	grammar	gpmlPattern/(matchSelector)?_matchPattern!insert	SELECT * FROM a MATCH zzz
+accept	accept	grammar	gpmlPattern(matchSelector)?/%empty	SELECT * FROM a MATCH
+accept	accept	grammar	gpmlPattern(matchSelector)?/matchSelector	SELECT * FROM a MATCH ANY
+accept	reject	grammar	gpmlPattern(matchSelector)?/matchSelector!insert	SELECT * FROM a MATCH ANY zzz
+reject	reject	grammar	gpmlPattern(matchSelector)?/matchSelector!swap	SELECT * FROM a MATCH ARE
+reject	accept	grammar	gpmlPatternList/(matchSelector)?_matchPattern_(COMMA_matchPattern)*	(a MATCH)
+reject	reject	grammar	gpmlPatternList/(matchSelector)?_matchPattern_(COMMA_matchPattern)*!insert	(a MATCH zzz)
+reject	accept	grammar	gpmlPatternList(matchSelector)?/%empty	(a MATCH)
+reject	accept	grammar	gpmlPatternList(matchSelector)?/matchSelector	(a MATCH ANY)
+reject	reject	grammar	gpmlPatternList(matchSelector)?/matchSelector!truncate	(a MATCH
+reject	reject	grammar	gpmlPatternList(matchSelector)?/matchSelector!insert	(a MATCH ANY zzz)
+reject	reject	grammar	gpmlPatternList(matchSelector)?/matchSelector!swap	(a MATCH ARE)
+reject	accept	grammar	gpmlPatternList(COMMA_matchPattern)*/%empty	(a MATCH)
+reject	accept	grammar	gpmlPatternList(COMMA_matchPattern)*/COMMA_matchPattern_(COMMA_matchPattern)*	(a MATCH,)
+reject	reject	grammar	gpmlPatternList(COMMA_matchPattern)*/COMMA_matchPattern_(COMMA_matchPattern)*!insert	(a MATCH, zzz)
+reject	accept	grammar	matchPattern/(patternRestrictor)?_(patternPathVariable)?_(graphPart)*	(a MATCH)
+reject	accept	grammar	matchPattern(patternRestrictor)?/%empty	(a MATCH)
+reject	accept	grammar	matchPattern(patternRestrictor)?/patternRestrictor	(a MATCH TRAIL)
+reject	reject	grammar	matchPattern(patternRestrictor)?/patternRestrictor!insert	(a MATCH TRAIL zzz)
+reject	accept	grammar	matchPattern(patternPathVariable)?/%empty	(a MATCH)
+reject	accept	grammar	matchPattern(patternPathVariable)?/patternPathVariable	(a MATCH a =)
+reject	reject	grammar	matchPattern(patternPathVariable)?/patternPathVariable!drop-1	(a MATCH =)
+reject	reject	grammar	matchPattern(patternPathVariable)?/patternPathVariable!truncate	(a MATCH a
+reject	reject	grammar	matchPattern(patternPathVariable)?/patternPathVariable!insert	(a MATCH a = zzz)
+reject	accept	grammar	matchPattern(graphPart)*/%empty	(a MATCH)
+reject	accept	grammar	matchPattern(graphPart)*/graphPart_(graphPart)*	(a MATCH ~)
+reject	reject	grammar	matchPattern(graphPart)*/graphPart_(graphPart)*!insert	(a MATCH ~ zzz)
+reject	accept	grammar	graphPart/node	(a MATCH())
+reject	reject	grammar	graphPart/node!drop-1	(a MATCH))
+reject	reject	grammar	graphPart/node!drop-2	(a MATCH()
+reject	reject	grammar	graphPart/node!truncate	(a MATCH(
+reject	reject	grammar	graphPart/node!insert	(a MATCH() zzz)
+reject	accept	grammar	graphPart/edge	(a MATCH ~)
+reject	accept	grammar	graphPart/pattern	(a MATCH(~))
+reject	reject	grammar	graphPart/pattern!drop-1	(a MATCH ~))
+reject	reject	grammar	graphPart/pattern!drop-3	(a MATCH(~)
+reject	reject	grammar	graphPart/pattern!truncate	(a MATCH(~
+reject	reject	grammar	graphPart/pattern!insert	(a MATCH(~) zzz)
+reject	accept	grammar	matchSelector/(ANY|ALL)_SHORTEST	(a MATCH ANY SHORTEST)
+reject	reject	grammar	matchSelector/(ANY|ALL)_SHORTEST!drop-1	(a MATCH SHORTEST)
+reject	reject	grammar	matchSelector/(ANY|ALL)_SHORTEST!truncate	(a MATCH ANY
+reject	reject	grammar	matchSelector/(ANY|ALL)_SHORTEST!insert	(a MATCH ANY SHORTEST zzz)
+reject	reject	grammar	matchSelector/(ANY|ALL)_SHORTEST!swap	(a MATCH ARE SHORTEST)
+reject	accept	grammar	matchSelector/ANY_(LITERAL_INTEGER)?	(a MATCH ANY)
+reject	accept	grammar	matchSelector/SHORTEST_LITERAL_INTEGER_(GROUP)?	(a MATCH SHORTEST 1)
+reject	reject	grammar	matchSelector/SHORTEST_LITERAL_INTEGER_(GROUP)?!drop-1	(a MATCH 1)
+reject	reject	grammar	matchSelector/SHORTEST_LITERAL_INTEGER_(GROUP)?!truncate	(a MATCH SHORTEST
+reject	reject	grammar	matchSelector/SHORTEST_LITERAL_INTEGER_(GROUP)?!insert	(a MATCH SHORTEST 1 zzz)
+reject	reject	grammar	matchSelector/SHORTEST_LITERAL_INTEGER_(GROUP)?!swap	(a MATCH SIZE 1)
+reject	accept	grammar	matchSelector(ANY|ALL)/ANY	(a MATCH ANY SHORTEST)
+reject	reject	grammar	matchSelector(ANY|ALL)/ANY!insert	(a MATCH ANY zzz SHORTEST)
+reject	accept	grammar	matchSelector(ANY|ALL)/ALL	(a MATCH ALL SHORTEST)
+reject	reject	grammar	matchSelector(ANY|ALL)/ALL!insert	(a MATCH ALL zzz SHORTEST)
+reject	reject	grammar	matchSelector(ANY|ALL)/ALL!swap	(a MATCH ALLOCATE SHORTEST)
+reject	accept	grammar	matchSelector(LITERAL_INTEGER)?/%empty	(a MATCH ANY)
+reject	accept	grammar	matchSelector(LITERAL_INTEGER)?/LITERAL_INTEGER	(a MATCH ANY 1)
+reject	reject	grammar	matchSelector(LITERAL_INTEGER)?/LITERAL_INTEGER!insert	(a MATCH ANY 1 zzz)
+reject	accept	grammar	matchSelector(GROUP)?/%empty	(a MATCH SHORTEST 1)
+reject	accept	grammar	matchSelector(GROUP)?/GROUP	(a MATCH SHORTEST 1 GROUP)
+reject	reject	grammar	matchSelector(GROUP)?/GROUP!truncate	(a MATCH SHORTEST 1
+reject	reject	grammar	matchSelector(GROUP)?/GROUP!insert	(a MATCH SHORTEST 1 GROUP zzz)
+reject	reject	grammar	matchSelector(GROUP)?/GROUP!swap	(a MATCH SHORTEST 1 HAVING)
+reject	accept	grammar	patternPathVariable/symbolPrimitive_EQ	(a MATCH a =)
+reject	reject	grammar	patternRestrictor/IDENTIFIER	(a MATCH a)
+reject	reject	grammar	patternRestrictor/IDENTIFIER!insert	(a MATCH a zzz)
+reject	accept	grammar	node/PAREN_LEFT_(symbolPrimitive)?_(COLON_labelSpec)?_(where~aa37a19a	(a MATCH())
+reject	accept	grammar	node(symbolPrimitive)?/%empty	(a MATCH())
+reject	accept	grammar	node(symbolPrimitive)?/%empty!insert	(a MATCH(zzz))
+reject	accept	grammar	node(symbolPrimitive)?/symbolPrimitive	(a MATCH(a))
+reject	reject	grammar	node(symbolPrimitive)?/symbolPrimitive!insert	(a MATCH(a zzz))
+reject	accept	grammar	node(COLON_labelSpec)?/%empty	(a MATCH())
+reject	accept	grammar	node(COLON_labelSpec)?/COLON_labelSpec	(a MATCH(: a))
+reject	reject	grammar	node(COLON_labelSpec)?/COLON_labelSpec!drop-2	(a MATCH(:))
+reject	reject	grammar	node(COLON_labelSpec)?/COLON_labelSpec!truncate	(a MATCH(:
+reject	reject	grammar	node(COLON_labelSpec)?/COLON_labelSpec!insert	(a MATCH(: a zzz))
+reject	accept	grammar	node(whereClause)?/%empty	(a MATCH())
+reject	accept	grammar	node(whereClause)?/whereClause	(a MATCH(WHERE a))
+reject	reject	grammar	node(whereClause)?/whereClause!drop-2	(a MATCH(WHERE))
+reject	reject	grammar	node(whereClause)?/whereClause!truncate	(a MATCH(WHERE
+reject	reject	grammar	node(whereClause)?/whereClause!insert	(a MATCH(WHERE a zzz))
+reject	reject	grammar	node(whereClause)?/whereClause!swap	(a MATCH(WITH a))
+reject	accept	grammar	edge/edgeWSpec_(patternQuantifier)?	(a MATCH ~ [ ] ~)
+reject	reject	grammar	edge/edgeWSpec_(patternQuantifier)?!drop-1	(a MATCH [ ] ~)
+reject	reject	grammar	edge/edgeWSpec_(patternQuantifier)?!drop-2	(a MATCH ~ ] ~)
+reject	reject	grammar	edge/edgeWSpec_(patternQuantifier)?!drop-3	(a MATCH ~ [ ~)
+reject	reject	grammar	edge/edgeWSpec_(patternQuantifier)?!drop-4	(a MATCH ~ [ ])
+reject	reject	grammar	edge/edgeWSpec_(patternQuantifier)?!truncate	(a MATCH ~ [ ]
+reject	reject	grammar	edge/edgeWSpec_(patternQuantifier)?!insert	(a MATCH ~ [ ] ~ zzz)
+reject	accept	grammar	edge/edgeAbbrev_(patternQuantifier)?	(a MATCH ~)
+reject	accept	grammar	edge(patternQuantifier)?/%empty	(a MATCH ~)
+reject	accept	grammar	edge(patternQuantifier)?/patternQuantifier	(a MATCH ~ +)
+reject	reject	grammar	edge(patternQuantifier)?/patternQuantifier!truncate	(a MATCH ~
+reject	reject	grammar	edge(patternQuantifier)?/patternQuantifier!insert	(a MATCH ~ + zzz)
+reject	accept	grammar	pattern/PAREN_LEFT_(patternRestrictor)?_(patternPathVariable)?_~8ecd3145	(a MATCH(~))
+reject	accept	grammar	pattern/BRACKET_LEFT_(patternRestrictor)?_(patternPathVariable)~de6c16dd	(a MATCH [ ~ ])
+reject	reject	grammar	pattern/BRACKET_LEFT_(patternRestrictor)?_(patternPathVariable)~de6c16dd!drop-1	(a MATCH ~ ])
+reject	reject	grammar	pattern/BRACKET_LEFT_(patternRestrictor)?_(patternPathVariable)~de6c16dd!drop-2	(a MATCH [ ])
+reject	reject	grammar	pattern/BRACKET_LEFT_(patternRestrictor)?_(patternPathVariable)~de6c16dd!drop-3	(a MATCH [ ~)
+reject	reject	grammar	pattern/BRACKET_LEFT_(patternRestrictor)?_(patternPathVariable)~de6c16dd!truncate	(a MATCH [ ~
+reject	reject	grammar	pattern/BRACKET_LEFT_(patternRestrictor)?_(patternPathVariable)~de6c16dd!insert	(a MATCH [ ~ ] zzz)
+reject	accept	grammar	pattern(patternRestrictor)?/%empty	(a MATCH(~))
+reject	reject	grammar	pattern(patternRestrictor)?/%empty!insert	(a MATCH(zzz ~))
+reject	accept	grammar	pattern(patternRestrictor)?/patternRestrictor	(a MATCH(TRAIL ~))
+reject	reject	grammar	pattern(patternRestrictor)?/patternRestrictor!insert	(a MATCH(TRAIL zzz ~))
+reject	accept	grammar	pattern(patternPathVariable)?/%empty	(a MATCH(~))
+reject	accept	grammar	pattern(patternPathVariable)?/patternPathVariable	(a MATCH(a = ~))
+reject	reject	grammar	pattern(patternPathVariable)?/patternPathVariable!drop-1	(a MATCH(= ~))
+reject	reject	grammar	pattern(patternPathVariable)?/patternPathVariable!drop-2	(a MATCH(a ~))
+reject	reject	grammar	pattern(patternPathVariable)?/patternPathVariable!truncate	(a MATCH(a
+reject	reject	grammar	pattern(patternPathVariable)?/patternPathVariable!insert	(a MATCH(a = zzz ~))
+reject	accept	grammar	pattern(graphPart)+/graphPart	(a MATCH(~))
+reject	reject	grammar	pattern(graphPart)+/graphPart!insert	(a MATCH(~ zzz))
+reject	accept	grammar	pattern(graphPart)+/graphPart_(graphPart)+	(a MATCH(~ ~))
+reject	reject	grammar	pattern(graphPart)+/graphPart_(graphPart)+!insert	(a MATCH(~ ~ zzz))
+reject	accept	grammar	pattern(whereClause)?/%empty	(a MATCH(~))
+reject	accept	grammar	pattern(whereClause)?/whereClause	(a MATCH(~ WHERE a))
+reject	reject	grammar	pattern(whereClause)?/whereClause!drop-1	(a MATCH(~ a))
+reject	reject	grammar	pattern(whereClause)?/whereClause!drop-2	(a MATCH(~ WHERE))
+reject	reject	grammar	pattern(whereClause)?/whereClause!truncate	(a MATCH(~ WHERE
+reject	reject	grammar	pattern(whereClause)?/whereClause!insert	(a MATCH(~ WHERE a zzz))
+reject	reject	grammar	pattern(whereClause)?/whereClause!swap	(a MATCH(~ WITH a))
+reject	accept	grammar	pattern(patternQuantifier)?/%empty	(a MATCH(~))
+reject	accept	grammar	pattern(patternQuantifier)?/patternQuantifier	(a MATCH(~) +)
+reject	reject	grammar	pattern(patternQuantifier)?/patternQuantifier!insert	(a MATCH(~) + zzz)
+reject	accept	grammar	patternQuantifier/(PLUS|ASTERISK)	(a MATCH ~ +)
+reject	accept	grammar	patternQuantifier/BRACE_LEFT_LITERAL_INTEGER_COMMA_(LITERAL_INTEGER)?_BRACE_RIGHT	(a MATCH ~ { 1, })
+reject	reject	grammar	patternQuantifier/BRACE_LEFT_LITERAL_INTEGER_COMMA_(LITERAL_INTEGER)?_BRACE_RIGHT!drop-1	(a MATCH ~ 1, })
+reject	reject	grammar	patternQuantifier/BRACE_LEFT_LITERAL_INTEGER_COMMA_(LITERAL_INTEGER)?_BRACE_RIGHT!drop-2	(a MATCH ~ {, })
+reject	reject	grammar	patternQuantifier/BRACE_LEFT_LITERAL_INTEGER_COMMA_(LITERAL_INTEGER)?_BRACE_RIGHT!drop-3	(a MATCH ~ { 1 })
+reject	reject	grammar	patternQuantifier/BRACE_LEFT_LITERAL_INTEGER_COMMA_(LITERAL_INTEGER)?_BRACE_RIGHT!drop-4	(a MATCH ~ { 1,)
+reject	reject	grammar	patternQuantifier/BRACE_LEFT_LITERAL_INTEGER_COMMA_(LITERAL_INTEGER)?_BRACE_RIGHT!truncate	(a MATCH ~ { 1,
+reject	reject	grammar	patternQuantifier/BRACE_LEFT_LITERAL_INTEGER_COMMA_(LITERAL_INTEGER)?_BRACE_RIGHT!insert	(a MATCH ~ { 1, } zzz)
+reject	accept	grammar	patternQuantifier(PLUS|ASTERISK)/PLUS	(a MATCH ~ +)
+reject	accept	grammar	patternQuantifier(PLUS|ASTERISK)/ASTERISK	(a MATCH ~ *)
+reject	reject	grammar	patternQuantifier(PLUS|ASTERISK)/ASTERISK!insert	(a MATCH ~ * zzz)
+reject	accept	grammar	patternQuantifier(LITERAL_INTEGER)?/%empty	(a MATCH ~ { 1, })
+reject	reject	grammar	patternQuantifier(LITERAL_INTEGER)?/%empty!insert	(a MATCH ~ { 1, zzz })
+reject	accept	grammar	patternQuantifier(LITERAL_INTEGER)?/LITERAL_INTEGER	(a MATCH ~ { 1, 1 })
+reject	reject	grammar	patternQuantifier(LITERAL_INTEGER)?/LITERAL_INTEGER!insert	(a MATCH ~ { 1, 1 zzz })
+reject	accept	grammar	edgeWSpec/MINUS_edgeSpec_MINUS_ANGLE_RIGHT	(a MATCH - [ ] - >)
+reject	reject	grammar	edgeWSpec/MINUS_edgeSpec_MINUS_ANGLE_RIGHT!drop-1	(a MATCH [ ] - >)
+reject	reject	grammar	edgeWSpec/MINUS_edgeSpec_MINUS_ANGLE_RIGHT!drop-2	(a MATCH - ] - >)
+reject	reject	grammar	edgeWSpec/MINUS_edgeSpec_MINUS_ANGLE_RIGHT!drop-3	(a MATCH - [ - >)
+reject	reject	grammar	edgeWSpec/MINUS_edgeSpec_MINUS_ANGLE_RIGHT!drop-4	(a MATCH - [ ] >)
+reject	reject	grammar	edgeWSpec/MINUS_edgeSpec_MINUS_ANGLE_RIGHT!truncate	(a MATCH - [ ] -
+reject	reject	grammar	edgeWSpec/MINUS_edgeSpec_MINUS_ANGLE_RIGHT!insert	(a MATCH - [ ] - > zzz)
+reject	accept	grammar	edgeWSpec/TILDE_edgeSpec_TILDE	(a MATCH ~ [ ] ~)
+reject	accept	grammar	edgeWSpec/ANGLE_LEFT_MINUS_edgeSpec_MINUS	(a MATCH < - [ ] -)
+reject	reject	grammar	edgeWSpec/ANGLE_LEFT_MINUS_edgeSpec_MINUS!drop-2	(a MATCH < [ ] -)
+reject	reject	grammar	edgeWSpec/ANGLE_LEFT_MINUS_edgeSpec_MINUS!drop-3	(a MATCH < - ] -)
+reject	reject	grammar	edgeWSpec/ANGLE_LEFT_MINUS_edgeSpec_MINUS!drop-4	(a MATCH < - [ -)
+reject	reject	grammar	edgeWSpec/ANGLE_LEFT_MINUS_edgeSpec_MINUS!drop-5	(a MATCH < - [ ])
+reject	reject	grammar	edgeWSpec/ANGLE_LEFT_MINUS_edgeSpec_MINUS!truncate	(a MATCH < - [ ]
+reject	reject	grammar	edgeWSpec/ANGLE_LEFT_MINUS_edgeSpec_MINUS!insert	(a MATCH < - [ ] - zzz)
+reject	accept	grammar	edgeWSpec/TILDE_edgeSpec_TILDE_ANGLE_RIGHT	(a MATCH ~ [ ] ~ >)
+reject	reject	grammar	edgeWSpec/TILDE_edgeSpec_TILDE_ANGLE_RIGHT!drop-1	(a MATCH [ ] ~ >)
+reject	reject	grammar	edgeWSpec/TILDE_edgeSpec_TILDE_ANGLE_RIGHT!drop-2	(a MATCH ~ ] ~ >)
+reject	reject	grammar	edgeWSpec/TILDE_edgeSpec_TILDE_ANGLE_RIGHT!drop-3	(a MATCH ~ [ ~ >)
+reject	reject	grammar	edgeWSpec/TILDE_edgeSpec_TILDE_ANGLE_RIGHT!drop-4	(a MATCH ~ [ ] >)
+reject	reject	grammar	edgeWSpec/TILDE_edgeSpec_TILDE_ANGLE_RIGHT!truncate	(a MATCH ~ [ ] ~
+reject	reject	grammar	edgeWSpec/TILDE_edgeSpec_TILDE_ANGLE_RIGHT!insert	(a MATCH ~ [ ] ~ > zzz)
+reject	accept	grammar	edgeWSpec/ANGLE_LEFT_TILDE_edgeSpec_TILDE	(a MATCH < ~ [ ] ~)
+reject	reject	grammar	edgeWSpec/ANGLE_LEFT_TILDE_edgeSpec_TILDE!drop-2	(a MATCH < [ ] ~)
+reject	reject	grammar	edgeWSpec/ANGLE_LEFT_TILDE_edgeSpec_TILDE!drop-3	(a MATCH < ~ ] ~)
+reject	reject	grammar	edgeWSpec/ANGLE_LEFT_TILDE_edgeSpec_TILDE!drop-4	(a MATCH < ~ [ ~)
+reject	reject	grammar	edgeWSpec/ANGLE_LEFT_TILDE_edgeSpec_TILDE!drop-5	(a MATCH < ~ [ ])
+reject	reject	grammar	edgeWSpec/ANGLE_LEFT_TILDE_edgeSpec_TILDE!truncate	(a MATCH < ~ [ ]
+reject	reject	grammar	edgeWSpec/ANGLE_LEFT_TILDE_edgeSpec_TILDE!insert	(a MATCH < ~ [ ] ~ zzz)
+reject	accept	grammar	edgeWSpec/ANGLE_LEFT_MINUS_edgeSpec_MINUS_ANGLE_RIGHT	(a MATCH < - [ ] - >)
+reject	reject	grammar	edgeWSpec/ANGLE_LEFT_MINUS_edgeSpec_MINUS_ANGLE_RIGHT!drop-2	(a MATCH < [ ] - >)
+reject	reject	grammar	edgeWSpec/ANGLE_LEFT_MINUS_edgeSpec_MINUS_ANGLE_RIGHT!drop-3	(a MATCH < - ] - >)
+reject	reject	grammar	edgeWSpec/ANGLE_LEFT_MINUS_edgeSpec_MINUS_ANGLE_RIGHT!drop-4	(a MATCH < - [ - >)
+reject	reject	grammar	edgeWSpec/ANGLE_LEFT_MINUS_edgeSpec_MINUS_ANGLE_RIGHT!drop-5	(a MATCH < - [ ] >)
+reject	reject	grammar	edgeWSpec/ANGLE_LEFT_MINUS_edgeSpec_MINUS_ANGLE_RIGHT!truncate	(a MATCH < - [ ] -
+reject	reject	grammar	edgeWSpec/ANGLE_LEFT_MINUS_edgeSpec_MINUS_ANGLE_RIGHT!insert	(a MATCH < - [ ] - > zzz)
+reject	accept	grammar	edgeWSpec/MINUS_edgeSpec_MINUS	(a MATCH - [ ] -)
+reject	reject	grammar	edgeWSpec/MINUS_edgeSpec_MINUS!drop-1	(a MATCH [ ] -)
+reject	reject	grammar	edgeWSpec/MINUS_edgeSpec_MINUS!drop-2	(a MATCH - ] -)
+reject	reject	grammar	edgeWSpec/MINUS_edgeSpec_MINUS!drop-3	(a MATCH - [ -)
+reject	reject	grammar	edgeWSpec/MINUS_edgeSpec_MINUS!drop-4	(a MATCH - [ ])
+reject	reject	grammar	edgeWSpec/MINUS_edgeSpec_MINUS!truncate	(a MATCH - [ ]
+reject	reject	grammar	edgeWSpec/MINUS_edgeSpec_MINUS!insert	(a MATCH - [ ] - zzz)
+reject	accept	grammar	edgeSpec/BRACKET_LEFT_(symbolPrimitive)?_(COLON_labelSpec)?_(whe~136f20a6	(a MATCH ~ [ ] ~)
+reject	reject	grammar	edgeSpec/BRACKET_LEFT_(symbolPrimitive)?_(COLON_labelSpec)?_(whe~136f20a6!truncate	(a MATCH ~ [
+reject	reject	grammar	edgeSpec/BRACKET_LEFT_(symbolPrimitive)?_(COLON_labelSpec)?_(whe~136f20a6!insert	(a MATCH ~ [ ] zzz ~)
+reject	accept	grammar	edgeSpec(symbolPrimitive)?/%empty	(a MATCH ~ [ ] ~)
+reject	accept	grammar	edgeSpec(symbolPrimitive)?/%empty!insert	(a MATCH ~ [ zzz ] ~)
+reject	accept	grammar	edgeSpec(symbolPrimitive)?/symbolPrimitive	(a MATCH ~ [ a ] ~)
+reject	reject	grammar	edgeSpec(symbolPrimitive)?/symbolPrimitive!insert	(a MATCH ~ [ a zzz ] ~)
+reject	accept	grammar	edgeSpec(COLON_labelSpec)?/%empty	(a MATCH ~ [ ] ~)
+reject	accept	grammar	edgeSpec(COLON_labelSpec)?/COLON_labelSpec	(a MATCH ~ [ : a ] ~)
+reject	reject	grammar	edgeSpec(COLON_labelSpec)?/COLON_labelSpec!drop-2	(a MATCH ~ [ : ] ~)
+reject	reject	grammar	edgeSpec(COLON_labelSpec)?/COLON_labelSpec!truncate	(a MATCH ~ [ :
+reject	reject	grammar	edgeSpec(COLON_labelSpec)?/COLON_labelSpec!insert	(a MATCH ~ [ : a zzz ] ~)
+reject	accept	grammar	edgeSpec(whereClause)?/%empty	(a MATCH ~ [ ] ~)
+reject	accept	grammar	edgeSpec(whereClause)?/whereClause	(a MATCH ~ [ WHERE a ] ~)
+reject	reject	grammar	edgeSpec(whereClause)?/whereClause!drop-2	(a MATCH ~ [ WHERE ] ~)
+reject	reject	grammar	edgeSpec(whereClause)?/whereClause!truncate	(a MATCH ~ [ WHERE
+reject	reject	grammar	edgeSpec(whereClause)?/whereClause!insert	(a MATCH ~ [ WHERE a zzz ] ~)
+reject	reject	grammar	edgeSpec(whereClause)?/whereClause!swap	(a MATCH ~ [ WITH a ] ~)
+reject	accept	grammar	labelSpec/labelSpec_VERTBAR_labelTerm	(a MATCH(: a | a))
+reject	reject	grammar	labelSpec/labelSpec_VERTBAR_labelTerm!drop-1	(a MATCH(: | a))
+reject	reject	grammar	labelSpec/labelSpec_VERTBAR_labelTerm!drop-2	(a MATCH(: a a))
+reject	reject	grammar	labelSpec/labelSpec_VERTBAR_labelTerm!drop-3	(a MATCH(: a |))
+reject	reject	grammar	labelSpec/labelSpec_VERTBAR_labelTerm!truncate	(a MATCH(: a |
+reject	reject	grammar	labelSpec/labelSpec_VERTBAR_labelTerm!insert	(a MATCH(: a | a zzz))
+reject	accept	grammar	labelSpec/labelTerm	(a MATCH(: a))
+reject	accept	grammar	labelTerm/labelTerm_AMPERSAND_labelFactor	(a MATCH(: a & a))
+reject	reject	grammar	labelTerm/labelTerm_AMPERSAND_labelFactor!drop-1	(a MATCH(: & a))
+reject	reject	grammar	labelTerm/labelTerm_AMPERSAND_labelFactor!drop-3	(a MATCH(: a &))
+reject	reject	grammar	labelTerm/labelTerm_AMPERSAND_labelFactor!truncate	(a MATCH(: a &
+reject	reject	grammar	labelTerm/labelTerm_AMPERSAND_labelFactor!insert	(a MATCH(: a & a zzz))
+reject	accept	grammar	labelTerm/labelFactor	(a MATCH(: a))
+reject	accept	grammar	labelFactor/BANG_labelPrimary	(a MATCH(: ! a))
+reject	reject	grammar	labelFactor/BANG_labelPrimary!drop-2	(a MATCH(: !))
+reject	reject	grammar	labelFactor/BANG_labelPrimary!truncate	(a MATCH(: !
+reject	reject	grammar	labelFactor/BANG_labelPrimary!insert	(a MATCH(: ! a zzz))
+reject	accept	grammar	labelFactor/labelPrimary	(a MATCH(: a))
+reject	accept	grammar	labelPrimary/symbolPrimitive	(a MATCH(: a))
+reject	accept	grammar	labelPrimary/PERCENT	(a MATCH(: %))
+reject	reject	grammar	labelPrimary/PERCENT!insert	(a MATCH(: % zzz))
+reject	accept	grammar	labelPrimary/PAREN_LEFT_labelSpec_PAREN_RIGHT	(a MATCH(:(a)))
+reject	reject	grammar	labelPrimary/PAREN_LEFT_labelSpec_PAREN_RIGHT!drop-1	(a MATCH(: a)))
+reject	reject	grammar	labelPrimary/PAREN_LEFT_labelSpec_PAREN_RIGHT!drop-2	(a MATCH(:()))
+reject	reject	grammar	labelPrimary/PAREN_LEFT_labelSpec_PAREN_RIGHT!drop-3	(a MATCH(:(a))
+reject	reject	grammar	labelPrimary/PAREN_LEFT_labelSpec_PAREN_RIGHT!truncate	(a MATCH(:(a
+reject	reject	grammar	labelPrimary/PAREN_LEFT_labelSpec_PAREN_RIGHT!insert	(a MATCH(:(a) zzz))
+reject	accept	grammar	edgeAbbrev/TILDE	(a MATCH ~)
+reject	accept	grammar	edgeAbbrev/TILDE_ANGLE_RIGHT	(a MATCH ~ >)
+reject	reject	grammar	edgeAbbrev/TILDE_ANGLE_RIGHT!drop-1	(a MATCH >)
+reject	reject	grammar	edgeAbbrev/TILDE_ANGLE_RIGHT!insert	(a MATCH ~ > zzz)
+reject	accept	grammar	edgeAbbrev/ANGLE_LEFT_TILDE	(a MATCH < ~)
+reject	reject	grammar	edgeAbbrev/ANGLE_LEFT_TILDE!drop-2	(a MATCH <)
+reject	reject	grammar	edgeAbbrev/ANGLE_LEFT_TILDE!truncate	(a MATCH <
+reject	reject	grammar	edgeAbbrev/ANGLE_LEFT_TILDE!insert	(a MATCH < ~ zzz)
+reject	accept	grammar	edgeAbbrev/(ANGLE_LEFT)?_MINUS_(ANGLE_RIGHT)?	(a MATCH -)
+reject	reject	grammar	edgeAbbrev/(ANGLE_LEFT)?_MINUS_(ANGLE_RIGHT)?!insert	(a MATCH - zzz)
+reject	accept	grammar	edgeAbbrev(ANGLE_LEFT)?/%empty	(a MATCH -)
+reject	reject	grammar	edgeAbbrev(ANGLE_LEFT)?/%empty!insert	(a MATCH zzz -)
+reject	accept	grammar	edgeAbbrev(ANGLE_LEFT)?/ANGLE_LEFT	(a MATCH < -)
+reject	reject	grammar	edgeAbbrev(ANGLE_LEFT)?/ANGLE_LEFT!insert	(a MATCH < zzz -)
+reject	accept	grammar	edgeAbbrev(ANGLE_RIGHT)?/%empty	(a MATCH -)
+reject	accept	grammar	edgeAbbrev(ANGLE_RIGHT)?/ANGLE_RIGHT	(a MATCH - >)
+reject	reject	grammar	edgeAbbrev(ANGLE_RIGHT)?/ANGLE_RIGHT!truncate	(a MATCH -
+reject	reject	grammar	edgeAbbrev(ANGLE_RIGHT)?/ANGLE_RIGHT!insert	(a MATCH - > zzz)
+accept	accept	grammar	tableReference/tableReference_(joinType)?_CROSS_JOIN_joinRhs	SELECT * FROM a CROSS JOIN a
+reject	reject	grammar	tableReference/tableReference_(joinType)?_CROSS_JOIN_joinRhs!drop-1	SELECT * FROM CROSS JOIN a
+reject	reject	grammar	tableReference/tableReference_(joinType)?_CROSS_JOIN_joinRhs!drop-2	SELECT * FROM a JOIN a
+reject	reject	grammar	tableReference/tableReference_(joinType)?_CROSS_JOIN_joinRhs!drop-3	SELECT * FROM a CROSS a
+reject	reject	grammar	tableReference/tableReference_(joinType)?_CROSS_JOIN_joinRhs!drop-4	SELECT * FROM a CROSS JOIN
+accept	accept	grammar	tableReference/tableReference_(joinType)?_CROSS_JOIN_joinRhs!insert	SELECT * FROM a CROSS JOIN a zzz
+reject	reject	grammar	tableReference/tableReference_(joinType)?_CROSS_JOIN_joinRhs!swap	SELECT * FROM a CURRENT JOIN a
+accept	accept	grammar	tableReference/tableReference_COMMA_joinRhs	SELECT * FROM a, a
+reject	reject	grammar	tableReference/tableReference_COMMA_joinRhs!drop-1	SELECT * FROM, a
+reject	reject	grammar	tableReference/tableReference_COMMA_joinRhs!drop-3	SELECT * FROM a,
+accept	accept	grammar	tableReference/tableReference_COMMA_joinRhs!insert	SELECT * FROM a, a zzz
+accept	accept	grammar	tableReference/tableReference_(joinType)?_JOIN_joinRhs_joinSpec	SELECT * FROM a JOIN a ON a
+reject	reject	grammar	tableReference/tableReference_(joinType)?_JOIN_joinRhs_joinSpec!drop-1	SELECT * FROM JOIN a ON a
+reject	reject	grammar	tableReference/tableReference_(joinType)?_JOIN_joinRhs_joinSpec!drop-2	SELECT * FROM a a ON a
+reject	reject	grammar	tableReference/tableReference_(joinType)?_JOIN_joinRhs_joinSpec!drop-3	SELECT * FROM a JOIN ON a
+reject	reject	grammar	tableReference/tableReference_(joinType)?_JOIN_joinRhs_joinSpec!drop-4	SELECT * FROM a JOIN a a
+reject	reject	grammar	tableReference/tableReference_(joinType)?_JOIN_joinRhs_joinSpec!drop-5	SELECT * FROM a JOIN a ON
+reject	reject	grammar	tableReference/tableReference_(joinType)?_JOIN_joinRhs_joinSpec!insert	SELECT * FROM a JOIN a ON a zzz
+reject	reject	grammar	tableReference/tableReference_(joinType)?_JOIN_joinRhs_joinSpec!swap	SELECT * FROM a KEY a ON a
+accept	accept	grammar	tableReference/tableNonJoin	SELECT * FROM a
+accept	accept	grammar	tableReference/PAREN_LEFT_tableReference_PAREN_RIGHT	SELECT * FROM(a)
+reject	reject	grammar	tableReference/PAREN_LEFT_tableReference_PAREN_RIGHT!drop-1	SELECT * FROM a)
+reject	reject	grammar	tableReference/PAREN_LEFT_tableReference_PAREN_RIGHT!drop-2	SELECT * FROM()
+reject	reject	grammar	tableReference/PAREN_LEFT_tableReference_PAREN_RIGHT!drop-3	SELECT * FROM(a
+accept	accept	grammar	tableReference/PAREN_LEFT_tableReference_PAREN_RIGHT!insert	SELECT * FROM(a) zzz
+accept	accept	grammar	tableReference(joinType)?/%empty	SELECT * FROM a CROSS JOIN a
+accept	accept	grammar	tableReference(joinType)?/%empty!insert	SELECT * FROM a zzz CROSS JOIN a
+accept	accept	grammar	tableReference(joinType)?/joinType	SELECT * FROM a INNER CROSS JOIN a
+reject	reject	grammar	tableReference(joinType)?/joinType!insert	SELECT * FROM a INNER zzz CROSS JOIN a
+reject	reject	grammar	tableReference(joinType)?/joinType!swap	SELECT * FROM a INPUT CROSS JOIN a
+accept	accept	grammar	tableNonJoin/tableBaseReference	SELECT * FROM a
+accept	accept	grammar	tableNonJoin/tableUnpivot	SELECT * FROM UNPIVOT a
+reject	reject	grammar	tableNonJoin/tableUnpivot!drop-2	SELECT * FROM UNPIVOT
+reject	reject	grammar	tableNonJoin/tableUnpivot!insert	SELECT * FROM UNPIVOT a zzz
+reject	reject	grammar	tableNonJoin/tableUnpivot!swap	SELECT * FROM UPDATE a
+accept	accept	grammar	tableBaseReference/exprSelect_symbolPrimitive	SELECT * FROM a a
+reject	reject	grammar	tableBaseReference/exprSelect_symbolPrimitive!insert	SELECT * FROM a a zzz
+accept	accept	grammar	tableBaseReference/exprSelect_(asIdent)?_(atIdent)?_(byIdent)?	SELECT * FROM a
+accept	accept	grammar	tableBaseReference/exprGraphMatchOne_(asIdent)?_(atIdent)?_(byIdent)?	SELECT * FROM a MATCH
+reject	reject	grammar	tableBaseReference/exprGraphMatchOne_(asIdent)?_(atIdent)?_(byIdent)?!drop-1	SELECT * FROM MATCH
+reject	reject	grammar	tableBaseReference/exprGraphMatchOne_(asIdent)?_(atIdent)?_(byIdent)?!swap	SELECT * FROM a MAX
+accept	accept	grammar	tableBaseReference(asIdent)?/%empty	SELECT * FROM a
+accept	accept	grammar	tableBaseReference(asIdent)?/asIdent	SELECT * FROM a AS a
+reject	reject	grammar	tableBaseReference(asIdent)?/asIdent!drop-2	SELECT * FROM a AS
+reject	reject	grammar	tableBaseReference(asIdent)?/asIdent!insert	SELECT * FROM a AS a zzz
+reject	reject	grammar	tableBaseReference(asIdent)?/asIdent!swap	SELECT * FROM a ASC a
+accept	accept	grammar	tableBaseReference(atIdent)?/%empty	SELECT * FROM a
+accept	accept	grammar	tableBaseReference(atIdent)?/atIdent	SELECT * FROM a AT a
+reject	reject	grammar	tableBaseReference(atIdent)?/atIdent!drop-2	SELECT * FROM a AT
+reject	reject	grammar	tableBaseReference(atIdent)?/atIdent!insert	SELECT * FROM a AT a zzz
+reject	reject	grammar	tableBaseReference(atIdent)?/atIdent!swap	SELECT * FROM a AUTHORIZATION a
+accept	accept	grammar	tableBaseReference(byIdent)?/%empty	SELECT * FROM a
+accept	accept	grammar	tableBaseReference(byIdent)?/byIdent	SELECT * FROM a BY a
+reject	reject	grammar	tableBaseReference(byIdent)?/byIdent!drop-2	SELECT * FROM a BY
+reject	reject	grammar	tableBaseReference(byIdent)?/byIdent!insert	SELECT * FROM a BY a zzz
+reject	reject	grammar	tableBaseReference(byIdent)?/byIdent!swap	SELECT * FROM a CAN_CAST a
+accept	accept	grammar	tableUnpivot/UNPIVOT_expr_(asIdent)?_(atIdent)?_(byIdent)?	SELECT * FROM UNPIVOT a
+accept	accept	grammar	tableUnpivot(asIdent)?/%empty	SELECT * FROM UNPIVOT a
+accept	accept	grammar	tableUnpivot(asIdent)?/asIdent	SELECT * FROM UNPIVOT a AS a
+reject	reject	grammar	tableUnpivot(asIdent)?/asIdent!drop-1	SELECT * FROM UNPIVOT a a
+reject	reject	grammar	tableUnpivot(asIdent)?/asIdent!drop-2	SELECT * FROM UNPIVOT a AS
+reject	reject	grammar	tableUnpivot(asIdent)?/asIdent!insert	SELECT * FROM UNPIVOT a AS a zzz
+reject	reject	grammar	tableUnpivot(asIdent)?/asIdent!swap	SELECT * FROM UNPIVOT a ASC a
+accept	accept	grammar	tableUnpivot(atIdent)?/%empty	SELECT * FROM UNPIVOT a
+accept	accept	grammar	tableUnpivot(atIdent)?/atIdent	SELECT * FROM UNPIVOT a AT a
+reject	reject	grammar	tableUnpivot(atIdent)?/atIdent!drop-2	SELECT * FROM UNPIVOT a AT
+reject	reject	grammar	tableUnpivot(atIdent)?/atIdent!insert	SELECT * FROM UNPIVOT a AT a zzz
+reject	reject	grammar	tableUnpivot(atIdent)?/atIdent!swap	SELECT * FROM UNPIVOT a AUTHORIZATION a
+accept	accept	grammar	tableUnpivot(byIdent)?/%empty	SELECT * FROM UNPIVOT a
+accept	accept	grammar	tableUnpivot(byIdent)?/byIdent	SELECT * FROM UNPIVOT a BY a
+reject	reject	grammar	tableUnpivot(byIdent)?/byIdent!drop-2	SELECT * FROM UNPIVOT a BY
+reject	reject	grammar	tableUnpivot(byIdent)?/byIdent!insert	SELECT * FROM UNPIVOT a BY a zzz
+reject	reject	grammar	tableUnpivot(byIdent)?/byIdent!swap	SELECT * FROM UNPIVOT a CAN_CAST a
+accept	accept	grammar	joinRhs/tableNonJoin	SELECT * FROM a, a
+accept	accept	grammar	joinRhs/PAREN_LEFT_tableReference_PAREN_RIGHT	SELECT * FROM a,(a)
+reject	reject	grammar	joinRhs/PAREN_LEFT_tableReference_PAREN_RIGHT!drop-1	SELECT * FROM a, a)
+reject	reject	grammar	joinRhs/PAREN_LEFT_tableReference_PAREN_RIGHT!drop-2	SELECT * FROM a,()
+reject	reject	grammar	joinRhs/PAREN_LEFT_tableReference_PAREN_RIGHT!drop-3	SELECT * FROM a,(a
+reject	accept	grammar	joinRhs/PAREN_LEFT_tableReference_PAREN_RIGHT!insert	SELECT * FROM a,(a) zzz
+accept	accept	grammar	joinSpec/ON_expr	SELECT * FROM a JOIN a ON a
+reject	reject	grammar	joinSpec/ON_expr!swap	SELECT * FROM a JOIN a ONLY a
+accept	accept	grammar	joinType/INNER	SELECT * FROM a INNER CROSS JOIN a
+accept	accept	grammar	joinType/LEFT_(OUTER)?	SELECT * FROM a LEFT CROSS JOIN a
+reject	reject	grammar	joinType/LEFT_(OUTER)?!insert	SELECT * FROM a LEFT zzz CROSS JOIN a
+reject	reject	grammar	joinType/LEFT_(OUTER)?!swap	SELECT * FROM a LET CROSS JOIN a
+accept	accept	grammar	joinType/RIGHT_(OUTER)?	SELECT * FROM a RIGHT CROSS JOIN a
+reject	reject	grammar	joinType/RIGHT_(OUTER)?!insert	SELECT * FROM a RIGHT zzz CROSS JOIN a
+reject	reject	grammar	joinType/RIGHT_(OUTER)?!swap	SELECT * FROM a ROLLBACK CROSS JOIN a
+accept	accept	grammar	joinType/FULL_(OUTER)?	SELECT * FROM a FULL CROSS JOIN a
+reject	reject	grammar	joinType/FULL_(OUTER)?!insert	SELECT * FROM a FULL zzz CROSS JOIN a
+reject	reject	grammar	joinType/FULL_(OUTER)?!swap	SELECT * FROM a GET CROSS JOIN a
+accept	accept	grammar	joinType/OUTER	SELECT * FROM a OUTER CROSS JOIN a
+reject	reject	grammar	joinType/OUTER!insert	SELECT * FROM a OUTER zzz CROSS JOIN a
+reject	reject	grammar	joinType/OUTER!swap	SELECT * FROM a OUTPUT CROSS JOIN a
+accept	accept	grammar	joinType(OUTER)?/%empty	SELECT * FROM a LEFT CROSS JOIN a
+accept	accept	grammar	joinType(OUTER)?/OUTER	SELECT * FROM a LEFT OUTER CROSS JOIN a
+reject	reject	grammar	joinType(OUTER)?/OUTER!truncate	SELECT * FROM a LEFT
+reject	reject	grammar	joinType(OUTER)?/OUTER!insert	SELECT * FROM a LEFT OUTER zzz CROSS JOIN a
+reject	reject	grammar	joinType(OUTER)?/OUTER!swap	SELECT * FROM a LEFT OUTPUT CROSS JOIN a
+reject	accept	grammar	expr/exprBagOp	a
+accept	accept	grammar	exprBagOp/exprBagOp_(OUTER)?_EXCEPT_(DISTINCT|ALL)?_exprSelect	a EXCEPT a
+reject	reject	grammar	exprBagOp/exprBagOp_(OUTER)?_EXCEPT_(DISTINCT|ALL)?_exprSelect!drop-1	EXCEPT a
+reject	reject	grammar	exprBagOp/exprBagOp_(OUTER)?_EXCEPT_(DISTINCT|ALL)?_exprSelect!drop-2	a a
+reject	reject	grammar	exprBagOp/exprBagOp_(OUTER)?_EXCEPT_(DISTINCT|ALL)?_exprSelect!drop-3	a EXCEPT
+reject	reject	grammar	exprBagOp/exprBagOp_(OUTER)?_EXCEPT_(DISTINCT|ALL)?_exprSelect!insert	a EXCEPT a zzz
+reject	reject	grammar	exprBagOp/exprBagOp_(OUTER)?_EXCEPT_(DISTINCT|ALL)?_exprSelect!swap	a EXCEPTION a
+accept	accept	grammar	exprBagOp/exprBagOp_(OUTER)?_UNION_(DISTINCT|ALL)?_exprSelect	a UNION a
+reject	reject	grammar	exprBagOp/exprBagOp_(OUTER)?_UNION_(DISTINCT|ALL)?_exprSelect!drop-1	UNION a
+reject	reject	grammar	exprBagOp/exprBagOp_(OUTER)?_UNION_(DISTINCT|ALL)?_exprSelect!drop-3	a UNION
+reject	reject	grammar	exprBagOp/exprBagOp_(OUTER)?_UNION_(DISTINCT|ALL)?_exprSelect!insert	a UNION a zzz
+reject	reject	grammar	exprBagOp/exprBagOp_(OUTER)?_UNION_(DISTINCT|ALL)?_exprSelect!swap	a UNIQUE a
+accept	accept	grammar	exprBagOp/exprBagOp_(OUTER)?_INTERSECT_(DISTINCT|ALL)?_exprSelect	a INTERSECT a
+reject	reject	grammar	exprBagOp/exprBagOp_(OUTER)?_INTERSECT_(DISTINCT|ALL)?_exprSelect!drop-1	INTERSECT a
+reject	reject	grammar	exprBagOp/exprBagOp_(OUTER)?_INTERSECT_(DISTINCT|ALL)?_exprSelect!drop-3	a INTERSECT
+reject	reject	grammar	exprBagOp/exprBagOp_(OUTER)?_INTERSECT_(DISTINCT|ALL)?_exprSelect!insert	a INTERSECT a zzz
+reject	reject	grammar	exprBagOp/exprBagOp_(OUTER)?_INTERSECT_(DISTINCT|ALL)?_exprSelect!swap	a INTERVAL a
+reject	accept	grammar	exprBagOp/exprSelect	a
+accept	accept	grammar	exprBagOp(OUTER)?/%empty	a EXCEPT a
+reject	reject	grammar	exprBagOp(OUTER)?/%empty!insert	a zzz EXCEPT a
+accept	accept	grammar	exprBagOp(OUTER)?/OUTER	a OUTER EXCEPT a
+reject	reject	grammar	exprBagOp(OUTER)?/OUTER!insert	a OUTER zzz EXCEPT a
+reject	reject	grammar	exprBagOp(OUTER)?/OUTER!swap	a OUTPUT EXCEPT a
+accept	accept	grammar	exprBagOp(DISTINCT|ALL)?/%empty	a EXCEPT a
+reject	reject	grammar	exprBagOp(DISTINCT|ALL)?/%empty!insert	a EXCEPT zzz a
+accept	accept	grammar	exprBagOp(DISTINCT|ALL)?/DISTINCT	a EXCEPT DISTINCT a
+reject	reject	grammar	exprBagOp(DISTINCT|ALL)?/DISTINCT!insert	a EXCEPT DISTINCT zzz a
+reject	reject	grammar	exprBagOp(DISTINCT|ALL)?/DISTINCT!swap	a EXCEPT DO a
+accept	accept	grammar	exprBagOp(DISTINCT|ALL)?/ALL	a EXCEPT ALL a
+reject	reject	grammar	exprBagOp(DISTINCT|ALL)?/ALL!insert	a EXCEPT ALL zzz a
+reject	reject	grammar	exprBagOp(DISTINCT|ALL)?/ALL!swap	a EXCEPT ALLOCATE a
+accept	accept	grammar	exprSelect/selectClause_(excludeClause)?_fromClause_(letClause)?_(~80022245	SELECT * FROM a
+reject	accept	grammar	exprSelect/exprOr	a
+accept	accept	grammar	exprSelect(excludeClause)?/%empty	SELECT * FROM a
+reject	accept	grammar	exprSelect(excludeClause)?/excludeClause	SELECT * EXCLUDE a.a FROM a
+accept	accept	grammar	exprSelect(letClause)?/%empty	SELECT * FROM a
+accept	accept	grammar	exprSelect(letClause)?/letClause	SELECT * FROM a LET a AS a
+accept	accept	grammar	exprSelect(whereClauseSelect)?/%empty	SELECT * FROM a
+accept	accept	grammar	exprSelect(whereClauseSelect)?/whereClauseSelect	SELECT * FROM a WHERE a
+accept	accept	grammar	exprSelect(groupClause)?/%empty	SELECT * FROM a
+accept	accept	grammar	exprSelect(groupClause)?/groupClause	SELECT * FROM a GROUP BY a
+accept	accept	grammar	exprSelect(havingClause)?/%empty	SELECT * FROM a
+accept	accept	grammar	exprSelect(havingClause)?/havingClause	SELECT * FROM a HAVING a
+accept	accept	grammar	exprSelect(orderByClause)?/%empty	SELECT * FROM a
+accept	accept	grammar	exprSelect(orderByClause)?/orderByClause	SELECT * FROM a ORDER BY a
+accept	accept	grammar	exprSelect(limitClause)?/%empty	SELECT * FROM a
+accept	accept	grammar	exprSelect(limitClause)?/limitClause	SELECT * FROM a LIMIT a
+accept	accept	grammar	exprSelect(offsetByClause)?/%empty	SELECT * FROM a
+accept	accept	grammar	exprSelect(offsetByClause)?/offsetByClause	SELECT * FROM a OFFSET a
+reject	accept	grammar	exprOr/exprOr_OR_exprAnd	a OR a
+reject	reject	grammar	exprOr/exprOr_OR_exprAnd!drop-1	OR a
+reject	reject	grammar	exprOr/exprOr_OR_exprAnd!drop-3	a OR
+reject	reject	grammar	exprOr/exprOr_OR_exprAnd!insert	a OR a zzz
+reject	reject	grammar	exprOr/exprOr_OR_exprAnd!swap	a ORDER a
+reject	accept	grammar	exprOr/exprAnd	a
+reject	accept	grammar	exprAnd/exprAnd_AND_exprNot	a AND a
+reject	reject	grammar	exprAnd/exprAnd_AND_exprNot!drop-1	AND a
+reject	reject	grammar	exprAnd/exprAnd_AND_exprNot!drop-3	a AND
+reject	reject	grammar	exprAnd/exprAnd_AND_exprNot!insert	a AND a zzz
+reject	reject	grammar	exprAnd/exprAnd_AND_exprNot!swap	a ANY a
+reject	accept	grammar	exprAnd/exprNot	a
+reject	accept	grammar	exprNot/NOT_exprNot	NOT a
+reject	reject	grammar	exprNot/NOT_exprNot!drop-2	NOT
+reject	reject	grammar	exprNot/NOT_exprNot!insert	NOT a zzz
+reject	reject	grammar	exprNot/NOT_exprNot!swap	NOTHING a
+reject	accept	grammar	exprNot/exprPredicate	a
+reject	accept	grammar	exprPredicate/exprPredicate_(LT_EQ|GT_EQ|ANGLE_LEFT|ANGLE_RIGHT|NEQ|E~116c379c	a <= a
+reject	reject	grammar	exprPredicate/exprPredicate_(LT_EQ|GT_EQ|ANGLE_LEFT|ANGLE_RIGHT|NEQ|E~116c379c!drop-1	<= a
+reject	reject	grammar	exprPredicate/exprPredicate_(LT_EQ|GT_EQ|ANGLE_LEFT|ANGLE_RIGHT|NEQ|E~116c379c!drop-3	a <=
+reject	reject	grammar	exprPredicate/exprPredicate_(LT_EQ|GT_EQ|ANGLE_LEFT|ANGLE_RIGHT|NEQ|E~116c379c!insert	a <= a zzz
+reject	accept	grammar	exprPredicate/exprPredicate_IS_(NOT)?_type	a IS NULL
+reject	reject	grammar	exprPredicate/exprPredicate_IS_(NOT)?_type!drop-1	IS NULL
+reject	reject	grammar	exprPredicate/exprPredicate_IS_(NOT)?_type!drop-2	a NULL
+reject	reject	grammar	exprPredicate/exprPredicate_IS_(NOT)?_type!drop-3	a IS
+reject	reject	grammar	exprPredicate/exprPredicate_IS_(NOT)?_type!insert	a IS NULL zzz
+reject	reject	grammar	exprPredicate/exprPredicate_IS_(NOT)?_type!swap	a ISOLATION NULL
+reject	accept	grammar	exprPredicate/exprPredicate_(NOT)?_IN_PAREN_LEFT_expr_PAREN_RIGHT	a IN(a)
+reject	reject	grammar	exprPredicate/exprPredicate_(NOT)?_IN_PAREN_LEFT_expr_PAREN_RIGHT!drop-1	IN(a)
+reject	accept	grammar	exprPredicate/exprPredicate_(NOT)?_IN_PAREN_LEFT_expr_PAREN_RIGHT!drop-2	a(a)
+reject	reject	grammar	exprPredicate/exprPredicate_(NOT)?_IN_PAREN_LEFT_expr_PAREN_RIGHT!drop-3	a IN a)
+reject	reject	grammar	exprPredicate/exprPredicate_(NOT)?_IN_PAREN_LEFT_expr_PAREN_RIGHT!drop-4	a IN()
+reject	reject	grammar	exprPredicate/exprPredicate_(NOT)?_IN_PAREN_LEFT_expr_PAREN_RIGHT!drop-5	a IN(a
+reject	reject	grammar	exprPredicate/exprPredicate_(NOT)?_IN_PAREN_LEFT_expr_PAREN_RIGHT!insert	a IN(a) zzz
+reject	reject	grammar	exprPredicate/exprPredicate_(NOT)?_IN_PAREN_LEFT_expr_PAREN_RIGHT!swap	a INDEX(a)
+reject	accept	grammar	exprPredicate/exprPredicate_(NOT)?_IN_mathOp00	a IN a
+reject	reject	grammar	exprPredicate/exprPredicate_(NOT)?_IN_mathOp00!drop-1	IN a
+reject	reject	grammar	exprPredicate/exprPredicate_(NOT)?_IN_mathOp00!drop-3	a IN
+reject	reject	grammar	exprPredicate/exprPredicate_(NOT)?_IN_mathOp00!insert	a IN a zzz
+reject	reject	grammar	exprPredicate/exprPredicate_(NOT)?_IN_mathOp00!swap	a INDEX a
+reject	accept	grammar	exprPredicate/exprPredicate_(NOT)?_LIKE_mathOp00_(ESCAPE_expr)?	a LIKE a
+reject	reject	grammar	exprPredicate/exprPredicate_(NOT)?_LIKE_mathOp00_(ESCAPE_expr)?!drop-1	LIKE a
+reject	reject	grammar	exprPredicate/exprPredicate_(NOT)?_LIKE_mathOp00_(ESCAPE_expr)?!drop-3	a LIKE
+reject	reject	grammar	exprPredicate/exprPredicate_(NOT)?_LIKE_mathOp00_(ESCAPE_expr)?!insert	a LIKE a zzz
+reject	reject	grammar	exprPredicate/exprPredicate_(NOT)?_LIKE_mathOp00_(ESCAPE_expr)?!swap	a LIMIT a
+reject	accept	grammar	exprPredicate/exprPredicate_(NOT)?_BETWEEN_mathOp00_AND_mathOp00	a BETWEEN a AND a
+reject	reject	grammar	exprPredicate/exprPredicate_(NOT)?_BETWEEN_mathOp00_AND_mathOp00!drop-1	BETWEEN a AND a
+reject	reject	grammar	exprPredicate/exprPredicate_(NOT)?_BETWEEN_mathOp00_AND_mathOp00!drop-2	a a AND a
+reject	reject	grammar	exprPredicate/exprPredicate_(NOT)?_BETWEEN_mathOp00_AND_mathOp00!drop-3	a BETWEEN AND a
+reject	reject	grammar	exprPredicate/exprPredicate_(NOT)?_BETWEEN_mathOp00_AND_mathOp00!drop-4	a BETWEEN a a
+reject	reject	grammar	exprPredicate/exprPredicate_(NOT)?_BETWEEN_mathOp00_AND_mathOp00!drop-5	a BETWEEN a AND
+reject	reject	grammar	exprPredicate/exprPredicate_(NOT)?_BETWEEN_mathOp00_AND_mathOp00!insert	a BETWEEN a AND a zzz
+reject	reject	grammar	exprPredicate/exprPredicate_(NOT)?_BETWEEN_mathOp00_AND_mathOp00!swap	a BIGINT a AND a
+reject	accept	grammar	exprPredicate/mathOp00	a
+reject	accept	grammar	exprPredicate(LT_EQ|GT_EQ|ANGLE_LEFT|ANGLE_RIGHT|NEQ|EQ)/LT_EQ	a <= a
+reject	reject	grammar	exprPredicate(LT_EQ|GT_EQ|ANGLE_LEFT|ANGLE_RIGHT|NEQ|EQ)/LT_EQ!insert	a <= zzz a
+reject	accept	grammar	exprPredicate(LT_EQ|GT_EQ|ANGLE_LEFT|ANGLE_RIGHT|NEQ|EQ)/GT_EQ	a >= a
+reject	reject	grammar	exprPredicate(LT_EQ|GT_EQ|ANGLE_LEFT|ANGLE_RIGHT|NEQ|EQ)/GT_EQ!insert	a >= zzz a
+reject	accept	grammar	exprPredicate(LT_EQ|GT_EQ|ANGLE_LEFT|ANGLE_RIGHT|NEQ|EQ)/ANGLE_LEFT	a < a
+reject	reject	grammar	exprPredicate(LT_EQ|GT_EQ|ANGLE_LEFT|ANGLE_RIGHT|NEQ|EQ)/ANGLE_LEFT!insert	a < zzz a
+reject	accept	grammar	exprPredicate(LT_EQ|GT_EQ|ANGLE_LEFT|ANGLE_RIGHT|NEQ|EQ)/ANGLE_RIGHT	a > a
+reject	reject	grammar	exprPredicate(LT_EQ|GT_EQ|ANGLE_LEFT|ANGLE_RIGHT|NEQ|EQ)/ANGLE_RIGHT!insert	a > zzz a
+reject	accept	grammar	exprPredicate(LT_EQ|GT_EQ|ANGLE_LEFT|ANGLE_RIGHT|NEQ|EQ)/NEQ	a <> a
+reject	reject	grammar	exprPredicate(LT_EQ|GT_EQ|ANGLE_LEFT|ANGLE_RIGHT|NEQ|EQ)/NEQ!insert	a <> zzz a
+reject	accept	grammar	exprPredicate(LT_EQ|GT_EQ|ANGLE_LEFT|ANGLE_RIGHT|NEQ|EQ)/EQ	a = a
+reject	reject	grammar	exprPredicate(LT_EQ|GT_EQ|ANGLE_LEFT|ANGLE_RIGHT|NEQ|EQ)/EQ!insert	a = zzz a
+reject	accept	grammar	exprPredicate(NOT)?/%empty	a IS NULL
+reject	reject	grammar	exprPredicate(NOT)?/%empty!insert	a IS zzz NULL
+reject	accept	grammar	exprPredicate(NOT)?/NOT	a IS NOT NULL
+reject	reject	grammar	exprPredicate(NOT)?/NOT!insert	a IS NOT zzz NULL
+reject	reject	grammar	exprPredicate(NOT)?/NOT!swap	a IS NOTHING NULL
+reject	accept	grammar	exprPredicate(ESCAPE_expr)?/%empty	a LIKE a
+reject	accept	grammar	exprPredicate(ESCAPE_expr)?/ESCAPE_expr	a LIKE a ESCAPE a
+reject	reject	grammar	exprPredicate(ESCAPE_expr)?/ESCAPE_expr!drop-1	a LIKE a a
+reject	reject	grammar	exprPredicate(ESCAPE_expr)?/ESCAPE_expr!drop-2	a LIKE a ESCAPE
+reject	reject	grammar	exprPredicate(ESCAPE_expr)?/ESCAPE_expr!insert	a LIKE a ESCAPE a zzz
+reject	reject	grammar	exprPredicate(ESCAPE_expr)?/ESCAPE_expr!swap	a LIKE a EVERY a
+reject	accept	grammar	mathOp00/mathOp00_(AMPERSAND|CONCAT)_mathOp01	a & a
+reject	reject	grammar	mathOp00/mathOp00_(AMPERSAND|CONCAT)_mathOp01!drop-1	& a
+reject	reject	grammar	mathOp00/mathOp00_(AMPERSAND|CONCAT)_mathOp01!drop-3	a &
+reject	reject	grammar	mathOp00/mathOp00_(AMPERSAND|CONCAT)_mathOp01!insert	a & a zzz
+reject	accept	grammar	mathOp00/mathOp01	a
+reject	accept	grammar	mathOp00(AMPERSAND|CONCAT)/AMPERSAND	a & a
+reject	reject	grammar	mathOp00(AMPERSAND|CONCAT)/AMPERSAND!insert	a & zzz a
+reject	accept	grammar	mathOp00(AMPERSAND|CONCAT)/CONCAT	a || a
+reject	reject	grammar	mathOp00(AMPERSAND|CONCAT)/CONCAT!insert	a || zzz a
+reject	accept	grammar	mathOp01/mathOp01_(PLUS|MINUS)_mathOp02	a + a
+reject	reject	grammar	mathOp01/mathOp01_(PLUS|MINUS)_mathOp02!drop-3	a +
+reject	reject	grammar	mathOp01/mathOp01_(PLUS|MINUS)_mathOp02!insert	a + a zzz
+reject	accept	grammar	mathOp01/mathOp02	a
+reject	accept	grammar	mathOp01(PLUS|MINUS)/PLUS	a + a
+reject	reject	grammar	mathOp01(PLUS|MINUS)/PLUS!insert	a + zzz a
+reject	accept	grammar	mathOp01(PLUS|MINUS)/MINUS	a - a
+reject	reject	grammar	mathOp01(PLUS|MINUS)/MINUS!insert	a - zzz a
+reject	accept	grammar	mathOp02/mathOp02_(PERCENT|ASTERISK|SLASH_FORWARD)_valueExpr	a % a
+reject	reject	grammar	mathOp02/mathOp02_(PERCENT|ASTERISK|SLASH_FORWARD)_valueExpr!drop-1	% a
+reject	reject	grammar	mathOp02/mathOp02_(PERCENT|ASTERISK|SLASH_FORWARD)_valueExpr!drop-3	a %
+reject	reject	grammar	mathOp02/mathOp02_(PERCENT|ASTERISK|SLASH_FORWARD)_valueExpr!insert	a % a zzz
+reject	accept	grammar	mathOp02/valueExpr	a
+reject	accept	grammar	mathOp02(PERCENT|ASTERISK|SLASH_FORWARD)/PERCENT	a % a
+reject	reject	grammar	mathOp02(PERCENT|ASTERISK|SLASH_FORWARD)/PERCENT!insert	a % zzz a
+reject	accept	grammar	mathOp02(PERCENT|ASTERISK|SLASH_FORWARD)/ASTERISK	a * a
+reject	reject	grammar	mathOp02(PERCENT|ASTERISK|SLASH_FORWARD)/ASTERISK!insert	a * zzz a
+reject	accept	grammar	mathOp02(PERCENT|ASTERISK|SLASH_FORWARD)/SLASH_FORWARD	a / a
+reject	reject	grammar	mathOp02(PERCENT|ASTERISK|SLASH_FORWARD)/SLASH_FORWARD!insert	a / zzz a
+reject	accept	grammar	valueExpr/(PLUS|MINUS)_valueExpr	+ a
+reject	reject	grammar	valueExpr/(PLUS|MINUS)_valueExpr!drop-2	+
+reject	reject	grammar	valueExpr/(PLUS|MINUS)_valueExpr!insert	+ a zzz
+reject	accept	grammar	valueExpr/exprPrimary	a
+reject	accept	grammar	valueExpr(PLUS|MINUS)/PLUS	+ a
+reject	reject	grammar	valueExpr(PLUS|MINUS)/PLUS!insert	+ zzz a
+reject	accept	grammar	valueExpr(PLUS|MINUS)/MINUS	- a
+reject	reject	grammar	valueExpr(PLUS|MINUS)/MINUS!insert	- zzz a
+reject	accept	grammar	exprPrimary/exprTerm	a
+reject	accept	grammar	exprPrimary/cast	CAST(a AS NULL)
+reject	reject	grammar	exprPrimary/cast!drop-1	(a AS NULL)
+reject	reject	grammar	exprPrimary/cast!drop-2	CAST a AS NULL)
+reject	reject	grammar	exprPrimary/cast!drop-3	CAST(AS NULL)
+reject	reject	grammar	exprPrimary/cast!drop-4	CAST(a NULL)
+reject	reject	grammar	exprPrimary/cast!drop-5	CAST(a AS)
+reject	reject	grammar	exprPrimary/cast!drop-6	CAST(a AS NULL
+reject	reject	grammar	exprPrimary/cast!insert	CAST(a AS NULL) zzz
+reject	reject	grammar	exprPrimary/cast!swap	CATALOG(a AS NULL)
+reject	accept	grammar	exprPrimary/sequenceConstructor	LIST()
+reject	reject	grammar	exprPrimary/sequenceConstructor!drop-1	()
+reject	reject	grammar	exprPrimary/sequenceConstructor!drop-2	LIST)
+reject	reject	grammar	exprPrimary/sequenceConstructor!drop-3	LIST(
+reject	reject	grammar	exprPrimary/sequenceConstructor!insert	LIST() zzz
+reject	reject	grammar	exprPrimary/sequenceConstructor!swap	LOCAL()
+reject	accept	grammar	exprPrimary/substring	SUBSTRING(a)
+reject	reject	grammar	exprPrimary/substring!drop-2	SUBSTRING a)
+reject	reject	grammar	exprPrimary/substring!drop-3	SUBSTRING()
+reject	reject	grammar	exprPrimary/substring!drop-4	SUBSTRING(a
+reject	reject	grammar	exprPrimary/substring!insert	SUBSTRING(a) zzz
+reject	accept	grammar	exprPrimary/position	POSITION(a, a)
+reject	reject	grammar	exprPrimary/position!drop-2	POSITION a, a)
+reject	reject	grammar	exprPrimary/position!drop-3	POSITION(, a)
+reject	reject	grammar	exprPrimary/position!drop-4	POSITION(a a)
+reject	reject	grammar	exprPrimary/position!drop-5	POSITION(a,)
+reject	reject	grammar	exprPrimary/position!drop-6	POSITION(a, a
+reject	reject	grammar	exprPrimary/position!insert	POSITION(a, a) zzz
+reject	reject	grammar	exprPrimary/position!swap	PRECISION(a, a)
+reject	accept	grammar	exprPrimary/overlay	OVERLAY(a, a, a)
+reject	reject	grammar	exprPrimary/overlay!drop-2	OVERLAY a, a, a)
+reject	reject	grammar	exprPrimary/overlay!drop-3	OVERLAY(, a, a)
+reject	reject	grammar	exprPrimary/overlay!drop-4	OVERLAY(a a, a)
+reject	reject	grammar	exprPrimary/overlay!drop-5	OVERLAY(a,, a)
+reject	reject	grammar	exprPrimary/overlay!drop-6	OVERLAY(a, a a)
+reject	reject	grammar	exprPrimary/overlay!drop-7	OVERLAY(a, a,)
+reject	reject	grammar	exprPrimary/overlay!drop-8	OVERLAY(a, a, a
+reject	reject	grammar	exprPrimary/overlay!insert	OVERLAY(a, a, a) zzz
+reject	reject	grammar	exprPrimary/overlay!swap	PAD(a, a, a)
+reject	accept	grammar	exprPrimary/canCast	CAN_CAST(a AS NULL)
+reject	reject	grammar	exprPrimary/canCast!drop-2	CAN_CAST a AS NULL)
+reject	reject	grammar	exprPrimary/canCast!drop-3	CAN_CAST(AS NULL)
+reject	reject	grammar	exprPrimary/canCast!drop-4	CAN_CAST(a NULL)
+reject	reject	grammar	exprPrimary/canCast!drop-5	CAN_CAST(a AS)
+reject	reject	grammar	exprPrimary/canCast!drop-6	CAN_CAST(a AS NULL
+reject	reject	grammar	exprPrimary/canCast!insert	CAN_CAST(a AS NULL) zzz
+reject	accept	grammar	exprPrimary/canLosslessCast	CAN_LOSSLESS_CAST(a AS NULL)
+reject	reject	grammar	exprPrimary/canLosslessCast!drop-2	CAN_LOSSLESS_CAST a AS NULL)
+reject	reject	grammar	exprPrimary/canLosslessCast!drop-3	CAN_LOSSLESS_CAST(AS NULL)
+reject	reject	grammar	exprPrimary/canLosslessCast!drop-4	CAN_LOSSLESS_CAST(a NULL)
+reject	reject	grammar	exprPrimary/canLosslessCast!drop-5	CAN_LOSSLESS_CAST(a AS)
+reject	reject	grammar	exprPrimary/canLosslessCast!drop-6	CAN_LOSSLESS_CAST(a AS NULL
+reject	reject	grammar	exprPrimary/canLosslessCast!insert	CAN_LOSSLESS_CAST(a AS NULL) zzz
+reject	reject	grammar	exprPrimary/canLosslessCast!swap	CASCADE(a AS NULL)
+reject	reject	grammar	exprPrimary/extract	EXTRACT(a FROM a)
+reject	reject	grammar	exprPrimary/extract!drop-1	(a FROM a)
+reject	reject	grammar	exprPrimary/extract!drop-2	EXTRACT a FROM a)
+reject	reject	grammar	exprPrimary/extract!drop-3	EXTRACT(FROM a)
+reject	reject	grammar	exprPrimary/extract!drop-4	EXTRACT(a a)
+reject	reject	grammar	exprPrimary/extract!drop-5	EXTRACT(a FROM)
+reject	reject	grammar	exprPrimary/extract!drop-6	EXTRACT(a FROM a
+reject	reject	grammar	exprPrimary/extract!insert	EXTRACT(a FROM a) zzz
+reject	reject	grammar	exprPrimary/extract!swap	FALSE(a FROM a)
+reject	accept	grammar	exprPrimary/coalesce	COALESCE(a)
+reject	reject	grammar	exprPrimary/coalesce!drop-2	COALESCE a)
+reject	reject	grammar	exprPrimary/coalesce!drop-3	COALESCE()
+reject	reject	grammar	exprPrimary/coalesce!drop-4	COALESCE(a
+reject	reject	grammar	exprPrimary/coalesce!insert	COALESCE(a) zzz
+reject	reject	grammar	exprPrimary/coalesce!swap	COLLATE(a)
+reject	reject	grammar	exprPrimary/dateFunction	DATE_ADD(a, a, a)
+reject	reject	grammar	exprPrimary/dateFunction!drop-2	DATE_ADD a, a, a)
+reject	reject	grammar	exprPrimary/dateFunction!drop-3	DATE_ADD(, a, a)
+reject	reject	grammar	exprPrimary/dateFunction!drop-4	DATE_ADD(a a, a)
+reject	reject	grammar	exprPrimary/dateFunction!drop-5	DATE_ADD(a,, a)
+reject	reject	grammar	exprPrimary/dateFunction!drop-6	DATE_ADD(a, a a)
+reject	reject	grammar	exprPrimary/dateFunction!drop-7	DATE_ADD(a, a,)
+reject	reject	grammar	exprPrimary/dateFunction!drop-8	DATE_ADD(a, a, a
+reject	reject	grammar	exprPrimary/dateFunction!insert	DATE_ADD(a, a, a) zzz
+reject	accept	grammar	exprPrimary/aggregate	COUNT(*)
+reject	reject	grammar	exprPrimary/aggregate!drop-1	(*)
+reject	reject	grammar	exprPrimary/aggregate!drop-2	COUNT *)
+reject	reject	grammar	exprPrimary/aggregate!drop-4	COUNT(*
+reject	reject	grammar	exprPrimary/aggregate!insert	COUNT(*) zzz
+reject	reject	grammar	exprPrimary/aggregate!swap	CREATE(*)
+reject	accept	grammar	exprPrimary/trimFunction	TRIM(a)
+reject	reject	grammar	exprPrimary/trimFunction!drop-2	TRIM a)
+reject	reject	grammar	exprPrimary/trimFunction!drop-3	TRIM()
+reject	reject	grammar	exprPrimary/trimFunction!drop-4	TRIM(a
+reject	reject	grammar	exprPrimary/trimFunction!insert	TRIM(a) zzz
+reject	reject	grammar	exprPrimary/trimFunction!swap	TRUE(a)
+reject	accept	grammar	exprPrimary/functionCall	CHAR_LENGTH()
+reject	reject	grammar	exprPrimary/functionCall!drop-2	CHAR_LENGTH)
+reject	reject	grammar	exprPrimary/functionCall!drop-3	CHAR_LENGTH(
+reject	reject	grammar	exprPrimary/functionCall!insert	CHAR_LENGTH() zzz
+reject	reject	grammar	exprPrimary/functionCall!swap	CHECK()
+reject	accept	grammar	exprPrimary/nullIf	NULLIF(a, a)
+reject	reject	grammar	exprPrimary/nullIf!drop-2	NULLIF a, a)
+reject	reject	grammar	exprPrimary/nullIf!drop-3	NULLIF(, a)
+reject	reject	grammar	exprPrimary/nullIf!drop-4	NULLIF(a a)
+reject	reject	grammar	exprPrimary/nullIf!drop-5	NULLIF(a,)
+reject	reject	grammar	exprPrimary/nullIf!drop-6	NULLIF(a, a
+reject	reject	grammar	exprPrimary/nullIf!insert	NULLIF(a, a) zzz
+reject	reject	grammar	exprPrimary/nullIf!swap	NULLS(a, a)
+reject	accept	grammar	exprPrimary/exprPrimary_(pathStep)+	a.a
+reject	reject	grammar	exprPrimary/exprPrimary_(pathStep)+!drop-1	.a
+reject	reject	grammar	exprPrimary/exprPrimary_(pathStep)+!drop-3	a.
+reject	reject	grammar	exprPrimary/exprPrimary_(pathStep)+!insert	a.a zzz
+reject	accept	grammar	exprPrimary/exprGraphMatchMany	(a MATCH)
+reject	reject	grammar	exprPrimary/exprGraphMatchMany!drop-1	a MATCH)
+reject	reject	grammar	exprPrimary/exprGraphMatchMany!drop-2	(MATCH)
+reject	reject	grammar	exprPrimary/exprGraphMatchMany!insert	(a MATCH) zzz
+reject	reject	grammar	exprPrimary/exprGraphMatchMany!swap	(a MAX)
+reject	accept	grammar	exprPrimary/caseExpr	CASE WHEN a THEN a END
+reject	reject	grammar	exprPrimary/caseExpr!drop-1	WHEN a THEN a END
+reject	reject	grammar	exprPrimary/caseExpr!drop-2	CASE a THEN a END
+reject	reject	grammar	exprPrimary/caseExpr!drop-3	CASE WHEN THEN a END
+reject	reject	grammar	exprPrimary/caseExpr!drop-4	CASE WHEN a a END
+reject	reject	grammar	exprPrimary/caseExpr!drop-5	CASE WHEN a THEN END
+reject	reject	grammar	exprPrimary/caseExpr!drop-6	CASE WHEN a THEN a
+reject	reject	grammar	exprPrimary/caseExpr!insert	CASE WHEN a THEN a END zzz
+reject	reject	grammar	exprPrimary/caseExpr!swap	CAST WHEN a THEN a END
+reject	accept	grammar	exprPrimary/valueList	(a, a)
+reject	reject	grammar	exprPrimary/valueList!drop-1	a, a)
+reject	reject	grammar	exprPrimary/valueList!drop-2	(, a)
+reject	reject	grammar	exprPrimary/valueList!drop-3	(a a)
+reject	reject	grammar	exprPrimary/valueList!drop-4	(a,)
+reject	reject	grammar	exprPrimary/valueList!drop-5	(a, a
+reject	reject	grammar	exprPrimary/valueList!insert	(a, a) zzz
+reject	accept	grammar	exprPrimary/values	VALUES(a)
+reject	reject	grammar	exprPrimary/values!drop-2	VALUES a)
+reject	reject	grammar	exprPrimary/values!drop-3	VALUES()
+reject	reject	grammar	exprPrimary/values!drop-4	VALUES(a
+reject	reject	grammar	exprPrimary/values!insert	VALUES(a) zzz
+reject	reject	grammar	exprPrimary/values!swap	VARCHAR(a)
+reject	reject	grammar	exprPrimary/windowFunction	LAG(a) OVER()
+reject	reject	grammar	exprPrimary/windowFunction!drop-1	(a) OVER()
+reject	reject	grammar	exprPrimary/windowFunction!drop-2	LAG a) OVER()
+reject	reject	grammar	exprPrimary/windowFunction!drop-3	LAG() OVER()
+reject	reject	grammar	exprPrimary/windowFunction!drop-4	LAG(a OVER()
+reject	reject	grammar	exprPrimary/windowFunction!swap	LANGUAGE(a) OVER()
+reject	accept	grammar	exprPrimary(pathStep)+/pathStep	a.a
+reject	accept	grammar	exprPrimary(pathStep)+/pathStep_(pathStep)+	a.a.a
+reject	reject	grammar	exprPrimary(pathStep)+/pathStep_(pathStep)+!drop-1	a a.a
+reject	reject	grammar	exprPrimary(pathStep)+/pathStep_(pathStep)+!drop-2	a..a
+reject	reject	grammar	exprPrimary(pathStep)+/pathStep_(pathStep)+!drop-3	a.a a
+reject	reject	grammar	exprPrimary(pathStep)+/pathStep_(pathStep)+!drop-4	a.a.
+reject	reject	grammar	exprPrimary(pathStep)+/pathStep_(pathStep)+!insert	a.a.a zzz
+reject	accept	grammar	exprTerm/PAREN_LEFT_expr_PAREN_RIGHT	(a)
+reject	reject	grammar	exprTerm/PAREN_LEFT_expr_PAREN_RIGHT!drop-1	a)
+reject	reject	grammar	exprTerm/PAREN_LEFT_expr_PAREN_RIGHT!drop-3	(a
+reject	reject	grammar	exprTerm/PAREN_LEFT_expr_PAREN_RIGHT!insert	(a) zzz
+reject	accept	grammar	exprTerm/CURRENT_USER	CURRENT_USER
+reject	reject	grammar	exprTerm/CURRENT_USER!insert	CURRENT_USER zzz
+reject	reject	grammar	exprTerm/CURRENT_USER!swap	CURSOR
+reject	accept	grammar	exprTerm/CURRENT_DATE	CURRENT_DATE
+reject	reject	grammar	exprTerm/CURRENT_DATE!insert	CURRENT_DATE zzz
+reject	reject	grammar	exprTerm/CURRENT_DATE!swap	CURRENT_TIME
+reject	accept	grammar	exprTerm/parameter	?
+reject	reject	grammar	exprTerm/parameter!insert	? zzz
+reject	accept	grammar	exprTerm/varRefExpr	a
+reject	accept	grammar	exprTerm/literal	NULL
+reject	reject	grammar	exprTerm/literal!insert	NULL zzz
+reject	reject	grammar	exprTerm/literal!swap	NULLIF
+reject	accept	grammar	exprTerm/collection	[ ]
+reject	reject	grammar	exprTerm/collection!drop-1	]
+reject	reject	grammar	exprTerm/collection!drop-2	[
+reject	reject	grammar	exprTerm/collection!insert	[ ] zzz
+reject	accept	grammar	exprTerm/tuple	{ }
+reject	reject	grammar	exprTerm/tuple!drop-1	}
+reject	reject	grammar	exprTerm/tuple!drop-2	{
+reject	reject	grammar	exprTerm/tuple!insert	{ } zzz
+reject	accept	grammar	nullIf/NULLIF_PAREN_LEFT_expr_COMMA_expr_PAREN_RIGHT	NULLIF(a, a)
+reject	accept	grammar	coalesce/COALESCE_PAREN_LEFT_expr_(COMMA_expr)*_PAREN_RIGHT	COALESCE(a)
+reject	accept	grammar	coalesce(COMMA_expr)*/%empty	COALESCE(a)
+reject	reject	grammar	coalesce(COMMA_expr)*/%empty!insert	COALESCE(a zzz)
+reject	accept	grammar	coalesce(COMMA_expr)*/COMMA_expr_(COMMA_expr)*	COALESCE(a, a)
+reject	reject	grammar	coalesce(COMMA_expr)*/COMMA_expr_(COMMA_expr)*!drop-1	COALESCE(a a)
+reject	reject	grammar	coalesce(COMMA_expr)*/COMMA_expr_(COMMA_expr)*!drop-2	COALESCE(a,)
+reject	reject	grammar	coalesce(COMMA_expr)*/COMMA_expr_(COMMA_expr)*!truncate	COALESCE(a,
+reject	reject	grammar	coalesce(COMMA_expr)*/COMMA_expr_(COMMA_expr)*!insert	COALESCE(a, a zzz)
+reject	accept	grammar	caseExpr/CASE_(expr)?_(WHEN_expr_THEN_expr)+_(ELSE_expr)?_END	CASE WHEN a THEN a END
+reject	accept	grammar	caseExpr(expr)?/%empty	CASE WHEN a THEN a END
+reject	accept	grammar	caseExpr(expr)?/%empty!insert	CASE zzz WHEN a THEN a END
+reject	accept	grammar	caseExpr(expr)?/expr	CASE a WHEN a THEN a END
+reject	reject	grammar	caseExpr(expr)?/expr!truncate	CASE
+reject	reject	grammar	caseExpr(expr)?/expr!insert	CASE a zzz WHEN a THEN a END
+reject	accept	grammar	caseExpr(WHEN_expr_THEN_expr)+/WHEN_expr_THEN_expr	CASE WHEN a THEN a END
+reject	reject	grammar	caseExpr(WHEN_expr_THEN_expr)+/WHEN_expr_THEN_expr!truncate	CASE WHEN a THEN
+reject	reject	grammar	caseExpr(WHEN_expr_THEN_expr)+/WHEN_expr_THEN_expr!insert	CASE WHEN a THEN a zzz END
+reject	reject	grammar	caseExpr(WHEN_expr_THEN_expr)+/WHEN_expr_THEN_expr!swap	CASE WHENEVER a THEN a END
+reject	accept	grammar	caseExpr(WHEN_expr_THEN_expr)+/WHEN_expr_THEN_expr_(WHEN_expr_THEN_expr)+	CASE WHEN a THEN a WHEN a THEN a END
+reject	reject	grammar	caseExpr(WHEN_expr_THEN_expr)+/WHEN_expr_THEN_expr_(WHEN_expr_THEN_expr)+!drop-1	CASE a THEN a WHEN a THEN a END
+reject	reject	grammar	caseExpr(WHEN_expr_THEN_expr)+/WHEN_expr_THEN_expr_(WHEN_expr_THEN_expr)+!drop-2	CASE WHEN THEN a WHEN a THEN a END
+reject	reject	grammar	caseExpr(WHEN_expr_THEN_expr)+/WHEN_expr_THEN_expr_(WHEN_expr_THEN_expr)+!drop-3	CASE WHEN a a WHEN a THEN a END
+reject	reject	grammar	caseExpr(WHEN_expr_THEN_expr)+/WHEN_expr_THEN_expr_(WHEN_expr_THEN_expr)+!drop-4	CASE WHEN a THEN WHEN a THEN a END
+reject	reject	grammar	caseExpr(WHEN_expr_THEN_expr)+/WHEN_expr_THEN_expr_(WHEN_expr_THEN_expr)+!drop-5	CASE WHEN a THEN a a THEN a END
+reject	reject	grammar	caseExpr(WHEN_expr_THEN_expr)+/WHEN_expr_THEN_expr_(WHEN_expr_THEN_expr)+!drop-6	CASE WHEN a THEN a WHEN THEN a END
+reject	reject	grammar	caseExpr(WHEN_expr_THEN_expr)+/WHEN_expr_THEN_expr_(WHEN_expr_THEN_expr)+!drop-7	CASE WHEN a THEN a WHEN a a END
+reject	reject	grammar	caseExpr(WHEN_expr_THEN_expr)+/WHEN_expr_THEN_expr_(WHEN_expr_THEN_expr)+!drop-8	CASE WHEN a THEN a WHEN a THEN END
+reject	reject	grammar	caseExpr(WHEN_expr_THEN_expr)+/WHEN_expr_THEN_expr_(WHEN_expr_THEN_expr)+!truncate	CASE WHEN a THEN a WHEN a THEN
+reject	reject	grammar	caseExpr(WHEN_expr_THEN_expr)+/WHEN_expr_THEN_expr_(WHEN_expr_THEN_expr)+!insert	CASE WHEN a THEN a WHEN a THEN a zzz END
+reject	reject	grammar	caseExpr(WHEN_expr_THEN_expr)+/WHEN_expr_THEN_expr_(WHEN_expr_THEN_expr)+!swap	CASE WHENEVER a THEN a WHEN a THEN a END
+reject	accept	grammar	caseExpr(ELSE_expr)?/%empty	CASE WHEN a THEN a END
+reject	accept	grammar	caseExpr(ELSE_expr)?/ELSE_expr	CASE WHEN a THEN a ELSE a END
+reject	reject	grammar	caseExpr(ELSE_expr)?/ELSE_expr!drop-1	CASE WHEN a THEN a a END
+reject	reject	grammar	caseExpr(ELSE_expr)?/ELSE_expr!drop-2	CASE WHEN a THEN a ELSE END
+reject	reject	grammar	caseExpr(ELSE_expr)?/ELSE_expr!truncate	CASE WHEN a THEN a ELSE
+reject	reject	grammar	caseExpr(ELSE_expr)?/ELSE_expr!insert	CASE WHEN a THEN a ELSE a zzz END
+reject	reject	grammar	caseExpr(ELSE_expr)?/ELSE_expr!swap	CASE WHEN a THEN a END a END
+reject	accept	grammar	values/VALUES_valueRow_(COMMA_valueRow)*	VALUES(a)
+reject	accept	grammar	values(COMMA_valueRow)*/%empty	VALUES(a)
+reject	accept	grammar	values(COMMA_valueRow)*/COMMA_valueRow_(COMMA_valueRow)*	VALUES(a),(a)
+reject	reject	grammar	values(COMMA_valueRow)*/COMMA_valueRow_(COMMA_valueRow)*!drop-1	VALUES(a)(a)
+reject	reject	grammar	values(COMMA_valueRow)*/COMMA_valueRow_(COMMA_valueRow)*!drop-2	VALUES(a), a)
+reject	reject	grammar	values(COMMA_valueRow)*/COMMA_valueRow_(COMMA_valueRow)*!drop-3	VALUES(a),()
+reject	reject	grammar	values(COMMA_valueRow)*/COMMA_valueRow_(COMMA_valueRow)*!drop-4	VALUES(a),(a
+reject	reject	grammar	values(COMMA_valueRow)*/COMMA_valueRow_(COMMA_valueRow)*!insert	VALUES(a),(a) zzz
+reject	accept	grammar	valueRow/PAREN_LEFT_expr_(COMMA_expr)*_PAREN_RIGHT	VALUES(a)
+reject	accept	grammar	valueRow(COMMA_expr)*/%empty	VALUES(a)
+reject	reject	grammar	valueRow(COMMA_expr)*/%empty!insert	VALUES(a zzz)
+reject	accept	grammar	valueRow(COMMA_expr)*/COMMA_expr_(COMMA_expr)*	VALUES(a, a)
+reject	reject	grammar	valueRow(COMMA_expr)*/COMMA_expr_(COMMA_expr)*!drop-1	VALUES(a a)
+reject	reject	grammar	valueRow(COMMA_expr)*/COMMA_expr_(COMMA_expr)*!drop-2	VALUES(a,)
+reject	reject	grammar	valueRow(COMMA_expr)*/COMMA_expr_(COMMA_expr)*!truncate	VALUES(a,
+reject	reject	grammar	valueRow(COMMA_expr)*/COMMA_expr_(COMMA_expr)*!insert	VALUES(a, a zzz)
+reject	accept	grammar	valueList/PAREN_LEFT_expr_(COMMA_expr)+_PAREN_RIGHT	(a, a)
+reject	accept	grammar	valueList(COMMA_expr)+/COMMA_expr	(a, a)
+reject	reject	grammar	valueList(COMMA_expr)+/COMMA_expr!truncate	(a,
+reject	reject	grammar	valueList(COMMA_expr)+/COMMA_expr!insert	(a, a zzz)
+reject	accept	grammar	valueList(COMMA_expr)+/COMMA_expr_(COMMA_expr)+	(a, a, a)
+reject	reject	grammar	valueList(COMMA_expr)+/COMMA_expr_(COMMA_expr)+!drop-1	(a a, a)
+reject	reject	grammar	valueList(COMMA_expr)+/COMMA_expr_(COMMA_expr)+!drop-2	(a,, a)
+reject	reject	grammar	valueList(COMMA_expr)+/COMMA_expr_(COMMA_expr)+!drop-3	(a, a a)
+reject	reject	grammar	valueList(COMMA_expr)+/COMMA_expr_(COMMA_expr)+!drop-4	(a, a,)
+reject	reject	grammar	valueList(COMMA_expr)+/COMMA_expr_(COMMA_expr)+!truncate	(a, a,
+reject	reject	grammar	valueList(COMMA_expr)+/COMMA_expr_(COMMA_expr)+!insert	(a, a, a zzz)
+reject	accept	grammar	sequenceConstructor/(LIST|SEXP)_PAREN_LEFT_(expr_(COMMA_expr)*)?_PAREN_RIGHT	LIST()
+reject	accept	grammar	sequenceConstructor(LIST|SEXP)/LIST	LIST()
+reject	reject	grammar	sequenceConstructor(LIST|SEXP)/LIST!insert	LIST zzz()
+reject	accept	grammar	sequenceConstructor(LIST|SEXP)/SEXP	SEXP()
+reject	reject	grammar	sequenceConstructor(LIST|SEXP)/SEXP!insert	SEXP zzz()
+reject	reject	grammar	sequenceConstructor(LIST|SEXP)/SEXP!swap	SHORTEST()
+reject	accept	grammar	sequenceConstructor(expr_(COMMA_expr)*)?/%empty	LIST()
+reject	accept	grammar	sequenceConstructor(expr_(COMMA_expr)*)?/%empty!insert	LIST(zzz)
+reject	accept	grammar	sequenceConstructor(expr_(COMMA_expr)*)?/expr_(COMMA_expr)*	LIST(a)
+reject	reject	grammar	sequenceConstructor(expr_(COMMA_expr)*)?/expr_(COMMA_expr)*!insert	LIST(a zzz)
+reject	accept	grammar	sequenceConstructor(COMMA_expr)*/%empty	LIST(a)
+reject	accept	grammar	sequenceConstructor(COMMA_expr)*/COMMA_expr_(COMMA_expr)*	LIST(a, a)
+reject	reject	grammar	sequenceConstructor(COMMA_expr)*/COMMA_expr_(COMMA_expr)*!drop-1	LIST(a a)
+reject	reject	grammar	sequenceConstructor(COMMA_expr)*/COMMA_expr_(COMMA_expr)*!drop-2	LIST(a,)
+reject	reject	grammar	sequenceConstructor(COMMA_expr)*/COMMA_expr_(COMMA_expr)*!truncate	LIST(a,
+reject	reject	grammar	sequenceConstructor(COMMA_expr)*/COMMA_expr_(COMMA_expr)*!insert	LIST(a, a zzz)
+reject	accept	grammar	substring/SUBSTRING_PAREN_LEFT_expr_(COMMA_expr_(COMMA_expr)?)?_P~9fb60959	SUBSTRING(a)
+reject	accept	grammar	substring/SUBSTRING_PAREN_LEFT_expr_(FROM_expr_(FOR_expr)?)?_PAREN_RIGHT	SUBSTRING(a)
+reject	accept	grammar	substring(COMMA_expr_(COMMA_expr)?)?/%empty	SUBSTRING(a)
+reject	reject	grammar	substring(COMMA_expr_(COMMA_expr)?)?/%empty!insert	SUBSTRING(a zzz)
+reject	accept	grammar	substring(COMMA_expr_(COMMA_expr)?)?/COMMA_expr_(COMMA_expr)?	SUBSTRING(a, a)
+reject	reject	grammar	substring(COMMA_expr_(COMMA_expr)?)?/COMMA_expr_(COMMA_expr)?!drop-1	SUBSTRING(a a)
+reject	reject	grammar	substring(COMMA_expr_(COMMA_expr)?)?/COMMA_expr_(COMMA_expr)?!drop-2	SUBSTRING(a,)
+reject	reject	grammar	substring(COMMA_expr_(COMMA_expr)?)?/COMMA_expr_(COMMA_expr)?!truncate	SUBSTRING(a,
+reject	reject	grammar	substring(COMMA_expr_(COMMA_expr)?)?/COMMA_expr_(COMMA_expr)?!insert	SUBSTRING(a, a zzz)
+reject	accept	grammar	substring(COMMA_expr)?/%empty	SUBSTRING(a, a)
+reject	accept	grammar	substring(COMMA_expr)?/COMMA_expr	SUBSTRING(a, a, a)
+reject	reject	grammar	substring(COMMA_expr)?/COMMA_expr!drop-1	SUBSTRING(a, a a)
+reject	reject	grammar	substring(COMMA_expr)?/COMMA_expr!drop-2	SUBSTRING(a, a,)
+reject	reject	grammar	substring(COMMA_expr)?/COMMA_expr!truncate	SUBSTRING(a, a,
+reject	reject	grammar	substring(COMMA_expr)?/COMMA_expr!insert	SUBSTRING(a, a, a zzz)
+reject	accept	grammar	substring(FROM_expr_(FOR_expr)?)?/%empty	SUBSTRING(a)
+reject	accept	grammar	substring(FROM_expr_(FOR_expr)?)?/FROM_expr_(FOR_expr)?	SUBSTRING(a FROM a)
+reject	reject	grammar	substring(FROM_expr_(FOR_expr)?)?/FROM_expr_(FOR_expr)?!drop-2	SUBSTRING(a FROM)
+reject	reject	grammar	substring(FROM_expr_(FOR_expr)?)?/FROM_expr_(FOR_expr)?!truncate	SUBSTRING(a FROM
+reject	reject	grammar	substring(FROM_expr_(FOR_expr)?)?/FROM_expr_(FOR_expr)?!insert	SUBSTRING(a FROM a zzz)
+reject	reject	grammar	substring(FROM_expr_(FOR_expr)?)?/FROM_expr_(FOR_expr)?!swap	SUBSTRING(a FULL a)
+reject	accept	grammar	substring(FOR_expr)?/%empty	SUBSTRING(a FROM a)
+reject	accept	grammar	substring(FOR_expr)?/FOR_expr	SUBSTRING(a FROM a FOR a)
+reject	reject	grammar	substring(FOR_expr)?/FOR_expr!drop-1	SUBSTRING(a FROM a a)
+reject	reject	grammar	substring(FOR_expr)?/FOR_expr!drop-2	SUBSTRING(a FROM a FOR)
+reject	reject	grammar	substring(FOR_expr)?/FOR_expr!truncate	SUBSTRING(a FROM a FOR
+reject	reject	grammar	substring(FOR_expr)?/FOR_expr!insert	SUBSTRING(a FROM a FOR a zzz)
+reject	reject	grammar	substring(FOR_expr)?/FOR_expr!swap	SUBSTRING(a FROM a FOREIGN a)
+reject	accept	grammar	position/POSITION_PAREN_LEFT_expr_COMMA_expr_PAREN_RIGHT	POSITION(a, a)
+reject	accept	grammar	position/POSITION_PAREN_LEFT_expr_IN_expr_PAREN_RIGHT	POSITION(a IN a)
+reject	accept	grammar	position/POSITION_PAREN_LEFT_expr_IN_expr_PAREN_RIGHT!drop-1	(a IN a)
+reject	reject	grammar	position/POSITION_PAREN_LEFT_expr_IN_expr_PAREN_RIGHT!drop-2	POSITION a IN a)
+reject	reject	grammar	position/POSITION_PAREN_LEFT_expr_IN_expr_PAREN_RIGHT!drop-3	POSITION(IN a)
+reject	reject	grammar	position/POSITION_PAREN_LEFT_expr_IN_expr_PAREN_RIGHT!drop-5	POSITION(a IN)
+reject	reject	grammar	position/POSITION_PAREN_LEFT_expr_IN_expr_PAREN_RIGHT!drop-6	POSITION(a IN a
+reject	reject	grammar	position/POSITION_PAREN_LEFT_expr_IN_expr_PAREN_RIGHT!insert	POSITION(a IN a) zzz
+reject	reject	grammar	position/POSITION_PAREN_LEFT_expr_IN_expr_PAREN_RIGHT!swap	PRECISION(a IN a)
+reject	accept	grammar	overlay/OVERLAY_PAREN_LEFT_expr_COMMA_expr_COMMA_expr_(COMMA_ex~e6c1b0ad	OVERLAY(a, a, a)
+reject	accept	grammar	overlay/OVERLAY_PAREN_LEFT_expr_PLACING_expr_FROM_expr_(FOR_exp~de4465d8	OVERLAY(a PLACING a FROM a)
+reject	reject	grammar	overlay/OVERLAY_PAREN_LEFT_expr_PLACING_expr_FROM_expr_(FOR_exp~de4465d8!drop-1	(a PLACING a FROM a)
+reject	reject	grammar	overlay/OVERLAY_PAREN_LEFT_expr_PLACING_expr_FROM_expr_(FOR_exp~de4465d8!drop-2	OVERLAY a PLACING a FROM a)
+reject	reject	grammar	overlay/OVERLAY_PAREN_LEFT_expr_PLACING_expr_FROM_expr_(FOR_exp~de4465d8!drop-3	OVERLAY(PLACING a FROM a)
+reject	reject	grammar	overlay/OVERLAY_PAREN_LEFT_expr_PLACING_expr_FROM_expr_(FOR_exp~de4465d8!drop-4	OVERLAY(a a FROM a)
+reject	reject	grammar	overlay/OVERLAY_PAREN_LEFT_expr_PLACING_expr_FROM_expr_(FOR_exp~de4465d8!drop-5	OVERLAY(a PLACING FROM a)
+reject	reject	grammar	overlay/OVERLAY_PAREN_LEFT_expr_PLACING_expr_FROM_expr_(FOR_exp~de4465d8!drop-6	OVERLAY(a PLACING a a)
+reject	reject	grammar	overlay/OVERLAY_PAREN_LEFT_expr_PLACING_expr_FROM_expr_(FOR_exp~de4465d8!drop-7	OVERLAY(a PLACING a FROM)
+reject	reject	grammar	overlay/OVERLAY_PAREN_LEFT_expr_PLACING_expr_FROM_expr_(FOR_exp~de4465d8!drop-8	OVERLAY(a PLACING a FROM a
+reject	reject	grammar	overlay/OVERLAY_PAREN_LEFT_expr_PLACING_expr_FROM_expr_(FOR_exp~de4465d8!insert	OVERLAY(a PLACING a FROM a) zzz
+reject	reject	grammar	overlay/OVERLAY_PAREN_LEFT_expr_PLACING_expr_FROM_expr_(FOR_exp~de4465d8!swap	PAD(a PLACING a FROM a)
+reject	accept	grammar	overlay(COMMA_expr)?/%empty	OVERLAY(a, a, a)
+reject	reject	grammar	overlay(COMMA_expr)?/%empty!insert	OVERLAY(a, a, a zzz)
+reject	accept	grammar	overlay(COMMA_expr)?/COMMA_expr	OVERLAY(a, a, a, a)
+reject	reject	grammar	overlay(COMMA_expr)?/COMMA_expr!drop-1	OVERLAY(a, a, a a)
+reject	reject	grammar	overlay(COMMA_expr)?/COMMA_expr!drop-2	OVERLAY(a, a, a,)
+reject	reject	grammar	overlay(COMMA_expr)?/COMMA_expr!truncate	OVERLAY(a, a, a,
+reject	reject	grammar	overlay(COMMA_expr)?/COMMA_expr!insert	OVERLAY(a, a, a, a zzz)
+reject	accept	grammar	overlay(FOR_expr)?/%empty	OVERLAY(a PLACING a FROM a)
+reject	reject	grammar	overlay(FOR_expr)?/%empty!insert	OVERLAY(a PLACING a FROM a zzz)
+reject	accept	grammar	overlay(FOR_expr)?/FOR_expr	OVERLAY(a PLACING a FROM a FOR a)
+reject	reject	grammar	overlay(FOR_expr)?/FOR_expr!drop-1	OVERLAY(a PLACING a FROM a a)
+reject	reject	grammar	overlay(FOR_expr)?/FOR_expr!drop-2	OVERLAY(a PLACING a FROM a FOR)
+reject	reject	grammar	overlay(FOR_expr)?/FOR_expr!truncate	OVERLAY(a PLACING a FROM a FOR
+reject	reject	grammar	overlay(FOR_expr)?/FOR_expr!insert	OVERLAY(a PLACING a FROM a FOR a zzz)
+reject	reject	grammar	overlay(FOR_expr)?/FOR_expr!swap	OVERLAY(a PLACING a FROM a FOREIGN a)
+reject	accept	grammar	aggregate/COUNT_PAREN_LEFT_ASTERISK_PAREN_RIGHT	COUNT(*)
+reject	accept	grammar	aggregate/(COUNT|MAX|MIN|SUM|AVG|EVERY|ANY|SOME)_PAREN_LEFT_(setQ~3b4e3344	COUNT(a)
+reject	reject	grammar	aggregate/(COUNT|MAX|MIN|SUM|AVG|EVERY|ANY|SOME)_PAREN_LEFT_(setQ~3b4e3344!drop-2	COUNT a)
+reject	reject	grammar	aggregate/(COUNT|MAX|MIN|SUM|AVG|EVERY|ANY|SOME)_PAREN_LEFT_(setQ~3b4e3344!drop-4	COUNT(a
+reject	reject	grammar	aggregate/(COUNT|MAX|MIN|SUM|AVG|EVERY|ANY|SOME)_PAREN_LEFT_(setQ~3b4e3344!insert	COUNT(a) zzz
+reject	reject	grammar	aggregate/(COUNT|MAX|MIN|SUM|AVG|EVERY|ANY|SOME)_PAREN_LEFT_(setQ~3b4e3344!swap	CREATE(a)
+reject	accept	grammar	aggregate(COUNT|MAX|MIN|SUM|AVG|EVERY|ANY|SOME)/COUNT	COUNT(a)
+reject	reject	grammar	aggregate(COUNT|MAX|MIN|SUM|AVG|EVERY|ANY|SOME)/COUNT!insert	COUNT zzz(a)
+reject	accept	grammar	aggregate(COUNT|MAX|MIN|SUM|AVG|EVERY|ANY|SOME)/MAX	MAX(a)
+reject	reject	grammar	aggregate(COUNT|MAX|MIN|SUM|AVG|EVERY|ANY|SOME)/MAX!insert	MAX zzz(a)
+reject	accept	grammar	aggregate(COUNT|MAX|MIN|SUM|AVG|EVERY|ANY|SOME)/MIN	MIN(a)
+reject	reject	grammar	aggregate(COUNT|MAX|MIN|SUM|AVG|EVERY|ANY|SOME)/MIN!insert	MIN zzz(a)
+reject	reject	grammar	aggregate(COUNT|MAX|MIN|SUM|AVG|EVERY|ANY|SOME)/MIN!swap	MISSING(a)
+reject	accept	grammar	aggregate(COUNT|MAX|MIN|SUM|AVG|EVERY|ANY|SOME)/SUM	SUM(a)
+reject	reject	grammar	aggregate(COUNT|MAX|MIN|SUM|AVG|EVERY|ANY|SOME)/SUM!insert	SUM zzz(a)
+reject	reject	grammar	aggregate(COUNT|MAX|MIN|SUM|AVG|EVERY|ANY|SOME)/SUM!swap	SYMBOL(a)
+reject	accept	grammar	aggregate(COUNT|MAX|MIN|SUM|AVG|EVERY|ANY|SOME)/AVG	AVG(a)
+reject	reject	grammar	aggregate(COUNT|MAX|MIN|SUM|AVG|EVERY|ANY|SOME)/AVG!insert	AVG zzz(a)
+reject	reject	grammar	aggregate(COUNT|MAX|MIN|SUM|AVG|EVERY|ANY|SOME)/AVG!swap	BAG(a)
+reject	accept	grammar	aggregate(COUNT|MAX|MIN|SUM|AVG|EVERY|ANY|SOME)/EVERY	EVERY(a)
+reject	reject	grammar	aggregate(COUNT|MAX|MIN|SUM|AVG|EVERY|ANY|SOME)/EVERY!insert	EVERY zzz(a)
+reject	reject	grammar	aggregate(COUNT|MAX|MIN|SUM|AVG|EVERY|ANY|SOME)/EVERY!swap	EXCEPT(a)
+reject	accept	grammar	aggregate(COUNT|MAX|MIN|SUM|AVG|EVERY|ANY|SOME)/ANY	ANY(a)
+reject	reject	grammar	aggregate(COUNT|MAX|MIN|SUM|AVG|EVERY|ANY|SOME)/ANY!insert	ANY zzz(a)
+reject	reject	grammar	aggregate(COUNT|MAX|MIN|SUM|AVG|EVERY|ANY|SOME)/ANY!swap	ARE(a)
+reject	accept	grammar	aggregate(COUNT|MAX|MIN|SUM|AVG|EVERY|ANY|SOME)/SOME	SOME(a)
+reject	reject	grammar	aggregate(COUNT|MAX|MIN|SUM|AVG|EVERY|ANY|SOME)/SOME!insert	SOME zzz(a)
+reject	reject	grammar	aggregate(COUNT|MAX|MIN|SUM|AVG|EVERY|ANY|SOME)/SOME!swap	SPACE(a)
+reject	accept	grammar	aggregate(setQuantifierStrategy)?/%empty	COUNT(a)
+reject	reject	grammar	aggregate(setQuantifierStrategy)?/%empty!insert	COUNT(zzz a)
+reject	accept	grammar	aggregate(setQuantifierStrategy)?/setQuantifierStrategy	COUNT(DISTINCT a)
+reject	reject	grammar	aggregate(setQuantifierStrategy)?/setQuantifierStrategy!truncate	COUNT(
+reject	reject	grammar	aggregate(setQuantifierStrategy)?/setQuantifierStrategy!insert	COUNT(DISTINCT zzz a)
+reject	reject	grammar	aggregate(setQuantifierStrategy)?/setQuantifierStrategy!swap	COUNT(DO a)
+reject	reject	grammar	windowFunction/(LAG|LEAD)_PAREN_LEFT_expr_(COMMA_expr_(COMMA_expr)?)?_~8cf8f6aa	LAG(a) OVER()
+reject	reject	grammar	windowFunction(LAG|LEAD)/LAG	LAG(a) OVER()
+reject	reject	grammar	windowFunction(LAG|LEAD)/LAG!insert	LAG zzz(a) OVER()
+reject	reject	grammar	windowFunction(LAG|LEAD)/LEAD	LEAD(a) OVER()
+reject	reject	grammar	windowFunction(LAG|LEAD)/LEAD!insert	LEAD zzz(a) OVER()
+reject	reject	grammar	windowFunction(LAG|LEAD)/LEAD!swap	LEFT(a) OVER()
+reject	reject	grammar	windowFunction(COMMA_expr_(COMMA_expr)?)?/%empty	LAG(a) OVER()
+reject	reject	grammar	windowFunction(COMMA_expr_(COMMA_expr)?)?/%empty!insert	LAG(a zzz) OVER()
+reject	reject	grammar	windowFunction(COMMA_expr_(COMMA_expr)?)?/COMMA_expr_(COMMA_expr)?	LAG(a, a) OVER()
+reject	reject	grammar	windowFunction(COMMA_expr_(COMMA_expr)?)?/COMMA_expr_(COMMA_expr)?!drop-1	LAG(a a) OVER()
+reject	reject	grammar	windowFunction(COMMA_expr_(COMMA_expr)?)?/COMMA_expr_(COMMA_expr)?!drop-2	LAG(a,) OVER()
+reject	reject	grammar	windowFunction(COMMA_expr_(COMMA_expr)?)?/COMMA_expr_(COMMA_expr)?!truncate	LAG(a,
+reject	reject	grammar	windowFunction(COMMA_expr_(COMMA_expr)?)?/COMMA_expr_(COMMA_expr)?!insert	LAG(a, a zzz) OVER()
+reject	reject	grammar	windowFunction(COMMA_expr)?/%empty	LAG(a, a) OVER()
+reject	reject	grammar	windowFunction(COMMA_expr)?/COMMA_expr	LAG(a, a, a) OVER()
+reject	reject	grammar	windowFunction(COMMA_expr)?/COMMA_expr!drop-1	LAG(a, a a) OVER()
+reject	reject	grammar	windowFunction(COMMA_expr)?/COMMA_expr!drop-2	LAG(a, a,) OVER()
+reject	reject	grammar	windowFunction(COMMA_expr)?/COMMA_expr!truncate	LAG(a, a,
+reject	reject	grammar	windowFunction(COMMA_expr)?/COMMA_expr!insert	LAG(a, a, a zzz) OVER()
+reject	accept	grammar	cast/CAST_PAREN_LEFT_expr_AS_type_PAREN_RIGHT	CAST(a AS NULL)
+reject	accept	grammar	canLosslessCast/CAN_LOSSLESS_CAST_PAREN_LEFT_expr_AS_type_PAREN_RIGHT	CAN_LOSSLESS_CAST(a AS NULL)
+reject	accept	grammar	canCast/CAN_CAST_PAREN_LEFT_expr_AS_type_PAREN_RIGHT	CAN_CAST(a AS NULL)
+reject	reject	grammar	extract/EXTRACT_PAREN_LEFT_IDENTIFIER_FROM_expr_PAREN_RIGHT	EXTRACT(a FROM a)
+reject	accept	grammar	trimFunction/TRIM_PAREN_LEFT_(IDENTIFIER?_expr?_FROM)?_expr_PAREN_RIGHT	TRIM(a)
+reject	accept	grammar	trimFunction(IDENTIFIER?_expr?_FROM)?/%empty	TRIM(a)
+reject	reject	grammar	trimFunction(IDENTIFIER?_expr?_FROM)?/%empty!insert	TRIM(zzz a)
+reject	accept	grammar	trimFunction(IDENTIFIER?_expr?_FROM)?/(IDENTIFIER)?_(expr)?_FROM	TRIM(FROM a)
+reject	reject	grammar	trimFunction(IDENTIFIER?_expr?_FROM)?/(IDENTIFIER)?_(expr)?_FROM!truncate	TRIM(
+reject	reject	grammar	trimFunction(IDENTIFIER?_expr?_FROM)?/(IDENTIFIER)?_(expr)?_FROM!insert	TRIM(FROM zzz a)
+reject	reject	grammar	trimFunction(IDENTIFIER?_expr?_FROM)?/(IDENTIFIER)?_(expr)?_FROM!swap	TRIM(FULL a)
+reject	accept	grammar	trimFunction(IDENTIFIER)?/%empty	TRIM(FROM a)
+reject	accept	grammar	trimFunction(IDENTIFIER)?/%empty!insert	TRIM(zzz FROM a)
+reject	accept	grammar	trimFunction(IDENTIFIER)?/IDENTIFIER	TRIM(a FROM a)
+reject	reject	grammar	trimFunction(IDENTIFIER)?/IDENTIFIER!insert	TRIM(a zzz FROM a)
+reject	accept	grammar	trimFunction(expr)?/%empty	TRIM(FROM a)
+reject	accept	grammar	trimFunction(expr)?/expr	TRIM(a FROM a)
+reject	reject	grammar	dateFunction/(DATE_ADD|DATE_DIFF)_PAREN_LEFT_IDENTIFIER_COMMA_expr_C~9e5bb91c	DATE_ADD(a, a, a)
+reject	reject	grammar	dateFunction(DATE_ADD|DATE_DIFF)/DATE_ADD	DATE_ADD(a, a, a)
+reject	reject	grammar	dateFunction(DATE_ADD|DATE_DIFF)/DATE_ADD!insert	DATE_ADD zzz(a, a, a)
+reject	reject	grammar	dateFunction(DATE_ADD|DATE_DIFF)/DATE_DIFF	DATE_DIFF(a, a, a)
+reject	reject	grammar	dateFunction(DATE_ADD|DATE_DIFF)/DATE_DIFF!insert	DATE_DIFF zzz(a, a, a)
+reject	reject	grammar	dateFunction(DATE_ADD|DATE_DIFF)/DATE_DIFF!swap	DEALLOCATE(a, a, a)
+reject	accept	grammar	functionCall/functionName_PAREN_LEFT_(expr_(COMMA_expr)*)?_PAREN_RIGHT	CHAR_LENGTH()
+reject	accept	grammar	functionCall(expr_(COMMA_expr)*)?/%empty	CHAR_LENGTH()
+reject	accept	grammar	functionCall(expr_(COMMA_expr)*)?/%empty!insert	CHAR_LENGTH(zzz)
+reject	accept	grammar	functionCall(expr_(COMMA_expr)*)?/expr_(COMMA_expr)*	CHAR_LENGTH(a)
+reject	reject	grammar	functionCall(expr_(COMMA_expr)*)?/expr_(COMMA_expr)*!insert	CHAR_LENGTH(a zzz)
+reject	accept	grammar	functionCall(COMMA_expr)*/%empty	CHAR_LENGTH(a)
+reject	accept	grammar	functionCall(COMMA_expr)*/COMMA_expr_(COMMA_expr)*	CHAR_LENGTH(a, a)
+reject	reject	grammar	functionCall(COMMA_expr)*/COMMA_expr_(COMMA_expr)*!drop-1	CHAR_LENGTH(a a)
+reject	reject	grammar	functionCall(COMMA_expr)*/COMMA_expr_(COMMA_expr)*!drop-2	CHAR_LENGTH(a,)
+reject	reject	grammar	functionCall(COMMA_expr)*/COMMA_expr_(COMMA_expr)*!truncate	CHAR_LENGTH(a,
+reject	reject	grammar	functionCall(COMMA_expr)*/COMMA_expr_(COMMA_expr)*!insert	CHAR_LENGTH(a, a zzz)
+reject	accept	grammar	functionName/(symbolPrimitive_PERIOD)*_(CHAR_LENGTH|CHARACTER_LENGTH~db93f7bd	CHAR_LENGTH()
+reject	reject	grammar	functionName/(symbolPrimitive_PERIOD)*_(CHAR_LENGTH|CHARACTER_LENGTH~db93f7bd!insert	CHAR_LENGTH zzz()
+reject	accept	grammar	functionName/(symbolPrimitive_PERIOD)*_symbolPrimitive	a()
+reject	reject	grammar	functionName/(symbolPrimitive_PERIOD)*_symbolPrimitive!insert	a zzz()
+reject	accept	grammar	functionName(symbolPrimitive_PERIOD)*/%empty	CHAR_LENGTH()
+reject	reject	grammar	functionName(symbolPrimitive_PERIOD)*/%empty!insert	zzz CHAR_LENGTH()
+reject	accept	grammar	functionName(symbolPrimitive_PERIOD)*/symbolPrimitive_PERIOD_(symbolPrimitive_PERIOD)*	a.CHAR_LENGTH()
+reject	reject	grammar	functionName(symbolPrimitive_PERIOD)*/symbolPrimitive_PERIOD_(symbolPrimitive_PERIOD)*!drop-1	.CHAR_LENGTH()
+reject	reject	grammar	functionName(symbolPrimitive_PERIOD)*/symbolPrimitive_PERIOD_(symbolPrimitive_PERIOD)*!drop-2	a CHAR_LENGTH()
+reject	reject	grammar	functionName(symbolPrimitive_PERIOD)*/symbolPrimitive_PERIOD_(symbolPrimitive_PERIOD)*!insert	a.zzz CHAR_LENGTH()
+reject	accept	grammar	functionName(CHAR_LENGTH|CHARACTER_LENGTH|OCTET_L~8dd592d2)/CHAR_LENGTH	CHAR_LENGTH()
+reject	accept	grammar	functionName(CHAR_LENGTH|CHARACTER_LENGTH|OCTET_L~8dd592d2)/CHARACTER_LENGTH	CHARACTER_LENGTH()
+reject	reject	grammar	functionName(CHAR_LENGTH|CHARACTER_LENGTH|OCTET_L~8dd592d2)/CHARACTER_LENGTH!insert	CHARACTER_LENGTH zzz()
+reject	accept	grammar	functionName(CHAR_LENGTH|CHARACTER_LENGTH|OCTET_L~8dd592d2)/OCTET_LENGTH	OCTET_LENGTH()
+reject	reject	grammar	functionName(CHAR_LENGTH|CHARACTER_LENGTH|OCTET_L~8dd592d2)/OCTET_LENGTH!insert	OCTET_LENGTH zzz()
+reject	reject	grammar	functionName(CHAR_LENGTH|CHARACTER_LENGTH|OCTET_L~8dd592d2)/OCTET_LENGTH!swap	OF()
+reject	accept	grammar	functionName(CHAR_LENGTH|CHARACTER_LENGTH|OCTET_L~8dd592d2)/BIT_LENGTH	BIT_LENGTH()
+reject	reject	grammar	functionName(CHAR_LENGTH|CHARACTER_LENGTH|OCTET_L~8dd592d2)/BIT_LENGTH!insert	BIT_LENGTH zzz()
+reject	reject	grammar	functionName(CHAR_LENGTH|CHARACTER_LENGTH|OCTET_L~8dd592d2)/BIT_LENGTH!swap	BLOB()
+reject	accept	grammar	functionName(CHAR_LENGTH|CHARACTER_LENGTH|OCTET_L~8dd592d2)/UPPER	UPPER()
+reject	reject	grammar	functionName(CHAR_LENGTH|CHARACTER_LENGTH|OCTET_L~8dd592d2)/UPPER!insert	UPPER zzz()
+reject	reject	grammar	functionName(CHAR_LENGTH|CHARACTER_LENGTH|OCTET_L~8dd592d2)/UPPER!swap	UPSERT()
+reject	accept	grammar	functionName(CHAR_LENGTH|CHARACTER_LENGTH|OCTET_L~8dd592d2)/LOWER	LOWER()
+reject	reject	grammar	functionName(CHAR_LENGTH|CHARACTER_LENGTH|OCTET_L~8dd592d2)/LOWER!insert	LOWER zzz()
+reject	reject	grammar	functionName(CHAR_LENGTH|CHARACTER_LENGTH|OCTET_L~8dd592d2)/LOWER!swap	MATCH()
+reject	accept	grammar	functionName(CHAR_LENGTH|CHARACTER_LENGTH|OCTET_L~8dd592d2)/SIZE	SIZE()
+reject	reject	grammar	functionName(CHAR_LENGTH|CHARACTER_LENGTH|OCTET_L~8dd592d2)/SIZE!insert	SIZE zzz()
+reject	reject	grammar	functionName(CHAR_LENGTH|CHARACTER_LENGTH|OCTET_L~8dd592d2)/SIZE!swap	SMALLINT()
+reject	accept	grammar	functionName(CHAR_LENGTH|CHARACTER_LENGTH|OCTET_L~8dd592d2)/EXISTS	EXISTS()
+reject	reject	grammar	functionName(CHAR_LENGTH|CHARACTER_LENGTH|OCTET_L~8dd592d2)/EXISTS!insert	EXISTS zzz()
+reject	reject	grammar	functionName(CHAR_LENGTH|CHARACTER_LENGTH|OCTET_L~8dd592d2)/EXISTS!swap	EXPLAIN()
+reject	accept	grammar	functionName(CHAR_LENGTH|CHARACTER_LENGTH|OCTET_L~8dd592d2)/COUNT	COUNT()
+reject	reject	grammar	functionName(CHAR_LENGTH|CHARACTER_LENGTH|OCTET_L~8dd592d2)/COUNT!insert	COUNT zzz()
+reject	reject	grammar	functionName(CHAR_LENGTH|CHARACTER_LENGTH|OCTET_L~8dd592d2)/COUNT!swap	CREATE()
+reject	accept	grammar	pathStep/BRACKET_LEFT_expr_BRACKET_RIGHT	a [ a ]
+reject	reject	grammar	pathStep/BRACKET_LEFT_expr_BRACKET_RIGHT!drop-1	a a ]
+reject	reject	grammar	pathStep/BRACKET_LEFT_expr_BRACKET_RIGHT!drop-2	a [ ]
+reject	reject	grammar	pathStep/BRACKET_LEFT_expr_BRACKET_RIGHT!drop-3	a [ a
+reject	reject	grammar	pathStep/BRACKET_LEFT_expr_BRACKET_RIGHT!insert	a [ a ] zzz
+reject	accept	grammar	pathStep/BRACKET_LEFT_ASTERISK_BRACKET_RIGHT	a [ * ]
+reject	reject	grammar	pathStep/BRACKET_LEFT_ASTERISK_BRACKET_RIGHT!drop-1	a * ]
+reject	reject	grammar	pathStep/BRACKET_LEFT_ASTERISK_BRACKET_RIGHT!drop-3	a [ *
+reject	reject	grammar	pathStep/BRACKET_LEFT_ASTERISK_BRACKET_RIGHT!insert	a [ * ] zzz
+reject	accept	grammar	pathStep/PERIOD_symbolPrimitive	a.a
+reject	accept	grammar	pathStep/PERIOD_ASTERISK	a.*
+reject	reject	grammar	pathStep/PERIOD_ASTERISK!drop-1	a *
+reject	reject	grammar	pathStep/PERIOD_ASTERISK!insert	a.* zzz
+reject	accept	grammar	exprGraphMatchMany/PAREN_LEFT_exprPrimary_MATCH_gpmlPatternList_PAREN_RIGHT	(a MATCH)
+accept	accept	grammar	exprGraphMatchOne/exprPrimary_MATCH_gpmlPattern	SELECT * FROM a MATCH
+reject	accept	grammar	parameter/QUESTION_MARK	?
+reject	accept	grammar	varRefExpr/(AT_SIGN)?_(IDENTIFIER|IDENTIFIER_QUOTED)	a
+reject	accept	grammar	varRefExpr/(AT_SIGN)?_nonReservedKeywords	EXCLUDED
+reject	reject	grammar	varRefExpr/(AT_SIGN)?_nonReservedKeywords!insert	EXCLUDED zzz
+reject	accept	grammar	varRefExpr(AT_SIGN)?/%empty	a
+reject	accept	grammar	varRefExpr(AT_SIGN)?/AT_SIGN	@ a
+reject	reject	grammar	varRefExpr(AT_SIGN)?/AT_SIGN!insert	@ zzz a
+reject	accept	grammar	varRefExpr(IDENTIFIER|IDENTIFIER_QUOTED)/IDENTIFIER	a
+reject	accept	grammar	varRefExpr(IDENTIFIER|IDENTIFIER_QUOTED)/IDENTIFIER_QUOTED	"a"
+reject	reject	grammar	varRefExpr(IDENTIFIER|IDENTIFIER_QUOTED)/IDENTIFIER_QUOTED!insert	"a" zzz
+reject	accept	grammar	nonReservedKeywords/EXCLUDED	EXCLUDED
+reject	accept	grammar	collection/array	[ ]
+reject	accept	grammar	collection/bag	<< >>
+reject	reject	grammar	collection/bag!drop-1	>>
+reject	reject	grammar	collection/bag!drop-2	<<
+reject	reject	grammar	collection/bag!insert	<< >> zzz
+reject	accept	grammar	array/BRACKET_LEFT_(expr_(COMMA_expr)*)?_BRACKET_RIGHT	[ ]
+reject	accept	grammar	array(expr_(COMMA_expr)*)?/%empty	[ ]
+reject	accept	grammar	array(expr_(COMMA_expr)*)?/%empty!insert	[ zzz ]
+reject	accept	grammar	array(expr_(COMMA_expr)*)?/expr_(COMMA_expr)*	[ a ]
+reject	reject	grammar	array(expr_(COMMA_expr)*)?/expr_(COMMA_expr)*!insert	[ a zzz ]
+reject	accept	grammar	array(COMMA_expr)*/%empty	[ a ]
+reject	accept	grammar	array(COMMA_expr)*/COMMA_expr_(COMMA_expr)*	[ a, a ]
+reject	reject	grammar	array(COMMA_expr)*/COMMA_expr_(COMMA_expr)*!drop-1	[ a a ]
+reject	reject	grammar	array(COMMA_expr)*/COMMA_expr_(COMMA_expr)*!drop-2	[ a, ]
+reject	reject	grammar	array(COMMA_expr)*/COMMA_expr_(COMMA_expr)*!truncate	[ a,
+reject	reject	grammar	array(COMMA_expr)*/COMMA_expr_(COMMA_expr)*!insert	[ a, a zzz ]
+reject	accept	grammar	bag/ANGLE_DOUBLE_LEFT_(expr_(COMMA_expr)*)?_ANGLE_DOUBLE_RIGHT	<< >>
+reject	accept	grammar	bag(expr_(COMMA_expr)*)?/%empty	<< >>
+reject	accept	grammar	bag(expr_(COMMA_expr)*)?/%empty!insert	<< zzz >>
+reject	accept	grammar	bag(expr_(COMMA_expr)*)?/expr_(COMMA_expr)*	<< a >>
+reject	reject	grammar	bag(expr_(COMMA_expr)*)?/expr_(COMMA_expr)*!insert	<< a zzz >>
+reject	accept	grammar	bag(COMMA_expr)*/%empty	<< a >>
+reject	accept	grammar	bag(COMMA_expr)*/COMMA_expr_(COMMA_expr)*	<< a, a >>
+reject	reject	grammar	bag(COMMA_expr)*/COMMA_expr_(COMMA_expr)*!drop-1	<< a a >>
+reject	reject	grammar	bag(COMMA_expr)*/COMMA_expr_(COMMA_expr)*!drop-2	<< a, >>
+reject	reject	grammar	bag(COMMA_expr)*/COMMA_expr_(COMMA_expr)*!truncate	<< a,
+reject	reject	grammar	bag(COMMA_expr)*/COMMA_expr_(COMMA_expr)*!insert	<< a, a zzz >>
+reject	accept	grammar	tuple/BRACE_LEFT_(pair_(COMMA_pair)*)?_BRACE_RIGHT	{ }
+reject	accept	grammar	tuple(pair_(COMMA_pair)*)?/%empty	{ }
+reject	reject	grammar	tuple(pair_(COMMA_pair)*)?/%empty!insert	{ zzz }
+reject	accept	grammar	tuple(pair_(COMMA_pair)*)?/pair_(COMMA_pair)*	{ a : a }
+reject	reject	grammar	tuple(pair_(COMMA_pair)*)?/pair_(COMMA_pair)*!drop-1	{ : a }
+reject	reject	grammar	tuple(pair_(COMMA_pair)*)?/pair_(COMMA_pair)*!drop-2	{ a a }
+reject	reject	grammar	tuple(pair_(COMMA_pair)*)?/pair_(COMMA_pair)*!drop-3	{ a : }
+reject	reject	grammar	tuple(pair_(COMMA_pair)*)?/pair_(COMMA_pair)*!truncate	{ a :
+reject	reject	grammar	tuple(pair_(COMMA_pair)*)?/pair_(COMMA_pair)*!insert	{ a : a zzz }
+reject	accept	grammar	tuple(COMMA_pair)*/%empty	{ a : a }
+reject	accept	grammar	tuple(COMMA_pair)*/COMMA_pair_(COMMA_pair)*	{ a : a, a : a }
+reject	reject	grammar	tuple(COMMA_pair)*/COMMA_pair_(COMMA_pair)*!drop-1	{ a : a a : a }
+reject	reject	grammar	tuple(COMMA_pair)*/COMMA_pair_(COMMA_pair)*!drop-2	{ a : a, : a }
+reject	reject	grammar	tuple(COMMA_pair)*/COMMA_pair_(COMMA_pair)*!drop-3	{ a : a, a a }
+reject	reject	grammar	tuple(COMMA_pair)*/COMMA_pair_(COMMA_pair)*!drop-4	{ a : a, a : }
+reject	reject	grammar	tuple(COMMA_pair)*/COMMA_pair_(COMMA_pair)*!truncate	{ a : a, a :
+reject	reject	grammar	tuple(COMMA_pair)*/COMMA_pair_(COMMA_pair)*!insert	{ a : a, a : a zzz }
+reject	accept	grammar	pair/expr_COLON_expr	{ a : a }
+reject	accept	grammar	literal/NULL	NULL
+reject	accept	grammar	literal/MISSING	MISSING
+reject	reject	grammar	literal/MISSING!insert	MISSING zzz
+reject	reject	grammar	literal/MISSING!swap	MODIFIED
+reject	accept	grammar	literal/TRUE	TRUE
+reject	reject	grammar	literal/TRUE!insert	TRUE zzz
+reject	reject	grammar	literal/TRUE!swap	TUPLE
+reject	accept	grammar	literal/FALSE	FALSE
+reject	reject	grammar	literal/FALSE!insert	FALSE zzz
+reject	reject	grammar	literal/FALSE!swap	FETCH
+reject	accept	grammar	literal/LITERAL_STRING	's'
+reject	reject	grammar	literal/LITERAL_STRING!insert	's' zzz
+reject	accept	grammar	literal/LITERAL_INTEGER	1
+reject	reject	grammar	literal/LITERAL_INTEGER!insert	1 zzz
+reject	accept	grammar	literal/LITERAL_DECIMAL	1.5
+reject	reject	grammar	literal/LITERAL_DECIMAL!insert	1.5 zzz
+reject	accept	grammar	literal/ION_CLOSURE	`1`
+reject	reject	grammar	literal/ION_CLOSURE!insert	`1` zzz
+reject	reject	grammar	literal/DATE_LITERAL_STRING	DATE 's'
+reject	reject	grammar	literal/DATE_LITERAL_STRING!drop-2	DATE
+reject	reject	grammar	literal/DATE_LITERAL_STRING!insert	DATE 's' zzz
+reject	reject	grammar	literal/DATE_LITERAL_STRING!swap	DATE_ADD 's'
+reject	reject	grammar	literal/TIME_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?_(WITH_TI~9e6ce2ac	TIME 's'
+reject	reject	grammar	literal/TIME_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?_(WITH_TI~9e6ce2ac!drop-2	TIME
+reject	reject	grammar	literal/TIME_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?_(WITH_TI~9e6ce2ac!insert	TIME 's' zzz
+reject	reject	grammar	literal/TIMESTAMP_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?_(WI~ff8da6a1	TIMESTAMP 's'
+reject	reject	grammar	literal/TIMESTAMP_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?_(WI~ff8da6a1!drop-2	TIMESTAMP
+reject	reject	grammar	literal/TIMESTAMP_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?_(WI~ff8da6a1!insert	TIMESTAMP 's' zzz
+reject	reject	grammar	literal/TIMESTAMP_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?_(WI~ff8da6a1!swap	TO 's'
+reject	reject	grammar	literal(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?/%empty	TIME 's'
+reject	reject	grammar	literal(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?/%empty!insert	TIME zzz 's'
+reject	reject	grammar	literal(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?/PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT	TIME(1) 's'
+reject	reject	grammar	literal(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?/PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT!drop-1	TIME 1) 's'
+reject	reject	grammar	literal(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?/PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT!drop-2	TIME() 's'
+reject	reject	grammar	literal(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?/PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT!drop-3	TIME(1 's'
+reject	reject	grammar	literal(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?/PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT!truncate	TIME(1
+reject	reject	grammar	literal(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?/PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT!insert	TIME(1) zzz 's'
+reject	reject	grammar	literal(WITH_TIME_ZONE)?/%empty	TIME 's'
+reject	reject	grammar	literal(WITH_TIME_ZONE)?/WITH_TIME_ZONE	TIME WITH TIME ZONE 's'
+reject	reject	grammar	literal(WITH_TIME_ZONE)?/WITH_TIME_ZONE!drop-1	TIME TIME ZONE 's'
+reject	reject	grammar	literal(WITH_TIME_ZONE)?/WITH_TIME_ZONE!drop-2	TIME WITH ZONE 's'
+reject	reject	grammar	literal(WITH_TIME_ZONE)?/WITH_TIME_ZONE!drop-3	TIME WITH TIME 's'
+reject	reject	grammar	literal(WITH_TIME_ZONE)?/WITH_TIME_ZONE!truncate	TIME WITH TIME
+reject	reject	grammar	literal(WITH_TIME_ZONE)?/WITH_TIME_ZONE!insert	TIME WITH TIME ZONE zzz 's'
+reject	reject	grammar	literal(WITH_TIME_ZONE)?/WITH_TIME_ZONE!swap	TIME WORK TIME ZONE 's'
+reject	accept	grammar	type/(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)	a IS NULL
+reject	reject	grammar	type/(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)!swap	a IS NULLIF
+reject	accept	grammar	type/DOUBLE_PRECISION	a IS DOUBLE PRECISION
+reject	reject	grammar	type/DOUBLE_PRECISION!drop-1	a IS PRECISION
+reject	reject	grammar	type/DOUBLE_PRECISION!drop-2	a IS DOUBLE
+reject	reject	grammar	type/DOUBLE_PRECISION!insert	a IS DOUBLE PRECISION zzz
+reject	reject	grammar	type/DOUBLE_PRECISION!swap	a IS DROP PRECISION
+reject	accept	grammar	type/(CHARACTER|CHAR|FLOAT|VARCHAR)_(PAREN_LEFT_LITERAL_INTE~027e62b1	a IS CHARACTER
+reject	reject	grammar	type/(CHARACTER|CHAR|FLOAT|VARCHAR)_(PAREN_LEFT_LITERAL_INTE~027e62b1!insert	a IS CHARACTER zzz
+reject	reject	grammar	type/(CHARACTER|CHAR|FLOAT|VARCHAR)_(PAREN_LEFT_LITERAL_INTE~027e62b1!swap	a IS CHARACTER_LENGTH
+reject	accept	grammar	type/CHARACTER_VARYING_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?	a IS CHARACTER VARYING
+reject	reject	grammar	type/CHARACTER_VARYING_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?!drop-1	a IS VARYING
+reject	reject	grammar	type/CHARACTER_VARYING_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?!insert	a IS CHARACTER VARYING zzz
+reject	reject	grammar	type/CHARACTER_VARYING_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?!swap	a IS CHARACTER_LENGTH VARYING
+reject	accept	grammar	type/(DECIMAL|DEC|NUMERIC)_(PAREN_LEFT_LITERAL_INTEGER_(COMM~b40369fd	a IS DECIMAL
+reject	reject	grammar	type/(DECIMAL|DEC|NUMERIC)_(PAREN_LEFT_LITERAL_INTEGER_(COMM~b40369fd!insert	a IS DECIMAL zzz
+reject	reject	grammar	type/(DECIMAL|DEC|NUMERIC)_(PAREN_LEFT_LITERAL_INTEGER_(COMM~b40369fd!swap	a IS DECLARE
+reject	accept	grammar	type/(TIME|TIMESTAMP)_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGH~78b51835	a IS TIME
+reject	reject	grammar	type/(TIME|TIMESTAMP)_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGH~78b51835!insert	a IS TIME zzz
+reject	accept	grammar	type/symbolPrimitive	a IS a
+reject	reject	grammar	type/symbolPrimitive!insert	a IS a zzz
+reject	accept	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/NULL	a IS NULL
+reject	accept	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/BOOL	a IS BOOL
+reject	reject	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/BOOL!insert	a IS BOOL zzz
+reject	accept	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/BOOLEAN	a IS BOOLEAN
+reject	reject	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/BOOLEAN!insert	a IS BOOLEAN zzz
+reject	reject	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/BOOLEAN!swap	a IS BY
+reject	accept	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/SMALLINT	a IS SMALLINT
+reject	reject	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/SMALLINT!insert	a IS SMALLINT zzz
+reject	reject	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/SMALLINT!swap	a IS SOME
+reject	accept	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/INTEGER2	a IS INTEGER2
+reject	reject	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/INTEGER2!insert	a IS INTEGER2 zzz
+reject	accept	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/INT2	a IS INT2
+reject	reject	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/INT2!insert	a IS INT2 zzz
+reject	accept	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/INTEGER	a IS INTEGER
+reject	reject	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/INTEGER!insert	a IS INTEGER zzz
+reject	accept	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/INT	a IS INT
+reject	reject	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/INT!insert	a IS INT zzz
+reject	accept	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/INTEGER4	a IS INTEGER4
+reject	reject	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/INTEGER4!insert	a IS INTEGER4 zzz
+reject	accept	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/INT4	a IS INT4
+reject	reject	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/INT4!insert	a IS INT4 zzz
+reject	accept	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/INTEGER8	a IS INTEGER8
+reject	reject	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/INTEGER8!insert	a IS INTEGER8 zzz
+reject	reject	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/INTEGER8!swap	a IS INTERSECT
+reject	accept	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/INT8	a IS INT8
+reject	reject	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/INT8!insert	a IS INT8 zzz
+reject	accept	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/BIGINT	a IS BIGINT
+reject	reject	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/BIGINT!insert	a IS BIGINT zzz
+reject	reject	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/BIGINT!swap	a IS BIT
+reject	accept	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/REAL	a IS REAL
+reject	reject	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/REAL!insert	a IS REAL zzz
+reject	reject	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/REAL!swap	a IS REFERENCES
+reject	accept	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/CHAR	a IS CHAR
+reject	reject	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/CHAR!insert	a IS CHAR zzz
+reject	accept	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/CHARACTER	a IS CHARACTER
+reject	accept	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/MISSING	a IS MISSING
+reject	reject	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/MISSING!insert	a IS MISSING zzz
+reject	reject	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/MISSING!swap	a IS MODIFIED
+reject	accept	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/STRING	a IS STRING
+reject	reject	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/STRING!insert	a IS STRING zzz
+reject	accept	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/SYMBOL	a IS SYMBOL
+reject	reject	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/SYMBOL!insert	a IS SYMBOL zzz
+reject	reject	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/SYMBOL!swap	a IS SYSTEM_USER
+reject	accept	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/BLOB	a IS BLOB
+reject	reject	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/BLOB!insert	a IS BLOB zzz
+reject	accept	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/CLOB	a IS CLOB
+reject	reject	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/CLOB!insert	a IS CLOB zzz
+reject	reject	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/CLOB!swap	a IS CLOSE
+reject	accept	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/DATE	a IS DATE
+reject	reject	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/DATE!insert	a IS DATE zzz
+reject	reject	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/DATE!swap	a IS DATE_ADD
+reject	accept	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/STRUCT	a IS STRUCT
+reject	reject	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/STRUCT!insert	a IS STRUCT zzz
+reject	reject	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/STRUCT!swap	a IS SUBSTRING
+reject	accept	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/TUPLE	a IS TUPLE
+reject	reject	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/TUPLE!insert	a IS TUPLE zzz
+reject	reject	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/TUPLE!swap	a IS UNION
+reject	accept	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/LIST	a IS LIST
+reject	reject	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/LIST!insert	a IS LIST zzz
+reject	reject	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/LIST!swap	a IS LOCAL
+reject	accept	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/SEXP	a IS SEXP
+reject	reject	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/SEXP!insert	a IS SEXP zzz
+reject	reject	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/SEXP!swap	a IS SHORTEST
+reject	accept	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/BAG	a IS BAG
+reject	reject	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/BAG!insert	a IS BAG zzz
+reject	reject	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/BAG!swap	a IS BEGIN
+reject	accept	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/ANY	a IS ANY
+reject	reject	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/ANY!insert	a IS ANY zzz
+reject	reject	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/ANY!swap	a IS ARE
+reject	accept	grammar	type(CHARACTER|CHAR|FLOAT|VARCHAR)/CHARACTER	a IS CHARACTER
+reject	accept	grammar	type(CHARACTER|CHAR|FLOAT|VARCHAR)/CHAR	a IS CHAR
+reject	accept	grammar	type(CHARACTER|CHAR|FLOAT|VARCHAR)/FLOAT	a IS FLOAT
+reject	reject	grammar	type(CHARACTER|CHAR|FLOAT|VARCHAR)/FLOAT!insert	a IS FLOAT zzz
+reject	reject	grammar	type(CHARACTER|CHAR|FLOAT|VARCHAR)/FLOAT!swap	a IS FOR
+reject	accept	grammar	type(CHARACTER|CHAR|FLOAT|VARCHAR)/VARCHAR	a IS VARCHAR
+reject	reject	grammar	type(CHARACTER|CHAR|FLOAT|VARCHAR)/VARCHAR!insert	a IS VARCHAR zzz
+reject	accept	grammar	type(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?/%empty	a IS CHARACTER
+reject	accept	grammar	type(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?/PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT	a IS CHARACTER(1)
+reject	reject	grammar	type(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?/PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT!drop-1	a IS CHARACTER 1)
+reject	reject	grammar	type(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?/PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT!drop-2	a IS CHARACTER()
+reject	reject	grammar	type(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?/PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT!drop-3	a IS CHARACTER(1
+reject	reject	grammar	type(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?/PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT!insert	a IS CHARACTER(1) zzz
+reject	accept	grammar	type(DECIMAL|DEC|NUMERIC)/DECIMAL	a IS DECIMAL
+reject	accept	grammar	type(DECIMAL|DEC|NUMERIC)/DEC	a IS DEC
+reject	reject	grammar	type(DECIMAL|DEC|NUMERIC)/DEC!insert	a IS DEC zzz
+reject	accept	grammar	type(DECIMAL|DEC|NUMERIC)/NUMERIC	a IS NUMERIC
+reject	reject	grammar	type(DECIMAL|DEC|NUMERIC)/NUMERIC!insert	a IS NUMERIC zzz
+reject	reject	grammar	type(DECIMAL|DEC|NUMERIC)/NUMERIC!swap	a IS OCTET_LENGTH
+reject	accept	grammar	type(PAREN_LEFT_LITERAL_INTEGER_(COMMA_LI~18f460fd)?/%empty	a IS DECIMAL
+reject	accept	grammar	type(PAREN_LEFT_LITERAL_INTEGER_(COMMA_LI~18f460fd)?/PAREN_LEFT_LITERAL_INTEGER_(COMMA_LITERAL_INTEGER)?_PAREN_RIGHT	a IS DECIMAL(1)
+reject	reject	grammar	type(PAREN_LEFT_LITERAL_INTEGER_(COMMA_LI~18f460fd)?/PAREN_LEFT_LITERAL_INTEGER_(COMMA_LITERAL_INTEGER)?_PAREN_RIGHT!drop-1	a IS DECIMAL 1)
+reject	reject	grammar	type(PAREN_LEFT_LITERAL_INTEGER_(COMMA_LI~18f460fd)?/PAREN_LEFT_LITERAL_INTEGER_(COMMA_LITERAL_INTEGER)?_PAREN_RIGHT!drop-2	a IS DECIMAL()
+reject	reject	grammar	type(PAREN_LEFT_LITERAL_INTEGER_(COMMA_LI~18f460fd)?/PAREN_LEFT_LITERAL_INTEGER_(COMMA_LITERAL_INTEGER)?_PAREN_RIGHT!drop-3	a IS DECIMAL(1
+reject	reject	grammar	type(PAREN_LEFT_LITERAL_INTEGER_(COMMA_LI~18f460fd)?/PAREN_LEFT_LITERAL_INTEGER_(COMMA_LITERAL_INTEGER)?_PAREN_RIGHT!insert	a IS DECIMAL(1) zzz
+reject	accept	grammar	type(COMMA_LITERAL_INTEGER)?/%empty	a IS DECIMAL(1)
+reject	reject	grammar	type(COMMA_LITERAL_INTEGER)?/%empty!insert	a IS DECIMAL(1 zzz)
+reject	accept	grammar	type(COMMA_LITERAL_INTEGER)?/COMMA_LITERAL_INTEGER	a IS DECIMAL(1, 1)
+reject	reject	grammar	type(COMMA_LITERAL_INTEGER)?/COMMA_LITERAL_INTEGER!drop-1	a IS DECIMAL(1 1)
+reject	reject	grammar	type(COMMA_LITERAL_INTEGER)?/COMMA_LITERAL_INTEGER!drop-2	a IS DECIMAL(1,)
+reject	reject	grammar	type(COMMA_LITERAL_INTEGER)?/COMMA_LITERAL_INTEGER!truncate	a IS DECIMAL(1,
+reject	reject	grammar	type(COMMA_LITERAL_INTEGER)?/COMMA_LITERAL_INTEGER!insert	a IS DECIMAL(1, 1 zzz)
+reject	accept	grammar	type(TIME|TIMESTAMP)/TIME	a IS TIME
+reject	accept	grammar	type(TIME|TIMESTAMP)/TIMESTAMP	a IS TIMESTAMP
+reject	reject	grammar	type(TIME|TIMESTAMP)/TIMESTAMP!insert	a IS TIMESTAMP zzz
+reject	reject	grammar	type(TIME|TIMESTAMP)/TIMESTAMP!swap	a IS TO
+reject	accept	grammar	type(WITH_TIME_ZONE)?/%empty	a IS TIME
+reject	accept	grammar	type(WITH_TIME_ZONE)?/WITH_TIME_ZONE	a IS TIME WITH TIME ZONE
+reject	reject	grammar	type(WITH_TIME_ZONE)?/WITH_TIME_ZONE!drop-1	a IS TIME TIME ZONE
+reject	reject	grammar	type(WITH_TIME_ZONE)?/WITH_TIME_ZONE!drop-2	a IS TIME WITH ZONE
+reject	reject	grammar	type(WITH_TIME_ZONE)?/WITH_TIME_ZONE!drop-3	a IS TIME WITH TIME
+reject	reject	grammar	type(WITH_TIME_ZONE)?/WITH_TIME_ZONE!insert	a IS TIME WITH TIME ZONE zzz
+reject	reject	grammar	type(WITH_TIME_ZONE)?/WITH_TIME_ZONE!swap	a IS TIME WORK TIME ZONE
+accept	accept	grammar	suite:dynamodb-docs	SELECT * FROM Music WHERE Artist='Acme Band' AND SongTitle='Happy Day'
+accept	accept	grammar	suite:dynamodb-docs	SELECT * FROM Music WHERE Artist=? and SongTitle=?
+accept	accept	grammar	suite:dynamodb-docs	INSERT INTO Music VALUE {'Artist':'Acme Band','SongTitle':'PartiQL Rocks'}
+accept	accept	grammar	suite:dynamodb-docs	SELECT * FROM Music WHERE Artist='Acme Band' AND SongTitle='PartiQL Rocks'
+accept	accept	grammar	suite:dynamodb-docs	UPDATE Music SET AwardsWon=1 SET AwardDetail={'Grammys':[2020, 2018]} WHERE Artist='Acme Band' AND SongTitle='PartiQL Rocks'
+accept	accept	grammar	suite:dynamodb-docs	UPDATE Music SET AwardDetail.Grammys =list_append(AwardDetail.Grammys,[2016]) WHERE Artist='Acme Band' AND SongTitle='PartiQL Rocks'
+accept	accept	grammar	suite:dynamodb-docs	UPDATE Music REMOVE AwardDetail.Grammys[2] WHERE Artist='Acme Band' AND SongTitle='PartiQL Rocks'
+accept	accept	grammar	suite:dynamodb-docs	UPDATE Music SET AwardDetail.BillBoard=[2020] WHERE Artist='Acme Band' AND SongTitle='PartiQL Rocks'
+accept	accept	grammar	suite:dynamodb-docs	UPDATE Music SET BandMembers =<<'member1', 'member2'>> WHERE Artist='Acme Band' AND SongTitle='PartiQL Rocks'
+accept	accept	grammar	suite:dynamodb-docs	UPDATE Music SET BandMembers =set_add(BandMembers, <<'newmember'>>) WHERE Artist='Acme Band' AND SongTitle='PartiQL Rocks'
+accept	accept	grammar	suite:dynamodb-docs	DELETE FROM Music WHERE Artist='Acme Band' AND SongTitle='PartiQL Rocks'
+accept	accept	grammar	suite:dynamodb-docs	SELECT * FROM "Music" WHERE Artist=? AND SongTitle=?
+accept	accept	grammar	suite:dynamodb-docs	SELECT * FROM Music WHERE Artist=? AND SongTitle=?
+accept	accept	grammar	suite:dynamodb-docs	INSERT INTO TypesTable value {'primarykey':'1',  'NumberType':1, 'MapType' : {'entryname1': 'value', 'entryname2': 4},  'ListType': [1,'stringval'],  'NumberSetType':<<1,34,32,4.5>>,  'StringSetType':<<'stringval','stringval2'>> }
+accept	accept	grammar	suite:dynamodb-docs	UPDATE TypesTable  SET NumberType=NumberType + 100  SET MapType.NewMapEntry=[2020, 'stringvalue', 2.4] SET ListType = LIST_APPEND(ListType, [4, <<'string1', 'string2'>>]) SET NumberSetType= SET_ADD(NumberSetType, <<345, 48.4>>) SET StringSetType = SET_ADD(StringSetType, <<'stringsetvalue1', 'stringsetvalue2'>>) WHERE primarykey='1'
+accept	accept	grammar	suite:dynamodb-docs	UPDATE TypesTable  SET NumberType=NumberType - 1 REMOVE ListType[1] REMOVE MapType.NewMapEntry SET NumberSetType = SET_DELETE( NumberSetType, <<345>>) SET StringSetType = SET_DELETE( StringSetType, <<'stringsetvalue1'>>) WHERE primarykey='1'
+accept	accept	grammar	suite:dynamodb-docs	SELECT *  FROM "Orders"  WHERE OrderID = 100
+accept	accept	grammar	suite:dynamodb-docs	SELECT *  FROM "Orders"  WHERE OrderID = 100 and Address='some address'
+accept	accept	grammar	suite:dynamodb-docs	SELECT *  FROM "Orders"  WHERE OrderID = 100 or OrderID = 200
+accept	accept	grammar	suite:dynamodb-docs	SELECT *  FROM "Orders"  WHERE OrderID IN [100, 300, 234]
+accept	accept	grammar	suite:dynamodb-docs	SELECT *  FROM "Orders"  WHERE OrderID > 1
+accept	accept	grammar	suite:dynamodb-docs	SELECT *  FROM "Orders"  WHERE Address='some address'
+accept	accept	grammar	suite:dynamodb-docs	SELECT *  FROM "Orders"  WHERE OrderID = 100 OR Address='some address'
+accept	accept	grammar	suite:dynamodb-docs	SELECT OrderID, Total FROM "Orders" WHERE OrderID = 1
+accept	accept	grammar	suite:dynamodb-docs	SELECT OrderID, Total FROM "Orders" WHERE OrderID = 1 OR OrderID = 2
+accept	accept	grammar	suite:dynamodb-docs	SELECT OrderID, Total FROM "Orders" WHERE OrderID IN [1, 2, 3] ORDER BY OrderID DESC
+accept	accept	grammar	suite:dynamodb-docs	SELECT OrderID, Total  FROM "Orders" WHERE Total > 500
+accept	accept	grammar	suite:dynamodb-docs	SELECT OrderID, Total  FROM "Orders" WHERE Total IN [500, 600]
+accept	accept	grammar	suite:dynamodb-docs	SELECT OrderID, Total  FROM "Orders"  WHERE Total BETWEEN 500 AND 600
+accept	accept	grammar	suite:dynamodb-docs	SELECT Devices.FireStick.DateWatched[0]  FROM WatchList  WHERE CustomerID= 'C1' AND MovieID= 'M1'
+accept	accept	grammar	suite:dynamodb-docs	SELECT Devices  FROM WatchList  WHERE Devices.FireStick.DateWatched[0] >= '12/24/19'
+accept	accept	grammar	suite:dynamodb-docs	SELECT *  FROM "TableName"."IndexName"
+accept	accept	grammar	suite:dynamodb-docs	INSERT INTO "Music" value {'Artist' : 'Acme Band','SongTitle' : 'PartiQL Rocks'}
+accept	accept	grammar	suite:dynamodb-docs	UPDATE "Music"  SET AwardsWon=1  SET AwardDetail={'Grammys':[2020, 2018]}   WHERE Artist='Acme Band' AND SongTitle='PartiQL Rocks'
+accept	accept	grammar	suite:dynamodb-docs	UPDATE "Music"  SET AwardsWon=1  SET AwardDetail={'Grammys':[2020, 2018]}   WHERE Artist='Acme Band' AND SongTitle='PartiQL Rocks' RETURNING ALL OLD *
+accept	accept	grammar	suite:dynamodb-docs	UPDATE "Music"  SET AwardsWon=1  SET AwardDetail={'Grammys':[2020, 2018]}   WHERE Artist='Acme Band' AND SongTitle='PartiQL Rocks' RETURNING ALL NEW *
+accept	accept	grammar	suite:dynamodb-docs	UPDATE "Music"  SET AwardDetail.Grammys =list_append(AwardDetail.Grammys,[2016])   WHERE Artist='Acme Band' AND SongTitle='PartiQL Rocks'
+accept	accept	grammar	suite:dynamodb-docs	UPDATE "Music"  REMOVE AwardDetail.Grammys[2]    WHERE Artist='Acme Band' AND SongTitle='PartiQL Rocks'
+accept	accept	grammar	suite:dynamodb-docs	UPDATE "Music"  SET AwardDetail.BillBoard=[2020]  WHERE Artist='Acme Band' AND SongTitle='PartiQL Rocks'
+accept	accept	grammar	suite:dynamodb-docs	UPDATE "Music"  SET BandMembers =<<'member1', 'member2'>>  WHERE Artist='Acme Band' AND SongTitle='PartiQL Rocks'
+accept	accept	grammar	suite:dynamodb-docs	UPDATE "Music"  SET BandMembers =set_add(BandMembers, <<'newbandmember'>>)  WHERE Artist='Acme Band' AND SongTitle='PartiQL Rocks'
+accept	accept	grammar	suite:dynamodb-docs	DELETE FROM "Music" WHERE "Artist" = 'Acme Band' AND "SongTitle" = 'PartiQL Rocks'
+accept	accept	grammar	suite:dynamodb-docs	DELETE FROM "Music" WHERE "Artist" = 'Acme Band' AND "SongTitle" = 'PartiQL Rocks' RETURNING ALL OLD *
+accept	accept	grammar	suite:dynamodb-docs	SELECT * FROM "Orders" WHERE "OrderID"=1 AND size("Image") >300
+reject	accept	grammar	suite:dynamodb-docs	EXISTS(     SELECT * FROM "Music"      WHERE "Artist" = 'Acme Band' AND "SongTitle" = 'PartiQL Rocks')
+accept	accept	grammar	suite:dynamodb-docs	SELECT * FROM "Music" WHERE attribute_type("Artist", 'S')
+accept	accept	grammar	suite:dynamodb-docs	SELECT * FROM "Orders" WHERE "OrderID"=1 AND begins_with("Address", '7834 24th')
+accept	accept	grammar	suite:dynamodb-docs	SELECT * FROM "Orders" WHERE "OrderID"=1 AND contains("Address", 'Kirkland')
+accept	accept	grammar	suite:dynamodb-docs	SELECT * FROM Music WHERE "Awards" is MISSING
+reject	accept	grammar	suite:dynamodb-docs	EXISTS(SELECT * FROM "Music" where Artist='No One You Know' and SongTitle='Call Me Today' and Awards is  MISSING)
+accept	accept	grammar	suite:dynamodb-docs	INSERT INTO Music value {'Artist':?,'SongTitle':'?'}
+accept	accept	grammar	suite:dynamodb-docs	UPDATE "Music" SET AwardsWon=1 SET AwardDetail={'Grammys':[2020, 2018]}  where Artist='Acme Band' and SongTitle='PartiQL Rocks'
+accept	accept	grammar	suite:dynamodb-docs	SELECT * FROM "Music" WHERE Artist='No One You Know' and SongTitle='Call Me Today'
+accept	accept	grammar	suite:dynamodb-docs	SELECT non_existent_projected_attribute FROM "Music" WHERE Artist='No One You Know' and SongTitle='Call Me Today'
+accept	accept	grammar	suite:dynamodb-docs	SELECT * FROM "Music" WHERE Artist='No One I Know' and SongTitle='Call You Today'
+accept	accept	grammar	suite:dynamodb-docs	SELECT pk FROM ProblemSet WHERE pk = 'p#9StkWHYTxm7x2AqSXcrfu7' AND sk = 'info'
+accept	accept	grammar	suite:dynamodb-docs	SELECT pk FROM ProblemSet WHERE pk = 'p#isC2ChceGbxHgESc4szoTE' AND sk = 'info'
+accept	accept	grammar	suite:dynamodb-docs	INSERT INTO Music VALUE {'Artist':?,'SongTitle':?}
+accept	accept	grammar	suite:dynamodb-docs	UPDATE Music SET AwardsWon=1, AwardDetail={'Grammys':[2020, 2018]} WHERE Artist='Acme Band' AND SongTitle='PartiQL Rocks'
+accept	accept	grammar	suite:dynamodb-docs	INSERT INTO Music value {'Artist':'Acme Band','SongTitle':'PartiQL Rocks'}
+accept	accept	grammar	suite:dynamodb-docs	UPDATE Music set AwardDetail.BillBoard=[2020] where Artist='Acme Band' and SongTitle='PartiQL Rocks'
