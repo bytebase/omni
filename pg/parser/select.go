@@ -1360,23 +1360,24 @@ func (p *Parser) parseOptTempTableName() (*nodes.RangeVar, error) {
 	loc := p.pos()
 	persistence := byte('p')
 
-	switch p.cur.Type {
-	case TEMPORARY, TEMP:
+	// Each prefix keyword is unreserved: with no name after it, it is the name.
+	switch {
+	case (p.cur.Type == TEMPORARY || p.cur.Type == TEMP) && p.keywordLeads(isOptTableQualifiedNameStart):
 		p.advance()
 		persistence = 't'
 		p.parseOptTable()
-	case LOCAL, GLOBAL:
+	case (p.cur.Type == LOCAL || p.cur.Type == GLOBAL) && p.keywordLeads(isTempStart):
 		p.advance()
 		if p.cur.Type == TEMPORARY || p.cur.Type == TEMP {
 			p.advance()
 		}
 		persistence = 't'
 		p.parseOptTable()
-	case UNLOGGED:
+	case p.cur.Type == UNLOGGED && p.keywordLeads(isOptTableQualifiedNameStart):
 		p.advance()
 		persistence = 'u'
 		p.parseOptTable()
-	case TABLE:
+	case p.cur.Type == TABLE:
 		p.advance()
 	}
 

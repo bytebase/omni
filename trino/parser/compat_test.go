@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -30,6 +32,68 @@ func TestCompatibility(t *testing.T) {
 		Source:  compat.SourceEngine,
 		Judge:   compatJudge,
 	})
+}
+
+// corpusSuites are the hand-written corpora that are suite: rows of
+// compat.tsv, in the order the rows were added. Each held omni's Parse to
+// Trino's verdict on a live server; the rows hold it to the recorded one.
+var corpusSuites = []struct {
+	name    string
+	corpora [][]string
+}{
+	{"cte", [][]string{cteAcceptCorpus, cteRejectCorpus}},
+	{"relation", [][]string{relationAcceptCorpus, relationRejectCorpus}},
+	{"select", [][]string{selectAcceptCorpus, selectRejectCorpus}},
+	{"setop", [][]string{setopAcceptCorpus, setopRejectCorpus}},
+	{"window", [][]string{windowAcceptCorpus, windowRejectCorpus}},
+	{"ddl", [][]string{ddlOracleCorpus}},
+	{"dml", [][]string{dmlOracleCorpus}},
+	{"dcl-tcl", [][]string{dclTclOracleCorpus}},
+	{"match-recognize", [][]string{matchRecognizeOracleCorpus}},
+	{"routines", [][]string{routinesOracleCorpus}},
+}
+
+// TestCompatibilitySuitesAreTheCorpora fails while the suite: rows of
+// compat.tsv are not the corpora of corpusSuites: each statement once, under
+// the first suite that holds it. A statement added to a corpus is added as a
+// row with ? in both verdict cells, and judged by a recording.
+func TestCompatibilitySuitesAreTheCorpora(t *testing.T) {
+	f, err := compat.ReadFile(filepath.Join("testdata", "compat.tsv"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var want, got []string
+	seen := map[string]bool{}
+	for _, s := range corpusSuites {
+		for _, corpus := range s.corpora {
+			for _, sql := range corpus {
+				if !seen[sql] {
+					seen[sql] = true
+					want = append(want, "suite:"+s.name+"\t"+sql)
+				}
+			}
+		}
+	}
+	for _, r := range f.Rows {
+		if strings.HasPrefix(r.Rule, "suite:") {
+			got = append(got, r.Rule+"\t"+r.Statement)
+		}
+	}
+	if slices.Equal(got, want) {
+		return
+	}
+	for i := 0; i < max(len(got), len(want)); i++ {
+		g, w := "(none)", "(none)"
+		if i < len(got) {
+			g = got[i]
+		}
+		if i < len(want) {
+			w = want[i]
+		}
+		if g != w {
+			t.Fatalf("suite row %d of testdata/compat.tsv is %q, and the corpora want %q. A new statement is a row with ? in both verdict cells,\n  ?\t?\t-\tsuite:<name>\t<statement>\njudged by a recording:\n  OMNI_RECORD=1 go test ./trino/parser/ -run '^TestCompatibility$'", i+1, g, w)
+		}
+	}
 }
 
 // omniVerdict reads the row as Trino's statement endpoint does: one

@@ -1,21 +1,15 @@
 package parser
 
-import "testing"
-
-// This file is the parser-match-recognize node's differential-oracle gate
-// (correctness-protocol.md): for every statement in the corpus below, omni's
-// Parse accept/reject verdict must equal Trino 481's verdict as reported by the
-// live oracle (testcontainer.Oracle.CheckSyntax, which classifies a SYNTAX_ERROR as
-// reject and every other outcome — success or a semantic error such as
-// TABLE_HAS_NO_COLUMNS / COLUMN_NOT_FOUND / INVALID_LABEL / NOT_SUPPORTED — as
-// accept).
+// The corpus below is the suite:match-recognize rows of testdata/compat.tsv: Trino judged
+// each statement, and TestCompatibility holds omni's Parse to that verdict with
+// no server (TestCompatibilitySuitesAreTheCorpora keeps the two the same).
 //
 // The corpus is NOT split into hardcoded accept/reject lists: the oracle is the
 // source of truth, so each case is run through both omni and Trino and the two
 // verdicts are compared. Every legacy ANTLR alternative of the patternRecognition
 // subsystem (truth2) and every documented MATCH_RECOGNIZE form (truth1) appears,
 // alongside the precedence/structure cases (R1–R5, M1–M6) and a set of negatives
-// the engine rejects. Skipped cleanly when no Trino oracle is reachable.
+// the engine rejects.
 //
 // Helpers (connectOracle / oracleAccepts / truncateName) live in
 // oracle_foundation_test.go.
@@ -213,26 +207,4 @@ var matchRecognizeOracleCorpus = []string{
 	"SELECT * FROM t MATCH_RECOGNIZE PATTERN (A) DEFINE A AS true",            // missing outer parens — rejected
 	"SELECT * FROM t MATCH_RECOGNIZE (PATTERN (A) DEFINE A AS true",           // unterminated — rejected
 	"SELECT * FROM t MATCH_RECOGNIZE (PARTITION a PATTERN (A) DEFINE A AS x)", // PARTITION without BY — rejected
-}
-
-// TestMatchRecognize_OracleDifferential is the authoritative accept/reject gate:
-// omni's Parse verdict must equal Trino 481's verdict for every corpus statement.
-func TestMatchRecognize_OracleDifferential(t *testing.T) {
-	o := connectOracle(t)
-	for _, sql := range matchRecognizeOracleCorpus {
-		sql := sql
-		t.Run(truncateName(sql), func(t *testing.T) {
-			_, errs := parseForTest(sql)
-			omniAccepts := len(errs) == 0
-
-			trinoAccepts, ok := oracleAccepts(t, o, sql)
-			if !ok {
-				t.Skip("oracle unreachable for this case")
-			}
-			if omniAccepts != trinoAccepts {
-				t.Errorf("MISMATCH %q: omni accepts=%v (errs=%v), Trino accepts=%v",
-					sql, omniAccepts, errs, trinoAccepts)
-			}
-		})
-	}
 }

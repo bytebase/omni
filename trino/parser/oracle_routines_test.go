@@ -8,15 +8,9 @@ import (
 	"time"
 )
 
-// This file is the parser-routines node's differential-oracle gate
-// (correctness-protocol.md): for every statement in the corpus below, omni's
-// Parse accept/reject verdict must equal Trino 481's verdict as reported by the
-// live oracle (testcontainer.Oracle.CheckSyntax, which classifies a SYNTAX_ERROR as
-// reject and every other outcome — success or a semantic error like
-// NOT_SUPPORTED / FUNCTION_NOT_FOUND / TYPE_MISMATCH — as accept). Most
-// CREATE/DROP FUNCTION forms fail at execution with NOT_SUPPORTED (the disposable
-// `memory` connector cannot store a UDF), which the oracle correctly classifies
-// as ACCEPTED — the parser+analyzer succeeded.
+// The corpus below is the suite:routines rows of testdata/compat.tsv: Trino judged
+// each statement, and TestCompatibility holds omni's Parse to that verdict with
+// no server (TestCompatibilitySuitesAreTheCorpora keeps the two the same).
 //
 // The corpus is NOT split into hardcoded accept/reject lists: the oracle is the
 // source of truth, so each case is run through both omni and Trino and the two
@@ -28,8 +22,6 @@ import (
 // negative forms that pin the grammar distinctions (RETURN takes a
 // valueExpression not a boolean; ITERATE/LEAVE require a label; DECLARE precede
 // statements; labels only on LOOP/WHILE/REPEAT; sqlStatementList ';'-termination).
-//
-// Skipped cleanly when no Trino oracle is reachable.
 
 // routinesOracleCorpus is the full SQL-routine corpus for the differential gate.
 // Each string is fed to both omni and the oracle; the verdicts must match.
@@ -204,28 +196,6 @@ var routinesOracleCorpus = []string{
 	// limitation of the expression layer, not of this node, so adjudicating it
 	// here would be testing the wrong node.)
 	"SELECT * FROM (WITH FUNCTION f(x int) RETURNS int RETURN x SELECT f(1) AS c) t",
-}
-
-// TestRoutines_OracleDifferential is the authoritative accept/reject gate: omni's
-// Parse verdict must equal Trino 481's verdict for every corpus statement.
-func TestRoutines_OracleDifferential(t *testing.T) {
-	o := connectOracle(t)
-	for _, sql := range routinesOracleCorpus {
-		sql := sql
-		t.Run(truncateName(sql), func(t *testing.T) {
-			_, errs := parseForTest(sql)
-			omniAccepts := len(errs) == 0
-
-			trinoAccepts, ok := oracleAccepts(t, o, sql)
-			if !ok {
-				t.Skip("oracle unreachable for this case")
-			}
-			if omniAccepts != trinoAccepts {
-				t.Errorf("MISMATCH %q: omni accepts=%v (errs=%v), Trino accepts=%v",
-					sql, omniAccepts, errs, trinoAccepts)
-			}
-		})
-	}
 }
 
 // routineSemicolonCorpus holds query bodies with a ';' inside parentheses in

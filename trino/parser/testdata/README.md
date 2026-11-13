@@ -14,6 +14,26 @@ server wrote the same file.
 | One per alternative | 1,353 | 1,195 | 1,202 | 128 | 23 | 7 |
 | Near-misses | 3,487 | 2,911 | 3,427 | 55 | 5 | 516 |
 
+## Suites
+
+The hand-written corpora that held `Parse` to a live Trino are `suite:` rows,
+judged by the same recording. `TestCompatibilitySuitesAreTheCorpora` keeps the
+rows equal to the Go corpora they came from (`corpusSuites` in
+`../compat_test.go`), which other tests still read.
+
+| Suite | Rows | Same cell | Same verdict |
+| --- | --- | --- | --- |
+| `suite:cte`, `relation`, `select`, `setop`, `window` | 257 | 257 | 257 |
+| `suite:ddl` | 275 | 260 | 275 |
+| `suite:dml` | 85 | 81 | 85 |
+| `suite:dcl-tcl` | 132 | 128 | 132 |
+| `suite:match-recognize` | 134 | 132 | 134 |
+| `suite:routines` | 97 | 95 | 97 |
+
+The other oracle tests compare something else with Trino's verdict (an
+expression, a type or a name parsed alone, the lexer, `Split`, SQL omni
+generates) and replay tapes (`tapes/`).
+
 ## What the judge needs
 
 - **A statement is run, not prepared.** The judge posts it to

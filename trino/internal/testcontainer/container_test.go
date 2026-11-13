@@ -2,19 +2,19 @@ package testcontainer
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
+
+	"github.com/bytebase/omni/enginetest/tape"
 )
 
-// testOracle connects to a live Trino server for differential testing. It
-// prefers $TRINO_ORACLE_URL, falling back to DefaultURL. The test is skipped
-// (not failed) locally when no oracle is reachable, and fails in CI, which
-// always starts one; see ci.yml. Start one locally with:
-//
-//	docker run -d --name trino-oracle -p 18080:8080 trinodb/trino:482
-func testOracle(t *testing.T) *Oracle {
-	t.Helper()
-	return ForTest(t)
+// TestMain runs the tests through the tape harness and removes the server
+// a recording started.
+func TestMain(m *testing.M) {
+	code := tape.Main(m)
+	Terminate()
+	os.Exit(code)
 }
 
 // TestOracleClassification proves the oracle distinguishes a Trino parser
@@ -22,7 +22,7 @@ func testOracle(t *testing.T) *Oracle {
 // semantic reasons (missing table/catalog/column, unsupported feature) or
 // succeed. This is the contract every grammar node relies on.
 func TestOracleClassification(t *testing.T) {
-	o := testOracle(t)
+	o := Open(t)
 	cases := []struct {
 		name     string
 		sql      string
