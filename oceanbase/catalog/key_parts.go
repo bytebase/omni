@@ -69,14 +69,8 @@ func checkKeyParts(tbl *Table, parts []*IndexColumn, kind keyKind, opts []*nodes
 		}
 		switch kind {
 		case keyFulltext:
-			// SQLSTATE HY000 and its own text for a binary or BLOB column, 42000 for any
-			// other (TestOracle_OceanBaseKeyParts's tape).
-			switch typ {
-			case "char", "varchar", "tinytext", "text", "mediumtext", "longtext":
-			case "binary", "varbinary", "tinyblob", "blob", "mediumblob", "longblob":
-				return &Error{Code: 1283, SQLState: "HY000", Message: "Column cannot be part of FULLTEXT index"}
-			default:
-				return &Error{Code: 1283, SQLState: "42000", Message: "A FTS index may only contain a text type column."}
+			if err := fulltextColumnError(col); err != nil {
+				return err
 			}
 		case keySpatial:
 			if !isSpatialKeyType(typ) {
