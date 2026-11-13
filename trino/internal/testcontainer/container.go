@@ -31,15 +31,22 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
+	"testing"
 	"time"
 
+	"github.com/docker/docker/api/types/container"
 	"github.com/testcontainers/testcontainers-go"
+
+	"github.com/bytebase/omni/enginetest"
 )
 
 // DefaultURL is the conventional local Trino oracle endpoint. Start one with:
@@ -132,11 +139,41 @@ type queryResp struct {
 		State string `json:"state"`
 	} `json:"stats"`
 	Error *struct {
-		Message   string `json:"message"`
-		ErrorCode int    `json:"errorCode"`
-		ErrorName string `json:"errorName"`
-		ErrorType string `json:"errorType"`
+		Message       string `json:"message"`
+		ErrorCode     int    `json:"errorCode"`
+		ErrorName     string `json:"errorName"`
+		ErrorType     string `json:"errorType"`
+		ErrorLocation *struct {
+			LineNumber   int `json:"lineNumber"`
+			ColumnNumber int `json:"columnNumber"`
+		} `json:"errorLocation"`
 	} `json:"error"`
+}
+
+// QueryError is a Trino server's answer to a statement that failed, as its
+// client protocol's QueryError carries it.
+type QueryError struct {
+	// Name is errorName and Code errorCode: SYNTAX_ERROR and 1 for a
+	// rejection, TABLE_NOT_FOUND for a missing table.
+	Name string
+	Code int
+	// Line and Column are errorLocation, from 1; 0 for none.
+	Line, Column int
+	Message      string
+}
+
+func (e *QueryError) Error() string { return fmt.Sprintf("trino %s: %s", e.Name, e.Message) }
+
+// queryError reads the error of a response, or nil.
+func (r queryResp) queryError() *QueryError {
+	if r.Error == nil {
+		return nil
+	}
+	e := &QueryError{Name: r.Error.ErrorName, Code: r.Error.ErrorCode, Message: r.Error.Message}
+	if l := r.Error.ErrorLocation; l != nil {
+		e.Line, e.Column = l.LineNumber, l.ColumnNumber
+	}
+	return e
 }
 
 // Ping verifies the server is reachable and finished starting, returning the
@@ -165,22 +202,37 @@ func (o *Oracle) Ping(ctx context.Context) (string, error) {
 }
 
 // CheckSyntax submits sql to Trino and reports whether its parser accepted it.
-// It follows the statement to the point where parsing and planning are known to
-// have completed, then cancels any remaining execution so large result sets are
-// not streamed.
 func (o *Oracle) CheckSyntax(ctx context.Context, sql string) (Result, error) {
-	resp, err := o.post(ctx, sql)
-	if err != nil {
+	err := o.Run(ctx, sql)
+	var qe *QueryError
+	switch {
+	case err == nil:
+		return Result{Accepted: true}, nil
+	case errors.As(err, &qe):
+		return Result{
+			Accepted:  qe.Name != syntaxErrorName,
+			ErrorName: qe.Name,
+			ErrorCode: qe.Code,
+			Message:   qe.Message,
+		}, nil
+	default:
 		return Result{}, err
 	}
+}
+
+// Run submits sql to Trino and follows it to the point where parsing and
+// planning are known to have completed, then cancels any remaining
+// execution so large result sets are not streamed. It returns nil when the
+// statement got that far, the server's answer as a *QueryError when it
+// failed, and any other error when the server gave no answer.
+func (o *Oracle) Run(ctx context.Context, sql string) error {
+	resp, err := o.post(ctx, sql)
+	if err != nil {
+		return err
+	}
 	for i := 0; i < 10000; i++ {
-		if resp.Error != nil {
-			return Result{
-				Accepted:  resp.Error.ErrorName != syntaxErrorName,
-				ErrorName: resp.Error.ErrorName,
-				ErrorCode: resp.Error.ErrorCode,
-				Message:   resp.Error.Message,
-			}, nil
+		if qe := resp.queryError(); qe != nil {
+			return qe
 		}
 		// Once the query reaches RUNNING or FINISHED, parsing+analysis+planning
 		// have all succeeded, so the statement was syntactically accepted.
@@ -189,21 +241,21 @@ func (o *Oracle) CheckSyntax(ctx context.Context, sql string) (Result, error) {
 			if resp.NextURI != "" {
 				o.cancel(resp.NextURI)
 			}
-			return Result{Accepted: true}, nil
+			return nil
 		}
 		if resp.NextURI == "" {
-			return Result{Accepted: true}, nil
+			return nil
 		}
 		select {
 		case <-ctx.Done():
-			return Result{}, ctx.Err()
+			return ctx.Err()
 		case <-time.After(20 * time.Millisecond):
 		}
 		if resp, err = o.get(ctx, resp.NextURI); err != nil {
-			return Result{}, err
+			return err
 		}
 	}
-	return Result{}, fmt.Errorf("trino: statement %q did not settle", truncate(sql, 60))
+	return fmt.Errorf("trino: statement %q did not settle", truncate(sql, 60))
 }
 
 // Accepts is a convenience wrapper returning only the accept/reject verdict.
@@ -294,62 +346,142 @@ func truncate(s string, n int) string {
 	return s[:n] + "…"
 }
 
-// DefaultImage is the Trino image used by StartContainer. Pinned so
-// differential results are reproducible — a floating `latest` tag lets new
-// Trino releases silently shift the accept/reject oracle. Bump deliberately
-// and re-run the differentials when moving to a new Trino version.
-const DefaultImage = "trinodb/trino:482"
+// Pins is trino/testdata/pins.tsv.
+var Pins = func() string {
+	_, file, _, _ := runtime.Caller(0)
+	return filepath.Join(filepath.Dir(file), "..", "..", "testdata", "pins.tsv")
+}()
 
-// StartContainer starts a disposable Trino server via testcontainers and returns
-// an Oracle pointed at it plus a terminate func. Trino's JVM takes ~30-60s to
-// become ready, so for iterative local testing prefer a long-lived container and
-// Connect(URLFromEnv()); use StartContainer for self-contained CI runs.
-func StartContainer(ctx context.Context, opts ...Option) (oracle *Oracle, terminate func(), err error) {
+// memoryLimit caps the container: Trino sizes its JVM to the memory it
+// sees, and the box it records on is shared.
+const memoryLimit = 4 << 30
+
+// A server is the one pinned Trino this run started.
+var server struct {
+	once      sync.Once
+	pin       enginetest.Pin
+	container testcontainers.Container
+	url       string
+	err       error
+}
+
+// started returns the URL of the pinned Trino, starting it on the first
+// call and failing t unless it runs pin.
+func started(t testing.TB, pin enginetest.Pin) string {
+	t.Helper()
+	server.once.Do(func() {
+		server.pin = pin
+		server.url, server.err = start(context.Background(), pin)
+	})
+	if server.err != nil {
+		t.Fatalf("start Trino: %v", server.err)
+	}
+	if server.pin != pin {
+		t.Fatalf("this run started Trino at %s, not %s", server.pin, pin)
+	}
+	return server.url
+}
+
+func start(ctx context.Context, pin enginetest.Pin) (url string, err error) {
+	// testcontainers panics when Docker is missing; fail the test instead.
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("docker provider panic: %v", r)
+		}
+	}()
 	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
-			Image:        DefaultImage,
+			Image:        pin.Image,
 			ExposedPorts: []string{"8080/tcp"},
+			HostConfigModifier: func(hc *container.HostConfig) {
+				hc.Memory = memoryLimit
+			},
 		},
 		Started: true,
 	})
-	if err != nil {
-		return nil, nil, err
+	if c != nil {
+		server.container = c
 	}
-	terminate = func() { _ = testcontainers.TerminateContainer(c) }
-
+	if err != nil {
+		return "", err
+	}
+	if err := checkDigest(ctx, c, pin.Digest); err != nil {
+		return "", err
+	}
 	host, err := c.Host(ctx)
 	if err != nil {
-		terminate()
-		return nil, nil, err
+		return "", err
 	}
 	port, err := c.MappedPort(ctx, "8080/tcp")
 	if err != nil {
-		terminate()
-		return nil, nil, err
+		return "", err
 	}
-	o := Connect(fmt.Sprintf("http://%s:%s", host, port.Port()), opts...)
-
-	// GenericContainer returns once the process is up; poll until Trino reports
-	// it has finished starting.
+	url = fmt.Sprintf("http://%s:%s", host, port.Port())
+	o := Connect(url)
+	// GenericContainer returns once the process is up; poll until Trino
+	// reports it has finished starting.
 	deadline := time.Now().Add(3 * time.Minute)
 	for {
 		pingCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-		_, perr := o.Ping(pingCtx)
+		version, perr := o.Ping(pingCtx)
 		cancel()
 		if perr == nil {
-			return o, terminate, nil
+			if version != pin.Tag {
+				return "", fmt.Errorf("the server reports version %q, but pins.tsv pins Trino %s", version, pin.Tag)
+			}
+			return url, nil
 		}
 		if time.Now().After(deadline) {
-			terminate()
-			return nil, nil, fmt.Errorf("trino did not become ready within timeout: %w", perr)
+			return "", fmt.Errorf("trino did not become ready within timeout: %w", perr)
 		}
-		select {
-		case <-ctx.Done():
-			terminate()
-			return nil, nil, ctx.Err()
-		case <-time.After(2 * time.Second):
+		time.Sleep(2 * time.Second)
+	}
+}
+
+// checkDigest fails unless c runs the image with the pinned repository
+// digest. A tag can be pushed again; a digest cannot.
+func checkDigest(ctx context.Context, c testcontainers.Container, digest string) error {
+	info, err := c.Inspect(ctx)
+	if err != nil {
+		return fmt.Errorf("inspect the Trino container: %w", err)
+	}
+	cli, err := testcontainers.NewDockerClientWithOpts(ctx)
+	if err != nil {
+		return fmt.Errorf("docker client: %w", err)
+	}
+	defer cli.Close()
+	img, err := cli.ImageInspect(ctx, info.Image)
+	if err != nil {
+		return fmt.Errorf("inspect the Trino image: %w", err)
+	}
+	for _, d := range img.RepoDigests {
+		if strings.HasSuffix(d, "@"+digest) {
+			return nil
 		}
 	}
+	return fmt.Errorf("the Trino container runs an image with digests %v, but pins.tsv pins %s", img.RepoDigests, digest)
+}
+
+// Terminate removes the server this run started, if any. A package's
+// TestMain calls it.
+func Terminate() {
+	if server.container != nil {
+		_ = testcontainers.TerminateContainer(server.container)
+	}
+}
+
+// Judge returns the pinned Trino itself, for the judge of compat.tsv, which
+// runs only in a recording.
+func Judge(t testing.TB) *Oracle {
+	t.Helper()
+	if !enginetest.Recording(t) {
+		t.Fatalf("testcontainer.Judge outside a recording: a replay reaches no server")
+	}
+	pin, err := enginetest.LoadPin(Pins, "default")
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	return Connect(started(t, pin))
 }
 
 var forTest struct {
@@ -380,8 +512,16 @@ func ForTest(t interface {
 			forTest.err = fmt.Errorf("trino at %s unreachable: %w", o.baseURL, err)
 			return
 		}
-		o, _, err = StartContainer(context.Background())
-		forTest.o, forTest.err = o, err
+		pin, err := enginetest.LoadPin(Pins, "default")
+		if err != nil {
+			forTest.err = err
+			return
+		}
+		server.once.Do(func() {
+			server.pin = pin
+			server.url, server.err = start(context.Background(), pin)
+		})
+		forTest.o, forTest.err = Connect(server.url), server.err
 	})
 	if forTest.err != nil {
 		t.Fatalf("trino oracle: %v", forTest.err)
