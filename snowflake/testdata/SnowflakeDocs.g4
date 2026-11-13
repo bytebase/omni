@@ -2223,6 +2223,7 @@ alterStreamlit
 // fix: constraintAction: a } after ALTER | MODIFY's constraint list closes no bracket; dropped
 // fix: tableColumnAction: ALTER and MODIFY both take the column actions after them
 // fix: the column actions are a comma-separated list of actions, each one of those the page lists, as its examples show
+// fix: list_of_properties is a space-delimited list of the properties the parameters name
 alterTable
     : 'ALTER' 'TABLE' ('IF' 'EXISTS')? ID 'RENAME' 'TO' ID
     | 'ALTER' 'TABLE' ('IF' 'EXISTS')? ID 'SWAP' 'WITH' ID
@@ -2254,7 +2255,7 @@ alterTable_dataMetricFunctionAction
     | 'MODIFY' 'DATA' 'METRIC' 'FUNCTION' ID 'ON' '(' ID (',' ID)* (',' 'TABLE' ID '(' ID (',' ID)* ')')? ')' ('ADD' | 'MODIFY') 'EXPECTATION' ID '(' EXPR ')' (',' ID '(' EXPR ')')*
     | 'MODIFY' 'DATA' 'METRIC' 'FUNCTION' ID 'ON' '(' ID (',' ID)* (',' 'TABLE' ID '(' ID (',' ID)* ')')? ')' 'DROP' 'EXPECTATION' ID (',' ID)*
     | 'MODIFY' 'DATA' 'METRIC' 'FUNCTION' ID 'ON' '(' ID (',' ID)* (',' 'TABLE' ID '(' ID (',' ID)* ')')? ')' 'FILTER' '(' EXPR? ')' (',' ID 'ON' '(' ID (',' ID)* (',' 'TABLE' ID '(' ID (',' ID)* ')')? ')' 'FILTER' '(' EXPR? ')')?
-    | 'MODIFY' 'DATA' 'METRIC' 'FUNCTION' ID 'SET' ID
+    | 'MODIFY' 'DATA' 'METRIC' 'FUNCTION' ID 'SET' ('ANOMALY_DETECTION' '=' ('TRUE' | 'FALSE') | 'SENSITIVITY' '=' ('\'LOW\'' | '\'MEDIUM\'' | '\'HIGH\'') | 'DATA_QUALITY_NOTIFICATION' '=' ('TRUE' | 'FALSE'))+
     ;
 alterTable_dataGovnPolicyTagAction
     : ('SET' 'TAG' ID '=' STRING (',' ID '=' STRING)* | 'UNSET' 'TAG' ID (',' ID)*)
@@ -2328,7 +2329,7 @@ alterTask
     | 'ALTER' 'TASK' ('IF' 'EXISTS')? ID 'REMOVE' 'AFTER' STRING (',' STRING)*
     | 'ALTER' 'TASK' ('IF' 'EXISTS')? ID 'ADD' 'AFTER' STRING (',' STRING)*
     | 'ALTER' 'TASK' ('IF' 'EXISTS')? ID 'SET' (('WAREHOUSE' '=' STRING | 'USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE' '=' STRING) ('SCHEDULE' '=' STRING)? ('CONFIG' '=' STRING)? ('OVERLAP_POLICY' '=' ('NO_OVERLAP' | 'ALLOW_CHILD_OVERLAP' | 'ALLOW_ALL_OVERLAP'))? ('USER_TASK_TIMEOUT_MS' '=' NUMBER)? ('SUSPEND_TASK_AFTER_NUM_FAILURES' '=' NUMBER)? ('ERROR_INTEGRATION' '=' ID)? ('SUCCESS_INTEGRATION' '=' ID)? ('LOG_LEVEL' '=' STRING)? ('COMMENT' '=' STRING)? (ID '=' ID (',' ID '=' ID)*)? ('TASK_AUTO_RETRY_ATTEMPTS' '=' NUMBER)? ('USER_TASK_MINIMUM_TRIGGER_INTERVAL_IN_SECONDS' '=' NUMBER)? ('TARGET_COMPLETION_INTERVAL' '=' STRING)? ('SERVERLESS_TASK_MIN_STATEMENT_SIZE' '=' STRING)? ('SERVERLESS_TASK_MAX_STATEMENT_SIZE' '=' STRING)? ('CONTACT' ID '=' ID (',' ID '=' ID)*)? ('EXECUTE' 'AS' 'USER' ID)? | 'SCHEDULE' '=' STRING ('CONFIG' '=' STRING)? ('OVERLAP_POLICY' '=' ('NO_OVERLAP' | 'ALLOW_CHILD_OVERLAP' | 'ALLOW_ALL_OVERLAP'))? ('USER_TASK_TIMEOUT_MS' '=' NUMBER)? ('SUSPEND_TASK_AFTER_NUM_FAILURES' '=' NUMBER)? ('ERROR_INTEGRATION' '=' ID)? ('SUCCESS_INTEGRATION' '=' ID)? ('LOG_LEVEL' '=' STRING)? ('COMMENT' '=' STRING)? (ID '=' ID (',' ID '=' ID)*)? ('TASK_AUTO_RETRY_ATTEMPTS' '=' NUMBER)? ('USER_TASK_MINIMUM_TRIGGER_INTERVAL_IN_SECONDS' '=' NUMBER)? ('TARGET_COMPLETION_INTERVAL' '=' STRING)? ('SERVERLESS_TASK_MIN_STATEMENT_SIZE' '=' STRING)? ('SERVERLESS_TASK_MAX_STATEMENT_SIZE' '=' STRING)? ('CONTACT' ID '=' ID (',' ID '=' ID)*)? ('EXECUTE' 'AS' 'USER' ID)? | 'CONFIG' '=' STRING ('OVERLAP_POLICY' '=' ('NO_OVERLAP' | 'ALLOW_CHILD_OVERLAP' | 'ALLOW_ALL_OVERLAP'))? ('USER_TASK_TIMEOUT_MS' '=' NUMBER)? ('SUSPEND_TASK_AFTER_NUM_FAILURES' '=' NUMBER)? ('ERROR_INTEGRATION' '=' ID)? ('SUCCESS_INTEGRATION' '=' ID)? ('LOG_LEVEL' '=' STRING)? ('COMMENT' '=' STRING)? (ID '=' ID (',' ID '=' ID)*)? ('TASK_AUTO_RETRY_ATTEMPTS' '=' NUMBER)? ('USER_TASK_MINIMUM_TRIGGER_INTERVAL_IN_SECONDS' '=' NUMBER)? ('TARGET_COMPLETION_INTERVAL' '=' STRING)? ('SERVERLESS_TASK_MIN_STATEMENT_SIZE' '=' STRING)? ('SERVERLESS_TASK_MAX_STATEMENT_SIZE' '=' STRING)? ('CONTACT' ID '=' ID (',' ID '=' ID)*)? ('EXECUTE' 'AS' 'USER' ID)? | 'OVERLAP_POLICY' '=' ('NO_OVERLAP' | 'ALLOW_CHILD_OVERLAP' | 'ALLOW_ALL_OVERLAP') ('USER_TASK_TIMEOUT_MS' '=' NUMBER)? ('SUSPEND_TASK_AFTER_NUM_FAILURES' '=' NUMBER)? ('ERROR_INTEGRATION' '=' ID)? ('SUCCESS_INTEGRATION' '=' ID)? ('LOG_LEVEL' '=' STRING)? ('COMMENT' '=' STRING)? (ID '=' ID (',' ID '=' ID)*)? ('TASK_AUTO_RETRY_ATTEMPTS' '=' NUMBER)? ('USER_TASK_MINIMUM_TRIGGER_INTERVAL_IN_SECONDS' '=' NUMBER)? ('TARGET_COMPLETION_INTERVAL' '=' STRING)? ('SERVERLESS_TASK_MIN_STATEMENT_SIZE' '=' STRING)? ('SERVERLESS_TASK_MAX_STATEMENT_SIZE' '=' STRING)? ('CONTACT' ID '=' ID (',' ID '=' ID)*)? ('EXECUTE' 'AS' 'USER' ID)? | 'USER_TASK_TIMEOUT_MS' '=' NUMBER ('SUSPEND_TASK_AFTER_NUM_FAILURES' '=' NUMBER)? ('ERROR_INTEGRATION' '=' ID)? ('SUCCESS_INTEGRATION' '=' ID)? ('LOG_LEVEL' '=' STRING)? ('COMMENT' '=' STRING)? (ID '=' ID (',' ID '=' ID)*)? ('TASK_AUTO_RETRY_ATTEMPTS' '=' NUMBER)? ('USER_TASK_MINIMUM_TRIGGER_INTERVAL_IN_SECONDS' '=' NUMBER)? ('TARGET_COMPLETION_INTERVAL' '=' STRING)? ('SERVERLESS_TASK_MIN_STATEMENT_SIZE' '=' STRING)? ('SERVERLESS_TASK_MAX_STATEMENT_SIZE' '=' STRING)? ('CONTACT' ID '=' ID (',' ID '=' ID)*)? ('EXECUTE' 'AS' 'USER' ID)? | 'SUSPEND_TASK_AFTER_NUM_FAILURES' '=' NUMBER ('ERROR_INTEGRATION' '=' ID)? ('SUCCESS_INTEGRATION' '=' ID)? ('LOG_LEVEL' '=' STRING)? ('COMMENT' '=' STRING)? (ID '=' ID (',' ID '=' ID)*)? ('TASK_AUTO_RETRY_ATTEMPTS' '=' NUMBER)? ('USER_TASK_MINIMUM_TRIGGER_INTERVAL_IN_SECONDS' '=' NUMBER)? ('TARGET_COMPLETION_INTERVAL' '=' STRING)? ('SERVERLESS_TASK_MIN_STATEMENT_SIZE' '=' STRING)? ('SERVERLESS_TASK_MAX_STATEMENT_SIZE' '=' STRING)? ('CONTACT' ID '=' ID (',' ID '=' ID)*)? ('EXECUTE' 'AS' 'USER' ID)? | 'ERROR_INTEGRATION' '=' ID ('SUCCESS_INTEGRATION' '=' ID)? ('LOG_LEVEL' '=' STRING)? ('COMMENT' '=' STRING)? (ID '=' ID (',' ID '=' ID)*)? ('TASK_AUTO_RETRY_ATTEMPTS' '=' NUMBER)? ('USER_TASK_MINIMUM_TRIGGER_INTERVAL_IN_SECONDS' '=' NUMBER)? ('TARGET_COMPLETION_INTERVAL' '=' STRING)? ('SERVERLESS_TASK_MIN_STATEMENT_SIZE' '=' STRING)? ('SERVERLESS_TASK_MAX_STATEMENT_SIZE' '=' STRING)? ('CONTACT' ID '=' ID (',' ID '=' ID)*)? ('EXECUTE' 'AS' 'USER' ID)? | 'SUCCESS_INTEGRATION' '=' ID ('LOG_LEVEL' '=' STRING)? ('COMMENT' '=' STRING)? (ID '=' ID (',' ID '=' ID)*)? ('TASK_AUTO_RETRY_ATTEMPTS' '=' NUMBER)? ('USER_TASK_MINIMUM_TRIGGER_INTERVAL_IN_SECONDS' '=' NUMBER)? ('TARGET_COMPLETION_INTERVAL' '=' STRING)? ('SERVERLESS_TASK_MIN_STATEMENT_SIZE' '=' STRING)? ('SERVERLESS_TASK_MAX_STATEMENT_SIZE' '=' STRING)? ('CONTACT' ID '=' ID (',' ID '=' ID)*)? ('EXECUTE' 'AS' 'USER' ID)? | 'LOG_LEVEL' '=' STRING ('COMMENT' '=' STRING)? (ID '=' ID (',' ID '=' ID)*)? ('TASK_AUTO_RETRY_ATTEMPTS' '=' NUMBER)? ('USER_TASK_MINIMUM_TRIGGER_INTERVAL_IN_SECONDS' '=' NUMBER)? ('TARGET_COMPLETION_INTERVAL' '=' STRING)? ('SERVERLESS_TASK_MIN_STATEMENT_SIZE' '=' STRING)? ('SERVERLESS_TASK_MAX_STATEMENT_SIZE' '=' STRING)? ('CONTACT' ID '=' ID (',' ID '=' ID)*)? ('EXECUTE' 'AS' 'USER' ID)? | 'COMMENT' '=' STRING (ID '=' ID (',' ID '=' ID)*)? ('TASK_AUTO_RETRY_ATTEMPTS' '=' NUMBER)? ('USER_TASK_MINIMUM_TRIGGER_INTERVAL_IN_SECONDS' '=' NUMBER)? ('TARGET_COMPLETION_INTERVAL' '=' STRING)? ('SERVERLESS_TASK_MIN_STATEMENT_SIZE' '=' STRING)? ('SERVERLESS_TASK_MAX_STATEMENT_SIZE' '=' STRING)? ('CONTACT' ID '=' ID (',' ID '=' ID)*)? ('EXECUTE' 'AS' 'USER' ID)? | ID '=' ID (',' ID '=' ID)* ('TASK_AUTO_RETRY_ATTEMPTS' '=' NUMBER)? ('USER_TASK_MINIMUM_TRIGGER_INTERVAL_IN_SECONDS' '=' NUMBER)? ('TARGET_COMPLETION_INTERVAL' '=' STRING)? ('SERVERLESS_TASK_MIN_STATEMENT_SIZE' '=' STRING)? ('SERVERLESS_TASK_MAX_STATEMENT_SIZE' '=' STRING)? ('CONTACT' ID '=' ID (',' ID '=' ID)*)? ('EXECUTE' 'AS' 'USER' ID)? | 'TASK_AUTO_RETRY_ATTEMPTS' '=' NUMBER ('USER_TASK_MINIMUM_TRIGGER_INTERVAL_IN_SECONDS' '=' NUMBER)? ('TARGET_COMPLETION_INTERVAL' '=' STRING)? ('SERVERLESS_TASK_MIN_STATEMENT_SIZE' '=' STRING)? ('SERVERLESS_TASK_MAX_STATEMENT_SIZE' '=' STRING)? ('CONTACT' ID '=' ID (',' ID '=' ID)*)? ('EXECUTE' 'AS' 'USER' ID)? | 'USER_TASK_MINIMUM_TRIGGER_INTERVAL_IN_SECONDS' '=' NUMBER ('TARGET_COMPLETION_INTERVAL' '=' STRING)? ('SERVERLESS_TASK_MIN_STATEMENT_SIZE' '=' STRING)? ('SERVERLESS_TASK_MAX_STATEMENT_SIZE' '=' STRING)? ('CONTACT' ID '=' ID (',' ID '=' ID)*)? ('EXECUTE' 'AS' 'USER' ID)? | 'TARGET_COMPLETION_INTERVAL' '=' STRING ('SERVERLESS_TASK_MIN_STATEMENT_SIZE' '=' STRING)? ('SERVERLESS_TASK_MAX_STATEMENT_SIZE' '=' STRING)? ('CONTACT' ID '=' ID (',' ID '=' ID)*)? ('EXECUTE' 'AS' 'USER' ID)? | 'SERVERLESS_TASK_MIN_STATEMENT_SIZE' '=' STRING ('SERVERLESS_TASK_MAX_STATEMENT_SIZE' '=' STRING)? ('CONTACT' ID '=' ID (',' ID '=' ID)*)? ('EXECUTE' 'AS' 'USER' ID)? | 'SERVERLESS_TASK_MAX_STATEMENT_SIZE' '=' STRING ('CONTACT' ID '=' ID (',' ID '=' ID)*)? ('EXECUTE' 'AS' 'USER' ID)? | 'CONTACT' ID '=' ID (',' ID '=' ID)* ('EXECUTE' 'AS' 'USER' ID)? | 'EXECUTE' 'AS' 'USER' ID)
-    | 'ALTER' 'TASK' ('IF' 'EXISTS')? ID 'UNSET' ('WAREHOUSE' | 'SCHEDULE' | 'CONFIG' | 'OVERLAP_POLICY' | 'USER_TASK_TIMEOUT_MS' | 'SUSPEND_TASK_AFTER_NUM_FAILURES' | 'LOG_LEVEL' | 'COMMENT') (',' ('WAREHOUSE' | 'SCHEDULE' | 'CONFIG' | 'OVERLAP_POLICY' | 'USER_TASK_TIMEOUT_MS' | 'SUSPEND_TASK_AFTER_NUM_FAILURES' | 'LOG_LEVEL' | 'COMMENT'))* (ID (',' ID)*)? 'TARGET_COMPLETION_INTERVAL'? 'SERVERLESS_TASK_MIN_STATEMENT_SIZE'? 'SERVERLESS_TASK_MAX_STATEMENT_SIZE'? ('CONTACT' ID (',' ID)*)? ('EXECUTE' 'AS' 'USER')?
+    | 'ALTER' 'TASK' ('IF' 'EXISTS')? ID 'UNSET' ('WAREHOUSE' | 'SCHEDULE' | 'CONFIG' | 'OVERLAP_POLICY' | 'USER_TASK_TIMEOUT_MS' | 'SUSPEND_TASK_AFTER_NUM_FAILURES' | 'LOG_LEVEL' | 'COMMENT' | ID (',' ID)* | 'TARGET_COMPLETION_INTERVAL' | 'SERVERLESS_TASK_MIN_STATEMENT_SIZE' | 'SERVERLESS_TASK_MAX_STATEMENT_SIZE' | 'CONTACT' ID (',' ID)* | 'EXECUTE' 'AS' 'USER') (',' ('WAREHOUSE' | 'SCHEDULE' | 'CONFIG' | 'OVERLAP_POLICY' | 'USER_TASK_TIMEOUT_MS' | 'SUSPEND_TASK_AFTER_NUM_FAILURES' | 'LOG_LEVEL' | 'COMMENT' | ID (',' ID)* | 'TARGET_COMPLETION_INTERVAL' | 'SERVERLESS_TASK_MIN_STATEMENT_SIZE' | 'SERVERLESS_TASK_MAX_STATEMENT_SIZE' | 'CONTACT' ID (',' ID)* | 'EXECUTE' 'AS' 'USER'))*
     | 'ALTER' 'TASK' ('IF' 'EXISTS')? ID 'SET' 'TAG' ID '=' STRING (',' ID '=' STRING)*
     | 'ALTER' 'TASK' ('IF' 'EXISTS')? ID 'UNSET' 'TAG' ID (',' ID)*
     | 'ALTER' 'TASK' ('IF' 'EXISTS')? ID 'SET' 'FINALIZE' '=' STRING
@@ -2469,6 +2470,7 @@ alterVariable
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-view
+// fix: list_of_properties is a space-delimited list of the properties the parameters name
 alterView
     : 'ALTER' 'VIEW' ('IF' 'EXISTS')? ID 'RENAME' 'TO' ID
     | 'ALTER' 'VIEW' ('IF' 'EXISTS')? ID 'SET' ('SECURE' ('CHANGE_TRACKING' '=' ('TRUE' | 'FALSE'))? ('CONTACT' ID '=' ID (',' ID '=' ID)*)? ('COMMENT' '=' STRING)? | 'CHANGE_TRACKING' '=' ('TRUE' | 'FALSE') ('CONTACT' ID '=' ID (',' ID '=' ID)*)? ('COMMENT' '=' STRING)? | 'CONTACT' ID '=' ID (',' ID '=' ID)* ('COMMENT' '=' STRING)? | 'COMMENT' '=' STRING)
@@ -2485,7 +2487,7 @@ alterView_dataMetricFunctionAction
     | 'MODIFY' 'DATA' 'METRIC' 'FUNCTION' ID 'ON' '(' ID (',' ID)* (',' 'TABLE' ID '(' ID (',' ID)* ')')? ')' ('ADD' | 'MODIFY') 'EXPECTATION' ID '(' EXPR ')' (',' ID '(' EXPR ')')*
     | 'MODIFY' 'DATA' 'METRIC' 'FUNCTION' ID 'ON' '(' ID (',' ID)* (',' 'TABLE' ID '(' ID (',' ID)* ')')? ')' 'DROP' 'EXPECTATION' ID (',' ID)*
     | 'MODIFY' 'DATA' 'METRIC' 'FUNCTION' ID 'ON' '(' ID (',' ID)* (',' 'TABLE' ID '(' ID (',' ID)* ')')? ')' 'FILTER' '(' EXPR? ')' (',' ID 'ON' '(' ID (',' ID)* (',' 'TABLE' ID '(' ID (',' ID)* ')')? ')' 'FILTER' '(' EXPR? ')')?
-    | 'MODIFY' 'DATA' 'METRIC' 'FUNCTION' ID 'SET' ID
+    | 'MODIFY' 'DATA' 'METRIC' 'FUNCTION' ID 'SET' ('ANOMALY_DETECTION' '=' ('TRUE' | 'FALSE') | 'SENSITIVITY' '=' ('\'LOW\'' | '\'MEDIUM\'' | '\'HIGH\'') | 'DATA_QUALITY_NOTIFICATION' '=' ('TRUE' | 'FALSE'))+
     ;
 alterView_dataGovnPolicyTagAction
     : ('SET' 'TAG' ID '=' STRING (',' ID '=' STRING)* | 'UNSET' 'TAG' ID (',' ID)*)
@@ -2629,7 +2631,7 @@ commit
 //     FROM ( SELECT <existing_url> [ , <new_filename> ] FROM ... )
 //     [ DETAILED_OUTPUT = { TRUE | FALSE } ]
 copyFiles
-    : 'COPY' 'FILES' 'INTO' STAGE 'FROM' STAGE ('FILES' '=' '(' STRING (',' STRING)? (',' STRING (',' STRING)?)* ')')? ('PATTERN' '=' STRING)? ('DETAILED_OUTPUT' '=' ('TRUE' | 'FALSE'))?
+    : 'COPY' 'FILES' 'INTO' STAGE 'FROM' STAGE ('FILES' '=' '(' STRING (',' STRING)* ')')? ('PATTERN' '=' STRING)? ('DETAILED_OUTPUT' '=' ('TRUE' | 'FALSE'))?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/copy-into-location
@@ -2659,8 +2661,8 @@ copyIntoLocation_copyOptions
 // fix: VALIDATION_MODE: RETURN_<n>_ROWS holds its number inside the keyword; written for n = 10
 // fix: the parameters list the valid METADATA$ columns
 copyIntoTable
-    : 'COPY' 'INTO' (ID '.')? ID 'FROM' (copyIntoTable_internalStage | copyIntoTable_externalStage | copyIntoTable_externalLocation) ('FILES' '=' '(' STRING (',' STRING)? (',' STRING (',' STRING)?)* ')')? ('PATTERN' '=' STRING)? ('FILE_FORMAT' '=' '(' ('FORMAT_NAME' '=' STRING | 'TYPE' '=' ('CSV' | 'JSON' | 'AVRO' | 'ORC' | 'PARQUET' | 'XML') copyIntoTable_formatTypeOptions?) ')')? copyIntoTable_copyOptions? ('VALIDATION_MODE' '=' 'RETURN_10_ROWS' | 'VALIDATION_MODE' '=' 'RETURN_ERRORS' | 'VALIDATION_MODE' '=' 'RETURN_ALL_ERRORS')?
-    | 'COPY' 'INTO' (ID '.')? ID ('(' ID (',' ID)* ')')? 'FROM' '(' 'SELECT' (ID '.')? POSITION ('.' ID)? (',' (ID '.')? POSITION ('.' ID)?)* 'FROM' (copyIntoTable_internalStage | copyIntoTable_externalStage) ')' ('FILES' '=' '(' STRING (',' STRING)? (',' STRING (',' STRING)?)* ')')? ('PATTERN' '=' STRING)? ('FILE_FORMAT' '=' '(' ('FORMAT_NAME' '=' STRING | 'TYPE' '=' ('CSV' | 'JSON' | 'AVRO' | 'ORC' | 'PARQUET' | 'XML') copyIntoTable_formatTypeOptions?) ')')? copyIntoTable_copyOptions?
+    : 'COPY' 'INTO' (ID '.')? ID 'FROM' (copyIntoTable_internalStage | copyIntoTable_externalStage | copyIntoTable_externalLocation) ('FILES' '=' '(' STRING (',' STRING)* ')')? ('PATTERN' '=' STRING)? ('FILE_FORMAT' '=' '(' ('FORMAT_NAME' '=' STRING | 'TYPE' '=' ('CSV' | 'JSON' | 'AVRO' | 'ORC' | 'PARQUET' | 'XML') copyIntoTable_formatTypeOptions?) ')')? copyIntoTable_copyOptions? ('VALIDATION_MODE' '=' 'RETURN_10_ROWS' | 'VALIDATION_MODE' '=' 'RETURN_ERRORS' | 'VALIDATION_MODE' '=' 'RETURN_ALL_ERRORS')?
+    | 'COPY' 'INTO' (ID '.')? ID ('(' ID (',' ID)* ')')? 'FROM' '(' 'SELECT' (ID '.')? POSITION ('.' ID)? (',' (ID '.')? POSITION ('.' ID)?)* 'FROM' (copyIntoTable_internalStage | copyIntoTable_externalStage) ')' ('FILES' '=' '(' STRING (',' STRING)* ')')? ('PATTERN' '=' STRING)? ('FILE_FORMAT' '=' '(' ('FORMAT_NAME' '=' STRING | 'TYPE' '=' ('CSV' | 'JSON' | 'AVRO' | 'ORC' | 'PARQUET' | 'XML') copyIntoTable_formatTypeOptions?) ')')? copyIntoTable_copyOptions?
     ;
 copyIntoTable_internalStage
     : STAGE
@@ -3070,7 +3072,7 @@ createGitRepository
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-hybrid-table
 createHybridTable
-    : 'CREATE' ('OR' 'REPLACE')? 'HYBRID' 'TABLE' ('IF' 'NOT' 'EXISTS')? ID '(' ID DATA_TYPE (('DEFAULT' EXPR | ('AUTOINCREMENT' | 'IDENTITY') (('(' NUMBER ',' NUMBER ')' | 'START' NUMBER 'INCREMENT' NUMBER))? (('ORDER' | 'NOORDER'))?))? ('NOT' 'NULL')? createHybridTable_inlineConstraint? ('COLLATE' STRING)? ('COMMENT' STRING)? (',' ID DATA_TYPE)* (',' createHybridTable_outoflineConstraint)? (',' createHybridTable_outoflineIndex)? (',' ID DATA_TYPE (('DEFAULT' EXPR | ('AUTOINCREMENT' | 'IDENTITY') (('(' NUMBER ',' NUMBER ')' | 'START' NUMBER 'INCREMENT' NUMBER))? (('ORDER' | 'NOORDER'))?))? ('NOT' 'NULL')? createHybridTable_inlineConstraint? ('COLLATE' STRING)? ('COMMENT' STRING)? (',' ID DATA_TYPE)* (',' createHybridTable_outoflineConstraint)? (',' createHybridTable_outoflineIndex)?)* ')' ('COMMENT' '=' STRING)?
+    : 'CREATE' ('OR' 'REPLACE')? 'HYBRID' 'TABLE' ('IF' 'NOT' 'EXISTS')? ID '(' ID DATA_TYPE (('DEFAULT' EXPR | ('AUTOINCREMENT' | 'IDENTITY') (('(' NUMBER ',' NUMBER ')' | 'START' NUMBER 'INCREMENT' NUMBER))? (('ORDER' | 'NOORDER'))?))? ('NOT' 'NULL')? createHybridTable_inlineConstraint? ('COLLATE' STRING)? ('COMMENT' STRING)? (',' ID DATA_TYPE)* (',' createHybridTable_outoflineConstraint)? (',' createHybridTable_outoflineIndex)* ')' ('COMMENT' '=' STRING)?
     ;
 createHybridTable_inlineConstraint
     : ('CONSTRAINT' ID)? ('UNIQUE' | 'PRIMARY' 'KEY' | ('FOREIGN' 'KEY')? 'REFERENCES' ID ('(' ID ')')? | 'CHECK' '(' EXPR ')') ID?
@@ -3717,7 +3719,7 @@ createTable_outoflineConstraint
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-table-constraint
 createTableConstraint
-    : 'CREATE' 'TABLE' ID '(' ID DATA_TYPE ('NOT' 'NULL')? (createTableConstraint_inlineUniquePK | createTableConstraint_inlineFK | createTableConstraint_inlineCH) (',' ID DATA_TYPE ('NOT' 'NULL')? (createTableConstraint_inlineUniquePK | createTableConstraint_inlineFK | createTableConstraint_inlineCH))? (',' (createTableConstraint_inlineUniquePK | createTableConstraint_inlineFK | createTableConstraint_inlineCH) (',' ID DATA_TYPE ('NOT' 'NULL')? (createTableConstraint_inlineUniquePK | createTableConstraint_inlineFK | createTableConstraint_inlineCH))?)* ')'
+    : 'CREATE' 'TABLE' ID '(' ID DATA_TYPE ('NOT' 'NULL')? (createTableConstraint_inlineUniquePK | createTableConstraint_inlineFK | createTableConstraint_inlineCH) (',' ID DATA_TYPE ('NOT' 'NULL')? (createTableConstraint_inlineUniquePK | createTableConstraint_inlineFK | createTableConstraint_inlineCH))* ')'
     | 'ALTER' 'TABLE' ID 'ADD' 'COLUMN' ID DATA_TYPE ('NOT' 'NULL')? (createTableConstraint_inlineUniquePK | createTableConstraint_inlineFK | createTableConstraint_inlineCH)
     ;
 createTableConstraint_inlineUniquePK
@@ -6517,8 +6519,9 @@ unset
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/update
+// fix: the value assigned is an expression, as the examples show
 update
-    : 'UPDATE' ID 'SET' ID '=' ID (',' ID '=' ID)* ('FROM' ID)? ('WHERE' EXPR)?
+    : 'UPDATE' ID 'SET' ID '=' EXPR (',' ID '=' EXPR)* ('FROM' ID)? ('WHERE' EXPR)?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/use

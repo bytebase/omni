@@ -59,6 +59,10 @@ func TestNotationReadsAsANTLR(t *testing.T) {
 		{"SET [ SECRETS = ( <s> ) | all | none ]", "'SET' ('SECRETS' '=' '(' ID ')' | 'SECRETS' '=' 'all' | 'SECRETS' '=' 'none')"},
 		{"DESC[RIBE] RESULT '<query_id>'", "('DESC' | 'DESCRIBE') 'RESULT' STRING"},
 		{"STORAGE_PROVIDER = '{ S3 | S3CHINA }'", "'STORAGE_PROVIDER' '=' ('\\'S3\\'' | '\\'S3CHINA\\'')"},
+		// X [ , Y ] [ , ... ] repeats the comma-led group.
+		{"( <c1> <col1_type> NOT NULL [ , <c2> <col2_type> NOT NULL ] [ , ... ] )", "'(' ID DATA_TYPE 'NOT' 'NULL' (',' ID DATA_TYPE 'NOT' 'NULL')* ')'"},
+		// UNSET's list takes every optional clause after the names.
+		{"ALTER T <name> UNSET [ A ] [ B ] [ <p> [ , <p> ... ] ] [ C ]", "'ALTER' 'T' ID 'UNSET' ('A' | 'B' | ID (',' ID)* | 'C') (',' ('A' | 'B' | ID (',' ID)* | 'C'))*"},
 		// { <target> SET X | UNSET X }: UNSET keeps the target.
 		{"ALTER V <name> { MODIFY COLUMN <col> SET MASKING POLICY <p> | UNSET MASKING POLICY }", "'ALTER' 'V' ID ('MODIFY' 'COLUMN' ID 'SET' 'MASKING' 'POLICY' ID | 'MODIFY' 'COLUMN' ID 'UNSET' 'MASKING' 'POLICY')"},
 		{"ALTER V <name> { SET COMMENT = '<c>' | UNSET COMMENT }", "'ALTER' 'V' ID ('SET' 'COMMENT' '=' STRING | 'UNSET' 'COMMENT')"},

@@ -483,6 +483,11 @@ func unsetList(seq []*node) []*node {
 		if j-i-1 < 2 {
 			return seq
 		}
+		// The optional clauses after the names are more properties UNSET
+		// may name: [ <session_parameter> [ , ... ] ], [ CONTACT <purpose> ].
+		for j < len(seq) && seq[j].tok == nil && !seq[j].brace && seq[j].op == '?' && len(seq[j].alts) == 1 {
+			j++
+		}
 		choice := &node{brace: true}
 		for _, r := range seq[i+1 : j] {
 			choice.alts = append(choice.alts, r.alts[0])
@@ -630,6 +635,11 @@ func resolveSeqEllipses(seq []*node) ([]*node, error) {
 				}
 				prev := out[len(out)-1]
 				switch {
+				case comma && secondElement(prev):
+					// X [ , Y ] [ , ... ]: more of the comma-led group, as
+					// <col1> <type> [ , <col2> <type> ] [ , ... ] repeats
+					// whole columns.
+					out[len(out)-1] = &node{alts: prev.alts, op: '*'}
 				case comma:
 					// X [ , ... ] repeats the list element before it (see
 					// listElement). An element of optional parts only,
@@ -721,6 +731,17 @@ func resolveSeqEllipses(seq []*node) ([]*node, error) {
 		}
 	}
 	return out, nil
+}
+
+// secondElement reports whether n is [ , Y ], a list's second element
+// spelled out, where Y does not start with a keyword: READ [ , WRITE ]
+// [ , ... ] is a list of keywords, which listElement reads.
+func secondElement(n *node) bool {
+	if n.tok != nil || n.brace || n.op != '?' || len(n.alts) != 1 || len(n.alts[0]) < 2 || !isComma(n.alts[0][0]) {
+		return false
+	}
+	y := n.alts[0][1]
+	return y.tok == nil || y.tok.kind != nKeyword
 }
 
 // trailingRepeat reports whether a [ ] group's one sequence ended in ...,
