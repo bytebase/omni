@@ -1,0 +1,103 @@
+package analysis_test
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/bytebase/omni/snowflake/analysis"
+)
+
+func TestValidateQuery(t *testing.T) {
+	tests := []struct {
+		statement   string
+		valid       bool
+		gotAllQuery bool
+		err         bool
+	}{
+		{
+			statement:   "SHOW TABLES;",
+			valid:       true,
+			gotAllQuery: true,
+		},
+		{
+			// Result-pipe: read-only source + trailing SELECT over $1 is a query.
+			statement:   "SHOW TABLES ->> SELECT * FROM $1;",
+			valid:       true,
+			gotAllQuery: true,
+		},
+		{
+			// Result-pipe with a non-read-only source must not classify as a query.
+			statement:   "CALL P() ->> SELECT * FROM $1;",
+			valid:       false,
+			gotAllQuery: false,
+		},
+		{
+			// A non-read-only statement piped FROM a SHOW must not classify as a query.
+			statement:   "SHOW TABLES ->> DELETE FROM T1;",
+			valid:       false,
+			gotAllQuery: false,
+		},
+		{
+			statement:   "DESC TABLE bytebase;",
+			valid:       true,
+			gotAllQuery: true,
+		},
+		{
+			statement:   "SELECT * FROM t1 WHERE c1 = 1; SELECT * FROM t2;",
+			valid:       true,
+			gotAllQuery: true,
+		},
+		{
+			statement:   "CREATE TABLE t1 (c1 INT);",
+			valid:       false,
+			gotAllQuery: false,
+		},
+		{
+			statement:   "UPDATE t1 SET c1 = 1;",
+			valid:       false,
+			gotAllQuery: false,
+		},
+		{
+			statement:   "EXPLAIN SELECT * FROM t1;",
+			valid:       true,
+			gotAllQuery: true,
+		},
+		{
+			statement:   `select* from t`,
+			valid:       true,
+			gotAllQuery: true,
+		},
+		{
+			statement:   `explain select * from t;`,
+			valid:       true,
+			gotAllQuery: true,
+		},
+		{
+			statement:   "select * from t where a = 'klasjdfkljsa$tag$; -- lkjdlkfajslkdfj'",
+			valid:       true,
+			gotAllQuery: true,
+		},
+		{
+			statement:   `create table t (a int);`,
+			valid:       false,
+			gotAllQuery: false,
+		},
+		{
+			statement:   `SET max_execution_time = 1000; select * from t`,
+			valid:       true,
+			gotAllQuery: false,
+		},
+	}
+
+	for _, test := range tests {
+		gotValid, gotAllQuery, err := analysis.ValidateQuery(test.statement)
+		if test.err {
+			require.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			require.Equal(t, test.valid, gotValid, test.statement)
+			require.Equal(t, test.gotAllQuery, gotAllQuery, test.statement)
+		}
+	}
+}
