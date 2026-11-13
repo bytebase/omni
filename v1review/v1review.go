@@ -40,6 +40,11 @@ const (
 	// does not compile, so that object's name could not be judged. Detail
 	// holds the compile error.
 	PatternInvalid Code = "pattern-invalid"
+	// NameIsKeyword: a name is a keyword in the table the engine's V1
+	// advisor checked names against.
+	NameIsKeyword Code = "name-is-keyword"
+	// NameCaseMismatch: a name is not in the configured letter case.
+	NameCaseMismatch Code = "name-case-mismatch"
 )
 
 // Finding is one violation a rule function reports, in statement order.
@@ -57,6 +62,12 @@ type Finding struct {
 	Pattern string
 	// Detail is the compile error's text, set with PatternInvalid.
 	Detail string
+	// Search is the text the V1 advisor searched the statement for to find
+	// the finding's line, which can differ from Name: the source spelling
+	// where Name is lower-cased, say. It is set only on a finding the V1
+	// advisor placed that way; the caller repeats the search, and uses
+	// Start and End for every other finding.
+	Search string
 	// Start and End are the byte range that anchors the finding in the
 	// text the statements were parsed from: the node the V1 advisor took
 	// its line from, which each engine's rule function names. Where the V1
@@ -85,6 +96,13 @@ func (c NamingConfig) Compile() (*regexp.Regexp, error) {
 		return nil, nil
 	}
 	return regexp.Compile(c.Pattern)
+}
+
+// CaseConfig configures an identifier case rule; Bytebase builds it from the
+// V1 NamingCaseRulePayload.
+type CaseConfig struct {
+	// Upper requires upper case; false requires lower case.
+	Upper bool
 }
 
 // The tokens a template rule's Format may hold. Which of them a rule gives
