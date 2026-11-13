@@ -62,7 +62,9 @@ func (p *Parser) parseViewStmt(replace bool) (*nodes.ViewStmt, error) {
 		}
 	} else {
 		// opt_column_list
-		aliases, _ = p.parseOptColumnList()
+		if aliases, err = p.parseOptColumnList(); err != nil {
+			return nil, err
+		}
 	}
 
 	// opt_reloptions
@@ -81,7 +83,7 @@ func (p *Parser) parseViewStmt(replace bool) (*nodes.ViewStmt, error) {
 
 	if recursive {
 		// For RECURSIVE VIEW, we need to wrap the select in a CTE.
-		selectStmt, err := p.parseSelectNoParens()
+		selectStmt, err := p.parseRequiredSelectNoParens()
 		if err != nil {
 			return nil, err
 		}
@@ -108,7 +110,7 @@ func (p *Parser) parseViewStmt(replace bool) (*nodes.ViewStmt, error) {
 		}
 		query = sel
 	} else {
-		sel, err := p.parseSelectNoParens()
+		sel, err := p.parseRequiredSelectNoParens()
 		if err != nil {
 			return nil, err
 		}
@@ -116,7 +118,10 @@ func (p *Parser) parseViewStmt(replace bool) (*nodes.ViewStmt, error) {
 	}
 
 	// opt_check_option
-	checkOption := p.parseOptCheckOption()
+	checkOption, err := p.parseOptCheckOption()
+	if err != nil {
+		return nil, err
+	}
 
 	return &nodes.ViewStmt{
 		View:            rv,
@@ -128,43 +133,35 @@ func (p *Parser) parseViewStmt(replace bool) (*nodes.ViewStmt, error) {
 	}, nil
 }
 
-// parseOptCheckOption parses opt_check_option.
+// parseOptCheckOption parses opt_check_option. It ends the view, after
+// its SelectStmt, so WITH here can only lead it.
 //
 //	opt_check_option:
 //	    WITH CHECK OPTION
 //	    | WITH CASCADED CHECK OPTION
 //	    | WITH LOCAL CHECK OPTION
 //	    | /* EMPTY */
-func (p *Parser) parseOptCheckOption() int {
+func (p *Parser) parseOptCheckOption() (int, error) {
 	if p.cur.Type != WITH {
-		return VIEW_CHECK_OPTION_NONE
+		return VIEW_CHECK_OPTION_NONE, nil
 	}
+	p.advance() // WITH
 
-	next := p.peekNext()
-	switch next.Type {
-	case CHECK:
-		// WITH CHECK OPTION
-		p.advance() // WITH
-		p.advance() // CHECK
-		p.expect(OPTION)
-		return VIEW_CHECK_OPTION_LOCAL
+	option := VIEW_CHECK_OPTION_LOCAL
+	switch p.cur.Type {
 	case CASCADED:
-		// WITH CASCADED CHECK OPTION
-		p.advance() // WITH
-		p.advance() // CASCADED
-		p.expect(CHECK)
-		p.expect(OPTION)
-		return VIEW_CHECK_OPTION_CASCADED
+		p.advance()
+		option = VIEW_CHECK_OPTION_CASCADED
 	case LOCAL:
-		// WITH LOCAL CHECK OPTION
-		p.advance() // WITH
-		p.advance() // LOCAL
-		p.expect(CHECK)
-		p.expect(OPTION)
-		return VIEW_CHECK_OPTION_LOCAL
-	default:
-		return VIEW_CHECK_OPTION_NONE
+		p.advance()
 	}
+	if _, err := p.expect(CHECK); err != nil {
+		return 0, err
+	}
+	if _, err := p.expect(OPTION); err != nil {
+		return 0, err
+	}
+	return option, nil
 }
 
 // parseOptReloptions parses opt_reloptions.
@@ -207,7 +204,10 @@ func (p *Parser) parseCreateTableAsStmt(relpersistence byte, ifNotExists bool) (
 	if p.cur.Type == EXECUTE {
 		// AS EXECUTE name execute_param_clause
 		p.advance() // EXECUTE
-		name, _ := p.parseName()
+		name, err := p.parseName()
+		if err != nil {
+			return nil, err
+		}
 		params, err := p.parseExecuteParamClause()
 		if err != nil {
 			return nil, err
@@ -218,7 +218,7 @@ func (p *Parser) parseCreateTableAsStmt(relpersistence byte, ifNotExists bool) (
 		}
 	} else {
 		// AS SelectStmt
-		sel, err := p.parseSelectNoParens()
+		sel, err := p.parseRequiredSelectNoParens()
 		if err != nil {
 			return nil, err
 		}
@@ -226,7 +226,10 @@ func (p *Parser) parseCreateTableAsStmt(relpersistence byte, ifNotExists bool) (
 	}
 
 	// opt_with_data
-	withData := p.parseOptWithData()
+	withData, err := p.parseOptWithData()
+	if err != nil {
+		return nil, err
+	}
 	into.SkipData = !withData
 
 	return &nodes.CreateTableAsStmt{
@@ -249,7 +252,10 @@ func (p *Parser) parseCreateAsTarget() (*nodes.IntoClause, error) {
 	}
 	rv := makeRangeVarFromAnyName(names, nodes.Loc{Start: loc, End: p.prev.End})
 
-	colNames, _ := p.parseOptColumnList()
+	colNames, err := p.parseOptColumnList()
+	if err != nil {
+		return nil, err
+	}
 	accessMethod, err := p.parseOptAccessMethod()
 	if err != nil {
 		return nil, err
@@ -318,13 +324,16 @@ func (p *Parser) parseCreateMatViewStmt(relpersistence byte) (*nodes.CreateTable
 	}
 
 	// SelectStmt
-	query, err := p.parseSelectNoParens()
+	query, err := p.parseRequiredSelectNoParens()
 	if err != nil {
 		return nil, err
 	}
 
 	// opt_with_data
-	withData := p.parseOptWithData()
+	withData, err := p.parseOptWithData()
+	if err != nil {
+		return nil, err
+	}
 	into.SkipData = !withData
 
 	return &nodes.CreateTableAsStmt{
@@ -347,7 +356,10 @@ func (p *Parser) parseCreateMvTarget() (*nodes.IntoClause, error) {
 	}
 	rv := makeRangeVarFromAnyName(names, nodes.Loc{Start: loc, End: p.prev.End})
 
-	colNames, _ := p.parseOptColumnList()
+	colNames, err := p.parseOptColumnList()
+	if err != nil {
+		return nil, err
+	}
 	accessMethod, err := p.parseOptAccessMethod()
 	if err != nil {
 		return nil, err
@@ -371,31 +383,27 @@ func (p *Parser) parseCreateMvTarget() (*nodes.IntoClause, error) {
 	}, nil
 }
 
-// parseOptWithData parses opt_with_data.
+// parseOptWithData parses opt_with_data. It ends its statement, so WITH
+// here can only lead it.
 //
 //	opt_with_data:
 //	    WITH DATA
 //	    | WITH NO DATA
 //	    | /* EMPTY */
-func (p *Parser) parseOptWithData() bool {
+func (p *Parser) parseOptWithData() (bool, error) {
 	if p.cur.Type != WITH {
-		return true // default: WITH DATA
+		return true, nil // default: WITH DATA
 	}
-
-	next := p.peekNext()
-	switch next.Type {
-	case DATA_P:
-		p.advance() // WITH
-		p.advance() // DATA
-		return true
-	case NO:
-		p.advance() // WITH
+	p.advance() // WITH
+	withData := true
+	if p.cur.Type == NO {
 		p.advance() // NO
-		p.expect(DATA_P)
-		return false
-	default:
-		return true
+		withData = false
 	}
+	if _, err := p.expect(DATA_P); err != nil {
+		return false, err
+	}
+	return withData, nil
 }
 
 // parseRefreshMatViewStmt parses a REFRESH MATERIALIZED VIEW statement.
@@ -429,7 +437,10 @@ func (p *Parser) parseRefreshMatViewStmt() (*nodes.RefreshMatViewStmt, error) {
 	rv := makeRangeVarFromAnyName(names, nodes.Loc{Start: nameStart, End: p.prev.End})
 
 	// opt_with_data
-	withData := p.parseOptWithData()
+	withData, err := p.parseOptWithData()
+	if err != nil {
+		return nil, err
+	}
 
 	return &nodes.RefreshMatViewStmt{
 		Concurrent: concurrent,

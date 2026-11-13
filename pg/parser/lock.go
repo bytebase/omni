@@ -149,8 +149,13 @@ func (p *Parser) parseLockType() (int, error) {
 		return nodes.ExclusiveLock, nil
 
 	default:
-		// Default to AccessExclusiveLock if unrecognized
-		return nodes.AccessExclusiveLock, nil
+		if p.collectMode() {
+			for _, t := range []int{ACCESS, ROW, SHARE, EXCLUSIVE} {
+				p.addTokenCandidate(t)
+			}
+			return 0, errCollecting
+		}
+		return 0, p.syntaxErrorAtCur()
 	}
 }
 

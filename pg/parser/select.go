@@ -2747,12 +2747,27 @@ func (p *Parser) parseGroupByItem() (nodes.Node, error) {
 // WHERE clause helpers
 
 // parseWhereClause parses an optional WHERE clause.
+//
+//	where_clause: WHERE a_expr | /* EMPTY */
 func (p *Parser) parseWhereClause() (nodes.Node, error) {
 	if p.cur.Type != WHERE {
 		return nil, nil
 	}
 	p.advance()
-	return p.parseAExpr(0)
+	return p.parseWhereExpr()
+}
+
+// parseWhereExpr parses the a_expr that WHERE requires, failing at the
+// current token when none starts there, except in collect mode.
+func (p *Parser) parseWhereExpr() (nodes.Node, error) {
+	expr, err := p.parseAExpr(0)
+	if err != nil {
+		return nil, err
+	}
+	if expr == nil && !p.collectMode() {
+		return nil, p.syntaxErrorAtCur()
+	}
+	return expr, nil
 }
 
 // parseWhereOrCurrentClause parses WHERE clause including WHERE CURRENT OF.
@@ -2784,5 +2799,5 @@ func (p *Parser) parseWhereOrCurrentClause() (nodes.Node, error) {
 		}
 	}
 
-	return p.parseAExpr(0)
+	return p.parseWhereExpr()
 }

@@ -473,7 +473,9 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		p.advance()          // consume CREATE
 		p.advance()          // consume OR
 
-		p.expect(REPLACE)
+		if _, err := p.expect(REPLACE); err != nil {
+			return nil, err
+		}
 		if objectType := p.redshiftCreateObjectType(); objectType != "" {
 			return p.parseRedshiftObjectStmt("create or replace", objectType, createLoc)
 		}
@@ -729,9 +731,10 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		// CREATE SCHEMA ...
 		p.advance() // consume CREATE
 		return p.parseCreateSchemaStmt(createLoc)
-	// exhaustive: gram.y:6780 CreateStmt-family — unknown post-CREATE keyword bubbles to Parse error
+	// exhaustive: gram.y:6780 CreateStmt-family — no CREATE statement goes
+	// on with this token, so the syntax error is at it.
 	default:
-		return nil, nil
+		return nil, p.syntaxErrorAtTok(next)
 	}
 }
 
@@ -1274,14 +1277,17 @@ func (p *Parser) finishCTAS(names *nodes.List, nameLoc nodes.Loc, colNames *node
 			Params: params,
 		}
 	} else {
-		var err error
-		query, err = p.parseSelectNoParens()
+		sel, err := p.parseRequiredSelectNoParens()
 		if err != nil {
 			return nil, err
 		}
+		query = sel
 	}
 
-	withData := p.parseOptWithData()
+	withData, err := p.parseOptWithData()
+	if err != nil {
+		return nil, err
+	}
 
 	into := &nodes.IntoClause{
 		Rel:            rv,
