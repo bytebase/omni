@@ -91,16 +91,25 @@ var (
 		_, err := p.parseRelationFactor()
 		return err == nil
 	})
-	// name_list: NAME_OB, then more with or without a comma; or one keyword.
-	sysNameList = sysAlt(sysList(sysNameOB, sysOptComma), sysName)
+	// name_list: NAME_OB | unreserved_keyword | name_list [','] NAME_OB. The first
+	// name may be a keyword, and each one after it is a NAME_OB, with a comma
+	// before it or without.
+	sysNameList = sysSeq(sysName, sysOpt(sysList(sysSeq(sysOptComma, sysNameOB), sysSeq())))
 
 	sysTablegroupOption = sysAlt(
 		sysSeq(sysAlt("TABLEGROUP_ID", "MAX_USED_PART_ID"), sysEq, sysInt),
 		sysSeq("BINDING", sysEq, sysBool),
 		sysSeq("SHARDING", sysEq, sysStr),
 	)
-	// tablegroup_option_list: options with a comma between two of them, or none.
-	sysTablegroupOptions = sysList(sysTablegroupOption, sysOptComma)
+	// tablegroup_option_list is right-recursive:
+	//
+	//	list: space_separated | option ',' list
+	//
+	// so options that end in a comma come first and a run with no comma ends
+	// the list: `A, B C` parses and `A B, C` does not.
+	sysTablegroupOptions = sysSeq(
+		sysOpt(sysList(sysSeq(sysTablegroupOption, sysComma), sysSeq())),
+		sysList(sysTablegroupOption, sysSeq()))
 
 	sysEngineOption = sysOpt("ENGINE", sysTok('='), "INNODB")                                          // opt_engine_option
 	sysRangeExpr    = sysAlt("MAXVALUE", sysSeq(sysTok('('), sysList(sysExpr, sysComma), sysTok(')'))) // range_partition_expr
