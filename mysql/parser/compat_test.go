@@ -43,24 +43,17 @@ func omniVerdict(sql string) string {
 // gets no verdict and the recording goes on.
 const compatPrepareTimeout = time.Minute
 
-// compatJudge asks the package's MySQL, through PREPARE, whether it accepts
-// each statement's syntax. It fails t unless the server is the pinned image
-// and release.
+// compatJudge asks the pinned MySQL, through PREPARE, whether it accepts
+// each statement's syntax. The server checks its digest and release when it
+// starts.
 func compatJudge(t testing.TB, pin enginetest.Pin) func(string) (string, error) {
 	t.Helper()
 	ctx := context.Background()
-	d, err := testcontainer.MySQL80.Database(ctx, "compat")
-	if err != nil {
-		t.Fatalf("MySQL: %v", err)
-	}
-	t.Cleanup(func() { d.Close(ctx) })
-	if err := testcontainer.MySQL80.CheckPin(ctx, pin); err != nil {
-		t.Fatalf("%v", err)
-	}
+	db := testcontainer.Judge(t, pin, "compat")
 	prepare := func(text string) error {
 		ctx, cancel := context.WithTimeout(ctx, compatPrepareTimeout)
 		defer cancel()
-		_, err := d.DB.ExecContext(ctx, "PREPARE omni_compat FROM ?", text)
+		_, err := db.ExecContext(ctx, "PREPARE omni_compat FROM ?", text)
 		return err
 	}
 	// The verdict reads 1064 as the parser's rejection, so a release that

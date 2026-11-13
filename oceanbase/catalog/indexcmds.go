@@ -65,6 +65,11 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 	if err := validateIndexColumns(tbl, idxCols, stmt.Fulltext, stmt.Spatial); err != nil {
 		return err
 	}
+	if !stmt.Vector {
+		if err := checkIndexOptions(stmt.Options, true); err != nil {
+			return err
+		}
+	}
 
 	// Determine index type: Fulltext/Spatial override IndexType.
 	idx := &Index{
