@@ -113,14 +113,13 @@ var databaseOptionCases = []databaseOptionCase{
 	// name is a 1064. omni and the engine agree here.
 	//
 	// The one exception is a string naming a collation the server does not know:
-	// `ALTER DATABASE COLLATE 's' zzz` is accepted by TiDB v8.5.5 (and recorded
-	// as a gap in compat.tsv's suite:cited rows). The
-	// CollationName action calls GetCollationByName, and on an unknown name it
-	// returns 1, which fires the grammar's error recovery and swallows the
-	// trailing tokens; a known name parses strictly and rejects them. omni is a
-	// syntactic parser with no collation catalog, so it cannot accept the
-	// unknown-name form without also accepting the known-name form the engine
-	// rejects -- that is why the string case is not pinned here as agreement.
+	// compat.tsv's suite:cited row `ALTER DATABASE COLLATE 's' zzz` records TiDB
+	// v8.5.5 as accepting it, a gap. The CollationName action calls
+	// GetCollationByName, and an unknown name stops the parse there with 1273,
+	// which the judge reads as a name looked up, not as syntax: TiDB answers
+	// 1273 to `ALTER DATABASE COLLATE 's' zzz zzz (((` too, and never reads
+	// what follows. omni has no collation catalog, so it reads on and rejects
+	// zzz, as TiDB does after a name it knows.
 	{"ALTER DATABASE COLLATE binary zzz", false},
 	// ALTER DATABASE needs one option; CREATE DATABASE is the one that does not.
 	{"ALTER DATABASE", false},

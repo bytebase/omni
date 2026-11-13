@@ -609,7 +609,7 @@ After step 0 the engines are independent. Order:
 - **The grammar alone** agreed with the engine on 90% of statements. Most of the rest is the lexer (531 malformed hints, which live in comments) and 124 `yyerror` checks in C actions. Token rows and overrides (§2.2, §2.3) exist for these.
 - **Replay** took about 1 second per package, against 147 seconds (catalog) and about 300 seconds (review) live.
 
-**TiDB, `tidb/parser`.** Moved 2026-11-13. `compat.tsv` holds 43,952 rows at `v8.5.5`, judged in 98 seconds, and 43,951 agree: the one left is `suite:cited`'s `ALTER DATABASE COLLATE 's' zzz`.
+**TiDB, `tidb/parser`.** Moved 2026-11-13. `compat.tsv` holds 43,952 rows at `v8.5.5`, judged in 98 seconds, and 43,951 agree. The one left, `suite:cited`'s `ALTER DATABASE COLLATE 's' zzz`, is the judge's: TiDB stops at the unknown collation with 1273, which reads as accepted, and never reaches `zzz`, which omni rejects as TiDB does after a known collation.
 
 | Rows | Total | Agree |
 | --- | --- | --- |
