@@ -23,6 +23,9 @@ type Parser struct {
 	// name. The JSON arrows refuse it as their left operand.
 	reservedColumnRef *nodes.ColumnRef
 
+	// sys is the state of the last matchSystemForms (alter_system.go).
+	sys sysMatch
+
 	// parenRunStart and parenRunPast cache the last firstTokenPastParens scan:
 	// the offset of the run's first '(' and the first token past the run.
 	parenRunStart int

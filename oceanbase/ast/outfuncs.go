@@ -125,6 +125,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeFlushStmt(sb, n)
 	case *KillStmt:
 		writeKillStmt(sb, n)
+	case *AlterSystemStmt:
+		fmt.Fprintf(sb, "{ALTER_SYSTEM :loc %d :action %q}", n.Loc.Start, n.Action)
 	case *DoStmt:
 		writeDoStmt(sb, n)
 	case *ChecksumTableStmt:

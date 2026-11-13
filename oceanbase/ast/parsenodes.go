@@ -2020,6 +2020,19 @@ type FlushStmt struct {
 func (s *FlushStmt) nodeTag()  {}
 func (s *FlushStmt) stmtNode() {}
 
+// AlterSystemStmt is one of the cluster statements of OceanBase's
+// alter_system_stmt: ALTER SYSTEM, ALTER DISKGROUP, SET ENCRYPTION and SET
+// DECRYPTION. Action is the words that name the statement after ALTER SYSTEM,
+// as the grammar writes them: "MAJOR FREEZE", "FLUSH", "SET" for a parameter,
+// "DISKGROUP ADD DISK", "SET ENCRYPTION". The clauses are parsed and not kept.
+type AlterSystemStmt struct {
+	Loc    Loc
+	Action string
+}
+
+func (s *AlterSystemStmt) nodeTag()  {}
+func (s *AlterSystemStmt) stmtNode() {}
+
 // KillStmt represents a KILL statement.
 type KillStmt struct {
 	Loc          Loc
