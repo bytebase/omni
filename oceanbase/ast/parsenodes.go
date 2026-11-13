@@ -1000,11 +1000,37 @@ type TableRef struct {
 	Name       string   // table name
 	Alias      string   // AS alias
 	Partitions []string // PARTITION (p0, p1, ...)
-	IndexHints []*IndexHint
+	// PartitionValues is an external table's PARTITION (col = value, ...).
+	PartitionValues []*Assignment
+	Sample          *TableSample    // SAMPLE ... (percent) [SEED (n)]
+	Flashback       *TableFlashback // AS OF SNAPSHOT expr | AS OF PROCTIME()
+	IndexHints      []*IndexHint
 }
 
 func (r *TableRef) nodeTag()   {}
 func (r *TableRef) tableExpr() {}
+
+// TableSample is the sample_clause of a table reference, with its seed:
+// SAMPLE [BLOCK | HYBRID] [ALL | BASE | INCR] (percent) [SEED (n)].
+type TableSample struct {
+	Loc     Loc
+	Method  string // "", "BLOCK" or "HYBRID"
+	Scope   string // "", "ALL", "BASE" or "INCR"
+	Percent string // the number as written
+	Seed    string // the SEED number as written, "" without one
+}
+
+func (s *TableSample) nodeTag() {}
+
+// TableFlashback is the use_flashback of a table reference: the table as it
+// stood at a snapshot, or as it stands when the row is processed.
+type TableFlashback struct {
+	Loc      Loc
+	Snapshot ExprNode // AS OF SNAPSHOT expr
+	Proctime bool     // AS OF PROCTIME()
+}
+
+func (f *TableFlashback) nodeTag() {}
 
 // IndexHint represents an index hint (USE/FORCE/IGNORE INDEX).
 type IndexHint struct {
@@ -1425,7 +1451,16 @@ type ExplainStmt struct {
 	Extended      bool   // EXPLAIN EXTENDED
 	Partitions    bool   // EXPLAIN PARTITIONS
 	ForConnection int64  // EXPLAIN FOR CONNECTION: no OceanBase syntax sets this
-	Stmt          StmtNode
+	// Type is the plan type word: BASIC, OUTLINE, EXTENDED, EXTENDED_NOADDR,
+	// PLANREGRESS or PARTITIONS. Extended and Partitions repeat two of them.
+	Type string
+	// Display is PRETTY or PRETTY_COLOR.
+	Display string
+	// Into is the plan table of EXPLAIN INTO, and StatementID the literal of
+	// SET STATEMENT_ID = literal.
+	Into        string
+	StatementID ExprNode
+	Stmt        StmtNode
 }
 
 func (s *ExplainStmt) nodeTag()  {}
@@ -1984,6 +2019,19 @@ type FlushStmt struct {
 
 func (s *FlushStmt) nodeTag()  {}
 func (s *FlushStmt) stmtNode() {}
+
+// AlterSystemStmt is one of the cluster statements of OceanBase's
+// alter_system_stmt: ALTER SYSTEM, ALTER DISKGROUP, SET ENCRYPTION and SET
+// DECRYPTION. Action is the words that name the statement after ALTER SYSTEM,
+// as the grammar writes them: "MAJOR FREEZE", "FLUSH", "SET" for a parameter,
+// "DISKGROUP ADD DISK", "SET ENCRYPTION". The clauses are parsed and not kept.
+type AlterSystemStmt struct {
+	Loc    Loc
+	Action string
+}
+
+func (s *AlterSystemStmt) nodeTag()  {}
+func (s *AlterSystemStmt) stmtNode() {}
 
 // KillStmt represents a KILL statement.
 type KillStmt struct {

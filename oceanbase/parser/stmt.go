@@ -629,9 +629,17 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 		return nil, &ParseError{Message: "expected TABLESPACE after UNDO", Position: p.cur.Loc}
 	}
 
+	// ALTER DISKGROUP is one of alter_system_stmt's alternatives.
+	if p.isBareWord("DISKGROUP") {
+		return p.parseAlterDiskgroupStmt(start)
+	}
+
 	switch p.cur.Type {
 	case kwTABLE:
 		return p.parseAlterTableStmt(start)
+
+	case kwSYSTEM:
+		return p.parseAlterSystemStmt(start)
 
 	case kwDATABASE, kwSCHEMA:
 		return p.parseAlterDatabaseStmt(start)

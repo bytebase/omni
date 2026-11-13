@@ -18,6 +18,9 @@ func TestSelectAliasStringLiteral(t *testing.T) {
 	}
 }
 
+// A table's alias is a name and never a string: tbl_name's alias is relation_name, where
+// MySQL's is ident_or_text. TestTableNameClausesOceanBaseOracle holds the first two to
+// OceanBase 4.3.5.6, which answers 1064 for each.
 func TestTableAliasStringLiteral(t *testing.T) {
 	cases := []string{
 		`SELECT * FROM t AS 'a'`,
@@ -26,8 +29,8 @@ func TestTableAliasStringLiteral(t *testing.T) {
 	}
 	for _, sql := range cases {
 		t.Run(sql, func(t *testing.T) {
-			if _, err := Parse(sql); err != nil {
-				t.Fatalf("Parse(%q) error: %v", sql, err)
+			if _, err := Parse(sql); err == nil {
+				t.Fatalf("Parse(%q) accepted a string as a table alias", sql)
 			}
 		})
 	}

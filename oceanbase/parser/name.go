@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/oceanbase/ast"
 )
 
@@ -781,18 +783,25 @@ func (p *Parser) parseKeywordOrIdent() (string, int, error) {
 	}
 }
 
-// parseColumnRef parses a column reference, which may be qualified:
+// parseColumnRef reads column_ref outside an expression (no_param_column_ref has the
+// same forms): a column's name, alone or qualified. With r a relation_name, c a
+// column_name and K a word of mysql_reserved_keyword:
 //
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/identifier-qualifiers.html
+//	c | r.c | r.* | r.r.c | r.r.*
+//	r.K | K.K | r.r.K | r.K.K
+//	.r.c | .r.K | .K.K
 //
-//	column_ref:
-//	    identifier
-//	    | identifier '.' identifier
-//	    | identifier '.' identifier '.' identifier
-//	    | identifier '.' '*'
-//	    | identifier '.' identifier '.' '*'
+// A reserved word is a name only after a dot, or before a dot and another reserved
+// word, and a leading dot stands for no database and takes a table and a column after it.
+//
+// Ref: column_ref and no_param_column_ref in sql_parser_mysql_mode.y (oceanbase
+// v4.3.5_CE_BP6, lines 898 and 11301); TestColumnRefFormsOceanBaseOracle holds the
+// forms to the pinned server.
 func (p *Parser) parseColumnRef() (*nodes.ColumnRef, error) {
 	start := p.pos()
+	if p.cur.Type == '.' || p.reservedPairAhead() {
+		return p.parseReservedColumnRef()
+	}
 	name, _, err := p.parseIdent()
 	if err != nil {
 		return nil, err
@@ -816,6 +825,9 @@ func (p *Parser) parseColumnRef() (*nodes.ColumnRef, error) {
 			ref.Loc.End = p.prev.End
 			return ref, nil
 		}
+		if reservedNamesAfterDot[p.cur.Type] {
+			return p.parseColumnRefReservedTail(start, name)
+		}
 
 		name2, _, err := p.parseIdent()
 		if err != nil {
@@ -836,7 +848,7 @@ func (p *Parser) parseColumnRef() (*nodes.ColumnRef, error) {
 				return ref, nil
 			}
 
-			name3, _, err := p.parseIdent()
+			name3, err := p.parseNameAfterDot()
 			if err != nil {
 				return nil, err
 			}
@@ -853,6 +865,72 @@ func (p *Parser) parseColumnRef() (*nodes.ColumnRef, error) {
 	}
 
 	ref.Loc.End = p.prev.End
+	return ref, nil
+}
+
+// reservedPairAhead reports whether the current token opens column_ref's K.K: a word of
+// mysql_reserved_keyword, a dot, and another such word. Only there is a reserved word a
+// table's name without a name before it.
+func (p *Parser) reservedPairAhead() bool {
+	if !reservedNamesAfterDot[p.cur.Type] || p.peekNext().Type != '.' {
+		return false
+	}
+	s := p.saveScan()
+	p.advance()
+	p.advance()
+	ok := reservedNamesAfterDot[p.cur.Type]
+	p.restoreScan(s)
+	return ok
+}
+
+// parseReservedColumnRef reads the column_ref forms that open with a dot or with a
+// reserved word: K.K, .r.c, .r.K and .K.K.
+func (p *Parser) parseReservedColumnRef() (*nodes.ColumnRef, error) {
+	ref := &nodes.ColumnRef{Loc: nodes.Loc{Start: p.pos()}}
+	if p.cur.Type != '.' {
+		ref.Table = p.advance().Str
+		p.advance() // the dot reservedPairAhead saw
+		ref.Column = p.advance().Str
+		ref.Loc.End = p.prev.End
+		p.reservedColumnRef = ref
+		return ref, nil
+	}
+	p.advance() // the leading dot
+	tableReserved := reservedNamesAfterDot[p.cur.Type]
+	table, err := p.parseNameAfterDot()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect('.'); err != nil {
+		return nil, err
+	}
+	// After a reserved table name the column is reserved too.
+	if tableReserved && !reservedNamesAfterDot[p.cur.Type] {
+		return nil, p.syntaxErrorAtCur()
+	}
+	column, err := p.parseNameAfterDot()
+	if err != nil {
+		return nil, err
+	}
+	ref.Table, ref.Column = table, column
+	ref.Loc.End = p.prev.End
+	p.reservedColumnRef = ref
+	return ref, nil
+}
+
+// parseColumnRefReservedTail reads the rest of r.K and r.K.K, at the reserved word after
+// the first dot. A second dot takes another reserved word and nothing else.
+func (p *Parser) parseColumnRefReservedTail(start int, first string) (*nodes.ColumnRef, error) {
+	ref := &nodes.ColumnRef{Loc: nodes.Loc{Start: start}, Table: first, Column: p.advance().Str}
+	if p.cur.Type == '.' {
+		p.advance()
+		if !reservedNamesAfterDot[p.cur.Type] {
+			return nil, p.syntaxErrorAtCur()
+		}
+		ref.Schema, ref.Table, ref.Column = first, ref.Column, p.advance().Str
+	}
+	ref.Loc.End = p.prev.End
+	p.reservedColumnRef = ref
 	return ref, nil
 }
 
@@ -1038,54 +1116,269 @@ func (p *Parser) parseSpName() (schema, name string, err error) {
 	return schema, name, nil
 }
 
-// parseTableRefWithAlias parses a table reference with an optional alias.
-//
-//	table_ref_alias:
-//	    table_ref [AS identifier | identifier]
+// parseTableRefWithAlias reads tbl_name, a table in a FROM clause: its name and the clauses
+// parseTableNameClauses reads after it.
 func (p *Parser) parseTableRefWithAlias() (*nodes.TableRef, error) {
 	ref, err := p.parseRelationFactor()
 	if err != nil {
 		return nil, err
 	}
+	if _, err := p.parseTableNameClauses(ref); err != nil {
+		return nil, err
+	}
+	return ref, nil
+}
 
-	// Optional PARTITION (p0, p1, ...)
+// parseTableNameClauses reads what tbl_name takes after its relation_factor, in the one
+// order the grammar has, and reports whether it read any:
+//
+//	[use_partition] [sample_clause [seed]] [use_flashback] [[AS] relation_name] [index_hint_list]
+//
+//	use_partition: PARTITION '(' name_list ')' | PARTITION '(' external_table_partitions ')'
+//	sample_clause: SAMPLE [BLOCK | HYBRID] [ALL | BASE | INCR] '(' {INTNUM | DECIMAL_VAL} ')'
+//	seed:          SEED '(' INTNUM ')'
+//	use_flashback: AS OF SNAPSHOT bit_expr | AS OF PROCTIME '(' ')'
+//
+// tbl_name lists 66 of the 72 combinations: index hints do not follow a flashback that has
+// no sample before it, so `FROM t AS OF SNAPSHOT 1 USE KEY (i)` is a 1064 where `FROM t
+// SAMPLE (1) AS OF SNAPSHOT 1 USE KEY (i)` parses.
+//
+// SAMPLE, SEED and OF are names too. Each is its clause only where the next token says so,
+// which is all the engine's one token of lookahead sees: `FROM t sample` and `FROM t AS of`
+// are aliases.
+//
+// Ref: tbl_name, use_partition, sample_clause, seed and use_flashback in
+// sql_parser_mysql_mode.y (oceanbase v4.3.5_CE_BP6, lines 14080-14741).
+func (p *Parser) parseTableNameClauses(ref *nodes.TableRef) (bool, error) {
+	read := false
 	if p.cur.Type == kwPARTITION {
-		p.advance()
-		parts, err := p.parseParenIdentList()
-		if err != nil {
-			return nil, err
+		if err := p.parseUsePartition(ref); err != nil {
+			return false, err
 		}
-		ref.Partitions = parts
-		ref.Loc.End = p.prev.End
+		read = true
+	}
+	if p.sampleClauseAhead() {
+		sample, err := p.parseSampleClause()
+		if err != nil {
+			return false, err
+		}
+		ref.Sample = sample
+		read = true
+	}
+	if p.flashbackAhead() {
+		flashback, err := p.parseUseFlashback()
+		if err != nil {
+			return false, err
+		}
+		ref.Flashback = flashback
+		read = true
 	}
 
-	// Optional AS alias
+	// [AS] relation_name. The alias is a name and never a string, which MySQL's
+	// ident_or_text would allow: `FROM t 'a'` and `FROM t AS 'a'` are 1064s.
 	if _, ok := p.match(kwAS); ok {
-		alias, _, err := p.parseIdentOrText()
+		alias, _, err := p.parseIdent()
 		if err != nil {
-			return nil, err
+			return false, err
 		}
 		ref.Alias = alias
-		ref.Loc.End = p.prev.End
-	} else if (p.isIdentToken() && p.cur.Type != kwEXCEPT && p.cur.Type != kwINTERSECT && p.cur.Type != kwWINDOW) || p.cur.Type == tokSCONST {
-		// Alias without AS keyword — accepts non-reserved keywords and string
-		// literals, matching MySQL's opt_table_alias: [AS] ident_or_text
-		alias, _, _ := p.parseIdentOrText()
+		read = true
+	} else if p.isIdentToken() && p.cur.Type != kwEXCEPT && p.cur.Type != kwINTERSECT && p.cur.Type != kwWINDOW {
+		alias, _, err := p.parseIdent()
+		if err != nil {
+			return false, err
+		}
 		ref.Alias = alias
-		ref.Loc.End = p.prev.End
+		read = true
 	}
 
 	// Optional index hints: USE/FORCE/IGNORE {INDEX|KEY} ...
 	if p.cur.Type == kwUSE || p.cur.Type == kwFORCE || p.cur.Type == kwIGNORE {
+		if ref.Flashback != nil && ref.Sample == nil {
+			return false, p.syntaxErrorAtCur()
+		}
 		hints, err := p.parseIndexHints()
+		if err != nil {
+			return false, err
+		}
+		ref.IndexHints = hints
+		read = true
+	}
+
+	if read {
+		ref.Loc.End = p.prev.End
+	}
+	return read, nil
+}
+
+// parseUsePartition reads use_partition at PARTITION: a list of partition names, or an
+// external table's partition as `column = constant` pairs. A name in parentheses is
+// followed by ',' or ')' and a pair's by '=', which tells the two apart.
+func (p *Parser) parseUsePartition(ref *nodes.TableRef) error {
+	if p.peekNext().Type != '(' {
+		p.advance()
+		return p.syntaxErrorAtCur()
+	}
+	s := p.saveScan()
+	p.advance() // PARTITION
+	p.advance() // (
+	_, _, nameErr := p.parseIdent()
+	pairs := nameErr == nil && p.cur.Type == '='
+	p.restoreScan(s)
+	if !pairs {
+		p.advance() // PARTITION
+		parts, err := p.parseParenIdentList()
+		if err != nil {
+			return err
+		}
+		ref.Partitions = parts
+		return nil
+	}
+	p.advance() // PARTITION
+	p.advance() // (
+	for {
+		start := p.pos()
+		name, _, err := p.parseIdent()
+		if err != nil {
+			return err
+		}
+		// The name's last byte, not its length: `a` is longer than the a it names.
+		nameEnd := p.prev.End
+		if _, err := p.expect('='); err != nil {
+			return err
+		}
+		value, err := p.parseExprConst()
+		if err != nil {
+			return err
+		}
+		ref.PartitionValues = append(ref.PartitionValues, &nodes.Assignment{
+			Loc:    nodes.Loc{Start: start, End: p.prev.End},
+			Column: &nodes.ColumnRef{Loc: nodes.Loc{Start: start, End: nameEnd}, Column: name},
+			Value:  value,
+		})
+		if _, ok := p.match(','); !ok {
+			break
+		}
+	}
+	_, err := p.expect(')')
+	return err
+}
+
+// parseExprConst reads expr_const: a literal, a system variable or a parameter marker.
+//
+// Ref: expr_const in sql_parser_mysql_mode.y (oceanbase v4.3.5_CE_BP6).
+func (p *Parser) parseExprConst() (nodes.ExprNode, error) {
+	if p.cur.Type == tokAt2 || p.cur.Type == '?' {
+		return p.parsePrimaryExpr()
+	}
+	return p.parseLiteralOnly()
+}
+
+// nextIsBareWord reports whether the token after the current one is one of words,
+// unquoted.
+func (p *Parser) nextIsBareWord(words ...string) bool {
+	next := p.peekNext()
+	if next.Type != tokIDENT && next.Type < 700 {
+		return false
+	}
+	if p.backtickQuotedAt(next.Loc) {
+		return false
+	}
+	for _, w := range words {
+		if strings.EqualFold(next.Str, w) {
+			return true
+		}
+	}
+	return false
+}
+
+// sampleClauseAhead reports whether SAMPLE at the current token opens a sample_clause
+// and is not an alias.
+func (p *Parser) sampleClauseAhead() bool {
+	if !p.isBareWord("SAMPLE") {
+		return false
+	}
+	return p.peekNext().Type == '(' || p.nextIsBareWord("BLOCK", "HYBRID", "ALL", "BASE", "INCR")
+}
+
+// parseSampleClause reads sample_clause and the seed that may follow it.
+func (p *Parser) parseSampleClause() (*nodes.TableSample, error) {
+	sample := &nodes.TableSample{Loc: nodes.Loc{Start: p.pos()}}
+	p.advance() // SAMPLE
+	if p.isBareWord("BLOCK") || p.isBareWord("HYBRID") {
+		sample.Method = strings.ToUpper(p.advance().Str)
+	}
+	if p.isBareWord("ALL") || p.isBareWord("BASE") || p.isBareWord("INCR") {
+		sample.Scope = strings.ToUpper(p.advance().Str)
+	}
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	// INTNUM or DECIMAL_VAL. A number with an exponent is a DECIMAL_VAL too: the lexer
+	// never makes an APPROXNUM (testdata/tokens.tsv), and `SAMPLE (1e1)` parses.
+	if p.cur.Type != tokICONST && p.cur.Type != tokFCONST {
+		return nil, p.syntaxErrorAtCur()
+	}
+	sample.Percent = p.advance().Str
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	if p.isBareWord("SEED") && p.peekNext().Type == '(' {
+		p.advance() // SEED
+		p.advance() // (
+		if p.cur.Type != tokICONST {
+			return nil, p.syntaxErrorAtCur()
+		}
+		sample.Seed = p.advance().Str
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+	}
+	sample.Loc.End = p.prev.End
+	return sample, nil
+}
+
+// flashbackAhead reports whether AS at the current token opens use_flashback: AS OF
+// SNAPSHOT or AS OF PROCTIME. OF alone after AS is an alias.
+func (p *Parser) flashbackAhead() bool {
+	if p.cur.Type != kwAS || p.peekNext().Type != kwOF {
+		return false
+	}
+	s := p.saveScan()
+	p.advance() // AS
+	p.advance() // OF
+	ok := p.isBareWord("SNAPSHOT") || p.isBareWord("PROCTIME")
+	p.restoreScan(s)
+	return ok
+}
+
+// parseUseFlashback reads use_flashback at its AS.
+func (p *Parser) parseUseFlashback() (*nodes.TableFlashback, error) {
+	flashback := &nodes.TableFlashback{Loc: nodes.Loc{Start: p.pos()}}
+	p.advance() // AS
+	p.advance() // OF
+	if p.isBareWord("PROCTIME") {
+		p.advance()
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		flashback.Proctime = true
+	} else {
+		p.advance() // SNAPSHOT
+		snapshot, err := p.parseExprPrec(precBitOr)
 		if err != nil {
 			return nil, err
 		}
-		ref.IndexHints = hints
-		ref.Loc.End = p.prev.End
+		if snapshot == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		flashback.Snapshot = snapshot
 	}
-
-	return ref, nil
+	flashback.Loc.End = p.prev.End
+	return flashback, nil
 }
 
 // parseVariableRef parses a user variable (@var) or system variable (@@var).

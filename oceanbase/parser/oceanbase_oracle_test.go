@@ -68,7 +68,7 @@ var oceanBaseOnlyGrammar = []grammarCase{
 	{name: "create external table", sql: "CREATE EXTERNAL TABLE obprobe_ext (a INT) LOCATION = '/tmp/obprobe' FORMAT (TYPE = 'CSV')", pending: true},
 	{name: "create materialized view", sql: "CREATE MATERIALIZED VIEW obprobe_mv1 REFRESH COMPLETE ON DEMAND AS SELECT a FROM obprobe_t", pending: true},
 	{name: "column group", sql: "CREATE TABLE obprobe_t3 (a INT) WITH COLUMN GROUP(all columns, each column)", pending: true},
-	{name: "alter system major freeze", sql: "ALTER SYSTEM MAJOR FREEZE", pending: true},
+	{name: "alter system major freeze", sql: "ALTER SYSTEM MAJOR FREEZE"},
 
 	// A lone derived table, LATERAL derived table or JSON_TABLE in parentheses, which
 	// MySQL 8.0 refuses with 1064 and 4.3.5 runs (read on 2026-11-02). mysql/parser

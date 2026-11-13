@@ -125,6 +125,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeFlushStmt(sb, n)
 	case *KillStmt:
 		writeKillStmt(sb, n)
+	case *AlterSystemStmt:
+		fmt.Fprintf(sb, "{ALTER_SYSTEM :loc %d :action %q}", n.Loc.Start, n.Action)
 	case *DoStmt:
 		writeDoStmt(sb, n)
 	case *ChecksumTableStmt:
@@ -1152,6 +1154,19 @@ func writeExplainStmt(sb *strings.Builder, n *ExplainStmt) {
 	}
 	if n.Partitions {
 		sb.WriteString(" :partitions true")
+	}
+	if n.Type != "" && n.Type != "EXTENDED" && n.Type != "PARTITIONS" {
+		fmt.Fprintf(sb, " :type %s", n.Type)
+	}
+	if n.Display != "" {
+		fmt.Fprintf(sb, " :display %s", n.Display)
+	}
+	if n.Into != "" {
+		fmt.Fprintf(sb, " :into %s", n.Into)
+	}
+	if n.StatementID != nil {
+		sb.WriteString(" :statement_id ")
+		writeNode(sb, n.StatementID)
 	}
 	if n.Format != "" {
 		fmt.Fprintf(sb, " :format %s", n.Format)
@@ -2528,6 +2543,40 @@ func writeTableRef(sb *strings.Builder, n *TableRef) {
 			sb.WriteString(p)
 		}
 		sb.WriteString(")")
+	}
+	if len(n.PartitionValues) > 0 {
+		sb.WriteString(" :partition_values (")
+		for i, v := range n.PartitionValues {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, v)
+		}
+		sb.WriteString(")")
+	}
+	if n.Sample != nil {
+		fmt.Fprintf(sb, " :sample {SAMPLE :loc %d", n.Sample.Loc.Start)
+		if n.Sample.Method != "" {
+			fmt.Fprintf(sb, " :method %s", n.Sample.Method)
+		}
+		if n.Sample.Scope != "" {
+			fmt.Fprintf(sb, " :scope %s", n.Sample.Scope)
+		}
+		fmt.Fprintf(sb, " :percent %s", n.Sample.Percent)
+		if n.Sample.Seed != "" {
+			fmt.Fprintf(sb, " :seed %s", n.Sample.Seed)
+		}
+		sb.WriteString("}")
+	}
+	if n.Flashback != nil {
+		fmt.Fprintf(sb, " :flashback {FLASHBACK :loc %d", n.Flashback.Loc.Start)
+		if n.Flashback.Proctime {
+			sb.WriteString(" :proctime true")
+		} else {
+			sb.WriteString(" :snapshot ")
+			writeNode(sb, n.Flashback.Snapshot)
+		}
+		sb.WriteString("}")
 	}
 	if len(n.IndexHints) > 0 {
 		sb.WriteString(" :index_hints ")
