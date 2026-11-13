@@ -85,17 +85,19 @@ func ReadBison(src string, tokens *Tokens) (*Grammar, error) {
 
 // splitSections returns the declaration section and the grammar section,
 // the two halves either side of the first "%%". The third section, after
-// the second "%%", is code and is dropped.
+// the second "%%", is code and is dropped. Bison lets a grammar leave out
+// the second "%%" when it has no such code, as MySQL's sql_yacc.yy does:
+// the rules then run to the end of the file.
 func splitSections(src string) (decls, gram string, err error) {
 	first := indexOfLine(src, "%%", 0)
 	if first < 0 {
 		return "", "", fmt.Errorf("no %%%% section marker found")
 	}
+	lines := strings.Split(src, "\n")
 	second := indexOfLine(src, "%%", first+1)
 	if second < 0 {
-		return "", "", fmt.Errorf("only one %%%% section marker found")
+		second = len(lines)
 	}
-	lines := strings.Split(src, "\n")
 	return strings.Join(lines[:first], "\n"), strings.Join(lines[first+1:second], "\n"), nil
 }
 
