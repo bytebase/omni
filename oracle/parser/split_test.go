@@ -35,6 +35,26 @@ func TestSplitOrdinarySQL(t *testing.T) {
 			want: []string{" SELECT 1 FROM dual"},
 		},
 		{
+			name: "WITH FUNCTION and PROCEDURE declarations stay with their query",
+			sql:  "WITH FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END; PROCEDURE p IS BEGIN NULL; END; SELECT f() FROM dual; SELECT 2 FROM dual;",
+			want: []string{"WITH FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END; PROCEDURE p IS BEGIN NULL; END; SELECT f() FROM dual", " SELECT 2 FROM dual"},
+		},
+		{
+			name: "WITH declarations in CREATE TABLE AS and INSERT stay with their statement",
+			sql:  "CREATE TABLE t AS WITH FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END; SELECT f() a FROM dual; INSERT INTO t WITH FUNCTION g RETURN NUMBER IS BEGIN RETURN 2; END; SELECT g() FROM dual; SELECT 3 FROM dual;",
+			want: []string{"CREATE TABLE t AS WITH FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END; SELECT f() a FROM dual", " INSERT INTO t WITH FUNCTION g RETURN NUMBER IS BEGIN RETURN 2; END; SELECT g() FROM dual", " SELECT 3 FROM dual"},
+		},
+		{
+			name: "START WITH a column named FUNCTION",
+			sql:  "SELECT 1 FROM t START WITH function = 1 CONNECT BY PRIOR id = parent; SELECT 2 FROM dual;",
+			want: []string{"SELECT 1 FROM t START WITH function = 1 CONNECT BY PRIOR id = parent", " SELECT 2 FROM dual"},
+		},
+		{
+			name: "FUNCTION in the query after WITH declarations is a name",
+			sql:  "WITH FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END; SELECT function FROM t; SELECT 2 FROM dual;",
+			want: []string{"WITH FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END; SELECT function FROM t", " SELECT 2 FROM dual"},
+		},
+		{
 			name: "semicolon inside single quoted string",
 			sql:  "SELECT 'a;b' FROM dual; SELECT 1 FROM dual;",
 			want: []string{"SELECT 'a;b' FROM dual", " SELECT 1 FROM dual"},

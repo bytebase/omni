@@ -684,7 +684,7 @@ func (b *builder) scopeOf(n ast.Node, blocks int) ([]scoped, bool) {
 	case *ast.UpdateStmt:
 		return scope, blocks == 0 && from(v.Target) && fromList(v.FromClause)
 	case *ast.DeleteStmt:
-		return scope, blocks == 0 && from(v.Target)
+		return scope, blocks == 0 && from(v.Target) && fromList(v.FromClause)
 	case *ast.MergeStmt:
 		return scope, blocks == 0 && add(v.Target, v.TargetAlias) && from(v.Source)
 	case *ast.CreateIndexStmt:
