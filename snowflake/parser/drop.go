@@ -25,8 +25,18 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		node.(*ast.DropStmt).Object = f.kind
-		return node, nil
+		ds := node.(*ast.DropStmt)
+		ds.Object = f.kind
+		if f.dropCascade && p.cur.Type == kwCASCADE {
+			p.advance() // consume CASCADE
+			ds.Cascade = true
+			ds.Loc.End = p.prev.Loc.End
+		}
+		return ds, nil
+	}
+	// DROP [ <integration kind> ] INTEGRATION (integration.go).
+	if p.acceptDropIntegrationKind() {
+		return p.parseDropIntegrationStmt(start)
 	}
 	// Policies read by their docs pages (policy.go).
 	if d := p.startsDocPolicy(); d != nil {
@@ -79,8 +89,24 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 		return p.parseDropObject(ast.DropStream, start, true, false)
 
 	case kwTASK:
-		p.advance() // consume TASK
-		return p.parseDropObject(ast.DropTask, start, true, false)
+		// DROP TASK, or DROP TASK GRAPH (task_graph.go).
+		task := func() (ast.Node, error) {
+			p.advance() // consume TASK
+			return p.parseDropObject(ast.DropTask, start, true, false)
+		}
+		if p.startsTaskGraph() {
+			return p.parseTaskOrGraph(func() (ast.Node, error) {
+				p.advance() // consume TASK
+				p.advance() // consume GRAPH
+				node, err := p.parseDropObject(ast.DropObject, start, true, false)
+				if err != nil {
+					return nil, err
+				}
+				node.(*ast.DropStmt).Object = taskGraphForm.kind
+				return node, nil
+			}, task)
+		}
+		return task()
 
 	case kwSEQUENCE:
 		p.advance() // consume SEQUENCE
@@ -158,10 +184,6 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 			return nil, err
 		}
 		return p.parseDropObject(ast.DropFailoverGroup, start, true, false)
-
-	case kwINTEGRATION:
-		p.advance() // consume INTEGRATION
-		return p.parseDropObject(ast.DropIntegration, start, true, false)
 
 	case kwMANAGED:
 		// MANAGED ACCOUNT

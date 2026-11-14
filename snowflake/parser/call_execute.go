@@ -153,8 +153,28 @@ func (p *Parser) parseExecuteStmt() (ast.Node, error) {
 	case kwIMMEDIATE:
 		return p.parseExecuteImmediateStmt(execTok.Loc)
 	case kwTASK:
-		return p.parseExecuteTaskStmt(execTok.Loc)
+		if p.startsTaskGraph() {
+			// EXECUTE TASK GRAPH <name>, or a task named GRAPH.
+			return p.parseTaskOrGraph(func() (ast.Node, error) {
+				return p.parseExecuteTaskStmt(execTok.Loc, true)
+			}, func() (ast.Node, error) {
+				return p.parseExecuteTaskStmt(execTok.Loc, false)
+			})
+		}
+		return p.parseExecuteTaskStmt(execTok.Loc, false)
+	case kwALERT:
+		// EXECUTE ALERT <name>
+		// https://docs.snowflake.com/en/sql-reference/sql/execute-alert
+		p.advance() // consume ALERT
+		name, err := p.parseObjectName()
+		if err != nil {
+			return nil, err
+		}
+		return &ast.ExecuteAlertStmt{Name: name, Loc: ast.Loc{Start: execTok.Loc.Start, End: p.prev.Loc.End}}, nil
 	default:
+		if p.atWords("NOTEBOOK") {
+			return p.parseExecuteNotebook(execTok.Loc) // notebook.go
+		}
 		return nil, p.syntaxErrorAtCur()
 	}
 }
@@ -376,14 +396,23 @@ func (p *Parser) parseExecImmUsing() ([]ast.Ident, int, error) {
 
 // parseExecuteTaskStmt parses
 //
-//	EXECUTE TASK <name> [ USING CONFIG = <config_string> ]
+//	EXECUTE TASK <name> [ USING CONFIG = <config_string> ] [ AWAIT ]
 //	EXECUTE TASK <name> RETRY LAST
+//	EXECUTE TASK <name> RETRY GRAPH RUN GROUP '<group_id>'
 //
+// and, with graph, the same forms of EXECUTE TASK GRAPH, which take no AWAIT.
 // On entry cur is the TASK keyword. start is the Loc of the EXECUTE word.
-func (p *Parser) parseExecuteTaskStmt(start ast.Loc) (ast.Node, error) {
+//
+// https://docs.snowflake.com/en/sql-reference/sql/execute-task
+// https://docs.snowflake.com/en/sql-reference/sql/execute-task-graph
+func (p *Parser) parseExecuteTaskStmt(start ast.Loc, graph bool) (ast.Node, error) {
 	p.advance() // consume TASK
+	if graph {
+		p.advance() // consume GRAPH
+	}
 	stmt := &ast.ExecuteTaskStmt{
-		Loc: ast.Loc{Start: start.Start},
+		Graph: graph,
+		Loc:   ast.Loc{Start: start.Start},
 	}
 
 	name, err := p.parseObjectName()
@@ -395,6 +424,14 @@ func (p *Parser) parseExecuteTaskStmt(start ast.Loc) (ast.Node, error) {
 	switch {
 	case p.cur.Type == kwRETRY:
 		p.advance() // consume RETRY
+		if p.acceptWords("GRAPH", "RUN", "GROUP") {
+			group, err := p.expect(tokString)
+			if err != nil {
+				return nil, err
+			}
+			stmt.RetryGroup = group.Str
+			break
+		}
 		if _, err := p.expect(kwLAST); err != nil {
 			return nil, err
 		}
@@ -414,6 +451,11 @@ func (p *Parser) parseExecuteTaskStmt(start ast.Loc) (ast.Node, error) {
 		}
 		cfgTok := p.advance() // consume the config string literal
 		stmt.UsingConfig = p.srcSlice(cfgTok.Loc.Start, cfgTok.Loc.End)
+	}
+
+	// AWAIT ends EXECUTE TASK's first form; a graph's takes none.
+	if !graph && !stmt.RetryLast && stmt.RetryGroup == "" && p.acceptWords("AWAIT") {
+		stmt.Await = true
 	}
 
 	stmt.Loc.End = p.prev.Loc.End
