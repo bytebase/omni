@@ -1659,59 +1659,136 @@ func (p *Parser) parseIdentListForAudit() ([]string, error) {
 //	    WITH { SYSTEM MANAGED STORAGE TABLES
 //	         | USER MANAGED STORAGE TABLES
 //	         }
+//
+// Oracle takes INDEXES for DOMAIN INDEXES and refuses any other kind
+// (ORA-29813 at the word). It reads USING and the DEFAULT clauses as
+// alternatives, one of which must be there (USING a DEFAULT COST (1, 1, 1)
+// is ORA-03048 at DEFAULT, FUNCTIONS a alone ORA-29814), takes integers
+// only in them (ORA-02017), and refuses the storage table clause after
+// USING (ORA-00922).
 func (p *Parser) parseAssociateStatisticsStmt() (nodes.StmtNode, error) {
 	start := p.pos()
 	p.advance() // consume ASSOCIATE
-	if p.cur.Type == kwSTATISTICS {
-		p.advance()
+	if p.cur.Type != kwSTATISTICS {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance()
 
 	stmt := &nodes.AssociateStatisticsStmt{
 		Loc: nodes.Loc{Start: start},
 	}
 
-	// WITH
-	if p.cur.Type == kwWITH {
-		p.advance()
+	if p.cur.Type != kwWITH {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	kind, err := p.parseStatisticsObjectKind()
+	if err != nil {
+		return nil, err
+	}
+	stmt.ObjectType = kind
+	if stmt.Objects, err = p.parseStatisticsObjects(kind); err != nil {
+		return nil, err
 	}
 
-	// Object type: COLUMNS, FUNCTIONS, PACKAGES, TYPES, INDEXES
-	if p.isIdentLike() || p.cur.Type == kwINDEX {
-		if p.cur.Type == kwINDEX {
-			stmt.ObjectType = "INDEXES"
-		} else {
-			stmt.ObjectType = p.cur.Str
+	// using_statistics_type: USING { [ schema. ] statistics_type | NULL }
+	if p.cur.Type == kwUSING {
+		p.advance()
+		if p.cur.Type == kwNULL {
+			stmt.Using = &nodes.ObjectName{Name: p.cur.Str, Loc: nodes.Loc{Start: p.pos(), End: p.cur.End}}
+			p.advance()
+		} else if stmt.Using, err = p.ixObjectName(); err != nil {
+			return nil, err
 		}
-		p.advance()
+		stmt.Loc.End = p.prev.End
+		return stmt, nil
 	}
 
-	// Object names
+	// [ DEFAULT COST ( cpu_cost , io_cost , network_cost ) ]
+	// [ DEFAULT SELECTIVITY default_selectivity ]
+	seen := map[string]bool{}
 	for {
-		name, parseErr1207 := p.parseObjectName()
-		if parseErr1207 != nil {
-			return nil, parseErr1207
+		if p.cur.Type != kwDEFAULT {
+			return nil, p.syntaxErrorAtCur()
 		}
-		if name != nil {
-			stmt.Objects = append(stmt.Objects, name)
+		p.advance()
+		switch {
+		case p.isKeywordStr("COST"):
+			if err := p.ixOnce(seen, "COST"); err != nil {
+				return nil, err
+			}
+			p.advance()
+			if p.cur.Type != '(' {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance()
+			for i := 0; i < 3; i++ {
+				if i > 0 {
+					if p.cur.Type != ',' {
+						return nil, p.syntaxErrorAtCur()
+					}
+					p.advance()
+				}
+				if _, err := p.ixInteger(); err != nil {
+					return nil, err
+				}
+			}
+			if p.cur.Type != ')' {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance()
+		case p.isKeywordStr("SELECTIVITY"):
+			if err := p.ixOnce(seen, "SELECTIVITY"); err != nil {
+				return nil, err
+			}
+			p.advance()
+			if _, err := p.ixInteger(); err != nil {
+				return nil, err
+			}
+		default:
+			return nil, p.syntaxErrorAtCur()
 		}
-		if p.cur.Type != ',' {
+		if p.cur.Type != kwDEFAULT {
 			break
-		}
-		p.advance()
-	}
-
-	// USING statistics_type
-	if p.isIdentLike() && p.cur.Str == "USING" {
-		p.advance()
-		var parseErr1208 error
-		stmt.Using, parseErr1208 = p.parseObjectName()
-		if parseErr1208 != nil {
-			return nil, parseErr1208
 		}
 	}
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// parseStatisticsObjectKind reads the kind of object ASSOCIATE and
+// DISASSOCIATE STATISTICS name: COLUMNS, FUNCTIONS, PACKAGES, TYPES,
+// INDEXES or INDEXTYPES. Another word is ORA-29813 (ORA-29817 for
+// DISASSOCIATE) at it.
+func (p *Parser) parseStatisticsObjectKind() (string, error) {
+	if p.cur.Type != tokQIDENT && p.isIdentLike() {
+		switch p.cur.Str {
+		case "COLUMNS", "FUNCTIONS", "PACKAGES", "TYPES", "INDEXES", "INDEXTYPES":
+			return p.advance().Str, nil
+		}
+	}
+	return "", p.syntaxErrorAtCur()
+}
+
+// parseStatisticsObjects reads [ schema. ] name [, [ schema. ] name ]...,
+// or table . column for COLUMNS (COLUMNS a is ORA-29818 after the a).
+func (p *Parser) parseStatisticsObjects(kind string) ([]*nodes.ObjectName, error) {
+	var objs []*nodes.ObjectName
+	for {
+		name, err := p.ixObjectName()
+		if err != nil {
+			return nil, err
+		}
+		if kind == "COLUMNS" && name.Schema == "" {
+			return nil, p.syntaxErrorAtCur()
+		}
+		objs = append(objs, name)
+		if p.cur.Type != ',' {
+			return objs, nil
+		}
+		p.advance()
+	}
 }
 
 // parseDisassociateStatisticsStmt parses a DISASSOCIATE STATISTICS statement.
@@ -1725,45 +1802,28 @@ func (p *Parser) parseAssociateStatisticsStmt() (nodes.StmtNode, error) {
 func (p *Parser) parseDisassociateStatisticsStmt() (nodes.StmtNode, error) {
 	start := p.pos()
 	p.advance() // consume DISASSOCIATE
-	if p.cur.Type == kwSTATISTICS {
-		p.advance()
+	if p.cur.Type != kwSTATISTICS {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance()
 
 	stmt := &nodes.DisassociateStatisticsStmt{
 		Loc: nodes.Loc{Start: start},
 	}
 
-	// FROM
-	if p.cur.Type == kwFROM {
-		p.advance()
+	if p.cur.Type != kwFROM {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	kind, err := p.parseStatisticsObjectKind()
+	if err != nil {
+		return nil, err
+	}
+	stmt.ObjectType = kind
+	if stmt.Objects, err = p.parseStatisticsObjects(kind); err != nil {
+		return nil, err
 	}
 
-	// Object type
-	if p.isIdentLike() || p.cur.Type == kwINDEX {
-		if p.cur.Type == kwINDEX {
-			stmt.ObjectType = "INDEXES"
-		} else {
-			stmt.ObjectType = p.cur.Str
-		}
-		p.advance()
-	}
-
-	// Object names
-	for {
-		name, parseErr1209 := p.parseObjectName()
-		if parseErr1209 != nil {
-			return nil, parseErr1209
-		}
-		if name != nil {
-			stmt.Objects = append(stmt.Objects, name)
-		}
-		if p.cur.Type != ',' {
-			break
-		}
-		p.advance()
-	}
-
-	// FORCE
 	if p.cur.Type == kwFORCE {
 		stmt.Force = true
 		p.advance()
