@@ -2300,6 +2300,9 @@ func writeFuncCallExpr(sb *strings.Builder, n *FuncCallExpr) {
 	if n.Schema != "" {
 		fmt.Fprintf(sb, " :schema %s", n.Schema)
 	}
+	if n.Package != "" {
+		fmt.Fprintf(sb, " :package %s", n.Package)
+	}
 	if q := n.Quantifier.String(); q != "" {
 		fmt.Fprintf(sb, " :quantifier %s", q)
 	}
@@ -2319,7 +2322,24 @@ func writeFuncCallExpr(sb *strings.Builder, n *FuncCallExpr) {
 		sb.WriteString(" :args ")
 		writeExprNodeList(sb, n.Args)
 	}
+	if len(n.ArgTypes) > 0 {
+		sb.WriteString(" :arg_types (")
+		for i, dt := range n.ArgTypes {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			if dt == nil {
+				sb.WriteString("<>")
+				continue
+			}
+			writeNode(sb, dt)
+		}
+		sb.WriteString(")")
+	}
 	if len(n.OrderBy) > 0 {
+		if n.WithinGroup {
+			sb.WriteString(" :within_group true")
+		}
 		sb.WriteString(" :order_by ")
 		writeOrderByList(sb, n.OrderBy)
 	}

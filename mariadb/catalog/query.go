@@ -729,8 +729,26 @@ type FuncCallExprQ struct {
 	// Name is the canonical lowercase function name (e.g. "concat", "count").
 	Name string
 
+	// Routine is the quoted qualified name of a stored routine's call,
+	// `db`.`f` or a package's `db`.`pkg`.`f` as written, which the deparser
+	// writes in Name's place. Empty for an unqualified call and a builtin.
+	Routine string
+
 	// Args are the analyzed arguments in source order.
 	Args []AnalyzedExpr
+
+	// ArgTypes holds, beside Args, the AS clause a dynamic column function
+	// writes after an argument (COLUMN_GET(b, 'a' AS INT), COLUMN_CREATE('a',
+	// 1 AS INT)) as the server stores it, with its leading space, and "" for an
+	// argument without one. It is nil for every other call.
+	ArgTypes []string
+
+	// WithinGroup is PERCENTILE_CONT and PERCENTILE_DISC's
+	// WITHIN GROUP (ORDER BY expr [DESC]) item, nil for every other call, and
+	// WithinGroupDesc its direction. Their window, a PARTITION BY list or
+	// nothing, is Over.
+	WithinGroup     AnalyzedExpr
+	WithinGroupDesc bool
 
 	// IsAggregate marks this call as an aggregate function (COUNT, SUM, AVG,
 	// MIN, MAX, GROUP_CONCAT, etc.). Set by the analyzer based on a function
