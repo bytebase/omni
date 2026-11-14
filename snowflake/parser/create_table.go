@@ -1660,6 +1660,17 @@ func (p *Parser) parseTableProperties(stmt *ast.CreateTableStmt) error {
 			stmt.Options = append(stmt.Options, opt)
 			continue
 		}
+		// Of the rest, an interactive table takes only CLUSTER BY,
+		// COMMENT = '<string>' and [ WITH ] TAG ( ... ).
+		if stmt.Interactive {
+			switch {
+			case p.cur.Type == kwCLUSTER, p.cur.Type == kwTAG:
+			case p.cur.Type == kwWITH && p.peekNext().Type == kwTAG:
+			case p.cur.Type == kwCOMMENT && p.peekNext().Type == '=':
+			default:
+				return nil
+			}
+		}
 		switch p.cur.Type {
 		case kwCLUSTER:
 			// CLUSTER BY [LINEAR] (exprs)

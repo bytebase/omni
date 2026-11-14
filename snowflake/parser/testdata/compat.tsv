@@ -40758,7 +40758,7 @@ accept	accept	docs	createInteractiveTable(COMMENT_=_STRING)?/%empty	CREATE INTER
 reject	undocumented	docs	createInteractiveTable(COMMENT_=_STRING)?/%empty!insert	CREATE INTERACTIVE TABLE a CLUSTER BY(1) zzz AS SELECT 1
 accept	accept	docs	createInteractiveTable(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE INTERACTIVE TABLE a CLUSTER BY(1) COMMENT = 's' AS SELECT 1
 reject	undocumented	docs	createInteractiveTable(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-1	CREATE INTERACTIVE TABLE a CLUSTER BY(1) = 's' AS SELECT 1
-accept	undocumented	docs	createInteractiveTable(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	CREATE INTERACTIVE TABLE a CLUSTER BY(1) COMMENT 's' AS SELECT 1
+reject	undocumented	docs	createInteractiveTable(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	CREATE INTERACTIVE TABLE a CLUSTER BY(1) COMMENT 's' AS SELECT 1
 reject	undocumented	docs	createInteractiveTable(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE INTERACTIVE TABLE a CLUSTER BY(1) COMMENT = AS SELECT 1
 reject	undocumented	docs	createInteractiveTable(COMMENT_=_STRING)?/COMMENT_=_STRING!truncate	CREATE INTERACTIVE TABLE a CLUSTER BY(1) COMMENT =
 reject	undocumented	docs	createInteractiveTable(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE INTERACTIVE TABLE a CLUSTER BY(1) COMMENT = 's' zzz AS SELECT 1
