@@ -270,7 +270,7 @@ reject	undocumented	docs	statement/alterCatalogIntegration!drop-7	ALTER CATALOG 
 reject	undocumented	docs	statement/alterCatalogIntegration!drop-8	ALTER CATALOG INTEGRATION a SET REFRESH_INTERVAL_SECONDS =
 reject	undocumented	docs	statement/alterCatalogIntegration!insert	ALTER CATALOG INTEGRATION a SET REFRESH_INTERVAL_SECONDS = 1 zzz
 reject	undocumented	docs	statement/alterCatalogIntegration!swap	ALWAYS CATALOG INTEGRATION a SET REFRESH_INTERVAL_SECONDS = 1
-reject	accept	docs	statement/alterComputePool	ALTER COMPUTE POOL a SUSPEND
+accept	accept	docs	statement/alterComputePool	ALTER COMPUTE POOL a SUSPEND
 reject	undocumented	docs	statement/alterComputePool!drop-1	COMPUTE POOL a SUSPEND
 reject	undocumented	docs	statement/alterComputePool!drop-2	ALTER POOL a SUSPEND
 reject	undocumented	docs	statement/alterComputePool!drop-3	ALTER COMPUTE a SUSPEND
@@ -1802,7 +1802,7 @@ reject	undocumented	docs	statement/createClone!drop-5	CREATE DYNAMIC TABLE a a
 reject	undocumented	docs	statement/createClone!drop-6	CREATE DYNAMIC TABLE a CLONE
 reject	undocumented	docs	statement/createClone!insert	CREATE DYNAMIC TABLE a CLONE a zzz
 reject	undocumented	docs	statement/createClone!swap	CREATION DYNAMIC TABLE a CLONE a
-reject	accept	docs	statement/createComputePool	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a
+accept	accept	docs	statement/createComputePool	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a
 reject	undocumented	docs	statement/createComputePool!drop-1	COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a
 reject	undocumented	docs	statement/createComputePool!drop-2	CREATE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a
 reject	undocumented	docs	statement/createComputePool!drop-3	CREATE COMPUTE a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a
@@ -3636,7 +3636,7 @@ reject	undocumented	docs	statement/dropCatalogIntegration!drop-3	DROP CATALOG a
 reject	undocumented	docs	statement/dropCatalogIntegration!drop-4	DROP CATALOG INTEGRATION
 reject	undocumented	docs	statement/dropCatalogIntegration!insert	DROP CATALOG INTEGRATION a zzz
 reject	undocumented	docs	statement/dropCatalogIntegration!swap	DROP_FROM_SOURCE_CATALOG CATALOG INTEGRATION a
-reject	accept	docs	statement/dropComputePool	DROP COMPUTE POOL a
+accept	accept	docs	statement/dropComputePool	DROP COMPUTE POOL a
 reject	undocumented	docs	statement/dropComputePool!drop-2	DROP POOL a
 reject	undocumented	docs	statement/dropComputePool!drop-3	DROP COMPUTE a
 reject	undocumented	docs	statement/dropComputePool!drop-4	DROP COMPUTE POOL
@@ -9573,8 +9573,8 @@ reject	undocumented	docs	alterCatalogIntegration_restAuthenticationParams/BEARER
 reject	undocumented	docs	alterCatalogIntegration_restAuthenticationParams/BEARER_TOKEN_=_STRING!truncate	ALTER CATALOG INTEGRATION a SET REST_AUTHENTICATION =(BEARER_TOKEN =
 reject	undocumented	docs	alterCatalogIntegration_restAuthenticationParams/BEARER_TOKEN_=_STRING!insert	ALTER CATALOG INTEGRATION a SET REST_AUTHENTICATION =(BEARER_TOKEN = 's' zzz)
 reject	undocumented	docs	alterCatalogIntegration_restAuthenticationParams/BEARER_TOKEN_=_STRING!swap	ALTER CATALOG INTEGRATION a SET REST_AUTHENTICATION =(BEFORE = 's')
-reject	accept	docs	alterComputePool/ALTER_COMPUTE_POOL_(IF_EXISTS)?_ID_(SUSPEND|RESUME)	ALTER COMPUTE POOL a SUSPEND
-reject	accept	docs	alterComputePool/ALTER_COMPUTE_POOL_(IF_EXISTS)?_ID_STOP_ALL_(OF_TYPE_ID~0e4d088e	ALTER COMPUTE POOL a STOP ALL
+accept	accept	docs	alterComputePool/ALTER_COMPUTE_POOL_(IF_EXISTS)?_ID_(SUSPEND|RESUME)	ALTER COMPUTE POOL a SUSPEND
+accept	accept	docs	alterComputePool/ALTER_COMPUTE_POOL_(IF_EXISTS)?_ID_STOP_ALL_(OF_TYPE_ID~0e4d088e	ALTER COMPUTE POOL a STOP ALL
 reject	undocumented	docs	alterComputePool/ALTER_COMPUTE_POOL_(IF_EXISTS)?_ID_STOP_ALL_(OF_TYPE_ID~0e4d088e!drop-1	COMPUTE POOL a STOP ALL
 reject	undocumented	docs	alterComputePool/ALTER_COMPUTE_POOL_(IF_EXISTS)?_ID_STOP_ALL_(OF_TYPE_ID~0e4d088e!drop-2	ALTER POOL a STOP ALL
 reject	undocumented	docs	alterComputePool/ALTER_COMPUTE_POOL_(IF_EXISTS)?_ID_STOP_ALL_(OF_TYPE_ID~0e4d088e!drop-3	ALTER COMPUTE a STOP ALL
@@ -9583,7 +9583,7 @@ reject	undocumented	docs	alterComputePool/ALTER_COMPUTE_POOL_(IF_EXISTS)?_ID_STO
 reject	undocumented	docs	alterComputePool/ALTER_COMPUTE_POOL_(IF_EXISTS)?_ID_STOP_ALL_(OF_TYPE_ID~0e4d088e!drop-6	ALTER COMPUTE POOL a STOP
 reject	undocumented	docs	alterComputePool/ALTER_COMPUTE_POOL_(IF_EXISTS)?_ID_STOP_ALL_(OF_TYPE_ID~0e4d088e!insert	ALTER COMPUTE POOL a STOP ALL zzz
 reject	undocumented	docs	alterComputePool/ALTER_COMPUTE_POOL_(IF_EXISTS)?_ID_STOP_ALL_(OF_TYPE_ID~0e4d088e!swap	ALWAYS COMPUTE POOL a STOP ALL
-reject	accept	docs	alterComputePool/ALTER_COMPUTE_POOL_(IF_EXISTS)?_ID_SET_(MIN_NODES_=_NUM~39211552	ALTER COMPUTE POOL a SET MIN_NODES = 1
+accept	accept	docs	alterComputePool/ALTER_COMPUTE_POOL_(IF_EXISTS)?_ID_SET_(MIN_NODES_=_NUM~39211552	ALTER COMPUTE POOL a SET MIN_NODES = 1
 reject	undocumented	docs	alterComputePool/ALTER_COMPUTE_POOL_(IF_EXISTS)?_ID_SET_(MIN_NODES_=_NUM~39211552!drop-1	COMPUTE POOL a SET MIN_NODES = 1
 reject	undocumented	docs	alterComputePool/ALTER_COMPUTE_POOL_(IF_EXISTS)?_ID_SET_(MIN_NODES_=_NUM~39211552!drop-2	ALTER POOL a SET MIN_NODES = 1
 reject	undocumented	docs	alterComputePool/ALTER_COMPUTE_POOL_(IF_EXISTS)?_ID_SET_(MIN_NODES_=_NUM~39211552!drop-3	ALTER COMPUTE a SET MIN_NODES = 1
@@ -9594,7 +9594,7 @@ reject	undocumented	docs	alterComputePool/ALTER_COMPUTE_POOL_(IF_EXISTS)?_ID_SET
 reject	undocumented	docs	alterComputePool/ALTER_COMPUTE_POOL_(IF_EXISTS)?_ID_SET_(MIN_NODES_=_NUM~39211552!drop-8	ALTER COMPUTE POOL a SET MIN_NODES =
 reject	undocumented	docs	alterComputePool/ALTER_COMPUTE_POOL_(IF_EXISTS)?_ID_SET_(MIN_NODES_=_NUM~39211552!insert	ALTER COMPUTE POOL a SET MIN_NODES = 1 zzz
 reject	undocumented	docs	alterComputePool/ALTER_COMPUTE_POOL_(IF_EXISTS)?_ID_SET_(MIN_NODES_=_NUM~39211552!swap	ALWAYS COMPUTE POOL a SET MIN_NODES = 1
-reject	accept	docs	alterComputePool/ALTER_COMPUTE_POOL_(IF_EXISTS)?_ID_UNSET_(AUTO_SUSPEND_~3f081e8e	ALTER COMPUTE POOL a UNSET AUTO_SUSPEND_SECS
+accept	accept	docs	alterComputePool/ALTER_COMPUTE_POOL_(IF_EXISTS)?_ID_UNSET_(AUTO_SUSPEND_~3f081e8e	ALTER COMPUTE POOL a UNSET AUTO_SUSPEND_SECS
 reject	undocumented	docs	alterComputePool/ALTER_COMPUTE_POOL_(IF_EXISTS)?_ID_UNSET_(AUTO_SUSPEND_~3f081e8e!drop-1	COMPUTE POOL a UNSET AUTO_SUSPEND_SECS
 reject	undocumented	docs	alterComputePool/ALTER_COMPUTE_POOL_(IF_EXISTS)?_ID_UNSET_(AUTO_SUSPEND_~3f081e8e!drop-2	ALTER POOL a UNSET AUTO_SUSPEND_SECS
 reject	undocumented	docs	alterComputePool/ALTER_COMPUTE_POOL_(IF_EXISTS)?_ID_UNSET_(AUTO_SUSPEND_~3f081e8e!drop-3	ALTER COMPUTE a UNSET AUTO_SUSPEND_SECS
@@ -9603,62 +9603,62 @@ reject	undocumented	docs	alterComputePool/ALTER_COMPUTE_POOL_(IF_EXISTS)?_ID_UNS
 reject	undocumented	docs	alterComputePool/ALTER_COMPUTE_POOL_(IF_EXISTS)?_ID_UNSET_(AUTO_SUSPEND_~3f081e8e!drop-6	ALTER COMPUTE POOL a UNSET
 reject	undocumented	docs	alterComputePool/ALTER_COMPUTE_POOL_(IF_EXISTS)?_ID_UNSET_(AUTO_SUSPEND_~3f081e8e!insert	ALTER COMPUTE POOL a UNSET AUTO_SUSPEND_SECS zzz
 reject	undocumented	docs	alterComputePool/ALTER_COMPUTE_POOL_(IF_EXISTS)?_ID_UNSET_(AUTO_SUSPEND_~3f081e8e!swap	ALWAYS COMPUTE POOL a UNSET AUTO_SUSPEND_SECS
-reject	accept	docs	alterComputePool(IF_EXISTS)?/%empty	ALTER COMPUTE POOL a SUSPEND
+accept	accept	docs	alterComputePool(IF_EXISTS)?/%empty	ALTER COMPUTE POOL a SUSPEND
 reject	undocumented	docs	alterComputePool(IF_EXISTS)?/%empty!insert	ALTER COMPUTE POOL zzz a SUSPEND
-reject	accept	docs	alterComputePool(IF_EXISTS)?/IF_EXISTS	ALTER COMPUTE POOL IF EXISTS a SUSPEND
+accept	accept	docs	alterComputePool(IF_EXISTS)?/IF_EXISTS	ALTER COMPUTE POOL IF EXISTS a SUSPEND
 reject	undocumented	docs	alterComputePool(IF_EXISTS)?/IF_EXISTS!drop-1	ALTER COMPUTE POOL EXISTS a SUSPEND
 reject	undocumented	docs	alterComputePool(IF_EXISTS)?/IF_EXISTS!drop-2	ALTER COMPUTE POOL IF a SUSPEND
 reject	undocumented	docs	alterComputePool(IF_EXISTS)?/IF_EXISTS!truncate	ALTER COMPUTE POOL IF
 reject	undocumented	docs	alterComputePool(IF_EXISTS)?/IF_EXISTS!insert	ALTER COMPUTE POOL IF EXISTS zzz a SUSPEND
 reject	undocumented	docs	alterComputePool(IF_EXISTS)?/IF_EXISTS!swap	ALTER COMPUTE POOL IGNORE EXISTS a SUSPEND
-reject	accept	docs	alterComputePool(SUSPEND|RESUME)/SUSPEND	ALTER COMPUTE POOL a SUSPEND
+accept	accept	docs	alterComputePool(SUSPEND|RESUME)/SUSPEND	ALTER COMPUTE POOL a SUSPEND
 reject	undocumented	docs	alterComputePool(SUSPEND|RESUME)/SUSPEND!swap	ALTER COMPUTE POOL a SUSPENDED
-reject	accept	docs	alterComputePool(SUSPEND|RESUME)/RESUME	ALTER COMPUTE POOL a RESUME
+accept	accept	docs	alterComputePool(SUSPEND|RESUME)/RESUME	ALTER COMPUTE POOL a RESUME
 reject	undocumented	docs	alterComputePool(SUSPEND|RESUME)/RESUME!insert	ALTER COMPUTE POOL a RESUME zzz
 reject	undocumented	docs	alterComputePool(SUSPEND|RESUME)/RESUME!swap	ALTER COMPUTE POOL a RETAIN
-reject	accept	docs	alterComputePool(OF_TYPE_ID_(,_ID)*)?/%empty	ALTER COMPUTE POOL a STOP ALL
-reject	accept	docs	alterComputePool(OF_TYPE_ID_(,_ID)*)?/OF_TYPE_ID_(,_ID)*	ALTER COMPUTE POOL a STOP ALL OF TYPE a
+accept	accept	docs	alterComputePool(OF_TYPE_ID_(,_ID)*)?/%empty	ALTER COMPUTE POOL a STOP ALL
+accept	accept	docs	alterComputePool(OF_TYPE_ID_(,_ID)*)?/OF_TYPE_ID_(,_ID)*	ALTER COMPUTE POOL a STOP ALL OF TYPE a
 reject	undocumented	docs	alterComputePool(OF_TYPE_ID_(,_ID)*)?/OF_TYPE_ID_(,_ID)*!drop-1	ALTER COMPUTE POOL a STOP ALL TYPE a
 reject	undocumented	docs	alterComputePool(OF_TYPE_ID_(,_ID)*)?/OF_TYPE_ID_(,_ID)*!drop-2	ALTER COMPUTE POOL a STOP ALL OF a
 reject	undocumented	docs	alterComputePool(OF_TYPE_ID_(,_ID)*)?/OF_TYPE_ID_(,_ID)*!drop-3	ALTER COMPUTE POOL a STOP ALL OF TYPE
 reject	undocumented	docs	alterComputePool(OF_TYPE_ID_(,_ID)*)?/OF_TYPE_ID_(,_ID)*!insert	ALTER COMPUTE POOL a STOP ALL OF TYPE a zzz
 reject	undocumented	docs	alterComputePool(OF_TYPE_ID_(,_ID)*)?/OF_TYPE_ID_(,_ID)*!swap	ALTER COMPUTE POOL a STOP ALL OFF TYPE a
-reject	accept	docs	alterComputePool(,_ID)*/%empty	ALTER COMPUTE POOL a STOP ALL OF TYPE a
-reject	accept	docs	alterComputePool(,_ID)*/,_ID_(,_ID)*	ALTER COMPUTE POOL a STOP ALL OF TYPE a, a
+accept	accept	docs	alterComputePool(,_ID)*/%empty	ALTER COMPUTE POOL a STOP ALL OF TYPE a
+accept	accept	docs	alterComputePool(,_ID)*/,_ID_(,_ID)*	ALTER COMPUTE POOL a STOP ALL OF TYPE a, a
 reject	undocumented	docs	alterComputePool(,_ID)*/,_ID_(,_ID)*!drop-1	ALTER COMPUTE POOL a STOP ALL OF TYPE a a
 reject	undocumented	docs	alterComputePool(,_ID)*/,_ID_(,_ID)*!drop-2	ALTER COMPUTE POOL a STOP ALL OF TYPE a,
 reject	undocumented	docs	alterComputePool(,_ID)*/,_ID_(,_ID)*!insert	ALTER COMPUTE POOL a STOP ALL OF TYPE a, a zzz
-reject	accept	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMBER)?_(AUTO_RESUME_=~e170bbcd	ALTER COMPUTE POOL a SET MIN_NODES = 1
+accept	accept	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMBER)?_(AUTO_RESUME_=~e170bbcd	ALTER COMPUTE POOL a SET MIN_NODES = 1
 reject	undocumented	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMBER)?_(AUTO_RESUME_=~e170bbcd!swap	ALTER COMPUTE POOL a SET MIN_READY_INSTANCES = 1
-reject	accept	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/MAX_NODES_=_NUMBER_(AUTO_RESUME_=_(TRUE|FALSE))?_(AUTO_~886221b7	ALTER COMPUTE POOL a SET MAX_NODES = 1
+accept	accept	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/MAX_NODES_=_NUMBER_(AUTO_RESUME_=_(TRUE|FALSE))?_(AUTO_~886221b7	ALTER COMPUTE POOL a SET MAX_NODES = 1
 reject	undocumented	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/MAX_NODES_=_NUMBER_(AUTO_RESUME_=_(TRUE|FALSE))?_(AUTO_~886221b7!drop-2	ALTER COMPUTE POOL a SET MAX_NODES 1
 reject	undocumented	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/MAX_NODES_=_NUMBER_(AUTO_RESUME_=_(TRUE|FALSE))?_(AUTO_~886221b7!drop-3	ALTER COMPUTE POOL a SET MAX_NODES =
 reject	undocumented	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/MAX_NODES_=_NUMBER_(AUTO_RESUME_=_(TRUE|FALSE))?_(AUTO_~886221b7!insert	ALTER COMPUTE POOL a SET MAX_NODES = 1 zzz
 reject	undocumented	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/MAX_NODES_=_NUMBER_(AUTO_RESUME_=_(TRUE|FALSE))?_(AUTO_~886221b7!swap	ALTER COMPUTE POOL a SET MAX_ROWS = 1
-reject	accept	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/AUTO_RESUME_=_(TRUE|FALSE)_(AUTO_SUSPEND_SECS_=_NUMBER)~e58db7a2	ALTER COMPUTE POOL a SET AUTO_RESUME = TRUE
+accept	accept	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/AUTO_RESUME_=_(TRUE|FALSE)_(AUTO_SUSPEND_SECS_=_NUMBER)~e58db7a2	ALTER COMPUTE POOL a SET AUTO_RESUME = TRUE
 reject	undocumented	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/AUTO_RESUME_=_(TRUE|FALSE)_(AUTO_SUSPEND_SECS_=_NUMBER)~e58db7a2!drop-1	ALTER COMPUTE POOL a SET = TRUE
 reject	undocumented	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/AUTO_RESUME_=_(TRUE|FALSE)_(AUTO_SUSPEND_SECS_=_NUMBER)~e58db7a2!drop-2	ALTER COMPUTE POOL a SET AUTO_RESUME TRUE
 reject	undocumented	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/AUTO_RESUME_=_(TRUE|FALSE)_(AUTO_SUSPEND_SECS_=_NUMBER)~e58db7a2!drop-3	ALTER COMPUTE POOL a SET AUTO_RESUME =
 reject	undocumented	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/AUTO_RESUME_=_(TRUE|FALSE)_(AUTO_SUSPEND_SECS_=_NUMBER)~e58db7a2!insert	ALTER COMPUTE POOL a SET AUTO_RESUME = TRUE zzz
 reject	undocumented	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/AUTO_RESUME_=_(TRUE|FALSE)_(AUTO_SUSPEND_SECS_=_NUMBER)~e58db7a2!swap	ALTER COMPUTE POOL a SET AUTO_SUSPEND = TRUE
-reject	accept	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/AUTO_SUSPEND_SECS_=_NUMBER_(PLACEMENT_GROUP_=_STRING)?_~4a939da7	ALTER COMPUTE POOL a SET AUTO_SUSPEND_SECS = 1
+accept	accept	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/AUTO_SUSPEND_SECS_=_NUMBER_(PLACEMENT_GROUP_=_STRING)?_~4a939da7	ALTER COMPUTE POOL a SET AUTO_SUSPEND_SECS = 1
 reject	undocumented	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/AUTO_SUSPEND_SECS_=_NUMBER_(PLACEMENT_GROUP_=_STRING)?_~4a939da7!drop-2	ALTER COMPUTE POOL a SET AUTO_SUSPEND_SECS 1
 reject	undocumented	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/AUTO_SUSPEND_SECS_=_NUMBER_(PLACEMENT_GROUP_=_STRING)?_~4a939da7!drop-3	ALTER COMPUTE POOL a SET AUTO_SUSPEND_SECS =
 reject	undocumented	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/AUTO_SUSPEND_SECS_=_NUMBER_(PLACEMENT_GROUP_=_STRING)?_~4a939da7!insert	ALTER COMPUTE POOL a SET AUTO_SUSPEND_SECS = 1 zzz
 reject	undocumented	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/AUTO_SUSPEND_SECS_=_NUMBER_(PLACEMENT_GROUP_=_STRING)?_~4a939da7!swap	ALTER COMPUTE POOL a SET AVAILABLE = 1
-reject	accept	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/PLACEMENT_GROUP_=_STRING_(INSTANCE_FAMILY_=_ID)?_(BACKU~e21706ad	ALTER COMPUTE POOL a SET PLACEMENT_GROUP = 's'
+accept	accept	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/PLACEMENT_GROUP_=_STRING_(INSTANCE_FAMILY_=_ID)?_(BACKU~e21706ad	ALTER COMPUTE POOL a SET PLACEMENT_GROUP = 's'
 reject	undocumented	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/PLACEMENT_GROUP_=_STRING_(INSTANCE_FAMILY_=_ID)?_(BACKU~e21706ad!drop-1	ALTER COMPUTE POOL a SET = 's'
 reject	undocumented	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/PLACEMENT_GROUP_=_STRING_(INSTANCE_FAMILY_=_ID)?_(BACKU~e21706ad!drop-2	ALTER COMPUTE POOL a SET PLACEMENT_GROUP 's'
 reject	undocumented	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/PLACEMENT_GROUP_=_STRING_(INSTANCE_FAMILY_=_ID)?_(BACKU~e21706ad!drop-3	ALTER COMPUTE POOL a SET PLACEMENT_GROUP =
 reject	undocumented	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/PLACEMENT_GROUP_=_STRING_(INSTANCE_FAMILY_=_ID)?_(BACKU~e21706ad!insert	ALTER COMPUTE POOL a SET PLACEMENT_GROUP = 's' zzz
 reject	undocumented	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/PLACEMENT_GROUP_=_STRING_(INSTANCE_FAMILY_=_ID)?_(BACKU~e21706ad!swap	ALTER COMPUTE POOL a SET PLAN = 's'
-reject	accept	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/INSTANCE_FAMILY_=_ID_(BACKUP_INSTANCE_FAMILIES_=_(_STRI~48837fd3	ALTER COMPUTE POOL a SET INSTANCE_FAMILY = a
+accept	accept	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/INSTANCE_FAMILY_=_ID_(BACKUP_INSTANCE_FAMILIES_=_(_STRI~48837fd3	ALTER COMPUTE POOL a SET INSTANCE_FAMILY = a
 reject	undocumented	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/INSTANCE_FAMILY_=_ID_(BACKUP_INSTANCE_FAMILIES_=_(_STRI~48837fd3!drop-1	ALTER COMPUTE POOL a SET = a
 reject	undocumented	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/INSTANCE_FAMILY_=_ID_(BACKUP_INSTANCE_FAMILIES_=_(_STRI~48837fd3!drop-2	ALTER COMPUTE POOL a SET INSTANCE_FAMILY a
 reject	undocumented	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/INSTANCE_FAMILY_=_ID_(BACKUP_INSTANCE_FAMILIES_=_(_STRI~48837fd3!drop-3	ALTER COMPUTE POOL a SET INSTANCE_FAMILY =
 reject	undocumented	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/INSTANCE_FAMILY_=_ID_(BACKUP_INSTANCE_FAMILIES_=_(_STRI~48837fd3!insert	ALTER COMPUTE POOL a SET INSTANCE_FAMILY = a zzz
 reject	undocumented	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/INSTANCE_FAMILY_=_ID_(BACKUP_INSTANCE_FAMILIES_=_(_STRI~48837fd3!swap	ALTER COMPUTE POOL a SET INSUFFICIENT = a
-reject	accept	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/BACKUP_INSTANCE_FAMILIES_=_(_STRING_(,_STRING)*_)_(TAG_~3fe495b5	ALTER COMPUTE POOL a SET BACKUP_INSTANCE_FAMILIES =('s')
+accept	accept	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/BACKUP_INSTANCE_FAMILIES_=_(_STRING_(,_STRING)*_)_(TAG_~3fe495b5	ALTER COMPUTE POOL a SET BACKUP_INSTANCE_FAMILIES =('s')
 reject	undocumented	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/BACKUP_INSTANCE_FAMILIES_=_(_STRING_(,_STRING)*_)_(TAG_~3fe495b5!drop-1	ALTER COMPUTE POOL a SET =('s')
 reject	undocumented	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/BACKUP_INSTANCE_FAMILIES_=_(_STRING_(,_STRING)*_)_(TAG_~3fe495b5!drop-2	ALTER COMPUTE POOL a SET BACKUP_INSTANCE_FAMILIES('s')
 reject	undocumented	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/BACKUP_INSTANCE_FAMILIES_=_(_STRING_(,_STRING)*_)_(TAG_~3fe495b5!drop-3	ALTER COMPUTE POOL a SET BACKUP_INSTANCE_FAMILIES = 's')
@@ -9666,59 +9666,59 @@ reject	undocumented	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a
 reject	undocumented	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/BACKUP_INSTANCE_FAMILIES_=_(_STRING_(,_STRING)*_)_(TAG_~3fe495b5!drop-5	ALTER COMPUTE POOL a SET BACKUP_INSTANCE_FAMILIES =('s'
 reject	undocumented	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/BACKUP_INSTANCE_FAMILIES_=_(_STRING_(,_STRING)*_)_(TAG_~3fe495b5!insert	ALTER COMPUTE POOL a SET BACKUP_INSTANCE_FAMILIES =('s') zzz
 reject	undocumented	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/BACKUP_INSTANCE_FAMILIES_=_(_STRING_(,_STRING)*_)_(TAG_~3fe495b5!swap	ALTER COMPUTE POOL a SET BASE =('s')
-reject	accept	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/TAG_QNAME_=_STRING_(,_QNAME_=_STRING)*_(COMMENT_=_STRING)?	ALTER COMPUTE POOL a SET TAG a = 's'
+accept	accept	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/TAG_QNAME_=_STRING_(,_QNAME_=_STRING)*_(COMMENT_=_STRING)?	ALTER COMPUTE POOL a SET TAG a = 's'
 reject	undocumented	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/TAG_QNAME_=_STRING_(,_QNAME_=_STRING)*_(COMMENT_=_STRING)?!drop-1	ALTER COMPUTE POOL a SET a = 's'
 reject	undocumented	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/TAG_QNAME_=_STRING_(,_QNAME_=_STRING)*_(COMMENT_=_STRING)?!drop-2	ALTER COMPUTE POOL a SET TAG = 's'
 reject	undocumented	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/TAG_QNAME_=_STRING_(,_QNAME_=_STRING)*_(COMMENT_=_STRING)?!drop-3	ALTER COMPUTE POOL a SET TAG a 's'
 reject	undocumented	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/TAG_QNAME_=_STRING_(,_QNAME_=_STRING)*_(COMMENT_=_STRING)?!drop-4	ALTER COMPUTE POOL a SET TAG a =
 reject	undocumented	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/TAG_QNAME_=_STRING_(,_QNAME_=_STRING)*_(COMMENT_=_STRING)?!insert	ALTER COMPUTE POOL a SET TAG a = 's' zzz
 reject	undocumented	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/TAG_QNAME_=_STRING_(,_QNAME_=_STRING)*_(COMMENT_=_STRING)?!swap	ALTER COMPUTE POOL a SET TAGS a = 's'
-reject	accept	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/COMMENT_=_STRING	ALTER COMPUTE POOL a SET COMMENT = 's'
+accept	accept	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/COMMENT_=_STRING	ALTER COMPUTE POOL a SET COMMENT = 's'
 reject	undocumented	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/COMMENT_=_STRING!drop-2	ALTER COMPUTE POOL a SET COMMENT 's'
 reject	undocumented	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/COMMENT_=_STRING!drop-3	ALTER COMPUTE POOL a SET COMMENT =
 reject	undocumented	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/COMMENT_=_STRING!insert	ALTER COMPUTE POOL a SET COMMENT = 's' zzz
 reject	undocumented	docs	alterComputePool(MIN_NODES_=_NUMBER_(MAX_NODES_=_NUMB~a6762138)/COMMENT_=_STRING!swap	ALTER COMPUTE POOL a SET COMMENTS = 's'
-reject	accept	docs	alterComputePool(MAX_NODES_=_NUMBER)?/%empty	ALTER COMPUTE POOL a SET MIN_NODES = 1
-reject	accept	docs	alterComputePool(MAX_NODES_=_NUMBER)?/MAX_NODES_=_NUMBER	ALTER COMPUTE POOL a SET MIN_NODES = 1 MAX_NODES = 1
+accept	accept	docs	alterComputePool(MAX_NODES_=_NUMBER)?/%empty	ALTER COMPUTE POOL a SET MIN_NODES = 1
+accept	accept	docs	alterComputePool(MAX_NODES_=_NUMBER)?/MAX_NODES_=_NUMBER	ALTER COMPUTE POOL a SET MIN_NODES = 1 MAX_NODES = 1
 reject	undocumented	docs	alterComputePool(MAX_NODES_=_NUMBER)?/MAX_NODES_=_NUMBER!drop-1	ALTER COMPUTE POOL a SET MIN_NODES = 1 = 1
 reject	undocumented	docs	alterComputePool(MAX_NODES_=_NUMBER)?/MAX_NODES_=_NUMBER!drop-2	ALTER COMPUTE POOL a SET MIN_NODES = 1 MAX_NODES 1
 reject	undocumented	docs	alterComputePool(MAX_NODES_=_NUMBER)?/MAX_NODES_=_NUMBER!drop-3	ALTER COMPUTE POOL a SET MIN_NODES = 1 MAX_NODES =
 reject	undocumented	docs	alterComputePool(MAX_NODES_=_NUMBER)?/MAX_NODES_=_NUMBER!insert	ALTER COMPUTE POOL a SET MIN_NODES = 1 MAX_NODES = 1 zzz
 reject	undocumented	docs	alterComputePool(MAX_NODES_=_NUMBER)?/MAX_NODES_=_NUMBER!swap	ALTER COMPUTE POOL a SET MIN_NODES = 1 MAX_ROWS = 1
-reject	accept	docs	alterComputePool(AUTO_RESUME_=_(TRUE|FALSE))?/%empty	ALTER COMPUTE POOL a SET MIN_NODES = 1
-reject	accept	docs	alterComputePool(AUTO_RESUME_=_(TRUE|FALSE))?/AUTO_RESUME_=_(TRUE|FALSE)	ALTER COMPUTE POOL a SET MIN_NODES = 1 AUTO_RESUME = TRUE
+accept	accept	docs	alterComputePool(AUTO_RESUME_=_(TRUE|FALSE))?/%empty	ALTER COMPUTE POOL a SET MIN_NODES = 1
+accept	accept	docs	alterComputePool(AUTO_RESUME_=_(TRUE|FALSE))?/AUTO_RESUME_=_(TRUE|FALSE)	ALTER COMPUTE POOL a SET MIN_NODES = 1 AUTO_RESUME = TRUE
 reject	undocumented	docs	alterComputePool(AUTO_RESUME_=_(TRUE|FALSE))?/AUTO_RESUME_=_(TRUE|FALSE)!drop-1	ALTER COMPUTE POOL a SET MIN_NODES = 1 = TRUE
 reject	undocumented	docs	alterComputePool(AUTO_RESUME_=_(TRUE|FALSE))?/AUTO_RESUME_=_(TRUE|FALSE)!drop-2	ALTER COMPUTE POOL a SET MIN_NODES = 1 AUTO_RESUME TRUE
 reject	undocumented	docs	alterComputePool(AUTO_RESUME_=_(TRUE|FALSE))?/AUTO_RESUME_=_(TRUE|FALSE)!drop-3	ALTER COMPUTE POOL a SET MIN_NODES = 1 AUTO_RESUME =
 reject	undocumented	docs	alterComputePool(AUTO_RESUME_=_(TRUE|FALSE))?/AUTO_RESUME_=_(TRUE|FALSE)!insert	ALTER COMPUTE POOL a SET MIN_NODES = 1 AUTO_RESUME = TRUE zzz
 reject	undocumented	docs	alterComputePool(AUTO_RESUME_=_(TRUE|FALSE))?/AUTO_RESUME_=_(TRUE|FALSE)!swap	ALTER COMPUTE POOL a SET MIN_NODES = 1 AUTO_SUSPEND = TRUE
-reject	accept	docs	alterComputePool(TRUE|FALSE)/TRUE	ALTER COMPUTE POOL a SET AUTO_RESUME = TRUE
+accept	accept	docs	alterComputePool(TRUE|FALSE)/TRUE	ALTER COMPUTE POOL a SET AUTO_RESUME = TRUE
 reject	undocumented	docs	alterComputePool(TRUE|FALSE)/TRUE!swap	ALTER COMPUTE POOL a SET AUTO_RESUME = TRUNCATE
-reject	accept	docs	alterComputePool(TRUE|FALSE)/FALSE	ALTER COMPUTE POOL a SET AUTO_RESUME = FALSE
+accept	accept	docs	alterComputePool(TRUE|FALSE)/FALSE	ALTER COMPUTE POOL a SET AUTO_RESUME = FALSE
 reject	undocumented	docs	alterComputePool(TRUE|FALSE)/FALSE!insert	ALTER COMPUTE POOL a SET AUTO_RESUME = FALSE zzz
 reject	undocumented	docs	alterComputePool(TRUE|FALSE)/FALSE!swap	ALTER COMPUTE POOL a SET AUTO_RESUME = FAMILIES
-reject	accept	docs	alterComputePool(AUTO_SUSPEND_SECS_=_NUMBER)?/%empty	ALTER COMPUTE POOL a SET MIN_NODES = 1
-reject	accept	docs	alterComputePool(AUTO_SUSPEND_SECS_=_NUMBER)?/AUTO_SUSPEND_SECS_=_NUMBER	ALTER COMPUTE POOL a SET MIN_NODES = 1 AUTO_SUSPEND_SECS = 1
+accept	accept	docs	alterComputePool(AUTO_SUSPEND_SECS_=_NUMBER)?/%empty	ALTER COMPUTE POOL a SET MIN_NODES = 1
+accept	accept	docs	alterComputePool(AUTO_SUSPEND_SECS_=_NUMBER)?/AUTO_SUSPEND_SECS_=_NUMBER	ALTER COMPUTE POOL a SET MIN_NODES = 1 AUTO_SUSPEND_SECS = 1
 reject	undocumented	docs	alterComputePool(AUTO_SUSPEND_SECS_=_NUMBER)?/AUTO_SUSPEND_SECS_=_NUMBER!drop-2	ALTER COMPUTE POOL a SET MIN_NODES = 1 AUTO_SUSPEND_SECS 1
 reject	undocumented	docs	alterComputePool(AUTO_SUSPEND_SECS_=_NUMBER)?/AUTO_SUSPEND_SECS_=_NUMBER!drop-3	ALTER COMPUTE POOL a SET MIN_NODES = 1 AUTO_SUSPEND_SECS =
 reject	undocumented	docs	alterComputePool(AUTO_SUSPEND_SECS_=_NUMBER)?/AUTO_SUSPEND_SECS_=_NUMBER!insert	ALTER COMPUTE POOL a SET MIN_NODES = 1 AUTO_SUSPEND_SECS = 1 zzz
 reject	undocumented	docs	alterComputePool(AUTO_SUSPEND_SECS_=_NUMBER)?/AUTO_SUSPEND_SECS_=_NUMBER!swap	ALTER COMPUTE POOL a SET MIN_NODES = 1 AVAILABLE = 1
-reject	accept	docs	alterComputePool(PLACEMENT_GROUP_=_STRING)?/%empty	ALTER COMPUTE POOL a SET MIN_NODES = 1
-reject	accept	docs	alterComputePool(PLACEMENT_GROUP_=_STRING)?/PLACEMENT_GROUP_=_STRING	ALTER COMPUTE POOL a SET MIN_NODES = 1 PLACEMENT_GROUP = 's'
+accept	accept	docs	alterComputePool(PLACEMENT_GROUP_=_STRING)?/%empty	ALTER COMPUTE POOL a SET MIN_NODES = 1
+accept	accept	docs	alterComputePool(PLACEMENT_GROUP_=_STRING)?/PLACEMENT_GROUP_=_STRING	ALTER COMPUTE POOL a SET MIN_NODES = 1 PLACEMENT_GROUP = 's'
 reject	undocumented	docs	alterComputePool(PLACEMENT_GROUP_=_STRING)?/PLACEMENT_GROUP_=_STRING!drop-1	ALTER COMPUTE POOL a SET MIN_NODES = 1 = 's'
 reject	undocumented	docs	alterComputePool(PLACEMENT_GROUP_=_STRING)?/PLACEMENT_GROUP_=_STRING!drop-2	ALTER COMPUTE POOL a SET MIN_NODES = 1 PLACEMENT_GROUP 's'
 reject	undocumented	docs	alterComputePool(PLACEMENT_GROUP_=_STRING)?/PLACEMENT_GROUP_=_STRING!drop-3	ALTER COMPUTE POOL a SET MIN_NODES = 1 PLACEMENT_GROUP =
 reject	undocumented	docs	alterComputePool(PLACEMENT_GROUP_=_STRING)?/PLACEMENT_GROUP_=_STRING!insert	ALTER COMPUTE POOL a SET MIN_NODES = 1 PLACEMENT_GROUP = 's' zzz
 reject	undocumented	docs	alterComputePool(PLACEMENT_GROUP_=_STRING)?/PLACEMENT_GROUP_=_STRING!swap	ALTER COMPUTE POOL a SET MIN_NODES = 1 PLAN = 's'
-reject	accept	docs	alterComputePool(INSTANCE_FAMILY_=_ID)?/%empty	ALTER COMPUTE POOL a SET MIN_NODES = 1
-reject	accept	docs	alterComputePool(INSTANCE_FAMILY_=_ID)?/INSTANCE_FAMILY_=_ID	ALTER COMPUTE POOL a SET MIN_NODES = 1 INSTANCE_FAMILY = a
+accept	accept	docs	alterComputePool(INSTANCE_FAMILY_=_ID)?/%empty	ALTER COMPUTE POOL a SET MIN_NODES = 1
+accept	accept	docs	alterComputePool(INSTANCE_FAMILY_=_ID)?/INSTANCE_FAMILY_=_ID	ALTER COMPUTE POOL a SET MIN_NODES = 1 INSTANCE_FAMILY = a
 reject	undocumented	docs	alterComputePool(INSTANCE_FAMILY_=_ID)?/INSTANCE_FAMILY_=_ID!drop-1	ALTER COMPUTE POOL a SET MIN_NODES = 1 = a
 reject	undocumented	docs	alterComputePool(INSTANCE_FAMILY_=_ID)?/INSTANCE_FAMILY_=_ID!drop-2	ALTER COMPUTE POOL a SET MIN_NODES = 1 INSTANCE_FAMILY a
 reject	undocumented	docs	alterComputePool(INSTANCE_FAMILY_=_ID)?/INSTANCE_FAMILY_=_ID!drop-3	ALTER COMPUTE POOL a SET MIN_NODES = 1 INSTANCE_FAMILY =
 reject	undocumented	docs	alterComputePool(INSTANCE_FAMILY_=_ID)?/INSTANCE_FAMILY_=_ID!insert	ALTER COMPUTE POOL a SET MIN_NODES = 1 INSTANCE_FAMILY = a zzz
 reject	undocumented	docs	alterComputePool(INSTANCE_FAMILY_=_ID)?/INSTANCE_FAMILY_=_ID!swap	ALTER COMPUTE POOL a SET MIN_NODES = 1 INSUFFICIENT = a
-reject	accept	docs	alterComputePool(BACKUP_INSTANCE_FAMILIES_=_(_STRING_~6e192522)?/%empty	ALTER COMPUTE POOL a SET MIN_NODES = 1
-reject	accept	docs	alterComputePool(BACKUP_INSTANCE_FAMILIES_=_(_STRING_~6e192522)?/BACKUP_INSTANCE_FAMILIES_=_(_STRING_(,_STRING)*_)	ALTER COMPUTE POOL a SET MIN_NODES = 1 BACKUP_INSTANCE_FAMILIES =('s')
+accept	accept	docs	alterComputePool(BACKUP_INSTANCE_FAMILIES_=_(_STRING_~6e192522)?/%empty	ALTER COMPUTE POOL a SET MIN_NODES = 1
+accept	accept	docs	alterComputePool(BACKUP_INSTANCE_FAMILIES_=_(_STRING_~6e192522)?/BACKUP_INSTANCE_FAMILIES_=_(_STRING_(,_STRING)*_)	ALTER COMPUTE POOL a SET MIN_NODES = 1 BACKUP_INSTANCE_FAMILIES =('s')
 reject	undocumented	docs	alterComputePool(BACKUP_INSTANCE_FAMILIES_=_(_STRING_~6e192522)?/BACKUP_INSTANCE_FAMILIES_=_(_STRING_(,_STRING)*_)!drop-1	ALTER COMPUTE POOL a SET MIN_NODES = 1 =('s')
 reject	undocumented	docs	alterComputePool(BACKUP_INSTANCE_FAMILIES_=_(_STRING_~6e192522)?/BACKUP_INSTANCE_FAMILIES_=_(_STRING_(,_STRING)*_)!drop-2	ALTER COMPUTE POOL a SET MIN_NODES = 1 BACKUP_INSTANCE_FAMILIES('s')
 reject	undocumented	docs	alterComputePool(BACKUP_INSTANCE_FAMILIES_=_(_STRING_~6e192522)?/BACKUP_INSTANCE_FAMILIES_=_(_STRING_(,_STRING)*_)!drop-3	ALTER COMPUTE POOL a SET MIN_NODES = 1 BACKUP_INSTANCE_FAMILIES = 's')
@@ -9726,50 +9726,50 @@ reject	undocumented	docs	alterComputePool(BACKUP_INSTANCE_FAMILIES_=_(_STRING_~6
 reject	undocumented	docs	alterComputePool(BACKUP_INSTANCE_FAMILIES_=_(_STRING_~6e192522)?/BACKUP_INSTANCE_FAMILIES_=_(_STRING_(,_STRING)*_)!drop-5	ALTER COMPUTE POOL a SET MIN_NODES = 1 BACKUP_INSTANCE_FAMILIES =('s'
 reject	undocumented	docs	alterComputePool(BACKUP_INSTANCE_FAMILIES_=_(_STRING_~6e192522)?/BACKUP_INSTANCE_FAMILIES_=_(_STRING_(,_STRING)*_)!insert	ALTER COMPUTE POOL a SET MIN_NODES = 1 BACKUP_INSTANCE_FAMILIES =('s') zzz
 reject	undocumented	docs	alterComputePool(BACKUP_INSTANCE_FAMILIES_=_(_STRING_~6e192522)?/BACKUP_INSTANCE_FAMILIES_=_(_STRING_(,_STRING)*_)!swap	ALTER COMPUTE POOL a SET MIN_NODES = 1 BASE =('s')
-reject	accept	docs	alterComputePool(,_STRING)*/%empty	ALTER COMPUTE POOL a SET BACKUP_INSTANCE_FAMILIES =('s')
+accept	accept	docs	alterComputePool(,_STRING)*/%empty	ALTER COMPUTE POOL a SET BACKUP_INSTANCE_FAMILIES =('s')
 reject	undocumented	docs	alterComputePool(,_STRING)*/%empty!insert	ALTER COMPUTE POOL a SET BACKUP_INSTANCE_FAMILIES =('s' zzz)
-reject	accept	docs	alterComputePool(,_STRING)*/,_STRING_(,_STRING)*	ALTER COMPUTE POOL a SET BACKUP_INSTANCE_FAMILIES =('s', 's')
+accept	accept	docs	alterComputePool(,_STRING)*/,_STRING_(,_STRING)*	ALTER COMPUTE POOL a SET BACKUP_INSTANCE_FAMILIES =('s', 's')
 reject	undocumented	docs	alterComputePool(,_STRING)*/,_STRING_(,_STRING)*!drop-1	ALTER COMPUTE POOL a SET BACKUP_INSTANCE_FAMILIES =('s' 's')
 reject	undocumented	docs	alterComputePool(,_STRING)*/,_STRING_(,_STRING)*!drop-2	ALTER COMPUTE POOL a SET BACKUP_INSTANCE_FAMILIES =('s',)
 reject	undocumented	docs	alterComputePool(,_STRING)*/,_STRING_(,_STRING)*!truncate	ALTER COMPUTE POOL a SET BACKUP_INSTANCE_FAMILIES =('s',
 reject	undocumented	docs	alterComputePool(,_STRING)*/,_STRING_(,_STRING)*!insert	ALTER COMPUTE POOL a SET BACKUP_INSTANCE_FAMILIES =('s', 's' zzz)
-reject	accept	docs	alterComputePool(TAG_QNAME_=_STRING_(,_QNAME_=_STRING)*)?/%empty	ALTER COMPUTE POOL a SET MIN_NODES = 1
-reject	accept	docs	alterComputePool(TAG_QNAME_=_STRING_(,_QNAME_=_STRING)*)?/TAG_QNAME_=_STRING_(,_QNAME_=_STRING)*	ALTER COMPUTE POOL a SET MIN_NODES = 1 TAG a = 's'
+accept	accept	docs	alterComputePool(TAG_QNAME_=_STRING_(,_QNAME_=_STRING)*)?/%empty	ALTER COMPUTE POOL a SET MIN_NODES = 1
+accept	accept	docs	alterComputePool(TAG_QNAME_=_STRING_(,_QNAME_=_STRING)*)?/TAG_QNAME_=_STRING_(,_QNAME_=_STRING)*	ALTER COMPUTE POOL a SET MIN_NODES = 1 TAG a = 's'
 reject	undocumented	docs	alterComputePool(TAG_QNAME_=_STRING_(,_QNAME_=_STRING)*)?/TAG_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-1	ALTER COMPUTE POOL a SET MIN_NODES = 1 a = 's'
 reject	undocumented	docs	alterComputePool(TAG_QNAME_=_STRING_(,_QNAME_=_STRING)*)?/TAG_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-2	ALTER COMPUTE POOL a SET MIN_NODES = 1 TAG = 's'
 reject	undocumented	docs	alterComputePool(TAG_QNAME_=_STRING_(,_QNAME_=_STRING)*)?/TAG_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-3	ALTER COMPUTE POOL a SET MIN_NODES = 1 TAG a 's'
 reject	undocumented	docs	alterComputePool(TAG_QNAME_=_STRING_(,_QNAME_=_STRING)*)?/TAG_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-4	ALTER COMPUTE POOL a SET MIN_NODES = 1 TAG a =
 reject	undocumented	docs	alterComputePool(TAG_QNAME_=_STRING_(,_QNAME_=_STRING)*)?/TAG_QNAME_=_STRING_(,_QNAME_=_STRING)*!insert	ALTER COMPUTE POOL a SET MIN_NODES = 1 TAG a = 's' zzz
 reject	undocumented	docs	alterComputePool(TAG_QNAME_=_STRING_(,_QNAME_=_STRING)*)?/TAG_QNAME_=_STRING_(,_QNAME_=_STRING)*!swap	ALTER COMPUTE POOL a SET MIN_NODES = 1 TAGS a = 's'
-reject	accept	docs	alterComputePool(,_QNAME_=_STRING)*/%empty	ALTER COMPUTE POOL a SET TAG a = 's'
-reject	accept	docs	alterComputePool(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*	ALTER COMPUTE POOL a SET TAG a = 's', a = 's'
+accept	accept	docs	alterComputePool(,_QNAME_=_STRING)*/%empty	ALTER COMPUTE POOL a SET TAG a = 's'
+accept	accept	docs	alterComputePool(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*	ALTER COMPUTE POOL a SET TAG a = 's', a = 's'
 reject	undocumented	docs	alterComputePool(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-1	ALTER COMPUTE POOL a SET TAG a = 's' a = 's'
 reject	undocumented	docs	alterComputePool(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-2	ALTER COMPUTE POOL a SET TAG a = 's', = 's'
 reject	undocumented	docs	alterComputePool(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-3	ALTER COMPUTE POOL a SET TAG a = 's', a 's'
 reject	undocumented	docs	alterComputePool(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-4	ALTER COMPUTE POOL a SET TAG a = 's', a =
 reject	undocumented	docs	alterComputePool(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!insert	ALTER COMPUTE POOL a SET TAG a = 's', a = 's' zzz
-reject	accept	docs	alterComputePool(COMMENT_=_STRING)?/%empty	ALTER COMPUTE POOL a SET MIN_NODES = 1
-reject	accept	docs	alterComputePool(COMMENT_=_STRING)?/COMMENT_=_STRING	ALTER COMPUTE POOL a SET MIN_NODES = 1 COMMENT = 's'
+accept	accept	docs	alterComputePool(COMMENT_=_STRING)?/%empty	ALTER COMPUTE POOL a SET MIN_NODES = 1
+accept	accept	docs	alterComputePool(COMMENT_=_STRING)?/COMMENT_=_STRING	ALTER COMPUTE POOL a SET MIN_NODES = 1 COMMENT = 's'
 reject	undocumented	docs	alterComputePool(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	ALTER COMPUTE POOL a SET MIN_NODES = 1 COMMENT 's'
 reject	undocumented	docs	alterComputePool(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	ALTER COMPUTE POOL a SET MIN_NODES = 1 COMMENT =
 reject	undocumented	docs	alterComputePool(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	ALTER COMPUTE POOL a SET MIN_NODES = 1 COMMENT = 's' zzz
 reject	undocumented	docs	alterComputePool(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	ALTER COMPUTE POOL a SET MIN_NODES = 1 COMMENTS = 's'
-reject	accept	docs	alterComputePool(AUTO_SUSPEND_SECS|AUTO_RESUME|PLACEM~2315d5e6)/AUTO_SUSPEND_SECS	ALTER COMPUTE POOL a UNSET AUTO_SUSPEND_SECS
+accept	accept	docs	alterComputePool(AUTO_SUSPEND_SECS|AUTO_RESUME|PLACEM~2315d5e6)/AUTO_SUSPEND_SECS	ALTER COMPUTE POOL a UNSET AUTO_SUSPEND_SECS
 reject	undocumented	docs	alterComputePool(AUTO_SUSPEND_SECS|AUTO_RESUME|PLACEM~2315d5e6)/AUTO_SUSPEND_SECS!swap	ALTER COMPUTE POOL a UNSET AVAILABLE
-reject	accept	docs	alterComputePool(AUTO_SUSPEND_SECS|AUTO_RESUME|PLACEM~2315d5e6)/AUTO_RESUME	ALTER COMPUTE POOL a UNSET AUTO_RESUME
+accept	accept	docs	alterComputePool(AUTO_SUSPEND_SECS|AUTO_RESUME|PLACEM~2315d5e6)/AUTO_RESUME	ALTER COMPUTE POOL a UNSET AUTO_RESUME
 reject	undocumented	docs	alterComputePool(AUTO_SUSPEND_SECS|AUTO_RESUME|PLACEM~2315d5e6)/AUTO_RESUME!insert	ALTER COMPUTE POOL a UNSET AUTO_RESUME zzz
 reject	undocumented	docs	alterComputePool(AUTO_SUSPEND_SECS|AUTO_RESUME|PLACEM~2315d5e6)/AUTO_RESUME!swap	ALTER COMPUTE POOL a UNSET AUTO_SUSPEND
-reject	accept	docs	alterComputePool(AUTO_SUSPEND_SECS|AUTO_RESUME|PLACEM~2315d5e6)/PLACEMENT_GROUP	ALTER COMPUTE POOL a UNSET PLACEMENT_GROUP
+accept	accept	docs	alterComputePool(AUTO_SUSPEND_SECS|AUTO_RESUME|PLACEM~2315d5e6)/PLACEMENT_GROUP	ALTER COMPUTE POOL a UNSET PLACEMENT_GROUP
 reject	undocumented	docs	alterComputePool(AUTO_SUSPEND_SECS|AUTO_RESUME|PLACEM~2315d5e6)/PLACEMENT_GROUP!insert	ALTER COMPUTE POOL a UNSET PLACEMENT_GROUP zzz
 reject	undocumented	docs	alterComputePool(AUTO_SUSPEND_SECS|AUTO_RESUME|PLACEM~2315d5e6)/PLACEMENT_GROUP!swap	ALTER COMPUTE POOL a UNSET PLAN
-reject	accept	docs	alterComputePool(AUTO_SUSPEND_SECS|AUTO_RESUME|PLACEM~2315d5e6)/BACKUP_INSTANCE_FAMILIES	ALTER COMPUTE POOL a UNSET BACKUP_INSTANCE_FAMILIES
+accept	accept	docs	alterComputePool(AUTO_SUSPEND_SECS|AUTO_RESUME|PLACEM~2315d5e6)/BACKUP_INSTANCE_FAMILIES	ALTER COMPUTE POOL a UNSET BACKUP_INSTANCE_FAMILIES
 reject	undocumented	docs	alterComputePool(AUTO_SUSPEND_SECS|AUTO_RESUME|PLACEM~2315d5e6)/BACKUP_INSTANCE_FAMILIES!insert	ALTER COMPUTE POOL a UNSET BACKUP_INSTANCE_FAMILIES zzz
 reject	undocumented	docs	alterComputePool(AUTO_SUSPEND_SECS|AUTO_RESUME|PLACEM~2315d5e6)/BACKUP_INSTANCE_FAMILIES!swap	ALTER COMPUTE POOL a UNSET BASE
-reject	accept	docs	alterComputePool(AUTO_SUSPEND_SECS|AUTO_RESUME|PLACEM~2315d5e6)/COMMENT	ALTER COMPUTE POOL a UNSET COMMENT
+accept	accept	docs	alterComputePool(AUTO_SUSPEND_SECS|AUTO_RESUME|PLACEM~2315d5e6)/COMMENT	ALTER COMPUTE POOL a UNSET COMMENT
 reject	undocumented	docs	alterComputePool(AUTO_SUSPEND_SECS|AUTO_RESUME|PLACEM~2315d5e6)/COMMENT!insert	ALTER COMPUTE POOL a UNSET COMMENT zzz
 reject	undocumented	docs	alterComputePool(AUTO_SUSPEND_SECS|AUTO_RESUME|PLACEM~2315d5e6)/COMMENT!swap	ALTER COMPUTE POOL a UNSET COMMENTS
-reject	accept	docs	alterComputePool(,_(AUTO_SUSPEND_SECS|AUTO_RESUME|PLA~6f965f8f)*/%empty	ALTER COMPUTE POOL a UNSET AUTO_SUSPEND_SECS
-reject	accept	docs	alterComputePool(,_(AUTO_SUSPEND_SECS|AUTO_RESUME|PLA~6f965f8f)*/,_(AUTO_SUSPEND_SECS|AUTO_RESUME|PLACEM~2315d5e6)_(,_(A~2013796a	ALTER COMPUTE POOL a UNSET AUTO_SUSPEND_SECS, AUTO_SUSPEND_SECS
+accept	accept	docs	alterComputePool(,_(AUTO_SUSPEND_SECS|AUTO_RESUME|PLA~6f965f8f)*/%empty	ALTER COMPUTE POOL a UNSET AUTO_SUSPEND_SECS
+accept	accept	docs	alterComputePool(,_(AUTO_SUSPEND_SECS|AUTO_RESUME|PLA~6f965f8f)*/,_(AUTO_SUSPEND_SECS|AUTO_RESUME|PLACEM~2315d5e6)_(,_(A~2013796a	ALTER COMPUTE POOL a UNSET AUTO_SUSPEND_SECS, AUTO_SUSPEND_SECS
 reject	undocumented	docs	alterComputePool(,_(AUTO_SUSPEND_SECS|AUTO_RESUME|PLA~6f965f8f)*/,_(AUTO_SUSPEND_SECS|AUTO_RESUME|PLACEM~2315d5e6)_(,_(A~2013796a!drop-1	ALTER COMPUTE POOL a UNSET AUTO_SUSPEND_SECS AUTO_SUSPEND_SECS
 reject	undocumented	docs	alterComputePool(,_(AUTO_SUSPEND_SECS|AUTO_RESUME|PLA~6f965f8f)*/,_(AUTO_SUSPEND_SECS|AUTO_RESUME|PLACEM~2315d5e6)_(,_(A~2013796a!drop-2	ALTER COMPUTE POOL a UNSET AUTO_SUSPEND_SECS,
 reject	undocumented	docs	alterComputePool(,_(AUTO_SUSPEND_SECS|AUTO_RESUME|PLA~6f965f8f)*/,_(AUTO_SUSPEND_SECS|AUTO_RESUME|PLACEM~2315d5e6)_(,_(A~2013796a!insert	ALTER COMPUTE POOL a UNSET AUTO_SUSPEND_SECS, AUTO_SUSPEND_SECS zzz
@@ -33401,52 +33401,52 @@ reject	undocumented	docs	createClone(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE
 reject	undocumented	docs	createClone(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE DATABASE ROLE IF NOT
 reject	undocumented	docs	createClone(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE DATABASE ROLE IF NOT EXISTS zzz a CLONE a
 reject	undocumented	docs	createClone(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE DATABASE ROLE IGNORE NOT EXISTS a CLONE a
-reject	accept	docs	createComputePool/CREATE_COMPUTE_POOL_(IF_NOT_EXISTS)?_ID_(FOR_APPLICATIO~e41b2597	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a
-reject	accept	docs	createComputePool(IF_NOT_EXISTS)?/%empty	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a
+accept	accept	docs	createComputePool/CREATE_COMPUTE_POOL_(IF_NOT_EXISTS)?_ID_(FOR_APPLICATIO~e41b2597	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a
+accept	accept	docs	createComputePool(IF_NOT_EXISTS)?/%empty	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a
 reject	undocumented	docs	createComputePool(IF_NOT_EXISTS)?/%empty!insert	CREATE COMPUTE POOL zzz a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a
-reject	accept	docs	createComputePool(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE COMPUTE POOL IF NOT EXISTS a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a
+accept	accept	docs	createComputePool(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE COMPUTE POOL IF NOT EXISTS a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a
 reject	undocumented	docs	createComputePool(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE COMPUTE POOL NOT EXISTS a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a
 reject	undocumented	docs	createComputePool(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE COMPUTE POOL IF EXISTS a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a
 reject	undocumented	docs	createComputePool(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE COMPUTE POOL IF NOT a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a
 reject	undocumented	docs	createComputePool(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE COMPUTE POOL IF NOT
 reject	undocumented	docs	createComputePool(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE COMPUTE POOL IF NOT EXISTS zzz a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a
 reject	undocumented	docs	createComputePool(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE COMPUTE POOL IGNORE NOT EXISTS a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a
-reject	accept	docs	createComputePool(FOR_APPLICATION_ID)?/%empty	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a
+accept	accept	docs	createComputePool(FOR_APPLICATION_ID)?/%empty	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a
 reject	undocumented	docs	createComputePool(FOR_APPLICATION_ID)?/%empty!insert	CREATE COMPUTE POOL a zzz MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a
-reject	accept	docs	createComputePool(FOR_APPLICATION_ID)?/FOR_APPLICATION_ID	CREATE COMPUTE POOL a FOR APPLICATION a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a
+accept	accept	docs	createComputePool(FOR_APPLICATION_ID)?/FOR_APPLICATION_ID	CREATE COMPUTE POOL a FOR APPLICATION a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a
 reject	undocumented	docs	createComputePool(FOR_APPLICATION_ID)?/FOR_APPLICATION_ID!drop-1	CREATE COMPUTE POOL a APPLICATION a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a
 reject	undocumented	docs	createComputePool(FOR_APPLICATION_ID)?/FOR_APPLICATION_ID!drop-2	CREATE COMPUTE POOL a FOR a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a
 reject	undocumented	docs	createComputePool(FOR_APPLICATION_ID)?/FOR_APPLICATION_ID!drop-3	CREATE COMPUTE POOL a FOR APPLICATION MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a
 reject	undocumented	docs	createComputePool(FOR_APPLICATION_ID)?/FOR_APPLICATION_ID!truncate	CREATE COMPUTE POOL a FOR APPLICATION
 reject	undocumented	docs	createComputePool(FOR_APPLICATION_ID)?/FOR_APPLICATION_ID!insert	CREATE COMPUTE POOL a FOR APPLICATION a zzz MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a
 reject	undocumented	docs	createComputePool(FOR_APPLICATION_ID)?/FOR_APPLICATION_ID!swap	CREATE COMPUTE POOL a FORCE APPLICATION a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a
-reject	accept	docs	createComputePool(AUTO_RESUME_=_(TRUE|FALSE))?/%empty	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a
-reject	accept	docs	createComputePool(AUTO_RESUME_=_(TRUE|FALSE))?/AUTO_RESUME_=_(TRUE|FALSE)	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a AUTO_RESUME = TRUE
+accept	accept	docs	createComputePool(AUTO_RESUME_=_(TRUE|FALSE))?/%empty	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a
+accept	accept	docs	createComputePool(AUTO_RESUME_=_(TRUE|FALSE))?/AUTO_RESUME_=_(TRUE|FALSE)	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a AUTO_RESUME = TRUE
 reject	undocumented	docs	createComputePool(AUTO_RESUME_=_(TRUE|FALSE))?/AUTO_RESUME_=_(TRUE|FALSE)!drop-1	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a = TRUE
 reject	undocumented	docs	createComputePool(AUTO_RESUME_=_(TRUE|FALSE))?/AUTO_RESUME_=_(TRUE|FALSE)!drop-2	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a AUTO_RESUME TRUE
 reject	undocumented	docs	createComputePool(AUTO_RESUME_=_(TRUE|FALSE))?/AUTO_RESUME_=_(TRUE|FALSE)!drop-3	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a AUTO_RESUME =
 reject	undocumented	docs	createComputePool(AUTO_RESUME_=_(TRUE|FALSE))?/AUTO_RESUME_=_(TRUE|FALSE)!insert	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a AUTO_RESUME = TRUE zzz
 reject	undocumented	docs	createComputePool(AUTO_RESUME_=_(TRUE|FALSE))?/AUTO_RESUME_=_(TRUE|FALSE)!swap	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a AUTO_SUSPEND = TRUE
-reject	accept	docs	createComputePool(TRUE|FALSE)/TRUE	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a AUTO_RESUME = TRUE
+accept	accept	docs	createComputePool(TRUE|FALSE)/TRUE	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a AUTO_RESUME = TRUE
 reject	undocumented	docs	createComputePool(TRUE|FALSE)/TRUE!swap	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a AUTO_RESUME = TRUNCATE
-reject	accept	docs	createComputePool(TRUE|FALSE)/FALSE	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a AUTO_RESUME = FALSE
+accept	accept	docs	createComputePool(TRUE|FALSE)/FALSE	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a AUTO_RESUME = FALSE
 reject	undocumented	docs	createComputePool(TRUE|FALSE)/FALSE!insert	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a AUTO_RESUME = FALSE zzz
 reject	undocumented	docs	createComputePool(TRUE|FALSE)/FALSE!swap	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a AUTO_RESUME = FAMILIES
-reject	accept	docs	createComputePool(INITIALLY_SUSPENDED_=_(TRUE|FALSE))?/%empty	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a
-reject	accept	docs	createComputePool(INITIALLY_SUSPENDED_=_(TRUE|FALSE))?/INITIALLY_SUSPENDED_=_(TRUE|FALSE)	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a INITIALLY_SUSPENDED = TRUE
+accept	accept	docs	createComputePool(INITIALLY_SUSPENDED_=_(TRUE|FALSE))?/%empty	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a
+accept	accept	docs	createComputePool(INITIALLY_SUSPENDED_=_(TRUE|FALSE))?/INITIALLY_SUSPENDED_=_(TRUE|FALSE)	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a INITIALLY_SUSPENDED = TRUE
 reject	undocumented	docs	createComputePool(INITIALLY_SUSPENDED_=_(TRUE|FALSE))?/INITIALLY_SUSPENDED_=_(TRUE|FALSE)!drop-2	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a INITIALLY_SUSPENDED TRUE
 reject	undocumented	docs	createComputePool(INITIALLY_SUSPENDED_=_(TRUE|FALSE))?/INITIALLY_SUSPENDED_=_(TRUE|FALSE)!drop-3	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a INITIALLY_SUSPENDED =
 reject	undocumented	docs	createComputePool(INITIALLY_SUSPENDED_=_(TRUE|FALSE))?/INITIALLY_SUSPENDED_=_(TRUE|FALSE)!insert	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a INITIALLY_SUSPENDED = TRUE zzz
 reject	undocumented	docs	createComputePool(INITIALLY_SUSPENDED_=_(TRUE|FALSE))?/INITIALLY_SUSPENDED_=_(TRUE|FALSE)!swap	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a INITIAL_REPLICATION_SIZE_LIMIT_IN_TB = TRUE
-reject	accept	docs	createComputePool(AUTO_SUSPEND_SECS_=_NUMBER)?/%empty	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a
-reject	accept	docs	createComputePool(AUTO_SUSPEND_SECS_=_NUMBER)?/AUTO_SUSPEND_SECS_=_NUMBER	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a AUTO_SUSPEND_SECS = 1
+accept	accept	docs	createComputePool(AUTO_SUSPEND_SECS_=_NUMBER)?/%empty	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a
+accept	accept	docs	createComputePool(AUTO_SUSPEND_SECS_=_NUMBER)?/AUTO_SUSPEND_SECS_=_NUMBER	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a AUTO_SUSPEND_SECS = 1
 reject	undocumented	docs	createComputePool(AUTO_SUSPEND_SECS_=_NUMBER)?/AUTO_SUSPEND_SECS_=_NUMBER!drop-1	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a = 1
 reject	undocumented	docs	createComputePool(AUTO_SUSPEND_SECS_=_NUMBER)?/AUTO_SUSPEND_SECS_=_NUMBER!drop-2	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a AUTO_SUSPEND_SECS 1
 reject	undocumented	docs	createComputePool(AUTO_SUSPEND_SECS_=_NUMBER)?/AUTO_SUSPEND_SECS_=_NUMBER!drop-3	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a AUTO_SUSPEND_SECS =
 reject	undocumented	docs	createComputePool(AUTO_SUSPEND_SECS_=_NUMBER)?/AUTO_SUSPEND_SECS_=_NUMBER!insert	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a AUTO_SUSPEND_SECS = 1 zzz
 reject	undocumented	docs	createComputePool(AUTO_SUSPEND_SECS_=_NUMBER)?/AUTO_SUSPEND_SECS_=_NUMBER!swap	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a AVAILABLE = 1
-reject	accept	docs	createComputePool(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/%empty	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a
-reject	accept	docs	createComputePool(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a TAG(a = 's')
+accept	accept	docs	createComputePool(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/%empty	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a
+accept	accept	docs	createComputePool(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a TAG(a = 's')
 reject	undocumented	docs	createComputePool(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!drop-1	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a(a = 's')
 reject	undocumented	docs	createComputePool(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!drop-2	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a TAG a = 's')
 reject	undocumented	docs	createComputePool(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!drop-3	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a TAG(= 's')
@@ -33455,35 +33455,35 @@ reject	undocumented	docs	createComputePool(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~
 reject	undocumented	docs	createComputePool(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!drop-6	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a TAG(a = 's'
 reject	undocumented	docs	createComputePool(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!insert	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a TAG(a = 's') zzz
 reject	undocumented	docs	createComputePool(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!swap	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a TAGS(a = 's')
-reject	accept	docs	createComputePool(WITH)?/%empty	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a TAG(a = 's')
+accept	accept	docs	createComputePool(WITH)?/%empty	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a TAG(a = 's')
 reject	undocumented	docs	createComputePool(WITH)?/%empty!insert	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a zzz TAG(a = 's')
-reject	accept	docs	createComputePool(WITH)?/WITH	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a WITH TAG(a = 's')
+accept	accept	docs	createComputePool(WITH)?/WITH	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a WITH TAG(a = 's')
 reject	undocumented	docs	createComputePool(WITH)?/WITH!insert	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a WITH zzz TAG(a = 's')
 reject	undocumented	docs	createComputePool(WITH)?/WITH!swap	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a WITHIN TAG(a = 's')
-reject	accept	docs	createComputePool(,_QNAME_=_STRING)*/%empty	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a TAG(a = 's')
+accept	accept	docs	createComputePool(,_QNAME_=_STRING)*/%empty	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a TAG(a = 's')
 reject	undocumented	docs	createComputePool(,_QNAME_=_STRING)*/%empty!insert	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a TAG(a = 's' zzz)
-reject	accept	docs	createComputePool(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a TAG(a = 's', a = 's')
+accept	accept	docs	createComputePool(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a TAG(a = 's', a = 's')
 reject	undocumented	docs	createComputePool(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-1	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a TAG(a = 's' a = 's')
 reject	undocumented	docs	createComputePool(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-2	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a TAG(a = 's', = 's')
 reject	undocumented	docs	createComputePool(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-3	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a TAG(a = 's', a 's')
 reject	undocumented	docs	createComputePool(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-4	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a TAG(a = 's', a =)
 reject	undocumented	docs	createComputePool(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!truncate	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a TAG(a = 's', a =
 reject	undocumented	docs	createComputePool(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!insert	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a TAG(a = 's', a = 's' zzz)
-reject	accept	docs	createComputePool(COMMENT_=_STRING)?/%empty	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a
-reject	accept	docs	createComputePool(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a COMMENT = 's'
+accept	accept	docs	createComputePool(COMMENT_=_STRING)?/%empty	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a
+accept	accept	docs	createComputePool(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a COMMENT = 's'
 reject	undocumented	docs	createComputePool(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-1	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a = 's'
 reject	undocumented	docs	createComputePool(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a COMMENT 's'
 reject	undocumented	docs	createComputePool(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a COMMENT =
 reject	undocumented	docs	createComputePool(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a COMMENT = 's' zzz
 reject	undocumented	docs	createComputePool(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a COMMENTS = 's'
-reject	accept	docs	createComputePool(PLACEMENT_GROUP_=_STRING)?/%empty	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a
-reject	accept	docs	createComputePool(PLACEMENT_GROUP_=_STRING)?/PLACEMENT_GROUP_=_STRING	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a PLACEMENT_GROUP = 's'
+accept	accept	docs	createComputePool(PLACEMENT_GROUP_=_STRING)?/%empty	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a
+accept	accept	docs	createComputePool(PLACEMENT_GROUP_=_STRING)?/PLACEMENT_GROUP_=_STRING	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a PLACEMENT_GROUP = 's'
 reject	undocumented	docs	createComputePool(PLACEMENT_GROUP_=_STRING)?/PLACEMENT_GROUP_=_STRING!drop-2	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a PLACEMENT_GROUP 's'
 reject	undocumented	docs	createComputePool(PLACEMENT_GROUP_=_STRING)?/PLACEMENT_GROUP_=_STRING!drop-3	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a PLACEMENT_GROUP =
 reject	undocumented	docs	createComputePool(PLACEMENT_GROUP_=_STRING)?/PLACEMENT_GROUP_=_STRING!insert	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a PLACEMENT_GROUP = 's' zzz
 reject	undocumented	docs	createComputePool(PLACEMENT_GROUP_=_STRING)?/PLACEMENT_GROUP_=_STRING!swap	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a PLAN = 's'
-reject	accept	docs	createComputePool(BACKUP_INSTANCE_FAMILIES_=_(_STRING_~6e192522)?/%empty	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a
-reject	accept	docs	createComputePool(BACKUP_INSTANCE_FAMILIES_=_(_STRING_~6e192522)?/BACKUP_INSTANCE_FAMILIES_=_(_STRING_(,_STRING)*_)	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a BACKUP_INSTANCE_FAMILIES =('s')
+accept	accept	docs	createComputePool(BACKUP_INSTANCE_FAMILIES_=_(_STRING_~6e192522)?/%empty	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a
+accept	accept	docs	createComputePool(BACKUP_INSTANCE_FAMILIES_=_(_STRING_~6e192522)?/BACKUP_INSTANCE_FAMILIES_=_(_STRING_(,_STRING)*_)	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a BACKUP_INSTANCE_FAMILIES =('s')
 reject	undocumented	docs	createComputePool(BACKUP_INSTANCE_FAMILIES_=_(_STRING_~6e192522)?/BACKUP_INSTANCE_FAMILIES_=_(_STRING_(,_STRING)*_)!drop-1	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a =('s')
 reject	undocumented	docs	createComputePool(BACKUP_INSTANCE_FAMILIES_=_(_STRING_~6e192522)?/BACKUP_INSTANCE_FAMILIES_=_(_STRING_(,_STRING)*_)!drop-2	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a BACKUP_INSTANCE_FAMILIES('s')
 reject	undocumented	docs	createComputePool(BACKUP_INSTANCE_FAMILIES_=_(_STRING_~6e192522)?/BACKUP_INSTANCE_FAMILIES_=_(_STRING_(,_STRING)*_)!drop-3	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a BACKUP_INSTANCE_FAMILIES = 's')
@@ -33491,9 +33491,9 @@ reject	undocumented	docs	createComputePool(BACKUP_INSTANCE_FAMILIES_=_(_STRING_~
 reject	undocumented	docs	createComputePool(BACKUP_INSTANCE_FAMILIES_=_(_STRING_~6e192522)?/BACKUP_INSTANCE_FAMILIES_=_(_STRING_(,_STRING)*_)!drop-5	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a BACKUP_INSTANCE_FAMILIES =('s'
 reject	undocumented	docs	createComputePool(BACKUP_INSTANCE_FAMILIES_=_(_STRING_~6e192522)?/BACKUP_INSTANCE_FAMILIES_=_(_STRING_(,_STRING)*_)!insert	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a BACKUP_INSTANCE_FAMILIES =('s') zzz
 reject	undocumented	docs	createComputePool(BACKUP_INSTANCE_FAMILIES_=_(_STRING_~6e192522)?/BACKUP_INSTANCE_FAMILIES_=_(_STRING_(,_STRING)*_)!swap	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a BASE =('s')
-reject	accept	docs	createComputePool(,_STRING)*/%empty	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a BACKUP_INSTANCE_FAMILIES =('s')
+accept	accept	docs	createComputePool(,_STRING)*/%empty	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a BACKUP_INSTANCE_FAMILIES =('s')
 reject	undocumented	docs	createComputePool(,_STRING)*/%empty!insert	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a BACKUP_INSTANCE_FAMILIES =('s' zzz)
-reject	accept	docs	createComputePool(,_STRING)*/,_STRING_(,_STRING)*	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a BACKUP_INSTANCE_FAMILIES =('s', 's')
+accept	accept	docs	createComputePool(,_STRING)*/,_STRING_(,_STRING)*	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a BACKUP_INSTANCE_FAMILIES =('s', 's')
 reject	undocumented	docs	createComputePool(,_STRING)*/,_STRING_(,_STRING)*!drop-1	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a BACKUP_INSTANCE_FAMILIES =('s' 's')
 reject	undocumented	docs	createComputePool(,_STRING)*/,_STRING_(,_STRING)*!drop-2	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a BACKUP_INSTANCE_FAMILIES =('s',)
 reject	undocumented	docs	createComputePool(,_STRING)*/,_STRING_(,_STRING)*!truncate	CREATE COMPUTE POOL a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a BACKUP_INSTANCE_FAMILIES =('s',
@@ -51989,13 +51989,13 @@ reject	undocumented	docs	dropCatalogIntegration(IF_EXISTS)?/IF_EXISTS!drop-2	DRO
 reject	accept	docs	dropCatalogIntegration(IF_EXISTS)?/IF_EXISTS!truncate	DROP CATALOG INTEGRATION IF
 reject	undocumented	docs	dropCatalogIntegration(IF_EXISTS)?/IF_EXISTS!insert	DROP CATALOG INTEGRATION IF EXISTS zzz a
 reject	undocumented	docs	dropCatalogIntegration(IF_EXISTS)?/IF_EXISTS!swap	DROP CATALOG INTEGRATION IGNORE EXISTS a
-reject	accept	docs	dropComputePool/DROP_COMPUTE_POOL_(IF_EXISTS)?_ID	DROP COMPUTE POOL a
-reject	accept	docs	dropComputePool(IF_EXISTS)?/%empty	DROP COMPUTE POOL a
+accept	accept	docs	dropComputePool/DROP_COMPUTE_POOL_(IF_EXISTS)?_ID	DROP COMPUTE POOL a
+accept	accept	docs	dropComputePool(IF_EXISTS)?/%empty	DROP COMPUTE POOL a
 reject	undocumented	docs	dropComputePool(IF_EXISTS)?/%empty!insert	DROP COMPUTE POOL zzz a
-reject	accept	docs	dropComputePool(IF_EXISTS)?/IF_EXISTS	DROP COMPUTE POOL IF EXISTS a
+accept	accept	docs	dropComputePool(IF_EXISTS)?/IF_EXISTS	DROP COMPUTE POOL IF EXISTS a
 reject	undocumented	docs	dropComputePool(IF_EXISTS)?/IF_EXISTS!drop-1	DROP COMPUTE POOL EXISTS a
 reject	undocumented	docs	dropComputePool(IF_EXISTS)?/IF_EXISTS!drop-2	DROP COMPUTE POOL IF a
-reject	accept	docs	dropComputePool(IF_EXISTS)?/IF_EXISTS!truncate	DROP COMPUTE POOL IF
+accept	accept	docs	dropComputePool(IF_EXISTS)?/IF_EXISTS!truncate	DROP COMPUTE POOL IF
 reject	undocumented	docs	dropComputePool(IF_EXISTS)?/IF_EXISTS!insert	DROP COMPUTE POOL IF EXISTS zzz a
 reject	undocumented	docs	dropComputePool(IF_EXISTS)?/IF_EXISTS!swap	DROP COMPUTE POOL IGNORE EXISTS a
 accept	accept	docs	dropConnection/DROP_CONNECTION_(IF_EXISTS)?_ID	DROP CONNECTION a

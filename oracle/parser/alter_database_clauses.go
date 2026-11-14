@@ -917,33 +917,7 @@ func (p *Parser) parseAlterDatabaseCreate(opt *nodes.DDLOption) error {
 	p.advance()
 	switch {
 	case p.adbWord("DATAFILE"):
-		p.advance()
-		opt.Key = "CREATE_DATAFILE"
-		files, err := p.adbFileOrNumberList()
-		if err != nil {
-			return err
-		}
-		opt.Value = strings.Join(files, ", ")
-		if p.cur.Type == kwAS {
-			p.advance()
-			if p.adbEndKept() {
-				return nil
-			}
-			opt.Items = &nodes.List{}
-			for {
-				start := p.pos()
-				as, err := p.parseAlterDatabaseDatafileSpec()
-				if err != nil {
-					return err
-				}
-				opt.Items.Items = append(opt.Items.Items, p.adbItem("AS", as, start))
-				if p.cur.Type != ',' {
-					break
-				}
-				p.advance()
-			}
-		}
-		return nil
+		return p.parseAlterDatabaseCreateDatafile(opt)
 	case p.adbWord("PHYSICAL"), p.adbWord("LOGICAL"), p.adbWord("STANDBY"):
 		opt.Key = "CREATE_STANDBY_CONTROLFILE"
 		if !p.adbWord("STANDBY") {
@@ -984,6 +958,40 @@ func (p *Parser) parseAlterDatabaseCreate(opt *nodes.DDLOption) error {
 		p.advance()
 	}
 	return nil
+}
+
+// parseAlterDatabaseCreateDatafile reads, CREATE consumed,
+//
+//	DATAFILE { 'filename' | integer } [, ... ]...
+//	  [ AS datafile_tempfile_spec [, datafile_tempfile_spec ]... ]
+func (p *Parser) parseAlterDatabaseCreateDatafile(opt *nodes.DDLOption) error {
+	p.advance()
+	opt.Key = "CREATE_DATAFILE"
+	files, err := p.adbFileOrNumberList()
+	if err != nil {
+		return err
+	}
+	opt.Value = strings.Join(files, ", ")
+	if p.cur.Type != kwAS {
+		return nil
+	}
+	p.advance()
+	if p.adbEndKept() {
+		return nil
+	}
+	opt.Items = &nodes.List{}
+	for {
+		start := p.pos()
+		as, err := p.parseAlterDatabaseDatafileSpec()
+		if err != nil {
+			return err
+		}
+		opt.Items.Items = append(opt.Items.Items, p.adbItem("AS", as, start))
+		if p.cur.Type != ',' {
+			return nil
+		}
+		p.advance()
+	}
 }
 
 // parseAlterDatabaseFile reads

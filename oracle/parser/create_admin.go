@@ -206,9 +206,10 @@ func (p *Parser) parseCreateAdminObject(start int, orReplace bool) (nodes.StmtNo
 				return p.parseCreateDiskgroupStmt(start)
 			case "PLUGGABLE":
 				p.advance() // consume PLUGGABLE
-				if p.cur.Type == kwDATABASE {
-					p.advance() // consume DATABASE
+				if p.cur.Type != kwDATABASE {
+					return nil, p.syntaxErrorAtCur()
 				}
+				p.advance() // consume DATABASE
 				return p.parseCreatePluggableDatabaseStmt(start)
 			case "ANALYTIC":
 				p.advance() // consume ANALYTIC
@@ -1784,9 +1785,10 @@ func (p *Parser) parseAlterAdminObject(start int) (nodes.StmtNode, error) {
 				return p.parseAlterDiskgroupStmt(start)
 			case "PLUGGABLE":
 				p.advance() // consume PLUGGABLE
-				if p.cur.Type == kwDATABASE {
-					p.advance() // consume DATABASE
+				if p.cur.Type != kwDATABASE {
+					return nil, p.syntaxErrorAtCur()
 				}
+				p.advance() // consume DATABASE
 				return p.parseAlterPluggableDatabaseStmt(start)
 			case "ANALYTIC":
 				p.advance() // consume ANALYTIC
