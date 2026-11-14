@@ -12,8 +12,7 @@ import (
 // (deparseViewSelect), so any two whitespace-equivalent bodies land on the same
 // canonical Definition — while making the dumped statement readable and git-diffable.
 //
-// The scanner mirrors stripViewBodyDatabaseQualifier's string-literal awareness and
-// extends it to backtick identifiers and parentheses:
+// The scanner is aware of string literals, backtick identifiers, and parentheses:
 //   - '…' / "…" literals are opaque tokens (backslash and doubled-delimiter escapes),
 //     so a literal containing " from " or "union all" is never split;
 //   - `…` identifiers are opaque tokens (doubled-backtick escape, NO backslash escape),
@@ -367,7 +366,7 @@ func scanViewBodyTokenClosed(body string, i int) (int, bool) {
 	switch c := body[i]; c {
 	case '\'', '"':
 		// String literal: backslash escapes the next byte; a doubled delimiter stays
-		// inside. Mirrors stripViewBodyDatabaseQualifier.
+		// inside.
 		for j := i + 1; j < len(body); {
 			switch {
 			case body[j] == '\\' && j+1 < len(body):
