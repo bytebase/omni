@@ -5,116 +5,44 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
-	"sync"
 	"testing"
 
-	_ "github.com/microsoft/go-mssqldb"
-	"github.com/testcontainers/testcontainers-go"
-	tcmssql "github.com/testcontainers/testcontainers-go/modules/mssql"
-
+	"github.com/bytebase/omni/enginetest/tape"
 	"github.com/bytebase/omni/mssql/internal/testcontainer"
 )
 
+// parserOracle is SQL Server's parser on one session: a replay of the test's
+// tape, or the pinned server in a recording (testcontainer.Open).
 type parserOracle struct {
-	conn *sql.Conn
-	ctx  context.Context
+	conn     *sql.Conn
+	ctx      context.Context
+	database string
 }
 
-// sharedMSSQL is the package-wide SQL Server 2022 oracle. SQL Server takes
-// 15-20s to boot, so one container serves every test in the package instead
-// of one per test. The tests run SET PARSEONLY ON checks, which execute
-// nothing, or execute inside a transaction they roll back
-// (TestAlterTableDropListEffectOracle), so there is no state to isolate
-// between them.
+// startParserOracle returns t's oracle. Its session is in t's database,
+// which holds dbo.t, a table for the queries that name one.
 //
-// Every check runs on conn, a single dedicated session. Going through the
-// *sql.DB pool would not work: database/sql calls ResetSession when it hands
-// out a pooled connection, and go-mssqldb then sends the next batch with the
-// RESETCONNECTION flag, which clears SET options and the database context.
-// SET PARSEONLY ON and USE testdb issued through the pool never reach the
-// statement under test, which then executes for real.
-var sharedMSSQL struct {
-	once      sync.Once
-	container *tcmssql.MSSQLServerContainer
-	db        *sql.DB
-	conn      *sql.Conn
-	err       error
-}
-
-// startParserOracle returns the shared SQL Server oracle, starting it on first
-// use. It fails the test in CI when the container cannot start and skips
-// locally, so a laptop without Docker still runs the rest of the package.
+// Every check runs on conn, one session: SET PARSEONLY ON and the database
+// are session state.
 func startParserOracle(t *testing.T) *parserOracle {
 	t.Helper()
-	sharedMSSQL.once.Do(func() {
-		ctx := context.Background()
-		container, err := tcmssql.Run(ctx, "mcr.microsoft.com/mssql/server:2022-CU27-GDR1-ubuntu-22.04",
-			tcmssql.WithAcceptEULA(),
-			tcmssql.WithPassword("Str0ngPa$$w0rd!"),
-		)
-		if err != nil {
-			sharedMSSQL.err = fmt.Errorf("start SQL Server container: %w", err)
-			return
-		}
-		fail := func(err error) {
-			_ = testcontainers.TerminateContainer(container)
-			sharedMSSQL.err = err
-		}
-		connStr, err := container.ConnectionString(ctx)
-		if err != nil {
-			fail(fmt.Errorf("connection string: %w", err))
-			return
-		}
-		db, err := sql.Open("sqlserver", connStr)
-		if err != nil {
-			fail(fmt.Errorf("open database: %w", err))
-			return
-		}
-		if err := db.PingContext(ctx); err != nil {
-			_ = db.Close()
-			fail(fmt.Errorf("ping SQL Server: %w", err))
-			return
-		}
-		// SET PARSEONLY and USE are session state: hold one connection for
-		// the whole package so the pool never resets it between statements.
-		conn, err := db.Conn(ctx)
-		if err != nil {
-			_ = db.Close()
-			fail(fmt.Errorf("dedicated connection: %w", err))
-			return
-		}
-		// Create a test database and table for queries that reference objects.
-		for _, s := range []string{
-			"CREATE DATABASE testdb",
-			"USE testdb",
-			"CREATE TABLE dbo.t (a INT, col INT, partition INT, encryption INT, window INT, bucket INT)",
-		} {
-			if _, err := conn.ExecContext(ctx, s); err != nil {
-				_ = conn.Close()
-				_ = db.Close()
-				fail(fmt.Errorf("setup SQL failed (%s): %w", s, err))
-				return
-			}
-		}
-		sharedMSSQL.container, sharedMSSQL.db, sharedMSSQL.conn = container, db, conn
-	})
-	if sharedMSSQL.err != nil {
-		t.Fatalf("SQL Server oracle required in CI but unavailable: %v", sharedMSSQL.err)
+	ctx := context.Background()
+	conn, err := testcontainer.Open(t).Conn(ctx)
+	if err != nil {
+		t.Fatalf("connect to SQL Server: %v", err)
 	}
-	return &parserOracle{conn: sharedMSSQL.conn, ctx: context.Background()}
+	t.Cleanup(func() { conn.Close() })
+	const table = "CREATE TABLE dbo.t (a INT, col INT, partition INT, encryption INT, window INT, bucket INT)"
+	if _, err := conn.ExecContext(ctx, table); err != nil {
+		t.Fatalf("%s: %v", table, err)
+	}
+	return &parserOracle{conn: conn, ctx: ctx, database: testcontainer.Database(t)}
 }
 
+// TestMain runs the tests through the tape harness and removes the servers
+// a recording started.
 func TestMain(m *testing.M) {
-	code := m.Run()
-	if sharedMSSQL.conn != nil {
-		_ = sharedMSSQL.conn.Close()
-	}
-	if sharedMSSQL.db != nil {
-		_ = sharedMSSQL.db.Close()
-	}
-	if sharedMSSQL.container != nil {
-		_ = testcontainers.TerminateContainer(sharedMSSQL.container)
-	}
+	code := tape.Main(m)
 	testcontainer.Terminate()
 	os.Exit(code)
 }
@@ -131,23 +59,18 @@ func (o *parserOracle) canParse(sql string) (bool, error) {
 
 // parseError returns SQL Server's error for sql under SET PARSEONLY ON, or
 // nil when SQL Server accepts the syntax. The second result reports a failure
-// of the oracle itself.
+// of the oracle itself: an error SQL Server did not send.
 //
-// SET QUOTED_IDENTIFIER takes effect while a batch is parsed, even under SET
-// PARSEONLY ON, so a check of SET QUOTED_IDENTIFIER OFF would turn every
-// later "x" into a string. Each check restores it, and every check starts
-// from the default session.
+// testcontainer.ParseOnly puts the session back after each check, since SET
+// QUOTED_IDENTIFIER OFF, checked, would turn every later "x" into a string.
 func (o *parserOracle) parseError(sql string) (parseErr error, err error) {
-	_, err = o.conn.ExecContext(o.ctx, "SET PARSEONLY ON")
-	if err != nil {
-		return nil, fmt.Errorf("SET PARSEONLY ON: %w", err)
+	parseErr = testcontainer.ParseOnly(o.ctx, o.conn, o.database, "", sql)
+	if parseErr == nil {
+		return nil, nil
 	}
-	defer func() {
-		o.conn.ExecContext(o.ctx, "SET PARSEONLY OFF")        //nolint:errcheck
-		o.conn.ExecContext(o.ctx, "SET QUOTED_IDENTIFIER ON") //nolint:errcheck
-	}()
-
-	_, parseErr = o.conn.ExecContext(o.ctx, sql)
+	if _, ok := testcontainer.ServerErrors(parseErr); !ok {
+		return nil, parseErr
+	}
 	return parseErr, nil
 }
 
