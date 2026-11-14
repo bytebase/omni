@@ -172,6 +172,9 @@ func (p *Parser) parseExecuteStmt() (ast.Node, error) {
 		}
 		return &ast.ExecuteAlertStmt{Name: name, Loc: ast.Loc{Start: execTok.Loc.Start, End: p.prev.Loc.End}}, nil
 	default:
+		if p.atWords("NOTEBOOK") {
+			return p.parseExecuteNotebook(execTok.Loc) // notebook.go
+		}
 		return nil, p.syntaxErrorAtCur()
 	}
 }

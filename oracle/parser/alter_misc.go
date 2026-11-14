@@ -88,9 +88,10 @@ func (p *Parser) parseAlterStmt() (nodes.StmtNode, error) {
 	case kwAUDIT:
 		// ALTER AUDIT POLICY
 		p.advance() // consume AUDIT
-		if p.isIdentLikeStr("POLICY") {
-			p.advance() // consume POLICY
+		if !p.isKeywordStr("POLICY") {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance() // consume POLICY
 		return p.parseAlterAuditPolicyStmt(start)
 	case kwJSON:
 		// ALTER JSON RELATIONAL DUALITY VIEW

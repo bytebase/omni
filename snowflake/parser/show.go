@@ -217,6 +217,22 @@ func (p *Parser) startsShowClassWord() bool {
 func (p *Parser) parseShowScope(stmt *ast.ShowStmt) error {
 	p.advance() // consume IN/FOR
 
+	// SHOW BACKUPS IN BACKUP SET <name> and SHOW SNAPSHOTS IN SNAPSHOT SET
+	// <name> (https://docs.snowflake.com/en/sql-reference/sql/show-backups-in-backup-set,
+	// https://docs.snowflake.com/en/sql-reference/sql/show-snapshots-in-snapshot-set).
+	if (stmt.ObjectClass == "BACKUPS" && p.atWords("BACKUP", "SET")) ||
+		(stmt.ObjectClass == "SNAPSHOTS" && p.atWords("SNAPSHOT", "SET")) {
+		stmt.Scope = ast.ShowScopeOther
+		stmt.ScopeText = strings.ToUpper(p.advance().Str) + " SET"
+		p.advance() // consume SET
+		name, err := p.parseObjectName()
+		if err != nil {
+			return err
+		}
+		stmt.ScopeName = name
+		return nil
+	}
+
 	// IN { MODEL | DATASET | EXPERIMENT | GATEWAY } <name> (model.go).
 	if word := p.startsShowModelScope(); word != "" {
 		return p.parseShowModelScope(stmt, word)
@@ -248,6 +264,14 @@ func (p *Parser) parseShowScope(stmt *ast.ShowStmt) error {
 		tok := p.advance()
 		stmt.Scope = ast.ShowScopeOther
 		stmt.ScopeText = strings.ToUpper(tok.Str)
+		// IN APPLICATION PACKAGE <name> (SHOW VERSIONS, SHOW RELEASE
+		// DIRECTIVES, SHOW RELEASE CHANNELS), where PACKAGE is followed by
+		// the package's name rather than being the application's.
+		// https://docs.snowflake.com/en/sql-reference/sql/show-versions
+		if tok.Type == kwAPPLICATION && p.startsShowApplicationPackageScope() {
+			p.advance() // consume PACKAGE
+			stmt.ScopeText = "APPLICATION PACKAGE"
+		}
 		// SESSION takes no name; the others take an optional name.
 		if tok.Type != kwSESSION {
 			return p.parseOptionalScopeName(stmt)
@@ -283,6 +307,15 @@ func (p *Parser) parseShowScope(stmt *ast.ShowStmt) error {
 		stmt.ScopeText = "GRAPH"
 		stmt.ScopeName = name
 		return nil
+	}
+
+	// IN LISTING <name> (SHOW RELEASE CHANNELS); a bare LISTING is a schema.
+	// https://docs.snowflake.com/en/sql-reference/sql/show-release-channels
+	if p.startsShowListingScope() {
+		p.advance() // consume LISTING
+		stmt.Scope = ast.ShowScopeOther
+		stmt.ScopeText = "LISTING"
+		return p.parseOptionalScopeName(stmt)
 	}
 
 	// IN SERVICE | COMPUTE POOL | IMAGE REPOSITORY | ARTIFACT REPOSITORY <name>
