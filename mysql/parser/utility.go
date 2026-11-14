@@ -197,7 +197,10 @@ func (p *Parser) parseCheckTableStmt() (*nodes.CheckTableStmt, error) {
 	start := p.pos()
 	p.advance() // consume CHECK
 
-	p.match(kwTABLE)
+	// table_or_tables is required (check_table_stmt, sql_yacc.yy): `CHECK t` is 1064.
+	if _, ok := p.match(kwTABLE, kwTABLES); !ok {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	// Completion: after CHECK TABLE, offer table_ref.
 	p.checkCursor()
@@ -223,11 +226,12 @@ func (p *Parser) parseCheckTableStmt() (*nodes.CheckTableStmt, error) {
 	// Optional check options: FOR UPGRADE, QUICK, FAST, MEDIUM, EXTENDED, CHANGED
 	for {
 		if p.cur.Type == kwFOR {
+			// mi_check_type: FOR_SYM UPGRADE_SYM, the one check type of two words.
 			p.advance()
-			if p.cur.Type == kwUPGRADE {
-				stmt.Options = append(stmt.Options, "FOR UPGRADE")
-				p.advance()
+			if _, err := p.expect(kwUPGRADE); err != nil {
+				return nil, err
 			}
+			stmt.Options = append(stmt.Options, "FOR UPGRADE")
 		} else if p.cur.Type == kwQUICK {
 			stmt.Options = append(stmt.Options, "QUICK")
 			p.advance()
@@ -265,7 +269,10 @@ func (p *Parser) parseRepairTableStmt() (*nodes.RepairTableStmt, error) {
 		p.advance()
 	}
 
-	p.match(kwTABLE)
+	// table_or_tables is required (repair_table_stmt, sql_yacc.yy): `REPAIR t` is 1064.
+	if _, ok := p.match(kwTABLE, kwTABLES); !ok {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	// Completion: after REPAIR TABLE, offer table_ref.
 	p.checkCursor()
@@ -804,7 +811,10 @@ func (p *Parser) parseChecksumTableStmt() (*nodes.ChecksumTableStmt, error) {
 	start := p.pos()
 	p.advance() // consume CHECKSUM
 
-	p.match(kwTABLE)
+	// table_or_tables is required (checksum, sql_yacc.yy): `CHECKSUM t` is 1064.
+	if _, ok := p.match(kwTABLE, kwTABLES); !ok {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	stmt := &nodes.ChecksumTableStmt{Loc: nodes.Loc{Start: start}}
 
@@ -880,8 +890,12 @@ func (p *Parser) parseCloneStmt() (*nodes.CloneStmt, error) {
 		// CLONE LOCAL DATA DIRECTORY [=] 'clone_dir'
 		stmt.Local = true
 		p.advance() // consume LOCAL
-		p.match(kwDATA)
-		p.match(kwDIRECTORY)
+		// clone_stmt: CLONE_SYM LOCAL_SYM DATA_SYM DIRECTORY_SYM opt_equal, both words required.
+		for _, kw := range []int{kwDATA, kwDIRECTORY} {
+			if _, err := p.expect(kw); err != nil {
+				return nil, err
+			}
+		}
 
 		// Optional '='
 		p.matchEqual()
@@ -898,7 +912,9 @@ func (p *Parser) parseCloneStmt() (*nodes.CloneStmt, error) {
 	} else if p.cur.Type == kwINSTANCE {
 		// CLONE INSTANCE FROM 'user'@'host':port IDENTIFIED BY 'password' ...
 		p.advance() // consume INSTANCE
-		p.match(kwFROM)
+		if _, err := p.expect(kwFROM); err != nil {
+			return nil, err
+		}
 
 		// 'user'
 		if p.cur.Type != tokSCONST {
@@ -942,8 +958,11 @@ func (p *Parser) parseCloneStmt() (*nodes.CloneStmt, error) {
 		p.advance()
 
 		// IDENTIFIED BY 'password'
-		p.match(kwIDENTIFIED)
-		p.match(kwBY)
+		for _, kw := range []int{kwIDENTIFIED, kwBY} {
+			if _, err := p.expect(kw); err != nil {
+				return nil, err
+			}
+		}
 		if p.cur.Type != tokSCONST {
 			return nil, &ParseError{
 				Message:  "expected string literal for password",
@@ -956,7 +975,9 @@ func (p *Parser) parseCloneStmt() (*nodes.CloneStmt, error) {
 		// Optional DATA DIRECTORY [=] 'clone_dir'
 		if p.cur.Type == kwDATA {
 			p.advance() // consume DATA
-			p.match(kwDIRECTORY)
+			if _, err := p.expect(kwDIRECTORY); err != nil {
+				return nil, err
+			}
 			p.matchEqual()
 			if p.cur.Type != tokSCONST {
 				return nil, &ParseError{
@@ -971,16 +992,16 @@ func (p *Parser) parseCloneStmt() (*nodes.CloneStmt, error) {
 		// Optional REQUIRE [NO] SSL
 		if p.cur.Type == kwREQUIRE {
 			p.advance() // consume REQUIRE
+			// opt_ssl: REQUIRE_SYM [NO_SYM] SSL_SYM, SSL required.
+			required := true
 			if p.cur.Type == kwNO {
 				p.advance() // consume NO
-				p.match(kwSSL)
-				f := false
-				stmt.RequireSSL = &f
-			} else {
-				p.match(kwSSL)
-				t := true
-				stmt.RequireSSL = &t
+				required = false
 			}
+			if _, err := p.expect(kwSSL); err != nil {
+				return nil, err
+			}
+			stmt.RequireSSL = &required
 		}
 	} else {
 		return nil, &ParseError{
@@ -1658,8 +1679,11 @@ func (p *Parser) parseCreateSpatialRefSysStmt(start int, orReplace bool) (*nodes
 	// Optional IF NOT EXISTS (only when not OR REPLACE)
 	if !orReplace && p.cur.Type == kwIF {
 		p.advance()
-		p.match(kwNOT)
-		p.match(kwEXISTS_KW)
+		for _, kw := range []int{kwNOT, kwEXISTS_KW} {
+			if _, err := p.expect(kw); err != nil {
+				return nil, err
+			}
+		}
 		stmt.IfNotExists = true
 	}
 
@@ -1709,9 +1733,12 @@ func (p *Parser) parseCreateSpatialRefSysStmt(start int, orReplace bool) (*nodes
 			}
 			stmt.Organization = p.cur.Str
 			p.advance()
-			// IDENTIFIED BY srid
-			p.match(kwIDENTIFIED)
-			p.match(kwBY)
+			// IDENTIFIED BY srid, both words required (srs_attributes, sql_yacc.yy).
+			for _, kw := range []int{kwIDENTIFIED, kwBY} {
+				if _, err := p.expect(kw); err != nil {
+					return nil, err
+				}
+			}
 			if p.cur.Type != tokICONST {
 				return nil, &ParseError{
 					Message:  "expected integer for ORGANIZATION IDENTIFIED BY srid",
@@ -2178,20 +2205,23 @@ func (p *Parser) parseUnlockInstanceStmt(start int) (*nodes.UnlockInstanceStmt, 
 func (p *Parser) parseImportTableStmt() (*nodes.ImportTableStmt, error) {
 	start := p.pos()
 	p.advance() // consume IMPORT
-	p.advance() // consume TABLE
-	p.advance() // consume FROM
+	// import_stmt: IMPORT TABLE_SYM FROM TEXT_STRING_sys_list, a list of one string or more.
+	for _, kw := range []int{kwTABLE, kwFROM} {
+		if _, err := p.expect(kw); err != nil {
+			return nil, err
+		}
+	}
 
 	stmt := &nodes.ImportTableStmt{
 		Loc: nodes.Loc{Start: start},
 	}
 
 	for {
-		if p.cur.Type == tokSCONST {
-			stmt.Files = append(stmt.Files, p.cur.Str)
-			p.advance()
-		} else {
-			break
+		if p.cur.Type != tokSCONST {
+			return nil, p.syntaxErrorAtCur()
 		}
+		stmt.Files = append(stmt.Files, p.cur.Str)
+		p.advance()
 		if p.cur.Type != ',' {
 			break
 		}
@@ -2212,10 +2242,12 @@ func (p *Parser) parseBinlogStmt() (*nodes.BinlogStmt, error) {
 		Loc: nodes.Loc{Start: start},
 	}
 
-	if p.cur.Type == tokSCONST {
-		stmt.Str = p.cur.Str
-		p.advance()
+	// binlog_base64_event: BINLOG_SYM TEXT_STRING_sys, the string required.
+	if p.cur.Type != tokSCONST {
+		return nil, p.syntaxErrorAtCur()
 	}
+	stmt.Str = p.cur.Str
+	p.advance()
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil

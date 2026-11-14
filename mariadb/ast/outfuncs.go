@@ -135,8 +135,6 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeChecksumTableStmt(sb, n)
 	case *ShutdownStmt:
 		writeShutdownStmt(sb, n)
-	case *RestartStmt:
-		writeRestartStmt(sb, n)
 	case *AlterDatabaseStmt:
 		writeAlterDatabaseStmt(sb, n)
 	case *DropDatabaseStmt:
@@ -452,7 +450,11 @@ func writeNode(sb *strings.Builder, node Node) {
 	case *ImportTableStmt:
 		writeImportTableStmt(sb, n)
 	case *BinlogStmt:
-		fmt.Fprintf(sb, "{BINLOG :loc %d :str %q}", n.Loc.Start, n.Str)
+		if len(n.Fragments) > 0 {
+			fmt.Fprintf(sb, "{BINLOG :loc %d :fragments %q}", n.Loc.Start, n.Fragments)
+		} else {
+			fmt.Fprintf(sb, "{BINLOG :loc %d :str %q}", n.Loc.Start, n.Str)
+		}
 	case *CacheIndexStmt:
 		writeCacheIndexStmt(sb, n)
 	case *LoadIndexIntoCacheStmt:
@@ -2079,12 +2081,6 @@ func writeChecksumTableStmt(sb *strings.Builder, n *ChecksumTableStmt) {
 
 func writeShutdownStmt(sb *strings.Builder, n *ShutdownStmt) {
 	sb.WriteString("{SHUTDOWN")
-	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
-	sb.WriteString("}")
-}
-
-func writeRestartStmt(sb *strings.Builder, n *RestartStmt) {
-	sb.WriteString("{RESTART")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
 	sb.WriteString("}")
 }
