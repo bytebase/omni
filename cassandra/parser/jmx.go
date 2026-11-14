@@ -1,5 +1,7 @@
 package parser
 
+import "strings"
+
 // checkJMXObjectName is what Parser.g's canonicalizeObjectName (Parser.g:162)
 // refuses in the name of MBEAN 'name' or MBEANS 'name' while it parses: an
 // empty name, the *:* wildcard, a name javax.management.ObjectName does not
@@ -31,6 +33,9 @@ func parseJMXObjectName(name string) (pattern, ok bool) {
 	chars := []rune(name)
 	n := len(chars)
 	i := 0
+	// The domain ends at the first ':', so an '=' in it has a ':' after it
+	// exactly when the name holds one: one scan, not one per '='.
+	hasColon := strings.ContainsRune(name, ':')
 
 	// The domain runs to the first ':'.
 domain:
@@ -42,11 +47,7 @@ domain:
 		case '=':
 			// ObjectName looks for a ':' after an '=' in the domain.
 			i++
-			j := i
-			for j < n && chars[j] != ':' {
-				j++
-			}
-			if j == n {
+			if !hasColon {
 				return false, false // Domain part must be specified
 			}
 		case '\n':

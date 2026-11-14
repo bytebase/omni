@@ -1,6 +1,7 @@
 package cassandra
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/cassandra/ast"
@@ -38,6 +39,8 @@ func TestParseDescribe(t *testing.T) {
 		{sql: "DESCRIBE ONLY KEYSPACE ks", kind: ast.DescribeKeyspace, name: "ks", only: true},
 		{sql: "DESCRIBE TABLES", kind: ast.DescribeTables},
 		{sql: "DESCRIBE TABLE ks.t", kind: ast.DescribeTable, name: "ks.t"},
+		{sql: "DESCRIBE COLUMNFAMILIES", kind: ast.DescribeTables},
+		{sql: "DESCRIBE COLUMNFAMILY ks.t", kind: ast.DescribeTable, name: "ks.t"},
 		{sql: "DESCRIBE INDEX i", kind: ast.DescribeIndex, name: "i"},
 		{sql: "DESCRIBE MATERIALIZED VIEW v", kind: ast.DescribeMaterializedView, name: "v"},
 		{sql: "DESCRIBE TYPES", kind: ast.DescribeTypes},
@@ -376,5 +379,17 @@ func TestParseLexerForms(t *testing.T) {
 		if _, err := Parse(sql); err == nil {
 			t.Errorf("Parse(%q) = nil error, want one", sql)
 		}
+	}
+}
+
+// TestParseJMXLongDomain holds an MBEAN name whose domain is a long run of
+// '=': ObjectName takes it, and checking it is linear in its length.
+func TestParseJMXLongDomain(t *testing.T) {
+	sql := "LIST ALL ON MBEAN '" + strings.Repeat("=", 200000) + ":k=v'"
+	if _, err := Parse(sql); err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	if _, err := Parse("LIST ALL ON MBEAN '" + strings.Repeat("=", 1000) + "'"); err == nil {
+		t.Fatal("a name with no ':' parsed")
 	}
 }

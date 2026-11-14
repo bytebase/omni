@@ -67,10 +67,11 @@ func (p *Parser) parseDescribe() (*ast.DescribeStmt, error) {
 		err = p.parseDescribeKeyspace(stmt)
 	case p.cur.Type == tokKEYSPACE:
 		err = p.parseDescribeKeyspace(stmt)
-	case p.curIs("tables"):
+	case p.curIs("tables"), p.curIs("columnfamilies"):
+		// K_TABLES and K_COLUMNFAMILY have two spellings each (Lexer.g:94-97).
 		stmt.Kind = ast.DescribeTables
 		p.advance()
-	case p.cur.Type == tokTABLE:
+	case p.cur.Type == tokTABLE, p.curIs("columnfamily"):
 		err = qualified(ast.DescribeTable)
 	case p.cur.Type == tokINDEX:
 		err = qualified(ast.DescribeIndex)
