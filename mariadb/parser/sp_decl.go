@@ -6,92 +6,65 @@ import (
 	nodes "github.com/bytebase/omni/mariadb/ast"
 )
 
-// What MariaDB 11.8 refuses of a stored program's declarations while it parses, in the
-// scopes sp_scope.go keeps. A block names a variable, a condition and a cursor once each, a
-// routine or a cursor a parameter once, and the actions refuse while they read:
+// What MariaDB 11.8 refuses of a block's declarations while it parses, beyond the variables,
+// parameters and cursors sp_scope.go holds:
 //
 //	1327 ER_SP_UNDECLARED_VAR       TYPE OF a variable no scope in reach declares
-//	1330 ER_SP_DUP_PARAM            a routine's or a cursor's parameter named twice
-//	1331 ER_SP_DUP_VAR              a variable a block declares twice
 //	1332 ER_SP_DUP_COND             a condition a block declares twice
-//	1333 ER_SP_DUP_CURS             a cursor a block declares twice
 //	1319 ER_SP_COND_MISMATCH        a handler for a condition no scope in reach declares
 //	1413 ER_SP_DUP_HANDLER          two handlers of a block for the same condition
 //
-// A variable and a condition are found across a handler's scope, which hides labels alone.
-// As for labels, a name with a byte past ASCII is never refused: MariaDB folds more of
-// Unicode than omni does. Measured on mariadb:11.8.8.
+// A condition is found across a handler's scope, which hides labels alone. As for the other
+// names, a lookup of a name with a byte past ASCII is never refused. Measured on
+// mariadb:11.8.8.
 //
-// Ref: sp_decl_idents, sp_decl_body, sp_hcond, sp_param_name and
-// opt_parenthesized_cursor_formal_parameters in MariaDB 11.8 sql/sql_yacc.yy;
-// sp_pcontext::find_variable, find_condition and check_duplicate_handler in sql/sp_pcontext.cc.
+// Ref: sp_decl_variable_list_anchored, sp_decl_body and sp_hcond in MariaDB 11.8
+// sql/sql_yacc.yy; sp_pcontext::find_condition and check_duplicate_handler in
+// sql/sp_pcontext.cc.
 
-// declareSPVar adds a variable to the current scope; param says it is a parameter.
-func (p *Parser) declareSPVar(name string, pos int, param bool) error {
+// checkSPVarFree refuses a variable a DECLARE names that the block, or the DECLARE before it,
+// already names: 1331. The names are declared once the DECLARE's type is read, so its TYPE OF
+// does not see them (declareSPVars).
+func (p *Parser) checkSPVarFree(before []string, name string, pos int) error {
+	s := p.routine.sp
 	if !p.spChecks() {
 		return nil
 	}
-	s := p.routine.sp
-	key := strings.ToLower(name)
-	if s.vars[key] && !spLenientName(name) {
-		msg := "Duplicate variable: "
-		if param {
-			msg = "Duplicate parameter: "
-		}
-		return &ParseError{Message: msg + name, Position: pos}
+	if spHasName(s.vars, name) || spHasName(before, name) {
+		return &ParseError{Message: "Duplicate variable: " + name, Position: pos}
 	}
-	if s.vars == nil {
-		s.vars = map[string]bool{}
-	}
-	s.vars[key] = true
 	return nil
 }
 
-// checkSPVarDeclared refuses a variable no scope in reach declares.
+// declareSPVars adds a DECLARE's variables to the current block.
+func (p *Parser) declareSPVars(names []string) {
+	if s := p.routine.sp; s != nil {
+		s.vars = append(s.vars, names...)
+	}
+}
+
+// checkSPVarDeclared refuses TYPE OF a variable no scope in reach declares.
 func (p *Parser) checkSPVarDeclared(name string, pos int) error {
-	if !p.spChecks() || spLenientName(name) {
-		return nil
+	if p.spChecks() && !p.routine.sp.findVar(name) {
+		return &ParseError{Message: "Undeclared variable: " + name, Position: pos}
 	}
-	key := strings.ToLower(name)
-	for s := p.routine.sp; s != nil; s = s.parent {
-		if s.vars[key] {
-			return nil
-		}
-	}
-	return &ParseError{Message: "Undeclared variable: " + name, Position: pos}
+	return nil
 }
 
 // declareSPCondition adds a condition to the current scope.
 func (p *Parser) declareSPCondition(name string, val nodes.HandlerCondValue, pos int) error {
-	if !p.spChecks() {
+	s := p.routine.sp
+	if s == nil {
 		return nil
 	}
-	s := p.routine.sp
 	key := strings.ToLower(name)
-	if _, ok := s.conds[key]; ok && !spLenientName(name) {
+	if _, ok := s.conds[key]; ok && p.spChecks() && !spLenientName(name) {
 		return &ParseError{Message: "Duplicate condition: " + name, Position: pos}
 	}
 	if s.conds == nil {
 		s.conds = map[string]nodes.HandlerCondValue{}
 	}
 	s.conds[key] = val
-	return nil
-}
-
-// declareSPCursor adds a cursor to the current scope.
-func (p *Parser) declareSPCursor(name string, pos int) error {
-	if !p.spChecks() {
-		return nil
-	}
-	s := p.routine.sp
-	key := strings.ToLower(name)
-	if s.cursors[key] && !spLenientName(name) {
-		return &ParseError{Message: "Duplicate cursor: " + name, Position: pos}
-	}
-	if s.cursors == nil {
-		s.cursors = map[string]bool{}
-	}
-	s.cursors[key] = true
 	return nil
 }
 

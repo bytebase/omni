@@ -127,9 +127,10 @@ END`,
 			name: "OPEN/FETCH/CLOSE declared cursor",
 			sql: `CREATE PROCEDURE p()
 BEGIN
+    DECLARE x INT;
     DECLARE c CURSOR FOR SELECT 1;
     OPEN c;
-    FETCH c INTO @x;
+    FETCH c INTO x;
     CLOSE c;
 END`,
 		},
@@ -139,7 +140,8 @@ END`,
 BEGIN
     OPEN nope;
 END`,
-			wantCode: "undeclared_cursor",
+			wantCode:     "undeclared_cursor",
+			parseRefused: true,
 		},
 		{
 			name: "FETCH undeclared cursor",
@@ -147,7 +149,8 @@ END`,
 BEGIN
     FETCH nope INTO @x;
 END`,
-			wantCode: "undeclared_cursor",
+			wantCode:     "undeclared_cursor",
+			parseRefused: true,
 		},
 		{
 			name: "CLOSE undeclared cursor",
@@ -155,7 +158,8 @@ END`,
 BEGIN
     CLOSE nope;
 END`,
-			wantCode: "undeclared_cursor",
+			wantCode:     "undeclared_cursor",
+			parseRefused: true,
 		},
 
 		// ---------- Symbol resolution: HANDLER condition name ----------
@@ -411,7 +415,7 @@ END`,
 		t.Run(c.name, func(t *testing.T) {
 			list, err := parser.Parse(c.sql)
 			if c.parseRefused {
-				// The server refuses it while parsing (1308, 1309, 1313), and so does Parse;
+				// The server refuses it while parsing (1308, 1309, 1313, 1324, ...), and so does Parse;
 				// the rule stays for a tree that comes from anywhere else.
 				if err == nil {
 					t.Fatalf("Parse(%q) accepted it", c.sql)

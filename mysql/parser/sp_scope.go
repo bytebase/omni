@@ -15,11 +15,14 @@ import (
 // sp_unlabeled_control, sp_decl (HANDLER), sp_proc_stmt_leave and sp_proc_stmt_iterate
 // rules of sql/sql_yacc.yy, MySQL 8.0.
 
-// spScope is one sp_pcontext.
+// spScope is one sp_pcontext. Variables, cursors and labels are each a namespace of their
+// own: a variable and a cursor may share a name.
 type spScope struct {
 	parent  *spScope
 	handler bool // a handler's statement, sp_pcontext::HANDLER_SCOPE
 	labels  []spLabel
+	vars    []string // the parameters in the program's scope, DECLAREd variables in a block's
+	cursors []string
 }
 
 // spLabel is a block's or a loop's label. A block or a loop without one pushes the empty
@@ -35,6 +38,13 @@ type spLabel struct {
 // name with a byte past ASCII is taken as found: a refusal must be the server's.
 func spNameMatch(written, declared string) bool {
 	return strings.EqualFold(written, declared)
+}
+
+// spNameMayMatch is spNameMatch for a lookup, which must not refuse a name the server finds:
+// a name with a byte past ASCII on either side may be one the server's collation folds to
+// the other.
+func spNameMayMatch(written, declared string) bool {
+	return spNameMatch(written, declared) || spLenientName(written) || spLenientName(declared)
 }
 
 func spLenientName(name string) bool {
@@ -62,17 +72,51 @@ func (s *spScope) findLabel(name string) *spLabel {
 	return nil
 }
 
+// findVar is sp_pcontext::find_variable: a parameter or variable in this scope or one
+// around it. A handler's scope does not hide them.
+func (s *spScope) findVar(name string) bool {
+	for ; s != nil; s = s.parent {
+		for _, v := range s.vars {
+			if spNameMayMatch(name, v) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// findCursor is sp_pcontext::find_cursor.
+func (s *spScope) findCursor(name string) bool {
+	for ; s != nil; s = s.parent {
+		for _, c := range s.cursors {
+			if spNameMayMatch(name, c) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func spHasName(names []string, name string) bool {
+	for _, n := range names {
+		if spNameMatch(name, n) {
+			return true
+		}
+	}
+	return false
+}
+
 // spChecks reports whether the parser holds a stored program's names to its scope: inside
 // one, and not while collecting completion candidates, where the text is unfinished.
 func (p *Parser) spChecks() bool {
 	return p.routine.sp != nil && !p.completing
 }
 
-// enterStoredProgram starts the scope of a routine, trigger or event body. The returned
-// function restores the scope around it.
-func (p *Parser) enterStoredProgram(r routineScope) func() {
+// enterStoredProgram starts the scope of a routine, trigger or event body, which holds the
+// routine's parameters. The returned function restores the scope around it.
+func (p *Parser) enterStoredProgram(r routineScope, params ...string) func() {
 	outer := p.routine
-	r.sp = &spScope{}
+	r.sp = &spScope{vars: params}
 	p.routine = r
 	return func() { p.routine = outer }
 }
@@ -122,4 +166,82 @@ func (p *Parser) checkSPLabelRef(verb, name string, pos int, iterate bool) error
 		return &ParseError{Message: verb + " with no matching label: " + name, Position: pos}
 	}
 	return nil
+}
+
+// checkSPParam refuses a parameter named as one before it: 1330, ER_SP_DUP_PARAM.
+//
+// Ref: sp_pdparam and sp_fdparam in MySQL 8.0 sql/sql_yacc.yy.
+func (p *Parser) checkSPParam(before []string, name string, pos int) error {
+	if !p.completing && spHasName(before, name) {
+		return &ParseError{Message: "Duplicate parameter: " + name, Position: pos}
+	}
+	return nil
+}
+
+// declareSPVar declares a block's variable: one of the same name in the block is 1331,
+// ER_SP_DUP_VAR. One of the same name around the block is hidden by it.
+//
+// Ref: sp_decl_idents in MySQL 8.0 sql/sql_yacc.yy.
+func (p *Parser) declareSPVar(name string, pos int) error {
+	s := p.routine.sp
+	if s == nil {
+		return nil
+	}
+	if p.spChecks() && spHasName(s.vars, name) {
+		return &ParseError{Message: "Duplicate variable: " + name, Position: pos}
+	}
+	s.vars = append(s.vars, name)
+	return nil
+}
+
+// declareSPCursor declares a block's cursor: one of the same name in the block is 1333,
+// ER_SP_DUP_CURS.
+//
+// Ref: the DECLARE ... CURSOR arm of sp_decl in MySQL 8.0 sql/sql_yacc.yy.
+func (p *Parser) declareSPCursor(name string, pos int) error {
+	s := p.routine.sp
+	if s == nil {
+		return nil
+	}
+	if p.spChecks() && spHasName(s.cursors, name) {
+		return &ParseError{Message: "Duplicate cursor: " + name, Position: pos}
+	}
+	s.cursors = append(s.cursors, name)
+	return nil
+}
+
+// checkSPCursorRef holds OPEN's, FETCH's and CLOSE's cursor to the cursors in reach: 1324,
+// ER_SP_CURSOR_MISMATCH.
+//
+// Ref: sp_proc_stmt_open, sp_proc_stmt_fetch and sp_proc_stmt_close in MySQL 8.0
+// sql/sql_yacc.yy.
+func (p *Parser) checkSPCursorRef(name string, pos int) error {
+	if p.spChecks() && !p.routine.sp.findCursor(name) {
+		return &ParseError{Message: "Undefined CURSOR: " + name, Position: pos}
+	}
+	return nil
+}
+
+// checkSPVarRef holds a name that must be a stored program's variable or parameter to the
+// ones in reach: 1327, ER_SP_UNDECLARED_VAR. Outside a stored program, outside reports
+// whether the server refuses the name too, as GET DIAGNOSTICS's target does in its grammar
+// action; where it refuses one only once the statement is read (SELECT ... INTO, LIMIT), the
+// check is left to it.
+//
+// Ref: sp_fetch_list and simple_target_specification in MySQL 8.0 sql/sql_yacc.yy;
+// PT_select_sp_var::contextualize in sql/parse_tree_nodes.cc and PTI_limit_option_ident::itemize
+// in sql/parse_tree_items.cc,
+// which a stored program's statement runs while it parses (MAKE_CMD in sp_proc_stmt_statement).
+func (p *Parser) checkSPVarRef(name string, pos int, outside bool) error {
+	if p.completing {
+		return nil
+	}
+	if s := p.routine.sp; s != nil {
+		if s.findVar(name) {
+			return nil
+		}
+	} else if !outside {
+		return nil
+	}
+	return &ParseError{Message: "Undeclared variable: " + name, Position: pos}
 }

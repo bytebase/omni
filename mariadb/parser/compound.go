@@ -67,7 +67,13 @@ func (p *Parser) parseBeginEndBlock(labelName string, labelStart int) (*nodes.Be
 	phase := phaseInit
 	for p.cur.Type != kwEND && p.cur.Type != tokEOF {
 		sStart := p.pos()
-		s, err := p.parseCompoundStmtOrStmt()
+		var s nodes.Node
+		var err error
+		if p.cur.Type == kwDECLARE {
+			s, err = p.parseDeclareStmt()
+		} else {
+			s, err = p.parseCompoundStmtOrStmt()
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -222,9 +228,10 @@ func (p *Parser) parseCompoundStmtOrStmt() (nodes.Node, error) {
 		}
 	}
 
-	// DECLARE
-	if p.cur.Type == kwDECLARE {
-		return p.parseDeclareStmt()
+	// DECLARE stands only at the head of a BEGIN ... END block (sp_block_content's sp_decls),
+	// which parseBeginEndBlock reads: sp_proc_stmt has no DECLARE.
+	if p.cur.Type == kwDECLARE && !p.collectMode() {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	// BEGIN ... END (without label)
@@ -361,7 +368,9 @@ func (p *Parser) parseDeclareVarStmt(start int, firstName string, firstPos int) 
 		Loc:   nodes.Loc{Start: start},
 		Names: []string{firstName},
 	}
-	positions := []int{firstPos}
+	if err := p.checkSPVarFree(nil, firstName, firstPos); err != nil {
+		return nil, err
+	}
 
 	// Additional variable names separated by commas
 	for p.cur.Type == ',' {
@@ -370,8 +379,10 @@ func (p *Parser) parseDeclareVarStmt(start int, firstName string, firstPos int) 
 		if err != nil {
 			return nil, err
 		}
+		if err := p.checkSPVarFree(stmt.Names, name, pos); err != nil {
+			return nil, err
+		}
 		stmt.Names = append(stmt.Names, name)
-		positions = append(positions, pos)
 	}
 
 	// Data type
@@ -394,11 +405,7 @@ func (p *Parser) parseDeclareVarStmt(start int, firstName string, firstPos int) 
 		stmt.Default = val
 	}
 
-	for i, name := range stmt.Names {
-		if err := p.declareSPVar(name, positions[i], false); err != nil {
-			return nil, err
-		}
-	}
+	p.declareSPVars(stmt.Names)
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
@@ -613,29 +620,11 @@ func (p *Parser) parseDeclareCursorStmt(start int, name string, namePos int) (*n
 		Name: name,
 	}
 
-	if p.cur.Type == '(' {
-		params, err := p.parseCursorParams()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Params = params
-	}
-
-	// FOR
-	if _, err := p.expect(kwFOR); err != nil {
-		return nil, err
-	}
-
-	// select_statement, which takes no INTO (1323)
-	queryStart := p.pos()
-	sel, err := p.parseSelectStmt()
+	params, sel, err := p.parseCursorParamsAndQuery()
 	if err != nil {
 		return nil, err
 	}
-	if selectHasInto(sel) {
-		return nil, &ParseError{Message: "Cursor SELECT must not have INTO", Position: queryStart}
-	}
-	stmt.Select = sel
+	stmt.Params, stmt.Select = params, sel
 	if err := p.declareSPCursor(name, namePos); err != nil {
 		return nil, err
 	}
@@ -644,37 +633,59 @@ func (p *Parser) parseDeclareCursorStmt(start int, name string, namePos int) (*n
 	return stmt, nil
 }
 
-// parseCursorParams reads a cursor's parenthesized parameters in a scope of their own.
-func (p *Parser) parseCursorParams() ([]*nodes.FuncParam, error) {
-	p.advance() // (
+// parseCursorParamsAndQuery reads a cursor's optional parameters, FOR and its query, in a
+// scope of their own: the parameters are variables of the query alone. The query takes no
+// INTO (1323).
+func (p *Parser) parseCursorParamsAndQuery() ([]*nodes.FuncParam, *nodes.SelectStmt, error) {
 	defer p.pushSPScope(false)()
 	var params []*nodes.FuncParam
-	for {
-		param, err := p.parseSpParam(true)
-		if err != nil {
-			return nil, err
+	var names []string
+	if _, ok := p.match('('); ok {
+		for {
+			param, err := p.parseSpParam(true, names)
+			if err != nil {
+				return nil, nil, err
+			}
+			if param.Direction == "OUT" || param.Direction == "INOUT" {
+				return nil, nil, &ParseError{Message: "This version of MariaDB doesn't yet support 'OUT/INOUT cursor parameter'", Position: param.Loc.Start}
+			}
+			params = append(params, param)
+			names = append(names, param.Name)
+			if _, ok := p.match(','); !ok {
+				break
+			}
 		}
-		if param.Direction == "OUT" || param.Direction == "INOUT" {
-			return nil, &ParseError{Message: "This version of MariaDB doesn't yet support 'OUT/INOUT cursor parameter'", Position: param.Loc.Start}
+		if _, err := p.expect(')'); err != nil {
+			return nil, nil, err
 		}
-		params = append(params, param)
-		if _, ok := p.match(','); !ok {
-			break
-		}
+		p.declareSPVars(names)
 	}
-	if _, err := p.expect(')'); err != nil {
-		return nil, err
+
+	if _, err := p.expect(kwFOR); err != nil {
+		return nil, nil, err
 	}
-	return params, nil
+
+	// select_statement. The action refuses a query that writes INTO with 1323,
+	// ER_SP_BAD_CURSOR_SELECT, then a second cursor of the name in the block
+	// (declareSPCursor).
+	selStart := p.pos()
+	sel, err := p.parseSelectStmt()
+	if err != nil {
+		return nil, nil, err
+	}
+	if !p.completing && selectHasInto(sel) {
+		return nil, nil, &ParseError{Message: "Cursor SELECT must not have INTO", Position: selStart}
+	}
+	return params, sel, nil
 }
 
 // parseSpParam reads one parameter of a routine or a cursor, [IN | OUT | INOUT] name type,
-// and declares it in the current scope. MariaDB's type may be ROW(...), TYPE OF a column or
-// ROW TYPE OF a table.
+// refusing a name one before it has (1330). MariaDB's type may be ROW(...), TYPE OF a column
+// or ROW TYPE OF a table.
 //
 // Ref: sp_param_name_and_mode, sp_param_init_vars and sp_param_anchored in MariaDB 11.8
 // sql/sql_yacc.yy.
-func (p *Parser) parseSpParam(withDirection bool) (*nodes.FuncParam, error) {
+func (p *Parser) parseSpParam(withDirection bool, before []string) (*nodes.FuncParam, error) {
 	start := p.pos()
 	param := &nodes.FuncParam{Loc: nodes.Loc{Start: start}}
 
@@ -703,7 +714,7 @@ func (p *Parser) parseSpParam(withDirection bool) (*nodes.FuncParam, error) {
 		return nil, err
 	}
 	param.TypeName, param.RowFields, param.Anchor = dt, row, anchor
-	if err := p.declareSPVar(name, namePos, true); err != nil {
+	if err := p.checkSPParam(before, name, namePos); err != nil {
 		return nil, err
 	}
 
@@ -1226,7 +1237,7 @@ func (p *Parser) parseForStmt(labelName string, labelStart int) (*nodes.ForStmt,
 	}
 
 	closeScope := p.pushSPScope(false)
-	if err := p.declareSPVar(name, namePos, false); err != nil {
+	if err := p.declareSPVar(name, namePos); err != nil {
 		closeScope()
 		return nil, err
 	}
@@ -1363,8 +1374,11 @@ func (p *Parser) parseOpenCursorStmt() (*nodes.OpenCursorStmt, error) {
 	start := p.pos()
 	p.advance() // consume OPEN
 
-	name, _, err := p.parseIdentifier()
+	name, namePos, err := p.parseIdentifier()
 	if err != nil {
+		return nil, err
+	}
+	if err := p.checkSPCursorRef(name, namePos); err != nil {
 		return nil, err
 	}
 	return &nodes.OpenCursorStmt{
@@ -1380,19 +1394,24 @@ func (p *Parser) parseFetchCursorStmt() (*nodes.FetchCursorStmt, error) {
 	start := p.pos()
 	p.advance() // consume FETCH
 
-	// Optional NEXT
-	if p.cur.Type == kwNEXT {
+	// sp_proc_stmt_fetch_head: FETCH, FETCH FROM or FETCH NEXT FROM, then the cursor.
+	// NEXT before INTO is the cursor's name; NEXT before anything else but FROM is a 1064.
+	if p.cur.Type == kwNEXT && p.peekNext().Type != kwINTO {
 		p.advance()
+		if p.cur.Type != kwFROM {
+			return nil, p.syntaxErrorAtCur()
+		}
 	}
-
-	// Optional FROM
 	if p.cur.Type == kwFROM {
 		p.advance()
 	}
 
 	// cursor_name
-	name, _, err := p.parseIdentifier()
+	name, namePos, err := p.parseIdentifier()
 	if err != nil {
+		return nil, err
+	}
+	if err := p.checkSPCursorRef(name, namePos); err != nil {
 		return nil, err
 	}
 
@@ -1401,11 +1420,18 @@ func (p *Parser) parseFetchCursorStmt() (*nodes.FetchCursorStmt, error) {
 		return nil, err
 	}
 
-	// var_name [, var_name] ... — lvalue context (assignment target)
+	// var_name [, var_name] ...: sp_fetch_list takes identifiers, each a variable in reach,
+	// and no @user_var.
 	var vars []string
 	for {
-		v, _, err := p.parseLvalueIdent()
+		if p.isVariableRef() {
+			return nil, p.syntaxErrorAtCur()
+		}
+		v, vPos, err := p.parseLvalueIdent()
 		if err != nil {
+			return nil, err
+		}
+		if err := p.checkSPVarRef(v, vPos, false); err != nil {
 			return nil, err
 		}
 		vars = append(vars, v)
@@ -1429,8 +1455,11 @@ func (p *Parser) parseCloseCursorStmt() (*nodes.CloseCursorStmt, error) {
 	start := p.pos()
 	p.advance() // consume CLOSE
 
-	name, _, err := p.parseIdentifier()
+	name, namePos, err := p.parseIdentifier()
 	if err != nil {
+		return nil, err
+	}
+	if err := p.checkSPCursorRef(name, namePos); err != nil {
 		return nil, err
 	}
 	return &nodes.CloseCursorStmt{

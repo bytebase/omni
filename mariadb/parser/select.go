@@ -45,6 +45,14 @@ func (p *Parser) parseWithClause() ([]*nodes.CommonTableExpr, error) {
 		if err != nil {
 			return nil, err
 		}
+		// Two elements of one WITH under one name are 4004, ER_DUP_QUERY_NAME, whatever
+		// their case: With_clause::check_dependencies compares the names with
+		// system_charset_info while the statement parses.
+		for _, prev := range ctes {
+			if strings.EqualFold(prev.Name, name) {
+				return nil, &ParseError{Message: "Duplicate query name `" + name + "` in WITH clause", Position: start}
+			}
+		}
 
 		cte := &nodes.CommonTableExpr{
 			Loc:       nodes.Loc{Start: start},
@@ -2064,7 +2072,7 @@ func (p *Parser) parseGroupByList() ([]*nodes.OrderByItem, error) {
 // grammar's limit_option is an identifier, a parameter marker or an integer
 // literal, so `LIMIT 1 + 1`, `LIMIT (1)`, `LIMIT -1`, `LIMIT 1 OR 2`, `LIMIT 1 || 2`,
 // `LIMIT @a`, `LIMIT 0x10` and `LIMIT 1.5` are all 1064. The identifier is a stored
-// program's local variable, and parses anywhere (ER_SP_UNDECLARED_VAR comes later).
+// program's local variable, in reach of the statement (checkSPVarRef).
 func (p *Parser) parseLimitValue() (nodes.ExprNode, error) {
 	if p.cur.Type == tokICONST {
 		// limit_option takes the integer tokens up to ULONGLONG_NUM. What is past 64
@@ -2095,6 +2103,8 @@ func (p *Parser) parseLimitValue() (nodes.ExprNode, error) {
 			}
 			ref.Table, ref.Column = name, column
 			ref.Loc.End = p.prev.End
+		} else if err := p.checkSPVarRef(name, start, true); err != nil {
+			return nil, err
 		}
 		return ref, nil
 	}
@@ -2492,6 +2502,9 @@ func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
 				nameStart := p.pos()
 				name, _, err := p.parseLvalueIdent()
 				if err != nil {
+					return nil, err
+				}
+				if err := p.checkSPVarRef(name, nameStart, true); err != nil {
 					return nil, err
 				}
 				into.Vars = append(into.Vars, &nodes.VariableRef{
