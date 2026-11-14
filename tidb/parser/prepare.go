@@ -68,17 +68,19 @@ func (p *Parser) parseExecuteStmt() (*nodes.ExecuteStmt, error) {
 	stmt.Name = name
 
 	// Optional USING
+	// USING takes user variables and nothing else. Ref: ExecuteStmt's
+	// "USING" UserVariableList in tidb/testdata/parser.y.
 	if p.cur.Type == kwUSING {
 		p.advance()
 		for {
-			expr, err := p.parseExpr()
+			if !p.isUserVariable() {
+				return nil, p.syntaxErrorAtCur()
+			}
+			ref, err := p.parseVariableRef()
 			if err != nil {
 				return nil, err
 			}
-			if expr == nil {
-				return nil, p.syntaxErrorAtCur()
-			}
-			stmt.Params = append(stmt.Params, expr)
+			stmt.Params = append(stmt.Params, ref)
 			if p.cur.Type != ',' {
 				break
 			}
