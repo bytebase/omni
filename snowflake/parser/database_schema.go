@@ -333,6 +333,10 @@ func (p *Parser) parseAlterStmt() (ast.Node, error) {
 	if f := p.matchObjectForm(); f != nil {
 		return p.parseObjectStmt("ALTER", f, alterTok.Loc, false, false)
 	}
+	// Policies read by their docs pages (policy.go).
+	if d := p.startsDocPolicy(); d != nil {
+		return p.parseAlterDocPolicy(alterTok.Loc, d)
+	}
 
 	switch p.cur.Type {
 	case kwTABLE:

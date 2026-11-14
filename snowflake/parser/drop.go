@@ -28,6 +28,10 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 		node.(*ast.DropStmt).Object = f.kind
 		return node, nil
 	}
+	// Policies read by their docs pages (policy.go).
+	if d := p.startsDocPolicy(); d != nil {
+		return p.parseDropDocPolicy(start, d)
+	}
 
 	switch p.cur.Type {
 	case kwDATABASE:
