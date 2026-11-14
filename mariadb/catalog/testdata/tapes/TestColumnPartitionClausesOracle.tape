@@ -658,6 +658,102 @@
 | DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
 < ok 0 0
 > exec
+| CREATE TABLE pt (a INT) PARTITION BY LIST (a) (PARTITION p0 VALUES IN (1, 2))
+< ok 0 0
+> exec
+| CREATE TABLE ct (a INT)
+< ok 0 0
+> exec
+| ALTER TABLE pt CONVERT TABLE ct TO PARTITION p1 VALUES IN (2)
+< error
+| 1495 HY000 Multiple definition of same constant in list partitioning
+> exec
+| SET sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
+< ok 0 0
+> exec
+| CREATE TABLE pt (a INT) PARTITION BY LIST (a) (PARTITION p0 VALUES IN (1))
+< ok 0 0
+> exec
+| ALTER TABLE pt ADD PARTITION (p1 VALUES IN (3), p2 VALUES IN (3))
+< error
+| 1495 HY000 Multiple definition of same constant in list partitioning
+> exec
+| SET sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
+< ok 0 0
+> exec
+| CREATE TABLE pt (a INT, b INT) PARTITION BY LIST COLUMNS (a, b) (PARTITION p0 VALUES IN ((1, 2)))
+< ok 0 0
+> exec
+| ALTER TABLE pt ADD PARTITION (p1 VALUES IN ((1, 2)))
+< error
+| 1495 HY000 Multiple definition of same constant in list partitioning
+> exec
+| SET sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
+< ok 0 0
+> exec
+| CREATE TABLE pt (a INT) PARTITION BY LIST (a) (PARTITION p0 VALUES IN (NULL))
+< ok 0 0
+> exec
+| ALTER TABLE pt ADD PARTITION (p1 VALUES IN (NULL))
+< error
+| 1495 HY000 Multiple definition of same constant in list partitioning
+> exec
+| SET sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
+< ok 0 0
+> exec
+| CREATE TABLE pt (a INT) PARTITION BY LIST (a) (PARTITION p0 VALUES IN (1, 2))
+< ok 0 0
+> exec
+| ALTER TABLE pt ADD PARTITION (p1 VALUES IN (3, 4), p2 VALUES IN (5))
+< ok 0 0
+> query
+| SHOW CREATE TABLE pt
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| pt
+: bytes
+| CREATE TABLE `pt` (
+|   `a` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LIST (`a`)
+| (PARTITION `p0` VALUES IN (1,2) ENGINE = InnoDB,
+|  PARTITION `p1` VALUES IN (3,4) ENGINE = InnoDB,
+|  PARTITION `p2` VALUES IN (5) ENGINE = InnoDB)
+> exec
+| SET sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
+< ok 0 0
+> exec
+| CREATE TABLE pt (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))
+< ok 0 0
+> exec
+| ALTER TABLE pt CONVERT PARTITION p0 TO TABLE ct
+< error
+| 1508 HY000 Cannot remove all partitions, use DROP TABLE instead
+> exec
+| SET sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
+< ok 0 0
+> exec
 | CREATE TABLE pt (a INT PRIMARY KEY) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))
 < ok 0 0
 > exec

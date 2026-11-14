@@ -203,6 +203,11 @@ func errDropPartitionNonExistent() error {
 	return &Error{Code: 1507, SQLState: "HY000", Message: "Wrong partition name or partition list"}
 }
 
+// errDropLastPartition is 1508, an action that would leave the table no partition.
+func errDropLastPartition() error {
+	return &Error{Code: 1508, SQLState: "HY000", Message: "Cannot remove all partitions, use DROP TABLE instead"}
+}
+
 // errSameNamePartition is 1517, a partition name the table already has.
 func errSameNamePartition(name string) error {
 	return &Error{Code: 1517, SQLState: "HY000", Message: fmt.Sprintf("Duplicate partition name %s", name)}

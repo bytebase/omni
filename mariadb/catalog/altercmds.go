@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	nodes "github.com/bytebase/omni/mariadb/ast"
@@ -2272,7 +2273,8 @@ func (c *Catalog) alterExchangePartition(db *Database, tbl *Table, cmd *nodes.Al
 // leaves the table and becomes t, a table of the same definition with no
 // partitioning. Measured on mariadb:11.8.8, which answers 1505 on a table with no
 // partitions, 1512 on one partitioned other than by RANGE or LIST, 1507 for a
-// partition it does not have and 1050 for a table t that exists.
+// partition it does not have, 1508 for its last partition and 1050 for a table t
+// that exists.
 func (c *Catalog) alterConvertPartitionToTable(db *Database, tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if tbl.Partitioning == nil {
 		return errPartitionMgmtOnNonpartitioned()
@@ -2288,6 +2290,9 @@ func (c *Catalog) alterConvertPartitionToTable(db *Database, tbl *Table, cmd *no
 	}
 	if at < 0 {
 		return errDropPartitionNonExistent()
+	}
+	if len(tbl.Partitioning.Partitions) == 1 {
+		return errDropLastPartition()
 	}
 	target, err := c.resolveDatabase(cmd.ConvertTable.Schema)
 	if err != nil {
@@ -2368,13 +2373,17 @@ func (c *Catalog) tableDefinitionText(tbl *Table) string {
 }
 
 // checkAddedRangeBounds holds the partitions ADD PARTITION and CONVERT TABLE add
-// to a RANGE or RANGE COLUMNS table to bounds that go on rising from the table's
+// to a LIST table to values of their own (checkAddedListValues), and to a RANGE or
+// RANGE COLUMNS table to bounds that go on rising from the table's
 // last: past a MAXVALUE partition is 1481 on RANGE, and a bound not above the one
 // before is 1493. Measured on mariadb:11.8.8, which answers 1493 for
 // `ADD PARTITION (PARTITION p1 VALUES LESS THAN (5))` after LESS THAN (10), and
 // for a bound equal to it. A bound the catalog cannot order passes.
 func checkAddedRangeBounds(tbl *Table, defs []*nodes.PartitionDef) error {
 	pi := tbl.Partitioning
+	if pi != nil && (pi.Type == "LIST" || pi.Type == "LIST COLUMNS") {
+		return checkAddedListValues(pi, defs)
+	}
 	if pi == nil || (pi.Type != "RANGE" && pi.Type != "RANGE COLUMNS") {
 		return nil
 	}
@@ -2407,6 +2416,65 @@ func checkAddedRangeBounds(tbl *Table, defs []*nodes.PartitionDef) error {
 		prev = cur
 	}
 	return nil
+}
+
+// checkAddedListValues holds the partitions added to a LIST or LIST COLUMNS table
+// to values no partition holds yet, theirs or each other's: MariaDB 11.8.8 answers
+// 1495 for `ADD PARTITION (PARTITION p1 VALUES IN (1))` beside IN (1, 2), for two
+// new partitions of one value, for a tuple again and for NULL again. A partition
+// whose values the catalog does not hold is passed over.
+func checkAddedListValues(pi *PartitionInfo, defs []*nodes.PartitionDef) error {
+	seen := make(map[string]bool)
+	add := func(bound nodes.Node) bool {
+		for _, item := range partitionBoundItems(bound) {
+			key := listValueKey(item)
+			if key == "" {
+				continue
+			}
+			if seen[key] {
+				return false
+			}
+			seen[key] = true
+		}
+		return true
+	}
+	for _, have := range pi.Partitions {
+		if have.bound != nil {
+			add(have.bound)
+		}
+	}
+	for _, pd := range defs {
+		if pd.Values != nil && !add(pd.Values) {
+			return &Error{Code: 1495, SQLState: "HY000", Message: "Multiple definition of same constant in list partitioning"}
+		}
+	}
+	return nil
+}
+
+// listValueKey is a LIST value as checkAddedListValues compares it: an integer by
+// its value, a tuple by its members, a tuple of one as its member, and anything
+// else by its text, case aside; "" for a value it cannot compare.
+func listValueKey(n nodes.Node) string {
+	if l, ok := n.(*nodes.List); ok {
+		if len(l.Items) == 1 {
+			return listValueKey(l.Items[0])
+		}
+		keys := make([]string, len(l.Items))
+		for i, item := range l.Items {
+			keys[i] = listValueKey(item)
+		}
+		return "(" + strings.Join(keys, ", ") + ")"
+	}
+	if v, ok := partitionBoundInt(n); ok {
+		return strconv.FormatInt(v, 10)
+	}
+	switch v := n.(type) {
+	case nodes.ExprNode:
+		return toLower(nodeToSQL(v))
+	case *nodes.String:
+		return toLower(v.Str)
+	}
+	return ""
 }
 
 // errRangeNotIncreasing is 1493, a RANGE bound not above the one before it.

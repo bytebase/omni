@@ -140,14 +140,19 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 			cols = append([]*ast.ColumnDef{c.Column}, cols...)
 		}
 		for _, col := range cols {
-			// IF NOT EXISTS makes a column the table may have a note and leaves
-			// the table as it was (verified).
+			// IF NOT EXISTS makes a column the table has a note and leaves the
+			// table as it was (verified). One the walk does not know is there
+			// afterwards either way, though its keys may not be.
 			if c.IfNotExists {
 				k, ok := b.key(spaceColumn, col.Name)
 				if !ok {
 					return false
 				}
-				if f, _ := b.l.Lookup(colKey(r.db, r.name, k)); f != walk.Absent {
+				ck := colKey(r.db, r.name, k)
+				if f, _ := b.l.Lookup(ck); f != walk.Absent {
+					if f == walk.Unknown {
+						b.Set(ck, walk.Present, "")
+					}
 					continue
 				}
 			}

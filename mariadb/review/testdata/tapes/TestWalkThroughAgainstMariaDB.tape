@@ -64154,6 +64154,270 @@
 | relation	shop		vt	SYSTEM VERSIONED
 | trigger	shop		tr	
 | trigger	shop		vtr	
+> query
+| SELECT COUNT(*), GROUP_CONCAT(SCHEMA_NAME ORDER BY BINARY SCHEMA_NAME SEPARATOR '\n') FROM information_schema.SCHEMATA WHERE SCHEMA_NAME NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys')
+< result
+< column "COUNT(*)" "BIGINT"
+< column "GROUP_CONCAT(SCHEMA_NAME ORDER BY BINARY SCHEMA_NAME SEPARATOR '\\n')" "TEXT"
+< row
+: int64 1
+: bytes
+| shop
+> query
+| SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
+| SELECT CONCAT_WS('\t', 'relation', TABLE_SCHEMA, '', TABLE_NAME, TABLE_TYPE) AS line FROM information_schema.TABLES WHERE TABLE_SCHEMA IN (?)
+| UNION ALL SELECT CONCAT_WS('\t', 'column', TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, '') FROM information_schema.COLUMNS WHERE TABLE_SCHEMA IN (?)
+| UNION ALL SELECT CONCAT_WS('\t', 'index', TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, '') FROM information_schema.STATISTICS WHERE TABLE_SCHEMA IN (?) AND SEQ_IN_INDEX = 1
+| UNION ALL SELECT CONCAT_WS('\t', 'foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, '') FROM information_schema.REFERENTIAL_CONSTRAINTS WHERE CONSTRAINT_SCHEMA IN (?)
+| UNION ALL SELECT CONCAT_WS('\t', 'trigger', TRIGGER_SCHEMA, '', TRIGGER_NAME, '') FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA IN (?)
+| UNION ALL SELECT CONCAT_WS('\t', LOWER(ROUTINE_TYPE), ROUTINE_SCHEMA, '', ROUTINE_NAME, '') FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA IN (?)
+| UNION ALL SELECT CONCAT_WS('\t', 'event', EVENT_SCHEMA, '', EVENT_NAME, '') FROM information_schema.EVENTS WHERE EVENT_SCHEMA IN (?)
+| ) o
+: string
+| shop
+: string
+| shop
+: string
+| shop
+: string
+| shop
+: string
+| shop
+: string
+| shop
+: string
+| shop
+< result
+< column "COUNT(*)" "BIGINT"
+< column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "TEXT"
+< row
+: int64 49
+: bytes
+| column	shop	child	b	
+| column	shop	child	id	
+| column	shop	nokey	a	
+| column	shop	r	id	
+| column	shop	sq	cache_size	
+| column	shop	sq	cycle_count	
+| column	shop	sq	cycle_option	
+| column	shop	sq	increment	
+| column	shop	sq	maximum_value	
+| column	shop	sq	minimum_value	
+| column	shop	sq	next_not_cached_value	
+| column	shop	sq	start_value	
+| column	shop	t	a	
+| column	shop	t	b	
+| column	shop	t	id	
+| column	shop	t	w	
+| column	shop	t	y	
+| column	shop	t	z	
+| column	shop	trg	a	
+| column	shop	v	id	
+| column	shop	vt	a	
+| column	shop	vt	id	
+| column	shop	x	id	
+| event	shop		e	
+| foreign key	shop	child	child_ibfk_1	
+| foreign key	shop	t	fk1	
+| foreign key	shop	vt	vfk	
+| function	shop		f	
+| index	shop	child	PRIMARY	
+| index	shop	child	b	
+| index	shop	r	PRIMARY	
+| index	shop	t	PRIMARY	
+| index	shop	t	fk1	
+| index	shop	t	i	
+| index	shop	vt	PRIMARY	
+| index	shop	vt	vi	
+| index	shop	x	PRIMARY	
+| procedure	shop		p	
+| relation	shop		child	BASE TABLE
+| relation	shop		nokey	BASE TABLE
+| relation	shop		r	BASE TABLE
+| relation	shop		sq	SEQUENCE
+| relation	shop		t	BASE TABLE
+| relation	shop		trg	BASE TABLE
+| relation	shop		v	VIEW
+| relation	shop		vt	SYSTEM VERSIONED
+| relation	shop		x	BASE TABLE
+| trigger	shop		tr	
+| trigger	shop		vtr	
+> query
+| SELECT COUNT(*), GROUP_CONCAT(SCHEMA_NAME ORDER BY BINARY SCHEMA_NAME SEPARATOR '\n') FROM information_schema.SCHEMATA WHERE SCHEMA_NAME NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys')
+< result
+< column "COUNT(*)" "BIGINT"
+< column "GROUP_CONCAT(SCHEMA_NAME ORDER BY BINARY SCHEMA_NAME SEPARATOR '\\n')" "TEXT"
+< row
+: int64 1
+: bytes
+| shop
+> query
+| SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
+| SELECT CONCAT_WS('\t', 'relation', TABLE_SCHEMA, '', TABLE_NAME, TABLE_TYPE) AS line FROM information_schema.TABLES WHERE TABLE_SCHEMA IN (?)
+| UNION ALL SELECT CONCAT_WS('\t', 'column', TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, '') FROM information_schema.COLUMNS WHERE TABLE_SCHEMA IN (?)
+| UNION ALL SELECT CONCAT_WS('\t', 'index', TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, '') FROM information_schema.STATISTICS WHERE TABLE_SCHEMA IN (?) AND SEQ_IN_INDEX = 1
+| UNION ALL SELECT CONCAT_WS('\t', 'foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, '') FROM information_schema.REFERENTIAL_CONSTRAINTS WHERE CONSTRAINT_SCHEMA IN (?)
+| UNION ALL SELECT CONCAT_WS('\t', 'trigger', TRIGGER_SCHEMA, '', TRIGGER_NAME, '') FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA IN (?)
+| UNION ALL SELECT CONCAT_WS('\t', LOWER(ROUTINE_TYPE), ROUTINE_SCHEMA, '', ROUTINE_NAME, '') FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA IN (?)
+| UNION ALL SELECT CONCAT_WS('\t', 'event', EVENT_SCHEMA, '', EVENT_NAME, '') FROM information_schema.EVENTS WHERE EVENT_SCHEMA IN (?)
+| ) o
+: string
+| shop
+: string
+| shop
+: string
+| shop
+: string
+| shop
+: string
+| shop
+: string
+| shop
+: string
+| shop
+< result
+< column "COUNT(*)" "BIGINT"
+< column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "TEXT"
+< row
+: int64 49
+: bytes
+| column	shop	child	b	
+| column	shop	child	id	
+| column	shop	nokey	a	
+| column	shop	r	id	
+| column	shop	sq	cache_size	
+| column	shop	sq	cycle_count	
+| column	shop	sq	cycle_option	
+| column	shop	sq	increment	
+| column	shop	sq	maximum_value	
+| column	shop	sq	minimum_value	
+| column	shop	sq	next_not_cached_value	
+| column	shop	sq	start_value	
+| column	shop	t	a	
+| column	shop	t	b	
+| column	shop	t	id	
+| column	shop	t	w	
+| column	shop	t	y	
+| column	shop	t	z	
+| column	shop	trg	a	
+| column	shop	v	id	
+| column	shop	vt	a	
+| column	shop	vt	id	
+| column	shop	x	id	
+| event	shop		e	
+| foreign key	shop	child	child_ibfk_1	
+| foreign key	shop	t	fk1	
+| foreign key	shop	vt	vfk	
+| function	shop		f	
+| index	shop	child	PRIMARY	
+| index	shop	child	b	
+| index	shop	r	PRIMARY	
+| index	shop	t	PRIMARY	
+| index	shop	t	fk1	
+| index	shop	t	i	
+| index	shop	vt	PRIMARY	
+| index	shop	vt	vi	
+| index	shop	x	PRIMARY	
+| procedure	shop		p	
+| relation	shop		child	BASE TABLE
+| relation	shop		nokey	BASE TABLE
+| relation	shop		r	BASE TABLE
+| relation	shop		sq	SEQUENCE
+| relation	shop		t	BASE TABLE
+| relation	shop		trg	BASE TABLE
+| relation	shop		v	VIEW
+| relation	shop		vt	SYSTEM VERSIONED
+| relation	shop		x	BASE TABLE
+| trigger	shop		tr	
+| trigger	shop		vtr	
+> query
+| SELECT COUNT(*), GROUP_CONCAT(SCHEMA_NAME ORDER BY BINARY SCHEMA_NAME SEPARATOR '\n') FROM information_schema.SCHEMATA WHERE SCHEMA_NAME NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys')
+< result
+< column "COUNT(*)" "BIGINT"
+< column "GROUP_CONCAT(SCHEMA_NAME ORDER BY BINARY SCHEMA_NAME SEPARATOR '\\n')" "TEXT"
+< row
+: int64 1
+: bytes
+| shop
+> query
+| SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
+| SELECT CONCAT_WS('\t', 'relation', TABLE_SCHEMA, '', TABLE_NAME, TABLE_TYPE) AS line FROM information_schema.TABLES WHERE TABLE_SCHEMA IN (?)
+| UNION ALL SELECT CONCAT_WS('\t', 'column', TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, '') FROM information_schema.COLUMNS WHERE TABLE_SCHEMA IN (?)
+| UNION ALL SELECT CONCAT_WS('\t', 'index', TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, '') FROM information_schema.STATISTICS WHERE TABLE_SCHEMA IN (?) AND SEQ_IN_INDEX = 1
+| UNION ALL SELECT CONCAT_WS('\t', 'foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, '') FROM information_schema.REFERENTIAL_CONSTRAINTS WHERE CONSTRAINT_SCHEMA IN (?)
+| UNION ALL SELECT CONCAT_WS('\t', 'trigger', TRIGGER_SCHEMA, '', TRIGGER_NAME, '') FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA IN (?)
+| UNION ALL SELECT CONCAT_WS('\t', LOWER(ROUTINE_TYPE), ROUTINE_SCHEMA, '', ROUTINE_NAME, '') FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA IN (?)
+| UNION ALL SELECT CONCAT_WS('\t', 'event', EVENT_SCHEMA, '', EVENT_NAME, '') FROM information_schema.EVENTS WHERE EVENT_SCHEMA IN (?)
+| ) o
+: string
+| shop
+: string
+| shop
+: string
+| shop
+: string
+| shop
+: string
+| shop
+: string
+| shop
+: string
+| shop
+< result
+< column "COUNT(*)" "BIGINT"
+< column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "TEXT"
+< row
+: int64 49
+: bytes
+| column	shop	child	b	
+| column	shop	child	id	
+| column	shop	nokey	a	
+| column	shop	r	id	
+| column	shop	sq	cache_size	
+| column	shop	sq	cycle_count	
+| column	shop	sq	cycle_option	
+| column	shop	sq	increment	
+| column	shop	sq	maximum_value	
+| column	shop	sq	minimum_value	
+| column	shop	sq	next_not_cached_value	
+| column	shop	sq	start_value	
+| column	shop	t	a	
+| column	shop	t	b	
+| column	shop	t	id	
+| column	shop	t	w	
+| column	shop	t	y	
+| column	shop	t	z	
+| column	shop	trg	a	
+| column	shop	v	id	
+| column	shop	vt	a	
+| column	shop	vt	id	
+| column	shop	x	id	
+| event	shop		e	
+| foreign key	shop	child	child_ibfk_1	
+| foreign key	shop	t	fk1	
+| foreign key	shop	vt	vfk	
+| function	shop		f	
+| index	shop	child	PRIMARY	
+| index	shop	child	b	
+| index	shop	r	PRIMARY	
+| index	shop	t	PRIMARY	
+| index	shop	t	fk1	
+| index	shop	t	i	
+| index	shop	vt	PRIMARY	
+| index	shop	vt	vi	
+| index	shop	x	PRIMARY	
+| procedure	shop		p	
+| relation	shop		child	BASE TABLE
+| relation	shop		nokey	BASE TABLE
+| relation	shop		r	BASE TABLE
+| relation	shop		sq	SEQUENCE
+| relation	shop		t	BASE TABLE
+| relation	shop		trg	BASE TABLE
+| relation	shop		v	VIEW
+| relation	shop		vt	SYSTEM VERSIONED
+| relation	shop		x	BASE TABLE
+| trigger	shop		tr	
+| trigger	shop		vtr	
 
 == TestWalkThroughAgainstMariaDB/add_column_if_not_exists default#3
 > exec
@@ -64245,6 +64509,40 @@
 | ALTER TABLE t ADD w int;
 < error
 | 1060 42S21 Duplicate column name 'w'
+> query
+| SELECT COUNT(*), GROUP_CONCAT(CONCAT_WS('\t', 'temporary', TABLE_SCHEMA, '', TABLE_NAME, TABLE_TYPE) ORDER BY BINARY TABLE_SCHEMA, BINARY TABLE_NAME, TABLE_TYPE SEPARATOR '\n') FROM information_schema.TABLES WHERE TABLE_TYPE LIKE 'TEMPORARY%'
+< result
+< column "COUNT(*)" "BIGINT"
+< column "GROUP_CONCAT(CONCAT_WS('\\t', 'temporary', TABLE_SCHEMA, '', TABLE_NAME, TABLE_TYPE) ORDER BY BINARY TABLE_SCHEMA, BINARY TABLE_NAME, TABLE_TYPE SEPARATOR '\\n')" "TEXT"
+< row
+: int64 0
+: null
+> exec
+| CREATE TABLE x LIKE r;
+< ok 0 0
+> query
+| SELECT COUNT(*), GROUP_CONCAT(CONCAT_WS('\t', 'temporary', TABLE_SCHEMA, '', TABLE_NAME, TABLE_TYPE) ORDER BY BINARY TABLE_SCHEMA, BINARY TABLE_NAME, TABLE_TYPE SEPARATOR '\n') FROM information_schema.TABLES WHERE TABLE_TYPE LIKE 'TEMPORARY%'
+< result
+< column "COUNT(*)" "BIGINT"
+< column "GROUP_CONCAT(CONCAT_WS('\\t', 'temporary', TABLE_SCHEMA, '', TABLE_NAME, TABLE_TYPE) ORDER BY BINARY TABLE_SCHEMA, BINARY TABLE_NAME, TABLE_TYPE SEPARATOR '\\n')" "TEXT"
+< row
+: int64 0
+: null
+> exec
+| ALTER TABLE x ADD IF NOT EXISTS id int;
+< ok 0 0
+> query
+| SELECT COUNT(*), GROUP_CONCAT(CONCAT_WS('\t', 'temporary', TABLE_SCHEMA, '', TABLE_NAME, TABLE_TYPE) ORDER BY BINARY TABLE_SCHEMA, BINARY TABLE_NAME, TABLE_TYPE SEPARATOR '\n') FROM information_schema.TABLES WHERE TABLE_TYPE LIKE 'TEMPORARY%'
+< result
+< column "COUNT(*)" "BIGINT"
+< column "GROUP_CONCAT(CONCAT_WS('\\t', 'temporary', TABLE_SCHEMA, '', TABLE_NAME, TABLE_TYPE) ORDER BY BINARY TABLE_SCHEMA, BINARY TABLE_NAME, TABLE_TYPE SEPARATOR '\\n')" "TEXT"
+< row
+: int64 0
+: null
+> exec
+| ALTER TABLE x ADD id int;
+< error
+| 1060 42S21 Duplicate column name 'id'
 > query
 | SELECT COUNT(*), GROUP_CONCAT(CONCAT_WS('\t', 'temporary', TABLE_SCHEMA, '', TABLE_NAME, TABLE_TYPE) ORDER BY BINARY TABLE_SCHEMA, BINARY TABLE_NAME, TABLE_TYPE SEPARATOR '\n') FROM information_schema.TABLES WHERE TABLE_TYPE LIKE 'TEMPORARY%'
 < result

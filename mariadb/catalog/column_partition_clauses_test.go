@@ -186,6 +186,42 @@ var columnPartitionClauseCases = []struct {
 		tables: []string{"pt"},
 	},
 	{
+		name:    "CONVERT TABLE to a LIST value the table holds",
+		setup:   []string{"CREATE TABLE pt (a INT) PARTITION BY LIST (a) (PARTITION p0 VALUES IN (1, 2))", "CREATE TABLE ct (a INT)"},
+		sql:     "ALTER TABLE pt CONVERT TABLE ct TO PARTITION p1 VALUES IN (2)",
+		errCode: 1495,
+	},
+	{
+		name:    "ADD PARTITION of one LIST value twice",
+		setup:   []string{"CREATE TABLE pt (a INT) PARTITION BY LIST (a) (PARTITION p0 VALUES IN (1))"},
+		sql:     "ALTER TABLE pt ADD PARTITION (p1 VALUES IN (3), p2 VALUES IN (3))",
+		errCode: 1495,
+	},
+	{
+		name:    "ADD PARTITION of a LIST COLUMNS tuple the table holds",
+		setup:   []string{"CREATE TABLE pt (a INT, b INT) PARTITION BY LIST COLUMNS (a, b) (PARTITION p0 VALUES IN ((1, 2)))"},
+		sql:     "ALTER TABLE pt ADD PARTITION (p1 VALUES IN ((1, 2)))",
+		errCode: 1495,
+	},
+	{
+		name:    "ADD PARTITION of NULL again",
+		setup:   []string{"CREATE TABLE pt (a INT) PARTITION BY LIST (a) (PARTITION p0 VALUES IN (NULL))"},
+		sql:     "ALTER TABLE pt ADD PARTITION (p1 VALUES IN (NULL))",
+		errCode: 1495,
+	},
+	{
+		name:   "ADD PARTITION of new LIST values",
+		setup:  []string{"CREATE TABLE pt (a INT) PARTITION BY LIST (a) (PARTITION p0 VALUES IN (1, 2))"},
+		sql:    "ALTER TABLE pt ADD PARTITION (p1 VALUES IN (3, 4), p2 VALUES IN (5))",
+		tables: []string{"pt"},
+	},
+	{
+		name:    "CONVERT PARTITION of the last partition",
+		setup:   []string{"CREATE TABLE pt (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))"},
+		sql:     "ALTER TABLE pt CONVERT PARTITION p0 TO TABLE ct",
+		errCode: 1508,
+	},
+	{
 		name:    "CONVERT TABLE of no table",
 		setup:   []string{"CREATE TABLE pt (a INT PRIMARY KEY) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))"},
 		sql:     "ALTER TABLE pt CONVERT TABLE ct TO PARTITION p1 VALUES LESS THAN (20)",

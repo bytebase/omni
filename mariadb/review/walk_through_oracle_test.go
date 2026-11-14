@@ -204,7 +204,7 @@ var walkCases = []walkCase{
 	{name: "a trigger may create a temporary table", change: "CREATE TRIGGER tt BEFORE INSERT ON nokey FOR EACH ROW CREATE TEMPORARY TABLE IF NOT EXISTS shadow (a int);\nINSERT INTO nokey VALUES (1);\nINSERT INTO shadow VALUES (1);\nDROP TABLE shadow;"},
 	// ADD [COLUMN] IF NOT EXISTS finds a column the table has and leaves it, as the
 	// keys do above; a plain ADD of the name after it fails.
-	{name: "add column if not exists", change: "ALTER TABLE t ADD COLUMN IF NOT EXISTS a int;\nALTER TABLE t ADD IF NOT EXISTS z int, ADD IF NOT EXISTS z int;\nALTER TABLE t ADD z int;\nALTER TABLE t ADD IF NOT EXISTS y int, ADD y int;\nALTER TABLE t ADD y int, ADD IF NOT EXISTS y int;\nALTER TABLE t ADD IF NOT EXISTS (a int, w int);\nALTER TABLE t ADD w int;", complete: true},
+	{name: "add column if not exists", change: "ALTER TABLE t ADD COLUMN IF NOT EXISTS a int;\nALTER TABLE t ADD IF NOT EXISTS z int, ADD IF NOT EXISTS z int;\nALTER TABLE t ADD z int;\nALTER TABLE t ADD IF NOT EXISTS y int, ADD y int;\nALTER TABLE t ADD y int, ADD IF NOT EXISTS y int;\nALTER TABLE t ADD IF NOT EXISTS (a int, w int);\nALTER TABLE t ADD w int;\nCREATE TABLE x LIKE r;\nALTER TABLE x ADD IF NOT EXISTS id int;\nALTER TABLE x ADD id int;", complete: true},
 }
 
 // walkSystem are the databases the server starts with, which no change of
