@@ -6044,6 +6044,35 @@ func TestParseServerLevelObjects(t *testing.T) {
 	})
 }
 
+// TestParseFulltextRefusedForms: SQL Server 2022 refuses each of these at parse
+// time (checked on the pinned server under SET PARSEONLY ON).
+func TestParseFulltextRefusedForms(t *testing.T) {
+	for _, sql := range []string{
+		"CREATE FULLTEXT STOPLIST s",
+		"DROP FULLTEXT STOPLIST s",
+		"ALTER FULLTEXT STOPLIST s DROP ALL",
+		"CREATE SEARCH PROPERTY LIST l",
+		"DROP SEARCH PROPERTY LIST l",
+		"ALTER SEARCH PROPERTY LIST l DROP 'p'",
+		"ALTER SEARCH PROPERTY LIST l ADD 'p' WITH (PROPERTY_INT_ID = 1, PROPERTY_SET_GUID = 'g');",
+		"CREATE FULLTEXT INDEX ON t KEY INDEX i WITH CHANGE_TRACKING OFF, CHANGE_TRACKING AUTO",
+		"CREATE FULLTEXT INDEX ON t KEY INDEX i WITH STOPLIST 'a'",
+		"CREATE FULLTEXT INDEX ON t KEY INDEX i WITH ()",
+		"ALTER FULLTEXT INDEX ON t START FULL",
+		"ALTER FULLTEXT INDEX ON t ENABLE WITH NO POPULATION",
+		"ALTER FULLTEXT INDEX ON a.b.c.d ENABLE",
+		"ALTER FULLTEXT CATALOG c",
+		"ALTER FULLTEXT CATALOG c REORGANIZE WITH ACCENT_SENSITIVITY = ON",
+		"CREATE FULLTEXT CATALOG c AUTHORIZATION o AS DEFAULT",
+		"DROP FULLTEXT CATALOG a, b",
+		"DROP FULLTEXT INDEX ON IF EXISTS t",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q): want an error, SQL Server refuses it", sql)
+		}
+	}
+}
+
 // TestParseFulltextStoplistSearch tests batch 61: FULLTEXT STOPLIST and SEARCH PROPERTY LIST.
 func TestParseFulltextStoplistSearch(t *testing.T) {
 	t.Run("fulltext_stoplist", func(t *testing.T) {
@@ -6052,15 +6081,15 @@ func TestParseFulltextStoplistSearch(t *testing.T) {
 			name string
 		}{
 			// CREATE FULLTEXT STOPLIST - empty
-			{`CREATE FULLTEXT STOPLIST myStoplist`, "myStoplist"},
+			{`CREATE FULLTEXT STOPLIST myStoplist;`, "myStoplist"},
 			// CREATE FULLTEXT STOPLIST FROM existing
-			{`CREATE FULLTEXT STOPLIST myStoplist2 FROM AdventureWorks.otherStoplist`, "myStoplist2"},
+			{`CREATE FULLTEXT STOPLIST myStoplist2 FROM AdventureWorks.otherStoplist;`, "myStoplist2"},
 			// CREATE FULLTEXT STOPLIST FROM SYSTEM STOPLIST
-			{`CREATE FULLTEXT STOPLIST myStoplist3 FROM SYSTEM STOPLIST`, "myStoplist3"},
+			{`CREATE FULLTEXT STOPLIST myStoplist3 FROM SYSTEM STOPLIST;`, "myStoplist3"},
 			// CREATE FULLTEXT STOPLIST with AUTHORIZATION
-			{`CREATE FULLTEXT STOPLIST myStoplist AUTHORIZATION dbo`, "myStoplist"},
+			{`CREATE FULLTEXT STOPLIST myStoplist AUTHORIZATION dbo;`, "myStoplist"},
 			// CREATE FULLTEXT STOPLIST FROM source with AUTHORIZATION
-			{`CREATE FULLTEXT STOPLIST sl1 FROM db1.sl2 AUTHORIZATION admin1`, "sl1"},
+			{`CREATE FULLTEXT STOPLIST sl1 FROM db1.sl2 AUTHORIZATION admin1;`, "sl1"},
 		}
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
@@ -6095,7 +6124,7 @@ func TestParseFulltextStoplistSearch(t *testing.T) {
 			// DROP ALL LANGUAGE
 			{`ALTER FULLTEXT STOPLIST sl1 DROP ALL LANGUAGE 'English'`, "sl1", "DROP"},
 			// DROP ALL
-			{`ALTER FULLTEXT STOPLIST sl1 DROP ALL`, "sl1", "DROP"},
+			{`ALTER FULLTEXT STOPLIST sl1 DROP ALL;`, "sl1", "DROP"},
 		}
 		for _, tt := range tests {
 			t.Run(tt.sql, func(t *testing.T) {
@@ -6119,7 +6148,7 @@ func TestParseFulltextStoplistSearch(t *testing.T) {
 	})
 
 	t.Run("drop_fulltext_stoplist", func(t *testing.T) {
-		sql := `DROP FULLTEXT STOPLIST myStoplist`
+		sql := `DROP FULLTEXT STOPLIST myStoplist;`
 		result := ParseAndCheck(t, sql)
 		if result.Len() != 1 {
 			t.Fatalf("Parse(%q): got %d statements, want 1", sql, result.Len())
@@ -6140,13 +6169,13 @@ func TestParseFulltextStoplistSearch(t *testing.T) {
 			name string
 		}{
 			// CREATE SEARCH PROPERTY LIST - empty
-			{`CREATE SEARCH PROPERTY LIST DocumentPropertyList`, "DocumentPropertyList"},
+			{`CREATE SEARCH PROPERTY LIST DocumentPropertyList;`, "DocumentPropertyList"},
 			// CREATE SEARCH PROPERTY LIST FROM existing
-			{`CREATE SEARCH PROPERTY LIST JobCandidateProperties FROM AdventureWorks2022.DocumentPropertyList`, "JobCandidateProperties"},
+			{`CREATE SEARCH PROPERTY LIST JobCandidateProperties FROM AdventureWorks2022.DocumentPropertyList;`, "JobCandidateProperties"},
 			// CREATE SEARCH PROPERTY LIST FROM same db
-			{`CREATE SEARCH PROPERTY LIST spl2 FROM spl1`, "spl2"},
+			{`CREATE SEARCH PROPERTY LIST spl2 FROM spl1;`, "spl2"},
 			// CREATE SEARCH PROPERTY LIST with AUTHORIZATION
-			{`CREATE SEARCH PROPERTY LIST spl1 AUTHORIZATION dbo`, "spl1"},
+			{`CREATE SEARCH PROPERTY LIST spl1 AUTHORIZATION dbo;`, "spl1"},
 		}
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
@@ -6173,11 +6202,11 @@ func TestParseFulltextStoplistSearch(t *testing.T) {
 			action string
 		}{
 			// ADD property with all options
-			{`ALTER SEARCH PROPERTY LIST DocumentPropertyList ADD 'Title' WITH (PROPERTY_SET_GUID = 'F29F85E0-4FF9-1068-AB91-08002B27B3D9', PROPERTY_INT_ID = 2, PROPERTY_DESCRIPTION = 'Title of the item.')`, "DocumentPropertyList", "ADD"},
+			{`ALTER SEARCH PROPERTY LIST DocumentPropertyList ADD 'Title' WITH (PROPERTY_SET_GUID = 'F29F85E0-4FF9-1068-AB91-08002B27B3D9', PROPERTY_INT_ID = 2, PROPERTY_DESCRIPTION = 'Title of the item.');`, "DocumentPropertyList", "ADD"},
 			// ADD property without description
-			{`ALTER SEARCH PROPERTY LIST spl1 ADD 'Author' WITH (PROPERTY_SET_GUID = 'F29F85E0-4FF9-1068-AB91-08002B27B3D9', PROPERTY_INT_ID = 4)`, "spl1", "ADD"},
+			{`ALTER SEARCH PROPERTY LIST spl1 ADD 'Author' WITH (PROPERTY_SET_GUID = 'F29F85E0-4FF9-1068-AB91-08002B27B3D9', PROPERTY_INT_ID = 4);`, "spl1", "ADD"},
 			// DROP property
-			{`ALTER SEARCH PROPERTY LIST DocumentPropertyList DROP 'Comments'`, "DocumentPropertyList", "DROP"},
+			{`ALTER SEARCH PROPERTY LIST DocumentPropertyList DROP 'Comments';`, "DocumentPropertyList", "DROP"},
 		}
 		for _, tt := range tests {
 			t.Run(tt.sql, func(t *testing.T) {
@@ -6201,7 +6230,7 @@ func TestParseFulltextStoplistSearch(t *testing.T) {
 	})
 
 	t.Run("drop_search_property_list", func(t *testing.T) {
-		sql := `DROP SEARCH PROPERTY LIST JobCandidateProperties`
+		sql := `DROP SEARCH PROPERTY LIST JobCandidateProperties;`
 		result := ParseAndCheck(t, sql)
 		if result.Len() != 1 {
 			t.Fatalf("Parse(%q): got %d statements, want 1", sql, result.Len())
@@ -6958,7 +6987,7 @@ func TestParseIntegrationPhase3(t *testing.T) {
 		// Batch 60: Server-level objects
 		"CREATE SERVER ROLE MyServerRole",
 		// Batch 61: Fulltext extensions
-		"CREATE FULLTEXT STOPLIST MyStoplist",
+		"CREATE FULLTEXT STOPLIST MyStoplist;",
 		// Batch 62: Security policy, classification, signature
 		"CREATE SECURITY POLICY dbo.SecurityFilter ADD FILTER PREDICATE dbo.fn_securitypredicate(TenantId) ON dbo.Sales",
 		// Batch 63: Specialized indexes, aggregate
@@ -15964,9 +15993,9 @@ func TestParseFulltextAlterDepth(t *testing.T) {
 			name string
 			sql  string
 		}{
-			{"add_with_all_options", "ALTER SEARCH PROPERTY LIST mylist ADD 'Title' WITH (PROPERTY_SET_GUID = 'F29F85E0-4FF9-1068-AB91-08002B27B3D9', PROPERTY_INT_ID = 2, PROPERTY_DESCRIPTION = 'System.Title')"},
-			{"add_with_required_options_only", "ALTER SEARCH PROPERTY LIST mylist ADD 'Author' WITH (PROPERTY_SET_GUID = 'F29F85E0-4FF9-1068-AB91-08002B27B3D9', PROPERTY_INT_ID = 4)"},
-			{"drop_property", "ALTER SEARCH PROPERTY LIST mylist DROP 'Title'"},
+			{"add_with_all_options", "ALTER SEARCH PROPERTY LIST mylist ADD 'Title' WITH (PROPERTY_SET_GUID = 'F29F85E0-4FF9-1068-AB91-08002B27B3D9', PROPERTY_INT_ID = 2, PROPERTY_DESCRIPTION = 'System.Title');"},
+			{"add_with_required_options_only", "ALTER SEARCH PROPERTY LIST mylist ADD 'Author' WITH (PROPERTY_SET_GUID = 'F29F85E0-4FF9-1068-AB91-08002B27B3D9', PROPERTY_INT_ID = 4);"},
+			{"drop_property", "ALTER SEARCH PROPERTY LIST mylist DROP 'Title';"},
 		}
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {

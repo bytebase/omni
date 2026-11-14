@@ -938,7 +938,7 @@ reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~8
 accept	accept	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createFulltextStatement_FULLTEXT	CREATE FULLTEXT CATALOG a
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createFulltextStatement_FULLTEXT!drop-1	CREATE CATALOG a
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createFulltextStatement_FULLTEXT!drop-2	CREATE FULLTEXT a
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createFulltextStatement_FULLTEXT!drop-3	CREATE FULLTEXT CATALOG
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createFulltextStatement_FULLTEXT!drop-3	CREATE FULLTEXT CATALOG
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createFulltextStatement_FULLTEXT!insert	CREATE FULLTEXT CATALOG a zzz
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createFulltextStatement_FULLTEXT!swap	CREATE FUNCTION CATALOG a
 accept	accept	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createPrimaryXmlIndexStatement	CREATE PRIMARY XML INDEX a ON a(a)
@@ -1044,11 +1044,11 @@ reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~8
 accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createRouteStatement_ROUTE!drop-6	CREATE ROUTE a WITH LIFETIME =
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createRouteStatement_ROUTE!insert	CREATE ROUTE a WITH LIFETIME = 1 zzz
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createRouteStatement_ROUTE!swap	CREATE ROW a WITH LIFETIME = 1
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSearchPropertyListStatement_SEARCH	CREATE SEARCH PROPERTY LIST a
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSearchPropertyListStatement_SEARCH	CREATE SEARCH PROPERTY LIST a
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSearchPropertyListStatement_SEARCH!drop-1	CREATE PROPERTY LIST a
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSearchPropertyListStatement_SEARCH!drop-2	CREATE SEARCH LIST a
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSearchPropertyListStatement_SEARCH!drop-3	CREATE SEARCH PROPERTY a
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSearchPropertyListStatement_SEARCH!drop-4	CREATE SEARCH PROPERTY LIST
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSearchPropertyListStatement_SEARCH!drop-4	CREATE SEARCH PROPERTY LIST
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSearchPropertyListStatement_SEARCH!insert	CREATE SEARCH PROPERTY LIST a zzz
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSearchPropertyListStatement_SEARCH!swap	CREATE SECONDARY_ROLE PROPERTY LIST a
 accept	accept	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createServiceStatement_SERVICE	CREATE SERVICE a ON QUEUE a
@@ -3914,14 +3914,14 @@ accept	accept	engine	createFulltextCatalogStatement(On_FILEGROUP_identifier)?/%e
 accept	accept	engine	createFulltextCatalogStatement(On_FILEGROUP_identifier)?/On_FILEGROUP_identifier	CREATE FULLTEXT CATALOG a ON FILEGROUP a
 reject	reject	engine	createFulltextCatalogStatement(On_FILEGROUP_identifier)?/On_FILEGROUP_identifier!drop-1	CREATE FULLTEXT CATALOG a FILEGROUP a
 reject	reject	engine	createFulltextCatalogStatement(On_FILEGROUP_identifier)?/On_FILEGROUP_identifier!drop-2	CREATE FULLTEXT CATALOG a ON a
-accept	reject	engine	createFulltextCatalogStatement(On_FILEGROUP_identifier)?/On_FILEGROUP_identifier!drop-3	CREATE FULLTEXT CATALOG a ON FILEGROUP
+reject	reject	engine	createFulltextCatalogStatement(On_FILEGROUP_identifier)?/On_FILEGROUP_identifier!drop-3	CREATE FULLTEXT CATALOG a ON FILEGROUP
 reject	reject	engine	createFulltextCatalogStatement(On_FILEGROUP_identifier)?/On_FILEGROUP_identifier!insert	CREATE FULLTEXT CATALOG a ON FILEGROUP a zzz
 reject	reject	engine	createFulltextCatalogStatement(On_FILEGROUP_identifier)?/On_FILEGROUP_identifier!swap	CREATE FULLTEXT CATALOG a ONLINE FILEGROUP a
 accept	accept	engine	createFulltextCatalogStatement(In_PATH_stringLiteral)?/%empty	CREATE FULLTEXT CATALOG a
 accept	accept	engine	createFulltextCatalogStatement(In_PATH_stringLiteral)?/In_PATH_stringLiteral	CREATE FULLTEXT CATALOG a IN PATH 'a'
 reject	reject	engine	createFulltextCatalogStatement(In_PATH_stringLiteral)?/In_PATH_stringLiteral!drop-1	CREATE FULLTEXT CATALOG a PATH 'a'
-accept	reject	engine	createFulltextCatalogStatement(In_PATH_stringLiteral)?/In_PATH_stringLiteral!drop-2	CREATE FULLTEXT CATALOG a IN 'a'
-accept	reject	engine	createFulltextCatalogStatement(In_PATH_stringLiteral)?/In_PATH_stringLiteral!drop-3	CREATE FULLTEXT CATALOG a IN PATH
+reject	reject	engine	createFulltextCatalogStatement(In_PATH_stringLiteral)?/In_PATH_stringLiteral!drop-2	CREATE FULLTEXT CATALOG a IN 'a'
+reject	reject	engine	createFulltextCatalogStatement(In_PATH_stringLiteral)?/In_PATH_stringLiteral!drop-3	CREATE FULLTEXT CATALOG a IN PATH
 reject	reject	engine	createFulltextCatalogStatement(In_PATH_stringLiteral)?/In_PATH_stringLiteral!insert	CREATE FULLTEXT CATALOG a IN PATH 'a' zzz
 reject	reject	engine	createFulltextCatalogStatement(In_PATH_stringLiteral)?/In_PATH_stringLiteral!swap	CREATE FULLTEXT CATALOG a INCLUDE PATH 'a'
 accept	accept	engine	createFulltextCatalogStatement(With_accentSensitivity)?/%empty	CREATE FULLTEXT CATALOG a
@@ -3929,132 +3929,132 @@ accept	accept	engine	createFulltextCatalogStatement(With_accentSensitivity)?/Wit
 reject	reject	engine	createFulltextCatalogStatement(With_accentSensitivity)?/With_accentSensitivity!drop-1	CREATE FULLTEXT CATALOG a ACCENT_SENSITIVITY = ON
 reject	reject	engine	createFulltextCatalogStatement(With_accentSensitivity)?/With_accentSensitivity!drop-2	CREATE FULLTEXT CATALOG a WITH = ON
 reject	reject	engine	createFulltextCatalogStatement(With_accentSensitivity)?/With_accentSensitivity!drop-3	CREATE FULLTEXT CATALOG a WITH ACCENT_SENSITIVITY ON
-accept	reject	engine	createFulltextCatalogStatement(With_accentSensitivity)?/With_accentSensitivity!drop-4	CREATE FULLTEXT CATALOG a WITH ACCENT_SENSITIVITY =
+reject	reject	engine	createFulltextCatalogStatement(With_accentSensitivity)?/With_accentSensitivity!drop-4	CREATE FULLTEXT CATALOG a WITH ACCENT_SENSITIVITY =
 reject	reject	engine	createFulltextCatalogStatement(With_accentSensitivity)?/With_accentSensitivity!insert	CREATE FULLTEXT CATALOG a WITH ACCENT_SENSITIVITY = ON zzz
 reject	reject	engine	createFulltextCatalogStatement(With_accentSensitivity)?/With_accentSensitivity!swap	CREATE FULLTEXT CATALOG a WITHIN ACCENT_SENSITIVITY = ON
 accept	accept	engine	createFulltextCatalogStatement(As_Default)?/%empty	CREATE FULLTEXT CATALOG a
 accept	accept	engine	createFulltextCatalogStatement(As_Default)?/As_Default	CREATE FULLTEXT CATALOG a AS DEFAULT
 reject	reject	engine	createFulltextCatalogStatement(As_Default)?/As_Default!drop-1	CREATE FULLTEXT CATALOG a DEFAULT
-accept	reject	engine	createFulltextCatalogStatement(As_Default)?/As_Default!drop-2	CREATE FULLTEXT CATALOG a AS
+reject	reject	engine	createFulltextCatalogStatement(As_Default)?/As_Default!drop-2	CREATE FULLTEXT CATALOG a AS
 reject	reject	engine	createFulltextCatalogStatement(As_Default)?/As_Default!insert	CREATE FULLTEXT CATALOG a AS DEFAULT zzz
 reject	reject	engine	createFulltextCatalogStatement(As_Default)?/As_Default!swap	CREATE FULLTEXT CATALOG a ASC DEFAULT
 accept	accept	engine	accentSensitivity/ACCENT_SENSITIVITY_EqualsSign_optionOnOff	CREATE FULLTEXT CATALOG a WITH ACCENT_SENSITIVITY = ON
 reject	reject	engine	accentSensitivity/ACCENT_SENSITIVITY_EqualsSign_optionOnOff!swap	CREATE FULLTEXT CATALOG a WITH ACTION = ON
 accept	accept	engine	fulltextIndexColumn/identifier_(TYPE_Column_identifier)?_(languageTerm_LANG~7b604f7c	ALTER FULLTEXT INDEX ON a ADD(a)
-accept	reject	engine	fulltextIndexColumn/identifier_(TYPE_Column_identifier)?_(languageTerm_LANG~7b604f7c!drop-1	ALTER FULLTEXT INDEX ON a ADD()
-accept	reject	engine	fulltextIndexColumn/identifier_(TYPE_Column_identifier)?_(languageTerm_LANG~7b604f7c!truncate	ALTER FULLTEXT INDEX ON a ADD(
+reject	reject	engine	fulltextIndexColumn/identifier_(TYPE_Column_identifier)?_(languageTerm_LANG~7b604f7c!drop-1	ALTER FULLTEXT INDEX ON a ADD()
+reject	reject	engine	fulltextIndexColumn/identifier_(TYPE_Column_identifier)?_(languageTerm_LANG~7b604f7c!truncate	ALTER FULLTEXT INDEX ON a ADD(
 reject	reject	engine	fulltextIndexColumn/identifier_(TYPE_Column_identifier)?_(languageTerm_LANG~7b604f7c!insert	ALTER FULLTEXT INDEX ON a ADD(a zzz)
 accept	accept	engine	fulltextIndexColumn(TYPE_Column_identifier)?/%empty	ALTER FULLTEXT INDEX ON a ADD(a)
 accept	accept	engine	fulltextIndexColumn(TYPE_Column_identifier)?/TYPE_Column_identifier	ALTER FULLTEXT INDEX ON a ADD(a TYPE COLUMN a)
 reject	reject	engine	fulltextIndexColumn(TYPE_Column_identifier)?/TYPE_Column_identifier!drop-1	ALTER FULLTEXT INDEX ON a ADD(a COLUMN a)
-accept	reject	engine	fulltextIndexColumn(TYPE_Column_identifier)?/TYPE_Column_identifier!drop-2	ALTER FULLTEXT INDEX ON a ADD(a TYPE a)
-accept	reject	engine	fulltextIndexColumn(TYPE_Column_identifier)?/TYPE_Column_identifier!drop-3	ALTER FULLTEXT INDEX ON a ADD(a TYPE COLUMN)
-accept	reject	engine	fulltextIndexColumn(TYPE_Column_identifier)?/TYPE_Column_identifier!truncate	ALTER FULLTEXT INDEX ON a ADD(a TYPE COLUMN
+reject	reject	engine	fulltextIndexColumn(TYPE_Column_identifier)?/TYPE_Column_identifier!drop-2	ALTER FULLTEXT INDEX ON a ADD(a TYPE a)
+reject	reject	engine	fulltextIndexColumn(TYPE_Column_identifier)?/TYPE_Column_identifier!drop-3	ALTER FULLTEXT INDEX ON a ADD(a TYPE COLUMN)
+reject	reject	engine	fulltextIndexColumn(TYPE_Column_identifier)?/TYPE_Column_identifier!truncate	ALTER FULLTEXT INDEX ON a ADD(a TYPE COLUMN
 reject	reject	engine	fulltextIndexColumn(TYPE_Column_identifier)?/TYPE_Column_identifier!insert	ALTER FULLTEXT INDEX ON a ADD(a TYPE COLUMN a zzz)
 reject	reject	engine	fulltextIndexColumn(TYPE_Column_identifier)?/TYPE_Column_identifier!swap	ALTER FULLTEXT INDEX ON a ADD(a UNBOUNDED COLUMN a)
 accept	accept	engine	fulltextIndexColumn(languageTerm_LANGUAGE)?/%empty	ALTER FULLTEXT INDEX ON a ADD(a)
 accept	accept	engine	fulltextIndexColumn(languageTerm_LANGUAGE)?/languageTerm_LANGUAGE	ALTER FULLTEXT INDEX ON a ADD(a LANGUAGE 'a')
 reject	reject	engine	fulltextIndexColumn(languageTerm_LANGUAGE)?/languageTerm_LANGUAGE!drop-1	ALTER FULLTEXT INDEX ON a ADD(a 'a')
-accept	reject	engine	fulltextIndexColumn(languageTerm_LANGUAGE)?/languageTerm_LANGUAGE!drop-2	ALTER FULLTEXT INDEX ON a ADD(a LANGUAGE)
-accept	reject	engine	fulltextIndexColumn(languageTerm_LANGUAGE)?/languageTerm_LANGUAGE!truncate	ALTER FULLTEXT INDEX ON a ADD(a LANGUAGE
+reject	reject	engine	fulltextIndexColumn(languageTerm_LANGUAGE)?/languageTerm_LANGUAGE!drop-2	ALTER FULLTEXT INDEX ON a ADD(a LANGUAGE)
+reject	reject	engine	fulltextIndexColumn(languageTerm_LANGUAGE)?/languageTerm_LANGUAGE!truncate	ALTER FULLTEXT INDEX ON a ADD(a LANGUAGE
 reject	accept	engine	fulltextIndexColumn(languageTerm_LANGUAGE)?/languageTerm_LANGUAGE!insert	ALTER FULLTEXT INDEX ON a ADD(a LANGUAGE 'a' zzz)
 reject	reject	engine	fulltextIndexColumn(languageTerm_LANGUAGE)?/languageTerm_LANGUAGE!swap	ALTER FULLTEXT INDEX ON a ADD(a LAST_NODE 'a')
 accept	accept	engine	fulltextIndexColumn(STATISTICAL_SEMANTICS)?/%empty	ALTER FULLTEXT INDEX ON a ADD(a)
 accept	accept	engine	fulltextIndexColumn(STATISTICAL_SEMANTICS)?/STATISTICAL_SEMANTICS	ALTER FULLTEXT INDEX ON a ADD(a STATISTICAL_SEMANTICS)
-accept	reject	engine	fulltextIndexColumn(STATISTICAL_SEMANTICS)?/STATISTICAL_SEMANTICS!truncate	ALTER FULLTEXT INDEX ON a ADD(a
+reject	reject	engine	fulltextIndexColumn(STATISTICAL_SEMANTICS)?/STATISTICAL_SEMANTICS!truncate	ALTER FULLTEXT INDEX ON a ADD(a
 reject	reject	engine	fulltextIndexColumn(STATISTICAL_SEMANTICS)?/STATISTICAL_SEMANTICS!insert	ALTER FULLTEXT INDEX ON a ADD(a STATISTICAL_SEMANTICS zzz)
 reject	reject	engine	fulltextIndexColumn(STATISTICAL_SEMANTICS)?/STATISTICAL_SEMANTICS!swap	ALTER FULLTEXT INDEX ON a ADD(a STATISTICS)
 accept	accept	engine	createFulltextIndexStatement/Index_On_schemaObjectFourPartName_(LeftParenthesis_full~7a513dec	CREATE FULLTEXT INDEX ON a KEY INDEX a
 reject	reject	engine	createFulltextIndexStatement/Index_On_schemaObjectFourPartName_(LeftParenthesis_full~7a513dec!drop-1	CREATE FULLTEXT ON a KEY INDEX a
 reject	reject	engine	createFulltextIndexStatement/Index_On_schemaObjectFourPartName_(LeftParenthesis_full~7a513dec!drop-2	CREATE FULLTEXT INDEX a KEY INDEX a
-accept	reject	engine	createFulltextIndexStatement/Index_On_schemaObjectFourPartName_(LeftParenthesis_full~7a513dec!drop-3	CREATE FULLTEXT INDEX ON KEY INDEX a
+reject	reject	engine	createFulltextIndexStatement/Index_On_schemaObjectFourPartName_(LeftParenthesis_full~7a513dec!drop-3	CREATE FULLTEXT INDEX ON KEY INDEX a
 reject	reject	engine	createFulltextIndexStatement/Index_On_schemaObjectFourPartName_(LeftParenthesis_full~7a513dec!drop-4	CREATE FULLTEXT INDEX ON a INDEX a
-accept	reject	engine	createFulltextIndexStatement/Index_On_schemaObjectFourPartName_(LeftParenthesis_full~7a513dec!drop-5	CREATE FULLTEXT INDEX ON a KEY a
-accept	reject	engine	createFulltextIndexStatement/Index_On_schemaObjectFourPartName_(LeftParenthesis_full~7a513dec!drop-6	CREATE FULLTEXT INDEX ON a KEY INDEX
+reject	reject	engine	createFulltextIndexStatement/Index_On_schemaObjectFourPartName_(LeftParenthesis_full~7a513dec!drop-5	CREATE FULLTEXT INDEX ON a KEY a
+reject	reject	engine	createFulltextIndexStatement/Index_On_schemaObjectFourPartName_(LeftParenthesis_full~7a513dec!drop-6	CREATE FULLTEXT INDEX ON a KEY INDEX
 reject	reject	engine	createFulltextIndexStatement/Index_On_schemaObjectFourPartName_(LeftParenthesis_full~7a513dec!insert	CREATE FULLTEXT INDEX ON a KEY INDEX a zzz
 reject	reject	engine	createFulltextIndexStatement/Index_On_schemaObjectFourPartName_(LeftParenthesis_full~7a513dec!swap	CREATE FULLTEXT INFINITE ON a KEY INDEX a
 accept	accept	engine	createFulltextIndexStatement(LeftParenthesis_fulltextIndexColumn_~3ff0cf75)?/%empty	CREATE FULLTEXT INDEX ON a KEY INDEX a
 reject	reject	engine	createFulltextIndexStatement(LeftParenthesis_fulltextIndexColumn_~3ff0cf75)?/%empty!insert	CREATE FULLTEXT INDEX ON a zzz KEY INDEX a
 accept	accept	engine	createFulltextIndexStatement(LeftParenthesis_fulltextIndexColumn_~3ff0cf75)?/LeftParenthesis_fulltextIndexColumn_(Comma_fulltextInde~66cb9c87	CREATE FULLTEXT INDEX ON a(a) KEY INDEX a
 reject	reject	engine	createFulltextIndexStatement(LeftParenthesis_fulltextIndexColumn_~3ff0cf75)?/LeftParenthesis_fulltextIndexColumn_(Comma_fulltextInde~66cb9c87!drop-1	CREATE FULLTEXT INDEX ON a a) KEY INDEX a
-accept	reject	engine	createFulltextIndexStatement(LeftParenthesis_fulltextIndexColumn_~3ff0cf75)?/LeftParenthesis_fulltextIndexColumn_(Comma_fulltextInde~66cb9c87!drop-2	CREATE FULLTEXT INDEX ON a() KEY INDEX a
-accept	reject	engine	createFulltextIndexStatement(LeftParenthesis_fulltextIndexColumn_~3ff0cf75)?/LeftParenthesis_fulltextIndexColumn_(Comma_fulltextInde~66cb9c87!drop-3	CREATE FULLTEXT INDEX ON a(a KEY INDEX a
-accept	reject	engine	createFulltextIndexStatement(LeftParenthesis_fulltextIndexColumn_~3ff0cf75)?/LeftParenthesis_fulltextIndexColumn_(Comma_fulltextInde~66cb9c87!truncate	CREATE FULLTEXT INDEX ON a(a
+reject	reject	engine	createFulltextIndexStatement(LeftParenthesis_fulltextIndexColumn_~3ff0cf75)?/LeftParenthesis_fulltextIndexColumn_(Comma_fulltextInde~66cb9c87!drop-2	CREATE FULLTEXT INDEX ON a() KEY INDEX a
+reject	reject	engine	createFulltextIndexStatement(LeftParenthesis_fulltextIndexColumn_~3ff0cf75)?/LeftParenthesis_fulltextIndexColumn_(Comma_fulltextInde~66cb9c87!drop-3	CREATE FULLTEXT INDEX ON a(a KEY INDEX a
+reject	reject	engine	createFulltextIndexStatement(LeftParenthesis_fulltextIndexColumn_~3ff0cf75)?/LeftParenthesis_fulltextIndexColumn_(Comma_fulltextInde~66cb9c87!truncate	CREATE FULLTEXT INDEX ON a(a
 reject	reject	engine	createFulltextIndexStatement(LeftParenthesis_fulltextIndexColumn_~3ff0cf75)?/LeftParenthesis_fulltextIndexColumn_(Comma_fulltextInde~66cb9c87!insert	CREATE FULLTEXT INDEX ON a(a) zzz KEY INDEX a
 accept	accept	engine	createFulltextIndexStatement(Comma_fulltextIndexColumn)*/%empty	CREATE FULLTEXT INDEX ON a(a) KEY INDEX a
 reject	reject	engine	createFulltextIndexStatement(Comma_fulltextIndexColumn)*/%empty!insert	CREATE FULLTEXT INDEX ON a(a zzz) KEY INDEX a
 accept	accept	engine	createFulltextIndexStatement(Comma_fulltextIndexColumn)*/Comma_fulltextIndexColumn_(Comma_fulltextIndexColumn)*	CREATE FULLTEXT INDEX ON a(a, a) KEY INDEX a
 reject	reject	engine	createFulltextIndexStatement(Comma_fulltextIndexColumn)*/Comma_fulltextIndexColumn_(Comma_fulltextIndexColumn)*!drop-1	CREATE FULLTEXT INDEX ON a(a a) KEY INDEX a
-accept	reject	engine	createFulltextIndexStatement(Comma_fulltextIndexColumn)*/Comma_fulltextIndexColumn_(Comma_fulltextIndexColumn)*!drop-2	CREATE FULLTEXT INDEX ON a(a,) KEY INDEX a
-accept	reject	engine	createFulltextIndexStatement(Comma_fulltextIndexColumn)*/Comma_fulltextIndexColumn_(Comma_fulltextIndexColumn)*!truncate	CREATE FULLTEXT INDEX ON a(a,
+reject	reject	engine	createFulltextIndexStatement(Comma_fulltextIndexColumn)*/Comma_fulltextIndexColumn_(Comma_fulltextIndexColumn)*!drop-2	CREATE FULLTEXT INDEX ON a(a,) KEY INDEX a
+reject	reject	engine	createFulltextIndexStatement(Comma_fulltextIndexColumn)*/Comma_fulltextIndexColumn_(Comma_fulltextIndexColumn)*!truncate	CREATE FULLTEXT INDEX ON a(a,
 reject	reject	engine	createFulltextIndexStatement(Comma_fulltextIndexColumn)*/Comma_fulltextIndexColumn_(Comma_fulltextIndexColumn)*!insert	CREATE FULLTEXT INDEX ON a(a, a zzz) KEY INDEX a
 accept	accept	engine	createFulltextIndexStatement(fullTextCatalogAndFileGroup)?/%empty	CREATE FULLTEXT INDEX ON a KEY INDEX a
 accept	accept	engine	createFulltextIndexStatement(fullTextCatalogAndFileGroup)?/fullTextCatalogAndFileGroup	CREATE FULLTEXT INDEX ON a KEY INDEX a ON a
 reject	reject	engine	createFulltextIndexStatement(fullTextCatalogAndFileGroup)?/fullTextCatalogAndFileGroup!drop-1	CREATE FULLTEXT INDEX ON a KEY INDEX a a
-accept	reject	engine	createFulltextIndexStatement(fullTextCatalogAndFileGroup)?/fullTextCatalogAndFileGroup!drop-2	CREATE FULLTEXT INDEX ON a KEY INDEX a ON
+reject	reject	engine	createFulltextIndexStatement(fullTextCatalogAndFileGroup)?/fullTextCatalogAndFileGroup!drop-2	CREATE FULLTEXT INDEX ON a KEY INDEX a ON
 reject	reject	engine	createFulltextIndexStatement(fullTextCatalogAndFileGroup)?/fullTextCatalogAndFileGroup!insert	CREATE FULLTEXT INDEX ON a KEY INDEX a ON a zzz
 reject	reject	engine	createFulltextIndexStatement(fullTextCatalogAndFileGroup)?/fullTextCatalogAndFileGroup!swap	CREATE FULLTEXT INDEX ON a KEY INDEX a ONLINE a
 accept	accept	engine	fullTextCatalogAndFileGroup/On_(identifier|LeftParenthesis_((identif~f2cba1c7)	CREATE FULLTEXT INDEX ON a KEY INDEX a ON a
 accept	accept	engine	fullTextCatalogAndFileGroup(identifier|LeftParenthesis_((identif~f2cba1c7)/identifier	CREATE FULLTEXT INDEX ON a KEY INDEX a ON a
 accept	accept	engine	fullTextCatalogAndFileGroup(identifier|LeftParenthesis_((identif~f2cba1c7)/LeftParenthesis_((identifier_(Comma_FILEGROUP_identif~a~2d8f425e	CREATE FULLTEXT INDEX ON a KEY INDEX a ON(a)
 reject	reject	engine	fullTextCatalogAndFileGroup(identifier|LeftParenthesis_((identif~f2cba1c7)/LeftParenthesis_((identifier_(Comma_FILEGROUP_identif~a~2d8f425e!drop-1	CREATE FULLTEXT INDEX ON a KEY INDEX a ON a)
-accept	reject	engine	fullTextCatalogAndFileGroup(identifier|LeftParenthesis_((identif~f2cba1c7)/LeftParenthesis_((identifier_(Comma_FILEGROUP_identif~a~2d8f425e!drop-2	CREATE FULLTEXT INDEX ON a KEY INDEX a ON()
-accept	reject	engine	fullTextCatalogAndFileGroup(identifier|LeftParenthesis_((identif~f2cba1c7)/LeftParenthesis_((identifier_(Comma_FILEGROUP_identif~a~2d8f425e!drop-3	CREATE FULLTEXT INDEX ON a KEY INDEX a ON(a
+reject	reject	engine	fullTextCatalogAndFileGroup(identifier|LeftParenthesis_((identif~f2cba1c7)/LeftParenthesis_((identifier_(Comma_FILEGROUP_identif~a~2d8f425e!drop-2	CREATE FULLTEXT INDEX ON a KEY INDEX a ON()
+reject	reject	engine	fullTextCatalogAndFileGroup(identifier|LeftParenthesis_((identif~f2cba1c7)/LeftParenthesis_((identifier_(Comma_FILEGROUP_identif~a~2d8f425e!drop-3	CREATE FULLTEXT INDEX ON a KEY INDEX a ON(a
 reject	reject	engine	fullTextCatalogAndFileGroup(identifier|LeftParenthesis_((identif~f2cba1c7)/LeftParenthesis_((identifier_(Comma_FILEGROUP_identif~a~2d8f425e!insert	CREATE FULLTEXT INDEX ON a KEY INDEX a ON(a) zzz
 accept	accept	engine	fullTextCatalogAndFileGroup((identifier_(Comma_FILEGROUP_identif~a9f0dcbe)/identifier_(Comma_FILEGROUP_identifier)?	CREATE FULLTEXT INDEX ON a KEY INDEX a ON(a)
-accept	reject	engine	fullTextCatalogAndFileGroup((identifier_(Comma_FILEGROUP_identif~a9f0dcbe)/identifier_(Comma_FILEGROUP_identifier)?!truncate	CREATE FULLTEXT INDEX ON a KEY INDEX a ON(
+reject	reject	engine	fullTextCatalogAndFileGroup((identifier_(Comma_FILEGROUP_identif~a9f0dcbe)/identifier_(Comma_FILEGROUP_identifier)?!truncate	CREATE FULLTEXT INDEX ON a KEY INDEX a ON(
 reject	reject	engine	fullTextCatalogAndFileGroup((identifier_(Comma_FILEGROUP_identif~a9f0dcbe)/identifier_(Comma_FILEGROUP_identifier)?!insert	CREATE FULLTEXT INDEX ON a KEY INDEX a ON(a zzz)
 accept	accept	engine	fullTextCatalogAndFileGroup((identifier_(Comma_FILEGROUP_identif~a9f0dcbe)/FILEGROUP_identifier_(Comma_identifier)?	CREATE FULLTEXT INDEX ON a KEY INDEX a ON(FILEGROUP a)
 accept	accept	engine	fullTextCatalogAndFileGroup((identifier_(Comma_FILEGROUP_identif~a9f0dcbe)/FILEGROUP_identifier_(Comma_identifier)?!drop-2	CREATE FULLTEXT INDEX ON a KEY INDEX a ON(FILEGROUP)
-accept	reject	engine	fullTextCatalogAndFileGroup((identifier_(Comma_FILEGROUP_identif~a9f0dcbe)/FILEGROUP_identifier_(Comma_identifier)?!truncate	CREATE FULLTEXT INDEX ON a KEY INDEX a ON(FILEGROUP
+reject	reject	engine	fullTextCatalogAndFileGroup((identifier_(Comma_FILEGROUP_identif~a9f0dcbe)/FILEGROUP_identifier_(Comma_identifier)?!truncate	CREATE FULLTEXT INDEX ON a KEY INDEX a ON(FILEGROUP
 reject	reject	engine	fullTextCatalogAndFileGroup((identifier_(Comma_FILEGROUP_identif~a9f0dcbe)/FILEGROUP_identifier_(Comma_identifier)?!insert	CREATE FULLTEXT INDEX ON a KEY INDEX a ON(FILEGROUP a zzz)
 reject	reject	engine	fullTextCatalogAndFileGroup((identifier_(Comma_FILEGROUP_identif~a9f0dcbe)/FILEGROUP_identifier_(Comma_identifier)?!swap	CREATE FULLTEXT INDEX ON a KEY INDEX a ON(FILEGROWTH a)
 accept	accept	engine	fullTextCatalogAndFileGroup(Comma_FILEGROUP_identifier)?/%empty	CREATE FULLTEXT INDEX ON a KEY INDEX a ON(a)
 accept	accept	engine	fullTextCatalogAndFileGroup(Comma_FILEGROUP_identifier)?/Comma_FILEGROUP_identifier	CREATE FULLTEXT INDEX ON a KEY INDEX a ON(a, FILEGROUP a)
 reject	reject	engine	fullTextCatalogAndFileGroup(Comma_FILEGROUP_identifier)?/Comma_FILEGROUP_identifier!drop-1	CREATE FULLTEXT INDEX ON a KEY INDEX a ON(a FILEGROUP a)
 reject	reject	engine	fullTextCatalogAndFileGroup(Comma_FILEGROUP_identifier)?/Comma_FILEGROUP_identifier!drop-2	CREATE FULLTEXT INDEX ON a KEY INDEX a ON(a, a)
-accept	reject	engine	fullTextCatalogAndFileGroup(Comma_FILEGROUP_identifier)?/Comma_FILEGROUP_identifier!drop-3	CREATE FULLTEXT INDEX ON a KEY INDEX a ON(a, FILEGROUP)
-accept	reject	engine	fullTextCatalogAndFileGroup(Comma_FILEGROUP_identifier)?/Comma_FILEGROUP_identifier!truncate	CREATE FULLTEXT INDEX ON a KEY INDEX a ON(a, FILEGROUP
+reject	reject	engine	fullTextCatalogAndFileGroup(Comma_FILEGROUP_identifier)?/Comma_FILEGROUP_identifier!drop-3	CREATE FULLTEXT INDEX ON a KEY INDEX a ON(a, FILEGROUP)
+reject	reject	engine	fullTextCatalogAndFileGroup(Comma_FILEGROUP_identifier)?/Comma_FILEGROUP_identifier!truncate	CREATE FULLTEXT INDEX ON a KEY INDEX a ON(a, FILEGROUP
 reject	reject	engine	fullTextCatalogAndFileGroup(Comma_FILEGROUP_identifier)?/Comma_FILEGROUP_identifier!insert	CREATE FULLTEXT INDEX ON a KEY INDEX a ON(a, FILEGROUP a zzz)
 reject	reject	engine	fullTextCatalogAndFileGroup(Comma_FILEGROUP_identifier)?/Comma_FILEGROUP_identifier!swap	CREATE FULLTEXT INDEX ON a KEY INDEX a ON(a, FILEGROWTH a)
 accept	accept	engine	fullTextCatalogAndFileGroup(Comma_identifier)?/%empty	CREATE FULLTEXT INDEX ON a KEY INDEX a ON(FILEGROUP a)
 accept	accept	engine	fullTextCatalogAndFileGroup(Comma_identifier)?/Comma_identifier	CREATE FULLTEXT INDEX ON a KEY INDEX a ON(FILEGROUP a, a)
 reject	reject	engine	fullTextCatalogAndFileGroup(Comma_identifier)?/Comma_identifier!drop-1	CREATE FULLTEXT INDEX ON a KEY INDEX a ON(FILEGROUP a a)
-accept	reject	engine	fullTextCatalogAndFileGroup(Comma_identifier)?/Comma_identifier!drop-2	CREATE FULLTEXT INDEX ON a KEY INDEX a ON(FILEGROUP a,)
-accept	reject	engine	fullTextCatalogAndFileGroup(Comma_identifier)?/Comma_identifier!truncate	CREATE FULLTEXT INDEX ON a KEY INDEX a ON(FILEGROUP a,
+reject	reject	engine	fullTextCatalogAndFileGroup(Comma_identifier)?/Comma_identifier!drop-2	CREATE FULLTEXT INDEX ON a KEY INDEX a ON(FILEGROUP a,)
+reject	reject	engine	fullTextCatalogAndFileGroup(Comma_identifier)?/Comma_identifier!truncate	CREATE FULLTEXT INDEX ON a KEY INDEX a ON(FILEGROUP a,
 reject	reject	engine	fullTextCatalogAndFileGroup(Comma_identifier)?/Comma_identifier!insert	CREATE FULLTEXT INDEX ON a KEY INDEX a ON(FILEGROUP a, a zzz)
 accept	accept	engine	createFulltextOptions/(With_(createFulltextOptionsList|Left~d2ca4c8a)?	CREATE FULLTEXT INDEX ON a KEY INDEX a
 accept	accept	engine	createFulltextOptions(With_(createFulltextOptionsList|Left~d2ca4c8a)?/%empty	CREATE FULLTEXT INDEX ON a KEY INDEX a
-reject	accept	engine	createFulltextOptions(With_(createFulltextOptionsList|Left~d2ca4c8a)?/With_(createFulltextOptionsList|LeftParent~f2b6017a)	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING OFF
+accept	accept	engine	createFulltextOptions(With_(createFulltextOptionsList|Left~d2ca4c8a)?/With_(createFulltextOptionsList|LeftParent~f2b6017a)	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING OFF
 reject	reject	engine	createFulltextOptions(With_(createFulltextOptionsList|Left~d2ca4c8a)?/With_(createFulltextOptionsList|LeftParent~f2b6017a)!drop-1	CREATE FULLTEXT INDEX ON a KEY INDEX a CHANGE_TRACKING OFF
 reject	reject	engine	createFulltextOptions(With_(createFulltextOptionsList|Left~d2ca4c8a)?/With_(createFulltextOptionsList|LeftParent~f2b6017a)!drop-2	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH OFF
-accept	reject	engine	createFulltextOptions(With_(createFulltextOptionsList|Left~d2ca4c8a)?/With_(createFulltextOptionsList|LeftParent~f2b6017a)!drop-3	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING
+reject	reject	engine	createFulltextOptions(With_(createFulltextOptionsList|Left~d2ca4c8a)?/With_(createFulltextOptionsList|LeftParent~f2b6017a)!drop-3	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING
 reject	reject	engine	createFulltextOptions(With_(createFulltextOptionsList|Left~d2ca4c8a)?/With_(createFulltextOptionsList|LeftParent~f2b6017a)!insert	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING OFF zzz
 reject	reject	engine	createFulltextOptions(With_(createFulltextOptionsList|Left~d2ca4c8a)?/With_(createFulltextOptionsList|LeftParent~f2b6017a)!swap	CREATE FULLTEXT INDEX ON a KEY INDEX a WITHIN CHANGE_TRACKING OFF
-reject	accept	engine	createFulltextOptions(createFulltextOptionsList|LeftParent~f2b6017a)/createFulltextOptionsList	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING OFF
+accept	accept	engine	createFulltextOptions(createFulltextOptionsList|LeftParent~f2b6017a)/createFulltextOptionsList	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING OFF
 reject	reject	engine	createFulltextOptions(createFulltextOptionsList|LeftParent~f2b6017a)/createFulltextOptionsList!swap	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING_CONTEXT OFF
-reject	accept	engine	createFulltextOptions(createFulltextOptionsList|LeftParent~f2b6017a)/LeftParenthesis_createFulltextOptionsList_RightParenthesis	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH(CHANGE_TRACKING OFF)
+accept	accept	engine	createFulltextOptions(createFulltextOptionsList|LeftParent~f2b6017a)/LeftParenthesis_createFulltextOptionsList_RightParenthesis	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH(CHANGE_TRACKING OFF)
 reject	reject	engine	createFulltextOptions(createFulltextOptionsList|LeftParent~f2b6017a)/LeftParenthesis_createFulltextOptionsList_RightParenthesis!drop-1	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING OFF)
 reject	reject	engine	createFulltextOptions(createFulltextOptionsList|LeftParent~f2b6017a)/LeftParenthesis_createFulltextOptionsList_RightParenthesis!drop-2	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH(OFF)
-accept	reject	engine	createFulltextOptions(createFulltextOptionsList|LeftParent~f2b6017a)/LeftParenthesis_createFulltextOptionsList_RightParenthesis!drop-3	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH(CHANGE_TRACKING)
+reject	reject	engine	createFulltextOptions(createFulltextOptionsList|LeftParent~f2b6017a)/LeftParenthesis_createFulltextOptionsList_RightParenthesis!drop-3	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH(CHANGE_TRACKING)
 reject	reject	engine	createFulltextOptions(createFulltextOptionsList|LeftParent~f2b6017a)/LeftParenthesis_createFulltextOptionsList_RightParenthesis!drop-4	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH(CHANGE_TRACKING OFF
 reject	reject	engine	createFulltextOptions(createFulltextOptionsList|LeftParent~f2b6017a)/LeftParenthesis_createFulltextOptionsList_RightParenthesis!insert	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH(CHANGE_TRACKING OFF) zzz
 reject	reject	engine	createFulltextOptions(createFulltextOptionsList|LeftParent~f2b6017a)/LeftParenthesis_createFulltextOptionsList_RightParenthesis!swap	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH(CHANGE_TRACKING_CONTEXT OFF)
-reject	accept	engine	createFulltextOptionsList/fullTextIndexOption_(Comma_fullTextIndexOption)*	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING OFF
-reject	accept	engine	createFulltextOptionsList(Comma_fullTextIndexOption)*/%empty	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING OFF
+accept	accept	engine	createFulltextOptionsList/fullTextIndexOption_(Comma_fullTextIndexOption)*	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING OFF
+accept	accept	engine	createFulltextOptionsList(Comma_fullTextIndexOption)*/%empty	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING OFF
 reject	reject	engine	createFulltextOptionsList(Comma_fullTextIndexOption)*/Comma_fullTextIndexOption_(Comma_fullTextIndexOption)*	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING OFF, CHANGE_TRACKING OFF
 reject	reject	engine	createFulltextOptionsList(Comma_fullTextIndexOption)*/Comma_fullTextIndexOption_(Comma_fullTextIndexOption)*!drop-1	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING OFF CHANGE_TRACKING OFF
 reject	reject	engine	createFulltextOptionsList(Comma_fullTextIndexOption)*/Comma_fullTextIndexOption_(Comma_fullTextIndexOption)*!drop-2	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING OFF, OFF
 reject	reject	engine	createFulltextOptionsList(Comma_fullTextIndexOption)*/Comma_fullTextIndexOption_(Comma_fullTextIndexOption)*!drop-3	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING OFF, CHANGE_TRACKING
 reject	reject	engine	createFulltextOptionsList(Comma_fullTextIndexOption)*/Comma_fullTextIndexOption_(Comma_fullTextIndexOption)*!insert	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING OFF, CHANGE_TRACKING OFF zzz
 reject	reject	engine	createFulltextOptionsList(Comma_fullTextIndexOption)*/Comma_fullTextIndexOption_(Comma_fullTextIndexOption)*!swap	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING OFF, CHANGE_TRACKING_CONTEXT OFF
-reject	accept	engine	fullTextIndexOption/changeTrackingFulltextIndexOption_CHANGE_TRACKING	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING OFF
-reject	accept	engine	fullTextIndexOption/stoplistFulltextIndexOption	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH STOPLIST a
+accept	accept	engine	fullTextIndexOption/changeTrackingFulltextIndexOption_CHANGE_TRACKING	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING OFF
+accept	accept	engine	fullTextIndexOption/stoplistFulltextIndexOption	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH STOPLIST a
 reject	reject	engine	fullTextIndexOption/stoplistFulltextIndexOption!drop-1	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH a
-accept	reject	engine	fullTextIndexOption/stoplistFulltextIndexOption!drop-2	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH STOPLIST
+reject	reject	engine	fullTextIndexOption/stoplistFulltextIndexOption!drop-2	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH STOPLIST
 reject	reject	engine	fullTextIndexOption/stoplistFulltextIndexOption!insert	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH STOPLIST a zzz
 reject	reject	engine	fullTextIndexOption/stoplistFulltextIndexOption!swap	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH STREAM a
-reject	accept	engine	fullTextIndexOption/searchPropertyListFullTextIndexOption	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH SEARCH PROPERTY LIST a
+accept	accept	engine	fullTextIndexOption/searchPropertyListFullTextIndexOption	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH SEARCH PROPERTY LIST a
 reject	reject	engine	fullTextIndexOption/searchPropertyListFullTextIndexOption!drop-1	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH PROPERTY LIST a
 reject	reject	engine	fullTextIndexOption/searchPropertyListFullTextIndexOption!drop-2	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH SEARCH LIST a
 reject	reject	engine	fullTextIndexOption/searchPropertyListFullTextIndexOption!drop-3	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH SEARCH PROPERTY a
@@ -4063,7 +4063,7 @@ reject	reject	engine	fullTextIndexOption/searchPropertyListFullTextIndexOption!i
 reject	reject	engine	fullTextIndexOption/searchPropertyListFullTextIndexOption!swap	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH SECONDARY_ROLE PROPERTY LIST a
 accept	accept	engine	stoplistFulltextIndexOption/StopList_(EqualsSign)?_(identifier|Off)	ALTER FULLTEXT INDEX ON a SET STOPLIST a
 reject	reject	engine	stoplistFulltextIndexOption/StopList_(EqualsSign)?_(identifier|Off)!drop-1	ALTER FULLTEXT INDEX ON a SET a
-accept	reject	engine	stoplistFulltextIndexOption/StopList_(EqualsSign)?_(identifier|Off)!drop-2	ALTER FULLTEXT INDEX ON a SET STOPLIST
+reject	reject	engine	stoplistFulltextIndexOption/StopList_(EqualsSign)?_(identifier|Off)!drop-2	ALTER FULLTEXT INDEX ON a SET STOPLIST
 reject	reject	engine	stoplistFulltextIndexOption/StopList_(EqualsSign)?_(identifier|Off)!insert	ALTER FULLTEXT INDEX ON a SET STOPLIST a zzz
 reject	reject	engine	stoplistFulltextIndexOption/StopList_(EqualsSign)?_(identifier|Off)!swap	ALTER FULLTEXT INDEX ON a SET STREAM a
 accept	accept	engine	stoplistFulltextIndexOption(EqualsSign)?/%empty	ALTER FULLTEXT INDEX ON a SET STOPLIST a
@@ -4074,52 +4074,52 @@ accept	accept	engine	stoplistFulltextIndexOption(identifier|Off)/identifier	ALTE
 accept	accept	engine	stoplistFulltextIndexOption(identifier|Off)/Off	ALTER FULLTEXT INDEX ON a SET STOPLIST OFF
 reject	reject	engine	stoplistFulltextIndexOption(identifier|Off)/Off!insert	ALTER FULLTEXT INDEX ON a SET STOPLIST OFF zzz
 accept	accept	engine	stoplistFulltextIndexOption(identifier|Off)/Off!swap	ALTER FULLTEXT INDEX ON a SET STOPLIST OFFLINE
-reject	accept	engine	searchPropertyListFullTextIndexOption/SEARCH_PROPERTY_LIST_(EqualsSign)?_(identifier|Off)	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH SEARCH PROPERTY LIST a
-reject	accept	engine	searchPropertyListFullTextIndexOption(EqualsSign)?/%empty	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH SEARCH PROPERTY LIST a
+accept	accept	engine	searchPropertyListFullTextIndexOption/SEARCH_PROPERTY_LIST_(EqualsSign)?_(identifier|Off)	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH SEARCH PROPERTY LIST a
+accept	accept	engine	searchPropertyListFullTextIndexOption(EqualsSign)?/%empty	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH SEARCH PROPERTY LIST a
 reject	reject	engine	searchPropertyListFullTextIndexOption(EqualsSign)?/%empty!insert	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH SEARCH PROPERTY LIST zzz a
-reject	accept	engine	searchPropertyListFullTextIndexOption(EqualsSign)?/EqualsSign	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH SEARCH PROPERTY LIST = a
+accept	accept	engine	searchPropertyListFullTextIndexOption(EqualsSign)?/EqualsSign	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH SEARCH PROPERTY LIST = a
 reject	reject	engine	searchPropertyListFullTextIndexOption(EqualsSign)?/EqualsSign!insert	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH SEARCH PROPERTY LIST = zzz a
-reject	accept	engine	searchPropertyListFullTextIndexOption(identifier|Off)/identifier	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH SEARCH PROPERTY LIST a
-reject	accept	engine	searchPropertyListFullTextIndexOption(identifier|Off)/Off	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH SEARCH PROPERTY LIST OFF
+accept	accept	engine	searchPropertyListFullTextIndexOption(identifier|Off)/identifier	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH SEARCH PROPERTY LIST a
+accept	accept	engine	searchPropertyListFullTextIndexOption(identifier|Off)/Off	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH SEARCH PROPERTY LIST OFF
 reject	reject	engine	searchPropertyListFullTextIndexOption(identifier|Off)/Off!insert	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH SEARCH PROPERTY LIST OFF zzz
-reject	accept	engine	searchPropertyListFullTextIndexOption(identifier|Off)/Off!swap	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH SEARCH PROPERTY LIST OFFLINE
-accept	reject	engine	createFulltextStoplistStatement/StopList_identifier_(From_((identifier_Dot)?_identifier~eb293c53	CREATE FULLTEXT STOPLIST a
-accept	reject	engine	createFulltextStoplistStatement/StopList_identifier_(From_((identifier_Dot)?_identifier~eb293c53!drop-2	CREATE FULLTEXT STOPLIST
+accept	accept	engine	searchPropertyListFullTextIndexOption(identifier|Off)/Off!swap	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH SEARCH PROPERTY LIST OFFLINE
+reject	reject	engine	createFulltextStoplistStatement/StopList_identifier_(From_((identifier_Dot)?_identifier~eb293c53	CREATE FULLTEXT STOPLIST a
+reject	reject	engine	createFulltextStoplistStatement/StopList_identifier_(From_((identifier_Dot)?_identifier~eb293c53!drop-2	CREATE FULLTEXT STOPLIST
 reject	reject	engine	createFulltextStoplistStatement/StopList_identifier_(From_((identifier_Dot)?_identifier~eb293c53!insert	CREATE FULLTEXT STOPLIST a zzz
 reject	reject	engine	createFulltextStoplistStatement/StopList_identifier_(From_((identifier_Dot)?_identifier~eb293c53!swap	CREATE FULLTEXT STREAM a
-accept	reject	engine	createFulltextStoplistStatement(From_((identifier_Dot)?_identifier|S~b1e86637)?/%empty	CREATE FULLTEXT STOPLIST a
-accept	reject	engine	createFulltextStoplistStatement(From_((identifier_Dot)?_identifier|S~b1e86637)?/From_((identifier_Dot)?_identifier|SYSTEM_StopList)	CREATE FULLTEXT STOPLIST a FROM a
+reject	reject	engine	createFulltextStoplistStatement(From_((identifier_Dot)?_identifier|S~b1e86637)?/%empty	CREATE FULLTEXT STOPLIST a
+reject	reject	engine	createFulltextStoplistStatement(From_((identifier_Dot)?_identifier|S~b1e86637)?/From_((identifier_Dot)?_identifier|SYSTEM_StopList)	CREATE FULLTEXT STOPLIST a FROM a
 reject	reject	engine	createFulltextStoplistStatement(From_((identifier_Dot)?_identifier|S~b1e86637)?/From_((identifier_Dot)?_identifier|SYSTEM_StopList)!drop-1	CREATE FULLTEXT STOPLIST a a
-accept	reject	engine	createFulltextStoplistStatement(From_((identifier_Dot)?_identifier|S~b1e86637)?/From_((identifier_Dot)?_identifier|SYSTEM_StopList)!drop-2	CREATE FULLTEXT STOPLIST a FROM
+reject	reject	engine	createFulltextStoplistStatement(From_((identifier_Dot)?_identifier|S~b1e86637)?/From_((identifier_Dot)?_identifier|SYSTEM_StopList)!drop-2	CREATE FULLTEXT STOPLIST a FROM
 reject	reject	engine	createFulltextStoplistStatement(From_((identifier_Dot)?_identifier|S~b1e86637)?/From_((identifier_Dot)?_identifier|SYSTEM_StopList)!insert	CREATE FULLTEXT STOPLIST a FROM a zzz
 reject	reject	engine	createFulltextStoplistStatement(From_((identifier_Dot)?_identifier|S~b1e86637)?/From_((identifier_Dot)?_identifier|SYSTEM_StopList)!swap	CREATE FULLTEXT STOPLIST a FULL a
-accept	reject	engine	createFulltextStoplistStatement((identifier_Dot)?_identifier|SYSTEM_StopList)/(identifier_Dot)?_identifier	CREATE FULLTEXT STOPLIST a FROM a
-accept	reject	engine	createFulltextStoplistStatement((identifier_Dot)?_identifier|SYSTEM_StopList)/SYSTEM_StopList	CREATE FULLTEXT STOPLIST a FROM SYSTEM STOPLIST
+reject	reject	engine	createFulltextStoplistStatement((identifier_Dot)?_identifier|SYSTEM_StopList)/(identifier_Dot)?_identifier	CREATE FULLTEXT STOPLIST a FROM a
+reject	reject	engine	createFulltextStoplistStatement((identifier_Dot)?_identifier|SYSTEM_StopList)/SYSTEM_StopList	CREATE FULLTEXT STOPLIST a FROM SYSTEM STOPLIST
 reject	reject	engine	createFulltextStoplistStatement((identifier_Dot)?_identifier|SYSTEM_StopList)/SYSTEM_StopList!drop-1	CREATE FULLTEXT STOPLIST a FROM STOPLIST
-accept	reject	engine	createFulltextStoplistStatement((identifier_Dot)?_identifier|SYSTEM_StopList)/SYSTEM_StopList!drop-2	CREATE FULLTEXT STOPLIST a FROM SYSTEM
+reject	reject	engine	createFulltextStoplistStatement((identifier_Dot)?_identifier|SYSTEM_StopList)/SYSTEM_StopList!drop-2	CREATE FULLTEXT STOPLIST a FROM SYSTEM
 reject	reject	engine	createFulltextStoplistStatement((identifier_Dot)?_identifier|SYSTEM_StopList)/SYSTEM_StopList!insert	CREATE FULLTEXT STOPLIST a FROM SYSTEM STOPLIST zzz
 reject	reject	engine	createFulltextStoplistStatement((identifier_Dot)?_identifier|SYSTEM_StopList)/SYSTEM_StopList!swap	CREATE FULLTEXT STOPLIST a FROM SYSTEM_TIME STOPLIST
-accept	reject	engine	createFulltextStoplistStatement(identifier_Dot)?/%empty	CREATE FULLTEXT STOPLIST a FROM a
+reject	reject	engine	createFulltextStoplistStatement(identifier_Dot)?/%empty	CREATE FULLTEXT STOPLIST a FROM a
 reject	reject	engine	createFulltextStoplistStatement(identifier_Dot)?/%empty!insert	CREATE FULLTEXT STOPLIST a FROM zzz a
-accept	reject	engine	createFulltextStoplistStatement(identifier_Dot)?/identifier_Dot	CREATE FULLTEXT STOPLIST a FROM a.a
+reject	reject	engine	createFulltextStoplistStatement(identifier_Dot)?/identifier_Dot	CREATE FULLTEXT STOPLIST a FROM a.a
 reject	reject	engine	createFulltextStoplistStatement(identifier_Dot)?/identifier_Dot!drop-1	CREATE FULLTEXT STOPLIST a FROM.a
 reject	reject	engine	createFulltextStoplistStatement(identifier_Dot)?/identifier_Dot!drop-2	CREATE FULLTEXT STOPLIST a FROM a a
 reject	reject	engine	createFulltextStoplistStatement(identifier_Dot)?/identifier_Dot!insert	CREATE FULLTEXT STOPLIST a FROM a.zzz a
-accept	reject	engine	alterFulltextStoplistStatement/StopList_identifier_fulltextStoplistAction_requiredSemicolon	ALTER FULLTEXT STOPLIST a DROP ALL
+reject	reject	engine	alterFulltextStoplistStatement/StopList_identifier_fulltextStoplistAction_requiredSemicolon	ALTER FULLTEXT STOPLIST a DROP ALL
 reject	reject	engine	alterFulltextStoplistStatement/StopList_identifier_fulltextStoplistAction_requiredSemicolon!drop-1	ALTER FULLTEXT a DROP ALL
-accept	reject	engine	alterFulltextStoplistStatement/StopList_identifier_fulltextStoplistAction_requiredSemicolon!drop-2	ALTER FULLTEXT STOPLIST DROP ALL
+reject	reject	engine	alterFulltextStoplistStatement/StopList_identifier_fulltextStoplistAction_requiredSemicolon!drop-2	ALTER FULLTEXT STOPLIST DROP ALL
 reject	reject	engine	alterFulltextStoplistStatement/StopList_identifier_fulltextStoplistAction_requiredSemicolon!drop-3	ALTER FULLTEXT STOPLIST a ALL
-accept	reject	engine	alterFulltextStoplistStatement/StopList_identifier_fulltextStoplistAction_requiredSemicolon!drop-4	ALTER FULLTEXT STOPLIST a DROP
+reject	reject	engine	alterFulltextStoplistStatement/StopList_identifier_fulltextStoplistAction_requiredSemicolon!drop-4	ALTER FULLTEXT STOPLIST a DROP
 reject	reject	engine	alterFulltextStoplistStatement/StopList_identifier_fulltextStoplistAction_requiredSemicolon!insert	ALTER FULLTEXT STOPLIST a DROP ALL zzz
 reject	reject	engine	alterFulltextStoplistStatement/StopList_identifier_fulltextStoplistAction_requiredSemicolon!swap	ALTER FULLTEXT STREAM a DROP ALL
 accept	accept	engine	fulltextStoplistAction/addFulltextStoplistAction	ALTER FULLTEXT STOPLIST a ADD 'a' LANGUAGE 'a'
 reject	reject	engine	fulltextStoplistAction/addFulltextStoplistAction!drop-1	ALTER FULLTEXT STOPLIST a 'a' LANGUAGE 'a'
-accept	reject	engine	fulltextStoplistAction/addFulltextStoplistAction!drop-2	ALTER FULLTEXT STOPLIST a ADD LANGUAGE 'a'
+reject	reject	engine	fulltextStoplistAction/addFulltextStoplistAction!drop-2	ALTER FULLTEXT STOPLIST a ADD LANGUAGE 'a'
 reject	reject	engine	fulltextStoplistAction/addFulltextStoplistAction!drop-3	ALTER FULLTEXT STOPLIST a ADD 'a' 'a'
-accept	reject	engine	fulltextStoplistAction/addFulltextStoplistAction!drop-4	ALTER FULLTEXT STOPLIST a ADD 'a' LANGUAGE
+reject	reject	engine	fulltextStoplistAction/addFulltextStoplistAction!drop-4	ALTER FULLTEXT STOPLIST a ADD 'a' LANGUAGE
 reject	accept	engine	fulltextStoplistAction/addFulltextStoplistAction!insert	ALTER FULLTEXT STOPLIST a ADD 'a' LANGUAGE 'a' zzz
 reject	reject	engine	fulltextStoplistAction/addFulltextStoplistAction!swap	ALTER FULLTEXT STOPLIST a ADMIN 'a' LANGUAGE 'a'
-accept	reject	engine	fulltextStoplistAction/dropFulltextStoplistAction	ALTER FULLTEXT STOPLIST a DROP ALL
+reject	reject	engine	fulltextStoplistAction/dropFulltextStoplistAction	ALTER FULLTEXT STOPLIST a DROP ALL
 reject	reject	engine	fulltextStoplistAction/dropFulltextStoplistAction!swap	ALTER FULLTEXT STOPLIST a DROP_INDEX ALL
 accept	accept	engine	languageTerm/LANGUAGE_(stringLiteral|integer|identifier|binary)	ALTER FULLTEXT STOPLIST a ADD 'a' LANGUAGE 'a'
 reject	reject	engine	languageTerm/LANGUAGE_(stringLiteral|integer|identifier|binary)!swap	ALTER FULLTEXT STOPLIST a ADD 'a' LAST_NODE 'a'
@@ -4131,48 +4131,48 @@ reject	accept	engine	languageTerm(stringLiteral|integer|identifier|binary)/ident
 accept	accept	engine	languageTerm(stringLiteral|integer|identifier|binary)/binary	ALTER FULLTEXT STOPLIST a ADD 'a' LANGUAGE 0x00
 reject	accept	engine	languageTerm(stringLiteral|integer|identifier|binary)/binary!insert	ALTER FULLTEXT STOPLIST a ADD 'a' LANGUAGE 0x00 zzz
 accept	accept	engine	addFulltextStoplistAction/Add_stringLiteral_languageTerm	ALTER FULLTEXT STOPLIST a ADD 'a' LANGUAGE 'a'
-accept	reject	engine	dropFulltextStoplistAction/Drop_(stringLiteral_languageTerm|(All_(lan~e2a840b3)	ALTER FULLTEXT STOPLIST a DROP ALL
+reject	reject	engine	dropFulltextStoplistAction/Drop_(stringLiteral_languageTerm|(All_(lan~e2a840b3)	ALTER FULLTEXT STOPLIST a DROP ALL
 accept	accept	engine	dropFulltextStoplistAction(stringLiteral_languageTerm|(All_(lan~e2a840b3)/stringLiteral_languageTerm	ALTER FULLTEXT STOPLIST a DROP 'a' LANGUAGE 'a'
 reject	reject	engine	dropFulltextStoplistAction(stringLiteral_languageTerm|(All_(lan~e2a840b3)/stringLiteral_languageTerm!drop-1	ALTER FULLTEXT STOPLIST a DROP LANGUAGE 'a'
 reject	reject	engine	dropFulltextStoplistAction(stringLiteral_languageTerm|(All_(lan~e2a840b3)/stringLiteral_languageTerm!drop-2	ALTER FULLTEXT STOPLIST a DROP 'a' 'a'
-accept	reject	engine	dropFulltextStoplistAction(stringLiteral_languageTerm|(All_(lan~e2a840b3)/stringLiteral_languageTerm!drop-3	ALTER FULLTEXT STOPLIST a DROP 'a' LANGUAGE
+reject	reject	engine	dropFulltextStoplistAction(stringLiteral_languageTerm|(All_(lan~e2a840b3)/stringLiteral_languageTerm!drop-3	ALTER FULLTEXT STOPLIST a DROP 'a' LANGUAGE
 reject	accept	engine	dropFulltextStoplistAction(stringLiteral_languageTerm|(All_(lan~e2a840b3)/stringLiteral_languageTerm!insert	ALTER FULLTEXT STOPLIST a DROP 'a' LANGUAGE 'a' zzz
 reject	reject	engine	dropFulltextStoplistAction(stringLiteral_languageTerm|(All_(lan~e2a840b3)/stringLiteral_languageTerm!swap	ALTER FULLTEXT STOPLIST a DROP 'a' LAST_NODE 'a'
-accept	reject	engine	dropFulltextStoplistAction(stringLiteral_languageTerm|(All_(lan~e2a840b3)/All_(languageTerm)?	ALTER FULLTEXT STOPLIST a DROP ALL
+reject	reject	engine	dropFulltextStoplistAction(stringLiteral_languageTerm|(All_(lan~e2a840b3)/All_(languageTerm)?	ALTER FULLTEXT STOPLIST a DROP ALL
 reject	reject	engine	dropFulltextStoplistAction(stringLiteral_languageTerm|(All_(lan~e2a840b3)/All_(languageTerm)?!swap	ALTER FULLTEXT STOPLIST a DROP ALLOW_CONNECTIONS
-accept	reject	engine	dropFulltextStoplistAction(languageTerm)?/%empty	ALTER FULLTEXT STOPLIST a DROP ALL
+reject	reject	engine	dropFulltextStoplistAction(languageTerm)?/%empty	ALTER FULLTEXT STOPLIST a DROP ALL
 accept	accept	engine	dropFulltextStoplistAction(languageTerm)?/languageTerm	ALTER FULLTEXT STOPLIST a DROP ALL LANGUAGE 'a'
 reject	reject	engine	dropFulltextStoplistAction(languageTerm)?/languageTerm!drop-1	ALTER FULLTEXT STOPLIST a DROP ALL 'a'
-accept	reject	engine	dropFulltextStoplistAction(languageTerm)?/languageTerm!drop-2	ALTER FULLTEXT STOPLIST a DROP ALL LANGUAGE
+reject	reject	engine	dropFulltextStoplistAction(languageTerm)?/languageTerm!drop-2	ALTER FULLTEXT STOPLIST a DROP ALL LANGUAGE
 reject	accept	engine	dropFulltextStoplistAction(languageTerm)?/languageTerm!insert	ALTER FULLTEXT STOPLIST a DROP ALL LANGUAGE 'a' zzz
 reject	reject	engine	dropFulltextStoplistAction(languageTerm)?/languageTerm!swap	ALTER FULLTEXT STOPLIST a DROP ALL LAST_NODE 'a'
-accept	reject	engine	dropFulltextStoplistStatement/StopList_identifier_requiredSemicolon	DROP FULLTEXT STOPLIST a
-accept	reject	engine	dropFulltextStoplistStatement/StopList_identifier_requiredSemicolon!drop-1	DROP FULLTEXT a
-accept	reject	engine	dropFulltextStoplistStatement/StopList_identifier_requiredSemicolon!drop-2	DROP FULLTEXT STOPLIST
+reject	reject	engine	dropFulltextStoplistStatement/StopList_identifier_requiredSemicolon	DROP FULLTEXT STOPLIST a
+reject	reject	engine	dropFulltextStoplistStatement/StopList_identifier_requiredSemicolon!drop-1	DROP FULLTEXT a
+reject	reject	engine	dropFulltextStoplistStatement/StopList_identifier_requiredSemicolon!drop-2	DROP FULLTEXT STOPLIST
 reject	reject	engine	dropFulltextStoplistStatement/StopList_identifier_requiredSemicolon!insert	DROP FULLTEXT STOPLIST a zzz
 reject	reject	engine	dropFulltextStoplistStatement/StopList_identifier_requiredSemicolon!swap	DROP FULLTEXT STREAM a
-accept	reject	engine	searchPropertyListAction/addSearchPropertyListAction	ALTER SEARCH PROPERTY LIST a ADD 'a' WITH(PROPERTY_SET_GUID = 'a', PROPERTY_INT_ID = 1)
+reject	reject	engine	searchPropertyListAction/addSearchPropertyListAction	ALTER SEARCH PROPERTY LIST a ADD 'a' WITH(PROPERTY_SET_GUID = 'a', PROPERTY_INT_ID = 1)
 reject	reject	engine	searchPropertyListAction/addSearchPropertyListAction!drop-1	ALTER SEARCH PROPERTY LIST a 'a' WITH(PROPERTY_SET_GUID = 'a', PROPERTY_INT_ID = 1)
-accept	reject	engine	searchPropertyListAction/addSearchPropertyListAction!drop-2	ALTER SEARCH PROPERTY LIST a ADD WITH(PROPERTY_SET_GUID = 'a', PROPERTY_INT_ID = 1)
+reject	reject	engine	searchPropertyListAction/addSearchPropertyListAction!drop-2	ALTER SEARCH PROPERTY LIST a ADD WITH(PROPERTY_SET_GUID = 'a', PROPERTY_INT_ID = 1)
 reject	reject	engine	searchPropertyListAction/addSearchPropertyListAction!drop-3	ALTER SEARCH PROPERTY LIST a ADD 'a'(PROPERTY_SET_GUID = 'a', PROPERTY_INT_ID = 1)
 reject	reject	engine	searchPropertyListAction/addSearchPropertyListAction!drop-4	ALTER SEARCH PROPERTY LIST a ADD 'a' WITH PROPERTY_SET_GUID = 'a', PROPERTY_INT_ID = 1)
 reject	reject	engine	searchPropertyListAction/addSearchPropertyListAction!drop-5	ALTER SEARCH PROPERTY LIST a ADD 'a' WITH(= 'a', PROPERTY_INT_ID = 1)
-accept	reject	engine	searchPropertyListAction/addSearchPropertyListAction!drop-6	ALTER SEARCH PROPERTY LIST a ADD 'a' WITH(PROPERTY_SET_GUID 'a', PROPERTY_INT_ID = 1)
-accept	reject	engine	searchPropertyListAction/addSearchPropertyListAction!drop-7	ALTER SEARCH PROPERTY LIST a ADD 'a' WITH(PROPERTY_SET_GUID =, PROPERTY_INT_ID = 1)
+reject	reject	engine	searchPropertyListAction/addSearchPropertyListAction!drop-6	ALTER SEARCH PROPERTY LIST a ADD 'a' WITH(PROPERTY_SET_GUID 'a', PROPERTY_INT_ID = 1)
+reject	reject	engine	searchPropertyListAction/addSearchPropertyListAction!drop-7	ALTER SEARCH PROPERTY LIST a ADD 'a' WITH(PROPERTY_SET_GUID =, PROPERTY_INT_ID = 1)
 reject	reject	engine	searchPropertyListAction/addSearchPropertyListAction!drop-8	ALTER SEARCH PROPERTY LIST a ADD 'a' WITH(PROPERTY_SET_GUID = 'a' PROPERTY_INT_ID = 1)
 reject	reject	engine	searchPropertyListAction/addSearchPropertyListAction!drop-9	ALTER SEARCH PROPERTY LIST a ADD 'a' WITH(PROPERTY_SET_GUID = 'a', = 1)
-accept	reject	engine	searchPropertyListAction/addSearchPropertyListAction!drop-10	ALTER SEARCH PROPERTY LIST a ADD 'a' WITH(PROPERTY_SET_GUID = 'a', PROPERTY_INT_ID 1)
-accept	reject	engine	searchPropertyListAction/addSearchPropertyListAction!drop-11	ALTER SEARCH PROPERTY LIST a ADD 'a' WITH(PROPERTY_SET_GUID = 'a', PROPERTY_INT_ID =)
-accept	reject	engine	searchPropertyListAction/addSearchPropertyListAction!drop-12	ALTER SEARCH PROPERTY LIST a ADD 'a' WITH(PROPERTY_SET_GUID = 'a', PROPERTY_INT_ID = 1
+reject	reject	engine	searchPropertyListAction/addSearchPropertyListAction!drop-10	ALTER SEARCH PROPERTY LIST a ADD 'a' WITH(PROPERTY_SET_GUID = 'a', PROPERTY_INT_ID 1)
+reject	reject	engine	searchPropertyListAction/addSearchPropertyListAction!drop-11	ALTER SEARCH PROPERTY LIST a ADD 'a' WITH(PROPERTY_SET_GUID = 'a', PROPERTY_INT_ID =)
+reject	reject	engine	searchPropertyListAction/addSearchPropertyListAction!drop-12	ALTER SEARCH PROPERTY LIST a ADD 'a' WITH(PROPERTY_SET_GUID = 'a', PROPERTY_INT_ID = 1
 reject	reject	engine	searchPropertyListAction/addSearchPropertyListAction!insert	ALTER SEARCH PROPERTY LIST a ADD 'a' WITH(PROPERTY_SET_GUID = 'a', PROPERTY_INT_ID = 1) zzz
 reject	reject	engine	searchPropertyListAction/addSearchPropertyListAction!swap	ALTER SEARCH PROPERTY LIST a ADMIN 'a' WITH(PROPERTY_SET_GUID = 'a', PROPERTY_INT_ID = 1)
-accept	reject	engine	searchPropertyListAction/dropSearchPropertyListAction	ALTER SEARCH PROPERTY LIST a DROP 'a'
+reject	reject	engine	searchPropertyListAction/dropSearchPropertyListAction	ALTER SEARCH PROPERTY LIST a DROP 'a'
 reject	reject	engine	searchPropertyListAction/dropSearchPropertyListAction!drop-1	ALTER SEARCH PROPERTY LIST a 'a'
-accept	reject	engine	searchPropertyListAction/dropSearchPropertyListAction!drop-2	ALTER SEARCH PROPERTY LIST a DROP
+reject	reject	engine	searchPropertyListAction/dropSearchPropertyListAction!drop-2	ALTER SEARCH PROPERTY LIST a DROP
 reject	reject	engine	searchPropertyListAction/dropSearchPropertyListAction!insert	ALTER SEARCH PROPERTY LIST a DROP 'a' zzz
 reject	reject	engine	searchPropertyListAction/dropSearchPropertyListAction!swap	ALTER SEARCH PROPERTY LIST a DROP_INDEX 'a'
-accept	reject	engine	addSearchPropertyListAction/Add_stringLiteral_With_LeftParenthesis_PROPERTY_SET_GUI~4d3dfd4c	ALTER SEARCH PROPERTY LIST a ADD 'a' WITH(PROPERTY_SET_GUID = 'a', PROPERTY_INT_ID = 1)
-accept	reject	engine	addSearchPropertyListAction(Comma_Identifier_EqualsSign_stringLiteral)?/%empty	ALTER SEARCH PROPERTY LIST a ADD 'a' WITH(PROPERTY_SET_GUID = 'a', PROPERTY_INT_ID = 1)
+reject	reject	engine	addSearchPropertyListAction/Add_stringLiteral_With_LeftParenthesis_PROPERTY_SET_GUI~4d3dfd4c	ALTER SEARCH PROPERTY LIST a ADD 'a' WITH(PROPERTY_SET_GUID = 'a', PROPERTY_INT_ID = 1)
+reject	reject	engine	addSearchPropertyListAction(Comma_Identifier_EqualsSign_stringLiteral)?/%empty	ALTER SEARCH PROPERTY LIST a ADD 'a' WITH(PROPERTY_SET_GUID = 'a', PROPERTY_INT_ID = 1)
 reject	reject	engine	addSearchPropertyListAction(Comma_Identifier_EqualsSign_stringLiteral)?/%empty!insert	ALTER SEARCH PROPERTY LIST a ADD 'a' WITH(PROPERTY_SET_GUID = 'a', PROPERTY_INT_ID = 1 zzz)
 reject	reject	engine	addSearchPropertyListAction(Comma_Identifier_EqualsSign_stringLiteral)?/Comma_Identifier_EqualsSign_stringLiteral	ALTER SEARCH PROPERTY LIST a ADD 'a' WITH(PROPERTY_SET_GUID = 'a', PROPERTY_INT_ID = 1, a = 'a')
 reject	reject	engine	addSearchPropertyListAction(Comma_Identifier_EqualsSign_stringLiteral)?/Comma_Identifier_EqualsSign_stringLiteral!drop-1	ALTER SEARCH PROPERTY LIST a ADD 'a' WITH(PROPERTY_SET_GUID = 'a', PROPERTY_INT_ID = 1 a = 'a')
@@ -4181,7 +4181,7 @@ reject	reject	engine	addSearchPropertyListAction(Comma_Identifier_EqualsSign_str
 reject	reject	engine	addSearchPropertyListAction(Comma_Identifier_EqualsSign_stringLiteral)?/Comma_Identifier_EqualsSign_stringLiteral!drop-4	ALTER SEARCH PROPERTY LIST a ADD 'a' WITH(PROPERTY_SET_GUID = 'a', PROPERTY_INT_ID = 1, a =)
 reject	reject	engine	addSearchPropertyListAction(Comma_Identifier_EqualsSign_stringLiteral)?/Comma_Identifier_EqualsSign_stringLiteral!truncate	ALTER SEARCH PROPERTY LIST a ADD 'a' WITH(PROPERTY_SET_GUID = 'a', PROPERTY_INT_ID = 1, a =
 reject	reject	engine	addSearchPropertyListAction(Comma_Identifier_EqualsSign_stringLiteral)?/Comma_Identifier_EqualsSign_stringLiteral!insert	ALTER SEARCH PROPERTY LIST a ADD 'a' WITH(PROPERTY_SET_GUID = 'a', PROPERTY_INT_ID = 1, a = 'a' zzz)
-accept	reject	engine	dropSearchPropertyListAction/Drop_stringLiteral	ALTER SEARCH PROPERTY LIST a DROP 'a'
+reject	reject	engine	dropSearchPropertyListAction/Drop_stringLiteral	ALTER SEARCH PROPERTY LIST a DROP 'a'
 accept	accept	engine	createExternalStatements/External_(createExternalTableStatement|createE~94c12a25)	CREATE EXTERNAL RESOURCE POOL a
 accept	reject	engine	createExternalStatements(createExternalTableStatement|createE~94c12a25)/createExternalTableStatement	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a) AS SELECT *
 reject	reject	engine	createExternalStatements(createExternalTableStatement|createE~94c12a25)/createExternalTableStatement!drop-1	CREATE EXTERNAL a WITH(DATA_SOURCE = a) AS SELECT *
@@ -5143,11 +5143,11 @@ reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8
 accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterRouteStatement_ROUTE!drop-6	ALTER ROUTE a WITH LIFETIME =
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterRouteStatement_ROUTE!insert	ALTER ROUTE a WITH LIFETIME = 1 zzz
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterRouteStatement_ROUTE!swap	ALTER ROW a WITH LIFETIME = 1
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterSearchPropertyListStatement_SEARCH	ALTER SEARCH PROPERTY LIST a DROP 'a'
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterSearchPropertyListStatement_SEARCH	ALTER SEARCH PROPERTY LIST a DROP 'a'
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterSearchPropertyListStatement_SEARCH!drop-1	ALTER PROPERTY LIST a DROP 'a'
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterSearchPropertyListStatement_SEARCH!drop-2	ALTER SEARCH LIST a DROP 'a'
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterSearchPropertyListStatement_SEARCH!drop-3	ALTER SEARCH PROPERTY a DROP 'a'
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterSearchPropertyListStatement_SEARCH!drop-4	ALTER SEARCH PROPERTY LIST DROP 'a'
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterSearchPropertyListStatement_SEARCH!drop-4	ALTER SEARCH PROPERTY LIST DROP 'a'
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterSearchPropertyListStatement_SEARCH!swap	ALTER SECONDARY_ROLE PROPERTY LIST a DROP 'a'
 accept	accept	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterSchemaStatement	ALTER SCHEMA a TRANSFER a
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterSchemaStatement!drop-1	ALTER a TRANSFER a
@@ -5317,8 +5317,8 @@ reject	reject	engine	alterFulltextCatalogStatement(With_accentSensitivity)?/With
 accept	accept	engine	alterFulltextIndexStatement/Index_On_schemaObjectThreePartName_alterFulltextIndexAction	ALTER FULLTEXT INDEX ON a ENABLE
 reject	reject	engine	alterFulltextIndexStatement/Index_On_schemaObjectThreePartName_alterFulltextIndexAction!drop-1	ALTER FULLTEXT ON a ENABLE
 reject	reject	engine	alterFulltextIndexStatement/Index_On_schemaObjectThreePartName_alterFulltextIndexAction!drop-2	ALTER FULLTEXT INDEX a ENABLE
-accept	reject	engine	alterFulltextIndexStatement/Index_On_schemaObjectThreePartName_alterFulltextIndexAction!drop-3	ALTER FULLTEXT INDEX ON ENABLE
-accept	reject	engine	alterFulltextIndexStatement/Index_On_schemaObjectThreePartName_alterFulltextIndexAction!drop-4	ALTER FULLTEXT INDEX ON a
+reject	reject	engine	alterFulltextIndexStatement/Index_On_schemaObjectThreePartName_alterFulltextIndexAction!drop-3	ALTER FULLTEXT INDEX ON ENABLE
+reject	reject	engine	alterFulltextIndexStatement/Index_On_schemaObjectThreePartName_alterFulltextIndexAction!drop-4	ALTER FULLTEXT INDEX ON a
 reject	reject	engine	alterFulltextIndexStatement/Index_On_schemaObjectThreePartName_alterFulltextIndexAction!insert	ALTER FULLTEXT INDEX ON a ENABLE zzz
 reject	reject	engine	alterFulltextIndexStatement/Index_On_schemaObjectThreePartName_alterFulltextIndexAction!swap	ALTER FULLTEXT INFINITE ON a ENABLE
 accept	accept	engine	alterFulltextIndexAction/(enableDisableAlterFulltextIndexActio~9f915df3)	ALTER FULLTEXT INDEX ON a ENABLE
@@ -5330,19 +5330,19 @@ reject	reject	engine	alterFulltextIndexAction/addAlterFulltextIndexAction!insert
 reject	reject	engine	alterFulltextIndexAction/addAlterFulltextIndexAction!swap	ALTER FULLTEXT INDEX ON a ADMIN(a)
 accept	accept	engine	alterFulltextIndexAction/dropAlterFulltextIndexAction	ALTER FULLTEXT INDEX ON a DROP(a)
 reject	reject	engine	alterFulltextIndexAction/dropAlterFulltextIndexAction!drop-2	ALTER FULLTEXT INDEX ON a DROP a)
-accept	reject	engine	alterFulltextIndexAction/dropAlterFulltextIndexAction!drop-3	ALTER FULLTEXT INDEX ON a DROP()
-accept	reject	engine	alterFulltextIndexAction/dropAlterFulltextIndexAction!drop-4	ALTER FULLTEXT INDEX ON a DROP(a
+reject	reject	engine	alterFulltextIndexAction/dropAlterFulltextIndexAction!drop-3	ALTER FULLTEXT INDEX ON a DROP()
+reject	reject	engine	alterFulltextIndexAction/dropAlterFulltextIndexAction!drop-4	ALTER FULLTEXT INDEX ON a DROP(a
 reject	reject	engine	alterFulltextIndexAction/dropAlterFulltextIndexAction!insert	ALTER FULLTEXT INDEX ON a DROP(a) zzz
 reject	reject	engine	alterFulltextIndexAction/dropAlterFulltextIndexAction!swap	ALTER FULLTEXT INDEX ON a DROP_INDEX(a)
 accept	accept	engine	alterFulltextIndexAction/startPopulationAlterFulltextIndexAction_START	ALTER FULLTEXT INDEX ON a START INCREMENTAL POPULATION
 reject	reject	engine	alterFulltextIndexAction/startPopulationAlterFulltextIndexAction_START!drop-1	ALTER FULLTEXT INDEX ON a INCREMENTAL POPULATION
-accept	reject	engine	alterFulltextIndexAction/startPopulationAlterFulltextIndexAction_START!drop-2	ALTER FULLTEXT INDEX ON a START POPULATION
-accept	reject	engine	alterFulltextIndexAction/startPopulationAlterFulltextIndexAction_START!drop-3	ALTER FULLTEXT INDEX ON a START INCREMENTAL
+reject	reject	engine	alterFulltextIndexAction/startPopulationAlterFulltextIndexAction_START!drop-2	ALTER FULLTEXT INDEX ON a START POPULATION
+reject	reject	engine	alterFulltextIndexAction/startPopulationAlterFulltextIndexAction_START!drop-3	ALTER FULLTEXT INDEX ON a START INCREMENTAL
 reject	reject	engine	alterFulltextIndexAction/startPopulationAlterFulltextIndexAction_START!insert	ALTER FULLTEXT INDEX ON a START INCREMENTAL POPULATION zzz
 reject	reject	engine	alterFulltextIndexAction/startPopulationAlterFulltextIndexAction_START!swap	ALTER FULLTEXT INDEX ON a STARTUP_STATE INCREMENTAL POPULATION
 accept	accept	engine	alterFulltextIndexAction/otherPopulationAlterFulltextIndexAction	ALTER FULLTEXT INDEX ON a STOP POPULATION
 reject	reject	engine	alterFulltextIndexAction/otherPopulationAlterFulltextIndexAction!drop-1	ALTER FULLTEXT INDEX ON a POPULATION
-accept	reject	engine	alterFulltextIndexAction/otherPopulationAlterFulltextIndexAction!drop-2	ALTER FULLTEXT INDEX ON a STOP
+reject	reject	engine	alterFulltextIndexAction/otherPopulationAlterFulltextIndexAction!drop-2	ALTER FULLTEXT INDEX ON a STOP
 reject	reject	engine	alterFulltextIndexAction/otherPopulationAlterFulltextIndexAction!insert	ALTER FULLTEXT INDEX ON a STOP POPULATION zzz
 reject	reject	engine	alterFulltextIndexAction/otherPopulationAlterFulltextIndexAction!swap	ALTER FULLTEXT INDEX ON a STOPLIST POPULATION
 accept	accept	engine	alterFulltextIndexAction/setAlterFullTextIndexAction	ALTER FULLTEXT INDEX ON a SET STOPLIST a
@@ -5351,9 +5351,9 @@ reject	reject	engine	alterFulltextIndexAction/setAlterFullTextIndexAction!swap	A
 accept	accept	engine	alterFulltextIndexAction/alterColumnAlterFullTextIndexAction	ALTER FULLTEXT INDEX ON a ALTER COLUMN a ADD STATISTICAL_SEMANTICS
 reject	reject	engine	alterFulltextIndexAction/alterColumnAlterFullTextIndexAction!drop-1	ALTER FULLTEXT INDEX ON a COLUMN a ADD STATISTICAL_SEMANTICS
 reject	reject	engine	alterFulltextIndexAction/alterColumnAlterFullTextIndexAction!drop-2	ALTER FULLTEXT INDEX ON a ALTER a ADD STATISTICAL_SEMANTICS
-accept	reject	engine	alterFulltextIndexAction/alterColumnAlterFullTextIndexAction!drop-3	ALTER FULLTEXT INDEX ON a ALTER COLUMN ADD STATISTICAL_SEMANTICS
-accept	reject	engine	alterFulltextIndexAction/alterColumnAlterFullTextIndexAction!drop-4	ALTER FULLTEXT INDEX ON a ALTER COLUMN a STATISTICAL_SEMANTICS
-accept	reject	engine	alterFulltextIndexAction/alterColumnAlterFullTextIndexAction!drop-5	ALTER FULLTEXT INDEX ON a ALTER COLUMN a ADD
+reject	reject	engine	alterFulltextIndexAction/alterColumnAlterFullTextIndexAction!drop-3	ALTER FULLTEXT INDEX ON a ALTER COLUMN ADD STATISTICAL_SEMANTICS
+reject	reject	engine	alterFulltextIndexAction/alterColumnAlterFullTextIndexAction!drop-4	ALTER FULLTEXT INDEX ON a ALTER COLUMN a STATISTICAL_SEMANTICS
+reject	reject	engine	alterFulltextIndexAction/alterColumnAlterFullTextIndexAction!drop-5	ALTER FULLTEXT INDEX ON a ALTER COLUMN a ADD
 reject	reject	engine	alterFulltextIndexAction/alterColumnAlterFullTextIndexAction!insert	ALTER FULLTEXT INDEX ON a ALTER COLUMN a ADD STATISTICAL_SEMANTICS zzz
 reject	reject	engine	alterFulltextIndexAction/alterColumnAlterFullTextIndexAction!swap	ALTER FULLTEXT INDEX ON a ALWAYS COLUMN a ADD STATISTICAL_SEMANTICS
 accept	accept	engine	alterFulltextIndexAction(enableDisableAlterFulltextIndexActio~9f915df3)/enableDisableAlterFulltextIndexAction_ENABLE	ALTER FULLTEXT INDEX ON a ENABLE
@@ -5364,14 +5364,14 @@ accept	accept	engine	setAlterFullTextIndexAction/Set_(setStoplistAlterFulltextIn
 accept	accept	engine	setAlterFullTextIndexAction(setStoplistAlterFulltextIndexAction|~0f50034b)/setStoplistAlterFulltextIndexAction	ALTER FULLTEXT INDEX ON a SET STOPLIST a
 accept	accept	engine	setAlterFullTextIndexAction(setStoplistAlterFulltextIndexAction|~0f50034b)/setChangeTrackingAlterFulltextIndexAction_CHANGE_TRACKING	ALTER FULLTEXT INDEX ON a SET CHANGE_TRACKING MANUAL
 reject	reject	engine	setAlterFullTextIndexAction(setStoplistAlterFulltextIndexAction|~0f50034b)/setChangeTrackingAlterFulltextIndexAction_CHANGE_TRACKING!drop-1	ALTER FULLTEXT INDEX ON a SET MANUAL
-accept	reject	engine	setAlterFullTextIndexAction(setStoplistAlterFulltextIndexAction|~0f50034b)/setChangeTrackingAlterFulltextIndexAction_CHANGE_TRACKING!drop-2	ALTER FULLTEXT INDEX ON a SET CHANGE_TRACKING
+reject	reject	engine	setAlterFullTextIndexAction(setStoplistAlterFulltextIndexAction|~0f50034b)/setChangeTrackingAlterFulltextIndexAction_CHANGE_TRACKING!drop-2	ALTER FULLTEXT INDEX ON a SET CHANGE_TRACKING
 reject	reject	engine	setAlterFullTextIndexAction(setStoplistAlterFulltextIndexAction|~0f50034b)/setChangeTrackingAlterFulltextIndexAction_CHANGE_TRACKING!insert	ALTER FULLTEXT INDEX ON a SET CHANGE_TRACKING MANUAL zzz
 reject	reject	engine	setAlterFullTextIndexAction(setStoplistAlterFulltextIndexAction|~0f50034b)/setChangeTrackingAlterFulltextIndexAction_CHANGE_TRACKING!swap	ALTER FULLTEXT INDEX ON a SET CHANGE_TRACKING_CONTEXT MANUAL
 accept	accept	engine	setAlterFullTextIndexAction(setStoplistAlterFulltextIndexAction|~0f50034b)/setSearchPropertyListAlterFullTextIndexAction_SEARCH	ALTER FULLTEXT INDEX ON a SET SEARCH PROPERTY LIST a
 reject	reject	engine	setAlterFullTextIndexAction(setStoplistAlterFulltextIndexAction|~0f50034b)/setSearchPropertyListAlterFullTextIndexAction_SEARCH!drop-1	ALTER FULLTEXT INDEX ON a SET PROPERTY LIST a
-accept	reject	engine	setAlterFullTextIndexAction(setStoplistAlterFulltextIndexAction|~0f50034b)/setSearchPropertyListAlterFullTextIndexAction_SEARCH!drop-2	ALTER FULLTEXT INDEX ON a SET SEARCH LIST a
-accept	reject	engine	setAlterFullTextIndexAction(setStoplistAlterFulltextIndexAction|~0f50034b)/setSearchPropertyListAlterFullTextIndexAction_SEARCH!drop-3	ALTER FULLTEXT INDEX ON a SET SEARCH PROPERTY a
-accept	reject	engine	setAlterFullTextIndexAction(setStoplistAlterFulltextIndexAction|~0f50034b)/setSearchPropertyListAlterFullTextIndexAction_SEARCH!drop-4	ALTER FULLTEXT INDEX ON a SET SEARCH PROPERTY LIST
+reject	reject	engine	setAlterFullTextIndexAction(setStoplistAlterFulltextIndexAction|~0f50034b)/setSearchPropertyListAlterFullTextIndexAction_SEARCH!drop-2	ALTER FULLTEXT INDEX ON a SET SEARCH LIST a
+reject	reject	engine	setAlterFullTextIndexAction(setStoplistAlterFulltextIndexAction|~0f50034b)/setSearchPropertyListAlterFullTextIndexAction_SEARCH!drop-3	ALTER FULLTEXT INDEX ON a SET SEARCH PROPERTY a
+reject	reject	engine	setAlterFullTextIndexAction(setStoplistAlterFulltextIndexAction|~0f50034b)/setSearchPropertyListAlterFullTextIndexAction_SEARCH!drop-4	ALTER FULLTEXT INDEX ON a SET SEARCH PROPERTY LIST
 reject	reject	engine	setAlterFullTextIndexAction(setStoplistAlterFulltextIndexAction|~0f50034b)/setSearchPropertyListAlterFullTextIndexAction_SEARCH!insert	ALTER FULLTEXT INDEX ON a SET SEARCH PROPERTY LIST a zzz
 reject	reject	engine	setAlterFullTextIndexAction(setStoplistAlterFulltextIndexAction|~0f50034b)/setSearchPropertyListAlterFullTextIndexAction_SEARCH!swap	ALTER FULLTEXT INDEX ON a SET SECONDARY_ROLE PROPERTY LIST a
 accept	accept	engine	setStoplistAlterFulltextIndexAction/stoplistFulltextIndexOption_populationOption	ALTER FULLTEXT INDEX ON a SET STOPLIST a
@@ -5379,15 +5379,15 @@ accept	accept	engine	addAlterFulltextIndexAction/Add_LeftParenthesis_fulltextInd
 accept	accept	engine	addAlterFulltextIndexAction(Comma_fulltextIndexColumn)*/%empty	ALTER FULLTEXT INDEX ON a ADD(a)
 accept	accept	engine	addAlterFulltextIndexAction(Comma_fulltextIndexColumn)*/Comma_fulltextIndexColumn_(Comma_fulltextIndexColumn)*	ALTER FULLTEXT INDEX ON a ADD(a, a)
 reject	reject	engine	addAlterFulltextIndexAction(Comma_fulltextIndexColumn)*/Comma_fulltextIndexColumn_(Comma_fulltextIndexColumn)*!drop-1	ALTER FULLTEXT INDEX ON a ADD(a a)
-accept	reject	engine	addAlterFulltextIndexAction(Comma_fulltextIndexColumn)*/Comma_fulltextIndexColumn_(Comma_fulltextIndexColumn)*!drop-2	ALTER FULLTEXT INDEX ON a ADD(a,)
-accept	reject	engine	addAlterFulltextIndexAction(Comma_fulltextIndexColumn)*/Comma_fulltextIndexColumn_(Comma_fulltextIndexColumn)*!truncate	ALTER FULLTEXT INDEX ON a ADD(a,
+reject	reject	engine	addAlterFulltextIndexAction(Comma_fulltextIndexColumn)*/Comma_fulltextIndexColumn_(Comma_fulltextIndexColumn)*!drop-2	ALTER FULLTEXT INDEX ON a ADD(a,)
+reject	reject	engine	addAlterFulltextIndexAction(Comma_fulltextIndexColumn)*/Comma_fulltextIndexColumn_(Comma_fulltextIndexColumn)*!truncate	ALTER FULLTEXT INDEX ON a ADD(a,
 reject	reject	engine	addAlterFulltextIndexAction(Comma_fulltextIndexColumn)*/Comma_fulltextIndexColumn_(Comma_fulltextIndexColumn)*!insert	ALTER FULLTEXT INDEX ON a ADD(a, a zzz)
 accept	accept	engine	populationOption/(With_NO_POPULATION)?	ALTER FULLTEXT INDEX ON a SET STOPLIST a
 accept	accept	engine	populationOption(With_NO_POPULATION)?/%empty	ALTER FULLTEXT INDEX ON a SET STOPLIST a
 accept	accept	engine	populationOption(With_NO_POPULATION)?/With_NO_POPULATION	ALTER FULLTEXT INDEX ON a SET STOPLIST a WITH NO POPULATION
 reject	reject	engine	populationOption(With_NO_POPULATION)?/With_NO_POPULATION!drop-1	ALTER FULLTEXT INDEX ON a SET STOPLIST a NO POPULATION
 reject	reject	engine	populationOption(With_NO_POPULATION)?/With_NO_POPULATION!drop-2	ALTER FULLTEXT INDEX ON a SET STOPLIST a WITH POPULATION
-accept	reject	engine	populationOption(With_NO_POPULATION)?/With_NO_POPULATION!drop-3	ALTER FULLTEXT INDEX ON a SET STOPLIST a WITH NO
+reject	reject	engine	populationOption(With_NO_POPULATION)?/With_NO_POPULATION!drop-3	ALTER FULLTEXT INDEX ON a SET STOPLIST a WITH NO
 reject	reject	engine	populationOption(With_NO_POPULATION)?/With_NO_POPULATION!insert	ALTER FULLTEXT INDEX ON a SET STOPLIST a WITH NO POPULATION zzz
 reject	reject	engine	populationOption(With_NO_POPULATION)?/With_NO_POPULATION!swap	ALTER FULLTEXT INDEX ON a SET STOPLIST a WITHIN NO POPULATION
 accept	accept	engine	dropAlterFulltextIndexAction/Drop_LeftParenthesis_identifier_(Comma_identifier)*_Rig~1d293539	ALTER FULLTEXT INDEX ON a DROP(a)
@@ -5395,8 +5395,8 @@ accept	accept	engine	dropAlterFulltextIndexAction(Comma_identifier)*/%empty	ALTE
 reject	reject	engine	dropAlterFulltextIndexAction(Comma_identifier)*/%empty!insert	ALTER FULLTEXT INDEX ON a DROP(a zzz)
 accept	accept	engine	dropAlterFulltextIndexAction(Comma_identifier)*/Comma_identifier_(Comma_identifier)*	ALTER FULLTEXT INDEX ON a DROP(a, a)
 reject	reject	engine	dropAlterFulltextIndexAction(Comma_identifier)*/Comma_identifier_(Comma_identifier)*!drop-1	ALTER FULLTEXT INDEX ON a DROP(a a)
-accept	reject	engine	dropAlterFulltextIndexAction(Comma_identifier)*/Comma_identifier_(Comma_identifier)*!drop-2	ALTER FULLTEXT INDEX ON a DROP(a,)
-accept	reject	engine	dropAlterFulltextIndexAction(Comma_identifier)*/Comma_identifier_(Comma_identifier)*!truncate	ALTER FULLTEXT INDEX ON a DROP(a,
+reject	reject	engine	dropAlterFulltextIndexAction(Comma_identifier)*/Comma_identifier_(Comma_identifier)*!drop-2	ALTER FULLTEXT INDEX ON a DROP(a,)
+reject	reject	engine	dropAlterFulltextIndexAction(Comma_identifier)*/Comma_identifier_(Comma_identifier)*!truncate	ALTER FULLTEXT INDEX ON a DROP(a,
 reject	reject	engine	dropAlterFulltextIndexAction(Comma_identifier)*/Comma_identifier_(Comma_identifier)*!insert	ALTER FULLTEXT INDEX ON a DROP(a, a zzz)
 accept	accept	engine	otherPopulationAlterFulltextIndexAction/(STOP|PAUSE|RESUME)_POPULATION	ALTER FULLTEXT INDEX ON a STOP POPULATION
 accept	accept	engine	otherPopulationAlterFulltextIndexAction(STOP|PAUSE|RESUME)/STOP	ALTER FULLTEXT INDEX ON a STOP POPULATION
@@ -5411,7 +5411,7 @@ accept	accept	engine	alterColumnAlterFullTextIndexAction/Alter_Column_alterFullT
 accept	accept	engine	alterFullTextIndexColumn/identifier_(Add|Drop)_STATISTICAL_SEMANTICS	ALTER FULLTEXT INDEX ON a ALTER COLUMN a ADD STATISTICAL_SEMANTICS
 reject	reject	engine	alterFullTextIndexColumn/identifier_(Add|Drop)_STATISTICAL_SEMANTICS!swap	ALTER FULLTEXT INDEX ON a ALTER COLUMN a ADMIN STATISTICAL_SEMANTICS
 accept	accept	engine	alterFullTextIndexColumn(Add|Drop)/Add	ALTER FULLTEXT INDEX ON a ALTER COLUMN a ADD STATISTICAL_SEMANTICS
-accept	reject	engine	alterFullTextIndexColumn(Add|Drop)/Add!truncate	ALTER FULLTEXT INDEX ON a ALTER COLUMN a
+reject	reject	engine	alterFullTextIndexColumn(Add|Drop)/Add!truncate	ALTER FULLTEXT INDEX ON a ALTER COLUMN a
 reject	reject	engine	alterFullTextIndexColumn(Add|Drop)/Add!insert	ALTER FULLTEXT INDEX ON a ALTER COLUMN a ADD zzz STATISTICAL_SEMANTICS
 accept	accept	engine	alterFullTextIndexColumn(Add|Drop)/Drop	ALTER FULLTEXT INDEX ON a ALTER COLUMN a DROP STATISTICAL_SEMANTICS
 reject	reject	engine	alterFullTextIndexColumn(Add|Drop)/Drop!insert	ALTER FULLTEXT INDEX ON a ALTER COLUMN a DROP zzz STATISTICAL_SEMANTICS
@@ -6644,7 +6644,7 @@ accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e448
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropCryptographicProviderStatement_CRYPTOGRAPHIC!swap	DROP CUBE PROVIDER a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropFulltextStatements_FULLTEXT	DROP FULLTEXT CATALOG a
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropFulltextStatements_FULLTEXT!drop-1	DROP CATALOG a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropFulltextStatements_FULLTEXT!drop-3	DROP FULLTEXT CATALOG
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropFulltextStatements_FULLTEXT!drop-3	DROP FULLTEXT CATALOG
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropFulltextStatements_FULLTEXT!insert	DROP FULLTEXT CATALOG a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropFulltextStatements_FULLTEXT!swap	DROP FUNCTION CATALOG a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropLoginStatement_LOGIN	DROP LOGIN a
@@ -6746,11 +6746,11 @@ reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e448
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropEventStatement_EVENT!drop-2	DROP EVENT a ON DATABASE
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropEventStatement_EVENT!drop-3	DROP EVENT NOTIFICATION ON DATABASE
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropEventStatement_EVENT!swap	DROP EVENT_RETENTION_MODE NOTIFICATION a ON DATABASE
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSearchPropertyListStatement_SEARCH	DROP SEARCH PROPERTY LIST a
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSearchPropertyListStatement_SEARCH	DROP SEARCH PROPERTY LIST a
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSearchPropertyListStatement_SEARCH!drop-1	DROP PROPERTY LIST a
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSearchPropertyListStatement_SEARCH!drop-2	DROP SEARCH LIST a
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSearchPropertyListStatement_SEARCH!drop-3	DROP SEARCH PROPERTY a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSearchPropertyListStatement_SEARCH!drop-4	DROP SEARCH PROPERTY LIST
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSearchPropertyListStatement_SEARCH!drop-4	DROP SEARCH PROPERTY LIST
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSearchPropertyListStatement_SEARCH!insert	DROP SEARCH PROPERTY LIST a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSearchPropertyListStatement_SEARCH!swap	DROP SECONDARY_ROLE PROPERTY LIST a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSequenceStatement_SEQUENCE	DROP SEQUENCE a
@@ -7054,7 +7054,7 @@ reject	reject	engine	dropFulltextCatalogStatement/CATALOG_identifier!swap	DROP F
 accept	accept	engine	dropFulltextIndexStatement/Index_On_dropObject	DROP FULLTEXT INDEX ON a
 reject	reject	engine	dropFulltextIndexStatement/Index_On_dropObject!drop-1	DROP FULLTEXT ON a
 reject	reject	engine	dropFulltextIndexStatement/Index_On_dropObject!drop-2	DROP FULLTEXT INDEX a
-accept	reject	engine	dropFulltextIndexStatement/Index_On_dropObject!drop-3	DROP FULLTEXT INDEX ON
+reject	reject	engine	dropFulltextIndexStatement/Index_On_dropObject!drop-3	DROP FULLTEXT INDEX ON
 reject	reject	engine	dropFulltextIndexStatement/Index_On_dropObject!insert	DROP FULLTEXT INDEX ON a zzz
 reject	reject	engine	dropFulltextIndexStatement/Index_On_dropObject!swap	DROP FULLTEXT INFINITE ON a
 accept	accept	engine	removeProviderKeyOpt/(REMOVE_PROVIDER_Key)?	DROP SYMMETRIC KEY a
@@ -11280,8 +11280,8 @@ reject	reject	engine	beginConversationArgument(scalarExpressionBeginDialogConver
 reject	reject	engine	scalarExpressionBeginDialogConversationArgument/expression	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a' WITH a = 1
 reject	reject	engine	onOffBeginDialogConversationArgument/optionOnOff	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a' WITH a = ON
 reject	reject	engine	mergeStatement/mergeStatementWithoutSemicolon_requiredSemicolon	MERGE a USING @a ON 1 = 1 WHEN MATCHED THEN DELETE
-accept	reject	engine	requiredSemicolon/(Semicolon)?	CREATE FULLTEXT STOPLIST a
-accept	reject	engine	requiredSemicolon(Semicolon)?/%empty	CREATE FULLTEXT STOPLIST a
+reject	reject	engine	requiredSemicolon/(Semicolon)?	CREATE FULLTEXT STOPLIST a
+reject	reject	engine	requiredSemicolon(Semicolon)?/%empty	CREATE FULLTEXT STOPLIST a
 accept	accept	engine	requiredSemicolon(Semicolon)?/Semicolon	CREATE FULLTEXT STOPLIST a;
 reject	reject	engine	requiredSemicolon(Semicolon)?/Semicolon!insert	CREATE FULLTEXT STOPLIST a; zzz
 reject	reject	engine	mergeStatementWithoutSemicolon/mergeSpecification_(optimizerHints)?	MERGE a USING @a ON 1 = 1 WHEN MATCHED THEN DELETE
@@ -15242,7 +15242,7 @@ reject	reject	engine	createEventStatement_EVENT(createEventNotificationStatement
 accept	accept	engine	createFulltextStatement_FULLTEXT/FULLTEXT_(createFulltextCatalogStatement|creat~9cad5b52)	CREATE FULLTEXT CATALOG a
 accept	accept	engine	createFulltextStatement_FULLTEXT(createFulltextCatalogStatement|creat~9cad5b52)/createFulltextCatalogStatement	CREATE FULLTEXT CATALOG a
 accept	accept	engine	createFulltextStatement_FULLTEXT(createFulltextCatalogStatement|creat~9cad5b52)/createFulltextIndexStatement	CREATE FULLTEXT INDEX ON a KEY INDEX a
-accept	reject	engine	createFulltextStatement_FULLTEXT(createFulltextCatalogStatement|creat~9cad5b52)/createFulltextStoplistStatement	CREATE FULLTEXT STOPLIST a
+reject	reject	engine	createFulltextStatement_FULLTEXT(createFulltextCatalogStatement|creat~9cad5b52)/createFulltextStoplistStatement	CREATE FULLTEXT STOPLIST a
 accept	accept	engine	createSelectiveXmlIndexStatement_SELECTIVE/SELECTIVE_XML_Index_identifier_On_schemaObjectThreePart~8a895b49	CREATE SELECTIVE XML INDEX a ON a(a) FOR(a = 'a')
 accept	accept	engine	createSelectiveXmlIndexStatement_SELECTIVE(With_xmlNamespaces)?/%empty	CREATE SELECTIVE XML INDEX a ON a(a) FOR(a = 'a')
 reject	reject	engine	createSelectiveXmlIndexStatement_SELECTIVE(With_xmlNamespaces)?/%empty!insert	CREATE SELECTIVE XML INDEX a ON a(a) zzz FOR(a = 'a')
@@ -15351,11 +15351,11 @@ accept	reject	engine	createRemoteServiceBindingStatement_REMOTE(Comma_bindingUse
 accept	accept	engine	createResourcePoolStatement_RESOURCE/RESOURCE_POOL_identifier_resourcePoolStatementBody	CREATE RESOURCE POOL a
 accept	accept	engine	createRoleStatement_ROLE/ROLE_identifier_authorizationOpt	CREATE ROLE a
 accept	reject	engine	createRouteStatement_ROUTE/ROUTE_identifier_authorizationOpt_routeOptionList	CREATE ROUTE a WITH LIFETIME = 1
-accept	reject	engine	createSearchPropertyListStatement_SEARCH/SEARCH_PROPERTY_LIST_identifier_(From_multiPartIdentifi~ef3dbd76	CREATE SEARCH PROPERTY LIST a
-accept	reject	engine	createSearchPropertyListStatement_SEARCH(From_multiPartIdentifier)?/%empty	CREATE SEARCH PROPERTY LIST a
-accept	reject	engine	createSearchPropertyListStatement_SEARCH(From_multiPartIdentifier)?/From_multiPartIdentifier	CREATE SEARCH PROPERTY LIST a FROM a
+reject	reject	engine	createSearchPropertyListStatement_SEARCH/SEARCH_PROPERTY_LIST_identifier_(From_multiPartIdentifi~ef3dbd76	CREATE SEARCH PROPERTY LIST a
+reject	reject	engine	createSearchPropertyListStatement_SEARCH(From_multiPartIdentifier)?/%empty	CREATE SEARCH PROPERTY LIST a
+reject	reject	engine	createSearchPropertyListStatement_SEARCH(From_multiPartIdentifier)?/From_multiPartIdentifier	CREATE SEARCH PROPERTY LIST a FROM a
 reject	reject	engine	createSearchPropertyListStatement_SEARCH(From_multiPartIdentifier)?/From_multiPartIdentifier!drop-1	CREATE SEARCH PROPERTY LIST a a
-accept	reject	engine	createSearchPropertyListStatement_SEARCH(From_multiPartIdentifier)?/From_multiPartIdentifier!drop-2	CREATE SEARCH PROPERTY LIST a FROM
+reject	reject	engine	createSearchPropertyListStatement_SEARCH(From_multiPartIdentifier)?/From_multiPartIdentifier!drop-2	CREATE SEARCH PROPERTY LIST a FROM
 reject	reject	engine	createSearchPropertyListStatement_SEARCH(From_multiPartIdentifier)?/From_multiPartIdentifier!insert	CREATE SEARCH PROPERTY LIST a FROM a zzz
 reject	reject	engine	createSearchPropertyListStatement_SEARCH(From_multiPartIdentifier)?/From_multiPartIdentifier!swap	CREATE SEARCH PROPERTY LIST a FULL a
 accept	accept	engine	createServiceStatement_SERVICE/SERVICE_identifier_authorizationOpt_onQueueClause_(Left~7244bac7	CREATE SERVICE a ON QUEUE a
@@ -16101,25 +16101,25 @@ accept	accept	engine	languageTerm_LANGUAGE(stringLiteral|integer|identifier|bina
 reject	accept	engine	languageTerm_LANGUAGE(stringLiteral|integer|identifier|binary)/identifier!insert	ALTER FULLTEXT INDEX ON a ADD(a LANGUAGE a zzz)
 accept	accept	engine	languageTerm_LANGUAGE(stringLiteral|integer|identifier|binary)/binary	ALTER FULLTEXT INDEX ON a ADD(a LANGUAGE 0x00)
 reject	accept	engine	languageTerm_LANGUAGE(stringLiteral|integer|identifier|binary)/binary!insert	ALTER FULLTEXT INDEX ON a ADD(a LANGUAGE 0x00 zzz)
-reject	accept	engine	changeTrackingFulltextIndexOption_CHANGE_TRACKING/CHANGE_TRACKING_(EqualsSign)?_(Off_(Comma_NO_POPULATION~bfddc819	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING OFF
-reject	accept	engine	changeTrackingFulltextIndexOption_CHANGE_TRACKING(EqualsSign)?/%empty	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING OFF
+accept	accept	engine	changeTrackingFulltextIndexOption_CHANGE_TRACKING/CHANGE_TRACKING_(EqualsSign)?_(Off_(Comma_NO_POPULATION~bfddc819	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING OFF
+accept	accept	engine	changeTrackingFulltextIndexOption_CHANGE_TRACKING(EqualsSign)?/%empty	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING OFF
 reject	reject	engine	changeTrackingFulltextIndexOption_CHANGE_TRACKING(EqualsSign)?/%empty!insert	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING zzz OFF
 accept	accept	engine	changeTrackingFulltextIndexOption_CHANGE_TRACKING(EqualsSign)?/EqualsSign	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING = OFF
 reject	reject	engine	changeTrackingFulltextIndexOption_CHANGE_TRACKING(EqualsSign)?/EqualsSign!insert	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING = zzz OFF
-reject	accept	engine	changeTrackingFulltextIndexOption_CHANGE_TRACKING(Off_(Comma_NO_POPULATION)?|(MANUAL|AUTO))/Off_(Comma_NO_POPULATION)?	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING OFF
+accept	accept	engine	changeTrackingFulltextIndexOption_CHANGE_TRACKING(Off_(Comma_NO_POPULATION)?|(MANUAL|AUTO))/Off_(Comma_NO_POPULATION)?	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING OFF
 reject	reject	engine	changeTrackingFulltextIndexOption_CHANGE_TRACKING(Off_(Comma_NO_POPULATION)?|(MANUAL|AUTO))/Off_(Comma_NO_POPULATION)?!swap	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING OFFLINE
-reject	accept	engine	changeTrackingFulltextIndexOption_CHANGE_TRACKING(Off_(Comma_NO_POPULATION)?|(MANUAL|AUTO))/(MANUAL|AUTO)	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING MANUAL
+accept	accept	engine	changeTrackingFulltextIndexOption_CHANGE_TRACKING(Off_(Comma_NO_POPULATION)?|(MANUAL|AUTO))/(MANUAL|AUTO)	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING MANUAL
 reject	reject	engine	changeTrackingFulltextIndexOption_CHANGE_TRACKING(Off_(Comma_NO_POPULATION)?|(MANUAL|AUTO))/(MANUAL|AUTO)!insert	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING MANUAL zzz
 reject	reject	engine	changeTrackingFulltextIndexOption_CHANGE_TRACKING(Off_(Comma_NO_POPULATION)?|(MANUAL|AUTO))/(MANUAL|AUTO)!swap	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING MARK
-reject	accept	engine	changeTrackingFulltextIndexOption_CHANGE_TRACKING(Comma_NO_POPULATION)?/%empty	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING OFF
-reject	accept	engine	changeTrackingFulltextIndexOption_CHANGE_TRACKING(Comma_NO_POPULATION)?/Comma_NO_POPULATION	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING OFF, NO POPULATION
+accept	accept	engine	changeTrackingFulltextIndexOption_CHANGE_TRACKING(Comma_NO_POPULATION)?/%empty	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING OFF
+accept	accept	engine	changeTrackingFulltextIndexOption_CHANGE_TRACKING(Comma_NO_POPULATION)?/Comma_NO_POPULATION	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING OFF, NO POPULATION
 reject	reject	engine	changeTrackingFulltextIndexOption_CHANGE_TRACKING(Comma_NO_POPULATION)?/Comma_NO_POPULATION!drop-1	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING OFF NO POPULATION
 reject	reject	engine	changeTrackingFulltextIndexOption_CHANGE_TRACKING(Comma_NO_POPULATION)?/Comma_NO_POPULATION!drop-2	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING OFF, POPULATION
 reject	reject	engine	changeTrackingFulltextIndexOption_CHANGE_TRACKING(Comma_NO_POPULATION)?/Comma_NO_POPULATION!drop-3	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING OFF, NO
 reject	reject	engine	changeTrackingFulltextIndexOption_CHANGE_TRACKING(Comma_NO_POPULATION)?/Comma_NO_POPULATION!insert	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING OFF, NO POPULATION zzz
 reject	reject	engine	changeTrackingFulltextIndexOption_CHANGE_TRACKING(Comma_NO_POPULATION)?/Comma_NO_POPULATION!swap	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING OFF, NOCHECK POPULATION
-reject	accept	engine	changeTrackingFulltextIndexOption_CHANGE_TRACKING(MANUAL|AUTO)/MANUAL	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING MANUAL
-reject	accept	engine	changeTrackingFulltextIndexOption_CHANGE_TRACKING(MANUAL|AUTO)/AUTO	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING AUTO
+accept	accept	engine	changeTrackingFulltextIndexOption_CHANGE_TRACKING(MANUAL|AUTO)/MANUAL	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING MANUAL
+accept	accept	engine	changeTrackingFulltextIndexOption_CHANGE_TRACKING(MANUAL|AUTO)/AUTO	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING AUTO
 reject	reject	engine	changeTrackingFulltextIndexOption_CHANGE_TRACKING(MANUAL|AUTO)/AUTO!insert	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING AUTO zzz
 reject	reject	engine	changeTrackingFulltextIndexOption_CHANGE_TRACKING(MANUAL|AUTO)/AUTO!swap	CREATE FULLTEXT INDEX ON a KEY INDEX a WITH CHANGE_TRACKING AUTOMATIC
 reject	reject	engine	createExternalDataSourceStatement_DATA/DATA_SOURCE_identifier_With_LeftParenthesis_(externalDa~68450ef7	CREATE EXTERNAL DATA SOURCE a WITH(TYPE = HADOOP)
@@ -16484,7 +16484,7 @@ accept	accept	engine	alterEndpointStatement_ENDPOINT(payloadInfo)?/payloadInfo	A
 reject	reject	engine	alterFulltextStatement_FULLTEXT/FULLTEXT_(alterFulltextCatalogStatement|alterF~e3755347)	ALTER FULLTEXT a a REORGANIZE
 reject	reject	engine	alterFulltextStatement_FULLTEXT(alterFulltextCatalogStatement|alterF~e3755347)/alterFulltextCatalogStatement	ALTER FULLTEXT a a REORGANIZE
 accept	accept	engine	alterFulltextStatement_FULLTEXT(alterFulltextCatalogStatement|alterF~e3755347)/alterFulltextIndexStatement	ALTER FULLTEXT INDEX ON a ENABLE
-accept	reject	engine	alterFulltextStatement_FULLTEXT(alterFulltextCatalogStatement|alterF~e3755347)/alterFulltextStoplistStatement	ALTER FULLTEXT STOPLIST a DROP ALL
+reject	reject	engine	alterFulltextStatement_FULLTEXT(alterFulltextCatalogStatement|alterF~e3755347)/alterFulltextStoplistStatement	ALTER FULLTEXT STOPLIST a DROP ALL
 reject	reject	engine	alterLoginStatement_LOGIN/LOGIN_identifier_(alterLoginEnableDisable|alterLoginOp~11aef6d9)	ALTER LOGIN a a
 reject	reject	engine	alterLoginStatement_LOGIN(alterLoginEnableDisable|alterLoginOp~11aef6d9)/alterLoginEnableDisable	ALTER LOGIN a a
 accept	accept	engine	alterLoginStatement_LOGIN(alterLoginEnableDisable|alterLoginOp~11aef6d9)/alterLoginOptions	ALTER LOGIN a WITH NO CREDENTIAL
@@ -16535,7 +16535,7 @@ accept	accept	engine	alterPartitionStatement_PARTITION(alterPartitionFunctionSta
 accept	accept	engine	alterQueueStatement_QUEUE/QUEUE_schemaObjectThreePartName_queueOptionList	ALTER QUEUE a WITH STATUS = ON
 accept	accept	engine	alterRoleStatement_ROLE/ROLE_identifier_alterRoleAction	ALTER ROLE a ADD MEMBER a
 accept	accept	engine	alterRouteStatement_ROUTE/ROUTE_identifier_routeOptionList	ALTER ROUTE a WITH LIFETIME = 1
-accept	reject	engine	alterSearchPropertyListStatement_SEARCH/SEARCH_PROPERTY_LIST_identifier_searchPropertyListActio~362c84f1	ALTER SEARCH PROPERTY LIST a DROP 'a'
+reject	reject	engine	alterSearchPropertyListStatement_SEARCH/SEARCH_PROPERTY_LIST_identifier_searchPropertyListActio~362c84f1	ALTER SEARCH PROPERTY LIST a DROP 'a'
 accept	reject	engine	alterSequenceStatement_SEQUENCE/SEQUENCE_schemaObjectTwoPartName_(alterSequenceOptionList)?	ALTER SEQUENCE a
 accept	reject	engine	alterSequenceStatement_SEQUENCE(alterSequenceOptionList)?/%empty	ALTER SEQUENCE a
 accept	accept	engine	alterSequenceStatement_SEQUENCE(alterSequenceOptionList)?/alterSequenceOptionList	ALTER SEQUENCE a RESTART
@@ -16585,12 +16585,12 @@ accept	accept	engine	enableDisableAlterFulltextIndexAction_ENABLE/ENABLE	ALTER F
 accept	accept	engine	enableDisableAlterFulltextIndexAction_DISABLE/DISABLE	ALTER FULLTEXT INDEX ON a DISABLE
 accept	accept	engine	startPopulationAlterFulltextIndexAction_START/START_(INCREMENTAL|Update|Full)_POPULATION	ALTER FULLTEXT INDEX ON a START INCREMENTAL POPULATION
 accept	accept	engine	startPopulationAlterFulltextIndexAction_START(INCREMENTAL|Update|Full)/INCREMENTAL	ALTER FULLTEXT INDEX ON a START INCREMENTAL POPULATION
-accept	reject	engine	startPopulationAlterFulltextIndexAction_START(INCREMENTAL|Update|Full)/INCREMENTAL!truncate	ALTER FULLTEXT INDEX ON a START
+reject	reject	engine	startPopulationAlterFulltextIndexAction_START(INCREMENTAL|Update|Full)/INCREMENTAL!truncate	ALTER FULLTEXT INDEX ON a START
 reject	reject	engine	startPopulationAlterFulltextIndexAction_START(INCREMENTAL|Update|Full)/INCREMENTAL!insert	ALTER FULLTEXT INDEX ON a START INCREMENTAL zzz POPULATION
 reject	reject	engine	startPopulationAlterFulltextIndexAction_START(INCREMENTAL|Update|Full)/INCREMENTAL!swap	ALTER FULLTEXT INDEX ON a START INDEX POPULATION
 accept	accept	engine	startPopulationAlterFulltextIndexAction_START(INCREMENTAL|Update|Full)/Update	ALTER FULLTEXT INDEX ON a START UPDATE POPULATION
 reject	reject	engine	startPopulationAlterFulltextIndexAction_START(INCREMENTAL|Update|Full)/Update!insert	ALTER FULLTEXT INDEX ON a START UPDATE zzz POPULATION
-accept	reject	engine	startPopulationAlterFulltextIndexAction_START(INCREMENTAL|Update|Full)/Update!swap	ALTER FULLTEXT INDEX ON a START UPDATETEXT POPULATION
+reject	reject	engine	startPopulationAlterFulltextIndexAction_START(INCREMENTAL|Update|Full)/Update!swap	ALTER FULLTEXT INDEX ON a START UPDATETEXT POPULATION
 accept	accept	engine	startPopulationAlterFulltextIndexAction_START(INCREMENTAL|Update|Full)/Full	ALTER FULLTEXT INDEX ON a START FULL POPULATION
 reject	reject	engine	startPopulationAlterFulltextIndexAction_START(INCREMENTAL|Update|Full)/Full!insert	ALTER FULLTEXT INDEX ON a START FULL zzz POPULATION
 reject	reject	engine	startPopulationAlterFulltextIndexAction_START(INCREMENTAL|Update|Full)/Full!swap	ALTER FULLTEXT INDEX ON a START FULLSCAN POPULATION
@@ -16718,7 +16718,7 @@ accept	accept	engine	dropCryptographicProviderStatement_CRYPTOGRAPHIC/CRYPTOGRAP
 accept	accept	engine	dropFulltextStatements_FULLTEXT/FULLTEXT_(dropFulltextCatalogStatement|dropFul~5899fe98)	DROP FULLTEXT CATALOG a
 accept	accept	engine	dropFulltextStatements_FULLTEXT(dropFulltextCatalogStatement|dropFul~5899fe98)/dropFulltextCatalogStatement	DROP FULLTEXT CATALOG a
 accept	accept	engine	dropFulltextStatements_FULLTEXT(dropFulltextCatalogStatement|dropFul~5899fe98)/dropFulltextIndexStatement	DROP FULLTEXT INDEX ON a
-accept	reject	engine	dropFulltextStatements_FULLTEXT(dropFulltextCatalogStatement|dropFul~5899fe98)/dropFulltextStoplistStatement	DROP FULLTEXT STOPLIST a
+reject	reject	engine	dropFulltextStatements_FULLTEXT(dropFulltextCatalogStatement|dropFul~5899fe98)/dropFulltextStoplistStatement	DROP FULLTEXT STOPLIST a
 accept	accept	engine	dropLoginStatement_LOGIN/LOGIN_identifier	DROP LOGIN a
 accept	accept	engine	dropResourcePoolStatement_RESOURCE/RESOURCE_POOL_identifier	DROP RESOURCE POOL a
 accept	accept	engine	dropWorkloadStatements_WORKLOAD/WORKLOAD_(dropWorkloadGroupStatement_GROUP|dro~2bff6494)	DROP WORKLOAD GROUP a
@@ -16765,7 +16765,7 @@ reject	reject	engine	dropEventStatement_EVENT(dropEventNotificationStatement_NOT
 accept	accept	engine	dropEventStatement_EVENT(dropEventNotificationStatement_NOTIF~c5fe8f0b)/dropEventSessionStatement_SESSION	DROP EVENT SESSION a ON DATABASE
 reject	reject	engine	dropEventStatement_EVENT(dropEventNotificationStatement_NOTIF~c5fe8f0b)/dropEventSessionStatement_SESSION!drop-2	DROP EVENT SESSION ON DATABASE
 reject	reject	engine	dropEventStatement_EVENT(dropEventNotificationStatement_NOTIF~c5fe8f0b)/dropEventSessionStatement_SESSION!swap	DROP EVENT SESSIONS a ON DATABASE
-accept	reject	engine	dropSearchPropertyListStatement_SEARCH/SEARCH_PROPERTY_LIST_identifier_requiredSemicolon	DROP SEARCH PROPERTY LIST a
+reject	reject	engine	dropSearchPropertyListStatement_SEARCH/SEARCH_PROPERTY_LIST_identifier_requiredSemicolon	DROP SEARCH PROPERTY LIST a
 accept	accept	engine	dropSequenceStatement_SEQUENCE/SEQUENCE_(If_Exists)?_dropObjectList	DROP SEQUENCE a
 accept	accept	engine	dropSequenceStatement_SEQUENCE(If_Exists)?/%empty	DROP SEQUENCE a
 reject	reject	engine	dropSequenceStatement_SEQUENCE(If_Exists)?/%empty!insert	DROP SEQUENCE zzz a
