@@ -39,6 +39,9 @@ func TestGetQueryType_UnmappedStaysUnknown(t *testing.T) {
 		{"CREATE TABLE T1 (A INT);", analysis.DDL},
 		{"ALTER TABLE T1 ADD COLUMN B INT;", analysis.DDL},
 		{"DROP TABLE T1;", analysis.DDL},
+		{"CREATE COMPUTE POOL P MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = CPU_X64_XS;", analysis.DDL},
+		{"ALTER COMPUTE POOL P SUSPEND;", analysis.DDL},
+		{"DROP COMPUTE POOL P;", analysis.DDL},
 	} {
 		file, err := parser.Parse(tc.sql)
 		if err != nil {

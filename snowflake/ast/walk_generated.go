@@ -1232,6 +1232,30 @@ func walkChildren(v Visitor, node Node) {
 		for _, item := range n.Whens {
 			walkMergeWhen(v, item)
 		}
+	case *ObjectClause:
+		for _, item := range n.Names {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		for _, item := range n.Options {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		for _, item := range n.Tags {
+			walkTagAssignment(v, item)
+		}
+		Walk(v, n.Query)
+	case *ObjectStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, item := range n.Clauses {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 	case *OuterJoinExpr:
 		Walk(v, n.Operand)
 	case *ParenExpr:

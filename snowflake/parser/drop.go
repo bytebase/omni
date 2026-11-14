@@ -12,6 +12,23 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 	dropTok := p.advance() // consume DROP
 	start := dropTok.Loc
 
+	// An object read by its documented shape (object.go) whose page documents
+	// DROP <kind> [ IF EXISTS ] <name>.
+	if f := p.matchObjectForm(); f != nil && f.drop {
+		for range f.words {
+			p.advance()
+		}
+		node, err := p.parseDropObject(ast.DropObject, start, !f.dropNoIfExists, false)
+		if err == nil && f.nameParts > 0 {
+			_, err = p.checkFormNameParts(f, node.(*ast.DropStmt).Name)
+		}
+		if err != nil {
+			return nil, err
+		}
+		node.(*ast.DropStmt).Object = f.kind
+		return node, nil
+	}
+
 	switch p.cur.Type {
 	case kwDATABASE:
 		// DATABASE handled by T2.1; parseDropDatabaseStmt consumes DATABASE.
