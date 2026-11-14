@@ -974,6 +974,11 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+		for _, item := range n.AuthAlternatives {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 	case *ValuesStmt:
 		for _, item := range n.OrderBy {
 			if item != nil {
