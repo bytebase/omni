@@ -3409,6 +3409,28 @@ type CopyIntoLocationStmt struct {
 // Tag implements Node.
 func (n *CopyIntoLocationStmt) Tag() NodeTag { return T_CopyIntoLocationStmt }
 
+// CopyFilesStmt represents COPY FILES (copy files from one stage to another):
+//
+//	COPY FILES INTO @<stage>[/<path>/]
+//	  FROM @<stage>[/<path>/]
+//	  [ FILES = ( '<file_name>' [ , ... ] ) ] [ PATTERN = '<regex_pattern>' ]
+//	  [ DETAILED_OUTPUT = { TRUE | FALSE } ]
+//	COPY FILES INTO @<stage>[/<path>/]
+//	  FROM ( SELECT <existing_url> [ , <new_filename> ] FROM ... )
+//	  [ DETAILED_OUTPUT = { TRUE | FALSE } ]
+//
+// https://docs.snowflake.com/en/sql-reference/sql/copy-files
+type CopyFilesStmt struct {
+	Into      *StageLocation
+	From      *StageLocation // FROM @<stage>; nil when FromQuery is set
+	FromQuery Node           // FROM ( SELECT ... ); nil when From is set
+	Options   []*CopyOption  // FILES / PATTERN / DETAILED_OUTPUT
+	Loc       Loc
+}
+
+// Tag implements Node.
+func (n *CopyFilesStmt) Tag() NodeTag { return T_CopyFilesStmt }
+
 // PutStmt represents a PUT statement (upload a local file to an internal stage):
 //
 //	PUT file://<path> <stage> [ PARALLEL = n ] [ AUTO_COMPRESS = b ]
@@ -3474,6 +3496,7 @@ var (
 	_ Node = (*CopyOption)(nil)
 	_ Node = (*CopyIntoTableStmt)(nil)
 	_ Node = (*CopyIntoLocationStmt)(nil)
+	_ Node = (*CopyFilesStmt)(nil)
 	_ Node = (*PutStmt)(nil)
 	_ Node = (*GetStmt)(nil)
 	_ Node = (*ListStmt)(nil)

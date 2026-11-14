@@ -94,6 +94,9 @@ func (p *Parser) parseCreateFileFormatStmt(start ast.Loc, orReplace, orAlter, te
 			return nil, err
 		}
 		stmt.Options = append(stmt.Options, opt)
+		// The page separates format options "by blank spaces, commas, or
+		// new lines".
+		p.acceptOptionComma()
 	}
 
 	stmt.Loc.End = p.prev.Loc.End
@@ -163,6 +166,7 @@ func (p *Parser) parseAlterFileFormatStmt() (ast.Node, error) {
 				return nil, err
 			}
 			opts = append(opts, opt)
+			p.acceptOptionComma() // as CREATE FILE FORMAT's are
 		}
 		if len(opts) == 0 {
 			// SET with nothing settable is a syntax error.
