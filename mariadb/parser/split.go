@@ -1,6 +1,6 @@
 package parser
 
-import "regexp"
+import "strings"
 
 // Segment represents a portion of SQL text delimited by top-level semicolons.
 type Segment struct {
@@ -498,33 +498,93 @@ func Split(sql string) []Segment {
 	return segments
 }
 
-// createPackageHead is the text of a statement before the PACKAGE of CREATE PACKAGE: CREATE,
-// OR REPLACE, and a definer, CURRENT_USER or user[@host].
-//
-// Ref: create_routine's sp_handler_package_spec and sp_handler_package_body arms in MariaDB
-// 11.8 sql/sql_yacc.yy.
-var createPackageHead = regexp.MustCompile(`(?is)^CREATE\s+(?:OR\s+REPLACE\s+)?` +
-	`(?:DEFINER\s*=\s*(?:CURRENT_USER(?:\s*\(\s*\))?|[^\s@]+(?:\s*@\s*[^\s@]+)?)\s+)?$`)
-
 // createsPackage reports whether head, the text of a statement up to a PACKAGE, is the head
-// of CREATE PACKAGE, after any comments the statement starts with.
+// of CREATE PACKAGE: CREATE, OR REPLACE, and a definer, CURRENT_USER[()] or user[@host],
+// a name bare or quoted. Comments may stand anywhere between the words.
+//
+// Ref: create_routine's sp_handler_package_spec and sp_handler_package_body arms, and
+// definer_opt, in MariaDB 11.8 sql/sql_yacc.yy.
 func createsPackage(head string) bool {
+	toks := packageHeadTokens(head)
+	if toks == nil {
+		return false
+	}
+	at := func(i int, word string) bool { return i < len(toks) && strings.EqualFold(toks[i], word) }
+	i := 0
+	if !at(i, "CREATE") {
+		return false
+	}
+	i++
+	if at(i, "OR") {
+		if !at(i+1, "REPLACE") {
+			return false
+		}
+		i += 2
+	}
+	if at(i, "DEFINER") {
+		i++
+		if at(i, "=") {
+			i++
+		}
+		switch {
+		case at(i, "CURRENT_USER"):
+			i++
+			if at(i, "(") && at(i+1, ")") {
+				i += 2
+			}
+		case i < len(toks) && toks[i] != "@" && toks[i] != "=" && toks[i] != "(" && toks[i] != ")":
+			i++
+			if at(i, "@") && i+1 < len(toks) {
+				i += 2
+			}
+		default:
+			return false
+		}
+	}
+	return i == len(toks)
+}
+
+// packageHeadTokens cuts a statement's head into words, quoted names and strings, and the
+// characters @ = ( ), dropping whitespace and comments. It returns nil for anything else,
+// which no CREATE PACKAGE head holds.
+func packageHeadTokens(head string) []string {
+	var toks []string
 	i := 0
 	for i < len(head) {
+		c := head[i]
 		switch {
-		case head[i] == ' ' || head[i] == '\t' || head[i] == '\n' || head[i] == '\r':
+		case c == ' ' || c == '\t' || c == '\n' || c == '\r':
 			i++
 		case isDashComment(head, i):
 			i = skipDashComment(head, i)
-		case head[i] == '#':
+		case c == '#':
 			i = skipHashComment(head, i)
-		case head[i] == '/' && i+1 < len(head) && head[i+1] == '*':
+		case c == '/' && i+1 < len(head) && head[i+1] == '*' && !isExecutableCommentStart(head, i):
 			i = skipBlockCommentMySQL(head, i)
+		case c == '\'':
+			j := skipSingleQuoteMySQL(head, i)
+			toks = append(toks, head[i:j])
+			i = j
+		case c == '"':
+			j := skipDoubleQuoteMySQL(head, i)
+			toks = append(toks, head[i:j])
+			i = j
+		case c == '`':
+			j := skipBacktick(head, i)
+			toks = append(toks, head[i:j])
+			i = j
+		case c == '@' || c == '=' || c == '(' || c == ')':
+			toks = append(toks, string(c))
+			i++
+		case isIdentByte(c):
+			j := skipToEndOfWord(head, i)
+			toks = append(toks, head[i:j])
+			i = j
 		default:
-			return createPackageHead.MatchString(head[i:])
+			return nil
 		}
 	}
-	return false
+	return toks
 }
 
 // skipSingleQuoteMySQL skips a single-quoted string starting at position i.

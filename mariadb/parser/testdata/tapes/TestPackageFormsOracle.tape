@@ -161,6 +161,18 @@
 < ok 0 0
 > exec ^
 : string
+| CREATE /* c */ PACKAGE pk PROCEDURE p(); END
+< ok 0 0
+> exec ^
+: string
+| CREATE DEFINER = 'a b'@'localhost' PACKAGE pk PROCEDURE p(); END
+< ok 0 0
+> exec ^
+: string
+| CREATE OR /* x */ REPLACE DEFINER = CURRENT_USER ( ) PACKAGE pk PROCEDURE p(); END
+< ok 0 0
+> exec ^
+: string
 | DROP PACKAGE pk
 < ok 0 0
 > exec ^

@@ -46,6 +46,9 @@ func TestPackageFormsOracle(t *testing.T) {
 		{"CREATE PACKAGE pk PROCEDURE d.p(); END", false},
 		{"CREATE PACKAGE pk DECLARE x INT; END", false},
 		{"CREATE PACKAGE `package` PROCEDURE `end`(); END", true},
+		{"CREATE /* c */ PACKAGE pk PROCEDURE p(); END", true},
+		{"CREATE DEFINER = 'a b'@'localhost' PACKAGE pk PROCEDURE p(); END", true},
+		{"CREATE OR /* x */ REPLACE DEFINER = CURRENT_USER ( ) PACKAGE pk PROCEDURE p(); END", true},
 
 		{"DROP PACKAGE pk", true},
 		{"DROP PACKAGE IF EXISTS d.pk", true},
