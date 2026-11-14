@@ -252,7 +252,8 @@ const dropProbeTable = `CREATE TABLE dbo.drop_probe (
 // "constraint x", and "period".
 const dropProbeObjects = `SELECT 'column ' + name FROM sys.columns WHERE object_id = OBJECT_ID('dbo.drop_probe')
 UNION ALL SELECT 'constraint ' + name FROM sys.objects WHERE parent_object_id = OBJECT_ID('dbo.drop_probe') AND type IN ('PK', 'C', 'D')
-UNION ALL SELECT 'period' FROM sys.periods WHERE object_id = OBJECT_ID('dbo.drop_probe')`
+UNION ALL SELECT 'period' FROM sys.periods WHERE object_id = OBJECT_ID('dbo.drop_probe')
+ORDER BY 1`
 
 // TestAlterTableDropListEffectOracle runs ALTER TABLE ... DROP lists on SQL
 // Server and checks that omni's actions say what SQL Server does: which kind
