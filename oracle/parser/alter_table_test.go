@@ -219,23 +219,23 @@ func TestParseAlterTableMultipleActions(t *testing.T) {
 }
 
 func TestP2AlterTablePartitionOptionsAndActionBoundaries(t *testing.T) {
-	sql := "ALTER TABLE sales ADD PARTITION p1 VALUES LESS THAN (10) TABLESPACE ts1 MOVE PARTITION p2 TABLESPACE ts2 UPDATE INDEXES"
-	stmt := parseAlterTableForP2(t, sql)
-	if stmt.Actions.Len() != 2 {
-		t.Fatalf("expected 2 actions, got %d", stmt.Actions.Len())
-	}
+	// A partition operation stands alone in its statement: Oracle refuses
+	// ADD PARTITION ... MOVE PARTITION ... (ORA-14020 at MOVE).
+	ParseShouldFail(t, "ALTER TABLE sales ADD PARTITION p1 VALUES LESS THAN (10) TABLESPACE ts1 MOVE PARTITION p2 TABLESPACE ts2 UPDATE INDEXES")
 
+	stmt := parseAlterTableForP2(t, "ALTER TABLE sales ADD PARTITION p1 VALUES LESS THAN (10) TABLESPACE ts1")
+	if stmt.Actions.Len() != 1 {
+		t.Fatalf("expected 1 action, got %d", stmt.Actions.Len())
+	}
 	add := stmt.Actions.Items[0].(*ast.AlterTableCmd)
 	if add.Action != ast.AT_ADD_PARTITION || add.Subtype != "PARTITION" || add.ColumnName != "P1" {
 		t.Fatalf("unexpected ADD PARTITION command: action=%d subtype=%q name=%q", add.Action, add.Subtype, add.ColumnName)
 	}
 	assertAlterTableOption(t, add, "VALUES", "LESS THAN ( 10 )")
 	assertAlterTableOption(t, add, "TABLESPACE", "TS1")
-	if option := findAlterTableOption(add, "MOVE"); option != nil {
-		t.Fatalf("ADD PARTITION options swallowed next action: %#v", option)
-	}
 
-	move := stmt.Actions.Items[1].(*ast.AlterTableCmd)
+	stmt = parseAlterTableForP2(t, "ALTER TABLE sales MOVE PARTITION p2 TABLESPACE ts2 UPDATE INDEXES")
+	move := stmt.Actions.Items[0].(*ast.AlterTableCmd)
 	if move.Action != ast.AT_MOVE || move.Subtype != "PARTITION" || move.ColumnName != "P2" {
 		t.Fatalf("unexpected MOVE PARTITION command: action=%d subtype=%q name=%q", move.Action, move.Subtype, move.ColumnName)
 	}

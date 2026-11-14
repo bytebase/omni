@@ -1,8 +1,6 @@
 package parser
 
 import (
-	"strings"
-
 	nodes "github.com/bytebase/omni/oracle/ast"
 )
 
@@ -29,6 +27,12 @@ import (
 //	    [ enable_disable_clause ]...
 //	    [ { ENABLE | DISABLE } TABLE LOCK ]
 //	    [ { ENABLE | DISABLE } ALL TRIGGERS ]
+//
+// Oracle combines property, column and constraint clauses in one statement
+// (ADD (c NUMBER) LOGGING, PCTFREE 5 NOPARALLEL), but refuses to combine
+// some operations with any other (alterTableCmdAlone), and after an
+// enable_disable_clause takes only more of them (ORA-03049 for ENABLE
+// CONSTRAINT c LOGGING).
 func (p *Parser) parseAlterTableStmt(start int) (*nodes.AlterTableStmt, error) {
 	p.advance() // consume TABLE
 
@@ -36,24 +40,28 @@ func (p *Parser) parseAlterTableStmt(start int) (*nodes.AlterTableStmt, error) {
 		Actions: &nodes.List{},
 		Loc:     nodes.Loc{Start: start},
 	}
-	var parseErr132 error
-
-	// Table name
-	stmt.Name, parseErr132 = p.parseObjectName()
-	if parseErr132 !=
-
-		// Parse one or more ALTER TABLE actions
-		nil {
-		return nil, parseErr132
+	var err error
+	stmt.Name, err = p.parseObjectName()
+	if err != nil {
+		return nil, err
 	}
 
-	for p.cur.Type != ';' && p.cur.Type != tokEOF {
-		cmd, parseErr133 := p.parseAlterTableAction()
-		if parseErr133 != nil {
-			return nil, parseErr133
+	enableDisable := false
+	for !p.isStatementEnd() {
+		tok := p.cur
+		if enableDisable && p.cur.Type != kwENABLE && p.cur.Type != kwDISABLE {
+			return nil, p.syntaxErrorAtCur()
+		}
+		cmd, err := p.parseAlterTableAction()
+		if err != nil {
+			return nil, err
 		}
 		if cmd == nil {
-			break
+			return nil, p.syntaxErrorAtCur()
+		}
+		alone, last := alterTableCmdAlone(cmd)
+		if alone && stmt.Actions.Len() > 0 {
+			return nil, p.syntaxErrorAtTok(tok)
 		}
 		stmt.Actions.Items = append(stmt.Actions.Items, cmd)
 		// The constraints of an ADD ( ... ) list follow its columns.
@@ -61,19 +69,50 @@ func (p *Parser) parseAlterTableStmt(start int) (*nodes.AlterTableStmt, error) {
 			stmt.Actions.Items = append(stmt.Actions.Items, extra)
 		}
 		p.addedConstraints = nil
+		if (alone || last) && !p.isStatementEnd() {
+			return nil, p.syntaxErrorAtCur()
+		}
+		switch cmd.Action {
+		case nodes.AT_ENABLE_DISABLE, nodes.AT_ENABLE_DISABLE_TABLE_LOCK, nodes.AT_ENABLE_DISABLE_TRIGGERS:
+			enableDisable = true
+		}
 	}
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
-// parseAlterTableAction parses a single ALTER TABLE action.
-//
-//	alter_table_properties | column_clauses | constraint_clauses |
-//	alter_table_partitioning | move_table_clause | modify_to_partitioned |
-//	modify_opaque_type | immutable_table_clauses | blockchain_table_clauses |
-//	duplicated_table_refresh | enable_disable_clause
+// alterTableCmdAlone reports an operation Oracle runs only alone in its
+// ALTER TABLE statement: a partition operation (ORA-14048), MOVE
+// (ORA-14133), MODIFY DEFAULT ATTRIBUTES (ORA-14121), a RENAME (ORA-14047,
+// ORA-23290) or a dropped or unused column (ORA-12987); and, as last, one
+// nothing may follow: MODIFY CONSTRAINT and SHRINK SPACE (ORA-03049,
+// ORA-10630 for what follows them).
+func alterTableCmdAlone(cmd *nodes.AlterTableCmd) (alone, last bool) {
+	switch cmd.Action {
+	case nodes.AT_MODIFY_CONSTRAINT, nodes.AT_SHRINK_SPACE:
+		return false, true
+	case nodes.AT_ADD_PARTITION, nodes.AT_DROP_PARTITION, nodes.AT_DROP_SUBPARTITION,
+		nodes.AT_TRUNCATE_PARTITION, nodes.AT_MODIFY_PARTITION, nodes.AT_MODIFY_SUBPARTITION,
+		nodes.AT_MODIFY_DEFAULT_ATTRS, nodes.AT_MOVE, nodes.AT_SPLIT_PARTITION,
+		nodes.AT_SPLIT_SUBPARTITION, nodes.AT_MERGE_PARTITIONS, nodes.AT_MERGE_SUBPARTITIONS,
+		nodes.AT_EXCHANGE_PARTITION, nodes.AT_COALESCE_PARTITION, nodes.AT_RENAME_PARTITION,
+		nodes.AT_SET_INTERVAL, nodes.AT_SET_PARTITIONING, nodes.AT_SET_SUBPARTITION_TEMPLATE,
+		nodes.AT_RENAME, nodes.AT_RENAME_COLUMN, nodes.AT_RENAME_CONSTRAINT,
+		nodes.AT_DROP_COLUMN, nodes.AT_SET_UNUSED, nodes.AT_DROP_UNUSED_COLUMNS:
+		return true, false
+	case nodes.AT_ALTER_PROPERTY:
+		return cmd.Subtype == "RENAME LOB", false
+	}
+	return false, false
+}
+
+// parseAlterTableAction parses a single ALTER TABLE action, or returns nil
+// when the current token starts none.
 func (p *Parser) parseAlterTableAction() (*nodes.AlterTableCmd, error) {
+	if p.isAlterTablePartitioningStart() {
+		return p.parseAlterTablePartitioning()
+	}
 	switch p.cur.Type {
 	case kwADD:
 		return p.parseAlterTableAdd()
@@ -83,95 +122,73 @@ func (p *Parser) parseAlterTableAction() (*nodes.AlterTableCmd, error) {
 		return p.parseAlterTableDrop()
 	case kwRENAME:
 		return p.parseAlterTableRename()
-	case kwTRUNCATE:
-		return p.parseAlterTableTruncatePartition()
 	case kwENABLE, kwDISABLE:
 		return p.parseAlterTableEnableDisable()
 	case kwSET:
 		return p.parseAlterTableSet()
-	case kwLOGGING, kwNOLOGGING:
-		return p.parseAlterTableProperty()
-	case kwCOMPRESS, kwNOCOMPRESS:
-		return p.parseAlterTableProperty()
-	case kwPARALLEL, kwNOPARALLEL:
-		return p.parseAlterTableProperty()
-	case kwCACHE:
-		return p.parseAlterTableProperty()
-	case kwREFRESH:
-		return p.parseAlterTableRefresh()
 	case kwFLASHBACK:
 		return p.parseAlterTableFlashbackArchive()
 	case kwREAD:
 		return p.parseAlterTableReadOnly()
-	case kwROW:
-		return p.parseAlterTableRowStore()
-	case kwRESULT_CACHE:
-		return p.parseAlterTableProperty()
-	default:
-		if p.isIdentLike() {
-			switch p.cur.Str {
-			case "MOVE":
-				return p.parseAlterTableMove()
-			case "SPLIT":
-				return p.parseAlterTableSplit()
-			case "MERGE":
-				return p.parseAlterTableMerge()
-			case "EXCHANGE":
-				return p.parseAlterTableExchange()
-			case "COALESCE":
-				return p.parseAlterTableCoalesce()
-			case "SHRINK":
-				return p.parseAlterTableShrinkSpace()
-			case "INMEMORY":
-				return p.parseAlterTableInmemory()
-			case "ILM":
-				return p.parseAlterTableILM()
-			case "SUPPLEMENTAL":
-				return p.parseAlterTableSupplementalLog()
-			case "ALLOCATE":
-				return p.parseAlterTableAllocateExtent()
-			case "DEALLOCATE":
-				return p.parseAlterTableDeallocateUnused()
-			case "NOCOMPRESS":
-				return p.parseAlterTableProperty()
-			case "NOCACHE":
-				return p.parseAlterTableProperty()
-			case "PCTFREE", "PCTUSED", "INITRANS":
-				return p.parseAlterTablePhysicalAttr()
-			case "STORAGE":
-				return p.parseAlterTableStorageClause()
-			case "MEMOPTIMIZE":
-				return p.parseAlterTableProperty()
-			case "COLUMN":
-				// COLUMN in MODIFY COLUMN ... SUBSTITUTABLE
-				return nil, nil
-			case "OVERFLOW":
-				return p.parseAlterTableProperty()
-			case "MAPPING":
-				return p.parseAlterTableProperty()
-			case "NOMAPPING":
-				return p.parseAlterTableProperty()
-			case "NO":
-				return p.parseAlterTableNoPrefix()
-			case "RECORDS_PER_BLOCK":
-				return p.parseAlterTableProperty()
-			case "UPGRADE":
-				return p.parseAlterTableProperty()
-			case "INDEXING":
-				return p.parseAlterTableProperty()
-			case "SEGMENT":
-				return p.parseAlterTableProperty()
-			case "ANNOTATIONS":
-				return p.parseAlterTableProperty()
-			case "PCTTHRESHOLD":
-				return p.parseAlterTablePhysicalAttr()
-			}
-		}
-		return nil, nil
+	case kwDEFAULT:
+		return p.parseAlterTableExternal()
+	case kwREFRESH:
+		return p.parseAlterTableRefresh()
 	}
+	switch {
+	case p.cur.Type == kwLOGGING, p.cur.Type == kwNOLOGGING,
+		p.cur.Type == kwPARALLEL, p.cur.Type == kwNOPARALLEL,
+		p.cur.Type == kwCACHE, p.atWord("NOCACHE"),
+		p.cur.Type == kwRESULT_CACHE, p.atWord("MEMOPTIMIZE"),
+		p.atWord("UPGRADE"), p.atWord("ANNOTATIONS"),
+		p.atWord("MINIMIZE"), p.atWord("NOMINIMIZE"):
+		return p.parseAlterTableProperty()
+	case p.isATTableCompressionStart():
+		return p.parseAlterTableCompression()
+	case p.atWord("INMEMORY"):
+		return p.parseAlterTableInmemory()
+	case p.atWord("ILM"):
+		return p.parseAlterTableClause("ILM", p.parseATIlmClause)
+	case p.atWord("ALLOCATE"):
+		return p.parseAlterTableClause("ALLOCATE EXTENT", p.parseATAllocateExtent)
+	case p.atWord("DEALLOCATE"):
+		return p.parseAlterTableClause("DEALLOCATE UNUSED", p.parseATDeallocateUnused)
+	case p.atWord("SHRINK"):
+		return p.parseAlterTableShrinkSpace()
+	case p.isATPhysicalAttrStart(), p.atWord("PCTTHRESHOLD"):
+		return p.parseAlterTablePhysicalAttr()
+	case p.atWord("OVERFLOW"), p.atWord("MAPPING"), p.atWord("NOMAPPING"),
+		p.atWord("INCLUDING"), p.atWord("COALESCE"):
+		return p.parseAlterTableIOT()
+	case p.atWord("NO"):
+		return p.parseAlterTableNoPrefix()
+	case p.atWord("MOVE"):
+		return p.parseAlterTableMove()
+	case p.atWord("ACCESS"), p.atWord("LOCATION"), p.atWord("REJECT"), p.atWord("PROJECT"):
+		return p.parseAlterTableExternal()
+	}
+	return nil, nil
 }
 
-// parseAlterTableAdd parses ADD column, constraint, partition, or period.
+// parseAlterTableClause parses a property clause read by parse and records
+// it as one option.
+func (p *Parser) parseAlterTableClause(subtype string, parse func() error) (*nodes.AlterTableCmd, error) {
+	start := p.pos()
+	if err := parse(); err != nil {
+		return nil, err
+	}
+	cmd := &nodes.AlterTableCmd{
+		Action:  nodes.AT_ALTER_PROPERTY,
+		Subtype: subtype,
+		Options: &nodes.List{},
+		Loc:     nodes.Loc{Start: start, End: p.prev.End},
+	}
+	p.atOption(cmd.Options, start)
+	return cmd, nil
+}
+
+// parseAlterTableAdd parses ADD column, constraint, period, overflow or
+// supplemental logging; ADD PARTITION is alter_table_partitioning.
 //
 //	add_column_clause:
 //	    ADD ( { column_definition | virtual_column_definition } [, ...] )
@@ -180,47 +197,41 @@ func (p *Parser) parseAlterTableAction() (*nodes.AlterTableCmd, error) {
 //	constraint_clauses:
 //	    ADD { out_of_line_constraint | out_of_line_ref_constraint | constraint_state }
 //
-//	add_table_partition:
-//	    ADD { PARTITION ... }
-//
 //	add_period_clause:
 //	    ADD ( PERIOD FOR valid_time_column [ ( start, end ) ] )
 //
-//	add_range_subpartition / add_hash_subpartition / add_list_subpartition
-//	    (within MODIFY PARTITION context, but can also follow ADD in partition modifications)
+//	alter_overflow_clause:
+//	    ADD OVERFLOW [ segment_attributes_clause ]
+//
+//	supplemental_table_logging:
+//	    ADD SUPPLEMENTAL LOG { supplemental_log_grp_clause | supplemental_id_key_clause } [, ...]
 func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 	start := p.pos()
 	p.advance() // consume ADD
 	if p.isStatementEnd() {
-
-		return nil, p.syntaxErrorAtCur(
-
-		// ADD SUPPLEMENTAL LOG ...
-		)
+		return nil, p.syntaxErrorAtCur()
 	}
 
-	if p.isIdentLikeStr("SUPPLEMENTAL") {
+	if p.atWord("SUPPLEMENTAL") {
 		p.advance() // consume SUPPLEMENTAL
-		if p.isIdentLikeStr("LOG") {
-			p.advance() // consume LOG
+		cmd := &nodes.AlterTableCmd{Action: nodes.AT_ALTER_PROPERTY, Subtype: "ADD SUPPLEMENTAL LOG", Options: &nodes.List{}}
+		if err := p.parseATSupplementalLogging(true, cmd.Options); err != nil {
+			return nil, err
 		}
-		options := p.collectAlterTableClauseDetails()
-		return withAlterTableOptions(&nodes.AlterTableCmd{
-			Action:  nodes.AT_ALTER_PROPERTY,
-			Subtype: "ADD SUPPLEMENTAL LOG",
-			Loc:     nodes.Loc{Start: start, End: p.prev.End},
-		}, options), nil
+		cmd.Loc = nodes.Loc{Start: start, End: p.prev.End}
+		return cmd, nil
 	}
 
-	// ADD OVERFLOW
-	if p.isIdentLikeStr("OVERFLOW") {
+	if p.atWord("OVERFLOW") {
 		p.advance() // consume OVERFLOW
-		options := p.collectAlterTableClauseDetails()
-		return withAlterTableOptions(&nodes.AlterTableCmd{
-			Action:  nodes.AT_ALTER_PROPERTY,
-			Subtype: "ADD OVERFLOW",
-			Loc:     nodes.Loc{Start: start, End: p.prev.End},
-		}, options), nil
+		cmd := &nodes.AlterTableCmd{Action: nodes.AT_ALTER_PROPERTY, Subtype: "ADD OVERFLOW", Options: &nodes.List{}}
+		if p.isATSegmentAttrStart() {
+			if err := p.parseATSegmentAttrs(cmd.Options); err != nil {
+				return nil, err
+			}
+		}
+		cmd.Loc = nodes.Loc{Start: start, End: p.prev.End}
+		return withAlterTableOptions(cmd, cmd.Options), nil
 	}
 
 	// SCOPE FOR ( column ) IS table, or REF ( column ) WITH ROWID.
@@ -238,9 +249,9 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 
 	// Check if this starts a constraint: CONSTRAINT, PRIMARY, UNIQUE, FOREIGN, CHECK
 	if p.isTableConstraintStart() {
-		tc, parseErr134 := p.parseTableConstraint()
-		if parseErr134 != nil {
-			return nil, parseErr134
+		tc, err := p.parseTableConstraint()
+		if err != nil {
+			return nil, err
 		}
 		// [ EXCEPTIONS INTO table ] — legal on ADD CONSTRAINT (unlike
 		// CREATE TABLE constraints), verified against Oracle 23ai.
@@ -254,72 +265,37 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 		}, nil
 	}
 
-	// ADD PARTITION
-	if p.cur.Type == kwPARTITION {
-		p.advance() // consume PARTITION
-		name := ""
-		if p.isIdentLike() && !p.isAlterTablePartitionKeyword() {
-			var parseErr135 error
-			name, parseErr135 = p.parseIdentifier()
-			if parseErr135 !=
-
-				// Skip partition details (VALUES, table_partition_description, subpartitions, update_index_clauses)
-				nil {
-				return nil, parseErr135
-			}
-		}
-
-		options := p.collectAlterTableClauseDetails()
-		return withAlterTableOptions(&nodes.AlterTableCmd{
-			Action:     nodes.AT_ADD_PARTITION,
-			Subtype:    "PARTITION",
-			ColumnName: name,
-			Loc:        nodes.Loc{Start: start, End: p.prev.End},
-		}, options), nil
-	}
-
-	// ADD SUBPARTITION (within MODIFY PARTITION context — rare at top level)
-	if p.cur.Type == kwSUBPARTITION {
-		p.advance() // consume SUBPARTITION
-		name := ""
-		if p.isIdentLike() {
-			var parseErr136 error
-			name, parseErr136 = p.parseIdentifier()
-			if parseErr136 != nil {
-				return nil, parseErr136
-			}
-		}
-		options := p.collectAlterTableClauseDetails()
-		return withAlterTableOptions(&nodes.AlterTableCmd{
-			Action:     nodes.AT_ADD_PARTITION,
-			Subtype:    "SUBPARTITION",
-			ColumnName: name,
-			Loc:        nodes.Loc{Start: start, End: p.prev.End},
-		}, options), nil
-	}
-
 	// ADD ( column_def [, ...] ) or ADD ( PERIOD FOR ... )
 	if p.cur.Type == '(' {
 		p.advance() // consume '('
 
 		// ADD ( PERIOD FOR valid_time_column [ ( start, end ) ] )
-		if p.isIdentLikeStr("PERIOD") {
+		if p.atWord("PERIOD") && p.peekNext().Type == kwFOR {
 			p.advance() // consume PERIOD
-			if p.cur.Type == kwFOR {
-				p.advance() // consume FOR
+			if err := p.atExpect(kwFOR); err != nil {
+				return nil, err
 			}
-			name, parseErr137 := p.parseIdentifier()
-			if parseErr137 !=
-				// optional ( start_time_column , end_time_column )
-				nil {
-				return nil, parseErr137
+			name, err := p.parseATNameString()
+			if err != nil {
+				return nil, err
 			}
-
 			if p.cur.Type == '(' {
-				p.skipParenthesized()
+				p.advance()
+				if err := p.parseATName(); err != nil {
+					return nil, err
+				}
+				if err := p.atExpect(','); err != nil {
+					return nil, err
+				}
+				if err := p.parseATName(); err != nil {
+					return nil, err
+				}
+				if err := p.atExpect(')'); err != nil {
+					return nil, err
+				}
 			}
-			if p.cur.Type == ')' {
-				p.advance() // consume ')'
+			if err := p.atExpect(')'); err != nil {
+				return nil, err
 			}
 			return &nodes.AlterTableCmd{
 				Action:     nodes.AT_ADD_PERIOD,
@@ -380,7 +356,10 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 		if err := p.checkOutOfLineRefConstraints(listed, false); err != nil {
 			return nil, err
 		}
-		options := p.collectAlterTableClauseDetails()
+		options := &nodes.List{}
+		if err := p.parseATColumnProperties(options); err != nil {
+			return nil, err
+		}
 		if cols.Len() == 0 {
 			// Constraints alone: the first is this action.
 			p.addedConstraints = constraints[1:]
@@ -404,9 +383,9 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 	}
 
 	// ADD column_def (without parentheses)
-	col, parseErr140 := p.parseColumnDef()
-	if parseErr140 != nil {
-		return nil, parseErr140
+	col, err := p.parseColumnDef()
+	if err != nil {
+		return nil, err
 	}
 	if col == nil {
 		return nil, p.syntaxErrorAtCur()
@@ -425,7 +404,8 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 	}, nil
 }
 
-// parseAlterTableModify parses MODIFY actions.
+// parseAlterTableModify parses MODIFY actions other than the partition
+// operations of alter_table_partitioning.
 //
 //	modify_column_clauses:
 //	    MODIFY { ( modify_col_properties [, ...] )
@@ -436,301 +416,161 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 //	constraint_clauses:
 //	    MODIFY { CONSTRAINT name | PRIMARY KEY | UNIQUE (cols) } constraint_state [ CASCADE ]
 //
-//	MODIFY PARTITION partition { partition_attributes | ... }
-//	MODIFY SUBPARTITION subpartition { ... }
-//	MODIFY DEFAULT ATTRIBUTES [ FOR PARTITION partition ] ...
-//	MODIFY CLUSTERING attribute_clustering_clause
+//	MODIFY CLUSTERING [ clustering_when ] [ zonemap_clause ]
 //	MODIFY NESTED TABLE collection_item RETURN AS { LOCATOR | VALUE }
 //	MODIFY LOB ( lob_item ) ( modify_LOB_parameters )
 //	MODIFY VARRAY varray_item ( modify_LOB_parameters )
-//	MODIFY OPAQUE TYPE column_name ...
+//	MODIFY OPAQUE TYPE column STORE ( type [, type ]... ) UNPACKED
+//	MODIFY table_partitioning_clauses [ filter_condition ] [ ONLINE ] [ update_index_clauses ]
 //	MODIFY PARTITIONSET partitionset ...
 func (p *Parser) parseAlterTableModify() (*nodes.AlterTableCmd, error) {
 	start := p.pos()
 	p.advance() // consume MODIFY
 
-	// MODIFY CONSTRAINT name constraint_state [CASCADE]
-	if p.cur.Type == kwCONSTRAINT {
-		p.advance() // consume CONSTRAINT
-		name, parseErr141 := p.parseIdentifier()
-		if parseErr141 !=
-			// Skip constraint_state and CASCADE
-			nil {
-			return nil, parseErr141
-		}
-
-		var cs constraintState
-		if err := p.parseConstraintState(&cs); err != nil {
+	switch {
+	case p.cur.Type == kwCONSTRAINT, p.cur.Type == kwCONSTRAINTS, p.cur.Type == kwPRIMARY, p.cur.Type == kwUNIQUE:
+		return p.parseAlterTableModifyConstraint(start)
+	case p.cur.Type == kwPARTITION, p.atWord("PARTITIONSET") && p.peekNext().Type == kwBY:
+		// modify_to_partitioned
+		cmd := &nodes.AlterTableCmd{Action: nodes.AT_MODIFY_TO_PARTITIONED, Options: &nodes.List{}}
+		if err := p.parseATTablePartitioning(cmd.Options); err != nil {
 			return nil, err
 		}
-		if err := p.parseExceptionsIntoClause(); err != nil {
+		if err := p.parseATClauses(atcFilter|atcOnline|atcIndexMaintenance, cmd.Options); err != nil {
 			return nil, err
 		}
-		if p.cur.Type == kwCASCADE {
-			p.advance()
-		}
-		tc := &nodes.TableConstraint{
-			Name:            name,
-			Deferrable:      cs.Deferrable,
-			Initially:       cs.Initially,
-			Tablespace:      cs.Tablespace,
-			UsingIndexLocal: cs.UsingIndexLocal,
-			Loc:             nodes.Loc{Start: start, End: p.prev.End},
-		}
-		return &nodes.AlterTableCmd{
-			Action:     nodes.AT_MODIFY_CONSTRAINT,
-			Constraint: tc,
-			Loc:        nodes.Loc{Start: start, End: p.prev.End},
-		}, nil
-	}
-
-	// MODIFY PRIMARY KEY constraint_state [CASCADE]
-	if p.cur.Type == kwPRIMARY {
-		p.advance() // consume PRIMARY
-		if p.cur.Type == kwKEY {
-			p.advance() // consume KEY
-		}
-		var cs constraintState
-		if err := p.parseConstraintState(&cs); err != nil {
+		cmd.Loc = nodes.Loc{Start: start, End: p.prev.End}
+		return withAlterTableOptions(cmd, cmd.Options), nil
+	case p.atWord("PARTITIONSET"):
+		// alter_table_partitionset: MODIFY PARTITIONSET partitionset
+		// { ADD | MODIFY } PARTITIONSET partition_spec. Partitionsets
+		// belong to sharded tables (ORA-02577 elsewhere).
+		p.advance()
+		name, err := p.parseATNameString()
+		if err != nil {
 			return nil, err
 		}
-		if err := p.parseExceptionsIntoClause(); err != nil {
-			return nil, err
-		}
-		if p.cur.Type == kwCASCADE {
-			p.advance()
-		}
-		return &nodes.AlterTableCmd{
-			Action:  nodes.AT_MODIFY_CONSTRAINT,
-			Subtype: "PRIMARY KEY",
-			Constraint: &nodes.TableConstraint{
-				Type:            nodes.CONSTRAINT_PRIMARY,
-				Deferrable:      cs.Deferrable,
-				Initially:       cs.Initially,
-				Tablespace:      cs.Tablespace,
-				UsingIndexLocal: cs.UsingIndexLocal,
-				Loc:             nodes.Loc{Start: start, End: p.prev.End},
-			},
-			Loc: nodes.Loc{Start: start, End: p.prev.End},
-		}, nil
-	}
-
-	// MODIFY UNIQUE (column [, column]...) constraint_state [CASCADE]
-	if p.cur.Type == kwUNIQUE {
-		p.advance() // consume UNIQUE
-		if p.cur.Type == '(' {
-			p.skipParenthesized()
-		}
-		var cs constraintState
-		if err := p.parseConstraintState(&cs); err != nil {
-			return nil, err
-		}
-		if err := p.parseExceptionsIntoClause(); err != nil {
-			return nil, err
-		}
-		if p.cur.Type == kwCASCADE {
-			p.advance()
-		}
-		return &nodes.AlterTableCmd{
-			Action:  nodes.AT_MODIFY_CONSTRAINT,
-			Subtype: "UNIQUE",
-			Constraint: &nodes.TableConstraint{
-				Type:            nodes.CONSTRAINT_UNIQUE,
-				Deferrable:      cs.Deferrable,
-				Initially:       cs.Initially,
-				Tablespace:      cs.Tablespace,
-				UsingIndexLocal: cs.UsingIndexLocal,
-				Loc:             nodes.Loc{Start: start, End: p.prev.End},
-			},
-			Loc: nodes.Loc{Start: start, End: p.prev.End},
-		}, nil
-	}
-
-	// MODIFY PARTITION
-	if p.cur.Type == kwPARTITION {
-		p.advance() // consume PARTITION
-		if p.isAlterTableDetailClauseStart() || p.isAlterTableActionStart() || p.isStatementEnd() {
+		if p.cur.Type != kwADD && p.cur.Type != kwMODIFY {
 			return nil, p.syntaxErrorAtCur()
 		}
-		name, parseErr142 := p.parseIdentifier()
-		if parseErr142 != nil {
-			return nil, parseErr142
+		p.advance()
+		if err := p.atExpectWord("PARTITIONSET"); err != nil {
+			return nil, err
 		}
-		options := p.collectAlterTableClauseDetails()
-		return withAlterTableOptions(&nodes.AlterTableCmd{
-			Action:     nodes.AT_MODIFY_PARTITION,
+		if err := p.parseATName(); err != nil {
+			return nil, err
+		}
+		if err := p.parseATClauses(atcTablePartitionDescription, nil); err != nil {
+			return nil, err
+		}
+		return &nodes.AlterTableCmd{
+			Action:     nodes.AT_MODIFY_PARTITIONSET,
 			ColumnName: name,
 			Loc:        nodes.Loc{Start: start, End: p.prev.End},
-		}, options), nil
-	}
-
-	// MODIFY SUBPARTITION
-	if p.cur.Type == kwSUBPARTITION {
-		p.advance() // consume SUBPARTITION
-		if p.isAlterTableDetailClauseStart() || p.isAlterTableActionStart() || p.isStatementEnd() {
-			return nil, p.syntaxErrorAtCur()
+		}, nil
+	case p.cur.Type == kwNESTED:
+		// MODIFY NESTED TABLE collection_item RETURN AS { LOCATOR | VALUE }
+		p.advance()
+		if err := p.atExpect(kwTABLE); err != nil {
+			return nil, err
 		}
-		name, parseErr143 := p.parseIdentifier()
-		if parseErr143 != nil {
-			return nil, parseErr143
+		name, err := p.parseATNameString()
+		if err != nil {
+			return nil, err
 		}
-		options := p.collectAlterTableClauseDetails()
-		return withAlterTableOptions(&nodes.AlterTableCmd{
-			Action:     nodes.AT_MODIFY_SUBPARTITION,
-			ColumnName: name,
-			Loc:        nodes.Loc{Start: start, End: p.prev.End},
-		}, options), nil
-	}
-
-	// MODIFY DEFAULT ATTRIBUTES
-	if p.cur.Type == kwDEFAULT {
-		p.advance() // consume DEFAULT
-		if p.isIdentLikeStr("ATTRIBUTES") {
-			p.advance() // consume ATTRIBUTES
-		}
-		options := p.collectAlterTableClauseDetails()
-		return withAlterTableOptions(&nodes.AlterTableCmd{
-			Action: nodes.AT_MODIFY_DEFAULT_ATTRS,
-			Loc:    nodes.Loc{Start: start, End: p.prev.End},
-		}, options), nil
-	}
-
-	// MODIFY NESTED TABLE collection_item RETURN AS { LOCATOR | VALUE }
-	if p.cur.Type == kwNESTED {
-		p.advance() // consume NESTED
-		if p.cur.Type == kwTABLE {
-			p.advance() // consume TABLE
-		}
-		name, parseErr144 := p.parseIdentifier()
-		if parseErr144 !=
-			// RETURN AS { LOCATOR | VALUE }
-			nil {
-			return nil, parseErr144
-		}
-
-		if p.isIdentLikeStr("RETURN") {
-			p.advance()
+		if err := p.atExpectWord("RETURN"); err != nil {
+			return nil, err
 		}
 		if p.cur.Type == kwAS {
 			p.advance()
 		}
-		subtype := ""
-		if p.isIdentLikeStr("LOCATOR") || p.isIdentLikeStr("VALUE") {
-			subtype = p.cur.Str
-			p.advance()
+		if !p.atWord("LOCATOR") && !p.atWord("VALUE") {
+			return nil, p.syntaxErrorAtCur()
 		}
+		subtype := p.cur.Str
+		p.advance()
 		return &nodes.AlterTableCmd{
 			Action:     nodes.AT_MODIFY_NESTED_TABLE,
 			ColumnName: name,
 			Subtype:    subtype,
 			Loc:        nodes.Loc{Start: start, End: p.prev.End},
 		}, nil
-	}
-
-	// MODIFY LOB (lob_item) (modify_LOB_parameters)
-	if p.isIdentLikeStr("LOB") {
-		p.advance() // consume LOB
-		if p.cur.Type == '(' {
-			p.skipParenthesized()
+	case p.atWord("LOB") && p.peekNext().Type == '(', p.atWord("VARRAY"):
+		action := nodes.AT_MODIFY_LOB
+		if p.atWord("VARRAY") {
+			action = nodes.AT_MODIFY_VARRAY
 		}
-		if p.cur.Type == '(' {
-			p.skipParenthesized()
+		if err := p.parseATLobModify(); err != nil {
+			return nil, err
 		}
 		return &nodes.AlterTableCmd{
-			Action: nodes.AT_MODIFY_LOB,
+			Action: action,
 			Loc:    nodes.Loc{Start: start, End: p.prev.End},
 		}, nil
-	}
-
-	// MODIFY VARRAY varray_item (modify_LOB_parameters)
-	if p.isIdentLikeStr("VARRAY") {
-		p.advance()
-		parseDiscard146, // consume VARRAY
-			parseErr145 := p.parseIdentifier()
-		_ = parseDiscard146
-		if parseErr145 != nil {
-			return nil, parseErr145
-		}
-		if p.cur.Type == '(' {
-			p.skipParenthesized()
-		}
-		return &nodes.AlterTableCmd{
-			Action: nodes.AT_MODIFY_VARRAY,
-			Loc:    nodes.Loc{Start: start, End: p.prev.End},
-		}, nil
-	}
-
-	// MODIFY OPAQUE TYPE column_name ...
-	if p.isIdentLikeStr("OPAQUE") {
-		p.advance() // consume OPAQUE
-		if p.cur.Type == kwTYPE {
-			p.advance() // consume TYPE
-		}
-		name, parseErr147 := p.parseIdentifier()
-		if parseErr147 != nil {
-			return nil, parseErr147
-		}
-		options := p.collectAlterTableClauseDetails()
-		return withAlterTableOptions(&nodes.AlterTableCmd{
-			Action:     nodes.AT_MODIFY_OPAQUE_TYPE,
-			ColumnName: name,
-			Loc:        nodes.Loc{Start: start, End: p.prev.End},
-		}, options), nil
-	}
-
-	// MODIFY CLUSTERING attribute_clustering_clause
-	if p.isIdentLikeStr("CLUSTERING") {
+	case p.atWord("OPAQUE") && p.atNextWord("TYPE"):
+		return p.parseAlterTableModifyOpaqueType(start)
+	case p.atWord("CLUSTERING"):
 		p.advance() // consume CLUSTERING
-		options := p.collectAlterTableClauseDetails()
-		return withAlterTableOptions(&nodes.AlterTableCmd{
-			Action:  nodes.AT_ALTER_PROPERTY,
-			Subtype: "MODIFY CLUSTERING",
-			Loc:     nodes.Loc{Start: start, End: p.prev.End},
-		}, options), nil
-	}
-
-	// MODIFY PARTITIONSET
-	if p.isIdentLikeStr("PARTITIONSET") {
-		p.advance() // consume PARTITIONSET
-		name, parseErr148 := p.parseIdentifier()
-		if parseErr148 != nil {
-			return nil, parseErr148
+		cmd := &nodes.AlterTableCmd{Action: nodes.AT_ALTER_PROPERTY, Subtype: "MODIFY CLUSTERING", Options: &nodes.List{}}
+		if err := p.parseATClusteringWhen(cmd.Options); err != nil {
+			return nil, err
 		}
-		options := p.collectAlterTableClauseDetails()
-		return withAlterTableOptions(&nodes.AlterTableCmd{
-			Action:     nodes.AT_MODIFY_PARTITIONSET,
+		cmd.Loc = nodes.Loc{Start: start, End: p.prev.End}
+		return withAlterTableOptions(cmd, cmd.Options), nil
+	case p.cur.Type == kwCOLUMN:
+		// modify_col_substitutable:
+		//   COLUMN column [ NOT ] SUBSTITUTABLE AT ALL LEVELS [ FORCE ]
+		p.advance()
+		name, err := p.parseATNameString()
+		if err != nil {
+			return nil, err
+		}
+		if p.cur.Type == kwNOT {
+			p.advance()
+		}
+		if err := p.atExpectWord("SUBSTITUTABLE"); err != nil {
+			return nil, err
+		}
+		if err := p.atExpectWord("AT"); err != nil {
+			return nil, err
+		}
+		if err := p.atExpect(kwALL); err != nil {
+			return nil, err
+		}
+		// Oracle refuses the page's [ FORCE ] here (ORA-03049).
+		if err := p.atExpectWord("LEVELS"); err != nil {
+			return nil, err
+		}
+		return &nodes.AlterTableCmd{
+			Action:     nodes.AT_ALTER_PROPERTY,
+			Subtype:    "MODIFY COLUMN SUBSTITUTABLE",
 			ColumnName: name,
 			Loc:        nodes.Loc{Start: start, End: p.prev.End},
-		}, options), nil
+		}, nil
 	}
 
 	// MODIFY ( column_def [, ...] )
 	if p.cur.Type == '(' {
 		p.advance() // consume '('
 		cols := &nodes.List{}
-		col, parseErr149 := p.parseColumnDef()
-		if parseErr149 != nil {
-			return nil, parseErr149
-		}
-		if col == nil {
-			return nil, p.syntaxErrorAtCur()
-		}
-		cols.Items = append(cols.Items, col)
-		for p.cur.Type == ',' {
-			p.advance()
-			var // consume ','
-			parseErr150 error
-			col, parseErr150 = p.parseColumnDef()
-			if parseErr150 != nil {
-				return nil, parseErr150
+		var col *nodes.ColumnDef
+		for {
+			var err error
+			col, err = p.parseColumnDef()
+			if err != nil {
+				return nil, err
 			}
 			if col == nil {
 				return nil, p.syntaxErrorAtCur()
 			}
 			cols.Items = append(cols.Items, col)
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance() // consume ','
 		}
-		if p.cur.Type == ')' {
-			p.advance() // consume ')'
+		if err := p.atExpect(')'); err != nil {
+			return nil, err
 		}
 		if len(cols.Items) == 1 {
 			return &nodes.AlterTableCmd{
@@ -747,9 +587,9 @@ func (p *Parser) parseAlterTableModify() (*nodes.AlterTableCmd, error) {
 	}
 
 	// MODIFY column_def (without parentheses) — includes modify_col_visibility
-	col, parseErr151 := p.parseColumnDef()
-	if parseErr151 != nil {
-		return nil, parseErr151
+	col, err := p.parseColumnDef()
+	if err != nil {
+		return nil, err
 	}
 	if col == nil {
 		return nil, p.syntaxErrorAtCur()
@@ -761,398 +601,393 @@ func (p *Parser) parseAlterTableModify() (*nodes.AlterTableCmd, error) {
 	}, nil
 }
 
-// parseAlterTableDrop parses DROP actions.
+// parseAlterTableModifyConstraint parses, after MODIFY,
+//
+//	{ CONSTRAINT constraint_name | PRIMARY KEY | UNIQUE ( column [, column ]... ) }
+//	    constraint_state [ CASCADE ]
+//
+// Oracle needs a constraint_state that says something here (ORA-03049 for
+// MODIFY CONSTRAINT c CASCADE, ORA-00905 for MODIFY PRIMARY KEY alone), and
+// takes CONSTRAINTS for CONSTRAINT, as it does after ADD, DROP and ENABLE.
+func (p *Parser) parseAlterTableModifyConstraint(start int) (*nodes.AlterTableCmd, error) {
+	cmd := &nodes.AlterTableCmd{Action: nodes.AT_MODIFY_CONSTRAINT}
+	tc := &nodes.TableConstraint{}
+	switch p.cur.Type {
+	case kwCONSTRAINT, kwCONSTRAINTS:
+		p.advance()
+		if p.atCutOff() {
+			cmd.Constraint = tc
+			cmd.Loc = nodes.Loc{Start: start, End: p.prev.End}
+			return cmd, nil
+		}
+		name, err := p.parseATNameString()
+		if err != nil {
+			return nil, err
+		}
+		tc.Name = name
+	case kwPRIMARY:
+		p.advance()
+		if err := p.atExpect(kwKEY); err != nil {
+			return nil, err
+		}
+		cmd.Subtype = "PRIMARY KEY"
+		tc.Type = nodes.CONSTRAINT_PRIMARY
+	default:
+		p.advance() // UNIQUE
+		if err := p.parseATNameList(); err != nil {
+			return nil, err
+		}
+		cmd.Subtype = "UNIQUE"
+		tc.Type = nodes.CONSTRAINT_UNIQUE
+	}
+	stateStart := p.pos()
+	var cs constraintState
+	if err := p.parseConstraintState(&cs); err != nil {
+		return nil, err
+	}
+	if err := p.parseExceptionsIntoClause(); err != nil {
+		return nil, err
+	}
+	if p.pos() == stateStart {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if p.cur.Type == kwCASCADE {
+		p.advance()
+	}
+	tc.Deferrable = cs.Deferrable
+	tc.Initially = cs.Initially
+	tc.Tablespace = cs.Tablespace
+	tc.UsingIndexLocal = cs.UsingIndexLocal
+	tc.Loc = nodes.Loc{Start: start, End: p.prev.End}
+	cmd.Constraint = tc
+	cmd.Loc = nodes.Loc{Start: start, End: p.prev.End}
+	return cmd, nil
+}
+
+// parseAlterTableModifyOpaqueType parses, after MODIFY,
+//
+//	OPAQUE TYPE column STORE ( type [, type ]... ) UNPACKED
+//
+// The page gives STORE AS [ LOB | OBJECT RELATIONAL ] ( column_properties ),
+// which Oracle refuses whatever the parentheses hold (ORA-19001, ORA-22853,
+// ORA-00906); the clause above is the one of its MODIFY OPAQUE TYPE.
+func (p *Parser) parseAlterTableModifyOpaqueType(start int) (*nodes.AlterTableCmd, error) {
+	p.advance() // OPAQUE
+	p.advance() // TYPE
+	name, err := p.parseATNameString()
+	if err != nil {
+		return nil, err
+	}
+	cmd := &nodes.AlterTableCmd{Action: nodes.AT_MODIFY_OPAQUE_TYPE, ColumnName: name, Options: &nodes.List{}}
+	if err := p.atExpectWord("STORE"); err != nil {
+		return nil, err
+	}
+	optStart := p.pos()
+	if p.cur.Type == kwAS {
+		// STORE AS cut off (see atCutOff).
+		p.advance()
+		if !p.atCutOff() {
+			return nil, p.syntaxErrorAtCur()
+		}
+	} else {
+		if err := p.atExpect('('); err != nil {
+			return nil, err
+		}
+		for {
+			if err := p.parseATQualifiedName(); err != nil {
+				return nil, err
+			}
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance()
+		}
+		if err := p.atExpect(')'); err != nil {
+			return nil, err
+		}
+		if err := p.atExpectWord("UNPACKED"); err != nil {
+			return nil, err
+		}
+	}
+	p.atOption(cmd.Options, optStart)
+	cmd.Loc = nodes.Loc{Start: start, End: p.prev.End}
+	return withAlterTableOptions(cmd, cmd.Options), nil
+}
+
+// parseAlterTableDrop parses DROP actions other than DROP PARTITION and
+// DROP SUBPARTITION.
 //
 //	drop_column_clause:
-//	    SET UNUSED { COLUMN column | ( column [, column ]... ) } ...
-//	    DROP { COLUMN column | ( column [, column ]... ) } ...
-//	    DROP { UNUSED COLUMNS | COLUMNS CONTINUE } ...
+//	    DROP { COLUMN column | ( column [, column ]... ) }
+//	        [ { CASCADE CONSTRAINTS | INVALIDATE }... ] [ CHECKPOINT integer ]
+//	    DROP { UNUSED COLUMNS | COLUMNS CONTINUE } [ CHECKPOINT integer ]
 //
 //	drop_constraint_clause:
-//	    DROP { PRIMARY KEY | UNIQUE ( column [, column ]... ) } ...
-//	    DROP CONSTRAINT constraint_name ...
-//
-//	drop_table_partition / drop_table_subpartition:
-//	    DROP PARTITION { partition | FOR (...) } [, ...] ...
-//	    DROP SUBPARTITION { subpartition | FOR (...) } [, ...] ...
+//	    DROP { PRIMARY KEY | UNIQUE ( column [, column ]... ) }
+//	        [ CASCADE ] [ { KEEP | DROP } INDEX ] [ ONLINE ]
+//	    DROP CONSTRAINT constraint_name [ CASCADE ] [ ONLINE ]
 //
 //	drop_period_clause:
 //	    DROP ( PERIOD FOR valid_time_column )
+//
+//	supplemental_table_logging:
+//	    DROP SUPPLEMENTAL LOG { supplemental_id_key_clause | GROUP log_group } [, ...]
+//
+//	DROP CLUSTERING
 func (p *Parser) parseAlterTableDrop() (*nodes.AlterTableCmd, error) {
 	start := p.pos()
 	p.advance() // consume DROP
 
-	switch p.cur.Type {
-	case kwCOLUMN:
+	switch {
+	case p.cur.Type == kwCOLUMN:
 		p.advance() // consume COLUMN
-		name, parseErr152 := p.parseIdentifier()
-		if parseErr152 !=
-			// Optional CASCADE CONSTRAINTS | INVALIDATE
-			nil {
-			return nil, parseErr152
+		name, err := p.parseATNameString()
+		if err != nil {
+			return nil, err
 		}
-		if name == "" {
-			return nil, p.syntaxErrorAtCur()
+		if err := p.parseATDropColumnTrailing(true); err != nil {
+			return nil, err
 		}
-
-		p.skipDropColumnTrailing()
 		return &nodes.AlterTableCmd{
 			Action:     nodes.AT_DROP_COLUMN,
 			ColumnName: name,
 			Loc:        nodes.Loc{Start: start, End: p.prev.End},
 		}, nil
 
-	case kwCONSTRAINT:
+	case p.cur.Type == kwCONSTRAINT, p.cur.Type == kwCONSTRAINTS:
 		p.advance() // consume CONSTRAINT
-		name, parseErr153 := p.parseIdentifier()
-		if parseErr153 !=
-			// Optional CASCADE, ONLINE
-			nil {
-			return nil, parseErr153
+		name := ""
+		if !p.atCutOff() {
+			var err error
+			if name, err = p.parseATNameString(); err != nil {
+				return nil, err
+			}
 		}
-
 		if p.cur.Type == kwCASCADE {
 			p.advance()
 		}
 		if p.cur.Type == kwONLINE {
 			p.advance()
 		}
-		tc := &nodes.TableConstraint{
-			Name: name,
-			Loc:  nodes.Loc{Start: start, End: p.prev.End},
-		}
 		return &nodes.AlterTableCmd{
-			Action:     nodes.AT_DROP_CONSTRAINT,
-			Constraint: tc,
-			Loc:        nodes.Loc{Start: start, End: p.prev.End},
+			Action: nodes.AT_DROP_CONSTRAINT,
+			Constraint: &nodes.TableConstraint{
+				Name: name,
+				Loc:  nodes.Loc{Start: start, End: p.prev.End},
+			},
+			Loc: nodes.Loc{Start: start, End: p.prev.End},
 		}, nil
 
-	case kwPRIMARY:
-		// DROP PRIMARY KEY [CASCADE] [{KEEP|DROP} INDEX] [ONLINE]
-		p.advance() // consume PRIMARY
-		if p.cur.Type == kwKEY {
-			p.advance() // consume KEY
+	case p.cur.Type == kwPRIMARY, p.cur.Type == kwUNIQUE:
+		subtype := "UNIQUE"
+		if p.cur.Type == kwPRIMARY {
+			subtype = "PRIMARY KEY"
+			p.advance()
+			if err := p.atExpect(kwKEY); err != nil {
+				return nil, err
+			}
+		} else {
+			p.advance()
+			if err := p.parseATNameList(); err != nil {
+				return nil, err
+			}
 		}
 		if p.cur.Type == kwCASCADE {
 			p.advance()
 		}
-		p.skipKeepDropIndex()
-		if p.cur.Type == kwONLINE {
-			p.advance()
+		if err := p.parseATKeepDropIndex(); err != nil {
+			return nil, err
 		}
-		return &nodes.AlterTableCmd{
-			Action:  nodes.AT_DROP_CONSTRAINT,
-			Subtype: "PRIMARY KEY",
-			Loc:     nodes.Loc{Start: start, End: p.prev.End},
-		}, nil
-
-	case kwUNIQUE:
-		// DROP UNIQUE (column [, column]...) [CASCADE] [{KEEP|DROP} INDEX] [ONLINE]
-		p.advance() // consume UNIQUE
-		if p.cur.Type == '(' {
-			p.skipParenthesized()
-		}
-		if p.cur.Type == kwCASCADE {
-			p.advance()
-		}
-		p.skipKeepDropIndex()
 		if p.cur.Type == kwONLINE {
 			p.advance()
 		}
 		return &nodes.AlterTableCmd{
 			Action:  nodes.AT_DROP_CONSTRAINT,
-			Subtype: "UNIQUE",
+			Subtype: subtype,
 			Loc:     nodes.Loc{Start: start, End: p.prev.End},
 		}, nil
 
-	case kwPARTITION:
-		p.advance() // consume PARTITION
-		name, parseErr154 := p.parsePartitionNameOrFor()
-		if parseErr154 !=
-			// Additional partitions: , { partition | FOR (...) }
-			nil {
-			return nil, parseErr154
-		}
+	case p.cur.Type == '(':
+		p.advance() // consume '('
 
-		for p.cur.Type == ',' {
-			p.advance()
-			parseDiscard156, parseErr155 := p.parsePartitionNameOrFor()
-			_ = parseDiscard156
-
-			// [ update_index_clauses ] [ parallel_clause ]
-			if parseErr155 != nil {
-				return nil, parseErr155
+		// DROP ( PERIOD FOR valid_time_column )
+		if p.atWord("PERIOD") {
+			p.advance() // consume PERIOD
+			if err := p.atExpect(kwFOR); err != nil {
+				return nil, err
 			}
-		}
-
-		p.skipUpdateIndexAndParallel()
-		return &nodes.AlterTableCmd{
-			Action:     nodes.AT_DROP_PARTITION,
-			ColumnName: name,
-			Loc:        nodes.Loc{Start: start, End: p.prev.End},
-		}, nil
-
-	case kwSUBPARTITION:
-		p.advance() // consume SUBPARTITION
-		name, parseErr157 := p.parsePartitionNameOrFor()
-		if parseErr157 != nil {
-			return nil, parseErr157
-		}
-		for p.cur.Type == ',' {
-			p.advance()
-			parseDiscard159, parseErr158 := p.parsePartitionNameOrFor()
-			_ = parseDiscard159
-			if parseErr158 != nil {
-				return nil, parseErr158
+			name, err := p.parseATNameString()
+			if err != nil {
+				return nil, err
 			}
-		}
-		p.skipUpdateIndexAndParallel()
-		return &nodes.AlterTableCmd{
-			Action:     nodes.AT_DROP_SUBPARTITION,
-			ColumnName: name,
-			Loc:        nodes.Loc{Start: start, End: p.prev.End},
-		}, nil
-
-	default:
-		// DROP (col_name, ...) or DROP ( PERIOD FOR ... )
-		if p.cur.Type == '(' {
-			p.advance() // consume '('
-
-			// Check for PERIOD FOR — drop_period_clause
-			if p.isIdentLikeStr("PERIOD") {
-				p.advance() // consume PERIOD
-				if p.cur.Type == kwFOR {
-					p.advance() // consume FOR
-				}
-				name, parseErr160 := p.parseIdentifier()
-				if parseErr160 != nil {
-					return nil, parseErr160
-				}
-				if p.cur.Type == ')' {
-					p.advance() // consume ')'
-				}
-				return &nodes.AlterTableCmd{
-					Action:     nodes.AT_DROP_PERIOD,
-					ColumnName: name,
-					Loc:        nodes.Loc{Start: start, End: p.prev.End},
-				}, nil
+			if err := p.atExpect(')'); err != nil {
+				return nil, err
 			}
-
-			// DROP (col_name, ...) — drop multiple columns
-			name, parseErr161 := p.parseIdentifier()
-			if parseErr161 != nil {
-				return nil, parseErr161
-			}
-			for p.cur.Type == ',' {
-				p.advance()
-				parseDiscard163, parseErr162 := p.parseIdentifier()
-				_ = parseDiscard163
-				if parseErr162 != nil {
-					return nil, parseErr162
-				}
-			}
-			if p.cur.Type == ')' {
-				p.advance()
-			}
-			p.skipDropColumnTrailing()
 			return &nodes.AlterTableCmd{
-				Action:     nodes.AT_DROP_COLUMN,
+				Action:     nodes.AT_DROP_PERIOD,
 				ColumnName: name,
 				Loc:        nodes.Loc{Start: start, End: p.prev.End},
 			}, nil
 		}
 
-		// DROP UNUSED COLUMNS or DROP COLUMNS CONTINUE
-		if p.isIdentLikeStr("UNUSED") {
-			p.advance() // consume UNUSED
-			if p.isIdentLikeStr("COLUMNS") {
-				p.advance() // consume COLUMNS
-			}
-			// [ CHECKPOINT integer ]
-			if p.isIdentLikeStr("CHECKPOINT") {
-				p.advance()
-				if p.cur.Type == tokICONST {
-					p.advance()
-				}
-			}
-			return &nodes.AlterTableCmd{
-				Action:  nodes.AT_DROP_UNUSED_COLUMNS,
-				Subtype: "UNUSED COLUMNS",
-				Loc:     nodes.Loc{Start: start, End: p.prev.End},
-			}, nil
+		// DROP ( column [, column ]... )
+		name, err := p.parseATNameString()
+		if err != nil {
+			return nil, err
 		}
-		if p.isIdentLikeStr("COLUMNS") {
-			p.advance() // consume COLUMNS
-			if p.isIdentLikeStr("CONTINUE") {
-				p.advance() // consume CONTINUE
+		for p.cur.Type == ',' {
+			p.advance()
+			if err := p.parseATName(); err != nil {
+				return nil, err
 			}
-			if p.isIdentLikeStr("CHECKPOINT") {
-				p.advance()
-				if p.cur.Type == tokICONST {
-					p.advance()
-				}
-			}
-			return &nodes.AlterTableCmd{
-				Action:  nodes.AT_DROP_UNUSED_COLUMNS,
-				Subtype: "COLUMNS CONTINUE",
-				Loc:     nodes.Loc{Start: start, End: p.prev.End},
-			}, nil
 		}
-
-		// DROP SUPPLEMENTAL LOG ...
-		if p.isIdentLikeStr("SUPPLEMENTAL") {
-			p.advance() // consume SUPPLEMENTAL
-			if p.isIdentLikeStr("LOG") {
-				p.advance() // consume LOG
-			}
-			options := p.collectAlterTableClauseDetails()
-			return withAlterTableOptions(&nodes.AlterTableCmd{
-				Action:  nodes.AT_ALTER_PROPERTY,
-				Subtype: "DROP SUPPLEMENTAL LOG",
-				Loc:     nodes.Loc{Start: start, End: p.prev.End},
-			}, options), nil
+		if err := p.atExpect(')'); err != nil {
+			return nil, err
 		}
-
-		// Bare DROP col_name (without COLUMN keyword)
-		name, parseErr164 := p.parseIdentifier()
-		if parseErr164 != nil {
-			return nil, parseErr164
+		if err := p.parseATDropColumnTrailing(true); err != nil {
+			return nil, err
 		}
 		return &nodes.AlterTableCmd{
 			Action:     nodes.AT_DROP_COLUMN,
 			ColumnName: name,
 			Loc:        nodes.Loc{Start: start, End: p.prev.End},
 		}, nil
+
+	case p.atWord("UNUSED"), p.atWord("COLUMNS"):
+		subtype := "UNUSED COLUMNS"
+		if p.atWord("UNUSED") {
+			p.advance()
+			if err := p.atExpect(kwCOLUMNS); err != nil {
+				return nil, err
+			}
+		} else {
+			subtype = "COLUMNS CONTINUE"
+			p.advance()
+			if err := p.atExpectWord("CONTINUE"); err != nil {
+				return nil, err
+			}
+		}
+		if err := p.parseATCheckpoint(); err != nil {
+			return nil, err
+		}
+		return &nodes.AlterTableCmd{
+			Action:  nodes.AT_DROP_UNUSED_COLUMNS,
+			Subtype: subtype,
+			Loc:     nodes.Loc{Start: start, End: p.prev.End},
+		}, nil
+
+	case p.atWord("SUPPLEMENTAL"):
+		p.advance() // consume SUPPLEMENTAL
+		cmd := &nodes.AlterTableCmd{Action: nodes.AT_ALTER_PROPERTY, Subtype: "DROP SUPPLEMENTAL LOG", Options: &nodes.List{}}
+		if err := p.parseATSupplementalLogging(false, cmd.Options); err != nil {
+			return nil, err
+		}
+		cmd.Loc = nodes.Loc{Start: start, End: p.prev.End}
+		return cmd, nil
+
+	case p.atWord("CLUSTERING"):
+		p.advance()
+		return &nodes.AlterTableCmd{
+			Action:  nodes.AT_ALTER_PROPERTY,
+			Subtype: "DROP CLUSTERING",
+			Loc:     nodes.Loc{Start: start, End: p.prev.End},
+		}, nil
 	}
+	return nil, p.syntaxErrorAtCur()
 }
 
-// parseAlterTableRename parses RENAME actions.
+// parseATDropColumnTrailing reads [ { CASCADE CONSTRAINTS | INVALIDATE }... ]
+// and, after DROP, [ CHECKPOINT integer ] or, after SET UNUSED, [ ONLINE ].
+func (p *Parser) parseATDropColumnTrailing(drop bool) error {
+	for {
+		if p.cur.Type == kwCASCADE {
+			p.advance()
+			if err := p.atExpect(kwCONSTRAINTS); err != nil {
+				return err
+			}
+			continue
+		}
+		if p.atWord("INVALIDATE") {
+			p.advance()
+			continue
+		}
+		break
+	}
+	if drop {
+		return p.parseATCheckpoint()
+	}
+	if p.cur.Type == kwONLINE {
+		p.advance()
+	}
+	return nil
+}
+
+// parseATCheckpoint reads [ CHECKPOINT integer ].
+func (p *Parser) parseATCheckpoint() error {
+	if !p.atWord("CHECKPOINT") {
+		return nil
+	}
+	p.advance()
+	if p.atCutOff() {
+		return nil
+	}
+	err := p.parseATInteger()
+	return err
+}
+
+// parseATKeepDropIndex reads [ { KEEP | DROP } INDEX ].
+func (p *Parser) parseATKeepDropIndex() error {
+	if !p.atWord("KEEP") && p.cur.Type != kwDROP {
+		return nil
+	}
+	p.advance()
+	return p.atExpect(kwINDEX)
+}
+
+// parseAlterTableRename parses RENAME actions other than RENAME PARTITION
+// and RENAME SUBPARTITION.
 //
 //	RENAME COLUMN old_name TO new_name
 //	RENAME CONSTRAINT old_name TO new_name
 //	RENAME TO new_table_name
-//	RENAME { PARTITION partition | SUBPARTITION subpartition } TO new_name
 //	RENAME LOB ( lob_item ) TO new_lob_name
 func (p *Parser) parseAlterTableRename() (*nodes.AlterTableCmd, error) {
 	start := p.pos()
 	p.advance() // consume RENAME
 
-	switch p.cur.Type {
-	case kwCOLUMN:
-		p.advance() // consume COLUMN
-		oldName, parseErr165 := p.parseIdentifier()
-		if parseErr165 != nil {
-			return nil, parseErr165
+	renameTo := func() (string, error) {
+		if err := p.atExpect(kwTO); err != nil {
+			return "", err
 		}
-		if oldName == "" {
-			return nil, p.syntaxErrorAtCur()
+		return p.parseATNameString()
+	}
+	switch {
+	case p.cur.Type == kwCOLUMN, p.cur.Type == kwCONSTRAINT:
+		action := nodes.AT_RENAME_COLUMN
+		if p.cur.Type == kwCONSTRAINT {
+			action = nodes.AT_RENAME_CONSTRAINT
 		}
-		if p.cur.Type != kwTO {
-			return nil, p.syntaxErrorAtCur()
+		p.advance()
+		oldName, err := p.parseATNameString()
+		if err != nil {
+			return nil, err
 		}
-		p.advance() // consume TO
-		newName, parseErr166 := p.parseIdentifier()
-		if parseErr166 != nil {
-			return nil, parseErr166
-		}
-		if newName == "" {
-			return nil, p.syntaxErrorAtCur()
+		newName, err := renameTo()
+		if err != nil {
+			return nil, err
 		}
 		return &nodes.AlterTableCmd{
-			Action:     nodes.AT_RENAME_COLUMN,
+			Action:     action,
 			ColumnName: oldName,
 			NewName:    newName,
 			Loc:        nodes.Loc{Start: start, End: p.prev.End},
 		}, nil
 
-	case kwCONSTRAINT:
-		p.advance() // consume CONSTRAINT
-		oldName, parseErr167 := p.parseIdentifier()
-		if parseErr167 != nil {
-			return nil, parseErr167
-		}
-		if oldName == "" {
-			return nil, p.syntaxErrorAtCur()
-		}
-		if p.cur.Type != kwTO {
-			return nil, p.syntaxErrorAtCur()
-		}
+	case p.cur.Type == kwTO:
 		p.advance() // consume TO
-		newName, parseErr168 := p.parseIdentifier()
-		if parseErr168 != nil {
-			return nil, parseErr168
-		}
-		if newName == "" {
-			return nil, p.syntaxErrorAtCur()
-		}
-		return &nodes.AlterTableCmd{
-			Action:     nodes.AT_RENAME_CONSTRAINT,
-			ColumnName: oldName,
-			NewName:    newName,
-			Loc:        nodes.Loc{Start: start, End: p.prev.End},
-		}, nil
-
-	case kwPARTITION:
-		p.advance() // consume PARTITION
-		oldName, parseErr169 := p.parseIdentifier()
-		if parseErr169 != nil {
-			return nil, parseErr169
-		}
-		if oldName == "" {
-			return nil, p.syntaxErrorAtCur()
-		}
-		if p.cur.Type != kwTO {
-			return nil, p.syntaxErrorAtCur()
-		}
-		p.advance() // consume TO
-		newName, parseErr170 := p.parseIdentifier()
-		if parseErr170 != nil {
-			return nil, parseErr170
-		}
-		if newName == "" {
-			return nil, p.syntaxErrorAtCur()
-		}
-		return &nodes.AlterTableCmd{
-			Action:     nodes.AT_RENAME_PARTITION,
-			Subtype:    "PARTITION",
-			ColumnName: oldName,
-			NewName:    newName,
-			Loc:        nodes.Loc{Start: start, End: p.prev.End},
-		}, nil
-
-	case kwSUBPARTITION:
-		p.advance() // consume SUBPARTITION
-		oldName, parseErr171 := p.parseIdentifier()
-		if parseErr171 != nil {
-			return nil, parseErr171
-		}
-		if oldName == "" {
-			return nil, p.syntaxErrorAtCur()
-		}
-		if p.cur.Type != kwTO {
-			return nil, p.syntaxErrorAtCur()
-		}
-		p.advance() // consume TO
-		newName, parseErr172 := p.parseIdentifier()
-		if parseErr172 != nil {
-			return nil, parseErr172
-		}
-		if newName == "" {
-			return nil, p.syntaxErrorAtCur()
-		}
-		return &nodes.AlterTableCmd{
-			Action:     nodes.AT_RENAME_PARTITION,
-			Subtype:    "SUBPARTITION",
-			ColumnName: oldName,
-			NewName:    newName,
-			Loc:        nodes.Loc{Start: start, End: p.prev.End},
-		}, nil
-
-	case kwTO:
-		p.advance() // consume TO
-		newName, parseErr173 := p.parseIdentifier()
-		if parseErr173 != nil {
-			return nil, parseErr173
+		newName, err := p.parseATNameString()
+		if err != nil {
+			return nil, err
 		}
 		return &nodes.AlterTableCmd{
 			Action:  nodes.AT_RENAME,
@@ -1160,107 +995,29 @@ func (p *Parser) parseAlterTableRename() (*nodes.AlterTableCmd, error) {
 			Loc:     nodes.Loc{Start: start, End: p.prev.End},
 		}, nil
 
-	default:
-		// RENAME LOB (lob_item) TO new_lob_name
-		if p.isIdentLikeStr("LOB") {
-			p.advance() // consume LOB
-			if p.cur.Type == '(' {
-				p.skipParenthesized()
-			}
-			if p.cur.Type == kwTO {
-				p.advance() // consume TO
-			}
-			newName, parseErr174 := p.parseIdentifier()
-			if parseErr174 != nil {
-				return nil, parseErr174
-			}
-			return &nodes.AlterTableCmd{
-				Action:  nodes.AT_ALTER_PROPERTY,
-				Subtype: "RENAME LOB",
-				NewName: newName,
-				Loc:     nodes.Loc{Start: start, End: p.prev.End},
-			}, nil
+	case p.atWord("LOB"):
+		p.advance() // consume LOB
+		if err := p.atExpect('('); err != nil {
+			return nil, err
 		}
-
-		// RENAME TO new_name (without explicit TO first)
-		if p.isIdentLike() {
-			newName, parseErr175 := p.parseIdentifier()
-			if parseErr175 != nil {
-				return nil, parseErr175
-			}
-			return &nodes.AlterTableCmd{
-				Action:  nodes.AT_RENAME,
-				NewName: newName,
-				Loc:     nodes.Loc{Start: start, End: p.prev.End},
-			}, nil
+		if err := p.parseATName(); err != nil {
+			return nil, err
+		}
+		if err := p.atExpect(')'); err != nil {
+			return nil, err
+		}
+		newName, err := renameTo()
+		if err != nil {
+			return nil, err
 		}
 		return &nodes.AlterTableCmd{
-			Action: nodes.AT_RENAME,
-			Loc:    nodes.Loc{Start: start, End: p.prev.End},
+			Action:  nodes.AT_ALTER_PROPERTY,
+			Subtype: "RENAME LOB",
+			NewName: newName,
+			Loc:     nodes.Loc{Start: start, End: p.prev.End},
 		}, nil
 	}
-}
-
-// parseAlterTableTruncatePartition parses TRUNCATE PARTITION/SUBPARTITION.
-//
-//	truncate_partition_subpart:
-//	    TRUNCATE { PARTITION | SUBPARTITION }
-//	        { name | FOR ( key_value [, key_value ]... ) }
-//	        [, { name | FOR ( key_value [, key_value ]... ) } ]...
-//	        [ { DROP [ ALL ] | REUSE } STORAGE ]
-//	        [ update_index_clauses ] [ parallel_clause ]
-//	        [ CASCADE ]
-func (p *Parser) parseAlterTableTruncatePartition() (*nodes.AlterTableCmd, error) {
-	start := p.pos()
-	p.advance() // consume TRUNCATE
-
-	subtype := ""
-	action := nodes.AT_TRUNCATE_PARTITION
-	if p.cur.Type == kwPARTITION {
-		subtype = "PARTITION"
-		p.advance()
-	} else if p.cur.Type == kwSUBPARTITION {
-		subtype = "SUBPARTITION"
-		p.advance()
-	} else {
-		return nil, nil
-	}
-
-	name, parseErr176 := p.parsePartitionNameOrFor()
-	if parseErr176 != nil {
-		return nil, parseErr176
-	}
-	for p.cur.Type == ',' {
-		p.advance()
-		parseDiscard178, parseErr177 := p.parsePartitionNameOrFor()
-		_ = parseDiscard178
-
-		// [ { DROP [ALL] | REUSE } STORAGE ]
-		if parseErr177 != nil {
-			return nil, parseErr177
-		}
-	}
-
-	if p.cur.Type == kwDROP || p.isIdentLikeStr("REUSE") {
-		p.advance()
-		if p.cur.Type == kwALL {
-			p.advance()
-		}
-		if p.isIdentLikeStr("STORAGE") {
-			p.advance()
-		}
-	}
-	p.skipUpdateIndexAndParallel()
-	if p.cur.Type == kwCASCADE {
-		p.advance()
-	}
-
-	return &nodes.AlterTableCmd{
-		Action:     action,
-		Subtype:    subtype,
-		ColumnName: name,
-		Loc:        nodes.Loc{Start: start, End: p.prev.End},
-	}, nil
+	return nil, p.syntaxErrorAtCur()
 }
 
 // parseAlterTableEnableDisable parses ENABLE/DISABLE actions.
@@ -1280,67 +1037,79 @@ func (p *Parser) parseAlterTableTruncatePartition() (*nodes.AlterTableCmd, error
 //	{ ENABLE | DISABLE } TABLE LOCK
 //	{ ENABLE | DISABLE } ALL TRIGGERS
 //	{ ENABLE | DISABLE } ROW MOVEMENT
-//	{ ENABLE | DISABLE } LOGICAL REPLICATION
+//	{ ENABLE | DISABLE } LOGICAL REPLICATION [ ALL KEYS | ALLOW NOVALIDATE KEYS ]
+//
+// CASCADE and { KEEP | DROP } INDEX follow DISABLE only (ORA-03049 after
+// ENABLE).
 func (p *Parser) parseAlterTableEnableDisable() (*nodes.AlterTableCmd, error) {
 	start := p.pos()
+	disable := p.cur.Type == kwDISABLE
 	subtype := p.cur.Str // "ENABLE" or "DISABLE"
 	p.advance()          // consume ENABLE/DISABLE
 
-	// ENABLE/DISABLE TABLE LOCK
-	if p.cur.Type == kwTABLE {
+	switch {
+	case p.cur.Type == kwTABLE:
 		p.advance() // consume TABLE
-		if p.cur.Type == kwLOCK {
-			p.advance() // consume LOCK
+		if err := p.atExpect(kwLOCK); err != nil {
+			return nil, err
 		}
 		return &nodes.AlterTableCmd{
 			Action:  nodes.AT_ENABLE_DISABLE_TABLE_LOCK,
 			Subtype: subtype,
 			Loc:     nodes.Loc{Start: start, End: p.prev.End},
 		}, nil
-	}
 
-	// ENABLE/DISABLE ALL TRIGGERS
-	if p.cur.Type == kwALL {
+	case p.cur.Type == kwALL:
 		p.advance() // consume ALL
-		if p.cur.Type == kwTRIGGER || p.isIdentLikeStr("TRIGGERS") {
-			p.advance() // consume TRIGGERS
+		if err := p.atExpectWord("TRIGGERS"); err != nil {
+			return nil, err
 		}
 		return &nodes.AlterTableCmd{
 			Action:  nodes.AT_ENABLE_DISABLE_TRIGGERS,
 			Subtype: subtype,
 			Loc:     nodes.Loc{Start: start, End: p.prev.End},
 		}, nil
-	}
 
-	// ENABLE/DISABLE ROW MOVEMENT
-	if p.cur.Type == kwROW {
+	case p.cur.Type == kwROW:
 		p.advance() // consume ROW
-		if p.isIdentLikeStr("MOVEMENT") {
-			p.advance() // consume MOVEMENT
+		if err := p.atExpectWord("MOVEMENT"); err != nil {
+			return nil, err
 		}
 		return &nodes.AlterTableCmd{
 			Action:  nodes.AT_ALTER_PROPERTY,
 			Subtype: subtype + " ROW MOVEMENT",
 			Loc:     nodes.Loc{Start: start, End: p.prev.End},
 		}, nil
-	}
 
-	// ENABLE/DISABLE LOGICAL REPLICATION
-	if p.isIdentLikeStr("LOGICAL") {
+	case p.atWord("LOGICAL"):
 		p.advance() // consume LOGICAL
-		if p.isIdentLikeStr("REPLICATION") {
-			p.advance() // consume REPLICATION
+		if err := p.atExpectWord("REPLICATION"); err != nil {
+			return nil, err
 		}
-		options := p.collectAlterTableClauseDetails()
-		return withAlterTableOptions(&nodes.AlterTableCmd{
-			Action:  nodes.AT_ALTER_PROPERTY,
-			Subtype: subtype + " LOGICAL REPLICATION",
-			Loc:     nodes.Loc{Start: start, End: p.prev.End},
-		}, options), nil
+		cmd := &nodes.AlterTableCmd{Action: nodes.AT_ALTER_PROPERTY, Subtype: subtype + " LOGICAL REPLICATION", Options: &nodes.List{}}
+		optStart := p.pos()
+		switch {
+		case p.cur.Type == kwALL:
+			p.advance()
+			if err := p.atExpectWord("KEYS"); err != nil {
+				return nil, err
+			}
+		case p.atWord("ALLOW"):
+			p.advance()
+			if err := p.atExpectWord("NOVALIDATE"); err != nil {
+				return nil, err
+			}
+			if err := p.atExpectWord("KEYS"); err != nil {
+				return nil, err
+			}
+		}
+		p.atOption(cmd.Options, optStart)
+		cmd.Loc = nodes.Loc{Start: start, End: p.prev.End}
+		return withAlterTableOptions(cmd, cmd.Options), nil
 	}
 
 	// ENABLE/DISABLE [VALIDATE|NOVALIDATE] { UNIQUE (cols) | PRIMARY KEY | CONSTRAINT name }
-	if p.isIdentLikeStr("VALIDATE") || p.isIdentLikeStr("NOVALIDATE") {
+	if p.cur.Type == kwVALIDATE || p.atWord("NOVALIDATE") {
 		p.advance()
 	}
 
@@ -1350,29 +1119,26 @@ func (p *Parser) parseAlterTableEnableDisable() (*nodes.AlterTableCmd, error) {
 	case kwUNIQUE:
 		constraintType = "UNIQUE"
 		p.advance()
-		if p.cur.Type == '(' {
-			p.skipParenthesized()
+		if err := p.parseATNameList(); err != nil {
+			return nil, err
 		}
 	case kwPRIMARY:
 		constraintType = "PRIMARY KEY"
 		p.advance()
-		if p.cur.Type == kwKEY {
-			p.advance()
+		if err := p.atExpect(kwKEY); err != nil {
+			return nil, err
 		}
-	case kwCONSTRAINT:
+	case kwCONSTRAINT, kwCONSTRAINTS:
 		constraintType = "CONSTRAINT"
 		p.advance()
-		var parseErr179 error
-		name, parseErr179 = p.parseIdentifier()
-		if parseErr179 != nil {
-			return nil, parseErr179
+		if !p.atCutOff() {
+			var err error
+			if name, err = p.parseATNameString(); err != nil {
+				return nil, err
+			}
 		}
 	default:
-		return &nodes.AlterTableCmd{
-			Action:  nodes.AT_ENABLE_DISABLE,
-			Subtype: subtype,
-			Loc:     nodes.Loc{Start: start, End: p.prev.End},
-		}, nil
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	// [ USING INDEX ... ]
@@ -1388,13 +1154,15 @@ func (p *Parser) parseAlterTableEnableDisable() (*nodes.AlterTableCmd, error) {
 		return nil, err
 	}
 
-	// [ CASCADE ]
-	if p.cur.Type == kwCASCADE {
-		p.advance()
+	if disable {
+		// [ CASCADE ] [ { KEEP | DROP } INDEX ]
+		if p.cur.Type == kwCASCADE {
+			p.advance()
+		}
+		if err := p.parseATKeepDropIndex(); err != nil {
+			return nil, err
+		}
 	}
-
-	// [ { KEEP | DROP } INDEX ]
-	p.skipKeepDropIndex()
 
 	return &nodes.AlterTableCmd{
 		Action:     nodes.AT_ENABLE_DISABLE,
@@ -1404,347 +1172,134 @@ func (p *Parser) parseAlterTableEnableDisable() (*nodes.AlterTableCmd, error) {
 	}, nil
 }
 
-// parseAlterTableSet parses SET actions.
+// parseAlterTableSet parses SET UNUSED; SET PARTITIONING, SET INTERVAL and
+// SET SUBPARTITION TEMPLATE are alter_table_partitioning.
 //
-//	SET UNUSED { COLUMN column | ( column [, column ]... ) } ...
-//	SET INTERVAL ( [ expr ] )
-//	SET PARTITIONING { AUTOMATIC | MANUAL }
-//	SET SUBPARTITION TEMPLATE ...
+//	SET UNUSED { COLUMN column | ( column [, column ]... ) }
+//	    [ { CASCADE CONSTRAINTS | INVALIDATE }... ] [ ONLINE ]
 func (p *Parser) parseAlterTableSet() (*nodes.AlterTableCmd, error) {
 	start := p.pos()
 	p.advance() // consume SET
-
-	if p.isIdentLikeStr("UNUSED") {
-		p.advance() // consume UNUSED
-		name := ""
-		if p.cur.Type == kwCOLUMN {
+	if err := p.atExpectWord("UNUSED"); err != nil {
+		return nil, err
+	}
+	var name string
+	var err error
+	if p.cur.Type == kwCOLUMN {
+		p.advance()
+		if name, err = p.parseATNameString(); err != nil {
+			return nil, err
+		}
+	} else {
+		if err := p.atExpect('('); err != nil {
+			return nil, err
+		}
+		if name, err = p.parseATNameString(); err != nil {
+			return nil, err
+		}
+		for p.cur.Type == ',' {
 			p.advance()
-			var // consume COLUMN
-			parseErr182 error
-			name, parseErr182 = p.parseIdentifier()
-			if parseErr182 != nil {
-				return nil, parseErr182
-			}
-		} else if p.cur.Type == '(' {
-			p.advance()
-			var // consume '('
-			parseErr183 error
-			name, parseErr183 = p.parseIdentifier()
-			if parseErr183 != nil {
-				return nil, parseErr183
-			}
-			for p.cur.Type == ',' {
-				p.advance()
-				parseDiscard185, parseErr184 := p.parseIdentifier()
-				_ = parseDiscard185
-				if parseErr184 != nil {
-					return nil, parseErr184
-				}
-			}
-			if p.cur.Type == ')' {
-				p.advance()
+			if err := p.parseATName(); err != nil {
+				return nil, err
 			}
 		}
-		// [ CASCADE CONSTRAINTS | INVALIDATE ]
-		p.skipDropColumnTrailing()
-		return &nodes.AlterTableCmd{
-			Action:     nodes.AT_SET_UNUSED,
-			ColumnName: name,
-			Loc:        nodes.Loc{Start: start, End: p.prev.End},
-		}, nil
-	}
-
-	if p.isIdentLikeStr("INTERVAL") {
-		p.advance() // consume INTERVAL
-		if p.cur.Type == '(' {
-			p.skipParenthesized()
-		}
-		return &nodes.AlterTableCmd{
-			Action: nodes.AT_SET_INTERVAL,
-			Loc:    nodes.Loc{Start: start, End: p.prev.End},
-		}, nil
-	}
-
-	if p.isIdentLikeStr("PARTITIONING") {
-		p.advance() // consume PARTITIONING
-		value := ""
-		if p.isIdentLikeStr("AUTOMATIC") || p.isIdentLikeStr("MANUAL") {
-			value = p.cur.Str
-			p.advance()
-		}
-		return &nodes.AlterTableCmd{
-			Action:  nodes.AT_SET_PARTITIONING,
-			Subtype: value,
-			Loc:     nodes.Loc{Start: start, End: p.prev.End},
-		}, nil
-	}
-
-	if p.cur.Type == kwSUBPARTITION {
-		p.advance() // consume SUBPARTITION
-		if p.isIdentLikeStr("TEMPLATE") {
-			p.advance() // consume TEMPLATE
-		}
-		options := p.collectAlterTableClauseDetails()
-		return withAlterTableOptions(&nodes.AlterTableCmd{
-			Action: nodes.AT_SET_SUBPARTITION_TEMPLATE,
-			Loc:    nodes.Loc{Start: start, End: p.prev.End},
-		}, options), nil
-	}
-
-	options := p.collectAlterTableClauseDetails()
-	return withAlterTableOptions(&nodes.AlterTableCmd{
-		Action:  nodes.AT_ALTER_PROPERTY,
-		Subtype: "SET",
-		Loc:     nodes.Loc{Start: start, End: p.prev.End},
-	}, options), nil
-}
-
-// parseAlterTableMove parses MOVE [ONLINE] clause.
-//
-//	move_table_clause:
-//	    MOVE [ ONLINE ]
-//	        [ segment_attributes_clause ]
-//	        [ table_compression ]
-//	        [ index_org_table_clause ]
-//	        [ { LOB (lob_item) STORE AS ... }... ]
-//	        [ { VARRAY varray STORE AS ... }... ]
-//	        [ parallel_clause ]
-//	        [ allow_disallow_clustering ]
-//	        [ update_index_clauses ]
-//
-//	move_table_partition:
-//	    MOVE PARTITION partition ...
-//
-//	move_table_subpartition:
-//	    MOVE SUBPARTITION subpartition ...
-func (p *Parser) parseAlterTableMove() (*nodes.AlterTableCmd, error) {
-	start := p.pos()
-	p.advance() // consume MOVE
-
-	// MOVE PARTITION
-	if p.cur.Type == kwPARTITION {
-		p.advance() // consume PARTITION
-		if p.isAlterTableDetailClauseStart() || p.isAlterTableActionStart() || p.isStatementEnd() {
-			return nil, p.syntaxErrorAtCur()
-		}
-		name, parseErr186 := p.parseIdentifier()
-		if parseErr186 != nil {
-			return nil, parseErr186
-		}
-		options := p.collectAlterTableClauseDetails()
-		return withAlterTableOptions(&nodes.AlterTableCmd{
-			Action:     nodes.AT_MOVE,
-			Subtype:    "PARTITION",
-			ColumnName: name,
-			Loc:        nodes.Loc{Start: start, End: p.prev.End},
-		}, options), nil
-	}
-
-	// MOVE SUBPARTITION
-	if p.cur.Type == kwSUBPARTITION {
-		p.advance() // consume SUBPARTITION
-		if p.isAlterTableDetailClauseStart() || p.isAlterTableActionStart() || p.isStatementEnd() {
-			return nil, p.syntaxErrorAtCur()
-		}
-		name, parseErr187 := p.parseIdentifier()
-		if parseErr187 != nil {
-			return nil, parseErr187
-		}
-		options := p.collectAlterTableClauseDetails()
-		return withAlterTableOptions(&nodes.AlterTableCmd{
-			Action:     nodes.AT_MOVE,
-			Subtype:    "SUBPARTITION",
-			ColumnName: name,
-			Loc:        nodes.Loc{Start: start, End: p.prev.End},
-		}, options), nil
-	}
-
-	// MOVE [ONLINE] [segment_attributes] [compression] ...
-	options := p.collectAlterTableClauseDetails()
-	return withAlterTableOptions(&nodes.AlterTableCmd{
-		Action: nodes.AT_MOVE,
-		Loc:    nodes.Loc{Start: start, End: p.prev.End},
-	}, options), nil
-}
-
-// parseAlterTableSplit parses SPLIT PARTITION/SUBPARTITION.
-//
-//	split_table_partition:
-//	    SPLIT PARTITION partition
-//	        { AT ( value [, value ]... ) [ INTO ( partition_spec, partition_spec ) ]
-//	        | VALUES ( value [, value ]... ) [ INTO ( partition_spec, partition_spec ) ]
-//	        | INTO ( partition_spec [, ...], partition_spec )
-//	        }
-//	        ...
-//
-//	split_table_subpartition:
-//	    SPLIT SUBPARTITION subpartition ...
-func (p *Parser) parseAlterTableSplit() (*nodes.AlterTableCmd, error) {
-	start := p.pos()
-	p.advance() // consume SPLIT
-
-	action := nodes.AT_SPLIT_PARTITION
-	subtype := "PARTITION"
-	if p.cur.Type == kwSUBPARTITION {
-		action = nodes.AT_SPLIT_SUBPARTITION
-		subtype = "SUBPARTITION"
-	}
-	p.advance() // consume PARTITION/SUBPARTITION
-
-	name, parseErr188 := p.parseIdentifier()
-	if parseErr188 != nil {
-		return nil, parseErr188
-	}
-	options := p.collectAlterTableClauseDetails()
-
-	return withAlterTableOptions(&nodes.AlterTableCmd{
-		Action:     action,
-		Subtype:    subtype,
-		ColumnName: name,
-		Loc:        nodes.Loc{Start: start, End: p.prev.End},
-	}, options), nil
-}
-
-// parseAlterTableMerge parses MERGE PARTITIONS/SUBPARTITIONS.
-//
-//	merge_table_partitions:
-//	    MERGE PARTITIONS
-//	        { partition_or_key_value , partition_or_key_value [ INTO partition_spec ]
-//	        | partition_or_key_value TO partition_or_key_value [ INTO partition_spec ]
-//	        } ...
-//
-//	merge_table_subpartitions:
-//	    MERGE SUBPARTITIONS ...
-func (p *Parser) parseAlterTableMerge() (*nodes.AlterTableCmd, error) {
-	start := p.pos()
-	p.advance() // consume MERGE
-
-	action := nodes.AT_MERGE_PARTITIONS
-	subtype := "PARTITIONS"
-	if p.cur.Type == kwSUBPARTITION || p.isIdentLikeStr("SUBPARTITIONS") {
-		action = nodes.AT_MERGE_SUBPARTITIONS
-		subtype = "SUBPARTITIONS"
-	}
-	// consume PARTITIONS or SUBPARTITIONS
-	p.advance()
-
-	options := p.collectAlterTableClauseDetails()
-
-	return withAlterTableOptions(&nodes.AlterTableCmd{
-		Action:  action,
-		Subtype: subtype,
-		Loc:     nodes.Loc{Start: start, End: p.prev.End},
-	}, options), nil
-}
-
-// parseAlterTableExchange parses EXCHANGE PARTITION/SUBPARTITION.
-//
-//	exchange_partition_subpart:
-//	    EXCHANGE { PARTITION partition | SUBPARTITION subpartition }
-//	        WITH TABLE [ schema. ] table
-//	        [ { INCLUDING | EXCLUDING } INDEXES ]
-//	        [ { WITH | WITHOUT } VALIDATION ]
-//	        [ exceptions_clause ]
-//	        [ update_index_clauses ]
-//	        [ parallel_clause ]
-//	        [ CASCADE ]
-//	        [ ONLINE ]
-func (p *Parser) parseAlterTableExchange() (*nodes.AlterTableCmd, error) {
-	start := p.pos()
-	p.advance() // consume EXCHANGE
-
-	subtype := "PARTITION"
-	if p.cur.Type == kwSUBPARTITION {
-		subtype = "SUBPARTITION"
-	}
-	p.advance() // consume PARTITION/SUBPARTITION
-
-	name, parseErr189 := p.parseIdentifier()
-	if parseErr189 !=
-
-		// WITH TABLE [schema.]table
-		nil {
-		return nil, parseErr189
-	}
-
-	if p.cur.Type == kwWITH {
-		p.advance() // consume WITH
-		if p.cur.Type == kwTABLE {
-			p.advance() // consume TABLE
-		}
-		parseDiscard191, parseErr190 := p.parseObjectName()
-		_ = parseDiscard191
-
-		if parseErr190 != nil {
-			return nil, parseErr190
+		if err := p.atExpect(')'); err != nil {
+			return nil, err
 		}
 	}
-
-	options := p.collectAlterTableClauseDetails()
-
-	return withAlterTableOptions(&nodes.AlterTableCmd{
-		Action:     nodes.AT_EXCHANGE_PARTITION,
-		Subtype:    subtype,
-		ColumnName: name,
-		Loc:        nodes.Loc{Start: start, End: p.prev.End},
-	}, options), nil
-}
-
-// parseAlterTableCoalesce parses COALESCE PARTITION/SUBPARTITION.
-//
-//	coalesce_table_partition:
-//	    COALESCE PARTITION [ update_index_clauses ] [ parallel_clause ]
-//	        [ allow_disallow_clustering ]
-//
-//	coalesce_table_subpartition:
-//	    COALESCE SUBPARTITION [ subpartition ]
-//	        [ update_index_clauses ] [ parallel_clause ]
-//	        [ allow_disallow_clustering ]
-func (p *Parser) parseAlterTableCoalesce() (*nodes.AlterTableCmd, error) {
-	start := p.pos()
-	p.advance() // consume COALESCE
-
-	if p.cur.Type == kwSUBPARTITION {
-		p.advance() // consume SUBPARTITION
-		name := ""
-		if p.isIdentLike() && !p.isAlterTableActionStart() {
-			var parseErr192 error
-			name, parseErr192 = p.parseIdentifier()
-			if parseErr192 != nil {
-				return nil, parseErr192
-			}
-		}
-		p.skipUpdateIndexAndParallel()
-		return &nodes.AlterTableCmd{
-			Action:     nodes.AT_COALESCE_SUBPARTITION,
-			ColumnName: name,
-			Loc:        nodes.Loc{Start: start, End: p.prev.End},
-		}, nil
+	if err := p.parseATDropColumnTrailing(false); err != nil {
+		return nil, err
 	}
-
-	if p.cur.Type == kwPARTITION {
-		p.advance() // consume PARTITION
-	}
-	p.skipUpdateIndexAndParallel()
 	return &nodes.AlterTableCmd{
-		Action: nodes.AT_COALESCE_PARTITION,
-		Loc:    nodes.Loc{Start: start, End: p.prev.End},
+		Action:     nodes.AT_SET_UNUSED,
+		ColumnName: name,
+		Loc:        nodes.Loc{Start: start, End: p.prev.End},
 	}, nil
 }
 
-// parseAlterTableShrinkSpace parses SHRINK SPACE [CASCADE].
+// parseAlterTableMove parses move_table_clause; MOVE PARTITION and MOVE
+// SUBPARTITION are alter_table_partitioning.
 //
-//	SHRINK SPACE [ CASCADE ]
+//	MOVE [ filter_condition ] [ ONLINE ]
+//	    [ segment_attributes_clause ] [ table_compression ]
+//	    [ index_org_table_clause ]
+//	    [ { LOB_storage_clause | varray_col_properties }... ]
+//	    [ parallel_clause ] [ allow_disallow_clustering ]
+//	    [ update_index_clauses ]
+//
+// Oracle reads these in any order, as it reads a partition's, and refuses
+// INVALIDATE GLOBAL INDEXES here (ORA-14133).
+func (p *Parser) parseAlterTableMove() (*nodes.AlterTableCmd, error) {
+	start := p.pos()
+	p.advance() // consume MOVE
+	cmd := &nodes.AlterTableCmd{Action: nodes.AT_MOVE, Options: &nodes.List{}}
+	const allowed = atcFilter | atcOnline | atcSegment | atcCompression | atcLobStorage |
+		atcParallel | atcClustering | atcUpdateIndexes
+	for {
+		if err := p.parseATClauses(allowed, cmd.Options); err != nil {
+			return nil, err
+		}
+		// index_org_table_clause: mapping_table_clauses | PCTTHRESHOLD
+		// integer | prefix_compression | index_org_overflow_clause.
+		optStart := p.pos()
+		switch {
+		case p.atWord("MAPPING"):
+			p.advance()
+			if err := p.atExpect(kwTABLE); err != nil {
+				return nil, err
+			}
+		case p.atWord("NOMAPPING"):
+			p.advance()
+		case p.atWord("PCTTHRESHOLD"):
+			p.advance()
+			if err := p.parseATInteger(); err != nil {
+				return nil, err
+			}
+		case p.atWord("INCLUDING"), p.atWord("OVERFLOW"):
+			if err := p.parseATIndexOrgOverflow(); err != nil {
+				return nil, err
+			}
+		default:
+			cmd.Loc = nodes.Loc{Start: start, End: p.prev.End}
+			return withAlterTableOptions(cmd, cmd.Options), nil
+		}
+		p.atOption(cmd.Options, optStart)
+	}
+}
+
+// parseATIndexOrgOverflow reads index_org_overflow_clause:
+// [ INCLUDING column_name ] OVERFLOW [ segment_attributes_clause ].
+func (p *Parser) parseATIndexOrgOverflow() error {
+	if p.atWord("INCLUDING") {
+		p.advance()
+		if p.atCutOff() {
+			return nil
+		}
+		if err := p.parseATName(); err != nil {
+			return err
+		}
+	}
+	if p.atCutOff() {
+		return nil
+	}
+	if err := p.atExpectWord("OVERFLOW"); err != nil {
+		return err
+	}
+	if p.isATSegmentAttrStart() {
+		return p.parseATSegmentAttrs(nil)
+	}
+	return nil
+}
+
+// parseAlterTableShrinkSpace parses SHRINK SPACE [ COMPACT ] [ CASCADE ].
 func (p *Parser) parseAlterTableShrinkSpace() (*nodes.AlterTableCmd, error) {
 	start := p.pos()
-	p.advance() // consume SHRINK
-	if p.isIdentLikeStr("SPACE") {
-		p.advance() // consume SPACE
+	if err := p.parseATShrink(); err != nil {
+		return nil, err
 	}
 	cascade := ""
-	if p.cur.Type == kwCASCADE {
+	if p.prev.Type == kwCASCADE {
 		cascade = "CASCADE"
-		p.advance()
 	}
 	return &nodes.AlterTableCmd{
 		Action:  nodes.AT_SHRINK_SPACE,
@@ -1753,154 +1308,118 @@ func (p *Parser) parseAlterTableShrinkSpace() (*nodes.AlterTableCmd, error) {
 	}, nil
 }
 
-// parseAlterTableInmemory parses INMEMORY / NO INMEMORY clauses.
+// parseAlterTableInmemory parses inmemory_table_clause from INMEMORY:
 //
-//	inmemory_table_clause:
-//	    { INMEMORY [ inmemory_memcompress ] [ inmemory_priority ]
-//	        [ inmemory_distribute ] [ inmemory_duplicate ]
-//	    | NO INMEMORY
-//	    }
-//	    [ inmemory_column_clause ]
+//	{ INMEMORY [ inmemory_attributes ] | NO INMEMORY } [ inmemory_column_clause ]
+//	inmemory_column_clause:
+//	    { INMEMORY [ inmemory_memcompress ] | NO INMEMORY } ( column [, column ]... ) ...
+//
+// The table part may be left out: INMEMORY (c) is a column clause alone.
+// NO INMEMORY reaches here through parseAlterTableNoPrefix.
 func (p *Parser) parseAlterTableInmemory() (*nodes.AlterTableCmd, error) {
 	start := p.pos()
-	p.advance() // consume INMEMORY
-	options := p.collectAlterTableClauseDetails()
-	return withAlterTableOptions(&nodes.AlterTableCmd{
-		Action:  nodes.AT_ALTER_PROPERTY,
-		Subtype: "INMEMORY",
-		Loc:     nodes.Loc{Start: start, End: p.prev.End},
-	}, options), nil
-}
-
-// parseAlterTableILM parses ILM clause.
-//
-//	ilm_clause:
-//	    ILM { ADD POLICY ilm_policy_clause
-//	        | DELETE POLICY policy_name
-//	        | DELETE_ALL
-//	        | ENABLE_ALL
-//	        | DISABLE_ALL
-//	        }
-func (p *Parser) parseAlterTableILM() (*nodes.AlterTableCmd, error) {
-	start := p.pos()
-	p.advance() // consume ILM
-	options := p.collectAlterTableClauseDetails()
-	return withAlterTableOptions(&nodes.AlterTableCmd{
-		Action:  nodes.AT_ALTER_PROPERTY,
-		Subtype: "ILM",
-		Loc:     nodes.Loc{Start: start, End: p.prev.End},
-	}, options), nil
-}
-
-// parseAlterTableSupplementalLog parses SUPPLEMENTAL LOG clause.
-//
-//	supplemental_table_logging:
-//	    { ADD SUPPLEMENTAL LOG
-//	        { DATA ( { ALL | PRIMARY KEY | UNIQUE | FOREIGN KEY } [, ...] ) COLUMNS
-//	        | GROUP log_group ( column [ NO LOG ] [, ...] ) [ ALWAYS ]
-//	        }
-//	    | DROP SUPPLEMENTAL LOG ...
-//	    }
-func (p *Parser) parseAlterTableSupplementalLog() (*nodes.AlterTableCmd, error) {
-	start := p.pos()
-	// ADD SUPPLEMENTAL LOG is handled in parseAlterTableAdd
-	// This handles standalone SUPPLEMENTAL LOG (should not normally be called)
-	p.advance() // consume SUPPLEMENTAL
-	options := p.collectAlterTableClauseDetails()
-	return withAlterTableOptions(&nodes.AlterTableCmd{
-		Action:  nodes.AT_ALTER_PROPERTY,
-		Subtype: "SUPPLEMENTAL LOG",
-		Loc:     nodes.Loc{Start: start, End: p.prev.End},
-	}, options), nil
-}
-
-// parseAlterTableAllocateExtent parses ALLOCATE EXTENT clause.
-//
-//	allocate_extent_clause:
-//	    ALLOCATE EXTENT [ ( { SIZE size_clause | DATAFILE 'filename' | INSTANCE integer }... ) ]
-func (p *Parser) parseAlterTableAllocateExtent() (*nodes.AlterTableCmd, error) {
-	start := p.pos()
-	p.advance() // consume ALLOCATE
-	if p.isIdentLikeStr("EXTENT") {
-		p.advance() // consume EXTENT
+	cmd := &nodes.AlterTableCmd{Action: nodes.AT_ALTER_PROPERTY, Subtype: "INMEMORY", Options: &nodes.List{}}
+	if p.atWord("NO") {
+		cmd.Subtype = "NO INMEMORY"
+		p.advance() // NO
+		p.advance() // INMEMORY
+		if p.cur.Type == '(' {
+			if err := p.parseATNameList(); err != nil {
+				return nil, err
+			}
+		}
+	} else {
+		p.advance() // INMEMORY
+		if err := p.parseATInmemoryMemcompress(); err != nil {
+			return nil, err
+		}
+		if p.cur.Type == '(' {
+			// A column clause with no table part.
+			if err := p.parseATNameList(); err != nil {
+				return nil, err
+			}
+		} else if err := p.parseATInmemoryRest(); err != nil {
+			return nil, err
+		}
 	}
-	if p.cur.Type == '(' {
-		p.skipParenthesized()
+	p.atOption(cmd.Options, start)
+	for p.isATInmemoryStart() {
+		optStart := p.pos()
+		if err := p.parseATInmemoryColumnItem(); err != nil {
+			return nil, err
+		}
+		p.atOption(cmd.Options, optStart)
 	}
-	return &nodes.AlterTableCmd{
-		Action:  nodes.AT_ALTER_PROPERTY,
-		Subtype: "ALLOCATE EXTENT",
-		Loc:     nodes.Loc{Start: start, End: p.prev.End},
-	}, nil
+	cmd.Loc = nodes.Loc{Start: start, End: p.prev.End}
+	return cmd, nil
 }
 
-// parseAlterTableDeallocateUnused parses DEALLOCATE UNUSED clause.
-//
-//	deallocate_unused_clause:
-//	    DEALLOCATE UNUSED [ KEEP size_clause ]
-func (p *Parser) parseAlterTableDeallocateUnused() (*nodes.AlterTableCmd, error) {
-	start := p.pos()
-	p.advance() // consume DEALLOCATE
-	if p.isIdentLikeStr("UNUSED") {
-		p.advance() // consume UNUSED
-	}
-	if p.isIdentLikeStr("KEEP") {
-		p.advance() // consume KEEP
-		p.skipSizeClause()
-	}
-	return &nodes.AlterTableCmd{
-		Action:  nodes.AT_ALTER_PROPERTY,
-		Subtype: "DEALLOCATE UNUSED",
-		Loc:     nodes.Loc{Start: start, End: p.prev.End},
-	}, nil
-}
-
-// parseAlterTableFlashbackArchive parses FLASHBACK ARCHIVE / NO FLASHBACK ARCHIVE.
-//
-//	flashback_archive_clause:
-//	    FLASHBACK ARCHIVE [ flashback_archive ]
-//	    | NO FLASHBACK ARCHIVE
+// parseAlterTableFlashbackArchive parses flashback_archive_clause:
+// FLASHBACK ARCHIVE [ flashback_archive ]; NO FLASHBACK ARCHIVE reaches
+// here through parseAlterTableNoPrefix.
 func (p *Parser) parseAlterTableFlashbackArchive() (*nodes.AlterTableCmd, error) {
 	start := p.pos()
 	p.advance() // consume FLASHBACK
-	if p.isIdentLikeStr("ARCHIVE") {
-		p.advance() // consume ARCHIVE
-		name := ""
-		if p.isIdentLike() && !p.isStatementEnd() && !p.isAlterTableActionStart() {
-			var parseErr193 error
-			name, parseErr193 = p.parseIdentifier()
-			if parseErr193 != nil {
-				return nil, parseErr193
-			}
+	if err := p.atExpectWord("ARCHIVE"); err != nil {
+		return nil, err
+	}
+	name := ""
+	if p.isATNameStart() && !p.isATAlterTableActionWord() {
+		var err error
+		if name, err = p.parseATNameString(); err != nil {
+			return nil, err
 		}
-		return &nodes.AlterTableCmd{
-			Action:     nodes.AT_ALTER_PROPERTY,
-			Subtype:    "FLASHBACK ARCHIVE",
-			ColumnName: name,
-			Loc:        nodes.Loc{Start: start, End: p.prev.End},
-		}, nil
 	}
 	return &nodes.AlterTableCmd{
-		Action:  nodes.AT_ALTER_PROPERTY,
-		Subtype: "FLASHBACK",
+		Action:     nodes.AT_ALTER_PROPERTY,
+		Subtype:    "FLASHBACK ARCHIVE",
+		ColumnName: name,
+		Loc:        nodes.Loc{Start: start, End: p.prev.End},
+	}, nil
+}
+
+// isATAlterTableActionWord reports a word that starts an ALTER TABLE
+// action Oracle combines with others, which an optional name before it
+// does not take.
+func (p *Parser) isATAlterTableActionWord() bool {
+	switch p.cur.Type {
+	case kwADD, kwMODIFY, kwDROP, kwENABLE, kwDISABLE, kwLOGGING, kwNOLOGGING,
+		kwPARALLEL, kwNOPARALLEL, kwCOMPRESS, kwNOCOMPRESS, kwCACHE, kwREAD, kwPCTFREE:
+		return true
+	}
+	return false
+}
+
+// parseAlterTableRefresh parses the refresh of a duplicated table. The
+// page gives duplicated_table_refresh as { REFRESH | NO REFRESH }; Oracle
+// refuses both (ORA-00905 after REFRESH, ORA-03049 at NO) and takes
+// REFRESH ON DEMAND.
+func (p *Parser) parseAlterTableRefresh() (*nodes.AlterTableCmd, error) {
+	start := p.pos()
+	p.advance() // consume REFRESH
+	if err := p.atExpect(kwON); err != nil {
+		return nil, err
+	}
+	if err := p.atExpectWord("DEMAND"); err != nil {
+		return nil, err
+	}
+	return &nodes.AlterTableCmd{
+		Action:  nodes.AT_DUPLICATED_REFRESH,
+		Subtype: "REFRESH ON DEMAND",
 		Loc:     nodes.Loc{Start: start, End: p.prev.End},
 	}, nil
 }
 
-// parseAlterTableReadOnly parses READ ONLY / READ WRITE.
-//
-//	read_only_clause:
-//	    { READ ONLY | READ WRITE }
+// parseAlterTableReadOnly parses read_only_clause: { READ ONLY | READ WRITE }.
 func (p *Parser) parseAlterTableReadOnly() (*nodes.AlterTableCmd, error) {
 	start := p.pos()
 	p.advance() // consume READ
-	value := "READ"
-	if p.isIdentLikeStr("ONLY") {
-		value = "READ ONLY"
-		p.advance()
-	} else if p.cur.Type == kwWRITE {
+	value := "READ ONLY"
+	if p.cur.Type == kwWRITE {
 		value = "READ WRITE"
 		p.advance()
+	} else if err := p.atExpectWord("ONLY"); err != nil {
+		return nil, err
 	}
 	return &nodes.AlterTableCmd{
 		Action:  nodes.AT_ALTER_PROPERTY,
@@ -1909,141 +1428,109 @@ func (p *Parser) parseAlterTableReadOnly() (*nodes.AlterTableCmd, error) {
 	}, nil
 }
 
-// parseAlterTableRowStore parses ROW STORE COMPRESS clause.
-//
-//	ROW STORE COMPRESS [ BASIC | ADVANCED ]
-func (p *Parser) parseAlterTableRowStore() (*nodes.AlterTableCmd, error) {
+// parseAlterTableCompression parses table_compression, or
+// prefix_compression (COMPRESS integer) of an index-organized table.
+func (p *Parser) parseAlterTableCompression() (*nodes.AlterTableCmd, error) {
 	start := p.pos()
-	// Check ROW STORE COMPRESS vs ROW MOVEMENT
-	next := p.peekNext()
-	if (next.Type == tokIDENT || next.Type >= 2000) && next.Str == "STORE" {
-		p.advance() // consume ROW
-		p.advance() // consume STORE
-		if p.cur.Type == kwCOMPRESS {
-			p.advance() // consume COMPRESS
-			if p.isIdentLikeStr("BASIC") || p.isIdentLikeStr("ADVANCED") {
-				p.advance()
-			}
-		}
-		return &nodes.AlterTableCmd{
-			Action:  nodes.AT_ALTER_PROPERTY,
-			Subtype: "ROW STORE COMPRESS",
-			Loc:     nodes.Loc{Start: start, End: p.prev.End},
-		}, nil
+	subtype := p.cur.Str
+	switch p.cur.Type {
+	case kwROW:
+		subtype = "ROW STORE COMPRESS"
+	case kwCOLUMN:
+		subtype = "COLUMN STORE COMPRESS"
 	}
-	// Not ROW STORE — shouldn't get here normally
-	return nil, nil
-}
-
-// parseAlterTableRefresh parses REFRESH / NO REFRESH.
-//
-//	duplicated_table_refresh:
-//	    { REFRESH | NO REFRESH }
-func (p *Parser) parseAlterTableRefresh() (*nodes.AlterTableCmd, error) {
-	start := p.pos()
-	p.advance() // consume REFRESH
-	return &nodes.AlterTableCmd{
-		Action:  nodes.AT_DUPLICATED_REFRESH,
-		Subtype: "REFRESH",
+	if err := p.parseATTableCompression(true); err != nil {
+		return nil, err
+	}
+	cmd := &nodes.AlterTableCmd{
+		Action:  nodes.AT_ALTER_PROPERTY,
+		Subtype: subtype,
+		Options: &nodes.List{},
 		Loc:     nodes.Loc{Start: start, End: p.prev.End},
-	}, nil
+	}
+	if subtype == "COLUMN STORE COMPRESS" {
+		p.atOption(cmd.Options, start)
+	}
+	return withAlterTableOptions(cmd, cmd.Options), nil
 }
 
-// parseAlterTableProperty parses generic property changes.
+// parseAlterTableProperty parses the single-clause properties:
 //
 //	logging_clause:       { LOGGING | NOLOGGING }
-//	table_compression:    { COMPRESS [BASIC] | NOCOMPRESS | ... }
-//	parallel_clause:      { NOPARALLEL | PARALLEL [integer] }
-//	RESULT_CACHE, CACHE, NOCACHE, INDEXING, SEGMENT, ANNOTATIONS, etc.
+//	parallel_clause:      { NOPARALLEL | PARALLEL [ integer ] }
+//	{ CACHE | NOCACHE }
+//	RESULT_CACHE ( MODE { DEFAULT | FORCE } )
+//	MEMOPTIMIZE FOR { READ | WRITE }
+//	upgrade_table_clause: UPGRADE [ NOT ] INCLUDING DATA [ column_properties ]
+//	annotations_clause:   ANNOTATIONS ( ... )
+//	records_per_block_clause: { MINIMIZE | NOMINIMIZE } RECORDS_PER_BLOCK
+//
+// Oracle refuses the page's alter_XMLSchema_clause here (ORA-01735 at ALLOW
+// ANYSCHEMA) and its RECORDS_PER_BLOCK integer, which is not a clause of
+// ALTER TABLE: records_per_block_clause is.
 func (p *Parser) parseAlterTableProperty() (*nodes.AlterTableCmd, error) {
 	start := p.pos()
 	propName := p.cur.Str
-	p.advance()
-
-	// PARALLEL may have an integer degree
-	if propName == "PARALLEL" && p.cur.Type == tokICONST {
-		p.advance()
-	}
-
-	// COMPRESS may have BASIC
-	if propName == "COMPRESS" && (p.isIdentLikeStr("BASIC") || p.isIdentLikeStr("ADVANCED")) {
-		p.advance()
-	}
-
-	// COLUMN STORE COMPRESS
-	var options *nodes.List
-	if propName == "COLUMN" && p.isIdentLikeStr("STORE") {
-		p.advance() // consume STORE
-		if p.cur.Type == kwCOMPRESS {
-			p.advance() // consume COMPRESS
-			options = p.collectAlterTableClauseDetails()
+	options := &nodes.List{}
+	switch {
+	case p.cur.Type == kwPARALLEL, p.cur.Type == kwNOPARALLEL:
+		if err := p.parseATParallel(); err != nil {
+			return nil, err
 		}
-		propName = "COLUMN STORE COMPRESS"
-	}
-
-	// RESULT_CACHE ( MODE { DEFAULT | FORCE } )
-	if propName == "RESULT_CACHE" && p.cur.Type == '(' {
-		p.skipParenthesized()
-	}
-
-	// INDEXING { ON | OFF }
-	if propName == "INDEXING" {
-		if p.cur.Type == kwON || p.isIdentLikeStr("OFF") {
-			p.advance()
+	case p.cur.Type == kwRESULT_CACHE:
+		p.advance()
+		if err := p.atExpect('('); err != nil {
+			return nil, err
 		}
-	}
-
-	// SEGMENT CREATION { IMMEDIATE | DEFERRED }
-	if propName == "SEGMENT" {
-		if p.isIdentLikeStr("CREATION") {
-			p.advance()
-			if p.cur.Type == kwIMMEDIATE || p.cur.Type == kwDEFERRED {
+		if err := p.atExpect(kwMODE); err != nil {
+			return nil, err
+		}
+		if err := p.atOneOf("DEFAULT", "FORCE"); err != nil {
+			return nil, err
+		}
+		if err := p.atExpect(')'); err != nil {
+			return nil, err
+		}
+	case p.atWord("MEMOPTIMIZE"):
+		p.advance()
+		if err := p.atExpect(kwFOR); err != nil {
+			return nil, err
+		}
+		if p.cur.Type != kwREAD && p.cur.Type != kwWRITE {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+	case p.atWord("UPGRADE"):
+		p.advance()
+		if !p.atCutOff() {
+			if p.cur.Type == kwNOT {
 				p.advance()
 			}
+			if err := p.atExpectWord("INCLUDING"); err != nil {
+				return nil, err
+			}
+			if err := p.atExpectWord("DATA"); err != nil {
+				return nil, err
+			}
+			if err := p.parseATColumnProperties(options); err != nil {
+				return nil, err
+			}
 		}
-	}
-
-	// ANNOTATIONS (...)
-	if propName == "ANNOTATIONS" && p.cur.Type == '(' {
-		p.skipParenthesized()
-	}
-
-	// UPGRADE [NOT] INCLUDING DATA [column_properties]
-	if propName == "UPGRADE" {
-		if p.cur.Type == kwNOT {
-			p.advance()
+	case p.atWord("ANNOTATIONS"):
+		p.advance()
+		if err := p.parseATAnnotations(); err != nil {
+			return nil, err
 		}
-		if p.isIdentLikeStr("INCLUDING") {
-			p.advance()
+	case p.atWord("MINIMIZE"), p.atWord("NOMINIMIZE"):
+		p.advance()
+		if err := p.atExpectWord("RECORDS_PER_BLOCK"); err != nil {
+			return nil, err
 		}
-		if p.isIdentLikeStr("DATA") {
-			p.advance()
-		}
-		if p.cur.Type == '(' {
-			p.skipParenthesized()
-		}
-	}
-
-	// OVERFLOW / MAPPING TABLE / NOMAPPING
-	if propName == "OVERFLOW" || propName == "MAPPING" || propName == "NOMAPPING" {
-		options = p.collectAlterTableClauseDetails()
-	}
-
-	// MEMOPTIMIZE FOR READ/WRITE
-	if propName == "MEMOPTIMIZE" {
-		if p.cur.Type == kwFOR {
-			p.advance()
-		}
-		if p.cur.Type == kwREAD || p.cur.Type == kwWRITE {
-			p.advance()
-		}
-	}
-
-	// RECORDS_PER_BLOCK integer
-	if propName == "RECORDS_PER_BLOCK" && p.cur.Type == tokICONST {
+		propName += " RECORDS_PER_BLOCK"
+	default:
+		// LOGGING, NOLOGGING, CACHE, NOCACHE
 		p.advance()
 	}
-
 	return withAlterTableOptions(&nodes.AlterTableCmd{
 		Action:  nodes.AT_ALTER_PROPERTY,
 		Subtype: propName,
@@ -2051,13 +1538,67 @@ func (p *Parser) parseAlterTableProperty() (*nodes.AlterTableCmd, error) {
 	}, options), nil
 }
 
-// parseAlterTablePhysicalAttr parses PCTFREE/PCTUSED/INITRANS/PCTTHRESHOLD integer.
+// parseATAnnotations reads ( { ADD | DROP | REPLACE } annotation [, ...] )
+// after ANNOTATIONS, where annotation is name [ 'value' ]; ADD may be left
+// out.
+func (p *Parser) parseATAnnotations() error {
+	if err := p.atExpect('('); err != nil {
+		return err
+	}
+	for {
+		switch {
+		case p.cur.Type == kwADD, p.cur.Type == kwDROP:
+			p.advance()
+			if p.cur.Type == kwIF {
+				p.advance()
+				if p.cur.Type == kwNOT {
+					p.advance()
+				}
+				if err := p.atExpect(kwEXISTS); err != nil {
+					return err
+				}
+			}
+		case p.atWord("REPLACE"):
+			p.advance()
+		}
+		if err := p.parseATName(); err != nil {
+			return err
+		}
+		if p.cur.Type == tokSCONST {
+			p.advance()
+		}
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	return p.atExpect(')')
+}
+
+// parseAlterTablePhysicalAttr parses PCTFREE, PCTUSED, INITRANS,
+// storage_clause or PCTTHRESHOLD integer.
 func (p *Parser) parseAlterTablePhysicalAttr() (*nodes.AlterTableCmd, error) {
 	start := p.pos()
 	propName := p.cur.Str
-	p.advance() // consume PCTFREE/PCTUSED/INITRANS/PCTTHRESHOLD
-	if p.cur.Type == tokICONST {
-		p.advance() // consume integer
+	if p.atWord("PCTTHRESHOLD") {
+		p.advance()
+		if !p.atCutOff() {
+			if err := p.parseATInteger(); err != nil {
+				return nil, err
+			}
+		}
+	} else if p.atWord("STORAGE") {
+		// ALTER TABLE cannot change INITIAL (ORA-02203).
+		if p.peekAhead(2)[1].Type == kwINITIAL {
+			p.advance()
+			p.advance()
+			return nil, p.syntaxErrorAtCur()
+		}
+		if err := p.parseATStorageClause(); err != nil {
+			return nil, err
+		}
+	} else if err := p.parseATPhysicalAttr(); err != nil {
+		return nil, err
 	}
 	return &nodes.AlterTableCmd{
 		Action:  nodes.AT_ALTER_PROPERTY,
@@ -2066,130 +1607,292 @@ func (p *Parser) parseAlterTablePhysicalAttr() (*nodes.AlterTableCmd, error) {
 	}, nil
 }
 
-// parseAlterTableStorageClause parses STORAGE (...).
-func (p *Parser) parseAlterTableStorageClause() (*nodes.AlterTableCmd, error) {
+// parseAlterTableIOT parses alter_iot_clauses:
+//
+//	{ index_org_table_clause | alter_overflow_clause
+//	| alter_mapping_table_clauses | COALESCE }
+//	alter_overflow_clause:
+//	    OVERFLOW { allocate_extent_clause | deallocate_unused_clause
+//	             | { physical_attributes_clause | logging_clause }... }
+//	alter_mapping_table_clauses:
+//	    MAPPING TABLE { allocate_extent_clause | deallocate_unused_clause }
+//	mapping_table_clauses: { MAPPING TABLE | NOMAPPING }
+//	index_org_overflow_clause: [ INCLUDING column_name ] OVERFLOW [ segment_attributes_clause ]
+//
+// Oracle takes no TABLESPACE after OVERFLOW (ORA-01735), and each physical
+// attribute once (ORA-14102 for OVERFLOW LOGGING LOGGING).
+func (p *Parser) parseAlterTableIOT() (*nodes.AlterTableCmd, error) {
 	start := p.pos()
-	p.advance() // consume STORAGE
-	if p.cur.Type == '(' {
-		p.skipParenthesized()
+	propName := p.cur.Str
+	options := &nodes.List{}
+	switch {
+	case p.atWord("COALESCE"), p.atWord("NOMAPPING"):
+		p.advance()
+	case p.atWord("MAPPING"):
+		p.advance()
+		if err := p.atExpect(kwTABLE); err != nil {
+			return nil, err
+		}
+		optStart := p.pos()
+		if !p.atCutOff() {
+			ok, err := p.parseATClause(atcAllocate|atcDeallocate, nil)
+			if err != nil {
+				return nil, err
+			}
+			if !ok {
+				return nil, p.syntaxErrorAtCur()
+			}
+		}
+		p.atOption(options, optStart)
+	case p.atWord("INCLUDING"):
+		if err := p.parseATIndexOrgOverflow(); err != nil {
+			return nil, err
+		}
+	default:
+		p.advance() // OVERFLOW
+		optStart := p.pos()
+		switch {
+		case p.atCutOff():
+		case p.isATAllocateExtentStart():
+			if err := p.parseATAllocateExtent(); err != nil {
+				return nil, err
+			}
+		case p.isATDeallocateStart():
+			if err := p.parseATDeallocateUnused(); err != nil {
+				return nil, err
+			}
+		default:
+			seen := map[string]bool{}
+			for n := 0; ; n++ {
+				key := p.cur.Str
+				if p.cur.Type == kwNOLOGGING {
+					key = "LOGGING"
+				}
+				isAttr := p.cur.Type == kwLOGGING || p.cur.Type == kwNOLOGGING || p.isATPhysicalAttrStart()
+				if !isAttr || seen[key] {
+					if n == 0 || seen[key] {
+						return nil, p.syntaxErrorAtCur()
+					}
+					break
+				}
+				seen[key] = true
+				if p.isATLoggingStart() {
+					p.advance()
+				} else if err := p.parseATPhysicalAttr(); err != nil {
+					return nil, err
+				}
+			}
+		}
+		p.atOption(options, optStart)
+	}
+	return withAlterTableOptions(&nodes.AlterTableCmd{
+		Action:  nodes.AT_ALTER_PROPERTY,
+		Subtype: propName,
+		Loc:     nodes.Loc{Start: start, End: p.prev.End},
+	}, options), nil
+}
+
+// parseAlterTableExternal parses the clauses of alter_external_table that
+// no other table takes:
+//
+//	external_table_data_props:
+//	    [ DEFAULT DIRECTORY directory ]
+//	    [ ACCESS PARAMETERS { ( opaque_format_spec ) | USING CLOB subquery } ]
+//	    [ LOCATION ( [ directory: ] 'location_specifier' [, ...] ) ]
+//	REJECT LIMIT { integer | UNLIMITED }
+//	PROJECT COLUMN { ALL | REFERENCED }
+func (p *Parser) parseAlterTableExternal() (*nodes.AlterTableCmd, error) {
+	start := p.pos()
+	propName := p.cur.Str
+	switch {
+	case p.cur.Type == kwDEFAULT:
+		p.advance()
+		if err := p.atExpectWord("DIRECTORY"); err != nil {
+			return nil, err
+		}
+		if !p.atCutOff() {
+			if err := p.parseATName(); err != nil {
+				return nil, err
+			}
+		}
+	case p.atWord("ACCESS"):
+		p.advance()
+		if err := p.atExpectWord("PARAMETERS"); err != nil {
+			return nil, err
+		}
+		if p.cur.Type == '(' {
+			p.skipParenthesized()
+		} else {
+			if err := p.atExpect(kwUSING); err != nil {
+				return nil, err
+			}
+			if err := p.atExpect(kwCLOB); err != nil {
+				return nil, err
+			}
+			if p.cur.Type != kwSELECT && p.cur.Type != kwWITH && p.cur.Type != '(' {
+				return nil, p.syntaxErrorAtCur()
+			}
+			q, err := p.parseSelectStmt()
+			if err != nil {
+				return nil, err
+			}
+			if q == nil {
+				return nil, p.syntaxErrorAtCur()
+			}
+		}
+	case p.atWord("LOCATION"):
+		p.advance()
+		if err := p.atExpect('('); err != nil {
+			return nil, err
+		}
+		for {
+			if p.cur.Type != tokSCONST {
+				if err := p.parseATName(); err != nil {
+					return nil, err
+				}
+				if err := p.atExpect(':'); err != nil {
+					return nil, err
+				}
+			}
+			if err := p.atExpect(tokSCONST); err != nil {
+				return nil, err
+			}
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance()
+		}
+		if err := p.atExpect(')'); err != nil {
+			return nil, err
+		}
+	case p.atWord("REJECT"):
+		p.advance()
+		if err := p.atExpectWord("LIMIT"); err != nil {
+			return nil, err
+		}
+		if !p.atOptOneOf("UNLIMITED") {
+			if err := p.parseATInteger(); err != nil {
+				return nil, err
+			}
+		}
+	default: // PROJECT
+		p.advance()
+		if err := p.atExpect(kwCOLUMN); err != nil {
+			return nil, err
+		}
+		if p.cur.Type == kwALL {
+			p.advance()
+		} else if err := p.atExpectWord("REFERENCED"); err != nil {
+			return nil, err
+		}
 	}
 	return &nodes.AlterTableCmd{
 		Action:  nodes.AT_ALTER_PROPERTY,
-		Subtype: "STORAGE",
+		Subtype: propName,
 		Loc:     nodes.Loc{Start: start, End: p.prev.End},
 	}, nil
 }
 
-// parseAlterTableNoPrefix parses NO-prefixed properties.
+// parseAlterTableNoPrefix parses the clauses that start with NO:
 //
-//	NO INMEMORY
+//	NO INMEMORY [ inmemory_column_clause ]
 //	NO FLASHBACK ARCHIVE
-//	NO MEMOPTIMIZE FOR READ
-//	NO MEMOPTIMIZE FOR WRITE
-//	NO REFRESH
-//	NO DROP [UNTIL integer {DAY|DAYS} IDLE]  (immutable_table_clauses)
-//	NO DELETE [LOCKED] [UNTIL ...]           (immutable_table_clauses / blockchain_table_clauses)
+//	NO MEMOPTIMIZE FOR { READ | WRITE }
+//	NO ROW ARCHIVAL
+//	NO DROP [ UNTIL integer DAYS IDLE ]
+//	NO DELETE [ LOCKED ] [ UNTIL integer { DAY | DAYS } AFTER INSERT ]
+//
+// Oracle takes only DAYS in NO DROP UNTIL (ORA-00905 for DAY).
 func (p *Parser) parseAlterTableNoPrefix() (*nodes.AlterTableCmd, error) {
 	start := p.pos()
+	if p.atNextWord("INMEMORY") {
+		return p.parseAlterTableInmemory()
+	}
 	p.advance() // consume NO
-
-	if p.isIdentLikeStr("INMEMORY") {
-		p.advance()
+	prop := func(subtype string) *nodes.AlterTableCmd {
 		return &nodes.AlterTableCmd{
 			Action:  nodes.AT_ALTER_PROPERTY,
-			Subtype: "NO INMEMORY",
+			Subtype: subtype,
 			Loc:     nodes.Loc{Start: start, End: p.prev.End},
-		}, nil
+		}
 	}
 
-	if p.cur.Type == kwFLASHBACK {
+	switch {
+	case p.cur.Type == kwFLASHBACK:
 		p.advance() // consume FLASHBACK
-		if p.isIdentLikeStr("ARCHIVE") {
-			p.advance()
+		if err := p.atExpectWord("ARCHIVE"); err != nil {
+			return nil, err
 		}
-		return &nodes.AlterTableCmd{
-			Action:  nodes.AT_ALTER_PROPERTY,
-			Subtype: "NO FLASHBACK ARCHIVE",
-			Loc:     nodes.Loc{Start: start, End: p.prev.End},
-		}, nil
-	}
+		return prop("NO FLASHBACK ARCHIVE"), nil
 
-	if p.isIdentLikeStr("MEMOPTIMIZE") {
+	case p.atWord("MEMOPTIMIZE"):
 		p.advance() // consume MEMOPTIMIZE
-		if p.cur.Type == kwFOR {
-			p.advance()
+		if err := p.atExpect(kwFOR); err != nil {
+			return nil, err
 		}
-		dir := ""
-		if p.cur.Type == kwREAD {
-			dir = "READ"
-			p.advance()
-		} else if p.cur.Type == kwWRITE {
-			dir = "WRITE"
-			p.advance()
+		if p.cur.Type != kwREAD && p.cur.Type != kwWRITE {
+			return nil, p.syntaxErrorAtCur()
 		}
-		return &nodes.AlterTableCmd{
-			Action:  nodes.AT_ALTER_PROPERTY,
-			Subtype: "NO MEMOPTIMIZE FOR " + dir,
-			Loc:     nodes.Loc{Start: start, End: p.prev.End},
-		}, nil
-	}
-
-	if p.cur.Type == kwREFRESH {
-		p.advance() // consume REFRESH
-		return &nodes.AlterTableCmd{
-			Action:  nodes.AT_DUPLICATED_REFRESH,
-			Subtype: "NO REFRESH",
-			Loc:     nodes.Loc{Start: start, End: p.prev.End},
-		}, nil
-	}
-
-	if p.isIdentLikeStr("DUPLICATE") {
+		dir := p.cur.Str
 		p.advance()
-		return &nodes.AlterTableCmd{
-			Action:  nodes.AT_ALTER_PROPERTY,
-			Subtype: "NO DUPLICATE",
-			Loc:     nodes.Loc{Start: start, End: p.prev.End},
-		}, nil
-	}
+		return prop("NO MEMOPTIMIZE FOR " + dir), nil
 
-	// NO DROP [UNTIL integer {DAY|DAYS} IDLE]  — immutable/blockchain
-	if p.cur.Type == kwDROP {
+	case p.cur.Type == kwROW:
+		p.advance()
+		if err := p.atExpectWord("ARCHIVAL"); err != nil {
+			return nil, err
+		}
+		return prop("NO ROW ARCHIVAL"), nil
+
+	case p.cur.Type == kwDROP:
 		p.advance() // consume DROP
-		options := p.collectAlterTableClauseDetails()
-		return withAlterTableOptions(&nodes.AlterTableCmd{
-			Action:  nodes.AT_IMMUTABLE_TABLE,
-			Subtype: "NO DROP",
-			Loc:     nodes.Loc{Start: start, End: p.prev.End},
-		}, options), nil
-	}
+		cmd := &nodes.AlterTableCmd{Action: nodes.AT_IMMUTABLE_TABLE, Subtype: "NO DROP", Options: &nodes.List{}}
+		if p.atWord("UNTIL") {
+			optStart := p.pos()
+			p.advance()
+			if err := p.parseATInteger(); err != nil {
+				return nil, err
+			}
+			if err := p.atExpectWord("DAYS"); err != nil {
+				return nil, err
+			}
+			if err := p.atExpectWord("IDLE"); err != nil {
+				return nil, err
+			}
+			p.atOption(cmd.Options, optStart)
+		}
+		cmd.Loc = nodes.Loc{Start: start, End: p.prev.End}
+		return withAlterTableOptions(cmd, cmd.Options), nil
 
-	// NO DELETE [LOCKED] [UNTIL ...]  — immutable/blockchain
-	if p.cur.Type == kwDELETE {
+	case p.cur.Type == kwDELETE:
 		p.advance() // consume DELETE
-		options := p.collectAlterTableClauseDetails()
-		return withAlterTableOptions(&nodes.AlterTableCmd{
-			Action:  nodes.AT_IMMUTABLE_TABLE,
-			Subtype: "NO DELETE",
-			Loc:     nodes.Loc{Start: start, End: p.prev.End},
-		}, options), nil
+		cmd := &nodes.AlterTableCmd{Action: nodes.AT_IMMUTABLE_TABLE, Subtype: "NO DELETE", Options: &nodes.List{}}
+		optStart := p.pos()
+		if p.atWord("LOCKED") {
+			p.advance()
+			p.atOption(cmd.Options, optStart)
+		}
+		if p.atWord("UNTIL") {
+			optStart := p.pos()
+			p.advance()
+			if err := p.parseATInteger(); err != nil {
+				return nil, err
+			}
+			if err := p.atOneOf("DAY", "DAYS"); err != nil {
+				return nil, err
+			}
+			if err := p.atExpectWord("AFTER"); err != nil {
+				return nil, err
+			}
+			if err := p.atExpect(kwINSERT); err != nil {
+				return nil, err
+			}
+			p.atOption(cmd.Options, optStart)
+		}
+		cmd.Loc = nodes.Loc{Start: start, End: p.prev.End}
+		return withAlterTableOptions(cmd, cmd.Options), nil
 	}
-
-	// Generic NO prefix
-	if p.isIdentLike() {
-		name := p.cur.Str
-		p.advance()
-		return &nodes.AlterTableCmd{
-			Action:  nodes.AT_ALTER_PROPERTY,
-			Subtype: "NO " + name,
-			Loc:     nodes.Loc{Start: start, End: p.prev.End},
-		}, nil
-	}
-
-	return &nodes.AlterTableCmd{
-		Action:  nodes.AT_ALTER_PROPERTY,
-		Subtype: "NO",
-		Loc:     nodes.Loc{Start: start, End: p.prev.End},
-	}, nil
+	return nil, p.syntaxErrorAtCur()
 }
 
 // ---------------------------------------------------------------------------
@@ -2216,68 +1919,10 @@ func (p *Parser) skipParenthesized() {
 func withAlterTableOptions(cmd *nodes.AlterTableCmd, options *nodes.List) *nodes.AlterTableCmd {
 	if options != nil && len(options.Items) > 0 {
 		cmd.Options = options
+	} else {
+		cmd.Options = nil
 	}
 	return cmd
-}
-
-// collectAlterTableClauseDetails preserves complex ALTER TABLE sub-clauses as
-// ordered parser-visible options until the next ALTER TABLE action or statement
-// end. Parenthesized payloads stay inside their owning option.
-func (p *Parser) collectAlterTableClauseDetails() *nodes.List {
-	options := &nodes.List{}
-	for p.cur.Type != ';' && p.cur.Type != tokEOF {
-		if p.isAlterTableActionStart() {
-			return options
-		}
-		if p.cur.Type == '(' {
-			start := p.pos()
-			tokens := p.consumeAlterTableOptionTokens()
-			if len(tokens) > 0 {
-				options.Items = append(options.Items, &nodes.DDLOption{
-					Key:   tokens[0],
-					Value: strings.Join(tokens[1:], " "),
-					Loc:   nodes.Loc{Start: start, End: p.prev.End},
-				})
-			}
-			continue
-		}
-		start := p.pos()
-		tokens := p.consumeAlterTableOptionTokens()
-		if len(tokens) == 0 {
-			continue
-		}
-		options.Items = append(options.Items, &nodes.DDLOption{
-			Key:   tokens[0],
-			Value: strings.Join(tokens[1:], " "),
-			Loc:   nodes.Loc{Start: start, End: p.prev.End},
-		})
-	}
-	return options
-}
-
-func (p *Parser) consumeAlterTableOptionTokens() []string {
-	var tokens []string
-	depth := 0
-	for p.cur.Type != ';' && p.cur.Type != tokEOF {
-		if depth == 0 && len(tokens) > 0 && (p.isAlterTableActionStart() || p.isAlterTableDetailClauseStart()) {
-			break
-		}
-		if depth == 0 && len(tokens) == 0 && p.isAlterTableActionStart() {
-			break
-		}
-
-		tokens = append(tokens, p.alterTableTokenText(p.cur))
-		switch p.cur.Type {
-		case '(':
-			depth++
-		case ')':
-			if depth > 0 {
-				depth--
-			}
-		}
-		p.advance()
-	}
-	return tokens
 }
 
 func (p *Parser) alterTableTokenText(tok Token) string {
@@ -2291,169 +1936,4 @@ func (p *Parser) alterTableTokenText(tok Token) string {
 		return string(rune(tok.Type))
 	}
 	return ""
-}
-
-// isAlterTableActionStart returns true if the current token starts a new ALTER TABLE action.
-func (p *Parser) isAlterTableActionStart() bool {
-	switch p.cur.Type {
-	case kwADD, kwMODIFY, kwDROP, kwRENAME, kwTRUNCATE,
-		kwENABLE, kwDISABLE, kwSET,
-		kwLOGGING, kwNOLOGGING,
-		kwCOMPRESS, kwNOCOMPRESS,
-		kwPARALLEL, kwNOPARALLEL,
-		kwCACHE, kwREFRESH, kwFLASHBACK, kwREAD, kwROW,
-		kwRESULT_CACHE:
-		return true
-	}
-	if p.isIdentLike() {
-		switch p.cur.Str {
-		case "MOVE", "SPLIT", "MERGE", "EXCHANGE", "COALESCE",
-			"SHRINK", "INMEMORY", "ILM", "SUPPLEMENTAL",
-			"ALLOCATE", "DEALLOCATE", "NOCACHE", "NOCOMPRESS",
-			"PCTFREE", "PCTUSED", "INITRANS", "STORAGE",
-			"MEMOPTIMIZE", "NO", "OVERFLOW", "MAPPING", "NOMAPPING",
-			"RECORDS_PER_BLOCK", "UPGRADE", "INDEXING",
-			"SEGMENT", "ANNOTATIONS", "PCTTHRESHOLD",
-			"HASHING", "VERSION":
-			return true
-		}
-	}
-	return false
-}
-
-func (p *Parser) isAlterTableDetailClauseStart() bool {
-	switch p.cur.Type {
-	case kwAS, kwCASCADE, kwDEFAULT, kwDROP, kwINTO, kwLOGGING, kwNOLOGGING,
-		kwONLINE, kwPARALLEL, kwTABLESPACE, kwUPDATE, kwUSING, kwVALUES, kwWITH:
-		return true
-	}
-	if p.isIdentLike() {
-		switch p.cur.Str {
-		case "ALLOW", "ALWAYS", "COMPRESS", "COLUMNS", "DATA", "DISALLOW",
-			"EXCEPTIONS", "EXCLUDING", "GROUP", "INCLUDING", "INVALIDATE", "LOB",
-			"NO", "NOCOMPRESS", "OVERFLOW", "STORE", "STORAGE", "SUBPARTITION",
-			"TABLE", "TABLESPACE", "UPDATE", "VARRAY", "WITHOUT":
-			return true
-		}
-	}
-	return false
-}
-
-// isAlterTablePartitionKeyword checks if current token is a partition-related keyword
-// that shouldn't be consumed as a partition name.
-func (p *Parser) isAlterTablePartitionKeyword() bool {
-	if p.cur.Type == kwVALUES || p.cur.Type == kwFOR {
-		return true
-	}
-	if p.isIdentLikeStr("LESS") || p.isIdentLikeStr("SUBPARTITIONS") {
-		return true
-	}
-	return false
-}
-
-// parsePartitionNameOrFor parses a partition name or FOR (key_value, ...).
-func (p *Parser) parsePartitionNameOrFor() (string, error) {
-	if p.cur.Type == kwFOR {
-		p.advance() // consume FOR
-		if p.cur.Type == '(' {
-			p.skipParenthesized()
-		}
-		return "", nil
-	}
-	if p.isIdentLike() {
-		return p.parseIdentifier()
-	}
-	return "", nil
-}
-
-// skipDropColumnTrailing skips CASCADE CONSTRAINTS, INVALIDATE, CHECKPOINT, ONLINE after DROP COLUMN.
-func (p *Parser) skipDropColumnTrailing() {
-	for {
-		if p.cur.Type == kwCASCADE {
-			p.advance()
-			if p.cur.Type == kwCONSTRAINTS {
-				p.advance()
-			}
-			continue
-		}
-		if p.isIdentLikeStr("INVALIDATE") {
-			p.advance()
-			continue
-		}
-		if p.isIdentLikeStr("CHECKPOINT") {
-			p.advance()
-			if p.cur.Type == tokICONST {
-				p.advance()
-			}
-			continue
-		}
-		if p.cur.Type == kwONLINE {
-			p.advance()
-			continue
-		}
-		break
-	}
-}
-
-// skipKeepDropIndex skips { KEEP | DROP } INDEX if present.
-func (p *Parser) skipKeepDropIndex() {
-	if p.isIdentLikeStr("KEEP") || p.cur.Type == kwDROP {
-		p.advance()
-		if p.cur.Type == kwINDEX {
-			p.advance()
-		}
-	}
-}
-
-// skipUpdateIndexAndParallel skips update_index_clauses and parallel_clause.
-func (p *Parser) skipUpdateIndexAndParallel() {
-	// { UPDATE | INVALIDATE } { GLOBAL INDEXES | INDEXES [...] }
-	if p.cur.Type == kwUPDATE || p.isIdentLikeStr("INVALIDATE") {
-		p.advance()
-		if p.isIdentLikeStr("GLOBAL") {
-			p.advance()
-		}
-		if p.isIdentLikeStr("INDEXES") {
-			p.advance()
-		}
-		if p.cur.Type == '(' {
-			p.skipParenthesized()
-		}
-	}
-
-	// parallel_clause
-	if p.cur.Type == kwPARALLEL {
-		p.advance()
-		if p.cur.Type == tokICONST {
-			p.advance()
-		}
-	} else if p.cur.Type == kwNOPARALLEL {
-		p.advance()
-	}
-
-	// allow_disallow_clustering
-	if p.isIdentLikeStr("ALLOW") || p.isIdentLikeStr("DISALLOW") {
-		p.advance()
-		if p.isIdentLikeStr("CLUSTERING") {
-			p.advance()
-		}
-	}
-
-	// ONLINE
-	if p.cur.Type == kwONLINE {
-		p.advance()
-	}
-}
-
-// skipSizeClause skips a size clause like "10M", "1G", etc.
-func (p *Parser) skipSizeClause() {
-	if p.cur.Type == tokICONST {
-		p.advance()
-		// optional unit suffix (K, M, G, T)
-		if p.isIdentLike() {
-			p.advance()
-		}
-	} else if p.isIdentLike() {
-		p.advance()
-	}
 }
