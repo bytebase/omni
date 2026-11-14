@@ -40,6 +40,20 @@ func isPrimitiveTypeKeyword(kind TokenKind) bool {
 	}
 }
 
+// isDecimalAliasWord reports whether tok is one of decimalType's names
+// (StarRocks.g4:2845) that omni lexes as an identifier: DECIMAL32,
+// DECIMAL64, DECIMAL128, NUMERIC and NUMBER.
+func isDecimalAliasWord(tok Token) bool {
+	if tok.Kind != tokIdent {
+		return false
+	}
+	switch strings.ToUpper(tok.Str) {
+	case "DECIMAL32", "DECIMAL64", "DECIMAL128", "NUMERIC", "NUMBER":
+		return true
+	}
+	return false
+}
+
 // typeKeywordName returns the canonical uppercase name for a type keyword.
 // Falls back to the token's Str field (which may be lowercase from the lexer)
 // uppercased.
@@ -164,6 +178,15 @@ func (p *Parser) parseDataTypeUnrecorded() (*ast.TypeName, error) {
 	tok := p.cur
 
 	switch tok.Kind {
+	case kwSIGNED, kwUNSIGNED:
+		// baseType (StarRocks.g4:2820-2823): (SIGNED | UNSIGNED) (INT | INTEGER)?
+		p.advance()
+		typName := &ast.TypeName{Name: strings.ToUpper(tok.Str), Loc: tok.Loc}
+		if p.cur.Kind == kwINT || p.cur.Kind == kwINTEGER {
+			typName.Name += " " + strings.ToUpper(p.cur.Str)
+			typName.Loc.End = p.advance().Loc.End
+		}
+		return typName, nil
 	case kwARRAY:
 		return p.parseArrayType()
 	case kwMAP:
@@ -171,12 +194,7 @@ func (p *Parser) parseDataTypeUnrecorded() (*ast.TypeName, error) {
 	case kwSTRUCT:
 		return p.parseStructType()
 	default:
-		if isPrimitiveTypeKeyword(tok.Kind) {
-			return p.parsePrimitiveType()
-		}
-		// Also accept unquoted identifiers as type names (for forward
-		// compatibility with new type names not yet in the keyword list).
-		if tok.Kind == tokIdent || tok.Kind == tokQuotedIdent {
+		if isPrimitiveTypeKeyword(tok.Kind) || tok.Kind == kwBINARY || isDecimalAliasWord(tok) {
 			return p.parsePrimitiveType()
 		}
 		return nil, &ParseError{
