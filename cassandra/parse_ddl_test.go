@@ -349,3 +349,32 @@ func TestParseGrammarRejects(t *testing.T) {
 		})
 	}
 }
+
+// TestParseLexerForms holds what Cassandra's lexer reads differently from
+// omni's: a $$-quoted STRING_LITERAL (Lexer.g:258), a sign that is part of
+// an INTEGER (Lexer.g:337), and words that are an IDENT to Cassandra though
+// omni's lexer makes them keywords.
+func TestParseLexerForms(t *testing.T) {
+	for _, sql := range []string{
+		"CREATE ROLE r WITH PASSWORD = $$secret$$",
+		"CREATE USER u WITH PASSWORD $$secret$$",
+		"CREATE CUSTOM INDEX ON t(a) USING $$org.apache.cassandra.index.sai.StorageAttachedIndex$$",
+		"ALTER TABLE t DROP c USING TIMESTAMP -1",
+		"CREATE USER replication",
+		"ALTER USER now WITH PASSWORD 'x'",
+		"DROP USER sai",
+	} {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q): %v", sql, err)
+		}
+	}
+	for _, sql := range []string{
+		"ALTER TABLE t DROP c USING TIMESTAMP - 1",
+		"CREATE USER keyspace",
+		"DROP USER login",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) = nil error, want one", sql)
+		}
+	}
+}

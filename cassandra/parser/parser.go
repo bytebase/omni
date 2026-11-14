@@ -275,7 +275,7 @@ func identKey(id *ast.Identifier) string {
 // name, an unreserved keyword or a string literal. A string comes back as a
 // quoted Identifier, since Cassandra keeps its case.
 func (p *Parser) parseRoleName() (*ast.Identifier, error) {
-	if p.cur.Type == tokSTRING {
+	if isStringLiteral(p.cur.Type) {
 		tok := p.cur
 		p.advance()
 		return &ast.Identifier{Name: tok.Str, Quoted: true, Loc: ast.Loc{Start: tok.Loc, End: tok.End}}, nil
@@ -285,14 +285,16 @@ func (p *Parser) parseRoleName() (*ast.Identifier, error) {
 
 // parseUsername parses username (Parser.g:1921) and identity (Parser.g:1927):
 // an identifier or a string literal. A quoted name is refused by the
-// grammar's own action, and no keyword is a user name.
+// grammar's own action, and no keyword of Lexer.g is a user name; a word
+// only omni's lexer makes a keyword (REPLICATION, NOW, SAI) is an IDENT to
+// Cassandra.
 func (p *Parser) parseUsername(what string) (*ast.Identifier, error) {
 	tok := p.cur
-	switch tok.Type {
-	case tokIDENT:
+	switch {
+	case tokWord(tok) != "" && !isLexerKeyword(tokWord(tok)):
 		p.advance()
 		return &ast.Identifier{Name: tok.Str, Loc: ast.Loc{Start: tok.Loc, End: tok.End}}, nil
-	case tokSTRING:
+	case isStringLiteral(tok.Type):
 		p.advance()
 		return &ast.Identifier{Name: tok.Str, Quoted: true, Loc: ast.Loc{Start: tok.Loc, End: tok.End}}, nil
 	default:

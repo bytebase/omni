@@ -129,3 +129,16 @@ func (p *Parser) parseCQLQualifiedName() (*ast.QualifiedName, error) {
 	}
 	return &ast.QualifiedName{Parts: parts, Loc: p.makeLoc(start)}, nil
 }
+
+// isLexerKeyword reports whether the lower-case word w is a keyword of
+// Lexer.g, reserved or not (or a boolean, NaN or Infinity), as opposed to an
+// IDENT. omni's lexer makes more words keywords than Cassandra's does.
+func isLexerKeyword(w string) bool {
+	return reservedKeywords[w] || basicUnreservedKeywords[w] || otherUnreservedKeywords[w]
+}
+
+// isStringLiteral reports whether typ is a STRING_LITERAL (Lexer.g:258):
+// quoted with single quotes or with $$.
+func isStringLiteral(typ int) bool {
+	return typ == tokSTRING || typ == tokCODEBLOCK
+}

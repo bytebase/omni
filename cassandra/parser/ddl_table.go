@@ -414,10 +414,16 @@ func (p *Parser) parseAlterTable() (*ast.AlterTableStmt, error) {
 			if err := p.expectKeyword(tokTIMESTAMP); err != nil {
 				return nil, err
 			}
+			// An INTEGER takes a sign written against it (Lexer.g:337).
+			start, sign := p.curLoc(), ""
+			if p.cur.Type == tokMINUS && p.peekNext().Type == tokINTEGER && p.peekNext().Loc == p.cur.End {
+				sign = "-"
+				p.advance()
+			}
 			if p.cur.Type != tokINTEGER {
 				return nil, p.errorf("expected integer, got %s", p.tokenDesc())
 			}
-			stmt.DropTimestamp = &ast.IntegerLit{Val: p.cur.Str, Loc: ast.Loc{Start: p.cur.Loc, End: p.cur.End}}
+			stmt.DropTimestamp = &ast.IntegerLit{Val: sign + p.cur.Str, Loc: ast.Loc{Start: start, End: p.cur.End}}
 			p.advance()
 		}
 	case tokRENAME:

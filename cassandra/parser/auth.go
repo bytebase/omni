@@ -12,7 +12,7 @@ func (p *Parser) parseGrant() (ast.StmtNode, error) {
 
 	// GRANT role TO grantee (Parser.g:1105) when a role name is followed by
 	// TO; a permission is always followed by ON or ','.
-	if (isIdentLike(p.cur.Type) || p.cur.Type == tokSTRING) && p.peekNext().Type == tokTO {
+	if (isIdentLike(p.cur.Type) || isStringLiteral(p.cur.Type)) && p.peekNext().Type == tokTO {
 		roleName, err := p.parseRoleName()
 		if err != nil {
 			return nil, err
@@ -68,7 +68,7 @@ func (p *Parser) parseRevoke() (ast.StmtNode, error) {
 	p.advance() // REVOKE
 
 	// REVOKE role FROM revokee (Parser.g:1116).
-	if (isIdentLike(p.cur.Type) || p.cur.Type == tokSTRING) && p.peekNext().Type == tokFROM {
+	if (isIdentLike(p.cur.Type) || isStringLiteral(p.cur.Type)) && p.peekNext().Type == tokFROM {
 		roleName, err := p.parseRoleName()
 		if err != nil {
 			return nil, err
@@ -309,7 +309,7 @@ func (p *Parser) parseResource() (*ast.Resource, error) {
 		res.Loc = p.makeLoc(start)
 		return res, nil
 
-	case (p.cur.Type == tokMBEAN || p.cur.Type == tokMBEANS) && next.Type == tokSTRING:
+	case (p.cur.Type == tokMBEAN || p.cur.Type == tokMBEANS) && isStringLiteral(next.Type):
 		// jmxResource (Parser.g:1162): the name must be a JMX object name,
 		// and MBEANS takes only a pattern (canonicalizeObjectName, Parser.g:162).
 		plural := p.cur.Type == tokMBEANS
@@ -342,7 +342,7 @@ func (p *Parser) parseResource() (*ast.Resource, error) {
 			Loc:  p.makeLoc(start),
 		}, nil
 
-	case p.cur.Type == tokROLE && (isIdentLike(next.Type) || next.Type == tokSTRING):
+	case p.cur.Type == tokROLE && (isIdentLike(next.Type) || isStringLiteral(next.Type)):
 		p.advance()
 		role, err := p.parseRoleName()
 		if err != nil {
@@ -594,10 +594,11 @@ func (p *Parser) parseRoleOption() (*ast.RoleOption, error) {
 	}
 }
 
-// parseStringLit parses a STRING_LITERAL.
+// parseStringLit parses a STRING_LITERAL, quoted or dollar-quoted
+// (isStringLiteral).
 func (p *Parser) parseStringLit() (*ast.StringLit, error) {
 	tok := p.cur
-	if tok.Type != tokSTRING {
+	if !isStringLiteral(tok.Type) {
 		return nil, p.errorf("expected string, got %s", p.tokenDesc())
 	}
 	p.advance()
