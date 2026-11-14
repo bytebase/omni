@@ -11258,3 +11258,437 @@ reject	accept	engine	nonReserved/ARRAY_ELEMENT	SELECT [*];
 reject	accept	engine	nonReserved/ARRAY_ELEMENT!insert	SELECT [*] zzz;
 accept	accept	engine	nonReserved/PERSISTENT	SELECT PERSISTENT;
 accept	accept	engine	nonReserved/PERSISTENT!insert	SELECT PERSISTENT zzz;
+accept	accept	engine	suite:pr2a	CREATE TABLE agg_pct (k INT, p PERCENTILE PERCENTILE_UNION) AGGREGATE KEY(k) DISTRIBUTED BY HASH(k) BUCKETS 1
+accept	accept	engine	suite:pr2a	CREATE TABLE bp (dt DATE, k INT) DUPLICATE KEY(dt) PARTITION BY RANGE(dt) (START ('2024-01-01') END ('2024-04-01') EVERY (INTERVAL 1 MONTH)) DISTRIBUTED BY HASH(k)
+accept	accept	engine	suite:pr2a	CREATE TABLE bpn (id INT, v BIGINT) DUPLICATE KEY(id) PARTITION BY RANGE(id) (START ('1') END ('100') EVERY (10)) DISTRIBUTED BY HASH(id)
+reject	reject	engine	suite:pr2a	CREATE TABLE bpno (dt DATE) DUPLICATE KEY(dt) PARTITION BY RANGE(dt) (START ('2024-01-01') END ('2024-04-01')) DISTRIBUTED BY HASH(dt)
+accept	accept	engine	suite:pr2a	CREATE TABLE gc (id BIGINT, price DECIMAL(18,2), qty INT, total DECIMAL(18,2) AS (price*qty)) DUPLICATE KEY(id) DISTRIBUTED BY HASH(id)
+accept	accept	engine	suite:pr2a	CREATE TABLE g1 (a INT, b INT, c BIGINT AS abs(a)) DUPLICATE KEY(a) DISTRIBUTED BY HASH(a) BUCKETS 1
+accept	accept	engine	suite:pr2a	CREATE TABLE dft (id BIGINT, created DATETIME DEFAULT CURRENT_TIMESTAMP, token VARCHAR(64) DEFAULT (uuid())) PRIMARY KEY(id) DISTRIBUTED BY HASH(id)
+accept	accept	engine	suite:pr2b	CREATE TABLE ix (id BIGINT, name VARCHAR(64), tags VARCHAR(255), INDEX idx_name (name) USING BITMAP COMMENT 'x', INDEX idx_tags (tags) USING GIN ('parser'='english')) DUPLICATE KEY(id) DISTRIBUTED BY HASH(id)
+accept	accept	engine	suite:pr2b	CREATE TABLE rl (k1 INT, k2 INT, v BIGINT SUM) AGGREGATE KEY(k1,k2) DISTRIBUTED BY HASH(k1) ROLLUP (r1 (k1,v), r2 (k2,v) FROM r1)
+accept	accept	engine	suite:pr2b	CREATE TABLE ck (new_id, new_name) DISTRIBUTED BY HASH(new_id) BUCKETS 8 AS SELECT k AS new_id, v AS new_name FROM smoke_t
+accept	accept	engine	suite:pr2b	CREATE TABLE ck2 (a, b, INDEX idx_b (b) USING BITMAP) DISTRIBUTED BY HASH(a) AS SELECT k AS a, v AS b FROM smoke_t
+accept	accept	engine	suite:pr2b	CREATE TABLE reg (a INT, b VARCHAR(20)) DUPLICATE KEY(a) DISTRIBUTED BY HASH(a) BUCKETS 1
+accept	accept	engine	suite:pr2b	ALTER TABLE t MODIFY COLUMN s ADD FIELD f4 DOUBLE AFTER f2
+accept	accept	engine	suite:pr2b	ALTER TABLE t MODIFY COLUMN s DROP FIELD nested
+accept	accept	engine	suite:pr2b	ALTER TABLE t MODIFY COLUMN c2 DROP FIELD c2.[*].v3
+reject	reject	engine	suite:pr2b	CREATE TABLE tnoas (a) DISTRIBUTED BY HASH(a) BUCKETS 1
+accept	accept	engine	suite:pr2b	ALTER TABLE t MODIFY COLUMN c BIGINT
+accept	accept	engine	suite:pr3	INSERT OVERWRITE t SELECT a FROM src
+accept	accept	engine	suite:pr3	INSERT INTO t BY NAME SELECT a, b FROM s
+accept	accept	engine	suite:pr3	INSERT INTO FILES('path'='s3://x', 'format'='parquet') SELECT a FROM s
+accept	accept	engine	suite:pr3	INSERT OVERWRITE FILES('path'='s3://x', 'format'='parquet') SELECT a FROM s
+reject	reject	engine	suite:pr3	INSERT INTO t BY SELECT a FROM s
+reject	reject	engine	suite:pr3	INSERT INTO FILES('path') SELECT a FROM s
+accept	accept	engine	suite:pr3	INSERT INTO t BY NAME WITH LABEL lbl SELECT a, b FROM s
+accept	accept	engine	suite:pr3	INSERT INTO FILES('path'='s3://x') WITH LABEL lbl SELECT a FROM s
+reject	reject	engine	suite:pr3	INSERT INTO t BY NAME (a, b) SELECT a, b FROM s
+accept	accept	engine	suite:pr3	WITH c AS (SELECT id FROM s) DELETE FROM t WHERE id IN (SELECT id FROM c)
+accept	accept	engine	suite:pr3	WITH c AS (SELECT id FROM s) UPDATE t SET v = 1 WHERE id IN (SELECT id FROM c)
+reject	reject	engine	suite:pr3	WITH c AS (SELECT 1) INSERT INTO t SELECT x FROM c
+accept	accept	engine	suite:pr3	CREATE MATERIALIZED VIEW mv REFRESH ASYNC EVERY (INTERVAL 1 DAY) AS SELECT a FROM t
+accept	accept	engine	suite:pr3	CREATE MATERIALIZED VIEW mv REFRESH ASYNC START('2024-12-01 20:30:00') EVERY (INTERVAL 1 DAY) AS SELECT a FROM t
+accept	accept	engine	suite:pr3	CREATE MATERIALIZED VIEW mv REFRESH IMMEDIATE ASYNC EVERY (INTERVAL 5 MINUTE) AS SELECT a FROM t
+accept	accept	engine	suite:pr3	CREATE MATERIALIZED VIEW mv REFRESH ASYNC AS SELECT a FROM t
+reject	reject	engine	suite:pr3	CREATE MATERIALIZED VIEW mv REFRESH ASYNC EVERY INTERVAL 1 DAY AS SELECT a FROM t
+reject	reject	engine	suite:pr3	CREATE MATERIALIZED VIEW mv REFRESH ASYNC EVERY (1 DAY) AS SELECT a FROM t
+reject	reject	engine	suite:pr3	CREATE MATERIALIZED VIEW mv REFRESH MANUAL EVERY (INTERVAL 1 DAY) AS SELECT a FROM t
+reject	reject	engine	suite:pr3	CREATE MATERIALIZED VIEW mv REFRESH ASYNC START('2024-12-01 20:30:00') AS SELECT a FROM t
+accept	accept	engine	suite:pr4a	SELECT * FROM (VALUES (1,'a'),(2,'b')) AS v(id,name)
+accept	accept	engine	suite:pr4a	SELECT * FROM (VALUES (1,'a'),(2,'b')) v
+accept	accept	engine	suite:pr4a	SELECT * FROM (VALUES (1,'a'),(2,'b'))
+accept	accept	engine	suite:pr4a	SELECT id FROM (VALUES (1),(2),(3)) AS v(id)
+accept	accept	engine	suite:pr4a	SELECT * FROM (VALUES (1+1, concat('a','b'))) AS v(x,y)
+accept	accept	engine	suite:pr4a	SELECT * FROM t JOIN (VALUES (1),(2)) AS v(id) ON t.id = v.id
+reject	reject	engine	suite:pr4a	SELECT * FROM (VALUES (1, DEFAULT)) AS v(a,b)
+reject	reject	engine	suite:pr4a	SELECT * FROM (VALUES) AS v
+reject	reject	engine	suite:pr4a	SELECT * FROM VALUES (1),(2)
+reject	reject	engine	suite:pr4a	VALUES (1,'a'),(2,'b')
+accept	accept	engine	suite:pr4a	SELECT t.id, u.unnest FROM t, LATERAL unnest(t.arr) AS u
+accept	accept	engine	suite:pr4a	SELECT * FROM t INNER JOIN LATERAL unnest(t.tags) AS g ON TRUE
+accept	accept	engine	suite:pr4a	SELECT * FROM t LEFT JOIN LATERAL unnest(t.arr) AS u ON TRUE
+accept	accept	engine	suite:pr4a	SELECT * FROM t CROSS JOIN LATERAL unnest(t.arr) AS u
+accept	accept	engine	suite:pr4a	SELECT * FROM t, LATERAL unnest(t.arr, t.tags) AS u
+accept	accept	engine	suite:pr4a	SELECT * FROM t, LATERAL unnest(t.arr) AS u(col)
+accept	accept	engine	suite:pr4a	SELECT * FROM t, LATERAL unnest(t.arr) u
+accept	accept	engine	suite:pr4a	SELECT * FROM t, LATERAL (SELECT 1) x
+accept	accept	engine	suite:pr4a	SELECT * FROM t, unnest(t.arr) AS u
+accept	accept	engine	suite:pr4a	SELECT * FROM t, LATERAL unnest(t.arr) AS u, LATERAL unnest(t.tags) AS v
+accept	accept	engine	suite:pr4a	SELECT * FROM (t, LATERAL unnest(t.arr) AS u)
+reject	reject	engine	suite:pr4a	SELECT * FROM t, LATERAL
+accept	accept	engine	suite:pr4b	SELECT FIRST_VALUE(v IGNORE NULLS) OVER (PARTITION BY g ORDER BY ts) FROM t
+accept	accept	engine	suite:pr4b	SELECT LAST_VALUE(v IGNORE NULLS) OVER (ORDER BY ts) FROM t
+accept	accept	engine	suite:pr4b	SELECT LEAD(v, 1) IGNORE NULLS OVER (ORDER BY ts) FROM t
+accept	accept	engine	suite:pr4b	SELECT LAG(v IGNORE NULLS, 1) OVER (ORDER BY ts) FROM t
+accept	accept	engine	suite:pr4b	SELECT FIRST_VALUE(v) OVER (PARTITION BY g ORDER BY ts) FROM t
+reject	reject	engine	suite:pr4b	SELECT FIRST_VALUE(v RESPECT NULLS) OVER (ORDER BY ts) FROM t
+reject	reject	engine	suite:pr4b	SELECT FIRST_VALUE(v IGNORE) OVER (ORDER BY ts) FROM t
+reject	reject	engine	suite:pr4b	SELECT SUM(x IGNORE NULLS) OVER (ORDER BY ts) FROM t
+reject	reject	engine	suite:pr4b	SELECT FIRST_VALUE(v IGNORE NULLS) FROM t
+reject	reject	engine	suite:pr4b	SELECT FIRST_VALUE(a, b IGNORE NULLS) OVER (ORDER BY ts) FROM t
+accept	accept	engine	suite:pr4b	SELECT X'4142' FROM t
+accept	accept	engine	suite:pr4b	SELECT x'ff' FROM t
+accept	accept	engine	suite:pr4b	SELECT B'101' FROM t
+accept	accept	engine	suite:pr4b	SELECT 0x4142 FROM t
+accept	accept	engine	suite:pr4b	SELECT BINARY col1 FROM t
+accept	accept	engine	suite:pr4b	SELECT * FROM t WHERE BINARY name = 'abc'
+accept	accept	engine	suite:pr4b	SELECT BINARY name = 'abc' FROM t
+accept	accept	engine	suite:pr4b	SELECT BINARY a AND b FROM t
+accept	accept	engine	suite:pr4b	SELECT map<varchar,int>{'x':1} FROM t
+accept	accept	engine	suite:pr4b	SELECT map<varchar,int>{'x':1,'y':2} FROM t
+accept	accept	engine	suite:pr4b	SELECT map<int,int>{} FROM t
+accept	accept	engine	suite:pr4b	SELECT MAP{'x':1} FROM t
+accept	accept	engine	suite:pr4b	SELECT array<int>[1,2,3] FROM t
+accept	accept	engine	suite:pr4b	SELECT array<int>[] FROM t
+accept	accept	engine	suite:pr4b	SELECT [1,2,3] FROM t
+accept	accept	engine	suite:pr4b	SELECT map<varchar,array<int>>{'x':[1,2]} FROM t
+reject	reject	engine	suite:pr4b	SELECT map<varchar,int>{'x'} FROM t
+reject	reject	engine	suite:pr4b	SELECT map<varchar,>{} FROM t
+reject	reject	engine	suite:pr4b	SELECT map<varchar,int>{'x':1,} FROM t
+accept	accept	engine	suite:pr4b	SELECT cnt FROM t WHERE map < 5
+accept	accept	engine	suite:conformance	SELECT EXTRACT(YEAR FROM NOW())
+accept	accept	engine	suite:conformance	SELECT EXTRACT(MONTH FROM NOW())
+accept	accept	engine	suite:conformance	WITH c AS (SELECT EXTRACT(YEAR FROM NOW()) y) SELECT * FROM c
+accept	accept	engine	suite:conformance	SELECT TRIM('  x  ')
+accept	accept	engine	suite:conformance	SELECT LEFT('abc', 2)
+accept	accept	engine	suite:conformance	SELECT RIGHT('abc', 2)
+accept	accept	engine	suite:conformance	SELECT IF(1, 2, 3)
+accept	accept	engine	suite:conformance	SELECT DATABASE()
+accept	accept	engine	suite:conformance	SELECT SCHEMA()
+accept	accept	engine	suite:conformance	SELECT USER()
+accept	accept	engine	suite:conformance	SELECT SESSION_USER()
+accept	accept	engine	suite:conformance	SELECT CURRENT_USER()
+accept	accept	engine	suite:conformance	SELECT CONNECTION_ID()
+accept	accept	engine	suite:conformance	SELECT CURRENT_TIMESTAMP(3)
+reject	reject	engine	suite:conformance	SELECT CURRENT_TIME(3)
+reject	reject	engine	suite:conformance	SELECT LOCALTIME(3)
+reject	reject	engine	suite:conformance	SELECT LOCALTIMESTAMP(3)
+reject	reject	engine	suite:conformance	SELECT CURRENT_DATE(1)
+reject	reject	engine	suite:conformance	SELECT CURRENT_USER(1, 2)
+reject	reject	engine	suite:conformance	SELECT CURRENT_TIMESTAMP(foo, bar)
+accept	accept	engine	suite:conformance	SELECT CURRENT_DATE()
+accept	accept	engine	suite:conformance	SELECT CURRENT_TIME()
+accept	accept	engine	suite:conformance	SELECT x'1f'
+accept	accept	engine	suite:conformance	SELECT b'101'
+accept	accept	engine	suite:conformance	SELECT [1, 2, 3]
+accept	accept	engine	suite:conformance	SELECT map{'a': 1}
+accept	accept	engine	suite:conformance	SELECT map<varchar,int>{'a': 1}
+reject	reject	engine	suite:conformance	SELECT {'a': 1}
+accept	accept	engine	suite:conformance	SELECT @@version_comment
+accept	accept	engine	suite:conformance	SELECT @@session.query_timeout
+accept	accept	engine	suite:conformance	SELECT @uservar
+accept	accept	engine	suite:conformance	SELECT array_map(x -> x + 1, [1, 2, 3])
+accept	accept	engine	suite:conformance	SELECT array_map((x, y) -> x + y, [1, 2], [3, 4])
+accept	accept	engine	suite:conformance	SELECT array_map((x) -> x + 1, [1, 2])
+accept	accept	engine	suite:conformance	SELECT j->'$.a' FROM t
+accept	accept	engine	suite:conformance	SELECT j -> '$.a' FROM t
+accept	accept	engine	suite:conformance	SELECT j->"$.a" FROM t
+accept	accept	engine	suite:conformance	SELECT length(j->'$.a') FROM t
+accept	accept	engine	suite:conformance	SELECT j->'$.b'->'$.c' FROM t
+accept	accept	engine	suite:conformance	SELECT j->'$.a' AS v FROM t
+accept	accept	engine	suite:conformance	SELECT id FROM t WHERE j->'$.a' = 1
+accept	accept	engine	suite:conformance	SELECT t.j->'$.a' FROM t
+accept	accept	engine	suite:conformance	SELECT (j)->'$.a' FROM t
+accept	accept	engine	suite:conformance	SELECT PARSE_JSON('{"a":1}')->'$.a'
+accept	accept	engine	suite:conformance	SELECT 1->'$.a'
+accept	accept	engine	suite:conformance	SELECT NULL->'$.a'
+accept	accept	engine	suite:conformance	SELECT j->'$.b'['c'] FROM t
+accept	accept	engine	suite:conformance	SELECT j['b']->'$.c' FROM t
+accept	accept	engine	suite:conformance	SELECT j->'$.a' = 1 FROM t
+accept	accept	engine	suite:conformance	SELECT NOT j->'$.a' FROM t
+accept	accept	engine	suite:conformance	SELECT -id->'$.a' FROM t
+accept	accept	engine	suite:conformance	SELECT array_map(j -> '$.a', [1, 2])
+accept	accept	engine	suite:conformance	SELECT array_map((x) -> '$.a', [1, 2])
+accept	accept	engine	suite:conformance	SELECT array_map(x -> 'a' || 'b', [1, 2])
+accept	accept	engine	suite:conformance	SELECT array_map((x, y) -> '$.a', [1, 2], [3, 4])
+accept	accept	engine	suite:conformance	SELECT array_map(x -> PARSE_JSON('{}')->'$.a', [1, 2])
+reject	reject	engine	suite:conformance	SELECT 1 -> 1
+reject	reject	engine	suite:conformance	SELECT 'a' -> 1
+reject	reject	engine	suite:conformance	SELECT j->>'$.a' FROM t
+accept	accept	engine	suite:conformance	SELECT /*+ SET_VAR(query_timeout = 100) */ 1
+accept	accept	engine	suite:conformance	SELECT CONVERT('1', SIGNED)
+reject	reject	engine	suite:conformance	SELECT CONVERT('abc' USING utf8)
+accept	accept	engine	suite:conformance	SELECT CHAR(65)
+reject	reject	engine	suite:conformance	SELECT CHAR(65 USING utf8)
+reject	reject	engine	suite:conformance	SELECT SUM(a USING utf8) FROM t
+accept	accept	engine	suite:conformance	SELECT BINARY 'abc'
+accept	accept	engine	suite:conformance	SELECT BINARY 1
+accept	accept	engine	suite:conformance	SELECT BINARY now()
+accept	accept	engine	suite:conformance	SELECT [1+1]
+accept	accept	engine	suite:conformance	SELECT [a] FROM t
+accept	accept	engine	suite:conformance	SELECT @'quoted'
+accept	accept	engine	suite:conformance	((SELECT 1))
+accept	accept	engine	suite:conformance	((SELECT 1) UNION SELECT 2)
+accept	accept	engine	suite:conformance	(WITH c AS (SELECT 1) SELECT 1 UNION SELECT 2)
+accept	accept	engine	suite:conformance	(SELECT 1) ORDER BY 1 LIMIT 5
+accept	accept	engine	suite:conformance	((SELECT 1)) LIMIT 5
+accept	accept	engine	suite:conformance	(SELECT 1 ORDER BY 1) ORDER BY 1
+reject	reject	engine	suite:conformance	(WITH c AS (SELECT 1) DELETE FROM t)
+accept	accept	engine	suite:conformance	SELECT 1 UNION (SELECT 2) LIMIT 5
+accept	accept	engine	suite:conformance	(SELECT 1 UNION (SELECT 2) LIMIT 5)
+accept	accept	engine	suite:conformance	((SELECT 1 LIMIT 1)) LIMIT 2
+accept	accept	engine	suite:conformance	((SELECT 1 ORDER BY 1)) ORDER BY 2
+accept	accept	engine	suite:conformance	(SELECT 1) ORDER BY (SELECT 1)
+reject	reject	engine	suite:conformance	SELECT 1 UNION SELECT 2 LIMIT 5 ORDER BY 1
+reject	reject	engine	suite:conformance	SELECT 1 LIMIT 5 ORDER BY 1
+reject	reject	engine	suite:conformance	SELECT * FROM person LATERAL VIEW EXPLODE(ARRAY(30, 60)) tableName AS c_age
+reject	reject	engine	suite:conformance	SELECT * FROM t LATERAL VIEW EXPLODE([1]) a AS x LATERAL VIEW EXPLODE([2]) b AS y
+reject	reject	engine	suite:conformance	BUILD INDEX index1 ON table1
+reject	reject	engine	suite:conformance	SELECT SUBSTRING('abcdef' FROM 2)
+reject	reject	engine	suite:conformance	SELECT TRIM(BOTH 'x' FROM 'xax')
+reject	reject	engine	suite:conformance	SELECT POSITION('b' IN 'abc')
+accept	accept	engine	suite:conformance	SELECT * FROM t LIMIT 5, 10
+accept	accept	engine	suite:conformance	SELECT (1 + 1) AS "20%"
+accept	accept	engine	suite:conformance	SELECT 1 AS ''
+accept	accept	engine	suite:conformance	SELECT [1, 2, 3][1]
+accept	accept	engine	suite:conformance	SELECT c1[1] FROM t
+accept	accept	engine	suite:conformance	SELECT t.c1[1] FROM t
+accept	accept	engine	suite:conformance	SELECT t.a + 1 FROM t
+reject	reject	engine	suite:conformance	SELECT [1, 2, 3][1:2]
+accept	accept	engine	suite:conformance	SELECT a, SUM(b) FROM t GROUP BY GROUPING SETS ((a), ())
+reject	reject	engine	suite:conformance	SELECT a FROM t GROUP BY GROUPING SETS ((a)), b
+accept	accept	engine	suite:conformance	SELECT * FROM t TABLET(10001)
+reject	reject	engine	suite:conformance	SELECT * FROM t TABLESAMPLE(1000 ROWS)
+reject	reject	engine	suite:conformance	SELECT a, SUM(b) FROM t GROUP BY a WITH ROLLUP
+accept	accept	engine	suite:conformance	SHOW DATABASES FROM default_catalog
+reject	reject	engine	suite:conformance	SELECT 1 */ 2
+reject	reject	engine	suite:conformance	EXPLAIN SELECT * FROM
+reject	reject	engine	suite:conformance	EXPLAIN
+reject	reject	engine	suite:conformance	SET x = 1 +
+reject	reject	engine	suite:conformance	SET x
+reject	reject	engine	suite:conformance	SHOW TABLES WHERE (
+reject	reject	engine	suite:conformance	SHOW TABLES FROM
+reject	reject	engine	suite:conformance	SET NAMES
+reject	reject	engine	suite:conformance	SET NAMES utf8 COLLATE
+accept	accept	engine	suite:conformance	SET NAMES utf8
+accept	accept	engine	suite:conformance	SET NAMES DEFAULT
+accept	accept	engine	suite:conformance	SET ROLE admin_role
+accept	accept	engine	suite:conformance	SET ROLE DEFAULT
+reject	reject	engine	suite:conformance	SET DEFAULT ROLE r1
+accept	accept	engine	suite:conformance	SET DEFAULT ROLE r1 TO 'alice'@'%'
+accept	accept	engine	suite:conformance	SET ROLE NONE, r2
+accept	accept	engine	suite:conformance	SET NAMES utf8 COLLATE utf8_general_ci
+reject	reject	engine	suite:conformance	SHOW TABLES LIKE
+accept	accept	engine	suite:conformance	(SELECT 1)
+accept	accept	engine	suite:conformance	SELECT * FROM selected
+accept	accept	engine	suite:conformance	SELECT costs FROM conf_t
+accept	accept	engine	suite:conformance	SELECT 1 AS costs
+accept	accept	engine	suite:conformance	CREATE TABLE conf_costs (a INT) DISTRIBUTED BY HASH(a)
+accept	accept	engine	suite:conformance	SELECT graph FROM conf_t
+accept	accept	engine	suite:conformance	SELECT 1 AS graph
+accept	accept	engine	suite:conformance	CREATE TABLE graph (a INT) DISTRIBUTED BY HASH(a)
+accept	accept	engine	suite:conformance	SELECT parsed FROM conf_t
+accept	accept	engine	suite:conformance	SELECT 1 AS parsed
+accept	accept	engine	suite:conformance	CREATE TABLE parsed (a INT) DISTRIBUTED BY HASH(a)
+accept	accept	engine	suite:conformance	SELECT analyzed FROM conf_t
+accept	accept	engine	suite:conformance	SELECT 1 AS analyzed
+accept	accept	engine	suite:conformance	CREATE TABLE analyzed (a INT) DISTRIBUTED BY HASH(a)
+accept	accept	engine	suite:conformance	SELECT rewritten FROM conf_t
+accept	accept	engine	suite:conformance	SELECT 1 AS rewritten
+accept	accept	engine	suite:conformance	CREATE TABLE rewritten (a INT) DISTRIBUTED BY HASH(a)
+accept	accept	engine	suite:conformance	SELECT plan FROM conf_t
+accept	accept	engine	suite:conformance	SELECT 1 AS plan
+accept	accept	engine	suite:conformance	CREATE TABLE plan (a INT) DISTRIBUTED BY HASH(a)
+accept	accept	engine	suite:conformance	SELECT process FROM conf_t
+accept	accept	engine	suite:conformance	SELECT 1 AS process
+accept	accept	engine	suite:conformance	CREATE TABLE process (a INT) DISTRIBUTED BY HASH(a)
+accept	accept	engine	suite:conformance	SELECT physical FROM conf_t
+accept	accept	engine	suite:conformance	SELECT 1 AS physical
+accept	accept	engine	suite:conformance	CREATE TABLE physical (a INT) DISTRIBUTED BY HASH(a)
+accept	accept	engine	suite:conformance	SELECT memo FROM conf_t
+accept	accept	engine	suite:conformance	SELECT 1 AS memo
+accept	accept	engine	suite:conformance	CREATE TABLE memo (a INT) DISTRIBUTED BY HASH(a)
+accept	accept	engine	suite:conformance	SELECT shape FROM conf_t
+accept	accept	engine	suite:conformance	SELECT 1 AS shape
+accept	accept	engine	suite:conformance	CREATE TABLE shape (a INT) DISTRIBUTED BY HASH(a)
+accept	accept	engine	suite:conformance	SELECT dump FROM conf_t
+accept	accept	engine	suite:conformance	SELECT 1 AS dump
+accept	accept	engine	suite:conformance	CREATE TABLE dump (a INT) DISTRIBUTED BY HASH(a)
+accept	accept	engine	suite:conformance	SELECT optimized FROM conf_t
+accept	accept	engine	suite:conformance	SELECT 1 AS optimized
+accept	accept	engine	suite:conformance	CREATE TABLE optimized (a INT) DISTRIBUTED BY HASH(a)
+accept	accept	engine	suite:conformance	SELECT 1 dump
+accept	accept	engine	suite:conformance	SELECT dump.a FROM conf_t dump
+reject	reject	engine	suite:conformance	SELECT CAST(1 AS dump)
+reject	reject	engine	suite:conformance	SELECT CAST(1 AS memo)
+accept	accept	engine	suite:conformance	CREATE TABLE conf_pk (id BIGINT NOT NULL, v VARCHAR(64)) PRIMARY KEY(id) DISTRIBUTED BY HASH(id)
+accept	accept	engine	suite:conformance	CREATE TABLE zzp1 (a INT) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("k"="v","k2"="v2")
+reject	reject	engine	suite:conformance	CREATE TABLE zzp2 (a INT) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("k"="v" "k2"="v2")
+reject	reject	engine	suite:conformance	CREATE TABLE zzp3 (a INT) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("k"="v",)
+reject	reject	engine	suite:conformance	CREATE TABLE zzp4 (a INT) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES()
+accept	accept	engine	suite:conformance	CREATE DATABASE zzpdb PROPERTIES("k"="v","k2"="v2")
+reject	reject	engine	suite:conformance	CREATE DATABASE zzpdb2 PROPERTIES("k"="v" "k2"="v2")
+reject	reject	engine	suite:conformance	CREATE DATABASE zzpdb3 PROPERTIES("k"="v",)
+reject	reject	engine	suite:conformance	CREATE DATABASE zzpdb4 PROPERTIES()
+accept	accept	engine	suite:conformance	CREATE EXTERNAL CATALOG zzpc PROPERTIES("k"="v","k2"="v2")
+reject	reject	engine	suite:conformance	CREATE EXTERNAL CATALOG zzpc2 PROPERTIES("k"="v" "k2"="v2")
+reject	reject	engine	suite:conformance	CREATE EXTERNAL CATALOG zzpc3 PROPERTIES("k"="v",)
+reject	reject	engine	suite:conformance	CREATE EXTERNAL CATALOG zzpc4 PROPERTIES()
+accept	accept	engine	suite:conformance	CREATE TABLE zzg1 (a INT, INDEX idx (a) USING GIN ("imp_type"="clucene","parser"="english")) DISTRIBUTED BY HASH(a) BUCKETS 1
+reject	reject	engine	suite:conformance	CREATE TABLE zzg2 (a INT, INDEX idx (a) USING GIN ("a"="b" "c"="d")) DISTRIBUTED BY HASH(a) BUCKETS 1
+reject	reject	engine	suite:conformance	CREATE TABLE zzg3 (a INT, INDEX idx (a) USING GIN ("a"="b",)) DISTRIBUTED BY HASH(a) BUCKETS 1
+reject	reject	engine	suite:conformance	CREATE TABLE zzg4 (a INT, INDEX idx (a) USING GIN ()) DISTRIBUTED BY HASH(a) BUCKETS 1
+accept	accept	engine	suite:conformance	ALTER TABLE t SET ("k"="v","k2"="v2")
+reject	reject	engine	suite:conformance	ALTER TABLE t SET ("k"="v" "k2"="v2")
+reject	reject	engine	suite:conformance	ALTER TABLE t SET ("k"="v",)
+reject	reject	engine	suite:conformance	ALTER TABLE t SET ()
+accept	accept	engine	suite:conformance	ADMIN SET FRONTEND CONFIG ("k"="v")
+reject	reject	engine	suite:conformance	ADMIN SET FRONTEND CONFIG ("k"="v" "k2"="v2")
+reject	reject	engine	suite:conformance	ADMIN SET FRONTEND CONFIG ("k"="v",)
+reject	reject	engine	suite:conformance	ADMIN SET FRONTEND CONFIG ()
+accept	accept	engine	suite:conformance	CREATE MATERIALIZED VIEW zzpmv DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("k"="v","k2"="v2") AS SELECT 1 AS a
+reject	reject	engine	suite:conformance	CREATE MATERIALIZED VIEW zzpmv2 DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("k"="v" "k2"="v2") AS SELECT 1 AS a
+reject	reject	engine	suite:conformance	CREATE MATERIALIZED VIEW zzpmv3 DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("k"="v",) AS SELECT 1 AS a
+reject	reject	engine	suite:conformance	CREATE MATERIALIZED VIEW zzpmv4 DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES() AS SELECT 1 AS a
+accept	accept	engine	suite:conformance	CREATE ROUTINE LOAD zzrl ON t PROPERTIES("k"="v","k2"="v2") FROM KAFKA("kafka_broker_list"="localhost:9092","kafka_topic"="tp")
+reject	reject	engine	suite:conformance	CREATE ROUTINE LOAD zzrl2 ON t PROPERTIES("k"="v" "k2"="v2") FROM KAFKA("kafka_broker_list"="localhost:9092","kafka_topic"="tp")
+reject	reject	engine	suite:conformance	CREATE ROUTINE LOAD zzrl3 ON t PROPERTIES("k"="v",) FROM KAFKA("kafka_broker_list"="localhost:9092","kafka_topic"="tp")
+reject	reject	engine	suite:conformance	CREATE ROUTINE LOAD zzrl4 ON t PROPERTIES("desired_concurrent_number"="3") FROM KAFKA("k"="v" "k2"="v2")
+reject	reject	engine	suite:conformance	CREATE ROUTINE LOAD zzrl5 ON t PROPERTIES("desired_concurrent_number"="3") FROM KAFKA()
+accept	accept	engine	suite:conformance	SELECT 1 INTO OUTFILE '/tmp/x' PROPERTIES("k"="v","k2"="v2")
+reject	reject	engine	suite:conformance	SELECT 1 INTO OUTFILE '/tmp/x' PROPERTIES("k"="v" "k2"="v2")
+reject	reject	engine	suite:conformance	SELECT 1 INTO OUTFILE '/tmp/x' PROPERTIES("k"="v",)
+reject	reject	engine	suite:conformance	SELECT 1 INTO OUTFILE '/tmp/x' PROPERTIES()
+reject	reject	engine	suite:conformance	ADMIN SET FRONTEND CONFIG (
+reject	reject	engine	suite:conformance	ADMIN SET FRONTEND CONFIG ("k"=
+reject	reject	engine	suite:conformance	ADMIN SET FRONTEND CONFIG ("k"="v"
+accept	accept	engine	suite:conformance	ALTER SYSTEM MODIFY BACKEND 'nonexistent-host-zz:9050' SET ("labels.location"="a:b")
+reject	reject	engine	suite:conformance	ALTER SYSTEM MODIFY BACKEND 'nonexistent-host-zz:9050' SET (
+reject	reject	engine	suite:conformance	ALTER SYSTEM MODIFY BACKEND 'nonexistent-host-zz:9050' SET ("k"=
+reject	reject	engine	suite:conformance	ALTER SYSTEM MODIFY BACKEND 'nonexistent-host-zz:9050' SET ("labels.location"="a:b",)
+accept	accept	engine	suite:conformance	ADMIN SET REPLICA STATUS PROPERTIES("tablet_id"="1","backend_id"="1","status"="bad")
+reject	reject	engine	suite:conformance	ADMIN SET REPLICA STATUS PROPERTIES(
+accept	accept	engine	suite:conformance	ADMIN CHECK TABLET (1) PROPERTIES("type"="consistency")
+reject	reject	engine	suite:conformance	ADMIN CHECK TABLET (1) PROPERTIES(
+reject	reject	engine	suite:conformance	ADMIN CHECK TABLET (1) PROPERTIES()
+reject	reject	engine	suite:conformance	ADMIN CHECK TABLET (1) PROPERTIES("type"="consistency",)
+accept	accept	engine	suite:conformance	ALTER SYSTEM SET LOAD ERRORS HUB PROPERTIES("type"="null")
+reject	reject	engine	suite:conformance	ALTER SYSTEM SET LOAD ERRORS HUB PROPERTIES(
+reject	reject	engine	suite:conformance	ALTER SYSTEM ADD BROKER
+reject	reject	engine	suite:conformance	ALTER SYSTEM DROP BROKER
+reject	reject	engine	suite:conformance	ALTER SYSTEM DROP ALL BROKER
+accept	accept	engine	suite:conformance	ALTER SYSTEM DROP ALL BROKER zz_no_broker
+accept	accept	engine	suite:conformance	SHOW ALTER TABLE COLUMN FROM srtest
+reject	reject	engine	suite:conformance	SHOW ALTER TABLE COLUMN FROM
+reject	reject	engine	suite:conformance	SHOW ALTER TABLE COLUMN FROM 'x'
+accept	accept	engine	suite:conformance	CREATE TABLE zzpp01 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") ("replication_num"="1")) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("replication_num"="1")
+accept	accept	engine	suite:conformance	CREATE TABLE zzpp02 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") ('replication_num'='1')) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("replication_num"="1")
+reject	reject	engine	suite:conformance	CREATE TABLE zzpp03 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") ()) DISTRIBUTED BY HASH(a) BUCKETS 1
+reject	reject	engine	suite:conformance	CREATE TABLE zzpp04 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") ("replication_num"="1",)) DISTRIBUTED BY HASH(a) BUCKETS 1
+reject	reject	engine	suite:conformance	CREATE TABLE zzpp05 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") ("replication_num"="1" "k2"="v2")) DISTRIBUTED BY HASH(a) BUCKETS 1
+reject	reject	engine	suite:conformance	CREATE TABLE zzpp06 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") ("k" "v" SELECT DROP *)) DISTRIBUTED BY HASH(a) BUCKETS 1
+reject	reject	engine	suite:conformance	CREATE TABLE zzpp07 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") (
+reject	reject	engine	suite:conformance	CREATE TABLE zzpp08 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") (replication_num="1")) DISTRIBUTED BY HASH(a) BUCKETS 1
+reject	reject	engine	suite:conformance	CREATE TABLE zzpp09 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") ("replication_num"=1)) DISTRIBUTED BY HASH(a) BUCKETS 1
+reject	reject	engine	suite:conformance	CREATE TABLE zzpp10 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") ("storage_medium"=HDD)) DISTRIBUTED BY HASH(a) BUCKETS 1
+reject	reject	engine	suite:conformance	CREATE TABLE zzpp11 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") ("k"=)) DISTRIBUTED BY HASH(a) BUCKETS 1
+accept	accept	engine	suite:conformance	CREATE TABLE zzpp12 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN MAXVALUE ("replication_num"="1")) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("replication_num"="1")
+accept	accept	engine	suite:conformance	CREATE TABLE zzpp13 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES [("1"), ("10")) ("replication_num"="1")) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("replication_num"="1")
+accept	accept	engine	suite:conformance	CREATE TABLE zzpp14 (a INT) PARTITION BY LIST(a) (PARTITION p1 VALUES IN ("1") ("replication_num"="1")) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("replication_num"="1")
+accept	accept	engine	suite:conformance	CREATE TABLE zzpp15 (a INT) PARTITION BY LIST(a) (PARTITION p1 VALUES IN (("1"), ("2")) ("replication_num"="1")) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("replication_num"="1")
+reject	reject	engine	suite:conformance	CREATE TABLE zzpp16 (a INT) PARTITION BY LIST(a) (PARTITION p1 VALUES IN ("1") ()) DISTRIBUTED BY HASH(a) BUCKETS 1
+reject	reject	engine	suite:conformance	CREATE TABLE zzpp17 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") ("replication_num"="1") ("k"="v")) DISTRIBUTED BY HASH(a) BUCKETS 1
+reject	reject	engine	suite:conformance	CREATE TABLE zzpp18 (a INT) PARTITION BY LIST(a) (PARTITION p1 ("1")) DISTRIBUTED BY HASH(a) BUCKETS 1
+reject	reject	engine	suite:conformance	CREATE TABLE zzpp19 (a INT) PARTITION BY LIST(a) (PARTITION p1 ("replication_num"="1")) DISTRIBUTED BY HASH(a) BUCKETS 1
+reject	reject	engine	suite:conformance	CREATE TABLE zzpp20 (a INT) PARTITION BY LIST(a) (PARTITION p1 (SELECT)) DISTRIBUTED BY HASH(a) BUCKETS 1
+accept	accept	engine	suite:conformance	LOAD LABEL zzl01 (DATA INFILE("hdfs://h/p") INTO TABLE zz_nope) WITH BROKER zzb ("username"="u","password"="p")
+accept	accept	engine	suite:conformance	LOAD LABEL zzl02 (DATA INFILE("hdfs://h/p") INTO TABLE zz_nope) WITH BROKER zzb ('k'='v')
+reject	reject	engine	suite:conformance	LOAD LABEL zzl03 (DATA INFILE("hdfs://h/p") INTO TABLE zz_nope) WITH BROKER zzb ()
+reject	reject	engine	suite:conformance	LOAD LABEL zzl04 (DATA INFILE("hdfs://h/p") INTO TABLE zz_nope) WITH BROKER zzb ("username"="u",)
+reject	reject	engine	suite:conformance	LOAD LABEL zzl05 (DATA INFILE("hdfs://h/p") INTO TABLE zz_nope) WITH BROKER zzb ("username"="u" "password"="p")
+reject	reject	engine	suite:conformance	LOAD LABEL zzl06 (DATA INFILE("hdfs://h/p") INTO TABLE zz_nope) WITH BROKER zzb ("k" "v" SELECT DROP *)
+reject	reject	engine	suite:conformance	LOAD LABEL zzl07 (DATA INFILE("hdfs://h/p") INTO TABLE zz_nope) WITH BROKER zzb (
+reject	reject	engine	suite:conformance	LOAD LABEL zzl08 (DATA INFILE("hdfs://h/p") INTO TABLE zz_nope) WITH BROKER zzb (username="u")
+reject	reject	engine	suite:conformance	LOAD LABEL zzl09 (DATA INFILE("hdfs://h/p") INTO TABLE zz_nope) WITH BROKER zzb ("k"=1)
+reject	reject	engine	suite:conformance	LOAD LABEL zzl10 (DATA INFILE("hdfs://h/p") INTO TABLE zz_nope) WITH BROKER zzb ("k"=v)
+accept	accept	engine	suite:conformance	EXPORT TABLE zz_nope TO "hdfs://h/p" WITH BROKER zzb ("username"="u","password"="p")
+reject	reject	engine	suite:conformance	EXPORT TABLE zz_nope TO "hdfs://h/p" WITH BROKER zzb ()
+reject	reject	engine	suite:conformance	EXPORT TABLE zz_nope TO "hdfs://h/p" WITH BROKER zzb ("username"="u",)
+reject	reject	engine	suite:conformance	EXPORT TABLE zz_nope TO "hdfs://h/p" WITH BROKER zzb ("username"="u" "password"="p")
+reject	reject	engine	suite:conformance	EXPORT TABLE zz_nope TO "hdfs://h/p" WITH BROKER zzb ("k" "v" SELECT DROP *)
+reject	reject	engine	suite:conformance	EXPORT TABLE zz_nope TO "hdfs://h/p" WITH BROKER zzb (
+reject	reject	engine	suite:conformance	EXPORT TABLE zz_nope TO "hdfs://h/p" WITH BROKER zzb (username="u")
+reject	reject	engine	suite:conformance	EXPORT TABLE zz_nope TO "hdfs://h/p" WITH BROKER zzb ("k"=1)
+reject	reject	engine	suite:conformance	EXPORT TABLE zz_nope TO "hdfs://h/p" WITH BROKER zzb ("k"=v)
+accept	accept	engine	suite:conformance	CREATE ROUTINE LOAD zzrl6 ON zz_nope FROM KAFKA ('kafka_broker_list'='h:9092', "kafka_topic"="tp")
+reject	reject	engine	suite:conformance	CREATE ROUTINE LOAD zzrl7 ON zz_nope FROM KAFKA ("a" = ,)
+reject	reject	engine	suite:conformance	CREATE ROUTINE LOAD zzrl8 ON zz_nope FROM KAFKA ("a" = ))
+reject	reject	engine	suite:conformance	CREATE ROUTINE LOAD zzrl9 ON zz_nope FROM KAFKA ("a" = ( )
+reject	reject	engine	suite:conformance	CREATE ROUTINE LOAD zzrl10 ON zz_nope FROM KAFKA (kafka_broker_list="h:9092")
+reject	reject	engine	suite:conformance	CREATE ROUTINE LOAD zzrl11 ON zz_nope FROM KAFKA ("kafka_broker_list"="h:9092", "kafka_partitions"=1)
+reject	reject	engine	suite:conformance	CREATE ROUTINE LOAD zzrl12 ON zz_nope FROM KAFKA ("kafka_broker_list"="h:9092", "kafka_topic"=tp)
+reject	reject	engine	suite:conformance	CREATE ROUTINE LOAD zzrl13 ON zz_nope FROM KAFKA ("kafka_broker_list"="h:9092", "k"=NULL)
+reject	reject	engine	suite:conformance	CREATE ROUTINE LOAD zzrl14 ON zz_nope FROM KAFKA ("kafka_broker_list"="h:9092", "k"=true)
+accept	accept	engine	suite:conformance	ALTER ROUTINE LOAD FOR zzrl15 FROM KAFKA ("kafka_partitions"="1")
+reject	reject	engine	suite:conformance	ALTER ROUTINE LOAD FOR zzrl16 FROM KAFKA ("a" = ,)
+reject	reject	engine	suite:conformance	ALTER ROUTINE LOAD FOR zzrl17 FROM KAFKA ("kafka_partitions"=1)
+reject	reject	engine	suite:conformance	ALTER ROUTINE LOAD FOR zzrl18 FROM KAFKA (kafka_partitions="1")
+reject	reject	engine	suite:conformance	INSERT INTO FILES("path"="s3://b/p",) SELECT 1
+reject	reject	engine	suite:conformance	INSERT INTO FILES("path"="s3://b/p" "format"="parquet") SELECT 1
+reject	reject	engine	suite:conformance	INSERT INTO FILES(path="s3://b/p") SELECT 1
+reject	reject	engine	suite:conformance	INSERT INTO files (a) SELECT 1
+accept	accept	engine	suite:explain-modifiers	EXPLAIN SELECT a FROM conf_t
+accept	accept	engine	suite:explain-modifiers	EXPLAIN ANALYZE SELECT a FROM conf_t
+accept	accept	engine	suite:explain-modifiers	EXPLAIN VERBOSE SELECT a FROM conf_t
+accept	accept	engine	suite:explain-modifiers	EXPLAIN LOGICAL SELECT a FROM conf_t
+accept	accept	engine	suite:explain-modifiers	EXPLAIN COSTS SELECT a FROM conf_t
+accept	accept	engine	suite:explain-modifiers	EXPLAIN SCHEDULER SELECT a FROM conf_t
+accept	accept	engine	suite:explain-modifiers	EXPLAIN ANALYZE INSERT INTO conf_t SELECT a FROM conf_t
+reject	reject	engine	suite:explain-modifiers	EXPLAIN GRAPH SELECT a FROM conf_t
+reject	reject	engine	suite:explain-modifiers	EXPLAIN PARSED SELECT a FROM conf_t
+reject	reject	engine	suite:explain-modifiers	EXPLAIN ANALYZED SELECT a FROM conf_t
+reject	reject	engine	suite:explain-modifiers	EXPLAIN REWRITTEN SELECT a FROM conf_t
+reject	reject	engine	suite:explain-modifiers	EXPLAIN PLAN SELECT a FROM conf_t
+reject	reject	engine	suite:explain-modifiers	EXPLAIN PLAN PROCESS SELECT a FROM conf_t
+reject	reject	engine	suite:explain-modifiers	EXPLAIN PHYSICAL SELECT a FROM conf_t
+reject	reject	engine	suite:explain-modifiers	EXPLAIN MEMO SELECT a FROM conf_t
+reject	reject	engine	suite:explain-modifiers	EXPLAIN SHAPE SELECT a FROM conf_t
+reject	reject	engine	suite:explain-modifiers	EXPLAIN DUMP SELECT a FROM conf_t
+reject	reject	engine	suite:explain-modifiers	EXPLAIN OPTIMIZED SELECT a FROM conf_t
+reject	reject	engine	suite:no-job-statements	CREATE JOB j ON SCHEDULE EVERY 1 MINUTE DO INSERT INTO t SELECT 1
+reject	reject	engine	suite:no-job-statements	CREATE JOB j ON SCHEDULE AT '2030-01-01 00:00:00' DO INSERT INTO t SELECT 1
+reject	reject	engine	suite:no-job-statements	CREATE JOB IF NOT EXISTS j ON SCHEDULE EVERY 1 HOUR DO INSERT INTO t SELECT 1
+reject	reject	engine	suite:no-job-statements	CREATE JOB j AS STREAMING DO INSERT INTO t SELECT 1
+reject	reject	engine	suite:no-job-statements	CREATE JOB j ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ENDS '2031-01-01 00:00:00' COMMENT 'c' DO INSERT INTO t SELECT 1
+reject	reject	engine	suite:no-job-statements	ALTER JOB j PROPERTIES("enable" = "false")
+reject	reject	engine	suite:no-job-statements	ALTER JOB j DO INSERT INTO t SELECT 1
+reject	reject	engine	suite:no-job-statements	ALTER JOB j
+reject	reject	engine	suite:no-job-statements	DROP JOB j
+reject	reject	engine	suite:no-job-statements	DROP JOB IF EXISTS j
+reject	reject	engine	suite:no-job-statements	DROP JOB WHERE jobName = 'j'
+reject	reject	engine	suite:no-job-statements	PAUSE JOB j
+reject	reject	engine	suite:no-job-statements	PAUSE JOB WHERE jobName = 'j'
+reject	reject	engine	suite:no-job-statements	RESUME JOB j
+reject	reject	engine	suite:no-job-statements	RESUME JOB WHERE jobName = 'j'
+reject	reject	engine	suite:no-job-statements	CANCEL TASK FOR j 1
+reject	reject	engine	suite:no-job-statements	CANCEL TASK WHERE jobName = 'j' AND taskId = 1
+reject	reject	engine	suite:no-job-statements	SHOW JOB
+reject	reject	engine	suite:no-job-statements	SHOW JOB LIKE 'j%'
+reject	reject	engine	suite:no-job-statements	SHOW JOB WHERE jobName = 'j'
+reject	reject	engine	suite:no-job-statements	SHOW JOB TASK FOR j
+reject	reject	engine	suite:no-job-statements	SHOW JOB TASKS FOR j
+reject	reject	engine	suite:no-job-statements	SHOW JOBS
+reject	reject	engine	suite:no-job-statements	SHOW JOBS WHERE jobName = 'j'
+reject	reject	engine	suite:no-job-statements	SHOW FULL JOB
+reject	reject	engine	suite:no-job-statements	SHOW ALL JOB
+reject	reject	engine	suite:no-job-statements	SHOW TEMPORARY JOB
+reject	reject	engine	suite:no-job-statements	PAUSE MATERIALIZED VIEW JOB ON mv
+reject	reject	engine	suite:no-job-statements	RESUME MATERIALIZED VIEW JOB ON mv
+reject	reject	engine	suite:no-job-statements	CANCEL MATERIALIZED VIEW TASK 1 ON mv
+accept	accept	engine	suite:no-job-statements	SELECT job FROM t
+accept	accept	engine	suite:no-job-statements	SELECT jobs, task, tasks FROM t
+accept	accept	engine	suite:no-job-statements	SELECT schedule, streaming, every, starts, ends FROM t
+accept	accept	engine	suite:no-job-statements	SELECT 1 AS job
+accept	accept	engine	suite:no-job-statements	SELECT job.a FROM job
+accept	accept	engine	suite:no-job-statements	CREATE TABLE job (a INT)
+accept	accept	engine	suite:no-job-statements	CREATE TABLE zzt (job INT, task INT, schedule INT)
+accept	accept	engine	suite:no-job-statements	CREATE DATABASE job
+accept	accept	engine	suite:no-job-statements	DROP TABLE IF EXISTS job
+accept	accept	engine	suite:no-job-statements	ALTER TABLE job ADD COLUMN b INT
+accept	accept	engine	suite:no-job-statements	SHOW ANALYZE JOB
+accept	accept	engine	suite:no-job-statements	SHOW ROUTINE LOAD TASK WHERE JobName = 'x'
+accept	accept	engine	suite:no-job-statements	PAUSE ROUTINE LOAD FOR job
+accept	accept	engine	suite:no-job-statements	RESUME ROUTINE LOAD FOR job
+accept	accept	engine	suite:no-job-statements	CANCEL REFRESH MATERIALIZED VIEW mv
+accept	accept	engine	suite:no-job-statements	CANCEL LOAD WHERE LABEL = 'x'
