@@ -6,7 +6,7 @@ import (
 
 // parseSelect parses a SELECT statement.
 //
-//	SELECT [DISTINCT] [JSON] selectElements
+//	SELECT [JSON] [DISTINCT] selectors
 //	  FROM fromSpecElement
 //	  [WHERE relationElements]
 //	  [ORDER BY orderSpecElement (',' orderSpecElement)*]
@@ -20,20 +20,7 @@ func (p *Parser) parseSelect() (*ast.SelectStmt, error) {
 
 	stmt := &ast.SelectStmt{}
 
-	// Optional DISTINCT.
-	if p.cur.Type == tokDISTINCT {
-		stmt.Distinct = true
-		p.advance()
-	}
-
-	// Optional JSON.
-	if p.cur.Type == tokJSON {
-		stmt.JSON = true
-		p.advance()
-	}
-
-	// Parse select elements.
-	elements, err := p.parseSelectElements()
+	elements, err := p.parseSelectClause(stmt)
 	if err != nil {
 		return nil, err
 	}
@@ -107,103 +94,46 @@ func (p *Parser) parseSelect() (*ast.SelectStmt, error) {
 	return stmt, nil
 }
 
-// parseSelectElements parses the select clause elements:
-//
-//	'*' | selectElement (',' selectElement)*
-func (p *Parser) parseSelectElements() ([]*ast.SelectElement, error) {
-	// Handle bare '*'.
-	if p.cur.Type == tokSTAR {
-		elemStart := p.curLoc()
+// parseSelectClause parses (JSON)? (DISTINCT)? selectors, up to the FROM
+// that ends them. JSON and DISTINCT may also name a column: each is read as
+// a keyword only where the selectors after it parse and FROM follows them,
+// as the predicates (K_JSON selectClause)=> and (K_DISTINCT selectors)=>
+// decide (Parser.g:277, 300). SELECT DISTINCT FROM t selects the column
+// distinct.
+func (p *Parser) parseSelectClause(stmt *ast.SelectStmt) ([]*ast.SelectElement, error) {
+	if p.cur.Type == tokJSON {
+		s := p.mark()
 		p.advance()
-		star := &ast.StarExpr{Loc: p.makeLoc(elemStart)}
-		elem := &ast.SelectElement{Expr: star, Loc: p.makeLoc(elemStart)}
-		return []*ast.SelectElement{elem}, nil
-	}
-
-	var elements []*ast.SelectElement
-	first, err := p.parseSelectElement()
-	if err != nil {
-		return nil, err
-	}
-	elements = append(elements, first)
-
-	for p.cur.Type == tokCOMMA {
-		p.advance()
-		el, err := p.parseSelectElement()
-		if err != nil {
-			return nil, err
+		elements, err := p.parseDistinctSelectors(stmt)
+		if err == nil {
+			stmt.JSON = true
+			return elements, nil
 		}
-		elements = append(elements, el)
+		p.reset(s)
 	}
-	return elements, nil
+	return p.parseDistinctSelectors(stmt)
 }
 
-// parseSelectElement parses a single select element:
-//
-//	IDENT '.' '*'          -> DotAccess with StarExpr-like field
-//	IDENT [AS IDENT]       -> Identifier with optional alias
-//	functionCall [AS IDENT] -> FunctionCall with optional alias
-func (p *Parser) parseSelectElement() (*ast.SelectElement, error) {
-	elemStart := p.curLoc()
-
-	// CAST(expr AS type) in SELECT element
-	if p.cur.Type == tokCAST {
-		castExpr, err := p.parseCast()
-		if err != nil {
-			return nil, err
+// parseDistinctSelectors parses (DISTINCT)? selectors, up to FROM.
+func (p *Parser) parseDistinctSelectors(stmt *ast.SelectStmt) ([]*ast.SelectElement, error) {
+	if p.cur.Type == tokDISTINCT {
+		s := p.mark()
+		p.advance()
+		elements, err := p.parseSelectors()
+		if err == nil && p.cur.Type == tokFROM {
+			stmt.Distinct = true
+			return elements, nil
 		}
-		alias, err := p.parseOptionalAlias()
-		if err != nil {
-			return nil, err
-		}
-		return &ast.SelectElement{Expr: castExpr, Alias: alias, Loc: p.makeLoc(elemStart)}, nil
+		p.reset(s)
 	}
-
-	// We need an identifier-like token to start.
-	if !isIdentLike(p.cur.Type) {
-		return nil, p.errorf("expected column name or function call in SELECT, got %s", p.tokenDesc())
-	}
-
-	name, err := p.parseIdentifier()
+	elements, err := p.parseSelectors()
 	if err != nil {
 		return nil, err
 	}
-
-	// Check for IDENT '.' '*' (qualified star, e.g. ks.*).
-	if p.cur.Type == tokDOT {
-		next := p.peekNext()
-		if next.Type == tokSTAR {
-			p.advance() // consume '.'
-			starStart := p.curLoc()
-			p.advance() // consume '*'
-			starField := &ast.Identifier{Name: "*", Loc: p.makeLoc(starStart)}
-			dotAccess := &ast.DotAccess{Object: name, Field: starField, Loc: p.makeLoc(elemStart)}
-			elem := &ast.SelectElement{Expr: dotAccess, Loc: p.makeLoc(elemStart)}
-			return elem, nil
-		}
+	if p.cur.Type != tokFROM {
+		return nil, p.errorf("expected FROM, got %s", p.tokenDesc())
 	}
-
-	// Check for function call: IDENT '(' ... ')'.
-	if p.cur.Type == tokLPAREN {
-		fc, err := p.parseFunctionCallWithName(name)
-		if err != nil {
-			return nil, err
-		}
-		alias, err := p.parseOptionalAlias()
-		if err != nil {
-			return nil, err
-		}
-		elem := &ast.SelectElement{Expr: fc, Alias: alias, Loc: p.makeLoc(elemStart)}
-		return elem, nil
-	}
-
-	// Plain identifier, optionally with alias.
-	alias, err := p.parseOptionalAlias()
-	if err != nil {
-		return nil, err
-	}
-	elem := &ast.SelectElement{Expr: name, Alias: alias, Loc: p.makeLoc(elemStart)}
-	return elem, nil
+	return elements, nil
 }
 
 // parseOptionalAlias parses an optional AS IDENT clause.
@@ -242,10 +172,11 @@ func (p *Parser) parseOrderByClause() ([]*ast.OrderByElement, error) {
 	return elements, nil
 }
 
-// parseOrderByElement parses a single ORDER BY element:
+// parseOrderByElement parses a single ORDER BY element (Parser.g:462):
 //
-//	IDENT [ASC | DESC]
-//	IDENT ANN OF vectorLiteral [LIMIT DECIMAL]
+//	cident (ANN OF term)? (ASC | DESC)?
+//
+// A LIMIT after ANN OF is the statement's.
 func (p *Parser) parseOrderByElement() (*ast.OrderByElement, error) {
 	elemStart := p.curLoc()
 
@@ -256,32 +187,20 @@ func (p *Parser) parseOrderByElement() (*ast.OrderByElement, error) {
 
 	elem := &ast.OrderByElement{Column: col}
 
-	// Check for ANN OF ... ordering.
 	if p.cur.Type == tokANN {
 		p.advance() // consume ANN
 		if err := p.expectKeyword(tokOF); err != nil {
 			return nil, err
 		}
 		elem.IsANN = true
-
-		vec, err := p.parseVectorLiteral()
+		vec, err := p.parseTerm()
 		if err != nil {
 			return nil, err
 		}
-		elem.AnnVector = vec
-
-		// Optional LIMIT within ANN ordering.
-		if p.cur.Type == tokLIMIT {
-			p.advance()
-			limit, err := p.parseConstant()
-			if err != nil {
-				return nil, err
-			}
-			elem.AnnLimit = limit
+		if list, ok := vec.(*ast.ListLit); ok {
+			vec = &ast.VectorLit{Elements: list.Elements, Loc: list.Loc}
 		}
-
-		elem.Loc = p.makeLoc(elemStart)
-		return elem, nil
+		elem.AnnVector = vec
 	}
 
 	// Optional ASC / DESC.
@@ -296,36 +215,6 @@ func (p *Parser) parseOrderByElement() (*ast.OrderByElement, error) {
 
 	elem.Loc = p.makeLoc(elemStart)
 	return elem, nil
-}
-
-// parseVectorLiteral parses a vector literal: '[' constant (',' constant)* ']'.
-func (p *Parser) parseVectorLiteral() (*ast.VectorLit, error) {
-	start := p.curLoc()
-	if _, err := p.expect(tokLBRACK); err != nil {
-		return nil, err
-	}
-
-	var elements []ast.ExprNode
-	first, err := p.parseConstant()
-	if err != nil {
-		return nil, err
-	}
-	elements = append(elements, first)
-
-	for p.cur.Type == tokCOMMA {
-		p.advance()
-		val, err := p.parseConstant()
-		if err != nil {
-			return nil, err
-		}
-		elements = append(elements, val)
-	}
-
-	if _, err := p.expect(tokRBRACK); err != nil {
-		return nil, err
-	}
-
-	return &ast.VectorLit{Elements: elements, Loc: p.makeLoc(start)}, nil
 }
 
 // parseGroupByClause parses GROUP BY column (',' column)*.

@@ -1,8 +1,6 @@
 package parser
 
 import (
-	"strings"
-
 	"github.com/bytebase/omni/cassandra/ast"
 )
 
@@ -59,6 +57,10 @@ func (p *Parser) parseConstant() (ast.ExprNode, error) {
 		p.advance()
 		return &ast.CodeBlock{Val: tok.Str, Loc: ast.Loc{Start: tok.Loc, End: tok.End}}, nil
 
+	case tokDURATIONLIT:
+		p.advance()
+		return &ast.DurationLit{Val: tok.Str, Loc: ast.Loc{Start: tok.Loc, End: tok.End}}, nil
+
 	case tokMINUS:
 		start := tok.Loc
 		p.advance()
@@ -76,6 +78,9 @@ func (p *Parser) parseConstant() (ast.ExprNode, error) {
 		case tokNAN:
 			p.advance()
 			return &ast.FloatLit{Val: "-NaN", Loc: ast.Loc{Start: start, End: next.End}}, nil
+		case tokDURATIONLIT:
+			p.advance()
+			return &ast.DurationLit{Val: "-" + next.Str, Loc: ast.Loc{Start: start, End: next.End}}, nil
 		default:
 			return nil, p.errorf("expected number after '-', got %s", p.tokenDesc())
 		}
@@ -527,91 +532,3 @@ func (p *Parser) parseListLiteral() (ast.ExprNode, error) {
 // ---------------------------------------------------------------------------
 // Option hash (used in table / index options)
 // ---------------------------------------------------------------------------
-
-// parseOptionHash parses a { 'key' : 'value', ... } option hash used in
-// WITH clauses for table and index options.
-func (p *Parser) parseOptionHash() (*ast.OptionHash, error) {
-	start := p.curLoc()
-	if _, err := p.expect(tokLBRACE); err != nil {
-		return nil, err
-	}
-
-	var items []*ast.OptionHashItem
-
-	// Empty hash.
-	if p.cur.Type == tokRBRACE {
-		p.advance()
-		return &ast.OptionHash{Items: items, Loc: p.makeLoc(start)}, nil
-	}
-
-	for {
-		item, err := p.parseOptionHashItem()
-		if err != nil {
-			return nil, err
-		}
-		items = append(items, item)
-		if !p.match(tokCOMMA) {
-			break
-		}
-	}
-
-	if _, err := p.expect(tokRBRACE); err != nil {
-		return nil, err
-	}
-	return &ast.OptionHash{Items: items, Loc: p.makeLoc(start)}, nil
-}
-
-// parseOptionHashItem parses a single key : value pair inside an option hash.
-// Keys and values are typically string literals but may also be identifiers,
-// integers, floats, or booleans.
-func (p *Parser) parseOptionHashItem() (*ast.OptionHashItem, error) {
-	start := p.curLoc()
-	key, err := p.parseOptionHashValue()
-	if err != nil {
-		return nil, err
-	}
-	if _, err := p.expect(tokCOLON); err != nil {
-		return nil, err
-	}
-	val, err := p.parseOptionHashValue()
-	if err != nil {
-		return nil, err
-	}
-	return &ast.OptionHashItem{Key: key, Value: val, Loc: p.makeLoc(start)}, nil
-}
-
-// parseOptionHashValue parses a value that can appear as a key or value in an
-// option hash.  This is more permissive than parseConstant because option
-// hashes accept unquoted identifiers as values (e.g. class : 'SimpleStrategy').
-func (p *Parser) parseOptionHashValue() (ast.ExprNode, error) {
-	tok := p.cur
-	switch {
-	case tok.Type == tokSTRING:
-		p.advance()
-		return &ast.StringLit{Val: tok.Str, Loc: ast.Loc{Start: tok.Loc, End: tok.End}}, nil
-	case tok.Type == tokINTEGER:
-		p.advance()
-		return &ast.IntegerLit{Val: tok.Str, Loc: ast.Loc{Start: tok.Loc, End: tok.End}}, nil
-	case tok.Type == tokFLOAT:
-		p.advance()
-		return &ast.FloatLit{Val: tok.Str, Loc: ast.Loc{Start: tok.Loc, End: tok.End}}, nil
-	case tok.Type == tokTRUE:
-		p.advance()
-		return &ast.BoolLit{Val: true, Loc: ast.Loc{Start: tok.Loc, End: tok.End}}, nil
-	case tok.Type == tokFALSE:
-		p.advance()
-		return &ast.BoolLit{Val: false, Loc: ast.Loc{Start: tok.Loc, End: tok.End}}, nil
-	case tok.Type == tokNULL:
-		p.advance()
-		return &ast.NullLit{Loc: ast.Loc{Start: tok.Loc, End: tok.End}}, nil
-	case isIdentLike(tok.Type):
-		p.advance()
-		return &ast.Identifier{
-			Name:   strings.ToLower(tok.Str),
-			Quoted: tok.Type == tokQUOTED,
-			Loc:    ast.Loc{Start: tok.Loc, End: tok.End},
-		}, nil
-	default:
-		return nil, p.errorf("expected value in option hash, got %s", p.tokenDesc())
-	}
-}
