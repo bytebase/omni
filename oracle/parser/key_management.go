@@ -575,7 +575,7 @@ func (k *keyManagementClauses) parseExportImportKeys(start int) error {
 		return err
 	}
 	if p.cur.Type == kwWITH {
-		_, err := k.withIdentifier()
+		_, err := k.withIdentifier(true)
 		return err
 	}
 	return nil
@@ -618,7 +618,7 @@ func (k *keyManagementClauses) parseMoveKeys(start int) error {
 		return err
 	}
 	if p.cur.Type == kwWITH && k.nextWord("IDENTIFIER") {
-		subquery, err := k.withIdentifier()
+		subquery, err := k.withIdentifier(false)
 		if err != nil {
 			return err
 		}
@@ -849,7 +849,12 @@ func (k *keyManagementClauses) container() error {
 // withIdentifier parses WITH IDENTIFIER IN { key_id [, key_id ]... |
 // ( subquery ) }, and reports whether it read a subquery. A key identifier
 // is a string literal or a word.
-func (k *keyManagementClauses) withIdentifier() (bool, error) {
+//
+// After EXPORT KEYS (deferred), Oracle 23.26.3 does not parse what follows
+// the parenthesis: it takes IN(a zzz), IN() and IN( alike and reads the text
+// only when it runs the export. omni keeps that text, from the parenthesis
+// to the end of the statement, as the option's value.
+func (k *keyManagementClauses) withIdentifier(deferred bool) (bool, error) {
 	p := k.p
 	start := p.pos()
 	if err := k.words("WITH", "IDENTIFIER"); err != nil {
@@ -861,6 +866,14 @@ func (k *keyManagementClauses) withIdentifier() (bool, error) {
 	p.advance()
 	items := &nodes.List{}
 	subquery := p.cur.Type == '('
+	if subquery && deferred {
+		textStart := p.pos()
+		for p.cur.Type != tokEOF && p.cur.Type != ';' {
+			p.advance()
+		}
+		k.add("WITH IDENTIFIER IN", p.source[textStart:p.prev.End], start)
+		return true, nil
+	}
 	if subquery {
 		p.advance()
 		if !p.atQuery() {
