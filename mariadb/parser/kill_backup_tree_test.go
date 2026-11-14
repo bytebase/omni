@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/mariadb/ast"
@@ -44,5 +45,33 @@ func TestKillBackupResetTree(t *testing.T) {
 	}
 	if s, ok := parseOne("SHUTDOWN WAIT FOR ALL REPLICAS").(*ast.ShutdownStmt); !ok || !s.WaitForAllSlaves {
 		t.Errorf("SHUTDOWN WAIT FOR ALL REPLICAS = %+v", s)
+	}
+}
+
+// TestKillColumnScope pins where a bare name in KILL is a column (1054 outside a stored
+// program) and where it may be a variable, and that the check survives a left-deep
+// chain longer than the tree-height limit: it keeps its own stack, so the parser still
+// answers with its height error.
+func TestKillColumnScope(t *testing.T) {
+	for _, sql := range []string{
+		"CREATE PROCEDURE p() BEGIN DECLARE a INT; KILL a; END",
+		"CREATE EVENT e ON SCHEDULE EVERY 1 DAY DO BEGIN DECLARE x INT DEFAULT 1; KILL x; END",
+		"ALTER EVENT e DO BEGIN DECLARE x INT DEFAULT 1; KILL x; END",
+	} {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q): %v", sql, err)
+		}
+	}
+	for _, sql := range []string{
+		"KILL a",
+		"ALTER EVENT e DO BACKUP STAGE START",
+		"KILL a" + strings.Repeat(" + 1", 1000),
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) = nil error, want a refusal", sql[:min(len(sql), 40)])
+		}
+	}
+	if _, err := Parse("KILL 1" + strings.Repeat(" + 1", maxTreeHeight+10)); err == nil {
+		t.Error("a chain past the tree-height limit parsed")
 	}
 }

@@ -18,13 +18,19 @@ import (
 
 // routineScope is what the parser needs to know of the stored program it is inside.
 type routineScope struct {
-	triggerTiming string // BEFORE or AFTER, "" outside a trigger
-	triggerEvent  string // INSERT, UPDATE or DELETE
-	noResultSet   bool   // inside a function or a trigger
-	function      bool   // inside a function, the one place RETURN may stand (1313 elsewhere)
-	// program is set inside any stored program or compound statement, where a bare name
-	// may be a declared variable.
-	program bool
+	triggerTiming string   // BEFORE or AFTER, "" outside a trigger
+	triggerEvent  string   // INSERT, UPDATE or DELETE
+	noResultSet   bool     // inside a function or a trigger
+	function      bool     // inside a function, the one place RETURN may stand (1313 elsewhere)
+	sp            *spScope // the innermost scope of the stored program's names, nil outside one
+	// compound is set inside a compound statement's body, at the top level too, which is a
+	// stored program of its own.
+	compound bool
+}
+
+// inStoredProgram reports a routine, trigger or event body, or a compound statement's.
+func (p *Parser) inStoredProgram() bool {
+	return p.routine.sp != nil || p.routine.compound
 }
 
 // refuseColumnOutsideProgram is 1054, ER_BAD_FIELD_ERROR, for a column named in an
@@ -34,36 +40,55 @@ type routineScope struct {
 // query of its own, so the walk stops there. mariadb:11.8.8 answers 1054 for `KILL a`,
 // `KILL f(a)` and `PURGE MASTER LOGS BEFORE a.b`, and runs `KILL (SELECT 1)`.
 //
+// The walk keeps its own stack: a left-deep `1 + 1 + ...` is parsed by a loop, and this
+// check runs before the parser measures the tree's height.
+//
 // Ref: the actions that build a simple_ident outside a SELECT in MariaDB 11.8
 // sql/sql_yacc.yy (LEX::create_item_ident_nosp).
 func (p *Parser) refuseColumnOutsideProgram(expr nodes.Node, where string) error {
-	if p.routine.program || expr == nil {
+	if p.inStoredProgram() || expr == nil {
 		return nil
 	}
-	var refused error
-	nodes.Inspect(expr, func(n nodes.Node) bool {
-		if refused != nil {
-			return false
-		}
+	stack := []nodes.Node{expr}
+	for len(stack) > 0 {
+		n := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
 		switch e := n.(type) {
 		case *nodes.SubqueryExpr, *nodes.ExistsExpr, *nodes.SelectStmt:
-			return false
+			continue
 		case *nodes.ColumnRef:
 			msg := "Unknown column '" + e.Column + "'"
 			if where != "" {
 				msg += " in '" + where + "'"
 			}
-			refused = &ParseError{Message: msg, Position: e.Loc.Start}
-			return false
+			return &ParseError{Message: msg, Position: e.Loc.Start}
 		}
-		return true
-	})
-	return refused
+		nodes.Walk(&childCollector{root: n, out: &stack}, n)
+	}
+	return nil
+}
+
+// childCollector is a Visitor that appends a node's direct children to out and walks no
+// deeper, so a caller can walk a tree with a stack of its own.
+type childCollector struct {
+	root nodes.Node
+	out  *[]nodes.Node
+}
+
+func (c *childCollector) Visit(n nodes.Node) nodes.Visitor {
+	if n == nil {
+		return nil
+	}
+	if n == c.root {
+		return c
+	}
+	*c.out = append(*c.out, n)
+	return nil
 }
 
 // refuseInProgram is 1314, ER_SP_BADSTATEMENT, for a statement no stored program may hold.
 func (p *Parser) refuseInProgram(what string, pos int) error {
-	if !p.routine.program {
+	if !p.inStoredProgram() {
 		return nil
 	}
 	return &ParseError{Message: what + " is not allowed in stored procedures", Position: pos}
