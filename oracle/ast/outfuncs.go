@@ -2671,6 +2671,10 @@ func writeCreateTableStmt(sb *strings.Builder, n *CreateTableStmt) {
 	if n.Blockchain {
 		sb.WriteString(" :blockchain true")
 	}
+	if n.OfType != nil {
+		sb.WriteString(" :of ")
+		writeNode(sb, n.OfType)
+	}
 	if n.Name != nil {
 		sb.WriteString(" :name ")
 		writeNode(sb, n.Name)
