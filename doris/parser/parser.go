@@ -360,7 +360,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseCreateMTMV(createTok.Loc)
 		case kwPROCEDURE:
 			return p.parseCreateProcedure(createTok.Loc, false)
-		case kwFUNCTION, kwAGGREGATE, kwALIAS, kwGLOBAL:
+		case kwFUNCTION, kwAGGREGATE, kwALIAS, kwGLOBAL, kwTABLES, kwSESSION, kwLOCAL:
+			// CREATE SESSION and CREATE LOCAL lead only a function.
 			return p.parseCreateFunction(createTok.Loc)
 		case kwOR:
 			// CREATE OR REPLACE VIEW ... or CREATE OR REPLACE PROCEDURE ...
@@ -522,7 +523,7 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseDropStats(dropTok.Loc, "CACHED")
 		case kwPROCEDURE:
 			return p.parseDropProcedure(dropTok.Loc)
-		case kwFUNCTION, kwGLOBAL:
+		case kwFUNCTION, kwGLOBAL, kwSESSION, kwLOCAL:
 			return p.parseDropFunction(dropTok.Loc)
 		default:
 			return p.unsupported("DROP")

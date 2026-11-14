@@ -694,7 +694,7 @@ func (p *Parser) routineParseTableDefinition() (*nodes.List, error) {
 				item = idx
 			}
 		default:
-			col, err := p.parseColumnDef()
+			col, err := p.parseTypedColumnDef()
 			if err != nil {
 				return nil, err
 			}

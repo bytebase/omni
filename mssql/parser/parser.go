@@ -728,8 +728,8 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 			if next.Type == kwAUDIT {
 				p.advance() // consume DATABASE
 				p.advance() // consume AUDIT
-				if p.cur.Type == kwSPECIFICATION {
-					p.advance() // consume SPECIFICATION
+				if _, err := p.expect(kwSPECIFICATION); err != nil {
+					return nil, err
 				}
 				stmt, err := p.parseCreateDatabaseAuditSpecStmt()
 				if err != nil {
@@ -925,7 +925,7 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 				stmt.Loc.Start = loc
 				return stmt, nil
 			}
-			return nil, nil
+			return nil, p.syntaxErrorAtCur()
 		}
 		// CREATE XML SCHEMA COLLECTION / CREATE XML INDEX
 		if p.cur.Type == kwXML {
@@ -1040,7 +1040,7 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 					return stmt, nil
 				}
 			}
-			return nil, nil
+			return nil, p.syntaxErrorAtCur()
 		}
 		// CREATE MESSAGE TYPE (service broker)
 		if p.cur.Type == kwMESSAGE {
@@ -1192,8 +1192,8 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 			p.advance() // consume EXTERNAL
 			if p.cur.Type == kwDATA {
 				p.advance() // consume DATA
-				if p.cur.Type == kwSOURCE {
-					p.advance() // consume SOURCE
+				if _, err := p.expect(kwSOURCE); err != nil {
+					return nil, err
 				}
 				stmt, err := p.parseCreateExternalDataSourceStmt()
 				if err != nil {
@@ -1214,8 +1214,8 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 			}
 			if p.cur.Type == kwFILE {
 				p.advance() // consume FILE
-				if p.cur.Type == kwFORMAT {
-					p.advance() // consume FORMAT
+				if _, err := p.expect(kwFORMAT); err != nil {
+					return nil, err
 				}
 				stmt, err := p.parseCreateExternalFileFormatStmt()
 				if err != nil {
@@ -1226,8 +1226,8 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 			}
 			if p.cur.Type == kwRESOURCE {
 				p.advance() // consume RESOURCE
-				if p.cur.Type == kwPOOL {
-					p.advance() // consume POOL
+				if _, err := p.expect(kwPOOL); err != nil {
+					return nil, err
 				}
 				stmt, err := p.parseCreateExternalResourcePoolStmt()
 				if err != nil {
@@ -1274,8 +1274,8 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 			}
 			if p.cur.Type == kwSTREAMING {
 				p.advance() // consume STREAMING
-				if p.cur.Type == kwJOB {
-					p.advance() // consume JOB
+				if _, err := p.expect(kwJOB); err != nil {
+					return nil, err
 				}
 				stmt, err := p.parseCreateExternalStreamingJobStmt()
 				if err != nil {
@@ -1284,7 +1284,7 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 				stmt.Loc.Start = loc
 				return stmt, nil
 			}
-			return nil, nil
+			return nil, p.syntaxErrorAtCur()
 		}
 		// CREATE AVAILABILITY GROUP
 		if p.cur.Type == kwAVAILABILITY {
@@ -1324,8 +1324,8 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 				stmt.Loc.Start = loc
 				return stmt, nil
 			}
-			if p.cur.Type == kwGROUP {
-				p.advance() // consume GROUP
+			if _, err := p.expect(kwGROUP); err != nil {
+				return nil, err
 			}
 			stmt, err := p.parseCreateWorkloadGroupStmt()
 			if err != nil {
@@ -1405,8 +1405,8 @@ func (p *Parser) parseAlterStmt() (nodes.StmtNode, error) {
 			if next.Type == kwAUDIT {
 				p.advance() // consume DATABASE
 				p.advance() // consume AUDIT
-				if p.cur.Type == kwSPECIFICATION {
-					p.advance() // consume SPECIFICATION
+				if _, err := p.expect(kwSPECIFICATION); err != nil {
+					return nil, err
 				}
 				stmt, err := p.parseAlterDatabaseAuditSpecStmt()
 				if err != nil {
@@ -1644,7 +1644,7 @@ func (p *Parser) parseAlterStmt() (nodes.StmtNode, error) {
 				stmt.Loc.Start = loc
 				return stmt, nil
 			}
-			return nil, nil
+			return nil, p.syntaxErrorAtCur()
 		}
 		// ALTER SECURITY POLICY
 		if p.cur.Type == kwSECURITY {
@@ -1675,7 +1675,7 @@ func (p *Parser) parseAlterStmt() (nodes.StmtNode, error) {
 					return stmt, nil
 				}
 			}
-			return nil, nil
+			return nil, p.syntaxErrorAtCur()
 		}
 		// ALTER ENDPOINT
 		if p.cur.Type == kwENDPOINT {
@@ -1874,8 +1874,8 @@ func (p *Parser) parseAlterStmt() (nodes.StmtNode, error) {
 			p.advance() // consume EXTERNAL
 			if p.cur.Type == kwDATA {
 				p.advance() // consume DATA
-				if p.cur.Type == kwSOURCE {
-					p.advance() // consume SOURCE
+				if _, err := p.expect(kwSOURCE); err != nil {
+					return nil, err
 				}
 				stmt, err := p.parseAlterExternalDataSourceStmt()
 				if err != nil {
@@ -1886,8 +1886,8 @@ func (p *Parser) parseAlterStmt() (nodes.StmtNode, error) {
 			}
 			if p.cur.Type == kwRESOURCE {
 				p.advance() // consume RESOURCE
-				if p.cur.Type == kwPOOL {
-					p.advance() // consume POOL
+				if _, err := p.expect(kwPOOL); err != nil {
+					return nil, err
 				}
 				stmt, err := p.parseAlterExternalResourcePoolStmt()
 				if err != nil {
@@ -1923,7 +1923,7 @@ func (p *Parser) parseAlterStmt() (nodes.StmtNode, error) {
 				stmt.Loc.Start = loc
 				return stmt, nil
 			}
-			return nil, nil
+			return nil, p.syntaxErrorAtCur()
 		}
 		// ALTER AVAILABILITY GROUP
 		if p.cur.Type == kwAVAILABILITY {
@@ -1950,8 +1950,8 @@ func (p *Parser) parseAlterStmt() (nodes.StmtNode, error) {
 				stmt.Loc.Start = loc
 				return stmt, nil
 			}
-			if p.cur.Type == kwGROUP {
-				p.advance() // consume GROUP
+			if _, err := p.expect(kwGROUP); err != nil {
+				return nil, err
 			}
 			stmt, err := p.parseAlterWorkloadGroupStmt()
 			if err != nil {
@@ -2058,6 +2058,16 @@ func (p *Parser) parseDropOrSecurityStmt() (nodes.StmtNode, error) {
 		}
 		stmt.Loc.Start = loc
 		return stmt, nil
+	case kwAUDIT:
+		// DROP AUDIT name (SQL Server 2022 accepts it; see parseDropAuditStmt)
+		p.advance() // consume DROP
+		p.advance() // consume AUDIT
+		stmt, err := p.parseDropAuditStmt()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Loc.Start = loc
+		return stmt, nil
 	case kwDATABASE:
 		// Could be DROP DATABASE, DROP DATABASE AUDIT SPECIFICATION,
 		// DROP DATABASE ENCRYPTION KEY, or DROP DATABASE SCOPED CREDENTIAL
@@ -2065,8 +2075,8 @@ func (p *Parser) parseDropOrSecurityStmt() (nodes.StmtNode, error) {
 		p.advance() // consume DATABASE
 		if p.cur.Type == kwAUDIT {
 			p.advance() // consume AUDIT
-			if p.cur.Type == kwSPECIFICATION {
-				p.advance() // consume SPECIFICATION
+			if _, err := p.expect(kwSPECIFICATION); err != nil {
+				return nil, err
 			}
 			stmt, err := p.parseDropDatabaseAuditSpecStmt()
 			if err != nil {
@@ -2367,8 +2377,8 @@ func (p *Parser) parseDropOrSecurityStmt() (nodes.StmtNode, error) {
 				stmt.Loc.Start = loc
 				return stmt, nil
 			}
-			if p.cur.Type == kwGROUP {
-				p.advance() // consume GROUP
+			if _, err := p.expect(kwGROUP); err != nil {
+				return nil, err
 			}
 			stmt, err := p.parseDropWorkloadGroupStmt()
 			if err != nil {
@@ -2457,51 +2467,8 @@ func (p *Parser) parseDropOrSecurityStmt() (nodes.StmtNode, error) {
 				stmt.Loc.Start = loc
 				return stmt, nil
 			}
-			// Not STOPLIST — must be INDEX or CATALOG, handled by parseDropStmt.
-			// We've already consumed DROP + FULLTEXT, so we need to handle inline.
-			// Re-enter the generic drop logic for FULLTEXT INDEX/CATALOG
-			dropStmt := &nodes.DropStmt{
-				Loc: nodes.Loc{Start: loc, End: -1},
-			}
-			if p.cur.Type == kwINDEX {
-				dropStmt.ObjectType = nodes.DropFulltextIndex
-				p.advance()
-			} else if p.cur.Type == kwCATALOG {
-				dropStmt.ObjectType = nodes.DropFulltextCatalog
-				p.advance()
-			}
-			if p.cur.Type == kwIF {
-				p.advance()
-				p.match(kwEXISTS)
-				dropStmt.IfExists = true
-			}
-			var nameItems []nodes.Node
-			if dropStmt.ObjectType == nodes.DropFulltextIndex {
-				// DROP FULLTEXT INDEX ON table_name
-				if _, ok := p.match(kwON); ok {
-					if ref, _ := p.parseTableRef(); ref != nil {
-						nameItems = append(nameItems, ref)
-					}
-				}
-			} else {
-				for {
-					ref, err := p.parseTableRef()
-					if err != nil {
-						return nil, err
-					}
-					if ref != nil {
-						nameItems = append(nameItems, ref)
-					}
-					if _, ok := p.match(','); !ok {
-						break
-					}
-				}
-			}
-			if len(nameItems) > 0 {
-				dropStmt.Names = &nodes.List{Items: nameItems}
-			}
-			dropStmt.Loc.End = p.prevEnd()
-			return dropStmt, nil
+			// Not STOPLIST — must be INDEX or CATALOG.
+			return p.parseDropFulltextIndexOrCatalogStmt(loc)
 		}
 		// DROP AGGREGATE
 		if next.Type == kwAGGREGATE {
@@ -2530,7 +2497,7 @@ func (p *Parser) parseDropOrSecurityStmt() (nodes.StmtNode, error) {
 					return stmt, nil
 				}
 			}
-			return nil, nil
+			return nil, p.syntaxErrorAtCur()
 		}
 		// DROP MASTER KEY
 		if next.Type == kwMASTER {

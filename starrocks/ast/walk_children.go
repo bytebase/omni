@@ -48,10 +48,24 @@ func walkChildren(v Visitor, node Node) {
 	case *DropTableStmt:
 		Walk(v, n.Name)
 	case *CreateFunctionStmt:
-		// leaf-ish node, signature stored as raw text
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, a := range n.Args {
+			Walk(v, a)
+		}
+		if n.Returns != nil {
+			Walk(v, n.Returns)
+		}
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
 	case *DropFunctionStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
+		}
+		for _, a := range n.Args {
+			Walk(v, a)
 		}
 	case *Property:
 		// leaf node, no children
@@ -471,8 +485,20 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, prop)
 		}
 	case *LoadDataDesc:
+		if n.SourceTable != nil {
+			Walk(v, n.SourceTable)
+		}
 		if n.Target != nil {
 			Walk(v, n.Target)
+		}
+		for _, prop := range n.FormatProps {
+			Walk(v, prop)
+		}
+		for _, e := range n.ColumnMappings {
+			Walk(v, e)
+		}
+		if n.Where != nil {
+			Walk(v, n.Where)
 		}
 	case *LoadDataStmt:
 		for _, desc := range n.DataDescs {
