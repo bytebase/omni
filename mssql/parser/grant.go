@@ -215,14 +215,21 @@ func (p *Parser) parseGrantOnClause(stmt *nodes.GrantStmt) error {
 		return &ParseError{Message: "syntax error in the securable name", Position: start}
 	}
 	stmt.OnName = ref
-	// An object's columns: ON object ( column [ , ...n ] ).
+	// An object's columns: ON object ( column [ , ...n ] ), when no
+	// permission names its own and every one takes columns (Msg 1019,
+	// Msg 1020).
 	if p.cur.Type == '(' {
+		for _, item := range stmt.Privileges.Items {
+			if s, ok := item.(*nodes.String); ok && (strings.Contains(s.Str, "(") || !grantColumnPermissions[s.Str]) {
+				return p.syntaxErrorAtCur()
+			}
+		}
 		cols, err := p.parseGrantColumnList()
 		if err != nil {
 			return err
 		}
 		for i, item := range stmt.Privileges.Items {
-			if s, ok := item.(*nodes.String); ok && !strings.Contains(s.Str, "(") {
+			if s, ok := item.(*nodes.String); ok {
 				stmt.Privileges.Items[i] = &nodes.String{Str: s.Str + "(" + strings.Join(cols, ", ") + ")"}
 			}
 		}
@@ -512,6 +519,12 @@ var grantPermissions = func() map[string]bool {
 	return m
 }()
 
+// grantColumnPermissions are the permissions that take a column list; SQL
+// Server refuses one on any other (Msg 1020).
+var grantColumnPermissions = map[string]bool{
+	"SELECT": true, "UPDATE": true, "REFERENCES": true, "ALL": true, "ALL PRIVILEGES": true,
+}
+
 // grantPermissionsNeedingOn are the permissions SQL Server takes only with
 // an ON clause (Msg 102 without one, on the pinned server).
 var grantPermissionsNeedingOn = map[string]bool{
@@ -565,8 +578,13 @@ func (p *Parser) parsePrivilegeList() (*nodes.List, bool, error) {
 		}
 		needsOn = needsOn || grantPermissionsNeedingOn[name]
 
-		// Column list: permission ( column [ , ...n ] )
+		// Column list: permission ( column [ , ...n ] ), on a permission that
+		// takes columns, and then an ON clause (Msg 1020 otherwise).
 		if p.cur.Type == '(' {
+			if !grantColumnPermissions[name] {
+				return nil, false, p.syntaxErrorAtCur()
+			}
+			needsOn = true
 			cols, err := p.parseGrantColumnList()
 			if err != nil {
 				return nil, false, err
