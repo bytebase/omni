@@ -528,18 +528,31 @@ func execBundleArgs(p *Parser, opt *ast.CopyOption) error {
 	})
 }
 
-// parseColonVariable reads a SQL variable reference :<name>, the colon
-// written against the name, and returns it verbatim.
+// parseColonVariable reads a SQL variable reference :<name> and returns it
+// verbatim.
 func (p *Parser) parseColonVariable() (string, error) {
+	v, err := p.parseBindVariable()
+	if err != nil {
+		return "", err
+	}
+	return p.srcSlice(v.Loc.Start, v.Loc.End), nil
+}
+
+// parseBindVariable reads a Snowflake Scripting variable reference :<name>,
+// the colon written against the name.
+func (p *Parser) parseBindVariable() (*ast.BindVariable, error) {
 	if p.cur.Type != ':' {
-		return "", p.syntaxErrorAtCur()
+		return nil, p.syntaxErrorAtCur()
 	}
 	colon := p.advance()
 	if p.cur.Loc.Start != colon.Loc.End || (p.cur.Type != tokIdent && p.cur.Type != tokQuotedIdent && p.cur.Type < 700) {
-		return "", p.syntaxErrorAtCur()
+		return nil, p.syntaxErrorAtCur()
 	}
-	name := p.advance()
-	return p.srcSlice(colon.Loc.Start, name.Loc.End), nil
+	tok := p.advance()
+	return &ast.BindVariable{
+		Name: ast.Ident{Name: tok.Str, Quoted: tok.Type == tokQuotedIdent, Loc: tok.Loc},
+		Loc:  ast.Loc{Start: colon.Loc.Start, End: tok.Loc.End},
+	}, nil
 }
 
 // parseExecList reads ( <element> [ , ... ] ) into opt.Group, reading each
@@ -801,7 +814,9 @@ func (p *Parser) parseDcmEnvironment(s *ast.ObjectStmt) error {
 }
 
 // parseNamedArgList reads ( <name> => <value> [ , ... ] ). A name is any word,
-// as the page's template variables are (desc => '...'). cur is '('.
+// as the page's template variables are (desc => '...'); a value is an
+// expression or a variable reference :<name>, as a stored procedure passes
+// its arguments. cur is '('.
 func (p *Parser) parseNamedArgList() ([]*ast.CallArg, error) {
 	if _, err := p.expect('('); err != nil {
 		return nil, err
@@ -813,7 +828,13 @@ func (p *Parser) parseNamedArgList() ([]*ast.CallArg, error) {
 		}
 		tok := p.advance()
 		p.advance() // consume '=>'
-		value, err := p.parseExpr()
+		var value ast.Node
+		var err error
+		if p.cur.Type == ':' {
+			value, err = p.parseBindVariable()
+		} else {
+			value, err = p.parseExpr()
+		}
 		if err != nil {
 			return nil, err
 		}

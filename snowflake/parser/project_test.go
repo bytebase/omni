@@ -272,6 +272,16 @@ func TestParseExecuteImmediateFrom(t *testing.T) {
 	if len(s.Vars) != 2 || s.Vars[0].Name.Name != "env" {
 		t.Fatalf("Vars = %+v", s.Vars)
 	}
+	// A stored procedure passes its arguments as :<name>.
+	s = mustParseOne(t, "EXECUTE IMMEDIATE FROM @st/t.sql USING (env => :env, n => :\"N\")").(*ast.ExecuteImmediateStmt)
+	if v, ok := s.Vars[1].Value.(*ast.BindVariable); !ok || v.Name.Name != "N" || !v.Name.Quoted || v.Loc.End != s.Vars[1].Loc.End {
+		t.Fatalf("Vars[1] = %+v", s.Vars[1].Value)
+	}
+	// The page's example runs a hyphenated file name.
+	s = mustParseOne(t, "EXECUTE IMMEDIATE FROM @my_stage/scripts/create-inventory.sql").(*ast.ExecuteImmediateStmt)
+	if s.File != "@my_stage/scripts/create-inventory.sql" {
+		t.Fatalf("File = %q", s.File)
+	}
 
 	for _, in := range []string{
 		"EXECUTE IMMEDIATE FROM",
@@ -280,6 +290,9 @@ func TestParseExecuteImmediateFrom(t *testing.T) {
 		"EXECUTE IMMEDIATE FROM @ DRY_RUN = TRUE",
 		"EXECUTE IMMEDIATE FROM @st/t.sql USING (env)", // template values are named
 		"EXECUTE IMMEDIATE FROM @st/t.sql USING ()",
+		"EXECUTE IMMEDIATE FROM @st/t.sql USING (a => : v)",
+		"EXECUTE IMMEDIATE FROM @st/t.sql USING (a => :)",
+		"EXECUTE IMMEDIATE FROM @st/a - b.sql",
 		"EXECUTE IMMEDIATE FROM @st/t.sql DRY_RUN = 'TRUE'",
 		"EXECUTE IMMEDIATE FROM @st/t.sql DRY_RUN = TRUE USING (a => 1)", // the page orders them
 	} {

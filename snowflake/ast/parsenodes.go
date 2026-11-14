@@ -474,6 +474,19 @@ type DollarRef struct {
 
 func (n *DollarRef) Tag() NodeTag { return T_DollarRef }
 
+// BindVariable is a Snowflake Scripting variable read in a SQL statement as
+// :<name>, as a template value of EXECUTE IMMEDIATE FROM ... USING
+// ( <key> => :<arg> ) is
+// (https://docs.snowflake.com/en/sql-reference/sql/execute-immediate-from).
+// It is read only where such a value is documented, not as an expression in
+// general.
+type BindVariable struct {
+	Name Ident // the variable, after the colon
+	Loc  Loc   // from the colon to the name's end
+}
+
+func (n *BindVariable) Tag() NodeTag { return T_BindVariable }
+
 // BinaryExpr represents a binary operation: left op right.
 type BinaryExpr struct {
 	Op    BinaryOp

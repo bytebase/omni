@@ -247,15 +247,11 @@ func (p *Parser) parseExecuteImmediateFrom(stmt *ast.ExecuteImmediateStmt) (ast.
 	switch p.cur.Type {
 	case '@':
 		// An absolute path: a file on a stage.
-		loc, err := p.parseStageRef()
+		file, err := p.parseStagedFilePath()
 		if err != nil {
 			return nil, err
 		}
-		if loc.Raw == "@" {
-			// A lone '@' names no stage.
-			return nil, p.syntaxErrorAtCur()
-		}
-		stmt.File = loc.Raw
+		stmt.File = file
 	case tokString:
 		// A path relative to the file that runs this statement.
 		tok := p.advance()
@@ -283,6 +279,24 @@ func (p *Parser) parseExecuteImmediateFrom(stmt *ast.ExecuteImmediateStmt) (ast.
 	}
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
+}
+
+// parseStagedFilePath reads @<stage>/<path>/<file> verbatim: the tokens
+// written against each other from '@' on that a stage path holds, and '-',
+// which a file's name may hold (create-inventory.sql in the page's example).
+// cur is '@'.
+func (p *Parser) parseStagedFilePath() (string, error) {
+	at := p.advance() // consume '@'
+	end := at.Loc.End
+	for p.cur.Loc.Start == end && (p.cur.Type == '-' || p.isStagePathToken(p.cur.Type)) {
+		end = p.cur.Loc.End
+		p.advance()
+	}
+	if end == at.Loc.End {
+		// A lone '@' names no stage.
+		return "", p.syntaxErrorAtCur()
+	}
+	return p.srcSlice(at.Loc.Start, end), nil
 }
 
 // curIsStringOrDollarBody reports whether the current token begins an EXECUTE
