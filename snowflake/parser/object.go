@@ -180,6 +180,38 @@ func (p *Parser) parseObjectStmt(verb string, f *objectForm, start ast.Loc, orRe
 	return s, nil
 }
 
+// parseObjectSimpleName reads a name a clause takes where the page writes a
+// single <name>: one identifier part, with no database or schema.
+func (p *Parser) parseObjectSimpleName() (*ast.ObjectName, error) {
+	name, err := p.parseObjectName()
+	if err != nil {
+		return nil, err
+	}
+	if !name.Schema.IsEmpty() || !name.Database.IsEmpty() {
+		return nil, &ParseError{
+			Position: name.Loc.Start, End: name.Loc.End,
+			Message: "syntax error: " + name.String() + " takes no qualifier here",
+		}
+	}
+	return name, nil
+}
+
+// parseObjectSimpleNameList reads <name> [ , ... ] of single-part names.
+func (p *Parser) parseObjectSimpleNameList() ([]*ast.ObjectName, error) {
+	var names []*ast.ObjectName
+	for {
+		name, err := p.parseObjectSimpleName()
+		if err != nil {
+			return nil, err
+		}
+		names = append(names, name)
+		if p.cur.Type != ',' {
+			return names, nil
+		}
+		p.advance() // consume ','
+	}
+}
+
 // parseFormName reads the name of an object of form f, holding it to the
 // number of parts f.nameParts allows.
 func (p *Parser) parseFormName(f *objectForm) (*ast.ObjectName, error) {
@@ -644,7 +676,9 @@ func (p *Parser) parseObjectValueParen(opt *ast.CopyOption) error {
 			key := p.advance()
 			entry.Name = strings.ToUpper(key.Str)
 			if key.Type == tokString {
-				entry.Name = key.Str
+				// A string key (SECRETS = ( '<name>' = <secret> )) keeps its
+				// quotes, so it stays apart from a word key.
+				entry.Name = p.srcSlice(key.Loc.Start, key.Loc.End)
 			}
 			p.advance() // consume '='
 			if err := p.parseObjectValue(entry); err != nil {
