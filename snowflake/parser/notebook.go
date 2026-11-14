@@ -90,6 +90,11 @@ func notebookCheckOptions(c *ast.ObjectClause, props objectProps) error {
 		if o.Name == "ARGUMENTS" && strings.HasPrefix(o.Words, ":") {
 			continue // a SQL variable (parseNotebookExecuteProperties)
 		}
+		if _, takes := props[o.Name]; takes && o.Name == "EXTERNAL_ACCESS_INTEGRATIONS" && propStrings.matches(o) {
+			// EXECUTE NOTEBOOK PROJECT's example quotes the names:
+			// EXTERNAL_ACCESS_INTEGRATIONS = ('test_EAI').
+			continue
+		}
 		if v, ok := props[o.Name]; !ok || !v.matches(o) {
 			return &ParseError{
 				Position: o.Loc.Start, End: o.Loc.End,

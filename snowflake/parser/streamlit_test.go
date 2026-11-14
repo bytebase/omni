@@ -118,6 +118,7 @@ func TestParseStreamlitRejects(t *testing.T) {
 		"ALTER STREAMLIT a PUSH NAME = n EMAIL = e",
 		// SECRETS maps a string alias to a secret's name.
 		"CREATE STREAMLIT a SECRETS = ('k' = 123)",
+		"CREATE STREAMLIT a SECRETS = (\"k\" = s)",
 		"CREATE STREAMLIT a SECRETS = (k = s)",
 		"ALTER STREAMLIT a SET SECRETS = ('k' = (s = t))",
 		"ALTER STREAMLIT a SET SECRETS = ('k' = 's')",

@@ -272,7 +272,10 @@ func streamlitCheckSecrets(s *ast.ObjectStmt, parts int) error {
 				continue
 			}
 			for _, e := range o.Group {
-				if !strings.HasPrefix(e.Name, "'") || e.Words == "" || nameParts(e.Words) > parts {
+				// The alias is a string key, which keeps its delimiters:
+				// '...' or $$...$$.
+				isString := strings.HasPrefix(e.Name, "'") || strings.HasPrefix(e.Name, "$$")
+				if !isString || e.Words == "" || nameParts(e.Words) > parts {
 					return &ParseError{
 						Position: e.Loc.Start, End: e.Loc.End,
 						Message: "syntax error: SECRETS maps a '<alias>' string to a secret's name",
