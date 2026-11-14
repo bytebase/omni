@@ -27,6 +27,14 @@ func TestValidateQuery(t *testing.T) {
 		{statement: "-- only a comment"},
 		{statement: "WITH x AS (SELECT * FROM t1) UPDATE t1 SET c1 = 1;", wantErr: true},
 		{statement: "SELECT 1 FROM DUAL;\nSELECT * FROM", wantErr: true},
+		// An inline PL/SQL declaration can write, through an autonomous
+		// transaction or dynamic SQL, while the query only reads.
+		{statement: "WITH FUNCTION f RETURN NUMBER IS PRAGMA AUTONOMOUS_TRANSACTION; BEGIN DELETE FROM t1; COMMIT; RETURN 1; END; SELECT f FROM dual"},
+		{statement: "WITH FUNCTION f RETURN NUMBER IS BEGIN EXECUTE IMMEDIATE 'DROP TABLE t1'; RETURN 1; END; SELECT f FROM dual"},
+		{statement: "WITH PROCEDURE p IS BEGIN NULL; END; FUNCTION f RETURN NUMBER IS BEGIN p; RETURN 1; END; SELECT f FROM dual"},
+		{statement: "WITH FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END; SELECT f FROM dual"},
+		{statement: "SELECT * FROM (WITH FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END; SELECT f FROM dual)"},
+		{statement: "EXPLAIN PLAN FOR WITH FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END; SELECT f FROM dual"},
 	}
 	for _, test := range tests {
 		t.Run(test.statement, func(t *testing.T) {
