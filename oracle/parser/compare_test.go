@@ -1767,7 +1767,7 @@ func TestParseAlterUserFull(t *testing.T) {
 		"ALTER USER scott ACCOUNT LOCK",
 		"ALTER USER scott ACCOUNT UNLOCK",
 		"ALTER USER scott ENABLE EDITIONS",
-		"ALTER USER c##scott CONTAINER = ALL",
+		"ALTER USER c##scott ACCOUNT LOCK CONTAINER = ALL",
 		"ALTER USER scott IDENTIFIED BY newpass DEFAULT TABLESPACE users QUOTA 100M ON users PROFILE default PASSWORD EXPIRE ACCOUNT UNLOCK",
 	}
 	for _, sql := range tests {
@@ -1814,7 +1814,7 @@ func TestParseCreateProfileFull(t *testing.T) {
 		"CREATE MANDATORY PROFILE mandatory_prof LIMIT SESSIONS_PER_USER 5",
 		"CREATE PROFILE app_profile LIMIT SESSIONS_PER_USER 10 CPU_PER_SESSION UNLIMITED FAILED_LOGIN_ATTEMPTS 3 PASSWORD_LIFE_TIME 60",
 		"CREATE PROFILE app_profile LIMIT SESSIONS_PER_USER 10 CONTAINER = ALL",
-		"CREATE PROFILE app_profile LIMIT SESSIONS_PER_USER 10 LIMIT FAILED_LOGIN_ATTEMPTS 5",
+		"CREATE PROFILE app_profile LIMIT SESSIONS_PER_USER 10 FAILED_LOGIN_ATTEMPTS 5",
 	}
 	for _, sql := range tests {
 		name := sql
@@ -3280,7 +3280,7 @@ func TestBatch100_AuditUnified(t *testing.T) {
 					t.Errorf("except_users=%d", len(stmt.ExceptUsers))
 				}
 			}},
-		{"policy_with_role", "AUDIT POLICY my_policy BY USERS WITH ROLE dba, connect",
+		{"policy_with_role", "AUDIT POLICY my_policy BY USERS WITH GRANTED ROLES dba, connect",
 			func(t *testing.T, stmt *ast.AuditStmt) {
 				if len(stmt.WithRoles) != 2 {
 					t.Errorf("with_roles=%d", len(stmt.WithRoles))
@@ -3422,7 +3422,7 @@ func TestBatch100_NoauditUnified(t *testing.T) {
 					t.Errorf("by=%d", len(stmt.ByUsers))
 				}
 			}},
-		{"policy_with_role", "NOAUDIT POLICY my_policy BY scott WITH ROLE dba",
+		{"policy_with_role", "NOAUDIT POLICY my_policy BY USERS WITH GRANTED ROLES dba",
 			func(t *testing.T, stmt *ast.NoauditStmt) {
 				if len(stmt.WithRoles) != 1 {
 					t.Errorf("roles=%d", len(stmt.WithRoles))
@@ -3535,7 +3535,7 @@ func adminDDLTest(t *testing.T, sql string, wantAction string, wantType ast.Obje
 func TestBatch66_AnalyticViewHierarchy(t *testing.T) {
 	// CREATE/ALTER ANALYTIC VIEW now use dedicated AST types (upgraded in batch 93)
 	t.Run("create_analytic_view", func(t *testing.T) {
-		result := ParseAndCheck(t, "CREATE ANALYTIC VIEW sales_av USING sales_fact DIMENSION BY (time_dim) MEASURES (amount)")
+		result := ParseAndCheck(t, "CREATE ANALYTIC VIEW sales_av USING sales_fact DIMENSION BY (time_dim KEY month_id REFERENCES month_id HIERARCHIES (time_hier)) MEASURES (amount)")
 		raw := result.Items[0].(*ast.RawStmt)
 		_, ok := raw.Stmt.(*ast.CreateAnalyticViewStmt)
 		if !ok {
@@ -6201,7 +6201,7 @@ func TestParseAlterTableFull(t *testing.T) {
 		{"cache", `ALTER TABLE employees CACHE`},
 		{"pctfree", `ALTER TABLE employees PCTFREE 20`},
 		{"initrans", `ALTER TABLE employees INITRANS 4`},
-		{"storage", `ALTER TABLE employees STORAGE (INITIAL 64K NEXT 64K)`},
+		{"storage", `ALTER TABLE employees STORAGE (NEXT 64K)`},
 		{"read_only", `ALTER TABLE employees READ ONLY`},
 		{"read_write", `ALTER TABLE employees READ WRITE`},
 		{"result_cache", `ALTER TABLE employees RESULT_CACHE (MODE FORCE)`},
@@ -6232,8 +6232,7 @@ func TestParseAlterTableFull(t *testing.T) {
 		{"deallocate_unused_keep", `ALTER TABLE employees DEALLOCATE UNUSED KEEP 100K`},
 
 		// --- REFRESH ---
-		{"refresh", `ALTER TABLE employees REFRESH`},
-		{"no_refresh", `ALTER TABLE employees NO REFRESH`},
+		{"refresh", `ALTER TABLE employees REFRESH ON DEMAND`},
 
 		// --- Immutable / Blockchain table clauses ---
 		{"no_drop", `ALTER TABLE ledger NO DROP`},
@@ -6253,9 +6252,9 @@ func TestParseAlterTableFull(t *testing.T) {
 		{"exchange_partition", `ALTER TABLE sales EXCHANGE PARTITION sales_q1 WITH TABLE sales_staging`},
 		{"exchange_partition_opts", `ALTER TABLE sales EXCHANGE PARTITION sales_q1 WITH TABLE staging INCLUDING INDEXES WITHOUT VALIDATION`},
 		{"coalesce_partition", `ALTER TABLE hash_tab COALESCE PARTITION`},
-		{"coalesce_subpartition", `ALTER TABLE hash_tab COALESCE SUBPARTITION`},
+		{"coalesce_subpartition", `ALTER TABLE hash_tab MODIFY PARTITION p1 COALESCE SUBPARTITION`},
 		{"modify_partition", `ALTER TABLE sales MODIFY PARTITION sales_q1 PCTFREE 30`},
-		{"modify_subpartition", `ALTER TABLE sales MODIFY SUBPARTITION sales_q1_east TABLESPACE ts2`},
+		{"modify_subpartition", `ALTER TABLE sales MODIFY SUBPARTITION sales_q1_east ALLOCATE EXTENT`},
 		{"modify_default_attrs", `ALTER TABLE sales MODIFY DEFAULT ATTRIBUTES TABLESPACE ts_new`},
 		{"rename_partition", `ALTER TABLE sales RENAME PARTITION old_part TO new_part`},
 		{"rename_subpartition", `ALTER TABLE sales RENAME SUBPARTITION old_sub TO new_sub`},
@@ -6282,7 +6281,7 @@ func TestParseAlterTableFull(t *testing.T) {
 		{"multi_enable_disable", `ALTER TABLE employees ENABLE CONSTRAINT ck_sal ENABLE ALL TRIGGERS`},
 
 		// --- MODIFY OPAQUE TYPE ---
-		{"modify_opaque_type", `ALTER TABLE xml_tab MODIFY OPAQUE TYPE xmlcol STORE AS OBJECT RELATIONAL (xmldata)`},
+		{"modify_opaque_type", `ALTER TABLE any_tab MODIFY OPAQUE TYPE anycol STORE (sys.anydata) UNPACKED`},
 
 		// --- Schema-qualified ---
 		{"schema_qualified", `ALTER TABLE hr.employees ADD (middle_name VARCHAR2(50))`},
@@ -7486,7 +7485,7 @@ func TestBatch93_ViewsAllTypes(t *testing.T) {
 
 	// ===== CREATE ANALYTIC VIEW =====
 	t.Run("create_analytic_view_basic", func(t *testing.T) {
-		result := ParseAndCheck(t, "CREATE ANALYTIC VIEW sales_av USING sales_fact DIMENSION BY (time_attr HIERARCHY time_hier) MEASURES (sales)")
+		result := ParseAndCheck(t, "CREATE ANALYTIC VIEW sales_av USING sales_fact DIMENSION BY (time_attr KEY month_id REFERENCES month_id HIERARCHIES (time_hier)) MEASURES (sales)")
 		raw := result.Items[0].(*ast.RawStmt)
 		stmt, ok := raw.Stmt.(*ast.CreateAnalyticViewStmt)
 		if !ok {
@@ -7498,7 +7497,7 @@ func TestBatch93_ViewsAllTypes(t *testing.T) {
 	})
 
 	t.Run("create_analytic_view_with_options", func(t *testing.T) {
-		result := ParseAndCheck(t, "CREATE OR REPLACE ANALYTIC VIEW sales_av USING sales_fact DIMENSION BY (time_attr HIERARCHY time_hier) MEASURES (sales FACT sales)")
+		result := ParseAndCheck(t, "CREATE OR REPLACE ANALYTIC VIEW sales_av USING sales_fact DIMENSION BY (time_attr KEY month_id REFERENCES month_id HIERARCHIES (time_hier)) MEASURES (sales FACT sales)")
 		raw := result.Items[0].(*ast.RawStmt)
 		stmt, ok := raw.Stmt.(*ast.CreateAnalyticViewStmt)
 		if !ok {
@@ -7538,7 +7537,7 @@ func TestBatch93_ViewsAllTypes(t *testing.T) {
 	})
 
 	t.Run("alter_analytic_view_add_cache", func(t *testing.T) {
-		result := ParseAndCheck(t, "ALTER ANALYTIC VIEW sales_av ADD CACHE STORE AS COLUMNSTORE")
+		result := ParseAndCheck(t, "ALTER ANALYTIC VIEW sales_av ADD CACHE MEASURE GROUP (sales) LEVELS (time_hier.month) MATERIALIZED")
 		raw := result.Items[0].(*ast.RawStmt)
 		stmt, ok := raw.Stmt.(*ast.AlterAnalyticViewStmt)
 		if !ok {
@@ -7612,7 +7611,7 @@ func TestBatch93_ViewsAllTypes(t *testing.T) {
 			"ALTER MATERIALIZED VIEW emp_mv SHRINK SPACE COMPACT",
 			"CREATE MATERIALIZED VIEW LOG ON employees WITH PRIMARY KEY INCLUDING NEW VALUES",
 			"ALTER MATERIALIZED VIEW LOG ON employees ADD (salary)",
-			"CREATE ANALYTIC VIEW sales_av USING sales_fact DIMENSION BY (time_attr HIERARCHY time_hier) MEASURES (sales)",
+			"CREATE ANALYTIC VIEW sales_av USING sales_fact DIMENSION BY (time_attr KEY month_id REFERENCES month_id HIERARCHIES (time_hier)) MEASURES (sales)",
 			"ALTER ANALYTIC VIEW sales_av COMPILE",
 			"ALTER ANALYTIC VIEW sales_av RENAME TO sales_av_new",
 			"CREATE JSON RELATIONAL DUALITY VIEW emp_dv AS SELECT employee_id FROM employees",
@@ -7827,17 +7826,17 @@ func TestParseBatch102_AttrDimensionHierarchyDomain(t *testing.T) {
 		// CREATE ATTRIBUTE DIMENSION - OR REPLACE, SHARING, DIMENSION TYPE, classification
 		`CREATE OR REPLACE ATTRIBUTE DIMENSION hr.time_attr_dim
 			SHARING = METADATA
+			DIMENSION TYPE TIME
 			CAPTION 'Time Dimension'
 			DESCRIPTION 'Time-based attribute dimension'
-			DIMENSION TYPE TIME
 			USING time_table
 			ATTRIBUTES (year_id AS yr, quarter_id AS qtr, month_id)
-			LEVEL year LEVEL TYPE YEARS KEY year_id NOT NULL
+			LEVEL year LEVEL TYPE YEARS KEY year_id
 			LEVEL quarter LEVEL TYPE QUARTERS KEY quarter_id
 			LEVEL month LEVEL TYPE MONTHS KEY month_id`,
 		// CREATE ATTRIBUTE DIMENSION - IF NOT EXISTS, JOIN PATH, multiple sources
 		`CREATE ATTRIBUTE DIMENSION IF NOT EXISTS product_dim
-			USING products p, JOIN PATH jp1 ON p.cat_id = categories.cat_id
+			USING products p, categories c JOIN PATH jp1 ON p.cat_id = c.cat_id
 			ATTRIBUTES (prod_name, prod_desc AS description)
 			LEVEL product KEY prod_name
 			LEVEL category KEY (cat_id, subcat_id)`,
@@ -7846,7 +7845,7 @@ func TestParseBatch102_AttrDimensionHierarchyDomain(t *testing.T) {
 			USING geography
 			ATTRIBUTES (country_id, region_id, city_id)
 			LEVEL country
-				KEY country_id NOT NULL
+				KEY country_id
 				ALTERNATE KEY country_code
 				MEMBER NAME country_id
 				MEMBER CAPTION country_id
@@ -7854,13 +7853,13 @@ func TestParseBatch102_AttrDimensionHierarchyDomain(t *testing.T) {
 				DETERMINES (region_id)
 			LEVEL region KEY region_id
 			ALL MEMBER NAME 'ALL_GEO'`,
-		// CREATE ATTRIBUTE DIMENSION - SKIP WHEN NULL, ORDER BY with multiple attrs
+		// CREATE ATTRIBUTE DIMENSION - ORDER BY with multiple attrs
 		`CREATE ATTRIBUTE DIMENSION time_dim
 			USING calendar
 			ATTRIBUTES (year_val, quarter_val, month_val)
-			LEVEL year KEY year_val SKIP WHEN NULL
+			LEVEL year KEY year_val
 			LEVEL quarter KEY quarter_val
-				ORDER BY (quarter_val ASC, year_val DESC)`,
+				ORDER BY quarter_val ASC, MIN year_val DESC NULLS LAST`,
 		// ALTER ATTRIBUTE DIMENSION - COMPILE
 		"ALTER ATTRIBUTE DIMENSION my_dim COMPILE",
 		// ALTER ATTRIBUTE DIMENSION - RENAME TO
