@@ -77,7 +77,7 @@ jobs:
       - name: Test
         if: steps.affected.outputs.pkgs != ''
         # A package that still needs a server starts its own; the engines on
-        # tapes (pg, Trino, OceanBase, the MySQL family) start none. go test's
+        # tapes (pg, Trino, OceanBase, the MySQL family, SQL Server) start none. go test's
         # default 10m per package is too tight: oracle/review takes 7 min, and
         # over 10 on a busy runner. 20m leaves room and still lets a hung
         # package print its goroutine dump before the job's 30-minute cap.
