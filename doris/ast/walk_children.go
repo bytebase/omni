@@ -637,6 +637,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.PartitionBy != nil {
 			Walk(v, n.PartitionBy)
 		}
+		if n.PartitionExpr != nil {
+			Walk(v, n.PartitionExpr)
+		}
 		if n.DistributedBy != nil {
 			Walk(v, n.DistributedBy)
 		}

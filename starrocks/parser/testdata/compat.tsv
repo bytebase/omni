@@ -422,7 +422,7 @@ reject	reject	engine	statement/createRoutineLoadStatement!drop-3	CREATE ROUTINE 
 reject	reject	engine	statement/createRoutineLoadStatement!drop-4	CREATE ROUTINE LOAD ON a FROM a;
 reject	reject	engine	statement/createRoutineLoadStatement!drop-5	CREATE ROUTINE LOAD a a FROM a;
 reject	reject	engine	statement/createRoutineLoadStatement!drop-6	CREATE ROUTINE LOAD a ON FROM a;
-accept	reject	engine	statement/createRoutineLoadStatement!drop-7	CREATE ROUTINE LOAD a ON a a;
+reject	reject	engine	statement/createRoutineLoadStatement!drop-7	CREATE ROUTINE LOAD a ON a a;
 reject	reject	engine	statement/createRoutineLoadStatement!drop-8	CREATE ROUTINE LOAD a ON a FROM;
 reject	reject	engine	statement/createRoutineLoadStatement!truncate	CREATE ROUTINE LOAD a ON a FROM
 reject	reject	engine	statement/createRoutineLoadStatement!insert	CREATE ROUTINE LOAD a ON a FROM a zzz;
@@ -474,7 +474,7 @@ reject	reject	engine	statement/showRoutineLoadTaskStatement!drop-6	SHOW ROUTINE 
 reject	reject	engine	statement/showRoutineLoadTaskStatement!truncate	SHOW ROUTINE LOAD TASK WHERE
 reject	reject	engine	statement/showRoutineLoadTaskStatement!insert	SHOW ROUTINE LOAD TASK WHERE CURRENT_USER zzz;
 reject	reject	engine	statement/showRoutineLoadTaskStatement!swap	SIGNED ROUTINE LOAD TASK WHERE CURRENT_USER;
-reject	accept	engine	statement/showCreateRoutineLoadStatement	SHOW CREATE ROUTINE LOAD a;
+accept	accept	engine	statement/showCreateRoutineLoadStatement	SHOW CREATE ROUTINE LOAD a;
 reject	reject	engine	statement/showCreateRoutineLoadStatement!drop-1	CREATE ROUTINE LOAD a;
 reject	reject	engine	statement/showCreateRoutineLoadStatement!drop-2	SHOW ROUTINE LOAD a;
 reject	reject	engine	statement/showCreateRoutineLoadStatement!drop-3	SHOW CREATE LOAD a;
@@ -2870,22 +2870,22 @@ reject	reject	engine	taskScheduleDesc(START_(_string_))?/START_(_string_)!insert
 reject	reject	engine	taskScheduleDesc(START_(_string_))?/START_(_string_)!swap	SUBMIT TASK SCHEDULE STATS('a') EVERY(INTERVAL CURRENT_USER DAY) AS INSERT INTO a SELECT CURRENT_USER;
 accept	accept	engine	createMaterializedViewStatement/CREATE_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?_qualifiedName~1943781c	CREATE MATERIALIZED VIEW a AS SELECT CURRENT_USER;
 accept	accept	engine	createMaterializedViewStatement(IF_NOT_EXISTS)?/%empty	CREATE MATERIALIZED VIEW a AS SELECT CURRENT_USER;
-accept	reject	engine	createMaterializedViewStatement(IF_NOT_EXISTS)?/%empty!insert	CREATE MATERIALIZED VIEW zzz a AS SELECT CURRENT_USER;
+reject	reject	engine	createMaterializedViewStatement(IF_NOT_EXISTS)?/%empty!insert	CREATE MATERIALIZED VIEW zzz a AS SELECT CURRENT_USER;
 accept	accept	engine	createMaterializedViewStatement(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE MATERIALIZED VIEW IF NOT EXISTS a AS SELECT CURRENT_USER;
 reject	reject	engine	createMaterializedViewStatement(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE MATERIALIZED VIEW NOT EXISTS a AS SELECT CURRENT_USER;
 reject	reject	engine	createMaterializedViewStatement(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE MATERIALIZED VIEW IF EXISTS a AS SELECT CURRENT_USER;
 reject	reject	engine	createMaterializedViewStatement(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE MATERIALIZED VIEW IF NOT a AS SELECT CURRENT_USER;
 reject	reject	engine	createMaterializedViewStatement(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE MATERIALIZED VIEW IF NOT
-accept	reject	engine	createMaterializedViewStatement(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE MATERIALIZED VIEW IF NOT EXISTS zzz a AS SELECT CURRENT_USER;
-accept	reject	engine	createMaterializedViewStatement(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE MATERIALIZED VIEW IGNORE NOT EXISTS a AS SELECT CURRENT_USER;
+reject	reject	engine	createMaterializedViewStatement(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE MATERIALIZED VIEW IF NOT EXISTS zzz a AS SELECT CURRENT_USER;
+reject	reject	engine	createMaterializedViewStatement(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE MATERIALIZED VIEW IGNORE NOT EXISTS a AS SELECT CURRENT_USER;
 accept	accept	engine	createMaterializedViewStatement((_columnNameWithComment_(,_columnNam~9350b3f5)?/%empty	CREATE MATERIALIZED VIEW a AS SELECT CURRENT_USER;
-accept	reject	engine	createMaterializedViewStatement((_columnNameWithComment_(,_columnNam~9350b3f5)?/%empty!insert	CREATE MATERIALIZED VIEW a zzz AS SELECT CURRENT_USER;
+reject	reject	engine	createMaterializedViewStatement((_columnNameWithComment_(,_columnNam~9350b3f5)?/%empty!insert	CREATE MATERIALIZED VIEW a zzz AS SELECT CURRENT_USER;
 accept	accept	engine	createMaterializedViewStatement((_columnNameWithComment_(,_columnNam~9350b3f5)?/(_columnNameWithComment_(,_columnNameWithComment)*_(,_i~51c740e3	CREATE MATERIALIZED VIEW a(a) AS SELECT CURRENT_USER;
-accept	reject	engine	createMaterializedViewStatement((_columnNameWithComment_(,_columnNam~9350b3f5)?/(_columnNameWithComment_(,_columnNameWithComment)*_(,_i~51c740e3!drop-1	CREATE MATERIALIZED VIEW a a) AS SELECT CURRENT_USER;
+reject	reject	engine	createMaterializedViewStatement((_columnNameWithComment_(,_columnNam~9350b3f5)?/(_columnNameWithComment_(,_columnNameWithComment)*_(,_i~51c740e3!drop-1	CREATE MATERIALIZED VIEW a a) AS SELECT CURRENT_USER;
 reject	reject	engine	createMaterializedViewStatement((_columnNameWithComment_(,_columnNam~9350b3f5)?/(_columnNameWithComment_(,_columnNameWithComment)*_(,_i~51c740e3!drop-2	CREATE MATERIALIZED VIEW a() AS SELECT CURRENT_USER;
 reject	reject	engine	createMaterializedViewStatement((_columnNameWithComment_(,_columnNam~9350b3f5)?/(_columnNameWithComment_(,_columnNameWithComment)*_(,_i~51c740e3!drop-3	CREATE MATERIALIZED VIEW a(a AS SELECT CURRENT_USER;
 reject	reject	engine	createMaterializedViewStatement((_columnNameWithComment_(,_columnNam~9350b3f5)?/(_columnNameWithComment_(,_columnNameWithComment)*_(,_i~51c740e3!truncate	CREATE MATERIALIZED VIEW a(a
-accept	reject	engine	createMaterializedViewStatement((_columnNameWithComment_(,_columnNam~9350b3f5)?/(_columnNameWithComment_(,_columnNameWithComment)*_(,_i~51c740e3!insert	CREATE MATERIALIZED VIEW a(a) zzz AS SELECT CURRENT_USER;
+reject	reject	engine	createMaterializedViewStatement((_columnNameWithComment_(,_columnNam~9350b3f5)?/(_columnNameWithComment_(,_columnNameWithComment)*_(,_i~51c740e3!insert	CREATE MATERIALIZED VIEW a(a) zzz AS SELECT CURRENT_USER;
 accept	accept	engine	createMaterializedViewStatement(,_columnNameWithComment)*/%empty	CREATE MATERIALIZED VIEW a(a) AS SELECT CURRENT_USER;
 reject	reject	engine	createMaterializedViewStatement(,_columnNameWithComment)*/%empty!insert	CREATE MATERIALIZED VIEW a(a zzz) AS SELECT CURRENT_USER;
 accept	accept	engine	createMaterializedViewStatement(,_columnNameWithComment)*/,_columnNameWithComment_(,_columnNameWithComment)*	CREATE MATERIALIZED VIEW a(a, a) AS SELECT CURRENT_USER;
@@ -2894,7 +2894,7 @@ reject	reject	engine	createMaterializedViewStatement(,_columnNameWithComment)*/,
 reject	reject	engine	createMaterializedViewStatement(,_columnNameWithComment)*/,_columnNameWithComment_(,_columnNameWithComment)*!truncate	CREATE MATERIALIZED VIEW a(a,
 reject	reject	engine	createMaterializedViewStatement(,_columnNameWithComment)*/,_columnNameWithComment_(,_columnNameWithComment)*!insert	CREATE MATERIALIZED VIEW a(a, a zzz) AS SELECT CURRENT_USER;
 accept	accept	engine	createMaterializedViewStatement(,_indexDesc)*/%empty	CREATE MATERIALIZED VIEW a(a) AS SELECT CURRENT_USER;
-reject	accept	engine	createMaterializedViewStatement(,_indexDesc)*/,_indexDesc_(,_indexDesc)*	CREATE MATERIALIZED VIEW a(a, INDEX a(a)) AS SELECT CURRENT_USER;
+accept	accept	engine	createMaterializedViewStatement(,_indexDesc)*/,_indexDesc_(,_indexDesc)*	CREATE MATERIALIZED VIEW a(a, INDEX a(a)) AS SELECT CURRENT_USER;
 reject	reject	engine	createMaterializedViewStatement(,_indexDesc)*/,_indexDesc_(,_indexDesc)*!drop-1	CREATE MATERIALIZED VIEW a(a INDEX a(a)) AS SELECT CURRENT_USER;
 reject	reject	engine	createMaterializedViewStatement(,_indexDesc)*/,_indexDesc_(,_indexDesc)*!drop-2	CREATE MATERIALIZED VIEW a(a, a(a)) AS SELECT CURRENT_USER;
 reject	reject	engine	createMaterializedViewStatement(,_indexDesc)*/,_indexDesc_(,_indexDesc)*!drop-3	CREATE MATERIALIZED VIEW a(a, INDEX(a)) AS SELECT CURRENT_USER;
@@ -2906,25 +2906,25 @@ reject	reject	engine	createMaterializedViewStatement(,_indexDesc)*/,_indexDesc_(
 reject	reject	engine	createMaterializedViewStatement(,_indexDesc)*/,_indexDesc_(,_indexDesc)*!swap	CREATE MATERIALIZED VIEW a(a, INDEXES a(a)) AS SELECT CURRENT_USER;
 accept	accept	engine	createMaterializedViewStatement(comment)?/%empty	CREATE MATERIALIZED VIEW a AS SELECT CURRENT_USER;
 accept	accept	engine	createMaterializedViewStatement(comment)?/comment	CREATE MATERIALIZED VIEW a COMMENT 'a' AS SELECT CURRENT_USER;
-accept	reject	engine	createMaterializedViewStatement(comment)?/comment!drop-1	CREATE MATERIALIZED VIEW a 'a' AS SELECT CURRENT_USER;
+reject	reject	engine	createMaterializedViewStatement(comment)?/comment!drop-1	CREATE MATERIALIZED VIEW a 'a' AS SELECT CURRENT_USER;
 reject	reject	engine	createMaterializedViewStatement(comment)?/comment!drop-2	CREATE MATERIALIZED VIEW a COMMENT AS SELECT CURRENT_USER;
 reject	reject	engine	createMaterializedViewStatement(comment)?/comment!truncate	CREATE MATERIALIZED VIEW a COMMENT
-accept	reject	engine	createMaterializedViewStatement(comment)?/comment!insert	CREATE MATERIALIZED VIEW a COMMENT 'a' zzz AS SELECT CURRENT_USER;
-accept	reject	engine	createMaterializedViewStatement(comment)?/comment!swap	CREATE MATERIALIZED VIEW a COMMIT 'a' AS SELECT CURRENT_USER;
+reject	reject	engine	createMaterializedViewStatement(comment)?/comment!insert	CREATE MATERIALIZED VIEW a COMMENT 'a' zzz AS SELECT CURRENT_USER;
+reject	reject	engine	createMaterializedViewStatement(comment)?/comment!swap	CREATE MATERIALIZED VIEW a COMMIT 'a' AS SELECT CURRENT_USER;
 accept	accept	engine	createMaterializedViewStatement(materializedViewDesc)*/%empty	CREATE MATERIALIZED VIEW a AS SELECT CURRENT_USER;
 accept	accept	engine	createMaterializedViewStatement(materializedViewDesc)*/materializedViewDesc_(materializedViewDesc)*	CREATE MATERIALIZED VIEW a REFRESH ASYNC AS SELECT CURRENT_USER;
-accept	reject	engine	createMaterializedViewStatement(materializedViewDesc)*/materializedViewDesc_(materializedViewDesc)*!drop-1	CREATE MATERIALIZED VIEW a ASYNC AS SELECT CURRENT_USER;
+reject	reject	engine	createMaterializedViewStatement(materializedViewDesc)*/materializedViewDesc_(materializedViewDesc)*!drop-1	CREATE MATERIALIZED VIEW a ASYNC AS SELECT CURRENT_USER;
 reject	reject	engine	createMaterializedViewStatement(materializedViewDesc)*/materializedViewDesc_(materializedViewDesc)*!drop-2	CREATE MATERIALIZED VIEW a REFRESH AS SELECT CURRENT_USER;
 reject	reject	engine	createMaterializedViewStatement(materializedViewDesc)*/materializedViewDesc_(materializedViewDesc)*!truncate	CREATE MATERIALIZED VIEW a REFRESH
-accept	reject	engine	createMaterializedViewStatement(materializedViewDesc)*/materializedViewDesc_(materializedViewDesc)*!insert	CREATE MATERIALIZED VIEW a REFRESH ASYNC zzz AS SELECT CURRENT_USER;
-accept	reject	engine	createMaterializedViewStatement(materializedViewDesc)*/materializedViewDesc_(materializedViewDesc)*!swap	CREATE MATERIALIZED VIEW a REGEXP ASYNC AS SELECT CURRENT_USER;
-accept	reject	engine	mvPartitionExprs/primaryExpression	CREATE MATERIALIZED VIEW a PARTITION BY CURRENT_USER AS SELECT CURRENT_USER;
-accept	reject	engine	mvPartitionExprs/primaryExpression!drop-1	CREATE MATERIALIZED VIEW a PARTITION BY AS SELECT CURRENT_USER;
+reject	reject	engine	createMaterializedViewStatement(materializedViewDesc)*/materializedViewDesc_(materializedViewDesc)*!insert	CREATE MATERIALIZED VIEW a REFRESH ASYNC zzz AS SELECT CURRENT_USER;
+reject	reject	engine	createMaterializedViewStatement(materializedViewDesc)*/materializedViewDesc_(materializedViewDesc)*!swap	CREATE MATERIALIZED VIEW a REGEXP ASYNC AS SELECT CURRENT_USER;
+reject	reject	engine	mvPartitionExprs/primaryExpression	CREATE MATERIALIZED VIEW a PARTITION BY CURRENT_USER AS SELECT CURRENT_USER;
+reject	reject	engine	mvPartitionExprs/primaryExpression!drop-1	CREATE MATERIALIZED VIEW a PARTITION BY AS SELECT CURRENT_USER;
 reject	reject	engine	mvPartitionExprs/primaryExpression!truncate	CREATE MATERIALIZED VIEW a PARTITION BY
-accept	reject	engine	mvPartitionExprs/primaryExpression!insert	CREATE MATERIALIZED VIEW a PARTITION BY CURRENT_USER zzz AS SELECT CURRENT_USER;
+reject	reject	engine	mvPartitionExprs/primaryExpression!insert	CREATE MATERIALIZED VIEW a PARTITION BY CURRENT_USER zzz AS SELECT CURRENT_USER;
 accept	reject	engine	mvPartitionExprs/primaryExpression!swap	CREATE MATERIALIZED VIEW a PARTITION BY DATA AS SELECT CURRENT_USER;
 reject	reject	engine	mvPartitionExprs/(_primaryExpression_(,_primaryExpression)*_)	CREATE MATERIALIZED VIEW a PARTITION BY(CURRENT_USER) AS SELECT CURRENT_USER;
-accept	reject	engine	mvPartitionExprs/(_primaryExpression_(,_primaryExpression)*_)!drop-1	CREATE MATERIALIZED VIEW a PARTITION BY CURRENT_USER) AS SELECT CURRENT_USER;
+reject	reject	engine	mvPartitionExprs/(_primaryExpression_(,_primaryExpression)*_)!drop-1	CREATE MATERIALIZED VIEW a PARTITION BY CURRENT_USER) AS SELECT CURRENT_USER;
 reject	reject	engine	mvPartitionExprs/(_primaryExpression_(,_primaryExpression)*_)!drop-2	CREATE MATERIALIZED VIEW a PARTITION BY() AS SELECT CURRENT_USER;
 reject	reject	engine	mvPartitionExprs/(_primaryExpression_(,_primaryExpression)*_)!drop-3	CREATE MATERIALIZED VIEW a PARTITION BY(CURRENT_USER AS SELECT CURRENT_USER;
 reject	reject	engine	mvPartitionExprs/(_primaryExpression_(,_primaryExpression)*_)!truncate	CREATE MATERIALIZED VIEW a PARTITION BY(CURRENT_USER
@@ -2938,26 +2938,26 @@ reject	reject	engine	mvPartitionExprs(,_primaryExpression)*/,_primaryExpression_
 reject	reject	engine	mvPartitionExprs(,_primaryExpression)*/,_primaryExpression_(,_primaryExpression)*!truncate	CREATE MATERIALIZED VIEW a PARTITION BY(CURRENT_USER,
 reject	reject	engine	mvPartitionExprs(,_primaryExpression)*/,_primaryExpression_(,_primaryExpression)*!insert	CREATE MATERIALIZED VIEW a PARTITION BY(CURRENT_USER, CURRENT_USER zzz) AS SELECT CURRENT_USER;
 reject	reject	engine	mvPartitionExprs(,_primaryExpression)*/,_primaryExpression_(,_primaryExpression)*!swap	CREATE MATERIALIZED VIEW a PARTITION BY(CURRENT_USER, DATA) AS SELECT CURRENT_USER;
-accept	reject	engine	materializedViewDesc/PARTITION_BY_mvPartitionExprs	CREATE MATERIALIZED VIEW a PARTITION BY CURRENT_USER AS SELECT CURRENT_USER;
-accept	reject	engine	materializedViewDesc/PARTITION_BY_mvPartitionExprs!drop-1	CREATE MATERIALIZED VIEW a BY CURRENT_USER AS SELECT CURRENT_USER;
+reject	reject	engine	materializedViewDesc/PARTITION_BY_mvPartitionExprs	CREATE MATERIALIZED VIEW a PARTITION BY CURRENT_USER AS SELECT CURRENT_USER;
+reject	reject	engine	materializedViewDesc/PARTITION_BY_mvPartitionExprs!drop-1	CREATE MATERIALIZED VIEW a BY CURRENT_USER AS SELECT CURRENT_USER;
 reject	reject	engine	materializedViewDesc/PARTITION_BY_mvPartitionExprs!drop-2	CREATE MATERIALIZED VIEW a PARTITION CURRENT_USER AS SELECT CURRENT_USER;
-accept	reject	engine	materializedViewDesc/PARTITION_BY_mvPartitionExprs!swap	CREATE MATERIALIZED VIEW a PARTITIONS BY CURRENT_USER AS SELECT CURRENT_USER;
+reject	reject	engine	materializedViewDesc/PARTITION_BY_mvPartitionExprs!swap	CREATE MATERIALIZED VIEW a PARTITIONS BY CURRENT_USER AS SELECT CURRENT_USER;
 accept	accept	engine	materializedViewDesc/distributionDesc	CREATE MATERIALIZED VIEW a DISTRIBUTED BY RANDOM AS SELECT CURRENT_USER;
-accept	reject	engine	materializedViewDesc/distributionDesc!drop-1	CREATE MATERIALIZED VIEW a BY RANDOM AS SELECT CURRENT_USER;
+reject	reject	engine	materializedViewDesc/distributionDesc!drop-1	CREATE MATERIALIZED VIEW a BY RANDOM AS SELECT CURRENT_USER;
 reject	reject	engine	materializedViewDesc/distributionDesc!drop-2	CREATE MATERIALIZED VIEW a DISTRIBUTED RANDOM AS SELECT CURRENT_USER;
 reject	reject	engine	materializedViewDesc/distributionDesc!drop-3	CREATE MATERIALIZED VIEW a DISTRIBUTED BY AS SELECT CURRENT_USER;
 reject	reject	engine	materializedViewDesc/distributionDesc!truncate	CREATE MATERIALIZED VIEW a DISTRIBUTED BY
-accept	reject	engine	materializedViewDesc/distributionDesc!insert	CREATE MATERIALIZED VIEW a DISTRIBUTED BY RANDOM zzz AS SELECT CURRENT_USER;
-accept	reject	engine	materializedViewDesc/distributionDesc!swap	CREATE MATERIALIZED VIEW a DISTRIBUTION BY RANDOM AS SELECT CURRENT_USER;
+reject	reject	engine	materializedViewDesc/distributionDesc!insert	CREATE MATERIALIZED VIEW a DISTRIBUTED BY RANDOM zzz AS SELECT CURRENT_USER;
+reject	reject	engine	materializedViewDesc/distributionDesc!swap	CREATE MATERIALIZED VIEW a DISTRIBUTION BY RANDOM AS SELECT CURRENT_USER;
 accept	accept	engine	materializedViewDesc/orderByDesc	CREATE MATERIALIZED VIEW a ORDER BY(a) AS SELECT CURRENT_USER;
-accept	reject	engine	materializedViewDesc/orderByDesc!drop-1	CREATE MATERIALIZED VIEW a BY(a) AS SELECT CURRENT_USER;
-accept	reject	engine	materializedViewDesc/orderByDesc!drop-2	CREATE MATERIALIZED VIEW a ORDER(a) AS SELECT CURRENT_USER;
-accept	reject	engine	materializedViewDesc/orderByDesc!drop-3	CREATE MATERIALIZED VIEW a ORDER BY a) AS SELECT CURRENT_USER;
+reject	reject	engine	materializedViewDesc/orderByDesc!drop-1	CREATE MATERIALIZED VIEW a BY(a) AS SELECT CURRENT_USER;
+reject	reject	engine	materializedViewDesc/orderByDesc!drop-2	CREATE MATERIALIZED VIEW a ORDER(a) AS SELECT CURRENT_USER;
+reject	reject	engine	materializedViewDesc/orderByDesc!drop-3	CREATE MATERIALIZED VIEW a ORDER BY a) AS SELECT CURRENT_USER;
 reject	reject	engine	materializedViewDesc/orderByDesc!drop-4	CREATE MATERIALIZED VIEW a ORDER BY() AS SELECT CURRENT_USER;
 reject	reject	engine	materializedViewDesc/orderByDesc!drop-5	CREATE MATERIALIZED VIEW a ORDER BY(a AS SELECT CURRENT_USER;
 reject	reject	engine	materializedViewDesc/orderByDesc!truncate	CREATE MATERIALIZED VIEW a ORDER BY(a
-accept	reject	engine	materializedViewDesc/orderByDesc!insert	CREATE MATERIALIZED VIEW a ORDER BY(a) zzz AS SELECT CURRENT_USER;
-accept	reject	engine	materializedViewDesc/orderByDesc!swap	CREATE MATERIALIZED VIEW a OUTER BY(a) AS SELECT CURRENT_USER;
+reject	reject	engine	materializedViewDesc/orderByDesc!insert	CREATE MATERIALIZED VIEW a ORDER BY(a) zzz AS SELECT CURRENT_USER;
+reject	reject	engine	materializedViewDesc/orderByDesc!swap	CREATE MATERIALIZED VIEW a OUTER BY(a) AS SELECT CURRENT_USER;
 accept	accept	engine	materializedViewDesc/refreshSchemeDesc	CREATE MATERIALIZED VIEW a REFRESH ASYNC AS SELECT CURRENT_USER;
 accept	accept	engine	materializedViewDesc/properties	CREATE MATERIALIZED VIEW a PROPERTIES('a' = 'a') AS SELECT CURRENT_USER;
 reject	reject	engine	materializedViewDesc/properties!drop-1	CREATE MATERIALIZED VIEW a('a' = 'a') AS SELECT CURRENT_USER;
@@ -2967,7 +2967,7 @@ reject	reject	engine	materializedViewDesc/properties!drop-4	CREATE MATERIALIZED 
 reject	reject	engine	materializedViewDesc/properties!drop-5	CREATE MATERIALIZED VIEW a PROPERTIES('a' =) AS SELECT CURRENT_USER;
 reject	reject	engine	materializedViewDesc/properties!drop-6	CREATE MATERIALIZED VIEW a PROPERTIES('a' = 'a' AS SELECT CURRENT_USER;
 reject	reject	engine	materializedViewDesc/properties!truncate	CREATE MATERIALIZED VIEW a PROPERTIES('a' = 'a'
-accept	reject	engine	materializedViewDesc/properties!insert	CREATE MATERIALIZED VIEW a PROPERTIES('a' = 'a') zzz AS SELECT CURRENT_USER;
+reject	reject	engine	materializedViewDesc/properties!insert	CREATE MATERIALIZED VIEW a PROPERTIES('a' = 'a') zzz AS SELECT CURRENT_USER;
 reject	reject	engine	materializedViewDesc/properties!swap	CREATE MATERIALIZED VIEW a PROPERTY('a' = 'a') AS SELECT CURRENT_USER;
 accept	accept	engine	showMaterializedViewsStatement/SHOW_MATERIALIZED_VIEWS_((FROM|IN)_qualifiedName)?_((LI~098adb63	SHOW MATERIALIZED VIEWS;
 accept	accept	engine	showMaterializedViewsStatement((FROM|IN)_qualifiedName)?/%empty	SHOW MATERIALIZED VIEWS;
@@ -3043,7 +3043,7 @@ reject	reject	engine	alterMaterializedViewStatement(refreshSchemeDesc|tableRenam
 reject	reject	engine	alterMaterializedViewStatement(refreshSchemeDesc|tableRenameClause|~1b4c6a65)/swapTableClause!swap	ALTER MATERIALIZED VIEW a SYNC WITH a;
 accept	accept	engine	refreshMaterializedViewStatement/REFRESH_MATERIALIZED_VIEW_qualifiedName_(PARTITION_(par~b76d2ed9	REFRESH MATERIALIZED VIEW a;
 accept	accept	engine	refreshMaterializedViewStatement(PARTITION_(partitionRangeDesc|listPa~68ba62d4)?/%empty	REFRESH MATERIALIZED VIEW a;
-reject	accept	engine	refreshMaterializedViewStatement(PARTITION_(partitionRangeDesc|listPa~68ba62d4)?/PARTITION_(partitionRangeDesc|listPartitionValues)	REFRESH MATERIALIZED VIEW a PARTITION(NULL);
+accept	accept	engine	refreshMaterializedViewStatement(PARTITION_(partitionRangeDesc|listPa~68ba62d4)?/PARTITION_(partitionRangeDesc|listPartitionValues)	REFRESH MATERIALIZED VIEW a PARTITION(NULL);
 reject	reject	engine	refreshMaterializedViewStatement(PARTITION_(partitionRangeDesc|listPa~68ba62d4)?/PARTITION_(partitionRangeDesc|listPartitionValues)!drop-1	REFRESH MATERIALIZED VIEW a(NULL);
 reject	reject	engine	refreshMaterializedViewStatement(PARTITION_(partitionRangeDesc|listPa~68ba62d4)?/PARTITION_(partitionRangeDesc|listPartitionValues)!drop-2	REFRESH MATERIALIZED VIEW a PARTITION NULL);
 reject	reject	engine	refreshMaterializedViewStatement(PARTITION_(partitionRangeDesc|listPa~68ba62d4)?/PARTITION_(partitionRangeDesc|listPartitionValues)!drop-3	REFRESH MATERIALIZED VIEW a PARTITION();
@@ -3051,7 +3051,7 @@ reject	reject	engine	refreshMaterializedViewStatement(PARTITION_(partitionRangeD
 reject	reject	engine	refreshMaterializedViewStatement(PARTITION_(partitionRangeDesc|listPa~68ba62d4)?/PARTITION_(partitionRangeDesc|listPartitionValues)!truncate	REFRESH MATERIALIZED VIEW a PARTITION(NULL
 reject	reject	engine	refreshMaterializedViewStatement(PARTITION_(partitionRangeDesc|listPa~68ba62d4)?/PARTITION_(partitionRangeDesc|listPartitionValues)!insert	REFRESH MATERIALIZED VIEW a PARTITION(NULL) zzz;
 reject	reject	engine	refreshMaterializedViewStatement(PARTITION_(partitionRangeDesc|listPa~68ba62d4)?/PARTITION_(partitionRangeDesc|listPartitionValues)!swap	REFRESH MATERIALIZED VIEW a PARTITIONS(NULL);
-reject	accept	engine	refreshMaterializedViewStatement(partitionRangeDesc|listPartitionValues)/partitionRangeDesc	REFRESH MATERIALIZED VIEW a PARTITION START('a') END('a');
+accept	accept	engine	refreshMaterializedViewStatement(partitionRangeDesc|listPartitionValues)/partitionRangeDesc	REFRESH MATERIALIZED VIEW a PARTITION START('a') END('a');
 reject	reject	engine	refreshMaterializedViewStatement(partitionRangeDesc|listPartitionValues)/partitionRangeDesc!drop-1	REFRESH MATERIALIZED VIEW a PARTITION('a') END('a');
 reject	reject	engine	refreshMaterializedViewStatement(partitionRangeDesc|listPartitionValues)/partitionRangeDesc!drop-2	REFRESH MATERIALIZED VIEW a PARTITION START 'a') END('a');
 reject	reject	engine	refreshMaterializedViewStatement(partitionRangeDesc|listPartitionValues)/partitionRangeDesc!drop-3	REFRESH MATERIALIZED VIEW a PARTITION START() END('a');
@@ -3063,30 +3063,30 @@ reject	reject	engine	refreshMaterializedViewStatement(partitionRangeDesc|listPar
 reject	reject	engine	refreshMaterializedViewStatement(partitionRangeDesc|listPartitionValues)/partitionRangeDesc!truncate	REFRESH MATERIALIZED VIEW a PARTITION START('a') END('a'
 reject	reject	engine	refreshMaterializedViewStatement(partitionRangeDesc|listPartitionValues)/partitionRangeDesc!insert	REFRESH MATERIALIZED VIEW a PARTITION START('a') END('a') zzz;
 reject	reject	engine	refreshMaterializedViewStatement(partitionRangeDesc|listPartitionValues)/partitionRangeDesc!swap	REFRESH MATERIALIZED VIEW a PARTITION STATS('a') END('a');
-reject	accept	engine	refreshMaterializedViewStatement(partitionRangeDesc|listPartitionValues)/listPartitionValues	REFRESH MATERIALIZED VIEW a PARTITION(NULL);
+accept	accept	engine	refreshMaterializedViewStatement(partitionRangeDesc|listPartitionValues)/listPartitionValues	REFRESH MATERIALIZED VIEW a PARTITION(NULL);
 reject	reject	engine	refreshMaterializedViewStatement(partitionRangeDesc|listPartitionValues)/listPartitionValues!swap	REFRESH MATERIALIZED VIEW a PARTITION(NULLS);
 accept	accept	engine	refreshMaterializedViewStatement(FORCE)?/%empty	REFRESH MATERIALIZED VIEW a;
-reject	accept	engine	refreshMaterializedViewStatement(FORCE)?/FORCE	REFRESH MATERIALIZED VIEW a FORCE;
+accept	accept	engine	refreshMaterializedViewStatement(FORCE)?/FORCE	REFRESH MATERIALIZED VIEW a FORCE;
 accept	accept	engine	refreshMaterializedViewStatement(FORCE)?/FORCE!truncate	REFRESH MATERIALIZED VIEW a
 reject	reject	engine	refreshMaterializedViewStatement(FORCE)?/FORCE!insert	REFRESH MATERIALIZED VIEW a FORCE zzz;
 reject	reject	engine	refreshMaterializedViewStatement(FORCE)?/FORCE!swap	REFRESH MATERIALIZED VIEW a FORMAT;
 accept	accept	engine	refreshMaterializedViewStatement(WITH_(SYNC|ASYNC)_MODE)?/%empty	REFRESH MATERIALIZED VIEW a;
-reject	accept	engine	refreshMaterializedViewStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE	REFRESH MATERIALIZED VIEW a WITH SYNC MODE;
+accept	accept	engine	refreshMaterializedViewStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE	REFRESH MATERIALIZED VIEW a WITH SYNC MODE;
 reject	reject	engine	refreshMaterializedViewStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE!drop-1	REFRESH MATERIALIZED VIEW a SYNC MODE;
 reject	reject	engine	refreshMaterializedViewStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE!drop-2	REFRESH MATERIALIZED VIEW a WITH MODE;
 reject	reject	engine	refreshMaterializedViewStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE!drop-3	REFRESH MATERIALIZED VIEW a WITH SYNC;
 reject	reject	engine	refreshMaterializedViewStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE!truncate	REFRESH MATERIALIZED VIEW a WITH SYNC
 reject	reject	engine	refreshMaterializedViewStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE!insert	REFRESH MATERIALIZED VIEW a WITH SYNC MODE zzz;
 reject	reject	engine	refreshMaterializedViewStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE!swap	REFRESH MATERIALIZED VIEW a WORK SYNC MODE;
-reject	accept	engine	refreshMaterializedViewStatement(SYNC|ASYNC)/SYNC	REFRESH MATERIALIZED VIEW a WITH SYNC MODE;
+accept	accept	engine	refreshMaterializedViewStatement(SYNC|ASYNC)/SYNC	REFRESH MATERIALIZED VIEW a WITH SYNC MODE;
 reject	reject	engine	refreshMaterializedViewStatement(SYNC|ASYNC)/SYNC!truncate	REFRESH MATERIALIZED VIEW a WITH
 reject	reject	engine	refreshMaterializedViewStatement(SYNC|ASYNC)/SYNC!insert	REFRESH MATERIALIZED VIEW a WITH SYNC zzz MODE;
 reject	reject	engine	refreshMaterializedViewStatement(SYNC|ASYNC)/SYNC!swap	REFRESH MATERIALIZED VIEW a WITH SYSTEM MODE;
-reject	accept	engine	refreshMaterializedViewStatement(SYNC|ASYNC)/ASYNC	REFRESH MATERIALIZED VIEW a WITH ASYNC MODE;
+accept	accept	engine	refreshMaterializedViewStatement(SYNC|ASYNC)/ASYNC	REFRESH MATERIALIZED VIEW a WITH ASYNC MODE;
 reject	reject	engine	refreshMaterializedViewStatement(SYNC|ASYNC)/ASYNC!insert	REFRESH MATERIALIZED VIEW a WITH ASYNC zzz MODE;
 reject	reject	engine	refreshMaterializedViewStatement(SYNC|ASYNC)/ASYNC!swap	REFRESH MATERIALIZED VIEW a WITH AUTHENTICATION MODE;
 accept	accept	engine	refreshMaterializedViewStatement(WITH_PRIORITY_INTEGER_VALUE)?/%empty	REFRESH MATERIALIZED VIEW a;
-reject	accept	engine	refreshMaterializedViewStatement(WITH_PRIORITY_INTEGER_VALUE)?/WITH_PRIORITY_INTEGER_VALUE	REFRESH MATERIALIZED VIEW a WITH PRIORITY 1;
+accept	accept	engine	refreshMaterializedViewStatement(WITH_PRIORITY_INTEGER_VALUE)?/WITH_PRIORITY_INTEGER_VALUE	REFRESH MATERIALIZED VIEW a WITH PRIORITY 1;
 reject	reject	engine	refreshMaterializedViewStatement(WITH_PRIORITY_INTEGER_VALUE)?/WITH_PRIORITY_INTEGER_VALUE!drop-1	REFRESH MATERIALIZED VIEW a PRIORITY 1;
 reject	reject	engine	refreshMaterializedViewStatement(WITH_PRIORITY_INTEGER_VALUE)?/WITH_PRIORITY_INTEGER_VALUE!drop-2	REFRESH MATERIALIZED VIEW a WITH 1;
 reject	reject	engine	refreshMaterializedViewStatement(WITH_PRIORITY_INTEGER_VALUE)?/WITH_PRIORITY_INTEGER_VALUE!drop-3	REFRESH MATERIALIZED VIEW a WITH PRIORITY;
@@ -4659,32 +4659,32 @@ reject	reject	engine	createRoutineLoadStatement(qualifiedName_.)?/qualifiedName_
 reject	reject	engine	createRoutineLoadStatement(qualifiedName_.)?/qualifiedName_.!truncate	CREATE ROUTINE LOAD a
 reject	reject	engine	createRoutineLoadStatement(qualifiedName_.)?/qualifiedName_.!insert	CREATE ROUTINE LOAD a.zzz a ON a FROM a;
 accept	accept	engine	createRoutineLoadStatement(loadProperties_(,_loadProperties)*)?/%empty	CREATE ROUTINE LOAD a ON a FROM a;
-accept	reject	engine	createRoutineLoadStatement(loadProperties_(,_loadProperties)*)?/%empty!insert	CREATE ROUTINE LOAD a ON a zzz FROM a;
+reject	reject	engine	createRoutineLoadStatement(loadProperties_(,_loadProperties)*)?/%empty!insert	CREATE ROUTINE LOAD a ON a zzz FROM a;
 accept	accept	engine	createRoutineLoadStatement(loadProperties_(,_loadProperties)*)?/loadProperties_(,_loadProperties)*	CREATE ROUTINE LOAD a ON a WHERE CURRENT_USER FROM a;
-accept	reject	engine	createRoutineLoadStatement(loadProperties_(,_loadProperties)*)?/loadProperties_(,_loadProperties)*!drop-1	CREATE ROUTINE LOAD a ON a CURRENT_USER FROM a;
-accept	reject	engine	createRoutineLoadStatement(loadProperties_(,_loadProperties)*)?/loadProperties_(,_loadProperties)*!drop-2	CREATE ROUTINE LOAD a ON a WHERE FROM a;
-accept	reject	engine	createRoutineLoadStatement(loadProperties_(,_loadProperties)*)?/loadProperties_(,_loadProperties)*!truncate	CREATE ROUTINE LOAD a ON a WHERE
-accept	reject	engine	createRoutineLoadStatement(loadProperties_(,_loadProperties)*)?/loadProperties_(,_loadProperties)*!insert	CREATE ROUTINE LOAD a ON a WHERE CURRENT_USER zzz FROM a;
-accept	reject	engine	createRoutineLoadStatement(loadProperties_(,_loadProperties)*)?/loadProperties_(,_loadProperties)*!swap	CREATE ROUTINE LOAD a ON a WHITELIST CURRENT_USER FROM a;
+reject	reject	engine	createRoutineLoadStatement(loadProperties_(,_loadProperties)*)?/loadProperties_(,_loadProperties)*!drop-1	CREATE ROUTINE LOAD a ON a CURRENT_USER FROM a;
+reject	reject	engine	createRoutineLoadStatement(loadProperties_(,_loadProperties)*)?/loadProperties_(,_loadProperties)*!drop-2	CREATE ROUTINE LOAD a ON a WHERE FROM a;
+reject	reject	engine	createRoutineLoadStatement(loadProperties_(,_loadProperties)*)?/loadProperties_(,_loadProperties)*!truncate	CREATE ROUTINE LOAD a ON a WHERE
+reject	reject	engine	createRoutineLoadStatement(loadProperties_(,_loadProperties)*)?/loadProperties_(,_loadProperties)*!insert	CREATE ROUTINE LOAD a ON a WHERE CURRENT_USER zzz FROM a;
+reject	reject	engine	createRoutineLoadStatement(loadProperties_(,_loadProperties)*)?/loadProperties_(,_loadProperties)*!swap	CREATE ROUTINE LOAD a ON a WHITELIST CURRENT_USER FROM a;
 accept	accept	engine	createRoutineLoadStatement(,_loadProperties)*/%empty	CREATE ROUTINE LOAD a ON a WHERE CURRENT_USER FROM a;
 accept	accept	engine	createRoutineLoadStatement(,_loadProperties)*/,_loadProperties_(,_loadProperties)*	CREATE ROUTINE LOAD a ON a WHERE CURRENT_USER, WHERE CURRENT_USER FROM a;
-accept	reject	engine	createRoutineLoadStatement(,_loadProperties)*/,_loadProperties_(,_loadProperties)*!drop-1	CREATE ROUTINE LOAD a ON a WHERE CURRENT_USER WHERE CURRENT_USER FROM a;
-accept	reject	engine	createRoutineLoadStatement(,_loadProperties)*/,_loadProperties_(,_loadProperties)*!drop-2	CREATE ROUTINE LOAD a ON a WHERE CURRENT_USER, CURRENT_USER FROM a;
-accept	reject	engine	createRoutineLoadStatement(,_loadProperties)*/,_loadProperties_(,_loadProperties)*!drop-3	CREATE ROUTINE LOAD a ON a WHERE CURRENT_USER, WHERE FROM a;
-accept	reject	engine	createRoutineLoadStatement(,_loadProperties)*/,_loadProperties_(,_loadProperties)*!truncate	CREATE ROUTINE LOAD a ON a WHERE CURRENT_USER, WHERE
-accept	reject	engine	createRoutineLoadStatement(,_loadProperties)*/,_loadProperties_(,_loadProperties)*!insert	CREATE ROUTINE LOAD a ON a WHERE CURRENT_USER, WHERE CURRENT_USER zzz FROM a;
-accept	reject	engine	createRoutineLoadStatement(,_loadProperties)*/,_loadProperties_(,_loadProperties)*!swap	CREATE ROUTINE LOAD a ON a WHERE CURRENT_USER, WHITELIST CURRENT_USER FROM a;
+reject	reject	engine	createRoutineLoadStatement(,_loadProperties)*/,_loadProperties_(,_loadProperties)*!drop-1	CREATE ROUTINE LOAD a ON a WHERE CURRENT_USER WHERE CURRENT_USER FROM a;
+reject	reject	engine	createRoutineLoadStatement(,_loadProperties)*/,_loadProperties_(,_loadProperties)*!drop-2	CREATE ROUTINE LOAD a ON a WHERE CURRENT_USER, CURRENT_USER FROM a;
+reject	reject	engine	createRoutineLoadStatement(,_loadProperties)*/,_loadProperties_(,_loadProperties)*!drop-3	CREATE ROUTINE LOAD a ON a WHERE CURRENT_USER, WHERE FROM a;
+reject	reject	engine	createRoutineLoadStatement(,_loadProperties)*/,_loadProperties_(,_loadProperties)*!truncate	CREATE ROUTINE LOAD a ON a WHERE CURRENT_USER, WHERE
+reject	reject	engine	createRoutineLoadStatement(,_loadProperties)*/,_loadProperties_(,_loadProperties)*!insert	CREATE ROUTINE LOAD a ON a WHERE CURRENT_USER, WHERE CURRENT_USER zzz FROM a;
+reject	reject	engine	createRoutineLoadStatement(,_loadProperties)*/,_loadProperties_(,_loadProperties)*!swap	CREATE ROUTINE LOAD a ON a WHERE CURRENT_USER, WHITELIST CURRENT_USER FROM a;
 accept	accept	engine	createRoutineLoadStatement(jobProperties)?/%empty	CREATE ROUTINE LOAD a ON a FROM a;
 accept	accept	engine	createRoutineLoadStatement(jobProperties)?/jobProperties	CREATE ROUTINE LOAD a ON a PROPERTIES('a' = 'a') FROM a;
-accept	reject	engine	createRoutineLoadStatement(jobProperties)?/jobProperties!drop-1	CREATE ROUTINE LOAD a ON a('a' = 'a') FROM a;
+reject	reject	engine	createRoutineLoadStatement(jobProperties)?/jobProperties!drop-1	CREATE ROUTINE LOAD a ON a('a' = 'a') FROM a;
 reject	reject	engine	createRoutineLoadStatement(jobProperties)?/jobProperties!drop-2	CREATE ROUTINE LOAD a ON a PROPERTIES 'a' = 'a') FROM a;
 reject	reject	engine	createRoutineLoadStatement(jobProperties)?/jobProperties!drop-3	CREATE ROUTINE LOAD a ON a PROPERTIES(= 'a') FROM a;
 reject	reject	engine	createRoutineLoadStatement(jobProperties)?/jobProperties!drop-4	CREATE ROUTINE LOAD a ON a PROPERTIES('a' 'a') FROM a;
 reject	reject	engine	createRoutineLoadStatement(jobProperties)?/jobProperties!drop-5	CREATE ROUTINE LOAD a ON a PROPERTIES('a' =) FROM a;
 reject	reject	engine	createRoutineLoadStatement(jobProperties)?/jobProperties!drop-6	CREATE ROUTINE LOAD a ON a PROPERTIES('a' = 'a' FROM a;
 reject	reject	engine	createRoutineLoadStatement(jobProperties)?/jobProperties!truncate	CREATE ROUTINE LOAD a ON a PROPERTIES('a' = 'a'
-accept	reject	engine	createRoutineLoadStatement(jobProperties)?/jobProperties!insert	CREATE ROUTINE LOAD a ON a PROPERTIES('a' = 'a') zzz FROM a;
-accept	reject	engine	createRoutineLoadStatement(jobProperties)?/jobProperties!swap	CREATE ROUTINE LOAD a ON a PROPERTY('a' = 'a') FROM a;
+reject	reject	engine	createRoutineLoadStatement(jobProperties)?/jobProperties!insert	CREATE ROUTINE LOAD a ON a PROPERTIES('a' = 'a') zzz FROM a;
+reject	reject	engine	createRoutineLoadStatement(jobProperties)?/jobProperties!swap	CREATE ROUTINE LOAD a ON a PROPERTY('a' = 'a') FROM a;
 accept	accept	engine	createRoutineLoadStatement(dataSourceProperties)?/%empty	CREATE ROUTINE LOAD a ON a FROM a;
 accept	accept	engine	createRoutineLoadStatement(dataSourceProperties)?/dataSourceProperties	CREATE ROUTINE LOAD a ON a FROM a('a' = 'a');
 reject	reject	engine	createRoutineLoadStatement(dataSourceProperties)?/dataSourceProperties!drop-1	CREATE ROUTINE LOAD a ON a FROM a 'a' = 'a');
@@ -4703,14 +4703,14 @@ reject	reject	engine	alterRoutineLoadStatement(qualifiedName_.)?/qualifiedName_.
 accept	accept	engine	alterRoutineLoadStatement(qualifiedName_.)?/qualifiedName_.!truncate	ALTER ROUTINE LOAD FOR a
 reject	reject	engine	alterRoutineLoadStatement(qualifiedName_.)?/qualifiedName_.!insert	ALTER ROUTINE LOAD FOR a.zzz a;
 accept	accept	engine	alterRoutineLoadStatement(loadProperties_(,_loadProperties)*)?/%empty	ALTER ROUTINE LOAD FOR a;
-reject	accept	engine	alterRoutineLoadStatement(loadProperties_(,_loadProperties)*)?/loadProperties_(,_loadProperties)*	ALTER ROUTINE LOAD FOR a WHERE CURRENT_USER;
+accept	accept	engine	alterRoutineLoadStatement(loadProperties_(,_loadProperties)*)?/loadProperties_(,_loadProperties)*	ALTER ROUTINE LOAD FOR a WHERE CURRENT_USER;
 reject	reject	engine	alterRoutineLoadStatement(loadProperties_(,_loadProperties)*)?/loadProperties_(,_loadProperties)*!drop-1	ALTER ROUTINE LOAD FOR a CURRENT_USER;
 reject	reject	engine	alterRoutineLoadStatement(loadProperties_(,_loadProperties)*)?/loadProperties_(,_loadProperties)*!drop-2	ALTER ROUTINE LOAD FOR a WHERE;
 reject	reject	engine	alterRoutineLoadStatement(loadProperties_(,_loadProperties)*)?/loadProperties_(,_loadProperties)*!truncate	ALTER ROUTINE LOAD FOR a WHERE
 reject	reject	engine	alterRoutineLoadStatement(loadProperties_(,_loadProperties)*)?/loadProperties_(,_loadProperties)*!insert	ALTER ROUTINE LOAD FOR a WHERE CURRENT_USER zzz;
 reject	reject	engine	alterRoutineLoadStatement(loadProperties_(,_loadProperties)*)?/loadProperties_(,_loadProperties)*!swap	ALTER ROUTINE LOAD FOR a WHITELIST CURRENT_USER;
-reject	accept	engine	alterRoutineLoadStatement(,_loadProperties)*/%empty	ALTER ROUTINE LOAD FOR a WHERE CURRENT_USER;
-reject	accept	engine	alterRoutineLoadStatement(,_loadProperties)*/,_loadProperties_(,_loadProperties)*	ALTER ROUTINE LOAD FOR a WHERE CURRENT_USER, WHERE CURRENT_USER;
+accept	accept	engine	alterRoutineLoadStatement(,_loadProperties)*/%empty	ALTER ROUTINE LOAD FOR a WHERE CURRENT_USER;
+accept	accept	engine	alterRoutineLoadStatement(,_loadProperties)*/,_loadProperties_(,_loadProperties)*	ALTER ROUTINE LOAD FOR a WHERE CURRENT_USER, WHERE CURRENT_USER;
 reject	reject	engine	alterRoutineLoadStatement(,_loadProperties)*/,_loadProperties_(,_loadProperties)*!drop-1	ALTER ROUTINE LOAD FOR a WHERE CURRENT_USER WHERE CURRENT_USER;
 reject	reject	engine	alterRoutineLoadStatement(,_loadProperties)*/,_loadProperties_(,_loadProperties)*!drop-2	ALTER ROUTINE LOAD FOR a WHERE CURRENT_USER, CURRENT_USER;
 reject	reject	engine	alterRoutineLoadStatement(,_loadProperties)*/,_loadProperties_(,_loadProperties)*!drop-3	ALTER ROUTINE LOAD FOR a WHERE CURRENT_USER, WHERE;
@@ -4741,7 +4741,7 @@ reject	reject	engine	alterRoutineLoadStatement(dataSource)?/dataSource!truncate	
 reject	reject	engine	alterRoutineLoadStatement(dataSource)?/dataSource!insert	ALTER ROUTINE LOAD FOR a FROM a('a' = 'a') zzz;
 reject	reject	engine	alterRoutineLoadStatement(dataSource)?/dataSource!swap	ALTER ROUTINE LOAD FOR a FRONTEND a('a' = 'a');
 accept	accept	engine	dataSource/FROM_identifier_dataSourceProperties	ALTER ROUTINE LOAD FOR a FROM a('a' = 'a');
-reject	accept	engine	loadProperties/colSeparatorProperty	ALTER ROUTINE LOAD FOR a COLUMNS TERMINATED BY 'a';
+accept	accept	engine	loadProperties/colSeparatorProperty	ALTER ROUTINE LOAD FOR a COLUMNS TERMINATED BY 'a';
 reject	reject	engine	loadProperties/colSeparatorProperty!drop-1	ALTER ROUTINE LOAD FOR a TERMINATED BY 'a';
 reject	reject	engine	loadProperties/colSeparatorProperty!drop-2	ALTER ROUTINE LOAD FOR a COLUMNS BY 'a';
 reject	reject	engine	loadProperties/colSeparatorProperty!drop-3	ALTER ROUTINE LOAD FOR a COLUMNS TERMINATED 'a';
@@ -4749,14 +4749,14 @@ reject	reject	engine	loadProperties/colSeparatorProperty!drop-4	ALTER ROUTINE LO
 reject	reject	engine	loadProperties/colSeparatorProperty!truncate	ALTER ROUTINE LOAD FOR a COLUMNS TERMINATED BY
 reject	reject	engine	loadProperties/colSeparatorProperty!insert	ALTER ROUTINE LOAD FOR a COLUMNS TERMINATED BY 'a' zzz;
 reject	reject	engine	loadProperties/colSeparatorProperty!swap	ALTER ROUTINE LOAD FOR a COMMENT TERMINATED BY 'a';
-reject	accept	engine	loadProperties/rowDelimiterProperty	ALTER ROUTINE LOAD FOR a ROWS TERMINATED BY 'a';
+accept	accept	engine	loadProperties/rowDelimiterProperty	ALTER ROUTINE LOAD FOR a ROWS TERMINATED BY 'a';
 reject	reject	engine	loadProperties/rowDelimiterProperty!drop-2	ALTER ROUTINE LOAD FOR a ROWS BY 'a';
 reject	reject	engine	loadProperties/rowDelimiterProperty!drop-3	ALTER ROUTINE LOAD FOR a ROWS TERMINATED 'a';
 reject	reject	engine	loadProperties/rowDelimiterProperty!drop-4	ALTER ROUTINE LOAD FOR a ROWS TERMINATED BY;
 reject	reject	engine	loadProperties/rowDelimiterProperty!truncate	ALTER ROUTINE LOAD FOR a ROWS TERMINATED BY
 reject	reject	engine	loadProperties/rowDelimiterProperty!insert	ALTER ROUTINE LOAD FOR a ROWS TERMINATED BY 'a' zzz;
 reject	reject	engine	loadProperties/rowDelimiterProperty!swap	ALTER ROUTINE LOAD FOR a ROW_NUMBER TERMINATED BY 'a';
-reject	accept	engine	loadProperties/importColumns	ALTER ROUTINE LOAD FOR a COLUMNS(a);
+accept	accept	engine	loadProperties/importColumns	ALTER ROUTINE LOAD FOR a COLUMNS(a);
 reject	reject	engine	loadProperties/importColumns!drop-1	ALTER ROUTINE LOAD FOR a(a);
 reject	reject	engine	loadProperties/importColumns!drop-2	ALTER ROUTINE LOAD FOR a COLUMNS a);
 reject	reject	engine	loadProperties/importColumns!drop-3	ALTER ROUTINE LOAD FOR a COLUMNS();
@@ -4764,28 +4764,28 @@ reject	reject	engine	loadProperties/importColumns!drop-4	ALTER ROUTINE LOAD FOR 
 reject	reject	engine	loadProperties/importColumns!truncate	ALTER ROUTINE LOAD FOR a COLUMNS(a
 reject	reject	engine	loadProperties/importColumns!insert	ALTER ROUTINE LOAD FOR a COLUMNS(a) zzz;
 reject	reject	engine	loadProperties/importColumns!swap	ALTER ROUTINE LOAD FOR a COMMENT(a);
-reject	accept	engine	loadProperties/WHERE_expression	ALTER ROUTINE LOAD FOR a WHERE CURRENT_USER;
-reject	accept	engine	loadProperties/partitionNames	ALTER ROUTINE LOAD FOR a PARTITION a;
+accept	accept	engine	loadProperties/WHERE_expression	ALTER ROUTINE LOAD FOR a WHERE CURRENT_USER;
+accept	accept	engine	loadProperties/partitionNames	ALTER ROUTINE LOAD FOR a PARTITION a;
 reject	reject	engine	loadProperties/partitionNames!drop-2	ALTER ROUTINE LOAD FOR a PARTITION;
 reject	reject	engine	loadProperties/partitionNames!truncate	ALTER ROUTINE LOAD FOR a PARTITION
 reject	reject	engine	loadProperties/partitionNames!insert	ALTER ROUTINE LOAD FOR a PARTITION a zzz;
-reject	accept	engine	loadProperties/partitionNames!swap	ALTER ROUTINE LOAD FOR a PARTITIONS a;
-reject	accept	engine	colSeparatorProperty/COLUMNS_TERMINATED_BY_string	ALTER ROUTINE LOAD FOR a COLUMNS TERMINATED BY 'a';
-reject	accept	engine	rowDelimiterProperty/ROWS_TERMINATED_BY_string	ALTER ROUTINE LOAD FOR a ROWS TERMINATED BY 'a';
-reject	accept	engine	importColumns/COLUMNS_columnProperties	ALTER ROUTINE LOAD FOR a COLUMNS(a);
-reject	accept	engine	columnProperties/(_(qualifiedName|assignment)_(,_(qualifiedName|assignment))*_)	ALTER ROUTINE LOAD FOR a COLUMNS(a);
-reject	accept	engine	columnProperties(qualifiedName|assignment)/qualifiedName	ALTER ROUTINE LOAD FOR a COLUMNS(a);
+accept	accept	engine	loadProperties/partitionNames!swap	ALTER ROUTINE LOAD FOR a PARTITIONS a;
+accept	accept	engine	colSeparatorProperty/COLUMNS_TERMINATED_BY_string	ALTER ROUTINE LOAD FOR a COLUMNS TERMINATED BY 'a';
+accept	accept	engine	rowDelimiterProperty/ROWS_TERMINATED_BY_string	ALTER ROUTINE LOAD FOR a ROWS TERMINATED BY 'a';
+accept	accept	engine	importColumns/COLUMNS_columnProperties	ALTER ROUTINE LOAD FOR a COLUMNS(a);
+accept	accept	engine	columnProperties/(_(qualifiedName|assignment)_(,_(qualifiedName|assignment))*_)	ALTER ROUTINE LOAD FOR a COLUMNS(a);
+accept	accept	engine	columnProperties(qualifiedName|assignment)/qualifiedName	ALTER ROUTINE LOAD FOR a COLUMNS(a);
 reject	reject	engine	columnProperties(qualifiedName|assignment)/qualifiedName!truncate	ALTER ROUTINE LOAD FOR a COLUMNS(
 reject	reject	engine	columnProperties(qualifiedName|assignment)/qualifiedName!insert	ALTER ROUTINE LOAD FOR a COLUMNS(a zzz);
-reject	accept	engine	columnProperties(qualifiedName|assignment)/assignment	ALTER ROUTINE LOAD FOR a COLUMNS(a = CURRENT_USER);
+accept	accept	engine	columnProperties(qualifiedName|assignment)/assignment	ALTER ROUTINE LOAD FOR a COLUMNS(a = CURRENT_USER);
 reject	reject	engine	columnProperties(qualifiedName|assignment)/assignment!drop-1	ALTER ROUTINE LOAD FOR a COLUMNS(= CURRENT_USER);
 reject	reject	engine	columnProperties(qualifiedName|assignment)/assignment!drop-2	ALTER ROUTINE LOAD FOR a COLUMNS(a CURRENT_USER);
 reject	reject	engine	columnProperties(qualifiedName|assignment)/assignment!drop-3	ALTER ROUTINE LOAD FOR a COLUMNS(a =);
 reject	reject	engine	columnProperties(qualifiedName|assignment)/assignment!truncate	ALTER ROUTINE LOAD FOR a COLUMNS(a =
 reject	reject	engine	columnProperties(qualifiedName|assignment)/assignment!insert	ALTER ROUTINE LOAD FOR a COLUMNS(a = CURRENT_USER zzz);
-reject	accept	engine	columnProperties(qualifiedName|assignment)/assignment!swap	ALTER ROUTINE LOAD FOR a COLUMNS(a = DATA);
-reject	accept	engine	columnProperties(,_(qualifiedName|assignment))*/%empty	ALTER ROUTINE LOAD FOR a COLUMNS(a);
-reject	accept	engine	columnProperties(,_(qualifiedName|assignment))*/,_(qualifiedName|assignment)_(,_(qualifiedName|assignment))*	ALTER ROUTINE LOAD FOR a COLUMNS(a, a);
+accept	accept	engine	columnProperties(qualifiedName|assignment)/assignment!swap	ALTER ROUTINE LOAD FOR a COLUMNS(a = DATA);
+accept	accept	engine	columnProperties(,_(qualifiedName|assignment))*/%empty	ALTER ROUTINE LOAD FOR a COLUMNS(a);
+accept	accept	engine	columnProperties(,_(qualifiedName|assignment))*/,_(qualifiedName|assignment)_(,_(qualifiedName|assignment))*	ALTER ROUTINE LOAD FOR a COLUMNS(a, a);
 reject	reject	engine	columnProperties(,_(qualifiedName|assignment))*/,_(qualifiedName|assignment)_(,_(qualifiedName|assignment))*!drop-1	ALTER ROUTINE LOAD FOR a COLUMNS(a a);
 reject	reject	engine	columnProperties(,_(qualifiedName|assignment))*/,_(qualifiedName|assignment)_(,_(qualifiedName|assignment))*!drop-2	ALTER ROUTINE LOAD FOR a COLUMNS(a,);
 reject	reject	engine	columnProperties(,_(qualifiedName|assignment))*/,_(qualifiedName|assignment)_(,_(qualifiedName|assignment))*!truncate	ALTER ROUTINE LOAD FOR a COLUMNS(a,
@@ -4851,29 +4851,29 @@ reject	reject	engine	showRoutineLoadStatement(FROM_qualifiedName)?/FROM_qualifie
 reject	reject	engine	showRoutineLoadStatement(FROM_qualifiedName)?/FROM_qualifiedName!insert	SHOW ROUTINE LOAD FROM a zzz;
 reject	reject	engine	showRoutineLoadStatement(FROM_qualifiedName)?/FROM_qualifiedName!swap	SHOW ROUTINE LOAD FRONTEND a;
 accept	accept	engine	showRoutineLoadStatement(WHERE_expression)?/%empty	SHOW ROUTINE LOAD;
-reject	accept	engine	showRoutineLoadStatement(WHERE_expression)?/WHERE_expression	SHOW ROUTINE LOAD WHERE CURRENT_USER;
+accept	accept	engine	showRoutineLoadStatement(WHERE_expression)?/WHERE_expression	SHOW ROUTINE LOAD WHERE CURRENT_USER;
 reject	reject	engine	showRoutineLoadStatement(WHERE_expression)?/WHERE_expression!drop-1	SHOW ROUTINE LOAD CURRENT_USER;
 reject	reject	engine	showRoutineLoadStatement(WHERE_expression)?/WHERE_expression!drop-2	SHOW ROUTINE LOAD WHERE;
 reject	reject	engine	showRoutineLoadStatement(WHERE_expression)?/WHERE_expression!truncate	SHOW ROUTINE LOAD WHERE
 reject	reject	engine	showRoutineLoadStatement(WHERE_expression)?/WHERE_expression!insert	SHOW ROUTINE LOAD WHERE CURRENT_USER zzz;
 reject	reject	engine	showRoutineLoadStatement(WHERE_expression)?/WHERE_expression!swap	SHOW ROUTINE LOAD WHITELIST CURRENT_USER;
 accept	accept	engine	showRoutineLoadStatement(ORDER_BY_sortItem_(,_sortItem)*)?/%empty	SHOW ROUTINE LOAD;
-reject	accept	engine	showRoutineLoadStatement(ORDER_BY_sortItem_(,_sortItem)*)?/ORDER_BY_sortItem_(,_sortItem)*	SHOW ROUTINE LOAD ORDER BY CURRENT_USER;
+accept	accept	engine	showRoutineLoadStatement(ORDER_BY_sortItem_(,_sortItem)*)?/ORDER_BY_sortItem_(,_sortItem)*	SHOW ROUTINE LOAD ORDER BY CURRENT_USER;
 reject	reject	engine	showRoutineLoadStatement(ORDER_BY_sortItem_(,_sortItem)*)?/ORDER_BY_sortItem_(,_sortItem)*!drop-1	SHOW ROUTINE LOAD BY CURRENT_USER;
 reject	reject	engine	showRoutineLoadStatement(ORDER_BY_sortItem_(,_sortItem)*)?/ORDER_BY_sortItem_(,_sortItem)*!drop-2	SHOW ROUTINE LOAD ORDER CURRENT_USER;
 reject	reject	engine	showRoutineLoadStatement(ORDER_BY_sortItem_(,_sortItem)*)?/ORDER_BY_sortItem_(,_sortItem)*!drop-3	SHOW ROUTINE LOAD ORDER BY;
 reject	reject	engine	showRoutineLoadStatement(ORDER_BY_sortItem_(,_sortItem)*)?/ORDER_BY_sortItem_(,_sortItem)*!truncate	SHOW ROUTINE LOAD ORDER BY
 reject	reject	engine	showRoutineLoadStatement(ORDER_BY_sortItem_(,_sortItem)*)?/ORDER_BY_sortItem_(,_sortItem)*!insert	SHOW ROUTINE LOAD ORDER BY CURRENT_USER zzz;
 reject	reject	engine	showRoutineLoadStatement(ORDER_BY_sortItem_(,_sortItem)*)?/ORDER_BY_sortItem_(,_sortItem)*!swap	SHOW ROUTINE LOAD OUTER BY CURRENT_USER;
-reject	accept	engine	showRoutineLoadStatement(,_sortItem)*/%empty	SHOW ROUTINE LOAD ORDER BY CURRENT_USER;
-reject	accept	engine	showRoutineLoadStatement(,_sortItem)*/,_sortItem_(,_sortItem)*	SHOW ROUTINE LOAD ORDER BY CURRENT_USER, CURRENT_USER;
+accept	accept	engine	showRoutineLoadStatement(,_sortItem)*/%empty	SHOW ROUTINE LOAD ORDER BY CURRENT_USER;
+accept	accept	engine	showRoutineLoadStatement(,_sortItem)*/,_sortItem_(,_sortItem)*	SHOW ROUTINE LOAD ORDER BY CURRENT_USER, CURRENT_USER;
 reject	reject	engine	showRoutineLoadStatement(,_sortItem)*/,_sortItem_(,_sortItem)*!drop-1	SHOW ROUTINE LOAD ORDER BY CURRENT_USER CURRENT_USER;
 reject	reject	engine	showRoutineLoadStatement(,_sortItem)*/,_sortItem_(,_sortItem)*!drop-2	SHOW ROUTINE LOAD ORDER BY CURRENT_USER,;
 reject	reject	engine	showRoutineLoadStatement(,_sortItem)*/,_sortItem_(,_sortItem)*!truncate	SHOW ROUTINE LOAD ORDER BY CURRENT_USER,
 reject	reject	engine	showRoutineLoadStatement(,_sortItem)*/,_sortItem_(,_sortItem)*!insert	SHOW ROUTINE LOAD ORDER BY CURRENT_USER, CURRENT_USER zzz;
-reject	accept	engine	showRoutineLoadStatement(,_sortItem)*/,_sortItem_(,_sortItem)*!swap	SHOW ROUTINE LOAD ORDER BY CURRENT_USER, DATA;
+accept	accept	engine	showRoutineLoadStatement(,_sortItem)*/,_sortItem_(,_sortItem)*!swap	SHOW ROUTINE LOAD ORDER BY CURRENT_USER, DATA;
 accept	accept	engine	showRoutineLoadStatement(limitElement)?/%empty	SHOW ROUTINE LOAD;
-reject	accept	engine	showRoutineLoadStatement(limitElement)?/limitElement	SHOW ROUTINE LOAD LIMIT 1;
+accept	accept	engine	showRoutineLoadStatement(limitElement)?/limitElement	SHOW ROUTINE LOAD LIMIT 1;
 reject	reject	engine	showRoutineLoadStatement(limitElement)?/limitElement!drop-1	SHOW ROUTINE LOAD 1;
 reject	reject	engine	showRoutineLoadStatement(limitElement)?/limitElement!drop-2	SHOW ROUTINE LOAD LIMIT;
 reject	reject	engine	showRoutineLoadStatement(limitElement)?/limitElement!truncate	SHOW ROUTINE LOAD LIMIT
@@ -4888,13 +4888,13 @@ reject	reject	engine	showRoutineLoadTaskStatement(FROM_qualifiedName)?/FROM_qual
 reject	reject	engine	showRoutineLoadTaskStatement(FROM_qualifiedName)?/FROM_qualifiedName!truncate	SHOW ROUTINE LOAD TASK FROM
 reject	reject	engine	showRoutineLoadTaskStatement(FROM_qualifiedName)?/FROM_qualifiedName!insert	SHOW ROUTINE LOAD TASK FROM a zzz WHERE CURRENT_USER;
 reject	reject	engine	showRoutineLoadTaskStatement(FROM_qualifiedName)?/FROM_qualifiedName!swap	SHOW ROUTINE LOAD TASK FRONTEND a WHERE CURRENT_USER;
-reject	accept	engine	showCreateRoutineLoadStatement/SHOW_CREATE_ROUTINE_LOAD_(qualifiedName_.)?_identifier	SHOW CREATE ROUTINE LOAD a;
-reject	accept	engine	showCreateRoutineLoadStatement(qualifiedName_.)?/%empty	SHOW CREATE ROUTINE LOAD a;
+accept	accept	engine	showCreateRoutineLoadStatement/SHOW_CREATE_ROUTINE_LOAD_(qualifiedName_.)?_identifier	SHOW CREATE ROUTINE LOAD a;
+accept	accept	engine	showCreateRoutineLoadStatement(qualifiedName_.)?/%empty	SHOW CREATE ROUTINE LOAD a;
 reject	reject	engine	showCreateRoutineLoadStatement(qualifiedName_.)?/%empty!insert	SHOW CREATE ROUTINE LOAD zzz a;
-reject	accept	engine	showCreateRoutineLoadStatement(qualifiedName_.)?/qualifiedName_.	SHOW CREATE ROUTINE LOAD a.a;
+accept	accept	engine	showCreateRoutineLoadStatement(qualifiedName_.)?/qualifiedName_.	SHOW CREATE ROUTINE LOAD a.a;
 reject	reject	engine	showCreateRoutineLoadStatement(qualifiedName_.)?/qualifiedName_.!drop-1	SHOW CREATE ROUTINE LOAD.a;
 reject	reject	engine	showCreateRoutineLoadStatement(qualifiedName_.)?/qualifiedName_.!drop-2	SHOW CREATE ROUTINE LOAD a a;
-reject	accept	engine	showCreateRoutineLoadStatement(qualifiedName_.)?/qualifiedName_.!truncate	SHOW CREATE ROUTINE LOAD a
+accept	accept	engine	showCreateRoutineLoadStatement(qualifiedName_.)?/qualifiedName_.!truncate	SHOW CREATE ROUTINE LOAD a
 reject	reject	engine	showCreateRoutineLoadStatement(qualifiedName_.)?/qualifiedName_.!insert	SHOW CREATE ROUTINE LOAD a.zzz a;
 accept	accept	engine	showStreamLoadStatement/SHOW_(ALL)?_STREAM_LOAD_(FOR_(qualifiedName_.)?_identif~e550319f	SHOW STREAM LOAD;
 accept	accept	engine	showStreamLoadStatement(ALL)?/%empty	SHOW STREAM LOAD;
@@ -9929,16 +9929,16 @@ reject	reject	engine	multiItemListPartitionDesc(propertyList)?/propertyList!drop
 reject	reject	engine	multiItemListPartitionDesc(propertyList)?/propertyList!drop-5	ALTER SYSTEM ADD PARTITION a VALUES IN((NULL))('a' = 'a';
 reject	reject	engine	multiItemListPartitionDesc(propertyList)?/propertyList!truncate	ALTER SYSTEM ADD PARTITION a VALUES IN((NULL))('a' = 'a'
 reject	reject	engine	multiItemListPartitionDesc(propertyList)?/propertyList!insert	ALTER SYSTEM ADD PARTITION a VALUES IN((NULL))('a' = 'a') zzz;
-reject	accept	engine	multiListPartitionValues/(_singleListPartitionValues_(,_singleListPartitionValues)*_)	REFRESH MATERIALIZED VIEW a PARTITION((NULL));
+accept	accept	engine	multiListPartitionValues/(_singleListPartitionValues_(,_singleListPartitionValues)*_)	REFRESH MATERIALIZED VIEW a PARTITION((NULL));
 reject	reject	engine	multiListPartitionValues/(_singleListPartitionValues_(,_singleListPartitionValues)*_)!drop-1	REFRESH MATERIALIZED VIEW a PARTITION(NULL));
 reject	reject	engine	multiListPartitionValues/(_singleListPartitionValues_(,_singleListPartitionValues)*_)!drop-3	REFRESH MATERIALIZED VIEW a PARTITION(());
 reject	reject	engine	multiListPartitionValues/(_singleListPartitionValues_(,_singleListPartitionValues)*_)!drop-4	REFRESH MATERIALIZED VIEW a PARTITION((NULL);
 reject	reject	engine	multiListPartitionValues/(_singleListPartitionValues_(,_singleListPartitionValues)*_)!truncate	REFRESH MATERIALIZED VIEW a PARTITION((NULL)
 reject	reject	engine	multiListPartitionValues/(_singleListPartitionValues_(,_singleListPartitionValues)*_)!insert	REFRESH MATERIALIZED VIEW a PARTITION((NULL)) zzz;
 reject	reject	engine	multiListPartitionValues/(_singleListPartitionValues_(,_singleListPartitionValues)*_)!swap	REFRESH MATERIALIZED VIEW a PARTITION((NULLS));
-reject	accept	engine	multiListPartitionValues(,_singleListPartitionValues)*/%empty	REFRESH MATERIALIZED VIEW a PARTITION((NULL));
+accept	accept	engine	multiListPartitionValues(,_singleListPartitionValues)*/%empty	REFRESH MATERIALIZED VIEW a PARTITION((NULL));
 reject	reject	engine	multiListPartitionValues(,_singleListPartitionValues)*/%empty!insert	REFRESH MATERIALIZED VIEW a PARTITION((NULL) zzz);
-reject	accept	engine	multiListPartitionValues(,_singleListPartitionValues)*/,_singleListPartitionValues_(,_singleListPartitionValues)*	REFRESH MATERIALIZED VIEW a PARTITION((NULL),(NULL));
+accept	accept	engine	multiListPartitionValues(,_singleListPartitionValues)*/,_singleListPartitionValues_(,_singleListPartitionValues)*	REFRESH MATERIALIZED VIEW a PARTITION((NULL),(NULL));
 reject	reject	engine	multiListPartitionValues(,_singleListPartitionValues)*/,_singleListPartitionValues_(,_singleListPartitionValues)*!drop-1	REFRESH MATERIALIZED VIEW a PARTITION((NULL)(NULL));
 reject	reject	engine	multiListPartitionValues(,_singleListPartitionValues)*/,_singleListPartitionValues_(,_singleListPartitionValues)*!drop-2	REFRESH MATERIALIZED VIEW a PARTITION((NULL), NULL));
 reject	reject	engine	multiListPartitionValues(,_singleListPartitionValues)*/,_singleListPartitionValues_(,_singleListPartitionValues)*!drop-3	REFRESH MATERIALIZED VIEW a PARTITION((NULL),());
@@ -9946,20 +9946,20 @@ reject	reject	engine	multiListPartitionValues(,_singleListPartitionValues)*/,_si
 reject	reject	engine	multiListPartitionValues(,_singleListPartitionValues)*/,_singleListPartitionValues_(,_singleListPartitionValues)*!truncate	REFRESH MATERIALIZED VIEW a PARTITION((NULL),(NULL
 reject	reject	engine	multiListPartitionValues(,_singleListPartitionValues)*/,_singleListPartitionValues_(,_singleListPartitionValues)*!insert	REFRESH MATERIALIZED VIEW a PARTITION((NULL),(NULL) zzz);
 reject	reject	engine	multiListPartitionValues(,_singleListPartitionValues)*/,_singleListPartitionValues_(,_singleListPartitionValues)*!swap	REFRESH MATERIALIZED VIEW a PARTITION((NULL),(NULLS));
-reject	accept	engine	singleListPartitionValues/(_listPartitionValue_(,_listPartitionValue)*_)	REFRESH MATERIALIZED VIEW a PARTITION(NULL);
-reject	accept	engine	singleListPartitionValues(,_listPartitionValue)*/%empty	REFRESH MATERIALIZED VIEW a PARTITION(NULL);
+accept	accept	engine	singleListPartitionValues/(_listPartitionValue_(,_listPartitionValue)*_)	REFRESH MATERIALIZED VIEW a PARTITION(NULL);
+accept	accept	engine	singleListPartitionValues(,_listPartitionValue)*/%empty	REFRESH MATERIALIZED VIEW a PARTITION(NULL);
 reject	reject	engine	singleListPartitionValues(,_listPartitionValue)*/%empty!insert	REFRESH MATERIALIZED VIEW a PARTITION(NULL zzz);
-reject	accept	engine	singleListPartitionValues(,_listPartitionValue)*/,_listPartitionValue_(,_listPartitionValue)*	REFRESH MATERIALIZED VIEW a PARTITION(NULL, NULL);
+accept	accept	engine	singleListPartitionValues(,_listPartitionValue)*/,_listPartitionValue_(,_listPartitionValue)*	REFRESH MATERIALIZED VIEW a PARTITION(NULL, NULL);
 reject	reject	engine	singleListPartitionValues(,_listPartitionValue)*/,_listPartitionValue_(,_listPartitionValue)*!drop-1	REFRESH MATERIALIZED VIEW a PARTITION(NULL NULL);
 reject	reject	engine	singleListPartitionValues(,_listPartitionValue)*/,_listPartitionValue_(,_listPartitionValue)*!drop-2	REFRESH MATERIALIZED VIEW a PARTITION(NULL,);
 reject	reject	engine	singleListPartitionValues(,_listPartitionValue)*/,_listPartitionValue_(,_listPartitionValue)*!truncate	REFRESH MATERIALIZED VIEW a PARTITION(NULL,
 reject	reject	engine	singleListPartitionValues(,_listPartitionValue)*/,_listPartitionValue_(,_listPartitionValue)*!insert	REFRESH MATERIALIZED VIEW a PARTITION(NULL, NULL zzz);
 reject	reject	engine	singleListPartitionValues(,_listPartitionValue)*/,_listPartitionValue_(,_listPartitionValue)*!swap	REFRESH MATERIALIZED VIEW a PARTITION(NULL, NULLS);
-reject	accept	engine	listPartitionValues/singleListPartitionValues	REFRESH MATERIALIZED VIEW a PARTITION(NULL);
-reject	accept	engine	listPartitionValues/multiListPartitionValues	REFRESH MATERIALIZED VIEW a PARTITION((NULL));
-reject	accept	engine	listPartitionValue/NULL	REFRESH MATERIALIZED VIEW a PARTITION(NULL);
+accept	accept	engine	listPartitionValues/singleListPartitionValues	REFRESH MATERIALIZED VIEW a PARTITION(NULL);
+accept	accept	engine	listPartitionValues/multiListPartitionValues	REFRESH MATERIALIZED VIEW a PARTITION((NULL));
+accept	accept	engine	listPartitionValue/NULL	REFRESH MATERIALIZED VIEW a PARTITION(NULL);
 reject	reject	engine	listPartitionValue/NULL!truncate	REFRESH MATERIALIZED VIEW a PARTITION(
-reject	accept	engine	listPartitionValue/string	REFRESH MATERIALIZED VIEW a PARTITION('a');
+accept	accept	engine	listPartitionValue/string	REFRESH MATERIALIZED VIEW a PARTITION('a');
 reject	reject	engine	listPartitionValue/string!insert	REFRESH MATERIALIZED VIEW a PARTITION('a' zzz);
 reject	accept	engine	stringList/(_string_(,_string)*_)	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a');
 reject	accept	engine	stringList(,_string)*/%empty	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a');
@@ -10036,7 +10036,7 @@ reject	reject	engine	multiRangePartition/START_(_string_)_END_(_string_)_EVERY_(
 reject	reject	engine	multiRangePartition/START_(_string_)_END_(_string_)_EVERY_(_interval_)!swap	ALTER SYSTEM ADD PARTITIONS STATS('a') END('a') EVERY(INTERVAL CURRENT_USER YEAR);
 accept	accept	engine	multiRangePartition/START_(_string_)_END_(_string_)_EVERY_(_INTEGER_VALUE_)	ALTER SYSTEM ADD PARTITIONS START('a') END('a') EVERY(1);
 reject	reject	engine	multiRangePartition/START_(_string_)_END_(_string_)_EVERY_(_INTEGER_VALUE_)!swap	ALTER SYSTEM ADD PARTITIONS STATS('a') END('a') EVERY(1);
-reject	accept	engine	partitionRangeDesc/START_(_string_)_END_(_string_)	REFRESH MATERIALIZED VIEW a PARTITION START('a') END('a');
+accept	accept	engine	partitionRangeDesc/START_(_string_)_END_(_string_)	REFRESH MATERIALIZED VIEW a PARTITION START('a') END('a');
 accept	accept	engine	partitionKeyDesc/LESS_THAN_(MAXVALUE|partitionValueList)	ALTER SYSTEM ADD PARTITION a VALUES LESS THAN MAXVALUE;
 reject	reject	engine	partitionKeyDesc/LESS_THAN_(MAXVALUE|partitionValueList)!swap	ALTER SYSTEM ADD PARTITION a VALUES LEVEL THAN MAXVALUE;
 accept	accept	engine	partitionKeyDesc/[_partitionValueList_,_partitionValueList_)	ALTER SYSTEM ADD PARTITION a VALUES [(MAXVALUE),(MAXVALUE));

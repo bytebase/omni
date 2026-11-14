@@ -3,37 +3,30 @@ package parser
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	nodes "github.com/bytebase/omni/mssql/ast"
 )
 
-// statisticsWithOptions: UPDATE/CREATE STATISTICS WITH ... option names.
-var statisticsWithOptions = newOptionSet(kwFULL, kwNOCOUNT).withIdents(
-	"FULLSCAN", "SAMPLE", "RESAMPLE", "NORECOMPUTE", "INCREMENTAL",
-	"MAXDOP", "ALL", "STATS_STREAM", "ROWCOUNT", "PAGECOUNT",
-	"PERSIST_SAMPLE_PERCENT", "AUTO_DROP",
-)
+// statisticsPseudoColumns are the pseudo-columns SQL Server takes in a
+// CREATE STATISTICS column list: the graph ones, $IDENTITY and $ROWGUID.
+var statisticsPseudoColumns = map[string]bool{
+	"$identity": true,
+	"$rowguid":  true,
+	"$node_id":  true,
+	"$edge_id":  true,
+	"$from_id":  true,
+	"$to_id":    true,
+}
 
 // parseCreateStatisticsStmt parses a CREATE STATISTICS statement.
 //
-// BNF: mssql/parser/bnf/create-statistics-transact-sql.bnf
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-statistics-transact-sql
 //
-//	CREATE STATISTICS statistics_name
-//	    ON { table_or_indexed_view_name } ( column [ ,...n ] )
-//	    [ WHERE <filter_predicate> ]
-//	    [ WITH
-//	        [ FULLSCAN
-//	            [ [ , ] PERSIST_SAMPLE_PERCENT = { ON | OFF } ]
-//	          | SAMPLE number { PERCENT | ROWS }
-//	            [ [ , ] PERSIST_SAMPLE_PERCENT = { ON | OFF } ]
-//	          | <update_stats_stream_option> [ ,...n ]
-//	        ]
-//	        [ [ , ] NORECOMPUTE ]
-//	        [ [ , ] INCREMENTAL = { ON | OFF } ]
-//	        [ [ , ] MAXDOP = max_degree_of_parallelism ]
-//	        [ [ , ] AUTO_DROP = { ON | OFF } ]
-//	    ]
+//	createStatisticsStatement (TSql160.g:13230)
+//	    : Create Statistics identifier On schemaObjectThreePartName identifierColumnList
+//	      ( filterClause )? ( With createStatisticsStatementWithOption ( , ... )* )?
 func (p *Parser) parseCreateStatisticsStmt() (*nodes.CreateStatisticsStmt, error) {
 	loc := p.pos()
 	// STATISTICS keyword already consumed by caller
@@ -42,59 +35,65 @@ func (p *Parser) parseCreateStatisticsStmt() (*nodes.CreateStatisticsStmt, error
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
-	// Statistics name
-	if p.isIdentLike() {
-		stmt.Name = p.cur.Str
-		p.advance()
+	name, ok := p.parseIdentifier()
+	if !ok {
+		return nil, p.unexpectedToken()
 	}
+	stmt.Name = name
 
-	// ON table
-	if _, ok := p.match(kwON); ok {
-		var err error
-		stmt.Table, err = p.parseTableRef()
-		if err != nil {
-			return nil, err
-		}
+	if _, err := p.expect(kwON); err != nil {
+		return nil, err
 	}
+	table, err := p.indexTargetTable(3)
+	if err != nil {
+		return nil, err
+	}
+	stmt.Table = table
 
-	// Column list. Graph pseudo-columns are valid here (engine-verified:
-	// CREATE STATISTICS st ON Person ($node_id) executes).
-	if p.cur.Type == '(' {
-		p.advance()
-		var cols []nodes.Node
-		for p.cur.Type != ')' && p.cur.Type != tokEOF {
-			if p.cur.Type == tokPSEUDOCOL {
-				if !graphPseudoColumns[strings.ToLower(p.cur.Str)] {
-					return nil, p.newParseError(p.cur.Loc, fmt.Sprintf("invalid pseudocolumn %q", p.cur.Str))
-				}
-				cols = append(cols, &nodes.String{Str: p.cur.Str})
-				p.advance()
-			} else if p.isIdentLike() {
-				cols = append(cols, &nodes.String{Str: p.cur.Str})
-				p.advance()
-			}
-			if _, ok := p.match(','); !ok {
-				break
-			}
-		}
-		p.match(')')
-		stmt.Columns = &nodes.List{Items: cols}
+	// ( column [ ,...n ] ): one-part names or pseudo-columns (engine-verified:
+	// CREATE STATISTICS st ON Person ($node_id) executes; a dotted name is
+	// Msg 4146).
+	if _, err := p.expect('('); err != nil {
+		return nil, err
 	}
+	cols, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
+		if p.cur.Type == tokPSEUDOCOL {
+			if !statisticsPseudoColumns[strings.ToLower(p.cur.Str)] {
+				return nil, p.newParseError(p.cur.Loc, fmt.Sprintf("invalid pseudocolumn %q", p.cur.Str))
+			}
+			col := &nodes.String{Str: p.cur.Str}
+			p.advance()
+			return col, nil
+		}
+		col, ok := p.parseIdentifier()
+		if !ok {
+			return nil, p.unexpectedToken()
+		}
+		return &nodes.String{Str: col}, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	stmt.Columns = &nodes.List{Items: cols}
 
 	// WHERE filter predicate (optional)
 	if p.cur.Type == kwWHERE {
 		p.advance()
-		var err error
-		stmt.Where, err = p.parseExpr()
+		stmt.Where, err = p.indexFilterExpression()
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	// WITH options
 	if p.cur.Type == kwWITH {
 		p.advance()
-		stmt.Options = p.parseStatisticsWithOptions()
+		stmt.Options, err = p.parseStatisticsWithOptions(false, 0)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	stmt.Loc.End = p.prevEnd()
@@ -103,28 +102,11 @@ func (p *Parser) parseCreateStatisticsStmt() (*nodes.CreateStatisticsStmt, error
 
 // parseUpdateStatisticsStmt parses an UPDATE STATISTICS statement.
 //
-// BNF: mssql/parser/bnf/update-statistics-transact-sql.bnf
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/update-statistics-transact-sql
 //
-//	UPDATE STATISTICS table_or_indexed_view_name
-//	    [
-//	      { index_or_statistics_name }
-//	      | ( { index_or_statistics_name } [ ,...n ] )
-//	    ]
-//	    [ WITH
-//	        [ FULLSCAN
-//	            [ [ , ] PERSIST_SAMPLE_PERCENT = { ON | OFF } ]
-//	          | SAMPLE number { PERCENT | ROWS }
-//	            [ [ , ] PERSIST_SAMPLE_PERCENT = { ON | OFF } ]
-//	          | RESAMPLE
-//	            [ ON PARTITIONS ( { <partition_number> | <range> } [ ,...n ] ) ]
-//	          | <update_stats_stream_option> [ ,...n ]
-//	        ]
-//	        [ [ , ] [ ALL | COLUMNS | INDEX ]
-//	        [ [ , ] NORECOMPUTE ]
-//	        [ [ , ] INCREMENTAL = { ON | OFF } ]
-//	        [ [ , ] MAXDOP = max_degree_of_parallelism ]
-//	        [ [ , ] AUTO_DROP = { ON | OFF } ]
-//	    ]
+//	updateStatisticsStatement (TSql160.g:13430)
+//	    : Update Statistics schemaObjectThreePartName ( columnNameList | identifier )?
+//	      ( With updateStatisticsStatementWithOption ( , ... )* )?
 func (p *Parser) parseUpdateStatisticsStmt() (*nodes.UpdateStatisticsStmt, error) {
 	loc := p.pos()
 	// STATISTICS keyword already consumed by caller
@@ -133,43 +115,44 @@ func (p *Parser) parseUpdateStatisticsStmt() (*nodes.UpdateStatisticsStmt, error
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
-	// Table name
-	var err error
-	stmt.Table, err = p.parseTableRef()
+	table, err := p.indexTargetTable(3)
 	if err != nil {
 		return nil, err
 	}
+	stmt.Table = table
 
 	// Optional statistics name or list
+	nameCount := 0
 	if p.cur.Type == '(' {
 		p.advance()
-		var names []nodes.Node
-		for p.cur.Type != ')' && p.cur.Type != tokEOF {
-			if p.isIdentLike() {
-				names = append(names, &nodes.String{Str: p.cur.Str})
-				p.advance()
+		names, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
+			n, ok := p.parseIdentifier()
+			if !ok {
+				return nil, p.unexpectedToken()
 			}
-			if _, ok := p.match(','); !ok {
-				break
-			}
+			return &nodes.String{Str: n}, nil
+		})
+		if err != nil {
+			return nil, err
 		}
-		p.match(')')
-		if len(names) > 0 {
-			stmt.Names = &nodes.List{Items: names}
-			// Also set Name to first for backward compatibility
-			if s, ok := names[0].(*nodes.String); ok {
-				stmt.Name = s.Str
-			}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
 		}
-	} else if p.isIdentLike() && p.cur.Type != kwWITH {
-		stmt.Name = p.cur.Str
-		p.advance()
+		stmt.Names = &nodes.List{Items: names}
+		// Also set Name to first for backward compatibility
+		stmt.Name = names[0].(*nodes.String).Str
+		nameCount = len(names)
+	} else if n, ok := p.parseIdentifier(); ok {
+		stmt.Name = n
+		nameCount = 1
 	}
 
-	// WITH options
 	if p.cur.Type == kwWITH {
 		p.advance()
-		stmt.Options = p.parseStatisticsWithOptions()
+		stmt.Options, err = p.parseStatisticsWithOptions(true, nameCount)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	stmt.Loc.End = p.prevEnd()
@@ -178,9 +161,12 @@ func (p *Parser) parseUpdateStatisticsStmt() (*nodes.UpdateStatisticsStmt, error
 
 // parseDropStatisticsStmt parses a DROP STATISTICS statement.
 //
-// BNF: mssql/parser/bnf/drop-statistics-transact-sql.bnf
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/drop-statistics-transact-sql
 //
-//	DROP STATISTICS table.statistics_name | view.statistics_name [ ,...n ]
+//	dropStatisticsStatement (TSql160.g:15030) : Statistics statisticsDropObject ( , ... )*
+//	statisticsDropObject (TSql160.g:15045) : [ schema . ] table . statistics_name
+//
+// A name without its table is SQL46038; one with a database is Msg 166.
 func (p *Parser) parseDropStatisticsStmt() (*nodes.DropStatisticsStmt, error) {
 	loc := p.pos()
 	// STATISTICS keyword already consumed by caller
@@ -191,21 +177,24 @@ func (p *Parser) parseDropStatisticsStmt() (*nodes.DropStatisticsStmt, error) {
 
 	var names []nodes.Node
 	for {
-		// Each name is [schema.]table.stats_name (two or three-part dot-separated)
-		if !p.isIdentLike() {
-			break
+		start := p.pos()
+		first, ok := p.parseIdentifier()
+		if !ok {
+			return nil, p.unexpectedToken()
 		}
-		// Collect all dotted parts
-		parts := p.cur.Str
-		p.advance()
+		parts := []string{first}
 		for p.cur.Type == '.' {
 			p.advance()
-			if p.isIdentLike() {
-				parts = parts + "." + p.cur.Str
-				p.advance()
+			part, ok := p.parseIdentifier()
+			if !ok {
+				return nil, p.unexpectedToken()
 			}
+			parts = append(parts, part)
 		}
-		names = append(names, &nodes.String{Str: parts})
+		if len(parts) < 2 || len(parts) > 3 {
+			return nil, p.newParseError(start, "DROP STATISTICS needs table.statistics_name")
+		}
+		names = append(names, &nodes.String{Str: strings.Join(parts, ".")})
 		if _, ok := p.match(','); !ok {
 			break
 		}
@@ -216,62 +205,160 @@ func (p *Parser) parseDropStatisticsStmt() (*nodes.DropStatisticsStmt, error) {
 	return stmt, nil
 }
 
-// parseStatisticsWithOptions parses the WITH clause of CREATE/UPDATE STATISTICS.
-func (p *Parser) parseStatisticsWithOptions() *nodes.List {
+// parseStatisticsWithOptions parses the options after WITH in CREATE or
+// UPDATE STATISTICS. Each becomes a String holding the option's name.
+//
+//	createStatisticsStatementWithOption (TSql160.g:13412)
+//	    : INCREMENTAL = ( On | Off ) | AUTO_DROP = ( On | Off )
+//	    | PERSIST_SAMPLE_PERCENT = ( On | Off ) | SAMPLE integer ( ROWS | PERCENT )
+//	    | STATS_STREAM = binary | FULLSCAN | NORECOMPUTE | MAXDOP = integer
+//	updateStatisticsStatementWithOption (TSql160.g:13472) adds
+//	    RESAMPLE ( On PARTITIONS ( statisticsPartitionRange , ... ) )?
+//	    | PAGECOUNT = integer | ROWCOUNT = integer | ALL | COLUMNS | INDEX
+//
+// SQL Server refuses, while it parses, an option given twice (Msg 1039),
+// two of FULLSCAN, SAMPLE, RESAMPLE and STATS_STREAM (1052), ROWCOUNT or
+// PAGECOUNT beside a scan, PERSIST_SAMPLE_PERCENT beside RESAMPLE or
+// STATS_STREAM (1052) or without FULLSCAN or SAMPLE (153), two of ALL,
+// COLUMNS and INDEX (1052), and STATS_STREAM in UPDATE STATISTICS without
+// exactly one statistics name (1092).
+func (p *Parser) parseStatisticsWithOptions(update bool, nameCount int) (*nodes.List, error) {
+	seen := map[string]bool{}
+	scan := "" // FULLSCAN, SAMPLE, RESAMPLE or STATS_STREAM
+	target := ""
+	start := p.pos()
 	var opts []nodes.Node
 	for {
-		if p.isValidOption(statisticsWithOptions) {
-			opt := strings.ToUpper(p.cur.Str)
-			isSample := p.cur.Type == kwSAMPLE
-			isResample := p.cur.Type == kwRESAMPLE
-			p.advance()
-			// Handle SAMPLE number { PERCENT | ROWS }.
-			if isSample {
-				p.parseExpr() // number
-				if p.cur.Type == kwPERCENT || p.cur.Type == kwROWS {
-					p.advance()
-				}
-			} else if isResample {
-				// RESAMPLE [ ON PARTITIONS ( { partition_number | range } [ ,...n ] ) ]
-				if p.cur.Type == kwON {
-					p.advance() // ON
-					if p.matchIdentCI("PARTITIONS") {
-						if p.cur.Type == '(' {
-							p.advance()
-							for p.cur.Type != ')' && p.cur.Type != tokEOF {
-								p.parseExpr() // partition number
-								// TO for range
-								if p.cur.Type == kwTO {
-									p.advance()
-									p.parseExpr()
-								}
-								if _, ok := p.match(','); !ok {
-									break
-								}
-							}
-							p.match(')')
-						}
-					}
-				}
-			} else if p.cur.Type == '=' {
-				// key = value (e.g., INCREMENTAL = ON, MAXDOP = 4, AUTO_DROP = ON)
-				p.advance()
-				if p.isIdentLike() || p.cur.Type == kwON || p.cur.Type == kwOFF {
-					p.advance()
-				} else {
-					p.parseExpr()
-				}
-			}
-			opts = append(opts, &nodes.String{Str: opt})
-		} else {
-			break
+		word := p.indexOptionWord()
+		optLoc := p.pos()
+		if seen[word] {
+			return nil, p.newParseError(optLoc, fmt.Sprintf("option %s is specified more than once", word))
 		}
+		switch word {
+		case "FULLSCAN", "NORECOMPUTE":
+			p.advance()
+		case "SAMPLE":
+			p.advance()
+			n, err := p.indexExpectInteger()
+			if err != nil {
+				return nil, err
+			}
+			if p.cur.Type != kwPERCENT && p.cur.Type != kwROWS {
+				return nil, p.unexpectedToken()
+			}
+			if v, convErr := strconv.Atoi(n); p.cur.Type == kwPERCENT && (convErr != nil || v > 100) {
+				// Msg 1031: percent values must be between 0 and 100.
+				return nil, p.newParseError(p.prev.Loc, "percent values must be between 0 and 100")
+			}
+			p.advance()
+		case "STATS_STREAM":
+			p.advance()
+			if _, err := p.expect('='); err != nil {
+				return nil, err
+			}
+			if !indexTokIsBinary(p.cur) {
+				return nil, p.unexpectedToken()
+			}
+			p.advance()
+			if update && nameCount != 1 {
+				return nil, p.newParseError(optLoc, "STATS_STREAM needs exactly one statistics name")
+			}
+		case "INCREMENTAL", "AUTO_DROP", "PERSIST_SAMPLE_PERCENT":
+			p.advance()
+			if _, err := p.expect('='); err != nil {
+				return nil, err
+			}
+			if _, err := p.indexExpectOnOff(); err != nil {
+				return nil, err
+			}
+		case "MAXDOP":
+			p.advance()
+			if _, err := p.expect('='); err != nil {
+				return nil, err
+			}
+			if _, err := p.indexExpectInteger(); err != nil {
+				return nil, err
+			}
+		default:
+			if !update {
+				return nil, p.unexpectedToken()
+			}
+			switch word {
+			case "RESAMPLE":
+				p.advance()
+				if err := p.statisticsResamplePartitions(); err != nil {
+					return nil, err
+				}
+			case "ROWCOUNT", "PAGECOUNT":
+				p.advance()
+				if _, err := p.expect('='); err != nil {
+					return nil, err
+				}
+				if _, err := p.indexExpectInteger(); err != nil {
+					return nil, err
+				}
+			case "ALL", "COLUMNS", "INDEX":
+				if target != "" {
+					return nil, p.newParseError(optLoc, fmt.Sprintf("conflicting options %s and %s", target, word))
+				}
+				target = word
+				p.advance()
+			default:
+				return nil, p.unexpectedToken()
+			}
+		}
+		switch word {
+		case "FULLSCAN", "SAMPLE", "RESAMPLE", "STATS_STREAM":
+			if scan != "" {
+				return nil, p.newParseError(optLoc, fmt.Sprintf("conflicting options %s and %s", scan, word))
+			}
+			scan = word
+		}
+		seen[word] = true
+		opts = append(opts, &nodes.String{Str: word})
 		if _, ok := p.match(','); !ok {
 			break
 		}
 	}
-	if len(opts) == 0 {
+	if seen["PERSIST_SAMPLE_PERCENT"] && scan != "FULLSCAN" && scan != "SAMPLE" {
+		return nil, p.newParseError(start, "PERSIST_SAMPLE_PERCENT needs FULLSCAN or SAMPLE")
+	}
+	if (seen["ROWCOUNT"] || seen["PAGECOUNT"]) && scan != "" && scan != "STATS_STREAM" {
+		return nil, p.newParseError(start, "ROWCOUNT and PAGECOUNT conflict with "+scan)
+	}
+	return &nodes.List{Items: opts}, nil
+}
+
+// statisticsResamplePartitions parses the optional ON PARTITIONS ( range
+// [ , ...n ] ) after RESAMPLE; statisticsPartitionRange (TSql160.g:13328)
+// is integer ( TO integer )?.
+func (p *Parser) statisticsResamplePartitions() error {
+	if p.cur.Type != kwON {
 		return nil
 	}
-	return &nodes.List{Items: opts}
+	p.advance()
+	if p.cur.Type != kwPARTITIONS {
+		return p.unexpectedToken()
+	}
+	p.advance()
+	if _, err := p.expect('('); err != nil {
+		return err
+	}
+	_, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
+		from, err := p.indexExpectInteger()
+		if err != nil {
+			return nil, err
+		}
+		if _, ok := p.match(kwTO); ok {
+			if _, err := p.indexExpectInteger(); err != nil {
+				return nil, err
+			}
+		}
+		return &nodes.String{Str: from}, nil
+	})
+	if err != nil {
+		return err
+	}
+	_, err = p.expect(')')
+	return err
 }

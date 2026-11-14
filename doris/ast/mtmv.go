@@ -48,8 +48,11 @@ type CreateMTMVStmt struct {
 	RefreshMethod  string              // "COMPLETE", "AUTO", "NEVER", "INCREMENTAL", or ""
 	RefreshTrigger *MTMVRefreshTrigger // ON SCHEDULE / ON COMMIT / ON MANUAL
 	Columns        []*ViewColumn       // optional column list
+	Keys           []string            // [DUPLICATE] KEY (cols)
+	DuplicateKey   bool                // DUPLICATE KEY
 	Comment        string
-	PartitionBy    *PartitionDesc
+	PartitionBy    *PartitionDesc // PARTITION BY (col | f(...)): Columns or FuncExprs
+	PartitionExpr  Node           // PARTITION BY (f(...)): the function call
 	DistributedBy  *DistributionDesc
 	Properties     []*Property
 	Query          Node // *SelectStmt or *SetOpStmt

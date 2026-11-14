@@ -521,3 +521,39 @@ func TestShowCreateRoutineLoad_LegacyCorpus(t *testing.T) {
 		t.Fatal("Name should not be nil")
 	}
 }
+
+// TestRoutineLoadGrammar holds CREATE ROUTINE LOAD to what both of Doris's
+// parsers take; testdata/compat.tsv judged the near misses.
+func TestRoutineLoadGrammar(t *testing.T) {
+	cases := []struct {
+		sql string
+		ok  bool
+	}{
+		{"CREATE ROUTINE LOAD a FROM KAFKA ('k' = 'v')", true},
+		{"CREATE ROUTINE LOAD db.j ON t WITH MERGE COLUMNS TERMINATED BY ',', COLUMNS (a, b = a + 1, (c)), PRECEDING FILTER a > 0, WHERE a > 1, DELETE ON b = 1, ORDER BY a, PARTITION (p) PROPERTIES ('k' = 'v') FROM KAFKA ('k' = 'v') COMMENT 'c'", true},
+		{"CREATE ROUTINE LOAD a COLUMNS ((a)) FROM KAFKA ('k' = 'v')", false},
+		{"CREATE ROUTINE LOAD a ON a zzz FROM KAFKA ('k' = 'v')", false},
+		{"CREATE ROUTINE LOAD a ON a FROM KAFKA", false},
+		{"CREATE ROUTINE LOAD a ON a FROM KAFKA (k = 'v')", false},
+		{"SHOW ROUTINE LOAD TASK IN d WHERE JobName = 'j'", true},
+	}
+	for _, c := range cases {
+		_, err := Parse(c.sql)
+		if (err == nil) != c.ok {
+			t.Errorf("Parse(%q): err = %v, want accepted=%v", c.sql, err, c.ok)
+		}
+	}
+}
+
+// TestCreateRoutineLoad_QuotedName: a quoted part holding a dot stays one
+// part of the job's name.
+func TestCreateRoutineLoad_QuotedName(t *testing.T) {
+	file, errs := parseForTest("CREATE ROUTINE LOAD `db.name`.`job.name` ON t FROM KAFKA ('k' = 'v')")
+	if len(errs) != 0 {
+		t.Fatalf("Parse errors: %v", errs)
+	}
+	stmt := file.Stmts[0].(*ast.CreateRoutineLoadStmt)
+	if len(stmt.Name.Parts) != 2 || stmt.Name.Parts[0] != "db.name" || stmt.Name.Parts[1] != "job.name" {
+		t.Errorf("Name.Parts = %q", stmt.Name.Parts)
+	}
+}

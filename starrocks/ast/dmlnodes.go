@@ -311,7 +311,7 @@ var _ Node = (*ExportStmt)(nil)
 type CreateRoutineLoadStmt struct {
 	Name                 *ObjectName // job name, optionally qualified with db
 	OnTable              *ObjectName // ON table name
-	LoadProps            string      // raw load_properties text (best-effort capture)
+	LoadProps            string      // the load properties' source text, as written
 	JobProperties        []*Property // PROPERTIES (...) key=value pairs
 	DataSourceType       string      // "KAFKA", "S3", "HDFS", etc.
 	DataSourceProperties []*Property // FROM ... (...) key=value pairs
@@ -332,6 +332,7 @@ var _ Node = (*CreateRoutineLoadStmt)(nil)
 //	    [FROM KAFKA (...)]
 type AlterRoutineLoadStmt struct {
 	Name                 *ObjectName
+	LoadProps            string // the load properties' source text, as written
 	Properties           []*Property
 	DataSourceType       string
 	DataSourceProperties []*Property
@@ -400,7 +401,13 @@ type ShowRoutineLoadStmt struct {
 	All  bool        // true for SHOW ALL ROUTINE LOAD
 	Like string      // optional LIKE 'pattern'
 	From string      // optional FROM db
-	Loc  Loc
+
+	Where   Node           // optional WHERE expression
+	OrderBy []*OrderByItem // optional ORDER BY items
+	Limit   Node           // optional LIMIT count
+	Offset  Node           // optional LIMIT offset
+	Create  bool           // SHOW CREATE ROUTINE LOAD name
+	Loc     Loc
 }
 
 // Tag implements Node.
