@@ -1981,6 +1981,8 @@ func (p *Parser) parseParenExpr() (nodes.ExprNode, error) {
 	start := p.pos()
 	iterand := p.queryIterand
 	p.queryIterand = false
+	scalar := p.scalarParen
+	p.scalarParen = false
 	p.advance() // consume '('
 
 	// Detect a subquery: (SELECT ...), or ((SELECT ...) UNION ...)
@@ -2012,6 +2014,9 @@ func (p *Parser) parseParenExpr() (nodes.ExprNode, error) {
 		return nil, parseErr729
 	}
 	if inner == nil {
+		if scalar {
+			return nil, p.syntaxErrorAtCur()
+		}
 		if p.cur.Type == ')' {
 			p.advance()
 		}
@@ -2021,6 +2026,9 @@ func (p *Parser) parseParenExpr() (nodes.ExprNode, error) {
 	}
 
 	if p.cur.Type == ',' {
+		if scalar {
+			return nil, p.syntaxErrorAtCur()
+		}
 		items := &nodes.List{Items: []nodes.Node{inner}}
 		for p.cur.Type == ',' {
 			p.advance()
