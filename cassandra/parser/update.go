@@ -72,7 +72,7 @@ func (p *Parser) parseUpdate() (*ast.UpdateStmt, error) {
 // not be updated again, nor a field set twice.
 func (p *Parser) parseAssignments() ([]*ast.AssignmentElement, error) {
 	var assignments []*ast.AssignmentElement
-	var seen []rawUpdate
+	seen := map[string]*columnUpdates{}
 	for {
 		startTok := p.cur
 		elem, err := p.parseAssignmentElement()
@@ -80,12 +80,15 @@ func (p *Parser) parseAssignments() ([]*ast.AssignmentElement, error) {
 			return nil, err
 		}
 		u := rawUpdateOf(elem)
-		for _, prev := range seen {
-			if prev.column == u.column && !prev.compatibleWith(u) {
-				return nil, p.errorAt(startTok, "multiple incompatible setting of column %s", u.column)
-			}
+		prev := seen[u.column]
+		if prev == nil {
+			prev = &columnUpdates{fields: map[string]bool{}}
+			seen[u.column] = prev
 		}
-		seen = append(seen, u)
+		if !prev.admits(u) {
+			return nil, p.errorAt(startTok, "multiple incompatible setting of column %s", u.column)
+		}
+		prev.add(u)
 		assignments = append(assignments, elem)
 		if !p.match(tokCOMMA) {
 			return assignments, nil
@@ -122,16 +125,37 @@ func rawUpdateOf(a *ast.AssignmentElement) rawUpdate {
 	return rawUpdate{column: columnKey(a.Target.(*ast.Identifier)), kind: kind}
 }
 
-// compatibleWith is Operation.java's isCompatibleWith for u, the earlier
-// update, and o, the later one on the same column.
-func (u rawUpdate) compatibleWith(o rawUpdate) bool {
+// columnUpdates sums up the updates made so far to one column, so that a
+// later one is checked against all of them at once.
+type columnUpdates struct {
+	any      bool            // some update was made
+	setValue bool            // one of them set the whole column
+	fields   map[string]bool // the fields set
+}
+
+// admits reports whether o is compatible with every earlier update of the
+// column, as Operation.java's isCompatibleWith decides for each pair: a
+// column set whole takes no other update, and a field is set at most once.
+func (c *columnUpdates) admits(o rawUpdate) bool {
 	switch {
-	case u.kind == updateSetValue:
+	case c.setValue:
 		return false
-	case u.kind == updateSetField && o.kind == updateSetField:
-		return u.field != o.field
+	case o.kind == updateSetValue:
+		return !c.any
+	case o.kind == updateSetField:
+		return !c.fields[o.field]
 	}
-	return o.kind != updateSetValue
+	return true
+}
+
+func (c *columnUpdates) add(o rawUpdate) {
+	c.any = true
+	switch o.kind {
+	case updateSetValue:
+		c.setValue = true
+	case updateSetField:
+		c.fields[o.field] = true
+	}
 }
 
 // columnKey is the name Cassandra knows a column by: an unquoted name in
@@ -220,14 +244,29 @@ func (p *Parser) parseAssignmentElement() (*ast.AssignmentElement, error) {
 			if err != nil {
 				return nil, err
 			}
-			switch p.cur.Type {
-			case tokPLUS, tokMINUS:
+			switch {
+			case isSignedConstant(p.cur, p.peekNext()):
+				// X = X -3 is [X, '=', X, INTEGER] to Cassandra's lexer
+				// (Parser.g:1694, Lexer.g:337): an addition of the
+				// integer -3, which no operator may follow.
+				if p.peekNext().Type != tokINTEGER {
+					return nil, p.errorf("expected '+' or '-' after column %s, got %s", col.Name, p.tokenDesc())
+				}
+				elem.Operator = "+"
+				minus := p.curLoc()
+				p.advance() // -
+				lit, err := p.parseConstant()
+				if err != nil {
+					return nil, err
+				}
+				elem.Value = negate(lit, minus, p.prevEnd())
+			case p.cur.Type == tokPLUS, p.cur.Type == tokMINUS:
 				elem.Operator = p.cur.Str
 				p.advance()
 				if elem.Value, err = p.parseTerm(); err != nil {
 					return nil, err
 				}
-			case tokINTEGER:
+			case p.cur.Type == tokINTEGER:
 				elem.Operator = "+"
 				if elem.Value, err = p.parseConstant(); err != nil {
 					return nil, err

@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -84,6 +85,10 @@ func TestGrammarForms(t *testing.T) {
 	}
 
 	reject := []string{
+		"UPDATE t SET a = a-1+2 WHERE k = 1",          // a -1 is X = X INTEGER; no + follows
+		"UPDATE t SET a = a -1.5 WHERE k = 1",         // only an INTEGER (Parser.g:1694)
+		"UPDATE t SET a = 1, a[0] = 2 WHERE k = 1",    // a column set whole takes no other update
+		"UPDATE t SET u.f = 1, u.f = 2 WHERE k = 1",   // a field set twice
 		"INSERT INTO t (a) VALUES (1-2)",              // -2 is one constant
 		"SELECT a-1 FROM t",                           // a column, then the constant -1
 		"SELECT ks.* FROM t",                          // no qualified star
@@ -225,4 +230,19 @@ func TestDurationLexing(t *testing.T) {
 	if lit, ok := ins.Values[0].(*ast.DurationLit); !ok || lit.Val != "-1d" {
 		t.Errorf("-1d: %#v, want DurationLit -1d", ins.Values[0])
 	}
+}
+
+// TestManyAssignments holds an UPDATE of many columns: checking that no
+// column is set twice is linear in the assignments.
+func TestManyAssignments(t *testing.T) {
+	var b strings.Builder
+	b.WriteString("UPDATE t SET ")
+	for i := 0; i < 100000; i++ {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		fmt.Fprintf(&b, "c%d = %d", i, i)
+	}
+	b.WriteString(" WHERE k = 1")
+	parseOne(t, b.String())
 }
