@@ -854,7 +854,12 @@ func (p *Parser) parseTypeNameStr() (string, error) {
 	if p.cur.Type == '(' {
 		name += "("
 		p.advance()
-		for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+			// An item that consumes nothing would come round again.
+			if p.pos() == progress {
+				return "", p.syntaxErrorAtCur()
+			}
+			progress = p.pos()
 			if p.cur.Type == tokICONST {
 				name += p.cur.Str
 			} else if p.isIdentLike() {

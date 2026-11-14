@@ -578,11 +578,11 @@ func (e *walkEngine) catalog(t testing.TB, k walk.Key) ([]catObject, bool) {
 		return id, id != ""
 	}
 	schemaID := func(class string) (string, bool) {
-		return one(query("SELECT name, CAST(schema_id AS varchar) FROM shop.sys.schemas"), class)
+		return one(query("SELECT name, CAST(schema_id AS varchar) FROM shop.sys.schemas ORDER BY name"), class)
 	}
 	switch k.Space {
 	case spaceSchema:
-		return query("SELECT name, '' FROM shop.sys.schemas"), true
+		return query("SELECT name, '' FROM shop.sys.schemas ORDER BY name"), true
 	case spaceTemp:
 		return e.tempTables(t), true
 	}
@@ -605,11 +605,11 @@ func (e *walkEngine) catalog(t testing.TB, k walk.Key) ([]catObject, bool) {
 	if !ok {
 		// No schema of the class holds anything; several make the
 		// parent ambiguous.
-		return nil, sid == "" && !e.classShared(t, query("SELECT name, '' FROM shop.sys.schemas"), path[0])
+		return nil, sid == "" && !e.classShared(t, query("SELECT name, '' FROM shop.sys.schemas ORDER BY name"), path[0])
 	}
 	switch k.Space {
 	case spaceObject, spaceRelation:
-		objs := query("SELECT name, type FROM shop.sys.objects WHERE schema_id = @p1", sid)
+		objs := query("SELECT name, type FROM shop.sys.objects WHERE schema_id = @p1 ORDER BY name", sid)
 		var out []catObject
 		for _, o := range objs {
 			kind := objectKinds[o.kind]
@@ -623,12 +623,12 @@ func (e *walkEngine) catalog(t testing.TB, k walk.Key) ([]catObject, bool) {
 		}
 		return out, true
 	case spaceType:
-		return query("SELECT name, '' FROM shop.sys.types WHERE is_user_defined = 1 AND schema_id = @p1", sid), true
+		return query("SELECT name, '' FROM shop.sys.types WHERE is_user_defined = 1 AND schema_id = @p1 ORDER BY name", sid), true
 	}
 	if len(path) != 2 {
 		return nil, false
 	}
-	tables := query("SELECT name, CAST(object_id AS varchar) FROM shop.sys.tables WHERE schema_id = @p1", sid)
+	tables := query("SELECT name, 'oid:' + CAST(object_id AS varchar(20)) FROM shop.sys.tables WHERE schema_id = @p1 ORDER BY name", sid)
 	tid, ok := one(tables, path[1])
 	if !ok {
 		return nil, !e.classShared(t, tables, path[1])
@@ -637,20 +637,22 @@ func (e *walkEngine) catalog(t testing.TB, k walk.Key) ([]catObject, bool) {
 }
 
 // children reads a table's columns, indexes, constraints, or primary key.
+// id is the table's object id as text, oid:<id> (testcontainer.Codec).
 func (e *walkEngine) children(t testing.TB, space, dbName, id string, query func(string, ...any) []catObject) []catObject {
+	const byID = "CAST(SUBSTRING(@p1, 5, 20) AS int)"
 	switch space {
 	case spaceColumn:
-		return query("SELECT name, '' FROM "+dbName+".sys.columns WHERE object_id = @p1", id)
+		return query("SELECT name, '' FROM "+dbName+".sys.columns WHERE object_id = "+byID+" ORDER BY name", id)
 	case spaceIndex:
-		return query("SELECT name, CASE WHEN is_primary_key = 1 THEN 'pk' WHEN is_unique_constraint = 1 THEN 'uq' ELSE 'index' END FROM "+dbName+".sys.indexes WHERE object_id = @p1 AND name IS NOT NULL", id)
+		return query("SELECT name, CASE WHEN is_primary_key = 1 THEN 'pk' WHEN is_unique_constraint = 1 THEN 'uq' ELSE 'index' END FROM "+dbName+".sys.indexes WHERE object_id = "+byID+" AND name IS NOT NULL ORDER BY name", id)
 	case spaceConstraint:
-		objs := query("SELECT name, type FROM "+dbName+".sys.objects WHERE parent_object_id = @p1 AND type IN ('PK', 'UQ', 'F', 'C', 'D', 'EC')", id)
+		objs := query("SELECT name, type FROM "+dbName+".sys.objects WHERE parent_object_id = "+byID+" AND type IN ('PK', 'UQ', 'F', 'C', 'D', 'EC') ORDER BY name", id)
 		for i := range objs {
 			objs[i].kind = objectKinds[objs[i].kind]
 		}
 		return objs
 	case spacePrimary:
-		return query("SELECT '"+primaryName+"', '' FROM "+dbName+".sys.key_constraints WHERE parent_object_id = @p1 AND type = 'PK'", id)
+		return query("SELECT '"+primaryName+"', '' FROM "+dbName+".sys.key_constraints WHERE parent_object_id = "+byID+" AND type = 'PK'", id)
 	}
 	t.Fatalf("unknown space %s", space)
 	return nil
@@ -672,40 +674,29 @@ func (e *walkEngine) classShared(t testing.TB, names []catObject, class string) 
 }
 
 // tempTables lists the session's temporary tables by the names they were
-// created with, each with its object id: tempdb pads a name with
-// underscores and a suffix, and OBJECT_ID finds the session's own.
+// created with, each with its object id as text (oid:<id>), in one query:
+// tempdb pads a name with underscores and a suffix that differs on every
+// run, and OBJECT_ID finds the session's own.
 func (e *walkEngine) tempTables(t testing.TB) []catObject {
 	t.Helper()
-	rows, err := e.conn.QueryContext(context.Background(), "SELECT name, object_id FROM tempdb.sys.tables WHERE name LIKE '#%' AND name NOT LIKE '##%'")
+	rows, err := e.conn.QueryContext(context.Background(), `SELECT n, 'oid:' + CAST(object_id AS varchar(20)) FROM (
+		SELECT CASE WHEN CHARINDEX('___', name) > 1 THEN LEFT(name, CHARINDEX('___', name) - 1) ELSE name END AS n, object_id
+		FROM tempdb.sys.tables WHERE name LIKE '#%' AND name NOT LIKE '##%') x
+		WHERE OBJECT_ID('tempdb..' + n) = object_id ORDER BY n`)
 	if err != nil {
 		t.Fatal(err)
 	}
-	type row struct {
-		name string
-		id   int64
-	}
-	var all []row
-	for rows.Next() {
-		var r row
-		if err := rows.Scan(&r.name, &r.id); err != nil {
-			t.Fatal(err)
-		}
-		all = append(all, r)
-	}
-	rows.Close()
+	defer rows.Close()
 	var out []catObject
-	for _, r := range all {
-		name := r.name
-		if i := strings.Index(name, "___"); i > 0 {
-			name = name[:i]
-		}
-		var id sql.NullInt64
-		if err := e.conn.QueryRowContext(context.Background(), "SELECT OBJECT_ID('tempdb..'+@p1)", name).Scan(&id); err != nil {
+	for rows.Next() {
+		var o catObject
+		if err := rows.Scan(&o.name, &o.kind); err != nil {
 			t.Fatal(err)
 		}
-		if id.Valid && id.Int64 == r.id {
-			out = append(out, catObject{name, strconv.FormatInt(r.id, 10)})
-		}
+		out = append(out, o)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
 	}
 	return out
 }
@@ -715,6 +706,10 @@ func (e *walkEngine) tempTables(t testing.TB) []catObject {
 // it lists, their tables with columns (and their default constraints'
 // names), indexes, keys, foreign keys, checks, and enabled triggers, and
 // views, sequences, functions, procedures, and synonyms.
+//
+// The column and index reads keep to user tables in the query, where
+// Bytebase's keep to them after it: what else they read was dropped, and
+// went on the tape.
 //
 // bytebase: backend/plugin/db/mssql/sync.go — SyncDBSchema, getSynonyms
 func walkSync(t testing.TB, conn *sql.Conn, dbName string) *metadata.DatabaseSchemaMetadata {
@@ -762,7 +757,7 @@ func walkSync(t testing.TB, conn *sql.Conn, dbName string) *metadata.DatabaseSch
 		}
 		return nil
 	})
-	query("SELECT s.name, v.name FROM shop.sys.views v JOIN shop.sys.sql_modules m ON m.object_id = v.object_id JOIN shop.sys.schemas s ON s.schema_id = v.schema_id", func(r *sql.Rows) error {
+	query("SELECT s.name, v.name FROM shop.sys.views v JOIN shop.sys.sql_modules m ON m.object_id = v.object_id JOIN shop.sys.schemas s ON s.schema_id = v.schema_id ORDER BY s.name, v.name", func(r *sql.Rows) error {
 		var schema, name string
 		if err := r.Scan(&schema, &name); err != nil {
 			return err
@@ -781,7 +776,8 @@ func walkSync(t testing.TB, conn *sql.Conn, dbName string) *metadata.DatabaseSch
 		LEFT JOIN shop.sys.computed_columns cc ON cc.object_id = c.object_id AND cc.column_id = c.column_id
 		LEFT JOIN shop.sys.types ty ON ty.user_type_id = c.user_type_id
 		LEFT JOIN shop.sys.default_constraints dc ON dc.object_id = c.default_object_id
-		ORDER BY s.name, c.object_id, c.column_id`, func(r *sql.Rows) error {
+		WHERE o.type = 'U'
+		ORDER BY s.name, o.name, c.column_id`, func(r *sql.Rows) error {
 		var schema, tbl, col, df, typ string
 		var nullable bool
 		if err := r.Scan(&schema, &tbl, &col, &df, &typ, &nullable); err != nil {
@@ -795,8 +791,9 @@ func walkSync(t testing.TB, conn *sql.Conn, dbName string) *metadata.DatabaseSch
 	// getKeys, then getIndexes: indexes with a key column.
 	query(`SELECT s.name, o.name, i.name, i.is_primary_key, i.is_unique, i.is_unique_constraint, i.type_desc FROM shop.sys.indexes i
 		JOIN shop.sys.objects o ON o.object_id = i.object_id JOIN shop.sys.schemas s ON s.schema_id = o.schema_id
-		WHERE i.index_id > 0 AND i.name IS NOT NULL AND o.type IN ('U', 'S', 'V')
-		AND (i.is_primary_key = 1 OR i.is_unique_constraint = 1 OR EXISTS (SELECT 1 FROM shop.sys.index_columns ic JOIN shop.sys.all_columns c ON c.object_id = ic.object_id AND c.column_id = ic.column_id WHERE ic.object_id = i.object_id AND ic.index_id = i.index_id))`, func(r *sql.Rows) error {
+		WHERE i.index_id > 0 AND i.name IS NOT NULL AND o.type = 'U'
+		AND (i.is_primary_key = 1 OR i.is_unique_constraint = 1 OR EXISTS (SELECT 1 FROM shop.sys.index_columns ic JOIN shop.sys.all_columns c ON c.object_id = ic.object_id AND c.column_id = ic.column_id WHERE ic.object_id = i.object_id AND ic.index_id = i.index_id))
+		ORDER BY s.name, o.name, i.name`, func(r *sql.Rows) error {
 		var schema, tbl, name, typ string
 		var primary, unique, constraint bool
 		if err := r.Scan(&schema, &tbl, &name, &primary, &unique, &constraint, &typ); err != nil {
@@ -808,7 +805,8 @@ func walkSync(t testing.TB, conn *sql.Conn, dbName string) *metadata.DatabaseSch
 		return nil
 	})
 	query(`SELECT s.name, o.name, f.name FROM shop.sys.foreign_keys f JOIN shop.sys.objects o ON o.object_id = f.parent_object_id JOIN shop.sys.schemas s ON s.schema_id = o.schema_id
-		WHERE EXISTS (SELECT 1 FROM shop.sys.foreign_key_columns fkc WHERE fkc.constraint_object_id = f.object_id)`, func(r *sql.Rows) error {
+		WHERE EXISTS (SELECT 1 FROM shop.sys.foreign_key_columns fkc WHERE fkc.constraint_object_id = f.object_id)
+		ORDER BY s.name, o.name, f.name`, func(r *sql.Rows) error {
 		var schema, tbl, name string
 		if err := r.Scan(&schema, &tbl, &name); err != nil {
 			return err
@@ -818,7 +816,7 @@ func walkSync(t testing.TB, conn *sql.Conn, dbName string) *metadata.DatabaseSch
 		}
 		return nil
 	})
-	query(`SELECT s.name, o.name, c.name FROM shop.sys.check_constraints c JOIN shop.sys.objects o ON o.object_id = c.parent_object_id JOIN shop.sys.schemas s ON s.schema_id = o.schema_id WHERE o.type = 'U'`, func(r *sql.Rows) error {
+	query(`SELECT s.name, o.name, c.name FROM shop.sys.check_constraints c JOIN shop.sys.objects o ON o.object_id = c.parent_object_id JOIN shop.sys.schemas s ON s.schema_id = o.schema_id WHERE o.type = 'U' ORDER BY s.name, o.name, c.name`, func(r *sql.Rows) error {
 		var schema, tbl, name string
 		if err := r.Scan(&schema, &tbl, &name); err != nil {
 			return err
@@ -830,7 +828,8 @@ func walkSync(t testing.TB, conn *sql.Conn, dbName string) *metadata.DatabaseSch
 	})
 	query(`SELECT ss.name, so.name, so.type, st.name FROM shop.sys.triggers st JOIN shop.sys.sql_modules m ON m.object_id = st.object_id
 		JOIN shop.sys.objects so ON so.object_id = st.parent_id JOIN shop.sys.schemas ss ON ss.schema_id = so.schema_id
-		WHERE st.is_disabled = 0 AND st.is_ms_shipped = 0 AND st.parent_id <> 0 AND so.type IN ('U', 'V')`, func(r *sql.Rows) error {
+		WHERE st.is_disabled = 0 AND st.is_ms_shipped = 0 AND st.parent_id <> 0 AND so.type IN ('U', 'V')
+		ORDER BY ss.name, so.name, st.name`, func(r *sql.Rows) error {
 		var schema, parent, kind, name string
 		if err := r.Scan(&schema, &parent, &kind, &name); err != nil {
 			return err
@@ -844,7 +843,7 @@ func walkSync(t testing.TB, conn *sql.Conn, dbName string) *metadata.DatabaseSch
 		}
 		return nil
 	})
-	query("SELECT s.name, q.name FROM shop.sys.sequences q JOIN shop.sys.schemas s ON s.schema_id = q.schema_id", func(r *sql.Rows) error {
+	query("SELECT s.name, q.name FROM shop.sys.sequences q JOIN shop.sys.schemas s ON s.schema_id = q.schema_id ORDER BY s.name, q.name", func(r *sql.Rows) error {
 		var schema, name string
 		if err := r.Scan(&schema, &name); err != nil {
 			return err
@@ -856,7 +855,8 @@ func walkSync(t testing.TB, conn *sql.Conn, dbName string) *metadata.DatabaseSch
 	})
 	query(`SELECT s.name, ao.name, ao.type FROM shop.sys.all_objects ao JOIN shop.sys.all_sql_modules m ON m.object_id = ao.object_id JOIN shop.sys.schemas s ON s.schema_id = ao.schema_id
 		WHERE ao.type IN ('FN', 'IF', 'TF', 'P', 'RF') AND ao.is_ms_shipped = 0
-		AND NOT EXISTS (SELECT 1 FROM shop.sys.extended_properties ep WHERE ep.major_id = ao.object_id AND ep.minor_id = 0 AND ep.class = 1 AND ep.name = 'microsoft_database_tools_support')`, func(r *sql.Rows) error {
+		AND NOT EXISTS (SELECT 1 FROM shop.sys.extended_properties ep WHERE ep.major_id = ao.object_id AND ep.minor_id = 0 AND ep.class = 1 AND ep.name = 'microsoft_database_tools_support')
+		ORDER BY s.name, ao.name`, func(r *sql.Rows) error {
 		var schema, name, kind string
 		if err := r.Scan(&schema, &name, &kind); err != nil {
 			return err
@@ -986,11 +986,17 @@ func bytebaseBatches(sql string) []bytebaseBatch {
 // that collide often, case, collation, and marked variants included, on a
 // case-insensitive, a case-sensitive, and a Hungarian database in turn,
 // with the default schema known or not. Precision must hold on every one;
-// recall is logged. WALK_SWEEP_N sets the number of changes in all, and
-// WALK_SWEEP_SEED the seed. The databases run one after another: sessions
-// run at once on the server lost their transactions while idle.
+// recall is logged. The databases run one after another: sessions run at
+// once on the server lost their transactions while idle.
+// The sweep's size and seed: its tape holds the changes they make, so
+// another size or seed is another recording.
+const (
+	walkSweepN    = 60
+	walkSweepSeed = 20261027
+)
+
 func TestWalkThroughSweepMSSQL(t *testing.T) {
-	n, seed, _ := walktest.SweepParams(t, 60, 20261027, "")
+	n, seed := walkSweepN, int64(walkSweepSeed)
 	db := startMSSQL(t)
 	collations := append(walkCollations, "Hungarian_CI_AS")
 	for i, collation := range collations {

@@ -5316,28 +5316,28 @@ accept	accept	engine	opt_histogram_update_param/%empty	ANALYZE TABLE utf8mb4 UPD
 reject	reject	engine	opt_histogram_update_param/%empty!insert	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM ON utf8mb4 zzz;
 accept	accept	engine	opt_histogram_update_param/WITH_NUM_BUCKETS_SYM	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM ON utf8mb4 WITH 1 BUCKETS;
 reject	reject	engine	opt_histogram_update_param/WITH_NUM_BUCKETS_SYM!drop-1	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM ON utf8mb4 1 BUCKETS;
-accept	reject	engine	opt_histogram_update_param/WITH_NUM_BUCKETS_SYM!drop-2	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM ON utf8mb4 WITH BUCKETS;
-accept	reject	engine	opt_histogram_update_param/WITH_NUM_BUCKETS_SYM!drop-3	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM ON utf8mb4 WITH 1;
-accept	reject	engine	opt_histogram_update_param/WITH_NUM_BUCKETS_SYM!truncate	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM ON utf8mb4 WITH 1
+reject	reject	engine	opt_histogram_update_param/WITH_NUM_BUCKETS_SYM!drop-2	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM ON utf8mb4 WITH BUCKETS;
+reject	reject	engine	opt_histogram_update_param/WITH_NUM_BUCKETS_SYM!drop-3	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM ON utf8mb4 WITH 1;
+reject	reject	engine	opt_histogram_update_param/WITH_NUM_BUCKETS_SYM!truncate	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM ON utf8mb4 WITH 1
 reject	reject	engine	opt_histogram_update_param/WITH_NUM_BUCKETS_SYM!insert	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM ON utf8mb4 WITH 1 BUCKETS zzz;
 reject	reject	engine	opt_histogram_update_param/WITH_NUM_BUCKETS_SYM!swap	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM ON utf8mb4 WITHOUT 1 BUCKETS;
 accept	accept	engine	opt_histogram_update_param/USING_DATA_SYM_TEXT_STRING_literal	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM ON utf8mb4 USING DATA 's';
 reject	reject	engine	opt_histogram_update_param/USING_DATA_SYM_TEXT_STRING_literal!drop-1	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM ON utf8mb4 DATA 's';
-accept	reject	engine	opt_histogram_update_param/USING_DATA_SYM_TEXT_STRING_literal!drop-2	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM ON utf8mb4 USING 's';
-accept	reject	engine	opt_histogram_update_param/USING_DATA_SYM_TEXT_STRING_literal!drop-3	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM ON utf8mb4 USING DATA;
-accept	reject	engine	opt_histogram_update_param/USING_DATA_SYM_TEXT_STRING_literal!truncate	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM ON utf8mb4 USING DATA
+reject	reject	engine	opt_histogram_update_param/USING_DATA_SYM_TEXT_STRING_literal!drop-2	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM ON utf8mb4 USING 's';
+reject	reject	engine	opt_histogram_update_param/USING_DATA_SYM_TEXT_STRING_literal!drop-3	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM ON utf8mb4 USING DATA;
+reject	reject	engine	opt_histogram_update_param/USING_DATA_SYM_TEXT_STRING_literal!truncate	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM ON utf8mb4 USING DATA
 reject	reject	engine	opt_histogram_update_param/USING_DATA_SYM_TEXT_STRING_literal!insert	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM ON utf8mb4 USING DATA 's' zzz;
 reject	reject	engine	opt_histogram_update_param/USING_DATA_SYM_TEXT_STRING_literal!swap	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM ON utf8mb4 UTC_DATE DATA 's';
 accept	accept	engine	opt_histogram/%empty	ANALYZE TABLE utf8mb4;
 accept	accept	engine	opt_histogram/UPDATE_SYM_HISTOGRAM_SYM_ON_SYM_ident_string_list_opt_histogram_update_param	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM ON utf8mb4;
 reject	reject	engine	opt_histogram/UPDATE_SYM_HISTOGRAM_SYM_ON_SYM_ident_string_list_opt_histogram_update_param!drop-1	ANALYZE TABLE utf8mb4 HISTOGRAM ON utf8mb4;
-accept	reject	engine	opt_histogram/UPDATE_SYM_HISTOGRAM_SYM_ON_SYM_ident_string_list_opt_histogram_update_param!drop-2	ANALYZE TABLE utf8mb4 UPDATE ON utf8mb4;
+reject	reject	engine	opt_histogram/UPDATE_SYM_HISTOGRAM_SYM_ON_SYM_ident_string_list_opt_histogram_update_param!drop-2	ANALYZE TABLE utf8mb4 UPDATE ON utf8mb4;
 reject	reject	engine	opt_histogram/UPDATE_SYM_HISTOGRAM_SYM_ON_SYM_ident_string_list_opt_histogram_update_param!drop-3	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM utf8mb4;
 reject	reject	engine	opt_histogram/UPDATE_SYM_HISTOGRAM_SYM_ON_SYM_ident_string_list_opt_histogram_update_param!drop-4	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM ON;
 reject	reject	engine	opt_histogram/UPDATE_SYM_HISTOGRAM_SYM_ON_SYM_ident_string_list_opt_histogram_update_param!truncate	ANALYZE TABLE utf8mb4 UPDATE HISTOGRAM ON
 reject	reject	engine	opt_histogram/UPDATE_SYM_HISTOGRAM_SYM_ON_SYM_ident_string_list_opt_histogram_update_param!swap	ANALYZE TABLE utf8mb4 UPGRADE HISTOGRAM ON utf8mb4;
 accept	accept	engine	opt_histogram/DROP_HISTOGRAM_SYM_ON_SYM_ident_string_list	ANALYZE TABLE utf8mb4 DROP HISTOGRAM ON utf8mb4;
-accept	reject	engine	opt_histogram/DROP_HISTOGRAM_SYM_ON_SYM_ident_string_list!drop-2	ANALYZE TABLE utf8mb4 DROP ON utf8mb4;
+reject	reject	engine	opt_histogram/DROP_HISTOGRAM_SYM_ON_SYM_ident_string_list!drop-2	ANALYZE TABLE utf8mb4 DROP ON utf8mb4;
 reject	reject	engine	opt_histogram/DROP_HISTOGRAM_SYM_ON_SYM_ident_string_list!drop-3	ANALYZE TABLE utf8mb4 DROP HISTOGRAM utf8mb4;
 reject	reject	engine	opt_histogram/DROP_HISTOGRAM_SYM_ON_SYM_ident_string_list!drop-4	ANALYZE TABLE utf8mb4 DROP HISTOGRAM ON;
 reject	reject	engine	opt_histogram/DROP_HISTOGRAM_SYM_ON_SYM_ident_string_list!truncate	ANALYZE TABLE utf8mb4 DROP HISTOGRAM ON
