@@ -286,4 +286,18 @@ func TestMariaDBAccountFormsTree(t *testing.T) {
 	if !ok || !revoke.AdminOption || len(revoke.Roles) != 1 || revoke.Roles[0] != "r" {
 		t.Errorf("REVOKE ADMIN OPTION FOR = %+v, want role r with the admin option", revoke)
 	}
+
+	// current_role takes optional empty parentheses in both clauses.
+	if role, ok := parseOneUserStmt(t, "CREATE ROLE r WITH ADMIN CURRENT_ROLE()").(*ast.CreateRoleStmt); !ok || role.Admin != "CURRENT_ROLE" {
+		t.Errorf("CREATE ROLE ... CURRENT_ROLE() = %+v, want admin CURRENT_ROLE", role)
+	}
+	if revoke, ok := parseOneUserStmt(t, "REVOKE ADMIN OPTION FOR CURRENT_ROLE() FROM u").(*ast.RevokeRoleStmt); !ok || revoke.Roles[0] != "CURRENT_ROLE" {
+		t.Errorf("REVOKE ADMIN OPTION FOR CURRENT_ROLE() = %+v, want role CURRENT_ROLE", revoke)
+	}
+	// A backquoted `*` is a table, which takes column privileges; a bare one is a
+	// wildcard, which is 1144.
+	parseOneUserStmt(t, "GRANT SELECT(a) ON d.`*` TO u")
+	if _, err := Parse("GRANT SELECT(a) ON d.* TO u"); err == nil {
+		t.Error("GRANT SELECT(a) ON d.* parsed, want 1144")
+	}
 }

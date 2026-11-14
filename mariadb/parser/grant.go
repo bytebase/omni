@@ -232,15 +232,18 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 		if _, err := p.expect(kwFOR); err != nil {
 			return nil, err
 		}
-		var role string
-		if p.cur.Type == tokSCONST {
+		role, ok, err := p.parseCurrentRole()
+		if err != nil {
+			return nil, err
+		}
+		switch {
+		case ok:
+		case p.cur.Type == tokSCONST:
 			role = p.advance().Str
-		} else {
-			name, _, err := p.parseIdent()
-			if err != nil {
+		default:
+			if role, _, err = p.parseIdent(); err != nil {
 				return nil, err
 			}
-			role = name
 		}
 		if _, err := p.expect(kwFROM); err != nil {
 			return nil, err
@@ -465,7 +468,10 @@ func (p *Parser) checkColumnPrivilegeTarget(privs []privOrRole, target *nodes.Gr
 	if target.Type == "FUNCTION" || target.Type == "PROCEDURE" {
 		return p.syntaxErrorAtCur()
 	}
-	if target.Name != nil && target.Name.Name == "*" {
+	// A wildcard is the bare `*` the target ends with; a backquoted `*` is a table
+	// of that name, which takes column privileges: mariadb:11.8.8 runs `GRANT
+	// SELECT(a) ON d.`*` TO u`.
+	if target.Name != nil && strings.HasSuffix(p.inputText(target.Name.Loc.Start, target.Name.Loc.End), "*") {
 		return &ParseError{
 			Message:  "Illegal GRANT/REVOKE command; please consult the manual to see which privileges can be used",
 			Position: target.Loc.Start,
@@ -1093,6 +1099,25 @@ func (p *Parser) parseRoleRefList() ([]string, error) {
 		p.advance() // consume ','
 	}
 	return roles, nil
+}
+
+// parseCurrentRole reads current_role, a bare CURRENT_ROLE with an optional empty
+// pair of parentheses, when one is next. mariadb:11.8.8 runs `CREATE ROLE r WITH
+// ADMIN CURRENT_ROLE()` and answers 1064 for a backquoted CURRENT_ROLE before the
+// parentheses, which is a role name.
+//
+// Ref: current_role in MariaDB 11.8 sql/sql_yacc.yy.
+func (p *Parser) parseCurrentRole() (string, bool, error) {
+	if !p.atWord("CURRENT_ROLE") {
+		return "", false, nil
+	}
+	p.advance()
+	if _, ok := p.match('('); ok {
+		if _, err := p.expect(')'); err != nil {
+			return "", false, err
+		}
+	}
+	return "CURRENT_ROLE", true, nil
 }
 
 // parseUserName parses a user identifier, which may be 'user'@'host'.
@@ -1817,9 +1842,14 @@ func (p *Parser) parseCreateRoleStmt(start int, orReplace bool) (*nodes.CreateRo
 		if _, err := p.expect(kwADMIN); err != nil {
 			return nil, err
 		}
-		admin, err := p.parseUserName()
+		admin, ok, err := p.parseCurrentRole()
 		if err != nil {
 			return nil, err
+		}
+		if !ok {
+			if admin, err = p.parseUserName(); err != nil {
+				return nil, err
+			}
 		}
 		stmt.Admin = admin
 	}
