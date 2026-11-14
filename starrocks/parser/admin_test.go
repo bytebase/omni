@@ -34,7 +34,14 @@ func TestAlterSystemAddBackend_Single(t *testing.T) {
 }
 
 func TestAlterSystemAddBackend_WithProperties(t *testing.T) {
-	node := parseOne(t, `ALTER SYSTEM ADD BACKEND "doris-be01:9050" PROPERTIES ("tag.location" = "groupb")`)
+	// StarRocks.g4 addBackendClause takes no PROPERTIES (that is Doris's
+	// form); it takes INTO WAREHOUSE.
+	for _, sql := range []string{} {
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("%q parsed; want a syntax error", sql)
+		}
+	}
+	node := parseOne(t, `ALTER SYSTEM ADD BACKEND "doris-be01:9050" INTO WAREHOUSE w1`)
 	stmt := node.(*ast.SystemAlterStmt)
 	if stmt.Verb != "ADD" || stmt.Object != "BACKEND" {
 		t.Errorf("Verb=%q Object=%q, want ADD BACKEND", stmt.Verb, stmt.Object)
@@ -42,25 +49,19 @@ func TestAlterSystemAddBackend_WithProperties(t *testing.T) {
 	if len(stmt.Hosts) != 1 || stmt.Hosts[0] != "doris-be01:9050" {
 		t.Errorf("Hosts=%v, want [doris-be01:9050]", stmt.Hosts)
 	}
-	if len(stmt.Properties) != 1 {
-		t.Fatalf("Properties count=%d, want 1", len(stmt.Properties))
-	}
-	if stmt.Properties[0].Key != "tag.location" {
-		t.Errorf("Properties[0].Key=%q, want tag.location", stmt.Properties[0].Key)
-	}
-	if stmt.Properties[0].Value != "groupb" {
-		t.Errorf("Properties[0].Value=%q, want groupb", stmt.Properties[0].Value)
+	if stmt.Warehouse != "w1" {
+		t.Errorf("Warehouse=%q, want w1", stmt.Warehouse)
 	}
 }
 
 func TestAlterSystemAddBackend_ComputeGroup(t *testing.T) {
-	node := parseOne(t, `ALTER SYSTEM ADD BACKEND "192.168.0.3:9050" PROPERTIES ("tag.compute_group_name" = "cloud_groupc")`)
+	node := parseOne(t, `ALTER SYSTEM ADD COMPUTE NODE "192.168.0.3:9050", "192.168.0.4:9050"`)
 	stmt := node.(*ast.SystemAlterStmt)
-	if stmt.Verb != "ADD" || stmt.Object != "BACKEND" {
-		t.Errorf("Verb=%q Object=%q, want ADD BACKEND", stmt.Verb, stmt.Object)
+	if stmt.Verb != "ADD" || stmt.Object != "COMPUTE NODE" {
+		t.Errorf("Verb=%q Object=%q, want ADD COMPUTE NODE", stmt.Verb, stmt.Object)
 	}
-	if len(stmt.Properties) != 1 || stmt.Properties[0].Value != "cloud_groupc" {
-		t.Errorf("unexpected Properties: %v", stmt.Properties)
+	if len(stmt.Hosts) != 2 {
+		t.Errorf("Hosts=%v, want 2 entries", stmt.Hosts)
 	}
 }
 
@@ -523,12 +524,11 @@ func TestSystemAlterStmt_Tag(t *testing.T) {
 // Legacy corpus round-trips
 // ---------------------------------------------------------------------------
 
-// TestLegacyCorpus_Backend covers all statements from cluster_backend.sql.
+// TestLegacyCorpus_Backend covers all statements from cluster_backend.sql
+// that StarRocks's grammar derives.
 func TestLegacyCorpus_Backend(t *testing.T) {
 	cases := []string{
 		`ALTER SYSTEM ADD BACKEND "192.168.0.1:9050,192.168.0.2:9050"`,
-		`ALTER SYSTEM ADD BACKEND "doris-be01:9050" PROPERTIES ("tag.location" = "groupb")`,
-		`ALTER SYSTEM ADD BACKEND "192.168.0.3:9050" PROPERTIES ("tag.compute_group_name" = "cloud_groupc")`,
 		`ALTER SYSTEM DROP BACKEND "192.168.0.1:9050", "192.168.0.2:9050"`,
 		`ALTER SYSTEM DROP BACKEND "10002"`,
 		`ALTER SYSTEM DECOMMISSION BACKEND "192.168.0.1:9050", "192.168.0.2:9050"`,

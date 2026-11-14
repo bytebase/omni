@@ -79,6 +79,8 @@ type AlterMTMVStmt struct {
 	Replace       bool        // REPLACE WITH MATERIALIZED VIEW
 	ReplaceTarget *ObjectName // the other MV for REPLACE WITH
 	Properties    []*Property // for SET PROPERTIES
+	SwapWith      *ObjectName // for SWAP WITH other_mv
+	Status        string      // ACTIVE or INACTIVE
 	Loc           Loc
 }
 

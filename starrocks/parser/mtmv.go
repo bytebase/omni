@@ -331,16 +331,15 @@ func (p *Parser) parseRefreshAsyncSchedule() (*ast.MTMVRefreshTrigger, error) {
 	return trigger, nil
 }
 
-// parseAlterMTMV parses an ALTER MATERIALIZED VIEW statement.
+// parseAlterMTMV parses alterMaterializedViewStatement (StarRocks.g4:675).
 // On entry, ALTER has been consumed and cur is MATERIALIZED.
 //
-// Syntax:
+//	ALTER MATERIALIZED VIEW mvName=qualifiedName
+//	    ( refreshSchemeDesc | tableRenameClause | modifyPropertiesClause | swapTableClause )
+//	ALTER MATERIALIZED VIEW mvName=qualifiedName statusDesc
 //
-//	ALTER MATERIALIZED VIEW mv_name
-//	    { RENAME new_name
-//	    | REFRESH new_method
-//	    | REPLACE WITH MATERIALIZED VIEW other_mv
-//	    | SET PROPERTIES (...) }
+// Best-effort parsing also takes the Doris forms the fork began with
+// (REFRESH COMPLETE / AUTO / NEVER, REPLACE WITH MATERIALIZED VIEW).
 func (p *Parser) parseAlterMTMV(startLoc ast.Loc) (ast.Node, error) {
 	// Consume MATERIALIZED
 	if _, err := p.expect(kwMATERIALIZED); err != nil {
@@ -360,36 +359,48 @@ func (p *Parser) parseAlterMTMV(startLoc ast.Loc) (ast.Node, error) {
 	}
 	stmt.Name = name
 
-	// Action
-	switch p.cur.Kind {
-	case kwRENAME:
+	switch {
+	case p.cur.Kind == kwRENAME:
+		// StarRocks.g4:1012 tableRenameClause: RENAME identifier
 		p.advance() // consume RENAME
-		newName, err := p.parseMultipartIdentifier()
+		newName, loc, err := p.parseIdentifier()
 		if err != nil {
 			return nil, err
 		}
-		stmt.NewName = newName
-		stmt.Loc = startLoc.Merge(ast.NodeLoc(newName))
+		stmt.NewName = &ast.ObjectName{Parts: []string{newName}, Loc: loc}
 
-	case kwREFRESH:
-		p.advance() // consume REFRESH
-		switch p.cur.Kind {
-		case kwCOMPLETE:
-			stmt.RefreshMethod = "COMPLETE"
-		case kwAUTO:
-			stmt.RefreshMethod = "AUTO"
-		case kwNEVER:
-			stmt.RefreshMethod = "NEVER"
-		case kwINCREMENTAL:
-			stmt.RefreshMethod = "INCREMENTAL"
-		default:
-			stmt.RefreshMethod = strings.ToUpper(p.cur.Str)
+	case p.cur.Kind == kwREFRESH:
+		if err := p.parseAlterMTMVRefresh(stmt); err != nil {
+			return nil, err
 		}
-		stmt.Loc = startLoc.Merge(p.cur.Loc)
-		p.advance()
 
-	case kwREPLACE:
-		// REPLACE WITH MATERIALIZED VIEW other_mv
+	case p.cur.Kind == kwSET:
+		// StarRocks.g4:1020 modifyPropertiesClause: SET propertyList
+		p.advance() // consume SET
+		props, err := p.parseMTMVPropertyList()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Properties = props
+
+	case p.alterAt("SWAP"):
+		// StarRocks.g4:1016 swapTableClause: SWAP WITH identifier
+		p.advance()
+		if _, err := p.expect(kwWITH); err != nil {
+			return nil, err
+		}
+		other, loc, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		stmt.SwapWith = &ast.ObjectName{Parts: []string{other}, Loc: loc}
+
+	case p.alterAt("ACTIVE") || p.alterAt("INACTIVE"):
+		// StarRocks.g4:2694 statusDesc: ACTIVE | INACTIVE
+		stmt.Status = strings.ToUpper(p.advance().Str)
+
+	case p.cur.Kind == kwREPLACE && !p.strictTrailing:
+		// REPLACE WITH MATERIALIZED VIEW other_mv (Doris; best-effort only)
 		p.advance() // consume REPLACE
 		if _, err := p.expect(kwWITH); err != nil {
 			return nil, err
@@ -406,23 +417,83 @@ func (p *Parser) parseAlterMTMV(startLoc ast.Loc) (ast.Node, error) {
 		}
 		stmt.Replace = true
 		stmt.ReplaceTarget = target
-		stmt.Loc = startLoc.Merge(ast.NodeLoc(target))
-
-	case kwSET:
-		p.advance() // consume SET
-		// SET ("key"="val", ...) — parse the parenthesised key=value list directly.
-		props, err := p.parseMTMVPropertyList()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Properties = props
-		stmt.Loc = startLoc.Merge(p.prev.Loc)
 
 	default:
-		stmt.Loc = startLoc.Merge(p.cur.Loc)
+		return nil, p.syntaxErrorAtCur()
 	}
 
+	stmt.Loc = startLoc.Merge(p.prev.Loc)
 	return stmt, nil
+}
+
+// parseAlterMTMVRefresh reads refreshSchemeDesc (StarRocks.g4:2687):
+//
+//	REFRESH (IMMEDIATE | DEFERRED)? (ASYNC
+//	    | ASYNC (START '(' string ')')? EVERY '(' interval ')'
+//	    | INCREMENTAL
+//	    | MANUAL)
+//
+// The interval reads INTERVAL INTEGER_VALUE unitIdentifier: the engine
+// refuses EVERY (INTERVAL CURRENT_USER YEAR). cur is REFRESH.
+func (p *Parser) parseAlterMTMVRefresh(stmt *ast.AlterMTMVStmt) error {
+	p.advance() // consume REFRESH
+	if !p.strictTrailing {
+		switch p.cur.Kind {
+		case kwCOMPLETE, kwAUTO, kwNEVER:
+			// Doris refresh methods; best-effort only.
+			stmt.RefreshMethod = strings.ToUpper(p.advance().Str)
+			return nil
+		}
+	}
+	var method []string
+	if p.alterAt("IMMEDIATE") || p.alterAt("DEFERRED") {
+		method = append(method, strings.ToUpper(p.advance().Str))
+	}
+	switch {
+	case p.alterAt("ASYNC"):
+		method = append(method, "ASYNC")
+		p.advance()
+		if p.alterAt("START") {
+			p.advance()
+			if _, err := p.expect(int('(')); err != nil {
+				return err
+			}
+			if _, err := p.alterExpectString(); err != nil {
+				return err
+			}
+			if _, err := p.expect(int(')')); err != nil {
+				return err
+			}
+			if !p.alterAt("EVERY") {
+				return p.syntaxErrorAtCur()
+			}
+		}
+		if p.alterAt("EVERY") {
+			p.advance()
+			if _, err := p.expect(int('(')); err != nil {
+				return err
+			}
+			if _, err := p.expect(kwINTERVAL); err != nil {
+				return err
+			}
+			if _, err := p.alterExpectInt(); err != nil {
+				return err
+			}
+			if !alterIsUnitIdentifier(p.cur) {
+				return p.syntaxErrorAtCur()
+			}
+			p.advance()
+			if _, err := p.expect(int(')')); err != nil {
+				return err
+			}
+		}
+	case p.cur.Kind == kwINCREMENTAL, p.alterAt("MANUAL"):
+		method = append(method, strings.ToUpper(p.advance().Str))
+	default:
+		return p.syntaxErrorAtCur()
+	}
+	stmt.RefreshMethod = strings.Join(method, " ")
+	return nil
 }
 
 // parseDropMTMV parses a DROP MATERIALIZED VIEW statement.

@@ -365,6 +365,23 @@ func walkChildren(v Visitor, node Node) {
 		if n.Distribution != nil {
 			Walk(v, n.Distribution)
 		}
+		for _, col := range n.Columns {
+			if col != n.Column {
+				Walk(v, col)
+			}
+		}
+		if n.Where != nil {
+			Walk(v, n.Where)
+		}
+		if n.Index != nil {
+			Walk(v, n.Index)
+		}
+		if n.KeyDesc != nil {
+			Walk(v, n.KeyDesc)
+		}
+		if n.Call != nil {
+			Walk(v, n.Call)
+		}
 
 	// DDL — VIEW nodes (T2.4).
 	case *ViewColumn:
@@ -580,6 +597,9 @@ func walkChildren(v Visitor, node Node) {
 		}
 		if n.ReplaceTarget != nil {
 			Walk(v, n.ReplaceTarget)
+		}
+		if n.SwapWith != nil {
+			Walk(v, n.SwapWith)
 		}
 		for _, prop := range n.Properties {
 			Walk(v, prop)
@@ -889,6 +909,9 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, prop)
 		}
 	case *SystemAlterStmt:
+		if n.Clause != nil {
+			Walk(v, n.Clause)
+		}
 		for _, prop := range n.SetClause {
 			Walk(v, prop)
 		}

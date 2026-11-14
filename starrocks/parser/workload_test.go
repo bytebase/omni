@@ -470,7 +470,7 @@ func TestCreateExternalResource_Tag(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestAlterResource_Basic(t *testing.T) {
-	file, errs := parseForTest(`ALTER RESOURCE spark0 PROPERTIES("spark.executor.memory"="2g")`)
+	file, errs := parseForTest(`ALTER RESOURCE spark0 SET PROPERTIES("spark.executor.memory"="2g")`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -490,7 +490,7 @@ func TestAlterResource_Basic(t *testing.T) {
 }
 
 func TestAlterResource_Tag(t *testing.T) {
-	file, errs := parseForTest(`ALTER RESOURCE r1 PROPERTIES("type"="s3")`)
+	file, errs := parseForTest(`ALTER RESOURCE r1 SET PROPERTIES("type"="s3")`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}

@@ -227,30 +227,41 @@ var _ Node = (*RawQuery)(nil)
 type AlterActionType int
 
 const (
-	AlterActionUnknown      AlterActionType = iota
-	AlterAddColumn                          // ADD COLUMN col_def [AFTER col | FIRST]
-	AlterDropColumn                         // DROP COLUMN col
-	AlterModifyColumn                       // MODIFY COLUMN col_def [AFTER col | FIRST]
-	AlterModifyColumnAddField               // MODIFY COLUMN col ADD FIELD name type [FIRST|AFTER f]
-	AlterModifyColumnDropField              // MODIFY COLUMN col DROP FIELD path
-	AlterRenameColumn                       // RENAME COLUMN old TO new (or old new)
-	AlterRenameTable                        // RENAME TO new_name (or RENAME new_name)
-	AlterRenameRollup                       // RENAME ROLLUP old new
-	AlterRenamePartition                    // RENAME PARTITION old new
-	AlterAddPartition                       // ADD PARTITION ...
-	AlterDropPartition                      // DROP PARTITION name
-	AlterTruncatePartition                  // TRUNCATE PARTITION name
-	AlterReplacePartition                   // REPLACE PARTITION ... WITH TEMPORARY ...
-	AlterAddRollup                          // ADD ROLLUP name (cols) [FROM base] [PROPERTIES(...)]
-	AlterDropRollup                         // DROP ROLLUP name
-	AlterSetProperties                      // SET ("key"="value", ...)
-	AlterModifyPartition                    // MODIFY PARTITION p SET ("key"="val")
-	AlterModifyDistribution                 // MODIFY DISTRIBUTION DISTRIBUTED BY ...
-	AlterModifyComment                      // MODIFY COMMENT 'text'
-	AlterModifyEngine                       // MODIFY ENGINE TO engine
-	AlterEnableFeature                      // ENABLE FEATURE 'name' [WITH PROPERTIES (...)]
-	AlterOrderBy                            // ORDER BY (col1, col2, ...)
-	AlterRaw                                // fallback: raw text for unparsed actions
+	AlterActionUnknown         AlterActionType = iota
+	AlterAddColumn                             // ADD COLUMN col_def [AFTER col | FIRST]
+	AlterDropColumn                            // DROP COLUMN col
+	AlterModifyColumn                          // MODIFY COLUMN col_def [AFTER col | FIRST]
+	AlterModifyColumnAddField                  // MODIFY COLUMN col ADD FIELD name type [FIRST|AFTER f]
+	AlterModifyColumnDropField                 // MODIFY COLUMN col DROP FIELD path
+	AlterRenameColumn                          // RENAME COLUMN old TO new (or old new)
+	AlterRenameTable                           // RENAME TO new_name (or RENAME new_name)
+	AlterRenameRollup                          // RENAME ROLLUP old new
+	AlterRenamePartition                       // RENAME PARTITION old new
+	AlterAddPartition                          // ADD PARTITION ...
+	AlterDropPartition                         // DROP PARTITION name
+	AlterTruncatePartition                     // TRUNCATE PARTITION name
+	AlterReplacePartition                      // REPLACE PARTITION ... WITH TEMPORARY ...
+	AlterAddRollup                             // ADD ROLLUP name (cols) [FROM base] [PROPERTIES(...)]
+	AlterDropRollup                            // DROP ROLLUP name
+	AlterSetProperties                         // SET ("key"="value", ...)
+	AlterModifyPartition                       // MODIFY PARTITION p SET ("key"="val")
+	AlterModifyDistribution                    // MODIFY DISTRIBUTION DISTRIBUTED BY ...
+	AlterModifyComment                         // MODIFY COMMENT 'text'
+	AlterModifyEngine                          // MODIFY ENGINE TO engine
+	AlterEnableFeature                         // ENABLE FEATURE 'name' [WITH PROPERTIES (...)]
+	AlterOrderBy                               // ORDER BY (col1, col2, ...)
+	AlterRaw                                   // fallback: raw text for unparsed actions
+	AlterOptimize                              // [partitionNames] [keyDesc] [ORDER BY (cols)] [distributionDesc]
+	AlterAddIndex                              // ADD INDEX name (cols) [USING type [(props)]] [COMMENT 'c']
+	AlterDropIndex                             // DROP INDEX name
+	AlterSwapTable                             // SWAP WITH name
+	AlterCompact                               // [BASE | CUMULATIVE] COMPACT [name | (names)]
+	AlterCreateBranch                          // CREATE [OR REPLACE] BRANCH / REPLACE BRANCH name ...
+	AlterCreateTag                             // CREATE [OR REPLACE] TAG / REPLACE TAG name ...
+	AlterDropBranch                            // DROP BRANCH [IF EXISTS] name
+	AlterDropTag                               // DROP TAG [IF EXISTS] name
+	AlterTableOperation                        // EXECUTE function_call
+	AlterDropPersistentIndex                   // DROP PERSISTENT INDEX ON TABLETS (ids)
 )
 
 // AlterTableAction represents a single action in an ALTER TABLE statement.
@@ -275,8 +286,8 @@ type AlterTableAction struct {
 	PartitionList []string       // for MODIFY PARTITION (p1, p2) or (*)
 	PartitionStar bool           // MODIFY PARTITION (*)
 	// ADD PARTITION extras:
-	PartitionDist *DistributionDesc // optional DISTRIBUTED BY after ADD PARTITION
-	PartitionProps []*Property      // optional properties after ADD PARTITION
+	PartitionDist  *DistributionDesc // optional DISTRIBUTED BY after ADD PARTITION
+	PartitionProps []*Property       // optional properties after ADD PARTITION
 	// Rollup actions:
 	Rollup     *RollupDef // for ADD ROLLUP
 	RollupName string     // for DROP ROLLUP / RENAME ROLLUP (old name)
@@ -294,7 +305,37 @@ type AlterTableAction struct {
 	OrderByColumns []string
 	// Raw text for unsupported/complex actions:
 	RawText string
-	Loc     Loc
+
+	// Columns holds every column of ADD COLUMN (col, ...); Column is the first.
+	Columns []*ColumnDef
+	// Temporary marks a TEMPORARY partition (ADD/DROP/REPLACE/optimize).
+	Temporary bool
+	// IfExists / IfNotExists record IF [NOT] EXISTS.
+	IfExists    bool
+	IfNotExists bool
+	// Force records a trailing FORCE (DROP PARTITION ... FORCE).
+	Force bool
+	// TempPartitionList holds the partitions after REPLACE ... WITH.
+	TempPartitionList []string
+	// Where is the DROP PARTITIONS WHERE condition.
+	Where Node
+	// Index is the ADD INDEX definition; IndexName the DROP INDEX name.
+	Index     *IndexDef
+	IndexName string
+	// KeyDesc is the key description of an optimize clause.
+	KeyDesc *KeyDesc
+	// CompactType is "BASE", "CUMULATIVE" or "" for COMPACT.
+	CompactType string
+	// RefName names the branch or tag; OrReplace records CREATE OR REPLACE
+	// or REPLACE.
+	RefName   string
+	OrReplace bool
+	// Call is the function call of EXECUTE.
+	Call Node
+	// TabletIDs lists DROP PERSISTENT INDEX ON TABLETS (ids).
+	TabletIDs []int64
+
+	Loc Loc
 }
 
 // Tag implements Node.
@@ -358,11 +399,13 @@ var _ Node = (*CreateViewStmt)(nil)
 // AlterViewStmt represents:
 //
 //	ALTER VIEW view_name [(col1 [COMMENT 'text'], ...)] AS query
+//	ALTER VIEW view_name SET SECURITY (NONE | INVOKER)
 type AlterViewStmt struct {
-	Name    *ObjectName
-	Columns []*ViewColumn
-	Query   Node
-	Loc     Loc
+	Name     *ObjectName
+	Columns  []*ViewColumn
+	Query    Node
+	Security string // NONE or INVOKER for SET SECURITY; Query is nil then
+	Loc      Loc
 }
 
 // Tag implements Node.

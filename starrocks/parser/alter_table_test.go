@@ -268,24 +268,20 @@ func TestAlterTableModifyColumn(t *testing.T) {
 func TestAlterTableRename(t *testing.T) {
 	cases := []alterTableTestCase{
 		{
-			sql: "ALTER TABLE t RENAME TO new_name",
-			check: func(t *testing.T, stmt *ast.AlterTableStmt) {
-				a := stmt.Actions[0]
-				if a.Type != ast.AlterRenameTable {
-					t.Errorf("expected AlterRenameTable, got %v", a.Type)
-				}
-				if a.NewTableName == nil || a.NewTableName.Parts[0] != "new_name" {
-					t.Errorf("expected new_name, got %v", a.NewTableName)
-				}
-			},
+			// StarRocks.g4 tableRenameClause is RENAME identifier; TO is
+			// reserved, so RENAME TO is Doris's form only.
+			sql:     "ALTER TABLE t RENAME TO new_name",
+			wantErr: true,
 		},
 		{
-			// RENAME without TO
 			sql: "ALTER TABLE table1 RENAME table2",
 			check: func(t *testing.T, stmt *ast.AlterTableStmt) {
 				a := stmt.Actions[0]
 				if a.Type != ast.AlterRenameTable {
 					t.Errorf("expected AlterRenameTable, got %v", a.Type)
+				}
+				if a.NewTableName == nil || a.NewTableName.Parts[0] != "table2" {
+					t.Errorf("expected table2, got %v", a.NewTableName)
 				}
 			},
 		},
@@ -320,7 +316,13 @@ func TestAlterTableRename(t *testing.T) {
 			},
 		},
 		{
-			sql: "ALTER TABLE example_table RENAME COLUMN c1 c2",
+			// columnRenameClause takes TO between the names (the engine
+			// rejects ALTER SYSTEM RENAME COLUMN a a).
+			sql:     "ALTER TABLE example_table RENAME COLUMN c1 c2",
+			wantErr: true,
+		},
+		{
+			sql: "ALTER TABLE example_table RENAME COLUMN c1 TO c2",
 			check: func(t *testing.T, stmt *ast.AlterTableStmt) {
 				a := stmt.Actions[0]
 				if a.Type != ast.AlterRenameColumn {
@@ -611,7 +613,8 @@ func TestAlterTableSetProperties(t *testing.T) {
 func TestAlterTableModifyMisc(t *testing.T) {
 	cases := []alterTableTestCase{
 		{
-			sql: `ALTER TABLE example_db.my_table MODIFY COMMENT "new comment"`,
+			// StarRocks.g4 modifyCommentClause: COMMENT '=' string.
+			sql: `ALTER TABLE example_db.my_table COMMENT = "new comment"`,
 			check: func(t *testing.T, stmt *ast.AlterTableStmt) {
 				a := stmt.Actions[0]
 				if a.Type != ast.AlterModifyComment {
@@ -623,11 +626,12 @@ func TestAlterTableModifyMisc(t *testing.T) {
 			},
 		},
 		{
-			sql: `ALTER TABLE example_db.my_table MODIFY DISTRIBUTION DISTRIBUTED BY HASH(k1) BUCKETS 50`,
+			// StarRocks.g4 optimizeClause ... distributionDesc.
+			sql: `ALTER TABLE example_db.my_table DISTRIBUTED BY HASH(k1) BUCKETS 50`,
 			check: func(t *testing.T, stmt *ast.AlterTableStmt) {
 				a := stmt.Actions[0]
-				if a.Type != ast.AlterModifyDistribution {
-					t.Errorf("expected AlterModifyDistribution, got %v", a.Type)
+				if a.Type != ast.AlterOptimize {
+					t.Errorf("expected AlterOptimize, got %v", a.Type)
 				}
 				if a.Distribution == nil {
 					t.Fatal("expected distribution")
@@ -637,6 +641,10 @@ func TestAlterTableModifyMisc(t *testing.T) {
 				}
 			},
 		},
+		// Doris's MODIFY COMMENT and MODIFY DISTRIBUTION are not StarRocks
+		// alterClause alternatives.
+		{sql: `ALTER TABLE example_db.my_table MODIFY COMMENT "new comment"`, wantErr: true},
+		{sql: `ALTER TABLE example_db.my_table MODIFY DISTRIBUTION DISTRIBUTED BY HASH(k1) BUCKETS 50`, wantErr: true},
 	}
 	runAlterTableTests(t, cases)
 }
@@ -644,34 +652,11 @@ func TestAlterTableModifyMisc(t *testing.T) {
 // ---- ENABLE FEATURE ----
 
 func TestAlterTableEnableFeature(t *testing.T) {
+	// ENABLE FEATURE is Doris's; StarRocks's alterClause has no such
+	// alternative.
 	cases := []alterTableTestCase{
-		{
-			sql: `ALTER TABLE example_db.my_table ENABLE FEATURE "BATCH_DELETE"`,
-			check: func(t *testing.T, stmt *ast.AlterTableStmt) {
-				a := stmt.Actions[0]
-				if a.Type != ast.AlterEnableFeature {
-					t.Errorf("expected AlterEnableFeature, got %v", a.Type)
-				}
-				if a.FeatureName != "BATCH_DELETE" {
-					t.Errorf("expected feature 'BATCH_DELETE', got %q", a.FeatureName)
-				}
-			},
-		},
-		{
-			sql: `ALTER TABLE example_db.my_table ENABLE FEATURE "SEQUENCE_LOAD" WITH PROPERTIES ("function_column.sequence_type" = "Date")`,
-			check: func(t *testing.T, stmt *ast.AlterTableStmt) {
-				a := stmt.Actions[0]
-				if a.Type != ast.AlterEnableFeature {
-					t.Errorf("expected AlterEnableFeature")
-				}
-				if a.FeatureName != "SEQUENCE_LOAD" {
-					t.Errorf("expected feature 'SEQUENCE_LOAD', got %q", a.FeatureName)
-				}
-				if len(a.Properties) == 0 {
-					t.Error("expected properties")
-				}
-			},
-		},
+		{sql: `ALTER TABLE example_db.my_table ENABLE FEATURE "BATCH_DELETE"`, wantErr: true},
+		{sql: `ALTER TABLE example_db.my_table ENABLE FEATURE "SEQUENCE_LOAD" WITH PROPERTIES ("function_column.sequence_type" = "Date")`, wantErr: true},
 	}
 	runAlterTableTests(t, cases)
 }
@@ -711,7 +696,13 @@ func TestAlterTableMultipleActions(t *testing.T) {
 			},
 		},
 		{
-			sql: `ALTER TABLE example_db.my_table MODIFY COLUMN k1 COMMENT "k1", MODIFY COLUMN k2 COMMENT "k2"`,
+			// A column of MODIFY COLUMN needs its type (the engine rejects
+			// ALTER SYSTEM MODIFY COLUMN a).
+			sql:     `ALTER TABLE example_db.my_table MODIFY COLUMN k1 COMMENT "k1", MODIFY COLUMN k2 COMMENT "k2"`,
+			wantErr: true,
+		},
+		{
+			sql: `ALTER TABLE example_db.my_table MODIFY COLUMN k1 INT COMMENT "k1", MODIFY COLUMN k2 INT COMMENT "k2"`,
 			check: func(t *testing.T, stmt *ast.AlterTableStmt) {
 				if len(stmt.Actions) != 2 {
 					t.Fatalf("expected 2 actions, got %d", len(stmt.Actions))
@@ -732,23 +723,30 @@ func TestAlterTableMultipleActions(t *testing.T) {
 func TestAlterTableReplacePartition(t *testing.T) {
 	cases := []alterTableTestCase{
 		{
-			sql: "ALTER TABLE tbl1 REPLACE WITH TABLE tbl2",
-			// This is REPLACE WITH TABLE, not REPLACE PARTITION — should produce AlterRaw
+			sql: "ALTER TABLE tbl1 REPLACE PARTITION (p1, p2) WITH TEMPORARY PARTITION (tp1, tp2)",
 			check: func(t *testing.T, stmt *ast.AlterTableStmt) {
-				if len(stmt.Actions) == 0 {
-					t.Fatal("expected at least 1 action")
+				a := stmt.Actions[0]
+				if a.Type != ast.AlterReplacePartition {
+					t.Errorf("expected AlterReplacePartition, got %v", a.Type)
 				}
-				// REPLACE WITH TABLE falls through to raw
+				if len(a.PartitionList) != 2 || len(a.TempPartitionList) != 2 {
+					t.Errorf("expected 2 and 2 partitions, got %v and %v", a.PartitionList, a.TempPartitionList)
+				}
 			},
 		},
 		{
-			sql: "ALTER TABLE tbl1 REPLACE WITH TABLE tbl2 PROPERTIES('swap' = 'true')",
+			// StarRocks.g4 swapTableClause, StarRocks's form of Doris's
+			// REPLACE WITH TABLE.
+			sql: "ALTER TABLE tbl1 SWAP WITH tbl2",
 			check: func(t *testing.T, stmt *ast.AlterTableStmt) {
-				if len(stmt.Actions) == 0 {
-					t.Fatal("expected at least 1 action")
+				a := stmt.Actions[0]
+				if a.Type != ast.AlterSwapTable || a.NewName != "tbl2" {
+					t.Errorf("expected AlterSwapTable tbl2, got %v %q", a.Type, a.NewName)
 				}
 			},
 		},
+		{sql: "ALTER TABLE tbl1 REPLACE WITH TABLE tbl2", wantErr: true},
+		{sql: "ALTER TABLE tbl1 REPLACE WITH TABLE tbl2 PROPERTIES('swap' = 'true')", wantErr: true},
 	}
 	runAlterTableTests(t, cases)
 }
@@ -846,11 +844,12 @@ func TestAlterTableLegacyProperty(t *testing.T) {
 		{sql: `ALTER TABLE example_db.my_table SET ("dynamic_partition.enable" = "false")`},
 		{sql: `ALTER TABLE example_db.my_table SET ("dynamic_partition.enable" = "true", "dynamic_partition.time_unit" = "DAY", "dynamic_partition.end" = "3", "dynamic_partition.prefix" = "p", "dynamic_partition.buckets" = "32")`},
 		{sql: `ALTER TABLE example_db.my_table SET ("in_memory" = "false")`},
-		{sql: `ALTER TABLE example_db.my_table ENABLE FEATURE "BATCH_DELETE"`},
-		{sql: `ALTER TABLE example_db.my_table ENABLE FEATURE "SEQUENCE_LOAD" WITH PROPERTIES ("function_column.sequence_type" = "Date")`},
-		{sql: `ALTER TABLE example_db.my_table MODIFY DISTRIBUTION DISTRIBUTED BY HASH(k1) BUCKETS 50`},
-		{sql: `ALTER TABLE example_db.my_table MODIFY COMMENT "new comment"`},
-		{sql: `ALTER TABLE example_db.my_table MODIFY COLUMN k1 COMMENT "k1", MODIFY COLUMN k2 COMMENT "k2"`},
+		// Doris forms StarRocks's alterClause does not derive.
+		{sql: `ALTER TABLE example_db.my_table ENABLE FEATURE "BATCH_DELETE"`, wantErr: true},
+		{sql: `ALTER TABLE example_db.my_table ENABLE FEATURE "SEQUENCE_LOAD" WITH PROPERTIES ("function_column.sequence_type" = "Date")`, wantErr: true},
+		{sql: `ALTER TABLE example_db.my_table MODIFY DISTRIBUTION DISTRIBUTED BY HASH(k1) BUCKETS 50`, wantErr: true},
+		{sql: `ALTER TABLE example_db.my_table MODIFY COMMENT "new comment"`, wantErr: true},
+		{sql: `ALTER TABLE example_db.my_table MODIFY COLUMN k1 COMMENT "k1", MODIFY COLUMN k2 COMMENT "k2"`, wantErr: true},
 		{sql: `ALTER TABLE example_db.mysql_table SET ("replication_num" = "2")`},
 		{sql: `ALTER TABLE example_db.mysql_table SET ("default.replication_num" = "2")`},
 		{sql: `ALTER TABLE example_db.mysql_table SET ("replication_allocation" = "tag.location.default: 1")`},
@@ -867,16 +866,19 @@ func TestAlterTableLegacyRename(t *testing.T) {
 		{sql: `ALTER TABLE table1 RENAME table2`},
 		{sql: `ALTER TABLE example_table RENAME ROLLUP rollup1 rollup2`},
 		{sql: `ALTER TABLE example_table RENAME PARTITION p1 p2`},
-		{sql: `ALTER TABLE example_table RENAME COLUMN c1 c2`},
+		{sql: `ALTER TABLE example_table RENAME COLUMN c1 TO c2`},
+		{sql: `ALTER TABLE example_table RENAME COLUMN c1 c2`, wantErr: true},
 	}
 	runAlterTableTests(t, cases)
 }
 
 func TestAlterTableLegacyReplace(t *testing.T) {
 	cases := []alterTableTestCase{
-		{sql: `ALTER TABLE tbl1 REPLACE WITH TABLE tbl2`},
-		{sql: `ALTER TABLE tbl1 REPLACE WITH TABLE tbl2 PROPERTIES('swap' = 'true')`},
-		{sql: `ALTER TABLE tbl1 REPLACE WITH TABLE tbl2 PROPERTIES('swap' = 'false')`},
+		// Doris's REPLACE WITH TABLE; StarRocks swaps with SWAP WITH.
+		{sql: `ALTER TABLE tbl1 REPLACE WITH TABLE tbl2`, wantErr: true},
+		{sql: `ALTER TABLE tbl1 REPLACE WITH TABLE tbl2 PROPERTIES('swap' = 'true')`, wantErr: true},
+		{sql: `ALTER TABLE tbl1 REPLACE WITH TABLE tbl2 PROPERTIES('swap' = 'false')`, wantErr: true},
+		{sql: `ALTER TABLE tbl1 SWAP WITH tbl2`},
 	}
 	runAlterTableTests(t, cases)
 }
