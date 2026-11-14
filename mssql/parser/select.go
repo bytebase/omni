@@ -341,33 +341,37 @@ func (p *Parser) parseSelectOperand(loc int, withClause *nodes.WithClause) (*nod
 	if p.cur.Type == kwOFFSET {
 		p.advance()
 		// Completion: after OFFSET → numeric context (no specific candidates)
+		// OFFSET n { ROW | ROWS } [ FETCH { FIRST | NEXT } n { ROW | ROWS }
+		// ONLY ], every word required (offsetClause, TSql160.g; the ORDER BY
+		// docs page).
 		stmt.OffsetClause, err = p.parseExpr()
 		if err != nil {
 			return nil, err
 		}
-		// Consume optional ROWS/ROW
-		if p.cur.Type == kwROWS || p.cur.Type == kwROW {
-			p.advance()
+		if stmt.OffsetClause == nil {
+			return nil, p.syntaxErrorAtCur()
 		}
-		// FETCH NEXT n ROWS ONLY
+		if _, ok := p.match(kwROWS, kwROW); !ok {
+			return nil, p.syntaxErrorAtCur()
+		}
 		if p.cur.Type == kwFETCH {
 			fetchLoc := p.pos()
 			p.advance()
-			// NEXT or FIRST
-			if p.cur.Type == kwNEXT || p.cur.Type == kwFIRST {
-				p.advance()
+			if _, ok := p.match(kwNEXT, kwFIRST); !ok {
+				return nil, p.syntaxErrorAtCur()
 			}
 			count, err := p.parseExpr()
 			if err != nil {
 				return nil, err
 			}
-			// ROWS/ROW
-			if p.cur.Type == kwROWS || p.cur.Type == kwROW {
-				p.advance()
+			if count == nil {
+				return nil, p.syntaxErrorAtCur()
 			}
-			// ONLY
-			if p.cur.Type == kwONLY {
-				p.advance()
+			if _, ok := p.match(kwROWS, kwROW); !ok {
+				return nil, p.syntaxErrorAtCur()
+			}
+			if _, err := p.expect(kwONLY); err != nil {
+				return nil, err
 			}
 			stmt.FetchClause = &nodes.FetchClause{
 				Count: count,
@@ -762,7 +766,9 @@ func (p *Parser) parseTargetList() (*nodes.List, error) {
 				}
 				continue
 			}
-			if p.isIdentLike() && !p.isBareAliasExcluded() {
+			if (p.isIdentLike() && !p.isBareAliasExcluded()) || p.cur.Type == tokSCONST || p.cur.Type == tokNSCONST {
+				// 'alias' = expression takes a string as the alias
+				// (selectColumnOrVariable, TSql160.g).
 				aliasLoc := p.pos()
 				alias := p.cur.Str
 				p.advance() // consume ident
@@ -770,6 +776,9 @@ func (p *Parser) parseTargetList() (*nodes.List, error) {
 				rhs, err := p.parseExpr()
 				if err != nil {
 					return nil, err
+				}
+				if rhs == nil {
+					return nil, p.syntaxErrorAtCur()
 				}
 				targets = append(targets, &nodes.ResTarget{
 					Name: alias,
@@ -805,15 +814,25 @@ func (p *Parser) parseTargetList() (*nodes.List, error) {
 		// Reserved keywords (CoreKeyword) cannot be unquoted aliases per T-SQL —
 		// writing `SELECT x AS FROM` requires `AS [FROM]` which the lexer emits
 		// as tokIDENT and thus already passes isIdentLike.
+		// A column alias may be a string, with or without AS (SQL Server takes
+		// SELECT 1 'a' and SELECT 1 AS N'a'); AS needs an alias, and * takes
+		// none (Msg 102).
+		_, star := expr.(*nodes.StarExpr)
 		if _, ok := p.match(kwAS); ok {
-			if p.isIdentLike() {
-				aliasLoc := p.pos()
-				target.Name = p.cur.Str
-				p.advance()
-				if p.completing {
-					p.addSelectAliasPosition(aliasLoc)
-				}
+			if star || (!p.isIdentLike() && p.cur.Type != tokSCONST && p.cur.Type != tokNSCONST) {
+				return nil, p.syntaxErrorAtCur()
 			}
+			aliasLoc := p.pos()
+			target.Name = p.cur.Str
+			p.advance()
+			if p.completing {
+				p.addSelectAliasPosition(aliasLoc)
+			}
+		} else if star {
+			// no alias
+		} else if p.cur.Type == tokSCONST || p.cur.Type == tokNSCONST {
+			target.Name = p.cur.Str
+			p.advance()
 		} else if p.isIdentLike() && !p.isBareAliasExcluded() {
 			aliasLoc := p.pos()
 			target.Name = p.cur.Str
@@ -2051,8 +2070,12 @@ func (p *Parser) parseForClause() (*nodes.ForClause, error) {
 			p.addRuleCandidate("xml_mode") // PATH, RAW, AUTO, EXPLICIT
 			return nil, errCollecting
 		}
-		// RAW, AUTO, EXPLICIT, PATH — SqlScriptDOM ForXmlMode enum.
-		if p.isValidOption(forXmlModes) {
+		// RAW, AUTO, EXPLICIT, PATH — SqlScriptDOM ForXmlMode enum; SQL
+		// Server requires one (Msg 102 on FOR XML alone).
+		if !p.isValidOption(forXmlModes) {
+			return nil, p.syntaxErrorAtCur()
+		}
+		{
 			fc.SubMode = strings.ToUpper(p.cur.Str)
 			p.advance()
 			// RAW('ElementName') or PATH('ElementName')
@@ -2079,8 +2102,11 @@ func (p *Parser) parseForClause() (*nodes.ForClause, error) {
 			p.addRuleCandidate("json_mode") // PATH, AUTO
 			return nil, errCollecting
 		}
-		// AUTO or PATH — SqlScriptDOM ForJsonMode enum.
-		if p.isValidOption(forJsonModes) {
+		// AUTO or PATH — SqlScriptDOM ForJsonMode enum, required.
+		if !p.isValidOption(forJsonModes) {
+			return nil, p.syntaxErrorAtCur()
+		}
+		{
 			fc.SubMode = strings.ToUpper(p.cur.Str)
 			p.advance()
 		}
@@ -2381,12 +2407,18 @@ func (p *Parser) parseWindowClause() (*nodes.List, error) {
 	p.advance() // consume WINDOW
 
 	var defs []nodes.Node
+	seen := map[string]bool{}
 	for {
 		loc := p.pos()
 		name, ok := p.parseIdentifier()
 		if !ok {
-			break
+			return nil, p.syntaxErrorAtCur()
 		}
+		// SQL Server refuses a window name defined twice (Msg 4123).
+		if seen[strings.ToLower(name)] {
+			return nil, &ParseError{Message: "window name " + name + " is defined twice", Position: loc}
+		}
+		seen[strings.ToLower(name)] = true
 		def := &nodes.WindowDef{
 			Name: name,
 			Loc:  nodes.Loc{Start: loc, End: -1},
@@ -2399,52 +2431,11 @@ func (p *Parser) parseWindowClause() (*nodes.List, error) {
 			return nil, err
 		}
 
-		// Optional existing_window_name (must be an ident not followed by keyword like PARTITION, ORDER)
-		if p.cur.Type != kwPARTITION && p.cur.Type != kwORDER &&
-			p.cur.Type != kwROWS && p.cur.Type != kwRANGE && p.cur.Type != kwGROUPS &&
-			p.cur.Type != ')' && p.isIdentLike() {
-			next := p.peekNext()
-			// If next token is a clause keyword or ), this is a refname
-			if next.Type == kwPARTITION || next.Type == kwORDER ||
-				next.Type == kwROWS || next.Type == kwRANGE || next.Type == kwGROUPS ||
-				next.Type == ')' {
-				def.RefName = p.cur.Str
-				p.advance()
-			}
+		spec, err := p.parseWindowSpecBody(false)
+		if err != nil {
+			return nil, err
 		}
-
-		// PARTITION BY
-		if p.cur.Type == kwPARTITION {
-			p.advance()
-			if _, err := p.expect(kwBY); err == nil {
-				var err error
-				def.PartitionBy, err = p.parseExprList()
-				if err != nil {
-					return nil, err
-				}
-			}
-		}
-
-		// ORDER BY
-		if p.cur.Type == kwORDER {
-			p.advance()
-			if _, err := p.expect(kwBY); err == nil {
-				var err error
-				def.OrderBy, err = p.parseOrderByList()
-				if err != nil {
-					return nil, err
-				}
-			}
-		}
-
-		// Window frame: ROWS | RANGE | GROUPS
-		if p.cur.Type == kwROWS || p.cur.Type == kwRANGE || p.cur.Type == kwGROUPS {
-			var err error
-			def.Frame, err = p.parseWindowFrame()
-			if err != nil {
-				return nil, err
-			}
-		}
+		def.RefName, def.PartitionBy, def.OrderBy, def.Frame = spec.ref, spec.partitionBy, spec.orderBy, spec.frame
 
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
@@ -2457,9 +2448,6 @@ func (p *Parser) parseWindowClause() (*nodes.List, error) {
 		}
 	}
 
-	if len(defs) == 0 {
-		return nil, nil
-	}
 	return &nodes.List{Items: defs}, nil
 }
 
@@ -2753,6 +2741,25 @@ var queryHintForceDisableSuffix = newOptionSet().withIdents(
 	"SCALEOUTEXECUTION",
 )
 
+// queryHintUseHintNames are the names USE HINT takes: sys.dm_exec_valid_use_hints
+// on the pinned server (../testdata/pins.tsv).
+var queryHintUseHintNames = map[string]bool{
+	"ASSUME_FULL_INDEPENDENCE_FOR_FILTER_ESTIMATES": true, "ASSUME_JOIN_PREDICATE_DEPENDS_ON_FILTERS": true,
+	"ASSUME_MIN_SELECTIVITY_FOR_FILTER_ESTIMATES": true, "ASSUME_PARTIAL_CORRELATION_FOR_FILTER_ESTIMATES": true,
+	"DISABLE_BATCH_MODE_ADAPTIVE_JOINS": true, "DISABLE_BATCH_MODE_MEMORY_GRANT_FEEDBACK": true,
+	"DISABLE_CE_FEEDBACK": true, "DISABLE_DEFERRED_COMPILATION_TV": true, "DISABLE_DOP_FEEDBACK": true,
+	"DISABLE_INTERLEAVED_EXECUTION_TVF": true, "DISABLE_MEMORY_GRANT_FEEDBACK_PERSISTENCE": true,
+	"DISABLE_OPTIMIZED_NESTED_LOOP": true, "DISABLE_OPTIMIZED_PLAN_FORCING": true, "DISABLE_OPTIMIZER_ROWGOAL": true,
+	"DISABLE_PARAMETER_SNIFFING": true, "DISABLE_ROW_MODE_MEMORY_GRANT_FEEDBACK": true,
+	"DISABLE_TSQL_SCALAR_UDF_INLINING": true, "DISALLOW_BATCH_MODE": true, "ENABLE_HIST_AMENDMENT_FOR_ASC_KEYS": true,
+	"ENABLE_QUERY_OPTIMIZER_HOTFIXES": true, "FORCE_DEFAULT_CARDINALITY_ESTIMATION": true,
+	"FORCE_LEGACY_CARDINALITY_ESTIMATION": true, "QUERY_OPTIMIZER_COMPATIBILITY_LEVEL_100": true,
+	"QUERY_OPTIMIZER_COMPATIBILITY_LEVEL_110": true, "QUERY_OPTIMIZER_COMPATIBILITY_LEVEL_120": true,
+	"QUERY_OPTIMIZER_COMPATIBILITY_LEVEL_130": true, "QUERY_OPTIMIZER_COMPATIBILITY_LEVEL_140": true,
+	"QUERY_OPTIMIZER_COMPATIBILITY_LEVEL_150": true, "QUERY_OPTIMIZER_COMPATIBILITY_LEVEL_160": true,
+	"QUERY_OPTIMIZER_COMPATIBILITY_LEVEL_170": true, "QUERY_PLAN_PROFILE": true,
+}
+
 // queryHintParameterizationMode defines valid modes after PARAMETERIZATION.
 var queryHintParameterizationMode = newOptionSet().withIdents(
 	"SIMPLE",
@@ -2827,14 +2834,12 @@ func (p *Parser) parseOptionClause() (*nodes.List, error) {
 	}
 
 	var hints []nodes.Node
-	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+	for {
 		hint, err := p.parseQueryHint()
 		if err != nil {
 			return nil, err
 		}
-		if hint != nil {
-			hints = append(hints, hint)
-		}
+		hints = append(hints, hint)
 		if _, ok := p.match(','); !ok {
 			break
 		}
@@ -2898,14 +2903,15 @@ func (p *Parser) parseQueryHint() (nodes.Node, error) {
 			if p.cur.Type == '(' {
 				p.advance()
 				var params []nodes.Node
-				for p.cur.Type != ')' && p.cur.Type != tokEOF {
+				for {
 					param, err := p.parseOptimizeForParam()
 					if err != nil {
 						return nil, err
 					}
-					if param != nil {
-						params = append(params, param)
+					if param == nil {
+						return nil, p.syntaxErrorAtCur()
 					}
+					params = append(params, param)
 					if _, ok := p.match(','); !ok {
 						break
 					}
@@ -2920,7 +2926,7 @@ func (p *Parser) parseQueryHint() (nodes.Node, error) {
 				return hint, nil
 			}
 		}
-		return &nodes.QueryHint{Kind: "OPTIMIZE", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
+		return nil, p.syntaxErrorAtCur()
 
 	case p.cur.Type == kwLOOP || p.cur.Type == kwHASH || p.cur.Type == kwMERGE:
 		prefix := strings.ToUpper(p.cur.Str)
@@ -2935,7 +2941,7 @@ func (p *Parser) parseQueryHint() (nodes.Node, error) {
 			p.advance()
 			return &nodes.QueryHint{Kind: prefix + " GROUP", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 		}
-		return &nodes.QueryHint{Kind: prefix, Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
+		return nil, p.syntaxErrorAtCur()
 
 	case p.cur.Type == kwCONCAT:
 		p.advance()
@@ -2943,7 +2949,7 @@ func (p *Parser) parseQueryHint() (nodes.Node, error) {
 			p.advance()
 			return &nodes.QueryHint{Kind: "CONCAT UNION", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 		}
-		return &nodes.QueryHint{Kind: "CONCAT", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
+		return nil, p.syntaxErrorAtCur()
 
 	case p.cur.Type == kwORDER:
 		p.advance()
@@ -2951,7 +2957,7 @@ func (p *Parser) parseQueryHint() (nodes.Node, error) {
 			p.advance()
 			return &nodes.QueryHint{Kind: "ORDER GROUP", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 		}
-		return &nodes.QueryHint{Kind: "ORDER", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
+		return nil, p.syntaxErrorAtCur()
 
 	case p.cur.Type == kwFORCE:
 		p.advance()
@@ -2963,12 +2969,15 @@ func (p *Parser) parseQueryHint() (nodes.Node, error) {
 			p.advance()
 			return &nodes.QueryHint{Kind: "FORCE " + suffix, Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 		}
-		return &nodes.QueryHint{Kind: "FORCE", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
+		return nil, p.syntaxErrorAtCur()
 
 	case p.cur.Type == kwMAXDOP:
 		p.advance()
 		hint := &nodes.QueryHint{Kind: "MAXDOP", Loc: nodes.Loc{Start: loc, End: -1}}
-		if p.cur.Type == tokICONST {
+		if p.cur.Type != tokICONST {
+			return nil, p.syntaxErrorAtCur()
+		}
+		{
 			var err error
 			hint.Value, err = p.parsePrimary()
 			if err != nil {
@@ -2981,7 +2990,10 @@ func (p *Parser) parseQueryHint() (nodes.Node, error) {
 	case p.cur.Type == kwMAXRECURSION:
 		p.advance()
 		hint := &nodes.QueryHint{Kind: "MAXRECURSION", Loc: nodes.Loc{Start: loc, End: -1}}
-		if p.cur.Type == tokICONST {
+		if p.cur.Type != tokICONST {
+			return nil, p.syntaxErrorAtCur()
+		}
+		{
 			var err error
 			hint.Value, err = p.parsePrimary()
 			if err != nil {
@@ -2994,7 +3006,10 @@ func (p *Parser) parseQueryHint() (nodes.Node, error) {
 	case p.cur.Type == kwFAST:
 		p.advance()
 		hint := &nodes.QueryHint{Kind: "FAST", Loc: nodes.Loc{Start: loc, End: -1}}
-		if p.cur.Type == tokICONST {
+		if p.cur.Type != tokICONST {
+			return nil, p.syntaxErrorAtCur()
+		}
+		{
 			var err error
 			hint.Value, err = p.parsePrimary()
 			if err != nil {
@@ -3007,7 +3022,10 @@ func (p *Parser) parseQueryHint() (nodes.Node, error) {
 	case p.cur.Type == kwQUERYTRACEON:
 		p.advance()
 		hint := &nodes.QueryHint{Kind: "QUERYTRACEON", Loc: nodes.Loc{Start: loc, End: -1}}
-		if p.cur.Type == tokICONST {
+		if p.cur.Type != tokICONST {
+			return nil, p.syntaxErrorAtCur()
+		}
+		{
 			var err error
 			hint.Value, err = p.parsePrimary()
 			if err != nil {
@@ -3023,7 +3041,7 @@ func (p *Parser) parseQueryHint() (nodes.Node, error) {
 			p.advance()
 			return &nodes.QueryHint{Kind: "EXPAND VIEWS", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 		}
-		return &nodes.QueryHint{Kind: "EXPAND", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
+		return nil, p.syntaxErrorAtCur()
 
 	case p.cur.Type == kwKEEP:
 		p.advance()
@@ -3031,7 +3049,7 @@ func (p *Parser) parseQueryHint() (nodes.Node, error) {
 			p.advance()
 			return &nodes.QueryHint{Kind: "KEEP PLAN", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 		}
-		return &nodes.QueryHint{Kind: "KEEP", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
+		return nil, p.syntaxErrorAtCur()
 
 	case p.cur.Type == kwKEEPFIXED:
 		p.advance()
@@ -3039,7 +3057,7 @@ func (p *Parser) parseQueryHint() (nodes.Node, error) {
 			p.advance()
 			return &nodes.QueryHint{Kind: "KEEPFIXED PLAN", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 		}
-		return &nodes.QueryHint{Kind: "KEEPFIXED", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
+		return nil, p.syntaxErrorAtCur()
 
 	case p.cur.Type == kwROBUST:
 		p.advance()
@@ -3047,15 +3065,16 @@ func (p *Parser) parseQueryHint() (nodes.Node, error) {
 			p.advance()
 			return &nodes.QueryHint{Kind: "ROBUST PLAN", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 		}
-		return &nodes.QueryHint{Kind: "ROBUST", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
+		return nil, p.syntaxErrorAtCur()
 
 	case p.cur.Type == kwPARAMETERIZATION:
 		p.advance()
 		hint := &nodes.QueryHint{Kind: "PARAMETERIZATION", Loc: nodes.Loc{Start: loc, End: -1}}
-		if p.isValidOption(queryHintParameterizationMode) {
-			hint.StrValue = strings.ToUpper(p.cur.Str)
-			p.advance()
+		if !p.isValidOption(queryHintParameterizationMode) {
+			return nil, p.syntaxErrorAtCur()
 		}
+		hint.StrValue = strings.ToUpper(p.cur.Str)
+		p.advance()
 		hint.Loc.End = p.prevEnd()
 		return hint, nil
 
@@ -3064,40 +3083,40 @@ func (p *Parser) parseQueryHint() (nodes.Node, error) {
 		if p.cur.Type == kwHINT {
 			p.advance()
 			hint := &nodes.QueryHint{Kind: "USE HINT", Loc: nodes.Loc{Start: loc, End: -1}}
-			if p.cur.Type == '(' {
+			// USE HINT ( 'name' [ ,...n ] ): one name at least, each one
+			// SQL Server knows (Msg 10794 otherwise).
+			if _, err := p.expect('('); err != nil {
+				return nil, err
+			}
+			var hintNames []nodes.Node
+			for {
+				if (p.cur.Type != tokSCONST && p.cur.Type != tokNSCONST) || !queryHintUseHintNames[strings.ToUpper(p.cur.Str)] {
+					return nil, p.syntaxErrorAtCur()
+				}
+				hintNames = append(hintNames, &nodes.String{Str: p.cur.Str})
 				p.advance()
-				var hintNames []nodes.Node
-				for p.cur.Type != ')' && p.cur.Type != tokEOF {
-					if p.cur.Type == tokSCONST || p.cur.Type == tokNSCONST {
-						hintNames = append(hintNames, &nodes.String{Str: p.cur.Str})
-						p.advance()
-					}
-					if _, ok := p.match(','); !ok {
-						// Anything but a hint name or a comma: the loop
-						// would not move.
-						break
-					}
-				}
-				if _, err := p.expect(')'); err != nil {
-					return nil, err
-				}
-				if len(hintNames) > 0 {
-					hint.Params = &nodes.List{Items: hintNames}
+				if _, ok := p.match(','); !ok {
+					break
 				}
 			}
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
+			hint.Params = &nodes.List{Items: hintNames}
 			hint.Loc.End = p.prevEnd()
 			return hint, nil
 		} else if p.cur.Type == kwPLAN {
 			p.advance()
 			hint := &nodes.QueryHint{Kind: "USE PLAN", Loc: nodes.Loc{Start: loc, End: -1}}
-			if p.cur.Type == tokNSCONST || p.cur.Type == tokSCONST {
-				hint.StrValue = p.cur.Str
-				p.advance()
+			if p.cur.Type != tokNSCONST && p.cur.Type != tokSCONST {
+				return nil, p.syntaxErrorAtCur()
 			}
+			hint.StrValue = p.cur.Str
+			p.advance()
 			hint.Loc.End = p.prevEnd()
 			return hint, nil
 		}
-		return &nodes.QueryHint{Kind: "USE", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
+		return nil, p.syntaxErrorAtCur()
 
 	case p.cur.Type == kwDISABLE:
 		p.advance()
@@ -3106,20 +3125,26 @@ func (p *Parser) parseQueryHint() (nodes.Node, error) {
 			p.advance()
 			return &nodes.QueryHint{Kind: "DISABLE " + suffix, Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 		}
-		return &nodes.QueryHint{Kind: "DISABLE", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
+		return nil, p.syntaxErrorAtCur()
 
 	case p.cur.Type == kwTABLE:
 		p.advance()
 		if p.cur.Type == kwHINT {
 			p.advance()
 			hint := &nodes.QueryHint{Kind: "TABLE HINT", Loc: nodes.Loc{Start: loc, End: -1}}
-			if p.cur.Type == '(' {
+			if p.cur.Type != '(' {
+				return nil, p.syntaxErrorAtCur()
+			}
+			{
 				p.advance()
 				// Parse exposed_object_name as a TableRef
 				var err error
 				hint.TableName, err = p.parseTableRef()
 				if err != nil {
 					return nil, err
+				}
+				if hint.TableName == nil {
+					return nil, p.syntaxErrorAtCur()
 				}
 				// After the table reference, zero-or-more hints may follow, each
 				// introduced by a leading comma. When the first comma is present
@@ -3148,7 +3173,7 @@ func (p *Parser) parseQueryHint() (nodes.Node, error) {
 			hint.Loc.End = p.prevEnd()
 			return hint, nil
 		}
-		return &nodes.QueryHint{Kind: "TABLE", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
+		return nil, p.syntaxErrorAtCur()
 
 	default:
 		// Known hint with name = value pattern (e.g., MAX_GRANT_PERCENT = 10)
@@ -3163,11 +3188,14 @@ func (p *Parser) parseQueryHint() (nodes.Node, error) {
 				if err != nil {
 					return nil, err
 				}
+				if hint.Value == nil {
+					return nil, p.syntaxErrorAtCur()
+				}
 			}
 			hint.Loc.End = p.prevEnd()
 			return hint, nil
 		}
-		return nil, nil
+		return nil, p.syntaxErrorAtCur()
 	}
 }
 
@@ -3184,6 +3212,7 @@ func (p *Parser) parseOptimizeForParam() (*nodes.OptimizeForParam, error) {
 		Loc:      nodes.Loc{Start: loc, End: -1},
 	}
 	p.advance()
+	// @variable { UNKNOWN | = literal }, one of them required.
 	if p.cur.Type == '=' {
 		p.advance()
 		var err error
@@ -3191,9 +3220,14 @@ func (p *Parser) parseOptimizeForParam() (*nodes.OptimizeForParam, error) {
 		if err != nil {
 			return nil, err
 		}
+		if param.Value == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 	} else if p.cur.Type == kwUNKNOWN {
 		param.Unknown = true
 		p.advance()
+	} else {
+		return nil, p.syntaxErrorAtCur()
 	}
 	param.Loc.End = p.prevEnd()
 	return param, nil

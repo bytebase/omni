@@ -920,7 +920,7 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 				stmt.Loc.Start = loc
 				return stmt, nil
 			}
-			return nil, nil
+			return nil, p.syntaxErrorAtCur()
 		}
 		// CREATE XML SCHEMA COLLECTION / CREATE XML INDEX
 		if p.cur.Type == kwXML {
@@ -1035,7 +1035,7 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 					return stmt, nil
 				}
 			}
-			return nil, nil
+			return nil, p.syntaxErrorAtCur()
 		}
 		// CREATE MESSAGE TYPE (service broker)
 		if p.cur.Type == kwMESSAGE {
@@ -1319,8 +1319,8 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 				stmt.Loc.Start = loc
 				return stmt, nil
 			}
-			if p.cur.Type == kwGROUP {
-				p.advance() // consume GROUP
+			if _, err := p.expect(kwGROUP); err != nil {
+				return nil, err
 			}
 			stmt, err := p.parseCreateWorkloadGroupStmt()
 			if err != nil {
@@ -1629,7 +1629,7 @@ func (p *Parser) parseAlterStmt() (nodes.StmtNode, error) {
 				stmt.Loc.Start = loc
 				return stmt, nil
 			}
-			return nil, nil
+			return nil, p.syntaxErrorAtCur()
 		}
 		// ALTER SECURITY POLICY
 		if p.cur.Type == kwSECURITY {
@@ -1660,7 +1660,7 @@ func (p *Parser) parseAlterStmt() (nodes.StmtNode, error) {
 					return stmt, nil
 				}
 			}
-			return nil, nil
+			return nil, p.syntaxErrorAtCur()
 		}
 		// ALTER ENDPOINT
 		if p.cur.Type == kwENDPOINT {
@@ -1934,8 +1934,8 @@ func (p *Parser) parseAlterStmt() (nodes.StmtNode, error) {
 				stmt.Loc.Start = loc
 				return stmt, nil
 			}
-			if p.cur.Type == kwGROUP {
-				p.advance() // consume GROUP
+			if _, err := p.expect(kwGROUP); err != nil {
+				return nil, err
 			}
 			stmt, err := p.parseAlterWorkloadGroupStmt()
 			if err != nil {
@@ -2362,8 +2362,8 @@ func (p *Parser) parseDropOrSecurityStmt() (nodes.StmtNode, error) {
 				stmt.Loc.Start = loc
 				return stmt, nil
 			}
-			if p.cur.Type == kwGROUP {
-				p.advance() // consume GROUP
+			if _, err := p.expect(kwGROUP); err != nil {
+				return nil, err
 			}
 			stmt, err := p.parseDropWorkloadGroupStmt()
 			if err != nil {
@@ -2452,51 +2452,8 @@ func (p *Parser) parseDropOrSecurityStmt() (nodes.StmtNode, error) {
 				stmt.Loc.Start = loc
 				return stmt, nil
 			}
-			// Not STOPLIST — must be INDEX or CATALOG, handled by parseDropStmt.
-			// We've already consumed DROP + FULLTEXT, so we need to handle inline.
-			// Re-enter the generic drop logic for FULLTEXT INDEX/CATALOG
-			dropStmt := &nodes.DropStmt{
-				Loc: nodes.Loc{Start: loc, End: -1},
-			}
-			if p.cur.Type == kwINDEX {
-				dropStmt.ObjectType = nodes.DropFulltextIndex
-				p.advance()
-			} else if p.cur.Type == kwCATALOG {
-				dropStmt.ObjectType = nodes.DropFulltextCatalog
-				p.advance()
-			}
-			if p.cur.Type == kwIF {
-				p.advance()
-				p.match(kwEXISTS)
-				dropStmt.IfExists = true
-			}
-			var nameItems []nodes.Node
-			if dropStmt.ObjectType == nodes.DropFulltextIndex {
-				// DROP FULLTEXT INDEX ON table_name
-				if _, ok := p.match(kwON); ok {
-					if ref, _ := p.parseTableRef(); ref != nil {
-						nameItems = append(nameItems, ref)
-					}
-				}
-			} else {
-				for {
-					ref, err := p.parseTableRef()
-					if err != nil {
-						return nil, err
-					}
-					if ref != nil {
-						nameItems = append(nameItems, ref)
-					}
-					if _, ok := p.match(','); !ok {
-						break
-					}
-				}
-			}
-			if len(nameItems) > 0 {
-				dropStmt.Names = &nodes.List{Items: nameItems}
-			}
-			dropStmt.Loc.End = p.prevEnd()
-			return dropStmt, nil
+			// Not STOPLIST — must be INDEX or CATALOG.
+			return p.parseDropFulltextIndexOrCatalogStmt(loc)
 		}
 		// DROP AGGREGATE
 		if next.Type == kwAGGREGATE {
@@ -2525,7 +2482,7 @@ func (p *Parser) parseDropOrSecurityStmt() (nodes.StmtNode, error) {
 					return stmt, nil
 				}
 			}
-			return nil, nil
+			return nil, p.syntaxErrorAtCur()
 		}
 		// DROP MASTER KEY
 		if next.Type == kwMASTER {

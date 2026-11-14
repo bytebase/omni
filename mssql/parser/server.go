@@ -13,6 +13,7 @@ import (
 // parseCreateServerRoleStmt parses CREATE SERVER ROLE.
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-server-role-transact-sql
+// Grammar: TSql160.g:10300.
 //
 //	CREATE SERVER ROLE role_name [ AUTHORIZATION server_principal ]
 func (p *Parser) parseCreateServerRoleStmt() (*nodes.SecurityStmt, error) {
@@ -23,20 +24,19 @@ func (p *Parser) parseCreateServerRoleStmt() (*nodes.SecurityStmt, error) {
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	// role_name
-	if name, ok := p.parseIdentifier(); ok {
-		stmt.Name = name
+	name, err := p.prinName()
+	if err != nil {
+		return nil, err
 	}
+	stmt.Name = name
 
-	// [ AUTHORIZATION server_principal ]
-	if p.cur.Type == kwAUTHORIZATION {
-		optLoc := p.pos()
-		p.advance() // consume AUTHORIZATION
-		var opts []nodes.Node
-		if owner, ok := p.parseIdentifier(); ok {
-			opts = append(opts, &nodes.ServerConfigOption{Name: "AUTHORIZATION", Value: owner, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
-		}
-		stmt.Options = &nodes.List{Items: opts}
+	optLoc := p.pos()
+	owner, ok, err := p.prinAuthorization()
+	if err != nil {
+		return nil, err
+	}
+	if ok {
+		stmt.Options = &nodes.List{Items: []nodes.Node{&nodes.ServerConfigOption{Name: "AUTHORIZATION", Value: owner, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}}}}
 	}
 
 	stmt.Loc.End = p.prevEnd()
@@ -46,13 +46,10 @@ func (p *Parser) parseCreateServerRoleStmt() (*nodes.SecurityStmt, error) {
 // parseAlterServerRoleStmt parses ALTER SERVER ROLE.
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-server-role-transact-sql
+// Grammar: TSql160.g:12536, 12553-12590.
 //
 //	ALTER SERVER ROLE server_role_name
-//	{
-//	    [ ADD MEMBER server_principal ]
-//	  | [ DROP MEMBER server_principal ]
-//	  | [ WITH NAME = new_server_role_name ]
-//	}
+//	    { ADD MEMBER server_principal | DROP MEMBER server_principal | WITH NAME = new_server_role_name }
 func (p *Parser) parseAlterServerRoleStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	stmt := &nodes.SecurityStmt{
@@ -61,58 +58,18 @@ func (p *Parser) parseAlterServerRoleStmt() (*nodes.SecurityStmt, error) {
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	// server_role_name
-	if name, ok := p.parseIdentifier(); ok {
-		stmt.Name = name
+	name, err := p.prinName()
+	if err != nil {
+		return nil, err
 	}
+	stmt.Name = name
 
-	var opts []nodes.Node
-
-	// ADD MEMBER | DROP MEMBER | WITH NAME = new_name
-	if p.cur.Type == kwADD {
-		optLoc := p.pos()
-		p.advance() // consume ADD
-		if p.cur.Type == kwMEMBER {
-			p.advance() // consume MEMBER
-		}
-		if member, ok := p.parseIdentifier(); ok {
-			opts = append(opts, &nodes.ServerConfigOption{Name: "ADD MEMBER", Value: member, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
-		}
-	} else if p.cur.Type == kwDROP {
-		optLoc := p.pos()
-		p.advance() // consume DROP
-		if p.cur.Type == kwMEMBER {
-			p.advance() // consume MEMBER
-		}
-		if member, ok := p.parseIdentifier(); ok {
-			opts = append(opts, &nodes.ServerConfigOption{Name: "DROP MEMBER", Value: member, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
-		}
-	} else if p.cur.Type == kwWITH {
-		p.advance() // consume WITH
-		for {
-			if !p.isIdentLike() {
-				break
-			}
-			optLoc := p.pos()
-			key := strings.ToUpper(p.cur.Str)
-			p.advance()
-			if p.cur.Type == '=' {
-				p.advance()
-				if val, ok := p.parseIdentifier(); ok {
-					opts = append(opts, &nodes.ServerConfigOption{Name: key, Value: val, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
-				}
-			} else {
-				opts = append(opts, &nodes.ServerConfigOption{Name: key, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
-			}
-			if _, ok := p.match(','); !ok {
-				break
-			}
-		}
+	optLoc := p.pos()
+	action, value, err := p.prinRoleAction()
+	if err != nil {
+		return nil, err
 	}
-
-	if len(opts) > 0 {
-		stmt.Options = &nodes.List{Items: opts}
-	}
+	stmt.Options = &nodes.List{Items: []nodes.Node{&nodes.ServerConfigOption{Name: action, Value: value, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}}}}
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
@@ -121,6 +78,7 @@ func (p *Parser) parseAlterServerRoleStmt() (*nodes.SecurityStmt, error) {
 // parseDropServerRoleStmt parses DROP SERVER ROLE.
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/drop-server-role-transact-sql
+// Grammar: TSql160.g:14837.
 //
 //	DROP SERVER ROLE role_name
 func (p *Parser) parseDropServerRoleStmt() (*nodes.SecurityStmt, error) {
@@ -131,9 +89,11 @@ func (p *Parser) parseDropServerRoleStmt() (*nodes.SecurityStmt, error) {
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	if name, ok := p.parseIdentifier(); ok {
-		stmt.Name = name
+	name, err := p.prinName()
+	if err != nil {
+		return nil, err
 	}
+	stmt.Name = name
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
