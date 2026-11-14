@@ -197,6 +197,7 @@ const (
 	T_CallStmt
 	T_ExecuteImmediateStmt
 	T_ExecuteTaskStmt
+	T_ExecuteAlertStmt
 	T_ExplainStmt
 
 	// Table-attached query clause tags (T5.3)
@@ -528,6 +529,8 @@ func (t NodeTag) String() string {
 		return "ExecuteImmediateStmt"
 	case T_ExecuteTaskStmt:
 		return "ExecuteTaskStmt"
+	case T_ExecuteAlertStmt:
+		return "ExecuteAlertStmt"
 	case T_ExplainStmt:
 		return "ExplainStmt"
 	case T_PivotClause:

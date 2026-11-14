@@ -464,7 +464,9 @@ func (p *Parser) parseAlterStreamStmt() (ast.Node, error) {
 //
 //	CREATE [ OR REPLACE ] TASK [ IF NOT EXISTS ] <name>
 //	  [ [ WITH ] TAG ( … ) ]
-//	  [ <config options> ]
+//	  [ WITH CONTACT ( <purpose> = <contact> [ , ... ] ) ]
+//	  [ <config options> ]                     (KEY = value; session parameters may be comma-separated)
+//	  [ EXECUTE AS USER <user> ]
 //	  [ AFTER <predecessor> [ , ... ] ]
 //	  [ WHEN <boolean_expr> ]
 //	  AS <sql>
@@ -514,6 +516,20 @@ func (p *Parser) parseCreateTaskStmt(start ast.Loc, orReplace, orAlter bool) (as
 		stmt.Tags = append(stmt.Tags, tags...)
 	}
 
+	// WITH CONTACT ( <purpose> = <contact> [ , ... ] ) follows the tags.
+	if p.cur.Type == kwWITH && isWordToken(p.peekNext(), "CONTACT") {
+		p.advance() // consume WITH
+		p.advance() // consume CONTACT
+		group, err := p.parseTaskGraphGroup(false, false)
+		if err != nil {
+			return nil, err
+		}
+		if err := checkTaskGraphContacts(group); err != nil {
+			return nil, err
+		}
+		stmt.Contacts = group.Group
+	}
+
 	// Config options, AFTER, and WHEN may appear before AS. WHEN and AFTER are
 	// the structural anchors; AS terminates the option run. AFTER and WHEN are
 	// keywords startsCopyOption would treat as option names, so they are matched
@@ -538,12 +554,23 @@ func (p *Parser) parseCreateTaskStmt(start ast.Loc, orReplace, orAlter bool) (as
 		case kwAS:
 			// fallthrough out of the loop below
 		default:
-			if p.startsCopyOption() {
+			if start := p.cur.Loc.Start; p.acceptWords("EXECUTE", "AS", "USER") {
+				user, err := p.parseObjectSimpleName()
+				if err != nil {
+					return nil, err
+				}
+				stmt.Options = append(stmt.Options, &ast.CopyOption{Name: "EXECUTE AS USER", Words: user.String(), Loc: ast.Loc{Start: start, End: p.prev.Loc.End}})
+				continue
+			}
+			if p.startsTaskOption() {
 				opt, err := p.parseCopyOption()
 				if err != nil {
 					return nil, err
 				}
 				stmt.Options = append(stmt.Options, opt)
+				if err := p.skipTaskOptionComma(opt); err != nil {
+					return nil, err
+				}
 				continue
 			}
 		}
@@ -563,6 +590,103 @@ func (p *Parser) parseCreateTaskStmt(start ast.Loc, orReplace, orAlter bool) (as
 
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
+}
+
+// startsTaskOption reports whether cur begins a task's `KEY = value` option.
+// A task has no value-less options.
+func (p *Parser) startsTaskOption() bool {
+	return p.startsCopyOption() && p.peekNext().Type == '='
+}
+
+// skipTaskOptionComma consumes the ',' that separates session parameters
+// (<session_parameter> = <value> [ , ... ]) after option opt, which must then
+// be followed by another `KEY = value`.
+// https://docs.snowflake.com/en/sql-reference/sql/create-task
+func (p *Parser) skipTaskOptionComma(opt *ast.CopyOption) error {
+	if p.cur.Type != ',' {
+		return nil
+	}
+	p.advance() // consume ','
+	if !p.startsTaskOption() {
+		return p.syntaxErrorAtCur()
+	}
+	return nil
+}
+
+// parseTaskSetOptions reads ALTER TASK ... SET's options: open-ended
+// `KEY = value` pairs, session parameters separated by commas,
+// CONTACT <purpose> = <contact> [ , ... ] (the option CONTACT, its Group the
+// entries) and EXECUTE AS USER <user> (the option "EXECUTE AS USER").
+// https://docs.snowflake.com/en/sql-reference/sql/alter-task
+func (p *Parser) parseTaskSetOptions() ([]*ast.CopyOption, error) {
+	var opts []*ast.CopyOption
+	for {
+		start := p.cur.Loc.Start
+		switch {
+		case isWordToken(p.cur, "CONTACT") && isNameWordTok(p.peekNext()):
+			p.advance() // consume CONTACT
+			group := &ast.CopyOption{}
+			for {
+				e, err := p.parseTaskGraphEntry(false, false)
+				if err != nil {
+					return nil, err
+				}
+				group.Group = append(group.Group, e)
+				if p.cur.Type != ',' || !p.commaStartsContactEntry() {
+					break
+				}
+				p.advance() // consume ','
+			}
+			if err := checkTaskGraphContacts(group); err != nil {
+				return nil, err
+			}
+			opts = append(opts, &ast.CopyOption{Name: "CONTACT", Group: group.Group, Loc: ast.Loc{Start: start, End: p.prev.Loc.End}})
+		case p.acceptWords("EXECUTE", "AS", "USER"):
+			user, err := p.parseObjectSimpleName()
+			if err != nil {
+				return nil, err
+			}
+			opts = append(opts, &ast.CopyOption{Name: "EXECUTE AS USER", Words: user.String(), Loc: ast.Loc{Start: start, End: p.prev.Loc.End}})
+		case p.startsTaskOption():
+			opt, err := p.parseCopyOption()
+			if err != nil {
+				return nil, err
+			}
+			opts = append(opts, opt)
+			if err := p.skipTaskOptionComma(opt); err != nil {
+				return nil, err
+			}
+		default:
+			if len(opts) == 0 {
+				return nil, p.syntaxErrorAtCur()
+			}
+			return opts, nil
+		}
+	}
+}
+
+// parseTaskUnsetList reads ALTER TASK ... UNSET's <property> [ , ... ], where
+// a property is a name word, CONTACT <purpose> or EXECUTE AS USER.
+// https://docs.snowflake.com/en/sql-reference/sql/alter-task
+func (p *Parser) parseTaskUnsetList() ([]string, error) {
+	var props []string
+	for {
+		switch {
+		case isWordToken(p.cur, "CONTACT") && isNameWordTok(p.peekNext()):
+			p.advance() // consume CONTACT
+			props = append(props, "CONTACT "+strings.ToUpper(p.advance().Str))
+		case p.acceptWords("EXECUTE", "AS", "USER"):
+			props = append(props, "EXECUTE AS USER")
+		case p.isOptionWord(p.cur.Type):
+			props = append(props, strings.ToUpper(p.advance().Str))
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
+		if p.cur.Type != ',' {
+			return props, nil
+		}
+		p.advance() // consume ','
+	}
 }
 
 // parseTaskAfterList parses AFTER <predecessor> [ , <predecessor> , ... ]. The
@@ -604,6 +728,9 @@ func (p *Parser) parseTaskAfterList() ([]*ast.ObjectName, error) {
 //	UNSET <property> [ , ... ]
 //	MODIFY AS <sql>
 //	MODIFY WHEN <boolean_expr>
+//	REMOVE WHEN
+//
+// https://docs.snowflake.com/en/sql-reference/sql/alter-task
 func (p *Parser) parseAlterTaskStmt() (ast.Node, error) {
 	altTok := p.advance() // consume TASK
 	stmt := &ast.AlterTaskStmt{Loc: ast.Loc{Start: altTok.Loc.Start}}
@@ -638,6 +765,12 @@ func (p *Parser) parseAlterTaskStmt() (ast.Node, error) {
 
 	case kwREMOVE:
 		p.advance() // consume REMOVE
+		if p.cur.Type == kwWHEN {
+			// REMOVE WHEN
+			p.advance() // consume WHEN
+			stmt.Action = ast.AlterTaskRemoveWhen
+			break
+		}
 		after, err := p.parseTaskAfterList()
 		if err != nil {
 			return nil, err
@@ -655,7 +788,7 @@ func (p *Parser) parseAlterTaskStmt() (ast.Node, error) {
 			stmt.Action = ast.AlterTaskSetTag
 			stmt.Tags = tags
 		} else {
-			opts, err := p.parseRequiredOptions()
+			opts, err := p.parseTaskSetOptions()
 			if err != nil {
 				return nil, err
 			}
@@ -673,7 +806,7 @@ func (p *Parser) parseAlterTaskStmt() (ast.Node, error) {
 			stmt.Action = ast.AlterTaskUnsetTag
 			stmt.UnsetTags = names
 		} else {
-			props, err := p.parseUnsetPropertyList()
+			props, err := p.parseTaskUnsetList()
 			if err != nil {
 				return nil, err
 			}
@@ -730,6 +863,11 @@ func (p *Parser) parseAlterTaskStmt() (ast.Node, error) {
 // serverless alerts and SCHEDULE's value grows — so all config is open-ended.
 // IF / THEN are the structural anchors. The condition reuses parseQueryExpr; the
 // action reuses parseEmbeddedBody (parseStmt + verbatim fallback).
+//
+// The page also gives CREATE [ OR REPLACE ] ALERT <name> CLONE <source> and
+// CREATE ... ALERT <name> FROM TEMPLATE <template> [ [ WITH ] TAG ( ... ) ]
+// [ <option> ... ], which take no condition or action.
+// https://docs.snowflake.com/en/sql-reference/sql/create-alert
 func (p *Parser) parseCreateAlertStmt(start ast.Loc, orReplace, orAlter bool) (ast.Node, error) {
 	p.advance() // consume ALERT
 
@@ -748,6 +886,46 @@ func (p *Parser) parseCreateAlertStmt(start ast.Loc, orReplace, orAlter bool) (a
 		return nil, err
 	}
 	stmt.Name = name
+
+	// CREATE [ OR REPLACE ] ALERT <name> CLONE <source_alert>
+	if p.cur.Type == kwCLONE && !stmt.IfNotExists && !orAlter {
+		p.advance() // consume CLONE
+		src, err := p.parseObjectName()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Clone = src
+		stmt.Loc.End = p.prev.Loc.End
+		return stmt, nil
+	}
+
+	// CREATE ... ALERT <name> FROM TEMPLATE <template> [ [ WITH ] TAG ( ... ) ]
+	//   [ <option> ... ]
+	if p.cur.Type == kwFROM && !orAlter {
+		p.advance() // consume FROM
+		if err := p.expectWords("TEMPLATE"); err != nil {
+			return nil, err
+		}
+		tmpl, err := p.parseObjectSimpleName()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Template = tmpl
+		if p.startsStreamWithTags() {
+			tags, err := p.parseStreamWithTags()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Tags = tags
+		}
+		opts, err := p.parseAlertTemplateOptions(false)
+		if err != nil {
+			return nil, err
+		}
+		stmt.Options = opts
+		stmt.Loc.End = p.prev.Loc.End
+		return stmt, nil
+	}
 
 	// [WITH] TAG (...) precedes the config options.
 	for p.startsStreamWithTags() {
@@ -807,6 +985,43 @@ func (p *Parser) parseCreateAlertStmt(start ast.Loc, orReplace, orAlter bool) (a
 
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
+}
+
+// alertTemplateProps are the options an alert made from a template takes, as
+// CREATE ALERT ... FROM TEMPLATE and ALTER ALERT ... FROM TEMPLATE ... SET
+// document them.
+// https://docs.snowflake.com/en/sql-reference/sql/create-alert
+// https://docs.snowflake.com/en/sql-reference/sql/alter-alert
+var alertTemplateProps = objectProps{
+	"WAREHOUSE":                        propName,
+	"SCHEDULE":                         propString,
+	"COMMENT":                          propString,
+	"RUNBOOK":                          propString,
+	"SUSPEND_ALERT_AFTER_NUM_FAILURES": propNumber,
+	"TEMPLATE_PARAMS":                  propString,
+}
+
+// parseAlertTemplateOptions reads the `KEY = value` options of an alert made
+// from a template, each one of alertTemplateProps, once. need says whether
+// the run may be empty.
+func (p *Parser) parseAlertTemplateOptions(need bool) ([]*ast.CopyOption, error) {
+	var opts []*ast.CopyOption
+	seen := map[string]bool{}
+	for p.startsObjectProperty() {
+		o, err := p.parseObjectProperty()
+		if err != nil {
+			return nil, err
+		}
+		if v, ok := alertTemplateProps[o.Name]; !ok || !v.matches(o) || seen[o.Name] {
+			return nil, &ParseError{Position: o.Loc.Start, End: o.Loc.End, Message: "syntax error at or near " + o.Name}
+		}
+		seen[o.Name] = true
+		opts = append(opts, o)
+	}
+	if need && len(opts) == 0 {
+		return nil, p.syntaxErrorAtCur()
+	}
+	return opts, nil
 }
 
 // parseAlertCondition parses the query inside IF(EXISTS(<condition>)). Per the
@@ -880,8 +1095,13 @@ func (p *Parser) captureBalancedRaw(startAbs int) string {
 //	RESUME | SUSPEND
 //	SET <options>                              (WAREHOUSE = … | SCHEDULE = … | COMMENT = …)
 //	UNSET <property> [ , ... ]                  (WAREHOUSE | SCHEDULE | COMMENT)
+//	SET TAG <tag> = '<value>' [ , ... ]
+//	UNSET TAG <tag> [ , ... ]
 //	MODIFY CONDITION EXISTS ( <query> )
 //	MODIFY ACTION <action>
+//	FROM TEMPLATE <template> SET <option> [ ... ]
+//
+// https://docs.snowflake.com/en/sql-reference/sql/alter-alert
 func (p *Parser) parseAlterAlertStmt() (ast.Node, error) {
 	altTok := p.advance() // consume ALERT
 	stmt := &ast.AlterAlertStmt{Loc: ast.Loc{Start: altTok.Loc.Start}}
@@ -905,8 +1125,38 @@ func (p *Parser) parseAlterAlertStmt() (ast.Node, error) {
 		p.advance()
 		stmt.Action = ast.AlterAlertSuspend
 
+	case kwFROM:
+		// FROM TEMPLATE <template> SET <option> [ ... ]
+		p.advance() // consume FROM
+		if err := p.expectWords("TEMPLATE"); err != nil {
+			return nil, err
+		}
+		tmpl, err := p.parseObjectSimpleName()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(kwSET); err != nil {
+			return nil, err
+		}
+		opts, err := p.parseAlertTemplateOptions(true)
+		if err != nil {
+			return nil, err
+		}
+		stmt.Action = ast.AlterAlertSet
+		stmt.Template = tmpl
+		stmt.Options = opts
+
 	case kwSET:
 		p.advance() // consume SET
+		if p.cur.Type == kwTAG {
+			tags, err := p.parseTagSetList()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Action = ast.AlterAlertSetTag
+			stmt.Tags = tags
+			break
+		}
 		opts, err := p.parseRequiredOptions()
 		if err != nil {
 			return nil, err
@@ -916,6 +1166,15 @@ func (p *Parser) parseAlterAlertStmt() (ast.Node, error) {
 
 	case kwUNSET:
 		p.advance() // consume UNSET
+		if p.cur.Type == kwTAG {
+			names, err := p.parseUnsetTagNameList()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Action = ast.AlterAlertUnsetTag
+			stmt.UnsetTags = names
+			break
+		}
 		props, err := p.parseUnsetPropertyList()
 		if err != nil {
 			return nil, err

@@ -3051,9 +3051,9 @@ func (p *Parser) parseWindowClause() ([]*nodes.WindowDef, error) {
 //	    }
 //
 // Each form takes its parentheses and what they hold (ORA-00906, ORA-00936).
-// emptyNameOK is for a query and DELETE, where Oracle 23ai parses
-// PARTITION () too; INSERT and UPDATE refuse it (ORA-00928, ORA-00971).
-func (p *Parser) parsePartitionExtClause(emptyNameOK bool) (*nodes.PartitionExtClause, error) {
+// Oracle 23ai reports a missing name at the '(' in a query, UPDATE and
+// DELETE (emptyAtOpen), and at the ')' in INSERT (ORA-00928).
+func (p *Parser) parsePartitionExtClause(emptyAtOpen bool) (*nodes.PartitionExtClause, error) {
 	start := p.pos()
 	pe := &nodes.PartitionExtClause{Loc: nodes.Loc{Start: start}}
 
@@ -3071,6 +3071,7 @@ func (p *Parser) parsePartitionExtClause(emptyNameOK bool) (*nodes.PartitionExtC
 	if p.cur.Type != '(' {
 		return nil, p.syntaxErrorAtCur()
 	}
+	open := p.cur
 	p.advance()
 	switch {
 	case pe.IsFor:
@@ -3081,7 +3082,8 @@ func (p *Parser) parsePartitionExtClause(emptyNameOK bool) (*nodes.PartitionExtC
 		if pe.Keys == nil || pe.Keys.Len() == 0 {
 			return nil, p.syntaxErrorAtCur()
 		}
-	case p.cur.Type == ')' && emptyNameOK:
+	case p.cur.Type == ')' && emptyAtOpen:
+		return nil, p.syntaxErrorAtTok(open)
 	default:
 		if !p.isIdentLike() {
 			return nil, p.syntaxErrorAtCur()

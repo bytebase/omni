@@ -12,50 +12,50 @@ func TestParseAnalyticObjectStmts(t *testing.T) {
 		// Minimal
 		`CREATE ANALYTIC VIEW sales_av
 			USING sales
-			DIMENSION BY (time_dim KEY month_id REFERENCES month)
+			DIMENSION BY (time_dim KEY month_id REFERENCES month HIERARCHIES (time_dim_hier))
 			MEASURES (amount)`,
 		// OR REPLACE
 		`CREATE OR REPLACE ANALYTIC VIEW sales_av
 			USING sales
-			DIMENSION BY (geo KEY region_id REFERENCES region)
+			DIMENSION BY (geo KEY region_id REFERENCES region HIERARCHIES (geo_hier))
 			MEASURES (total_sales)`,
 		// IF NOT EXISTS
 		`CREATE ANALYTIC VIEW IF NOT EXISTS sales_av
 			USING sales
-			DIMENSION BY (time KEY id REFERENCES day)
+			DIMENSION BY (time KEY id REFERENCES day HIERARCHIES (time_hier))
 			MEASURES (revenue)`,
 		// SHARING
 		`CREATE ANALYTIC VIEW sales_av
 			SHARING = METADATA
 			USING sales
-			DIMENSION BY (time KEY id REFERENCES day)
+			DIMENSION BY (time KEY id REFERENCES day HIERARCHIES (time_hier))
 			MEASURES (revenue)`,
 		`CREATE ANALYTIC VIEW sales_av
 			SHARING = NONE
 			USING sales
-			DIMENSION BY (time KEY id REFERENCES day)
+			DIMENSION BY (time KEY id REFERENCES day HIERARCHIES (time_hier))
 			MEASURES (revenue)`,
 		// With alias
 		`CREATE ANALYTIC VIEW sales_av
 			USING sales AS s
-			DIMENSION BY (time KEY month_id REFERENCES month)
-			MEASURES (SUM(amount) AS total)`,
+			DIMENSION BY (time KEY month_id REFERENCES month HIERARCHIES (time_hier))
+			MEASURES (total FACT amount AGGREGATE BY SUM)`,
 		// DEFAULT MEASURE
 		`CREATE ANALYTIC VIEW sales_av
 			USING sales
-			DIMENSION BY (time KEY id REFERENCES day)
+			DIMENSION BY (time KEY id REFERENCES day HIERARCHIES (time_hier))
 			MEASURES (amount, quantity)
 			DEFAULT MEASURE amount`,
 		// DEFAULT AGGREGATE BY
 		`CREATE ANALYTIC VIEW sales_av
 			USING sales
-			DIMENSION BY (time KEY id REFERENCES day)
+			DIMENSION BY (time KEY id REFERENCES day HIERARCHIES (time_hier))
 			MEASURES (amount)
 			DEFAULT AGGREGATE BY SUM`,
 		// Schema-qualified
 		`CREATE ANALYTIC VIEW hr.emp_av
 			USING hr.employees
-			DIMENSION BY (dept KEY department_id REFERENCES department)
+			DIMENSION BY (dept KEY department_id REFERENCES department HIERARCHIES (dept_hier))
 			MEASURES (salary)`,
 
 		// ---- ALTER ANALYTIC VIEW ----
@@ -70,7 +70,7 @@ func TestParseAnalyticObjectStmts(t *testing.T) {
 		// ADD CACHE
 		`ALTER ANALYTIC VIEW sales_av ADD CACHE
 			MEASURE GROUP (amount)
-			LEVELS (month, quarter)`,
+			LEVELS (month, quarter) MATERIALIZED`,
 		// DROP CACHE
 		`ALTER ANALYTIC VIEW sales_av DROP CACHE
 			MEASURE GROUP (amount)
