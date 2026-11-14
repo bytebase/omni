@@ -111,23 +111,35 @@ func (p *Parser) parseCreateViewStmt(start int, orReplace bool) (*nodes.CreateVi
 
 	// WITH [CASCADED | LOCAL] CHECK OPTION
 	if p.cur.Type == kwWITH {
-		p.advance()
-		checkOption := "CASCADED" // default
-		if p.cur.Type == kwCASCADED {
-			p.advance()
-		} else if p.cur.Type == kwLOCAL {
-			checkOption = "LOCAL"
-			p.advance()
-		}
-		if p.cur.Type == kwCHECK {
-			p.advance()
-			if p.cur.Type == kwOPTION {
-				p.advance()
-			}
+		checkOption, err := p.parseViewCheckOption()
+		if err != nil {
+			return nil, err
 		}
 		stmt.CheckOption = checkOption
 	}
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// parseViewCheckOption parses WITH [CASCADED | LOCAL] CHECK OPTION after a view's query,
+// p.cur at WITH, and returns CASCADED or LOCAL. Every word but the level is required:
+// `WITH CHECK` and `WITH LOCAL CHECK` are 1064.
+//
+// Ref: view_check_option in MariaDB 11.8 sql/sql_yacc.yy.
+func (p *Parser) parseViewCheckOption() (string, error) {
+	p.advance()               // consume WITH
+	checkOption := "CASCADED" // default
+	if p.cur.Type == kwCASCADED {
+		p.advance()
+	} else if p.cur.Type == kwLOCAL {
+		checkOption = "LOCAL"
+		p.advance()
+	}
+	for _, kw := range []int{kwCHECK, kwOPTION} {
+		if _, err := p.expect(kw); err != nil {
+			return "", err
+		}
+	}
+	return checkOption, nil
 }
