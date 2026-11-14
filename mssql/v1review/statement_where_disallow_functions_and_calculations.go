@@ -686,7 +686,7 @@ func (r *whereFunctionRule) unwrapAndFindIndexedColumn(expr ast.ExprNode, indexe
 func isWhereArithmeticOp(op ast.BinaryOp) bool {
 	switch op {
 	case ast.BinOpAdd, ast.BinOpSub, ast.BinOpMul, ast.BinOpDiv, ast.BinOpMod,
-		ast.BinOpBitAnd, ast.BinOpBitOr, ast.BinOpBitXor:
+		ast.BinOpBitAnd, ast.BinOpBitOr, ast.BinOpBitXor, ast.BinOpShiftLeft, ast.BinOpShiftRight:
 		return true
 	default:
 		return false

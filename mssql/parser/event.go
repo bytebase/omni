@@ -1,4 +1,10 @@
 // Package parser - event.go implements T-SQL EVENT NOTIFICATION and EVENT SESSION statement parsing.
+//
+// The clauses follow ScriptDOM's grammar (TSql160.g:7586-8292, 15594-15633)
+// and, where SQL Server 2022 differs, the pinned server under SET PARSEONLY
+// ON: it takes event, action and target names of one part, refuses
+// MAX_DURATION (SQL Server 2025's), and checks event notification types
+// against its catalog.
 package parser
 
 import (
@@ -7,218 +13,341 @@ import (
 	nodes "github.com/bytebase/omni/mssql/ast"
 )
 
-// eventSessionStateValues: ALTER EVENT SESSION ... STATE = { START | STOP }.
-var eventSessionStateValues = newOptionSet().withIdents("START", "STOP")
+// evIsWord reports whether the current token is the unquoted word word
+// (upper case). A bracketed or quoted identifier never matches.
+func (p *Parser) evIsWord(word string) bool {
+	if kw := lookupKeyword(word); kw != tokIDENT {
+		return p.cur.Type == kw
+	}
+	return p.cur.Type == tokIDENT && !p.isDelimited(p.cur) && strings.ToUpper(p.cur.Str) == word
+}
+
+// evExpectWordIn consumes one of the unquoted words words and returns it.
+func (p *Parser) evExpectWordIn(words ...string) (string, error) {
+	for _, w := range words {
+		if p.evIsWord(w) {
+			p.advance()
+			return w, nil
+		}
+	}
+	return "", p.syntaxErrorAtCur()
+}
+
+// evExpectIdentValue consumes an identifier, bracketed or not, whose text is
+// one of words, and returns it. SQL Server reads EVENT_RETENTION_MODE and
+// MEMORY_PARTITION_MODE values as identifiers (TSql160.g:8071, 8080).
+func (p *Parser) evExpectIdentValue(words ...string) (string, error) {
+	if p.cur.Type == tokIDENT || p.cur.Type >= kwABSENT {
+		upper := strings.ToUpper(p.cur.Str)
+		for _, w := range words {
+			if upper == w {
+				p.advance()
+				return w, nil
+			}
+		}
+	}
+	return "", p.syntaxErrorAtCur()
+}
+
+// evExpectName consumes a one-part name: an identifier or a word that is not
+// reserved.
+func (p *Parser) evExpectName() (string, error) {
+	name, ok := p.parseIdentifier()
+	if !ok {
+		return "", p.syntaxErrorAtCur()
+	}
+	return name, nil
+}
+
+// evExpectObjectName consumes a name of one to three parts with no empty
+// part: [event_module_guid].event_package_name.event_name and the like. SQL
+// Server takes one part too, where ScriptDOM wants two (TSql160.g:30433).
+func (p *Parser) evExpectObjectName() (string, int, error) {
+	var parts []string
+	for {
+		part, err := p.evExpectName()
+		if err != nil {
+			return "", 0, err
+		}
+		parts = append(parts, part)
+		if p.cur.Type != '.' || len(parts) == 3 {
+			break
+		}
+		p.advance()
+	}
+	return strings.Join(parts, "."), len(parts), nil
+}
+
+// evExpectQueueName consumes [ [ database ] . [ schema ] . ] queue: up to
+// three parts, any but the last of which may be left empty (..q, .s.q, d..q),
+// as identifierList allows (TSql160.g:30454). SQL Server refuses a fourth
+// part (117).
+func (p *Parser) evExpectQueueName() (string, error) {
+	var parts []string
+	for {
+		if p.cur.Type == '.' {
+			parts = append(parts, "")
+		} else {
+			part, err := p.evExpectName()
+			if err != nil {
+				return "", err
+			}
+			parts = append(parts, part)
+		}
+		if p.cur.Type != '.' {
+			return strings.Join(parts, "."), nil
+		}
+		if len(parts) == 3 {
+			return "", p.syntaxErrorAtCur()
+		}
+		p.advance()
+	}
+}
+
+// evExpectString consumes a string literal and returns its value.
+func (p *Parser) evExpectString() (string, error) {
+	if p.cur.Type != tokSCONST && p.cur.Type != tokNSCONST {
+		return "", p.syntaxErrorAtCur()
+	}
+	s := p.cur.Str
+	p.advance()
+	return s, nil
+}
+
+// evExpectInt consumes an unsigned integer that fits an int (32-bit).
+func (p *Parser) evExpectInt() (string, error) {
+	isBinary := len(p.cur.Str) > 1 && (p.cur.Str[1] == 'x' || p.cur.Str[1] == 'X')
+	if p.cur.Type != tokICONST || isBinary || p.cur.Ival > 2147483647 {
+		return "", p.syntaxErrorAtCur()
+	}
+	s := p.cur.Str
+	p.advance()
+	return s, nil
+}
 
 // parseCreateEventNotificationStmt parses CREATE EVENT NOTIFICATION.
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-event-notification-transact-sql
+// TSql160.g:7586
 //
 //	CREATE EVENT NOTIFICATION event_notification_name
 //	ON { SERVER | DATABASE | QUEUE queue_name }
 //	[ WITH FAN_IN ]
 //	FOR { event_type | event_group } [ , ...n ]
 //	TO SERVICE 'broker_service' , { 'broker_instance_specifier' | 'current database' }
+//
+// SQL Server takes only the event types and groups of
+// sys.event_notification_event_types (1084), each once (1095), and refuses
+// an empty broker service or instance string (1093).
 func (p *Parser) parseCreateEventNotificationStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
-	// EVENT NOTIFICATION keywords already consumed by caller
-
 	stmt := &nodes.SecurityStmt{
 		Action:     "CREATE",
 		ObjectType: "EVENT NOTIFICATION",
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
+	name, err := p.evExpectName()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Name = name
 
-	// event_notification_name
-	if p.isIdentLike() || p.cur.Type == tokSCONST {
-		stmt.Name = p.cur.Str
+	opt := &nodes.EventNotificationOption{Loc: nodes.Loc{Start: p.pos(), End: -1}}
+	if err := p.parseEventNotificationScope(opt); err != nil {
+		return nil, err
+	}
+	if p.cur.Type == kwWITH {
+		p.advance()
+		if _, err := p.evExpectWordIn("FAN_IN"); err != nil {
+			return nil, err
+		}
+		opt.FanIn = true
+	}
+	if _, err := p.expect(kwFOR); err != nil {
+		return nil, err
+	}
+	seen := map[string]bool{}
+	for {
+		pos := p.pos()
+		if (p.cur.Type != tokIDENT && p.cur.Type < kwABSENT) || p.isDelimited(p.cur) {
+			return nil, p.syntaxErrorAtCur()
+		}
+		event := strings.ToUpper(p.cur.Str)
+		if _, ok := evNotificationEventGroups[event]; !ok {
+			return nil, p.newParseError(pos, "'"+p.cur.Str+"' is an invalid event type")
+		}
+		if evEventOverlaps(event, seen) {
+			return nil, p.newParseError(pos, "\""+event+"\" has already been specified as an event type")
+		}
+		seen[event] = true
+		p.advance()
+		opt.Events = append(opt.Events, event)
+		if p.cur.Type != ',' {
+			break
+		}
 		p.advance()
 	}
-
-	// Consume rest of statement (ON, WITH FAN_IN, FOR, TO SERVICE clauses)
-	stmt.Options = p.parseEventNotificationOptions()
-
+	if _, err := p.expect(kwTO); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(kwSERVICE); err != nil {
+		return nil, err
+	}
+	for i, dst := range []*string{&opt.ServiceName, &opt.BrokerInstance} {
+		if i == 1 {
+			if _, err := p.expect(','); err != nil {
+				return nil, err
+			}
+		}
+		pos := p.pos()
+		s, err := p.evExpectString()
+		if err != nil {
+			return nil, err
+		}
+		if s == "" {
+			return nil, p.newParseError(pos, "\"\" is not a valid broker name")
+		}
+		*dst = s
+	}
+	opt.Loc.End = p.prevEnd()
+	stmt.Options = &nodes.List{Items: []nodes.Node{opt}}
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
+}
+
+// evEventOverlaps reports whether event, or a group that holds it, or an
+// event it holds, is among seen.
+func evEventOverlaps(event string, seen map[string]bool) bool {
+	for e := event; e != ""; e = evNotificationEventGroups[e] {
+		if seen[e] {
+			return true
+		}
+	}
+	for s := range seen {
+		for e := evNotificationEventGroups[s]; e != ""; e = evNotificationEventGroups[e] {
+			if e == event {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// parseEventNotificationScope parses ON { SERVER | DATABASE | QUEUE queue_name }
+// (TSql160.g:7660).
+func (p *Parser) parseEventNotificationScope(opt *nodes.EventNotificationOption) error {
+	if _, err := p.expect(kwON); err != nil {
+		return err
+	}
+	switch p.cur.Type {
+	case kwSERVER:
+		opt.Scope = "SERVER"
+		p.advance()
+	case kwDATABASE:
+		opt.Scope = "DATABASE"
+		p.advance()
+	case kwQUEUE:
+		opt.Scope = "QUEUE"
+		p.advance()
+		queue, err := p.evExpectQueueName()
+		if err != nil {
+			return err
+		}
+		opt.QueueName = queue
+	default:
+		return p.syntaxErrorAtCur()
+	}
+	return nil
 }
 
 // parseDropEventNotificationStmt parses DROP EVENT NOTIFICATION.
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/drop-event-notification-transact-sql
+// TSql160.g:15594
 //
 //	DROP EVENT NOTIFICATION notification_name [ ,...n ]
 //	ON { SERVER | DATABASE | QUEUE queue_name }
 func (p *Parser) parseDropEventNotificationStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
-	// EVENT NOTIFICATION keywords already consumed by caller
-
 	stmt := &nodes.SecurityStmt{
 		Action:     "DROP",
 		ObjectType: "EVENT NOTIFICATION",
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
-
-	// notification_name [ ,...n ]
-	if p.isIdentLike() || p.cur.Type == tokSCONST {
-		stmt.Name = p.cur.Str
-		p.advance()
+	name, err := p.evExpectName()
+	if err != nil {
+		return nil, err
 	}
+	stmt.Name = name
 
-	// Consume rest: optional additional names and ON clause
-	stmt.Options = p.parseEventNotificationOptions()
-
+	opt := &nodes.EventNotificationOption{Loc: nodes.Loc{Start: p.pos(), End: -1}}
+	for p.cur.Type == ',' {
+		p.advance()
+		extra, err := p.evExpectName()
+		if err != nil {
+			return nil, err
+		}
+		opt.ExtraNames = append(opt.ExtraNames, extra)
+	}
+	if err := p.parseEventNotificationScope(opt); err != nil {
+		return nil, err
+	}
+	opt.Loc.End = p.prevEnd()
+	stmt.Options = &nodes.List{Items: []nodes.Node{opt}}
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
-}
-
-// parseEventNotificationOptions consumes ON/WITH/FOR/TO clauses of EVENT NOTIFICATION.
-//
-//	ON { SERVER | DATABASE | QUEUE queue_name }
-//	[ WITH FAN_IN ]
-//	FOR { event_type | event_group } [ , ...n ]
-//	TO SERVICE 'broker_service' , { 'broker_instance_specifier' | 'current database' }
-func (p *Parser) parseEventNotificationOptions() *nodes.List {
-	loc := p.pos()
-	opt := &nodes.EventNotificationOption{
-		Loc: nodes.Loc{Start: loc, End: -1},
-	}
-
-	for p.cur.Type != ';' && p.cur.Type != tokEOF && p.cur.Type != kwGO {
-		switch {
-		case p.cur.Type == kwON:
-			p.advance()
-			if p.cur.Type == kwSERVER {
-				opt.Scope = "SERVER"
-				p.advance()
-			} else if p.cur.Type == kwDATABASE {
-				opt.Scope = "DATABASE"
-				p.advance()
-			} else if p.cur.Type == kwQUEUE {
-				opt.Scope = "QUEUE"
-				p.advance()
-				queueName := ""
-				if p.isIdentLike() || p.cur.Type == tokSCONST {
-					queueName = p.cur.Str
-					p.advance()
-				}
-				for p.cur.Type == '.' {
-					p.advance()
-					if p.isIdentLike() || p.cur.Type == tokSCONST {
-						queueName += "." + p.cur.Str
-						p.advance()
-					}
-				}
-				opt.QueueName = queueName
-			}
-		case p.cur.Type == kwWITH:
-			p.advance()
-			if p.cur.Type == kwFAN_IN {
-				opt.FanIn = true
-				p.advance()
-			}
-		case p.cur.Type == kwFOR:
-			p.advance()
-			for {
-				if p.isIdentLike() || p.cur.Type == tokSCONST {
-					opt.Events = append(opt.Events, strings.ToUpper(p.cur.Str))
-					p.advance()
-				}
-				if _, ok := p.match(','); !ok {
-					break
-				}
-			}
-		case p.cur.Type == kwTO:
-			p.advance()
-			if p.cur.Type == kwSERVICE {
-				p.advance()
-			}
-			if p.cur.Type == tokSCONST {
-				opt.ServiceName = p.cur.Str
-				p.advance()
-			}
-			p.match(',')
-			if p.cur.Type == tokSCONST {
-				opt.BrokerInstance = p.cur.Str
-				p.advance()
-			}
-		default:
-			// Handle commas between notification names for DROP
-			if p.cur.Type == ',' {
-				p.advance()
-				if p.isIdentLike() || p.cur.Type == tokSCONST {
-					opt.ExtraNames = append(opt.ExtraNames, p.cur.Str)
-					p.advance()
-				}
-			} else if p.cur.Type != tokEOF && p.cur.Type != ';' {
-				p.advance()
-			} else {
-				break
-			}
-		}
-	}
-
-	opt.Loc.End = p.prevEnd()
-	return &nodes.List{Items: []nodes.Node{opt}}
 }
 
 // parseCreateEventSessionStmt parses CREATE EVENT SESSION.
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-event-session-transact-sql
+// TSql160.g:7706
 //
 //	CREATE EVENT SESSION event_session_name
 //	ON { SERVER | DATABASE }
-//	{
-//	    <event_definition> [ , ...n ]
-//	    [ <event_target_definition> [ , ...n ] ]
-//	    [ WITH ( <event_session_options> [ , ...n ] ) ]
-//	}
-//
-//	<event_definition>::=
-//	    ADD EVENT [event_module_guid].event_package_name.event_name
-//	         [ ( {
-//	                 [ SET { event_customizable_attribute = <value> [ , ...n ] } ]
-//	                 [ ACTION ( { [event_module_guid].event_package_name.action_name [ , ...n ] } ) ]
-//	                 [ WHERE <predicate_expression> ]
-//	        } ) ]
-//
-//	<event_target_definition>::=
-//	    ADD TARGET [event_module_guid].event_package_name.target_name
-//	        [ ( SET { target_parameter_name = <value> [ , ...n ] } ) ]
-//
-//	<event_session_options>::=
-//	{
-//	    [       MAX_MEMORY = size [ KB | MB ] ]
-//	    [ [ , ] EVENT_RETENTION_MODE = { ALLOW_SINGLE_EVENT_LOSS | ALLOW_MULTIPLE_EVENT_LOSS | NO_EVENT_LOSS } ]
-//	    [ [ , ] MAX_DISPATCH_LATENCY = { seconds SECONDS | INFINITE } ]
-//	    [ [ , ] MAX_EVENT_SIZE = size [ KB | MB ] ]
-//	    [ [ , ] MEMORY_PARTITION_MODE = { NONE | PER_NODE | PER_CPU } ]
-//	    [ [ , ] TRACK_CAUSALITY = { ON | OFF } ]
-//	    [ [ , ] STARTUP_STATE = { ON | OFF } ]
-//	    [ [ , ] MAX_DURATION = { <time duration> { SECONDS | MINUTES | HOURS | DAYS } | UNLIMITED } ]
-//	}
+//	<event_definition> [ , ...n ]
+//	[ <event_target_definition> [ , ...n ] ]
+//	[ WITH ( <event_session_options> [ , ...n ] ) ]
 func (p *Parser) parseCreateEventSessionStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
-	// EVENT SESSION keywords already consumed by caller
-
 	stmt := &nodes.SecurityStmt{
 		Action:     "CREATE",
 		ObjectType: "EVENT SESSION",
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
-
-	// event_session_name
-	if p.isIdentLike() || p.cur.Type == tokSCONST {
-		stmt.Name = p.cur.Str
-		p.advance()
-	}
-
-	// Consume rest of statement (ON, ADD EVENT, ADD TARGET, WITH)
-	opts, err := p.parseEventSessionBody()
+	name, err := p.evExpectName()
 	if err != nil {
 		return nil, err
 	}
-	stmt.Options = opts
+	stmt.Name = name
 
+	opts, err := p.parseEventSessionScope()
+	if err != nil {
+		return nil, err
+	}
+	if p.cur.Type != kwADD || p.peekNext().Type != kwEVENT {
+		return nil, p.syntaxErrorAtCur()
+	}
+	decls, err := p.parseEventSessionDeclarations(kwADD, kwEVENT)
+	if err != nil {
+		return nil, err
+	}
+	opts = append(opts, decls...)
+	if p.cur.Type == kwADD && p.peekNext().Type == kwTARGET {
+		targets, err := p.parseEventSessionDeclarations(kwADD, kwTARGET)
+		if err != nil {
+			return nil, err
+		}
+		opts = append(opts, targets...)
+	}
+	if p.cur.Type == kwWITH {
+		with, err := p.parseEventSessionOptions()
+		if err != nil {
+			return nil, err
+		}
+		opts = append(opts, with...)
+	}
+	stmt.Options = &nodes.List{Items: opts}
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
@@ -226,47 +355,76 @@ func (p *Parser) parseCreateEventSessionStmt() (*nodes.SecurityStmt, error) {
 // parseAlterEventSessionStmt parses ALTER EVENT SESSION.
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-event-session-transact-sql
+// TSql160.g:7725
 //
 //	ALTER EVENT SESSION event_session_name
 //	ON { SERVER | DATABASE }
 //	{
-//	    [ { <add_drop_event> [ , ...n ] }
-//	       | { <add_drop_event_target> [ , ...n ] } ]
+//	    { <add_event> [ , ...n ] | <add_target> [ , ...n ]
+//	    | <drop_event> [ , ...n ] | <drop_target> [ , ...n ] }
 //	    [ WITH ( <event_session_options> [ , ...n ] ) ]
-//	    ]
-//	    | [ STATE = { START | STOP } ]
+//	  | WITH ( <event_session_options> [ , ...n ] )
+//	  | STATE = { START | STOP }
 //	}
 //
-//	<add_drop_event>::=
-//	    ADD EVENT <event_specifier> [ ( ... ) ]
-//	    | DROP EVENT <event_specifier>
-//
-//	<add_drop_event_target>::=
-//	    ADD TARGET <event_target_specifier> [ ( SET ... ) ]
-//	    | DROP TARGET <event_target_specifier>
+// One statement adds or drops events, or targets, not both.
 func (p *Parser) parseAlterEventSessionStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
-	// EVENT SESSION keywords already consumed by caller
-
 	stmt := &nodes.SecurityStmt{
 		Action:     "ALTER",
 		ObjectType: "EVENT SESSION",
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
-
-	// event_session_name
-	if p.isIdentLike() || p.cur.Type == tokSCONST {
-		stmt.Name = p.cur.Str
-		p.advance()
-	}
-
-	// Consume rest of statement
-	opts, err := p.parseEventSessionBody()
+	name, err := p.evExpectName()
 	if err != nil {
 		return nil, err
 	}
-	stmt.Options = opts
+	stmt.Name = name
 
+	opts, err := p.parseEventSessionScope()
+	if err != nil {
+		return nil, err
+	}
+	switch {
+	case p.cur.Type == kwADD || p.cur.Type == kwDROP:
+		verb := p.cur.Type
+		next := p.peekNext().Type
+		if next != kwEVENT && next != kwTARGET {
+			p.advance()
+			return nil, p.syntaxErrorAtCur()
+		}
+		decls, err := p.parseEventSessionDeclarations(verb, next)
+		if err != nil {
+			return nil, err
+		}
+		opts = append(opts, decls...)
+		if p.cur.Type == kwWITH {
+			with, err := p.parseEventSessionOptions()
+			if err != nil {
+				return nil, err
+			}
+			opts = append(opts, with...)
+		}
+	case p.cur.Type == kwWITH:
+		with, err := p.parseEventSessionOptions()
+		if err != nil {
+			return nil, err
+		}
+		opts = append(opts, with...)
+	case p.cur.Type == kwSTATE:
+		p.advance()
+		if _, err := p.expect('='); err != nil {
+			return nil, err
+		}
+		state, err := p.evExpectWordIn("START", "STOP")
+		if err != nil {
+			return nil, err
+		}
+		opts = append(opts, &nodes.String{Str: "STATE=" + state})
+	default:
+		return nil, p.syntaxErrorAtCur()
+	}
+	stmt.Options = &nodes.List{Items: opts}
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
@@ -274,290 +432,232 @@ func (p *Parser) parseAlterEventSessionStmt() (*nodes.SecurityStmt, error) {
 // parseDropEventSessionStmt parses DROP EVENT SESSION.
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/drop-event-session-transact-sql
+// TSql160.g:15633
 //
 //	DROP EVENT SESSION event_session_name
 //	ON { SERVER | DATABASE }
 func (p *Parser) parseDropEventSessionStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
-	// EVENT SESSION keywords already consumed by caller
-
 	stmt := &nodes.SecurityStmt{
 		Action:     "DROP",
 		ObjectType: "EVENT SESSION",
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
-
-	// event_session_name
-	if p.isIdentLike() || p.cur.Type == tokSCONST {
-		stmt.Name = p.cur.Str
-		p.advance()
-	}
-
-	// ON { SERVER | DATABASE }
-	opts, err := p.parseEventSessionBody()
+	name, err := p.evExpectName()
 	if err != nil {
 		return nil, err
 	}
-	stmt.Options = opts
-
+	stmt.Name = name
+	opts, err := p.parseEventSessionScope()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Options = &nodes.List{Items: opts}
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
-// parseEventSessionBody consumes ON, ADD EVENT/TARGET, DROP EVENT/TARGET, WITH, STATE clauses.
-func (p *Parser) parseEventSessionBody() (*nodes.List, error) {
+// parseEventSessionScope parses ON { SERVER | DATABASE } (TSql160.g:7688).
+func (p *Parser) parseEventSessionScope() ([]nodes.Node, error) {
+	if _, err := p.expect(kwON); err != nil {
+		return nil, err
+	}
+	switch p.cur.Type {
+	case kwSERVER:
+		p.advance()
+		return []nodes.Node{&nodes.String{Str: "ON=SERVER"}}, nil
+	case kwDATABASE:
+		p.advance()
+		return []nodes.Node{&nodes.String{Str: "ON=DATABASE"}}, nil
+	}
+	return nil, p.syntaxErrorAtCur()
+}
+
+// parseEventSessionDeclarations parses a list of one kind of declaration,
+// each starting with its own verb and noun: ADD EVENT x [ , ADD EVENT y ...]
+// (TSql160.g:7797, 7816, 8273, 8292).
+func (p *Parser) parseEventSessionDeclarations(verb, noun int) ([]nodes.Node, error) {
+	prefix := "ADD "
+	if verb == kwDROP {
+		prefix = "DROP "
+	}
+	if noun == kwEVENT {
+		prefix += "EVENT"
+	} else {
+		prefix += "TARGET"
+	}
 	var opts []nodes.Node
-
-	// ON { SERVER | DATABASE }
-	if p.cur.Type == kwON {
-		p.advance()
-		if p.cur.Type == kwSERVER {
-			opts = append(opts, &nodes.String{Str: "ON=SERVER"})
-			p.advance()
-		} else if p.cur.Type == kwDATABASE {
-			opts = append(opts, &nodes.String{Str: "ON=DATABASE"})
-			p.advance()
+	for {
+		if _, err := p.expect(verb); err != nil {
+			return nil, err
 		}
-	}
-
-	// Rest of body: ADD EVENT, ADD TARGET, DROP EVENT, DROP TARGET, STATE, WITH
-	for p.cur.Type != ';' && p.cur.Type != tokEOF && p.cur.Type != kwGO {
-		if p.cur.Type == kwADD {
-			p.advance()
-			if p.cur.Type == kwEVENT {
-				p.advance()
-				spec, err := p.parseEventSessionEventSpec("ADD EVENT")
-				if err != nil {
-					return nil, err
-				}
-				opts = append(opts, spec...)
-			} else if p.cur.Type == kwTARGET {
-				p.advance()
-				opts = append(opts, p.parseEventSessionTargetSpec("ADD TARGET")...)
-			}
-			// Check for comma then another ADD
-			if p.cur.Type == ',' {
-				p.advance()
-				continue
-			}
-		} else if p.cur.Type == kwDROP {
-			p.advance()
-			if p.cur.Type == kwEVENT {
-				p.advance()
-				eventName := p.parseEventSessionDottedName()
-				opts = append(opts, &nodes.String{Str: "DROP EVENT=" + eventName})
-			} else if p.cur.Type == kwTARGET {
-				p.advance()
-				targetName := p.parseEventSessionDottedName()
-				opts = append(opts, &nodes.String{Str: "DROP TARGET=" + targetName})
-			}
-			// Check for comma then another DROP/ADD
-			if p.cur.Type == ',' {
-				p.advance()
-				continue
-			}
-		} else if p.cur.Type == kwSTATE {
-			p.advance()
-			p.match('=')
-			// ALTER EVENT SESSION STATE = { START | STOP }
-			if p.isValidOption(eventSessionStateValues) {
-				opts = append(opts, &nodes.String{Str: "STATE=" + strings.ToUpper(p.cur.Str)})
-				p.advance()
-			}
-		} else if p.cur.Type == kwWITH {
-			p.advance()
-			if p.cur.Type == '(' {
-				p.advance()
-				for p.cur.Type != ')' && p.cur.Type != tokEOF {
-					if p.isIdentLike() || p.cur.Type == kwON || p.cur.Type == kwOFF {
-						optName := strings.ToUpper(p.cur.Str)
-						p.advance()
-						if p.cur.Type == '=' {
-							p.advance()
-							// Value could be: number [KB|MB|SECONDS], identifier, ON/OFF
-							val := ""
-							if p.isIdentLike() || p.cur.Type == tokICONST || p.cur.Type == tokSCONST ||
-								p.cur.Type == kwON || p.cur.Type == kwOFF {
-								val = strings.ToUpper(p.cur.Str)
-								p.advance()
-							}
-							// Check for unit suffix (KB, MB, SECONDS, etc.)
-							if p.cur.Type == kwKB || p.cur.Type == kwMB ||
-								p.cur.Type == kwSECONDS || p.cur.Type == kwMINUTES ||
-								p.cur.Type == kwHOURS || p.cur.Type == kwDAYS {
-								val += " " + strings.ToUpper(p.cur.Str)
-								p.advance()
-							}
-							optName += "=" + val
-						}
-						opts = append(opts, &nodes.String{Str: optName})
-					} else {
-						p.advance()
-					}
-					p.match(',')
-				}
-				p.match(')')
-			}
-		} else {
-			break
+		if _, err := p.expect(noun); err != nil {
+			return nil, err
 		}
-	}
-
-	if len(opts) == 0 {
-		return nil, nil
-	}
-	return &nodes.List{Items: opts}, nil
-}
-
-// parseEventSessionEventSpec parses an ADD EVENT specifier with optional (SET/ACTION/WHERE).
-//
-//	ADD EVENT [event_module_guid].event_package_name.event_name
-//	     [ ( {
-//	             [ SET { event_customizable_attribute = <value> [ , ...n ] } ]
-//	             [ ACTION ( { [event_module_guid].event_package_name.action_name [ , ...n ] } ) ]
-//	             [ WHERE <predicate_expression> ]
-//	    } ) ]
-func (p *Parser) parseEventSessionEventSpec(prefix string) ([]nodes.Node, error) {
-	var result []nodes.Node
-
-	eventName := p.parseEventSessionDottedName()
-	result = append(result, &nodes.String{Str: prefix + "=" + eventName})
-
-	// Optional parenthesized SET/ACTION/WHERE
-	if p.cur.Type == '(' {
-		p.advance()
-		for p.cur.Type != ')' && p.cur.Type != tokEOF {
-			if p.cur.Type == kwSET {
-				// SET { attribute = value [ , ...n ] }
-				p.advance()
-				for {
-					if !p.isIdentLike() {
-						break
-					}
-					attrName := p.cur.Str
-					p.advance()
-					if p.cur.Type == '=' {
-						p.advance()
-						val := p.parseEventSessionValue()
-						result = append(result, &nodes.String{Str: "SET " + attrName + "=" + val})
-					}
-					if _, ok := p.match(','); !ok {
-						break
-					}
-					// Stop if next token is ACTION or WHERE (not another SET pair)
-					if p.cur.Type == kwACTION || p.cur.Type == kwWHERE {
-						break
-					}
-				}
-			} else if p.cur.Type == kwACTION {
-				// ACTION ( { package.action_name [ , ...n ] } )
-				p.advance()
-				if p.cur.Type == '(' {
-					p.advance()
-					for p.cur.Type != ')' && p.cur.Type != tokEOF {
-						actionName := p.parseEventSessionDottedName()
-						if actionName != "" {
-							result = append(result, &nodes.String{Str: "ACTION=" + actionName})
-						}
-						if _, ok := p.match(','); !ok {
-							break
-						}
-					}
-					p.match(')')
-				}
-			} else if p.cur.Type == kwWHERE {
-				// WHERE <predicate_expression>
-				p.advance()
-				predicate, err := p.parseEventSessionPredicate()
-				if err != nil {
-					return nil, err
-				}
-				if predicate != "" {
-					result = append(result, &nodes.String{Str: "WHERE " + predicate})
-				}
+		name, _, err := p.evExpectObjectName()
+		if err != nil {
+			return nil, err
+		}
+		opts = append(opts, &nodes.String{Str: prefix + "=" + name})
+		if verb == kwADD && p.cur.Type == '(' {
+			var body []nodes.Node
+			if noun == kwEVENT {
+				body, err = p.parseEventSessionEventBody()
 			} else {
-				// Skip unexpected tokens
-				p.advance()
+				body, err = p.parseEventSessionTargetBody()
 			}
-			// Optional comma between clauses
-			p.match(',')
+			if err != nil {
+				return nil, err
+			}
+			opts = append(opts, body...)
 		}
-		p.match(')')
+		if p.cur.Type != ',' {
+			return opts, nil
+		}
+		p.advance()
 	}
-
-	return result, nil
 }
 
-// parseEventSessionTargetSpec parses an ADD TARGET specifier with optional (SET ...).
+// parseEventSessionEventBody parses an event declaration's parenthesized
+// clauses, each optional, in this order (TSql160.g:7870):
 //
-//	ADD TARGET [event_module_guid].event_package_name.target_name
-//	    [ ( SET { target_parameter_name = <value> [ , ...n ] } ) ]
-func (p *Parser) parseEventSessionTargetSpec(prefix string) []nodes.Node {
-	var result []nodes.Node
-
-	targetName := p.parseEventSessionDottedName()
-	result = append(result, &nodes.String{Str: prefix + "=" + targetName})
-
-	// Optional parenthesized SET
-	if p.cur.Type == '(' {
-		p.advance()
-		if p.cur.Type == kwSET {
-			p.advance()
-			for {
-				if !p.isIdentLike() && p.cur.Type != tokSCONST {
-					break
-				}
-				paramName := p.cur.Str
-				p.advance()
-				if p.cur.Type == '=' {
-					p.advance()
-					val := p.parseEventSessionValue()
-					result = append(result, &nodes.String{Str: "SET " + paramName + "=" + val})
-				}
-				if _, ok := p.match(','); !ok {
-					break
-				}
-			}
+//	( [ SET { event_customizable_attribute = <value> [ , ...n ] } ]
+//	  [ ACTION ( { [event_module_guid].event_package_name.action_name [ , ...n ] } ) ]
+//	  [ WHERE <predicate_expression> ] )
+func (p *Parser) parseEventSessionEventBody() ([]nodes.Node, error) {
+	p.advance() // consume '('
+	var opts []nodes.Node
+	if p.cur.Type == kwSET {
+		sets, err := p.parseEventSessionSetList()
+		if err != nil {
+			return nil, err
 		}
-		p.match(')')
+		opts = append(opts, sets...)
 	}
-
-	return result
+	if p.cur.Type == kwACTION {
+		p.advance()
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+		for {
+			name, _, err := p.evExpectObjectName()
+			if err != nil {
+				return nil, err
+			}
+			opts = append(opts, &nodes.String{Str: "ACTION=" + name})
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance()
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+	}
+	if p.cur.Type == kwWHERE {
+		p.advance()
+		pred, err := p.parseEventSessionPredicate()
+		if err != nil {
+			return nil, err
+		}
+		opts = append(opts, &nodes.String{Str: "WHERE " + pred})
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return opts, nil
 }
 
-// parseEventSessionValue consumes a value: number, 'string', N'string', or identifier.
-func (p *Parser) parseEventSessionValue() string {
-	switch {
-	case p.cur.Type == tokICONST:
-		val := p.cur.Str
+// parseEventSessionTargetBody parses a target declaration's
+// ( SET { target_parameter_name = <value> [ , ...n ] } ) (TSql160.g:7943).
+func (p *Parser) parseEventSessionTargetBody() ([]nodes.Node, error) {
+	p.advance() // consume '('
+	if p.cur.Type != kwSET {
+		return nil, p.syntaxErrorAtCur()
+	}
+	opts, err := p.parseEventSessionSetList()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return opts, nil
+}
+
+// parseEventSessionSetList parses SET name = <value> [ , ...n ]
+// (TSql160.g:7897, 8089). SQL Server takes a bare name, not a bracketed one.
+func (p *Parser) parseEventSessionSetList() ([]nodes.Node, error) {
+	p.advance() // consume SET
+	var opts []nodes.Node
+	for {
+		if p.isDelimited(p.cur) {
+			return nil, p.syntaxErrorAtCur()
+		}
+		name, err := p.evExpectName()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect('='); err != nil {
+			return nil, err
+		}
+		val, err := p.parseEventSessionValue()
+		if err != nil {
+			return nil, err
+		}
+		opts = append(opts, &nodes.String{Str: "SET " + name + "=" + val})
+		if p.cur.Type != ',' {
+			return opts, nil
+		}
 		p.advance()
-		return val
-	case p.cur.Type == tokSCONST:
-		val := p.cur.Str
-		p.advance()
-		return val
-	case p.cur.Type == tokNSCONST:
-		val := p.cur.Str
-		p.advance()
-		return val
-	case p.cur.Type == kwON:
-		p.advance()
-		return "ON"
-	case p.cur.Type == kwOFF:
-		p.advance()
-		return "OFF"
-	case p.isIdentLike():
-		val := p.cur.Str
-		p.advance()
-		return val
-	default:
-		return ""
 	}
 }
 
-// parseEventSessionPredicate consumes a simple predicate expression for event WHERE clauses.
-// Handles: field_name { = | <> | != | > | >= | < | <= } value
-// and: AND/OR connectors, NOT, parenthesized sub-expressions.
+// parseEventSessionValue parses an event declaration value and returns its
+// text (TSql160.g:8102):
+//
+//	<value> ::= - number | ( <value> ) | integer | numeric | real | binary | 'string'
+func (p *Parser) parseEventSessionValue() (string, error) {
+	switch p.cur.Type {
+	case '-':
+		p.advance()
+		isBinary := len(p.cur.Str) > 1 && (p.cur.Str[1] == 'x' || p.cur.Str[1] == 'X')
+		if (p.cur.Type != tokICONST && p.cur.Type != tokFCONST) || isBinary {
+			return "", p.syntaxErrorAtCur()
+		}
+		val := "-" + p.cur.Str
+		p.advance()
+		return val, nil
+	case '(':
+		if err := p.enterNesting(); err != nil {
+			return "", err
+		}
+		defer p.leaveNesting()
+		p.advance()
+		inner, err := p.parseEventSessionValue()
+		if err != nil {
+			return "", err
+		}
+		if _, err := p.expect(')'); err != nil {
+			return "", err
+		}
+		return "(" + inner + ")", nil
+	case tokICONST, tokFCONST, tokSCONST, tokNSCONST:
+		val := p.cur.Str
+		p.advance()
+		return val, nil
+	}
+	return "", p.syntaxErrorAtCur()
+}
+
+// parseEventSessionPredicate parses an event's WHERE predicate and returns
+// its text (TSql160.g:8142-8266):
+//
+//	<predicate_expression> ::= <and> [ OR <and> ...n ]
+//	<and>    ::= <unary> [ AND <unary> ...n ]
+//	<unary>  ::= NOT <unary> | ( <predicate_expression> ) | <leaf>
+//	<leaf>   ::= <source> { = | <> | != | > | >= | !> | < | <= | !< | LIKE | NOT LIKE } <value>
+//	           | package.predicate_compare_name ( <source> , <value> )
 func (p *Parser) parseEventSessionPredicate() (string, error) {
 	if err := p.enterNesting(); err != nil {
 		return "", err
@@ -565,121 +665,178 @@ func (p *Parser) parseEventSessionPredicate() (string, error) {
 	defer p.leaveNesting()
 	var parts []string
 	for {
-		part, err := p.parseEventSessionPredicateFactor()
-		if err != nil {
-			return "", err
-		}
-		if part == "" {
-			break
-		}
-		parts = append(parts, part)
-		// AND / OR
-		if p.cur.Type == kwAND {
-			parts = append(parts, "AND")
+		var ands []string
+		for {
+			term, err := p.parseEventSessionPredicateUnary()
+			if err != nil {
+				return "", err
+			}
+			ands = append(ands, term)
+			if p.cur.Type != kwAND {
+				break
+			}
 			p.advance()
-		} else if p.cur.Type == kwOR {
-			parts = append(parts, "OR")
-			p.advance()
-		} else {
-			break
 		}
-	}
-	return strings.Join(parts, " "), nil
-}
-
-// parseEventSessionPredicateFactor parses a single predicate factor.
-//
-// BNF (from create-event-session-transact-sql.bnf):
-//
-//	<predicate_factor> ::=
-//	    <predicate_leaf> | ( <predicate_expression> )
-//
-//	<predicate_leaf> ::=
-//	      <predicate_source_declaration> { = | <> | != | > | >= | < | <= } <value>
-//	    | [event_module_guid].event_package_name.predicate_compare_name
-//	        ( <predicate_source_declaration> , <value> )
-func (p *Parser) parseEventSessionPredicateFactor() (string, error) {
-	// NOT
-	notPrefix := ""
-	if p.cur.Type == kwNOT {
-		notPrefix = "NOT "
+		parts = append(parts, strings.Join(ands, " AND "))
+		if p.cur.Type != kwOR {
+			return strings.Join(parts, " OR "), nil
+		}
 		p.advance()
 	}
+}
 
-	// Parenthesized sub-expression
+// parseEventSessionPredicateUnary parses NOT <unary>, a parenthesized
+// predicate, or a leaf. A chain of NOT is read by a loop, not by recursion,
+// and its text is built once, so a long chain costs linear time.
+func (p *Parser) parseEventSessionPredicateUnary() (string, error) {
+	nots := 0
+	for p.cur.Type == kwNOT {
+		nots++
+		p.advance()
+	}
+	prefix := strings.Repeat("NOT ", nots)
 	if p.cur.Type == '(' {
 		p.advance()
 		inner, err := p.parseEventSessionPredicate()
 		if err != nil {
 			return "", err
 		}
-		p.match(')')
-		return notPrefix + "(" + inner + ")", nil
+		if _, err := p.expect(')'); err != nil {
+			return "", err
+		}
+		return prefix + "(" + inner + ")", nil
 	}
-
-	// field_name or package.predicate_source_name or package.predicate_compare_name
-	lhs := p.parseEventSessionDottedName()
-	if lhs == "" {
-		return "", nil
+	lhs, parts, err := p.evExpectObjectName()
+	if err != nil {
+		return "", err
 	}
-
-	// Check for function call form: predicate_compare_name(source, value)
 	if p.cur.Type == '(' {
+		// A compare function names its package (TSql160.g:8220).
+		if parts < 2 {
+			return "", p.syntaxErrorAtCur()
+		}
 		p.advance()
-		arg1 := p.parseEventSessionDottedName()
-		p.match(',')
-		arg2 := p.parseEventSessionValue()
-		p.match(')')
-		return notPrefix + lhs + "(" + arg1 + ", " + arg2 + ")", nil
+		src, _, err := p.evExpectObjectName()
+		if err != nil {
+			return "", err
+		}
+		if _, err := p.expect(','); err != nil {
+			return "", err
+		}
+		val, err := p.parseEventSessionValue()
+		if err != nil {
+			return "", err
+		}
+		if _, err := p.expect(')'); err != nil {
+			return "", err
+		}
+		return prefix + lhs + "(" + src + ", " + val + ")", nil
 	}
-
-	// Comparison operator
-	op := ""
+	var op string
 	switch p.cur.Type {
 	case '=':
 		op = "="
-		p.advance()
-	case '<':
-		p.advance()
-		if p.cur.Type == '=' {
-			op = "<="
+	case tokNOTEQUAL:
+		op = "<>"
+	case tokLESSEQUAL:
+		op = "<="
+	case tokGREATEQUAL:
+		op = ">="
+	case tokNOTLESS:
+		op = "!<"
+	case tokNOTGREATER:
+		op = "!>"
+	case '<', '>':
+		// SQL Server also reads < = and > = with a space between.
+		op = string(rune(p.cur.Type))
+		if p.peekNext().Type == '=' {
 			p.advance()
-		} else {
-			op = "<"
+			op += "="
 		}
-	case '>':
+	case kwLIKE:
+		op = "LIKE"
+	case kwNOT:
 		p.advance()
-		if p.cur.Type == '=' {
-			op = ">="
-			p.advance()
-		} else {
-			op = ">"
+		if p.cur.Type != kwLIKE {
+			return "", p.syntaxErrorAtCur()
 		}
-	case tokNOTEQUAL: // != or <>
-		op = "!="
-		p.advance()
+		op = "NOT LIKE"
 	default:
-		return notPrefix + lhs, nil
+		return "", p.syntaxErrorAtCur()
 	}
-
-	// RHS value
-	rhs := p.parseEventSessionValue()
-	return notPrefix + lhs + " " + op + " " + rhs, nil
+	p.advance()
+	val, err := p.parseEventSessionValue()
+	if err != nil {
+		return "", err
+	}
+	return prefix + lhs + " " + op + " " + val, nil
 }
 
-// parseEventSessionDottedName consumes a dotted name like package.event_name or [guid].package.name.
-func (p *Parser) parseEventSessionDottedName() string {
-	name := ""
-	if p.isIdentLike() || p.cur.Type == tokSCONST || p.cur.Type == tokICONST {
-		name = p.cur.Str
-		p.advance()
+// parseEventSessionOptions parses WITH ( <event_session_options> [ , ...n ] )
+// (TSql160.g:7835-8080).
+//
+//	<event_session_options> ::=
+//	    MAX_MEMORY = size { KB | MB }
+//	  | EVENT_RETENTION_MODE = { ALLOW_SINGLE_EVENT_LOSS | ALLOW_MULTIPLE_EVENT_LOSS | NO_EVENT_LOSS }
+//	  | MAX_DISPATCH_LATENCY = { seconds SECONDS | INFINITE }
+//	  | MAX_EVENT_SIZE = size { KB | MB }
+//	  | MEMORY_PARTITION_MODE = { NONE | PER_NODE | PER_CPU }
+//	  | TRACK_CAUSALITY = { ON | OFF }
+//	  | STARTUP_STATE = { ON | OFF }
+//
+// SQL Server 2022 has no MAX_DURATION, and takes an option more than once.
+func (p *Parser) parseEventSessionOptions() ([]nodes.Node, error) {
+	p.advance() // consume WITH
+	if _, err := p.expect('('); err != nil {
+		return nil, err
 	}
-	for p.cur.Type == '.' {
-		p.advance()
-		if p.isIdentLike() || p.cur.Type == tokSCONST || p.cur.Type == tokICONST {
-			name += "." + p.cur.Str
-			p.advance()
+	var opts []nodes.Node
+	for {
+		name, err := p.evExpectWordIn("MAX_MEMORY", "MAX_EVENT_SIZE", "TRACK_CAUSALITY", "STARTUP_STATE",
+			"EVENT_RETENTION_MODE", "MEMORY_PARTITION_MODE", "MAX_DISPATCH_LATENCY")
+		if err != nil {
+			return nil, err
 		}
+		if _, err := p.expect('='); err != nil {
+			return nil, err
+		}
+		var val string
+		switch name {
+		case "MAX_MEMORY", "MAX_EVENT_SIZE":
+			var n, unit string
+			if n, err = p.evExpectInt(); err == nil {
+				unit, err = p.evExpectWordIn("KB", "MB")
+				val = n + " " + unit
+			}
+		case "TRACK_CAUSALITY", "STARTUP_STATE":
+			val, err = p.evExpectWordIn("ON", "OFF")
+		case "EVENT_RETENTION_MODE":
+			val, err = p.evExpectIdentValue("ALLOW_SINGLE_EVENT_LOSS", "ALLOW_MULTIPLE_EVENT_LOSS", "NO_EVENT_LOSS")
+		case "MEMORY_PARTITION_MODE":
+			val, err = p.evExpectIdentValue("NONE", "PER_NODE", "PER_CPU")
+		case "MAX_DISPATCH_LATENCY":
+			if p.evIsWord("INFINITE") {
+				p.advance()
+				val = "INFINITE"
+			} else {
+				var n string
+				if n, err = p.evExpectInt(); err == nil {
+					_, err = p.evExpectWordIn("SECONDS")
+					val = n + " SECONDS"
+				}
+			}
+		}
+		if err != nil {
+			return nil, err
+		}
+		opts = append(opts, &nodes.String{Str: name + "=" + val})
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
 	}
-	return name
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return opts, nil
 }
