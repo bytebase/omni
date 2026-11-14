@@ -317,7 +317,12 @@ func (p *Parser) parsePLSQLCursorParams() (*nodes.List, error) {
 	params := &nodes.List{}
 	p.advance() // consume (
 
-	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+	for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+		// An item that consumes nothing would come round again.
+		if p.pos() == progress {
+			return nil, p.syntaxErrorAtCur()
+		}
+		progress = p.pos()
 		paramStart := p.pos()
 		paramDecl := &nodes.PLSQLVarDecl{
 			Loc: nodes.Loc{Start: paramStart},
@@ -1500,7 +1505,12 @@ func (p *Parser) parsePLSQLArgList() (*nodes.List, error) {
 	args := &nodes.List{}
 	p.advance() // consume (
 
-	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+	for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+		// An item that consumes nothing would come round again.
+		if p.pos() == progress {
+			return nil, p.syntaxErrorAtCur()
+		}
+		progress = p.pos()
 		expr, parseErr881 := p.parseExpr()
 		if parseErr881 != nil {
 			return nil, parseErr881
@@ -1722,7 +1732,12 @@ func (p *Parser) parsePLSQLPragma() (*nodes.PLSQLPragma, error) {
 	if p.cur.Type == '(' {
 		p.advance()
 		pragma.Args = &nodes.List{}
-		for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+			// An item that consumes nothing would come round again.
+			if p.pos() == progress {
+				return nil, p.syntaxErrorAtCur()
+			}
+			progress = p.pos()
 			arg, parseErr889 := p.parseExpr()
 			if parseErr889 != nil {
 				return nil, parseErr889
@@ -2032,7 +2047,12 @@ func (p *Parser) parsePLSQLTypeDecl() (*nodes.PLSQLTypeDecl, error) {
 		if p.cur.Type == '(' {
 			p.advance()
 			decl.Fields = &nodes.List{}
-			for p.cur.Type != ')' && p.cur.Type != tokEOF {
+			for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+				// An item that consumes nothing would come round again.
+				if p.pos() == progress {
+					return nil, p.syntaxErrorAtCur()
+				}
+				progress = p.pos()
 				field, parseErr898 := p.parsePLSQLVarDecl(charsetFixed)
 				if parseErr898 != nil {
 					return nil, parseErr898

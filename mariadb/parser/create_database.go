@@ -78,12 +78,28 @@ func (p *Parser) parseAlterDatabaseStmt(start int) (*nodes.AlterDatabaseStmt, er
 	// `ALTER DATABASE CHARSET = 'utf8'` names a database and then runs out of
 	// options -- a 1064 on MariaDB 11.8.8 -- while
 	// `ALTER DATABASE COLLATE = 'utf8_bin'` parses.
-	if p.isIdentToken() {
+	//
+	// COMMENT is no reserved word, and the grammar gives ALTER DATABASE COMMENT
+	// an arm of its own, so COMMENT with '=' or a string after it is the option.
+	// Ref: alter's `ALTER DATABASE COMMENT_SYM opt_equal TEXT_STRING_sys
+	// opt_create_database_options` in MariaDB 11.8 sql/sql_yacc.yy.
+	if p.isIdentToken() && !p.atDatabaseComment() {
 		name, _, err := p.parseIdent()
 		if err != nil {
 			return nil, err
 		}
 		stmt.Name = name
+		// ALTER DATABASE name UPGRADE DATA DIRECTORY NAME, which takes no option.
+		if p.cur.Type == kwUPGRADE {
+			for _, kw := range []int{kwUPGRADE, kwDATA, kwDIRECTORY, kwNAME} {
+				if _, err := p.expect(kw); err != nil {
+					return nil, err
+				}
+			}
+			stmt.UpgradeDataDirectoryName = true
+			stmt.Loc.End = p.prev.End
+			return stmt, nil
+		}
 	}
 
 	// Options
@@ -109,6 +125,16 @@ func (p *Parser) parseAlterDatabaseStmt(start int) (*nodes.AlterDatabaseStmt, er
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// atDatabaseComment reports whether p.cur starts a COMMENT option: COMMENT with
+// '=', ':=' or a string after it.
+func (p *Parser) atDatabaseComment() bool {
+	if p.cur.Type != kwCOMMENT {
+		return false
+	}
+	next := p.peekNext().Type
+	return next == '=' || next == tokAssign || next == tokSCONST
 }
 
 // parseDropDatabaseStmt parses a DROP DATABASE/SCHEMA statement.
@@ -180,6 +206,20 @@ func (p *Parser) parseDatabaseOption() (*nodes.DatabaseOption, bool, error) {
 	}
 
 	switch {
+	case p.cur.Type == kwCOMMENT:
+		// COMMENT [=] 'text'. Ref: create_database_option in MariaDB 11.8
+		// sql/sql_yacc.yy.
+		p.advance()
+		p.matchEqual()
+		if p.cur.Type != tokSCONST {
+			return nil, false, p.syntaxErrorAtCur()
+		}
+		val := p.advance().Str
+		return &nodes.DatabaseOption{
+			Loc:   nodes.Loc{Start: start, End: p.prev.End},
+			Name:  "COMMENT",
+			Value: val,
+		}, true, nil
 	case p.cur.Type == kwCHARACTER:
 		p.advance()
 		if _, ok := p.match(kwSET); ok {
