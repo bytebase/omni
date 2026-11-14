@@ -36,6 +36,9 @@ type objectForm struct {
 	// and an UNSET of a name outside unset (or props, when unset is nil).
 	props objectProps
 	unset []string
+	// alterProps, when set, are the properties ALTER ... SET documents where
+	// they differ from CREATE's props.
+	alterProps objectProps
 }
 
 // objectForms maps an object's first keyword to the objects it starts.
@@ -204,11 +207,15 @@ func propOneOf(words ...string) objectValue { return objectValue{kind: valWord, 
 // checkClauses holds a statement's property runs, SETs and UNSETs to f's
 // documented properties.
 func (f *objectForm) checkClauses(s *ast.ObjectStmt) error {
+	props := f.props
+	if s.Verb == "ALTER" && f.alterProps != nil {
+		props = f.alterProps
+	}
 	for _, c := range s.Clauses {
 		switch c.Keywords {
 		case "", "SET":
 			for _, o := range c.Options {
-				v, ok := f.props[o.Name]
+				v, ok := props[o.Name]
 				if !ok || !v.matches(o) {
 					return &ParseError{
 						Position: o.Loc.Start, End: o.Loc.End,
@@ -516,11 +523,17 @@ func (p *Parser) parseObjectValue(opt *ast.CopyOption) error {
 		opt.Lit = lit
 		return nil
 	}
-	words, _, err := p.parseValueWord()
+	start := p.cur.Loc.Start
+	words, end, err := p.parseValueWord()
 	if err != nil {
 		return err
 	}
 	opt.Words = words
+	if src := p.srcSlice(start, end); strings.Contains(src, `"`) {
+		// A quoted name keeps its quotes, so it never reads as a keyword
+		// value such as TRUE.
+		opt.Words = src
+	}
 	return nil
 }
 

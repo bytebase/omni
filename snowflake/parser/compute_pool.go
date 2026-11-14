@@ -12,9 +12,10 @@ func init() {
 		create: parseCreateComputePool,
 		alter:  parseAlterComputePool,
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-compute-pool
-		drop:  true,
-		props: computePoolProps,
-		unset: []string{"AUTO_SUSPEND_SECS", "AUTO_RESUME", "PLACEMENT_GROUP", "BACKUP_INSTANCE_FAMILIES", "COMMENT"},
+		drop:       true,
+		props:      computePoolProps,
+		alterProps: computePoolAlterProps,
+		unset:      []string{"AUTO_SUSPEND_SECS", "AUTO_RESUME", "PLACEMENT_GROUP", "BACKUP_INSTANCE_FAMILIES", "COMMENT"},
 	})
 }
 
@@ -31,6 +32,18 @@ var computePoolProps = objectProps{
 	"PLACEMENT_GROUP":          propString,
 	"BACKUP_INSTANCE_FAMILIES": propStrings,
 }
+
+// computePoolAlterProps are ALTER COMPUTE POOL ... SET's: CREATE's but
+// INITIALLY_SUSPENDED.
+var computePoolAlterProps = func() objectProps {
+	m := objectProps{}
+	for k, v := range computePoolProps {
+		if k != "INITIALLY_SUSPENDED" {
+			m[k] = v
+		}
+	}
+	return m
+}()
 
 // parseCreateComputePool reads what follows the name of
 //
