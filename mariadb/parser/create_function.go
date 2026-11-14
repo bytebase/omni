@@ -213,6 +213,13 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, isProcedure bool)
 	if err != nil {
 		return nil, err
 	}
+	// A function's body must hold a RETURN somewhere: 1320, ER_SP_NORETURN, when none was
+	// read.
+	//
+	// Ref: LEX::sp_body_finalize_function in MariaDB 11.8 sql/sql_lex.cc.
+	if !isProcedure && !p.routine.hasReturn && !p.completing {
+		return nil, &ParseError{Message: "No RETURN found in FUNCTION " + stmt.Name.Name, Position: bodyStart}
+	}
 	bodyEnd := p.pos()
 	stmt.Body = body
 	stmt.BodyText = p.inputText(bodyStart, bodyEnd)
@@ -289,6 +296,8 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 			Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "SQL SECURITY", Value: val,
 		}, true, nil
 
+	// CONTAINS SQL, READS SQL DATA and MODIFIES SQL DATA are read whole.
+	// Ref: sp_chistic in MariaDB 11.8 sql/sql_yacc.yy.
 	case p.cur.Type == kwCONTAINS:
 		p.advance()
 		if _, err := p.expect(kwSQL); err != nil {
@@ -310,7 +319,7 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 
 	case p.cur.Type == kwREADS:
 		p.advance()
-		if err := p.expectWords(kwSQL, kwDATA); err != nil {
+		if err := p.expectSQLData(); err != nil {
 			return nil, false, err
 		}
 		return &nodes.RoutineCharacteristic{
@@ -319,7 +328,7 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 
 	case p.cur.Type == kwMODIFIES:
 		p.advance()
-		if err := p.expectWords(kwSQL, kwDATA); err != nil {
+		if err := p.expectSQLData(); err != nil {
 			return nil, false, err
 		}
 		return &nodes.RoutineCharacteristic{
@@ -330,12 +339,11 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 	return nil, false, nil
 }
 
-// expectWords consumes the given tokens in order, failing at the first that is missing.
-func (p *Parser) expectWords(words ...int) error {
-	for _, w := range words {
-		if _, err := p.expect(w); err != nil {
-			return err
-		}
+// expectSQLData reads the SQL DATA after READS or MODIFIES.
+func (p *Parser) expectSQLData() error {
+	if _, err := p.expect(kwSQL); err != nil {
+		return err
 	}
-	return nil
+	_, err := p.expect(kwDATA)
+	return err
 }

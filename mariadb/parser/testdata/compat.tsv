@@ -710,7 +710,7 @@ reject	reject	engine	create/create_or_replace_view_algorithm_definer_opt_opt_vie
 reject	reject	engine	create/create_or_replace_view_algorithm_definer_opt_opt_view_suid_VIEW_SYM_opt_if_not_exists_table_ident_view_list_opt_AS_view_select!truncate	CREATE ALGORITHM = UNDEFINED VIEW a AS SELECT
 accept	accept	engine	create/create_or_replace_view_algorithm_definer_opt_opt_view_suid_VIEW_SYM_opt_if_not_exists_table_ident_view_list_opt_AS_view_select!insert	CREATE ALGORITHM = UNDEFINED VIEW a AS SELECT a zzz;
 reject	reject	engine	create/create_or_replace_view_algorithm_definer_opt_opt_view_suid_VIEW_SYM_opt_if_not_exists_table_ident_view_list_opt_AS_view_select!swap	CROSS ALGORITHM = UNDEFINED VIEW a AS SELECT a;
-accept	reject	engine	create/create_or_replace_definer_opt_TRIGGER_SYM_trigger_tail	CREATE TRIGGER a BEFORE INSERT ON a FOR EACH ROW COMMIT;
+reject	reject	engine	create/create_or_replace_definer_opt_TRIGGER_SYM_trigger_tail	CREATE TRIGGER a BEFORE INSERT ON a FOR EACH ROW COMMIT;
 reject	reject	engine	create/create_or_replace_definer_opt_TRIGGER_SYM_trigger_tail!drop-1	TRIGGER a BEFORE INSERT ON a FOR EACH ROW COMMIT;
 reject	reject	engine	create/create_or_replace_definer_opt_TRIGGER_SYM_trigger_tail!drop-2	CREATE a BEFORE INSERT ON a FOR EACH ROW COMMIT;
 reject	reject	engine	create/create_or_replace_definer_opt_TRIGGER_SYM_trigger_tail!drop-3	CREATE TRIGGER BEFORE INSERT ON a FOR EACH ROW COMMIT;
@@ -1864,21 +1864,21 @@ reject	reject	engine	sp_unlabeled_control/FOR_SYM_sp_for_loop_index_and_bounds_f
 reject	reject	engine	sp_unlabeled_control/REPEAT_SYM_repeat_body	REPEAT COMMIT; UNTIL a END REPEAT;
 reject	reject	engine	sp_unlabeled_control/REPEAT_SYM_repeat_body!drop-1	COMMIT; UNTIL a END REPEAT;
 reject	reject	engine	sp_unlabeled_control/REPEAT_SYM_repeat_body!swap	REPEATABLE COMMIT; UNTIL a END REPEAT;
-accept	reject	engine	trg_action_time/BEFORE_SYM	CREATE TRIGGER a BEFORE INSERT ON a FOR EACH ROW COMMIT;
+reject	reject	engine	trg_action_time/BEFORE_SYM	CREATE TRIGGER a BEFORE INSERT ON a FOR EACH ROW COMMIT;
 reject	reject	engine	trg_action_time/BEFORE_SYM!truncate	CREATE TRIGGER a
 reject	reject	engine	trg_action_time/BEFORE_SYM!insert	CREATE TRIGGER a BEFORE zzz INSERT ON a FOR EACH ROW COMMIT;
 reject	reject	engine	trg_action_time/BEFORE_SYM!swap	CREATE TRIGGER a BEGIN INSERT ON a FOR EACH ROW COMMIT;
-accept	reject	engine	trg_action_time/AFTER_SYM	CREATE TRIGGER a AFTER INSERT ON a FOR EACH ROW COMMIT;
+reject	reject	engine	trg_action_time/AFTER_SYM	CREATE TRIGGER a AFTER INSERT ON a FOR EACH ROW COMMIT;
 reject	reject	engine	trg_action_time/AFTER_SYM!insert	CREATE TRIGGER a AFTER zzz INSERT ON a FOR EACH ROW COMMIT;
 reject	reject	engine	trg_action_time/AFTER_SYM!swap	CREATE TRIGGER a AGAINST INSERT ON a FOR EACH ROW COMMIT;
-accept	reject	engine	trg_event/INSERT	CREATE TRIGGER a BEFORE INSERT ON a FOR EACH ROW COMMIT;
+reject	reject	engine	trg_event/INSERT	CREATE TRIGGER a BEFORE INSERT ON a FOR EACH ROW COMMIT;
 reject	reject	engine	trg_event/INSERT!truncate	CREATE TRIGGER a BEFORE
 reject	reject	engine	trg_event/INSERT!insert	CREATE TRIGGER a BEFORE INSERT zzz ON a FOR EACH ROW COMMIT;
 reject	reject	engine	trg_event/INSERT!swap	CREATE TRIGGER a BEFORE INSERT_METHOD ON a FOR EACH ROW COMMIT;
-accept	reject	engine	trg_event/UPDATE_SYM	CREATE TRIGGER a BEFORE UPDATE ON a FOR EACH ROW COMMIT;
+reject	reject	engine	trg_event/UPDATE_SYM	CREATE TRIGGER a BEFORE UPDATE ON a FOR EACH ROW COMMIT;
 reject	reject	engine	trg_event/UPDATE_SYM!insert	CREATE TRIGGER a BEFORE UPDATE zzz ON a FOR EACH ROW COMMIT;
 reject	reject	engine	trg_event/UPDATE_SYM!swap	CREATE TRIGGER a BEFORE UPGRADE ON a FOR EACH ROW COMMIT;
-accept	reject	engine	trg_event/DELETE_SYM	CREATE TRIGGER a BEFORE DELETE ON a FOR EACH ROW COMMIT;
+reject	reject	engine	trg_event/DELETE_SYM	CREATE TRIGGER a BEFORE DELETE ON a FOR EACH ROW COMMIT;
 reject	reject	engine	trg_event/DELETE_SYM!insert	CREATE TRIGGER a BEFORE DELETE zzz ON a FOR EACH ROW COMMIT;
 reject	reject	engine	trg_event/DELETE_SYM!swap	CREATE TRIGGER a BEFORE DELETE_DOMAIN_ID ON a FOR EACH ROW COMMIT;
 accept	accept	engine	create_body/create_field_list_parens_opt_create_table_options_opt_create_partitioning_opt_create_select	CREATE TABLE a(a INT);
@@ -12339,20 +12339,20 @@ reject	reject	engine	view_check_option/WITH_LOCAL_SYM_CHECK_SYM_OPTION!drop-4	AL
 reject	reject	engine	view_check_option/WITH_LOCAL_SYM_CHECK_SYM_OPTION!truncate	ALTER VIEW a AS SELECT a WITH LOCAL CHECK
 reject	reject	engine	view_check_option/WITH_LOCAL_SYM_CHECK_SYM_OPTION!insert	ALTER VIEW a AS SELECT a WITH LOCAL CHECK OPTION zzz;
 reject	reject	engine	view_check_option/WITH_LOCAL_SYM_CHECK_SYM_OPTION!swap	ALTER VIEW a AS SELECT a WITHIN LOCAL CHECK OPTION;
-accept	reject	engine	trigger_action_order/FOLLOWS_SYM	CREATE TRIGGER a BEFORE INSERT ON a FOR EACH ROW FOLLOWS a COMMIT;
+reject	reject	engine	trigger_action_order/FOLLOWS_SYM	CREATE TRIGGER a BEFORE INSERT ON a FOR EACH ROW FOLLOWS a COMMIT;
 reject	reject	engine	trigger_action_order/FOLLOWS_SYM!drop-1	CREATE TRIGGER a BEFORE INSERT ON a FOR EACH ROW a COMMIT;
 reject	reject	engine	trigger_action_order/FOLLOWS_SYM!insert	CREATE TRIGGER a BEFORE INSERT ON a FOR EACH ROW FOLLOWS zzz a COMMIT;
 reject	reject	engine	trigger_action_order/FOLLOWS_SYM!swap	CREATE TRIGGER a BEFORE INSERT ON a FOR EACH ROW FOR a COMMIT;
-accept	reject	engine	trigger_action_order/PRECEDES_SYM	CREATE TRIGGER a BEFORE INSERT ON a FOR EACH ROW PRECEDES a COMMIT;
+reject	reject	engine	trigger_action_order/PRECEDES_SYM	CREATE TRIGGER a BEFORE INSERT ON a FOR EACH ROW PRECEDES a COMMIT;
 reject	reject	engine	trigger_action_order/PRECEDES_SYM!insert	CREATE TRIGGER a BEFORE INSERT ON a FOR EACH ROW PRECEDES zzz a COMMIT;
 reject	reject	engine	trigger_action_order/PRECEDES_SYM!swap	CREATE TRIGGER a BEFORE INSERT ON a FOR EACH ROW PRECEDING a COMMIT;
-accept	reject	engine	trigger_follows_precedes_clause/%empty	CREATE TRIGGER a BEFORE INSERT ON a FOR EACH ROW COMMIT;
+reject	reject	engine	trigger_follows_precedes_clause/%empty	CREATE TRIGGER a BEFORE INSERT ON a FOR EACH ROW COMMIT;
 reject	reject	engine	trigger_follows_precedes_clause/%empty!insert	CREATE TRIGGER a BEFORE INSERT ON a FOR EACH ROW zzz COMMIT;
-accept	reject	engine	trigger_follows_precedes_clause/trigger_action_order_ident_or_text	CREATE TRIGGER a BEFORE INSERT ON a FOR EACH ROW FOLLOWS a COMMIT;
+reject	reject	engine	trigger_follows_precedes_clause/trigger_action_order_ident_or_text	CREATE TRIGGER a BEFORE INSERT ON a FOR EACH ROW FOLLOWS a COMMIT;
 reject	reject	engine	trigger_follows_precedes_clause/trigger_action_order_ident_or_text!drop-2	CREATE TRIGGER a BEFORE INSERT ON a FOR EACH ROW FOLLOWS COMMIT;
 reject	reject	engine	trigger_follows_precedes_clause/trigger_action_order_ident_or_text!truncate	CREATE TRIGGER a BEFORE INSERT ON a FOR EACH ROW FOLLOWS
 reject	reject	engine	trigger_follows_precedes_clause/trigger_action_order_ident_or_text!insert	CREATE TRIGGER a BEFORE INSERT ON a FOR EACH ROW FOLLOWS a zzz COMMIT;
-accept	reject	engine	opt_on_update_cols/%empty	CREATE TRIGGER a BEFORE INSERT ON a FOR EACH ROW COMMIT;
+reject	reject	engine	opt_on_update_cols/%empty	CREATE TRIGGER a BEFORE INSERT ON a FOR EACH ROW COMMIT;
 reject	reject	engine	opt_on_update_cols/OF_SYM_on_update_cols	CREATE TRIGGER a BEFORE INSERT OF a ON a FOR EACH ROW COMMIT;
 reject	reject	engine	opt_on_update_cols/OF_SYM_on_update_cols!drop-1	CREATE TRIGGER a BEFORE INSERT a ON a FOR EACH ROW COMMIT;
 reject	reject	engine	opt_on_update_cols/OF_SYM_on_update_cols!drop-2	CREATE TRIGGER a BEFORE INSERT OF ON a FOR EACH ROW COMMIT;
@@ -12366,7 +12366,7 @@ reject	reject	engine	on_update_cols/on_update_cols_,_ident!drop-2	CREATE TRIGGER
 reject	reject	engine	on_update_cols/on_update_cols_,_ident!drop-3	CREATE TRIGGER a BEFORE INSERT OF a, ON a FOR EACH ROW COMMIT;
 reject	reject	engine	on_update_cols/on_update_cols_,_ident!truncate	CREATE TRIGGER a BEFORE INSERT OF a,
 reject	reject	engine	on_update_cols/on_update_cols_,_ident!insert	CREATE TRIGGER a BEFORE INSERT OF a, a zzz ON a FOR EACH ROW COMMIT;
-accept	reject	engine	trigger_tail/remember_name_opt_if_not_exists_sp_name_trg_action_time_trg_event_opt_on_update_cols_ON_remember_name_table_ident_FOR_SYM_remember_name_EACH_SYM_ROW_SYM_trigger_follows_precedes_clause_sp_proc_stmt_force_lookahead	CREATE TRIGGER a BEFORE INSERT ON a FOR EACH ROW COMMIT;
+reject	reject	engine	trigger_tail/remember_name_opt_if_not_exists_sp_name_trg_action_time_trg_event_opt_on_update_cols_ON_remember_name_table_ident_FOR_SYM_remember_name_EACH_SYM_ROW_SYM_trigger_follows_precedes_clause_sp_proc_stmt_force_lookahead	CREATE TRIGGER a BEFORE INSERT ON a FOR EACH ROW COMMIT;
 accept	accept	engine	create_package_chistic/COMMENT_SYM_TEXT_STRING_sys	CREATE PACKAGE a COMMENT 's' END;
 reject	reject	engine	create_package_chistic/COMMENT_SYM_TEXT_STRING_sys!drop-1	CREATE PACKAGE a 's' END;
 reject	reject	engine	create_package_chistic/COMMENT_SYM_TEXT_STRING_sys!drop-2	CREATE PACKAGE a COMMENT END;

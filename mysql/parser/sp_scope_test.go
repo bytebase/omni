@@ -165,3 +165,174 @@ func TestStoredProgramConditions(t *testing.T) {
 		})
 	}
 }
+
+// TestStoredProgramStatements holds a stored program's statements to what each kind of
+// program may hold (spBadStatement, spNotInFunction, refuseResultSet). Each statement is
+// written as the body of a function, a trigger, a procedure and an event; the codes are what
+// mysql:8.0.46 answers to PREPARE of each, 0 when the compat judge reads that as parsed.
+func TestStoredProgramStatements(t *testing.T) {
+	cases := []struct {
+		stmt               string
+		fn, trg, proc, evt int
+	}{
+		{"COMMIT", 1422, 1422, 0, 0},
+		{"ROLLBACK", 1422, 1422, 0, 0},
+		{"ROLLBACK TO SAVEPOINT a", 0, 0, 0, 0},
+		{"SAVEPOINT a", 0, 0, 0, 0},
+		{"RELEASE SAVEPOINT a", 0, 0, 0, 0},
+		{"START TRANSACTION", 1422, 1422, 0, 0},
+		{"XA START 'a'", 0, 0, 0, 0},
+		{"SET autocommit = 1", 1445, 1445, 0, 0},
+		{"SET GLOBAL autocommit = 1", 1445, 1445, 0, 0},
+		{"SET @@session.autocommit = 1", 1445, 1445, 0, 0},
+		{"SET sql_mode = '', autocommit = 0", 1445, 1445, 0, 0},
+		{"SET @autocommit = 1", 0, 0, 0, 0},
+		{"SET PASSWORD = 'x'", 1445, 1445, 0, 0},
+		{"SET TRANSACTION READ ONLY", 0, 0, 0, 0},
+		{"PREPARE s FROM 'SELECT 1'", 1336, 1336, 0, 0},
+		{"EXECUTE s", 1336, 1336, 0, 0},
+		{"DEALLOCATE PREPARE s", 1336, 1336, 0, 0},
+		{"FLUSH TABLES", 1336, 1336, 0, 0},
+		{"RESET MASTER", 1336, 1336, 0, 0},
+		{"RESET SLAVE", 1336, 1336, 0, 0},
+		{"RESET PERSIST", 1336, 1336, 0, 0},
+		{"CREATE TABLE t2 (a INT)", 1422, 1422, 0, 0},
+		{"CREATE TEMPORARY TABLE t2 (a INT)", 0, 0, 0, 0},
+		{"DROP TABLE t2", 1422, 1422, 0, 0},
+		{"DROP TEMPORARY TABLE t2", 0, 0, 0, 0},
+		{"ALTER TABLE t ADD c INT", 1422, 1422, 0, 0},
+		{"TRUNCATE t", 1422, 1422, 0, 0},
+		{"CREATE INDEX i ON t (a)", 1422, 1422, 0, 0},
+		{"DROP INDEX i ON t", 1422, 1422, 0, 0},
+		{"RENAME TABLE t TO t3", 1422, 1422, 0, 0},
+		{"CREATE VIEW v AS SELECT 1", 1422, 1422, 0, 0},
+		{"DROP VIEW v", 1422, 1422, 0, 0},
+		{"ALTER VIEW v AS SELECT 1", 1314, 1314, 1314, 1314},
+		{"CREATE DATABASE d2", 1422, 1422, 0, 0},
+		{"ALTER DATABASE d2 CHARACTER SET utf8mb4", 1422, 1422, 0, 0},
+		{"DROP DATABASE d2", 1422, 1422, 0, 0},
+		{"CREATE USER u", 1422, 1422, 0, 0},
+		{"ALTER USER u ACCOUNT LOCK", 1422, 1422, 0, 0},
+		{"DROP USER u", 1422, 1422, 0, 0},
+		{"RENAME USER u TO v", 1422, 1422, 0, 0},
+		{"GRANT SELECT ON *.* TO u", 1422, 1422, 0, 0},
+		{"REVOKE SELECT ON *.* FROM u", 1422, 1422, 0, 0},
+		{"CREATE ROLE r", 1422, 1422, 0, 0},
+		{"DROP ROLE r", 1422, 1422, 0, 0},
+		{"GRANT r TO u", 1422, 1422, 0, 0},
+		{"SET DEFAULT ROLE r TO u", 0, 0, 0, 0},
+		{"SET ROLE r", 0, 0, 0, 0},
+		{"INSTALL PLUGIN p SONAME 'p.so'", 1422, 1422, 0, 0},
+		{"UNINSTALL PLUGIN p", 1422, 1422, 0, 0},
+		{"INSTALL COMPONENT 'file://c'", 0, 0, 0, 0},
+		{"CREATE SERVER s FOREIGN DATA WRAPPER mysql OPTIONS (USER 'u')", 1422, 1422, 0, 0},
+		{"DROP SERVER s", 1422, 1422, 0, 0},
+		{"CHANGE REPLICATION SOURCE TO SOURCE_HOST = 'h'", 1422, 1422, 0, 0},
+		{"START REPLICA", 1422, 1422, 0, 0},
+		{"STOP REPLICA", 1422, 1422, 0, 0},
+		{"START GROUP_REPLICATION", 0, 0, 0, 0},
+		{"PURGE BINARY LOGS TO 'b'", 0, 0, 0, 0},
+		{"ALTER INSTANCE ROTATE INNODB MASTER KEY", 1422, 1422, 0, 0},
+		{"LOCK INSTANCE FOR BACKUP", 0, 0, 0, 0},
+		{"CREATE TABLESPACE ts ADD DATAFILE 'a.ibd'", 1422, 1422, 0, 0},
+		{"CREATE RESOURCE GROUP g TYPE = USER", 1422, 1422, 0, 0},
+		{"CREATE SPATIAL REFERENCE SYSTEM 1000000 NAME 'n' DEFINITION 'd'", 1422, 1422, 0, 0},
+		{"CREATE EVENT e ON SCHEDULE EVERY 1 DAY DO SELECT 1", 1576, 1576, 1576, 1576},
+		{"ALTER EVENT e DO SELECT 1", 1576, 1576, 1576, 1576},
+		{"ALTER EVENT e ENABLE", 1422, 1422, 0, 0},
+		{"DROP EVENT e", 1422, 1422, 0, 0},
+		{"CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW SET @a = 1", 1303, 1303, 1303, 1303},
+		{"DROP TRIGGER tr", 1422, 1422, 0, 0},
+		{"CREATE PROCEDURE q() SELECT 1", 1303, 1303, 1303, 1303},
+		{"CREATE FUNCTION g() RETURNS INT RETURN 1", 1303, 1303, 1303, 1303},
+		{"CREATE FUNCTION g RETURNS STRING SONAME 'x.so'", 0, 0, 0, 0},
+		{"DROP PROCEDURE q", 1357, 1357, 1357, 1357},
+		{"DROP FUNCTION g", 1357, 1357, 1357, 1357},
+		{"ALTER PROCEDURE q COMMENT 'c'", 1357, 1357, 1357, 1357},
+		{"USE d", 1314, 1314, 1314, 1314},
+		{"LOCK TABLES t READ", 1314, 1314, 1314, 1314},
+		{"UNLOCK TABLES", 1314, 1314, 1314, 1314},
+		{"CHECK TABLE t", 1314, 1314, 1314, 1314},
+		{"LOAD DATA INFILE 'x' INTO TABLE t", 1314, 1314, 1314, 1314},
+		{"LOAD XML INFILE 'x' INTO TABLE t", 1314, 1314, 1314, 1314},
+		{"HELP 'x'", 1314, 1314, 1314, 1314},
+		{"ANALYZE TABLE t", 1415, 1415, 0, 0},
+		{"OPTIMIZE TABLE t", 1415, 1415, 0, 0},
+		{"REPAIR TABLE t", 1415, 1415, 0, 0},
+		{"CHECKSUM TABLE t", 1415, 1415, 0, 0},
+		{"CACHE INDEX t IN k", 1415, 1415, 0, 0},
+		{"LOAD INDEX INTO CACHE t", 1415, 1415, 0, 0},
+		{"HANDLER t OPEN", 1314, 1314, 1314, 1314},
+		{"HANDLER t READ FIRST", 1314, 1314, 1314, 1314},
+		{"HANDLER t CLOSE", 1314, 1314, 1314, 1314},
+		{"SHOW TABLES", 1415, 1415, 0, 0},
+		{"EXPLAIN SELECT 1", 1415, 1415, 0, 0},
+		{"TABLE t", 1415, 1415, 0, 0},
+		{"VALUES ROW(1)", 1415, 1415, 0, 0},
+		{"TABLE t INTO @a", 0, 0, 0, 0},
+		{"SELECT 1 INTO @a", 0, 0, 0, 0},
+		{"SELECT 1 INTO OUTFILE 'x'", 0, 0, 0, 0},
+		{"KILL 1", 0, 0, 0, 0},
+		{"SHUTDOWN", 0, 0, 0, 0},
+		{"DO 1", 0, 0, 0, 0},
+		{"CALL q()", 0, 0, 0, 0},
+		{"IMPORT TABLE FROM 'a.sdi'", 0, 0, 0, 0},
+		{"CLONE LOCAL DATA DIRECTORY 'a'", 0, 0, 0, 0},
+		{"SET RESOURCE GROUP g", 0, 0, 0, 0},
+		{"BINLOG 'x'", 1064, 1064, 1064, 1064},
+	}
+	for _, c := range cases {
+		for i, sql := range []string{
+			"CREATE FUNCTION f() RETURNS INT BEGIN " + c.stmt + "; RETURN 1; END",
+			"CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW BEGIN " + c.stmt + "; END",
+			"CREATE PROCEDURE p() BEGIN " + c.stmt + "; END",
+			"CREATE EVENT e ON SCHEDULE EVERY 1 DAY DO BEGIN " + c.stmt + "; END",
+		} {
+			code := []int{c.fn, c.trg, c.proc, c.evt}[i]
+			_, err := Parse(sql)
+			if code == 0 && err != nil {
+				t.Errorf("Parse(%q) refused what MySQL takes: %v", sql, err)
+			}
+			if code != 0 && err == nil {
+				t.Errorf("Parse(%q) took what MySQL refuses with %d", sql, code)
+			}
+		}
+	}
+}
+
+// TestStoredProgramFunctionBodies holds a function's body to a RETURN somewhere in it (1320) and
+// SET autocommit to the system variable. code is what mysql:8.0.46 answers to PREPARE of the
+// statement, 0 when the compat judge reads that as parsed (compat.PrepareVerdict).
+func TestStoredProgramFunctionBodies(t *testing.T) {
+	cases := []struct {
+		sql  string
+		code int
+	}{
+		{sql: "CREATE FUNCTION f() RETURNS INT BEGIN DECLARE autocommit INT; SET autocommit = 1; RETURN 1; END"},
+		{sql: "CREATE FUNCTION f() RETURNS INT BEGIN DECLARE autocommit INT; SET @@autocommit = 1; RETURN 1; END", code: 1445},
+		{sql: "CREATE FUNCTION f() RETURNS INT BEGIN SET GLOBAL sql_mode = '', autocommit = 1; RETURN 1; END", code: 1445},
+		{sql: "CREATE FUNCTION f() RETURNS INT BEGIN DECLARE EXIT HANDLER FOR 1 RETURN 1; END"},
+		{sql: "CREATE FUNCTION f() RETURNS INT BEGIN END", code: 1320},
+		{sql: "CREATE FUNCTION f() RETURNS INT SELECT 1 INTO @a", code: 1320},
+		{sql: "CREATE FUNCTION f() RETURNS INT BEGIN SIGNAL SQLSTATE '45000'; END", code: 1320},
+		{sql: "CREATE FUNCTION f() RETURNS INT BEGIN CALL p(); RETURN 1; END"},
+		{sql: "CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW CALL p()"},
+		{sql: "CREATE FUNCTION f() RETURNS INT BEGIN SET @'@autocommit' = 1; RETURN 1; END"},
+		{sql: "CREATE FUNCTION f() RETURNS INT BEGIN SET @\"@@autocommit\" = 1; RETURN 1; END"},
+		{sql: "CREATE FUNCTION f(`@@autocommit` INT) RETURNS INT BEGIN SET `@@autocommit` = 1; RETURN 1; END"},
+		{sql: "CREATE FUNCTION f() RETURNS INT BEGIN SET @@autocommit = 1; RETURN 1; END", code: 1445},
+		{sql: "CREATE FUNCTION f() RETURNS INT BEGIN SET @@session.autocommit = 1; RETURN 1; END", code: 1445},
+		{sql: "CREATE FUNCTION f() RETURNS INT BEGIN SET @a = 1, @@autocommit = 1; RETURN 1; END", code: 1445},
+	}
+	for _, c := range cases {
+		t.Run(c.sql, func(t *testing.T) {
+			_, err := Parse(c.sql)
+			if c.code == 0 && err != nil {
+				t.Fatalf("Parse refused what MySQL takes: %v", err)
+			}
+			if c.code != 0 && err == nil {
+				t.Fatalf("Parse took what MySQL refuses with %d", c.code)
+			}
+		})
+	}
+}
