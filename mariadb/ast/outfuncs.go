@@ -880,6 +880,12 @@ func writeCreateTableStmt(sb *strings.Builder, n *CreateTableStmt) {
 func writeAlterTableStmt(sb *strings.Builder, n *AlterTableStmt) {
 	sb.WriteString("{ALTER_TABLE")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Online {
+		sb.WriteString(" :online true")
+	}
+	if n.Ignore {
+		sb.WriteString(" :ignore true")
+	}
 	if n.Table != nil {
 		sb.WriteString(" :table ")
 		writeNode(sb, n.Table)
@@ -2091,6 +2097,9 @@ func writeAlterDatabaseStmt(sb *strings.Builder, n *AlterDatabaseStmt) {
 	if n.Name != "" {
 		fmt.Fprintf(sb, " :name %s", n.Name)
 	}
+	if n.UpgradeDataDirectoryName {
+		sb.WriteString(" :upgrade_data_directory_name true")
+	}
 	if len(n.Options) > 0 {
 		sb.WriteString(" :options ")
 		for i, o := range n.Options {
@@ -2291,6 +2300,9 @@ func writeFuncCallExpr(sb *strings.Builder, n *FuncCallExpr) {
 	if n.Schema != "" {
 		fmt.Fprintf(sb, " :schema %s", n.Schema)
 	}
+	if n.Package != "" {
+		fmt.Fprintf(sb, " :package %s", n.Package)
+	}
 	if q := n.Quantifier.String(); q != "" {
 		fmt.Fprintf(sb, " :quantifier %s", q)
 	}
@@ -2310,7 +2322,24 @@ func writeFuncCallExpr(sb *strings.Builder, n *FuncCallExpr) {
 		sb.WriteString(" :args ")
 		writeExprNodeList(sb, n.Args)
 	}
+	if len(n.ArgTypes) > 0 {
+		sb.WriteString(" :arg_types (")
+		for i, dt := range n.ArgTypes {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			if dt == nil {
+				sb.WriteString("<>")
+				continue
+			}
+			writeNode(sb, dt)
+		}
+		sb.WriteString(")")
+	}
 	if len(n.OrderBy) > 0 {
+		if n.WithinGroup {
+			sb.WriteString(" :within_group true")
+		}
 		sb.WriteString(" :order_by ")
 		writeOrderByList(sb, n.OrderBy)
 	}

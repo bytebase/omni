@@ -328,7 +328,12 @@ func (p *Parser) parseUserOptions(
 				}
 				if p.cur.Type == '(' {
 					p.advance()
-					for p.cur.Type != ')' && p.cur.Type != tokEOF {
+					for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+						// An item that consumes nothing would come round again.
+						if p.pos() == progress {
+							return p.syntaxErrorAtCur()
+						}
+						progress = p.pos()
 						p.advance()
 					}
 					if p.cur.Type == ')' {
@@ -1861,7 +1866,12 @@ func (p *Parser) parseAuditActionEntry() (*nodes.AuditActionEntry, error) {
 	// Optional (column [, column]...)
 	if p.cur.Type == '(' {
 		p.advance()
-		for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+			// An item that consumes nothing would come round again.
+			if p.pos() == progress {
+				return nil, p.syntaxErrorAtCur()
+			}
+			progress = p.pos()
 			if p.isIdentLike() {
 				entry.Columns = append(entry.Columns, p.cur.Str)
 				p.advance()
