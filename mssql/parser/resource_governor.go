@@ -2,6 +2,9 @@
 package parser
 
 import (
+	"fmt"
+	"math"
+	"strconv"
 	"strings"
 
 	nodes "github.com/bytebase/omni/mssql/ast"
@@ -34,13 +37,9 @@ func (p *Parser) parseCreateWorkloadGroupStmt() (*nodes.SecurityStmt, error) {
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	// group_name
-	if p.isIdentLike() || p.cur.Type == tokSCONST {
-		stmt.Name = p.cur.Str
-		p.advance()
+	if err := p.rgWorkloadGroupBody(stmt, false); err != nil {
+		return nil, err
 	}
-
-	stmt.Options = p.parseResourceGovernorOptions()
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
@@ -69,13 +68,11 @@ func (p *Parser) parseAlterWorkloadGroupStmt() (*nodes.SecurityStmt, error) {
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	// group_name | [default]
-	if p.isIdentLike() || p.cur.Type == tokSCONST || p.cur.Type == kwDEFAULT {
-		stmt.Name = p.cur.Str
-		p.advance()
+	// group_name | [default]: SQL Server takes the default group's name only
+	// bracketed, and requires a WITH or a USING clause (Msg 10917).
+	if err := p.rgWorkloadGroupBody(stmt, true); err != nil {
+		return nil, err
 	}
-
-	stmt.Options = p.parseResourceGovernorOptions()
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
@@ -93,11 +90,11 @@ func (p *Parser) parseDropWorkloadGroupStmt() (*nodes.SecurityStmt, error) {
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	// group_name
-	if p.isIdentLike() || p.cur.Type == tokSCONST {
-		stmt.Name = p.cur.Str
-		p.advance()
+	name, err := p.rgName()
+	if err != nil {
+		return nil, err
 	}
+	stmt.Name = name
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
@@ -138,13 +135,9 @@ func (p *Parser) parseCreateResourcePoolStmt() (*nodes.SecurityStmt, error) {
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	// pool_name
-	if p.isIdentLike() || p.cur.Type == tokSCONST {
-		stmt.Name = p.cur.Str
-		p.advance()
+	if err := p.rgPoolBody(stmt, false); err != nil {
+		return nil, err
 	}
-
-	stmt.Options = p.parseResourceGovernorOptions()
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
@@ -176,13 +169,11 @@ func (p *Parser) parseAlterResourcePoolStmt() (*nodes.SecurityStmt, error) {
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	// pool_name | [default]
-	if p.isIdentLike() || p.cur.Type == tokSCONST || p.cur.Type == kwDEFAULT {
-		stmt.Name = p.cur.Str
-		p.advance()
+	// pool_name | [default]: SQL Server takes the default pool's name only
+	// bracketed, and requires the WITH clause.
+	if err := p.rgPoolBody(stmt, true); err != nil {
+		return nil, err
 	}
-
-	stmt.Options = p.parseResourceGovernorOptions()
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
@@ -200,11 +191,11 @@ func (p *Parser) parseDropResourcePoolStmt() (*nodes.SecurityStmt, error) {
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	// pool_name
-	if p.isIdentLike() || p.cur.Type == tokSCONST {
-		stmt.Name = p.cur.Str
-		p.advance()
+	name, err := p.rgName()
+	if err != nil {
+		return nil, err
 	}
+	stmt.Name = name
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
@@ -308,7 +299,11 @@ func (p *Parser) parseAlterResourceGovernorStmt() (*nodes.SecurityStmt, error) {
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	stmt.Options = p.parseResourceGovernorOptions()
+	opt, err := p.rgGovernorAction()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Options = &nodes.List{Items: []nodes.Node{opt}}
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
@@ -317,10 +312,9 @@ func (p *Parser) parseAlterResourceGovernorStmt() (*nodes.SecurityStmt, error) {
 // statement (WITH (...), USING ..., RECONFIGURE, DISABLE, RESET STATISTICS, etc.)
 // and returns them as a list of String nodes.
 //
-// Used by: CREATE/ALTER WORKLOAD GROUP, CREATE/ALTER RESOURCE POOL,
-//
-//	CREATE/ALTER EXTERNAL RESOURCE POOL, ALTER RESOURCE GOVERNOR,
-//	CREATE/ALTER WORKLOAD CLASSIFIER.
+// Used by: CREATE/ALTER EXTERNAL RESOURCE POOL. The other Resource Governor
+// statements read their clauses by the grammar (rgPoolBody,
+// rgWorkloadGroupBody, rgGovernorAction).
 //
 // WITH clause options:
 //
@@ -539,89 +533,453 @@ func (p *Parser) parseResourceGovernorRangeSpec() string {
 	return strings.Join(parts, ", ")
 }
 
-// parseCreateWorkloadClassifierStmt parses CREATE WORKLOAD CLASSIFIER.
+// parseCreateWorkloadClassifierStmt parses CREATE WORKLOAD CLASSIFIER, which
+// SQL Server 2022 refuses once it has read the name: "CREATE WORKLOAD
+// CLASSIFIER is allowed only when connected to Synapse frontend" (Msg 22487).
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-workload-classifier-transact-sql
-//
-//	CREATE WORKLOAD CLASSIFIER classifier_name
-//	WITH
-//	    ( WORKLOAD_GROUP = 'name'
-//	    , MEMBERNAME = 'security_account'
-//	    [ [ , ] WLM_LABEL = 'label' ]
-//	    [ [ , ] WLM_CONTEXT = 'context' ]
-//	    [ [ , ] START_TIME = 'HH:MM' ]
-//	    [ [ , ] END_TIME = 'HH:MM' ]
-//	    [ [ , ] IMPORTANCE = { LOW | BELOW_NORMAL | NORMAL | ABOVE_NORMAL | HIGH } ] )
+// (Azure Synapse Analytics only); TSql160.g:22634.
 func (p *Parser) parseCreateWorkloadClassifierStmt() (*nodes.SecurityStmt, error) {
-	loc := p.pos()
-	stmt := &nodes.SecurityStmt{
-		Action:     "CREATE",
-		ObjectType: "WORKLOAD CLASSIFIER",
-		Loc:        nodes.Loc{Start: loc, End: -1},
-	}
-
-	// classifier_name
-	if p.isIdentLike() || p.cur.Type == tokSCONST {
-		stmt.Name = p.cur.Str
-		p.advance()
-	}
-
-	stmt.Options = p.parseResourceGovernorOptions()
-	stmt.Loc.End = p.prevEnd()
-	return stmt, nil
+	return nil, p.rgSynapseOnlyClassifier("CREATE")
 }
 
-// parseAlterWorkloadClassifierStmt parses ALTER WORKLOAD CLASSIFIER.
-//
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-workload-classifier-transact-sql
-//
-//	ALTER WORKLOAD CLASSIFIER classifier_name
-//	WITH
-//	    ( WORKLOAD_GROUP = 'name'
-//	    , MEMBERNAME = 'security_account'
-//	    [ [ , ] WLM_LABEL = 'label' ]
-//	    [ [ , ] WLM_CONTEXT = 'context' ]
-//	    [ [ , ] START_TIME = 'HH:MM' ]
-//	    [ [ , ] END_TIME = 'HH:MM' ]
-//	    [ [ , ] IMPORTANCE = { LOW | BELOW_NORMAL | NORMAL | ABOVE_NORMAL | HIGH } ] )
+// parseAlterWorkloadClassifierStmt parses ALTER WORKLOAD CLASSIFIER, which
+// SQL Server 2022 refuses once it has read the name (Msg 22487), as it does
+// CREATE WORKLOAD CLASSIFIER. ScriptDOM has no ALTER form.
 func (p *Parser) parseAlterWorkloadClassifierStmt() (*nodes.SecurityStmt, error) {
-	loc := p.pos()
-	stmt := &nodes.SecurityStmt{
-		Action:     "ALTER",
-		ObjectType: "WORKLOAD CLASSIFIER",
-		Loc:        nodes.Loc{Start: loc, End: -1},
-	}
-
-	// classifier_name
-	if p.isIdentLike() || p.cur.Type == tokSCONST {
-		stmt.Name = p.cur.Str
-		p.advance()
-	}
-
-	stmt.Options = p.parseResourceGovernorOptions()
-	stmt.Loc.End = p.prevEnd()
-	return stmt, nil
+	return nil, p.rgSynapseOnlyClassifier("ALTER")
 }
 
-// parseDropWorkloadClassifierStmt parses DROP WORKLOAD CLASSIFIER.
+// parseDropWorkloadClassifierStmt parses DROP WORKLOAD CLASSIFIER, which SQL
+// Server 2022 refuses once it has read the name (Msg 22487).
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/drop-workload-classifier-transact-sql
-//
-//	DROP WORKLOAD CLASSIFIER classifier_name
+// (Azure Synapse Analytics only); TSql160.g:15730.
 func (p *Parser) parseDropWorkloadClassifierStmt() (*nodes.SecurityStmt, error) {
-	loc := p.pos()
-	stmt := &nodes.SecurityStmt{
-		Action:     "DROP",
-		ObjectType: "WORKLOAD CLASSIFIER",
-		Loc:        nodes.Loc{Start: loc, End: -1},
-	}
+	return nil, p.rgSynapseOnlyClassifier("DROP")
+}
 
-	// classifier_name
-	if p.isIdentLike() || p.cur.Type == tokSCONST {
-		stmt.Name = p.cur.Str
+// rgSynapseOnlyClassifier reads the classifier's name and refuses the
+// statement as SQL Server 2022 does: a syntax error before the name, and
+// Msg 22487 after it.
+func (p *Parser) rgSynapseOnlyClassifier(action string) error {
+	loc := p.pos()
+	if _, err := p.rgName(); err != nil {
+		return err
+	}
+	return p.newParseError(loc, action+" WORKLOAD CLASSIFIER is allowed only in Azure Synapse Analytics")
+}
+
+// rgIsWord reports whether the current token is word, written without
+// brackets or quotes: SQL Server refuses [USING], [AFFINITY], [DISABLE] and
+// the bracketed option names of these statements.
+func (p *Parser) rgIsWord(word string) bool {
+	if kw := lookupKeyword(word); kw != tokIDENT {
+		return p.cur.Type == kw
+	}
+	return p.cur.Type == tokIDENT && !p.isDelimited(p.cur) && strings.ToUpper(p.cur.Str) == word
+}
+
+// rgName reads the name of a pool, a workload group or a classifier: an
+// identifier, a reserved word only when delimited (TSql160.g identifier), so
+// [default] but not default or 'a'.
+func (p *Parser) rgName() (string, error) {
+	if !p.isIdentLike() {
+		return "", p.syntaxErrorAtCur()
+	}
+	name := p.cur.Str
+	p.advance()
+	return name, nil
+}
+
+// rgInt32 reads an unsigned decimal integer that fits an Int32, as
+// TSql160.g's integer rule and the Int32.TryParse in its actions do: SQL
+// Server refuses a sign, a hex literal, a decimal and 2147483648.
+func (p *Parser) rgInt32() (int64, error) {
+	if p.cur.Type != tokICONST || strings.HasPrefix(strings.ToLower(p.cur.Str), "0x") || p.cur.Ival > math.MaxInt32 {
+		return 0, p.syntaxErrorAtCur()
+	}
+	v := p.cur.Ival
+	p.advance()
+	return v, nil
+}
+
+// rgPoolParam is a resource pool parameter and the range SQL Server takes for
+// it (TSql160.g:22150-22200, Msg 1080 outside it).
+type rgPoolParam struct {
+	word     string
+	min, max int64
+}
+
+// rgPoolParams are the resource pool parameters SQL Server 2022 takes besides
+// AFFINITY: ScriptDOM's ResourcePoolParameterType, each probed on the pinned
+// server.
+var rgPoolParams = []rgPoolParam{
+	{"MIN_CPU_PERCENT", 0, 100},
+	{"MAX_CPU_PERCENT", 1, 100},
+	{"CAP_CPU_PERCENT", 1, 100},
+	{"MIN_MEMORY_PERCENT", 0, 100},
+	{"MAX_MEMORY_PERCENT", 1, 100},
+	{"TARGET_MEMORY_PERCENT", 1, 100},
+	{"MIN_IO_PERCENT", 0, 100},
+	{"MAX_IO_PERCENT", 1, 100},
+	{"CAP_IO_PERCENT", 1, 100},
+	{"MIN_IOPS_PER_VOLUME", 0, math.MaxInt32},
+	{"MAX_IOPS_PER_VOLUME", 0, math.MaxInt32},
+}
+
+// rgPoolBody reads the name and the options of CREATE or ALTER RESOURCE POOL
+// (TSql160.g:22112, 22127-22250):
+//
+//	pool_name [ WITH ( <parameter> [ ,...n ] ) ]
+//
+//	<parameter> ::= name = integer
+//	  | AFFINITY { SCHEDULER = { AUTO | ( <range> [ ,...n ] ) } | NUMANODE = ( <range> [ ,...n ] ) }
+//	<range> ::= integer [ TO integer ]
+//
+// SQL Server 2022 requires the WITH clause in ALTER and takes each parameter,
+// AFFINITY included, once (Msg 1039).
+func (p *Parser) rgPoolBody(stmt *nodes.SecurityStmt, requireWith bool) error {
+	name, err := p.rgName()
+	if err != nil {
+		return err
+	}
+	stmt.Name = name
+	if p.cur.Type != kwWITH {
+		if requireWith {
+			return p.syntaxErrorAtCur()
+		}
+		return nil
+	}
+	p.advance()
+	if _, err := p.expect('('); err != nil {
+		return err
+	}
+	var opts []nodes.Node
+	seen := map[string]bool{}
+	for {
+		optLoc := p.pos()
+		var key, str string
+		if p.rgIsWord("AFFINITY") {
+			p.advance()
+			key = "AFFINITY"
+			if str, err = p.rgPoolAffinity(); err != nil {
+				return err
+			}
+		} else {
+			var param *rgPoolParam
+			for i := range rgPoolParams {
+				if p.rgIsWord(rgPoolParams[i].word) {
+					param = &rgPoolParams[i]
+					break
+				}
+			}
+			if param == nil {
+				return p.syntaxErrorAtCur()
+			}
+			key = param.word
+			p.advance()
+			if _, err := p.expect('='); err != nil {
+				return err
+			}
+			valLoc := p.pos()
+			v, err := p.rgInt32()
+			if err != nil {
+				return err
+			}
+			if v < param.min || v > param.max {
+				return p.newParseError(valLoc, fmt.Sprintf("the integer value %s is out of range", key))
+			}
+			str = key + "=" + strconv.FormatInt(v, 10)
+		}
+		if seen[key] {
+			return p.newParseError(optLoc, fmt.Sprintf("option '%s' is specified more than once", key))
+		}
+		seen[key] = true
+		opts = append(opts, &nodes.String{Str: str})
+		if p.cur.Type != ',' {
+			break
+		}
 		p.advance()
 	}
+	if _, err := p.expect(')'); err != nil {
+		return err
+	}
+	stmt.Options = &nodes.List{Items: opts}
+	return nil
+}
 
-	stmt.Loc.End = p.prevEnd()
-	return stmt, nil
+// rgPoolAffinity reads what follows AFFINITY in a resource pool
+// (TSql160.g:22202): SCHEDULER = { AUTO | ( ranges ) } or NUMANODE =
+// ( ranges ). It returns the option as AFFINITY=SCHEDULER=AUTO or
+// AFFINITY=NUMANODE=(0 TO 1, 3).
+func (p *Parser) rgPoolAffinity() (string, error) {
+	var kind string
+	switch {
+	case p.rgIsWord("SCHEDULER"):
+		kind = "SCHEDULER"
+	case p.rgIsWord("NUMANODE"):
+		kind = "NUMANODE"
+	default:
+		return "", p.syntaxErrorAtCur()
+	}
+	p.advance()
+	if _, err := p.expect('='); err != nil {
+		return "", err
+	}
+	if kind == "SCHEDULER" && p.rgIsWord("AUTO") {
+		p.advance()
+		return "AFFINITY=SCHEDULER=AUTO", nil
+	}
+	if _, err := p.expect('('); err != nil {
+		return "", err
+	}
+	var ranges []string
+	for {
+		lo, err := p.rgInt32()
+		if err != nil {
+			return "", err
+		}
+		r := strconv.FormatInt(lo, 10)
+		if p.cur.Type == kwTO {
+			p.advance()
+			hi, err := p.rgInt32()
+			if err != nil {
+				return "", err
+			}
+			r += " TO " + strconv.FormatInt(hi, 10)
+		}
+		ranges = append(ranges, r)
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	if _, err := p.expect(')'); err != nil {
+		return "", err
+	}
+	return "AFFINITY=" + kind + "=(" + strings.Join(ranges, ", ") + ")", nil
+}
+
+// rgWorkloadGroupBody reads the name, the WITH options and the USING clause of
+// CREATE or ALTER WORKLOAD GROUP (TSql160.g:22467-22600):
+//
+//	group_name [ WITH ( <parameter> [ ,...n ] ) ]
+//	[ USING { pool_name | EXTERNAL external_pool_name } [ ,...n ] ]
+//
+//	<parameter> ::= IMPORTANCE = { LOW | MEDIUM | HIGH }
+//	  | REQUEST_MAX_MEMORY_GRANT_PERCENT = 0..100, an integer or a decimal
+//	  | { REQUEST_MAX_CPU_TIME_SEC | REQUEST_MEMORY_GRANT_TIMEOUT_SEC
+//	    | MAX_DOP | GROUP_MAX_REQUESTS } = integer
+//
+// SQL Server 2022 takes each parameter, the pool and the external pool once
+// (Msg 1039), refuses GROUP_MAX_TEMPDB_DATA_MB, GROUP_MAX_TEMPDB_DATA_PERCENT
+// and the Synapse parameters, and requires WITH or USING in ALTER (Msg 10917).
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-workload-group-transact-sql
+func (p *Parser) rgWorkloadGroupBody(stmt *nodes.SecurityStmt, isAlter bool) error {
+	name, err := p.rgName()
+	if err != nil {
+		return err
+	}
+	stmt.Name = name
+	var opts []nodes.Node
+	hasClause := false
+	if p.cur.Type == kwWITH {
+		hasClause = true
+		p.advance()
+		if _, err := p.expect('('); err != nil {
+			return err
+		}
+		seen := map[string]bool{}
+		for {
+			optLoc := p.pos()
+			key, opt, err := p.rgWorkloadGroupParam()
+			if err != nil {
+				return err
+			}
+			if seen[key] {
+				return p.newParseError(optLoc, fmt.Sprintf("option '%s' is specified more than once", key))
+			}
+			seen[key] = true
+			opts = append(opts, &nodes.String{Str: opt})
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance()
+		}
+		if _, err := p.expect(')'); err != nil {
+			return err
+		}
+	}
+	if p.rgIsWord("USING") {
+		hasClause = true
+		p.advance()
+		seen := map[string]bool{}
+		for {
+			optLoc := p.pos()
+			key := "USING"
+			if p.rgIsWord("EXTERNAL") {
+				key = "EXTERNAL"
+				p.advance()
+			}
+			if seen[key] {
+				return p.newParseError(optLoc, "a pool is specified more than once")
+			}
+			seen[key] = true
+			pool, err := p.rgName()
+			if err != nil {
+				return err
+			}
+			opts = append(opts, &nodes.ResourceGovernorOption{
+				Name:  key,
+				Value: strings.ToUpper(pool),
+				Loc:   nodes.Loc{Start: optLoc, End: p.prevEnd()},
+			})
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance()
+		}
+	}
+	if isAlter && !hasClause {
+		return p.newParseError(p.pos(), "ALTER WORKLOAD GROUP requires a WITH or a USING clause")
+	}
+	if len(opts) > 0 {
+		stmt.Options = &nodes.List{Items: opts}
+	}
+	return nil
+}
+
+// rgWorkloadGroupParam reads one workload group parameter and returns its name
+// and NAME=VALUE. The value forms and ranges are what SQL Server 2022 takes
+// (TSql160.g:22544): IMPORTANCE takes a word, REQUEST_MAX_MEMORY_GRANT_PERCENT
+// a number from 0 to 100 with no exponent (Msg 1031 outside it), the rest an
+// Int32.
+func (p *Parser) rgWorkloadGroupParam() (string, string, error) {
+	switch {
+	case p.rgIsWord("IMPORTANCE"):
+		p.advance()
+		if _, err := p.expect('='); err != nil {
+			return "", "", err
+		}
+		for _, w := range []string{"LOW", "MEDIUM", "HIGH"} {
+			if p.rgIsWord(w) {
+				p.advance()
+				return "IMPORTANCE", "IMPORTANCE=" + w, nil
+			}
+		}
+		return "", "", p.syntaxErrorAtCur()
+	case p.rgIsWord("REQUEST_MAX_MEMORY_GRANT_PERCENT"):
+		const key = "REQUEST_MAX_MEMORY_GRANT_PERCENT"
+		p.advance()
+		if _, err := p.expect('='); err != nil {
+			return "", "", err
+		}
+		text := p.cur.Str
+		switch {
+		case p.cur.Type == tokICONST && !strings.HasPrefix(strings.ToLower(text), "0x"):
+		case p.cur.Type == tokFCONST && !strings.ContainsAny(text, "eExX"):
+		default:
+			return "", "", p.syntaxErrorAtCur()
+		}
+		if v, err := strconv.ParseFloat(text, 64); err != nil || v < 0 || v > 100 {
+			return "", "", p.newParseError(p.pos(), "percent values must be between 0 and 100")
+		}
+		p.advance()
+		return key, key + "=" + text, nil
+	}
+	for _, w := range []string{"REQUEST_MAX_CPU_TIME_SEC", "REQUEST_MEMORY_GRANT_TIMEOUT_SEC", "MAX_DOP", "GROUP_MAX_REQUESTS"} {
+		if !p.rgIsWord(w) {
+			continue
+		}
+		p.advance()
+		if _, err := p.expect('='); err != nil {
+			return "", "", err
+		}
+		v, err := p.rgInt32()
+		if err != nil {
+			return "", "", err
+		}
+		return w, w + "=" + strconv.FormatInt(v, 10), nil
+	}
+	return "", "", p.syntaxErrorAtCur()
+}
+
+// rgGovernorAction reads what follows ALTER RESOURCE GOVERNOR
+// (TSql160.g:22060):
+//
+//	DISABLE | RECONFIGURE | RESET STATISTICS
+//	| WITH ( CLASSIFIER_FUNCTION = { schema_name.function_name | NULL } )
+//	| WITH ( MAX_OUTSTANDING_IO_PER_VOLUME = 1..100 )
+//
+// SQL Server 2022 takes one option in WITH, and MAX_OUTSTANDING_IO_PER_VOLUME
+// (which ScriptDOM lacks) from 1 to 100 (Msg 1040).
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-resource-governor-transact-sql
+func (p *Parser) rgGovernorAction() (nodes.Node, error) {
+	loc := p.pos()
+	switch {
+	case p.rgIsWord("DISABLE"), p.rgIsWord("RECONFIGURE"):
+		name := strings.ToUpper(p.cur.Str)
+		p.advance()
+		return &nodes.ResourceGovernorOption{Name: name, Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
+	case p.rgIsWord("RESET"):
+		p.advance()
+		if !p.rgIsWord("STATISTICS") {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		return &nodes.ResourceGovernorOption{Name: "RESET", Value: "STATISTICS", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
+	case p.cur.Type != kwWITH:
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	var str string
+	switch {
+	case p.rgIsWord("CLASSIFIER_FUNCTION"):
+		p.advance()
+		if _, err := p.expect('='); err != nil {
+			return nil, err
+		}
+		if p.cur.Type == kwNULL {
+			p.advance()
+			str = "CLASSIFIER_FUNCTION=NULL"
+			break
+		}
+		// schemaObjectNonEmptyTwoPartName: schema_name.function_name.
+		schema, err := p.rgName()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect('.'); err != nil {
+			return nil, err
+		}
+		fn, err := p.rgName()
+		if err != nil {
+			return nil, err
+		}
+		str = "CLASSIFIER_FUNCTION=" + schema + "." + fn
+	case p.rgIsWord("MAX_OUTSTANDING_IO_PER_VOLUME"):
+		p.advance()
+		if _, err := p.expect('='); err != nil {
+			return nil, err
+		}
+		valLoc := p.pos()
+		v, err := p.rgInt32()
+		if err != nil {
+			return nil, err
+		}
+		if v < 1 || v > 100 {
+			return nil, p.newParseError(valLoc, "MAX_OUTSTANDING_IO_PER_VOLUME must be greater than 0 and at most 100")
+		}
+		str = "MAX_OUTSTANDING_IO_PER_VOLUME=" + strconv.FormatInt(v, 10)
+	default:
+		return nil, p.syntaxErrorAtCur()
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return &nodes.String{Str: str}, nil
 }
