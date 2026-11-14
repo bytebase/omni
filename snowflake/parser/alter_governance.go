@@ -445,6 +445,38 @@ var propertyValues = map[string]propertyValue{
 	"DATA_QUALITY_NOTIFICATION": boolValue,
 }
 
+// tableSetProperties and icebergTableSetProperties are the SET properties the
+// ALTER TABLE and ALTER ICEBERG TABLE pages list beyond the ones
+// parseOneTableProp names itself (DATA_RETENTION_TIME_IN_DAYS, COMMENT, ...):
+//
+//	https://docs.snowflake.com/en/sql-reference/sql/alter-table
+//	https://docs.snowflake.com/en/sql-reference/sql/alter-iceberg-table
+var (
+	tableSetProperties = map[string]bool{
+		"ICEBERG_DEFAULT_DDL_COLLATION": true,
+		"ENABLE_SCHEMA_EVOLUTION":       true,
+		"ERROR_LOGGING":                 true,
+		"ROW_TIMESTAMP":                 true,
+	}
+	icebergTableSetProperties = map[string]bool{
+		"REPLACE_INVALID_CHARACTERS":     true,
+		"CATALOG_SYNC":                   true,
+		"AUTO_REFRESH":                   true,
+		"TARGET_FILE_SIZE":               true,
+		"PATH_LAYOUT":                    true,
+		"STORAGE_SERIALIZATION_POLICY":   true,
+		"LOG_EVENT_LEVEL":                true,
+		"ERROR_LOGGING":                  true,
+		"ENABLE_DATA_COMPACTION":         true,
+		"ICEBERG_MERGE_ON_READ_BEHAVIOR": true,
+		"ENABLE_ICEBERG_MERGE_ON_READ":   true,
+		"ENABLE_SCHEMA_EVOLUTION":        true,
+		"MATCH_BY_COLUMN_NAME":           true,
+		"ALLOW_V3_EXPRESSION_DEFAULTS":   true,
+		"TIME_TRAVEL_TIMESTAMP_SOURCE":   true,
+	}
+)
+
 // checkPropertyValue checks, without consuming anything, that the `KEY =
 // <value>` at cur gives a documented property one of its documented values.
 func (p *Parser) checkPropertyValue() error {

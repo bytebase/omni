@@ -487,18 +487,24 @@ func (w *writer) writeCreateDatabaseStmt(n *ast.CreateDatabaseStmt) error {
 		if err := w.writeCloneTimeTravelSuffix(n.Clone); err != nil {
 			return err
 		}
+		w.writeCloneIgnoreClauses(n.IgnoreInsufficientRetention, n.IgnoreHybridTables)
 	}
 	if n.FromShare != nil {
 		w.buf.WriteString(" FROM SHARE ")
 		w.writeObjectNameNoSpace(n.FromShare)
 	}
-	w.writeDBSchemaProps(&n.Props)
-	if len(n.Tags) > 0 {
-		w.buf.WriteString(" WITH TAG (")
-		w.writeTagAssignments(n.Tags)
-		w.buf.WriteByte(')')
+	if n.FromListing != nil {
+		w.buf.WriteString(" FROM LISTING ")
+		w.buf.WriteString(quoteString(*n.FromListing))
 	}
-	return nil
+	if n.FromBackupSet != nil {
+		w.writeFromBackupSet(n.FromBackupSet, n.BackupID)
+	}
+	if n.ReplicaOf != nil {
+		w.buf.WriteString(" AS REPLICA OF ")
+		w.writeObjectNameNoSpace(n.ReplicaOf)
+	}
+	return w.writeCreateDBSchemaTail(&n.Props, n.Tags)
 }
 
 func (w *writer) writeAlterDatabaseStmt(n *ast.AlterDatabaseStmt) error {
@@ -517,20 +523,18 @@ func (w *writer) writeAlterDatabaseStmt(n *ast.AlterDatabaseStmt) error {
 		w.writeObjectNameNoSpace(n.NewName)
 	case ast.AlterDBSet:
 		w.buf.WriteString(" SET")
-		if n.SetProps != nil {
-			w.writeDBSchemaProps(n.SetProps)
+		if err := w.writeDBSchemaSetProps(n.SetProps); err != nil {
+			return err
 		}
 	case ast.AlterDBUnset:
 		w.buf.WriteString(" UNSET ")
 		w.buf.WriteString(strings.Join(n.UnsetProps, ", "))
 	case ast.AlterDBSetTag:
-		w.buf.WriteString(" SET TAG (")
+		w.buf.WriteString(" SET TAG ")
 		w.writeTagAssignments(n.Tags)
-		w.buf.WriteByte(')')
 	case ast.AlterDBUnsetTag:
-		w.buf.WriteString(" UNSET TAG (")
+		w.buf.WriteString(" UNSET TAG ")
 		w.writeObjectNameList(n.UnsetTags)
-		w.buf.WriteByte(')')
 	case ast.AlterDBEnableReplication:
 		w.buf.WriteString(" ENABLE REPLICATION TO ACCOUNTS")
 	case ast.AlterDBDisableReplication:
@@ -543,6 +547,22 @@ func (w *writer) writeAlterDatabaseStmt(n *ast.AlterDatabaseStmt) error {
 		w.buf.WriteString(" REFRESH")
 	case ast.AlterDBPrimary:
 		w.buf.WriteString(" PRIMARY")
+	case ast.AlterDBSetFeaturePolicy:
+		w.buf.WriteString(" SET FEATURE POLICY ")
+		w.writeObjectNameNoSpace(n.FeaturePolicy)
+		if n.Force {
+			w.buf.WriteString(" FORCE")
+		}
+	case ast.AlterDBUnsetFeaturePolicy:
+		w.buf.WriteString(" UNSET FEATURE POLICY")
+	case ast.AlterDBSuspendDiscovery:
+		w.buf.WriteString(" SUSPEND DISCOVERY")
+	case ast.AlterDBResumeDiscovery:
+		w.buf.WriteString(" RESUME DISCOVERY")
+	case ast.AlterDBUpdateLinkedCatalog:
+		if err := w.writeLinkedCatalogUpdate(n.LinkedCatalog); err != nil {
+			return err
+		}
 	default:
 		return fmt.Errorf("deparse: unsupported ALTER DATABASE action %d", n.Action)
 	}
@@ -584,6 +604,9 @@ func (w *writer) writeCreateSchemaStmt(n *ast.CreateSchemaStmt) error {
 	if n.Transient {
 		w.buf.WriteString(" TRANSIENT")
 	}
+	if n.Versioned {
+		w.buf.WriteString(" VERSIONED")
+	}
 	w.buf.WriteString(" SCHEMA")
 	if n.IfNotExists {
 		w.buf.WriteString(" IF NOT EXISTS")
@@ -596,17 +619,15 @@ func (w *writer) writeCreateSchemaStmt(n *ast.CreateSchemaStmt) error {
 		if err := w.writeCloneTimeTravelSuffix(n.Clone); err != nil {
 			return err
 		}
+		w.writeCloneIgnoreClauses(n.IgnoreInsufficientRetention, n.IgnoreHybridTables)
+	}
+	if n.FromBackupSet != nil {
+		w.writeFromBackupSet(n.FromBackupSet, n.BackupID)
 	}
 	if n.ManagedAccess {
 		w.buf.WriteString(" WITH MANAGED ACCESS")
 	}
-	w.writeDBSchemaProps(&n.Props)
-	if len(n.Tags) > 0 {
-		w.buf.WriteString(" WITH TAG (")
-		w.writeTagAssignments(n.Tags)
-		w.buf.WriteByte(')')
-	}
-	return nil
+	return w.writeCreateDBSchemaTail(&n.Props, n.Tags)
 }
 
 func (w *writer) writeAlterSchemaStmt(n *ast.AlterSchemaStmt) error {
@@ -625,20 +646,18 @@ func (w *writer) writeAlterSchemaStmt(n *ast.AlterSchemaStmt) error {
 		w.writeObjectNameNoSpace(n.NewName)
 	case ast.AlterSchemaSet:
 		w.buf.WriteString(" SET")
-		if n.SetProps != nil {
-			w.writeDBSchemaProps(n.SetProps)
+		if err := w.writeDBSchemaSetProps(n.SetProps); err != nil {
+			return err
 		}
 	case ast.AlterSchemaUnset:
 		w.buf.WriteString(" UNSET ")
 		w.buf.WriteString(strings.Join(n.UnsetProps, ", "))
 	case ast.AlterSchemaSetTag:
-		w.buf.WriteString(" SET TAG (")
+		w.buf.WriteString(" SET TAG ")
 		w.writeTagAssignments(n.Tags)
-		w.buf.WriteByte(')')
 	case ast.AlterSchemaUnsetTag:
-		w.buf.WriteString(" UNSET TAG (")
+		w.buf.WriteString(" UNSET TAG ")
 		w.writeObjectNameList(n.UnsetTags)
-		w.buf.WriteByte(')')
 	case ast.AlterSchemaEnableManagedAccess:
 		w.buf.WriteString(" ENABLE MANAGED ACCESS")
 	case ast.AlterSchemaDisableManagedAccess:
@@ -1692,10 +1711,12 @@ func (w *writer) writeColumnAlter(ca *ast.ColumnAlter) error {
 // Helpers
 // ---------------------------------------------------------------------------
 
-// writeDBSchemaProps writes optional database/schema properties.
-func (w *writer) writeDBSchemaProps(p *ast.DBSchemaProps) {
+// writeDBSchemaProps writes optional database/schema properties: the typed
+// ones, then the open-ended KEY = value options. Contacts are written by the
+// caller, whose syntax differs between CREATE and ALTER ... SET.
+func (w *writer) writeDBSchemaProps(p *ast.DBSchemaProps) error {
 	if p == nil {
-		return
+		return nil
 	}
 	if p.DataRetention != nil {
 		w.buf.WriteString(" DATA_RETENTION_TIME_IN_DAYS = ")
@@ -1713,6 +1734,103 @@ func (w *writer) writeDBSchemaProps(p *ast.DBSchemaProps) {
 		w.buf.WriteString(" COMMENT = ")
 		w.buf.WriteString(quoteString(*p.Comment))
 	}
+	return w.writeCopyOptions(p.Options)
+}
+
+// writeDBSchemaSetProps writes the property list of ALTER { DATABASE | SCHEMA }
+// ... SET, with contacts in the inline CONTACT <purpose> = <contact> form.
+func (w *writer) writeDBSchemaSetProps(p *ast.DBSchemaProps) error {
+	if err := w.writeDBSchemaProps(p); err != nil {
+		return err
+	}
+	if p != nil && len(p.Contacts) > 0 {
+		w.buf.WriteString(" CONTACT ")
+		w.writeContacts(p.Contacts)
+	}
+	return nil
+}
+
+// writeCreateDBSchemaTail writes the trailing clauses of CREATE DATABASE /
+// CREATE SCHEMA: properties, WITH TAG ( ... ) and WITH CONTACT ( ... ).
+func (w *writer) writeCreateDBSchemaTail(p *ast.DBSchemaProps, tags []*ast.TagAssignment) error {
+	if err := w.writeDBSchemaProps(p); err != nil {
+		return err
+	}
+	if len(tags) > 0 {
+		w.buf.WriteString(" WITH TAG (")
+		w.writeTagAssignments(tags)
+		w.buf.WriteByte(')')
+	}
+	if len(p.Contacts) > 0 {
+		w.buf.WriteString(" WITH CONTACT (")
+		w.writeContacts(p.Contacts)
+		w.buf.WriteByte(')')
+	}
+	return nil
+}
+
+// writeContacts writes <purpose> = <contact> [ , ... ].
+func (w *writer) writeContacts(contacts []*ast.CopyOption) {
+	for i, c := range contacts {
+		if i > 0 {
+			w.buf.WriteString(", ")
+		}
+		w.buf.WriteString(c.Name)
+		w.buf.WriteString(" = ")
+		w.buf.WriteString(c.Words)
+	}
+}
+
+// writeCloneIgnoreClauses writes the IGNORE clauses of a database/schema CLONE.
+func (w *writer) writeCloneIgnoreClauses(insufficient, hybrid bool) {
+	if insufficient {
+		w.buf.WriteString(" IGNORE TABLES WITH INSUFFICIENT DATA RETENTION")
+	}
+	if hybrid {
+		w.buf.WriteString(" IGNORE HYBRID TABLES")
+	}
+}
+
+// writeFromBackupSet writes FROM BACKUP SET <set> IDENTIFIER '<id>'.
+func (w *writer) writeFromBackupSet(set *ast.ObjectName, id string) {
+	w.buf.WriteString(" FROM BACKUP SET ")
+	w.writeObjectNameNoSpace(set)
+	w.buf.WriteString(" IDENTIFIER ")
+	w.buf.WriteString(quoteString(id))
+}
+
+// writeLinkedCatalogUpdate writes UPDATE LINKED_CATALOG ... of ALTER DATABASE.
+func (w *writer) writeLinkedCatalogUpdate(u *ast.LinkedCatalogUpdate) error {
+	if u == nil {
+		return fmt.Errorf("deparse: ALTER DATABASE UPDATE LINKED_CATALOG without a body")
+	}
+	w.buf.WriteString(" UPDATE LINKED_CATALOG ")
+	switch u.Op {
+	case "ADD", "REMOVE":
+		w.buf.WriteString(u.Op)
+		w.buf.WriteString(" (")
+		for i, ns := range u.Namespaces {
+			if i > 0 {
+				w.buf.WriteString(", ")
+			}
+			w.buf.WriteString(quoteString(ns))
+		}
+		if u.Op == "ADD" {
+			w.buf.WriteString(") TO ")
+		} else {
+			w.buf.WriteString(") FROM ")
+		}
+		w.buf.WriteString(u.Target)
+	case "UNSET":
+		w.buf.WriteString("UNSET ")
+		w.buf.WriteString(u.Target)
+	case "SET":
+		w.buf.WriteString("SET")
+		return w.writeCopyOptions(u.Options)
+	default:
+		return fmt.Errorf("deparse: unsupported UPDATE LINKED_CATALOG operation %q", u.Op)
+	}
+	return nil
 }
 
 // writeObjectNameList writes a comma-separated list of object names.

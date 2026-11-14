@@ -1505,19 +1505,38 @@ var (
 type AlterDatabaseAction int
 
 const (
-	AlterDBRename             AlterDatabaseAction = iota // RENAME TO
-	AlterDBSwap                                          // SWAP WITH
-	AlterDBSet                                           // SET <properties>
-	AlterDBUnset                                         // UNSET <properties>
-	AlterDBSetTag                                        // SET TAG (...)
-	AlterDBUnsetTag                                      // UNSET TAG (...)
-	AlterDBEnableReplication                             // ENABLE REPLICATION ...
-	AlterDBDisableReplication                            // DISABLE REPLICATION ...
-	AlterDBEnableFailover                                // ENABLE FAILOVER ...
-	AlterDBDisableFailover                               // DISABLE FAILOVER ...
-	AlterDBRefresh                                       // REFRESH
-	AlterDBPrimary                                       // PRIMARY
+	AlterDBRename              AlterDatabaseAction = iota // RENAME TO
+	AlterDBSwap                                           // SWAP WITH
+	AlterDBSet                                            // SET <properties>
+	AlterDBUnset                                          // UNSET <properties>
+	AlterDBSetTag                                         // SET TAG (...)
+	AlterDBUnsetTag                                       // UNSET TAG (...)
+	AlterDBEnableReplication                              // ENABLE REPLICATION ...
+	AlterDBDisableReplication                             // DISABLE REPLICATION ...
+	AlterDBEnableFailover                                 // ENABLE FAILOVER ...
+	AlterDBDisableFailover                                // DISABLE FAILOVER ...
+	AlterDBRefresh                                        // REFRESH
+	AlterDBPrimary                                        // PRIMARY
+	AlterDBSetFeaturePolicy                               // SET FEATURE POLICY <name> [FORCE]
+	AlterDBUnsetFeaturePolicy                             // UNSET FEATURE POLICY
+	AlterDBSuspendDiscovery                               // SUSPEND DISCOVERY (catalog-linked database)
+	AlterDBResumeDiscovery                                // RESUME DISCOVERY (catalog-linked database)
+	AlterDBUpdateLinkedCatalog                            // UPDATE LINKED_CATALOG ... (catalog-linked database)
 )
+
+// LinkedCatalogUpdate is the body of ALTER DATABASE ... UPDATE LINKED_CATALOG
+// (https://docs.snowflake.com/en/sql-reference/sql/alter-database-catalog-linked).
+// It is NOT a Node. Op is "ADD", "REMOVE", "SET" or "UNSET":
+//   - ADD ( 'ns' [, ...] ) TO <Target>       → Namespaces, Target
+//   - REMOVE ( 'ns' [, ...] ) FROM <Target>  → Namespaces, Target
+//   - UNSET <Target>                         → Target
+//   - SET <key> = <value> [ ... ]            → Options
+type LinkedCatalogUpdate struct {
+	Op         string        // "ADD" / "REMOVE" / "SET" / "UNSET"
+	Namespaces []string      // ADD / REMOVE namespace list
+	Target     string        // ALLOWED_NAMESPACES / BLOCKED_NAMESPACES (ADD / REMOVE / UNSET)
+	Options    []*CopyOption // SET key = value run (SYNC_INTERVAL_SECONDS, ALLOWED_WRITE_OPERATIONS, ...)
+}
 
 // AlterSchemaAction discriminates the action variants of ALTER SCHEMA.
 type AlterSchemaAction int
@@ -1536,11 +1555,18 @@ const (
 // DBSchemaProps holds the optional settable properties shared by DATABASE and
 // SCHEMA DDL statements.  It is NOT a Node — embedded by value or pointer in
 // the statement nodes that need it.
+//
+// The four long-standing properties keep typed fields; every other property
+// (EXTERNAL_VOLUME, CATALOG, LOG_LEVEL, OBJECT_VISIBILITY, LINKED_CATALOG, ...)
+// is an open-ended `KEY = value` pair in Options, since the documented set
+// keeps growing.
 type DBSchemaProps struct {
-	DataRetention *int64  // DATA_RETENTION_TIME_IN_DAYS = n; nil if absent
-	MaxDataExt    *int64  // MAX_DATA_EXTENSION_TIME_IN_DAYS = n; nil if absent
-	DefaultDDLCol *string // DEFAULT_DDL_COLLATION = 'str'; nil if absent
-	Comment       *string // COMMENT = 'str'; nil if absent
+	DataRetention *int64        // DATA_RETENTION_TIME_IN_DAYS = n; nil if absent
+	MaxDataExt    *int64        // MAX_DATA_EXTENSION_TIME_IN_DAYS = n; nil if absent
+	DefaultDDLCol *string       // DEFAULT_DDL_COLLATION = 'str'; nil if absent
+	Comment       *string       // COMMENT = 'str'; nil if absent
+	Options       []*CopyOption // other KEY = value properties, in source order
+	Contacts      []*CopyOption // CONTACT <purpose> = <contact> pairs (Name = purpose, Words = contact)
 }
 
 // ---------------------------------------------------------------------------
@@ -1549,16 +1575,22 @@ type DBSchemaProps struct {
 
 // CreateDatabaseStmt represents CREATE [OR REPLACE] [TRANSIENT] DATABASE ...
 type CreateDatabaseStmt struct {
-	OrReplace   bool
-	OrAlter     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
-	Transient   bool
-	IfNotExists bool
-	Name        *ObjectName
-	Clone       *CloneSource     // CLONE source [AT|BEFORE (...)]; nil if absent
-	FromShare   *ObjectName      // FROM SHARE <provider>.<share>; nil if absent
-	Props       DBSchemaProps    // optional properties
-	Tags        []*TagAssignment // WITH TAG (...); nil if absent
-	Loc         Loc
+	OrReplace                   bool
+	OrAlter                     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
+	Transient                   bool
+	IfNotExists                 bool
+	Name                        *ObjectName
+	Clone                       *CloneSource // CLONE source [AT|BEFORE (...)]; nil if absent
+	IgnoreInsufficientRetention bool         // CLONE ... IGNORE TABLES WITH INSUFFICIENT DATA RETENTION
+	IgnoreHybridTables          bool         // CLONE ... IGNORE HYBRID TABLES
+	FromShare                   *ObjectName  // FROM SHARE <provider>.<share>; nil if absent
+	FromListing                 *string      // FROM LISTING '<listing>'; nil if absent
+	FromBackupSet               *ObjectName  // FROM BACKUP SET <set> IDENTIFIER '<id>'; nil if absent
+	BackupID                    string       // the IDENTIFIER '<id>' of FROM BACKUP SET
+	ReplicaOf                   *ObjectName  // AS REPLICA OF <account>.<db>; nil if absent
+	Props                       DBSchemaProps
+	Tags                        []*TagAssignment // [WITH] TAG (...); nil if absent
+	Loc                         Loc
 }
 
 func (n *CreateDatabaseStmt) Tag() NodeTag { return T_CreateDatabaseStmt }
@@ -1572,10 +1604,14 @@ type AlterDatabaseStmt struct {
 	Action     AlterDatabaseAction
 	NewName    *ObjectName      // RENAME TO / SWAP WITH target
 	SetProps   *DBSchemaProps   // SET properties; non-nil for AlterDBSet
-	UnsetProps []string         // UNSET property names
-	Tags       []*TagAssignment // SET TAG (...) assignments
-	UnsetTags  []*ObjectName    // UNSET TAG (...) names
-	Loc        Loc
+	UnsetProps []string         // UNSET property names ("CONTACT <PURPOSE>" for UNSET CONTACT <purpose>)
+	Tags       []*TagAssignment // SET TAG assignments
+	UnsetTags  []*ObjectName    // UNSET TAG names
+	// FeaturePolicy is the SET FEATURE POLICY <name> target; Force marks FORCE.
+	FeaturePolicy *ObjectName
+	Force         bool
+	LinkedCatalog *LinkedCatalogUpdate // UPDATE LINKED_CATALOG body; non-nil for AlterDBUpdateLinkedCatalog
+	Loc           Loc
 }
 
 func (n *AlterDatabaseStmt) Tag() NodeTag { return T_AlterDatabaseStmt }
@@ -1611,16 +1647,21 @@ var _ Node = (*UndropDatabaseStmt)(nil)
 
 // CreateSchemaStmt represents CREATE [OR REPLACE] [TRANSIENT] SCHEMA ...
 type CreateSchemaStmt struct {
-	OrReplace     bool
-	OrAlter       bool // CREATE OR ALTER (mutually exclusive with OrReplace)
-	Transient     bool
-	IfNotExists   bool
-	Name          *ObjectName
-	Clone         *CloneSource     // CLONE source [AT|BEFORE (...)]; nil if absent
-	ManagedAccess bool             // WITH MANAGED ACCESS
-	Props         DBSchemaProps    // optional properties
-	Tags          []*TagAssignment // WITH TAG (...); nil if absent
-	Loc           Loc
+	OrReplace                   bool
+	OrAlter                     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
+	Transient                   bool
+	IfNotExists                 bool
+	Name                        *ObjectName
+	Versioned                   bool             // CREATE OR ALTER VERSIONED SCHEMA
+	Clone                       *CloneSource     // CLONE source [AT|BEFORE (...)]; nil if absent
+	IgnoreInsufficientRetention bool             // CLONE ... IGNORE TABLES WITH INSUFFICIENT DATA RETENTION
+	IgnoreHybridTables          bool             // CLONE ... IGNORE HYBRID TABLES
+	FromBackupSet               *ObjectName      // FROM BACKUP SET <set> IDENTIFIER '<id>'; nil if absent
+	BackupID                    string           // the IDENTIFIER '<id>' of FROM BACKUP SET
+	ManagedAccess               bool             // WITH MANAGED ACCESS
+	Props                       DBSchemaProps    // optional properties
+	Tags                        []*TagAssignment // WITH TAG (...); nil if absent
+	Loc                         Loc
 }
 
 func (n *CreateSchemaStmt) Tag() NodeTag { return T_CreateSchemaStmt }
@@ -1634,9 +1675,9 @@ type AlterSchemaStmt struct {
 	Action     AlterSchemaAction
 	NewName    *ObjectName      // RENAME TO / SWAP WITH target
 	SetProps   *DBSchemaProps   // SET properties; non-nil for AlterSchemaSet
-	UnsetProps []string         // UNSET property names
-	Tags       []*TagAssignment // SET TAG (...) assignments
-	UnsetTags  []*ObjectName    // UNSET TAG (...) names
+	UnsetProps []string         // UNSET property names ("CONTACT <PURPOSE>" for UNSET CONTACT <purpose>)
+	Tags       []*TagAssignment // SET TAG assignments
+	UnsetTags  []*ObjectName    // UNSET TAG names
 	Loc        Loc
 }
 
