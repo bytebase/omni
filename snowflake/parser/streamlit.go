@@ -1,6 +1,10 @@
 package parser
 
-import "github.com/bytebase/omni/snowflake/ast"
+import (
+	"strings"
+
+	"github.com/bytebase/omni/snowflake/ast"
+)
 
 // ---------------------------------------------------------------------------
 // STREAMLIT, read as an ast.ObjectStmt
@@ -92,7 +96,7 @@ func streamlitCheckPush(opts []*ast.CopyOption) error {
 func parseCreateStreamlit(p *Parser, s *ast.ObjectStmt) error {
 	from := p.cur.Type == kwFROM
 	if from {
-		if err := p.parseStreamlitFrom(s); err != nil {
+		if err := p.parseStreamlitFrom(s, true); err != nil {
 			return err
 		}
 	}
@@ -107,9 +111,11 @@ func parseCreateStreamlit(p *Parser, s *ast.ObjectStmt) error {
 				Message: "syntax error: ROOT_LOCATION cannot follow FROM",
 			}
 		}
-		return p.requireObjectProperties(props, "MAIN_FILE")
+		if err := p.requireObjectProperties(props, "MAIN_FILE"); err != nil {
+			return err
+		}
 	}
-	return nil
+	return streamlitCheckSecrets(s, 3)
 }
 
 // parseAlterStreamlit reads what follows the name of
@@ -133,7 +139,10 @@ func parseCreateStreamlit(p *Parser, s *ast.ObjectStmt) error {
 func parseAlterStreamlit(p *Parser, s *ast.ObjectStmt) error {
 	start := p.cur.Loc.Start
 	if ok, err := p.parseObjectAlterCommon(s, actSet|actUnset|actRename); ok || err != nil {
-		return err
+		if err != nil {
+			return err
+		}
+		return streamlitCheckSecrets(s, 3)
 	}
 	if s.IfExists {
 		return p.syntaxErrorAtCur()
@@ -187,22 +196,85 @@ func (p *Parser) parseStreamlitPush(s *ast.ObjectStmt, start int) error {
 		c.Options = append(c.Options, opt)
 	}
 	c.Loc.End = p.prev.Loc.End
-	return streamlitCheckPush(props)
-}
-
-// parseStreamlitFrom reads FROM '<source_location>' into a FROM clause whose
-// one option, unnamed, holds the string, as CREATE STREAMLIT and CREATE
-// NOTEBOOK write their source. cur is FROM.
-func (p *Parser) parseStreamlitFrom(s *ast.ObjectStmt) error {
-	start := p.cur.Loc.Start
-	p.advance() // consume FROM
-	tok, err := p.expect(tokString)
-	if err != nil {
+	if err := streamlitCheckPush(props); err != nil {
 		return err
 	}
-	src := &ast.CopyOption{
-		Lit: &ast.Literal{Kind: ast.LitString, Value: tok.Str, Loc: tok.Loc},
-		Loc: tok.Loc,
+	return streamlitCheckPushCredentials(c, props)
+}
+
+// streamlitCheckPushCredentials holds PUSH's Git properties to the page's
+// grouping: when any is given, either GIT_CREDENTIALS or USERNAME and
+// PASSWORD, and both NAME and EMAIL. A bare PUSH, PUSH TO and a lone COMMENT
+// take none.
+func streamlitCheckPushCredentials(c *ast.ObjectClause, props []*ast.CopyOption) error {
+	has := map[string]bool{}
+	for _, o := range props {
+		has[o.Name] = true
+	}
+	if !has["GIT_CREDENTIALS"] && !has["USERNAME"] && !has["PASSWORD"] && !has["NAME"] && !has["EMAIL"] {
+		return nil
+	}
+	secret := has["GIT_CREDENTIALS"] && !has["USERNAME"] && !has["PASSWORD"]
+	login := !has["GIT_CREDENTIALS"] && has["USERNAME"] && has["PASSWORD"]
+	if (secret || login) && has["NAME"] && has["EMAIL"] {
+		return nil
+	}
+	return &ParseError{
+		Position: c.Loc.Start, End: c.Loc.End,
+		Message: "syntax error: PUSH takes GIT_CREDENTIALS or USERNAME and PASSWORD, with NAME and EMAIL",
+	}
+}
+
+// streamlitCheckSecrets holds each SECRETS = ( ... ) of s's property runs
+// and SETs to the documented mapping, ( '<secret_alias>' = <secret_name>
+// [ , ... ] ): a string key bound to a secret's name of at most parts parts.
+func streamlitCheckSecrets(s *ast.ObjectStmt, parts int) error {
+	for _, c := range s.Clauses {
+		if c.Keywords != "" && c.Keywords != "SET" {
+			continue
+		}
+		for _, o := range c.Options {
+			if o.Name != "SECRETS" {
+				continue
+			}
+			for _, e := range o.Group {
+				if !strings.HasPrefix(e.Name, "'") || e.Words == "" || nameParts(e.Words) > parts {
+					return &ParseError{
+						Position: e.Loc.Start, End: e.Loc.End,
+						Message: "syntax error: SECRETS maps a '<alias>' string to a secret's name",
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// parseStreamlitFrom reads FROM <source_location> into a FROM clause whose
+// one option, unnamed, holds the source, as CREATE STREAMLIT and CREATE
+// NOTEBOOK write it: a string ('@stage/path') or, where stage says the page
+// writes one unquoted (CREATE STREAMLIT's examples:
+// FROM @db.schema.stage, FROM @db.schema.repo/branches/main), a stage
+// reference, whose text the option keeps verbatim in Words. cur is FROM.
+func (p *Parser) parseStreamlitFrom(s *ast.ObjectStmt, stage bool) error {
+	start := p.cur.Loc.Start
+	p.advance() // consume FROM
+	var src *ast.CopyOption
+	if stage && p.cur.Type == '@' {
+		ref, err := p.parseStageOperand()
+		if err != nil {
+			return err
+		}
+		src = &ast.CopyOption{Words: ref.Raw, Loc: ref.Loc}
+	} else {
+		tok, err := p.expect(tokString)
+		if err != nil {
+			return err
+		}
+		src = &ast.CopyOption{
+			Lit: &ast.Literal{Kind: ast.LitString, Value: tok.Str, Loc: tok.Loc},
+			Loc: tok.Loc,
+		}
 	}
 	p.addObjectKeywordsClause(s, "FROM", start).Options = []*ast.CopyOption{src}
 	return nil

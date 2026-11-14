@@ -97,6 +97,8 @@ func TestParseNotebookRejects(t *testing.T) {
 		"CREATE OR REPLACE NOTEBOOK PROJECT db.s.p FROM 's'", // not documented
 		"ALTER NOTEBOOK a",
 		"ALTER NOTEBOOK a UNSET COMMENT", // not documented
+		"ALTER NOTEBOOK a SET SECRETS = ('k' = 1)",
+		"ALTER NOTEBOOK a SET SECRETS = ('k' = a.b.c.d)",
 		"ALTER NOTEBOOK a SET",
 		"EXECUTE NOTEBOOK nb",
 		"EXECUTE NOTEBOOK nb(x)",

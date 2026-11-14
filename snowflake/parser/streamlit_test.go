@@ -27,6 +27,8 @@ func TestParseCreateStreamlit(t *testing.T) {
 	for _, in := range []string{
 		"CREATE STREAMLIT a",
 		"CREATE STREAMLIT IF NOT EXISTS a TITLE = 't'",
+		"CREATE STREAMLIT a FROM @streamlit_db.streamlit_schema.streamlit_stage MAIN_FILE = 'main.py'",
+		"CREATE STREAMLIT a FROM @db.s.repo/branches/main/app/ MAIN_FILE = 'main.py'",
 		"CREATE STREAMLIT a ROOT_LOCATION = '@s/app' MAIN_FILE = 'main.py' QUERY_WAREHOUSE = wh",
 	} {
 		mustObjectStmt(t, in)
@@ -49,6 +51,13 @@ func TestParseAlterStreamlit(t *testing.T) {
 			t.Errorf("%q: clauses = %q, want [%q]", in, clauseKeywords(s), want)
 		}
 	}
+	for _, in := range []string{
+		"ALTER STREAMLIT a PUSH COMMENT = 'c'",
+		"ALTER STREAMLIT a PUSH TO main",
+		"ALTER STREAMLIT a PUSH GIT_CREDENTIALS = s NAME = n EMAIL = e",
+	} {
+		mustObjectStmt(t, in)
+	}
 	s := mustObjectStmt(t, "ALTER STREAMLIT a PUSH TO 'https://g/r/main' USERNAME = u PASSWORD = 'p' NAME = n EMAIL = e COMMENT = c")
 	if c := s.Clauses[0]; c.Keywords != "PUSH TO" || len(c.Options) != 6 || c.Options[0].Name != "" ||
 		c.Options[0].Lit.Value != "https://g/r/main" || c.Options[5].Name != "COMMENT" {
@@ -66,7 +75,7 @@ func TestParseDropStreamlit(t *testing.T) {
 
 func TestParseStreamlitRejects(t *testing.T) {
 	for _, in := range []string{
-		"CREATE STREAMLIT a FROM @s",                                        // the source is a string
+		"CREATE STREAMLIT a FROM s",                                         // a string or a stage
 		"CREATE STREAMLIT a FROM",                                           //
 		"CREATE STREAMLIT a ROOT_LOCATION = '@s/app'",                       // MAIN_FILE is required
 		"CREATE STREAMLIT a FROM '@s' ROOT_LOCATION = '@s' MAIN_FILE = 'm'", // two forms mixed
@@ -95,6 +104,17 @@ func TestParseStreamlitRejects(t *testing.T) {
 		"ALTER STREAMLIT a PUSH GIT_CREDENTIALS = 's'",
 		"ALTER STREAMLIT a PUSH TO = b",
 		"ALTER STREAMLIT a PUSH NAME = n NAME = m",
+		// PUSH's Git properties go together: a secret or a login, with NAME and EMAIL.
+		"ALTER STREAMLIT a PUSH PASSWORD = 'p'",
+		"ALTER STREAMLIT a PUSH USERNAME = u NAME = n EMAIL = e",
+		"ALTER STREAMLIT a PUSH GIT_CREDENTIALS = s USERNAME = u PASSWORD = 'p' NAME = n EMAIL = e",
+		"ALTER STREAMLIT a PUSH GIT_CREDENTIALS = s NAME = n",
+		"ALTER STREAMLIT a PUSH NAME = n EMAIL = e",
+		// SECRETS maps a string alias to a secret's name.
+		"CREATE STREAMLIT a SECRETS = ('k' = 123)",
+		"CREATE STREAMLIT a SECRETS = (k = s)",
+		"ALTER STREAMLIT a SET SECRETS = ('k' = (s = t))",
+		"ALTER STREAMLIT a SET SECRETS = ('k' = 's')",
 		"ALTER STREAMLIT a SET TITLE = 't' TITLE = 'u'",
 	} {
 		mustRejectObject(t, in)

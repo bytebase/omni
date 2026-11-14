@@ -116,7 +116,7 @@ func parseCreateNotebook(p *Parser, s *ast.ObjectStmt) error {
 		return p.parseCreateNotebookProject(s)
 	}
 	if p.cur.Type == kwFROM {
-		if err := p.parseStreamlitFrom(s); err != nil {
+		if err := p.parseStreamlitFrom(s, false); err != nil {
 			return err
 		}
 	}
@@ -169,7 +169,7 @@ func (p *Parser) parseCreateNotebookProject(s *ast.ObjectStmt) error {
 	if p.cur.Type != kwFROM {
 		return p.syntaxErrorAtCur()
 	}
-	if err := p.parseStreamlitFrom(s); err != nil {
+	if err := p.parseStreamlitFrom(s, false); err != nil {
 		return err
 	}
 	props, err := p.parseObjectProperties(s, "", false)
@@ -191,7 +191,10 @@ func (p *Parser) parseCreateNotebookProject(s *ast.ObjectStmt) error {
 // https://docs.snowflake.com/en/sql-reference/sql/alter-notebook
 func parseAlterNotebook(p *Parser, s *ast.ObjectStmt) error {
 	if ok, err := p.parseObjectAlterCommon(s, actSet|actRename); ok || err != nil {
-		return err
+		if err != nil {
+			return err
+		}
+		return streamlitCheckSecrets(s, 3)
 	}
 	return p.syntaxErrorAtCur()
 }

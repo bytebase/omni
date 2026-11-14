@@ -9,6 +9,7 @@ func TestDeparse_StreamlitNotebook(t *testing.T) {
 		// STREAMLIT
 		"CREATE OR REPLACE STREAMLIT db.s.app FROM '@db.s.stage/src' MAIN_FILE = 'main.py' QUERY_WAREHOUSE = wh TITLE = 't' IMPORTS = ('@s/a.py', '@s/b.py') EXTERNAL_ACCESS_INTEGRATIONS = (i1, i2) SECRETS = ('k' = db.s.secret)",
 		"CREATE STREAMLIT IF NOT EXISTS a ROOT_LOCATION = '@s/app' MAIN_FILE = 'main.py'",
+		"CREATE STREAMLIT a FROM @db.s.repo/branches/main/app/ MAIN_FILE = 'main.py'",
 		"ALTER STREAMLIT IF EXISTS a SET MAIN_FILE = 'm.py' SECRETS = ('k' = s, 'l' = t)",
 		"ALTER STREAMLIT a UNSET SECRETS, TITLE",
 		"ALTER STREAMLIT a RENAME TO b",
