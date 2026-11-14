@@ -33,6 +33,12 @@ func TestParseCreateService(t *testing.T) {
 		t.Errorf("properties = %+v", props)
 	}
 
+	// The guide's examples write properties before the specification.
+	s = mustObjectStmt(t, "CREATE SERVICE s IN COMPUTE POOL p MIN_INSTANCES=1 MAX_INSTANCES=1 FROM SPECIFICATION_TEMPLATE $$x$$ USING (image_url=>'i', SERVER_PORT=>8000) COMMENT = 'c'")
+	if got := strings.Join(clauseKeywords(s), "|"); got != "IN COMPUTE POOL||FROM SPECIFICATION_TEMPLATE|USING|" {
+		t.Errorf("clauses = %q", got)
+	}
+
 	for in, want := range map[string]string{
 		"CREATE SERVICE s IN COMPUTE POOL p FROM SPECIFICATION 'spec'":                          "FROM SPECIFICATION/",
 		"CREATE SERVICE s IN COMPUTE POOL p FROM SPECIFICATION_FILE = 'a.yaml'":                 "FROM/SPECIFICATION_FILE",
@@ -216,6 +222,9 @@ func TestParseServiceRejects(t *testing.T) {
 		"ALTER SERVICE s SET QUERY_WAREHOUSE = db.wh",                                    // a warehouse is a single name
 		"EXECUTE JOB SERVICE IN COMPUTE POOL p NAME = j FROM SPECIFICATION 's' NAME = k", // set twice
 		"EXECUTE JOB SERVICE IN COMPUTE POOL p NAME = j",
+		"CREATE SERVICE s IN COMPUTE POOL p MIN_INSTANCES = 1 FROM SPECIFICATION 'x' MIN_INSTANCES = 2", // set twice
+		"CREATE SERVICE s IN COMPUTE POOL p TAG (t = 'v') FROM SPECIFICATION 'x' TAG (u = 'w')",
+		"CREATE SERVICE s IN COMPUTE POOL p NOT_A_PROPERTY = 1 FROM SPECIFICATION 'x'",
 		"EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL p WITH SPECIFICATION 's' FROM (SELECT 1) MODEL = m VERSION = a.b",
 	} {
 		mustRejectObject(t, in)

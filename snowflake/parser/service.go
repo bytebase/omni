@@ -71,6 +71,7 @@ var (
 //
 //	CREATE SERVICE [ IF NOT EXISTS ] <name>
 //	  IN COMPUTE POOL <compute_pool_name>
+//	  [ <property> ... ]   (as the guide's examples place them)
 //	  { fromSpecification | fromSpecificationTemplate }
 //	  [ AUTO_SUSPEND_SECS = <num> ]
 //	  [ EXTERNAL_ACCESS_INTEGRATIONS = ( <EAI_name> [ , ... ] ) ]
@@ -85,11 +86,7 @@ func parseCreateService(p *Parser, s *ast.ObjectStmt) error {
 	if err := p.parseServiceComputePool(s); err != nil {
 		return err
 	}
-	if err := p.parseServiceSpecification(s, true); err != nil {
-		return err
-	}
-	_, err := p.parseObjectProperties(s, "", false)
-	return err
+	return p.parseServicePropertiesAndSpecification(s, true)
 }
 
 // parseAlterService reads what follows the name of
@@ -173,32 +170,8 @@ func (p *Parser) parseExecuteJobService(start ast.Loc) (ast.Node, error) {
 		return nil, err
 	}
 	if !inference {
-		// The Syntax block writes the properties after the specification;
-		// the usage notes and examples write them before it ("specify compute
-		// pool, followed by other properties", then the specification). Both
-		// are read, each property once.
-		before, err := p.parseObjectProperties(s, "", false)
-		if err != nil {
+		if err := p.parseServicePropertiesAndSpecification(s, false); err != nil {
 			return nil, err
-		}
-		if err := p.parseServiceSpecification(s, false); err != nil {
-			return nil, err
-		}
-		after, err := p.parseObjectProperties(s, "", false)
-		if err != nil {
-			return nil, err
-		}
-		if before != nil && after != nil {
-			for _, o := range after.Options {
-				for _, prev := range before.Options {
-					if prev.Name == o.Name {
-						return nil, &ParseError{Position: o.Loc.Start, End: o.Loc.End, Message: "syntax error: " + o.Name + " is set twice"}
-					}
-				}
-			}
-			if len(before.Tags) > 0 && len(after.Tags) > 0 {
-				return nil, &ParseError{Position: after.Loc.Start, End: after.Loc.End, Message: "syntax error: TAG is set twice"}
-			}
 		}
 		if err := executeJobServiceForm.checkClauses(s); err != nil {
 			return nil, err
@@ -261,6 +234,39 @@ func (p *Parser) parseExecuteJobService(start ast.Loc) (ast.Node, error) {
 // JOB SERVICE or INFERENCE JOB SERVICE. It consumes nothing.
 func (p *Parser) startsExecuteJobService() bool {
 	return p.atWords("JOB", "SERVICE") || p.atWords("INFERENCE", "JOB", "SERVICE")
+}
+
+// parseServicePropertiesAndSpecification reads a service's specification with
+// a property run on either side of it. The Syntax blocks write the properties
+// after the specification; the pages' usage notes and examples also write them
+// before it (CREATE SERVICE ... IN COMPUTE POOL p MIN_INSTANCES=1 FROM ...,
+// https://docs.snowflake.com/en/developer-guide/snowpark-container-services/working-with-services#examples;
+// EXECUTE JOB SERVICE: "specify compute pool, followed by other properties",
+// https://docs.snowflake.com/en/sql-reference/sql/execute-job-service#usage-notes).
+// Each property, and the tags, are set once across both runs.
+func (p *Parser) parseServicePropertiesAndSpecification(s *ast.ObjectStmt, bareFile bool) error {
+	before, err := p.parseObjectProperties(s, "", false)
+	if err != nil {
+		return err
+	}
+	if err := p.parseServiceSpecification(s, bareFile); err != nil {
+		return err
+	}
+	after, err := p.parseObjectProperties(s, "", false)
+	if err != nil || before == nil || after == nil {
+		return err
+	}
+	for _, o := range after.Options {
+		for _, prev := range before.Options {
+			if prev.Name == o.Name {
+				return &ParseError{Position: o.Loc.Start, End: o.Loc.End, Message: "syntax error: " + o.Name + " is set twice"}
+			}
+		}
+	}
+	if len(before.Tags) > 0 && len(after.Tags) > 0 {
+		return &ParseError{Position: after.Loc.Start, End: after.Loc.End, Message: "syntax error: TAG is set twice"}
+	}
+	return nil
 }
 
 // parseServiceComputePool reads IN COMPUTE POOL <compute_pool_name> into a
