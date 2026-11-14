@@ -167,7 +167,9 @@ func TestShowAnalyze_ByJobID(t *testing.T) {
 }
 
 func TestShowAnalyze_All(t *testing.T) {
-	file, errs := parseForTest("SHOW ALL ANALYZE")
+	// Not Doris syntax (DorisParser.g4:767-778): best effort reads it.
+	r := ParseBestEffort("SHOW ALL ANALYZE")
+	file, errs := r.File, r.Errors
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -181,7 +183,9 @@ func TestShowAnalyze_All(t *testing.T) {
 }
 
 func TestShowAnalyze_Queued(t *testing.T) {
-	file, errs := parseForTest("SHOW QUEUED ANALYZE")
+	// Not Doris syntax (DorisParser.g4:767-778): best effort reads it.
+	r := ParseBestEffort("SHOW QUEUED ANALYZE")
+	file, errs := r.File, r.Errors
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -212,7 +216,9 @@ func TestShowAnalyze_TaskStatus(t *testing.T) {
 }
 
 func TestShowAnalyze_ForTable(t *testing.T) {
-	file, errs := parseForTest("SHOW ANALYZE FOR mydb.t1")
+	// Not Doris syntax (DorisParser.g4:767-778): best effort reads it.
+	r := ParseBestEffort("SHOW ANALYZE FOR mydb.t1")
+	file, errs := r.File, r.Errors
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -258,7 +264,9 @@ func TestShowColumnStats(t *testing.T) {
 }
 
 func TestShowStats_NoType(t *testing.T) {
-	file, errs := parseForTest("SHOW STATS mytable")
+	// Not Doris syntax (DorisParser.g4:767-778): best effort reads it.
+	r := ParseBestEffort("SHOW STATS mytable")
+	file, errs := r.File, r.Errors
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}

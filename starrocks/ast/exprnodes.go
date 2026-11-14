@@ -42,6 +42,8 @@ const (
 	// JSON path operator. Unlike Doris, which has no `->` at all, StarRocks
 	// extracts a JSON path with it: j->'$.a'.
 	BinJSONArrow // ->
+
+	BinShiftRightLogical // BITSHIFTRIGHTLOGICAL
 )
 
 // String returns the SQL text form of the operator.
@@ -91,6 +93,8 @@ func (op BinaryOp) String() string {
 		return ">>"
 	case BinJSONArrow:
 		return "->"
+	case BinShiftRightLogical:
+		return "BITSHIFTRIGHTLOGICAL"
 	default:
 		return "?"
 	}
@@ -162,6 +166,54 @@ type BinaryExpr struct {
 func (n *BinaryExpr) Tag() NodeTag { return T_BinaryExpr }
 
 var _ Node = (*BinaryExpr)(nil)
+
+// RowExpr is a parenthesized list of two or more expressions, the left of a
+// tuple IN subquery ((a, b) IN (SELECT ...)).
+type RowExpr struct {
+	Items []Node
+	Loc   Loc
+}
+
+func (n *RowExpr) Tag() NodeTag { return T_RowExpr }
+
+var _ Node = (*RowExpr)(nil)
+
+// DereferenceExpr is expr.field, a field of a struct-valued expression
+// other than a column name (named_struct('a', 1).a).
+type DereferenceExpr struct {
+	Expr  Node
+	Field string
+	Loc   Loc
+}
+
+func (n *DereferenceExpr) Tag() NodeTag { return T_DereferenceExpr }
+
+var _ Node = (*DereferenceExpr)(nil)
+
+// MatchExpr is expr [NOT] MATCH pattern, Op naming the MATCH kind
+// (MATCH, MATCH_ANY, MATCH_PHRASE, ...).
+type MatchExpr struct {
+	Expr    Node
+	Op      string
+	Pattern Node
+	Not     bool
+	Loc     Loc
+}
+
+func (n *MatchExpr) Tag() NodeTag { return T_MatchExpr }
+
+var _ Node = (*MatchExpr)(nil)
+
+// CollateExpr is expr COLLATE collation.
+type CollateExpr struct {
+	Expr      Node
+	Collation string
+	Loc       Loc
+}
+
+func (n *CollateExpr) Tag() NodeTag { return T_CollateExpr }
+
+var _ Node = (*CollateExpr)(nil)
 
 // UnaryExpr represents a unary operation: op expr.
 type UnaryExpr struct {
@@ -238,15 +290,16 @@ var _ Node = (*RegexpExpr)(nil)
 
 // FuncCallExpr represents a function call: name(args...).
 type FuncCallExpr struct {
-	Name        *ObjectName
-	Args        []Node
-	Distinct    bool           // COUNT(DISTINCT x)
-	Star        bool           // COUNT(*)
-	OrderBy     []*OrderByItem // optional ORDER BY in aggregate (GROUP_CONCAT)
-	Separator   string         // optional SEPARATOR value for GROUP_CONCAT
-	IgnoreNulls bool           // IGNORE NULLS null-treatment (FIRST_VALUE/LAST_VALUE/LEAD/LAG)
-	Over        *WindowSpec    // optional OVER (...) window specification
-	Loc         Loc
+	Name          *ObjectName
+	Args          []Node
+	Distinct      bool           // COUNT(DISTINCT x)
+	Star          bool           // COUNT(*)
+	OrderBy       []*OrderByItem // optional ORDER BY in aggregate (GROUP_CONCAT)
+	Separator     string         // optional SEPARATOR value for GROUP_CONCAT, when a string
+	SeparatorExpr Node           // the SEPARATOR when it is another expression
+	IgnoreNulls   bool           // IGNORE NULLS null-treatment (FIRST_VALUE/LAST_VALUE/LEAD/LAG)
+	Over          *WindowSpec    // optional OVER (...) window specification
+	Loc           Loc
 }
 
 func (n *FuncCallExpr) Tag() NodeTag { return T_FuncCallExpr }

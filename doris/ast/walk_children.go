@@ -62,6 +62,13 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Right)
 	case *UnaryExpr:
 		Walk(v, n.Expr)
+	case *CollateExpr:
+		Walk(v, n.Expr)
+	case *MatchExpr:
+		Walk(v, n.Expr)
+		Walk(v, n.Pattern)
+	case *DereferenceExpr:
+		Walk(v, n.Expr)
 	case *IsExpr:
 		Walk(v, n.Expr)
 	case *BetweenExpr:

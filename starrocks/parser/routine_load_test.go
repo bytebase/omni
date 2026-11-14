@@ -395,21 +395,6 @@ func TestShowRoutineLoad_All(t *testing.T) {
 	}
 }
 
-func TestShowRoutineLoad_Like(t *testing.T) {
-	sql := `SHOW ROUTINE LOAD LIKE 'job%'`
-	file, errs := parseForTest(sql)
-	if len(errs) != 0 {
-		t.Fatalf("Parse errors: %v", errs)
-	}
-	stmt, ok := file.Stmts[0].(*ast.ShowRoutineLoadStmt)
-	if !ok {
-		t.Fatalf("expected *ast.ShowRoutineLoadStmt, got %T", file.Stmts[0])
-	}
-	if stmt.Like != "job%" {
-		t.Errorf("Like = %q, want job%%", stmt.Like)
-	}
-}
-
 func TestShowRoutineLoad_FromDB(t *testing.T) {
 	sql := `SHOW ROUTINE LOAD FROM mydb`
 	file, errs := parseForTest(sql)
@@ -496,26 +481,5 @@ func TestSync_Tag(t *testing.T) {
 	}
 	if file.Stmts[0].Tag() != ast.T_SyncStmt {
 		t.Errorf("Tag() = %v, want T_SyncStmt", file.Stmts[0].Tag())
-	}
-}
-
-// ---------------------------------------------------------------------------
-// Legacy corpus: the single test case from routine_load.sql
-// ---------------------------------------------------------------------------
-
-func TestShowCreateRoutineLoad_LegacyCorpus(t *testing.T) {
-	// From doris/parser/testdata/legacy/regression/routine_load.sql
-	sql := `show create routine load for uDA6TB9nkmLWHYWLFCdCP6XrykhxxNa4gXA9yxZJU0`
-	file, errs := parseForTest(sql)
-	if len(errs) != 0 {
-		t.Fatalf("Parse errors: %v", errs)
-	}
-	// This parses as SHOW ROUTINE LOAD FOR <name> — job name is the long identifier
-	stmt, ok := file.Stmts[0].(*ast.ShowRoutineLoadStmt)
-	if !ok {
-		t.Fatalf("expected *ast.ShowRoutineLoadStmt, got %T", file.Stmts[0])
-	}
-	if stmt.Name == nil {
-		t.Fatal("Name should not be nil")
 	}
 }

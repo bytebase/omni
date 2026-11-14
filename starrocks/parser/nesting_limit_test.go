@@ -65,6 +65,8 @@ var nestingShapes = []struct {
 	{"right-deep operators", func(n int) string { return "SELECT " + nest(n, "1 + (", "1", ")") }},
 	{"function call", func(n int) string { return "SELECT " + nest(n, "f(", "1", ")") }},
 	{"lambda body", func(n int) string { return "SELECT " + nest(n, "array_map(x -> ", "x", ", a)") }},
+	{"COUNT bracket hint", func(n int) string { return "SELECT " + nest(n, "COUNT(DISTINCT [a | ", "1", " (1)] x)") }},
+	{"logical not", func(n int) string { return "SELECT " + strings.Repeat("! ", n) + "1" }},
 	{"subscript", func(n int) string { return "SELECT " + nest(n, "a[", "1", "]") }},
 	{"CAST", func(n int) string { return "SELECT " + nest(n, "CAST(", "1", " AS INT)") }},
 	{"CASE", func(n int) string { return "SELECT " + nest(n, "CASE WHEN ", "true", " THEN 1 END") }},

@@ -133,7 +133,7 @@ func TestAnalyze_QualifiedTable(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestShowAnalyze_Basic(t *testing.T) {
-	file, errs := parseForTest("SHOW ANALYZE test1 WHERE STATE=\"FINISHED\"")
+	file, errs := parseDorisFormForTest("SHOW ANALYZE test1 WHERE STATE=\"FINISHED\"")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -153,7 +153,7 @@ func TestShowAnalyze_Basic(t *testing.T) {
 }
 
 func TestShowAnalyze_ByJobID(t *testing.T) {
-	file, errs := parseForTest("SHOW ANALYZE 1738725887903")
+	file, errs := parseDorisFormForTest("SHOW ANALYZE 1738725887903")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -167,7 +167,7 @@ func TestShowAnalyze_ByJobID(t *testing.T) {
 }
 
 func TestShowAnalyze_All(t *testing.T) {
-	file, errs := parseForTest("SHOW ALL ANALYZE")
+	file, errs := parseDorisFormForTest("SHOW ALL ANALYZE")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -181,7 +181,7 @@ func TestShowAnalyze_All(t *testing.T) {
 }
 
 func TestShowAnalyze_Queued(t *testing.T) {
-	file, errs := parseForTest("SHOW QUEUED ANALYZE")
+	file, errs := parseDorisFormForTest("SHOW QUEUED ANALYZE")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -195,7 +195,7 @@ func TestShowAnalyze_Queued(t *testing.T) {
 }
 
 func TestShowAnalyze_TaskStatus(t *testing.T) {
-	file, errs := parseForTest("SHOW ANALYZE TASK STATUS 12345")
+	file, errs := parseDorisFormForTest("SHOW ANALYZE TASK STATUS 12345")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -212,7 +212,7 @@ func TestShowAnalyze_TaskStatus(t *testing.T) {
 }
 
 func TestShowAnalyze_ForTable(t *testing.T) {
-	file, errs := parseForTest("SHOW ANALYZE FOR mydb.t1")
+	file, errs := parseDorisFormForTest("SHOW ANALYZE FOR mydb.t1")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -227,7 +227,7 @@ func TestShowAnalyze_ForTable(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestShowTableStats(t *testing.T) {
-	file, errs := parseForTest("SHOW TABLE STATS test1")
+	file, errs := parseDorisFormForTest("SHOW TABLE STATS test1")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -247,7 +247,7 @@ func TestShowTableStats(t *testing.T) {
 }
 
 func TestShowColumnStats(t *testing.T) {
-	file, errs := parseForTest("SHOW COLUMN STATS mytable")
+	file, errs := parseDorisFormForTest("SHOW COLUMN STATS mytable")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -258,7 +258,7 @@ func TestShowColumnStats(t *testing.T) {
 }
 
 func TestShowStats_NoType(t *testing.T) {
-	file, errs := parseForTest("SHOW STATS mytable")
+	file, errs := parseDorisFormForTest("SHOW STATS mytable")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -276,7 +276,7 @@ func TestShowStats_NoType(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestShowConstraints_FromTable(t *testing.T) {
-	file, errs := parseForTest("SHOW CONSTRAINTS FROM mytable")
+	file, errs := parseDorisFormForTest("SHOW CONSTRAINTS FROM mytable")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -293,7 +293,7 @@ func TestShowConstraints_FromTable(t *testing.T) {
 }
 
 func TestShowConstraints_QualifiedTable(t *testing.T) {
-	file, errs := parseForTest("SHOW CONSTRAINTS FROM mydb.mytable")
+	file, errs := parseDorisFormForTest("SHOW CONSTRAINTS FROM mydb.mytable")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -543,7 +543,7 @@ func TestLegacyCorpus_DropStatsWithColumns(t *testing.T) {
 
 func TestLegacyCorpus_ShowTableStats(t *testing.T) {
 	// SHOW TABLE STATS test1;
-	file, errs := parseForTest("SHOW TABLE STATS test1")
+	file, errs := parseDorisFormForTest("SHOW TABLE STATS test1")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -555,7 +555,7 @@ func TestLegacyCorpus_ShowTableStats(t *testing.T) {
 
 func TestLegacyCorpus_ShowAnalyzeWithWhere(t *testing.T) {
 	// SHOW ANALYZE test1 WHERE STATE="FINISHED";
-	file, errs := parseForTest(`SHOW ANALYZE test1 WHERE STATE="FINISHED"`)
+	file, errs := parseDorisFormForTest(`SHOW ANALYZE test1 WHERE STATE="FINISHED"`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -570,7 +570,7 @@ func TestLegacyCorpus_ShowAnalyzeWithWhere(t *testing.T) {
 
 func TestLegacyCorpus_ShowAnalyzeByJobID(t *testing.T) {
 	// SHOW ANALYZE 1738725887903
-	file, errs := parseForTest("SHOW ANALYZE 1738725887903")
+	file, errs := parseDorisFormForTest("SHOW ANALYZE 1738725887903")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -613,8 +613,6 @@ func TestNodeTagsForStatsNodes(t *testing.T) {
 	}{
 		{"ANALYZE TABLE t", ast.T_AnalyzeStmt},
 		{"SHOW ANALYZE", ast.T_ShowAnalyzeStmt},
-		{"SHOW TABLE STATS t", ast.T_ShowStatsStmt},
-		{"SHOW CONSTRAINTS FROM t", ast.T_ShowConstraintsStmt},
 		{"DROP STATS t", ast.T_DropStatsStmt},
 		{"KILL ANALYZE 1", ast.T_KillAnalyzeStmt},
 		{"ALTER TABLE t ADD CONSTRAINT c PRIMARY KEY (id)", ast.T_AddConstraintStmt},
@@ -635,4 +633,12 @@ func TestNodeTagsForStatsNodes(t *testing.T) {
 			t.Errorf("%q: Tag() = %v, want %v", tt.input, got, tt.tag)
 		}
 	}
+}
+
+// parseDorisFormForTest reads one of the Doris SHOW forms the readers above
+// still build, which StarRocks.g4 does not have (SHOW TABLE STATS, SHOW
+// CONSTRAINTS, SHOW ANALYZE <table>): Parse rejects them, best effort reads.
+func parseDorisFormForTest(sql string) (*ast.File, []ParseError) {
+	r := ParseBestEffort(sql)
+	return r.File, r.Errors
 }

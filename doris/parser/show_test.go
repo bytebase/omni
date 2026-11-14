@@ -486,14 +486,68 @@ func TestShowLocValid(t *testing.T) {
 }
 
 func TestShowDatabasesFromCatalog(t *testing.T) {
+	// Doris takes FROM alone (DorisParser.g4:294); best effort reads IN too.
 	for _, sql := range []string{"SHOW DATABASES FROM hms_catalog", "SHOW DATABASES IN hms_catalog"} {
-		file, errs := parseForTest(sql)
+		r := ParseBestEffort(sql)
+		file, errs := r.File, r.Errors
 		if len(errs) != 0 {
 			t.Fatalf("parseForTest(%q) errors: %v", sql, errs)
 		}
 		n := file.Stmts[0].(*ast.ShowStmt)
 		if n.Type != "DATABASES" || n.From != "hms_catalog" {
 			t.Errorf("parseForTest(%q) = Type %q From %q, want DATABASES hms_catalog", sql, n.Type, n.From)
+		}
+	}
+}
+
+// TestShowStrictRejects holds Parse to the SHOW forms of DorisParser.g4 and
+// the legacy show_stmt: what neither takes, or a form cut short, is a syntax
+// error even where best effort reads it.
+func TestShowStrictRejects(t *testing.T) {
+	for _, sql := range []string{
+		"SHOW",
+		"SHOW a",
+		"SHOW JOB",
+		"SHOW JOB TASK FOR my_job",
+		"SHOW STATS mytable",
+		"SHOW ALL ANALYZE",
+		"SHOW QUEUED ANALYZE",
+		"SHOW ANALYZE FOR mydb.t1",
+		"SHOW ROUTINE LOAD FROM mydb",
+		"SHOW DATABASES IN hms_catalog",
+		"SHOW PROCESSLIST zzz",
+		"SHOW CREATE TABLE",
+		"SHOW DATA PROPERTIES(a = a)",
+		"SHOW TABLETS FROM a PARTITIONS a",
+		"SHOW COUNT(*)",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) = nil error, want a syntax error", sql)
+		}
+	}
+	for _, sql := range []string{
+		"SHOW FULL TABLES FROM db LIKE 'a%'",
+		"SHOW LOAD WHERE Label COLLATE utf8_general_ci[1] = 'a'",
+		"SHOW LOAD WHERE EXTRACT(YEAR FROM DATE CURRENT_DATE) > 0",
+		"SHOW LOAD WHERE named_struct('name', Label).name = 'a'",
+		"SHOW LOAD WHERE LENGTH(ALL Label) > 0",
+		"SHOW LOAD WHERE CreateTime > DATE '2024-01-01'",
+		"SHOW LOAD WHERE !(Label = 'job')",
+		"SHOW LOAD WHERE Label MATCH_ANY 'job' AND 5 MOD 2 = 1",
+		"SHOW LOAD WHERE Label COLLATE utf8_general_ci = 'job'",
+		"SHOW DATA SKEW FROM t FOR VERSION AS OF 1",
+		"SHOW REPLICA STATUS FROM t TABLESAMPLE (10 PERCENT)",
+		"SELECT 1 MATCH_ANY",
+		"SHOW DATA ALL FROM db.t ORDER BY a",
+		"SHOW DATA PROPERTIES('a' = 'b')",
+		"SHOW TABLETS FROM t PARTITION (p1, p2) WHERE a = 1 ORDER BY a LIMIT 1, 2",
+		"SHOW ROW POLICY FOR 'u'@'%'",
+		"SHOW REPLICA STATUS FROM t PARTITION (p) WHERE a = 'b'",
+		"SHOW COUNT(*) WARNINGS",
+		"SHOW INVERTED INDEX CHAR_FILTER",
+	} {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q): %v", sql, err)
 		}
 	}
 }

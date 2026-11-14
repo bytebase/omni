@@ -131,6 +131,7 @@ const (
 	LitKeyword                // keyword used as literal value, e.g. DEFAULT
 	LitHex                    // hex literal, X'1f'
 	LitBit                    // bit literal, B'101'
+	LitTyped                  // typed literal, DATE '2024-01-01'; Value holds the whole text
 )
 
 // CaseKind classifies a CASE expression as simple or searched.
@@ -156,6 +157,43 @@ type BinaryExpr struct {
 func (n *BinaryExpr) Tag() NodeTag { return T_BinaryExpr }
 
 var _ Node = (*BinaryExpr)(nil)
+
+// DereferenceExpr is expr.field, a field of a struct-valued expression
+// other than a column name (named_struct('a', 1).a).
+type DereferenceExpr struct {
+	Expr  Node
+	Field string
+	Loc   Loc
+}
+
+func (n *DereferenceExpr) Tag() NodeTag { return T_DereferenceExpr }
+
+var _ Node = (*DereferenceExpr)(nil)
+
+// MatchExpr is expr [NOT] MATCH pattern, Op naming the MATCH kind
+// (MATCH, MATCH_ANY, MATCH_PHRASE, ...).
+type MatchExpr struct {
+	Expr    Node
+	Op      string
+	Pattern Node
+	Not     bool
+	Loc     Loc
+}
+
+func (n *MatchExpr) Tag() NodeTag { return T_MatchExpr }
+
+var _ Node = (*MatchExpr)(nil)
+
+// CollateExpr is expr COLLATE collation.
+type CollateExpr struct {
+	Expr      Node
+	Collation string
+	Loc       Loc
+}
+
+func (n *CollateExpr) Tag() NodeTag { return T_CollateExpr }
+
+var _ Node = (*CollateExpr)(nil)
 
 // UnaryExpr represents a unary operation: op expr.
 type UnaryExpr struct {

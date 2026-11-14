@@ -90,7 +90,8 @@ func (l *Lexer) nextTokenInner() Token {
 		return l.scanNumber()
 	case ch == '.' && l.peekDigit():
 		return l.scanNumber()
-	case (ch == 'X' || ch == 'x') && l.peek(1) == '\'':
+	case (ch == 'X' || ch == 'x') && (l.peek(1) == '\'' || l.peek(1) == '"'):
+		// BINARY_SINGLE_QUOTED_TEXT and BINARY_DOUBLE_QUOTED_TEXT (StarRocksLex.g4).
 		return l.scanHexLiteral()
 	case (ch == 'B' || ch == 'b') && l.peek(1) == '\'':
 		return l.scanBitLiteral()
@@ -265,9 +266,10 @@ func (l *Lexer) scanBacktickIdent() Token {
 
 func (l *Lexer) scanHexLiteral() Token {
 	start := l.start
+	quote := l.input[l.pos+1]
 	l.pos += 2 // consume X and opening quote
 	contentStart := l.pos
-	for l.pos < len(l.input) && l.input[l.pos] != '\'' {
+	for l.pos < len(l.input) && l.input[l.pos] != quote {
 		l.pos++
 	}
 	if l.pos >= len(l.input) {

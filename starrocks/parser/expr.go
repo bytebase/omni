@@ -27,6 +27,7 @@ const (
 	bpAdd     = 55 // +, -
 	bpMul     = 60 // *, /, %, DIV
 	bpBitXor  = 65 // ^
+	bpMatch   = 68 // MATCH: below the unary operators, above every binary one
 	bpUnary   = 70 // unary -, +, ~
 	bpPrimary = 80 // atoms
 )
@@ -52,6 +53,28 @@ func (p *Parser) parseExprPrec(minBP int) (ast.Node, error) {
 	}
 
 	for {
+		// primaryExpression NOT? MATCH primaryExpression (StarRocks.g4:2425)
+		// binds before any binary operator, but after the unary ones that
+		// come before it in primaryExpression (:2408-2409): !a MATCH b is
+		// (!a) MATCH b.
+		if minBP <= bpMatch && (p.cur.Kind == kwMATCH || (p.cur.Kind == kwNOT && p.peekNext().Kind == kwMATCH)) {
+			if left, err = p.parseMatchExpr(left, p.cur.Kind == kwNOT); err != nil {
+				return nil, err
+			}
+			continue
+		}
+		// primaryExpression COLLATE (StarRocks.g4:2403) binds before any operator.
+		if p.cur.Kind == kwCOLLATE {
+			if left, err = p.parseCollateExpr(left); err != nil {
+				return nil, err
+			}
+			// The result is a primaryExpression again, which a subscript
+			// may follow (StarRocks.g4:2419).
+			if left, err = p.parsePostfixSuffixes(left); err != nil {
+				return nil, err
+			}
+			continue
+		}
 		bp, op, special, ok := p.infixBindingPower()
 		if !ok || bp < minBP {
 			break
@@ -186,6 +209,22 @@ func (p *Parser) infixBindingPower() (int, ast.BinaryOp, string, bool) {
 		return bpMul, ast.BinMod, "", true
 	case kwDIV:
 		return bpMul, ast.BinIntDiv, "", true
+	case tokIdent:
+		// MOD is a reserved word of the engine's grammar (StarRocks.g4:2386), which
+		// omni lexes as a name; outside a call it is the modulo operator.
+		if strings.EqualFold(p.cur.Str, "MOD") {
+			return bpMul, ast.BinMod, "", true
+		}
+		// The shift words of StarRocks.g4:2392-2394, reserved there too. They
+		// bind looser than | (:2391), each looser than the one before.
+		switch strings.ToUpper(p.cur.Str) {
+		case "BITSHIFTLEFT":
+			return bpBitOr - 1, ast.BinShiftLeft, "", true
+		case "BITSHIFTRIGHT":
+			return bpBitOr - 2, ast.BinShiftRight, "", true
+		case "BITSHIFTRIGHTLOGICAL":
+			return bpBitOr - 3, ast.BinShiftRightLogical, "", true
+		}
 
 	// Bitwise XOR
 	case int('^'):
@@ -276,6 +315,20 @@ func (p *Parser) parsePrefixExpr() (ast.Node, error) {
 			Loc:  ast.Loc{Start: start.Start, End: ast.NodeLoc(operand).End},
 		}, nil
 
+	case int('!'):
+		// LOGICAL NOT (StarRocks.g4:2409, before a primaryExpression).
+		start := p.cur.Loc
+		p.advance()
+		operand, err := p.parseExprPrec(bpUnary)
+		if err != nil {
+			return nil, err
+		}
+		return &ast.UnaryExpr{
+			Op:   ast.UnaryNot,
+			Expr: operand,
+			Loc:  ast.Loc{Start: start.Start, End: ast.NodeLoc(operand).End},
+		}, nil
+
 	case kwEXISTS:
 		return p.parseExistsExpr()
 
@@ -325,6 +378,30 @@ func (p *Parser) parsePostfixSuffixes(node ast.Node) (ast.Node, error) {
 				return nil, err
 			}
 			node = arrow
+
+		case p.cur.Kind == tokFloat && isDotDigits(p.cur.Str) &&
+			isIdentifierTokenQualified(p.peekNext().Kind) && p.peekNext().Loc.Start == p.cur.Loc.End:
+			// DOT_IDENTIFIER (StarRocks.g4:2406, StarRocksLex.g4:574): a field
+			// name that opens with digits, which omni lexes as .1 then a.
+			digits := p.advance()
+			rest := p.advance()
+			node = &ast.DereferenceExpr{
+				Expr:  node,
+				Field: digits.Str[1:] + rest.Str,
+				Loc:   ast.Loc{Start: ast.NodeLoc(node).Start, End: rest.Loc.End},
+			}
+
+		case p.cur.Kind == int('.') && isIdentifierTokenQualified(p.peekNext().Kind):
+			// primaryExpression '.' identifier (StarRocks.g4:2406). A column
+			// name's parts were read with it, so this is a field of another
+			// expression.
+			p.advance() // consume '.'
+			field := p.advance()
+			node = &ast.DereferenceExpr{
+				Expr:  node,
+				Field: field.Str,
+				Loc:   ast.Loc{Start: ast.NodeLoc(node).Start, End: field.Loc.End},
+			}
 
 		default:
 			return node, nil
@@ -574,6 +651,23 @@ func (p *Parser) parsePrimaryExpr() (ast.Node, error) {
 			return p.parseIdentExpr()
 		}
 
+		// A word of StarRocks.g4's nonReserved that omni's keyword table
+		// reserves names a column too (SELECT role).
+		if starRocksNonReservedColumnWords[p.cur.Kind] {
+			tok := p.advance()
+			name := &ast.ObjectName{Parts: []string{tok.Str}, Loc: tok.Loc}
+			for p.cur.Kind == int('.') && isIdentifierTokenQualified(p.peekNext().Kind) {
+				p.advance() // consume '.'
+				part := p.advance()
+				name.Parts = append(name.Parts, part.Str)
+				name.Loc.End = part.Loc.End
+			}
+			if p.cur.Kind == int('(') {
+				return p.parseFuncCall(name)
+			}
+			return &ast.ColumnRef{Name: name, Loc: name.Loc}, nil
+		}
+
 		return nil, p.syntaxErrorAtCur()
 	}
 }
@@ -621,10 +715,16 @@ func (p *Parser) parseIdentExpr() (ast.Node, error) {
 	}
 
 	// Simple or qualified column reference.
-	return &ast.ColumnRef{
+	col := &ast.ColumnRef{
 		Name: name,
 		Loc:  name.Loc,
-	}, nil
+	}
+	// identifier '->' expression is a lambda wherever a primaryExpression
+	// goes (StarRocks.g4:2423); '->' before a string is the JSON arrow.
+	if len(name.Parts) == 1 && p.cur.Kind == tokArrow && p.peekNext().Kind != tokString {
+		return p.parseLambdaExpr(col)
+	}
+	return col, nil
 }
 
 // finishMapLiteral parses the { key:val, ... } body of a map constructor. The
@@ -734,13 +834,40 @@ func (p *Parser) parseFuncCall(name *ast.ObjectName) (*ast.FuncCallExpr, error) 
 		return fc, nil
 	}
 
-	// DISTINCT handling for aggregates like COUNT(DISTINCT x)
+	// DISTINCT handling for aggregates like COUNT(DISTINCT x). ALL, the
+	// default, is the other setQuantifier, which only the aggregates of
+	// StarRocks.g4:2453-2462 take; all but COUNT then need an argument.
+	needArg := false
+	quantified := false
 	if p.cur.Kind == kwDISTINCT {
 		p.advance()
 		fc.Distinct = true
+		quantified = true
+	} else if p.cur.Kind == kwALL && len(name.Parts) == 1 {
+		switch funcName {
+		case "COUNT":
+			p.advance()
+			quantified = true
+		case "AVG", "MAX", "MIN", "SUM", "ARRAY_AGG", "GROUP_CONCAT":
+			p.advance()
+			needArg = true
+		}
+	}
+	// COUNT '(' (setQuantifier bracketHint?)? ... (StarRocks.g4:2455): the
+	// hint guides the planner and, like a /*+ */ hint, is not kept. A '['
+	// that does not read as a hint opens an array argument (COUNT(DISTINCT
+	// [])).
+	if quantified && funcName == "COUNT" && len(name.Parts) == 1 && p.cur.Kind == int('[') {
+		cp := p.save()
+		if err := p.skipBracketHint(); err != nil {
+			if isNestingError(err) {
+				return nil, err
+			}
+			p.restore(cp)
+		}
 	}
 
-	if p.cur.Kind != int(')') {
+	if p.cur.Kind != int(')') || needArg {
 		args, err := p.parseFuncArgList()
 		if err != nil {
 			return nil, err
@@ -777,15 +904,18 @@ func (p *Parser) parseFuncCall(name *ast.ObjectName) (*ast.FuncCallExpr, error) 
 		}
 
 		// Optional SEPARATOR for GROUP_CONCAT
+		// (SEPARATOR expression)? (StarRocks.g4:2462).
 		if p.cur.Kind == kwSEPARATOR {
 			p.advance() // consume SEPARATOR
-			if p.cur.Kind != tokString {
-				return nil, &ParseError{
-					Position: p.cur.Loc.Start, End: p.cur.Loc.End,
-					Message: "expected string after SEPARATOR",
+			if p.cur.Kind == tokString && p.peekNext().Kind == int(')') {
+				fc.Separator = p.advance().Str
+			} else {
+				sep, err := p.parseExpr()
+				if err != nil {
+					return nil, err
 				}
+				fc.SeparatorExpr = sep
 			}
-			fc.Separator = p.advance().Str
 		}
 	}
 
@@ -1048,24 +1178,29 @@ func (p *Parser) tryParseParenLambda() (ast.Node, bool, error) {
 	}, true, nil
 }
 
-// parseFuncArgList parses a function-call argument list. Unlike a plain
-// expression list it also accepts a lambda (`x -> body`), which the engine's
-// analyzer permits only here, as an argument to a higher-order array function.
+// parseFuncArgList parses a function-call argument list, which may hold a
+// lambda (`x -> body`, `(x, y) -> body`). parseExpr reads a lambda wherever
+// a primaryExpression goes (StarRocks.g4:2423); the checks here remain for an
+// argument whose left of '->' is not a bare name or name list, which
+// parseLambdaExpr then refuses.
 //
 // A `->` followed by a string literal has already been taken as the JSON path
 // operator by then (see parseJSONArrow), which is how the engine resolves that
-// overlap too. What reaches the lambda check below is therefore a `->` whose
-// right side is not a string — `x -> x + 1`. Keeping the remaining lambda
-// forms scoped to this position means a stray `->` elsewhere stays a syntax
-// error; the engine's parser is laxer there and accepts a bare lambda in any
-// expression position, leaving omni under-accepting in the fail-safe
-// direction.
+// overlap too.
 func (p *Parser) parseFuncArgList() ([]ast.Node, error) {
 	var list []ast.Node
 	for {
 		lam, ok, err := p.tryParseParenLambda()
 		if err != nil {
 			return nil, err
+		}
+		if !ok {
+			// A bare-name lambda is read here rather than inside parseExpr,
+			// so a lambda argument costs one nesting level, not two.
+			lam, ok, err = p.tryParseNameLambda()
+			if err != nil {
+				return nil, err
+			}
 		}
 		if !ok {
 			lam, err = p.parseExpr()
@@ -1174,6 +1309,11 @@ func (p *Parser) parseOrderByItem() (*ast.OrderByItem, error) {
 // For subqueries (SELECT/WITH after open paren), we create a placeholder
 // SubqueryExpr that stores the raw text.
 func (p *Parser) parseParenExprOrSubquery() (ast.Node, error) {
+	// identifierList '->' expression (StarRocks.g4:2423), the lambda form
+	// tryParseParenLambda reads.
+	if lam, ok, err := p.tryParseParenLambda(); err != nil || ok {
+		return lam, err
+	}
 	openTok := p.advance() // consume '('
 
 	// Subquery: (SELECT ...) or (WITH ... SELECT ...)
@@ -1184,6 +1324,9 @@ func (p *Parser) parseParenExprOrSubquery() (ast.Node, error) {
 	expr, err := p.parseExpr()
 	if err != nil {
 		return nil, err
+	}
+	if p.cur.Kind == int(',') {
+		return p.parseTupleInSubquery(openTok.Loc.Start, expr)
 	}
 
 	closeTok, err := p.expect(int(')'))
@@ -1704,7 +1847,7 @@ func (p *Parser) parseIntervalExpr() (ast.Node, error) {
 // parseIntervalUnit parses and returns the interval unit keyword as a string.
 func (p *Parser) parseIntervalUnit() (string, error) {
 	switch p.cur.Kind {
-	case kwYEAR, kwMONTH, kwWEEK, kwDAY, kwHOUR, kwMINUTE, kwSECOND:
+	case kwYEAR, kwMONTH, kwWEEK, kwDAY, kwHOUR, kwMINUTE, kwSECOND, kwQUARTER: // unitIdentifier, StarRocks.g4:2776
 		tok := p.advance()
 		return strings.ToUpper(tok.Str), nil
 	default:
@@ -1887,4 +2030,231 @@ func (p *Parser) parseRegexpExpr(left ast.Node, notFlag bool) (ast.Node, error) 
 		Not:     notFlag,
 		Loc:     ast.Loc{Start: ast.NodeLoc(left).Start, End: ast.NodeLoc(pattern).End},
 	}, nil
+}
+
+// parseCollateExpr reads COLLATE (identifier | string) after left (StarRocks.g4:2403).
+func (p *Parser) parseCollateExpr(left ast.Node) (ast.Node, error) {
+	p.advance() // consume COLLATE
+	var name string
+	switch {
+	case p.cur.Kind == tokString:
+		name = p.cur.Str
+		p.advance()
+	default:
+		ident, _, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		name = ident
+	}
+	return &ast.CollateExpr{
+		Expr:      left,
+		Collation: name,
+		Loc:       ast.Loc{Start: ast.NodeLoc(left).Start, End: p.prev.Loc.End},
+	}, nil
+}
+
+// parseMatchExpr reads [NOT] MATCH primaryExpression after left (StarRocks.g4:2425).
+func (p *Parser) parseMatchExpr(left ast.Node, notFlag bool) (ast.Node, error) {
+	if notFlag {
+		p.advance() // consume NOT
+	}
+	op := strings.ToUpper(p.advance().Str) // consume MATCH
+	pattern, err := p.parseMatchOperand()
+	if err != nil {
+		return nil, err
+	}
+	return &ast.MatchExpr{
+		Expr:    left,
+		Op:      op,
+		Pattern: pattern,
+		Not:     notFlag,
+		Loc:     ast.Loc{Start: ast.NodeLoc(left).Start, End: ast.NodeLoc(pattern).End},
+	}, nil
+}
+
+// parseMatchOperand reads the primaryExpression right of MATCH, with the
+// subscripts and COLLATE that bind as tightly.
+func (p *Parser) parseMatchOperand() (ast.Node, error) {
+	// A primaryExpression may open with unary operators (StarRocks.g4:2408-
+	// 2409); a loop reads them, so a long run of them cannot deepen the stack.
+	type prefix struct {
+		op    ast.UnaryOp
+		start int
+	}
+	var prefixes []prefix
+	for {
+		var op ast.UnaryOp
+		switch p.cur.Kind {
+		case int('-'):
+			op = ast.UnaryMinus
+		case int('+'):
+			op = ast.UnaryPlus
+		case int('~'):
+			op = ast.UnaryBitNot
+		case int('!'):
+			op = ast.UnaryNot
+		default:
+			goto operand
+		}
+		prefixes = append(prefixes, prefix{op, p.advance().Loc.Start})
+	}
+operand:
+	node, err := p.parseMatchPrimary()
+	if err != nil {
+		return nil, err
+	}
+	for i := len(prefixes) - 1; i >= 0; i-- {
+		node = &ast.UnaryExpr{
+			Op:   prefixes[i].op,
+			Expr: node,
+			Loc:  ast.Loc{Start: prefixes[i].start, End: ast.NodeLoc(node).End},
+		}
+	}
+	return node, nil
+}
+
+// parseMatchPrimary reads a primary expression with the suffixes that bind
+// as tightly.
+func (p *Parser) parseMatchPrimary() (ast.Node, error) {
+	node, err := p.parsePrimaryExpr()
+	if err != nil {
+		return nil, err
+	}
+	node, err = p.parsePostfixSuffixes(node)
+	if err != nil {
+		return nil, err
+	}
+	for p.cur.Kind == kwCOLLATE {
+		if node, err = p.parseCollateExpr(node); err != nil {
+			return nil, err
+		}
+		if node, err = p.parsePostfixSuffixes(node); err != nil {
+			return nil, err
+		}
+	}
+	return node, nil
+}
+
+// parseTupleInSubquery reads the rest of tupleInSubquery (StarRocks.g4:2367),
+// '(' expression (',' expression)+ ')' NOT? IN '(' queryRelation ')', after its
+// first expression; cur is the ','. A tuple is only the left of this
+// predicate, so it is read whole here.
+func (p *Parser) parseTupleInSubquery(start int, first ast.Node) (ast.Node, error) {
+	row := &ast.RowExpr{Items: []ast.Node{first}}
+	for p.cur.Kind == int(',') {
+		p.advance() // consume ','
+		item, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		row.Items = append(row.Items, item)
+	}
+	closeTok, err := p.expect(int(')'))
+	if err != nil {
+		return nil, err
+	}
+	row.Loc = ast.Loc{Start: start, End: closeTok.Loc.End}
+
+	not := false
+	if p.cur.Kind == kwNOT {
+		p.advance() // consume NOT
+		not = true
+	}
+	if _, err := p.expect(kwIN); err != nil {
+		return nil, err
+	}
+	open, err := p.expect(int('('))
+	if err != nil {
+		return nil, err
+	}
+	if p.cur.Kind != kwSELECT && p.cur.Kind != kwWITH {
+		return nil, p.syntaxErrorAtCur()
+	}
+	sub, err := p.parseSubqueryPlaceholder(open.Loc.Start)
+	if err != nil {
+		return nil, err
+	}
+	return &ast.InExpr{
+		Expr:   row,
+		Values: []ast.Node{sub},
+		Not:    not,
+		Loc:    ast.Loc{Start: start, End: sub.Loc.End},
+	}, nil
+}
+
+// isDotDigits reports whether s is '.' and one or more digits.
+func isDotDigits(s string) bool {
+	if len(s) < 2 || s[0] != '.' {
+		return false
+	}
+	for i := 1; i < len(s); i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+// tryParseNameLambda reads identifier '->' expression (StarRocks.g4:2423) at
+// the current token, or leaves the parser where it was and reports ok=false.
+func (p *Parser) tryParseNameLambda() (ast.Node, bool, error) {
+	if !p.isExprIdentToken() || p.peekNext().Kind != tokArrow {
+		return nil, false, nil
+	}
+	saved := p.save()
+	tok := p.advance()
+	if p.peekNext().Kind == tokString {
+		p.restore(saved)
+		return nil, false, nil
+	}
+	name := &ast.ObjectName{Parts: []string{tok.Str}, Loc: tok.Loc}
+	lam, err := p.parseLambdaExpr(&ast.ColumnRef{Name: name, Loc: tok.Loc})
+	return lam, err == nil, err
+}
+
+// skipBracketHint reads bracketHint (StarRocks.g4:2249):
+// '[' identifier (',' identifier)* ']' or
+// '[' identifier '|' primaryExpression literalExpressionList ']'.
+func (p *Parser) skipBracketHint() error {
+	// The hint's primaryExpression can hold another COUNT with a hint, so
+	// this is a recursion cycle and passes through the nesting limit.
+	if err := p.enterNesting(); err != nil {
+		return err
+	}
+	defer p.leaveNesting()
+	p.advance() // consume '['
+	if _, _, err := p.parseIdentifier(); err != nil {
+		return err
+	}
+	if p.cur.Kind == int('|') {
+		p.advance() // consume '|'
+		if _, err := p.parsePrimaryExpr(); err != nil {
+			return err
+		}
+		if _, err := p.expect(int('(')); err != nil {
+			return err
+		}
+		for {
+			if _, err := p.parseExpr(); err != nil {
+				return err
+			}
+			if p.cur.Kind != int(',') {
+				break
+			}
+			p.advance() // consume ','
+		}
+		if _, err := p.expect(int(')')); err != nil {
+			return err
+		}
+	} else {
+		for p.cur.Kind == int(',') {
+			p.advance() // consume ','
+			if _, _, err := p.parseIdentifier(); err != nil {
+				return err
+			}
+		}
+	}
+	_, err := p.expect(int(']'))
+	return err
 }
