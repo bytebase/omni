@@ -3348,16 +3348,16 @@ accept	accept	engine	udf_type/STRING_SYM	CREATE FUNCTION utf8mb4 RETURNS STRING 
 reject	reject	engine	udf_type/STRING_SYM!drop-1	CREATE FUNCTION utf8mb4 RETURNS SONAME 's';
 reject	reject	engine	udf_type/STRING_SYM!truncate	CREATE FUNCTION utf8mb4 RETURNS
 reject	reject	engine	udf_type/STRING_SYM!insert	CREATE FUNCTION utf8mb4 RETURNS STRING zzz SONAME 's';
-accept	reject	engine	udf_type/STRING_SYM!swap	CREATE FUNCTION utf8mb4 RETURNS ST_COLLECT SONAME 's';
+reject	reject	engine	udf_type/STRING_SYM!swap	CREATE FUNCTION utf8mb4 RETURNS ST_COLLECT SONAME 's';
 accept	accept	engine	udf_type/REAL_SYM	CREATE FUNCTION utf8mb4 RETURNS REAL SONAME 's';
 reject	reject	engine	udf_type/REAL_SYM!insert	CREATE FUNCTION utf8mb4 RETURNS REAL zzz SONAME 's';
-accept	reject	engine	udf_type/REAL_SYM!swap	CREATE FUNCTION utf8mb4 RETURNS REBUILD SONAME 's';
+reject	reject	engine	udf_type/REAL_SYM!swap	CREATE FUNCTION utf8mb4 RETURNS REBUILD SONAME 's';
 accept	accept	engine	udf_type/DECIMAL_SYM	CREATE FUNCTION utf8mb4 RETURNS DECIMAL SONAME 's';
 reject	reject	engine	udf_type/DECIMAL_SYM!insert	CREATE FUNCTION utf8mb4 RETURNS DECIMAL zzz SONAME 's';
-accept	reject	engine	udf_type/DECIMAL_SYM!swap	CREATE FUNCTION utf8mb4 RETURNS DECLARE SONAME 's';
+reject	reject	engine	udf_type/DECIMAL_SYM!swap	CREATE FUNCTION utf8mb4 RETURNS DECLARE SONAME 's';
 accept	accept	engine	udf_type/INT_SYM	CREATE FUNCTION utf8mb4 RETURNS INT SONAME 's';
 reject	reject	engine	udf_type/INT_SYM!insert	CREATE FUNCTION utf8mb4 RETURNS INT zzz SONAME 's';
-accept	reject	engine	udf_type/INT_SYM!swap	CREATE FUNCTION utf8mb4 RETURNS INTERSECT SONAME 's';
+reject	reject	engine	udf_type/INT_SYM!swap	CREATE FUNCTION utf8mb4 RETURNS INTERSECT SONAME 's';
 accept	accept	engine	table_element_list/table_element	CREATE TABLE utf8mb4(utf8mb4 INT);
 reject	reject	engine	table_element_list/table_element!truncate	CREATE TABLE utf8mb4(utf8mb4
 reject	reject	engine	table_element_list/table_element!insert	CREATE TABLE utf8mb4(utf8mb4 INT zzz);

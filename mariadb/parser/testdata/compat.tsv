@@ -2643,16 +2643,16 @@ accept	accept	engine	udf_type/STRING_SYM	CREATE FUNCTION a RETURNS STRING SONAME
 reject	reject	engine	udf_type/STRING_SYM!drop-1	CREATE FUNCTION a RETURNS SONAME 's';
 reject	reject	engine	udf_type/STRING_SYM!truncate	CREATE FUNCTION a RETURNS
 reject	reject	engine	udf_type/STRING_SYM!insert	CREATE FUNCTION a RETURNS STRING zzz SONAME 's';
-accept	reject	engine	udf_type/STRING_SYM!swap	CREATE FUNCTION a RETURNS SUBCLASS_ORIGIN SONAME 's';
+reject	reject	engine	udf_type/STRING_SYM!swap	CREATE FUNCTION a RETURNS SUBCLASS_ORIGIN SONAME 's';
 accept	accept	engine	udf_type/REAL	CREATE FUNCTION a RETURNS REAL SONAME 's';
 reject	reject	engine	udf_type/REAL!insert	CREATE FUNCTION a RETURNS REAL zzz SONAME 's';
-accept	reject	engine	udf_type/REAL!swap	CREATE FUNCTION a RETURNS REBUILD SONAME 's';
+reject	reject	engine	udf_type/REAL!swap	CREATE FUNCTION a RETURNS REBUILD SONAME 's';
 accept	accept	engine	udf_type/DECIMAL_SYM	CREATE FUNCTION a RETURNS DECIMAL SONAME 's';
 reject	reject	engine	udf_type/DECIMAL_SYM!insert	CREATE FUNCTION a RETURNS DECIMAL zzz SONAME 's';
-accept	reject	engine	udf_type/DECIMAL_SYM!swap	CREATE FUNCTION a RETURNS DECLARE SONAME 's';
+reject	reject	engine	udf_type/DECIMAL_SYM!swap	CREATE FUNCTION a RETURNS DECLARE SONAME 's';
 accept	accept	engine	udf_type/INT_SYM	CREATE FUNCTION a RETURNS INT SONAME 's';
 reject	reject	engine	udf_type/INT_SYM!insert	CREATE FUNCTION a RETURNS INT zzz SONAME 's';
-accept	reject	engine	udf_type/INT_SYM!swap	CREATE FUNCTION a RETURNS INTERSECT SONAME 's';
+reject	reject	engine	udf_type/INT_SYM!swap	CREATE FUNCTION a RETURNS INTERSECT SONAME 's';
 accept	accept	engine	create_field_list/field_list	ALTER TABLE a ADD(a INT);
 reject	reject	engine	create_field_list/field_list!drop-1	ALTER TABLE a ADD(INT);
 reject	reject	engine	create_field_list/field_list!drop-2	ALTER TABLE a ADD(a);

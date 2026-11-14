@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/mariadb/ast"
 )
 
@@ -45,10 +47,18 @@ func (p *Parser) finishLoadableFunction(stmt *nodes.CreateFunctionStmt) (*nodes.
 	if _, err := p.expect(kwRETURNS); err != nil {
 		return nil, err
 	}
+	// udf_type is STRING, REAL, DECIMAL or INT, each a keyword with the spellings its
+	// lexer gives the token (DEC, INTEGER, INT4); a backquoted name is none of them.
+	//
+	// Ref: udf_type in sql/sql_yacc.yy and the keyword table in sql/lex.h.
 	retStart := p.pos()
-	retType, _, err := p.parseKeywordOrIdent()
-	if err != nil {
-		return nil, err
+	var retType string
+	switch strings.ToUpper(p.inputText(p.cur.Loc, p.cur.End)) {
+	case "STRING", "REAL", "DECIMAL", "DEC", "INT", "INTEGER", "INT4":
+		retType = strings.ToUpper(p.cur.Str)
+		p.advance()
+	default:
+		return nil, p.syntaxErrorAtCur()
 	}
 	stmt.Returns = &nodes.DataType{
 		Loc:  nodes.Loc{Start: retStart, End: p.prev.End},
