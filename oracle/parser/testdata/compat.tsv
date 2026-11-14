@@ -61,7 +61,7 @@ reject@0	reject@0	engine	statement/alterDatabaseLink!swap	ALTERNATE DATABASE LIN
 accept	accept	engine	statement/alterDatabase	ALTER DATABASE MOUNT
 reject@0	reject@0	engine	statement/alterDatabase!drop-1	DATABASE MOUNT
 reject@6	reject@6	engine	statement/alterDatabase!drop-2	ALTER MOUNT
-accept	reject@14	engine	statement/alterDatabase!drop-3	ALTER DATABASE
+reject@14	reject@14	engine	statement/alterDatabase!drop-3	ALTER DATABASE
 reject@21	reject@21	engine	statement/alterDatabase!insert	ALTER DATABASE MOUNT zzz
 reject@0	reject@0	engine	statement/alterDatabase!swap	ALTERNATE DATABASE MOUNT
 accept	accept	engine	statement/alterDimension	ALTER DIMENSION a COMPILE
@@ -74,8 +74,8 @@ reject@0	reject@0	engine	statement/alterDimension!swap	ALTERNATE DIMENSION a COM
 accept	accept	engine	statement/alterDiskgroup	ALTER DISKGROUP a REBALANCE
 reject@0	reject@0	engine	statement/alterDiskgroup!drop-1	DISKGROUP a REBALANCE
 reject@6	reject@6	engine	statement/alterDiskgroup!drop-2	ALTER a REBALANCE
-accept	reject@25	engine	statement/alterDiskgroup!drop-3	ALTER DISKGROUP REBALANCE
-accept	reject@17	engine	statement/alterDiskgroup!drop-4	ALTER DISKGROUP a
+reject@25	reject@25	engine	statement/alterDiskgroup!drop-3	ALTER DISKGROUP REBALANCE
+reject@17	reject@17	engine	statement/alterDiskgroup!drop-4	ALTER DISKGROUP a
 reject@28	reject@28	engine	statement/alterDiskgroup!insert	ALTER DISKGROUP a REBALANCE zzz
 reject@0	reject@0	engine	statement/alterDiskgroup!swap	ALTERNATE DISKGROUP a REBALANCE
 accept	accept	engine	statement/alterFlashbackArchive	ALTER FLASHBACK ARCHIVE a SET DEFAULT
@@ -193,9 +193,9 @@ reject@16	reject@16	engine	statement/alterPackage!insert	ALTER PACKAGE a zzz
 reject@0	reject@0	engine	statement/alterPackage!swap	ALTERNATE PACKAGE a
 accept	accept	engine	statement/alterPluggableDatabase	ALTER PLUGGABLE DATABASE LOGGING
 reject@0	reject@0	engine	statement/alterPluggableDatabase!drop-1	PLUGGABLE DATABASE LOGGING
-accept	reject@22	engine	statement/alterPluggableDatabase!drop-2	ALTER DATABASE LOGGING
+reject@22	reject@22	engine	statement/alterPluggableDatabase!drop-2	ALTER DATABASE LOGGING
 reject@16	reject@16	engine	statement/alterPluggableDatabase!drop-3	ALTER PLUGGABLE LOGGING
-accept	reject@24	engine	statement/alterPluggableDatabase!drop-4	ALTER PLUGGABLE DATABASE
+reject@24	reject@24	engine	statement/alterPluggableDatabase!drop-4	ALTER PLUGGABLE DATABASE
 reject@33	reject@33	engine	statement/alterPluggableDatabase!insert	ALTER PLUGGABLE DATABASE LOGGING zzz
 reject@0	reject@0	engine	statement/alterPluggableDatabase!swap	ALTERNATE PLUGGABLE DATABASE LOGGING
 accept	reject@17	engine	statement/alterProcedure	ALTER PROCEDURE a
@@ -625,7 +625,7 @@ reject@27	reject@27	engine	statement/createPluggableDatabase	CREATE PLUGGABLE DA
 reject@0	reject@0	engine	statement/createPluggableDatabase!drop-1	PLUGGABLE DATABASE a
 accept	reject@0	engine	statement/createPluggableDatabase!drop-2	CREATE DATABASE a
 reject@17	reject@17	engine	statement/createPluggableDatabase!drop-3	CREATE PLUGGABLE a
-accept	reject@25	engine	statement/createPluggableDatabase!drop-4	CREATE PLUGGABLE DATABASE
+reject@25	reject@25	engine	statement/createPluggableDatabase!drop-4	CREATE PLUGGABLE DATABASE
 reject@28	reject@28	engine	statement/createPluggableDatabase!insert	CREATE PLUGGABLE DATABASE a zzz
 reject@0	reject@0	engine	statement/createPluggableDatabase!swap	CREATE_FILE_DEST PLUGGABLE DATABASE a
 accept	accept	engine	statement/createProcedure	CREATE PROCEDURE a IS BEGIN NULL; END;
@@ -2549,36 +2549,36 @@ accept	accept	engine	alterDatabase(ID)?/%empty!insert	ALTER DATABASE zzz MOUNT
 accept	accept	engine	alterDatabase(ID)?/ID	ALTER DATABASE a MOUNT
 reject@17	reject@17	engine	alterDatabase(ID)?/ID!insert	ALTER DATABASE a zzz MOUNT
 accept	accept	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_startup_clauses	ALTER DATABASE MOUNT
-accept	reject@24	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_startup_clauses!swap	ALTER DATABASE MOUNTPATH
+reject@24	reject@24	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_startup_clauses!swap	ALTER DATABASE MOUNTPATH
 accept	accept	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_recovery_clauses	ALTER DATABASE BEGIN BACKUP
 reject@21	reject@21	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_recovery_clauses!drop-1	ALTER DATABASE BACKUP
-accept	reject@20	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_recovery_clauses!drop-2	ALTER DATABASE BEGIN
+reject@20	reject@20	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_recovery_clauses!drop-2	ALTER DATABASE BEGIN
 reject@28	reject@28	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_recovery_clauses!insert	ALTER DATABASE BEGIN BACKUP zzz
 reject@31	reject@31	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_recovery_clauses!swap	ALTER DATABASE BEGINNING BACKUP
 accept	accept	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_database_file_clauses	ALTER DATABASE DATAFILE 's' ONLINE
 reject@15	reject@15	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_database_file_clauses!drop-1	ALTER DATABASE 's' ONLINE
 reject@24	reject@24	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_database_file_clauses!drop-2	ALTER DATABASE DATAFILE ONLINE
-accept	reject@27	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_database_file_clauses!drop-3	ALTER DATABASE DATAFILE 's'
+reject@27	reject@27	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_database_file_clauses!drop-3	ALTER DATABASE DATAFILE 's'
 reject@35	reject@35	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_database_file_clauses!insert	ALTER DATABASE DATAFILE 's' ONLINE zzz
 reject@25	reject@25	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_database_file_clauses!swap	ALTER DATABASE DATAFILES 's' ONLINE
 accept	accept	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_logfile_clauses	ALTER DATABASE ARCHIVELOG
 reject@26	reject@26	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_logfile_clauses!insert	ALTER DATABASE ARCHIVELOG zzz
-accept	reject@18	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_logfile_clauses!swap	ALTER DATABASE ARE
+reject@18	reject@18	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_logfile_clauses!swap	ALTER DATABASE ARE
 accept	accept	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_controlfile_clauses	ALTER DATABASE BACKUP CONTROLFILE TO 's'
 reject@27	reject@27	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_controlfile_clauses!drop-1	ALTER DATABASE CONTROLFILE TO 's'
 reject@22	reject@22	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_controlfile_clauses!drop-2	ALTER DATABASE BACKUP TO 's'
 reject@34	reject@34	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_controlfile_clauses!drop-3	ALTER DATABASE BACKUP CONTROLFILE 's'
-accept	reject@36	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_controlfile_clauses!drop-4	ALTER DATABASE BACKUP CONTROLFILE TO
+reject@36	reject@36	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_controlfile_clauses!drop-4	ALTER DATABASE BACKUP CONTROLFILE TO
 reject@41	reject@41	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_controlfile_clauses!insert	ALTER DATABASE BACKUP CONTROLFILE TO 's' zzz
 reject@23	reject@23	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_controlfile_clauses!swap	ALTER DATABASE BALANCE CONTROLFILE TO 's'
 accept	accept	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_standby_database_clauses	ALTER DATABASE REGISTER LOGFILE
-accept	reject@22	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_standby_database_clauses!drop-1	ALTER DATABASE LOGFILE
-accept	reject@23	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_standby_database_clauses!drop-2	ALTER DATABASE REGISTER
+reject@22	reject@22	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_standby_database_clauses!drop-1	ALTER DATABASE LOGFILE
+reject@23	reject@23	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_standby_database_clauses!drop-2	ALTER DATABASE REGISTER
 reject@32	reject@32	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_standby_database_clauses!insert	ALTER DATABASE REGISTER LOGFILE zzz
 reject@23	reject@23	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_standby_database_clauses!swap	ALTER DATABASE REGULAR LOGFILE
 accept	accept	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_default_settings_clauses	ALTER DATABASE FLASHBACK ON
 reject@15	reject@15	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_default_settings_clauses!drop-1	ALTER DATABASE ON
-accept	reject@24	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_default_settings_clauses!drop-2	ALTER DATABASE FLASHBACK
+reject@24	reject@24	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_default_settings_clauses!drop-2	ALTER DATABASE FLASHBACK
 reject@28	reject@28	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_default_settings_clauses!insert	ALTER DATABASE FLASHBACK ON zzz
 reject@27	reject@27	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_default_settings_clauses!swap	ALTER DATABASE FLASH_CACHE ON
 reject@22	reject@22	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_instance_clauses	ALTER DATABASE ENABLE RESTRICTED SESSION
@@ -2597,14 +2597,14 @@ accept	accept	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b
 reject@27	reject@27	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/RENAME_GLOBAL_NAME_TO_ID!drop-1	ALTER DATABASE GLOBAL_NAME TO a
 reject@22	reject@22	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/RENAME_GLOBAL_NAME_TO_ID!drop-2	ALTER DATABASE RENAME TO a
 reject@34	reject@34	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/RENAME_GLOBAL_NAME_TO_ID!drop-3	ALTER DATABASE RENAME GLOBAL_NAME a
-accept	reject@36	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/RENAME_GLOBAL_NAME_TO_ID!drop-4	ALTER DATABASE RENAME GLOBAL_NAME TO
+reject@36	reject@36	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/RENAME_GLOBAL_NAME_TO_ID!drop-4	ALTER DATABASE RENAME GLOBAL_NAME TO
 reject@39	reject@39	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/RENAME_GLOBAL_NAME_TO_ID!insert	ALTER DATABASE RENAME GLOBAL_NAME TO a zzz
 reject@22	reject@22	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/RENAME_GLOBAL_NAME_TO_ID!swap	ALTER DATABASE REPAIR GLOBAL_NAME TO a
 accept	accept	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/(ENABLE|DISABLE)_BLOCK_CHANGE_TRACKING_(USING_FILE_STRING)?	ALTER DATABASE ENABLE BLOCK CHANGE TRACKING
 reject@21	reject@21	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/(ENABLE|DISABLE)_BLOCK_CHANGE_TRACKING_(USING_FILE_STRING)?!drop-1	ALTER DATABASE BLOCK CHANGE TRACKING
 reject@22	reject@22	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/(ENABLE|DISABLE)_BLOCK_CHANGE_TRACKING_(USING_FILE_STRING)?!drop-2	ALTER DATABASE ENABLE CHANGE TRACKING
 reject@28	reject@28	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/(ENABLE|DISABLE)_BLOCK_CHANGE_TRACKING_(USING_FILE_STRING)?!drop-3	ALTER DATABASE ENABLE BLOCK TRACKING
-accept	reject@34	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/(ENABLE|DISABLE)_BLOCK_CHANGE_TRACKING_(USING_FILE_STRING)?!drop-4	ALTER DATABASE ENABLE BLOCK CHANGE
+reject@34	reject@34	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/(ENABLE|DISABLE)_BLOCK_CHANGE_TRACKING_(USING_FILE_STRING)?!drop-4	ALTER DATABASE ENABLE BLOCK CHANGE
 reject@44	reject@44	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/(ENABLE|DISABLE)_BLOCK_CHANGE_TRACKING_(USING_FILE_STRING)?!insert	ALTER DATABASE ENABLE BLOCK CHANGE TRACKING zzz
 reject@26	reject@26	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/(ENABLE|DISABLE)_BLOCK_CHANGE_TRACKING_(USING_FILE_STRING)?!swap	ALTER DATABASE ENABLE_ALL BLOCK CHANGE TRACKING
 reject@28	reject@28	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_cdb_fleet_clauses	ALTER DATABASE SET LEAD_CDB a
@@ -2614,7 +2614,7 @@ reject@27	reject@27	engine	alterDatabase(alterDatabase_startup_clauses|alterD~97
 reject@28	reject@28	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_cdb_fleet_clauses!insert	ALTER DATABASE SET LEAD_CDB a zzz
 reject@20	reject@20	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_cdb_fleet_clauses!swap	ALTER DATABASE SETS LEAD_CDB a
 reject@21	reject@21	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_replay_upgrade_clause	ALTER DATABASE START REPLAY
-accept	reject@21	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_replay_upgrade_clause!drop-1	ALTER DATABASE REPLAY
+reject@21	reject@21	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_replay_upgrade_clause!drop-1	ALTER DATABASE REPLAY
 reject@20	reject@20	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_replay_upgrade_clause!drop-2	ALTER DATABASE START
 reject@21	reject@21	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_replay_upgrade_clause!insert	ALTER DATABASE START REPLAY zzz
 reject@21	reject@21	engine	alterDatabase(alterDatabase_startup_clauses|alterD~979f2b2b)/alterDatabase_replay_upgrade_clause!swap	ALTER DATABASE STATE REPLAY
@@ -2627,14 +2627,14 @@ accept	accept	engine	alterDatabase(USING_FILE_STRING)?/%empty	ALTER DATABASE ENA
 accept	accept	engine	alterDatabase(USING_FILE_STRING)?/USING_FILE_STRING	ALTER DATABASE ENABLE BLOCK CHANGE TRACKING USING FILE 's'
 reject@44	reject@44	engine	alterDatabase(USING_FILE_STRING)?/USING_FILE_STRING!drop-1	ALTER DATABASE ENABLE BLOCK CHANGE TRACKING FILE 's'
 reject@50	reject@50	engine	alterDatabase(USING_FILE_STRING)?/USING_FILE_STRING!drop-2	ALTER DATABASE ENABLE BLOCK CHANGE TRACKING USING 's'
-accept	reject@54	engine	alterDatabase(USING_FILE_STRING)?/USING_FILE_STRING!drop-3	ALTER DATABASE ENABLE BLOCK CHANGE TRACKING USING FILE
+reject@54	reject@54	engine	alterDatabase(USING_FILE_STRING)?/USING_FILE_STRING!drop-3	ALTER DATABASE ENABLE BLOCK CHANGE TRACKING USING FILE
 reject@59	reject@59	engine	alterDatabase(USING_FILE_STRING)?/USING_FILE_STRING!insert	ALTER DATABASE ENABLE BLOCK CHANGE TRACKING USING FILE 's' zzz
 reject@44	reject@44	engine	alterDatabase(USING_FILE_STRING)?/USING_FILE_STRING!swap	ALTER DATABASE ENABLE BLOCK CHANGE TRACKING VALIDATE FILE 's'
 accept	accept	engine	alterDatabase_startup_clauses/(MOUNT_(STANDBY_DATABASE|CLONE_DATABA~9971bec0)	ALTER DATABASE MOUNT
 accept	accept	engine	alterDatabase_startup_clauses(MOUNT_(STANDBY_DATABASE|CLONE_DATABA~9971bec0)/MOUNT_(STANDBY_DATABASE|CLONE_DATABASE)?	ALTER DATABASE MOUNT
 accept	accept	engine	alterDatabase_startup_clauses(MOUNT_(STANDBY_DATABASE|CLONE_DATABA~9971bec0)/OPEN_(READ_WRITE|READ_ONLY)?_(RESETLOGS|NORESETLOGS)?_(~346a2ae8	ALTER DATABASE OPEN
 reject@20	reject@20	engine	alterDatabase_startup_clauses(MOUNT_(STANDBY_DATABASE|CLONE_DATABA~9971bec0)/OPEN_(READ_WRITE|READ_ONLY)?_(RESETLOGS|NORESETLOGS)?_(~346a2ae8!insert	ALTER DATABASE OPEN zzz
-accept	reject@23	engine	alterDatabase_startup_clauses(MOUNT_(STANDBY_DATABASE|CLONE_DATABA~9971bec0)/OPEN_(READ_WRITE|READ_ONLY)?_(RESETLOGS|NORESETLOGS)?_(~346a2ae8!swap	ALTER DATABASE OPERATOR
+reject@23	reject@23	engine	alterDatabase_startup_clauses(MOUNT_(STANDBY_DATABASE|CLONE_DATABA~9971bec0)/OPEN_(READ_WRITE|READ_ONLY)?_(RESETLOGS|NORESETLOGS)?_(~346a2ae8!swap	ALTER DATABASE OPERATOR
 accept	accept	engine	alterDatabase_startup_clauses(STANDBY_DATABASE|CLONE_DATABASE)?/%empty	ALTER DATABASE MOUNT
 accept	accept	engine	alterDatabase_startup_clauses(STANDBY_DATABASE|CLONE_DATABASE)?/STANDBY_DATABASE	ALTER DATABASE MOUNT STANDBY DATABASE
 reject@21	reject@21	engine	alterDatabase_startup_clauses(STANDBY_DATABASE|CLONE_DATABASE)?/STANDBY_DATABASE!drop-1	ALTER DATABASE MOUNT DATABASE
@@ -2648,7 +2648,7 @@ reject@21	reject@21	engine	alterDatabase_startup_clauses(STANDBY_DATABASE|CLONE_
 accept	accept	engine	alterDatabase_startup_clauses(READ_WRITE|READ_ONLY)?/%empty	ALTER DATABASE OPEN
 accept	accept	engine	alterDatabase_startup_clauses(READ_WRITE|READ_ONLY)?/READ_WRITE	ALTER DATABASE OPEN READ WRITE
 reject@20	reject@20	engine	alterDatabase_startup_clauses(READ_WRITE|READ_ONLY)?/READ_WRITE!drop-1	ALTER DATABASE OPEN WRITE
-accept	reject@24	engine	alterDatabase_startup_clauses(READ_WRITE|READ_ONLY)?/READ_WRITE!drop-2	ALTER DATABASE OPEN READ
+reject@24	reject@24	engine	alterDatabase_startup_clauses(READ_WRITE|READ_ONLY)?/READ_WRITE!drop-2	ALTER DATABASE OPEN READ
 reject@31	reject@31	engine	alterDatabase_startup_clauses(READ_WRITE|READ_ONLY)?/READ_WRITE!insert	ALTER DATABASE OPEN READ WRITE zzz
 reject@20	reject@20	engine	alterDatabase_startup_clauses(READ_WRITE|READ_ONLY)?/READ_WRITE!swap	ALTER DATABASE OPEN READS WRITE
 accept	accept	engine	alterDatabase_startup_clauses(READ_WRITE|READ_ONLY)?/READ_ONLY	ALTER DATABASE OPEN READ ONLY
@@ -2672,11 +2672,11 @@ reject@20	reject@20	engine	alterDatabase_startup_clauses(UPGRADE|DOWNGRADE)?/DOW
 accept	accept	engine	alterDatabase_recovery_clauses/(BEGIN_BACKUP|END_BACKUP|alterDatabas~4a2732c8)	ALTER DATABASE BEGIN BACKUP
 accept	accept	engine	alterDatabase_recovery_clauses(BEGIN_BACKUP|END_BACKUP|alterDatabas~4a2732c8)/BEGIN_BACKUP	ALTER DATABASE BEGIN BACKUP
 accept	accept	engine	alterDatabase_recovery_clauses(BEGIN_BACKUP|END_BACKUP|alterDatabas~4a2732c8)/END_BACKUP	ALTER DATABASE END BACKUP
-accept	reject@18	engine	alterDatabase_recovery_clauses(BEGIN_BACKUP|END_BACKUP|alterDatabas~4a2732c8)/END_BACKUP!drop-2	ALTER DATABASE END
+reject@18	reject@18	engine	alterDatabase_recovery_clauses(BEGIN_BACKUP|END_BACKUP|alterDatabas~4a2732c8)/END_BACKUP!drop-2	ALTER DATABASE END
 reject@26	reject@26	engine	alterDatabase_recovery_clauses(BEGIN_BACKUP|END_BACKUP|alterDatabas~4a2732c8)/END_BACKUP!insert	ALTER DATABASE END BACKUP zzz
 reject@30	reject@30	engine	alterDatabase_recovery_clauses(BEGIN_BACKUP|END_BACKUP|alterDatabas~4a2732c8)/END_BACKUP!swap	ALTER DATABASE ENFORCED BACKUP
 accept	accept	engine	alterDatabase_recovery_clauses(BEGIN_BACKUP|END_BACKUP|alterDatabas~4a2732c8)/alterDatabase_general_recovery	ALTER DATABASE RECOVER DATABASE
-accept	reject@23	engine	alterDatabase_recovery_clauses(BEGIN_BACKUP|END_BACKUP|alterDatabas~4a2732c8)/alterDatabase_general_recovery!drop-1	ALTER DATABASE DATABASE
+reject@23	reject@23	engine	alterDatabase_recovery_clauses(BEGIN_BACKUP|END_BACKUP|alterDatabas~4a2732c8)/alterDatabase_general_recovery!drop-1	ALTER DATABASE DATABASE
 accept	accept	engine	alterDatabase_recovery_clauses(BEGIN_BACKUP|END_BACKUP|alterDatabas~4a2732c8)/alterDatabase_general_recovery!drop-2	ALTER DATABASE RECOVER
 reject@32	reject@0	engine	alterDatabase_recovery_clauses(BEGIN_BACKUP|END_BACKUP|alterDatabas~4a2732c8)/alterDatabase_general_recovery!insert	ALTER DATABASE RECOVER DATABASE zzz
 reject@24	reject@24	engine	alterDatabase_recovery_clauses(BEGIN_BACKUP|END_BACKUP|alterDatabas~4a2732c8)/alterDatabase_general_recovery!swap	ALTER DATABASE RECOVERY DATABASE
@@ -2692,10 +2692,10 @@ reject@15	reject@15	engine	alterDatabase_database_file_clauses(RENAME_FILE_STRIN
 reject@22	reject@22	engine	alterDatabase_database_file_clauses(RENAME_FILE_STRING_TO_STRING_(,_STRI~39d749a1)/RENAME_FILE_STRING_TO_STRING_(,_STRING_TO_STRING)*!drop-2	ALTER DATABASE RENAME 's' TO 's'
 reject@27	reject@27	engine	alterDatabase_database_file_clauses(RENAME_FILE_STRING_TO_STRING_(,_STRI~39d749a1)/RENAME_FILE_STRING_TO_STRING_(,_STRING_TO_STRING)*!drop-3	ALTER DATABASE RENAME FILE TO 's'
 reject@31	reject@31	engine	alterDatabase_database_file_clauses(RENAME_FILE_STRING_TO_STRING_(,_STRI~39d749a1)/RENAME_FILE_STRING_TO_STRING_(,_STRING_TO_STRING)*!drop-4	ALTER DATABASE RENAME FILE 's' 's'
-accept	reject@33	engine	alterDatabase_database_file_clauses(RENAME_FILE_STRING_TO_STRING_(,_STRI~39d749a1)/RENAME_FILE_STRING_TO_STRING_(,_STRING_TO_STRING)*!drop-5	ALTER DATABASE RENAME FILE 's' TO
+reject@33	reject@33	engine	alterDatabase_database_file_clauses(RENAME_FILE_STRING_TO_STRING_(,_STRI~39d749a1)/RENAME_FILE_STRING_TO_STRING_(,_STRING_TO_STRING)*!drop-5	ALTER DATABASE RENAME FILE 's' TO
 reject@38	reject@38	engine	alterDatabase_database_file_clauses(RENAME_FILE_STRING_TO_STRING_(,_STRI~39d749a1)/RENAME_FILE_STRING_TO_STRING_(,_STRING_TO_STRING)*!insert	ALTER DATABASE RENAME FILE 's' TO 's' zzz
 reject@22	reject@22	engine	alterDatabase_database_file_clauses(RENAME_FILE_STRING_TO_STRING_(,_STRI~39d749a1)/RENAME_FILE_STRING_TO_STRING_(,_STRING_TO_STRING)*!swap	ALTER DATABASE REPAIR FILE 's' TO 's'
-accept	reject@37	engine	alterDatabase_database_file_clauses(RENAME_FILE_STRING_TO_STRING_(,_STRI~39d749a1)/CREATE_DATAFILE_(STRING|NUMBER)_AS_(NEW|alterDatabase_f~884903a7	ALTER DATABASE CREATE DATAFILE 's' AS
+reject@37	reject@37	engine	alterDatabase_database_file_clauses(RENAME_FILE_STRING_TO_STRING_(,_STRI~39d749a1)/CREATE_DATAFILE_(STRING|NUMBER)_AS_(NEW|alterDatabase_f~884903a7	ALTER DATABASE CREATE DATAFILE 's' AS
 reject@28	reject@28	engine	alterDatabase_database_file_clauses(RENAME_FILE_STRING_TO_STRING_(,_STRI~39d749a1)/CREATE_DATAFILE_(STRING|NUMBER)_AS_(NEW|alterDatabase_f~884903a7!drop-1	ALTER DATABASE DATAFILE 's' AS
 reject@22	reject@22	engine	alterDatabase_database_file_clauses(RENAME_FILE_STRING_TO_STRING_(,_STRI~39d749a1)/CREATE_DATAFILE_(STRING|NUMBER)_AS_(NEW|alterDatabase_f~884903a7!drop-2	ALTER DATABASE CREATE 's' AS
 reject@31	reject@31	engine	alterDatabase_database_file_clauses(RENAME_FILE_STRING_TO_STRING_(,_STRI~39d749a1)/CREATE_DATAFILE_(STRING|NUMBER)_AS_(NEW|alterDatabase_f~884903a7!drop-3	ALTER DATABASE CREATE DATAFILE AS
@@ -2706,7 +2706,7 @@ accept	accept	engine	alterDatabase_database_file_clauses(RENAME_FILE_STRING_TO_S
 accept	accept	engine	alterDatabase_database_file_clauses(RENAME_FILE_STRING_TO_STRING_(,_STRI~39d749a1)/TEMPFILE_(STRING|NUMBER)_(RESIZE_alterDatabase_size_cla~b5cdfb5b	ALTER DATABASE TEMPFILE 's' DROP
 reject@15	reject@15	engine	alterDatabase_database_file_clauses(RENAME_FILE_STRING_TO_STRING_(,_STRI~39d749a1)/TEMPFILE_(STRING|NUMBER)_(RESIZE_alterDatabase_size_cla~b5cdfb5b!drop-1	ALTER DATABASE 's' DROP
 reject@24	reject@24	engine	alterDatabase_database_file_clauses(RENAME_FILE_STRING_TO_STRING_(,_STRI~39d749a1)/TEMPFILE_(STRING|NUMBER)_(RESIZE_alterDatabase_size_cla~b5cdfb5b!drop-2	ALTER DATABASE TEMPFILE DROP
-accept	reject@27	engine	alterDatabase_database_file_clauses(RENAME_FILE_STRING_TO_STRING_(,_STRI~39d749a1)/TEMPFILE_(STRING|NUMBER)_(RESIZE_alterDatabase_size_cla~b5cdfb5b!drop-3	ALTER DATABASE TEMPFILE 's'
+reject@27	reject@27	engine	alterDatabase_database_file_clauses(RENAME_FILE_STRING_TO_STRING_(,_STRI~39d749a1)/TEMPFILE_(STRING|NUMBER)_(RESIZE_alterDatabase_size_cla~b5cdfb5b!drop-3	ALTER DATABASE TEMPFILE 's'
 reject@33	reject@33	engine	alterDatabase_database_file_clauses(RENAME_FILE_STRING_TO_STRING_(,_STRI~39d749a1)/TEMPFILE_(STRING|NUMBER)_(RESIZE_alterDatabase_size_cla~b5cdfb5b!insert	ALTER DATABASE TEMPFILE 's' DROP zzz
 reject@24	reject@24	engine	alterDatabase_database_file_clauses(RENAME_FILE_STRING_TO_STRING_(,_STRI~39d749a1)/TEMPFILE_(STRING|NUMBER)_(RESIZE_alterDatabase_size_cla~b5cdfb5b!swap	ALTER DATABASE TEMPLATE 's' DROP
 accept	accept	engine	alterDatabase_database_file_clauses(RENAME_FILE_STRING_TO_STRING_(,_STRI~39d749a1)/MOVE_DATAFILE_(STRING|NUMBER)_TO_STRING_(REUSE)?_(KEEP)?	ALTER DATABASE MOVE DATAFILE 's' TO 's'
@@ -2714,7 +2714,7 @@ reject@28	reject@28	engine	alterDatabase_database_file_clauses(RENAME_FILE_STRIN
 reject@20	reject@20	engine	alterDatabase_database_file_clauses(RENAME_FILE_STRING_TO_STRING_(,_STRI~39d749a1)/MOVE_DATAFILE_(STRING|NUMBER)_TO_STRING_(REUSE)?_(KEEP)?!drop-2	ALTER DATABASE MOVE 's' TO 's'
 reject@29	reject@29	engine	alterDatabase_database_file_clauses(RENAME_FILE_STRING_TO_STRING_(,_STRI~39d749a1)/MOVE_DATAFILE_(STRING|NUMBER)_TO_STRING_(REUSE)?_(KEEP)?!drop-3	ALTER DATABASE MOVE DATAFILE TO 's'
 reject@33	reject@33	engine	alterDatabase_database_file_clauses(RENAME_FILE_STRING_TO_STRING_(,_STRI~39d749a1)/MOVE_DATAFILE_(STRING|NUMBER)_TO_STRING_(REUSE)?_(KEEP)?!drop-4	ALTER DATABASE MOVE DATAFILE 's' 's'
-accept	reject@35	engine	alterDatabase_database_file_clauses(RENAME_FILE_STRING_TO_STRING_(,_STRI~39d749a1)/MOVE_DATAFILE_(STRING|NUMBER)_TO_STRING_(REUSE)?_(KEEP)?!drop-5	ALTER DATABASE MOVE DATAFILE 's' TO
+reject@35	reject@35	engine	alterDatabase_database_file_clauses(RENAME_FILE_STRING_TO_STRING_(,_STRI~39d749a1)/MOVE_DATAFILE_(STRING|NUMBER)_TO_STRING_(REUSE)?_(KEEP)?!drop-5	ALTER DATABASE MOVE DATAFILE 's' TO
 reject@40	reject@40	engine	alterDatabase_database_file_clauses(RENAME_FILE_STRING_TO_STRING_(,_STRI~39d749a1)/MOVE_DATAFILE_(STRING|NUMBER)_TO_STRING_(REUSE)?_(KEEP)?!insert	ALTER DATABASE MOVE DATAFILE 's' TO 's' zzz
 reject@37	reject@37	engine	alterDatabase_database_file_clauses(RENAME_FILE_STRING_TO_STRING_(,_STRI~39d749a1)/MOVE_DATAFILE_(STRING|NUMBER)_TO_STRING_(REUSE)?_(KEEP)?!swap	ALTER DATABASE MOVEMENT DATAFILE 's' TO 's'
 accept	accept	engine	alterDatabase_database_file_clauses(,_STRING_TO_STRING)*/%empty	ALTER DATABASE RENAME FILE 's' TO 's'
@@ -2726,14 +2726,14 @@ reject@43	reject@43	engine	alterDatabase_database_file_clauses(,_STRING_TO_STRIN
 reject@43	reject@43	engine	alterDatabase_database_file_clauses(,_STRING_TO_STRING)*/,_STRING_TO_STRING_(,_STRING_TO_STRING)*!insert	ALTER DATABASE RENAME FILE 's' TO 's', 's' TO 's' zzz
 reject@43	reject@43	engine	alterDatabase_database_file_clauses(,_STRING_TO_STRING)*/,_STRING_TO_STRING_(,_STRING_TO_STRING)*!swap	ALTER DATABASE RENAME FILE 's' TO 's', 's' TOPLEVEL 's'
 accept	accept	engine	alterDatabase_database_file_clauses(STRING|NUMBER)/STRING	ALTER DATABASE DATAFILE 's' ONLINE
-accept	reject@23	engine	alterDatabase_database_file_clauses(STRING|NUMBER)/STRING!truncate	ALTER DATABASE DATAFILE
+reject@23	reject@23	engine	alterDatabase_database_file_clauses(STRING|NUMBER)/STRING!truncate	ALTER DATABASE DATAFILE
 reject@28	reject@28	engine	alterDatabase_database_file_clauses(STRING|NUMBER)/STRING!insert	ALTER DATABASE DATAFILE 's' zzz ONLINE
 accept	accept	engine	alterDatabase_database_file_clauses(STRING|NUMBER)/NUMBER	ALTER DATABASE DATAFILE 1 ONLINE
 reject@26	reject@26	engine	alterDatabase_database_file_clauses(STRING|NUMBER)/NUMBER!insert	ALTER DATABASE DATAFILE 1 zzz ONLINE
 reject@38	reject@38	engine	alterDatabase_database_file_clauses(NEW|alterDatabase_file_specification)/NEW	ALTER DATABASE CREATE DATAFILE 's' AS NEW
 reject@38	reject@38	engine	alterDatabase_database_file_clauses(NEW|alterDatabase_file_specification)/NEW!insert	ALTER DATABASE CREATE DATAFILE 's' AS NEW zzz
 reject@38	reject@38	engine	alterDatabase_database_file_clauses(NEW|alterDatabase_file_specification)/NEW!swap	ALTER DATABASE CREATE DATAFILE 's' AS NEXT
-accept	reject@37	engine	alterDatabase_database_file_clauses(NEW|alterDatabase_file_specification)/alterDatabase_file_specification	ALTER DATABASE CREATE DATAFILE 's' AS
+reject@37	reject@37	engine	alterDatabase_database_file_clauses(NEW|alterDatabase_file_specification)/alterDatabase_file_specification	ALTER DATABASE CREATE DATAFILE 's' AS
 accept	accept	engine	alterDatabase_database_file_clauses(ONLINE|OFFLINE_(FOR_DROP)?|RESIZE_al~dce399cf)/ONLINE	ALTER DATABASE DATAFILE 's' ONLINE
 reject@28	reject@28	engine	alterDatabase_database_file_clauses(ONLINE|OFFLINE_(FOR_DROP)?|RESIZE_al~dce399cf)/ONLINE!swap	ALTER DATABASE DATAFILE 's' ONLY
 accept	accept	engine	alterDatabase_database_file_clauses(ONLINE|OFFLINE_(FOR_DROP)?|RESIZE_al~dce399cf)/OFFLINE_(FOR_DROP)?	ALTER DATABASE DATAFILE 's' OFFLINE
@@ -2741,12 +2741,12 @@ reject@36	reject@36	engine	alterDatabase_database_file_clauses(ONLINE|OFFLINE_(F
 reject@28	reject@28	engine	alterDatabase_database_file_clauses(ONLINE|OFFLINE_(FOR_DROP)?|RESIZE_al~dce399cf)/OFFLINE_(FOR_DROP)?!swap	ALTER DATABASE DATAFILE 's' OFFSET
 accept	accept	engine	alterDatabase_database_file_clauses(ONLINE|OFFLINE_(FOR_DROP)?|RESIZE_al~dce399cf)/RESIZE_alterDatabase_size_clause	ALTER DATABASE DATAFILE 's' RESIZE 1
 reject@28	reject@28	engine	alterDatabase_database_file_clauses(ONLINE|OFFLINE_(FOR_DROP)?|RESIZE_al~dce399cf)/RESIZE_alterDatabase_size_clause!drop-1	ALTER DATABASE DATAFILE 's' 1
-accept	reject@34	engine	alterDatabase_database_file_clauses(ONLINE|OFFLINE_(FOR_DROP)?|RESIZE_al~dce399cf)/RESIZE_alterDatabase_size_clause!drop-2	ALTER DATABASE DATAFILE 's' RESIZE
+reject@34	reject@34	engine	alterDatabase_database_file_clauses(ONLINE|OFFLINE_(FOR_DROP)?|RESIZE_al~dce399cf)/RESIZE_alterDatabase_size_clause!drop-2	ALTER DATABASE DATAFILE 's' RESIZE
 reject@37	reject@37	engine	alterDatabase_database_file_clauses(ONLINE|OFFLINE_(FOR_DROP)?|RESIZE_al~dce399cf)/RESIZE_alterDatabase_size_clause!insert	ALTER DATABASE DATAFILE 's' RESIZE 1 zzz
 reject@28	reject@28	engine	alterDatabase_database_file_clauses(ONLINE|OFFLINE_(FOR_DROP)?|RESIZE_al~dce399cf)/RESIZE_alterDatabase_size_clause!swap	ALTER DATABASE DATAFILE 's' RESOLVE 1
 accept	accept	engine	alterDatabase_database_file_clauses(ONLINE|OFFLINE_(FOR_DROP)?|RESIZE_al~dce399cf)/END_BACKUP	ALTER DATABASE DATAFILE 's' END BACKUP
 reject@28	reject@28	engine	alterDatabase_database_file_clauses(ONLINE|OFFLINE_(FOR_DROP)?|RESIZE_al~dce399cf)/END_BACKUP!drop-1	ALTER DATABASE DATAFILE 's' BACKUP
-accept	reject@31	engine	alterDatabase_database_file_clauses(ONLINE|OFFLINE_(FOR_DROP)?|RESIZE_al~dce399cf)/END_BACKUP!drop-2	ALTER DATABASE DATAFILE 's' END
+reject@31	reject@31	engine	alterDatabase_database_file_clauses(ONLINE|OFFLINE_(FOR_DROP)?|RESIZE_al~dce399cf)/END_BACKUP!drop-2	ALTER DATABASE DATAFILE 's' END
 reject@39	reject@39	engine	alterDatabase_database_file_clauses(ONLINE|OFFLINE_(FOR_DROP)?|RESIZE_al~dce399cf)/END_BACKUP!insert	ALTER DATABASE DATAFILE 's' END BACKUP zzz
 reject@28	reject@28	engine	alterDatabase_database_file_clauses(ONLINE|OFFLINE_(FOR_DROP)?|RESIZE_al~dce399cf)/END_BACKUP!swap	ALTER DATABASE DATAFILE 's' ENFORCED BACKUP
 accept	accept	engine	alterDatabase_database_file_clauses(ONLINE|OFFLINE_(FOR_DROP)?|RESIZE_al~dce399cf)/ENCRYPT	ALTER DATABASE DATAFILE 's' ENCRYPT
@@ -2757,7 +2757,7 @@ reject@36	reject@36	engine	alterDatabase_database_file_clauses(ONLINE|OFFLINE_(F
 reject@28	reject@28	engine	alterDatabase_database_file_clauses(ONLINE|OFFLINE_(FOR_DROP)?|RESIZE_al~dce399cf)/DECRYPT!swap	ALTER DATABASE DATAFILE 's' DEDUPLICATE
 accept	accept	engine	alterDatabase_database_file_clauses(ONLINE|OFFLINE_(FOR_DROP)?|RESIZE_al~dce399cf)/alterDatabase_autoextend_clause	ALTER DATABASE DATAFILE 's' AUTOEXTEND OFF
 reject@28	reject@28	engine	alterDatabase_database_file_clauses(ONLINE|OFFLINE_(FOR_DROP)?|RESIZE_al~dce399cf)/alterDatabase_autoextend_clause!drop-1	ALTER DATABASE DATAFILE 's' OFF
-accept	reject@38	engine	alterDatabase_database_file_clauses(ONLINE|OFFLINE_(FOR_DROP)?|RESIZE_al~dce399cf)/alterDatabase_autoextend_clause!drop-2	ALTER DATABASE DATAFILE 's' AUTOEXTEND
+reject@38	reject@38	engine	alterDatabase_database_file_clauses(ONLINE|OFFLINE_(FOR_DROP)?|RESIZE_al~dce399cf)/alterDatabase_autoextend_clause!drop-2	ALTER DATABASE DATAFILE 's' AUTOEXTEND
 reject@43	reject@43	engine	alterDatabase_database_file_clauses(ONLINE|OFFLINE_(FOR_DROP)?|RESIZE_al~dce399cf)/alterDatabase_autoextend_clause!insert	ALTER DATABASE DATAFILE 's' AUTOEXTEND OFF zzz
 reject@28	reject@28	engine	alterDatabase_database_file_clauses(ONLINE|OFFLINE_(FOR_DROP)?|RESIZE_al~dce399cf)/alterDatabase_autoextend_clause!swap	ALTER DATABASE DATAFILE 's' AUTOMATIC OFF
 accept	accept	engine	alterDatabase_database_file_clauses(FOR_DROP)?/%empty	ALTER DATABASE DATAFILE 's' OFFLINE
@@ -2768,12 +2768,12 @@ reject@45	reject@45	engine	alterDatabase_database_file_clauses(FOR_DROP)?/FOR_DR
 reject@36	reject@36	engine	alterDatabase_database_file_clauses(FOR_DROP)?/FOR_DROP!swap	ALTER DATABASE DATAFILE 's' OFFLINE FORCE DROP
 accept	accept	engine	alterDatabase_database_file_clauses(RESIZE_alterDatabase_size_clause|alt~00da2801)/RESIZE_alterDatabase_size_clause	ALTER DATABASE TEMPFILE 's' RESIZE 1
 reject@28	reject@28	engine	alterDatabase_database_file_clauses(RESIZE_alterDatabase_size_clause|alt~00da2801)/RESIZE_alterDatabase_size_clause!drop-1	ALTER DATABASE TEMPFILE 's' 1
-accept	reject@34	engine	alterDatabase_database_file_clauses(RESIZE_alterDatabase_size_clause|alt~00da2801)/RESIZE_alterDatabase_size_clause!drop-2	ALTER DATABASE TEMPFILE 's' RESIZE
+reject@34	reject@34	engine	alterDatabase_database_file_clauses(RESIZE_alterDatabase_size_clause|alt~00da2801)/RESIZE_alterDatabase_size_clause!drop-2	ALTER DATABASE TEMPFILE 's' RESIZE
 reject@37	reject@37	engine	alterDatabase_database_file_clauses(RESIZE_alterDatabase_size_clause|alt~00da2801)/RESIZE_alterDatabase_size_clause!insert	ALTER DATABASE TEMPFILE 's' RESIZE 1 zzz
 reject@28	reject@28	engine	alterDatabase_database_file_clauses(RESIZE_alterDatabase_size_clause|alt~00da2801)/RESIZE_alterDatabase_size_clause!swap	ALTER DATABASE TEMPFILE 's' RESOLVE 1
 accept	accept	engine	alterDatabase_database_file_clauses(RESIZE_alterDatabase_size_clause|alt~00da2801)/alterDatabase_autoextend_clause	ALTER DATABASE TEMPFILE 's' AUTOEXTEND OFF
 reject@28	reject@28	engine	alterDatabase_database_file_clauses(RESIZE_alterDatabase_size_clause|alt~00da2801)/alterDatabase_autoextend_clause!drop-1	ALTER DATABASE TEMPFILE 's' OFF
-accept	reject@38	engine	alterDatabase_database_file_clauses(RESIZE_alterDatabase_size_clause|alt~00da2801)/alterDatabase_autoextend_clause!drop-2	ALTER DATABASE TEMPFILE 's' AUTOEXTEND
+reject@38	reject@38	engine	alterDatabase_database_file_clauses(RESIZE_alterDatabase_size_clause|alt~00da2801)/alterDatabase_autoextend_clause!drop-2	ALTER DATABASE TEMPFILE 's' AUTOEXTEND
 reject@43	reject@43	engine	alterDatabase_database_file_clauses(RESIZE_alterDatabase_size_clause|alt~00da2801)/alterDatabase_autoextend_clause!insert	ALTER DATABASE TEMPFILE 's' AUTOEXTEND OFF zzz
 reject@28	reject@28	engine	alterDatabase_database_file_clauses(RESIZE_alterDatabase_size_clause|alt~00da2801)/alterDatabase_autoextend_clause!swap	ALTER DATABASE TEMPFILE 's' AUTOMATIC OFF
 accept	accept	engine	alterDatabase_database_file_clauses(RESIZE_alterDatabase_size_clause|alt~00da2801)/DROP_(INCLUDING_DATAFILES)?	ALTER DATABASE TEMPFILE 's' DROP
@@ -2794,14 +2794,14 @@ reject@45	reject@45	engine	alterDatabase_database_file_clauses(KEEP)?/KEEP!inser
 reject@40	reject@40	engine	alterDatabase_database_file_clauses(KEEP)?/KEEP!swap	ALTER DATABASE MOVE DATAFILE 's' TO 's' KEEP_DUPLICATES
 accept	accept	engine	alterDatabase_logfile_clauses/(ARCHIVELOG|MANUAL|NOARCHIVELOG|NO?_F~3fdcea56)	ALTER DATABASE ARCHIVELOG
 accept	accept	engine	alterDatabase_logfile_clauses(ARCHIVELOG|MANUAL|NOARCHIVELOG|NO?_F~3fdcea56)/ARCHIVELOG	ALTER DATABASE ARCHIVELOG
-accept	reject@21	engine	alterDatabase_logfile_clauses(ARCHIVELOG|MANUAL|NOARCHIVELOG|NO?_F~3fdcea56)/MANUAL	ALTER DATABASE MANUAL
+reject@21	reject@21	engine	alterDatabase_logfile_clauses(ARCHIVELOG|MANUAL|NOARCHIVELOG|NO?_F~3fdcea56)/MANUAL	ALTER DATABASE MANUAL
 reject@22	reject@22	engine	alterDatabase_logfile_clauses(ARCHIVELOG|MANUAL|NOARCHIVELOG|NO?_F~3fdcea56)/MANUAL!insert	ALTER DATABASE MANUAL zzz
-accept	reject@22	engine	alterDatabase_logfile_clauses(ARCHIVELOG|MANUAL|NOARCHIVELOG|NO?_F~3fdcea56)/MANUAL!swap	ALTER DATABASE MAPPING
+reject@22	reject@22	engine	alterDatabase_logfile_clauses(ARCHIVELOG|MANUAL|NOARCHIVELOG|NO?_F~3fdcea56)/MANUAL!swap	ALTER DATABASE MAPPING
 accept	accept	engine	alterDatabase_logfile_clauses(ARCHIVELOG|MANUAL|NOARCHIVELOG|NO?_F~3fdcea56)/NOARCHIVELOG	ALTER DATABASE NOARCHIVELOG
 reject@28	reject@28	engine	alterDatabase_logfile_clauses(ARCHIVELOG|MANUAL|NOARCHIVELOG|NO?_F~3fdcea56)/NOARCHIVELOG!insert	ALTER DATABASE NOARCHIVELOG zzz
 reject@15	reject@15	engine	alterDatabase_logfile_clauses(ARCHIVELOG|MANUAL|NOARCHIVELOG|NO?_F~3fdcea56)/NOARCHIVELOG!swap	ALTER DATABASE NOAUDIT
 accept	accept	engine	alterDatabase_logfile_clauses(ARCHIVELOG|MANUAL|NOARCHIVELOG|NO?_F~3fdcea56)/(NO)?_FORCE_LOGGING	ALTER DATABASE FORCE LOGGING
-accept	reject@20	engine	alterDatabase_logfile_clauses(ARCHIVELOG|MANUAL|NOARCHIVELOG|NO?_F~3fdcea56)/(NO)?_FORCE_LOGGING!drop-2	ALTER DATABASE FORCE
+reject@20	reject@20	engine	alterDatabase_logfile_clauses(ARCHIVELOG|MANUAL|NOARCHIVELOG|NO?_F~3fdcea56)/(NO)?_FORCE_LOGGING!drop-2	ALTER DATABASE FORCE
 reject@29	reject@29	engine	alterDatabase_logfile_clauses(ARCHIVELOG|MANUAL|NOARCHIVELOG|NO?_F~3fdcea56)/(NO)?_FORCE_LOGGING!insert	ALTER DATABASE FORCE LOGGING zzz
 reject@23	reject@23	engine	alterDatabase_logfile_clauses(ARCHIVELOG|MANUAL|NOARCHIVELOG|NO?_F~3fdcea56)/(NO)?_FORCE_LOGGING!swap	ALTER DATABASE FOREIGN LOGGING
 accept	accept	engine	alterDatabase_logfile_clauses(ARCHIVELOG|MANUAL|NOARCHIVELOG|NO?_F~3fdcea56)/SET_STANDBY_NOLOGGING_FOR_(LOAD_PERFORMANCE|DATA_AVAILABILITY)	ALTER DATABASE SET STANDBY NOLOGGING FOR LOAD PERFORMANCE
@@ -2810,7 +2810,7 @@ reject@19	reject@19	engine	alterDatabase_logfile_clauses(ARCHIVELOG|MANUAL|NOARC
 reject@27	reject@27	engine	alterDatabase_logfile_clauses(ARCHIVELOG|MANUAL|NOARCHIVELOG|NO?_F~3fdcea56)/SET_STANDBY_NOLOGGING_FOR_(LOAD_PERFORMANCE|DATA_AVAILABILITY)!drop-3	ALTER DATABASE SET STANDBY FOR LOAD PERFORMANCE
 reject@37	reject@37	engine	alterDatabase_logfile_clauses(ARCHIVELOG|MANUAL|NOARCHIVELOG|NO?_F~3fdcea56)/SET_STANDBY_NOLOGGING_FOR_(LOAD_PERFORMANCE|DATA_AVAILABILITY)!drop-4	ALTER DATABASE SET STANDBY NOLOGGING LOAD PERFORMANCE
 reject@41	reject@41	engine	alterDatabase_logfile_clauses(ARCHIVELOG|MANUAL|NOARCHIVELOG|NO?_F~3fdcea56)/SET_STANDBY_NOLOGGING_FOR_(LOAD_PERFORMANCE|DATA_AVAILABILITY)!drop-5	ALTER DATABASE SET STANDBY NOLOGGING FOR PERFORMANCE
-accept	reject@45	engine	alterDatabase_logfile_clauses(ARCHIVELOG|MANUAL|NOARCHIVELOG|NO?_F~3fdcea56)/SET_STANDBY_NOLOGGING_FOR_(LOAD_PERFORMANCE|DATA_AVAILABILITY)!drop-6	ALTER DATABASE SET STANDBY NOLOGGING FOR LOAD
+reject@45	reject@45	engine	alterDatabase_logfile_clauses(ARCHIVELOG|MANUAL|NOARCHIVELOG|NO?_F~3fdcea56)/SET_STANDBY_NOLOGGING_FOR_(LOAD_PERFORMANCE|DATA_AVAILABILITY)!drop-6	ALTER DATABASE SET STANDBY NOLOGGING FOR LOAD
 reject@58	reject@58	engine	alterDatabase_logfile_clauses(ARCHIVELOG|MANUAL|NOARCHIVELOG|NO?_F~3fdcea56)/SET_STANDBY_NOLOGGING_FOR_(LOAD_PERFORMANCE|DATA_AVAILABILITY)!insert	ALTER DATABASE SET STANDBY NOLOGGING FOR LOAD PERFORMANCE zzz
 reject@20	reject@20	engine	alterDatabase_logfile_clauses(ARCHIVELOG|MANUAL|NOARCHIVELOG|NO?_F~3fdcea56)/SET_STANDBY_NOLOGGING_FOR_(LOAD_PERFORMANCE|DATA_AVAILABILITY)!swap	ALTER DATABASE SETS STANDBY NOLOGGING FOR LOAD PERFORMANCE
 accept	accept	engine	alterDatabase_logfile_clauses(ARCHIVELOG|MANUAL|NOARCHIVELOG|NO?_F~3fdcea56)/RENAME_FILE_STRING_TO_STRING_(,_STRING_TO_STRING)*	ALTER DATABASE RENAME FILE 's' TO 's'
@@ -2818,19 +2818,19 @@ accept	accept	engine	alterDatabase_logfile_clauses(ARCHIVELOG|MANUAL|NOARCHIVELO
 reject@23	reject@23	engine	alterDatabase_logfile_clauses(ARCHIVELOG|MANUAL|NOARCHIVELOG|NO?_F~3fdcea56)/CLEAR_LOGFILE_alterDatabase_logfile_descriptor_(UNARCHI~135ef769!drop-1	ALTER DATABASE LOGFILE GROUP 1
 reject@21	reject@21	engine	alterDatabase_logfile_clauses(ARCHIVELOG|MANUAL|NOARCHIVELOG|NO?_F~3fdcea56)/CLEAR_LOGFILE_alterDatabase_logfile_descriptor_(UNARCHI~135ef769!drop-2	ALTER DATABASE CLEAR GROUP 1
 reject@29	reject@29	engine	alterDatabase_logfile_clauses(ARCHIVELOG|MANUAL|NOARCHIVELOG|NO?_F~3fdcea56)/CLEAR_LOGFILE_alterDatabase_logfile_descriptor_(UNARCHI~135ef769!drop-3	ALTER DATABASE CLEAR LOGFILE 1
-accept	reject@34	engine	alterDatabase_logfile_clauses(ARCHIVELOG|MANUAL|NOARCHIVELOG|NO?_F~3fdcea56)/CLEAR_LOGFILE_alterDatabase_logfile_descriptor_(UNARCHI~135ef769!drop-4	ALTER DATABASE CLEAR LOGFILE GROUP
+reject@34	reject@34	engine	alterDatabase_logfile_clauses(ARCHIVELOG|MANUAL|NOARCHIVELOG|NO?_F~3fdcea56)/CLEAR_LOGFILE_alterDatabase_logfile_descriptor_(UNARCHI~135ef769!drop-4	ALTER DATABASE CLEAR LOGFILE GROUP
 reject@37	reject@37	engine	alterDatabase_logfile_clauses(ARCHIVELOG|MANUAL|NOARCHIVELOG|NO?_F~3fdcea56)/CLEAR_LOGFILE_alterDatabase_logfile_descriptor_(UNARCHI~135ef769!insert	ALTER DATABASE CLEAR LOGFILE GROUP 1 zzz
 reject@22	reject@22	engine	alterDatabase_logfile_clauses(ARCHIVELOG|MANUAL|NOARCHIVELOG|NO?_F~3fdcea56)/CLEAR_LOGFILE_alterDatabase_logfile_descriptor_(UNARCHI~135ef769!swap	ALTER DATABASE CLIENT LOGFILE GROUP 1
 accept	accept	engine	alterDatabase_logfile_clauses(ARCHIVELOG|MANUAL|NOARCHIVELOG|NO?_F~3fdcea56)/alterDatabase_add_logfile_clauses	ALTER DATABASE ADD LOGFILE 's'
 reject@23	reject@23	engine	alterDatabase_logfile_clauses(ARCHIVELOG|MANUAL|NOARCHIVELOG|NO?_F~3fdcea56)/alterDatabase_add_logfile_clauses!drop-1	ALTER DATABASE LOGFILE 's'
 reject@19	reject@19	engine	alterDatabase_logfile_clauses(ARCHIVELOG|MANUAL|NOARCHIVELOG|NO?_F~3fdcea56)/alterDatabase_add_logfile_clauses!drop-2	ALTER DATABASE ADD 's'
-accept	reject@26	engine	alterDatabase_logfile_clauses(ARCHIVELOG|MANUAL|NOARCHIVELOG|NO?_F~3fdcea56)/alterDatabase_add_logfile_clauses!drop-3	ALTER DATABASE ADD LOGFILE
+reject@26	reject@26	engine	alterDatabase_logfile_clauses(ARCHIVELOG|MANUAL|NOARCHIVELOG|NO?_F~3fdcea56)/alterDatabase_add_logfile_clauses!drop-3	ALTER DATABASE ADD LOGFILE
 reject@31	reject@31	engine	alterDatabase_logfile_clauses(ARCHIVELOG|MANUAL|NOARCHIVELOG|NO?_F~3fdcea56)/alterDatabase_add_logfile_clauses!insert	ALTER DATABASE ADD LOGFILE 's' zzz
 reject@21	reject@21	engine	alterDatabase_logfile_clauses(ARCHIVELOG|MANUAL|NOARCHIVELOG|NO?_F~3fdcea56)/alterDatabase_add_logfile_clauses!swap	ALTER DATABASE ADMIN LOGFILE 's'
 accept	accept	engine	alterDatabase_logfile_clauses(ARCHIVELOG|MANUAL|NOARCHIVELOG|NO?_F~3fdcea56)/alterDatabase_drop_logfile_clauses	ALTER DATABASE DROP LOGFILE GROUP 1
 reject@20	reject@20	engine	alterDatabase_logfile_clauses(ARCHIVELOG|MANUAL|NOARCHIVELOG|NO?_F~3fdcea56)/alterDatabase_drop_logfile_clauses!drop-2	ALTER DATABASE DROP GROUP 1
 reject@28	reject@28	engine	alterDatabase_logfile_clauses(ARCHIVELOG|MANUAL|NOARCHIVELOG|NO?_F~3fdcea56)/alterDatabase_drop_logfile_clauses!drop-3	ALTER DATABASE DROP LOGFILE 1
-accept	reject@33	engine	alterDatabase_logfile_clauses(ARCHIVELOG|MANUAL|NOARCHIVELOG|NO?_F~3fdcea56)/alterDatabase_drop_logfile_clauses!drop-4	ALTER DATABASE DROP LOGFILE GROUP
+reject@33	reject@33	engine	alterDatabase_logfile_clauses(ARCHIVELOG|MANUAL|NOARCHIVELOG|NO?_F~3fdcea56)/alterDatabase_drop_logfile_clauses!drop-4	ALTER DATABASE DROP LOGFILE GROUP
 reject@36	reject@36	engine	alterDatabase_logfile_clauses(ARCHIVELOG|MANUAL|NOARCHIVELOG|NO?_F~3fdcea56)/alterDatabase_drop_logfile_clauses!insert	ALTER DATABASE DROP LOGFILE GROUP 1 zzz
 reject@23	reject@23	engine	alterDatabase_logfile_clauses(ARCHIVELOG|MANUAL|NOARCHIVELOG|NO?_F~3fdcea56)/alterDatabase_drop_logfile_clauses!swap	ALTER DATABASE DUALITY LOGFILE GROUP 1
 reject@22	reject@22	engine	alterDatabase_logfile_clauses(ARCHIVELOG|MANUAL|NOARCHIVELOG|NO?_F~3fdcea56)/alterDatabase_switch_logfile_clause	ALTER DATABASE SWITCH LOGFILE TO BLOCK SIZE 1
@@ -2858,7 +2858,7 @@ accept	accept	engine	alterDatabase_logfile_clauses(LOAD_PERFORMANCE|DATA_AVAILAB
 reject@41	reject@41	engine	alterDatabase_logfile_clauses(LOAD_PERFORMANCE|DATA_AVAILABILITY)/LOAD_PERFORMANCE!swap	ALTER DATABASE SET STANDBY NOLOGGING FOR LOB PERFORMANCE
 accept	accept	engine	alterDatabase_logfile_clauses(LOAD_PERFORMANCE|DATA_AVAILABILITY)/DATA_AVAILABILITY	ALTER DATABASE SET STANDBY NOLOGGING FOR DATA AVAILABILITY
 reject@41	reject@41	engine	alterDatabase_logfile_clauses(LOAD_PERFORMANCE|DATA_AVAILABILITY)/DATA_AVAILABILITY!drop-1	ALTER DATABASE SET STANDBY NOLOGGING FOR AVAILABILITY
-accept	reject@45	engine	alterDatabase_logfile_clauses(LOAD_PERFORMANCE|DATA_AVAILABILITY)/DATA_AVAILABILITY!drop-2	ALTER DATABASE SET STANDBY NOLOGGING FOR DATA
+reject@45	reject@45	engine	alterDatabase_logfile_clauses(LOAD_PERFORMANCE|DATA_AVAILABILITY)/DATA_AVAILABILITY!drop-2	ALTER DATABASE SET STANDBY NOLOGGING FOR DATA
 reject@59	reject@59	engine	alterDatabase_logfile_clauses(LOAD_PERFORMANCE|DATA_AVAILABILITY)/DATA_AVAILABILITY!insert	ALTER DATABASE SET STANDBY NOLOGGING FOR DATA AVAILABILITY zzz
 reject@41	reject@50	engine	alterDatabase_logfile_clauses(LOAD_PERFORMANCE|DATA_AVAILABILITY)/DATA_AVAILABILITY!swap	ALTER DATABASE SET STANDBY NOLOGGING FOR DATABASE AVAILABILITY
 accept	accept	engine	alterDatabase_logfile_clauses(,_STRING_TO_STRING)*/%empty	ALTER DATABASE RENAME FILE 's' TO 's'
@@ -2869,7 +2869,7 @@ reject@37	reject@37	engine	alterDatabase_logfile_clauses(UNARCHIVED|UNRECOVERABL
 reject@37	reject@37	engine	alterDatabase_logfile_clauses(UNARCHIVED|UNRECOVERABLE_DATAFILE)?/UNARCHIVED!swap	ALTER DATABASE CLEAR LOGFILE GROUP 1 UNBOUNDED
 accept	accept	engine	alterDatabase_logfile_clauses(UNARCHIVED|UNRECOVERABLE_DATAFILE)?/UNRECOVERABLE_DATAFILE	ALTER DATABASE CLEAR LOGFILE GROUP 1 UNRECOVERABLE DATAFILE
 reject@37	reject@37	engine	alterDatabase_logfile_clauses(UNARCHIVED|UNRECOVERABLE_DATAFILE)?/UNRECOVERABLE_DATAFILE!drop-1	ALTER DATABASE CLEAR LOGFILE GROUP 1 DATAFILE
-accept	reject@50	engine	alterDatabase_logfile_clauses(UNARCHIVED|UNRECOVERABLE_DATAFILE)?/UNRECOVERABLE_DATAFILE!drop-2	ALTER DATABASE CLEAR LOGFILE GROUP 1 UNRECOVERABLE
+reject@50	reject@50	engine	alterDatabase_logfile_clauses(UNARCHIVED|UNRECOVERABLE_DATAFILE)?/UNRECOVERABLE_DATAFILE!drop-2	ALTER DATABASE CLEAR LOGFILE GROUP 1 UNRECOVERABLE
 reject@60	reject@60	engine	alterDatabase_logfile_clauses(UNARCHIVED|UNRECOVERABLE_DATAFILE)?/UNRECOVERABLE_DATAFILE!insert	ALTER DATABASE CLEAR LOGFILE GROUP 1 UNRECOVERABLE DATAFILE zzz
 reject@37	reject@37	engine	alterDatabase_logfile_clauses(UNARCHIVED|UNRECOVERABLE_DATAFILE)?/UNRECOVERABLE_DATAFILE!swap	ALTER DATABASE CLEAR LOGFILE GROUP 1 UNTIL DATAFILE
 accept	accept	engine	alterDatabase_controlfile_clauses/(CREATE_(PHYSICAL|LOGICAL)?_STANDBY_C~991eb9a9)	ALTER DATABASE BACKUP CONTROLFILE TO 's'
@@ -2878,7 +2878,7 @@ reject@23	reject@23	engine	alterDatabase_controlfile_clauses(CREATE_(PHYSICAL|LO
 reject@22	reject@22	engine	alterDatabase_controlfile_clauses(CREATE_(PHYSICAL|LOGICAL)?_STANDBY_C~991eb9a9)/CREATE_(PHYSICAL|LOGICAL)?_STANDBY_CONTROLFILE_AS_STRIN~5d96b2e5!drop-2	ALTER DATABASE CREATE CONTROLFILE AS 's'
 reject@30	reject@30	engine	alterDatabase_controlfile_clauses(CREATE_(PHYSICAL|LOGICAL)?_STANDBY_C~991eb9a9)/CREATE_(PHYSICAL|LOGICAL)?_STANDBY_CONTROLFILE_AS_STRIN~5d96b2e5!drop-3	ALTER DATABASE CREATE STANDBY AS 's'
 reject@42	reject@42	engine	alterDatabase_controlfile_clauses(CREATE_(PHYSICAL|LOGICAL)?_STANDBY_C~991eb9a9)/CREATE_(PHYSICAL|LOGICAL)?_STANDBY_CONTROLFILE_AS_STRIN~5d96b2e5!drop-4	ALTER DATABASE CREATE STANDBY CONTROLFILE 's'
-accept	reject@44	engine	alterDatabase_controlfile_clauses(CREATE_(PHYSICAL|LOGICAL)?_STANDBY_C~991eb9a9)/CREATE_(PHYSICAL|LOGICAL)?_STANDBY_CONTROLFILE_AS_STRIN~5d96b2e5!drop-5	ALTER DATABASE CREATE STANDBY CONTROLFILE AS
+reject@44	reject@44	engine	alterDatabase_controlfile_clauses(CREATE_(PHYSICAL|LOGICAL)?_STANDBY_C~991eb9a9)/CREATE_(PHYSICAL|LOGICAL)?_STANDBY_CONTROLFILE_AS_STRIN~5d96b2e5!drop-5	ALTER DATABASE CREATE STANDBY CONTROLFILE AS
 reject@49	reject@49	engine	alterDatabase_controlfile_clauses(CREATE_(PHYSICAL|LOGICAL)?_STANDBY_C~991eb9a9)/CREATE_(PHYSICAL|LOGICAL)?_STANDBY_CONTROLFILE_AS_STRIN~5d96b2e5!insert	ALTER DATABASE CREATE STANDBY CONTROLFILE AS 's' zzz
 reject@32	reject@32	engine	alterDatabase_controlfile_clauses(CREATE_(PHYSICAL|LOGICAL)?_STANDBY_C~991eb9a9)/CREATE_(PHYSICAL|LOGICAL)?_STANDBY_CONTROLFILE_AS_STRIN~5d96b2e5!swap	ALTER DATABASE CREATE_FILE_DEST STANDBY CONTROLFILE AS 's'
 accept	accept	engine	alterDatabase_controlfile_clauses(CREATE_(PHYSICAL|LOGICAL)?_STANDBY_C~991eb9a9)/CREATE_FAR_SYNC_INSTANCE_CONTROLFILE_AS_STRING_(REUSE)?	ALTER DATABASE CREATE FAR SYNC INSTANCE CONTROLFILE AS 's'
@@ -2888,7 +2888,7 @@ reject@26	reject@26	engine	alterDatabase_controlfile_clauses(CREATE_(PHYSICAL|LO
 reject@31	reject@31	engine	alterDatabase_controlfile_clauses(CREATE_(PHYSICAL|LOGICAL)?_STANDBY_C~991eb9a9)/CREATE_FAR_SYNC_INSTANCE_CONTROLFILE_AS_STRING_(REUSE)?!drop-4	ALTER DATABASE CREATE FAR SYNC CONTROLFILE AS 's'
 reject@40	reject@40	engine	alterDatabase_controlfile_clauses(CREATE_(PHYSICAL|LOGICAL)?_STANDBY_C~991eb9a9)/CREATE_FAR_SYNC_INSTANCE_CONTROLFILE_AS_STRING_(REUSE)?!drop-5	ALTER DATABASE CREATE FAR SYNC INSTANCE AS 's'
 reject@52	reject@52	engine	alterDatabase_controlfile_clauses(CREATE_(PHYSICAL|LOGICAL)?_STANDBY_C~991eb9a9)/CREATE_FAR_SYNC_INSTANCE_CONTROLFILE_AS_STRING_(REUSE)?!drop-6	ALTER DATABASE CREATE FAR SYNC INSTANCE CONTROLFILE 's'
-accept	reject@54	engine	alterDatabase_controlfile_clauses(CREATE_(PHYSICAL|LOGICAL)?_STANDBY_C~991eb9a9)/CREATE_FAR_SYNC_INSTANCE_CONTROLFILE_AS_STRING_(REUSE)?!drop-7	ALTER DATABASE CREATE FAR SYNC INSTANCE CONTROLFILE AS
+reject@54	reject@54	engine	alterDatabase_controlfile_clauses(CREATE_(PHYSICAL|LOGICAL)?_STANDBY_C~991eb9a9)/CREATE_FAR_SYNC_INSTANCE_CONTROLFILE_AS_STRING_(REUSE)?!drop-7	ALTER DATABASE CREATE FAR SYNC INSTANCE CONTROLFILE AS
 reject@59	reject@59	engine	alterDatabase_controlfile_clauses(CREATE_(PHYSICAL|LOGICAL)?_STANDBY_C~991eb9a9)/CREATE_FAR_SYNC_INSTANCE_CONTROLFILE_AS_STRING_(REUSE)?!insert	ALTER DATABASE CREATE FAR SYNC INSTANCE CONTROLFILE AS 's' zzz
 reject@32	reject@32	engine	alterDatabase_controlfile_clauses(CREATE_(PHYSICAL|LOGICAL)?_STANDBY_C~991eb9a9)/CREATE_FAR_SYNC_INSTANCE_CONTROLFILE_AS_STRING_(REUSE)?!swap	ALTER DATABASE CREATE_FILE_DEST FAR SYNC INSTANCE CONTROLFILE AS 's'
 accept	accept	engine	alterDatabase_controlfile_clauses(CREATE_(PHYSICAL|LOGICAL)?_STANDBY_C~991eb9a9)/BACKUP_CONTROLFILE_TO_STRING_(REUSE)?	ALTER DATABASE BACKUP CONTROLFILE TO 's'
@@ -2914,7 +2914,7 @@ reject@41	reject@41	engine	alterDatabase_controlfile_clauses(REUSE)?/REUSE!swap	
 accept	accept	engine	alterDatabase_controlfile_clauses(AS_STRING)?/%empty	ALTER DATABASE BACKUP CONTROLFILE TO TRACE
 accept	accept	engine	alterDatabase_controlfile_clauses(AS_STRING)?/AS_STRING	ALTER DATABASE BACKUP CONTROLFILE TO TRACE AS 's'
 reject@43	reject@43	engine	alterDatabase_controlfile_clauses(AS_STRING)?/AS_STRING!drop-1	ALTER DATABASE BACKUP CONTROLFILE TO TRACE 's'
-accept	reject@45	engine	alterDatabase_controlfile_clauses(AS_STRING)?/AS_STRING!drop-2	ALTER DATABASE BACKUP CONTROLFILE TO TRACE AS
+reject@45	reject@45	engine	alterDatabase_controlfile_clauses(AS_STRING)?/AS_STRING!drop-2	ALTER DATABASE BACKUP CONTROLFILE TO TRACE AS
 reject@50	reject@50	engine	alterDatabase_controlfile_clauses(AS_STRING)?/AS_STRING!insert	ALTER DATABASE BACKUP CONTROLFILE TO TRACE AS 's' zzz
 reject@43	reject@43	engine	alterDatabase_controlfile_clauses(AS_STRING)?/AS_STRING!swap	ALTER DATABASE BACKUP CONTROLFILE TO TRACE ASC 's'
 accept	accept	engine	alterDatabase_controlfile_clauses((RESETLOGS|NORESETLOGS))?/%empty	ALTER DATABASE BACKUP CONTROLFILE TO TRACE
@@ -2938,7 +2938,7 @@ reject@19	reject@19	engine	alterDatabase_standby_database_clauses(alterDatabase_
 accept	accept	engine	alterDatabase_standby_database_clauses(alterDatabase_activate_standby_db_cl~279e125b)/alterDatabase_maximize_standby_db_clause!drop-3	ALTER DATABASE SET STANDBY TO MAXIMIZE PROTECTION
 reject@36	reject@36	engine	alterDatabase_standby_database_clauses(alterDatabase_activate_standby_db_cl~279e125b)/alterDatabase_maximize_standby_db_clause!drop-4	ALTER DATABASE SET STANDBY DATABASE MAXIMIZE PROTECTION
 reject@39	reject@39	engine	alterDatabase_standby_database_clauses(alterDatabase_activate_standby_db_cl~279e125b)/alterDatabase_maximize_standby_db_clause!drop-5	ALTER DATABASE SET STANDBY DATABASE TO PROTECTION
-accept	reject@47	engine	alterDatabase_standby_database_clauses(alterDatabase_activate_standby_db_cl~279e125b)/alterDatabase_maximize_standby_db_clause!drop-6	ALTER DATABASE SET STANDBY DATABASE TO MAXIMIZE
+reject@47	reject@47	engine	alterDatabase_standby_database_clauses(alterDatabase_activate_standby_db_cl~279e125b)/alterDatabase_maximize_standby_db_clause!drop-6	ALTER DATABASE SET STANDBY DATABASE TO MAXIMIZE
 reject@59	reject@59	engine	alterDatabase_standby_database_clauses(alterDatabase_activate_standby_db_cl~279e125b)/alterDatabase_maximize_standby_db_clause!insert	ALTER DATABASE SET STANDBY DATABASE TO MAXIMIZE PROTECTION zzz
 reject@20	reject@20	engine	alterDatabase_standby_database_clauses(alterDatabase_activate_standby_db_cl~279e125b)/alterDatabase_maximize_standby_db_clause!swap	ALTER DATABASE SETS STANDBY DATABASE TO MAXIMIZE PROTECTION
 accept	accept	engine	alterDatabase_standby_database_clauses(alterDatabase_activate_standby_db_cl~279e125b)/alterDatabase_register_logfile_clause	ALTER DATABASE REGISTER LOGFILE
@@ -2994,20 +2994,20 @@ reject@33	reject@33	engine	alterDatabase_default_settings_clauses(DEFAULT_EDITIO
 accept	accept	engine	alterDatabase_default_settings_clauses(DEFAULT_EDITION_=_ID|DEFAULT_TABLESP~f9a0464d)/DEFAULT_TABLESPACE_ID	ALTER DATABASE DEFAULT TABLESPACE a
 reject@26	reject@26	engine	alterDatabase_default_settings_clauses(DEFAULT_EDITION_=_ID|DEFAULT_TABLESP~f9a0464d)/DEFAULT_TABLESPACE_ID!drop-1	ALTER DATABASE TABLESPACE a
 reject@23	reject@23	engine	alterDatabase_default_settings_clauses(DEFAULT_EDITION_=_ID|DEFAULT_TABLESP~f9a0464d)/DEFAULT_TABLESPACE_ID!drop-2	ALTER DATABASE DEFAULT a
-accept	reject@33	engine	alterDatabase_default_settings_clauses(DEFAULT_EDITION_=_ID|DEFAULT_TABLESP~f9a0464d)/DEFAULT_TABLESPACE_ID!drop-3	ALTER DATABASE DEFAULT TABLESPACE
+reject@33	reject@33	engine	alterDatabase_default_settings_clauses(DEFAULT_EDITION_=_ID|DEFAULT_TABLESP~f9a0464d)/DEFAULT_TABLESPACE_ID!drop-3	ALTER DATABASE DEFAULT TABLESPACE
 reject@36	reject@36	engine	alterDatabase_default_settings_clauses(DEFAULT_EDITION_=_ID|DEFAULT_TABLESP~f9a0464d)/DEFAULT_TABLESPACE_ID!insert	ALTER DATABASE DEFAULT TABLESPACE a zzz
 reject@33	reject@33	engine	alterDatabase_default_settings_clauses(DEFAULT_EDITION_=_ID|DEFAULT_TABLESP~f9a0464d)/DEFAULT_TABLESPACE_ID!swap	ALTER DATABASE DEFAULT_COLLATION TABLESPACE a
 accept	accept	engine	alterDatabase_default_settings_clauses(DEFAULT_EDITION_=_ID|DEFAULT_TABLESP~f9a0464d)/DEFAULT_(LOCAL)?_TEMPORARY_TABLESPACE_ID	ALTER DATABASE DEFAULT TEMPORARY TABLESPACE a
 reject@25	reject@25	engine	alterDatabase_default_settings_clauses(DEFAULT_EDITION_=_ID|DEFAULT_TABLESP~f9a0464d)/DEFAULT_(LOCAL)?_TEMPORARY_TABLESPACE_ID!drop-1	ALTER DATABASE TEMPORARY TABLESPACE a
 reject@33	reject@33	engine	alterDatabase_default_settings_clauses(DEFAULT_EDITION_=_ID|DEFAULT_TABLESP~f9a0464d)/DEFAULT_(LOCAL)?_TEMPORARY_TABLESPACE_ID!drop-3	ALTER DATABASE DEFAULT TEMPORARY a
-accept	reject@43	engine	alterDatabase_default_settings_clauses(DEFAULT_EDITION_=_ID|DEFAULT_TABLESP~f9a0464d)/DEFAULT_(LOCAL)?_TEMPORARY_TABLESPACE_ID!drop-4	ALTER DATABASE DEFAULT TEMPORARY TABLESPACE
+reject@43	reject@43	engine	alterDatabase_default_settings_clauses(DEFAULT_EDITION_=_ID|DEFAULT_TABLESP~f9a0464d)/DEFAULT_(LOCAL)?_TEMPORARY_TABLESPACE_ID!drop-4	ALTER DATABASE DEFAULT TEMPORARY TABLESPACE
 reject@46	reject@46	engine	alterDatabase_default_settings_clauses(DEFAULT_EDITION_=_ID|DEFAULT_TABLESP~f9a0464d)/DEFAULT_(LOCAL)?_TEMPORARY_TABLESPACE_ID!insert	ALTER DATABASE DEFAULT TEMPORARY TABLESPACE a zzz
 reject@33	reject@33	engine	alterDatabase_default_settings_clauses(DEFAULT_EDITION_=_ID|DEFAULT_TABLESP~f9a0464d)/DEFAULT_(LOCAL)?_TEMPORARY_TABLESPACE_ID!swap	ALTER DATABASE DEFAULT_COLLATION TEMPORARY TABLESPACE a
 accept	accept	engine	alterDatabase_default_settings_clauses(DEFAULT_EDITION_=_ID|DEFAULT_TABLESP~f9a0464d)/SET_DEFAULT_(BIGFILE|SMALLFILE)_TABLESPACE	ALTER DATABASE SET DEFAULT BIGFILE TABLESPACE
 reject@23	reject@23	engine	alterDatabase_default_settings_clauses(DEFAULT_EDITION_=_ID|DEFAULT_TABLESP~f9a0464d)/SET_DEFAULT_(BIGFILE|SMALLFILE)_TABLESPACE!drop-1	ALTER DATABASE DEFAULT BIGFILE TABLESPACE
 reject@19	reject@19	engine	alterDatabase_default_settings_clauses(DEFAULT_EDITION_=_ID|DEFAULT_TABLESP~f9a0464d)/SET_DEFAULT_(BIGFILE|SMALLFILE)_TABLESPACE!drop-2	ALTER DATABASE SET BIGFILE TABLESPACE
 reject@27	reject@27	engine	alterDatabase_default_settings_clauses(DEFAULT_EDITION_=_ID|DEFAULT_TABLESP~f9a0464d)/SET_DEFAULT_(BIGFILE|SMALLFILE)_TABLESPACE!drop-3	ALTER DATABASE SET DEFAULT TABLESPACE
-accept	reject@34	engine	alterDatabase_default_settings_clauses(DEFAULT_EDITION_=_ID|DEFAULT_TABLESP~f9a0464d)/SET_DEFAULT_(BIGFILE|SMALLFILE)_TABLESPACE!drop-4	ALTER DATABASE SET DEFAULT BIGFILE
+reject@34	reject@34	engine	alterDatabase_default_settings_clauses(DEFAULT_EDITION_=_ID|DEFAULT_TABLESP~f9a0464d)/SET_DEFAULT_(BIGFILE|SMALLFILE)_TABLESPACE!drop-4	ALTER DATABASE SET DEFAULT BIGFILE
 reject@46	reject@46	engine	alterDatabase_default_settings_clauses(DEFAULT_EDITION_=_ID|DEFAULT_TABLESP~f9a0464d)/SET_DEFAULT_(BIGFILE|SMALLFILE)_TABLESPACE!insert	ALTER DATABASE SET DEFAULT BIGFILE TABLESPACE zzz
 reject@28	reject@28	engine	alterDatabase_default_settings_clauses(DEFAULT_EDITION_=_ID|DEFAULT_TABLESP~f9a0464d)/SET_DEFAULT_(BIGFILE|SMALLFILE)_TABLESPACE!swap	ALTER DATABASE SETS DEFAULT BIGFILE TABLESPACE
 accept	accept	engine	alterDatabase_default_settings_clauses(DEFAULT_EDITION_=_ID|DEFAULT_TABLESP~f9a0464d)/alterDatabase_flashback_mode_clause	ALTER DATABASE FLASHBACK ON
@@ -3029,11 +3029,11 @@ reject@20	reject@20	engine	alterDatabase_default_settings_clauses(DEFAULT_EDITIO
 accept	accept	engine	alterDatabase_default_settings_clauses(LOCAL)?/%empty	ALTER DATABASE DEFAULT TEMPORARY TABLESPACE a
 reject@23	reject@23	engine	alterDatabase_default_settings_clauses(LOCAL)?/%empty!insert	ALTER DATABASE DEFAULT zzz TEMPORARY TABLESPACE a
 accept	accept	engine	alterDatabase_default_settings_clauses(LOCAL)?/LOCAL	ALTER DATABASE DEFAULT LOCAL TEMPORARY TABLESPACE a
-accept	reject@22	engine	alterDatabase_default_settings_clauses(LOCAL)?/LOCAL!truncate	ALTER DATABASE DEFAULT
+reject@22	reject@22	engine	alterDatabase_default_settings_clauses(LOCAL)?/LOCAL!truncate	ALTER DATABASE DEFAULT
 reject@29	reject@29	engine	alterDatabase_default_settings_clauses(LOCAL)?/LOCAL!insert	ALTER DATABASE DEFAULT LOCAL zzz TEMPORARY TABLESPACE a
 reject@23	reject@23	engine	alterDatabase_default_settings_clauses(LOCAL)?/LOCAL!swap	ALTER DATABASE DEFAULT LOCATION TEMPORARY TABLESPACE a
 accept	accept	engine	alterDatabase_default_settings_clauses(BIGFILE|SMALLFILE)/BIGFILE	ALTER DATABASE SET DEFAULT BIGFILE TABLESPACE
-accept	reject@26	engine	alterDatabase_default_settings_clauses(BIGFILE|SMALLFILE)/BIGFILE!truncate	ALTER DATABASE SET DEFAULT
+reject@26	reject@26	engine	alterDatabase_default_settings_clauses(BIGFILE|SMALLFILE)/BIGFILE!truncate	ALTER DATABASE SET DEFAULT
 reject@35	reject@35	engine	alterDatabase_default_settings_clauses(BIGFILE|SMALLFILE)/BIGFILE!insert	ALTER DATABASE SET DEFAULT BIGFILE zzz TABLESPACE
 reject@27	reject@27	engine	alterDatabase_default_settings_clauses(BIGFILE|SMALLFILE)/BIGFILE!swap	ALTER DATABASE SET DEFAULT BINARY TABLESPACE
 accept	accept	engine	alterDatabase_default_settings_clauses(BIGFILE|SMALLFILE)/SMALLFILE	ALTER DATABASE SET DEFAULT SMALLFILE TABLESPACE
@@ -3057,7 +3057,7 @@ accept	accept	engine	alterDatabase_security_clause(alterDatabase_prepare_clause|
 reject@20	reject@20	engine	alterDatabase_security_clause(alterDatabase_prepare_clause|alterDa~025789c9)/alterDatabase_lost_write_protection!drop-1	ALTER DATABASE LOST WRITE PROTECTION
 reject@22	reject@22	engine	alterDatabase_security_clause(alterDatabase_prepare_clause|alterDa~025789c9)/alterDatabase_lost_write_protection!drop-2	ALTER DATABASE ENABLE WRITE PROTECTION
 reject@27	reject@27	engine	alterDatabase_security_clause(alterDatabase_prepare_clause|alterDa~025789c9)/alterDatabase_lost_write_protection!drop-3	ALTER DATABASE ENABLE LOST PROTECTION
-accept	reject@32	engine	alterDatabase_security_clause(alterDatabase_prepare_clause|alterDa~025789c9)/alterDatabase_lost_write_protection!drop-4	ALTER DATABASE ENABLE LOST WRITE
+reject@32	reject@32	engine	alterDatabase_security_clause(alterDatabase_prepare_clause|alterDa~025789c9)/alterDatabase_lost_write_protection!drop-4	ALTER DATABASE ENABLE LOST WRITE
 reject@44	reject@44	engine	alterDatabase_security_clause(alterDatabase_prepare_clause|alterDa~025789c9)/alterDatabase_lost_write_protection!insert	ALTER DATABASE ENABLE LOST WRITE PROTECTION zzz
 reject@26	reject@26	engine	alterDatabase_security_clause(alterDatabase_prepare_clause|alterDa~025789c9)/alterDatabase_lost_write_protection!swap	ALTER DATABASE ENABLE_ALL LOST WRITE PROTECTION
 reject@28	reject@28	engine	alterDatabase_cdb_fleet_clauses/(alterDatabase_lead_cdb_clause|alterD~9b31f229)	ALTER DATABASE SET LEAD_CDB a
@@ -3091,11 +3091,11 @@ reject@23	reject@0	engine	alterDatabase_general_recovery(AUTOMATIC|FROM_STRING)?
 accept	accept	engine	alterDatabase_general_recovery(AUTOMATIC|FROM_STRING)?/FROM_STRING	ALTER DATABASE RECOVER FROM 's' DATABASE
 reject@23	reject@0	engine	alterDatabase_general_recovery(AUTOMATIC|FROM_STRING)?/FROM_STRING!drop-1	ALTER DATABASE RECOVER 's' DATABASE
 reject@28	reject@28	engine	alterDatabase_general_recovery(AUTOMATIC|FROM_STRING)?/FROM_STRING!drop-2	ALTER DATABASE RECOVER FROM DATABASE
-accept	reject@27	engine	alterDatabase_general_recovery(AUTOMATIC|FROM_STRING)?/FROM_STRING!truncate	ALTER DATABASE RECOVER FROM
+reject@27	reject@27	engine	alterDatabase_general_recovery(AUTOMATIC|FROM_STRING)?/FROM_STRING!truncate	ALTER DATABASE RECOVER FROM
 reject@32	reject@0	engine	alterDatabase_general_recovery(AUTOMATIC|FROM_STRING)?/FROM_STRING!insert	ALTER DATABASE RECOVER FROM 's' zzz DATABASE
 reject@23	reject@0	engine	alterDatabase_general_recovery(AUTOMATIC|FROM_STRING)?/FROM_STRING!swap	ALTER DATABASE RECOVER FTP 's' DATABASE
 accept	accept	engine	alterDatabase_general_recovery(alterDatabase_full_database_recovery~0bf87c56)/alterDatabase_full_database_recovery	ALTER DATABASE RECOVER DATABASE
-accept	reject@31	engine	alterDatabase_general_recovery(alterDatabase_full_database_recovery~0bf87c56)/alterDatabase_full_database_recovery!swap	ALTER DATABASE RECOVER DATAFILE
+reject@31	reject@31	engine	alterDatabase_general_recovery(alterDatabase_full_database_recovery~0bf87c56)/alterDatabase_full_database_recovery!swap	ALTER DATABASE RECOVER DATAFILE
 accept	accept	engine	alterDatabase_general_recovery(alterDatabase_full_database_recovery~0bf87c56)/alterDatabase_partial_database_recovery	ALTER DATABASE RECOVER TABLESPACE a
 reject@23	reject@0	engine	alterDatabase_general_recovery(alterDatabase_full_database_recovery~0bf87c56)/alterDatabase_partial_database_recovery!drop-1	ALTER DATABASE RECOVER a
 reject@33	reject@33	engine	alterDatabase_general_recovery(alterDatabase_full_database_recovery~0bf87c56)/alterDatabase_partial_database_recovery!drop-2	ALTER DATABASE RECOVER TABLESPACE
@@ -3275,12 +3275,12 @@ reject@39	reject@39	engine	alterDatabase_autoextend_clause(OFF|ON_(NEXT_alterDat
 accept	accept	engine	alterDatabase_autoextend_clause(NEXT_alterDatabase_size_clause)?/%empty	ALTER DATABASE DATAFILE 's' AUTOEXTEND ON
 accept	accept	engine	alterDatabase_autoextend_clause(NEXT_alterDatabase_size_clause)?/NEXT_alterDatabase_size_clause	ALTER DATABASE DATAFILE 's' AUTOEXTEND ON NEXT 1
 reject@42	reject@42	engine	alterDatabase_autoextend_clause(NEXT_alterDatabase_size_clause)?/NEXT_alterDatabase_size_clause!drop-1	ALTER DATABASE DATAFILE 's' AUTOEXTEND ON 1
-accept	reject@46	engine	alterDatabase_autoextend_clause(NEXT_alterDatabase_size_clause)?/NEXT_alterDatabase_size_clause!drop-2	ALTER DATABASE DATAFILE 's' AUTOEXTEND ON NEXT
+reject@46	reject@46	engine	alterDatabase_autoextend_clause(NEXT_alterDatabase_size_clause)?/NEXT_alterDatabase_size_clause!drop-2	ALTER DATABASE DATAFILE 's' AUTOEXTEND ON NEXT
 reject@49	reject@49	engine	alterDatabase_autoextend_clause(NEXT_alterDatabase_size_clause)?/NEXT_alterDatabase_size_clause!insert	ALTER DATABASE DATAFILE 's' AUTOEXTEND ON NEXT 1 zzz
 reject@42	reject@42	engine	alterDatabase_autoextend_clause(NEXT_alterDatabase_size_clause)?/NEXT_alterDatabase_size_clause!swap	ALTER DATABASE DATAFILE 's' AUTOEXTEND ON NO 1
 accept	accept	engine	alterDatabase_autoextend_clause(alterDatabase_maxsize_clause)?/%empty	ALTER DATABASE DATAFILE 's' AUTOEXTEND ON
 accept	accept	engine	alterDatabase_autoextend_clause(alterDatabase_maxsize_clause)?/alterDatabase_maxsize_clause	ALTER DATABASE DATAFILE 's' AUTOEXTEND ON MAXSIZE 1
-accept	reject@49	engine	alterDatabase_autoextend_clause(alterDatabase_maxsize_clause)?/alterDatabase_maxsize_clause!drop-2	ALTER DATABASE DATAFILE 's' AUTOEXTEND ON MAXSIZE
+reject@49	reject@49	engine	alterDatabase_autoextend_clause(alterDatabase_maxsize_clause)?/alterDatabase_maxsize_clause!drop-2	ALTER DATABASE DATAFILE 's' AUTOEXTEND ON MAXSIZE
 reject@52	reject@52	engine	alterDatabase_autoextend_clause(alterDatabase_maxsize_clause)?/alterDatabase_maxsize_clause!insert	ALTER DATABASE DATAFILE 's' AUTOEXTEND ON MAXSIZE 1 zzz
 reject@42	reject@42	engine	alterDatabase_autoextend_clause(alterDatabase_maxsize_clause)?/alterDatabase_maxsize_clause!swap	ALTER DATABASE DATAFILE 's' AUTOEXTEND ON MAXTRANS 1
 accept	accept	engine	alterDatabase_logfile_descriptor/(GROUP_NUMBER|(_STRING_(,_STRING)*_))	ALTER DATABASE CLEAR LOGFILE GROUP 1
@@ -3307,34 +3307,34 @@ reject@31	reject@31	engine	alterDatabase_add_logfile_clauses(ADD_STANDBY?_LOGFIL
 reject@34	reject@34	engine	alterDatabase_add_logfile_clauses(ADD_STANDBY?_LOGFILE_(INSTANCE_STRIN~86e4bd34)/ADD_LOGFILE_MEMBER_(STANDBY)?_STRING_(,_STRING)*_TO_alt~7f9be7b8!drop-4	ALTER DATABASE ADD LOGFILE MEMBER TO GROUP 1
 reject@38	reject@38	engine	alterDatabase_add_logfile_clauses(ADD_STANDBY?_LOGFILE_(INSTANCE_STRIN~86e4bd34)/ADD_LOGFILE_MEMBER_(STANDBY)?_STRING_(,_STRING)*_TO_alt~7f9be7b8!drop-5	ALTER DATABASE ADD LOGFILE MEMBER 's' GROUP 1
 reject@41	reject@41	engine	alterDatabase_add_logfile_clauses(ADD_STANDBY?_LOGFILE_(INSTANCE_STRIN~86e4bd34)/ADD_LOGFILE_MEMBER_(STANDBY)?_STRING_(,_STRING)*_TO_alt~7f9be7b8!drop-6	ALTER DATABASE ADD LOGFILE MEMBER 's' TO 1
-accept	reject@46	engine	alterDatabase_add_logfile_clauses(ADD_STANDBY?_LOGFILE_(INSTANCE_STRIN~86e4bd34)/ADD_LOGFILE_MEMBER_(STANDBY)?_STRING_(,_STRING)*_TO_alt~7f9be7b8!drop-7	ALTER DATABASE ADD LOGFILE MEMBER 's' TO GROUP
+reject@46	reject@46	engine	alterDatabase_add_logfile_clauses(ADD_STANDBY?_LOGFILE_(INSTANCE_STRIN~86e4bd34)/ADD_LOGFILE_MEMBER_(STANDBY)?_STRING_(,_STRING)*_TO_alt~7f9be7b8!drop-7	ALTER DATABASE ADD LOGFILE MEMBER 's' TO GROUP
 reject@49	reject@49	engine	alterDatabase_add_logfile_clauses(ADD_STANDBY?_LOGFILE_(INSTANCE_STRIN~86e4bd34)/ADD_LOGFILE_MEMBER_(STANDBY)?_STRING_(,_STRING)*_TO_alt~7f9be7b8!insert	ALTER DATABASE ADD LOGFILE MEMBER 's' TO GROUP 1 zzz
 reject@21	reject@21	engine	alterDatabase_add_logfile_clauses(ADD_STANDBY?_LOGFILE_(INSTANCE_STRIN~86e4bd34)/ADD_LOGFILE_MEMBER_(STANDBY)?_STRING_(,_STRING)*_TO_alt~7f9be7b8!swap	ALTER DATABASE ADMIN LOGFILE MEMBER 's' TO GROUP 1
 accept	accept	engine	alterDatabase_add_logfile_clauses(STANDBY)?/%empty	ALTER DATABASE ADD LOGFILE 's'
 reject@19	reject@19	engine	alterDatabase_add_logfile_clauses(STANDBY)?/%empty!insert	ALTER DATABASE ADD zzz LOGFILE 's'
 accept	accept	engine	alterDatabase_add_logfile_clauses(STANDBY)?/STANDBY	ALTER DATABASE ADD STANDBY LOGFILE 's'
-accept	reject@18	engine	alterDatabase_add_logfile_clauses(STANDBY)?/STANDBY!truncate	ALTER DATABASE ADD
+reject@18	reject@18	engine	alterDatabase_add_logfile_clauses(STANDBY)?/STANDBY!truncate	ALTER DATABASE ADD
 reject@27	reject@27	engine	alterDatabase_add_logfile_clauses(STANDBY)?/STANDBY!insert	ALTER DATABASE ADD STANDBY zzz LOGFILE 's'
 reject@19	reject@19	engine	alterDatabase_add_logfile_clauses(STANDBY)?/STANDBY!swap	ALTER DATABASE ADD STANDBYS LOGFILE 's'
 accept	accept	engine	alterDatabase_add_logfile_clauses(INSTANCE_STRING)?/%empty	ALTER DATABASE ADD LOGFILE 's'
 reject@27	reject@27	engine	alterDatabase_add_logfile_clauses(INSTANCE_STRING)?/%empty!insert	ALTER DATABASE ADD LOGFILE zzz 's'
 accept	accept	engine	alterDatabase_add_logfile_clauses(INSTANCE_STRING)?/INSTANCE_STRING	ALTER DATABASE ADD LOGFILE INSTANCE 's' 's'
 reject@31	reject@31	engine	alterDatabase_add_logfile_clauses(INSTANCE_STRING)?/INSTANCE_STRING!drop-1	ALTER DATABASE ADD LOGFILE 's' 's'
-accept	reject@39	engine	alterDatabase_add_logfile_clauses(INSTANCE_STRING)?/INSTANCE_STRING!drop-2	ALTER DATABASE ADD LOGFILE INSTANCE 's'
-accept	reject@35	engine	alterDatabase_add_logfile_clauses(INSTANCE_STRING)?/INSTANCE_STRING!truncate	ALTER DATABASE ADD LOGFILE INSTANCE
+reject@39	reject@39	engine	alterDatabase_add_logfile_clauses(INSTANCE_STRING)?/INSTANCE_STRING!drop-2	ALTER DATABASE ADD LOGFILE INSTANCE 's'
+reject@35	reject@35	engine	alterDatabase_add_logfile_clauses(INSTANCE_STRING)?/INSTANCE_STRING!truncate	ALTER DATABASE ADD LOGFILE INSTANCE
 reject@40	reject@40	engine	alterDatabase_add_logfile_clauses(INSTANCE_STRING)?/INSTANCE_STRING!insert	ALTER DATABASE ADD LOGFILE INSTANCE 's' zzz 's'
 reject@27	reject@27	engine	alterDatabase_add_logfile_clauses(INSTANCE_STRING)?/INSTANCE_STRING!swap	ALTER DATABASE ADD LOGFILE INSTANCES 's' 's'
 accept	accept	engine	alterDatabase_add_logfile_clauses(THREAD_NUMBER)?/%empty	ALTER DATABASE ADD LOGFILE 's'
 accept	accept	engine	alterDatabase_add_logfile_clauses(THREAD_NUMBER)?/THREAD_NUMBER	ALTER DATABASE ADD LOGFILE THREAD 1 's'
 reject@27	reject@27	engine	alterDatabase_add_logfile_clauses(THREAD_NUMBER)?/THREAD_NUMBER!drop-1	ALTER DATABASE ADD LOGFILE 1 's'
 reject@34	reject@34	engine	alterDatabase_add_logfile_clauses(THREAD_NUMBER)?/THREAD_NUMBER!drop-2	ALTER DATABASE ADD LOGFILE THREAD 's'
-accept	reject@33	engine	alterDatabase_add_logfile_clauses(THREAD_NUMBER)?/THREAD_NUMBER!truncate	ALTER DATABASE ADD LOGFILE THREAD
+reject@33	reject@33	engine	alterDatabase_add_logfile_clauses(THREAD_NUMBER)?/THREAD_NUMBER!truncate	ALTER DATABASE ADD LOGFILE THREAD
 reject@36	reject@36	engine	alterDatabase_add_logfile_clauses(THREAD_NUMBER)?/THREAD_NUMBER!insert	ALTER DATABASE ADD LOGFILE THREAD 1 zzz 's'
 reject@27	reject@27	engine	alterDatabase_add_logfile_clauses(THREAD_NUMBER)?/THREAD_NUMBER!swap	ALTER DATABASE ADD LOGFILE THROUGH 1 's'
 accept	accept	engine	alterDatabase_add_logfile_clauses(GROUP_NUMBER)?/%empty	ALTER DATABASE ADD LOGFILE 's'
 accept	accept	engine	alterDatabase_add_logfile_clauses(GROUP_NUMBER)?/GROUP_NUMBER	ALTER DATABASE ADD LOGFILE GROUP 1 's'
 reject@33	reject@33	engine	alterDatabase_add_logfile_clauses(GROUP_NUMBER)?/GROUP_NUMBER!drop-2	ALTER DATABASE ADD LOGFILE GROUP 's'
-accept	reject@32	engine	alterDatabase_add_logfile_clauses(GROUP_NUMBER)?/GROUP_NUMBER!truncate	ALTER DATABASE ADD LOGFILE GROUP
+reject@32	reject@32	engine	alterDatabase_add_logfile_clauses(GROUP_NUMBER)?/GROUP_NUMBER!truncate	ALTER DATABASE ADD LOGFILE GROUP
 reject@35	reject@35	engine	alterDatabase_add_logfile_clauses(GROUP_NUMBER)?/GROUP_NUMBER!insert	ALTER DATABASE ADD LOGFILE GROUP 1 zzz 's'
 reject@27	reject@27	engine	alterDatabase_add_logfile_clauses(GROUP_NUMBER)?/GROUP_NUMBER!swap	ALTER DATABASE ADD LOGFILE GROUPING 1 's'
 accept	accept	engine	alterDatabase_add_logfile_clauses(,_STRING)*/%empty	ALTER DATABASE ADD LOGFILE 's'
@@ -3347,7 +3347,7 @@ accept	accept	engine	alterDatabase_drop_logfile_clauses(DROP_LOGFILE_alterDataba
 reject@23	reject@23	engine	alterDatabase_drop_logfile_clauses(DROP_LOGFILE_alterDatabase_logfile_d~e7b02d94)/DROP_LOGFILE_MEMBER_STRING_(,_STRING)*!drop-1	ALTER DATABASE LOGFILE MEMBER 's'
 reject@20	reject@20	engine	alterDatabase_drop_logfile_clauses(DROP_LOGFILE_alterDatabase_logfile_d~e7b02d94)/DROP_LOGFILE_MEMBER_STRING_(,_STRING)*!drop-2	ALTER DATABASE DROP MEMBER 's'
 accept	accept	engine	alterDatabase_drop_logfile_clauses(DROP_LOGFILE_alterDatabase_logfile_d~e7b02d94)/DROP_LOGFILE_MEMBER_STRING_(,_STRING)*!drop-3	ALTER DATABASE DROP LOGFILE 's'
-accept	reject@34	engine	alterDatabase_drop_logfile_clauses(DROP_LOGFILE_alterDatabase_logfile_d~e7b02d94)/DROP_LOGFILE_MEMBER_STRING_(,_STRING)*!drop-4	ALTER DATABASE DROP LOGFILE MEMBER
+reject@34	reject@34	engine	alterDatabase_drop_logfile_clauses(DROP_LOGFILE_alterDatabase_logfile_d~e7b02d94)/DROP_LOGFILE_MEMBER_STRING_(,_STRING)*!drop-4	ALTER DATABASE DROP LOGFILE MEMBER
 reject@39	reject@39	engine	alterDatabase_drop_logfile_clauses(DROP_LOGFILE_alterDatabase_logfile_d~e7b02d94)/DROP_LOGFILE_MEMBER_STRING_(,_STRING)*!insert	ALTER DATABASE DROP LOGFILE MEMBER 's' zzz
 reject@23	reject@23	engine	alterDatabase_drop_logfile_clauses(DROP_LOGFILE_alterDatabase_logfile_d~e7b02d94)/DROP_LOGFILE_MEMBER_STRING_(,_STRING)*!swap	ALTER DATABASE DUALITY LOGFILE MEMBER 's'
 accept	accept	engine	alterDatabase_drop_logfile_clauses(,_STRING)*/%empty	ALTER DATABASE DROP LOGFILE MEMBER 's'
@@ -3515,7 +3515,7 @@ accept	accept	engine	alterDatabase_start_standby_clause(INITIAL)?/INITIAL	ALTER 
 reject@51	reject@0	engine	alterDatabase_start_standby_clause(INITIAL)?/INITIAL!insert	ALTER DATABASE START LOGICAL STANDBY APPLY INITIAL zzz
 reject@43	reject@43	engine	alterDatabase_start_standby_clause(INITIAL)?/INITIAL!swap	ALTER DATABASE START LOGICAL STANDBY APPLY INITIALIZED
 accept	accept	engine	alterDatabase_start_standby_clause(NEW_PRIMARY)?/%empty	ALTER DATABASE START LOGICAL STANDBY APPLY
-accept	reject@54	engine	alterDatabase_start_standby_clause(NEW_PRIMARY)?/NEW_PRIMARY	ALTER DATABASE START LOGICAL STANDBY APPLY NEW PRIMARY
+reject@54	reject@54	engine	alterDatabase_start_standby_clause(NEW_PRIMARY)?/NEW_PRIMARY	ALTER DATABASE START LOGICAL STANDBY APPLY NEW PRIMARY
 reject@43	reject@43	engine	alterDatabase_start_standby_clause(NEW_PRIMARY)?/NEW_PRIMARY!drop-1	ALTER DATABASE START LOGICAL STANDBY APPLY PRIMARY
 reject@46	reject@46	engine	alterDatabase_start_standby_clause(NEW_PRIMARY)?/NEW_PRIMARY!drop-2	ALTER DATABASE START LOGICAL STANDBY APPLY NEW
 accept	accept	engine	alterDatabase_start_standby_clause(NEW_PRIMARY)?/NEW_PRIMARY!insert	ALTER DATABASE START LOGICAL STANDBY APPLY NEW PRIMARY zzz
@@ -3608,7 +3608,7 @@ accept	accept	engine	alterDatabase_lost_write_protection(ENABLE_LOST_WRITE_PROTE
 accept	accept	engine	alterDatabase_lost_write_protection(ENABLE_LOST_WRITE_PROTECTION|DISABLE~b860b371)/DISABLE_LOST_WRITE_PROTECTION	ALTER DATABASE DISABLE LOST WRITE PROTECTION
 reject@23	reject@23	engine	alterDatabase_lost_write_protection(ENABLE_LOST_WRITE_PROTECTION|DISABLE~b860b371)/DISABLE_LOST_WRITE_PROTECTION!drop-2	ALTER DATABASE DISABLE WRITE PROTECTION
 reject@28	reject@28	engine	alterDatabase_lost_write_protection(ENABLE_LOST_WRITE_PROTECTION|DISABLE~b860b371)/DISABLE_LOST_WRITE_PROTECTION!drop-3	ALTER DATABASE DISABLE LOST PROTECTION
-accept	reject@33	engine	alterDatabase_lost_write_protection(ENABLE_LOST_WRITE_PROTECTION|DISABLE~b860b371)/DISABLE_LOST_WRITE_PROTECTION!drop-4	ALTER DATABASE DISABLE LOST WRITE
+reject@33	reject@33	engine	alterDatabase_lost_write_protection(ENABLE_LOST_WRITE_PROTECTION|DISABLE~b860b371)/DISABLE_LOST_WRITE_PROTECTION!drop-4	ALTER DATABASE DISABLE LOST WRITE
 reject@45	reject@45	engine	alterDatabase_lost_write_protection(ENABLE_LOST_WRITE_PROTECTION|DISABLE~b860b371)/DISABLE_LOST_WRITE_PROTECTION!insert	ALTER DATABASE DISABLE LOST WRITE PROTECTION zzz
 reject@27	reject@27	engine	alterDatabase_lost_write_protection(ENABLE_LOST_WRITE_PROTECTION|DISABLE~b860b371)/DISABLE_LOST_WRITE_PROTECTION!swap	ALTER DATABASE DISABLE_ALL LOST WRITE PROTECTION
 reject@28	reject@28	engine	alterDatabase_lead_cdb_clause/SET_LEAD_CDB_(=)?_(ID|NONE)	ALTER DATABASE SET LEAD_CDB a
@@ -3876,7 +3876,7 @@ accept	accept	engine	alterDiskgroup/ALTER_DISKGROUP_ID_(alterDiskgroup_add_disk_
 accept	accept	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_add_disk_clause	ALTER DISKGROUP a ADD DISK 's'
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_add_disk_clause!drop-1	ALTER DISKGROUP a DISK 's'
 reject@22	reject@22	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_add_disk_clause!drop-2	ALTER DISKGROUP a ADD 's'
-accept	reject@26	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_add_disk_clause!drop-3	ALTER DISKGROUP a ADD DISK
+reject@26	reject@26	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_add_disk_clause!drop-3	ALTER DISKGROUP a ADD DISK
 reject@31	reject@31	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_add_disk_clause!insert	ALTER DISKGROUP a ADD DISK 's' zzz
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_add_disk_clause!swap	ALTER DISKGROUP a ADMIN DISK 's'
 accept	accept	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_drop_disk_clause	ALTER DISKGROUP a DROP DISK a
@@ -3896,7 +3896,7 @@ reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0
 reject@26	reject@26	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_replace_disk_clause!drop-2	ALTER DISKGROUP a REPLACE a WITH 's'
 reject@31	reject@36	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_replace_disk_clause!drop-3	ALTER DISKGROUP a REPLACE DISK WITH 's'
 reject@33	reject@33	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_replace_disk_clause!drop-4	ALTER DISKGROUP a REPLACE DISK a 's'
-accept	reject@37	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_replace_disk_clause!drop-5	ALTER DISKGROUP a REPLACE DISK a WITH
+reject@37	reject@37	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_replace_disk_clause!drop-5	ALTER DISKGROUP a REPLACE DISK a WITH
 reject@42	reject@42	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_replace_disk_clause!insert	ALTER DISKGROUP a REPLACE DISK a WITH 's' zzz
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_replace_disk_clause!swap	ALTER DISKGROUP a REPLAY DISK a WITH 's'
 accept	accept	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_rename_disk_clause	ALTER DISKGROUP a RENAME DISKS ALL
@@ -3922,18 +3922,18 @@ reject@24	reject@24	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_check_diskgroup_clause!swap	ALTER DISKGROUP a CHECKPOINT
 accept	accept	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_diskgroup_template_clauses	ALTER DISKGROUP a DROP TEMPLATE a
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_diskgroup_template_clauses!drop-1	ALTER DISKGROUP a TEMPLATE a
-accept	reject@31	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_diskgroup_template_clauses!drop-3	ALTER DISKGROUP a DROP TEMPLATE
+reject@31	reject@31	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_diskgroup_template_clauses!drop-3	ALTER DISKGROUP a DROP TEMPLATE
 reject@34	reject@34	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_diskgroup_template_clauses!insert	ALTER DISKGROUP a DROP TEMPLATE a zzz
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_diskgroup_template_clauses!swap	ALTER DISKGROUP a DUALITY TEMPLATE a
 accept	accept	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_diskgroup_directory_clauses	ALTER DISKGROUP a ADD DIRECTORY 's'
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_diskgroup_directory_clauses!drop-1	ALTER DISKGROUP a DIRECTORY 's'
-accept	reject@31	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_diskgroup_directory_clauses!drop-3	ALTER DISKGROUP a ADD DIRECTORY
+reject@31	reject@31	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_diskgroup_directory_clauses!drop-3	ALTER DISKGROUP a ADD DIRECTORY
 reject@36	reject@36	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_diskgroup_directory_clauses!insert	ALTER DISKGROUP a ADD DIRECTORY 's' zzz
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_diskgroup_directory_clauses!swap	ALTER DISKGROUP a ADMIN DIRECTORY 's'
 accept	accept	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_diskgroup_alias_clauses	ALTER DISKGROUP a DROP ALIAS 's'
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_diskgroup_alias_clauses!drop-1	ALTER DISKGROUP a ALIAS 's'
 reject@23	reject@23	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_diskgroup_alias_clauses!drop-2	ALTER DISKGROUP a DROP 's'
-accept	reject@28	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_diskgroup_alias_clauses!drop-3	ALTER DISKGROUP a DROP ALIAS
+reject@28	reject@28	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_diskgroup_alias_clauses!drop-3	ALTER DISKGROUP a DROP ALIAS
 reject@33	reject@33	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_diskgroup_alias_clauses!insert	ALTER DISKGROUP a DROP ALIAS 's' zzz
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_diskgroup_alias_clauses!swap	ALTER DISKGROUP a DUALITY ALIAS 's'
 reject@33	reject@33	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_diskgroup_volume_clauses	ALTER DISKGROUP a MODIFY VOLUME a
@@ -3953,11 +3953,11 @@ reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0
 reject@33	reject@33	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_modify_diskgroup_file	ALTER DISKGROUP a MODIFY FILE 's'
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_modify_diskgroup_file!drop-1	ALTER DISKGROUP a FILE 's'
 reject@25	reject@25	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_modify_diskgroup_file!drop-2	ALTER DISKGROUP a MODIFY 's'
-accept	reject@29	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_modify_diskgroup_file!drop-3	ALTER DISKGROUP a MODIFY FILE
+reject@29	reject@29	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_modify_diskgroup_file!drop-3	ALTER DISKGROUP a MODIFY FILE
 reject@34	reject@34	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_modify_diskgroup_file!insert	ALTER DISKGROUP a MODIFY FILE 's' zzz
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_modify_diskgroup_file!swap	ALTER DISKGROUP a MODULE FILE 's'
 accept	accept	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_drop_diskgroup_file_clause	ALTER DISKGROUP a DROP FILE 's'
-accept	reject@27	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_drop_diskgroup_file_clause!drop-3	ALTER DISKGROUP a DROP FILE
+reject@27	reject@27	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_drop_diskgroup_file_clause!drop-3	ALTER DISKGROUP a DROP FILE
 reject@32	reject@32	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_drop_diskgroup_file_clause!insert	ALTER DISKGROUP a DROP FILE 's' zzz
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_drop_diskgroup_file_clause!swap	ALTER DISKGROUP a DUALITY FILE 's'
 reject@36	reject@36	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_convert_redundancy_clause	ALTER DISKGROUP a CONVERT REDUNDANCY
@@ -3968,12 +3968,12 @@ reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0
 reject@32	reject@32	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_usergroup_clauses	ALTER DISKGROUP a ADD USERGROUP a
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_usergroup_clauses!drop-1	ALTER DISKGROUP a USERGROUP a
 reject@22	reject@22	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_usergroup_clauses!drop-2	ALTER DISKGROUP a ADD a
-accept	reject@31	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_usergroup_clauses!drop-3	ALTER DISKGROUP a ADD USERGROUP
+reject@31	reject@31	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_usergroup_clauses!drop-3	ALTER DISKGROUP a ADD USERGROUP
 reject@32	reject@32	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_usergroup_clauses!insert	ALTER DISKGROUP a ADD USERGROUP a zzz
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_usergroup_clauses!swap	ALTER DISKGROUP a ADMIN USERGROUP a
 reject@27	reject@27	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_user_clauses	ALTER DISKGROUP a ADD USER a
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_user_clauses!drop-1	ALTER DISKGROUP a USER a
-accept	reject@26	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_user_clauses!drop-3	ALTER DISKGROUP a ADD USER
+reject@26	reject@26	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_user_clauses!drop-3	ALTER DISKGROUP a ADD USER
 reject@27	reject@27	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_user_clauses!insert	ALTER DISKGROUP a ADD USER a zzz
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_user_clauses!swap	ALTER DISKGROUP a ADMIN USER a
 reject@33	reject@33	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_file_permissions_clause	ALTER DISKGROUP a SET PERMISSION 's'
@@ -3998,7 +3998,7 @@ reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0
 reject@32	reject@32	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_quotagroup_clauses!drop-3	ALTER DISKGROUP a ADD QUOTAGROUP
 reject@35	reject@35	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_quotagroup_clauses!insert	ALTER DISKGROUP a ADD QUOTAGROUP a zzz
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_quotagroup_clauses!swap	ALTER DISKGROUP a ADMIN QUOTAGROUP a
-accept	reject@33	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_filegroup_clauses	ALTER DISKGROUP a ADD FILEGROUP a
+reject@33	reject@33	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_filegroup_clauses	ALTER DISKGROUP a ADD FILEGROUP a
 reject@18	reject@18	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_filegroup_clauses!drop-1	ALTER DISKGROUP a FILEGROUP a
 reject@31	reject@31	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_filegroup_clauses!drop-3	ALTER DISKGROUP a ADD FILEGROUP
 reject@34	reject@34	engine	alterDiskgroup(alterDiskgroup_add_disk_clause|alter~0675756e)/alterDiskgroup_filegroup_clauses!insert	ALTER DISKGROUP a ADD FILEGROUP a zzz
@@ -4029,7 +4029,7 @@ reject@18	reject@18	engine	alterDiskgroup_drop_disk_clause/DROP_DISKS_IN_FAILGRO
 reject@23	reject@23	engine	alterDiskgroup_drop_disk_clause/DROP_DISKS_IN_FAILGROUP_ID_(FORCE|NOFORCE)?_(alterDiskg~31d4683d!drop-2	ALTER DISKGROUP a DROP IN FAILGROUP a
 reject@29	reject@29	engine	alterDiskgroup_drop_disk_clause/DROP_DISKS_IN_FAILGROUP_ID_(FORCE|NOFORCE)?_(alterDiskg~31d4683d!drop-3	ALTER DISKGROUP a DROP DISKS FAILGROUP a
 reject@32	reject@32	engine	alterDiskgroup_drop_disk_clause/DROP_DISKS_IN_FAILGROUP_ID_(FORCE|NOFORCE)?_(alterDiskg~31d4683d!drop-4	ALTER DISKGROUP a DROP DISKS IN a
-accept	reject@41	engine	alterDiskgroup_drop_disk_clause/DROP_DISKS_IN_FAILGROUP_ID_(FORCE|NOFORCE)?_(alterDiskg~31d4683d!drop-5	ALTER DISKGROUP a DROP DISKS IN FAILGROUP
+reject@41	reject@41	engine	alterDiskgroup_drop_disk_clause/DROP_DISKS_IN_FAILGROUP_ID_(FORCE|NOFORCE)?_(alterDiskg~31d4683d!drop-5	ALTER DISKGROUP a DROP DISKS IN FAILGROUP
 reject@44	reject@44	engine	alterDiskgroup_drop_disk_clause/DROP_DISKS_IN_FAILGROUP_ID_(FORCE|NOFORCE)?_(alterDiskg~31d4683d!insert	ALTER DISKGROUP a DROP DISKS IN FAILGROUP a zzz
 reject@18	reject@18	engine	alterDiskgroup_drop_disk_clause/DROP_DISKS_IN_FAILGROUP_ID_(FORCE|NOFORCE)?_(alterDiskg~31d4683d!swap	ALTER DISKGROUP a DUALITY DISKS IN FAILGROUP a
 accept	accept	engine	alterDiskgroup_drop_disk_clause(,_ID)*/%empty	ALTER DISKGROUP a DROP DISK a
@@ -4060,7 +4060,7 @@ reject@42	reject@42	engine	alterDiskgroup_replace_disk_clause(FORCE|NOFORCE)?/NO
 accept	accept	engine	alterDiskgroup_replace_disk_clause(POWER_NUMBER|POWER_LIMIT_NUMBER)?/%empty	ALTER DISKGROUP a REPLACE DISK a WITH 's'
 accept	accept	engine	alterDiskgroup_replace_disk_clause(POWER_NUMBER|POWER_LIMIT_NUMBER)?/POWER_NUMBER	ALTER DISKGROUP a REPLACE DISK a WITH 's' POWER 1
 reject@42	reject@42	engine	alterDiskgroup_replace_disk_clause(POWER_NUMBER|POWER_LIMIT_NUMBER)?/POWER_NUMBER!drop-1	ALTER DISKGROUP a REPLACE DISK a WITH 's' 1
-accept	reject@47	engine	alterDiskgroup_replace_disk_clause(POWER_NUMBER|POWER_LIMIT_NUMBER)?/POWER_NUMBER!drop-2	ALTER DISKGROUP a REPLACE DISK a WITH 's' POWER
+reject@47	reject@47	engine	alterDiskgroup_replace_disk_clause(POWER_NUMBER|POWER_LIMIT_NUMBER)?/POWER_NUMBER!drop-2	ALTER DISKGROUP a REPLACE DISK a WITH 's' POWER
 reject@50	reject@50	engine	alterDiskgroup_replace_disk_clause(POWER_NUMBER|POWER_LIMIT_NUMBER)?/POWER_NUMBER!insert	ALTER DISKGROUP a REPLACE DISK a WITH 's' POWER 1 zzz
 reject@42	reject@42	engine	alterDiskgroup_replace_disk_clause(POWER_NUMBER|POWER_LIMIT_NUMBER)?/POWER_NUMBER!swap	ALTER DISKGROUP a REPLACE DISK a WITH 's' PREBUILT 1
 reject@48	reject@48	engine	alterDiskgroup_replace_disk_clause(POWER_NUMBER|POWER_LIMIT_NUMBER)?/POWER_LIMIT_NUMBER	ALTER DISKGROUP a REPLACE DISK a WITH 's' POWER LIMIT 1
@@ -4101,7 +4101,7 @@ accept	accept	engine	alterDiskgroup_disk_online_clause/ONLINE_DISKS_IN_FAILGROUP
 reject@25	reject@25	engine	alterDiskgroup_disk_online_clause/ONLINE_DISKS_IN_FAILGROUP_ID_(POWER_NUMBER)?_(WAIT|NOWAIT)?!drop-2	ALTER DISKGROUP a ONLINE IN FAILGROUP a
 reject@31	reject@31	engine	alterDiskgroup_disk_online_clause/ONLINE_DISKS_IN_FAILGROUP_ID_(POWER_NUMBER)?_(WAIT|NOWAIT)?!drop-3	ALTER DISKGROUP a ONLINE DISKS FAILGROUP a
 reject@34	reject@34	engine	alterDiskgroup_disk_online_clause/ONLINE_DISKS_IN_FAILGROUP_ID_(POWER_NUMBER)?_(WAIT|NOWAIT)?!drop-4	ALTER DISKGROUP a ONLINE DISKS IN a
-accept	reject@43	engine	alterDiskgroup_disk_online_clause/ONLINE_DISKS_IN_FAILGROUP_ID_(POWER_NUMBER)?_(WAIT|NOWAIT)?!drop-5	ALTER DISKGROUP a ONLINE DISKS IN FAILGROUP
+reject@43	reject@43	engine	alterDiskgroup_disk_online_clause/ONLINE_DISKS_IN_FAILGROUP_ID_(POWER_NUMBER)?_(WAIT|NOWAIT)?!drop-5	ALTER DISKGROUP a ONLINE DISKS IN FAILGROUP
 reject@46	reject@46	engine	alterDiskgroup_disk_online_clause/ONLINE_DISKS_IN_FAILGROUP_ID_(POWER_NUMBER)?_(WAIT|NOWAIT)?!insert	ALTER DISKGROUP a ONLINE DISKS IN FAILGROUP a zzz
 reject@18	reject@18	engine	alterDiskgroup_disk_online_clause/ONLINE_DISKS_IN_FAILGROUP_ID_(POWER_NUMBER)?_(WAIT|NOWAIT)?!swap	ALTER DISKGROUP a ONLY DISKS IN FAILGROUP a
 accept	accept	engine	alterDiskgroup_disk_online_clause/ONLINE_ALL_(POWER_NUMBER)?_(WAIT|NOWAIT)?	ALTER DISKGROUP a ONLINE ALL
@@ -4113,7 +4113,7 @@ reject@35	reject@35	engine	alterDiskgroup_disk_online_clause(,_ID)*/,_ID_(,_ID)*
 accept	accept	engine	alterDiskgroup_disk_online_clause(POWER_NUMBER)?/%empty	ALTER DISKGROUP a ONLINE ALL
 accept	accept	engine	alterDiskgroup_disk_online_clause(POWER_NUMBER)?/POWER_NUMBER	ALTER DISKGROUP a ONLINE ALL POWER 1
 reject@29	reject@29	engine	alterDiskgroup_disk_online_clause(POWER_NUMBER)?/POWER_NUMBER!drop-1	ALTER DISKGROUP a ONLINE ALL 1
-accept	reject@34	engine	alterDiskgroup_disk_online_clause(POWER_NUMBER)?/POWER_NUMBER!drop-2	ALTER DISKGROUP a ONLINE ALL POWER
+reject@34	reject@34	engine	alterDiskgroup_disk_online_clause(POWER_NUMBER)?/POWER_NUMBER!drop-2	ALTER DISKGROUP a ONLINE ALL POWER
 reject@37	reject@37	engine	alterDiskgroup_disk_online_clause(POWER_NUMBER)?/POWER_NUMBER!insert	ALTER DISKGROUP a ONLINE ALL POWER 1 zzz
 reject@29	reject@29	engine	alterDiskgroup_disk_online_clause(POWER_NUMBER)?/POWER_NUMBER!swap	ALTER DISKGROUP a ONLINE ALL PREBUILT 1
 accept	accept	engine	alterDiskgroup_disk_online_clause(WAIT|NOWAIT)?/%empty	ALTER DISKGROUP a ONLINE ALL
@@ -4128,7 +4128,7 @@ accept	accept	engine	alterDiskgroup_disk_offline_clause/OFFLINE_DISKS_IN_FAILGRO
 reject@26	reject@26	engine	alterDiskgroup_disk_offline_clause/OFFLINE_DISKS_IN_FAILGROUP_ID_(alterDiskgroup_timeout_c~dfc2226d!drop-2	ALTER DISKGROUP a OFFLINE IN FAILGROUP a
 reject@32	reject@32	engine	alterDiskgroup_disk_offline_clause/OFFLINE_DISKS_IN_FAILGROUP_ID_(alterDiskgroup_timeout_c~dfc2226d!drop-3	ALTER DISKGROUP a OFFLINE DISKS FAILGROUP a
 reject@35	reject@35	engine	alterDiskgroup_disk_offline_clause/OFFLINE_DISKS_IN_FAILGROUP_ID_(alterDiskgroup_timeout_c~dfc2226d!drop-4	ALTER DISKGROUP a OFFLINE DISKS IN a
-accept	reject@44	engine	alterDiskgroup_disk_offline_clause/OFFLINE_DISKS_IN_FAILGROUP_ID_(alterDiskgroup_timeout_c~dfc2226d!drop-5	ALTER DISKGROUP a OFFLINE DISKS IN FAILGROUP
+reject@44	reject@44	engine	alterDiskgroup_disk_offline_clause/OFFLINE_DISKS_IN_FAILGROUP_ID_(alterDiskgroup_timeout_c~dfc2226d!drop-5	ALTER DISKGROUP a OFFLINE DISKS IN FAILGROUP
 reject@47	reject@47	engine	alterDiskgroup_disk_offline_clause/OFFLINE_DISKS_IN_FAILGROUP_ID_(alterDiskgroup_timeout_c~dfc2226d!insert	ALTER DISKGROUP a OFFLINE DISKS IN FAILGROUP a zzz
 reject@18	reject@18	engine	alterDiskgroup_disk_offline_clause/OFFLINE_DISKS_IN_FAILGROUP_ID_(alterDiskgroup_timeout_c~dfc2226d!swap	ALTER DISKGROUP a OFFSET DISKS IN FAILGROUP a
 accept	accept	engine	alterDiskgroup_disk_offline_clause(,_ID)*/%empty	ALTER DISKGROUP a OFFLINE DISK a
@@ -4161,49 +4161,49 @@ accept	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(WITH_(RESTORE|BAL
 accept	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(WITH_(RESTORE|BALANCE|PREPARE|COMPAC~1225d4d6)*/WITH_(RESTORE|BALANCE|PREPARE|COMPACT)_(,_(RESTORE|BALA~95d59893	ALTER DISKGROUP a REBALANCE WITH RESTORE
 reject@28	reject@28	engine	alterDiskgroup_rebalance_diskgroup_clause(WITH_(RESTORE|BALANCE|PREPARE|COMPAC~1225d4d6)*/WITH_(RESTORE|BALANCE|PREPARE|COMPACT)_(,_(RESTORE|BALA~95d59893!drop-1	ALTER DISKGROUP a REBALANCE RESTORE
 reject@32	reject@32	engine	alterDiskgroup_rebalance_diskgroup_clause(WITH_(RESTORE|BALANCE|PREPARE|COMPAC~1225d4d6)*/WITH_(RESTORE|BALANCE|PREPARE|COMPACT)_(,_(RESTORE|BALA~95d59893!drop-2	ALTER DISKGROUP a REBALANCE WITH
-reject@41	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(WITH_(RESTORE|BALANCE|PREPARE|COMPAC~1225d4d6)*/WITH_(RESTORE|BALANCE|PREPARE|COMPACT)_(,_(RESTORE|BALA~95d59893!insert	ALTER DISKGROUP a REBALANCE WITH RESTORE zzz
-reject@36	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(WITH_(RESTORE|BALANCE|PREPARE|COMPAC~1225d4d6)*/WITH_(RESTORE|BALANCE|PREPARE|COMPACT)_(,_(RESTORE|BALA~95d59893!swap	ALTER DISKGROUP a REBALANCE WITHOUT RESTORE
+accept	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(WITH_(RESTORE|BALANCE|PREPARE|COMPAC~1225d4d6)*/WITH_(RESTORE|BALANCE|PREPARE|COMPACT)_(,_(RESTORE|BALA~95d59893!insert	ALTER DISKGROUP a REBALANCE WITH RESTORE zzz
+accept	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(WITH_(RESTORE|BALANCE|PREPARE|COMPAC~1225d4d6)*/WITH_(RESTORE|BALANCE|PREPARE|COMPACT)_(,_(RESTORE|BALA~95d59893!swap	ALTER DISKGROUP a REBALANCE WITHOUT RESTORE
 accept	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(RESTORE|BALANCE|PREPARE|COMPACT)/RESTORE	ALTER DISKGROUP a REBALANCE WITH RESTORE
-reject@33	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(RESTORE|BALANCE|PREPARE|COMPACT)/RESTORE!swap	ALTER DISKGROUP a REBALANCE WITH RESTRICTED
+accept	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(RESTORE|BALANCE|PREPARE|COMPACT)/RESTORE!swap	ALTER DISKGROUP a REBALANCE WITH RESTRICTED
 accept	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(RESTORE|BALANCE|PREPARE|COMPACT)/BALANCE	ALTER DISKGROUP a REBALANCE WITH BALANCE
-reject@41	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(RESTORE|BALANCE|PREPARE|COMPACT)/BALANCE!insert	ALTER DISKGROUP a REBALANCE WITH BALANCE zzz
-reject@33	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(RESTORE|BALANCE|PREPARE|COMPACT)/BALANCE!swap	ALTER DISKGROUP a REBALANCE WITH BASIC
+accept	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(RESTORE|BALANCE|PREPARE|COMPACT)/BALANCE!insert	ALTER DISKGROUP a REBALANCE WITH BALANCE zzz
+accept	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(RESTORE|BALANCE|PREPARE|COMPACT)/BALANCE!swap	ALTER DISKGROUP a REBALANCE WITH BASIC
 accept	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(RESTORE|BALANCE|PREPARE|COMPACT)/PREPARE	ALTER DISKGROUP a REBALANCE WITH PREPARE
-reject@41	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(RESTORE|BALANCE|PREPARE|COMPACT)/PREPARE!insert	ALTER DISKGROUP a REBALANCE WITH PREPARE zzz
-reject@33	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(RESTORE|BALANCE|PREPARE|COMPACT)/PREPARE!swap	ALTER DISKGROUP a REBALANCE WITH PRESERVE
+accept	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(RESTORE|BALANCE|PREPARE|COMPACT)/PREPARE!insert	ALTER DISKGROUP a REBALANCE WITH PREPARE zzz
+accept	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(RESTORE|BALANCE|PREPARE|COMPACT)/PREPARE!swap	ALTER DISKGROUP a REBALANCE WITH PRESERVE
 accept	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(RESTORE|BALANCE|PREPARE|COMPACT)/COMPACT	ALTER DISKGROUP a REBALANCE WITH COMPACT
-reject@41	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(RESTORE|BALANCE|PREPARE|COMPACT)/COMPACT!insert	ALTER DISKGROUP a REBALANCE WITH COMPACT zzz
-reject@33	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(RESTORE|BALANCE|PREPARE|COMPACT)/COMPACT!swap	ALTER DISKGROUP a REBALANCE WITH COMPATIBILITY
+accept	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(RESTORE|BALANCE|PREPARE|COMPACT)/COMPACT!insert	ALTER DISKGROUP a REBALANCE WITH COMPACT zzz
+accept	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(RESTORE|BALANCE|PREPARE|COMPACT)/COMPACT!swap	ALTER DISKGROUP a REBALANCE WITH COMPATIBILITY
 accept	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(,_(RESTORE|BALANCE|PREPARE|COMPACT))?/%empty	ALTER DISKGROUP a REBALANCE WITH RESTORE
 accept	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(,_(RESTORE|BALANCE|PREPARE|COMPACT))?/,_(RESTORE|BALANCE|PREPARE|COMPACT)	ALTER DISKGROUP a REBALANCE WITH RESTORE, RESTORE
 accept	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(,_(RESTORE|BALANCE|PREPARE|COMPACT))?/,_(RESTORE|BALANCE|PREPARE|COMPACT)!drop-1	ALTER DISKGROUP a REBALANCE WITH RESTORE RESTORE
 reject@41	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(,_(RESTORE|BALANCE|PREPARE|COMPACT))?/,_(RESTORE|BALANCE|PREPARE|COMPACT)!drop-2	ALTER DISKGROUP a REBALANCE WITH RESTORE,
-reject@50	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(,_(RESTORE|BALANCE|PREPARE|COMPACT))?/,_(RESTORE|BALANCE|PREPARE|COMPACT)!insert	ALTER DISKGROUP a REBALANCE WITH RESTORE, RESTORE zzz
-reject@42	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(,_(RESTORE|BALANCE|PREPARE|COMPACT))?/,_(RESTORE|BALANCE|PREPARE|COMPACT)!swap	ALTER DISKGROUP a REBALANCE WITH RESTORE, RESTRICTED
+accept	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(,_(RESTORE|BALANCE|PREPARE|COMPACT))?/,_(RESTORE|BALANCE|PREPARE|COMPACT)!insert	ALTER DISKGROUP a REBALANCE WITH RESTORE, RESTORE zzz
+accept	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(,_(RESTORE|BALANCE|PREPARE|COMPACT))?/,_(RESTORE|BALANCE|PREPARE|COMPACT)!swap	ALTER DISKGROUP a REBALANCE WITH RESTORE, RESTRICTED
 accept	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(WITHOUT_(BALANCE|PREPARE|COMPACT)_(,~ea809762)*/%empty	ALTER DISKGROUP a REBALANCE
 accept	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(WITHOUT_(BALANCE|PREPARE|COMPACT)_(,~ea809762)*/WITHOUT_(BALANCE|PREPARE|COMPACT)_(,_(BALANCE|PREPARE|C~6ba1e831	ALTER DISKGROUP a REBALANCE WITHOUT BALANCE
 reject@28	reject@28	engine	alterDiskgroup_rebalance_diskgroup_clause(WITHOUT_(BALANCE|PREPARE|COMPACT)_(,~ea809762)*/WITHOUT_(BALANCE|PREPARE|COMPACT)_(,_(BALANCE|PREPARE|C~6ba1e831!drop-1	ALTER DISKGROUP a REBALANCE BALANCE
 reject@35	reject@35	engine	alterDiskgroup_rebalance_diskgroup_clause(WITHOUT_(BALANCE|PREPARE|COMPACT)_(,~ea809762)*/WITHOUT_(BALANCE|PREPARE|COMPACT)_(,_(BALANCE|PREPARE|C~6ba1e831!drop-2	ALTER DISKGROUP a REBALANCE WITHOUT
-reject@44	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(WITHOUT_(BALANCE|PREPARE|COMPACT)_(,~ea809762)*/WITHOUT_(BALANCE|PREPARE|COMPACT)_(,_(BALANCE|PREPARE|C~6ba1e831!insert	ALTER DISKGROUP a REBALANCE WITHOUT BALANCE zzz
+accept	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(WITHOUT_(BALANCE|PREPARE|COMPACT)_(,~ea809762)*/WITHOUT_(BALANCE|PREPARE|COMPACT)_(,_(BALANCE|PREPARE|C~6ba1e831!insert	ALTER DISKGROUP a REBALANCE WITHOUT BALANCE zzz
 reject@28	reject@28	engine	alterDiskgroup_rebalance_diskgroup_clause(WITHOUT_(BALANCE|PREPARE|COMPACT)_(,~ea809762)*/WITHOUT_(BALANCE|PREPARE|COMPACT)_(,_(BALANCE|PREPARE|C~6ba1e831!swap	ALTER DISKGROUP a REBALANCE WORK BALANCE
 accept	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(BALANCE|PREPARE|COMPACT)/BALANCE	ALTER DISKGROUP a REBALANCE WITHOUT BALANCE
-reject@36	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(BALANCE|PREPARE|COMPACT)/BALANCE!swap	ALTER DISKGROUP a REBALANCE WITHOUT BASIC
+accept	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(BALANCE|PREPARE|COMPACT)/BALANCE!swap	ALTER DISKGROUP a REBALANCE WITHOUT BASIC
 accept	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(BALANCE|PREPARE|COMPACT)/PREPARE	ALTER DISKGROUP a REBALANCE WITHOUT PREPARE
-reject@44	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(BALANCE|PREPARE|COMPACT)/PREPARE!insert	ALTER DISKGROUP a REBALANCE WITHOUT PREPARE zzz
-reject@36	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(BALANCE|PREPARE|COMPACT)/PREPARE!swap	ALTER DISKGROUP a REBALANCE WITHOUT PRESERVE
+accept	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(BALANCE|PREPARE|COMPACT)/PREPARE!insert	ALTER DISKGROUP a REBALANCE WITHOUT PREPARE zzz
+accept	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(BALANCE|PREPARE|COMPACT)/PREPARE!swap	ALTER DISKGROUP a REBALANCE WITHOUT PRESERVE
 accept	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(BALANCE|PREPARE|COMPACT)/COMPACT	ALTER DISKGROUP a REBALANCE WITHOUT COMPACT
-reject@44	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(BALANCE|PREPARE|COMPACT)/COMPACT!insert	ALTER DISKGROUP a REBALANCE WITHOUT COMPACT zzz
-reject@36	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(BALANCE|PREPARE|COMPACT)/COMPACT!swap	ALTER DISKGROUP a REBALANCE WITHOUT COMPATIBILITY
+accept	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(BALANCE|PREPARE|COMPACT)/COMPACT!insert	ALTER DISKGROUP a REBALANCE WITHOUT COMPACT zzz
+accept	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(BALANCE|PREPARE|COMPACT)/COMPACT!swap	ALTER DISKGROUP a REBALANCE WITHOUT COMPATIBILITY
 accept	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(,_(BALANCE|PREPARE|COMPACT))?/%empty	ALTER DISKGROUP a REBALANCE WITHOUT BALANCE
 accept	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(,_(BALANCE|PREPARE|COMPACT))?/,_(BALANCE|PREPARE|COMPACT)	ALTER DISKGROUP a REBALANCE WITHOUT BALANCE, BALANCE
 accept	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(,_(BALANCE|PREPARE|COMPACT))?/,_(BALANCE|PREPARE|COMPACT)!drop-1	ALTER DISKGROUP a REBALANCE WITHOUT BALANCE BALANCE
 reject@44	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(,_(BALANCE|PREPARE|COMPACT))?/,_(BALANCE|PREPARE|COMPACT)!drop-2	ALTER DISKGROUP a REBALANCE WITHOUT BALANCE,
-reject@53	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(,_(BALANCE|PREPARE|COMPACT))?/,_(BALANCE|PREPARE|COMPACT)!insert	ALTER DISKGROUP a REBALANCE WITHOUT BALANCE, BALANCE zzz
-reject@45	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(,_(BALANCE|PREPARE|COMPACT))?/,_(BALANCE|PREPARE|COMPACT)!swap	ALTER DISKGROUP a REBALANCE WITHOUT BALANCE, BASIC
+accept	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(,_(BALANCE|PREPARE|COMPACT))?/,_(BALANCE|PREPARE|COMPACT)!insert	ALTER DISKGROUP a REBALANCE WITHOUT BALANCE, BALANCE zzz
+accept	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(,_(BALANCE|PREPARE|COMPACT))?/,_(BALANCE|PREPARE|COMPACT)!swap	ALTER DISKGROUP a REBALANCE WITHOUT BALANCE, BASIC
 accept	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(POWER_NUMBER)?/%empty	ALTER DISKGROUP a REBALANCE
 accept	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(POWER_NUMBER)?/POWER_NUMBER	ALTER DISKGROUP a REBALANCE POWER 1
 reject@28	reject@28	engine	alterDiskgroup_rebalance_diskgroup_clause(POWER_NUMBER)?/POWER_NUMBER!drop-1	ALTER DISKGROUP a REBALANCE 1
-accept	reject@33	engine	alterDiskgroup_rebalance_diskgroup_clause(POWER_NUMBER)?/POWER_NUMBER!drop-2	ALTER DISKGROUP a REBALANCE POWER
+reject@33	reject@33	engine	alterDiskgroup_rebalance_diskgroup_clause(POWER_NUMBER)?/POWER_NUMBER!drop-2	ALTER DISKGROUP a REBALANCE POWER
 reject@36	reject@36	engine	alterDiskgroup_rebalance_diskgroup_clause(POWER_NUMBER)?/POWER_NUMBER!insert	ALTER DISKGROUP a REBALANCE POWER 1 zzz
 reject@28	reject@28	engine	alterDiskgroup_rebalance_diskgroup_clause(POWER_NUMBER)?/POWER_NUMBER!swap	ALTER DISKGROUP a REBALANCE PREBUILT 1
 accept	accept	engine	alterDiskgroup_rebalance_diskgroup_clause(WAIT|NOWAIT)?/%empty	ALTER DISKGROUP a REBALANCE
@@ -4279,7 +4279,7 @@ reject@18	reject@18	engine	alterDiskgroup_diskgroup_template_clauses/ALTER_TEMPL
 accept	accept	engine	alterDiskgroup_diskgroup_template_clauses/DROP_TEMPLATE_ID	ALTER DISKGROUP a DROP TEMPLATE a
 accept	accept	engine	alterDiskgroup_diskgroup_directory_clauses/ADD_DIRECTORY_STRING	ALTER DISKGROUP a ADD DIRECTORY 's'
 accept	accept	engine	alterDiskgroup_diskgroup_directory_clauses/DROP_DIRECTORY_STRING_(FORCE)?	ALTER DISKGROUP a DROP DIRECTORY 's'
-accept	reject@32	engine	alterDiskgroup_diskgroup_directory_clauses/DROP_DIRECTORY_STRING_(FORCE)?!drop-3	ALTER DISKGROUP a DROP DIRECTORY
+reject@32	reject@32	engine	alterDiskgroup_diskgroup_directory_clauses/DROP_DIRECTORY_STRING_(FORCE)?!drop-3	ALTER DISKGROUP a DROP DIRECTORY
 reject@37	reject@37	engine	alterDiskgroup_diskgroup_directory_clauses/DROP_DIRECTORY_STRING_(FORCE)?!insert	ALTER DISKGROUP a DROP DIRECTORY 's' zzz
 reject@18	reject@18	engine	alterDiskgroup_diskgroup_directory_clauses/DROP_DIRECTORY_STRING_(FORCE)?!swap	ALTER DISKGROUP a DUALITY DIRECTORY 's'
 accept	accept	engine	alterDiskgroup_diskgroup_directory_clauses/RENAME_DIRECTORY_STRING_TO_STRING	ALTER DISKGROUP a RENAME DIRECTORY 's' TO 's'
@@ -4287,7 +4287,7 @@ reject@18	reject@18	engine	alterDiskgroup_diskgroup_directory_clauses/RENAME_DIR
 reject@25	reject@25	engine	alterDiskgroup_diskgroup_directory_clauses/RENAME_DIRECTORY_STRING_TO_STRING!drop-2	ALTER DISKGROUP a RENAME 's' TO 's'
 reject@35	reject@35	engine	alterDiskgroup_diskgroup_directory_clauses/RENAME_DIRECTORY_STRING_TO_STRING!drop-3	ALTER DISKGROUP a RENAME DIRECTORY TO 's'
 reject@39	reject@39	engine	alterDiskgroup_diskgroup_directory_clauses/RENAME_DIRECTORY_STRING_TO_STRING!drop-4	ALTER DISKGROUP a RENAME DIRECTORY 's' 's'
-accept	reject@41	engine	alterDiskgroup_diskgroup_directory_clauses/RENAME_DIRECTORY_STRING_TO_STRING!drop-5	ALTER DISKGROUP a RENAME DIRECTORY 's' TO
+reject@41	reject@41	engine	alterDiskgroup_diskgroup_directory_clauses/RENAME_DIRECTORY_STRING_TO_STRING!drop-5	ALTER DISKGROUP a RENAME DIRECTORY 's' TO
 reject@46	reject@46	engine	alterDiskgroup_diskgroup_directory_clauses/RENAME_DIRECTORY_STRING_TO_STRING!insert	ALTER DISKGROUP a RENAME DIRECTORY 's' TO 's' zzz
 reject@18	reject@25	engine	alterDiskgroup_diskgroup_directory_clauses/RENAME_DIRECTORY_STRING_TO_STRING!swap	ALTER DISKGROUP a REPAIR DIRECTORY 's' TO 's'
 accept	accept	engine	alterDiskgroup_diskgroup_directory_clauses(FORCE)?/%empty	ALTER DISKGROUP a DROP DIRECTORY 's'
@@ -4299,7 +4299,7 @@ reject@18	reject@18	engine	alterDiskgroup_diskgroup_alias_clauses/ADD_ALIAS_STRI
 reject@22	reject@22	engine	alterDiskgroup_diskgroup_alias_clauses/ADD_ALIAS_STRING_FOR_STRING!drop-2	ALTER DISKGROUP a ADD 's' FOR 's'
 reject@28	reject@28	engine	alterDiskgroup_diskgroup_alias_clauses/ADD_ALIAS_STRING_FOR_STRING!drop-3	ALTER DISKGROUP a ADD ALIAS FOR 's'
 reject@32	reject@32	engine	alterDiskgroup_diskgroup_alias_clauses/ADD_ALIAS_STRING_FOR_STRING!drop-4	ALTER DISKGROUP a ADD ALIAS 's' 's'
-accept	reject@35	engine	alterDiskgroup_diskgroup_alias_clauses/ADD_ALIAS_STRING_FOR_STRING!drop-5	ALTER DISKGROUP a ADD ALIAS 's' FOR
+reject@35	reject@35	engine	alterDiskgroup_diskgroup_alias_clauses/ADD_ALIAS_STRING_FOR_STRING!drop-5	ALTER DISKGROUP a ADD ALIAS 's' FOR
 reject@40	reject@40	engine	alterDiskgroup_diskgroup_alias_clauses/ADD_ALIAS_STRING_FOR_STRING!insert	ALTER DISKGROUP a ADD ALIAS 's' FOR 's' zzz
 reject@18	reject@18	engine	alterDiskgroup_diskgroup_alias_clauses/ADD_ALIAS_STRING_FOR_STRING!swap	ALTER DISKGROUP a ADMIN ALIAS 's' FOR 's'
 accept	accept	engine	alterDiskgroup_diskgroup_alias_clauses/DROP_ALIAS_STRING	ALTER DISKGROUP a DROP ALIAS 's'
@@ -4307,7 +4307,7 @@ accept	accept	engine	alterDiskgroup_diskgroup_alias_clauses/RENAME_ALIAS_STRING_
 reject@18	reject@18	engine	alterDiskgroup_diskgroup_alias_clauses/RENAME_ALIAS_STRING_TO_STRING!drop-1	ALTER DISKGROUP a ALIAS 's' TO 's'
 reject@31	reject@31	engine	alterDiskgroup_diskgroup_alias_clauses/RENAME_ALIAS_STRING_TO_STRING!drop-3	ALTER DISKGROUP a RENAME ALIAS TO 's'
 reject@35	reject@35	engine	alterDiskgroup_diskgroup_alias_clauses/RENAME_ALIAS_STRING_TO_STRING!drop-4	ALTER DISKGROUP a RENAME ALIAS 's' 's'
-accept	reject@37	engine	alterDiskgroup_diskgroup_alias_clauses/RENAME_ALIAS_STRING_TO_STRING!drop-5	ALTER DISKGROUP a RENAME ALIAS 's' TO
+reject@37	reject@37	engine	alterDiskgroup_diskgroup_alias_clauses/RENAME_ALIAS_STRING_TO_STRING!drop-5	ALTER DISKGROUP a RENAME ALIAS 's' TO
 reject@42	reject@42	engine	alterDiskgroup_diskgroup_alias_clauses/RENAME_ALIAS_STRING_TO_STRING!insert	ALTER DISKGROUP a RENAME ALIAS 's' TO 's' zzz
 reject@18	reject@25	engine	alterDiskgroup_diskgroup_alias_clauses/RENAME_ALIAS_STRING_TO_STRING!swap	ALTER DISKGROUP a REPAIR ALIAS 's' TO 's'
 reject@31	reject@31	engine	alterDiskgroup_diskgroup_volume_clauses/alterDiskgroup_add_volume_clause	ALTER DISKGROUP a ADD VOLUME a 1
@@ -4358,7 +4358,7 @@ reject@35	reject@35	engine	alterDiskgroup_usergroup_clauses/MODIFY_USERGROUP_ID_
 reject@35	reject@35	engine	alterDiskgroup_usergroup_clauses/MODIFY_USERGROUP_ID_(ADD_MEMBER_ID|DROP_MEMBER_ID)!insert	ALTER DISKGROUP a MODIFY USERGROUP a ADD MEMBER a zzz
 reject@18	reject@18	engine	alterDiskgroup_usergroup_clauses/MODIFY_USERGROUP_ID_(ADD_MEMBER_ID|DROP_MEMBER_ID)!swap	ALTER DISKGROUP a MODULE USERGROUP a ADD MEMBER a
 reject@33	reject@33	engine	alterDiskgroup_usergroup_clauses/DROP_USERGROUP_ID	ALTER DISKGROUP a DROP USERGROUP a
-accept	reject@32	engine	alterDiskgroup_usergroup_clauses/DROP_USERGROUP_ID!drop-3	ALTER DISKGROUP a DROP USERGROUP
+reject@32	reject@32	engine	alterDiskgroup_usergroup_clauses/DROP_USERGROUP_ID!drop-3	ALTER DISKGROUP a DROP USERGROUP
 reject@33	reject@33	engine	alterDiskgroup_usergroup_clauses/DROP_USERGROUP_ID!insert	ALTER DISKGROUP a DROP USERGROUP a zzz
 reject@18	reject@18	engine	alterDiskgroup_usergroup_clauses/DROP_USERGROUP_ID!swap	ALTER DISKGROUP a DUALITY USERGROUP a
 reject@32	reject@32	engine	alterDiskgroup_usergroup_clauses(MEMBER_ID)?/%empty	ALTER DISKGROUP a ADD USERGROUP a
@@ -4376,7 +4376,7 @@ reject@35	reject@35	engine	alterDiskgroup_usergroup_clauses(ADD_MEMBER_ID|DROP_M
 reject@35	reject@35	engine	alterDiskgroup_usergroup_clauses(ADD_MEMBER_ID|DROP_MEMBER_ID)/DROP_MEMBER_ID!swap	ALTER DISKGROUP a MODIFY USERGROUP a DUALITY MEMBER a
 reject@27	reject@27	engine	alterDiskgroup_user_clauses/ADD_USER_ID_(,_ID)*	ALTER DISKGROUP a ADD USER a
 reject@28	reject@28	engine	alterDiskgroup_user_clauses/DROP_USER_ID_(CASCADE)?_(,_ID_CASCADE?)*	ALTER DISKGROUP a DROP USER a
-accept	reject@27	engine	alterDiskgroup_user_clauses/DROP_USER_ID_(CASCADE)?_(,_ID_CASCADE?)*!drop-3	ALTER DISKGROUP a DROP USER
+reject@27	reject@27	engine	alterDiskgroup_user_clauses/DROP_USER_ID_(CASCADE)?_(,_ID_CASCADE?)*!drop-3	ALTER DISKGROUP a DROP USER
 reject@28	reject@28	engine	alterDiskgroup_user_clauses/DROP_USER_ID_(CASCADE)?_(,_ID_CASCADE?)*!insert	ALTER DISKGROUP a DROP USER a zzz
 reject@18	reject@18	engine	alterDiskgroup_user_clauses/DROP_USER_ID_(CASCADE)?_(,_ID_CASCADE?)*!swap	ALTER DISKGROUP a DUALITY USER a
 reject@31	reject@31	engine	alterDiskgroup_user_clauses/REPLACE_USER_ID_WITH_ID	ALTER DISKGROUP a REPLACE USER a WITH a
@@ -4433,7 +4433,7 @@ accept	accept	engine	alterDiskgroup_scrub_clause((FILE_alterDiskgroup_file_speci
 accept	accept	engine	alterDiskgroup_scrub_clause((FILE_alterDiskgroup_file_specificat~7a040b4c)?/(FILE_alterDiskgroup_file_specification)?	ALTER DISKGROUP a SCRUB
 accept	accept	engine	alterDiskgroup_scrub_clause((FILE_alterDiskgroup_file_specificat~7a040b4c)?/(DISK_ID)?	ALTER DISKGROUP a SCRUB
 accept	accept	engine	alterDiskgroup_scrub_clause(FILE_alterDiskgroup_file_specification)?/%empty	ALTER DISKGROUP a SCRUB
-accept	reject@28	engine	alterDiskgroup_scrub_clause(FILE_alterDiskgroup_file_specification)?/FILE_alterDiskgroup_file_specification	ALTER DISKGROUP a SCRUB FILE
+reject@28	reject@28	engine	alterDiskgroup_scrub_clause(FILE_alterDiskgroup_file_specification)?/FILE_alterDiskgroup_file_specification	ALTER DISKGROUP a SCRUB FILE
 reject@29	reject@29	engine	alterDiskgroup_scrub_clause(FILE_alterDiskgroup_file_specification)?/FILE_alterDiskgroup_file_specification!insert	ALTER DISKGROUP a SCRUB FILE zzz
 reject@24	reject@24	engine	alterDiskgroup_scrub_clause(FILE_alterDiskgroup_file_specification)?/FILE_alterDiskgroup_file_specification!swap	ALTER DISKGROUP a SCRUB FILEGROUP
 accept	accept	engine	alterDiskgroup_scrub_clause(DISK_ID)?/%empty	ALTER DISKGROUP a SCRUB
@@ -4452,7 +4452,7 @@ reject@24	reject@24	engine	alterDiskgroup_scrub_clause(REPAIR|NOREPAIR)?/NOREPAI
 accept	accept	engine	alterDiskgroup_scrub_clause(POWER_(AUTO|LOW|HIGH|MAX))?/%empty	ALTER DISKGROUP a SCRUB
 accept	accept	engine	alterDiskgroup_scrub_clause(POWER_(AUTO|LOW|HIGH|MAX))?/POWER_(AUTO|LOW|HIGH|MAX)	ALTER DISKGROUP a SCRUB POWER AUTO
 reject@24	reject@24	engine	alterDiskgroup_scrub_clause(POWER_(AUTO|LOW|HIGH|MAX))?/POWER_(AUTO|LOW|HIGH|MAX)!drop-1	ALTER DISKGROUP a SCRUB AUTO
-accept	reject@29	engine	alterDiskgroup_scrub_clause(POWER_(AUTO|LOW|HIGH|MAX))?/POWER_(AUTO|LOW|HIGH|MAX)!drop-2	ALTER DISKGROUP a SCRUB POWER
+reject@29	reject@29	engine	alterDiskgroup_scrub_clause(POWER_(AUTO|LOW|HIGH|MAX))?/POWER_(AUTO|LOW|HIGH|MAX)!drop-2	ALTER DISKGROUP a SCRUB POWER
 reject@35	reject@35	engine	alterDiskgroup_scrub_clause(POWER_(AUTO|LOW|HIGH|MAX))?/POWER_(AUTO|LOW|HIGH|MAX)!insert	ALTER DISKGROUP a SCRUB POWER AUTO zzz
 reject@24	reject@24	engine	alterDiskgroup_scrub_clause(POWER_(AUTO|LOW|HIGH|MAX))?/POWER_(AUTO|LOW|HIGH|MAX)!swap	ALTER DISKGROUP a SCRUB PREBUILT AUTO
 accept	accept	engine	alterDiskgroup_scrub_clause(AUTO|LOW|HIGH|MAX)/AUTO	ALTER DISKGROUP a SCRUB POWER AUTO
@@ -4516,7 +4516,7 @@ accept	accept	engine	alterDiskgroup_quotagroup_clauses(alterDiskgroup_size_claus
 accept	accept	engine	alterDiskgroup_quotagroup_clauses(alterDiskgroup_size_clause|UNLIMITED)/UNLIMITED	ALTER DISKGROUP a ADD QUOTAGROUP a SET QUOTA = UNLIMITED
 reject@57	reject@57	engine	alterDiskgroup_quotagroup_clauses(alterDiskgroup_size_clause|UNLIMITED)/UNLIMITED!insert	ALTER DISKGROUP a ADD QUOTAGROUP a SET QUOTA = UNLIMITED zzz
 reject@47	reject@47	engine	alterDiskgroup_quotagroup_clauses(alterDiskgroup_size_clause|UNLIMITED)/UNLIMITED!swap	ALTER DISKGROUP a ADD QUOTAGROUP a SET QUOTA = UNLOCK
-accept	reject@33	engine	alterDiskgroup_filegroup_clauses/alterDiskgroup_add_filegroup_clause	ALTER DISKGROUP a ADD FILEGROUP a
+reject@33	reject@33	engine	alterDiskgroup_filegroup_clauses/alterDiskgroup_add_filegroup_clause	ALTER DISKGROUP a ADD FILEGROUP a
 reject@36	reject@36	engine	alterDiskgroup_filegroup_clauses/alterDiskgroup_modify_filegroup_clause	ALTER DISKGROUP a MODIFY FILEGROUP a
 reject@34	reject@34	engine	alterDiskgroup_filegroup_clauses/alterDiskgroup_modify_filegroup_clause!drop-3	ALTER DISKGROUP a MODIFY FILEGROUP
 reject@37	reject@37	engine	alterDiskgroup_filegroup_clauses/alterDiskgroup_modify_filegroup_clause!insert	ALTER DISKGROUP a MODIFY FILEGROUP a zzz
@@ -4597,7 +4597,7 @@ reject@31	reject@31	engine	alterDiskgroup_qualified_disk_clause(alterDiskgroup_s
 accept	accept	engine	alterDiskgroup_qualified_disk_clause(FAILGROUP_ID)?/%empty	ALTER DISKGROUP a ADD DISK 's'
 reject@42	reject@42	engine	alterDiskgroup_qualified_disk_clause(FAILGROUP_ID)?/FAILGROUP_ID	ALTER DISKGROUP a ADD DISK 's' FAILGROUP a
 reject@31	reject@31	engine	alterDiskgroup_qualified_disk_clause(FAILGROUP_ID)?/FAILGROUP_ID!drop-1	ALTER DISKGROUP a ADD DISK 's' a
-accept	reject@40	engine	alterDiskgroup_qualified_disk_clause(FAILGROUP_ID)?/FAILGROUP_ID!drop-2	ALTER DISKGROUP a ADD DISK 's' FAILGROUP
+reject@40	reject@40	engine	alterDiskgroup_qualified_disk_clause(FAILGROUP_ID)?/FAILGROUP_ID!drop-2	ALTER DISKGROUP a ADD DISK 's' FAILGROUP
 reject@43	reject@43	engine	alterDiskgroup_qualified_disk_clause(FAILGROUP_ID)?/FAILGROUP_ID!insert	ALTER DISKGROUP a ADD DISK 's' FAILGROUP a zzz
 reject@31	reject@31	engine	alterDiskgroup_qualified_disk_clause(FAILGROUP_ID)?/FAILGROUP_ID!swap	ALTER DISKGROUP a ADD DISK 's' FAILOVER a
 reject@29	reject@29	engine	alterDiskgroup_size_clause/NUMBER_(K|M|G|T|P)?	ALTER DISKGROUP a RESIZE ALL 1
@@ -4677,12 +4677,12 @@ reject@33	reject@33	engine	alterDiskgroup_modify_volume_clause/MODIFY_VOLUME_ID_
 reject@33	reject@33	engine	alterDiskgroup_modify_volume_clause(MOUNTPATH_STRING)?/%empty	ALTER DISKGROUP a MODIFY VOLUME a
 accept	accept	engine	alterDiskgroup_modify_volume_clause(MOUNTPATH_STRING)?/MOUNTPATH_STRING	ALTER DISKGROUP a MODIFY VOLUME a MOUNTPATH 's'
 reject@34	reject@34	engine	alterDiskgroup_modify_volume_clause(MOUNTPATH_STRING)?/MOUNTPATH_STRING!drop-1	ALTER DISKGROUP a MODIFY VOLUME a 's'
-accept	reject@43	engine	alterDiskgroup_modify_volume_clause(MOUNTPATH_STRING)?/MOUNTPATH_STRING!drop-2	ALTER DISKGROUP a MODIFY VOLUME a MOUNTPATH
+reject@43	reject@43	engine	alterDiskgroup_modify_volume_clause(MOUNTPATH_STRING)?/MOUNTPATH_STRING!drop-2	ALTER DISKGROUP a MODIFY VOLUME a MOUNTPATH
 reject@48	reject@48	engine	alterDiskgroup_modify_volume_clause(MOUNTPATH_STRING)?/MOUNTPATH_STRING!insert	ALTER DISKGROUP a MODIFY VOLUME a MOUNTPATH 's' zzz
 reject@34	reject@34	engine	alterDiskgroup_modify_volume_clause(MOUNTPATH_STRING)?/MOUNTPATH_STRING!swap	ALTER DISKGROUP a MODIFY VOLUME a MOUNTPOINT 's'
 reject@33	reject@33	engine	alterDiskgroup_modify_volume_clause(USAGE_STRING)?/%empty	ALTER DISKGROUP a MODIFY VOLUME a
 accept	accept	engine	alterDiskgroup_modify_volume_clause(USAGE_STRING)?/USAGE_STRING	ALTER DISKGROUP a MODIFY VOLUME a USAGE 's'
-accept	reject@39	engine	alterDiskgroup_modify_volume_clause(USAGE_STRING)?/USAGE_STRING!drop-2	ALTER DISKGROUP a MODIFY VOLUME a USAGE
+reject@39	reject@39	engine	alterDiskgroup_modify_volume_clause(USAGE_STRING)?/USAGE_STRING!drop-2	ALTER DISKGROUP a MODIFY VOLUME a USAGE
 reject@44	reject@44	engine	alterDiskgroup_modify_volume_clause(USAGE_STRING)?/USAGE_STRING!insert	ALTER DISKGROUP a MODIFY VOLUME a USAGE 's' zzz
 reject@34	reject@34	engine	alterDiskgroup_modify_volume_clause(USAGE_STRING)?/USAGE_STRING!swap	ALTER DISKGROUP a MODIFY VOLUME a USE 's'
 reject@34	reject@34	engine	alterDiskgroup_redundancy_clause/MIRROR	ALTER DISKGROUP a MODIFY FILE 's' MIRROR
@@ -4698,31 +4698,31 @@ reject@34	reject@34	engine	alterDiskgroup_redundancy_clause/PARITY!swap	ALTER DI
 reject@34	reject@34	engine	alterDiskgroup_redundancy_clause/DOUBLE	ALTER DISKGROUP a MODIFY FILE 's' DOUBLE
 reject@34	reject@34	engine	alterDiskgroup_redundancy_clause/DOUBLE!insert	ALTER DISKGROUP a MODIFY FILE 's' DOUBLE zzz
 reject@34	reject@34	engine	alterDiskgroup_redundancy_clause/DOUBLE!swap	ALTER DISKGROUP a MODIFY FILE 's' DOWNGRADE
-accept	reject@33	engine	alterDiskgroup_add_filegroup_clause/ADD_FILEGROUP_ID_(DATABASE_ID?)?_(CLUSTER_ID)?_(VOLUME_~154bf454	ALTER DISKGROUP a ADD FILEGROUP a
-accept	reject@33	engine	alterDiskgroup_add_filegroup_clause(DATABASE_ID?)?/%empty	ALTER DISKGROUP a ADD FILEGROUP a
+reject@33	reject@33	engine	alterDiskgroup_add_filegroup_clause/ADD_FILEGROUP_ID_(DATABASE_ID?)?_(CLUSTER_ID)?_(VOLUME_~154bf454	ALTER DISKGROUP a ADD FILEGROUP a
+reject@33	reject@33	engine	alterDiskgroup_add_filegroup_clause(DATABASE_ID?)?/%empty	ALTER DISKGROUP a ADD FILEGROUP a
 reject@42	reject@42	engine	alterDiskgroup_add_filegroup_clause(DATABASE_ID?)?/DATABASE_(ID)?	ALTER DISKGROUP a ADD FILEGROUP a DATABASE
 accept	accept	engine	alterDiskgroup_add_filegroup_clause(DATABASE_ID?)?/DATABASE_(ID)?!insert	ALTER DISKGROUP a ADD FILEGROUP a DATABASE zzz
 reject@34	reject@34	engine	alterDiskgroup_add_filegroup_clause(DATABASE_ID?)?/DATABASE_(ID)?!swap	ALTER DISKGROUP a ADD FILEGROUP a DATAFILE
 reject@42	reject@42	engine	alterDiskgroup_add_filegroup_clause(ID)?/%empty	ALTER DISKGROUP a ADD FILEGROUP a DATABASE
 accept	accept	engine	alterDiskgroup_add_filegroup_clause(ID)?/ID	ALTER DISKGROUP a ADD FILEGROUP a DATABASE a
 reject@45	reject@45	engine	alterDiskgroup_add_filegroup_clause(ID)?/ID!insert	ALTER DISKGROUP a ADD FILEGROUP a DATABASE a zzz
-accept	reject@33	engine	alterDiskgroup_add_filegroup_clause(CLUSTER_ID)?/%empty	ALTER DISKGROUP a ADD FILEGROUP a
+reject@33	reject@33	engine	alterDiskgroup_add_filegroup_clause(CLUSTER_ID)?/%empty	ALTER DISKGROUP a ADD FILEGROUP a
 accept	accept	engine	alterDiskgroup_add_filegroup_clause(CLUSTER_ID)?/CLUSTER_ID	ALTER DISKGROUP a ADD FILEGROUP a CLUSTER a
 reject@34	reject@34	engine	alterDiskgroup_add_filegroup_clause(CLUSTER_ID)?/CLUSTER_ID!drop-1	ALTER DISKGROUP a ADD FILEGROUP a a
 reject@41	reject@41	engine	alterDiskgroup_add_filegroup_clause(CLUSTER_ID)?/CLUSTER_ID!drop-2	ALTER DISKGROUP a ADD FILEGROUP a CLUSTER
 reject@44	reject@44	engine	alterDiskgroup_add_filegroup_clause(CLUSTER_ID)?/CLUSTER_ID!insert	ALTER DISKGROUP a ADD FILEGROUP a CLUSTER a zzz
 reject@34	reject@34	engine	alterDiskgroup_add_filegroup_clause(CLUSTER_ID)?/CLUSTER_ID!swap	ALTER DISKGROUP a ADD FILEGROUP a CLUSTERING a
-accept	reject@33	engine	alterDiskgroup_add_filegroup_clause(VOLUME_ID)?/%empty	ALTER DISKGROUP a ADD FILEGROUP a
+reject@33	reject@33	engine	alterDiskgroup_add_filegroup_clause(VOLUME_ID)?/%empty	ALTER DISKGROUP a ADD FILEGROUP a
 accept	accept	engine	alterDiskgroup_add_filegroup_clause(VOLUME_ID)?/VOLUME_ID	ALTER DISKGROUP a ADD FILEGROUP a VOLUME a
 reject@40	reject@40	engine	alterDiskgroup_add_filegroup_clause(VOLUME_ID)?/VOLUME_ID!drop-2	ALTER DISKGROUP a ADD FILEGROUP a VOLUME
 reject@43	reject@43	engine	alterDiskgroup_add_filegroup_clause(VOLUME_ID)?/VOLUME_ID!insert	ALTER DISKGROUP a ADD FILEGROUP a VOLUME a zzz
 reject@34	reject@34	engine	alterDiskgroup_add_filegroup_clause(VOLUME_ID)?/VOLUME_ID!swap	ALTER DISKGROUP a ADD FILEGROUP a WAIT a
-accept	reject@33	engine	alterDiskgroup_add_filegroup_clause(TEMPLATE_ID)?/%empty	ALTER DISKGROUP a ADD FILEGROUP a
+reject@33	reject@33	engine	alterDiskgroup_add_filegroup_clause(TEMPLATE_ID)?/%empty	ALTER DISKGROUP a ADD FILEGROUP a
 reject@43	reject@43	engine	alterDiskgroup_add_filegroup_clause(TEMPLATE_ID)?/TEMPLATE_ID	ALTER DISKGROUP a ADD FILEGROUP a TEMPLATE a
 accept	accept	engine	alterDiskgroup_add_filegroup_clause(TEMPLATE_ID)?/TEMPLATE_ID!drop-2	ALTER DISKGROUP a ADD FILEGROUP a TEMPLATE
 reject@43	reject@43	engine	alterDiskgroup_add_filegroup_clause(TEMPLATE_ID)?/TEMPLATE_ID!insert	ALTER DISKGROUP a ADD FILEGROUP a TEMPLATE a zzz
 reject@34	reject@34	engine	alterDiskgroup_add_filegroup_clause(TEMPLATE_ID)?/TEMPLATE_ID!swap	ALTER DISKGROUP a ADD FILEGROUP a TEMPORARY a
-accept	reject@33	engine	alterDiskgroup_add_filegroup_clause(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*/%empty	ALTER DISKGROUP a ADD FILEGROUP a
+reject@33	reject@33	engine	alterDiskgroup_add_filegroup_clause(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*/%empty	ALTER DISKGROUP a ADD FILEGROUP a
 reject@34	reject@34	engine	alterDiskgroup_add_filegroup_clause(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*/SET_ID_=_EXPR_(,_ID_=_EXPR)?_(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*	ALTER DISKGROUP a ADD FILEGROUP a SET a = 1
 reject@34	reject@34	engine	alterDiskgroup_add_filegroup_clause(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*/SET_ID_=_EXPR_(,_ID_=_EXPR)?_(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*!drop-1	ALTER DISKGROUP a ADD FILEGROUP a a = 1
 reject@34	reject@34	engine	alterDiskgroup_add_filegroup_clause(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*/SET_ID_=_EXPR_(,_ID_=_EXPR)?_(SET_ID_=_EXPR_(,_ID_=_EXPR)?)*!drop-2	ALTER DISKGROUP a ADD FILEGROUP a SET = 1
@@ -4763,7 +4763,7 @@ accept	accept	engine	alterDiskgroup_drop_filegroup_clause(FOR_DATABASE_ID_(FOR_P
 accept	accept	engine	alterDiskgroup_drop_filegroup_clause(FOR_DATABASE_ID_(FOR_PLUGGABLE_DATABASE_ID)?)?/FOR_DATABASE_ID_(FOR_PLUGGABLE_DATABASE_ID)?	ALTER DISKGROUP a DROP FILEGROUP a CASCADE FOR DATABASE a
 reject@43	reject@43	engine	alterDiskgroup_drop_filegroup_clause(FOR_DATABASE_ID_(FOR_PLUGGABLE_DATABASE_ID)?)?/FOR_DATABASE_ID_(FOR_PLUGGABLE_DATABASE_ID)?!drop-1	ALTER DISKGROUP a DROP FILEGROUP a CASCADE DATABASE a
 reject@47	reject@47	engine	alterDiskgroup_drop_filegroup_clause(FOR_DATABASE_ID_(FOR_PLUGGABLE_DATABASE_ID)?)?/FOR_DATABASE_ID_(FOR_PLUGGABLE_DATABASE_ID)?!drop-2	ALTER DISKGROUP a DROP FILEGROUP a CASCADE FOR a
-accept	reject@55	engine	alterDiskgroup_drop_filegroup_clause(FOR_DATABASE_ID_(FOR_PLUGGABLE_DATABASE_ID)?)?/FOR_DATABASE_ID_(FOR_PLUGGABLE_DATABASE_ID)?!drop-3	ALTER DISKGROUP a DROP FILEGROUP a CASCADE FOR DATABASE
+reject@55	reject@55	engine	alterDiskgroup_drop_filegroup_clause(FOR_DATABASE_ID_(FOR_PLUGGABLE_DATABASE_ID)?)?/FOR_DATABASE_ID_(FOR_PLUGGABLE_DATABASE_ID)?!drop-3	ALTER DISKGROUP a DROP FILEGROUP a CASCADE FOR DATABASE
 reject@58	reject@58	engine	alterDiskgroup_drop_filegroup_clause(FOR_DATABASE_ID_(FOR_PLUGGABLE_DATABASE_ID)?)?/FOR_DATABASE_ID_(FOR_PLUGGABLE_DATABASE_ID)?!insert	ALTER DISKGROUP a DROP FILEGROUP a CASCADE FOR DATABASE a zzz
 reject@43	reject@43	engine	alterDiskgroup_drop_filegroup_clause(FOR_DATABASE_ID_(FOR_PLUGGABLE_DATABASE_ID)?)?/FOR_DATABASE_ID_(FOR_PLUGGABLE_DATABASE_ID)?!swap	ALTER DISKGROUP a DROP FILEGROUP a CASCADE FORCE DATABASE a
 accept	accept	engine	alterDiskgroup_drop_filegroup_clause(FOR_PLUGGABLE_DATABASE_ID)?/%empty	ALTER DISKGROUP a DROP FILEGROUP a CASCADE FOR DATABASE a
@@ -11238,7 +11238,7 @@ reject@32	reject@32	engine	alterPluggableDatabase(alterPluggableDatabase_pdb_unp
 accept	accept	engine	alterPluggableDatabase(alterPluggableDatabase_pdb_unplug_cl~dbbbc01a)/alterPluggableDatabase_pdb_datafile_clause	ALTER PLUGGABLE DATABASE DATAFILE ALL ONLINE
 reject@29	reject@29	engine	alterPluggableDatabase(alterPluggableDatabase_pdb_unplug_cl~dbbbc01a)/alterPluggableDatabase_pdb_datafile_clause!drop-1	ALTER PLUGGABLE DATABASE ALL ONLINE
 reject@34	reject@34	engine	alterPluggableDatabase(alterPluggableDatabase_pdb_unplug_cl~dbbbc01a)/alterPluggableDatabase_pdb_datafile_clause!drop-2	ALTER PLUGGABLE DATABASE DATAFILE ONLINE
-accept	reject@37	engine	alterPluggableDatabase(alterPluggableDatabase_pdb_unplug_cl~dbbbc01a)/alterPluggableDatabase_pdb_datafile_clause!drop-3	ALTER PLUGGABLE DATABASE DATAFILE ALL
+reject@37	reject@37	engine	alterPluggableDatabase(alterPluggableDatabase_pdb_unplug_cl~dbbbc01a)/alterPluggableDatabase_pdb_datafile_clause!drop-3	ALTER PLUGGABLE DATABASE DATAFILE ALL
 reject@45	reject@45	engine	alterPluggableDatabase(alterPluggableDatabase_pdb_unplug_cl~dbbbc01a)/alterPluggableDatabase_pdb_datafile_clause!insert	ALTER PLUGGABLE DATABASE DATAFILE ALL ONLINE zzz
 reject@35	reject@35	engine	alterPluggableDatabase(alterPluggableDatabase_pdb_unplug_cl~dbbbc01a)/alterPluggableDatabase_pdb_datafile_clause!swap	ALTER PLUGGABLE DATABASE DATAFILES ALL ONLINE
 accept	accept	engine	alterPluggableDatabase(alterPluggableDatabase_pdb_unplug_cl~dbbbc01a)/alterPluggableDatabase_pdb_recovery_clauses	ALTER PLUGGABLE DATABASE RECOVER
@@ -11278,26 +11278,26 @@ reject@43	reject@43	engine	alterPluggableDatabase_pdb_settings_clauses(DEFAULT_E
 reject@37	reject@37	engine	alterPluggableDatabase_pdb_settings_clauses(DEFAULT_EDITION_ID|SET_DEFAULT_TABLE~26cc77cc)/SET_DEFAULT_TABLESPACE_(BIGFILE|SMALLFILE)	ALTER PLUGGABLE DATABASE SET DEFAULT TABLESPACE BIGFILE
 accept	accept	engine	alterPluggableDatabase_pdb_settings_clauses(DEFAULT_EDITION_ID|SET_DEFAULT_TABLE~26cc77cc)/SET_DEFAULT_TABLESPACE_(BIGFILE|SMALLFILE)!drop-1	ALTER PLUGGABLE DATABASE DEFAULT TABLESPACE BIGFILE
 reject@29	reject@29	engine	alterPluggableDatabase_pdb_settings_clauses(DEFAULT_EDITION_ID|SET_DEFAULT_TABLE~26cc77cc)/SET_DEFAULT_TABLESPACE_(BIGFILE|SMALLFILE)!drop-2	ALTER PLUGGABLE DATABASE SET TABLESPACE BIGFILE
-accept	reject@44	engine	alterPluggableDatabase_pdb_settings_clauses(DEFAULT_EDITION_ID|SET_DEFAULT_TABLE~26cc77cc)/SET_DEFAULT_TABLESPACE_(BIGFILE|SMALLFILE)!drop-3	ALTER PLUGGABLE DATABASE SET DEFAULT BIGFILE
+reject@44	reject@44	engine	alterPluggableDatabase_pdb_settings_clauses(DEFAULT_EDITION_ID|SET_DEFAULT_TABLE~26cc77cc)/SET_DEFAULT_TABLESPACE_(BIGFILE|SMALLFILE)!drop-3	ALTER PLUGGABLE DATABASE SET DEFAULT BIGFILE
 reject@37	reject@37	engine	alterPluggableDatabase_pdb_settings_clauses(DEFAULT_EDITION_ID|SET_DEFAULT_TABLE~26cc77cc)/SET_DEFAULT_TABLESPACE_(BIGFILE|SMALLFILE)!drop-4	ALTER PLUGGABLE DATABASE SET DEFAULT TABLESPACE
 reject@37	reject@37	engine	alterPluggableDatabase_pdb_settings_clauses(DEFAULT_EDITION_ID|SET_DEFAULT_TABLE~26cc77cc)/SET_DEFAULT_TABLESPACE_(BIGFILE|SMALLFILE)!insert	ALTER PLUGGABLE DATABASE SET DEFAULT TABLESPACE BIGFILE zzz
 accept	accept	engine	alterPluggableDatabase_pdb_settings_clauses(DEFAULT_EDITION_ID|SET_DEFAULT_TABLE~26cc77cc)/SET_DEFAULT_TABLESPACE_(BIGFILE|SMALLFILE)!swap	ALTER PLUGGABLE DATABASE SETS DEFAULT TABLESPACE BIGFILE
 accept	accept	engine	alterPluggableDatabase_pdb_settings_clauses(DEFAULT_EDITION_ID|SET_DEFAULT_TABLE~26cc77cc)/DEFAULT_TABLESPACE_ID	ALTER PLUGGABLE DATABASE DEFAULT TABLESPACE a
 reject@36	reject@36	engine	alterPluggableDatabase_pdb_settings_clauses(DEFAULT_EDITION_ID|SET_DEFAULT_TABLE~26cc77cc)/DEFAULT_TABLESPACE_ID!drop-1	ALTER PLUGGABLE DATABASE TABLESPACE a
-accept	reject@43	engine	alterPluggableDatabase_pdb_settings_clauses(DEFAULT_EDITION_ID|SET_DEFAULT_TABLE~26cc77cc)/DEFAULT_TABLESPACE_ID!drop-3	ALTER PLUGGABLE DATABASE DEFAULT TABLESPACE
+reject@43	reject@43	engine	alterPluggableDatabase_pdb_settings_clauses(DEFAULT_EDITION_ID|SET_DEFAULT_TABLE~26cc77cc)/DEFAULT_TABLESPACE_ID!drop-3	ALTER PLUGGABLE DATABASE DEFAULT TABLESPACE
 reject@46	reject@46	engine	alterPluggableDatabase_pdb_settings_clauses(DEFAULT_EDITION_ID|SET_DEFAULT_TABLE~26cc77cc)/DEFAULT_TABLESPACE_ID!insert	ALTER PLUGGABLE DATABASE DEFAULT TABLESPACE a zzz
 reject@43	reject@43	engine	alterPluggableDatabase_pdb_settings_clauses(DEFAULT_EDITION_ID|SET_DEFAULT_TABLE~26cc77cc)/DEFAULT_TABLESPACE_ID!swap	ALTER PLUGGABLE DATABASE DEFAULT_COLLATION TABLESPACE a
 accept	accept	engine	alterPluggableDatabase_pdb_settings_clauses(DEFAULT_EDITION_ID|SET_DEFAULT_TABLE~26cc77cc)/DEFAULT_TEMPORARY_TABLESPACE_ID	ALTER PLUGGABLE DATABASE DEFAULT TEMPORARY TABLESPACE a
 reject@35	reject@35	engine	alterPluggableDatabase_pdb_settings_clauses(DEFAULT_EDITION_ID|SET_DEFAULT_TABLE~26cc77cc)/DEFAULT_TEMPORARY_TABLESPACE_ID!drop-1	ALTER PLUGGABLE DATABASE TEMPORARY TABLESPACE a
 reject@43	reject@43	engine	alterPluggableDatabase_pdb_settings_clauses(DEFAULT_EDITION_ID|SET_DEFAULT_TABLE~26cc77cc)/DEFAULT_TEMPORARY_TABLESPACE_ID!drop-3	ALTER PLUGGABLE DATABASE DEFAULT TEMPORARY a
-accept	reject@53	engine	alterPluggableDatabase_pdb_settings_clauses(DEFAULT_EDITION_ID|SET_DEFAULT_TABLE~26cc77cc)/DEFAULT_TEMPORARY_TABLESPACE_ID!drop-4	ALTER PLUGGABLE DATABASE DEFAULT TEMPORARY TABLESPACE
+reject@53	reject@53	engine	alterPluggableDatabase_pdb_settings_clauses(DEFAULT_EDITION_ID|SET_DEFAULT_TABLE~26cc77cc)/DEFAULT_TEMPORARY_TABLESPACE_ID!drop-4	ALTER PLUGGABLE DATABASE DEFAULT TEMPORARY TABLESPACE
 reject@56	reject@56	engine	alterPluggableDatabase_pdb_settings_clauses(DEFAULT_EDITION_ID|SET_DEFAULT_TABLE~26cc77cc)/DEFAULT_TEMPORARY_TABLESPACE_ID!insert	ALTER PLUGGABLE DATABASE DEFAULT TEMPORARY TABLESPACE a zzz
 reject@43	reject@43	engine	alterPluggableDatabase_pdb_settings_clauses(DEFAULT_EDITION_ID|SET_DEFAULT_TABLE~26cc77cc)/DEFAULT_TEMPORARY_TABLESPACE_ID!swap	ALTER PLUGGABLE DATABASE DEFAULT_COLLATION TEMPORARY TABLESPACE a
 accept	accept	engine	alterPluggableDatabase_pdb_settings_clauses(DEFAULT_EDITION_ID|SET_DEFAULT_TABLE~26cc77cc)/RENAME_GLOBAL_NAME_TO_ID	ALTER PLUGGABLE DATABASE RENAME GLOBAL_NAME TO a
 reject@37	reject@37	engine	alterPluggableDatabase_pdb_settings_clauses(DEFAULT_EDITION_ID|SET_DEFAULT_TABLE~26cc77cc)/RENAME_GLOBAL_NAME_TO_ID!drop-1	ALTER PLUGGABLE DATABASE GLOBAL_NAME TO a
 reject@32	reject@32	engine	alterPluggableDatabase_pdb_settings_clauses(DEFAULT_EDITION_ID|SET_DEFAULT_TABLE~26cc77cc)/RENAME_GLOBAL_NAME_TO_ID!drop-2	ALTER PLUGGABLE DATABASE RENAME TO a
 reject@44	reject@44	engine	alterPluggableDatabase_pdb_settings_clauses(DEFAULT_EDITION_ID|SET_DEFAULT_TABLE~26cc77cc)/RENAME_GLOBAL_NAME_TO_ID!drop-3	ALTER PLUGGABLE DATABASE RENAME GLOBAL_NAME a
-accept	reject@46	engine	alterPluggableDatabase_pdb_settings_clauses(DEFAULT_EDITION_ID|SET_DEFAULT_TABLE~26cc77cc)/RENAME_GLOBAL_NAME_TO_ID!drop-4	ALTER PLUGGABLE DATABASE RENAME GLOBAL_NAME TO
+reject@46	reject@46	engine	alterPluggableDatabase_pdb_settings_clauses(DEFAULT_EDITION_ID|SET_DEFAULT_TABLE~26cc77cc)/RENAME_GLOBAL_NAME_TO_ID!drop-4	ALTER PLUGGABLE DATABASE RENAME GLOBAL_NAME TO
 reject@49	reject@49	engine	alterPluggableDatabase_pdb_settings_clauses(DEFAULT_EDITION_ID|SET_DEFAULT_TABLE~26cc77cc)/RENAME_GLOBAL_NAME_TO_ID!insert	ALTER PLUGGABLE DATABASE RENAME GLOBAL_NAME TO a zzz
 reject@32	reject@32	engine	alterPluggableDatabase_pdb_settings_clauses(DEFAULT_EDITION_ID|SET_DEFAULT_TABLE~26cc77cc)/RENAME_GLOBAL_NAME_TO_ID!swap	ALTER PLUGGABLE DATABASE REPAIR GLOBAL_NAME TO a
 accept	accept	engine	alterPluggableDatabase_pdb_settings_clauses(DEFAULT_EDITION_ID|SET_DEFAULT_TABLE~26cc77cc)/alterPluggableDatabase_set_time_zone_clause	ALTER PLUGGABLE DATABASE SET TIME_ZONE = 's'
@@ -11309,7 +11309,7 @@ reject@45	reject@45	engine	alterPluggableDatabase_pdb_settings_clauses(DEFAULT_E
 reject@30	reject@30	engine	alterPluggableDatabase_pdb_settings_clauses(DEFAULT_EDITION_ID|SET_DEFAULT_TABLE~26cc77cc)/alterPluggableDatabase_set_time_zone_clause!swap	ALTER PLUGGABLE DATABASE SETS TIME_ZONE = 's'
 accept	accept	engine	alterPluggableDatabase_pdb_settings_clauses(DEFAULT_EDITION_ID|SET_DEFAULT_TABLE~26cc77cc)/alterPluggableDatabase_database_file_clauses	ALTER PLUGGABLE DATABASE DATAFILE 's' ONLINE
 reject@25	reject@29	engine	alterPluggableDatabase_pdb_settings_clauses(DEFAULT_EDITION_ID|SET_DEFAULT_TABLE~26cc77cc)/alterPluggableDatabase_database_file_clauses!drop-1	ALTER PLUGGABLE DATABASE 's' ONLINE
-accept	reject@37	engine	alterPluggableDatabase_pdb_settings_clauses(DEFAULT_EDITION_ID|SET_DEFAULT_TABLE~26cc77cc)/alterPluggableDatabase_database_file_clauses!drop-3	ALTER PLUGGABLE DATABASE DATAFILE 's'
+reject@37	reject@37	engine	alterPluggableDatabase_pdb_settings_clauses(DEFAULT_EDITION_ID|SET_DEFAULT_TABLE~26cc77cc)/alterPluggableDatabase_database_file_clauses!drop-3	ALTER PLUGGABLE DATABASE DATAFILE 's'
 reject@45	reject@45	engine	alterPluggableDatabase_pdb_settings_clauses(DEFAULT_EDITION_ID|SET_DEFAULT_TABLE~26cc77cc)/alterPluggableDatabase_database_file_clauses!insert	ALTER PLUGGABLE DATABASE DATAFILE 's' ONLINE zzz
 reject@35	reject@35	engine	alterPluggableDatabase_pdb_settings_clauses(DEFAULT_EDITION_ID|SET_DEFAULT_TABLE~26cc77cc)/alterPluggableDatabase_database_file_clauses!swap	ALTER PLUGGABLE DATABASE DATAFILES 's' ONLINE
 accept	accept	engine	alterPluggableDatabase_pdb_settings_clauses(DEFAULT_EDITION_ID|SET_DEFAULT_TABLE~26cc77cc)/alterPluggableDatabase_supplemental_db_logging	ALTER PLUGGABLE DATABASE ADD SUPPLEMENTAL LOG DATA
@@ -11385,7 +11385,7 @@ accept	accept	engine	alterPluggableDatabase_pdb_datafile_clause(ID)?/%empty!inse
 accept	accept	engine	alterPluggableDatabase_pdb_datafile_clause(ID)?/ID	ALTER PLUGGABLE DATABASE a DATAFILE ALL ONLINE
 reject@27	reject@27	engine	alterPluggableDatabase_pdb_datafile_clause(ID)?/ID!insert	ALTER PLUGGABLE DATABASE a zzz DATAFILE ALL ONLINE
 accept	accept	engine	alterPluggableDatabase_pdb_datafile_clause(ALL|STRING|NUMBER)/ALL	ALTER PLUGGABLE DATABASE DATAFILE ALL ONLINE
-accept	reject@33	engine	alterPluggableDatabase_pdb_datafile_clause(ALL|STRING|NUMBER)/ALL!truncate	ALTER PLUGGABLE DATABASE DATAFILE
+reject@33	reject@33	engine	alterPluggableDatabase_pdb_datafile_clause(ALL|STRING|NUMBER)/ALL!truncate	ALTER PLUGGABLE DATABASE DATAFILE
 reject@38	reject@38	engine	alterPluggableDatabase_pdb_datafile_clause(ALL|STRING|NUMBER)/ALL!insert	ALTER PLUGGABLE DATABASE DATAFILE ALL zzz ONLINE
 reject@34	reject@34	engine	alterPluggableDatabase_pdb_datafile_clause(ALL|STRING|NUMBER)/ALL!swap	ALTER PLUGGABLE DATABASE DATAFILE ALLOCATE ONLINE
 accept	accept	engine	alterPluggableDatabase_pdb_datafile_clause(ALL|STRING|NUMBER)/STRING	ALTER PLUGGABLE DATABASE DATAFILE 's' ONLINE
@@ -11399,18 +11399,18 @@ reject@46	reject@46	engine	alterPluggableDatabase_pdb_datafile_clause(ONLINE|OFF
 reject@38	reject@38	engine	alterPluggableDatabase_pdb_datafile_clause(ONLINE|OFFLINE)/OFFLINE!swap	ALTER PLUGGABLE DATABASE DATAFILE ALL OFFSET
 accept	accept	engine	alterPluggableDatabase_pdb_recovery_clauses/(alterPluggableDatabase_pdb_general_r~4d993822)	ALTER PLUGGABLE DATABASE RECOVER
 accept	accept	engine	alterPluggableDatabase_pdb_recovery_clauses(alterPluggableDatabase_pdb_general_r~4d993822)/alterPluggableDatabase_pdb_general_recovery	ALTER PLUGGABLE DATABASE RECOVER
-accept	reject@37	engine	alterPluggableDatabase_pdb_recovery_clauses(alterPluggableDatabase_pdb_general_r~4d993822)/BACKUP_(BEGIN|END)	ALTER PLUGGABLE DATABASE BACKUP BEGIN
-accept	reject@30	engine	alterPluggableDatabase_pdb_recovery_clauses(alterPluggableDatabase_pdb_general_r~4d993822)/BACKUP_(BEGIN|END)!drop-1	ALTER PLUGGABLE DATABASE BEGIN
+reject@37	reject@37	engine	alterPluggableDatabase_pdb_recovery_clauses(alterPluggableDatabase_pdb_general_r~4d993822)/BACKUP_(BEGIN|END)	ALTER PLUGGABLE DATABASE BACKUP BEGIN
+reject@30	reject@30	engine	alterPluggableDatabase_pdb_recovery_clauses(alterPluggableDatabase_pdb_general_r~4d993822)/BACKUP_(BEGIN|END)!drop-1	ALTER PLUGGABLE DATABASE BEGIN
 reject@31	reject@31	engine	alterPluggableDatabase_pdb_recovery_clauses(alterPluggableDatabase_pdb_general_r~4d993822)/BACKUP_(BEGIN|END)!drop-2	ALTER PLUGGABLE DATABASE BACKUP
 reject@38	reject@38	engine	alterPluggableDatabase_pdb_recovery_clauses(alterPluggableDatabase_pdb_general_r~4d993822)/BACKUP_(BEGIN|END)!insert	ALTER PLUGGABLE DATABASE BACKUP BEGIN zzz
-accept	reject@38	engine	alterPluggableDatabase_pdb_recovery_clauses(alterPluggableDatabase_pdb_general_r~4d993822)/BACKUP_(BEGIN|END)!swap	ALTER PLUGGABLE DATABASE BALANCE BEGIN
+reject@38	reject@38	engine	alterPluggableDatabase_pdb_recovery_clauses(alterPluggableDatabase_pdb_general_r~4d993822)/BACKUP_(BEGIN|END)!swap	ALTER PLUGGABLE DATABASE BALANCE BEGIN
 accept	accept	engine	alterPluggableDatabase_pdb_recovery_clauses(alterPluggableDatabase_pdb_general_r~4d993822)/(ENABLE|DISABLE)_RECOVERY	ALTER PLUGGABLE DATABASE ENABLE RECOVERY
 reject@31	reject@31	engine	alterPluggableDatabase_pdb_recovery_clauses(alterPluggableDatabase_pdb_general_r~4d993822)/(ENABLE|DISABLE)_RECOVERY!drop-2	ALTER PLUGGABLE DATABASE ENABLE
 reject@41	reject@41	engine	alterPluggableDatabase_pdb_recovery_clauses(alterPluggableDatabase_pdb_general_r~4d993822)/(ENABLE|DISABLE)_RECOVERY!insert	ALTER PLUGGABLE DATABASE ENABLE RECOVERY zzz
 reject@36	reject@36	engine	alterPluggableDatabase_pdb_recovery_clauses(alterPluggableDatabase_pdb_general_r~4d993822)/(ENABLE|DISABLE)_RECOVERY!swap	ALTER PLUGGABLE DATABASE ENABLE_ALL RECOVERY
-accept	reject@37	engine	alterPluggableDatabase_pdb_recovery_clauses(BEGIN|END)/BEGIN	ALTER PLUGGABLE DATABASE BACKUP BEGIN
+reject@37	reject@37	engine	alterPluggableDatabase_pdb_recovery_clauses(BEGIN|END)/BEGIN	ALTER PLUGGABLE DATABASE BACKUP BEGIN
 reject@32	reject@32	engine	alterPluggableDatabase_pdb_recovery_clauses(BEGIN|END)/BEGIN!swap	ALTER PLUGGABLE DATABASE BACKUP BEGINNING
-accept	reject@35	engine	alterPluggableDatabase_pdb_recovery_clauses(BEGIN|END)/END	ALTER PLUGGABLE DATABASE BACKUP END
+reject@35	reject@35	engine	alterPluggableDatabase_pdb_recovery_clauses(BEGIN|END)/END	ALTER PLUGGABLE DATABASE BACKUP END
 reject@36	reject@36	engine	alterPluggableDatabase_pdb_recovery_clauses(BEGIN|END)/END!insert	ALTER PLUGGABLE DATABASE BACKUP END zzz
 reject@32	reject@32	engine	alterPluggableDatabase_pdb_recovery_clauses(BEGIN|END)/END!swap	ALTER PLUGGABLE DATABASE BACKUP ENFORCED
 accept	accept	engine	alterPluggableDatabase_pdb_recovery_clauses(ENABLE|DISABLE)/ENABLE	ALTER PLUGGABLE DATABASE ENABLE RECOVERY
@@ -11636,12 +11636,12 @@ reject@54	reject@54	engine	alterPluggableDatabase_snapshot_clauses(alterPluggabl
 reject@36	reject@36	engine	alterPluggableDatabase_snapshot_clauses(alterPluggableDatabase_pdb_snapshot_~99cc6c73)/(ENABLE|DISABLE)_LOST_WRITE_PROTECTION!swap	ALTER PLUGGABLE DATABASE ENABLE_ALL LOST WRITE PROTECTION
 accept	accept	engine	alterPluggableDatabase_snapshot_clauses(alterPluggableDatabase_pdb_snapshot_~99cc6c73)/(ENABLE|DISABLE)_BACKUP	ALTER PLUGGABLE DATABASE ENABLE BACKUP
 reject@39	reject@39	engine	alterPluggableDatabase_snapshot_clauses(alterPluggableDatabase_pdb_snapshot_~99cc6c73)/(ENABLE|DISABLE)_BACKUP!insert	ALTER PLUGGABLE DATABASE ENABLE BACKUP zzz
-reject@42	reject@36	engine	alterPluggableDatabase_snapshot_clauses(alterPluggableDatabase_pdb_snapshot_~99cc6c73)/(ENABLE|DISABLE)_BACKUP!swap	ALTER PLUGGABLE DATABASE ENABLE_ALL BACKUP
+reject@36	reject@36	engine	alterPluggableDatabase_snapshot_clauses(alterPluggableDatabase_pdb_snapshot_~99cc6c73)/(ENABLE|DISABLE)_BACKUP!swap	ALTER PLUGGABLE DATABASE ENABLE_ALL BACKUP
 accept	accept	engine	alterPluggableDatabase_snapshot_clauses(ENABLE|DISABLE)/ENABLE	ALTER PLUGGABLE DATABASE ENABLE BACKUP
 reject@32	reject@32	engine	alterPluggableDatabase_snapshot_clauses(ENABLE|DISABLE)/ENABLE!insert	ALTER PLUGGABLE DATABASE ENABLE zzz BACKUP
 accept	accept	engine	alterPluggableDatabase_snapshot_clauses(ENABLE|DISABLE)/DISABLE	ALTER PLUGGABLE DATABASE DISABLE BACKUP
 reject@33	reject@33	engine	alterPluggableDatabase_snapshot_clauses(ENABLE|DISABLE)/DISABLE!insert	ALTER PLUGGABLE DATABASE DISABLE zzz BACKUP
-reject@43	reject@37	engine	alterPluggableDatabase_snapshot_clauses(ENABLE|DISABLE)/DISABLE!swap	ALTER PLUGGABLE DATABASE DISABLE_ALL BACKUP
+reject@37	reject@37	engine	alterPluggableDatabase_snapshot_clauses(ENABLE|DISABLE)/DISABLE!swap	ALTER PLUGGABLE DATABASE DISABLE_ALL BACKUP
 reject@25	reject@25	engine	alterPluggableDatabase_pdb_unplug_encrypt/ENCRYPT_USING_ID	ALTER PLUGGABLE DATABASE UNPLUG INTO 's' ENCRYPT USING a
 accept	accept	engine	alterPluggableDatabase_set_time_zone_clause/SET_TIME_ZONE_=_STRING	ALTER PLUGGABLE DATABASE SET TIME_ZONE = 's'
 accept	accept	engine	alterPluggableDatabase_database_file_clauses/(RENAME_FILE_STRING_TO_STRING_(,_STRI~320c73b6)	ALTER PLUGGABLE DATABASE DATAFILE 's' ONLINE
@@ -11650,10 +11650,10 @@ reject@30	reject@30	engine	alterPluggableDatabase_database_file_clauses(RENAME_F
 reject@32	reject@32	engine	alterPluggableDatabase_database_file_clauses(RENAME_FILE_STRING_TO_STRING_(,_STRI~320c73b6)/RENAME_FILE_STRING_TO_STRING_(,_STRING_TO_STRING)*!drop-2	ALTER PLUGGABLE DATABASE RENAME 's' TO 's'
 reject@37	reject@37	engine	alterPluggableDatabase_database_file_clauses(RENAME_FILE_STRING_TO_STRING_(,_STRI~320c73b6)/RENAME_FILE_STRING_TO_STRING_(,_STRING_TO_STRING)*!drop-3	ALTER PLUGGABLE DATABASE RENAME FILE TO 's'
 reject@41	reject@41	engine	alterPluggableDatabase_database_file_clauses(RENAME_FILE_STRING_TO_STRING_(,_STRI~320c73b6)/RENAME_FILE_STRING_TO_STRING_(,_STRING_TO_STRING)*!drop-4	ALTER PLUGGABLE DATABASE RENAME FILE 's' 's'
-accept	reject@43	engine	alterPluggableDatabase_database_file_clauses(RENAME_FILE_STRING_TO_STRING_(,_STRI~320c73b6)/RENAME_FILE_STRING_TO_STRING_(,_STRING_TO_STRING)*!drop-5	ALTER PLUGGABLE DATABASE RENAME FILE 's' TO
+reject@43	reject@43	engine	alterPluggableDatabase_database_file_clauses(RENAME_FILE_STRING_TO_STRING_(,_STRI~320c73b6)/RENAME_FILE_STRING_TO_STRING_(,_STRING_TO_STRING)*!drop-5	ALTER PLUGGABLE DATABASE RENAME FILE 's' TO
 reject@48	reject@48	engine	alterPluggableDatabase_database_file_clauses(RENAME_FILE_STRING_TO_STRING_(,_STRI~320c73b6)/RENAME_FILE_STRING_TO_STRING_(,_STRING_TO_STRING)*!insert	ALTER PLUGGABLE DATABASE RENAME FILE 's' TO 's' zzz
 reject@32	reject@32	engine	alterPluggableDatabase_database_file_clauses(RENAME_FILE_STRING_TO_STRING_(,_STRI~320c73b6)/RENAME_FILE_STRING_TO_STRING_(,_STRING_TO_STRING)*!swap	ALTER PLUGGABLE DATABASE REPAIR FILE 's' TO 's'
-accept	reject@47	engine	alterPluggableDatabase_database_file_clauses(RENAME_FILE_STRING_TO_STRING_(,_STRI~320c73b6)/CREATE_DATAFILE_(STRING|NUMBER)_AS_(NEW|alterPluggableD~23b8071d	ALTER PLUGGABLE DATABASE CREATE DATAFILE 's' AS
+reject@47	reject@47	engine	alterPluggableDatabase_database_file_clauses(RENAME_FILE_STRING_TO_STRING_(,_STRI~320c73b6)/CREATE_DATAFILE_(STRING|NUMBER)_AS_(NEW|alterPluggableD~23b8071d	ALTER PLUGGABLE DATABASE CREATE DATAFILE 's' AS
 reject@38	reject@38	engine	alterPluggableDatabase_database_file_clauses(RENAME_FILE_STRING_TO_STRING_(,_STRI~320c73b6)/CREATE_DATAFILE_(STRING|NUMBER)_AS_(NEW|alterPluggableD~23b8071d!drop-1	ALTER PLUGGABLE DATABASE DATAFILE 's' AS
 reject@32	reject@32	engine	alterPluggableDatabase_database_file_clauses(RENAME_FILE_STRING_TO_STRING_(,_STRI~320c73b6)/CREATE_DATAFILE_(STRING|NUMBER)_AS_(NEW|alterPluggableD~23b8071d!drop-2	ALTER PLUGGABLE DATABASE CREATE 's' AS
 reject@41	reject@41	engine	alterPluggableDatabase_database_file_clauses(RENAME_FILE_STRING_TO_STRING_(,_STRI~320c73b6)/CREATE_DATAFILE_(STRING|NUMBER)_AS_(NEW|alterPluggableD~23b8071d!drop-3	ALTER PLUGGABLE DATABASE CREATE DATAFILE AS
@@ -11664,7 +11664,7 @@ accept	accept	engine	alterPluggableDatabase_database_file_clauses(RENAME_FILE_ST
 accept	accept	engine	alterPluggableDatabase_database_file_clauses(RENAME_FILE_STRING_TO_STRING_(,_STRI~320c73b6)/TEMPFILE_(STRING|NUMBER)_(RESIZE_alterPluggableDatabase~b67f9095	ALTER PLUGGABLE DATABASE TEMPFILE 's' DROP
 reject@25	reject@25	engine	alterPluggableDatabase_database_file_clauses(RENAME_FILE_STRING_TO_STRING_(,_STRI~320c73b6)/TEMPFILE_(STRING|NUMBER)_(RESIZE_alterPluggableDatabase~b67f9095!drop-1	ALTER PLUGGABLE DATABASE 's' DROP
 reject@34	reject@38	engine	alterPluggableDatabase_database_file_clauses(RENAME_FILE_STRING_TO_STRING_(,_STRI~320c73b6)/TEMPFILE_(STRING|NUMBER)_(RESIZE_alterPluggableDatabase~b67f9095!drop-2	ALTER PLUGGABLE DATABASE TEMPFILE DROP
-accept	reject@37	engine	alterPluggableDatabase_database_file_clauses(RENAME_FILE_STRING_TO_STRING_(,_STRI~320c73b6)/TEMPFILE_(STRING|NUMBER)_(RESIZE_alterPluggableDatabase~b67f9095!drop-3	ALTER PLUGGABLE DATABASE TEMPFILE 's'
+reject@37	reject@37	engine	alterPluggableDatabase_database_file_clauses(RENAME_FILE_STRING_TO_STRING_(,_STRI~320c73b6)/TEMPFILE_(STRING|NUMBER)_(RESIZE_alterPluggableDatabase~b67f9095!drop-3	ALTER PLUGGABLE DATABASE TEMPFILE 's'
 reject@43	reject@43	engine	alterPluggableDatabase_database_file_clauses(RENAME_FILE_STRING_TO_STRING_(,_STRI~320c73b6)/TEMPFILE_(STRING|NUMBER)_(RESIZE_alterPluggableDatabase~b67f9095!insert	ALTER PLUGGABLE DATABASE TEMPFILE 's' DROP zzz
 reject@34	reject@34	engine	alterPluggableDatabase_database_file_clauses(RENAME_FILE_STRING_TO_STRING_(,_STRI~320c73b6)/TEMPFILE_(STRING|NUMBER)_(RESIZE_alterPluggableDatabase~b67f9095!swap	ALTER PLUGGABLE DATABASE TEMPLATE 's' DROP
 reject@43	reject@43	engine	alterPluggableDatabase_database_file_clauses(RENAME_FILE_STRING_TO_STRING_(,_STRI~320c73b6)/MOVE_DATAFILE_(STRING|NUMBER)_TO_STRING_(REUSE)?_(KEEP)?	ALTER PLUGGABLE DATABASE MOVE DATAFILE 's' TO 's'
@@ -11688,7 +11688,7 @@ accept	accept	engine	alterPluggableDatabase_database_file_clauses(STRING|NUMBER)
 reject@48	reject@48	engine	alterPluggableDatabase_database_file_clauses(NEW|alterPluggableDatabase_file_specification)/NEW	ALTER PLUGGABLE DATABASE CREATE DATAFILE 's' AS NEW
 reject@48	reject@48	engine	alterPluggableDatabase_database_file_clauses(NEW|alterPluggableDatabase_file_specification)/NEW!insert	ALTER PLUGGABLE DATABASE CREATE DATAFILE 's' AS NEW zzz
 reject@48	reject@48	engine	alterPluggableDatabase_database_file_clauses(NEW|alterPluggableDatabase_file_specification)/NEW!swap	ALTER PLUGGABLE DATABASE CREATE DATAFILE 's' AS NEXT
-accept	reject@47	engine	alterPluggableDatabase_database_file_clauses(NEW|alterPluggableDatabase_file_specification)/alterPluggableDatabase_file_specification	ALTER PLUGGABLE DATABASE CREATE DATAFILE 's' AS
+reject@47	reject@47	engine	alterPluggableDatabase_database_file_clauses(NEW|alterPluggableDatabase_file_specification)/alterPluggableDatabase_file_specification	ALTER PLUGGABLE DATABASE CREATE DATAFILE 's' AS
 accept	accept	engine	alterPluggableDatabase_database_file_clauses(ONLINE|OFFLINE_(FOR_DROP)?|RESIZE_al~05dc9c84)/ONLINE	ALTER PLUGGABLE DATABASE DATAFILE 's' ONLINE
 reject@38	reject@38	engine	alterPluggableDatabase_database_file_clauses(ONLINE|OFFLINE_(FOR_DROP)?|RESIZE_al~05dc9c84)/ONLINE!swap	ALTER PLUGGABLE DATABASE DATAFILE 's' ONLY
 accept	accept	engine	alterPluggableDatabase_database_file_clauses(ONLINE|OFFLINE_(FOR_DROP)?|RESIZE_al~05dc9c84)/OFFLINE_(FOR_DROP)?	ALTER PLUGGABLE DATABASE DATAFILE 's' OFFLINE
@@ -11696,12 +11696,12 @@ reject@46	reject@46	engine	alterPluggableDatabase_database_file_clauses(ONLINE|O
 reject@38	reject@38	engine	alterPluggableDatabase_database_file_clauses(ONLINE|OFFLINE_(FOR_DROP)?|RESIZE_al~05dc9c84)/OFFLINE_(FOR_DROP)?!swap	ALTER PLUGGABLE DATABASE DATAFILE 's' OFFSET
 accept	accept	engine	alterPluggableDatabase_database_file_clauses(ONLINE|OFFLINE_(FOR_DROP)?|RESIZE_al~05dc9c84)/RESIZE_alterPluggableDatabase_size_clause	ALTER PLUGGABLE DATABASE DATAFILE 's' RESIZE 1
 reject@38	reject@38	engine	alterPluggableDatabase_database_file_clauses(ONLINE|OFFLINE_(FOR_DROP)?|RESIZE_al~05dc9c84)/RESIZE_alterPluggableDatabase_size_clause!drop-1	ALTER PLUGGABLE DATABASE DATAFILE 's' 1
-accept	reject@44	engine	alterPluggableDatabase_database_file_clauses(ONLINE|OFFLINE_(FOR_DROP)?|RESIZE_al~05dc9c84)/RESIZE_alterPluggableDatabase_size_clause!drop-2	ALTER PLUGGABLE DATABASE DATAFILE 's' RESIZE
+reject@44	reject@44	engine	alterPluggableDatabase_database_file_clauses(ONLINE|OFFLINE_(FOR_DROP)?|RESIZE_al~05dc9c84)/RESIZE_alterPluggableDatabase_size_clause!drop-2	ALTER PLUGGABLE DATABASE DATAFILE 's' RESIZE
 reject@47	reject@47	engine	alterPluggableDatabase_database_file_clauses(ONLINE|OFFLINE_(FOR_DROP)?|RESIZE_al~05dc9c84)/RESIZE_alterPluggableDatabase_size_clause!insert	ALTER PLUGGABLE DATABASE DATAFILE 's' RESIZE 1 zzz
 reject@38	reject@38	engine	alterPluggableDatabase_database_file_clauses(ONLINE|OFFLINE_(FOR_DROP)?|RESIZE_al~05dc9c84)/RESIZE_alterPluggableDatabase_size_clause!swap	ALTER PLUGGABLE DATABASE DATAFILE 's' RESOLVE 1
 accept	accept	engine	alterPluggableDatabase_database_file_clauses(ONLINE|OFFLINE_(FOR_DROP)?|RESIZE_al~05dc9c84)/END_BACKUP	ALTER PLUGGABLE DATABASE DATAFILE 's' END BACKUP
 reject@38	reject@38	engine	alterPluggableDatabase_database_file_clauses(ONLINE|OFFLINE_(FOR_DROP)?|RESIZE_al~05dc9c84)/END_BACKUP!drop-1	ALTER PLUGGABLE DATABASE DATAFILE 's' BACKUP
-accept	reject@41	engine	alterPluggableDatabase_database_file_clauses(ONLINE|OFFLINE_(FOR_DROP)?|RESIZE_al~05dc9c84)/END_BACKUP!drop-2	ALTER PLUGGABLE DATABASE DATAFILE 's' END
+reject@41	reject@41	engine	alterPluggableDatabase_database_file_clauses(ONLINE|OFFLINE_(FOR_DROP)?|RESIZE_al~05dc9c84)/END_BACKUP!drop-2	ALTER PLUGGABLE DATABASE DATAFILE 's' END
 reject@49	reject@49	engine	alterPluggableDatabase_database_file_clauses(ONLINE|OFFLINE_(FOR_DROP)?|RESIZE_al~05dc9c84)/END_BACKUP!insert	ALTER PLUGGABLE DATABASE DATAFILE 's' END BACKUP zzz
 reject@38	reject@38	engine	alterPluggableDatabase_database_file_clauses(ONLINE|OFFLINE_(FOR_DROP)?|RESIZE_al~05dc9c84)/END_BACKUP!swap	ALTER PLUGGABLE DATABASE DATAFILE 's' ENFORCED BACKUP
 accept	accept	engine	alterPluggableDatabase_database_file_clauses(ONLINE|OFFLINE_(FOR_DROP)?|RESIZE_al~05dc9c84)/ENCRYPT	ALTER PLUGGABLE DATABASE DATAFILE 's' ENCRYPT
@@ -11712,7 +11712,7 @@ reject@46	reject@46	engine	alterPluggableDatabase_database_file_clauses(ONLINE|O
 reject@38	reject@38	engine	alterPluggableDatabase_database_file_clauses(ONLINE|OFFLINE_(FOR_DROP)?|RESIZE_al~05dc9c84)/DECRYPT!swap	ALTER PLUGGABLE DATABASE DATAFILE 's' DEDUPLICATE
 accept	accept	engine	alterPluggableDatabase_database_file_clauses(ONLINE|OFFLINE_(FOR_DROP)?|RESIZE_al~05dc9c84)/alterPluggableDatabase_autoextend_clause	ALTER PLUGGABLE DATABASE DATAFILE 's' AUTOEXTEND OFF
 reject@38	reject@38	engine	alterPluggableDatabase_database_file_clauses(ONLINE|OFFLINE_(FOR_DROP)?|RESIZE_al~05dc9c84)/alterPluggableDatabase_autoextend_clause!drop-1	ALTER PLUGGABLE DATABASE DATAFILE 's' OFF
-accept	reject@48	engine	alterPluggableDatabase_database_file_clauses(ONLINE|OFFLINE_(FOR_DROP)?|RESIZE_al~05dc9c84)/alterPluggableDatabase_autoextend_clause!drop-2	ALTER PLUGGABLE DATABASE DATAFILE 's' AUTOEXTEND
+reject@48	reject@48	engine	alterPluggableDatabase_database_file_clauses(ONLINE|OFFLINE_(FOR_DROP)?|RESIZE_al~05dc9c84)/alterPluggableDatabase_autoextend_clause!drop-2	ALTER PLUGGABLE DATABASE DATAFILE 's' AUTOEXTEND
 reject@53	reject@53	engine	alterPluggableDatabase_database_file_clauses(ONLINE|OFFLINE_(FOR_DROP)?|RESIZE_al~05dc9c84)/alterPluggableDatabase_autoextend_clause!insert	ALTER PLUGGABLE DATABASE DATAFILE 's' AUTOEXTEND OFF zzz
 reject@38	reject@38	engine	alterPluggableDatabase_database_file_clauses(ONLINE|OFFLINE_(FOR_DROP)?|RESIZE_al~05dc9c84)/alterPluggableDatabase_autoextend_clause!swap	ALTER PLUGGABLE DATABASE DATAFILE 's' AUTOMATIC OFF
 accept	accept	engine	alterPluggableDatabase_database_file_clauses(FOR_DROP)?/%empty	ALTER PLUGGABLE DATABASE DATAFILE 's' OFFLINE
@@ -11723,12 +11723,12 @@ reject@55	reject@55	engine	alterPluggableDatabase_database_file_clauses(FOR_DROP
 reject@46	reject@46	engine	alterPluggableDatabase_database_file_clauses(FOR_DROP)?/FOR_DROP!swap	ALTER PLUGGABLE DATABASE DATAFILE 's' OFFLINE FORCE DROP
 accept	accept	engine	alterPluggableDatabase_database_file_clauses(RESIZE_alterPluggableDatabase_size_c~a2f5c5ee)/RESIZE_alterPluggableDatabase_size_clause	ALTER PLUGGABLE DATABASE TEMPFILE 's' RESIZE 1
 reject@38	reject@38	engine	alterPluggableDatabase_database_file_clauses(RESIZE_alterPluggableDatabase_size_c~a2f5c5ee)/RESIZE_alterPluggableDatabase_size_clause!drop-1	ALTER PLUGGABLE DATABASE TEMPFILE 's' 1
-accept	reject@44	engine	alterPluggableDatabase_database_file_clauses(RESIZE_alterPluggableDatabase_size_c~a2f5c5ee)/RESIZE_alterPluggableDatabase_size_clause!drop-2	ALTER PLUGGABLE DATABASE TEMPFILE 's' RESIZE
+reject@44	reject@44	engine	alterPluggableDatabase_database_file_clauses(RESIZE_alterPluggableDatabase_size_c~a2f5c5ee)/RESIZE_alterPluggableDatabase_size_clause!drop-2	ALTER PLUGGABLE DATABASE TEMPFILE 's' RESIZE
 reject@47	reject@47	engine	alterPluggableDatabase_database_file_clauses(RESIZE_alterPluggableDatabase_size_c~a2f5c5ee)/RESIZE_alterPluggableDatabase_size_clause!insert	ALTER PLUGGABLE DATABASE TEMPFILE 's' RESIZE 1 zzz
 reject@38	reject@38	engine	alterPluggableDatabase_database_file_clauses(RESIZE_alterPluggableDatabase_size_c~a2f5c5ee)/RESIZE_alterPluggableDatabase_size_clause!swap	ALTER PLUGGABLE DATABASE TEMPFILE 's' RESOLVE 1
 accept	accept	engine	alterPluggableDatabase_database_file_clauses(RESIZE_alterPluggableDatabase_size_c~a2f5c5ee)/alterPluggableDatabase_autoextend_clause	ALTER PLUGGABLE DATABASE TEMPFILE 's' AUTOEXTEND OFF
 reject@38	reject@38	engine	alterPluggableDatabase_database_file_clauses(RESIZE_alterPluggableDatabase_size_c~a2f5c5ee)/alterPluggableDatabase_autoextend_clause!drop-1	ALTER PLUGGABLE DATABASE TEMPFILE 's' OFF
-accept	reject@48	engine	alterPluggableDatabase_database_file_clauses(RESIZE_alterPluggableDatabase_size_c~a2f5c5ee)/alterPluggableDatabase_autoextend_clause!drop-2	ALTER PLUGGABLE DATABASE TEMPFILE 's' AUTOEXTEND
+reject@48	reject@48	engine	alterPluggableDatabase_database_file_clauses(RESIZE_alterPluggableDatabase_size_c~a2f5c5ee)/alterPluggableDatabase_autoextend_clause!drop-2	ALTER PLUGGABLE DATABASE TEMPFILE 's' AUTOEXTEND
 reject@53	reject@53	engine	alterPluggableDatabase_database_file_clauses(RESIZE_alterPluggableDatabase_size_c~a2f5c5ee)/alterPluggableDatabase_autoextend_clause!insert	ALTER PLUGGABLE DATABASE TEMPFILE 's' AUTOEXTEND OFF zzz
 reject@38	reject@38	engine	alterPluggableDatabase_database_file_clauses(RESIZE_alterPluggableDatabase_size_c~a2f5c5ee)/alterPluggableDatabase_autoextend_clause!swap	ALTER PLUGGABLE DATABASE TEMPFILE 's' AUTOMATIC OFF
 accept	accept	engine	alterPluggableDatabase_database_file_clauses(RESIZE_alterPluggableDatabase_size_c~a2f5c5ee)/DROP_(INCLUDING_DATAFILES)?	ALTER PLUGGABLE DATABASE TEMPFILE 's' DROP
@@ -12000,21 +12000,21 @@ reject@51	reject@51	engine	alterPluggableDatabase_prepare_clause(FOR_DATABASE_ID
 reject@59	reject@59	engine	alterPluggableDatabase_prepare_clause(FOR_DATABASE_ID)?/FOR_DATABASE_ID!drop-3	ALTER PLUGGABLE DATABASE PREPARE MIRROR COPY a FOR DATABASE
 reject@62	reject@62	engine	alterPluggableDatabase_prepare_clause(FOR_DATABASE_ID)?/FOR_DATABASE_ID!insert	ALTER PLUGGABLE DATABASE PREPARE MIRROR COPY a FOR DATABASE a zzz
 reject@47	reject@47	engine	alterPluggableDatabase_prepare_clause(FOR_DATABASE_ID)?/FOR_DATABASE_ID!swap	ALTER PLUGGABLE DATABASE PREPARE MIRROR COPY a FORCE DATABASE a
-accept	reject@47	engine	alterPluggableDatabase_file_specification/(STRING)?_(SIZE_alterPluggableDatabase_size_clause)?_(R~40beacce	ALTER PLUGGABLE DATABASE CREATE DATAFILE 's' AS
-accept	reject@47	engine	alterPluggableDatabase_file_specification(STRING)?/%empty	ALTER PLUGGABLE DATABASE CREATE DATAFILE 's' AS
+reject@47	reject@47	engine	alterPluggableDatabase_file_specification/(STRING)?_(SIZE_alterPluggableDatabase_size_clause)?_(R~40beacce	ALTER PLUGGABLE DATABASE CREATE DATAFILE 's' AS
+reject@47	reject@47	engine	alterPluggableDatabase_file_specification(STRING)?/%empty	ALTER PLUGGABLE DATABASE CREATE DATAFILE 's' AS
 accept	accept	engine	alterPluggableDatabase_file_specification(STRING)?/STRING	ALTER PLUGGABLE DATABASE CREATE DATAFILE 's' AS 's'
 reject@52	reject@52	engine	alterPluggableDatabase_file_specification(STRING)?/STRING!insert	ALTER PLUGGABLE DATABASE CREATE DATAFILE 's' AS 's' zzz
-accept	reject@47	engine	alterPluggableDatabase_file_specification(SIZE_alterPluggableDatabase_size_clause)?/%empty	ALTER PLUGGABLE DATABASE CREATE DATAFILE 's' AS
+reject@47	reject@47	engine	alterPluggableDatabase_file_specification(SIZE_alterPluggableDatabase_size_clause)?/%empty	ALTER PLUGGABLE DATABASE CREATE DATAFILE 's' AS
 reject@48	reject@48	engine	alterPluggableDatabase_file_specification(SIZE_alterPluggableDatabase_size_clause)?/SIZE_alterPluggableDatabase_size_clause	ALTER PLUGGABLE DATABASE CREATE DATAFILE 's' AS SIZE 1
 reject@48	reject@48	engine	alterPluggableDatabase_file_specification(SIZE_alterPluggableDatabase_size_clause)?/SIZE_alterPluggableDatabase_size_clause!drop-1	ALTER PLUGGABLE DATABASE CREATE DATAFILE 's' AS 1
 reject@48	reject@48	engine	alterPluggableDatabase_file_specification(SIZE_alterPluggableDatabase_size_clause)?/SIZE_alterPluggableDatabase_size_clause!drop-2	ALTER PLUGGABLE DATABASE CREATE DATAFILE 's' AS SIZE
 reject@48	reject@48	engine	alterPluggableDatabase_file_specification(SIZE_alterPluggableDatabase_size_clause)?/SIZE_alterPluggableDatabase_size_clause!insert	ALTER PLUGGABLE DATABASE CREATE DATAFILE 's' AS SIZE 1 zzz
 reject@48	reject@48	engine	alterPluggableDatabase_file_specification(SIZE_alterPluggableDatabase_size_clause)?/SIZE_alterPluggableDatabase_size_clause!swap	ALTER PLUGGABLE DATABASE CREATE DATAFILE 's' AS SKIP 1
-accept	reject@47	engine	alterPluggableDatabase_file_specification(REUSE)?/%empty	ALTER PLUGGABLE DATABASE CREATE DATAFILE 's' AS
+reject@47	reject@47	engine	alterPluggableDatabase_file_specification(REUSE)?/%empty	ALTER PLUGGABLE DATABASE CREATE DATAFILE 's' AS
 reject@48	reject@48	engine	alterPluggableDatabase_file_specification(REUSE)?/REUSE	ALTER PLUGGABLE DATABASE CREATE DATAFILE 's' AS REUSE
 reject@48	reject@48	engine	alterPluggableDatabase_file_specification(REUSE)?/REUSE!insert	ALTER PLUGGABLE DATABASE CREATE DATAFILE 's' AS REUSE zzz
 reject@48	reject@48	engine	alterPluggableDatabase_file_specification(REUSE)?/REUSE!swap	ALTER PLUGGABLE DATABASE CREATE DATAFILE 's' AS REVERSE
-accept	reject@47	engine	alterPluggableDatabase_file_specification(alterPluggableDatabase_autoextend_clause)?/%empty	ALTER PLUGGABLE DATABASE CREATE DATAFILE 's' AS
+reject@47	reject@47	engine	alterPluggableDatabase_file_specification(alterPluggableDatabase_autoextend_clause)?/%empty	ALTER PLUGGABLE DATABASE CREATE DATAFILE 's' AS
 reject@48	reject@48	engine	alterPluggableDatabase_file_specification(alterPluggableDatabase_autoextend_clause)?/alterPluggableDatabase_autoextend_clause	ALTER PLUGGABLE DATABASE CREATE DATAFILE 's' AS AUTOEXTEND OFF
 reject@48	reject@48	engine	alterPluggableDatabase_file_specification(alterPluggableDatabase_autoextend_clause)?/alterPluggableDatabase_autoextend_clause!drop-1	ALTER PLUGGABLE DATABASE CREATE DATAFILE 's' AS OFF
 reject@48	reject@48	engine	alterPluggableDatabase_file_specification(alterPluggableDatabase_autoextend_clause)?/alterPluggableDatabase_autoextend_clause!drop-2	ALTER PLUGGABLE DATABASE CREATE DATAFILE 's' AS AUTOEXTEND
@@ -12046,12 +12046,12 @@ reject@49	reject@49	engine	alterPluggableDatabase_autoextend_clause(OFF|ON_(NEXT
 accept	accept	engine	alterPluggableDatabase_autoextend_clause(NEXT_alterPluggableDatabase_size_clause)?/%empty	ALTER PLUGGABLE DATABASE DATAFILE 's' AUTOEXTEND ON
 accept	accept	engine	alterPluggableDatabase_autoextend_clause(NEXT_alterPluggableDatabase_size_clause)?/NEXT_alterPluggableDatabase_size_clause	ALTER PLUGGABLE DATABASE DATAFILE 's' AUTOEXTEND ON NEXT 1
 reject@52	reject@52	engine	alterPluggableDatabase_autoextend_clause(NEXT_alterPluggableDatabase_size_clause)?/NEXT_alterPluggableDatabase_size_clause!drop-1	ALTER PLUGGABLE DATABASE DATAFILE 's' AUTOEXTEND ON 1
-accept	reject@56	engine	alterPluggableDatabase_autoextend_clause(NEXT_alterPluggableDatabase_size_clause)?/NEXT_alterPluggableDatabase_size_clause!drop-2	ALTER PLUGGABLE DATABASE DATAFILE 's' AUTOEXTEND ON NEXT
+reject@56	reject@56	engine	alterPluggableDatabase_autoextend_clause(NEXT_alterPluggableDatabase_size_clause)?/NEXT_alterPluggableDatabase_size_clause!drop-2	ALTER PLUGGABLE DATABASE DATAFILE 's' AUTOEXTEND ON NEXT
 reject@59	reject@59	engine	alterPluggableDatabase_autoextend_clause(NEXT_alterPluggableDatabase_size_clause)?/NEXT_alterPluggableDatabase_size_clause!insert	ALTER PLUGGABLE DATABASE DATAFILE 's' AUTOEXTEND ON NEXT 1 zzz
 reject@52	reject@52	engine	alterPluggableDatabase_autoextend_clause(NEXT_alterPluggableDatabase_size_clause)?/NEXT_alterPluggableDatabase_size_clause!swap	ALTER PLUGGABLE DATABASE DATAFILE 's' AUTOEXTEND ON NO 1
 accept	accept	engine	alterPluggableDatabase_autoextend_clause(alterPluggableDatabase_maxsize_clause)?/%empty	ALTER PLUGGABLE DATABASE DATAFILE 's' AUTOEXTEND ON
 accept	accept	engine	alterPluggableDatabase_autoextend_clause(alterPluggableDatabase_maxsize_clause)?/alterPluggableDatabase_maxsize_clause	ALTER PLUGGABLE DATABASE DATAFILE 's' AUTOEXTEND ON MAXSIZE 1
-accept	reject@59	engine	alterPluggableDatabase_autoextend_clause(alterPluggableDatabase_maxsize_clause)?/alterPluggableDatabase_maxsize_clause!drop-2	ALTER PLUGGABLE DATABASE DATAFILE 's' AUTOEXTEND ON MAXSIZE
+reject@59	reject@59	engine	alterPluggableDatabase_autoextend_clause(alterPluggableDatabase_maxsize_clause)?/alterPluggableDatabase_maxsize_clause!drop-2	ALTER PLUGGABLE DATABASE DATAFILE 's' AUTOEXTEND ON MAXSIZE
 reject@62	reject@62	engine	alterPluggableDatabase_autoextend_clause(alterPluggableDatabase_maxsize_clause)?/alterPluggableDatabase_maxsize_clause!insert	ALTER PLUGGABLE DATABASE DATAFILE 's' AUTOEXTEND ON MAXSIZE 1 zzz
 reject@52	reject@52	engine	alterPluggableDatabase_autoextend_clause(alterPluggableDatabase_maxsize_clause)?/alterPluggableDatabase_maxsize_clause!swap	ALTER PLUGGABLE DATABASE DATAFILE 's' AUTOEXTEND ON MAXTRANS 1
 reject@58	reject@58	engine	alterPluggableDatabase_supplemental_id_key_clause/DATA_(_(PRIMARY_KEY|UNIQUE|FOREIGN_KEY|ALL)_COLUMNS_)	ALTER PLUGGABLE DATABASE ADD SUPPLEMENTAL LOG DATA(UNIQUE COLUMNS)
@@ -12165,7 +12165,7 @@ reject@31	reject@31	engine	alterPluggableDatabase_relocate_clause(RELOCATE_(TO_S
 accept	accept	engine	alterPluggableDatabase_relocate_clause(TO_STRING)?/%empty	ALTER PLUGGABLE DATABASE CLOSE RELOCATE
 accept	accept	engine	alterPluggableDatabase_relocate_clause(TO_STRING)?/TO_STRING	ALTER PLUGGABLE DATABASE CLOSE RELOCATE TO 's'
 reject@40	reject@40	engine	alterPluggableDatabase_relocate_clause(TO_STRING)?/TO_STRING!drop-1	ALTER PLUGGABLE DATABASE CLOSE RELOCATE 's'
-accept	reject@42	engine	alterPluggableDatabase_relocate_clause(TO_STRING)?/TO_STRING!drop-2	ALTER PLUGGABLE DATABASE CLOSE RELOCATE TO
+reject@42	reject@42	engine	alterPluggableDatabase_relocate_clause(TO_STRING)?/TO_STRING!drop-2	ALTER PLUGGABLE DATABASE CLOSE RELOCATE TO
 reject@47	reject@47	engine	alterPluggableDatabase_relocate_clause(TO_STRING)?/TO_STRING!insert	ALTER PLUGGABLE DATABASE CLOSE RELOCATE TO 's' zzz
 reject@40	reject@40	engine	alterPluggableDatabase_relocate_clause(TO_STRING)?/TO_STRING!swap	ALTER PLUGGABLE DATABASE CLOSE RELOCATE TOPLEVEL 's'
 accept	accept	engine	alterPluggableDatabase_maxsize_clause/MAXSIZE_(alterPluggableDatabase_size_clause|UNLIMITED)	ALTER PLUGGABLE DATABASE DATAFILE 's' AUTOEXTEND ON MAXSIZE 1
@@ -30372,7 +30372,7 @@ reject@35	reject@35	engine	createPluggableDatabase(createPluggableDatabase_creat
 reject@28	reject@28	engine	createPluggableDatabase(createPluggableDatabase_create_pdb_f~a6ccbe27)/createPluggableDatabase_create_pdb_clone!swap	CREATE PLUGGABLE DATABASE a FTP a
 accept	reject@34	engine	createPluggableDatabase(createPluggableDatabase_create_pdb_f~a6ccbe27)/createPluggableDatabase_create_pdb_from_xml	CREATE PLUGGABLE DATABASE a USING 's'
 reject@28	reject@28	engine	createPluggableDatabase(createPluggableDatabase_create_pdb_f~a6ccbe27)/createPluggableDatabase_create_pdb_from_xml!drop-1	CREATE PLUGGABLE DATABASE a 's'
-accept	reject@33	engine	createPluggableDatabase(createPluggableDatabase_create_pdb_f~a6ccbe27)/createPluggableDatabase_create_pdb_from_xml!drop-2	CREATE PLUGGABLE DATABASE a USING
+reject@33	reject@33	engine	createPluggableDatabase(createPluggableDatabase_create_pdb_f~a6ccbe27)/createPluggableDatabase_create_pdb_from_xml!drop-2	CREATE PLUGGABLE DATABASE a USING
 reject@38	reject@34	engine	createPluggableDatabase(createPluggableDatabase_create_pdb_f~a6ccbe27)/createPluggableDatabase_create_pdb_from_xml!insert	CREATE PLUGGABLE DATABASE a USING 's' zzz
 reject@28	reject@28	engine	createPluggableDatabase(createPluggableDatabase_create_pdb_f~a6ccbe27)/createPluggableDatabase_create_pdb_from_xml!swap	CREATE PLUGGABLE DATABASE a VALIDATE 's'
 accept	accept	engine	createPluggableDatabase(createPluggableDatabase_create_pdb_f~a6ccbe27)/createPluggableDatabase_create_pdb_from_mirror_copy	CREATE PLUGGABLE DATABASE a FROM a
@@ -30418,7 +30418,7 @@ reject@27	reject@27	engine	createPluggableDatabase_create_pdb_from_seed(createPl
 accept	accept	engine	createPluggableDatabase_create_pdb_from_seed(createPluggableDatabase_default_tablespace)?/createPluggableDatabase_default_tablespace	CREATE PLUGGABLE DATABASE a DEFAULT TABLESPACE a
 reject@28	reject@28	engine	createPluggableDatabase_create_pdb_from_seed(createPluggableDatabase_default_tablespace)?/createPluggableDatabase_default_tablespace!drop-1	CREATE PLUGGABLE DATABASE a TABLESPACE a
 reject@36	reject@36	engine	createPluggableDatabase_create_pdb_from_seed(createPluggableDatabase_default_tablespace)?/createPluggableDatabase_default_tablespace!drop-2	CREATE PLUGGABLE DATABASE a DEFAULT a
-accept	reject@46	engine	createPluggableDatabase_create_pdb_from_seed(createPluggableDatabase_default_tablespace)?/createPluggableDatabase_default_tablespace!drop-3	CREATE PLUGGABLE DATABASE a DEFAULT TABLESPACE
+reject@46	reject@46	engine	createPluggableDatabase_create_pdb_from_seed(createPluggableDatabase_default_tablespace)?/createPluggableDatabase_default_tablespace!drop-3	CREATE PLUGGABLE DATABASE a DEFAULT TABLESPACE
 reject@49	reject@49	engine	createPluggableDatabase_create_pdb_from_seed(createPluggableDatabase_default_tablespace)?/createPluggableDatabase_default_tablespace!insert	CREATE PLUGGABLE DATABASE a DEFAULT TABLESPACE a zzz
 reject@28	reject@28	engine	createPluggableDatabase_create_pdb_from_seed(createPluggableDatabase_default_tablespace)?/createPluggableDatabase_default_tablespace!swap	CREATE PLUGGABLE DATABASE a DEFAULT_COLLATION TABLESPACE a
 reject@27	reject@27	engine	createPluggableDatabase_create_pdb_from_seed(createPluggableDatabase_file_name_convert)?/%empty	CREATE PLUGGABLE DATABASE a
@@ -30506,13 +30506,13 @@ reject@31	reject@31	engine	createPluggableDatabase_create_pdb_clone(FROM_ID_(@_I
 reject@37	reject@37	engine	createPluggableDatabase_create_pdb_clone(FROM_ID_(@_ID)?|AS_PROXY_FROM_ID_@_I~72074c41)/AS_PROXY_FROM_ID_@_ID_(HOST_STRING)?_(PORT_NUMBER)?!drop-3	CREATE PLUGGABLE DATABASE a AS PROXY a@a
 reject@41	reject@41	engine	createPluggableDatabase_create_pdb_clone(FROM_ID_(@_ID)?|AS_PROXY_FROM_ID_@_I~72074c41)/AS_PROXY_FROM_ID_@_ID_(HOST_STRING)?_(PORT_NUMBER)?!drop-4	CREATE PLUGGABLE DATABASE a AS PROXY FROM@a
 reject@44	reject@44	engine	createPluggableDatabase_create_pdb_clone(FROM_ID_(@_ID)?|AS_PROXY_FROM_ID_@_I~72074c41)/AS_PROXY_FROM_ID_@_ID_(HOST_STRING)?_(PORT_NUMBER)?!drop-5	CREATE PLUGGABLE DATABASE a AS PROXY FROM a a
-accept	reject@44	engine	createPluggableDatabase_create_pdb_clone(FROM_ID_(@_ID)?|AS_PROXY_FROM_ID_@_I~72074c41)/AS_PROXY_FROM_ID_@_ID_(HOST_STRING)?_(PORT_NUMBER)?!drop-6	CREATE PLUGGABLE DATABASE a AS PROXY FROM a@
+reject@44	reject@44	engine	createPluggableDatabase_create_pdb_clone(FROM_ID_(@_ID)?|AS_PROXY_FROM_ID_@_I~72074c41)/AS_PROXY_FROM_ID_@_ID_(HOST_STRING)?_(PORT_NUMBER)?!drop-6	CREATE PLUGGABLE DATABASE a AS PROXY FROM a@
 reject@46	reject@46	engine	createPluggableDatabase_create_pdb_clone(FROM_ID_(@_ID)?|AS_PROXY_FROM_ID_@_I~72074c41)/AS_PROXY_FROM_ID_@_ID_(HOST_STRING)?_(PORT_NUMBER)?!insert	CREATE PLUGGABLE DATABASE a AS PROXY FROM a@a zzz
 reject@28	reject@28	engine	createPluggableDatabase_create_pdb_clone(FROM_ID_(@_ID)?|AS_PROXY_FROM_ID_@_I~72074c41)/AS_PROXY_FROM_ID_@_ID_(HOST_STRING)?_(PORT_NUMBER)?!swap	CREATE PLUGGABLE DATABASE a ASC PROXY FROM a@a
 accept	accept	engine	createPluggableDatabase_create_pdb_clone(@_ID)?/%empty	CREATE PLUGGABLE DATABASE a FROM a
 accept	accept	engine	createPluggableDatabase_create_pdb_clone(@_ID)?/@_ID	CREATE PLUGGABLE DATABASE a FROM a@a
 reject@35	reject@35	engine	createPluggableDatabase_create_pdb_clone(@_ID)?/@_ID!drop-1	CREATE PLUGGABLE DATABASE a FROM a a
-accept	reject@35	engine	createPluggableDatabase_create_pdb_clone(@_ID)?/@_ID!drop-2	CREATE PLUGGABLE DATABASE a FROM a@
+reject@35	reject@35	engine	createPluggableDatabase_create_pdb_clone(@_ID)?/@_ID!drop-2	CREATE PLUGGABLE DATABASE a FROM a@
 reject@37	reject@37	engine	createPluggableDatabase_create_pdb_clone(@_ID)?/@_ID!insert	CREATE PLUGGABLE DATABASE a FROM a@a zzz
 accept	accept	engine	createPluggableDatabase_create_pdb_clone(HOST_STRING)?/%empty	CREATE PLUGGABLE DATABASE a AS PROXY FROM a@a
 reject@46	reject@51	engine	createPluggableDatabase_create_pdb_clone(HOST_STRING)?/HOST_STRING	CREATE PLUGGABLE DATABASE a AS PROXY FROM a@a HOST 's'
@@ -30534,7 +30534,7 @@ accept	accept	engine	createPluggableDatabase_create_pdb_clone(createPluggableDat
 accept	accept	engine	createPluggableDatabase_create_pdb_clone(createPluggableDatabase_default_tablespace)?/createPluggableDatabase_default_tablespace	CREATE PLUGGABLE DATABASE a FROM a DEFAULT TABLESPACE a
 reject@35	reject@35	engine	createPluggableDatabase_create_pdb_clone(createPluggableDatabase_default_tablespace)?/createPluggableDatabase_default_tablespace!drop-1	CREATE PLUGGABLE DATABASE a FROM a TABLESPACE a
 reject@43	reject@43	engine	createPluggableDatabase_create_pdb_clone(createPluggableDatabase_default_tablespace)?/createPluggableDatabase_default_tablespace!drop-2	CREATE PLUGGABLE DATABASE a FROM a DEFAULT a
-accept	reject@53	engine	createPluggableDatabase_create_pdb_clone(createPluggableDatabase_default_tablespace)?/createPluggableDatabase_default_tablespace!drop-3	CREATE PLUGGABLE DATABASE a FROM a DEFAULT TABLESPACE
+reject@53	reject@53	engine	createPluggableDatabase_create_pdb_clone(createPluggableDatabase_default_tablespace)?/createPluggableDatabase_default_tablespace!drop-3	CREATE PLUGGABLE DATABASE a FROM a DEFAULT TABLESPACE
 reject@56	reject@56	engine	createPluggableDatabase_create_pdb_clone(createPluggableDatabase_default_tablespace)?/createPluggableDatabase_default_tablespace!insert	CREATE PLUGGABLE DATABASE a FROM a DEFAULT TABLESPACE a zzz
 reject@35	reject@35	engine	createPluggableDatabase_create_pdb_clone(createPluggableDatabase_default_tablespace)?/createPluggableDatabase_default_tablespace!swap	CREATE PLUGGABLE DATABASE a FROM a DEFAULT_COLLATION TABLESPACE a
 accept	accept	engine	createPluggableDatabase_create_pdb_clone(createPluggableDatabase_pdb_storage_clause)?/%empty	CREATE PLUGGABLE DATABASE a FROM a
@@ -30731,7 +30731,7 @@ accept	reject@34	engine	createPluggableDatabase_create_pdb_from_xml(createPlugga
 accept	reject@34	engine	createPluggableDatabase_create_pdb_from_xml(createPluggableDatabase_default_tablespace)?/createPluggableDatabase_default_tablespace	CREATE PLUGGABLE DATABASE a USING 's' DEFAULT TABLESPACE a
 reject@38	reject@34	engine	createPluggableDatabase_create_pdb_from_xml(createPluggableDatabase_default_tablespace)?/createPluggableDatabase_default_tablespace!drop-1	CREATE PLUGGABLE DATABASE a USING 's' TABLESPACE a
 reject@46	reject@34	engine	createPluggableDatabase_create_pdb_from_xml(createPluggableDatabase_default_tablespace)?/createPluggableDatabase_default_tablespace!drop-2	CREATE PLUGGABLE DATABASE a USING 's' DEFAULT a
-accept	reject@34	engine	createPluggableDatabase_create_pdb_from_xml(createPluggableDatabase_default_tablespace)?/createPluggableDatabase_default_tablespace!drop-3	CREATE PLUGGABLE DATABASE a USING 's' DEFAULT TABLESPACE
+reject@56	reject@34	engine	createPluggableDatabase_create_pdb_from_xml(createPluggableDatabase_default_tablespace)?/createPluggableDatabase_default_tablespace!drop-3	CREATE PLUGGABLE DATABASE a USING 's' DEFAULT TABLESPACE
 reject@59	reject@34	engine	createPluggableDatabase_create_pdb_from_xml(createPluggableDatabase_default_tablespace)?/createPluggableDatabase_default_tablespace!insert	CREATE PLUGGABLE DATABASE a USING 's' DEFAULT TABLESPACE a zzz
 reject@38	reject@34	engine	createPluggableDatabase_create_pdb_from_xml(createPluggableDatabase_default_tablespace)?/createPluggableDatabase_default_tablespace!swap	CREATE PLUGGABLE DATABASE a USING 's' DEFAULT_COLLATION TABLESPACE a
 accept	reject@34	engine	createPluggableDatabase_create_pdb_from_xml(createPluggableDatabase_pdb_storage_clause)?/%empty	CREATE PLUGGABLE DATABASE a USING 's'

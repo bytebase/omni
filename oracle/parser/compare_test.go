@@ -2659,7 +2659,7 @@ func TestParseDiskgroupBatch96(t *testing.T) {
 		{"alter_modify_quotagroup", "ALTER DISKGROUP dg1 MODIFY QUOTAGROUP qg1 SET QUOTA = UNLIMITED"},
 		{"alter_drop_quotagroup", "ALTER DISKGROUP dg1 DROP QUOTAGROUP qg1"},
 		// filegroup_clauses
-		{"alter_add_filegroup", "ALTER DISKGROUP dg1 ADD FILEGROUP fg1"},
+		{"alter_add_filegroup", "ALTER DISKGROUP dg1 ADD FILEGROUP fg1 DATABASE db1"},
 		{"alter_modify_filegroup", "ALTER DISKGROUP dg1 MODIFY FILEGROUP fg1 SET 'priority' = '1'"},
 		{"alter_drop_filegroup", "ALTER DISKGROUP dg1 DROP FILEGROUP fg1"},
 		{"alter_drop_filegroup_cascade", "ALTER DISKGROUP dg1 DROP FILEGROUP fg1 CASCADE"},
@@ -2928,8 +2928,8 @@ func TestParsePluggableDatabaseBatch95(t *testing.T) {
 		{"alter_recover_until_change", "ALTER PLUGGABLE DATABASE pdb1 RECOVER UNTIL CHANGE 12345"},
 		{"alter_recover_standby", "ALTER PLUGGABLE DATABASE pdb1 RECOVER DATAFILE '/u01/a.dbf'"},
 		{"alter_recover_backup_controlfile", "ALTER PLUGGABLE DATABASE pdb1 RECOVER USING BACKUP CONTROLFILE"},
-		{"alter_backup_begin", "ALTER PLUGGABLE DATABASE pdb1 BACKUP BEGIN"},
-		{"alter_backup_end", "ALTER PLUGGABLE DATABASE pdb1 BACKUP END"},
+		{"alter_backup_begin", "ALTER PLUGGABLE DATABASE pdb1 BEGIN BACKUP"},
+		{"alter_backup_end", "ALTER PLUGGABLE DATABASE pdb1 END BACKUP"},
 		{"alter_enable_recovery", "ALTER PLUGGABLE DATABASE pdb1 ENABLE RECOVERY"},
 		{"alter_disable_recovery", "ALTER PLUGGABLE DATABASE pdb1 DISABLE RECOVERY"},
 		// application_clauses
