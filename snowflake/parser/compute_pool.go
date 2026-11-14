@@ -13,6 +13,7 @@ func init() {
 		alter:  parseAlterComputePool,
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-compute-pool
 		drop:       true,
+		nameParts:  1, // an account-level object
 		props:      computePoolProps,
 		alterProps: computePoolAlterProps,
 		unset:      []string{"AUTO_SUSPEND_SECS", "AUTO_RESUME", "PLACEMENT_GROUP", "BACKUP_INSTANCE_FAMILIES", "COMMENT"},

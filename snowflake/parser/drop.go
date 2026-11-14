@@ -19,6 +19,9 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 			p.advance()
 		}
 		node, err := p.parseDropObject(ast.DropObject, start, true, false)
+		if err == nil && f.nameParts > 0 {
+			_, err = p.checkFormNameParts(f, node.(*ast.DropStmt).Name)
+		}
 		if err != nil {
 			return nil, err
 		}

@@ -41,11 +41,11 @@ func clauseKeywords(s *ast.ObjectStmt) []string {
 }
 
 func TestParseCreateComputePool(t *testing.T) {
-	in := "CREATE COMPUTE POOL IF NOT EXISTS db.pool1 FOR APPLICATION app MIN_NODES = 1 MAX_NODES = 2 " +
+	in := "CREATE COMPUTE POOL IF NOT EXISTS pool1 FOR APPLICATION app MIN_NODES = 1 MAX_NODES = 2 " +
 		"INSTANCE_FAMILY = CPU_X64_XS AUTO_RESUME = TRUE WITH TAG (t = 'v') COMMENT = 'c' " +
 		"BACKUP_INSTANCE_FAMILIES = ('a', 'b')"
 	s := mustObjectStmt(t, in)
-	if s.Verb != "CREATE" || s.Kind != "COMPUTE POOL" || !s.IfNotExists || s.Name.String() != "db.pool1" {
+	if s.Verb != "CREATE" || s.Kind != "COMPUTE POOL" || !s.IfNotExists || s.Name.String() != "pool1" {
 		t.Fatalf("got %+v", s)
 	}
 	if got := clauseKeywords(s); len(got) != 2 || got[0] != "FOR APPLICATION" || got[1] != "" {
@@ -115,6 +115,9 @@ func TestParseComputePoolRejects(t *testing.T) {
 		"ALTER COMPUTE POOL p UNSET MIN_NODES",
 		"ALTER COMPUTE POOL p SET INITIALLY_SUSPENDED = TRUE", // CREATE's alone
 		"ALTER COMPUTE POOL p SET WITH TAG (t = 'x')",
+		"ALTER COMPUTE POOL db.p SUSPEND", // an account-level object
+		"CREATE COMPUTE POOL db.p MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a",
+		"DROP COMPUTE POOL db.p",
 		"ALTER COMPUTE POOL p SET AUTO_RESUME = TRUE AUTO_RESUME = FALSE",
 		"CREATE COMPUTE POOL p MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a MIN_NODES = 2",
 		"ALTER COMPUTE POOL p SET TAG (t = 'x')",
