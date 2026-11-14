@@ -901,7 +901,9 @@ func (p *Parser) parseCreateAlertStmt(start ast.Loc, orReplace, orAlter bool) (a
 
 	// CREATE ... ALERT <name> FROM TEMPLATE <template> [ [ WITH ] TAG ( ... ) ]
 	//   [ <option> ... ]
-	if p.cur.Type == kwFROM && !orAlter {
+	// CREATE OR ALTER ALERT <name> FROM TEMPLATE ... creates or re-renders a
+	// templated alert; the page gives it no WITH TAG and no IF NOT EXISTS.
+	if p.cur.Type == kwFROM && !(orAlter && stmt.IfNotExists) {
 		p.advance() // consume FROM
 		if err := p.expectWords("TEMPLATE"); err != nil {
 			return nil, err
@@ -911,7 +913,7 @@ func (p *Parser) parseCreateAlertStmt(start ast.Loc, orReplace, orAlter bool) (a
 			return nil, err
 		}
 		stmt.Template = tmpl
-		if p.startsStreamWithTags() {
+		if !orAlter && p.startsStreamWithTags() {
 			tags, err := p.parseStreamWithTags()
 			if err != nil {
 				return nil, err

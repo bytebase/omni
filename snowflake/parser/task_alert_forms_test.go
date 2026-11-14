@@ -77,6 +77,10 @@ func TestParseAlertTemplateCloneAndTags(t *testing.T) {
 		t.Errorf("got %+v", f)
 	}
 	mustCreateAlert(t, "CREATE ALERT a FROM TEMPLATE tpl")
+	o := mustCreateAlert(t, "CREATE OR ALTER ALERT a FROM TEMPLATE tpl SCHEDULE = '5 MINUTE' TEMPLATE_PARAMS = '{}'")
+	if !o.OrAlter || o.Template == nil || len(o.Options) != 2 {
+		t.Errorf("got %+v", o)
+	}
 
 	s := mustAlterAlert(t, "ALTER ALERT IF EXISTS a FROM TEMPLATE tpl SET WAREHOUSE = wh TEMPLATE_PARAMS = '{}'")
 	if s.Action != ast.AlterAlertSet || s.Template == nil || len(s.Options) != 2 {
@@ -99,7 +103,8 @@ func TestParseAlertTemplateCloneAndTags(t *testing.T) {
 	for _, in := range []string{
 		"CREATE ALERT IF NOT EXISTS a CLONE b",
 		"CREATE OR ALTER ALERT a CLONE b",
-		"CREATE OR ALTER ALERT a FROM TEMPLATE tpl",
+		"CREATE OR ALTER ALERT a FROM TEMPLATE tpl WITH TAG (t = 'v')", // no tags in CREATE OR ALTER
+		"CREATE OR ALTER ALERT IF NOT EXISTS a FROM TEMPLATE tpl",
 		"CREATE ALERT a FROM TEMPLATE db.tpl",
 		"CREATE ALERT a FROM TEMPLATE tpl CONFIG = 'x'",
 		"CREATE ALERT a FROM TEMPLATE tpl WAREHOUSE = 'wh'",
