@@ -30,6 +30,14 @@ func TestParseCreateDataMetricFunction(t *testing.T) {
 	if !s.IfNotExists || s.Secure || !s.BodyDollar || len(s.Args) != 1 {
 		t.Fatalf("got %+v", s)
 	}
+
+	// A single-quoted body keeps its backslash-escaped quotes.
+	body := `'SELECT COUNT(*) FROM t WHERE c = \'a\' OR c = ''b'' OR c = \'\\\''`
+	in = "CREATE DATA METRIC FUNCTION f(t TABLE(c VARCHAR)) RETURNS NUMBER AS " + body
+	s = mustParseOne(t, in).(*ast.CreateRoutineStmt)
+	if s.Body != body || s.Loc.End != len(in) {
+		t.Fatalf("body = %q", s.Body)
+	}
 }
 
 func TestParseAlterDataMetricFunction(t *testing.T) {

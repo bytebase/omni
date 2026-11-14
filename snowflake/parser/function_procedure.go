@@ -427,12 +427,18 @@ func (p *Parser) parseRoutineBody() (body string, dollar bool, end int, err erro
 		dollar = true
 
 	case '\'':
-		// Single-quoted body: ' ... ' where '' is an escaped quote and the body
+		// Single-quoted body: ' ... ' where '' and a backslash escape (\' and
+		// \\, as in any string constant) stand for one character, and the body
 		// may span newlines (unlike a lexer string literal). Scan to the matching
 		// unescaped closing quote.
+		// https://docs.snowflake.com/en/sql-reference/data-types-text#escape-sequences-in-single-quoted-string-constants
 		j := startLocal + 1
 		closed := false
 		for j < len(p.input) {
+			if p.input[j] == '\\' {
+				j += 2 // a backslash escapes the character after it
+				continue
+			}
 			if p.input[j] == '\'' {
 				if j+1 < len(p.input) && p.input[j+1] == '\'' {
 					j += 2 // '' escaped quote
