@@ -488,9 +488,9 @@ func (p *Parser) parseAlterTableAddAction(action *ast.AlterTableAction, iceberg 
 		action.Kind = ast.AlterTableAddColumn
 		return p.parseAddColumnList(action)
 
-	case kwCONSTRAINT, kwPRIMARY, kwUNIQUE, kwFOREIGN:
-		// ADD [CONSTRAINT name] PK/UK/FK. ALTER ICEBERG TABLE takes constraints
-		// only inline, in ADD COLUMN.
+	case kwCONSTRAINT, kwPRIMARY, kwUNIQUE, kwFOREIGN, kwCHECK:
+		// ADD [CONSTRAINT name] PK/UK/FK/CHECK. ALTER ICEBERG TABLE takes
+		// constraints only inline, in ADD COLUMN.
 		if iceberg {
 			return p.syntaxErrorAtCur()
 		}
@@ -1482,11 +1482,12 @@ func (p *Parser) parseOneTableProp() (*ast.TableProp, bool, error) {
 		}
 		// Any other documented property (ICEBERG_DEFAULT_DDL_COLLATION,
 		// ENABLE_SCHEMA_EVOLUTION, ERROR_LOGGING, ROW_TIMESTAMP, and the ALTER
-		// ICEBERG TABLE properties) is an open-ended KEY = value pair; Value
-		// keeps the value's source text.
+		// ICEBERG TABLE properties) is a KEY = value pair; parseAssignment holds
+		// each documented property to its documented values (propertyValues).
+		// Value keeps the value's source text.
 		if p.startsAssignment() && p.isColumnNameToken(p.cur.Type) && p.cur.Type != kwTAG {
 			eq := p.peekNext()
-			opt, err := p.parseCopyOption()
+			opt, err := p.parseAssignment()
 			if err != nil {
 				return nil, false, err
 			}

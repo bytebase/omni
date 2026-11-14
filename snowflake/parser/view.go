@@ -393,23 +393,22 @@ func (p *Parser) parseRowAccessPolicyClause() (*ast.RowAccessPolicy, error) {
 
 	rp := &ast.RowAccessPolicy{PolicyName: policyName}
 
-	// ON (col [, col ...])
+	// ON (col [, col ...]): at least one column, no trailing comma.
 	if p.cur.Type == kwON {
 		p.advance() // consume ON
 		if _, err := p.expect('('); err != nil {
 			return nil, err
 		}
-		for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		for {
 			id, err := p.parseIdent()
 			if err != nil {
 				return nil, err
 			}
 			rp.Columns = append(rp.Columns, id)
-			if p.cur.Type == ',' {
-				p.advance() // consume ','
-			} else {
+			if p.cur.Type != ',' {
 				break
 			}
+			p.advance() // consume ','
 		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err

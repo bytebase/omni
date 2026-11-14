@@ -20,6 +20,7 @@ func (*RawStmt) nodeTag() {}
 // SelectStmt represents a complete SELECT query.
 type SelectStmt struct {
 	Top         *int               // TOP n (nil if not specified)
+	TopParam    *ParamRef          // TOP @param (nil if not specified)
 	Distinct    bool               // DISTINCT modifier
 	Value       bool               // VALUE modifier
 	Star        bool               // SELECT *
@@ -221,11 +222,10 @@ type LikeExpr struct {
 func (*LikeExpr) nodeTag()  {}
 func (*LikeExpr) exprNode() {}
 
-// FuncCall represents a built-in function call: name([*|args]).
+// FuncCall represents a built-in function call: name([args]).
 type FuncCall struct {
 	Name string
 	Args []ExprNode
-	Star bool // true for COUNT(*)
 	Loc  Loc
 }
 
@@ -259,6 +259,17 @@ type ArrayExpr struct {
 
 func (*ArrayExpr) nodeTag()  {}
 func (*ArrayExpr) exprNode() {}
+
+// SubqueryFuncExpr represents ALL(SELECT ...), FIRST(SELECT ...) or
+// LAST(SELECT ...).
+type SubqueryFuncExpr struct {
+	Func   string // ALL, FIRST or LAST
+	Select *SelectStmt
+	Loc    Loc
+}
+
+func (*SubqueryFuncExpr) nodeTag()  {}
+func (*SubqueryFuncExpr) exprNode() {}
 
 // CreateArrayExpr represents an array literal: [elem, ...].
 type CreateArrayExpr struct {

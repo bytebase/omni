@@ -525,6 +525,7 @@ func (p *Parser) parseDateFunction() (ast.ExprNode, error) {
 			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 		}
 	}
+	partTok := p.cur
 	part := &ast.VarRef{Name: p.cur.Str, Loc: p.cur.Loc}
 	p.advance() // consume the date-part identifier
 	args := []ast.ExprNode{part}
@@ -543,6 +544,9 @@ func (p *Parser) parseDateFunction() (ast.ExprNode, error) {
 
 	rp, err := p.expect(tokPAREN_RIGHT)
 	if err != nil {
+		return nil, err
+	}
+	if err := checkDatetimeField(name, partTok); err != nil {
 		return nil, err
 	}
 	return &ast.FuncCall{
@@ -596,10 +600,9 @@ func (p *Parser) parseCastExpr(kind ast.CastKind) (ast.ExprNode, error) {
 //	extract : EXTRACT '(' IDENTIFIER FROM rhs=expr ')'
 //
 // The datetime field is an IDENTIFIER (e.g. YEAR, MONTH, TIMEZONE_HOUR),
-// not a reserved keyword — the grammar and the official spec both leave
-// the field unrestricted at the syntax level (the valid-field check is a
-// semantic concern, not a parse concern), so we accept any unquoted
-// identifier and store its raw text. A double-quoted identifier is
+// not a reserved keyword. The grammar takes any identifier, and the
+// reference parser's visitor refuses one that names no datetime field
+// (checkDatetimeField); the raw text is stored. A double-quoted identifier is
 // rejected: the grammar's IDENTIFIER alternative does not include the
 // IDENTIFIER_QUOTED token.
 func (p *Parser) parseExtractExpr() (ast.ExprNode, error) {
@@ -620,6 +623,7 @@ func (p *Parser) parseExtractExpr() (ast.ExprNode, error) {
 			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 		}
 	}
+	fieldTok := p.cur
 	field := p.cur.Str
 	p.advance() // consume the field identifier
 	if _, err := p.expect(tokFROM); err != nil {
@@ -631,6 +635,9 @@ func (p *Parser) parseExtractExpr() (ast.ExprNode, error) {
 	}
 	rp, err := p.expect(tokPAREN_RIGHT)
 	if err != nil {
+		return nil, err
+	}
+	if err := checkDatetimeField("EXTRACT", fieldTok); err != nil {
 		return nil, err
 	}
 	return &ast.ExtractExpr{
@@ -1035,4 +1042,26 @@ func (p *Parser) parseNullIfExpr() (ast.ExprNode, error) {
 		Right: right,
 		Loc:   ast.Loc{Start: start, End: rp.Loc.End},
 	}, nil
+}
+
+// datetimeFields are the fields DATE_ADD, DATE_DIFF and EXTRACT take: the
+// datetime_field enum of partiql-ast (partiql_ast.ion:810 at v0.14.9).
+var datetimeFields = map[string]bool{
+	"YEAR": true, "MONTH": true, "DAY": true, "HOUR": true, "MINUTE": true,
+	"SECOND": true, "TIMEZONE_HOUR": true, "TIMEZONE_MINUTE": true,
+}
+
+// checkDatetimeField refuses a field identifier that names no datetime
+// field, in any case, as the reference parser's visitor does
+// (PartiQLParserDefault.kt:1789, 1866). The visitor runs after the parse,
+// so the caller checks once the call's syntax is read. fn names the
+// function for the error.
+func checkDatetimeField(fn string, field Token) error {
+	if datetimeFields[strings.ToUpper(field.Str)] {
+		return nil
+	}
+	return &ParseError{
+		Message:  fmt.Sprintf("%s field must be one of YEAR, MONTH, DAY, HOUR, MINUTE, SECOND, TIMEZONE_HOUR, TIMEZONE_MINUTE, got %q", fn, field.Str),
+		Position: field.Loc.Start, End: field.Loc.End,
+	}
 }
