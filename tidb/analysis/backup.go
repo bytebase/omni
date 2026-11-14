@@ -598,10 +598,11 @@ func generateSQLForSingleTable(statementInfoList []statementInfo, opts BackupOpt
 		if len(item.table.Alias) > 0 {
 			tableNameOrAlias = item.table.Alias
 		}
+		// Each arm keeps its own ORDER BY and LIMIT only inside parentheses.
 		if len(generatedColumns) == 0 {
-			fmt.Fprintf(&buf, "  SELECT `%s`.* FROM ", tableNameOrAlias)
+			fmt.Fprintf(&buf, "  (SELECT `%s`.* FROM ", tableNameOrAlias)
 		} else {
-			buf.WriteString("  SELECT ")
+			buf.WriteString("  (SELECT ")
 			for j, column := range normalColumns {
 				if j > 0 {
 					buf.WriteByte(',')
@@ -611,6 +612,7 @@ func generateSQLForSingleTable(statementInfoList []statementInfo, opts BackupOpt
 			buf.WriteString(" FROM ")
 		}
 		writeSuffixSelectClause(&buf, item.node, item.fullSQL)
+		buf.WriteByte(')')
 	}
 
 	buf.WriteByte(';')

@@ -192,3 +192,18 @@ func TestClassifyColumns(t *testing.T) {
 	_, _, err = analysis.ClassifyColumns(analysis.Catalog{}, false, "db", "t")
 	require.Error(t, err)
 }
+
+func TestTransformDMLToSelectKeepsEachLimit(t *testing.T) {
+	script := strings.Repeat("DELETE FROM t WHERE a > 1 ORDER BY a LIMIT 1;\n", 6)
+	got, err := transform(t, script)
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	require.Equal(t, 6, strings.Count(got[0].Statement, "(SELECT `t`.* FROM t WHERE a > 1 ORDER BY a LIMIT 1)"), got[0].Statement)
+}
+
+func TestTransformDMLToSelectCTEAlias(t *testing.T) {
+	got, err := transform(t, "WITH c AS (SELECT 1 AS a) DELETE c FROM t AS c WHERE c.a = 1")
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	require.Equal(t, "t", got[0].SourceTable)
+}

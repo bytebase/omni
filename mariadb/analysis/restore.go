@@ -89,6 +89,8 @@ func RestoreSQL(node ast.Node, opts RestoreOptions) (string, error) {
 	if truncated {
 		sqlForComment += "..."
 	}
+	// A "*/" in the statement would end the comment early.
+	sqlForComment = strings.ReplaceAll(sqlForComment, "*/", "* /")
 	return fmt.Sprintf("/*\nOriginal SQL:\n%s\n*/\n%s", sqlForComment, result), nil
 }
 
@@ -98,20 +100,17 @@ func generateDeleteRestore(originalDatabase, originalTable, backupDatabase, back
 }
 
 func generateUpdateRestore(catalog Catalog, stmt *ast.UpdateStmt, originalDatabase, originalTable, backupDatabase, backupTable string, normalColumns []string) (string, error) {
-	// Extract single tables from the UPDATE table references.
-	singleTables := extractSingleTablesFromTableExprs(originalDatabase, stmt.Tables)
-
-	// Find the table matching the original table.
-	var matchedTable *TableReference
-	for _, table := range singleTables {
-		if strings.EqualFold(table.Table, originalTable) {
-			matchedTable = table
-			break
+	// A self-join names the table more than once; a SET column may be
+	// qualified by any of those references.
+	var targets []*TableReference
+	for _, table := range extractSingleTablesFromTableExprs(originalDatabase, stmt.Tables) {
+		if strings.EqualFold(table.Table, originalTable) && strings.EqualFold(table.Database, originalDatabase) {
+			targets = append(targets, table)
 		}
 	}
 
 	// Extract update column names that belong to the original table.
-	updateColumns := extractUpdateColumns(stmt.SetList, originalDatabase, matchedTable, normalColumns)
+	updateColumns := extractUpdateColumns(stmt.SetList, originalDatabase, targets, normalColumns)
 
 	has, err := hasDisjointUniqueKey(catalog, originalDatabase, originalTable, updateColumns)
 	if err != nil {
@@ -179,7 +178,7 @@ func collectTableRefs(databaseName string, expr ast.TableExpr, result map[string
 
 // extractUpdateColumns extracts column names from SET assignments that belong
 // to the original table.
-func extractUpdateColumns(setList []*ast.Assignment, database string, matchedTable *TableReference, normalColumns []string) []string {
+func extractUpdateColumns(setList []*ast.Assignment, database string, targets []*TableReference, normalColumns []string) []string {
 	var result []string
 	for _, assignment := range setList {
 		col := assignment.Column
@@ -202,8 +201,11 @@ func extractUpdateColumns(setList []*ast.Assignment, database string, matchedTab
 			continue
 		}
 
-		if matchedTable != nil && (col.Table == matchedTable.Alias || strings.EqualFold(col.Table, matchedTable.Table)) {
-			result = append(result, col.Column)
+		for _, target := range targets {
+			if col.Table == target.Alias || strings.EqualFold(col.Table, target.Table) {
+				result = append(result, col.Column)
+				break
+			}
 		}
 	}
 	return result
@@ -236,8 +238,23 @@ func hasDisjointUniqueKey(catalog Catalog, originalDatabase, originalTable strin
 		return false, fmt.Errorf("table metadata is nil for %s.%s", originalDatabase, originalTable)
 	}
 
+	regularColumns := make(map[string]bool)
+	for _, column := range tableMetadata.Columns {
+		if column == nil || column.Generation != nil {
+			continue
+		}
+		regularColumns[strings.ToLower(column.Name)] = true
+	}
+
 	for _, index := range tableMetadata.Indexes {
 		if !index.Primary && !index.Unique {
+			continue
+		}
+		// A key on a generated column or an expression can change with
+		// the columns it reads, which string comparison with the SET
+		// columns cannot see, so it never identifies a row to restore.
+		// Neither does a key with no parts, which is vacuously disjoint.
+		if len(index.Expressions) == 0 || !allRegular(index.Expressions, regularColumns) {
 			continue
 		}
 		if disjoint(index.Expressions, columnMap) {
@@ -246,6 +263,17 @@ func hasDisjointUniqueKey(catalog Catalog, originalDatabase, originalTable strin
 	}
 
 	return false, nil
+}
+
+// allRegular reports whether every key part is a column that is not
+// generated.
+func allRegular(parts []string, regularColumns map[string]bool) bool {
+	for _, part := range parts {
+		if !regularColumns[strings.ToLower(part)] {
+			return false
+		}
+	}
+	return true
 }
 
 func disjoint(a []string, b map[string]bool) bool {

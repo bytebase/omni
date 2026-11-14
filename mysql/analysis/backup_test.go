@@ -60,6 +60,11 @@ var backupDB = &backupDatabase{
 		{Name: "t1", Columns: backupColumns("a", "b")},
 		{Name: "t2", Columns: backupColumns("c", "d")},
 		{Name: "tg", Columns: backupColumns("a", "b", "g_c"), Indexes: []*metadata.IndexMetadata{{Name: "uk", Unique: true, Expressions: []string{"B"}}}},
+		{Name: "tk", Columns: backupColumns("a", "b", "g_c"), Indexes: []*metadata.IndexMetadata{
+			{Name: "uk_generated", Unique: true, Expressions: []string{"g_c"}},
+			{Name: "uk_expression", Unique: true, Expressions: []string{"(`a` + 1)"}},
+			{Name: "uk_empty", Unique: true},
+		}},
 	},
 }
 
@@ -101,7 +106,7 @@ func TestTransformDMLToSelect(t *testing.T) {
 			// Two statements on one table share a backup; the range spans both.
 			statement: "SELECT 1; DELETE FROM t WHERE a = 1; DELETE FROM db.t WHERE a = 2;",
 			want: []analysis.BackupStatement{{
-				Statement:   "CREATE TABLE `bak`.`pre_t_db` LIKE `db`.`t`;\nINSERT INTO `bak`.`pre_t_db`  SELECT `t`.* FROM t WHERE a = 1\n  UNION DISTINCT\n  SELECT `t`.* FROM db.t WHERE a = 2;",
+				Statement:   "CREATE TABLE `bak`.`pre_t_db` LIKE `db`.`t`;\nINSERT INTO `bak`.`pre_t_db`  (SELECT `t`.* FROM t WHERE a = 1)\n  UNION DISTINCT\n  (SELECT `t`.* FROM db.t WHERE a = 2);",
 				SourceTable: "t", BackupTable: "pre_t_db", ByteStart: 9, ByteEnd: 65,
 			}},
 		},
@@ -229,4 +234,42 @@ func TestExtractTables(t *testing.T) {
 	require.Equal(t, analysis.TableReference{Database: "db", Table: "t2", Alias: "b", StatementType: analysis.DMLTypeUpdate}, *got[0].Table)
 	require.Equal(t, 3, got[0].Offset)
 	require.Equal(t, statement, got[0].Statement)
+}
+
+func TestTransformDMLToSelectKeepsEachLimit(t *testing.T) {
+	got, err := transform(t, "DELETE FROM t WHERE a = 1 ORDER BY b LIMIT 1; DELETE FROM t WHERE a > 2 LIMIT 2")
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	require.Equal(t, "CREATE TABLE `bak`.`pre_t_db` LIKE `db`.`t`;\nINSERT INTO `bak`.`pre_t_db`  (SELECT `t`.* FROM t WHERE a = 1 ORDER BY b LIMIT 1)\n  UNION DISTINCT\n  (SELECT `t`.* FROM t WHERE a > 2 LIMIT 2);", got[0].Statement)
+
+	// A single statement's SELECT needs no parentheses.
+	got, err = transform(t, "DELETE FROM t WHERE a = 1 LIMIT 1")
+	require.NoError(t, err)
+	require.True(t, strings.HasSuffix(got[0].Statement, "  SELECT `t`.* FROM t WHERE a = 1 LIMIT 1;"), got[0].Statement)
+}
+
+func TestTransformDMLToSelectCTEAlias(t *testing.T) {
+	tests := []struct {
+		statement string
+		want      []string
+	}{
+		// A table aliased with a CTE's name is still a target.
+		{"WITH c AS (SELECT 1 AS a) DELETE c FROM t AS c WHERE c.a = 1", []string{"t"}},
+		{"WITH c AS (SELECT 1 AS a) UPDATE t AS c JOIN t1 ON c.a = t1.a SET c.b = 1", []string{"t"}},
+		// A table named with its database is never the CTE of that name.
+		{"WITH t1 AS (SELECT 1 AS a) DELETE db.t1 FROM db.t1 JOIN t2 ON db.t1.a = t2.c", []string{"t1"}},
+		{"WITH t1 AS (SELECT 1 AS a) UPDATE db.t1 JOIN t2 ON db.t1.a = t2.c SET db.t1.b = 1", []string{"t1"}},
+		// The CTE itself is not.
+		{"WITH c AS (SELECT 1 AS a) DELETE t1, c FROM t1 JOIN c ON t1.a = c.a", []string{"t1"}},
+		{"WITH c AS (SELECT 1 AS a) UPDATE t1 JOIN c ON t1.a = c.a SET t1.b = 1, c.a = 2", []string{"t1"}},
+	}
+	for _, tc := range tests {
+		got, err := transform(t, tc.statement)
+		require.NoError(t, err, tc.statement)
+		var tables []string
+		for _, backup := range got {
+			tables = append(tables, backup.SourceTable)
+		}
+		require.Equal(t, tc.want, tables, tc.statement)
+	}
 }

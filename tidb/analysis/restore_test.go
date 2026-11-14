@@ -90,3 +90,15 @@ func TestMutatesTable(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, nodes, 2)
 }
+
+func TestRestoreSQLSelfJoin(t *testing.T) {
+	got, err := restore(t, "UPDATE t x JOIN t y ON x.a = y.a + 1 SET x.b = 10, y.c = 20", "t")
+	require.NoError(t, err)
+	require.Contains(t, got, "ON DUPLICATE KEY UPDATE `b` = VALUES(`b`), `c` = VALUES(`c`);")
+}
+
+func TestRestoreSQLEscapesCommentEnd(t *testing.T) {
+	got, err := restore(t, "DELETE /* note */ FROM t WHERE a = '*/'", "t")
+	require.NoError(t, err)
+	require.Equal(t, "/*\nOriginal SQL:\nDELETE /* note * / FROM t WHERE a = '* /'\n*/\nINSERT INTO `db`.`t` (`a`, `b`, `c`) SELECT `a`, `b`, `c` FROM `bak`.`pre_t`;", got)
+}

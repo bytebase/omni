@@ -30,6 +30,15 @@ type TableReference struct {
 	Table         string
 	Alias         string
 	StatementType DMLType
+	// qualified is true when the reference names its database. Only an
+	// unqualified reference can name a CTE.
+	qualified bool
+}
+
+// isCTE reports whether ref names one of the statement's CTEs rather than a
+// table.
+func (ref *TableReference) isCTE(cteNames map[string]bool) bool {
+	return !ref.qualified && cteNames[ref.Table]
 }
 
 // DMLTarget is a table an UPDATE or DELETE changes, with the statement that
@@ -184,12 +193,17 @@ func extractTablesFromDelete(databaseName string, n *ast.DeleteStmt, fullSQL str
 		if target.Alias != "" {
 			name = target.Alias
 		}
-		if cteNames[name] {
-			continue
-		}
 		ref, ok := refTables[name]
 		if !ok {
+			if cteNames[name] {
+				continue
+			}
 			return nil, fmt.Errorf("cannot extract reference table: no matched table %q in referenced table list", name)
+		}
+		// A table whose alias is a CTE's name is still a target; only a
+		// reference to the CTE itself is not.
+		if ref.isCTE(cteNames) {
+			continue
 		}
 		ref.StatementType = DMLTypeDelete
 		result = append(result, DMLTarget{
@@ -214,7 +228,8 @@ func extractTablesFromUpdate(databaseName string, n *ast.UpdateStmt, fullSQL str
 	for _, assign := range n.SetList {
 		if assign.Column != nil {
 			table := assign.Column.Table
-			if !cteNames[table] {
+			ref, ok := singleTables[table]
+			if (ok && !ref.isCTE(cteNames)) || (!ok && !cteNames[table]) {
 				updatedTables[table] = true
 				if table == "" {
 					unqualifiedColumns = append(unqualifiedColumns, assign.Column.Column)
@@ -281,9 +296,10 @@ func collectSingleTablesFromExpr(databaseName string, expr ast.TableExpr, out ma
 			db = databaseName
 		}
 		ref := &TableReference{
-			Database: db,
-			Table:    e.Name,
-			Alias:    e.Alias,
+			Database:  db,
+			Table:     e.Name,
+			Alias:     e.Alias,
+			qualified: e.Schema != "",
 		}
 		key := e.Name
 		if e.Alias != "" {
@@ -571,7 +587,11 @@ func generateSQLForTable(targets []DMLTarget, opts BackupOptions) (*BackupStatem
 		if len(item.Table.Alias) > 0 {
 			tableNameOrAlias = item.Table.Alias
 		}
+		// Each arm keeps its own ORDER BY and LIMIT only inside parentheses.
 		buf.WriteString("  ")
+		if len(targets) > 1 {
+			buf.WriteByte('(')
+		}
 
 		stmtLoc := nodeStmtLoc(item.Node)
 		cteString := extractCTE(item.FullSQL, stmtLoc)
@@ -592,6 +612,9 @@ func generateSQLForTable(targets []DMLTarget, opts BackupOptions) (*BackupStatem
 			buf.WriteString(" FROM ")
 		}
 		writeSuffixSelectClause(&buf, item.Node, item.FullSQL)
+		if len(targets) > 1 {
+			buf.WriteByte(')')
+		}
 	}
 
 	buf.WriteByte(';')

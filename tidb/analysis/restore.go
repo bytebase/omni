@@ -145,6 +145,8 @@ func RestoreSQL(nodes []ast.Node, opts RestoreOptions) (string, error) {
 	if truncated {
 		sqlForComment += "..."
 	}
+	// A "*/" in the statement would end the comment early.
+	sqlForComment = strings.ReplaceAll(sqlForComment, "*/", "* /")
 	return fmt.Sprintf("/*\nOriginal SQL:\n%s\n*/\n%s", sqlForComment, result), nil
 }
 

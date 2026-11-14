@@ -80,3 +80,29 @@ func TestReferencesTable(t *testing.T) {
 	_, err := analysis.ReferencesTable("UPDATE", "db", "t")
 	require.Error(t, err)
 }
+
+func TestRestoreSQLSelfJoin(t *testing.T) {
+	// Each alias of the table contributes the columns it sets; the other
+	// table's do not.
+	got, err := restore(t, "UPDATE t x JOIN t y ON x.a = y.a + 1 JOIN t1 ON t1.a = x.a SET x.b = 10, y.c = 20, t1.b = 30", "t")
+	require.NoError(t, err)
+	require.True(t, strings.HasSuffix(got, "ON DUPLICATE KEY UPDATE `b` = VALUES(`b`), `c` = VALUES(`c`);"), got)
+
+	// An alias of the same-named table in another database is not the table.
+	got, err = restore(t, "UPDATE db.t x JOIN other.t y ON x.a = y.a SET x.b = 1, y.c = 2", "t")
+	require.NoError(t, err)
+	require.True(t, strings.HasSuffix(got, "ON DUPLICATE KEY UPDATE `b` = VALUES(`b`);"), got)
+}
+
+func TestRestoreSQLEscapesCommentEnd(t *testing.T) {
+	got, err := restore(t, "DELETE /* note */ FROM t WHERE a = '*/'", "t")
+	require.NoError(t, err)
+	require.Equal(t, "/*\nOriginal SQL:\nDELETE /* note * / FROM t WHERE a = '* /'\n*/\nINSERT INTO `db`.`t` (`a`, `b`, `c`) SELECT `a`, `b`, `c` FROM `bak`.`pre_t`;", got)
+}
+
+func TestRestoreSQLSkipsKeysThatCanChange(t *testing.T) {
+	// Every unique key of tk is on a generated column, an expression, or
+	// nothing, so none identifies the row the UPDATE changed.
+	_, err := restore(t, "UPDATE tk SET b = 1", "tk")
+	require.EqualError(t, err, "no disjoint unique key found for db.tk")
+}
