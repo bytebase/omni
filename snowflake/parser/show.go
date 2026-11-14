@@ -251,6 +251,23 @@ func (p *Parser) parseShowScope(stmt *ast.ShowStmt) error {
 		return p.parseOptionalScopeName(stmt)
 	}
 
+	// SHOW COMMITTED TASKS ... IN GRAPH <graph_name>
+	// https://docs.snowflake.com/en/sql-reference/sql/show-committed-tasks
+	// (IN GRAPH alone, or before STARTS WITH or LIMIT, is the schema GRAPH.)
+	if next := p.peekNext(); stmt.ObjectClass == "COMMITTED TASKS" && isWordToken(p.cur, "GRAPH") &&
+		(isNameWordTok(next) || next.Type == tokQuotedIdent) &&
+		next.Type != kwSTARTS && next.Type != kwLIMIT && next.Type != kwWITH {
+		p.advance() // consume GRAPH
+		name, err := p.parseObjectSimpleName()
+		if err != nil {
+			return err
+		}
+		stmt.Scope = ast.ShowScopeOther
+		stmt.ScopeText = "GRAPH"
+		stmt.ScopeName = name
+		return nil
+	}
+
 	// Bare name → schema scope (e.g. SHOW TABLES IN tpch_sf1).
 	if p.startsScopeName() {
 		name, err := p.parseObjectName()

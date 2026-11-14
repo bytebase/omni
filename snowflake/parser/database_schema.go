@@ -366,7 +366,12 @@ func (p *Parser) parseAlterStmt() (ast.Node, error) {
 		// ALTER STREAM ... (T4.3).
 		return p.parseAlterStreamStmt()
 	case kwTASK:
-		// ALTER TASK ... (T4.3).
+		// ALTER TASK ... (T4.3), or TASK GRAPH (task_graph.go).
+		if p.startsTaskGraph() {
+			return p.parseTaskOrGraph(func() (ast.Node, error) {
+				return p.parseObjectStmt("ALTER", taskGraphForm, alterTok.Loc, false, false)
+			}, p.parseAlterTaskStmt)
+		}
 		return p.parseAlterTaskStmt()
 	case kwALERT:
 		// ALTER ALERT ... (T4.3).

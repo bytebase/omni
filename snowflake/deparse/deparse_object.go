@@ -28,16 +28,16 @@ func (w *writer) writeObjectStmt(n *ast.ObjectStmt) error {
 		w.writeObjectNameNoSpace(n.Name)
 	}
 	for _, c := range n.Clauses {
-		if err := w.writeObjectClause(c); err != nil {
+		if err := w.writeObjectClause(n.Kind, c); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// writeObjectClause writes one clause: its keywords, then the names, keys,
-// properties, tags and query it holds.
-func (w *writer) writeObjectClause(c *ast.ObjectClause) error {
+// writeObjectClause writes one clause of an object of kind: its keywords, then
+// the names, keys, properties, tags and query it holds.
+func (w *writer) writeObjectClause(kind string, c *ast.ObjectClause) error {
 	if c.Keywords != "" {
 		w.buf.WriteByte(' ')
 		w.buf.WriteString(c.Keywords)
@@ -54,7 +54,11 @@ func (w *writer) writeObjectClause(c *ast.ObjectClause) error {
 		w.buf.WriteByte(' ')
 		w.buf.WriteString(strings.Join(c.Keys, ", "))
 	}
-	for _, o := range c.Options {
+	commas := objectOptionCommas(kind, c.Keywords)
+	for i, o := range c.Options {
+		if i > 0 && commas {
+			w.buf.WriteByte(',')
+		}
 		w.buf.WriteByte(' ')
 		if err := w.writeObjectOption(o); err != nil {
 			return err
@@ -79,6 +83,18 @@ func (w *writer) writeObjectClause(c *ast.ObjectClause) error {
 		return w.writeNode(c.Query)
 	}
 	return nil
+}
+
+// objectOptionCommas reports whether a clause of an object of kind separates
+// its properties with commas, as the object's page writes them.
+func objectOptionCommas(kind, keywords string) bool {
+	switch keywords {
+	case "SET CONTACT":
+		return true
+	case "SET":
+		return kind == "TASK GRAPH"
+	}
+	return false
 }
 
 // writeObjectOption writes a property as `NAME = value`, or its value alone

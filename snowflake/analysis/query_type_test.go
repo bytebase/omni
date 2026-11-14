@@ -8,13 +8,15 @@ import (
 )
 
 // TestGetQueryType_CallExecuteAreDML locks the classification of
-// CALL / EXECUTE IMMEDIATE / EXECUTE TASK as DML (procedures can mutate data;
+// CALL / EXECUTE IMMEDIATE / EXECUTE TASK [ GRAPH ] / EXECUTE ALERT as DML (procedures can mutate data;
 // the DDL fallback would map them to the wrong ACL bucket).
 func TestGetQueryType_CallExecuteAreDML(t *testing.T) {
 	for _, sql := range []string{
 		"CALL P(1);",
 		"EXECUTE IMMEDIATE 'SELECT 1';",
 		"EXECUTE TASK T1;",
+		"EXECUTE TASK GRAPH G1;",
+		"EXECUTE ALERT A1;",
 	} {
 		file, err := parser.Parse(sql)
 		if err != nil {

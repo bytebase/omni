@@ -222,8 +222,14 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 		// CREATE [OR REPLACE] STREAM ... (T4.3).
 		return p.parseCreateStreamStmt(start, orReplace, orAlter)
 	case kwTASK:
-		// CREATE [OR REPLACE] TASK ... (T4.3).
-		return p.parseCreateTaskStmt(start, orReplace, orAlter)
+		// CREATE [OR REPLACE] TASK ... (T4.3), or TASK GRAPH (task_graph.go).
+		task := func() (ast.Node, error) { return p.parseCreateTaskStmt(start, orReplace, orAlter) }
+		if p.startsTaskGraph() {
+			return p.parseTaskOrGraph(func() (ast.Node, error) {
+				return p.parseObjectStmt("CREATE", taskGraphForm, start, orReplace, orAlter)
+			}, task)
+		}
+		return task()
 	case kwALERT:
 		// CREATE [OR REPLACE] ALERT ... (T4.3).
 		return p.parseCreateAlertStmt(start, orReplace, orAlter)

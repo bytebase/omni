@@ -36,7 +36,18 @@ func walkChildren(v Visitor, node Node) {
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+		if n.Template != nil {
+			Walk(v, n.Template)
+		}
 		for _, item := range n.Options {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		for _, item := range n.Tags {
+			walkTagAssignment(v, item)
+		}
+		for _, item := range n.UnsetTags {
 			if item != nil {
 				Walk(v, item)
 			}
@@ -641,6 +652,12 @@ func walkChildren(v Visitor, node Node) {
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+		if n.Clone != nil {
+			Walk(v, n.Clone)
+		}
+		if n.Template != nil {
+			Walk(v, n.Template)
+		}
 		for _, item := range n.Tags {
 			walkTagAssignment(v, item)
 		}
@@ -988,6 +1005,11 @@ func walkChildren(v Visitor, node Node) {
 		for _, item := range n.Tags {
 			walkTagAssignment(v, item)
 		}
+		for _, item := range n.Contacts {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 		for _, item := range n.Options {
 			if item != nil {
 				Walk(v, item)
@@ -1080,6 +1102,10 @@ func walkChildren(v Visitor, node Node) {
 			if item != nil {
 				Walk(v, item)
 			}
+		}
+	case *ExecuteAlertStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
 		}
 	case *ExecuteTaskStmt:
 		if n.Name != nil {
