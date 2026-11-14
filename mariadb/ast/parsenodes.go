@@ -705,9 +705,13 @@ const (
 
 // PartitionDef represents a single partition definition.
 type PartitionDef struct {
-	Loc           Loc
-	Name          string
-	Values        Node   // VALUES LESS THAN (expr) or IN (list) — kept as Node to support heterogeneous partition value types
+	Loc    Loc
+	Name   string
+	Values Node // VALUES LESS THAN (expr) or IN (list) — kept as Node to support heterogeneous partition value types
+	// ValuesIn marks Values as VALUES IN rather than LESS THAN, which an ALTER
+	// TABLE's partition, read before the table's partitioning is known, needs to
+	// be held to it.
+	ValuesIn      bool
 	SystemTime    string // "HISTORY" | "CURRENT" for SYSTEM_TIME partitions ("" otherwise)
 	Options       []*TableOption
 	SubPartitions []*SubPartitionDef

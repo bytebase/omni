@@ -2105,6 +2105,9 @@ func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd) error 
 		tbl.Partitioning.NumParts = len(tbl.Partitioning.Partitions)
 		return nil
 	}
+	if err := checkAddedPartitionKinds(tbl.Partitioning, cmd.PartitionDefs); err != nil {
+		return err
+	}
 	if err := checkAddedRangeBounds(tbl, cmd.PartitionDefs); err != nil {
 		return err
 	}
@@ -2372,6 +2375,40 @@ func (c *Catalog) tableDefinitionText(tbl *Table) string {
 	return strings.TrimPrefix(text, "CREATE TEMPORARY TABLE "+backtickIDQ(tbl.Name))
 }
 
+// checkAddedPartitionKinds holds each partition ADD PARTITION and CONVERT TABLE
+// add to the bound its table's partitioning takes: VALUES LESS THAN on RANGE,
+// VALUES IN or DEFAULT on LIST, HISTORY or CURRENT on SYSTEM_TIME, and none on
+// HASH and KEY. Measured on mariadb:11.8.8: VALUES IN or DEFAULT on another is
+// 1480, LESS THAN on another is 1480, no bound on RANGE or LIST is 1479, and
+// HISTORY or CURRENT on another is 4113.
+func checkAddedPartitionKinds(pi *PartitionInfo, defs []*nodes.PartitionDef) error {
+	isRange := strings.HasPrefix(pi.Type, "RANGE")
+	isList := strings.HasPrefix(pi.Type, "LIST")
+	for _, pd := range defs {
+		def, _ := pd.Values.(*nodes.String)
+		isDefault := def != nil && strings.EqualFold(def.Str, "DEFAULT")
+		switch {
+		case pd.SystemTime != "":
+			if pi.Type != "SYSTEM_TIME" {
+				return &Error{Code: 4113, SQLState: "HY000", Message: "Only SYSTEM_TIME PARTITIONING can use HISTORY or CURRENT in partition definition"}
+			}
+		case pd.ValuesIn || isDefault:
+			if !isList {
+				return &Error{Code: 1480, SQLState: "HY000", Message: "Only LIST PARTITIONING can use VALUES IN in partition definition"}
+			}
+		case pd.Values != nil:
+			if !isRange {
+				return &Error{Code: 1480, SQLState: "HY000", Message: "Only RANGE PARTITIONING can use VALUES LESS THAN in partition definition"}
+			}
+		case isRange:
+			return &Error{Code: 1479, SQLState: "HY000", Message: "Syntax error: RANGE PARTITIONING requires definition of VALUES LESS THAN for each partition"}
+		case isList:
+			return &Error{Code: 1479, SQLState: "HY000", Message: "Syntax error: LIST PARTITIONING requires definition of VALUES IN for each partition"}
+		}
+	}
+	return nil
+}
+
 // checkAddedRangeBounds holds the partitions ADD PARTITION and CONVERT TABLE add
 // to a LIST table to values of their own (checkAddedListValues), and to a RANGE or
 // RANGE COLUMNS table to bounds that go on rising from the table's
@@ -2453,7 +2490,10 @@ func checkAddedListValues(pi *PartitionInfo, defs []*nodes.PartitionDef) error {
 
 // listValueKey is a LIST value as checkAddedListValues compares it: an integer by
 // its value, a tuple by its members, a tuple of one as its member, and anything
-// else by its text, case aside; "" for a value it cannot compare.
+// else by its text as written; "" for a value it cannot compare. Text is compared
+// exactly, since whether 'a' and 'A' are one value is the column's collation's to
+// say: a utf8mb4_bin column holds both, and the catalog passes what it cannot
+// settle.
 func listValueKey(n nodes.Node) string {
 	if l, ok := n.(*nodes.List); ok {
 		if len(l.Items) == 1 {
@@ -2470,9 +2510,9 @@ func listValueKey(n nodes.Node) string {
 	}
 	switch v := n.(type) {
 	case nodes.ExprNode:
-		return toLower(nodeToSQL(v))
+		return nodeToSQL(v)
 	case *nodes.String:
-		return toLower(v.Str)
+		return v.Str
 	}
 	return ""
 }

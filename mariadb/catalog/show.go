@@ -1084,6 +1084,11 @@ func showPartitioning(pi *PartitionInfo) string {
 					} else {
 						b.WriteString(fmt.Sprintf(" VALUES LESS THAN (%s)", pd.ValueExpr))
 					}
+				case strings.HasPrefix(pi.Type, "LIST") && pd.ValueExpr == "DEFAULT":
+					// The catch-all partition: PARTITION `p1` DEFAULT ENGINE = InnoDB.
+					// A string 'DEFAULT' is quoted, so it is not this. Measured on
+					// mariadb:11.8.8.
+					b.WriteString(" DEFAULT")
 				case strings.HasPrefix(pi.Type, "LIST"):
 					b.WriteString(fmt.Sprintf(" VALUES IN (%s)", pd.ValueExpr))
 				}

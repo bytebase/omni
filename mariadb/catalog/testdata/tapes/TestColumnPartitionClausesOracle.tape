@@ -754,6 +754,131 @@
 | DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
 < ok 0 0
 > exec
+| CREATE TABLE pt (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))
+< ok 0 0
+> exec
+| CREATE TABLE ct (a INT)
+< ok 0 0
+> exec
+| ALTER TABLE pt CONVERT TABLE ct TO PARTITION p1 VALUES IN (20)
+< error
+| 1480 HY000 Only LIST PARTITIONING can use VALUES IN in partition definition
+> exec
+| SET sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
+< ok 0 0
+> exec
+| CREATE TABLE pt (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))
+< ok 0 0
+> exec
+| CREATE TABLE ct (a INT)
+< ok 0 0
+> exec
+| ALTER TABLE pt CONVERT TABLE ct TO PARTITION p1
+< error
+| 1479 HY000 Syntax error: RANGE PARTITIONING requires definition of VALUES LESS THAN for each partition
+> exec
+| SET sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
+< ok 0 0
+> exec
+| CREATE TABLE pt (a INT) PARTITION BY LIST (a) (PARTITION p0 VALUES IN (1))
+< ok 0 0
+> exec
+| ALTER TABLE pt ADD PARTITION (p1 VALUES LESS THAN (20))
+< error
+| 1480 HY000 Only RANGE PARTITIONING can use VALUES LESS THAN in partition definition
+> exec
+| SET sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
+< ok 0 0
+> exec
+| CREATE TABLE pt (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))
+< ok 0 0
+> exec
+| ALTER TABLE pt ADD PARTITION (p1 DEFAULT)
+< error
+| 1480 HY000 Only LIST PARTITIONING can use VALUES IN in partition definition
+> exec
+| SET sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
+< ok 0 0
+> exec
+| CREATE TABLE pt (a INT) PARTITION BY HASH (a) PARTITIONS 2
+< ok 0 0
+> exec
+| ALTER TABLE pt ADD PARTITION (p9 VALUES IN (1))
+< error
+| 1480 HY000 Only LIST PARTITIONING can use VALUES IN in partition definition
+> exec
+| SET sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
+< ok 0 0
+> exec
+| CREATE TABLE pt (a INT) PARTITION BY LIST (a) (PARTITION p0 VALUES IN (1))
+< ok 0 0
+> exec
+| ALTER TABLE pt ADD PARTITION (p1 DEFAULT)
+< ok 0 0
+> query
+| SHOW CREATE TABLE pt
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| pt
+: bytes
+| CREATE TABLE `pt` (
+|   `a` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LIST (`a`)
+| (PARTITION `p0` VALUES IN (1) ENGINE = InnoDB,
+|  PARTITION `p1` DEFAULT ENGINE = InnoDB)
+> exec
+| SET sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
+< ok 0 0
+> exec
+| CREATE TABLE pt (a VARCHAR(10) COLLATE utf8mb4_bin) PARTITION BY LIST COLUMNS (a) (PARTITION p0 VALUES IN ('A'))
+< ok 0 0
+> exec
+| ALTER TABLE pt ADD PARTITION (p1 VALUES IN ('a'))
+< ok 0 0
+> query
+| SHOW CREATE TABLE pt
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| pt
+: bytes
+| CREATE TABLE `pt` (
+|   `a` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LIST  COLUMNS(`a`)
+| (PARTITION `p0` VALUES IN ('A') ENGINE = InnoDB,
+|  PARTITION `p1` VALUES IN ('a') ENGINE = InnoDB)
+> exec
+| SET sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
+< ok 0 0
+> exec
 | CREATE TABLE pt (a INT PRIMARY KEY) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))
 < ok 0 0
 > exec

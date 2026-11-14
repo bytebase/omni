@@ -222,6 +222,48 @@ var columnPartitionClauseCases = []struct {
 		errCode: 1508,
 	},
 	{
+		name:    "CONVERT TABLE to a VALUES IN partition of a RANGE table",
+		setup:   []string{"CREATE TABLE pt (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))", "CREATE TABLE ct (a INT)"},
+		sql:     "ALTER TABLE pt CONVERT TABLE ct TO PARTITION p1 VALUES IN (20)",
+		errCode: 1480,
+	},
+	{
+		name:    "CONVERT TABLE to a RANGE partition of no bound",
+		setup:   []string{"CREATE TABLE pt (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))", "CREATE TABLE ct (a INT)"},
+		sql:     "ALTER TABLE pt CONVERT TABLE ct TO PARTITION p1",
+		errCode: 1479,
+	},
+	{
+		name:    "ADD PARTITION of LESS THAN to a LIST table",
+		setup:   []string{"CREATE TABLE pt (a INT) PARTITION BY LIST (a) (PARTITION p0 VALUES IN (1))"},
+		sql:     "ALTER TABLE pt ADD PARTITION (p1 VALUES LESS THAN (20))",
+		errCode: 1480,
+	},
+	{
+		name:    "ADD PARTITION of DEFAULT to a RANGE table",
+		setup:   []string{"CREATE TABLE pt (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))"},
+		sql:     "ALTER TABLE pt ADD PARTITION (p1 DEFAULT)",
+		errCode: 1480,
+	},
+	{
+		name:    "ADD PARTITION of VALUES IN to a HASH table",
+		setup:   []string{"CREATE TABLE pt (a INT) PARTITION BY HASH (a) PARTITIONS 2"},
+		sql:     "ALTER TABLE pt ADD PARTITION (p9 VALUES IN (1))",
+		errCode: 1480,
+	},
+	{
+		name:   "ADD PARTITION of DEFAULT to a LIST table",
+		setup:  []string{"CREATE TABLE pt (a INT) PARTITION BY LIST (a) (PARTITION p0 VALUES IN (1))"},
+		sql:    "ALTER TABLE pt ADD PARTITION (p1 DEFAULT)",
+		tables: []string{"pt"},
+	},
+	{
+		name:   "ADD PARTITION of a value a binary collation tells apart",
+		setup:  []string{"CREATE TABLE pt (a VARCHAR(10) COLLATE utf8mb4_bin) PARTITION BY LIST COLUMNS (a) (PARTITION p0 VALUES IN ('A'))"},
+		sql:    "ALTER TABLE pt ADD PARTITION (p1 VALUES IN ('a'))",
+		tables: []string{"pt"},
+	},
+	{
 		name:    "CONVERT TABLE of no table",
 		setup:   []string{"CREATE TABLE pt (a INT PRIMARY KEY) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))"},
 		sql:     "ALTER TABLE pt CONVERT TABLE ct TO PARTITION p1 VALUES LESS THAN (20)",

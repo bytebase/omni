@@ -3202,6 +3202,9 @@ func writePartitionDef(sb *strings.Builder, n *PartitionDef) {
 		sb.WriteString(" :values ")
 		writeNode(sb, n.Values)
 	}
+	if n.ValuesIn {
+		sb.WriteString(" :values_in true")
+	}
 	if n.SystemTime != "" {
 		fmt.Fprintf(sb, " :system_time %s", n.SystemTime)
 	}

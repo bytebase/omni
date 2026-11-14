@@ -2870,6 +2870,7 @@ func (p *Parser) parsePartitionDefAndBound() (*nodes.PartitionDef, partitionBoun
 			}
 		} else if _, ok := p.match(kwIN); ok {
 			bound = boundIn
+			pd.ValuesIn = true
 			if p.cur.Type == '(' {
 				p.advance()
 				var items []nodes.Node
