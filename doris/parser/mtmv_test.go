@@ -432,13 +432,11 @@ func TestDropMTMV_OnBaseTable(t *testing.T) {
 // REFRESH MATERIALIZED VIEW
 // ---------------------------------------------------------------------------
 
-func TestRefreshMTMV_NoMode(t *testing.T) {
-	stmt := parseRefreshMTMVStmt(t, "REFRESH MATERIALIZED VIEW mv1")
-	if stmt.Name.String() != "mv1" {
-		t.Errorf("Name = %q, want mv1", stmt.Name.String())
-	}
-	if stmt.Mode != "" {
-		t.Errorf("Mode = %q, want empty", stmt.Mode)
+// The refresh mode is required: Doris rejects `REFRESH MATERIALIZED VIEW a`
+// (compat.tsv).
+func TestRefreshMTMV_NoModeRejected(t *testing.T) {
+	if _, err := Parse("REFRESH MATERIALIZED VIEW mv1"); err == nil {
+		t.Error("Parse: got nil error, want a syntax error")
 	}
 }
 

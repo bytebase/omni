@@ -389,9 +389,12 @@ func TestUninstallPlugin(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestWarmUpCluster(t *testing.T) {
-	stmt := parseWarmUpStmt(t, `WARM UP CLUSTER cloud_cluster FROM cloud_cluster2`)
+	stmt := parseWarmUpStmt(t, `WARM UP CLUSTER cloud_cluster WITH CLUSTER cloud_cluster2 FORCE`)
 	if stmt.Verb != "CLUSTER" {
 		t.Errorf("Verb: got %q, want CLUSTER", stmt.Verb)
+	}
+	if stmt.Target != "cloud_cluster WITH CLUSTER cloud_cluster2 FORCE" {
+		t.Errorf("Target: got %q", stmt.Target)
 	}
 }
 
@@ -403,9 +406,26 @@ func TestWarmUpComputeGroup(t *testing.T) {
 }
 
 func TestWarmUpLoc(t *testing.T) {
-	stmt := parseWarmUpStmt(t, `WARM UP CLUSTER c1 FROM c2`)
-	if !stmt.Loc.IsValid() {
-		t.Error("Loc should be valid")
+	sql := `WARM UP CLUSTER c1 WITH TABLE t1 PARTITION p1 AND TABLE db.t2`
+	stmt := parseWarmUpStmt(t, sql)
+	if stmt.Loc.Start != 0 || stmt.Loc.End != len(sql) {
+		t.Errorf("Loc: got %+v, want {0 %d}", stmt.Loc, len(sql))
+	}
+}
+
+// The source of a warm-up names the same kind of object as its destination
+// (DorisLegacyParser.g4 warm_up_stmt): Doris rejects these (compat.tsv).
+func TestWarmUpRejected(t *testing.T) {
+	for _, sql := range []string{
+		"WARM UP",
+		"WARM UP CLUSTER c1 FROM c2",
+		"WARM UP COMPUTE GROUP a WITH CLUSTER a",
+		"WARM UP CLUSTER a WITH TABLE a PARTITION",
+		"WARM UP CLUSTER a WITH TABLE a AND a",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q): got nil error, want a syntax error", sql)
+		}
 	}
 }
 
@@ -435,9 +455,9 @@ func TestCleanQueryStats(t *testing.T) {
 }
 
 func TestCleanQueryStatsAll(t *testing.T) {
-	stmt := parseCleanStmt(t, `CLEAN QUERY STATS ALL`)
-	if stmt.Verb != "QUERY STATS" {
-		t.Errorf("Verb: got %q, want QUERY STATS", stmt.Verb)
+	stmt := parseCleanStmt(t, `CLEAN ALL QUERY STATS`)
+	if stmt.Verb != "ALL QUERY STATS" {
+		t.Errorf("Verb: got %q, want ALL QUERY STATS", stmt.Verb)
 	}
 }
 

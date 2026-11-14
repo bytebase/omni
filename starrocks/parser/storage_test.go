@@ -225,30 +225,6 @@ func TestSetDefaultStorageVault_Tag(t *testing.T) {
 	}
 }
 
-func TestUnsetDefaultStorageVault(t *testing.T) {
-	file, errs := parseForTest("UNSET DEFAULT STORAGE VAULT")
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	if len(file.Stmts) != 1 {
-		t.Fatalf("expected 1 stmt, got %d", len(file.Stmts))
-	}
-	_, ok := file.Stmts[0].(*ast.UnsetDefaultStorageVaultStmt)
-	if !ok {
-		t.Fatalf("expected *ast.UnsetDefaultStorageVaultStmt, got %T", file.Stmts[0])
-	}
-}
-
-func TestUnsetDefaultStorageVault_Tag(t *testing.T) {
-	file, errs := parseForTest("UNSET DEFAULT STORAGE VAULT")
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	if file.Stmts[0].Tag() != ast.T_UnsetDefaultStorageVaultStmt {
-		t.Errorf("Tag() = %v, want T_UnsetDefaultStorageVaultStmt", file.Stmts[0].Tag())
-	}
-}
-
 // ---------------------------------------------------------------------------
 // CREATE STORAGE POLICY
 // ---------------------------------------------------------------------------

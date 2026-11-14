@@ -409,7 +409,9 @@ func (p *Parser) parseDropMTMV(startLoc ast.Loc) (ast.Node, error) {
 //
 // Syntax:
 //
-//	REFRESH MATERIALIZED VIEW mv_name [COMPLETE | AUTO | PARTITIONS(p1, p2, ...)]
+//	REFRESH MATERIALIZED VIEW mv_name {COMPLETE | AUTO | PARTITIONS(p1, p2, ...)}
+//
+// The refresh mode is required (DorisParser.g4:102 #refreshMTMV).
 func (p *Parser) parseRefreshMTMV(startLoc ast.Loc) (ast.Node, error) {
 	// Consume MATERIALIZED
 	if _, err := p.expect(kwMATERIALIZED); err != nil {
@@ -461,6 +463,8 @@ func (p *Parser) parseRefreshMTMV(startLoc ast.Loc) (ast.Node, error) {
 			return nil, err
 		}
 		stmt.Loc.End = closeTok.Loc.End
+	default:
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	return stmt, nil

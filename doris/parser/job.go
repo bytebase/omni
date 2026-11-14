@@ -268,33 +268,19 @@ func (p *Parser) parseAlterJob(startLoc ast.Loc) (ast.Node, error) {
 	return stmt, nil
 }
 
-// parseDropJob parses a DROP JOB statement.
-// On entry, DROP has been consumed and cur is JOB.
+// parseDropJob parses a DROP JOB statement (DorisParser.g4:456 #dropJob,
+// DorisLegacyParser.g4:798 stop_job_stmt). On entry, DROP has been consumed
+// and cur is JOB.
 //
 // Syntax:
 //
-//	DROP JOB [IF EXISTS] job_name
-//	DROP JOB WHERE expr
+//	DROP JOB [IF EXISTS] [LIKE 'pattern' | WHERE expr]
 func (p *Parser) parseDropJob(startLoc ast.Loc) (ast.Node, error) {
-	// Consume JOB
 	if _, err := p.expect(kwJOB); err != nil {
 		return nil, err
 	}
 
 	stmt := &ast.DropJobStmt{}
-
-	if p.cur.Kind == kwWHERE {
-		p.advance() // consume WHERE
-		where, err := p.parseExpr()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Where = where
-		stmt.Loc = startLoc.Merge(ast.NodeLoc(where))
-		return stmt, nil
-	}
-
-	// Optional IF EXISTS
 	if p.cur.Kind == kwIF {
 		p.advance() // consume IF
 		if _, err := p.expect(kwEXISTS); err != nil {
@@ -303,86 +289,72 @@ func (p *Parser) parseDropJob(startLoc ast.Loc) (ast.Node, error) {
 		stmt.IfExists = true
 	}
 
-	// job_name
-	name, err := p.parseMultipartIdentifier()
+	like, where, err := p.parseJobWildWhere()
 	if err != nil {
 		return nil, err
 	}
-	stmt.Name = name
-	stmt.Loc = startLoc.Merge(ast.NodeLoc(name))
+	stmt.Like, stmt.Where = like, where
+	stmt.Loc = startLoc.Merge(p.prev.Loc)
 	return stmt, nil
 }
 
-// parsePauseJob parses a PAUSE JOB statement.
-// On entry, PAUSE has been consumed and cur is JOB.
+// parsePauseJob parses a PAUSE JOB statement (DorisParser.g4:455 #pauseJob,
+// DorisLegacyParser.g4:793 pause_job_stmt). On entry, PAUSE has been consumed
+// and cur is JOB.
 //
 // Syntax:
 //
-//	PAUSE JOB job_name
-//	PAUSE JOB WHERE expr
+//	PAUSE JOB [LIKE 'pattern' | WHERE expr]
 func (p *Parser) parsePauseJob(startLoc ast.Loc) (ast.Node, error) {
-	// Consume JOB
 	if _, err := p.expect(kwJOB); err != nil {
 		return nil, err
 	}
-
-	stmt := &ast.PauseJobStmt{}
-
-	if p.cur.Kind == kwWHERE {
-		p.advance() // consume WHERE
-		where, err := p.parseExpr()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Where = where
-		stmt.Loc = startLoc.Merge(ast.NodeLoc(where))
-		return stmt, nil
-	}
-
-	// job_name
-	name, err := p.parseMultipartIdentifier()
+	like, where, err := p.parseJobWildWhere()
 	if err != nil {
 		return nil, err
 	}
-	stmt.Name = name
-	stmt.Loc = startLoc.Merge(ast.NodeLoc(name))
-	return stmt, nil
+	return &ast.PauseJobStmt{Like: like, Where: where, Loc: startLoc.Merge(p.prev.Loc)}, nil
 }
 
-// parseResumeJob parses a RESUME JOB statement.
-// On entry, RESUME has been consumed and cur is JOB.
+// parseResumeJob parses a RESUME JOB statement (DorisParser.g4:457
+// #resumeJob, DorisLegacyParser.g4:803 resume_job_stmt). On entry, RESUME has
+// been consumed and cur is JOB.
 //
 // Syntax:
 //
-//	RESUME JOB job_name
-//	RESUME JOB WHERE expr
+//	RESUME JOB [LIKE 'pattern' | WHERE expr]
 func (p *Parser) parseResumeJob(startLoc ast.Loc) (ast.Node, error) {
-	// Consume JOB
 	if _, err := p.expect(kwJOB); err != nil {
 		return nil, err
 	}
-
-	stmt := &ast.ResumeJobStmt{}
-
-	if p.cur.Kind == kwWHERE {
-		p.advance() // consume WHERE
-		where, err := p.parseExpr()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Where = where
-		stmt.Loc = startLoc.Merge(ast.NodeLoc(where))
-		return stmt, nil
-	}
-
-	// job_name
-	name, err := p.parseMultipartIdentifier()
+	like, where, err := p.parseJobWildWhere()
 	if err != nil {
 		return nil, err
 	}
-	stmt.Name = name
-	stmt.Loc = startLoc.Merge(ast.NodeLoc(name))
-	return stmt, nil
+	return &ast.ResumeJobStmt{Like: like, Where: where, Loc: startLoc.Merge(p.prev.Loc)}, nil
+}
+
+// parseJobWildWhere parses the optional wildWhere (DorisParser.g4:521):
+// LIKE 'pattern' | WHERE expr. A job is named by a filter, never by a bare
+// name.
+func (p *Parser) parseJobWildWhere() (string, ast.Node, error) {
+	switch p.cur.Kind {
+	case kwLIKE:
+		p.advance() // consume LIKE
+		tok, err := p.expect(tokString)
+		if err != nil {
+			return "", nil, err
+		}
+		return tok.Str, nil, nil
+	case kwWHERE:
+		p.advance() // consume WHERE
+		where, err := p.parseExpr()
+		if err != nil {
+			return "", nil, err
+		}
+		return "", where, nil
+	}
+	return "", nil, nil
 }
 
 // parseCancelTask parses a CANCEL TASK FOR job_name task_id statement.
