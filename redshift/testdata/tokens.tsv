@@ -1,0 +1,182 @@
+# Amazon Redshift token forms for generated compat rows: the text written for
+# each value RedshiftDocs.g4 names by class, where the docs write a value in
+# italics or in lower case. Keywords and punctuation are literals in the
+# grammar and need no row. Sources, read 2026-11-13:
+#   https://docs.aws.amazon.com/redshift/latest/dg/r_names.html
+#   https://docs.aws.amazon.com/redshift/latest/dg/r_Literals.html
+#   https://docs.aws.amazon.com/redshift/latest/dg/r_numeric_literals201.html
+#   https://docs.aws.amazon.com/redshift/latest/dg/r_pg_keywords.html
+#   https://docs.aws.amazon.com/redshift/latest/dg/r_CREATE_PROCEDURE.html (argmode)
+#   https://docs.aws.amazon.com/redshift/latest/dg/r_CREATE_SCHEMA.html (schema_element)
+# A sample of one name, string or number stands for its class when the docs
+# judge reads a statement; a keyword or a sample of several tokens stands for
+# itself. (reserved) marks a word the docs judge never reads as a name.
+# columns: token, form, note
+ID	a	standard identifier: an ASCII letter or _, then letters, digits, _ and $; a "delimited" one is a name too
+STRING	's'	string literal in single quotes
+NUMBER	1	integer literal: [+|-] digit ...
+EXPR	1	an expression; the command pages give no expression grammar, so a constant
+QUERY	SELECT 1	a query; the command pages give no query grammar beyond SELECT's synopsis
+DATA_TYPE	INT	a data type; INT is INTEGER's alias (r_Numeric_types201.html)
+CTE	a AS (SELECT 1)	a WITH clause's common table expression, CTE_table_name AS ( query ) (r_WITH_clause.html)
+ARGMODE	IN	argmode: IN, OUT or INOUT
+SCHEMA_ELEMENT	CREATE TABLE a (a INT)	schema_element: a statement that creates an object in the schema (r_CREATE_SCHEMA.html)
+
+# Reserved words: every word the page lists. Redshift reserves them as names
+# unless they are delimited.
+AES128	(reserved)	Reserved by Redshift.
+AES256	(reserved)	Reserved by Redshift.
+ALL	(reserved)	Reserved by Redshift.
+ALLOWOVERWRITE	(reserved)	Reserved by Redshift.
+ANALYSE	(reserved)	Reserved by Redshift.
+ANALYZE	(reserved)	Reserved by Redshift.
+AND	(reserved)	Reserved by Redshift.
+ANY	(reserved)	Reserved by Redshift.
+ARRAY	(reserved)	Reserved by Redshift.
+AS	(reserved)	Reserved by Redshift.
+ASC	(reserved)	Reserved by Redshift.
+AUTHORIZATION	(reserved)	Reserved by Redshift.
+AZ64	(reserved)	Reserved by Redshift.
+BACKUP	(reserved)	Reserved by Redshift.
+BETWEEN	(reserved)	Reserved by Redshift.
+BINARY	(reserved)	Reserved by Redshift.
+BLANKSASNULL	(reserved)	Reserved by Redshift.
+BOTH	(reserved)	Reserved by Redshift.
+BYTEDICT	(reserved)	Reserved by Redshift.
+BZIP2	(reserved)	Reserved by Redshift.
+CASE	(reserved)	Reserved by Redshift.
+CAST	(reserved)	Reserved by Redshift.
+CHECK	(reserved)	Reserved by Redshift.
+COLLATE	(reserved)	Reserved by Redshift.
+COLUMN	(reserved)	Reserved by Redshift.
+CONSTRAINT	(reserved)	Reserved by Redshift.
+CREATE	(reserved)	Reserved by Redshift.
+CREDENTIALS	(reserved)	Reserved by Redshift.
+CROSS	(reserved)	Reserved by Redshift.
+CURRENT_DATE	(reserved)	Reserved by Redshift.
+CURRENT_TIME	(reserved)	Reserved by Redshift.
+CURRENT_TIMESTAMP	(reserved)	Reserved by Redshift.
+CURRENT_USER	(reserved)	Reserved by Redshift.
+CURRENT_USER_ID	(reserved)	Reserved by Redshift.
+DEFAULT	(reserved)	Reserved by Redshift.
+DEFERRABLE	(reserved)	Reserved by Redshift.
+DEFLATE	(reserved)	Reserved by Redshift.
+DEFRAG	(reserved)	Reserved by Redshift.
+DELTA	(reserved)	Reserved by Redshift.
+DELTA32K	(reserved)	Reserved by Redshift.
+DESC	(reserved)	Reserved by Redshift.
+DISABLE	(reserved)	Reserved by Redshift.
+DISTINCT	(reserved)	Reserved by Redshift.
+DO	(reserved)	Reserved by Redshift.
+ELSE	(reserved)	Reserved by Redshift.
+EMPTYASNULL	(reserved)	Reserved by Redshift.
+ENABLE	(reserved)	Reserved by Redshift.
+ENCODE	(reserved)	Reserved by Redshift.
+ENCRYPT	(reserved)	Reserved by Redshift.
+ENCRYPTION	(reserved)	Reserved by Redshift.
+END	(reserved)	Reserved by Redshift.
+EXCEPT	(reserved)	Reserved by Redshift.
+EXPLICIT	(reserved)	Reserved by Redshift.
+FALSE	(reserved)	Reserved by Redshift.
+FOR	(reserved)	Reserved by Redshift.
+FOREIGN	(reserved)	Reserved by Redshift.
+FREEZE	(reserved)	Reserved by Redshift.
+FROM	(reserved)	Reserved by Redshift.
+FULL	(reserved)	Reserved by Redshift.
+GLOBALDICT256	(reserved)	Reserved by Redshift.
+GLOBALDICT64K	(reserved)	Reserved by Redshift.
+GRANT	(reserved)	Reserved by Redshift.
+GROUP	(reserved)	Reserved by Redshift.
+GZIP	(reserved)	Reserved by Redshift.
+HAVING	(reserved)	Reserved by Redshift.
+IDENTITY	(reserved)	Reserved by Redshift.
+IGNORE	(reserved)	Reserved by Redshift.
+ILIKE	(reserved)	Reserved by Redshift.
+IN	(reserved)	Reserved by Redshift.
+INITIALLY	(reserved)	Reserved by Redshift.
+INNER	(reserved)	Reserved by Redshift.
+INTERSECT	(reserved)	Reserved by Redshift.
+INTERVAL	(reserved)	Reserved by Redshift.
+INTO	(reserved)	Reserved by Redshift.
+IS	(reserved)	Reserved by Redshift.
+ISNULL	(reserved)	Reserved by Redshift.
+JOIN	(reserved)	Reserved by Redshift.
+LEADING	(reserved)	Reserved by Redshift.
+LEFT	(reserved)	Reserved by Redshift.
+LIKE	(reserved)	Reserved by Redshift.
+LIMIT	(reserved)	Reserved by Redshift.
+LOCALTIME	(reserved)	Reserved by Redshift.
+LOCALTIMESTAMP	(reserved)	Reserved by Redshift.
+LUN	(reserved)	Reserved by Redshift.
+LUNS	(reserved)	Reserved by Redshift.
+LZO	(reserved)	Reserved by Redshift.
+LZOP	(reserved)	Reserved by Redshift.
+MINUS	(reserved)	Reserved by Redshift.
+MOSTLY16	(reserved)	Reserved by Redshift.
+MOSTLY32	(reserved)	Reserved by Redshift.
+MOSTLY8	(reserved)	Reserved by Redshift.
+NATURAL	(reserved)	Reserved by Redshift.
+NEW	(reserved)	Reserved by Redshift.
+NOT	(reserved)	Reserved by Redshift.
+NOTNULL	(reserved)	Reserved by Redshift.
+NULL	(reserved)	Reserved by Redshift.
+NULLS	(reserved)	Reserved by Redshift.
+OFF	(reserved)	Reserved by Redshift.
+OFFLINE	(reserved)	Reserved by Redshift.
+OFFSET	(reserved)	Reserved by Redshift.
+OID	(reserved)	Reserved by Redshift.
+OLD	(reserved)	Reserved by Redshift.
+ON	(reserved)	Reserved by Redshift.
+ONLY	(reserved)	Reserved by Redshift.
+OPEN	(reserved)	Reserved by Redshift.
+OR	(reserved)	Reserved by Redshift.
+ORDER	(reserved)	Reserved by Redshift.
+OUTER	(reserved)	Reserved by Redshift.
+OVERLAPS	(reserved)	Reserved by Redshift.
+PARALLEL	(reserved)	Reserved by Redshift.
+PARTITION	(reserved)	Reserved by Redshift.
+PERCENT	(reserved)	Reserved by Redshift.
+PERMISSIONS	(reserved)	Reserved by Redshift.
+PIVOT	(reserved)	Reserved by Redshift.
+PLACING	(reserved)	Reserved by Redshift.
+PRIMARY	(reserved)	Reserved by Redshift.
+RAW	(reserved)	Reserved by Redshift.
+READRATIO	(reserved)	Reserved by Redshift.
+RECOVER	(reserved)	Reserved by Redshift.
+REFERENCES	(reserved)	Reserved by Redshift.
+REJECTLOG	(reserved)	Reserved by Redshift.
+RESORT	(reserved)	Reserved by Redshift.
+RESPECT	(reserved)	Reserved by Redshift.
+RESTORE	(reserved)	Reserved by Redshift.
+RIGHT	(reserved)	Reserved by Redshift.
+SELECT	(reserved)	Reserved by Redshift.
+SESSION_USER	(reserved)	Reserved by Redshift.
+SIMILAR	(reserved)	Reserved by Redshift.
+SNAPSHOT	(reserved)	Reserved by Redshift.
+SOME	(reserved)	Reserved by Redshift.
+SYSDATE	(reserved)	Reserved by Redshift.
+SYSTEM	(reserved)	Reserved by Redshift.
+TABLE	(reserved)	Reserved by Redshift.
+TAG	(reserved)	Reserved by Redshift.
+TDES	(reserved)	Reserved by Redshift.
+TEXT255	(reserved)	Reserved by Redshift.
+TEXT32K	(reserved)	Reserved by Redshift.
+THEN	(reserved)	Reserved by Redshift.
+TIMESTAMP	(reserved)	Reserved by Redshift.
+TO	(reserved)	Reserved by Redshift.
+TOP	(reserved)	Reserved by Redshift.
+TRAILING	(reserved)	Reserved by Redshift.
+TRUE	(reserved)	Reserved by Redshift.
+TRUNCATECOLUMNS	(reserved)	Reserved by Redshift.
+UNION	(reserved)	Reserved by Redshift.
+UNIQUE	(reserved)	Reserved by Redshift.
+UNNEST	(reserved)	Reserved by Redshift.
+UNPIVOT	(reserved)	Reserved by Redshift.
+USER	(reserved)	Reserved by Redshift.
+USING	(reserved)	Reserved by Redshift.
+VERBOSE	(reserved)	Reserved by Redshift.
+WALLET	(reserved)	Reserved by Redshift.
+WHEN	(reserved)	Reserved by Redshift.
+WHERE	(reserved)	Reserved by Redshift.
+WITH	(reserved)	Reserved by Redshift.
+WITHOUT	(reserved)	Reserved by Redshift.

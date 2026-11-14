@@ -27,16 +27,19 @@ func (p *Parser) parsePrepareStmt() (*nodes.PrepareStmt, error) {
 		return nil, err
 	}
 
-	// SQL string or variable
+	// prepare_src: TEXT_STRING_sys | '@' ident_or_text, one of them required and no
+	// system variable.
 	if p.cur.Type == tokSCONST {
 		stmt.Stmt = p.cur.Str
 		p.advance()
-	} else if p.isVariableRef() {
+	} else if p.cur.Type != tokAt2 && p.isVariableRef() {
 		vref, err := p.parseVariableRef()
 		if err != nil {
 			return nil, err
 		}
 		stmt.Stmt = "@" + vref.Name
+	} else {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	stmt.Loc.End = p.prev.End
@@ -93,8 +96,10 @@ func (p *Parser) parseDeallocateStmt() (*nodes.DeallocateStmt, error) {
 	start := p.pos()
 	p.advance() // consume DEALLOCATE
 
-	// PREPARE
-	p.match(kwPREPARE)
+	// deallocate: deallocate_or_drop PREPARE_SYM ident, PREPARE required.
+	if _, err := p.expect(kwPREPARE); err != nil {
+		return nil, err
+	}
 
 	stmt := &nodes.DeallocateStmt{Loc: nodes.Loc{Start: start}}
 

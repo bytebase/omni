@@ -2360,6 +2360,12 @@ func writeCastExpr(sb *strings.Builder, n *CastExpr) {
 	if n.Array {
 		sb.WriteString(" :array true")
 	}
+	if n.AtTimeZoneInterval {
+		sb.WriteString(" :at_time_zone_interval true")
+	}
+	if n.AtTimeZone != "" {
+		fmt.Fprintf(sb, " :at_time_zone %q", n.AtTimeZone)
+	}
 	sb.WriteString("}")
 }
 
@@ -2415,6 +2421,9 @@ func writeWeightStringExpr(sb *strings.Builder, n *WeightStringExpr) {
 	if n.AsChar != nil {
 		sb.WriteString(" :aschar ")
 		writeNode(sb, n.AsChar)
+	}
+	if n.Numbers {
+		fmt.Fprintf(sb, " :result_length %d :flags %d", n.ResultLength, n.Flags)
 	}
 	sb.WriteString("}")
 }

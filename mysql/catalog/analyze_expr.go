@@ -372,7 +372,12 @@ func analyzeCastExpr(c *Catalog, expr *nodes.CastExpr, scope *analyzerScope) (An
 		targetType = dataTypeToResolvedType(expr.TypeName)
 	}
 
-	return &CastExprQ{Arg: arg, TargetType: targetType}, nil
+	return &CastExprQ{
+		Arg:                arg,
+		TargetType:         targetType,
+		AtTimeZone:         expr.AtTimeZone,
+		AtTimeZoneInterval: expr.AtTimeZoneInterval,
+	}, nil
 }
 
 // dataTypeToResolvedType maps a parser DataType to a ResolvedType for CAST targets.

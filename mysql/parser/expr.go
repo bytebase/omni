@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"math"
 	"strings"
 
 	nodes "github.com/bytebase/omni/mysql/ast"
@@ -396,7 +397,14 @@ func (p *Parser) parsePrefixExpr() (nodes.ExprNode, error) {
 		}
 		defer p.leaveNesting()
 		p.advance()
-		return p.parsePrefixExpr()
+		operand, err := p.parsePrefixExpr()
+		if err != nil {
+			return nil, err
+		}
+		if err := p.refuseBareIntervalOperand(operand); err != nil {
+			return nil, err
+		}
+		return operand, nil
 	case '~':
 		return p.parseUnaryExpr(nodes.UnaryBitNot)
 	case '!':
@@ -433,8 +441,7 @@ func (p *Parser) atUserVarAssign() bool {
 		lookahead := *p.lexer
 		return lookahead.NextToken().Type == tokAssign
 	}
-	return p.cur.Type == tokIDENT && len(p.cur.Str) > 1 && p.cur.Str[0] == '@' &&
-		p.peekNext().Type == tokAssign
+	return p.atUserVarToken() && p.peekNext().Type == tokAssign
 }
 
 // parseUserVarAssign reads `@name := expr`, with the right side read at rhsPrec.
@@ -461,12 +468,27 @@ func (p *Parser) parseUserVarAssign(rhsPrec int) (nodes.ExprNode, error) {
 }
 
 // parseUnaryExpr parses a unary expression.
+// refuseBareIntervalOperand refuses an INTERVAL literal as the operand of a
+// prefix operator: '-', '+', '~', '!' and BINARY take a simple_expr, and the
+// literal is one only as `INTERVAL_SYM expr interval '+' expr`, so `DO - INTERVAL
+// a DAY` is a 1064. A '+' after it is that production's, read by the caller.
+// Ref: simple_expr in sql/sql_yacc.yy.
+func (p *Parser) refuseBareIntervalOperand(operand nodes.ExprNode) error {
+	if isBareInterval(operand) && p.cur.Type != '+' {
+		return p.syntaxErrorAtCur()
+	}
+	return nil
+}
+
 func (p *Parser) parseUnaryExpr(op nodes.UnaryOp) (nodes.ExprNode, error) {
 	start := p.pos()
 	p.advance() // consume operator
 
 	operand, err := p.parseExprPrec(precUnary)
 	if err != nil {
+		return nil, err
+	}
+	if err := p.refuseBareIntervalOperand(operand); err != nil {
 		return nil, err
 	}
 
@@ -1755,6 +1777,40 @@ func (p *Parser) parseWeightStringFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, 
 	ws := &nodes.WeightStringExpr{Loc: fc.Loc, Expr: arg}
 	asBinary := false
 
+	// WEIGHT_STRING(expr, result_length, num_codepoints, flags), each a ulong_num:
+	// the form the server once wrote for itself. MySQL 8.0.46 stores it as
+	// weight_string(expr as char(num_codepoints)), or weight_string(expr) when that
+	// is 0, so the AST holds num_codepoints as AsChar and the other two beside it.
+	if p.cur.Type == ',' {
+		var nums [3]uint64
+		var numToks [3]Token
+		for i := range nums {
+			if _, err := p.expect(','); err != nil {
+				return nil, err
+			}
+			tok, err := p.parseReplicationNumber(replUlong)
+			if err != nil {
+				return nil, err
+			}
+			numToks[i], nums[i] = tok, replicationWhole(tok)
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		ws.Numbers = true
+		ws.ResultLength, ws.Flags = nums[0], nums[2]
+		if nums[1] != 0 {
+			ws.AsChar = &nodes.DataType{
+				Loc:       nodes.Loc{Start: numToks[1].Loc, End: numToks[1].End},
+				Name:      "CHAR",
+				Length:    int(min(nums[1], math.MaxInt32)),
+				HasLength: true,
+			}
+		}
+		ws.Loc.End = p.prev.End
+		return ws, nil
+	}
+
 	if p.cur.Type == kwAS {
 		p.advance()
 		var typeName string
@@ -2091,6 +2147,10 @@ func (p *Parser) parseCastExpr() (nodes.ExprNode, error) {
 		return nil, p.syntaxErrorAtCur()
 	}
 
+	if p.cur.Type == kwAT {
+		return p.parseCastAtTimeZone(start, expr)
+	}
+
 	if _, err := p.expect(kwAS); err != nil {
 		return nil, err
 	}
@@ -2121,6 +2181,60 @@ func (p *Parser) parseCastExpr() (nodes.ExprNode, error) {
 		TypeName: dt,
 		Array:    isArray,
 	}, nil
+}
+
+// parseCastAtTimeZone reads the rest of CAST(expr AT TIME ZONE [INTERVAL] 'tz' AS
+// DATETIME[(n)]), p.cur at AT. The target is DATETIME and nothing else, and the
+// zone a plain string. AT LOCAL is refused by the grammar's action
+// (ER_NOT_SUPPORTED_YET), so it is no form here.
+//
+// Ref: simple_expr's `CAST_SYM '(' expr AT_SYM TIME_SYM ZONE_SYM opt_interval
+// TEXT_STRING_literal AS DATETIME_SYM type_datetime_precision ')'` in MySQL 8.0
+// sql/sql_yacc.yy.
+func (p *Parser) parseCastAtTimeZone(start int, expr nodes.ExprNode) (nodes.ExprNode, error) {
+	p.advance() // consume AT
+	if _, err := p.expect(kwTIME); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(kwZONE); err != nil {
+		return nil, err
+	}
+	cast := &nodes.CastExpr{Loc: nodes.Loc{Start: start}, Expr: expr}
+	if _, ok := p.match(kwINTERVAL); ok {
+		cast.AtTimeZoneInterval = true
+	}
+	if p.cur.Type != tokSCONST {
+		return nil, p.syntaxErrorAtCur()
+	}
+	cast.AtTimeZone = p.advance().Str
+	if _, err := p.expect(kwAS); err != nil {
+		return nil, err
+	}
+	typeTok, err := p.expect(kwDATETIME)
+	if err != nil {
+		return nil, err
+	}
+	cast.TypeName = &nodes.DataType{Loc: nodes.Loc{Start: typeTok.Loc, End: typeTok.End}, Name: "DATETIME"}
+	if p.cur.Type == '(' {
+		p.advance()
+		if p.cur.Type != tokICONST {
+			return nil, p.syntaxErrorAtCur()
+		}
+		cast.TypeName.Length = int(p.advance().Ival)
+		cast.TypeName.HasLength = true
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		cast.TypeName.Loc.End = p.prev.End
+		if err := castTypeRefused(cast.TypeName); err != nil {
+			return nil, err
+		}
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	cast.Loc.End = p.prev.End
+	return cast, nil
 }
 
 // parseExtractExpr parses EXTRACT(unit FROM expr).
@@ -2853,6 +2967,12 @@ func (p *Parser) parseRowItem() (nodes.ExprNode, error) {
 func checkRowItem(e nodes.ExprNode, start int) error {
 	if d, ok := e.(*nodes.DefaultExpr); ok && d.Column == "" {
 		return &ParseError{Message: `syntax error at or near "DEFAULT"`, Position: start}
+	}
+	// A row element is an expr, and a bare INTERVAL literal is none: it is only
+	// an operand of + and -. Ref: simple_expr's `'(' expr ',' expr_list ')'` and
+	// `INTERVAL_SYM expr interval '+' expr` in sql/sql_yacc.yy.
+	if isBareInterval(e) {
+		return &ParseError{Message: `syntax error at or near "INTERVAL"`, Position: start}
 	}
 	return nil
 }
