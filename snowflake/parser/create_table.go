@@ -480,7 +480,7 @@ func (p *Parser) checkInteractiveColumns(stmt *ast.CreateTableStmt) error {
 	}
 	for _, col := range stmt.Columns {
 		if col.DataType == nil || col.Default != nil || col.Identity != nil || col.InlineConstraint != nil ||
-			col.NotNull || col.Nullable || col.Collate != "" || col.Comment != nil || col.Tags != nil || col.VirtualExpr != nil {
+			col.NotNull || col.Nullable || col.Collate != "" || col.Comment != nil || col.Tags != nil || col.VirtualExpr != nil || col.ProjectionPolicy != nil {
 			return bad(col.Loc)
 		}
 	}
