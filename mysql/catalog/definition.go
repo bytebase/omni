@@ -10,6 +10,8 @@ import (
 	"strings"
 
 	"github.com/bytebase/omni/metadata"
+	nodes "github.com/bytebase/omni/mysql/ast"
+	mysqlparser "github.com/bytebase/omni/mysql/parser"
 )
 
 const (
@@ -59,7 +61,9 @@ type DefinitionOptions struct {
 
 // DatabaseDefinition renders a synced database snapshot as DDL: a mysqldump-style
 // restore script, or with opts.SDLFormat the canonical SDL that LoadSDL reads back.
-// It renders only the first schema and returns "" for a snapshot with none.
+// It renders only the first schema and returns "" for a snapshot with none. Column and
+// table comments are written between quotes as they are: the MySQL sync stores them
+// escaped, as QUOTE() returns them without the outer quotes.
 func DatabaseDefinition(meta *metadata.DatabaseSchemaMetadata, opts DefinitionOptions) (string, error) {
 	if len(meta.Schemas) == 0 {
 		return "", nil
@@ -103,7 +107,15 @@ func DatabaseDefinition(meta *metadata.DatabaseSchemaMetadata, opts DefinitionOp
 
 	// Construct tables.
 	for _, table := range schema.Tables {
-		if err := writeTable(&buf, table); err != nil {
+		if err := writeTable(&buf, table, meta.Name); err != nil {
+			return "", err
+		}
+	}
+
+	// Construct functions before views: CREATE VIEW checks that the functions it calls
+	// exist, while a function body is checked only when it runs.
+	for _, function := range schema.Functions {
+		if err := writeFunction(&buf, function); err != nil {
 			return "", err
 		}
 	}
@@ -111,13 +123,6 @@ func DatabaseDefinition(meta *metadata.DatabaseSchemaMetadata, opts DefinitionOp
 	// Construct views.
 	for _, view := range schema.Views {
 		if err := writeView(&buf, view); err != nil {
-			return "", err
-		}
-	}
-
-	// Construct functions.
-	for _, function := range schema.Functions {
-		if err := writeFunction(&buf, function); err != nil {
 			return "", err
 		}
 	}
@@ -157,7 +162,7 @@ func DatabaseDefinition(meta *metadata.DatabaseSchemaMetadata, opts DefinitionOp
 // TableDefinition renders one table as its mysqldump-style section.
 func TableDefinition(table *metadata.TableMetadata) (string, error) {
 	var buf strings.Builder
-	if err := writeTable(&buf, table); err != nil {
+	if err := writeTable(&buf, table, ""); err != nil {
 		return "", err
 	}
 	return buf.String(), nil
@@ -202,13 +207,7 @@ func writeEvent(out io.Writer, event *metadata.EventMetadata) error {
 	if _, err := io.WriteString(out, eventHeader); err != nil {
 		return err
 	}
-	if _, err := io.WriteString(out, "`"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, event.Name); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, "`\n"); err != nil {
+	if _, err := io.WriteString(out, quoteIdent(event.Name)+"\n"); err != nil {
 		return err
 	}
 	if _, err := io.WriteString(out, emptyCommentLine); err != nil {
@@ -295,13 +294,7 @@ func writeTrigger(out io.Writer, tableName string, trigger *metadata.TriggerMeta
 	if _, err := io.WriteString(out, triggerHeader); err != nil {
 		return err
 	}
-	if _, err := io.WriteString(out, "`"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, trigger.Name); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, "`\n"); err != nil {
+	if _, err := io.WriteString(out, quoteIdent(trigger.Name)+"\n"); err != nil {
 		return err
 	}
 	if _, err := io.WriteString(out, emptyCommentLine); err != nil {
@@ -353,13 +346,7 @@ func writeTrigger(out io.Writer, tableName string, trigger *metadata.TriggerMeta
 	}
 
 	// Definition.
-	if _, err := io.WriteString(out, "CREATE TRIGGER `"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, trigger.Name); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, "`\n"); err != nil {
+	if _, err := io.WriteString(out, "CREATE TRIGGER "+quoteIdent(trigger.Name)+"\n"); err != nil {
 		return err
 	}
 	if _, err := io.WriteString(out, trigger.Timing); err != nil {
@@ -371,13 +358,7 @@ func writeTrigger(out io.Writer, tableName string, trigger *metadata.TriggerMeta
 	if _, err := io.WriteString(out, trigger.Event); err != nil {
 		return err
 	}
-	if _, err := io.WriteString(out, " ON `"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, tableName); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, "` FOR EACH ROW\n"); err != nil {
+	if _, err := io.WriteString(out, " ON "+quoteIdent(tableName)+" FOR EACH ROW\n"); err != nil {
 		return err
 	}
 	if _, err := io.WriteString(out, trigger.Body); err != nil {
@@ -403,13 +384,7 @@ func writeProcedure(out io.Writer, procedure *metadata.ProcedureMetadata) error 
 	if _, err := io.WriteString(out, procedureHeader); err != nil {
 		return err
 	}
-	if _, err := io.WriteString(out, "`"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, procedure.Name); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, "`\n"); err != nil {
+	if _, err := io.WriteString(out, quoteIdent(procedure.Name)+"\n"); err != nil {
 		return err
 	}
 	if _, err := io.WriteString(out, emptyCommentLine); err != nil {
@@ -449,13 +424,7 @@ func writeFunction(out io.Writer, function *metadata.FunctionMetadata) error {
 	if _, err := io.WriteString(out, functionHeader); err != nil {
 		return err
 	}
-	if _, err := io.WriteString(out, "`"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, function.Name); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, "`\n"); err != nil {
+	if _, err := io.WriteString(out, quoteIdent(function.Name)+"\n"); err != nil {
 		return err
 	}
 	if _, err := io.WriteString(out, emptyCommentLine); err != nil {
@@ -464,6 +433,10 @@ func writeFunction(out io.Writer, function *metadata.FunctionMetadata) error {
 
 	// Set charset, collation, and sql mode.
 	if err := writeAdditionalEventsIfSet(out, function.CharacterSetClient, function.CharacterSetClient, function.CollationConnection, function.SqlMode); err != nil {
+		return err
+	}
+
+	if _, err := io.WriteString(out, delimiterDoubleSemi); err != nil {
 		return err
 	}
 
@@ -491,13 +464,7 @@ func writeView(out io.Writer, view *metadata.ViewMetadata) error {
 	if _, err := io.WriteString(out, viewHeader); err != nil {
 		return err
 	}
-	if _, err := io.WriteString(out, "`"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, view.Name); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, "`\n"); err != nil {
+	if _, err := io.WriteString(out, quoteIdent(view.Name)+"\n"); err != nil {
 		return err
 	}
 	if _, err := io.WriteString(out, emptyCommentLine); err != nil {
@@ -505,13 +472,7 @@ func writeView(out io.Writer, view *metadata.ViewMetadata) error {
 	}
 
 	// Definition.
-	if _, err := io.WriteString(out, "CREATE OR REPLACE VIEW `"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, view.Name); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, "` AS "); err != nil {
+	if _, err := io.WriteString(out, "CREATE OR REPLACE VIEW "+quoteIdent(view.Name)+" AS "); err != nil {
 		return err
 	}
 	if _, err := io.WriteString(out, view.Definition); err != nil {
@@ -521,7 +482,7 @@ func writeView(out io.Writer, view *metadata.ViewMetadata) error {
 	return err
 }
 
-func writeTable(out *strings.Builder, table *metadata.TableMetadata) error {
+func writeTable(out *strings.Builder, table *metadata.TableMetadata, dbName string) error {
 	// Header.
 	if _, err := io.WriteString(out, emptyCommentLine); err != nil {
 		return err
@@ -529,97 +490,108 @@ func writeTable(out *strings.Builder, table *metadata.TableMetadata) error {
 	if _, err := io.WriteString(out, tableHeader); err != nil {
 		return err
 	}
-	if _, err := io.WriteString(out, "`"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, table.Name); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, "`\n"); err != nil {
+	if _, err := io.WriteString(out, quoteIdent(table.Name)+"\n"); err != nil {
 		return err
 	}
 	if _, err := io.WriteString(out, emptyCommentLine); err != nil {
 		return err
 	}
+	return writeCreateTable(out, table, dbName, false)
+}
 
-	// Definition.
-	if _, err := fmt.Fprintf(out, "CREATE TABLE `%s` (\n", table.Name); err != nil {
+// writeCreateTable writes the CREATE TABLE statement both output forms share. sorted
+// orders secondary indexes, foreign keys, and checks by name, as the SDL form does;
+// otherwise they keep their snapshot order. dbName is the database being dumped, empty
+// when unknown.
+func writeCreateTable(buf *strings.Builder, table *metadata.TableMetadata, dbName string, sorted bool) error {
+	if _, err := fmt.Fprintf(buf, "CREATE TABLE %s (\n", quoteIdent(table.Name)); err != nil {
 		return err
 	}
 
 	for i, column := range table.Columns {
 		if i != 0 {
-			if _, err := fmt.Fprint(out, ",\n"); err != nil {
+			if _, err := fmt.Fprint(buf, ",\n"); err != nil {
 				return err
 			}
 		}
-		if err := printColumnClause(out, column, table); err != nil {
+		if err := printColumnClause(buf, column, table); err != nil {
 			return err
 		}
 	}
-	writeSystemTimePeriod(out, table)
+	writeSystemTimePeriod(buf, table)
 
-	if err := printPrimaryKeyClause(out, table.Indexes); err != nil {
+	if err := printPrimaryKeyClause(buf, table.Indexes, table.Engine); err != nil {
 		return err
 	}
 
+	secondaryIndexes := make([]*metadata.IndexMetadata, 0, len(table.Indexes))
 	for _, index := range table.Indexes {
-		if index.Primary {
-			continue
+		if !index.Primary {
+			secondaryIndexes = append(secondaryIndexes, index)
 		}
-		if err := printIndexClause(out, index); err != nil {
+	}
+	foreignKeys := slices.Clone(table.ForeignKeys)
+	checks := slices.Clone(table.CheckConstraints)
+	if sorted {
+		slices.SortFunc(secondaryIndexes, func(a, b *metadata.IndexMetadata) int { return cmp.Compare(a.Name, b.Name) })
+		slices.SortFunc(foreignKeys, func(a, b *metadata.ForeignKeyMetadata) int { return cmp.Compare(a.Name, b.Name) })
+		slices.SortFunc(checks, func(a, b *metadata.CheckConstraintMetadata) int { return cmp.Compare(a.Name, b.Name) })
+	}
+	for _, index := range secondaryIndexes {
+		if err := printIndexClause(buf, index, table.Engine); err != nil {
+			return err
+		}
+	}
+	for _, fk := range foreignKeys {
+		if err := printForeignKeyClause(buf, fk, dbName); err != nil {
+			return err
+		}
+	}
+	for _, check := range checks {
+		if err := printCheckClause(buf, check); err != nil {
 			return err
 		}
 	}
 
-	for _, fk := range table.ForeignKeys {
-		if err := printForeignKeyClause(out, fk); err != nil {
-			return err
-		}
-	}
-
-	for _, check := range table.CheckConstraints {
-		if err := printCheckClause(out, check); err != nil {
-			return err
-		}
-	}
-
-	if _, err := out.WriteString("\n)"); err != nil {
+	if _, err := buf.WriteString("\n)"); err != nil {
 		return err
 	}
 	if table.Engine != "" {
-		if _, err := fmt.Fprintf(out, " ENGINE=%s", table.Engine); err != nil {
+		if _, err := fmt.Fprintf(buf, " ENGINE=%s", table.Engine); err != nil {
 			return err
 		}
 	}
-
+	if opts := filterCreateOptions(table.CreateOptions); opts != "" {
+		if _, err := fmt.Fprintf(buf, " %s", opts); err != nil {
+			return err
+		}
+	}
 	if table.Charset != "" {
-		if _, err := fmt.Fprintf(out, " DEFAULT CHARSET=%s", table.Charset); err != nil {
+		if _, err := fmt.Fprintf(buf, " DEFAULT CHARSET=%s", table.Charset); err != nil {
 			return err
 		}
 	}
-
 	if table.Collation != "" {
-		if _, err := fmt.Fprintf(out, " COLLATE=%s", table.Collation); err != nil {
+		if _, err := fmt.Fprintf(buf, " COLLATE=%s", table.Collation); err != nil {
 			return err
 		}
 	}
-
 	if table.Comment != "" {
-		if _, err := fmt.Fprintf(out, " COMMENT='%s'", table.Comment); err != nil {
+		if _, err := fmt.Fprintf(buf, " COMMENT='%s'", table.Comment); err != nil {
 			return err
 		}
 	}
+	writeSystemVersioningOption(buf, table)
 
-	writeSystemVersioningOption(out, table)
-
+	// The partition clause is a /*!50100 PARTITION BY … */ executable comment, which
+	// omni's loader splices back as live SQL.
 	if len(table.Partitions) > 0 {
-		if err := printPartitionClause(out, table.Partitions, table.Engine); err != nil {
+		if err := printPartitionClause(buf, table.Partitions, table.Engine); err != nil {
 			return err
 		}
 	}
 
-	_, err := io.WriteString(out, ";\n\n")
+	_, err := io.WriteString(buf, ";\n\n")
 	return err
 }
 
@@ -865,14 +837,16 @@ func getVersionSpecificComment(partitions []*metadata.TablePartitionMetadata) st
 }
 
 func printCheckClause(buf *strings.Builder, check *metadata.CheckConstraintMetadata) error {
-	if _, err := fmt.Fprintf(buf, ",\n  CONSTRAINT `%s` CHECK %s", check.Name, check.Expression); err != nil {
+	if _, err := fmt.Fprintf(buf, ",\n  CONSTRAINT %s CHECK %s", quoteIdent(check.Name), check.Expression); err != nil {
 		return err
 	}
 	return nil
 }
 
-func printForeignKeyClause(buf *strings.Builder, fk *metadata.ForeignKeyMetadata) error {
-	if _, err := fmt.Fprintf(buf, ",\n  CONSTRAINT `%s` FOREIGN KEY (", fk.Name); err != nil {
+// printForeignKeyClause qualifies the referenced table with its database when that
+// is not dbName, the database being dumped.
+func printForeignKeyClause(buf *strings.Builder, fk *metadata.ForeignKeyMetadata, dbName string) error {
+	if _, err := fmt.Fprintf(buf, ",\n  CONSTRAINT %s FOREIGN KEY (", quoteIdent(fk.Name)); err != nil {
 		return err
 	}
 
@@ -882,12 +856,16 @@ func printForeignKeyClause(buf *strings.Builder, fk *metadata.ForeignKeyMetadata
 				return err
 			}
 		}
-		if _, err := fmt.Fprintf(buf, "`%s`", column); err != nil {
+		if _, err := buf.WriteString(quoteIdent(column)); err != nil {
 			return err
 		}
 	}
 
-	if _, err := fmt.Fprintf(buf, ") REFERENCES `%s` (", fk.ReferencedTable); err != nil {
+	referencedTable := quoteIdent(fk.ReferencedTable)
+	if fk.ReferencedSchema != "" && fk.ReferencedSchema != dbName {
+		referencedTable = quoteIdent(fk.ReferencedSchema) + "." + referencedTable
+	}
+	if _, err := fmt.Fprintf(buf, ") REFERENCES %s (", referencedTable); err != nil {
 		return err
 	}
 
@@ -897,7 +875,7 @@ func printForeignKeyClause(buf *strings.Builder, fk *metadata.ForeignKeyMetadata
 				return err
 			}
 		}
-		if _, err := fmt.Fprintf(buf, "`%s`", column); err != nil {
+		if _, err := buf.WriteString(quoteIdent(column)); err != nil {
 			return err
 		}
 	}
@@ -921,7 +899,7 @@ func printForeignKeyClause(buf *strings.Builder, fk *metadata.ForeignKeyMetadata
 	return nil
 }
 
-func printIndexClause(buf *strings.Builder, index *metadata.IndexMetadata) error {
+func printIndexClause(buf *strings.Builder, index *metadata.IndexMetadata, engine string) error {
 	if index.Primary {
 		return nil
 	}
@@ -946,7 +924,7 @@ func printIndexClause(buf *strings.Builder, index *metadata.IndexMetadata) error
 		}
 	}
 
-	if _, err := fmt.Fprintf(buf, "KEY `%s` (", index.Name); err != nil {
+	if _, err := fmt.Fprintf(buf, "KEY %s (", quoteIdent(index.Name)); err != nil {
 		return err
 	}
 
@@ -973,7 +951,7 @@ func printIndexClause(buf *strings.Builder, index *metadata.IndexMetadata) error
 		}
 	}
 
-	if _, err := fmt.Fprint(buf, ")"); err != nil {
+	if _, err := fmt.Fprint(buf, ")", indexUsingClause(index.Type, engine)); err != nil {
 		return err
 	}
 
@@ -998,13 +976,7 @@ func printIndexKeyPart(buf *strings.Builder, expr string, length int64, descendi
 			return err
 		}
 	} else {
-		if _, err := buf.WriteString("`"); err != nil {
-			return err
-		}
-		if _, err := buf.WriteString(expr); err != nil {
-			return err
-		}
-		if _, err := buf.WriteString("`"); err != nil {
+		if _, err := buf.WriteString(quoteIdent(expr)); err != nil {
 			return err
 		}
 	}
@@ -1161,7 +1133,7 @@ func isCharsetNameByte(c byte) bool {
 	return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9'
 }
 
-func printPrimaryKeyClause(buf *strings.Builder, indexes []*metadata.IndexMetadata) error {
+func printPrimaryKeyClause(buf *strings.Builder, indexes []*metadata.IndexMetadata, engine string) error {
 	for _, index := range indexes {
 		if index.Primary {
 			if _, err := fmt.Fprint(buf, ",\n  PRIMARY KEY ("); err != nil {
@@ -1186,7 +1158,7 @@ func printPrimaryKeyClause(buf *strings.Builder, indexes []*metadata.IndexMetada
 					return err
 				}
 			}
-			if _, err := fmt.Fprint(buf, ")"); err != nil {
+			if _, err := fmt.Fprint(buf, ")", indexUsingClause(index.Type, engine)); err != nil {
 				return err
 			}
 			return nil
@@ -1196,12 +1168,22 @@ func printPrimaryKeyClause(buf *strings.Builder, indexes []*metadata.IndexMetada
 	return nil
 }
 
+// indexUsingClause returns the USING clause for an index whose BTREE or HASH access
+// method is not the one engine gives a key written without USING.
+func indexUsingClause(indexType, engine string) string {
+	indexType = strings.ToUpper(indexType)
+	if (indexType != "BTREE" && indexType != "HASH") || indexType == defaultIndexType(engine) {
+		return ""
+	}
+	return " USING " + indexType
+}
+
 func isAutoIncrement(column *metadata.ColumnMetadata) bool {
 	return strings.EqualFold(column.GetDefault(), autoIncrementSymbol)
 }
 
 func printColumnClause(buf *strings.Builder, column *metadata.ColumnMetadata, table *metadata.TableMetadata) error {
-	if _, err := fmt.Fprintf(buf, "  `%s` %s", column.Name, normalizeColumnType(column.Type)); err != nil {
+	if _, err := fmt.Fprintf(buf, "  %s %s", quoteIdent(column.Name), normalizeColumnType(column.Type)); err != nil {
 		return err
 	}
 
@@ -1461,25 +1443,13 @@ func writeInvalidTemporaryView(out io.Writer, view *metadata.ViewMetadata) error
 	if _, err := io.WriteString(out, tempViewHeader); err != nil {
 		return err
 	}
-	if _, err := io.WriteString(out, "`"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, view.Name); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, "`\n"); err != nil {
+	if _, err := io.WriteString(out, quoteIdent(view.Name)+"\n"); err != nil {
 		return err
 	}
 	if _, err := io.WriteString(out, emptyCommentLine); err != nil {
 		return err
 	}
-	if _, err := io.WriteString(out, "-- `"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, view.Name); err != nil {
-		return err
-	}
-	_, err := io.WriteString(out, "` references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them\n\n")
+	_, err := io.WriteString(out, "-- "+quoteIdent(view.Name)+" references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them\n\n")
 	return err
 }
 
@@ -1491,13 +1461,7 @@ func writeTemporaryView(out io.Writer, view *metadata.ViewMetadata) error {
 	if _, err := io.WriteString(out, tempViewHeader); err != nil {
 		return err
 	}
-	if _, err := io.WriteString(out, "`"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, view.Name); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, "`\n"); err != nil {
+	if _, err := io.WriteString(out, quoteIdent(view.Name)+"\n"); err != nil {
 		return err
 	}
 	if _, err := io.WriteString(out, emptyCommentLine); err != nil {
@@ -1505,13 +1469,7 @@ func writeTemporaryView(out io.Writer, view *metadata.ViewMetadata) error {
 	}
 
 	// Definition.
-	if _, err := io.WriteString(out, "CREATE VIEW `"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, view.Name); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, "` AS SELECT\n  "); err != nil {
+	if _, err := io.WriteString(out, "CREATE VIEW "+quoteIdent(view.Name)+" AS SELECT\n  "); err != nil {
 		return err
 	}
 	for i, column := range view.Columns {
@@ -1520,13 +1478,7 @@ func writeTemporaryView(out io.Writer, view *metadata.ViewMetadata) error {
 				return err
 			}
 		}
-		if _, err := io.WriteString(out, "1 AS `"); err != nil {
-			return err
-		}
-		if _, err := io.WriteString(out, column.Name); err != nil {
-			return err
-		}
-		if _, err := io.WriteString(out, "`"); err != nil {
+		if _, err := io.WriteString(out, "1 AS "+quoteIdent(column.Name)); err != nil {
 			return err
 		}
 	}
@@ -1616,7 +1568,7 @@ func getSDLFormat(meta *metadata.DatabaseSchemaMetadata) (string, error) {
 	slices.SortFunc(tables, func(a, b *metadata.TableMetadata) int { return cmp.Compare(a.Name, b.Name) })
 
 	for _, table := range tables {
-		if err := writeTableSDL(&buf, table); err != nil {
+		if err := writeTableSDL(&buf, meta.Name, table); err != nil {
 			return "", err
 		}
 	}
@@ -1694,113 +1646,10 @@ func getSDLFormat(meta *metadata.DatabaseSchemaMetadata) (string, error) {
 	return buf.String(), nil
 }
 
-// writeTableSDL emits a single CREATE TABLE statement in canonical SDL form with
-// deterministic clause ordering. It reuses the same column/index/foreign-key/check
-// clause writers as the mysqldump path; only the statement framing and the sorting
-// of sub-objects differ.
-func writeTableSDL(buf *strings.Builder, table *metadata.TableMetadata) error {
-	if _, err := fmt.Fprintf(buf, "CREATE TABLE `%s` (\n", table.Name); err != nil {
-		return err
-	}
-
-	for i, column := range table.Columns {
-		if i != 0 {
-			if _, err := fmt.Fprint(buf, ",\n"); err != nil {
-				return err
-			}
-		}
-		if err := printColumnClause(buf, column, table); err != nil {
-			return err
-		}
-	}
-	writeSystemTimePeriod(buf, table)
-
-	if err := printPrimaryKeyClause(buf, table.Indexes); err != nil {
-		return err
-	}
-
-	secondaryIndexes := make([]*metadata.IndexMetadata, 0, len(table.Indexes))
-	for _, index := range table.Indexes {
-		if index.Primary {
-			continue
-		}
-		secondaryIndexes = append(secondaryIndexes, index)
-	}
-	slices.SortFunc(secondaryIndexes, func(a, b *metadata.IndexMetadata) int { return cmp.Compare(a.Name, b.Name) })
-	for _, index := range secondaryIndexes {
-		if err := printIndexClause(buf, index); err != nil {
-			return err
-		}
-	}
-
-	foreignKeys := make([]*metadata.ForeignKeyMetadata, len(table.ForeignKeys))
-	copy(foreignKeys, table.ForeignKeys)
-	slices.SortFunc(foreignKeys, func(a, b *metadata.ForeignKeyMetadata) int { return cmp.Compare(a.Name, b.Name) })
-	for _, fk := range foreignKeys {
-		if err := printForeignKeyClause(buf, fk); err != nil {
-			return err
-		}
-	}
-
-	checks := make([]*metadata.CheckConstraintMetadata, len(table.CheckConstraints))
-	copy(checks, table.CheckConstraints)
-	slices.SortFunc(checks, func(a, b *metadata.CheckConstraintMetadata) int { return cmp.Compare(a.Name, b.Name) })
-	for _, check := range checks {
-		if err := printCheckClause(buf, check); err != nil {
-			return err
-		}
-	}
-
-	if _, err := buf.WriteString("\n)"); err != nil {
-		return err
-	}
-	if table.Engine != "" {
-		if _, err := fmt.Fprintf(buf, " ENGINE=%s", table.Engine); err != nil {
-			return err
-		}
-	}
-	// CREATE_OPTIONS (ROW_FORMAT, KEY_BLOCK_SIZE, COMPRESSION, STATS_PERSISTENT, ...) are
-	// recorded schema the sync captures into TableMetadata.CreateOptions; emit them in the
-	// canonical SHOW CREATE position (after ENGINE/AUTO_INCREMENT, before DEFAULT CHARSET) so
-	// the dumped `from` keeps an explicit ROW_FORMAT and the omni diff against a user `to`
-	// carrying the same option is a no-op. The synthetic `partitioned` token is dropped —
-	// partitioning is surfaced via Partitions, not as a literal table option, and emitting it
-	// would be invalid DDL.
-	if opts := filterCreateOptions(table.CreateOptions); opts != "" {
-		if _, err := fmt.Fprintf(buf, " %s", opts); err != nil {
-			return err
-		}
-	}
-	if table.Charset != "" {
-		if _, err := fmt.Fprintf(buf, " DEFAULT CHARSET=%s", table.Charset); err != nil {
-			return err
-		}
-	}
-	if table.Collation != "" {
-		if _, err := fmt.Fprintf(buf, " COLLATE=%s", table.Collation); err != nil {
-			return err
-		}
-	}
-	if table.Comment != "" {
-		if _, err := fmt.Fprintf(buf, " COMMENT='%s'", table.Comment); err != nil {
-			return err
-		}
-	}
-	writeSystemVersioningOption(buf, table)
-
-	// Partitioning is a table-level clause that follows the table options. The omni
-	// loader accepts the version-gated /*!50100 PARTITION BY … */ executable comment
-	// (its lexer splices the inner text back as live SQL), and the omni partition
-	// differ canonicalizes the expression and per-partition ENGINE, so reusing the
-	// mysqldump partition writer round-trips as a no-op without an SDL-specific form.
-	if len(table.Partitions) > 0 {
-		if err := printPartitionClause(buf, table.Partitions, table.Engine); err != nil {
-			return err
-		}
-	}
-
-	_, err := io.WriteString(buf, ";\n\n")
-	return err
+// writeTableSDL emits a single CREATE TABLE statement in canonical SDL form, with
+// secondary indexes, foreign keys, and checks sorted by name.
+func writeTableSDL(buf *strings.Builder, dbName string, table *metadata.TableMetadata) error {
+	return writeCreateTable(buf, table, dbName, true)
 }
 
 // filterCreateOptions returns the table CREATE_OPTIONS string with the synthetic
@@ -1838,79 +1687,71 @@ func writeViewSDL(buf *strings.Builder, dbName string, view *metadata.ViewMetada
 	body := formatViewBodySDL(stripViewBodyDatabaseQualifier(view.Definition, dbName))
 	if body == "" {
 		// Defensive: an empty definition keeps the historical inline framing.
-		if _, err := fmt.Fprintf(buf, "CREATE OR REPLACE VIEW `%s` AS ;\n\n", view.Name); err != nil {
+		if _, err := fmt.Fprintf(buf, "CREATE OR REPLACE VIEW %s AS ;\n\n", quoteIdent(view.Name)); err != nil {
 			return err
 		}
 		return nil
 	}
-	if _, err := fmt.Fprintf(buf, "CREATE OR REPLACE VIEW `%s` AS\n%s;\n\n", view.Name, body); err != nil {
+	if _, err := fmt.Fprintf(buf, "CREATE OR REPLACE VIEW %s AS\n%s;\n\n", quoteIdent(view.Name), body); err != nil {
 		return err
 	}
 	return nil
 }
 
-// stripViewBodyDatabaseQualifier removes the dumped database's own-database qualifier
-// (the leading “ `<dbName>`. “ prefix on a table/column reference) from a view body.
+// stripViewBodyDatabaseQualifier removes the dumped database's own qualifier from the
+// table, column, and function references of a view body.
 //
-// MySQL 5.7's SHOW CREATE VIEW / information_schema.VIEWS.VIEW_DEFINITION fully qualifies
-// references — including the inner refs of a FROM-clause derived table — with the schema
-// name (e.g. “ `mydb`.`assignment` “), whereas 8.0 stores them unqualified and the user
-// authors them unqualified. The omni SDL diff loads both inputs under the synthetic
-// database bbcatalog and its canonicalViewBody only folds the loaded own-database prefix
-// (bbcatalog), so a body still carrying the real synced DB name phantom-diffs against the
-// unqualified user body. Stripping the qualifier at dump time yields the db-neutral form
-// both 5.7 and 8.0 share.
-//
-// Only the current database's own qualifier is removed (genuine cross-database references,
-// which MySQL views in this single-database scope effectively never carry, are left
-// intact). The body is walked with scanViewBodyToken — the same quote/identifier-aware
-// scanner formatViewBodySDL uses — so ONE scanner owns the literal rules: a
-// “ `<dbName>`. “ sequence inside a '…' or "…" string literal (or inside a backtick
-// identifier such as an alias) is NOT a qualifier and is left untouched.
-//
-// A qualifier is recognized only where one can grammatically start: a backtick
-// identifier spelling dbName, immediately followed by "." and another backtick
-// identifier, and NOT itself preceded by "." (then it is the table/column part of an
-// enclosing dotted reference, e.g. the table part of `otherdb`.`<dbName>`.`c`). After a
-// strip, the following identifier is copied verbatim BEFORE re-arming, so a table named
-// like the database (`<dbName>`.`<dbName>`.`col`, the 5.7 three-part form) loses only
-// the database part.
+// information_schema.VIEWS qualifies the references of a view body with their
+// database, while users write them unqualified. The omni SDL diff folds only the
+// qualifier of the database it loads into, so a body still naming the synced database
+// would differ from the user's forever. The body is parsed so that only a qualifier in the database
+// position goes: a table alias or table spelled like the database is a qualifier of
+// its columns and stays. A body that does not parse is returned unchanged.
 func stripViewBodyDatabaseQualifier(body, dbName string) string {
 	if dbName == "" || body == "" {
 		return body
 	}
-	quoted := "`" + strings.ReplaceAll(dbName, "`", "``") + "`"
-	if !strings.Contains(body, quoted+".") {
+	qualifier := quoteIdent(dbName) + "."
+	if !strings.Contains(body, qualifier) {
 		return body
 	}
+	// A stored body may end in WITH CHECK OPTION, so it parses only as a whole view.
+	const prefix = "CREATE VIEW v AS "
+	list, err := mysqlparser.Parse(prefix + body)
+	if err != nil || len(list.Items) != 1 {
+		return body
+	}
+	var starts []int
+	nodes.Inspect(list.Items[0], func(n nodes.Node) bool {
+		var schema string
+		var loc nodes.Loc
+		switch n := n.(type) {
+		case *nodes.TableRef:
+			schema, loc = n.Schema, n.Loc
+		case *nodes.ColumnRef:
+			schema, loc = n.Schema, n.Loc
+		case *nodes.FuncCallExpr:
+			schema, loc = n.Schema, n.Loc
+		default:
+			return true
+		}
+		start := loc.Start - len(prefix)
+		if schema == dbName && start >= 0 && strings.HasPrefix(body[start:], qualifier) {
+			starts = append(starts, start)
+		}
+		return true
+	})
+	slices.Sort(starts)
+	starts = slices.Compact(starts)
 
 	var out strings.Builder
 	out.Grow(len(body))
-	// prevTok is the previous non-whitespace token; "." marks the current identifier as
-	// a continuation part of a dotted reference, never a qualifier start.
-	prevTok := ""
-	for i := 0; i < len(body); {
-		if isViewBodySpaceByte(body[i]) {
-			out.WriteByte(body[i])
-			i++
-			continue
-		}
-		end := scanViewBodyToken(body, i)
-		tok := body[i:end]
-		if tok == quoted && prevTok != "." && end < len(body) && body[end] == '.' && end+1 < len(body) && body[end+1] == '`' {
-			// Own-database qualifier: drop it and the dot, then copy the following
-			// identifier verbatim so it is not re-tested as a qualifier.
-			identEnd := scanViewBodyToken(body, end+1)
-			ident := body[end+1 : identEnd]
-			out.WriteString(ident)
-			prevTok = ident
-			i = identEnd
-			continue
-		}
-		out.WriteString(tok)
-		prevTok = tok
-		i = end
+	prev := 0
+	for _, start := range starts {
+		out.WriteString(body[prev:start])
+		prev = start + len(qualifier)
 	}
+	out.WriteString(body[prev:])
 	return out.String()
 }
 
@@ -1940,8 +1781,8 @@ func writeRoutineSDL(buf *strings.Builder, definition string) error {
 // <body>`. DEFINER is omitted (omni's trigger differ ignores it) and the body is
 // emitted verbatim (compared byte for byte after trimming).
 func writeTriggerSDL(buf *strings.Builder, tableName string, trigger *metadata.TriggerMetadata) error {
-	if _, err := fmt.Fprintf(buf, "CREATE TRIGGER `%s` %s %s ON `%s` FOR EACH ROW\n%s;\n\n",
-		trigger.Name, trigger.Timing, trigger.Event, tableName, strings.TrimSpace(trigger.Body)); err != nil {
+	if _, err := fmt.Fprintf(buf, "CREATE TRIGGER %s %s %s ON %s FOR EACH ROW\n%s;\n\n",
+		quoteIdent(trigger.Name), trigger.Timing, trigger.Event, quoteIdent(tableName), strings.TrimSpace(trigger.Body)); err != nil {
 		return err
 	}
 	return nil

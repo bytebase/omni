@@ -56,7 +56,7 @@ func MultiFileDefinition(meta *metadata.DatabaseSchemaMetadata) ([]DefinitionFil
 	slices.SortFunc(tables, func(a, b *metadata.TableMetadata) int { return cmp.Compare(a.Name, b.Name) })
 	for _, table := range tables {
 		var buf strings.Builder
-		if err := writeTableSDL(&buf, table); err != nil {
+		if err := writeTableSDL(&buf, meta.Name, table); err != nil {
 			return nil, err
 		}
 		files = append(files, DefinitionFile{
