@@ -880,6 +880,20 @@ The docs judged the 73,613 rows in about a minute, and a replay asks the recogni
 - **The ten corpora that compared `Parse` with Trino are `suite:` rows,** and their tests are gone; `TestCompatibilitySuitesAreTheCorpora` keeps the rows equal to the corpora, which other tests still read. The tests that compare something else with Trino's verdict (an expression, a type or a name parsed alone, the lexer, `Split`, SQL the deparser and completer write) replay tapes.
 - **27 skips are gone,** each taken when Trino gave no answer, which is a failure now. CI's Trino lane, which ran its packages one at a time beside the rest for memory, is gone.
 
+**Doris, recorded.** `doris/parser/testdata/compat.tsv` at `3.1.4-rc02` (2026-11-14): the alternatives of `DorisParser.g4` and of the legacy parser's `sql_parser.cup`, which `doris/parser/cmd/cup2g4` converts to `DorisLegacyParser.g4`, and their near-misses. The ANTLR parser reads every statement and hands those its `unsupportedStatement` rule derives to the CUP parser, so Doris takes them only if both do. The pinned server judged the 15,967 rows in 75 seconds, inside a transaction, where Doris parses a statement with both parsers and runs none but DML (`doris/parser/testdata/README.md`); a second recording on a fresh server wrote the same file.
+
+| Statements | Total | Agree | Only engine accepts | Only omni accepts |
+| --- | --- | --- | --- | --- |
+| `DorisParser.g4`, one per alternative | 2,354 | 1,910 | 396 | 48 |
+| `DorisParser.g4`, near-misses | 5,961 | 4,668 | 67 | 1,226 |
+| `DorisLegacyParser.g4`, one per alternative | 1,767 | 1,463 | 251 | 53 |
+| `DorisLegacyParser.g4`, near-misses | 5,885 | 4,481 | 55 | 1,349 |
+| Hand rows: the container test's cases (`suite:conformance`) | 339 | 339 | 0 | 0 |
+
+- **3,445 generated rows disagree,** untriaged. 2,676 are statements omni accepts and Doris refuses, most of them cut short or missing a word that omni's loose statement readers take: `SHOW` and `SHOW <anything>` (614 rows of `show_param` and `unsupportedShowStatement`), data types (327 of `type`, `dataType` and `primitiveColType`), `ALTER TABLE` and `ALTER SYSTEM` clauses (289), `ADMIN` (182), a bare `KILL`, `WARM UP` or `CANCEL`. omni rejects 769 Doris takes: `LOAD` data descriptions (49), `MATCH` predicates (32), a `CREATE VIEW` or materialized view without `AS` (34), stored procedures (13), `PASSWORD_HISTORY DEFAULT` (14), and many small rules.
+- **A rejection is the parser's own exception:** the ANTLR parser's `ParseException`, for a syntax error and for what its AST builder refuses, or the CUP parser's `Syntax error in line` (`compat.DorisVerdict`). Every other error comes after the parse. `LOAD LABEL` and `CREATE ROW POLICY` reach the CUP parser only when they run, so the judge sends them outside a transaction.
+- **The container test is gone.** Its 339 cases compared `Parse` with a running Doris and are `suite:conformance` rows; all agree. Nothing under `doris/` starts a server outside a recording.
+
 ## Appendix B. Rule changes
 
 The **Compatibility** section below replaces the `AGENTS.md` Tests bullets on testing against the engine, CI servers, Docker and environment gates. It lands with the implementation.
