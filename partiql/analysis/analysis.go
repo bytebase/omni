@@ -42,7 +42,7 @@ func validateStatement(node ast.Node) error {
 		// read-only operation even when wrapping DML/DDL.
 		return nil
 	case *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt,
-		*ast.UpsertStmt, *ast.ReplaceStmt, *ast.RemoveStmt:
+		*ast.UpsertStmt, *ast.ReplaceStmt, *ast.RemoveStmt, *ast.SetStmt:
 		return fmt.Errorf("DML statements are not allowed in query context")
 	case *ast.CreateTableStmt, *ast.CreateIndexStmt,
 		*ast.DropTableStmt, *ast.DropIndexStmt:
