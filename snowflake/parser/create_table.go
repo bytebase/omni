@@ -138,6 +138,12 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 		hybrid = true
 	}
 
+	// CREATE [OR REPLACE] [TRANSIENT] ICEBERG TABLE (iceberg_table.go). ICEBERG is
+	// not a reserved keyword, so it is matched by text and only before TABLE.
+	if p.curIsWord("ICEBERG") && p.peekNext().Type == kwTABLE && !orAlter && !temporary && !volatile {
+		return p.parseCreateIcebergTableStmt(start, orReplace, transient)
+	}
+
 	switch p.cur.Type {
 	case kwTABLE:
 		return p.parseCreateTableStmt(start, orReplace, orAlter, transient, temporary, volatile, hybrid)
@@ -1492,26 +1498,13 @@ func (p *Parser) parseTableProperties(stmt *ast.CreateTableStmt) error {
 				}
 				stmt.Tags = append(stmt.Tags, tags...)
 			case kwROW:
-				// WITH ROW ACCESS POLICY name ON (cols) — consume and discard
+				// WITH ROW ACCESS POLICY name ON (cols)
 				p.advance() // consume WITH
-				p.advance() // consume ROW
-				if _, err := p.expect(kwACCESS); err != nil {
+				rp, err := p.parseRowAccessPolicyClause()
+				if err != nil {
 					return err
 				}
-				if _, err := p.expect(kwPOLICY); err != nil {
-					return err
-				}
-				// policy name
-				if _, err := p.parseObjectName(); err != nil {
-					return err
-				}
-				// Optional ON (cols)
-				if p.cur.Type == kwON {
-					p.advance() // consume ON
-					if err := p.skipParenthesized(); err != nil {
-						return err
-					}
-				}
+				stmt.RowPolicy = rp
 			default:
 				return nil
 			}

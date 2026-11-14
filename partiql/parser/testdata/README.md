@@ -9,9 +9,9 @@ the generated rows from the grammar, and asks the judge again on every run.
 
 | Rows | Total | Agree | Only the judge accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
-| One per alternative of the grammar | 632 | 251 | 380 | 1 |
-| Near-misses: a token dropped, the end cut off, a word inserted, a keyword swapped | 1,217 | 1,200 | 14 | 3 |
-| `suite:dynamodb-docs`: the statements DynamoDB's developer guide prints | 61 | 59 | 2 | 0 |
+| One per alternative of the grammar | 632 | 515 | 116 | 1 |
+| Near-misses: a token dropped, the end cut off, a word inserted, a keyword swapped | 1,217 | 1,209 | 5 | 3 |
+| `suite:dynamodb-docs`: the statements DynamoDB's developer guide prints | 61 | 61 | 0 | 0 |
 
 - **The grammar** is `../../testdata/PartiQLParser.g4` with its lexer grammar
   `PartiQLTokens.g4`: the grammar of the PartiQL reference implementation,
@@ -67,16 +67,12 @@ PartiQL has no server CI can start, so no row is an engine's answer.
 
 ## The work list
 
-396 rows the judge accepts and omni rejects:
-
-- **271 are one gap:** an expression as a statement (`dql : expr`,
-  `PartiQLParser.g4`), which omni's `Parse` refuses and its expression parser
-  takes. Most alternatives of the expression rules are carried by one, so
-  closing it is what shows the rest. The two DynamoDB rows are this gap:
-  `EXISTS(SELECT ...)`, the condition check of a transaction.
-- **125 others:** a graph pattern that begins with an edge (48), tokens after
-  a statement (19), `EXCLUDE` (12), `VALUES` and value lists (11), `OVERLAY`
-  (7), and smaller ones.
+An expression is a statement (`dql : expr`, `PartiQLParser.g4:52`), as
+DynamoDB's `EXISTS(SELECT ...)` condition check is, and omni reads it as an
+`ExprStmt`. 121 rows the judge accepts and omni rejects are left: a graph
+pattern that begins with an edge (48), tokens after a statement (19),
+`EXCLUDE` (12), `VALUES` and value lists (11), `OVERLAY` (7), and smaller
+ones.
 
 ## What the judge cannot decide
 

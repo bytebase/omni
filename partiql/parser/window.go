@@ -12,6 +12,7 @@
 package parser
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/bytebase/omni/partiql/ast"
@@ -112,10 +113,19 @@ func (p *Parser) parseWindowFuncExpr() (ast.ExprNode, error) {
 		return nil, err
 	}
 
-	// Mandatory OVER clause.
+	// Mandatory OVER clause, which must order the window: the reference
+	// parser's visitor refuses LAG or LEAD without a window ORDER BY
+	// (PartiQLParserDefault.kt:1910).
+	overStart := p.cur.Loc.Start
 	over, end, err := p.parseOverClause()
 	if err != nil {
 		return nil, err
+	}
+	if len(over.OrderBy) == 0 {
+		return nil, &ParseError{
+			Message:  fmt.Sprintf("%s requires window ORDER BY", name),
+			Position: overStart, End: end,
+		}
 	}
 
 	return &ast.FuncCall{
