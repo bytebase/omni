@@ -1306,6 +1306,8 @@ func TestDeparseSelect_SourceClauses(t *testing.T) {
 		// Rebuilt with no source text, an unaliased item's name spells FETCH in
 		// its own words, taking FIRST and ROW(S) where the AST keeps no choice.
 		{"SELECT (SELECT 1 OFFSET 2 ROWS)", "select (select 1) AS `(SELECT 1 OFFSET 2 ROWS)`"},
+		// A bare OFFSET that holds a parameter marker keeps its binding.
+		{"SELECT a FROM t OFFSET ? ROWS", "select `a` AS `a` from `t` offset ? rows"},
 		{"SELECT (SELECT a FROM t ORDER BY a FETCH FIRST 2 ROWS WITH TIES)",
 			"select (select `a` from `t` order by `a` fetch first 2 rows with ties) AS `(SELECT a FROM t ORDER BY a FETCH FIRST 2 ROWS WITH TIES)`"},
 		{"SELECT (SELECT a FROM t FETCH NEXT ROW ONLY)", "select (select `a` from `t` limit 1) AS `(SELECT a FROM t FETCH FIRST ROW ONLY)`"},

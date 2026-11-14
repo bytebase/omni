@@ -352,8 +352,14 @@ func limitHasParamMarker(limit *ast.Limit) bool {
 //	FETCH FIRST 2 ROWS WITH TIES                 fetch first 2 rows with ties
 //	OFFSET 1 ROWS FETCH NEXT 3 ROWS WITH TIES    offset 1 rows  fetch first 3 rows with ties
 //	OFFSET 2 ROWS                                (nothing: the server drops it)
+//
+// A bare OFFSET whose value is a `?` parameter marker is kept as written,
+// since dropping it would drop a positional binding: no view holds a marker.
 func writeLimit(b *strings.Builder, limit *ast.Limit) {
 	if limit.Count == nil {
+		if _, ok := limit.Offset.(*ast.ParamMarkerExpr); ok {
+			b.WriteString(" offset ? rows")
+		}
 		return
 	}
 	if limit.WithTies {
