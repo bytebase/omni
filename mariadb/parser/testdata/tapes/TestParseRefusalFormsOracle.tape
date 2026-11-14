@@ -15649,3 +15649,92 @@
 : string
 | WITH a AS (SELECT 1) SELECT * FROM (WITH a AS (SELECT 2) SELECT 1) d
 < ok 0 0
+> exec ^
+: string
+| CREATE DEFINER u VIEW v AS SELECT 1
+< error
+| 1064 42000 …near 'u VIEW v AS SELECT 1' at line 1
+> exec ^
+: string
+| ALTER DEFINER u VIEW v AS SELECT 1
+< error
+| 1064 42000 …near 'u VIEW v AS SELECT 1' at line 1
+> exec ^
+: string
+| CREATE DEFINER = VIEW v AS SELECT 1
+< error
+| 1064 42000 …near 'v AS SELECT 1' at line 1
+> exec ^
+: string
+| CREATE DEFINER = CURRENT_USER( VIEW v AS SELECT 1
+< error
+| 1064 42000 …near 'VIEW v AS SELECT 1' at line 1
+> exec ^
+: string
+| CREATE DEFINER = CURRENT_USER() VIEW v AS SELECT 1
+< ok 0 0
+> exec ^
+: string
+| CREATE DEFINER = CURRENT_ROLE VIEW v AS SELECT 1
+< ok 0 0
+> exec ^
+: string
+| CREATE DEFINER = CURRENT_ROLE() VIEW v AS SELECT 1
+< ok 0 0
+> exec ^
+: string
+| CREATE DEFINER = CURRENT_ROLE( VIEW v AS SELECT 1
+< error
+| 1064 42000 …near 'VIEW v AS SELECT 1' at line 1
+> exec ^
+: string
+| CREATE DEFINER = `CURRENT_ROLE`() VIEW v AS SELECT 1
+< error
+| 1064 42000 …near '() VIEW v AS SELECT 1' at line 1
+> exec ^
+: string
+| CREATE DEFINER = u SQL SECURITY u VIEW v AS SELECT 1
+< error
+| 1064 42000 …near 'u VIEW v AS SELECT 1' at line 1
+> exec ^
+: string
+| CREATE DEFINER = u SQL VIEW v AS SELECT 1
+< error
+| 1064 42000 …near 'VIEW v AS SELECT 1' at line 1
+> exec ^
+: string
+| CREATE DEFINER = u SQL SECURITY INVOKER VIEW v AS SELECT 1
+< ok 0 0
+> exec ^
+: string
+| CREATE DEFINER u PROCEDURE p() SELECT 1
+< error
+| 1064 42000 …near 'u PROCEDURE p() SELECT 1' at line 1
+> exec ^
+: string
+| CREATE SQL SECURITY u VIEW v AS SELECT 1
+< error
+| 1064 42000 …near 'u VIEW v AS SELECT 1' at line 1
+> exec ^
+: string
+| CREATE ALGORITHM = MERGE SQL SECURITY u VIEW v AS SELECT 1
+< error
+| 1064 42000 …near 'u VIEW v AS SELECT 1' at line 1
+> exec ^
+: string
+| ALTER SQL SECURITY u VIEW v AS SELECT 1
+< error
+| 1064 42000 …near 'u VIEW v AS SELECT 1' at line 1
+> exec ^
+: string
+| CREATE SQL INVOKER VIEW v AS SELECT 1
+< error
+| 1064 42000 …near 'INVOKER VIEW v AS SELECT 1' at line 1
+> exec ^
+: string
+| CREATE SQL SECURITY INVOKER VIEW v AS SELECT 1
+< ok 0 0
+> exec ^
+: string
+| ALTER SQL SECURITY DEFINER VIEW v AS SELECT 1
+< ok 0 0

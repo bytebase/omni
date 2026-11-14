@@ -29,6 +29,10 @@ type Resolver struct {
 	// Used to populate CAST(... AS CHAR) charset when not explicitly specified.
 	// If empty, defaults to "utf8mb4".
 	DefaultCharset string
+	// ConnectionCollation is the session's collation_connection, which a
+	// dynamic column's CHAR value type takes when it names no character set.
+	// If empty, utf8mb4's default collation.
+	ConnectionCollation string
 	// Source is the text the statement was parsed from, which the AST's Loc
 	// offsets index into. When it is set, an unaliased select item is named
 	// after its source text, as MySQL names it; otherwise the name is rebuilt
@@ -568,6 +572,16 @@ func (r *Resolver) resolveExpr(node ast.ExprNode, sc *fromScope) ast.ExprNode {
 		for i, arg := range n.Args {
 			n.Args[i] = r.resolveExpr(arg, sc)
 		}
+		// COLUMN_GET's type is a CAST type, and takes its character set the
+		// same way. A COLUMN_CREATE or COLUMN_ADD value's CHAR takes the
+		// connection's.
+		for _, dt := range n.ArgTypes {
+			if strings.EqualFold(n.Name, "COLUMN_GET") {
+				r.resolveCastCharset(dt)
+			} else {
+				r.resolveDynColCharset(dt)
+			}
+		}
 		// Resolve ORDER BY in aggregate functions (e.g., GROUP_CONCAT)
 		for _, item := range n.OrderBy {
 			item.Expr = r.resolveExpr(item.Expr, sc)
@@ -881,6 +895,40 @@ func (r *Resolver) resolveCastCharset(dt *ast.DataType) {
 		}
 		dt.Charset = charset
 	}
+}
+
+// resolveDynColCharset fills in the character set and collation a dynamic
+// column's CHAR value type leaves out. The server takes them from the
+// connection: measured on mariadb:11.8.8, after SET NAMES latin1 COLLATE
+// latin1_bin, 'x' AS CHAR is stored as char charset latin1 collate latin1_bin
+// and 'x' AS CHAR BINARY the same, while a COLLATE written alone names its own
+// character set (CHAR COLLATE utf8mb4_bin is utf8mb4).
+func (r *Resolver) resolveDynColCharset(dt *ast.DataType) {
+	if dt == nil || !strings.EqualFold(dt.Name, "CHAR") || dt.Charset != "" {
+		return
+	}
+	if dt.Collate != "" {
+		dt.Charset = collationCharset(dt.Collate)
+		return
+	}
+	coll := strings.ToLower(r.ConnectionCollation)
+	if coll == "" {
+		coll = DefaultCollations["utf8mb4"]
+	}
+	dt.Charset = collationCharset(coll)
+	if !dt.Binary {
+		dt.Collate = coll
+	}
+}
+
+// collationCharset returns the character set a collation belongs to, which
+// leads its name: utf8mb4_bin is utf8mb4's, and binary is its own.
+func collationCharset(coll string) string {
+	coll = strings.ToLower(coll)
+	if i := strings.IndexByte(coll, '_'); i > 0 {
+		return coll[:i]
+	}
+	return coll
 }
 
 // withCTELookup returns a TableLookup function that first checks CTE virtual tables,

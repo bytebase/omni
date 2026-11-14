@@ -139,6 +139,7 @@ func TestOracleVerdictReadsOraclesOwnFailures(t *testing.T) {
 		{"an internal error, twice", []error{internal, internal}, Reject},
 		{"a session failing the block's next query, twice", []error{normal, normal}, Reject},
 		{"a dropped session, then parsed", []error{eof, nil}, Accept},
+		{"no answer, twice", []error{fmt.Errorf("after 1m: %w", ErrNoAnswer), ErrNoAnswer}, Reject},
 		{"a dropped session, then a syntax error", []error{eof, oracleRaised(936, 7, ""), oracleRaised(936, 7, "")}, "reject@7"},
 		{"a probe Oracle fails on, after a parser's error", []error{oracleRaised(936, 7, ""), internal}, "reject@7"},
 		{"a probe Oracle fails on, after a lookup", []error{oracleRaised(904, 7, ""), internal}, Accept},

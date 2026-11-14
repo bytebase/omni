@@ -151,7 +151,15 @@ func writeFuncCallExprQ(b *strings.Builder, f *FuncCallExprQ, q *deparseScope) {
 		return
 	}
 
-	b.WriteString(f.Name)
+	if f.Routine == "" && !f.SpacedParen && writeTrimQ(b, f, q) {
+		return
+	}
+
+	if f.Routine != "" {
+		b.WriteString(f.Routine)
+	} else {
+		b.WriteString(f.Name)
+	}
 	if f.SpacedParen {
 		// A gated builtin keyword written with a space before '(' is a generic
 		// call; keep the space so it does not re-lex as the builtin.
@@ -168,13 +176,69 @@ func writeFuncCallExprQ(b *strings.Builder, f *FuncCallExprQ, q *deparseScope) {
 			b.WriteString(", ")
 		}
 		writeAnalyzedExpr(b, arg, q)
+		if i < len(f.ArgTypes) {
+			b.WriteString(f.ArgTypes[i])
+		}
 	}
 	b.WriteByte(')')
+
+	if f.WithinGroup != nil {
+		b.WriteString(" within group (order by ")
+		writeAnalyzedExpr(b, f.WithinGroup, q)
+		if f.WithinGroupDesc {
+			b.WriteString(" desc")
+		}
+		b.WriteByte(')')
+	}
 
 	if f.Over != nil {
 		b.WriteString(" over ")
 		writeWindowDefQ(b, f.Over, q)
 	}
+}
+
+// writeTrimQ writes TRIM's own forms, which the parser names trim_leading,
+// trim_trailing and trim_both, and oracle_schema.trim for TRIM_ORACLE, back in
+// TRIM's syntax: trim(leading 'x' from a), trim(both 'x' from a) for
+// remstr FROM str, trim(leading from a). It reports false for any other call.
+func writeTrimQ(b *strings.Builder, f *FuncCallExprQ, q *deparseScope) bool {
+	name, prefix := f.Name, ""
+	if rest, ok := strings.CutPrefix(name, "oracle_schema."); ok {
+		name, prefix = rest, "oracle_schema."
+	}
+	dir := ""
+	switch name {
+	case "trim":
+		if prefix == "" && len(f.Args) != 2 {
+			return false
+		}
+		if len(f.Args) == 2 {
+			dir = "both"
+		}
+	case "trim_leading", "trim_trailing", "trim_both":
+		dir = strings.TrimPrefix(name, "trim_")
+	default:
+		return false
+	}
+	if len(f.Args) < 1 || len(f.Args) > 2 {
+		return false
+	}
+	b.WriteString(prefix)
+	b.WriteString("trim(")
+	if dir != "" {
+		b.WriteString(dir)
+		b.WriteByte(' ')
+	}
+	if len(f.Args) == 2 {
+		writeAnalyzedExpr(b, f.Args[0], q)
+		b.WriteByte(' ')
+	}
+	if dir != "" {
+		b.WriteString("from ")
+	}
+	writeAnalyzedExpr(b, f.Args[len(f.Args)-1], q)
+	b.WriteByte(')')
+	return true
 }
 
 func writeWindowDefQ(b *strings.Builder, w *WindowDefQ, q *deparseScope) {

@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/mariadb/ast"
 )
 
@@ -548,14 +550,12 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		// Optional SQL SECURITY {DEFINER|INVOKER}
+		// Optional SQL SECURITY {DEFINER|INVOKER} (view_suid)
 		var sqlSecurity string
 		sawSQLSecurity := p.cur.Type == kwSQL
 		if p.cur.Type == kwSQL {
-			p.advance()
-			p.match(kwSECURITY)
-			if p.isIdentToken() {
-				sqlSecurity, _, _ = p.parseIdentifier()
+			if sqlSecurity, err = p.parseViewSQLSecurity(); err != nil {
+				return nil, err
 			}
 		}
 		// Now dispatch on the object keyword
@@ -727,13 +727,11 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		// Optional SQL SECURITY {DEFINER|INVOKER}
+		// Optional SQL SECURITY {DEFINER|INVOKER} (view_suid)
 		var sqlSecurity string
 		if p.cur.Type == kwSQL {
-			p.advance()
-			p.match(kwSECURITY)
-			if p.isIdentToken() {
-				sqlSecurity, _, _ = p.parseIdentifier()
+			if sqlSecurity, err = p.parseViewSQLSecurity(); err != nil {
+				return nil, err
 			}
 		}
 		switch p.cur.Type {
@@ -871,36 +869,34 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 // The current token must be DEFINER; on return, the current token is the one
 // after the definer clause.
 //
-// definer is DEFINER '=' user_or_role, so the '=' and the account are required, and
-// CURRENT_USER's parentheses come as a pair.
-//
-// Ref: definer and user_or_role in MariaDB 11.8 sql/sql_yacc.yy.
+// definer: DEFINER_SYM '=' user_or_role (MariaDB 11.8 sql/sql_yacc.yy), so `=` and the
+// user are required; CURRENT_USER and CURRENT_ROLE take optional_braces.
 func (p *Parser) parseDefinerValue() (string, error) {
 	p.advance() // consume DEFINER
+	if _, err := p.expect('='); err != nil {
+		return "", err
+	}
 
 	// Completion: after DEFINER=, offer CURRENT_USER keyword.
 	p.checkCursor()
 	if p.collectMode() {
 		p.addTokenCandidate(kwCURRENT_USER)
-		return "", nil
-	}
-	if _, err := p.expect('='); err != nil {
-		return "", err
-	}
-	p.checkCursor()
-	if p.collectMode() {
-		p.addTokenCandidate(kwCURRENT_USER)
-		return "", nil
+		return "", &ParseError{Message: "collecting"}
 	}
 
-	// Parse user part: identifier, string literal, or CURRENT_USER
+	// Parse user part: identifier, string literal, CURRENT_USER or CURRENT_ROLE
 	var user string
 	isCurUser := p.cur.Type == kwCURRENT_USER
+	// CURRENT_ROLE is no keyword here; the source text keeps `CURRENT_ROLE`, a name, apart.
+	isCurRole := p.cur.Type == tokIDENT && strings.EqualFold(p.inputText(p.cur.Loc, p.cur.End), "CURRENT_ROLE")
 	if p.cur.Type == tokSCONST {
 		user = "'" + p.cur.Str + "'"
 		p.advance()
 	} else if isCurUser {
 		user = "CURRENT_USER"
+		p.advance()
+	} else if isCurRole {
+		user = "CURRENT_ROLE"
 		p.advance()
 	} else if p.isIdentToken() {
 		var err error
@@ -911,13 +907,16 @@ func (p *Parser) parseDefinerValue() (string, error) {
 		return "", p.syntaxErrorAtCur()
 	}
 
-	// Handle CURRENT_USER()
-	if isCurUser && p.cur.Type == '(' {
+	// Handle CURRENT_USER() and CURRENT_ROLE()
+	if (isCurUser || isCurRole) && p.cur.Type == '(' {
 		p.advance() // consume (
 		if _, err := p.expect(')'); err != nil {
 			return "", err
 		}
-		return "CURRENT_USER()", nil
+		return user + "()", nil
+	}
+	if isCurRole {
+		return user, nil
 	}
 
 	// Handle @host: the lexer scans @host as a single tokIDENT with Str="@host",

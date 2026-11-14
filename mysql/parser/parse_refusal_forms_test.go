@@ -2324,6 +2324,15 @@ var parseRefusalForms = []struct {
 	{"WITH a AS (SELECT 1), a AS (SELECT 2) SELECT 1", false},
 	{"WITH a AS (SELECT 1), A AS (SELECT 2) SELECT 1", true},
 	{"WITH a AS (SELECT 1) SELECT * FROM (WITH a AS (SELECT 2) SELECT 1) d", true},
+	// SQL SECURITY takes DEFINER or INVOKER (view_suid).
+	{"CREATE SQL SECURITY u VIEW v AS SELECT 1", false},
+	{"CREATE ALGORITHM = MERGE SQL SECURITY u VIEW v AS SELECT 1", false},
+	{"ALTER SQL SECURITY u VIEW v AS SELECT 1", false},
+	{"CREATE SQL INVOKER VIEW v AS SELECT 1", false},
+	{"CREATE SQL SECURITY INVOKER VIEW v AS SELECT 1", true},
+	{"ALTER SQL SECURITY DEFINER VIEW v AS SELECT 1", true},
+	{"CREATE DEFINER = CURRENT_USER( VIEW v AS SELECT 1", false},
+	{"CREATE DEFINER = u SQL SECURITY u VIEW v AS SELECT 1", false},
 }
 
 // TestParseRefusalForms holds Parse to the table.
