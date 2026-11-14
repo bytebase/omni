@@ -78,27 +78,30 @@ func (p *Parser) evExpectObjectName() (string, int, error) {
 	return strings.Join(parts, "."), len(parts), nil
 }
 
-// evExpectQueueName consumes [ database . [ schema ] . | schema . ] queue.
+// evExpectQueueName consumes [ [ database ] . [ schema ] . ] queue: up to
+// three parts, any but the last of which may be left empty (..q, .s.q, d..q),
+// as identifierList allows (TSql160.g:30454). SQL Server refuses a fourth
+// part (117).
 func (p *Parser) evExpectQueueName() (string, error) {
-	first, err := p.evExpectName()
-	if err != nil {
-		return "", err
-	}
-	parts := []string{first}
-	for p.cur.Type == '.' && len(parts) < 3 {
-		p.advance()
-		if p.cur.Type == '.' && len(parts) == 1 {
-			// database..queue: the schema is left out.
+	var parts []string
+	for {
+		if p.cur.Type == '.' {
 			parts = append(parts, "")
-			continue
+		} else {
+			part, err := p.evExpectName()
+			if err != nil {
+				return "", err
+			}
+			parts = append(parts, part)
 		}
-		part, err := p.evExpectName()
-		if err != nil {
-			return "", err
+		if p.cur.Type != '.' {
+			return strings.Join(parts, "."), nil
 		}
-		parts = append(parts, part)
+		if len(parts) == 3 {
+			return "", p.syntaxErrorAtCur()
+		}
+		p.advance()
 	}
-	return strings.Join(parts, "."), nil
 }
 
 // evExpectString consumes a string literal and returns its value.
@@ -683,13 +686,15 @@ func (p *Parser) parseEventSessionPredicate() (string, error) {
 }
 
 // parseEventSessionPredicateUnary parses NOT <unary>, a parenthesized
-// predicate, or a leaf. A chain of NOT is read by a loop.
+// predicate, or a leaf. A chain of NOT is read by a loop, not by recursion,
+// and its text is built once, so a long chain costs linear time.
 func (p *Parser) parseEventSessionPredicateUnary() (string, error) {
-	prefix := ""
+	nots := 0
 	for p.cur.Type == kwNOT {
-		prefix += "NOT "
+		nots++
 		p.advance()
 	}
+	prefix := strings.Repeat("NOT ", nots)
 	if p.cur.Type == '(' {
 		p.advance()
 		inner, err := p.parseEventSessionPredicate()
