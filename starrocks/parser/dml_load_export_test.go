@@ -219,8 +219,7 @@ func TestLoadBasic(t *testing.T) {
 	sql := `LOAD LABEL example_db.label1
 	(DATA INFILE('hdfs://hdfs_host:hdfs_port/file1') INTO TABLE my_table)
 	WITH BROKER hdfs_broker
-	PROPERTIES ("timeout"="1200")
-	COMMENT 'test load'`
+	PROPERTIES ("timeout"="1200")`
 
 	stmt := mustParseLoadData(t, sql)
 	if stmt.Label != "example_db.label1" {
@@ -248,8 +247,9 @@ func TestLoadBasic(t *testing.T) {
 	if stmt.Properties[0].Key != "timeout" {
 		t.Errorf("properties[0].key = %q, want timeout", stmt.Properties[0].Key)
 	}
-	if stmt.Comment != "test load" {
-		t.Errorf("comment = %q, want 'test load'", stmt.Comment)
+	// loadStatement (StarRocks.g4:1427) has no COMMENT.
+	if _, err := Parse(sql + " COMMENT 'test load'"); err == nil {
+		t.Error("LOAD ... COMMENT parsed; StarRocks's loadStatement has none")
 	}
 }
 
@@ -279,7 +279,7 @@ func TestLoadWithPartition(t *testing.T) {
 
 func TestLoadNegative(t *testing.T) {
 	sql := `LOAD LABEL load3
-	(NEGATIVE DATA INFILE('file1') INTO TABLE t)`
+	(DATA INFILE('file1') NEGATIVE INTO TABLE t)`
 
 	stmt := mustParseLoadData(t, sql)
 	if !stmt.DataDescs[0].Negative {
@@ -289,12 +289,62 @@ func TestLoadNegative(t *testing.T) {
 
 func TestLoadWithColumns(t *testing.T) {
 	sql := `LOAD LABEL load4
-	(DATA INFILE('file1') INTO TABLE t COLUMNS (c1, c2, c3))`
+	(DATA INFILE('file1') INTO TABLE t (c1, c2, c3))`
 
 	stmt := mustParseLoadData(t, sql)
 	desc := stmt.DataDescs[0]
 	if len(desc.ColumnList) != 3 {
 		t.Fatalf("column list = %v, want [c1 c2 c3]", desc.ColumnList)
+	}
+}
+
+func TestLoadClauses(t *testing.T) {
+	stmt := mustParseLoadData(t, `LOAD LABEL db.l
+	(DATA INFILE('f') INTO TABLE t TEMPORARY PARTITION (p1, p2) COLUMNS TERMINATED BY ','
+	 ROWS TERMINATED BY '\n' FORMAT AS 'csv' (SKIP_HEADER = 1 ENCLOSE = '"') (a, b)
+	 COLUMNS FROM PATH AS (c) SET (a = b + 1, b) WHERE a > 1,
+	 DATA FROM TABLE s NEGATIVE INTO TABLE t PARTITION (k = 1))
+	WITH BROKER ('k' = 'v') BY 's' PROPERTIES ('timeout' = '1')`)
+	d := stmt.DataDescs[0]
+	if !d.TemporaryPart || len(d.Partition) != 2 || d.ColumnSeparator != "," || d.Format != "csv" ||
+		len(d.FormatProps) != 2 || len(d.ColumnList) != 2 || len(d.ColumnsFromPath) != 1 ||
+		len(d.ColumnMappings) != 2 || d.Where == nil {
+		t.Errorf("desc 0 = %+v", d)
+	}
+	d = stmt.DataDescs[1]
+	if d.SourceTable == nil || !d.Negative || len(d.Partition) != 1 {
+		t.Errorf("desc 1 = %+v", d)
+	}
+	if stmt.StorageType != "BROKER" || stmt.BrokerName != "" || len(stmt.BrokerProperties) != 1 || stmt.System != "s" {
+		t.Errorf("stmt = %+v", stmt)
+	}
+}
+
+// TestLoadGrammar holds LOAD to StarRocks.g4's loadStatement;
+// testdata/compat.tsv has StarRocks's verdicts.
+func TestLoadGrammar(t *testing.T) {
+	cases := []struct {
+		sql string
+		ok  bool
+	}{
+		{"LOAD LABEL a", true},
+		{"LOAD LABEL a WITH BROKER", true},
+		{"LOAD LABEL a WITH RESOURCE a ('a' = 'a')", true},
+		{"LOAD LABEL a WITH RESOURCE a BY a", false},
+		{"LOAD LABEL a(DATA INFILE() INTO TABLE a)", false},
+		{"LOAD LABEL a(DATA INFILE('a') INTO TABLE a COLUMNS FROM PATH AS())", false},
+		{"LOAD LABEL a(DATA INFILE('a') INTO TABLE a())", true},
+		{"LOAD LABEL a(DATA INFILE('a') INTO TABLE a(ESCAPE = 'a' ENCLOSE = 'a'))", false},
+		{"LOAD LABEL a(DATA INFILE('a') INTO TABLE a(SKIP_HEADER = 'a'))", false},
+		{"LOAD LABEL a(DATA INFILE('a') INTO TABLE a(SKIP_HEADER))", true},
+		{"LOAD LABEL a(DATA INFILE('a') INTO TABLE a LINES TERMINATED BY 'a')", false},
+		{"LOAD LABEL a(DATA FROM TABLE a INTO TABLE a COLUMNS TERMINATED BY 'a')", false},
+	}
+	for _, c := range cases {
+		_, err := Parse(c.sql)
+		if (err == nil) != c.ok {
+			t.Errorf("Parse(%q): err = %v, want accepted=%v", c.sql, err, c.ok)
+		}
 	}
 }
 

@@ -59,7 +59,7 @@ func (p *Parser) parseCreatePropertyGraph(create Token, orReplace bool) (ast.Nod
 	// NOT EXISTS combination with a true DDL parse error ("CREATE PROPERTY GRAPH
 	// IF NOT EXISTS cannot be used with other existence modifiers such as
 	// `OR REPLACE`"). We follow the oracle: IF NOT EXISTS optional, the pair
-	// rejected. See divergence ledger + graph_query_oracle_test.go.
+	// rejected. See divergence ledger + the suite:graph-query rows of testdata/compat.tsv.
 	if orReplace && ifNotExists {
 		return nil, &ParseError{
 			Position: ifTok.Loc.Start, End: ifTok.Loc.End,

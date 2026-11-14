@@ -10,7 +10,7 @@ import (
 // ASSERT / ANALYZE / DESCRIBE / RENAME / CALL.
 //
 // CORRECTNESS BASIS (correctness-protocol.md):
-//   - the live Cloud Spanner emulator (utility_oracle_test.go differential):
+//   - the live Cloud Spanner emulator (the suite:utility rows of testdata/compat.tsv differential):
 //     CALL is parsed in FULL (authoritative for the arg list); RENAME and bare
 //     ANALYZE go through the real DDL parser (authoritative); ASSERT / DESCRIBE
 //     are accepted by the shallow recognizer (leading-form authoritative,

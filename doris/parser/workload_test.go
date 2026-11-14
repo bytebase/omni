@@ -246,6 +246,50 @@ func TestCreateWorkloadPolicy_IfNotExists(t *testing.T) {
 	}
 }
 
+func TestCreateWorkloadPolicy_Items(t *testing.T) {
+	file, errs := parseForTest(`CREATE WORKLOAD POLICY p CONDITIONS(be_scan_rows >= 10, username = 'u', query_time < 1.5)
+		ACTIONS(set_session_variable 'workload_group=normal', cancel_query)`)
+	if len(errs) != 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	stmt := file.Stmts[0].(*ast.CreateWorkloadPolicyStmt)
+	c := stmt.Conditions
+	if len(c) != 3 || c[0].Name != "be_scan_rows" || c[0].Op != ">=" || c[0].Value != "10" ||
+		c[1].Value != "u" || c[2].Op != "<" || c[2].Value != "1.5" || c[0].RawText != "be_scan_rows >= 10" {
+		t.Errorf("Conditions = %+v %+v %+v", c[0], c[1], c[2])
+	}
+	a := stmt.Actions
+	if len(a) != 2 || a[0].Value != "workload_group=normal" || a[1].Name != "cancel_query" || a[1].Op != "" {
+		t.Errorf("Actions = %+v %+v", a[0], a[1])
+	}
+}
+
+// TestCreateWorkloadPolicy_Grammar holds the lists to what both of Doris's
+// parsers take; testdata/compat.tsv judged the near misses.
+func TestCreateWorkloadPolicy_Grammar(t *testing.T) {
+	cases := []struct {
+		sql string
+		ok  bool
+	}{
+		{"CREATE WORKLOAD POLICY a CONDITIONS(a <= 1) ACTIONS(SET_SESSION_VARIABLE)", true},
+		{"CREATE WORKLOAD POLICY a CONDITIONS(a < = 1)", false},
+		{"CREATE WORKLOAD POLICY a CONDITIONS(a != 1)", false},
+		{"CREATE WORKLOAD POLICY a CONDITIONS(a = -1)", false},
+		{"CREATE WORKLOAD POLICY a CONDITIONS(a = b)", false},
+		{"CREATE WORKLOAD POLICY a CONDITIONS(a = 1 a = 1)", false},
+		{"CREATE WORKLOAD POLICY a CONDITIONS()", false},
+		{"CREATE WORKLOAD POLICY a ACTIONS(a,)", false},
+		{"CREATE WORKLOAD POLICY a ACTIONS('a')", false},
+		{"CREATE WORKLOAD POLICY a ACTIONS(a 'a' 'b')", false},
+	}
+	for _, c := range cases {
+		_, err := Parse(c.sql)
+		if (err == nil) != c.ok {
+			t.Errorf("Parse(%q): err = %v, want accepted=%v", c.sql, err, c.ok)
+		}
+	}
+}
+
 func TestCreateWorkloadPolicy_Tag(t *testing.T) {
 	file, errs := parseForTest(`CREATE WORKLOAD POLICY p1 CONDITIONS(query_time > 1000) ACTIONS(cancel_query)`)
 	if len(errs) != 0 {
