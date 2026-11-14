@@ -243,7 +243,7 @@ func (p *Parser) parseResource() (*ast.Resource, error) {
 	next := p.peekNext()
 
 	switch {
-	case p.cur.Type == tokALL && (next.Type == tokKEYSPACES || next.Type == tokROLES || next.Type == tokMBEANS || next.Type == tokFUNCTIONS || isWord(next, "tables")):
+	case p.cur.Type == tokALL && (next.Type == tokKEYSPACES || next.Type == tokROLES || next.Type == tokMBEANS || next.Type == tokFUNCTIONS || isWord(next, "tables") || isWord(next, "columnfamilies")):
 		p.advance() // ALL
 		switch {
 		case p.cur.Type == tokFUNCTIONS:
@@ -269,7 +269,7 @@ func (p *Parser) parseResource() (*ast.Resource, error) {
 		case p.cur.Type == tokMBEANS:
 			p.advance()
 			return &ast.Resource{Type: "ALL MBEANS", Loc: p.makeLoc(start)}, nil
-		default: // TABLES IN KEYSPACE ks
+		default: // TABLES IN KEYSPACE ks; K_TABLES is also COLUMNFAMILIES (Lexer.g:96)
 			p.advance() // TABLES
 			if err := p.expectKeyword(tokIN); err != nil {
 				return nil, err

@@ -142,3 +142,45 @@ func isLexerKeyword(w string) bool {
 func isStringLiteral(typ int) bool {
 	return typ == tokSTRING || typ == tokCODEBLOCK
 }
+
+// isAllowedFunctionName reports whether tok is allowedFunctionName
+// (Parser.g:1613): IDENT, QUOTED_NAME, an unreserved_function_keyword (a
+// basic_unreserved_keyword or a native type), TOKEN or COUNT. The other words
+// of unreserved_keyword (TTL, WRITETIME, MAXWRITETIME, KEY, CAST, JSON,
+// DISTINCT) name no function.
+func isAllowedFunctionName(tok Token) bool {
+	if tok.Type == tokQUOTED {
+		return true
+	}
+	switch w := tokWord(tok); w {
+	case "":
+		return false
+	case "token", "count":
+		return true
+	case "ttl", "writetime", "maxwritetime", "key", "cast", "json", "distinct":
+		return false
+	default:
+		return !reservedKeywords[w]
+	}
+}
+
+// parseFunctionQualifiedName parses functionName (Parser.g:1608):
+// (keyspaceName '.')? allowedFunctionName.
+func (p *Parser) parseFunctionQualifiedName() (*ast.QualifiedName, error) {
+	start := p.curLoc()
+	var parts []*ast.Identifier
+	if p.peekNext().Type == tokDOT {
+		ks, err := p.parseNameIf(isCQLName)
+		if err != nil {
+			return nil, err
+		}
+		p.advance() // '.'
+		parts = append(parts, ks)
+	}
+	name, err := p.parseNameIf(isAllowedFunctionName)
+	if err != nil {
+		return nil, err
+	}
+	parts = append(parts, name)
+	return &ast.QualifiedName{Parts: parts, Loc: p.makeLoc(start)}, nil
+}

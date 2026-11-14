@@ -22,17 +22,24 @@ func (p *Parser) parseDescribe() (*ast.DescribeStmt, error) {
 
 	stmt := &ast.DescribeStmt{}
 	// takesName reports whether the token after a keyword starts the name
-	// that keyword's form requires.
+	// that keyword's form requires; FUNCTION and AGGREGATE take a
+	// functionName, whose last part may be TOKEN or COUNT (Parser.g:1431).
 	takesName := func() bool {
 		return isCQLName(p.peekNext())
+	}
+	takesFunctionName := func() bool {
+		return isCQLName(p.peekNext()) || isAllowedFunctionName(p.peekNext())
 	}
 	// qualified parses the [ks.]name a keyword form takes.
 	qualified := func(kind ast.DescribeKind) error {
 		stmt.Kind = kind
 		p.advance() // the keyword
 		parse := p.parseCQLQualifiedName
-		if kind == ast.DescribeType {
+		switch kind {
+		case ast.DescribeType:
 			parse = p.parseUserTypeQualifiedName
+		case ast.DescribeFunction, ast.DescribeAggregate:
+			parse = p.parseFunctionQualifiedName
 		}
 		name, err := parse()
 		if err != nil {
@@ -89,12 +96,12 @@ func (p *Parser) parseDescribe() (*ast.DescribeStmt, error) {
 	case p.cur.Type == tokFUNCTIONS:
 		stmt.Kind = ast.DescribeFunctions
 		p.advance()
-	case p.cur.Type == tokFUNCTION && takesName():
+	case p.cur.Type == tokFUNCTION && takesFunctionName():
 		err = qualified(ast.DescribeFunction)
 	case p.curIs("aggregates"):
 		stmt.Kind = ast.DescribeAggregates
 		p.advance()
-	case p.cur.Type == tokAGGREGATE && takesName():
+	case p.cur.Type == tokAGGREGATE && takesFunctionName():
 		err = qualified(ast.DescribeAggregate)
 	default:
 		stmt.Kind = ast.DescribeName
