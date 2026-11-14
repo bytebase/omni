@@ -73,6 +73,9 @@ func (p *Parser) parseAnalyzeTableStmt() (*nodes.AnalyzeTableStmt, error) {
 		}
 		p.advance()
 	}
+	if err := refuseRepeatedTables(stmt.Tables); err != nil {
+		return nil, err
+	}
 
 	// UPDATE HISTOGRAM ON col [, col] [WITH N BUCKETS] | [USING DATA 'json_data']
 	if p.cur.Type == kwUPDATE {
@@ -190,6 +193,9 @@ func (p *Parser) parseOptimizeTableStmt() (*nodes.OptimizeTableStmt, error) {
 		}
 		p.advance()
 	}
+	if err := refuseRepeatedTables(stmt.Tables); err != nil {
+		return nil, err
+	}
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
@@ -234,6 +240,9 @@ func (p *Parser) parseCheckTableStmt() (*nodes.CheckTableStmt, error) {
 			break
 		}
 		p.advance()
+	}
+	if err := refuseRepeatedTables(stmt.Tables); err != nil {
+		return nil, err
 	}
 
 	// Optional check options: FOR UPGRADE, QUICK, FAST, MEDIUM, EXTENDED, CHANGED
@@ -313,6 +322,9 @@ func (p *Parser) parseRepairTableStmt() (*nodes.RepairTableStmt, error) {
 			break
 		}
 		p.advance()
+	}
+	if err := refuseRepeatedTables(stmt.Tables); err != nil {
+		return nil, err
 	}
 
 	// Options: QUICK, EXTENDED, USE_FRM
@@ -422,6 +434,9 @@ func (p *Parser) parseFlushStmt() (*nodes.FlushStmt, error) {
 				if _, ok := p.match(','); !ok {
 					break
 				}
+			}
+			if err := refuseRepeatedTables(stmt.Tables); err != nil {
+				return nil, err
 			}
 		}
 		switch p.cur.Type {
@@ -990,6 +1005,9 @@ func (p *Parser) parseChecksumTableStmt() (*nodes.ChecksumTableStmt, error) {
 			break
 		}
 		p.advance()
+	}
+	if err := refuseRepeatedTables(stmt.Tables); err != nil {
+		return nil, err
 	}
 
 	// Optional QUICK | EXTENDED
@@ -1944,6 +1962,9 @@ func (p *Parser) parseCacheIndexStmt() (*nodes.CacheIndexStmt, error) {
 		}
 		p.advance()
 	}
+	if err := refuseRepeatedTables(stmt.Tables); err != nil {
+		return nil, err
+	}
 
 	if _, err := p.expect(kwIN); err != nil {
 		return nil, err
@@ -2062,6 +2083,13 @@ func (p *Parser) parseLoadIndexIntoCacheStmt(start int) (*nodes.LoadIndexIntoCac
 			break
 		}
 		p.advance()
+	}
+	refs := make([]*nodes.TableRef, 0, len(stmt.Tables))
+	for _, entry := range stmt.Tables {
+		refs = append(refs, entry.Table)
+	}
+	if err := refuseRepeatedTables(refs); err != nil {
+		return nil, err
 	}
 
 	stmt.Loc.End = p.prev.End

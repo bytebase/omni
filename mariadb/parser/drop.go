@@ -46,6 +46,9 @@ func (p *Parser) parseDropTableStmt(start int, temporary bool) (*nodes.DropTable
 		}
 		p.advance()
 	}
+	if err := refuseRepeatedTables(stmt.Tables); err != nil {
+		return nil, err
+	}
 
 	// RESTRICT | CASCADE
 	if _, ok := p.match(kwRESTRICT); ok {
@@ -158,6 +161,9 @@ func (p *Parser) parseDropViewStmt(start int) (*nodes.DropViewStmt, error) {
 			break
 		}
 		p.advance()
+	}
+	if err := refuseRepeatedTables(stmt.Views); err != nil {
+		return nil, err
 	}
 
 	// RESTRICT | CASCADE

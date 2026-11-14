@@ -42,6 +42,13 @@ func (p *Parser) parseWithClause() ([]*nodes.CommonTableExpr, error) {
 		if err != nil {
 			return nil, err
 		}
+		// Two elements of one WITH under one name are 1066: with_list's action
+		// (PT_with_list::push_back) compares the names byte for byte.
+		for _, prev := range ctes {
+			if prev.Name == name {
+				return nil, &ParseError{Message: "Not unique table/alias: '" + name + "'", Position: start}
+			}
+		}
 
 		cte := &nodes.CommonTableExpr{
 			Loc:       nodes.Loc{Start: start},

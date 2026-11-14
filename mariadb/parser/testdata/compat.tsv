@@ -4521,7 +4521,7 @@ reject	reject	engine	opt_view_repair_type/FROM_MYSQL_SYM!insert	REPAIR VIEW a FR
 reject	reject	engine	opt_view_repair_type/FROM_MYSQL_SYM!swap	REPAIR VIEW a FULL MYSQL;
 accept	accept	engine	analyze/ANALYZE_SYM_opt_no_write_to_binlog_table_or_tables_analyze_table_list	ANALYZE TABLE a;
 accept	accept	engine	analyze_table_list/analyze_table_elem_spec	ANALYZE TABLE a;
-accept	reject	engine	analyze_table_list/analyze_table_list_,_analyze_table_elem_spec	ANALYZE TABLE a, a;
+reject	reject	engine	analyze_table_list/analyze_table_list_,_analyze_table_elem_spec	ANALYZE TABLE a, a;
 reject	reject	engine	analyze_table_list/analyze_table_list_,_analyze_table_elem_spec!drop-1	ANALYZE TABLE, a;
 reject	reject	engine	analyze_table_list/analyze_table_list_,_analyze_table_elem_spec!drop-2	ANALYZE TABLE a a;
 reject	reject	engine	analyze_table_list/analyze_table_list_,_analyze_table_elem_spec!drop-3	ANALYZE TABLE a,;
@@ -4696,7 +4696,7 @@ reject	reject	engine	keycache_list_or_parts/assign_to_keycache_parts!truncate	CA
 reject	reject	engine	keycache_list_or_parts/assign_to_keycache_parts!insert	CACHE INDEX a PARTITION(ALL) zzz IN a;
 reject	reject	engine	keycache_list_or_parts/assign_to_keycache_parts!swap	CACHE INDEX a PARTITIONING(ALL) IN a;
 accept	accept	engine	keycache_list/assign_to_keycache	CACHE INDEX a IN a;
-accept	reject	engine	keycache_list/keycache_list_,_assign_to_keycache	CACHE INDEX a, a IN a;
+reject	reject	engine	keycache_list/keycache_list_,_assign_to_keycache	CACHE INDEX a, a IN a;
 reject	reject	engine	keycache_list/keycache_list_,_assign_to_keycache!drop-1	CACHE INDEX, a IN a;
 reject	reject	engine	keycache_list/keycache_list_,_assign_to_keycache!drop-2	CACHE INDEX a a IN a;
 reject	reject	engine	keycache_list/keycache_list_,_assign_to_keycache!drop-3	CACHE INDEX a, IN a;
@@ -4720,7 +4720,7 @@ reject	reject	engine	preload_list_or_parts/preload_keys_parts!insert	LOAD INDEX 
 reject	reject	engine	preload_list_or_parts/preload_keys_parts!swap	LOAD INDEX INTO CACHE a PARTITIONING(ALL);
 accept	accept	engine	preload_list_or_parts/preload_list	LOAD INDEX INTO CACHE a;
 accept	accept	engine	preload_list/preload_keys	LOAD INDEX INTO CACHE a;
-accept	reject	engine	preload_list/preload_list_,_preload_keys	LOAD INDEX INTO CACHE a, a;
+reject	reject	engine	preload_list/preload_list_,_preload_keys	LOAD INDEX INTO CACHE a, a;
 reject	reject	engine	preload_list/preload_list_,_preload_keys!drop-1	LOAD INDEX INTO CACHE, a;
 reject	reject	engine	preload_list/preload_list_,_preload_keys!drop-2	LOAD INDEX INTO CACHE a a;
 reject	reject	engine	preload_list/preload_list_,_preload_keys!drop-3	LOAD INDEX INTO CACHE a,;
@@ -7999,7 +7999,7 @@ reject	reject	engine	drop/DROP_opt_temporary_SEQUENCE_SYM_opt_if_exists_table_li
 reject	reject	engine	drop/DROP_opt_temporary_SEQUENCE_SYM_opt_if_exists_table_list!swap	DUAL SEQUENCE a;
 accept	accept	engine	drop/drop_routine	DROP FUNCTION a;
 accept	accept	engine	table_list/table_name	CHECK TABLE a;
-accept	reject	engine	table_list/table_list_,_table_name	CHECK TABLE a, a;
+reject	reject	engine	table_list/table_list_,_table_name	CHECK TABLE a, a;
 reject	reject	engine	table_list/table_list_,_table_name!drop-1	CHECK TABLE, a;
 reject	reject	engine	table_list/table_list_,_table_name!drop-2	CHECK TABLE a a;
 reject	reject	engine	table_list/table_list_,_table_name!drop-3	CHECK TABLE a,;
@@ -9242,7 +9242,7 @@ reject	reject	engine	opt_recursive/RECURSIVE_SYM!insert	WITH RECURSIVE zzz a AS(
 reject	reject	engine	opt_recursive/RECURSIVE_SYM!swap	WITH REDOFILE a AS(SELECT a) SELECT a;
 accept	accept	engine	with_list/with_list_element	WITH a AS(SELECT a) SELECT a;
 reject	reject	engine	with_list/with_list_element!swap	WITH a ASC(SELECT a) SELECT a;
-accept	reject	engine	with_list/with_list_,_with_list_element	WITH a AS(SELECT a), a AS(SELECT a) SELECT a;
+reject	reject	engine	with_list/with_list_,_with_list_element	WITH a AS(SELECT a), a AS(SELECT a) SELECT a;
 reject	reject	engine	with_list/with_list_,_with_list_element!drop-1	WITH AS(SELECT a), a AS(SELECT a) SELECT a;
 reject	reject	engine	with_list/with_list_,_with_list_element!drop-2	WITH a(SELECT a), a AS(SELECT a) SELECT a;
 reject	reject	engine	with_list/with_list_,_with_list_element!drop-3	WITH a AS SELECT a), a AS(SELECT a) SELECT a;
