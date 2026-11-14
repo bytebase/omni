@@ -51,7 +51,11 @@ var dialect = &docs.Dialect{
 // is copied under the page that uses it, except a query, which is QUERY. A
 // clause no quoted page defines is left out where it is optional, and the
 // form or definition that requires it is not converted. Those, and a form
-// that does not read as notation, are listed under their page.
+// that does not read as notation, are listed under their page. A statement
+// the pinned Oracle refuses before it parses it, whatever follows, is not
+// converted: CREATE DATABASE, CREATE CONTROLFILE and traditional AUDIT;
+// nor, where it is optional, a clause it refuses that way: PARTITIONSET in
+// ALTER TABLE and CREATE TABLE.
 `,
 	Site:           site,
 	Index:          index,
@@ -184,6 +188,22 @@ func load() error {
 			return fmt.Errorf("bnf-fixes.tsv: no file %s.bnf", fx.page)
 		}
 	}
+	slugs := map[string]*page{}
+	for _, p := range pages {
+		slugs[p.slug] = p
+	}
+	for slug := range unjudgedPages {
+		if slugs[slug] == nil {
+			return fmt.Errorf("unjudgedPages: no file %s.bnf", slug)
+		}
+	}
+	for slug, clauses := range unjudgedClauses {
+		for n := range clauses {
+			if p := slugs[slug]; p == nil || p.defs[n] == "" {
+				return fmt.Errorf("unjudgedClauses: %s.bnf defines no %s", slug, n)
+			}
+		}
+	}
 	return nil
 }
 
@@ -217,7 +237,13 @@ func readBNFFixes(file string) ([]*bnfFix, error) {
 // the pages, and a page is its file's path, which blocks finds again.
 func read(p string) (string, error) {
 	if p == index {
-		return strings.Join(byPath, "\n"), nil
+		var listed []string
+		for _, path := range byPath {
+			if unjudgedPages[pages[path].slug] == "" {
+				listed = append(listed, path)
+			}
+		}
+		return strings.Join(listed, "\n"), nil
 	}
 	if _, ok := pages[p]; !ok {
 		return "", fmt.Errorf("no BNF file for %s", p)
@@ -241,7 +267,14 @@ var word = regexp.MustCompile(`'[^'\n]*'|[A-Za-z_][A-Za-z0-9_$#]*`)
 func blocks(p string) []string {
 	pg := pages[p]
 	leftOut = map[string]bool{}
-	defer func() { notes[pg.slug] = sortedKeys(leftOut) }()
+	notAsked := map[string]bool{}
+	defer func() {
+		for n := range notAsked {
+			delete(leftOut, n)
+		}
+		notes[pg.slug] = sortedKeys(leftOut)
+		askedNot[pg.slug] = sortedKeys(notAsked)
+	}()
 	type def struct{ name, body string }
 	var defs []def
 	seen := map[string]bool{}
@@ -258,6 +291,12 @@ func blocks(p string) []string {
 				}
 			}
 			seen[n] = true
+			if unjudgedClauses[pg.slug][n] != "" {
+				// Seen and not usable: left out where optional, as a
+				// clause no page defines is, and not reached into.
+				notAsked[n] = true
+				continue
+			}
 			queue = append(queue, n)
 		}
 	}
@@ -277,7 +316,7 @@ func blocks(p string) []string {
 	// is left that needs one.
 	usable := map[string]bool{}
 	for n := range seen {
-		usable[n] = true
+		usable[n] = !notAsked[n]
 	}
 	rewritten := map[string]string{}
 	for changed := true; changed; {
@@ -379,10 +418,49 @@ func sortedKeys(m map[string]bool) []string {
 
 // prepare reports, under each page, the clauses its syntax left out.
 func prepare(slug string, blocks []string) ([]string, []string) {
-	if len(notes[slug]) == 0 {
-		return blocks, nil
+	var out []string
+	if len(notes[slug]) > 0 {
+		out = append(out, "left out where optional, since no quoted page defines it or what it needs: "+strings.Join(notes[slug], ", "))
 	}
-	return blocks, []string{"left out where optional, since no quoted page defines it or what it needs: " + strings.Join(notes[slug], ", ")}
+	for _, n := range askedNot[slug] {
+		out = append(out, "left out where optional, since the pinned Oracle "+unjudgedClauses[slug][n]+": "+n)
+	}
+	return blocks, out
+}
+
+// askedNot keeps, by page, the clauses of unjudgedClauses blocks left out.
+var askedNot = map[string][]string{}
+
+// unjudgedPages are statement pages the converter does not convert, though
+// other pages copy their definitions: the pinned Oracle (pins.tsv's default
+// row) refuses each of these statements before it parses it, whatever
+// follows, so no row of theirs could be judged. Each is measured on that
+// server with compat.OracleParse, and as SYSDBA in CDB$ROOT.
+var unjudgedPages = map[string]string{
+	// ORA-01501 "CREATE DATABASE failed" at byte 0, the probe's too:
+	// CREATE DATABASE a ~ ~ zzz answers as CREATE DATABASE a USER SYS
+	// IDENTIFIED BY x does.
+	"CREATE-DATABASE": "refuses CREATE DATABASE on an open database before it parses it (ORA-01501 at byte 0)",
+	// ORA-01503 "CREATE CONTROLFILE failed" at byte 0, for any text.
+	"CREATE-CONTROLFILE": "refuses CREATE CONTROLFILE on an open database before it parses it (ORA-01503 at byte 0)",
+	// ORA-46401 at byte 6: 23ai desupports traditional auditing, and AUDIT
+	// ALL zzz answers as AUDIT SELECT ON t does. NOAUDIT is still parsed
+	// (NOAUDIT ALL zzz is ORA-03049 at zzz), so its page stays.
+	"AUDIT-Traditional-Auditing": "refuses every traditional AUDIT before it parses it (ORA-46401 after AUDIT)",
+}
+
+// unjudgedClauses are, by page, clauses the pinned Oracle refuses where it
+// meets them, before it reads what follows, as unjudgedPages are refused:
+// what the clause holds could not be judged. Each is left out where it is
+// optional, as a clause no page defines is.
+var unjudgedClauses = map[string]map[string]string{
+	// ALTER TABLE t MODIFY PARTITIONSET zzz yyy ( answers ORA-02577 at
+	// PARTITIONSET, as a form the page gives does.
+	"ALTER-TABLE": {"alter_table_partitionset": "refuses PARTITIONSET outside a composite-sharded database (ORA-02577 at PARTITIONSET)"},
+	// CREATE TABLE a (a NUMBER) PARTITIONSET zzz yyy answers ORA-02518 at
+	// PARTITIONSET, as a form the page gives does. CREATE MATERIALIZED
+	// VIEW, which copies the clause, parses it (ORA-00922): it stays there.
+	"CREATE-TABLE": {"partitionset_clauses": "refuses PARTITIONSET outside a sharded database (ORA-02518 at PARTITIONSET)"},
 }
 
 // undefinedMark prefixes a clause no page defines until dropUndefined has

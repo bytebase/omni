@@ -217,6 +217,11 @@ func (w *writer) writeColumnDef(n *ast.ColumnDef) error {
 		w.writeObjectNameNoSpace(n.MaskingPolicy)
 	}
 
+	if n.ProjectionPolicy != nil {
+		w.buf.WriteString(" WITH PROJECTION POLICY ")
+		w.writeObjectNameNoSpace(n.ProjectionPolicy)
+	}
+
 	if n.Comment != nil {
 		w.buf.WriteString(" COMMENT ")
 		w.buf.WriteString(quoteString(*n.Comment))
@@ -281,6 +286,12 @@ func (w *writer) writeInlineConstraint(c *ast.InlineConstraint) error {
 			}
 			w.writeRefActions(c.References.OnDelete, c.References.OnUpdate)
 		}
+	case ast.ConstrCheck:
+		w.buf.WriteString(" CHECK (")
+		if err := writeExprNoLeadSpace(w, c.Check); err != nil {
+			return err
+		}
+		w.buf.WriteByte(')')
 	}
 	return nil
 }
@@ -298,6 +309,12 @@ func (w *writer) writeTableConstraint(n *ast.TableConstraint) error {
 		w.buf.WriteString("UNIQUE")
 	case ast.ConstrForeignKey:
 		w.buf.WriteString("FOREIGN KEY")
+	case ast.ConstrCheck:
+		w.buf.WriteString("CHECK (")
+		if err := writeExprNoLeadSpace(w, n.Check); err != nil {
+			return err
+		}
+		w.buf.WriteByte(')')
 	}
 	if len(n.Columns) > 0 {
 		w.buf.WriteString(" (")
@@ -331,7 +348,8 @@ func (w *writer) writeTableConstraint(n *ast.TableConstraint) error {
 	return nil
 }
 
-// writeTableIndex emits an inline INDEX element: INDEX name (col, col, ...).
+// writeTableIndex emits an inline INDEX element:
+// INDEX name (col, col, ...) [INCLUDE (col, ...)].
 func (w *writer) writeTableIndex(n *ast.TableIndex) {
 	w.buf.WriteString("INDEX ")
 	w.buf.WriteString(n.Name.String())
@@ -343,6 +361,16 @@ func (w *writer) writeTableIndex(n *ast.TableIndex) {
 		w.buf.WriteString(col.String())
 	}
 	w.buf.WriteByte(')')
+	if len(n.Include) > 0 {
+		w.buf.WriteString(" INCLUDE (")
+		for i, col := range n.Include {
+			if i > 0 {
+				w.buf.WriteString(", ")
+			}
+			w.buf.WriteString(col.String())
+		}
+		w.buf.WriteByte(')')
+	}
 }
 
 func (w *writer) writeRefActions(onDelete, onUpdate ast.ReferenceAction) {
