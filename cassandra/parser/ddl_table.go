@@ -153,7 +153,7 @@ func (p *Parser) parseColumnMask() (*ast.ColumnMask, error) {
 	}
 	if p.cur.Type != tokRPAREN {
 		for {
-			arg, err := p.parseExpression()
+			arg, err := p.parseTerm()
 			if err != nil {
 				return nil, err
 			}

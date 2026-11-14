@@ -18,6 +18,7 @@ func TestReservedWords(t *testing.T) {
 		"CREATE AGGREGATE a(int) SFUNC token STYPE int",
 		"GRANT EXECUTE ON FUNCTION ks.token(int) TO r",
 		"ALTER TABLE t ALTER v MASKED WITH ks.token()",
+		"ALTER TABLE t ALTER v MASKED WITH f(token(1), 'a', -1, [1], ?)",
 		"CREATE TABLE t(k int PRIMARY KEY, v text MASKED WITH count())",
 		"SELECT token(k), ks.count(v) FROM t",
 	} {
@@ -36,6 +37,7 @@ func TestReservedWords(t *testing.T) {
 		"DROP FUNCTION ttl",
 		"DROP FUNCTION ks.writetime",
 		"ALTER TABLE t ALTER v MASKED WITH ttl()",
+		"ALTER TABLE t ALTER v MASKED WITH f(c)", // a column is no term (Parser.g:805)
 	} {
 		if _, err := Parse(sql); err == nil {
 			t.Errorf("Parse(%q) = nil error, want one", sql)
