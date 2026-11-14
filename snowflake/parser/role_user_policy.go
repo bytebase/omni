@@ -371,7 +371,7 @@ func (p *Parser) parseAlterRoleStmt(database bool) (ast.Node, error) {
 
 // parseAlterUserStmt parses
 //
-//	ALTER USER [ IF EXISTS ] <name>
+//	ALTER USER [ IF EXISTS ] [ <name> ]
 //	  { RENAME TO <new_name>
 //	  | RESET PASSWORD
 //	  | ABORT ALL QUERIES
@@ -379,9 +379,19 @@ func (p *Parser) parseAlterRoleStmt(database bool) (ast.Node, error) {
 //	  | UNSET <property> [ , ... ]
 //	  | SET TAG <tag> = '<value>' [ , ... ]
 //	  | UNSET TAG <tag> [ , ... ]
+//	  | SET { AUTHENTICATION | PASSWORD | SESSION | INGRESS } POLICY <p> [ FORCE ]
+//	  | UNSET { AUTHENTICATION | PASSWORD | SESSION | INGRESS } POLICY
 //	  | ADD DELEGATED AUTHORIZATION OF ROLE <r> TO SECURITY INTEGRATION <i>
-//	  | REMOVE DELEGATED { AUTHORIZATION OF ROLE <r> | AUTHORIZATIONS }
-//	      FROM SECURITY INTEGRATION <i> }
+//	  | REMOVE DELEGATED { AUTHORIZATION OF ROLE <r> | AUTHORIZATIONS [ OF ANY ROLE ] }
+//	      FROM SECURITY INTEGRATION <i>
+//	  | <mfaActions>
+//	  | { ADD | MODIFY | REMOVE | ROTATE } <credential> ... }
+//
+// The <name> is optional: "If the identifier is omitted, the statement modifies
+// the active (i.e. logged in) user"
+// (https://docs.snowflake.com/en/sql-reference/sql/alter-user). The credential
+// and MFA subcommands are parsed in user_credential.go; INGRESS POLICY is
+// https://docs.snowflake.com/en/sql-reference/sql/alter-user-set-ingress-policy.
 //
 // The ALTER keyword has already been consumed; cur is the USER keyword.
 func (p *Parser) parseAlterUserStmt() (ast.Node, error) {
@@ -392,14 +402,16 @@ func (p *Parser) parseAlterUserStmt() (ast.Node, error) {
 		return nil, err
 	}
 
-	name, err := p.parseObjectName()
-	if err != nil {
-		return nil, err
+	if !p.omitsAlterUserName() {
+		name, err := p.parseObjectName()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Name = name
 	}
-	stmt.Name = name
 
-	switch p.cur.Type {
-	case kwRENAME:
+	switch {
+	case p.cur.Type == kwRENAME:
 		newName, err := p.parseRenameTo()
 		if err != nil {
 			return nil, err
@@ -407,7 +419,7 @@ func (p *Parser) parseAlterUserStmt() (ast.Node, error) {
 		stmt.Action = ast.AlterUserRename
 		stmt.NewName = newName
 
-	case kwRESET:
+	case p.cur.Type == kwRESET:
 		// RESET PASSWORD
 		p.advance() // consume RESET
 		if _, err := p.expect(kwPASSWORD); err != nil {
@@ -415,7 +427,7 @@ func (p *Parser) parseAlterUserStmt() (ast.Node, error) {
 		}
 		stmt.Action = ast.AlterUserResetPassword
 
-	case kwABORT:
+	case p.cur.Type == kwABORT:
 		// ABORT ALL QUERIES
 		p.advance() // consume ABORT
 		if _, err := p.expect(kwALL); err != nil {
@@ -426,7 +438,7 @@ func (p *Parser) parseAlterUserStmt() (ast.Node, error) {
 		}
 		stmt.Action = ast.AlterUserAbortQueries
 
-	case kwADD:
+	case p.cur.Type == kwADD && p.peekNext().Type == kwDELEGATED:
 		// ADD DELEGATED AUTHORIZATION OF ROLE <r> TO SECURITY INTEGRATION <i>
 		rawStart := p.cur.Loc.Start
 		if err := p.parseAddDelegatedAuthorization(); err != nil {
@@ -435,9 +447,9 @@ func (p *Parser) parseAlterUserStmt() (ast.Node, error) {
 		stmt.Action = ast.AlterUserAddDelegated
 		stmt.Raw = p.srcSlice(rawStart, p.prev.Loc.End)
 
-	case kwREMOVE:
-		// REMOVE DELEGATED { AUTHORIZATION OF ROLE <r> | AUTHORIZATIONS }
-		//   FROM SECURITY INTEGRATION <i>
+	case p.cur.Type == kwREMOVE && p.peekNext().Type == kwDELEGATED:
+		// REMOVE DELEGATED { AUTHORIZATION OF ROLE <r> | AUTHORIZATIONS
+		//   [ OF ANY ROLE ] } FROM SECURITY INTEGRATION <i>
 		rawStart := p.cur.Loc.Start
 		if err := p.parseRemoveDelegatedAuthorization(); err != nil {
 			return nil, err
@@ -445,19 +457,37 @@ func (p *Parser) parseAlterUserStmt() (ast.Node, error) {
 		stmt.Action = ast.AlterUserRemoveDelegated
 		stmt.Raw = p.srcSlice(rawStart, p.prev.Loc.End)
 
-	case kwSET:
+	case p.cur.Type == kwADD, p.cur.Type == kwREMOVE, p.cur.Type == kwMODIFY,
+		p.curIsUnquotedWord("ROTATE"), p.curIsUnquotedWord("ENROLL"):
+		if err := p.parseAlterUserCredential(stmt); err != nil {
+			return nil, err
+		}
+
+	case p.cur.Type == kwSET:
 		p.advance() // consume SET
-		if p.cur.Type == kwTAG {
+		switch {
+		case p.cur.Type == kwTAG:
 			tags, err := p.parseTagSetList()
 			if err != nil {
 				return nil, err
 			}
 			stmt.Action = ast.AlterUserSetTag
 			stmt.Tags = tags
-		} else {
-			// SET <options> — open-ended KEY = value params (including the policy
-			// forms SET <kind> POLICY <name>, captured as bare/word options).
-			opts, err := p.parseCopyOptions()
+		case p.startsUserPolicy(stmt.Name != nil):
+			stmt.PolicyKind = p.parseUserPolicyKind()
+			name, err := p.parseObjectName()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Action = ast.AlterUserSetPolicy
+			stmt.PolicyName = name
+			if p.cur.Type == kwFORCE {
+				p.advance() // consume FORCE
+				stmt.Force = true
+			}
+		default:
+			// SET <options> — open-ended KEY = value params.
+			opts, err := p.parseUserOptions()
 			if err != nil {
 				return nil, err
 			}
@@ -468,16 +498,20 @@ func (p *Parser) parseAlterUserStmt() (ast.Node, error) {
 			stmt.Options = opts
 		}
 
-	case kwUNSET:
+	case p.cur.Type == kwUNSET:
 		p.advance() // consume UNSET
-		if p.cur.Type == kwTAG {
+		switch {
+		case p.cur.Type == kwTAG:
 			names, err := p.parseUnsetTagNameList()
 			if err != nil {
 				return nil, err
 			}
 			stmt.Action = ast.AlterUserUnsetTag
 			stmt.UnsetTags = names
-		} else {
+		case p.startsUserPolicy(stmt.Name != nil):
+			stmt.PolicyKind = p.parseUserPolicyKind()
+			stmt.Action = ast.AlterUserUnsetPolicy
+		default:
 			// UNSET <property> [ , ... ] — open-ended name list.
 			props, err := p.parseUnsetPropertyNames()
 			if err != nil {
@@ -493,6 +527,69 @@ func (p *Parser) parseAlterUserStmt() (ast.Node, error) {
 
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
+}
+
+// omitsAlterUserName reports whether ALTER USER leaves out the user name, so
+// that cur already begins the action. That holds when cur is an action word
+// and the token after it is neither another action word nor a '.': in
+// `ALTER USER SET PASSWORD = 's'` SET begins the action, while in
+// `ALTER USER reset RESET PASSWORD` the first RESET is the user's name.
+func (p *Parser) omitsAlterUserName() bool {
+	if !isAlterUserActionWord(p.cur) {
+		return false
+	}
+	next := p.peekNext()
+	return next.Type != '.' && !isAlterUserActionWord(next)
+}
+
+// isAlterUserActionWord reports whether tok is a word that can begin an ALTER
+// USER action: RENAME, RESET, ABORT, ADD, REMOVE, SET, UNSET, MODIFY, or the
+// unreserved ROTATE and ENROLL (which lex as identifiers). A double-quoted
+// "ROTATE" is a name, never an action.
+func isAlterUserActionWord(tok Token) bool {
+	switch tok.Type {
+	case kwRENAME, kwRESET, kwABORT, kwADD, kwREMOVE, kwSET, kwUNSET, kwMODIFY:
+		return true
+	case tokIdent:
+		u := strings.ToUpper(tok.Str)
+		return u == "ROTATE" || u == "ENROLL"
+	}
+	return false
+}
+
+// curIsUnquotedWord reports whether cur is the unquoted identifier upper (a
+// word the lexer does not keywordize), so a double-quoted name never matches.
+func (p *Parser) curIsUnquotedWord(upper string) bool {
+	return p.cur.Type == tokIdent && strings.ToUpper(p.cur.Str) == upper
+}
+
+// startsUserPolicy reports whether cur begins the policy-kind words of ALTER
+// USER SET / UNSET { AUTHENTICATION | PASSWORD | SESSION | INGRESS } POLICY: a
+// kind word directly followed by POLICY. The POLICY check keeps
+// `SET PASSWORD = '...'` an ordinary property. INGRESS counts only when the
+// statement names its user (named): its page writes `ALTER USER <name>`
+// (https://docs.snowflake.com/en/sql-reference/sql/alter-user-set-ingress-policy).
+func (p *Parser) startsUserPolicy(named bool) bool {
+	if p.peekNext().Type != kwPOLICY {
+		return false
+	}
+	switch {
+	case p.cur.Type == kwPASSWORD, p.cur.Type == kwSESSION:
+		return true
+	case p.curIsUnquotedWord("AUTHENTICATION"):
+		return true
+	case p.curIsUnquotedWord("INGRESS"):
+		return named
+	}
+	return false
+}
+
+// parseUserPolicyKind consumes the kind word and POLICY (the caller confirmed
+// startsUserPolicy) and returns the uppercased "<KIND> POLICY".
+func (p *Parser) parseUserPolicyKind() string {
+	kindTok := p.advance() // consume the policy-kind word
+	p.advance()            // consume POLICY
+	return strings.ToUpper(kindTok.Str) + " POLICY"
 }
 
 // parseAddDelegatedAuthorization parses the body following ADD:
@@ -535,7 +632,7 @@ func (p *Parser) parseAddDelegatedAuthorization() error {
 
 // parseRemoveDelegatedAuthorization parses the body following REMOVE:
 //
-//	REMOVE DELEGATED { AUTHORIZATION OF ROLE <r> | AUTHORIZATIONS }
+//	REMOVE DELEGATED { AUTHORIZATION OF ROLE <r> | AUTHORIZATIONS [ OF ANY ROLE ] }
 //	  FROM SECURITY INTEGRATION <i>
 //
 // On entry cur is the REMOVE keyword.
@@ -558,6 +655,17 @@ func (p *Parser) parseRemoveDelegatedAuthorization() error {
 		}
 	case kwAUTHORIZATIONS:
 		p.advance() // consume AUTHORIZATIONS
+		// AUTHORIZATIONS OF ANY ROLE is the same removal written out
+		// (https://docs.snowflake.com/en/sql-reference/sql/alter-user).
+		if p.cur.Type == kwOF {
+			p.advance() // consume OF
+			if _, err := p.expect(kwANY); err != nil {
+				return err
+			}
+			if _, err := p.expect(kwROLE); err != nil {
+				return err
+			}
+		}
 	default:
 		return p.syntaxErrorAtCur()
 	}
@@ -786,8 +894,8 @@ func (p *Parser) parseWithTags() ([]*ast.TagAssignment, error) {
 // (identifier or keyword) — the settable property/parameter vocabulary is large
 // and version-growing (DEFAULT_ROLE / DISPLAY_NAME / DEFAULT_WAREHOUSE /
 // SESSION_IDLE_TIMEOUT_MINS / PASSWORD_MIN_LENGTH / COMMENT / ...), much of it
-// lexed as keywords, so it is NOT enumerated (unlike the DB/SCHEMA-specific
-// parsePropertyNameList). Returns the uppercased names; consumes at least one.
+// lexed as keywords, so it is NOT enumerated. Returns the uppercased names;
+// consumes at least one.
 func (p *Parser) parseUnsetPropertyNames() ([]string, error) {
 	var names []string
 	for {

@@ -4,14 +4,14 @@ import (
 	"github.com/bytebase/omni/partiql/ast"
 )
 
-// parseMathOp00 parses the string-concatenation layer.
-// PartiQL is unusual here: || binds LOOSER than +/- per
-// PartiQLParser.g4 lines 494-497. That contradicts most SQL dialects.
+// parseMathOp00 parses the string-concatenation and bitwise-and layer.
+// PartiQL is unusual here: || and & bind LOOSER than +/- per
+// PartiQLParser.g4:575-578. That contradicts most SQL dialects.
 //
-// Grammar: mathOp00 (lines 494-497):
+// Grammar: mathOp00 (PartiQLParser.g4:575-578):
 //
-//	lhs=mathOp00 op=CONCAT rhs=mathOp01
-//	| parent_=mathOp01
+//	lhs=mathOp00 op=(AMPERSAND|CONCAT) rhs=mathOp01
+//	| parent=mathOp01
 func (p *Parser) parseMathOp00() (ast.ExprNode, error) {
 	left, err := p.parseMathOp01()
 	if err != nil {
@@ -20,17 +20,21 @@ func (p *Parser) parseMathOp00() (ast.ExprNode, error) {
 	return p.parseMathOp00Rest(left)
 }
 
-// parseMathOp00Rest parses the `|| mathOp01` operations that follow left,
-// the mathOp00's first operand.
+// parseMathOp00Rest parses the `|| mathOp01` and `& mathOp01` operations
+// that follow left, the mathOp00's first operand.
 func (p *Parser) parseMathOp00Rest(left ast.ExprNode) (ast.ExprNode, error) {
-	for p.cur.Type == tokCONCAT {
+	for p.cur.Type == tokCONCAT || p.cur.Type == tokAMPERSAND {
+		op := ast.BinOpConcat
+		if p.cur.Type == tokAMPERSAND {
+			op = ast.BinOpBitAnd
+		}
 		p.advance()
 		right, err := p.parseMathOp01()
 		if err != nil {
 			return nil, err
 		}
 		left = &ast.BinaryExpr{
-			Op:    ast.BinOpConcat,
+			Op:    op,
 			Left:  left,
 			Right: right,
 			Loc:   ast.Loc{Start: left.GetLoc().Start, End: right.GetLoc().End},
@@ -202,9 +206,13 @@ func (p *Parser) parsePredicate() (ast.ExprNode, error) {
 	if err != nil {
 		return nil, err
 	}
+	// The first operand of POSITION(a IN b) leaves its IN to POSITION.
+	stopAtIn := p.inStopLevel != 0 && p.exprLevel == p.inStopLevel
 	for {
 		startLoc := left.GetLoc().Start
 		switch {
+		case stopAtIn && (p.cur.Type == tokIN || p.cur.Type == tokNOT && p.peekNext().Type == tokIN):
+			return left, nil
 		case isComparisonOp(p.cur.Type):
 			op := tokToComparisonOp(p.cur.Type)
 			p.advance()
@@ -370,12 +378,13 @@ func (p *Parser) parseInBody(left ast.ExprNode, not bool, startLoc int) (*ast.In
 		// the input is g4:488's, and the rhs is the tree parseMathOp00
 		// builds for those tokens: the parentheses add no node, and a
 		// SubLink spans them, as parseParenExprBody makes it. Several items
-		// followed by an operator, `a IN (1, 2) + 1`, would make a valueList
-		// the operand; outside IN no node represents one (parseParenExprBody
-		// defers it), so that input is still rejected at the operator.
-		if len(list) == 1 && continuesMathOp00(p.cur.Type) {
+		// followed by an operator, `a IN (1, 2) + 1`, make a valueList the
+		// operand, as parseParenExprBody reads it.
+		if continuesMathOp00(p.cur.Type) {
 			operand := list[0]
-			if sub, ok := operand.(*ast.SubLink); ok {
+			if len(list) > 1 {
+				operand = &ast.ValueList{Items: list, Loc: ast.Loc{Start: open, End: rp.Loc.End}}
+			} else if sub, ok := operand.(*ast.SubLink); ok {
 				wrapped := *sub
 				wrapped.Loc = ast.Loc{Start: open, End: rp.Loc.End}
 				operand = &wrapped
@@ -437,7 +446,7 @@ func (p *Parser) finishInRHS(left ast.ExprNode, not bool, startLoc int, operand 
 // mathOp02, mathOp01 or mathOp00 (g4:494-507).
 func continuesMathOp00(t int) bool {
 	switch t {
-	case tokASTERISK, tokSLASH_FORWARD, tokPERCENT, tokPLUS, tokMINUS, tokCONCAT:
+	case tokASTERISK, tokSLASH_FORWARD, tokPERCENT, tokPLUS, tokMINUS, tokCONCAT, tokAMPERSAND:
 		return true
 	}
 	return isPathStepStart(t)

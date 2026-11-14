@@ -194,11 +194,10 @@ func (p *Parser) parseUpdateStmt() (*ast.UpdateStmt, error) {
 	start := p.cur.Loc.Start
 	p.advance() // consume UPDATE
 
-	// Parse the source table reference. In the grammar this is
-	// tableBaseReference which is exprSelect with optional aliases.
-	// Since we do not have SELECT parsing on this branch, we parse
-	// a pathSimple with optional AS/AT/BY aliases.
-	source, err := p.parseUpdateSource()
+	// updateClause : UPDATE tableBaseReference (PartiQLParser.g4:223-224),
+	// the base reference of a FROM clause: an exprSelect with a bare
+	// alias or AS/AT/BY aliases, `UPDATE t x REMOVE x.a`.
+	source, err := p.parseTableBaseReference()
 	if err != nil {
 		return nil, err
 	}
@@ -367,73 +366,17 @@ func (p *Parser) parseDmlBaseCommands() (sets []*ast.SetAssignment, commands []a
 	}
 }
 
-// parseUpdateSource parses the table reference after UPDATE. This is
-// `tableBaseReference` in the grammar, which is `exprSelect [AS a] [AT a] [BY a]`.
-// Since we do not have SELECT on this branch, we parse a symbolPrimitive
-// (possibly quoted) with optional AS alias. This covers the common cases:
-//
-//	UPDATE t SET ...
-//	UPDATE "Music" SET ...
-func (p *Parser) parseUpdateSource() (ast.TableExpr, error) {
-	name, caseSensitive, nameLoc, err := p.parseSymbolPrimitive()
+// parseSetStmt parses a SET command standing as a statement,
+// dml#DmlBase -> dmlBaseCommand -> setCommand (PartiQLParser.g4:125-131).
+// The reference parser takes it as an update with no target
+// (visitSetCommand).
+func (p *Parser) parseSetStmt() (*ast.SetStmt, error) {
+	start := p.cur.Loc.Start
+	sets, err := p.parseSetCommand()
 	if err != nil {
 		return nil, err
 	}
-	ref := &ast.VarRef{
-		Name:          name,
-		CaseSensitive: caseSensitive,
-		Loc:           nameLoc,
-	}
-
-	// Check for optional AS alias, AT alias, BY alias.
-	var asAlias, atAlias, byAlias *string
-	end := nameLoc.End
-
-	if p.cur.Type == tokAS {
-		p.advance() // consume AS
-		a, _, aLoc, err := p.parseSymbolPrimitive()
-		if err != nil {
-			return nil, err
-		}
-		asAlias = &a
-		end = aLoc.End
-	} else if p.cur.Type == tokIDENT || p.cur.Type == tokIDENT_QUOTED {
-		// Implicit alias (symbolPrimitive without AS keyword).
-		// Only applies if the next token looks like an alias, not SET.
-		// We need to be careful: `UPDATE t SET ...` means t is the table and SET is the command.
-		// An implicit alias is only for `tableBaseRefSymbol` which is `exprSelect symbolPrimitive`.
-		// We skip implicit alias parsing since it conflicts with SET.
-	}
-
-	if p.cur.Type == tokAT {
-		p.advance() // consume AT
-		a, _, aLoc, err := p.parseSymbolPrimitive()
-		if err != nil {
-			return nil, err
-		}
-		atAlias = &a
-		end = aLoc.End
-	}
-	if p.cur.Type == tokBY {
-		p.advance() // consume BY
-		a, _, aLoc, err := p.parseSymbolPrimitive()
-		if err != nil {
-			return nil, err
-		}
-		byAlias = &a
-		end = aLoc.End
-	}
-
-	if asAlias != nil || atAlias != nil || byAlias != nil {
-		return &ast.AliasedSource{
-			Source: ref,
-			As:     asAlias,
-			At:     atAlias,
-			By:     byAlias,
-			Loc:    ast.Loc{Start: nameLoc.Start, End: end},
-		}, nil
-	}
-	return ref, nil
+	return &ast.SetStmt{Sets: sets, Loc: ast.Loc{Start: start, End: p.prev.Loc.End}}, nil
 }
 
 // parseReplaceStmt parses:
@@ -638,16 +581,15 @@ func (p *Parser) parseOnConflict() (*ast.OnConflict, error) {
 		if err != nil {
 			return nil, err
 		}
-		_ = target
-		// Re-assign properly
-		action, err := p.parseConflictAction()
+		action, cond, err := p.parseConflictAction()
 		if err != nil {
 			return nil, err
 		}
 		return &ast.OnConflict{
-			Target: target,
-			Action: action,
-			Loc:    ast.Loc{Start: start, End: p.prev.Loc.End},
+			Target:    target,
+			Action:    action,
+			Condition: cond,
+			Loc:       ast.Loc{Start: start, End: p.prev.Loc.End},
 		}, nil
 	}
 	if p.cur.Type == tokON {
@@ -656,27 +598,28 @@ func (p *Parser) parseOnConflict() (*ast.OnConflict, error) {
 		if err != nil {
 			return nil, err
 		}
-		_ = target
-		action, err := p.parseConflictAction()
+		action, cond, err := p.parseConflictAction()
 		if err != nil {
 			return nil, err
 		}
 		return &ast.OnConflict{
-			Target: target,
-			Action: action,
-			Loc:    ast.Loc{Start: start, End: p.prev.Loc.End},
+			Target:    target,
+			Action:    action,
+			Condition: cond,
+			Loc:       ast.Loc{Start: start, End: p.prev.Loc.End},
 		}, nil
 	}
 
 	// No conflict target, just the action.
-	action, err := p.parseConflictAction()
+	action, cond, err := p.parseConflictAction()
 	if err != nil {
 		return nil, err
 	}
 	return &ast.OnConflict{
-		Target: target,
-		Action: action,
-		Loc:    ast.Loc{Start: start, End: p.prev.Loc.End},
+		Target:    target,
+		Action:    action,
+		Condition: cond,
+		Loc:       ast.Loc{Start: start, End: p.prev.Loc.End},
 	}, nil
 }
 
@@ -735,34 +678,43 @@ func (p *Parser) parseOnConflictTargetConstraint() (*ast.OnConflictTarget, error
 // parseConflictAction parses:
 //
 //	DO NOTHING
-//	DO REPLACE EXCLUDED
-//	DO UPDATE EXCLUDED
-func (p *Parser) parseConflictAction() (ast.OnConflictAction, error) {
+//	DO REPLACE EXCLUDED ( WHERE condition=expr )?
+//	DO UPDATE EXCLUDED ( WHERE condition=expr )?
+//
+// and returns the action and the condition (conflictAction, doReplace,
+// doUpdate: PartiQLParser.g4:198-220).
+func (p *Parser) parseConflictAction() (ast.OnConflictAction, ast.ExprNode, error) {
 	if _, err := p.expect(tokDO); err != nil {
-		return ast.OnConflictInvalid, err
+		return ast.OnConflictInvalid, nil, err
 	}
+	var action ast.OnConflictAction
 	switch p.cur.Type {
 	case tokNOTHING:
 		p.advance()
-		return ast.OnConflictDoNothing, nil
+		return ast.OnConflictDoNothing, nil, nil
 	case tokREPLACE:
-		p.advance() // consume REPLACE
-		if _, err := p.expect(tokEXCLUDED); err != nil {
-			return ast.OnConflictInvalid, err
-		}
-		return ast.OnConflictDoReplaceExcluded, nil
+		action = ast.OnConflictDoReplaceExcluded
 	case tokUPDATE:
-		p.advance() // consume UPDATE
-		if _, err := p.expect(tokEXCLUDED); err != nil {
-			return ast.OnConflictInvalid, err
-		}
-		return ast.OnConflictDoUpdateExcluded, nil
+		action = ast.OnConflictDoUpdateExcluded
 	default:
-		return ast.OnConflictInvalid, &ParseError{
+		return ast.OnConflictInvalid, nil, &ParseError{
 			Message:  fmt.Sprintf("expected NOTHING, REPLACE, or UPDATE after DO, got %q", p.cur.Str),
 			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 		}
 	}
+	p.advance() // consume REPLACE or UPDATE
+	if _, err := p.expect(tokEXCLUDED); err != nil {
+		return ast.OnConflictInvalid, nil, err
+	}
+	if p.cur.Type != tokWHERE {
+		return action, nil, nil
+	}
+	p.advance() // consume WHERE
+	cond, err := p.parseExprTop()
+	if err != nil {
+		return ast.OnConflictInvalid, nil, err
+	}
+	return action, cond, nil
 }
 
 // parseReturningClause parses:

@@ -3,9 +3,9 @@
 //
 // This file implements the `aggregate` grammar rule (PartiQLParser.g4:577-580)
 // for COUNT(*), COUNT([DISTINCT|ALL] expr), and
-// SUM/AVG/MIN/MAX([DISTINCT|ALL] expr). It is reached from
+// SUM/AVG/MIN/MAX/EVERY/ANY/SOME([DISTINCT|ALL] expr). It is reached from
 // parsePrimaryBase's single dispatch case for
-// tokCOUNT/tokSUM/tokAVG/tokMIN/tokMAX (exprprimary.go).
+// tokCOUNT/tokSUM/tokAVG/tokMIN/tokMAX/tokEVERY/tokANY/tokSOME (exprprimary.go).
 package parser
 
 import (
@@ -22,7 +22,7 @@ import (
 //
 //	aggregate
 //	  : func=COUNT PAREN_LEFT ASTERISK PAREN_RIGHT                                      # CountAll
-//	  | func=(COUNT|MAX|MIN|SUM|AVG) PAREN_LEFT setQuantifierStrategy? expr PAREN_RIGHT # AggregateBase
+//	  | func=(COUNT|MAX|MIN|SUM|AVG|EVERY|ANY|SOME) PAREN_LEFT setQuantifierStrategy? expr PAREN_RIGHT # AggregateBase
 //
 // where setQuantifierStrategy is `DISTINCT | ALL` (g4:229-232).
 //

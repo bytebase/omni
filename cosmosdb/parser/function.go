@@ -7,7 +7,8 @@ import (
 )
 
 // parseFuncCall parses a function call where the name has already been consumed.
-// Expects to see ( [*|args] ).
+// Expects to see ( [args] ): an argument is an expression, never *
+// (sql.g4:190), so COUNT counts COUNT(1).
 func (p *Parser) parseFuncCall(name string, startLoc int) (nodes.ExprNode, error) {
 	if _, err := p.expect(tokLPAREN); err != nil {
 		return nil, err
@@ -15,11 +16,7 @@ func (p *Parser) parseFuncCall(name string, startLoc int) (nodes.ExprNode, error
 
 	fc := &nodes.FuncCall{Name: name}
 
-	// Check for COUNT(*).
-	if p.cur.Type == tokSTAR {
-		fc.Star = true
-		p.advance()
-	} else if p.cur.Type != tokRPAREN {
+	if p.cur.Type != tokRPAREN {
 		// Parse argument list.
 		for {
 			arg, err := p.parseExpr(0)
@@ -52,7 +49,7 @@ func (p *Parser) parseUDFCall() (nodes.ExprNode, error) {
 	}
 
 	// The function name after UDF.
-	if p.cur.Type != tokIDENT && !isIdentLike(p.cur.Type) {
+	if !isIdentLike(p.cur.Type) {
 		return nil, &ParseError{
 			Message:  fmt.Sprintf("expected function name after UDF., got %q", p.cur.Str),
 			Position: p.cur.Loc,

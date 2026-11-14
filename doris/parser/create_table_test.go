@@ -777,3 +777,58 @@ func TestCreateTable_LegacyCorpus(t *testing.T) {
 		}
 	}
 }
+
+// TestCreateTableGrammar holds CREATE TABLE's column block, column
+// attributes and trailing clauses to DorisParser.g4:167-186 and :1410-1474;
+// testdata/compat.tsv judged the near misses.
+func TestCreateTableGrammar(t *testing.T) {
+	cases := []struct {
+		sql string
+		ok  bool
+	}{
+		{"CREATE TABLE a(a INT KEY MAX AS (1) NOT NULL AUTO_INCREMENT(10) DEFAULT 1 ON UPDATE CURRENT_TIMESTAMP(3) COMMENT 'c', INDEX i (a), INDEX j (a),)", true},
+		{"CREATE TABLE a(a)", true},
+		{"CREATE TABLE a()", false},
+		{"CREATE TABLE a(a INT b INT)", false},
+		{"CREATE TABLE a(a INT INDEX i(a))", false},
+		{"CREATE TABLE a(a INT, INDEX i(a) INDEX j(a))", false},
+		{"CREATE TABLE a(a INT, INDEX i(a), b INT)", false},
+		{"CREATE TABLE a(a INT NULL NULL)", false},
+		{"CREATE TABLE a(a INT COMMENT 'c' KEY)", false},
+		{"CREATE TABLE a(a INT GENERATED AS (1))", false},
+		{"CREATE TABLE a(a INT AUTO_INCREMENT())", false},
+		{"CREATE TABLE a PROPERTIES(a = a)", true},
+		{"CREATE TABLE a BROKER PROPERTIES(a = a)", true},
+		{"CREATE TABLE a LIKE b WITH ROLLUP (r1, r2)", true},
+		{"CREATE TABLE a ROLLUP(r1(a) PROPERTIES(k = v), r2(b))", true},
+		{"CREATE TABLE a ROLLUP(r1(a) r2(b))", false},
+		{"CREATE TABLE a PARTITION BY", false},
+		{"CREATE TABLE a PARTITION BY RANGE(a) () AS SELECT 1", true},
+		{"CREATE TABLE a PARTITION BY RANGE(a)(FROM (1) TO (2) INTERVAL 1 DAY, PARTITION p VALUES LESS THAN (3))", true},
+		{"CREATE TABLE a PARTITION BY RANGE(a)(FROM () TO (2) INTERVAL 1)", false},
+		{"CREATE TABLE a PARTITION BY RANGE(a)(PARTITION p PARTITION q)", false},
+		{"CREATE TABLE a PARTITION BY RANGE(a)(FROM (1) TO (2) INTERVAL 1 zzz)", false},
+	}
+	for _, c := range cases {
+		_, err := Parse(c.sql)
+		if (err == nil) != c.ok {
+			t.Errorf("Parse(%q): err = %v, want accepted=%v", c.sql, err, c.ok)
+		}
+	}
+}
+
+// TestCreateTableCTASColumnLocs: a CTAS column name carries its own span.
+func TestCreateTableCTASColumnLocs(t *testing.T) {
+	sql := "CREATE TABLE t (a, bb) AS SELECT 1, 2"
+	stmt, err := Parse(sql)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ct := stmt.Stmts[0].(*ast.CreateTableStmt)
+	for i, want := range []string{"a", "bb"} {
+		loc := ct.Columns[i].Loc
+		if got := sql[loc.Start:loc.End]; got != want {
+			t.Errorf("Columns[%d] spans %q, want %q", i, got, want)
+		}
+	}
+}

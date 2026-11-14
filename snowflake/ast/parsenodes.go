@@ -1330,6 +1330,7 @@ const (
 	ConstrPrimaryKey ConstraintType = iota
 	ConstrForeignKey
 	ConstrUnique
+	ConstrCheck
 )
 
 // String returns the constraint type name.
@@ -1341,6 +1342,8 @@ func (c ConstraintType) String() string {
 		return "FOREIGN KEY"
 	case ConstrUnique:
 		return "UNIQUE"
+	case ConstrCheck:
+		return "CHECK"
 	default:
 		return "UNKNOWN"
 	}
@@ -1367,6 +1370,7 @@ type InlineConstraint struct {
 	Type       ConstraintType
 	Name       Ident          // CONSTRAINT name; zero if unnamed
 	References *ForeignKeyRef // for FK; nil otherwise
+	Check      Node           // CHECK ( expr ); nil otherwise
 	Loc        Loc
 }
 
@@ -1425,7 +1429,17 @@ type CreateTableStmt struct {
 	AsSelect    Node             // CREATE TABLE ... AS SELECT; nil if absent
 	Like        *ObjectName      // CREATE TABLE ... LIKE source; nil if absent
 	Clone       *CloneSource     // CREATE TABLE ... CLONE source; nil if absent
-	Loc         Loc
+	RowPolicy   *RowAccessPolicy // [WITH] ROW ACCESS POLICY name ON (cols); nil if absent
+
+	// The fields below are set only by CREATE ICEBERG TABLE (Iceberg == true).
+	Iceberg           bool          // CREATE [TRANSIENT] ICEBERG TABLE
+	PartitionBy       []Node        // PARTITION BY ( col | transform(...) , ... ); ColumnRef or FuncCallExpr items; nil if absent
+	Options           []*CopyOption // KEY = value parameters (EXTERNAL_VOLUME, CATALOG, BASE_LOCATION, ...) and COPY = ( ... ); nil if absent
+	CopyTags          bool          // COPY TAGS
+	Purge             bool          // PURGE
+	AggregationPolicy *ObjectName   // [WITH] AGGREGATION POLICY name; nil if absent
+	Contacts          []*CopyOption // WITH CONTACT ( purpose = contact [, ...] ); nil if absent
+	Loc               Loc
 }
 
 func (n *CreateTableStmt) Tag() NodeTag { return T_CreateTableStmt }
@@ -1440,7 +1454,8 @@ type ColumnDef struct {
 	Identity         *IdentitySpec     // IDENTITY/AUTOINCREMENT; nil if absent
 	Collate          string            // COLLATE 'name'; empty if absent
 	MaskingPolicy    *ObjectName       // WITH MASKING POLICY name; nil if absent
-	InlineConstraint *InlineConstraint // inline PK/FK/UNIQUE; nil if absent
+	ProjectionPolicy *ObjectName       // WITH PROJECTION POLICY name; nil if absent
+	InlineConstraint *InlineConstraint // inline PK/FK/UNIQUE/CHECK; nil if absent
 	Comment          *string           // COMMENT 'text'; nil if absent
 	Tags             []*TagAssignment  // WITH TAG (...); nil if absent
 	VirtualExpr      Node              // AS (expr); nil if absent
@@ -1451,10 +1466,11 @@ func (n *ColumnDef) Tag() NodeTag { return T_ColumnDef }
 
 // TableConstraint represents a table-level constraint (out-of-line).
 type TableConstraint struct {
-	Type       ConstraintType // ConstrPrimaryKey/ConstrForeignKey/ConstrUnique
+	Type       ConstraintType // ConstrPrimaryKey/ConstrForeignKey/ConstrUnique/ConstrCheck
 	Name       Ident          // CONSTRAINT name; zero if unnamed
 	Columns    []Ident        // constrained column names
 	References *ForeignKeyRef // FK only; nil otherwise
+	Check      Node           // CHECK ( expr ); nil otherwise
 	Comment    *string        // inline COMMENT 'text'; nil if absent
 	Loc        Loc
 }
@@ -1467,6 +1483,7 @@ func (n *TableConstraint) Tag() NodeTag { return T_TableConstraint }
 type TableIndex struct {
 	Name    Ident   // index name
 	Columns []Ident // indexed column names (one or more)
+	Include []Ident // INCLUDE ( <col> [, <col>...] ); nil if absent
 	Loc     Loc
 }
 
@@ -1488,19 +1505,38 @@ var (
 type AlterDatabaseAction int
 
 const (
-	AlterDBRename             AlterDatabaseAction = iota // RENAME TO
-	AlterDBSwap                                          // SWAP WITH
-	AlterDBSet                                           // SET <properties>
-	AlterDBUnset                                         // UNSET <properties>
-	AlterDBSetTag                                        // SET TAG (...)
-	AlterDBUnsetTag                                      // UNSET TAG (...)
-	AlterDBEnableReplication                             // ENABLE REPLICATION ...
-	AlterDBDisableReplication                            // DISABLE REPLICATION ...
-	AlterDBEnableFailover                                // ENABLE FAILOVER ...
-	AlterDBDisableFailover                               // DISABLE FAILOVER ...
-	AlterDBRefresh                                       // REFRESH
-	AlterDBPrimary                                       // PRIMARY
+	AlterDBRename              AlterDatabaseAction = iota // RENAME TO
+	AlterDBSwap                                           // SWAP WITH
+	AlterDBSet                                            // SET <properties>
+	AlterDBUnset                                          // UNSET <properties>
+	AlterDBSetTag                                         // SET TAG (...)
+	AlterDBUnsetTag                                       // UNSET TAG (...)
+	AlterDBEnableReplication                              // ENABLE REPLICATION ...
+	AlterDBDisableReplication                             // DISABLE REPLICATION ...
+	AlterDBEnableFailover                                 // ENABLE FAILOVER ...
+	AlterDBDisableFailover                                // DISABLE FAILOVER ...
+	AlterDBRefresh                                        // REFRESH
+	AlterDBPrimary                                        // PRIMARY
+	AlterDBSetFeaturePolicy                               // SET FEATURE POLICY <name> [FORCE]
+	AlterDBUnsetFeaturePolicy                             // UNSET FEATURE POLICY
+	AlterDBSuspendDiscovery                               // SUSPEND DISCOVERY (catalog-linked database)
+	AlterDBResumeDiscovery                                // RESUME DISCOVERY (catalog-linked database)
+	AlterDBUpdateLinkedCatalog                            // UPDATE LINKED_CATALOG ... (catalog-linked database)
 )
+
+// LinkedCatalogUpdate is the body of ALTER DATABASE ... UPDATE LINKED_CATALOG
+// (https://docs.snowflake.com/en/sql-reference/sql/alter-database-catalog-linked).
+// It is NOT a Node. Op is "ADD", "REMOVE", "SET" or "UNSET":
+//   - ADD ( 'ns' [, ...] ) TO <Target>       → Namespaces, Target
+//   - REMOVE ( 'ns' [, ...] ) FROM <Target>  → Namespaces, Target
+//   - UNSET <Target>                         → Target
+//   - SET <key> = <value> [ ... ]            → Options
+type LinkedCatalogUpdate struct {
+	Op         string        // "ADD" / "REMOVE" / "SET" / "UNSET"
+	Namespaces []string      // ADD / REMOVE namespace list
+	Target     string        // ALLOWED_NAMESPACES / BLOCKED_NAMESPACES (ADD / REMOVE / UNSET)
+	Options    []*CopyOption // SET key = value run (SYNC_INTERVAL_SECONDS, ALLOWED_WRITE_OPERATIONS, ...)
+}
 
 // AlterSchemaAction discriminates the action variants of ALTER SCHEMA.
 type AlterSchemaAction int
@@ -1519,11 +1555,18 @@ const (
 // DBSchemaProps holds the optional settable properties shared by DATABASE and
 // SCHEMA DDL statements.  It is NOT a Node — embedded by value or pointer in
 // the statement nodes that need it.
+//
+// The four long-standing properties keep typed fields; every other property
+// (EXTERNAL_VOLUME, CATALOG, LOG_LEVEL, OBJECT_VISIBILITY, LINKED_CATALOG, ...)
+// is an open-ended `KEY = value` pair in Options, since the documented set
+// keeps growing.
 type DBSchemaProps struct {
-	DataRetention *int64  // DATA_RETENTION_TIME_IN_DAYS = n; nil if absent
-	MaxDataExt    *int64  // MAX_DATA_EXTENSION_TIME_IN_DAYS = n; nil if absent
-	DefaultDDLCol *string // DEFAULT_DDL_COLLATION = 'str'; nil if absent
-	Comment       *string // COMMENT = 'str'; nil if absent
+	DataRetention *int64        // DATA_RETENTION_TIME_IN_DAYS = n; nil if absent
+	MaxDataExt    *int64        // MAX_DATA_EXTENSION_TIME_IN_DAYS = n; nil if absent
+	DefaultDDLCol *string       // DEFAULT_DDL_COLLATION = 'str'; nil if absent
+	Comment       *string       // COMMENT = 'str'; nil if absent
+	Options       []*CopyOption // other KEY = value properties, in source order
+	Contacts      []*CopyOption // CONTACT <purpose> = <contact> pairs (Name = purpose, Words = contact)
 }
 
 // ---------------------------------------------------------------------------
@@ -1532,16 +1575,22 @@ type DBSchemaProps struct {
 
 // CreateDatabaseStmt represents CREATE [OR REPLACE] [TRANSIENT] DATABASE ...
 type CreateDatabaseStmt struct {
-	OrReplace   bool
-	OrAlter     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
-	Transient   bool
-	IfNotExists bool
-	Name        *ObjectName
-	Clone       *CloneSource     // CLONE source [AT|BEFORE (...)]; nil if absent
-	FromShare   *ObjectName      // FROM SHARE <provider>.<share>; nil if absent
-	Props       DBSchemaProps    // optional properties
-	Tags        []*TagAssignment // WITH TAG (...); nil if absent
-	Loc         Loc
+	OrReplace                   bool
+	OrAlter                     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
+	Transient                   bool
+	IfNotExists                 bool
+	Name                        *ObjectName
+	Clone                       *CloneSource // CLONE source [AT|BEFORE (...)]; nil if absent
+	IgnoreInsufficientRetention bool         // CLONE ... IGNORE TABLES WITH INSUFFICIENT DATA RETENTION
+	IgnoreHybridTables          bool         // CLONE ... IGNORE HYBRID TABLES
+	FromShare                   *ObjectName  // FROM SHARE <provider>.<share>; nil if absent
+	FromListing                 *string      // FROM LISTING '<listing>'; nil if absent
+	FromBackupSet               *ObjectName  // FROM BACKUP SET <set> IDENTIFIER '<id>'; nil if absent
+	BackupID                    string       // the IDENTIFIER '<id>' of FROM BACKUP SET
+	ReplicaOf                   *ObjectName  // AS REPLICA OF <account>.<db>; nil if absent
+	Props                       DBSchemaProps
+	Tags                        []*TagAssignment // [WITH] TAG (...); nil if absent
+	Loc                         Loc
 }
 
 func (n *CreateDatabaseStmt) Tag() NodeTag { return T_CreateDatabaseStmt }
@@ -1555,10 +1604,14 @@ type AlterDatabaseStmt struct {
 	Action     AlterDatabaseAction
 	NewName    *ObjectName      // RENAME TO / SWAP WITH target
 	SetProps   *DBSchemaProps   // SET properties; non-nil for AlterDBSet
-	UnsetProps []string         // UNSET property names
-	Tags       []*TagAssignment // SET TAG (...) assignments
-	UnsetTags  []*ObjectName    // UNSET TAG (...) names
-	Loc        Loc
+	UnsetProps []string         // UNSET property names ("CONTACT <PURPOSE>" for UNSET CONTACT <purpose>)
+	Tags       []*TagAssignment // SET TAG assignments
+	UnsetTags  []*ObjectName    // UNSET TAG names
+	// FeaturePolicy is the SET FEATURE POLICY <name> target; Force marks FORCE.
+	FeaturePolicy *ObjectName
+	Force         bool
+	LinkedCatalog *LinkedCatalogUpdate // UPDATE LINKED_CATALOG body; non-nil for AlterDBUpdateLinkedCatalog
+	Loc           Loc
 }
 
 func (n *AlterDatabaseStmt) Tag() NodeTag { return T_AlterDatabaseStmt }
@@ -1594,16 +1647,21 @@ var _ Node = (*UndropDatabaseStmt)(nil)
 
 // CreateSchemaStmt represents CREATE [OR REPLACE] [TRANSIENT] SCHEMA ...
 type CreateSchemaStmt struct {
-	OrReplace     bool
-	OrAlter       bool // CREATE OR ALTER (mutually exclusive with OrReplace)
-	Transient     bool
-	IfNotExists   bool
-	Name          *ObjectName
-	Clone         *CloneSource     // CLONE source [AT|BEFORE (...)]; nil if absent
-	ManagedAccess bool             // WITH MANAGED ACCESS
-	Props         DBSchemaProps    // optional properties
-	Tags          []*TagAssignment // WITH TAG (...); nil if absent
-	Loc           Loc
+	OrReplace                   bool
+	OrAlter                     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
+	Transient                   bool
+	IfNotExists                 bool
+	Name                        *ObjectName
+	Versioned                   bool             // CREATE OR ALTER VERSIONED SCHEMA
+	Clone                       *CloneSource     // CLONE source [AT|BEFORE (...)]; nil if absent
+	IgnoreInsufficientRetention bool             // CLONE ... IGNORE TABLES WITH INSUFFICIENT DATA RETENTION
+	IgnoreHybridTables          bool             // CLONE ... IGNORE HYBRID TABLES
+	FromBackupSet               *ObjectName      // FROM BACKUP SET <set> IDENTIFIER '<id>'; nil if absent
+	BackupID                    string           // the IDENTIFIER '<id>' of FROM BACKUP SET
+	ManagedAccess               bool             // WITH MANAGED ACCESS
+	Props                       DBSchemaProps    // optional properties
+	Tags                        []*TagAssignment // WITH TAG (...); nil if absent
+	Loc                         Loc
 }
 
 func (n *CreateSchemaStmt) Tag() NodeTag { return T_CreateSchemaStmt }
@@ -1617,9 +1675,9 @@ type AlterSchemaStmt struct {
 	Action     AlterSchemaAction
 	NewName    *ObjectName      // RENAME TO / SWAP WITH target
 	SetProps   *DBSchemaProps   // SET properties; non-nil for AlterSchemaSet
-	UnsetProps []string         // UNSET property names
-	Tags       []*TagAssignment // SET TAG (...) assignments
-	UnsetTags  []*ObjectName    // UNSET TAG (...) names
+	UnsetProps []string         // UNSET property names ("CONTACT <PURPOSE>" for UNSET CONTACT <purpose>)
+	Tags       []*TagAssignment // SET TAG assignments
+	UnsetTags  []*ObjectName    // UNSET TAG names
 	Loc        Loc
 }
 
@@ -1774,6 +1832,9 @@ type DropStmt struct {
 	ArgTypes []*TypeName
 	Cascade  bool // CASCADE option (mutually exclusive with Restrict)
 	Restrict bool // RESTRICT option (mutually exclusive with Cascade)
+	Iceberg  bool // DROP ICEBERG TABLE (Kind is DropTable)
+	Purge    bool // PURGE (DROP [ICEBERG] TABLE only; mutually exclusive with NoPurge)
+	NoPurge  bool // NOPURGE (DROP [ICEBERG] TABLE only; mutually exclusive with Purge)
 	Loc      Loc
 }
 
@@ -1807,9 +1868,10 @@ func (k UndropObjectKind) String() string {
 // UndropStmt represents an UNDROP <object_type> name statement.
 // DATABASE and SCHEMA are handled by T2.1.
 type UndropStmt struct {
-	Kind UndropObjectKind
-	Name *ObjectName
-	Loc  Loc
+	Kind    UndropObjectKind
+	Iceberg bool // UNDROP ICEBERG TABLE (Kind is UndropTable)
+	Name    *ObjectName
+	Loc     Loc
 }
 
 // Tag implements Node.
@@ -4627,18 +4689,39 @@ func (n *AlterRoleStmt) Tag() NodeTag { return T_AlterRoleStmt }
 type AlterUserAction int
 
 const (
-	AlterUserRename          AlterUserAction = iota // RENAME TO <new_name>
-	AlterUserResetPassword                          // RESET PASSWORD
-	AlterUserAbortQueries                           // ABORT ALL QUERIES
-	AlterUserSet                                    // SET <options>
-	AlterUserUnset                                  // UNSET <property> [ , ... ]
-	AlterUserSetTag                                 // SET TAG <tag> = '<value>' [ , ... ]
-	AlterUserUnsetTag                               // UNSET TAG <tag> [ , ... ]
-	AlterUserAddDelegated                           // ADD DELEGATED AUTHORIZATION ...
-	AlterUserRemoveDelegated                        // REMOVE DELEGATED ... FROM SECURITY INTEGRATION ...
+	AlterUserRename                 AlterUserAction = iota // RENAME TO <new_name>
+	AlterUserResetPassword                                 // RESET PASSWORD
+	AlterUserAbortQueries                                  // ABORT ALL QUERIES
+	AlterUserSet                                           // SET <options>
+	AlterUserUnset                                         // UNSET <property> [ , ... ]
+	AlterUserSetTag                                        // SET TAG <tag> = '<value>' [ , ... ]
+	AlterUserUnsetTag                                      // UNSET TAG <tag> [ , ... ]
+	AlterUserAddDelegated                                  // ADD DELEGATED AUTHORIZATION ...
+	AlterUserRemoveDelegated                               // REMOVE DELEGATED ... FROM SECURITY INTEGRATION ...
+	AlterUserSetPolicy                                     // SET { AUTHENTICATION | PASSWORD | SESSION | INGRESS } POLICY <p> [ FORCE ]
+	AlterUserUnsetPolicy                                   // UNSET { AUTHENTICATION | PASSWORD | SESSION | INGRESS } POLICY
+	AlterUserEnrollMFA                                     // ENROLL MFA
+	AlterUserAddCredential                                 // ADD <credential> <name> [ <options> ]
+	AlterUserRemoveCredential                              // REMOVE <credential> <name>
+	AlterUserRotateCredential                              // ROTATE <credential> <name> [ <options> ]
+	AlterUserModifyCredentialRename                        // MODIFY <credential> <name> RENAME TO <new_name>
+	AlterUserModifyCredentialSet                           // MODIFY <credential> <name> SET <options>
+	AlterUserModifyCredentialUnset                         // MODIFY <credential> <name> UNSET <property> [ , ... ]
 )
 
-// AlterUserStmt represents ALTER USER [ IF EXISTS ] <name> <action>.
+// UserCredentialKind names the per-user sub-object an ALTER USER ADD / MODIFY /
+// REMOVE / ROTATE action works on.
+type UserCredentialKind int
+
+const (
+	UserCredentialKeyPair          UserCredentialKind = iota // KEY PAIR
+	UserCredentialPAT                                        // { PROGRAMMATIC ACCESS TOKEN | PAT }
+	UserCredentialWorkloadIdentity                           // WORKLOAD IDENTITY
+	UserCredentialMFAMethod                                  // MFA METHOD
+)
+
+// AlterUserStmt represents ALTER USER [ IF EXISTS ] [ <name> ] <action>.
+// Name is nil when the statement omits it, which alters the current user.
 //
 //	RENAME TO <new_name>
 //	RESET PASSWORD
@@ -4648,7 +4731,20 @@ const (
 //	SET TAG <tag> = '<value>' [ , ... ]
 //	UNSET TAG <tag> [ , ... ]
 //	ADD DELEGATED AUTHORIZATION OF ROLE <r> TO SECURITY INTEGRATION <i>
-//	REMOVE DELEGATED { AUTHORIZATION OF ROLE <r> | AUTHORIZATIONS } FROM SECURITY INTEGRATION <i>
+//	REMOVE DELEGATED { AUTHORIZATION OF ROLE <r> | AUTHORIZATIONS [ OF ANY ROLE ] } FROM SECURITY INTEGRATION <i>
+//	SET { AUTHENTICATION | PASSWORD | SESSION | INGRESS } POLICY <policy> [ FORCE ]
+//	UNSET { AUTHENTICATION | PASSWORD | SESSION | INGRESS } POLICY
+//	ENROLL MFA
+//	ADD MFA METHOD OTP [ COUNT = <n> ]
+//	{ ADD | ROTATE } <credential> <cred_name> [ <options> ]
+//	REMOVE <credential> <cred_name>
+//	MODIFY <credential> <cred_name> { RENAME TO <new_name> | SET <options> | UNSET <property> [ , ... ] }
+//
+// <credential> is KEY PAIR, PROGRAMMATIC ACCESS TOKEN (PAT), WORKLOAD IDENTITY,
+// or MFA METHOD; Credential names it and CredentialName holds <cred_name> (OTP
+// for ADD MFA METHOD). Their options (PUBLIC_KEY, TYPE, DAYS_TO_EXPIRY, ...)
+// are open-ended KEY = value pairs in Options, and MODIFY ... UNSET names go in
+// UnsetProps.
 //
 // The ADD / REMOVE DELEGATED forms are captured structurally only by Action
 // (their body identifiers are consumed but not modeled), matching the
@@ -4663,7 +4759,15 @@ type AlterUserStmt struct {
 	Tags       []*TagAssignment // SET TAG (...) assignments; for AlterUserSetTag
 	UnsetTags  []*ObjectName    // UNSET TAG names; for AlterUserUnsetTag
 	Raw        string           // verbatim tail for ADD / REMOVE DELEGATED forms
-	Loc        Loc
+	PolicyKind string           // "{ AUTHENTICATION | PASSWORD | SESSION | INGRESS } POLICY", uppercased; for Set/UnsetPolicy
+	PolicyName *ObjectName      // the policy name; for AlterUserSetPolicy
+	Force      bool             // trailing FORCE; for AlterUserSetPolicy
+
+	Credential            UserCredentialKind // the sub-object kind; for the *Credential actions
+	CredentialName        *ObjectName        // the sub-object's name; for the *Credential actions
+	CredentialIfExists    bool               // MODIFY / REMOVE / ROTATE PAT IF EXISTS
+	CredentialIfNotExists bool               // ADD PAT IF NOT EXISTS
+	Loc                   Loc
 }
 
 // Tag implements Node.

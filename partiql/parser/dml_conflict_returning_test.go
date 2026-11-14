@@ -451,3 +451,48 @@ func TestParser_RFC0011RejectsTrailingReturningOrConflict(t *testing.T) {
 		})
 	}
 }
+
+// TestParser_OnConflictActionCondition covers the WHERE of DO REPLACE
+// EXCLUDED and DO UPDATE EXCLUDED (doReplace, doUpdate,
+// PartiQLParser.g4:209-220), which the reference parser keeps as the
+// action's condition (visitDoReplace, visitDoUpdate).
+func TestParser_OnConflictActionCondition(t *testing.T) {
+	cases := []struct {
+		input string
+		want  string
+	}{
+		{
+			"INSERT INTO t << {} >> ON CONFLICT DO REPLACE EXCLUDED WHERE x > 1",
+			"OnConflict:OnConflict{Action:DO_REPLACE_EXCLUDED Condition:BinaryExpr{Op:> Left:VarRef{Name:x} Right:NumberLit{Val:1}}}",
+		},
+		{
+			"INSERT INTO t AS a << {} >> ON CONFLICT (k) DO UPDATE EXCLUDED WHERE excluded.v <> a.v",
+			"Action:DO_UPDATE_EXCLUDED Condition:BinaryExpr{Op:<> Left:PathExpr{Root:VarRef{Name:excluded} Steps:[DotStep{Field:v}]}",
+		},
+		{
+			"INSERT INTO t a ON CONFLICT ON CONSTRAINT c DO REPLACE EXCLUDED WHERE a",
+			"Action:DO_REPLACE_EXCLUDED Condition:VarRef{Name:a}",
+		},
+	}
+	for _, tc := range cases {
+		stmt, err := NewParser(tc.input).ParseStatement()
+		if err != nil {
+			t.Errorf("ParseStatement(%q): %v", tc.input, err)
+			continue
+		}
+		if got := ast.NodeToString(stmt); !strings.Contains(got, tc.want) {
+			t.Errorf("ParseStatement(%q)\ngot: %s\nwant it to contain: %s", tc.input, got, tc.want)
+		}
+		if loc := stmt.GetLoc(); loc.End != len(tc.input) {
+			t.Errorf("ParseStatement(%q).Loc = %+v, want end %d", tc.input, loc, len(tc.input))
+		}
+	}
+	for _, bad := range []string{
+		"INSERT INTO t a ON CONFLICT DO NOTHING WHERE a",
+		"INSERT INTO t a ON CONFLICT DO REPLACE EXCLUDED WHERE",
+	} {
+		if _, err := Parse(bad); err == nil {
+			t.Errorf("Parse(%q): want an error", bad)
+		}
+	}
+}
