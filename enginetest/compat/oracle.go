@@ -24,10 +24,12 @@ import (
 // The block answers nothing when the parse succeeds. Otherwise it raises
 // ORA-20999 with what OracleVerdict reads: the error's code, its position
 // (DBMS_SQL.LAST_ERROR_POSITION, a byte offset into the statement), and the
-// PL/SQL compiler's errors: for ORA-24344, a unit created with compilation
-// errors, the USER_ERRORS message numbers (PLS-nnnnn; 0 for "Statement
-// ignored", which follows another), and for ORA-06550, an anonymous block
-// that did not compile, the PLS-nnnnn numbers of its error stack.
+// PL/SQL compiler's errors, each PLS-nnnnn, or ORA-nnnnn for an error of a
+// SQL statement inside the PL/SQL ("PL/SQL: ORA-00942", whose code
+// USER_ERRORS keeps only in its text): for ORA-24344, a unit created with
+// compilation errors, those USER_ERRORS lists (PLS-00000 is "Statement
+// ignored", which follows another), and for ORA-06550, an
+// anonymous block that did not compile, those of its error stack.
 const OracleParse = `DECLARE
   c INTEGER := DBMS_SQL.OPEN_CURSOR;
   code PLS_INTEGER := 0;
@@ -48,11 +50,14 @@ BEGIN
   fn := DBMS_SQL.LAST_SQL_FUNCTION_CODE;
   DBMS_SQL.CLOSE_CURSOR(c);
   IF code = 24344 THEN
-    SELECT LISTAGG(message_number, ',') WITHIN GROUP (ORDER BY name, type, sequence)
+    SELECT LISTAGG(CASE WHEN text LIKE 'PL/SQL: ORA-%' THEN REGEXP_SUBSTR(text, 'ORA-[0-9]{5}')
+                        ELSE 'PLS-' || TO_CHAR(message_number, 'FM00000') END, ',')
+             WITHIN GROUP (ORDER BY name, type, sequence)
       INTO compile FROM user_errors WHERE attribute = 'ERROR';
   ELSIF code = 6550 THEN
-    FOR i IN 1 .. REGEXP_COUNT(stack, 'PLS-[0-9]{5}') LOOP
-      compile := compile || CASE WHEN i > 1 THEN ',' END || TO_NUMBER(SUBSTR(REGEXP_SUBSTR(stack, 'PLS-[0-9]{5}', 1, i), 5));
+    FOR i IN 1 .. REGEXP_COUNT(stack, '(PLS|PL/SQL: ORA)-[0-9]{5}') LOOP
+      compile := compile || CASE WHEN i > 1 THEN ',' END ||
+        REPLACE(REGEXP_SUBSTR(stack, '(PLS|PL/SQL: ORA)-[0-9]{5}', 1, i), 'PL/SQL: ', '');
     END LOOP;
   END IF;
   IF code IN (0, 24344) AND fn NOT IN (` + oracleParsedOnly + `) THEN
@@ -104,8 +109,9 @@ const oracleParsedOnly = "2, 3, 4, 5, 9, 27, 32, 33, 35, 52, 54, 55, 56, 90, 170
 // trailing -- comment cannot take it in.
 const OracleProbeTail = "\n ~"
 
-// oracleTail is where Oracle reports the probe's tail: the ~, two bytes
-// after the statement.
+// oracleTail is where Oracle reports an error at the probe's tail: the ~,
+// two bytes after the statement. It is ORA-00911, or the error of what the
+// parser wanted there, as ORA-14006 for a partition's name.
 const oracleTail = len(OracleProbeTail) - 1
 
 // oracleAfterParse are errors Oracle raises before it has read all of a
@@ -124,19 +130,29 @@ var oracleAfterParse = map[int]bool{
 // missing expression, ...), 01700 to 01799 (the lexer's: an unterminated
 // string or comment, a zero-length identifier), 02000 to 02099 (missing
 // keyword and option errors) and 03048 to 03050 (23ai's errors naming the
-// word that is not valid where it stands). It decides an error at the end
-// of the statement, where the probe cannot.
+// word that is not valid where it stands), less the codes of that range
+// raised after the parse, in oracleResolved. It decides an error at the end
+// of the statement, where the probe cannot, and one whose probe says
+// nothing.
 func oracleParserCode(code int) bool {
-	return code >= 900 && code <= 999 || code >= 1700 && code <= 1799 ||
-		code >= 2000 && code <= 2099 || code >= 3048 && code <= 3050
+	return (code >= 900 && code <= 999 || code >= 1700 && code <= 1799 ||
+		code >= 2000 && code <= 2099 || code >= 3048 && code <= 3050) && !oracleResolved[code]
 }
 
+// oracleResolved are codes among the parser's that Oracle raises after the
+// parse, resolving names and types: an invalid identifier (00904, a column
+// that is not there), a column ambiguously defined (00918), inconsistent
+// datatypes (00932), group functions where none may stand (00934, 00937,
+// 00979), a missing table or view (00942), too few values (00947), a name
+// already used (00955), a column named twice (00957).
+var oracleResolved = map[int]bool{904: true, 918: true, 932: true, 934: true, 937: true, 942: true, 947: true, 955: true, 957: true, 979: true}
+
 // oracleAnswer reads what OracleParse raised.
-var oracleAnswer = regexp.MustCompile(`ORA-20999: omni-parse code=(\d+) position=(-?\d+) compile=([\d,]*)`)
+var oracleAnswer = regexp.MustCompile(`ORA-20999: omni-parse code=(\d+) position=(-?\d+) compile=([A-Z0-9,-]*)`)
 
 type oracleError struct {
 	code, position int
-	compile        []int
+	compile        []string
 }
 
 func readOracle(err error) (oracleError, bool) {
@@ -148,14 +164,17 @@ func readOracle(err error) (oracleError, bool) {
 	e.code, _ = strconv.Atoi(m[1])
 	e.position, _ = strconv.Atoi(m[2])
 	for _, n := range strings.Split(m[3], ",") {
-		if n == "" {
-			continue
+		if n != "" {
+			e.compile = append(e.compile, n)
 		}
-		v, _ := strconv.Atoi(n)
-		e.compile = append(e.compile, v)
 	}
 	return e, true
 }
+
+// oracleFailure matches Oracle failing in its own code while it parses: an
+// internal error (ORA-00600), a process that died (ORA-07445), or the
+// session the server dropped with it (end-of-file on the connection).
+var oracleFailure = regexp.MustCompile(`ORA-00600|ORA-07445|ORA-03113|ORA-03114|^EOF$`)
 
 // OracleVerdict reads Oracle's answer to OracleParse of a statement:
 // whether Oracle takes its syntax. parse runs OracleParse on a text and
@@ -166,30 +185,39 @@ func readOracle(err error) (oracleError, bool) {
 // statement, and an error from any of those comes with a position too. The
 // probe tells them from a syntax error, as PrepareVerdict's does on MySQL:
 // Oracle reads all of a statement before it looks anything up, so a
-// statement refused after its parse is answered with the tail's ORA-00911,
-// and one its parser refused is answered with the same error at the same
-// byte, which comes before the tail. A rejection carries that byte.
+// statement refused after its parse is answered at the probe's tail, and
+// one its parser refused is answered with the same error at the same byte,
+// which comes before the tail. A rejection carries that byte. A probe that
+// stops anywhere else has changed how the parser reads the text before the
+// tail, as ALTER INDEX a UNUSABLE followed by more is refused at UNUSABLE,
+// and says nothing: the first answer's code decides, a rejection when it
+// is the parser's (oracleParserCode) and an acceptance otherwise.
 //
-// Three answers need no probe. ORA-24344 is a PL/SQL unit Oracle created
+// Some answers need no probe. ORA-24344 is a PL/SQL unit Oracle created
 // with compilation errors, and ORA-06550 an anonymous block the PL/SQL
 // compiler refused: either is a rejection when one of the compiler's errors
-// is its parser's (PLS-00100 to 00199, PLS-00103 "Encountered the symbol"
-// among them). A stored unit's errors are at a line and column of the
+// is a syntax error (oracleCompileSyntax): the PL/SQL parser's, PLS-00103
+// "Encountered the symbol" among them, or the SQL parser's on a statement
+// inside the PL/SQL. A stored unit's errors are at a line and column of the
 // source Oracle keeps, so its rejection carries no byte; an anonymous
 // block's carries LAST_ERROR_POSITION. A probe could not tell: its tail is
-// in the block. The errors in oracleAfterParse are
-// acceptances. And an error at the very end of the statement, where the
-// probe's tail is met either way, is a rejection when its code is the
-// parser's (oracleParserCode), and an acceptance otherwise: CREATE
-// PLUGGABLE DATABASE a FROM b is answered ORA-65016 there, for a clause the
-// statement leaves out.
+// in the block. The errors in oracleAfterParse are acceptances. An error at
+// the very end of the statement, where the probe's tail is met either way,
+// is decided by its code. And Oracle failing in its own code on the
+// statement (oracleFailure), on two sessions, is a rejection with no byte:
+// no statement Oracle runs, though not one its parser names an error in.
 //
 // An answer that is no verdict comes back as an error, so the caller fails
-// rather than records agreement: an error OracleParse did not raise (a
-// dropped connection, a timeout), a probe the server took, and a probe that
-// stopped neither where the statement did nor at its tail.
+// rather than records agreement: an error OracleParse did not raise and
+// that is no failure of Oracle's (a timeout), and a probe the server took.
 func OracleVerdict(statement string, parse func(text string) error) (string, error) {
 	err := parse(statement)
+	if err != nil && oracleFailure.MatchString(firstLine(err)) {
+		// Again, on the new session database/sql opens for a dropped one.
+		if err = parse(statement); err != nil && oracleFailure.MatchString(firstLine(err)) {
+			return Reject, nil
+		}
+	}
 	if err == nil {
 		return Accept, nil
 	}
@@ -202,7 +230,7 @@ func OracleVerdict(statement string, parse func(text string) error) (string, err
 			return "", fmt.Errorf("Oracle answered ORA-%05d and lists no PL/SQL error: %w", e.code, err)
 		}
 		for _, c := range e.compile {
-			if c >= 100 && c <= 199 {
+			if oracleCompileSyntax(c) {
 				if e.code == 6550 && e.position >= 0 && e.position <= len(statement) {
 					return RejectAt(e.position), nil
 				}
@@ -218,23 +246,55 @@ func OracleVerdict(statement string, parse func(text string) error) (string, err
 	if e.position >= 0 && e.position <= len(statement) {
 		reject = RejectAt(e.position)
 	}
-	if e.position == len(statement) && oracleParserCode(e.code) {
-		return reject, nil
+	byCode := func() string {
+		if oracleParserCode(e.code) {
+			return reject
+		}
+		return Accept
+	}
+	if e.position == len(statement) {
+		return byCode(), nil
 	}
 	probeErr := parse(statement + OracleProbeTail)
 	if probeErr == nil {
 		return "", fmt.Errorf("Oracle took the probe's tail after answering %w", err)
 	}
 	p, ok := readOracle(probeErr)
-	if !ok {
-		return "", probeErr
-	}
 	switch {
+	case !ok && oracleFailure.MatchString(firstLine(probeErr)):
+		return byCode(), nil
+	case !ok:
+		return "", probeErr
 	case p.code == e.code && p.position == e.position:
 		return reject, nil
-	case p.code == 911 && p.position == len(statement)+oracleTail:
+	case p.position == len(statement)+oracleTail:
 		return Accept, nil
 	}
-	return "", fmt.Errorf("Oracle answered ORA-%05d at byte %d, and the probe ORA-%05d at byte %d, neither where the statement stopped nor at the tail",
-		e.code, e.position, p.code, p.position)
+	return byCode(), nil
+}
+
+// oracleCompileSyntax reports whether a PL/SQL compilation error is a
+// syntax error: the PL/SQL parser's (PLS-00100 to 00199), or the SQL
+// parser's on a statement inside the PL/SQL (an ORA-nnnnn of
+// oracleParserCode).
+func oracleCompileSyntax(e string) bool {
+	kind, num, ok := strings.Cut(e, "-")
+	n, err := strconv.Atoi(num)
+	if !ok || err != nil {
+		return false
+	}
+	switch kind {
+	case "PLS":
+		return n >= 100 && n <= 199
+	case "ORA":
+		return oracleParserCode(n)
+	}
+	return false
+}
+
+// firstLine is an error's text to its first line break: go-ora puts the
+// error stack and the position after it.
+func firstLine(err error) string {
+	line, _, _ := strings.Cut(err.Error(), "\n")
+	return strings.TrimSpace(line)
 }

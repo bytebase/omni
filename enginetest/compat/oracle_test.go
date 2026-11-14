@@ -37,18 +37,25 @@ func TestOracleVerdictReadsParseErrors(t *testing.T) {
 		{"the parser's error at the end", "SELECT 1 FROM", &answer{903, 13, ""}, nil, "reject@13"},
 		{"a name looked up after the parse", "SELECT zz FROM dual", &answer{904, 7, ""}, &answer{911, 21, ""}, Accept},
 		{"a name taken, after the parse", "CREATE TABLE a (a INT)", &answer{955, 13, ""}, &answer{911, 24, ""}, Accept},
-		{"a missing clause, at the end and after the parse", "CREATE PLUGGABLE DATABASE a FROM b", &answer{65016, 34, ""}, &answer{911, 36, ""}, Accept},
+		{"a missing clause, at the end and after the parse", "CREATE PLUGGABLE DATABASE a FROM b", &answer{65016, 34, ""}, nil, Accept},
 		{"a privilege", "CREATE USER a IDENTIFIED BY a", &answer{1031, 0, ""}, nil, Accept},
 		{"a privilege, at a byte outside the statement", "AUDIT POLICY zz", &answer{1031, 27, ""}, nil, Accept},
 		{"a trigger on a missing table", "CREATE TRIGGER a BEFORE INSERT ON zz BEGIN NULL; END;", &answer{942, 34, ""}, nil, Accept},
 		{"a refusal while parsing", "AUDIT ALL ON a", &answer{46401, 6, ""}, &answer{46401, 6, ""}, "reject@6"},
 		{"a parameter looked up while parsing", "ALTER SYSTEM SET a = 1", &answer{2065, 17, ""}, &answer{2065, 17, ""}, "reject@17"},
 		{"a refusal at a byte outside the statement", "AUDIT a", &answer{46401, 30, ""}, &answer{46401, 30, ""}, Reject},
-		{"a unit with a PL/SQL syntax error", "CREATE PROCEDURE a IS BEGIN NULL END;", &answer{24344, 0, "103"}, nil, Reject},
-		{"a unit with a name it cannot resolve", "CREATE PROCEDURE a IS BEGIN zz; END;", &answer{24344, 0, "201,0"}, nil, Accept},
-		{"a type with a PL/SQL syntax error", "CREATE TYPE a AS OBJECT (a INT", &answer{24344, 0, "103"}, nil, Reject},
-		{"a block with a PL/SQL syntax error", "BEGIN NULL END;", &answer{6550, 11, "103"}, nil, "reject@11"},
-		{"a block with a name it cannot resolve", "BEGIN zz; END;", &answer{6550, 6, "201"}, nil, Accept},
+		{"a unit with a PL/SQL syntax error", "CREATE PROCEDURE a IS BEGIN NULL END;", &answer{24344, 0, "PLS-00103"}, nil, Reject},
+		{"a unit with a name it cannot resolve", "CREATE PROCEDURE a IS BEGIN zz; END;", &answer{24344, 0, "PLS-00201,PLS-00000"}, nil, Accept},
+		{"a unit with SQL on a missing table", "CREATE PROCEDURE a IS BEGIN INSERT INTO zz VALUES (1); END;", &answer{24344, 12, "ORA-00942,PLS-00000"}, nil, Accept},
+		{"a unit with a SQL syntax error", "CREATE PROCEDURE a IS BEGIN INSERT INTO a VALUES (1) a a; END;", &answer{24344, 25, "ORA-03049,PLS-00000"}, nil, Reject},
+		{"a block with SQL on a missing table", "BEGIN INSERT INTO zz VALUES (1); END;", &answer{6550, 18, "ORA-00942"}, nil, Accept},
+		{"a block with a SQL syntax error", "BEGIN INSERT INTO a VALUES (1) a a; END;", &answer{6550, 31, "ORA-03049"}, nil, "reject@31"},
+		{"a type with a PL/SQL syntax error", "CREATE TYPE a AS OBJECT (a INT", &answer{24344, 0, "PLS-00103"}, nil, Reject},
+		{"a block with a PL/SQL syntax error", "BEGIN NULL END;", &answer{6550, 11, "PLS-00103"}, nil, "reject@11"},
+		{"a block with a name it cannot resolve", "BEGIN zz; END;", &answer{6550, 6, "PLS-00201"}, nil, Accept},
+		{"a probe answered at the tail by another error", "ALTER MATERIALIZED VIEW LOG ON a MERGE PARTITIONS a, a", &answer{12002, 0, ""}, &answer{14006, 56, ""}, Accept},
+		{"a probe the tail stops early, after a lookup", "ALTER INDEX a UNUSABLE", &answer{1418, 0, ""}, &answer{14048, 14, ""}, Accept},
+		{"a probe the tail stops early, after a syntax error", "SELECT 1 FROM dual a b", &answer{933, 21, ""}, &answer{923, 7, ""}, "reject@21"},
 	} {
 		var asked []string
 		parse := func(text string) error {
@@ -85,16 +92,15 @@ func TestOracleVerdictReadsParseErrors(t *testing.T) {
 // TestOracleVerdictRefusesWhatIsNoVerdict holds the verdict to failing on
 // an answer it cannot read, rather than recording an agreement.
 func TestOracleVerdictRefusesWhatIsNoVerdict(t *testing.T) {
-	lost := errors.New("ORA-03113: end-of-file on communication channel")
+	lost := errors.New("context deadline exceeded")
 	for _, c := range []struct {
 		name         string
 		first, probe error
 		want         string
 	}{
-		{"an error OracleParse did not raise", lost, nil, "ORA-03113"},
-		{"a probe answered so", oracleRaised(904, 7, ""), lost, "ORA-03113"},
+		{"an error OracleParse did not raise", lost, nil, "deadline"},
+		{"a probe answered so", oracleRaised(904, 7, ""), lost, "deadline"},
 		{"a probe the server took", oracleRaised(904, 7, ""), nil, "took the probe's tail"},
-		{"a probe that stopped elsewhere", oracleRaised(904, 7, ""), oracleRaised(936, 3, ""), "neither where"},
 		{"a unit with no errors listed", oracleRaised(24344, 0, ""), nil, "lists no PL/SQL error"},
 		{"a block with no errors listed", oracleRaised(6550, 0, ""), nil, "lists no PL/SQL error"},
 	} {
@@ -108,6 +114,44 @@ func TestOracleVerdictRefusesWhatIsNoVerdict(t *testing.T) {
 		})
 		if err == nil || !strings.Contains(err.Error(), c.want) {
 			t.Errorf("%s: got %v, want an error with %q", c.name, err, c.want)
+		}
+	}
+}
+
+// TestOracleVerdictReadsOraclesOwnFailures holds the verdict to reading a
+// statement Oracle fails on in its own code, on two sessions, as a
+// rejection, and asking again after one failure. The failures are those of
+// the pinned server: CREATE JAVA SOURCE USING kills the session's process
+// (ORA-07445 in the trace, end-of-file to the client), and a near-miss of
+// ALTER MATERIALIZED VIEW LOG ... SPLIT PARTITION raises ORA-00600.
+func TestOracleVerdictReadsOraclesOwnFailures(t *testing.T) {
+	eof := errors.New("EOF")
+	internal := errors.New("ORA-00600: internal error code, arguments: [12333], [PTI], [prspo_set_up]\nORA-06512: at \"SYS.DBMS_SQL\", line 1251")
+	for _, c := range []struct {
+		name    string
+		answers []error
+		want    string
+	}{
+		{"a dropped session, twice", []error{eof, eof}, Reject},
+		{"an internal error, twice", []error{internal, internal}, Reject},
+		{"a dropped session, then parsed", []error{eof, nil}, Accept},
+		{"a dropped session, then a syntax error", []error{eof, oracleRaised(936, 7, ""), oracleRaised(936, 7, "")}, "reject@7"},
+		{"a probe Oracle fails on, after a parser's error", []error{oracleRaised(936, 7, ""), internal}, "reject@7"},
+		{"a probe Oracle fails on, after a lookup", []error{oracleRaised(904, 7, ""), internal}, Accept},
+	} {
+		calls := 0
+		got, err := OracleVerdict("SELECT FROM zz", func(string) error {
+			calls++
+			if calls > len(c.answers) {
+				t.Fatalf("%s: asked %d times", c.name, calls)
+			}
+			return c.answers[calls-1]
+		})
+		if err != nil || got != c.want {
+			t.Errorf("%s: got %q, %v; want %s", c.name, got, err, c.want)
+		}
+		if calls != len(c.answers) {
+			t.Errorf("%s: asked %d times, want %d", c.name, calls, len(c.answers))
 		}
 	}
 }
