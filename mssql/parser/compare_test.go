@@ -24099,3 +24099,28 @@ func TestParseInsertBulkLineno(t *testing.T) {
 		}
 	})
 }
+
+// TestParseTableFormsSQLServerTakes pins forms the pinned SQL Server 2022
+// accepts that a stricter column or ALTER TABLE reading could lose.
+func TestParseTableFormsSQLServerTakes(t *testing.T) {
+	for _, sql := range []string{
+		"CREATE TABLE t (id int, timestamp)",
+		"CREATE TABLE t (id int, timestamp NOT NULL)",
+		"CREATE TABLE t (id int, [timestamp])",
+		"ALTER TABLE a ADD timestamp",
+		"DECLARE @t TABLE (id int, timestamp)",
+		"ALTER TABLE a SET (REMOTE_DATA_ARCHIVE (MIGRATION_STATE = INBOUND))",
+		"ALTER TABLE a SET (REMOTE_DATA_ARCHIVE (MIGRATION_STATE = INBOUND), LOCK_ESCALATION = AUTO)",
+	} {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q): %v", sql, err)
+		}
+	}
+	for _, sql := range []string{
+		"ALTER TABLE a SET (REMOTE_DATA_ARCHIVE (FILTER_PREDICATE = NULL))",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) = nil error, want SQL Server's rejection", sql)
+		}
+	}
+}

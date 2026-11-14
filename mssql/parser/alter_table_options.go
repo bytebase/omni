@@ -122,6 +122,20 @@ func (p *Parser) parseAlterTableSetOptions() (*nodes.List, error) {
 	}
 	var items []nodes.Node
 	for {
+		// REMOTE_DATA_ARCHIVE ( settings ) without a value changes a Stretch
+		// table's settings (the ALTER TABLE docs' <table_option> list).
+		if p.tableWordIs("REMOTE_DATA_ARCHIVE") && p.peekNext().Type == '(' {
+			p.advance()
+			sub, err := p.parseAlterTableRemoteDataArchiveSettings()
+			if err != nil {
+				return nil, err
+			}
+			items = append(items, &nodes.String{Str: "REMOTE_DATA_ARCHIVE"}, sub)
+			if _, ok := p.match(','); !ok {
+				break
+			}
+			continue
+		}
 		name, err := p.tableOptionName(nil, "LOCK_ESCALATION", "FILESTREAM_ON", "FILETABLE_DIRECTORY", "SYSTEM_VERSIONING", "REMOTE_DATA_ARCHIVE")
 		if err != nil {
 			return nil, err

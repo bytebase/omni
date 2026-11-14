@@ -716,7 +716,12 @@ func (p *Parser) parseTypedColumnDef() (*nodes.ColumnDef, error) {
 		return col, err
 	}
 	if col.DataType == nil && col.Computed == nil {
-		return nil, p.syntaxErrorAtCur()
+		// A timestamp column may leave out its name: SQL Server names the
+		// column timestamp and types it so (rowversion docs).
+		if strings.ToUpper(col.Name) != "TIMESTAMP" {
+			return nil, p.syntaxErrorAtCur()
+		}
+		col.DataType = &nodes.DataType{Name: "timestamp", Loc: col.Loc}
 	}
 	return col, nil
 }
