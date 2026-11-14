@@ -79,7 +79,6 @@ var nestingCases = []struct {
 	{"unclosed join groups", func(n int) string { return "SELECT * FROM " + strings.Repeat("(", n) }, false},
 	{"joins waiting for ON", func(n int) string { return "SELECT * FROM t" + strings.Repeat(" JOIN t", n) }, false},
 	{"unclosed blocks", func(n int) string { return strings.Repeat("BEGIN ", n) }, false},
-	{"unclosed WAITFOR", func(n int) string { return strings.Repeat("WAITFOR (", n) }, false},
 }
 
 // parseWithin parses sql on its own goroutine and reports false if it takes

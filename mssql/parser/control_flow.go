@@ -449,7 +449,13 @@ func (p *Parser) parseWaitForStmt() (*nodes.WaitForStmt, error) {
 		}
 	} else if p.cur.Type == '(' {
 		// Parenthesized form: WAITFOR ( receive_statement | get_conversation_group_statement )
+		// TSql160.g:14175 waitForStatement, 14207 waitforInnerStatement: the
+		// statement is RECEIVE or GET CONVERSATION GROUP, and the timeout
+		// after the comma is signedIntegerOrVariable.
 		p.advance() // consume '('
+		if p.cur.Type != kwRECEIVE && !(p.cur.Type == kwGET && p.peekNext().Type == kwCONVERSATION) {
+			return nil, p.syntaxErrorAtCur()
+		}
 		innerStmt, err := p.parseStmt()
 		if err != nil {
 			return nil, err
@@ -458,15 +464,17 @@ func (p *Parser) parseWaitForStmt() (*nodes.WaitForStmt, error) {
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
-		// Optional: , TIMEOUT timeout
 		if _, ok := p.match(','); ok {
-			if p.cur.Type == kwTIMEOUT {
-				p.advance()
-				var err error
-				stmt.Timeout, err = p.parseExpr()
-				if err != nil {
-					return nil, err
-				}
+			if _, err := p.expect(kwTIMEOUT); err != nil {
+				return nil, err
+			}
+			signed := (p.cur.Type == '-' || p.cur.Type == '+') && p.peekNext().Type == tokICONST
+			if !signed && p.cur.Type != tokICONST && p.cur.Type != tokVARIABLE {
+				return nil, p.syntaxErrorAtCur()
+			}
+			stmt.Timeout, err = p.parseUnary()
+			if err != nil {
+				return nil, err
 			}
 		}
 	}

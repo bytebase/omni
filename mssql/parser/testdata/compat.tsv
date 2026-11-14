@@ -454,10 +454,10 @@ reject	reject	engine	statement/executeAsStatement!drop-1	AS a
 accept	reject	engine	statement/executeAsStatement!drop-3	EXECUTE AS
 reject	reject	engine	statement/executeAsStatement!insert	EXECUTE AS a zzz
 reject	reject	engine	statement/executeAsStatement!swap	EXISTS AS a
-reject	accept	engine	statement/endConversationStatement	END CONVERSATION 1
+accept	accept	engine	statement/endConversationStatement	END CONVERSATION 1
 reject	accept	engine	statement/endConversationStatement!drop-1	CONVERSATION 1
 reject	reject	engine	statement/endConversationStatement!drop-2	END 1
-accept	reject	engine	statement/endConversationStatement!drop-3	END CONVERSATION
+reject	reject	engine	statement/endConversationStatement!drop-3	END CONVERSATION
 reject	reject	engine	statement/endConversationStatement!insert	END CONVERSATION 1 zzz
 reject	reject	engine	statement/endConversationStatement!swap	ENDPOINT CONVERSATION 1
 accept	accept	engine	withCommonTableExpressionsAndXmlNamespacesStatements/(withCommonTableExpressionsAndXmlNamespaces)?_(select|d~26cf1717	SELECT *
@@ -719,7 +719,7 @@ reject	reject	engine	identifierStatements/enableTriggerStatement_ENABLE!drop-4	E
 reject	reject	engine	identifierStatements/enableTriggerStatement_ENABLE!drop-5	ENABLE TRIGGER a ON
 reject	reject	engine	identifierStatements/enableTriggerStatement_ENABLE!insert	ENABLE TRIGGER a ON a zzz
 reject	reject	engine	identifierStatements/enableTriggerStatement_ENABLE!swap	ENABLED TRIGGER a ON a
-reject	accept	engine	identifierStatements/moveConversationStatement_MOVE	MOVE CONVERSATION 1 TO 1
+accept	accept	engine	identifierStatements/moveConversationStatement_MOVE	MOVE CONVERSATION 1 TO 1
 reject	reject	engine	identifierStatements/moveConversationStatement_MOVE!drop-1	CONVERSATION 1 TO 1
 reject	reject	engine	identifierStatements/moveConversationStatement_MOVE!drop-2	MOVE 1 TO 1
 reject	reject	engine	identifierStatements/moveConversationStatement_MOVE!drop-3	MOVE CONVERSATION TO 1
@@ -730,24 +730,24 @@ reject	reject	engine	identifierStatements/moveConversationStatement_MOVE!swap	MU
 accept	accept	engine	identifierStatements/getConversationGroupStatement_GET	GET CONVERSATION GROUP @a FROM a
 reject	reject	engine	identifierStatements/getConversationGroupStatement_GET!drop-1	CONVERSATION GROUP @a FROM a
 reject	reject	engine	identifierStatements/getConversationGroupStatement_GET!drop-2	GET GROUP @a FROM a
-accept	reject	engine	identifierStatements/getConversationGroupStatement_GET!drop-3	GET CONVERSATION @a FROM a
-accept	reject	engine	identifierStatements/getConversationGroupStatement_GET!drop-4	GET CONVERSATION GROUP FROM a
+reject	reject	engine	identifierStatements/getConversationGroupStatement_GET!drop-3	GET CONVERSATION @a FROM a
+reject	reject	engine	identifierStatements/getConversationGroupStatement_GET!drop-4	GET CONVERSATION GROUP FROM a
 reject	reject	engine	identifierStatements/getConversationGroupStatement_GET!drop-5	GET CONVERSATION GROUP @a a
-accept	reject	engine	identifierStatements/getConversationGroupStatement_GET!drop-6	GET CONVERSATION GROUP @a FROM
+reject	reject	engine	identifierStatements/getConversationGroupStatement_GET!drop-6	GET CONVERSATION GROUP @a FROM
 reject	reject	engine	identifierStatements/getConversationGroupStatement_GET!insert	GET CONVERSATION GROUP @a FROM a zzz
 reject	reject	engine	identifierStatements/getConversationGroupStatement_GET!swap	GLOBAL CONVERSATION GROUP @a FROM a
 accept	accept	engine	identifierStatements/receiveStatement_RECEIVE	RECEIVE * FROM a
 reject	reject	engine	identifierStatements/receiveStatement_RECEIVE!drop-1	* FROM a
-accept	reject	engine	identifierStatements/receiveStatement_RECEIVE!drop-2	RECEIVE FROM a
+reject	reject	engine	identifierStatements/receiveStatement_RECEIVE!drop-2	RECEIVE FROM a
 reject	reject	engine	identifierStatements/receiveStatement_RECEIVE!drop-3	RECEIVE * a
-accept	reject	engine	identifierStatements/receiveStatement_RECEIVE!drop-4	RECEIVE * FROM
+reject	reject	engine	identifierStatements/receiveStatement_RECEIVE!drop-4	RECEIVE * FROM
 reject	reject	engine	identifierStatements/receiveStatement_RECEIVE!insert	RECEIVE * FROM a zzz
 reject	reject	engine	identifierStatements/receiveStatement_RECEIVE!swap	RECOMPILE * FROM a
-reject	accept	engine	identifierStatements/sendStatement_SEND	SEND ON CONVERSATION 1
+accept	accept	engine	identifierStatements/sendStatement_SEND	SEND ON CONVERSATION 1
 reject	reject	engine	identifierStatements/sendStatement_SEND!drop-1	ON CONVERSATION 1
 reject	reject	engine	identifierStatements/sendStatement_SEND!drop-2	SEND CONVERSATION 1
 reject	reject	engine	identifierStatements/sendStatement_SEND!drop-3	SEND ON 1
-accept	reject	engine	identifierStatements/sendStatement_SEND!drop-4	SEND ON CONVERSATION
+reject	reject	engine	identifierStatements/sendStatement_SEND!drop-4	SEND ON CONVERSATION
 reject	reject	engine	identifierStatements/sendStatement_SEND!insert	SEND ON CONVERSATION 1 zzz
 reject	reject	engine	identifierStatements/sendStatement_SEND!swap	SENSITIVITY ON CONVERSATION 1
 accept	reject	engine	identifierStatements/throwStatement_THROW	THROW
@@ -831,10 +831,10 @@ reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~8
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createAvailabilityGroupStatement_AVAILABILITY!swap	CREATE AVAILABILITY_MODE GROUP a FOR REPLICA ON 'a' WITH(AVAILABILITY_MODE = SYNCHRONOUS_COMMIT)
 accept	accept	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createBrokerPriorityStatement_BROKER	CREATE BROKER PRIORITY a FOR CONVERSATION
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createBrokerPriorityStatement_BROKER!drop-1	CREATE PRIORITY a FOR CONVERSATION
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createBrokerPriorityStatement_BROKER!drop-2	CREATE BROKER a FOR CONVERSATION
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createBrokerPriorityStatement_BROKER!drop-3	CREATE BROKER PRIORITY FOR CONVERSATION
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createBrokerPriorityStatement_BROKER!drop-2	CREATE BROKER a FOR CONVERSATION
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createBrokerPriorityStatement_BROKER!drop-3	CREATE BROKER PRIORITY FOR CONVERSATION
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createBrokerPriorityStatement_BROKER!drop-4	CREATE BROKER PRIORITY a CONVERSATION
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createBrokerPriorityStatement_BROKER!drop-5	CREATE BROKER PRIORITY a FOR
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createBrokerPriorityStatement_BROKER!drop-5	CREATE BROKER PRIORITY a FOR
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createBrokerPriorityStatement_BROKER!insert	CREATE BROKER PRIORITY a FOR CONVERSATION zzz
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createBrokerPriorityStatement_BROKER!swap	CREATE BROWSE PRIORITY a FOR CONVERSATION
 accept	accept	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createCertificateStatement_CERTIFICATE	CREATE CERTIFICATE a FROM ASSEMBLY a
@@ -872,13 +872,13 @@ reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~8
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createColumnStoreIndexStatement_COLUMNSTORE!swap	CREATE COLUMN_ENCRYPTION_KEY INDEX a ON a
 accept	accept	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createContractStatement_CONTRACT	CREATE CONTRACT a(a SENT BY ANY)
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createContractStatement_CONTRACT!drop-1	CREATE a(a SENT BY ANY)
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createContractStatement_CONTRACT!drop-2	CREATE CONTRACT(a SENT BY ANY)
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createContractStatement_CONTRACT!drop-2	CREATE CONTRACT(a SENT BY ANY)
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createContractStatement_CONTRACT!drop-3	CREATE CONTRACT a a SENT BY ANY)
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createContractStatement_CONTRACT!drop-4	CREATE CONTRACT a(SENT BY ANY)
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createContractStatement_CONTRACT!drop-5	CREATE CONTRACT a(a BY ANY)
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createContractStatement_CONTRACT!drop-6	CREATE CONTRACT a(a SENT ANY)
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createContractStatement_CONTRACT!drop-7	CREATE CONTRACT a(a SENT BY)
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createContractStatement_CONTRACT!drop-8	CREATE CONTRACT a(a SENT BY ANY
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createContractStatement_CONTRACT!drop-6	CREATE CONTRACT a(a SENT ANY)
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createContractStatement_CONTRACT!drop-7	CREATE CONTRACT a(a SENT BY)
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createContractStatement_CONTRACT!drop-8	CREATE CONTRACT a(a SENT BY ANY
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createContractStatement_CONTRACT!insert	CREATE CONTRACT a(a SENT BY ANY) zzz
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createContractStatement_CONTRACT!swap	CREATE CONVERSATION a(a SENT BY ANY)
 accept	accept	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createCredentialStatement_CREDENTIAL	CREATE CREDENTIAL a WITH IDENTITY = 'a'
@@ -989,7 +989,7 @@ reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~8
 accept	accept	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createMessageTypeStatement_MESSAGE	CREATE MESSAGE TYPE a
 accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createMessageTypeStatement_MESSAGE!drop-1	CREATE TYPE a
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createMessageTypeStatement_MESSAGE!drop-2	CREATE MESSAGE a
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createMessageTypeStatement_MESSAGE!drop-3	CREATE MESSAGE TYPE
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createMessageTypeStatement_MESSAGE!drop-3	CREATE MESSAGE TYPE
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createMessageTypeStatement_MESSAGE!insert	CREATE MESSAGE TYPE a zzz
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createMessageTypeStatement_MESSAGE!swap	CREATE MESSAGE_FORWARDING TYPE a
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createMasterKeyStatement_MASTER	CREATE MASTER KEY
@@ -1008,21 +1008,21 @@ reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~8
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createPartitionStatement_PARTITION!insert	CREATE PARTITION SCHEME a AS PARTITION a TO('a') zzz
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createPartitionStatement_PARTITION!swap	CREATE PARTITIONS SCHEME a AS PARTITION a TO('a')
 accept	accept	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createQueueStatement_QUEUE	CREATE QUEUE a
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createQueueStatement_QUEUE!drop-2	CREATE QUEUE
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createQueueStatement_QUEUE!drop-2	CREATE QUEUE
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createQueueStatement_QUEUE!insert	CREATE QUEUE a zzz
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createQueueStatement_QUEUE!swap	CREATE RAISERROR a
 accept	accept	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createRemoteServiceBindingStatement_REMOTE	CREATE REMOTE SERVICE BINDING a TO SERVICE 'a' WITH USER = a
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createRemoteServiceBindingStatement_REMOTE!drop-1	CREATE SERVICE BINDING a TO SERVICE 'a' WITH USER = a
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createRemoteServiceBindingStatement_REMOTE!drop-2	CREATE REMOTE BINDING a TO SERVICE 'a' WITH USER = a
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createRemoteServiceBindingStatement_REMOTE!drop-3	CREATE REMOTE SERVICE a TO SERVICE 'a' WITH USER = a
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createRemoteServiceBindingStatement_REMOTE!drop-4	CREATE REMOTE SERVICE BINDING TO SERVICE 'a' WITH USER = a
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createRemoteServiceBindingStatement_REMOTE!drop-2	CREATE REMOTE BINDING a TO SERVICE 'a' WITH USER = a
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createRemoteServiceBindingStatement_REMOTE!drop-3	CREATE REMOTE SERVICE a TO SERVICE 'a' WITH USER = a
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createRemoteServiceBindingStatement_REMOTE!drop-4	CREATE REMOTE SERVICE BINDING TO SERVICE 'a' WITH USER = a
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createRemoteServiceBindingStatement_REMOTE!drop-5	CREATE REMOTE SERVICE BINDING a SERVICE 'a' WITH USER = a
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createRemoteServiceBindingStatement_REMOTE!drop-6	CREATE REMOTE SERVICE BINDING a TO 'a' WITH USER = a
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createRemoteServiceBindingStatement_REMOTE!drop-7	CREATE REMOTE SERVICE BINDING a TO SERVICE WITH USER = a
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createRemoteServiceBindingStatement_REMOTE!drop-6	CREATE REMOTE SERVICE BINDING a TO 'a' WITH USER = a
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createRemoteServiceBindingStatement_REMOTE!drop-7	CREATE REMOTE SERVICE BINDING a TO SERVICE WITH USER = a
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createRemoteServiceBindingStatement_REMOTE!drop-8	CREATE REMOTE SERVICE BINDING a TO SERVICE 'a' USER = a
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createRemoteServiceBindingStatement_REMOTE!drop-9	CREATE REMOTE SERVICE BINDING a TO SERVICE 'a' WITH = a
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createRemoteServiceBindingStatement_REMOTE!drop-10	CREATE REMOTE SERVICE BINDING a TO SERVICE 'a' WITH USER a
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createRemoteServiceBindingStatement_REMOTE!drop-11	CREATE REMOTE SERVICE BINDING a TO SERVICE 'a' WITH USER =
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createRemoteServiceBindingStatement_REMOTE!drop-11	CREATE REMOTE SERVICE BINDING a TO SERVICE 'a' WITH USER =
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createRemoteServiceBindingStatement_REMOTE!insert	CREATE REMOTE SERVICE BINDING a TO SERVICE 'a' WITH USER = a zzz
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createRemoteServiceBindingStatement_REMOTE!swap	CREATE REMOTE_DATA_ARCHIVE SERVICE BINDING a TO SERVICE 'a' WITH USER = a
 accept	accept	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createResourcePoolStatement_RESOURCE	CREATE RESOURCE POOL a
@@ -1035,13 +1035,13 @@ accept	accept	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~8
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createRoleStatement_ROLE!drop-2	CREATE ROLE
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createRoleStatement_ROLE!insert	CREATE ROLE a zzz
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createRoleStatement_ROLE!swap	CREATE ROLLBACK a
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createRouteStatement_ROUTE	CREATE ROUTE a WITH LIFETIME = 1
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createRouteStatement_ROUTE	CREATE ROUTE a WITH LIFETIME = 1
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createRouteStatement_ROUTE!drop-1	CREATE a WITH LIFETIME = 1
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createRouteStatement_ROUTE!drop-2	CREATE ROUTE WITH LIFETIME = 1
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createRouteStatement_ROUTE!drop-2	CREATE ROUTE WITH LIFETIME = 1
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createRouteStatement_ROUTE!drop-3	CREATE ROUTE a LIFETIME = 1
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createRouteStatement_ROUTE!drop-4	CREATE ROUTE a WITH = 1
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createRouteStatement_ROUTE!drop-5	CREATE ROUTE a WITH LIFETIME 1
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createRouteStatement_ROUTE!drop-6	CREATE ROUTE a WITH LIFETIME =
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createRouteStatement_ROUTE!drop-6	CREATE ROUTE a WITH LIFETIME =
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createRouteStatement_ROUTE!insert	CREATE ROUTE a WITH LIFETIME = 1 zzz
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createRouteStatement_ROUTE!swap	CREATE ROW a WITH LIFETIME = 1
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSearchPropertyListStatement_SEARCH	CREATE SEARCH PROPERTY LIST a
@@ -1053,10 +1053,10 @@ reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~8
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSearchPropertyListStatement_SEARCH!swap	CREATE SECONDARY_ROLE PROPERTY LIST a
 accept	accept	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createServiceStatement_SERVICE	CREATE SERVICE a ON QUEUE a
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createServiceStatement_SERVICE!drop-1	CREATE a ON QUEUE a
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createServiceStatement_SERVICE!drop-2	CREATE SERVICE ON QUEUE a
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createServiceStatement_SERVICE!drop-2	CREATE SERVICE ON QUEUE a
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createServiceStatement_SERVICE!drop-3	CREATE SERVICE a QUEUE a
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createServiceStatement_SERVICE!drop-4	CREATE SERVICE a ON a
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createServiceStatement_SERVICE!drop-5	CREATE SERVICE a ON QUEUE
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createServiceStatement_SERVICE!drop-5	CREATE SERVICE a ON QUEUE
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createServiceStatement_SERVICE!insert	CREATE SERVICE a ON QUEUE a zzz
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createServiceStatement_SERVICE!swap	CREATE SERVICE_OBJECTIVE a ON QUEUE a
 accept	accept	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSpatialIndexStatement_SPATIAL	CREATE SPATIAL INDEX a ON a(a)
@@ -1351,7 +1351,7 @@ reject	reject	engine	passwordChangeOption(ENCRYPTION|DECRYPTION)/DECRYPTION	ALTE
 reject	reject	engine	passwordChangeOption(ENCRYPTION|DECRYPTION)/DECRYPTION!insert	ALTER CERTIFICATE a WITH PRIVATE KEY(DECRYPTION zzz BY a = 'a')
 reject	reject	engine	passwordChangeOption(ENCRYPTION|DECRYPTION)/DECRYPTION!swap	ALTER CERTIFICATE a WITH PRIVATE KEY(DEFAULT BY a = 'a')
 accept	accept	engine	contractMessage/identifier_SENT_By_(Any|(INITIATOR|TARGET))	CREATE CONTRACT a(a SENT BY ANY)
-accept	reject	engine	contractMessage/identifier_SENT_By_(Any|(INITIATOR|TARGET))!truncate	CREATE CONTRACT a(a SENT BY
+reject	reject	engine	contractMessage/identifier_SENT_By_(Any|(INITIATOR|TARGET))!truncate	CREATE CONTRACT a(a SENT BY
 reject	reject	engine	contractMessage/identifier_SENT_By_(Any|(INITIATOR|TARGET))!insert	CREATE CONTRACT a(a SENT BY ANY zzz)
 reject	reject	engine	contractMessage/identifier_SENT_By_(Any|(INITIATOR|TARGET))!swap	CREATE CONTRACT a(a SEQUENCE BY ANY)
 accept	accept	engine	contractMessage(Any|(INITIATOR|TARGET))/Any	CREATE CONTRACT a(a SENT BY ANY)
@@ -4710,32 +4710,32 @@ reject	reject	engine	createPartitionScheme(Comma_stringOrIdentifier)*/Comma_stri
 accept	accept	engine	bindingUserOption/User_EqualsSign_identifier	ALTER REMOTE SERVICE BINDING a WITH USER = a
 reject	reject	engine	bindingUserOption/User_EqualsSign_identifier!drop-1	ALTER REMOTE SERVICE BINDING a WITH = a
 reject	reject	engine	bindingUserOption/User_EqualsSign_identifier!drop-2	ALTER REMOTE SERVICE BINDING a WITH USER a
-accept	reject	engine	bindingUserOption/User_EqualsSign_identifier!drop-3	ALTER REMOTE SERVICE BINDING a WITH USER =
+reject	reject	engine	bindingUserOption/User_EqualsSign_identifier!drop-3	ALTER REMOTE SERVICE BINDING a WITH USER =
 reject	reject	engine	bindingUserOption/User_EqualsSign_identifier!insert	ALTER REMOTE SERVICE BINDING a WITH USER = a zzz
-accept	reject	engine	bindingUserOption/User_EqualsSign_identifier!swap	ALTER REMOTE SERVICE BINDING a WITH USER_DB = a
+reject	reject	engine	bindingUserOption/User_EqualsSign_identifier!swap	ALTER REMOTE SERVICE BINDING a WITH USER_DB = a
 accept	accept	engine	bindingAnonymousOption/ANONYMOUS_EqualsSign_optionOnOff	ALTER REMOTE SERVICE BINDING a WITH ANONYMOUS = ON
 reject	reject	engine	bindingAnonymousOption/ANONYMOUS_EqualsSign_optionOnOff!drop-1	ALTER REMOTE SERVICE BINDING a WITH = ON
 reject	reject	engine	bindingAnonymousOption/ANONYMOUS_EqualsSign_optionOnOff!drop-2	ALTER REMOTE SERVICE BINDING a WITH ANONYMOUS ON
-accept	reject	engine	bindingAnonymousOption/ANONYMOUS_EqualsSign_optionOnOff!drop-3	ALTER REMOTE SERVICE BINDING a WITH ANONYMOUS =
+reject	reject	engine	bindingAnonymousOption/ANONYMOUS_EqualsSign_optionOnOff!drop-3	ALTER REMOTE SERVICE BINDING a WITH ANONYMOUS =
 reject	reject	engine	bindingAnonymousOption/ANONYMOUS_EqualsSign_optionOnOff!insert	ALTER REMOTE SERVICE BINDING a WITH ANONYMOUS = ON zzz
 reject	reject	engine	bindingAnonymousOption/ANONYMOUS_EqualsSign_optionOnOff!swap	ALTER REMOTE SERVICE BINDING a WITH ANY = ON
 accept	accept	engine	onQueueClause/On_QUEUE_schemaObjectThreePartName	ALTER SERVICE a ON QUEUE a
 reject	reject	engine	onQueueClause/On_QUEUE_schemaObjectThreePartName!drop-1	ALTER SERVICE a QUEUE a
 reject	reject	engine	onQueueClause/On_QUEUE_schemaObjectThreePartName!drop-2	ALTER SERVICE a ON a
-accept	reject	engine	onQueueClause/On_QUEUE_schemaObjectThreePartName!drop-3	ALTER SERVICE a ON QUEUE
+reject	reject	engine	onQueueClause/On_QUEUE_schemaObjectThreePartName!drop-3	ALTER SERVICE a ON QUEUE
 reject	reject	engine	onQueueClause/On_QUEUE_schemaObjectThreePartName!insert	ALTER SERVICE a ON QUEUE a zzz
 reject	reject	engine	onQueueClause/On_QUEUE_schemaObjectThreePartName!swap	ALTER SERVICE a ONLINE QUEUE a
 accept	accept	engine	serviceContract/identifier	CREATE SERVICE a ON QUEUE a(a)
-accept	reject	engine	serviceContract/identifier!drop-1	CREATE SERVICE a ON QUEUE a()
-accept	reject	engine	serviceContract/identifier!truncate	CREATE SERVICE a ON QUEUE a(
+reject	reject	engine	serviceContract/identifier!drop-1	CREATE SERVICE a ON QUEUE a()
+reject	reject	engine	serviceContract/identifier!truncate	CREATE SERVICE a ON QUEUE a(
 reject	reject	engine	serviceContract/identifier!insert	CREATE SERVICE a ON QUEUE a(a zzz)
 accept	accept	engine	alterServiceStatement/identifier_((onQueueClause_(addDropServiceContra~244b504a)	ALTER SERVICE a ON QUEUE a
-accept	reject	engine	alterServiceStatement/identifier_((onQueueClause_(addDropServiceContra~244b504a)!drop-1	ALTER SERVICE ON QUEUE a
+reject	reject	engine	alterServiceStatement/identifier_((onQueueClause_(addDropServiceContra~244b504a)!drop-1	ALTER SERVICE ON QUEUE a
 accept	accept	engine	alterServiceStatement((onQueueClause_(addDropServiceContra~244b504a)/onQueueClause_(addDropServiceContractList)?	ALTER SERVICE a ON QUEUE a
 reject	reject	engine	alterServiceStatement((onQueueClause_(addDropServiceContra~244b504a)/addDropServiceContractList	ALTER SERVICE a(DROP a a)
 reject	reject	engine	alterServiceStatement((onQueueClause_(addDropServiceContra~244b504a)/addDropServiceContractList!drop-1	ALTER SERVICE a DROP a a)
 reject	reject	engine	alterServiceStatement((onQueueClause_(addDropServiceContra~244b504a)/addDropServiceContractList!drop-2	ALTER SERVICE a(a a)
-accept	reject	engine	alterServiceStatement((onQueueClause_(addDropServiceContra~244b504a)/addDropServiceContractList!drop-3	ALTER SERVICE a(DROP a)
+reject	reject	engine	alterServiceStatement((onQueueClause_(addDropServiceContra~244b504a)/addDropServiceContractList!drop-3	ALTER SERVICE a(DROP a)
 reject	reject	engine	alterServiceStatement((onQueueClause_(addDropServiceContra~244b504a)/addDropServiceContractList!drop-5	ALTER SERVICE a(DROP a a
 reject	reject	engine	alterServiceStatement((onQueueClause_(addDropServiceContra~244b504a)/addDropServiceContractList!insert	ALTER SERVICE a(DROP a a) zzz
 reject	reject	engine	alterServiceStatement((onQueueClause_(addDropServiceContra~244b504a)/addDropServiceContractList!swap	ALTER SERVICE a(DROP_INDEX a a)
@@ -4743,7 +4743,7 @@ accept	accept	engine	alterServiceStatement(addDropServiceContractList)?/%empty	A
 reject	reject	engine	alterServiceStatement(addDropServiceContractList)?/addDropServiceContractList	ALTER SERVICE a ON QUEUE a(DROP a a)
 reject	reject	engine	alterServiceStatement(addDropServiceContractList)?/addDropServiceContractList!drop-1	ALTER SERVICE a ON QUEUE a DROP a a)
 reject	reject	engine	alterServiceStatement(addDropServiceContractList)?/addDropServiceContractList!drop-2	ALTER SERVICE a ON QUEUE a(a a)
-accept	reject	engine	alterServiceStatement(addDropServiceContractList)?/addDropServiceContractList!drop-3	ALTER SERVICE a ON QUEUE a(DROP a)
+reject	reject	engine	alterServiceStatement(addDropServiceContractList)?/addDropServiceContractList!drop-3	ALTER SERVICE a ON QUEUE a(DROP a)
 reject	reject	engine	alterServiceStatement(addDropServiceContractList)?/addDropServiceContractList!drop-5	ALTER SERVICE a ON QUEUE a(DROP a a
 reject	reject	engine	alterServiceStatement(addDropServiceContractList)?/addDropServiceContractList!insert	ALTER SERVICE a ON QUEUE a(DROP a a) zzz
 reject	reject	engine	alterServiceStatement(addDropServiceContractList)?/addDropServiceContractList!swap	ALTER SERVICE a ON QUEUE a(DROP_INDEX a a)
@@ -4758,9 +4758,9 @@ reject	reject	engine	addDropServiceContractList(Comma_addDropServiceContract)*/C
 reject	reject	engine	addDropServiceContractList(Comma_addDropServiceContract)*/Comma_addDropServiceContract_(Comma_addDropServiceContract)*!insert	ALTER SERVICE a(DROP a a, DROP a a zzz)
 reject	reject	engine	addDropServiceContractList(Comma_addDropServiceContract)*/Comma_addDropServiceContract_(Comma_addDropServiceContract)*!swap	ALTER SERVICE a(DROP a a, DROP_INDEX a a)
 reject	reject	engine	addDropServiceContract/(Drop|Add)_Identifier_identifier	ALTER SERVICE a(DROP a a)
-accept	reject	engine	addDropServiceContract/(Drop|Add)_Identifier_identifier!truncate	ALTER SERVICE a(DROP a
+reject	reject	engine	addDropServiceContract/(Drop|Add)_Identifier_identifier!truncate	ALTER SERVICE a(DROP a
 reject	reject	engine	addDropServiceContract(Drop|Add)/Drop	ALTER SERVICE a(DROP a a)
-accept	reject	engine	addDropServiceContract(Drop|Add)/Drop!truncate	ALTER SERVICE a(
+reject	reject	engine	addDropServiceContract(Drop|Add)/Drop!truncate	ALTER SERVICE a(
 reject	reject	engine	addDropServiceContract(Drop|Add)/Drop!insert	ALTER SERVICE a(DROP zzz a a)
 reject	reject	engine	addDropServiceContract(Drop|Add)/Add	ALTER SERVICE a(ADD a a)
 reject	reject	engine	addDropServiceContract(Drop|Add)/Add!insert	ALTER SERVICE a(ADD zzz a a)
@@ -5010,12 +5010,12 @@ reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8
 accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterAvailabilityGroupStatement_AVAILABILITY!drop-2	ALTER AVAILABILITY a FAILOVER
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterAvailabilityGroupStatement_AVAILABILITY!drop-3	ALTER AVAILABILITY GROUP FAILOVER
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterAvailabilityGroupStatement_AVAILABILITY!swap	ALTER AVAILABILITY_MODE GROUP a FAILOVER
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterBrokerPriorityStatement_BROKER	ALTER BROKER PRIORITY a FOR CONVERSATION
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterBrokerPriorityStatement_BROKER	ALTER BROKER PRIORITY a FOR CONVERSATION
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterBrokerPriorityStatement_BROKER!drop-1	ALTER PRIORITY a FOR CONVERSATION
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterBrokerPriorityStatement_BROKER!drop-2	ALTER BROKER a FOR CONVERSATION
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterBrokerPriorityStatement_BROKER!drop-3	ALTER BROKER PRIORITY FOR CONVERSATION
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterBrokerPriorityStatement_BROKER!drop-2	ALTER BROKER a FOR CONVERSATION
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterBrokerPriorityStatement_BROKER!drop-3	ALTER BROKER PRIORITY FOR CONVERSATION
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterBrokerPriorityStatement_BROKER!drop-4	ALTER BROKER PRIORITY a CONVERSATION
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterBrokerPriorityStatement_BROKER!drop-5	ALTER BROKER PRIORITY a FOR
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterBrokerPriorityStatement_BROKER!drop-5	ALTER BROKER PRIORITY a FOR
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterBrokerPriorityStatement_BROKER!insert	ALTER BROKER PRIORITY a FOR CONVERSATION zzz
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterBrokerPriorityStatement_BROKER!swap	ALTER BROWSE PRIORITY a FOR CONVERSATION
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterCryptographicProviderStatement_CRYPTOGRAPHIC	ALTER CRYPTOGRAPHIC PROVIDER a a
@@ -5036,9 +5036,9 @@ reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterExternalStatements	ALTER EXTERNAL RESOURCE POOL a
 accept	accept	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterRemoteServiceBindingStatement_REMOTE	ALTER REMOTE SERVICE BINDING a WITH USER = a
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterRemoteServiceBindingStatement_REMOTE!drop-1	ALTER SERVICE BINDING a WITH USER = a
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterRemoteServiceBindingStatement_REMOTE!drop-2	ALTER REMOTE BINDING a WITH USER = a
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterRemoteServiceBindingStatement_REMOTE!drop-3	ALTER REMOTE SERVICE a WITH USER = a
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterRemoteServiceBindingStatement_REMOTE!drop-4	ALTER REMOTE SERVICE BINDING WITH USER = a
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterRemoteServiceBindingStatement_REMOTE!drop-2	ALTER REMOTE BINDING a WITH USER = a
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterRemoteServiceBindingStatement_REMOTE!drop-3	ALTER REMOTE SERVICE a WITH USER = a
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterRemoteServiceBindingStatement_REMOTE!drop-4	ALTER REMOTE SERVICE BINDING WITH USER = a
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterRemoteServiceBindingStatement_REMOTE!drop-5	ALTER REMOTE SERVICE BINDING a USER = a
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterRemoteServiceBindingStatement_REMOTE!swap	ALTER REMOTE_DATA_ARCHIVE SERVICE BINDING a WITH USER = a
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterResourceStatement_RESOURCE	ALTER RESOURCE POOL a
@@ -5119,11 +5119,11 @@ accept	accept	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterPartitionStatement_PARTITION!swap	ALTER PARTITIONS SCHEME a NEXT USED
 accept	accept	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterQueueStatement_QUEUE	ALTER QUEUE a WITH STATUS = ON
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterQueueStatement_QUEUE!drop-1	ALTER a WITH STATUS = ON
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterQueueStatement_QUEUE!drop-2	ALTER QUEUE WITH STATUS = ON
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterQueueStatement_QUEUE!drop-2	ALTER QUEUE WITH STATUS = ON
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterQueueStatement_QUEUE!drop-3	ALTER QUEUE a STATUS = ON
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterQueueStatement_QUEUE!drop-4	ALTER QUEUE a WITH = ON
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterQueueStatement_QUEUE!drop-5	ALTER QUEUE a WITH STATUS ON
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterQueueStatement_QUEUE!drop-6	ALTER QUEUE a WITH STATUS =
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterQueueStatement_QUEUE!drop-5	ALTER QUEUE a WITH STATUS ON
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterQueueStatement_QUEUE!drop-6	ALTER QUEUE a WITH STATUS =
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterQueueStatement_QUEUE!insert	ALTER QUEUE a WITH STATUS = ON zzz
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterQueueStatement_QUEUE!swap	ALTER RAISERROR a WITH STATUS = ON
 accept	accept	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterRoleStatement_ROLE	ALTER ROLE a ADD MEMBER a
@@ -5136,11 +5136,11 @@ reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterRoleStatement_ROLE!swap	ALTER ROLLBACK a ADD MEMBER a
 accept	accept	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterRouteStatement_ROUTE	ALTER ROUTE a WITH LIFETIME = 1
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterRouteStatement_ROUTE!drop-1	ALTER a WITH LIFETIME = 1
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterRouteStatement_ROUTE!drop-2	ALTER ROUTE WITH LIFETIME = 1
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterRouteStatement_ROUTE!drop-2	ALTER ROUTE WITH LIFETIME = 1
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterRouteStatement_ROUTE!drop-3	ALTER ROUTE a LIFETIME = 1
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterRouteStatement_ROUTE!drop-4	ALTER ROUTE a WITH = 1
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterRouteStatement_ROUTE!drop-5	ALTER ROUTE a WITH LIFETIME 1
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterRouteStatement_ROUTE!drop-6	ALTER ROUTE a WITH LIFETIME =
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterRouteStatement_ROUTE!drop-6	ALTER ROUTE a WITH LIFETIME =
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterRouteStatement_ROUTE!insert	ALTER ROUTE a WITH LIFETIME = 1 zzz
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterRouteStatement_ROUTE!swap	ALTER ROW a WITH LIFETIME = 1
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterSearchPropertyListStatement_SEARCH	ALTER SEARCH PROPERTY LIST a DROP 'a'
@@ -5586,11 +5586,11 @@ reject	reject	engine	executeAsClause(stringLiteral|Identifier)/Identifier!insert
 accept	accept	engine	queueOptionList/With_queueOption_(Comma_queueOption)*	ALTER QUEUE a WITH STATUS = ON
 reject	reject	engine	queueOptionList/With_queueOption_(Comma_queueOption)*!swap	ALTER QUEUE a WITHIN STATUS = ON
 accept	accept	engine	queueOptionList(Comma_queueOption)*/%empty	ALTER QUEUE a WITH STATUS = ON
-accept	reject	engine	queueOptionList(Comma_queueOption)*/Comma_queueOption_(Comma_queueOption)*	ALTER QUEUE a WITH STATUS = ON, STATUS = ON
+reject	reject	engine	queueOptionList(Comma_queueOption)*/Comma_queueOption_(Comma_queueOption)*	ALTER QUEUE a WITH STATUS = ON, STATUS = ON
 reject	reject	engine	queueOptionList(Comma_queueOption)*/Comma_queueOption_(Comma_queueOption)*!drop-1	ALTER QUEUE a WITH STATUS = ON STATUS = ON
 reject	reject	engine	queueOptionList(Comma_queueOption)*/Comma_queueOption_(Comma_queueOption)*!drop-2	ALTER QUEUE a WITH STATUS = ON, = ON
-accept	reject	engine	queueOptionList(Comma_queueOption)*/Comma_queueOption_(Comma_queueOption)*!drop-3	ALTER QUEUE a WITH STATUS = ON, STATUS ON
-accept	reject	engine	queueOptionList(Comma_queueOption)*/Comma_queueOption_(Comma_queueOption)*!drop-4	ALTER QUEUE a WITH STATUS = ON, STATUS =
+reject	reject	engine	queueOptionList(Comma_queueOption)*/Comma_queueOption_(Comma_queueOption)*!drop-3	ALTER QUEUE a WITH STATUS = ON, STATUS ON
+reject	reject	engine	queueOptionList(Comma_queueOption)*/Comma_queueOption_(Comma_queueOption)*!drop-4	ALTER QUEUE a WITH STATUS = ON, STATUS =
 reject	reject	engine	queueOptionList(Comma_queueOption)*/Comma_queueOption_(Comma_queueOption)*!insert	ALTER QUEUE a WITH STATUS = ON, STATUS = ON zzz
 reject	reject	engine	queueOptionList(Comma_queueOption)*/Comma_queueOption_(Comma_queueOption)*!swap	ALTER QUEUE a WITH STATUS = ON, STATUSONLY = ON
 accept	accept	engine	queueOption/stateQueueOption	ALTER QUEUE a WITH STATUS = ON
@@ -5598,22 +5598,22 @@ reject	reject	engine	queueOption/stateQueueOption!swap	ALTER QUEUE a WITH STATUS
 accept	accept	engine	queueOption/queueActivationOption_ACTIVATION	ALTER QUEUE a WITH ACTIVATION(DROP)
 reject	reject	engine	queueOption/queueActivationOption_ACTIVATION!drop-1	ALTER QUEUE a WITH(DROP)
 reject	reject	engine	queueOption/queueActivationOption_ACTIVATION!drop-2	ALTER QUEUE a WITH ACTIVATION DROP)
-accept	reject	engine	queueOption/queueActivationOption_ACTIVATION!drop-3	ALTER QUEUE a WITH ACTIVATION()
-accept	reject	engine	queueOption/queueActivationOption_ACTIVATION!drop-4	ALTER QUEUE a WITH ACTIVATION(DROP
+reject	reject	engine	queueOption/queueActivationOption_ACTIVATION!drop-3	ALTER QUEUE a WITH ACTIVATION()
+reject	reject	engine	queueOption/queueActivationOption_ACTIVATION!drop-4	ALTER QUEUE a WITH ACTIVATION(DROP
 reject	reject	engine	queueOption/queueActivationOption_ACTIVATION!insert	ALTER QUEUE a WITH ACTIVATION(DROP) zzz
 reject	reject	engine	queueOption/queueActivationOption_ACTIVATION!swap	ALTER QUEUE a WITH ACTIVE(DROP)
 accept	accept	engine	queueOption/queuePoisonMessageHandlingOption	ALTER QUEUE a WITH POISON_MESSAGE_HANDLING(STATUS = ON)
 reject	reject	engine	queueOption/queuePoisonMessageHandlingOption!drop-1	ALTER QUEUE a WITH(STATUS = ON)
 reject	reject	engine	queueOption/queuePoisonMessageHandlingOption!drop-2	ALTER QUEUE a WITH POISON_MESSAGE_HANDLING STATUS = ON)
 reject	reject	engine	queueOption/queuePoisonMessageHandlingOption!drop-3	ALTER QUEUE a WITH POISON_MESSAGE_HANDLING(= ON)
-accept	reject	engine	queueOption/queuePoisonMessageHandlingOption!drop-4	ALTER QUEUE a WITH POISON_MESSAGE_HANDLING(STATUS ON)
-accept	reject	engine	queueOption/queuePoisonMessageHandlingOption!drop-5	ALTER QUEUE a WITH POISON_MESSAGE_HANDLING(STATUS =)
-accept	reject	engine	queueOption/queuePoisonMessageHandlingOption!drop-6	ALTER QUEUE a WITH POISON_MESSAGE_HANDLING(STATUS = ON
+reject	reject	engine	queueOption/queuePoisonMessageHandlingOption!drop-4	ALTER QUEUE a WITH POISON_MESSAGE_HANDLING(STATUS ON)
+reject	reject	engine	queueOption/queuePoisonMessageHandlingOption!drop-5	ALTER QUEUE a WITH POISON_MESSAGE_HANDLING(STATUS =)
+reject	reject	engine	queueOption/queuePoisonMessageHandlingOption!drop-6	ALTER QUEUE a WITH POISON_MESSAGE_HANDLING(STATUS = ON
 reject	reject	engine	queueOption/queuePoisonMessageHandlingOption!insert	ALTER QUEUE a WITH POISON_MESSAGE_HANDLING(STATUS = ON) zzz
 reject	reject	engine	queueOption/queuePoisonMessageHandlingOption!swap	ALTER QUEUE a WITH POLICY(STATUS = ON)
 accept	accept	engine	stateQueueOption/(STATUS|RETENTION)_EqualsSign_optionOnOff	ALTER QUEUE a WITH STATUS = ON
 accept	accept	engine	stateQueueOption(STATUS|RETENTION)/STATUS	ALTER QUEUE a WITH STATUS = ON
-accept	reject	engine	stateQueueOption(STATUS|RETENTION)/STATUS!truncate	ALTER QUEUE a WITH
+reject	reject	engine	stateQueueOption(STATUS|RETENTION)/STATUS!truncate	ALTER QUEUE a WITH
 reject	reject	engine	stateQueueOption(STATUS|RETENTION)/STATUS!insert	ALTER QUEUE a WITH STATUS zzz = ON
 accept	accept	engine	stateQueueOption(STATUS|RETENTION)/RETENTION	ALTER QUEUE a WITH RETENTION = ON
 reject	reject	engine	stateQueueOption(STATUS|RETENTION)/RETENTION!insert	ALTER QUEUE a WITH RETENTION zzz = ON
@@ -5626,10 +5626,10 @@ reject	reject	engine	activationQueueOptionArgument/Identifier_EqualsSign_(status
 reject	reject	engine	activationQueueOptionArgument/Identifier_EqualsSign_(statusQueueOptionArgument|proced~2e23787e!insert	ALTER QUEUE a WITH ACTIVATION(a = ON zzz)
 reject	reject	engine	activationQueueOptionArgument/Identifier_EqualsSign_(statusQueueOptionArgument|proced~2e23787e!swap	ALTER QUEUE a WITH ACTIVATION(a = ONLINE)
 accept	accept	engine	activationQueueOptionArgument/dropQueueOptionArgument	ALTER QUEUE a WITH ACTIVATION(DROP)
-accept	reject	engine	activationQueueOptionArgument/dropQueueOptionArgument!truncate	ALTER QUEUE a WITH ACTIVATION(
+reject	reject	engine	activationQueueOptionArgument/dropQueueOptionArgument!truncate	ALTER QUEUE a WITH ACTIVATION(
 reject	reject	engine	activationQueueOptionArgument/dropQueueOptionArgument!insert	ALTER QUEUE a WITH ACTIVATION(DROP zzz)
 reject	reject	engine	activationQueueOptionArgument/dropQueueOptionArgument!swap	ALTER QUEUE a WITH ACTIVATION(DROP_INDEX)
-reject	accept	engine	activationQueueOptionArgument/executeAsQueueOptionArgument	ALTER QUEUE a WITH ACTIVATION(EXEC AS 'a')
+accept	accept	engine	activationQueueOptionArgument/executeAsQueueOptionArgument	ALTER QUEUE a WITH ACTIVATION(EXEC AS 'a')
 reject	reject	engine	activationQueueOptionArgument/executeAsQueueOptionArgument!drop-1	ALTER QUEUE a WITH ACTIVATION(AS 'a')
 reject	reject	engine	activationQueueOptionArgument/executeAsQueueOptionArgument!drop-2	ALTER QUEUE a WITH ACTIVATION(EXEC 'a')
 reject	reject	engine	activationQueueOptionArgument/executeAsQueueOptionArgument!drop-3	ALTER QUEUE a WITH ACTIVATION(EXEC AS)
@@ -5645,7 +5645,7 @@ reject	reject	engine	statusQueueOptionArgument/optionOnOff	ALTER QUEUE a WITH AC
 reject	reject	engine	procedureNameQueueOptionArgument/schemaObjectThreePartName	ALTER QUEUE a WITH ACTIVATION(a = a)
 reject	reject	engine	maxQueueReadersQueueOptionArgument/integer	ALTER QUEUE a WITH ACTIVATION(a = 1)
 accept	accept	engine	dropQueueOptionArgument/Drop	ALTER QUEUE a WITH ACTIVATION(DROP)
-reject	accept	engine	executeAsQueueOptionArgument/executeAsClause	ALTER QUEUE a WITH ACTIVATION(EXEC AS 'a')
+accept	accept	engine	executeAsQueueOptionArgument/executeAsClause	ALTER QUEUE a WITH ACTIVATION(EXEC AS 'a')
 accept	accept	engine	queuePoisonMessageHandlingOption/POISON_MESSAGE_HANDLING_LeftParenthesis_STATUS_EqualsSi~8247fe67	ALTER QUEUE a WITH POISON_MESSAGE_HANDLING(STATUS = ON)
 accept	accept	engine	alterRoleAction/addMemberAlterRoleAction	ALTER ROLE a ADD MEMBER a
 reject	reject	engine	alterRoleAction/addMemberAlterRoleAction!swap	ALTER ROLE a ADMIN MEMBER a
@@ -5667,19 +5667,19 @@ accept	accept	engine	dropMemberAlterRoleAction/Drop_MEMBER_identifier	ALTER ROLE
 accept	accept	engine	routeOptionList/With_routeOption_(Comma_routeOption)*	ALTER ROUTE a WITH LIFETIME = 1
 reject	reject	engine	routeOptionList/With_routeOption_(Comma_routeOption)*!swap	ALTER ROUTE a WITHIN LIFETIME = 1
 accept	accept	engine	routeOptionList(Comma_routeOption)*/%empty	ALTER ROUTE a WITH LIFETIME = 1
-accept	reject	engine	routeOptionList(Comma_routeOption)*/Comma_routeOption_(Comma_routeOption)*	ALTER ROUTE a WITH LIFETIME = 1, LIFETIME = 1
+reject	reject	engine	routeOptionList(Comma_routeOption)*/Comma_routeOption_(Comma_routeOption)*	ALTER ROUTE a WITH LIFETIME = 1, LIFETIME = 1
 reject	reject	engine	routeOptionList(Comma_routeOption)*/Comma_routeOption_(Comma_routeOption)*!drop-1	ALTER ROUTE a WITH LIFETIME = 1 LIFETIME = 1
 reject	reject	engine	routeOptionList(Comma_routeOption)*/Comma_routeOption_(Comma_routeOption)*!drop-2	ALTER ROUTE a WITH LIFETIME = 1, = 1
 reject	reject	engine	routeOptionList(Comma_routeOption)*/Comma_routeOption_(Comma_routeOption)*!drop-3	ALTER ROUTE a WITH LIFETIME = 1, LIFETIME 1
-accept	reject	engine	routeOptionList(Comma_routeOption)*/Comma_routeOption_(Comma_routeOption)*!drop-4	ALTER ROUTE a WITH LIFETIME = 1, LIFETIME =
+reject	reject	engine	routeOptionList(Comma_routeOption)*/Comma_routeOption_(Comma_routeOption)*!drop-4	ALTER ROUTE a WITH LIFETIME = 1, LIFETIME =
 reject	reject	engine	routeOptionList(Comma_routeOption)*/Comma_routeOption_(Comma_routeOption)*!insert	ALTER ROUTE a WITH LIFETIME = 1, LIFETIME = 1 zzz
 reject	reject	engine	routeOptionList(Comma_routeOption)*/Comma_routeOption_(Comma_routeOption)*!swap	ALTER ROUTE a WITH LIFETIME = 1, LIKE = 1
 accept	accept	engine	routeOption/LIFETIME_EqualsSign_integer	ALTER ROUTE a WITH LIFETIME = 1
 reject	reject	engine	routeOption/LIFETIME_EqualsSign_integer!swap	ALTER ROUTE a WITH LIKE = 1
-accept	reject	engine	routeOption/Identifier_EqualsSign_stringLiteral	ALTER ROUTE a WITH a = 'a'
+reject	reject	engine	routeOption/Identifier_EqualsSign_stringLiteral	ALTER ROUTE a WITH a = 'a'
 reject	reject	engine	routeOption/Identifier_EqualsSign_stringLiteral!drop-1	ALTER ROUTE a WITH = 'a'
 reject	reject	engine	routeOption/Identifier_EqualsSign_stringLiteral!drop-2	ALTER ROUTE a WITH a 'a'
-accept	reject	engine	routeOption/Identifier_EqualsSign_stringLiteral!drop-3	ALTER ROUTE a WITH a =
+reject	reject	engine	routeOption/Identifier_EqualsSign_stringLiteral!drop-3	ALTER ROUTE a WITH a =
 reject	reject	engine	routeOption/Identifier_EqualsSign_stringLiteral!insert	ALTER ROUTE a WITH a = 'a' zzz
 accept	accept	engine	alterSchemaStatement/Schema_identifier_TRANSFER_((OBJECT|TYPE)_DoubleColon|X~782f9873	ALTER SCHEMA a TRANSFER a
 accept	accept	engine	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/%empty	ALTER SCHEMA a TRANSFER a
@@ -6353,9 +6353,9 @@ reject	reject	engine	waitForStatement(Identifier_stringOrVariable|LeftPare~ae72b
 accept	accept	engine	waitForStatement(Identifier_stringOrVariable|LeftPare~ae72bef0)/LeftParenthesis_waitforInnerStatement_RightParenthesis_~884a013f	WAITFOR(RECEIVE * FROM a)
 reject	reject	engine	waitForStatement(Identifier_stringOrVariable|LeftPare~ae72bef0)/LeftParenthesis_waitforInnerStatement_RightParenthesis_~884a013f!drop-1	WAITFOR RECEIVE * FROM a)
 reject	reject	engine	waitForStatement(Identifier_stringOrVariable|LeftPare~ae72bef0)/LeftParenthesis_waitforInnerStatement_RightParenthesis_~884a013f!drop-2	WAITFOR(* FROM a)
-accept	reject	engine	waitForStatement(Identifier_stringOrVariable|LeftPare~ae72bef0)/LeftParenthesis_waitforInnerStatement_RightParenthesis_~884a013f!drop-3	WAITFOR(RECEIVE FROM a)
+reject	reject	engine	waitForStatement(Identifier_stringOrVariable|LeftPare~ae72bef0)/LeftParenthesis_waitforInnerStatement_RightParenthesis_~884a013f!drop-3	WAITFOR(RECEIVE FROM a)
 reject	reject	engine	waitForStatement(Identifier_stringOrVariable|LeftPare~ae72bef0)/LeftParenthesis_waitforInnerStatement_RightParenthesis_~884a013f!drop-4	WAITFOR(RECEIVE * a)
-accept	reject	engine	waitForStatement(Identifier_stringOrVariable|LeftPare~ae72bef0)/LeftParenthesis_waitforInnerStatement_RightParenthesis_~884a013f!drop-5	WAITFOR(RECEIVE * FROM)
+reject	reject	engine	waitForStatement(Identifier_stringOrVariable|LeftPare~ae72bef0)/LeftParenthesis_waitforInnerStatement_RightParenthesis_~884a013f!drop-5	WAITFOR(RECEIVE * FROM)
 reject	reject	engine	waitForStatement(Identifier_stringOrVariable|LeftPare~ae72bef0)/LeftParenthesis_waitforInnerStatement_RightParenthesis_~884a013f!drop-6	WAITFOR(RECEIVE * FROM a
 reject	reject	engine	waitForStatement(Identifier_stringOrVariable|LeftPare~ae72bef0)/LeftParenthesis_waitforInnerStatement_RightParenthesis_~884a013f!insert	WAITFOR(RECEIVE * FROM a) zzz
 reject	reject	engine	waitForStatement(Identifier_stringOrVariable|LeftPare~ae72bef0)/LeftParenthesis_waitforInnerStatement_RightParenthesis_~884a013f!swap	WAITFOR(RECOMPILE * FROM a)
@@ -6363,7 +6363,7 @@ accept	accept	engine	waitForStatement(Comma_TIMEOUT_signedIntegerOrVariable)?/%e
 accept	accept	engine	waitForStatement(Comma_TIMEOUT_signedIntegerOrVariable)?/Comma_TIMEOUT_signedIntegerOrVariable	WAITFOR(RECEIVE * FROM a), TIMEOUT 1
 reject	reject	engine	waitForStatement(Comma_TIMEOUT_signedIntegerOrVariable)?/Comma_TIMEOUT_signedIntegerOrVariable!drop-1	WAITFOR(RECEIVE * FROM a) TIMEOUT 1
 reject	reject	engine	waitForStatement(Comma_TIMEOUT_signedIntegerOrVariable)?/Comma_TIMEOUT_signedIntegerOrVariable!drop-2	WAITFOR(RECEIVE * FROM a), 1
-accept	reject	engine	waitForStatement(Comma_TIMEOUT_signedIntegerOrVariable)?/Comma_TIMEOUT_signedIntegerOrVariable!drop-3	WAITFOR(RECEIVE * FROM a), TIMEOUT
+reject	reject	engine	waitForStatement(Comma_TIMEOUT_signedIntegerOrVariable)?/Comma_TIMEOUT_signedIntegerOrVariable!drop-3	WAITFOR(RECEIVE * FROM a), TIMEOUT
 reject	reject	engine	waitForStatement(Comma_TIMEOUT_signedIntegerOrVariable)?/Comma_TIMEOUT_signedIntegerOrVariable!insert	WAITFOR(RECEIVE * FROM a), TIMEOUT 1 zzz
 reject	reject	engine	waitForStatement(Comma_TIMEOUT_signedIntegerOrVariable)?/Comma_TIMEOUT_signedIntegerOrVariable!swap	WAITFOR(RECEIVE * FROM a), TIMER 1
 accept	accept	engine	waitforInnerStatement/receiveStatement_RECEIVE	WAITFOR(RECEIVE * FROM a)
@@ -6372,10 +6372,10 @@ reject	reject	engine	waitforInnerStatement/receiveStatement_RECEIVE!insert	WAITF
 accept	accept	engine	waitforInnerStatement/getConversationGroupStatement	WAITFOR(GET CONVERSATION GROUP @a FROM a)
 reject	reject	engine	waitforInnerStatement/getConversationGroupStatement!drop-1	WAITFOR(CONVERSATION GROUP @a FROM a)
 reject	reject	engine	waitforInnerStatement/getConversationGroupStatement!drop-2	WAITFOR(GET GROUP @a FROM a)
-accept	reject	engine	waitforInnerStatement/getConversationGroupStatement!drop-3	WAITFOR(GET CONVERSATION @a FROM a)
-accept	reject	engine	waitforInnerStatement/getConversationGroupStatement!drop-4	WAITFOR(GET CONVERSATION GROUP FROM a)
+reject	reject	engine	waitforInnerStatement/getConversationGroupStatement!drop-3	WAITFOR(GET CONVERSATION @a FROM a)
+reject	reject	engine	waitforInnerStatement/getConversationGroupStatement!drop-4	WAITFOR(GET CONVERSATION GROUP FROM a)
 reject	reject	engine	waitforInnerStatement/getConversationGroupStatement!drop-5	WAITFOR(GET CONVERSATION GROUP @a a)
-accept	reject	engine	waitforInnerStatement/getConversationGroupStatement!drop-6	WAITFOR(GET CONVERSATION GROUP @a FROM)
+reject	reject	engine	waitforInnerStatement/getConversationGroupStatement!drop-6	WAITFOR(GET CONVERSATION GROUP @a FROM)
 reject	reject	engine	waitforInnerStatement/getConversationGroupStatement!truncate	WAITFOR(GET CONVERSATION GROUP @a FROM
 reject	reject	engine	waitforInnerStatement/getConversationGroupStatement!insert	WAITFOR(GET CONVERSATION GROUP @a FROM a zzz)
 reject	reject	engine	waitforInnerStatement/getConversationGroupStatement!swap	WAITFOR(GLOBAL CONVERSATION GROUP @a FROM a)
@@ -6632,8 +6632,8 @@ reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e448
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropApplicationRoleStatement_APPLICATION!swap	DROP APPLICATION_LOG ROLE a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropBrokerPriorityStatement_BROKER	DROP BROKER PRIORITY a
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropBrokerPriorityStatement_BROKER!drop-1	DROP PRIORITY a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropBrokerPriorityStatement_BROKER!drop-2	DROP BROKER a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropBrokerPriorityStatement_BROKER!drop-3	DROP BROKER PRIORITY
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropBrokerPriorityStatement_BROKER!drop-2	DROP BROKER a
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropBrokerPriorityStatement_BROKER!drop-3	DROP BROKER PRIORITY
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropBrokerPriorityStatement_BROKER!insert	DROP BROKER PRIORITY a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropBrokerPriorityStatement_BROKER!swap	DROP BROWSE PRIORITY a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropCryptographicProviderStatement_CRYPTOGRAPHIC	DROP CRYPTOGRAPHIC PROVIDER a
@@ -6701,31 +6701,31 @@ accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e448
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropXmlSchemaCollectionStatement_XML!insert	DROP XML SCHEMA COLLECTION a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropXmlSchemaCollectionStatement_XML!swap	DROP XMLNAMESPACES SCHEMA COLLECTION a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropContractStatement_CONTRACT	DROP CONTRACT a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropContractStatement_CONTRACT!drop-2	DROP CONTRACT
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropContractStatement_CONTRACT!drop-2	DROP CONTRACT
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropContractStatement_CONTRACT!insert	DROP CONTRACT a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropContractStatement_CONTRACT!swap	DROP CONVERSATION a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropQueueStatement_QUEUE	DROP QUEUE a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropQueueStatement_QUEUE!drop-2	DROP QUEUE
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropQueueStatement_QUEUE!drop-2	DROP QUEUE
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropQueueStatement_QUEUE!insert	DROP QUEUE a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropQueueStatement_QUEUE!swap	DROP RAISERROR a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropServiceStatement_SERVICE	DROP SERVICE a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropServiceStatement_SERVICE!drop-2	DROP SERVICE
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropServiceStatement_SERVICE!drop-2	DROP SERVICE
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropServiceStatement_SERVICE!insert	DROP SERVICE a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropServiceStatement_SERVICE!swap	DROP SERVICE_OBJECTIVE a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropRouteStatement_ROUTE	DROP ROUTE a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropRouteStatement_ROUTE!drop-2	DROP ROUTE
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropRouteStatement_ROUTE!drop-2	DROP ROUTE
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropRouteStatement_ROUTE!insert	DROP ROUTE a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropRouteStatement_ROUTE!swap	DROP ROW a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropMessageTypeStatement_MESSAGE	DROP MESSAGE TYPE a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropMessageTypeStatement_MESSAGE!drop-2	DROP MESSAGE a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropMessageTypeStatement_MESSAGE!drop-3	DROP MESSAGE TYPE
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropMessageTypeStatement_MESSAGE!drop-2	DROP MESSAGE a
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropMessageTypeStatement_MESSAGE!drop-3	DROP MESSAGE TYPE
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropMessageTypeStatement_MESSAGE!insert	DROP MESSAGE TYPE a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropMessageTypeStatement_MESSAGE!swap	DROP MESSAGE_FORWARDING TYPE a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropRemoteServiceBindingStatement_REMOTE	DROP REMOTE SERVICE BINDING a
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropRemoteServiceBindingStatement_REMOTE!drop-1	DROP SERVICE BINDING a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropRemoteServiceBindingStatement_REMOTE!drop-2	DROP REMOTE BINDING a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropRemoteServiceBindingStatement_REMOTE!drop-3	DROP REMOTE SERVICE a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropRemoteServiceBindingStatement_REMOTE!drop-4	DROP REMOTE SERVICE BINDING
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropRemoteServiceBindingStatement_REMOTE!drop-2	DROP REMOTE BINDING a
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropRemoteServiceBindingStatement_REMOTE!drop-3	DROP REMOTE SERVICE a
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropRemoteServiceBindingStatement_REMOTE!drop-4	DROP REMOTE SERVICE BINDING
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropRemoteServiceBindingStatement_REMOTE!insert	DROP REMOTE SERVICE BINDING a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropRemoteServiceBindingStatement_REMOTE!swap	DROP REMOTE_DATA_ARCHIVE SERVICE BINDING a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropEndpointStatement_ENDPOINT	DROP ENDPOINT a
@@ -7194,20 +7194,20 @@ reject	reject	engine	beginStatements/beginConversationTimerStatement!drop-1	CONV
 reject	reject	engine	beginStatements/beginConversationTimerStatement!drop-2	BEGIN TIMER(1) TIMEOUT = 1
 reject	reject	engine	beginStatements/beginConversationTimerStatement!drop-3	BEGIN CONVERSATION(1) TIMEOUT = 1
 reject	reject	engine	beginStatements/beginConversationTimerStatement!drop-4	BEGIN CONVERSATION TIMER 1) TIMEOUT = 1
-accept	reject	engine	beginStatements/beginConversationTimerStatement!drop-5	BEGIN CONVERSATION TIMER() TIMEOUT = 1
-accept	reject	engine	beginStatements/beginConversationTimerStatement!drop-6	BEGIN CONVERSATION TIMER(1 TIMEOUT = 1
+reject	reject	engine	beginStatements/beginConversationTimerStatement!drop-5	BEGIN CONVERSATION TIMER() TIMEOUT = 1
+reject	reject	engine	beginStatements/beginConversationTimerStatement!drop-6	BEGIN CONVERSATION TIMER(1 TIMEOUT = 1
 reject	reject	engine	beginStatements/beginConversationTimerStatement!drop-7	BEGIN CONVERSATION TIMER(1) = 1
-accept	reject	engine	beginStatements/beginConversationTimerStatement!drop-8	BEGIN CONVERSATION TIMER(1) TIMEOUT 1
-accept	reject	engine	beginStatements/beginConversationTimerStatement!drop-9	BEGIN CONVERSATION TIMER(1) TIMEOUT =
+reject	reject	engine	beginStatements/beginConversationTimerStatement!drop-8	BEGIN CONVERSATION TIMER(1) TIMEOUT 1
+reject	reject	engine	beginStatements/beginConversationTimerStatement!drop-9	BEGIN CONVERSATION TIMER(1) TIMEOUT =
 reject	reject	engine	beginStatements/beginConversationTimerStatement!insert	BEGIN CONVERSATION TIMER(1) TIMEOUT = 1 zzz
 reject	reject	engine	beginStatements/beginConversationTimerStatement!swap	BEGIN_DIALOG CONVERSATION TIMER(1) TIMEOUT = 1
-reject	accept	engine	beginStatements/beginDialogStatement	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a'
+accept	accept	engine	beginStatements/beginDialogStatement	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a'
 reject	reject	engine	beginStatements/beginDialogStatement!drop-1	DIALOG @a FROM SERVICE @a TO SERVICE 'a'
 reject	reject	engine	beginStatements/beginDialogStatement!drop-2	BEGIN @a FROM SERVICE @a TO SERVICE 'a'
 reject	reject	engine	beginStatements/beginDialogStatement!drop-3	BEGIN DIALOG FROM SERVICE @a TO SERVICE 'a'
 reject	reject	engine	beginStatements/beginDialogStatement!drop-4	BEGIN DIALOG @a SERVICE @a TO SERVICE 'a'
 reject	reject	engine	beginStatements/beginDialogStatement!drop-5	BEGIN DIALOG @a FROM @a TO SERVICE 'a'
-accept	reject	engine	beginStatements/beginDialogStatement!drop-6	BEGIN DIALOG @a FROM SERVICE TO SERVICE 'a'
+reject	reject	engine	beginStatements/beginDialogStatement!drop-6	BEGIN DIALOG @a FROM SERVICE TO SERVICE 'a'
 reject	reject	engine	beginStatements/beginDialogStatement!drop-7	BEGIN DIALOG @a FROM SERVICE @a SERVICE 'a'
 reject	reject	engine	beginStatements/beginDialogStatement!drop-8	BEGIN DIALOG @a FROM SERVICE @a TO 'a'
 reject	reject	engine	beginStatements/beginDialogStatement!drop-9	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE
@@ -10442,23 +10442,23 @@ reject	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORK
 reject	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierEndTimeOption_END_TIME!insert	CREATE WORKLOAD CLASSIFIER a WITH(END_TIME = 'a' zzz)
 reject	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierEndTimeOption_END_TIME!swap	CREATE WORKLOAD CLASSIFIER a WITH(ENFORCED = 'a')
 reject	reject	engine	wlmTimeLiteral/stringLiteral	CREATE WORKLOAD CLASSIFIER a WITH(START_TIME = 'a')
-accept	reject	engine	brokerPriorityParameter/Identifier_EqualsSign_(identifier|stringLiteral|integer~f131aa02	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = a)
-accept	reject	engine	brokerPriorityParameter/Identifier_EqualsSign_(identifier|stringLiteral|integer~f131aa02!drop-1	ALTER BROKER PRIORITY a FOR CONVERSATION SET(= a)
-accept	reject	engine	brokerPriorityParameter/Identifier_EqualsSign_(identifier|stringLiteral|integer~f131aa02!drop-2	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a a)
-accept	reject	engine	brokerPriorityParameter/Identifier_EqualsSign_(identifier|stringLiteral|integer~f131aa02!drop-3	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a =)
-accept	reject	engine	brokerPriorityParameter/Identifier_EqualsSign_(identifier|stringLiteral|integer~f131aa02!truncate	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a =
-accept	reject	engine	brokerPriorityParameter/Identifier_EqualsSign_(identifier|stringLiteral|integer~f131aa02!insert	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = a zzz)
-accept	reject	engine	brokerPriorityParameter(identifier|stringLiteral|integer|Default|Any)/identifier	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = a)
-accept	reject	engine	brokerPriorityParameter(identifier|stringLiteral|integer|Default|Any)/stringLiteral	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = 'a')
-accept	reject	engine	brokerPriorityParameter(identifier|stringLiteral|integer|Default|Any)/stringLiteral!insert	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = 'a' zzz)
-accept	reject	engine	brokerPriorityParameter(identifier|stringLiteral|integer|Default|Any)/integer	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = 1)
-accept	reject	engine	brokerPriorityParameter(identifier|stringLiteral|integer|Default|Any)/integer!insert	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = 1 zzz)
-accept	reject	engine	brokerPriorityParameter(identifier|stringLiteral|integer|Default|Any)/Default	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = DEFAULT)
-accept	reject	engine	brokerPriorityParameter(identifier|stringLiteral|integer|Default|Any)/Default!insert	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = DEFAULT zzz)
-accept	reject	engine	brokerPriorityParameter(identifier|stringLiteral|integer|Default|Any)/Default!swap	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = DEFAULT_DATABASE)
-accept	reject	engine	brokerPriorityParameter(identifier|stringLiteral|integer|Default|Any)/Any	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = ANY)
-accept	reject	engine	brokerPriorityParameter(identifier|stringLiteral|integer|Default|Any)/Any!insert	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = ANY zzz)
-accept	reject	engine	brokerPriorityParameter(identifier|stringLiteral|integer|Default|Any)/Any!swap	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = APPEND_ONLY)
+reject	reject	engine	brokerPriorityParameter/Identifier_EqualsSign_(identifier|stringLiteral|integer~f131aa02	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = a)
+reject	reject	engine	brokerPriorityParameter/Identifier_EqualsSign_(identifier|stringLiteral|integer~f131aa02!drop-1	ALTER BROKER PRIORITY a FOR CONVERSATION SET(= a)
+reject	reject	engine	brokerPriorityParameter/Identifier_EqualsSign_(identifier|stringLiteral|integer~f131aa02!drop-2	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a a)
+reject	reject	engine	brokerPriorityParameter/Identifier_EqualsSign_(identifier|stringLiteral|integer~f131aa02!drop-3	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a =)
+reject	reject	engine	brokerPriorityParameter/Identifier_EqualsSign_(identifier|stringLiteral|integer~f131aa02!truncate	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a =
+reject	reject	engine	brokerPriorityParameter/Identifier_EqualsSign_(identifier|stringLiteral|integer~f131aa02!insert	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = a zzz)
+reject	reject	engine	brokerPriorityParameter(identifier|stringLiteral|integer|Default|Any)/identifier	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = a)
+reject	reject	engine	brokerPriorityParameter(identifier|stringLiteral|integer|Default|Any)/stringLiteral	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = 'a')
+reject	reject	engine	brokerPriorityParameter(identifier|stringLiteral|integer|Default|Any)/stringLiteral!insert	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = 'a' zzz)
+reject	reject	engine	brokerPriorityParameter(identifier|stringLiteral|integer|Default|Any)/integer	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = 1)
+reject	reject	engine	brokerPriorityParameter(identifier|stringLiteral|integer|Default|Any)/integer!insert	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = 1 zzz)
+reject	reject	engine	brokerPriorityParameter(identifier|stringLiteral|integer|Default|Any)/Default	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = DEFAULT)
+reject	reject	engine	brokerPriorityParameter(identifier|stringLiteral|integer|Default|Any)/Default!insert	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = DEFAULT zzz)
+reject	reject	engine	brokerPriorityParameter(identifier|stringLiteral|integer|Default|Any)/Default!swap	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = DEFAULT_DATABASE)
+reject	reject	engine	brokerPriorityParameter(identifier|stringLiteral|integer|Default|Any)/Any	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = ANY)
+reject	reject	engine	brokerPriorityParameter(identifier|stringLiteral|integer|Default|Any)/Any!insert	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = ANY zzz)
+reject	reject	engine	brokerPriorityParameter(identifier|stringLiteral|integer|Default|Any)/Any!swap	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = APPEND_ONLY)
 accept	accept	engine	createSequenceOptionList/(createSequenceOptionListElement)+	CREATE SEQUENCE a CACHE
 reject	reject	engine	createSequenceOptionList/(createSequenceOptionListElement)+!insert	CREATE SEQUENCE a CACHE zzz
 reject	reject	engine	createSequenceOptionList/(createSequenceOptionListElement)+!swap	CREATE SEQUENCE a CALLED
@@ -11198,9 +11198,9 @@ accept	accept	engine	dmlTriggerAction/Delete	CREATE TRIGGER a ON a FOR DELETE AS
 reject	reject	engine	dmlTriggerAction/Delete!insert	CREATE TRIGGER a ON a FOR DELETE zzz AS SELECT 1
 reject	reject	engine	dmlTriggerAction/Delete!swap	CREATE TRIGGER a ON a FOR DELIMITEDTEXT AS SELECT 1
 reject	reject	engine	ddlTriggerAction/Identifier	CREATE TRIGGER a ON a FOR a AS SELECT 1
-reject	accept	engine	endConversationStatement/End_CONVERSATION_expression_endConversationArgumentsOpt	END CONVERSATION 1
-reject	accept	engine	endConversationArgumentsOpt/(With_Identifier_(|EqualsSign_integer~99c44fa3)?	END CONVERSATION 1
-reject	accept	engine	endConversationArgumentsOpt(With_Identifier_(|EqualsSign_integer~99c44fa3)?/%empty	END CONVERSATION 1
+accept	accept	engine	endConversationStatement/End_CONVERSATION_expression_endConversationArgumentsOpt	END CONVERSATION 1
+accept	accept	engine	endConversationArgumentsOpt/(With_Identifier_(|EqualsSign_integer~99c44fa3)?	END CONVERSATION 1
+accept	accept	engine	endConversationArgumentsOpt(With_Identifier_(|EqualsSign_integer~99c44fa3)?/%empty	END CONVERSATION 1
 reject	reject	engine	endConversationArgumentsOpt(With_Identifier_(|EqualsSign_integer~99c44fa3)?/With_Identifier_(|EqualsSign_integerOrVariable_DESCRI~00645503)	END CONVERSATION 1 WITH a
 reject	reject	engine	endConversationArgumentsOpt(With_Identifier_(|EqualsSign_integer~99c44fa3)?/With_Identifier_(|EqualsSign_integerOrVariable_DESCRI~00645503)!drop-1	END CONVERSATION 1 a
 reject	reject	engine	endConversationArgumentsOpt(With_Identifier_(|EqualsSign_integer~99c44fa3)?/With_Identifier_(|EqualsSign_integerOrVariable_DESCRI~00645503)!drop-2	END CONVERSATION 1 WITH
@@ -11216,48 +11216,48 @@ reject	reject	engine	endConversationArgumentsOpt(|EqualsSign_integerOrVariable_D
 reject	reject	engine	endConversationArgumentsOpt(|EqualsSign_integerOrVariable_DESCRI~00645503)/EqualsSign_integerOrVariable_DESCRIPTION_EqualsSign_str~5796a21e!insert	END CONVERSATION 1 WITH a = 1 DESCRIPTION = 'a' zzz
 reject	reject	engine	endConversationArgumentsOpt(|EqualsSign_integerOrVariable_DESCRI~00645503)/EqualsSign_integerOrVariable_DESCRIPTION_EqualsSign_str~5796a21e!swap	END CONVERSATION 1 WITH a = 1 DESIRED_STATE = 'a'
 accept	accept	engine	getConversationGroupStatement/GET_CONVERSATION_Group_variable_From_schemaObjectThreePartName	WAITFOR(GET CONVERSATION GROUP @a FROM a)
-reject	accept	engine	receiveSelectExpression/selectSetVariable	RECEIVE @a = 1 FROM a
+accept	accept	engine	receiveSelectExpression/selectSetVariable	RECEIVE @a = 1 FROM a
 reject	reject	engine	receiveSelectExpression/selectSetVariable!drop-1	RECEIVE = 1 FROM a
 reject	reject	engine	receiveSelectExpression/selectSetVariable!drop-2	RECEIVE @a 1 FROM a
 reject	reject	engine	receiveSelectExpression/selectSetVariable!drop-3	RECEIVE @a = FROM a
 reject	reject	engine	receiveSelectExpression/selectSetVariable!truncate	RECEIVE @a =
 reject	reject	engine	receiveSelectExpression/selectSetVariable!insert	RECEIVE @a = 1 zzz FROM a
 accept	accept	engine	receiveSelectExpression/selectStarExpression	RECEIVE * FROM a
-accept	reject	engine	receiveSelectExpression/selectStarExpression!truncate	RECEIVE
+reject	reject	engine	receiveSelectExpression/selectStarExpression!truncate	RECEIVE
 reject	reject	engine	receiveSelectExpression/selectStarExpression!insert	RECEIVE * zzz FROM a
 accept	accept	engine	receiveSelectExpression/receiveColumnSelectExpression	RECEIVE 1 FROM a
 accept	accept	engine	receiveSelectExpression/receiveColumnSelectExpression!insert	RECEIVE 1 zzz FROM a
 accept	accept	engine	receiveColumnSelectExpression/expression_((As)?_stringOrIdentifier)?	RECEIVE 1 FROM a
 accept	accept	engine	receiveColumnSelectExpression((As)?_stringOrIdentifier)?/%empty	RECEIVE 1 FROM a
-reject	accept	engine	receiveColumnSelectExpression((As)?_stringOrIdentifier)?/(As)?_stringOrIdentifier	RECEIVE 1 'a' FROM a
-accept	reject	engine	receiveColumnSelectExpression((As)?_stringOrIdentifier)?/(As)?_stringOrIdentifier!truncate	RECEIVE 1
+accept	accept	engine	receiveColumnSelectExpression((As)?_stringOrIdentifier)?/(As)?_stringOrIdentifier	RECEIVE 1 'a' FROM a
+reject	reject	engine	receiveColumnSelectExpression((As)?_stringOrIdentifier)?/(As)?_stringOrIdentifier!truncate	RECEIVE 1
 reject	reject	engine	receiveColumnSelectExpression((As)?_stringOrIdentifier)?/(As)?_stringOrIdentifier!insert	RECEIVE 1 'a' zzz FROM a
-reject	accept	engine	receiveColumnSelectExpression(As)?/%empty	RECEIVE 1 'a' FROM a
+accept	accept	engine	receiveColumnSelectExpression(As)?/%empty	RECEIVE 1 'a' FROM a
 reject	reject	engine	receiveColumnSelectExpression(As)?/%empty!insert	RECEIVE 1 zzz 'a' FROM a
-reject	accept	engine	receiveColumnSelectExpression(As)?/As	RECEIVE 1 AS 'a' FROM a
+accept	accept	engine	receiveColumnSelectExpression(As)?/As	RECEIVE 1 AS 'a' FROM a
 reject	reject	engine	receiveColumnSelectExpression(As)?/As!insert	RECEIVE 1 AS zzz 'a' FROM a
 reject	reject	engine	receiveColumnSelectExpression(As)?/As!swap	RECEIVE 1 ASC 'a' FROM a
 accept	accept	engine	beginConversationTimerStatement/Begin_CONVERSATION_TIMER_LeftParenthesis_expression_Rig~a918512e	BEGIN CONVERSATION TIMER(1) TIMEOUT = 1
-reject	accept	engine	beginDialogStatement/Begin_DIALOG_(CONVERSATION)?_variable_From_SERVICE_iden~54d22560	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a'
-reject	accept	engine	beginDialogStatement(CONVERSATION)?/%empty	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a'
+accept	accept	engine	beginDialogStatement/Begin_DIALOG_(CONVERSATION)?_variable_From_SERVICE_iden~54d22560	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a'
+accept	accept	engine	beginDialogStatement(CONVERSATION)?/%empty	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a'
 reject	reject	engine	beginDialogStatement(CONVERSATION)?/%empty!insert	BEGIN DIALOG zzz @a FROM SERVICE @a TO SERVICE 'a'
-reject	accept	engine	beginDialogStatement(CONVERSATION)?/CONVERSATION	BEGIN DIALOG CONVERSATION @a FROM SERVICE @a TO SERVICE 'a'
-accept	reject	engine	beginDialogStatement(CONVERSATION)?/CONVERSATION!truncate	BEGIN DIALOG
+accept	accept	engine	beginDialogStatement(CONVERSATION)?/CONVERSATION	BEGIN DIALOG CONVERSATION @a FROM SERVICE @a TO SERVICE 'a'
+reject	reject	engine	beginDialogStatement(CONVERSATION)?/CONVERSATION!truncate	BEGIN DIALOG
 reject	reject	engine	beginDialogStatement(CONVERSATION)?/CONVERSATION!insert	BEGIN DIALOG CONVERSATION zzz @a FROM SERVICE @a TO SERVICE 'a'
 reject	reject	engine	beginDialogStatement(CONVERSATION)?/CONVERSATION!swap	BEGIN DIALOG CONVERSATION_GROUP_ID @a FROM SERVICE @a TO SERVICE 'a'
-reject	accept	engine	beginDialogStatement(Comma_stringOrVariable)?/%empty	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a'
-reject	accept	engine	beginDialogStatement(Comma_stringOrVariable)?/Comma_stringOrVariable	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a', 'a'
+accept	accept	engine	beginDialogStatement(Comma_stringOrVariable)?/%empty	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a'
+accept	accept	engine	beginDialogStatement(Comma_stringOrVariable)?/Comma_stringOrVariable	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a', 'a'
 reject	reject	engine	beginDialogStatement(Comma_stringOrVariable)?/Comma_stringOrVariable!drop-1	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a' 'a'
 reject	reject	engine	beginDialogStatement(Comma_stringOrVariable)?/Comma_stringOrVariable!drop-2	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a',
 reject	reject	engine	beginDialogStatement(Comma_stringOrVariable)?/Comma_stringOrVariable!insert	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a', 'a' zzz
-reject	accept	engine	beginDialogStatement(On_CONTRACT_identifierOrVariable)?/%empty	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a'
-reject	accept	engine	beginDialogStatement(On_CONTRACT_identifierOrVariable)?/On_CONTRACT_identifierOrVariable	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a' ON CONTRACT @a
+accept	accept	engine	beginDialogStatement(On_CONTRACT_identifierOrVariable)?/%empty	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a'
+accept	accept	engine	beginDialogStatement(On_CONTRACT_identifierOrVariable)?/On_CONTRACT_identifierOrVariable	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a' ON CONTRACT @a
 reject	reject	engine	beginDialogStatement(On_CONTRACT_identifierOrVariable)?/On_CONTRACT_identifierOrVariable!drop-1	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a' CONTRACT @a
 reject	reject	engine	beginDialogStatement(On_CONTRACT_identifierOrVariable)?/On_CONTRACT_identifierOrVariable!drop-2	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a' ON @a
 reject	reject	engine	beginDialogStatement(On_CONTRACT_identifierOrVariable)?/On_CONTRACT_identifierOrVariable!drop-3	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a' ON CONTRACT
 reject	reject	engine	beginDialogStatement(On_CONTRACT_identifierOrVariable)?/On_CONTRACT_identifierOrVariable!insert	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a' ON CONTRACT @a zzz
 reject	reject	engine	beginDialogStatement(On_CONTRACT_identifierOrVariable)?/On_CONTRACT_identifierOrVariable!swap	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a' ONLINE CONTRACT @a
-reject	accept	engine	beginDialogStatement(With_beginConversationArgument_(Comm~a257825c)?/%empty	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a'
+accept	accept	engine	beginDialogStatement(With_beginConversationArgument_(Comm~a257825c)?/%empty	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a'
 reject	reject	engine	beginDialogStatement(With_beginConversationArgument_(Comm~a257825c)?/With_beginConversationArgument_(Comma_beginConversation~6c2f25ce	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a' WITH a = 1
 reject	reject	engine	beginDialogStatement(With_beginConversationArgument_(Comm~a257825c)?/With_beginConversationArgument_(Comma_beginConversation~6c2f25ce!drop-1	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a' a = 1
 reject	reject	engine	beginDialogStatement(With_beginConversationArgument_(Comm~a257825c)?/With_beginConversationArgument_(Comma_beginConversation~6c2f25ce!drop-2	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a' WITH = 1
@@ -14969,21 +14969,21 @@ accept	reject	engine	alterFederationStatement_FEDERATION(LOW|HIGH)/HIGH!insert	A
 accept	reject	engine	alterFederationStatement_FEDERATION(LOW|HIGH)/HIGH!swap	ALTER FEDERATION a DROP AT(HINT a = 1)
 accept	accept	engine	disableTriggerStatement_DISABLE/DISABLE_enableDisableTriggerBody	DISABLE TRIGGER a ON a
 accept	accept	engine	enableTriggerStatement_ENABLE/ENABLE_enableDisableTriggerBody	ENABLE TRIGGER a ON a
-reject	accept	engine	moveConversationStatement_MOVE/MOVE_CONVERSATION_expression_To_expression	MOVE CONVERSATION 1 TO 1
+accept	accept	engine	moveConversationStatement_MOVE/MOVE_CONVERSATION_expression_To_expression	MOVE CONVERSATION 1 TO 1
 accept	accept	engine	getConversationGroupStatement_GET/GET_CONVERSATION_Group_variable_From_schemaObjectThreePartName	GET CONVERSATION GROUP @a FROM a
 accept	accept	engine	receiveStatement_RECEIVE/RECEIVE_(Top_LeftParenthesis_expression_Right~9a8aa833)~af0fcc04	RECEIVE * FROM a
 accept	accept	engine	receiveStatement_RECEIVE(Top_LeftParenthesis_expression_Right~9a8aa833)?/%empty	RECEIVE * FROM a
 reject	reject	engine	receiveStatement_RECEIVE(Top_LeftParenthesis_expression_Right~9a8aa833)?/%empty!insert	RECEIVE zzz * FROM a
 accept	accept	engine	receiveStatement_RECEIVE(Top_LeftParenthesis_expression_Right~9a8aa833)?/Top_LeftParenthesis_expression_RightParenthesis	RECEIVE TOP(1) * FROM a
-accept	reject	engine	receiveStatement_RECEIVE(Top_LeftParenthesis_expression_Right~9a8aa833)?/Top_LeftParenthesis_expression_RightParenthesis!drop-1	RECEIVE(1) * FROM a
+reject	reject	engine	receiveStatement_RECEIVE(Top_LeftParenthesis_expression_Right~9a8aa833)?/Top_LeftParenthesis_expression_RightParenthesis!drop-1	RECEIVE(1) * FROM a
 reject	reject	engine	receiveStatement_RECEIVE(Top_LeftParenthesis_expression_Right~9a8aa833)?/Top_LeftParenthesis_expression_RightParenthesis!drop-2	RECEIVE TOP 1) * FROM a
-accept	reject	engine	receiveStatement_RECEIVE(Top_LeftParenthesis_expression_Right~9a8aa833)?/Top_LeftParenthesis_expression_RightParenthesis!drop-3	RECEIVE TOP() * FROM a
+reject	reject	engine	receiveStatement_RECEIVE(Top_LeftParenthesis_expression_Right~9a8aa833)?/Top_LeftParenthesis_expression_RightParenthesis!drop-3	RECEIVE TOP() * FROM a
 reject	reject	engine	receiveStatement_RECEIVE(Top_LeftParenthesis_expression_Right~9a8aa833)?/Top_LeftParenthesis_expression_RightParenthesis!drop-4	RECEIVE TOP(1 * FROM a
 reject	reject	engine	receiveStatement_RECEIVE(Top_LeftParenthesis_expression_Right~9a8aa833)?/Top_LeftParenthesis_expression_RightParenthesis!truncate	RECEIVE TOP(1
 reject	reject	engine	receiveStatement_RECEIVE(Top_LeftParenthesis_expression_Right~9a8aa833)?/Top_LeftParenthesis_expression_RightParenthesis!insert	RECEIVE TOP(1) zzz * FROM a
 reject	reject	engine	receiveStatement_RECEIVE(Top_LeftParenthesis_expression_Right~9a8aa833)?/Top_LeftParenthesis_expression_RightParenthesis!swap	RECEIVE TRACK_CAUSALITY(1) * FROM a
 accept	accept	engine	receiveStatement_RECEIVE(Comma_receiveSelectExpression)*/%empty	RECEIVE * FROM a
-reject	accept	engine	receiveStatement_RECEIVE(Comma_receiveSelectExpression)*/Comma_receiveSelectExpression_(Comma_receiveSelectExpression)*	RECEIVE *, * FROM a
+accept	accept	engine	receiveStatement_RECEIVE(Comma_receiveSelectExpression)*/Comma_receiveSelectExpression_(Comma_receiveSelectExpression)*	RECEIVE *, * FROM a
 reject	reject	engine	receiveStatement_RECEIVE(Comma_receiveSelectExpression)*/Comma_receiveSelectExpression_(Comma_receiveSelectExpression)*!drop-1	RECEIVE * * FROM a
 reject	reject	engine	receiveStatement_RECEIVE(Comma_receiveSelectExpression)*/Comma_receiveSelectExpression_(Comma_receiveSelectExpression)*!drop-2	RECEIVE *, FROM a
 reject	reject	engine	receiveStatement_RECEIVE(Comma_receiveSelectExpression)*/Comma_receiveSelectExpression_(Comma_receiveSelectExpression)*!truncate	RECEIVE *,
@@ -14991,7 +14991,7 @@ reject	reject	engine	receiveStatement_RECEIVE(Comma_receiveSelectExpression)*/Co
 accept	accept	engine	receiveStatement_RECEIVE(Into_variableDmlTarget)?/%empty	RECEIVE * FROM a
 accept	accept	engine	receiveStatement_RECEIVE(Into_variableDmlTarget)?/Into_variableDmlTarget	RECEIVE * FROM a INTO @a
 reject	reject	engine	receiveStatement_RECEIVE(Into_variableDmlTarget)?/Into_variableDmlTarget!drop-1	RECEIVE * FROM a @a
-accept	reject	engine	receiveStatement_RECEIVE(Into_variableDmlTarget)?/Into_variableDmlTarget!drop-2	RECEIVE * FROM a INTO
+reject	reject	engine	receiveStatement_RECEIVE(Into_variableDmlTarget)?/Into_variableDmlTarget!drop-2	RECEIVE * FROM a INTO
 reject	reject	engine	receiveStatement_RECEIVE(Into_variableDmlTarget)?/Into_variableDmlTarget!insert	RECEIVE * FROM a INTO @a zzz
 reject	reject	engine	receiveStatement_RECEIVE(Into_variableDmlTarget)?/Into_variableDmlTarget!swap	RECEIVE * FROM a IS @a
 accept	accept	engine	receiveStatement_RECEIVE(Where_(CONVERSATION_GROUP_ID|CONVERS~099d8827)?/%empty	RECEIVE * FROM a
@@ -14999,38 +14999,38 @@ accept	accept	engine	receiveStatement_RECEIVE(Where_(CONVERSATION_GROUP_ID|CONVE
 reject	reject	engine	receiveStatement_RECEIVE(Where_(CONVERSATION_GROUP_ID|CONVERS~099d8827)?/Where_(CONVERSATION_GROUP_ID|CONVERSATION_HANDLE)_Equal~6e0ea101!drop-1	RECEIVE * FROM a CONVERSATION_GROUP_ID = 'a'
 reject	reject	engine	receiveStatement_RECEIVE(Where_(CONVERSATION_GROUP_ID|CONVERS~099d8827)?/Where_(CONVERSATION_GROUP_ID|CONVERSATION_HANDLE)_Equal~6e0ea101!drop-2	RECEIVE * FROM a WHERE = 'a'
 reject	reject	engine	receiveStatement_RECEIVE(Where_(CONVERSATION_GROUP_ID|CONVERS~099d8827)?/Where_(CONVERSATION_GROUP_ID|CONVERSATION_HANDLE)_Equal~6e0ea101!drop-3	RECEIVE * FROM a WHERE CONVERSATION_GROUP_ID 'a'
-accept	reject	engine	receiveStatement_RECEIVE(Where_(CONVERSATION_GROUP_ID|CONVERS~099d8827)?/Where_(CONVERSATION_GROUP_ID|CONVERSATION_HANDLE)_Equal~6e0ea101!drop-4	RECEIVE * FROM a WHERE CONVERSATION_GROUP_ID =
+reject	reject	engine	receiveStatement_RECEIVE(Where_(CONVERSATION_GROUP_ID|CONVERS~099d8827)?/Where_(CONVERSATION_GROUP_ID|CONVERSATION_HANDLE)_Equal~6e0ea101!drop-4	RECEIVE * FROM a WHERE CONVERSATION_GROUP_ID =
 reject	reject	engine	receiveStatement_RECEIVE(Where_(CONVERSATION_GROUP_ID|CONVERS~099d8827)?/Where_(CONVERSATION_GROUP_ID|CONVERSATION_HANDLE)_Equal~6e0ea101!insert	RECEIVE * FROM a WHERE CONVERSATION_GROUP_ID = 'a' zzz
 reject	reject	engine	receiveStatement_RECEIVE(Where_(CONVERSATION_GROUP_ID|CONVERS~099d8827)?/Where_(CONVERSATION_GROUP_ID|CONVERSATION_HANDLE)_Equal~6e0ea101!swap	RECEIVE * FROM a WHILE CONVERSATION_GROUP_ID = 'a'
 accept	accept	engine	receiveStatement_RECEIVE(CONVERSATION_GROUP_ID|CONVERSATION_HANDLE)/CONVERSATION_GROUP_ID	RECEIVE * FROM a WHERE CONVERSATION_GROUP_ID = 'a'
-accept	reject	engine	receiveStatement_RECEIVE(CONVERSATION_GROUP_ID|CONVERSATION_HANDLE)/CONVERSATION_GROUP_ID!truncate	RECEIVE * FROM a WHERE
+reject	reject	engine	receiveStatement_RECEIVE(CONVERSATION_GROUP_ID|CONVERSATION_HANDLE)/CONVERSATION_GROUP_ID!truncate	RECEIVE * FROM a WHERE
 reject	reject	engine	receiveStatement_RECEIVE(CONVERSATION_GROUP_ID|CONVERSATION_HANDLE)/CONVERSATION_GROUP_ID!insert	RECEIVE * FROM a WHERE CONVERSATION_GROUP_ID zzz = 'a'
 accept	accept	engine	receiveStatement_RECEIVE(CONVERSATION_GROUP_ID|CONVERSATION_HANDLE)/CONVERSATION_HANDLE	RECEIVE * FROM a WHERE CONVERSATION_HANDLE = 'a'
 reject	reject	engine	receiveStatement_RECEIVE(CONVERSATION_GROUP_ID|CONVERSATION_HANDLE)/CONVERSATION_HANDLE!insert	RECEIVE * FROM a WHERE CONVERSATION_HANDLE zzz = 'a'
 reject	reject	engine	receiveStatement_RECEIVE(CONVERSATION_GROUP_ID|CONVERSATION_HANDLE)/CONVERSATION_HANDLE!swap	RECEIVE * FROM a WHERE CONVERT = 'a'
-reject	accept	engine	sendStatement_SEND/SEND_On_CONVERSATION_(LeftParenthesis_expression_(Comma~6b91370d	SEND ON CONVERSATION 1
-reject	accept	engine	sendStatement_SEND(LeftParenthesis_expression_(Comma_ex~441427a8)/LeftParenthesis_expression_(Comma_expression)*_RightParenthesis	SEND ON CONVERSATION(1)
+accept	accept	engine	sendStatement_SEND/SEND_On_CONVERSATION_(LeftParenthesis_expression_(Comma~6b91370d	SEND ON CONVERSATION 1
+accept	accept	engine	sendStatement_SEND(LeftParenthesis_expression_(Comma_ex~441427a8)/LeftParenthesis_expression_(Comma_expression)*_RightParenthesis	SEND ON CONVERSATION(1)
 reject	reject	engine	sendStatement_SEND(LeftParenthesis_expression_(Comma_ex~441427a8)/LeftParenthesis_expression_(Comma_expression)*_RightParenthesis!drop-1	SEND ON CONVERSATION 1)
-accept	reject	engine	sendStatement_SEND(LeftParenthesis_expression_(Comma_ex~441427a8)/LeftParenthesis_expression_(Comma_expression)*_RightParenthesis!drop-2	SEND ON CONVERSATION()
+reject	reject	engine	sendStatement_SEND(LeftParenthesis_expression_(Comma_ex~441427a8)/LeftParenthesis_expression_(Comma_expression)*_RightParenthesis!drop-2	SEND ON CONVERSATION()
 reject	reject	engine	sendStatement_SEND(LeftParenthesis_expression_(Comma_ex~441427a8)/LeftParenthesis_expression_(Comma_expression)*_RightParenthesis!drop-3	SEND ON CONVERSATION(1
 reject	reject	engine	sendStatement_SEND(LeftParenthesis_expression_(Comma_ex~441427a8)/LeftParenthesis_expression_(Comma_expression)*_RightParenthesis!insert	SEND ON CONVERSATION(1) zzz
-reject	accept	engine	sendStatement_SEND(LeftParenthesis_expression_(Comma_ex~441427a8)/expression	SEND ON CONVERSATION 1
-reject	accept	engine	sendStatement_SEND(Comma_expression)*/%empty	SEND ON CONVERSATION(1)
+accept	accept	engine	sendStatement_SEND(LeftParenthesis_expression_(Comma_ex~441427a8)/expression	SEND ON CONVERSATION 1
+accept	accept	engine	sendStatement_SEND(Comma_expression)*/%empty	SEND ON CONVERSATION(1)
 reject	reject	engine	sendStatement_SEND(Comma_expression)*/%empty!insert	SEND ON CONVERSATION(1 zzz)
-reject	accept	engine	sendStatement_SEND(Comma_expression)*/Comma_expression_(Comma_expression)*	SEND ON CONVERSATION(1, 1)
+accept	accept	engine	sendStatement_SEND(Comma_expression)*/Comma_expression_(Comma_expression)*	SEND ON CONVERSATION(1, 1)
 reject	reject	engine	sendStatement_SEND(Comma_expression)*/Comma_expression_(Comma_expression)*!drop-1	SEND ON CONVERSATION(1 1)
 reject	reject	engine	sendStatement_SEND(Comma_expression)*/Comma_expression_(Comma_expression)*!drop-2	SEND ON CONVERSATION(1,)
 reject	reject	engine	sendStatement_SEND(Comma_expression)*/Comma_expression_(Comma_expression)*!truncate	SEND ON CONVERSATION(1,
 reject	reject	engine	sendStatement_SEND(Comma_expression)*/Comma_expression_(Comma_expression)*!insert	SEND ON CONVERSATION(1, 1 zzz)
-reject	accept	engine	sendStatement_SEND(MESSAGE_TYPE_identifierOrVariable)?/%empty	SEND ON CONVERSATION 1
-reject	accept	engine	sendStatement_SEND(MESSAGE_TYPE_identifierOrVariable)?/MESSAGE_TYPE_identifierOrVariable	SEND ON CONVERSATION 1 MESSAGE TYPE @a
+accept	accept	engine	sendStatement_SEND(MESSAGE_TYPE_identifierOrVariable)?/%empty	SEND ON CONVERSATION 1
+accept	accept	engine	sendStatement_SEND(MESSAGE_TYPE_identifierOrVariable)?/MESSAGE_TYPE_identifierOrVariable	SEND ON CONVERSATION 1 MESSAGE TYPE @a
 reject	reject	engine	sendStatement_SEND(MESSAGE_TYPE_identifierOrVariable)?/MESSAGE_TYPE_identifierOrVariable!drop-1	SEND ON CONVERSATION 1 TYPE @a
 reject	reject	engine	sendStatement_SEND(MESSAGE_TYPE_identifierOrVariable)?/MESSAGE_TYPE_identifierOrVariable!drop-2	SEND ON CONVERSATION 1 MESSAGE @a
 reject	reject	engine	sendStatement_SEND(MESSAGE_TYPE_identifierOrVariable)?/MESSAGE_TYPE_identifierOrVariable!drop-3	SEND ON CONVERSATION 1 MESSAGE TYPE
 reject	reject	engine	sendStatement_SEND(MESSAGE_TYPE_identifierOrVariable)?/MESSAGE_TYPE_identifierOrVariable!insert	SEND ON CONVERSATION 1 MESSAGE TYPE @a zzz
 reject	reject	engine	sendStatement_SEND(MESSAGE_TYPE_identifierOrVariable)?/MESSAGE_TYPE_identifierOrVariable!swap	SEND ON CONVERSATION 1 MESSAGE_FORWARDING TYPE @a
-reject	accept	engine	sendStatement_SEND(LeftParenthesis_expression_RightParenthesis)?/%empty	SEND ON CONVERSATION 1
-reject	accept	engine	sendStatement_SEND(LeftParenthesis_expression_RightParenthesis)?/LeftParenthesis_expression_RightParenthesis	SEND ON CONVERSATION 1(1)
+accept	accept	engine	sendStatement_SEND(LeftParenthesis_expression_RightParenthesis)?/%empty	SEND ON CONVERSATION 1
+accept	accept	engine	sendStatement_SEND(LeftParenthesis_expression_RightParenthesis)?/LeftParenthesis_expression_RightParenthesis	SEND ON CONVERSATION 1(1)
 reject	reject	engine	sendStatement_SEND(LeftParenthesis_expression_RightParenthesis)?/LeftParenthesis_expression_RightParenthesis!drop-1	SEND ON CONVERSATION 1 1)
 reject	reject	engine	sendStatement_SEND(LeftParenthesis_expression_RightParenthesis)?/LeftParenthesis_expression_RightParenthesis!drop-2	SEND ON CONVERSATION 1()
 reject	reject	engine	sendStatement_SEND(LeftParenthesis_expression_RightParenthesis)?/LeftParenthesis_expression_RightParenthesis!drop-3	SEND ON CONVERSATION 1(1
@@ -15119,22 +15119,22 @@ reject	reject	engine	createAvailabilityGroupStatement_AVAILABILITY(Comma_availab
 reject	reject	engine	createAvailabilityGroupStatement_AVAILABILITY(Comma_availabilityReplica)*/Comma_availabilityReplica_(Comma_availabilityReplica)*!drop-8	CREATE AVAILABILITY GROUP a FOR REPLICA ON 'a' WITH(AVAILABILITY_MODE = SYNCHRONOUS_COMMIT), 'a' WITH(AVAILABILITY_MODE = SYNCHRONOUS_COMMIT
 reject	reject	engine	createAvailabilityGroupStatement_AVAILABILITY(Comma_availabilityReplica)*/Comma_availabilityReplica_(Comma_availabilityReplica)*!insert	CREATE AVAILABILITY GROUP a FOR REPLICA ON 'a' WITH(AVAILABILITY_MODE = SYNCHRONOUS_COMMIT), 'a' WITH(AVAILABILITY_MODE = SYNCHRONOUS_COMMIT) zzz
 reject	reject	engine	createAvailabilityGroupStatement_AVAILABILITY(Comma_availabilityReplica)*/Comma_availabilityReplica_(Comma_availabilityReplica)*!swap	CREATE AVAILABILITY GROUP a FOR REPLICA ON 'a' WITH(AVAILABILITY_MODE = SYNCHRONOUS_COMMIT), 'a' WITHIN(AVAILABILITY_MODE = SYNCHRONOUS_COMMIT)
-accept	reject	engine	brokerPriorityStatementBody_BROKER/BROKER_PRIORITY_identifier_For_CONVERSATION_(Set_LeftPa~31552a87	ALTER BROKER PRIORITY a FOR CONVERSATION
-accept	reject	engine	brokerPriorityStatementBody_BROKER(Set_LeftParenthesis_brokerPriorityPa~b06e8bb8)?/%empty	ALTER BROKER PRIORITY a FOR CONVERSATION
-accept	reject	engine	brokerPriorityStatementBody_BROKER(Set_LeftParenthesis_brokerPriorityPa~b06e8bb8)?/Set_LeftParenthesis_brokerPriorityParameter_(Comma_brok~e8b08f1c	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = a)
+reject	reject	engine	brokerPriorityStatementBody_BROKER/BROKER_PRIORITY_identifier_For_CONVERSATION_(Set_LeftPa~31552a87	ALTER BROKER PRIORITY a FOR CONVERSATION
+reject	reject	engine	brokerPriorityStatementBody_BROKER(Set_LeftParenthesis_brokerPriorityPa~b06e8bb8)?/%empty	ALTER BROKER PRIORITY a FOR CONVERSATION
+reject	reject	engine	brokerPriorityStatementBody_BROKER(Set_LeftParenthesis_brokerPriorityPa~b06e8bb8)?/Set_LeftParenthesis_brokerPriorityParameter_(Comma_brok~e8b08f1c	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = a)
 reject	reject	engine	brokerPriorityStatementBody_BROKER(Set_LeftParenthesis_brokerPriorityPa~b06e8bb8)?/Set_LeftParenthesis_brokerPriorityParameter_(Comma_brok~e8b08f1c!drop-1	ALTER BROKER PRIORITY a FOR CONVERSATION(a = a)
 reject	reject	engine	brokerPriorityStatementBody_BROKER(Set_LeftParenthesis_brokerPriorityPa~b06e8bb8)?/Set_LeftParenthesis_brokerPriorityParameter_(Comma_brok~e8b08f1c!drop-2	ALTER BROKER PRIORITY a FOR CONVERSATION SET a = a)
-accept	reject	engine	brokerPriorityStatementBody_BROKER(Set_LeftParenthesis_brokerPriorityPa~b06e8bb8)?/Set_LeftParenthesis_brokerPriorityParameter_(Comma_brok~e8b08f1c!drop-6	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = a
+reject	reject	engine	brokerPriorityStatementBody_BROKER(Set_LeftParenthesis_brokerPriorityPa~b06e8bb8)?/Set_LeftParenthesis_brokerPriorityParameter_(Comma_brok~e8b08f1c!drop-6	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = a
 reject	reject	engine	brokerPriorityStatementBody_BROKER(Set_LeftParenthesis_brokerPriorityPa~b06e8bb8)?/Set_LeftParenthesis_brokerPriorityParameter_(Comma_brok~e8b08f1c!insert	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = a) zzz
 reject	reject	engine	brokerPriorityStatementBody_BROKER(Set_LeftParenthesis_brokerPriorityPa~b06e8bb8)?/Set_LeftParenthesis_brokerPriorityParameter_(Comma_brok~e8b08f1c!swap	ALTER BROKER PRIORITY a FOR CONVERSATION SETS(a = a)
-accept	reject	engine	brokerPriorityStatementBody_BROKER(Comma_brokerPriorityParameter)*/%empty	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = a)
-accept	reject	engine	brokerPriorityStatementBody_BROKER(Comma_brokerPriorityParameter)*/Comma_brokerPriorityParameter_(Comma_brokerPriorityParameter)*	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = a, a = a)
-accept	reject	engine	brokerPriorityStatementBody_BROKER(Comma_brokerPriorityParameter)*/Comma_brokerPriorityParameter_(Comma_brokerPriorityParameter)*!drop-1	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = a a = a)
-accept	reject	engine	brokerPriorityStatementBody_BROKER(Comma_brokerPriorityParameter)*/Comma_brokerPriorityParameter_(Comma_brokerPriorityParameter)*!drop-2	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = a, = a)
-accept	reject	engine	brokerPriorityStatementBody_BROKER(Comma_brokerPriorityParameter)*/Comma_brokerPriorityParameter_(Comma_brokerPriorityParameter)*!drop-3	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = a, a a)
-accept	reject	engine	brokerPriorityStatementBody_BROKER(Comma_brokerPriorityParameter)*/Comma_brokerPriorityParameter_(Comma_brokerPriorityParameter)*!drop-4	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = a, a =)
-accept	reject	engine	brokerPriorityStatementBody_BROKER(Comma_brokerPriorityParameter)*/Comma_brokerPriorityParameter_(Comma_brokerPriorityParameter)*!truncate	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = a, a =
-accept	reject	engine	brokerPriorityStatementBody_BROKER(Comma_brokerPriorityParameter)*/Comma_brokerPriorityParameter_(Comma_brokerPriorityParameter)*!insert	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = a, a = a zzz)
+reject	reject	engine	brokerPriorityStatementBody_BROKER(Comma_brokerPriorityParameter)*/%empty	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = a)
+reject	reject	engine	brokerPriorityStatementBody_BROKER(Comma_brokerPriorityParameter)*/Comma_brokerPriorityParameter_(Comma_brokerPriorityParameter)*	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = a, a = a)
+reject	reject	engine	brokerPriorityStatementBody_BROKER(Comma_brokerPriorityParameter)*/Comma_brokerPriorityParameter_(Comma_brokerPriorityParameter)*!drop-1	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = a a = a)
+reject	reject	engine	brokerPriorityStatementBody_BROKER(Comma_brokerPriorityParameter)*/Comma_brokerPriorityParameter_(Comma_brokerPriorityParameter)*!drop-2	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = a, = a)
+reject	reject	engine	brokerPriorityStatementBody_BROKER(Comma_brokerPriorityParameter)*/Comma_brokerPriorityParameter_(Comma_brokerPriorityParameter)*!drop-3	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = a, a a)
+reject	reject	engine	brokerPriorityStatementBody_BROKER(Comma_brokerPriorityParameter)*/Comma_brokerPriorityParameter_(Comma_brokerPriorityParameter)*!drop-4	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = a, a =)
+reject	reject	engine	brokerPriorityStatementBody_BROKER(Comma_brokerPriorityParameter)*/Comma_brokerPriorityParameter_(Comma_brokerPriorityParameter)*!truncate	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = a, a =
+reject	reject	engine	brokerPriorityStatementBody_BROKER(Comma_brokerPriorityParameter)*/Comma_brokerPriorityParameter_(Comma_brokerPriorityParameter)*!insert	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = a, a = a zzz)
 accept	accept	engine	createBrokerPriorityStatement_BROKER/brokerPriorityStatementBody_BROKER	CREATE BROKER PRIORITY a FOR CONVERSATION
 accept	accept	engine	createCertificateStatement_CERTIFICATE/CERTIFICATE_identifier_authorizationOpt_createCertifica~42d9dc59	CREATE CERTIFICATE a FROM ASSEMBLY a
 accept	accept	engine	createCertificateStatement_CERTIFICATE(createCertificateActivityFlag)?/%empty	CREATE CERTIFICATE a FROM ASSEMBLY a
@@ -15189,9 +15189,9 @@ accept	accept	engine	createContractStatement_CONTRACT(Comma_contractMessage)*/Co
 reject	reject	engine	createContractStatement_CONTRACT(Comma_contractMessage)*/Comma_contractMessage_(Comma_contractMessage)*!drop-1	CREATE CONTRACT a(a SENT BY ANY a SENT BY ANY)
 reject	reject	engine	createContractStatement_CONTRACT(Comma_contractMessage)*/Comma_contractMessage_(Comma_contractMessage)*!drop-2	CREATE CONTRACT a(a SENT BY ANY, SENT BY ANY)
 reject	reject	engine	createContractStatement_CONTRACT(Comma_contractMessage)*/Comma_contractMessage_(Comma_contractMessage)*!drop-3	CREATE CONTRACT a(a SENT BY ANY, a BY ANY)
-accept	reject	engine	createContractStatement_CONTRACT(Comma_contractMessage)*/Comma_contractMessage_(Comma_contractMessage)*!drop-4	CREATE CONTRACT a(a SENT BY ANY, a SENT ANY)
-accept	reject	engine	createContractStatement_CONTRACT(Comma_contractMessage)*/Comma_contractMessage_(Comma_contractMessage)*!drop-5	CREATE CONTRACT a(a SENT BY ANY, a SENT BY)
-accept	reject	engine	createContractStatement_CONTRACT(Comma_contractMessage)*/Comma_contractMessage_(Comma_contractMessage)*!truncate	CREATE CONTRACT a(a SENT BY ANY, a SENT BY
+reject	reject	engine	createContractStatement_CONTRACT(Comma_contractMessage)*/Comma_contractMessage_(Comma_contractMessage)*!drop-4	CREATE CONTRACT a(a SENT BY ANY, a SENT ANY)
+reject	reject	engine	createContractStatement_CONTRACT(Comma_contractMessage)*/Comma_contractMessage_(Comma_contractMessage)*!drop-5	CREATE CONTRACT a(a SENT BY ANY, a SENT BY)
+reject	reject	engine	createContractStatement_CONTRACT(Comma_contractMessage)*/Comma_contractMessage_(Comma_contractMessage)*!truncate	CREATE CONTRACT a(a SENT BY ANY, a SENT BY
 reject	reject	engine	createContractStatement_CONTRACT(Comma_contractMessage)*/Comma_contractMessage_(Comma_contractMessage)*!insert	CREATE CONTRACT a(a SENT BY ANY, a SENT BY ANY zzz)
 reject	reject	engine	createContractStatement_CONTRACT(Comma_contractMessage)*/Comma_contractMessage_(Comma_contractMessage)*!swap	CREATE CONTRACT a(a SENT BY ANY, a SEQUENCE BY ANY)
 accept	accept	engine	credentialStatementBody_CREDENTIAL/CREDENTIAL_identifier_With_Identity_EqualsSign_stringLi~ad198098	ALTER CREDENTIAL a WITH IDENTITY = 'a'
@@ -15313,23 +15313,23 @@ accept	accept	engine	createQueueStatement_QUEUE(queueOptionList)?/%empty	CREATE 
 accept	accept	engine	createQueueStatement_QUEUE(queueOptionList)?/queueOptionList	CREATE QUEUE a WITH STATUS = ON
 reject	reject	engine	createQueueStatement_QUEUE(queueOptionList)?/queueOptionList!drop-1	CREATE QUEUE a STATUS = ON
 reject	reject	engine	createQueueStatement_QUEUE(queueOptionList)?/queueOptionList!drop-2	CREATE QUEUE a WITH = ON
-accept	reject	engine	createQueueStatement_QUEUE(queueOptionList)?/queueOptionList!drop-3	CREATE QUEUE a WITH STATUS ON
-accept	reject	engine	createQueueStatement_QUEUE(queueOptionList)?/queueOptionList!drop-4	CREATE QUEUE a WITH STATUS =
+reject	reject	engine	createQueueStatement_QUEUE(queueOptionList)?/queueOptionList!drop-3	CREATE QUEUE a WITH STATUS ON
+reject	reject	engine	createQueueStatement_QUEUE(queueOptionList)?/queueOptionList!drop-4	CREATE QUEUE a WITH STATUS =
 reject	reject	engine	createQueueStatement_QUEUE(queueOptionList)?/queueOptionList!insert	CREATE QUEUE a WITH STATUS = ON zzz
 reject	reject	engine	createQueueStatement_QUEUE(queueOptionList)?/queueOptionList!swap	CREATE QUEUE a WITHIN STATUS = ON
 accept	accept	engine	createQueueStatement_QUEUE(On_stringOrIdentifier)?/%empty	CREATE QUEUE a
-reject	accept	engine	createQueueStatement_QUEUE(On_stringOrIdentifier)?/On_stringOrIdentifier	CREATE QUEUE a ON 'a'
+accept	accept	engine	createQueueStatement_QUEUE(On_stringOrIdentifier)?/On_stringOrIdentifier	CREATE QUEUE a ON 'a'
 reject	reject	engine	createQueueStatement_QUEUE(On_stringOrIdentifier)?/On_stringOrIdentifier!drop-1	CREATE QUEUE a 'a'
-accept	reject	engine	createQueueStatement_QUEUE(On_stringOrIdentifier)?/On_stringOrIdentifier!drop-2	CREATE QUEUE a ON
+reject	reject	engine	createQueueStatement_QUEUE(On_stringOrIdentifier)?/On_stringOrIdentifier!drop-2	CREATE QUEUE a ON
 reject	reject	engine	createQueueStatement_QUEUE(On_stringOrIdentifier)?/On_stringOrIdentifier!insert	CREATE QUEUE a ON 'a' zzz
 reject	reject	engine	createQueueStatement_QUEUE(On_stringOrIdentifier)?/On_stringOrIdentifier!swap	CREATE QUEUE a ONLINE 'a'
 accept	accept	engine	createRemoteServiceBindingStatement_REMOTE/REMOTE_SERVICE_BINDING_identifier_authorizationOpt_To_S~ce1dc16f	CREATE REMOTE SERVICE BINDING a TO SERVICE 'a' WITH USER = a
 accept	accept	engine	createRemoteServiceBindingStatement_REMOTE((bindingUserOption_(Comma_bindingAno~ad647514)/bindingUserOption_(Comma_bindingAnonymousOption)?	CREATE REMOTE SERVICE BINDING a TO SERVICE 'a' WITH USER = a
-accept	reject	engine	createRemoteServiceBindingStatement_REMOTE((bindingUserOption_(Comma_bindingAno~ad647514)/bindingUserOption_(Comma_bindingAnonymousOption)?!swap	CREATE REMOTE SERVICE BINDING a TO SERVICE 'a' WITH USER_DB = a
-accept	reject	engine	createRemoteServiceBindingStatement_REMOTE((bindingUserOption_(Comma_bindingAno~ad647514)/bindingAnonymousOption_(Comma_bindingUserOption)?	CREATE REMOTE SERVICE BINDING a TO SERVICE 'a' WITH ANONYMOUS = ON
+reject	reject	engine	createRemoteServiceBindingStatement_REMOTE((bindingUserOption_(Comma_bindingAno~ad647514)/bindingUserOption_(Comma_bindingAnonymousOption)?!swap	CREATE REMOTE SERVICE BINDING a TO SERVICE 'a' WITH USER_DB = a
+reject	reject	engine	createRemoteServiceBindingStatement_REMOTE((bindingUserOption_(Comma_bindingAno~ad647514)/bindingAnonymousOption_(Comma_bindingUserOption)?	CREATE REMOTE SERVICE BINDING a TO SERVICE 'a' WITH ANONYMOUS = ON
 reject	reject	engine	createRemoteServiceBindingStatement_REMOTE((bindingUserOption_(Comma_bindingAno~ad647514)/bindingAnonymousOption_(Comma_bindingUserOption)?!drop-1	CREATE REMOTE SERVICE BINDING a TO SERVICE 'a' WITH = ON
 reject	reject	engine	createRemoteServiceBindingStatement_REMOTE((bindingUserOption_(Comma_bindingAno~ad647514)/bindingAnonymousOption_(Comma_bindingUserOption)?!drop-2	CREATE REMOTE SERVICE BINDING a TO SERVICE 'a' WITH ANONYMOUS ON
-accept	reject	engine	createRemoteServiceBindingStatement_REMOTE((bindingUserOption_(Comma_bindingAno~ad647514)/bindingAnonymousOption_(Comma_bindingUserOption)?!drop-3	CREATE REMOTE SERVICE BINDING a TO SERVICE 'a' WITH ANONYMOUS =
+reject	reject	engine	createRemoteServiceBindingStatement_REMOTE((bindingUserOption_(Comma_bindingAno~ad647514)/bindingAnonymousOption_(Comma_bindingUserOption)?!drop-3	CREATE REMOTE SERVICE BINDING a TO SERVICE 'a' WITH ANONYMOUS =
 reject	reject	engine	createRemoteServiceBindingStatement_REMOTE((bindingUserOption_(Comma_bindingAno~ad647514)/bindingAnonymousOption_(Comma_bindingUserOption)?!insert	CREATE REMOTE SERVICE BINDING a TO SERVICE 'a' WITH ANONYMOUS = ON zzz
 reject	reject	engine	createRemoteServiceBindingStatement_REMOTE((bindingUserOption_(Comma_bindingAno~ad647514)/bindingAnonymousOption_(Comma_bindingUserOption)?!swap	CREATE REMOTE SERVICE BINDING a TO SERVICE 'a' WITH ANY = ON
 accept	accept	engine	createRemoteServiceBindingStatement_REMOTE(Comma_bindingAnonymousOption)?/%empty	CREATE REMOTE SERVICE BINDING a TO SERVICE 'a' WITH USER = a
@@ -15337,20 +15337,20 @@ accept	accept	engine	createRemoteServiceBindingStatement_REMOTE(Comma_bindingAno
 reject	reject	engine	createRemoteServiceBindingStatement_REMOTE(Comma_bindingAnonymousOption)?/Comma_bindingAnonymousOption!drop-1	CREATE REMOTE SERVICE BINDING a TO SERVICE 'a' WITH USER = a ANONYMOUS = ON
 reject	reject	engine	createRemoteServiceBindingStatement_REMOTE(Comma_bindingAnonymousOption)?/Comma_bindingAnonymousOption!drop-2	CREATE REMOTE SERVICE BINDING a TO SERVICE 'a' WITH USER = a, = ON
 reject	reject	engine	createRemoteServiceBindingStatement_REMOTE(Comma_bindingAnonymousOption)?/Comma_bindingAnonymousOption!drop-3	CREATE REMOTE SERVICE BINDING a TO SERVICE 'a' WITH USER = a, ANONYMOUS ON
-accept	reject	engine	createRemoteServiceBindingStatement_REMOTE(Comma_bindingAnonymousOption)?/Comma_bindingAnonymousOption!drop-4	CREATE REMOTE SERVICE BINDING a TO SERVICE 'a' WITH USER = a, ANONYMOUS =
+reject	reject	engine	createRemoteServiceBindingStatement_REMOTE(Comma_bindingAnonymousOption)?/Comma_bindingAnonymousOption!drop-4	CREATE REMOTE SERVICE BINDING a TO SERVICE 'a' WITH USER = a, ANONYMOUS =
 reject	reject	engine	createRemoteServiceBindingStatement_REMOTE(Comma_bindingAnonymousOption)?/Comma_bindingAnonymousOption!insert	CREATE REMOTE SERVICE BINDING a TO SERVICE 'a' WITH USER = a, ANONYMOUS = ON zzz
 reject	reject	engine	createRemoteServiceBindingStatement_REMOTE(Comma_bindingAnonymousOption)?/Comma_bindingAnonymousOption!swap	CREATE REMOTE SERVICE BINDING a TO SERVICE 'a' WITH USER = a, ANY = ON
-accept	reject	engine	createRemoteServiceBindingStatement_REMOTE(Comma_bindingUserOption)?/%empty	CREATE REMOTE SERVICE BINDING a TO SERVICE 'a' WITH ANONYMOUS = ON
+reject	reject	engine	createRemoteServiceBindingStatement_REMOTE(Comma_bindingUserOption)?/%empty	CREATE REMOTE SERVICE BINDING a TO SERVICE 'a' WITH ANONYMOUS = ON
 accept	accept	engine	createRemoteServiceBindingStatement_REMOTE(Comma_bindingUserOption)?/Comma_bindingUserOption	CREATE REMOTE SERVICE BINDING a TO SERVICE 'a' WITH ANONYMOUS = ON, USER = a
 reject	reject	engine	createRemoteServiceBindingStatement_REMOTE(Comma_bindingUserOption)?/Comma_bindingUserOption!drop-1	CREATE REMOTE SERVICE BINDING a TO SERVICE 'a' WITH ANONYMOUS = ON USER = a
 reject	reject	engine	createRemoteServiceBindingStatement_REMOTE(Comma_bindingUserOption)?/Comma_bindingUserOption!drop-2	CREATE REMOTE SERVICE BINDING a TO SERVICE 'a' WITH ANONYMOUS = ON, = a
 reject	reject	engine	createRemoteServiceBindingStatement_REMOTE(Comma_bindingUserOption)?/Comma_bindingUserOption!drop-3	CREATE REMOTE SERVICE BINDING a TO SERVICE 'a' WITH ANONYMOUS = ON, USER a
-accept	reject	engine	createRemoteServiceBindingStatement_REMOTE(Comma_bindingUserOption)?/Comma_bindingUserOption!drop-4	CREATE REMOTE SERVICE BINDING a TO SERVICE 'a' WITH ANONYMOUS = ON, USER =
+reject	reject	engine	createRemoteServiceBindingStatement_REMOTE(Comma_bindingUserOption)?/Comma_bindingUserOption!drop-4	CREATE REMOTE SERVICE BINDING a TO SERVICE 'a' WITH ANONYMOUS = ON, USER =
 reject	reject	engine	createRemoteServiceBindingStatement_REMOTE(Comma_bindingUserOption)?/Comma_bindingUserOption!insert	CREATE REMOTE SERVICE BINDING a TO SERVICE 'a' WITH ANONYMOUS = ON, USER = a zzz
-accept	reject	engine	createRemoteServiceBindingStatement_REMOTE(Comma_bindingUserOption)?/Comma_bindingUserOption!swap	CREATE REMOTE SERVICE BINDING a TO SERVICE 'a' WITH ANONYMOUS = ON, USER_DB = a
+reject	reject	engine	createRemoteServiceBindingStatement_REMOTE(Comma_bindingUserOption)?/Comma_bindingUserOption!swap	CREATE REMOTE SERVICE BINDING a TO SERVICE 'a' WITH ANONYMOUS = ON, USER_DB = a
 accept	accept	engine	createResourcePoolStatement_RESOURCE/RESOURCE_POOL_identifier_resourcePoolStatementBody	CREATE RESOURCE POOL a
 accept	accept	engine	createRoleStatement_ROLE/ROLE_identifier_authorizationOpt	CREATE ROLE a
-accept	reject	engine	createRouteStatement_ROUTE/ROUTE_identifier_authorizationOpt_routeOptionList	CREATE ROUTE a WITH LIFETIME = 1
+reject	reject	engine	createRouteStatement_ROUTE/ROUTE_identifier_authorizationOpt_routeOptionList	CREATE ROUTE a WITH LIFETIME = 1
 reject	reject	engine	createSearchPropertyListStatement_SEARCH/SEARCH_PROPERTY_LIST_identifier_(From_multiPartIdentifi~ef3dbd76	CREATE SEARCH PROPERTY LIST a
 reject	reject	engine	createSearchPropertyListStatement_SEARCH(From_multiPartIdentifier)?/%empty	CREATE SEARCH PROPERTY LIST a
 reject	reject	engine	createSearchPropertyListStatement_SEARCH(From_multiPartIdentifier)?/From_multiPartIdentifier	CREATE SEARCH PROPERTY LIST a FROM a
@@ -15362,13 +15362,13 @@ accept	accept	engine	createServiceStatement_SERVICE/SERVICE_identifier_authoriza
 accept	accept	engine	createServiceStatement_SERVICE(LeftParenthesis_serviceContract_(Com~3940c3fa)?/%empty	CREATE SERVICE a ON QUEUE a
 accept	accept	engine	createServiceStatement_SERVICE(LeftParenthesis_serviceContract_(Com~3940c3fa)?/LeftParenthesis_serviceContract_(Comma_serviceContract)~a9abeed4	CREATE SERVICE a ON QUEUE a(a)
 reject	reject	engine	createServiceStatement_SERVICE(LeftParenthesis_serviceContract_(Com~3940c3fa)?/LeftParenthesis_serviceContract_(Comma_serviceContract)~a9abeed4!drop-1	CREATE SERVICE a ON QUEUE a a)
-accept	reject	engine	createServiceStatement_SERVICE(LeftParenthesis_serviceContract_(Com~3940c3fa)?/LeftParenthesis_serviceContract_(Comma_serviceContract)~a9abeed4!drop-3	CREATE SERVICE a ON QUEUE a(a
+reject	reject	engine	createServiceStatement_SERVICE(LeftParenthesis_serviceContract_(Com~3940c3fa)?/LeftParenthesis_serviceContract_(Comma_serviceContract)~a9abeed4!drop-3	CREATE SERVICE a ON QUEUE a(a
 reject	reject	engine	createServiceStatement_SERVICE(LeftParenthesis_serviceContract_(Com~3940c3fa)?/LeftParenthesis_serviceContract_(Comma_serviceContract)~a9abeed4!insert	CREATE SERVICE a ON QUEUE a(a) zzz
 accept	accept	engine	createServiceStatement_SERVICE(Comma_serviceContract)*/%empty	CREATE SERVICE a ON QUEUE a(a)
 accept	accept	engine	createServiceStatement_SERVICE(Comma_serviceContract)*/Comma_serviceContract_(Comma_serviceContract)*	CREATE SERVICE a ON QUEUE a(a, a)
 reject	reject	engine	createServiceStatement_SERVICE(Comma_serviceContract)*/Comma_serviceContract_(Comma_serviceContract)*!drop-1	CREATE SERVICE a ON QUEUE a(a a)
-accept	reject	engine	createServiceStatement_SERVICE(Comma_serviceContract)*/Comma_serviceContract_(Comma_serviceContract)*!drop-2	CREATE SERVICE a ON QUEUE a(a,)
-accept	reject	engine	createServiceStatement_SERVICE(Comma_serviceContract)*/Comma_serviceContract_(Comma_serviceContract)*!truncate	CREATE SERVICE a ON QUEUE a(a,
+reject	reject	engine	createServiceStatement_SERVICE(Comma_serviceContract)*/Comma_serviceContract_(Comma_serviceContract)*!drop-2	CREATE SERVICE a ON QUEUE a(a,)
+reject	reject	engine	createServiceStatement_SERVICE(Comma_serviceContract)*/Comma_serviceContract_(Comma_serviceContract)*!truncate	CREATE SERVICE a ON QUEUE a(a,
 reject	reject	engine	createServiceStatement_SERVICE(Comma_serviceContract)*/Comma_serviceContract_(Comma_serviceContract)*!insert	CREATE SERVICE a ON QUEUE a(a, a zzz)
 accept	accept	engine	createSpatialIndexStatement_SPATIAL/SPATIAL_Index_identifier_On_schemaObjectFourPartName_Le~202f6ad1	CREATE SPATIAL INDEX a ON a(a)
 accept	accept	engine	createSpatialIndexStatement_SPATIAL(spatialIndexingScheme)?/%empty	CREATE SPATIAL INDEX a ON a(a)
@@ -16405,7 +16405,7 @@ accept	accept	engine	alterAvailabilityGroupStatement_AVAILABILITY(alterAvailabil
 accept	accept	engine	alterAvailabilityGroupStatement_AVAILABILITY(alterAvailabilityGroupAddDatabase|al~c0f4ad5b)/alterAvailabilityGroupRemoveReplica_REMOVE	ALTER AVAILABILITY GROUP a REMOVE REPLICA ON 'a'
 reject	reject	engine	alterAvailabilityGroupStatement_AVAILABILITY(alterAvailabilityGroupAddDatabase|al~c0f4ad5b)/alterAvailabilityGroupSetOption	ALTER AVAILABILITY GROUP a SET(REQUIRED_COPIES_TO_COMMIT = 1)
 accept	accept	engine	alterAvailabilityGroupStatement_AVAILABILITY(alterAvailabilityGroupAddDatabase|al~c0f4ad5b)/alterAvailabilityGroupTakeAction	ALTER AVAILABILITY GROUP a FAILOVER
-accept	reject	engine	alterBrokerPriorityStatement_BROKER/brokerPriorityStatementBody_BROKER	ALTER BROKER PRIORITY a FOR CONVERSATION
+reject	reject	engine	alterBrokerPriorityStatement_BROKER/brokerPriorityStatementBody_BROKER	ALTER BROKER PRIORITY a FOR CONVERSATION
 reject	reject	engine	alterCryptographicProviderStatement_CRYPTOGRAPHIC/CRYPTOGRAPHIC_PROVIDER_identifier_(cryptographicProvide~d94a4b3e	ALTER CRYPTOGRAPHIC PROVIDER a a
 accept	accept	engine	alterCryptographicProviderStatement_CRYPTOGRAPHIC(cryptographicProviderFile|Identifier)/cryptographicProviderFile	ALTER CRYPTOGRAPHIC PROVIDER a FROM FILE = 'a'
 reject	reject	engine	alterCryptographicProviderStatement_CRYPTOGRAPHIC(cryptographicProviderFile|Identifier)/Identifier	ALTER CRYPTOGRAPHIC PROVIDER a a
@@ -16432,7 +16432,7 @@ accept	accept	engine	alterRemoteServiceBindingStatement_REMOTE(Comma_bindingAnon
 reject	reject	engine	alterRemoteServiceBindingStatement_REMOTE(Comma_bindingAnonymousOption)?/Comma_bindingAnonymousOption!drop-1	ALTER REMOTE SERVICE BINDING a WITH USER = a ANONYMOUS = ON
 reject	reject	engine	alterRemoteServiceBindingStatement_REMOTE(Comma_bindingAnonymousOption)?/Comma_bindingAnonymousOption!drop-2	ALTER REMOTE SERVICE BINDING a WITH USER = a, = ON
 reject	reject	engine	alterRemoteServiceBindingStatement_REMOTE(Comma_bindingAnonymousOption)?/Comma_bindingAnonymousOption!drop-3	ALTER REMOTE SERVICE BINDING a WITH USER = a, ANONYMOUS ON
-accept	reject	engine	alterRemoteServiceBindingStatement_REMOTE(Comma_bindingAnonymousOption)?/Comma_bindingAnonymousOption!drop-4	ALTER REMOTE SERVICE BINDING a WITH USER = a, ANONYMOUS =
+reject	reject	engine	alterRemoteServiceBindingStatement_REMOTE(Comma_bindingAnonymousOption)?/Comma_bindingAnonymousOption!drop-4	ALTER REMOTE SERVICE BINDING a WITH USER = a, ANONYMOUS =
 reject	reject	engine	alterRemoteServiceBindingStatement_REMOTE(Comma_bindingAnonymousOption)?/Comma_bindingAnonymousOption!insert	ALTER REMOTE SERVICE BINDING a WITH USER = a, ANONYMOUS = ON zzz
 reject	reject	engine	alterRemoteServiceBindingStatement_REMOTE(Comma_bindingAnonymousOption)?/Comma_bindingAnonymousOption!swap	ALTER REMOTE SERVICE BINDING a WITH USER = a, ANY = ON
 accept	accept	engine	alterRemoteServiceBindingStatement_REMOTE(Comma_bindingUserOption)?/%empty	ALTER REMOTE SERVICE BINDING a WITH ANONYMOUS = ON
@@ -16440,9 +16440,9 @@ accept	accept	engine	alterRemoteServiceBindingStatement_REMOTE(Comma_bindingUser
 reject	reject	engine	alterRemoteServiceBindingStatement_REMOTE(Comma_bindingUserOption)?/Comma_bindingUserOption!drop-1	ALTER REMOTE SERVICE BINDING a WITH ANONYMOUS = ON USER = a
 reject	reject	engine	alterRemoteServiceBindingStatement_REMOTE(Comma_bindingUserOption)?/Comma_bindingUserOption!drop-2	ALTER REMOTE SERVICE BINDING a WITH ANONYMOUS = ON, = a
 reject	reject	engine	alterRemoteServiceBindingStatement_REMOTE(Comma_bindingUserOption)?/Comma_bindingUserOption!drop-3	ALTER REMOTE SERVICE BINDING a WITH ANONYMOUS = ON, USER a
-accept	reject	engine	alterRemoteServiceBindingStatement_REMOTE(Comma_bindingUserOption)?/Comma_bindingUserOption!drop-4	ALTER REMOTE SERVICE BINDING a WITH ANONYMOUS = ON, USER =
+reject	reject	engine	alterRemoteServiceBindingStatement_REMOTE(Comma_bindingUserOption)?/Comma_bindingUserOption!drop-4	ALTER REMOTE SERVICE BINDING a WITH ANONYMOUS = ON, USER =
 reject	reject	engine	alterRemoteServiceBindingStatement_REMOTE(Comma_bindingUserOption)?/Comma_bindingUserOption!insert	ALTER REMOTE SERVICE BINDING a WITH ANONYMOUS = ON, USER = a zzz
-accept	reject	engine	alterRemoteServiceBindingStatement_REMOTE(Comma_bindingUserOption)?/Comma_bindingUserOption!swap	ALTER REMOTE SERVICE BINDING a WITH ANONYMOUS = ON, USER_DB = a
+reject	reject	engine	alterRemoteServiceBindingStatement_REMOTE(Comma_bindingUserOption)?/Comma_bindingUserOption!swap	ALTER REMOTE SERVICE BINDING a WITH ANONYMOUS = ON, USER_DB = a
 reject	reject	engine	alterResourceStatement_RESOURCE/RESOURCE_(alterResourcePoolStatement_POOL|alte~f8730d9b)	ALTER RESOURCE POOL a
 reject	reject	engine	alterResourceStatement_RESOURCE(alterResourcePoolStatement_POOL|alte~f8730d9b)/alterResourcePoolStatement_POOL	ALTER RESOURCE POOL a
 reject	reject	engine	alterResourceStatement_RESOURCE(alterResourcePoolStatement_POOL|alte~f8730d9b)/alterResourcePoolStatement_POOL!swap	ALTER RESOURCE POPULATION a
@@ -16620,10 +16620,10 @@ accept	accept	engine	searchPropertyListFullTextIndexOption_SEARCH(identifier|Off
 accept	accept	engine	setSearchPropertyListAlterFullTextIndexAction_SEARCH/searchPropertyListFullTextIndexOption_SEARCH_populationOption	ALTER FULLTEXT INDEX ON a SET SEARCH PROPERTY LIST a
 accept	accept	engine	queueActivationOption_ACTIVATION/ACTIVATION_LeftParenthesis_activationQueueOptionArgumen~99c9cd43	ALTER QUEUE a WITH ACTIVATION(DROP)
 accept	accept	engine	queueActivationOption_ACTIVATION(Comma_activationQueueOptionArgument)*/%empty	ALTER QUEUE a WITH ACTIVATION(DROP)
-accept	reject	engine	queueActivationOption_ACTIVATION(Comma_activationQueueOptionArgument)*/Comma_activationQueueOptionArgument_(Comma_activationQu~e8d151c9	ALTER QUEUE a WITH ACTIVATION(DROP, DROP)
-accept	reject	engine	queueActivationOption_ACTIVATION(Comma_activationQueueOptionArgument)*/Comma_activationQueueOptionArgument_(Comma_activationQu~e8d151c9!drop-1	ALTER QUEUE a WITH ACTIVATION(DROP DROP)
-accept	reject	engine	queueActivationOption_ACTIVATION(Comma_activationQueueOptionArgument)*/Comma_activationQueueOptionArgument_(Comma_activationQu~e8d151c9!drop-2	ALTER QUEUE a WITH ACTIVATION(DROP,)
-accept	reject	engine	queueActivationOption_ACTIVATION(Comma_activationQueueOptionArgument)*/Comma_activationQueueOptionArgument_(Comma_activationQu~e8d151c9!truncate	ALTER QUEUE a WITH ACTIVATION(DROP,
+reject	reject	engine	queueActivationOption_ACTIVATION(Comma_activationQueueOptionArgument)*/Comma_activationQueueOptionArgument_(Comma_activationQu~e8d151c9	ALTER QUEUE a WITH ACTIVATION(DROP, DROP)
+reject	reject	engine	queueActivationOption_ACTIVATION(Comma_activationQueueOptionArgument)*/Comma_activationQueueOptionArgument_(Comma_activationQu~e8d151c9!drop-1	ALTER QUEUE a WITH ACTIVATION(DROP DROP)
+reject	reject	engine	queueActivationOption_ACTIVATION(Comma_activationQueueOptionArgument)*/Comma_activationQueueOptionArgument_(Comma_activationQu~e8d151c9!drop-2	ALTER QUEUE a WITH ACTIVATION(DROP,)
+reject	reject	engine	queueActivationOption_ACTIVATION(Comma_activationQueueOptionArgument)*/Comma_activationQueueOptionArgument_(Comma_activationQu~e8d151c9!truncate	ALTER QUEUE a WITH ACTIVATION(DROP,
 reject	reject	engine	queueActivationOption_ACTIVATION(Comma_activationQueueOptionArgument)*/Comma_activationQueueOptionArgument_(Comma_activationQu~e8d151c9!insert	ALTER QUEUE a WITH ACTIVATION(DROP, DROP zzz)
 reject	reject	engine	queueActivationOption_ACTIVATION(Comma_activationQueueOptionArgument)*/Comma_activationQueueOptionArgument_(Comma_activationQu~e8d151c9!swap	ALTER QUEUE a WITH ACTIVATION(DROP, DROP_INDEX)
 accept	accept	engine	inlineFunctionOption_INLINE/INLINE_EqualsSign_(On|Off)	CREATE FUNCTION a() RETURNS a WITH INLINE = ON BEGIN SELECT 1 END
