@@ -317,6 +317,12 @@ func TestStoredProgramFunctionBodies(t *testing.T) {
 		{sql: "CREATE FUNCTION f() RETURNS INT BEGIN SIGNAL SQLSTATE '45000'; END", code: 1320},
 		{sql: "CREATE FUNCTION f() RETURNS INT BEGIN CALL p(); RETURN 1; END"},
 		{sql: "CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW CALL p()"},
+		{sql: "CREATE FUNCTION f() RETURNS INT BEGIN SET @'@autocommit' = 1; RETURN 1; END"},
+		{sql: "CREATE FUNCTION f() RETURNS INT BEGIN SET @\"@@autocommit\" = 1; RETURN 1; END"},
+		{sql: "CREATE FUNCTION f(`@@autocommit` INT) RETURNS INT BEGIN SET `@@autocommit` = 1; RETURN 1; END"},
+		{sql: "CREATE FUNCTION f() RETURNS INT BEGIN SET @@autocommit = 1; RETURN 1; END", code: 1445},
+		{sql: "CREATE FUNCTION f() RETURNS INT BEGIN SET @@session.autocommit = 1; RETURN 1; END", code: 1445},
+		{sql: "CREATE FUNCTION f() RETURNS INT BEGIN SET @a = 1, @@autocommit = 1; RETURN 1; END", code: 1445},
 	}
 	for _, c := range cases {
 		t.Run(c.sql, func(t *testing.T) {
