@@ -198,8 +198,13 @@ func TestDropStorageVault_Tag(t *testing.T) {
 // SET / UNSET DEFAULT STORAGE VAULT
 // ---------------------------------------------------------------------------
 
+// TestSetDefaultStorageVault: the form is SET name AS DEFAULT STORAGE VAULT
+// (DorisParser.g4:884); SET DEFAULT STORAGE VAULT name is in neither grammar.
 func TestSetDefaultStorageVault(t *testing.T) {
-	file, errs := parseForTest("SET DEFAULT STORAGE VAULT my_vault")
+	if _, err := Parse("SET DEFAULT STORAGE VAULT my_vault"); err == nil {
+		t.Error("SET DEFAULT STORAGE VAULT my_vault parsed; the form is SET my_vault AS DEFAULT STORAGE VAULT")
+	}
+	file, errs := parseForTest("SET my_vault AS DEFAULT STORAGE VAULT")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -216,7 +221,7 @@ func TestSetDefaultStorageVault(t *testing.T) {
 }
 
 func TestSetDefaultStorageVault_Tag(t *testing.T) {
-	file, errs := parseForTest("SET DEFAULT STORAGE VAULT v")
+	file, errs := parseForTest("SET v AS DEFAULT STORAGE VAULT")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}

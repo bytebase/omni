@@ -19,8 +19,8 @@ const (
 	tokHCONST               // hex constant
 	tokSCONST               // single-quoted string
 	tokDCONST               // double-quoted string
-	tokIDENT                 // identifier
-	tokPARAM                 // @param
+	tokIDENT                // identifier
+	tokPARAM                // @param
 )
 
 // Operator token types.
@@ -60,7 +60,7 @@ const (
 
 // Keyword token types.
 const (
-	tokSELECT   = iota + 3000
+	tokSELECT    = iota + 3000
 	tokFROM      // FROM
 	tokWHERE     // WHERE
 	tokAND       // AND
@@ -92,6 +92,8 @@ const (
 	tokARRAY     // ARRAY
 	tokROOT      // ROOT
 	tokRANK      // RANK
+	tokLEFT      // LEFT
+	tokRIGHT     // RIGHT
 	tokINFINITY  // Infinity (case-sensitive)
 	tokNAN       // NaN (case-sensitive)
 )
@@ -130,6 +132,8 @@ var keywords = map[string]int{
 	"array":     tokARRAY,
 	"root":      tokROOT,
 	"rank":      tokRANK,
+	"left":      tokLEFT,
+	"right":     tokRIGHT,
 }
 
 // Token represents a single lexer token.

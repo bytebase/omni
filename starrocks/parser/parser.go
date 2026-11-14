@@ -634,9 +634,21 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		if p.cur.Kind == kwDEFAULT && p.peekNext().Kind == kwSTORAGE {
 			return p.parseSetDefaultStorageVault(setTok.Loc)
 		}
-		// SET PASSWORD = '...'
+		// setDefaultStorageVolumeStatement (StarRocks.g4:824):
+		// SET identifierOrString AS DEFAULT STORAGE VOLUME
+		if (isIdentifierToken(p.cur.Kind) || p.cur.Kind == tokString) && p.peekNext().Kind == kwAS {
+			return p.parseSetDefaultStorageVolume(setTok.Loc)
+		}
+		// SET PASSWORD [FOR user] = ('p' | PASSWORD('p')). PASSWORD is
+		// nonReserved, so where that form does not follow, SET PASSWORD = x
+		// sets a variable (StarRocks takes SET PASSWORD = PASSWORD()).
 		if p.cur.Kind == kwPASSWORD {
-			return p.parseSetPassword(setTok.Loc)
+			mark := p.save()
+			if node, err := p.parseSetPassword(setTok.Loc); err == nil &&
+				(p.cur.Kind == tokEOF || p.cur.Kind == int(';')) {
+				return node, nil
+			}
+			p.restore(mark)
 		}
 		// Generic variable assignment / NAMES / CHARSET / TRANSACTION
 		return p.parseGenericSet(setTok.Loc)

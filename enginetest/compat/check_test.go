@@ -337,6 +337,35 @@ func TestRecordingAtANewPinJudgesEveryRow(t *testing.T) {
 	}
 }
 
+func TestCheckFailsAnotherJudgeRevision(t *testing.T) {
+	s := suite(t, "accept\taccept\tengine\tr/A\tA\n", map[string]string{"A": Accept})
+	s.JudgeRevision = 1
+	if rec := run(t, s); !rec.failed("was recorded at pin") {
+		t.Errorf("a file recorded by an earlier judge passed: %q", rec.errors)
+	}
+}
+
+func TestRecordingAtANewJudgeRevisionJudgesEveryRow(t *testing.T) {
+	t.Setenv(enginetest.RecordEnv, "1")
+	t.Setenv("CI", "")
+	s := suite(t, "accept\taccept\tengine\tr/A\tA\n", map[string]string{"A": Accept})
+	s.JudgeRevision = 2
+	var asked []string
+	s.Judge = judgeOf(map[string]string{"A": Reject}, &asked)
+	if rec := run(t, s); len(rec.errors) > 0 {
+		t.Errorf("recording at a new judge revision: %q", rec.errors)
+	}
+	got := read(t, s.Path)
+	if !strings.HasPrefix(got, "# pin: default img:1 sha256:abc v1 judge 2\n") || !strings.Contains(got, "accept\treject\tengine\tr/A\tA\n") {
+		t.Errorf("the recording did not rejudge at the new revision:\n%s", got)
+	}
+	// The file now passes.
+	t.Setenv(enginetest.RecordEnv, "")
+	if rec := run(t, s); len(rec.errors) > 0 || rec.fatal != "" {
+		t.Errorf("after the recording: %q %q", rec.errors, rec.fatal)
+	}
+}
+
 func TestRecordingKeepsWhatTheJudgeLeftUnanswered(t *testing.T) {
 	t.Setenv(enginetest.RecordEnv, "1")
 	t.Setenv("CI", "")

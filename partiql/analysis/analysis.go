@@ -34,13 +34,15 @@ func validateStatement(node ast.Node) error {
 		return nil // DQL — allowed
 	case *ast.SetOpStmt:
 		return nil // DQL (UNION/INTERSECT/EXCEPT) — allowed
+	case *ast.ExprStmt:
+		return nil // DQL: an expression as a query, such as EXISTS(SELECT ...)
 	case *ast.ExplainStmt:
 		// EXPLAIN is always allowed regardless of the inner statement,
 		// matching the legacy ANTLR validator behavior. EXPLAIN is a
 		// read-only operation even when wrapping DML/DDL.
 		return nil
 	case *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt,
-		*ast.UpsertStmt, *ast.ReplaceStmt, *ast.RemoveStmt:
+		*ast.UpsertStmt, *ast.ReplaceStmt, *ast.RemoveStmt, *ast.SetStmt:
 		return fmt.Errorf("DML statements are not allowed in query context")
 	case *ast.CreateTableStmt, *ast.CreateIndexStmt,
 		*ast.DropTableStmt, *ast.DropIndexStmt:
