@@ -55,6 +55,43 @@
 < ok 0 0
 > exec ^
 : string
+| GRANT current_role TO u1
+< ok 0 0
+> exec ^
+: string
+| GRANT r1 TO current_role
+< ok 0 0
+> exec ^
+: string
+| REVOKE current_role FROM u1
+< ok 0 0
+> exec ^
+: string
+| SHOW GRANTS FOR current_role()
+< ok 0 0
+> exec ^
+: string
+| CREATE USER current_role()
+< ok 0 0
+> exec ^
+: string
+| CREATE USER current_role@localhost
+< error
+| 1064 42000 …near '@localhost' at line 1
+> exec ^
+: string
+| CREATE DEFINER = current_role VIEW v AS SELECT 1
+< ok 0 0
+> exec ^
+: string
+| CREATE DEFINER = current_role() PROCEDURE p() SELECT 1
+< ok 0 0
+> exec ^
+: string
+| CREATE USER `current_role`@localhost
+< ok 0 0
+> exec ^
+: string
 | CREATE USER u1@localhost
 < ok 0 0
 > exec ^

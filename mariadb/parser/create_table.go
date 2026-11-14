@@ -2030,6 +2030,24 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: optName, Value: val}, true, nil
 	}
 
+	// PAGE_CHECKSUM, TRANSACTIONAL and SEQUENCE take `opt_equal choice`: a number
+	// or DEFAULT, the '=' optional. mariadb:11.8.8 runs `ALTER TABLE t
+	// PAGE_CHECKSUM 1` and `PAGE_CHECKSUM = 0x1`, and answers 1064 for a string,
+	// a word and a sign.
+	//
+	// Ref: create_table_option and choice in MariaDB 11.8 sql/sql_yacc.yy.
+	if p.cur.Type == kwPAGE_CHECKSUM || p.cur.Type == kwSEQUENCE || p.atUnquotedKeyword("TRANSACTIONAL") {
+		optName := strings.ToUpper(p.cur.Str)
+		p.advance()
+		p.matchEqual()
+		if p.cur.Type != kwDEFAULT && !isLockWaitLiteral(p.cur) {
+			return nil, false, p.syntaxErrorAtCur()
+		}
+		val := p.inputText(p.cur.Loc, p.cur.End)
+		p.advance()
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: optName, Value: val}, true, nil
+	}
+
 	// Generic MariaDB table option: `IDENT = value`. MariaDB's parser accepts an
 	// unknown option name and rejects it semantically (ER_UNKNOWN_OPTION 1911),
 	// not as a syntax error — so a parse-only check accepts the shape. This covers

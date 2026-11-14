@@ -844,6 +844,13 @@ func (p *Parser) parseDefinerValue() string {
 		return ""
 	}
 
+	// DEFINER = user_or_role, and current_role takes no @host: mariadb:11.8.8 runs
+	// `CREATE DEFINER = current_role VIEW v AS SELECT 1`.
+	if p.cur.Type == kwCURRENT_ROLE {
+		role, _, _ := p.parseCurrentRole()
+		return role
+	}
+
 	// Parse user part: identifier, string literal, or CURRENT_USER
 	var user string
 	isCurUser := p.cur.Type == kwCURRENT_USER

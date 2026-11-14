@@ -889,6 +889,15 @@ const (
 	kwNOCYCLE
 	kwNOMINVALUE
 	kwNOMAXVALUE
+
+	// Words MariaDB's lexer makes keywords and its grammar puts in no keyword_*
+	// list, so none is a bare name. Ref: reserved_keyword_udt_not_param_type and
+	// MASTER_DEMOTE_TO_SLAVE_SYM in MariaDB 11.8 sql/sql_yacc.yy, sql/lex.h.
+	kwCURRENT_ROLE
+	kwIGNORE_DOMAIN_IDS
+	kwMASTER_DEMOTE_TO_SLAVE
+	kwPAGE_CHECKSUM
+	kwPARSE_VCOL_EXPR
 )
 
 // keywords maps lowercase keyword strings to their token types.
@@ -1707,6 +1716,12 @@ var keywords = map[string]int{
 	"nocycle":    kwNOCYCLE,
 	"nominvalue": kwNOMINVALUE,
 	"nomaxvalue": kwNOMAXVALUE,
+
+	"current_role":           kwCURRENT_ROLE,
+	"ignore_domain_ids":      kwIGNORE_DOMAIN_IDS,
+	"master_demote_to_slave": kwMASTER_DEMOTE_TO_SLAVE,
+	"page_checksum":          kwPAGE_CHECKSUM,
+	"parse_vcol_expr":        kwPARSE_VCOL_EXPR,
 }
 
 // Token represents a lexical token.

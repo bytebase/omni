@@ -554,8 +554,8 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 	case kwDEFAULT:
 		return p.parseDefaultExpr()
 
-	case kwCURRENT_DATE, kwCURRENT_TIME, kwCURRENT_TIMESTAMP, kwCURRENT_USER, kwLOCALTIME, kwLOCALTIMESTAMP,
-		kwUTC_DATE, kwUTC_TIME, kwUTC_TIMESTAMP:
+	case kwCURRENT_DATE, kwCURRENT_TIME, kwCURRENT_TIMESTAMP, kwCURRENT_USER, kwCURRENT_ROLE, kwLOCALTIME,
+		kwLOCALTIMESTAMP, kwUTC_DATE, kwUTC_TIME, kwUTC_TIMESTAMP:
 		// The refusals read the keyword before parseTemporalKeyword consumes it.
 		if err := p.refusePartitionFunction(strings.ToUpper(p.cur.Str), false, p.cur.Loc); err != nil {
 			return nil, err

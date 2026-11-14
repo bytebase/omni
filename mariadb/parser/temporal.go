@@ -87,9 +87,9 @@ func (p *Parser) atDatetimePrecision() bool {
 }
 
 // parseTemporalKeyword parses a reserved word that names a function and needs no
-// parentheses. CURRENT_DATE, UTC_DATE and CURRENT_USER take at most an empty pair
-// of them, and the others a precision as well. The word is reserved, so a space
-// before the '(' changes nothing, unlike the function words parseFuncCall reads.
+// parentheses. CURRENT_DATE, UTC_DATE, CURRENT_USER and CURRENT_ROLE take at most an
+// empty pair of them, and the others a precision as well. The word is reserved, so a
+// space before the '(' changes nothing, unlike the function words parseFuncCall reads.
 func (p *Parser) parseTemporalKeyword() (nodes.ExprNode, error) {
 	tok := p.advance()
 	fc := &nodes.FuncCallExpr{Loc: nodes.Loc{Start: tok.Loc}, Name: strings.ToUpper(tok.Str)}
@@ -98,7 +98,7 @@ func (p *Parser) parseTemporalKeyword() (nodes.ExprNode, error) {
 		p.advance()
 		var err error
 		switch tok.Type {
-		case kwCURRENT_DATE, kwUTC_DATE, kwCURRENT_USER:
+		case kwCURRENT_DATE, kwUTC_DATE, kwCURRENT_USER, kwCURRENT_ROLE:
 			_, err = p.expect(')')
 		default:
 			err = p.parseDatetimePrecision(fc)
