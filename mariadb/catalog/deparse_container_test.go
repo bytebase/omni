@@ -1605,6 +1605,11 @@ func TestDeparseContainer_Section_5_1_SelectClauses(t *testing.T) {
 		{"distinct_order_by", "v_distinct_orderby", "CREATE VIEW v_distinct_orderby AS SELECT DISTINCT a FROM t ORDER BY a DESC"},
 		{"multi_column_order_by", "v_multi_orderby", "CREATE VIEW v_multi_orderby AS SELECT a FROM t ORDER BY a, b DESC"},
 		{"limit_offset", "v_limit_offset", "CREATE VIEW v_limit_offset AS SELECT a FROM t LIMIT 10 OFFSET 5"},
+		{"fetch_first_only", "v_fetch_only", "CREATE VIEW v_fetch_only AS SELECT a FROM t ORDER BY a OFFSET 1 ROWS FETCH NEXT 3 ROWS ONLY"},
+		{"fetch_first_row", "v_fetch_row", "CREATE VIEW v_fetch_row AS SELECT a FROM t FETCH FIRST ROW ONLY"},
+		{"fetch_with_ties", "v_fetch_ties", "CREATE VIEW v_fetch_ties AS SELECT a FROM t ORDER BY a OFFSET 1 ROW FETCH FIRST 2 ROWS WITH TIES"},
+		{"offset_rows_alone", "v_offset_rows", "CREATE VIEW v_offset_rows AS SELECT a FROM t OFFSET 2 ROWS"},
+		{"select_unique", "v_select_unique", "CREATE VIEW v_select_unique AS SELECT UNIQUE a FROM t"},
 		{"expression_group_by", "v_expr_groupby", "CREATE VIEW v_expr_groupby AS SELECT a + b FROM t GROUP BY a + b"},
 	}
 

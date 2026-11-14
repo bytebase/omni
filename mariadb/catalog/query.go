@@ -119,6 +119,9 @@ type Query struct {
 	// Both forms are normalized into these two fields.
 	LimitCount  AnalyzedExpr
 	LimitOffset AnalyzedExpr
+	// LimitWithTies is FETCH ... WITH TIES, which keeps the rows that tie
+	// with the last one in the ORDER BY. A FETCH ... ONLY is the LIMIT it means.
+	LimitWithTies bool
 
 	// Distinct is true for SELECT DISTINCT.
 	// Note: PG has a DistinctOn slice for `SELECT DISTINCT ON (...)`;

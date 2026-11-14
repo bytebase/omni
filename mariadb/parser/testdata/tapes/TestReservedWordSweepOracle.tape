@@ -1105,6 +1105,17 @@
 | 1064 42000 …near 'SELECT FROM' at line 2
 > exec ^
 : string
+| select current_role from t
+< error
+| 1146 42S02 Table 'test.t' doesn't exist
+> exec ^
+: string
+| select current_role from t
+| ; SELECT FROM
+< error
+| 1064 42000 …near 'SELECT FROM' at line 2
+> exec ^
+: string
 | select current_time from t
 < error
 | 1146 42S02 Table 'test.t' doesn't exist
@@ -2588,6 +2599,11 @@
 | 1064 42000 …near 'ignore from t' at line 1
 > exec ^
 : string
+| select ignore_domain_ids from t
+< error
+| 1064 42000 …near 'ignore_domain_ids from t' at line 1
+> exec ^
+: string
 | select ignore_server_ids from t
 < error
 | 1146 42S02 Table 'test.t' doesn't exist
@@ -3387,6 +3403,11 @@
 | ; SELECT FROM
 < error
 | 1064 42000 …near 'SELECT FROM' at line 2
+> exec ^
+: string
+| select master_demote_to_slave from t
+< error
+| 1064 42000 …near 'master_demote_to_slave from t' at line 1
 > exec ^
 : string
 | select master_heartbeat_period from t
@@ -4565,6 +4586,11 @@
 | 1064 42000 …near 'SELECT FROM' at line 2
 > exec ^
 : string
+| select page_checksum from t
+< error
+| 1064 42000 …near 'page_checksum from t' at line 1
+> exec ^
+: string
 | select parallel from t
 < error
 | 1146 42S02 Table 'test.t' doesn't exist
@@ -4596,6 +4622,11 @@
 | ; SELECT FROM
 < error
 | 1064 42000 …near 'SELECT FROM' at line 2
+> exec ^
+: string
+| select parse_vcol_expr from t
+< error
+| 1064 42000 …near 'parse_vcol_expr from t' at line 1
 > exec ^
 : string
 | select parser from t
@@ -9141,6 +9172,17 @@
 | 1064 42000 …near 'SELECT FROM' at line 2
 > exec ^
 : string
+| select current_role.a from t
+< error
+| 1146 42S02 Table 'test.t' doesn't exist
+> exec ^
+: string
+| select current_role.a from t
+| ; SELECT FROM
+< error
+| 1064 42000 …near 'SELECT FROM' at line 2
+> exec ^
+: string
 | select current_time.a from t
 < error
 | 1146 42S02 Table 'test.t' doesn't exist
@@ -10912,6 +10954,17 @@
 | 1064 42000 …near 'SELECT FROM' at line 2
 > exec ^
 : string
+| select ignore_domain_ids.a from t
+< error
+| 1146 42S02 Table 'test.t' doesn't exist
+> exec ^
+: string
+| select ignore_domain_ids.a from t
+| ; SELECT FROM
+< error
+| 1064 42000 …near 'SELECT FROM' at line 2
+> exec ^
+: string
 | select ignore_server_ids.a from t
 < error
 | 1146 42S02 Table 'test.t' doesn't exist
@@ -11930,6 +11983,17 @@
 > exec ^
 : string
 | select master_delay.a from t
+| ; SELECT FROM
+< error
+| 1064 42000 …near 'SELECT FROM' at line 2
+> exec ^
+: string
+| select master_demote_to_slave.a from t
+< error
+| 1146 42S02 Table 'test.t' doesn't exist
+> exec ^
+: string
+| select master_demote_to_slave.a from t
 | ; SELECT FROM
 < error
 | 1064 42000 …near 'SELECT FROM' at line 2
@@ -13255,6 +13319,17 @@
 | 1064 42000 …near 'SELECT FROM' at line 2
 > exec ^
 : string
+| select page_checksum.a from t
+< error
+| 1146 42S02 Table 'test.t' doesn't exist
+> exec ^
+: string
+| select page_checksum.a from t
+| ; SELECT FROM
+< error
+| 1064 42000 …near 'SELECT FROM' at line 2
+> exec ^
+: string
 | select parallel.a from t
 < error
 | 1146 42S02 Table 'test.t' doesn't exist
@@ -13283,6 +13358,17 @@
 > exec ^
 : string
 | select parse_tree.a from t
+| ; SELECT FROM
+< error
+| 1064 42000 …near 'SELECT FROM' at line 2
+> exec ^
+: string
+| select parse_vcol_expr.a from t
+< error
+| 1146 42S02 Table 'test.t' doesn't exist
+> exec ^
+: string
+| select parse_vcol_expr.a from t
 | ; SELECT FROM
 < error
 | 1064 42000 …near 'SELECT FROM' at line 2
@@ -18359,6 +18445,17 @@
 | 1064 42000 …near 'SELECT FROM' at line 2
 > exec ^
 : string
+| select a.current_role from t
+< error
+| 1146 42S02 Table 'test.t' doesn't exist
+> exec ^
+: string
+| select a.current_role from t
+| ; SELECT FROM
+< error
+| 1064 42000 …near 'SELECT FROM' at line 2
+> exec ^
+: string
 | select a.current_time from t
 < error
 | 1146 42S02 Table 'test.t' doesn't exist
@@ -20130,6 +20227,17 @@
 | 1064 42000 …near 'SELECT FROM' at line 2
 > exec ^
 : string
+| select a.ignore_domain_ids from t
+< error
+| 1146 42S02 Table 'test.t' doesn't exist
+> exec ^
+: string
+| select a.ignore_domain_ids from t
+| ; SELECT FROM
+< error
+| 1064 42000 …near 'SELECT FROM' at line 2
+> exec ^
+: string
 | select a.ignore_server_ids from t
 < error
 | 1146 42S02 Table 'test.t' doesn't exist
@@ -21148,6 +21256,17 @@
 > exec ^
 : string
 | select a.master_delay from t
+| ; SELECT FROM
+< error
+| 1064 42000 …near 'SELECT FROM' at line 2
+> exec ^
+: string
+| select a.master_demote_to_slave from t
+< error
+| 1146 42S02 Table 'test.t' doesn't exist
+> exec ^
+: string
+| select a.master_demote_to_slave from t
 | ; SELECT FROM
 < error
 | 1064 42000 …near 'SELECT FROM' at line 2
@@ -22473,6 +22592,17 @@
 | 1064 42000 …near 'SELECT FROM' at line 2
 > exec ^
 : string
+| select a.page_checksum from t
+< error
+| 1146 42S02 Table 'test.t' doesn't exist
+> exec ^
+: string
+| select a.page_checksum from t
+| ; SELECT FROM
+< error
+| 1064 42000 …near 'SELECT FROM' at line 2
+> exec ^
+: string
 | select a.parallel from t
 < error
 | 1146 42S02 Table 'test.t' doesn't exist
@@ -22501,6 +22631,17 @@
 > exec ^
 : string
 | select a.parse_tree from t
+| ; SELECT FROM
+< error
+| 1064 42000 …near 'SELECT FROM' at line 2
+> exec ^
+: string
+| select a.parse_vcol_expr from t
+< error
+| 1146 42S02 Table 'test.t' doesn't exist
+> exec ^
+: string
+| select a.parse_vcol_expr from t
 | ; SELECT FROM
 < error
 | 1064 42000 …near 'SELECT FROM' at line 2
@@ -27385,6 +27526,11 @@
 | 1064 42000 …near 'current_date from t' at line 1
 > exec ^
 : string
+| select a current_role from t
+< error
+| 1064 42000 …near 'current_role from t' at line 1
+> exec ^
+: string
 | select a current_time from t
 < error
 | 1064 42000 …near 'current_time from t' at line 1
@@ -28844,6 +28990,11 @@
 | 1064 42000 …near 'ignore from t' at line 1
 > exec ^
 : string
+| select a ignore_domain_ids from t
+< error
+| 1064 42000 …near 'ignore_domain_ids from t' at line 1
+> exec ^
+: string
 | select a ignore_server_ids from t
 < error
 | 1146 42S02 Table 'test.t' doesn't exist
@@ -29631,6 +29782,11 @@
 | ; SELECT FROM
 < error
 | 1064 42000 …near 'SELECT FROM' at line 2
+> exec ^
+: string
+| select a master_demote_to_slave from t
+< error
+| 1064 42000 …near 'master_demote_to_slave from t' at line 1
 > exec ^
 : string
 | select a master_heartbeat_period from t
@@ -30803,6 +30959,11 @@
 | 1064 42000 …near 'SELECT FROM' at line 2
 > exec ^
 : string
+| select a page_checksum from t
+< error
+| 1064 42000 …near 'page_checksum from t' at line 1
+> exec ^
+: string
 | select a parallel from t
 < error
 | 1146 42S02 Table 'test.t' doesn't exist
@@ -30834,6 +30995,11 @@
 | ; SELECT FROM
 < error
 | 1064 42000 …near 'SELECT FROM' at line 2
+> exec ^
+: string
+| select a parse_vcol_expr from t
+< error
+| 1064 42000 …near 'parse_vcol_expr from t' at line 1
 > exec ^
 : string
 | select a parser from t
@@ -35169,6 +35335,11 @@
 | 1064 42000 …near 'current_date from t' at line 1
 > exec ^
 : string
+| select a as current_role from t
+< error
+| 1064 42000 …near 'current_role from t' at line 1
+> exec ^
+: string
 | select a as current_time from t
 < error
 | 1064 42000 …near 'current_time from t' at line 1
@@ -36628,6 +36799,11 @@
 | 1064 42000 …near 'ignore from t' at line 1
 > exec ^
 : string
+| select a as ignore_domain_ids from t
+< error
+| 1064 42000 …near 'ignore_domain_ids from t' at line 1
+> exec ^
+: string
 | select a as ignore_server_ids from t
 < error
 | 1146 42S02 Table 'test.t' doesn't exist
@@ -37415,6 +37591,11 @@
 | ; SELECT FROM
 < error
 | 1064 42000 …near 'SELECT FROM' at line 2
+> exec ^
+: string
+| select a as master_demote_to_slave from t
+< error
+| 1064 42000 …near 'master_demote_to_slave from t' at line 1
 > exec ^
 : string
 | select a as master_heartbeat_period from t
@@ -38587,6 +38768,11 @@
 | 1064 42000 …near 'SELECT FROM' at line 2
 > exec ^
 : string
+| select a as page_checksum from t
+< error
+| 1064 42000 …near 'page_checksum from t' at line 1
+> exec ^
+: string
 | select a as parallel from t
 < error
 | 1146 42S02 Table 'test.t' doesn't exist
@@ -38618,6 +38804,11 @@
 | ; SELECT FROM
 < error
 | 1064 42000 …near 'SELECT FROM' at line 2
+> exec ^
+: string
+| select a as parse_vcol_expr from t
+< error
+| 1064 42000 …near 'parse_vcol_expr from t' at line 1
 > exec ^
 : string
 | select a as parser from t
@@ -42959,6 +43150,11 @@
 | 1064 42000 …near 'current_date' at line 1
 > exec ^
 : string
+| select * from t current_role
+< error
+| 1064 42000 …near 'current_role' at line 1
+> exec ^
+: string
 | select * from t current_time
 < error
 | 1064 42000 …near 'current_time' at line 1
@@ -44418,6 +44614,11 @@
 | 1064 42000 …near '' at line 1
 > exec ^
 : string
+| select * from t ignore_domain_ids
+< error
+| 1064 42000 …near 'ignore_domain_ids' at line 1
+> exec ^
+: string
 | select * from t ignore_server_ids
 < error
 | 1146 42S02 Table 'test.t' doesn't exist
@@ -45205,6 +45406,11 @@
 | ; SELECT FROM
 < error
 | 1064 42000 …near 'SELECT FROM' at line 2
+> exec ^
+: string
+| select * from t master_demote_to_slave
+< error
+| 1064 42000 …near 'master_demote_to_slave' at line 1
 > exec ^
 : string
 | select * from t master_heartbeat_period
@@ -46377,6 +46583,11 @@
 | 1064 42000 …near 'SELECT FROM' at line 2
 > exec ^
 : string
+| select * from t page_checksum
+< error
+| 1064 42000 …near 'page_checksum' at line 1
+> exec ^
+: string
 | select * from t parallel
 < error
 | 1146 42S02 Table 'test.t' doesn't exist
@@ -46408,6 +46619,11 @@
 | ; SELECT FROM
 < error
 | 1064 42000 …near 'SELECT FROM' at line 2
+> exec ^
+: string
+| select * from t parse_vcol_expr
+< error
+| 1064 42000 …near 'parse_vcol_expr' at line 1
 > exec ^
 : string
 | select * from t parser
@@ -50743,6 +50959,11 @@
 | 1064 42000 …near 'current_date' at line 1
 > exec ^
 : string
+| select * from t as current_role
+< error
+| 1064 42000 …near 'current_role' at line 1
+> exec ^
+: string
 | select * from t as current_time
 < error
 | 1064 42000 …near 'current_time' at line 1
@@ -52202,6 +52423,11 @@
 | 1064 42000 …near 'ignore' at line 1
 > exec ^
 : string
+| select * from t as ignore_domain_ids
+< error
+| 1064 42000 …near 'ignore_domain_ids' at line 1
+> exec ^
+: string
 | select * from t as ignore_server_ids
 < error
 | 1146 42S02 Table 'test.t' doesn't exist
@@ -52989,6 +53215,11 @@
 | ; SELECT FROM
 < error
 | 1064 42000 …near 'SELECT FROM' at line 2
+> exec ^
+: string
+| select * from t as master_demote_to_slave
+< error
+| 1064 42000 …near 'master_demote_to_slave' at line 1
 > exec ^
 : string
 | select * from t as master_heartbeat_period
@@ -54161,6 +54392,11 @@
 | 1064 42000 …near 'SELECT FROM' at line 2
 > exec ^
 : string
+| select * from t as page_checksum
+< error
+| 1064 42000 …near 'page_checksum' at line 1
+> exec ^
+: string
 | select * from t as parallel
 < error
 | 1146 42S02 Table 'test.t' doesn't exist
@@ -54192,6 +54428,11 @@
 | ; SELECT FROM
 < error
 | 1064 42000 …near 'SELECT FROM' at line 2
+> exec ^
+: string
+| select * from t as parse_vcol_expr
+< error
+| 1064 42000 …near 'parse_vcol_expr' at line 1
 > exec ^
 : string
 | select * from t as parser
@@ -58527,6 +58768,11 @@
 | 1064 42000 …near 'current_date' at line 1
 > exec ^
 : string
+| select * from current_role
+< error
+| 1064 42000 …near 'current_role' at line 1
+> exec ^
+: string
 | select * from current_time
 < error
 | 1064 42000 …near 'current_time' at line 1
@@ -59992,6 +60238,11 @@
 | 1064 42000 …near 'ignore' at line 1
 > exec ^
 : string
+| select * from ignore_domain_ids
+< error
+| 1064 42000 …near 'ignore_domain_ids' at line 1
+> exec ^
+: string
 | select * from ignore_server_ids
 < error
 | 1146 42S02 Table 'test.ignore_server_ids' doesn't exist
@@ -60779,6 +61030,11 @@
 | ; SELECT FROM
 < error
 | 1064 42000 …near 'SELECT FROM' at line 2
+> exec ^
+: string
+| select * from master_demote_to_slave
+< error
+| 1064 42000 …near 'master_demote_to_slave' at line 1
 > exec ^
 : string
 | select * from master_heartbeat_period
@@ -61951,6 +62207,11 @@
 | 1064 42000 …near 'SELECT FROM' at line 2
 > exec ^
 : string
+| select * from page_checksum
+< error
+| 1064 42000 …near 'page_checksum' at line 1
+> exec ^
+: string
 | select * from parallel
 < error
 | 1146 42S02 Table 'test.parallel' doesn't exist
@@ -61982,6 +62243,11 @@
 | ; SELECT FROM
 < error
 | 1064 42000 …near 'SELECT FROM' at line 2
+> exec ^
+: string
+| select * from parse_vcol_expr
+< error
+| 1064 42000 …near 'parse_vcol_expr' at line 1
 > exec ^
 : string
 | select * from parser
@@ -66515,6 +66781,17 @@
 | 1064 42000 …near 'SELECT FROM' at line 2
 > exec ^
 : string
+| select * from current_role.a
+< error
+| 1146 42S02 Table 'current_role.a' doesn't exist
+> exec ^
+: string
+| select * from current_role.a
+| ; SELECT FROM
+< error
+| 1064 42000 …near 'SELECT FROM' at line 2
+> exec ^
+: string
 | select * from current_time.a
 < error
 | 1146 42S02 Table 'current_time.a' doesn't exist
@@ -68286,6 +68563,17 @@
 | 1064 42000 …near 'SELECT FROM' at line 2
 > exec ^
 : string
+| select * from ignore_domain_ids.a
+< error
+| 1146 42S02 Table 'ignore_domain_ids.a' doesn't exist
+> exec ^
+: string
+| select * from ignore_domain_ids.a
+| ; SELECT FROM
+< error
+| 1064 42000 …near 'SELECT FROM' at line 2
+> exec ^
+: string
 | select * from ignore_server_ids.a
 < error
 | 1146 42S02 Table 'ignore_server_ids.a' doesn't exist
@@ -69304,6 +69592,17 @@
 > exec ^
 : string
 | select * from master_delay.a
+| ; SELECT FROM
+< error
+| 1064 42000 …near 'SELECT FROM' at line 2
+> exec ^
+: string
+| select * from master_demote_to_slave.a
+< error
+| 1146 42S02 Table 'master_demote_to_slave.a' doesn't exist
+> exec ^
+: string
+| select * from master_demote_to_slave.a
 | ; SELECT FROM
 < error
 | 1064 42000 …near 'SELECT FROM' at line 2
@@ -70629,6 +70928,17 @@
 | 1064 42000 …near 'SELECT FROM' at line 2
 > exec ^
 : string
+| select * from page_checksum.a
+< error
+| 1146 42S02 Table 'page_checksum.a' doesn't exist
+> exec ^
+: string
+| select * from page_checksum.a
+| ; SELECT FROM
+< error
+| 1064 42000 …near 'SELECT FROM' at line 2
+> exec ^
+: string
 | select * from parallel.a
 < error
 | 1146 42S02 Table 'parallel.a' doesn't exist
@@ -70657,6 +70967,17 @@
 > exec ^
 : string
 | select * from parse_tree.a
+| ; SELECT FROM
+< error
+| 1064 42000 …near 'SELECT FROM' at line 2
+> exec ^
+: string
+| select * from parse_vcol_expr.a
+< error
+| 1146 42S02 Table 'parse_vcol_expr.a' doesn't exist
+> exec ^
+: string
+| select * from parse_vcol_expr.a
 | ; SELECT FROM
 < error
 | 1064 42000 …near 'SELECT FROM' at line 2
@@ -74946,6 +75267,11 @@
 | 1064 42000 …near 'current_date (a int)' at line 1
 > exec ^
 : string
+| create table current_role (a int)
+< error
+| 1064 42000 …near 'current_role (a int)' at line 1
+> exec ^
+: string
 | create table current_time (a int)
 < error
 | 1064 42000 …near 'current_time (a int)' at line 1
@@ -75642,6 +75968,11 @@
 | 1064 42000 …near 'ignore (a int)' at line 1
 > exec ^
 : string
+| create table ignore_domain_ids (a int)
+< error
+| 1064 42000 …near 'ignore_domain_ids (a int)' at line 1
+> exec ^
+: string
 | create table ignore_server_ids (a int)
 < ok 0 0
 > exec ^
@@ -76051,6 +76382,11 @@
 : string
 | create table master_delay (a int)
 < ok 0 0
+> exec ^
+: string
+| create table master_demote_to_slave (a int)
+< error
+| 1064 42000 …near 'master_demote_to_slave (a int)' at line 1
 > exec ^
 : string
 | create table master_heartbeat_period (a int)
@@ -76558,6 +76894,11 @@
 < ok 0 0
 > exec ^
 : string
+| create table page_checksum (a int)
+< error
+| 1064 42000 …near 'page_checksum (a int)' at line 1
+> exec ^
+: string
 | create table parallel (a int)
 < ok 0 0
 > exec ^
@@ -76568,6 +76909,11 @@
 : string
 | create table parse_tree (a int)
 < ok 0 0
+> exec ^
+: string
+| create table parse_vcol_expr (a int)
+< error
+| 1064 42000 …near 'parse_vcol_expr (a int)' at line 1
 > exec ^
 : string
 | create table parser (a int)
@@ -78536,6 +78882,11 @@
 | 1064 42000 …near 'current_date int)' at line 1
 > exec ^
 : string
+| create table t (current_role int)
+< error
+| 1064 42000 …near 'current_role int)' at line 1
+> exec ^
+: string
 | create table t (current_time int)
 < error
 | 1064 42000 …near 'current_time int)' at line 1
@@ -79232,6 +79583,11 @@
 | 1064 42000 …near 'ignore int)' at line 1
 > exec ^
 : string
+| create table t (ignore_domain_ids int)
+< error
+| 1064 42000 …near 'ignore_domain_ids int)' at line 1
+> exec ^
+: string
 | create table t (ignore_server_ids int)
 < ok 0 0
 > exec ^
@@ -79641,6 +79997,11 @@
 : string
 | create table t (master_delay int)
 < ok 0 0
+> exec ^
+: string
+| create table t (master_demote_to_slave int)
+< error
+| 1064 42000 …near 'master_demote_to_slave int)' at line 1
 > exec ^
 : string
 | create table t (master_heartbeat_period int)
@@ -80148,6 +80509,11 @@
 < ok 0 0
 > exec ^
 : string
+| create table t (page_checksum int)
+< error
+| 1064 42000 …near 'page_checksum int)' at line 1
+> exec ^
+: string
 | create table t (parallel int)
 < ok 0 0
 > exec ^
@@ -80158,6 +80524,11 @@
 : string
 | create table t (parse_tree int)
 < ok 0 0
+> exec ^
+: string
+| create table t (parse_vcol_expr int)
+< error
+| 1064 42000 …near 'parse_vcol_expr int)' at line 1
 > exec ^
 : string
 | create table t (parser int)
@@ -82721,6 +83092,11 @@
 | 1064 42000 …near 'current_date = 1' at line 1
 > exec ^
 : string
+| update t set current_role = 1
+< error
+| 1064 42000 …near 'current_role = 1' at line 1
+> exec ^
+: string
 | update t set current_time = 1
 < error
 | 1064 42000 …near 'current_time = 1' at line 1
@@ -84180,6 +84556,11 @@
 | 1064 42000 …near 'ignore = 1' at line 1
 > exec ^
 : string
+| update t set ignore_domain_ids = 1
+< error
+| 1064 42000 …near 'ignore_domain_ids = 1' at line 1
+> exec ^
+: string
 | update t set ignore_server_ids = 1
 < error
 | 1146 42S02 Table 'test.t' doesn't exist
@@ -84967,6 +85348,11 @@
 | ; SELECT FROM
 < error
 | 1064 42000 …near 'SELECT FROM' at line 2
+> exec ^
+: string
+| update t set master_demote_to_slave = 1
+< error
+| 1064 42000 …near 'master_demote_to_slave = 1' at line 1
 > exec ^
 : string
 | update t set master_heartbeat_period = 1
@@ -86139,6 +86525,11 @@
 | 1064 42000 …near 'SELECT FROM' at line 2
 > exec ^
 : string
+| update t set page_checksum = 1
+< error
+| 1064 42000 …near 'page_checksum = 1' at line 1
+> exec ^
+: string
 | update t set parallel = 1
 < error
 | 1146 42S02 Table 'test.t' doesn't exist
@@ -86170,6 +86561,11 @@
 | ; SELECT FROM
 < error
 | 1064 42000 …near 'SELECT FROM' at line 2
+> exec ^
+: string
+| update t set parse_vcol_expr = 1
+< error
+| 1064 42000 …near 'parse_vcol_expr = 1' at line 1
 > exec ^
 : string
 | update t set parser = 1
@@ -90511,6 +90907,11 @@
 | 1064 42000 …near 'current_date) values (1)' at line 1
 > exec ^
 : string
+| insert into t (current_role) values (1)
+< error
+| 1064 42000 …near 'current_role) values (1)' at line 1
+> exec ^
+: string
 | insert into t (current_time) values (1)
 < error
 | 1064 42000 …near 'current_time) values (1)' at line 1
@@ -91970,6 +92371,11 @@
 | 1064 42000 …near 'ignore) values (1)' at line 1
 > exec ^
 : string
+| insert into t (ignore_domain_ids) values (1)
+< error
+| 1064 42000 …near 'ignore_domain_ids) values (1)' at line 1
+> exec ^
+: string
 | insert into t (ignore_server_ids) values (1)
 < error
 | 1146 42S02 Table 'test.t' doesn't exist
@@ -92757,6 +93163,11 @@
 | ; SELECT FROM
 < error
 | 1064 42000 …near 'SELECT FROM' at line 2
+> exec ^
+: string
+| insert into t (master_demote_to_slave) values (1)
+< error
+| 1064 42000 …near 'master_demote_to_slave) values (1)' at line 1
 > exec ^
 : string
 | insert into t (master_heartbeat_period) values (1)
@@ -93929,6 +94340,11 @@
 | 1064 42000 …near 'SELECT FROM' at line 2
 > exec ^
 : string
+| insert into t (page_checksum) values (1)
+< error
+| 1064 42000 …near 'page_checksum) values (1)' at line 1
+> exec ^
+: string
 | insert into t (parallel) values (1)
 < error
 | 1146 42S02 Table 'test.t' doesn't exist
@@ -93960,6 +94376,11 @@
 | ; SELECT FROM
 < error
 | 1064 42000 …near 'SELECT FROM' at line 2
+> exec ^
+: string
+| insert into t (parse_vcol_expr) values (1)
+< error
+| 1064 42000 …near 'parse_vcol_expr) values (1)' at line 1
 > exec ^
 : string
 | insert into t (parser) values (1)
@@ -97719,6 +98140,11 @@
 | 1064 42000 …near 'current_date: loop leave current_date; end loop' at line 1
 > exec ^
 : string
+| create procedure p() current_role: loop leave current_role; end loop
+< error
+| 1064 42000 …near 'current_role: loop leave current_role; end loop' at line 1
+> exec ^
+: string
 | create procedure p() current_time: loop leave current_time; end loop
 < error
 | 1064 42000 …near 'current_time: loop leave current_time; end loop' at line 1
@@ -98434,6 +98860,11 @@
 | 1064 42000 …near 'ignore: loop leave ignore; end loop' at line 1
 > exec ^
 : string
+| create procedure p() ignore_domain_ids: loop leave ignore_domain_ids; end loop
+< error
+| 1064 42000 …near 'ignore_domain_ids: loop leave ignore_domain_ids; end loop' at line 1
+> exec ^
+: string
 | create procedure p() ignore_server_ids: loop leave ignore_server_ids; end loop
 < ok 0 0
 > exec ^
@@ -98845,6 +99276,11 @@
 : string
 | create procedure p() master_delay: loop leave master_delay; end loop
 < ok 0 0
+> exec ^
+: string
+| create procedure p() master_demote_to_slave: loop leave master_demote_to_slave; end loop
+< error
+| 1064 42000 …near 'master_demote_to_slave: loop leave master_demote_to_slave; end loop' at line 1
 > exec ^
 : string
 | create procedure p() master_heartbeat_period: loop leave master_heartbeat_period; end loop
@@ -99358,6 +99794,11 @@
 < ok 0 0
 > exec ^
 : string
+| create procedure p() page_checksum: loop leave page_checksum; end loop
+< error
+| 1064 42000 …near 'page_checksum: loop leave page_checksum; end loop' at line 1
+> exec ^
+: string
 | create procedure p() parallel: loop leave parallel; end loop
 < ok 0 0
 > exec ^
@@ -99368,6 +99809,11 @@
 : string
 | create procedure p() parse_tree: loop leave parse_tree; end loop
 < ok 0 0
+> exec ^
+: string
+| create procedure p() parse_vcol_expr: loop leave parse_vcol_expr; end loop
+< error
+| 1064 42000 …near 'parse_vcol_expr: loop leave parse_vcol_expr; end loop' at line 1
 > exec ^
 : string
 | create procedure p() parser: loop leave parser; end loop

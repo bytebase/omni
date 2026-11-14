@@ -84,6 +84,8 @@ func (v *validator) walk(n nodes.Node) {
 		v.walkRepeatStmt(s)
 	case *nodes.LoopStmt:
 		v.walkLoopStmt(s)
+	case *nodes.ForStmt:
+		v.walkForStmt(s)
 	case *nodes.IfStmt:
 		v.walkIfStmt(s)
 	case *nodes.CaseStmtNode:
@@ -261,9 +263,11 @@ func (v *validator) walkRoutine(body nodes.Node, isFunction bool, params []*node
 	scope.isFunction = isFunction
 	for _, p := range params {
 		scope.vars[lower(p.Name)] = &nodes.DeclareVarStmt{
-			Loc:      p.Loc,
-			Names:    []string{p.Name},
-			TypeName: p.TypeName,
+			Loc:       p.Loc,
+			Names:     []string{p.Name},
+			TypeName:  p.TypeName,
+			RowFields: p.RowFields,
+			Anchor:    p.Anchor,
 		}
 	}
 	v.walk(body)
@@ -293,6 +297,8 @@ func bodyStart(n nodes.Node) int {
 	case *nodes.RepeatStmt:
 		return b.Loc.Start
 	case *nodes.LoopStmt:
+		return b.Loc.Start
+	case *nodes.ForStmt:
 		return b.Loc.Start
 	case *nodes.ReturnStmt:
 		return b.Loc.Start
@@ -333,6 +339,8 @@ func containsReturn(s nodes.Node) bool {
 	case *nodes.WhileStmt:
 		return containsReturnList(n.Stmts)
 	case *nodes.LoopStmt:
+		return containsReturnList(n.Stmts)
+	case *nodes.ForStmt:
 		return containsReturnList(n.Stmts)
 	case *nodes.RepeatStmt:
 		return containsReturnList(n.Stmts)
@@ -403,6 +411,17 @@ func (v *validator) walkWhileStmt(s *nodes.WhileStmt) {
 func (v *validator) walkRepeatStmt(s *nodes.RepeatStmt) {
 	v.registerLabel(s.Label, labelLoop, s.Loc.Start)
 	v.push(scopeBlock)
+	for _, st := range s.Stmts {
+		v.walk(st)
+	}
+	v.pop()
+}
+
+// walkForStmt walks MariaDB's FOR loop: its record variable is visible to the body alone.
+func (v *validator) walkForStmt(s *nodes.ForStmt) {
+	v.registerLabel(s.Label, labelLoop, s.Loc.Start)
+	scope := v.push(scopeBlock)
+	scope.vars[lower(s.Var)] = &nodes.DeclareVarStmt{Loc: s.Loc, Names: []string{s.Var}}
 	for _, st := range s.Stmts {
 		v.walk(st)
 	}

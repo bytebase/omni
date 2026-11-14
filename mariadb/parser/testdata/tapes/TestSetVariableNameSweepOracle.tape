@@ -589,6 +589,11 @@
 | 1064 42000 …near 'current_date = 1' at line 1
 > exec ^
 : string
+| set current_role = 1
+< error
+| 1064 42000 …near 'current_role = 1' at line 1
+> exec ^
+: string
 | set current_time = 1
 < error
 | 1064 42000 …near 'current_time = 1' at line 1
@@ -1406,6 +1411,11 @@
 | 1064 42000 …near 'ignore = 1' at line 1
 > exec ^
 : string
+| set ignore_domain_ids = 1
+< error
+| 1064 42000 …near 'ignore_domain_ids = 1' at line 1
+> exec ^
+: string
 | set ignore_server_ids = 1
 < error
 | 1193 HY000 Unknown system variable 'ignore_server_ids'
@@ -1869,6 +1879,11 @@
 | set master_delay = 1
 < error
 | 1193 HY000 Unknown system variable 'master_delay'
+> exec ^
+: string
+| set master_demote_to_slave = 1
+< error
+| 1064 42000 …near 'master_demote_to_slave = 1' at line 1
 > exec ^
 : string
 | set master_heartbeat_period = 1
@@ -2469,6 +2484,11 @@
 | 1193 HY000 Unknown system variable 'page'
 > exec ^
 : string
+| set page_checksum = 1
+< error
+| 1064 42000 …near 'page_checksum = 1' at line 1
+> exec ^
+: string
 | set parallel = 1
 < error
 | 1193 HY000 Unknown system variable 'parallel'
@@ -2482,6 +2502,11 @@
 | set parse_tree = 1
 < error
 | 1193 HY000 Unknown system variable 'parse_tree'
+> exec ^
+: string
+| set parse_vcol_expr = 1
+< error
+| 1064 42000 …near 'parse_vcol_expr = 1' at line 1
 > exec ^
 : string
 | set parser = 1
@@ -4853,6 +4878,11 @@
 | 1064 42000 …near 'current_date = 1' at line 1
 > exec ^
 : string
+| set global current_role = 1
+< error
+| 1064 42000 …near 'current_role = 1' at line 1
+> exec ^
+: string
 | set global current_time = 1
 < error
 | 1064 42000 …near 'current_time = 1' at line 1
@@ -5656,6 +5686,11 @@
 | 1064 42000 …near 'ignore = 1' at line 1
 > exec ^
 : string
+| set global ignore_domain_ids = 1
+< error
+| 1064 42000 …near 'ignore_domain_ids = 1' at line 1
+> exec ^
+: string
 | set global ignore_server_ids = 1
 < error
 | 1193 HY000 Unknown system variable 'ignore_server_ids'
@@ -6119,6 +6154,11 @@
 | set global master_delay = 1
 < error
 | 1193 HY000 Unknown system variable 'master_delay'
+> exec ^
+: string
+| set global master_demote_to_slave = 1
+< error
+| 1064 42000 …near 'master_demote_to_slave = 1' at line 1
 > exec ^
 : string
 | set global master_heartbeat_period = 1
@@ -6719,6 +6759,11 @@
 | 1193 HY000 Unknown system variable 'page'
 > exec ^
 : string
+| set global page_checksum = 1
+< error
+| 1064 42000 …near 'page_checksum = 1' at line 1
+> exec ^
+: string
 | set global parallel = 1
 < error
 | 1193 HY000 Unknown system variable 'parallel'
@@ -6732,6 +6777,11 @@
 | set global parse_tree = 1
 < error
 | 1193 HY000 Unknown system variable 'parse_tree'
+> exec ^
+: string
+| set global parse_vcol_expr = 1
+< error
+| 1064 42000 …near 'parse_vcol_expr = 1' at line 1
 > exec ^
 : string
 | set global parser = 1
@@ -9054,6 +9104,11 @@
 | 4081 HY000 Unknown structured system variable or ROW routine variable 'current_date'
 > exec ^
 : string
+| set current_role.a = 1
+< error
+| 4081 HY000 Unknown structured system variable or ROW routine variable 'current_role'
+> exec ^
+: string
 | set current_time.a = 1
 < error
 | 4081 HY000 Unknown structured system variable or ROW routine variable 'current_time'
@@ -9859,6 +9914,11 @@
 | 4081 HY000 Unknown structured system variable or ROW routine variable 'ignore'
 > exec ^
 : string
+| set ignore_domain_ids.a = 1
+< error
+| 4081 HY000 Unknown structured system variable or ROW routine variable 'ignore_domain_ids'
+> exec ^
+: string
 | set ignore_server_ids.a = 1
 < error
 | 4081 HY000 Unknown structured system variable or ROW routine variable 'ignore_server_ids'
@@ -10322,6 +10382,11 @@
 | set master_delay.a = 1
 < error
 | 4081 HY000 Unknown structured system variable or ROW routine variable 'master_delay'
+> exec ^
+: string
+| set master_demote_to_slave.a = 1
+< error
+| 4081 HY000 Unknown structured system variable or ROW routine variable 'master_demote_to_slave'
 > exec ^
 : string
 | set master_heartbeat_period.a = 1
@@ -10924,6 +10989,11 @@
 | 4081 HY000 Unknown structured system variable or ROW routine variable 'page'
 > exec ^
 : string
+| set page_checksum.a = 1
+< error
+| 4081 HY000 Unknown structured system variable or ROW routine variable 'page_checksum'
+> exec ^
+: string
 | set parallel.a = 1
 < error
 | 4081 HY000 Unknown structured system variable or ROW routine variable 'parallel'
@@ -10937,6 +11007,11 @@
 | set parse_tree.a = 1
 < error
 | 4081 HY000 Unknown structured system variable or ROW routine variable 'parse_tree'
+> exec ^
+: string
+| set parse_vcol_expr.a = 1
+< error
+| 4081 HY000 Unknown structured system variable or ROW routine variable 'parse_vcol_expr'
 > exec ^
 : string
 | set parser.a = 1
@@ -13244,6 +13319,11 @@
 | 4081 HY000 Unknown structured system variable or ROW routine variable 'a'
 > exec ^
 : string
+| set a.current_role = 1
+< error
+| 4081 HY000 Unknown structured system variable or ROW routine variable 'a'
+> exec ^
+: string
 | set a.current_time = 1
 < error
 | 4081 HY000 Unknown structured system variable or ROW routine variable 'a'
@@ -14049,6 +14129,11 @@
 | 4081 HY000 Unknown structured system variable or ROW routine variable 'a'
 > exec ^
 : string
+| set a.ignore_domain_ids = 1
+< error
+| 4081 HY000 Unknown structured system variable or ROW routine variable 'a'
+> exec ^
+: string
 | set a.ignore_server_ids = 1
 < error
 | 4081 HY000 Unknown structured system variable or ROW routine variable 'a'
@@ -14510,6 +14595,11 @@
 > exec ^
 : string
 | set a.master_delay = 1
+< error
+| 4081 HY000 Unknown structured system variable or ROW routine variable 'a'
+> exec ^
+: string
+| set a.master_demote_to_slave = 1
 < error
 | 4081 HY000 Unknown structured system variable or ROW routine variable 'a'
 > exec ^
@@ -15114,6 +15204,11 @@
 | 4081 HY000 Unknown structured system variable or ROW routine variable 'a'
 > exec ^
 : string
+| set a.page_checksum = 1
+< error
+| 4081 HY000 Unknown structured system variable or ROW routine variable 'a'
+> exec ^
+: string
 | set a.parallel = 1
 < error
 | 4081 HY000 Unknown structured system variable or ROW routine variable 'a'
@@ -15125,6 +15220,11 @@
 > exec ^
 : string
 | set a.parse_tree = 1
+< error
+| 4081 HY000 Unknown structured system variable or ROW routine variable 'a'
+> exec ^
+: string
+| set a.parse_vcol_expr = 1
 < error
 | 4081 HY000 Unknown structured system variable or ROW routine variable 'a'
 > exec ^
@@ -17476,6 +17576,11 @@
 | 1064 42000 …near 'current_date = 2' at line 1
 > exec ^
 : string
+| set @a = 1, current_role = 2
+< error
+| 1064 42000 …near 'current_role = 2' at line 1
+> exec ^
+: string
 | set @a = 1, current_time = 2
 < error
 | 1064 42000 …near 'current_time = 2' at line 1
@@ -18293,6 +18398,11 @@
 | 1064 42000 …near 'ignore = 2' at line 1
 > exec ^
 : string
+| set @a = 1, ignore_domain_ids = 2
+< error
+| 1064 42000 …near 'ignore_domain_ids = 2' at line 1
+> exec ^
+: string
 | set @a = 1, ignore_server_ids = 2
 < error
 | 1193 HY000 Unknown system variable 'ignore_server_ids'
@@ -18756,6 +18866,11 @@
 | set @a = 1, master_delay = 2
 < error
 | 1193 HY000 Unknown system variable 'master_delay'
+> exec ^
+: string
+| set @a = 1, master_demote_to_slave = 2
+< error
+| 1064 42000 …near 'master_demote_to_slave = 2' at line 1
 > exec ^
 : string
 | set @a = 1, master_heartbeat_period = 2
@@ -19356,6 +19471,11 @@
 | 1193 HY000 Unknown system variable 'page'
 > exec ^
 : string
+| set @a = 1, page_checksum = 2
+< error
+| 1064 42000 …near 'page_checksum = 2' at line 1
+> exec ^
+: string
 | set @a = 1, parallel = 2
 < error
 | 1193 HY000 Unknown system variable 'parallel'
@@ -19369,6 +19489,11 @@
 | set @a = 1, parse_tree = 2
 < error
 | 1193 HY000 Unknown system variable 'parse_tree'
+> exec ^
+: string
+| set @a = 1, parse_vcol_expr = 2
+< error
+| 1064 42000 …near 'parse_vcol_expr = 2' at line 1
 > exec ^
 : string
 | set @a = 1, parser = 2

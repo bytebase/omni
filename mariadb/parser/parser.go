@@ -23,6 +23,9 @@ type Parser struct {
 	storedExpr storedExprKind
 	// noFields is the expression with no query around it that the current token is in.
 	noFields noFieldsScope
+	// procedureArgs is set while a SELECT's PROCEDURE clause reads its arguments, which
+	// take no subquery.
+	procedureArgs bool
 
 	lexer   *Lexer
 	cur     Token // current token
