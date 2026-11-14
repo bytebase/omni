@@ -2515,6 +2515,12 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 				b.WriteString(",")
 			}
 			writeExpr(b, arg)
+			// A generic call's argument alias, `f(a AS x)`, which only a loadable
+			// UDF takes past parsing.
+			if i < len(n.ArgAliases) && n.ArgAliases[i] != "" {
+				b.WriteString(" AS ")
+				b.WriteString(quoteIdent(n.ArgAliases[i]))
+			}
 		}
 		b.WriteString(")")
 	}

@@ -724,6 +724,9 @@ type FuncCallExpr struct {
 	// IGNORE NULLS), "" when not written.
 	FromFirstLast string
 	NullTreatment string
+	// ArgAliases holds each argument's alias in a generic call, `f(a AS x, b)`,
+	// "" for an argument without one; nil when no argument has one.
+	ArgAliases []string
 }
 
 // JSONValueOptions is what JSON_VALUE takes after its path. The call's document and path are
