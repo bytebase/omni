@@ -62,8 +62,8 @@ type Parser struct {
 	iterandAfter Token
 
 	// scalarParen is set while a value that is one expression, not a list,
-	// is parsed where it may open with '(': a PIVOT IN value for one FOR
-	// column. parseParenExpr takes it for its own parentheses alone and
+	// is parsed where it may open with '(': a PIVOT IN value or an UNPIVOT
+	// label for one FOR column. parseParenExpr takes it for its own parentheses alone and
 	// fails at the ',' of a list or the ')' of an empty pair, where Oracle
 	// 23ai does (ORA-00907, ORA-00936).
 	scalarParen bool
