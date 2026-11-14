@@ -28,7 +28,9 @@ func init() {
 		orReplace: true, orAlter: true,
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-backup-set
 		drop: true, dropNoIfExists: true,
-		props: dataProtectionCommentProps,
+		// The ALTER page writes no IF EXISTS.
+		noIfExists: true,
+		props:      dataProtectionCommentProps,
 	})
 	registerObject(&objectForm{
 		words:  []string{"BACKUP", "POLICY"},
@@ -38,7 +40,9 @@ func init() {
 		orReplace: true, orAlter: true,
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-backup-policy
 		drop: true, dropNoIfExists: true,
-		props: dataProtectionPolicyProps,
+		// The ALTER page writes no IF EXISTS.
+		noIfExists: true,
+		props:      dataProtectionPolicyProps,
 	})
 	registerObject(&objectForm{
 		words:  []string{"SNAPSHOT", "SET"},
@@ -48,7 +52,9 @@ func init() {
 		orReplace: true,
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-snapshot-set
 		drop: true, dropNoIfExists: true,
-		props: dataProtectionCommentProps,
+		// The ALTER page writes no IF EXISTS.
+		noIfExists: true,
+		props:      dataProtectionCommentProps,
 	})
 	registerObject(&objectForm{
 		words:  []string{"SNAPSHOT", "POLICY"},
@@ -58,7 +64,9 @@ func init() {
 		orReplace: true,
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-snapshot-policy
 		drop: true, dropNoIfExists: true,
-		props: dataProtectionPolicyProps,
+		// The ALTER page writes no IF EXISTS.
+		noIfExists: true,
+		props:      dataProtectionPolicyProps,
 	})
 	registerObject(&objectForm{
 		words:  []string{"SNAPSHOT"},
@@ -173,16 +181,31 @@ func parseCreateSnapshotSet(p *Parser, s *ast.ObjectStmt) error {
 // then its tags, WITH <word> POLICY <name> and COMMENT. word is BACKUP or
 // SNAPSHOT; iceberg says whether FOR [ DYNAMIC ] ICEBERG TABLE is documented.
 func (p *Parser) parseDataProtectionSet(s *ast.ObjectStmt, word string, iceberg bool) error {
+	if s.OrAlter && s.IfNotExists {
+		// CREATE OR ALTER <word> SET is written without IF NOT EXISTS.
+		return p.syntaxErrorAtCur()
+	}
 	start := p.cur.Loc.Start
 	if err := p.expectWords("FOR"); err != nil {
 		return err
 	}
 	keywords := "FOR"
+	var name *ast.ObjectName
+	var err error
 	switch {
 	case p.acceptWords("SCHEMA"):
+		// FOR SCHEMA [ <db>. ]<schema>
 		keywords += " SCHEMA"
+		if name, err = p.parseObjectName(); err == nil && !name.Database.IsEmpty() {
+			err = &ParseError{
+				Position: name.Loc.Start, End: name.Loc.End,
+				Message: "syntax error: a schema's name has at most 2 part(s)",
+			}
+		}
 	case p.acceptWords("DATABASE"):
+		// FOR DATABASE <database_name>
 		keywords += " DATABASE"
+		name, err = p.parseObjectSimpleName()
 	default:
 		if p.acceptWords("DYNAMIC") {
 			keywords += " DYNAMIC"
@@ -194,8 +217,8 @@ func (p *Parser) parseDataProtectionSet(s *ast.ObjectStmt, word string, iceberg 
 			return err
 		}
 		keywords += " TABLE"
+		name, err = p.parseObjectName()
 	}
-	name, err := p.parseObjectName()
 	if err != nil {
 		return err
 	}
@@ -257,6 +280,10 @@ func parseCreateSnapshotPolicy(p *Parser, s *ast.ObjectStmt) error {
 // parseDataProtectionPolicy reads a BACKUP POLICY's or SNAPSHOT POLICY's
 // tags, WITH RETENTION LOCK and properties.
 func (p *Parser) parseDataProtectionPolicy(s *ast.ObjectStmt) error {
+	if s.OrAlter && s.IfNotExists {
+		// CREATE OR ALTER BACKUP POLICY is written without IF NOT EXISTS.
+		return p.syntaxErrorAtCur()
+	}
 	lock := false
 	for {
 		c, err := p.parseObjectProperties(s, "", false)
@@ -377,8 +404,8 @@ func (p *Parser) parseAlterDataProtectionSet(s *ast.ObjectStmt, word string, all
 }
 
 // parseDataProtectionIdentifier reads the '<id>' after { DELETE | MODIFY }
-// <word> IDENTIFIER into a clause of keywords, whose one option IDENTIFIER
-// holds the string.
+// <word> IDENTIFIER into a clause of keywords, whose one nameless option holds
+// the string.
 func (p *Parser) parseDataProtectionIdentifier(s *ast.ObjectStmt, keywords string, start int) error {
 	if p.cur.Type != tokString {
 		return p.syntaxErrorAtCur()
@@ -388,7 +415,7 @@ func (p *Parser) parseDataProtectionIdentifier(s *ast.ObjectStmt, keywords strin
 		return err
 	}
 	c := p.addObjectKeywordsClause(s, keywords, start)
-	c.Options = []*ast.CopyOption{{Name: "IDENTIFIER", Lit: lit, Loc: lit.Loc}}
+	c.Options = []*ast.CopyOption{{Lit: lit, Loc: lit.Loc}}
 	return nil
 }
 
@@ -454,7 +481,8 @@ func (p *Parser) parseAlterObjectActions(s *ast.ObjectStmt, allow objectActions)
 //	  [ [ WITH ] TAG ( <tag_name> = '<tag_value>' [ , ... ] ) ]
 //
 // <instance_id> is the instance's index, an integer from 0 (the page's
-// example writes INSTANCE 0); the clause INSTANCE holds it as its one option.
+// example writes INSTANCE 0); the clause INSTANCE holds it as its one nameless
+// option.
 //
 // https://docs.snowflake.com/en/sql-reference/sql/create-snapshot
 func parseCreateSnapshot(p *Parser, s *ast.ObjectStmt) error {
@@ -472,12 +500,9 @@ func parseCreateSnapshot(p *Parser, s *ast.ObjectStmt) error {
 	if err := p.expectWords("VOLUME"); err != nil {
 		return err
 	}
-	volume, err := p.parseObjectName()
+	volume, err := p.parseObjectSimpleName()
 	if err != nil {
 		return err
-	}
-	if !volume.Database.IsEmpty() || !volume.Schema.IsEmpty() {
-		return &ParseError{Position: volume.Loc.Start, End: volume.Loc.End, Message: "syntax error: a volume name is not qualified"}
 	}
 	p.addObjectKeywordsClause(s, "VOLUME", start).Names = []*ast.ObjectName{volume}
 
@@ -492,7 +517,7 @@ func parseCreateSnapshot(p *Parser, s *ast.ObjectStmt) error {
 	if err != nil {
 		return err
 	}
-	p.addObjectKeywordsClause(s, "INSTANCE", start).Options = []*ast.CopyOption{{Name: "INSTANCE", Lit: lit, Loc: lit.Loc}}
+	p.addObjectKeywordsClause(s, "INSTANCE", start).Options = []*ast.CopyOption{{Lit: lit, Loc: lit.Loc}}
 
 	_, err = p.parseObjectProperties(s, "", false)
 	return err

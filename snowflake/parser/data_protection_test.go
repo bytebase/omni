@@ -83,7 +83,7 @@ func TestParseAlterDataProtection(t *testing.T) {
 		}
 	}
 	s := mustObjectStmt(t, "ALTER BACKUP SET s DELETE BACKUP IDENTIFIER 'abc'")
-	if o := s.Clauses[0].Options; len(o) != 1 || o[0].Name != "IDENTIFIER" || o[0].Lit.Value != "abc" {
+	if o := s.Clauses[0].Options; len(o) != 1 || o[0].Name != "" || o[0].Lit.Value != "abc" {
 		t.Errorf("options = %+v", o)
 	}
 }
@@ -187,6 +187,17 @@ func TestParseDataProtectionRejects(t *testing.T) {
 		"ALTER DATA MOVEMENT RULE r SET TAG a = 's'",
 		"CREATE STORAGE LIFECYCLE POLICY p AS (a INT) RETURNS BOOLEAN -> a > 1", // not read yet
 		"DROP BACKUP SET s CASCADE",
+		// Name parts and IF [ NOT ] EXISTS as the pages write them.
+		"CREATE BACKUP SET s FOR DATABASE db.sc",
+		"CREATE BACKUP SET s FOR SCHEMA db.sc.x",
+		"CREATE SNAPSHOT s FROM SERVICE svc VOLUME \"a\".\"b\" INSTANCE 0",
+		"CREATE OR ALTER BACKUP SET IF NOT EXISTS s FOR TABLE t",
+		"CREATE OR ALTER BACKUP POLICY IF NOT EXISTS p",
+		"ALTER BACKUP SET IF EXISTS s ADD BACKUP",
+		"ALTER BACKUP POLICY IF EXISTS p RENAME TO q",
+		"ALTER SNAPSHOT SET IF EXISTS s ADD SNAPSHOT",
+		"ALTER SNAPSHOT POLICY IF EXISTS p UNSET COMMENT",
+		"ALTER BACKUP POLICY p SET COMMENT = 'a' COMMENT = 'b'",
 		// The pages write no IF EXISTS (dropNoIfExists).
 		"DROP BACKUP SET IF EXISTS s",
 		"DROP BACKUP POLICY IF EXISTS p",

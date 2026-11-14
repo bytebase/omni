@@ -13,13 +13,15 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 	start := dropTok.Loc
 
 	// An object read by its documented shape (object.go) whose page documents
-	// DROP <kind> [ IF EXISTS ] <name>, or DROP <kind> <name> when its page
-	// writes no IF EXISTS (dropNoIfExists).
+	// DROP <kind> [ IF EXISTS ] <name>.
 	if f := p.matchObjectForm(); f != nil && f.drop {
 		for range f.words {
 			p.advance()
 		}
 		node, err := p.parseDropObject(ast.DropObject, start, !f.dropNoIfExists, false)
+		if err == nil && f.nameParts > 0 {
+			_, err = p.checkFormNameParts(f, node.(*ast.DropStmt).Name)
+		}
 		if err != nil {
 			return nil, err
 		}

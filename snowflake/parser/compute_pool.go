@@ -12,9 +12,11 @@ func init() {
 		create: parseCreateComputePool,
 		alter:  parseAlterComputePool,
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-compute-pool
-		drop:  true,
-		props: computePoolProps,
-		unset: []string{"AUTO_SUSPEND_SECS", "AUTO_RESUME", "PLACEMENT_GROUP", "BACKUP_INSTANCE_FAMILIES", "COMMENT"},
+		drop:       true,
+		nameParts:  1, // an account-level object
+		props:      computePoolProps,
+		alterProps: computePoolAlterProps,
+		unset:      []string{"AUTO_SUSPEND_SECS", "AUTO_RESUME", "PLACEMENT_GROUP", "BACKUP_INSTANCE_FAMILIES", "COMMENT"},
 	})
 }
 
@@ -32,6 +34,18 @@ var computePoolProps = objectProps{
 	"BACKUP_INSTANCE_FAMILIES": propStrings,
 }
 
+// computePoolAlterProps are ALTER COMPUTE POOL ... SET's: CREATE's but
+// INITIALLY_SUSPENDED.
+var computePoolAlterProps = func() objectProps {
+	m := objectProps{}
+	for k, v := range computePoolProps {
+		if k != "INITIALLY_SUSPENDED" {
+			m[k] = v
+		}
+	}
+	return m
+}()
+
 // parseCreateComputePool reads what follows the name of
 //
 //	CREATE COMPUTE POOL [ IF NOT EXISTS ] <name>
@@ -44,7 +58,7 @@ var computePoolProps = objectProps{
 // https://docs.snowflake.com/en/sql-reference/sql/create-compute-pool
 func parseCreateComputePool(p *Parser, s *ast.ObjectStmt) error {
 	if start := p.cur.Loc.Start; p.acceptWords("FOR", "APPLICATION") {
-		name, err := p.parseObjectName()
+		name, err := p.parseObjectSimpleName()
 		if err != nil {
 			return err
 		}
@@ -77,7 +91,7 @@ func parseAlterComputePool(p *Parser, s *ast.ObjectStmt) error {
 	case p.acceptWords("STOP", "ALL"):
 		c := p.addObjectKeywordsClause(s, "STOP ALL", start)
 		if p.acceptWords("OF", "TYPE") {
-			names, err := p.parseObjectNameList()
+			names, err := p.parseObjectSimpleNameList()
 			if err != nil {
 				return err
 			}
