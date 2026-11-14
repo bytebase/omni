@@ -1032,6 +1032,12 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 				stmt.ForUser = user
 			}
 		default:
+			if p.atWord("PACKAGE") {
+				if err := p.parseShowCreatePackage(stmt); err != nil {
+					return nil, err
+				}
+				break
+			}
 			// SHOW CREATE with nothing after it, or with an object this
 			// engine has no SHOW CREATE for, is a 1064.
 			return nil, p.syntaxErrorAtCur()
@@ -1594,6 +1600,10 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			stmt.Type = "DATABASES"
 			p.advance()
 			if err := p.parseShowLikeOrWhere(stmt); err != nil {
+				return nil, err
+			}
+		} else if p.atWord("PACKAGE") {
+			if err := p.parseShowPackage(stmt); err != nil {
 				return nil, err
 			}
 		} else {

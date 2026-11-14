@@ -88,6 +88,16 @@ func spBadStatement(stmt nodes.Node) string {
 		return "Can't create a TRIGGER from within another stored routine"
 	case *nodes.DropRoutineStmt:
 		return spNoDropSP(s.IsProcedure)
+	case *nodes.CreatePackageStmt:
+		// 1303, as for a routine.
+		return "Can't create a PACKAGE from within another stored routine"
+	case *nodes.DropPackageStmt:
+		// 1357: LEX::stmt_drop_routine holds packages and package bodies to it as routines.
+		kind := "PACKAGE"
+		if s.Body {
+			kind = "PACKAGE BODY"
+		}
+		return "Can't drop or alter a " + kind + " from within another stored routine"
 	case *nodes.AlterRoutineStmt:
 		return spNoDropSP(s.IsProcedure)
 	case *nodes.CreateEventStmt:
