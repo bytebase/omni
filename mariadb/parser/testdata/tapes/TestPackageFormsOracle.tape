@@ -260,6 +260,62 @@
 < ok 0 0
 > exec ^
 : string
+| CREATE DEFINER=foo$package VIEW v AS SELECT 1
+< ok 0 0
+> exec ^
+: string
+| SET STATEMENT sql_mode='' FOR CREATE PACKAGE pk PROCEDURE p(); END
+< ok 0 0
+> exec ^
+: string
+| CREATE PROCEDURE p() BEGIN DROP PACKAGE pk; END
+< error
+| 1357 HY000 Can't drop or alter a PACKAGE from within another stored routine
+> exec ^
+: string
+| CREATE PROCEDURE p() BEGIN DROP PACKAGE pk; END
+| ; SELECT FROM
+< error
+| 1357 HY000 Can't drop or alter a PACKAGE from within another stored routine
+> exec ^
+: string
+| CREATE FUNCTION f() RETURNS INT BEGIN DROP PACKAGE BODY pk; RETURN 1; END
+< error
+| 1357 HY000 Can't drop or alter a PACKAGE BODY from within another stored routine
+> exec ^
+: string
+| CREATE FUNCTION f() RETURNS INT BEGIN DROP PACKAGE BODY pk; RETURN 1; END
+| ; SELECT FROM
+< error
+| 1357 HY000 Can't drop or alter a PACKAGE BODY from within another stored routine
+> exec ^
+: string
+| CREATE PROCEDURE p() BEGIN CREATE PACKAGE pk END; END
+< error
+| 1303 2F003 Can't create a PACKAGE from within another stored routine
+> exec ^
+: string
+| CREATE PROCEDURE p() BEGIN CREATE PACKAGE pk END; END
+| ; SELECT FROM
+< error
+| 1303 2F003 Can't create a PACKAGE from within another stored routine
+> exec ^
+: string
+| BEGIN NOT ATOMIC DROP PACKAGE pk; END
+< error
+| 1357 HY000 Can't drop or alter a PACKAGE from within another stored routine
+> exec ^
+: string
+| BEGIN NOT ATOMIC DROP PACKAGE pk; END
+| ; SELECT FROM
+< error
+| 1357 HY000 Can't drop or alter a PACKAGE from within another stored routine
+> exec ^
+: string
+| CREATE PROCEDURE p() SHOW CREATE PACKAGE pk
+< ok 0 0
+> exec ^
+: string
 | CREATE DEFINER = root@ 'h' VIEW v AS SELECT 1
 < error
 | 1064 42000 …near ''h' VIEW v AS SELECT 1' at line 1

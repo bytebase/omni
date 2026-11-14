@@ -233,6 +233,8 @@ func Split(sql string) []Segment {
 	// WHILE/CASE/LOOP/REPEAT bodies already open unconditionally; only IF needs
 	// this.
 	routineHeaderParen := -1
+	// setTarget is where the statement SET STATEMENT ... FOR wraps starts, -1 before one.
+	setTarget := -1
 
 	for i < len(sql) {
 		// Check for DELIMITER directive (only at statement-start position).
@@ -261,6 +263,7 @@ func Split(sql string) []Segment {
 				}
 				i = j
 				stmtStart = i
+				setTarget = -1
 				atStmtStart = true
 				continue
 			}
@@ -335,6 +338,9 @@ func Split(sql string) []Segment {
 				atStmtStart = false
 			} else {
 				atStmtStart = true
+				if depth == 0 && setTarget < 0 {
+					setTarget = skipToEndOfWord(sql, i)
+				}
 			}
 			i = skipToEndOfWord(sql, i)
 
@@ -355,7 +361,12 @@ func Split(sql string) []Segment {
 		case (b == 'p' || b == 'P') && matchWord(sql, i, "PACKAGE"):
 			// A PACKAGE that touches an @, a dot or another byte of a name is part of a
 			// longer token, a definer's host such as root@package or root@foo.package.
-			if depth == 0 && !packageInLongerToken(sql, i, i+len("PACKAGE")) && createsPackage(sql[stmtStart:i]) {
+			// Under SET STATEMENT ... FOR, the head is the wrapped statement's.
+			head := sql[stmtStart:i]
+			if setTarget > stmtStart && startsWithWord(sql[stmtStart:setTarget], "SET") {
+				head = sql[setTarget:i]
+			}
+			if depth == 0 && !packageInLongerToken(sql, i, i+len("PACKAGE")) && createsPackage(head) {
 				depth++
 			}
 			atStmtStart = false
@@ -464,6 +475,7 @@ func Split(sql string) []Segment {
 				}
 				i += len(delim)
 				stmtStart = i
+				setTarget = -1
 				atStmtStart = true
 				continue
 			}
@@ -649,6 +661,11 @@ func packageHeadTokens(head string) []string {
 		return nil
 	}
 	return toks
+}
+
+// startsWithWord reports whether text's first word, after whitespace and comments, is word.
+func startsWithWord(text, word string) bool {
+	return matchWord(text, skipSpaceAndComments(text, 0), word)
 }
 
 // packageInLongerToken reports whether sql[start:end], a PACKAGE, is part of a longer name or
