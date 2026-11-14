@@ -8913,13 +8913,13 @@ reject	reject	engine	primaryExpression/primaryExpression_ARROW_string!drop-3	SEL
 reject	reject	engine	primaryExpression/primaryExpression_ARROW_string!truncate	SELECT CURRENT_USER ->
 accept	accept	engine	primaryExpression/primaryExpression_ARROW_string!insert	SELECT CURRENT_USER -> 'a' zzz;
 accept	accept	engine	primaryExpression/primaryExpression_ARROW_string!swap	SELECT DATA -> 'a';
-reject	accept	engine	primaryExpression/(identifier|identifierList)_->_expression	SELECT a -> CURRENT_USER;
+accept	accept	engine	primaryExpression/(identifier|identifierList)_->_expression	SELECT a -> CURRENT_USER;
 reject	reject	engine	primaryExpression/(identifier|identifierList)_->_expression!drop-1	SELECT -> CURRENT_USER;
 reject	reject	engine	primaryExpression/(identifier|identifierList)_->_expression!drop-2	SELECT a CURRENT_USER;
 reject	reject	engine	primaryExpression/(identifier|identifierList)_->_expression!drop-3	SELECT a ->;
 reject	reject	engine	primaryExpression/(identifier|identifierList)_->_expression!truncate	SELECT a ->
-reject	accept	engine	primaryExpression/(identifier|identifierList)_->_expression!insert	SELECT a -> CURRENT_USER zzz;
-reject	accept	engine	primaryExpression/(identifier|identifierList)_->_expression!swap	SELECT a -> DATA;
+accept	accept	engine	primaryExpression/(identifier|identifierList)_->_expression!insert	SELECT a -> CURRENT_USER zzz;
+accept	accept	engine	primaryExpression/(identifier|identifierList)_->_expression!swap	SELECT a -> DATA;
 reject	accept	engine	primaryExpression/identifierList_->_(_(expressionList)?_)	SELECT(a) ->();
 reject	reject	engine	primaryExpression/identifierList_->_(_(expressionList)?_)!drop-1	SELECT a) ->();
 reject	reject	engine	primaryExpression/identifierList_->_(_(expressionList)?_)!drop-2	SELECT() ->();
@@ -8993,7 +8993,7 @@ reject	reject	engine	primaryExpression(INTEGER_VALUE)?/%empty!insert	SELECT CURR
 reject	reject	engine	primaryExpression(INTEGER_VALUE)?/INTEGER_VALUE	SELECT CURRENT_USER [ 1 : ];
 reject	reject	engine	primaryExpression(INTEGER_VALUE)?/INTEGER_VALUE!truncate	SELECT CURRENT_USER [
 reject	reject	engine	primaryExpression(INTEGER_VALUE)?/INTEGER_VALUE!insert	SELECT CURRENT_USER [ 1 zzz : ];
-reject	accept	engine	primaryExpression(identifier|identifierList)/identifier	SELECT a -> CURRENT_USER;
+accept	accept	engine	primaryExpression(identifier|identifierList)/identifier	SELECT a -> CURRENT_USER;
 reject	reject	engine	primaryExpression(identifier|identifierList)/identifier!insert	SELECT a zzz -> CURRENT_USER;
 reject	accept	engine	primaryExpression(identifier|identifierList)/identifierList	SELECT(a) -> CURRENT_USER;
 reject	reject	engine	primaryExpression(identifier|identifierList)/identifierList!drop-1	SELECT a) -> CURRENT_USER;
@@ -10488,7 +10488,7 @@ reject	reject	engine	identifierWithAliasList(,_identifierWithAlias)*/,_identifie
 reject	accept	engine	identifierList/(_identifier_(,_identifier)*_)	SELECT(a) -> CURRENT_USER;
 reject	accept	engine	identifierList(,_identifier)*/%empty	SELECT(a) -> CURRENT_USER;
 reject	reject	engine	identifierList(,_identifier)*/%empty!insert	SELECT(a zzz) -> CURRENT_USER;
-reject	accept	engine	identifierList(,_identifier)*/,_identifier_(,_identifier)*	SELECT(a, a) -> CURRENT_USER;
+accept	accept	engine	identifierList(,_identifier)*/,_identifier_(,_identifier)*	SELECT(a, a) -> CURRENT_USER;
 reject	reject	engine	identifierList(,_identifier)*/,_identifier_(,_identifier)*!drop-1	SELECT(a a) -> CURRENT_USER;
 reject	reject	engine	identifierList(,_identifier)*/,_identifier_(,_identifier)*!drop-2	SELECT(a,) -> CURRENT_USER;
 reject	reject	engine	identifierList(,_identifier)*/,_identifier_(,_identifier)*!truncate	SELECT(a,

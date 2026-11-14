@@ -710,10 +710,16 @@ func (p *Parser) parseIdentExpr() (ast.Node, error) {
 	}
 
 	// Simple or qualified column reference.
-	return &ast.ColumnRef{
+	col := &ast.ColumnRef{
 		Name: name,
 		Loc:  name.Loc,
-	}, nil
+	}
+	// identifier '->' expression is a lambda wherever a primaryExpression
+	// goes (StarRocks.g4:2423); '->' before a string is the JSON arrow.
+	if len(name.Parts) == 1 && p.cur.Kind == tokArrow && p.peekNext().Kind != tokString {
+		return p.parseLambdaExpr(col)
+	}
+	return col, nil
 }
 
 // finishMapLiteral parses the { key:val, ... } body of a map constructor. The
@@ -1151,24 +1157,29 @@ func (p *Parser) tryParseParenLambda() (ast.Node, bool, error) {
 	}, true, nil
 }
 
-// parseFuncArgList parses a function-call argument list. Unlike a plain
-// expression list it also accepts a lambda (`x -> body`), which the engine's
-// analyzer permits only here, as an argument to a higher-order array function.
+// parseFuncArgList parses a function-call argument list, which may hold a
+// lambda (`x -> body`, `(x, y) -> body`). parseExpr reads a lambda wherever
+// a primaryExpression goes (StarRocks.g4:2423); the checks here remain for an
+// argument whose left of '->' is not a bare name or name list, which
+// parseLambdaExpr then refuses.
 //
 // A `->` followed by a string literal has already been taken as the JSON path
 // operator by then (see parseJSONArrow), which is how the engine resolves that
-// overlap too. What reaches the lambda check below is therefore a `->` whose
-// right side is not a string — `x -> x + 1`. Keeping the remaining lambda
-// forms scoped to this position means a stray `->` elsewhere stays a syntax
-// error; the engine's parser is laxer there and accepts a bare lambda in any
-// expression position, leaving omni under-accepting in the fail-safe
-// direction.
+// overlap too.
 func (p *Parser) parseFuncArgList() ([]ast.Node, error) {
 	var list []ast.Node
 	for {
 		lam, ok, err := p.tryParseParenLambda()
 		if err != nil {
 			return nil, err
+		}
+		if !ok {
+			// A bare-name lambda is read here rather than inside parseExpr,
+			// so a lambda argument costs one nesting level, not two.
+			lam, ok, err = p.tryParseNameLambda()
+			if err != nil {
+				return nil, err
+			}
 		}
 		if !ok {
 			lam, err = p.parseExpr()
@@ -1277,6 +1288,11 @@ func (p *Parser) parseOrderByItem() (*ast.OrderByItem, error) {
 // For subqueries (SELECT/WITH after open paren), we create a placeholder
 // SubqueryExpr that stores the raw text.
 func (p *Parser) parseParenExprOrSubquery() (ast.Node, error) {
+	// identifierList '->' expression (StarRocks.g4:2423), the lambda form
+	// tryParseParenLambda reads.
+	if lam, ok, err := p.tryParseParenLambda(); err != nil || ok {
+		return lam, err
+	}
 	openTok := p.advance() // consume '('
 
 	// Subquery: (SELECT ...) or (WITH ... SELECT ...)
@@ -2154,4 +2170,21 @@ func isDotDigits(s string) bool {
 		}
 	}
 	return true
+}
+
+// tryParseNameLambda reads identifier '->' expression (StarRocks.g4:2423) at
+// the current token, or leaves the parser where it was and reports ok=false.
+func (p *Parser) tryParseNameLambda() (ast.Node, bool, error) {
+	if !p.isExprIdentToken() || p.peekNext().Kind != tokArrow {
+		return nil, false, nil
+	}
+	saved := p.save()
+	tok := p.advance()
+	if p.peekNext().Kind == tokString {
+		p.restore(saved)
+		return nil, false, nil
+	}
+	name := &ast.ObjectName{Parts: []string{tok.Str}, Loc: tok.Loc}
+	lam, err := p.parseLambdaExpr(&ast.ColumnRef{Name: name, Loc: tok.Loc})
+	return lam, err == nil, err
 }
