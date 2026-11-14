@@ -285,6 +285,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeForUpdate(sb, n)
 	case *IntoClause:
 		writeIntoClause(sb, n)
+	case *ProcedureClause:
+		writeProcedureClause(sb, n)
 	case *RenameTablePair:
 		writeRenameTablePair(sb, n)
 	case *LockTable:
@@ -596,6 +598,10 @@ func writeSelectStmt(sb *strings.Builder, n *SelectStmt) {
 		sb.WriteString(" :into ")
 		writeNode(sb, n.Into)
 	}
+	if n.Procedure != nil {
+		sb.WriteString(" :procedure ")
+		writeNode(sb, n.Procedure)
+	}
 	if n.SetOp != SetOpNone {
 		sb.WriteString(" :set_op ")
 		switch n.SetOp {
@@ -886,6 +892,9 @@ func writeAlterTableStmt(sb *strings.Builder, n *AlterTableStmt) {
 	if n.Ignore {
 		sb.WriteString(" :ignore true")
 	}
+	if n.IfExists {
+		sb.WriteString(" :if_exists true")
+	}
 	if n.Table != nil {
 		sb.WriteString(" :table ")
 		writeNode(sb, n.Table)
@@ -1059,6 +1068,12 @@ func writeTruncateStmt(sb *strings.Builder, n *TruncateStmt) {
 			writeNode(sb, t)
 		}
 	}
+	if n.NoWait {
+		sb.WriteString(" :nowait true")
+	}
+	if n.HasWait {
+		fmt.Fprintf(sb, " :wait %s", n.WaitSeconds)
+	}
 	sb.WriteString("}")
 }
 
@@ -1216,6 +1231,9 @@ func writeExplainStmt(sb *strings.Builder, n *ExplainStmt) {
 	if n.Extended {
 		sb.WriteString(" :extended true")
 	}
+	if n.ExtendedAll {
+		sb.WriteString(" :extended_all true")
+	}
 	if n.Partitions {
 		sb.WriteString(" :partitions true")
 	}
@@ -1224,6 +1242,10 @@ func writeExplainStmt(sb *strings.Builder, n *ExplainStmt) {
 	}
 	if n.ForConnection != 0 {
 		fmt.Fprintf(sb, " :for_connection %d", n.ForConnection)
+	}
+	if n.Connection != nil {
+		sb.WriteString(" :connection ")
+		writeNode(sb, n.Connection)
 	}
 	if n.Stmt != nil {
 		sb.WriteString(" :stmt ")
@@ -2300,6 +2322,9 @@ func writeFuncCallExpr(sb *strings.Builder, n *FuncCallExpr) {
 	if n.Schema != "" {
 		fmt.Fprintf(sb, " :schema %s", n.Schema)
 	}
+	if n.Package != "" {
+		fmt.Fprintf(sb, " :package %s", n.Package)
+	}
 	if q := n.Quantifier.String(); q != "" {
 		fmt.Fprintf(sb, " :quantifier %s", q)
 	}
@@ -2319,7 +2344,24 @@ func writeFuncCallExpr(sb *strings.Builder, n *FuncCallExpr) {
 		sb.WriteString(" :args ")
 		writeExprNodeList(sb, n.Args)
 	}
+	if len(n.ArgTypes) > 0 {
+		sb.WriteString(" :arg_types (")
+		for i, dt := range n.ArgTypes {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			if dt == nil {
+				sb.WriteString("<>")
+				continue
+			}
+			writeNode(sb, dt)
+		}
+		sb.WriteString(")")
+	}
 	if len(n.OrderBy) > 0 {
+		if n.WithinGroup {
+			sb.WriteString(" :within_group true")
+		}
 		sb.WriteString(" :order_by ")
 		writeOrderByList(sb, n.OrderBy)
 	}
@@ -2719,6 +2761,12 @@ func writeLimit(sb *strings.Builder, n *Limit) {
 	if n.Offset != nil {
 		sb.WriteString(" :offset ")
 		writeNode(sb, n.Offset)
+	}
+	if n.Fetch {
+		sb.WriteString(" :fetch true")
+	}
+	if n.WithTies {
+		sb.WriteString(" :with_ties true")
 	}
 	sb.WriteString("}")
 }
@@ -3287,6 +3335,16 @@ func writeForUpdate(sb *strings.Builder, n *ForUpdate) {
 	}
 	if n.SkipLocked {
 		sb.WriteString(" :skip_locked true")
+	}
+	sb.WriteString("}")
+}
+
+func writeProcedureClause(sb *strings.Builder, n *ProcedureClause) {
+	sb.WriteString("{PROCEDURE")
+	fmt.Fprintf(sb, " :name %s :loc %d", n.Name, n.Loc.Start)
+	if len(n.Args) > 0 {
+		sb.WriteString(" :args ")
+		writeExprNodeList(sb, n.Args)
 	}
 	sb.WriteString("}")
 }

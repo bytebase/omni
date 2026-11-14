@@ -39,6 +39,19 @@ var grantFormCases = []grantFormCase{
 	{"GRANT BINLOG MONITOR ON *.* TO u1", true},
 	{"GRANT REPLICATION SLAVE ADMIN ON *.* TO u1", true},
 
+	// --- CURRENT_ROLE is a reserved word, read where user_or_role and grant_role are ---
+	{"GRANT current_role TO u1", true},
+	{"GRANT r1 TO current_role", true},
+	{"REVOKE current_role FROM u1", true},
+	{"SHOW GRANTS FOR current_role()", true},
+	{"CREATE USER current_role()", true},
+	{"CREATE USER current_role@localhost", false},
+	{"CREATE DEFINER = current_role VIEW v AS SELECT 1", true},
+	{"CREATE DEFINER = current_role() PROCEDURE p() SELECT 1", true},
+	{"CREATE DEFINER = current_role( VIEW v AS SELECT 1", false},
+	{"CREATE DEFINER = current_user( PROCEDURE p() SELECT 1", false},
+	{"CREATE USER `current_role`@localhost", true},
+
 	// --- user@host: which half may be written how ---
 	// Username is `StringName ['@' StringName]`, and StringName is a string
 	// literal or an identifier, so both halves take all three spellings.

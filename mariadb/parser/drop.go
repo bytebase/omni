@@ -181,7 +181,7 @@ func (p *Parser) parseDropViewStmt(start int) (*nodes.DropViewStmt, error) {
 //
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/truncate-table.html
 //
-//	TRUNCATE [TABLE] tbl_name
+//	TRUNCATE [TABLE] tbl_name [WAIT n | NOWAIT]
 func (p *Parser) parseTruncateStmt() (*nodes.TruncateStmt, error) {
 	start := p.pos()
 	p.advance() // consume TRUNCATE
@@ -202,9 +202,15 @@ func (p *Parser) parseTruncateStmt() (*nodes.TruncateStmt, error) {
 	}
 
 	stmt := &nodes.TruncateStmt{
-		Loc:    nodes.Loc{Start: start, End: p.prev.End},
+		Loc:    nodes.Loc{Start: start},
 		Tables: []*nodes.TableRef{ref},
 	}
+	// opt_lock_wait_timeout: WAIT n or NOWAIT, which mariadb:11.8.8 runs after the table.
+	// Ref: truncate and opt_lock_wait_timeout in MariaDB 11.8 sql/sql_yacc.yy.
+	if stmt.NoWait, stmt.HasWait, stmt.WaitSeconds, err = p.parseIndexLockWait(); err != nil {
+		return nil, err
+	}
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 

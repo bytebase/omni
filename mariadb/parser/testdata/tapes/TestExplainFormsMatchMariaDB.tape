@@ -245,6 +245,93 @@
 | 1064 42000 …near '' at line 1
 > exec ^
 : string
+| EXPLAIN FOR CONNECTION 'x'
+< ok 0 0
+> exec ^
+: string
+| EXPLAIN FOR CONNECTION 1.5
+< ok 0 0
+> exec ^
+: string
+| EXPLAIN FOR CONNECTION @a
+< ok 0 0
+> exec ^
+: string
+| EXPLAIN FOR CONNECTION -1
+< ok 0 0
+> exec ^
+: string
+| EXPLAIN FOR CONNECTION 1+1
+< ok 0 0
+> exec ^
+: string
+| EXPLAIN FOR CONNECTION (1)
+< ok 0 0
+> exec ^
+: string
+| EXPLAIN FOR CONNECTION a
+< ok 0 0
+> exec ^
+: string
+| EXPLAIN FOR CONNECTION t.a
+< ok 0 0
+> exec ^
+: string
+| EXPLAIN FORMAT = JSON FOR CONNECTION 'x'
+< ok 0 0
+> exec ^
+: string
+| DESCRIBE FOR CONNECTION 0x1
+< ok 0 0
+> exec ^
+: string
+| EXPLAIN FOR CONNECTION 1 2
+< error
+| 1064 42000 …near '2' at line 1
+> exec ^
+: string
+| EXPLAIN EXTENDED ALL SELECT 1
+< ok 0 0
+> exec ^
+: string
+| DESC EXTENDED ALL DELETE FROM t1
+< error
+| 1146 42S02 Table 'test.t1' doesn't exist
+> exec ^
+: string
+| DESC EXTENDED ALL DELETE FROM t1
+| ; SELECT FROM
+< error
+| 1064 42000 …near 'SELECT FROM' at line 2
+> exec ^
+: string
+| EXPLAIN EXTENDED ALL t1
+< error
+| 1064 42000 …near 't1' at line 1
+> exec ^
+: string
+| EXPLAIN EXTENDED ALL FOR CONNECTION 1
+< error
+| 1064 42000 …near 'FOR CONNECTION 1' at line 1
+> exec ^
+: string
+| DESC t1 0x41
+< ok 0 0
+> exec ^
+: string
+| DESC t1 x'41'
+< ok 0 0
+> exec ^
+: string
+| DESC t1 b'1'
+< ok 0 0
+> exec ^
+: string
+| DESC t1 X'4'
+< error
+| 1064 42000 …near 'X'4'' at line 1
+> exec ^
+: string
 | EXPLAIN SELECT 1
 < ok 0 0
 > exec ^

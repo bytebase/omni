@@ -25,6 +25,24 @@ import (
 // precision above the maximum is not a syntax error: now(7) answers 1426 after
 // parsing. Every row is held to the engine by TestMariaDBTemporalFormsMatchEngine.
 
+// temporalLiteralRefused holds DATE 's', TIME 's' and TIMESTAMP 's' to the check MariaDB
+// makes while the literal parses: temporal_literal's actions build the value with
+// create_literal_item(..., send_error=true), which answers 1525 (Incorrect DATE value) for
+// a string that is no such value, and that is a rejection. The server's readers
+// (str_to_datetime, str_to_time) are not modelled here, only what none of them takes: a
+// string with no digit in it. mariadb:11.8.8 answers 1525 for an empty DATE, TIME 'x' and
+// TIMESTAMP ' ', and takes DATE '20200101', TIME '1' and TIMESTAMP '2020-01-01T10:00:00'.
+func temporalLiteralRefused(typeTok, valTok Token) error {
+	if strings.ContainsAny(valTok.Str, "0123456789") {
+		return nil
+	}
+	kind := strings.ToUpper(typeTok.Str)
+	if kind == "TIMESTAMP" {
+		kind = "DATETIME"
+	}
+	return &ParseError{Message: "Incorrect " + kind + " value: '" + valTok.Str + "'", Position: valTok.Loc}
+}
+
 // spacedTemporalWords are the words the lexer gives as their function token only
 // when '(' follows with nothing between. With a space or a comment first the word
 // is an identifier, so the call is an ordinary one to a stored function of that
@@ -59,6 +77,9 @@ var spacedFuncWords = map[string]bool{
 	"BIT_AND": true, "BIT_OR": true, "BIT_XOR": true,
 	"JSON_ARRAYAGG": true, "JSON_OBJECTAGG": true,
 	"SUBSTR": true, "SUBSTRING": true, "TRIM": true, "POSITION": true,
+	// mariadb:11.8.8 answers 1630 for trim_oracle (a), median (a) and
+	// percentile_cont (a), and 1064 for median (a) OVER ().
+	"TRIM_ORACLE": true, "MEDIAN": true, "PERCENTILE_CONT": true, "PERCENTILE_DISC": true,
 }
 
 // spacedFuncWordIsName reports whether the function word just consumed is a plain
@@ -87,9 +108,9 @@ func (p *Parser) atDatetimePrecision() bool {
 }
 
 // parseTemporalKeyword parses a reserved word that names a function and needs no
-// parentheses. CURRENT_DATE, UTC_DATE and CURRENT_USER take at most an empty pair
-// of them, and the others a precision as well. The word is reserved, so a space
-// before the '(' changes nothing, unlike the function words parseFuncCall reads.
+// parentheses. CURRENT_DATE, UTC_DATE, CURRENT_USER and CURRENT_ROLE take at most an
+// empty pair of them, and the others a precision as well. The word is reserved, so a
+// space before the '(' changes nothing, unlike the function words parseFuncCall reads.
 func (p *Parser) parseTemporalKeyword() (nodes.ExprNode, error) {
 	tok := p.advance()
 	fc := &nodes.FuncCallExpr{Loc: nodes.Loc{Start: tok.Loc}, Name: strings.ToUpper(tok.Str)}
@@ -98,7 +119,7 @@ func (p *Parser) parseTemporalKeyword() (nodes.ExprNode, error) {
 		p.advance()
 		var err error
 		switch tok.Type {
-		case kwCURRENT_DATE, kwUTC_DATE, kwCURRENT_USER:
+		case kwCURRENT_DATE, kwUTC_DATE, kwCURRENT_USER, kwCURRENT_ROLE:
 			_, err = p.expect(')')
 		default:
 			err = p.parseDatetimePrecision(fc)

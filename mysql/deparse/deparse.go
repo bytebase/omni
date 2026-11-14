@@ -170,10 +170,7 @@ func writeSelectStmt(b *strings.Builder, stmt *ast.SelectStmt, suppressAlias boo
 	}
 
 	// FOR UPDATE / FOR SHARE / LOCK IN SHARE MODE
-	if stmt.ForUpdate != nil {
-		b.WriteString(" ")
-		b.WriteString(deparseForUpdate(stmt.ForUpdate))
-	}
+	appendLocking(b, stmt)
 }
 
 // deparseForUpdate formats a FOR UPDATE / FOR SHARE / LOCK IN SHARE MODE clause.
@@ -268,7 +265,7 @@ func deparseTableQueryPrimary(stmt *ast.SelectStmt) string {
 		b.WriteString(deparseTableRef(stmt.TableSource.Table))
 	}
 	appendOrderByLimit(&b, stmt.OrderBy, stmt.Limit)
-	appendForUpdate(&b, stmt.ForUpdate)
+	appendLocking(&b, stmt)
 	return b.String()
 }
 
@@ -295,7 +292,7 @@ func deparseValuesQueryPrimary(stmt *ast.SelectStmt) string {
 		b.WriteString(")")
 	}
 	appendOrderByLimit(&b, stmt.OrderBy, stmt.Limit)
-	appendForUpdate(&b, stmt.ForUpdate)
+	appendLocking(&b, stmt)
 	return b.String()
 }
 
@@ -309,6 +306,15 @@ func appendForUpdate(b *strings.Builder, fu *ast.ForUpdate) {
 	}
 	b.WriteString(" ")
 	b.WriteString(deparseForUpdate(fu))
+}
+
+// appendLocking writes a statement's locking_clause_list: its first clause and the
+// ones after it, in order.
+func appendLocking(b *strings.Builder, stmt *ast.SelectStmt) {
+	appendForUpdate(b, stmt.ForUpdate)
+	for _, fu := range stmt.MoreLocking {
+		appendForUpdate(b, fu)
+	}
 }
 
 // limitHasParamMarker reports whether the LIMIT's count or offset is a `?`
@@ -2515,6 +2521,12 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 				b.WriteString(",")
 			}
 			writeExpr(b, arg)
+			// A generic call's argument alias, `f(a AS x)`, which only a loadable
+			// UDF takes past parsing.
+			if i < len(n.ArgAliases) && n.ArgAliases[i] != nil {
+				b.WriteString(" AS ")
+				b.WriteString(quoteIdent(*n.ArgAliases[i]))
+			}
 		}
 		b.WriteString(")")
 	}
