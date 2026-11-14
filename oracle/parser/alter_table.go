@@ -1000,7 +1000,7 @@ func (p *Parser) parseAlterTableRename() (*nodes.AlterTableCmd, error) {
 		if err := p.atExpect('('); err != nil {
 			return nil, err
 		}
-		if err := p.parseATName(); err != nil {
+		if err := p.parseATItemPath(); err != nil {
 			return nil, err
 		}
 		if err := p.atExpect(')'); err != nil {

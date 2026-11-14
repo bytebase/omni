@@ -440,3 +440,21 @@ func TestParseAlterTableAddConstraintExceptions(t *testing.T) {
 		t.Fatal("expected ADD_CONSTRAINT with constraint")
 	}
 }
+
+// TestParseAlterTableObjectAndCollectionStorage covers forms Oracle 23ai
+// parses: a LOB item naming an object attribute, read_only_clause and
+// indexing_clause on hash partitions, and the storage of an inner
+// collection level or the object_properties of a nested table's storage.
+func TestParseAlterTableObjectAndCollectionStorage(t *testing.T) {
+	for _, sql := range []string{
+		"ALTER TABLE t MODIFY LOB (obj.c) (CACHE)",
+		"ALTER TABLE t MOVE LOB (obj.c) STORE AS (TABLESPACE x)",
+		"ALTER TABLE t MODIFY PARTITION BY HASH (a) (PARTITION p1 READ ONLY)",
+		"ALTER TABLE t MODIFY PARTITION BY HASH (a) (PARTITION p1 INDEXING OFF TABLESPACE x)",
+		"ALTER TABLE t ADD (c outer_nt) NESTED TABLE c STORE AS c_store (NESTED TABLE COLUMN_VALUE STORE AS inner_store)",
+		"ALTER TABLE t ADD (c nt) NESTED TABLE c STORE AS s ((PRIMARY KEY (nested_table_id)) ORGANIZATION INDEX)",
+		"ALTER TABLE t ADD (c nt) NESTED TABLE c STORE AS s (TABLESPACE x)",
+	} {
+		ParseAndCheck(t, sql)
+	}
+}

@@ -105,48 +105,58 @@ func (p *Parser) parseATSupplementalLogging(add bool, opts *nodes.List) error {
 	}
 }
 
-// parseATSubstitutable reads substitutable_column_clause if one follows:
+// parseATSubstitutable reads substitutable_column_clause if one follows,
+// setting *found, where found is not nil, to whether one did:
 //
 //	{ [ ELEMENT ] IS OF [ TYPE ] ( [ ONLY ] type ) | [ NOT ] SUBSTITUTABLE AT ALL LEVELS }
-func (p *Parser) parseATSubstitutable() (bool, error) {
+func (p *Parser) parseATSubstitutable(found *bool) error {
 	switch {
 	case p.atWord("ELEMENT"), p.cur.Type == kwIS:
 		if p.atWord("ELEMENT") {
 			p.advance()
 		}
 		if err := p.atExpect(kwIS); err != nil {
-			return true, err
+			return err
 		}
 		if err := p.atExpect(kwOF); err != nil {
-			return true, err
+			return err
 		}
 		if p.cur.Type == kwTYPE {
 			p.advance()
 		}
 		if err := p.atExpect('('); err != nil {
-			return true, err
+			return err
 		}
 		p.atOptOneOf("ONLY")
 		if err := p.parseATQualifiedName(); err != nil {
-			return true, err
+			return err
 		}
-		return true, p.atExpect(')')
+		if err := p.atExpect(')'); err != nil {
+			return err
+		}
 	case p.cur.Type == kwNOT, p.atWord("SUBSTITUTABLE"):
 		if p.cur.Type == kwNOT {
 			p.advance()
 		}
 		if err := p.atExpectWord("SUBSTITUTABLE"); err != nil {
-			return true, err
+			return err
 		}
 		if err := p.atExpectWord("AT"); err != nil {
-			return true, err
+			return err
 		}
 		if err := p.atExpect(kwALL); err != nil {
-			return true, err
+			return err
 		}
-		return true, p.atExpectWord("LEVELS")
+		if err := p.atExpectWord("LEVELS"); err != nil {
+			return err
+		}
+	default:
+		return nil
 	}
-	return false, nil
+	if found != nil {
+		*found = true
+	}
+	return nil
 }
 
 // parseATColumnProperties reads [ column_properties ]:

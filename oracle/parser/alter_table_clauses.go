@@ -1063,7 +1063,34 @@ func (p *Parser) parseATLobStoreAs() error {
 
 // parseATLobItemList reads ( lob_item [, lob_item ]... ).
 func (p *Parser) parseATLobItemList() error {
-	return p.parseATNameList()
+	if err := p.atExpect('('); err != nil {
+		return err
+	}
+	for {
+		if err := p.parseATItemPath(); err != nil {
+			return err
+		}
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	return p.atExpect(')')
+}
+
+// parseATItemPath reads a LOB or collection item: a column, or an
+// attribute of an object column, column.attribute [ .attribute ]...
+func (p *Parser) parseATItemPath() error {
+	if err := p.parseATName(); err != nil {
+		return err
+	}
+	for p.cur.Type == '.' {
+		p.advance()
+		if err := p.parseATName(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // isATLobStorageStart reports LOB_storage_clause or a VARRAY's STORE AS:
@@ -1093,8 +1120,8 @@ func (p *Parser) parseATLobStorage() error {
 	if err := p.parseATName(); err != nil {
 		return err
 	}
-	sub, err := p.parseATSubstitutable()
-	if err != nil {
+	var sub bool
+	if err := p.parseATSubstitutable(&sub); err != nil {
 		return err
 	}
 	if sub && !p.atWord("STORE") {
@@ -1116,8 +1143,7 @@ func (p *Parser) parseATLobStorage() error {
 	if file {
 		return nil
 	}
-	err = p.parseATName()
-	return err
+	return p.parseATName()
 }
 
 // parseATLobPartitionStorage reads ( LOB_partition_storage [, ...] ) after
@@ -1185,7 +1211,7 @@ func (p *Parser) parseATLobModify() error {
 		if err := p.atExpect('('); err != nil {
 			return err
 		}
-		if err := p.parseATName(); err != nil {
+		if err := p.parseATItemPath(); err != nil {
 			return err
 		}
 		if err := p.atExpect(')'); err != nil {
@@ -1193,7 +1219,7 @@ func (p *Parser) parseATLobModify() error {
 		}
 	} else {
 		p.advance() // VARRAY
-		if err := p.parseATName(); err != nil {
+		if err := p.parseATItemPath(); err != nil {
 			return err
 		}
 	}
@@ -1529,20 +1555,32 @@ func (p *Parser) parseATParallel() error {
 	return nil
 }
 
-// parseATNestedTableStorage reads the storage of a nested table column in a
-// partition description: NESTED TABLE { item | COLUMN_VALUE } STORE AS
-// storage_table [ ( { ( object_properties ) | physical_properties
-// | column_properties }... ) ] [ RETURN [ AS ] { LOCATOR | VALUE } ].
+// parseATNestedTableStorage reads nested_table_col_properties:
+//
+//	NESTED TABLE { nested_item | COLUMN_VALUE } [ substitutable_column_clause ]
+//	    [ GLOBAL ] STORE AS storage_table
+//	    [ ( { ( object_properties ) | physical_properties | column_properties }... ) ]
+//	    [ RETURN [ AS ] { LOCATOR | VALUE } ]
+//
+// column_properties there name the storage of an inner collection level.
 func (p *Parser) parseATNestedTableStorage() error {
+	if err := p.enterNesting(); err != nil {
+		return err
+	}
+	defer p.leaveNesting()
 	p.advance() // NESTED
 	if err := p.atExpect(kwTABLE); err != nil {
 		return err
 	}
 	if p.cur.Type == kwCOLUMN_VALUE {
 		p.advance()
-	} else if err := p.parseATName(); err != nil {
+	} else if err := p.parseATItemPath(); err != nil {
 		return err
 	}
+	if err := p.parseATSubstitutable(nil); err != nil {
+		return err
+	}
+	p.atOptOneOf("GLOBAL")
 	if err := p.atExpectWord("STORE"); err != nil {
 		return err
 	}
@@ -1554,11 +1592,35 @@ func (p *Parser) parseATNestedTableStorage() error {
 	}
 	if p.cur.Type == '(' {
 		p.advance()
-		if err := p.parseATClauses(atcSegment|atcCompression, nil); err != nil {
-			return err
-		}
-		if err := p.atExpect(')'); err != nil {
-			return err
+		for n := 0; ; n++ {
+			if p.cur.Type == ')' && n > 0 {
+				p.advance()
+				break
+			}
+			start := p.pos()
+			if p.cur.Type == '(' {
+				if err := p.parseATObjectProperties(); err != nil {
+					return err
+				}
+				continue
+			}
+			if p.atWord("ORGANIZATION") {
+				p.advance()
+				if err := p.atOneOf("HEAP", "INDEX"); err != nil {
+					return err
+				}
+				continue
+			}
+			const physical = atcSegment | atcCompression | atcInmemory | atcSegmentCreation | atcOverflow
+			if err := p.parseATClauses(physical, nil); err != nil {
+				return err
+			}
+			if err := p.parseATColumnProperties(nil); err != nil {
+				return err
+			}
+			if p.pos() == start {
+				return p.syntaxErrorAtCur()
+			}
 		}
 	}
 	if p.atWord("RETURN") {
@@ -1569,6 +1631,52 @@ func (p *Parser) parseATNestedTableStorage() error {
 		return p.atOneOf("LOCATOR", "VALUE")
 	}
 	return nil
+}
+
+// parseATObjectProperties reads ( object_properties ) of a nested table's
+// storage table: ( { column [ DEFAULT expr ] | out_of_line_constraint
+// | out_of_line_ref_constraint } [, ...] ).
+func (p *Parser) parseATObjectProperties() error {
+	p.advance() // (
+	for {
+		switch {
+		case p.isOutOfLineRefConstraintStart():
+			tc, err := p.parseOutOfLineRefConstraint()
+			if err != nil {
+				return err
+			}
+			if tc == nil {
+				return p.syntaxErrorAtCur()
+			}
+		case p.isTableConstraintStart():
+			tc, err := p.parseTableConstraint()
+			if err != nil {
+				return err
+			}
+			if tc == nil {
+				return p.syntaxErrorAtCur()
+			}
+		default:
+			if err := p.parseATName(); err != nil {
+				return err
+			}
+			if p.cur.Type == kwDEFAULT {
+				p.advance()
+				e, err := p.parseExpr()
+				if err != nil {
+					return err
+				}
+				if e == nil {
+					return p.syntaxErrorAtCur()
+				}
+			}
+		}
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	return p.atExpect(')')
 }
 
 // parseATFilterCondition reads filter_condition: INCLUDING ROWS WHERE condition.
@@ -2230,7 +2338,8 @@ func (p *Parser) parseATValuePartitionList(method, sub atMethod) error {
 // parseATHashPartitions reads individual_hash_partitions or
 // hash_partitions_by_quantity:
 //
-//	( PARTITION [ partition ] [ partitioning_storage_clause ] [, ...] )
+//	( PARTITION [ partition ] [ read_only_clause ] [ indexing_clause ]
+//	    [ partitioning_storage_clause ] [, ...] )
 //	PARTITIONS integer [ STORE IN ( tablespace [, tablespace ]... ) ]
 //	    [ table_compression ] [ OVERFLOW STORE IN ( tablespace [, ...] ) ]
 func (p *Parser) parseATHashPartitions() error {
@@ -2275,14 +2384,15 @@ func (p *Parser) parseATHashPartitions() error {
 	if err := p.atExpect('('); err != nil {
 		return err
 	}
+	const allowed = atcReadOnly | atcIndexing | atcPartitioningStorage
 	for {
 		if err := p.atExpect(kwPARTITION); err != nil {
 			return err
 		}
-		if p.isATPartitionNameHere(atcPartitioningStorage) {
+		if p.isATPartitionNameHere(allowed) {
 			p.advance()
 		}
-		if err := p.parseATClauses(atcPartitioningStorage, nil); err != nil {
+		if err := p.parseATClauses(allowed, nil); err != nil {
 			return err
 		}
 		if p.cur.Type != ',' {
