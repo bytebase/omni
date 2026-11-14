@@ -839,12 +839,14 @@ func TestRecognizerReadsPaths(t *testing.T) {
 	}
 	rec := g.Recognizer()
 	for sql, want := range map[string]bool{
-		"LIST @a":                true,
-		"LIST @db.s.a/dir/f.csv": true,
-		"LIST @~":                true,
-		"LIST @%t":               true,
-		"LIST @a b":              false,
-		"LIST a":                 false,
+		"LIST @a":                   true,
+		"LIST @db.s.a/dir/f.csv":    true,
+		"LIST @~":                   true,
+		"LIST @%t":                  true,
+		"LIST '@a/dir with spaces'": true,
+		"LIST 'a'":                  false,
+		"LIST @a b":                 false,
+		"LIST a":                    false,
 	} {
 		if got := rec.Accepts(sql); got != want {
 			t.Errorf("Accepts(%q) = %v, want %v", sql, got, want)

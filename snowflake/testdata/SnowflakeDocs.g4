@@ -1851,16 +1851,17 @@ alterPasswordPolicy
 // https://docs.snowflake.com/en/sql-reference/sql/alter-pipe
 // fix: the start time is a quoted ISO 8601 timestamp, as the parameters say
 // fix: the properties may also be separated by commas, as the SET parameter says; a second form lists them so
+// fix: the log event levels are those the parameter lists
 alterPipe
     : 'ALTER' 'PIPE' ('IF' 'EXISTS')? ID 'SET' (alterPipe_objectProperties ('COMMENT' '=' STRING)? | 'COMMENT' '=' STRING)
-    | 'ALTER' 'PIPE' ('IF' 'EXISTS')? ID 'SET' ('ERROR_INTEGRATION' '=' ID | 'PIPE_EXECUTION_PAUSED' '=' ('TRUE' | 'FALSE') | 'LOG_EVENT_LEVEL' '=' ID | 'COMMENT' '=' STRING) (',' ('ERROR_INTEGRATION' '=' ID | 'PIPE_EXECUTION_PAUSED' '=' ('TRUE' | 'FALSE') | 'LOG_EVENT_LEVEL' '=' ID | 'COMMENT' '=' STRING))*
+    | 'ALTER' 'PIPE' ('IF' 'EXISTS')? ID 'SET' ('ERROR_INTEGRATION' '=' ID | 'PIPE_EXECUTION_PAUSED' '=' ('TRUE' | 'FALSE') | 'LOG_EVENT_LEVEL' '=' ('TRACE' | 'DEBUG' | 'INFO' | 'WARN' | 'ERROR' | 'FATAL' | 'OFF') | 'COMMENT' '=' STRING) (',' ('ERROR_INTEGRATION' '=' ID | 'PIPE_EXECUTION_PAUSED' '=' ('TRUE' | 'FALSE') | 'LOG_EVENT_LEVEL' '=' ('TRACE' | 'DEBUG' | 'INFO' | 'WARN' | 'ERROR' | 'FATAL' | 'OFF') | 'COMMENT' '=' STRING))*
     | 'ALTER' 'PIPE' ID 'SET' 'TAG' ID '=' STRING (',' ID '=' STRING)*
     | 'ALTER' 'PIPE' ID 'UNSET' 'TAG' ID (',' ID)*
     | 'ALTER' 'PIPE' ('IF' 'EXISTS')? ID 'UNSET' (ID | 'COMMENT') (',' (ID | 'COMMENT'))*
     | 'ALTER' 'PIPE' ('IF' 'EXISTS')? ID 'REFRESH' ('PREFIX' '=' STRING)? ('MODIFIED_AFTER' '=' STRING)?
     ;
 alterPipe_objectProperties
-    : ('ERROR_INTEGRATION' '=' ID | 'PIPE_EXECUTION_PAUSED' '=' ('TRUE' | 'FALSE') | 'LOG_EVENT_LEVEL' '=' ID)+
+    : ('ERROR_INTEGRATION' '=' ID | 'PIPE_EXECUTION_PAUSED' '=' ('TRUE' | 'FALSE') | 'LOG_EVENT_LEVEL' '=' ('TRACE' | 'DEBUG' | 'INFO' | 'WARN' | 'ERROR' | 'FATAL' | 'OFF'))+
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-postgres-instance

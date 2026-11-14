@@ -32,8 +32,10 @@ type Recognizer struct {
 	null   []bool                // per rule: derives the empty string
 	first  []bitset              // per rule: the terminals it can start with
 	altFst [][]bitset            // per rule and alternative
-	// pathSigil holds the sigils that start a path (see Path).
+	// pathSigil holds the sigils that start a path (see Path), and paths
+	// the terminals that are one.
 	pathSigil map[rune]bool
+	paths     []int
 
 	mu        sync.Mutex
 	sets      []*earleySet
@@ -59,6 +61,9 @@ type cterm struct {
 	// qualified: a name class that also matches two or three names joined
 	// by dots (see Qualified).
 	qualified bool
+	// path: a variable class whose sigil starts a path (see Path), which
+	// also matches a quoted path, '@a/dir with spaces'.
+	path bool
 }
 
 // spelling is one exact text of a terminal: its toks, or one of more.
@@ -170,6 +175,10 @@ func (g *Grammar) Recognizer() *Recognizer {
 			}
 		}
 		t.qualified = t.class != "" && !sym.literal && g.qualified[sym.text]
+		t.path = t.class != "" && !sym.literal && g.path[sym.text]
+		if t.path {
+			r.paths = append(r.paths, len(r.terms))
+		}
 		r.terms = append(r.terms, t)
 		switch {
 		case t.class != "":
@@ -449,6 +458,15 @@ func (r *Recognizer) matchesAt(in []ltok, k int) []termMatch {
 	}
 	if tk.kind == kName && !tk.quoted && r.g.reserved[strings.ToUpper(tk.text)] {
 		return out
+	}
+	if tk.kind == kString && len(tk.text) > 2 && tk.text[0] == '\'' && r.pathSigil[rune(tk.text[1])] {
+		// '@a/dir with spaces': a path quoted for its spaces.
+		want := classOf(ltok{kind: kVar, text: tk.text[1:2] + "a"})
+		for _, id := range r.paths {
+			if r.terms[id].class == want {
+				out = append(out, termMatch{id, 1})
+			}
+		}
 	}
 	ids := r.class[classOf(tk)]
 	if tk.kind == kName && tk.quoted {

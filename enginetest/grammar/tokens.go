@@ -33,6 +33,7 @@ const (
 	// and a recognizer reads its sigil as the start of a path, one token
 	// through any ~ or % after the sigil and every name character, dot and
 	// slash after that, as Snowflake writes stages: @~, @%t, @db.s.a/dir.
+	// A string that starts with the sigil, '@a/dir with spaces', is one too.
 	Path = "(path)"
 )
 
