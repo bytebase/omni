@@ -404,14 +404,14 @@ accept	accept	engine	execute/EXECUTE_SYM_IMMEDIATE_SYM_expr_execute_using!trunca
 reject	reject	engine	execute/EXECUTE_SYM_IMMEDIATE_SYM_expr_execute_using!insert	EXECUTE IMMEDIATE a zzz;
 reject	reject	engine	execute/EXECUTE_SYM_IMMEDIATE_SYM_expr_execute_using!swap	EXISTS IMMEDIATE a;
 accept	accept	engine	execute_using/%empty	EXECUTE a;
-accept	reject	engine	execute_using/USING_execute_params	EXECUTE a USING a;
+reject	reject	engine	execute_using/USING_execute_params	EXECUTE a USING a;
 reject	reject	engine	execute_using/USING_execute_params!drop-1	EXECUTE a a;
 reject	reject	engine	execute_using/USING_execute_params!drop-2	EXECUTE a USING;
 reject	reject	engine	execute_using/USING_execute_params!truncate	EXECUTE a USING
 reject	reject	engine	execute_using/USING_execute_params!insert	EXECUTE a USING a zzz;
 reject	reject	engine	execute_using/USING_execute_params!swap	EXECUTE a UTC_DATE a;
-accept	reject	engine	execute_params/expr_or_ignore_or_default	EXECUTE a USING a;
-accept	reject	engine	execute_params/execute_params_,_expr_or_ignore_or_default	EXECUTE a USING a, a;
+reject	reject	engine	execute_params/expr_or_ignore_or_default	EXECUTE a USING a;
+reject	reject	engine	execute_params/execute_params_,_expr_or_ignore_or_default	EXECUTE a USING a, a;
 reject	reject	engine	execute_params/execute_params_,_expr_or_ignore_or_default!drop-1	EXECUTE a USING, a;
 reject	reject	engine	execute_params/execute_params_,_expr_or_ignore_or_default!drop-2	EXECUTE a USING a a;
 reject	reject	engine	execute_params/execute_params_,_expr_or_ignore_or_default!drop-3	EXECUTE a USING a,;
@@ -1114,17 +1114,17 @@ reject	reject	engine	opt_sp_cparam_list/(_opt_sp_cparams_)!drop-2	CALL a(;
 reject	reject	engine	opt_sp_cparam_list/(_opt_sp_cparams_)!truncate	CALL a(
 reject	reject	engine	opt_sp_cparam_list/(_opt_sp_cparams_)!insert	CALL a() zzz;
 accept	accept	engine	opt_sp_cparams/%empty	CALL a();
-accept	reject	engine	opt_sp_cparams/%empty!insert	CALL a(zzz);
-accept	reject	engine	opt_sp_cparams/sp_cparams	CALL a(a);
+reject	reject	engine	opt_sp_cparams/%empty!insert	CALL a(zzz);
+reject	reject	engine	opt_sp_cparams/sp_cparams	CALL a(a);
 reject	reject	engine	opt_sp_cparams/sp_cparams!insert	CALL a(a zzz);
-accept	reject	engine	sp_cparams/sp_cparams_,_expr	CALL a(a, a);
+reject	reject	engine	sp_cparams/sp_cparams_,_expr	CALL a(a, a);
 reject	reject	engine	sp_cparams/sp_cparams_,_expr!drop-1	CALL a(, a);
 reject	reject	engine	sp_cparams/sp_cparams_,_expr!drop-2	CALL a(a a);
 reject	reject	engine	sp_cparams/sp_cparams_,_expr!drop-3	CALL a(a,);
 reject	reject	engine	sp_cparams/sp_cparams_,_expr!truncate	CALL a(a,
 reject	reject	engine	sp_cparams/sp_cparams_,_expr!insert	CALL a(a, a zzz);
-accept	reject	engine	sp_cparams/expr	CALL a(a);
-accept	reject	engine	sp_fdparam_list/%empty	CREATE FUNCTION a() RETURNS INT RETURN a;
+reject	reject	engine	sp_cparams/expr	CALL a(a);
+reject	reject	engine	sp_fdparam_list/%empty	CREATE FUNCTION a() RETURNS INT RETURN a;
 reject	reject	engine	sp_fdparam_list/%empty!insert	CREATE FUNCTION a(zzz) RETURNS INT RETURN a;
 accept	accept	engine	sp_fdparam_list/sp_fdparams	CREATE FUNCTION a(a INT) RETURNS INT RETURN a;
 reject	reject	engine	sp_fdparam_list/sp_fdparams!drop-1	CREATE FUNCTION a(INT) RETURNS INT RETURN a;
@@ -1193,7 +1193,7 @@ reject	reject	engine	sp_parenthesized_pdparam_list/(_sp_pdparam_list_)!drop-1	CR
 reject	reject	engine	sp_parenthesized_pdparam_list/(_sp_pdparam_list_)!drop-2	CREATE PROCEDURE a(COMMIT;
 accept	accept	engine	sp_param_default/sp_param_init_vars_sp_opt_default	CREATE PROCEDURE a(a INT) COMMIT;
 accept	accept	engine	sp_param/sp_param_init_vars	BEGIN NOT ATOMIC DECLARE a CURSOR(a INT) FOR SELECT a; END;
-accept	reject	engine	sp_parenthesized_fdparam_list/(_sp_fdparam_list_)	CREATE FUNCTION a() RETURNS INT RETURN a;
+reject	reject	engine	sp_parenthesized_fdparam_list/(_sp_fdparam_list_)	CREATE FUNCTION a() RETURNS INT RETURN a;
 reject	reject	engine	sp_parenthesized_fdparam_list/(_sp_fdparam_list_)!drop-1	CREATE FUNCTION a) RETURNS INT RETURN a;
 reject	reject	engine	sp_parenthesized_fdparam_list/(_sp_fdparam_list_)!drop-2	CREATE FUNCTION a(RETURNS INT RETURN a;
 reject	reject	engine	sp_parenthesized_fdparam_list/(_sp_fdparam_list_)!truncate	CREATE FUNCTION a(
@@ -1392,7 +1392,7 @@ accept	accept	engine	signal_allowed_expr/variable	RESIGNAL SET CLASS_ORIGIN =@a;
 reject	reject	engine	signal_allowed_expr/variable!drop-2	RESIGNAL SET CLASS_ORIGIN =@;
 reject	reject	engine	signal_allowed_expr/variable!truncate	RESIGNAL SET CLASS_ORIGIN =@
 reject	reject	engine	signal_allowed_expr/variable!insert	RESIGNAL SET CLASS_ORIGIN =@a zzz;
-accept	reject	engine	signal_allowed_expr/simple_ident	RESIGNAL SET CLASS_ORIGIN = a;
+reject	reject	engine	signal_allowed_expr/simple_ident	RESIGNAL SET CLASS_ORIGIN = a;
 reject	reject	engine	signal_allowed_expr/simple_ident!insert	RESIGNAL SET CLASS_ORIGIN = a zzz;
 accept	accept	engine	signal_condition_information_item_name/CLASS_ORIGIN_SYM	RESIGNAL SET CLASS_ORIGIN = 's';
 reject	reject	engine	signal_condition_information_item_name/CLASS_ORIGIN_SYM!truncate	RESIGNAL SET
@@ -1796,7 +1796,7 @@ reject	reject	engine	sp_labeled_control/sp_control_label_LOOP_SYM_loop_body_pop_
 reject	reject	engine	sp_labeled_control/sp_control_label_LOOP_SYM_loop_body_pop_sp_loop_label!drop-7	ALTER EVENT a DO a : LOOP COMMIT; END;
 reject	reject	engine	sp_labeled_control/sp_control_label_LOOP_SYM_loop_body_pop_sp_loop_label!truncate	ALTER EVENT a DO a : LOOP COMMIT; END
 reject	reject	engine	sp_labeled_control/sp_control_label_LOOP_SYM_loop_body_pop_sp_loop_label!swap	ALTER EVENT a DO a : LOW_PRIORITY COMMIT; END LOOP;
-accept	reject	engine	sp_labeled_control/sp_control_label_WHILE_SYM_while_body_pop_sp_loop_label	ALTER EVENT a DO a : WHILE a DO COMMIT; END WHILE;
+reject	reject	engine	sp_labeled_control/sp_control_label_WHILE_SYM_while_body_pop_sp_loop_label	ALTER EVENT a DO a : WHILE a DO COMMIT; END WHILE;
 reject	reject	engine	sp_labeled_control/sp_control_label_WHILE_SYM_while_body_pop_sp_loop_label!drop-1	ALTER EVENT a DO : WHILE a DO COMMIT; END WHILE;
 reject	reject	engine	sp_labeled_control/sp_control_label_WHILE_SYM_while_body_pop_sp_loop_label!drop-2	ALTER EVENT a DO a WHILE a DO COMMIT; END WHILE;
 reject	reject	engine	sp_labeled_control/sp_control_label_WHILE_SYM_while_body_pop_sp_loop_label!drop-3	ALTER EVENT a DO a : a DO COMMIT; END WHILE;
@@ -1824,7 +1824,7 @@ reject	reject	engine	sp_labeled_control/sp_control_label_FOR_SYM_sp_for_loop_ind
 reject	reject	engine	sp_labeled_control/sp_control_label_FOR_SYM_sp_for_loop_index_and_bounds_for_loop_statements_pop_sp_loop_label!truncate	ALTER EVENT a DO a : FOR a IN a DO COMMIT; END
 reject	reject	engine	sp_labeled_control/sp_control_label_FOR_SYM_sp_for_loop_index_and_bounds_for_loop_statements_pop_sp_loop_label!insert	ALTER EVENT a DO a : FOR a IN a DO COMMIT; END FOR zzz;
 reject	reject	engine	sp_labeled_control/sp_control_label_FOR_SYM_sp_for_loop_index_and_bounds_for_loop_statements_pop_sp_loop_label!swap	ALTER EVENT a DO a : FORCE a IN a DO COMMIT; END FOR;
-accept	reject	engine	sp_labeled_control/sp_control_label_REPEAT_SYM_repeat_body_pop_sp_loop_label	ALTER EVENT a DO a : REPEAT COMMIT; UNTIL a END REPEAT;
+reject	reject	engine	sp_labeled_control/sp_control_label_REPEAT_SYM_repeat_body_pop_sp_loop_label	ALTER EVENT a DO a : REPEAT COMMIT; UNTIL a END REPEAT;
 reject	reject	engine	sp_labeled_control/sp_control_label_REPEAT_SYM_repeat_body_pop_sp_loop_label!drop-1	ALTER EVENT a DO : REPEAT COMMIT; UNTIL a END REPEAT;
 reject	reject	engine	sp_labeled_control/sp_control_label_REPEAT_SYM_repeat_body_pop_sp_loop_label!drop-2	ALTER EVENT a DO a REPEAT COMMIT; UNTIL a END REPEAT;
 reject	reject	engine	sp_labeled_control/sp_control_label_REPEAT_SYM_repeat_body_pop_sp_loop_label!drop-3	ALTER EVENT a DO a : COMMIT; UNTIL a END REPEAT;
@@ -8159,14 +8159,14 @@ reject	reject	engine	values_with_names/values_with_names_,_remember_name_expr_or
 reject	reject	engine	values_with_names/values_with_names_,_remember_name_expr_or_ignore_or_default_remember_end!truncate	VALUES(a,
 reject	reject	engine	values_with_names/values_with_names_,_remember_name_expr_or_ignore_or_default_remember_end!insert	VALUES(a, a zzz);
 accept	accept	engine	values_with_names/remember_name_expr_or_ignore_or_default_remember_end	VALUES(a);
-accept	reject	engine	expr_or_ignore/expr	EXECUTE a USING a;
+reject	reject	engine	expr_or_ignore/expr	EXECUTE a USING a;
 accept	accept	engine	expr_or_ignore/IGNORE_SYM	EXECUTE a USING IGNORE;
 reject	reject	engine	expr_or_ignore/IGNORE_SYM!insert	EXECUTE a USING IGNORE zzz;
-accept	reject	engine	expr_or_ignore/IGNORE_SYM!swap	EXECUTE a USING IGNORED;
-accept	reject	engine	expr_or_ignore_or_default/expr_or_ignore	EXECUTE a USING a;
+reject	reject	engine	expr_or_ignore/IGNORE_SYM!swap	EXECUTE a USING IGNORED;
+reject	reject	engine	expr_or_ignore_or_default/expr_or_ignore	EXECUTE a USING a;
 accept	accept	engine	expr_or_ignore_or_default/DEFAULT	EXECUTE a USING DEFAULT;
 reject	reject	engine	expr_or_ignore_or_default/DEFAULT!insert	EXECUTE a USING DEFAULT zzz;
-accept	reject	engine	expr_or_ignore_or_default/DEFAULT!swap	EXECUTE a USING DEFINER;
+reject	reject	engine	expr_or_ignore_or_default/DEFAULT!swap	EXECUTE a USING DEFINER;
 accept	accept	engine	opt_insert_update/%empty	INSERT a SELECT a;
 accept	accept	engine	opt_insert_update/ON_DUPLICATE_SYM_KEY_SYM_UPDATE_SYM_insert_update_list	INSERT a SELECT a ON DUPLICATE KEY UPDATE a = a;
 reject	reject	engine	opt_insert_update/ON_DUPLICATE_SYM_KEY_SYM_UPDATE_SYM_insert_update_list!drop-1	INSERT a SELECT a DUPLICATE KEY UPDATE a = a;
@@ -12518,19 +12518,19 @@ reject	reject	engine	sp_package_procedure_body/sp_proc_stmt!insert	CREATE PACKAG
 reject	reject	engine	sp_package_procedure_body/sp_proc_stmt!swap	CREATE PACKAGE BODY a PROCEDURE a() COMMITTED; END;
 accept	accept	engine	opt_trailing_sp_name/%empty	CREATE PACKAGE a END;
 reject	reject	engine	opt_package_routine_end_name/%empty	CREATE PACKAGE BODY a PROCEDURE a() COMMIT; END;
-accept	reject	engine	sf_parameters/sp_parenthesized_fdparam_list	CREATE FUNCTION a() RETURNS INT RETURN a;
+reject	reject	engine	sf_parameters/sp_parenthesized_fdparam_list	CREATE FUNCTION a() RETURNS INT RETURN a;
 accept	accept	engine	sp_parameters/sp_parenthesized_pdparam_list	CREATE PACKAGE a PROCEDURE a(); END;
 reject	reject	engine	sp_parameters/sp_parenthesized_pdparam_list!drop-1	CREATE PACKAGE a PROCEDURE a); END;
 reject	reject	engine	sp_parameters/sp_parenthesized_pdparam_list!drop-2	CREATE PACKAGE a PROCEDURE a(; END;
 reject	reject	engine	sp_parameters/sp_parenthesized_pdparam_list!truncate	CREATE PACKAGE a PROCEDURE a(
 reject	reject	engine	sp_parameters/sp_parenthesized_pdparam_list!insert	CREATE PACKAGE a PROCEDURE a() zzz; END;
-accept	reject	engine	sf_returned_type_clause/RETURNS_SYM_sf_return_type	CREATE FUNCTION a() RETURNS INT RETURN a;
+reject	reject	engine	sf_returned_type_clause/RETURNS_SYM_sf_return_type	CREATE FUNCTION a() RETURNS INT RETURN a;
 reject	reject	engine	sf_returned_type_clause/RETURNS_SYM_sf_return_type!drop-1	CREATE FUNCTION a() INT RETURN a;
 reject	reject	engine	sf_returned_type_clause/RETURNS_SYM_sf_return_type!drop-2	CREATE FUNCTION a() RETURNS RETURN a;
 reject	reject	engine	sf_returned_type_clause/RETURNS_SYM_sf_return_type!truncate	CREATE FUNCTION a() RETURNS
 reject	reject	engine	sf_returned_type_clause/RETURNS_SYM_sf_return_type!insert	CREATE FUNCTION a() RETURNS INT zzz RETURN a;
 reject	reject	engine	sf_returned_type_clause/RETURNS_SYM_sf_return_type!swap	CREATE FUNCTION a() REUSE INT RETURN a;
-accept	reject	engine	sf_return_type/field_type	CREATE FUNCTION a() RETURNS INT RETURN a;
+reject	reject	engine	sf_return_type/field_type	CREATE FUNCTION a() RETURNS INT RETURN a;
 reject	reject	engine	sf_return_type/field_type!swap	CREATE FUNCTION a() RETURNS INTERSECT RETURN a;
 reject	reject	engine	sf_return_type/ROW_SYM_row_type_body	CREATE FUNCTION a() RETURNS ROW(a INT) RETURN a;
 reject	reject	engine	sf_return_type/ROW_SYM_row_type_body!drop-1	CREATE FUNCTION a() RETURNS(a INT) RETURN a;
@@ -12763,7 +12763,7 @@ reject	reject	engine	sp_param_anchored/sp_param_name_and_mode_init_vars_ROW_SYM_
 reject	reject	engine	sp_param_anchored/sp_param_name_and_mode_init_vars_ROW_SYM_TYPE_SYM_OF_SYM_ident_._ident!truncate	CREATE PROCEDURE a(a ROW TYPE OF a.
 reject	reject	engine	sp_param_anchored/sp_param_name_and_mode_init_vars_ROW_SYM_TYPE_SYM_OF_SYM_ident_._ident!insert	CREATE PROCEDURE a(a ROW TYPE OF a.a zzz) COMMIT;
 reject	reject	engine	sp_param_anchored/sp_param_name_and_mode_init_vars_ROW_SYM_TYPE_SYM_OF_SYM_ident_._ident!swap	CREATE PROCEDURE a(a ROWCOUNT TYPE OF a.a) COMMIT;
-accept	reject	engine	sf_c_chistics_and_body_standalone/sp_c_chistics_sp_proc_stmt_in_returns_clause_force_lookahead	CREATE FUNCTION a() RETURNS INT RETURN a;
+reject	reject	engine	sf_c_chistics_and_body_standalone/sp_c_chistics_sp_proc_stmt_in_returns_clause_force_lookahead	CREATE FUNCTION a() RETURNS INT RETURN a;
 reject	reject	engine	sf_c_chistics_and_body_standalone/sp_c_chistics_sp_proc_stmt_in_returns_clause_force_lookahead!drop-1	CREATE FUNCTION a() RETURNS INT a;
 reject	reject	engine	sf_c_chistics_and_body_standalone/sp_c_chistics_sp_proc_stmt_in_returns_clause_force_lookahead!drop-2	CREATE FUNCTION a() RETURNS INT RETURN;
 reject	reject	engine	sf_c_chistics_and_body_standalone/sp_c_chistics_sp_proc_stmt_in_returns_clause_force_lookahead!truncate	CREATE FUNCTION a() RETURNS INT RETURN
@@ -12922,7 +12922,7 @@ accept	accept	engine	create_routine/create_or_replace_definer_opt_PROCEDURE_SYM_
 reject	reject	engine	create_routine/create_or_replace_definer_opt_PROCEDURE_SYM_opt_if_not_exists_sp_tail_standalone!drop-1	PROCEDURE a() COMMIT;
 reject	reject	engine	create_routine/create_or_replace_definer_opt_PROCEDURE_SYM_opt_if_not_exists_sp_tail_standalone!drop-2	CREATE a() COMMIT;
 reject	reject	engine	create_routine/create_or_replace_definer_opt_PROCEDURE_SYM_opt_if_not_exists_sp_tail_standalone!swap	CROSS PROCEDURE a() COMMIT;
-accept	reject	engine	create_routine/create_or_replace_definer_opt_aggregate_FUNCTION_SYM_opt_if_not_exists_sp_name_sf_parameters_sf_returned_type_clause_sf_c_chistics_and_body_standalone_opt_trailing_sp_name	CREATE DEFINER = a FUNCTION a() RETURNS INT RETURN a;
+reject	reject	engine	create_routine/create_or_replace_definer_opt_aggregate_FUNCTION_SYM_opt_if_not_exists_sp_name_sf_parameters_sf_returned_type_clause_sf_c_chistics_and_body_standalone_opt_trailing_sp_name	CREATE DEFINER = a FUNCTION a() RETURNS INT RETURN a;
 reject	reject	engine	create_routine/create_or_replace_definer_opt_aggregate_FUNCTION_SYM_opt_if_not_exists_sp_name_sf_parameters_sf_returned_type_clause_sf_c_chistics_and_body_standalone_opt_trailing_sp_name!drop-1	DEFINER = a FUNCTION a() RETURNS INT RETURN a;
 reject	reject	engine	create_routine/create_or_replace_definer_opt_aggregate_FUNCTION_SYM_opt_if_not_exists_sp_name_sf_parameters_sf_returned_type_clause_sf_c_chistics_and_body_standalone_opt_trailing_sp_name!drop-2	CREATE = a FUNCTION a() RETURNS INT RETURN a;
 reject	reject	engine	create_routine/create_or_replace_definer_opt_aggregate_FUNCTION_SYM_opt_if_not_exists_sp_name_sf_parameters_sf_returned_type_clause_sf_c_chistics_and_body_standalone_opt_trailing_sp_name!drop-3	CREATE DEFINER a FUNCTION a() RETURNS INT RETURN a;
@@ -12938,7 +12938,7 @@ reject	reject	engine	create_routine/create_or_replace_definer_opt_aggregate_FUNC
 reject	reject	engine	create_routine/create_or_replace_definer_opt_aggregate_FUNCTION_SYM_opt_if_not_exists_sp_name_sf_parameters_sf_returned_type_clause_sf_c_chistics_and_body_standalone_opt_trailing_sp_name!truncate	CREATE DEFINER = a FUNCTION a() RETURNS INT RETURN
 reject	reject	engine	create_routine/create_or_replace_definer_opt_aggregate_FUNCTION_SYM_opt_if_not_exists_sp_name_sf_parameters_sf_returned_type_clause_sf_c_chistics_and_body_standalone_opt_trailing_sp_name!insert	CREATE DEFINER = a FUNCTION a() RETURNS INT RETURN a zzz;
 reject	reject	engine	create_routine/create_or_replace_definer_opt_aggregate_FUNCTION_SYM_opt_if_not_exists_sp_name_sf_parameters_sf_returned_type_clause_sf_c_chistics_and_body_standalone_opt_trailing_sp_name!swap	CROSS DEFINER = a FUNCTION a() RETURNS INT RETURN a;
-accept	reject	engine	create_routine/create_or_replace_no_definer_opt_aggregate_FUNCTION_SYM_opt_if_not_exists_sp_name_sf_parameters_sf_returned_type_clause_sf_c_chistics_and_body_standalone_opt_trailing_sp_name	CREATE FUNCTION a() RETURNS INT RETURN a;
+reject	reject	engine	create_routine/create_or_replace_no_definer_opt_aggregate_FUNCTION_SYM_opt_if_not_exists_sp_name_sf_parameters_sf_returned_type_clause_sf_c_chistics_and_body_standalone_opt_trailing_sp_name	CREATE FUNCTION a() RETURNS INT RETURN a;
 reject	reject	engine	create_routine/create_or_replace_no_definer_opt_aggregate_FUNCTION_SYM_opt_if_not_exists_sp_name_sf_parameters_sf_returned_type_clause_sf_c_chistics_and_body_standalone_opt_trailing_sp_name!drop-1	FUNCTION a() RETURNS INT RETURN a;
 reject	reject	engine	create_routine/create_or_replace_no_definer_opt_aggregate_FUNCTION_SYM_opt_if_not_exists_sp_name_sf_parameters_sf_returned_type_clause_sf_c_chistics_and_body_standalone_opt_trailing_sp_name!drop-2	CREATE a() RETURNS INT RETURN a;
 reject	reject	engine	create_routine/create_or_replace_no_definer_opt_aggregate_FUNCTION_SYM_opt_if_not_exists_sp_name_sf_parameters_sf_returned_type_clause_sf_c_chistics_and_body_standalone_opt_trailing_sp_name!drop-3	CREATE FUNCTION() RETURNS INT RETURN a;

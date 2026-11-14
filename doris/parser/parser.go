@@ -596,28 +596,37 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	// Show / Info
 	case kwSHOW:
 		return p.parseShow()
-	case kwDESCRIBE:
-		return p.parseDescribe()
-	case kwDESC:
+	case kwDESCRIBE, kwDESC:
+		// A describe names what it describes (DorisParser.g4:950-951,
+		// DorisLegacyParser.g4:1629 describe_stmt): a bare DESCRIBE, or
+		// DESCRIBE ALL with no table, is a syntax error.
+		if next := p.peekNext(); next.Kind == tokEOF || next.Kind == kwALL {
+			return nil, syntaxErrorAt(next)
+		}
 		return p.parseDescribe()
 	case kwEXPLAIN:
 		return p.parseExplain()
 	case kwUSE:
 		return p.parseUse()
 	case kwSWITCH:
-		// SWITCH catalog_name — Doris catalog switch; parse as a USE-like statement.
+		// SWITCH catalog_name — Doris catalog switch; parse as a USE-like
+		// statement. The catalog is required (DorisParser.g4:931
+		// #switchCatalog, DorisLegacyParser.g4:1754 switch_stmt).
 		p.advance() // consume SWITCH
 		stmt := &ast.UseStmt{Loc: p.prev.Loc}
-		if isIdentifierToken(p.cur.Kind) {
-			ident, _, err := p.parseIdentifier()
-			if err != nil {
-				return nil, err
-			}
-			stmt.Catalog = ident
+		ident, _, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
 		}
+		stmt.Catalog = ident
 		stmt.Loc.End = p.prev.Loc.End
 		return stmt, nil
 	case kwHELP:
+		// HELP takes a topic (DorisParser.g4:238 #help,
+		// DorisLegacyParser.g4:578 help_stmt): HELP {identifier | 'text'}.
+		if next := p.peekNext(); next.Kind != tokString && !isIdentifierToken(next.Kind) {
+			return nil, syntaxErrorAt(next)
+		}
 		return p.parseHelp()
 
 	// Set / Unset
@@ -639,7 +648,7 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		if p.cur.Kind == kwDEFAULT && p.peekNext().Kind == kwSTORAGE {
 			return p.parseUnsetDefaultStorageVault(unsetTok.Loc)
 		}
-		return p.parseGenericUnset(unsetTok.Loc)
+		return p.parseUnsetVariableStmt(unsetTok.Loc)
 
 	// Admin / System
 	case kwADMIN:
@@ -695,7 +704,7 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseCancelMTMVTask(cancelTok.Loc)
 		}
 		if p.cur.Kind == kwDECOMMISSION {
-			return p.parseCancelDecommission(cancelTok.Loc)
+			return p.parseCancelDecommissionBackend(cancelTok.Loc)
 		}
 		if p.cur.Kind == kwTASK {
 			return p.parseCancelTask(cancelTok.Loc)

@@ -604,28 +604,26 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	// Show / Info
 	case kwSHOW:
 		return p.parseShow()
-	case kwDESCRIBE:
-		return p.parseDescribe()
-	case kwDESC:
+	case kwDESCRIBE, kwDESC:
+		// A describe names what it describes (StarRocks.g4:561
+		// descTableStatement): a bare DESC, or DESC ALL with no table, is a
+		// syntax error.
+		if next := p.peekNext(); next.Kind == tokEOF || next.Kind == kwALL {
+			p.advance()
+			return nil, p.syntaxErrorAtCur()
+		}
 		return p.parseDescribe()
 	case kwEXPLAIN:
 		return p.parseExplain()
 	case kwUSE:
 		return p.parseUse()
-	case kwSWITCH:
-		// SWITCH catalog_name — Doris catalog switch; parse as a USE-like statement.
-		p.advance() // consume SWITCH
-		stmt := &ast.UseStmt{Loc: p.prev.Loc}
-		if isIdentifierToken(p.cur.Kind) {
-			ident, _, err := p.parseIdentifier()
-			if err != nil {
-				return nil, err
-			}
-			stmt.Catalog = ident
-		}
-		stmt.Loc.End = p.prev.Loc.End
-		return stmt, nil
 	case kwHELP:
+		// HELP takes a topic (StarRocks.g4:1617 helpStatement):
+		// HELP {identifier | 'text'}.
+		if next := p.peekNext(); next.Kind != tokString && !isIdentifierToken(next.Kind) {
+			p.advance()
+			return nil, p.syntaxErrorAtCur()
+		}
 		return p.parseHelp()
 
 	// Set / Unset
@@ -641,13 +639,6 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		}
 		// Generic variable assignment / NAMES / CHARSET / TRANSACTION
 		return p.parseGenericSet(setTok.Loc)
-	case kwUNSET:
-		unsetTok := p.advance() // consume UNSET
-		// UNSET DEFAULT STORAGE VAULT
-		if p.cur.Kind == kwDEFAULT && p.peekNext().Kind == kwSTORAGE {
-			return p.parseUnsetDefaultStorageVault(unsetTok.Loc)
-		}
-		return p.parseGenericUnset(unsetTok.Loc)
 
 	// Admin / System
 	case kwADMIN:
@@ -703,7 +694,7 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return nil, p.rejectJobStatement()
 		}
 		if p.cur.Kind == kwDECOMMISSION {
-			return p.parseCancelDecommission(cancelTok.Loc)
+			return p.parseCancelDecommissionBackend(cancelTok.Loc)
 		}
 		return p.parseCancelGeneric(cancelTok.Loc)
 	case kwPAUSE:
@@ -746,16 +737,14 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		}
 		return p.unsupported("STOP")
 
-	// Analyze / Sync / Warm
+	// Analyze / Sync. WARM UP, SWITCH and UNSET came with the doris fork, but
+	// StarRocks.g4 has none of them; they fall to the default branch.
 	case kwANALYZE:
 		p.advance() // consume ANALYZE
 		return p.parseAnalyze()
 	case kwSYNC:
 		syncTok := p.advance() // consume SYNC
 		return p.parseSyncStmt(syncTok.Loc)
-	case kwWARM:
-		warmTok := p.advance() // consume WARM
-		return p.parseWarmUp(warmTok.Loc)
 
 	// Clean
 	case kwCLEAN:
