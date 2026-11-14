@@ -41,6 +41,10 @@ func TestParseListings(t *testing.T) {
 	wantObjectClauses(t, "ALTER LISTING l ADD VERSION v3 FROM @db.public.st/manifests COMMENT = 'c'", "ADD VERSION", "FROM", "")
 	wantObjectClauses(t, "ALTER LISTING l ADD VERSION IF NOT EXISTS v3 FROM @st", "ADD VERSION IF NOT EXISTS", "FROM")
 	wantObjectClauses(t, "ALTER LISTING l ADD VERSION FROM @st", "ADD VERSION", "FROM")
+	s := wantObjectClauses(t, "ALTER LISTING l ADD VERSION v FROM @repo/branches/my-branch/ COMMENT = 'c'", "ADD VERSION", "FROM", "")
+	if o := s.Clauses[1].Options[0]; o.Words != "@repo/branches/my-branch/" {
+		t.Errorf("FROM = %q", o.Words)
+	}
 	wantObjectClauses(t, "ALTER LISTING IF EXISTS l ADD TARGETS $$targets: x$$", "ADD TARGETS")
 	wantObjectClauses(t, "ALTER LISTING l REMOVE TARGETS 'm'", "REMOVE TARGETS")
 	wantObjectClauses(t, "ALTER LISTING l RENAME TO m", "RENAME TO")

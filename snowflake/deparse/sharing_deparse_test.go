@@ -16,6 +16,7 @@ func TestDeparse_SharingObjects(t *testing.T) {
 		"ALTER LISTING l ADD VERSION v3 FROM @db.public.st/manifests COMMENT = 'c'",
 		"ALTER LISTING l ADD VERSION IF NOT EXISTS v3 FROM @st",
 		"ALTER LISTING l ADD VERSION FROM @st",
+		"ALTER LISTING l ADD VERSION v FROM @repo/branches/my-branch/ COMMENT = 'c'",
 		"ALTER LISTING IF EXISTS l ADD TARGETS 'm'",
 		"ALTER LISTING l REMOVE TARGETS 'm'",
 		"ALTER LISTING l RENAME TO m",
