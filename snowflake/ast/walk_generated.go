@@ -647,6 +647,9 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.AsQuery)
 		Walk(v, n.RefreshUsing)
 		walkCloneSource(v, n.Clone)
+		walkNodes(v, n.PartitionBy)
+		Walk(v, n.StartAt)
+		walkBackupSource(v, n.FromBackup)
 	case *CreateEventTableStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -660,6 +663,7 @@ func walkChildren(v Visitor, node Node) {
 		for _, item := range n.Tags {
 			walkTagAssignment(v, item)
 		}
+		walkCloneSource(v, n.Clone)
 	case *CreateExternalTableStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -893,6 +897,11 @@ func walkChildren(v Visitor, node Node) {
 			}
 		}
 		walkNodes(v, n.ClusterBy)
+		for _, item := range n.Options {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 		for _, item := range n.Tags {
 			walkTagAssignment(v, item)
 		}
@@ -901,6 +910,9 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Like)
 		}
 		walkCloneSource(v, n.Clone)
+		Walk(v, n.UsingTemplate)
+		walkArchiveSource(v, n.FromArchive)
+		walkBackupSource(v, n.FromBackup)
 	case *CreateTagStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -1463,6 +1475,31 @@ func walkAlterViewColumnAction(v Visitor, n *AlterViewColumnAction) {
 	}
 }
 
+// walkArchiveSource walks the node-bearing fields of the non-Node helper struct
+// ArchiveSource. The helper itself is not visited (it is not a Node); its child
+// nodes are walked in field order.
+func walkArchiveSource(v Visitor, n *ArchiveSource) {
+	if n == nil {
+		return
+	}
+	if n.Table != nil {
+		Walk(v, n.Table)
+	}
+	Walk(v, n.Where)
+}
+
+// walkBackupSource walks the node-bearing fields of the non-Node helper struct
+// BackupSource. The helper itself is not visited (it is not a Node); its child
+// nodes are walked in field order.
+func walkBackupSource(v Visitor, n *BackupSource) {
+	if n == nil {
+		return
+	}
+	if n.BackupSet != nil {
+		Walk(v, n.BackupSet)
+	}
+}
+
 // walkCTE walks the node-bearing fields of the non-Node helper struct
 // CTE. The helper itself is not visited (it is not a Node); its child
 // nodes are walked in field order.
@@ -1706,6 +1743,9 @@ func walkViewColumn(v Visitor, n *ViewColumn) {
 	}
 	if n.MaskingPolicy != nil {
 		Walk(v, n.MaskingPolicy)
+	}
+	if n.ProjectionPolicy != nil {
+		Walk(v, n.ProjectionPolicy)
 	}
 	for _, item := range n.Tags {
 		walkTagAssignment(v, item)
