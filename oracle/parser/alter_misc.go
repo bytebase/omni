@@ -1143,7 +1143,6 @@ func (p *Parser) parseSetParam() (*nodes.SetParam, error) {
 	}, nil
 }
 
-
 // parseAlterDatabaseLinkStmt parses an ALTER DATABASE LINK statement.
 //
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/ALTER-DATABASE-LINK.html
