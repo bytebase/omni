@@ -89,6 +89,9 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, temporary bool) (*no
 			return nil, err
 		}
 		stmt.Select = sel
+		if err := p.parseCreateSelectVersioning(stmt); err != nil {
+			return nil, err
+		}
 		stmt.Loc.End = p.prev.End
 		return stmt, nil
 	}
@@ -105,6 +108,9 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, temporary bool) (*no
 				return nil, err
 			}
 			stmt.Select = sel
+			if err := p.parseCreateSelectVersioning(stmt); err != nil {
+				return nil, err
+			}
 			stmt.Loc.End = p.prev.End
 			return stmt, nil
 		}
@@ -142,6 +148,9 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, temporary bool) (*no
 			return nil, err
 		}
 		stmt.Select = sel
+		if err := p.parseCreateSelectVersioning(stmt); err != nil {
+			return nil, err
+		}
 		stmt.Loc.End = p.prev.End
 		return stmt, nil
 	}
@@ -203,6 +212,9 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, temporary bool) (*no
 			return nil, err
 		}
 		stmt.Select = sel
+		if err := p.parseCreateSelectVersioning(stmt); err != nil {
+			return nil, err
+		}
 	case p.cur.Type == kwSELECT || p.cur.Type == kwVALUES || p.cur.Type == kwWITH || p.cur.Type == '(' ||
 		p.cur.Type == kwVALUE && beforeOptList:
 		sel, err := p.parseCreateSelect(beforeOptList)
@@ -210,6 +222,9 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, temporary bool) (*no
 			return nil, err
 		}
 		stmt.Select = sel
+		if err := p.parseCreateSelectVersioning(stmt); err != nil {
+			return nil, err
+		}
 	case stmt.Ignore || stmt.Replace:
 		return nil, p.syntaxErrorAtCur()
 	}
@@ -1289,7 +1304,12 @@ func (p *Parser) parseTableConstraint(place constraintPlace) (*nodes.Constraint,
 
 	case kwFOREIGN:
 		p.advance()
-		p.match(kwKEY)
+		// FOREIGN takes KEY. Ref: key_def's `opt_constraint FOREIGN KEY_SYM
+		// opt_if_not_exists opt_ident '(' key_list ')' references` in MariaDB 11.8
+		// sql/sql_yacc.yy.
+		if _, err := p.expect(kwKEY); err != nil {
+			return nil, err
+		}
 		constr.Type = nodes.ConstrForeignKey
 		if err := p.parseKeyIfNotExists(constr, place); err != nil {
 			return nil, err
@@ -2025,6 +2045,26 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: optName, Value: val}, true, nil
 	}
 
+	// PAGE_CHECKSUM, TRANSACTIONAL and SEQUENCE take opt_equal choice: a ulong_num,
+	// read as 1 when not zero, or DEFAULT. PAGE_CHECKSUM and TRANSACTIONAL are
+	// keywords to MariaDB, never an engine-defined option's name.
+	// Ref: create_table_option and choice in MariaDB 11.8 sql/sql_yacc.yy.
+	if p.cur.Type == kwSEQUENCE || p.atBareWord("PAGE_CHECKSUM") || p.atBareWord("TRANSACTIONAL") {
+		optName := strings.ToUpper(p.advance().Str)
+		p.matchEqual()
+		val, err := p.parseChoice()
+		if err != nil {
+			return nil, false, err
+		}
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: optName, Value: val}, true, nil
+	}
+
+	// READ_ONLY and WRAPPER are keywords MariaDB lets name an engine-defined
+	// option (keyword_options).
+	if (p.cur.Type == kwREAD_ONLY || p.cur.Type == kwWRAPPER) && (p.peekNext().Type == '=' || p.peekNext().Type == tokAssign) {
+		return p.parseEngineDefinedOption(start)
+	}
+
 	// Generic MariaDB table option: `IDENT = value`. MariaDB's parser accepts an
 	// unknown option name and rejects it semantically (ER_UNKNOWN_OPTION 1911),
 	// not as a syntax error — so a parse-only check accepts the shape. This covers
@@ -2032,21 +2072,97 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 	// any future plain option. The '=' is required (a bare option name is 1064),
 	// which also guards against consuming a trailing clause.
 	if next := p.peekNext().Type; p.cur.Type == tokIDENT && (next == '=' || next == tokAssign) {
-		optName := p.cur.Str
-		p.advance() // option name
-		p.advance() // '='
+		return p.parseEngineDefinedOption(start)
+	}
+
+	return nil, false, nil
+}
+
+// parseEngineDefinedOption reads engine_defined_option, p.cur at its name: the
+// name, '=' or ':=', and a string, a name, a real_ulonglong_num (an integer or a
+// 0x number) or DEFAULT. The engine checks the name when the statement runs (1911
+// for one it does not define), so any name parses.
+//
+// Ref: engine_defined_option and ident_options in MariaDB 11.8 sql/sql_yacc.yy.
+func (p *Parser) parseEngineDefinedOption(start int) (*nodes.TableOption, bool, error) {
+	opt := &nodes.TableOption{Name: p.advance().Str, EngineDefined: true}
+	p.advance() // '=' or ':='
+	switch {
+	case p.cur.Type == tokSCONST:
+		opt.StringValue = true
+		opt.Value = p.advance().Str
+	case p.atHexNumber():
+		opt.Value = strconv.FormatUint(replicationWhole(p.cur), 10)
+		p.advance()
+	case p.cur.Type == kwNULL:
 		// NULL is the one value the form turns away.
-		if p.cur.Type == kwNULL {
-			return nil, false, p.syntaxErrorAtCur()
-		}
+		return nil, false, p.syntaxErrorAtCur()
+	default:
 		val, err := p.consumeOptionValue() // errors if no value token follows
 		if err != nil {
 			return nil, false, err
 		}
-		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: optName, Value: val}, true, nil
+		opt.Value = val
 	}
+	opt.Loc = nodes.Loc{Start: start, End: p.prev.End}
+	return opt, true, nil
+}
 
-	return nil, false, nil
+// parseChoice reads choice: a ulong_num, which is "1" when it is not zero and
+// "0" when it is, or DEFAULT.
+func (p *Parser) parseChoice() (string, error) {
+	if p.cur.Type == kwDEFAULT {
+		p.advance()
+		return "DEFAULT", nil
+	}
+	// opt_plus: a '+' may stand before a decimal number, not a 0x one.
+	if p.cur.Type == '+' {
+		if next := p.peekNext().Type; next == tokICONST || next == tokFCONST {
+			p.advance()
+		}
+	}
+	tok, err := p.parseReplicationNumber(false)
+	if err != nil {
+		return "", err
+	}
+	if tok.Type == tokFCONST {
+		if whole, _, _ := strings.Cut(strings.TrimLeft(tok.Str, "0"), "."); whole != "" && whole[0] != 'e' && whole[0] != 'E' {
+			return "1", nil
+		}
+		return "0", nil
+	}
+	if replicationWhole(tok) != 0 {
+		return "1", nil
+	}
+	return "0", nil
+}
+
+// atBareWord reports whether p.cur is the word, unquoted.
+func (p *Parser) atBareWord(word string) bool {
+	return p.cur.Type == tokIDENT && strings.EqualFold(p.inputText(p.cur.Loc, p.cur.End), word)
+}
+
+// atHexNumber reports whether p.cur is HEX_NUM, a 0x number, and not x'..'.
+func (p *Parser) atHexNumber() bool {
+	return p.cur.Type == tokXCONST && strings.HasPrefix(strings.ToLower(p.inputText(p.cur.Loc, p.cur.End)), "0x")
+}
+
+// parseCreateSelectVersioning reads opt_versioning_option after CREATE TABLE's
+// query, WITH SYSTEM VERSIONING, into a table option.
+// Ref: opt_create_select in MariaDB 11.8 sql/sql_yacc.yy.
+func (p *Parser) parseCreateSelectVersioning(stmt *nodes.CreateTableStmt) error {
+	if p.cur.Type != kwWITH || p.peekNext().Type != kwSYSTEM {
+		return nil
+	}
+	start := p.pos()
+	p.advance() // WITH
+	p.advance() // SYSTEM
+	if !p.atBareWord("VERSIONING") {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance()
+	stmt.Options = append(stmt.Options, &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "SYSTEM VERSIONING"})
+	return nil
 }
 
 // parseTableCharsetName parses the name of a table's CHARACTER SET option. It is what

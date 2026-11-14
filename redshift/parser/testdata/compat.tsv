@@ -656,7 +656,7 @@ accept	accept	docs	statement/lock	LOCK a
 reject	undocumented	docs	statement/lock!drop-2	LOCK
 reject	undocumented	docs	statement/lock!insert	LOCK a zzz
 reject	undocumented	docs	statement/lock!swap	LOCKOUT a
-reject	accept	docs	statement/merge	MERGE INTO a USING a ON 1
+accept	accept	docs	statement/merge	MERGE INTO a USING a ON 1
 reject	undocumented	docs	statement/merge!drop-1	INTO a USING a ON 1
 reject	undocumented	docs	statement/merge!drop-2	MERGE a USING a ON 1
 reject	undocumented	docs	statement/merge!drop-3	MERGE INTO USING a ON 1
@@ -1302,7 +1302,7 @@ reject	undocumented	docs	alterDefaultPrivileges_grant_or_revoke_clause(PRIVILEGE
 reject	undocumented	docs	alterDefaultPrivileges_grant_or_revoke_clause(PRIVILEGES)?/PRIVILEGES!swap	ALTER DEFAULT PRIVILEGES GRANT ALL PROBLEM_TYPE ON TABLES TO a
 accept	accept	docs	alterDefaultPrivileges_grant_or_revoke_clause(ID_(WITH_GRANT_OPTION)?|ROLE_ID|GROU~78a79d0d)/ID_(WITH_GRANT_OPTION)?	ALTER DEFAULT PRIVILEGES GRANT SELECT ON TABLES TO a
 accept	accept	docs	alterDefaultPrivileges_grant_or_revoke_clause(ID_(WITH_GRANT_OPTION)?|ROLE_ID|GROU~78a79d0d)/ROLE_ID	ALTER DEFAULT PRIVILEGES GRANT SELECT ON TABLES TO ROLE a
-reject	accept	docs	alterDefaultPrivileges_grant_or_revoke_clause(ID_(WITH_GRANT_OPTION)?|ROLE_ID|GROU~78a79d0d)/ROLE_ID!drop-2	ALTER DEFAULT PRIVILEGES GRANT SELECT ON TABLES TO ROLE
+accept	accept	docs	alterDefaultPrivileges_grant_or_revoke_clause(ID_(WITH_GRANT_OPTION)?|ROLE_ID|GROU~78a79d0d)/ROLE_ID!drop-2	ALTER DEFAULT PRIVILEGES GRANT SELECT ON TABLES TO ROLE
 reject	undocumented	docs	alterDefaultPrivileges_grant_or_revoke_clause(ID_(WITH_GRANT_OPTION)?|ROLE_ID|GROU~78a79d0d)/ROLE_ID!insert	ALTER DEFAULT PRIVILEGES GRANT SELECT ON TABLES TO ROLE a zzz
 reject	undocumented	docs	alterDefaultPrivileges_grant_or_revoke_clause(ID_(WITH_GRANT_OPTION)?|ROLE_ID|GROU~78a79d0d)/ROLE_ID!swap	ALTER DEFAULT PRIVILEGES GRANT SELECT ON TABLES TO ROLLBACK a
 accept	accept	docs	alterDefaultPrivileges_grant_or_revoke_clause(ID_(WITH_GRANT_OPTION)?|ROLE_ID|GROU~78a79d0d)/GROUP_ID	ALTER DEFAULT PRIVILEGES GRANT SELECT ON TABLES TO GROUP a
@@ -1379,7 +1379,7 @@ accept	accept	docs	alterDefaultPrivileges_grant_or_revoke_clause(RESTRICT)?/REST
 reject	undocumented	docs	alterDefaultPrivileges_grant_or_revoke_clause(RESTRICT)?/RESTRICT!insert	ALTER DEFAULT PRIVILEGES REVOKE SELECT ON TABLES FROM a RESTRICT zzz
 reject	undocumented	docs	alterDefaultPrivileges_grant_or_revoke_clause(RESTRICT)?/RESTRICT!swap	ALTER DEFAULT PRIVILEGES REVOKE SELECT ON TABLES FROM a RESTRICTED
 accept	accept	docs	alterDefaultPrivileges_grant_or_revoke_clause(ROLE_ID|GROUP_ID|PUBLIC)/ROLE_ID	ALTER DEFAULT PRIVILEGES REVOKE SELECT ON TABLES FROM ROLE a
-reject	accept	docs	alterDefaultPrivileges_grant_or_revoke_clause(ROLE_ID|GROUP_ID|PUBLIC)/ROLE_ID!drop-2	ALTER DEFAULT PRIVILEGES REVOKE SELECT ON TABLES FROM ROLE
+accept	accept	docs	alterDefaultPrivileges_grant_or_revoke_clause(ROLE_ID|GROUP_ID|PUBLIC)/ROLE_ID!drop-2	ALTER DEFAULT PRIVILEGES REVOKE SELECT ON TABLES FROM ROLE
 reject	undocumented	docs	alterDefaultPrivileges_grant_or_revoke_clause(ROLE_ID|GROUP_ID|PUBLIC)/ROLE_ID!insert	ALTER DEFAULT PRIVILEGES REVOKE SELECT ON TABLES FROM ROLE a zzz
 reject	undocumented	docs	alterDefaultPrivileges_grant_or_revoke_clause(ROLE_ID|GROUP_ID|PUBLIC)/ROLE_ID!swap	ALTER DEFAULT PRIVILEGES REVOKE SELECT ON TABLES FROM ROLLBACK a
 accept	accept	docs	alterDefaultPrivileges_grant_or_revoke_clause(ROLE_ID|GROUP_ID|PUBLIC)/GROUP_ID	ALTER DEFAULT PRIVILEGES REVOKE SELECT ON TABLES FROM GROUP a
@@ -5113,7 +5113,7 @@ reject	undocumented	docs	grant/GRANT_((CREATE_USER|DROP_USER|ALTER_USER|CR~792e6
 reject	undocumented	docs	grant/GRANT_((CREATE_USER|DROP_USER|ALTER_USER|CR~792e61d3)_T~788d774e!drop-2	GRANT TO ROLE a
 reject	undocumented	docs	grant/GRANT_((CREATE_USER|DROP_USER|ALTER_USER|CR~792e61d3)_T~788d774e!drop-3	GRANT VACUUM ROLE a
 accept	undocumented	docs	grant/GRANT_((CREATE_USER|DROP_USER|ALTER_USER|CR~792e61d3)_T~788d774e!drop-4	GRANT VACUUM TO a
-reject	undocumented	docs	grant/GRANT_((CREATE_USER|DROP_USER|ALTER_USER|CR~792e61d3)_T~788d774e!drop-5	GRANT VACUUM TO ROLE
+accept	undocumented	docs	grant/GRANT_((CREATE_USER|DROP_USER|ALTER_USER|CR~792e61d3)_T~788d774e!drop-5	GRANT VACUUM TO ROLE
 reject	undocumented	docs	grant/GRANT_((CREATE_USER|DROP_USER|ALTER_USER|CR~792e61d3)_T~788d774e!insert	GRANT VACUUM TO ROLE a zzz
 reject	undocumented	docs	grant/GRANT_((CREATE_USER|DROP_USER|ALTER_USER|CR~792e61d3)_T~788d774e!swap	GRANTS VACUUM TO ROLE a
 accept	accept	docs	grant/GRANT_EXPLAIN_(RLS|MASKING)_TO_ROLE_ID	GRANT EXPLAIN RLS TO ROLE a
@@ -5122,7 +5122,7 @@ accept	undocumented	docs	grant/GRANT_EXPLAIN_(RLS|MASKING)_TO_ROLE_ID!drop-2	GRA
 accept	undocumented	docs	grant/GRANT_EXPLAIN_(RLS|MASKING)_TO_ROLE_ID!drop-3	GRANT EXPLAIN TO ROLE a
 reject	undocumented	docs	grant/GRANT_EXPLAIN_(RLS|MASKING)_TO_ROLE_ID!drop-4	GRANT EXPLAIN RLS ROLE a
 accept	undocumented	docs	grant/GRANT_EXPLAIN_(RLS|MASKING)_TO_ROLE_ID!drop-5	GRANT EXPLAIN RLS TO a
-reject	undocumented	docs	grant/GRANT_EXPLAIN_(RLS|MASKING)_TO_ROLE_ID!drop-6	GRANT EXPLAIN RLS TO ROLE
+accept	undocumented	docs	grant/GRANT_EXPLAIN_(RLS|MASKING)_TO_ROLE_ID!drop-6	GRANT EXPLAIN RLS TO ROLE
 reject	undocumented	docs	grant/GRANT_EXPLAIN_(RLS|MASKING)_TO_ROLE_ID!insert	GRANT EXPLAIN RLS TO ROLE a zzz
 reject	undocumented	docs	grant/GRANT_EXPLAIN_(RLS|MASKING)_TO_ROLE_ID!swap	GRANTS EXPLAIN RLS TO ROLE a
 accept	accept	docs	grant/GRANT_IGNORE_RLS_TO_ROLE_ID	GRANT IGNORE RLS TO ROLE a
@@ -5130,7 +5130,7 @@ reject	undocumented	docs	grant/GRANT_IGNORE_RLS_TO_ROLE_ID!drop-1	IGNORE RLS TO 
 accept	undocumented	docs	grant/GRANT_IGNORE_RLS_TO_ROLE_ID!drop-3	GRANT IGNORE TO ROLE a
 reject	undocumented	docs	grant/GRANT_IGNORE_RLS_TO_ROLE_ID!drop-4	GRANT IGNORE RLS ROLE a
 accept	undocumented	docs	grant/GRANT_IGNORE_RLS_TO_ROLE_ID!drop-5	GRANT IGNORE RLS TO a
-reject	undocumented	docs	grant/GRANT_IGNORE_RLS_TO_ROLE_ID!drop-6	GRANT IGNORE RLS TO ROLE
+accept	undocumented	docs	grant/GRANT_IGNORE_RLS_TO_ROLE_ID!drop-6	GRANT IGNORE RLS TO ROLE
 reject	undocumented	docs	grant/GRANT_IGNORE_RLS_TO_ROLE_ID!insert	GRANT IGNORE RLS TO ROLE a zzz
 reject	undocumented	docs	grant/GRANT_IGNORE_RLS_TO_ROLE_ID!swap	GRANTS IGNORE RLS TO ROLE a
 accept	accept	docs	grant/GRANT_SELECT_ON_(TABLE)?_ID_(,_ID)*_TO_(RLS|MASKING)_PO~99db385a	GRANT SELECT ON a TO RLS POLICY a
@@ -5223,7 +5223,7 @@ reject	undocumented	docs	grant(,_ID)*/,_ID_(,_ID)*!drop-2	GRANT VACUUM TO ROLE a
 reject	undocumented	docs	grant(,_ID)*/,_ID_(,_ID)*!insert	GRANT VACUUM TO ROLE a, a zzz
 accept	accept	docs	grant(ID_(WITH_GRANT_OPTION)?|ROLE_ID|GROU~78a79d0d)/ID_(WITH_GRANT_OPTION)?	GRANT CREATE MODEL TO a
 accept	accept	docs	grant(ID_(WITH_GRANT_OPTION)?|ROLE_ID|GROU~78a79d0d)/ROLE_ID	GRANT CREATE MODEL TO ROLE a
-reject	accept	docs	grant(ID_(WITH_GRANT_OPTION)?|ROLE_ID|GROU~78a79d0d)/ROLE_ID!drop-2	GRANT CREATE MODEL TO ROLE
+accept	accept	docs	grant(ID_(WITH_GRANT_OPTION)?|ROLE_ID|GROU~78a79d0d)/ROLE_ID!drop-2	GRANT CREATE MODEL TO ROLE
 reject	undocumented	docs	grant(ID_(WITH_GRANT_OPTION)?|ROLE_ID|GROU~78a79d0d)/ROLE_ID!insert	GRANT CREATE MODEL TO ROLE a zzz
 reject	undocumented	docs	grant(ID_(WITH_GRANT_OPTION)?|ROLE_ID|GROU~78a79d0d)/ROLE_ID!swap	GRANT CREATE MODEL TO ROLLBACK a
 accept	accept	docs	grant(ID_(WITH_GRANT_OPTION)?|ROLE_ID|GROU~78a79d0d)/GROUP_ID	GRANT CREATE MODEL TO GROUP a
@@ -5417,7 +5417,7 @@ reject	undocumented	docs	grant(,_(_ID_(,_ID)*_))*/,_(_ID_(,_ID)*_)_(,_(_ID_(,_ID
 reject	undocumented	docs	grant(,_(_ID_(,_ID)*_))*/,_(_ID_(,_ID)*_)_(,_(_ID_(,_ID)*_))*!insert	GRANT SELECT(a),(a) zzz ON a TO a
 accept	accept	docs	grant(ID|ROLE_ID|GROUP_ID|PUBLIC)/ID	GRANT USAGE ON DATABASE a TO a
 accept	accept	docs	grant(ID|ROLE_ID|GROUP_ID|PUBLIC)/ROLE_ID	GRANT USAGE ON DATABASE a TO ROLE a
-reject	accept	docs	grant(ID|ROLE_ID|GROUP_ID|PUBLIC)/ROLE_ID!drop-2	GRANT USAGE ON DATABASE a TO ROLE
+accept	accept	docs	grant(ID|ROLE_ID|GROUP_ID|PUBLIC)/ROLE_ID!drop-2	GRANT USAGE ON DATABASE a TO ROLE
 reject	undocumented	docs	grant(ID|ROLE_ID|GROUP_ID|PUBLIC)/ROLE_ID!insert	GRANT USAGE ON DATABASE a TO ROLE a zzz
 reject	undocumented	docs	grant(ID|ROLE_ID|GROUP_ID|PUBLIC)/ROLE_ID!swap	GRANT USAGE ON DATABASE a TO ROLLBACK a
 accept	accept	docs	grant(ID|ROLE_ID|GROUP_ID|PUBLIC)/GROUP_ID	GRANT USAGE ON DATABASE a TO GROUP a
@@ -5564,7 +5564,7 @@ reject	undocumented	docs	grant(DATABASE_ID_(,_ID)*|SCHEMA_ID)/SCHEMA_ID!insert	G
 reject	undocumented	docs	grant(DATABASE_ID_(,_ID)*|SCHEMA_ID)/SCHEMA_ID!swap	GRANT USAGE ON SCHEMAS a TO a
 accept	accept	docs	grant(ID_(WITH_GRANT_OPTION)?|ROLE_ID)/ID_(WITH_GRANT_OPTION)?	GRANT CREATE FOR SCHEMAS IN DATABASE a TO a
 accept	accept	docs	grant(ID_(WITH_GRANT_OPTION)?|ROLE_ID)/ROLE_ID	GRANT CREATE FOR SCHEMAS IN DATABASE a TO ROLE a
-reject	accept	docs	grant(ID_(WITH_GRANT_OPTION)?|ROLE_ID)/ROLE_ID!drop-2	GRANT CREATE FOR SCHEMAS IN DATABASE a TO ROLE
+accept	accept	docs	grant(ID_(WITH_GRANT_OPTION)?|ROLE_ID)/ROLE_ID!drop-2	GRANT CREATE FOR SCHEMAS IN DATABASE a TO ROLE
 reject	undocumented	docs	grant(ID_(WITH_GRANT_OPTION)?|ROLE_ID)/ROLE_ID!insert	GRANT CREATE FOR SCHEMAS IN DATABASE a TO ROLE a zzz
 reject	undocumented	docs	grant(ID_(WITH_GRANT_OPTION)?|ROLE_ID)/ROLE_ID!swap	GRANT CREATE FOR SCHEMAS IN DATABASE a TO ROLLBACK a
 accept	accept	docs	grant(,_(ID_(WITH_GRANT_OPTION)?|ROLE_ID))*/%empty	GRANT CREATE FOR SCHEMAS IN DATABASE a TO a
@@ -5633,7 +5633,7 @@ reject	undocumented	docs	grant(,_ROLE_ID)*/,_ROLE_ID_(,_ROLE_ID)*!insert	GRANT R
 reject	undocumented	docs	grant(,_ROLE_ID)*/,_ROLE_ID_(,_ROLE_ID)*!swap	GRANT ROLE a, ROLLBACK a TO a
 accept	accept	docs	grant(ID_(WITH_ADMIN_OPTION)?|ROLE_ID)/ID_(WITH_ADMIN_OPTION)?	GRANT ROLE a TO a
 accept	accept	docs	grant(ID_(WITH_ADMIN_OPTION)?|ROLE_ID)/ROLE_ID	GRANT ROLE a TO ROLE a
-reject	accept	docs	grant(ID_(WITH_ADMIN_OPTION)?|ROLE_ID)/ROLE_ID!drop-2	GRANT ROLE a TO ROLE
+accept	accept	docs	grant(ID_(WITH_ADMIN_OPTION)?|ROLE_ID)/ROLE_ID!drop-2	GRANT ROLE a TO ROLE
 reject	undocumented	docs	grant(ID_(WITH_ADMIN_OPTION)?|ROLE_ID)/ROLE_ID!insert	GRANT ROLE a TO ROLE a zzz
 reject	undocumented	docs	grant(ID_(WITH_ADMIN_OPTION)?|ROLE_ID)/ROLE_ID!swap	GRANT ROLE a TO ROLLBACK a
 accept	accept	docs	grant(WITH_ADMIN_OPTION)?/%empty	GRANT ROLE a TO a
@@ -5907,18 +5907,18 @@ accept	accept	docs	lock(,_ID)*/,_ID_(,_ID)*	LOCK a, a
 reject	undocumented	docs	lock(,_ID)*/,_ID_(,_ID)*!drop-1	LOCK a a
 reject	undocumented	docs	lock(,_ID)*/,_ID_(,_ID)*!drop-2	LOCK a,
 reject	undocumented	docs	lock(,_ID)*/,_ID_(,_ID)*!insert	LOCK a, a zzz
-reject	accept	docs	merge/MERGE_INTO_ID_USING_ID_(AS?_ID)?_ON_EXPR_(WHEN_MATCHED_~efdcee22	MERGE INTO a USING a ON 1
-reject	accept	docs	merge(AS?_ID)?/%empty	MERGE INTO a USING a ON 1
-reject	accept	docs	merge(AS?_ID)?/%empty!insert	MERGE INTO a USING a zzz ON 1
-reject	accept	docs	merge(AS?_ID)?/(AS)?_ID	MERGE INTO a USING a a ON 1
+accept	accept	docs	merge/MERGE_INTO_ID_USING_ID_(AS?_ID)?_ON_EXPR_(WHEN_MATCHED_~efdcee22	MERGE INTO a USING a ON 1
+accept	accept	docs	merge(AS?_ID)?/%empty	MERGE INTO a USING a ON 1
+accept	accept	docs	merge(AS?_ID)?/%empty!insert	MERGE INTO a USING a zzz ON 1
+accept	accept	docs	merge(AS?_ID)?/(AS)?_ID	MERGE INTO a USING a a ON 1
 reject	undocumented	docs	merge(AS?_ID)?/(AS)?_ID!truncate	MERGE INTO a USING a
 reject	undocumented	docs	merge(AS?_ID)?/(AS)?_ID!insert	MERGE INTO a USING a a zzz ON 1
-reject	accept	docs	merge(AS)?/%empty	MERGE INTO a USING a a ON 1
+accept	accept	docs	merge(AS)?/%empty	MERGE INTO a USING a a ON 1
 reject	undocumented	docs	merge(AS)?/%empty!insert	MERGE INTO a USING a zzz a ON 1
-reject	accept	docs	merge(AS)?/AS	MERGE INTO a USING a AS a ON 1
+accept	accept	docs	merge(AS)?/AS	MERGE INTO a USING a AS a ON 1
 reject	undocumented	docs	merge(AS)?/AS!insert	MERGE INTO a USING a AS zzz a ON 1
 reject	undocumented	docs	merge(AS)?/AS!swap	MERGE INTO a USING a ASC a ON 1
-reject	accept	docs	merge(WHEN_MATCHED_THEN_(UPDATE_SET_ID_=_E~067b218c)?/%empty	MERGE INTO a USING a ON 1
+accept	accept	docs	merge(WHEN_MATCHED_THEN_(UPDATE_SET_ID_=_E~067b218c)?/%empty	MERGE INTO a USING a ON 1
 accept	accept	docs	merge(WHEN_MATCHED_THEN_(UPDATE_SET_ID_=_E~067b218c)?/WHEN_MATCHED_THEN_(UPDATE_SET_ID_=_EXPR_(,_ID_=_EXPR)*|~683c74e2	MERGE INTO a USING a ON 1 WHEN MATCHED THEN DELETE WHEN NOT MATCHED THEN INSERT VALUES(1)
 reject	undocumented	docs	merge(WHEN_MATCHED_THEN_(UPDATE_SET_ID_=_E~067b218c)?/WHEN_MATCHED_THEN_(UPDATE_SET_ID_=_EXPR_(,_ID_=_EXPR)*|~683c74e2!drop-1	MERGE INTO a USING a ON 1 MATCHED THEN DELETE WHEN NOT MATCHED THEN INSERT VALUES(1)
 reject	undocumented	docs	merge(WHEN_MATCHED_THEN_(UPDATE_SET_ID_=_E~067b218c)?/WHEN_MATCHED_THEN_(UPDATE_SET_ID_=_EXPR_(,_ID_=_EXPR)*|~683c74e2!drop-2	MERGE INTO a USING a ON 1 WHEN THEN DELETE WHEN NOT MATCHED THEN INSERT VALUES(1)
@@ -6304,7 +6304,7 @@ reject	undocumented	docs	revoke/REVOKE_ROLE_ID_(,_ROLE_ID)*_FROM_ROLE_ID_(,_ROLE
 accept	undocumented	docs	revoke/REVOKE_ROLE_ID_(,_ROLE_ID)*_FROM_ROLE_ID_(,_ROLE_ID)*!drop-2	REVOKE a FROM ROLE a
 reject	undocumented	docs	revoke/REVOKE_ROLE_ID_(,_ROLE_ID)*_FROM_ROLE_ID_(,_ROLE_ID)*!drop-3	REVOKE ROLE FROM ROLE a
 reject	undocumented	docs	revoke/REVOKE_ROLE_ID_(,_ROLE_ID)*_FROM_ROLE_ID_(,_ROLE_ID)*!drop-4	REVOKE ROLE a ROLE a
-reject	accept	docs	revoke/REVOKE_ROLE_ID_(,_ROLE_ID)*_FROM_ROLE_ID_(,_ROLE_ID)*!drop-6	REVOKE ROLE a FROM ROLE
+accept	accept	docs	revoke/REVOKE_ROLE_ID_(,_ROLE_ID)*_FROM_ROLE_ID_(,_ROLE_ID)*!drop-6	REVOKE ROLE a FROM ROLE
 reject	undocumented	docs	revoke/REVOKE_ROLE_ID_(,_ROLE_ID)*_FROM_ROLE_ID_(,_ROLE_ID)*!insert	REVOKE ROLE a FROM ROLE a zzz
 reject	undocumented	docs	revoke/REVOKE_ROLE_ID_(,_ROLE_ID)*_FROM_ROLE_ID_(,_ROLE_ID)*!swap	RLS ROLE a FROM ROLE a
 accept	accept	docs	revoke/REVOKE_((CREATE_USER|DROP_USER|ALTER_USER|CR~55c83a07)_~6f2b0bd8	REVOKE VACUUM FROM ROLE a
@@ -6312,7 +6312,7 @@ reject	undocumented	docs	revoke/REVOKE_((CREATE_USER|DROP_USER|ALTER_USER|CR~55c
 reject	undocumented	docs	revoke/REVOKE_((CREATE_USER|DROP_USER|ALTER_USER|CR~55c83a07)_~6f2b0bd8!drop-2	REVOKE FROM ROLE a
 reject	undocumented	docs	revoke/REVOKE_((CREATE_USER|DROP_USER|ALTER_USER|CR~55c83a07)_~6f2b0bd8!drop-3	REVOKE VACUUM ROLE a
 accept	undocumented	docs	revoke/REVOKE_((CREATE_USER|DROP_USER|ALTER_USER|CR~55c83a07)_~6f2b0bd8!drop-4	REVOKE VACUUM FROM a
-reject	undocumented	docs	revoke/REVOKE_((CREATE_USER|DROP_USER|ALTER_USER|CR~55c83a07)_~6f2b0bd8!drop-5	REVOKE VACUUM FROM ROLE
+accept	undocumented	docs	revoke/REVOKE_((CREATE_USER|DROP_USER|ALTER_USER|CR~55c83a07)_~6f2b0bd8!drop-5	REVOKE VACUUM FROM ROLE
 reject	undocumented	docs	revoke/REVOKE_((CREATE_USER|DROP_USER|ALTER_USER|CR~55c83a07)_~6f2b0bd8!insert	REVOKE VACUUM FROM ROLE a zzz
 reject	undocumented	docs	revoke/REVOKE_((CREATE_USER|DROP_USER|ALTER_USER|CR~55c83a07)_~6f2b0bd8!swap	RLS VACUUM FROM ROLE a
 accept	accept	docs	revoke/REVOKE_EXPLAIN_(RLS|MASKING)_FROM_ROLE_ID	REVOKE EXPLAIN RLS FROM ROLE a
@@ -6321,7 +6321,7 @@ accept	undocumented	docs	revoke/REVOKE_EXPLAIN_(RLS|MASKING)_FROM_ROLE_ID!drop-2
 accept	undocumented	docs	revoke/REVOKE_EXPLAIN_(RLS|MASKING)_FROM_ROLE_ID!drop-3	REVOKE EXPLAIN FROM ROLE a
 reject	undocumented	docs	revoke/REVOKE_EXPLAIN_(RLS|MASKING)_FROM_ROLE_ID!drop-4	REVOKE EXPLAIN RLS ROLE a
 accept	undocumented	docs	revoke/REVOKE_EXPLAIN_(RLS|MASKING)_FROM_ROLE_ID!drop-5	REVOKE EXPLAIN RLS FROM a
-reject	undocumented	docs	revoke/REVOKE_EXPLAIN_(RLS|MASKING)_FROM_ROLE_ID!drop-6	REVOKE EXPLAIN RLS FROM ROLE
+accept	undocumented	docs	revoke/REVOKE_EXPLAIN_(RLS|MASKING)_FROM_ROLE_ID!drop-6	REVOKE EXPLAIN RLS FROM ROLE
 reject	undocumented	docs	revoke/REVOKE_EXPLAIN_(RLS|MASKING)_FROM_ROLE_ID!insert	REVOKE EXPLAIN RLS FROM ROLE a zzz
 reject	undocumented	docs	revoke/REVOKE_EXPLAIN_(RLS|MASKING)_FROM_ROLE_ID!swap	RLS EXPLAIN RLS FROM ROLE a
 accept	accept	docs	revoke/REVOKE_IGNORE_RLS_FROM_ROLE_ID	REVOKE IGNORE RLS FROM ROLE a
@@ -6329,7 +6329,7 @@ reject	undocumented	docs	revoke/REVOKE_IGNORE_RLS_FROM_ROLE_ID!drop-1	IGNORE RLS
 accept	undocumented	docs	revoke/REVOKE_IGNORE_RLS_FROM_ROLE_ID!drop-3	REVOKE IGNORE FROM ROLE a
 reject	undocumented	docs	revoke/REVOKE_IGNORE_RLS_FROM_ROLE_ID!drop-4	REVOKE IGNORE RLS ROLE a
 accept	undocumented	docs	revoke/REVOKE_IGNORE_RLS_FROM_ROLE_ID!drop-5	REVOKE IGNORE RLS FROM a
-reject	undocumented	docs	revoke/REVOKE_IGNORE_RLS_FROM_ROLE_ID!drop-6	REVOKE IGNORE RLS FROM ROLE
+accept	undocumented	docs	revoke/REVOKE_IGNORE_RLS_FROM_ROLE_ID!drop-6	REVOKE IGNORE RLS FROM ROLE
 reject	undocumented	docs	revoke/REVOKE_IGNORE_RLS_FROM_ROLE_ID!insert	REVOKE IGNORE RLS FROM ROLE a zzz
 reject	undocumented	docs	revoke/REVOKE_IGNORE_RLS_FROM_ROLE_ID!swap	RLS IGNORE RLS FROM ROLE a
 accept	accept	docs	revoke/REVOKE_SELECT_ON_(TABLE)?_ID_(,_ID)*_FROM_(RLS|MASKING)~682626ba	REVOKE SELECT ON a FROM RLS POLICY a
@@ -6430,7 +6430,7 @@ reject	undocumented	docs	revoke(,_ID)*/,_ID_(,_ID)*!drop-2	REVOKE ROLE a FROM a,
 reject	undocumented	docs	revoke(,_ID)*/,_ID_(,_ID)*!insert	REVOKE ROLE a FROM a, a zzz
 accept	accept	docs	revoke(ID|ROLE_ID|GROUP_ID|PUBLIC)/ID	REVOKE CREATE MODEL FROM a
 accept	accept	docs	revoke(ID|ROLE_ID|GROUP_ID|PUBLIC)/ROLE_ID	REVOKE CREATE MODEL FROM ROLE a
-reject	accept	docs	revoke(ID|ROLE_ID|GROUP_ID|PUBLIC)/ROLE_ID!drop-2	REVOKE CREATE MODEL FROM ROLE
+accept	accept	docs	revoke(ID|ROLE_ID|GROUP_ID|PUBLIC)/ROLE_ID!drop-2	REVOKE CREATE MODEL FROM ROLE
 reject	undocumented	docs	revoke(ID|ROLE_ID|GROUP_ID|PUBLIC)/ROLE_ID!insert	REVOKE CREATE MODEL FROM ROLE a zzz
 reject	undocumented	docs	revoke(ID|ROLE_ID|GROUP_ID|PUBLIC)/ROLE_ID!swap	REVOKE CREATE MODEL FROM ROLLBACK a
 accept	accept	docs	revoke(ID|ROLE_ID|GROUP_ID|PUBLIC)/GROUP_ID	REVOKE CREATE MODEL FROM GROUP a
@@ -6697,7 +6697,7 @@ reject	undocumented	docs	revoke(ALTER|SHARE)/SHARE!insert	REVOKE SHARE zzz ON DA
 accept	undocumented	docs	revoke(ALTER|SHARE)/SHARE!swap	REVOKE SHOW ON DATASHARE a FROM a
 accept	accept	docs	revoke(ID_(WITH_GRANT_OPTION)?|ROLE_ID|GROU~78a79d0d)/ID_(WITH_GRANT_OPTION)?	REVOKE ALTER ON DATASHARE a FROM a
 accept	accept	docs	revoke(ID_(WITH_GRANT_OPTION)?|ROLE_ID|GROU~78a79d0d)/ROLE_ID	REVOKE ALTER ON DATASHARE a FROM ROLE a
-reject	accept	docs	revoke(ID_(WITH_GRANT_OPTION)?|ROLE_ID|GROU~78a79d0d)/ROLE_ID!drop-2	REVOKE ALTER ON DATASHARE a FROM ROLE
+accept	accept	docs	revoke(ID_(WITH_GRANT_OPTION)?|ROLE_ID|GROU~78a79d0d)/ROLE_ID!drop-2	REVOKE ALTER ON DATASHARE a FROM ROLE
 reject	undocumented	docs	revoke(ID_(WITH_GRANT_OPTION)?|ROLE_ID|GROU~78a79d0d)/ROLE_ID!insert	REVOKE ALTER ON DATASHARE a FROM ROLE a zzz
 reject	undocumented	docs	revoke(ID_(WITH_GRANT_OPTION)?|ROLE_ID|GROU~78a79d0d)/ROLE_ID!swap	REVOKE ALTER ON DATASHARE a FROM ROLLBACK a
 accept	accept	docs	revoke(ID_(WITH_GRANT_OPTION)?|ROLE_ID|GROU~78a79d0d)/GROUP_ID	REVOKE ALTER ON DATASHARE a FROM GROUP a
@@ -6756,7 +6756,7 @@ reject	undocumented	docs	revoke(GRANT_OPTION)?/GRANT_OPTION!insert	REVOKE GRANT 
 reject	undocumented	docs	revoke(GRANT_OPTION)?/GRANT_OPTION!swap	REVOKE GRANTS OPTION CREATE FOR SCHEMAS IN DATABASE a FROM a
 accept	accept	docs	revoke(ID|ROLE_ID)/ID	REVOKE CREATE FOR SCHEMAS IN DATABASE a FROM a
 accept	accept	docs	revoke(ID|ROLE_ID)/ROLE_ID	REVOKE CREATE FOR SCHEMAS IN DATABASE a FROM ROLE a
-reject	accept	docs	revoke(ID|ROLE_ID)/ROLE_ID!drop-2	REVOKE CREATE FOR SCHEMAS IN DATABASE a FROM ROLE
+accept	accept	docs	revoke(ID|ROLE_ID)/ROLE_ID!drop-2	REVOKE CREATE FOR SCHEMAS IN DATABASE a FROM ROLE
 reject	undocumented	docs	revoke(ID|ROLE_ID)/ROLE_ID!insert	REVOKE CREATE FOR SCHEMAS IN DATABASE a FROM ROLE a zzz
 reject	undocumented	docs	revoke(ID|ROLE_ID)/ROLE_ID!swap	REVOKE CREATE FOR SCHEMAS IN DATABASE a FROM ROLLBACK a
 accept	accept	docs	revoke(,_(ID|ROLE_ID))*/%empty	REVOKE CREATE FOR SCHEMAS IN DATABASE a FROM a
@@ -6827,7 +6827,7 @@ reject	undocumented	docs	revoke(GRANT_OPTION)?#2/GRANT_OPTION!insert	REVOKE GRAN
 reject	undocumented	docs	revoke(GRANT_OPTION)?#2/GRANT_OPTION!swap	REVOKE GROUP CREATE FOR COPY JOBS IN DATABASE a FROM a
 accept	accept	docs	revoke(ID_(WITH_GRANT_OPTION)?|ROLE_ID)/ID_(WITH_GRANT_OPTION)?	REVOKE CREATE FOR COPY JOBS IN DATABASE a FROM a
 accept	accept	docs	revoke(ID_(WITH_GRANT_OPTION)?|ROLE_ID)/ROLE_ID	REVOKE CREATE FOR COPY JOBS IN DATABASE a FROM ROLE a
-reject	accept	docs	revoke(ID_(WITH_GRANT_OPTION)?|ROLE_ID)/ROLE_ID!drop-2	REVOKE CREATE FOR COPY JOBS IN DATABASE a FROM ROLE
+accept	accept	docs	revoke(ID_(WITH_GRANT_OPTION)?|ROLE_ID)/ROLE_ID!drop-2	REVOKE CREATE FOR COPY JOBS IN DATABASE a FROM ROLE
 reject	undocumented	docs	revoke(ID_(WITH_GRANT_OPTION)?|ROLE_ID)/ROLE_ID!insert	REVOKE CREATE FOR COPY JOBS IN DATABASE a FROM ROLE a zzz
 reject	undocumented	docs	revoke(ID_(WITH_GRANT_OPTION)?|ROLE_ID)/ROLE_ID!swap	REVOKE CREATE FOR COPY JOBS IN DATABASE a FROM ROLLBACK a
 accept	accept	docs	revoke(,_(ID_(WITH_GRANT_OPTION)?|ROLE_ID))*/%empty	REVOKE CREATE FOR COPY JOBS IN DATABASE a FROM a

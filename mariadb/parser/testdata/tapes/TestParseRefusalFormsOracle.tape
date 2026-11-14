@@ -15485,6 +15485,172 @@
 < ok 0 0
 > exec ^
 : string
+| DROP TABLE t, t
+< error
+| 1066 42000 Not unique table/alias: 't'
+> exec ^
+: string
+| DROP TABLE t, t
+| ; SELECT FROM
+< error
+| 1066 42000 Not unique table/alias: 't'
+> exec ^
+: string
+| DROP TABLE IF EXISTS t, t
+< error
+| 1066 42000 Not unique table/alias: 't'
+> exec ^
+: string
+| DROP TABLE IF EXISTS t, t
+| ; SELECT FROM
+< error
+| 1066 42000 Not unique table/alias: 't'
+> exec ^
+: string
+| DROP TABLE t, T
+< ok 0 0
+> exec ^
+: string
+| DROP TABLE x.t, x.t
+< error
+| 1066 42000 Not unique table/alias: 't'
+> exec ^
+: string
+| DROP TABLE x.t, x.t
+| ; SELECT FROM
+< error
+| 1066 42000 Not unique table/alias: 't'
+> exec ^
+: string
+| DROP TABLE t, x.t
+< ok 0 0
+> exec ^
+: string
+| DROP VIEW v, v
+< error
+| 1066 42000 Not unique table/alias: 'v'
+> exec ^
+: string
+| DROP VIEW v, v
+| ; SELECT FROM
+< error
+| 1066 42000 Not unique table/alias: 'v'
+> exec ^
+: string
+| CHECKSUM TABLE t, t
+< error
+| 1066 42000 Not unique table/alias: 't'
+> exec ^
+: string
+| CHECKSUM TABLE t, t
+| ; SELECT FROM
+< error
+| 1066 42000 Not unique table/alias: 't'
+> exec ^
+: string
+| FLUSH TABLES t, t
+< error
+| 1066 42000 Not unique table/alias: 't'
+> exec ^
+: string
+| FLUSH TABLES t, t
+| ; SELECT FROM
+< error
+| 1066 42000 Not unique table/alias: 't'
+> exec ^
+: string
+| CHECK TABLE t, t
+< error
+| 1066 42000 Not unique table/alias: 't'
+> exec ^
+: string
+| CHECK TABLE t, t
+| ; SELECT FROM
+< error
+| 1066 42000 Not unique table/alias: 't'
+> exec ^
+: string
+| REPAIR TABLE t, t
+< error
+| 1066 42000 Not unique table/alias: 't'
+> exec ^
+: string
+| REPAIR TABLE t, t
+| ; SELECT FROM
+< error
+| 1066 42000 Not unique table/alias: 't'
+> exec ^
+: string
+| OPTIMIZE TABLE t, t
+< error
+| 1066 42000 Not unique table/alias: 't'
+> exec ^
+: string
+| OPTIMIZE TABLE t, t
+| ; SELECT FROM
+< error
+| 1066 42000 Not unique table/alias: 't'
+> exec ^
+: string
+| ANALYZE TABLE t, t
+< error
+| 1066 42000 Not unique table/alias: 't'
+> exec ^
+: string
+| ANALYZE TABLE t, t
+| ; SELECT FROM
+< error
+| 1066 42000 Not unique table/alias: 't'
+> exec ^
+: string
+| CACHE INDEX t, t IN c
+< error
+| 1066 42000 Not unique table/alias: 't'
+> exec ^
+: string
+| CACHE INDEX t, t IN c
+| ; SELECT FROM
+< error
+| 1066 42000 Not unique table/alias: 't'
+> exec ^
+: string
+| LOAD INDEX INTO CACHE t, t
+< error
+| 1066 42000 Not unique table/alias: 't'
+> exec ^
+: string
+| LOAD INDEX INTO CACHE t, t
+| ; SELECT FROM
+< error
+| 1066 42000 Not unique table/alias: 't'
+> exec ^
+: string
+| WITH a AS (SELECT 1), a AS (SELECT 2) SELECT 1
+< error
+| 4004 HY000 Duplicate query name `a` in WITH clause
+> exec ^
+: string
+| WITH a AS (SELECT 1), a AS (SELECT 2) SELECT 1
+| ; SELECT FROM
+< error
+| 4004 HY000 Duplicate query name `a` in WITH clause
+> exec ^
+: string
+| WITH a AS (SELECT 1), A AS (SELECT 2) SELECT 1
+< error
+| 4004 HY000 Duplicate query name `A` in WITH clause
+> exec ^
+: string
+| WITH a AS (SELECT 1), A AS (SELECT 2) SELECT 1
+| ; SELECT FROM
+< error
+| 4004 HY000 Duplicate query name `A` in WITH clause
+> exec ^
+: string
+| WITH a AS (SELECT 1) SELECT * FROM (WITH a AS (SELECT 2) SELECT 1) d
+< ok 0 0
+> exec ^
+: string
 | CREATE DEFINER u VIEW v AS SELECT 1
 < error
 | 1064 42000 …near 'u VIEW v AS SELECT 1' at line 1

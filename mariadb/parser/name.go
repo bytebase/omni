@@ -1128,6 +1128,12 @@ func (p *Parser) atQuotedUserVar() bool {
 	return next.Type == tokSCONST && next.Loc == p.cur.End && next.Str != ""
 }
 
+// atUserVar reports whether p.cur starts a named user variable, `'@' ident_or_text`:
+// @name or @'name', not @@name.
+func (p *Parser) atUserVar() bool {
+	return p.cur.Type == tokIDENT && len(p.cur.Str) > 1 && p.cur.Str[0] == '@' || p.atQuotedUserVar()
+}
+
 // isVariableRef returns true if the current token is a variable reference.
 func (p *Parser) isVariableRef() bool {
 	// System variable: @@...
