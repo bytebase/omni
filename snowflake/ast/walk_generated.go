@@ -1113,6 +1113,11 @@ func walkChildren(v Visitor, node Node) {
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+		for _, item := range n.Tables {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 		for _, item := range n.Options {
 			if item != nil {
 				Walk(v, item)
