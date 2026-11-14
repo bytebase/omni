@@ -68,6 +68,11 @@ func (p *Parser) parseExprPrec(minBP int) (ast.Node, error) {
 			if left, err = p.parseCollateExpr(left); err != nil {
 				return nil, err
 			}
+			// The result is a primaryExpression again, which a subscript
+			// may follow (StarRocks.g4:2419).
+			if left, err = p.parsePostfixSuffixes(left); err != nil {
+				return nil, err
+			}
 			continue
 		}
 		bp, op, special, ok := p.infixBindingPower()
@@ -2122,6 +2127,9 @@ func (p *Parser) parseMatchPrimary() (ast.Node, error) {
 	}
 	for p.cur.Kind == kwCOLLATE {
 		if node, err = p.parseCollateExpr(node); err != nil {
+			return nil, err
+		}
+		if node, err = p.parsePostfixSuffixes(node); err != nil {
 			return nil, err
 		}
 	}

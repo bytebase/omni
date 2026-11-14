@@ -58,6 +58,11 @@ loop:
 			if left, err = p.parseCollateExpr(left); err != nil {
 				return nil, err
 			}
+			// The result is a primaryExpression again, which a subscript
+			// may follow (DorisParser.g4:1577).
+			if left, err = p.parsePostfixSubscripts(left); err != nil {
+				return nil, err
+			}
 			continue
 		}
 		bp, op, special, ok := p.infixBindingPower()

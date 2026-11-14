@@ -527,6 +527,7 @@ func TestShowStrictRejects(t *testing.T) {
 	}
 	for _, sql := range []string{
 		"SHOW FULL TABLES FROM db LIKE 'a%'",
+		"SHOW LOAD WHERE Label COLLATE utf8_general_ci[1] = 'a'",
 		"SHOW LOAD WHERE EXTRACT(YEAR FROM DATE CURRENT_DATE) > 0",
 		"SHOW LOAD WHERE named_struct('name', Label).name = 'a'",
 		"SHOW LOAD WHERE LENGTH(ALL Label) > 0",
