@@ -125,6 +125,10 @@ func (p *Parser) parseCreateStatisticsStmt() (*nodes.CreateStatisticsStmt, error
 //	        [ [ , ] MAXDOP = max_degree_of_parallelism ]
 //	        [ [ , ] AUTO_DROP = { ON | OFF } ]
 //	    ]
+//
+// updateStatisticsStatement (TSql160.g:13430); the options are
+// updateStatisticsStatementWithOption (TSql160.g:13472), checked as
+// parseUpdateStatsOptions describes.
 func (p *Parser) parseUpdateStatisticsStmt() (*nodes.UpdateStatisticsStmt, error) {
 	loc := p.pos()
 	// STATISTICS keyword already consumed by caller
@@ -134,46 +138,185 @@ func (p *Parser) parseUpdateStatisticsStmt() (*nodes.UpdateStatisticsStmt, error
 	}
 
 	// Table name
-	var err error
-	stmt.Table, err = p.parseTableRef()
+	table, err := p.parseTableRef()
 	if err != nil {
 		return nil, err
 	}
+	if table == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	stmt.Table = table
 
 	// Optional statistics name or list
+	nameCount := 0
 	if p.cur.Type == '(' {
 		p.advance()
 		var names []nodes.Node
-		for p.cur.Type != ')' && p.cur.Type != tokEOF {
-			if p.isIdentLike() {
-				names = append(names, &nodes.String{Str: p.cur.Str})
-				p.advance()
+		for {
+			name, ok := p.parseIdentifier()
+			if !ok {
+				return nil, p.syntaxErrorAtCur()
 			}
+			names = append(names, &nodes.String{Str: name})
 			if _, ok := p.match(','); !ok {
 				break
 			}
 		}
-		p.match(')')
-		if len(names) > 0 {
-			stmt.Names = &nodes.List{Items: names}
-			// Also set Name to first for backward compatibility
-			if s, ok := names[0].(*nodes.String); ok {
-				stmt.Name = s.Str
-			}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
 		}
+		stmt.Names = &nodes.List{Items: names}
+		// Also set Name to first for backward compatibility
+		stmt.Name = names[0].(*nodes.String).Str
+		nameCount = len(names)
 	} else if p.isIdentLike() && p.cur.Type != kwWITH {
 		stmt.Name = p.cur.Str
 		p.advance()
+		nameCount = 1
 	}
 
 	// WITH options
 	if p.cur.Type == kwWITH {
 		p.advance()
-		stmt.Options = p.parseStatisticsWithOptions()
+		opts, err := p.parseUpdateStatsOptions(nameCount)
+		if err != nil {
+			return nil, err
+		}
+		stmt.Options = opts
 	}
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
+}
+
+// updateStatsOptionGroup sorts UPDATE STATISTICS options into the groups SQL
+// Server allows one of (Msg 1052): how the rows are read (FULLSCAN, SAMPLE,
+// RESAMPLE), or statistics given outright (STATS_STREAM, ROWCOUNT,
+// PAGECOUNT), which also excludes ALL, COLUMNS and INDEX.
+var updateStatsOptionGroup = map[string]string{
+	"FULLSCAN": "scan", "SAMPLE": "scan", "RESAMPLE": "scan",
+	"STATS_STREAM": "stream", "ROWCOUNT": "stream", "PAGECOUNT": "stream",
+	"ALL": "target", "COLUMNS": "target", "INDEX": "target",
+}
+
+// parseUpdateStatsOptions parses the options after UPDATE STATISTICS ...
+// WITH, each given once (Msg 1039):
+//
+//	FULLSCAN | SAMPLE integer { PERCENT | ROWS } | RESAMPLE [ ON PARTITIONS ( integer [ TO integer ] [ ,...n ] ) ]
+//	| STATS_STREAM = binary | ROWCOUNT = integer | PAGECOUNT = integer
+//	| ALL | COLUMNS | INDEX | NORECOMPUTE | MAXDOP = integer
+//	| { INCREMENTAL | AUTO_DROP | PERSIST_SAMPLE_PERCENT } = { ON | OFF }
+//
+// SQL Server refuses two options of a group (updateStatsOptionGroup), a
+// stream option beside a scan or target one, PERSIST_SAMPLE_PERCENT without
+// FULLSCAN or SAMPLE (Msg 153), STATS_STREAM without exactly one statistics
+// name (Msg 1092), and decimal or negative numbers.
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/update-statistics-transact-sql
+func (p *Parser) parseUpdateStatsOptions(nameCount int) (*nodes.List, error) {
+	var opts []nodes.Node
+	seen := map[string]bool{}
+	groups := map[string]string{}
+	for {
+		optLoc := p.pos()
+		if !p.isKeywordOrIdent() || p.isDelimited(p.cur) {
+			return nil, p.syntaxErrorAtCur()
+		}
+		name := strings.ToUpper(p.cur.Str)
+		p.advance()
+		switch name {
+		case "FULLSCAN", "ALL", "COLUMNS", "INDEX", "NORECOMPUTE":
+		case "SAMPLE":
+			if p.cur.Type != tokICONST || execIsBinary(p.cur) {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance()
+			if p.cur.Type != kwPERCENT && p.cur.Type != kwROWS {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance()
+		case "RESAMPLE":
+			if p.cur.Type == kwON {
+				p.advance() // ON
+				if err := p.execExpectWord("PARTITIONS"); err != nil {
+					return nil, err
+				}
+				if _, err := p.expect('('); err != nil {
+					return nil, err
+				}
+				for {
+					// statisticsPartitionRange (TSql160.g:13328)
+					if p.cur.Type != tokICONST || execIsBinary(p.cur) {
+						return nil, p.syntaxErrorAtCur()
+					}
+					p.advance()
+					if _, ok := p.match(kwTO); ok {
+						if p.cur.Type != tokICONST || execIsBinary(p.cur) {
+							return nil, p.syntaxErrorAtCur()
+						}
+						p.advance()
+					}
+					if _, ok := p.match(','); !ok {
+						break
+					}
+				}
+				if _, err := p.expect(')'); err != nil {
+					return nil, err
+				}
+			}
+		case "STATS_STREAM":
+			if _, err := p.expect('='); err != nil {
+				return nil, err
+			}
+			if (p.cur.Type != tokICONST && p.cur.Type != tokFCONST) || !execIsBinary(p.cur) {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance()
+			if nameCount != 1 {
+				return nil, p.newParseError(optLoc, "STATS_STREAM needs exactly one statistics name")
+			}
+		case "ROWCOUNT", "PAGECOUNT", "MAXDOP":
+			if _, err := p.expect('='); err != nil {
+				return nil, err
+			}
+			if p.cur.Type != tokICONST || execIsBinary(p.cur) {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance()
+		case "INCREMENTAL", "AUTO_DROP", "PERSIST_SAMPLE_PERCENT":
+			if _, err := p.expect('='); err != nil {
+				return nil, err
+			}
+			if p.cur.Type != kwON && p.cur.Type != kwOFF {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance()
+		default:
+			return nil, p.newParseError(optLoc, "'"+name+"' is not a recognized UPDATE STATISTICS option")
+		}
+		if seen[name] {
+			return nil, p.newParseError(optLoc, "option '"+name+"' is specified more than once")
+		}
+		seen[name] = true
+		if g := updateStatsOptionGroup[name]; g != "" {
+			if prev, ok := groups[g]; ok {
+				return nil, p.newParseError(optLoc, "conflicting UPDATE STATISTICS options "+prev+" and "+name)
+			}
+			groups[g] = name
+		}
+		opts = append(opts, &nodes.String{Str: name})
+		if _, ok := p.match(','); !ok {
+			break
+		}
+	}
+	_, hasScan := groups["scan"]
+	_, hasTarget := groups["target"]
+	if _, ok := groups["stream"]; ok && (hasScan || hasTarget) {
+		return nil, p.newParseError(p.prev.Loc, "conflicting UPDATE STATISTICS options")
+	}
+	if seen["PERSIST_SAMPLE_PERCENT"] && !seen["FULLSCAN"] && !seen["SAMPLE"] {
+		return nil, p.newParseError(p.prev.Loc, "invalid usage of the option PERSIST_SAMPLE_PERCENT in the UPDATE STATISTICS statement")
+	}
+	return &nodes.List{Items: opts}, nil
 }
 
 // parseDropStatisticsStmt parses a DROP STATISTICS statement.

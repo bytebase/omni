@@ -278,12 +278,10 @@ func (p *Parser) parseStmt() (nodes.StmtNode, error) {
 	case kwSAVE:
 		return p.parseSaveTransStmt()
 	case kwEXEC, kwEXECUTE:
-		// Check for EXECUTE AS (context switching) vs EXEC proc
-		if p.cur.Type == kwEXECUTE {
-			next := p.peekNext()
-			if next.Type == kwAS {
-				return p.parseExecuteAsStmt()
-			}
+		// Check for EXECUTE AS (context switching) vs EXEC proc;
+		// execStart (TSql160.g:26214) is either word.
+		if p.peekNext().Type == kwAS {
+			return p.parseExecuteAsStmt()
 		}
 		return p.parseExecStmt()
 	case kwGRANT:

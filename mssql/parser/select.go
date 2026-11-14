@@ -557,32 +557,48 @@ func (p *Parser) atWithClauseEnd() bool {
 // parseXmlNamespaces parses XMLNAMESPACES ( namespace_decl [, ...n] ).
 //
 //	XMLNAMESPACES ( uri AS prefix [, ...n] | DEFAULT uri [, ...n] )
+//
+// xmlNamespacesElement (TSql160.g:17727): DEFAULT and a string, or a string,
+// AS and a prefix, each part required. SQL Server refuses a prefix, or
+// DEFAULT, declared twice (Msg 6869).
 func (p *Parser) parseXmlNamespaces() (*nodes.List, error) {
 	p.advance() // consume XMLNAMESPACES
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
 
+	seen := map[string]bool{}
 	decls, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
 		loc := p.pos()
 		decl := &nodes.XmlNamespaceDecl{Loc: nodes.Loc{Start: loc, End: -1}}
+		key := ""
 		if _, ok := p.match(kwDEFAULT); ok {
 			decl.IsDefault = true
-			if p.cur.Type == tokSCONST || p.cur.Type == tokNSCONST {
-				decl.URI = p.cur.Str
-				p.advance()
+			if p.cur.Type != tokSCONST && p.cur.Type != tokNSCONST {
+				return nil, p.syntaxErrorAtCur()
 			}
+			decl.URI = p.cur.Str
+			p.advance()
 		} else {
-			if p.cur.Type == tokSCONST || p.cur.Type == tokNSCONST {
-				decl.URI = p.cur.Str
-				p.advance()
+			if p.cur.Type != tokSCONST && p.cur.Type != tokNSCONST {
+				return nil, p.syntaxErrorAtCur()
 			}
-			if _, ok := p.match(kwAS); ok {
-				if name, ok := p.parseIdentifier(); ok {
-					decl.Prefix = name
-				}
+			decl.URI = p.cur.Str
+			p.advance()
+			if _, err := p.expect(kwAS); err != nil {
+				return nil, err
 			}
+			name, ok := p.parseIdentifier()
+			if !ok {
+				return nil, p.syntaxErrorAtCur()
+			}
+			decl.Prefix = name
+			key = "prefix " + name
 		}
+		if seen[key] {
+			return nil, p.newParseError(loc, "namespace prefix declared twice in XMLNAMESPACES")
+		}
+		seen[key] = true
 		decl.Loc.End = p.prevEnd()
 		return decl, nil
 	})

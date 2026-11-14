@@ -593,12 +593,21 @@ func (p *Parser) parseUpdatetextStmt() (*nodes.UpdatetextStmt, error) {
 //
 //	<range> ::=
 //	<partition_number_expression> TO <partition_number_expression>
+//
+// truncateTableStatement (TSql160.g:13878): TABLE and the name are required,
+// and so is each part of the WITH clause.
 func (p *Parser) parseTruncateStmt() (*nodes.TruncateStmt, error) {
 	loc := p.pos()
 	p.advance() // consume TRUNCATE
 
 	// TABLE
-	p.match(kwTABLE)
+	if p.collectMode() {
+		p.addTokenCandidate(kwTABLE)
+		return nil, errCollecting
+	}
+	if _, err := p.expect(kwTABLE); err != nil {
+		return nil, err
+	}
 
 	// Completion: after TRUNCATE TABLE → table_ref
 	if p.collectMode() {
@@ -610,37 +619,60 @@ func (p *Parser) parseTruncateStmt() (*nodes.TruncateStmt, error) {
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
-	stmt.Table, _ = p.parseTableRef()
+	table, err := p.parseTableRef()
+	if err != nil {
+		return nil, err
+	}
+	if table == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	stmt.Table = table
 
-	// WITH ( PARTITIONS ( range [,...n] ) )
+	// WITH ( PARTITIONS ( range [,...n] ) ), each range an expression with an
+	// optional TO and another (compressionPartitionRange, TSql160.g:27623).
 	if p.cur.Type == kwWITH {
 		p.advance() // consume WITH
-		if p.cur.Type == '(' {
-			p.advance() // consume outer '('
-			if p.matchIdentCI("PARTITIONS") {
-				if p.cur.Type == '(' {
-					p.advance() // consume inner '('
-					var parts []nodes.Node
-					for p.cur.Type != ')' && p.cur.Type != tokEOF {
-						expr, _ := p.parseExpr()
-						// Check for TO (range)
-						if p.cur.Type == kwTO {
-							p.advance()   // consume TO
-							p.parseExpr() // end of range (consumed but range stored as start expr)
-						}
-						parts = append(parts, expr)
-						if _, ok := p.match(','); !ok {
-							break
-						}
-					}
-					p.match(')') // consume inner ')'
-					if len(parts) > 0 {
-						stmt.Partitions = &nodes.List{Items: parts}
-					}
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+		if err := p.execExpectWord("PARTITIONS"); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+		var parts []nodes.Node
+		for {
+			expr, err := p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
+			if expr == nil {
+				return nil, p.syntaxErrorAtCur()
+			}
+			// Check for TO (range)
+			if p.cur.Type == kwTO {
+				p.advance() // consume TO
+				end, err := p.parseExpr()
+				if err != nil {
+					return nil, err
+				}
+				if end == nil {
+					return nil, p.syntaxErrorAtCur()
 				}
 			}
-			p.match(')') // consume outer ')'
+			parts = append(parts, expr)
+			if _, ok := p.match(','); !ok {
+				break
+			}
 		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		stmt.Partitions = &nodes.List{Items: parts}
 	}
 
 	stmt.Loc.End = p.prevEnd()
@@ -1238,96 +1270,6 @@ func (p *Parser) parseUseFederationStmt() (*nodes.UseFederationStmt, error) {
 }
 
 // ---------- Batch 175: INSERT BULK and LINENO ----------
-
-// parseInsertBulkStmt parses an INSERT BULK statement.
-//
-// BNF: mssql/parser/bnf/insert-bulk-transact-sql.bnf
-//
-//	INSERT BULK schemaObjectThreePartName
-//	  [ ( column_name data_type [ NULL | NOT NULL ] [ ,...n ] ) ]
-//	  [ WITH ( option [ = value ] [ ,...n ] ) ]
-func (p *Parser) parseInsertBulkStmt() (*nodes.InsertBulkStmt, error) {
-	stmt := &nodes.InsertBulkStmt{
-		Loc: nodes.Loc{Start: p.pos(), End: -1},
-	}
-
-	// table name (three-part name)
-	stmt.Table, _ = p.parseTableRef()
-
-	// optional column definition list
-	if p.cur.Type == '(' {
-		p.advance() // consume (
-		var cols []nodes.Node
-		for p.cur.Type != ')' && p.cur.Type != tokEOF {
-			col := p.parseInsertBulkColumnDef()
-			if col != nil {
-				cols = append(cols, col)
-			}
-			if _, ok := p.match(','); !ok {
-				break
-			}
-		}
-		p.match(')') // consume )
-		if len(cols) > 0 {
-			stmt.Columns = &nodes.List{Items: cols}
-		}
-	}
-
-	// optional WITH ( options )
-	if p.cur.Type == kwWITH {
-		p.advance() // consume WITH
-		if p.cur.Type == '(' {
-			p.advance() // consume (
-			var opts []nodes.Node
-			for p.cur.Type != ')' && p.cur.Type != tokEOF {
-				opt := p.parseBulkInsertOption()
-				if opt != nil {
-					opts = append(opts, opt)
-				}
-				if _, ok := p.match(','); !ok {
-					break
-				}
-			}
-			p.match(')') // consume )
-			if len(opts) > 0 {
-				stmt.Options = &nodes.List{Items: opts}
-			}
-		}
-	}
-
-	stmt.Loc.End = p.prevEnd()
-	return stmt, nil
-}
-
-// parseInsertBulkColumnDef parses a column definition in INSERT BULK.
-//
-//	column_name data_type [ NULL | NOT NULL ]
-func (p *Parser) parseInsertBulkColumnDef() *nodes.InsertBulkColumnDef {
-	col := &nodes.InsertBulkColumnDef{
-		Loc: nodes.Loc{Start: p.pos(), End: -1},
-	}
-
-	if name, ok := p.parseIdentifier(); ok {
-		col.Name = name
-	}
-
-	col.DataType, _ = p.parseDataType()
-
-	// Optional NULL / NOT NULL
-	if p.cur.Type == kwNOT {
-		p.advance() // consume NOT
-		p.match(kwNULL)
-		f := false
-		col.Nullable = &f
-	} else if p.cur.Type == kwNULL {
-		p.advance() // consume NULL
-		t := true
-		col.Nullable = &t
-	}
-
-	col.Loc.End = p.prevEnd()
-	return col
-}
 
 // parseLinenoStmt parses a LINENO statement.
 //

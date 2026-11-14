@@ -2507,8 +2507,21 @@ func TestParseExecute(t *testing.T) {
 	})
 
 	t.Run("exec with output param", func(t *testing.T) {
-		sql := "EXEC sp_test @param1 = 1, @param2 OUTPUT"
+		sql := "EXEC sp_test @param1 = 1, @param2 = @v OUTPUT"
 		ParseAndCheck(t, sql)
+	})
+
+	// SQL Server refuses a positional parameter after a named one (Msg 119)
+	// and OUTPUT after a constant (Msg 179).
+	t.Run("exec positional after named", func(t *testing.T) {
+		for _, sql := range []string{
+			"EXEC sp_test @param1 = 1, @param2 OUTPUT",
+			"EXEC sp1 1, 'hello', @p3 = 42 OUTPUT",
+		} {
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q): want an error", sql)
+			}
+		}
 	})
 }
 
@@ -4736,10 +4749,6 @@ func TestParseSecurityContext(t *testing.T) {
 		"EXECUTE AS USER = 'TestUser'",
 		// EXECUTE AS CALLER
 		"EXECUTE AS CALLER",
-		// EXECUTE AS SELF
-		"EXECUTE AS SELF",
-		// EXECUTE AS OWNER
-		"EXECUTE AS OWNER",
 		// EXECUTE AS with NO REVERT
 		"EXECUTE AS USER = 'TestUser' WITH NO REVERT",
 		// EXECUTE AS with COOKIE
@@ -20241,7 +20250,7 @@ func TestParseRoutinesBnfReview(t *testing.T) {
 			"CREATE PROC sp1 @p1 int READONLY AS SELECT 1",
 			"CREATE FUNCTION fn1 (@p1 int) RETURNS TABLE AS RETURN SELECT * FROM t",
 			"CREATE FUNCTION fn1 (@p1 int) RETURNS @t TABLE (id int, name varchar(50)) AS BEGIN RETURN END",
-			"EXEC sp1 1, 'hello', @p3 = 42 OUTPUT",
+			"EXEC sp1 1, 'hello', @p3 = @v OUTPUT",
 			"EXECUTE @result = dbo.sp1 @p1 = 1",
 			"EXEC ('SELECT * FROM ' + @tableName)",
 		}
@@ -23943,7 +23952,7 @@ func TestParseFederationStatements(t *testing.T) {
 func TestParseInsertBulkLineno(t *testing.T) {
 	// Basic INSERT BULK
 	t.Run("insert_bulk_basic", func(t *testing.T) {
-		sql := "INSERT BULK dbo.MyTable"
+		sql := "INSERT BULK dbo.MyTable (id INT)"
 		result := ParseAndCheck(t, sql)
 		stmt := result.Items[0].(*ast.InsertBulkStmt)
 		if stmt.Table == nil || stmt.Table.Object != "MyTable" {
@@ -23984,7 +23993,7 @@ func TestParseInsertBulkLineno(t *testing.T) {
 
 	// INSERT BULK with options
 	t.Run("insert_bulk_with_options", func(t *testing.T) {
-		sql := "INSERT BULK dbo.MyTable WITH (TABLOCK, FIRE_TRIGGERS, BATCHSIZE = 1000)"
+		sql := "INSERT BULK dbo.MyTable (id INT) WITH (TABLOCK, FIRE_TRIGGERS, ROWS_PER_BATCH = 1000)"
 		result := ParseAndCheck(t, sql)
 		stmt := result.Items[0].(*ast.InsertBulkStmt)
 		if stmt.Options == nil || stmt.Options.Len() != 3 {
@@ -24007,7 +24016,7 @@ func TestParseInsertBulkLineno(t *testing.T) {
 
 	// INSERT BULK with three-part name
 	t.Run("insert_bulk_three_part_name", func(t *testing.T) {
-		sql := "INSERT BULK mydb.dbo.MyTable"
+		sql := "INSERT BULK mydb.dbo.MyTable (id INT)"
 		result := ParseAndCheck(t, sql)
 		stmt := result.Items[0].(*ast.InsertBulkStmt)
 		if stmt.Table == nil || stmt.Table.Database != "mydb" || stmt.Table.Schema != "dbo" || stmt.Table.Object != "MyTable" {

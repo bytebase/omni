@@ -1149,6 +1149,7 @@ func (n *WaitForStmt) stmtNode() {}
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/language-elements/execute-transact-sql
 type ExecStmt struct {
 	Name         *TableRef
+	ModuleVar    string   // EXEC @module_name_var: the variable holding the module name
 	Args         *List    // list of ExecArg
 	ReturnVar    string   // @var = EXEC ...
 	ExecString   ExprNode // EXEC ('string') dynamic SQL
