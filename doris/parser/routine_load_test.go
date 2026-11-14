@@ -521,3 +521,26 @@ func TestShowCreateRoutineLoad_LegacyCorpus(t *testing.T) {
 		t.Fatal("Name should not be nil")
 	}
 }
+
+// TestRoutineLoadGrammar holds CREATE ROUTINE LOAD to what both of Doris's
+// parsers take; testdata/compat.tsv judged the near misses.
+func TestRoutineLoadGrammar(t *testing.T) {
+	cases := []struct {
+		sql string
+		ok  bool
+	}{
+		{"CREATE ROUTINE LOAD a FROM KAFKA ('k' = 'v')", true},
+		{"CREATE ROUTINE LOAD db.j ON t WITH MERGE COLUMNS TERMINATED BY ',', COLUMNS (a, b = a + 1, (c)), PRECEDING FILTER a > 0, WHERE a > 1, DELETE ON b = 1, ORDER BY a, PARTITION (p) PROPERTIES ('k' = 'v') FROM KAFKA ('k' = 'v') COMMENT 'c'", true},
+		{"CREATE ROUTINE LOAD a COLUMNS ((a)) FROM KAFKA ('k' = 'v')", false},
+		{"CREATE ROUTINE LOAD a ON a zzz FROM KAFKA ('k' = 'v')", false},
+		{"CREATE ROUTINE LOAD a ON a FROM KAFKA", false},
+		{"CREATE ROUTINE LOAD a ON a FROM KAFKA (k = 'v')", false},
+		{"SHOW ROUTINE LOAD TASK IN d WHERE JobName = 'j'", true},
+	}
+	for _, c := range cases {
+		_, err := Parse(c.sql)
+		if (err == nil) != c.ok {
+			t.Errorf("Parse(%q): err = %v, want accepted=%v", c.sql, err, c.ok)
+		}
+	}
+}
