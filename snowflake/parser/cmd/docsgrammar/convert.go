@@ -842,6 +842,9 @@ func convertPage(slug string, blocks []string, fixes []*fix) pageGrammar {
 	if prefixes {
 		pg.fixes = append(pg.fixes, "read: ('<...>') after _PREFIXES = is a list of URLs, as the parameters say")
 	}
+	for i, b := range blocks {
+		blocks[i] = namespaceRef.ReplaceAllString(b, "${1}[ <ns1> . [ <ns2> . ] ]")
+	}
 	columns := false
 	for i, b := range blocks {
 		if fixed := moreColumns.ReplaceAllString(b, "${1}{ ${2} }${3}[ , ... ]"); fixed != b {
@@ -1148,6 +1151,14 @@ func (c *converter) form(text string) ([]string, error) {
 	return c.convert(text, false)
 }
 
+var (
+	orReplace   = regexp.MustCompile(`\[\s*OR\s+REPLACE\s*\]`)
+	ifNotExists = regexp.MustCompile(`\[\s*IF\s+NOT\s+EXISTS\s*\]`)
+	// namespaceRef is [<namespace>.] before a name outside a stage or a
+	// string: a database, or a database and a schema.
+	namespaceRef = regexp.MustCompile(`(^|[^@'])\[\s*<namespace>\.\s*\]`)
+)
+
 // scopeChoices gives each statement alternative that does not start with
 // the statement's first word the first alternative's words through the
 // object's name.
@@ -1212,6 +1223,19 @@ func isName(n *node) bool {
 }
 
 func (c *converter) convert(text string, statement bool) ([]string, error) {
+	if orReplace.MatchString(text) && ifNotExists.MatchString(text) {
+		// CREATE [ OR REPLACE ] T [ IF NOT EXISTS ]: the two are mutually
+		// exclusive, as the CREATE pages say; a form has one or neither.
+		a, err := c.convert(ifNotExists.ReplaceAllString(text, ""), statement)
+		if err != nil {
+			return nil, err
+		}
+		b, err := c.convert(orReplace.ReplaceAllString(text, ""), statement)
+		if err != nil {
+			return nil, err
+		}
+		return dedupe(append(a, b...)), nil
+	}
 	if omittedTail.MatchString(text) {
 		return nil, errElided
 	}
@@ -1264,9 +1288,11 @@ func (c *converter) convert(text string, statement bool) ([]string, error) {
 		if t.kind != nPlaceholder || placeholderClass(t.text) != tQName {
 			continue
 		}
-		dot := i >= 1 && isLiteral(toks[i-1], ".") ||
-			i >= 2 && toks[i-1].kind == nClose && toks[i-1].text == "]" && isLiteral(toks[i-2], ".")
-		if dot {
+		j := i - 1
+		for j >= 0 && toks[j].kind == nClose && toks[j].text == "]" {
+			j--
+		}
+		if j >= 0 && isLiteral(toks[j], ".") {
 			toks[i].text = "part_name"
 		}
 	}

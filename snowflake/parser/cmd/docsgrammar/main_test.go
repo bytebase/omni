@@ -430,3 +430,21 @@ func TestAnExplicitNamespaceKeepsTheNameOnePart(t *testing.T) {
 		t.Errorf("forms %q, want %s", pg.forms, want)
 	}
 }
+
+// TestOrReplaceExcludesIfNotExists pins that a CREATE form takes OR
+// REPLACE or IF NOT EXISTS, not both.
+func TestOrReplaceExcludesIfNotExists(t *testing.T) {
+	got := form(t, "CREATE [ OR REPLACE ] TABLE [ IF NOT EXISTS ] <name>")
+	if want := "'CREATE' ('OR' 'REPLACE')? 'TABLE' ID | 'CREATE' 'TABLE' ('IF' 'NOT' 'EXISTS')? ID"; got != want {
+		t.Errorf("got  %s\nwant %s", got, want)
+	}
+}
+
+// TestANamespaceIsOneOrTwoParts pins [<namespace>.]<table_name>: a
+// database, or a database and a schema, then the table's one part.
+func TestANamespaceIsOneOrTwoParts(t *testing.T) {
+	pg := convertPage("copy-into-table", []string{"COPY INTO [<namespace>.]<table_name> FROM @<stage>"}, nil)
+	if want := "'COPY' 'INTO' (ID '.' (ID '.')?)? ID 'FROM' STAGE"; len(pg.forms) != 1 || pg.forms[0] != want {
+		t.Errorf("forms %q, want %s", pg.forms, want)
+	}
+}
