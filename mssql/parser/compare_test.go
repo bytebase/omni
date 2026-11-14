@@ -6373,7 +6373,7 @@ func TestParseSpecializedIndexes(t *testing.T) {
 			// CREATE PRIMARY XML INDEX
 			{`CREATE PRIMARY XML INDEX idx_xml ON dbo.Products (CatalogDescription)`, true},
 			// CREATE PRIMARY XML INDEX with options
-			{`CREATE PRIMARY XML INDEX PXML_ProductModel ON Production.ProductModel (CatalogDescription) WITH (PAD_INDEX = 1)`, true},
+			{`CREATE PRIMARY XML INDEX PXML_ProductModel ON Production.ProductModel (CatalogDescription) WITH (PAD_INDEX = ON)`, true},
 			// CREATE secondary XML INDEX FOR VALUE
 			{`CREATE XML INDEX idx_xml_value ON dbo.Products (CatalogDescription) USING XML INDEX idx_xml FOR VALUE`, false},
 			// CREATE secondary XML INDEX FOR PATH
@@ -6402,7 +6402,7 @@ func TestParseSpecializedIndexes(t *testing.T) {
 	t.Run("selective_xml_index", func(t *testing.T) {
 		tests := []string{
 			`CREATE SELECTIVE XML INDEX sxi_index ON T (xmlcol) FOR (pathab = '/a/b')`,
-			`CREATE SELECTIVE XML INDEX sxi_index ON T (xmlcol) FOR (pathab = '/a/b') WITH (PAD_INDEX = 1)`,
+			`CREATE SELECTIVE XML INDEX sxi_index ON T (xmlcol) FOR (pathab = '/a/b') WITH (PAD_INDEX = ON)`,
 		}
 		for _, sql := range tests {
 			t.Run(sql, func(t *testing.T) {
@@ -11376,7 +11376,8 @@ func TestParseAlterIndexOptionsDepth(t *testing.T) {
 
 	// ALTER INDEX ... REBUILD with DATA_COMPRESSION ON PARTITIONS
 	t.Run("alter_index_data_compression_partitions", func(t *testing.T) {
-		sql := "ALTER INDEX IX_1 ON dbo.t REBUILD WITH (DATA_COMPRESSION = PAGE ON PARTITIONS (1, 3 TO 5))"
+		// ON PARTITIONS needs PARTITION = ALL (SQL Server Msg 10737).
+		sql := "ALTER INDEX IX_1 ON dbo.t REBUILD PARTITION = ALL WITH (DATA_COMPRESSION = PAGE ON PARTITIONS (1, 3 TO 5))"
 		result := ParseAndCheck(t, sql)
 		stmt := result.Items[0].(*ast.AlterIndexStmt)
 		if stmt.Action != "REBUILD" {
