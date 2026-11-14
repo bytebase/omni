@@ -18,10 +18,11 @@ import (
 
 // routineScope is what the parser needs to know of the stored program it is inside.
 type routineScope struct {
-	triggerTiming string // BEFORE or AFTER, "" outside a trigger
-	triggerEvent  string // INSERT, UPDATE or DELETE
-	noResultSet   bool   // inside a function or a trigger
-	function      bool   // inside a function, the one place RETURN may stand (1313 elsewhere)
+	triggerTiming string   // BEFORE or AFTER, "" outside a trigger
+	triggerEvent  string   // INSERT, UPDATE or DELETE
+	noResultSet   bool     // inside a function or a trigger
+	function      bool     // inside a function, the one place RETURN may stand (1313 elsewhere)
+	sp            *spScope // the innermost scope of the stored program's names, nil outside one
 }
 
 // refuseTriggerRowRead holds NEW.col and OLD.col, in any case and however quoted, to the

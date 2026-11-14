@@ -27,7 +27,8 @@ func (p *Parser) parsePrepareStmt() (*nodes.PrepareStmt, error) {
 		return nil, err
 	}
 
-	// SQL string or variable
+	// SQL string or variable. prepare is PREPARE_SYM ident FROM expr, so the source is
+	// required; an expression other than these two is not read yet.
 	if p.cur.Type == tokSCONST {
 		stmt.Stmt = p.cur.Str
 		p.advance()
@@ -37,6 +38,8 @@ func (p *Parser) parsePrepareStmt() (*nodes.PrepareStmt, error) {
 			return nil, err
 		}
 		stmt.Stmt = "@" + vref.Name
+	} else {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	stmt.Loc.End = p.prev.End
@@ -98,8 +101,10 @@ func (p *Parser) parseDeallocateStmt() (*nodes.DeallocateStmt, error) {
 	start := p.pos()
 	p.advance() // consume DEALLOCATE
 
-	// PREPARE
-	p.match(kwPREPARE)
+	// deallocate: deallocate_or_drop PREPARE_SYM ident, PREPARE required.
+	if _, err := p.expect(kwPREPARE); err != nil {
+		return nil, err
+	}
 
 	stmt := &nodes.DeallocateStmt{Loc: nodes.Loc{Start: start}}
 

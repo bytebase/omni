@@ -19967,173 +19967,137 @@
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "LONGTEXT"
 < row
-: int64 7
+: int64 3
 : bytes
-| column	shop	A	x	
-| column	shop	A	y	
 | database	q			
 | database	shop			
 | database	test			
-| index	shop	A	j	
-| relation	shop		A	BASE TABLE
 > query ^
 < result
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "LONGTEXT"
 < row
-: int64 12
+: int64 8
 : bytes
 | column	q	c	id	
 | column	q	c	x	
 | column	q	c	y	
-| column	shop	A	x	
-| column	shop	A	y	
 | database	q			
 | database	shop			
 | database	test			
 | index	q	c	PRIMARY	
-| index	shop	A	j	
 | relation	q		c	BASE TABLE
-| relation	shop		A	BASE TABLE
 > query ^
 < result
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "LONGTEXT"
 < row
-: int64 12
+: int64 8
 : bytes
 | column	q	c	id	
 | column	q	c	x	
 | column	q	c	y	
-| column	shop	A	x	
-| column	shop	A	y	
 | database	q			
 | database	shop			
 | database	test			
 | index	q	c	PRIMARY	
-| index	shop	A	j	
 | relation	q		c	BASE TABLE
-| relation	shop		A	BASE TABLE
 > query ^
 < result
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "LONGTEXT"
 < row
-: int64 12
+: int64 8
 : bytes
 | column	q	c	id	
 | column	q	c	x	
 | column	q	c	y	
-| column	shop	A	x	
-| column	shop	A	y	
 | database	q			
 | database	shop			
 | database	test			
 | index	q	c	PRIMARY	
-| index	shop	A	j	
 | relation	q		c	BASE TABLE
-| relation	shop		A	BASE TABLE
 > query ^
 < result
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "LONGTEXT"
 < row
-: int64 12
+: int64 8
 : bytes
 | column	q	c	id	
 | column	q	c	x	
 | column	q	c	y	
-| column	shop	A	x	
-| column	shop	A	y	
 | database	q			
 | database	shop			
 | database	test			
 | index	q	c	PRIMARY	
-| index	shop	A	j	
 | relation	q		c	BASE TABLE
-| relation	shop		A	BASE TABLE
 > query ^
 < result
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "LONGTEXT"
 < row
-: int64 12
+: int64 8
 : bytes
 | column	q	c	id	
 | column	q	c	x	
 | column	q	c	y	
-| column	shop	A	x	
-| column	shop	A	y	
 | database	q			
 | database	shop			
 | database	test			
 | index	q	c	PRIMARY	
-| index	shop	A	j	
 | relation	q		c	BASE TABLE
-| relation	shop		A	BASE TABLE
 > query ^
 < result
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "LONGTEXT"
 < row
-: int64 12
+: int64 8
 : bytes
 | column	q	c	id	
 | column	q	c	x	
 | column	q	c	y	
-| column	shop	A	x	
-| column	shop	A	y	
 | database	q			
 | database	shop			
 | database	test			
 | index	q	c	PRIMARY	
-| index	shop	A	j	
 | relation	q		c	BASE TABLE
-| relation	shop		A	BASE TABLE
 > query ^
 < result
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "LONGTEXT"
 < row
-: int64 12
+: int64 8
 : bytes
 | column	q	c	id	
 | column	q	c	x	
 | column	q	c	y	
-| column	shop	A	x	
-| column	shop	A	y	
 | database	q			
 | database	shop			
 | database	test			
 | index	q	c	PRIMARY	
-| index	shop	A	j	
 | relation	q		c	BASE TABLE
-| relation	shop		A	BASE TABLE
 > query ^
 < result
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "LONGTEXT"
 < row
-: int64 12
+: int64 8
 : bytes
 | column	q	c	id	
 | column	q	c	x	
 | column	q	c	y	
-| column	shop	A	x	
-| column	shop	A	y	
 | database	q			
 | database	shop			
 | database	test			
 | index	q	c	PRIMARY	
-| index	shop	A	j	
 | relation	q		c	BASE TABLE
-| relation	shop		A	BASE TABLE
 > query ^
 < result
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "LONGTEXT"
 < row
-: int64 18
+: int64 14
 : bytes
 | column	q	a_ibfk_1	id	
 | column	q	a_ibfk_1	x	
@@ -20141,24 +20105,20 @@
 | column	q	c	id	
 | column	q	c	x	
 | column	q	c	y	
-| column	shop	A	x	
-| column	shop	A	y	
 | database	q			
 | database	shop			
 | database	test			
 | index	q	a_ibfk_1	PRIMARY	
 | index	q	a_ibfk_1	x	
 | index	q	c	PRIMARY	
-| index	shop	A	j	
 | relation	q		a_ibfk_1	BASE TABLE
 | relation	q		c	BASE TABLE
-| relation	shop		A	BASE TABLE
 > query ^
 < result
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "LONGTEXT"
 < row
-: int64 18
+: int64 14
 : bytes
 | column	q	a_ibfk_1	id	
 | column	q	a_ibfk_1	x	
@@ -20166,24 +20126,20 @@
 | column	q	c	id	
 | column	q	c	x	
 | column	q	c	y	
-| column	shop	A	x	
-| column	shop	A	y	
 | database	q			
 | database	shop			
 | database	test			
 | index	q	a_ibfk_1	PRIMARY	
 | index	q	a_ibfk_1	x	
 | index	q	c	PRIMARY	
-| index	shop	A	j	
 | relation	q		a_ibfk_1	BASE TABLE
 | relation	q		c	BASE TABLE
-| relation	shop		A	BASE TABLE
 > query ^
 < result
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "LONGTEXT"
 < row
-: int64 18
+: int64 14
 : bytes
 | column	q	a_ibfk_1	id	
 | column	q	a_ibfk_1	x	
@@ -20191,24 +20147,20 @@
 | column	q	c	id	
 | column	q	c	x	
 | column	q	c	y	
-| column	shop	A	x	
-| column	shop	A	y	
 | database	q			
 | database	shop			
 | database	test			
 | index	q	a_ibfk_1	PRIMARY	
 | index	q	a_ibfk_1	x	
 | index	q	c	PRIMARY	
-| index	shop	A	j	
 | relation	q		a_ibfk_1	BASE TABLE
 | relation	q		c	BASE TABLE
-| relation	shop		A	BASE TABLE
 > query ^
 < result
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "LONGTEXT"
 < row
-: int64 18
+: int64 14
 : bytes
 | column	q	a_ibfk_1	id	
 | column	q	a_ibfk_1	x	
@@ -20216,18 +20168,14 @@
 | column	q	c	id	
 | column	q	c	x	
 | column	q	c	y	
-| column	shop	A	x	
-| column	shop	A	y	
 | database	q			
 | database	shop			
 | database	test			
 | index	q	a_ibfk_1	PRIMARY	
 | index	q	a_ibfk_1	x	
 | index	q	c	PRIMARY	
-| index	shop	A	j	
 | relation	q		a_ibfk_1	BASE TABLE
 | relation	q		c	BASE TABLE
-| relation	shop		A	BASE TABLE
 
 == TestWalkThroughSweepMySQL/lctn0/change26 default#3
 > exec
@@ -20650,9 +20598,8 @@
 < error
 | 1146 42S02 Table 'test.a_ibfk_1' doesn't exist
 > exec
-| DROP TABLE A, A;
-< error
-| 1066 42000 Not unique table/alias: 'A'
+| DROP TABLE A;
+< ok 0 0
 > query
 | SHOW CREATE TABLE `q`.`a`
 < error
@@ -20733,7 +20680,8 @@
 | 1146 42S02 Table 'test.a_ibfk_1' doesn't exist
 > exec
 | TRUNCATE TABLE A;
-< ok 0 0
+< error
+| 1146 42S02 Table 'shop.A' doesn't exist
 > query
 | SHOW CREATE TABLE `q`.`a`
 < error
@@ -25798,9 +25746,8 @@
 < error
 | 1146 42S02 Table 'shop.b' doesn't exist
 > exec
-| DROP TABLE IF EXISTS a, a;
-< error
-| 1066 42000 Not unique table/alias: 'a'
+| DROP TABLE IF EXISTS a;
+< ok 0 0
 > exec
 | TRUNCATE TABLE a_ibfk_1;
 < error
@@ -31422,9 +31369,9 @@
 < error
 | 1146 42S02 Table 'q.b' doesn't exist
 > exec
-| DROP TABLE v, v;
+| DROP TABLE v;
 < error
-| 1066 42000 Not unique table/alias: 'v'
+| 1051 42S02 Unknown table 'shop.v'
 > exec
 | ALTER TABLE c ADD CONSTRAINT I UNIQUE INDEX j (X);
 < ok 0 0
@@ -36445,115 +36392,91 @@
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "LONGTEXT"
 < row
-: int64 12
+: int64 8
 : bytes
 | column	shop	a	y	
 | column	shop	a	z	
 | column	shop	b	y	
 | column	shop	b	z	
-| column	shop	c	x	
-| column	shop	c	y	
 | database	shop			
 | database	test			
-| index	shop	c	x	
 | relation	shop		a	BASE TABLE
 | relation	shop		b	BASE TABLE
-| relation	shop		c	BASE TABLE
 > query ^
 < result
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "LONGTEXT"
 < row
-: int64 12
+: int64 8
 : bytes
 | column	shop	a	y	
 | column	shop	a	z	
 | column	shop	b	y	
 | column	shop	b	z	
-| column	shop	c	x	
-| column	shop	c	y	
 | database	shop			
 | database	test			
-| index	shop	c	x	
 | relation	shop		a	BASE TABLE
 | relation	shop		b	BASE TABLE
-| relation	shop		c	BASE TABLE
 > query ^
 < result
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "LONGTEXT"
 < row
-: int64 12
+: int64 8
 : bytes
 | column	shop	a	y	
 | column	shop	a	z	
 | column	shop	b	y	
 | column	shop	b	z	
-| column	shop	c	x	
-| column	shop	c	y	
 | database	shop			
 | database	test			
-| index	shop	c	x	
 | relation	shop		a	BASE TABLE
 | relation	shop		b	BASE TABLE
-| relation	shop		c	BASE TABLE
 > query ^
 < result
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "LONGTEXT"
 < row
-: int64 12
+: int64 8
 : bytes
 | column	shop	a	y	
 | column	shop	a	z	
 | column	shop	b	y	
 | column	shop	b	z	
-| column	shop	c	x	
-| column	shop	c	y	
 | database	shop			
 | database	test			
-| index	shop	c	x	
 | relation	shop		a	BASE TABLE
 | relation	shop		b	BASE TABLE
-| relation	shop		c	BASE TABLE
 > query ^
 < result
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "LONGTEXT"
 < row
-: int64 12
+: int64 8
 : bytes
 | column	shop	a	y	
 | column	shop	a	z	
 | column	shop	b	y	
 | column	shop	b	z	
-| column	shop	c	y	
-| column	shop	c	z	
 | database	shop			
 | database	test			
-| index	shop	c	x	
 | relation	shop		a	BASE TABLE
 | relation	shop		b	BASE TABLE
-| relation	shop		c	BASE TABLE
 > query ^
 < result
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "LONGTEXT"
 < row
-: int64 12
+: int64 8
 : bytes
 | column	shop	a	y	
 | column	shop	a	z	
 | column	shop	b	y	
 | column	shop	b	z	
-| column	shop	c	y	
-| column	shop	c	z	
 | database	shop			
 | database	test			
-| index	shop	c	x	
 | relation	shop		a	BASE TABLE
 | relation	shop		b	BASE TABLE
-| relation	shop		c	BASE TABLE
 
 == TestWalkThroughSweepMySQL/lctn0/change5 default#3
 > exec
@@ -36612,9 +36535,8 @@
 < error
 | 1054 42S22 Unknown column 'X' in 'a'
 > exec
-| DROP TABLE IF EXISTS c, c;
-< error
-| 1066 42000 Not unique table/alias: 'c'
+| DROP TABLE IF EXISTS c;
+< ok 0 0
 > exec
 | DROP VIEW a_ibfk_1;
 < error
@@ -36629,7 +36551,8 @@
 | 1049 42000 Unknown database 'q'
 > exec
 | ALTER TABLE c CHANGE x z int;
-< ok 0 0
+< error
+| 1146 42S02 Table 'shop.c' doesn't exist
 > exec
 | CREATE INDEX i ON A (y);
 < error
@@ -60949,173 +60872,137 @@
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "LONGTEXT"
 < row
-: int64 7
+: int64 3
 : bytes
-| column	shop	a	x	
-| column	shop	a	y	
 | database	q			
 | database	shop			
 | database	test			
-| index	shop	a	j	
-| relation	shop		a	BASE TABLE
 > query ^
 < result
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "LONGTEXT"
 < row
-: int64 12
+: int64 8
 : bytes
 | column	q	c	id	
 | column	q	c	x	
 | column	q	c	y	
-| column	shop	a	x	
-| column	shop	a	y	
 | database	q			
 | database	shop			
 | database	test			
 | index	q	c	PRIMARY	
-| index	shop	a	j	
 | relation	q		c	BASE TABLE
-| relation	shop		a	BASE TABLE
 > query ^
 < result
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "LONGTEXT"
 < row
-: int64 12
+: int64 8
 : bytes
 | column	q	c	id	
 | column	q	c	x	
 | column	q	c	y	
-| column	shop	a	x	
-| column	shop	a	y	
 | database	q			
 | database	shop			
 | database	test			
 | index	q	c	PRIMARY	
-| index	shop	a	j	
 | relation	q		c	BASE TABLE
-| relation	shop		a	BASE TABLE
 > query ^
 < result
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "LONGTEXT"
 < row
-: int64 12
+: int64 8
 : bytes
 | column	q	c	id	
 | column	q	c	x	
 | column	q	c	y	
-| column	shop	a	x	
-| column	shop	a	y	
 | database	q			
 | database	shop			
 | database	test			
 | index	q	c	PRIMARY	
-| index	shop	a	j	
 | relation	q		c	BASE TABLE
-| relation	shop		a	BASE TABLE
 > query ^
 < result
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "LONGTEXT"
 < row
-: int64 12
+: int64 8
 : bytes
 | column	q	c	id	
 | column	q	c	x	
 | column	q	c	y	
-| column	shop	a	x	
-| column	shop	a	y	
 | database	q			
 | database	shop			
 | database	test			
 | index	q	c	PRIMARY	
-| index	shop	a	j	
 | relation	q		c	BASE TABLE
-| relation	shop		a	BASE TABLE
 > query ^
 < result
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "LONGTEXT"
 < row
-: int64 12
+: int64 8
 : bytes
 | column	q	c	id	
 | column	q	c	x	
 | column	q	c	y	
-| column	shop	a	x	
-| column	shop	a	y	
 | database	q			
 | database	shop			
 | database	test			
 | index	q	c	PRIMARY	
-| index	shop	a	j	
 | relation	q		c	BASE TABLE
-| relation	shop		a	BASE TABLE
 > query ^
 < result
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "LONGTEXT"
 < row
-: int64 12
+: int64 8
 : bytes
 | column	q	c	id	
 | column	q	c	x	
 | column	q	c	y	
-| column	shop	a	x	
-| column	shop	a	y	
 | database	q			
 | database	shop			
 | database	test			
 | index	q	c	PRIMARY	
-| index	shop	a	j	
 | relation	q		c	BASE TABLE
-| relation	shop		a	BASE TABLE
 > query ^
 < result
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "LONGTEXT"
 < row
-: int64 12
+: int64 8
 : bytes
 | column	q	c	id	
 | column	q	c	x	
 | column	q	c	y	
-| column	shop	a	x	
-| column	shop	a	y	
 | database	q			
 | database	shop			
 | database	test			
 | index	q	c	PRIMARY	
-| index	shop	a	j	
 | relation	q		c	BASE TABLE
-| relation	shop		a	BASE TABLE
 > query ^
 < result
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "LONGTEXT"
 < row
-: int64 12
+: int64 8
 : bytes
 | column	q	c	id	
 | column	q	c	x	
 | column	q	c	y	
-| column	shop	a	x	
-| column	shop	a	y	
 | database	q			
 | database	shop			
 | database	test			
 | index	q	c	PRIMARY	
-| index	shop	a	j	
 | relation	q		c	BASE TABLE
-| relation	shop		a	BASE TABLE
 > query ^
 < result
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "LONGTEXT"
 < row
-: int64 18
+: int64 14
 : bytes
 | column	q	a_ibfk_1	id	
 | column	q	a_ibfk_1	x	
@@ -61123,24 +61010,20 @@
 | column	q	c	id	
 | column	q	c	x	
 | column	q	c	y	
-| column	shop	a	x	
-| column	shop	a	y	
 | database	q			
 | database	shop			
 | database	test			
 | index	q	a_ibfk_1	PRIMARY	
 | index	q	a_ibfk_1	x	
 | index	q	c	PRIMARY	
-| index	shop	a	j	
 | relation	q		a_ibfk_1	BASE TABLE
 | relation	q		c	BASE TABLE
-| relation	shop		a	BASE TABLE
 > query ^
 < result
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "LONGTEXT"
 < row
-: int64 18
+: int64 14
 : bytes
 | column	q	a_ibfk_1	id	
 | column	q	a_ibfk_1	x	
@@ -61148,24 +61031,20 @@
 | column	q	c	id	
 | column	q	c	x	
 | column	q	c	y	
-| column	shop	a	x	
-| column	shop	a	y	
 | database	q			
 | database	shop			
 | database	test			
 | index	q	a_ibfk_1	PRIMARY	
 | index	q	a_ibfk_1	x	
 | index	q	c	PRIMARY	
-| index	shop	a	j	
 | relation	q		a_ibfk_1	BASE TABLE
 | relation	q		c	BASE TABLE
-| relation	shop		a	BASE TABLE
 > query ^
 < result
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "LONGTEXT"
 < row
-: int64 18
+: int64 14
 : bytes
 | column	q	a_ibfk_1	id	
 | column	q	a_ibfk_1	x	
@@ -61173,24 +61052,20 @@
 | column	q	c	id	
 | column	q	c	x	
 | column	q	c	y	
-| column	shop	a	x	
-| column	shop	a	y	
 | database	q			
 | database	shop			
 | database	test			
 | index	q	a_ibfk_1	PRIMARY	
 | index	q	a_ibfk_1	x	
 | index	q	c	PRIMARY	
-| index	shop	a	j	
 | relation	q		a_ibfk_1	BASE TABLE
 | relation	q		c	BASE TABLE
-| relation	shop		a	BASE TABLE
 > query ^
 < result
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "LONGTEXT"
 < row
-: int64 18
+: int64 14
 : bytes
 | column	q	a_ibfk_1	id	
 | column	q	a_ibfk_1	x	
@@ -61198,18 +61073,14 @@
 | column	q	c	id	
 | column	q	c	x	
 | column	q	c	y	
-| column	shop	a	x	
-| column	shop	a	y	
 | database	q			
 | database	shop			
 | database	test			
 | index	q	a_ibfk_1	PRIMARY	
 | index	q	a_ibfk_1	x	
 | index	q	c	PRIMARY	
-| index	shop	a	j	
 | relation	q		a_ibfk_1	BASE TABLE
 | relation	q		c	BASE TABLE
-| relation	shop		a	BASE TABLE
 
 == TestWalkThroughSweepMySQL/lctn1/change26 lctn1#3
 > exec
@@ -61782,9 +61653,8 @@
 < error
 | 1146 42S02 Table 'test.a_ibfk_1' doesn't exist
 > exec
-| DROP TABLE A, A;
-< error
-| 1066 42000 Not unique table/alias: 'A'
+| DROP TABLE A;
+< ok 0 0
 > query
 | SHOW CREATE TABLE `q`.`a`
 < error
@@ -61795,18 +61665,8 @@
 | 1146 42S02 Table 'q.a_ibfk_1' doesn't exist
 > query
 | SHOW CREATE TABLE `shop`.`a`
-< result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
-< row
-: bytes
-| a
-: bytes
-| CREATE TABLE `a` (
-|   `x` int DEFAULT NULL,
-|   `y` int DEFAULT NULL,
-|   KEY `j` (`x`)
-| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+< error
+| 1146 42S02 Table 'shop.a' doesn't exist
 > query
 | SHOW CREATE TABLE `shop`.`a_ibfk_1`
 < error
@@ -61832,18 +61692,8 @@
 | 1146 42S02 Table 'q.a_ibfk_1' doesn't exist
 > query
 | SHOW CREATE TABLE `shop`.`a`
-< result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
-< row
-: bytes
-| a
-: bytes
-| CREATE TABLE `a` (
-|   `x` int DEFAULT NULL,
-|   `y` int DEFAULT NULL,
-|   KEY `j` (`x`)
-| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+< error
+| 1146 42S02 Table 'shop.a' doesn't exist
 > query
 | SHOW CREATE TABLE `shop`.`a_ibfk_1`
 < error
@@ -61869,18 +61719,8 @@
 | 1146 42S02 Table 'q.a_ibfk_1' doesn't exist
 > query
 | SHOW CREATE TABLE `shop`.`a`
-< result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
-< row
-: bytes
-| a
-: bytes
-| CREATE TABLE `a` (
-|   `x` int DEFAULT NULL,
-|   `y` int DEFAULT NULL,
-|   KEY `j` (`x`)
-| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+< error
+| 1146 42S02 Table 'shop.a' doesn't exist
 > query
 | SHOW CREATE TABLE `shop`.`a_ibfk_1`
 < error
@@ -61895,7 +61735,8 @@
 | 1146 42S02 Table 'test.a_ibfk_1' doesn't exist
 > exec
 | TRUNCATE TABLE A;
-< ok 0 0
+< error
+| 1146 42S02 Table 'shop.a' doesn't exist
 > query
 | SHOW CREATE TABLE `q`.`a`
 < error
@@ -61906,18 +61747,8 @@
 | 1146 42S02 Table 'q.a_ibfk_1' doesn't exist
 > query
 | SHOW CREATE TABLE `shop`.`a`
-< result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
-< row
-: bytes
-| a
-: bytes
-| CREATE TABLE `a` (
-|   `x` int DEFAULT NULL,
-|   `y` int DEFAULT NULL,
-|   KEY `j` (`x`)
-| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+< error
+| 1146 42S02 Table 'shop.a' doesn't exist
 > query
 | SHOW CREATE TABLE `shop`.`a_ibfk_1`
 < error
@@ -61944,18 +61775,8 @@
 | 1146 42S02 Table 'q.a_ibfk_1' doesn't exist
 > query
 | SHOW CREATE TABLE `shop`.`a`
-< result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
-< row
-: bytes
-| a
-: bytes
-| CREATE TABLE `a` (
-|   `x` int DEFAULT NULL,
-|   `y` int DEFAULT NULL,
-|   KEY `j` (`x`)
-| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+< error
+| 1146 42S02 Table 'shop.a' doesn't exist
 > query
 | SHOW CREATE TABLE `shop`.`a_ibfk_1`
 < error
@@ -61982,18 +61803,8 @@
 | 1146 42S02 Table 'q.a_ibfk_1' doesn't exist
 > query
 | SHOW CREATE TABLE `shop`.`a`
-< result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
-< row
-: bytes
-| a
-: bytes
-| CREATE TABLE `a` (
-|   `x` int DEFAULT NULL,
-|   `y` int DEFAULT NULL,
-|   KEY `j` (`x`)
-| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+< error
+| 1146 42S02 Table 'shop.a' doesn't exist
 > query
 | SHOW CREATE TABLE `shop`.`a_ibfk_1`
 < error
@@ -66962,9 +66773,8 @@
 < error
 | 1146 42S02 Table 'shop.b' doesn't exist
 > exec
-| DROP TABLE IF EXISTS a, a;
-< error
-| 1066 42000 Not unique table/alias: 'a'
+| DROP TABLE IF EXISTS a;
+< ok 0 0
 > exec
 | TRUNCATE TABLE a_ibfk_1;
 < error
@@ -72546,9 +72356,9 @@
 < error
 | 1146 42S02 Table 'q.b' doesn't exist
 > exec
-| DROP TABLE v, v;
+| DROP TABLE v;
 < error
-| 1066 42000 Not unique table/alias: 'v'
+| 1051 42S02 Unknown table 'shop.v'
 > exec
 | ALTER TABLE c ADD CONSTRAINT I UNIQUE INDEX j (X);
 < ok 0 0
@@ -77708,96 +77518,76 @@
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "LONGTEXT"
 < row
-: int64 12
+: int64 8
 : bytes
 | column	shop	a	y	
 | column	shop	a	z	
 | column	shop	b	y	
 | column	shop	b	z	
-| column	shop	c	x	
-| column	shop	c	y	
 | database	shop			
 | database	test			
-| index	shop	c	x	
 | relation	shop		a	BASE TABLE
 | relation	shop		b	BASE TABLE
-| relation	shop		c	BASE TABLE
 > query ^
 < result
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "LONGTEXT"
 < row
-: int64 12
+: int64 8
 : bytes
 | column	shop	a	y	
 | column	shop	a	z	
 | column	shop	b	y	
 | column	shop	b	z	
-| column	shop	c	x	
-| column	shop	c	y	
 | database	shop			
 | database	test			
-| index	shop	c	x	
 | relation	shop		a	BASE TABLE
 | relation	shop		b	BASE TABLE
-| relation	shop		c	BASE TABLE
 > query ^
 < result
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "LONGTEXT"
 < row
-: int64 12
+: int64 8
 : bytes
 | column	shop	a	y	
 | column	shop	a	z	
 | column	shop	b	y	
 | column	shop	b	z	
-| column	shop	c	x	
-| column	shop	c	y	
 | database	shop			
 | database	test			
-| index	shop	c	x	
 | relation	shop		a	BASE TABLE
 | relation	shop		b	BASE TABLE
-| relation	shop		c	BASE TABLE
 > query ^
 < result
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "LONGTEXT"
 < row
-: int64 12
+: int64 8
 : bytes
 | column	shop	a	y	
 | column	shop	a	z	
 | column	shop	b	y	
 | column	shop	b	z	
-| column	shop	c	x	
-| column	shop	c	y	
 | database	shop			
 | database	test			
-| index	shop	c	x	
 | relation	shop		a	BASE TABLE
 | relation	shop		b	BASE TABLE
-| relation	shop		c	BASE TABLE
 > query ^
 < result
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "LONGTEXT"
 < row
-: int64 12
+: int64 8
 : bytes
 | column	shop	a	y	
 | column	shop	a	z	
 | column	shop	b	y	
 | column	shop	b	z	
-| column	shop	c	y	
-| column	shop	c	z	
 | database	shop			
 | database	test			
-| index	shop	c	x	
 | relation	shop		a	BASE TABLE
 | relation	shop		b	BASE TABLE
-| relation	shop		c	BASE TABLE
 
 == TestWalkThroughSweepMySQL/lctn1/change5 lctn1#3
 > exec
@@ -77856,9 +77646,8 @@
 < error
 | 1054 42S22 Unknown column 'X' in 'a'
 > exec
-| DROP TABLE IF EXISTS c, c;
-< error
-| 1066 42000 Not unique table/alias: 'c'
+| DROP TABLE IF EXISTS c;
+< ok 0 0
 > exec
 | DROP VIEW a_ibfk_1;
 < error
@@ -77873,7 +77662,8 @@
 | 1049 42000 Unknown database 'q'
 > exec
 | ALTER TABLE c CHANGE x z int;
-< ok 0 0
+< error
+| 1146 42S02 Table 'shop.c' doesn't exist
 > exec
 | CREATE INDEX i ON A (y);
 < ok 0 0

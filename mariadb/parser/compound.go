@@ -24,6 +24,13 @@ func (p *Parser) parseBeginEndBlock(labelName string, labelStart int) (*nodes.Be
 		start = p.pos()
 	}
 
+	dropLabel, err := p.pushSPLabel(labelName, start, false)
+	if err != nil {
+		return nil, err
+	}
+	defer dropLabel()
+	defer p.pushSPScope(false)()
+
 	p.advance() // consume BEGIN
 
 	stmt := &nodes.BeginEndBlock{
@@ -45,7 +52,13 @@ func (p *Parser) parseBeginEndBlock(labelName string, labelStart int) (*nodes.Be
 	phase := phaseInit
 	for p.cur.Type != kwEND && p.cur.Type != tokEOF {
 		sStart := p.pos()
-		s, err := p.parseCompoundStmtOrStmt()
+		var s nodes.Node
+		var err error
+		if p.cur.Type == kwDECLARE {
+			s, err = p.parseDeclareStmt()
+		} else {
+			s, err = p.parseCompoundStmtOrStmt()
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -196,9 +209,10 @@ func (p *Parser) parseCompoundStmtOrStmt() (nodes.Node, error) {
 		}
 	}
 
-	// DECLARE
-	if p.cur.Type == kwDECLARE {
-		return p.parseDeclareStmt()
+	// DECLARE stands only at the head of a BEGIN ... END block (sp_block_content's sp_decls),
+	// which parseBeginEndBlock reads: sp_proc_stmt has no DECLARE.
+	if p.cur.Type == kwDECLARE && !p.collectMode() {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	// BEGIN ... END (without label)
@@ -295,40 +309,46 @@ func (p *Parser) parseDeclareStmt() (nodes.Node, error) {
 
 	// We need to look ahead to determine if it's CONDITION, CURSOR, or variable.
 	// Parse the first identifier name.
-	name, _, err := p.parseIdentifier()
+	name, namePos, err := p.parseIdentifier()
 	if err != nil {
 		return nil, err
 	}
 
 	// DECLARE name CONDITION FOR ...
 	if p.cur.Type == kwCONDITION {
-		return p.parseDeclareConditionStmt(start, name)
+		return p.parseDeclareConditionStmt(start, name, namePos)
 	}
 
 	// DECLARE name CURSOR FOR ...
 	if p.cur.Type == kwCURSOR {
-		return p.parseDeclareCursorStmt(start, name)
+		return p.parseDeclareCursorStmt(start, name, namePos)
 	}
 
 	// DECLARE var [, var] ... type [DEFAULT value]
-	return p.parseDeclareVarStmt(start, name)
+	return p.parseDeclareVarStmt(start, name, namePos)
 }
 
 // parseDeclareVarStmt parses a DECLARE variable statement.
 // The first variable name has already been consumed.
 //
 //	DECLARE var_name [, var_name] ... type [DEFAULT value]
-func (p *Parser) parseDeclareVarStmt(start int, firstName string) (*nodes.DeclareVarStmt, error) {
+func (p *Parser) parseDeclareVarStmt(start int, firstName string, firstPos int) (*nodes.DeclareVarStmt, error) {
 	stmt := &nodes.DeclareVarStmt{
 		Loc:   nodes.Loc{Start: start},
 		Names: []string{firstName},
+	}
+	if err := p.declareSPVar(firstName, firstPos); err != nil {
+		return nil, err
 	}
 
 	// Additional variable names separated by commas
 	for p.cur.Type == ',' {
 		p.advance()
-		name, _, err := p.parseIdentifier()
+		name, namePos, err := p.parseIdentifier()
 		if err != nil {
+			return nil, err
+		}
+		if err := p.declareSPVar(name, namePos); err != nil {
 			return nil, err
 		}
 		stmt.Names = append(stmt.Names, name)
@@ -363,7 +383,7 @@ func (p *Parser) parseDeclareVarStmt(start int, firstName string) (*nodes.Declar
 //
 //	DECLARE condition_name CONDITION FOR condition_value
 //	condition_value: SQLSTATE [VALUE] sqlstate_value | mysql_error_code
-func (p *Parser) parseDeclareConditionStmt(start int, name string) (*nodes.DeclareConditionStmt, error) {
+func (p *Parser) parseDeclareConditionStmt(start int, name string, namePos int) (*nodes.DeclareConditionStmt, error) {
 	p.advance() // consume CONDITION
 
 	// FOR
@@ -382,6 +402,9 @@ func (p *Parser) parseDeclareConditionStmt(start int, name string) (*nodes.Decla
 		return nil, err
 	}
 	stmt.ConditionValue = condVal
+	if err := p.declareSPCondition(name, namePos, condVal); err != nil {
+		return nil, err
+	}
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
@@ -418,8 +441,12 @@ func (p *Parser) parseDeclareHandlerStmt(start int) (*nodes.DeclareHandlerStmt, 
 
 	// condition_value [, condition_value] ...
 	for {
+		condPos := p.cur.Loc
 		condVal, err := p.parseHandlerConditionValue()
 		if err != nil {
+			return nil, err
+		}
+		if err := p.declareSPHandlerCond(condVal, condPos); err != nil {
 			return nil, err
 		}
 		stmt.Conditions = append(stmt.Conditions, condVal)
@@ -429,7 +456,9 @@ func (p *Parser) parseDeclareHandlerStmt(start int) (*nodes.DeclareHandlerStmt, 
 		p.advance()
 	}
 
+	closeScope := p.pushSPScope(true)
 	body, err := p.parseCompoundStmtOrStmt()
+	closeScope()
 	if err != nil {
 		return nil, err
 	}
@@ -443,7 +472,7 @@ func (p *Parser) parseDeclareHandlerStmt(start int) (*nodes.DeclareHandlerStmt, 
 // The cursor name has already been consumed.
 //
 //	DECLARE cursor_name CURSOR FOR select_statement
-func (p *Parser) parseDeclareCursorStmt(start int, name string) (*nodes.DeclareCursorStmt, error) {
+func (p *Parser) parseDeclareCursorStmt(start int, name string, namePos int) (*nodes.DeclareCursorStmt, error) {
 	p.advance() // consume CURSOR
 
 	// FOR
@@ -452,8 +481,19 @@ func (p *Parser) parseDeclareCursorStmt(start int, name string) (*nodes.DeclareC
 	}
 
 	// select_statement
+	selStart := p.pos()
 	sel, err := p.parseSelectStmt()
 	if err != nil {
+		return nil, err
+	}
+	// The action refuses a query that writes INTO with 1323, ER_SP_BAD_CURSOR_SELECT, then
+	// a second cursor of the name in the block (declareSPCursor).
+	//
+	// Ref: the DECLARE ... CURSOR arm of sp_decl in MySQL 8.0 sql/sql_yacc.yy.
+	if !p.completing && selectHasInto(sel) {
+		return nil, &ParseError{Message: "Cursor SELECT must not have INTO", Position: selStart}
+	}
+	if err := p.declareSPCursor(name, namePos); err != nil {
 		return nil, err
 	}
 
@@ -747,6 +787,11 @@ func (p *Parser) parseWhileStmt(labelName string, labelStart int) (*nodes.WhileS
 	if labelName == "" {
 		start = p.pos()
 	}
+	dropLabel, err := p.pushSPLabel(labelName, start, true)
+	if err != nil {
+		return nil, err
+	}
+	defer dropLabel()
 	p.advance() // consume WHILE
 
 	// Parse condition
@@ -806,6 +851,11 @@ func (p *Parser) parseRepeatStmt(labelName string, labelStart int) (*nodes.Repea
 	if labelName == "" {
 		start = p.pos()
 	}
+	dropLabel, err := p.pushSPLabel(labelName, start, true)
+	if err != nil {
+		return nil, err
+	}
+	defer dropLabel()
 	p.advance() // consume REPEAT
 
 	stmt := &nodes.RepeatStmt{Loc: nodes.Loc{Start: start}, Label: labelName}
@@ -865,6 +915,11 @@ func (p *Parser) parseLoopStmt(labelName string, labelStart int) (*nodes.LoopStm
 	if labelName == "" {
 		start = p.pos()
 	}
+	dropLabel, err := p.pushSPLabel(labelName, start, true)
+	if err != nil {
+		return nil, err
+	}
+	defer dropLabel()
 	p.advance() // consume LOOP
 
 	stmt := &nodes.LoopStmt{Loc: nodes.Loc{Start: start}, Label: labelName}
@@ -906,8 +961,11 @@ func (p *Parser) parseLeaveStmt() (*nodes.LeaveStmt, error) {
 	start := p.pos()
 	p.advance() // consume LEAVE
 
-	label, _, err := p.parseLabelIdent()
+	label, labelPos, err := p.parseLabelIdent()
 	if err != nil {
+		return nil, err
+	}
+	if err := p.checkSPLabelRef("LEAVE", label, labelPos, false); err != nil {
 		return nil, err
 	}
 
@@ -925,8 +983,11 @@ func (p *Parser) parseIterateStmt() (*nodes.IterateStmt, error) {
 	start := p.pos()
 	p.advance() // consume ITERATE
 
-	label, _, err := p.parseLabelIdent()
+	label, labelPos, err := p.parseLabelIdent()
 	if err != nil {
+		return nil, err
+	}
+	if err := p.checkSPLabelRef("ITERATE", label, labelPos, true); err != nil {
 		return nil, err
 	}
 
@@ -964,8 +1025,11 @@ func (p *Parser) parseOpenCursorStmt() (*nodes.OpenCursorStmt, error) {
 	start := p.pos()
 	p.advance() // consume OPEN
 
-	name, _, err := p.parseIdentifier()
+	name, namePos, err := p.parseIdentifier()
 	if err != nil {
+		return nil, err
+	}
+	if err := p.checkSPCursorRef(name, namePos); err != nil {
 		return nil, err
 	}
 	return &nodes.OpenCursorStmt{
@@ -981,19 +1045,24 @@ func (p *Parser) parseFetchCursorStmt() (*nodes.FetchCursorStmt, error) {
 	start := p.pos()
 	p.advance() // consume FETCH
 
-	// Optional NEXT
-	if p.cur.Type == kwNEXT {
+	// sp_proc_stmt_fetch_head: FETCH, FETCH FROM or FETCH NEXT FROM, then the cursor.
+	// NEXT before INTO is the cursor's name; NEXT before anything else but FROM is a 1064.
+	if p.cur.Type == kwNEXT && p.peekNext().Type != kwINTO {
 		p.advance()
+		if p.cur.Type != kwFROM {
+			return nil, p.syntaxErrorAtCur()
+		}
 	}
-
-	// Optional FROM
 	if p.cur.Type == kwFROM {
 		p.advance()
 	}
 
 	// cursor_name
-	name, _, err := p.parseIdentifier()
+	name, namePos, err := p.parseIdentifier()
 	if err != nil {
+		return nil, err
+	}
+	if err := p.checkSPCursorRef(name, namePos); err != nil {
 		return nil, err
 	}
 
@@ -1002,11 +1071,18 @@ func (p *Parser) parseFetchCursorStmt() (*nodes.FetchCursorStmt, error) {
 		return nil, err
 	}
 
-	// var_name [, var_name] ... — lvalue context (assignment target)
+	// var_name [, var_name] ...: sp_fetch_list takes identifiers, each a variable in reach,
+	// and no @user_var.
 	var vars []string
 	for {
-		v, _, err := p.parseLvalueIdent()
+		if p.isVariableRef() {
+			return nil, p.syntaxErrorAtCur()
+		}
+		v, vPos, err := p.parseLvalueIdent()
 		if err != nil {
+			return nil, err
+		}
+		if err := p.checkSPVarRef(v, vPos, false); err != nil {
 			return nil, err
 		}
 		vars = append(vars, v)
@@ -1030,8 +1106,11 @@ func (p *Parser) parseCloseCursorStmt() (*nodes.CloseCursorStmt, error) {
 	start := p.pos()
 	p.advance() // consume CLOSE
 
-	name, _, err := p.parseIdentifier()
+	name, namePos, err := p.parseIdentifier()
 	if err != nil {
+		return nil, err
+	}
+	if err := p.checkSPCursorRef(name, namePos); err != nil {
 		return nil, err
 	}
 	return &nodes.CloseCursorStmt{

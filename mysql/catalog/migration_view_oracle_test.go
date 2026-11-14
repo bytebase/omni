@@ -340,6 +340,18 @@ func viewIdempotenceProbes() []viewSchemaProbe {
 			"CREATE TABLE t (s VARCHAR(20))",
 			"CREATE VIEW v AS SELECT WEIGHT_STRING(s) AS c1, WEIGHT_STRING(s AS CHAR(4)) AS c2, WEIGHT_STRING(s AS BINARY(4)) AS c3 FROM t",
 		}, []string{"t"}, []string{"v"}},
+		// WEIGHT_STRING's four numbers are stored as AS CHAR(num_codepoints), or
+		// with nothing when that is 0.
+		{"weight-string-numbers", []string{
+			"CREATE TABLE t (s VARCHAR(20))",
+			"CREATE VIEW v AS SELECT WEIGHT_STRING(s, 1, 2, 3) AS c1, WEIGHT_STRING(s, 0, 0, 0) AS c2 FROM t",
+		}, []string{"t"}, []string{"v"}},
+		// CAST ... AT TIME ZONE is stored as cast(`time_zone`(a) as datetime),
+		// without the zone. It takes a TIMESTAMP (3998 on a DATETIME).
+		{"cast-at-time-zone", []string{
+			"CREATE TABLE t (a TIMESTAMP NULL)",
+			"CREATE VIEW v AS SELECT CAST(a AT TIME ZONE 'UTC' AS DATETIME) AS c1, CAST(a AT TIME ZONE INTERVAL '+00:00' AS DATETIME(3)) AS c2 FROM t",
+		}, []string{"t"}, []string{"v"}},
 	}
 }
 

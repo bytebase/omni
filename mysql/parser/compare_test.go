@@ -6511,10 +6511,6 @@ func TestParseSignal(t *testing.T) {
 			sql:  "SIGNAL SQLSTATE VALUE '45000'",
 			want: "{SIGNAL :loc 0 :condition 45000}",
 		},
-		{
-			sql:  "SIGNAL my_error",
-			want: "{SIGNAL :loc 0 :condition my_error}",
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.sql, func(t *testing.T) {
@@ -6616,10 +6612,6 @@ func TestParseGetDiagnostics(t *testing.T) {
 		{
 			sql:  "GET CURRENT DIAGNOSTICS @cnt = NUMBER",
 			want: "{GET_DIAGNOSTICS :loc 0 :stmt_info true :items {DIAG_ITEM :loc 24 :target {VAR :name cnt :loc 24} :name NUMBER}}",
-		},
-		{
-			sql:  "GET DIAGNOSTICS cnt = NUMBER",
-			want: "{GET_DIAGNOSTICS :loc 0 :stmt_info true :items {DIAG_ITEM :loc 16 :target {COLREF :loc 16 :col cnt} :name NUMBER}}",
 		},
 	}
 	for _, tt := range tests {

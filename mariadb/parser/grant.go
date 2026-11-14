@@ -171,6 +171,10 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 		}
 	}
 
+	if err := p.checkColumnPrivilegeTarget(privs, target); err != nil {
+		return nil, err
+	}
+
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
@@ -214,6 +218,47 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 		p.advance()
 		p.match(kwEXISTS_KW)
 		ifExists = true
+	}
+
+	// REVOKE ADMIN OPTION FOR role FROM user [, user] ...: one role, as the
+	// role revoke below names. mariadb:11.8.8 runs `REVOKE ADMIN OPTION FOR
+	// CURRENT_ROLE FROM a` and answers 1064 for two roles and for a role with
+	// a host.
+	//
+	// Ref: revoke_command and admin_option_for_role in MariaDB 11.8 sql/sql_yacc.yy.
+	if p.cur.Type == kwADMIN && p.peekNext().Type == kwOPTION {
+		p.advance() // consume ADMIN
+		p.advance() // consume OPTION
+		if _, err := p.expect(kwFOR); err != nil {
+			return nil, err
+		}
+		role, ok, err := p.parseCurrentRole()
+		if err != nil {
+			return nil, err
+		}
+		switch {
+		case ok:
+		case p.cur.Type == tokSCONST:
+			role = p.advance().Str
+		default:
+			if role, _, err = p.parseIdent(); err != nil {
+				return nil, err
+			}
+		}
+		if _, err := p.expect(kwFROM); err != nil {
+			return nil, err
+		}
+		users, err := p.parseUserList()
+		if err != nil {
+			return nil, err
+		}
+		return &nodes.RevokeRoleStmt{
+			Loc:         nodes.Loc{Start: start, End: p.prev.End},
+			IfExists:    ifExists,
+			AdminOption: true,
+			Roles:       []string{role},
+			From:        users,
+		}, nil
 	}
 
 	// Detect PROXY keyword token before parsing the privilege list so we can
@@ -380,6 +425,10 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 		stmt.IgnoreUnknownUser = true
 	}
 
+	if err := p.checkColumnPrivilegeTarget(privs, target); err != nil {
+		return nil, err
+	}
+
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
@@ -396,6 +445,39 @@ type privOrRole struct {
 	// mariadb:11.8 answers 1064 for `GRANT GRANT OPTION TO u1`, for `GRANT CREATE
 	// VIEW TO u1` and for `GRANT SHOW DATABASES TO u1`.
 	privOnly bool
+	// columns marks a privilege written with a column list.
+	columns bool
+}
+
+// checkColumnPrivilegeTarget refuses a column privilege on anything but a
+// table, as the action closing the statement does: on a routine with the 1064
+// of a syntax error, on `*`, `*.*` or `db.*` with 1144. mariadb:11.8.8 answers
+// so for `GRANT SELECT(a) ON FUNCTION a TO a` and for `GRANT SELECT(a) ON * TO
+// a`, and the same for REVOKE.
+//
+// Ref: grant_command and revoke_command in MariaDB 11.8 sql/sql_yacc.yy, whose
+// actions LEX::stmt_grant_table and stmt_grant_sp hold the check.
+func (p *Parser) checkColumnPrivilegeTarget(privs []privOrRole, target *nodes.GrantTarget) error {
+	columns := false
+	for _, e := range privs {
+		columns = columns || e.columns
+	}
+	if !columns {
+		return nil
+	}
+	if target.Type == "FUNCTION" || target.Type == "PROCEDURE" {
+		return p.syntaxErrorAtCur()
+	}
+	// A wildcard is the bare `*` the target ends with; a backquoted `*` is a table
+	// of that name, which takes column privileges: mariadb:11.8.8 runs `GRANT
+	// SELECT(a) ON d.`*` TO u`.
+	if target.Name != nil && strings.HasSuffix(p.inputText(target.Name.Loc.Start, target.Name.Loc.End), "*") {
+		return &ParseError{
+			Message:  "Illegal GRANT/REVOKE command; please consult the manual to see which privileges can be used",
+			Position: target.Loc.Start,
+		}
+	}
+	return nil
 }
 
 // privNames drops the priv-or-role distinction, for the statement fields that
@@ -484,6 +566,10 @@ func (p *Parser) parsePrivOrRoleElem() (privOrRole, error) {
 		p.advance()
 		return privOrRole{name: name, roleOnly: true}, nil
 	}
+	// current_role is a grant_role: mariadb:11.8.8 runs `GRANT current_role TO u`.
+	if name, ok, err := p.parseCurrentRole(); ok || err != nil {
+		return privOrRole{name: name, roleOnly: true}, err
+	}
 	name, word, err := p.parsePrivilegeName()
 	if err != nil {
 		return privOrRole{}, err
@@ -505,7 +591,7 @@ func (p *Parser) parsePrivOrRoleElem() (privOrRole, error) {
 	if word.keyword && name == "GRANT" {
 		return privOrRole{}, p.syntaxErrorAtCur()
 	}
-	return privOrRole{name: name, privOnly: word.multiToken, roleOnly: !isPrivilegeName(name, word)}, nil
+	return privOrRole{name: name, privOnly: word.multiToken, roleOnly: !isPrivilegeName(name, word), columns: word.columns}, nil
 }
 
 // isPrivilegeName reports a privilege word object_privilege lists. Any other name is no
@@ -658,11 +744,12 @@ func (p *Parser) completePrivilegeName(name string) string {
 		case p.cur.Type == kwVIEW:
 			p.advance()
 			name = "CREATE VIEW"
-		case p.cur.Type == kwTEMPORARY:
+		case p.cur.Type == kwTEMPORARY && p.peekNext().Type == kwTABLES:
+			// TABLES is no optional word: a TEMPORARY without it is left for the
+			// caller to refuse, as mariadb:11.8.8 answers 1064 for `GRANT CREATE
+			// TEMPORARY ON * TO a` (object_privilege, CREATE TEMPORARY TABLES).
 			p.advance()
-			if p.cur.Type == kwTABLES {
-				p.advance()
-			}
+			p.advance()
 			name = "CREATE TEMPORARY TABLES"
 		case p.cur.Type == kwTABLESPACE:
 			p.advance()
@@ -1018,6 +1105,25 @@ func (p *Parser) parseRoleRefList() ([]string, error) {
 	return roles, nil
 }
 
+// parseCurrentRole reads current_role, a bare CURRENT_ROLE with an optional empty
+// pair of parentheses, when one is next. mariadb:11.8.8 runs `CREATE ROLE r WITH
+// ADMIN CURRENT_ROLE()` and answers 1064 for a backquoted CURRENT_ROLE before the
+// parentheses, which is a role name.
+//
+// Ref: current_role in MariaDB 11.8 sql/sql_yacc.yy.
+func (p *Parser) parseCurrentRole() (string, bool, error) {
+	if !p.atWord("CURRENT_ROLE") {
+		return "", false, nil
+	}
+	p.advance()
+	if _, ok := p.match('('); ok {
+		if _, err := p.expect(')'); err != nil {
+			return "", false, err
+		}
+	}
+	return "CURRENT_ROLE", true, nil
+}
+
 // parseUserName parses a user identifier, which may be 'user'@'host'.
 func (p *Parser) parseUserName() (string, error) {
 	name, host, hasHost, err := p.parseUserAndHost()
@@ -1053,6 +1159,12 @@ func (p *Parser) parseUserAndHost() (name, host string, hasHost bool, err error)
 			}
 		}
 		return "CURRENT_USER", "", false, nil
+	case p.cur.Type == kwCURRENT_ROLE:
+		// current_role, which user_or_role and grant_role take: a reserved word
+		// with no @host. mariadb:11.8.8 runs `GRANT r TO current_role` and
+		// `CREATE USER current_role()` and answers 1064 for `current_role@h`.
+		name, _, err = p.parseCurrentRole()
+		return name, "", false, err
 	case p.cur.Type == tokSCONST:
 		name = p.cur.Str
 		p.advance()
@@ -1731,6 +1843,27 @@ func (p *Parser) parseCreateRoleStmt(start int, orReplace bool) (*nodes.CreateRo
 	}
 	stmt.Roles = roles
 
+	// [WITH ADMIN user_or_role]: the user or role that administers the new
+	// ones. mariadb:11.8.8 runs `CREATE ROLE a WITH ADMIN CURRENT_USER()` and
+	// answers 1064 for a bare `WITH ADMIN`.
+	//
+	// Ref: opt_with_admin in MariaDB 11.8 sql/sql_yacc.yy.
+	if _, ok := p.match(kwWITH); ok {
+		if _, err := p.expect(kwADMIN); err != nil {
+			return nil, err
+		}
+		admin, ok, err := p.parseCurrentRole()
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			if admin, err = p.parseUserName(); err != nil {
+				return nil, err
+			}
+		}
+		stmt.Admin = admin
+	}
+
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
@@ -1807,22 +1940,72 @@ func (p *Parser) parseUserAuthOption(spec *nodes.UserSpec) error {
 		p.advance()
 	case kwWITH:
 		p.advance()
+		return p.parseAuthExpression(spec)
+	default:
+		// VIA is MariaDB's word for WITH here, a keyword this lexer does not know.
+		if p.atWord("VIA") {
+			p.advance()
+			return p.parseAuthExpression(spec)
+		}
+		return p.syntaxErrorAtCur()
+	}
+	return nil
+}
+
+// parseAuthExpression reads the plugins after IDENTIFIED VIA or WITH: one or more,
+// separated by OR, each with an optional USING or AS and a string, or PASSWORD('s').
+// The first goes in spec, the rest in spec.AuthAlternatives. mariadb:11.8.8 runs
+// `ALTER USER a IDENTIFIED VIA a OR b USING 's' OR c AS PASSWORD('x')` and answers
+// 1064 for a trailing OR.
+//
+// Ref: via_or_with, auth_expression, auth_token, opt_auth_str and using_or_as in
+// MariaDB 11.8 sql/sql_yacc.yy.
+func (p *Parser) parseAuthExpression(spec *nodes.UserSpec) error {
+	for token := spec; ; {
 		plugin, err := p.parseAuthPlugin()
 		if err != nil {
 			return err
 		}
-		spec.AuthPlugin = plugin
-		if p.cur.Type == kwAS {
+		token.AuthPlugin = plugin
+		if p.cur.Type == kwUSING || p.cur.Type == kwAS {
 			p.advance()
-			if p.cur.Type != tokSCONST {
-				return p.syntaxErrorAtCur()
+			if err := p.parseAuthString(token); err != nil {
+				return err
 			}
-			spec.AuthHash = p.cur.Str
-			p.advance()
 		}
-	default:
+		if token != spec {
+			token.Loc.End = p.prev.End
+			spec.AuthAlternatives = append(spec.AuthAlternatives, token)
+		}
+		if p.cur.Type != kwOR {
+			return nil
+		}
+		p.advance() // consume OR
+		token = &nodes.UserSpec{Loc: nodes.Loc{Start: p.pos()}}
+	}
+}
+
+// parseAuthString reads what follows USING or AS: the stored string, or PASSWORD('s'),
+// whose text the plugin hashes.
+//
+// Ref: opt_auth_str in MariaDB 11.8 sql/sql_yacc.yy.
+func (p *Parser) parseAuthString(token *nodes.UserSpec) error {
+	if p.cur.Type == kwPASSWORD {
+		p.advance()
+		if _, err := p.expect('('); err != nil {
+			return err
+		}
+		if p.cur.Type != tokSCONST {
+			return p.syntaxErrorAtCur()
+		}
+		token.Password = p.advance().Str
+		_, err := p.expect(')')
+		return err
+	}
+	if p.cur.Type != tokSCONST {
 		return p.syntaxErrorAtCur()
 	}
+	token.AuthHash = p.advance().Str
 	return nil
 }
 
@@ -2056,7 +2239,8 @@ func (p *Parser) parseRequireClause() (*nodes.RequireClause, error) {
 //	}
 func (p *Parser) startsResourceOption() bool {
 	return p.cur.Type == kwMAX_QUERIES_PER_HOUR || p.cur.Type == kwMAX_UPDATES_PER_HOUR ||
-		p.cur.Type == kwMAX_CONNECTIONS_PER_HOUR || p.cur.Type == kwMAX_USER_CONNECTIONS
+		p.cur.Type == kwMAX_CONNECTIONS_PER_HOUR || p.cur.Type == kwMAX_USER_CONNECTIONS ||
+		p.atWord("MAX_STATEMENT_TIME")
 }
 
 func (p *Parser) parseResourceOptions() (*nodes.ResourceOption, error) {
@@ -2076,8 +2260,32 @@ func (p *Parser) parseResourceOptions() (*nodes.ResourceOption, error) {
 
 // parseResourceOption reads the resource option at the current token and its
 // count into res.
+//
+// Ref: resource_option, int_num, ulong_num and NUM_literal in MariaDB 11.8
+// sql/sql_yacc.yy.
 func (p *Parser) parseResourceOption(res *nodes.ResourceOption) error {
+	if p.atWord("MAX_STATEMENT_TIME") {
+		// NUM_literal: any number, signless, kept as written. mariadb:11.8.8 runs
+		// MAX_STATEMENT_TIME 1.5 and answers 1064 for MAX_STATEMENT_TIME -1.
+		p.advance()
+		if p.cur.Type != tokICONST && p.cur.Type != tokFCONST {
+			return p.syntaxErrorAtCur()
+		}
+		res.MaxStatementTime = p.advance().Str
+		res.HasMaxStatementTime = true
+		return nil
+	}
 	option := p.advance().Type
+	// int_num and ulong_num both open with an optional plus; int_num, which
+	// MAX_USER_CONNECTIONS takes, also with a minus. mariadb:11.8.8 runs
+	// MAX_USER_CONNECTIONS - 1 and MAX_QUERIES_PER_HOUR + 1.
+	sign := 1
+	if p.cur.Type == '+' {
+		p.advance()
+	} else if p.cur.Type == '-' && option == kwMAX_USER_CONNECTIONS {
+		p.advance()
+		sign = -1
+	}
 	if option == kwMAX_USER_CONNECTIONS {
 		// NUM, where the other three are ulong_num and take any number:
 		// mariadb:11.8.8 answers 1064 for MAX_USER_CONNECTIONS 2147483648.
@@ -2087,7 +2295,7 @@ func (p *Parser) parseResourceOption(res *nodes.ResourceOption) error {
 	} else if p.cur.Type != tokICONST && p.cur.Type != tokFCONST {
 		return p.syntaxErrorAtCur()
 	}
-	n := int(p.advance().Ival)
+	n := sign * int(p.advance().Ival)
 	switch option {
 	case kwMAX_QUERIES_PER_HOUR:
 		res.MaxQueriesPerHour = n

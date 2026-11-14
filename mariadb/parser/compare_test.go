@@ -5990,9 +5990,8 @@ RESET MASTER;
 KILL 42;
 DO 1;
 CHECKSUM TABLE t1;
-SHUTDOWN;
-RESTART`,
-			count: 38,
+SHUTDOWN`,
+			count: 37,
 		},
 	}
 
@@ -6470,10 +6469,6 @@ func TestParseSignal(t *testing.T) {
 			sql:  "SIGNAL SQLSTATE VALUE '45000'",
 			want: "{SIGNAL :loc 0 :condition 45000}",
 		},
-		{
-			sql:  "SIGNAL my_error",
-			want: "{SIGNAL :loc 0 :condition my_error}",
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.sql, func(t *testing.T) {
@@ -6575,10 +6570,6 @@ func TestParseGetDiagnostics(t *testing.T) {
 		{
 			sql:  "GET CURRENT DIAGNOSTICS @cnt = NUMBER",
 			want: "{GET_DIAGNOSTICS :loc 0 :stmt_info true :items {DIAG_ITEM :loc 24 :target {VAR :name cnt :loc 24} :name NUMBER}}",
-		},
-		{
-			sql:  "GET DIAGNOSTICS cnt = NUMBER",
-			want: "{GET_DIAGNOSTICS :loc 0 :stmt_info true :items {DIAG_ITEM :loc 16 :target {COLREF :loc 16 :col cnt} :name NUMBER}}",
 		},
 	}
 	for _, tt := range tests {
@@ -7116,8 +7107,10 @@ func TestParseShutdown(t *testing.T) {
 	ParseAndCompare(t, "SHUTDOWN", "{SHUTDOWN :loc 0}")
 }
 
+// MariaDB has no RESTART statement (verb_clause in MariaDB 11.8 sql/sql_yacc.yy); it
+// answers 1064.
 func TestParseRestart(t *testing.T) {
-	ParseAndCompare(t, "RESTART", "{RESTART :loc 0}")
+	ParseExpectError(t, "RESTART")
 }
 
 // ============================================================================
@@ -8080,7 +8073,6 @@ func TestParsePhase2Dispatch(t *testing.T) {
 		// Utility (batch 34)
 		"CHECKSUM TABLE t1",
 		"SHUTDOWN",
-		"RESTART",
 
 		// Plugin/Component (batch 35)
 		"INSTALL PLUGIN p SONAME 'p.so'",
@@ -8411,6 +8403,10 @@ func TestParseImportTable(t *testing.T) {
 
 func TestParseBinlog(t *testing.T) {
 	ParseAndCompare(t, "BINLOG 'base64str'", "{BINLOG :loc 0 :str \"base64str\"}")
+	ParseAndCompare(t, "BINLOG @a, @'b'", "{BINLOG :loc 0 :fragments [\"a\" \"b\"]}")
+	for _, sql := range []string{"BINLOG", "BINLOG @a", "BINLOG @a, @@b", "BINLOG @@a, @b"} {
+		ParseExpectError(t, sql)
+	}
 }
 
 func TestParseCacheIndex(t *testing.T) {

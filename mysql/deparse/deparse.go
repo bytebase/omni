@@ -170,10 +170,7 @@ func writeSelectStmt(b *strings.Builder, stmt *ast.SelectStmt, suppressAlias boo
 	}
 
 	// FOR UPDATE / FOR SHARE / LOCK IN SHARE MODE
-	if stmt.ForUpdate != nil {
-		b.WriteString(" ")
-		b.WriteString(deparseForUpdate(stmt.ForUpdate))
-	}
+	appendLocking(b, stmt)
 }
 
 // deparseForUpdate formats a FOR UPDATE / FOR SHARE / LOCK IN SHARE MODE clause.
@@ -268,7 +265,7 @@ func deparseTableQueryPrimary(stmt *ast.SelectStmt) string {
 		b.WriteString(deparseTableRef(stmt.TableSource.Table))
 	}
 	appendOrderByLimit(&b, stmt.OrderBy, stmt.Limit)
-	appendForUpdate(&b, stmt.ForUpdate)
+	appendLocking(&b, stmt)
 	return b.String()
 }
 
@@ -295,7 +292,7 @@ func deparseValuesQueryPrimary(stmt *ast.SelectStmt) string {
 		b.WriteString(")")
 	}
 	appendOrderByLimit(&b, stmt.OrderBy, stmt.Limit)
-	appendForUpdate(&b, stmt.ForUpdate)
+	appendLocking(&b, stmt)
 	return b.String()
 }
 
@@ -309,6 +306,15 @@ func appendForUpdate(b *strings.Builder, fu *ast.ForUpdate) {
 	}
 	b.WriteString(" ")
 	b.WriteString(deparseForUpdate(fu))
+}
+
+// appendLocking writes a statement's locking_clause_list: its first clause and the
+// ones after it, in order.
+func appendLocking(b *strings.Builder, stmt *ast.SelectStmt) {
+	appendForUpdate(b, stmt.ForUpdate)
+	for _, fu := range stmt.MoreLocking {
+		appendForUpdate(b, fu)
+	}
 }
 
 // limitHasParamMarker reports whether the LIMIT's count or offset is a `?`
@@ -816,6 +822,13 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 		}
 		b.WriteString("CAST(")
 		writeExprAlias(b, n.Expr)
+		if n.AtTimeZone != "" {
+			b.WriteString(" AT TIME ZONE ")
+			if n.AtTimeZoneInterval {
+				b.WriteString("INTERVAL ")
+			}
+			writeExprAlias(b, &ast.StringLit{Value: n.AtTimeZone})
+		}
 		b.WriteString(" AS ")
 		b.WriteString(typeName)
 		b.WriteString(")")
@@ -984,7 +997,13 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 	case *ast.WeightStringExpr:
 		b.WriteString("WEIGHT_STRING(")
 		writeExprAlias(b, n.Expr)
-		if n.AsChar != nil {
+		if n.Numbers {
+			codepoints := 0
+			if n.AsChar != nil {
+				codepoints = n.AsChar.Length
+			}
+			fmt.Fprintf(b, ", %d, %d, %d", n.ResultLength, codepoints, n.Flags)
+		} else if n.AsChar != nil {
 			fmt.Fprintf(b, " AS CHAR(%d)", n.AsChar.Length)
 		}
 		b.WriteString(")")
@@ -1968,7 +1987,16 @@ func writeCaseExpr(b *strings.Builder, n *ast.CaseExpr) {
 
 func writeCastExpr(b *strings.Builder, n *ast.CastExpr) {
 	b.WriteString("cast(")
-	writeExpr(b, n.Expr)
+	if n.AtTimeZone != "" {
+		// MySQL 8.0.46 stores CAST(a AT TIME ZONE 'UTC' AS DATETIME), with or without
+		// INTERVAL, as cast(`time_zone`(a) as datetime): the zone is not kept. The
+		// name is written as this deparser writes that stored text's call, unquoted.
+		b.WriteString("time_zone(")
+		writeExpr(b, n.Expr)
+		b.WriteString(")")
+	} else {
+		writeExpr(b, n.Expr)
+	}
 	b.WriteString(" as ")
 	// Multi-valued-index form CAST(expr AS type ARRAY); MySQL stores the trailing
 	// ARRAY in lowercase in SHOW CREATE TABLE, so emit it to keep the round-trip stable.
@@ -2493,6 +2521,12 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 				b.WriteString(",")
 			}
 			writeExpr(b, arg)
+			// A generic call's argument alias, `f(a AS x)`, which only a loadable
+			// UDF takes past parsing.
+			if i < len(n.ArgAliases) && n.ArgAliases[i] != nil {
+				b.WriteString(" AS ")
+				b.WriteString(quoteIdent(*n.ArgAliases[i]))
+			}
 		}
 		b.WriteString(")")
 	}

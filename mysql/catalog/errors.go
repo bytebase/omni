@@ -1,6 +1,9 @@
 package catalog
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type Error struct {
 	Code     int
@@ -295,4 +298,16 @@ func errFKCannotUseVirtualColumn(col string) error {
 func errWrongArguments(fn string) error {
 	return &Error{Code: ErrWrongArguments, SQLState: sqlState(ErrWrongArguments),
 		Message: fmt.Sprintf("Incorrect arguments to %s", fn)}
+}
+
+// errWrongParametersToNativeFct is 1583: an argument alias on a native function.
+func errWrongParametersToNativeFct(fn string) error {
+	return &Error{Code: 1583, SQLState: "42000",
+		Message: fmt.Sprintf("Incorrect parameters in the call to native function '%s'", fn)}
+}
+
+// errWrongParametersToStoredFct is 1584: an argument alias on a stored function.
+func errWrongParametersToStoredFct(fn string) error {
+	return &Error{Code: 1584, SQLState: "42000",
+		Message: fmt.Sprintf("Incorrect parameters in the call to stored function `%s`", strings.ToLower(fn))}
 }

@@ -665,10 +665,8 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		// Optional SQL SECURITY {DEFINER|INVOKER}
 		var sqlSecurity string
 		if p.cur.Type == kwSQL {
-			p.advance()
-			p.match(kwSECURITY)
-			if p.isIdentToken() {
-				sqlSecurity, _, _ = p.parseIdentifier()
+			if sqlSecurity, err = p.parseViewSQLSecurity(); err != nil {
+				return nil, err
 			}
 		}
 		// Now dispatch on the object keyword
@@ -997,13 +995,16 @@ func (p *Parser) parseDefinerValue() (string, error) {
 	} else if p.isIdentToken() {
 		user, _, _ = p.parseIdentifier()
 	} else {
-		return "", nil
+		return "", p.syntaxErrorAtCur()
 	}
 
 	// Handle CURRENT_USER()
 	if isCurUser && p.cur.Type == '(' {
 		p.advance() // consume (
-		p.match(')')
+		// OptionalBraces is empty or '(' ')' (TiDB v8.5.5 pkg/parser/parser.y).
+		if _, err := p.expect(')'); err != nil {
+			return "", err
+		}
 		return "CURRENT_USER()", nil
 	}
 
