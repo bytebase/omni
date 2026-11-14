@@ -55,8 +55,7 @@ func (w *writer) writeObjectClause(c *ast.ObjectClause) error {
 		w.buf.WriteString(strings.Join(c.Keys, ", "))
 	}
 	for i, o := range c.Options {
-		if i > 0 && o.Name == "" && c.Options[i-1].Name == "" {
-			// A run of nameless options is a list: REGION GROUPS 'a', 'b'.
+		if i > 0 && listsWith(c.Options[i-1], o) {
 			w.buf.WriteByte(',')
 		}
 		w.buf.WriteByte(' ')
@@ -85,12 +84,33 @@ func (w *writer) writeObjectClause(c *ast.ObjectClause) error {
 	return nil
 }
 
+// listsWith reports whether option o continues a comma list after prev: a
+// clause's bare entries (VECTOR INDEXES a, b) or its nameless options
+// (REGION GROUPS 'a', 'b').
+func listsWith(prev, o *ast.CopyOption) bool {
+	return (o.Bare && prev.Bare) || (o.Name == "" && prev.Name == "")
+}
+
 // writeObjectOption writes a property as `NAME = value`, or its value alone
-// when it has no name (an element of a list of groups).
+// when it has no name (an element of a list of groups). A bare entry is its
+// name alone, followed by its Group in parentheses when it has one
+// (VECTOR INDEXES' <column> ( model = '<model>' )).
 func (w *writer) writeObjectOption(o *ast.CopyOption) error {
 	if o.Name != "" {
 		w.buf.WriteString(o.Name)
 		if o.Bare {
+			if o.Group != nil {
+				w.buf.WriteString(" (")
+				for i, e := range o.Group {
+					if i > 0 {
+						w.buf.WriteString(", ")
+					}
+					if err := w.writeObjectOption(e); err != nil {
+						return err
+					}
+				}
+				w.buf.WriteByte(')')
+			}
 			return nil
 		}
 		w.buf.WriteString(" = ")

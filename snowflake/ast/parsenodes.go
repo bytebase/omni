@@ -3344,7 +3344,10 @@ const (
 // + FILE_FORMAT + FILES + PATTERN + STORAGE_INTEGRATION + CREDENTIALS + ...) and,
 // for transfer statements, PUT/GET (PARALLEL, AUTO_COMPRESS, ...). The option
 // name is uppercased; the value is one of the mutually-exclusive forms below.
-// A bare option (e.g. HEADER, FORCE with no `=`) has Bare=true and no value.
+// A bare option (e.g. HEADER, FORCE with no `=`) has Bare=true and no value,
+// except that a bare entry of an ObjectStmt clause may hold a Group, written
+// NAME ( ... ) with no `=` (CORTEX SEARCH SERVICE's VECTOR INDEXES
+// <column> ( model = '<model>' )).
 type CopyOption struct {
 	Name string // uppercased option name (e.g. "ON_ERROR", "FILE_FORMAT")
 	Bare bool   // true for a value-less option (e.g. bare HEADER)
@@ -3405,6 +3408,28 @@ type CopyIntoLocationStmt struct {
 
 // Tag implements Node.
 func (n *CopyIntoLocationStmt) Tag() NodeTag { return T_CopyIntoLocationStmt }
+
+// CopyFilesStmt represents COPY FILES (copy files from one stage to another):
+//
+//	COPY FILES INTO @<stage>[/<path>/]
+//	  FROM @<stage>[/<path>/]
+//	  [ FILES = ( '<file_name>' [ , ... ] ) ] [ PATTERN = '<regex_pattern>' ]
+//	  [ DETAILED_OUTPUT = { TRUE | FALSE } ]
+//	COPY FILES INTO @<stage>[/<path>/]
+//	  FROM ( SELECT <existing_url> [ , <new_filename> ] FROM ... )
+//	  [ DETAILED_OUTPUT = { TRUE | FALSE } ]
+//
+// https://docs.snowflake.com/en/sql-reference/sql/copy-files
+type CopyFilesStmt struct {
+	Into      *StageLocation
+	From      *StageLocation // FROM @<stage>; nil when FromQuery is set
+	FromQuery Node           // FROM ( SELECT ... ); nil when From is set
+	Options   []*CopyOption  // FILES / PATTERN / DETAILED_OUTPUT
+	Loc       Loc
+}
+
+// Tag implements Node.
+func (n *CopyFilesStmt) Tag() NodeTag { return T_CopyFilesStmt }
 
 // PutStmt represents a PUT statement (upload a local file to an internal stage):
 //
@@ -3471,6 +3496,7 @@ var (
 	_ Node = (*CopyOption)(nil)
 	_ Node = (*CopyIntoTableStmt)(nil)
 	_ Node = (*CopyIntoLocationStmt)(nil)
+	_ Node = (*CopyFilesStmt)(nil)
 	_ Node = (*PutStmt)(nil)
 	_ Node = (*GetStmt)(nil)
 	_ Node = (*ListStmt)(nil)
@@ -4332,6 +4358,29 @@ type CreateDatasetStmt struct {
 // Tag implements Node.
 func (n *CreateDatasetStmt) Tag() NodeTag { return T_CreateDatasetStmt }
 
+// AlterDatasetStmt represents
+//
+//	ALTER DATASET <name> ADD VERSION <version_name> FROM <select_statement>
+//	  [ PARTITION BY <string_expr> ] [ COMMENT = '<comment>' ] [ METADATA = '<metadata>' ]
+//	ALTER DATASET [ IF EXISTS ] <name> DROP VERSION <version_name>
+//
+// A version's name may be written as a string ('v1'), as the ADD VERSION
+// page's example does; Version then holds its text with Quoted set, since a
+// string keeps its case as a quoted identifier does.
+type AlterDatasetStmt struct {
+	IfExists    bool
+	Name        *ObjectName
+	Drop        bool          // DROP VERSION; ADD VERSION otherwise
+	Version     Ident         // the version's name
+	Query       Node          // ADD VERSION's FROM <select_statement>
+	PartitionBy Node          // ADD VERSION's PARTITION BY expression, or nil
+	Options     []*CopyOption // ADD VERSION's COMMENT and METADATA, in order
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *AlterDatasetStmt) Tag() NodeTag { return T_AlterDatasetStmt }
+
 // Compile-time assertions for tag / semantic-view / dataset DDL nodes.
 var (
 	_ Node = (*CreateTagStmt)(nil)
@@ -4340,6 +4389,7 @@ var (
 	_ Node = (*CreateSemanticViewStmt)(nil)
 	_ Node = (*AlterSemanticViewStmt)(nil)
 	_ Node = (*CreateDatasetStmt)(nil)
+	_ Node = (*AlterDatasetStmt)(nil)
 )
 
 // ---------------------------------------------------------------------------
@@ -5134,6 +5184,33 @@ type CreateRoutineStmt struct {
 // Tag implements Node.
 func (n *CreateRoutineStmt) Tag() NodeTag { return T_CreateRoutineStmt }
 
+// CreateAiFunctionStmt represents
+//
+//	CREATE [ OR REPLACE ] AI FUNCTION [ IF NOT EXISTS ] <name> (
+//	    [ <arg_name> <arg_data_type> [ , ... ] ] )
+//	  RETURNS <result_data_type>
+//	  { [ COMMENT = '<string_literal>' ] AS <body>
+//	  | FROM EXPERIMENT <experiment_name> RUN <run_name> }
+//
+// Exactly one of Body and Experiment is set. Body holds the body verbatim with
+// its delimiters, as CreateRoutineStmt's does.
+type CreateAiFunctionStmt struct {
+	OrReplace   bool
+	IfNotExists bool
+	Name        *ObjectName
+	Args        []*RoutineArg // nil for an empty argument list
+	ReturnType  *TypeName
+	Options     []*CopyOption // COMMENT
+	Body        string        // AS <body>, incl. delimiters ('...' or $$...$$)
+	BodyDollar  bool          // true when the $$...$$ form was used
+	Experiment  *ObjectName   // FROM EXPERIMENT <experiment_name>
+	Run         Ident         // ... RUN <run_name>
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *CreateAiFunctionStmt) Tag() NodeTag { return T_CreateAiFunctionStmt }
+
 // AlterRoutineAction discriminates the action variants of ALTER FUNCTION /
 // PROCEDURE.
 type AlterRoutineAction int
@@ -5175,6 +5252,7 @@ func (n *AlterRoutineStmt) Tag() NodeTag { return T_AlterRoutineStmt }
 // Compile-time assertions for routine DDL nodes.
 var (
 	_ Node = (*CreateRoutineStmt)(nil)
+	_ Node = (*CreateAiFunctionStmt)(nil)
 	_ Node = (*AlterRoutineStmt)(nil)
 )
 

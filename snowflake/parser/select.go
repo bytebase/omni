@@ -1656,6 +1656,9 @@ func (p *Parser) parseOptionalAlias() (ast.Ident, bool) {
 
 	// Implicit alias: current token is an identifier or non-reserved keyword
 	// that does NOT start a clause.
+	if p.inDatasetQuery && p.startsDatasetVersionClause() {
+		return ast.Ident{}, false
+	}
 	if p.cur.Type == tokIdent || p.cur.Type == tokQuotedIdent ||
 		(p.cur.Type >= 700 && !keywordReserved[p.cur.Type] && !isClauseKeyword(p.cur.Type)) {
 		id, err := p.parseIdent()
