@@ -1341,6 +1341,9 @@ func writeExecStmt(sb *strings.Builder, n *ExecStmt) {
 		sb.WriteString(" :name ")
 		writeNode(sb, n.Name)
 	}
+	if n.ModuleVar != "" {
+		sb.WriteString(fmt.Sprintf(" :moduleVar \"%s\"", escapeString(n.ModuleVar)))
+	}
 	if n.Args != nil {
 		sb.WriteString(" :args ")
 		writeNode(sb, n.Args)

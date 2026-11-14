@@ -264,7 +264,7 @@ reject	reject	engine	statement/createStatisticsStatement!insert	CREATE STATISTIC
 reject	reject	engine	statement/createStatisticsStatement!swap	CREATE_INDEX STATISTICS a ON a(a)
 accept	accept	engine	statement/updateStatisticsStatement	UPDATE STATISTICS a
 reject	reject	engine	statement/updateStatisticsStatement!drop-1	STATISTICS a
-accept	reject	engine	statement/updateStatisticsStatement!drop-2	UPDATE a
+reject	reject	engine	statement/updateStatisticsStatement!drop-2	UPDATE a
 reject	reject	engine	statement/updateStatisticsStatement!drop-3	UPDATE STATISTICS
 accept	accept	engine	statement/updateStatisticsStatement!insert	UPDATE STATISTICS a zzz
 reject	reject	engine	statement/updateStatisticsStatement!swap	UPDATETEXT STATISTICS a
@@ -368,18 +368,18 @@ accept	accept	engine	statement/killStatements	KILL 1
 accept	reject	engine	statement/killStatements!drop-2	KILL
 reject	reject	engine	statement/killStatements!insert	KILL 1 zzz
 reject	accept	engine	statement/killStatements!swap	LANGUAGE 1
-reject	accept	engine	statement/bulkInsertStatement	BULK INSERT a FROM 1
+accept	accept	engine	statement/bulkInsertStatement	BULK INSERT a FROM 1
 reject	reject	engine	statement/bulkInsertStatement!drop-1	INSERT a FROM 1
 reject	reject	engine	statement/bulkInsertStatement!drop-2	BULK a FROM 1
 reject	reject	engine	statement/bulkInsertStatement!drop-3	BULK INSERT FROM 1
 reject	reject	engine	statement/bulkInsertStatement!drop-4	BULK INSERT a 1
-accept	reject	engine	statement/bulkInsertStatement!drop-5	BULK INSERT a FROM
+reject	reject	engine	statement/bulkInsertStatement!drop-5	BULK INSERT a FROM
 reject	reject	engine	statement/bulkInsertStatement!insert	BULK INSERT a FROM 1 zzz
 reject	reject	engine	statement/bulkInsertStatement!swap	BY INSERT a FROM 1
-accept	reject	engine	statement/insertBulkStatement	INSERT BULK a
-accept	reject	engine	statement/insertBulkStatement!drop-1	BULK a
-accept	reject	engine	statement/insertBulkStatement!drop-2	INSERT a
-accept	reject	engine	statement/insertBulkStatement!drop-3	INSERT BULK
+reject	reject	engine	statement/insertBulkStatement	INSERT BULK a
+reject	reject	engine	statement/insertBulkStatement!drop-1	BULK a
+reject	reject	engine	statement/insertBulkStatement!drop-2	INSERT a
+reject	reject	engine	statement/insertBulkStatement!drop-3	INSERT BULK
 reject	reject	engine	statement/insertBulkStatement!insert	INSERT BULK a zzz
 reject	reject	engine	statement/insertBulkStatement!swap	INSTEAD BULK a
 accept	accept	engine	statement/checkpointStatement	CHECKPOINT
@@ -396,8 +396,8 @@ reject	reject	engine	statement/setUserStatement!insert	SETUSER zzz
 reject	accept	engine	statement/setUserStatement!swap	SHARDED
 accept	accept	engine	statement/truncateTableStatement	TRUNCATE TABLE a
 reject	reject	engine	statement/truncateTableStatement!drop-1	TABLE a
-accept	reject	engine	statement/truncateTableStatement!drop-2	TRUNCATE a
-accept	reject	engine	statement/truncateTableStatement!drop-3	TRUNCATE TABLE
+reject	reject	engine	statement/truncateTableStatement!drop-2	TRUNCATE a
+reject	reject	engine	statement/truncateTableStatement!drop-3	TRUNCATE TABLE
 reject	reject	engine	statement/truncateTableStatement!insert	TRUNCATE TABLE a zzz
 reject	reject	engine	statement/truncateTableStatement!swap	TRUNCATE_TARGET TABLE a
 reject	reject	engine	statement/grantStatement90	GRANT a TO PUBLIC
@@ -451,7 +451,7 @@ reject	reject	engine	statement/revertStatement!insert	REVERT zzz
 reject	reject	engine	statement/revertStatement!swap	REVOKE
 reject	reject	engine	statement/executeAsStatement	EXECUTE AS a
 reject	reject	engine	statement/executeAsStatement!drop-1	AS a
-accept	reject	engine	statement/executeAsStatement!drop-3	EXECUTE AS
+reject	reject	engine	statement/executeAsStatement!drop-3	EXECUTE AS
 reject	reject	engine	statement/executeAsStatement!insert	EXECUTE AS a zzz
 reject	reject	engine	statement/executeAsStatement!swap	EXISTS AS a
 accept	accept	engine	statement/endConversationStatement	END CONVERSATION 1
@@ -480,8 +480,8 @@ reject	accept	engine	withCommonTableExpressionsAndXmlNamespacesStatements(select
 accept	accept	engine	withCommonTableExpressionsAndXmlNamespacesStatements(select|deleteStatement|insertStateme~29258719)/insertStatement	INSERT a DEFAULT VALUES
 reject	reject	engine	withCommonTableExpressionsAndXmlNamespacesStatements(select|deleteStatement|insertStateme~29258719)/insertStatement!drop-1	a DEFAULT VALUES
 reject	reject	engine	withCommonTableExpressionsAndXmlNamespacesStatements(select|deleteStatement|insertStateme~29258719)/insertStatement!drop-2	INSERT DEFAULT VALUES
-accept	reject	engine	withCommonTableExpressionsAndXmlNamespacesStatements(select|deleteStatement|insertStateme~29258719)/insertStatement!drop-3	INSERT a VALUES
-accept	reject	engine	withCommonTableExpressionsAndXmlNamespacesStatements(select|deleteStatement|insertStateme~29258719)/insertStatement!drop-4	INSERT a DEFAULT
+reject	reject	engine	withCommonTableExpressionsAndXmlNamespacesStatements(select|deleteStatement|insertStateme~29258719)/insertStatement!drop-3	INSERT a VALUES
+reject	reject	engine	withCommonTableExpressionsAndXmlNamespacesStatements(select|deleteStatement|insertStateme~29258719)/insertStatement!drop-4	INSERT a DEFAULT
 reject	reject	engine	withCommonTableExpressionsAndXmlNamespacesStatements(select|deleteStatement|insertStateme~29258719)/insertStatement!insert	INSERT a DEFAULT VALUES zzz
 reject	reject	engine	withCommonTableExpressionsAndXmlNamespacesStatements(select|deleteStatement|insertStateme~29258719)/insertStatement!swap	INSTEAD a DEFAULT VALUES
 accept	accept	engine	withCommonTableExpressionsAndXmlNamespacesStatements(select|deleteStatement|insertStateme~29258719)/updateStatement	UPDATE a SET @a = 1
@@ -3003,8 +3003,8 @@ accept	accept	engine	restoreMasterKeyStatement(FORCE)?/%empty	RESTORE MASTER KEY
 accept	accept	engine	restoreMasterKeyStatement(FORCE)?/FORCE	RESTORE MASTER KEY FROM FILE = 'a' DECRYPTION BY PASSWORD = 'a' ENCRYPTION BY PASSWORD = 'a' FORCE
 reject	reject	engine	restoreMasterKeyStatement(FORCE)?/FORCE!insert	RESTORE MASTER KEY FROM FILE = 'a' DECRYPTION BY PASSWORD = 'a' ENCRYPTION BY PASSWORD = 'a' FORCE zzz
 reject	reject	engine	restoreMasterKeyStatement(FORCE)?/FORCE!swap	RESTORE MASTER KEY FROM FILE = 'a' DECRYPTION BY PASSWORD = 'a' ENCRYPTION BY PASSWORD = 'a' FORCED
-reject	accept	engine	bulkInsertStatement/Bulk_Insert_schemaObjectThreePartName_From_bulkInsertFr~8fab3bd5	BULK INSERT a FROM 1
-reject	accept	engine	bulkInsertStatement(bulkInsertOptions)?/%empty	BULK INSERT a FROM 1
+accept	accept	engine	bulkInsertStatement/Bulk_Insert_schemaObjectThreePartName_From_bulkInsertFr~8fab3bd5	BULK INSERT a FROM 1
+accept	accept	engine	bulkInsertStatement(bulkInsertOptions)?/%empty	BULK INSERT a FROM 1
 reject	reject	engine	bulkInsertStatement(bulkInsertOptions)?/bulkInsertOptions	BULK INSERT a FROM 1 WITH(a)
 reject	reject	engine	bulkInsertStatement(bulkInsertOptions)?/bulkInsertOptions!drop-1	BULK INSERT a FROM 1(a)
 reject	reject	engine	bulkInsertStatement(bulkInsertOptions)?/bulkInsertOptions!drop-2	BULK INSERT a FROM 1 WITH a)
@@ -3012,7 +3012,7 @@ reject	reject	engine	bulkInsertStatement(bulkInsertOptions)?/bulkInsertOptions!d
 reject	reject	engine	bulkInsertStatement(bulkInsertOptions)?/bulkInsertOptions!drop-4	BULK INSERT a FROM 1 WITH(a
 reject	reject	engine	bulkInsertStatement(bulkInsertOptions)?/bulkInsertOptions!insert	BULK INSERT a FROM 1 WITH(a) zzz
 reject	reject	engine	bulkInsertStatement(bulkInsertOptions)?/bulkInsertOptions!swap	BULK INSERT a FROM 1 WITHIN(a)
-reject	accept	engine	bulkInsertFrom/integer	BULK INSERT a FROM 1
+accept	accept	engine	bulkInsertFrom/integer	BULK INSERT a FROM 1
 accept	accept	engine	bulkInsertFrom/stringOrIdentifier	BULK INSERT a FROM 'a'
 reject	reject	engine	bulkInsertFrom/stringOrIdentifier!insert	BULK INSERT a FROM 'a' zzz
 reject	reject	engine	bulkInsertOptions/With_LeftParenthesis_bulkInsertOption_(Comma_bulkInsert~858ce849	BULK INSERT a FROM 1 WITH(a)
@@ -3023,7 +3023,7 @@ reject	reject	engine	bulkInsertOptions(Comma_bulkInsertOption)*/Comma_bulkInsert
 reject	reject	engine	bulkInsertOptions(Comma_bulkInsertOption)*/Comma_bulkInsertOption_(Comma_bulkInsertOption)*!drop-2	BULK INSERT a FROM 1 WITH(a,)
 reject	reject	engine	bulkInsertOptions(Comma_bulkInsertOption)*/Comma_bulkInsertOption_(Comma_bulkInsertOption)*!truncate	BULK INSERT a FROM 1 WITH(a,
 reject	reject	engine	bulkInsertOptions(Comma_bulkInsertOption)*/Comma_bulkInsertOption_(Comma_bulkInsertOption)*!insert	BULK INSERT a FROM 1 WITH(a, a zzz)
-reject	accept	engine	bulkInsertOption/bulkInsertSortOrderOption	BULK INSERT a FROM 1 WITH(ORDER(a))
+accept	accept	engine	bulkInsertOption/bulkInsertSortOrderOption	BULK INSERT a FROM 1 WITH(ORDER(a))
 reject	reject	engine	bulkInsertOption/bulkInsertSortOrderOption!drop-1	BULK INSERT a FROM 1 WITH((a))
 reject	reject	engine	bulkInsertOption/bulkInsertSortOrderOption!drop-2	BULK INSERT a FROM 1 WITH(ORDER a))
 reject	reject	engine	bulkInsertOption/bulkInsertSortOrderOption!drop-3	BULK INSERT a FROM 1 WITH(ORDER())
@@ -3039,17 +3039,17 @@ reject	reject	engine	bulkInsertOption/simpleBulkInsertOptionWithValue!truncate	B
 reject	reject	engine	bulkInsertOption/simpleBulkInsertOptionWithValue!insert	BULK INSERT a FROM 1 WITH(a = 1 zzz)
 reject	reject	engine	bulkInsertOption/simpleBulkInsertOptionNoValue	BULK INSERT a FROM 1 WITH(a)
 reject	reject	engine	bulkInsertOption/simpleBulkInsertOptionNoValue!truncate	BULK INSERT a FROM 1 WITH(
-accept	reject	engine	insertBulkOption/bulkInsertSortOrderOption	INSERT BULK a WITH(ORDER(a))
+reject	reject	engine	insertBulkOption/bulkInsertSortOrderOption	INSERT BULK a WITH(ORDER(a))
 reject	reject	engine	insertBulkOption/bulkInsertSortOrderOption!drop-1	INSERT BULK a WITH((a))
 reject	reject	engine	insertBulkOption/bulkInsertSortOrderOption!drop-2	INSERT BULK a WITH(ORDER a))
-accept	reject	engine	insertBulkOption/bulkInsertSortOrderOption!drop-3	INSERT BULK a WITH(ORDER())
-accept	reject	engine	insertBulkOption/bulkInsertSortOrderOption!drop-4	INSERT BULK a WITH(ORDER(a)
-accept	reject	engine	insertBulkOption/bulkInsertSortOrderOption!truncate	INSERT BULK a WITH(ORDER(a
+reject	reject	engine	insertBulkOption/bulkInsertSortOrderOption!drop-3	INSERT BULK a WITH(ORDER())
+reject	reject	engine	insertBulkOption/bulkInsertSortOrderOption!drop-4	INSERT BULK a WITH(ORDER(a)
+reject	reject	engine	insertBulkOption/bulkInsertSortOrderOption!truncate	INSERT BULK a WITH(ORDER(a
 reject	reject	engine	insertBulkOption/bulkInsertSortOrderOption!insert	INSERT BULK a WITH(ORDER(a) zzz)
 reject	reject	engine	insertBulkOption/bulkInsertSortOrderOption!swap	INSERT BULK a WITH(OUT(a))
 reject	reject	engine	insertBulkOption/simpleInsertBulkOption	INSERT BULK a WITH(a)
-accept	reject	engine	insertBulkOption/simpleInsertBulkOption!drop-1	INSERT BULK a WITH()
-accept	reject	engine	insertBulkOption/simpleInsertBulkOption!truncate	INSERT BULK a WITH(
+reject	reject	engine	insertBulkOption/simpleInsertBulkOption!drop-1	INSERT BULK a WITH()
+reject	reject	engine	insertBulkOption/simpleInsertBulkOption!truncate	INSERT BULK a WITH(
 reject	reject	engine	insertBulkOption/simpleInsertBulkOption!insert	INSERT BULK a WITH(a zzz)
 reject	reject	engine	simpleInsertBulkOption/Identifier_((EqualsSign_integerOrNumeric)|)	INSERT BULK a WITH(a)
 reject	reject	engine	simpleInsertBulkOption((EqualsSign_integerOrNumeric)|)/EqualsSign_integerOrNumeric	INSERT BULK a WITH(a = 1)
@@ -3075,17 +3075,17 @@ reject	reject	engine	simpleBulkInsertOptionWithValue(TRUE|FALSE)/FALSE	DELETE OP
 reject	reject	engine	simpleBulkInsertOptionWithValue(TRUE|FALSE)/FALSE!insert	DELETE OPENROWSET(BULK 'a', a = FALSE zzz)
 reject	reject	engine	simpleBulkInsertOptionWithValue(TRUE|FALSE)/FALSE!swap	DELETE OPENROWSET(BULK 'a', a = FAN_IN)
 reject	reject	engine	simpleBulkInsertOptionNoValue/Identifier	BULK INSERT a FROM 1 WITH(a)
-accept	reject	engine	insertBulkStatement/Insert_Bulk_schemaObjectThreePartName_(coldefList)?_(in~ba0b23c3	INSERT BULK a
-accept	reject	engine	insertBulkStatement(coldefList)?/%empty	INSERT BULK a
+reject	reject	engine	insertBulkStatement/Insert_Bulk_schemaObjectThreePartName_(coldefList)?_(in~ba0b23c3	INSERT BULK a
+reject	reject	engine	insertBulkStatement(coldefList)?/%empty	INSERT BULK a
 accept	accept	engine	insertBulkStatement(coldefList)?/coldefList	INSERT BULK a(TIMESTAMP)
 reject	reject	engine	insertBulkStatement(coldefList)?/coldefList!drop-1	INSERT BULK a TIMESTAMP)
-accept	reject	engine	insertBulkStatement(coldefList)?/coldefList!drop-2	INSERT BULK a()
-accept	reject	engine	insertBulkStatement(coldefList)?/coldefList!drop-3	INSERT BULK a(TIMESTAMP
+reject	reject	engine	insertBulkStatement(coldefList)?/coldefList!drop-2	INSERT BULK a()
+reject	reject	engine	insertBulkStatement(coldefList)?/coldefList!drop-3	INSERT BULK a(TIMESTAMP
 reject	reject	engine	insertBulkStatement(coldefList)?/coldefList!insert	INSERT BULK a(TIMESTAMP) zzz
 reject	reject	engine	insertBulkStatement(coldefList)?/coldefList!swap	INSERT BULK a(TO)
-accept	reject	engine	insertBulkStatement(insertBulkOptions)?/%empty	INSERT BULK a
+reject	reject	engine	insertBulkStatement(insertBulkOptions)?/%empty	INSERT BULK a
 reject	reject	engine	insertBulkStatement(insertBulkOptions)?/insertBulkOptions	INSERT BULK a WITH(a)
-accept	reject	engine	insertBulkStatement(insertBulkOptions)?/insertBulkOptions!drop-1	INSERT BULK a(a)
+reject	reject	engine	insertBulkStatement(insertBulkOptions)?/insertBulkOptions!drop-1	INSERT BULK a(a)
 reject	reject	engine	insertBulkStatement(insertBulkOptions)?/insertBulkOptions!drop-2	INSERT BULK a WITH a)
 reject	reject	engine	insertBulkStatement(insertBulkOptions)?/insertBulkOptions!drop-4	INSERT BULK a WITH(a
 reject	reject	engine	insertBulkStatement(insertBulkOptions)?/insertBulkOptions!insert	INSERT BULK a WITH(a) zzz
@@ -3095,12 +3095,12 @@ accept	accept	engine	coldefList(Comma_coldefItem)*/%empty	INSERT BULK a(TIMESTAM
 accept	accept	engine	coldefList(Comma_coldefItem)*/%empty!insert	INSERT BULK a(TIMESTAMP zzz)
 accept	accept	engine	coldefList(Comma_coldefItem)*/Comma_coldefItem_(Comma_coldefItem)*	INSERT BULK a(TIMESTAMP, TIMESTAMP)
 accept	accept	engine	coldefList(Comma_coldefItem)*/Comma_coldefItem_(Comma_coldefItem)*!drop-1	INSERT BULK a(TIMESTAMP TIMESTAMP)
-accept	reject	engine	coldefList(Comma_coldefItem)*/Comma_coldefItem_(Comma_coldefItem)*!drop-2	INSERT BULK a(TIMESTAMP,)
-accept	reject	engine	coldefList(Comma_coldefItem)*/Comma_coldefItem_(Comma_coldefItem)*!truncate	INSERT BULK a(TIMESTAMP,
+reject	reject	engine	coldefList(Comma_coldefItem)*/Comma_coldefItem_(Comma_coldefItem)*!drop-2	INSERT BULK a(TIMESTAMP,)
+reject	reject	engine	coldefList(Comma_coldefItem)*/Comma_coldefItem_(Comma_coldefItem)*!truncate	INSERT BULK a(TIMESTAMP,
 accept	accept	engine	coldefList(Comma_coldefItem)*/Comma_coldefItem_(Comma_coldefItem)*!insert	INSERT BULK a(TIMESTAMP, TIMESTAMP zzz)
 reject	reject	engine	coldefList(Comma_coldefItem)*/Comma_coldefItem_(Comma_coldefItem)*!swap	INSERT BULK a(TIMESTAMP, TO)
 accept	accept	engine	coldefItem/columnDefinitionEx_(nullNotNull)?	INSERT BULK a(TIMESTAMP)
-accept	reject	engine	coldefItem/columnDefinitionEx_(nullNotNull)?!truncate	INSERT BULK a(
+reject	reject	engine	coldefItem/columnDefinitionEx_(nullNotNull)?!truncate	INSERT BULK a(
 accept	accept	engine	coldefItem(nullNotNull)?/%empty	INSERT BULK a(TIMESTAMP)
 accept	accept	engine	coldefItem(nullNotNull)?/nullNotNull	INSERT BULK a(TIMESTAMP NULL)
 reject	reject	engine	coldefItem(nullNotNull)?/nullNotNull!insert	INSERT BULK a(TIMESTAMP NULL zzz)
@@ -3112,13 +3112,13 @@ reject	reject	engine	insertBulkOptions(Comma_insertBulkOption)*/Comma_insertBulk
 reject	reject	engine	insertBulkOptions(Comma_insertBulkOption)*/Comma_insertBulkOption_(Comma_insertBulkOption)*!drop-2	INSERT BULK a WITH(a,)
 reject	reject	engine	insertBulkOptions(Comma_insertBulkOption)*/Comma_insertBulkOption_(Comma_insertBulkOption)*!truncate	INSERT BULK a WITH(a,
 reject	reject	engine	insertBulkOptions(Comma_insertBulkOption)*/Comma_insertBulkOption_(Comma_insertBulkOption)*!insert	INSERT BULK a WITH(a, a zzz)
-accept	reject	engine	bulkInsertSortOrderOption/Order_LeftParenthesis_columnWithSortOrder_(Comma_column~3e0a5ad1	INSERT BULK a WITH(ORDER(a))
-accept	reject	engine	bulkInsertSortOrderOption(Comma_columnWithSortOrder)*/%empty	INSERT BULK a WITH(ORDER(a))
+reject	reject	engine	bulkInsertSortOrderOption/Order_LeftParenthesis_columnWithSortOrder_(Comma_column~3e0a5ad1	INSERT BULK a WITH(ORDER(a))
+reject	reject	engine	bulkInsertSortOrderOption(Comma_columnWithSortOrder)*/%empty	INSERT BULK a WITH(ORDER(a))
 reject	reject	engine	bulkInsertSortOrderOption(Comma_columnWithSortOrder)*/%empty!insert	INSERT BULK a WITH(ORDER(a zzz))
-accept	reject	engine	bulkInsertSortOrderOption(Comma_columnWithSortOrder)*/Comma_columnWithSortOrder_(Comma_columnWithSortOrder)*	INSERT BULK a WITH(ORDER(a, a))
+reject	reject	engine	bulkInsertSortOrderOption(Comma_columnWithSortOrder)*/Comma_columnWithSortOrder_(Comma_columnWithSortOrder)*	INSERT BULK a WITH(ORDER(a, a))
 reject	reject	engine	bulkInsertSortOrderOption(Comma_columnWithSortOrder)*/Comma_columnWithSortOrder_(Comma_columnWithSortOrder)*!drop-1	INSERT BULK a WITH(ORDER(a a))
-accept	reject	engine	bulkInsertSortOrderOption(Comma_columnWithSortOrder)*/Comma_columnWithSortOrder_(Comma_columnWithSortOrder)*!drop-2	INSERT BULK a WITH(ORDER(a,))
-accept	reject	engine	bulkInsertSortOrderOption(Comma_columnWithSortOrder)*/Comma_columnWithSortOrder_(Comma_columnWithSortOrder)*!truncate	INSERT BULK a WITH(ORDER(a,
+reject	reject	engine	bulkInsertSortOrderOption(Comma_columnWithSortOrder)*/Comma_columnWithSortOrder_(Comma_columnWithSortOrder)*!drop-2	INSERT BULK a WITH(ORDER(a,))
+reject	reject	engine	bulkInsertSortOrderOption(Comma_columnWithSortOrder)*/Comma_columnWithSortOrder_(Comma_columnWithSortOrder)*!truncate	INSERT BULK a WITH(ORDER(a,
 reject	reject	engine	bulkInsertSortOrderOption(Comma_columnWithSortOrder)*/Comma_columnWithSortOrder_(Comma_columnWithSortOrder)*!insert	INSERT BULK a WITH(ORDER(a, a zzz))
 reject	reject	engine	openRowsetBulkOrderHint/bulkInsertSortOrderOption_(Unique)?	DELETE OPENROWSET(BULK 'a', ORDER(a))
 reject	reject	engine	openRowsetBulkOrderHint/bulkInsertSortOrderOption_(Unique)?!drop-1	DELETE OPENROWSET(BULK 'a',(a))
@@ -8057,8 +8057,8 @@ reject	accept	engine	withCommonTableExpressionsAndXmlNamespaces/With_(xmlNamespa
 accept	accept	engine	withCommonTableExpressionsAndXmlNamespaces(xmlNamespaces_XMLNAMESPACES|ctContex~890955dc)/xmlNamespaces_XMLNAMESPACES	WITH XMLNAMESPACES(DEFAULT 'a') SELECT *
 reject	reject	engine	withCommonTableExpressionsAndXmlNamespaces(xmlNamespaces_XMLNAMESPACES|ctContex~890955dc)/xmlNamespaces_XMLNAMESPACES!drop-1	WITH(DEFAULT 'a') SELECT *
 reject	reject	engine	withCommonTableExpressionsAndXmlNamespaces(xmlNamespaces_XMLNAMESPACES|ctContex~890955dc)/xmlNamespaces_XMLNAMESPACES!drop-2	WITH XMLNAMESPACES DEFAULT 'a') SELECT *
-accept	reject	engine	withCommonTableExpressionsAndXmlNamespaces(xmlNamespaces_XMLNAMESPACES|ctContex~890955dc)/xmlNamespaces_XMLNAMESPACES!drop-3	WITH XMLNAMESPACES('a') SELECT *
-accept	reject	engine	withCommonTableExpressionsAndXmlNamespaces(xmlNamespaces_XMLNAMESPACES|ctContex~890955dc)/xmlNamespaces_XMLNAMESPACES!drop-4	WITH XMLNAMESPACES(DEFAULT) SELECT *
+reject	reject	engine	withCommonTableExpressionsAndXmlNamespaces(xmlNamespaces_XMLNAMESPACES|ctContex~890955dc)/xmlNamespaces_XMLNAMESPACES!drop-3	WITH XMLNAMESPACES('a') SELECT *
+reject	reject	engine	withCommonTableExpressionsAndXmlNamespaces(xmlNamespaces_XMLNAMESPACES|ctContex~890955dc)/xmlNamespaces_XMLNAMESPACES!drop-4	WITH XMLNAMESPACES(DEFAULT) SELECT *
 reject	reject	engine	withCommonTableExpressionsAndXmlNamespaces(xmlNamespaces_XMLNAMESPACES|ctContex~890955dc)/xmlNamespaces_XMLNAMESPACES!drop-5	WITH XMLNAMESPACES(DEFAULT 'a' SELECT *
 reject	reject	engine	withCommonTableExpressionsAndXmlNamespaces(xmlNamespaces_XMLNAMESPACES|ctContex~890955dc)/xmlNamespaces_XMLNAMESPACES!truncate	WITH XMLNAMESPACES(DEFAULT 'a'
 reject	reject	engine	withCommonTableExpressionsAndXmlNamespaces(xmlNamespaces_XMLNAMESPACES|ctContex~890955dc)/xmlNamespaces_XMLNAMESPACES!insert	WITH XMLNAMESPACES(DEFAULT 'a') zzz SELECT *
@@ -8112,9 +8112,9 @@ reject	reject	engine	xmlNamespacesElement/xmlNamespacesDefaultElement!truncate	W
 reject	reject	engine	xmlNamespacesElement/xmlNamespacesDefaultElement!insert	WITH XMLNAMESPACES(DEFAULT 'a' zzz) SELECT *
 reject	reject	engine	xmlNamespacesElement/xmlNamespacesDefaultElement!swap	WITH XMLNAMESPACES(DEFAULT_DATABASE 'a') SELECT *
 accept	accept	engine	xmlNamespacesElement/xmlNamespacesAliasElement	WITH XMLNAMESPACES('a' AS a) SELECT *
-accept	reject	engine	xmlNamespacesElement/xmlNamespacesAliasElement!drop-1	WITH XMLNAMESPACES(AS a) SELECT *
+reject	reject	engine	xmlNamespacesElement/xmlNamespacesAliasElement!drop-1	WITH XMLNAMESPACES(AS a) SELECT *
 reject	reject	engine	xmlNamespacesElement/xmlNamespacesAliasElement!drop-2	WITH XMLNAMESPACES('a' a) SELECT *
-accept	reject	engine	xmlNamespacesElement/xmlNamespacesAliasElement!drop-3	WITH XMLNAMESPACES('a' AS) SELECT *
+reject	reject	engine	xmlNamespacesElement/xmlNamespacesAliasElement!drop-3	WITH XMLNAMESPACES('a' AS) SELECT *
 reject	reject	engine	xmlNamespacesElement/xmlNamespacesAliasElement!truncate	WITH XMLNAMESPACES('a' AS
 reject	reject	engine	xmlNamespacesElement/xmlNamespacesAliasElement!insert	WITH XMLNAMESPACES('a' AS a zzz) SELECT *
 reject	reject	engine	xmlNamespacesElement/xmlNamespacesAliasElement!swap	WITH XMLNAMESPACES('a' ASC a) SELECT *
@@ -8512,8 +8512,8 @@ accept	accept	engine	selectExpression/selectColumn	SELECT 1
 accept	accept	engine	selectColumnOrStarExpression/selectStarExpression	SELECT(SELECT *)
 accept	accept	engine	selectColumnOrStarExpression/selectColumn	SELECT(SELECT 1)
 accept	accept	engine	selectColumnOrStarExpression/selectColumn!insert	SELECT(SELECT 1 zzz)
-accept	reject	engine	outputClauseSelectElement/selectStarExpression	DELETE a OUTPUT *
-accept	reject	engine	outputClauseSelectElement/selectStarExpression!drop-1	DELETE a OUTPUT
+reject	reject	engine	outputClauseSelectElement/selectStarExpression	DELETE a OUTPUT *
+reject	reject	engine	outputClauseSelectElement/selectStarExpression!drop-1	DELETE a OUTPUT
 reject	reject	engine	outputClauseSelectElement/selectStarExpression!insert	DELETE a OUTPUT * zzz
 accept	accept	engine	outputClauseSelectElement/outputClauseSelectColumn	DELETE a OUTPUT 1
 accept	accept	engine	outputClauseSelectElement/outputClauseSelectColumn!insert	DELETE a OUTPUT 1 zzz
@@ -9209,23 +9209,23 @@ accept	reject	engine	raiseErrorStatement(Comma_Identifier)*/Comma_Identifier_(Co
 reject	reject	engine	raiseErrorStatement(Comma_Identifier)*/Comma_Identifier_(Comma_Identifier)*!drop-1	RAISERROR(1, 1, 1) WITH a a
 accept	reject	engine	raiseErrorStatement(Comma_Identifier)*/Comma_Identifier_(Comma_Identifier)*!drop-2	RAISERROR(1, 1, 1) WITH a,
 reject	reject	engine	raiseErrorStatement(Comma_Identifier)*/Comma_Identifier_(Comma_Identifier)*!insert	RAISERROR(1, 1, 1) WITH a, a zzz
-accept	reject	engine	outputIntoClause/Into_(variableDmlTarget|intoSchemaObjectTable)_(identif~07f52c0a	DELETE a OUTPUT * INTO @a
+reject	reject	engine	outputIntoClause/Into_(variableDmlTarget|intoSchemaObjectTable)_(identif~07f52c0a	DELETE a OUTPUT * INTO @a
 reject	reject	engine	outputIntoClause/Into_(variableDmlTarget|intoSchemaObjectTable)_(identif~07f52c0a!drop-1	DELETE a OUTPUT * @a
-accept	reject	engine	outputIntoClause/Into_(variableDmlTarget|intoSchemaObjectTable)_(identif~07f52c0a!drop-2	DELETE a OUTPUT * INTO
+reject	reject	engine	outputIntoClause/Into_(variableDmlTarget|intoSchemaObjectTable)_(identif~07f52c0a!drop-2	DELETE a OUTPUT * INTO
 reject	reject	engine	outputIntoClause/Into_(variableDmlTarget|intoSchemaObjectTable)_(identif~07f52c0a!insert	DELETE a OUTPUT * INTO @a zzz
 reject	reject	engine	outputIntoClause/Into_(variableDmlTarget|intoSchemaObjectTable)_(identif~07f52c0a!swap	DELETE a OUTPUT * IS @a
-accept	reject	engine	outputIntoClause(variableDmlTarget|intoSchemaObjectTable)/variableDmlTarget	DELETE a OUTPUT * INTO @a
-accept	reject	engine	outputIntoClause(variableDmlTarget|intoSchemaObjectTable)/intoSchemaObjectTable	DELETE a OUTPUT * INTO a
+reject	reject	engine	outputIntoClause(variableDmlTarget|intoSchemaObjectTable)/variableDmlTarget	DELETE a OUTPUT * INTO @a
+reject	reject	engine	outputIntoClause(variableDmlTarget|intoSchemaObjectTable)/intoSchemaObjectTable	DELETE a OUTPUT * INTO a
 reject	reject	engine	outputIntoClause(variableDmlTarget|intoSchemaObjectTable)/intoSchemaObjectTable!insert	DELETE a OUTPUT * INTO a zzz
-accept	reject	engine	outputIntoClause(identifierColumnList)?/%empty	DELETE a OUTPUT * INTO @a
-accept	reject	engine	outputIntoClause(identifierColumnList)?/identifierColumnList	DELETE a OUTPUT * INTO @a(a)
+reject	reject	engine	outputIntoClause(identifierColumnList)?/%empty	DELETE a OUTPUT * INTO @a
+reject	reject	engine	outputIntoClause(identifierColumnList)?/identifierColumnList	DELETE a OUTPUT * INTO @a(a)
 reject	reject	engine	outputIntoClause(identifierColumnList)?/identifierColumnList!drop-1	DELETE a OUTPUT * INTO @a a)
 reject	reject	engine	outputIntoClause(identifierColumnList)?/identifierColumnList!drop-2	DELETE a OUTPUT * INTO @a()
 reject	reject	engine	outputIntoClause(identifierColumnList)?/identifierColumnList!drop-3	DELETE a OUTPUT * INTO @a(a
 reject	reject	engine	outputIntoClause(identifierColumnList)?/identifierColumnList!insert	DELETE a OUTPUT * INTO @a(a) zzz
-accept	reject	engine	intoSchemaObjectTable/schemaObjectFourPartName	DELETE a OUTPUT * INTO a
+reject	reject	engine	intoSchemaObjectTable/schemaObjectFourPartName	DELETE a OUTPUT * INTO a
 accept	accept	engine	outputClauseOpt/(outputIntoOutputClause_OUTPUT|)	DELETE a
-accept	reject	engine	outputClauseOpt(outputIntoOutputClause_OUTPUT|)/outputIntoOutputClause_OUTPUT	DELETE a OUTPUT *
+reject	reject	engine	outputClauseOpt(outputIntoOutputClause_OUTPUT|)/outputIntoOutputClause_OUTPUT	DELETE a OUTPUT *
 reject	reject	engine	outputClauseOpt(outputIntoOutputClause_OUTPUT|)/outputIntoOutputClause_OUTPUT!drop-1	DELETE a *
 reject	reject	engine	outputClauseOpt(outputIntoOutputClause_OUTPUT|)/outputIntoOutputClause_OUTPUT!swap	DELETE a OUTPUT_OPTIONS *
 accept	accept	engine	outputClauseOpt(outputIntoOutputClause_OUTPUT|)/%empty	DELETE a
@@ -9441,10 +9441,10 @@ accept	accept	engine	schemaObjectDmlTarget/schemaObjectTableDmlTarget	DELETE a
 reject	accept	engine	schemaObjectFunctionDmlTarget/schemaObjectFourPartName_parenthesizedOptExpressionWith~06b8cc82	DELETE a()
 accept	accept	engine	schemaObjectTableDmlTarget/schemaObjectFourPartName_(With_tableHints)?	DELETE a
 accept	accept	engine	schemaObjectTableDmlTarget(With_tableHints)?/%empty	DELETE a
-accept	reject	engine	schemaObjectTableDmlTarget(With_tableHints)?/With_tableHints	DELETE a WITH(FORCESEEK)
+reject	reject	engine	schemaObjectTableDmlTarget(With_tableHints)?/With_tableHints	DELETE a WITH(FORCESEEK)
 reject	reject	engine	schemaObjectTableDmlTarget(With_tableHints)?/With_tableHints!drop-1	DELETE a(FORCESEEK)
 reject	reject	engine	schemaObjectTableDmlTarget(With_tableHints)?/With_tableHints!drop-2	DELETE a WITH FORCESEEK)
-accept	reject	engine	schemaObjectTableDmlTarget(With_tableHints)?/With_tableHints!drop-3	DELETE a WITH()
+reject	reject	engine	schemaObjectTableDmlTarget(With_tableHints)?/With_tableHints!drop-3	DELETE a WITH()
 reject	reject	engine	schemaObjectTableDmlTarget(With_tableHints)?/With_tableHints!drop-4	DELETE a WITH(FORCESEEK
 reject	reject	engine	schemaObjectTableDmlTarget(With_tableHints)?/With_tableHints!insert	DELETE a WITH(FORCESEEK) zzz
 reject	reject	engine	schemaObjectTableDmlTarget(With_tableHints)?/With_tableHints!swap	DELETE a WITHIN(FORCESEEK)
@@ -9878,27 +9878,27 @@ reject	reject	engine	simpleTableHints(oldForceIndex|tableHints)/tableHints!drop-
 reject	reject	engine	simpleTableHints(oldForceIndex|tableHints)/tableHints!drop-3	SELECT * FROM a WITH(FORCESEEK
 reject	reject	engine	simpleTableHints(oldForceIndex|tableHints)/tableHints!insert	SELECT * FROM a WITH(FORCESEEK) zzz
 reject	reject	engine	simpleTableHints(oldForceIndex|tableHints)/tableHints!swap	SELECT * FROM a WITH(FORCE_LAST_GOOD_PLAN)
-accept	reject	engine	tableHints/LeftParenthesis_tableHintsBody_RightParenthesis	DELETE a WITH(FORCESEEK)
+reject	reject	engine	tableHints/LeftParenthesis_tableHintsBody_RightParenthesis	DELETE a WITH(FORCESEEK)
 reject	reject	engine	tableHints/LeftParenthesis_tableHintsBody_RightParenthesis!swap	DELETE a WITH(FORCE_LAST_GOOD_PLAN)
-accept	reject	engine	tableHintsBody/tableHint_((Comma)?_tableHint)*	DELETE a WITH(FORCESEEK)
+reject	reject	engine	tableHintsBody/tableHint_((Comma)?_tableHint)*	DELETE a WITH(FORCESEEK)
 reject	reject	engine	tableHintsBody/tableHint_((Comma)?_tableHint)*!truncate	DELETE a WITH(
 reject	reject	engine	tableHintsBody/tableHint_((Comma)?_tableHint)*!insert	DELETE a WITH(FORCESEEK zzz)
-accept	reject	engine	tableHintsBody((Comma)?_tableHint)*/%empty	DELETE a WITH(FORCESEEK)
-accept	reject	engine	tableHintsBody((Comma)?_tableHint)*/(Comma)?_tableHint_((Comma)?_tableHint)*	DELETE a WITH(FORCESEEK FORCESEEK)
+reject	reject	engine	tableHintsBody((Comma)?_tableHint)*/%empty	DELETE a WITH(FORCESEEK)
+reject	reject	engine	tableHintsBody((Comma)?_tableHint)*/(Comma)?_tableHint_((Comma)?_tableHint)*	DELETE a WITH(FORCESEEK FORCESEEK)
 reject	reject	engine	tableHintsBody((Comma)?_tableHint)*/(Comma)?_tableHint_((Comma)?_tableHint)*!insert	DELETE a WITH(FORCESEEK FORCESEEK zzz)
 reject	reject	engine	tableHintsBody((Comma)?_tableHint)*/(Comma)?_tableHint_((Comma)?_tableHint)*!swap	DELETE a WITH(FORCESEEK FORCE_LAST_GOOD_PLAN)
-accept	reject	engine	tableHintsBody(Comma)?/%empty	DELETE a WITH(FORCESEEK FORCESEEK)
+reject	reject	engine	tableHintsBody(Comma)?/%empty	DELETE a WITH(FORCESEEK FORCESEEK)
 reject	reject	engine	tableHintsBody(Comma)?/%empty!insert	DELETE a WITH(FORCESEEK zzz FORCESEEK)
-accept	reject	engine	tableHintsBody(Comma)?/Comma	DELETE a WITH(FORCESEEK, FORCESEEK)
+reject	reject	engine	tableHintsBody(Comma)?/Comma	DELETE a WITH(FORCESEEK, FORCESEEK)
 reject	reject	engine	tableHintsBody(Comma)?/Comma!insert	DELETE a WITH(FORCESEEK, zzz FORCESEEK)
-accept	reject	engine	tableHint/forceSeekTableHint_FORCESEEK	DELETE a WITH(FORCESEEK)
+reject	reject	engine	tableHint/forceSeekTableHint_FORCESEEK	DELETE a WITH(FORCESEEK)
 accept	accept	engine	tableHint/simpleTableHint	DELETE a WITH(HOLDLOCK)
 reject	reject	engine	tableHint/simpleTableHint!insert	DELETE a WITH(HOLDLOCK zzz)
 reject	reject	engine	tableHint/simpleTableHint!swap	DELETE a WITH(IDENTITY)
 reject	reject	engine	tableHint/indexTableHint	DELETE a WITH(INDEX = a)
 reject	reject	engine	tableHint/indexTableHint!drop-1	DELETE a WITH(= a)
 reject	reject	engine	tableHint/indexTableHint!drop-2	DELETE a WITH(INDEX a)
-accept	reject	engine	tableHint/indexTableHint!drop-3	DELETE a WITH(INDEX =)
+reject	reject	engine	tableHint/indexTableHint!drop-3	DELETE a WITH(INDEX =)
 reject	reject	engine	tableHint/indexTableHint!truncate	DELETE a WITH(INDEX =
 reject	reject	engine	tableHint/indexTableHint!insert	DELETE a WITH(INDEX = a zzz)
 reject	reject	engine	tableHint/indexTableHint!swap	DELETE a WITH(INFINITE = a)
@@ -9914,15 +9914,15 @@ reject	reject	engine	simpleTableHint/Identifier	DELETE a WITH(a)
 reject	reject	engine	simpleTableHint/Identifier!insert	DELETE a WITH(a zzz)
 reject	reject	engine	indexTableHint/Index_(EqualsSign_identifierOrInteger|LeftP~e47b5fe7)	DELETE a WITH(INDEX = a)
 reject	reject	engine	indexTableHint(EqualsSign_identifierOrInteger|LeftP~e47b5fe7)/EqualsSign_identifierOrInteger	DELETE a WITH(INDEX = a)
-accept	reject	engine	indexTableHint(EqualsSign_identifierOrInteger|LeftP~e47b5fe7)/LeftParenthesis_identifierOrInteger_(Comma_identifierOr~e3fe456d	DELETE a WITH(INDEX(a))
+reject	reject	engine	indexTableHint(EqualsSign_identifierOrInteger|LeftP~e47b5fe7)/LeftParenthesis_identifierOrInteger_(Comma_identifierOr~e3fe456d	DELETE a WITH(INDEX(a))
 reject	reject	engine	indexTableHint(EqualsSign_identifierOrInteger|LeftP~e47b5fe7)/LeftParenthesis_identifierOrInteger_(Comma_identifierOr~e3fe456d!drop-1	DELETE a WITH(INDEX a))
 reject	reject	engine	indexTableHint(EqualsSign_identifierOrInteger|LeftP~e47b5fe7)/LeftParenthesis_identifierOrInteger_(Comma_identifierOr~e3fe456d!drop-2	DELETE a WITH(INDEX())
 reject	reject	engine	indexTableHint(EqualsSign_identifierOrInteger|LeftP~e47b5fe7)/LeftParenthesis_identifierOrInteger_(Comma_identifierOr~e3fe456d!drop-3	DELETE a WITH(INDEX(a)
 reject	reject	engine	indexTableHint(EqualsSign_identifierOrInteger|LeftP~e47b5fe7)/LeftParenthesis_identifierOrInteger_(Comma_identifierOr~e3fe456d!truncate	DELETE a WITH(INDEX(a
 reject	reject	engine	indexTableHint(EqualsSign_identifierOrInteger|LeftP~e47b5fe7)/LeftParenthesis_identifierOrInteger_(Comma_identifierOr~e3fe456d!insert	DELETE a WITH(INDEX(a) zzz)
-accept	reject	engine	indexTableHint(Comma_identifierOrInteger)*/%empty	DELETE a WITH(INDEX(a))
+reject	reject	engine	indexTableHint(Comma_identifierOrInteger)*/%empty	DELETE a WITH(INDEX(a))
 reject	reject	engine	indexTableHint(Comma_identifierOrInteger)*/%empty!insert	DELETE a WITH(INDEX(a zzz))
-accept	reject	engine	indexTableHint(Comma_identifierOrInteger)*/Comma_identifierOrInteger_(Comma_identifierOrInteger)*	DELETE a WITH(INDEX(a, a))
+reject	reject	engine	indexTableHint(Comma_identifierOrInteger)*/Comma_identifierOrInteger_(Comma_identifierOrInteger)*	DELETE a WITH(INDEX(a, a))
 reject	reject	engine	indexTableHint(Comma_identifierOrInteger)*/Comma_identifierOrInteger_(Comma_identifierOrInteger)*!drop-1	DELETE a WITH(INDEX(a a))
 reject	reject	engine	indexTableHint(Comma_identifierOrInteger)*/Comma_identifierOrInteger_(Comma_identifierOrInteger)*!drop-2	DELETE a WITH(INDEX(a,))
 reject	reject	engine	indexTableHint(Comma_identifierOrInteger)*/Comma_identifierOrInteger_(Comma_identifierOrInteger)*!truncate	DELETE a WITH(INDEX(a,
@@ -9935,7 +9935,7 @@ accept	accept	engine	dmlWhereClause/whereCurrentOfCursorClause	DELETE a WHERE CU
 reject	reject	engine	dmlWhereClause/whereCurrentOfCursorClause!drop-1	DELETE a CURRENT OF @a
 reject	reject	engine	dmlWhereClause/whereCurrentOfCursorClause!drop-2	DELETE a WHERE OF @a
 reject	reject	engine	dmlWhereClause/whereCurrentOfCursorClause!drop-3	DELETE a WHERE CURRENT @a
-accept	reject	engine	dmlWhereClause/whereCurrentOfCursorClause!drop-4	DELETE a WHERE CURRENT OF
+reject	reject	engine	dmlWhereClause/whereCurrentOfCursorClause!drop-4	DELETE a WHERE CURRENT OF
 reject	reject	engine	dmlWhereClause/whereCurrentOfCursorClause!insert	DELETE a WHERE CURRENT OF @a zzz
 reject	reject	engine	dmlWhereClause/whereCurrentOfCursorClause!swap	DELETE a WHILE CURRENT OF @a
 accept	accept	engine	whereCurrentOfCursorClause/Where_Current_Of_cursorId	DELETE a WHERE CURRENT OF @a
@@ -11383,10 +11383,10 @@ reject	reject	engine	mergeInsertSource/Values_rowValueExpressionWithDefault!drop
 reject	reject	engine	mergeInsertSource/Values_rowValueExpressionWithDefault!insert	MERGE a USING @a ON 1 = 1 WHEN MATCHED THEN INSERT VALUES(1) zzz
 reject	reject	engine	mergeInsertSource/Values_rowValueExpressionWithDefault!swap	MERGE a USING @a ON 1 = 1 WHEN MATCHED THEN INSERT VARYING(1)
 reject	reject	engine	executeAsStatement/execStart_As_executeAsStatementContext_executeContextSt~ee2b3a5d	EXECUTE AS a
-reject	accept	engine	executeAsStatementContext/User_EqualsSign_expression	EXECUTE AS USER = 1
+accept	accept	engine	executeAsStatementContext/User_EqualsSign_expression	EXECUTE AS USER = 1
 reject	reject	engine	executeAsStatementContext/User_EqualsSign_expression!drop-1	EXECUTE AS = 1
 reject	reject	engine	executeAsStatementContext/User_EqualsSign_expression!drop-2	EXECUTE AS USER 1
-accept	reject	engine	executeAsStatementContext/User_EqualsSign_expression!drop-3	EXECUTE AS USER =
+reject	reject	engine	executeAsStatementContext/User_EqualsSign_expression!drop-3	EXECUTE AS USER =
 reject	reject	engine	executeAsStatementContext/User_EqualsSign_expression!insert	EXECUTE AS USER = 1 zzz
 reject	reject	engine	executeAsStatementContext/User_EqualsSign_expression!swap	EXECUTE AS USER_DB = 1
 reject	reject	engine	executeAsStatementContext/Identifier_(|EqualsSign_expression)	EXECUTE AS a
@@ -11419,17 +11419,17 @@ reject	reject	engine	executeStatement(With_executeOption_(Comma_executeOption)*)
 reject	reject	engine	executeStatement(With_executeOption_(Comma_executeOption)*)?/With_executeOption_(Comma_executeOption)*!insert	EXECUTE a WITH RECOMPILE zzz
 reject	reject	engine	executeStatement(With_executeOption_(Comma_executeOption)*)?/With_executeOption_(Comma_executeOption)*!swap	EXECUTE a WITHIN RECOMPILE
 accept	accept	engine	executeStatement(Comma_executeOption)*/%empty	EXECUTE a WITH RECOMPILE
-accept	reject	engine	executeStatement(Comma_executeOption)*/Comma_executeOption_(Comma_executeOption)*	EXECUTE a WITH RECOMPILE, RECOMPILE
+reject	reject	engine	executeStatement(Comma_executeOption)*/Comma_executeOption_(Comma_executeOption)*	EXECUTE a WITH RECOMPILE, RECOMPILE
 reject	reject	engine	executeStatement(Comma_executeOption)*/Comma_executeOption_(Comma_executeOption)*!drop-1	EXECUTE a WITH RECOMPILE RECOMPILE
-accept	reject	engine	executeStatement(Comma_executeOption)*/Comma_executeOption_(Comma_executeOption)*!drop-2	EXECUTE a WITH RECOMPILE,
+reject	reject	engine	executeStatement(Comma_executeOption)*/Comma_executeOption_(Comma_executeOption)*!drop-2	EXECUTE a WITH RECOMPILE,
 reject	reject	engine	executeStatement(Comma_executeOption)*/Comma_executeOption_(Comma_executeOption)*!insert	EXECUTE a WITH RECOMPILE, RECOMPILE zzz
-accept	reject	engine	executeStatement(Comma_executeOption)*/Comma_executeOption_(Comma_executeOption)*!swap	EXECUTE a WITH RECOMPILE, RECONFIGURE
+reject	reject	engine	executeStatement(Comma_executeOption)*/Comma_executeOption_(Comma_executeOption)*!swap	EXECUTE a WITH RECOMPILE, RECONFIGURE
 accept	accept	engine	executeOption/executeOptionRecompile_RECOMPILE	EXECUTE a WITH RECOMPILE
 reject	reject	engine	executeOption/executeOptionRecompile_RECOMPILE!swap	EXECUTE a WITH RECONFIGURE
 accept	accept	engine	executeOption/executeOptionResultSets	EXECUTE a WITH RESULT SETS UNDEFINED
 reject	reject	engine	executeOption/executeOptionResultSets!drop-1	EXECUTE a WITH SETS UNDEFINED
-accept	reject	engine	executeOption/executeOptionResultSets!drop-2	EXECUTE a WITH RESULT UNDEFINED
-accept	reject	engine	executeOption/executeOptionResultSets!drop-3	EXECUTE a WITH RESULT SETS
+reject	reject	engine	executeOption/executeOptionResultSets!drop-2	EXECUTE a WITH RESULT UNDEFINED
+reject	reject	engine	executeOption/executeOptionResultSets!drop-3	EXECUTE a WITH RESULT SETS
 reject	reject	engine	executeOption/executeOptionResultSets!insert	EXECUTE a WITH RESULT SETS UNDEFINED zzz
 reject	reject	engine	executeOption/executeOptionResultSets!swap	EXECUTE a WITH RESUME SETS UNDEFINED
 accept	accept	engine	executeOptionResultSets/RESULT_SETS_((UNDEFINED|NONE)|LeftParenthesis_res~3ddc0c57)	EXECUTE a WITH RESULT SETS UNDEFINED
@@ -11437,64 +11437,64 @@ accept	accept	engine	executeOptionResultSets((UNDEFINED|NONE)|LeftParenthesis_re
 reject	reject	engine	executeOptionResultSets((UNDEFINED|NONE)|LeftParenthesis_res~3ddc0c57)/(UNDEFINED|NONE)!swap	EXECUTE a WITH RESULT SETS UNION
 accept	accept	engine	executeOptionResultSets((UNDEFINED|NONE)|LeftParenthesis_res~3ddc0c57)/LeftParenthesis_resultSetDefinition_(Comma_resultSetDef~1fb105ff	EXECUTE a WITH RESULT SETS(AS FOR XML)
 reject	reject	engine	executeOptionResultSets((UNDEFINED|NONE)|LeftParenthesis_res~3ddc0c57)/LeftParenthesis_resultSetDefinition_(Comma_resultSetDef~1fb105ff!drop-1	EXECUTE a WITH RESULT SETS AS FOR XML)
-accept	reject	engine	executeOptionResultSets((UNDEFINED|NONE)|LeftParenthesis_res~3ddc0c57)/LeftParenthesis_resultSetDefinition_(Comma_resultSetDef~1fb105ff!drop-2	EXECUTE a WITH RESULT SETS(FOR XML)
-accept	reject	engine	executeOptionResultSets((UNDEFINED|NONE)|LeftParenthesis_res~3ddc0c57)/LeftParenthesis_resultSetDefinition_(Comma_resultSetDef~1fb105ff!drop-3	EXECUTE a WITH RESULT SETS(AS XML)
-accept	reject	engine	executeOptionResultSets((UNDEFINED|NONE)|LeftParenthesis_res~3ddc0c57)/LeftParenthesis_resultSetDefinition_(Comma_resultSetDef~1fb105ff!drop-4	EXECUTE a WITH RESULT SETS(AS FOR)
-accept	reject	engine	executeOptionResultSets((UNDEFINED|NONE)|LeftParenthesis_res~3ddc0c57)/LeftParenthesis_resultSetDefinition_(Comma_resultSetDef~1fb105ff!drop-5	EXECUTE a WITH RESULT SETS(AS FOR XML
+reject	reject	engine	executeOptionResultSets((UNDEFINED|NONE)|LeftParenthesis_res~3ddc0c57)/LeftParenthesis_resultSetDefinition_(Comma_resultSetDef~1fb105ff!drop-2	EXECUTE a WITH RESULT SETS(FOR XML)
+reject	reject	engine	executeOptionResultSets((UNDEFINED|NONE)|LeftParenthesis_res~3ddc0c57)/LeftParenthesis_resultSetDefinition_(Comma_resultSetDef~1fb105ff!drop-3	EXECUTE a WITH RESULT SETS(AS XML)
+reject	reject	engine	executeOptionResultSets((UNDEFINED|NONE)|LeftParenthesis_res~3ddc0c57)/LeftParenthesis_resultSetDefinition_(Comma_resultSetDef~1fb105ff!drop-4	EXECUTE a WITH RESULT SETS(AS FOR)
+reject	reject	engine	executeOptionResultSets((UNDEFINED|NONE)|LeftParenthesis_res~3ddc0c57)/LeftParenthesis_resultSetDefinition_(Comma_resultSetDef~1fb105ff!drop-5	EXECUTE a WITH RESULT SETS(AS FOR XML
 reject	reject	engine	executeOptionResultSets((UNDEFINED|NONE)|LeftParenthesis_res~3ddc0c57)/LeftParenthesis_resultSetDefinition_(Comma_resultSetDef~1fb105ff!insert	EXECUTE a WITH RESULT SETS(AS FOR XML) zzz
-accept	reject	engine	executeOptionResultSets((UNDEFINED|NONE)|LeftParenthesis_res~3ddc0c57)/LeftParenthesis_resultSetDefinition_(Comma_resultSetDef~1fb105ff!swap	EXECUTE a WITH RESULT SETS(ASC FOR XML)
+reject	reject	engine	executeOptionResultSets((UNDEFINED|NONE)|LeftParenthesis_res~3ddc0c57)/LeftParenthesis_resultSetDefinition_(Comma_resultSetDef~1fb105ff!swap	EXECUTE a WITH RESULT SETS(ASC FOR XML)
 accept	accept	engine	executeOptionResultSets(UNDEFINED|NONE)/UNDEFINED	EXECUTE a WITH RESULT SETS UNDEFINED
 accept	accept	engine	executeOptionResultSets(UNDEFINED|NONE)/NONE	EXECUTE a WITH RESULT SETS NONE
 reject	reject	engine	executeOptionResultSets(UNDEFINED|NONE)/NONE!insert	EXECUTE a WITH RESULT SETS NONE zzz
 reject	reject	engine	executeOptionResultSets(UNDEFINED|NONE)/NONE!swap	EXECUTE a WITH RESULT SETS NORESET
 accept	accept	engine	executeOptionResultSets(Comma_resultSetDefinition)*/%empty	EXECUTE a WITH RESULT SETS(AS FOR XML)
-accept	reject	engine	executeOptionResultSets(Comma_resultSetDefinition)*/%empty!insert	EXECUTE a WITH RESULT SETS(AS FOR XML zzz)
+reject	reject	engine	executeOptionResultSets(Comma_resultSetDefinition)*/%empty!insert	EXECUTE a WITH RESULT SETS(AS FOR XML zzz)
 accept	accept	engine	executeOptionResultSets(Comma_resultSetDefinition)*/Comma_resultSetDefinition_(Comma_resultSetDefinition)*	EXECUTE a WITH RESULT SETS(AS FOR XML, AS FOR XML)
-accept	reject	engine	executeOptionResultSets(Comma_resultSetDefinition)*/Comma_resultSetDefinition_(Comma_resultSetDefinition)*!drop-1	EXECUTE a WITH RESULT SETS(AS FOR XML AS FOR XML)
-accept	reject	engine	executeOptionResultSets(Comma_resultSetDefinition)*/Comma_resultSetDefinition_(Comma_resultSetDefinition)*!drop-2	EXECUTE a WITH RESULT SETS(AS FOR XML, FOR XML)
-accept	reject	engine	executeOptionResultSets(Comma_resultSetDefinition)*/Comma_resultSetDefinition_(Comma_resultSetDefinition)*!drop-3	EXECUTE a WITH RESULT SETS(AS FOR XML, AS XML)
-accept	reject	engine	executeOptionResultSets(Comma_resultSetDefinition)*/Comma_resultSetDefinition_(Comma_resultSetDefinition)*!drop-4	EXECUTE a WITH RESULT SETS(AS FOR XML, AS FOR)
-accept	reject	engine	executeOptionResultSets(Comma_resultSetDefinition)*/Comma_resultSetDefinition_(Comma_resultSetDefinition)*!truncate	EXECUTE a WITH RESULT SETS(AS FOR XML, AS FOR
-accept	reject	engine	executeOptionResultSets(Comma_resultSetDefinition)*/Comma_resultSetDefinition_(Comma_resultSetDefinition)*!insert	EXECUTE a WITH RESULT SETS(AS FOR XML, AS FOR XML zzz)
-accept	reject	engine	executeOptionResultSets(Comma_resultSetDefinition)*/Comma_resultSetDefinition_(Comma_resultSetDefinition)*!swap	EXECUTE a WITH RESULT SETS(AS FOR XML, ASC FOR XML)
+reject	reject	engine	executeOptionResultSets(Comma_resultSetDefinition)*/Comma_resultSetDefinition_(Comma_resultSetDefinition)*!drop-1	EXECUTE a WITH RESULT SETS(AS FOR XML AS FOR XML)
+reject	reject	engine	executeOptionResultSets(Comma_resultSetDefinition)*/Comma_resultSetDefinition_(Comma_resultSetDefinition)*!drop-2	EXECUTE a WITH RESULT SETS(AS FOR XML, FOR XML)
+reject	reject	engine	executeOptionResultSets(Comma_resultSetDefinition)*/Comma_resultSetDefinition_(Comma_resultSetDefinition)*!drop-3	EXECUTE a WITH RESULT SETS(AS FOR XML, AS XML)
+reject	reject	engine	executeOptionResultSets(Comma_resultSetDefinition)*/Comma_resultSetDefinition_(Comma_resultSetDefinition)*!drop-4	EXECUTE a WITH RESULT SETS(AS FOR XML, AS FOR)
+reject	reject	engine	executeOptionResultSets(Comma_resultSetDefinition)*/Comma_resultSetDefinition_(Comma_resultSetDefinition)*!truncate	EXECUTE a WITH RESULT SETS(AS FOR XML, AS FOR
+reject	reject	engine	executeOptionResultSets(Comma_resultSetDefinition)*/Comma_resultSetDefinition_(Comma_resultSetDefinition)*!insert	EXECUTE a WITH RESULT SETS(AS FOR XML, AS FOR XML zzz)
+reject	reject	engine	executeOptionResultSets(Comma_resultSetDefinition)*/Comma_resultSetDefinition_(Comma_resultSetDefinition)*!swap	EXECUTE a WITH RESULT SETS(AS FOR XML, ASC FOR XML)
 accept	accept	engine	resultSetDefinition/inlineResultSetDefinition	EXECUTE a WITH RESULT SETS((a a))
 reject	reject	engine	resultSetDefinition/inlineResultSetDefinition!drop-1	EXECUTE a WITH RESULT SETS(a a))
-accept	reject	engine	resultSetDefinition/inlineResultSetDefinition!drop-2	EXECUTE a WITH RESULT SETS((a))
-accept	reject	engine	resultSetDefinition/inlineResultSetDefinition!drop-4	EXECUTE a WITH RESULT SETS((a a)
-accept	reject	engine	resultSetDefinition/inlineResultSetDefinition!truncate	EXECUTE a WITH RESULT SETS((a a
-accept	reject	engine	resultSetDefinition/inlineResultSetDefinition!insert	EXECUTE a WITH RESULT SETS((a a) zzz)
+reject	reject	engine	resultSetDefinition/inlineResultSetDefinition!drop-2	EXECUTE a WITH RESULT SETS((a))
+reject	reject	engine	resultSetDefinition/inlineResultSetDefinition!drop-4	EXECUTE a WITH RESULT SETS((a a)
+reject	reject	engine	resultSetDefinition/inlineResultSetDefinition!truncate	EXECUTE a WITH RESULT SETS((a a
+reject	reject	engine	resultSetDefinition/inlineResultSetDefinition!insert	EXECUTE a WITH RESULT SETS((a a) zzz)
 accept	accept	engine	resultSetDefinition/asForXmlResultSetDefinition	EXECUTE a WITH RESULT SETS(AS FOR XML)
-accept	reject	engine	resultSetDefinition/asForXmlResultSetDefinition!truncate	EXECUTE a WITH RESULT SETS(AS FOR
+reject	reject	engine	resultSetDefinition/asForXmlResultSetDefinition!truncate	EXECUTE a WITH RESULT SETS(AS FOR
 accept	accept	engine	resultSetDefinition/asSchemaObjectResultSetDefinition	EXECUTE a WITH RESULT SETS(AS OBJECT a)
-accept	reject	engine	resultSetDefinition/asSchemaObjectResultSetDefinition!drop-1	EXECUTE a WITH RESULT SETS(OBJECT a)
-accept	reject	engine	resultSetDefinition/asSchemaObjectResultSetDefinition!drop-2	EXECUTE a WITH RESULT SETS(AS a)
-accept	reject	engine	resultSetDefinition/asSchemaObjectResultSetDefinition!drop-3	EXECUTE a WITH RESULT SETS(AS OBJECT)
-accept	reject	engine	resultSetDefinition/asSchemaObjectResultSetDefinition!truncate	EXECUTE a WITH RESULT SETS(AS OBJECT
-accept	reject	engine	resultSetDefinition/asSchemaObjectResultSetDefinition!insert	EXECUTE a WITH RESULT SETS(AS OBJECT a zzz)
-accept	reject	engine	resultSetDefinition/asSchemaObjectResultSetDefinition!swap	EXECUTE a WITH RESULT SETS(ASC OBJECT a)
+reject	reject	engine	resultSetDefinition/asSchemaObjectResultSetDefinition!drop-1	EXECUTE a WITH RESULT SETS(OBJECT a)
+reject	reject	engine	resultSetDefinition/asSchemaObjectResultSetDefinition!drop-2	EXECUTE a WITH RESULT SETS(AS a)
+reject	reject	engine	resultSetDefinition/asSchemaObjectResultSetDefinition!drop-3	EXECUTE a WITH RESULT SETS(AS OBJECT)
+reject	reject	engine	resultSetDefinition/asSchemaObjectResultSetDefinition!truncate	EXECUTE a WITH RESULT SETS(AS OBJECT
+reject	reject	engine	resultSetDefinition/asSchemaObjectResultSetDefinition!insert	EXECUTE a WITH RESULT SETS(AS OBJECT a zzz)
+reject	reject	engine	resultSetDefinition/asSchemaObjectResultSetDefinition!swap	EXECUTE a WITH RESULT SETS(ASC OBJECT a)
 accept	accept	engine	inlineResultSetDefinition/LeftParenthesis_resultColumnDefinition_(Comma_resultCol~6d4a5997	EXECUTE a WITH RESULT SETS((a a))
 accept	accept	engine	inlineResultSetDefinition(Comma_resultColumnDefinition)*/%empty	EXECUTE a WITH RESULT SETS((a a))
-accept	reject	engine	inlineResultSetDefinition(Comma_resultColumnDefinition)*/%empty!insert	EXECUTE a WITH RESULT SETS((a a zzz))
+reject	reject	engine	inlineResultSetDefinition(Comma_resultColumnDefinition)*/%empty!insert	EXECUTE a WITH RESULT SETS((a a zzz))
 accept	accept	engine	inlineResultSetDefinition(Comma_resultColumnDefinition)*/Comma_resultColumnDefinition_(Comma_resultColumnDefinition)*	EXECUTE a WITH RESULT SETS((a a, a a))
-accept	reject	engine	inlineResultSetDefinition(Comma_resultColumnDefinition)*/Comma_resultColumnDefinition_(Comma_resultColumnDefinition)*!drop-1	EXECUTE a WITH RESULT SETS((a a a a))
-accept	reject	engine	inlineResultSetDefinition(Comma_resultColumnDefinition)*/Comma_resultColumnDefinition_(Comma_resultColumnDefinition)*!drop-2	EXECUTE a WITH RESULT SETS((a a, a))
-accept	reject	engine	inlineResultSetDefinition(Comma_resultColumnDefinition)*/Comma_resultColumnDefinition_(Comma_resultColumnDefinition)*!truncate	EXECUTE a WITH RESULT SETS((a a, a
-accept	reject	engine	inlineResultSetDefinition(Comma_resultColumnDefinition)*/Comma_resultColumnDefinition_(Comma_resultColumnDefinition)*!insert	EXECUTE a WITH RESULT SETS((a a, a a zzz))
+reject	reject	engine	inlineResultSetDefinition(Comma_resultColumnDefinition)*/Comma_resultColumnDefinition_(Comma_resultColumnDefinition)*!drop-1	EXECUTE a WITH RESULT SETS((a a a a))
+reject	reject	engine	inlineResultSetDefinition(Comma_resultColumnDefinition)*/Comma_resultColumnDefinition_(Comma_resultColumnDefinition)*!drop-2	EXECUTE a WITH RESULT SETS((a a, a))
+reject	reject	engine	inlineResultSetDefinition(Comma_resultColumnDefinition)*/Comma_resultColumnDefinition_(Comma_resultColumnDefinition)*!truncate	EXECUTE a WITH RESULT SETS((a a, a
+reject	reject	engine	inlineResultSetDefinition(Comma_resultColumnDefinition)*/Comma_resultColumnDefinition_(Comma_resultColumnDefinition)*!insert	EXECUTE a WITH RESULT SETS((a a, a a zzz))
 accept	accept	engine	resultColumnDefinition/columnDefinitionBasic_(nullableConstraint)?	EXECUTE a WITH RESULT SETS((a a))
-accept	reject	engine	resultColumnDefinition/columnDefinitionBasic_(nullableConstraint)?!truncate	EXECUTE a WITH RESULT SETS((a
+reject	reject	engine	resultColumnDefinition/columnDefinitionBasic_(nullableConstraint)?!truncate	EXECUTE a WITH RESULT SETS((a
 accept	accept	engine	resultColumnDefinition(nullableConstraint)?/%empty	EXECUTE a WITH RESULT SETS((a a))
 accept	accept	engine	resultColumnDefinition(nullableConstraint)?/nullableConstraint	EXECUTE a WITH RESULT SETS((a a NULL))
-accept	reject	engine	resultColumnDefinition(nullableConstraint)?/nullableConstraint!insert	EXECUTE a WITH RESULT SETS((a a NULL zzz))
-accept	reject	engine	resultColumnDefinition(nullableConstraint)?/nullableConstraint!swap	EXECUTE a WITH RESULT SETS((a a NULLIF))
+reject	reject	engine	resultColumnDefinition(nullableConstraint)?/nullableConstraint!insert	EXECUTE a WITH RESULT SETS((a a NULL zzz))
+reject	reject	engine	resultColumnDefinition(nullableConstraint)?/nullableConstraint!swap	EXECUTE a WITH RESULT SETS((a a NULLIF))
 accept	accept	engine	asForXmlResultSetDefinition/As_For_XML	EXECUTE a WITH RESULT SETS(AS FOR XML)
 accept	accept	engine	asSchemaObjectResultSetDefinition/As_(OBJECT|TYPE)_schemaObjectFourPartName	EXECUTE a WITH RESULT SETS(AS OBJECT a)
 accept	accept	engine	asSchemaObjectResultSetDefinition(OBJECT|TYPE)/OBJECT	EXECUTE a WITH RESULT SETS(AS OBJECT a)
-accept	reject	engine	asSchemaObjectResultSetDefinition(OBJECT|TYPE)/OBJECT!truncate	EXECUTE a WITH RESULT SETS(AS
-accept	reject	engine	asSchemaObjectResultSetDefinition(OBJECT|TYPE)/OBJECT!insert	EXECUTE a WITH RESULT SETS(AS OBJECT zzz a)
-accept	reject	engine	asSchemaObjectResultSetDefinition(OBJECT|TYPE)/OBJECT!swap	EXECUTE a WITH RESULT SETS(AS OF a)
+reject	reject	engine	asSchemaObjectResultSetDefinition(OBJECT|TYPE)/OBJECT!truncate	EXECUTE a WITH RESULT SETS(AS
+reject	reject	engine	asSchemaObjectResultSetDefinition(OBJECT|TYPE)/OBJECT!insert	EXECUTE a WITH RESULT SETS(AS OBJECT zzz a)
+reject	reject	engine	asSchemaObjectResultSetDefinition(OBJECT|TYPE)/OBJECT!swap	EXECUTE a WITH RESULT SETS(AS OF a)
 accept	accept	engine	asSchemaObjectResultSetDefinition(OBJECT|TYPE)/TYPE	EXECUTE a WITH RESULT SETS(AS TYPE a)
-accept	reject	engine	asSchemaObjectResultSetDefinition(OBJECT|TYPE)/TYPE!insert	EXECUTE a WITH RESULT SETS(AS TYPE zzz a)
-accept	reject	engine	asSchemaObjectResultSetDefinition(OBJECT|TYPE)/TYPE!swap	EXECUTE a WITH RESULT SETS(AS UNBOUNDED a)
+reject	reject	engine	asSchemaObjectResultSetDefinition(OBJECT|TYPE)/TYPE!insert	EXECUTE a WITH RESULT SETS(AS TYPE zzz a)
+reject	reject	engine	asSchemaObjectResultSetDefinition(OBJECT|TYPE)/TYPE!swap	EXECUTE a WITH RESULT SETS(AS UNBOUNDED a)
 accept	accept	engine	execStart/Execute	EXECUTE a
 accept	accept	engine	execStart/Execute!insert	EXECUTE zzz a
 accept	accept	engine	execStart/Exec	EXEC a
@@ -11503,43 +11503,43 @@ reject	accept	engine	execStart/Exec!swap	EXECUTABLE a
 accept	accept	engine	executeSpecification/execStart_execTypes	EXECUTE a
 accept	accept	engine	execTypes/LeftParenthesis_execStrTypes_RightParenthesis_(execStrE~be6dca07	EXECUTE('a')
 reject	reject	engine	execTypes/LeftParenthesis_execStrTypes_RightParenthesis_(execStrE~be6dca07!drop-1	EXECUTE 'a')
-accept	reject	engine	execTypes/LeftParenthesis_execStrTypes_RightParenthesis_(execStrE~be6dca07!drop-2	EXECUTE()
+reject	reject	engine	execTypes/LeftParenthesis_execStrTypes_RightParenthesis_(execStrE~be6dca07!drop-2	EXECUTE()
 reject	reject	engine	execTypes/LeftParenthesis_execStrTypes_RightParenthesis_(execStrE~be6dca07!drop-3	EXECUTE('a'
 reject	reject	engine	execTypes/LeftParenthesis_execStrTypes_RightParenthesis_(execStrE~be6dca07!insert	EXECUTE('a') zzz
 accept	accept	engine	execTypes/execProcEx	EXECUTE a
 accept	accept	engine	execTypes/variable_EqualsSign_execProcEx	EXECUTE @a = a
 reject	reject	engine	execTypes/variable_EqualsSign_execProcEx!drop-1	EXECUTE = a
-reject	accept	engine	execTypes/variable_EqualsSign_execProcEx!drop-2	EXECUTE @a a
+accept	accept	engine	execTypes/variable_EqualsSign_execProcEx!drop-2	EXECUTE @a a
 reject	reject	engine	execTypes/variable_EqualsSign_execProcEx!drop-3	EXECUTE @a =
 accept	accept	engine	execTypes/variable_EqualsSign_execProcEx!insert	EXECUTE @a = a zzz
 accept	accept	engine	execTypes(execStrExecCtxt)?/%empty	EXECUTE('a')
-accept	reject	engine	execTypes(execStrExecCtxt)?/execStrExecCtxt	EXECUTE('a') AS USER
+reject	reject	engine	execTypes(execStrExecCtxt)?/execStrExecCtxt	EXECUTE('a') AS USER
 reject	reject	engine	execTypes(execStrExecCtxt)?/execStrExecCtxt!drop-1	EXECUTE('a') USER
 reject	reject	engine	execTypes(execStrExecCtxt)?/execStrExecCtxt!drop-2	EXECUTE('a') AS
 reject	reject	engine	execTypes(execStrExecCtxt)?/execStrExecCtxt!insert	EXECUTE('a') AS USER zzz
 reject	reject	engine	execTypes(execStrExecCtxt)?/execStrExecCtxt!swap	EXECUTE('a') ASC USER
 accept	accept	engine	execTypes(linkedServer_AT|)/linkedServer_AT	EXECUTE('a') AT a
 reject	reject	engine	execTypes(linkedServer_AT|)/linkedServer_AT!drop-1	EXECUTE('a') a
-accept	reject	engine	execTypes(linkedServer_AT|)/linkedServer_AT!drop-2	EXECUTE('a') AT
+reject	reject	engine	execTypes(linkedServer_AT|)/linkedServer_AT!drop-2	EXECUTE('a') AT
 reject	reject	engine	execTypes(linkedServer_AT|)/linkedServer_AT!insert	EXECUTE('a') AT a zzz
 reject	reject	engine	execTypes(linkedServer_AT|)/linkedServer_AT!swap	EXECUTE('a') ATOMIC a
 accept	accept	engine	execTypes(linkedServer_AT|)/%empty	EXECUTE('a')
-accept	reject	engine	execStrExecCtxt/As_execCtxtStmt	EXECUTE('a') AS USER
-accept	reject	engine	execCtxtStmt/execCtxtStmtType_(execCtxtStmtPrincipal)?	EXECUTE('a') AS USER
+reject	reject	engine	execStrExecCtxt/As_execCtxtStmt	EXECUTE('a') AS USER
+reject	reject	engine	execCtxtStmt/execCtxtStmtType_(execCtxtStmtPrincipal)?	EXECUTE('a') AS USER
 reject	reject	engine	execCtxtStmt/execCtxtStmtType_(execCtxtStmtPrincipal)?!swap	EXECUTE('a') AS USER_DB
-accept	reject	engine	execCtxtStmt(execCtxtStmtPrincipal)?/%empty	EXECUTE('a') AS USER
+reject	reject	engine	execCtxtStmt(execCtxtStmtPrincipal)?/%empty	EXECUTE('a') AS USER
 accept	accept	engine	execCtxtStmt(execCtxtStmtPrincipal)?/execCtxtStmtPrincipal	EXECUTE('a') AS USER = 'a'
-accept	reject	engine	execCtxtStmt(execCtxtStmtPrincipal)?/execCtxtStmtPrincipal!drop-1	EXECUTE('a') AS USER 'a'
-accept	reject	engine	execCtxtStmt(execCtxtStmtPrincipal)?/execCtxtStmtPrincipal!drop-2	EXECUTE('a') AS USER =
+reject	reject	engine	execCtxtStmt(execCtxtStmtPrincipal)?/execCtxtStmtPrincipal!drop-1	EXECUTE('a') AS USER 'a'
+reject	reject	engine	execCtxtStmt(execCtxtStmtPrincipal)?/execCtxtStmtPrincipal!drop-2	EXECUTE('a') AS USER =
 reject	reject	engine	execCtxtStmt(execCtxtStmtPrincipal)?/execCtxtStmtPrincipal!insert	EXECUTE('a') AS USER = 'a' zzz
 accept	accept	engine	execCtxtStmtPrincipal/EqualsSign_stringLiteral	EXECUTE('a') AS USER = 'a'
 accept	accept	engine	execStrTypes/execSqlList_(Comma_setParamList)?	EXECUTE('a')
 reject	reject	engine	execStrTypes/execSqlList_(Comma_setParamList)?!truncate	EXECUTE(
 reject	reject	engine	execStrTypes/execSqlList_(Comma_setParamList)?!insert	EXECUTE('a' zzz)
 accept	accept	engine	execStrTypes(Comma_setParamList)?/%empty	EXECUTE('a')
-accept	reject	engine	execStrTypes(Comma_setParamList)?/Comma_setParamList	EXECUTE('a', 1)
+reject	reject	engine	execStrTypes(Comma_setParamList)?/Comma_setParamList	EXECUTE('a', 1)
 reject	reject	engine	execStrTypes(Comma_setParamList)?/Comma_setParamList!drop-1	EXECUTE('a' 1)
-accept	reject	engine	execStrTypes(Comma_setParamList)?/Comma_setParamList!drop-2	EXECUTE('a',)
+reject	reject	engine	execStrTypes(Comma_setParamList)?/Comma_setParamList!drop-2	EXECUTE('a',)
 reject	reject	engine	execStrTypes(Comma_setParamList)?/Comma_setParamList!truncate	EXECUTE('a',
 reject	reject	engine	execStrTypes(Comma_setParamList)?/Comma_setParamList!insert	EXECUTE('a', 1 zzz)
 accept	accept	engine	execProcEx/execProc	EXECUTE a
@@ -11616,8 +11616,8 @@ reject	reject	engine	adhocDataSource/OpenDataSource_LeftParenthesis_stringLitera
 reject	accept	engine	procNumOpt/ProcNameSemicolon_integer	a; 1
 reject	accept	engine	procNumOpt/ProcNameSemicolon_integer!insert	a; 1 zzz
 reject	accept	engine	procNumOpt/%empty	a
-accept	reject	engine	execCtxtStmtType/User	EXECUTE('a') AS USER
-accept	reject	engine	execCtxtStmtType/LOGIN	EXECUTE('a') AS LOGIN
+reject	reject	engine	execCtxtStmtType/User	EXECUTE('a') AS USER
+reject	reject	engine	execCtxtStmtType/LOGIN	EXECUTE('a') AS LOGIN
 reject	reject	engine	execCtxtStmtType/LOGIN!insert	EXECUTE('a') AS LOGIN zzz
 reject	reject	engine	execCtxtStmtType/LOGIN!swap	EXECUTE('a') AS LOGIN_TYPE
 reject	reject	engine	createTableStatement/Create_Table_schemaObjectThreePartName_((ctasCreateTabl~10776535	CREATE TABLE a AS
@@ -12758,7 +12758,7 @@ reject	reject	engine	identityConstraint(LeftParenthesis_seedIncrement_Comma_~40e
 reject	reject	engine	identityConstraint(LeftParenthesis_seedIncrement_Comma_~40e7c6cc)?/LeftParenthesis_seedIncrement_Comma_seedIncrement_Right~517f8a11!drop-5	ALTER TABLE a ADD a IDENTITY(1, 1
 reject	reject	engine	identityConstraint(LeftParenthesis_seedIncrement_Comma_~40e7c6cc)?/LeftParenthesis_seedIncrement_Comma_seedIncrement_Right~517f8a11!insert	ALTER TABLE a ADD a IDENTITY(1, 1) zzz
 accept	accept	engine	columnDefinitionBasic/identifier_scalarDataType_collationOpt	INSERT BULK a(a a)
-accept	reject	engine	columnDefinitionBasic/identifier_scalarDataType_collationOpt!truncate	INSERT BULK a(a
+reject	reject	engine	columnDefinitionBasic/identifier_scalarDataType_collationOpt!truncate	INSERT BULK a(a
 reject	reject	engine	columnDefinitionBasic/identifier_scalarDataType_collationOpt!insert	INSERT BULK a(a a zzz)
 accept	accept	engine	columnDefinitionEx/columnDefinitionBasic	INSERT BULK a(a a)
 accept	accept	engine	columnDefinitionEx/TIMESTAMP	INSERT BULK a(TIMESTAMP)
@@ -16916,10 +16916,10 @@ reject	reject	engine	maxDurationOption_MAX_DURATION(MINUTES)?/MINUTES!insert	ALT
 reject	reject	engine	maxDurationOption_MAX_DURATION(MINUTES)?/MINUTES!swap	ALTER TABLE a REBUILD WITH(MAX_DURATION = 1 MINVALUE)
 accept	accept	engine	xmlNamespaces_XMLNAMESPACES/XMLNAMESPACES_LeftParenthesis_xmlNamespacesElement_(Com~dd801271	WITH XMLNAMESPACES(DEFAULT 'a') SELECT *
 accept	accept	engine	xmlNamespaces_XMLNAMESPACES(Comma_xmlNamespacesElement)*/%empty	WITH XMLNAMESPACES(DEFAULT 'a') SELECT *
-accept	reject	engine	xmlNamespaces_XMLNAMESPACES(Comma_xmlNamespacesElement)*/Comma_xmlNamespacesElement_(Comma_xmlNamespacesElement)*	WITH XMLNAMESPACES(DEFAULT 'a', DEFAULT 'a') SELECT *
+reject	reject	engine	xmlNamespaces_XMLNAMESPACES(Comma_xmlNamespacesElement)*/Comma_xmlNamespacesElement_(Comma_xmlNamespacesElement)*	WITH XMLNAMESPACES(DEFAULT 'a', DEFAULT 'a') SELECT *
 reject	reject	engine	xmlNamespaces_XMLNAMESPACES(Comma_xmlNamespacesElement)*/Comma_xmlNamespacesElement_(Comma_xmlNamespacesElement)*!drop-1	WITH XMLNAMESPACES(DEFAULT 'a' DEFAULT 'a') SELECT *
-accept	reject	engine	xmlNamespaces_XMLNAMESPACES(Comma_xmlNamespacesElement)*/Comma_xmlNamespacesElement_(Comma_xmlNamespacesElement)*!drop-2	WITH XMLNAMESPACES(DEFAULT 'a', 'a') SELECT *
-accept	reject	engine	xmlNamespaces_XMLNAMESPACES(Comma_xmlNamespacesElement)*/Comma_xmlNamespacesElement_(Comma_xmlNamespacesElement)*!drop-3	WITH XMLNAMESPACES(DEFAULT 'a', DEFAULT) SELECT *
+reject	reject	engine	xmlNamespaces_XMLNAMESPACES(Comma_xmlNamespacesElement)*/Comma_xmlNamespacesElement_(Comma_xmlNamespacesElement)*!drop-2	WITH XMLNAMESPACES(DEFAULT 'a', 'a') SELECT *
+reject	reject	engine	xmlNamespaces_XMLNAMESPACES(Comma_xmlNamespacesElement)*/Comma_xmlNamespacesElement_(Comma_xmlNamespacesElement)*!drop-3	WITH XMLNAMESPACES(DEFAULT 'a', DEFAULT) SELECT *
 reject	reject	engine	xmlNamespaces_XMLNAMESPACES(Comma_xmlNamespacesElement)*/Comma_xmlNamespacesElement_(Comma_xmlNamespacesElement)*!truncate	WITH XMLNAMESPACES(DEFAULT 'a', DEFAULT
 reject	reject	engine	xmlNamespaces_XMLNAMESPACES(Comma_xmlNamespacesElement)*/Comma_xmlNamespacesElement_(Comma_xmlNamespacesElement)*!insert	WITH XMLNAMESPACES(DEFAULT 'a', DEFAULT 'a' zzz) SELECT *
 reject	reject	engine	xmlNamespaces_XMLNAMESPACES(Comma_xmlNamespacesElement)*/Comma_xmlNamespacesElement_(Comma_xmlNamespacesElement)*!swap	WITH XMLNAMESPACES(DEFAULT 'a', DEFAULT_DATABASE 'a') SELECT *
@@ -16954,29 +16954,29 @@ reject	reject	engine	outputClause_OUTPUT(Comma_outputClauseSelectElement)*/Comma
 reject	reject	engine	outputClause_OUTPUT(Comma_outputClauseSelectElement)*/Comma_outputClauseSelectElement_(Comma_outputClauseSele~84977106!drop-1	DELETE a OUTPUT * INTO @a OUTPUT * *
 reject	reject	engine	outputClause_OUTPUT(Comma_outputClauseSelectElement)*/Comma_outputClauseSelectElement_(Comma_outputClauseSele~84977106!drop-2	DELETE a OUTPUT * INTO @a OUTPUT *,
 reject	reject	engine	outputClause_OUTPUT(Comma_outputClauseSelectElement)*/Comma_outputClauseSelectElement_(Comma_outputClauseSele~84977106!insert	DELETE a OUTPUT * INTO @a OUTPUT *, * zzz
-accept	reject	engine	outputIntoOutputClause_OUTPUT/OUTPUT_outputClauseSelectElement_(Comma_outputClauseSel~3d737586	DELETE a OUTPUT *
-accept	reject	engine	outputIntoOutputClause_OUTPUT(Comma_outputClauseSelectElement)*/%empty	DELETE a OUTPUT *
-accept	reject	engine	outputIntoOutputClause_OUTPUT(Comma_outputClauseSelectElement)*/Comma_outputClauseSelectElement_(Comma_outputClauseSele~84977106	DELETE a OUTPUT *, *
+reject	reject	engine	outputIntoOutputClause_OUTPUT/OUTPUT_outputClauseSelectElement_(Comma_outputClauseSel~3d737586	DELETE a OUTPUT *
+reject	reject	engine	outputIntoOutputClause_OUTPUT(Comma_outputClauseSelectElement)*/%empty	DELETE a OUTPUT *
+reject	reject	engine	outputIntoOutputClause_OUTPUT(Comma_outputClauseSelectElement)*/Comma_outputClauseSelectElement_(Comma_outputClauseSele~84977106	DELETE a OUTPUT *, *
 reject	reject	engine	outputIntoOutputClause_OUTPUT(Comma_outputClauseSelectElement)*/Comma_outputClauseSelectElement_(Comma_outputClauseSele~84977106!drop-1	DELETE a OUTPUT * *
 reject	reject	engine	outputIntoOutputClause_OUTPUT(Comma_outputClauseSelectElement)*/Comma_outputClauseSelectElement_(Comma_outputClauseSele~84977106!drop-2	DELETE a OUTPUT *,
 reject	reject	engine	outputIntoOutputClause_OUTPUT(Comma_outputClauseSelectElement)*/Comma_outputClauseSelectElement_(Comma_outputClauseSele~84977106!insert	DELETE a OUTPUT *, * zzz
-accept	reject	engine	outputIntoOutputClause_OUTPUT((outputIntoClause_(outputClause_OUTPUT)?)|)/outputIntoClause_(outputClause_OUTPUT)?	DELETE a OUTPUT * INTO @a
-accept	reject	engine	outputIntoOutputClause_OUTPUT((outputIntoClause_(outputClause_OUTPUT)?)|)/%empty	DELETE a OUTPUT *
-accept	reject	engine	outputIntoOutputClause_OUTPUT(outputClause_OUTPUT)?/%empty	DELETE a OUTPUT * INTO @a
+reject	reject	engine	outputIntoOutputClause_OUTPUT((outputIntoClause_(outputClause_OUTPUT)?)|)/outputIntoClause_(outputClause_OUTPUT)?	DELETE a OUTPUT * INTO @a
+reject	reject	engine	outputIntoOutputClause_OUTPUT((outputIntoClause_(outputClause_OUTPUT)?)|)/%empty	DELETE a OUTPUT *
+reject	reject	engine	outputIntoOutputClause_OUTPUT(outputClause_OUTPUT)?/%empty	DELETE a OUTPUT * INTO @a
 reject	reject	engine	outputIntoOutputClause_OUTPUT(outputClause_OUTPUT)?/outputClause_OUTPUT	DELETE a OUTPUT * INTO @a OUTPUT *
-accept	reject	engine	forceSeekTableHint_FORCESEEK/FORCESEEK_(LeftParenthesis_identifierOrInteger_~32e464d7)?	DELETE a WITH(FORCESEEK)
-accept	reject	engine	forceSeekTableHint_FORCESEEK(LeftParenthesis_identifierOrInteger_~32e464d7)?/%empty	DELETE a WITH(FORCESEEK)
-accept	reject	engine	forceSeekTableHint_FORCESEEK(LeftParenthesis_identifierOrInteger_~32e464d7)?/LeftParenthesis_identifierOrInteger_LeftParenthesis_ide~e344bc51	DELETE a WITH(FORCESEEK(a(a)))
+reject	reject	engine	forceSeekTableHint_FORCESEEK/FORCESEEK_(LeftParenthesis_identifierOrInteger_~32e464d7)?	DELETE a WITH(FORCESEEK)
+reject	reject	engine	forceSeekTableHint_FORCESEEK(LeftParenthesis_identifierOrInteger_~32e464d7)?/%empty	DELETE a WITH(FORCESEEK)
+reject	reject	engine	forceSeekTableHint_FORCESEEK(LeftParenthesis_identifierOrInteger_~32e464d7)?/LeftParenthesis_identifierOrInteger_LeftParenthesis_ide~e344bc51	DELETE a WITH(FORCESEEK(a(a)))
 reject	reject	engine	forceSeekTableHint_FORCESEEK(LeftParenthesis_identifierOrInteger_~32e464d7)?/LeftParenthesis_identifierOrInteger_LeftParenthesis_ide~e344bc51!drop-1	DELETE a WITH(FORCESEEK a(a)))
-accept	reject	engine	forceSeekTableHint_FORCESEEK(LeftParenthesis_identifierOrInteger_~32e464d7)?/LeftParenthesis_identifierOrInteger_LeftParenthesis_ide~e344bc51!drop-2	DELETE a WITH(FORCESEEK((a)))
+reject	reject	engine	forceSeekTableHint_FORCESEEK(LeftParenthesis_identifierOrInteger_~32e464d7)?/LeftParenthesis_identifierOrInteger_LeftParenthesis_ide~e344bc51!drop-2	DELETE a WITH(FORCESEEK((a)))
 reject	reject	engine	forceSeekTableHint_FORCESEEK(LeftParenthesis_identifierOrInteger_~32e464d7)?/LeftParenthesis_identifierOrInteger_LeftParenthesis_ide~e344bc51!drop-3	DELETE a WITH(FORCESEEK(a a)))
 reject	reject	engine	forceSeekTableHint_FORCESEEK(LeftParenthesis_identifierOrInteger_~32e464d7)?/LeftParenthesis_identifierOrInteger_LeftParenthesis_ide~e344bc51!drop-4	DELETE a WITH(FORCESEEK(a()))
 reject	reject	engine	forceSeekTableHint_FORCESEEK(LeftParenthesis_identifierOrInteger_~32e464d7)?/LeftParenthesis_identifierOrInteger_LeftParenthesis_ide~e344bc51!drop-5	DELETE a WITH(FORCESEEK(a(a))
 reject	reject	engine	forceSeekTableHint_FORCESEEK(LeftParenthesis_identifierOrInteger_~32e464d7)?/LeftParenthesis_identifierOrInteger_LeftParenthesis_ide~e344bc51!truncate	DELETE a WITH(FORCESEEK(a(a)
 reject	reject	engine	forceSeekTableHint_FORCESEEK(LeftParenthesis_identifierOrInteger_~32e464d7)?/LeftParenthesis_identifierOrInteger_LeftParenthesis_ide~e344bc51!insert	DELETE a WITH(FORCESEEK(a(a)) zzz)
-accept	reject	engine	forceSeekTableHint_FORCESEEK(Comma_identifierColumnReferenceExpression)*/%empty	DELETE a WITH(FORCESEEK(a(a)))
+reject	reject	engine	forceSeekTableHint_FORCESEEK(Comma_identifierColumnReferenceExpression)*/%empty	DELETE a WITH(FORCESEEK(a(a)))
 reject	reject	engine	forceSeekTableHint_FORCESEEK(Comma_identifierColumnReferenceExpression)*/%empty!insert	DELETE a WITH(FORCESEEK(a(a zzz)))
-accept	reject	engine	forceSeekTableHint_FORCESEEK(Comma_identifierColumnReferenceExpression)*/Comma_identifierColumnReferenceExpression_(Comma_identi~056d1a56	DELETE a WITH(FORCESEEK(a(a, a)))
+reject	reject	engine	forceSeekTableHint_FORCESEEK(Comma_identifierColumnReferenceExpression)*/Comma_identifierColumnReferenceExpression_(Comma_identi~056d1a56	DELETE a WITH(FORCESEEK(a(a, a)))
 reject	reject	engine	forceSeekTableHint_FORCESEEK(Comma_identifierColumnReferenceExpression)*/Comma_identifierColumnReferenceExpression_(Comma_identi~056d1a56!drop-1	DELETE a WITH(FORCESEEK(a(a a)))
 reject	reject	engine	forceSeekTableHint_FORCESEEK(Comma_identifierColumnReferenceExpression)*/Comma_identifierColumnReferenceExpression_(Comma_identi~056d1a56!drop-2	DELETE a WITH(FORCESEEK(a(a,)))
 reject	reject	engine	forceSeekTableHint_FORCESEEK(Comma_identifierColumnReferenceExpression)*/Comma_identifierColumnReferenceExpression_(Comma_identi~056d1a56!truncate	DELETE a WITH(FORCESEEK(a(a,

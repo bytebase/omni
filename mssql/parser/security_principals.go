@@ -743,11 +743,17 @@ func (p *Parser) parseSecurityApplicationRoleStmt(action string) (*nodes.Securit
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/execute-as-transact-sql
 //
-//	EXECUTE AS { LOGIN | USER | CALLER | SELF | OWNER } [ = 'name' ]
+//	{ EXEC | EXECUTE } AS { CALLER | { LOGIN | USER } = 'name' }
 //	    [ WITH { NO REVERT | COOKIE INTO @cookie_variable } ]
+//
+// executeAsStatement, executeAsStatementContext and
+// executeContextStatementOptionsOpt (TSql160.g:25991, 26002, 26028). The
+// name is an expression SQL Server folds to a constant (`USER = 1` is
+// taken). SELF and OWNER name a module's context only: SQL Server refuses
+// them here (Msg 102), as it refuses a missing name.
 func (p *Parser) parseExecuteAsStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
-	p.advance() // consume EXECUTE
+	p.advance() // consume EXEC or EXECUTE
 	p.advance() // consume AS
 
 	stmt := &nodes.SecurityStmt{
@@ -755,62 +761,65 @@ func (p *Parser) parseExecuteAsStmt() (*nodes.SecurityStmt, error) {
 		Loc:    nodes.Loc{Start: loc, End: -1},
 	}
 
-	// { LOGIN | USER | CALLER | SELF | OWNER }
-	if p.cur.Type == kwLOGIN {
-		stmt.ObjectType = "LOGIN"
-		p.advance()
-	} else if p.cur.Type == kwUSER {
-		stmt.ObjectType = "USER"
-		p.advance()
-	} else if p.cur.Type == kwCALLER {
+	switch p.cur.Type {
+	case kwCALLER:
 		stmt.ObjectType = "CALLER"
 		p.advance()
 		stmt.Loc.End = p.prevEnd()
 		return stmt, nil
-	} else if p.cur.Type == kwSELF {
-		stmt.ObjectType = "SELF"
+	case kwLOGIN:
+		stmt.ObjectType = "LOGIN"
 		p.advance()
-		stmt.Loc.End = p.prevEnd()
-		return stmt, nil
-	} else if p.cur.Type == kwOWNER {
-		stmt.ObjectType = "OWNER"
+	case kwUSER:
+		stmt.ObjectType = "USER"
 		p.advance()
-		stmt.Loc.End = p.prevEnd()
-		return stmt, nil
+	default:
+		return nil, p.syntaxErrorAtCur()
 	}
 
-	// = 'name'
-	if p.cur.Type == '=' {
-		p.advance()
-		if p.cur.Type == tokSCONST || p.isIdentLike() {
-			stmt.Name = p.cur.Str
-			p.advance()
-		}
+	// = name
+	if _, err := p.expect('='); err != nil {
+		return nil, err
+	}
+	nameStart := p.pos()
+	name, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if name == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if lit, ok := name.(*nodes.Literal); ok && lit.Type == nodes.LitString {
+		stmt.Name = lit.Str
+	} else {
+		stmt.Name = p.source[nameStart:p.prevEnd()]
 	}
 
 	// WITH { NO REVERT | COOKIE INTO @cookie_variable }
 	if p.cur.Type == kwWITH {
 		p.advance()
 		var opts []nodes.Node
-		if p.cur.Type == kwNO {
+		switch p.cur.Type {
+		case kwNO:
 			p.advance()
-			if p.cur.Type == kwREVERT {
-				p.advance()
-				opts = append(opts, &nodes.String{Str: "NO REVERT"})
+			if _, err := p.expect(kwREVERT); err != nil {
+				return nil, err
 			}
-		} else if p.cur.Type == kwCOOKIE {
+			opts = append(opts, &nodes.String{Str: "NO REVERT"})
+		case kwCOOKIE:
 			p.advance()
-			if p.cur.Type == kwINTO {
-				p.advance()
+			if _, err := p.expect(kwINTO); err != nil {
+				return nil, err
 			}
-			if p.cur.Type == tokVARIABLE {
-				opts = append(opts, &nodes.String{Str: "COOKIE=" + p.cur.Str})
-				p.advance()
+			if p.cur.Type != tokVARIABLE {
+				return nil, p.syntaxErrorAtCur()
 			}
+			opts = append(opts, &nodes.String{Str: "COOKIE=" + p.cur.Str})
+			p.advance()
+		default:
+			return nil, p.syntaxErrorAtCur()
 		}
-		if len(opts) > 0 {
-			stmt.Options = &nodes.List{Items: opts}
-		}
+		stmt.Options = &nodes.List{Items: opts}
 	}
 
 	stmt.Loc.End = p.prevEnd()

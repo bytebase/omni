@@ -86,7 +86,7 @@ func (p *Parser) parseUpdateStmt() (*nodes.UpdateStmt, error) {
 
 		// Optional WITH ( <Table_Hint_Limited> ) on target — only allowed on named tables.
 		if p.cur.Type == kwWITH && p.peekNext().Type == '(' {
-			hints, err := p.parseTableHints()
+			hints, err := p.parseDmlTargetHints()
 			if err != nil {
 				return nil, err
 			}
@@ -94,22 +94,27 @@ func (p *Parser) parseUpdateStmt() (*nodes.UpdateStmt, error) {
 		}
 	}
 
-	// SET clause
-	if _, err := p.expect(kwSET); err == nil {
-		// Completion: after SET → columnref
+	// SET clause, which updateSpecification (TSql160.g:19808) requires.
+	if _, err := p.expect(kwSET); err != nil {
 		if p.collectMode() {
-			p.addRuleCandidate("columnref")
+			p.addTokenCandidate(kwSET)
 			return nil, errCollecting
 		}
-		setList, err := p.parseSetClauseList()
-		if err != nil {
-			return nil, err
-		}
-		if setList == nil || len(setList.Items) == 0 {
-			return nil, p.newParseError(p.cur.Loc, "expected assignment after SET")
-		}
-		stmt.SetClause = setList
+		return nil, err
 	}
+	// Completion: after SET → columnref
+	if p.collectMode() {
+		p.addRuleCandidate("columnref")
+		return nil, errCollecting
+	}
+	setList, err := p.parseSetClauseList()
+	if err != nil {
+		return nil, err
+	}
+	if setList == nil || len(setList.Items) == 0 {
+		return nil, p.newParseError(p.cur.Loc, "expected assignment after SET")
+	}
+	stmt.SetClause = setList
 
 	// OUTPUT clause
 	if p.cur.Type == kwOUTPUT {
@@ -225,7 +230,7 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 
 		// Optional WITH ( <Table_Hint_Limited> ) on target — only allowed on named tables.
 		if p.cur.Type == kwWITH && p.peekNext().Type == '(' {
-			hints, err := p.parseTableHints()
+			hints, err := p.parseDmlTargetHints()
 			if err != nil {
 				return nil, err
 			}
@@ -293,14 +298,17 @@ func (p *Parser) parseWhereClauseBody() (nodes.ExprNode, error) {
 			p.advance() // consume CURRENT
 			p.advance() // consume OF
 
-			// CURRENT OF [ GLOBAL ] cursor_name | @cursor_variable
+			// CURRENT OF [ GLOBAL ] cursor_name | @cursor_variable; the
+			// cursor is required (cursorId, TSql160.g:14652).
 			global := p.matchIdentCI("GLOBAL")
 			var cursorName string
-			if p.cur.Type == tokVARIABLE {
+			if p.cur.Type == tokVARIABLE && !global {
 				cursorName = p.cur.Str
 				p.advance()
 			} else if name, ok := p.parseIdentifier(); ok {
 				cursorName = name
+			} else {
+				return nil, p.syntaxErrorAtCur()
 			}
 			return &nodes.CurrentOfExpr{
 				CursorName: cursorName,
@@ -312,6 +320,33 @@ func (p *Parser) parseWhereClauseBody() (nodes.ExprNode, error) {
 	p.enterSearchCondition()
 	defer p.leaveSearchCondition()
 	return p.parseExpr()
+}
+
+// parseDmlTargetHints parses WITH ( table_hint_limited [ ...n ] ) after the
+// target of an INSERT, UPDATE or DELETE. The list may not be empty
+// (tableHints, TSql160.g:21027), and SQL Server refuses on a target what it
+// takes in a FROM clause: an index hint (Msg 1069), FORCESEEK (Msg 10724),
+// FORCESCAN (Msg 10745), NOLOCK and READUNCOMMITTED (Msg 1065).
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/queries/hints-transact-sql-table
+func (p *Parser) parseDmlTargetHints() (*nodes.List, error) {
+	hints, err := p.parseTableHints()
+	if err != nil {
+		return nil, err
+	}
+	if hints == nil {
+		return nil, p.newParseError(p.prev.Loc, "syntax error at or near \")\"")
+	}
+	for _, item := range hints.Items {
+		hint, ok := item.(*nodes.TableHint)
+		if !ok {
+			continue
+		}
+		switch strings.ToUpper(hint.Name) {
+		case "INDEX", "FORCESEEK", "FORCESCAN", "NOLOCK", "READUNCOMMITTED":
+			return nil, p.newParseError(hint.Loc.Start, fmt.Sprintf("the %s hint is not allowed on the target of a data modification statement", strings.ToUpper(hint.Name)))
+		}
+	}
+	return hints, nil
 }
 
 // isCompoundAssign returns the operator string if the current token is a compound assignment operator,
