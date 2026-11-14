@@ -747,6 +747,11 @@ func (w *writer) writeDropStmt(n *ast.DropStmt) error {
 		w.buf.WriteString(" IF EXISTS")
 	}
 	w.buf.WriteByte(' ')
+	if n.Table != nil {
+		// DROP INDEX <table_name>.<index_name>
+		w.writeObjectNameNoSpace(n.Table)
+		w.buf.WriteByte('.')
+	}
 	w.writeObjectNameNoSpace(n.Name)
 	if n.HasArgs {
 		// DROP FUNCTION / PROCEDURE overload signature: f(NUMBER, VARCHAR).
@@ -777,7 +782,7 @@ func (w *writer) writeUndropStmt(n *ast.UndropStmt) error {
 	if n.Iceberg {
 		w.buf.WriteString("ICEBERG ")
 	}
-	w.buf.WriteString(n.Kind.String())
+	w.buf.WriteString(n.ObjectType())
 	w.buf.WriteByte(' ')
 	w.writeObjectNameNoSpace(n.Name)
 	return nil

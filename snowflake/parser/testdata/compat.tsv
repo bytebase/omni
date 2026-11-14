@@ -391,7 +391,7 @@ reject	undocumented	docs	statement/alterDynamicTable!drop-4	ALTER DYNAMIC TABLE 
 reject	undocumented	docs	statement/alterDynamicTable!drop-5	ALTER DYNAMIC TABLE a
 reject	undocumented	docs	statement/alterDynamicTable!insert	ALTER DYNAMIC TABLE a SUSPEND zzz
 reject	undocumented	docs	statement/alterDynamicTable!swap	ALWAYS DYNAMIC TABLE a SUSPEND
-reject	accept	docs	statement/alterEventRoutingTable	ALTER EVENT ROUTING TABLE a UNSET RULE a
+accept	accept	docs	statement/alterEventRoutingTable	ALTER EVENT ROUTING TABLE a UNSET RULE a
 reject	undocumented	docs	statement/alterEventRoutingTable!drop-1	EVENT ROUTING TABLE a UNSET RULE a
 reject	undocumented	docs	statement/alterEventRoutingTable!drop-2	ALTER ROUTING TABLE a UNSET RULE a
 reject	undocumented	docs	statement/alterEventRoutingTable!drop-3	ALTER EVENT TABLE a UNSET RULE a
@@ -555,7 +555,7 @@ reject	undocumented	docs	statement/alterFunctionSpcs!drop-6	ALTER FUNCTION a() C
 reject	undocumented	docs	statement/alterFunctionSpcs!drop-7	ALTER FUNCTION a() UNSET
 reject	undocumented	docs	statement/alterFunctionSpcs!insert	ALTER FUNCTION a() UNSET CONTEXT_HEADERS zzz
 reject	undocumented	docs	statement/alterFunctionSpcs!swap	ALWAYS FUNCTION a() UNSET CONTEXT_HEADERS
-reject	accept	docs	statement/alterGateway	ALTER GATEWAY a FROM SPECIFICATION 's'
+accept	accept	docs	statement/alterGateway	ALTER GATEWAY a FROM SPECIFICATION 's'
 reject	undocumented	docs	statement/alterGateway!drop-1	GATEWAY a FROM SPECIFICATION 's'
 reject	undocumented	docs	statement/alterGateway!drop-2	ALTER a FROM SPECIFICATION 's'
 reject	undocumented	docs	statement/alterGateway!drop-3	ALTER GATEWAY FROM SPECIFICATION 's'
@@ -1229,7 +1229,7 @@ reject	undocumented	docs	statement/alterTaskGraph!drop-4	ALTER TASK GRAPH COMMIT
 reject	undocumented	docs	statement/alterTaskGraph!drop-5	ALTER TASK GRAPH a
 reject	undocumented	docs	statement/alterTaskGraph!insert	ALTER TASK GRAPH a COMMIT zzz
 reject	undocumented	docs	statement/alterTaskGraph!swap	ALWAYS TASK GRAPH a COMMIT
-reject	accept	docs	statement/alterType	ALTER TYPE a UNSET COMMENT
+accept	accept	docs	statement/alterType	ALTER TYPE a UNSET COMMENT
 reject	undocumented	docs	statement/alterType!drop-1	TYPE a UNSET COMMENT
 reject	undocumented	docs	statement/alterType!drop-3	ALTER TYPE UNSET COMMENT
 reject	undocumented	docs	statement/alterType!drop-4	ALTER TYPE a COMMENT
@@ -1359,7 +1359,7 @@ accept	accept	docs	statement/alterUserSetIngressPolicy!drop-5	ALTER USER a UNSET
 accept	accept	docs	statement/alterUserSetIngressPolicy!drop-6	ALTER USER a UNSET INGRESS
 reject	undocumented	docs	statement/alterUserSetIngressPolicy!insert	ALTER USER a UNSET INGRESS POLICY zzz
 reject	undocumented	docs	statement/alterUserSetIngressPolicy!swap	ALWAYS USER a UNSET INGRESS POLICY
-reject	accept	docs	statement/alterVariable	ALTER VARIABLE a DROP DEFAULT
+accept	accept	docs	statement/alterVariable	ALTER VARIABLE a DROP DEFAULT
 reject	undocumented	docs	statement/alterVariable!drop-1	VARIABLE a DROP DEFAULT
 reject	undocumented	docs	statement/alterVariable!drop-2	ALTER a DROP DEFAULT
 reject	undocumented	docs	statement/alterVariable!drop-3	ALTER VARIABLE DROP DEFAULT
@@ -2068,7 +2068,7 @@ reject	undocumented	docs	statement/createFunctionSpcs!drop-14	CREATE FUNCTION a(
 reject	undocumented	docs	statement/createFunctionSpcs!drop-15	CREATE FUNCTION a() RETURNS INT SERVICE = a ENDPOINT = a AS
 reject	undocumented	docs	statement/createFunctionSpcs!insert	CREATE FUNCTION a() RETURNS INT SERVICE = a ENDPOINT = a AS 's' zzz
 reject	undocumented	docs	statement/createFunctionSpcs!swap	CREATION FUNCTION a() RETURNS INT SERVICE = a ENDPOINT = a AS 's'
-reject	accept	docs	statement/createGateway	CREATE GATEWAY a FROM SPECIFICATION 's'
+accept	accept	docs	statement/createGateway	CREATE GATEWAY a FROM SPECIFICATION 's'
 reject	undocumented	docs	statement/createGateway!drop-2	CREATE a FROM SPECIFICATION 's'
 reject	undocumented	docs	statement/createGateway!drop-3	CREATE GATEWAY FROM SPECIFICATION 's'
 reject	undocumented	docs	statement/createGateway!drop-4	CREATE GATEWAY a SPECIFICATION 's'
@@ -2140,7 +2140,7 @@ reject	undocumented	docs	statement/createImageRepository!drop-3	CREATE IMAGE a
 reject	undocumented	docs	statement/createImageRepository!drop-4	CREATE IMAGE REPOSITORY
 reject	undocumented	docs	statement/createImageRepository!insert	CREATE IMAGE REPOSITORY a zzz
 reject	undocumented	docs	statement/createImageRepository!swap	CREATION IMAGE REPOSITORY a
-reject	accept	docs	statement/createIndex	CREATE INDEX a ON a(a)
+accept	accept	docs	statement/createIndex	CREATE INDEX a ON a(a)
 reject	undocumented	docs	statement/createIndex!drop-1	INDEX a ON a(a)
 reject	undocumented	docs	statement/createIndex!drop-2	CREATE a ON a(a)
 reject	undocumented	docs	statement/createIndex!drop-3	CREATE INDEX ON a(a)
@@ -2253,7 +2253,7 @@ reject	undocumented	docs	statement/createMaterializedView!drop-5	CREATE MATERIAL
 reject	undocumented	docs	statement/createMaterializedView!drop-6	CREATE MATERIALIZED VIEW a AS
 accept	undocumented	docs	statement/createMaterializedView!insert	CREATE MATERIALIZED VIEW a AS SELECT 1 zzz
 reject	undocumented	docs	statement/createMaterializedView!swap	CREATION MATERIALIZED VIEW a AS SELECT 1
-reject	accept	docs	statement/createMcpServer	CREATE MCP SERVER a FROM SPECIFICATION 's'
+accept	accept	docs	statement/createMcpServer	CREATE MCP SERVER a FROM SPECIFICATION 's'
 reject	undocumented	docs	statement/createMcpServer!drop-1	MCP SERVER a FROM SPECIFICATION 's'
 reject	undocumented	docs	statement/createMcpServer!drop-2	CREATE SERVER a FROM SPECIFICATION 's'
 reject	undocumented	docs	statement/createMcpServer!drop-3	CREATE MCP a FROM SPECIFICATION 's'
@@ -2519,7 +2519,7 @@ reject	undocumented	docs	statement/createNotificationIntegrationWebhooks!drop-12
 reject	undocumented	docs	statement/createNotificationIntegrationWebhooks!drop-13	CREATE NOTIFICATION INTEGRATION a TYPE = WEBHOOK ENABLED = TRUE WEBHOOK_URL =
 reject	undocumented	docs	statement/createNotificationIntegrationWebhooks!insert	CREATE NOTIFICATION INTEGRATION a TYPE = WEBHOOK ENABLED = TRUE WEBHOOK_URL = 's' zzz
 reject	undocumented	docs	statement/createNotificationIntegrationWebhooks!swap	CREATION NOTIFICATION INTEGRATION a TYPE = WEBHOOK ENABLED = TRUE WEBHOOK_URL = 's'
-reject	accept	docs	statement/createOpenflowConnector	CREATE OPENFLOW CONNECTOR a IN RUNTIME a FROM 's'
+accept	accept	docs	statement/createOpenflowConnector	CREATE OPENFLOW CONNECTOR a IN RUNTIME a FROM 's'
 reject	undocumented	docs	statement/createOpenflowConnector!drop-1	OPENFLOW CONNECTOR a IN RUNTIME a FROM 's'
 reject	undocumented	docs	statement/createOpenflowConnector!drop-2	CREATE CONNECTOR a IN RUNTIME a FROM 's'
 reject	undocumented	docs	statement/createOpenflowConnector!drop-3	CREATE OPENFLOW a IN RUNTIME a FROM 's'
@@ -3082,7 +3082,7 @@ reject	undocumented	docs	statement/createTaskGraph!drop-3	CREATE TASK a
 reject	undocumented	docs	statement/createTaskGraph!drop-4	CREATE TASK GRAPH
 reject	undocumented	docs	statement/createTaskGraph!insert	CREATE TASK GRAPH a zzz
 reject	undocumented	docs	statement/createTaskGraph!swap	CREATION TASK GRAPH a
-reject	accept	docs	statement/createType	CREATE TYPE a AS INT
+accept	accept	docs	statement/createType	CREATE TYPE a AS INT
 reject	undocumented	docs	statement/createType!drop-1	TYPE a AS INT
 reject	undocumented	docs	statement/createType!drop-2	CREATE a AS INT
 reject	undocumented	docs	statement/createType!drop-3	CREATE TYPE AS INT
@@ -3095,7 +3095,7 @@ reject	undocumented	docs	statement/createUser!drop-1	USER a
 reject	undocumented	docs	statement/createUser!drop-3	CREATE USER
 accept	undocumented	docs	statement/createUser!insert	CREATE USER a zzz
 reject	undocumented	docs	statement/createUser!swap	CREATION USER a
-reject	accept	docs	statement/createVariable	CREATE VARIABLE a INT
+accept	accept	docs	statement/createVariable	CREATE VARIABLE a INT
 reject	undocumented	docs	statement/createVariable!drop-1	VARIABLE a INT
 reject	undocumented	docs	statement/createVariable!drop-2	CREATE a INT
 reject	undocumented	docs	statement/createVariable!drop-3	CREATE VARIABLE INT
@@ -3694,7 +3694,7 @@ reject	undocumented	docs	statement/dropDynamicTable!drop-3	DROP DYNAMIC a
 reject	undocumented	docs	statement/dropDynamicTable!drop-4	DROP DYNAMIC TABLE
 reject	undocumented	docs	statement/dropDynamicTable!insert	DROP DYNAMIC TABLE a zzz
 reject	undocumented	docs	statement/dropDynamicTable!swap	DROP_FROM_SOURCE_CATALOG DYNAMIC TABLE a
-reject	accept	docs	statement/dropEventRoutingTable	DROP EVENT ROUTING TABLE a
+accept	accept	docs	statement/dropEventRoutingTable	DROP EVENT ROUTING TABLE a
 reject	undocumented	docs	statement/dropEventRoutingTable!drop-1	EVENT ROUTING TABLE a
 reject	undocumented	docs	statement/dropEventRoutingTable!drop-2	DROP ROUTING TABLE a
 reject	undocumented	docs	statement/dropEventRoutingTable!drop-3	DROP EVENT TABLE a
@@ -3768,7 +3768,7 @@ reject	undocumented	docs	statement/dropFunctionDmf!drop-8	DROP FUNCTION a(TABLE(
 reject	undocumented	docs	statement/dropFunctionDmf!insert	DROP FUNCTION a(TABLE(INT)) zzz
 reject	undocumented	docs	statement/dropFunctionDmf!swap	DROP_FROM_SOURCE_CATALOG FUNCTION a(TABLE(INT))
 accept	accept	docs	statement/dropFunctionSpcs	DROP FUNCTION a()
-reject	accept	docs	statement/dropGateway	DROP GATEWAY a
+accept	accept	docs	statement/dropGateway	DROP GATEWAY a
 reject	undocumented	docs	statement/dropGateway!drop-3	DROP GATEWAY
 reject	undocumented	docs	statement/dropGateway!insert	DROP GATEWAY a zzz
 reject	undocumented	docs	statement/dropGateway!swap	DROP_FROM_SOURCE_CATALOG GATEWAY a
@@ -3791,7 +3791,7 @@ reject	undocumented	docs	statement/dropImageRepository!drop-3	DROP IMAGE a
 reject	undocumented	docs	statement/dropImageRepository!drop-4	DROP IMAGE REPOSITORY
 reject	undocumented	docs	statement/dropImageRepository!insert	DROP IMAGE REPOSITORY a zzz
 reject	undocumented	docs	statement/dropImageRepository!swap	DROP_FROM_SOURCE_CATALOG IMAGE REPOSITORY a
-reject	accept	docs	statement/dropIndex	DROP INDEX a.a
+accept	accept	docs	statement/dropIndex	DROP INDEX a.a
 reject	undocumented	docs	statement/dropIndex!drop-1	INDEX a.a
 reject	undocumented	docs	statement/dropIndex!drop-2	DROP a.a
 reject	undocumented	docs	statement/dropIndex!drop-3	DROP INDEX.a
@@ -3839,7 +3839,7 @@ reject	undocumented	docs	statement/dropMaterializedView!drop-3	DROP MATERIALIZED
 reject	undocumented	docs	statement/dropMaterializedView!drop-4	DROP MATERIALIZED VIEW
 reject	undocumented	docs	statement/dropMaterializedView!insert	DROP MATERIALIZED VIEW a zzz
 reject	undocumented	docs	statement/dropMaterializedView!swap	DROP_FROM_SOURCE_CATALOG MATERIALIZED VIEW a
-reject	accept	docs	statement/dropMcpServer	DROP MCP SERVER a
+accept	accept	docs	statement/dropMcpServer	DROP MCP SERVER a
 reject	undocumented	docs	statement/dropMcpServer!drop-2	DROP SERVER a
 reject	undocumented	docs	statement/dropMcpServer!drop-3	DROP MCP a
 reject	undocumented	docs	statement/dropMcpServer!drop-4	DROP MCP SERVER
@@ -3889,7 +3889,7 @@ reject	undocumented	docs	statement/dropOnlineFeatureTable!drop-4	DROP ONLINE FEA
 reject	undocumented	docs	statement/dropOnlineFeatureTable!drop-5	DROP ONLINE FEATURE TABLE
 reject	undocumented	docs	statement/dropOnlineFeatureTable!insert	DROP ONLINE FEATURE TABLE a zzz
 reject	undocumented	docs	statement/dropOnlineFeatureTable!swap	DROP_FROM_SOURCE_CATALOG ONLINE FEATURE TABLE a
-reject	accept	docs	statement/dropOpenflowConnector	DROP OPENFLOW CONNECTOR a
+accept	accept	docs	statement/dropOpenflowConnector	DROP OPENFLOW CONNECTOR a
 reject	undocumented	docs	statement/dropOpenflowConnector!drop-2	DROP CONNECTOR a
 reject	undocumented	docs	statement/dropOpenflowConnector!drop-3	DROP OPENFLOW a
 reject	undocumented	docs	statement/dropOpenflowConnector!drop-4	DROP OPENFLOW CONNECTOR
@@ -4062,7 +4062,7 @@ reject	undocumented	docs	statement/dropTaskGraph!drop-2	DROP GRAPH a
 accept	accept	docs	statement/dropTaskGraph!drop-4	DROP TASK GRAPH
 reject	undocumented	docs	statement/dropTaskGraph!insert	DROP TASK GRAPH a zzz
 reject	undocumented	docs	statement/dropTaskGraph!swap	DROP_FROM_SOURCE_CATALOG TASK GRAPH a
-reject	accept	docs	statement/dropType	DROP TYPE a
+accept	accept	docs	statement/dropType	DROP TYPE a
 reject	undocumented	docs	statement/dropType!drop-3	DROP TYPE
 reject	undocumented	docs	statement/dropType!insert	DROP TYPE a zzz
 reject	undocumented	docs	statement/dropType!swap	DROP_FROM_SOURCE_CATALOG TYPE a
@@ -4070,7 +4070,7 @@ accept	accept	docs	statement/dropUser	DROP USER a
 reject	undocumented	docs	statement/dropUser!drop-3	DROP USER
 reject	undocumented	docs	statement/dropUser!insert	DROP USER a zzz
 reject	undocumented	docs	statement/dropUser!swap	DROP_FROM_SOURCE_CATALOG USER a
-reject	accept	docs	statement/dropVariable	DROP VARIABLE a
+accept	accept	docs	statement/dropVariable	DROP VARIABLE a
 reject	undocumented	docs	statement/dropVariable!drop-3	DROP VARIABLE
 reject	undocumented	docs	statement/dropVariable!insert	DROP VARIABLE a zzz
 reject	undocumented	docs	statement/dropVariable!swap	DROP_FROM_SOURCE_CATALOG VARIABLE a
@@ -5640,11 +5640,11 @@ accept	accept	docs	statement/undropTag	UNDROP TAG a
 reject	undocumented	docs	statement/undropTag!drop-3	UNDROP TAG
 reject	undocumented	docs	statement/undropTag!insert	UNDROP TAG a zzz
 reject	undocumented	docs	statement/undropTag!swap	UNIQUE TAG a
-reject	accept	docs	statement/undropType	UNDROP TYPE a
+accept	accept	docs	statement/undropType	UNDROP TYPE a
 reject	undocumented	docs	statement/undropType!drop-3	UNDROP TYPE
 reject	undocumented	docs	statement/undropType!insert	UNDROP TYPE a zzz
 reject	undocumented	docs	statement/undropType!swap	UNIQUE TYPE a
-reject	accept	docs	statement/undropVariable	UNDROP VARIABLE a
+accept	accept	docs	statement/undropVariable	UNDROP VARIABLE a
 reject	undocumented	docs	statement/undropVariable!drop-3	UNDROP VARIABLE
 reject	undocumented	docs	statement/undropVariable!insert	UNDROP VARIABLE a zzz
 reject	undocumented	docs	statement/undropVariable!swap	UNIQUE VARIABLE a
@@ -11948,7 +11948,7 @@ reject	undocumented	docs	alterDynamicTable_storageLifecyclePolicyAction(,_ID)*/,
 reject	undocumented	docs	alterDynamicTable_storageLifecyclePolicyAction(,_ID)*/,_ID_(,_ID)*!drop-2	ALTER DYNAMIC TABLE a ADD STORAGE LIFECYCLE POLICY a ON(a,)
 reject	undocumented	docs	alterDynamicTable_storageLifecyclePolicyAction(,_ID)*/,_ID_(,_ID)*!truncate	ALTER DYNAMIC TABLE a ADD STORAGE LIFECYCLE POLICY a ON(a,
 reject	undocumented	docs	alterDynamicTable_storageLifecyclePolicyAction(,_ID)*/,_ID_(,_ID)*!insert	ALTER DYNAMIC TABLE a ADD STORAGE LIFECYCLE POLICY a ON(a, a zzz)
-reject	accept	docs	alterEventRoutingTable/ALTER_EVENT_ROUTING_TABLE_QNAME_(FORCE)?_SET_RULES_ID_=~ed07467a	ALTER EVENT ROUTING TABLE a SET RULES a =(REGION_GROUP = a, REGIONS =('s'), DESTINATION_ACCOUNT = a.a)
+accept	accept	docs	alterEventRoutingTable/ALTER_EVENT_ROUTING_TABLE_QNAME_(FORCE)?_SET_RULES_ID_=~ed07467a	ALTER EVENT ROUTING TABLE a SET RULES a =(REGION_GROUP = a, REGIONS =('s'), DESTINATION_ACCOUNT = a.a)
 reject	undocumented	docs	alterEventRoutingTable/ALTER_EVENT_ROUTING_TABLE_QNAME_(FORCE)?_SET_RULES_ID_=~ed07467a!drop-1	EVENT ROUTING TABLE a SET RULES a =(REGION_GROUP = a, REGIONS =('s'), DESTINATION_ACCOUNT = a.a)
 reject	undocumented	docs	alterEventRoutingTable/ALTER_EVENT_ROUTING_TABLE_QNAME_(FORCE)?_SET_RULES_ID_=~ed07467a!drop-2	ALTER ROUTING TABLE a SET RULES a =(REGION_GROUP = a, REGIONS =('s'), DESTINATION_ACCOUNT = a.a)
 reject	undocumented	docs	alterEventRoutingTable/ALTER_EVENT_ROUTING_TABLE_QNAME_(FORCE)?_SET_RULES_ID_=~ed07467a!drop-3	ALTER EVENT TABLE a SET RULES a =(REGION_GROUP = a, REGIONS =('s'), DESTINATION_ACCOUNT = a.a)
@@ -11977,7 +11977,7 @@ reject	undocumented	docs	alterEventRoutingTable/ALTER_EVENT_ROUTING_TABLE_QNAME_
 reject	undocumented	docs	alterEventRoutingTable/ALTER_EVENT_ROUTING_TABLE_QNAME_(FORCE)?_SET_RULES_ID_=~ed07467a!drop-26	ALTER EVENT ROUTING TABLE a SET RULES a =(REGION_GROUP = a, REGIONS =('s'), DESTINATION_ACCOUNT = a.a
 reject	undocumented	docs	alterEventRoutingTable/ALTER_EVENT_ROUTING_TABLE_QNAME_(FORCE)?_SET_RULES_ID_=~ed07467a!insert	ALTER EVENT ROUTING TABLE a SET RULES a =(REGION_GROUP = a, REGIONS =('s'), DESTINATION_ACCOUNT = a.a) zzz
 reject	undocumented	docs	alterEventRoutingTable/ALTER_EVENT_ROUTING_TABLE_QNAME_(FORCE)?_SET_RULES_ID_=~ed07467a!swap	ALWAYS EVENT ROUTING TABLE a SET RULES a =(REGION_GROUP = a, REGIONS =('s'), DESTINATION_ACCOUNT = a.a)
-reject	accept	docs	alterEventRoutingTable/ALTER_EVENT_ROUTING_TABLE_QNAME_(FORCE)?_SET_RULE_ID_RE~38af9f8b	ALTER EVENT ROUTING TABLE a SET RULE a REGION_GROUP = a REGIONS =('s') DESTINATION_ACCOUNT = a.a
+accept	accept	docs	alterEventRoutingTable/ALTER_EVENT_ROUTING_TABLE_QNAME_(FORCE)?_SET_RULE_ID_RE~38af9f8b	ALTER EVENT ROUTING TABLE a SET RULE a REGION_GROUP = a REGIONS =('s') DESTINATION_ACCOUNT = a.a
 reject	undocumented	docs	alterEventRoutingTable/ALTER_EVENT_ROUTING_TABLE_QNAME_(FORCE)?_SET_RULE_ID_RE~38af9f8b!drop-1	EVENT ROUTING TABLE a SET RULE a REGION_GROUP = a REGIONS =('s') DESTINATION_ACCOUNT = a.a
 reject	undocumented	docs	alterEventRoutingTable/ALTER_EVENT_ROUTING_TABLE_QNAME_(FORCE)?_SET_RULE_ID_RE~38af9f8b!drop-2	ALTER ROUTING TABLE a SET RULE a REGION_GROUP = a REGIONS =('s') DESTINATION_ACCOUNT = a.a
 reject	undocumented	docs	alterEventRoutingTable/ALTER_EVENT_ROUTING_TABLE_QNAME_(FORCE)?_SET_RULE_ID_RE~38af9f8b!drop-3	ALTER EVENT TABLE a SET RULE a REGION_GROUP = a REGIONS =('s') DESTINATION_ACCOUNT = a.a
@@ -12001,8 +12001,8 @@ reject	undocumented	docs	alterEventRoutingTable/ALTER_EVENT_ROUTING_TABLE_QNAME_
 reject	undocumented	docs	alterEventRoutingTable/ALTER_EVENT_ROUTING_TABLE_QNAME_(FORCE)?_SET_RULE_ID_RE~38af9f8b!drop-21	ALTER EVENT ROUTING TABLE a SET RULE a REGION_GROUP = a REGIONS =('s') DESTINATION_ACCOUNT = a.
 reject	undocumented	docs	alterEventRoutingTable/ALTER_EVENT_ROUTING_TABLE_QNAME_(FORCE)?_SET_RULE_ID_RE~38af9f8b!insert	ALTER EVENT ROUTING TABLE a SET RULE a REGION_GROUP = a REGIONS =('s') DESTINATION_ACCOUNT = a.a zzz
 reject	undocumented	docs	alterEventRoutingTable/ALTER_EVENT_ROUTING_TABLE_QNAME_(FORCE)?_SET_RULE_ID_RE~38af9f8b!swap	ALWAYS EVENT ROUTING TABLE a SET RULE a REGION_GROUP = a REGIONS =('s') DESTINATION_ACCOUNT = a.a
-reject	accept	docs	alterEventRoutingTable/ALTER_EVENT_ROUTING_TABLE_QNAME_(FORCE)?_UNSET_RULE_ID	ALTER EVENT ROUTING TABLE a UNSET RULE a
-reject	accept	docs	alterEventRoutingTable/ALTER_EVENT_ROUTING_TABLE_QNAME_MODIFY_RULE_ID_RENAME_TO_ID	ALTER EVENT ROUTING TABLE a MODIFY RULE a RENAME TO a
+accept	accept	docs	alterEventRoutingTable/ALTER_EVENT_ROUTING_TABLE_QNAME_(FORCE)?_UNSET_RULE_ID	ALTER EVENT ROUTING TABLE a UNSET RULE a
+accept	accept	docs	alterEventRoutingTable/ALTER_EVENT_ROUTING_TABLE_QNAME_MODIFY_RULE_ID_RENAME_TO_ID	ALTER EVENT ROUTING TABLE a MODIFY RULE a RENAME TO a
 reject	undocumented	docs	alterEventRoutingTable/ALTER_EVENT_ROUTING_TABLE_QNAME_MODIFY_RULE_ID_RENAME_TO_ID!drop-1	EVENT ROUTING TABLE a MODIFY RULE a RENAME TO a
 reject	undocumented	docs	alterEventRoutingTable/ALTER_EVENT_ROUTING_TABLE_QNAME_MODIFY_RULE_ID_RENAME_TO_ID!drop-2	ALTER ROUTING TABLE a MODIFY RULE a RENAME TO a
 reject	undocumented	docs	alterEventRoutingTable/ALTER_EVENT_ROUTING_TABLE_QNAME_MODIFY_RULE_ID_RENAME_TO_ID!drop-3	ALTER EVENT TABLE a MODIFY RULE a RENAME TO a
@@ -12016,7 +12016,7 @@ reject	undocumented	docs	alterEventRoutingTable/ALTER_EVENT_ROUTING_TABLE_QNAME_
 reject	undocumented	docs	alterEventRoutingTable/ALTER_EVENT_ROUTING_TABLE_QNAME_MODIFY_RULE_ID_RENAME_TO_ID!drop-11	ALTER EVENT ROUTING TABLE a MODIFY RULE a RENAME TO
 reject	undocumented	docs	alterEventRoutingTable/ALTER_EVENT_ROUTING_TABLE_QNAME_MODIFY_RULE_ID_RENAME_TO_ID!insert	ALTER EVENT ROUTING TABLE a MODIFY RULE a RENAME TO a zzz
 reject	undocumented	docs	alterEventRoutingTable/ALTER_EVENT_ROUTING_TABLE_QNAME_MODIFY_RULE_ID_RENAME_TO_ID!swap	ALWAYS EVENT ROUTING TABLE a MODIFY RULE a RENAME TO a
-reject	accept	docs	alterEventRoutingTable/ALTER_EVENT_ROUTING_TABLE_QNAME_RENAME_TO_QNAME	ALTER EVENT ROUTING TABLE a RENAME TO a
+accept	accept	docs	alterEventRoutingTable/ALTER_EVENT_ROUTING_TABLE_QNAME_RENAME_TO_QNAME	ALTER EVENT ROUTING TABLE a RENAME TO a
 reject	undocumented	docs	alterEventRoutingTable/ALTER_EVENT_ROUTING_TABLE_QNAME_RENAME_TO_QNAME!drop-1	EVENT ROUTING TABLE a RENAME TO a
 reject	undocumented	docs	alterEventRoutingTable/ALTER_EVENT_ROUTING_TABLE_QNAME_RENAME_TO_QNAME!drop-2	ALTER ROUTING TABLE a RENAME TO a
 reject	undocumented	docs	alterEventRoutingTable/ALTER_EVENT_ROUTING_TABLE_QNAME_RENAME_TO_QNAME!drop-3	ALTER EVENT TABLE a RENAME TO a
@@ -12027,21 +12027,21 @@ reject	undocumented	docs	alterEventRoutingTable/ALTER_EVENT_ROUTING_TABLE_QNAME_
 reject	undocumented	docs	alterEventRoutingTable/ALTER_EVENT_ROUTING_TABLE_QNAME_RENAME_TO_QNAME!drop-8	ALTER EVENT ROUTING TABLE a RENAME TO
 reject	undocumented	docs	alterEventRoutingTable/ALTER_EVENT_ROUTING_TABLE_QNAME_RENAME_TO_QNAME!insert	ALTER EVENT ROUTING TABLE a RENAME TO a zzz
 reject	undocumented	docs	alterEventRoutingTable/ALTER_EVENT_ROUTING_TABLE_QNAME_RENAME_TO_QNAME!swap	ALWAYS EVENT ROUTING TABLE a RENAME TO a
-reject	accept	docs	alterEventRoutingTable(FORCE)?/%empty	ALTER EVENT ROUTING TABLE a UNSET RULE a
+accept	accept	docs	alterEventRoutingTable(FORCE)?/%empty	ALTER EVENT ROUTING TABLE a UNSET RULE a
 reject	undocumented	docs	alterEventRoutingTable(FORCE)?/%empty!insert	ALTER EVENT ROUTING TABLE a zzz UNSET RULE a
-reject	accept	docs	alterEventRoutingTable(FORCE)?/FORCE	ALTER EVENT ROUTING TABLE a FORCE UNSET RULE a
+accept	accept	docs	alterEventRoutingTable(FORCE)?/FORCE	ALTER EVENT ROUTING TABLE a FORCE UNSET RULE a
 reject	undocumented	docs	alterEventRoutingTable(FORCE)?/FORCE!truncate	ALTER EVENT ROUTING TABLE a
 reject	undocumented	docs	alterEventRoutingTable(FORCE)?/FORCE!insert	ALTER EVENT ROUTING TABLE a FORCE zzz UNSET RULE a
 reject	undocumented	docs	alterEventRoutingTable(FORCE)?/FORCE!swap	ALTER EVENT ROUTING TABLE a FORECAST UNSET RULE a
-reject	accept	docs	alterEventRoutingTable(,_STRING)*/%empty	ALTER EVENT ROUTING TABLE a SET RULE a REGION_GROUP = a REGIONS =('s') DESTINATION_ACCOUNT = a.a
+accept	accept	docs	alterEventRoutingTable(,_STRING)*/%empty	ALTER EVENT ROUTING TABLE a SET RULE a REGION_GROUP = a REGIONS =('s') DESTINATION_ACCOUNT = a.a
 reject	undocumented	docs	alterEventRoutingTable(,_STRING)*/%empty!insert	ALTER EVENT ROUTING TABLE a SET RULE a REGION_GROUP = a REGIONS =('s' zzz) DESTINATION_ACCOUNT = a.a
-reject	accept	docs	alterEventRoutingTable(,_STRING)*/,_STRING_(,_STRING)*	ALTER EVENT ROUTING TABLE a SET RULE a REGION_GROUP = a REGIONS =('s', 's') DESTINATION_ACCOUNT = a.a
+accept	accept	docs	alterEventRoutingTable(,_STRING)*/,_STRING_(,_STRING)*	ALTER EVENT ROUTING TABLE a SET RULE a REGION_GROUP = a REGIONS =('s', 's') DESTINATION_ACCOUNT = a.a
 reject	undocumented	docs	alterEventRoutingTable(,_STRING)*/,_STRING_(,_STRING)*!drop-1	ALTER EVENT ROUTING TABLE a SET RULE a REGION_GROUP = a REGIONS =('s' 's') DESTINATION_ACCOUNT = a.a
 reject	undocumented	docs	alterEventRoutingTable(,_STRING)*/,_STRING_(,_STRING)*!drop-2	ALTER EVENT ROUTING TABLE a SET RULE a REGION_GROUP = a REGIONS =('s',) DESTINATION_ACCOUNT = a.a
 reject	undocumented	docs	alterEventRoutingTable(,_STRING)*/,_STRING_(,_STRING)*!truncate	ALTER EVENT ROUTING TABLE a SET RULE a REGION_GROUP = a REGIONS =('s',
 reject	undocumented	docs	alterEventRoutingTable(,_STRING)*/,_STRING_(,_STRING)*!insert	ALTER EVENT ROUTING TABLE a SET RULE a REGION_GROUP = a REGIONS =('s', 's' zzz) DESTINATION_ACCOUNT = a.a
-reject	accept	docs	alterEventRoutingTable(,_ID_=_(_REGION_GROUP_=_ID_,_REGIONS~13358ed9)*/%empty	ALTER EVENT ROUTING TABLE a SET RULES a =(REGION_GROUP = a, REGIONS =('s'), DESTINATION_ACCOUNT = a.a)
-reject	accept	docs	alterEventRoutingTable(,_ID_=_(_REGION_GROUP_=_ID_,_REGIONS~13358ed9)*/,_ID_=_(_REGION_GROUP_=_ID_,_REGIONS_=_(_STRING_(,_STRI~d5ac88eb	ALTER EVENT ROUTING TABLE a SET RULES a =(REGION_GROUP = a, REGIONS =('s'), DESTINATION_ACCOUNT = a.a), a =(REGION_GROUP = a, REGIONS =('s'), DESTINATION_ACCOUNT = a.a)
+accept	accept	docs	alterEventRoutingTable(,_ID_=_(_REGION_GROUP_=_ID_,_REGIONS~13358ed9)*/%empty	ALTER EVENT ROUTING TABLE a SET RULES a =(REGION_GROUP = a, REGIONS =('s'), DESTINATION_ACCOUNT = a.a)
+accept	accept	docs	alterEventRoutingTable(,_ID_=_(_REGION_GROUP_=_ID_,_REGIONS~13358ed9)*/,_ID_=_(_REGION_GROUP_=_ID_,_REGIONS_=_(_STRING_(,_STRI~d5ac88eb	ALTER EVENT ROUTING TABLE a SET RULES a =(REGION_GROUP = a, REGIONS =('s'), DESTINATION_ACCOUNT = a.a), a =(REGION_GROUP = a, REGIONS =('s'), DESTINATION_ACCOUNT = a.a)
 reject	undocumented	docs	alterEventRoutingTable(,_ID_=_(_REGION_GROUP_=_ID_,_REGIONS~13358ed9)*/,_ID_=_(_REGION_GROUP_=_ID_,_REGIONS_=_(_STRING_(,_STRI~d5ac88eb!drop-1	ALTER EVENT ROUTING TABLE a SET RULES a =(REGION_GROUP = a, REGIONS =('s'), DESTINATION_ACCOUNT = a.a) a =(REGION_GROUP = a, REGIONS =('s'), DESTINATION_ACCOUNT = a.a)
 reject	undocumented	docs	alterEventRoutingTable(,_ID_=_(_REGION_GROUP_=_ID_,_REGIONS~13358ed9)*/,_ID_=_(_REGION_GROUP_=_ID_,_REGIONS_=_(_STRING_(,_STRI~d5ac88eb!drop-2	ALTER EVENT ROUTING TABLE a SET RULES a =(REGION_GROUP = a, REGIONS =('s'), DESTINATION_ACCOUNT = a.a), =(REGION_GROUP = a, REGIONS =('s'), DESTINATION_ACCOUNT = a.a)
 reject	undocumented	docs	alterEventRoutingTable(,_ID_=_(_REGION_GROUP_=_ID_,_REGIONS~13358ed9)*/,_ID_=_(_REGION_GROUP_=_ID_,_REGIONS_=_(_STRING_(,_STRI~d5ac88eb!drop-3	ALTER EVENT ROUTING TABLE a SET RULES a =(REGION_GROUP = a, REGIONS =('s'), DESTINATION_ACCOUNT = a.a), a(REGION_GROUP = a, REGIONS =('s'), DESTINATION_ACCOUNT = a.a)
@@ -14266,10 +14266,10 @@ accept	accept	docs	alterFunctionSpcs(CONTEXT_HEADERS|MAX_BATCH_ROWS|MAX_B~2230b8
 reject	undocumented	docs	alterFunctionSpcs(CONTEXT_HEADERS|MAX_BATCH_ROWS|MAX_B~2230b8c5)/BATCH_TIMEOUT_SECS!insert	ALTER FUNCTION a() UNSET BATCH_TIMEOUT_SECS zzz
 accept	undocumented	docs	alterFunctionSpcs(CONTEXT_HEADERS|MAX_BATCH_ROWS|MAX_B~2230b8c5)/BATCH_TIMEOUT_SECS!swap	ALTER FUNCTION a() UNSET BEARER
 accept	accept	docs	alterFunctionSpcs(CONTEXT_HEADERS|MAX_BATCH_ROWS|MAX_B~2230b8c5)/COMMENT	ALTER FUNCTION a() UNSET COMMENT
-reject	accept	docs	alterGateway/ALTER_GATEWAY_(IF_EXISTS)?_QNAME_FROM_SPECIFICATION_STRING	ALTER GATEWAY a FROM SPECIFICATION 's'
-reject	accept	docs	alterGateway(IF_EXISTS)?/%empty	ALTER GATEWAY a FROM SPECIFICATION 's'
+accept	accept	docs	alterGateway/ALTER_GATEWAY_(IF_EXISTS)?_QNAME_FROM_SPECIFICATION_STRING	ALTER GATEWAY a FROM SPECIFICATION 's'
+accept	accept	docs	alterGateway(IF_EXISTS)?/%empty	ALTER GATEWAY a FROM SPECIFICATION 's'
 reject	undocumented	docs	alterGateway(IF_EXISTS)?/%empty!insert	ALTER GATEWAY zzz a FROM SPECIFICATION 's'
-reject	accept	docs	alterGateway(IF_EXISTS)?/IF_EXISTS	ALTER GATEWAY IF EXISTS a FROM SPECIFICATION 's'
+accept	accept	docs	alterGateway(IF_EXISTS)?/IF_EXISTS	ALTER GATEWAY IF EXISTS a FROM SPECIFICATION 's'
 reject	undocumented	docs	alterGateway(IF_EXISTS)?/IF_EXISTS!drop-1	ALTER GATEWAY EXISTS a FROM SPECIFICATION 's'
 reject	undocumented	docs	alterGateway(IF_EXISTS)?/IF_EXISTS!drop-2	ALTER GATEWAY IF a FROM SPECIFICATION 's'
 reject	undocumented	docs	alterGateway(IF_EXISTS)?/IF_EXISTS!truncate	ALTER GATEWAY IF
@@ -26877,7 +26877,7 @@ accept	accept	docs	alterTaskGraph(,_QNAME)*/,_QNAME_(,_QNAME)*	ALTER TASK GRAPH 
 reject	undocumented	docs	alterTaskGraph(,_QNAME)*/,_QNAME_(,_QNAME)*!drop-1	ALTER TASK GRAPH a UNSET TAG a a
 reject	undocumented	docs	alterTaskGraph(,_QNAME)*/,_QNAME_(,_QNAME)*!drop-2	ALTER TASK GRAPH a UNSET TAG a,
 reject	undocumented	docs	alterTaskGraph(,_QNAME)*/,_QNAME_(,_QNAME)*!insert	ALTER TASK GRAPH a UNSET TAG a, a zzz
-reject	accept	docs	alterType/ALTER_TYPE_(IF_EXISTS)?_QNAME_SET_COMMENT_=_STRING	ALTER TYPE a SET COMMENT = 's'
+accept	accept	docs	alterType/ALTER_TYPE_(IF_EXISTS)?_QNAME_SET_COMMENT_=_STRING	ALTER TYPE a SET COMMENT = 's'
 reject	undocumented	docs	alterType/ALTER_TYPE_(IF_EXISTS)?_QNAME_SET_COMMENT_=_STRING!drop-1	TYPE a SET COMMENT = 's'
 reject	undocumented	docs	alterType/ALTER_TYPE_(IF_EXISTS)?_QNAME_SET_COMMENT_=_STRING!drop-3	ALTER TYPE SET COMMENT = 's'
 reject	undocumented	docs	alterType/ALTER_TYPE_(IF_EXISTS)?_QNAME_SET_COMMENT_=_STRING!drop-4	ALTER TYPE a COMMENT = 's'
@@ -26886,10 +26886,10 @@ reject	undocumented	docs	alterType/ALTER_TYPE_(IF_EXISTS)?_QNAME_SET_COMMENT_=_S
 reject	undocumented	docs	alterType/ALTER_TYPE_(IF_EXISTS)?_QNAME_SET_COMMENT_=_STRING!drop-7	ALTER TYPE a SET COMMENT =
 reject	undocumented	docs	alterType/ALTER_TYPE_(IF_EXISTS)?_QNAME_SET_COMMENT_=_STRING!insert	ALTER TYPE a SET COMMENT = 's' zzz
 reject	undocumented	docs	alterType/ALTER_TYPE_(IF_EXISTS)?_QNAME_SET_COMMENT_=_STRING!swap	ALWAYS TYPE a SET COMMENT = 's'
-reject	accept	docs	alterType/ALTER_TYPE_(IF_EXISTS)?_QNAME_UNSET_COMMENT	ALTER TYPE a UNSET COMMENT
-reject	accept	docs	alterType(IF_EXISTS)?/%empty	ALTER TYPE a UNSET COMMENT
+accept	accept	docs	alterType/ALTER_TYPE_(IF_EXISTS)?_QNAME_UNSET_COMMENT	ALTER TYPE a UNSET COMMENT
+accept	accept	docs	alterType(IF_EXISTS)?/%empty	ALTER TYPE a UNSET COMMENT
 reject	undocumented	docs	alterType(IF_EXISTS)?/%empty!insert	ALTER TYPE zzz a UNSET COMMENT
-reject	accept	docs	alterType(IF_EXISTS)?/IF_EXISTS	ALTER TYPE IF EXISTS a UNSET COMMENT
+accept	accept	docs	alterType(IF_EXISTS)?/IF_EXISTS	ALTER TYPE IF EXISTS a UNSET COMMENT
 reject	undocumented	docs	alterType(IF_EXISTS)?/IF_EXISTS!drop-1	ALTER TYPE EXISTS a UNSET COMMENT
 reject	undocumented	docs	alterType(IF_EXISTS)?/IF_EXISTS!drop-2	ALTER TYPE IF a UNSET COMMENT
 reject	undocumented	docs	alterType(IF_EXISTS)?/IF_EXISTS!truncate	ALTER TYPE IF
@@ -28056,7 +28056,7 @@ accept	accept	docs	alterUserSetIngressPolicy(FORCE)?/%empty	ALTER USER a SET ING
 accept	accept	docs	alterUserSetIngressPolicy(FORCE)?/FORCE	ALTER USER a SET INGRESS POLICY a FORCE
 reject	undocumented	docs	alterUserSetIngressPolicy(FORCE)?/FORCE!insert	ALTER USER a SET INGRESS POLICY a FORCE zzz
 reject	undocumented	docs	alterUserSetIngressPolicy(FORCE)?/FORCE!swap	ALTER USER a SET INGRESS POLICY a FORECAST
-reject	accept	docs	alterVariable/ALTER_VARIABLE_(IF_EXISTS)?_QNAME_RENAME_TO_QNAME	ALTER VARIABLE a RENAME TO a
+accept	accept	docs	alterVariable/ALTER_VARIABLE_(IF_EXISTS)?_QNAME_RENAME_TO_QNAME	ALTER VARIABLE a RENAME TO a
 reject	undocumented	docs	alterVariable/ALTER_VARIABLE_(IF_EXISTS)?_QNAME_RENAME_TO_QNAME!drop-1	VARIABLE a RENAME TO a
 reject	undocumented	docs	alterVariable/ALTER_VARIABLE_(IF_EXISTS)?_QNAME_RENAME_TO_QNAME!drop-3	ALTER VARIABLE RENAME TO a
 reject	undocumented	docs	alterVariable/ALTER_VARIABLE_(IF_EXISTS)?_QNAME_RENAME_TO_QNAME!drop-4	ALTER VARIABLE a TO a
@@ -28064,7 +28064,7 @@ reject	undocumented	docs	alterVariable/ALTER_VARIABLE_(IF_EXISTS)?_QNAME_RENAME_
 reject	undocumented	docs	alterVariable/ALTER_VARIABLE_(IF_EXISTS)?_QNAME_RENAME_TO_QNAME!drop-6	ALTER VARIABLE a RENAME TO
 reject	undocumented	docs	alterVariable/ALTER_VARIABLE_(IF_EXISTS)?_QNAME_RENAME_TO_QNAME!insert	ALTER VARIABLE a RENAME TO a zzz
 reject	undocumented	docs	alterVariable/ALTER_VARIABLE_(IF_EXISTS)?_QNAME_RENAME_TO_QNAME!swap	ALWAYS VARIABLE a RENAME TO a
-reject	accept	docs	alterVariable/ALTER_VARIABLE_(IF_EXISTS)?_QNAME_SET_DEFAULT_EXPR	ALTER VARIABLE a SET DEFAULT 1
+accept	accept	docs	alterVariable/ALTER_VARIABLE_(IF_EXISTS)?_QNAME_SET_DEFAULT_EXPR	ALTER VARIABLE a SET DEFAULT 1
 reject	undocumented	docs	alterVariable/ALTER_VARIABLE_(IF_EXISTS)?_QNAME_SET_DEFAULT_EXPR!drop-1	VARIABLE a SET DEFAULT 1
 reject	undocumented	docs	alterVariable/ALTER_VARIABLE_(IF_EXISTS)?_QNAME_SET_DEFAULT_EXPR!drop-2	ALTER a SET DEFAULT 1
 reject	undocumented	docs	alterVariable/ALTER_VARIABLE_(IF_EXISTS)?_QNAME_SET_DEFAULT_EXPR!drop-3	ALTER VARIABLE SET DEFAULT 1
@@ -28073,8 +28073,8 @@ reject	undocumented	docs	alterVariable/ALTER_VARIABLE_(IF_EXISTS)?_QNAME_SET_DEF
 reject	undocumented	docs	alterVariable/ALTER_VARIABLE_(IF_EXISTS)?_QNAME_SET_DEFAULT_EXPR!drop-6	ALTER VARIABLE a SET DEFAULT
 reject	undocumented	docs	alterVariable/ALTER_VARIABLE_(IF_EXISTS)?_QNAME_SET_DEFAULT_EXPR!insert	ALTER VARIABLE a SET DEFAULT 1 zzz
 reject	undocumented	docs	alterVariable/ALTER_VARIABLE_(IF_EXISTS)?_QNAME_SET_DEFAULT_EXPR!swap	ALWAYS VARIABLE a SET DEFAULT 1
-reject	accept	docs	alterVariable/ALTER_VARIABLE_(IF_EXISTS)?_QNAME_DROP_DEFAULT	ALTER VARIABLE a DROP DEFAULT
-reject	accept	docs	alterVariable/ALTER_VARIABLE_(IF_EXISTS)?_QNAME_SET_COMMENT_=_STRING	ALTER VARIABLE a SET COMMENT = 's'
+accept	accept	docs	alterVariable/ALTER_VARIABLE_(IF_EXISTS)?_QNAME_DROP_DEFAULT	ALTER VARIABLE a DROP DEFAULT
+accept	accept	docs	alterVariable/ALTER_VARIABLE_(IF_EXISTS)?_QNAME_SET_COMMENT_=_STRING	ALTER VARIABLE a SET COMMENT = 's'
 reject	undocumented	docs	alterVariable/ALTER_VARIABLE_(IF_EXISTS)?_QNAME_SET_COMMENT_=_STRING!drop-1	VARIABLE a SET COMMENT = 's'
 reject	undocumented	docs	alterVariable/ALTER_VARIABLE_(IF_EXISTS)?_QNAME_SET_COMMENT_=_STRING!drop-3	ALTER VARIABLE SET COMMENT = 's'
 reject	undocumented	docs	alterVariable/ALTER_VARIABLE_(IF_EXISTS)?_QNAME_SET_COMMENT_=_STRING!drop-4	ALTER VARIABLE a COMMENT = 's'
@@ -28083,16 +28083,16 @@ reject	undocumented	docs	alterVariable/ALTER_VARIABLE_(IF_EXISTS)?_QNAME_SET_COM
 reject	undocumented	docs	alterVariable/ALTER_VARIABLE_(IF_EXISTS)?_QNAME_SET_COMMENT_=_STRING!drop-7	ALTER VARIABLE a SET COMMENT =
 reject	undocumented	docs	alterVariable/ALTER_VARIABLE_(IF_EXISTS)?_QNAME_SET_COMMENT_=_STRING!insert	ALTER VARIABLE a SET COMMENT = 's' zzz
 reject	undocumented	docs	alterVariable/ALTER_VARIABLE_(IF_EXISTS)?_QNAME_SET_COMMENT_=_STRING!swap	ALWAYS VARIABLE a SET COMMENT = 's'
-reject	accept	docs	alterVariable/ALTER_VARIABLE_(IF_EXISTS)?_QNAME_UNSET_COMMENT	ALTER VARIABLE a UNSET COMMENT
+accept	accept	docs	alterVariable/ALTER_VARIABLE_(IF_EXISTS)?_QNAME_UNSET_COMMENT	ALTER VARIABLE a UNSET COMMENT
 reject	undocumented	docs	alterVariable/ALTER_VARIABLE_(IF_EXISTS)?_QNAME_UNSET_COMMENT!drop-1	VARIABLE a UNSET COMMENT
 reject	undocumented	docs	alterVariable/ALTER_VARIABLE_(IF_EXISTS)?_QNAME_UNSET_COMMENT!drop-3	ALTER VARIABLE UNSET COMMENT
 reject	undocumented	docs	alterVariable/ALTER_VARIABLE_(IF_EXISTS)?_QNAME_UNSET_COMMENT!drop-4	ALTER VARIABLE a COMMENT
 reject	undocumented	docs	alterVariable/ALTER_VARIABLE_(IF_EXISTS)?_QNAME_UNSET_COMMENT!drop-5	ALTER VARIABLE a UNSET
 reject	undocumented	docs	alterVariable/ALTER_VARIABLE_(IF_EXISTS)?_QNAME_UNSET_COMMENT!insert	ALTER VARIABLE a UNSET COMMENT zzz
 reject	undocumented	docs	alterVariable/ALTER_VARIABLE_(IF_EXISTS)?_QNAME_UNSET_COMMENT!swap	ALWAYS VARIABLE a UNSET COMMENT
-reject	accept	docs	alterVariable(IF_EXISTS)?/%empty	ALTER VARIABLE a DROP DEFAULT
+accept	accept	docs	alterVariable(IF_EXISTS)?/%empty	ALTER VARIABLE a DROP DEFAULT
 reject	undocumented	docs	alterVariable(IF_EXISTS)?/%empty!insert	ALTER VARIABLE zzz a DROP DEFAULT
-reject	accept	docs	alterVariable(IF_EXISTS)?/IF_EXISTS	ALTER VARIABLE IF EXISTS a DROP DEFAULT
+accept	accept	docs	alterVariable(IF_EXISTS)?/IF_EXISTS	ALTER VARIABLE IF EXISTS a DROP DEFAULT
 reject	undocumented	docs	alterVariable(IF_EXISTS)?/IF_EXISTS!drop-1	ALTER VARIABLE EXISTS a DROP DEFAULT
 reject	undocumented	docs	alterVariable(IF_EXISTS)?/IF_EXISTS!drop-2	ALTER VARIABLE IF a DROP DEFAULT
 reject	undocumented	docs	alterVariable(IF_EXISTS)?/IF_EXISTS!truncate	ALTER VARIABLE IF
@@ -38007,18 +38007,18 @@ reject	undocumented	docs	createFunctionSpcs(BATCH_TIMEOUT_SECS_=_NUMBER)?/BATCH_
 reject	undocumented	docs	createFunctionSpcs(BATCH_TIMEOUT_SECS_=_NUMBER)?/BATCH_TIMEOUT_SECS_=_NUMBER!truncate	CREATE FUNCTION a() RETURNS INT SERVICE = a ENDPOINT = a BATCH_TIMEOUT_SECS =
 accept	undocumented	docs	createFunctionSpcs(BATCH_TIMEOUT_SECS_=_NUMBER)?/BATCH_TIMEOUT_SECS_=_NUMBER!insert	CREATE FUNCTION a() RETURNS INT SERVICE = a ENDPOINT = a BATCH_TIMEOUT_SECS = 1 zzz AS 's'
 accept	undocumented	docs	createFunctionSpcs(BATCH_TIMEOUT_SECS_=_NUMBER)?/BATCH_TIMEOUT_SECS_=_NUMBER!swap	CREATE FUNCTION a() RETURNS INT SERVICE = a ENDPOINT = a BEARER = 1 AS 's'
-reject	accept	docs	createGateway/CREATE_(OR_REPLACE)?_GATEWAY_QNAME_FROM_SPECIFICATION_STRING	CREATE GATEWAY a FROM SPECIFICATION 's'
-reject	accept	docs	createGateway/CREATE_GATEWAY_(IF_NOT_EXISTS)?_QNAME_FROM_SPECIFICATION_STRING	CREATE GATEWAY a FROM SPECIFICATION 's'
-reject	accept	docs	createGateway(OR_REPLACE)?/%empty	CREATE GATEWAY a FROM SPECIFICATION 's'
+accept	accept	docs	createGateway/CREATE_(OR_REPLACE)?_GATEWAY_QNAME_FROM_SPECIFICATION_STRING	CREATE GATEWAY a FROM SPECIFICATION 's'
+accept	accept	docs	createGateway/CREATE_GATEWAY_(IF_NOT_EXISTS)?_QNAME_FROM_SPECIFICATION_STRING	CREATE GATEWAY a FROM SPECIFICATION 's'
+accept	accept	docs	createGateway(OR_REPLACE)?/%empty	CREATE GATEWAY a FROM SPECIFICATION 's'
 reject	undocumented	docs	createGateway(OR_REPLACE)?/%empty!insert	CREATE zzz GATEWAY a FROM SPECIFICATION 's'
-reject	accept	docs	createGateway(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE GATEWAY a FROM SPECIFICATION 's'
+accept	accept	docs	createGateway(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE GATEWAY a FROM SPECIFICATION 's'
 reject	undocumented	docs	createGateway(OR_REPLACE)?/OR_REPLACE!drop-1	CREATE REPLACE GATEWAY a FROM SPECIFICATION 's'
 reject	undocumented	docs	createGateway(OR_REPLACE)?/OR_REPLACE!drop-2	CREATE OR GATEWAY a FROM SPECIFICATION 's'
 reject	undocumented	docs	createGateway(OR_REPLACE)?/OR_REPLACE!insert	CREATE OR REPLACE zzz GATEWAY a FROM SPECIFICATION 's'
 reject	undocumented	docs	createGateway(OR_REPLACE)?/OR_REPLACE!swap	CREATE ORC REPLACE GATEWAY a FROM SPECIFICATION 's'
-reject	accept	docs	createGateway(IF_NOT_EXISTS)?/%empty	CREATE GATEWAY a FROM SPECIFICATION 's'
+accept	accept	docs	createGateway(IF_NOT_EXISTS)?/%empty	CREATE GATEWAY a FROM SPECIFICATION 's'
 reject	undocumented	docs	createGateway(IF_NOT_EXISTS)?/%empty!insert	CREATE GATEWAY zzz a FROM SPECIFICATION 's'
-reject	accept	docs	createGateway(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE GATEWAY IF NOT EXISTS a FROM SPECIFICATION 's'
+accept	accept	docs	createGateway(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE GATEWAY IF NOT EXISTS a FROM SPECIFICATION 's'
 reject	undocumented	docs	createGateway(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE GATEWAY NOT EXISTS a FROM SPECIFICATION 's'
 reject	undocumented	docs	createGateway(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE GATEWAY IF EXISTS a FROM SPECIFICATION 's'
 reject	undocumented	docs	createGateway(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE GATEWAY IF NOT a FROM SPECIFICATION 's'
@@ -40644,33 +40644,33 @@ reject	undocumented	docs	createImageRepository(IF_NOT_EXISTS)?/IF_NOT_EXISTS!dro
 reject	undocumented	docs	createImageRepository(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE IMAGE REPOSITORY IF NOT
 reject	undocumented	docs	createImageRepository(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE IMAGE REPOSITORY IF NOT EXISTS zzz a
 reject	undocumented	docs	createImageRepository(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE IMAGE REPOSITORY IGNORE NOT EXISTS a
-reject	accept	docs	createIndex/CREATE_(OR_REPLACE)?_INDEX_ID_ON_QNAME_(_ID_(,_ID)*_)_(~f33ca3e0	CREATE INDEX a ON a(a)
-reject	accept	docs	createIndex/CREATE_INDEX_(IF_NOT_EXISTS)?_ID_ON_QNAME_(_ID_(,_ID)*_~af05e8ea	CREATE INDEX a ON a(a)
-reject	accept	docs	createIndex(OR_REPLACE)?/%empty	CREATE INDEX a ON a(a)
+accept	accept	docs	createIndex/CREATE_(OR_REPLACE)?_INDEX_ID_ON_QNAME_(_ID_(,_ID)*_)_(~f33ca3e0	CREATE INDEX a ON a(a)
+accept	accept	docs	createIndex/CREATE_INDEX_(IF_NOT_EXISTS)?_ID_ON_QNAME_(_ID_(,_ID)*_~af05e8ea	CREATE INDEX a ON a(a)
+accept	accept	docs	createIndex(OR_REPLACE)?/%empty	CREATE INDEX a ON a(a)
 reject	undocumented	docs	createIndex(OR_REPLACE)?/%empty!insert	CREATE zzz INDEX a ON a(a)
-reject	accept	docs	createIndex(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE INDEX a ON a(a)
+accept	accept	docs	createIndex(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE INDEX a ON a(a)
 reject	undocumented	docs	createIndex(OR_REPLACE)?/OR_REPLACE!drop-1	CREATE REPLACE INDEX a ON a(a)
 reject	undocumented	docs	createIndex(OR_REPLACE)?/OR_REPLACE!drop-2	CREATE OR INDEX a ON a(a)
 reject	undocumented	docs	createIndex(OR_REPLACE)?/OR_REPLACE!insert	CREATE OR REPLACE zzz INDEX a ON a(a)
 reject	undocumented	docs	createIndex(OR_REPLACE)?/OR_REPLACE!swap	CREATE ORC REPLACE INDEX a ON a(a)
-reject	accept	docs	createIndex(,_ID)*/%empty	CREATE INDEX a ON a(a)
+accept	accept	docs	createIndex(,_ID)*/%empty	CREATE INDEX a ON a(a)
 reject	undocumented	docs	createIndex(,_ID)*/%empty!insert	CREATE INDEX a ON a(a zzz)
-reject	accept	docs	createIndex(,_ID)*/,_ID_(,_ID)*	CREATE INDEX a ON a(a, a)
+accept	accept	docs	createIndex(,_ID)*/,_ID_(,_ID)*	CREATE INDEX a ON a(a, a)
 reject	undocumented	docs	createIndex(,_ID)*/,_ID_(,_ID)*!drop-1	CREATE INDEX a ON a(a a)
 reject	undocumented	docs	createIndex(,_ID)*/,_ID_(,_ID)*!drop-2	CREATE INDEX a ON a(a,)
 reject	undocumented	docs	createIndex(,_ID)*/,_ID_(,_ID)*!truncate	CREATE INDEX a ON a(a,
 reject	undocumented	docs	createIndex(,_ID)*/,_ID_(,_ID)*!insert	CREATE INDEX a ON a(a, a zzz)
-reject	accept	docs	createIndex(INCLUDE_(_ID_(,_ID)*_))?/%empty	CREATE INDEX a ON a(a)
-reject	accept	docs	createIndex(INCLUDE_(_ID_(,_ID)*_))?/INCLUDE_(_ID_(,_ID)*_)	CREATE INDEX a ON a(a) INCLUDE(a)
+accept	accept	docs	createIndex(INCLUDE_(_ID_(,_ID)*_))?/%empty	CREATE INDEX a ON a(a)
+accept	accept	docs	createIndex(INCLUDE_(_ID_(,_ID)*_))?/INCLUDE_(_ID_(,_ID)*_)	CREATE INDEX a ON a(a) INCLUDE(a)
 reject	undocumented	docs	createIndex(INCLUDE_(_ID_(,_ID)*_))?/INCLUDE_(_ID_(,_ID)*_)!drop-1	CREATE INDEX a ON a(a)(a)
 reject	undocumented	docs	createIndex(INCLUDE_(_ID_(,_ID)*_))?/INCLUDE_(_ID_(,_ID)*_)!drop-2	CREATE INDEX a ON a(a) INCLUDE a)
 reject	undocumented	docs	createIndex(INCLUDE_(_ID_(,_ID)*_))?/INCLUDE_(_ID_(,_ID)*_)!drop-3	CREATE INDEX a ON a(a) INCLUDE()
 reject	undocumented	docs	createIndex(INCLUDE_(_ID_(,_ID)*_))?/INCLUDE_(_ID_(,_ID)*_)!drop-4	CREATE INDEX a ON a(a) INCLUDE(a
 reject	undocumented	docs	createIndex(INCLUDE_(_ID_(,_ID)*_))?/INCLUDE_(_ID_(,_ID)*_)!insert	CREATE INDEX a ON a(a) INCLUDE(a) zzz
 reject	undocumented	docs	createIndex(INCLUDE_(_ID_(,_ID)*_))?/INCLUDE_(_ID_(,_ID)*_)!swap	CREATE INDEX a ON a(a) INCLUDE_METADATA(a)
-reject	accept	docs	createIndex(IF_NOT_EXISTS)?/%empty	CREATE INDEX a ON a(a)
+accept	accept	docs	createIndex(IF_NOT_EXISTS)?/%empty	CREATE INDEX a ON a(a)
 reject	undocumented	docs	createIndex(IF_NOT_EXISTS)?/%empty!insert	CREATE INDEX zzz a ON a(a)
-reject	accept	docs	createIndex(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE INDEX IF NOT EXISTS a ON a(a)
+accept	accept	docs	createIndex(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE INDEX IF NOT EXISTS a ON a(a)
 reject	undocumented	docs	createIndex(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE INDEX NOT EXISTS a ON a(a)
 reject	undocumented	docs	createIndex(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE INDEX IF EXISTS a ON a(a)
 reject	undocumented	docs	createIndex(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE INDEX IF NOT a ON a(a)
@@ -41474,18 +41474,18 @@ reject	undocumented	docs	createMaterializedView(IF_NOT_EXISTS)?/IF_NOT_EXISTS!dr
 reject	undocumented	docs	createMaterializedView(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE MATERIALIZED VIEW IF NOT
 reject	undocumented	docs	createMaterializedView(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE MATERIALIZED VIEW IF NOT EXISTS zzz a AS SELECT 1
 reject	undocumented	docs	createMaterializedView(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE MATERIALIZED VIEW IGNORE NOT EXISTS a AS SELECT 1
-reject	accept	docs	createMcpServer/CREATE_(OR_REPLACE)?_MCP_SERVER_QNAME_FROM_SPECIFICATION_STRING	CREATE MCP SERVER a FROM SPECIFICATION 's'
-reject	accept	docs	createMcpServer/CREATE_MCP_SERVER_(IF_NOT_EXISTS)?_QNAME_FROM_SPECIFICA~6d025de7	CREATE MCP SERVER a FROM SPECIFICATION 's'
-reject	accept	docs	createMcpServer(OR_REPLACE)?/%empty	CREATE MCP SERVER a FROM SPECIFICATION 's'
+accept	accept	docs	createMcpServer/CREATE_(OR_REPLACE)?_MCP_SERVER_QNAME_FROM_SPECIFICATION_STRING	CREATE MCP SERVER a FROM SPECIFICATION 's'
+accept	accept	docs	createMcpServer/CREATE_MCP_SERVER_(IF_NOT_EXISTS)?_QNAME_FROM_SPECIFICA~6d025de7	CREATE MCP SERVER a FROM SPECIFICATION 's'
+accept	accept	docs	createMcpServer(OR_REPLACE)?/%empty	CREATE MCP SERVER a FROM SPECIFICATION 's'
 reject	undocumented	docs	createMcpServer(OR_REPLACE)?/%empty!insert	CREATE zzz MCP SERVER a FROM SPECIFICATION 's'
-reject	accept	docs	createMcpServer(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE MCP SERVER a FROM SPECIFICATION 's'
+accept	accept	docs	createMcpServer(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE MCP SERVER a FROM SPECIFICATION 's'
 reject	undocumented	docs	createMcpServer(OR_REPLACE)?/OR_REPLACE!drop-1	CREATE REPLACE MCP SERVER a FROM SPECIFICATION 's'
 reject	undocumented	docs	createMcpServer(OR_REPLACE)?/OR_REPLACE!drop-2	CREATE OR MCP SERVER a FROM SPECIFICATION 's'
 reject	undocumented	docs	createMcpServer(OR_REPLACE)?/OR_REPLACE!insert	CREATE OR REPLACE zzz MCP SERVER a FROM SPECIFICATION 's'
 reject	undocumented	docs	createMcpServer(OR_REPLACE)?/OR_REPLACE!swap	CREATE ORC REPLACE MCP SERVER a FROM SPECIFICATION 's'
-reject	accept	docs	createMcpServer(IF_NOT_EXISTS)?/%empty	CREATE MCP SERVER a FROM SPECIFICATION 's'
+accept	accept	docs	createMcpServer(IF_NOT_EXISTS)?/%empty	CREATE MCP SERVER a FROM SPECIFICATION 's'
 reject	undocumented	docs	createMcpServer(IF_NOT_EXISTS)?/%empty!insert	CREATE MCP SERVER zzz a FROM SPECIFICATION 's'
-reject	accept	docs	createMcpServer(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE MCP SERVER IF NOT EXISTS a FROM SPECIFICATION 's'
+accept	accept	docs	createMcpServer(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE MCP SERVER IF NOT EXISTS a FROM SPECIFICATION 's'
 reject	undocumented	docs	createMcpServer(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE MCP SERVER NOT EXISTS a FROM SPECIFICATION 's'
 reject	undocumented	docs	createMcpServer(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE MCP SERVER IF EXISTS a FROM SPECIFICATION 's'
 reject	undocumented	docs	createMcpServer(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE MCP SERVER IF NOT a FROM SPECIFICATION 's'
@@ -42267,7 +42267,7 @@ reject	undocumented	docs	createNotificationIntegrationWebhooks(IF_NOT_EXISTS)?/I
 reject	undocumented	docs	createNotificationIntegrationWebhooks(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE NOTIFICATION INTEGRATION IF NOT a TYPE = WEBHOOK ENABLED = TRUE WEBHOOK_URL = 's'
 reject	undocumented	docs	createNotificationIntegrationWebhooks(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE NOTIFICATION INTEGRATION IF NOT EXISTS zzz a TYPE = WEBHOOK ENABLED = TRUE WEBHOOK_URL = 's'
 reject	undocumented	docs	createNotificationIntegrationWebhooks(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE NOTIFICATION INTEGRATION IGNORE NOT EXISTS a TYPE = WEBHOOK ENABLED = TRUE WEBHOOK_URL = 's'
-reject	accept	docs	createOpenflowConnector/CREATE_OPENFLOW_CONNECTOR_(IF_NOT_EXISTS)?_QNAME_IN_RUN~cc195ce7	CREATE OPENFLOW CONNECTOR a IN RUNTIME a FROM DEFINITION a
+accept	accept	docs	createOpenflowConnector/CREATE_OPENFLOW_CONNECTOR_(IF_NOT_EXISTS)?_QNAME_IN_RUN~cc195ce7	CREATE OPENFLOW CONNECTOR a IN RUNTIME a FROM DEFINITION a
 reject	undocumented	docs	createOpenflowConnector/CREATE_OPENFLOW_CONNECTOR_(IF_NOT_EXISTS)?_QNAME_IN_RUN~cc195ce7!drop-1	OPENFLOW CONNECTOR a IN RUNTIME a FROM DEFINITION a
 reject	undocumented	docs	createOpenflowConnector/CREATE_OPENFLOW_CONNECTOR_(IF_NOT_EXISTS)?_QNAME_IN_RUN~cc195ce7!drop-2	CREATE CONNECTOR a IN RUNTIME a FROM DEFINITION a
 reject	undocumented	docs	createOpenflowConnector/CREATE_OPENFLOW_CONNECTOR_(IF_NOT_EXISTS)?_QNAME_IN_RUN~cc195ce7!drop-3	CREATE OPENFLOW a IN RUNTIME a FROM DEFINITION a
@@ -42280,25 +42280,25 @@ reject	undocumented	docs	createOpenflowConnector/CREATE_OPENFLOW_CONNECTOR_(IF_N
 reject	undocumented	docs	createOpenflowConnector/CREATE_OPENFLOW_CONNECTOR_(IF_NOT_EXISTS)?_QNAME_IN_RUN~cc195ce7!drop-10	CREATE OPENFLOW CONNECTOR a IN RUNTIME a FROM DEFINITION
 reject	undocumented	docs	createOpenflowConnector/CREATE_OPENFLOW_CONNECTOR_(IF_NOT_EXISTS)?_QNAME_IN_RUN~cc195ce7!insert	CREATE OPENFLOW CONNECTOR a IN RUNTIME a FROM DEFINITION a zzz
 reject	undocumented	docs	createOpenflowConnector/CREATE_OPENFLOW_CONNECTOR_(IF_NOT_EXISTS)?_QNAME_IN_RUN~cc195ce7!swap	CREATION OPENFLOW CONNECTOR a IN RUNTIME a FROM DEFINITION a
-reject	accept	docs	createOpenflowConnector/CREATE_OPENFLOW_CONNECTOR_(IF_NOT_EXISTS)?_QNAME_IN_RUN~62829ae6	CREATE OPENFLOW CONNECTOR a IN RUNTIME a FROM 's'
-reject	accept	docs	createOpenflowConnector(IF_NOT_EXISTS)?/%empty	CREATE OPENFLOW CONNECTOR a IN RUNTIME a FROM 's'
+accept	accept	docs	createOpenflowConnector/CREATE_OPENFLOW_CONNECTOR_(IF_NOT_EXISTS)?_QNAME_IN_RUN~62829ae6	CREATE OPENFLOW CONNECTOR a IN RUNTIME a FROM 's'
+accept	accept	docs	createOpenflowConnector(IF_NOT_EXISTS)?/%empty	CREATE OPENFLOW CONNECTOR a IN RUNTIME a FROM 's'
 reject	undocumented	docs	createOpenflowConnector(IF_NOT_EXISTS)?/%empty!insert	CREATE OPENFLOW CONNECTOR zzz a IN RUNTIME a FROM 's'
-reject	accept	docs	createOpenflowConnector(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE OPENFLOW CONNECTOR IF NOT EXISTS a IN RUNTIME a FROM 's'
+accept	accept	docs	createOpenflowConnector(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE OPENFLOW CONNECTOR IF NOT EXISTS a IN RUNTIME a FROM 's'
 reject	undocumented	docs	createOpenflowConnector(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE OPENFLOW CONNECTOR NOT EXISTS a IN RUNTIME a FROM 's'
 reject	undocumented	docs	createOpenflowConnector(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE OPENFLOW CONNECTOR IF EXISTS a IN RUNTIME a FROM 's'
 reject	undocumented	docs	createOpenflowConnector(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE OPENFLOW CONNECTOR IF NOT a IN RUNTIME a FROM 's'
 reject	undocumented	docs	createOpenflowConnector(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE OPENFLOW CONNECTOR IF NOT
 reject	undocumented	docs	createOpenflowConnector(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE OPENFLOW CONNECTOR IF NOT EXISTS zzz a IN RUNTIME a FROM 's'
 reject	undocumented	docs	createOpenflowConnector(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE OPENFLOW CONNECTOR IGNORE NOT EXISTS a IN RUNTIME a FROM 's'
-reject	accept	docs	createOpenflowConnector(DISPLAY_NAME_=_STRING)?/%empty	CREATE OPENFLOW CONNECTOR a IN RUNTIME a FROM DEFINITION a
-reject	accept	docs	createOpenflowConnector(DISPLAY_NAME_=_STRING)?/DISPLAY_NAME_=_STRING	CREATE OPENFLOW CONNECTOR a IN RUNTIME a FROM DEFINITION a DISPLAY_NAME = 's'
+accept	accept	docs	createOpenflowConnector(DISPLAY_NAME_=_STRING)?/%empty	CREATE OPENFLOW CONNECTOR a IN RUNTIME a FROM DEFINITION a
+accept	accept	docs	createOpenflowConnector(DISPLAY_NAME_=_STRING)?/DISPLAY_NAME_=_STRING	CREATE OPENFLOW CONNECTOR a IN RUNTIME a FROM DEFINITION a DISPLAY_NAME = 's'
 reject	undocumented	docs	createOpenflowConnector(DISPLAY_NAME_=_STRING)?/DISPLAY_NAME_=_STRING!drop-1	CREATE OPENFLOW CONNECTOR a IN RUNTIME a FROM DEFINITION a = 's'
 reject	undocumented	docs	createOpenflowConnector(DISPLAY_NAME_=_STRING)?/DISPLAY_NAME_=_STRING!drop-2	CREATE OPENFLOW CONNECTOR a IN RUNTIME a FROM DEFINITION a DISPLAY_NAME 's'
 reject	undocumented	docs	createOpenflowConnector(DISPLAY_NAME_=_STRING)?/DISPLAY_NAME_=_STRING!drop-3	CREATE OPENFLOW CONNECTOR a IN RUNTIME a FROM DEFINITION a DISPLAY_NAME =
 reject	undocumented	docs	createOpenflowConnector(DISPLAY_NAME_=_STRING)?/DISPLAY_NAME_=_STRING!insert	CREATE OPENFLOW CONNECTOR a IN RUNTIME a FROM DEFINITION a DISPLAY_NAME = 's' zzz
 reject	undocumented	docs	createOpenflowConnector(DISPLAY_NAME_=_STRING)?/DISPLAY_NAME_=_STRING!swap	CREATE OPENFLOW CONNECTOR a IN RUNTIME a FROM DEFINITION a DISTINCT = 's'
-reject	accept	docs	createOpenflowConnector(COMMENT_=_STRING)?/%empty	CREATE OPENFLOW CONNECTOR a IN RUNTIME a FROM 's'
-reject	accept	docs	createOpenflowConnector(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE OPENFLOW CONNECTOR a IN RUNTIME a FROM 's' COMMENT = 's'
+accept	accept	docs	createOpenflowConnector(COMMENT_=_STRING)?/%empty	CREATE OPENFLOW CONNECTOR a IN RUNTIME a FROM 's'
+accept	accept	docs	createOpenflowConnector(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE OPENFLOW CONNECTOR a IN RUNTIME a FROM 's' COMMENT = 's'
 reject	undocumented	docs	createOpenflowConnector(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-1	CREATE OPENFLOW CONNECTOR a IN RUNTIME a FROM 's' = 's'
 reject	undocumented	docs	createOpenflowConnector(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	CREATE OPENFLOW CONNECTOR a IN RUNTIME a FROM 's' COMMENT 's'
 reject	undocumented	docs	createOpenflowConnector(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE OPENFLOW CONNECTOR a IN RUNTIME a FROM 's' COMMENT =
@@ -50108,25 +50108,25 @@ reject	undocumented	docs	createTaskGraph(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CR
 reject	undocumented	docs	createTaskGraph(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE TASK GRAPH IF NOT
 reject	undocumented	docs	createTaskGraph(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE TASK GRAPH IF NOT EXISTS zzz a
 reject	undocumented	docs	createTaskGraph(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE TASK GRAPH IGNORE NOT EXISTS a
-reject	accept	docs	createType/CREATE_(OR_REPLACE)?_TYPE_QNAME_AS_DATA_TYPE_(COMMENT_=_STRING)?	CREATE TYPE a AS INT
-reject	accept	docs	createType/CREATE_TYPE_(IF_NOT_EXISTS)?_QNAME_AS_DATA_TYPE_(COMMEN~7a3fbe5f	CREATE TYPE a AS INT
-reject	accept	docs	createType(OR_REPLACE)?/%empty	CREATE TYPE a AS INT
+accept	accept	docs	createType/CREATE_(OR_REPLACE)?_TYPE_QNAME_AS_DATA_TYPE_(COMMENT_=_STRING)?	CREATE TYPE a AS INT
+accept	accept	docs	createType/CREATE_TYPE_(IF_NOT_EXISTS)?_QNAME_AS_DATA_TYPE_(COMMEN~7a3fbe5f	CREATE TYPE a AS INT
+accept	accept	docs	createType(OR_REPLACE)?/%empty	CREATE TYPE a AS INT
 reject	undocumented	docs	createType(OR_REPLACE)?/%empty!insert	CREATE zzz TYPE a AS INT
-reject	accept	docs	createType(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE TYPE a AS INT
+accept	accept	docs	createType(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE TYPE a AS INT
 reject	undocumented	docs	createType(OR_REPLACE)?/OR_REPLACE!drop-1	CREATE REPLACE TYPE a AS INT
 reject	undocumented	docs	createType(OR_REPLACE)?/OR_REPLACE!drop-2	CREATE OR TYPE a AS INT
 reject	undocumented	docs	createType(OR_REPLACE)?/OR_REPLACE!insert	CREATE OR REPLACE zzz TYPE a AS INT
 reject	undocumented	docs	createType(OR_REPLACE)?/OR_REPLACE!swap	CREATE ORC REPLACE TYPE a AS INT
-reject	accept	docs	createType(COMMENT_=_STRING)?/%empty	CREATE TYPE a AS INT
-reject	accept	docs	createType(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE TYPE a AS INT COMMENT = 's'
+accept	accept	docs	createType(COMMENT_=_STRING)?/%empty	CREATE TYPE a AS INT
+accept	accept	docs	createType(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE TYPE a AS INT COMMENT = 's'
 reject	undocumented	docs	createType(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-1	CREATE TYPE a AS INT = 's'
 reject	undocumented	docs	createType(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	CREATE TYPE a AS INT COMMENT 's'
 reject	undocumented	docs	createType(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE TYPE a AS INT COMMENT =
 reject	undocumented	docs	createType(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE TYPE a AS INT COMMENT = 's' zzz
 reject	undocumented	docs	createType(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE TYPE a AS INT COMMENTS = 's'
-reject	accept	docs	createType(IF_NOT_EXISTS)?/%empty	CREATE TYPE a AS INT
+accept	accept	docs	createType(IF_NOT_EXISTS)?/%empty	CREATE TYPE a AS INT
 reject	undocumented	docs	createType(IF_NOT_EXISTS)?/%empty!insert	CREATE TYPE zzz a AS INT
-reject	accept	docs	createType(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE TYPE IF NOT EXISTS a AS INT
+accept	accept	docs	createType(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE TYPE IF NOT EXISTS a AS INT
 reject	undocumented	docs	createType(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE TYPE NOT EXISTS a AS INT
 reject	undocumented	docs	createType(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE TYPE IF EXISTS a AS INT
 reject	undocumented	docs	createType(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE TYPE IF NOT a AS INT
@@ -50615,31 +50615,31 @@ accept	undocumented	docs	createUser_sessionParams(TRUE|FALSE)/TRUE!swap	CREATE U
 accept	accept	docs	createUser_sessionParams(TRUE|FALSE)/FALSE	CREATE USER a ABORT_DETACHED_QUERY = FALSE
 accept	undocumented	docs	createUser_sessionParams(TRUE|FALSE)/FALSE!insert	CREATE USER a ABORT_DETACHED_QUERY = FALSE zzz
 accept	undocumented	docs	createUser_sessionParams(TRUE|FALSE)/FALSE!swap	CREATE USER a ABORT_DETACHED_QUERY = FAMILIES
-reject	accept	docs	createVariable/CREATE_(OR_REPLACE)?_VARIABLE_QNAME_DATA_TYPE_(DEFAULT_~2699d377	CREATE VARIABLE a INT
-reject	accept	docs	createVariable/CREATE_VARIABLE_(IF_NOT_EXISTS)?_QNAME_DATA_TYPE_(DEFAU~38761040	CREATE VARIABLE a INT
-reject	accept	docs	createVariable(OR_REPLACE)?/%empty	CREATE VARIABLE a INT
+accept	accept	docs	createVariable/CREATE_(OR_REPLACE)?_VARIABLE_QNAME_DATA_TYPE_(DEFAULT_~2699d377	CREATE VARIABLE a INT
+accept	accept	docs	createVariable/CREATE_VARIABLE_(IF_NOT_EXISTS)?_QNAME_DATA_TYPE_(DEFAU~38761040	CREATE VARIABLE a INT
+accept	accept	docs	createVariable(OR_REPLACE)?/%empty	CREATE VARIABLE a INT
 reject	undocumented	docs	createVariable(OR_REPLACE)?/%empty!insert	CREATE zzz VARIABLE a INT
-reject	accept	docs	createVariable(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE VARIABLE a INT
+accept	accept	docs	createVariable(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE VARIABLE a INT
 reject	undocumented	docs	createVariable(OR_REPLACE)?/OR_REPLACE!drop-1	CREATE REPLACE VARIABLE a INT
 reject	undocumented	docs	createVariable(OR_REPLACE)?/OR_REPLACE!drop-2	CREATE OR VARIABLE a INT
 reject	undocumented	docs	createVariable(OR_REPLACE)?/OR_REPLACE!insert	CREATE OR REPLACE zzz VARIABLE a INT
 reject	undocumented	docs	createVariable(OR_REPLACE)?/OR_REPLACE!swap	CREATE ORC REPLACE VARIABLE a INT
-reject	accept	docs	createVariable(DEFAULT_EXPR)?/%empty	CREATE VARIABLE a INT
-reject	accept	docs	createVariable(DEFAULT_EXPR)?/DEFAULT_EXPR	CREATE VARIABLE a INT DEFAULT 1
+accept	accept	docs	createVariable(DEFAULT_EXPR)?/%empty	CREATE VARIABLE a INT
+accept	accept	docs	createVariable(DEFAULT_EXPR)?/DEFAULT_EXPR	CREATE VARIABLE a INT DEFAULT 1
 reject	undocumented	docs	createVariable(DEFAULT_EXPR)?/DEFAULT_EXPR!drop-1	CREATE VARIABLE a INT 1
 reject	undocumented	docs	createVariable(DEFAULT_EXPR)?/DEFAULT_EXPR!drop-2	CREATE VARIABLE a INT DEFAULT
 reject	undocumented	docs	createVariable(DEFAULT_EXPR)?/DEFAULT_EXPR!insert	CREATE VARIABLE a INT DEFAULT 1 zzz
 reject	undocumented	docs	createVariable(DEFAULT_EXPR)?/DEFAULT_EXPR!swap	CREATE VARIABLE a INT DEFAULT_DBT_VERSION 1
-reject	accept	docs	createVariable(COMMENT_=_STRING)?/%empty	CREATE VARIABLE a INT
-reject	accept	docs	createVariable(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE VARIABLE a INT COMMENT = 's'
+accept	accept	docs	createVariable(COMMENT_=_STRING)?/%empty	CREATE VARIABLE a INT
+accept	accept	docs	createVariable(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE VARIABLE a INT COMMENT = 's'
 reject	undocumented	docs	createVariable(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-1	CREATE VARIABLE a INT = 's'
 reject	undocumented	docs	createVariable(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	CREATE VARIABLE a INT COMMENT 's'
 reject	undocumented	docs	createVariable(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE VARIABLE a INT COMMENT =
 reject	undocumented	docs	createVariable(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE VARIABLE a INT COMMENT = 's' zzz
 reject	undocumented	docs	createVariable(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE VARIABLE a INT COMMENTS = 's'
-reject	accept	docs	createVariable(IF_NOT_EXISTS)?/%empty	CREATE VARIABLE a INT
+accept	accept	docs	createVariable(IF_NOT_EXISTS)?/%empty	CREATE VARIABLE a INT
 reject	undocumented	docs	createVariable(IF_NOT_EXISTS)?/%empty!insert	CREATE VARIABLE zzz a INT
-reject	accept	docs	createVariable(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE VARIABLE IF NOT EXISTS a INT
+accept	accept	docs	createVariable(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE VARIABLE IF NOT EXISTS a INT
 reject	undocumented	docs	createVariable(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE VARIABLE NOT EXISTS a INT
 reject	undocumented	docs	createVariable(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE VARIABLE IF EXISTS a INT
 reject	undocumented	docs	createVariable(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE VARIABLE IF NOT a INT
@@ -52109,7 +52109,7 @@ reject	undocumented	docs	dropDynamicTable(IF_EXISTS)?/IF_EXISTS!drop-2	DROP DYNA
 accept	accept	docs	dropDynamicTable(IF_EXISTS)?/IF_EXISTS!truncate	DROP DYNAMIC TABLE IF
 reject	undocumented	docs	dropDynamicTable(IF_EXISTS)?/IF_EXISTS!insert	DROP DYNAMIC TABLE IF EXISTS zzz a
 reject	undocumented	docs	dropDynamicTable(IF_EXISTS)?/IF_EXISTS!swap	DROP DYNAMIC TABLE IGNORE EXISTS a
-reject	accept	docs	dropEventRoutingTable/DROP_EVENT_ROUTING_TABLE_QNAME	DROP EVENT ROUTING TABLE a
+accept	accept	docs	dropEventRoutingTable/DROP_EVENT_ROUTING_TABLE_QNAME	DROP EVENT ROUTING TABLE a
 accept	accept	docs	dropExperiment/DROP_EXPERIMENT_QNAME	DROP EXPERIMENT a
 accept	accept	docs	dropExternalAgent/DROP_EXTERNAL_AGENT_(IF_EXISTS)?_QNAME	DROP EXTERNAL AGENT a
 accept	accept	docs	dropExternalAgent(IF_EXISTS)?/%empty	DROP EXTERNAL AGENT a
@@ -52229,13 +52229,13 @@ accept	accept	docs	dropFunctionSpcs(DATA_TYPE_(,_DATA_TYPE)*)?/%empty	DROP FUNCT
 accept	accept	docs	dropFunctionSpcs(DATA_TYPE_(,_DATA_TYPE)*)?/DATA_TYPE_(,_DATA_TYPE)*	DROP FUNCTION a(INT)
 accept	accept	docs	dropFunctionSpcs(,_DATA_TYPE)*/%empty	DROP FUNCTION a(INT)
 accept	accept	docs	dropFunctionSpcs(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*	DROP FUNCTION a(INT, INT)
-reject	accept	docs	dropGateway/DROP_GATEWAY_(IF_EXISTS)?_QNAME	DROP GATEWAY a
-reject	accept	docs	dropGateway(IF_EXISTS)?/%empty	DROP GATEWAY a
+accept	accept	docs	dropGateway/DROP_GATEWAY_(IF_EXISTS)?_QNAME	DROP GATEWAY a
+accept	accept	docs	dropGateway(IF_EXISTS)?/%empty	DROP GATEWAY a
 reject	undocumented	docs	dropGateway(IF_EXISTS)?/%empty!insert	DROP GATEWAY zzz a
-reject	accept	docs	dropGateway(IF_EXISTS)?/IF_EXISTS	DROP GATEWAY IF EXISTS a
+accept	accept	docs	dropGateway(IF_EXISTS)?/IF_EXISTS	DROP GATEWAY IF EXISTS a
 reject	undocumented	docs	dropGateway(IF_EXISTS)?/IF_EXISTS!drop-1	DROP GATEWAY EXISTS a
 reject	undocumented	docs	dropGateway(IF_EXISTS)?/IF_EXISTS!drop-2	DROP GATEWAY IF a
-reject	accept	docs	dropGateway(IF_EXISTS)?/IF_EXISTS!truncate	DROP GATEWAY IF
+accept	accept	docs	dropGateway(IF_EXISTS)?/IF_EXISTS!truncate	DROP GATEWAY IF
 reject	undocumented	docs	dropGateway(IF_EXISTS)?/IF_EXISTS!insert	DROP GATEWAY IF EXISTS zzz a
 reject	undocumented	docs	dropGateway(IF_EXISTS)?/IF_EXISTS!swap	DROP GATEWAY IGNORE EXISTS a
 reject	accept	docs	dropGitRepository/DROP_GIT_REPOSITORY_(IF_EXISTS)?_QNAME	DROP GIT REPOSITORY a
@@ -52286,10 +52286,10 @@ reject	undocumented	docs	dropImageRepository(IF_EXISTS)?/IF_EXISTS!drop-2	DROP I
 accept	accept	docs	dropImageRepository(IF_EXISTS)?/IF_EXISTS!truncate	DROP IMAGE REPOSITORY IF
 reject	undocumented	docs	dropImageRepository(IF_EXISTS)?/IF_EXISTS!insert	DROP IMAGE REPOSITORY IF EXISTS zzz a
 reject	undocumented	docs	dropImageRepository(IF_EXISTS)?/IF_EXISTS!swap	DROP IMAGE REPOSITORY IGNORE EXISTS a
-reject	accept	docs	dropIndex/DROP_INDEX_(IF_EXISTS)?_QNAME_._ID	DROP INDEX a.a
-reject	accept	docs	dropIndex(IF_EXISTS)?/%empty	DROP INDEX a.a
+accept	accept	docs	dropIndex/DROP_INDEX_(IF_EXISTS)?_QNAME_._ID	DROP INDEX a.a
+accept	accept	docs	dropIndex(IF_EXISTS)?/%empty	DROP INDEX a.a
 reject	undocumented	docs	dropIndex(IF_EXISTS)?/%empty!insert	DROP INDEX zzz a.a
-reject	accept	docs	dropIndex(IF_EXISTS)?/IF_EXISTS	DROP INDEX IF EXISTS a.a
+accept	accept	docs	dropIndex(IF_EXISTS)?/IF_EXISTS	DROP INDEX IF EXISTS a.a
 reject	undocumented	docs	dropIndex(IF_EXISTS)?/IF_EXISTS!drop-1	DROP INDEX EXISTS a.a
 reject	undocumented	docs	dropIndex(IF_EXISTS)?/IF_EXISTS!drop-2	DROP INDEX IF a.a
 reject	undocumented	docs	dropIndex(IF_EXISTS)?/IF_EXISTS!truncate	DROP INDEX IF
@@ -52359,13 +52359,13 @@ reject	undocumented	docs	dropMaterializedView(IF_EXISTS)?/IF_EXISTS!drop-2	DROP 
 accept	accept	docs	dropMaterializedView(IF_EXISTS)?/IF_EXISTS!truncate	DROP MATERIALIZED VIEW IF
 reject	undocumented	docs	dropMaterializedView(IF_EXISTS)?/IF_EXISTS!insert	DROP MATERIALIZED VIEW IF EXISTS zzz a
 reject	undocumented	docs	dropMaterializedView(IF_EXISTS)?/IF_EXISTS!swap	DROP MATERIALIZED VIEW IGNORE EXISTS a
-reject	accept	docs	dropMcpServer/DROP_MCP_SERVER_(IF_EXISTS)?_QNAME	DROP MCP SERVER a
-reject	accept	docs	dropMcpServer(IF_EXISTS)?/%empty	DROP MCP SERVER a
+accept	accept	docs	dropMcpServer/DROP_MCP_SERVER_(IF_EXISTS)?_QNAME	DROP MCP SERVER a
+accept	accept	docs	dropMcpServer(IF_EXISTS)?/%empty	DROP MCP SERVER a
 reject	undocumented	docs	dropMcpServer(IF_EXISTS)?/%empty!insert	DROP MCP SERVER zzz a
-reject	accept	docs	dropMcpServer(IF_EXISTS)?/IF_EXISTS	DROP MCP SERVER IF EXISTS a
+accept	accept	docs	dropMcpServer(IF_EXISTS)?/IF_EXISTS	DROP MCP SERVER IF EXISTS a
 reject	undocumented	docs	dropMcpServer(IF_EXISTS)?/IF_EXISTS!drop-1	DROP MCP SERVER EXISTS a
 reject	undocumented	docs	dropMcpServer(IF_EXISTS)?/IF_EXISTS!drop-2	DROP MCP SERVER IF a
-reject	accept	docs	dropMcpServer(IF_EXISTS)?/IF_EXISTS!truncate	DROP MCP SERVER IF
+accept	accept	docs	dropMcpServer(IF_EXISTS)?/IF_EXISTS!truncate	DROP MCP SERVER IF
 reject	undocumented	docs	dropMcpServer(IF_EXISTS)?/IF_EXISTS!insert	DROP MCP SERVER IF EXISTS zzz a
 reject	undocumented	docs	dropMcpServer(IF_EXISTS)?/IF_EXISTS!swap	DROP MCP SERVER IGNORE EXISTS a
 accept	accept	docs	dropModel/DROP_MODEL_QNAME	DROP MODEL a
@@ -52416,13 +52416,13 @@ reject	undocumented	docs	dropOnlineFeatureTable(IF_EXISTS)?/IF_EXISTS!drop-2	DRO
 accept	accept	docs	dropOnlineFeatureTable(IF_EXISTS)?/IF_EXISTS!truncate	DROP ONLINE FEATURE TABLE IF
 reject	undocumented	docs	dropOnlineFeatureTable(IF_EXISTS)?/IF_EXISTS!insert	DROP ONLINE FEATURE TABLE IF EXISTS zzz a
 reject	undocumented	docs	dropOnlineFeatureTable(IF_EXISTS)?/IF_EXISTS!swap	DROP ONLINE FEATURE TABLE IGNORE EXISTS a
-reject	accept	docs	dropOpenflowConnector/DROP_OPENFLOW_CONNECTOR_(IF_EXISTS)?_QNAME	DROP OPENFLOW CONNECTOR a
-reject	accept	docs	dropOpenflowConnector(IF_EXISTS)?/%empty	DROP OPENFLOW CONNECTOR a
+accept	accept	docs	dropOpenflowConnector/DROP_OPENFLOW_CONNECTOR_(IF_EXISTS)?_QNAME	DROP OPENFLOW CONNECTOR a
+accept	accept	docs	dropOpenflowConnector(IF_EXISTS)?/%empty	DROP OPENFLOW CONNECTOR a
 reject	undocumented	docs	dropOpenflowConnector(IF_EXISTS)?/%empty!insert	DROP OPENFLOW CONNECTOR zzz a
-reject	accept	docs	dropOpenflowConnector(IF_EXISTS)?/IF_EXISTS	DROP OPENFLOW CONNECTOR IF EXISTS a
+accept	accept	docs	dropOpenflowConnector(IF_EXISTS)?/IF_EXISTS	DROP OPENFLOW CONNECTOR IF EXISTS a
 reject	undocumented	docs	dropOpenflowConnector(IF_EXISTS)?/IF_EXISTS!drop-1	DROP OPENFLOW CONNECTOR EXISTS a
 reject	undocumented	docs	dropOpenflowConnector(IF_EXISTS)?/IF_EXISTS!drop-2	DROP OPENFLOW CONNECTOR IF a
-reject	accept	docs	dropOpenflowConnector(IF_EXISTS)?/IF_EXISTS!truncate	DROP OPENFLOW CONNECTOR IF
+accept	accept	docs	dropOpenflowConnector(IF_EXISTS)?/IF_EXISTS!truncate	DROP OPENFLOW CONNECTOR IF
 reject	undocumented	docs	dropOpenflowConnector(IF_EXISTS)?/IF_EXISTS!insert	DROP OPENFLOW CONNECTOR IF EXISTS zzz a
 reject	undocumented	docs	dropOpenflowConnector(IF_EXISTS)?/IF_EXISTS!swap	DROP OPENFLOW CONNECTOR IGNORE EXISTS a
 accept	accept	docs	dropOpenflowDeployment/DROP_OPENFLOW_DEPLOYMENT_(IF_EXISTS)?_QNAME	DROP OPENFLOW DEPLOYMENT a
@@ -52732,7 +52732,7 @@ reject	undocumented	docs	dropTaskGraph(IF_EXISTS)?/IF_EXISTS!drop-2	DROP TASK GR
 accept	accept	docs	dropTaskGraph(IF_EXISTS)?/IF_EXISTS!truncate	DROP TASK GRAPH IF
 reject	undocumented	docs	dropTaskGraph(IF_EXISTS)?/IF_EXISTS!insert	DROP TASK GRAPH IF EXISTS zzz a
 reject	undocumented	docs	dropTaskGraph(IF_EXISTS)?/IF_EXISTS!swap	DROP TASK GRAPH IGNORE EXISTS a
-reject	accept	docs	dropType/DROP_TYPE_QNAME	DROP TYPE a
+accept	accept	docs	dropType/DROP_TYPE_QNAME	DROP TYPE a
 accept	accept	docs	dropUser/DROP_USER_(IF_EXISTS)?_ID	DROP USER a
 accept	accept	docs	dropUser(IF_EXISTS)?/%empty	DROP USER a
 reject	undocumented	docs	dropUser(IF_EXISTS)?/%empty!insert	DROP USER zzz a
@@ -52742,13 +52742,13 @@ reject	undocumented	docs	dropUser(IF_EXISTS)?/IF_EXISTS!drop-2	DROP USER IF a
 accept	accept	docs	dropUser(IF_EXISTS)?/IF_EXISTS!truncate	DROP USER IF
 reject	undocumented	docs	dropUser(IF_EXISTS)?/IF_EXISTS!insert	DROP USER IF EXISTS zzz a
 reject	undocumented	docs	dropUser(IF_EXISTS)?/IF_EXISTS!swap	DROP USER IGNORE EXISTS a
-reject	accept	docs	dropVariable/DROP_VARIABLE_(IF_EXISTS)?_QNAME	DROP VARIABLE a
-reject	accept	docs	dropVariable(IF_EXISTS)?/%empty	DROP VARIABLE a
+accept	accept	docs	dropVariable/DROP_VARIABLE_(IF_EXISTS)?_QNAME	DROP VARIABLE a
+accept	accept	docs	dropVariable(IF_EXISTS)?/%empty	DROP VARIABLE a
 reject	undocumented	docs	dropVariable(IF_EXISTS)?/%empty!insert	DROP VARIABLE zzz a
-reject	accept	docs	dropVariable(IF_EXISTS)?/IF_EXISTS	DROP VARIABLE IF EXISTS a
+accept	accept	docs	dropVariable(IF_EXISTS)?/IF_EXISTS	DROP VARIABLE IF EXISTS a
 reject	undocumented	docs	dropVariable(IF_EXISTS)?/IF_EXISTS!drop-1	DROP VARIABLE EXISTS a
 reject	undocumented	docs	dropVariable(IF_EXISTS)?/IF_EXISTS!drop-2	DROP VARIABLE IF a
-reject	accept	docs	dropVariable(IF_EXISTS)?/IF_EXISTS!truncate	DROP VARIABLE IF
+accept	accept	docs	dropVariable(IF_EXISTS)?/IF_EXISTS!truncate	DROP VARIABLE IF
 reject	undocumented	docs	dropVariable(IF_EXISTS)?/IF_EXISTS!insert	DROP VARIABLE IF EXISTS zzz a
 reject	undocumented	docs	dropVariable(IF_EXISTS)?/IF_EXISTS!swap	DROP VARIABLE IGNORE EXISTS a
 accept	accept	docs	dropView/DROP_VIEW_(IF_EXISTS)?_QNAME	DROP VIEW a
@@ -73583,8 +73583,8 @@ reject	undocumented	docs	undropSnapshot(RENAME_TO_ID)?/RENAME_TO_ID!swap	UNDROP 
 reject	accept	docs	undropStage/UNDROP_STAGE_QNAME	UNDROP STAGE a
 reject	accept	docs	undropStreamlit/UNDROP_STREAMLIT_QNAME	UNDROP STREAMLIT a
 accept	accept	docs	undropTag/UNDROP_TAG_QNAME	UNDROP TAG a
-reject	accept	docs	undropType/UNDROP_TYPE_QNAME	UNDROP TYPE a
-reject	accept	docs	undropVariable/UNDROP_VARIABLE_QNAME	UNDROP VARIABLE a
+accept	accept	docs	undropType/UNDROP_TYPE_QNAME	UNDROP TYPE a
+accept	accept	docs	undropVariable/UNDROP_VARIABLE_QNAME	UNDROP VARIABLE a
 accept	accept	docs	unset/UNSET_ID	UNSET a
 accept	accept	docs	unset/UNSET_(_ID_(,_ID)*_)	UNSET(a)
 reject	undocumented	docs	unset/UNSET_(_ID_(,_ID)*_)!drop-1	(a)

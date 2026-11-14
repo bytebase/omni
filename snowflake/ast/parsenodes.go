@@ -1870,6 +1870,9 @@ type DropStmt struct {
 	Object   string // the object's keywords when Kind is DropObject: "COMPUTE POOL"
 	IfExists bool
 	Name     *ObjectName
+	// Table is the table a DROP INDEX names before the index,
+	// <table_name>.<index_name>; Name is then the index's one-part name.
+	Table *ObjectName
 	// HasArgs / ArgTypes carry the argument-type signature of a DROP
 	// FUNCTION / DROP PROCEDURE — `DROP FUNCTION f(NUMBER, VARCHAR)`.
 	// Snowflake requires the signature to disambiguate overloads; the
@@ -1904,6 +1907,9 @@ const (
 	UndropTable        UndropObjectKind = iota
 	UndropDynamicTable                  // UNDROP DYNAMIC TABLE
 	UndropTag                           // UNDROP TAG
+	// UndropObject is an object read by its documented shape (an
+	// ObjectStmt's kind); UndropStmt.Object names it.
+	UndropObject
 )
 
 // String returns the SQL object-type keyword for the kind.
@@ -1924,13 +1930,23 @@ func (k UndropObjectKind) String() string {
 // DATABASE and SCHEMA are handled by T2.1.
 type UndropStmt struct {
 	Kind    UndropObjectKind
-	Iceberg bool // UNDROP ICEBERG TABLE (Kind is UndropTable)
+	Object  string // the object's keywords when Kind is UndropObject: "VARIABLE"
+	Iceberg bool   // UNDROP ICEBERG TABLE (Kind is UndropTable)
 	Name    *ObjectName
 	Loc     Loc
 }
 
 // Tag implements Node.
 func (n *UndropStmt) Tag() NodeTag { return T_UndropStmt }
+
+// ObjectType returns the keywords naming the undropped object's type:
+// Object for an UndropObject, the kind's keywords otherwise.
+func (n *UndropStmt) ObjectType() string {
+	if n.Kind == UndropObject {
+		return n.Object
+	}
+	return n.Kind.String()
+}
 
 // Compile-time assertions.
 var (
@@ -6617,6 +6633,9 @@ type ObjectClause struct {
 	Keys     []string         // the property names an UNSET clears, uppercased
 	Tags     []*TagAssignment // its tag assignments (SET TAG, [ WITH ] TAG ( ... ))
 	Query    Node             // the query an AS clause holds
+	// Type is the data type a clause names: a VARIABLE's <data_type>, a
+	// TYPE's AS <type>; nil otherwise.
+	Type *TypeName
 	// TimeTravel is the point in time an AT or BEFORE clause names, as a
 	// POSTGRES INSTANCE's FORK writes it.
 	TimeTravel *TimeTravelClause

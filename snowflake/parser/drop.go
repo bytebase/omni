@@ -34,6 +34,11 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 		}
 		return ds, nil
 	}
+	// DROP INDEX [ IF EXISTS ] <table_name>.<index_name> (index.go).
+	if p.cur.Type == kwINDEX {
+		p.advance() // consume INDEX
+		return p.parseDropIndexStmt(start)
+	}
 	// DROP [ <integration kind> ] INTEGRATION (integration.go).
 	if p.acceptDropIntegrationKind() {
 		return p.parseDropIntegrationStmt(start)
@@ -351,6 +356,24 @@ func (p *Parser) parseDropObject(kind ast.DropObjectKind, start ast.Loc, ifExist
 func (p *Parser) parseUndropStmt() (ast.Node, error) {
 	undropTok := p.advance() // consume UNDROP
 	start := undropTok.Loc
+
+	// An object read by its documented shape (object.go) whose page documents
+	// UNDROP <kind> <name>.
+	if f := p.matchObjectForm(); f != nil && f.undrop {
+		for range f.words {
+			p.advance()
+		}
+		node, err := p.parseUndropObject(ast.UndropObject, start)
+		if err != nil {
+			return nil, err
+		}
+		us := node.(*ast.UndropStmt)
+		if _, err := p.checkFormNameParts(f, us.Name); err != nil {
+			return nil, err
+		}
+		us.Object = f.kind
+		return us, nil
+	}
 
 	switch p.cur.Type {
 	case kwDATABASE:
