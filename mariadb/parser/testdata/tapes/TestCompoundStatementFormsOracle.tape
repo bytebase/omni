@@ -161,6 +161,14 @@
 < ok 0 0
 > exec ^
 : string
+| FOR $r IN (SELECT 1) DO COMMIT; END FOR
+< ok 0 0
+> exec ^
+: string
+| FOR résumé IN (SELECT 1) DO COMMIT; END FOR
+< ok 0 0
+> exec ^
+: string
 | CREATE FUNCTION f() RETURNS INT BEGIN SET STATEMENT max_statement_time=1 FOR LOOP RETURN 1; END LOOP; END
 < ok 0 0
 > exec ^

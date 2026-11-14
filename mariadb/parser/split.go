@@ -532,8 +532,11 @@ func forLoopFollows(sql string, i int) bool {
 	switch {
 	case j < len(sql) && sql[j] == '`':
 		j = skipBacktick(sql, j)
-	case j < len(sql) && isIdentByte(sql[j]):
-		j = skipToEndOfWord(sql, j)
+	case j < len(sql) && isIdentChar(sql[j]):
+		// The lexer's alphabet: $ and multi-byte UTF-8 too.
+		for j < len(sql) && isIdentChar(sql[j]) {
+			j++
+		}
 	default:
 		return false
 	}

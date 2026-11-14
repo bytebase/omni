@@ -54,6 +54,8 @@ func TestCompoundStatementFormsOracle(t *testing.T) {
 		{"CREATE FUNCTION f() RETURNS INT FOR r IN (SELECT 1) DO RETURN 1; END FOR", true},
 		{"CREATE PROCEDURE p() DETERMINISTIC FOR r IN (SELECT 1) DO SELECT 1; END FOR", true},
 		{"BEGIN NOT /* c */ ATOMIC IF 1 THEN SET @a=1; END IF; END", true},
+		{"FOR $r IN (SELECT 1) DO COMMIT; END FOR", true},
+		{"FOR résumé IN (SELECT 1) DO COMMIT; END FOR", true},
 
 		// SET STATEMENT ... FOR a compound statement inside a routine keeps the routine's rules.
 		{"CREATE FUNCTION f() RETURNS INT BEGIN SET STATEMENT max_statement_time=1 FOR LOOP RETURN 1; END LOOP; END", true},
@@ -192,6 +194,10 @@ func TestSplitCompoundStatements(t *testing.T) {
 			[]string{"CREATE FUNCTION f() RETURNS INT FOR r IN (SELECT 1) DO RETURN 1; END FOR", " SELECT 2"}},
 		{"CREATE PROCEDURE p() DETERMINISTIC FOR `r` IN (SELECT 1) DO SELECT 1; END FOR; SELECT 2",
 			[]string{"CREATE PROCEDURE p() DETERMINISTIC FOR `r` IN (SELECT 1) DO SELECT 1; END FOR", " SELECT 2"}},
+		{"FOR $r IN (SELECT 1) DO COMMIT; END FOR; SELECT 2",
+			[]string{"FOR $r IN (SELECT 1) DO COMMIT; END FOR", " SELECT 2"}},
+		{"FOR résumé IN (SELECT 1) DO COMMIT; END FOR; SELECT 2",
+			[]string{"FOR résumé IN (SELECT 1) DO COMMIT; END FOR", " SELECT 2"}},
 		{"SELECT * FROM t FOR UPDATE; SET STATEMENT a=1 FOR SELECT 1; SELECT 2",
 			[]string{"SELECT * FROM t FOR UPDATE", " SET STATEMENT a=1 FOR SELECT 1", " SELECT 2"}},
 	} {
