@@ -1767,7 +1767,7 @@ func TestParseAlterUserFull(t *testing.T) {
 		"ALTER USER scott ACCOUNT LOCK",
 		"ALTER USER scott ACCOUNT UNLOCK",
 		"ALTER USER scott ENABLE EDITIONS",
-		"ALTER USER c##scott CONTAINER = ALL",
+		"ALTER USER c##scott ACCOUNT LOCK CONTAINER = ALL",
 		"ALTER USER scott IDENTIFIED BY newpass DEFAULT TABLESPACE users QUOTA 100M ON users PROFILE default PASSWORD EXPIRE ACCOUNT UNLOCK",
 	}
 	for _, sql := range tests {
@@ -1814,7 +1814,7 @@ func TestParseCreateProfileFull(t *testing.T) {
 		"CREATE MANDATORY PROFILE mandatory_prof LIMIT SESSIONS_PER_USER 5",
 		"CREATE PROFILE app_profile LIMIT SESSIONS_PER_USER 10 CPU_PER_SESSION UNLIMITED FAILED_LOGIN_ATTEMPTS 3 PASSWORD_LIFE_TIME 60",
 		"CREATE PROFILE app_profile LIMIT SESSIONS_PER_USER 10 CONTAINER = ALL",
-		"CREATE PROFILE app_profile LIMIT SESSIONS_PER_USER 10 LIMIT FAILED_LOGIN_ATTEMPTS 5",
+		"CREATE PROFILE app_profile LIMIT SESSIONS_PER_USER 10 FAILED_LOGIN_ATTEMPTS 5",
 	}
 	for _, sql := range tests {
 		name := sql
@@ -3280,7 +3280,7 @@ func TestBatch100_AuditUnified(t *testing.T) {
 					t.Errorf("except_users=%d", len(stmt.ExceptUsers))
 				}
 			}},
-		{"policy_with_role", "AUDIT POLICY my_policy BY USERS WITH ROLE dba, connect",
+		{"policy_with_role", "AUDIT POLICY my_policy BY USERS WITH GRANTED ROLES dba, connect",
 			func(t *testing.T, stmt *ast.AuditStmt) {
 				if len(stmt.WithRoles) != 2 {
 					t.Errorf("with_roles=%d", len(stmt.WithRoles))
@@ -3422,7 +3422,7 @@ func TestBatch100_NoauditUnified(t *testing.T) {
 					t.Errorf("by=%d", len(stmt.ByUsers))
 				}
 			}},
-		{"policy_with_role", "NOAUDIT POLICY my_policy BY scott WITH ROLE dba",
+		{"policy_with_role", "NOAUDIT POLICY my_policy BY USERS WITH GRANTED ROLES dba",
 			func(t *testing.T, stmt *ast.NoauditStmt) {
 				if len(stmt.WithRoles) != 1 {
 					t.Errorf("roles=%d", len(stmt.WithRoles))
