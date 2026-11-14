@@ -2467,6 +2467,11 @@ type AlterTableAction struct {
 	// --- Column tag (ALTER/MODIFY col SET/UNSET TAG) ---
 	TagColumn Ident // column for SetColumnTag / UnsetColumnTag
 
+	// Continuation marks a column action that continues the previous ALTER /
+	// MODIFY column list without repeating the verb: the second action of
+	// ALTER a SET TAG t = 'v', b UNSET TAG u.
+	Continuation bool
+
 	// --- AlterConstraint ---
 	// ConstraintTarget is "PRIMARY KEY", "UNIQUE" or "FOREIGN KEY"; it is empty
 	// when ConstraintName names the constraint.

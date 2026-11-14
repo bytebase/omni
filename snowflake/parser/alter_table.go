@@ -91,7 +91,7 @@ func (p *Parser) parseAlterTableBody(start int, iceberg bool) (ast.Node, error) 
 				break
 			}
 			p.advance() // consume ','
-			last = &ast.AlterTableAction{Loc: p.cur.Loc}
+			last = &ast.AlterTableAction{Continuation: true, Loc: p.cur.Loc}
 			if err := p.parseAlterTableModifyAction(last, iceberg); err != nil {
 				return nil, err
 			}
