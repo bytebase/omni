@@ -16,7 +16,7 @@ import (
 //   - the canonical ZetaSQL corpus (parser/googlesql/examples/.../dml_*.sql) —
 //     the legacy ANTLR grammar bytebase consumes is a hand-port of that ZetaSQL
 //     reference, so the corpus is the breadth oracle (TestDML_LegacyCorpusAccepts);
-//   - the live Cloud Spanner emulator — the differential is in dml_oracle_test.go
+//   - the live Cloud Spanner emulator — the differential is in the suite:dml rows of testdata/compat.tsv
 //    , covering the SHARED + Spanner-only forms.
 //
 // BigQuery-only forms (MERGE, TRUNCATE, dashed table paths, the bare `INSERT …

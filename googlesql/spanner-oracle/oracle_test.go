@@ -33,6 +33,8 @@ func TestClassify(t *testing.T) {
 		{"ddl semantic: bad index column", "ddl", status.Error(codes.InvalidArgument, "Index ix specifies key column nope which does not exist in the base table base"), "accept", "semantic"},
 		{"ddl semantic: column type change", "ddl", status.Error(codes.InvalidArgument, "Cannot change type of column id from INT64 to STRING(10)"), "accept", "semantic"},
 		{"ddl semantic: generated-column expr (starts 'Error parsing ' but not the prefix)", "ddl", status.Error(codes.InvalidArgument, "Error parsing the definition of generated column g: Unrecognized name: nope"), "accept", "semantic"},
+		{"ddl syntax: GoogleSQL's parser (CREATE PROPERTY GRAPH)", "ddl", status.Error(codes.InvalidArgument, `Syntax error: Unexpected ")" [at 1:36]`), "reject", "syntax"},
+		{"ddl syntax: a function body", "ddl", status.Error(codes.InvalidArgument, "Error analyzing the definition of function `a`: Syntax error: Unexpected keyword NULLS [at 1:4]"), "reject", "syntax"},
 		{"ddl semantic: bad length", "ddl", status.Error(codes.InvalidArgument, "Bad length for column a: 99999999"), "accept", "semantic"},
 		{"ddl dup name", "ddl", status.Error(codes.FailedPrecondition, "Duplicate name in schema: T."), "accept", "semantic"},
 		{"ddl missing interleave parent", "ddl", status.Error(codes.NotFound, "Table not found: p"), "accept", "semantic"},
@@ -83,6 +85,10 @@ func TestKindOf(t *testing.T) {
 		{"# hash comment\nINSERT INTO t VALUES (1)", "dml"},
 		{"/* block */ CREATE TABLE t (x INT64) PRIMARY KEY (x)", "ddl"},
 		{"@{OPTIMIZER_VERSION=1} SELECT 1", "query"},
+		// An unclosed hint or comment is a statement the emulator refuses,
+		// not empty input.
+		{"@{ a = 1", "query"},
+		{"/* a", "query"},
 		// Documented limitation: WITH-led DML routes to the query path (verdict
 		// is still preserved). Pinned so a future change is intentional.
 		{"WITH x AS (SELECT 1 n) INSERT INTO t (id) SELECT n FROM x", "query"},

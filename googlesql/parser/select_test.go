@@ -12,7 +12,7 @@ import (
 // Unit tests for the parser-select node (the GoogleSQL query stack: SELECT,
 // FROM, joins, set-ops, CTEs, GROUP BY, HAVING, QUALIFY, WINDOW, ORDER/LIMIT,
 // UNNEST). The accept/reject behavior is also proven against the live Cloud
-// Spanner emulator in select_oracle_test.go; these
+// Spanner emulator in the suite:select rows of testdata/compat.tsv; these
 // hand-written tests assert the AST STRUCTURE (the structural gate — accept/
 // reject alone does not catch wrong nesting/precedence) and cover BigQuery-only
 // forms the Spanner emulator feature-rejects (QUALIFY, WITH RECURSIVE,
@@ -51,7 +51,7 @@ func selectOf(t *testing.T, q *ast.QueryStmt) *ast.SelectStmt {
 
 // TestSelect_AcceptForms asserts every documented BigQuery + Spanner query form
 // (truth1/{bigquery,spanner}/query.md) parses without error. This is the
-// docs-parity accept side; the oracle differential (select_oracle_test.go)
+// docs-parity accept side; the oracle differential (the suite:select rows of testdata/compat.tsv)
 // confirms the Spanner-authoritative subset against the live emulator.
 func TestSelect_AcceptForms(t *testing.T) {
 	accept := []string{

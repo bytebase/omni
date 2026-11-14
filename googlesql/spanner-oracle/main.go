@@ -169,6 +169,17 @@ type oracle struct {
 	cli     *spanner.Client
 	dbAdmin *database.DatabaseAdminClient
 	instCli *instance.InstanceAdminClient
+
+	// ddlDB is the database DDL is applied to, apart from the one queries
+	// and DML read, and ddlN how many such databases this process made.
+	// After a DDL statement applies, the next one gets a new, empty
+	// database: the emulator answers some DDL by the names the schema holds
+	// before it parses the rest (CREATE PROPERTY GRAPH a, with a table a,
+	// answers "Duplicate name in schema" whatever follows), so a schema left
+	// by one statement would change the verdict of the next.
+	ddlDB    string
+	ddlN     int
+	ddlDirty bool
 }
 
 func newOracle(ctx context.Context) (*oracle, error) {
@@ -215,6 +226,9 @@ func newOracle(ctx context.Context) (*oracle, error) {
 func (o *oracle) close() {
 	if o.dbAdmin != nil {
 		_ = o.dbAdmin.DropDatabase(context.Background(), &databasepb.DropDatabaseRequest{Database: dbPath})
+		if o.ddlDB != "" {
+			_ = o.dbAdmin.DropDatabase(context.Background(), &databasepb.DropDatabaseRequest{Database: o.ddlDB})
+		}
 	}
 	if o.cli != nil {
 		o.cli.Close()
@@ -285,21 +299,52 @@ func (o *oracle) validateDML(ctx context.Context, sql string) error {
 	return err
 }
 
-// validateDDL submits to UpdateDatabaseDdl against the scratch database. DDL
-// does mutate schema and state accumulates across a batch, but parse happens
-// before schema validation, so the accept/reject syntax VERDICT is order-stable
-// (only the semantic `reason` — ok vs Duplicate-name/NotFound — can vary with
-// prior DDL in the same run). Verdict correctness, the thing callers diff on,
-// is unaffected.
+// validateDDL submits to UpdateDatabaseDdl against an empty database of its
+// own (see oracle.ddlDB), so a verdict never depends on what an earlier
+// statement made.
 func (o *oracle) validateDDL(ctx context.Context, sql string) error {
+	if o.ddlDB == "" || o.ddlDirty {
+		if err := o.newDDLDatabase(ctx); err != nil {
+			// The oracle cannot decide: a non-status error is infra.
+			return fmt.Errorf("make a database for DDL: %v", err)
+		}
+	}
 	op, err := o.dbAdmin.UpdateDatabaseDdl(ctx, &databasepb.UpdateDatabaseDdlRequest{
-		Database:   dbPath,
+		Database:   o.ddlDB,
 		Statements: []string{sql},
 	})
 	if err != nil {
 		return err
 	}
-	return op.Wait(ctx)
+	err = op.Wait(ctx)
+	if err == nil {
+		o.ddlDirty = true
+	}
+	return err
+}
+
+// newDDLDatabase replaces the database DDL is applied to with a new, empty
+// one.
+func (o *oracle) newDDLDatabase(ctx context.Context) error {
+	if o.ddlDB != "" {
+		if err := o.dbAdmin.DropDatabase(ctx, &databasepb.DropDatabaseRequest{Database: o.ddlDB}); err != nil {
+			return err
+		}
+	}
+	o.ddlN++
+	id := fmt.Sprintf("googlesql_ddl_%d_%d", os.Getpid(), o.ddlN)
+	op, err := o.dbAdmin.CreateDatabase(ctx, &databasepb.CreateDatabaseRequest{
+		Parent:          parent,
+		CreateStatement: "CREATE DATABASE `" + id + "`",
+	})
+	if err != nil {
+		return err
+	}
+	if _, err := op.Wait(ctx); err != nil {
+		return err
+	}
+	o.ddlDB, o.ddlDirty = parent+"/databases/"+id, false
+	return nil
 }
 
 // classify maps a Spanner error to a grammar verdict for a statement of the
@@ -368,7 +413,10 @@ func classify(kind string, err error) verdict {
 		// digest + a required-green live TestOracleLive; see oracle.md.)
 		switch code {
 		case codes.InvalidArgument:
-			if strings.HasPrefix(msg, "Error parsing Spanner DDL statement:") {
+			// The emulator hands some DDL (CREATE PROPERTY GRAPH) and the SQL
+			// inside a definition (a function's body, a generated column) to
+			// GoogleSQL's parser, whose error is a syntax error too.
+			if strings.HasPrefix(msg, "Error parsing Spanner DDL statement:") || isSyntaxError(msg) {
 				v.Verdict, v.Reason = "reject", "syntax"
 			} else {
 				v.Verdict, v.Reason = "accept", "semantic" // semantic InvalidArgument => grammar parsed
@@ -390,7 +438,7 @@ func classify(kind string, err error) verdict {
 	// query / dml
 	switch code {
 	case codes.InvalidArgument:
-		if strings.HasPrefix(msg, "Syntax error:") {
+		if isSyntaxError(msg) {
 			v.Verdict, v.Reason = "reject", "syntax"
 		} else {
 			v.Verdict, v.Reason = "accept", "semantic" // Table not found / Unrecognized name / "X is not supported"
@@ -404,6 +452,14 @@ func classify(kind string, err error) verdict {
 		v.Verdict, v.Reason = "error", "infra"
 	}
 	return v
+}
+
+// isSyntaxError reports whether msg is GoogleSQL's parser refusing the
+// statement's text: its own "Syntax error:", or the same error the emulator
+// wraps when it parses the SQL inside a definition the statement holds
+// ("Error analyzing the definition of function `f`: Syntax error: ...").
+func isSyntaxError(msg string) bool {
+	return strings.HasPrefix(msg, "Syntax error:") || strings.Contains(msg, ": Syntax error:")
 }
 
 // isResourceLevel reports whether a NotFound/AlreadyExists message is about the
@@ -477,13 +533,15 @@ func stripLeading(s string) string {
 				s = s[i+2:]
 				continue
 			}
-			return ""
+			// An unclosed comment is no empty input: the emulator refuses it.
+			return s
 		case strings.HasPrefix(s, "@{"):
 			if i := strings.IndexByte(s, '}'); i >= 0 {
 				s = s[i+1:]
 				continue
 			}
-			return ""
+			// An unclosed hint is no empty input: the emulator refuses it.
+			return s
 		default:
 			return s
 		}

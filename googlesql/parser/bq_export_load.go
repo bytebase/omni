@@ -29,7 +29,7 @@ import (
 // EXPORT"). The union parser accepts them on the authority of the legacy .g4 +
 // the BigQuery truth1 corpus (OTHER-001 EXPORT DATA, OTHER-003 LOAD DATA); the
 // emulator verdict is non-authoritative and is recorded as a triangulation guard
-// in bq_ddl_oracle_test.go.
+// in the suite:bq-ddl rows of testdata/compat.tsv.
 //
 // EXPORT … METADATA (export_metadata_statement) is a separate statement owned by
 // the parser-utility node and is intentionally NOT implemented here; the EXPORT

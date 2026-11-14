@@ -27,7 +27,7 @@ import (
 // the legacy parser effectively over-rejects them). The omni parser models them
 // directly. The authoritative oracle is the live Cloud Spanner emulator
 // (oracle.md), which ACCEPTS every form here; verified in
-// spanner_ddl_oracle_test.go. The `CHANGE` and `STREAM` words both lex as bare
+// the suite:spanner-ddl rows of testdata/compat.tsv. The `CHANGE` and `STREAM` words both lex as bare
 // identifiers (non-reserved), so dispatch matches them by spelling.
 
 // parseCreateChangeStream parses a CREATE CHANGE STREAM body. The shared CREATE
