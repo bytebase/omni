@@ -6959,14 +6959,14 @@ reject	reject	engine	opt_query_expansion/WITH_QUERY_SYM_EXPANSION_SYM!swap	DO MA
 accept	accept	engine	opt_udf_expr_list/%empty	DO utf8mb4();
 accept	accept	engine	opt_udf_expr_list/%empty!insert	DO utf8mb4(zzz);
 accept	accept	engine	opt_udf_expr_list/udf_expr_list	DO utf8mb4(utf8mb4);
-reject	accept	engine	opt_udf_expr_list/udf_expr_list!insert	DO utf8mb4(utf8mb4 zzz);
+accept	accept	engine	opt_udf_expr_list/udf_expr_list!insert	DO utf8mb4(utf8mb4 zzz);
 accept	accept	engine	udf_expr_list/udf_expr	DO utf8mb4(utf8mb4);
 accept	accept	engine	udf_expr_list/udf_expr_list_,_udf_expr	DO utf8mb4(utf8mb4, utf8mb4);
 reject	reject	engine	udf_expr_list/udf_expr_list_,_udf_expr!drop-1	DO utf8mb4(, utf8mb4);
-reject	accept	engine	udf_expr_list/udf_expr_list_,_udf_expr!drop-2	DO utf8mb4(utf8mb4 utf8mb4);
+accept	accept	engine	udf_expr_list/udf_expr_list_,_udf_expr!drop-2	DO utf8mb4(utf8mb4 utf8mb4);
 reject	reject	engine	udf_expr_list/udf_expr_list_,_udf_expr!drop-3	DO utf8mb4(utf8mb4,);
 reject	reject	engine	udf_expr_list/udf_expr_list_,_udf_expr!truncate	DO utf8mb4(utf8mb4,
-reject	accept	engine	udf_expr_list/udf_expr_list_,_udf_expr!insert	DO utf8mb4(utf8mb4, utf8mb4 zzz);
+accept	accept	engine	udf_expr_list/udf_expr_list_,_udf_expr!insert	DO utf8mb4(utf8mb4, utf8mb4 zzz);
 accept	accept	engine	udf_expr/expr_select_alias	DO utf8mb4(utf8mb4);
 accept	accept	engine	set_function_specification/sum_expr	DO AVG(utf8mb4);
 accept	accept	engine	set_function_specification/grouping_operation	DO GROUPING(utf8mb4);

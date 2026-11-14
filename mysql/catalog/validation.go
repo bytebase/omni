@@ -17,6 +17,20 @@ func validateExpressionSemantics(node nodes.Node) error {
 			return true
 		}
 		name := strings.ToLower(fn.Name)
+		// An argument alias parses on any generic call, and MySQL refuses it on
+		// every function but a loadable UDF, which the catalog does not hold: 1583
+		// for a native function, 1584 for a stored one, named or not.
+		for _, alias := range fn.ArgAliases {
+			if alias == nil {
+				continue
+			}
+			if fn.Schema == "" && nativeFunctions[name] {
+				err = errWrongParametersToNativeFct(name)
+			} else {
+				err = errWrongParametersToStoredFct(fn.Name)
+			}
+			return false
+		}
 		switch name {
 		case "now", "current_timestamp", "localtime", "localtimestamp", "sysdate",
 			"utc_timestamp", "curtime", "current_time", "utc_time":
