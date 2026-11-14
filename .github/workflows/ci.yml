@@ -77,10 +77,11 @@ jobs:
       - name: Test
         if: steps.affected.outputs.pkgs != ''
         # A package that still needs a server starts its own; the engines on
-        # tapes (pg, Trino, OceanBase, the MySQL family, SQL Server) start none. go test's
-        # default 10m per package is too tight: oracle/review takes 7 min, and
-        # over 10 on a busy runner. 20m leaves room and still lets a hung
-        # package print its goroutine dump before the job's 30-minute cap.
+        # tapes (pg, Trino, OceanBase, the MySQL family, SQL Server, Oracle)
+        # start none. go test's default 10m per package is too tight:
+        # oceanbase/review takes 9 min on a busy runner. 20m leaves room and
+        # still lets a hung package print its goroutine dump before the job's
+        # 30-minute cap.
         run: go test -p=8 -count=1 -timeout=20m ${{ steps.affected.outputs.pkgs }}
 
       - name: Nested modules (own go.mod, not reached by ./...)
