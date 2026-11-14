@@ -1,6 +1,11 @@
 package parser
 
-import "github.com/bytebase/omni/snowflake/ast"
+import (
+	"slices"
+	"strings"
+
+	"github.com/bytebase/omni/snowflake/ast"
+)
 
 // ---------------------------------------------------------------------------
 // Actions ALTER TABLE, ALTER VIEW, ALTER DYNAMIC TABLE and ALTER MATERIALIZED
@@ -382,11 +387,89 @@ func (p *Parser) parseDataMetricExpectations(withExpr bool) ([]*ast.DataMetricEx
 
 // parseAssignment parses one `KEY = <value>` property through parseCopyOption
 // and rejects the bare (value-less) form, which no ALTER property takes.
+//
+// A property whose value the pages document (propertyValues) must have one of
+// those values; any other property keeps the open-ended value forms.
 func (p *Parser) parseAssignment() (*ast.CopyOption, error) {
 	if !p.startsCopyOption() || p.peekNext().Type != '=' {
 		return nil, p.syntaxErrorAtCur()
 	}
+	if err := p.checkPropertyValue(); err != nil {
+		return nil, err
+	}
 	return p.parseCopyOption()
+}
+
+// propertyValue is the documented value of an ALTER property: one of words
+// (unquoted), one of strs (single-quoted), or, with anyString, any string.
+type propertyValue struct {
+	words     []string
+	strs      []string
+	anyString bool
+}
+
+var (
+	boolValue   = propertyValue{words: []string{"TRUE", "FALSE"}}
+	stringValue = propertyValue{anyString: true}
+)
+
+// propertyValues holds the values the ALTER TABLE, ALTER ICEBERG TABLE (incl.
+// CONVERT TO MANAGED) and data metric function pages give their properties.
+var propertyValues = map[string]propertyValue{
+	// alter-table
+	"ICEBERG_DEFAULT_DDL_COLLATION": stringValue,
+	"ENABLE_SCHEMA_EVOLUTION":       boolValue,
+	"ERROR_LOGGING":                 boolValue,
+	"ROW_TIMESTAMP":                 boolValue,
+	// alter-iceberg-table
+	"REPLACE_INVALID_CHARACTERS":     boolValue,
+	"CATALOG_SYNC":                   stringValue,
+	"AUTO_REFRESH":                   boolValue,
+	"TARGET_FILE_SIZE":               {words: []string{"AUTO"}, strs: []string{"AUTO", "16MB", "32MB", "64MB", "128MB"}},
+	"PATH_LAYOUT":                    {words: []string{"FLAT", "HIERARCHICAL"}},
+	"STORAGE_SERIALIZATION_POLICY":   {words: []string{"COMPATIBLE", "OPTIMIZED"}},
+	"LOG_EVENT_LEVEL":                {words: []string{"ERROR", "WARN", "INFO", "DEBUG"}},
+	"ENABLE_DATA_COMPACTION":         boolValue,
+	"ICEBERG_MERGE_ON_READ_BEHAVIOR": {strs: []string{"AUTO", "ENABLED", "DISABLED"}},
+	"ENABLE_ICEBERG_MERGE_ON_READ":   boolValue,
+	"MATCH_BY_COLUMN_NAME":           {words: []string{"CASE_INSENSITIVE", "CASE_SENSITIVE"}},
+	"ALLOW_V3_EXPRESSION_DEFAULTS":   boolValue,
+	"TIME_TRAVEL_TIMESTAMP_SOURCE":   {strs: []string{"SNOWFLAKE_METADATA", "ICEBERG_METADATA"}},
+	// alter-iceberg-table-convert-to-managed
+	"FILE_PATH":                stringValue,
+	"BASE_LOCATION":            stringValue,
+	"DROP_FROM_SOURCE_CATALOG": boolValue,
+	// data metric functions
+	"ANOMALY_DETECTION":         boolValue,
+	"SENSITIVITY":               {strs: []string{"LOW", "MEDIUM", "HIGH"}},
+	"DATA_QUALITY_NOTIFICATION": boolValue,
+}
+
+// checkPropertyValue checks, without consuming anything, that the `KEY =
+// <value>` at cur gives a documented property one of its documented values.
+func (p *Parser) checkPropertyValue() error {
+	spec, ok := propertyValues[strings.ToUpper(p.cur.Str)]
+	if !ok {
+		return nil
+	}
+	snap := p.snapshot()
+	p.advance() // consume the name
+	p.advance() // consume '='
+	val := p.cur
+	next := p.peekNext().Type
+	if val.Type == tokString {
+		if spec.anyString || slices.Contains(spec.strs, strings.ToUpper(val.Str)) {
+			p.restore(snap)
+			return nil
+		}
+	} else if val.Type != tokQuotedIdent && val.Str != "" && next != '.' &&
+		slices.Contains(spec.words, strings.ToUpper(val.Str)) {
+		p.restore(snap)
+		return nil
+	}
+	err := p.syntaxErrorAtCur()
+	p.restore(snap)
+	return err
 }
 
 // startsAssignment reports whether cur begins a `KEY = <value>` property.
@@ -475,6 +558,11 @@ func (p *Parser) commaStartsUnsetTagName() bool {
 	snap := p.snapshot()
 	defer p.restore(snap)
 	p.advance() // consume ','
+	if p.cur.Type == kwCOLUMN {
+		// `, COLUMN <col> ...`: the next column action. (parseObjectName would
+		// take the reserved COLUMN as a name part.)
+		return false
+	}
 	if _, err := p.parseObjectName(); err != nil {
 		return false
 	}

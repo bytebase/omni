@@ -430,6 +430,12 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+		if n.PolicyName != nil {
+			Walk(v, n.PolicyName)
+		}
+		if n.CredentialName != nil {
+			Walk(v, n.CredentialName)
+		}
 	case *AlterViewStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -525,6 +531,9 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Default)
 		if n.MaskingPolicy != nil {
 			Walk(v, n.MaskingPolicy)
+		}
+		if n.ProjectionPolicy != nil {
+			Walk(v, n.ProjectionPolicy)
 		}
 		walkInlineConstraint(v, n.InlineConstraint)
 		for _, item := range n.Tags {
@@ -901,6 +910,21 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Like)
 		}
 		walkCloneSource(v, n.Clone)
+		walkRowAccessPolicy(v, n.RowPolicy)
+		walkNodes(v, n.PartitionBy)
+		for _, item := range n.Options {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		if n.AggregationPolicy != nil {
+			Walk(v, n.AggregationPolicy)
+		}
+		for _, item := range n.Contacts {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 	case *CreateTagStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -1324,6 +1348,7 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Query)
 	case *TableConstraint:
 		walkForeignKeyRef(v, n.References)
+		Walk(v, n.Check)
 	case *TableRef:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -1450,6 +1475,8 @@ func walkAlterTableAction(v Visitor, n *AlterTableAction) {
 			Walk(v, item)
 		}
 	}
+	Walk(v, n.Partition)
+	Walk(v, n.NewPartition)
 	if n.VersionTag != nil {
 		Walk(v, n.VersionTag)
 	}
@@ -1597,6 +1624,7 @@ func walkInlineConstraint(v Visitor, n *InlineConstraint) {
 		return
 	}
 	walkForeignKeyRef(v, n.References)
+	Walk(v, n.Check)
 }
 
 // walkInsertMultiBranch walks the node-bearing fields of the non-Node helper struct

@@ -62,7 +62,7 @@ func (p *Parser) parseAlterIcebergOnlyAction(action *ast.AlterTableAction) (bool
 		p.advance() // consume MANAGED
 		action.Kind = ast.AlterTableConvertToManaged
 		for p.startsAssignment() {
-			opt, err := p.parseCopyOption()
+			opt, err := p.parseAssignment()
 			if err != nil {
 				return true, err
 			}
@@ -278,8 +278,9 @@ func (p *Parser) parseVersionTagAsOf(action *ast.AlterTableAction, retain bool) 
 }
 
 // parseIcebergPartitionParen parses ( <partitionExpression> ): exactly one
-// expression, as the partition-evolution page's usage notes say.
-func (p *Parser) parseIcebergPartitionParen() (*ast.IcebergPartitionExpr, error) {
+// expression, as the partition-evolution page's usage notes say. The
+// expression is read by CREATE ICEBERG TABLE's parseIcebergPartitionExpr.
+func (p *Parser) parseIcebergPartitionParen() (ast.Node, error) {
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
@@ -290,51 +291,5 @@ func (p *Parser) parseIcebergPartitionParen() (*ast.IcebergPartitionExpr, error)
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
-	return part, nil
-}
-
-// parseIcebergPartitionExpr parses one partitionExpression:
-//
-//	<col> | BUCKET ( <n> , <col> ) | TRUNCATE ( <n> , <col> )
-//	| YEAR ( <col> ) | MONTH ( <col> ) | DAY ( <col> ) | HOUR ( <col> )
-func (p *Parser) parseIcebergPartitionExpr() (*ast.IcebergPartitionExpr, error) {
-	part := &ast.IcebergPartitionExpr{Loc: ast.Loc{Start: p.cur.Loc.Start}}
-	if p.peekNext().Type == '(' {
-		transform := strings.ToUpper(p.cur.Str)
-		switch transform {
-		case "BUCKET", "TRUNCATE", "YEAR", "MONTH", "DAY", "HOUR":
-		default:
-			return nil, p.syntaxErrorAtCur()
-		}
-		p.advance() // consume the transform
-		p.advance() // consume '('
-		part.Transform = transform
-		if transform == "BUCKET" || transform == "TRUNCATE" {
-			tok, err := p.expect(tokInt)
-			if err != nil {
-				return nil, err
-			}
-			n := tok.Ival
-			part.Arg = &n
-			if _, err := p.expect(','); err != nil {
-				return nil, err
-			}
-		}
-		col, err := p.parseIdent()
-		if err != nil {
-			return nil, err
-		}
-		part.Column = col
-		if _, err := p.expect(')'); err != nil {
-			return nil, err
-		}
-	} else {
-		col, err := p.parseIdent()
-		if err != nil {
-			return nil, err
-		}
-		part.Column = col
-	}
-	part.Loc.End = p.prev.Loc.End
 	return part, nil
 }

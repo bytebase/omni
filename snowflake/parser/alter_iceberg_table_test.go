@@ -50,8 +50,8 @@ func TestAlterIcebergTable(t *testing.T) {
 		t.Errorf("column alters = %+v", cas)
 	}
 	stmt = requireAlterTable(t, "ALTER ICEBERG TABLE t ADD PARTITION BY (TRUNCATE(4, c))")
-	if p := requireAction(t, stmt, 0).Partition; p.Transform != "TRUNCATE" || *p.Arg != 4 || p.Column.Name != "c" {
-		t.Errorf("partition = %+v", p)
+	if call, ok := requireAction(t, stmt, 0).Partition.(*ast.FuncCallExpr); !ok || call.Name.Name.Name != "TRUNCATE" || len(call.Args) != 2 {
+		t.Errorf("partition = %+v", requireAction(t, stmt, 0).Partition)
 	}
 
 	for _, sql := range []string{
@@ -66,6 +66,10 @@ func TestAlterIcebergTable(t *testing.T) {
 		"ALTER ICEBERG TABLE t ADD PARTITION BY (WEEK(a))",
 		"ALTER ICEBERG TABLE t OPTIMIZE (COMPACT)",
 		"ALTER ICEBERG TABLE t SET TARGET_FILE_SIZE = 16 MB",
+		"ALTER ICEBERG TABLE t SET PATH_LAYOUT = 'FLAT'",
+		"ALTER ICEBERG TABLE t SET LOG_EVENT_LEVEL = TRACE",
+		"ALTER ICEBERG TABLE t SET TARGET_FILE_SIZE = '20MB'",
+		"ALTER ICEBERG TABLE t CONVERT TO MANAGED DROP_FROM_SOURCE_CATALOG = 'yes'",
 		// Iceberg-only forms on a plain table.
 		"ALTER TABLE t REFRESH",
 		"ALTER TABLE t UPGRADE TO ICEBERG VERSION 3",

@@ -80,6 +80,14 @@ func TestAlterTable_UnparenthesizedTags(t *testing.T) {
 	if len(stmt.Actions) != 2 || len(stmt.Actions[0].Tags) != 2 || stmt.Actions[1].TagColumn.Name != "c2" {
 		t.Errorf("actions = %+v", stmt.Actions)
 	}
+	stmt = requireAlterTable(t, "ALTER TABLE t MODIFY c1 UNSET TAG t1, COLUMN c2 UNSET TAG t2")
+	if len(stmt.Actions) != 2 || len(stmt.Actions[0].UnsetTags) != 1 || stmt.Actions[1].TagColumn.Name != "c2" {
+		t.Errorf("actions = %+v", stmt.Actions)
+	}
+	stmt = requireAlterTable(t, "ALTER TABLE t MODIFY c1 SET TAG t1 = 'x', COLUMN c2 SET TAG t2 = 'y'")
+	if len(stmt.Actions) != 2 || stmt.Actions[1].TagColumn.Name != "c2" {
+		t.Errorf("actions = %+v", stmt.Actions)
+	}
 	stmt = requireAlterTable(t, "ALTER TABLE t MODIFY c1 UNSET TAG t1, t2, c2 UNSET TAG t3")
 	if len(stmt.Actions) != 2 || len(stmt.Actions[0].UnsetTags) != 2 || stmt.Actions[1].TagColumn.Name != "c2" {
 		t.Errorf("actions = %+v", stmt.Actions)
@@ -163,6 +171,12 @@ func TestAlterTable_NewProperties(t *testing.T) {
 		"ALTER TABLE t SET ANY = TRUE",          // a reserved word is no property name
 		"ALTER TABLE t SET ERROR_LOGGING",       // a property needs = value
 		"ALTER TABLE t SET ERROR_LOGGING = 1 2", // one value per property
+		// Documented properties take their documented values.
+		"ALTER TABLE t SET ENABLE_SCHEMA_EVOLUTION = 'garbage'",
+		"ALTER TABLE t SET ERROR_LOGGING = 1",
+		"ALTER TABLE t SET ROW_TIMESTAMP = (a = b)",
+		"ALTER TABLE t SET ICEBERG_DEFAULT_DDL_COLLATION = en",
+		"ALTER TABLE t MODIFY DATA METRIC FUNCTION m SET SENSITIVITY = 'EXTREME'",
 	} {
 		if _, err := Parse(sql); err == nil {
 			t.Errorf("Parse(%q) succeeded, want error", sql)

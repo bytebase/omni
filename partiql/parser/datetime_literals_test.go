@@ -25,10 +25,6 @@ func TestDateTimeLiteral_Date(t *testing.T) {
 		{"iso", "DATE '2026-01-01'", "2026-01-01"},
 		{"min", "DATE '0001-01-01'", "0001-01-01"},
 		{"leap", "DATE '2024-02-29'", "2024-02-29"},
-		// Grammar-accepted, semantically-odd bodies (following antlr: no
-		// syntax-layer value validation).
-		{"empty_body", "DATE ''", ""},
-		{"non_date_body", "DATE 'not-a-date'", "not-a-date"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -78,8 +74,6 @@ func TestDateTimeLiteral_Time(t *testing.T) {
 		{"precision_zero", "TIME(0) '01:02:03'", "01:02:03", &p0, false},
 		{"with_tz", "TIME WITH TIME ZONE '12:00:00'", "12:00:00", nil, true},
 		{"precision_with_tz", "TIME (3) WITH TIME ZONE '12:00:00-08:00'", "12:00:00-08:00", &p3, true},
-		// Grammar-accepted odd body (no syntax-layer validation).
-		{"empty_body", "TIME ''", "", nil, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -277,5 +271,38 @@ func TestDateTimeLiteral_Goldens(t *testing.T) {
 				t.Errorf("AST mismatch\ngot:\n%s\nwant:\n%s", got, string(want))
 			}
 		})
+	}
+}
+
+// TestDateTimeLiteral_InvalidBody holds the bodies the grammar takes and
+// the reference parser's visitor refuses: a DATE that is no yyyy-MM-dd day
+// (PartiQLParserDefault.kt:2005-2018) and a TIME that is no time
+// (PartiQLParserDefault.kt:2020-2028, 2177-2206).
+func TestDateTimeLiteral_InvalidBody(t *testing.T) {
+	for _, input := range []string{
+		"DATE ''",
+		"DATE 'not-a-date'",
+		"DATE '2023-02-29'",
+		"DATE '2024-1-01'",
+		"TIME ''",
+		"TIME 's'",
+		"TIME '24:00:00'",
+		"TIME(1) 's'",
+		"TIME(10) '12:00:00'",
+		"TIME WITH TIME ZONE '12:00:00+24:00'",
+	} {
+		if _, err := NewParser(input).ParseExpr(); err == nil {
+			t.Errorf("ParseExpr(%q) = nil error, want one", input)
+		}
+	}
+	for _, input := range []string{
+		"TIME '12:00:00Z'",
+		"TIME '12:00:00 +08:00'",
+		"TIME(9) '12:00'", // a precision given needs no fraction; the pattern still needs seconds
+	} {
+		_, err := NewParser(input).ParseExpr()
+		if want := input != "TIME(9) '12:00'"; (err == nil) != want {
+			t.Errorf("ParseExpr(%q) error = %v, want ok = %v", input, err, want)
+		}
 	}
 }

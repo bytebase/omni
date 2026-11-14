@@ -70,7 +70,7 @@ func (p *Parser) parseInsertStmt() (*nodes.InsertStmt, error) {
 
 		// Optional WITH ( <Table_Hint_Limited> ) on target — only allowed on named tables.
 		if p.cur.Type == kwWITH && p.peekNext().Type == '(' {
-			hints, err := p.parseTableHints()
+			hints, err := p.parseDmlTargetHints()
 			if err != nil {
 				return nil, err
 			}
@@ -146,10 +146,13 @@ func (p *Parser) parseInsertStmt() (*nodes.InsertStmt, error) {
 	case p.cur.Type == kwDEFAULT:
 		// DEFAULT VALUES
 		p.advance()
-		if p.cur.Type == kwVALUES {
-			p.advance()
+		if _, err := p.expect(kwVALUES); err != nil {
+			return nil, err
 		}
 		stmt.DefaultValues = true
+	default:
+		// insertSpecification (TSql160.g:19735) requires a source.
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	// Optional OPTION clause
@@ -176,10 +179,11 @@ func (p *Parser) parseValuesClause() (*nodes.ValuesClause, error) {
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
+	// At least one row (valuesInsertSource, TSql160.g:19987).
 	var rows []nodes.Node
 	for {
 		if _, err := p.expect('('); err != nil {
-			break
+			return nil, err
 		}
 		row, err := p.parseExprList()
 		if err != nil {
@@ -203,6 +207,8 @@ func (p *Parser) parseValuesClause() (*nodes.ValuesClause, error) {
 // BNF: OUTPUT { dml_select_list } [ INTO { @table_variable | output_table } [ ( column_list ) ] ]
 //
 //	OUTPUT output_columns [INTO table [(col_list)]]
+//
+// outputClause_OUTPUT and outputIntoClause (TSql160.g:19631, 19609).
 func (p *Parser) parseOutputClause() (*nodes.OutputClause, error) {
 	loc := p.pos()
 	p.advance() // consume OUTPUT
@@ -220,7 +226,7 @@ func (p *Parser) parseOutputClause() (*nodes.OutputClause, error) {
 	}
 
 	// Parse output targets (comma-separated expressions like inserted.col, deleted.col, $action)
-	targets, err := p.parseTargetList()
+	targets, err := p.parseOutputSelectList()
 	if err != nil {
 		return nil, err
 	}
@@ -232,13 +238,16 @@ func (p *Parser) parseOutputClause() (*nodes.OutputClause, error) {
 			// @table_variable
 			oc.IntoTable = &nodes.TableRef{
 				Object: p.cur.Str,
-				Loc:    nodes.Loc{Start: p.pos(), End: p.prevEnd()},
+				Loc:    nodes.Loc{Start: p.pos(), End: p.cur.End},
 			}
 			p.advance()
 		} else {
 			tbl, err := p.parseTableRef()
 			if err != nil {
 				return nil, err
+			}
+			if tbl == nil {
+				return nil, p.syntaxErrorAtCur()
 			}
 			oc.IntoTable = tbl
 		}
@@ -264,6 +273,54 @@ func (p *Parser) parseOutputClause() (*nodes.OutputClause, error) {
 
 	oc.Loc.End = p.prevEnd()
 	return oc, nil
+}
+
+// parseOutputSelectList parses the columns of an OUTPUT clause
+// (outputClauseSelectElement, TSql160.g:18388): a qualified star
+// (inserted.*, deleted.*) or an expression with an optional alias, a name or
+// a string, after an optional AS (outputClauseSelectColumn,
+// TSql160.g:18396). The list is not empty, and SQL Server refuses a bare *
+// and the alias = expression form of a select list (Msg 102).
+func (p *Parser) parseOutputSelectList() (*nodes.List, error) {
+	var targets []nodes.Node
+	for {
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			p.addRuleCandidate("func_name")
+			return nil, errCollecting
+		}
+		targetLoc := p.pos()
+		if p.cur.Type == '*' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		expr, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		if expr == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		target := &nodes.ResTarget{
+			Val: expr,
+			Loc: nodes.Loc{Start: targetLoc, End: -1},
+		}
+		if _, ok := p.match(kwAS); ok {
+			if p.cur.Type != tokSCONST && p.cur.Type != tokNSCONST && !p.isIdentLike() {
+				return nil, p.syntaxErrorAtCur()
+			}
+			target.Name = p.cur.Str
+			p.advance()
+		} else if p.cur.Type == tokSCONST || p.cur.Type == tokNSCONST ||
+			(p.isIdentLike() && !p.isBareAliasExcluded()) {
+			target.Name = p.cur.Str
+			p.advance()
+		}
+		target.Loc.End = p.prevEnd()
+		targets = append(targets, target)
+		if _, ok := p.match(','); !ok {
+			return &nodes.List{Items: targets}, nil
+		}
+	}
 }
 
 // isOutputKeyword checks if the current token is the OUTPUT keyword.

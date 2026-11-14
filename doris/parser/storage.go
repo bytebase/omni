@@ -110,24 +110,23 @@ func (p *Parser) parseDropStorageVault(startLoc ast.Loc) (ast.Node, error) {
 	return stmt, nil
 }
 
-// parseSetDefaultStorageVault parses:
+// parseSetDefaultStorageVault parses
 //
-//	SET DEFAULT STORAGE VAULT name
+//	SET identifier AS DEFAULT STORAGE VAULT
 //
-// SET has already been consumed; cur is DEFAULT.
+// (DorisParser.g4:884; the CUP parser's set_stmt). SET has already been
+// consumed; cur is the vault's name.
 func (p *Parser) parseSetDefaultStorageVault(startLoc ast.Loc) (ast.Node, error) {
-	p.advance() // consume DEFAULT
-	if _, err := p.expect(kwSTORAGE); err != nil {
-		return nil, err
-	}
-	if _, err := p.expect(kwVAULT); err != nil {
-		return nil, err
-	}
-
-	name, nameLoc, err := p.parseIdentifier()
+	name, _, err := p.parseIdentifier()
 	if err != nil {
 		return nil, err
 	}
+	for _, kw := range []int{kwAS, kwDEFAULT, kwSTORAGE, kwVAULT} {
+		if _, err := p.expect(kw); err != nil {
+			return nil, err
+		}
+	}
+	nameLoc := p.prev.Loc
 
 	stmt := &ast.SetDefaultStorageVaultStmt{
 		Name: name,

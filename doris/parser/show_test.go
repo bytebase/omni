@@ -551,3 +551,47 @@ func TestShowStrictRejects(t *testing.T) {
 		}
 	}
 }
+
+// TestSetGrammar holds SET to what both of Doris's parsers take;
+// testdata/compat.tsv judged the near misses.
+func TestSetGrammar(t *testing.T) {
+	cases := []struct {
+		sql string
+		ok  bool
+	}{
+		{"SET CHARSET a, CHAR SET b, NAMES utf8 COLLATE c, GLOBAL x = DEFAULT, @@LOCAL.y = ON, @u = 1, z = ALL", true},
+		{"SET GLOBAL = 1", true},
+		{"SET PROPERTY = 1", true},
+		{"SET PROPERTY FOR 'u' 'k' = 'v', 'k2' = NULL", true},
+		{"SET PROPERTY 'k' = 1", false},
+		{"SET LDAP_ADMIN_PASSWORD = PASSWORD('p')", true},
+		{"SET NAMES = 1", false},
+		{"SET NAMES a DEFAULT", false},
+		{"SET a := 1", false},
+		{"SET `names` = 1", true},
+		{"SET a", false},
+		{"SET v AS DEFAULT STORAGE VAULT", true},
+	}
+	for _, c := range cases {
+		_, err := Parse(c.sql)
+		if (err == nil) != c.ok {
+			t.Errorf("Parse(%q): err = %v, want accepted=%v", c.sql, err, c.ok)
+		}
+	}
+}
+
+// TestSetTypeFromOption: a variable named NAMES or CHARSET keeps the
+// VARIABLE type; the NAMES and CHARSET options keep theirs.
+func TestSetTypeFromOption(t *testing.T) {
+	for sql, want := range map[string]string{
+		"SET `names` = 1":  "VARIABLE",
+		"SET @charset = 1": "VARIABLE",
+		"SET NAMES utf8":   "NAMES",
+		"SET CHARSET utf8": "CHARSET",
+	} {
+		stmt := parseOne(t, sql).(*ast.SetStmt)
+		if stmt.Type != want {
+			t.Errorf("%s: Type = %q, want %q", sql, stmt.Type, want)
+		}
+	}
+}
