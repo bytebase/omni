@@ -688,8 +688,18 @@ func (p *Parser) parseDescribeStmt(short bool) (ast.Node, error) {
 	stmt.ObjectType = strings.Join(typeWords, " ")
 	stmt.Name = unit
 
+	// A data metric function's signature, ( TABLE ( ... ) [ , TABLE ( ... ) ] )
+	// (data_metric_function.go); the page writes DESC FUNCTION [ IF EXISTS ].
+	if (stmt.ObjectType == "FUNCTION" || stmt.ObjectType == "FUNCTION IF EXISTS") && p.startsDataMetricTableArgs() {
+		args, err := p.parseDataMetricTableArgs()
+		if err != nil {
+			return nil, err
+		}
+		stmt.TableArgs = args
+	}
+
 	// Optional FUNCTION/PROCEDURE argument-type signature.
-	if p.cur.Type == '(' {
+	if stmt.TableArgs == nil && p.cur.Type == '(' {
 		sig, err := p.parseGrantSignature()
 		if err != nil {
 			return nil, err
