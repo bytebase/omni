@@ -697,12 +697,18 @@ func topoSortOps(c *Catalog, ops []MigrationOp, reverse bool) (sorted []Migratio
 // changes its type, and only then can the type go. The drops of what such a
 // type uses, and of the schemas holding them, wait with it. A drop that the
 // plan pairs with a create of the same name keeps its place, since the create
-// needs the name free.
+// needs the name free; so does one whose users the plan drops and rebuilds.
 func deferDropsOfTypesInUse(from, to *Catalog, ops []MigrationOp) []MigrationOp {
 	created := make(map[string]bool)
+	rebuilt := make(map[uint32]bool)
 	for _, op := range ops {
-		if op.Type == OpCreateType {
+		switch op.Type {
+		case OpCreateType:
 			created[op.SchemaName+"."+op.ObjectName] = true
+		case OpDropTable, OpDropType, OpDropView:
+			if op.Phase == PhasePre && op.ObjType == 'r' {
+				rebuilt[op.ObjOID] = true
+			}
 		}
 	}
 	// typeOID is the type a drop removes: the type itself, or a composite's
@@ -718,7 +724,7 @@ func deferDropsOfTypesInUse(from, to *Catalog, ops []MigrationOp) []MigrationOp 
 	}
 	late := make(map[int]bool)
 	for i, op := range ops {
-		if op.Phase == PhasePre && op.Type == OpDropType && !created[op.SchemaName+"."+op.ObjectName] && typeUsedByKeptColumn(from, to, typeOID(op)) {
+		if op.Phase == PhasePre && op.Type == OpDropType && !created[op.SchemaName+"."+op.ObjectName] && typeUsedByKeptColumn(from, to, rebuilt, typeOID(op)) {
 			late[i] = true
 		}
 	}
@@ -769,13 +775,13 @@ func deferDropsOfTypesInUse(from, to *Catalog, ops []MigrationOp) []MigrationOp 
 
 // typeUsedByKeptColumn reports whether a column of a table or an attribute of
 // a composite type in from has the type, or an array of it, and to still has
-// that column.
-func typeUsedByKeptColumn(from, to *Catalog, typ uint32) bool {
+// that column. The relations in dropped keep none.
+func typeUsedByKeptColumn(from, to *Catalog, dropped map[uint32]bool, typ uint32) bool {
 	if typ == 0 {
 		return false
 	}
 	for _, rel := range from.relationByOID {
-		if rel.RelKind != 'r' && rel.RelKind != 'p' && rel.RelKind != 'c' || rel.Schema == nil {
+		if rel.RelKind != 'r' && rel.RelKind != 'p' && rel.RelKind != 'c' || rel.Schema == nil || dropped[rel.OID] {
 			continue
 		}
 		toRel := to.GetRelation(rel.Schema.Name, rel.Name)

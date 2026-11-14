@@ -2871,6 +2871,34 @@ DROP TYPE "s"."addr";
 DROP SCHEMA s CASCADE`,
 		},
 		{
+			// t is rebuilt for its new parent.
+			name: "a rebuilt table needs no wait",
+			from: `CREATE TYPE addr AS ENUM ('a'); CREATE TABLE p (id int); CREATE TABLE t (id int, c addr);`,
+			to:   `CREATE TABLE p (id int); CREATE TABLE t (c text) INHERITS (p);`,
+			want: `DROP TABLE "public"."t" CASCADE;
+DROP TYPE "public"."addr";
+CREATE TABLE "public"."t" (
+    "c" text,
+    "id" integer
+) INHERITS ("public"."p");
+ALTER TABLE public.t ALTER COLUMN c TYPE text`,
+		},
+		{
+			name: "a table taking the name of a type a rebuilt table used",
+			from: `CREATE TYPE addr AS ENUM ('a'); CREATE TABLE p (id int); CREATE TABLE t (id int, c addr);`,
+			to:   `CREATE TABLE p (id int); CREATE TABLE t (c text) INHERITS (p); CREATE TABLE addr (x int);`,
+			want: `DROP TABLE "public"."t" CASCADE;
+DROP TYPE "public"."addr";
+CREATE TABLE "public"."addr" (
+    "x" integer
+);
+CREATE TABLE "public"."t" (
+    "c" text,
+    "id" integer
+) INHERITS ("public"."p");
+ALTER TABLE public.t ALTER COLUMN c TYPE text`,
+		},
+		{
 			name: "a dropped column needs no wait",
 			from: `CREATE TYPE addr AS (street text); CREATE TABLE t (c addr, d int);`,
 			to:   `CREATE TABLE t (d int);`,
