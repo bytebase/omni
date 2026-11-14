@@ -477,13 +477,19 @@ func (r *Recognizer) matchesAt(in []ltok, k int) []termMatch {
 		if r.terms[id].qualified {
 			// db.schema.name: up to two more names, each after a dot.
 			w := 1
-			for parts := 1; parts < 3 && k+w+1 < len(in) && in[k+w].kind == kPunct && in[k+w].text == "." && in[k+w+1].kind == kName; parts++ {
+			for parts := 1; parts < 3 && k+w+1 < len(in) && in[k+w].kind == kPunct && in[k+w].text == "." && r.isName(in[k+w+1]); parts++ {
 				w += 2
 				out = append(out, termMatch{id, w})
 			}
 		}
 	}
 	return out
+}
+
+// isName reports whether a token is a name: a quoted one, or a word the
+// token table does not reserve.
+func (r *Recognizer) isName(t ltok) bool {
+	return t.kind == kName && (t.quoted || !r.g.reserved[strings.ToUpper(t.text)])
 }
 
 // --- a generic SQL lexer ---

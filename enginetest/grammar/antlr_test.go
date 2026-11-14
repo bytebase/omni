@@ -807,20 +807,22 @@ KW : 'X' [aA] [bB] [cC] [dD] [eE] [fF] [gG] ;
 // not.
 func TestRecognizerReadsQualifiedNames(t *testing.T) {
 	const src = "grammar Q; s : 'DROP' 'TABLE' ID | 'USE' NAME ; ID : [a-z]+ ; NAME : [a-z]+ ;"
-	tok := &Tokens{forms: map[string]string{"ID": "a", "NAME": "a"}, qualified: map[string]bool{"ID": true}}
+	tok := &Tokens{forms: map[string]string{"ID": "a", "NAME": "a", "SELECT": Reserved}, qualified: map[string]bool{"ID": true}}
 	g, err := ReadANTLR(src, tok)
 	if err != nil {
 		t.Fatal(err)
 	}
 	rec := g.Recognizer()
 	for sql, want := range map[string]bool{
-		"DROP TABLE a":       true,
-		"DROP TABLE a.b":     true,
-		`DROP TABLE a."B".c`: true,
-		"DROP TABLE a.b.c.d": false,
-		"DROP TABLE a.":      false,
-		"USE a":              true,
-		"USE a.b":            false,
+		"DROP TABLE a":          true,
+		"DROP TABLE a.b":        true,
+		`DROP TABLE a."B".c`:    true,
+		"DROP TABLE a.b.c.d":    false,
+		"DROP TABLE a.":         false,
+		"DROP TABLE a.select":   false,
+		`DROP TABLE a."SELECT"`: true,
+		"USE a":                 true,
+		"USE a.b":               false,
 	} {
 		if got := rec.Accepts(sql); got != want {
 			t.Errorf("Accepts(%q) = %v, want %v", sql, got, want)
