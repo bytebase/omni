@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+	"strings"
 
 	nodes "github.com/bytebase/omni/cosmosdb/ast"
 )
@@ -149,12 +150,14 @@ func (p *Parser) parsePrefixExpr() (nodes.ExprNode, error) {
 
 	// ARRAY(SELECT ...)
 	case tokARRAY:
-		// Check if it's ARRAY(...) - function form - vs identifier use.
-		if p.peekNext().Type == tokLPAREN {
-			return p.parseArrayExpr()
-		}
-		// Otherwise treat as identifier.
-		return p.parseIdentExprOrFuncCall()
+		return p.parseArrayExpr()
+
+	// LEFT(...) and RIGHT(...): keywords that name a function and nothing
+	// else (sql.g4:191-192).
+	case tokLEFT, tokRIGHT:
+		name, loc := p.cur.Str, p.cur.Loc
+		p.advance()
+		return p.parseFuncCall(name, loc)
 
 	// UDF.name(args)
 	case tokUDF:
@@ -354,17 +357,16 @@ func (p *Parser) parseInExpr(left nodes.ExprNode, not bool, startLoc int) (nodes
 		return nil, err
 	}
 
+	// The list holds at least one expression (sql.g4:105).
 	var list []nodes.ExprNode
-	if p.cur.Type != tokRPAREN {
-		for {
-			expr, err := p.parseExpr(0)
-			if err != nil {
-				return nil, err
-			}
-			list = append(list, expr)
-			if !p.match(tokCOMMA) {
-				break
-			}
+	for {
+		expr, err := p.parseExpr(0)
+		if err != nil {
+			return nil, err
+		}
+		list = append(list, expr)
+		if !p.match(tokCOMMA) {
+			break
 		}
 	}
 
@@ -467,6 +469,35 @@ func (p *Parser) parseArrayExpr() (nodes.ExprNode, error) {
 		return nil, err
 	}
 	return &nodes.ArrayExpr{
+		Select: sub,
+		Loc:    nodes.Loc{Start: startLoc, End: rparen.Loc + 1},
+	}, nil
+}
+
+// subqueryFuncName returns ALL, FIRST or LAST when name is that keyword in
+// any case (sql.g4:212, 223, 229), and "" otherwise.
+func subqueryFuncName(name string) string {
+	switch upper := strings.ToUpper(name); upper {
+	case "ALL", "FIRST", "LAST":
+		return upper
+	}
+	return ""
+}
+
+// parseSubqueryFuncExpr parses ALL(SELECT ...), FIRST(SELECT ...) or
+// LAST(SELECT ...) once the keyword is consumed and ( is current.
+func (p *Parser) parseSubqueryFuncExpr(fn string, startLoc int) (nodes.ExprNode, error) {
+	p.advance() // consume (
+	sub, err := p.parseSelect()
+	if err != nil {
+		return nil, err
+	}
+	rparen, err := p.expect(tokRPAREN)
+	if err != nil {
+		return nil, err
+	}
+	return &nodes.SubqueryFuncExpr{
+		Func:   fn,
 		Select: sub,
 		Loc:    nodes.Loc{Start: startLoc, End: rparen.Loc + 1},
 	}, nil
@@ -607,6 +638,11 @@ func (p *Parser) parseIdentExprOrFuncCall() (nodes.ExprNode, error) {
 
 	// Check for function call.
 	if p.cur.Type == tokLPAREN {
+		// ALL, FIRST and LAST over a subquery (sql.g4:183-185). Each word is
+		// also a name (sql.g4:201), so ALL(c) stays a function call.
+		if fn := subqueryFuncName(name); fn != "" && p.peekNext().Type == tokSELECT {
+			return p.parseSubqueryFuncExpr(fn, loc)
+		}
 		return p.parseFuncCall(name, loc)
 	}
 
@@ -645,6 +681,8 @@ func locStart(e nodes.ExprNode) int {
 	case *nodes.ExistsExpr:
 		return n.Loc.Start
 	case *nodes.ArrayExpr:
+		return n.Loc.Start
+	case *nodes.SubqueryFuncExpr:
 		return n.Loc.Start
 	case *nodes.CreateArrayExpr:
 		return n.Loc.Start
