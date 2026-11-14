@@ -3344,7 +3344,10 @@ const (
 // + FILE_FORMAT + FILES + PATTERN + STORAGE_INTEGRATION + CREDENTIALS + ...) and,
 // for transfer statements, PUT/GET (PARALLEL, AUTO_COMPRESS, ...). The option
 // name is uppercased; the value is one of the mutually-exclusive forms below.
-// A bare option (e.g. HEADER, FORCE with no `=`) has Bare=true and no value.
+// A bare option (e.g. HEADER, FORCE with no `=`) has Bare=true and no value,
+// except that a bare entry of an ObjectStmt clause may hold a Group, written
+// NAME ( ... ) with no `=` (CORTEX SEARCH SERVICE's VECTOR INDEXES
+// <column> ( model = '<model>' )).
 type CopyOption struct {
 	Name string // uppercased option name (e.g. "ON_ERROR", "FILE_FORMAT")
 	Bare bool   // true for a value-less option (e.g. bare HEADER)
@@ -3405,6 +3408,28 @@ type CopyIntoLocationStmt struct {
 
 // Tag implements Node.
 func (n *CopyIntoLocationStmt) Tag() NodeTag { return T_CopyIntoLocationStmt }
+
+// CopyFilesStmt represents COPY FILES (copy files from one stage to another):
+//
+//	COPY FILES INTO @<stage>[/<path>/]
+//	  FROM @<stage>[/<path>/]
+//	  [ FILES = ( '<file_name>' [ , ... ] ) ] [ PATTERN = '<regex_pattern>' ]
+//	  [ DETAILED_OUTPUT = { TRUE | FALSE } ]
+//	COPY FILES INTO @<stage>[/<path>/]
+//	  FROM ( SELECT <existing_url> [ , <new_filename> ] FROM ... )
+//	  [ DETAILED_OUTPUT = { TRUE | FALSE } ]
+//
+// https://docs.snowflake.com/en/sql-reference/sql/copy-files
+type CopyFilesStmt struct {
+	Into      *StageLocation
+	From      *StageLocation // FROM @<stage>; nil when FromQuery is set
+	FromQuery Node           // FROM ( SELECT ... ); nil when From is set
+	Options   []*CopyOption  // FILES / PATTERN / DETAILED_OUTPUT
+	Loc       Loc
+}
+
+// Tag implements Node.
+func (n *CopyFilesStmt) Tag() NodeTag { return T_CopyFilesStmt }
 
 // PutStmt represents a PUT statement (upload a local file to an internal stage):
 //
@@ -3471,6 +3496,7 @@ var (
 	_ Node = (*CopyOption)(nil)
 	_ Node = (*CopyIntoTableStmt)(nil)
 	_ Node = (*CopyIntoLocationStmt)(nil)
+	_ Node = (*CopyFilesStmt)(nil)
 	_ Node = (*PutStmt)(nil)
 	_ Node = (*GetStmt)(nil)
 	_ Node = (*ListStmt)(nil)
@@ -4332,6 +4358,29 @@ type CreateDatasetStmt struct {
 // Tag implements Node.
 func (n *CreateDatasetStmt) Tag() NodeTag { return T_CreateDatasetStmt }
 
+// AlterDatasetStmt represents
+//
+//	ALTER DATASET <name> ADD VERSION <version_name> FROM <select_statement>
+//	  [ PARTITION BY <string_expr> ] [ COMMENT = '<comment>' ] [ METADATA = '<metadata>' ]
+//	ALTER DATASET [ IF EXISTS ] <name> DROP VERSION <version_name>
+//
+// A version's name may be written as a string ('v1'), as the ADD VERSION
+// page's example does; Version then holds its text with Quoted set, since a
+// string keeps its case as a quoted identifier does.
+type AlterDatasetStmt struct {
+	IfExists    bool
+	Name        *ObjectName
+	Drop        bool          // DROP VERSION; ADD VERSION otherwise
+	Version     Ident         // the version's name
+	Query       Node          // ADD VERSION's FROM <select_statement>
+	PartitionBy Node          // ADD VERSION's PARTITION BY expression, or nil
+	Options     []*CopyOption // ADD VERSION's COMMENT and METADATA, in order
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *AlterDatasetStmt) Tag() NodeTag { return T_AlterDatasetStmt }
+
 // Compile-time assertions for tag / semantic-view / dataset DDL nodes.
 var (
 	_ Node = (*CreateTagStmt)(nil)
@@ -4340,6 +4389,7 @@ var (
 	_ Node = (*CreateSemanticViewStmt)(nil)
 	_ Node = (*AlterSemanticViewStmt)(nil)
 	_ Node = (*CreateDatasetStmt)(nil)
+	_ Node = (*AlterDatasetStmt)(nil)
 )
 
 // ---------------------------------------------------------------------------
@@ -4722,7 +4772,7 @@ var (
 // participates in walks / query-span / analysis. COMMENT and other trailing
 // `KEY = value` options after the body are captured open-ended in Options.
 
-// PolicyKind discriminates the six access-control policy object types.
+// PolicyKind discriminates the policy object types.
 type PolicyKind int
 
 const (
@@ -4732,6 +4782,14 @@ const (
 	PolicyPassword                         // PASSWORD POLICY
 	PolicyNetwork                          // NETWORK POLICY
 	PolicyAuthentication                   // AUTHENTICATION POLICY
+	PolicyAggregation                      // AGGREGATION POLICY
+	PolicyJoin                             // JOIN POLICY
+	PolicyProjection                       // PROJECTION POLICY
+	PolicyPrivacy                          // PRIVACY POLICY
+	PolicyPackages                         // PACKAGES POLICY
+	PolicyFeature                          // FEATURE POLICY
+	PolicyMaintenance                      // MAINTENANCE POLICY
+	PolicyIngress                          // INGRESS POLICY
 )
 
 // String returns the SQL spelling of a PolicyKind (without the trailing POLICY).
@@ -4749,6 +4807,22 @@ func (k PolicyKind) String() string {
 		return "NETWORK"
 	case PolicyAuthentication:
 		return "AUTHENTICATION"
+	case PolicyAggregation:
+		return "AGGREGATION"
+	case PolicyJoin:
+		return "JOIN"
+	case PolicyProjection:
+		return "PROJECTION"
+	case PolicyPrivacy:
+		return "PRIVACY"
+	case PolicyPackages:
+		return "PACKAGES"
+	case PolicyFeature:
+		return "FEATURE"
+	case PolicyMaintenance:
+		return "MAINTENANCE"
+	case PolicyIngress:
+		return "INGRESS"
 	default:
 		return "UNKNOWN"
 	}
@@ -4829,6 +4903,27 @@ func (n *CreateUserStmt) Tag() NodeTag { return T_CreateUserStmt }
 // nil and Options holds the open-ended option bag. Trailing options after a
 // MASKING / ROW ACCESS body (COMMENT / EXEMPT_OTHER_POLICIES) are also captured
 // in Options.
+//
+// The policies read strictly by their docs pages (policy.go):
+//
+//	CREATE [ OR REPLACE ] { AGGREGATION | JOIN | PROJECTION | PRIVACY } POLICY
+//	  [ IF NOT EXISTS ] <name> AS ( ) RETURNS <constraint_type> -> <body>
+//	  [ COMMENT = '...' ]
+//	CREATE [ OR REPLACE ] PACKAGES POLICY [ IF NOT EXISTS ] <name> LANGUAGE PYTHON
+//	  [ ALLOWLIST = ( ... ) ] [ BLOCKLIST = ( ... ) ]
+//	  [ ADDITIONAL_CREATION_BLOCKLIST = ( ... ) ] [ COMMENT = '...' ]
+//	CREATE [ OR REPLACE ] FEATURE POLICY [ IF NOT EXISTS ] <name>
+//	  [ BLOCKED_OBJECT_TYPES_FOR_CREATION = ( <type> [ , ... ] ) ]
+//	  [ COMMENT = '...' ] [ AS '<definition>' ]
+//	CREATE [ OR REPLACE ] MAINTENANCE POLICY [ IF NOT EXISTS ] <name>
+//	  SCHEDULE = '...' [ COMMENT = '...' ]
+//	CREATE [ OR REPLACE ] INGRESS POLICY [ IF NOT EXISTS ] <name>
+//	  [ COMMENT = '...' ] AS '<definition>'
+//
+// The constraint-returning policies leave Args nil (their signature is empty),
+// and Returns names the constraint type. The others keep their properties in
+// Options; Language holds PACKAGES' LANGUAGE and Definition the AS body of
+// FEATURE and INGRESS.
 type CreatePolicyStmt struct {
 	Kind        PolicyKind
 	OrReplace   bool
@@ -4839,6 +4934,8 @@ type CreatePolicyStmt struct {
 	Returns     *TypeName     // RETURNS <type>; nil for option-bag policies
 	Body        Node          // `-> <expr>` body; nil for option-bag policies
 	Options     []*CopyOption // option bag + trailing COMMENT / EXEMPT_OTHER_POLICIES
+	Language    string        // LANGUAGE <language>, uppercased (PACKAGES); "" if absent
+	Definition  *string       // AS '<definition>' (FEATURE / INGRESS); nil if absent
 	Loc         Loc
 }
 
@@ -4978,14 +5075,16 @@ const (
 	AlterPolicyUnset                             // UNSET <property> [ , ... ]
 	AlterPolicySetTag                            // SET TAG <tag> = '<value>' [ , ... ]
 	AlterPolicyUnsetTag                          // UNSET TAG <tag> [ , ... ]
+	AlterPolicyAs                                // AS '<definition>' (FEATURE / INGRESS)
 )
 
-// AlterPolicyStmt represents the ALTER form of the six access-control policy
-// objects (one node, discriminated by Kind):
+// AlterPolicyStmt represents the ALTER form of the policy objects (one node,
+// discriminated by Kind):
 //
 //	RENAME TO <new_name>
-//	SET BODY -> <expr>                  -- MASKING / ROW ACCESS only
-//	SET { COMMENT = '...' | <options> }
+//	SET BODY -> <expr>                  -- policies with a body
+//	SET { COMMENT = '...' | <options> } [ AS '<definition>' ]
+//	AS '<definition>'                   -- FEATURE / INGRESS
 //	UNSET { COMMENT | <property> } [ , ... ]
 //	SET TAG <tag> = '<value>' [ , ... ]
 //	UNSET TAG <tag> [ , ... ]
@@ -5000,6 +5099,9 @@ type AlterPolicyStmt struct {
 	UnsetProps []string         // UNSET <property> names; for AlterPolicyUnset
 	Tags       []*TagAssignment // SET TAG (...) assignments; for AlterPolicySetTag
 	UnsetTags  []*ObjectName    // UNSET TAG names; for AlterPolicyUnsetTag
+	// Definition is the AS '<definition>' of FEATURE and INGRESS policies:
+	// for AlterPolicyAs, or after an AlterPolicySet's options. nil if absent.
+	Definition *string
 	Loc        Loc
 }
 
@@ -5052,7 +5154,18 @@ type RoutineArg struct {
 	Name    Ident
 	Type    *TypeName
 	Default Node // DEFAULT <expr>; nil if absent
-	Loc     Loc
+	// Table holds the columns of a data metric function's
+	// <arg> TABLE ( <col> <type> [ , ... ] ) argument, whose Type is nil.
+	Table []*RoutineTableColumn
+	Loc   Loc
+}
+
+// RoutineTableArgType is one TABLE ( <arg_type> [ , ... ] ) argument of a
+// data metric function's ALTER FUNCTION signature. It is a helper struct
+// (not a Node).
+type RoutineTableArgType struct {
+	Types []*TypeName
+	Loc   Loc
 }
 
 // RoutineTableColumn is one column of a RETURNS TABLE ( ... ) result spec:
@@ -5070,9 +5183,10 @@ type RoutineTableColumn struct {
 type RoutineKind int
 
 const (
-	RoutineFunction         RoutineKind = iota // FUNCTION (UDF / UDTF)
-	RoutineExternalFunction                    // EXTERNAL FUNCTION
-	RoutineProcedure                           // PROCEDURE
+	RoutineFunction           RoutineKind = iota // FUNCTION (UDF / UDTF)
+	RoutineExternalFunction                      // EXTERNAL FUNCTION
+	RoutineProcedure                             // PROCEDURE
+	RoutineDataMetricFunction                    // DATA METRIC FUNCTION
 )
 
 // ExecuteAs discriminates the EXECUTE AS clause of a procedure.
@@ -5134,6 +5248,33 @@ type CreateRoutineStmt struct {
 // Tag implements Node.
 func (n *CreateRoutineStmt) Tag() NodeTag { return T_CreateRoutineStmt }
 
+// CreateAiFunctionStmt represents
+//
+//	CREATE [ OR REPLACE ] AI FUNCTION [ IF NOT EXISTS ] <name> (
+//	    [ <arg_name> <arg_data_type> [ , ... ] ] )
+//	  RETURNS <result_data_type>
+//	  { [ COMMENT = '<string_literal>' ] AS <body>
+//	  | FROM EXPERIMENT <experiment_name> RUN <run_name> }
+//
+// Exactly one of Body and Experiment is set. Body holds the body verbatim with
+// its delimiters, as CreateRoutineStmt's does.
+type CreateAiFunctionStmt struct {
+	OrReplace   bool
+	IfNotExists bool
+	Name        *ObjectName
+	Args        []*RoutineArg // nil for an empty argument list
+	ReturnType  *TypeName
+	Options     []*CopyOption // COMMENT
+	Body        string        // AS <body>, incl. delimiters ('...' or $$...$$)
+	BodyDollar  bool          // true when the $$...$$ form was used
+	Experiment  *ObjectName   // FROM EXPERIMENT <experiment_name>
+	Run         Ident         // ... RUN <run_name>
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *CreateAiFunctionStmt) Tag() NodeTag { return T_CreateAiFunctionStmt }
+
 // AlterRoutineAction discriminates the action variants of ALTER FUNCTION /
 // PROCEDURE.
 type AlterRoutineAction int
@@ -5143,6 +5284,8 @@ const (
 	AlterRoutineSet                                 // SET <options> (SECURE / COMMENT / LOG_LEVEL / ...)
 	AlterRoutineUnset                               // UNSET <property> [, ...] (SECURE / COMMENT / ...)
 	AlterRoutineExecuteAs                           // EXECUTE AS {CALLER|OWNER} (procedure only)
+	AlterRoutineSetTag                              // SET TAG <tag> = '<value>' [ , ... ]
+	AlterRoutineUnsetTag                            // UNSET TAG <tag> [ , ... ]
 )
 
 // AlterRoutineStmt represents
@@ -5153,19 +5296,27 @@ const (
 //	SET <options>                              -- open-ended (SECURE / COMMENT / LOG_LEVEL / ...)
 //	UNSET <property> [ , ... ]                  -- SECURE / COMMENT / ...
 //	EXECUTE AS { CALLER | OWNER }               -- procedure only
+//	SET TAG <tag> = '<value>' [ , ... ]
+//	UNSET TAG <tag> [ , ... ]
 //
 // The ALTER signature carries argument TYPES only (no names), captured in
-// ArgTypes. Procedure is true for ALTER PROCEDURE, false for ALTER FUNCTION.
+// ArgTypes, or for a data metric function in TableArgs. Procedure is true for
+// ALTER PROCEDURE, false for ALTER FUNCTION.
 type AlterRoutineStmt struct {
-	Procedure  bool // true for ALTER PROCEDURE, false for ALTER FUNCTION
-	IfExists   bool
-	Name       *ObjectName
-	ArgTypes   []*TypeName // ( <argtype> [, ...] ) signature; nil for an empty list
+	Procedure bool // true for ALTER PROCEDURE, false for ALTER FUNCTION
+	IfExists  bool
+	Name      *ObjectName
+	ArgTypes  []*TypeName // ( <argtype> [, ...] ) signature; nil for an empty list
+	// TableArgs is a data metric function's signature,
+	// ( TABLE ( <argtype> [ , ... ] ) [ , TABLE ( ... ) ] ); ArgTypes is then nil.
+	TableArgs  []*RoutineTableArgType
 	Action     AlterRoutineAction
-	NewName    *ObjectName   // RENAME TO target; non-nil for AlterRoutineRename
-	Options    []*CopyOption // SET <options>; for AlterRoutineSet
-	UnsetProps []string      // UNSET <property> names; for AlterRoutineUnset
-	ExecuteAs  ExecuteAs     // EXECUTE AS {CALLER|OWNER}; for AlterRoutineExecuteAs
+	NewName    *ObjectName      // RENAME TO target; non-nil for AlterRoutineRename
+	Options    []*CopyOption    // SET <options>; for AlterRoutineSet
+	UnsetProps []string         // UNSET <property> names; for AlterRoutineUnset
+	ExecuteAs  ExecuteAs        // EXECUTE AS {CALLER|OWNER}; for AlterRoutineExecuteAs
+	Tags       []*TagAssignment // SET TAG assignments; for AlterRoutineSetTag
+	UnsetTags  []*ObjectName    // UNSET TAG names; for AlterRoutineUnsetTag
 	Loc        Loc
 }
 
@@ -5175,6 +5326,7 @@ func (n *AlterRoutineStmt) Tag() NodeTag { return T_AlterRoutineStmt }
 // Compile-time assertions for routine DDL nodes.
 var (
 	_ Node = (*CreateRoutineStmt)(nil)
+	_ Node = (*CreateAiFunctionStmt)(nil)
 	_ Node = (*AlterRoutineStmt)(nil)
 )
 
@@ -6291,7 +6443,8 @@ var (
 //
 //	CREATE [ OR REPLACE | OR ALTER ] <kind> [ IF NOT EXISTS ] <name> <clause>...
 //	ALTER <kind> [ IF EXISTS ] <name> <clause>...
-//	EXECUTE <kind> [ <name> ] <clause>...   (EXECUTE NOTEBOOK [ PROJECT ])
+//	EXECUTE <kind> [ <name> ] <clause>...   (EXECUTE [ INFERENCE ] JOB SERVICE, whose Name is nil;
+//	                                         EXECUTE NOTEBOOK [ PROJECT ])
 //
 // Loc spans the whole statement, from CREATE, ALTER or EXECUTE.
 type ObjectStmt struct {

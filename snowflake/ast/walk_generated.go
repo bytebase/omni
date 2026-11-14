@@ -63,6 +63,17 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.FeaturePolicy)
 		}
 		walkLinkedCatalogUpdate(v, n.LinkedCatalog)
+	case *AlterDatasetStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		Walk(v, n.Query)
+		Walk(v, n.PartitionBy)
+		for _, item := range n.Options {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 	case *AlterDynamicTableStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -268,10 +279,21 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+		for _, item := range n.TableArgs {
+			walkRoutineTableArgType(v, item)
+		}
 		if n.NewName != nil {
 			Walk(v, n.NewName)
 		}
 		for _, item := range n.Options {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		for _, item := range n.Tags {
+			walkTagAssignment(v, item)
+		}
+		for _, item := range n.UnsetTags {
 			if item != nil {
 				Walk(v, item)
 			}
@@ -585,6 +607,19 @@ func walkChildren(v Visitor, node Node) {
 		if n.Source != nil {
 			Walk(v, n.Source)
 		}
+	case *CopyFilesStmt:
+		if n.Into != nil {
+			Walk(v, n.Into)
+		}
+		if n.From != nil {
+			Walk(v, n.From)
+		}
+		Walk(v, n.FromQuery)
+		for _, item := range n.Options {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 	case *CopyIntoLocationStmt:
 		if n.Into != nil {
 			Walk(v, n.Into)
@@ -636,6 +671,24 @@ func walkChildren(v Visitor, node Node) {
 			if item != nil {
 				Walk(v, item)
 			}
+		}
+	case *CreateAiFunctionStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, item := range n.Args {
+			walkRoutineArg(v, item)
+		}
+		if n.ReturnType != nil {
+			Walk(v, n.ReturnType)
+		}
+		for _, item := range n.Options {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		if n.Experiment != nil {
+			Walk(v, n.Experiment)
 		}
 	case *CreateAlertStmt:
 		if n.Name != nil {
@@ -1818,6 +1871,23 @@ func walkRoutineArg(v Visitor, n *RoutineArg) {
 		Walk(v, n.Type)
 	}
 	Walk(v, n.Default)
+	for _, item := range n.Table {
+		walkRoutineTableColumn(v, item)
+	}
+}
+
+// walkRoutineTableArgType walks the node-bearing fields of the non-Node helper struct
+// RoutineTableArgType. The helper itself is not visited (it is not a Node); its child
+// nodes are walked in field order.
+func walkRoutineTableArgType(v Visitor, n *RoutineTableArgType) {
+	if n == nil {
+		return
+	}
+	for _, item := range n.Types {
+		if item != nil {
+			Walk(v, item)
+		}
+	}
 }
 
 // walkRoutineTableColumn walks the node-bearing fields of the non-Node helper struct
