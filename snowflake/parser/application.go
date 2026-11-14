@@ -477,8 +477,8 @@ func (p *Parser) parseApplicationRequiredOption(c *ast.ObjectClause, key string,
 
 // parseApplicationOptions reads a run of `KEY = value` properties into c,
 // where a clause's keywords and names come before its properties (MODIFY
-// RELEASE DIRECTIVE <name> VERSION = ... PATCH = ...), holding each to props.
-// An empty run is a syntax error.
+// RELEASE DIRECTIVE <name> VERSION = ... PATCH = ...), holding each to props
+// and to one setting a clause. An empty run is a syntax error.
 func (p *Parser) parseApplicationOptions(c *ast.ObjectClause, props objectProps) error {
 	if !p.startsObjectProperty() {
 		return p.syntaxErrorAtCur()
@@ -490,6 +490,12 @@ func (p *Parser) parseApplicationOptions(c *ast.ObjectClause, props objectProps)
 		}
 		if v, ok := props[opt.Name]; !ok || !v.matches(opt) {
 			return applicationOptionError(opt)
+		}
+		// A property is set once a clause.
+		for _, o := range c.Options {
+			if o.Name == opt.Name {
+				return applicationOptionError(opt)
+			}
 		}
 		c.Options = append(c.Options, opt)
 	}
