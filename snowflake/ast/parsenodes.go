@@ -3707,15 +3707,17 @@ var (
 type IntegrationObjectKind int
 
 const (
-	StorageIntegration      IntegrationObjectKind = iota // [STORAGE] INTEGRATION
-	APIIntegration                                       // API INTEGRATION
-	NotificationIntegration                              // NOTIFICATION INTEGRATION
-	SecurityIntegration                                  // SECURITY INTEGRATION
-	ResourceMonitor                                      // RESOURCE MONITOR
-	Secret                                               // SECRET
-	Connection                                           // CONNECTION
-	ExternalVolume                                       // EXTERNAL VOLUME
-	GitRepository                                        // GIT REPOSITORY
+	StorageIntegration        IntegrationObjectKind = iota // [STORAGE] INTEGRATION
+	APIIntegration                                         // API INTEGRATION
+	NotificationIntegration                                // NOTIFICATION INTEGRATION
+	SecurityIntegration                                    // SECURITY INTEGRATION
+	ResourceMonitor                                        // RESOURCE MONITOR
+	Secret                                                 // SECRET
+	Connection                                             // CONNECTION
+	ExternalVolume                                         // EXTERNAL VOLUME
+	GitRepository                                          // GIT REPOSITORY
+	CatalogIntegration                                     // CATALOG INTEGRATION
+	ExternalAccessIntegration                              // EXTERNAL ACCESS INTEGRATION
 )
 
 // String returns the SQL object keyword(s) for the kind (uppercased), used for
@@ -3740,6 +3742,10 @@ func (k IntegrationObjectKind) String() string {
 		return "EXTERNAL VOLUME"
 	case GitRepository:
 		return "GIT REPOSITORY"
+	case CatalogIntegration:
+		return "CATALOG INTEGRATION"
+	case ExternalAccessIntegration:
+		return "EXTERNAL ACCESS INTEGRATION"
 	default:
 		return "INTEGRATION OBJECT"
 	}
@@ -3780,9 +3786,12 @@ func (n *ConnectionReplica) Tag() NodeTag { return T_ConnectionReplica }
 //	CREATE CONNECTION [ IF NOT EXISTS ] <name> [ AS REPLICA OF <a.b.c> ] [ COMMENT = '...' ]
 //	CREATE [ OR REPLACE ] EXTERNAL VOLUME [ IF NOT EXISTS ] <name> STORAGE_LOCATIONS = (...) [ ALLOW_WRITES = ... ] [ COMMENT = '...' ]
 //	CREATE [ OR REPLACE ] GIT REPOSITORY [ IF NOT EXISTS ] <name> <options...> [ [ WITH ] TAG (...) ]
+//	CREATE [ OR REPLACE ] CATALOG INTEGRATION [ IF NOT EXISTS ] <name> <options...>
+//	CREATE [ OR REPLACE ] EXTERNAL ACCESS INTEGRATION <name> <options...>
 //
-// All configuration parameters are captured open-ended in Options, preserving
-// source order. The structural anchors are modeled separately: With records the
+// All configuration parameters are captured in Options, preserving source
+// order: open-ended for most kinds, and held to their pages' names and value
+// shapes for CATALOG, EXTERNAL ACCESS and NOTIFICATION INTEGRATION. The structural anchors are modeled separately: With records the
 // RESOURCE MONITOR WITH keyword; Triggers holds its TRIGGERS clause; Tags holds a
 // GIT REPOSITORY [WITH] TAG clause; Replica holds a CONNECTION AS REPLICA OF
 // clause. Per the docs OR REPLACE and IF NOT EXISTS are mutually exclusive for
@@ -3825,6 +3834,7 @@ const (
 	AlterIntegrationEnableFailover                                // CONNECTION ENABLE FAILOVER TO ACCOUNTS ...
 	AlterIntegrationDisableFailover                               // CONNECTION DISABLE FAILOVER [ TO ACCOUNTS ... ]
 	AlterIntegrationPrimary                                       // CONNECTION PRIMARY
+	AlterIntegrationRefresh                                       // SECURITY INTEGRATION REFRESH [ <what> ... ]
 )
 
 // AlterIntegrationStmt represents the ALTER form of every T4.7 object. The set of
@@ -3843,6 +3853,12 @@ const (
 //	ALTER EXTERNAL VOLUME [ IF EXISTS ] <name> UPDATE STORAGE_LOCATION = '<name>' CREDENTIALS = (...)
 //	ALTER EXTERNAL VOLUME [ IF EXISTS ] <name> SET { ALLOW_WRITES | COMMENT } = ...
 //	ALTER GIT REPOSITORY <name> { SET <options> | UNSET <property> [ , ... ] | FETCH }
+//	ALTER [ SECURITY ] INTEGRATION [ IF EXISTS ] <name> REFRESH [ <what> ... ]
+//	ALTER CATALOG INTEGRATION [ IF EXISTS ] <name> SET <options>
+//	ALTER EXTERNAL ACCESS INTEGRATION [ IF EXISTS ] <name> { SET <options> [ TAG <tag> = '<value>' [ , ... ] ] | UNSET <property> [ , ... ] }
+//
+// An ALTER EXTERNAL ACCESS INTEGRATION SET that ends in TAG assignments keeps
+// Action AlterIntegrationSet and holds the assignments in Tags.
 type AlterIntegrationStmt struct {
 	Kind       IntegrationObjectKind
 	IfExists   bool
@@ -3855,6 +3871,7 @@ type AlterIntegrationStmt struct {
 	Triggers   []*ResourceMonitorTrigger // RESOURCE MONITOR SET ... TRIGGERS ...; nil if absent
 	Location   string                    // EXTERNAL VOLUME REMOVE/UPDATE STORAGE_LOCATION '<name>'; "" otherwise
 	Accounts   []*ObjectName             // CONNECTION {ENABLE|DISABLE} FAILOVER TO ACCOUNTS <a.b> [,...]; nil if absent
+	Refresh    []string                  // REFRESH's uppercased words (OAUTH_CLIENT_SECRET, METADATA_URL, ...); for AlterIntegrationRefresh
 	Loc        Loc
 }
 
