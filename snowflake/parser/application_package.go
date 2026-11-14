@@ -1,6 +1,10 @@
 package parser
 
-import "github.com/bytebase/omni/snowflake/ast"
+import (
+	"strings"
+
+	"github.com/bytebase/omni/snowflake/ast"
+)
 
 // ---------------------------------------------------------------------------
 // APPLICATION PACKAGE (Native Apps), read as an ast.ObjectStmt
@@ -12,8 +16,36 @@ func init() {
 		create: parseCreateApplicationPackage,
 		alter:  parseAlterApplicationPackage,
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-application-package
-		drop: true,
+		drop:  true,
+		props: applicationPackageProps,
+		unset: []string{"DATA_RETENTION_TIME_IN_DAYS", "MAX_DATA_EXTENSION_TIME_IN_DAYS",
+			"DEFAULT_DDL_COLLATION", "COMMENT", "DISTRIBUTION"},
 	})
+}
+
+// applicationPackageProps are the properties CREATE APPLICATION PACKAGE and
+// ALTER APPLICATION PACKAGE ... SET document.
+var applicationPackageProps = objectProps{
+	"DATA_RETENTION_TIME_IN_DAYS":       propNumber,
+	"MAX_DATA_EXTENSION_TIME_IN_DAYS":   propNumber,
+	"DEFAULT_DDL_COLLATION":             propString,
+	"COMMENT":                           propString,
+	"DISTRIBUTION":                      propOneOf("INTERNAL", "EXTERNAL"),
+	"LISTING_AUTO_REFRESH":              propBool,
+	"MULTIPLE_INSTANCES":                propOneOf("TRUE"),
+	"ENABLE_RELEASE_CHANNELS":           propBool,
+	"AUTOMATIC_APPLICATION_MAINTENANCE": propBool,
+}
+
+// applicationReleaseDirectiveProps are the properties a release directive
+// takes after its accounts: the version and patch it serves and when
+// consumers upgrade to them.
+var applicationReleaseDirectiveProps = objectProps{
+	"VERSION":                       propName,
+	"PATCH":                         propNumber,
+	"UPGRADE_AFTER":                 propString,
+	"UPGRADE_IN_MAINTENANCE_WINDOW": propBool,
+	"UPGRADE_DEADLINE":              propString,
 }
 
 // parseCreateApplicationPackage reads what follows the name of
@@ -139,7 +171,7 @@ func (p *Parser) parseApplicationPackageUsing(c *ast.ObjectClause) error {
 		return err
 	}
 	if p.curIsWord("LABEL") {
-		return p.parseApplicationRequiredOption(c, "LABEL")
+		return p.parseApplicationRequiredOption(c, "LABEL", propString)
 	}
 	c.Loc.End = p.prev.Loc.End
 	return nil
@@ -174,8 +206,8 @@ func (p *Parser) parseApplicationReleaseChannelAction(s *ast.ObjectStmt) error {
 	for _, verb := range []string{"ADD", "REMOVE", "SET"} {
 		if p.curIsWord(verb) && p.peekIsWord("ACCOUNTS") {
 			p.advance() // consume the verb
-			c := p.addObjectKeywordsClause(s, verb, start)
-			return p.parseApplicationRequiredOption(c, "ACCOUNTS")
+			p.advance() // consume ACCOUNTS
+			return p.parseApplicationAccounts(p.addObjectKeywordsClause(s, verb+" ACCOUNTS", start))
 		}
 	}
 	return p.syntaxErrorAtCur()
@@ -198,7 +230,7 @@ func (p *Parser) parseApplicationSetReleaseDirective(s *ast.ObjectStmt, force bo
 	switch {
 	case p.acceptWords("SET", "DEFAULT", "RELEASE", "DIRECTIVE"):
 		c := p.addObjectKeywordsClause(s, "SET DEFAULT RELEASE DIRECTIVE", start)
-		if err := p.parseApplicationOptions(c, true); err != nil {
+		if err := p.parseApplicationOptions(c, applicationReleaseDirectiveProps); err != nil {
 			return true, err
 		}
 		return true, p.requireObjectProperties(c, "VERSION", "PATCH")
@@ -207,10 +239,14 @@ func (p *Parser) parseApplicationSetReleaseDirective(s *ast.ObjectStmt, force bo
 		if err != nil {
 			return true, err
 		}
-		if err := p.parseApplicationRequiredOption(c, "ACCOUNTS"); err != nil {
+		if !p.curIsWord("ACCOUNTS") {
+			return true, p.syntaxErrorAtCur()
+		}
+		p.advance() // consume ACCOUNTS
+		if err := p.parseApplicationAccounts(c); err != nil {
 			return true, err
 		}
-		if err := p.parseApplicationOptions(c, true); err != nil {
+		if err := p.parseApplicationOptions(c, applicationReleaseDirectiveProps); err != nil {
 			return true, err
 		}
 		if err := p.requireObjectProperties(c, "VERSION", "PATCH"); err != nil {
@@ -250,12 +286,13 @@ func (p *Parser) parseApplicationModifyReleaseDirective(s *ast.ObjectStmt) error
 	for _, verb := range []string{"ADD", "REMOVE"} {
 		if p.curIsWord(verb) && p.peekIsWord("ACCOUNTS") {
 			p.advance() // consume the verb
-			c := p.addObjectKeywordsClause(s, verb, start)
-			if err := p.parseApplicationRequiredOption(c, "ACCOUNTS"); err != nil {
+			p.advance() // consume ACCOUNTS
+			c := p.addObjectKeywordsClause(s, verb+" ACCOUNTS", start)
+			if err := p.parseApplicationAccounts(c); err != nil {
 				return err
 			}
 			if p.curIsWord("VERSION") {
-				if err := p.parseApplicationOptions(c, true); err != nil {
+				if err := p.parseApplicationOptions(c, applicationReleaseDirectiveProps); err != nil {
 					return err
 				}
 				if err := p.requireObjectProperties(c, "PATCH"); err != nil {
@@ -271,8 +308,36 @@ func (p *Parser) parseApplicationModifyReleaseDirective(s *ast.ObjectStmt) error
 	if !p.curIsWord("VERSION") {
 		return p.syntaxErrorAtCur()
 	}
-	if err := p.parseApplicationOptions(c, true); err != nil {
+	if err := p.parseApplicationOptions(c, applicationReleaseDirectiveProps); err != nil {
 		return err
 	}
 	return p.requireObjectProperties(c, "VERSION", "PATCH")
+}
+
+// parseApplicationAccounts reads = ( <org_name>.<account_name> [ , ... ] )
+// after ACCOUNTS, which the caller consumed, into an ACCOUNTS option of c.
+func (p *Parser) parseApplicationAccounts(c *ast.ObjectClause) error {
+	opt := &ast.CopyOption{Name: "ACCOUNTS", Loc: ast.Loc{Start: p.prev.Loc.Start}}
+	if _, err := p.expect('='); err != nil {
+		return err
+	}
+	if p.cur.Type != '(' {
+		return p.syntaxErrorAtCur()
+	}
+	if err := p.parseObjectValue(opt); err != nil {
+		return err
+	}
+	opt.Loc.End = p.prev.Loc.End
+	if !propNames.matches(opt) {
+		return applicationOptionError(opt)
+	}
+	for _, e := range opt.Group {
+		org, account, ok := strings.Cut(e.Name, ".")
+		if !ok || org == "" || account == "" || strings.Contains(account, ".") {
+			return &ParseError{Position: e.Loc.Start, End: e.Loc.End, Message: "syntax error at or near " + e.Name}
+		}
+	}
+	c.Options = append(c.Options, opt)
+	c.Loc.End = opt.Loc.End
+	return nil
 }

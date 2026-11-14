@@ -17,7 +17,11 @@ func init() {
 		create: parseCreateApplication,
 		alter:  parseAlterApplication,
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-application
-		drop: true,
+		drop:        true,
+		dropCascade: true,
+		props:       applicationProps,
+		unset: []string{"COMMENT", "SHARE_EVENTS_WITH_PROVIDER", "DEBUG_MODE",
+			"AUTHORIZE_RESTRICTED_PROVIDER_REMOTE_OPERATIONS_UNTIL"},
 	})
 	registerObject(&objectForm{
 		words:  []string{"APPLICATION", "ROLE"},
@@ -27,7 +31,8 @@ func init() {
 		orReplace: true,
 		orAlter:   true,
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-application-role
-		drop: true,
+		drop:  true,
+		props: objectProps{"COMMENT": propString},
 	})
 	// The pages below write ALTER APPLICATION with no application name: they
 	// run in an app's setup script against the app itself. Each registers its
@@ -36,19 +41,74 @@ func init() {
 	registerObject(&objectForm{
 		words: []string{"APPLICATION", "SET", "SPECIFICATION"},
 		alter: parseAlterApplicationSetAppSpec,
+		props: applicationSpecProps,
 	})
 	registerObject(&objectForm{
 		words: []string{"APPLICATION", "DROP", "SPECIFICATION"},
 		alter: parseAlterApplicationDropNamed,
+		props: objectProps{},
 	})
 	registerObject(&objectForm{
 		words: []string{"APPLICATION", "SET", "CONFIGURATION", "DEFINITION"},
 		alter: parseAlterApplicationSetConfigurationDefinition,
+		props: applicationConfigurationProps,
 	})
 	registerObject(&objectForm{
 		words: []string{"APPLICATION", "DROP", "CONFIGURATION", "DEFINITION"},
 		alter: parseAlterApplicationDropNamed,
+		props: objectProps{},
 	})
+}
+
+// applicationProps are the properties CREATE APPLICATION and ALTER
+// APPLICATION ... SET document. DEBUG_MODE is CREATE's from a package's
+// version or path and ALTER's; BACKGROUND_INSTALL is CREATE's from a listing;
+// SHARE_EVENTS_WITH_PROVIDER is ALTER's.
+var applicationProps = objectProps{
+	"COMMENT":                           propString,
+	"DEBUG_MODE":                        propBool,
+	"SHARE_EVENTS_WITH_PROVIDER":        propBool,
+	"BACKGROUND_INSTALL":                propBool,
+	"AUTHORIZE_TELEMETRY_EVENT_SHARING": propBool,
+	// '<timestamp>', 'INDEFINITE' or 'NEVER'
+	"AUTHORIZE_RESTRICTED_PROVIDER_REMOTE_OPERATIONS_UNTIL": propString,
+}
+
+// applicationSpecProps are the properties of ALTER APPLICATION SET
+// SPECIFICATION, over every TYPE the page documents.
+var applicationSpecProps = objectProps{
+	"TYPE":        propOneOf("EXTERNAL_ACCESS", "SECURITY_INTEGRATION", "LISTING", "CONNECTION", "SETTING"),
+	"LABEL":       propString,
+	"DESCRIPTION": propString,
+	// TYPE = EXTERNAL_ACCESS
+	"HOST_PORTS":         propStrings,
+	"PRIVATE_HOST_PORTS": propStrings,
+	// TYPE = SECURITY_INTEGRATION
+	"OAUTH_TYPE":                   propString,
+	"OAUTH_TOKEN_ENDPOINT":         propString,
+	"OAUTH_AUTHORIZATION_ENDPOINT": propString,
+	"OAUTH_ALLOWED_SCOPES":         propStrings,
+	// TYPE = LISTING
+	"TARGET_ACCOUNTS":                   propString,
+	"LISTING":                           propName,
+	"AUTO_FULFILLMENT_REFRESH_SCHEDULE": propString,
+	// TYPE = CONNECTION
+	"SERVER_APPLICATION":       propName,
+	"SERVER_APPLICATION_ROLES": propNames,
+	// TYPE = SETTING
+	"SETTING": propName,
+	"VALUE":   propString,
+}
+
+// applicationConfigurationProps are the properties of ALTER APPLICATION SET
+// CONFIGURATION DEFINITION.
+var applicationConfigurationProps = objectProps{
+	"TYPE":              propOneOf("APPLICATION_NAME", "STRING", "SECRET_AUTHORIZATION"),
+	"SECRET":            propName,
+	"LABEL":             propString,
+	"DESCRIPTION":       propString,
+	"APPLICATION_ROLES": propNames,
+	"SENSITIVE":         propBool,
 }
 
 // parseCreateApplication reads what follows the name of
@@ -217,7 +277,7 @@ func parseAlterApplication(p *Parser, s *ast.ObjectStmt) error {
 		if err != nil {
 			return err
 		}
-		return p.parseApplicationRequiredOption(c, "VALUE")
+		return p.parseApplicationRequiredOption(c, "VALUE", propString)
 	case p.acceptWords("UNSET", "CONFIGURATION"):
 		_, err := p.parseApplicationNamedClause(s, "UNSET CONFIGURATION", start)
 		return err
@@ -226,13 +286,13 @@ func parseAlterApplication(p *Parser, s *ast.ObjectStmt) error {
 		if err != nil {
 			return err
 		}
-		return p.parseApplicationRequiredOption(c, "SEQUENCE_NUMBER")
+		return p.parseApplicationRequiredOption(c, "SEQUENCE_NUMBER", propNumber)
 	case p.acceptWords("DECLINE", "SPECIFICATION"):
 		c, err := p.parseApplicationNamedClause(s, "DECLINE SPECIFICATION", start)
 		if err != nil {
 			return err
 		}
-		return p.parseApplicationRequiredOption(c, "SEQUENCE_NUMBER")
+		return p.parseApplicationRequiredOption(c, "SEQUENCE_NUMBER", propNumber)
 	case p.acceptWords("UPGRADE"):
 		upgradeEnd := p.prev.Loc.End
 		if p.acceptWords("USING", "VERSION") {
@@ -280,14 +340,18 @@ func (p *Parser) parseApplicationNamedClause(s *ast.ObjectStmt, keywords string,
 }
 
 // parseApplicationRequiredOption reads the `<key> = <value>` property a clause
-// requires next (VALUE = '<value>', SEQUENCE_NUMBER = <num>) into c.
-func (p *Parser) parseApplicationRequiredOption(c *ast.ObjectClause, key string) error {
+// requires next (VALUE = '<value>', SEQUENCE_NUMBER = <num>) into c, holding
+// its value to shape v.
+func (p *Parser) parseApplicationRequiredOption(c *ast.ObjectClause, key string, v objectValue) error {
 	if !p.curIsWord(key) || !p.startsObjectProperty() {
 		return p.syntaxErrorAtCur()
 	}
 	opt, err := p.parseObjectProperty()
 	if err != nil {
 		return err
+	}
+	if !v.matches(opt) {
+		return applicationOptionError(opt)
 	}
 	c.Options = append(c.Options, opt)
 	c.Loc.End = p.prev.Loc.End
@@ -296,10 +360,10 @@ func (p *Parser) parseApplicationRequiredOption(c *ast.ObjectClause, key string)
 
 // parseApplicationOptions reads a run of `KEY = value` properties into c,
 // where a clause's keywords and names come before its properties (MODIFY
-// RELEASE DIRECTIVE <name> VERSION = ... PATCH = ...). need says whether an
-// empty run is a syntax error.
-func (p *Parser) parseApplicationOptions(c *ast.ObjectClause, need bool) error {
-	if need && !p.startsObjectProperty() {
+// RELEASE DIRECTIVE <name> VERSION = ... PATCH = ...), holding each to props.
+// An empty run is a syntax error.
+func (p *Parser) parseApplicationOptions(c *ast.ObjectClause, props objectProps) error {
+	if !p.startsObjectProperty() {
 		return p.syntaxErrorAtCur()
 	}
 	for p.startsObjectProperty() {
@@ -307,10 +371,19 @@ func (p *Parser) parseApplicationOptions(c *ast.ObjectClause, need bool) error {
 		if err != nil {
 			return err
 		}
+		if v, ok := props[opt.Name]; !ok || !v.matches(opt) {
+			return applicationOptionError(opt)
+		}
 		c.Options = append(c.Options, opt)
 	}
 	c.Loc.End = p.prev.Loc.End
 	return nil
+}
+
+// applicationOptionError reports a property a clause does not document, or
+// whose value has another shape.
+func applicationOptionError(o *ast.CopyOption) error {
+	return &ParseError{Position: o.Loc.Start, End: o.Loc.End, Message: "syntax error at or near " + o.Name}
 }
 
 // parseApplicationLiteral reads <word> <literal>, a clause keyword followed by
