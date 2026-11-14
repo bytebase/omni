@@ -2154,7 +2154,8 @@ func (p *Parser) parseOrderByList() ([]*nodes.OrderByItem, error) {
 // grammar's limit_option is an identifier, a parameter marker or an integer
 // literal, so `LIMIT 1 + 1`, `LIMIT (1)`, `LIMIT -1`, `LIMIT 1 OR 2`, `LIMIT 1 || 2`,
 // `LIMIT @a`, `LIMIT 0x10` and `LIMIT 1.5` are all 1064. The identifier is a stored
-// program's local variable, and parses anywhere (ER_SP_UNDECLARED_VAR comes later).
+// program's local variable: inside one it must be in reach (checkSPVarRef), and outside
+// one it parses, the server refusing it only once the statement is read.
 func (p *Parser) parseLimitValue() (nodes.ExprNode, error) {
 	if p.cur.Type == tokICONST {
 		// limit_option takes the integer tokens up to ULONGLONG_NUM. What is past 64
@@ -2165,6 +2166,9 @@ func (p *Parser) parseLimitValue() (nodes.ExprNode, error) {
 		start := p.pos()
 		name, _, err := p.parseIdent()
 		if err != nil {
+			return nil, err
+		}
+		if err := p.checkSPVarRef(name, start, false); err != nil {
 			return nil, err
 		}
 		return &nodes.ColumnRef{Loc: nodes.Loc{Start: start, End: p.prev.End}, Column: name}, nil
@@ -2522,6 +2526,9 @@ func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
 				nameStart := p.pos()
 				name, _, err := p.parseLvalueIdent()
 				if err != nil {
+					return nil, err
+				}
+				if err := p.checkSPVarRef(name, nameStart, false); err != nil {
 					return nil, err
 				}
 				into.Vars = append(into.Vars, &nodes.VariableRef{

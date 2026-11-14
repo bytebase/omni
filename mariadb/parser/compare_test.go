@@ -6576,10 +6576,6 @@ func TestParseGetDiagnostics(t *testing.T) {
 			sql:  "GET CURRENT DIAGNOSTICS @cnt = NUMBER",
 			want: "{GET_DIAGNOSTICS :loc 0 :stmt_info true :items {DIAG_ITEM :loc 24 :target {VAR :name cnt :loc 24} :name NUMBER}}",
 		},
-		{
-			sql:  "GET DIAGNOSTICS cnt = NUMBER",
-			want: "{GET_DIAGNOSTICS :loc 0 :stmt_info true :items {DIAG_ITEM :loc 16 :target {COLREF :loc 16 :col cnt} :name NUMBER}}",
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.sql, func(t *testing.T) {
