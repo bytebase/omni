@@ -69,7 +69,7 @@ func buildRelationMap(c *Catalog) map[relKey]*Relation {
 	m := make(map[relKey]*Relation)
 	for _, s := range c.UserSchemas() {
 		for _, rel := range s.Relations {
-			if rel.RelKind != 'r' && rel.RelKind != 'p' {
+			if rel.RelKind != 'r' && rel.RelKind != 'p' || c.isExtensionMember(rel.OID) {
 				continue
 			}
 			m[relKey{schema: s.Name, name: rel.Name}] = rel

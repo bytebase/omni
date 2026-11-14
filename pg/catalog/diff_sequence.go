@@ -7,8 +7,8 @@ import (
 
 // diffSequences compares standalone sequences between two catalogs.
 // Identity key is (schemaName, seqName).
-// Sequences with OwnerRelOID != 0 (SERIAL/IDENTITY-owned) are skipped
-// because they are managed by the owning column, not as standalone objects.
+// A sequence its column manages (sequenceManagedByColumn) is skipped: the
+// column's DDL creates and drops it.
 func diffSequences(from, to *Catalog) []SequenceDiffEntry {
 	type seqKey struct {
 		schema string
@@ -19,7 +19,7 @@ func diffSequences(from, to *Catalog) []SequenceDiffEntry {
 	fromMap := make(map[seqKey]*Sequence)
 	for _, s := range from.UserSchemas() {
 		for _, seq := range s.Sequences {
-			if seq.OwnerRelOID != 0 {
+			if sequenceManagedByColumn(from, seq) || from.isExtensionMember(seq.OID) {
 				continue
 			}
 			fromMap[seqKey{schema: s.Name, name: seq.Name}] = seq
@@ -29,7 +29,7 @@ func diffSequences(from, to *Catalog) []SequenceDiffEntry {
 	toMap := make(map[seqKey]*Sequence)
 	for _, s := range to.UserSchemas() {
 		for _, seq := range s.Sequences {
-			if seq.OwnerRelOID != 0 {
+			if sequenceManagedByColumn(to, seq) || to.isExtensionMember(seq.OID) {
 				continue
 			}
 			toMap[seqKey{schema: s.Name, name: seq.Name}] = seq
@@ -96,6 +96,43 @@ func diffSequences(from, to *Catalog) []SequenceDiffEntry {
 	return result
 }
 
+// sequenceManagedByColumn reports whether seq comes and goes with the column
+// that owns it: an identity column's sequence, or a serial column's, which
+// CREATE TABLE makes under the name serial chooses. Any other sequence, owned
+// or not, is created, altered, and dropped on its own.
+func sequenceManagedByColumn(c *Catalog, seq *Sequence) bool {
+	if seq.OwnerRelOID == 0 {
+		return false
+	}
+	rel := c.GetRelationByOID(seq.OwnerRelOID)
+	if rel == nil || rel.Schema != seq.Schema {
+		return false
+	}
+	for _, col := range rel.Columns {
+		if col.AttNum != seq.OwnerAttNum {
+			continue
+		}
+		if col.Identity != 0 {
+			return true
+		}
+		return seq.Name == rel.Name+"_"+col.Name+"_seq" && seqIsSerialAbsorbed(c, rel.Schema.Name, seq.Name)
+	}
+	return false
+}
+
+// sequenceOwner returns "schema.table.column" for the column that owns seq,
+// or "" when none does.
+func sequenceOwner(c *Catalog, seq *Sequence) string {
+	if seq.OwnerRelOID == 0 {
+		return ""
+	}
+	rel := c.GetRelationByOID(seq.OwnerRelOID)
+	if rel == nil || rel.Schema == nil {
+		return ""
+	}
+	return migrationQualifiedName(rel.Schema.Name, rel.Name) + "." + quoteIdentAlways(resolveAttNum(rel, seq.OwnerAttNum))
+}
+
 // seqIsSerialAbsorbed checks if a sequence exists in the catalog as a
 // SERIAL-absorbed sequence: it's owned by a column AND that column's
 // default references this sequence via nextval(). This distinguishes
@@ -150,5 +187,5 @@ func sequencesChanged(fromCat, toCat *Catalog, a, b *Sequence) bool {
 	if a.Cycle != b.Cycle {
 		return true
 	}
-	return false
+	return sequenceOwner(fromCat, a) != sequenceOwner(toCat, b)
 }

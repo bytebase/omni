@@ -87,7 +87,7 @@ func formatCreateCompositeType(cat *Catalog, schemaName, name string, rel *Relat
 	var fields []string
 	for _, col := range rel.Columns {
 		typeName := cat.FormatType(col.TypeOID, col.TypeMod)
-		fields = append(fields, fmt.Sprintf("%s %s", quoteIdentAlways(col.Name), typeName))
+		fields = append(fields, fmt.Sprintf("%s %s%s", quoteIdentAlways(col.Name), typeName, formatCollate(col.CollationName)))
 	}
 	return fmt.Sprintf("CREATE TYPE %s AS (%s)", qn, strings.Join(fields, ", "))
 }
@@ -155,7 +155,7 @@ func generateCompositeAlterOps(fromCat, toCat *Catalog, entry CompositeTypeDiffE
 			Type:          OpAlterType,
 			SchemaName:    entry.SchemaName,
 			ObjectName:    entry.Name,
-			SQL:           fmt.Sprintf("ALTER TYPE %s ADD ATTRIBUTE %s %s", qn, quoteIdentAlways(c.Name), typeName),
+			SQL:           fmt.Sprintf("ALTER TYPE %s ADD ATTRIBUTE %s %s%s", qn, quoteIdentAlways(c.Name), typeName, formatCollate(c.CollationName)),
 			Transactional: true,
 			Phase:         PhaseMain,
 			ObjType:       'r',
@@ -164,7 +164,7 @@ func generateCompositeAlterOps(fromCat, toCat *Catalog, entry CompositeTypeDiffE
 		})
 	}
 
-	// Modified attributes (type changed): ALTER TYPE ... ALTER ATTRIBUTE ... TYPE ...
+	// Modified attributes (type or collation changed): ALTER TYPE ... ALTER ATTRIBUTE ... TYPE ...
 	for _, tc := range entry.To.Columns {
 		fc, ok := fromCols[tc.Name]
 		if !ok {
@@ -172,12 +172,12 @@ func generateCompositeAlterOps(fromCat, toCat *Catalog, entry CompositeTypeDiffE
 		}
 		fromType := fromCat.FormatType(fc.TypeOID, fc.TypeMod)
 		toType := toCat.FormatType(tc.TypeOID, tc.TypeMod)
-		if fromType != toType {
+		if fromType != toType || fc.CollationName != tc.CollationName {
 			ops = append(ops, MigrationOp{
 				Type:          OpAlterType,
 				SchemaName:    entry.SchemaName,
 				ObjectName:    entry.Name,
-				SQL:           fmt.Sprintf("ALTER TYPE %s ALTER ATTRIBUTE %s TYPE %s", qn, quoteIdentAlways(tc.Name), toType),
+				SQL:           fmt.Sprintf("ALTER TYPE %s ALTER ATTRIBUTE %s TYPE %s%s", qn, quoteIdentAlways(tc.Name), toType, formatCollate(tc.CollationName)),
 				Transactional: true,
 				Phase:         PhaseMain,
 				ObjType:       'r',

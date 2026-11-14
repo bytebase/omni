@@ -127,6 +127,8 @@ func generatePartitionChildDDL(c *Catalog, entry RelationDiffEntry) []MigrationO
 			b.WriteString(fmt.Sprintf(" FOR VALUES WITH (MODULUS %d, REMAINDER %d)", bound.Modulus, bound.Remainder))
 		}
 	}
+	// A partition with subpartitions is itself partitioned.
+	b.WriteString(formatPartitionByClause(rel))
 
 	return []MigrationOp{{
 		Type:          OpCreateTable,

@@ -15,6 +15,9 @@ type Extension struct {
 	Name        string
 	SchemaOID   uint32
 	Relocatable bool
+	// Version is the VERSION the extension was created with, or "" when the
+	// statement named none.
+	Version string
 }
 
 // CreateExtension loads and executes a bundled extension DDL script.
@@ -33,17 +36,22 @@ func (c *Catalog) CreateExtension(stmt *nodes.CreateExtensionStmt) error {
 
 	// Parse Options for "schema" DefElem.
 	// pg: src/backend/commands/extension.c — CreateExtension (option parsing)
-	var schemaName string
+	var schemaName, version string
 	if stmt.Options != nil {
 		for _, item := range stmt.Options.Items {
 			de, ok := item.(*nodes.DefElem)
 			if !ok {
 				continue
 			}
-			if de.Defname == "schema" {
-				if sv, ok := de.Arg.(*nodes.String); ok {
-					schemaName = sv.Str
-				}
+			sv, ok := de.Arg.(*nodes.String)
+			if !ok {
+				continue
+			}
+			switch de.Defname {
+			case "schema":
+				schemaName = sv.Str
+			case "new_version":
+				version = sv.Str
 			}
 		}
 	}
@@ -55,12 +63,11 @@ func (c *Catalog) CreateExtension(stmt *nodes.CreateExtensionStmt) error {
 		return err
 	}
 
-	// Look up bundled extension script.
+	// An extension without a bundled script is registered with no objects.
 	sql, ok := extensionScripts[stmt.Extname]
 	if !ok {
 		c.addWarning(CodeWarning,
-			fmt.Sprintf("extension %q is not bundled; CREATE EXTENSION ignored", stmt.Extname))
-		return nil
+			fmt.Sprintf("extension %q is not bundled; its objects are unknown", stmt.Extname))
 	}
 
 	// Parse the extension DDL script.
@@ -68,6 +75,7 @@ func (c *Catalog) CreateExtension(stmt *nodes.CreateExtensionStmt) error {
 	if err != nil {
 		return fmt.Errorf("extension %q: parse error: %w", stmt.Extname, err)
 	}
+	firstMember, firstGrant := c.oidGen.next, len(c.grants)
 
 	// Temporarily prepend target schema to search path so unqualified types
 	// and functions land in the extension's schema.
@@ -104,6 +112,10 @@ func (c *Catalog) CreateExtension(stmt *nodes.CreateExtensionStmt) error {
 
 	// Restore original search path.
 	c.searchPath = origSearchPath
+	c.markExtensionMembers(firstMember, c.oidGen.next)
+	for i := firstGrant; i < len(c.grants); i++ {
+		c.grants[i].FromExtension = true
+	}
 
 	// Register extension metadata.
 	ext := &Extension{
@@ -111,11 +123,28 @@ func (c *Catalog) CreateExtension(stmt *nodes.CreateExtensionStmt) error {
 		Name:        stmt.Extname,
 		SchemaOID:   targetSchema.OID,
 		Relocatable: true,
+		Version:     version,
 	}
 	c.extensions[ext.OID] = ext
 	c.extByName[ext.Name] = ext
 
 	return nil
+}
+
+// markExtensionMembers records the objects whose OIDs fall in [first, end)
+// as belonging to an extension, as pg_depend's 'e' entries do. Every object
+// an extension script creates takes its OID while the script runs.
+func (c *Catalog) markExtensionMembers(first, end uint32) {
+	for oid := first; oid < end; oid++ {
+		c.extensionMembers[oid] = true
+	}
+}
+
+// isExtensionMember reports whether the object with this OID belongs to an
+// extension. Such objects come and go with their extension, so Diff leaves
+// them out.
+func (c *Catalog) isExtensionMember(oid uint32) bool {
+	return c.extensionMembers[oid]
 }
 
 // RegisterExtensionSQL allows external code to register extension DDL scripts.

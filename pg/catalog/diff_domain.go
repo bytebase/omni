@@ -16,7 +16,7 @@ func diffDomains(from, to *Catalog) []DomainDiffEntry {
 	fromMap := make(map[string]*domainInfo)
 	for typeOID, dt := range from.domainTypes {
 		bt := from.typeByOID[typeOID]
-		if bt == nil {
+		if bt == nil || from.isExtensionMember(typeOID) {
 			continue
 		}
 		schema := from.schemas[bt.Namespace]
@@ -35,7 +35,7 @@ func diffDomains(from, to *Catalog) []DomainDiffEntry {
 	toMap := make(map[string]*domainInfo)
 	for typeOID, dt := range to.domainTypes {
 		bt := to.typeByOID[typeOID]
-		if bt == nil {
+		if bt == nil || to.isExtensionMember(typeOID) {
 			continue
 		}
 		schema := to.schemas[bt.Namespace]

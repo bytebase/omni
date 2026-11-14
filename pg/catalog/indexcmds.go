@@ -25,6 +25,12 @@ type Index struct {
 	IndOption        []int16  // per-column flags: bit0=DESC, bit1=NULLS_FIRST
 	NullsNotDistinct bool     // NULLS NOT DISTINCT for unique indexes
 	Exprs            []string // deparsed expressions for expression columns (attnum=0)
+	// OpClasses holds, per key column, the operator class the statement
+	// named, dotted when qualified, or "" for the default.
+	OpClasses []string
+	// ParentIndexOID is the partitioned table's index this partition's index
+	// is attached to, or 0. Such an index comes and goes with its parent.
+	ParentIndexOID uint32
 }
 
 // DefineIndex creates a new index on a relation.
@@ -104,6 +110,8 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 	var indOption []int16
 	var exprTexts []string // deparsed expressions for expression columns
 	var analyzedExprs []AnalyzedExpr
+	var opClasses []string
+	namedOpClass := false
 	if stmt.IndexParams != nil {
 		for _, item := range stmt.IndexParams.Items {
 			elem, ok := item.(*nodes.IndexElem)
@@ -156,7 +164,19 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 				}
 			}
 			indOption = append(indOption, opt)
+
+			var opClass []string
+			if elem.Opclass != nil {
+				for _, part := range elem.Opclass.Items {
+					opClass = append(opClass, stringVal(part))
+				}
+			}
+			opClasses = append(opClasses, strings.Join(opClass, "."))
+			namedOpClass = namedOpClass || len(opClass) > 0
 		}
+	}
+	if !namedOpClass {
+		opClasses = nil
 	}
 
 	nKeyColumns := len(attnums)
@@ -264,6 +284,7 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 		IndOption:        indOption,
 		NullsNotDistinct: stmt.Nulls_not_distinct,
 		Exprs:            exprTexts,
+		OpClasses:        opClasses,
 	}
 
 	c.registerIndex(schema, idx)

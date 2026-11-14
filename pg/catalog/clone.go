@@ -1,5 +1,7 @@
 package catalog
 
+import "slices"
+
 // Clone creates a deep copy of the Catalog.
 //
 // Builtin immutable data (casts, operators, builtin procs, builtin types) is shared
@@ -177,6 +179,7 @@ func (c *Catalog) Clone() *Catalog {
 			ci.Exprs = make([]string, len(idx.Exprs))
 			copy(ci.Exprs, idx.Exprs)
 		}
+		ci.OpClasses = slices.Clone(idx.OpClasses)
 		ci.Schema = clone.schemas[idx.Schema.OID]
 		clone.indexes[oid] = &ci
 		clone.indexesByRel[ci.RelOID] = append(clone.indexesByRel[ci.RelOID], &ci)
@@ -367,6 +370,10 @@ func (c *Catalog) Clone() *Catalog {
 		ce := *ext
 		clone.extensions[oid] = &ce
 		clone.extByName[ce.Name] = &ce
+	}
+	clone.extensionMembers = make(map[uint32]bool, len(c.extensionMembers))
+	for oid := range c.extensionMembers {
+		clone.extensionMembers[oid] = true
 	}
 
 	// --- Access methods: share built-in, deep copy user-created ---

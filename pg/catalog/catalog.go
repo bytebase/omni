@@ -93,6 +93,9 @@ type Catalog struct {
 	// Extensions.
 	extensions map[uint32]*Extension
 	extByName  map[string]*Extension
+	// extensionMembers holds the OIDs of the objects that belong to an
+	// extension (isExtensionMember).
+	extensionMembers map[uint32]bool
 
 	// Access methods, operator families, and operator classes.
 	accessMethods      map[uint32]*AccessMethod
@@ -163,6 +166,7 @@ func New() *Catalog {
 		policiesByRel:      make(map[uint32][]*Policy),
 		extensions:         make(map[uint32]*Extension),
 		extByName:          make(map[string]*Extension),
+		extensionMembers:   make(map[uint32]bool),
 		accessMethods:      make(map[uint32]*AccessMethod),
 		accessMethodByName: make(map[string]*AccessMethod),
 		opFamilies:         make(map[uint32]*OpFamily),

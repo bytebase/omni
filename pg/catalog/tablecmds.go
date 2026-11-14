@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	nodes "github.com/bytebase/omni/pg/ast"
@@ -1477,6 +1478,9 @@ func (c *Catalog) cloneIndexesToPartition(schema *Schema, parent, partition *Rel
 			WhereClause:      idx.WhereClause,
 			IndOption:        partIndOption,
 			NullsNotDistinct: idx.NullsNotDistinct,
+			Exprs:            slices.Clone(idx.Exprs),
+			OpClasses:        slices.Clone(idx.OpClasses),
+			ParentIndexOID:   idx.OID,
 		}
 
 		// If the parent index backs a constraint, clone the constraint too.
@@ -1714,6 +1718,7 @@ func (c *Catalog) cloneLikeIndexes(schema *Schema, src, dst *Relation) {
 			WhereClause:      idx.WhereClause,
 			IndOption:        dstIndOption,
 			NullsNotDistinct: idx.NullsNotDistinct,
+			OpClasses:        slices.Clone(idx.OpClasses),
 		}
 
 		// If the source index backs a constraint, clone the constraint too.

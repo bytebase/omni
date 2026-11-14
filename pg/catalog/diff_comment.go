@@ -83,6 +83,9 @@ func diffComments(from, to *Catalog) []CommentDiffEntry {
 func buildCommentNormMap(c *Catalog) map[commentNormKey]string {
 	m := make(map[commentNormKey]string, len(c.comments))
 	for ck, text := range c.comments {
+		if c.isExtensionMember(ck.ObjOID) {
+			continue
+		}
 		desc := resolveCommentDescription(c, ck)
 		if desc == "" {
 			continue // object not found — skip

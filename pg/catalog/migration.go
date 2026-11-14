@@ -277,9 +277,10 @@ func wrapColumnTypeChangesWithViewOps(from, to *Catalog, diff *SchemaDiff, ops [
 				if col.Action != DiffModify || col.From == nil || col.To == nil {
 					continue
 				}
+				// Column type or collation change: both are ALTER COLUMN TYPE.
 				oldType := from.FormatType(col.From.TypeOID, col.From.TypeMod)
 				newType := to.FormatType(col.To.TypeOID, col.To.TypeMod)
-				if oldType != newType {
+				if oldType != newType || col.From.CollationName != col.To.CollationName {
 					needsViewWrap = true
 					break
 				}

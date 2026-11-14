@@ -341,3 +341,17 @@ func opsSQL(plan *MigrationPlan) []string {
 	}
 	return ss
 }
+
+func TestMigrationDropsForeignKeysFirst(t *testing.T) {
+	got := generateMigrationSQL(t,
+		`CREATE TABLE p (a int PRIMARY KEY);
+CREATE TABLE c (x int CONSTRAINT c_x_fkey REFERENCES p (a));`,
+		`CREATE TABLE p (a int);
+CREATE TABLE c (x int);`)
+	want := `ALTER TABLE public.c DROP CONSTRAINT c_x_fkey;
+ALTER TABLE public.p DROP CONSTRAINT p_pkey;
+ALTER TABLE public.p ALTER COLUMN a DROP NOT NULL`
+	if got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+}

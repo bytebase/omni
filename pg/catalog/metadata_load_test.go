@@ -949,3 +949,134 @@ func BenchmarkLoadMetadata(b *testing.B) {
 		})
 	}
 }
+
+func TestLoadMetadataInstallsPartitions(t *testing.T) {
+	c, report := loadSnapshot(t, true, &metadata.SchemaMetadata{
+		Name: "public",
+		Tables: []*metadata.TableMetadata{{
+			Name: "orders",
+			Columns: []*metadata.ColumnMetadata{
+				{Name: "id", Type: "integer"},
+				{Name: "region", Type: "text"},
+				{Name: "created_at", Type: "date"},
+			},
+			Indexes: []*metadata.IndexMetadata{{
+				Name: "orders_region_idx", Expressions: []string{"region"}, Type: "btree",
+				Definition: "CREATE INDEX orders_region_idx ON public.orders USING btree (region)",
+			}},
+			Partitions: []*metadata.TablePartitionMetadata{
+				{
+					Name: "orders_2024", Type: metadata.TablePartitionMetadata_RANGE,
+					Expression: "RANGE (created_at)", Value: "FOR VALUES FROM ('2024-01-01') TO ('2025-01-01')",
+					Indexes: []*metadata.IndexMetadata{{
+						Name: "orders_2024_region_idx", Expressions: []string{"region"}, Type: "btree",
+						Definition:        "CREATE INDEX orders_2024_region_idx ON ONLY public.orders_2024 USING btree (region)",
+						ParentIndexSchema: "public", ParentIndexName: "orders_region_idx",
+					}},
+					Subpartitions: []*metadata.TablePartitionMetadata{{
+						Name: "orders_2024_eu", Type: metadata.TablePartitionMetadata_LIST,
+						Expression: "LIST (region)", Value: "FOR VALUES IN ('eu')",
+					}},
+				},
+				{Name: "orders_other", Type: metadata.TablePartitionMetadata_RANGE, Expression: "RANGE (created_at)", Value: "DEFAULT"},
+			},
+		}},
+	})
+	requireCleanReport(t, report)
+
+	orders := requireRelation(t, c, "public", "orders")
+	if orders.RelKind != 'p' || orders.PartitionInfo == nil || orders.PartitionInfo.Strategy != 'r' {
+		t.Fatalf("orders: relkind %c, partition info %+v; want a table partitioned by range", orders.RelKind, orders.PartitionInfo)
+	}
+	for _, tt := range []struct {
+		name, parent string
+		relkind      byte
+	}{
+		{"orders_2024", "orders", 'p'},
+		{"orders_2024_eu", "orders_2024", 'r'},
+		{"orders_other", "orders", 'r'},
+	} {
+		rel := requireRelation(t, c, "public", tt.name)
+		parent := requireRelation(t, c, "public", tt.parent)
+		if rel.PartitionOf != parent.OID || rel.PartitionBound == nil || rel.RelKind != tt.relkind {
+			t.Errorf("%s: relkind %c, partition of %d with bound %+v; want relkind %c, a partition of %s", tt.name, rel.RelKind, rel.PartitionOf, rel.PartitionBound, tt.relkind, tt.parent)
+		}
+	}
+	if !requireRelation(t, c, "public", "orders_other").PartitionBound.IsDefault {
+		t.Errorf("orders_other is not the default partition")
+	}
+	parent, child := c.schemaByName["public"].Indexes["orders_region_idx"], c.schemaByName["public"].Indexes["orders_2024_region_idx"]
+	if parent == nil || child == nil || child.ParentIndexOID != parent.OID {
+		t.Errorf("orders_2024_region_idx = %+v, want it attached to orders_region_idx %+v", child, parent)
+	}
+}
+
+func TestLoadMetadataExtensions(t *testing.T) {
+	load := func(meta *metadata.DatabaseSchemaMetadata) *Catalog {
+		c := New()
+		c.SetSearchPath([]string{"public"})
+		report, err := c.LoadMetadata(context.Background(), meta, LoadMetadataOptions{Full: true})
+		if err != nil {
+			t.Fatalf("LoadMetadata: %v", err)
+		}
+		requireCleanReport(t, report)
+		return c
+	}
+	public := func(composites ...*metadata.CompositeTypeMetadata) []*metadata.SchemaMetadata {
+		return []*metadata.SchemaMetadata{{Name: "public", CompositeTypes: composites}}
+	}
+	from := load(&metadata.DatabaseSchemaMetadata{
+		Schemas:    public(&metadata.CompositeTypeMetadata{Name: "ext_owned", Attributes: []*metadata.CompositeTypeAttribute{{Name: "x", Type: "integer"}}, SkipDump: true}),
+		Extensions: []*metadata.ExtensionMetadata{{Name: "pg_trgm", Schema: "public", Version: "1.5"}},
+	})
+	to := load(&metadata.DatabaseSchemaMetadata{
+		Schemas:    public(),
+		Extensions: []*metadata.ExtensionMetadata{{Name: "pg_trgm", Schema: "public", Version: "1.6"}},
+	})
+
+	if ext := to.extByName["pg_trgm"]; ext == nil || ext.Version != "1.6" {
+		t.Fatalf("pg_trgm = %+v, want version 1.6", ext)
+	}
+	// ext_owned belongs to an extension, as skip_dump says.
+	got := GenerateMigration(from, to, Diff(from, to)).SQL()
+	if want := `ALTER EXTENSION "pg_trgm" UPDATE TO '1.6'`; got != want {
+		t.Errorf("migration:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+func TestLoadMetadataInstallsComments(t *testing.T) {
+	c, report := loadSnapshot(t, true, &metadata.SchemaMetadata{
+		Name:    "public",
+		Comment: "schema note",
+		CompositeTypes: []*metadata.CompositeTypeMetadata{{
+			Name: "addr", Comment: "type note",
+			Attributes: []*metadata.CompositeTypeAttribute{{Name: "street", Type: "text", Comment: "attribute note"}},
+		}},
+		EnumTypes: []*metadata.EnumTypeMetadata{{Name: "mood", Values: []string{"ok"}, Comment: "enum note"}},
+		Sequences: []*metadata.SequenceMetadata{{Name: "s", DataType: "bigint", Comment: "sequence note"}},
+		Tables: []*metadata.TableMetadata{{
+			Name: "t", Comment: "table note",
+			Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "integer", Comment: "column note"}},
+			Indexes: []*metadata.IndexMetadata{
+				{Name: "t_pkey", Expressions: []string{"id"}, Primary: true, Unique: true, IsConstraint: true, Type: "btree", Comment: "key note"},
+				{Name: "t_id_idx", Expressions: []string{"id"}, Type: "btree", Comment: "index note"},
+			},
+		}},
+		Views: []*metadata.ViewMetadata{{Name: "v", Definition: "SELECT t.id FROM public.t", Comment: "view note"}},
+		Functions: []*metadata.FunctionMetadata{{
+			Name: "f", Signature: "f(integer)", Comment: "function note",
+			Definition: "CREATE FUNCTION public.f(x integer) RETURNS integer LANGUAGE sql AS $$ SELECT x $$",
+		}},
+	})
+	requireCleanReport(t, report)
+
+	var got []string
+	for _, e := range buildCommentNormMap(c) {
+		got = append(got, e)
+	}
+	slices.Sort(got)
+	want := []string{"attribute note", "column note", "enum note", "function note", "index note", "key note", "schema note", "sequence note", "table note", "type note", "view note"}
+	if !slices.Equal(got, want) {
+		t.Errorf("comments = %q, want %q", got, want)
+	}
+}

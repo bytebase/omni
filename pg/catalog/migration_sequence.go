@@ -27,13 +27,16 @@ func generateSequenceDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				Type:          OpCreateSequence,
 				SchemaName:    entry.SchemaName,
 				ObjectName:    entry.Name,
-				SQL:           formatCreateSequence(entry.SchemaName, entry.To),
+				SQL:           formatCreateSequence(to, entry.SchemaName, entry.To),
 				Transactional: true,
 				Phase:         PhaseMain,
 				ObjType:       'S',
 				ObjOID:        entry.To.OID,
 				Priority:      PrioritySequence,
 			})
+			if owner := sequenceOwner(to, entry.To); owner != "" {
+				ops = append(ops, sequenceOwnedByOp(entry.SchemaName, entry.To, owner, PhasePost))
+			}
 
 		case DiffDrop:
 			if entry.From == nil {
@@ -44,15 +47,25 @@ func generateSequenceDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 			if isIdentitySequence(from, entry.SchemaName, entry.Name) {
 				continue
 			}
+			// Dropping the owning table or column drops the sequence, and must:
+			// the owner's default may still draw from it.
+			if ownerDropped(from, to, entry.From) {
+				continue
+			}
 			qn := migrationQualifiedName(entry.SchemaName, entry.Name)
+			phase := PhasePre
+			if sequenceDrawnByKeptColumn(from, to, entry.From) {
+				// The ALTER COLUMN that changes that default runs first.
+				phase = PhaseLateDrop
+			}
 			ops = append(ops, MigrationOp{
 				Type:          OpDropSequence,
 				SchemaName:    entry.SchemaName,
 				ObjectName:    entry.Name,
 				SQL:           fmt.Sprintf("DROP SEQUENCE %s", qn),
 				Transactional: true,
-				Phase:         PhasePre,
-				ObjType:       'S',
+				Phase:         phase,
+				ObjType:       preSequenceObjType,
 				ObjOID:        entry.From.OID,
 				Priority:      PrioritySequence,
 			})
@@ -61,7 +74,16 @@ func generateSequenceDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 			if entry.From == nil || entry.To == nil {
 				continue
 			}
-			sql := formatAlterSequence(entry.SchemaName, entry.From, entry.To)
+			sql := formatAlterSequence(from, to, entry.SchemaName, entry.From, entry.To)
+			if fromOwner, toOwner := sequenceOwner(from, entry.From), sequenceOwner(to, entry.To); fromOwner != toOwner {
+				// Release the old owner first: dropping it would take the sequence.
+				if fromOwner != "" {
+					ops = append(ops, sequenceOwnedByOp(entry.SchemaName, entry.From, "NONE", PhasePre))
+				}
+				if toOwner != "" {
+					ops = append(ops, sequenceOwnedByOp(entry.SchemaName, entry.To, toOwner, PhasePost))
+				}
+			}
 			if sql != "" {
 				ops = append(ops, MigrationOp{
 					Type:          OpAlterSequence,
@@ -91,6 +113,67 @@ func generateSequenceDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 	})
 
 	return ops
+}
+
+// sequenceDrawnByKeptColumn reports whether a column default in from draws
+// on seq and to still has that column.
+func sequenceDrawnByKeptColumn(from, to *Catalog, seq *Sequence) bool {
+	for _, d := range from.deps {
+		if d.RefType != 's' || d.RefOID != seq.OID || d.ObjType != 'r' || d.ObjSubID == 0 {
+			continue
+		}
+		rel := from.GetRelationByOID(d.ObjOID)
+		if rel == nil || rel.Schema == nil {
+			continue
+		}
+		if toRel := to.GetRelation(rel.Schema.Name, rel.Name); toRel != nil {
+			if _, kept := toRel.colByName[resolveAttNum(rel, int16(d.ObjSubID))]; kept {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// ownerDropped reports whether the column that owns seq in from is gone in to.
+func ownerDropped(from, to *Catalog, seq *Sequence) bool {
+	rel := from.GetRelationByOID(seq.OwnerRelOID)
+	if rel == nil || rel.Schema == nil {
+		return false
+	}
+	toRel := to.GetRelation(rel.Schema.Name, rel.Name)
+	if toRel == nil {
+		return true
+	}
+	_, kept := toRel.colByName[resolveAttNum(rel, seq.OwnerAttNum)]
+	return !kept
+}
+
+// preSequenceObjType is the ObjType of a sequence op among the drops: 's',
+// the letter the catalog's dependencies use, so a drop or OWNED BY NONE sorts
+// before dropping the table that owns the sequence, which would take it along.
+// Creates keep 'S' and their order by priority: a sequence depends on its
+// owner while the owner's default depends on it.
+const preSequenceObjType = 's'
+
+// sequenceOwnedByOp sets the column that owns seq, or NONE. A new owner is
+// set after every table exists; NONE runs among the drops.
+func sequenceOwnedByOp(schemaName string, seq *Sequence, owner string, phase MigrationPhase) MigrationOp {
+	objType := byte('S')
+	if phase == PhasePre {
+		objType = preSequenceObjType
+	}
+	return MigrationOp{
+		Type:          OpAlterSequence,
+		SchemaName:    schemaName,
+		ObjectName:    seq.Name,
+		SQL:           fmt.Sprintf("ALTER SEQUENCE %s OWNED BY %s", migrationQualifiedName(schemaName, seq.Name), owner),
+		Transactional: true,
+		Phase:         phase,
+		ObjType:       objType,
+		ObjOID:        seq.OID,
+		Priority:      PrioritySequence,
+	}
 }
 
 // seqOpOrder returns a sort key: drops < creates < alters.
@@ -132,10 +215,14 @@ func isIdentitySequence(c *Catalog, schemaName, seqName string) bool {
 }
 
 // formatCreateSequence builds a CREATE SEQUENCE statement with all options.
-func formatCreateSequence(schemaName string, seq *Sequence) string {
+// The type is written unless it is the default, bigint.
+func formatCreateSequence(c *Catalog, schemaName string, seq *Sequence) string {
 	var b strings.Builder
 	b.WriteString("CREATE SEQUENCE ")
 	b.WriteString(migrationQualifiedName(schemaName, seq.Name))
+	if seq.TypeOID != 0 && seq.TypeOID != INT8OID {
+		b.WriteString("\n    AS " + c.FormatType(seq.TypeOID, -1))
+	}
 
 	b.WriteString(fmt.Sprintf("\n    INCREMENT BY %d", seq.Increment))
 	b.WriteString(fmt.Sprintf("\n    MINVALUE %d", seq.MinValue))
@@ -152,8 +239,12 @@ func formatCreateSequence(schemaName string, seq *Sequence) string {
 }
 
 // formatAlterSequence builds an ALTER SEQUENCE statement for changed properties.
-func formatAlterSequence(schemaName string, from, to *Sequence) string {
+func formatAlterSequence(fromCat, toCat *Catalog, schemaName string, from, to *Sequence) string {
 	var clauses []string
+
+	if toType := toCat.FormatType(to.TypeOID, -1); fromCat.FormatType(from.TypeOID, -1) != toType {
+		clauses = append(clauses, "AS "+toType)
+	}
 
 	if from.Increment != to.Increment {
 		clauses = append(clauses, fmt.Sprintf("INCREMENT BY %d", to.Increment))

@@ -68,7 +68,7 @@ func constraintsEqual(from, to *Catalog, a, b *Constraint) bool {
 	if a.Type != b.Type {
 		return false
 	}
-	if !int16SliceEqual(a.Columns, b.Columns) {
+	if !sameColumns(from, a.RelOID, a.Columns, to, b.RelOID, b.Columns) {
 		return false
 	}
 	if a.CheckExpr != b.CheckExpr {
@@ -92,7 +92,7 @@ func constraintsEqual(from, to *Catalog, a, b *Constraint) bool {
 
 	// For FK constraints, compare referenced table by resolved name and referenced columns.
 	if a.Type == ConstraintFK {
-		if !int16SliceEqual(a.FColumns, b.FColumns) {
+		if !sameColumns(from, a.FRelOID, a.FColumns, to, b.FRelOID, b.FColumns) {
 			return false
 		}
 		// Resolve referenced table names via GetRelationByOID.
@@ -135,6 +135,26 @@ func fkRefTableEqual(from, to *Catalog, a, b *Constraint) bool {
 		toSchema = toRel.Schema.Name
 	}
 	return fromSchema == toSchema
+}
+
+// sameColumns reports whether two attnum lists name the same columns of
+// their relations. Attnums alone differ when a column was added in the
+// middle of one side's table.
+func sameColumns(fromCat *Catalog, fromRelOID uint32, a []int16, toCat *Catalog, toRelOID uint32, b []int16) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	fromRel, toRel := fromCat.GetRelationByOID(fromRelOID), toCat.GetRelationByOID(toRelOID)
+	if fromRel == nil || toRel == nil {
+		return int16SliceEqual(a, b)
+	}
+	for i := range a {
+		// Attnum 0 is an expression, compared on its own.
+		if (a[i] == 0) != (b[i] == 0) || a[i] != 0 && resolveAttNum(fromRel, a[i]) != resolveAttNum(toRel, b[i]) {
+			return false
+		}
+	}
+	return true
 }
 
 // int16SliceEqual returns true if two int16 slices are identical.

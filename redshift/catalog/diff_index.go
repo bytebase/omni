@@ -49,7 +49,7 @@ func diffIndexes(from, to *Catalog, fromRelOID, toRelOID uint32) []IndexDiffEntr
 		}
 
 		// Both exist — compare fields.
-		if indexesChanged(fromIdx, toIdx) {
+		if indexesChanged(from, to, fromIdx, toIdx) {
 			result = append(result, IndexDiffEntry{
 				Action: DiffModify,
 				Name:   name,
@@ -71,7 +71,7 @@ func diffIndexes(from, to *Catalog, fromRelOID, toRelOID uint32) []IndexDiffEntr
 }
 
 // indexesChanged returns true if any compared property differs between two indexes.
-func indexesChanged(a, b *Index) bool {
+func indexesChanged(fromCat, toCat *Catalog, a, b *Index) bool {
 	if a.IsUnique != b.IsUnique {
 		return true
 	}
@@ -88,8 +88,7 @@ func indexesChanged(a, b *Index) bool {
 		return true
 	}
 
-	// Compare Columns (attnums).
-	if !int16SliceEqual(a.Columns, b.Columns) {
+	if !sameColumns(fromCat, a.RelOID, a.Columns, toCat, b.RelOID, b.Columns) {
 		return true
 	}
 
