@@ -65,6 +65,14 @@ func TestClassify(t *testing.T) {
 	}
 }
 
+func TestOneLineHidesTypeAddresses(t *testing.T) {
+	got := oneLine("TOKENLIST cannot be returned;  when converting column  of type 0x5a1a5d27da00 at position 0")
+	want := "TOKENLIST cannot be returned;  when converting column  of type 0x… at position 0"
+	if got != want {
+		t.Errorf("oneLine = %q, want %q", got, want)
+	}
+}
+
 func TestKindOf(t *testing.T) {
 	cases := []struct {
 		sql  string
@@ -100,8 +108,12 @@ func TestKindOf(t *testing.T) {
 	}
 }
 
-// TestOracleLive exercises the full path against the emulator TestMain provides.
+// TestOracleLive exercises the full path against the emulator TestMain
+// provides. It has nothing to replay, so it runs only in a recording.
 func TestOracleLive(t *testing.T) {
+	if !recording() {
+		t.Skip("TestOracleLive runs only against the pinned emulator:\n  OMNI_RECORD=1 go test ./... (in googlesql/spanner-oracle)")
+	}
 	ctx := context.Background()
 	o, err := newOracle(ctx)
 	if err != nil {

@@ -1,8 +1,9 @@
 // Differential test for the googlesql/analysis node against the live Cloud
-// Spanner emulator oracle. Run with:
+// Spanner emulator oracle. It replays
+// testdata/tapes/TestAnalysisDifferential.tape, the harness's answers, and starts no server;
+// record it on the pinned emulator with:
 //
-//	SPANNER_EMULATOR_HOST=localhost:9010 \
-//	  go test ./googlesql/analysis/ -run TestAnalysisDifferential
+//	OMNI_RECORD=1 go test ./googlesql/analysis/ -run '^TestAnalysisDifferential$'
 //
 // analysis is a FEATURE node, so the oracle is NOT used to adjudicate a grammar
 // accept/reject — that is the parser nodes' job (parser/*_oracle_test.go). What
@@ -27,15 +28,6 @@
 package analysis
 
 import (
-	"bufio"
-	"encoding/base64"
-	"encoding/json"
-	"fmt"
-	"io"
-	"os"
-	"os/exec"
-	"strings"
-	"sync"
 	"testing"
 
 	"github.com/bytebase/omni/googlesql/ast"
@@ -90,13 +82,12 @@ var classifyCorpus = []struct {
 // against the live emulator and that the analysis classifier's read-only verdict
 // agrees with the statement's true (read-only vs data/schema-changing) nature.
 func TestAnalysisDifferential(t *testing.T) {
-	h := newAnalysisHarness(t)
-	defer h.close()
+	o := testcontainer.Open(t)
 
 	for _, tc := range classifyCorpus {
 		tc := tc
 		t.Run(tc.sql, func(t *testing.T) {
-			v := h.verdict(t, tc.sql)
+			v := o.MustVerdict(t, tc.sql)
 			switch v.Verdict {
 			case "accept", "reject":
 			case "error":
@@ -128,72 +119,4 @@ func TestAnalysisDifferential(t *testing.T) {
 // it is a Select, Explain, or SelectInfoSchema.
 func isReadOnly(qt QueryType) bool {
 	return qt == Select || qt == Explain || qt == SelectInfoSchema
-}
-
-// --- harness plumbing (one persistent batch process; mirrors the parser
-// package's *_oracle_test.go harness) ---
-
-type analysisHarnessVerdict struct {
-	Verdict string `json:"verdict"`
-	Kind    string `json:"kind"`
-	Reason  string `json:"reason"`
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
-
-type analysisHarness struct {
-	cmd    *exec.Cmd
-	stdin  io.WriteCloser
-	stdout *bufio.Reader
-	mu     sync.Mutex
-}
-
-func newAnalysisHarness(t *testing.T) *analysisHarness {
-	t.Helper()
-	testcontainer.Host(t)
-	bin := testcontainer.HarnessBinary(t)
-
-	cmd := exec.Command(bin)
-	cmd.Env = append(os.Environ(), "GOOGLESQL_HARNESS_LINE=1")
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		t.Fatalf("stdin pipe: %v", err)
-	}
-	stdoutPipe, err := cmd.StdoutPipe()
-	if err != nil {
-		t.Fatalf("stdout pipe: %v", err)
-	}
-	cmd.Stderr = os.Stderr
-	if err := cmd.Start(); err != nil {
-		t.Fatalf("starting harness: %v", err)
-	}
-	return &analysisHarness{cmd: cmd, stdin: stdin, stdout: bufio.NewReader(stdoutPipe)}
-}
-
-func (h *analysisHarness) verdict(t *testing.T, stmt string) analysisHarnessVerdict {
-	t.Helper()
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	enc := base64.StdEncoding.EncodeToString([]byte(stmt))
-	if _, err := fmt.Fprintln(h.stdin, enc); err != nil {
-		t.Fatalf("writing to harness: %v", err)
-	}
-	line, err := h.stdout.ReadString('\n')
-	if err != nil {
-		t.Fatalf("reading harness verdict: %v", err)
-	}
-	var v analysisHarnessVerdict
-	if err := json.Unmarshal([]byte(strings.TrimSpace(line)), &v); err != nil {
-		t.Fatalf("decoding harness verdict %q: %v", line, err)
-	}
-	return v
-}
-
-func (h *analysisHarness) close() {
-	if h.stdin != nil {
-		_ = h.stdin.Close()
-	}
-	if h.cmd != nil && h.cmd.Process != nil {
-		_ = h.cmd.Wait()
-	}
 }

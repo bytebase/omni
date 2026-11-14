@@ -110,8 +110,12 @@ A future `googlesql/parser` diff test (build-tagged, like
 ## Tests
 
 ```bash
-# starts an emulator testcontainer for TestOracleLive (needs Docker):
+# the classifier and router; starts no server:
 go test ./...
-# or reuse a running emulator:
-SPANNER_EMULATOR_HOST=localhost:9010 go test ./...
+# also TestOracleLive, on an emulator testcontainer it starts (needs Docker):
+OMNI_RECORD=1 go test ./...
 ```
+
+omni's own tests exec this harness only in a recording (`OMNI_RECORD=1`,
+through `googlesql/internal/testcontainer`), and replay its answers from
+tapes otherwise.
