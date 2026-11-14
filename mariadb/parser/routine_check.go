@@ -22,6 +22,51 @@ type routineScope struct {
 	triggerEvent  string // INSERT, UPDATE or DELETE
 	noResultSet   bool   // inside a function or a trigger
 	function      bool   // inside a function, the one place RETURN may stand (1313 elsewhere)
+	// program is set inside any stored program or compound statement, where a bare name
+	// may be a declared variable.
+	program bool
+}
+
+// refuseColumnOutsideProgram is 1054, ER_BAD_FIELD_ERROR, for a column named in an
+// expression that has no query around it, outside a stored program: the action that
+// makes the name an item finds no table to look it up in. Inside a stored program the
+// name may be a declared variable, which this parser does not track. A subquery has a
+// query of its own, so the walk stops there. mariadb:11.8.8 answers 1054 for `KILL a`,
+// `KILL f(a)` and `PURGE MASTER LOGS BEFORE a.b`, and runs `KILL (SELECT 1)`.
+//
+// Ref: the actions that build a simple_ident outside a SELECT in MariaDB 11.8
+// sql/sql_yacc.yy (LEX::create_item_ident_nosp).
+func (p *Parser) refuseColumnOutsideProgram(expr nodes.Node, where string) error {
+	if p.routine.program || expr == nil {
+		return nil
+	}
+	var refused error
+	nodes.Inspect(expr, func(n nodes.Node) bool {
+		if refused != nil {
+			return false
+		}
+		switch e := n.(type) {
+		case *nodes.SubqueryExpr, *nodes.ExistsExpr, *nodes.SelectStmt:
+			return false
+		case *nodes.ColumnRef:
+			msg := "Unknown column '" + e.Column + "'"
+			if where != "" {
+				msg += " in '" + where + "'"
+			}
+			refused = &ParseError{Message: msg, Position: e.Loc.Start}
+			return false
+		}
+		return true
+	})
+	return refused
+}
+
+// refuseInProgram is 1314, ER_SP_BADSTATEMENT, for a statement no stored program may hold.
+func (p *Parser) refuseInProgram(what string, pos int) error {
+	if !p.routine.program {
+		return nil
+	}
+	return &ParseError{Message: what + " is not allowed in stored procedures", Position: pos}
 }
 
 // refuseTriggerRowRead holds NEW.col and OLD.col, in any case and however quoted, to the

@@ -328,19 +328,48 @@ func (p *Parser) parseResetDispatch() (nodes.Node, error) {
 	start := p.pos()
 	p.advance() // consume RESET
 
-	if p.cur.Type == kwREPLICA || p.cur.Type == kwSLAVE {
-		return p.parseResetReplicaStmt(start)
-	}
-	if p.cur.Type == kwMASTER {
-		return p.parseResetMasterStmt(start)
-	}
 	if p.cur.Type == kwPERSIST {
 		return p.parseResetPersistStmt(start)
 	}
 
-	// reset_option is SLAVE, REPLICA or MASTER, read above, and PERSIST; MySQL
-	// 8.0 has no other (reset in sql/sql_yacc.yy).
-	return nil, p.syntaxErrorAtCur()
+	// reset_options is a comma list of reset_option: SLAVE, REPLICA or MASTER, in any
+	// order and repeated. One option is its own statement; a list is a FlushStmt that
+	// keeps each option's text. mysql:8.0 runs `RESET SLAVE, SLAVE`.
+	//
+	// Ref: reset, reset_options and reset_option in MySQL 8.0 sql/sql_yacc.yy.
+	var first nodes.Node
+	var options []string
+	for {
+		optStart := p.pos()
+		nodeStart := optStart
+		if len(options) == 0 {
+			nodeStart = start
+		}
+		var node nodes.Node
+		var err error
+		switch p.cur.Type {
+		case kwREPLICA, kwSLAVE:
+			node, err = p.parseResetReplicaStmt(nodeStart)
+		case kwMASTER:
+			node, err = p.parseResetMasterStmt(nodeStart)
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
+		if err != nil {
+			return nil, err
+		}
+		if len(options) == 0 {
+			first = node
+		}
+		options = append(options, p.inputText(optStart, p.prev.End))
+		if _, ok := p.match(','); !ok {
+			break
+		}
+	}
+	if len(options) == 1 {
+		return first, nil
+	}
+	return &nodes.FlushStmt{Loc: nodes.Loc{Start: start, End: p.prev.End}, Options: options}, nil
 }
 
 // parseStopDispatch dispatches STOP statements.

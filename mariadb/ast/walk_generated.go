@@ -131,6 +131,10 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Column)
 		}
 		Walk(v, n.Value)
+	case *BackupStmt:
+		if n.Lock != nil {
+			Walk(v, n.Lock)
+		}
 	case *BeginEndBlock:
 		for _, item := range n.Stmts {
 			Walk(v, item)

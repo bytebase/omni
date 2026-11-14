@@ -8292,8 +8292,8 @@ func TestParseResetReplica(t *testing.T) {
 		"RESET REPLICA",
 		"RESET SLAVE",
 		"RESET REPLICA ALL",
-		"RESET REPLICA FOR CHANNEL ch1",
-		"RESET REPLICA ALL FOR CHANNEL ch1",
+		"RESET REPLICA FOR CHANNEL 'ch1'",
+		"RESET REPLICA ALL FOR CHANNEL 'ch1'",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {

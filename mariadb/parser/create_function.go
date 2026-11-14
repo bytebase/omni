@@ -197,7 +197,7 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, isProcedure bool)
 	// docs/plans/2026-04-20-mysql-routine-body-grammar.md.
 	bodyStart := p.pos()
 	outerRoutine := p.routine
-	p.routine = routineScope{noResultSet: !isProcedure, function: !isProcedure}
+	p.routine = routineScope{noResultSet: !isProcedure, function: !isProcedure, program: true}
 	defer func() { p.routine = outerRoutine }()
 	body, err := p.parseCompoundStmtOrStmt()
 	if err != nil {

@@ -94,6 +94,7 @@ var locSpanCases = []struct {
 	{"Assignment", "SET x = 1", "x = 1", 0},
 	{"Assignment", "UPDATE t SET a = 1 WHERE id = 2", "a = 1", 0},
 	{"Assignment", "INSERT INTO t VALUES (1) ON DUPLICATE KEY UPDATE x = 1\n", "x = 1", 0},
+	{"BackupStmt", "BACKUP LOCK db.t;", "BACKUP LOCK db.t", 0},
 	{"BeginEndBlock", "CREATE PROCEDURE p() BEGIN END", "BEGIN END", 0},
 	{"BeginStmt", "BEGIN", "BEGIN", 0},
 	{"BetweenExpr", "SELECT a BETWEEN 1 AND 10 FROM t", "a BETWEEN 1 AND 10", 0},

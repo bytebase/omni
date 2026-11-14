@@ -2055,7 +2055,10 @@ func (s *FlushStmt) stmtNode() {}
 type KillStmt struct {
 	Loc          Loc
 	ConnectionID ExprNode
-	Query        bool // KILL QUERY vs KILL CONNECTION
+	Query        bool   // KILL QUERY vs KILL CONNECTION
+	Signal       string // MariaDB's HARD or SOFT, "" when not written
+	QueryID      bool   // KILL QUERY ID expr: ConnectionID is a query's id
+	User         string // KILL [CONNECTION | QUERY] USER user, in place of ConnectionID
 }
 
 func (s *KillStmt) nodeTag()  {}
@@ -2083,7 +2086,8 @@ func (s *ChecksumTableStmt) stmtNode() {}
 
 // ShutdownStmt represents a SHUTDOWN statement.
 type ShutdownStmt struct {
-	Loc Loc
+	Loc              Loc
+	WaitForAllSlaves bool // MariaDB's SHUTDOWN WAIT FOR ALL {SLAVES | REPLICAS}
 }
 
 func (s *ShutdownStmt) nodeTag()  {}
@@ -3112,7 +3116,7 @@ func (s *StopReplicaStmt) stmtNode() {}
 type ResetReplicaStmt struct {
 	Loc     Loc
 	All     bool   // ALL modifier
-	Channel string // FOR CHANNEL channel
+	Channel string // FOR CHANNEL channel, or MariaDB's RESET SLAVE 'connection_name'
 }
 
 func (s *ResetReplicaStmt) nodeTag()  {}
@@ -3174,6 +3178,18 @@ type AlterInstanceStmt struct {
 
 func (s *AlterInstanceStmt) nodeTag()  {}
 func (s *AlterInstanceStmt) stmtNode() {}
+
+// BackupStmt represents MariaDB's BACKUP STAGE stage, BACKUP LOCK table and BACKUP
+// UNLOCK.
+type BackupStmt struct {
+	Loc    Loc
+	Stage  string    // BACKUP STAGE: START, FLUSH, BLOCK_DDL, BLOCK_COMMIT or END
+	Lock   *TableRef // BACKUP LOCK table
+	Unlock bool      // BACKUP UNLOCK
+}
+
+func (s *BackupStmt) nodeTag()  {}
+func (s *BackupStmt) stmtNode() {}
 
 // LockInstanceStmt represents a LOCK INSTANCE FOR BACKUP statement.
 type LockInstanceStmt struct {
