@@ -262,7 +262,7 @@ type splitState struct {
 	endPending      bool
 	closedOutermost bool
 
-	// pendingWith marks a statement whose first token is WITH.
+	// pendingWith marks the token after a WITH.
 	pendingWith bool
 
 	sourceHead embeddedSourceHead
@@ -324,8 +324,10 @@ func (s *splitState) observeTopLevel(tok Token) {
 		return
 	}
 
-	// WITH FUNCTION | PROCEDURE ...: a declaration of the query's.
-	if (s.withDecls || s.topLevelTokens == 1 && s.pendingWith) && (tok.Type == kwFUNCTION || tok.Type == kwPROCEDURE) {
+	// WITH FUNCTION | PROCEDURE ...: a declaration of the query's, which
+	// may open the statement or stand in it (CREATE TABLE t AS WITH
+	// FUNCTION ..., INSERT INTO t WITH FUNCTION ...).
+	if (s.withDecls || s.pendingWith) && (tok.Type == kwFUNCTION || tok.Type == kwPROCEDURE) {
 		s.startPLSQL(splitPLSQLStoredUnit)
 		s.withDecls = true
 		s.withUnit = true
@@ -334,7 +336,7 @@ func (s *splitState) observeTopLevel(tok Token) {
 	// Any other token after a declaration starts the query, where FUNCTION
 	// and PROCEDURE are names.
 	s.withDecls = false
-	s.pendingWith = s.topLevelTokens == 0 && tok.Type == kwWITH
+	s.pendingWith = tok.Type == kwWITH
 
 	if s.topLevelTokens == 0 {
 		switch tok.Type {
