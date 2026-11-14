@@ -160,9 +160,10 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 	case kwAUDIT:
 		// CREATE AUDIT POLICY
 		p.advance() // consume AUDIT
-		if p.isIdentLikeStr("POLICY") {
-			p.advance() // consume POLICY
+		if !p.isKeywordStr("POLICY") {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance() // consume POLICY
 		return p.parseCreateAuditPolicyStmt(start)
 	case kwJSON:
 		// CREATE JSON RELATIONAL DUALITY VIEW
