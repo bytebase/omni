@@ -26,6 +26,13 @@ func (p *Parser) sysAtEnd() bool {
 	return p.cur.Type == ';' || p.cur.Type == tokEOF
 }
 
+// sysNextEnds reports whether the statement's text ends after the current
+// token.
+func (p *Parser) sysNextEnds() bool {
+	next := p.peekNext().Type
+	return next == ';' || next == tokEOF
+}
+
 // sysEnd fails unless the statement's text has ended.
 func (p *Parser) sysEnd() error {
 	if !p.sysAtEnd() {
@@ -835,6 +842,11 @@ func (p *Parser) parseAlterSystemArchiveLog(stmt *nodes.AlterSystemStmt) error {
 		return nil
 	}
 	switch {
+	case (p.isKeywordStr("CHANGE") || p.isKeywordStr("LOGFILE")) && p.sysNextEnds():
+		// Oracle answers CHANGE or LOGFILE with no operand at the end of
+		// the text with ORA-01976 at byte 0, which the compat judge takes.
+		stmt.ArchiveLogSpec = p.advance().Str
+		return nil
 	case p.isKeywordStr("SEQUENCE"), p.isKeywordStr("CHANGE"), p.cur.Type == kwGROUP:
 		stmt.ArchiveLogSpec = p.advance().Str
 		err = integer()
