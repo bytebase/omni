@@ -178,6 +178,15 @@ func (p *Parser) parseDataTypeUnrecorded() (*ast.TypeName, error) {
 	tok := p.cur
 
 	switch tok.Kind {
+	case kwSIGNED, kwUNSIGNED:
+		// baseType (StarRocks.g4:2820-2823): (SIGNED | UNSIGNED) (INT | INTEGER)?
+		p.advance()
+		typName := &ast.TypeName{Name: strings.ToUpper(tok.Str), Loc: tok.Loc}
+		if p.cur.Kind == kwINT || p.cur.Kind == kwINTEGER {
+			typName.Name += " " + strings.ToUpper(p.cur.Str)
+			typName.Loc.End = p.advance().Loc.End
+		}
+		return typName, nil
 	case kwARRAY:
 		return p.parseArrayType()
 	case kwMAP:
