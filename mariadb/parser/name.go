@@ -526,6 +526,14 @@ var keywordCategories = map[int]keywordCategory{
 	kwSTATS_AUTO_RECALC:  kwCatReserved,
 	kwSTATS_PERSISTENT:   kwCatReserved,
 	kwSTATS_SAMPLE_PAGES: kwCatReserved,
+
+	// Reserved on MariaDB 11.8 alone, measured: each is a 1064 as a column name,
+	// an alias, a routine name and a system variable.
+	kwCURRENT_ROLE:           kwCatReserved,
+	kwIGNORE_DOMAIN_IDS:      kwCatReserved,
+	kwMASTER_DEMOTE_TO_SLAVE: kwCatReserved,
+	kwPAGE_CHECKSUM:          kwCatReserved,
+	kwPARSE_VCOL_EXPR:        kwCatReserved,
 }
 
 // isReserved returns true if the token type is a reserved keyword that cannot

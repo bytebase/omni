@@ -566,6 +566,10 @@ func (p *Parser) parsePrivOrRoleElem() (privOrRole, error) {
 		p.advance()
 		return privOrRole{name: name, roleOnly: true}, nil
 	}
+	// current_role is a grant_role: mariadb:11.8.8 runs `GRANT current_role TO u`.
+	if name, ok, err := p.parseCurrentRole(); ok || err != nil {
+		return privOrRole{name: name, roleOnly: true}, err
+	}
 	name, word, err := p.parsePrivilegeName()
 	if err != nil {
 		return privOrRole{}, err
@@ -1155,6 +1159,12 @@ func (p *Parser) parseUserAndHost() (name, host string, hasHost bool, err error)
 			}
 		}
 		return "CURRENT_USER", "", false, nil
+	case p.cur.Type == kwCURRENT_ROLE:
+		// current_role, which user_or_role and grant_role take: a reserved word
+		// with no @host. mariadb:11.8.8 runs `GRANT r TO current_role` and
+		// `CREATE USER current_role()` and answers 1064 for `current_role@h`.
+		name, _, err = p.parseCurrentRole()
+		return name, "", false, err
 	case p.cur.Type == tokSCONST:
 		name = p.cur.Str
 		p.advance()

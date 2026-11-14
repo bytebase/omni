@@ -451,6 +451,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeStopGroupReplicationStmt(sb, n)
 	case *AlterInstanceStmt:
 		writeAlterInstanceStmt(sb, n)
+	case *BackupStmt:
+		writeBackupStmt(sb, n)
 	case *LockInstanceStmt:
 		fmt.Fprintf(sb, "{LOCK_INSTANCE :loc %d}", n.Loc.Start)
 	case *UnlockInstanceStmt:
@@ -2075,6 +2077,15 @@ func writeKillStmt(sb *strings.Builder, n *KillStmt) {
 	if n.Query {
 		sb.WriteString(" :query true")
 	}
+	if n.Signal != "" {
+		fmt.Fprintf(sb, " :signal %s", n.Signal)
+	}
+	if n.QueryID {
+		sb.WriteString(" :query_id true")
+	}
+	if n.User != "" {
+		fmt.Fprintf(sb, " :user %s", n.User)
+	}
 	if n.ConnectionID != nil {
 		sb.WriteString(" :connection_id ")
 		writeNode(sb, n.ConnectionID)
@@ -2116,6 +2127,9 @@ func writeChecksumTableStmt(sb *strings.Builder, n *ChecksumTableStmt) {
 func writeShutdownStmt(sb *strings.Builder, n *ShutdownStmt) {
 	sb.WriteString("{SHUTDOWN")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.WaitForAllSlaves {
+		sb.WriteString(" :wait_for_all_slaves true")
+	}
 	sb.WriteString("}")
 }
 
@@ -5105,6 +5119,22 @@ func writeResetReplicaStmt(sb *strings.Builder, n *ResetReplicaStmt) {
 	}
 	if n.Channel != "" {
 		fmt.Fprintf(sb, " :channel %s", n.Channel)
+	}
+	sb.WriteString("}")
+}
+
+func writeBackupStmt(sb *strings.Builder, n *BackupStmt) {
+	sb.WriteString("{BACKUP")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Stage != "" {
+		fmt.Fprintf(sb, " :stage %s", n.Stage)
+	}
+	if n.Lock != nil {
+		sb.WriteString(" :lock ")
+		writeNode(sb, n.Lock)
+	}
+	if n.Unlock {
+		sb.WriteString(" :unlock true")
 	}
 	sb.WriteString("}")
 }

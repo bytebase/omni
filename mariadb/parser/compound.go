@@ -582,6 +582,10 @@ func (p *Parser) isCompoundTerminator() bool {
 // parseCompoundStmtList parses a list of statements inside a compound block,
 // stopping at any compound terminator keyword.
 func (p *Parser) parseCompoundStmtList() ([]nodes.Node, error) {
+	// A compound statement is a stored program of its own, at the top level too.
+	outer := p.routine.compound
+	p.routine.compound = true
+	defer func() { p.routine.compound = outer }()
 	var stmts []nodes.Node
 	for !p.isCompoundTerminator() {
 		s, err := p.parseCompoundStmtOrStmt()
