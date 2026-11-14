@@ -231,6 +231,10 @@
 < ok 0 0
 > exec ^
 : string
+| CREATE DEFINER=root@ PACKAGE pk PROCEDURE p(); END
+< ok 0 0
+> exec ^
+: string
 | CREATE DEFINER = root@ 'h' VIEW v AS SELECT 1
 < error
 | 1064 42000 …near ''h' VIEW v AS SELECT 1' at line 1

@@ -534,8 +534,12 @@ func createsPackage(head string) bool {
 			}
 		case i < len(toks) && toks[i] != "@" && toks[i] != "=" && toks[i] != "(" && toks[i] != ")":
 			i++
-			if at(i, "@") && i+1 < len(toks) {
-				i += 2
+			// user@host, or user@ with the host empty, as mariadb:11.8.8 reads root@.
+			if at(i, "@") {
+				i++
+				if i < len(toks) {
+					i++
+				}
 			}
 		default:
 			return false
