@@ -375,6 +375,7 @@ func (c *Catalog) Clone() *Catalog {
 		clone.extByName[ce.Name] = &ce
 	}
 	clone.extensionMembers = maps.Clone(c.extensionMembers)
+	clone.extensionComments = maps.Clone(c.extensionComments)
 
 	// --- Access methods: share built-in, deep copy user-created ---
 	clone.accessMethods = make(map[uint32]*AccessMethod, len(c.accessMethods))

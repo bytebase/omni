@@ -225,6 +225,27 @@ DROP TABLE "public"."old" CASCADE;
 ALTER SEQUENCE "public"."s" OWNED BY "public"."kept"."id"`,
 		},
 		{
+			name: "a rebuilt owner takes a dropped sequence along",
+			from: `CREATE SEQUENCE s; CREATE TABLE t (id int DEFAULT nextval('s')); ALTER SEQUENCE s OWNED BY t.id;`,
+			to:   `CREATE TABLE t (id int) PARTITION BY RANGE (id);`,
+			want: `DROP TABLE "public"."t" CASCADE;
+CREATE TABLE "public"."t" (
+    "id" integer
+) PARTITION BY RANGE ("id");
+ALTER TABLE public.t ALTER COLUMN id DROP DEFAULT`,
+		},
+		{
+			name: "a kept sequence is released across its owner's rebuild",
+			from: `CREATE SEQUENCE s; CREATE TABLE t (id int DEFAULT nextval('s')); ALTER SEQUENCE s OWNED BY t.id;`,
+			to:   `CREATE SEQUENCE s; CREATE TABLE t (id int DEFAULT nextval('s')) PARTITION BY RANGE (id); ALTER SEQUENCE s OWNED BY t.id;`,
+			want: `ALTER SEQUENCE "public"."s" OWNED BY NONE;
+DROP TABLE "public"."t" CASCADE;
+CREATE TABLE "public"."t" (
+    "id" integer DEFAULT nextval('s'::regclass)
+) PARTITION BY RANGE ("id");
+ALTER SEQUENCE "public"."s" OWNED BY "public"."t"."id"`,
+		},
+		{
 			// The owner's default still draws from s1, so only the owner's drop can take it.
 			name: "an owned sequence goes with its owner",
 			from: `CREATE SEQUENCE s1; CREATE TABLE t (id int DEFAULT nextval('s1')); ALTER SEQUENCE s1 OWNED BY t.id;`,

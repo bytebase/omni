@@ -11,6 +11,7 @@ import (
 // generateIndexDDL produces CREATE INDEX / DROP INDEX operations from the diff.
 func generateIndexDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 	var ops, attachOps []MigrationOp
+	attaching := make(map[uint32]bool) // to-catalog OIDs of indexes created to be attached
 
 	for _, relEntry := range diff.Relations {
 		switch relEntry.Action {
@@ -46,6 +47,7 @@ func generateIndexDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 					}
 					if idx.ParentIndexOID != 0 {
 						attachOps = append(attachOps, attachIndexOp(to, relEntry.SchemaName, idx))
+						attaching[idx.OID] = true
 					}
 					rel := relEntry.To
 					sql := buildCreateIndexSQL(idx, rel, relEntry.SchemaName)
@@ -124,12 +126,18 @@ func generateIndexDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 	}
 
 	// Sort for determinism: drops before creates, then by schema + name.
+	// A partition's index to be attached is created before the parent's
+	// index, whose CREATE INDEX then adopts it instead of making one under a
+	// name of its own.
 	sort.SliceStable(ops, func(i, j int) bool {
 		// Drops before creates.
 		iDrop := ops[i].Type == OpDropIndex
 		jDrop := ops[j].Type == OpDropIndex
 		if iDrop != jDrop {
 			return iDrop
+		}
+		if iChild, jChild := attaching[ops[i].ObjOID], attaching[ops[j].ObjOID]; iChild != jChild {
+			return iChild
 		}
 		if ops[i].SchemaName != ops[j].SchemaName {
 			return ops[i].SchemaName < ops[j].SchemaName

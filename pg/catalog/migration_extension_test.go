@@ -202,6 +202,14 @@ func TestMigrationExtensionSchemaVersionAndMembers(t *testing.T) {
 			want: `COMMENT ON FUNCTION public.similarity(text,text) IS 'mine'`,
 		},
 		{
+			name: "a new extension's functions keep the user's settings",
+			from: ``,
+			to:   `CREATE EXTENSION pgcrypto; GRANT EXECUTE ON FUNCTION public.crypt(text, text) TO app; COMMENT ON FUNCTION crypt(text, text) IS 'mine';`,
+			want: `CREATE EXTENSION "pgcrypto" WITH SCHEMA "public";
+COMMENT ON FUNCTION public.crypt(text,text) IS 'mine';
+GRANT EXECUTE ON FUNCTION public.crypt(text,text) TO "app"`,
+		},
+		{
 			name: "a comment on an extension's function goes with the extension",
 			from: `CREATE EXTENSION pg_trgm; COMMENT ON FUNCTION similarity(text, text) IS 'mine';`,
 			to:   ``,

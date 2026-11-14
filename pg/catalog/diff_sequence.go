@@ -187,5 +187,6 @@ func sequencesChanged(fromCat, toCat *Catalog, a, b *Sequence) bool {
 	if a.Cycle != b.Cycle {
 		return true
 	}
-	return sequenceOwner(fromCat, a) != sequenceOwner(toCat, b)
+	// A rebuilt owner takes the sequence along unless it is released first.
+	return sequenceOwner(fromCat, a) != sequenceOwner(toCat, b) || a.OwnerRelOID != 0 && ownerDropped(fromCat, toCat, a)
 }

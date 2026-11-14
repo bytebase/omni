@@ -6,10 +6,9 @@ import "sort"
 // Identity key is the index Name.
 // Indexes with ConstraintOID != 0 (PK/UNIQUE backing indexes) are skipped
 // because they are managed by constraints, not as standalone indexes. So is a
-// partition's index attached to its parent's, which PostgreSQL creates and
-// drops with the parent's index or the partition, unless from has it
-// unattached (modified, to be attached) or has the parent's index already
-// (added, then attached).
+// partition's index attached to its parent's that from has too: PostgreSQL
+// drops it with the parent's index or the partition. One from has unattached
+// is modified, to be attached, and one only to has is added and attached.
 func diffIndexes(from, to *Catalog, fromRelOID, toRelOID uint32) []IndexDiffEntry {
 	// Build name→*Index maps, filtering out constraint-backing indexes.
 	fromMap := make(map[string]*Index)
@@ -30,13 +29,6 @@ func diffIndexes(from, to *Catalog, fromRelOID, toRelOID uint32) []IndexDiffEntr
 		toIdx := toMap[name]
 		if fromIdx.ParentIndexOID != 0 && (toIdx == nil || toIdx.ParentIndexOID != 0) {
 			delete(fromMap, name)
-			delete(toMap, name)
-		}
-	}
-	// An attached index new to to is created with its parent's index, unless
-	// the parent's index exists already.
-	for name, toIdx := range toMap {
-		if toIdx.ParentIndexOID != 0 && fromMap[name] == nil && !parentIndexIn(to, toIdx, from) {
 			delete(toMap, name)
 		}
 	}
@@ -86,17 +78,6 @@ func diffIndexes(from, to *Catalog, fromRelOID, toRelOID uint32) []IndexDiffEntr
 	})
 
 	return result
-}
-
-// parentIndexIn reports whether other has, by name, the index idx is
-// attached to in c.
-func parentIndexIn(c *Catalog, idx *Index, other *Catalog) bool {
-	parent := c.indexes[idx.ParentIndexOID]
-	if parent == nil || parent.Schema == nil {
-		return false
-	}
-	s := other.schemaByName[parent.Schema.Name]
-	return s != nil && s.Indexes[parent.Name] != nil
 }
 
 // indexesChanged returns true if any compared property differs between two indexes.

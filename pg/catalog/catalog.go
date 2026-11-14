@@ -96,6 +96,9 @@ type Catalog struct {
 	// extensionMembers maps the OIDs of the objects that belong to an
 	// extension to its name, "" when unknown (isExtensionMember).
 	extensionMembers map[uint32]string
+	// extensionComments holds the comments extension scripts set, the
+	// baseline a member's comment is compared with.
+	extensionComments map[commentKey]string
 
 	// Access methods, operator families, and operator classes.
 	accessMethods      map[uint32]*AccessMethod
@@ -167,6 +170,7 @@ func New() *Catalog {
 		extensions:         make(map[uint32]*Extension),
 		extByName:          make(map[string]*Extension),
 		extensionMembers:   make(map[uint32]string),
+		extensionComments:  make(map[commentKey]string),
 		accessMethods:      make(map[uint32]*AccessMethod),
 		accessMethodByName: make(map[string]*AccessMethod),
 		opFamilies:         make(map[uint32]*OpFamily),

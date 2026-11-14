@@ -1573,6 +1573,7 @@ func (c *Catalog) cloneRowTriggersToPartition(parent, partition *Relation) {
 			OldTransitionName: trig.OldTransitionName,
 			NewTransitionName: trig.NewTransitionName,
 			Args:              partArgs,
+			ParentTriggerOID:  trig.OID,
 		}
 
 		c.triggers[partTrig.OID] = partTrig

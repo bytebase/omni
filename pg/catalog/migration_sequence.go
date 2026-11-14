@@ -75,7 +75,7 @@ func generateSequenceDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				continue
 			}
 			sql := formatAlterSequence(from, to, entry.SchemaName, entry.From, entry.To)
-			if fromOwner, toOwner := sequenceOwner(from, entry.From), sequenceOwner(to, entry.To); fromOwner != toOwner {
+			if fromOwner, toOwner := sequenceOwner(from, entry.From), sequenceOwner(to, entry.To); fromOwner != toOwner || fromOwner != "" && ownerDropped(from, to, entry.From) {
 				// Release the old owner first: dropping it would take the sequence.
 				if fromOwner != "" {
 					ops = append(ops, sequenceOwnedByOp(entry.SchemaName, entry.From, "NONE", PhasePre))
@@ -135,14 +135,15 @@ func sequenceDrawnByKeptColumn(from, to *Catalog, seq *Sequence) bool {
 	return false
 }
 
-// ownerDropped reports whether the column that owns seq in from is gone in to.
+// ownerDropped reports whether the plan drops the column that owns seq in
+// from: it is gone in to, or its table is rebuilt.
 func ownerDropped(from, to *Catalog, seq *Sequence) bool {
 	rel := from.GetRelationByOID(seq.OwnerRelOID)
 	if rel == nil || rel.Schema == nil {
 		return false
 	}
 	toRel := to.GetRelation(rel.Schema.Name, rel.Name)
-	if toRel == nil {
+	if toRel == nil || tableRebuilt(from, to, rel, toRel) {
 		return true
 	}
 	_, kept := toRel.colByName[resolveAttNum(rel, seq.OwnerAttNum)]

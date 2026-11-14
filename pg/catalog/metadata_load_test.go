@@ -1071,7 +1071,7 @@ func TestLoadMetadataInstallsComments(t *testing.T) {
 	requireCleanReport(t, report)
 
 	var got []string
-	for _, e := range buildCommentNormMap(c, c) {
+	for _, e := range buildCommentNormMap(c, c, true) {
 		got = append(got, e)
 	}
 	slices.Sort(got)

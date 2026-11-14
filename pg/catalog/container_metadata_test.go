@@ -328,6 +328,26 @@ CREATE INDEX ci ON child (id);`
 		{name: "partitioned_drop_check", before: partitionedSales + "ALTER TABLE p ADD CONSTRAINT p_id_check CHECK (id > 0);", after: partitionedSales},
 		{name: "partitioned_add_unique", before: partitionedSales, after: partitionedSales + "ALTER TABLE p ADD CONSTRAINT p_uq UNIQUE (region, d);"},
 		{
+			name:   "named_child_index_with_new_parent",
+			before: `CREATE TABLE p (id int) PARTITION BY RANGE (id); CREATE TABLE child PARTITION OF p FOR VALUES FROM (0) TO (10);`,
+			after:  `CREATE TABLE p (id int) PARTITION BY RANGE (id); CREATE TABLE child PARTITION OF p FOR VALUES FROM (0) TO (10); CREATE INDEX zci ON child (id); CREATE INDEX pi ON ONLY p (id); ALTER INDEX pi ATTACH PARTITION zci; COMMENT ON INDEX zci IS 'application index';`,
+		},
+		{
+			name:   "new_partition_with_parent_trigger",
+			before: `CREATE FUNCTION f() RETURNS trigger LANGUAGE plpgsql AS $$BEGIN RETURN NEW; END$$; CREATE TABLE p (id int) PARTITION BY RANGE (id); CREATE TABLE c1 PARTITION OF p FOR VALUES FROM (0) TO (10); CREATE TRIGGER tg BEFORE INSERT ON p FOR EACH ROW EXECUTE FUNCTION f();`,
+			after:  `CREATE FUNCTION f() RETURNS trigger LANGUAGE plpgsql AS $$BEGIN RETURN NEW; END$$; CREATE TABLE p (id int) PARTITION BY RANGE (id); CREATE TABLE c1 PARTITION OF p FOR VALUES FROM (0) TO (10); CREATE TRIGGER tg BEFORE INSERT ON p FOR EACH ROW EXECUTE FUNCTION f(); CREATE TABLE c2 PARTITION OF p FOR VALUES FROM (10) TO (20);`,
+		},
+		{
+			name:   "owner_rebuilt_drops_sequence",
+			before: `CREATE SEQUENCE s; CREATE TABLE t (id int DEFAULT nextval('s')); ALTER SEQUENCE s OWNED BY t.id;`,
+			after:  `CREATE TABLE t (id int) PARTITION BY RANGE (id);`,
+		},
+		{
+			name:   "owner_rebuilt_keeps_sequence",
+			before: `CREATE SEQUENCE s; CREATE TABLE t (id int DEFAULT nextval('s')); ALTER SEQUENCE s OWNED BY t.id;`,
+			after:  `CREATE SEQUENCE s; CREATE TABLE t (id int DEFAULT nextval('s')) PARTITION BY RANGE (id); ALTER SEQUENCE s OWNED BY t.id;`,
+		},
+		{
 			name:   "default_stops_drawing_on_sequence",
 			before: `CREATE SEQUENCE s; CREATE TABLE t (id int DEFAULT nextval('s')); ALTER SEQUENCE s OWNED BY t.id;`,
 			after:  `CREATE TABLE t (id int);`,

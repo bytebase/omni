@@ -15,8 +15,8 @@ type commentNormKey struct {
 
 // diffComments compares comments between two catalogs and returns diff entries.
 func diffComments(from, to *Catalog) []CommentDiffEntry {
-	fromMap := buildCommentNormMap(from, to)
-	toMap := buildCommentNormMap(to, from)
+	fromMap := buildCommentNormMap(from, to, true)
+	toMap := buildCommentNormMap(to, from, false)
 
 	var entries []CommentDiffEntry
 
@@ -80,10 +80,10 @@ func diffComments(from, to *Catalog) []CommentDiffEntry {
 
 // buildCommentNormMap builds a map from normalized (name-based) comment keys
 // to comment text for all comments in a catalog.
-func buildCommentNormMap(c, other *Catalog) map[commentNormKey]string {
+func buildCommentNormMap(c, other *Catalog, isFrom bool) map[commentNormKey]string {
 	m := make(map[commentNormKey]string, len(c.comments))
 	for ck, text := range c.comments {
-		if !c.diffsMemberSettings(ck.ObjOID, other) {
+		if base, ok := c.extensionComments[ck]; !c.diffsMemberSetting(ck.ObjOID, other, isFrom, ok && base == text) {
 			continue
 		}
 		desc := resolveCommentDescription(c, ck)

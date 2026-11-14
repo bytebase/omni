@@ -286,4 +286,15 @@ CREATE INDEX pi ON ONLY p (id);`
 ALTER INDEX public.pi ATTACH PARTITION public.ci`; got != want {
 		t.Errorf("got:\n%s\nwant:\n%s", got, want)
 	}
+
+	// Both new: zci comes first, though its name sorts last, so creating pi
+	// adopts it under its own name.
+	bare := `CREATE TABLE p (id int) PARTITION BY RANGE (id);
+CREATE TABLE child PARTITION OF p FOR VALUES FROM (0) TO (10);`
+	got = generateMigrationSQL(t, bare, bare+"\nCREATE INDEX zci ON child (id);\nCREATE INDEX pi ON ONLY p (id);\nALTER INDEX pi ATTACH PARTITION zci;")
+	if want := `CREATE INDEX zci ON public.child (id);
+CREATE INDEX pi ON public.p (id);
+ALTER INDEX public.pi ATTACH PARTITION public.zci`; got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
 }

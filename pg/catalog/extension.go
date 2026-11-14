@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"maps"
 
 	nodes "github.com/bytebase/omni/pg/ast"
 	pgparser "github.com/bytebase/omni/pg/parser"
@@ -75,7 +76,8 @@ func (c *Catalog) CreateExtension(stmt *nodes.CreateExtensionStmt) error {
 	if err != nil {
 		return fmt.Errorf("extension %q: parse error: %w", stmt.Extname, err)
 	}
-	firstMember := c.oidGen.next
+	firstMember, firstGrant := c.oidGen.next, len(c.grants)
+	commentsBefore := maps.Clone(c.comments)
 
 	// Temporarily prepend target schema to search path so unqualified types
 	// and functions land in the extension's schema.
@@ -113,6 +115,14 @@ func (c *Catalog) CreateExtension(stmt *nodes.CreateExtensionStmt) error {
 	// Restore original search path.
 	c.searchPath = origSearchPath
 	c.markExtensionMembers(firstMember, c.oidGen.next, stmt.Extname)
+	for i := firstGrant; i < len(c.grants); i++ {
+		c.grants[i].FromExtension = true
+	}
+	for key, text := range c.comments {
+		if before, ok := commentsBefore[key]; !ok || before != text {
+			c.extensionComments[key] = text
+		}
+	}
 
 	// Register extension metadata.
 	ext := &Extension{
@@ -146,14 +156,25 @@ func (c *Catalog) isExtensionMember(oid uint32) bool {
 	return ok
 }
 
-// diffsMemberSettings reports whether Diff compares a comment or grant on the
-// object with this OID in c against other. One on an extension's object is
-// compared only while other has that extension too; otherwise it comes and
-// goes with the extension. One on an object of an unknown extension, which a
-// snapshot marks skip_dump, is never compared.
-func (c *Catalog) diffsMemberSettings(oid uint32, other *Catalog) bool {
+// diffsMemberSetting reports whether Diff compares a comment or grant on the
+// object with this OID in c, the from catalog when isFrom, against other.
+// On an extension's object, everything is compared while both catalogs have
+// the extension. When only from has it, the settings go with the extension;
+// when only the target has it, those beyond the script's baseline are the
+// user's and are compared. On an object of an unknown extension, which a
+// snapshot marks skip_dump, there is no baseline and nothing is compared.
+func (c *Catalog) diffsMemberSetting(oid uint32, other *Catalog, isFrom, baseline bool) bool {
 	ext, ok := c.extensionMembers[oid]
-	return !ok || ext != "" && other.extByName[ext] != nil
+	switch {
+	case !ok:
+		return true
+	case ext == "":
+		return false
+	case other.extByName[ext] != nil:
+		return true
+	default:
+		return !isFrom && !baseline
+	}
 }
 
 // RegisterExtensionSQL allows external code to register extension DDL scripts.
