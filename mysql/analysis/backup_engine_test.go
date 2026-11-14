@@ -63,6 +63,13 @@ var roundTrips = []roundTrip{
 		script: "DELETE /* note */ FROM comments WHERE note = '*/'",
 	},
 	{
+		// An arm that opens with a WITH clause keeps it inside its parentheses.
+		table: "cte_arms",
+		setup: "CREATE TABLE cte_arms (id INT PRIMARY KEY, a INT);" +
+			"INSERT INTO cte_arms VALUES (1, 1), (2, 2), (3, 3)",
+		script: "WITH c AS (SELECT 1 AS id) DELETE t FROM cte_arms t JOIN c ON t.id = c.id; WITH c AS (SELECT 3 AS id) DELETE t FROM cte_arms t JOIN c ON t.id = c.id",
+	},
+	{
 		// A table aliased with a CTE's name is still backed up.
 		table: "cte_alias",
 		setup: "CREATE TABLE cte_alias (id INT PRIMARY KEY, a INT);" +

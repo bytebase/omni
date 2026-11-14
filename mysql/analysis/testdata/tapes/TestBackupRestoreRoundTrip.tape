@@ -488,6 +488,106 @@
 : bytes
 | x
 > exec
+| CREATE TABLE cte_arms (id INT PRIMARY KEY, a INT)
+< ok 0 0
+> exec
+| INSERT INTO cte_arms VALUES (1, 1), (2, 2), (3, 3)
+< ok 3 0
+> query
+| SELECT * FROM `cte_arms` ORDER BY 1, 2
+< result
+< column "id" "INT"
+< column "a" "INT"
+< row
+: int64 1
+: int64 1
+< row
+: int64 2
+: int64 2
+< row
+: int64 3
+: int64 3
+> query
+| SELECT COLUMN_NAME, IFNULL(GENERATION_EXPRESSION, '') FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+: string
+| omni_t_mysql_analysis_backup
+: string
+| cte_arms
+< result
+< column "COLUMN_NAME" "VARCHAR"
+< column "IFNULL(GENERATION_EXPRESSION, '')" "TEXT"
+< row
+: bytes
+| id
+: bytes
+|
+< row
+: bytes
+| a
+: bytes
+|
+> query
+| SELECT INDEX_NAME, NON_UNIQUE, COALESCE(COLUMN_NAME, EXPRESSION) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY INDEX_NAME, SEQ_IN_INDEX
+: string
+| omni_t_mysql_analysis_backup
+: string
+| cte_arms
+< result
+< column "INDEX_NAME" "VARCHAR"
+< column "NON_UNIQUE" "INT"
+< column "COALESCE(COLUMN_NAME, EXPRESSION)" "TEXT"
+< row
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+> exec
+| CREATE TABLE `omni_t_mysql_analysis_backup`.`bak_cte_arms_omni_t_mysql_analysis_backup` LIKE `omni_t_mysql_analysis_backup`.`cte_arms`
+< ok 0 0
+> exec
+|
+| INSERT INTO `omni_t_mysql_analysis_backup`.`bak_cte_arms_omni_t_mysql_analysis_backup`  (WITH c AS (SELECT 1 AS id) SELECT `t`.* FROM cte_arms t JOIN c ON t.id = c.id)
+|   UNION DISTINCT
+|   (WITH c AS (SELECT 3 AS id) SELECT `t`.* FROM cte_arms t JOIN c ON t.id = c.id)
+< ok 2 0
+> exec
+| WITH c AS (SELECT 1 AS id) DELETE t FROM cte_arms t JOIN c ON t.id = c.id
+< ok 1 0
+> exec
+|  WITH c AS (SELECT 3 AS id) DELETE t FROM cte_arms t JOIN c ON t.id = c.id
+< ok 1 0
+> query
+| SELECT * FROM `cte_arms` ORDER BY 1, 2
+< result
+< column "id" "INT"
+< column "a" "INT"
+< row
+: int64 2
+: int64 2
+> exec
+| /*
+| Original SQL:
+| WITH c AS (SELECT 1 AS id) DELETE t FROM cte_arms t JOIN c ON t.id = c.id;
+|  WITH c AS (SELECT 3 AS id) DELETE t FROM cte_arms t JOIN c ON t.id = c.id;
+| */
+| INSERT INTO `omni_t_mysql_analysis_backup`.`cte_arms` (`id`, `a`) SELECT `id`, `a` FROM `omni_t_mysql_analysis_backup`.`bak_cte_arms_omni_t_mysql_analysis_backup`
+< ok 2 0
+> query
+| SELECT * FROM `cte_arms` ORDER BY 1, 2
+< result
+< column "id" "INT"
+< column "a" "INT"
+< row
+: int64 1
+: int64 1
+< row
+: int64 2
+: int64 2
+< row
+: int64 3
+: int64 3
+> exec
 | CREATE TABLE cte_alias (id INT PRIMARY KEY, a INT)
 < ok 0 0
 > exec
