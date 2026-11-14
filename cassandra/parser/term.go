@@ -45,7 +45,7 @@ func isLiteralKeyword(typ int) bool {
 // isNameToken reports whether tok can be a name (Parser.g ident, cident,
 // fident, noncol_ident): not a constant keyword such as NULL.
 func isNameToken(tok Token) bool {
-	return isIdentLike(tok.Type) && !isLiteralKeyword(tok.Type)
+	return isCQLName(tok)
 }
 
 // isConstantToken reports whether tok starts a constant (Parser.g:1531):
@@ -59,20 +59,9 @@ func isConstantToken(tok Token) bool {
 	return false
 }
 
-// isFunctionNameToken reports whether tok can name a function
-// (Parser.g:1611 allowedFunctionName): a name, TOKEN or COUNT, but not one
-// of the keywords only a column may be named (TTL, WRITETIME, MAXWRITETIME,
-// KEY, CAST, JSON, DISTINCT: Parser.g:1952 unreserved_keyword).
-func isFunctionNameToken(tok Token) bool {
-	switch {
-	case tok.Type == tokKEY, tok.Type == tokCAST, tok.Type == tokJSON, tok.Type == tokDISTINCT,
-		isWord(tok, "ttl"), isWord(tok, "writetime"), isWord(tok, "maxwritetime"):
-		return false
-	case isWord(tok, "token"), isWord(tok, "count"):
-		return true
-	}
-	return isNameToken(tok)
-}
+// isFunctionNameToken reports whether tok can name a function: see
+// isAllowedFunctionName (Parser.g:1613).
+func isFunctionNameToken(tok Token) bool { return isAllowedFunctionName(tok) }
 
 // startsTerm reports whether tok, followed by next, can start a term.
 func startsTerm(tok, next Token) bool {
@@ -477,7 +466,7 @@ func (p *Parser) parseFunctionName() (*ast.Identifier, error) {
 		if !isFunctionNameToken(p.cur) {
 			return nil, p.errorf("expected function name, got %s", p.tokenDesc())
 		}
-		fn, err := p.parseIdentifier()
+		fn, err := p.parseNameIf(isFunctionNameToken)
 		if err != nil {
 			return nil, err
 		}
@@ -488,7 +477,7 @@ func (p *Parser) parseFunctionName() (*ast.Identifier, error) {
 		p.advance()
 		return &ast.Identifier{Name: name, Loc: ast.Loc{Start: tok.Loc, End: tok.End}}, nil
 	}
-	return p.parseIdentifier()
+	return p.parseNameIf(isFunctionNameToken)
 }
 
 // parseTermFunction parses functionName '(' (term (',' term)*)? ')'

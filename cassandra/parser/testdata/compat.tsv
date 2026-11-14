@@ -592,7 +592,7 @@ accept	accept	grammar	selectionFunction/functionName_selectionFunctionArgs	SELEC
 accept	accept	grammar	selectionLiteral/constant	SELECT 'a' FROM a
 accept	accept	grammar	selectionLiteral/K_NULL	SELECT NULL FROM a
 reject	reject	grammar	selectionLiteral/K_NULL!insert	SELECT NULL zzz FROM a
-accept	reject	grammar	selectionLiteral/K_NULL!swap	SELECT OF FROM a
+reject	reject	grammar	selectionLiteral/K_NULL!swap	SELECT OF FROM a
 accept	accept	grammar	selectionLiteral/COLON_noncol_ident	SELECT : a FROM a
 reject	reject	grammar	selectionLiteral/COLON_noncol_ident!drop-2	SELECT : FROM a
 reject	reject	grammar	selectionLiteral/COLON_noncol_ident!truncate	SELECT :
@@ -615,7 +615,7 @@ accept	accept	grammar	sident/QUOTED_NAME	SELECT "a" FROM a
 reject	reject	grammar	sident/QUOTED_NAME!insert	SELECT "a" zzz FROM a
 accept	accept	grammar	sident/unreserved_keyword	SELECT KEYS FROM a
 reject	reject	grammar	sident/unreserved_keyword!insert	SELECT KEYS zzz FROM a
-accept	reject	grammar	sident/unreserved_keyword!swap	SELECT KEYSPACE FROM a
+reject	reject	grammar	sident/unreserved_keyword!swap	SELECT KEYSPACE FROM a
 accept	accept	grammar	whereClause/relationOrExpression_(K_AND_relationOrExpression)*	DELETE FROM a WHERE a = 'a'
 accept	accept	grammar	whereClause(K_AND_relationOrExpression)*/%empty	DELETE FROM a WHERE a = 'a'
 accept	accept	grammar	whereClause(K_AND_relationOrExpression)*/K_AND_relationOrExpression_(K_AND_relationOrExpression)*	DELETE FROM a WHERE a = 'a' AND a = 'a'
@@ -939,7 +939,7 @@ reject	reject	grammar	dropAggregateStatement(K_IF_K_EXISTS)?/%empty!insert	DROP 
 accept	accept	grammar	dropAggregateStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS	DROP AGGREGATE IF EXISTS a
 reject	reject	grammar	dropAggregateStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!drop-1	DROP AGGREGATE EXISTS a
 reject	reject	grammar	dropAggregateStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!drop-2	DROP AGGREGATE IF a
-accept	reject	grammar	dropAggregateStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!truncate	DROP AGGREGATE IF
+reject	reject	grammar	dropAggregateStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!truncate	DROP AGGREGATE IF
 reject	reject	grammar	dropAggregateStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!insert	DROP AGGREGATE IF EXISTS zzz a
 reject	reject	grammar	dropAggregateStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!swap	DROP AGGREGATE IN EXISTS a
 accept	accept	grammar	dropAggregateStatement((_(comparatorType_(,_comparatorType)*)?_))?/%empty	DROP AGGREGATE a
@@ -1008,7 +1008,7 @@ reject	reject	grammar	dropFunctionStatement(K_IF_K_EXISTS)?/%empty!insert	DROP F
 accept	accept	grammar	dropFunctionStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS	DROP FUNCTION IF EXISTS a
 reject	reject	grammar	dropFunctionStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!drop-1	DROP FUNCTION EXISTS a
 reject	reject	grammar	dropFunctionStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!drop-2	DROP FUNCTION IF a
-accept	reject	grammar	dropFunctionStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!truncate	DROP FUNCTION IF
+reject	reject	grammar	dropFunctionStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!truncate	DROP FUNCTION IF
 reject	reject	grammar	dropFunctionStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!insert	DROP FUNCTION IF EXISTS zzz a
 reject	reject	grammar	dropFunctionStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!swap	DROP FUNCTION IN EXISTS a
 accept	accept	grammar	dropFunctionStatement((_(comparatorType_(,_comparatorType)*)?_))?/%empty	DROP FUNCTION a
@@ -1577,7 +1577,7 @@ reject	reject	grammar	dropKeyspaceStatement(K_IF_K_EXISTS)?/%empty!insert	DROP K
 accept	accept	grammar	dropKeyspaceStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS	DROP KEYSPACE IF EXISTS a
 reject	reject	grammar	dropKeyspaceStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!drop-1	DROP KEYSPACE EXISTS a
 reject	reject	grammar	dropKeyspaceStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!drop-2	DROP KEYSPACE IF a
-accept	reject	grammar	dropKeyspaceStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!truncate	DROP KEYSPACE IF
+reject	reject	grammar	dropKeyspaceStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!truncate	DROP KEYSPACE IF
 reject	reject	grammar	dropKeyspaceStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!insert	DROP KEYSPACE IF EXISTS zzz a
 reject	reject	grammar	dropKeyspaceStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!swap	DROP KEYSPACE IN EXISTS a
 accept	accept	grammar	dropTableStatement/K_DROP_K_COLUMNFAMILY_(K_IF_K_EXISTS)?_columnFamilyName	DROP TABLE a
@@ -1586,7 +1586,7 @@ reject	reject	grammar	dropTableStatement(K_IF_K_EXISTS)?/%empty!insert	DROP TABL
 accept	accept	grammar	dropTableStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS	DROP TABLE IF EXISTS a
 reject	reject	grammar	dropTableStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!drop-1	DROP TABLE EXISTS a
 reject	reject	grammar	dropTableStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!drop-2	DROP TABLE IF a
-accept	reject	grammar	dropTableStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!truncate	DROP TABLE IF
+reject	reject	grammar	dropTableStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!truncate	DROP TABLE IF
 reject	reject	grammar	dropTableStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!insert	DROP TABLE IF EXISTS zzz a
 reject	reject	grammar	dropTableStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!swap	DROP TABLE IN EXISTS a
 accept	accept	grammar	dropTypeStatement/K_DROP_K_TYPE_(K_IF_K_EXISTS)?_userTypeName	DROP TYPE a
@@ -1604,7 +1604,7 @@ reject	reject	grammar	dropIndexStatement(K_IF_K_EXISTS)?/%empty!insert	DROP INDE
 accept	accept	grammar	dropIndexStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS	DROP INDEX IF EXISTS a
 reject	reject	grammar	dropIndexStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!drop-1	DROP INDEX EXISTS a
 reject	reject	grammar	dropIndexStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!drop-2	DROP INDEX IF a
-accept	reject	grammar	dropIndexStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!truncate	DROP INDEX IF
+reject	reject	grammar	dropIndexStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!truncate	DROP INDEX IF
 reject	reject	grammar	dropIndexStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!insert	DROP INDEX IF EXISTS zzz a
 reject	reject	grammar	dropIndexStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!swap	DROP INDEX IN EXISTS a
 accept	accept	grammar	dropMaterializedViewStatement/K_DROP_K_MATERIALIZED_K_VIEW_(K_IF_K_EXISTS)?_columnFamilyName	DROP MATERIALIZED VIEW a
@@ -1613,7 +1613,7 @@ reject	reject	grammar	dropMaterializedViewStatement(K_IF_K_EXISTS)?/%empty!inser
 accept	accept	grammar	dropMaterializedViewStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS	DROP MATERIALIZED VIEW IF EXISTS a
 reject	reject	grammar	dropMaterializedViewStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!drop-1	DROP MATERIALIZED VIEW EXISTS a
 reject	reject	grammar	dropMaterializedViewStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!drop-2	DROP MATERIALIZED VIEW IF a
-accept	reject	grammar	dropMaterializedViewStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!truncate	DROP MATERIALIZED VIEW IF
+reject	reject	grammar	dropMaterializedViewStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!truncate	DROP MATERIALIZED VIEW IF
 reject	reject	grammar	dropMaterializedViewStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!insert	DROP MATERIALIZED VIEW IF EXISTS zzz a
 reject	reject	grammar	dropMaterializedViewStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!swap	DROP MATERIALIZED VIEW IN EXISTS a
 accept	accept	grammar	truncateStatement/K_TRUNCATE_(K_COLUMNFAMILY)?_columnFamilyName	TRUNCATE a
@@ -1864,7 +1864,7 @@ reject	reject	grammar	alterRoleStatement(K_IF_K_EXISTS)?/%empty!insert	ALTER ROL
 accept	accept	grammar	alterRoleStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS	ALTER ROLE IF EXISTS a
 reject	reject	grammar	alterRoleStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!drop-1	ALTER ROLE EXISTS a
 reject	reject	grammar	alterRoleStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!drop-2	ALTER ROLE IF a
-accept	reject	grammar	alterRoleStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!truncate	ALTER ROLE IF
+reject	reject	grammar	alterRoleStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!truncate	ALTER ROLE IF
 reject	reject	grammar	alterRoleStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!insert	ALTER ROLE IF EXISTS zzz a
 reject	reject	grammar	alterRoleStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!swap	ALTER ROLE IN EXISTS a
 accept	accept	grammar	alterRoleStatement(K_WITH_roleOptions)?/%empty	ALTER ROLE a
@@ -1881,7 +1881,7 @@ reject	reject	grammar	dropRoleStatement(K_IF_K_EXISTS)?/%empty!insert	DROP ROLE 
 accept	accept	grammar	dropRoleStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS	DROP ROLE IF EXISTS a
 reject	reject	grammar	dropRoleStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!drop-1	DROP ROLE EXISTS a
 reject	reject	grammar	dropRoleStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!drop-2	DROP ROLE IF a
-accept	reject	grammar	dropRoleStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!truncate	DROP ROLE IF
+reject	reject	grammar	dropRoleStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!truncate	DROP ROLE IF
 reject	reject	grammar	dropRoleStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!insert	DROP ROLE IF EXISTS zzz a
 reject	reject	grammar	dropRoleStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!swap	DROP ROLE IN EXISTS a
 accept	accept	grammar	listRolesStatement/K_LIST_K_ROLES_(K_OF_roleName)?_(K_NORECURSIVE)?	LIST ROLES
@@ -2080,7 +2080,7 @@ accept	accept	grammar	ident/QUOTED_NAME	ALTER TABLE a DROP "a"
 reject	reject	grammar	ident/QUOTED_NAME!insert	ALTER TABLE a DROP "a" zzz
 accept	accept	grammar	ident/unreserved_keyword	ALTER TABLE a DROP KEYS
 reject	reject	grammar	ident/unreserved_keyword!insert	ALTER TABLE a DROP KEYS zzz
-accept	reject	grammar	ident/unreserved_keyword!swap	ALTER TABLE a DROP KEYSPACE
+reject	reject	grammar	ident/unreserved_keyword!swap	ALTER TABLE a DROP KEYSPACE
 accept	accept	grammar	fident/IDENT	SELECT a.a FROM a
 accept	accept	grammar	fident/QUOTED_NAME	SELECT a."a" FROM a
 reject	reject	grammar	fident/QUOTED_NAME!insert	SELECT a."a" zzz FROM a
@@ -2118,19 +2118,19 @@ accept	accept	grammar	ksName/QUOTED_NAME	USE "a"
 reject	reject	grammar	ksName/QUOTED_NAME!insert	USE "a" zzz
 accept	accept	grammar	ksName/unreserved_keyword	USE KEYS
 reject	reject	grammar	ksName/unreserved_keyword!insert	USE KEYS zzz
-accept	reject	grammar	ksName/unreserved_keyword!swap	USE KEYSPACE
+reject	reject	grammar	ksName/unreserved_keyword!swap	USE KEYSPACE
 accept	accept	grammar	cfName/IDENT	TRUNCATE a
 accept	accept	grammar	cfName/QUOTED_NAME	TRUNCATE "a"
 reject	reject	grammar	cfName/QUOTED_NAME!insert	TRUNCATE "a" zzz
 accept	accept	grammar	cfName/unreserved_keyword	TRUNCATE KEYS
 reject	reject	grammar	cfName/unreserved_keyword!insert	TRUNCATE KEYS zzz
-accept	reject	grammar	cfName/unreserved_keyword!swap	TRUNCATE KEYSPACE
+reject	reject	grammar	cfName/unreserved_keyword!swap	TRUNCATE KEYSPACE
 accept	accept	grammar	idxName/IDENT	DROP INDEX a
 accept	accept	grammar	idxName/QUOTED_NAME	DROP INDEX "a"
 reject	reject	grammar	idxName/QUOTED_NAME!insert	DROP INDEX "a" zzz
 accept	accept	grammar	idxName/unreserved_keyword	DROP INDEX KEYS
 reject	reject	grammar	idxName/unreserved_keyword!insert	DROP INDEX KEYS zzz
-accept	reject	grammar	idxName/unreserved_keyword!swap	DROP INDEX KEYSPACE
+reject	reject	grammar	idxName/unreserved_keyword!swap	DROP INDEX KEYSPACE
 accept	accept	grammar	roleName/IDENT	CREATE ROLE a
 accept	accept	grammar	roleName/STRING_LITERAL	CREATE ROLE 'a'
 reject	reject	grammar	roleName/STRING_LITERAL!insert	CREATE ROLE 'a' zzz
@@ -2138,7 +2138,7 @@ accept	accept	grammar	roleName/QUOTED_NAME	CREATE ROLE "a"
 reject	reject	grammar	roleName/QUOTED_NAME!insert	CREATE ROLE "a" zzz
 accept	accept	grammar	roleName/unreserved_keyword	CREATE ROLE KEYS
 reject	reject	grammar	roleName/unreserved_keyword!insert	CREATE ROLE KEYS zzz
-accept	reject	grammar	roleName/unreserved_keyword!swap	CREATE ROLE KEYSPACE
+reject	reject	grammar	roleName/unreserved_keyword!swap	CREATE ROLE KEYSPACE
 accept	accept	grammar	constant/STRING_LITERAL	SELECT 'a' FROM a
 accept	accept	grammar	constant/INTEGER	SELECT 1 FROM a
 reject	reject	grammar	constant/INTEGER!insert	SELECT 1 zzz FROM a
@@ -2146,7 +2146,7 @@ accept	accept	grammar	constant/FLOAT	SELECT 1.5 FROM a
 reject	reject	grammar	constant/FLOAT!insert	SELECT 1.5 zzz FROM a
 accept	accept	grammar	constant/BOOLEAN	SELECT TRUE FROM a
 reject	reject	grammar	constant/BOOLEAN!insert	SELECT TRUE zzz FROM a
-accept	reject	grammar	constant/BOOLEAN!swap	SELECT TRUNCATE FROM a
+reject	reject	grammar	constant/BOOLEAN!swap	SELECT TRUNCATE FROM a
 accept	accept	grammar	constant/DURATION	SELECT 1d FROM a
 reject	reject	grammar	constant/DURATION!insert	SELECT 1d zzz FROM a
 accept	accept	grammar	constant/UUID	SELECT 01234567-0123-0123-0123-0123456789ab FROM a
@@ -2295,7 +2295,7 @@ accept	accept	grammar	allowedFunctionName/QUOTED_NAME	DROP FUNCTION "a"
 reject	reject	grammar	allowedFunctionName/QUOTED_NAME!insert	DROP FUNCTION "a" zzz
 accept	accept	grammar	allowedFunctionName/unreserved_function_keyword	DROP FUNCTION KEYS
 reject	reject	grammar	allowedFunctionName/unreserved_function_keyword!insert	DROP FUNCTION KEYS zzz
-accept	reject	grammar	allowedFunctionName/unreserved_function_keyword!swap	DROP FUNCTION KEYSPACE
+reject	reject	grammar	allowedFunctionName/unreserved_function_keyword!swap	DROP FUNCTION KEYSPACE
 accept	accept	grammar	allowedFunctionName/K_TOKEN	DROP FUNCTION TOKEN
 reject	reject	grammar	allowedFunctionName/K_TOKEN!insert	DROP FUNCTION TOKEN zzz
 accept	accept	grammar	allowedFunctionName/K_TOKEN!swap	DROP FUNCTION TRIGGER
@@ -2672,31 +2672,31 @@ reject	reject	grammar	comparatorType/STRING_LITERAL	ALTER TABLE a ADD a 'a'
 reject	reject	grammar	comparatorType/STRING_LITERAL!insert	ALTER TABLE a ADD a 'a' zzz
 accept	accept	grammar	native_type/K_ASCII	USE ASCII
 reject	reject	grammar	native_type/K_ASCII!insert	USE ASCII zzz
-accept	reject	grammar	native_type/K_ASCII!swap	USE AUTHORIZE
+reject	reject	grammar	native_type/K_ASCII!swap	USE AUTHORIZE
 accept	accept	grammar	native_type/K_BIGINT	USE BIGINT
 reject	reject	grammar	native_type/K_BIGINT!insert	USE BIGINT zzz
 accept	accept	grammar	native_type/K_BLOB	USE BLOB
 reject	reject	grammar	native_type/K_BLOB!insert	USE BLOB zzz
 accept	accept	grammar	native_type/K_BOOLEAN	USE BOOLEAN
 reject	reject	grammar	native_type/K_BOOLEAN!insert	USE BOOLEAN zzz
-accept	reject	grammar	native_type/K_BOOLEAN!swap	USE BY
+reject	reject	grammar	native_type/K_BOOLEAN!swap	USE BY
 accept	accept	grammar	native_type/K_COUNTER	USE COUNTER
 reject	reject	grammar	native_type/K_COUNTER!insert	USE COUNTER zzz
-accept	reject	grammar	native_type/K_COUNTER!swap	USE CREATE
+reject	reject	grammar	native_type/K_COUNTER!swap	USE CREATE
 accept	accept	grammar	native_type/K_DECIMAL	USE DECIMAL
 reject	reject	grammar	native_type/K_DECIMAL!insert	USE DECIMAL zzz
 accept	accept	grammar	native_type/K_DOUBLE	USE DOUBLE
 reject	reject	grammar	native_type/K_DOUBLE!insert	USE DOUBLE zzz
-accept	reject	grammar	native_type/K_DOUBLE!swap	USE DROP
+reject	reject	grammar	native_type/K_DOUBLE!swap	USE DROP
 accept	accept	grammar	native_type/K_DURATION	USE DURATION
 reject	reject	grammar	native_type/K_DURATION!insert	USE DURATION zzz
-accept	reject	grammar	native_type/K_DURATION!swap	USE ENTRIES
+reject	reject	grammar	native_type/K_DURATION!swap	USE ENTRIES
 accept	accept	grammar	native_type/K_FLOAT	USE FLOAT
 reject	reject	grammar	native_type/K_FLOAT!insert	USE FLOAT zzz
-accept	reject	grammar	native_type/K_FLOAT!swap	USE FROM
+reject	reject	grammar	native_type/K_FLOAT!swap	USE FROM
 accept	accept	grammar	native_type/K_INET	USE INET
 reject	reject	grammar	native_type/K_INET!insert	USE INET zzz
-accept	reject	grammar	native_type/K_INET!swap	USE INFINITY
+reject	reject	grammar	native_type/K_INET!swap	USE INFINITY
 accept	accept	grammar	native_type/K_INT	USE INT
 reject	reject	grammar	native_type/K_INT!insert	USE INT zzz
 accept	accept	grammar	native_type/K_SMALLINT	USE SMALLINT
@@ -2707,7 +2707,7 @@ accept	accept	grammar	native_type/K_TIMESTAMP	USE TIMESTAMP
 reject	reject	grammar	native_type/K_TIMESTAMP!insert	USE TIMESTAMP zzz
 accept	accept	grammar	native_type/K_TINYINT	USE TINYINT
 reject	reject	grammar	native_type/K_TINYINT!insert	USE TINYINT zzz
-accept	reject	grammar	native_type/K_TINYINT!swap	USE TO
+reject	reject	grammar	native_type/K_TINYINT!swap	USE TO
 accept	accept	grammar	native_type/K_UUID	USE UUID
 reject	reject	grammar	native_type/K_UUID!insert	USE UUID zzz
 accept	accept	grammar	native_type/K_VARCHAR	USE VARCHAR
@@ -2785,7 +2785,7 @@ accept	accept	grammar	basic_unreserved_keyword/(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERI
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_KEYS	USE KEYS
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_AS	USE AS
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_AS!insert	USE AS zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_AS!swap	USE ASC
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_AS!swap	USE ASC
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_CLUSTER	USE CLUSTER
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_CLUSTER!insert	USE CLUSTER zzz
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_CLUSTERING	USE CLUSTERING
@@ -2800,7 +2800,7 @@ accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERIN
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_TYPE!insert	USE TYPE zzz
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_TYPES	USE TYPES
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_TYPES!insert	USE TYPES zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_TYPES!swap	USE UNLOGGED
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_TYPES!swap	USE UNLOGGED
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_VALUES	USE VALUES
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_VALUES!insert	USE VALUES zzz
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_MAP	USE MAP
@@ -2813,39 +2813,39 @@ accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERIN
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_PERMISSION!insert	USE PERMISSION zzz
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_PERMISSIONS	USE PERMISSIONS
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_PERMISSIONS!insert	USE PERMISSIONS zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_PERMISSIONS!swap	USE PRIMARY
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_PERMISSIONS!swap	USE PRIMARY
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_KEYSPACES	USE KEYSPACES
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_KEYSPACES!insert	USE KEYSPACES zzz
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_ALL	USE ALL
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_ALL!insert	USE ALL zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_ALL!swap	USE ALLOW
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_ALL!swap	USE ALLOW
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_USER	USE USER
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_USER!insert	USE USER zzz
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_USERS	USE USERS
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_USERS!insert	USE USERS zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_USERS!swap	USE USING
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_USERS!swap	USE USING
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_ROLE	USE ROLE
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_ROLE!insert	USE ROLE zzz
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_ROLES	USE ROLES
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_ROLES!insert	USE ROLES zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_ROLES!swap	USE SCHEMA
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_ROLES!swap	USE SCHEMA
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_IDENTITY	USE IDENTITY
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_IDENTITY!insert	USE IDENTITY zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_IDENTITY!swap	USE IF
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_IDENTITY!swap	USE IF
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_SUPERUSER	USE SUPERUSER
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_SUPERUSER!insert	USE SUPERUSER zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_SUPERUSER!swap	USE TABLE
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_SUPERUSER!swap	USE TABLE
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_NOSUPERUSER	USE NOSUPERUSER
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_NOSUPERUSER!insert	USE NOSUPERUSER zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_NOSUPERUSER!swap	USE NOT
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_NOSUPERUSER!swap	USE NOT
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_LOGIN	USE LOGIN
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_LOGIN!insert	USE LOGIN zzz
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_NOLOGIN	USE NOLOGIN
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_NOLOGIN!insert	USE NOLOGIN zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_NOLOGIN!swap	USE NORECURSIVE
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_NOLOGIN!swap	USE NORECURSIVE
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_OPTIONS	USE OPTIONS
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_OPTIONS!insert	USE OPTIONS zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_OPTIONS!swap	USE OR
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_OPTIONS!swap	USE OR
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_PASSWORD	USE PASSWORD
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_PASSWORD!insert	USE PASSWORD zzz
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_HASHED	USE HASHED
@@ -2856,26 +2856,26 @@ accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERIN
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_CUSTOM!insert	USE CUSTOM zzz
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_TRIGGER	USE TRIGGER
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_TRIGGER!insert	USE TRIGGER zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_TRIGGER!swap	USE TRUE
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_TRIGGER!swap	USE TRUE
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_CONTAINS	USE CONTAINS
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_CONTAINS!insert	USE CONTAINS zzz
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_INTERNALS	USE INTERNALS
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_INTERNALS!insert	USE INTERNALS zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_INTERNALS!swap	USE INTO
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_INTERNALS!swap	USE INTO
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_ONLY	USE ONLY
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_ONLY!insert	USE ONLY zzz
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_STATIC	USE STATIC
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_STATIC!insert	USE STATIC zzz
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_FROZEN	USE FROZEN
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_FROZEN!insert	USE FROZEN zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_FROZEN!swap	USE FULL
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_FROZEN!swap	USE FULL
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_TUPLE	USE TUPLE
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_TUPLE!insert	USE TUPLE zzz
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_FUNCTION	USE FUNCTION
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_FUNCTION!insert	USE FUNCTION zzz
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_FUNCTIONS	USE FUNCTIONS
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_FUNCTIONS!insert	USE FUNCTIONS zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_FUNCTIONS!swap	USE GRANT
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_FUNCTIONS!swap	USE GRANT
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_AGGREGATE	USE AGGREGATE
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_AGGREGATE!insert	USE AGGREGATE zzz
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_AGGREGATES	USE AGGREGATES
@@ -2890,17 +2890,17 @@ accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERIN
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_INITCOND!insert	USE INITCOND zzz
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_RETURNS	USE RETURNS
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_RETURNS!insert	USE RETURNS zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_RETURNS!swap	USE REVOKE
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_RETURNS!swap	USE REVOKE
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_LANGUAGE	USE LANGUAGE
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_LANGUAGE!insert	USE LANGUAGE zzz
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_CALLED	USE CALLED
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_CALLED!insert	USE CALLED zzz
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_INPUT	USE INPUT
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_INPUT!insert	USE INPUT zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_INPUT!swap	USE INSERT
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_INPUT!swap	USE INSERT
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_LIKE	USE LIKE
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_LIKE!insert	USE LIKE zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_LIKE!swap	USE LIMIT
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_LIKE!swap	USE LIMIT
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_PER	USE PER
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_PER!insert	USE PER zzz
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_PARTITION	USE PARTITION
@@ -2913,31 +2913,31 @@ accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERIN
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_CIDRS!insert	USE CIDRS zzz
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_ACCESS	USE ACCESS
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_ACCESS!insert	USE ACCESS zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_ACCESS!swap	USE ADD
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_ACCESS!swap	USE ADD
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_DEFAULT	USE DEFAULT
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_DEFAULT!insert	USE DEFAULT zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_DEFAULT!swap	USE DELETE
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_DEFAULT!swap	USE DELETE
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_MBEAN	USE MBEAN
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_MBEAN!insert	USE MBEAN zzz
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_MBEANS	USE MBEANS
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_MBEANS!insert	USE MBEANS zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_MBEANS!swap	USE MODIFY
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_MBEANS!swap	USE MODIFY
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_REPLACE	USE REPLACE
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_REPLACE!insert	USE REPLACE zzz
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_UNSET	USE UNSET
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_UNSET!insert	USE UNSET zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_UNSET!swap	USE UPDATE
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_UNSET!swap	USE UPDATE
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_MASKED	USE MASKED
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_MASKED!insert	USE MASKED zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_MASKED!swap	USE MATERIALIZED
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_MASKED!swap	USE MATERIALIZED
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_UNMASK	USE UNMASK
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_UNMASK!insert	USE UNMASK zzz
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_SELECT_MASKED	USE SELECT_MASKED
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_SELECT_MASKED!insert	USE SELECT_MASKED zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_SELECT_MASKED!swap	USE SET
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_SELECT_MASKED!swap	USE SET
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_VECTOR	USE VECTOR
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_VECTOR!insert	USE VECTOR zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_VECTOR!swap	USE VIEW
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_VECTOR!swap	USE VIEW
 accept	accept	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_ANN	USE ANN
 reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_ANN!insert	USE ANN zzz
-accept	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_ANN!swap	USE APPLY
+reject	reject	grammar	basic_unreserved_keyword(K_KEYS|K_AS|K_CLUSTER|K_CLUSTERING|K~732da89e)/K_ANN!swap	USE APPLY
