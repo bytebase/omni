@@ -48,6 +48,9 @@ func (p *Parser) parseCommentStmt() (nodes.StmtNode, error) {
 		if parseErr194 != nil {
 			return nil, parseErr194
 		}
+		if name == nil || name.Name == "" {
+			return nil, p.syntaxErrorAtCur()
+		}
 
 		// The last part of the name is the column name.
 		// parseObjectName gives us schema.name, but for COMMENT ON COLUMN
@@ -85,19 +88,37 @@ func (p *Parser) parseCommentStmt() (nodes.StmtNode, error) {
 	case kwMATERIALIZED:
 		stmt.ObjectType = nodes.OBJECT_MATERIALIZED_VIEW
 		p.advance() // consume MATERIALIZED
-		if p.cur.Type == kwVIEW {
-			p.advance()
+		if p.cur.Type != kwVIEW {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance()
 	default:
-		// Could be other object types (EDITION, INDEXTYPE, etc.) - treat as TABLE
+		// The other object kinds, read as TABLE. Oracle names no other
+		// object here (ORA-02000 at VIEW, at POLICY and at the word after
+		// AUDIT, MINING or PROPERTY).
 		stmt.ObjectType = nodes.OBJECT_TABLE
-		if p.isIdentLike() {
-			p.advance()
+		var second string
+		switch {
+		case p.isKeywordStr("EDITION"), p.isKeywordStr("INDEXTYPE"), p.isKeywordStr("OPERATOR"):
+		case p.cur.Type == kwAUDIT:
+			second = "POLICY"
+		case p.isKeywordStr("MINING"):
+			second = "MODEL"
+		case p.isKeywordStr("PROPERTY"):
+			second = "GRAPH"
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		if second != "" {
+			if err := p.expectWords(second); err != nil {
+				return nil, err
+			}
 		}
 	}
 
 	// Parse object name for non-COLUMN cases
-	stmt.Object, parseErr196 = p.parseObjectName()
+	stmt.Object, parseErr196 = p.parseRequiredObjectName()
 	if parseErr196 != nil {
 		return nil, parseErr196
 	}

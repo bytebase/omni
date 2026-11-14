@@ -25,6 +25,12 @@ func (p *Parser) parseCreateProcedureStmt(start int, orReplace, ifNotExists, edi
 		NonEditionable: nonEditionable,
 		Loc:            nodes.Loc{Start: start},
 	}
+	if !ifNotExists {
+		var err error
+		if stmt.IfNotExists, err = p.parseIfNotExistsAfterKind(orReplace); err != nil {
+			return nil, err
+		}
+	}
 	var parseErr454 error
 
 	// Procedure name
@@ -41,12 +47,9 @@ func (p *Parser) parseCreateProcedureStmt(start int, orReplace, ifNotExists, edi
 
 	if p.isIdentLikeStr("SHARING") {
 		p.advance() // consume SHARING
-		if p.cur.Type == '=' {
-			p.advance() // consume =
-		}
-		if p.isIdentLike() {
-			stmt.Sharing = p.cur.Str
-			p.advance()
+		var err error
+		if stmt.Sharing, err = p.parseSharingValue(); err != nil {
+			return nil, err
 		}
 	}
 
@@ -209,12 +212,9 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, ifNotExists, edit
 
 	if p.isIdentLikeStr("SHARING") {
 		p.advance() // consume SHARING
-		if p.cur.Type == '=' {
-			p.advance() // consume =
-		}
-		if p.isIdentLike() {
-			stmt.Sharing = p.cur.Str
-			p.advance()
+		var err error
+		if stmt.Sharing, err = p.parseSharingValue(); err != nil {
+			return nil, err
 		}
 	}
 	parseErr460 :=
@@ -662,6 +662,12 @@ func (p *Parser) parseCreatePackageStmt(start int, orReplace, ifNotExists, editi
 		stmt.IsBody = true
 		p.advance() // consume BODY
 	}
+	if !ifNotExists {
+		var err error
+		if stmt.IfNotExists, err = p.parseIfNotExistsAfterKind(orReplace); err != nil {
+			return nil, err
+		}
+	}
 	var parseErr466 error
 
 	// Package name
@@ -678,12 +684,9 @@ func (p *Parser) parseCreatePackageStmt(start int, orReplace, ifNotExists, editi
 
 	if p.isIdentLikeStr("SHARING") {
 		p.advance() // consume SHARING
-		if p.cur.Type == '=' {
-			p.advance() // consume =
-		}
-		if p.isIdentLike() {
-			stmt.Sharing = p.cur.Str
-			p.advance()
+		var err error
+		if stmt.Sharing, err = p.parseSharingValue(); err != nil {
+			return nil, err
 		}
 	}
 

@@ -467,6 +467,9 @@ func (p *Parser) parseRenameStmt() (nodes.StmtNode, error) {
 	if parseErr1157 != nil {
 		return nil, parseErr1157
 	}
+	if stmt.NewName == nil || stmt.NewName.Name == "" {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
@@ -631,21 +634,21 @@ func (p *Parser) parseAnalyzeStmt() (nodes.StmtNode, error) {
 
 	if p.isIdentLike() && (p.cur.Str == "PARTITION" || p.cur.Str == "SUBPARTITION") {
 		p.advance() // consume PARTITION/SUBPARTITION
-		if p.cur.Type == '(' {
-			p.advance()
-			parseDiscard1161, // consume (
-				parseErr1160 := p.parseExpr()
-			_ = parseDiscard1161
-			if parseErr1160 != nil {
-				return nil,
-
-					// consume )
-					parseErr1160
-			}
-			if p.cur.Type == ')' {
-				p.advance()
-			}
+		if p.cur.Type != '(' {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance() // consume (
+		partition, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		if partition == "" {
+			return nil, p.syntaxErrorAtCur()
+		}
+		if p.cur.Type != ')' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance() // consume )
 	}
 
 	// Action clause
@@ -708,9 +711,10 @@ func (p *Parser) parseAnalyzeStmt() (nodes.StmtNode, error) {
 			stmt.DeleteSystem = true
 			stmt.Action = "DELETE SYSTEM STATISTICS"
 		}
-		if p.cur.Type == kwSTATISTICS {
-			p.advance() // consume STATISTICS
+		if p.cur.Type != kwSTATISTICS {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance() // consume STATISTICS
 
 	case p.cur.Type == kwVALIDATE:
 		// VALIDATE REF UPDATE [SET DANGLING TO NULL]
@@ -720,22 +724,24 @@ func (p *Parser) parseAnalyzeStmt() (nodes.StmtNode, error) {
 			// VALIDATE REF UPDATE [SET DANGLING TO NULL]
 			p.advance() // consume REF
 			stmt.Action = "VALIDATE REF UPDATE"
-			if p.cur.Type == kwUPDATE {
-				p.advance() // consume UPDATE
+			if p.cur.Type != kwUPDATE {
+				return nil, p.syntaxErrorAtCur()
 			}
+			p.advance() // consume UPDATE
 			if p.cur.Type == kwSET {
 				p.advance() // consume SET
-				// DANGLING is an identifier
-				if p.isIdentLike() && p.cur.Str == "DANGLING" {
-					p.advance() // consume DANGLING
-					if p.cur.Type == kwTO {
-						p.advance() // consume TO
-					}
-					if p.cur.Type == kwNULL {
-						p.advance() // consume NULL
-						stmt.SetDanglingNull = true
-					}
+				if err := p.expectWords("DANGLING"); err != nil {
+					return nil, err
 				}
+				if p.cur.Type != kwTO {
+					return nil, p.syntaxErrorAtCur()
+				}
+				p.advance() // consume TO
+				if p.cur.Type != kwNULL {
+					return nil, p.syntaxErrorAtCur()
+				}
+				p.advance() // consume NULL
+				stmt.SetDanglingNull = true
 			}
 		} else if p.isIdentLike() && p.cur.Str == "STRUCTURE" {
 			// VALIDATE STRUCTURE [CASCADE [FAST]] [ONLINE|OFFLINE] [INTO table]
@@ -765,23 +771,26 @@ func (p *Parser) parseAnalyzeStmt() (nodes.StmtNode, error) {
 				stmt.IntoTable, parseErr1163 = p.parseObjectName()
 				if parseErr1163 != nil {
 					return nil, parseErr1163
-
-					// LIST CHAINED ROWS [INTO table]
+				}
+				if stmt.IntoTable == nil || stmt.IntoTable.Name == "" {
+					return nil, p.syntaxErrorAtCur()
 				}
 			}
+		} else {
+			return nil, p.syntaxErrorAtCur()
 		}
 
 	case p.cur.Type == kwLIST:
-
+		// LIST CHAINED ROWS [INTO table]
 		p.advance() // consume LIST
 		stmt.Action = "LIST CHAINED ROWS"
-		// CHAINED is an identifier
-		if p.isIdentLike() && p.cur.Str == "CHAINED" {
-			p.advance() // consume CHAINED
+		if err := p.expectWords("CHAINED"); err != nil {
+			return nil, err
 		}
-		if p.cur.Type == kwROWS {
-			p.advance() // consume ROWS
+		if p.cur.Type != kwROWS {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance() // consume ROWS
 		// Optional INTO table
 		if p.cur.Type == kwINTO {
 			p.advance()
@@ -790,6 +799,9 @@ func (p *Parser) parseAnalyzeStmt() (nodes.StmtNode, error) {
 			stmt.IntoTable, parseErr1164 = p.parseObjectName()
 			if parseErr1164 != nil {
 				return nil, parseErr1164
+			}
+			if stmt.IntoTable == nil || stmt.IntoTable.Name == "" {
+				return nil, p.syntaxErrorAtCur()
 			}
 		}
 	}
@@ -818,9 +830,10 @@ func (p *Parser) parseExplainPlanStmt() (nodes.StmtNode, error) {
 	p.advance() // consume EXPLAIN
 
 	// Expect PLAN
-	if p.cur.Type == kwPLAN {
-		p.advance()
+	if p.cur.Type != kwPLAN {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance()
 
 	stmt := &nodes.ExplainPlanStmt{
 		Loc: nodes.Loc{Start: start},
@@ -829,17 +842,18 @@ func (p *Parser) parseExplainPlanStmt() (nodes.StmtNode, error) {
 	// Optional SET STATEMENT_ID = 'id'
 	if p.cur.Type == kwSET {
 		p.advance() // consume SET
-		// STATEMENT_ID is an identifier
-		if p.isIdentLike() && p.cur.Str == "STATEMENT_ID" {
-			p.advance() // consume STATEMENT_ID
-			if p.cur.Type == '=' {
-				p.advance() // consume =
-			}
-			if p.cur.Type == tokSCONST {
-				stmt.StatementID = p.cur.Str
-				p.advance()
-			}
+		if err := p.expectWords("STATEMENT_ID"); err != nil {
+			return nil, err
 		}
+		// Oracle 23ai takes the string without '=' too.
+		if p.cur.Type == '=' {
+			p.advance() // consume =
+		}
+		if p.cur.Type != tokSCONST {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.StatementID = p.cur.Str
+		p.advance()
 	}
 
 	// Optional INTO [schema.]table
@@ -850,16 +864,20 @@ func (p *Parser) parseExplainPlanStmt() (nodes.StmtNode, error) {
 		if parseErr1165 != nil {
 			return nil, parseErr1165
 		}
+		if stmt.Into == nil || stmt.Into.Name == "" {
+			return nil, p.syntaxErrorAtCur()
+		}
 	}
 
 	// FOR statement
-	if p.cur.Type == kwFOR {
-		p.advance()
-		var parseErr1166 error
-		stmt.Statement, parseErr1166 = p.parseStmt()
-		if parseErr1166 != nil {
-			return nil, parseErr1166
-		}
+	if p.cur.Type != kwFOR {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	var parseErr1166 error
+	stmt.Statement, parseErr1166 = p.parseStmt()
+	if parseErr1166 != nil {
+		return nil, parseErr1166
 	}
 
 	stmt.Loc.End = p.prev.End
@@ -882,9 +900,10 @@ func (p *Parser) parseFlashbackTableStmt() (nodes.StmtNode, error) {
 	p.advance() // consume FLASHBACK
 
 	// Expect TABLE
-	if p.cur.Type == kwTABLE {
-		p.advance()
+	if p.cur.Type != kwTABLE {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance()
 
 	stmt := &nodes.FlashbackTableStmt{
 		Loc: nodes.Loc{Start: start},
@@ -926,20 +945,21 @@ func (p *Parser) parseFlashbackTableStmt() (nodes.StmtNode, error) {
 			// Optional RENAME TO name
 			if p.cur.Type == kwRENAME {
 				p.advance() // consume RENAME
-				if p.cur.Type == kwTO {
-					p.advance()
+				if p.cur.Type != kwTO {
+					return nil, p.syntaxErrorAtCur()
 				}
+				p.advance()
 				var parseErr1169 error
 				stmt.Rename, parseErr1169 = p.parseIdentifier()
 				if parseErr1169 != nil {
-					return nil,
-
-						// TO BEFORE SCN expr | TO BEFORE TIMESTAMP expr
-						parseErr1169
+					return nil, parseErr1169
+				}
+				if stmt.Rename == "" {
+					return nil, p.syntaxErrorAtCur()
 				}
 			}
 		} else {
-
+			// TO BEFORE SCN expr | TO BEFORE TIMESTAMP expr
 			stmt.Before = true
 			switch p.cur.Type {
 			case kwSCN:
@@ -993,8 +1013,8 @@ func (p *Parser) parseFlashbackTableStmt() (nodes.StmtNode, error) {
 
 			if p.isIdentLike() && p.cur.Str == "RESTORE" {
 				p.advance()
-				if p.isIdentLike() && p.cur.Str == "POINT" {
-					p.advance()
+				if err := p.expectWords("POINT"); err != nil {
+					return nil, err
 				}
 				if p.isIdentLike() {
 					stmt.ToRestorePoint = p.cur.Str
@@ -1011,15 +1031,15 @@ func (p *Parser) parseFlashbackTableStmt() (nodes.StmtNode, error) {
 	// Optional { ENABLE | DISABLE } TRIGGERS
 	if p.cur.Type == kwENABLE {
 		p.advance()
-		if p.isIdentLike() && p.cur.Str == "TRIGGERS" {
-			p.advance()
+		if err := p.expectWords("TRIGGERS"); err != nil {
+			return nil, err
 		}
 		t := true
 		stmt.EnableTriggers = &t
 	} else if p.cur.Type == kwDISABLE {
 		p.advance()
-		if p.isIdentLike() && p.cur.Str == "TRIGGERS" {
-			p.advance()
+		if err := p.expectWords("TRIGGERS"); err != nil {
+			return nil, err
 		}
 		f := false
 		stmt.EnableTriggers = &f
@@ -1059,25 +1079,25 @@ func (p *Parser) parseFlashbackDatabaseStmt() (nodes.StmtNode, error) {
 	}
 
 	// DATABASE
-	if p.cur.Type == kwDATABASE {
-		p.advance()
+	if p.cur.Type != kwDATABASE {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance()
 
-	// Optional database name (not TO keyword)
-	if p.isIdentLike() && p.cur.Str != "TO" {
+	// Optional database name: Oracle reads any word before TO as the name
+	// (ORA-00946 at the word after FLASHBACK DATABASE BEFORE).
+	if p.isIdentLike() && p.cur.Type != kwTO {
 		var parseErr1174 error
 		stmt.DatabaseName, parseErr1174 = p.parseObjectName()
-		if parseErr1174 !=
-
-			// TO
-			nil {
+		if parseErr1174 != nil {
 			return nil, parseErr1174
 		}
 	}
 
-	if p.cur.Type == kwTO {
-		p.advance()
+	if p.cur.Type != kwTO {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance()
 
 	// Optional BEFORE
 	if p.isIdentLike() && p.cur.Str == "BEFORE" {
@@ -1093,6 +1113,9 @@ func (p *Parser) parseFlashbackDatabaseStmt() (nodes.StmtNode, error) {
 		if parseErr1175 != nil {
 			return nil, parseErr1175
 		}
+		if stmt.ToSCN == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 	case kwTIMESTAMP:
 		p.advance()
 		var parseErr1176 error
@@ -1100,11 +1123,14 @@ func (p *Parser) parseFlashbackDatabaseStmt() (nodes.StmtNode, error) {
 		if parseErr1176 != nil {
 			return nil, parseErr1176
 		}
+		if stmt.ToTimestamp == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 	default:
-		if p.isIdentLike() && p.cur.Str == "RESTORE" {
+		if p.isIdentLike() && p.cur.Str == "RESTORE" && !stmt.Before {
 			p.advance()
-			if p.isIdentLike() && p.cur.Str == "POINT" {
-				p.advance()
+			if err := p.expectWords("POINT"); err != nil {
+				return nil, err
 			}
 			if p.isIdentLike() {
 				stmt.ToRestorePoint = p.cur.Str
@@ -1112,7 +1138,7 @@ func (p *Parser) parseFlashbackDatabaseStmt() (nodes.StmtNode, error) {
 			} else {
 				return nil, p.syntaxErrorAtCur()
 			}
-		} else if p.isIdentLike() && p.cur.Str == "RESETLOGS" {
+		} else if p.isIdentLike() && p.cur.Str == "RESETLOGS" && stmt.Before {
 			stmt.ToResetlogs = true
 			p.advance()
 		} else {

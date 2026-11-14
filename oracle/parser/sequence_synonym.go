@@ -131,8 +131,8 @@ func (p *Parser) parseSequenceOptions(stmt *nodes.CreateSequenceStmt) error {
 		switch {
 		case p.cur.Type == kwINCREMENT:
 			p.advance()
-			if p.cur.Type == kwBY {
-				p.advance()
+			if err := p.expectCreateTableToken(kwBY); err != nil {
+				return err
 			}
 			var parseErr1100 error
 			stmt.IncrementBy, parseErr1100 = p.parseExpr()
@@ -144,8 +144,8 @@ func (p *Parser) parseSequenceOptions(stmt *nodes.CreateSequenceStmt) error {
 			}
 		case p.cur.Type == kwSTART:
 			p.advance()
-			if p.cur.Type == kwWITH {
-				p.advance()
+			if err := p.expectCreateTableToken(kwWITH); err != nil {
+				return err
 			}
 			var parseErr1101 error
 			stmt.StartWith, parseErr1101 = p.parseExpr()
@@ -288,6 +288,10 @@ func (p *Parser) parseCreateSynonymStmt(start int, orReplace, public bool) (*nod
 	if p.cur.Type == kwSYNONYM {
 		p.advance()
 	}
+	var err error
+	if stmt.IfNotExists, err = p.parseIfNotExistsAfterKind(orReplace); err != nil {
+		return nil, err
+	}
 	var parseErr1105 error
 
 	// Synonym name
@@ -319,6 +323,60 @@ func (p *Parser) parseCreateSynonymStmt(start int, orReplace, public bool) (*nod
 	return stmt, nil
 }
 
+// parseDatabaseLinkName parses a database link name: a name, its domain
+// after dots, and a connection qualifier after @.
+func (p *Parser) parseDatabaseLinkName() (string, error) {
+	name, err := p.parseIdentifier()
+	if err != nil {
+		return "", err
+	}
+	if name == "" {
+		return "", p.syntaxErrorAtCur()
+	}
+	for p.cur.Type == '.' || p.cur.Type == '@' {
+		sep := string(rune(p.cur.Type))
+		p.advance()
+		part, err := p.parseIdentifier()
+		if err != nil {
+			return "", err
+		}
+		if part == "" {
+			return "", p.syntaxErrorAtCur()
+		}
+		name += sep + part
+	}
+	return name, nil
+}
+
+// parseDatabaseLinkUser parses user IDENTIFIED BY password. Oracle 23ai
+// takes the password as a name, quoted or not, and not as a string
+// (ORA-00988).
+func (p *Parser) parseDatabaseLinkUser() (string, string, error) {
+	user, err := p.parseIdentifier()
+	if err != nil {
+		return "", "", err
+	}
+	if user == "" {
+		return "", "", p.syntaxErrorAtCur()
+	}
+	if p.cur.Type != kwIDENTIFIED {
+		return "", "", p.syntaxErrorAtCur()
+	}
+	p.advance()
+	if p.cur.Type != kwBY {
+		return "", "", p.syntaxErrorAtCur()
+	}
+	p.advance()
+	password, err := p.parseIdentifier()
+	if err != nil {
+		return "", "", err
+	}
+	if password == "" {
+		return "", "", p.syntaxErrorAtCur()
+	}
+	return user, password, nil
+}
+
 // parseCreateDatabaseLinkStmt parses a CREATE [PUBLIC] DATABASE LINK statement.
 // The CREATE keyword has already been consumed. The caller has already parsed
 // PUBLIC if present and passes it in.
@@ -343,68 +401,74 @@ func (p *Parser) parseCreateDatabaseLinkStmt(start int, public bool) (*nodes.Cre
 		Loc:    nodes.Loc{Start: start},
 	}
 
-	// DATABASE keyword
-	if p.cur.Type == kwDATABASE {
-		p.advance()
-	}
-
-	// LINK keyword
-	if p.cur.Type == kwLINK {
-		p.advance()
-	}
-	var parseErr1107 error
-
-	// Link name
-	stmt.Name, parseErr1107 = p.parseIdentifier()
-	if parseErr1107 !=
-
-		// CONNECT TO user IDENTIFIED BY password
-		nil {
-		return nil, parseErr1107
-	}
-	if stmt.Name == "" {
+	// DATABASE LINK
+	if p.cur.Type != kwDATABASE {
 		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance()
+	if p.cur.Type != kwLINK {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
 
+	// IF NOT EXISTS
+	if p.cur.Type == kwIF && p.peekNext().Type == kwNOT {
+		p.advance() // IF
+		not := p.cur
+		p.advance() // NOT
+		if p.cur.Type != kwEXISTS {
+			// Oracle reads IF as the name then (ORA-02010 at NOT).
+			return nil, p.syntaxErrorAtTok(not)
+		}
+		p.advance() // EXISTS
+		stmt.IfNotExists = true
+	}
+
+	// Link name
+	var err error
+	stmt.Name, err = p.parseDatabaseLinkName()
+	if err != nil {
+		return nil, err
+	}
+
+	// CONNECT { TO { CURRENT_USER | user IDENTIFIED BY password } | WITH credential }
 	if p.cur.Type == kwCONNECT {
 		p.advance()
-		if p.cur.Type == kwTO {
+		switch {
+		case p.cur.Type == kwTO:
 			p.advance()
-		}
-		var parseErr1108 error
-		stmt.ConnectTo, parseErr1108 = p.parseIdentifier()
-		if parseErr1108 != nil {
-			return nil, parseErr1108
-		}
-		if stmt.ConnectTo == "" {
-			return nil, p.syntaxErrorAtCur()
-		}
-
-		if p.cur.Type == kwIDENTIFIED {
-			p.advance()
-			if p.cur.Type == kwBY {
+			if p.isKeywordStr("CURRENT_USER") {
+				stmt.ConnectTo = p.cur.Str
 				p.advance()
+				break
 			}
-			var parseErr1109 error
-			stmt.Identified, parseErr1109 = p.parseIdentifier()
-			if parseErr1109 !=
-
-				// USING 'connect_string'
-				nil {
-				return nil, parseErr1109
+			stmt.ConnectTo, stmt.Identified, err = p.parseDatabaseLinkUser()
+			if err != nil {
+				return nil, err
 			}
-			if stmt.Identified == "" {
+		case p.cur.Type == kwWITH:
+			p.advance()
+			credential, err := p.parseObjectName()
+			if err != nil {
+				return nil, err
+			}
+			if credential.Name == "" {
 				return nil, p.syntaxErrorAtCur()
 			}
+			stmt.ConnectWith = credential
+		default:
+			return nil, p.syntaxErrorAtCur()
 		}
 	}
 
+	// USING 'connect_string'
 	if p.cur.Type == kwUSING {
 		p.advance()
-		if p.cur.Type == tokSCONST {
-			stmt.Using = p.cur.Str
-			p.advance()
+		if p.cur.Type != tokSCONST {
+			return nil, p.syntaxErrorAtCur()
 		}
+		stmt.Using = p.cur.Str
+		p.advance()
 	}
 
 	stmt.Loc.End = p.prev.End

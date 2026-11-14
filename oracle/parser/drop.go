@@ -51,13 +51,14 @@ func (p *Parser) parseDropStmt() (nodes.StmtNode, error) {
 			p.advance() // consume ZONEMAP
 			return p.parseDropSimpleStmt(nodes.OBJECT_MATERIALIZED_ZONEMAP, start)
 		}
-		if p.cur.Type == kwVIEW {
-			p.advance() // consume VIEW
-			// Check for MATERIALIZED VIEW LOG
-			if p.cur.Type == kwLOG {
-				p.advance() // consume LOG
-				return p.parseDropMaterializedViewLogStmt(start)
-			}
+		if p.cur.Type != kwVIEW {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance() // consume VIEW
+		// Check for MATERIALIZED VIEW LOG
+		if p.cur.Type == kwLOG {
+			p.advance() // consume LOG
+			return p.parseDropMaterializedViewLogStmt(start)
 		}
 		stmt.ObjectType = nodes.OBJECT_MATERIALIZED_VIEW
 	case kwSEQUENCE:
@@ -110,29 +111,26 @@ func (p *Parser) parseDropStmt() (nodes.StmtNode, error) {
 			p.advance()
 		} else if p.cur.Type == kwDATABASE {
 			p.advance() // consume DATABASE
-			if p.cur.Type == kwLINK {
-				p.advance() // consume LINK
+			if p.cur.Type != kwLINK {
+				return nil, p.syntaxErrorAtCur()
 			}
+			p.advance() // consume LINK
 			stmt.ObjectType = nodes.OBJECT_DATABASE_LINK
+		} else {
+			return nil, p.syntaxErrorAtCur()
 		}
 	case kwAUDIT:
 		// DROP AUDIT POLICY
 		p.advance() // consume AUDIT
-		if p.isIdentLikeStr("POLICY") {
-			p.advance() // consume POLICY
+		if err := p.expectWords("POLICY"); err != nil {
+			return nil, err
 		}
 		return p.parseDropAuditPolicyStmt(start)
 	case kwJSON:
 		// DROP JSON RELATIONAL DUALITY VIEW
 		p.advance() // consume JSON
-		if p.isIdentLike() && p.cur.Str == "RELATIONAL" {
-			p.advance() // consume RELATIONAL
-		}
-		if p.isIdentLike() && p.cur.Str == "DUALITY" {
-			p.advance() // consume DUALITY
-		}
-		if p.cur.Type == kwVIEW {
-			p.advance() // consume VIEW
+		if err := p.expectWords("RELATIONAL", "DUALITY", "VIEW"); err != nil {
+			return nil, err
 		}
 		return p.parseDropSimpleStmt(nodes.OBJECT_JSON_DUALITY_VIEW, start)
 	case kwUSER, kwROLE, kwPROFILE,
@@ -157,9 +155,8 @@ func (p *Parser) parseDropStmt() (nodes.StmtNode, error) {
 				return adminStmt, nil
 			}
 		}
-		// Unknown object type; consume as identifier
-		stmt.ObjectType = nodes.OBJECT_TABLE
-		p.advance()
+		// Oracle names no other object here (ORA-00950).
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	// Optional IF EXISTS
@@ -191,7 +188,7 @@ func (p *Parser) parseDropStmt() (nodes.StmtNode, error) {
 		if p.cur.Type == kwCASCADE {
 			p.advance() // consume CASCADE
 			stmt.Cascade = true
-			if stmt.ObjectType == nodes.OBJECT_TABLE {
+			if stmt.ObjectType == nodes.OBJECT_TABLE || stmt.ObjectType == nodes.OBJECT_VIEW {
 				if p.cur.Type != kwCONSTRAINTS {
 					return nil, p.syntaxErrorAtCur()
 				}
@@ -214,14 +211,14 @@ func (p *Parser) parseDropStmt() (nodes.StmtNode, error) {
 		} else if p.cur.Type == kwDEFERRED {
 			stmt.Invalidation = "DEFERRED"
 			p.advance() // consume DEFERRED
-			if p.isIdentLikeStr("INVALIDATION") {
-				p.advance() // consume INVALIDATION
+			if err := p.expectWords("INVALIDATION"); err != nil {
+				return nil, err
 			}
 		} else if p.cur.Type == kwIMMEDIATE {
 			stmt.Invalidation = "IMMEDIATE"
 			p.advance() // consume IMMEDIATE
-			if p.isIdentLikeStr("INVALIDATION") {
-				p.advance() // consume INVALIDATION
+			if err := p.expectWords("INVALIDATION"); err != nil {
+				return nil, err
 			}
 		} else {
 			break
@@ -257,6 +254,9 @@ func (p *Parser) parseDropSimpleStmt(objType nodes.ObjectType, start int) (*node
 	name, parseErr693 := p.parseObjectName()
 	if parseErr693 != nil {
 		return nil, parseErr693
+	}
+	if name == nil || name.Name == "" {
+		return nil, p.syntaxErrorAtCur()
 	}
 	stmt.Names.Items = append(stmt.Names.Items, name)
 

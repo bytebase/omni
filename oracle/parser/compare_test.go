@@ -1215,9 +1215,9 @@ func TestParseAlterPackage(t *testing.T) {
 		"ALTER PACKAGE hr.my_pkg COMPILE BODY",
 		"ALTER PACKAGE my_pkg COMPILE SPECIFICATION",
 		"ALTER PACKAGE my_pkg COMPILE PACKAGE",
-		"ALTER PACKAGE my_pkg COMPILE BODY DEBUG",
+		"ALTER PACKAGE my_pkg COMPILE DEBUG BODY",
 		"ALTER PACKAGE my_pkg COMPILE BODY REUSE SETTINGS",
-		"ALTER PACKAGE my_pkg COMPILE BODY DEBUG REUSE SETTINGS",
+		"ALTER PACKAGE my_pkg COMPILE DEBUG BODY REUSE SETTINGS",
 		"ALTER PACKAGE my_pkg EDITIONABLE",
 		"ALTER PACKAGE my_pkg NONEDITIONABLE",
 	}
@@ -2531,7 +2531,7 @@ func TestParseDropDiskgroup(t *testing.T) {
 		sql  string
 	}{
 		{"basic", "DROP DISKGROUP dg1"},
-		{"force", "DROP DISKGROUP dg1 FORCE"},
+		{"force", "DROP DISKGROUP dg1 FORCE INCLUDING CONTENTS"},
 		{"including_contents", "DROP DISKGROUP dg1 INCLUDING CONTENTS"},
 	}
 	for _, tt := range tests {
@@ -2686,7 +2686,7 @@ func TestParseDiskgroupBatch96(t *testing.T) {
 		// === DROP DISKGROUP ===
 		{"drop_basic", "DROP DISKGROUP dg1"},
 		{"drop_including_contents", "DROP DISKGROUP dg1 INCLUDING CONTENTS"},
-		{"drop_including_force", "DROP DISKGROUP dg1 INCLUDING CONTENTS FORCE"},
+		{"drop_including_force", "DROP DISKGROUP dg1 FORCE INCLUDING CONTENTS"},
 		{"drop_excluding_contents", "DROP DISKGROUP dg1 EXCLUDING CONTENTS"},
 	}
 	for _, tt := range tests {
@@ -3991,7 +3991,7 @@ func TestBatch76_PfileSpfile(t *testing.T) {
 		{"create_pfile", "CREATE PFILE FROM SPFILE", "CREATE", ast.OBJECT_PFILE},
 		{"create_pfile_named", "CREATE PFILE '/tmp/initTEST.ora' FROM SPFILE '/u01/app/oracle/dbs/spfileTEST.ora'", "CREATE", ast.OBJECT_PFILE},
 		{"create_spfile", "CREATE SPFILE FROM PFILE", "CREATE", ast.OBJECT_SPFILE},
-		{"create_spfile_named", "CREATE SPFILE '/u01/app/oracle/dbs/spfileTEST.ora' FROM PFILE '/tmp/initTEST.ora'", "CREATE", ast.OBJECT_SPFILE},
+		{"create_spfile_named", "CREATE SPFILE = '/u01/app/oracle/dbs/spfileTEST.ora' FROM PFILE = '/tmp/initTEST.ora'", "CREATE", ast.OBJECT_SPFILE},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -4758,7 +4758,7 @@ func TestParseAlterType(t *testing.T) {
 		"ALTER TYPE my_type COMPILE BODY",
 		"ALTER TYPE my_type COMPILE DEBUG",
 		"ALTER TYPE my_type COMPILE SPECIFICATION REUSE SETTINGS",
-		"ALTER TYPE my_type COMPILE BODY DEBUG PLSQL_OPTIMIZE_LEVEL = 2 REUSE SETTINGS",
+		"ALTER TYPE my_type COMPILE DEBUG BODY PLSQL_OPTIMIZE_LEVEL = 2 REUSE SETTINGS",
 
 		// ADD ATTRIBUTE
 		"ALTER TYPE person_t ADD ATTRIBUTE (email VARCHAR2(100)) CASCADE",
@@ -4845,7 +4845,7 @@ func TestParseAlterType(t *testing.T) {
 	})
 
 	t.Run("alter_type_compile_check", func(t *testing.T) {
-		result := ParseAndCheck(t, "ALTER TYPE my_type COMPILE SPECIFICATION DEBUG REUSE SETTINGS")
+		result := ParseAndCheck(t, "ALTER TYPE my_type COMPILE DEBUG SPECIFICATION REUSE SETTINGS")
 		raw := result.Items[0].(*ast.RawStmt)
 		stmt := raw.Stmt.(*ast.AlterTypeStmt)
 		if stmt.Action != "COMPILE" {
@@ -7756,7 +7756,7 @@ func TestParseAlterSessionSystem(t *testing.T) {
 func TestParseBatch101_PLSQLObjects(t *testing.T) {
 	tests := []string{
 		// CREATE PROCEDURE - IF NOT EXISTS
-		"CREATE IF NOT EXISTS PROCEDURE my_proc IS BEGIN NULL; END;",
+		"CREATE PROCEDURE IF NOT EXISTS my_proc IS BEGIN NULL; END;",
 		// CREATE PROCEDURE - EDITIONABLE with SHARING
 		"CREATE OR REPLACE EDITIONABLE PROCEDURE hr.my_proc SHARING = METADATA IS BEGIN NULL; END;",
 		// CREATE FUNCTION - IF NOT EXISTS (comes after FUNCTION per BNF)
@@ -7768,25 +7768,25 @@ func TestParseBatch101_PLSQLObjects(t *testing.T) {
 		// after it (PLS-00103).
 		"CREATE FUNCTION agg_fn (x NUMBER) RETURN NUMBER AGGREGATE USING agg_impl;",
 		// CREATE PACKAGE - IF NOT EXISTS with SHARING
-		"CREATE IF NOT EXISTS PACKAGE my_pkg SHARING = METADATA IS\n  PROCEDURE do_it;\nEND my_pkg;",
+		"CREATE PACKAGE IF NOT EXISTS my_pkg SHARING = METADATA IS\n  PROCEDURE do_it;\nEND my_pkg;",
 		// CREATE PACKAGE - EDITIONABLE with AUTHID
 		"CREATE OR REPLACE EDITIONABLE PACKAGE my_pkg AUTHID CURRENT_USER IS\n  FUNCTION get_val RETURN NUMBER;\nEND my_pkg;",
 		// CREATE PACKAGE BODY - IF NOT EXISTS
-		"CREATE IF NOT EXISTS PACKAGE BODY my_pkg IS\n  PROCEDURE do_it IS\n  BEGIN\n    NULL;\n  END;\nEND my_pkg;",
+		"CREATE PACKAGE BODY IF NOT EXISTS my_pkg IS\n  PROCEDURE do_it IS\n  BEGIN\n    NULL;\n  END;\nEND my_pkg;",
 		// CREATE TRIGGER - IF NOT EXISTS
-		"CREATE IF NOT EXISTS TRIGGER my_trigger BEFORE INSERT ON employees BEGIN NULL; END;",
+		"CREATE TRIGGER IF NOT EXISTS my_trigger BEFORE INSERT ON employees BEGIN NULL; END;",
 		// CREATE TRIGGER - EDITIONABLE
 		"CREATE OR REPLACE EDITIONABLE TRIGGER audit_trigger AFTER UPDATE ON employees FOR EACH ROW BEGIN NULL; END;",
 		// CREATE TYPE - IF NOT EXISTS
-		"CREATE IF NOT EXISTS TYPE my_type AS OBJECT (id NUMBER, name VARCHAR2(100))",
+		"CREATE TYPE IF NOT EXISTS my_type AS OBJECT (id NUMBER, name VARCHAR2(100))",
 		// CREATE TYPE BODY - NONEDITIONABLE
 		"CREATE OR REPLACE NONEDITIONABLE TYPE BODY my_type IS\n  MEMBER FUNCTION get_id RETURN NUMBER IS\n  BEGIN\n    RETURN SELF.id;\n  END;\nEND;",
 		// ALTER PACKAGE - IF EXISTS
 		"ALTER PACKAGE IF EXISTS my_pkg COMPILE",
 		// ALTER PACKAGE - COMPILE DEBUG BODY (BNF order: DEBUG before target)
 		"ALTER PACKAGE my_pkg COMPILE DEBUG BODY",
-		// ALTER PACKAGE - COMPILE with EDITIONABLE
-		"ALTER PACKAGE my_pkg COMPILE BODY EDITIONABLE",
+		// ALTER PACKAGE - EDITIONABLE
+		"ALTER PACKAGE my_pkg EDITIONABLE",
 		// ALTER TYPE - REPLACE clause
 		"ALTER TYPE my_type REPLACE AS OBJECT (id NUMBER, name VARCHAR2(200), email VARCHAR2(100))",
 		// ALTER TYPE - MODIFY modifier_clause (MODIFY NOT FINAL)
@@ -8683,15 +8683,12 @@ func TestBatch104_GraphVectorLockdownOutline(t *testing.T) {
 		}
 	})
 
-	t.Run("alter_outline_public", func(t *testing.T) {
-		result := ParseAndCheck(t, "ALTER OUTLINE PUBLIC my_outline DISABLE")
+	t.Run("alter_outline_disable", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER OUTLINE my_outline DISABLE")
 		raw := result.Items[0].(*ast.RawStmt)
 		stmt, ok := raw.Stmt.(*ast.AlterOutlineStmt)
 		if !ok {
 			t.Fatalf("expected *AlterOutlineStmt, got %T", raw.Stmt)
-		}
-		if !stmt.Public {
-			t.Fatal("expected Public=true")
 		}
 		if stmt.Action != "DISABLE" {
 			t.Fatalf("expected action DISABLE, got %q", stmt.Action)
@@ -9523,7 +9520,8 @@ func TestCommit(t *testing.T) {
 		{"COMMIT WRITE IMMEDIATE", "", "IMMEDIATE", "", false, 0},
 		{"COMMIT WRITE BATCH", "", "BATCH", "", false, 0},
 		{"COMMIT FORCE 'txn123'", "", "", "txn123", false, 0},
-		{"COMMIT FORCE 'txn123', 5", "", "", "txn123", true, 5},
+		// Oracle 23ai takes the integer without a comma (ORA-00922 at 5 after one).
+		{"COMMIT FORCE 'txn123' 5", "", "", "txn123", true, 5},
 		{"COMMIT WORK COMMENT 'done' WRITE NOWAIT BATCH", "NOWAIT", "BATCH", "", false, 0},
 	}
 	for _, tt := range tests {

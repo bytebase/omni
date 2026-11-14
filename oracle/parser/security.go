@@ -8,9 +8,10 @@ import (
 // Returns: *bool (true=ALL, false=CURRENT), or nil if not present.
 func (p *Parser) parseContainerClause() (*bool, error) {
 	// Already consumed CONTAINER
-	if p.cur.Type == '=' {
-		p.advance()
+	if p.cur.Type != '=' {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance()
 	if p.cur.Type == kwALL {
 		p.advance()
 		v := true
@@ -20,7 +21,7 @@ func (p *Parser) parseContainerClause() (*bool, error) {
 		v := false
 		return &v, nil
 	}
-	return nil, nil
+	return nil, p.syntaxErrorAtCur()
 }
 
 // parseCreateUserStmt parses a CREATE USER statement.
@@ -213,7 +214,7 @@ func (p *Parser) parseCreateRoleStmt(start int) (nodes.StmtNode, error) {
 	}
 	var parseErr914 error
 
-	stmt.Name, parseErr914 = p.parseObjectName()
+	stmt.Name, parseErr914 = p.parseRequiredObjectName()
 	if parseErr914 !=
 
 		// Optional IDENTIFIED clause
@@ -234,9 +235,10 @@ func (p *Parser) parseCreateRoleStmt(start int) (nodes.StmtNode, error) {
 		}
 	} else if p.cur.Type == kwNOT {
 		p.advance()
-		if p.cur.Type == kwIDENTIFIED {
-			p.advance()
+		if p.cur.Type != kwIDENTIFIED {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance()
 		stmt.HasIdentified = true
 		stmt.IdentifiedType = nodes.ROLE_NOT_IDENTIFIED
 	}
@@ -273,24 +275,23 @@ func (p *Parser) parseRoleIdentifiedClause(
 		// IDENTIFIED BY password
 		p.advance()
 		setType(nodes.ROLE_IDENTIFIED_BY)
-		if p.isIdentLike() || p.cur.Type == tokSCONST {
-			setValue(p.cur.Str)
-			p.advance()
+		if !p.isIdentLike() && p.cur.Type != tokSCONST {
+			return p.syntaxErrorAtCur()
 		}
+		setValue(p.cur.Str)
+		p.advance()
 	case p.cur.Type == kwUSING:
 		// IDENTIFIED USING [schema.]package
 		p.advance()
 		setType(nodes.ROLE_IDENTIFIED_USING)
-		name, parseErr917 := p.parseObjectName()
+		name, parseErr917 := p.parseRequiredObjectName()
 		if parseErr917 != nil {
 			return parseErr917
 		}
-		if name != nil {
-			if name.Schema != "" {
-				setSchema(name.Schema)
-			}
-			setValue(name.Name)
+		if name.Schema != "" {
+			setSchema(name.Schema)
 		}
+		setValue(name.Name)
 	case p.isIdentLikeStr("EXTERNALLY"):
 		// IDENTIFIED EXTERNALLY
 		p.advance()
@@ -306,6 +307,8 @@ func (p *Parser) parseRoleIdentifiedClause(
 				p.advance()
 			}
 		}
+	default:
+		return p.syntaxErrorAtCur()
 	}
 	return nil
 }
@@ -328,7 +331,7 @@ func (p *Parser) parseAlterRoleStmt(start int) (nodes.StmtNode, error) {
 	}
 	var parseErr918 error
 
-	stmt.Name, parseErr918 = p.parseObjectName()
+	stmt.Name, parseErr918 = p.parseRequiredObjectName()
 	if parseErr918 !=
 
 		// Required IDENTIFIED clause or NOT IDENTIFIED
@@ -348,10 +351,13 @@ func (p *Parser) parseAlterRoleStmt(start int) (nodes.StmtNode, error) {
 		}
 	} else if p.cur.Type == kwNOT {
 		p.advance()
-		if p.cur.Type == kwIDENTIFIED {
-			p.advance()
+		if p.cur.Type != kwIDENTIFIED {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance()
 		stmt.IdentifiedType = nodes.ROLE_NOT_IDENTIFIED
+	} else {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	// CONTAINER = { ALL | CURRENT }
@@ -456,6 +462,10 @@ func (p *Parser) parseAlterResourceCostStmt(start int) (nodes.StmtNode, error) {
 			if p.cur.Type == tokICONST {
 				entry.Value = p.cur.Str
 				p.advance()
+			} else if len(stmt.Costs) == 0 {
+				// The first cost takes its value (ORA-00923 at the end).
+				// Oracle 23ai takes a name without one after it.
+				return nil, p.syntaxErrorAtCur()
 			}
 			entry.Loc.End = p.prev.End
 			stmt.Costs = append(stmt.Costs, entry)
@@ -464,6 +474,9 @@ func (p *Parser) parseAlterResourceCostStmt(start int) (nodes.StmtNode, error) {
 		}
 	}
 done:
+	if len(stmt.Costs) == 0 {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil

@@ -96,14 +96,8 @@ func (p *Parser) parseAlterStmt() (nodes.StmtNode, error) {
 	case kwJSON:
 		// ALTER JSON RELATIONAL DUALITY VIEW
 		p.advance() // consume JSON
-		if p.isIdentLike() && p.cur.Str == "RELATIONAL" {
-			p.advance() // consume RELATIONAL
-		}
-		if p.isIdentLike() && p.cur.Str == "DUALITY" {
-			p.advance() // consume DUALITY
-		}
-		if p.cur.Type == kwVIEW {
-			p.advance() // consume VIEW
+		if err := p.parseJsonDualityViewKind(true); err != nil {
+			return nil, err
 		}
 		return p.parseAlterJsonDualityViewStmt(start)
 	case kwFLASHBACK:
@@ -168,8 +162,9 @@ func (p *Parser) parseAlterStmt() (nodes.StmtNode, error) {
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/ALTER-DATABASE-LINK.html
 //
 //	ALTER [ SHARED ] [ PUBLIC ] DATABASE LINK dblink_name
-//	  CONNECT TO user IDENTIFIED BY password
+//	  [ CONNECT { TO user IDENTIFIED BY password | WITH credential } ]
 //	  [ AUTHENTICATED BY user IDENTIFIED BY password ]
+//	  [ USING 'connect_string' ]
 func (p *Parser) parseAlterDatabaseLinkStmt(start int, shared bool, public bool) (nodes.StmtNode, error) {
 	p.advance() // consume DATABASE
 	if p.cur.Type == kwLINK {
@@ -181,58 +176,67 @@ func (p *Parser) parseAlterDatabaseLinkStmt(start int, shared bool, public bool)
 		Public: public,
 		Loc:    nodes.Loc{Start: start},
 	}
-	var parseErr52 error
-
 	// Parse the database link name.
-	stmt.Name, parseErr52 = p.parseObjectName()
-	if parseErr52 !=
-
-		// CONNECT TO user IDENTIFIED BY password
-		nil {
+	nameStart := p.pos()
+	name, parseErr52 := p.parseDatabaseLinkName()
+	if parseErr52 != nil {
 		return nil, parseErr52
 	}
+	stmt.Name = &nodes.ObjectName{Name: name, Loc: nodes.Loc{Start: nameStart, End: p.prev.End}}
 
-	if p.cur.Type == kwCONNECT {
+	// [ CONNECT { TO user IDENTIFIED BY password | WITH credential } ]
+	// [ AUTHENTICATED BY user IDENTIFIED BY password ] [ USING 'connect_string' ].
+	// Oracle 23ai takes no CURRENT_USER here, and AUTHENTICATED BY only on
+	// a SHARED link (ORA-03049); one of the two clauses is required.
+	hasConnect := p.cur.Type == kwCONNECT
+	if hasConnect {
 		p.advance() // consume CONNECT
-		if p.cur.Type == kwTO {
+		switch p.cur.Type {
+		case kwTO:
 			p.advance() // consume TO
-		}
-		if p.isIdentLike() || p.cur.Type == tokIDENT {
-			stmt.ConnectUser = p.cur.Str
-			p.advance() // consume user
-		}
-		if p.cur.Type == kwIDENTIFIED {
-			p.advance() // consume IDENTIFIED
-			if p.cur.Type == kwBY {
-				p.advance() // consume BY
+			if p.isKeywordStr("CURRENT_USER") {
+				return nil, p.syntaxErrorAtCur()
 			}
-			if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokSCONST {
-				stmt.ConnectPassword = p.cur.Str
-				p.advance() // consume password
+			var err error
+			stmt.ConnectUser, stmt.ConnectPassword, err = p.parseDatabaseLinkUser()
+			if err != nil {
+				return nil, err
 			}
+		case kwWITH:
+			p.advance() // consume WITH
+			credential, err := p.parseObjectName()
+			if err != nil {
+				return nil, err
+			}
+			if credential.Name == "" {
+				return nil, p.syntaxErrorAtCur()
+			}
+			stmt.ConnectWith = credential
+		default:
+			return nil, p.syntaxErrorAtCur()
 		}
 	}
-
-	// [ AUTHENTICATED BY user IDENTIFIED BY password ]
-	if p.isIdentLikeStr("AUTHENTICATED") {
+	if shared && p.isKeywordStr("AUTHENTICATED") {
 		p.advance() // consume AUTHENTICATED
-		if p.cur.Type == kwBY {
-			p.advance() // consume BY
+		if p.cur.Type != kwBY {
+			return nil, p.syntaxErrorAtCur()
 		}
-		if p.isIdentLike() || p.cur.Type == tokIDENT {
-			stmt.AuthenticatedUser = p.cur.Str
-			p.advance() // consume user
+		p.advance() // consume BY
+		var err error
+		stmt.AuthenticatedUser, stmt.AuthenticatedPass, err = p.parseDatabaseLinkUser()
+		if err != nil {
+			return nil, err
 		}
-		if p.cur.Type == kwIDENTIFIED {
-			p.advance() // consume IDENTIFIED
-			if p.cur.Type == kwBY {
-				p.advance() // consume BY
-			}
-			if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokSCONST {
-				stmt.AuthenticatedPass = p.cur.Str
-				p.advance() // consume password
-			}
+	} else if !hasConnect {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if p.cur.Type == kwUSING {
+		p.advance()
+		if p.cur.Type != tokSCONST {
+			return nil, p.syntaxErrorAtCur()
 		}
+		stmt.Using = p.cur.Str
+		p.advance()
 	}
 
 	stmt.Loc.End = p.prev.End
@@ -282,6 +286,9 @@ func (p *Parser) parseAlterSynonymStmt(start int, public bool) (nodes.StmtNode, 
 	} else if p.isIdentLikeStr("COMPILE") {
 		stmt.Action = "COMPILE"
 		p.advance()
+	} else {
+		// One of them follows the name (ORA-00922).
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	stmt.Loc.End = p.prev.End
@@ -307,53 +314,80 @@ func (p *Parser) parseSizeClause() (string, error) {
 	return "", nil
 }
 
-// parseCompileClause parses COMPILE [DEBUG] [compiler_parameters_clause ...] [REUSE SETTINGS].
+// parseCompileClause parses the rest of a compile clause after COMPILE, or
+// after its DEBUG and target where the caller reads them (debugAllowed
+// false):
+//
+//	COMPILE [ DEBUG ] [ compiler_parameters_clause ]... [ REUSE SETTINGS ]
+//
+//	compiler_parameters_clause:
+//	    parameter_name = parameter_value
+//
+// Oracle 23ai names a parameter by its unquoted name (ORA-03049 at another
+// name, at a quoted one, and at EDITIONABLE after COMPILE), and takes one
+// value, not an expression (ORA-03048 at a '+'), or for PLSQL_WARNINGS a
+// list of strings. Whether a value suits its parameter it checks later.
 // Returns (debug, reuseSettings, compilerParams).
-func (p *Parser) parseCompileClause() (bool, bool, []*nodes.SetParam, error) {
+func (p *Parser) parseCompileClause(debugAllowed bool) (bool, bool, []*nodes.SetParam, error) {
 	var debug bool
 	var reuseSettings bool
 	var compilerParams []*nodes.SetParam
 
-	// Optional DEBUG
-	if p.isIdentLikeStr("DEBUG") {
+	if debugAllowed && p.isKeywordStr("DEBUG") {
 		debug = true
 		p.advance()
 	}
 
-	// Optional compiler_parameters_clause (name = value pairs) and REUSE SETTINGS
-	for p.cur.Type != ';' && p.cur.Type != tokEOF {
-		if p.isIdentLikeStr("REUSE") {
-			p.advance() // consume REUSE
-			if !p.isKeywordStr("SETTINGS") {
-				return false, false, nil, p.syntaxErrorAtCur()
-			}
-			p.advance() // consume SETTINGS
-			reuseSettings = true
-			break
+	for p.isIdentLike() && p.peekNext().Type == '=' {
+		if p.cur.Type == tokQIDENT || !compilerParameterNames[p.cur.Str] {
+			return false, false, nil, p.syntaxErrorAtCur()
 		}
-		// Check for compiler parameter: identifier = value
-		if p.isIdentLike() && p.peekNext().Type == '=' {
-			name, parseErr90 := p.parseIdentifier()
-			if parseErr90 != nil {
-				// consume '='
-				return false, false, nil, parseErr90
-			}
+		start := p.pos()
+		name := p.cur.Str
+		p.advance() // name
+		p.advance() // =
+		value, err := p.parseCompilerParameterValue()
+		if err != nil {
+			return false, false, nil, err
+		}
+		compilerParams = append(compilerParams, &nodes.SetParam{
+			Name:  name,
+			Value: value,
+			Loc:   nodes.Loc{Start: start, End: p.prev.End},
+		})
+		for name == "PLSQL_WARNINGS" && p.cur.Type == ',' && p.peekNext().Type == tokSCONST {
 			p.advance()
-			value, parseErr91 := p.parseExpr()
-			if parseErr91 != nil {
-				return false, false, nil, parseErr91
-			}
-			compilerParams = append(compilerParams, &nodes.SetParam{
-				Name:  name,
-				Value: value,
-				Loc:   nodes.Loc{Start: p.pos(), End: p.prev.End},
-			})
-			continue
+			p.advance()
 		}
-		break
+	}
+
+	if p.isKeywordStr("REUSE") {
+		p.advance() // consume REUSE
+		if !p.isKeywordStr("SETTINGS") {
+			return false, false, nil, p.syntaxErrorAtCur()
+		}
+		p.advance() // consume SETTINGS
+		reuseSettings = true
 	}
 
 	return debug, reuseSettings, compilerParams, nil
+}
+
+// compilerParameterNames are the parameters a compile clause sets.
+var compilerParameterNames = map[string]bool{
+	"PLSQL_OPTIMIZE_LEVEL": true, "PLSQL_CODE_TYPE": true, "PLSQL_DEBUG": true,
+	"PLSQL_WARNINGS": true, "PLSQL_CCFLAGS": true, "NLS_LENGTH_SEMANTICS": true,
+	"PLSCOPE_SETTINGS": true,
+}
+
+// parseCompilerParameterValue parses one compiler parameter value: a
+// literal or a word.
+func (p *Parser) parseCompilerParameterValue() (nodes.ExprNode, error) {
+	switch {
+	case p.cur.Type == tokSCONST, p.cur.Type == tokICONST, p.cur.Type == tokFCONST, p.isIdentLike():
+		return p.parsePrimary()
+	}
+	return nil, p.syntaxErrorAtCur()
 }
 
 // parseAlterProcedureStmt parses an ALTER PROCEDURE statement.
@@ -401,21 +435,22 @@ func (p *Parser) parseAlterProcedureStmt(start int) (nodes.StmtNode, error) {
 		p.advance()
 		var // consume COMPILE
 		parseErr93 error
-		stmt.Debug, stmt.ReuseSettings, stmt.CompilerParams, parseErr93 = p.parseCompileClause()
+		stmt.Debug, stmt.ReuseSettings, stmt.CompilerParams, parseErr93 = p.parseCompileClause(true)
 		if parseErr93 !=
 
 			// Trailing EDITIONABLE | NONEDITIONABLE
 			nil {
 			return nil, parseErr93
 		}
-	}
-
-	if p.isIdentLikeStr("EDITIONABLE") {
+	} else if p.isIdentLikeStr("EDITIONABLE") {
 		stmt.Editionable = true
 		p.advance()
 	} else if p.isIdentLikeStr("NONEDITIONABLE") {
 		stmt.NonEditionable = true
 		p.advance()
+	} else {
+		// A clause follows the name (ORA-00922).
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	stmt.Loc.End = p.prev.End
@@ -465,21 +500,22 @@ func (p *Parser) parseAlterFunctionStmt(start int) (nodes.StmtNode, error) {
 		p.advance()
 		var // consume COMPILE
 		parseErr95 error
-		stmt.Debug, stmt.ReuseSettings, stmt.CompilerParams, parseErr95 = p.parseCompileClause()
+		stmt.Debug, stmt.ReuseSettings, stmt.CompilerParams, parseErr95 = p.parseCompileClause(true)
 		if parseErr95 !=
 
 			// Trailing EDITIONABLE | NONEDITIONABLE
 			nil {
 			return nil, parseErr95
 		}
-	}
-
-	if p.isIdentLikeStr("EDITIONABLE") {
+	} else if p.isIdentLikeStr("EDITIONABLE") {
 		stmt.Editionable = true
 		p.advance()
 	} else if p.isIdentLikeStr("NONEDITIONABLE") {
 		stmt.NonEditionable = true
 		p.advance()
+	} else {
+		// A clause follows the name (ORA-00922).
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	stmt.Loc.End = p.prev.End
@@ -550,7 +586,7 @@ func (p *Parser) parseAlterPackageStmt(start int) (nodes.StmtNode, error) {
 		}
 
 		// Remaining compile clause (DEBUG if not yet consumed, compiler params, REUSE SETTINGS)
-		debug, reuseSettings, compilerParams, parseErr97 := p.parseCompileClause()
+		debug, reuseSettings, compilerParams, parseErr97 := p.parseCompileClause(false)
 		if parseErr97 != nil {
 			return nil, parseErr97
 		}
@@ -559,15 +595,15 @@ func (p *Parser) parseAlterPackageStmt(start int) (nodes.StmtNode, error) {
 		}
 		stmt.ReuseSettings = reuseSettings
 		stmt.CompilerParams = compilerParams
-	}
-
-	// Trailing EDITIONABLE | NONEDITIONABLE
-	if p.isIdentLikeStr("EDITIONABLE") {
+	} else if p.isIdentLikeStr("EDITIONABLE") {
 		stmt.Editionable = true
 		p.advance()
 	} else if p.isIdentLikeStr("NONEDITIONABLE") {
 		stmt.NonEditionable = true
 		p.advance()
+	} else {
+		// A clause follows the name (ORA-00922).
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	stmt.Loc.End = p.prev.End
@@ -629,16 +665,17 @@ func (p *Parser) parseAlterTriggerStmt(start int) (nodes.StmtNode, error) {
 		p.advance()
 		var // consume COMPILE
 		parseErr99 error
-		stmt.Debug, stmt.ReuseSettings, stmt.CompilerParams, parseErr99 = p.parseCompileClause()
+		stmt.Debug, stmt.ReuseSettings, stmt.CompilerParams, parseErr99 = p.parseCompileClause(true)
 		if parseErr99 != nil {
 			return nil, parseErr99
 		}
 	case p.cur.Type == kwRENAME:
 		stmt.Action = "RENAME"
 		p.advance() // consume RENAME
-		if p.cur.Type == kwTO {
-			p.advance() // consume TO
+		if p.cur.Type != kwTO {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance() // consume TO
 		var parseErr100 error
 		stmt.NewName, parseErr100 = p.parseIdentifier()
 		if parseErr100 != nil {
@@ -650,6 +687,9 @@ func (p *Parser) parseAlterTriggerStmt(start int) (nodes.StmtNode, error) {
 	case p.isIdentLikeStr("NONEDITIONABLE"):
 		stmt.Action = "NONEDITIONABLE"
 		p.advance()
+	default:
+		// A clause follows the name (ORA-00922).
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	stmt.Loc.End = p.prev.End
@@ -730,7 +770,7 @@ func (p *Parser) parseAlterTypeStmt(start int) (nodes.StmtNode, error) {
 			p.advance()
 		}
 		// Remaining compile clause (DEBUG if not yet consumed, compiler params, REUSE SETTINGS)
-		debug, reuseSettings, compilerParams, parseErr102 := p.parseCompileClause()
+		debug, reuseSettings, compilerParams, parseErr102 := p.parseCompileClause(false)
 		if parseErr102 != nil {
 			return nil, parseErr102
 		}

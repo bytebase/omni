@@ -3190,6 +3190,9 @@ func writeCreateSynonymStmt(sb *strings.Builder, n *CreateSynonymStmt) {
 	if n.Public {
 		sb.WriteString(" :public true")
 	}
+	if n.IfNotExists {
+		sb.WriteString(" :ifNotExists true")
+	}
 	if n.Name != nil {
 		sb.WriteString(" :name ")
 		writeNode(sb, n.Name)
@@ -3207,6 +3210,9 @@ func writeCreateDatabaseLinkStmt(sb *strings.Builder, n *CreateDatabaseLinkStmt)
 	if n.Public {
 		sb.WriteString(" :public true")
 	}
+	if n.IfNotExists {
+		sb.WriteString(" :ifNotExists true")
+	}
 	if n.Name != "" {
 		sb.WriteString(fmt.Sprintf(" :name %q", n.Name))
 	}
@@ -3215,6 +3221,10 @@ func writeCreateDatabaseLinkStmt(sb *strings.Builder, n *CreateDatabaseLinkStmt)
 	}
 	if n.Identified != "" {
 		sb.WriteString(fmt.Sprintf(" :identified %q", n.Identified))
+	}
+	if n.ConnectWith != nil {
+		sb.WriteString(" :connectWith ")
+		writeNode(sb, n.ConnectWith)
 	}
 	if n.Using != "" {
 		sb.WriteString(fmt.Sprintf(" :using %q", n.Using))
@@ -4529,6 +4539,13 @@ func writeAlterDatabaseLinkStmt(sb *strings.Builder, n *AlterDatabaseLinkStmt) {
 	}
 	if n.AuthenticatedPass != "" {
 		sb.WriteString(fmt.Sprintf(" :authenticatedPass %q", n.AuthenticatedPass))
+	}
+	if n.ConnectWith != nil {
+		sb.WriteString(" :connectWith ")
+		writeNode(sb, n.ConnectWith)
+	}
+	if n.Using != "" {
+		sb.WriteString(fmt.Sprintf(" :using %q", n.Using))
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")

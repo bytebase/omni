@@ -13,7 +13,7 @@ import (
 // Oracle 23ai takes OR REPLACE only before CONTEXT (ORA-00922 at the object
 // word otherwise), PUBLIC only before ROLLBACK (ORA-00901 at the object word),
 // and IF NOT EXISTS before none of them (ORA-00901 at the IF).
-func (p *Parser) parseCreateAdminTail(start int, orReplace, ifNotExists bool, ifTok Token, public *Token) (stmt nodes.StmtNode, ok bool, err error) {
+func (p *Parser) parseCreateAdminTail(start int, orReplace bool, public *Token) (stmt nodes.StmtNode, ok bool, err error) {
 	var orReplaceOK, publicOK bool
 	switch {
 	case p.cur.Type == kwCONTEXT:
@@ -24,10 +24,7 @@ func (p *Parser) parseCreateAdminTail(start int, orReplace, ifNotExists bool, if
 	default:
 		return nil, false, nil
 	}
-	switch {
-	case ifNotExists:
-		return nil, true, p.syntaxErrorAtTok(ifTok)
-	case orReplace && !orReplaceOK, public != nil && !publicOK:
+	if orReplace && !orReplaceOK || public != nil && !publicOK {
 		return nil, true, p.syntaxErrorAtCur()
 	}
 
@@ -83,4 +80,40 @@ func (p *Parser) parseUnqualifiedName() (*nodes.ObjectName, error) {
 	name := &nodes.ObjectName{Name: p.cur.Str, Loc: nodes.Loc{Start: p.cur.Loc, End: p.cur.End}}
 	p.advance()
 	return name, nil
+}
+
+// parseIfNotExistsAfterKind parses [ IF NOT EXISTS ] after an object's kind
+// (CREATE PROCEDURE IF NOT EXISTS ...). Oracle 23ai answers IF NOT without
+// EXISTS at the IF, and IF NOT EXISTS beside OR REPLACE at the name after
+// it.
+func (p *Parser) parseIfNotExistsAfterKind(orReplace bool) (bool, error) {
+	if p.cur.Type != kwIF || p.peekNext().Type != kwNOT {
+		return false, nil
+	}
+	ifTok := p.cur
+	p.advance() // IF
+	p.advance() // NOT
+	if p.cur.Type != kwEXISTS {
+		return false, p.syntaxErrorAtTok(ifTok)
+	}
+	p.advance() // EXISTS
+	if orReplace {
+		return false, p.syntaxErrorAtCur()
+	}
+	return true, nil
+}
+
+// parseSharingValue parses = { METADATA | NONE } after SHARING. Oracle
+// 23ai requires the '=' (ORA-02000 at the value without it).
+func (p *Parser) parseSharingValue() (string, error) {
+	if p.cur.Type != '=' {
+		return "", p.syntaxErrorAtCur()
+	}
+	p.advance()
+	if !p.isKeywordStr("METADATA") && !p.isKeywordStr("NONE") {
+		return "", p.syntaxErrorAtCur()
+	}
+	value := p.cur.Str
+	p.advance()
+	return value, nil
 }

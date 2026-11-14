@@ -1948,11 +1948,12 @@ func (n *CreateSequenceStmt) stmtNode() {}
 // CreateSynonymStmt represents a CREATE SYNONYM statement.
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/CREATE-SYNONYM.html
 type CreateSynonymStmt struct {
-	OrReplace bool        // OR REPLACE
-	Public    bool        // PUBLIC
-	Name      *ObjectName // synonym name
-	Target    *ObjectName // target object
-	Loc       Loc         // start location
+	OrReplace   bool        // OR REPLACE
+	Public      bool        // PUBLIC
+	IfNotExists bool        // IF NOT EXISTS
+	Name        *ObjectName // synonym name
+	Target      *ObjectName // target object
+	Loc         Loc         // start location
 }
 
 func (n *CreateSynonymStmt) nodeTag()  {}
@@ -1965,12 +1966,14 @@ func (n *CreateSynonymStmt) stmtNode() {}
 // CreateDatabaseLinkStmt represents a CREATE DATABASE LINK statement.
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/CREATE-DATABASE-LINK.html
 type CreateDatabaseLinkStmt struct {
-	Public     bool   // PUBLIC
-	Name       string // link name
-	ConnectTo  string // CONNECT TO user
-	Identified string // IDENTIFIED BY password
-	Using      string // USING connect string
-	Loc        Loc    // start location
+	Public      bool        // PUBLIC
+	IfNotExists bool        // IF NOT EXISTS
+	Name        string      // link name
+	ConnectTo   string      // CONNECT TO user, or CURRENT_USER
+	Identified  string      // IDENTIFIED BY password
+	ConnectWith *ObjectName // CONNECT WITH credential
+	Using       string      // USING connect string
+	Loc         Loc         // start location
 }
 
 func (n *CreateDatabaseLinkStmt) nodeTag()  {}
@@ -3220,6 +3223,8 @@ type AlterDatabaseLinkStmt struct {
 	ConnectPassword   string      // IDENTIFIED BY password
 	AuthenticatedUser string      // AUTHENTICATED BY user (optional)
 	AuthenticatedPass string      // IDENTIFIED BY password (optional, for AUTHENTICATED)
+	ConnectWith       *ObjectName // CONNECT WITH credential
+	Using             string      // USING connect string
 	Loc               Loc
 }
 

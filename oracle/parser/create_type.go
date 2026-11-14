@@ -48,6 +48,12 @@ func (p *Parser) parseCreateTypeStmt(start int, orReplace, ifNotExists, editiona
 		stmt.IsBody = true
 		p.advance()
 	}
+	if !ifNotExists {
+		var err error
+		if stmt.IfNotExists, err = p.parseIfNotExistsAfterKind(orReplace); err != nil {
+			return nil, err
+		}
+	}
 	var parseErr573 error
 
 	// Type name
