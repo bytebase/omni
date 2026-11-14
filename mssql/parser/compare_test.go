@@ -24253,3 +24253,12 @@ func TestParseDbccArgumentsAndOptions(t *testing.T) {
 		t.Error("DBCC CHECKDB WITH NO_STATS parsed; SQL Server refuses it (Msg 195)")
 	}
 }
+
+// TestParseUpdatetextWithoutDataBeforeGo pins that GO ends an UPDATETEXT
+// whose inserted data is left out.
+func TestParseUpdatetextWithoutDataBeforeGo(t *testing.T) {
+	res := ParseAndCheck(t, "UPDATETEXT t.c @ptr 0 0\nGO")
+	if res.Len() != 2 {
+		t.Errorf("got %d statements, want UPDATETEXT and GO", res.Len())
+	}
+}

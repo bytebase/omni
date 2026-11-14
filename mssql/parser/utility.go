@@ -541,7 +541,8 @@ func (p *Parser) parseUpdatetextStmt() (*nodes.UpdatetextStmt, error) {
 
 	// inserted_data | table_name.src_column_name src_text_ptr
 	switch {
-	case p.isIdentLike():
+	case p.isIdentLike() && p.cur.Type != kwGO && !p.isStatementStart():
+		// GO, or the next statement, ends an UPDATETEXT without data.
 		col, err := p.parseProcTextColumn()
 		if err != nil {
 			return nil, err
