@@ -16,7 +16,7 @@ import (
 // GQL is BigQuery/Spanner-Graph syntax; the truth1 BigQuery corpus scopes the
 // full GQL syntax OUT (INDEX.md), so the authoritative reference for the grammar
 // shape is the pinned legacy GoogleSQLParser.g4. The accept/reject of these forms
-// against the live Spanner emulator is recorded in graph_query_oracle_test.go
+// against the live Spanner emulator is recorded in the suite:graph-query rows of testdata/compat.tsv
 //.
 
 // gqlStmtOf parses sql and asserts the single statement is a *GQLStmt.
@@ -750,7 +750,7 @@ func TestGQL_Rejects(t *testing.T) {
 // integer, a query parameter, a system variable, a CAST of one, and — for the
 // sample size only — a floating-point literal. (The reject side lives in
 // TestGQL_Rejects; both sides are pinned against the live oracle in
-// graph_query_oracle_test.go.)
+// the suite:graph-query rows of testdata/compat.tsv.)
 func TestGQL_NumericOperandForms(t *testing.T) {
 	accepts := []string{
 		"GRAPH g MATCH (n) RETURN n LIMIT @p",                             // page LIMIT parameter
@@ -825,7 +825,7 @@ func TestCreatePropertyGraph_IfNotExists(t *testing.T) {
 // divergence: OR REPLACE and IF NOT EXISTS are mutually exclusive (the live
 // Spanner emulator rejects the combination with a true DDL parse error; the
 // legacy .g4 would accept it). See the divergence note in
-// create_property_graph.go + graph_query_oracle_test.go.
+// create_property_graph.go + the suite:graph-query rows of testdata/compat.tsv.
 func TestCreatePropertyGraph_OrReplaceIfNotExistsConflict(t *testing.T) {
 	assertReject(t, "CREATE OR REPLACE PROPERTY GRAPH IF NOT EXISTS g NODE TABLES (T)")
 }

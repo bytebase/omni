@@ -116,6 +116,28 @@ type MigrationOp struct {
 	alterClause string
 	addsIndex   *Index
 	dropsIndex  string
+
+	// column is the lower-cased column a column op adds, drops, or modifies. alterParts is the
+	// clause list of a statement mergeAutoIncrementKeyOps assembled from several ops; nil when the
+	// statement holds only alterClause. positionColumnAdds reads both.
+	column     string
+	alterParts []alterPart
+}
+
+// alterPart is one clause of a grouped ALTER TABLE statement. addsColumn is the lower-cased column
+// an ADD COLUMN clause adds, empty for any other clause.
+type alterPart struct {
+	clause     string
+	addsColumn string
+}
+
+// joinAlterParts renders a clause list as it follows "ALTER TABLE <ident> ".
+func joinAlterParts(parts []alterPart) string {
+	clauses := make([]string, len(parts))
+	for i, p := range parts {
+		clauses[i] = p.clause
+	}
+	return strings.Join(clauses, ", ")
 }
 
 // Priority constants for tie-breaking within a phase. Lower runs earlier. For the
@@ -253,6 +275,7 @@ func GenerateMigrationWithNormalizer(from, to *Catalog, diff *SchemaDiff, n *Nor
 	ops = mergeAutoIncrementKeyOps(ops, diff, n)
 
 	ops = sortMigrationOps(ops)
+	ops = positionColumnAdds(ops, diff)
 
 	return &MigrationPlan{Ops: ops}
 }

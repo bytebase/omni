@@ -20,7 +20,7 @@ import (
 // CORRECTNESS (correctness-protocol.md). Adjudication per oracle.md:
 //   - CALL is parsed in FULL by the live Spanner emulator (it validates the arg
 //     list — `CALL p(1 => 2)` and `CALL p(,)` reject), so CALL is oracle-
-//     authoritative (utility_oracle_test.go).
+//     authoritative (the suite:utility rows of testdata/compat.tsv).
 //   - RENAME and bare ANALYZE go through the emulator's real DDL parser
 //     (authoritative): `RENAME TABLE a TO b` accepts, `RENAME a TO b` rejects
 //     ("Expecting 'TABLE'"), bare `ANALYZE` accepts.

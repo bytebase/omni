@@ -1,8 +1,9 @@
 // Whole-corpus differential for googlesql/corpus-closure against the live Cloud
-// Spanner emulator oracle. Run with:
+// Spanner emulator oracle. It replays
+// testdata/tapes/TestCorpusSpannerDifferential.tape, the harness's answers, and starts no server;
+// record it on the pinned emulator with:
 //
-//	SPANNER_EMULATOR_HOST=localhost:9010 \
-//	  go test ./googlesql/parser/ -run TestCorpusSpannerDifferential
+//	OMNI_RECORD=1 go test ./googlesql/parser/ -run '^TestCorpusSpannerDifferential$'
 //
 // This is the PROVE gate for the corpus-closure node (correctness-protocol.md):
 // it drives the ENTIRE Spanner truth1 corpus (docs/migration/googlesql/truth1/
@@ -28,15 +29,7 @@
 package parser
 
 import (
-	"bufio"
-	"encoding/base64"
-	"encoding/json"
-	"fmt"
-	"io"
-	"os"
-	"os/exec"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/bytebase/omni/googlesql/internal/testcontainer"
@@ -45,8 +38,7 @@ import (
 func TestCorpusSpannerDifferential(t *testing.T) {
 	blocks := collectOfficialCorpus(t)
 
-	h := newCorpusHarness(t)
-	defer h.close()
+	o := testcontainer.Open(t)
 
 	var (
 		checked  int // statements compared (both sides produced a verdict)
@@ -79,7 +71,7 @@ func TestCorpusSpannerDifferential(t *testing.T) {
 				continue
 			}
 			t.Run(b.Key()+"/"+truncForName(stmt), func(t *testing.T) {
-				v := h.verdict(t, stmt)
+				v := o.MustVerdict(t, stmt)
 				switch v.Verdict {
 				case "accept", "reject":
 					// proceed
@@ -167,74 +159,6 @@ func TestIsCommentOrEmpty(t *testing.T) {
 	}
 }
 
-// --- harness plumbing (own type to avoid a duplicate-symbol collision with the
-// per-node *_oracle_test.go harnesses under the shared googlesql_oracle tag) ---
-
-type corpusHarnessVerdict struct {
-	Verdict string `json:"verdict"`
-	Kind    string `json:"kind"`
-	Reason  string `json:"reason"`
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
-
-type corpusHarness struct {
-	cmd    *exec.Cmd
-	stdin  io.WriteCloser
-	stdout *bufio.Reader
-	mu     sync.Mutex
-}
-
-func newCorpusHarness(t *testing.T) *corpusHarness {
-	t.Helper()
-	testcontainer.Host(t)
-	bin := testcontainer.HarnessBinary(t)
-
-	cmd := exec.Command(bin)
-	cmd.Env = append(os.Environ(), "GOOGLESQL_HARNESS_LINE=1")
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		t.Fatalf("stdin pipe: %v", err)
-	}
-	stdoutPipe, err := cmd.StdoutPipe()
-	if err != nil {
-		t.Fatalf("stdout pipe: %v", err)
-	}
-	cmd.Stderr = os.Stderr
-	if err := cmd.Start(); err != nil {
-		t.Fatalf("starting harness: %v", err)
-	}
-	return &corpusHarness{cmd: cmd, stdin: stdin, stdout: bufio.NewReader(stdoutPipe)}
-}
-
-func (h *corpusHarness) verdict(t *testing.T, stmt string) corpusHarnessVerdict {
-	t.Helper()
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	enc := base64.StdEncoding.EncodeToString([]byte(stmt))
-	if _, err := fmt.Fprintln(h.stdin, enc); err != nil {
-		t.Fatalf("writing to harness: %v", err)
-	}
-	line, err := h.stdout.ReadString('\n')
-	if err != nil {
-		t.Fatalf("reading harness verdict: %v", err)
-	}
-	var v corpusHarnessVerdict
-	if err := json.Unmarshal([]byte(strings.TrimSpace(line)), &v); err != nil {
-		t.Fatalf("decoding harness verdict %q: %v", line, err)
-	}
-	return v
-}
-
-func (h *corpusHarness) close() {
-	if h.stdin != nil {
-		_ = h.stdin.Close()
-	}
-	if h.cmd != nil && h.cmd.Process != nil {
-		_ = h.cmd.Wait()
-	}
-}
-
 // corpusDifferentialNonAuthoritative lists Spanner truth1 blocks the whole-corpus
 // differential must NOT enforce parity on, because the live emulator's verdict is
 // non-authoritative for at least one statement in the block (oracle.md). These
@@ -273,6 +197,6 @@ var corpusDifferentialNonAuthoritative = map[string]string{
 	"spanner/expressions.md#17": "EMULATOR LIMITATION: SELECT STRUCT(...) / SELECT (1,2,3) — emulator returns Unimplemented \"A struct value cannot be returned as a column value\" on execution, so the oracle yields no verdict (ERROR). Statement parses fine on omni.",
 	"spanner/expressions.md#39": "UNION FORM: SELECT TREAT(col AS `pkg.Type`) — proto-type-conversion expression; emulator rejects (\"Unexpected keyword TREAT\") but TREAT is accepted by omni's expression grammar (legacy/bq union). omni accepts.",
 	"spanner/ddl.md#54":         "UNION FORM: CREATE TABLE … (col INT64 DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE Seq)) NOT NULL) — the emulator rejects the DEFAULT-(seq-expr)-then-NOT NULL column-attribute ordering (Error parsing Spanner DDL statement, col 89), the same construct class as the DOC-REJECTED spanner/ddl.md#53 (DEFAULT (NEXT VALUE FOR Seq) NOT NULL). omni accepts the union-permissive attribute order, consistent with parser-ddl's established behavior. Surfaced once comment-led statements were no longer skipped.",
-	"spanner/ddl.md#48":         "UNION FORM: ALTER SEARCH INDEX … {ADD|DROP} STORED COLUMN (DDL-049, documented Spanner DDL reference) — the live emulator (sha256:caf1bd24) syntax-rejects it (\"Encountered 'SEARCH' while parsing: alter_statement\"); its grammar is a subset that lags the docs. omni accepts the documented union form (alter_table.go AlterSearchIndex), triangulated against the Spanner DDL reference + legacy .g4 (schema_object_kind has INDEX but not SEARCH INDEX). Non-authoritative reject; recorded as divergence #203 and asserted in the bq_ddl_oracle_test.go triangulation guard.",
+	"spanner/ddl.md#48":         "UNION FORM: ALTER SEARCH INDEX … {ADD|DROP} STORED COLUMN (DDL-049, documented Spanner DDL reference) — the live emulator (sha256:caf1bd24) syntax-rejects it (\"Encountered 'SEARCH' while parsing: alter_statement\"); its grammar is a subset that lags the docs. omni accepts the documented union form (alter_table.go AlterSearchIndex), triangulated against the Spanner DDL reference + legacy .g4 (schema_object_kind has INDEX but not SEARCH INDEX). Non-authoritative reject; recorded as divergence #203 and asserted in the the suite:bq-ddl rows of testdata/compat.tsv triangulation guard.",
 	"spanner/lexical.md#2":      "GENUINE DIVERGENCE (ledger): `SELECT 'It''s a test'` — omni accepts adjacent string literals with no separating whitespace; the emulator AND the legacy .g4 string_literal rule (requires whitespace between adjacent components) REJECT it (\"concatenated string literals must be separated by whitespace\"). Fix is in lexer/expr (outside this node's scope); excluded so the gate stays green.",
 }

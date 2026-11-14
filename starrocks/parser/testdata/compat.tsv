@@ -820,7 +820,7 @@ accept	reject	engine	statement/createFunctionStatement!drop-7	CREATE FUNCTION a(
 accept	reject	engine	statement/createFunctionStatement!truncate	CREATE FUNCTION a() RETURNS
 accept	reject	engine	statement/createFunctionStatement!insert	CREATE FUNCTION a() RETURNS BOOLEAN zzz;
 reject	reject	engine	statement/createFunctionStatement!swap	CROSS FUNCTION a() RETURNS BOOLEAN;
-reject	accept	engine	statement/loadStatement	LOAD LABEL a;
+accept	accept	engine	statement/loadStatement	LOAD LABEL a;
 reject	reject	engine	statement/loadStatement!drop-1	LABEL a;
 reject	reject	engine	statement/loadStatement!drop-2	LOAD a;
 reject	reject	engine	statement/loadStatement!drop-3	LOAD LABEL;
@@ -5423,8 +5423,8 @@ accept	accept	engine	typeList(,_DOTDOTDOT)?/%empty	DROP FUNCTION a();
 accept	accept	engine	typeList(,_DOTDOTDOT)?/,_DOTDOTDOT	DROP FUNCTION a(,...);
 accept	reject	engine	typeList(,_DOTDOTDOT)?/,_DOTDOTDOT!drop-1	DROP FUNCTION a(...);
 accept	reject	engine	typeList(,_DOTDOTDOT)?/,_DOTDOTDOT!insert	DROP FUNCTION a(,...zzz);
-reject	accept	engine	loadStatement/LOAD_LABEL_labelName_(dataDescList)?_(brokerDesc)?_(BY_~bc198010	LOAD LABEL a;
-reject	accept	engine	loadStatement/LOAD_LABEL_labelName_(dataDescList)?_resourceDesc_(PROP~970443c3	LOAD LABEL a WITH RESOURCE a;
+accept	accept	engine	loadStatement/LOAD_LABEL_labelName_(dataDescList)?_(brokerDesc)?_(BY_~bc198010	LOAD LABEL a;
+accept	accept	engine	loadStatement/LOAD_LABEL_labelName_(dataDescList)?_resourceDesc_(PROP~970443c3	LOAD LABEL a WITH RESOURCE a;
 reject	reject	engine	loadStatement/LOAD_LABEL_labelName_(dataDescList)?_resourceDesc_(PROP~970443c3!drop-1	LABEL a WITH RESOURCE a;
 reject	reject	engine	loadStatement/LOAD_LABEL_labelName_(dataDescList)?_resourceDesc_(PROP~970443c3!drop-2	LOAD a WITH RESOURCE a;
 reject	reject	engine	loadStatement/LOAD_LABEL_labelName_(dataDescList)?_resourceDesc_(PROP~970443c3!drop-3	LOAD LABEL WITH RESOURCE a;
@@ -5434,8 +5434,8 @@ reject	reject	engine	loadStatement/LOAD_LABEL_labelName_(dataDescList)?_resource
 reject	reject	engine	loadStatement/LOAD_LABEL_labelName_(dataDescList)?_resourceDesc_(PROP~970443c3!truncate	LOAD LABEL a WITH RESOURCE
 reject	reject	engine	loadStatement/LOAD_LABEL_labelName_(dataDescList)?_resourceDesc_(PROP~970443c3!insert	LOAD LABEL a WITH RESOURCE a zzz;
 reject	reject	engine	loadStatement/LOAD_LABEL_labelName_(dataDescList)?_resourceDesc_(PROP~970443c3!swap	LOCAL LABEL a WITH RESOURCE a;
-reject	accept	engine	loadStatement(dataDescList)?/%empty	LOAD LABEL a;
-reject	accept	engine	loadStatement(dataDescList)?/dataDescList	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a);
+accept	accept	engine	loadStatement(dataDescList)?/%empty	LOAD LABEL a;
+accept	accept	engine	loadStatement(dataDescList)?/dataDescList	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a);
 reject	reject	engine	loadStatement(dataDescList)?/dataDescList!drop-1	LOAD LABEL a DATA FROM TABLE a INTO TABLE a);
 reject	reject	engine	loadStatement(dataDescList)?/dataDescList!drop-2	LOAD LABEL a(FROM TABLE a INTO TABLE a);
 reject	reject	engine	loadStatement(dataDescList)?/dataDescList!drop-3	LOAD LABEL a(DATA TABLE a INTO TABLE a);
@@ -5448,22 +5448,22 @@ reject	reject	engine	loadStatement(dataDescList)?/dataDescList!drop-9	LOAD LABEL
 reject	reject	engine	loadStatement(dataDescList)?/dataDescList!truncate	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a
 reject	reject	engine	loadStatement(dataDescList)?/dataDescList!insert	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a) zzz;
 reject	reject	engine	loadStatement(dataDescList)?/dataDescList!swap	LOAD LABEL a(DATABASE FROM TABLE a INTO TABLE a);
-reject	accept	engine	loadStatement(brokerDesc)?/%empty	LOAD LABEL a;
-reject	accept	engine	loadStatement(brokerDesc)?/brokerDesc	LOAD LABEL a WITH BROKER;
+accept	accept	engine	loadStatement(brokerDesc)?/%empty	LOAD LABEL a;
+accept	accept	engine	loadStatement(brokerDesc)?/brokerDesc	LOAD LABEL a WITH BROKER;
 reject	reject	engine	loadStatement(brokerDesc)?/brokerDesc!drop-1	LOAD LABEL a BROKER;
 reject	reject	engine	loadStatement(brokerDesc)?/brokerDesc!drop-2	LOAD LABEL a WITH;
 reject	reject	engine	loadStatement(brokerDesc)?/brokerDesc!truncate	LOAD LABEL a WITH
-reject	accept	engine	loadStatement(brokerDesc)?/brokerDesc!insert	LOAD LABEL a WITH BROKER zzz;
+accept	accept	engine	loadStatement(brokerDesc)?/brokerDesc!insert	LOAD LABEL a WITH BROKER zzz;
 reject	reject	engine	loadStatement(brokerDesc)?/brokerDesc!swap	LOAD LABEL a WORK BROKER;
-reject	accept	engine	loadStatement(BY_identifierOrString)?/%empty	LOAD LABEL a;
-reject	accept	engine	loadStatement(BY_identifierOrString)?/BY_identifierOrString	LOAD LABEL a BY a;
+accept	accept	engine	loadStatement(BY_identifierOrString)?/%empty	LOAD LABEL a;
+accept	accept	engine	loadStatement(BY_identifierOrString)?/BY_identifierOrString	LOAD LABEL a BY a;
 reject	reject	engine	loadStatement(BY_identifierOrString)?/BY_identifierOrString!drop-1	LOAD LABEL a a;
 reject	reject	engine	loadStatement(BY_identifierOrString)?/BY_identifierOrString!drop-2	LOAD LABEL a BY;
 reject	reject	engine	loadStatement(BY_identifierOrString)?/BY_identifierOrString!truncate	LOAD LABEL a BY
 reject	reject	engine	loadStatement(BY_identifierOrString)?/BY_identifierOrString!insert	LOAD LABEL a BY a zzz;
 reject	reject	engine	loadStatement(BY_identifierOrString)?/BY_identifierOrString!swap	LOAD LABEL a CACHE a;
-reject	accept	engine	loadStatement(PROPERTIES_propertyList)?/%empty	LOAD LABEL a;
-reject	accept	engine	loadStatement(PROPERTIES_propertyList)?/PROPERTIES_propertyList	LOAD LABEL a PROPERTIES('a' = 'a');
+accept	accept	engine	loadStatement(PROPERTIES_propertyList)?/%empty	LOAD LABEL a;
+accept	accept	engine	loadStatement(PROPERTIES_propertyList)?/PROPERTIES_propertyList	LOAD LABEL a PROPERTIES('a' = 'a');
 reject	reject	engine	loadStatement(PROPERTIES_propertyList)?/PROPERTIES_propertyList!drop-1	LOAD LABEL a('a' = 'a');
 reject	reject	engine	loadStatement(PROPERTIES_propertyList)?/PROPERTIES_propertyList!drop-2	LOAD LABEL a PROPERTIES 'a' = 'a');
 reject	reject	engine	loadStatement(PROPERTIES_propertyList)?/PROPERTIES_propertyList!drop-3	LOAD LABEL a PROPERTIES(= 'a');
@@ -5473,17 +5473,17 @@ reject	reject	engine	loadStatement(PROPERTIES_propertyList)?/PROPERTIES_property
 reject	reject	engine	loadStatement(PROPERTIES_propertyList)?/PROPERTIES_propertyList!truncate	LOAD LABEL a PROPERTIES('a' = 'a'
 reject	reject	engine	loadStatement(PROPERTIES_propertyList)?/PROPERTIES_propertyList!insert	LOAD LABEL a PROPERTIES('a' = 'a') zzz;
 reject	reject	engine	loadStatement(PROPERTIES_propertyList)?/PROPERTIES_propertyList!swap	LOAD LABEL a PROPERTY('a' = 'a');
-reject	accept	engine	labelName/(identifier_.)?_identifier	LOAD LABEL a;
-reject	accept	engine	labelName(identifier_.)?/%empty	LOAD LABEL a;
+accept	accept	engine	labelName/(identifier_.)?_identifier	LOAD LABEL a;
+accept	accept	engine	labelName(identifier_.)?/%empty	LOAD LABEL a;
 reject	reject	engine	labelName(identifier_.)?/%empty!insert	LOAD LABEL zzz a;
-reject	accept	engine	labelName(identifier_.)?/identifier_.	LOAD LABEL a.a;
+accept	accept	engine	labelName(identifier_.)?/identifier_.	LOAD LABEL a.a;
 reject	reject	engine	labelName(identifier_.)?/identifier_.!drop-1	LOAD LABEL.a;
-reject	accept	engine	labelName(identifier_.)?/identifier_.!truncate	LOAD LABEL a
+accept	accept	engine	labelName(identifier_.)?/identifier_.!truncate	LOAD LABEL a
 reject	reject	engine	labelName(identifier_.)?/identifier_.!insert	LOAD LABEL a.zzz a;
-reject	accept	engine	dataDescList/(_dataDesc_(,_dataDesc)*_)	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a);
-reject	accept	engine	dataDescList(,_dataDesc)*/%empty	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a);
+accept	accept	engine	dataDescList/(_dataDesc_(,_dataDesc)*_)	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a);
+accept	accept	engine	dataDescList(,_dataDesc)*/%empty	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a);
 reject	reject	engine	dataDescList(,_dataDesc)*/%empty!insert	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a zzz);
-reject	accept	engine	dataDescList(,_dataDesc)*/,_dataDesc_(,_dataDesc)*	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a, DATA FROM TABLE a INTO TABLE a);
+accept	accept	engine	dataDescList(,_dataDesc)*/,_dataDesc_(,_dataDesc)*	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a, DATA FROM TABLE a INTO TABLE a);
 reject	reject	engine	dataDescList(,_dataDesc)*/,_dataDesc_(,_dataDesc)*!drop-1	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a DATA FROM TABLE a INTO TABLE a);
 reject	reject	engine	dataDescList(,_dataDesc)*/,_dataDesc_(,_dataDesc)*!drop-2	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a, FROM TABLE a INTO TABLE a);
 reject	reject	engine	dataDescList(,_dataDesc)*/,_dataDesc_(,_dataDesc)*!drop-3	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a, DATA TABLE a INTO TABLE a);
@@ -5499,7 +5499,7 @@ accept	accept	engine	dataDesc/DATA_INFILE_stringList_(NEGATIVE)?_INTO_TABLE_iden
 reject	reject	engine	dataDesc/DATA_INFILE_stringList_(NEGATIVE)?_INTO_TABLE_identifie~2673dd3d!drop-1	LOAD LABEL a(INFILE('a') INTO TABLE a);
 reject	reject	engine	dataDesc/DATA_INFILE_stringList_(NEGATIVE)?_INTO_TABLE_identifie~2673dd3d!drop-2	LOAD LABEL a(DATA('a') INTO TABLE a);
 reject	reject	engine	dataDesc/DATA_INFILE_stringList_(NEGATIVE)?_INTO_TABLE_identifie~2673dd3d!drop-3	LOAD LABEL a(DATA INFILE 'a') INTO TABLE a);
-accept	reject	engine	dataDesc/DATA_INFILE_stringList_(NEGATIVE)?_INTO_TABLE_identifie~2673dd3d!drop-4	LOAD LABEL a(DATA INFILE() INTO TABLE a);
+reject	reject	engine	dataDesc/DATA_INFILE_stringList_(NEGATIVE)?_INTO_TABLE_identifie~2673dd3d!drop-4	LOAD LABEL a(DATA INFILE() INTO TABLE a);
 reject	reject	engine	dataDesc/DATA_INFILE_stringList_(NEGATIVE)?_INTO_TABLE_identifie~2673dd3d!drop-5	LOAD LABEL a(DATA INFILE('a' INTO TABLE a);
 reject	reject	engine	dataDesc/DATA_INFILE_stringList_(NEGATIVE)?_INTO_TABLE_identifie~2673dd3d!drop-6	LOAD LABEL a(DATA INFILE('a') TABLE a);
 reject	reject	engine	dataDesc/DATA_INFILE_stringList_(NEGATIVE)?_INTO_TABLE_identifie~2673dd3d!drop-7	LOAD LABEL a(DATA INFILE('a') INTO a);
@@ -5507,23 +5507,23 @@ reject	reject	engine	dataDesc/DATA_INFILE_stringList_(NEGATIVE)?_INTO_TABLE_iden
 reject	reject	engine	dataDesc/DATA_INFILE_stringList_(NEGATIVE)?_INTO_TABLE_identifie~2673dd3d!truncate	LOAD LABEL a(DATA INFILE('a') INTO TABLE
 reject	reject	engine	dataDesc/DATA_INFILE_stringList_(NEGATIVE)?_INTO_TABLE_identifie~2673dd3d!insert	LOAD LABEL a(DATA INFILE('a') INTO TABLE a zzz);
 reject	reject	engine	dataDesc/DATA_INFILE_stringList_(NEGATIVE)?_INTO_TABLE_identifie~2673dd3d!swap	LOAD LABEL a(DATABASE INFILE('a') INTO TABLE a);
-reject	accept	engine	dataDesc/DATA_FROM_TABLE_identifier_(NEGATIVE)?_INTO_TABLE_ident~09df7693	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a);
+accept	accept	engine	dataDesc/DATA_FROM_TABLE_identifier_(NEGATIVE)?_INTO_TABLE_ident~09df7693	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a);
 reject	reject	engine	dataDesc/DATA_FROM_TABLE_identifier_(NEGATIVE)?_INTO_TABLE_ident~09df7693!truncate	LOAD LABEL a(DATA FROM TABLE a INTO TABLE
-reject	accept	engine	dataDesc(NEGATIVE)?/%empty	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a);
+accept	accept	engine	dataDesc(NEGATIVE)?/%empty	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a);
 reject	reject	engine	dataDesc(NEGATIVE)?/%empty!insert	LOAD LABEL a(DATA FROM TABLE a zzz INTO TABLE a);
-reject	accept	engine	dataDesc(NEGATIVE)?/NEGATIVE	LOAD LABEL a(DATA FROM TABLE a NEGATIVE INTO TABLE a);
+accept	accept	engine	dataDesc(NEGATIVE)?/NEGATIVE	LOAD LABEL a(DATA FROM TABLE a NEGATIVE INTO TABLE a);
 reject	reject	engine	dataDesc(NEGATIVE)?/NEGATIVE!truncate	LOAD LABEL a(DATA FROM TABLE a
 reject	reject	engine	dataDesc(NEGATIVE)?/NEGATIVE!insert	LOAD LABEL a(DATA FROM TABLE a NEGATIVE zzz INTO TABLE a);
 reject	reject	engine	dataDesc(NEGATIVE)?/NEGATIVE!swap	LOAD LABEL a(DATA FROM TABLE a NGRAMBF INTO TABLE a);
-reject	accept	engine	dataDesc(partitionNames)?/%empty	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a);
-reject	accept	engine	dataDesc(partitionNames)?/partitionNames	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a PARTITION a);
+accept	accept	engine	dataDesc(partitionNames)?/%empty	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a);
+accept	accept	engine	dataDesc(partitionNames)?/partitionNames	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a PARTITION a);
 reject	reject	engine	dataDesc(partitionNames)?/partitionNames!drop-1	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a a);
 reject	reject	engine	dataDesc(partitionNames)?/partitionNames!drop-2	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a PARTITION);
 reject	reject	engine	dataDesc(partitionNames)?/partitionNames!truncate	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a PARTITION
 reject	reject	engine	dataDesc(partitionNames)?/partitionNames!insert	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a PARTITION a zzz);
-reject	accept	engine	dataDesc(partitionNames)?/partitionNames!swap	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a PARTITIONS a);
+accept	accept	engine	dataDesc(partitionNames)?/partitionNames!swap	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a PARTITIONS a);
 accept	accept	engine	dataDesc(COLUMNS_TERMINATED_BY_string)?/%empty	LOAD LABEL a(DATA INFILE('a') INTO TABLE a);
-reject	accept	engine	dataDesc(COLUMNS_TERMINATED_BY_string)?/COLUMNS_TERMINATED_BY_string	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COLUMNS TERMINATED BY 'a');
+accept	accept	engine	dataDesc(COLUMNS_TERMINATED_BY_string)?/COLUMNS_TERMINATED_BY_string	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COLUMNS TERMINATED BY 'a');
 reject	reject	engine	dataDesc(COLUMNS_TERMINATED_BY_string)?/COLUMNS_TERMINATED_BY_string!drop-1	LOAD LABEL a(DATA INFILE('a') INTO TABLE a TERMINATED BY 'a');
 reject	reject	engine	dataDesc(COLUMNS_TERMINATED_BY_string)?/COLUMNS_TERMINATED_BY_string!drop-2	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COLUMNS BY 'a');
 reject	reject	engine	dataDesc(COLUMNS_TERMINATED_BY_string)?/COLUMNS_TERMINATED_BY_string!drop-3	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COLUMNS TERMINATED 'a');
@@ -5532,7 +5532,7 @@ reject	reject	engine	dataDesc(COLUMNS_TERMINATED_BY_string)?/COLUMNS_TERMINATED_
 reject	reject	engine	dataDesc(COLUMNS_TERMINATED_BY_string)?/COLUMNS_TERMINATED_BY_string!insert	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COLUMNS TERMINATED BY 'a' zzz);
 reject	reject	engine	dataDesc(COLUMNS_TERMINATED_BY_string)?/COLUMNS_TERMINATED_BY_string!swap	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COMMENT TERMINATED BY 'a');
 accept	accept	engine	dataDesc(ROWS_TERMINATED_BY_string)?/%empty	LOAD LABEL a(DATA INFILE('a') INTO TABLE a);
-reject	accept	engine	dataDesc(ROWS_TERMINATED_BY_string)?/ROWS_TERMINATED_BY_string	LOAD LABEL a(DATA INFILE('a') INTO TABLE a ROWS TERMINATED BY 'a');
+accept	accept	engine	dataDesc(ROWS_TERMINATED_BY_string)?/ROWS_TERMINATED_BY_string	LOAD LABEL a(DATA INFILE('a') INTO TABLE a ROWS TERMINATED BY 'a');
 reject	reject	engine	dataDesc(ROWS_TERMINATED_BY_string)?/ROWS_TERMINATED_BY_string!drop-2	LOAD LABEL a(DATA INFILE('a') INTO TABLE a ROWS BY 'a');
 reject	reject	engine	dataDesc(ROWS_TERMINATED_BY_string)?/ROWS_TERMINATED_BY_string!drop-3	LOAD LABEL a(DATA INFILE('a') INTO TABLE a ROWS TERMINATED 'a');
 reject	reject	engine	dataDesc(ROWS_TERMINATED_BY_string)?/ROWS_TERMINATED_BY_string!drop-4	LOAD LABEL a(DATA INFILE('a') INTO TABLE a ROWS TERMINATED BY);
@@ -5540,7 +5540,7 @@ reject	reject	engine	dataDesc(ROWS_TERMINATED_BY_string)?/ROWS_TERMINATED_BY_str
 reject	reject	engine	dataDesc(ROWS_TERMINATED_BY_string)?/ROWS_TERMINATED_BY_string!insert	LOAD LABEL a(DATA INFILE('a') INTO TABLE a ROWS TERMINATED BY 'a' zzz);
 reject	reject	engine	dataDesc(ROWS_TERMINATED_BY_string)?/ROWS_TERMINATED_BY_string!swap	LOAD LABEL a(DATA INFILE('a') INTO TABLE a ROW_NUMBER TERMINATED BY 'a');
 accept	accept	engine	dataDesc(fileFormat)?/%empty	LOAD LABEL a(DATA INFILE('a') INTO TABLE a);
-reject	accept	engine	dataDesc(fileFormat)?/fileFormat	LOAD LABEL a(DATA INFILE('a') INTO TABLE a FORMAT AS a);
+accept	accept	engine	dataDesc(fileFormat)?/fileFormat	LOAD LABEL a(DATA INFILE('a') INTO TABLE a FORMAT AS a);
 reject	reject	engine	dataDesc(fileFormat)?/fileFormat!drop-1	LOAD LABEL a(DATA INFILE('a') INTO TABLE a AS a);
 reject	reject	engine	dataDesc(fileFormat)?/fileFormat!drop-2	LOAD LABEL a(DATA INFILE('a') INTO TABLE a FORMAT a);
 reject	reject	engine	dataDesc(fileFormat)?/fileFormat!drop-3	LOAD LABEL a(DATA INFILE('a') INTO TABLE a FORMAT AS);
@@ -5548,13 +5548,13 @@ reject	reject	engine	dataDesc(fileFormat)?/fileFormat!truncate	LOAD LABEL a(DATA
 reject	reject	engine	dataDesc(fileFormat)?/fileFormat!insert	LOAD LABEL a(DATA INFILE('a') INTO TABLE a FORMAT AS a zzz);
 reject	reject	engine	dataDesc(fileFormat)?/fileFormat!swap	LOAD LABEL a(DATA INFILE('a') INTO TABLE a FREE AS a);
 accept	accept	engine	dataDesc(formatProps)?/%empty	LOAD LABEL a(DATA INFILE('a') INTO TABLE a);
-reject	accept	engine	dataDesc(formatProps)?/formatProps	LOAD LABEL a(DATA INFILE('a') INTO TABLE a());
+accept	accept	engine	dataDesc(formatProps)?/formatProps	LOAD LABEL a(DATA INFILE('a') INTO TABLE a());
 reject	reject	engine	dataDesc(formatProps)?/formatProps!drop-1	LOAD LABEL a(DATA INFILE('a') INTO TABLE a));
 reject	reject	engine	dataDesc(formatProps)?/formatProps!drop-2	LOAD LABEL a(DATA INFILE('a') INTO TABLE a();
 reject	reject	engine	dataDesc(formatProps)?/formatProps!truncate	LOAD LABEL a(DATA INFILE('a') INTO TABLE a(
 reject	reject	engine	dataDesc(formatProps)?/formatProps!insert	LOAD LABEL a(DATA INFILE('a') INTO TABLE a() zzz);
 accept	accept	engine	dataDesc(columnAliases)?/%empty	LOAD LABEL a(DATA INFILE('a') INTO TABLE a);
-reject	accept	engine	dataDesc(columnAliases)?/columnAliases	LOAD LABEL a(DATA INFILE('a') INTO TABLE a(a));
+accept	accept	engine	dataDesc(columnAliases)?/columnAliases	LOAD LABEL a(DATA INFILE('a') INTO TABLE a(a));
 reject	reject	engine	dataDesc(columnAliases)?/columnAliases!drop-1	LOAD LABEL a(DATA INFILE('a') INTO TABLE a a));
 reject	reject	engine	dataDesc(columnAliases)?/columnAliases!drop-3	LOAD LABEL a(DATA INFILE('a') INTO TABLE a(a);
 reject	reject	engine	dataDesc(columnAliases)?/columnAliases!truncate	LOAD LABEL a(DATA INFILE('a') INTO TABLE a(a
@@ -5566,13 +5566,13 @@ reject	reject	engine	dataDesc(COLUMNS_FROM_PATH_AS_identifierList)?/COLUMNS_FROM
 reject	reject	engine	dataDesc(COLUMNS_FROM_PATH_AS_identifierList)?/COLUMNS_FROM_PATH_AS_identifierList!drop-3	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COLUMNS FROM AS(a));
 reject	reject	engine	dataDesc(COLUMNS_FROM_PATH_AS_identifierList)?/COLUMNS_FROM_PATH_AS_identifierList!drop-4	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COLUMNS FROM PATH(a));
 reject	reject	engine	dataDesc(COLUMNS_FROM_PATH_AS_identifierList)?/COLUMNS_FROM_PATH_AS_identifierList!drop-5	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COLUMNS FROM PATH AS a));
-accept	reject	engine	dataDesc(COLUMNS_FROM_PATH_AS_identifierList)?/COLUMNS_FROM_PATH_AS_identifierList!drop-6	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COLUMNS FROM PATH AS());
+reject	reject	engine	dataDesc(COLUMNS_FROM_PATH_AS_identifierList)?/COLUMNS_FROM_PATH_AS_identifierList!drop-6	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COLUMNS FROM PATH AS());
 reject	reject	engine	dataDesc(COLUMNS_FROM_PATH_AS_identifierList)?/COLUMNS_FROM_PATH_AS_identifierList!drop-7	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COLUMNS FROM PATH AS(a);
 reject	reject	engine	dataDesc(COLUMNS_FROM_PATH_AS_identifierList)?/COLUMNS_FROM_PATH_AS_identifierList!truncate	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COLUMNS FROM PATH AS(a
 reject	reject	engine	dataDesc(COLUMNS_FROM_PATH_AS_identifierList)?/COLUMNS_FROM_PATH_AS_identifierList!insert	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COLUMNS FROM PATH AS(a) zzz);
 reject	reject	engine	dataDesc(COLUMNS_FROM_PATH_AS_identifierList)?/COLUMNS_FROM_PATH_AS_identifierList!swap	LOAD LABEL a(DATA INFILE('a') INTO TABLE a COMMENT FROM PATH AS(a));
-reject	accept	engine	dataDesc(SET_classifier)?/%empty	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a);
-reject	accept	engine	dataDesc(SET_classifier)?/SET_classifier	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a SET(CURRENT_USER));
+accept	accept	engine	dataDesc(SET_classifier)?/%empty	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a);
+accept	accept	engine	dataDesc(SET_classifier)?/SET_classifier	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a SET(CURRENT_USER));
 reject	reject	engine	dataDesc(SET_classifier)?/SET_classifier!drop-1	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a(CURRENT_USER));
 reject	reject	engine	dataDesc(SET_classifier)?/SET_classifier!drop-2	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a SET CURRENT_USER));
 reject	reject	engine	dataDesc(SET_classifier)?/SET_classifier!drop-3	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a SET());
@@ -5580,54 +5580,54 @@ reject	reject	engine	dataDesc(SET_classifier)?/SET_classifier!drop-4	LOAD LABEL 
 reject	reject	engine	dataDesc(SET_classifier)?/SET_classifier!truncate	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a SET(CURRENT_USER
 reject	reject	engine	dataDesc(SET_classifier)?/SET_classifier!insert	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a SET(CURRENT_USER) zzz);
 reject	reject	engine	dataDesc(SET_classifier)?/SET_classifier!swap	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a SETS(CURRENT_USER));
-reject	accept	engine	dataDesc(WHERE_expression)?/%empty	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a);
-reject	accept	engine	dataDesc(WHERE_expression)?/WHERE_expression	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a WHERE CURRENT_USER);
+accept	accept	engine	dataDesc(WHERE_expression)?/%empty	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a);
+accept	accept	engine	dataDesc(WHERE_expression)?/WHERE_expression	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a WHERE CURRENT_USER);
 reject	reject	engine	dataDesc(WHERE_expression)?/WHERE_expression!drop-1	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a CURRENT_USER);
 reject	reject	engine	dataDesc(WHERE_expression)?/WHERE_expression!drop-2	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a WHERE);
 reject	reject	engine	dataDesc(WHERE_expression)?/WHERE_expression!truncate	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a WHERE
 reject	reject	engine	dataDesc(WHERE_expression)?/WHERE_expression!insert	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a WHERE CURRENT_USER zzz);
 reject	reject	engine	dataDesc(WHERE_expression)?/WHERE_expression!swap	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a WHITELIST CURRENT_USER);
-reject	accept	engine	formatProps/(_(SKIP_HEADER_=_INTEGER_VALUE)?_(TRIM_SPACE_=_booleanV~30a9a5e1	LOAD LABEL a(DATA INFILE('a') INTO TABLE a());
-reject	accept	engine	formatProps(SKIP_HEADER_=_INTEGER_VALUE)?/%empty	LOAD LABEL a(DATA INFILE('a') INTO TABLE a());
-reject	accept	engine	formatProps(SKIP_HEADER_=_INTEGER_VALUE)?/%empty!insert	LOAD LABEL a(DATA INFILE('a') INTO TABLE a(zzz));
-reject	accept	engine	formatProps(SKIP_HEADER_=_INTEGER_VALUE)?/SKIP_HEADER_=_INTEGER_VALUE	LOAD LABEL a(DATA INFILE('a') INTO TABLE a(SKIP_HEADER = 1));
+accept	accept	engine	formatProps/(_(SKIP_HEADER_=_INTEGER_VALUE)?_(TRIM_SPACE_=_booleanV~30a9a5e1	LOAD LABEL a(DATA INFILE('a') INTO TABLE a());
+accept	accept	engine	formatProps(SKIP_HEADER_=_INTEGER_VALUE)?/%empty	LOAD LABEL a(DATA INFILE('a') INTO TABLE a());
+accept	accept	engine	formatProps(SKIP_HEADER_=_INTEGER_VALUE)?/%empty!insert	LOAD LABEL a(DATA INFILE('a') INTO TABLE a(zzz));
+accept	accept	engine	formatProps(SKIP_HEADER_=_INTEGER_VALUE)?/SKIP_HEADER_=_INTEGER_VALUE	LOAD LABEL a(DATA INFILE('a') INTO TABLE a(SKIP_HEADER = 1));
 reject	reject	engine	formatProps(SKIP_HEADER_=_INTEGER_VALUE)?/SKIP_HEADER_=_INTEGER_VALUE!drop-1	LOAD LABEL a(DATA INFILE('a') INTO TABLE a(= 1));
 reject	reject	engine	formatProps(SKIP_HEADER_=_INTEGER_VALUE)?/SKIP_HEADER_=_INTEGER_VALUE!drop-2	LOAD LABEL a(DATA INFILE('a') INTO TABLE a(SKIP_HEADER 1));
 reject	reject	engine	formatProps(SKIP_HEADER_=_INTEGER_VALUE)?/SKIP_HEADER_=_INTEGER_VALUE!drop-3	LOAD LABEL a(DATA INFILE('a') INTO TABLE a(SKIP_HEADER =));
 reject	reject	engine	formatProps(SKIP_HEADER_=_INTEGER_VALUE)?/SKIP_HEADER_=_INTEGER_VALUE!truncate	LOAD LABEL a(DATA INFILE('a') INTO TABLE a(SKIP_HEADER =
 reject	reject	engine	formatProps(SKIP_HEADER_=_INTEGER_VALUE)?/SKIP_HEADER_=_INTEGER_VALUE!insert	LOAD LABEL a(DATA INFILE('a') INTO TABLE a(SKIP_HEADER = 1 zzz));
 reject	reject	engine	formatProps(SKIP_HEADER_=_INTEGER_VALUE)?/SKIP_HEADER_=_INTEGER_VALUE!swap	LOAD LABEL a(DATA INFILE('a') INTO TABLE a(SMALLINT = 1));
-reject	accept	engine	formatProps(TRIM_SPACE_=_booleanValue)?/%empty	LOAD LABEL a(DATA INFILE('a') INTO TABLE a());
-reject	accept	engine	formatProps(TRIM_SPACE_=_booleanValue)?/TRIM_SPACE_=_booleanValue	LOAD LABEL a(DATA INFILE('a') INTO TABLE a(TRIM_SPACE = TRUE));
+accept	accept	engine	formatProps(TRIM_SPACE_=_booleanValue)?/%empty	LOAD LABEL a(DATA INFILE('a') INTO TABLE a());
+accept	accept	engine	formatProps(TRIM_SPACE_=_booleanValue)?/TRIM_SPACE_=_booleanValue	LOAD LABEL a(DATA INFILE('a') INTO TABLE a(TRIM_SPACE = TRUE));
 reject	reject	engine	formatProps(TRIM_SPACE_=_booleanValue)?/TRIM_SPACE_=_booleanValue!drop-1	LOAD LABEL a(DATA INFILE('a') INTO TABLE a(= TRUE));
 reject	reject	engine	formatProps(TRIM_SPACE_=_booleanValue)?/TRIM_SPACE_=_booleanValue!drop-2	LOAD LABEL a(DATA INFILE('a') INTO TABLE a(TRIM_SPACE TRUE));
 reject	reject	engine	formatProps(TRIM_SPACE_=_booleanValue)?/TRIM_SPACE_=_booleanValue!drop-3	LOAD LABEL a(DATA INFILE('a') INTO TABLE a(TRIM_SPACE =));
 reject	reject	engine	formatProps(TRIM_SPACE_=_booleanValue)?/TRIM_SPACE_=_booleanValue!truncate	LOAD LABEL a(DATA INFILE('a') INTO TABLE a(TRIM_SPACE =
 reject	reject	engine	formatProps(TRIM_SPACE_=_booleanValue)?/TRIM_SPACE_=_booleanValue!insert	LOAD LABEL a(DATA INFILE('a') INTO TABLE a(TRIM_SPACE = TRUE zzz));
 reject	reject	engine	formatProps(TRIM_SPACE_=_booleanValue)?/TRIM_SPACE_=_booleanValue!swap	LOAD LABEL a(DATA INFILE('a') INTO TABLE a(TRUE = TRUE));
-reject	accept	engine	formatProps(ENCLOSE_=_string)?/%empty	LOAD LABEL a(DATA INFILE('a') INTO TABLE a());
-reject	accept	engine	formatProps(ENCLOSE_=_string)?/ENCLOSE_=_string	LOAD LABEL a(DATA INFILE('a') INTO TABLE a(ENCLOSE = 'a'));
+accept	accept	engine	formatProps(ENCLOSE_=_string)?/%empty	LOAD LABEL a(DATA INFILE('a') INTO TABLE a());
+accept	accept	engine	formatProps(ENCLOSE_=_string)?/ENCLOSE_=_string	LOAD LABEL a(DATA INFILE('a') INTO TABLE a(ENCLOSE = 'a'));
 reject	reject	engine	formatProps(ENCLOSE_=_string)?/ENCLOSE_=_string!drop-1	LOAD LABEL a(DATA INFILE('a') INTO TABLE a(= 'a'));
 reject	reject	engine	formatProps(ENCLOSE_=_string)?/ENCLOSE_=_string!drop-2	LOAD LABEL a(DATA INFILE('a') INTO TABLE a(ENCLOSE 'a'));
 reject	reject	engine	formatProps(ENCLOSE_=_string)?/ENCLOSE_=_string!drop-3	LOAD LABEL a(DATA INFILE('a') INTO TABLE a(ENCLOSE =));
 reject	reject	engine	formatProps(ENCLOSE_=_string)?/ENCLOSE_=_string!truncate	LOAD LABEL a(DATA INFILE('a') INTO TABLE a(ENCLOSE =
 reject	reject	engine	formatProps(ENCLOSE_=_string)?/ENCLOSE_=_string!insert	LOAD LABEL a(DATA INFILE('a') INTO TABLE a(ENCLOSE = 'a' zzz));
 reject	reject	engine	formatProps(ENCLOSE_=_string)?/ENCLOSE_=_string!swap	LOAD LABEL a(DATA INFILE('a') INTO TABLE a(END = 'a'));
-reject	accept	engine	formatProps(ESCAPE_=_string)?/%empty	LOAD LABEL a(DATA INFILE('a') INTO TABLE a());
-reject	accept	engine	formatProps(ESCAPE_=_string)?/ESCAPE_=_string	LOAD LABEL a(DATA INFILE('a') INTO TABLE a(ESCAPE = 'a'));
+accept	accept	engine	formatProps(ESCAPE_=_string)?/%empty	LOAD LABEL a(DATA INFILE('a') INTO TABLE a());
+accept	accept	engine	formatProps(ESCAPE_=_string)?/ESCAPE_=_string	LOAD LABEL a(DATA INFILE('a') INTO TABLE a(ESCAPE = 'a'));
 reject	reject	engine	formatProps(ESCAPE_=_string)?/ESCAPE_=_string!drop-2	LOAD LABEL a(DATA INFILE('a') INTO TABLE a(ESCAPE 'a'));
 reject	reject	engine	formatProps(ESCAPE_=_string)?/ESCAPE_=_string!drop-3	LOAD LABEL a(DATA INFILE('a') INTO TABLE a(ESCAPE =));
 reject	reject	engine	formatProps(ESCAPE_=_string)?/ESCAPE_=_string!truncate	LOAD LABEL a(DATA INFILE('a') INTO TABLE a(ESCAPE =
 reject	reject	engine	formatProps(ESCAPE_=_string)?/ESCAPE_=_string!insert	LOAD LABEL a(DATA INFILE('a') INTO TABLE a(ESCAPE = 'a' zzz));
 reject	reject	engine	formatProps(ESCAPE_=_string)?/ESCAPE_=_string!swap	LOAD LABEL a(DATA INFILE('a') INTO TABLE a(EVENTS = 'a'));
-reject	accept	engine	brokerDesc/WITH_BROKER_(propertyList)?	LOAD LABEL a WITH BROKER;
-reject	accept	engine	brokerDesc/WITH_BROKER_identifierOrString_(propertyList)?	LOAD LABEL a WITH BROKER a;
+accept	accept	engine	brokerDesc/WITH_BROKER_(propertyList)?	LOAD LABEL a WITH BROKER;
+accept	accept	engine	brokerDesc/WITH_BROKER_identifierOrString_(propertyList)?	LOAD LABEL a WITH BROKER a;
 reject	reject	engine	brokerDesc/WITH_BROKER_identifierOrString_(propertyList)?!drop-1	LOAD LABEL a BROKER a;
-reject	accept	engine	brokerDesc/WITH_BROKER_identifierOrString_(propertyList)?!truncate	LOAD LABEL a WITH BROKER
+accept	accept	engine	brokerDesc/WITH_BROKER_identifierOrString_(propertyList)?!truncate	LOAD LABEL a WITH BROKER
 reject	reject	engine	brokerDesc/WITH_BROKER_identifierOrString_(propertyList)?!insert	LOAD LABEL a WITH BROKER a zzz;
 reject	reject	engine	brokerDesc/WITH_BROKER_identifierOrString_(propertyList)?!swap	LOAD LABEL a WORK BROKER a;
-reject	accept	engine	brokerDesc(propertyList)?/%empty	LOAD LABEL a WITH BROKER;
-reject	accept	engine	brokerDesc(propertyList)?/propertyList	LOAD LABEL a WITH BROKER('a' = 'a');
+accept	accept	engine	brokerDesc(propertyList)?/%empty	LOAD LABEL a WITH BROKER;
+accept	accept	engine	brokerDesc(propertyList)?/propertyList	LOAD LABEL a WITH BROKER('a' = 'a');
 reject	reject	engine	brokerDesc(propertyList)?/propertyList!drop-1	LOAD LABEL a WITH BROKER 'a' = 'a');
 reject	reject	engine	brokerDesc(propertyList)?/propertyList!drop-2	LOAD LABEL a WITH BROKER(= 'a');
 reject	reject	engine	brokerDesc(propertyList)?/propertyList!drop-3	LOAD LABEL a WITH BROKER('a' 'a');
@@ -5635,10 +5635,10 @@ reject	reject	engine	brokerDesc(propertyList)?/propertyList!drop-4	LOAD LABEL a 
 reject	reject	engine	brokerDesc(propertyList)?/propertyList!drop-5	LOAD LABEL a WITH BROKER('a' = 'a';
 reject	reject	engine	brokerDesc(propertyList)?/propertyList!truncate	LOAD LABEL a WITH BROKER('a' = 'a'
 reject	reject	engine	brokerDesc(propertyList)?/propertyList!insert	LOAD LABEL a WITH BROKER('a' = 'a') zzz;
-reject	accept	engine	resourceDesc/WITH_RESOURCE_identifierOrString_(propertyList)?	LOAD LABEL a WITH RESOURCE a;
+accept	accept	engine	resourceDesc/WITH_RESOURCE_identifierOrString_(propertyList)?	LOAD LABEL a WITH RESOURCE a;
 reject	reject	engine	resourceDesc/WITH_RESOURCE_identifierOrString_(propertyList)?!swap	LOAD LABEL a WORK RESOURCE a;
-reject	accept	engine	resourceDesc(propertyList)?/%empty	LOAD LABEL a WITH RESOURCE a;
-reject	accept	engine	resourceDesc(propertyList)?/propertyList	LOAD LABEL a WITH RESOURCE a('a' = 'a');
+accept	accept	engine	resourceDesc(propertyList)?/%empty	LOAD LABEL a WITH RESOURCE a;
+accept	accept	engine	resourceDesc(propertyList)?/propertyList	LOAD LABEL a WITH RESOURCE a('a' = 'a');
 reject	reject	engine	resourceDesc(propertyList)?/propertyList!drop-1	LOAD LABEL a WITH RESOURCE a 'a' = 'a');
 reject	reject	engine	resourceDesc(propertyList)?/propertyList!drop-2	LOAD LABEL a WITH RESOURCE a(= 'a');
 reject	reject	engine	resourceDesc(propertyList)?/propertyList!drop-3	LOAD LABEL a WITH RESOURCE a('a' 'a');

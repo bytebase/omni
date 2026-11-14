@@ -294,7 +294,7 @@ func TestAlterSearchIndex_AddDropStoredColumn(t *testing.T) {
 	// reference + the legacy GoogleSQLParser.g4 (whose schema_object_kind lists
 	// INDEX but not SEARCH INDEX, and whose generic-entity alt matches only
 	// IDENTIFIER|PROJECT — SEARCH is a keyword token, so legacy rejects it too).
-	// See the bq_ddl_oracle_test.go triangulation fixture for the live verdict.
+	// See the the suite:bq-ddl rows of testdata/compat.tsv triangulation fixture for the live verdict.
 	add := alterOf(t, "ALTER SEARCH INDEX SingerNameIndex ADD STORED COLUMN FirstName")
 	if add.Object != ast.AlterSearchIndex {
 		t.Errorf("Object = %v, want SEARCH INDEX", add.Object)

@@ -21,7 +21,7 @@ import (
 // filler (variable + label algebra + property spec + inline WHERE).
 //
 // ORACLE NOTE — GQL is BigQuery/Spanner-Graph syntax. The Spanner emulator's
-// accept/reject is recorded by the differential (graph_query_oracle_test.go) and
+// accept/reject is recorded by the differential (the suite:graph-query rows of testdata/compat.tsv) and
 // used where it does not disagree with the legacy .g4; the truth1 BigQuery corpus
 // explicitly scopes the full GQL syntax OUT (INDEX.md), so the authoritative
 // reference for the grammar shape is the pinned legacy GoogleSQLParser.g4 itself.
