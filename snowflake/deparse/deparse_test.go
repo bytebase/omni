@@ -644,6 +644,24 @@ func TestDeparse_CreateView_OrAlter(t *testing.T) {
 	assertRoundTrip(t, `CREATE OR ALTER VIEW v2 (one) AS SELECT a FROM my_table`)
 }
 
+// ICEBERG and its properties must round-trip: the reparsed AST must keep the
+// Iceberg flag, PARTITION BY, the catalog parameters, COPY TAGS, the policies,
+// the contacts and the CTAS body.
+func TestDeparse_CreateTable_Iceberg(t *testing.T) {
+	for _, sql := range []string{
+		`CREATE OR REPLACE TRANSIENT ICEBERG TABLE t (id INT, ts TIMESTAMP) PARTITION BY (id, BUCKET(16, id), DAY(ts)) CLUSTER BY (id) EXTERNAL_VOLUME = 'v' CATALOG = 'SNOWFLAKE' BASE_LOCATION = 'b/' COPY = (COMMENTS, TAGS) COPY GRANTS COPY TAGS COMMENT = 'c' WITH ROW ACCESS POLICY r ON (id) WITH AGGREGATION POLICY ap WITH TAG (k = 'v') WITH CONTACT (steward = alice)`,
+		`CREATE ICEBERG TABLE IF NOT EXISTS t CATALOG = 'glue' CATALOG_TABLE_NAME = 'n' AUTO_REFRESH = TRUE`,
+		`CREATE ICEBERG TABLE t (a, b INT) PURGE AS SELECT 1, 2`,
+		`CREATE ICEBERG TABLE t LIKE s CLUSTER BY (a) COPY GRANTS`,
+		`CREATE ICEBERG TABLE t CLONE s COPY GRANTS`,
+		`DROP ICEBERG TABLE IF EXISTS t CASCADE PURGE`,
+		`DROP TABLE t NOPURGE`,
+		`UNDROP ICEBERG TABLE t`,
+	} {
+		assertRoundTrip(t, sql)
+	}
+}
+
 func TestDeparse_CreateTable_Transient(t *testing.T) {
 	assertRoundTrip(t, `CREATE TRANSIENT TABLE t (id INT)`)
 }
