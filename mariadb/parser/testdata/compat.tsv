@@ -2774,7 +2774,7 @@ reject	reject	engine	key_def/opt_constraint_constraint_key_type_opt_if_not_exist
 reject	reject	engine	key_def/opt_constraint_constraint_key_type_opt_if_not_exists_ident_TYPE_SYM_btree_or_rtree_(_key_list_opt_without_overlaps_)_normal_key_options!swap	ALTER TABLE a ADD UNKNOWN a TYPE BTREE(a);
 accept	accept	engine	key_def/opt_constraint_FOREIGN_KEY_SYM_opt_if_not_exists_opt_ident_(_key_list_)_references	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a;
 reject	reject	engine	key_def/opt_constraint_FOREIGN_KEY_SYM_opt_if_not_exists_opt_ident_(_key_list_)_references!drop-1	ALTER TABLE a ADD KEY(a) REFERENCES a;
-accept	reject	engine	key_def/opt_constraint_FOREIGN_KEY_SYM_opt_if_not_exists_opt_ident_(_key_list_)_references!drop-2	ALTER TABLE a ADD FOREIGN(a) REFERENCES a;
+reject	reject	engine	key_def/opt_constraint_FOREIGN_KEY_SYM_opt_if_not_exists_opt_ident_(_key_list_)_references!drop-2	ALTER TABLE a ADD FOREIGN(a) REFERENCES a;
 reject	reject	engine	key_def/opt_constraint_FOREIGN_KEY_SYM_opt_if_not_exists_opt_ident_(_key_list_)_references!drop-3	ALTER TABLE a ADD FOREIGN KEY a) REFERENCES a;
 reject	reject	engine	key_def/opt_constraint_FOREIGN_KEY_SYM_opt_if_not_exists_opt_ident_(_key_list_)_references!drop-4	ALTER TABLE a ADD FOREIGN KEY() REFERENCES a;
 reject	reject	engine	key_def/opt_constraint_FOREIGN_KEY_SYM_opt_if_not_exists_opt_ident_(_key_list_)_references!drop-5	ALTER TABLE a ADD FOREIGN KEY(a REFERENCES a;

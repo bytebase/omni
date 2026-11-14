@@ -2948,7 +2948,7 @@ reject	reject	engine	part_values_in/(_part_value_list_)!drop-3	ALTER TABLE utf8m
 reject	reject	engine	part_values_in/(_part_value_list_)!drop-4	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN((MAXVALUE));
 reject	reject	engine	part_values_in/(_part_value_list_)!truncate	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN((MAXVALUE)
 reject	reject	engine	part_values_in/(_part_value_list_)!insert	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN((MAXVALUE)) zzz);
-reject	accept	engine	part_values_in/(_part_value_list_)!swap	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN((MAX_CONNECTIONS_PER_HOUR)));
+accept	accept	engine	part_values_in/(_part_value_list_)!swap	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN((MAX_CONNECTIONS_PER_HOUR)));
 reject	reject	engine	part_value_list/part_value_item_list_paren	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN((MAXVALUE)));
 reject	reject	engine	part_value_list/part_value_item_list_paren!truncate	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN((MAXVALUE
 reject	reject	engine	part_value_list/part_value_item_list_paren!insert	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN((MAXVALUE) zzz));
@@ -2962,7 +2962,7 @@ reject	reject	engine	part_value_list/part_value_list_,_part_value_item_list_pare
 reject	reject	engine	part_value_list/part_value_list_,_part_value_item_list_paren!drop-7	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN((MAXVALUE),(MAXVALUE));
 reject	reject	engine	part_value_list/part_value_list_,_part_value_item_list_paren!truncate	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN((MAXVALUE),(MAXVALUE
 reject	reject	engine	part_value_list/part_value_list_,_part_value_item_list_paren!insert	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN((MAXVALUE),(MAXVALUE) zzz));
-reject	accept	engine	part_value_list/part_value_list_,_part_value_item_list_paren!swap	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN((MAX_CONNECTIONS_PER_HOUR),(MAXVALUE)));
+accept	accept	engine	part_value_list/part_value_list_,_part_value_item_list_paren!swap	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN((MAX_CONNECTIONS_PER_HOUR),(MAXVALUE)));
 reject	reject	engine	part_value_item_list_paren/(_part_value_item_list_)	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN(MAXVALUE));
 reject	reject	engine	part_value_item_list/part_value_item	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN(MAXVALUE));
 reject	reject	engine	part_value_item_list/part_value_item!truncate	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN(
@@ -2973,7 +2973,7 @@ reject	reject	engine	part_value_item_list/part_value_item_list_,_part_value_item
 reject	reject	engine	part_value_item_list/part_value_item_list_,_part_value_item!drop-3	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN(MAXVALUE,));
 reject	reject	engine	part_value_item_list/part_value_item_list_,_part_value_item!truncate	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN(MAXVALUE,
 reject	reject	engine	part_value_item_list/part_value_item_list_,_part_value_item!insert	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN(MAXVALUE, MAXVALUE zzz));
-reject	accept	engine	part_value_item_list/part_value_item_list_,_part_value_item!swap	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN(MAX_CONNECTIONS_PER_HOUR, MAXVALUE));
+accept	accept	engine	part_value_item_list/part_value_item_list_,_part_value_item!swap	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN(MAX_CONNECTIONS_PER_HOUR, MAXVALUE));
 reject	reject	engine	part_value_item/MAX_VALUE_SYM	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN(MAXVALUE));
 accept	accept	engine	part_value_item/bit_expr	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN(utf8mb4));
 reject	reject	engine	part_value_item/bit_expr!insert	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES IN(utf8mb4 zzz));
@@ -3298,12 +3298,12 @@ reject	reject	engine	create_table_option/START_SYM_TRANSACTION_SYM!drop-2	ALTER 
 reject	reject	engine	create_table_option/START_SYM_TRANSACTION_SYM!truncate	ALTER TABLE utf8mb4 START
 reject	reject	engine	create_table_option/START_SYM_TRANSACTION_SYM!insert	ALTER TABLE utf8mb4 START TRANSACTION zzz;
 reject	reject	engine	create_table_option/START_SYM_TRANSACTION_SYM!swap	ALTER TABLE utf8mb4 STARTING TRANSACTION;
-accept	reject	engine	create_table_option/ENGINE_ATTRIBUTE_SYM_opt_equal_json_attribute	ALTER TABLE utf8mb4 ENGINE_ATTRIBUTE 's';
+reject	reject	engine	create_table_option/ENGINE_ATTRIBUTE_SYM_opt_equal_json_attribute	ALTER TABLE utf8mb4 ENGINE_ATTRIBUTE 's';
 reject	reject	engine	create_table_option/ENGINE_ATTRIBUTE_SYM_opt_equal_json_attribute!drop-2	ALTER TABLE utf8mb4 ENGINE_ATTRIBUTE;
 reject	reject	engine	create_table_option/ENGINE_ATTRIBUTE_SYM_opt_equal_json_attribute!truncate	ALTER TABLE utf8mb4 ENGINE_ATTRIBUTE
 reject	reject	engine	create_table_option/ENGINE_ATTRIBUTE_SYM_opt_equal_json_attribute!insert	ALTER TABLE utf8mb4 ENGINE_ATTRIBUTE 's' zzz;
 reject	reject	engine	create_table_option/ENGINE_ATTRIBUTE_SYM_opt_equal_json_attribute!swap	ALTER TABLE utf8mb4 ENUM 's';
-accept	reject	engine	create_table_option/SECONDARY_ENGINE_ATTRIBUTE_SYM_opt_equal_json_attribute	ALTER TABLE utf8mb4 SECONDARY_ENGINE_ATTRIBUTE 's';
+reject	reject	engine	create_table_option/SECONDARY_ENGINE_ATTRIBUTE_SYM_opt_equal_json_attribute	ALTER TABLE utf8mb4 SECONDARY_ENGINE_ATTRIBUTE 's';
 reject	reject	engine	create_table_option/SECONDARY_ENGINE_ATTRIBUTE_SYM_opt_equal_json_attribute!drop-2	ALTER TABLE utf8mb4 SECONDARY_ENGINE_ATTRIBUTE;
 reject	reject	engine	create_table_option/SECONDARY_ENGINE_ATTRIBUTE_SYM_opt_equal_json_attribute!truncate	ALTER TABLE utf8mb4 SECONDARY_ENGINE_ATTRIBUTE
 reject	reject	engine	create_table_option/SECONDARY_ENGINE_ATTRIBUTE_SYM_opt_equal_json_attribute!insert	ALTER TABLE utf8mb4 SECONDARY_ENGINE_ATTRIBUTE 's' zzz;
@@ -3420,7 +3420,7 @@ reject	reject	engine	table_constraint_def/opt_constraint_name_constraint_key_typ
 reject	reject	engine	table_constraint_def/opt_constraint_name_constraint_key_type_opt_index_name_and_type_(_key_list_with_expression_)_opt_index_options!swap	ALTER TABLE utf8mb4 ADD UNKNOWN(utf8mb4);
 accept	accept	engine	table_constraint_def/opt_constraint_name_FOREIGN_KEY_SYM_opt_ident_(_key_list_)_references	ALTER TABLE utf8mb4 ADD FOREIGN KEY(utf8mb4) REFERENCES utf8mb4;
 reject	reject	engine	table_constraint_def/opt_constraint_name_FOREIGN_KEY_SYM_opt_ident_(_key_list_)_references!drop-1	ALTER TABLE utf8mb4 ADD KEY(utf8mb4) REFERENCES utf8mb4;
-accept	reject	engine	table_constraint_def/opt_constraint_name_FOREIGN_KEY_SYM_opt_ident_(_key_list_)_references!drop-2	ALTER TABLE utf8mb4 ADD FOREIGN(utf8mb4) REFERENCES utf8mb4;
+reject	reject	engine	table_constraint_def/opt_constraint_name_FOREIGN_KEY_SYM_opt_ident_(_key_list_)_references!drop-2	ALTER TABLE utf8mb4 ADD FOREIGN(utf8mb4) REFERENCES utf8mb4;
 reject	reject	engine	table_constraint_def/opt_constraint_name_FOREIGN_KEY_SYM_opt_ident_(_key_list_)_references!drop-3	ALTER TABLE utf8mb4 ADD FOREIGN KEY utf8mb4) REFERENCES utf8mb4;
 reject	reject	engine	table_constraint_def/opt_constraint_name_FOREIGN_KEY_SYM_opt_ident_(_key_list_)_references!drop-4	ALTER TABLE utf8mb4 ADD FOREIGN KEY() REFERENCES utf8mb4;
 reject	reject	engine	table_constraint_def/opt_constraint_name_FOREIGN_KEY_SYM_opt_ident_(_key_list_)_references!drop-5	ALTER TABLE utf8mb4 ADD FOREIGN KEY(utf8mb4 REFERENCES utf8mb4;
@@ -3474,7 +3474,7 @@ accept	accept	engine	opt_generated_always/%empty	ALTER TABLE utf8mb4 ADD utf8mb4
 reject	reject	engine	opt_generated_always/%empty!insert	ALTER TABLE utf8mb4 ADD utf8mb4 INT zzz AS(utf8mb4);
 accept	accept	engine	opt_generated_always/GENERATED_ALWAYS_SYM	ALTER TABLE utf8mb4 ADD utf8mb4 INT GENERATED ALWAYS AS(utf8mb4);
 reject	reject	engine	opt_generated_always/GENERATED_ALWAYS_SYM!drop-1	ALTER TABLE utf8mb4 ADD utf8mb4 INT ALWAYS AS(utf8mb4);
-accept	reject	engine	opt_generated_always/GENERATED_ALWAYS_SYM!drop-2	ALTER TABLE utf8mb4 ADD utf8mb4 INT GENERATED AS(utf8mb4);
+reject	reject	engine	opt_generated_always/GENERATED_ALWAYS_SYM!drop-2	ALTER TABLE utf8mb4 ADD utf8mb4 INT GENERATED AS(utf8mb4);
 reject	reject	engine	opt_generated_always/GENERATED_ALWAYS_SYM!truncate	ALTER TABLE utf8mb4 ADD utf8mb4 INT GENERATED
 reject	reject	engine	opt_generated_always/GENERATED_ALWAYS_SYM!insert	ALTER TABLE utf8mb4 ADD utf8mb4 INT GENERATED ALWAYS zzz AS(utf8mb4);
 reject	reject	engine	opt_generated_always/GENERATED_ALWAYS_SYM!swap	ALTER TABLE utf8mb4 ADD utf8mb4 INT GEOMETRY ALWAYS AS(utf8mb4);
@@ -3815,7 +3815,7 @@ reject	reject	engine	column_attribute/not_NULL_SYM!drop-2	ALTER TABLE utf8mb4 AD
 reject	reject	engine	column_attribute/not_NULL_SYM!truncate	ALTER TABLE utf8mb4 ADD utf8mb4 INT NOT
 reject	reject	engine	column_attribute/not_NULL_SYM!insert	ALTER TABLE utf8mb4 ADD utf8mb4 INT NOT NULL zzz;
 reject	reject	engine	column_attribute/not_NULL_SYM!swap	ALTER TABLE utf8mb4 ADD utf8mb4 INT NOWAIT NULL;
-reject	accept	engine	column_attribute/not_SECONDARY_SYM	ALTER TABLE utf8mb4 ADD utf8mb4 INT NOT SECONDARY;
+accept	accept	engine	column_attribute/not_SECONDARY_SYM	ALTER TABLE utf8mb4 ADD utf8mb4 INT NOT SECONDARY;
 reject	reject	engine	column_attribute/not_SECONDARY_SYM!drop-1	ALTER TABLE utf8mb4 ADD utf8mb4 INT SECONDARY;
 reject	reject	engine	column_attribute/not_SECONDARY_SYM!insert	ALTER TABLE utf8mb4 ADD utf8mb4 INT NOT SECONDARY zzz;
 reject	reject	engine	column_attribute/not_SECONDARY_SYM!swap	ALTER TABLE utf8mb4 ADD utf8mb4 INT NOWAIT SECONDARY;
@@ -3871,19 +3871,19 @@ reject	reject	engine	column_attribute/COLLATE_SYM_collation_name!truncate	ALTER 
 reject	accept	engine	column_attribute/COLLATE_SYM_collation_name!insert	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLLATE utf8mb4 zzz;
 reject	reject	engine	column_attribute/COLLATE_SYM_collation_name!swap	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLLATION utf8mb4;
 accept	accept	engine	column_attribute/COLUMN_FORMAT_SYM_column_format	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLUMN_FORMAT DEFAULT;
-accept	reject	engine	column_attribute/COLUMN_FORMAT_SYM_column_format!drop-2	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLUMN_FORMAT;
-accept	reject	engine	column_attribute/COLUMN_FORMAT_SYM_column_format!truncate	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLUMN_FORMAT
+reject	reject	engine	column_attribute/COLUMN_FORMAT_SYM_column_format!drop-2	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLUMN_FORMAT;
+reject	reject	engine	column_attribute/COLUMN_FORMAT_SYM_column_format!truncate	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLUMN_FORMAT
 reject	reject	engine	column_attribute/COLUMN_FORMAT_SYM_column_format!insert	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLUMN_FORMAT DEFAULT zzz;
 reject	reject	engine	column_attribute/COLUMN_FORMAT_SYM_column_format!swap	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLUMN_NAME DEFAULT;
-reject	accept	engine	column_attribute/STORAGE_SYM_storage_media	ALTER TABLE utf8mb4 ADD utf8mb4 INT STORAGE DEFAULT;
-accept	reject	engine	column_attribute/STORAGE_SYM_storage_media!drop-2	ALTER TABLE utf8mb4 ADD utf8mb4 INT STORAGE;
-accept	reject	engine	column_attribute/STORAGE_SYM_storage_media!truncate	ALTER TABLE utf8mb4 ADD utf8mb4 INT STORAGE
+accept	accept	engine	column_attribute/STORAGE_SYM_storage_media	ALTER TABLE utf8mb4 ADD utf8mb4 INT STORAGE DEFAULT;
+reject	reject	engine	column_attribute/STORAGE_SYM_storage_media!drop-2	ALTER TABLE utf8mb4 ADD utf8mb4 INT STORAGE;
+reject	reject	engine	column_attribute/STORAGE_SYM_storage_media!truncate	ALTER TABLE utf8mb4 ADD utf8mb4 INT STORAGE
 reject	reject	engine	column_attribute/STORAGE_SYM_storage_media!insert	ALTER TABLE utf8mb4 ADD utf8mb4 INT STORAGE DEFAULT zzz;
 reject	reject	engine	column_attribute/STORAGE_SYM_storage_media!swap	ALTER TABLE utf8mb4 ADD utf8mb4 INT STORED DEFAULT;
 accept	accept	engine	column_attribute/SRID_SYM_real_ulonglong_num	ALTER TABLE utf8mb4 ADD utf8mb4 INT SRID 1;
 reject	reject	engine	column_attribute/SRID_SYM_real_ulonglong_num!drop-1	ALTER TABLE utf8mb4 ADD utf8mb4 INT 1;
-accept	reject	engine	column_attribute/SRID_SYM_real_ulonglong_num!drop-2	ALTER TABLE utf8mb4 ADD utf8mb4 INT SRID;
-accept	reject	engine	column_attribute/SRID_SYM_real_ulonglong_num!truncate	ALTER TABLE utf8mb4 ADD utf8mb4 INT SRID
+reject	reject	engine	column_attribute/SRID_SYM_real_ulonglong_num!drop-2	ALTER TABLE utf8mb4 ADD utf8mb4 INT SRID;
+reject	reject	engine	column_attribute/SRID_SYM_real_ulonglong_num!truncate	ALTER TABLE utf8mb4 ADD utf8mb4 INT SRID
 reject	reject	engine	column_attribute/SRID_SYM_real_ulonglong_num!insert	ALTER TABLE utf8mb4 ADD utf8mb4 INT SRID 1 zzz;
 reject	reject	engine	column_attribute/SRID_SYM_real_ulonglong_num!swap	ALTER TABLE utf8mb4 ADD utf8mb4 INT SSL 1;
 accept	accept	engine	column_attribute/opt_constraint_name_check_constraint	ALTER TABLE utf8mb4 ADD utf8mb4 INT CHECK(utf8mb4);
@@ -3894,12 +3894,12 @@ reject	reject	engine	column_attribute/opt_constraint_name_check_constraint!trunc
 reject	reject	engine	column_attribute/opt_constraint_name_check_constraint!insert	ALTER TABLE utf8mb4 ADD utf8mb4 INT CHECK(utf8mb4) zzz;
 reject	reject	engine	column_attribute/opt_constraint_name_check_constraint!swap	ALTER TABLE utf8mb4 ADD utf8mb4 INT CHECKSUM(utf8mb4);
 reject	reject	engine	column_attribute/constraint_enforcement	ALTER TABLE utf8mb4 ADD utf8mb4 INT ENFORCED;
-accept	reject	engine	column_attribute/ENGINE_ATTRIBUTE_SYM_opt_equal_json_attribute	ALTER TABLE utf8mb4 ADD utf8mb4 INT ENGINE_ATTRIBUTE 's';
+reject	reject	engine	column_attribute/ENGINE_ATTRIBUTE_SYM_opt_equal_json_attribute	ALTER TABLE utf8mb4 ADD utf8mb4 INT ENGINE_ATTRIBUTE 's';
 reject	reject	engine	column_attribute/ENGINE_ATTRIBUTE_SYM_opt_equal_json_attribute!drop-2	ALTER TABLE utf8mb4 ADD utf8mb4 INT ENGINE_ATTRIBUTE;
 reject	reject	engine	column_attribute/ENGINE_ATTRIBUTE_SYM_opt_equal_json_attribute!truncate	ALTER TABLE utf8mb4 ADD utf8mb4 INT ENGINE_ATTRIBUTE
 reject	reject	engine	column_attribute/ENGINE_ATTRIBUTE_SYM_opt_equal_json_attribute!insert	ALTER TABLE utf8mb4 ADD utf8mb4 INT ENGINE_ATTRIBUTE 's' zzz;
 reject	reject	engine	column_attribute/ENGINE_ATTRIBUTE_SYM_opt_equal_json_attribute!swap	ALTER TABLE utf8mb4 ADD utf8mb4 INT ENUM 's';
-accept	reject	engine	column_attribute/SECONDARY_ENGINE_ATTRIBUTE_SYM_opt_equal_json_attribute	ALTER TABLE utf8mb4 ADD utf8mb4 INT SECONDARY_ENGINE_ATTRIBUTE 's';
+reject	reject	engine	column_attribute/SECONDARY_ENGINE_ATTRIBUTE_SYM_opt_equal_json_attribute	ALTER TABLE utf8mb4 ADD utf8mb4 INT SECONDARY_ENGINE_ATTRIBUTE 's';
 reject	reject	engine	column_attribute/SECONDARY_ENGINE_ATTRIBUTE_SYM_opt_equal_json_attribute!drop-2	ALTER TABLE utf8mb4 ADD utf8mb4 INT SECONDARY_ENGINE_ATTRIBUTE;
 reject	reject	engine	column_attribute/SECONDARY_ENGINE_ATTRIBUTE_SYM_opt_equal_json_attribute!truncate	ALTER TABLE utf8mb4 ADD utf8mb4 INT SECONDARY_ENGINE_ATTRIBUTE
 reject	reject	engine	column_attribute/SECONDARY_ENGINE_ATTRIBUTE_SYM_opt_equal_json_attribute!insert	ALTER TABLE utf8mb4 ADD utf8mb4 INT SECONDARY_ENGINE_ATTRIBUTE 's' zzz;
@@ -3915,7 +3915,7 @@ reject	reject	engine	column_format/FIXED_SYM!swap	ALTER TABLE utf8mb4 ADD utf8mb
 accept	accept	engine	column_format/DYNAMIC_SYM	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLUMN_FORMAT DYNAMIC;
 reject	reject	engine	column_format/DYNAMIC_SYM!insert	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLUMN_FORMAT DYNAMIC zzz;
 reject	reject	engine	column_format/DYNAMIC_SYM!swap	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLUMN_FORMAT EACH;
-reject	accept	engine	storage_media/DEFAULT_SYM	ALTER TABLE utf8mb4 ADD utf8mb4 INT STORAGE DEFAULT;
+accept	accept	engine	storage_media/DEFAULT_SYM	ALTER TABLE utf8mb4 ADD utf8mb4 INT STORAGE DEFAULT;
 reject	reject	engine	storage_media/DEFAULT_SYM!swap	ALTER TABLE utf8mb4 ADD utf8mb4 INT STORAGE DEFAULT_AUTH;
 accept	accept	engine	storage_media/DISK_SYM	ALTER TABLE utf8mb4 ADD utf8mb4 INT STORAGE DISK;
 reject	reject	engine	storage_media/DISK_SYM!insert	ALTER TABLE utf8mb4 ADD utf8mb4 INT STORAGE DISK zzz;
@@ -4123,7 +4123,7 @@ reject	reject	engine	delete_option/SET_SYM_DEFAULT_SYM!drop-1	ALTER TABLE utf8mb
 reject	reject	engine	delete_option/SET_SYM_DEFAULT_SYM!insert	ALTER TABLE utf8mb4 ADD utf8mb4 INT REFERENCES utf8mb4 ON UPDATE SET DEFAULT zzz;
 reject	reject	engine	delete_option/SET_SYM_DEFAULT_SYM!swap	ALTER TABLE utf8mb4 ADD utf8mb4 INT REFERENCES utf8mb4 ON UPDATE SHARE DEFAULT;
 accept	accept	engine	constraint_key_type/PRIMARY_SYM_KEY_SYM	ALTER TABLE utf8mb4 ADD PRIMARY KEY(utf8mb4);
-accept	reject	engine	constraint_key_type/PRIMARY_SYM_KEY_SYM!drop-2	ALTER TABLE utf8mb4 ADD PRIMARY(utf8mb4);
+reject	reject	engine	constraint_key_type/PRIMARY_SYM_KEY_SYM!drop-2	ALTER TABLE utf8mb4 ADD PRIMARY(utf8mb4);
 reject	reject	engine	constraint_key_type/PRIMARY_SYM_KEY_SYM!truncate	ALTER TABLE utf8mb4 ADD PRIMARY
 accept	accept	engine	constraint_key_type/PRIMARY_SYM_KEY_SYM!insert	ALTER TABLE utf8mb4 ADD PRIMARY KEY zzz(utf8mb4);
 reject	reject	engine	constraint_key_type/PRIMARY_SYM_KEY_SYM!swap	ALTER TABLE utf8mb4 ADD PRIVILEGES KEY(utf8mb4);
@@ -4215,12 +4215,12 @@ reject	reject	engine	common_index_option/COMMENT_SYM_TEXT_STRING_sys!truncate	AL
 reject	reject	engine	common_index_option/COMMENT_SYM_TEXT_STRING_sys!insert	ALTER TABLE utf8mb4 ADD KEY(utf8mb4) COMMENT 's' zzz;
 reject	reject	engine	common_index_option/COMMENT_SYM_TEXT_STRING_sys!swap	ALTER TABLE utf8mb4 ADD KEY(utf8mb4) COMMIT 's';
 accept	accept	engine	common_index_option/visibility	ALTER TABLE utf8mb4 ADD KEY(utf8mb4) VISIBLE;
-accept	reject	engine	common_index_option/ENGINE_ATTRIBUTE_SYM_opt_equal_json_attribute	ALTER TABLE utf8mb4 ADD KEY(utf8mb4) ENGINE_ATTRIBUTE 's';
+reject	reject	engine	common_index_option/ENGINE_ATTRIBUTE_SYM_opt_equal_json_attribute	ALTER TABLE utf8mb4 ADD KEY(utf8mb4) ENGINE_ATTRIBUTE 's';
 reject	reject	engine	common_index_option/ENGINE_ATTRIBUTE_SYM_opt_equal_json_attribute!drop-2	ALTER TABLE utf8mb4 ADD KEY(utf8mb4) ENGINE_ATTRIBUTE;
 reject	reject	engine	common_index_option/ENGINE_ATTRIBUTE_SYM_opt_equal_json_attribute!truncate	ALTER TABLE utf8mb4 ADD KEY(utf8mb4) ENGINE_ATTRIBUTE
 reject	reject	engine	common_index_option/ENGINE_ATTRIBUTE_SYM_opt_equal_json_attribute!insert	ALTER TABLE utf8mb4 ADD KEY(utf8mb4) ENGINE_ATTRIBUTE 's' zzz;
 reject	reject	engine	common_index_option/ENGINE_ATTRIBUTE_SYM_opt_equal_json_attribute!swap	ALTER TABLE utf8mb4 ADD KEY(utf8mb4) ENUM 's';
-accept	reject	engine	common_index_option/SECONDARY_ENGINE_ATTRIBUTE_SYM_opt_equal_json_attribute	ALTER TABLE utf8mb4 ADD KEY(utf8mb4) SECONDARY_ENGINE_ATTRIBUTE 's';
+reject	reject	engine	common_index_option/SECONDARY_ENGINE_ATTRIBUTE_SYM_opt_equal_json_attribute	ALTER TABLE utf8mb4 ADD KEY(utf8mb4) SECONDARY_ENGINE_ATTRIBUTE 's';
 reject	reject	engine	common_index_option/SECONDARY_ENGINE_ATTRIBUTE_SYM_opt_equal_json_attribute!drop-2	ALTER TABLE utf8mb4 ADD KEY(utf8mb4) SECONDARY_ENGINE_ATTRIBUTE;
 reject	reject	engine	common_index_option/SECONDARY_ENGINE_ATTRIBUTE_SYM_opt_equal_json_attribute!truncate	ALTER TABLE utf8mb4 ADD KEY(utf8mb4) SECONDARY_ENGINE_ATTRIBUTE
 reject	reject	engine	common_index_option/SECONDARY_ENGINE_ATTRIBUTE_SYM_opt_equal_json_attribute!insert	ALTER TABLE utf8mb4 ADD KEY(utf8mb4) SECONDARY_ENGINE_ATTRIBUTE 's' zzz;
@@ -4281,7 +4281,7 @@ reject	reject	engine	key_part/ident_opt_ordering_direction!insert	ALTER TABLE ut
 accept	accept	engine	key_part/ident_(_NUM_)_opt_ordering_direction	ALTER TABLE utf8mb4 ADD KEY(utf8mb4(1));
 accept	accept	engine	key_part/ident_(_NUM_)_opt_ordering_direction!drop-1	ALTER TABLE utf8mb4 ADD KEY((1));
 reject	reject	engine	key_part/ident_(_NUM_)_opt_ordering_direction!drop-2	ALTER TABLE utf8mb4 ADD KEY(utf8mb4 1));
-accept	reject	engine	key_part/ident_(_NUM_)_opt_ordering_direction!drop-3	ALTER TABLE utf8mb4 ADD KEY(utf8mb4());
+reject	reject	engine	key_part/ident_(_NUM_)_opt_ordering_direction!drop-3	ALTER TABLE utf8mb4 ADD KEY(utf8mb4());
 reject	reject	engine	key_part/ident_(_NUM_)_opt_ordering_direction!drop-4	ALTER TABLE utf8mb4 ADD KEY(utf8mb4(1);
 reject	reject	engine	key_part/ident_(_NUM_)_opt_ordering_direction!truncate	ALTER TABLE utf8mb4 ADD KEY(utf8mb4(1
 reject	reject	engine	key_part/ident_(_NUM_)_opt_ordering_direction!insert	ALTER TABLE utf8mb4 ADD KEY(utf8mb4(1) zzz);
@@ -4976,9 +4976,9 @@ reject	reject	engine	alter_list_item/ALTER_opt_column_ident_SET_SYM_visibility!i
 reject	reject	engine	alter_list_item/ALTER_opt_column_ident_SET_SYM_visibility!swap	ALTER TABLE utf8mb4 ALWAYS utf8mb4 SET VISIBLE;
 accept	accept	engine	alter_list_item/ALTER_INDEX_SYM_ident_visibility	ALTER TABLE utf8mb4 ALTER INDEX utf8mb4 VISIBLE;
 reject	reject	engine	alter_list_item/ALTER_INDEX_SYM_ident_visibility!drop-1	ALTER TABLE utf8mb4 INDEX utf8mb4 VISIBLE;
-accept	reject	engine	alter_list_item/ALTER_INDEX_SYM_ident_visibility!drop-3	ALTER TABLE utf8mb4 ALTER INDEX VISIBLE;
-accept	reject	engine	alter_list_item/ALTER_INDEX_SYM_ident_visibility!drop-4	ALTER TABLE utf8mb4 ALTER INDEX utf8mb4;
-accept	reject	engine	alter_list_item/ALTER_INDEX_SYM_ident_visibility!truncate	ALTER TABLE utf8mb4 ALTER INDEX utf8mb4
+reject	reject	engine	alter_list_item/ALTER_INDEX_SYM_ident_visibility!drop-3	ALTER TABLE utf8mb4 ALTER INDEX VISIBLE;
+reject	reject	engine	alter_list_item/ALTER_INDEX_SYM_ident_visibility!drop-4	ALTER TABLE utf8mb4 ALTER INDEX utf8mb4;
+reject	reject	engine	alter_list_item/ALTER_INDEX_SYM_ident_visibility!truncate	ALTER TABLE utf8mb4 ALTER INDEX utf8mb4
 reject	reject	engine	alter_list_item/ALTER_INDEX_SYM_ident_visibility!insert	ALTER TABLE utf8mb4 ALTER INDEX utf8mb4 VISIBLE zzz;
 reject	reject	engine	alter_list_item/ALTER_INDEX_SYM_ident_visibility!swap	ALTER TABLE utf8mb4 ALWAYS INDEX utf8mb4 VISIBLE;
 accept	accept	engine	alter_list_item/ALTER_CHECK_SYM_ident_constraint_enforcement	ALTER TABLE utf8mb4 ALTER CHECK utf8mb4 ENFORCED;
@@ -8216,15 +8216,15 @@ reject	reject	engine	opt_simple_limit/LIMIT_limit_option!truncate	DELETE FROM ut
 reject	reject	engine	opt_simple_limit/LIMIT_limit_option!insert	DELETE FROM utf8mb4 LIMIT utf8mb4 zzz;
 reject	reject	engine	opt_simple_limit/LIMIT_limit_option!swap	DELETE FROM utf8mb4 LINEAR utf8mb4;
 accept	accept	engine	ulong_num/NUM	ALTER DATABASE READ ONLY 1;
-reject	accept	engine	ulong_num/HEX_NUM	ALTER DATABASE READ ONLY 0x1;
+accept	accept	engine	ulong_num/HEX_NUM	ALTER DATABASE READ ONLY 0x1;
 reject	reject	engine	ulong_num/HEX_NUM!insert	ALTER DATABASE READ ONLY 0x1 zzz;
 reject	reject	engine	ulong_num/LONG_NUM	ALTER DATABASE READ ONLY 4294967296;
 reject	reject	engine	ulong_num/LONG_NUM!insert	ALTER DATABASE READ ONLY 4294967296 zzz;
 reject	reject	engine	ulong_num/ULONGLONG_NUM	ALTER DATABASE READ ONLY 18446744073709551615;
 reject	reject	engine	ulong_num/ULONGLONG_NUM!insert	ALTER DATABASE READ ONLY 18446744073709551615 zzz;
-reject	accept	engine	ulong_num/DECIMAL_NUM	ALTER DATABASE READ ONLY 1.5;
+accept	accept	engine	ulong_num/DECIMAL_NUM	ALTER DATABASE READ ONLY 1.5;
 reject	reject	engine	ulong_num/DECIMAL_NUM!insert	ALTER DATABASE READ ONLY 1.5 zzz;
-reject	accept	engine	ulong_num/FLOAT_NUM	ALTER DATABASE READ ONLY 1e0;
+accept	accept	engine	ulong_num/FLOAT_NUM	ALTER DATABASE READ ONLY 1e0;
 reject	reject	engine	ulong_num/FLOAT_NUM!insert	ALTER DATABASE READ ONLY 1e0 zzz;
 accept	accept	engine	real_ulong_num/NUM	DESC FOR CONNECTION 1;
 reject	reject	engine	real_ulong_num/NUM!drop-1	DESC FOR CONNECTION;
