@@ -1,6 +1,7 @@
 package compat
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -188,6 +189,20 @@ func readOracle(err error) (oracleError, bool) {
 // dropped with it (end-of-file on the connection).
 var oracleFailure = regexp.MustCompile(`ORA-00600|ORA-00000|ORA-07445|ORA-03113|ORA-03114|^EOF$`)
 
+// ErrNoAnswer is what a judge's parse returns for a text Oracle gave no
+// answer to in the time the judge allows, having cut that session's
+// connection so the server frees what it held. OracleVerdict reads it as
+// Oracle failing on the text: ALTER MATERIALIZED VIEW LOG ON a MODIFY
+// PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) DEPENDENT
+// TABLES(a(PARTITION)) leaves the pinned server's session waiting on the
+// client, and the client on the server, for good.
+var ErrNoAnswer = errors.New("Oracle gave no answer")
+
+// oracleFailed reports whether err is Oracle failing in its own code.
+func oracleFailed(err error) bool {
+	return errors.Is(err, ErrNoAnswer) || oracleFailure.MatchString(firstLine(err))
+}
+
 // OracleVerdict reads Oracle's answer to OracleParse of a statement:
 // whether Oracle takes its syntax. parse runs OracleParse on a text and
 // returns its error. It is called again with OracleProbeTail after the
@@ -216,17 +231,18 @@ var oracleFailure = regexp.MustCompile(`ORA-00600|ORA-00000|ORA-07445|ORA-03113|
 // in the block. The errors in oracleAfterParse are acceptances. An error at
 // the very end of the statement, where the probe's tail is met either way,
 // is decided by its code. And Oracle failing in its own code on the
-// statement (oracleFailure), on two sessions, is a rejection with no byte:
-// no statement Oracle runs, though not one its parser names an error in.
+// statement (oracleFailure, or no answer at all: ErrNoAnswer), on two
+// sessions, is a rejection with no byte: no statement Oracle runs, though
+// not one its parser names an error in.
 //
 // An answer that is no verdict comes back as an error, so the caller fails
 // rather than records agreement: an error OracleParse did not raise and
 // that is no failure of Oracle's (a timeout), and a probe the server took.
 func OracleVerdict(statement string, parse func(text string) error) (string, error) {
 	err := parse(statement)
-	if err != nil && oracleFailure.MatchString(firstLine(err)) {
+	if err != nil && oracleFailed(err) {
 		// Again, on the new session database/sql opens for a dropped one.
-		if err = parse(statement); err != nil && oracleFailure.MatchString(firstLine(err)) {
+		if err = parse(statement); err != nil && oracleFailed(err) {
 			return Reject, nil
 		}
 	}
@@ -273,7 +289,7 @@ func OracleVerdict(statement string, parse func(text string) error) (string, err
 	}
 	p, ok := readOracle(probeErr)
 	switch {
-	case !ok && oracleFailure.MatchString(firstLine(probeErr)):
+	case !ok && oracleFailed(probeErr):
 		return byCode(), nil
 	case !ok:
 		return "", probeErr

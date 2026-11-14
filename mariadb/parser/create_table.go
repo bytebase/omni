@@ -2049,7 +2049,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 	// read as 1 when not zero, or DEFAULT. PAGE_CHECKSUM and TRANSACTIONAL are
 	// keywords to MariaDB, never an engine-defined option's name.
 	// Ref: create_table_option and choice in MariaDB 11.8 sql/sql_yacc.yy.
-	if p.cur.Type == kwSEQUENCE || p.atBareWord("PAGE_CHECKSUM") || p.atBareWord("TRANSACTIONAL") {
+	if p.cur.Type == kwSEQUENCE || p.cur.Type == kwPAGE_CHECKSUM || p.atBareWord("TRANSACTIONAL") {
 		optName := strings.ToUpper(p.advance().Str)
 		p.matchEqual()
 		val, err := p.parseChoice()

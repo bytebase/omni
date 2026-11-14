@@ -567,6 +567,10 @@ func writeSelectStmt(sb *strings.Builder, n *SelectStmt) {
 		sb.WriteString(" :for_update ")
 		writeNode(sb, n.ForUpdate)
 	}
+	for _, fu := range n.MoreLocking {
+		sb.WriteString(" :for_update ")
+		writeNode(sb, fu)
+	}
 	if len(n.WindowClause) > 0 {
 		sb.WriteString(" :window ")
 		for i, w := range n.WindowClause {

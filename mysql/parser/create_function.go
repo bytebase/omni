@@ -47,17 +47,19 @@ func (p *Parser) finishLoadableFunction(stmt *nodes.CreateFunctionStmt) (*nodes.
 	if _, err := p.expect(kwRETURNS); err != nil {
 		return nil, err
 	}
-	// udf_type: STRING, REAL, DECIMAL or INT, as the lexer spells them (DEC, INTEGER and INT4
-	// too), and no other word.
+	// udf_type is STRING, REAL, DECIMAL or INT, each a keyword with the spellings its
+	// lexer gives the token (DEC, INTEGER, INT4); a backquoted name is none of them.
 	//
-	// Ref: udf_type in MySQL 8.0 sql/sql_yacc.yy, and sql/lex.h.
+	// Ref: udf_type in sql/sql_yacc.yy and the keyword table in sql/lex.h.
 	retStart := p.pos()
-	switch p.cur.Type {
-	case kwSTRING, kwREAL, kwDECIMAL, kwDEC, kwINT, kwINTEGER, kwINT4:
+	var retType string
+	switch strings.ToUpper(p.inputText(p.cur.Loc, p.cur.End)) {
+	case "STRING", "REAL", "DECIMAL", "DEC", "INT", "INTEGER", "INT4":
+		retType = strings.ToUpper(p.cur.Str)
+		p.advance()
 	default:
 		return nil, p.syntaxErrorAtCur()
 	}
-	retType := strings.ToUpper(p.advance().Str)
 	stmt.Returns = &nodes.DataType{
 		Loc:  nodes.Loc{Start: retStart, End: p.prev.End},
 		Name: retType,
