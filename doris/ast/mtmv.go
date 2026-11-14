@@ -44,10 +44,10 @@ var _ Node = (*MTMVRefreshTrigger)(nil)
 type CreateMTMVStmt struct {
 	Name           *ObjectName
 	IfNotExists    bool
-	BuildMode      string             // "IMMEDIATE", "DEFERRED", or ""
-	RefreshMethod  string             // "COMPLETE", "AUTO", "NEVER", "INCREMENTAL", or ""
+	BuildMode      string              // "IMMEDIATE", "DEFERRED", or ""
+	RefreshMethod  string              // "COMPLETE", "AUTO", "NEVER", "INCREMENTAL", or ""
 	RefreshTrigger *MTMVRefreshTrigger // ON SCHEDULE / ON COMMIT / ON MANUAL
-	Columns        []*ViewColumn      // optional column list
+	Columns        []*ViewColumn       // optional column list
 	Comment        string
 	PartitionBy    *PartitionDesc
 	DistributedBy  *DistributionDesc
@@ -76,10 +76,12 @@ type AlterMTMVStmt struct {
 	Name          *ObjectName
 	NewName       *ObjectName // for RENAME
 	RefreshMethod string      // for REFRESH method change
-	Replace       bool        // REPLACE WITH MATERIALIZED VIEW
-	ReplaceTarget *ObjectName // the other MV for REPLACE WITH
-	Properties    []*Property // for SET PROPERTIES
-	Loc           Loc
+	// RefreshTrigger is the ON clause of REFRESH, nil when absent.
+	RefreshTrigger *MTMVRefreshTrigger
+	Replace        bool        // REPLACE WITH MATERIALIZED VIEW
+	ReplaceTarget  *ObjectName // the other MV for REPLACE WITH
+	Properties     []*Property // for SET PROPERTIES
+	Loc            Loc
 }
 
 // Tag implements Node.

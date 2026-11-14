@@ -98,16 +98,28 @@ func (p *Parser) parseAlterDatabase() (ast.Node, error) {
 			if len(props) > 0 {
 				endLoc = ast.NodeLoc(props[len(props)-1])
 			}
-		} else if p.cur.Kind == kwQUOTA || p.cur.Kind == kwDATA || p.cur.Kind == kwREPLICA {
-			// Consume the rest of the SET [DATA|REPLICA] QUOTA clause as a
-			// best-effort skip. Quota value can be a number + unit (e.g., 10GB).
-			p.advance() // consume DATA/REPLICA/QUOTA keyword
-			if p.cur.Kind == kwQUOTA {
-				p.advance() // consume QUOTA after DATA/REPLICA
+		} else if p.cur.Kind == kwDATA || p.cur.Kind == kwREPLICA {
+			// StarRocks.g4:348 alterDbQuotaStatement:
+			//	ALTER DATABASE identifier SET DATA QUOTA identifier
+			//	ALTER DATABASE identifier SET REPLICA QUOTA INTEGER_VALUE
+			data := p.cur.Kind == kwDATA
+			p.advance() // consume DATA / REPLICA
+			if _, err := p.expect(kwQUOTA); err != nil {
+				return nil, err
 			}
-			if p.cur.Kind != tokEOF && p.cur.Kind != int(';') {
-				p.advance() // consume the quota value token
+			if data {
+				// The quota is an identifier (10T lexes as a DIGIT_IDENTIFIER);
+				// a bare byte count, as in SET DATA QUOTA 10995116277760, is
+				// kept: no compat row settles it.
+				if p.cur.Kind == tokInt {
+					p.advance()
+				} else if _, _, err := p.parseIdentifier(); err != nil {
+					return nil, err
+				}
+			} else if _, err := p.alterExpectInt(); err != nil {
+				return nil, err
 			}
+			endLoc = p.prev.Loc
 		} else {
 			return nil, p.syntaxErrorAtCur()
 		}

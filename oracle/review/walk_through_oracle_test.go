@@ -7,11 +7,13 @@ import (
 	"fmt"
 	"math/rand"
 	"regexp"
+	"sort"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/bytebase/omni/metadata"
+	"github.com/bytebase/omni/oracle/internal/testcontainer"
 	"github.com/bytebase/omni/review"
 	"github.com/bytebase/omni/review/walk"
 	"github.com/bytebase/omni/review/walk/walktest"
@@ -167,11 +169,11 @@ func walkContext() (context.Context, context.CancelFunc) {
 }
 
 func TestWalkThroughAgainstOracle(t *testing.T) {
-	admin := startOracle(t)
+	startOracle(t)
 	var found, rejected int
 	for _, tt := range walkCases {
 		t.Run(tt.name, func(t *testing.T) {
-			w := resetWalk(t, admin, "SHOP", "OTHER", walkBase)
+			w := resetWalk(t, "SHOP", "OTHER", walkBase)
 			for _, q := range tt.setup {
 				w.exec(t, w.adminConn, q)
 			}
@@ -188,12 +190,13 @@ func TestWalkThroughAgainstOracle(t *testing.T) {
 }
 
 // walkSchemas is a schema of the change and the other schema a change may
-// name, made afresh for one change, with their users' numbers.
+// name, made afresh for one change, with the sessions that work on them.
 type walkSchemas struct {
-	admin     *sql.DB
+	// setup is SYSTEM's session that makes the users and lists what they
+	// hold (Inventory).
+	setup     *sql.DB
 	shop      string
 	other     string
-	users     string
 	adminConn *sql.Conn
 	shopConn  *sql.Conn
 }
@@ -211,50 +214,33 @@ func (w *walkSchemas) exec(t testing.TB, conn *sql.Conn, q string) {
 // base, made by an administrator whose CURRENT_SCHEMA is shop. It drops
 // the public synonyms for their objects first, which a case may make and
 // which outlive the users. It returns that administrator's session, as
-// Bytebase opens it for the change, and one as shop.
-func resetWalk(t testing.TB, admin *sql.DB, shop, other string, base []string) *walkSchemas {
+// Bytebase opens it for the change, and one as shop. Each is a session of
+// t's own: a tape's session is its only one.
+func resetWalk(t testing.TB, shop, other string, base []string) *walkSchemas {
 	t.Helper()
 	ctx, cancel := walkContext()
 	defer cancel()
+	setup := testcontainer.Open(t, "system")
 	for _, q := range []string{
 		fmt.Sprintf(`BEGIN
-  FOR s IN (SELECT synonym_name FROM dba_synonyms WHERE owner = 'PUBLIC' AND table_owner IN ('%[1]s', '%[2]s')) LOOP
+  FOR s IN (SELECT synonym_name FROM dba_synonyms WHERE owner = 'PUBLIC' AND table_owner IN ('%[1]s', '%[2]s') ORDER BY synonym_name) LOOP
     EXECUTE IMMEDIATE 'DROP PUBLIC SYNONYM "' || s.synonym_name || '"';
   END LOOP;
-  FOR u IN (SELECT username FROM dba_users WHERE username IN ('%[1]s', '%[2]s')) LOOP
+  FOR u IN (SELECT username FROM dba_users WHERE username IN ('%[1]s', '%[2]s') ORDER BY username) LOOP
     EXECUTE IMMEDIATE 'DROP USER ' || u.username || ' CASCADE';
   END LOOP;
 END;`, shop, other),
-		"CREATE USER " + shop + " IDENTIFIED BY " + oraclePassword + " QUOTA UNLIMITED ON users",
+		"CREATE USER " + shop + " IDENTIFIED BY " + testcontainer.Password + " QUOTA UNLIMITED ON users",
 		"GRANT CREATE SESSION, CREATE TABLE, CREATE VIEW, CREATE MATERIALIZED VIEW, CREATE SEQUENCE, CREATE SYNONYM, CREATE PROCEDURE, CREATE TRIGGER, CREATE TYPE TO " + shop,
-		"CREATE USER " + other + " IDENTIFIED BY " + oraclePassword + " QUOTA UNLIMITED ON users",
+		"CREATE USER " + other + " IDENTIFIED BY " + testcontainer.Password + " QUOTA UNLIMITED ON users",
 	} {
-		if _, err := admin.ExecContext(ctx, q); err != nil {
+		if _, err := setup.ExecContext(ctx, q); err != nil {
 			t.Fatalf("%s: %v", q, err)
 		}
 	}
-	w := &walkSchemas{admin: admin, shop: shop, other: other}
-	var ids []string
-	rows, err := admin.QueryContext(ctx, "SELECT user_id FROM dba_users WHERE username IN (:1, :2)", shop, other)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			t.Fatal(err)
-		}
-		ids = append(ids, id)
-	}
-	rows.Close()
-	w.users = "(" + strings.Join(ids, ", ") + ")"
-	w.adminConn = walkConn(t, admin, shop)
-	shopDB, err := openOracle(shop)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { shopDB.Close() })
-	w.shopConn = walkConn(t, shopDB, "")
+	w := &walkSchemas{setup: setup, shop: shop, other: other}
+	w.adminConn = walkConn(t, testcontainer.Open(t, "system"), shop)
+	w.shopConn = walkConn(t, testcontainer.Open(t, shop), "")
 	for _, q := range base {
 		w.exec(t, w.adminConn, q)
 	}
@@ -288,14 +274,15 @@ func judgeWalk(t testing.TB, w *walkSchemas, conn *sql.Conn, change string, comp
 	e := &oracleEngine{
 		w:      w,
 		conn:   conn,
-		target: review.Target{Schema: walkSync(t, w.adminConn, w.shop)},
+		target: review.Target{Schema: walkSync(t, w.adminConn, w.shop, nameList(change))},
 	}
 	return walktest.Judge(t, e, change, complete)
 }
 
 // oracleEngine is the oracle's Oracle side of one change. Oracle commits
 // DDL as it runs, so a rejected statement leaves the database as it was
-// only through its own atomicity, which Digest checks.
+// only through its own atomicity, which Judge checks on the list of what
+// the schemas hold (Inventory) before and after it.
 type oracleEngine struct {
 	w      *walkSchemas
 	conn   *sql.Conn
@@ -538,137 +525,106 @@ func leads(text, keywords string) bool {
 	return strings.HasPrefix(strings.Join(strings.Fields(strings.ToUpper(text)), " ")+" ", keywords+" ")
 }
 
-// Holds checks each fact the violation claims against the data
-// dictionary. A claim about the text holds by itself.
-func (e *oracleEngine) Holds(t testing.TB, v *walk.Violation, message string) (bool, string) {
-	t.Helper()
-	for _, c := range walktest.Claims(v) {
-		if c.Fact == walk.Unknown {
-			continue
-		}
-		present, kind := e.exists(t, c.Key)
-		switch {
-		case present != (c.Fact == walk.Present):
-			return false, fmt.Sprintf("%s %q in %q is present: %v", c.Key.Space, c.Key.Name, walk.Names(c.Key.Parent), present)
-		case present && c.Kind != "" && kind != c.Kind:
-			return false, fmt.Sprintf("%s %q in %q is of kind %q, not %q", c.Key.Space, c.Key.Name, walk.Names(c.Key.Parent), kind, c.Kind)
-		}
-	}
-	return true, ""
-}
+// walkInventory lists, one line a row, every object of the two schemas a
+// claim may name, in the walk's spaces: the object namespace with each
+// object's type, tables (object tables and materialized views' containers
+// among them, as a materialized view where they are one), views,
+// sequences, the synonyms a name resolves through (ALL_SYNONYMS, which
+// leaves out one whose object is gone, as the sync does), columns, primary
+// keys, constraints and log groups on their table and by their name, and
+// indexes and triggers by their name, with the table they are on. Public
+// synonyms are listed by the names in :3, those the change holds, since
+// Oracle ships tens of thousands. A name Oracle generates is left out:
+// the walk never claims one (generated), and it differs on every run, and
+// so is what a table of such a name holds, as a dropped table's columns in
+// the recycle bin. An
+// object of type 10 (NON-EXISTENT) is a placeholder for a name a
+// dependency missed. :1, :2 and :3 are written in as literals: SQL binds a
+// placeholder by its position, each time it stands.
+const walkInventory = `SELECT * FROM (
+SELECT 'object' s, owner o, NULL tbl, object_name n, object_type k FROM dba_objects
+ WHERE owner IN (:1, :2) AND namespace = 1 AND object_type <> 'NON-EXISTENT'
+UNION ALL SELECT 'table', x.owner, NULL, x.table_name,
+       CASE WHEN EXISTS (SELECT 1 FROM dba_mviews m WHERE m.owner = x.owner AND m.mview_name = x.table_name) THEN 'MATERIALIZED VIEW' ELSE 'TABLE' END
+  FROM (SELECT owner, table_name FROM dba_tables UNION ALL SELECT owner, table_name FROM dba_object_tables) x WHERE x.owner IN (:1, :2)
+UNION ALL SELECT 'view', owner, NULL, view_name, 'VIEW' FROM dba_views WHERE owner IN (:1, :2)
+UNION ALL SELECT 'sequence', sequence_owner, NULL, sequence_name, 'SEQUENCE' FROM dba_sequences WHERE sequence_owner IN (:1, :2)
+UNION ALL SELECT 'synonym', owner, NULL, synonym_name, 'SYNONYM' FROM all_synonyms
+ WHERE owner IN (:1, :2) OR owner = 'PUBLIC' AND INSTR(:3, ',' || synonym_name || ',') > 0
+UNION ALL SELECT 'column', owner, table_name, column_name, NULL FROM dba_tab_cols WHERE owner IN (:1, :2)
+UNION ALL SELECT 'primary key', owner, table_name, NULL, NULL FROM dba_constraints WHERE owner IN (:1, :2) AND constraint_type = 'P'
+UNION ALL SELECT 'table constraint', owner, table_name, constraint_name, NULL FROM dba_constraints WHERE owner IN (:1, :2)
+UNION ALL SELECT 'table constraint', owner, table_name, log_group_name, NULL FROM dba_log_groups WHERE owner IN (:1, :2)
+UNION ALL SELECT 'constraint', owner, table_name, constraint_name, owner FROM dba_constraints WHERE owner IN (:1, :2)
+UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN (:1, :2)
+UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN (:1, :2)
+UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN (:1, :2)
+) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+  AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
+ORDER BY s, o, tbl, n, k`
 
-// exists reads whether a key's object exists in the data dictionary, and
-// its kind as the walk keys it.
-func (e *oracleEngine) exists(t testing.TB, k walk.Key) (bool, string) {
-	t.Helper()
-	path := walk.Names(k.Parent)
-	ctx, cancel := walkContext()
-	defer cancel()
-	rows := func(q string, args ...any) [][2]string {
-		r, err := e.w.admin.QueryContext(ctx, q, args...)
-		if err != nil {
-			t.Fatalf("%s: %v", q, err)
-		}
-		defer r.Close()
-		var out [][2]string
-		for r.Next() {
-			var a, b sql.NullString
-			if err := r.Scan(&a, &b); err != nil {
-				t.Fatal(err)
+// identifierWord is a word of a change that may be a name, quoted or not.
+var identifierWord = regexp.MustCompile(`"[^"]+"|[A-Za-z][A-Za-z0-9_$#]*`)
+
+// nameList is every word of the texts that may be a name, as Oracle
+// stores it, between commas: ",A,B,".
+func nameList(texts ...string) string {
+	names := map[string]bool{}
+	for _, text := range texts {
+		for _, w := range identifierWord.FindAllString(text, -1) {
+			if strings.HasPrefix(w, `"`) {
+				names[strings.Trim(w, `"`)] = true
+			} else {
+				names[strings.ToUpper(w)] = true
 			}
-			out = append(out, [2]string{a.String, b.String})
 		}
-		return out
 	}
-	first := func(rs [][2]string) (bool, string) {
-		if len(rs) == 0 {
-			return false, ""
-		}
-		return true, rs[0][1]
+	list := make([]string, 0, len(names))
+	for n := range names {
+		list = append(list, n)
 	}
-	owner := path[0]
-	switch k.Space {
-	case spaceObject:
-		rs := rows(`SELECT object_name, object_type FROM dba_objects WHERE owner = :1 AND object_name = :2 AND namespace = 1 ORDER BY CASE object_type WHEN 'MATERIALIZED VIEW' THEN 0 ELSE 1 END`, owner, k.Name)
-		return first(rs)
-	case spaceTable:
-		rs := rows(`SELECT table_name, CASE WHEN EXISTS (SELECT 1 FROM dba_mviews m WHERE m.owner = x.owner AND m.mview_name = x.table_name) THEN 'MATERIALIZED VIEW' ELSE 'TABLE' END FROM (SELECT owner, table_name FROM dba_tables UNION ALL SELECT owner, table_name FROM dba_object_tables) x WHERE owner = :1 AND table_name = :2`, owner, k.Name)
-		return first(rs)
-	case spaceView:
-		ok, _ := first(rows(`SELECT view_name, 'VIEW' FROM dba_views WHERE owner = :1 AND view_name = :2`, owner, k.Name))
-		return ok, kindView
-	case spaceSequence:
-		ok, _ := first(rows(`SELECT sequence_name, 'SEQUENCE' FROM dba_sequences WHERE sequence_owner = :1 AND sequence_name = :2`, owner, k.Name))
-		return ok, kindSequence
-	case spaceSynonym:
-		// The synonyms a name resolves through, as the sync reads them.
-		ok, _ := first(rows(`SELECT synonym_name, 'SYNONYM' FROM all_synonyms WHERE owner = :1 AND synonym_name = :2`, owner, k.Name))
-		return ok, kindSynonym
-	case spaceColumn:
-		return first(rows(`SELECT column_name, '' FROM dba_tab_cols WHERE owner = :1 AND table_name = :2 AND column_name = :3`, owner, path[1], k.Name))
-	case spacePrimary:
-		return first(rows(`SELECT constraint_name, '' FROM dba_constraints WHERE owner = :1 AND table_name = :2 AND constraint_type = 'P'`, owner, path[1]))
-	case spaceTableConstraint:
-		return first(rows(`SELECT constraint_name, '' FROM dba_constraints WHERE owner = :1 AND table_name = :2 AND constraint_name = :3 UNION ALL SELECT log_group_name, '' FROM dba_log_groups WHERE owner = :4 AND table_name = :5 AND log_group_name = :6`, owner, path[1], k.Name, owner, path[1], k.Name))
-	case spaceConstraint:
-		rs := rows(`SELECT owner, table_name FROM dba_constraints WHERE owner = :1 AND constraint_name = :2 UNION ALL SELECT owner, table_name FROM dba_log_groups WHERE owner = :3 AND log_group_name = :4`, owner, k.Name, owner, k.Name)
-		if len(rs) == 0 {
-			return false, ""
-		}
-		return true, tablePath(rs[0][0], rs[0][1])
-	case spaceIndex:
-		rs := rows(`SELECT table_owner, table_name FROM dba_indexes WHERE owner = :1 AND index_name = :2`, owner, k.Name)
-		if len(rs) == 0 {
-			return false, ""
-		}
-		return true, tablePath(rs[0][0], rs[0][1])
-	case spaceTrigger:
-		rs := rows(`SELECT table_owner, table_name FROM dba_triggers WHERE owner = :1 AND trigger_name = :2`, owner, k.Name)
-		if len(rs) == 0 {
-			return false, ""
-		}
-		return true, tablePath(rs[0][0], rs[0][1])
-	}
-	t.Fatalf("unknown space %s", k.Space)
-	return false, ""
+	sort.Strings(list)
+	return "," + strings.Join(list, ",") + ","
 }
 
-// Digest reads the names of both schemas' objects, columns, and
-// constraints, log groups among them, from the dictionary's own tables,
-// which answer in a few milliseconds where its views take hundreds, so a
-// rejected statement that changed one fails the case. It leaves out the
-// columns of a generated name: a rejected ADD of a column with a NOT NULL
-// constraint of a taken name leaves the column behind as an unused hidden
-// one of a generated name (verified), which no claim names. An object of
-// type 10 is a placeholder for a name a dependency missed.
-func (e *oracleEngine) Digest(t testing.TB) string {
+// Inventory lists what both schemas hold now (walkInventory).
+func (e *oracleEngine) Inventory(t testing.TB, change string) []walktest.Object {
 	t.Helper()
 	ctx, cancel := walkContext()
 	defer cancel()
-	in := e.w.users
-	q := `SELECT 'O' || o.owner# || '.' || o.name || '.' || o.type# FROM sys.obj$ o WHERE o.owner# IN ` + in + ` AND o.type# <> 10
-UNION ALL SELECT 'C' || o.owner# || '.' || o.name || '.' || c.name FROM sys.col$ c JOIN sys.obj$ o ON o.obj# = c.obj# WHERE o.owner# IN ` + in + ` AND c.name NOT LIKE 'SYS\_%' ESCAPE '\'
-UNION ALL SELECT 'K' || c.owner# || '.' || c.name FROM sys.con$ c WHERE c.owner# IN ` + in + `
-ORDER BY 1`
-	rows, err := e.w.admin.QueryContext(ctx, q)
+	q := strings.NewReplacer(":1", "'"+e.w.shop+"'", ":2", "'"+e.w.other+"'", ":3", "'"+strings.ReplaceAll(nameList(change), "'", "''")+"'").Replace(walkInventory)
+	rows, err := e.w.setup.QueryContext(ctx, q)
 	if err != nil {
-		t.Fatalf("digest: %v", err)
+		t.Fatalf("list the server's objects: %v", err)
 	}
 	defer rows.Close()
-	var b strings.Builder
+	var out []walktest.Object
 	for rows.Next() {
-		var line sql.NullString
-		if err := rows.Scan(&line); err != nil {
+		var space, owner, table, name, kind sql.NullString
+		if err := rows.Scan(&space, &owner, &table, &name, &kind); err != nil {
 			t.Fatal(err)
 		}
-		b.WriteString(line.String)
-		b.WriteByte('\n')
+		switch space.String {
+		case spaceObject, spaceTable, spaceView, spaceSequence, spaceSynonym:
+			out = append(out, walktest.Object{Key: walk.Key{Space: space.String, Parent: walk.Path(owner.String), Name: name.String}, Kind: kind.String})
+		case spaceColumn, spacePrimary, spaceTableConstraint:
+			out = append(out, walktest.Object{Key: walk.Key{Space: space.String, Parent: tablePath(owner.String, table.String), Name: name.String}})
+		case spaceConstraint, spaceIndex, spaceTrigger:
+			// kind holds the owner of the table it is on.
+			out = append(out, walktest.Object{Key: walk.Key{Space: space.String, Parent: walk.Path(owner.String), Name: name.String}, Kind: tablePath(kind.String, table.String)})
+		default:
+			t.Fatalf("an object of the unknown space %q", space.String)
+		}
 	}
 	if err := rows.Err(); err != nil {
 		t.Fatal(err)
 	}
-	return b.String()
+	return out
 }
+
+// Same reports whether a claimed key is a stored one: the walk keys names
+// as Oracle stores them.
+func (e *oracleEngine) Same(claimed, stored walk.Key) bool { return claimed == stored }
 
 // walkSync reads a schema into the metadata Bytebase's Oracle sync makes
 // of it, for what WalkThrough reads: the tables, object tables among them,
@@ -691,7 +647,12 @@ ORDER BY 1`
 // object is gone, even to SYSTEM, where DBA_SYNONYMS lists it (verified).
 //
 // bytebase: backend/plugin/db/oracle/sync.go — getTables, getTableColumns, getConstraints, getIndexesAndConstraints, getTriggers, getViews, getMaterializedViews, getSequences, getRoutines, getSynonyms
-func walkSync(t testing.TB, conn *sql.Conn, schema string) *metadata.DatabaseSchemaMetadata {
+//
+// Of the public synonyms it reads those named in names (nameList): Oracle
+// ships tens of thousands, the walk resolves only the names a change
+// writes, and a tape that held them all for every case would be most of
+// the package's tapes.
+func walkSync(t testing.TB, conn *sql.Conn, schema, names string) *metadata.DatabaseSchemaMetadata {
 	t.Helper()
 	ctx, cancel := walkContext()
 	defer cancel()
@@ -721,13 +682,13 @@ func walkSync(t testing.TB, conn *sql.Conn, schema string) *metadata.DatabaseSch
 	}
 	s := &metadata.SchemaMetadata{}
 	mviews := make(map[string]*metadata.MaterializedViewMetadata)
-	query(`SELECT mview_name FROM dba_mviews WHERE owner = :1`, func(v []sql.NullString) {
+	query(`SELECT mview_name FROM dba_mviews WHERE owner = :1 ORDER BY 1`, func(v []sql.NullString) {
 		mviews[v[0].String] = &metadata.MaterializedViewMetadata{Name: v[0].String}
 		s.MaterializedViews = append(s.MaterializedViews, mviews[v[0].String])
 	})
 	tables := make(map[string]*metadata.TableMetadata)
 	query(`SELECT table_name, 0 FROM dba_tables WHERE owner = :1
-UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = :1`, func(v []sql.NullString) {
+UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = :1 ORDER BY 1, 2`, func(v []sql.NullString) {
 		if mviews[v[0].String] != nil {
 			return
 		}
@@ -747,7 +708,7 @@ UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = :1`, func(v 
 			mv.Indexes = append(mv.Indexes, idx)
 		}
 	}
-	query(`SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = :1`, func(v []sql.NullString) {
+	query(`SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = :1 ORDER BY 1, 2`, func(v []sql.NullString) {
 		table, name := v[0].String, v[1].String
 		switch v[2].String {
 		case "P", "U":
@@ -766,12 +727,12 @@ UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = :1`, func(v 
 	// An index holds a column the user made unless every column it lists
 	// is a hidden SYS_NC column and it has no expression.
 	userColumns := make(map[string]bool)
-	query(`SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = :1`, func(v []sql.NullString) {
+	query(`SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = :1 ORDER BY 1, 2`, func(v []sql.NullString) {
 		if !strings.HasPrefix(v[1].String, "SYS_NC") || v[2].String != "0" {
 			userColumns[v[0].String] = true
 		}
 	})
-	query(`SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = :1`, func(v []sql.NullString) {
+	query(`SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = :1 ORDER BY 1, 2`, func(v []sql.NullString) {
 		table, name := v[0].String, v[1].String
 		if indexed[table+"."+name] || strings.HasPrefix(name, "SYS_") || !userColumns[name] {
 			return
@@ -779,11 +740,11 @@ UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = :1`, func(v 
 		addIndex(table, &metadata.IndexMetadata{Name: name, Type: v[2].String})
 	})
 	views := make(map[string]*metadata.ViewMetadata)
-	query(`SELECT view_name FROM dba_views WHERE owner = :1`, func(v []sql.NullString) {
+	query(`SELECT view_name FROM dba_views WHERE owner = :1 ORDER BY 1`, func(v []sql.NullString) {
 		views[v[0].String] = &metadata.ViewMetadata{Name: v[0].String}
 		s.Views = append(s.Views, views[v[0].String])
 	})
-	query(`SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = :1 AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW')`, func(v []sql.NullString) {
+	query(`SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = :1 AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1`, func(v []sql.NullString) {
 		tr := &metadata.TriggerMetadata{Name: v[0].String}
 		switch {
 		case v[2].String == "VIEW":
@@ -796,10 +757,10 @@ UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = :1`, func(v 
 			mviews[v[1].String].Triggers = append(mviews[v[1].String].Triggers, tr)
 		}
 	})
-	query(`SELECT sequence_name FROM dba_sequences WHERE sequence_owner = :1 AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\'`, func(v []sql.NullString) {
+	query(`SELECT sequence_name FROM dba_sequences WHERE sequence_owner = :1 AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1`, func(v []sql.NullString) {
 		s.Sequences = append(s.Sequences, &metadata.SequenceMetadata{Name: v[0].String})
 	})
-	query(`SELECT DISTINCT name, type FROM dba_source WHERE owner = :1 AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE')`, func(v []sql.NullString) {
+	query(`SELECT DISTINCT name, type FROM dba_source WHERE owner = :1 AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2`, func(v []sql.NullString) {
 		switch v[1].String {
 		case "FUNCTION":
 			s.Functions = append(s.Functions, &metadata.FunctionMetadata{Name: v[0].String})
@@ -811,7 +772,11 @@ UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = :1`, func(v 
 	})
 	synonyms := func(owner string) []*metadata.SynonymMetadata {
 		var out []*metadata.SynonymMetadata
-		query(`SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = `+owner+` ORDER BY synonym_name`, func(v []sql.NullString) {
+		filter := ""
+		if owner == "'PUBLIC'" {
+			filter = " AND INSTR('" + strings.ReplaceAll(names, "'", "''") + "', ',' || synonym_name || ',') > 0"
+		}
+		query(`SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = `+owner+filter+` ORDER BY synonym_name`, func(v []sql.NullString) {
 			out = append(out, &metadata.SynonymMetadata{Name: v[0].String, TargetSchema: v[1].String, TargetName: v[2].String, TargetDbLink: v[3].String})
 		})
 		return out
@@ -823,56 +788,58 @@ UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = :1`, func(v 
 // walkSweepPerBase is how many changes of the sweep run on one base.
 const walkSweepPerBase = 10
 
+// The sweep's size and seed. Its tape holds a session per change, so
+// another size or seed fails replay: change them only with a recording.
+const (
+	walkSweepN    = 40
+	walkSweepSeed = 20261028
+)
+
 // TestWalkThroughSweepOracle runs random changes over a small pool of
 // names that collide often, quoted lower-case ones included, on bases of
 // random statements. Precision must hold on every one; recall is logged.
-// WALK_SWEEP_N sets the number of changes, WALK_SWEEP_SEED the seed.
 //
 // The sync costs most of a second of dictionary views, a change about a
 // third of one, so each base is synced once and serves walkSweepPerBase
 // changes, each on the base made again: made again, it is the same but for
-// the names Oracle generates, which the walk never claims. Two workers run
-// at once, each on schemas of its own.
+// the names Oracle generates, which the walk never claims.
 func TestWalkThroughSweepOracle(t *testing.T) {
-	n, seed, _ := walktest.SweepParams(t, 40, 20261028, "")
-	admin := startOracle(t)
-	const workers = 2
-	for wk := range workers {
-		t.Run(fmt.Sprintf("worker%d", wk), func(t *testing.T) {
-			t.Parallel()
-			shop, other := fmt.Sprintf("SHOP%d", wk+1), fmt.Sprintf("OTHER%d", wk+1)
-			rng := rand.New(rand.NewSource(seed + int64(wk)))
-			changes := (n + workers - 1 - wk) / workers
-			var found, rejected int
-			for i := 0; i < changes; i += walkSweepPerBase {
-				base := walkSweepChange(rng, shop, other, 6+rng.Intn(8))
-				var target *metadata.DatabaseSchemaMetadata
-				for j := i; j < min(changes, i+walkSweepPerBase); j++ {
-					change := walkSweepChange(rng, shop, other, 10+rng.Intn(12))
-					t.Run(fmt.Sprintf("change%d", j), func(t *testing.T) {
-						w := resetWalk(t, admin, shop, other, nil)
-						e := &oracleEngine{w: w, conn: w.adminConn}
-						for _, q := range e.Statements(base) {
-							e.Exec(t, q)
-						}
-						// The base may have moved the session.
-						w.exec(t, w.adminConn, "ALTER SESSION SET CURRENT_SCHEMA = "+shop)
-						if target == nil {
-							target = walkSync(t, w.adminConn, shop)
-						}
-						e.target = review.Target{Schema: target}
-						f, r := walktest.Judge(t, e, change, false)
-						found += f
-						rejected += r
-						if t.Failed() {
-							t.Logf("base:\n%s\nchange:\n%s", base, change)
-						}
-					})
+	startOracle(t)
+	const shop, other = "SHOP1", "OTHER1"
+	rng := rand.New(rand.NewSource(walkSweepSeed))
+	var found, rejected int
+	for i := 0; i < walkSweepN; i += walkSweepPerBase {
+		base := walkSweepChange(rng, shop, other, 6+rng.Intn(8))
+		var changes []string
+		for j := i; j < min(walkSweepN, i+walkSweepPerBase); j++ {
+			changes = append(changes, walkSweepChange(rng, shop, other, 10+rng.Intn(12)))
+		}
+		names := nameList(append([]string{base}, changes...)...)
+		var target *metadata.DatabaseSchemaMetadata
+		for j := i; j < min(walkSweepN, i+walkSweepPerBase); j++ {
+			change := changes[j-i]
+			t.Run(fmt.Sprintf("change%d", j), func(t *testing.T) {
+				w := resetWalk(t, shop, other, nil)
+				e := &oracleEngine{w: w, conn: w.adminConn}
+				for _, q := range e.Statements(base) {
+					e.Exec(t, q)
 				}
-			}
-			t.Logf("%s seed %d: found %d of the %d statements the server rejects", shop, seed+int64(wk), found, rejected)
-		})
+				// The base may have moved the session.
+				w.exec(t, w.adminConn, "ALTER SESSION SET CURRENT_SCHEMA = "+shop)
+				if target == nil {
+					target = walkSync(t, w.adminConn, shop, names)
+				}
+				e.target = review.Target{Schema: target}
+				f, r := walktest.Judge(t, e, change, false)
+				found += f
+				rejected += r
+				if t.Failed() {
+					t.Logf("base:\n%s\nchange:\n%s", base, change)
+				}
+			})
+		}
 	}
+	t.Logf("seed %d: found %d of the %d statements the server rejects", int64(walkSweepSeed), found, rejected)
 }
 
 // walkSweepChange writes n random statements on schema shop, naming other

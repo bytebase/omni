@@ -16,11 +16,12 @@ import (
 
 	"github.com/bytebase/omni/enginetest"
 	"github.com/bytebase/omni/enginetest/compat"
+	"github.com/bytebase/omni/enginetest/tape"
 	"github.com/bytebase/omni/oracle/internal/testcontainer"
 )
 
 func TestMain(m *testing.M) {
-	code := m.Run()
+	code := tape.Main(m)
 	testcontainer.Terminate()
 	os.Exit(code)
 }

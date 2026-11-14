@@ -71,6 +71,13 @@ type SystemAlterStmt struct {
 	// Args holds raw text fallback for unstructured trailing tokens.
 	Args string
 
+	// NewHost is the HOSTNAME of MODIFY FRONTEND / BACKEND ... HOSTNAME.
+	NewHost string
+
+	// Name and NewName are the compute groups of RENAME COMPUTE GROUP.
+	Name    string
+	NewName string
+
 	Loc Loc
 }
 

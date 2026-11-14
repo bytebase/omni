@@ -90,3 +90,16 @@ to `lexerCorpus` and to the statements of `coverage/reference_oracle.tsv` and
   its user must be a scratch account: the block drops everything that user
   owns after each statement that ran. The judge cannot kill a process there,
   so a statement Oracle never answers fails the recording.
+
+## Tapes
+
+Every other test that asked Oracle replays a tape through
+`oracle/internal/testcontainer.Open(t, user)`, here (`tapes/`, 4 tapes) and in
+`oracle/review` (6 tapes, the walk-through oracle and its sweep among them).
+A recording starts each top-level test on a server without the users,
+public synonyms and SYSTEM objects another test made. Oracle's generated
+names (`SYS_C…`, `SYS_C_SNAP$_…`, LOB segments, identity sequences) get
+stand-ins. Two recordings on fresh servers wrote the same tapes.
+
+`TestOraclePLSQLDictionary` reads the PL/SQL Oracle ships, which a tape may
+not hold, so it runs only in a recording (`tape.Live`).
