@@ -51,7 +51,20 @@ func (p *Parser) parseExprPrec(minBP int) (ast.Node, error) {
 		return nil, err
 	}
 
+loop:
 	for {
+		// primaryExpression COLLATE (DorisParser.g4:1591) binds before any operator.
+		if p.cur.Kind == kwCOLLATE {
+			if left, err = p.parseCollateExpr(left); err != nil {
+				return nil, err
+			}
+			// The result is a primaryExpression again, which a subscript
+			// may follow (DorisParser.g4:1577).
+			if left, err = p.parsePostfixSubscripts(left); err != nil {
+				return nil, err
+			}
+			continue
+		}
 		bp, op, special, ok := p.infixBindingPower()
 		if !ok || bp < minBP {
 			break
@@ -77,6 +90,18 @@ func (p *Parser) parseExprPrec(minBP int) (ast.Node, error) {
 				left, err = p.parseRegexpExpr(left, false)
 			case "NOT_REGEXP":
 				left, err = p.parseRegexpExpr(left, true)
+			case "MATCH":
+				left, err = p.parseMatchExpr(left, false)
+			case "MATCH_OR_ALIAS":
+				cp := p.save()
+				match, matchErr := p.parseMatchExpr(left, false)
+				if matchErr != nil {
+					p.restore(cp)
+					break loop
+				}
+				left = match
+			case "NOT_MATCH":
+				left, err = p.parseMatchExpr(left, true)
 			}
 			if err != nil {
 				return nil, err
@@ -126,6 +151,8 @@ func (p *Parser) infixBindingPower() (int, ast.BinaryOp, string, bool) {
 			return bpPred, 0, "NOT_LIKE", true
 		case kwREGEXP, kwRLIKE:
 			return bpPred, 0, "NOT_REGEXP", true
+		case kwMATCH, kwMATCH_ANY, kwMATCH_ALL, kwMATCH_PHRASE, kwMATCH_PHRASE_PREFIX, kwMATCH_REGEXP, kwMATCH_PHRASE_EDGE:
+			return bpPred, 0, "NOT_MATCH", true
 		}
 		return 0, 0, "", false
 
@@ -140,6 +167,12 @@ func (p *Parser) infixBindingPower() (int, ast.BinaryOp, string, bool) {
 		return bpPred, 0, "LIKE", true
 	case kwREGEXP, kwRLIKE:
 		return bpPred, 0, "REGEXP", true
+	case kwMATCH:
+		return bpPred, 0, "MATCH", true
+	case kwMATCH_ANY, kwMATCH_ALL, kwMATCH_PHRASE, kwMATCH_PHRASE_PREFIX, kwMATCH_REGEXP, kwMATCH_PHRASE_EDGE:
+		// Non-reserved: the operator only where an operand follows, else
+		// an alias (SELECT 1 MATCH_ANY).
+		return bpPred, 0, "MATCH_OR_ALIAS", true
 
 	// Comparison operators
 	case int('='):
@@ -186,6 +219,12 @@ func (p *Parser) infixBindingPower() (int, ast.BinaryOp, string, bool) {
 		return bpMul, ast.BinMod, "", true
 	case kwDIV:
 		return bpMul, ast.BinIntDiv, "", true
+	case tokIdent:
+		// MOD is a reserved word of the engine's grammar (DorisParser.g4:1551), which
+		// omni lexes as a name; outside a call it is the modulo operator.
+		if strings.EqualFold(p.cur.Str, "MOD") {
+			return bpMul, ast.BinMod, "", true
+		}
 
 	// Bitwise XOR
 	case int('^'):
@@ -259,6 +298,20 @@ func (p *Parser) parsePrefixExpr() (ast.Node, error) {
 			Loc:  ast.Loc{Start: start.Start, End: ast.NodeLoc(operand).End},
 		}, nil
 
+	case int('!'):
+		// LOGICAL NOT (DorisParser.g4:1516, as NOT).
+		start := p.cur.Loc
+		p.advance()
+		operand, err := p.parseExprPrec(bpNot)
+		if err != nil {
+			return nil, err
+		}
+		return &ast.UnaryExpr{
+			Op:   ast.UnaryNot,
+			Expr: operand,
+			Loc:  ast.Loc{Start: start.Start, End: ast.NodeLoc(operand).End},
+		}, nil
+
 	case kwEXISTS:
 		return p.parseExistsExpr()
 
@@ -280,7 +333,20 @@ func (p *Parser) parsePrefixExpr() (ast.Node, error) {
 // bind tighter than any operator. The index and bounds are valueExpressions —
 // comparisons are allowed but AND/OR/NOT are not, hence bpNot+1.
 func (p *Parser) parsePostfixSubscripts(node ast.Node) (ast.Node, error) {
-	for p.cur.Kind == int('[') {
+	for p.cur.Kind == int('[') || (p.cur.Kind == int('.') && isIdentifierTokenQualified(p.peekNext().Kind) && !isKeywordLiteral(node)) {
+		if p.cur.Kind == int('.') {
+			// primaryExpression DOT identifier (DorisParser.g4:1586). A column
+			// name's parts were read with it, so this is a field of another
+			// expression.
+			p.advance() // consume '.'
+			field := p.advance()
+			node = &ast.DereferenceExpr{
+				Expr:  node,
+				Field: field.Str,
+				Loc:   ast.Loc{Start: ast.NodeLoc(node).Start, End: field.Loc.End},
+			}
+			continue
+		}
 		p.advance() // consume '['
 		begin, err := p.parseExprPrec(bpNot + 1)
 		if err != nil {
@@ -327,6 +393,13 @@ func (p *Parser) parsePostfixSubscripts(node ast.Node) (ast.Node, error) {
 // parsePrimaryExpr parses atomic expressions: literals, identifiers,
 // function calls, parenthesized expressions, CASE, CAST, etc.
 func (p *Parser) parsePrimaryExpr() (ast.Node, error) {
+	// A typed literal, DATE '2024-01-01' (DorisParser.g4:1670).
+	if (p.cur.Kind == kwDATE || p.cur.Kind == kwDATEV1 || p.cur.Kind == kwDATEV2 || p.cur.Kind == kwTIMESTAMP) && p.peekNext().Kind == tokString {
+		start := p.advance().Loc
+		str := p.advance()
+		loc := ast.Loc{Start: start.Start, End: str.Loc.End}
+		return &ast.Literal{Kind: ast.LitTyped, Value: p.sourceText(loc), Loc: loc}, nil
+	}
 	switch p.cur.Kind {
 	// KEY ident — Doris encryption-key reference (used in AES_ENCRYPT/AES_DECRYPT
 	// function arguments). Represent as a ColumnRef with a "KEY/" prefix so the
@@ -584,13 +657,21 @@ func (p *Parser) parseFuncCall(name *ast.ObjectName) (*ast.FuncCallExpr, error) 
 		return fc, nil
 	}
 
-	// DISTINCT handling for aggregates like COUNT(DISTINCT x)
-	if p.cur.Kind == kwDISTINCT {
+	// DISTINCT handling for aggregates like COUNT(DISTINCT x); ALL, the
+	// default, is the other (DISTINCT|ALL) of DorisParser.g4:1602, and either
+	// needs an argument after it.
+	quantified := false
+	switch p.cur.Kind {
+	case kwDISTINCT:
 		p.advance()
 		fc.Distinct = true
+		quantified = true
+	case kwALL:
+		p.advance()
+		quantified = true
 	}
 
-	if p.cur.Kind != int(')') {
+	if p.cur.Kind != int(')') || quantified {
 		args, err := p.parseFuncArgList()
 		if err != nil {
 			return nil, err
@@ -1203,7 +1284,7 @@ func (p *Parser) parseCastExpr(tryCast bool) (*ast.CastExpr, error) {
 	if _, err := p.expect(kwAS); err != nil {
 		return nil, err
 	}
-	typeName, err := p.parseDataType()
+	typeName, err := p.parseCastDataType()
 	if err != nil {
 		return nil, err
 	}
@@ -1234,6 +1315,15 @@ func (p *Parser) parseExtractExpr() (ast.Node, error) {
 	}
 	if _, err := p.expect(kwFROM); err != nil {
 		return nil, err
+	}
+	// FROM (DATE | TIMESTAMP)? valueExpression (DorisParser.g4:1589): the
+	// word is a prefix unless it is a call, a typed literal or the source.
+	if p.cur.Kind == kwDATE || p.cur.Kind == kwTIMESTAMP {
+		switch p.peekNext().Kind {
+		case int('('), int(')'), tokString:
+		default:
+			p.advance() // consume DATE / TIMESTAMP
+		}
 	}
 	expr, err := p.parseExpr()
 	if err != nil {
@@ -1836,4 +1926,69 @@ func (p *Parser) parseRegexpExpr(left ast.Node, notFlag bool) (ast.Node, error) 
 		Not:     notFlag,
 		Loc:     ast.Loc{Start: ast.NodeLoc(left).Start, End: ast.NodeLoc(pattern).End},
 	}, nil
+}
+
+// parseCollateExpr reads COLLATE (identifier | STRING_LITERAL | DEFAULT) after left (DorisParser.g4:1591).
+func (p *Parser) parseCollateExpr(left ast.Node) (ast.Node, error) {
+	p.advance() // consume COLLATE
+	var name string
+	switch {
+	case p.cur.Kind == tokString:
+		name = p.cur.Str
+		p.advance()
+	case p.cur.Kind == kwDEFAULT:
+		name = "DEFAULT"
+		p.advance()
+	default:
+		ident, _, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		name = ident
+	}
+	return &ast.CollateExpr{
+		Expr:      left,
+		Collation: name,
+		Loc:       ast.Loc{Start: ast.NodeLoc(left).Start, End: p.prev.Loc.End},
+	}, nil
+}
+
+// parseMatchExpr reads [NOT] MATCH-kind pattern after left (DorisParser.g4:1541 and the legacy match_predicate (DorisLegacyParser.g4:2925)).
+func (p *Parser) parseMatchExpr(left ast.Node, notFlag bool) (ast.Node, error) {
+	if notFlag {
+		p.advance() // consume NOT
+	}
+	op := strings.ToUpper(p.advance().Str) // consume the MATCH kind
+	pattern, err := p.parseExprPrec(bpPred + 1)
+	if err != nil {
+		return nil, err
+	}
+	return &ast.MatchExpr{
+		Expr:    left,
+		Op:      op,
+		Pattern: pattern,
+		Not:     notFlag,
+		Loc:     ast.Loc{Start: ast.NodeLoc(left).Start, End: ast.NodeLoc(pattern).End},
+	}, nil
+}
+
+// parseCastDataType reads castDataType (DorisParser.g4:1594): a dataType, or
+// (SIGNED | UNSIGNED) (INT | INTEGER)?.
+func (p *Parser) parseCastDataType() (*ast.TypeName, error) {
+	if p.cur.Kind != kwSIGNED && p.cur.Kind != kwUNSIGNED {
+		return p.parseDataType()
+	}
+	start := p.cur.Loc
+	name := strings.ToUpper(p.advance().Str)
+	if p.cur.Kind == kwINT || p.cur.Kind == kwINTEGER {
+		name += " " + strings.ToUpper(p.advance().Str)
+	}
+	return &ast.TypeName{Name: name, Loc: ast.Loc{Start: start.Start, End: p.prev.Loc.End}}, nil
+}
+
+// isKeywordLiteral reports whether node is a keyword omni keeps as a literal
+// (a bare KEY, DEFAULT), which is no primaryExpression and has no fields.
+func isKeywordLiteral(node ast.Node) bool {
+	lit, ok := node.(*ast.Literal)
+	return ok && lit.Kind == ast.LitKeyword
 }

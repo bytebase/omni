@@ -145,17 +145,6 @@ func TestShowCreateTable(t *testing.T) {
 	}
 }
 
-func TestShowBriefCreateTable(t *testing.T) {
-	file, errs := parseForTest("SHOW BRIEF CREATE TABLE demo.test_table")
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	n := file.Stmts[0].(*ast.ShowStmt)
-	if n.Type != "BRIEF CREATE TABLE" {
-		t.Errorf("Type = %q, want BRIEF CREATE TABLE", n.Type)
-	}
-}
-
 func TestShowCreateView(t *testing.T) {
 	file, errs := parseForTest("SHOW CREATE VIEW my_view")
 	if len(errs) != 0 {
@@ -296,20 +285,6 @@ func TestShowGrantsForUser(t *testing.T) {
 	}
 }
 
-func TestShowAllGrants(t *testing.T) {
-	file, errs := parseForTest("SHOW ALL GRANTS")
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	n := file.Stmts[0].(*ast.ShowStmt)
-	if n.Type != "GRANTS" {
-		t.Errorf("Type = %q, want GRANTS", n.Type)
-	}
-	if n.Args != "ALL" {
-		t.Errorf("Args = %q, want ALL", n.Args)
-	}
-}
-
 func TestShowRoles(t *testing.T) {
 	file, errs := parseForTest("SHOW ROLES")
 	if len(errs) != 0 {
@@ -333,17 +308,6 @@ func TestShowCatalogs(t *testing.T) {
 	n := file.Stmts[0].(*ast.ShowStmt)
 	if n.Type != "CATALOGS" {
 		t.Errorf("Type = %q, want CATALOGS", n.Type)
-	}
-}
-
-func TestShowCatalogsLike(t *testing.T) {
-	file, errs := parseForTest("SHOW CATALOGS LIKE 'hi%'")
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	n := file.Stmts[0].(*ast.ShowStmt)
-	if n.Like != "hi%" {
-		t.Errorf("Like = %q, want hi%%", n.Like)
 	}
 }
 
@@ -480,5 +444,108 @@ func TestShowDatabasesFromCatalog(t *testing.T) {
 		if n.Type != "DATABASES" || n.From != "hive_catalog" {
 			t.Errorf("parseForTest(%q) = Type %q From %q, want DATABASES hive_catalog", sql, n.Type, n.From)
 		}
+	}
+}
+
+// TestShowStrictRejects holds Parse to the SHOW forms of StarRocks.g4: a form
+// cut short, or a Doris form StarRocks does not have, is a syntax error.
+func TestShowStrictRejects(t *testing.T) {
+	for _, sql := range []string{
+		"SHOW",
+		"SHOW a",
+		"SHOW PROCESSLIST zzz",
+		"SHOW CREATE TABLE",
+		"SHOW BRIEF CREATE TABLE demo.test_table",       // Doris only
+		"SHOW ROUTINE LOAD LIKE 'job%'",                 // StarRocks.g4:1275 has no LIKE
+		"SHOW CREATE ROUTINE LOAD FOR a",                // StarRocks.g4:1287 has no FOR
+		"SHOW ALL GRANTS",                               // StarRocks.g4:1717
+		"SHOW CATALOGS LIKE 'hi%'",                      // StarRocks.g4:773
+		"SHOW WORKLOAD GROUPS",                          // Doris only
+		"SHOW TABLETS FROM t PARTITION (p) LIMIT 1, ?x", // a cut limit
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) = nil error, want a syntax error", sql)
+		}
+	}
+	for _, sql := range []string{
+		"SHOW FULL TABLES FROM db LIKE 'a%'",
+		"SHOW LOAD WHERE Label COLLATE utf8_general_ci[1] = 'a'",
+		"SHOW LOAD WHERE COUNT(DISTINCT [a] Label) > 0",
+		"SHOW LOAD WHERE a -> CURRENT_USER",
+		"SHOW LOAD WHERE COUNT(ALL Label) > 0 AND SUM(ALL Label) > 0",
+		"SHOW LOAD WHERE named_struct('1a', Label).1a = 'a'",
+		"SHOW LOAD WHERE (Label, State) IN (SELECT label, state FROM t)",
+		"SHOW LOAD WHERE (Label, State) NOT IN (SELECT label, state FROM t) AND a = 1",
+		"SHOW LOAD WHERE named_struct('name', Label).name = 'a'",
+		"SHOW LOAD WHERE CURRENT_USER.a = 'a'",
+		"SHOW LOAD WHERE role = 'a'",
+		"SHOW LOAD WHERE Label MATCH !Label",
+		"SHOW LOAD WHERE GROUP_CONCAT(Label SEPARATOR Label) = 'a'",
+		"SHOW LOAD WHERE !(Label = 'job')",
+		"SHOW LOAD WHERE Label MATCH 'job' AND 5 MOD 2 = 1",
+		"SHOW LOAD WHERE Label COLLATE utf8_general_ci = 'job'",
+		"SHOW RESOURCE GROUP role",
+		"SHOW FILE FROM role",
+		"SHOW GRANTS FOR ROLE role",
+		"SHOW TABLETS FROM t PARTITION (p1, p2) WHERE a = 1 ORDER BY a LIMIT 1, 2",
+		"SHOW GRANTS FOR ROLE r",
+		"SHOW GRANTS FOR ROLE",
+		"SHOW GRANTS FOR 'u'@'%'",
+		"SHOW AUTHENTICATION FOR 'u'@['h']",
+		"SHOW ROUTINE LOAD TASK FROM db WHERE JobName = 'j'",
+		"SHOW PIPES FROM db ORDER BY a LIMIT ?",
+	} {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q): %v", sql, err)
+		}
+	}
+}
+
+// TestMatchBindsAsPrimary holds MATCH to StarRocks.g4:2425, between primary
+// expressions: it binds before a comparison.
+func TestMatchBindsAsPrimary(t *testing.T) {
+	file, err := Parse("SELECT Label MATCH 'job' = TRUE FROM t")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sel := file.Stmts[0].(*ast.SelectStmt)
+	cmp, ok := sel.Items[0].Expr.(*ast.BinaryExpr)
+	if !ok || cmp.Op != ast.BinEq {
+		t.Fatalf("got %T, want a comparison", sel.Items[0].Expr)
+	}
+	if _, ok := cmp.Left.(*ast.MatchExpr); !ok {
+		t.Errorf("left of = is %T, want *ast.MatchExpr", cmp.Left)
+	}
+}
+
+// TestShiftWordsBindLooserThanBitOr holds the shift words to StarRocks.g4:
+// 2389-2394, where they come after | and so bind looser.
+func TestShiftWordsBindLooserThanBitOr(t *testing.T) {
+	file, err := Parse("SELECT 1 | 2 BITSHIFTLEFT 3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	shift, ok := file.Stmts[0].(*ast.SelectStmt).Items[0].Expr.(*ast.BinaryExpr)
+	if !ok || shift.Op != ast.BinShiftLeft {
+		t.Fatalf("got %T, want a BITSHIFTLEFT at the top", file.Stmts[0].(*ast.SelectStmt).Items[0].Expr)
+	}
+	if or, ok := shift.Left.(*ast.BinaryExpr); !ok || or.Op != ast.BinBitOr {
+		t.Errorf("left of BITSHIFTLEFT is %T, want 1 | 2", shift.Left)
+	}
+}
+
+// TestUnaryBindsBeforeMatch holds MATCH below the unary operators of
+// StarRocks.g4:2408-2409: !Label MATCH 'job' is (!Label) MATCH 'job'.
+func TestUnaryBindsBeforeMatch(t *testing.T) {
+	file, err := Parse("SELECT !Label MATCH 'job' FROM t")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, ok := file.Stmts[0].(*ast.SelectStmt).Items[0].Expr.(*ast.MatchExpr)
+	if !ok {
+		t.Fatalf("got %T, want *ast.MatchExpr at the top", file.Stmts[0].(*ast.SelectStmt).Items[0].Expr)
+	}
+	if _, ok := m.Expr.(*ast.UnaryExpr); !ok {
+		t.Errorf("left of MATCH is %T, want !Label", m.Expr)
 	}
 }

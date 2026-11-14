@@ -62,6 +62,15 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Right)
 	case *UnaryExpr:
 		Walk(v, n.Expr)
+	case *CollateExpr:
+		Walk(v, n.Expr)
+	case *MatchExpr:
+		Walk(v, n.Expr)
+		Walk(v, n.Pattern)
+	case *DereferenceExpr:
+		Walk(v, n.Expr)
+	case *RowExpr:
+		walkNodes(v, n.Items)
 	case *IsExpr:
 		Walk(v, n.Expr)
 	case *BetweenExpr:
@@ -83,6 +92,9 @@ func walkChildren(v Visitor, node Node) {
 	case *FuncCallExpr:
 		Walk(v, n.Name)
 		walkNodes(v, n.Args)
+		if n.SeparatorExpr != nil {
+			Walk(v, n.SeparatorExpr)
+		}
 		for _, item := range n.OrderBy {
 			Walk(v, item)
 		}
