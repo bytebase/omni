@@ -20,7 +20,11 @@ func (e *querySpanExtractor) extractAccessTables(statement string) ([]ColumnReso
 	if len(stmts) != 1 {
 		return nil, fmt.Errorf("expected exactly 1 statement, got %d", len(stmts))
 	}
+	return e.accessTablesOfNode(stmts[0].AST)
+}
 
+// accessTablesOfNode is extractAccessTables for a statement already parsed.
+func (e *querySpanExtractor) accessTablesOfNode(node ast.Node) ([]ColumnResource, error) {
 	extractor := &accessTableExtractor{
 		defaultDatabase: e.defaultDatabase,
 		searchPath:      e.searchPath,
@@ -28,7 +32,7 @@ func (e *querySpanExtractor) extractAccessTables(statement string) ([]ColumnReso
 	}
 
 	// Walk the omni AST to find all RangeVar nodes (table references)
-	ast.Inspect(stmts[0].AST, func(n ast.Node) bool {
+	ast.Inspect(node, func(n ast.Node) bool {
 		if extractor.err != nil {
 			return false
 		}

@@ -232,7 +232,7 @@ func (e *querySpanExtractor) getQuerySpan(ctx context.Context, stmt string) (*Re
 	// Step 2: Extract access tables (non-fatal on error — some statement
 	// types like SET don't have table references).
 	accessesMap := make(ColumnSet)
-	accessTables, err := e.extractAccessTables(stmt)
+	accessTables, err := e.accessTablesOfNode(stmts[0].AST)
 	if err == nil {
 		for _, resource := range accessTables {
 			accessesMap[resource] = true
