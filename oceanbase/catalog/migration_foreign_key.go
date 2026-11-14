@@ -278,12 +278,10 @@ func orderedForeignKeys(t *Table) []*Constraint {
 //	    [ON DELETE <action>] [ON UPDATE <action>]
 //
 // It mirrors show.go's showConstraint (the stored FK line) so the readback of the ADD
-// canonicalizes equal to `to`. The ON DELETE / ON UPDATE clauses are emitted ONLY for a
-// non-default action (CASCADE / SET NULL / SET DEFAULT): RESTRICT and NO ACTION (and an absent
-// clause) are the engine's default and are omitted, so the emitted DDL round-trips to the same
-// stored form the canonical key folds to (see diff_foreign_key.go canonicalFKAction). Emitting an
-// explicit RESTRICT/NO ACTION would also round-trip on equality, but omitting matches show.go and
-// keeps the surface minimal.
+// reproduces `to`. An action is omitted only when absent or RESTRICT, which OceanBase stores as
+// its default and hides; an explicit NO ACTION is emitted because OceanBase stores and echoes it.
+// The diff still folds RESTRICT, NO ACTION, and an absent clause together (canonicalFKAction), so
+// this affects only what an emitted ADD stores.
 //
 // A name nobody wrote is left out, so OceanBase makes its own (formatCheckClause).
 func formatForeignKeyDefinition(con *Constraint) string {
@@ -303,28 +301,13 @@ func formatForeignKeyDefinition(con *Constraint) string {
 	b.WriteString(quoteIdentList(con.RefColumns))
 	b.WriteString(")")
 
-	if con.OnDelete != "" && !isFKDefaultAction(con.OnDelete) {
+	if con.OnDelete != "" && !isFKDefault(con.OnDelete) {
 		fmt.Fprintf(&b, " ON DELETE %s", strings.ToUpper(con.OnDelete))
 	}
-	if con.OnUpdate != "" && !isFKDefaultAction(con.OnUpdate) {
+	if con.OnUpdate != "" && !isFKDefault(con.OnUpdate) {
 		fmt.Fprintf(&b, " ON UPDATE %s", strings.ToUpper(con.OnUpdate))
 	}
 	return b.String()
-}
-
-// isFKDefaultAction reports whether a referential action is a MySQL default that is omitted from
-// the rendered FK clause. RESTRICT, NO ACTION, and an absent clause are all the "default" (no
-// referential action) and are omitted — matching the canonical-equality collapse in
-// canonicalFKAction, so the emitted DDL reads back to a form that diffs empty against `to` on both
-// versions (8.0 omits NO ACTION but would echo RESTRICT; 5.7 omits RESTRICT but would echo NO
-// ACTION — omitting BOTH from what we emit sidesteps the per-version echo entirely).
-func isFKDefaultAction(action string) bool {
-	switch strings.ToUpper(strings.TrimSpace(action)) {
-	case "", "RESTRICT", "NO ACTION":
-		return true
-	default:
-		return false
-	}
 }
 
 // quoteIdentList backtick-quotes each identifier and joins with ", " (the spacing show.go's FK

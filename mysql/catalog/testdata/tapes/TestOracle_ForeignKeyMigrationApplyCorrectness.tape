@@ -1732,6 +1732,9 @@
 | CREATE TABLE c (id INT PRIMARY KEY, pid INT)
 < ok 0 0
 > exec
+| ALTER TABLE `fkapply`.`c` ADD KEY `pid` (`pid`)
+< ok 0 0
+> exec
 | ALTER TABLE `fkapply`.`c` ADD CONSTRAINT `c_ibfk_1` FOREIGN KEY (`pid`) REFERENCES `p` (`id`)
 < ok 0 0
 > query
@@ -1747,7 +1750,7 @@
 |   `id` int NOT NULL,
 |   `pid` int DEFAULT NULL,
 |   PRIMARY KEY (`id`),
-|   KEY `c_ibfk_1` (`pid`),
+|   KEY `pid` (`pid`),
 |   CONSTRAINT `c_ibfk_1` FOREIGN KEY (`pid`) REFERENCES `p` (`id`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 

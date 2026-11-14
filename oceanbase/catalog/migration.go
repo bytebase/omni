@@ -108,6 +108,9 @@ type MigrationOp struct {
 	Phase    MigrationPhase
 	Priority int    // tie-breaker within a phase (lower = earlier)
 	sortName string // stable secondary key (table name, or table+column for column ops)
+
+	// addsColumn is the lower-cased column an ADD COLUMN op adds; positionColumnAdds reads it.
+	addsColumn string
 }
 
 // Priority constants for tie-breaking within a phase. Lower runs earlier. For the
@@ -245,6 +248,7 @@ func GenerateMigrationWithNormalizer(from, to *Catalog, diff *SchemaDiff, n *Nor
 	// The order below is what keeps every statement valid.
 	// TestOracle_OceanBaseAlterTableClauses holds this to the engine.
 	ops = sortMigrationOps(ops)
+	ops = positionColumnAdds(ops, diff)
 
 	return &MigrationPlan{Ops: ops}
 }

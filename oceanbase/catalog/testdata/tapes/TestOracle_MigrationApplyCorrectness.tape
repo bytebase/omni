@@ -3226,7 +3226,7 @@
 | ALTER TABLE `pa_gen_flip_with_base_modify_98b424d4`.`t` MODIFY COLUMN `z` bigint DEFAULT NULL
 < ok 0 0
 > exec
-| ALTER TABLE `pa_gen_flip_with_base_modify_98b424d4`.`t` ADD COLUMN `g` int GENERATED ALWAYS AS ((`z` + 1)) STORED
+| ALTER TABLE `pa_gen_flip_with_base_modify_98b424d4`.`t` ADD COLUMN `g` int GENERATED ALWAYS AS ((`z` + 1)) STORED AFTER `id`
 < ok 0 0
 > query
 | SHOW CREATE TABLE pa_gen_flip_with_base_modify_98b424d4.t
@@ -3239,8 +3239,8 @@
 : bytes
 | CREATE TABLE `t` (
 |   `id` int(11) NOT NULL,
-|   `z` bigint(20) DEFAULT NULL,
 |   `g` int(11) GENERATED ALWAYS AS ((`z` + 1)) STORED,
+|   `z` bigint(20) DEFAULT NULL,
 |   PRIMARY KEY (`id`)
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec

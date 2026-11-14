@@ -2434,7 +2434,7 @@
 | ALTER TABLE `pa_gen_flip_with_base_modify_ba61a425`.`t` MODIFY COLUMN `z` bigint DEFAULT NULL
 < ok 0 0
 > exec
-| ALTER TABLE `pa_gen_flip_with_base_modify_ba61a425`.`t` ADD COLUMN `g` int GENERATED ALWAYS AS (((`z` + 1))) STORED
+| ALTER TABLE `pa_gen_flip_with_base_modify_ba61a425`.`t` ADD COLUMN `g` int GENERATED ALWAYS AS (((`z` + 1))) STORED AFTER `id`
 < ok 0 0
 > query
 | SHOW CREATE TABLE pa_gen_flip_with_base_modify_ba61a425.t
@@ -2447,8 +2447,8 @@
 : bytes
 | CREATE TABLE `t` (
 |   `id` int NOT NULL,
-|   `z` bigint DEFAULT NULL,
 |   `g` int GENERATED ALWAYS AS ((`z` + 1)) STORED,
+|   `z` bigint DEFAULT NULL,
 |   PRIMARY KEY (`id`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 

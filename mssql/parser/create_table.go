@@ -184,7 +184,7 @@ func (p *Parser) parseCreateTableStmt() (*nodes.CreateTableStmt, error) {
 			}
 			return constraint, nil
 		}
-		col, err := p.parseColumnDef()
+		col, err := p.parseTypedColumnDef()
 		if err != nil {
 			return nil, err
 		}
@@ -491,6 +491,9 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 		if err != nil {
 			return nil, err
 		}
+		if expr == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		persisted := false
 		notNull := false
 		if p.cur.Type == kwPERSISTED {
@@ -600,37 +603,16 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 			p.advance()
 		}
 	} else {
-		for {
-			if p.cur.Type == kwSPARSE && !col.Sparse {
-				col.Sparse = true
-				p.advance()
-			} else if p.cur.Type == kwFILESTREAM && !col.Filestream {
-				col.Filestream = true
-				p.advance()
-			} else {
-				break
-			}
+		if err := p.parseColumnStorage(col); err != nil {
+			return nil, err
 		}
 		if p.cur.Type == kwMASKED {
 			p.advance() // MASKED
-			if p.cur.Type == kwWITH {
-				p.advance() // WITH
-				if p.cur.Type == '(' {
-					p.advance()
-					// FUNCTION = 'value'
-					if p.cur.Type == kwFUNCTION {
-						p.advance()
-						if p.cur.Type == '=' {
-							p.advance()
-						}
-						if p.cur.Type == tokSCONST {
-							col.MaskFunction = p.cur.Str
-							p.advance()
-						}
-					}
-					p.expect(')')
-				}
+			fn, err := p.parseMaskedWithFunction()
+			if err != nil {
+				return nil, err
 			}
+			col.MaskFunction = fn
 		} else if p.cur.Type == kwENCRYPTED && !col.Filestream {
 			encWith, encErr := p.parseEncryptedWith()
 			if encErr != nil {
@@ -724,6 +706,73 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 	return col, nil
 }
 
+// parseTypedColumnDef parses a column definition that SQL Server requires
+// to name its type unless it is computed (columnDefinition, TSql160.g:28920):
+// it refuses `a NULL` or `a PRIMARY KEY`, where a reserved word follows the
+// name, with Msg 173. It returns (nil, nil) when no column name starts here.
+func (p *Parser) parseTypedColumnDef() (*nodes.ColumnDef, error) {
+	col, err := p.parseColumnDef()
+	if err != nil || col == nil {
+		return col, err
+	}
+	if col.DataType == nil && col.Computed == nil {
+		// A timestamp column may leave out its name: SQL Server names the
+		// column timestamp and types it so (rowversion docs).
+		if strings.ToUpper(col.Name) != "TIMESTAMP" {
+			return nil, p.syntaxErrorAtCur()
+		}
+		col.DataType = &nodes.DataType{Name: "timestamp", Loc: col.Loc}
+	}
+	return col, nil
+}
+
+// parseColumnStorage parses SPARSE and FILESTREAM, in either order and once
+// each, of a column definition. SQL Server's parser takes FILESTREAM only on
+// a varbinary(max) column (Msg 102 otherwise).
+func (p *Parser) parseColumnStorage(col *nodes.ColumnDef) error {
+	for {
+		switch {
+		case p.cur.Type == kwSPARSE && !col.Sparse:
+			col.Sparse = true
+			p.advance()
+		case p.cur.Type == kwFILESTREAM && !col.Filestream:
+			if col.DataType == nil || strings.ToUpper(col.DataType.Name) != "VARBINARY" || !col.DataType.MaxLength {
+				return p.syntaxErrorAtCur()
+			}
+			col.Filestream = true
+			p.advance()
+		default:
+			return nil
+		}
+	}
+}
+
+// parseMaskedWithFunction parses WITH ( FUNCTION = 'mask_function' ) after
+// MASKED (maskedClause, TSql160.g) and returns the function's text.
+func (p *Parser) parseMaskedWithFunction() (string, error) {
+	if _, err := p.expect(kwWITH); err != nil {
+		return "", err
+	}
+	if _, err := p.expect('('); err != nil {
+		return "", err
+	}
+	if _, err := p.expect(kwFUNCTION); err != nil {
+		return "", err
+	}
+	if _, err := p.expect('='); err != nil {
+		return "", err
+	}
+	if p.cur.Type != tokSCONST && p.cur.Type != tokNSCONST {
+		return "", p.syntaxErrorAtCur()
+	}
+	fn := p.cur.Str
+	p.advance()
+	if _, err := p.expect(')'); err != nil {
+		return "", err
+	}
+	return fn, nil
+}
+
 // parseEncryptedWith parses ENCRYPTED WITH (...).
 //
 //	ENCRYPTED WITH
@@ -739,50 +788,47 @@ func (p *Parser) parseEncryptedWith() (*nodes.EncryptedWithSpec, error) {
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.cur.Type != kwWITH {
-		spec.Loc.End = p.prevEnd()
-		return spec, nil
+	// SQL Server wants all three options, once each, in any order
+	// (columnEncryptionClause, TSql160.g; Msg 102 near ENCRYPTED when one
+	// is missing).
+	if _, err := p.expect(kwWITH); err != nil {
+		return nil, err
 	}
-	p.advance() // WITH
-
-	if p.cur.Type != '(' {
-		spec.Loc.End = p.prevEnd()
-		return spec, nil
+	if _, err := p.expect('('); err != nil {
+		return nil, err
 	}
-	p.advance()
-
-	for p.cur.Type != ')' && p.cur.Type != tokEOF {
-		if p.isIdentLike() {
-			optName := strings.ToUpper(p.cur.Str)
+	seen := map[string]bool{}
+	for {
+		name, err := p.tableOptionName(seen, "COLUMN_ENCRYPTION_KEY", "ENCRYPTION_TYPE", "ALGORITHM")
+		if err != nil {
+			return nil, err
+		}
+		switch name {
+		case "COLUMN_ENCRYPTION_KEY":
+			key, ok := p.parseIdentifier()
+			if !ok {
+				return nil, p.syntaxErrorAtCur()
+			}
+			spec.ColumnEncryptionKey = key
+		case "ENCRYPTION_TYPE":
+			if !p.isValidOption(encryptionTypeValues) {
+				return nil, p.syntaxErrorAtCur()
+			}
+			spec.EncryptionType = strings.ToUpper(p.cur.Str)
 			p.advance()
-			if p.cur.Type == '=' {
-				p.advance()
+		case "ALGORITHM":
+			if p.cur.Type != tokSCONST && p.cur.Type != tokNSCONST {
+				return nil, p.syntaxErrorAtCur()
 			}
-			switch optName {
-			case "COLUMN_ENCRYPTION_KEY":
-				if p.isIdentLike() {
-					spec.ColumnEncryptionKey = p.cur.Str
-					p.advance()
-				}
-			case "ENCRYPTION_TYPE":
-				if p.isValidOption(encryptionTypeValues) {
-					spec.EncryptionType = strings.ToUpper(p.cur.Str)
-					p.advance()
-				}
-			case "ALGORITHM":
-				if p.cur.Type == tokSCONST {
-					spec.Algorithm = p.cur.Str
-					p.advance()
-				}
-			default:
-				if p.isIdentLike() || p.cur.Type == tokSCONST {
-					p.advance()
-				}
-			}
+			spec.Algorithm = p.cur.Str
+			p.advance()
 		}
 		if _, ok := p.match(','); !ok {
 			break
 		}
+	}
+	if len(seen) != 3 {
+		return nil, p.syntaxErrorAtCur()
 	}
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
@@ -803,37 +849,32 @@ func (p *Parser) parseGeneratedAlways() (*nodes.GeneratedAlwaysSpec, error) {
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
-	// ALWAYS
-	if p.cur.Type == kwALWAYS {
-		p.advance()
+	// ALWAYS AS { ROW | TRANSACTION_ID | SEQUENCE_NUMBER } { START | END }
+	// (generatedAlwaysClause, TSql160.g:29325), every word required.
+	if _, err := p.expect(kwALWAYS); err != nil {
+		return nil, err
 	}
-
-	// AS
-	if p.cur.Type == kwAS {
-		p.advance()
+	if _, err := p.expect(kwAS); err != nil {
+		return nil, err
 	}
-
-	// ROW | TRANSACTION_ID | SEQUENCE_NUMBER — ROW is kwROW (CoreKeyword),
-	// TRANSACTION_ID / SEQUENCE_NUMBER are idents.
-	if p.isValidOption(ledgerColumnKindValues) || p.cur.Type == kwROW {
-		kind := strings.ToUpper(p.cur.Str)
-		p.advance()
-		spec.Kind = kind
+	switch {
+	case p.cur.Type == kwROW:
+		spec.Kind = "ROW"
+	case p.isValidOption(ledgerColumnKindValues):
+		spec.Kind = strings.ToUpper(p.cur.Str)
+	default:
+		return nil, p.syntaxErrorAtCur()
 	}
-
-	// START | END — END is kwEND (CoreKeyword); START is an ident.
-	if p.isValidOption(ledgerStartEndValues) || p.cur.Type == kwEND {
-		startEnd := strings.ToUpper(p.cur.Str)
-		if startEnd == "START" || startEnd == "END" {
-			spec.StartEnd = startEnd
-			p.advance()
-		}
-	}
-	// Handle END keyword (it's a reserved keyword kwEND)
-	if p.cur.Type == kwEND {
+	p.advance()
+	switch {
+	case p.cur.Type == kwEND:
 		spec.StartEnd = "END"
-		p.advance()
+	case p.isValidOption(ledgerStartEndValues):
+		spec.StartEnd = strings.ToUpper(p.cur.Str)
+	default:
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance()
 
 	spec.Loc.End = p.prevEnd()
 	return spec, nil
@@ -1072,7 +1113,10 @@ func (p *Parser) parseTableConstraint() (*nodes.ConstraintDef, error) {
 
 	if p.cur.Type == kwCONSTRAINT {
 		p.advance()
-		name, _ = p.parseIdentifier()
+		var ok bool
+		if name, ok = p.parseIdentifier(); !ok {
+			return nil, p.syntaxErrorAtCur()
+		}
 	}
 
 	cd := &nodes.ConstraintDef{
@@ -1083,15 +1127,18 @@ func (p *Parser) parseTableConstraint() (*nodes.ConstraintDef, error) {
 	switch p.cur.Type {
 	case kwPRIMARY:
 		p.advance() // PRIMARY
-		p.match(kwKEY)
+		if _, err := p.expect(kwKEY); err != nil {
+			return nil, err
+		}
 		cd.Type = nodes.ConstraintPrimaryKey
 		p.parseClusteredOption(cd)
-		if p.cur.Type == '(' {
-			var err error
-			cd.Columns, err = p.parseIndexColumnList()
-			if err != nil {
-				return nil, err
-			}
+		if p.cur.Type != '(' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		var err error
+		cd.Columns, err = p.parseIndexColumnList()
+		if err != nil {
+			return nil, err
 		}
 		p.parseConstraintWithOptions(cd)
 		p.parseConstraintOnFilegroup(cd)
@@ -1099,12 +1146,13 @@ func (p *Parser) parseTableConstraint() (*nodes.ConstraintDef, error) {
 		p.advance()
 		cd.Type = nodes.ConstraintUnique
 		p.parseClusteredOption(cd)
-		if p.cur.Type == '(' {
-			var err error
-			cd.Columns, err = p.parseIndexColumnList()
-			if err != nil {
-				return nil, err
-			}
+		if p.cur.Type != '(' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		var err error
+		cd.Columns, err = p.parseIndexColumnList()
+		if err != nil {
+			return nil, err
 		}
 		p.parseConstraintWithOptions(cd)
 		p.parseConstraintOnFilegroup(cd)
@@ -1120,20 +1168,27 @@ func (p *Parser) parseTableConstraint() (*nodes.ConstraintDef, error) {
 			}
 			cd.NotForReplication = true
 		}
-		if _, err := p.expect('('); err == nil {
-			var exprErr error
-			cd.Expr, exprErr = p.parseExpr()
-			if exprErr != nil {
-				return nil, exprErr
-			}
-			if _, err := p.expect(')'); err != nil {
-				return nil, err
-			}
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+		var exprErr error
+		cd.Expr, exprErr = p.parseExpr()
+		if exprErr != nil {
+			return nil, exprErr
+		}
+		if cd.Expr == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
 		}
 	case kwFOREIGN:
 		p.advance() // FOREIGN
-		p.match(kwKEY)
+		if _, err := p.expect(kwKEY); err != nil {
+			return nil, err
+		}
 		cd.Type = nodes.ConstraintForeignKey
+		// The column list may be left out (foreignConstraintColumnsOpt).
 		if p.cur.Type == '(' {
 			var err error
 			cd.Columns, err = p.parseParenIdentList()
@@ -1141,7 +1196,10 @@ func (p *Parser) parseTableConstraint() (*nodes.ConstraintDef, error) {
 				return nil, err
 			}
 		}
-		if _, ok := p.match(kwREFERENCES); ok {
+		if _, ok := p.match(kwREFERENCES); !ok {
+			return nil, p.syntaxErrorAtCur()
+		}
+		{
 			if p.collectMode() {
 				p.addRuleCandidate("table_ref")
 				return nil, errCollecting
@@ -1150,6 +1208,9 @@ func (p *Parser) parseTableConstraint() (*nodes.ConstraintDef, error) {
 			cd.RefTable, refErr = p.parseTableRef()
 			if refErr != nil {
 				return nil, refErr
+			}
+			if cd.RefTable == nil {
+				return nil, p.syntaxErrorAtCur()
 			}
 			if p.cur.Type == '(' {
 				var pilErr error
@@ -1177,9 +1238,19 @@ func (p *Parser) parseTableConstraint() (*nodes.ConstraintDef, error) {
 		if exprErr != nil {
 			return nil, exprErr
 		}
-		// FOR column
-		if _, ok := p.match(kwFOR); ok {
-			p.parseIdentifier() // column name (not stored separately but consumed)
+		if cd.Expr == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		// FOR column [ WITH VALUES ] (defaultConstraint, TSql160.g)
+		if _, err := p.expect(kwFOR); err != nil {
+			return nil, err
+		}
+		if _, ok := p.parseIdentifier(); !ok {
+			return nil, p.syntaxErrorAtCur()
+		}
+		if p.cur.Type == kwWITH && p.peekNext().Type == kwVALUES {
+			p.advance() // WITH
+			p.advance() // VALUES
 		}
 	default:
 		// Check for EDGE CONSTRAINT: CONSTRAINT name CONNECTION (...)
@@ -1192,7 +1263,7 @@ func (p *Parser) parseTableConstraint() (*nodes.ConstraintDef, error) {
 			}
 			p.parseReferentialActions(cd)
 		} else {
-			return nil, nil
+			return nil, p.syntaxErrorAtCur()
 		}
 	}
 
