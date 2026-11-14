@@ -33,8 +33,24 @@ type Parser struct {
 	// when this depth is > 0, matching SqlScriptDOM's separation of
 	// booleanExpressionWithFlags from expressionWithFlags.
 	searchCondDepth int
+	// graphMatchDepth is non-zero inside the pattern of a graph MATCH
+	// predicate, where LAST_NODE is graph syntax.
+	graphMatchDepth int
 
 	depth int // nesting depth of the productions being parsed (see enterNesting)
+
+	// procWhileDepth, procCatchDepth and procRoutineDepth count the WHILE
+	// bodies, CATCH blocks and procedure or function bodies being parsed:
+	// BREAK and CONTINUE need a WHILE, THROW without arguments a CATCH
+	// block, and RETURN with a value a routine (control_flow.go).
+	procWhileDepth   int
+	procCatchDepth   int
+	procRoutineDepth int
+	// procedureBatch is set by CREATE or ALTER PROCEDURE and cleared by GO:
+	// a procedure's body runs to the end of its batch, so every statement
+	// after AS is the procedure's (procedureStatementBody, TSql160.g), and a
+	// RETURN there may take a value.
+	procedureBatch bool
 }
 
 // enterSearchCondition / leaveSearchCondition push and pop the boolean
@@ -278,12 +294,10 @@ func (p *Parser) parseStmt() (nodes.StmtNode, error) {
 	case kwSAVE:
 		return p.parseSaveTransStmt()
 	case kwEXEC, kwEXECUTE:
-		// Check for EXECUTE AS (context switching) vs EXEC proc
-		if p.cur.Type == kwEXECUTE {
-			next := p.peekNext()
-			if next.Type == kwAS {
-				return p.parseExecuteAsStmt()
-			}
+		// Check for EXECUTE AS (context switching) vs EXEC proc;
+		// execStart (TSql160.g:26214) is either word.
+		if p.peekNext().Type == kwAS {
+			return p.parseExecuteAsStmt()
 		}
 		return p.parseExecStmt()
 	case kwGRANT:
@@ -355,11 +369,8 @@ func (p *Parser) parseStmt() (nodes.StmtNode, error) {
 			loc := p.pos()
 			p.advance() // consume BACKUP
 			p.advance() // consume SERVICE
-			if p.cur.Type == kwMASTER {
-				p.advance() // consume MASTER
-			}
-			if p.cur.Type == kwKEY {
-				p.advance() // consume KEY
+			if err := p.keysExpectWords("MASTER", "KEY"); err != nil {
+				return nil, err
 			}
 			stmt, err := p.parseBackupServiceMasterKeyStmt()
 			if err != nil {
@@ -387,11 +398,8 @@ func (p *Parser) parseStmt() (nodes.StmtNode, error) {
 			loc := p.pos()
 			p.advance() // consume RESTORE
 			p.advance() // consume SERVICE
-			if p.cur.Type == kwMASTER {
-				p.advance() // consume MASTER
-			}
-			if p.cur.Type == kwKEY {
-				p.advance() // consume KEY
+			if err := p.keysExpectWords("MASTER", "KEY"); err != nil {
+				return nil, err
 			}
 			stmt, err := p.parseRestoreServiceMasterKeyStmt()
 			if err != nil {
@@ -739,7 +747,8 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 				return stmt, nil
 			}
 			// CREATE DATABASE ENCRYPTION KEY / CREATE DATABASE SCOPED CREDENTIAL
-			if next.Str != "" && (next.Type == kwENCRYPTION || next.Type == kwSCOPED) {
+			if next.Str != "" && ((next.Type == kwENCRYPTION && p.peekSecond().Type == kwKEY) ||
+				(next.Type == kwSCOPED && p.peekSecond().Type == kwCREDENTIAL)) {
 				p.advance() // consume DATABASE
 				stmt, err := p.parseSecurityKeyStmtDatabaseEncryption("CREATE")
 				if err != nil {
@@ -1119,11 +1128,11 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 				stmt.Loc.Start = loc
 				return stmt, nil
 			}
-			if p.cur.Type == kwSERVICE {
-				p.advance() // consume SERVICE
+			if _, err := p.expect(kwSERVICE); err != nil {
+				return nil, err
 			}
-			if p.cur.Type == kwBINDING {
-				p.advance() // consume BINDING
+			if _, err := p.expect(kwBINDING); err != nil {
+				return nil, err
 			}
 			stmt, err := p.parseCreateRemoteServiceBindingStmt()
 			if err != nil {
@@ -1302,8 +1311,8 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 		// CREATE BROKER PRIORITY (service broker)
 		if p.cur.Type == kwBROKER {
 			p.advance() // consume BROKER
-			if p.cur.Type == kwPRIORITY {
-				p.advance() // consume PRIORITY
+			if _, err := p.expect(kwPRIORITY); err != nil {
+				return nil, err
 			}
 			stmt, err := p.parseCreateBrokerPriorityStmt()
 			if err != nil {
@@ -1432,21 +1441,11 @@ func (p *Parser) parseAlterStmt() (nodes.StmtNode, error) {
 				// Otherwise it's DATABASE SCOPED CREDENTIAL - reparse via existing handler
 				// At this point we've consumed DATABASE SCOPED, and cur is CREDENTIAL or similar
 				if p.matchIdentCI("CREDENTIAL") {
-					// Manually handle SCOPED CREDENTIAL
-					stmtKey := &nodes.SecurityKeyStmt{
-						Action:     "ALTER",
-						ObjectType: "DATABASE SCOPED CREDENTIAL",
-						Loc:        nodes.Loc{Start: loc, End: -1},
-					}
-					name, _ := p.parseIdentifier()
-					stmtKey.Name = name
-					p.parseSecurityKeyOptions(stmtKey)
-					stmtKey.Loc.End = p.prevEnd()
-					return stmtKey, nil
+					return p.keysAlterDatabaseScopedCredential(loc)
 				}
 				return nil, nil
 			}
-			if next.Type == kwENCRYPTION {
+			if next.Type == kwENCRYPTION && p.peekSecond().Type == kwKEY {
 				p.advance() // consume DATABASE
 				stmt, err := p.parseSecurityKeyStmtDatabaseEncryption("ALTER")
 				if err != nil {
@@ -1757,9 +1756,8 @@ func (p *Parser) parseAlterStmt() (nodes.StmtNode, error) {
 			if next.Type == kwMASTER {
 				// ALTER SERVICE MASTER KEY
 				p.advance() // consume SERVICE
-				p.advance() // consume MASTER
-				if p.cur.Type == kwKEY {
-					p.advance() // consume KEY
+				if err := p.keysExpectWords("MASTER", "KEY"); err != nil {
+					return nil, err
 				}
 				stmt, err := p.parseAlterServiceMasterKeyStmt()
 				if err != nil {
@@ -1789,11 +1787,11 @@ func (p *Parser) parseAlterStmt() (nodes.StmtNode, error) {
 		// ALTER REMOTE SERVICE BINDING (service broker)
 		if p.cur.Type == kwREMOTE {
 			p.advance() // consume REMOTE
-			if p.cur.Type == kwSERVICE {
-				p.advance() // consume SERVICE
+			if _, err := p.expect(kwSERVICE); err != nil {
+				return nil, err
 			}
-			if p.cur.Type == kwBINDING {
-				p.advance() // consume BINDING
+			if _, err := p.expect(kwBINDING); err != nil {
+				return nil, err
 			}
 			stmt, err := p.parseAlterRemoteServiceBindingStmt()
 			if err != nil {
@@ -1805,8 +1803,8 @@ func (p *Parser) parseAlterStmt() (nodes.StmtNode, error) {
 		// ALTER BROKER PRIORITY (service broker)
 		if p.cur.Type == kwBROKER {
 			p.advance() // consume BROKER
-			if p.cur.Type == kwPRIORITY {
-				p.advance() // consume PRIORITY
+			if _, err := p.expect(kwPRIORITY); err != nil {
+				return nil, err
 			}
 			stmt, err := p.parseAlterBrokerPriorityStmt()
 			if err != nil {
@@ -1832,8 +1830,8 @@ func (p *Parser) parseAlterStmt() (nodes.StmtNode, error) {
 		// ALTER MESSAGE TYPE (service broker)
 		if p.cur.Type == kwMESSAGE {
 			p.advance() // consume MESSAGE
-			if p.cur.Type == kwTYPE {
-				p.advance() // consume TYPE
+			if _, err := p.expect(kwTYPE); err != nil {
+				return nil, err
 			}
 			stmt, err := p.parseAlterMessageTypeStmt()
 			if err != nil {
@@ -2086,7 +2084,8 @@ func (p *Parser) parseDropOrSecurityStmt() (nodes.StmtNode, error) {
 			return stmt, nil
 		}
 		// DROP DATABASE ENCRYPTION KEY / DROP DATABASE SCOPED CREDENTIAL
-		if p.isIdentLike() && (p.cur.Type == kwENCRYPTION || p.cur.Type == kwSCOPED) {
+		if (p.cur.Type == kwENCRYPTION && p.peekNext().Type == kwKEY) ||
+			(p.cur.Type == kwSCOPED && p.peekNext().Type == kwCREDENTIAL) {
 			stmt, err := p.parseSecurityKeyStmtDatabaseEncryption("DROP")
 			if err != nil {
 				return nil, err
@@ -2226,8 +2225,8 @@ func (p *Parser) parseDropOrSecurityStmt() (nodes.StmtNode, error) {
 		if next.Type == kwMESSAGE {
 			p.advance() // consume DROP
 			p.advance() // consume MESSAGE
-			if p.cur.Type == kwTYPE {
-				p.advance() // consume TYPE
+			if _, err := p.expect(kwTYPE); err != nil {
+				return nil, err
 			}
 			stmt, err := p.parseDropServiceBrokerStmt("MESSAGE TYPE")
 			if err != nil {
@@ -2279,11 +2278,11 @@ func (p *Parser) parseDropOrSecurityStmt() (nodes.StmtNode, error) {
 		if next.Type == kwREMOTE {
 			p.advance() // consume DROP
 			p.advance() // consume REMOTE
-			if p.cur.Type == kwSERVICE {
-				p.advance() // consume SERVICE
+			if _, err := p.expect(kwSERVICE); err != nil {
+				return nil, err
 			}
-			if p.cur.Type == kwBINDING {
-				p.advance() // consume BINDING
+			if _, err := p.expect(kwBINDING); err != nil {
+				return nil, err
 			}
 			stmt, err := p.parseDropServiceBrokerStmt("REMOTE SERVICE BINDING")
 			if err != nil {
@@ -2295,8 +2294,8 @@ func (p *Parser) parseDropOrSecurityStmt() (nodes.StmtNode, error) {
 		if next.Type == kwBROKER {
 			p.advance() // consume DROP
 			p.advance() // consume BROKER
-			if p.cur.Type == kwPRIORITY {
-				p.advance() // consume PRIORITY
+			if _, err := p.expect(kwPRIORITY); err != nil {
+				return nil, err
 			}
 			stmt, err := p.parseDropServiceBrokerStmt("BROKER PRIORITY")
 			if err != nil {

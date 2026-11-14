@@ -586,8 +586,8 @@ func TestSelectFromTableValuedFunction(t *testing.T) {
 
 	stmt = mustParseSelect(t, `SELECT * FROM numbers("number" = "10") n`)
 	ref = stmt.From[0].(*ast.TableRef)
-	if ref.Func == nil || len(ref.Func.Args) != 1 {
-		t.Fatalf("Func = %+v, want one argument", ref.Func)
+	if ref.Func == nil || len(ref.FuncProperties) != 1 || ref.FuncProperties[0].Key != "number" {
+		t.Fatalf("Func = %+v, FuncProperties = %+v, want one property", ref.Func, ref.FuncProperties)
 	}
 	if ref.Alias != "n" {
 		t.Errorf("Alias = %q, want n", ref.Alias)

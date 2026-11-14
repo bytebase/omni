@@ -14,8 +14,8 @@ package ast
 //	ALTER TABLE name ADD CONSTRAINT cname FOREIGN KEY (cols) REFERENCES ref_table (cols)
 type AddConstraintStmt struct {
 	Table      *ObjectName
-	Name       string      // constraint name
-	Type       string      // "PRIMARY KEY", "UNIQUE", "FOREIGN KEY"
+	Name       string // constraint name
+	Type       string // "PRIMARY KEY", "UNIQUE", "FOREIGN KEY"
 	Columns    []string
 	RefTable   *ObjectName // for FOREIGN KEY
 	RefColumns []string    // for FOREIGN KEY
@@ -76,7 +76,12 @@ type AnalyzeStmt struct {
 	Target     *ObjectName // nil for PROFILE
 	Columns    []string    // ANALYZE TABLE t(col1, col2) — optional column list
 	Properties []*Property // WITH ... or PROPERTIES(...)
-	Loc        Loc
+
+	// Partitions holds ANALYZE TABLE's partitionSpec; TemporaryPartition
+	// marks TEMPORARY. ["*"] for PARTITION(*).
+	Partitions         []string
+	TemporaryPartition bool
+	Loc                Loc
 }
 
 // Tag implements Node.
@@ -114,6 +119,7 @@ var _ Node = (*ShowAnalyzeStmt)(nil)
 type ShowStatsStmt struct {
 	Type    string      // "COLUMN", "TABLE", "INDEX", "PARTITION", or ""
 	Target  *ObjectName // optional table reference
+	TableID int64       // SHOW TABLE STATS table_id, when given by id
 	Where   Node        // optional WHERE clause
 	Loc     Loc
 }
@@ -133,10 +139,16 @@ var _ Node = (*ShowStatsStmt)(nil)
 //	DROP EXPIRED STATS target
 //	DROP CACHED STATS target
 type DropStatsStmt struct {
-	Variant string      // "", "EXPIRED", "CACHED"
-	Target  *ObjectName
+	Variant string      // "", "EXPIRED", "CACHED", or "ANALYZE JOB"
+	Target  *ObjectName // nil for EXPIRED and ANALYZE JOB
 	Columns []string    // optional column list for plain DROP STATS
-	Loc     Loc
+	JobID   int64       // DROP ANALYZE JOB job_id
+
+	// Partitions holds plain DROP STATS's partitionSpec; TemporaryPartition
+	// marks TEMPORARY.
+	Partitions         []string
+	TemporaryPartition bool
+	Loc                Loc
 }
 
 // Tag implements Node.

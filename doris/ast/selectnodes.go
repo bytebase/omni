@@ -160,7 +160,32 @@ type TableRef struct {
 
 	// Func is set when the source is a table-valued function such as
 	// BACKENDS() or numbers("number" = "10"); Name mirrors the function name.
-	Func *FuncCallExpr
+	// Its arguments are the property items in FuncProperties.
+	Func           *FuncCallExpr
+	FuncProperties []*Property
+
+	// ColumnAliases holds the alias's column list: AS t(c1, c2).
+	ColumnAliases []string
+
+	// ScanParams holds @fn(...) after the name (optScanParams): the
+	// function's name and its property items or identifiers.
+	ScanParams *ScanParams
+
+	// Index names a materialized view to read: INDEX mv.
+	Index string
+
+	// SnapshotKind and SnapshotValue hold FOR VERSION AS OF v or FOR TIME
+	// AS OF t: VERSION or TIME, and the value as written.
+	SnapshotKind  string
+	SnapshotValue string
+
+	// Partitions holds PARTITION p, PARTITION (p, ...) or PARTITIONS (p, ...);
+	// TemporaryPartition marks TEMPORARY.
+	Partitions         []string
+	TemporaryPartition bool
+
+	// Hints holds the relation hint after the alias: [a, b] or /*+ a, b */.
+	Hints []string
 
 	// Subquery is set when this FROM item is a parenthesized subquery;
 	// Name.Parts[0] mirrors its raw text for legacy consumers.
@@ -180,6 +205,13 @@ type TableRef struct {
 	LateralViews []*LateralView
 
 	Loc Loc
+}
+
+// ScanParams is a table reference's @fn(...) (optScanParams).
+type ScanParams struct {
+	Func       string
+	Properties []*Property // @fn(k = v, ...)
+	Names      []string    // @fn(a, b)
 }
 
 // LateralView is one LATERAL VIEW suffix of a table reference.

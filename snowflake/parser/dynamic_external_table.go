@@ -82,13 +82,52 @@ func (p *Parser) parseCreateDynamicTableStmt(start ast.Loc, orReplace, orAlter, 
 	}
 	stmt.Name = name
 
-	// CLONE form: CREATE DYNAMIC TABLE <name> CLONE <source> [AT|BEFORE (...)].
+	// FROM BACKUP SET <set> IDENTIFIER '<id>', which the page writes with no
+	// modifier.
+	if p.cur.Type == kwFROM && !orReplace && !orAlter && !transient && !stmt.IfNotExists {
+		p.advance() // consume FROM
+		backup, err := p.parseBackupSource()
+		if err != nil {
+			return nil, err
+		}
+		stmt.FromBackup = backup
+		stmt.Loc.End = p.prev.Loc.End
+		return stmt, nil
+	}
+
+	// CLONE form: CREATE DYNAMIC TABLE <name> CLONE <source> [AT|BEFORE (...)]
+	// [ COPY ... ] [ TARGET_LAG = ... ] [ WAREHOUSE = ... ] [ EXECUTE AS USER ... ],
+	// the clone overriding each setting it names.
 	if p.cur.Type == kwCLONE {
 		clone, err := p.parseCloneSource()
 		if err != nil {
 			return nil, err
 		}
 		stmt.Clone = clone
+		for {
+			switch {
+			case p.startsCopyClause():
+				grants, err := p.parseCopyClause(false)
+				if err != nil {
+					return nil, err
+				}
+				stmt.CopyGrants = stmt.CopyGrants || grants
+				continue
+			case p.cur.Type == kwTARGET_LAG || p.cur.Type == kwWAREHOUSE:
+				opt, err := p.parseRefreshSetting(true)
+				if err != nil {
+					return nil, err
+				}
+				stmt.Options = append(stmt.Options, opt)
+				continue
+			case p.startsExecuteAsUser():
+				if err := p.parseExecuteAsUser(stmt); err != nil {
+					return nil, err
+				}
+				continue
+			}
+			break
+		}
 		stmt.Loc.End = p.prev.Loc.End
 		return stmt, nil
 	}
@@ -111,10 +150,47 @@ func (p *Parser) parseCreateDynamicTableStmt(start ast.Loc, orReplace, orAlter, 
 	// lookahead (REQUIRE USER, { IMMUTABLE | FROZEN } WHERE). They are matched
 	// before the open-ended option branch so they are not swallowed as KEY=value
 	// options.
+	//
+	// The governance clauses are the page's: a dynamic Iceberg table lists only
+	// the row access and storage lifecycle policies.
+	clauses := clauseRowAccess | clauseAggregation | clauseStorageLifecycle | clauseContact
+	if stmt.Iceberg {
+		clauses = clauseRowAccess | clauseStorageLifecycle
+	}
 	for {
+		if c := p.startsObjectClause(clauses); c != 0 {
+			if _, err := p.parseObjectClause(c); err != nil {
+				return nil, err
+			}
+			continue
+		}
 		switch {
 		case p.cur.Type == kwCLUSTER:
 			if err := p.parseClusterByInto(&stmt.ClusterBy, &stmt.Linear); err != nil {
+				return nil, err
+			}
+			continue
+		case p.startsCopyClause():
+			grants, err := p.parseCopyClause(false)
+			if err != nil {
+				return nil, err
+			}
+			stmt.CopyGrants = stmt.CopyGrants || grants
+			continue
+		case stmt.Iceberg && p.cur.Type == kwPARTITION && p.peekNext().Type == kwBY:
+			parts, err := p.parsePartitionTransforms()
+			if err != nil {
+				return nil, err
+			}
+			stmt.PartitionBy = parts
+			continue
+		case p.cur.Type == kwSTART && p.peekNext().Type == kwAT:
+			if err := p.parseDynamicTableStartAt(stmt); err != nil {
+				return nil, err
+			}
+			continue
+		case p.startsExecuteAsUser():
+			if err := p.parseExecuteAsUser(stmt); err != nil {
 				return nil, err
 			}
 			continue
@@ -264,6 +340,184 @@ func (p *Parser) startsDynamicTableOption() bool {
 		return false
 	}
 	return p.startsCopyOption()
+}
+
+// parsePartitionTransforms parses a dynamic Iceberg table's
+// PARTITION BY ( <partitionExpression> [ , ... ] )
+// (https://docs.snowflake.com/en/sql-reference/sql/create-dynamic-table):
+//
+//	<col> | BUCKET ( <n> , <col> ) | TRUNCATE ( <n> , <col> )
+//	| { YEAR | MONTH | DAY | HOUR } ( <col> )
+//
+// On entry cur is PARTITION.
+func (p *Parser) parsePartitionTransforms() ([]ast.Node, error) {
+	p.advance() // consume PARTITION
+	p.advance() // consume BY
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	var parts []ast.Node
+	for {
+		part, err := p.parsePartitionTransform()
+		if err != nil {
+			return nil, err
+		}
+		parts = append(parts, part)
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance() // consume ','
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return parts, nil
+}
+
+// parsePartitionTransform parses one partition expression: a column, or a
+// transform of one, which is a *FuncCallExpr whose last argument is the
+// column.
+func (p *Parser) parsePartitionTransform() (ast.Node, error) {
+	tok := p.cur
+	name := strings.ToUpper(tok.Str)
+	withWidth := name == "BUCKET" || name == "TRUNCATE"
+	transform := withWidth || name == "YEAR" || name == "MONTH" || name == "DAY" || name == "HOUR"
+	if !transform || p.peekNext().Type != '(' {
+		col, err := p.parseIdent()
+		if err != nil {
+			return nil, err
+		}
+		return &ast.ColumnRef{Parts: []ast.Ident{col}, Loc: col.Loc}, nil
+	}
+	p.advance() // consume the transform name
+	p.advance() // consume '('
+	call := &ast.FuncCallExpr{
+		Name: ast.ObjectName{Name: ast.Ident{Name: name, Loc: tok.Loc}, Loc: tok.Loc},
+		Loc:  ast.Loc{Start: tok.Loc.Start},
+	}
+	if withWidth {
+		width, err := p.expect(tokInt)
+		if err != nil {
+			return nil, err
+		}
+		call.Args = append(call.Args, &ast.Literal{Kind: ast.LitInt, Value: width.Str, Ival: width.Ival, Loc: width.Loc})
+		if _, err := p.expect(','); err != nil {
+			return nil, err
+		}
+	}
+	col, err := p.parseIdent()
+	if err != nil {
+		return nil, err
+	}
+	call.Args = append(call.Args, &ast.ColumnRef{Parts: []ast.Ident{col}, Loc: col.Loc})
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	call.Loc.End = p.prev.Loc.End
+	return call, nil
+}
+
+// parseDynamicTableStartAt parses
+//
+//	START AT ( { STREAM | TIMESTAMP | STATEMENT } => '<string>' | OFFSET => -<n> )
+//
+// keeping the value as a *Literal.
+//
+// (https://docs.snowflake.com/en/sql-reference/sql/create-dynamic-table).
+// On entry cur is START.
+func (p *Parser) parseDynamicTableStartAt(stmt *ast.CreateDynamicTableStmt) error {
+	p.advance() // consume START
+	p.advance() // consume AT
+	if _, err := p.expect('('); err != nil {
+		return err
+	}
+	switch p.cur.Type {
+	case kwSTREAM, kwTIMESTAMP, kwSTATEMENT, kwOFFSET:
+		stmt.StartAtKind = strings.ToUpper(p.cur.Str)
+		p.advance() // consume the selector
+	default:
+		return p.syntaxErrorAtCur()
+	}
+	if _, err := p.expect(tokAssoc); err != nil {
+		return err
+	}
+	// STREAM / TIMESTAMP / STATEMENT take a string; OFFSET takes a negative
+	// number of seconds.
+	if stmt.StartAtKind != "OFFSET" {
+		tok, err := p.expect(tokString)
+		if err != nil {
+			return err
+		}
+		stmt.StartAt = &ast.Literal{Kind: ast.LitString, Value: tok.Str, Loc: tok.Loc}
+	} else {
+		minus, err := p.expect('-')
+		if err != nil {
+			return err
+		}
+		num, err := p.expect(tokInt)
+		if err != nil {
+			return err
+		}
+		stmt.StartAt = &ast.Literal{
+			Kind:  ast.LitInt,
+			Value: "-" + num.Str,
+			Ival:  -num.Ival,
+			Loc:   ast.Loc{Start: minus.Loc.Start, End: num.Loc.End},
+		}
+	}
+	_, err := p.expect(')')
+	return err
+}
+
+// startsExecuteAsUser reports whether cur begins EXECUTE AS USER. EXECUTE is
+// not a keyword token.
+func (p *Parser) startsExecuteAsUser() bool {
+	return p.curIsWord("EXECUTE") && p.peekNext().Type == kwAS
+}
+
+// parseExecuteAsUser parses
+//
+//	EXECUTE AS USER <user> [ USE SECONDARY ROLES { ALL | NONE | <role> [ , ... ] } ]
+//
+// (https://docs.snowflake.com/en/sql-reference/sql/create-dynamic-table).
+func (p *Parser) parseExecuteAsUser(stmt *ast.CreateDynamicTableStmt) error {
+	p.advance() // consume EXECUTE
+	p.advance() // consume AS
+	if _, err := p.expect(kwUSER); err != nil {
+		return err
+	}
+	user, err := p.parseIdent()
+	if err != nil {
+		return err
+	}
+	stmt.ExecuteAsUser = user
+	if p.cur.Type != kwUSE {
+		return nil
+	}
+	p.advance() // consume USE
+	if _, err := p.expect(kwSECONDARY); err != nil {
+		return err
+	}
+	if _, err := p.expect(kwROLES); err != nil {
+		return err
+	}
+	switch p.cur.Type {
+	case kwALL, kwNONE:
+		stmt.SecondaryRolesKeyword = strings.ToUpper(p.cur.Str)
+		p.advance() // consume ALL / NONE
+		return nil
+	}
+	for {
+		role, err := p.parseIdent()
+		if err != nil {
+			return err
+		}
+		stmt.SecondaryRoles = append(stmt.SecondaryRoles, role)
+		if p.cur.Type != ',' {
+			return nil
+		}
+		p.advance() // consume ','
+	}
 }
 
 // startsImmutableWhere reports whether cur begins a { IMMUTABLE | FROZEN } WHERE
@@ -544,6 +798,12 @@ func (p *Parser) parseCreateExternalTableStmt(start ast.Loc, orReplace, orAlter 
 	// (the `WITH? LOCATION` of the legacy grammar) is consumed as a no-op anchor;
 	// WITH TAG is routed to the tag clause.
 	for {
+		if c := p.startsObjectClause(clauseRowAccess | clauseContact); c != 0 {
+			if err := p.parseExternalRowAccessOrContact(c); err != nil {
+				return nil, err
+			}
+			continue
+		}
 		switch p.cur.Type {
 		case kwPARTITION:
 			// PARTITION BY ( exprs ). PARTITION_TYPE = USER_SPECIFIED is a *different*
@@ -605,10 +865,13 @@ func (p *Parser) parseCreateExternalTableStmt(start ast.Loc, orReplace, orAlter 
 			stmt.Tags = append(stmt.Tags, tags...)
 			continue
 		case kwCOPY:
-			if p.startsCopyGrants() {
-				p.advance() // consume COPY
-				p.advance() // consume GRANTS
-				stmt.CopyGrants = true
+			// COPY GRANTS | COPY = ( GRANTS )
+			if p.startsCopyClause() {
+				grants, err := p.parseCopyClause(true)
+				if err != nil {
+					return nil, err
+				}
+				stmt.CopyGrants = stmt.CopyGrants || grants
 				continue
 			}
 		}
@@ -632,6 +895,39 @@ func (p *Parser) parseCreateExternalTableStmt(start ast.Loc, orReplace, orAlter 
 
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
+}
+
+// parseExternalRowAccessOrContact parses an external table's WITH CONTACT, or
+// its row access policy, which the page writes ON ( VALUE ): the policy
+// protects the VALUE column every external table has
+// (https://docs.snowflake.com/en/sql-reference/sql/create-external-table).
+// Neither is kept, as the column-list form's other policies are not.
+func (p *Parser) parseExternalRowAccessOrContact(c objectClause) error {
+	if c != clauseRowAccess {
+		_, err := p.parseObjectClause(c)
+		return err
+	}
+	if p.cur.Type == kwWITH {
+		p.advance() // consume WITH
+	}
+	p.advance() // consume ROW
+	if _, err := p.expect(kwACCESS); err != nil {
+		return err
+	}
+	if _, err := p.parsePolicyName(); err != nil {
+		return err
+	}
+	if _, err := p.expect(kwON); err != nil {
+		return err
+	}
+	if _, err := p.expect('('); err != nil {
+		return err
+	}
+	if _, err := p.expect(kwVALUE); err != nil {
+		return err
+	}
+	_, err := p.expect(')')
+	return err
 }
 
 // startsExternalTableOption reports whether cur begins an open-ended external-table
@@ -719,15 +1015,17 @@ func (p *Parser) parseExternalColumnDef() (*ast.ExternalColumnDef, error) {
 	}
 	col.Expr = expr
 
-	// Optional inline NOT NULL / PRIMARY KEY / UNIQUE / FOREIGN KEY constraint.
+	// Optional inline NOT NULL / PRIMARY KEY / UNIQUE / [FOREIGN KEY] REFERENCES
+	// constraint (https://docs.snowflake.com/en/sql-reference/sql/create-external-table).
 	if p.cur.Type == kwNOT && p.peekNext().Type == kwNULL {
 		p.advance() // consume NOT
 		p.advance() // consume NULL
 		col.NotNull = true
 	}
 	if p.cur.Type == kwCONSTRAINT || p.cur.Type == kwPRIMARY ||
-		p.cur.Type == kwUNIQUE || p.cur.Type == kwFOREIGN {
-		ic, err := p.parseInlineConstraint()
+		p.cur.Type == kwUNIQUE || p.cur.Type == kwFOREIGN || p.cur.Type == kwREFERENCES {
+		// The external table page lists no CHECK constraint.
+		ic, err := p.parseInlineConstraint(false)
 		if err != nil {
 			return nil, err
 		}
@@ -1027,7 +1325,30 @@ func (p *Parser) parseCreateEventTableStmt(start ast.Loc, orReplace, orAlter boo
 	}
 	stmt.Name = name
 
+	// CLONE <source> [ { AT | BEFORE } ( ... ) ] [ COPY GRANTS ]
+	// (https://docs.snowflake.com/en/sql-reference/sql/create-event-table).
+	if p.cur.Type == kwCLONE {
+		clone, err := p.parseCloneSource()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Clone = clone
+		if p.startsCopyGrants() {
+			p.advance() // consume COPY
+			p.advance() // consume GRANTS
+			stmt.CopyGrants = true
+		}
+		stmt.Loc.End = p.prev.Loc.End
+		return stmt, nil
+	}
+
 	for {
+		if c := p.startsObjectClause(clauseRowAccess | clauseContact); c != 0 {
+			if _, err := p.parseObjectClause(c); err != nil {
+				return nil, err
+			}
+			continue
+		}
 		switch p.cur.Type {
 		case kwCLUSTER:
 			if err := p.parseClusterByInto(&stmt.ClusterBy, &stmt.Linear); err != nil {
@@ -1035,10 +1356,13 @@ func (p *Parser) parseCreateEventTableStmt(start ast.Loc, orReplace, orAlter boo
 			}
 			continue
 		case kwCOPY:
-			if p.startsCopyGrants() {
-				p.advance() // consume COPY
-				p.advance() // consume GRANTS
-				stmt.CopyGrants = true
+			// COPY GRANTS | COPY = ( GRANTS )
+			if p.startsCopyClause() {
+				grants, err := p.parseCopyClause(true)
+				if err != nil {
+					return nil, err
+				}
+				stmt.CopyGrants = stmt.CopyGrants || grants
 				continue
 			}
 		case kwTAG:

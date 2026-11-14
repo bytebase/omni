@@ -18,6 +18,11 @@ var alterPartitionFunctionActions = newOptionSet().withIdents("SPLIT", "MERGE")
 //	CREATE PARTITION FUNCTION partition_function_name ( input_parameter_type )
 //	AS RANGE [ LEFT | RIGHT ]
 //	FOR VALUES ( [ boundary_value [ ,...n ] ] )
+//
+// The grammar is createPartitionFunction and partitionFunctionTypes
+// (TSql160.g:10046, TSql160.g:10075): every part is required, the type may
+// carry a collation, and a boundary value is an expression that names no
+// column (Msg 128).
 func (p *Parser) parseCreatePartitionFunctionStmt() (*nodes.CreatePartitionFunctionStmt, error) {
 	loc := p.pos()
 	// FUNCTION keyword already consumed by caller
@@ -27,55 +32,95 @@ func (p *Parser) parseCreatePartitionFunctionStmt() (*nodes.CreatePartitionFunct
 	}
 
 	// Name
-	if p.isIdentLike() {
-		stmt.Name = p.cur.Str
-		p.advance()
+	name, ok := p.parseIdentifier()
+	if !ok {
+		return nil, p.syntaxErrorAtCur()
 	}
+	stmt.Name = name
 
-	// ( input_parameter_type )
-	if p.cur.Type == '(' {
+	// ( input_parameter_type [ COLLATE collation_name ] )
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	dt, err := p.parseDataType()
+	if err != nil {
+		return nil, err
+	}
+	if dt == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	stmt.InputType = dt
+	if p.cur.Type == kwCOLLATE {
 		p.advance()
-		stmt.InputType, _ = p.parseDataType()
-		p.match(')')
+		coll, ok := p.parseIdentifier()
+		if !ok {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.Collation = coll
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
 	}
 
 	// AS RANGE [LEFT|RIGHT]
-	if p.cur.Type == kwAS {
-		p.advance()
+	if _, err := p.expect(kwAS); err != nil {
+		return nil, err
 	}
-	if p.cur.Type == kwRANGE {
-		p.advance()
+	if _, err := p.expect(kwRANGE); err != nil {
+		return nil, err
 	}
 	if p.cur.Type == kwLEFT || p.cur.Type == kwRIGHT {
 		stmt.Range = strings.ToUpper(p.cur.Str)
 		p.advance()
 	}
 
-	// FOR VALUES ( boundary_value [,...n] )
-	if p.cur.Type == kwFOR {
-		p.advance()
+	// FOR VALUES ( [ boundary_value [,...n] ] )
+	if _, err := p.expect(kwFOR); err != nil {
+		return nil, err
 	}
-	if p.cur.Type == kwVALUES {
-		p.advance()
+	if _, err := p.expect(kwVALUES); err != nil {
+		return nil, err
 	}
-	if p.cur.Type == '(' {
-		p.advance()
-		var vals []nodes.Node
-		for p.cur.Type != ')' && p.cur.Type != tokEOF {
-			expr, _ := p.parseExpr()
-			if expr != nil {
-				vals = append(vals, expr)
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	var vals []nodes.Node
+	if p.cur.Type != ')' {
+		for {
+			expr, err := p.partitionParseBoundary()
+			if err != nil {
+				return nil, err
 			}
+			vals = append(vals, expr)
 			if _, ok := p.match(','); !ok {
 				break
 			}
 		}
-		p.match(')')
-		stmt.Values = &nodes.List{Items: vals}
 	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	stmt.Values = &nodes.List{Items: vals}
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
+}
+
+// partitionParseBoundary parses a boundary value of a partition function: an
+// expression, which SQL Server refuses when it is a bare column name
+// (Msg 128 "The name is not permitted in this context").
+func (p *Parser) partitionParseBoundary() (nodes.ExprNode, error) {
+	expr, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if expr == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if _, ok := expr.(*nodes.ColumnRef); ok {
+		return nil, p.newParseError(expr.(*nodes.ColumnRef).Loc.Start, "a column name is not permitted in a boundary value")
+	}
+	return expr, nil
 }
 
 // parseAlterPartitionFunctionStmt parses an ALTER PARTITION FUNCTION statement.
@@ -84,6 +129,9 @@ func (p *Parser) parseCreatePartitionFunctionStmt() (*nodes.CreatePartitionFunct
 //
 //	ALTER PARTITION FUNCTION partition_function_name ()
 //	{ SPLIT | MERGE } RANGE ( boundary_value )
+//
+// The grammar is alterPartitionFunctionStatement (TSql160.g:12230): the
+// empty parentheses are required, and RANGE ( boundary_value ) is optional.
 func (p *Parser) parseAlterPartitionFunctionStmt() (*nodes.AlterPartitionFunctionStmt, error) {
 	loc := p.pos()
 	// FUNCTION keyword already consumed by caller
@@ -93,15 +141,18 @@ func (p *Parser) parseAlterPartitionFunctionStmt() (*nodes.AlterPartitionFunctio
 	}
 
 	// Name
-	if p.isIdentLike() {
-		stmt.Name = p.cur.Str
-		p.advance()
+	name, ok := p.parseIdentifier()
+	if !ok {
+		return nil, p.syntaxErrorAtCur()
 	}
+	stmt.Name = name
 
 	// ()
-	if p.cur.Type == '(' {
-		p.advance()
-		p.match(')')
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
 	}
 
 	// SPLIT or MERGE — SqlScriptDOM's AlterPartitionFunctionStatement closed set.
@@ -111,14 +162,20 @@ func (p *Parser) parseAlterPartitionFunctionStmt() (*nodes.AlterPartitionFunctio
 	stmt.Action = strings.ToUpper(p.cur.Str)
 	p.advance()
 
-	// RANGE ( boundary_value )
+	// [ RANGE ( boundary_value ) ]
 	if p.cur.Type == kwRANGE {
 		p.advance()
-	}
-	if p.cur.Type == '(' {
-		p.advance()
-		stmt.BoundaryValue, _ = p.parseExpr()
-		p.match(')')
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+		v, err := p.partitionParseBoundary()
+		if err != nil {
+			return nil, err
+		}
+		stmt.BoundaryValue = v
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
 	}
 
 	stmt.Loc.End = p.prevEnd()
@@ -132,6 +189,10 @@ func (p *Parser) parseAlterPartitionFunctionStmt() (*nodes.AlterPartitionFunctio
 //	CREATE PARTITION SCHEME partition_scheme_name
 //	AS PARTITION partition_function_name
 //	[ ALL ] TO ( { file_group_name | [ PRIMARY ] } [ ,...n ] )
+//
+// The grammar is createPartitionScheme (TSql160.g:10153): a filegroup is a
+// string or an identifier (stringOrIdentifier, TSql160.g:33229), so PRIMARY
+// must be bracketed.
 func (p *Parser) parseCreatePartitionSchemeStmt() (*nodes.CreatePartitionSchemeStmt, error) {
 	loc := p.pos()
 	// SCHEME keyword already consumed by caller
@@ -141,57 +202,75 @@ func (p *Parser) parseCreatePartitionSchemeStmt() (*nodes.CreatePartitionSchemeS
 	}
 
 	// Name
-	if p.isIdentLike() {
-		stmt.Name = p.cur.Str
-		p.advance()
+	name, ok := p.parseIdentifier()
+	if !ok {
+		return nil, p.syntaxErrorAtCur()
 	}
+	stmt.Name = name
 
 	// AS PARTITION function_name
-	if p.cur.Type == kwAS {
-		p.advance()
+	if _, err := p.expect(kwAS); err != nil {
+		return nil, err
 	}
-	if p.cur.Type == kwPARTITION {
-		p.advance()
+	if _, err := p.expect(kwPARTITION); err != nil {
+		return nil, err
 	}
-	if p.isIdentLike() {
-		stmt.FunctionName = p.cur.Str
-		p.advance()
+	fn, ok := p.parseIdentifier()
+	if !ok {
+		return nil, p.syntaxErrorAtCur()
 	}
+	stmt.FunctionName = fn
 
-	// ALL TO filegroup | TO ( filegrouplist )
+	// [ ALL ] TO ( filegroup [ ,...n ] )
 	allTo := false
 	if p.cur.Type == kwALL {
 		p.advance()
 		allTo = true
 	}
-	if p.cur.Type == kwTO {
-		p.advance()
+	if _, err := p.expect(kwTO); err != nil {
+		return nil, err
 	}
-
-	if p.cur.Type == '(' {
-		p.advance()
-		var fgs []nodes.Node
-		for p.cur.Type != ')' && p.cur.Type != tokEOF {
-			if p.isIdentLike() || p.cur.Type == kwPRIMARY {
-				fgname := p.cur.Str
-				p.advance()
-				if allTo && len(fgs) == 0 {
-					stmt.AllToFileGroup = strings.ToUpper(fgname)
-				}
-				fgs = append(fgs, &nodes.String{Str: strings.ToUpper(fgname)})
-			}
-			if _, ok := p.match(','); !ok {
-				break
-			}
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	var fgs []nodes.Node
+	for {
+		fgname, err := p.partitionParseFileGroup()
+		if err != nil {
+			return nil, err
 		}
-		p.match(')')
-		if !allTo {
-			stmt.FileGroups = &nodes.List{Items: fgs}
+		if allTo && len(fgs) == 0 {
+			stmt.AllToFileGroup = strings.ToUpper(fgname)
 		}
+		fgs = append(fgs, &nodes.String{Str: strings.ToUpper(fgname)})
+		if _, ok := p.match(','); !ok {
+			break
+		}
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	if !allTo {
+		stmt.FileGroups = &nodes.List{Items: fgs}
 	}
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
+}
+
+// partitionParseFileGroup parses a filegroup name: a string or an
+// identifier (stringOrIdentifier, TSql160.g:33229).
+func (p *Parser) partitionParseFileGroup() (string, error) {
+	if p.cur.Type == tokSCONST || p.cur.Type == tokNSCONST {
+		s := p.cur.Str
+		p.advance()
+		return s, nil
+	}
+	name, ok := p.parseIdentifier()
+	if !ok {
+		return "", p.syntaxErrorAtCur()
+	}
+	return name, nil
 }
 
 // parseAlterPartitionSchemeStmt parses an ALTER PARTITION SCHEME statement.
@@ -200,6 +279,8 @@ func (p *Parser) parseCreatePartitionSchemeStmt() (*nodes.CreatePartitionSchemeS
 //
 //	ALTER PARTITION SCHEME partition_scheme_name
 //	NEXT USED [ filegroup_name ]
+//
+// The grammar is alterPartitionSchemeStatement (TSql160.g:12263).
 func (p *Parser) parseAlterPartitionSchemeStmt() (*nodes.AlterPartitionSchemeStmt, error) {
 	loc := p.pos()
 	// SCHEME keyword already consumed by caller
@@ -209,21 +290,25 @@ func (p *Parser) parseAlterPartitionSchemeStmt() (*nodes.AlterPartitionSchemeStm
 	}
 
 	// Name
-	if p.isIdentLike() {
-		stmt.Name = p.cur.Str
-		p.advance()
+	name, ok := p.parseIdentifier()
+	if !ok {
+		return nil, p.syntaxErrorAtCur()
 	}
+	stmt.Name = name
 
 	// NEXT USED [filegroup_name]
-	if p.cur.Type == kwNEXT {
-		p.advance()
+	if _, err := p.expect(kwNEXT); err != nil {
+		return nil, err
 	}
-	if p.cur.Type == kwUSED {
-		p.advance()
+	if _, err := p.expect(kwUSED); err != nil {
+		return nil, err
 	}
-	if (p.isIdentLike() || p.cur.Type == kwPRIMARY) {
-		stmt.FileGroup = p.cur.Str
-		p.advance()
+	if p.cur.Type == tokSCONST || p.cur.Type == tokNSCONST || p.isIdentLike() {
+		fg, err := p.partitionParseFileGroup()
+		if err != nil {
+			return nil, err
+		}
+		stmt.FileGroup = fg
 	}
 
 	stmt.Loc.End = p.prevEnd()

@@ -109,7 +109,7 @@ type CreateDictionaryStmt struct {
 	IfNotExists bool
 	UsingTable  *ObjectName
 	Columns     []*DictionaryColumn
-	Layout      string      // HASH_MAP, IP_TRIE, etc.
+	Layout      string // HASH_MAP, IP_TRIE, etc.
 	Properties  []*Property
 	Loc         Loc
 }
@@ -239,12 +239,12 @@ type CreateUserStmt struct {
 	DefaultRole  string
 	Comment      string
 	// Password policy options (stored as raw token text for forward-compat)
-	PasswordExpire  bool
-	PasswordExpireInterval int    // INTERVAL n DAY; 0 = not set
-	FailedLoginAttempts int
-	PasswordLockTime   int    // lock time in days; 0 = not set
-	PasswordHistory    int    // HISTORY n; 0 = not set
-	Loc          Loc
+	PasswordExpire         bool
+	PasswordExpireInterval int // INTERVAL n DAY; 0 = not set
+	FailedLoginAttempts    int
+	PasswordLockTime       int // lock time in days; 0 = not set
+	PasswordHistory        int // HISTORY n; 0 = not set
+	Loc                    Loc
 }
 
 // Tag implements Node.
@@ -260,11 +260,11 @@ var _ Node = (*CreateUserStmt)(nil)
 //	    [ACCOUNT_LOCK | ACCOUNT_UNLOCK]
 //	    [COMMENT 'text']
 type AlterUserStmt struct {
-	Name         *UserIdentity
-	IfExists     bool
-	Password     string
-	PasswordHash string
-	Comment      string
+	Name          *UserIdentity
+	IfExists      bool
+	Password      string
+	PasswordHash  string
+	Comment       string
 	AccountLock   bool // ACCOUNT_LOCK
 	AccountUnlock bool // ACCOUNT_UNLOCK
 	// Password policy options
@@ -312,24 +312,34 @@ var _ Node = (*SetPasswordStmt)(nil)
 // GRANT / REVOKE (T7.1)
 // ---------------------------------------------------------------------------
 
-// GrantStmt represents:
+// GrantStmt represents grantRoleStatement and grantPrivilegeStatement
+// (StarRocks.g4:1666, :1690):
 //
-//	GRANT priv_list ON [object_type] object TO {USER 'user'@'host' | ROLE 'role'} [, ...] [WITH GRANT OPTION]
-//	GRANT ROLE role_list TO 'user'@'host' | role
+//	GRANT role, ... TO [USER] user | ROLE role
+//	GRANT IMPERSONATE ON USER user, ... TO grantee [WITH GRANT OPTION]
+//	GRANT priv, ... ON object, ... TO grantee [WITH GRANT OPTION]
+//	GRANT priv, ... ON [GLOBAL] FUNCTION f(types), ... TO grantee [WITH GRANT OPTION]
+//	GRANT priv, ... ON SYSTEM TO grantee [WITH GRANT OPTION]
+//	GRANT priv, ... ON object_type object, ... TO grantee [WITH GRANT OPTION]
+//	GRANT priv, ... ON ALL object_types [IN ALL DATABASES | IN DATABASE db] TO grantee [WITH GRANT OPTION]
 //
 // The two forms are distinguished by whether Roles is non-empty (role-grant
 // form) or Privileges is non-empty (privilege-grant form).
 type GrantStmt struct {
 	// Privilege-grant form fields.
-	Privileges  []string    // SELECT_PRIV, INSERT_PRIV, ALL, etc.
-	ObjectType  string      // TABLE (default), DATABASE, RESOURCE, CLUSTER, COMPUTE GROUP, STAGE, STORAGE VAULT, WORKLOAD GROUP
-	Object      *ObjectName // target object (may be *.* or db.*)
-	ToType      string      // USER or ROLE (empty when grantee has no explicit keyword)
-	Grantees    []string    // user@host or role names (raw text)
+	Privileges      []string      // SELECT, ALL PRIVILEGES, CREATE TABLE, etc.
+	ObjectType      string        // "" (bare names), USER, FUNCTION, GLOBAL FUNCTION, SYSTEM, TABLE, ..., or ALL TABLES, ...
+	Object          *ObjectName   // the first object, or nil
+	Objects         []*ObjectName // every object named
+	FunctionArgs    [][]*TypeName // for FUNCTION: each function's argument types, beside Objects
+	InDatabase      string        // ALL ... IN DATABASE db
+	InAllDatabases  bool          // ALL ... IN ALL DATABASES
+	ToType          string        // USER or ROLE (empty when the grantee has no keyword)
+	Grantees        []string      // user@host or role name (raw text)
 	WithGrantOption bool
 
-	// Role-grant form fields (GRANT ROLE role1,role2 TO user/role).
-	Roles []string // non-empty only for GRANT ROLE ... TO ... form
+	// Role-grant form fields (GRANT role1, role2 TO user/role).
+	Roles []string
 
 	Loc Loc
 }
@@ -339,20 +349,23 @@ func (n *GrantStmt) Tag() NodeTag { return T_GrantStmt }
 
 var _ Node = (*GrantStmt)(nil)
 
-// RevokeStmt represents:
-//
-//	REVOKE priv_list ON [object_type] object FROM {USER 'user'@'host' | ROLE 'role'} [, ...]
-//	REVOKE ROLE role_list FROM 'user'@'host' | role
+// RevokeStmt represents revokeRoleStatement and revokePrivilegeStatement
+// (StarRocks.g4:1671, :1704), the forms of GrantStmt with FROM for TO and
+// no WITH GRANT OPTION.
 type RevokeStmt struct {
 	// Privilege-revoke form fields.
-	Privileges []string
-	ObjectType string
-	Object     *ObjectName
-	FromType   string   // USER or ROLE (empty when revokee has no explicit keyword)
-	Revokees   []string // user@host or role names (raw text)
+	Privileges     []string
+	ObjectType     string
+	Object         *ObjectName
+	Objects        []*ObjectName
+	FunctionArgs   [][]*TypeName
+	InDatabase     string
+	InAllDatabases bool
+	FromType       string   // USER or ROLE (empty when the revokee has no keyword)
+	Revokees       []string // user@host or role name (raw text)
 
 	// Role-revoke form fields.
-	Roles []string // non-empty only for REVOKE ROLE ... FROM ... form
+	Roles []string
 
 	Loc Loc
 }

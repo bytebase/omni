@@ -10,6 +10,7 @@ package parser
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/bytebase/omni/partiql/ast"
 )
@@ -29,6 +30,16 @@ func (p *Parser) parseSFWQuery() (ast.ExprNode, error) {
 	// SELECT clause (required).
 	if err := p.parseSelectClause(stmt); err != nil {
 		return nil, err
+	}
+
+	// EXCLUDE clause (optional): exclude=excludeClause?
+	// (PartiQLParser.g4:536).
+	if p.cur.Type == tokEXCLUDE {
+		exclude, err := p.parseExcludeClause()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Exclude = exclude
 	}
 
 	// FROM clause (required).
@@ -515,4 +526,109 @@ func (p *Parser) parseGroupKey() (*ast.GroupByItem, error) {
 	}
 
 	return item, nil
+}
+
+// parseExcludeClause parses
+//
+//	excludeClause    : EXCLUDE excludeExpr (COMMA excludeExpr)*
+//	excludeExpr      : symbolPrimitive excludeExprSteps+
+//	excludeExprSteps : PERIOD symbolPrimitive
+//	                 | BRACKET_LEFT attr=LITERAL_STRING BRACKET_RIGHT
+//	                 | BRACKET_LEFT index=LITERAL_INTEGER BRACKET_RIGHT
+//	                 | BRACKET_LEFT ASTERISK BRACKET_RIGHT
+//	                 | PERIOD ASTERISK
+//
+// (PartiQLParser.g4:340-355). p.cur is EXCLUDE.
+func (p *Parser) parseExcludeClause() ([]*ast.ExcludePath, error) {
+	p.advance() // consume EXCLUDE
+	var paths []*ast.ExcludePath
+	for {
+		path, err := p.parseExcludePath()
+		if err != nil {
+			return nil, err
+		}
+		paths = append(paths, path)
+		if p.cur.Type != tokCOMMA {
+			return paths, nil
+		}
+		p.advance() // consume ,
+	}
+}
+
+// parseExcludePath parses one excludeExpr: a symbol and one or more steps.
+func (p *Parser) parseExcludePath() (*ast.ExcludePath, error) {
+	name, caseSensitive, nameLoc, err := p.parseSymbolPrimitive()
+	if err != nil {
+		return nil, err
+	}
+	path := &ast.ExcludePath{
+		Root: &ast.VarRef{Name: name, CaseSensitive: caseSensitive, Loc: nameLoc},
+		Loc:  nameLoc,
+	}
+	for p.cur.Type == tokPERIOD || p.cur.Type == tokBRACKET_LEFT {
+		step, err := p.parseExcludeStep()
+		if err != nil {
+			return nil, err
+		}
+		path.Steps = append(path.Steps, step)
+		path.Loc.End = step.GetLoc().End
+	}
+	if len(path.Steps) == 0 {
+		return nil, &ParseError{
+			Message:  fmt.Sprintf("expected a step after the EXCLUDE path's variable, got %q", p.cur.Str),
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+		}
+	}
+	return path, nil
+}
+
+// parseExcludeStep parses one excludeExprSteps.
+func (p *Parser) parseExcludeStep() (ast.PathStep, error) {
+	start := p.cur.Loc.Start
+	if p.cur.Type == tokPERIOD {
+		p.advance() // consume .
+		if p.cur.Type == tokASTERISK {
+			p.advance()
+			return &ast.AllFieldsStep{Loc: ast.Loc{Start: start, End: p.prev.Loc.End}}, nil
+		}
+		name, caseSensitive, nameLoc, err := p.parseSymbolPrimitive()
+		if err != nil {
+			return nil, err
+		}
+		return &ast.DotStep{Field: name, CaseSensitive: caseSensitive, Loc: ast.Loc{Start: start, End: nameLoc.End}}, nil
+	}
+	p.advance() // consume [
+	var key ast.ExprNode
+	switch p.cur.Type {
+	case tokASTERISK:
+		p.advance()
+	case tokSCONST:
+		key = &ast.StringLit{Val: p.cur.Str, Loc: p.cur.Loc}
+		p.advance()
+	case tokICONST:
+		// The reference parser reads the index with Kotlin's toInt
+		// (PartiQLParserDefault.kt:1086), which refuses one past 32 bits.
+		if _, err := strconv.ParseInt(p.cur.Str, 10, 32); err != nil {
+			return nil, &ParseError{
+				Message:  fmt.Sprintf("EXCLUDE index %s is out of range", p.cur.Str),
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			}
+		}
+		key = &ast.NumberLit{Val: p.cur.Str, Loc: p.cur.Loc}
+		p.advance()
+	default:
+		return nil, &ParseError{
+			Message:  fmt.Sprintf("expected a string, an integer or * in an EXCLUDE step, got %q", p.cur.Str),
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+		}
+	}
+	rb, err := p.expect(tokBRACKET_RIGHT)
+	if err != nil {
+		return nil, err
+	}
+	loc := ast.Loc{Start: start, End: rb.Loc.End}
+	if key == nil {
+		return &ast.WildcardStep{Loc: loc}, nil
+	}
+	return &ast.IndexStep{Index: key, Loc: loc}, nil
 }

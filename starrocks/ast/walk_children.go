@@ -244,6 +244,14 @@ func walkChildren(v Visitor, node Node) {
 		} else if n.Name != nil {
 			Walk(v, n.Name)
 		}
+		if n.Period != nil {
+			if n.Period.Start != nil {
+				Walk(v, n.Period.Start)
+			}
+			if n.Period.End != nil {
+				Walk(v, n.Period.End)
+			}
+		}
 	case *InlineTable:
 		for _, row := range n.Rows {
 			walkNodes(v, row)
@@ -564,6 +572,18 @@ func walkChildren(v Visitor, node Node) {
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+		if n.Where != nil {
+			Walk(v, n.Where)
+		}
+		for _, item := range n.OrderBy {
+			Walk(v, item)
+		}
+		if n.Limit != nil {
+			Walk(v, n.Limit)
+		}
+		if n.Offset != nil {
+			Walk(v, n.Offset)
+		}
 	case *ShowRoutineLoadTaskStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -861,12 +881,22 @@ func walkChildren(v Visitor, node Node) {
 		}
 	// DCL nodes (T7.1).
 	case *GrantStmt:
-		if n.Object != nil {
-			Walk(v, n.Object)
+		for _, o := range n.Objects {
+			Walk(v, o)
+		}
+		for _, args := range n.FunctionArgs {
+			for _, a := range args {
+				Walk(v, a)
+			}
 		}
 	case *RevokeStmt:
-		if n.Object != nil {
-			Walk(v, n.Object)
+		for _, o := range n.Objects {
+			Walk(v, o)
+		}
+		for _, args := range n.FunctionArgs {
+			for _, a := range args {
+				Walk(v, a)
+			}
 		}
 
 	// TCL — Transaction Control Language nodes (T7.2).

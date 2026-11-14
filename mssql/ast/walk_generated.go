@@ -96,6 +96,7 @@ func walkChildren(v Visitor, node Node) {
 		walkList(v, n.Options)
 	case *BeginEndStmt:
 		walkList(v, n.Stmts)
+		walkList(v, n.AtomicOptions)
 	case *BetweenExpr:
 		Walk(v, n.Expr)
 		Walk(v, n.Low)
@@ -391,6 +392,8 @@ func walkChildren(v Visitor, node Node) {
 		}
 	case *DatabaseFilegroup:
 		walkList(v, n.Files)
+	case *DbccOption:
+		Walk(v, n.Value)
 	case *DbccStmt:
 		walkList(v, n.Args)
 		walkList(v, n.Options)
@@ -767,8 +770,12 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Value)
 	case *SetOptionStmt:
 		Walk(v, n.Value)
+		walkList(v, n.Values)
 	case *SetStmt:
 		Walk(v, n.Value)
+		if n.Cursor != nil {
+			Walk(v, n.Cursor)
+		}
 	case *SignatureStmt:
 		if n.ModuleName != nil {
 			Walk(v, n.ModuleName)
@@ -864,9 +871,11 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.DestColumn)
 		}
 		Walk(v, n.DestTextPtr)
+		Walk(v, n.Timestamp)
 		Walk(v, n.InsertOffset)
 		Walk(v, n.DeleteLength)
 		Walk(v, n.InsertedData)
+		Walk(v, n.InsertedTextPtr)
 	case *UseFederationStmt:
 		Walk(v, n.Value)
 	case *ValuesClause:
@@ -907,6 +916,7 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Column)
 		}
 		Walk(v, n.TextPtr)
+		Walk(v, n.Timestamp)
 		Walk(v, n.Data)
 	}
 }

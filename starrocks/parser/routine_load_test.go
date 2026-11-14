@@ -70,6 +70,8 @@ FROM KAFKA (
 	}
 }
 
+// TestCreateRoutineLoad_WithComment: createRoutineLoadStatement
+// (StarRocks.g4:1209) has no COMMENT.
 func TestCreateRoutineLoad_WithComment(t *testing.T) {
 	sql := `CREATE ROUTINE LOAD job3 ON tbl3
 FROM KAFKA (
@@ -77,16 +79,34 @@ FROM KAFKA (
     "kafka_topic" = "t"
 )
 COMMENT "this is a test job"`
-	file, errs := parseForTest(sql)
-	if len(errs) != 0 {
-		t.Fatalf("Parse errors: %v", errs)
+	if _, err := Parse(sql); err == nil {
+		t.Error("CREATE ROUTINE LOAD ... COMMENT parsed; StarRocks has no COMMENT there")
 	}
-	stmt, ok := file.Stmts[0].(*ast.CreateRoutineLoadStmt)
-	if !ok {
-		t.Fatalf("expected *ast.CreateRoutineLoadStmt, got %T", file.Stmts[0])
+}
+
+// TestRoutineLoadGrammar holds the routine-load statements to StarRocks.g4
+// (:1209-1288); testdata/compat.tsv judged the near misses.
+func TestRoutineLoadGrammar(t *testing.T) {
+	cases := []struct {
+		sql string
+		ok  bool
+	}{
+		{"CREATE ROUTINE LOAD db.j ON t COLUMNS TERMINATED BY ',', ROWS TERMINATED BY '\\n', COLUMNS (a, b = a + 1, c = DEFAULT), WHERE a > 1, TEMPORARY PARTITION (p) PROPERTIES ('k' = 'v') FROM KAFKA ('k' = 'v')", true},
+		{"CREATE ROUTINE LOAD j ON t FROM KAFKA", true},
+		{"CREATE ROUTINE LOAD j ON t WHERE a, b FROM KAFKA", false},
+		{"CREATE ROUTINE LOAD j ON t a FROM KAFKA", false},
+		{"CREATE ROUTINE LOAD j FROM KAFKA", false},
+		{"ALTER ROUTINE LOAD FOR j WHERE a, WHERE b PROPERTIES ('k' = 'v') FROM KAFKA ('k' = 'v')", true},
+		{"ALTER ROUTINE LOAD FOR j FROM KAFKA", false},
+		{"SHOW ROUTINE LOAD FOR j FROM d WHERE a = 1 ORDER BY a, b LIMIT 1", true},
+		{"SHOW CREATE ROUTINE LOAD db.j", true},
+		{"SHOW ROUTINE LOAD TASK FROM d WHERE a = 1", true},
 	}
-	if stmt.Comment != "this is a test job" {
-		t.Errorf("Comment = %q, want %q", stmt.Comment, "this is a test job")
+	for _, c := range cases {
+		_, err := Parse(c.sql)
+		if (err == nil) != c.ok {
+			t.Errorf("Parse(%q): err = %v, want accepted=%v", c.sql, err, c.ok)
+		}
 	}
 }
 
@@ -481,5 +501,21 @@ func TestSync_Tag(t *testing.T) {
 	}
 	if file.Stmts[0].Tag() != ast.T_SyncStmt {
 		t.Errorf("Tag() = %v, want T_SyncStmt", file.Stmts[0].Tag())
+	}
+}
+
+// TestShowRoutineLoad_WalkReachesClauses: the walker visits WHERE, ORDER BY
+// and LIMIT, so the parser's tree-height check reaches them.
+func TestShowRoutineLoad_WalkReachesClauses(t *testing.T) {
+	stmt := parseOne(t, "SHOW ROUTINE LOAD WHERE a = 1 ORDER BY b LIMIT 2, 3")
+	var refs int
+	ast.Inspect(stmt, func(n ast.Node) bool {
+		if _, ok := n.(*ast.ColumnRef); ok {
+			refs++
+		}
+		return true
+	})
+	if refs != 2 {
+		t.Errorf("walk saw %d column references, want 2 (WHERE a, ORDER BY b)", refs)
 	}
 }

@@ -710,7 +710,6 @@ type CreateTriggerStmt struct {
 	TriggerOptions    *List     // WITH options: ENCRYPTION, EXECUTE AS, NATIVE_COMPILATION, SCHEMABINDING
 	TriggerType       string    // "FOR", "AFTER", "INSTEAD OF"
 	Events            *List     // list of String: INSERT/UPDATE/DELETE (DML) or event types (DDL)
-	WithAppend        bool      // WITH APPEND
 	NotForReplication bool      // NOT FOR REPLICATION
 	ExternalName      string    // EXTERNAL NAME assembly_name.class_name.method_name (CLR trigger)
 	Body              Node      // statement body (BeginEndStmt or single stmt)
@@ -815,6 +814,7 @@ type ParamDef struct {
 	DataType *DataType
 	Varying  bool     // VARYING keyword (for cursor parameters)
 	Null     bool     // NULL keyword
+	NotNull  bool     // NOT NULL
 	Default  ExprNode // = default_value
 	Output   bool     // OUTPUT keyword
 	ReadOnly bool     // READONLY keyword
@@ -1026,9 +1026,11 @@ func (n *VariableDecl) nodeTag() {}
 // SetStmt represents a SET statement.
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/language-elements/set-local-variable-transact-sql
 type SetStmt struct {
-	Variable string   // @variable or SET option name
-	Operator string   // "=" (default), "+=", "-=", "*=", "/=", "%=", "&=", "^=", "|="
-	Value    ExprNode // expression
+	Variable string             // @variable or SET option name
+	Property string             // SET @variable.property = ... or SET @variable.method(...): the property or method
+	Operator string             // "=" (default), "+=", "-=", "*=", "/=", "%=", "&=", "^=", "|="
+	Value    ExprNode           // expression; for a method call, a FuncCallExpr naming the method
+	Cursor   *DeclareCursorStmt // SET @variable = CURSOR ...: the cursor definition (no name)
 	Loc      Loc
 }
 
@@ -1061,11 +1063,26 @@ func (n *WhileStmt) stmtNode() {}
 // BeginEndStmt represents a BEGIN...END block.
 type BeginEndStmt struct {
 	Stmts *List
-	Loc   Loc
+	// AtomicOptions holds the options of BEGIN ATOMIC WITH (...), the body of
+	// a natively compiled module (list of *AtomicBlockOption); nil for a
+	// plain BEGIN ... END.
+	AtomicOptions *List
+	Loc           Loc
 }
 
 func (n *BeginEndStmt) nodeTag()  {}
 func (n *BeginEndStmt) stmtNode() {}
+
+// AtomicBlockOption is one option of BEGIN ATOMIC WITH (...): TRANSACTION
+// ISOLATION LEVEL, LANGUAGE, DATEFIRST, DATEFORMAT or DELAYED_DURABILITY.
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-procedure-transact-sql
+type AtomicBlockOption struct {
+	Name  string // option name, e.g. "TRANSACTION ISOLATION LEVEL"
+	Value string // e.g. "SNAPSHOT", "us_english", "ON"
+	Loc   Loc
+}
+
+func (n *AtomicBlockOption) nodeTag() {}
 
 // TryCatchStmt represents BEGIN TRY...END TRY BEGIN CATCH...END CATCH.
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/language-elements/try-catch-transact-sql
@@ -1149,6 +1166,7 @@ func (n *WaitForStmt) stmtNode() {}
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/language-elements/execute-transact-sql
 type ExecStmt struct {
 	Name         *TableRef
+	ModuleVar    string   // EXEC @module_name_var: the variable holding the module name
 	Args         *List    // list of ExecArg
 	ReturnVar    string   // @var = EXEC ...
 	ExecString   ExprNode // EXEC ('string') dynamic SQL
@@ -1473,6 +1491,7 @@ func (n *CreateTypeStmt) stmtNode() {}
 //	    [ INCLUDE ( column_name [ ,...n ] ) ]
 type TableTypeIndex struct {
 	Name        string   // index name
+	Unique      bool     // UNIQUE
 	Clustered   *bool    // true=CLUSTERED, false=NONCLUSTERED, nil=unspecified
 	Hash        bool     // HASH index (memory-optimized)
 	BucketCount ExprNode // BUCKET_COUNT for hash index
@@ -2483,8 +2502,9 @@ func (n *DbccStmt) stmtNode() {}
 //	EXTENDED_LOGICAL_CHECKS, DATA_PURITY, TABLOCK,
 //	ESTIMATEONLY, COUNT_ROWS, TABLERESULTS
 type DbccOption struct {
-	Name string // option name (always uppercase)
-	Loc  Loc
+	Name  string   // option name (always uppercase)
+	Value ExprNode // MAXDOP's integer; nil for the other options
+	Loc   Loc
 }
 
 func (n *DbccOption) nodeTag() {}
@@ -2665,7 +2685,8 @@ func (n *DropStatisticsStmt) stmtNode() {}
 type SetOptionStmt struct {
 	Option  string   // option name (e.g., "NOCOUNT", "ANSI_NULLS", "TRANSACTION ISOLATION LEVEL READ COMMITTED"); the first of Options
 	Options []string // every option name the statement sets, in written order (e.g., ["ANSI_NULLS", "QUOTED_IDENTIFIER"], ["STATISTICS IO", "STATISTICS TIME"])
-	Value   ExprNode // ON/OFF or other value; may be a ColumnRef("ON"/"OFF") or literal
+	Value   ExprNode // ON/OFF or other value; may be a ColumnRef("ON"/"OFF") or literal; the first of Values
+	Values  *List    // one value per option for a command list (SET DATEFIRST 1, LANGUAGE French), whose options do not share one; nil otherwise
 	Loc     Loc
 }
 
@@ -2680,6 +2701,7 @@ func (n *SetOptionStmt) stmtNode() {}
 type CreatePartitionFunctionStmt struct {
 	Name      string    // partition function name
 	InputType *DataType // input parameter type
+	Collation string    // COLLATE collation_name of the input type
 	Range     string    // LEFT or RIGHT
 	Values    *List     // boundary values as expressions
 	Loc       Loc
@@ -3018,11 +3040,13 @@ func (n *ReadtextStmt) stmtNode() {}
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/queries/writetext-transact-sql
 type WritetextStmt struct {
-	Column  *ColumnRef
-	TextPtr ExprNode
-	WithLog bool
-	Data    ExprNode
-	Loc     Loc
+	Column    *ColumnRef
+	TextPtr   ExprNode
+	Timestamp ExprNode // TIMESTAMP = binary after the text pointer; nil when absent
+	Bulk      bool     // WRITETEXT BULK
+	WithLog   bool
+	Data      ExprNode
+	Loc       Loc
 }
 
 func (n *WritetextStmt) nodeTag()  {}
@@ -3034,11 +3058,16 @@ func (n *WritetextStmt) stmtNode() {}
 type UpdatetextStmt struct {
 	DestColumn   *ColumnRef
 	DestTextPtr  ExprNode
+	Timestamp    ExprNode // TIMESTAMP = binary after the text pointer; nil when absent
+	Bulk         bool     // UPDATETEXT BULK
 	InsertOffset ExprNode
 	DeleteLength ExprNode
 	WithLog      bool
 	InsertedData ExprNode
-	Loc          Loc
+	// InsertedTextPtr is the source text pointer after a source column
+	// (table_name.src_column_name src_text_ptr); nil for literal data.
+	InsertedTextPtr ExprNode
+	Loc             Loc
 }
 
 func (n *UpdatetextStmt) nodeTag()  {}

@@ -62,9 +62,10 @@ func (p *Parser) parseCreateView(startLoc ast.Loc, orReplace bool) (ast.Node, er
 		p.advance()
 	}
 
-	// AS keyword
-	if _, err := p.expect(kwAS); err != nil {
-		return nil, err
+	// AS? query (DorisParser.g4:183 #createView): Doris takes the query
+	// without AS.
+	if p.cur.Kind == kwAS {
+		p.advance()
 	}
 
 	// Query — parse the SELECT statement

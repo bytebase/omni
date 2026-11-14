@@ -10,37 +10,40 @@ import (
 // ANALYZE statement
 // ---------------------------------------------------------------------------
 
-// parseAnalyze parses:
+// parseAnalyze parses ANALYZE as both of Doris's parsers take it
+// (DorisParser.g4:752-755; the CUP parser's analyze_stmt,
+// DorisLegacyParser.g4:888):
 //
-//	ANALYZE DATABASE name
-//	ANALYZE TABLE name [(col1, col2, ...)]
-//	ANALYZE PROFILE
+//	ANALYZE TABLE multipartIdentifier partitionSpec? identifierList?
+//	    (WITH analyzeProperties)* propertyClause?
+//	ANALYZE DATABASE (identifier '.')? identifier
+//	    (WITH analyzeProperties)* propertyClause?
 //
-// followed by optional modifiers:
-//
-//	WITH SAMPLE PERCENT n
-//	WITH SAMPLE ROWS n
-//	WITH SYNC
-//	WITH INCREMENTAL
-//	PROPERTIES(...)
+// with the CUP parser's 'k' = 'v' properties.
 //
 // The ANALYZE keyword has already been consumed; cur is the next token.
 func (p *Parser) parseAnalyze() (ast.Node, error) {
 	startLoc := p.prev.Loc
-
 	stmt := &ast.AnalyzeStmt{}
-	endLoc := startLoc
 
 	switch p.cur.Kind {
-	case kwDATABASE, kwSCHEMA:
-		p.advance() // consume DATABASE/SCHEMA
+	case kwDATABASE:
+		p.advance() // consume DATABASE
 		stmt.TargetType = "DATABASE"
-		target, err := p.parseMultipartIdentifier()
+		name, loc, err := p.parseIdentifier()
 		if err != nil {
 			return nil, err
 		}
-		stmt.Target = target
-		endLoc = target.Loc
+		stmt.Target = &ast.ObjectName{Parts: []string{name}, Loc: loc}
+		if p.cur.Kind == int('.') {
+			p.advance() // consume '.'
+			second, loc2, err := p.parseIdentifierQualified()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Target.Parts = append(stmt.Target.Parts, second)
+			stmt.Target.Loc.End = loc2.End
+		}
 
 	case kwTABLE:
 		p.advance() // consume TABLE
@@ -50,134 +53,84 @@ func (p *Parser) parseAnalyze() (ast.Node, error) {
 			return nil, err
 		}
 		stmt.Target = target
-		endLoc = target.Loc
-
-		// Optional column list: (col1, col2, ...)
+		if stmt.Partitions, stmt.TemporaryPartition, err = p.parsePartitionSpec(); err != nil {
+			return nil, err
+		}
 		if p.cur.Kind == int('(') {
-			cols, colsEnd, err := p.parseParenIdentifierList()
-			if err != nil {
+			if stmt.Columns, err = p.parseLoadIdentifierList(); err != nil {
 				return nil, err
 			}
-			stmt.Columns = cols
-			endLoc = colsEnd
 		}
-
-	case kwPROFILE:
-		p.advance() // consume PROFILE
-		stmt.TargetType = "PROFILE"
-		endLoc = p.prev.Loc
 
 	default:
-		// Bare ANALYZE with no target type — treat as ANALYZE TABLE (Doris also
-		// allows ANALYZE name directly for table-level analyze).
-		if isIdentifierToken(p.cur.Kind) {
-			stmt.TargetType = "TABLE"
-			target, err := p.parseMultipartIdentifier()
-			if err != nil {
-				return nil, err
-			}
-			stmt.Target = target
-			endLoc = target.Loc
-
-			// Optional column list
-			if p.cur.Kind == int('(') {
-				cols, colsEnd, err := p.parseParenIdentifierList()
-				if err != nil {
-					return nil, err
-				}
-				stmt.Columns = cols
-				endLoc = colsEnd
-			}
-		}
+		return nil, p.syntaxErrorAtCur()
 	}
 
-	// Optional WITH modifiers and PROPERTIES
-	for {
-		if p.cur.Kind == kwWITH {
-			p.advance() // consume WITH
-			prop, propEnd, err := p.parseAnalyzeWith()
-			if err != nil {
-				return nil, err
-			}
-			stmt.Properties = append(stmt.Properties, prop)
-			endLoc = propEnd
-		} else if p.cur.Kind == kwPROPERTIES {
-			props, err := p.parseProperties()
-			if err != nil {
-				return nil, err
-			}
-			stmt.Properties = append(stmt.Properties, props...)
-			if len(props) > 0 {
-				endLoc = ast.NodeLoc(props[len(props)-1])
-			}
-		} else {
-			break
+	for p.cur.Kind == kwWITH {
+		p.advance() // consume WITH
+		prop, _, err := p.parseAnalyzeWith()
+		if err != nil {
+			return nil, err
 		}
+		stmt.Properties = append(stmt.Properties, prop)
+	}
+	if p.cur.Kind == kwPROPERTIES {
+		props, err := p.parseProperties()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Properties = append(stmt.Properties, props...)
 	}
 
-	stmt.Loc = startLoc.Merge(endLoc)
+	stmt.Loc = ast.Loc{Start: startLoc.Start, End: p.prev.Loc.End}
 	return stmt, nil
 }
 
-// parseAnalyzeWith parses a single WITH modifier after ANALYZE:
+// parseAnalyzeWith parses one analyzeProperties after WITH
+// (DorisParser.g4:781; the CUP parser's with_analysis_properties):
 //
-//	WITH SAMPLE PERCENT n
-//	WITH SAMPLE ROWS n
-//	WITH SYNC
-//	WITH INCREMENTAL
+//	SYNC | INCREMENTAL | FULL | SQL | HISTOGRAM
+//	| SAMPLE (ROWS | PERCENT) INTEGER_VALUE
+//	| BUCKETS INTEGER_VALUE | PERIOD INTEGER_VALUE | CRON STRING_LITERAL
 //
-// WITH has already been consumed; cur is the modifier keyword.
-// Returns a synthetic Property{Key: modifier, Value: n} for value-bearing
-// modifiers or Property{Key: modifier, Value: ""} for flags.
+// WITH has already been consumed. It returns Property{Key: the words,
+// Value: the value or ""}.
 func (p *Parser) parseAnalyzeWith() (*ast.Property, ast.Loc, error) {
 	startLoc := p.cur.Loc
-
+	key := strings.ToUpper(p.cur.Str)
+	valueKind := 0
 	switch p.cur.Kind {
+	case kwSYNC, kwINCREMENTAL, kwFULL, kwSQL, kwHISTOGRAM:
+		p.advance()
 	case kwSAMPLE:
 		p.advance() // consume SAMPLE
-		switch p.cur.Kind {
-		case kwPERCENT:
-			p.advance() // consume PERCENT
-			if p.cur.Kind != tokInt && p.cur.Kind != tokFloat {
-				return nil, ast.Loc{}, p.syntaxErrorAtCur()
-			}
-			val := p.cur.Str
-			endLoc := p.cur.Loc
-			p.advance()
-			return &ast.Property{Key: "SAMPLE PERCENT", Value: val, Loc: startLoc.Merge(endLoc)}, endLoc, nil
-		case kwROWS:
-			p.advance() // consume ROWS
-			if p.cur.Kind != tokInt {
-				return nil, ast.Loc{}, p.syntaxErrorAtCur()
-			}
-			val := p.cur.Str
-			endLoc := p.cur.Loc
-			p.advance()
-			return &ast.Property{Key: "SAMPLE ROWS", Value: val, Loc: startLoc.Merge(endLoc)}, endLoc, nil
-		default:
+		if p.cur.Kind != kwROWS && p.cur.Kind != kwPERCENT {
 			return nil, ast.Loc{}, p.syntaxErrorAtCur()
 		}
-
-	case kwSYNC:
-		endLoc := p.cur.Loc
+		key += " " + strings.ToUpper(p.advance().Str)
+		valueKind = tokInt
+	case kwBUCKETS, kwPERIOD:
 		p.advance()
-		return &ast.Property{Key: "SYNC", Value: "", Loc: startLoc.Merge(endLoc)}, endLoc, nil
-
-	case kwINCREMENTAL:
-		endLoc := p.cur.Loc
+		valueKind = tokInt
+	case kwCRON:
 		p.advance()
-		return &ast.Property{Key: "INCREMENTAL", Value: "", Loc: startLoc.Merge(endLoc)}, endLoc, nil
-
+		valueKind = tokString
 	default:
-		// Unknown WITH modifier — consume as raw identifier to avoid hard failure
-		if isIdentifierToken(p.cur.Kind) {
-			key := strings.ToUpper(p.cur.Str)
-			endLoc := p.cur.Loc
-			p.advance()
-			return &ast.Property{Key: key, Value: "", Loc: startLoc.Merge(endLoc)}, endLoc, nil
-		}
 		return nil, ast.Loc{}, p.syntaxErrorAtCur()
 	}
+	value := ""
+	if valueKind != 0 {
+		if p.cur.Kind != valueKind {
+			return nil, ast.Loc{}, p.syntaxErrorAtCur()
+		}
+		tok := p.advance()
+		value = tok.Str
+		if tok.Kind == tokInt {
+			value = p.sourceText(tok.Loc)
+		}
+	}
+	loc := ast.Loc{Start: startLoc.Start, End: p.prev.Loc.End}
+	return &ast.Property{Key: key, Value: value, Loc: loc}, loc, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -286,8 +239,11 @@ func (p *Parser) parseShowStats(startLoc ast.Loc, statsType string) (ast.Node, e
 	}
 	endLoc := p.prev.Loc
 
-	// Optional target name
-	if isIdentifierToken(p.cur.Kind) {
+	// Optional target: a name, or SHOW TABLE STATS's table id.
+	if statsType == "TABLE" && p.cur.Kind == tokInt {
+		stmt.TableID = p.cur.Ival
+		endLoc = p.advance().Loc
+	} else if isIdentifierToken(p.cur.Kind) {
 		target, err := p.parseMultipartIdentifier()
 		if err != nil {
 			return nil, err
@@ -345,38 +301,45 @@ func (p *Parser) parseShowConstraints(startLoc ast.Loc) (ast.Node, error) {
 // DROP STATS / DROP EXPIRED STATS / DROP CACHED STATS
 // ---------------------------------------------------------------------------
 
-// parseDropStats parses:
+// parseDropStats parses (DorisParser.g4:760-763; the CUP parser's
+// drop_stmt, DorisLegacyParser.g4:983-986):
 //
-//	DROP STATS target [(col1, col2)]
-//	DROP EXPIRED STATS target
-//	DROP CACHED STATS target
+//	DROP STATS multipartIdentifier identifierList? partitionSpec?
+//	DROP CACHED STATS multipartIdentifier
+//	DROP EXPIRED STATS
+//	DROP ANALYZE JOB INTEGER_VALUE
 //
-// DROP has already been consumed; variant is "" | "EXPIRED" | "CACHED".
-// The STATS keyword has also been consumed by the caller for EXPIRED/CACHED.
-// For plain DROP STATS, the caller consumed STATS; target is next.
+// DROP and the words up to STATS (or ANALYZE) have been consumed; variant
+// is "", "CACHED", "EXPIRED" or "ANALYZE JOB".
 func (p *Parser) parseDropStats(startLoc ast.Loc, variant string) (ast.Node, error) {
 	stmt := &ast.DropStatsStmt{Variant: variant}
-	endLoc := startLoc
-
-	// target table
-	target, err := p.parseMultipartIdentifier()
-	if err != nil {
-		return nil, err
-	}
-	stmt.Target = target
-	endLoc = target.Loc
-
-	// Optional column list for plain DROP STATS
-	if variant == "" && p.cur.Kind == int('(') {
-		cols, colsEnd, err := p.parseParenIdentifierList()
-		if err != nil {
+	var err error
+	switch variant {
+	case "EXPIRED":
+	case "ANALYZE JOB":
+		if _, err := p.expect(kwJOB); err != nil {
 			return nil, err
 		}
-		stmt.Columns = cols
-		endLoc = colsEnd
+		if p.cur.Kind != tokInt {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.JobID = p.advance().Ival
+	default:
+		if stmt.Target, err = p.parseMultipartIdentifier(); err != nil {
+			return nil, err
+		}
+		if variant == "" {
+			if p.cur.Kind == int('(') {
+				if stmt.Columns, err = p.parseLoadIdentifierList(); err != nil {
+					return nil, err
+				}
+			}
+			if stmt.Partitions, stmt.TemporaryPartition, err = p.parsePartitionSpec(); err != nil {
+				return nil, err
+			}
+		}
 	}
-
-	stmt.Loc = startLoc.Merge(endLoc)
+	stmt.Loc = ast.Loc{Start: startLoc.Start, End: p.prev.Loc.End}
 	return stmt, nil
 }
 

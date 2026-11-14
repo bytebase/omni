@@ -10,106 +10,182 @@ import (
 // CREATE ROUTINE LOAD (T6.2)
 // ---------------------------------------------------------------------------
 
-// parseCreateRoutineLoad parses a CREATE ROUTINE LOAD statement.
-// On entry, CREATE has been consumed and cur is ROUTINE.
+// parseCreateRoutineLoad parses CREATE ROUTINE LOAD as both of Doris's
+// parsers take it (DorisParser.g4:381; the CUP parser's
+// create_routine_load_stmt, DorisLegacyParser.g4:814):
 //
-// Syntax:
-//
-//	CREATE ROUTINE LOAD [db.]job_name ON table_name
-//	    [load_properties]
-//	    [PROPERTIES (...)]
-//	    FROM {KAFKA | S3 | HDFS} (data_source_properties)
+//	CREATE ROUTINE LOAD [db.]job_name [ON table_name]
+//	    [WITH (APPEND | DELETE | MERGE)]
+//	    [load_property (',' load_property)*]
+//	    [PROPERTIES ('k' = 'v', ...)]
+//	    FROM type ('k' = 'v', ...)
 //	    [COMMENT 'text']
+//
+// On entry, CREATE has been consumed and cur is ROUTINE.
 func (p *Parser) parseCreateRoutineLoad(startLoc ast.Loc) (ast.Node, error) {
-	// Consume ROUTINE
 	if _, err := p.expect(kwROUTINE); err != nil {
 		return nil, err
 	}
-	// Consume LOAD
 	if _, err := p.expect(kwLOAD); err != nil {
 		return nil, err
 	}
-
 	stmt := &ast.CreateRoutineLoadStmt{}
 
-	// Job name: [db.]job_name
-	name, err := p.parseMultipartIdentifier()
+	// job_label: ident ('.' ident)?, each part kept as written, so a quoted
+	// name holding a dot stays one part.
+	first, loc, err := p.parseIdentifier()
 	if err != nil {
 		return nil, err
 	}
-	stmt.Name = name
-
-	// ON table_name
-	if _, err := p.expect(kwON); err != nil {
-		return nil, err
-	}
-	tableName, err := p.parseMultipartIdentifier()
-	if err != nil {
-		return nil, err
-	}
-	stmt.OnTable = tableName
-
-	// Parse optional clauses until FROM (which introduces the data source).
-	// load_properties can include COLUMNS, WHERE, PARTITION, etc. We collect
-	// them as raw text (best-effort) since their syntax is complex.
-	var loadPropParts []string
-	for p.cur.Kind != kwFROM && p.cur.Kind != tokEOF {
-		switch p.cur.Kind {
-		case kwPROPERTIES:
-			// PROPERTIES (...) — job properties
-			props, err := p.parseProperties()
-			if err != nil {
-				return nil, err
-			}
-			stmt.JobProperties = props
-		case kwCOMMENT:
-			p.advance() // consume COMMENT
-			if p.cur.Kind == tokString {
-				stmt.Comment = p.cur.Str
-				p.advance()
-			}
-		default:
-			// Capture as raw load properties text (COLUMNS, WHERE, SET, etc.)
-			loadPropParts = append(loadPropParts, p.cur.Str)
-			p.advance()
-		}
-	}
-	if len(loadPropParts) > 0 {
-		stmt.LoadProps = strings.Join(loadPropParts, " ")
-	}
-
-	// FROM data_source_type (data_source_properties)
-	if p.cur.Kind == kwFROM {
-		p.advance() // consume FROM
-
-		// Data source type: KAFKA, S3, HDFS (treated as non-reserved identifiers)
-		srcType, _, err := p.parseIdentifier()
+	stmt.Name = &ast.ObjectName{Parts: []string{first}, Loc: loc}
+	if p.cur.Kind == int('.') {
+		p.advance() // consume '.'
+		second, loc2, err := p.parseIdentifier()
 		if err != nil {
 			return nil, err
 		}
-		stmt.DataSourceType = strings.ToUpper(srcType)
+		stmt.Name.Parts = append(stmt.Name.Parts, second)
+		stmt.Name.Loc.End = loc2.End
+	}
 
-		// (data_source_properties)
-		if p.cur.Kind == int('(') {
-			props, err := p.parseParenthesisedProperties()
-			if err != nil {
+	if p.cur.Kind == kwON {
+		p.advance() // consume ON
+		name, loc, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		stmt.OnTable = &ast.ObjectName{Parts: []string{name}, Loc: loc}
+	}
+	if p.cur.Kind == kwWITH {
+		p.advance() // consume WITH
+		switch p.cur.Kind {
+		case kwAPPEND, kwDELETE, kwMERGE:
+			stmt.MergeType = strings.ToUpper(p.advance().Str)
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
+	}
+	if p.cur.Kind != kwPROPERTIES && p.cur.Kind != kwFROM {
+		start := p.cur.Loc
+		for {
+			if err := p.parseRoutineLoadProperty(); err != nil {
 				return nil, err
 			}
-			stmt.DataSourceProperties = props
+			if p.cur.Kind != int(',') {
+				break
+			}
+			p.advance() // consume ','
+		}
+		stmt.LoadProps = p.sourceText(ast.Loc{Start: start.Start, End: p.prev.Loc.End})
+	}
+	if p.cur.Kind == kwPROPERTIES {
+		if stmt.JobProperties, err = p.parseProperties(); err != nil {
+			return nil, err
 		}
 	}
 
-	// Optional trailing COMMENT
-	if p.cur.Kind == kwCOMMENT && stmt.Comment == "" {
+	if _, err := p.expect(kwFROM); err != nil {
+		return nil, err
+	}
+	srcType, _, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+	stmt.DataSourceType = strings.ToUpper(srcType)
+	if stmt.DataSourceProperties, err = p.parseParenthesisedProperties(); err != nil {
+		return nil, err
+	}
+
+	if p.cur.Kind == kwCOMMENT {
 		p.advance() // consume COMMENT
-		if p.cur.Kind == tokString {
-			stmt.Comment = p.cur.Str
-			p.advance()
+		if p.cur.Kind != tokString {
+			return nil, p.syntaxErrorAtCur()
 		}
+		stmt.Comment = p.advance().Str
 	}
 
-	stmt.Loc = startLoc.Merge(p.prev.Loc)
+	stmt.Loc = ast.Loc{Start: startLoc.Start, End: p.prev.Loc.End}
 	return stmt, nil
+}
+
+// parseRoutineLoadProperty reads one loadProperty (DorisParser.g4:403) as the
+// CUP parser's load_property (DorisLegacyParser.g4:831) also takes it:
+//
+//	COLUMNS TERMINATED BY STRING_LITERAL
+//	| COLUMNS '(' import_column_desc (',' import_column_desc)* ')'
+//	| PRECEDING FILTER expression | WHERE expression | DELETE ON expression
+//	| ORDER BY identifier | partitionSpec
+//
+// where import_column_desc is name ('=' expression)?, and, after the first,
+// may sit in parentheses (the CUP parser's import_column_descs).
+func (p *Parser) parseRoutineLoadProperty() error {
+	switch p.cur.Kind {
+	case kwCOLUMNS:
+		if p.peekNext().Kind == kwTERMINATED {
+			_, err := p.parseTerminatedBy(kwCOLUMNS)
+			return err
+		}
+		p.advance() // consume COLUMNS
+		if _, err := p.expect(int('(')); err != nil {
+			return err
+		}
+		for first := true; ; first = false {
+			paren := !first && p.cur.Kind == int('(')
+			if paren {
+				p.advance()
+			}
+			if _, _, err := p.parseIdentifier(); err != nil {
+				return err
+			}
+			if p.cur.Kind == int('=') {
+				p.advance()
+				if _, err := p.parseExpr(); err != nil {
+					return err
+				}
+			}
+			if paren {
+				if _, err := p.expect(int(')')); err != nil {
+					return err
+				}
+			}
+			if p.cur.Kind != int(',') {
+				break
+			}
+			p.advance() // consume ','
+		}
+		_, err := p.expect(int(')'))
+		return err
+	case kwPRECEDING:
+		p.advance()
+		if _, err := p.expect(kwFILTER); err != nil {
+			return err
+		}
+		_, err := p.parseExpr()
+		return err
+	case kwWHERE:
+		p.advance()
+		_, err := p.parseExpr()
+		return err
+	case kwDELETE:
+		p.advance()
+		if _, err := p.expect(kwON); err != nil {
+			return err
+		}
+		_, err := p.parseExpr()
+		return err
+	case kwORDER:
+		p.advance()
+		if _, err := p.expect(kwBY); err != nil {
+			return err
+		}
+		_, _, err := p.parseIdentifier()
+		return err
+	case kwTEMPORARY, kwPARTITION, kwPARTITIONS:
+		// partitionSpec, as a LOAD data description reads it.
+		var spec ast.LoadDataDesc
+		return p.parseLoadPartitionSpec(&spec)
+	}
+	return p.syntaxErrorAtCur()
 }
 
 // ---------------------------------------------------------------------------
@@ -408,9 +484,9 @@ func (p *Parser) parseShowRoutineLoad(startLoc ast.Loc) (ast.Node, error) {
 func (p *Parser) parseShowRoutineLoadTask(startLoc ast.Loc) (ast.Node, error) {
 	stmt := &ast.ShowRoutineLoadTaskStmt{}
 
-	// Optional FROM db
-	if p.cur.Kind == kwFROM {
-		p.advance() // consume FROM
+	// Optional (FROM | IN) db
+	if p.cur.Kind == kwFROM || p.cur.Kind == kwIN {
+		p.advance() // consume FROM / IN
 		dbName, _, err := p.parseIdentifier()
 		if err != nil {
 			return nil, err

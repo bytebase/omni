@@ -514,3 +514,33 @@ CREATE DOMAIN posint AS integer CONSTRAINT posint_check CHECK (validate(VALUE));
 		assertOracleRoundtrip(t, ctr, before, after)
 	})
 }
+
+// TestContainerTypeDropAfterUse drops types a column or attribute still uses
+// until the migration changes it.
+func TestContainerTypeDropAfterUse(t *testing.T) {
+	ctr := startPGContainer(t)
+	tests := []struct {
+		name, before, after string
+	}{
+		{
+			name:   "column_off_composite",
+			before: `CREATE TYPE addr AS (street text); CREATE TABLE t (c addr);`,
+			after:  `CREATE TABLE t (c text);`,
+		},
+		{
+			name:   "column_off_enum_and_what_the_composite_uses",
+			before: `CREATE TYPE status AS ENUM ('a', 'b'); CREATE TYPE addr AS (s status); CREATE TABLE t (c addr, d status[]);`,
+			after:  `CREATE TABLE t (c text, d text[]);`,
+		},
+		{
+			name:   "attribute_off_nested_composites",
+			before: `CREATE TYPE base AS (x int); CREATE TYPE child AS (b base); CREATE TYPE parent AS (c child);`,
+			after:  `CREATE TYPE parent AS (c text);`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assertOracleRoundtrip(t, ctr, tt.before, tt.after)
+		})
+	}
+}

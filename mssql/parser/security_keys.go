@@ -1,4 +1,11 @@
 // Package parser - security_keys.go implements parsing for security key/cert/credential statements.
+//
+// Every statement here is read by the grammar: ScriptDOM's TSql160.g (the rule
+// is cited beside each function) where SQL Server 2022 agrees with it, and the
+// server's verdict where it does not (mssql/parser/testdata/compat.tsv). Option
+// words are matched by their unquoted text, since SQL Server refuses a
+// bracketed option word (`WITH [SUBJECT] = 'a'`), and each option of a list
+// may appear once.
 package parser
 
 import (
@@ -7,574 +14,1374 @@ import (
 	nodes "github.com/bytebase/omni/mssql/ast"
 )
 
-// parseSecurityKeyStmt parses CREATE/ALTER/DROP statements for security objects:
-// MASTER KEY, SYMMETRIC KEY, ASYMMETRIC KEY, CERTIFICATE, CREDENTIAL,
-// COLUMN ENCRYPTION KEY, COLUMN MASTER KEY, CRYPTOGRAPHIC PROVIDER.
-// Also handles OPEN/CLOSE SYMMETRIC KEY and BACKUP CERTIFICATE.
-//
-// BNF: mssql/parser/bnf/create-symmetric-key-transact-sql.bnf
-//
-//	CREATE SYMMETRIC KEY key_name
-//	    [ AUTHORIZATION owner_name ]
-//	    [ FROM PROVIDER provider_name ]
-//	    WITH
-//	        [
-//	            <key_options> [ , ... n ]
-//	            | ENCRYPTION BY <encrypting_mechanism> [ , ... n ]
-//	        ]
-//	<key_options> ::=
-//	    KEY_SOURCE = 'pass_phrase'
-//	    | ALGORITHM = <algorithm>
-//	    | IDENTITY_VALUE = 'identity_phrase'
-//	    | PROVIDER_KEY_NAME = 'key_name_in_provider'
-//	    | CREATION_DISPOSITION = { CREATE_NEW | OPEN_EXISTING }
-//	<algorithm> ::=
-//	    DES | TRIPLE_DES | TRIPLE_DES_3KEY | RC2 | RC4 | RC4_128
-//	    | DESX | AES_128 | AES_192 | AES_256
-//	<encrypting_mechanism> ::=
-//	    CERTIFICATE certificate_name
-//	    | PASSWORD = 'password'
-//	    | SYMMETRIC KEY symmetric_key_name
-//	    | ASYMMETRIC KEY asym_key_name
-//
-// BNF: mssql/parser/bnf/alter-symmetric-key-transact-sql.bnf
-//
-//	ALTER SYMMETRIC KEY Key_name <alter_option>
-//	<alter_option> ::=
-//	    ADD ENCRYPTION BY <encrypting_mechanism> [ , ... n ]
-//	    | DROP ENCRYPTION BY <encrypting_mechanism> [ , ... n ]
-//	<encrypting_mechanism> ::=
-//	    CERTIFICATE certificate_name
-//	    | PASSWORD = 'password'
-//	    | SYMMETRIC KEY Symmetric_Key_Name
-//	    | ASYMMETRIC KEY Asym_Key_Name
-//
-// BNF: mssql/parser/bnf/drop-symmetric-key-transact-sql.bnf
-//
-//	DROP SYMMETRIC KEY symmetric_key_name [REMOVE PROVIDER KEY]
-//
-// BNF: mssql/parser/bnf/create-asymmetric-key-transact-sql.bnf
-//
-//	CREATE ASYMMETRIC KEY asym_key_name
-//	    [ AUTHORIZATION database_principal_name ]
-//	    [ FROM <asym_key_source> ]
-//	    [ WITH <key_option> ]
-//	    [ ENCRYPTION BY <encrypting_mechanism> ]
-//	<asym_key_source> ::=
-//	    FILE = 'path_to_strong-name_file'
-//	    | EXECUTABLE FILE = 'path_to_executable_file'
-//	    | ASSEMBLY assembly_name
-//	    | PROVIDER provider_name
-//	<key_option> ::=
-//	    ALGORITHM = <algorithm>
-//	    | PROVIDER_KEY_NAME = 'key_name_in_provider'
-//	    | CREATION_DISPOSITION = { CREATE_NEW | OPEN_EXISTING }
-//	<algorithm> ::= RSA_4096 | RSA_3072 | RSA_2048 | RSA_1024 | RSA_512
-//	<encrypting_mechanism> ::= PASSWORD = 'password'
-//
-// BNF: mssql/parser/bnf/alter-asymmetric-key-transact-sql.bnf
-//
-//	ALTER ASYMMETRIC KEY Asym_Key_Name <alter_option>
-//	<alter_option> ::=
-//	    <password_change_option>
-//	    | REMOVE PRIVATE KEY
-//	<password_change_option> ::=
-//	    WITH PRIVATE KEY ( <password_option> [ , <password_option> ] )
-//	<password_option> ::=
-//	    ENCRYPTION BY PASSWORD = 'strongPassword'
-//	    | DECRYPTION BY PASSWORD = 'oldPassword'
-//
-// BNF: mssql/parser/bnf/drop-asymmetric-key-transact-sql.bnf
-//
-//	DROP ASYMMETRIC KEY key_name [ REMOVE PROVIDER KEY ]
-//
-// BNF: mssql/parser/bnf/create-certificate-transact-sql.bnf
-//
-//	CREATE CERTIFICATE certificate_name [ AUTHORIZATION user_name ]
-//	    { FROM <existing_keys> | <generate_new_keys> }
-//	    [ ACTIVE FOR BEGIN_DIALOG = { ON | OFF } ]
-//	<existing_keys> ::=
-//	    ASSEMBLY assembly_name
-//	    | { [ EXECUTABLE ] FILE = 'path_to_file'
-//	        [ WITH [FORMAT = 'PFX',] PRIVATE KEY ( <private_key_options> ) ] }
-//	    | { BINARY = asn_encoded_certificate
-//	        [ WITH PRIVATE KEY ( <private_key_options> ) ] }
-//	<generate_new_keys> ::=
-//	    [ ENCRYPTION BY PASSWORD = 'password' ]
-//	    WITH SUBJECT = 'certificate_subject_name'
-//	    [ , <date_options> [ ,...n ] ]
-//	<private_key_options> ::=
-//	    { FILE = 'path_to_private_key'
-//	      [ , DECRYPTION BY PASSWORD = 'password' ]
-//	      [ , ENCRYPTION BY PASSWORD = 'password' ] }
-//	    | { BINARY = private_key_bits
-//	      [ , DECRYPTION BY PASSWORD = 'password' ]
-//	      [ , ENCRYPTION BY PASSWORD = 'password' ] }
-//	<date_options> ::= START_DATE = 'datetime' | EXPIRY_DATE = 'datetime'
-//
-// BNF: mssql/parser/bnf/alter-certificate-transact-sql.bnf
-//
-//	ALTER CERTIFICATE certificate_name
-//	    REMOVE PRIVATE KEY
-//	    | WITH PRIVATE KEY ( <private_key_spec> )
-//	    | WITH ACTIVE FOR BEGIN_DIALOG = { ON | OFF }
-//	<private_key_spec> ::=
-//	    { FILE = 'path_to_private_key' | BINARY = private_key_bits }
-//	    [ , DECRYPTION BY PASSWORD = 'current_password' ]
-//	    [ , ENCRYPTION BY PASSWORD = 'new_password' ]
-//
-// BNF: mssql/parser/bnf/drop-certificate-transact-sql.bnf
-//
-//	DROP CERTIFICATE certificate_name
-//
-// BNF: mssql/parser/bnf/create-credential-transact-sql.bnf
-//
-//	CREATE CREDENTIAL credential_name
-//	    WITH IDENTITY = 'identity_name'
-//	    [ , SECRET = 'secret' ]
-//	    [ FOR CRYPTOGRAPHIC PROVIDER cryptographic_provider_name ]
-//
-// BNF: mssql/parser/bnf/alter-credential-transact-sql.bnf
-//
-//	ALTER CREDENTIAL credential_name
-//	    WITH IDENTITY = 'identity_name'
-//	    [ , SECRET = 'secret' ]
-//
-// BNF: mssql/parser/bnf/drop-credential-transact-sql.bnf
-//
-//	DROP CREDENTIAL credential_name
-//
-// BNF: mssql/parser/bnf/create-master-key-transact-sql.bnf
-//
-//	CREATE MASTER KEY [ ENCRYPTION BY PASSWORD = 'password' ]
-//
-// BNF: mssql/parser/bnf/alter-master-key-transact-sql.bnf
-//
-//	ALTER MASTER KEY <alter_option>
-//	<alter_option> ::= <regenerate_option> | <encryption_option>
-//	<regenerate_option> ::= [ FORCE ] REGENERATE WITH ENCRYPTION BY PASSWORD = 'password'
-//	<encryption_option> ::=
-//	    ADD ENCRYPTION BY { SERVICE MASTER KEY | PASSWORD = 'password' }
-//	    | DROP ENCRYPTION BY { SERVICE MASTER KEY | PASSWORD = 'password' }
-//
-// BNF: mssql/parser/bnf/drop-master-key-transact-sql.bnf
-//
-//	DROP MASTER KEY
+// keysWordIs reports whether the current token is the unquoted word w (an
+// identifier or a keyword), compared case-insensitively.
+func (p *Parser) keysWordIs(w string) bool {
+	return p.keysTokenIsWord(p.cur, w)
+}
+
+// keysTokenIsWord reports whether tok is the unquoted word w (upper-case): its
+// keyword token when w is a keyword, else an undelimited identifier.
+func (p *Parser) keysTokenIsWord(tok Token, w string) bool {
+	if kw := lookupKeyword(w); kw != tokIDENT {
+		return tok.Type == kw
+	}
+	return tok.Type == tokIDENT && !p.isDelimited(tok) && strings.ToUpper(tok.Str) == w
+}
+
+// keysMatchWord consumes the current token if it is the unquoted word w.
+func (p *Parser) keysMatchWord(w string) bool {
+	if p.keysWordIs(w) {
+		p.advance()
+		return true
+	}
+	return false
+}
+
+// keysExpectWords consumes the unquoted words ws in order.
+func (p *Parser) keysExpectWords(ws ...string) error {
+	for _, w := range ws {
+		if !p.keysMatchWord(w) {
+			return p.syntaxErrorAtCur()
+		}
+	}
+	return nil
+}
+
+// keysExpectTok consumes a token of type t.
+func (p *Parser) keysExpectTok(t int) error {
+	if p.cur.Type != t {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance()
+	return nil
+}
+
+// keysName reads a one-part name.
+func (p *Parser) keysName() (string, error) {
+	name, ok := p.parseIdentifier()
+	if !ok {
+		return "", p.syntaxErrorAtCur()
+	}
+	return name, nil
+}
+
+// keysString reads a string literal ('...' or N'...').
+func (p *Parser) keysString() (string, error) {
+	if p.cur.Type != tokSCONST && p.cur.Type != tokNSCONST {
+		return "", p.syntaxErrorAtCur()
+	}
+	s := p.cur.Str
+	p.advance()
+	return s, nil
+}
+
+// keysBinary reads a binary literal (0x...).
+func (p *Parser) keysBinary() (string, error) {
+	if (p.cur.Type != tokICONST && p.cur.Type != tokFCONST) ||
+		len(p.cur.Str) < 2 || p.cur.Str[0] != '0' || (p.cur.Str[1] != 'x' && p.cur.Str[1] != 'X') {
+		return "", p.syntaxErrorAtCur()
+	}
+	s := p.cur.Str
+	p.advance()
+	return s, nil
+}
+
+// keysEqString reads `= 'string'`.
+func (p *Parser) keysEqString() (string, error) {
+	if err := p.keysExpectTok('='); err != nil {
+		return "", err
+	}
+	return p.keysString()
+}
+
+// keysEqWord reads `= WORD` where WORD is one of the unquoted words in set and
+// returns it upper-cased.
+func (p *Parser) keysEqWord(set []string) (string, error) {
+	if err := p.keysExpectTok('='); err != nil {
+		return "", err
+	}
+	for _, w := range set {
+		if p.keysMatchWord(w) {
+			return w, nil
+		}
+	}
+	return "", p.syntaxErrorAtCur()
+}
+
+// keysPasswordEq reads `PASSWORD = 'string'` (passwordCrypto, TSql160.g:10634).
+func (p *Parser) keysPasswordEq() (string, error) {
+	if err := p.keysExpectWords("PASSWORD"); err != nil {
+		return "", err
+	}
+	return p.keysEqString()
+}
+
+// keysByPassword reads `<word> BY PASSWORD = 'string'`, as in
+// ENCRYPTION BY PASSWORD = '...' (encryptClause, TSql160.g:1504).
+func (p *Parser) keysByPassword(word string) (string, error) {
+	if err := p.keysExpectWords(word, "BY"); err != nil {
+		return "", err
+	}
+	return p.keysPasswordEq()
+}
+
+// keysOnce reports an error at the current token when the option has already
+// been read; SQL Server refuses an option given twice.
+func (p *Parser) keysOnce(seen map[string]bool, name string) error {
+	if seen[name] {
+		return p.syntaxErrorAtCur()
+	}
+	seen[name] = true
+	return nil
+}
+
+// keysAlgorithms is what ALGORITHM takes where SQL Server 2022 generates a key
+// (CREATE SYMMETRIC KEY ... WITH, CREATE ASYMMETRIC KEY ... WITH). The server
+// refuses DES, TRIPLE_DES, TRIPLE_DES_3KEY, RC2, RC4, RC4_128, DESX, RSA_512
+// and RSA_1024 there, though the docs list them
+// (https://learn.microsoft.com/en-us/sql/t-sql/statements/create-symmetric-key-transact-sql).
+var keysAlgorithms = []string{"AES_128", "AES_192", "AES_256", "RSA_2048", "RSA_3072", "RSA_4096"}
+
+// keysProviderAlgorithms is what ALGORITHM takes for a key from an EKM provider
+// (providerKeySourceOption, TSql160.g:10672): every algorithm the docs list.
+var keysProviderAlgorithms = []string{
+	"DES", "TRIPLE_DES", "TRIPLE_DES_3KEY", "RC2", "RC4", "RC4_128", "DESX",
+	"AES_128", "AES_192", "AES_256", "RSA_512", "RSA_1024", "RSA_2048", "RSA_3072", "RSA_4096",
+}
+
+// keysDEKAlgorithms is what ALGORITHM takes for a database encryption key.
+// SQL Server 2022 refuses TRIPLE_DES_3KEY, which the docs list
+// (https://learn.microsoft.com/en-us/sql/t-sql/statements/create-database-encryption-key-transact-sql).
+var keysDEKAlgorithms = []string{"AES_128", "AES_192", "AES_256"}
+
+// keysOpts collects the clauses of a statement as String nodes.
+type keysOpts struct{ items []nodes.Node }
+
+func (o *keysOpts) add(s string) { o.items = append(o.items, &nodes.String{Str: s}) }
+
+// kv adds an option NAME = value as two items, name then value.
+func (o *keysOpts) kv(name, value string) { o.add(name); o.add(value) }
+
+func (o *keysOpts) list() *nodes.List {
+	if len(o.items) == 0 {
+		return nil
+	}
+	return &nodes.List{Items: o.items}
+}
+
+// parseSecurityKeyStmt parses CREATE/ALTER/DROP of MASTER KEY, SYMMETRIC KEY,
+// ASYMMETRIC KEY, CERTIFICATE, CREDENTIAL and CRYPTOGRAPHIC PROVIDER. The
+// caller has consumed CREATE, ALTER or DROP.
 func (p *Parser) parseSecurityKeyStmt(action string) (*nodes.SecurityKeyStmt, error) {
-	loc := p.pos()
 	stmt := &nodes.SecurityKeyStmt{
 		Action: action,
-		Loc:    nodes.Loc{Start: loc, End: -1},
+		Loc:    nodes.Loc{Start: p.pos(), End: -1},
 	}
+	var o keysOpts
+	var err error
 
-	// Determine object type
 	switch {
-	case p.cur.Type == kwMASTER:
-		// MASTER KEY
+	case p.keysWordIs("MASTER"):
 		p.advance()
-		p.match(kwKEY)
+		if err := p.keysExpectWords("KEY"); err != nil {
+			return nil, err
+		}
 		stmt.ObjectType = "MASTER KEY"
-	case p.cur.Type == kwSYMMETRIC:
-		// SYMMETRIC KEY key_name
+		err = p.keysMasterKeyBody(action, &o)
+	case p.keysWordIs("SYMMETRIC"):
 		p.advance()
-		p.match(kwKEY)
+		if err := p.keysExpectWords("KEY"); err != nil {
+			return nil, err
+		}
 		stmt.ObjectType = "SYMMETRIC KEY"
-		name, _ := p.parseIdentifier()
-		stmt.Name = name
-	case p.cur.Type == kwASYMMETRIC:
-		// ASYMMETRIC KEY key_name
+		if stmt.Name, err = p.keysName(); err != nil {
+			return nil, err
+		}
+		err = p.keysSymmetricKeyBody(action, &o)
+	case p.keysWordIs("ASYMMETRIC"):
 		p.advance()
-		p.match(kwKEY)
+		if err := p.keysExpectWords("KEY"); err != nil {
+			return nil, err
+		}
 		stmt.ObjectType = "ASYMMETRIC KEY"
-		name, _ := p.parseIdentifier()
-		stmt.Name = name
-	case p.cur.Type == kwCERTIFICATE:
+		if stmt.Name, err = p.keysName(); err != nil {
+			return nil, err
+		}
+		err = p.keysAsymmetricKeyBody(action, &o)
+	case p.keysWordIs("CERTIFICATE"):
 		p.advance()
 		stmt.ObjectType = "CERTIFICATE"
-		name, _ := p.parseIdentifier()
-		stmt.Name = name
-	case p.cur.Type == kwCREDENTIAL:
+		if stmt.Name, err = p.keysName(); err != nil {
+			return nil, err
+		}
+		err = p.keysCertificateBody(action, &o)
+	case p.keysWordIs("CREDENTIAL"):
 		p.advance()
 		stmt.ObjectType = "CREDENTIAL"
-		name, _ := p.parseIdentifier()
-		stmt.Name = name
-	case p.cur.Type == kwCRYPTOGRAPHIC:
-		// CRYPTOGRAPHIC PROVIDER provider_name
+		if stmt.Name, err = p.keysName(); err != nil {
+			return nil, err
+		}
+		if action != "DROP" {
+			err = p.keysCredentialBody(action, &o)
+		}
+	case p.keysWordIs("CRYPTOGRAPHIC"):
 		p.advance()
-		p.match(kwPROVIDER)
+		if err := p.keysExpectWords("PROVIDER"); err != nil {
+			return nil, err
+		}
 		stmt.ObjectType = "CRYPTOGRAPHIC PROVIDER"
-		name, _ := p.parseIdentifier()
-		stmt.Name = name
+		if stmt.Name, err = p.keysName(); err != nil {
+			return nil, err
+		}
+		err = p.keysCryptographicProviderBody(action, &o)
 	default:
-		stmt.Loc.End = p.prevEnd()
-		return stmt, nil
+		return nil, p.syntaxErrorAtCur()
+	}
+	if err != nil {
+		return nil, err
 	}
 
-	// Dispatch to type-specific option parsers
-	switch {
-	case action == "ALTER" && stmt.ObjectType == "SYMMETRIC KEY":
-		p.parseAlterSymmetricKeyOptions(stmt)
-	case action == "ALTER" && stmt.ObjectType == "MASTER KEY":
-		p.parseAlterMasterKeyOptions(stmt)
-	default:
-		p.parseSecurityKeyOptions(stmt)
-	}
-
+	stmt.Options = o.list()
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
-// parseAlterSymmetricKeyOptions parses ALTER SYMMETRIC KEY options.
+// keysMasterKeyBody reads what follows MASTER KEY.
 //
-//	ALTER SYMMETRIC KEY Key_name
-//	    ADD ENCRYPTION BY <encrypting_mechanism> [ , ... n ]
-//	    | DROP ENCRYPTION BY <encrypting_mechanism> [ , ... n ]
-//	<encrypting_mechanism> ::= CERTIFICATE name | PASSWORD = 'password'
+//	CREATE MASTER KEY ENCRYPTION BY PASSWORD = 'password'
+//	    (createMasterKeyStatement, TSql160.g:7546; SQL Server 2022 refuses it
+//	    without the password: "Database master keys without password are not
+//	    supported in this version of SQL Server")
+//	ALTER MASTER KEY { [ FORCE ] REGENERATE WITH ENCRYPTION BY PASSWORD = 'password'
+//	    | { ADD | DROP } ENCRYPTION BY { SERVICE MASTER KEY | PASSWORD = 'password' } }
+//	    (alterMasterKeyStatement, TSql160.g:12079)
+//	DROP MASTER KEY (dropMasterKeyStatement, TSql160.g:15346)
+func (p *Parser) keysMasterKeyBody(action string, o *keysOpts) error {
+	switch action {
+	case "CREATE":
+		pwd, err := p.keysByPassword("ENCRYPTION")
+		if err != nil {
+			return err
+		}
+		o.add("ENCRYPTION BY PASSWORD = " + pwd)
+	case "ALTER":
+		switch {
+		case p.keysWordIs("FORCE") || p.keysWordIs("REGENERATE"):
+			if p.keysMatchWord("FORCE") {
+				o.add("FORCE")
+			}
+			if err := p.keysExpectWords("REGENERATE", "WITH"); err != nil {
+				return err
+			}
+			pwd, err := p.keysByPassword("ENCRYPTION")
+			if err != nil {
+				return err
+			}
+			o.add("REGENERATE")
+			o.add("ENCRYPTION BY PASSWORD = " + pwd)
+		case p.cur.Type == kwADD || p.cur.Type == kwDROP:
+			op := strings.ToUpper(p.cur.Str)
+			p.advance()
+			o.add(op)
+			if err := p.keysExpectWords("ENCRYPTION", "BY"); err != nil {
+				return err
+			}
+			if p.keysMatchWord("SERVICE") {
+				if err := p.keysExpectWords("MASTER", "KEY"); err != nil {
+					return err
+				}
+				o.add("ENCRYPTION BY SERVICE MASTER KEY")
+				return nil
+			}
+			pwd, err := p.keysPasswordEq()
+			if err != nil {
+				return err
+			}
+			o.add("ENCRYPTION BY PASSWORD = " + pwd)
+		default:
+			return p.syntaxErrorAtCur()
+		}
+	}
+	return nil
+}
+
+// keysSymmetricKeyBody reads what follows SYMMETRIC KEY name.
+//
+//	CREATE SYMMETRIC KEY name [ AUTHORIZATION owner ]
+//	    { WITH key_spec [ , ...n ] ENCRYPTION BY crypto [ , ...n ]
+//	    | FROM PROVIDER provider [ WITH provider_option [ , ...n ] ] [ ENCRYPTION BY crypto [ , ...n ] ] }
+//	    (createSymmetricKeyStatement, TSql160.g:10438)
+//	ALTER SYMMETRIC KEY name { ADD | DROP } ENCRYPTION BY crypto [ , ...n ]
+//	    (alterSymmetricKeyStatement, TSql160.g:10684)
+//	DROP SYMMETRIC KEY name [ REMOVE PROVIDER KEY ] (dropSymmetricKeyStatement, TSql160.g:15368)
+func (p *Parser) keysSymmetricKeyBody(action string, o *keysOpts) error {
+	switch action {
+	case "CREATE":
+		if err := p.keysAuthorization(o); err != nil {
+			return err
+		}
+		if p.keysMatchWord("FROM") {
+			if err := p.keysExpectWords("PROVIDER"); err != nil {
+				return err
+			}
+			prov, err := p.keysName()
+			if err != nil {
+				return err
+			}
+			o.add("FROM PROVIDER " + prov)
+			if p.cur.Type == kwWITH {
+				p.advance()
+				// SQL Server takes IDENTITY_VALUE here, which the grammar's
+				// providerKeySourceOption (TSql160.g:10672) does not.
+				if err := p.keysProviderOptions(o, true); err != nil {
+					return err
+				}
+			}
+			if p.keysWordIs("ENCRYPTION") {
+				return p.keysEncryptorList(o)
+			}
+			return nil
+		}
+		if err := p.keysExpectWords("WITH"); err != nil {
+			return err
+		}
+		if err := p.keysSymmetricKeySpecs(o); err != nil {
+			return err
+		}
+		return p.keysEncryptorList(o)
+	case "ALTER":
+		if p.cur.Type != kwADD && p.cur.Type != kwDROP {
+			return p.syntaxErrorAtCur()
+		}
+		o.add(strings.ToUpper(p.cur.Str))
+		p.advance()
+		return p.keysEncryptorList(o)
+	case "DROP":
+		return p.keysRemoveProviderKey(o)
+	}
+	return nil
+}
+
+// keysSymmetricKeySpecs reads key_spec [ , ...n ] (keySpecList, TSql160.g:10470):
+//
+//	KEY_SOURCE = 'pass_phrase' | ALGORITHM = algorithm | IDENTITY_VALUE = 'identity_phrase'
+func (p *Parser) keysSymmetricKeySpecs(o *keysOpts) error {
+	seen := map[string]bool{}
+	for {
+		switch {
+		case p.keysWordIs("KEY_SOURCE"), p.keysWordIs("IDENTITY_VALUE"):
+			name := strings.ToUpper(p.cur.Str)
+			if err := p.keysOnce(seen, name); err != nil {
+				return err
+			}
+			p.advance()
+			v, err := p.keysEqString()
+			if err != nil {
+				return err
+			}
+			o.kv(name, v)
+		case p.keysWordIs("ALGORITHM"):
+			if err := p.keysOnce(seen, "ALGORITHM"); err != nil {
+				return err
+			}
+			p.advance()
+			alg, err := p.keysEqWord(keysAlgorithms)
+			if err != nil {
+				return err
+			}
+			o.kv("ALGORITHM", alg)
+		default:
+			return p.syntaxErrorAtCur()
+		}
+		if _, ok := p.match(','); !ok {
+			return nil
+		}
+	}
+}
+
+// keysProviderOptions reads provider_option [ , ...n ] after WITH
+// (providerKeySourceOptions, TSql160.g:10654):
+//
+//	ALGORITHM = algorithm | PROVIDER_KEY_NAME = 'name'
+//	| CREATION_DISPOSITION = { CREATE_NEW | OPEN_EXISTING }
+//
+// withIdentityValue also allows IDENTITY_VALUE = 'phrase', which SQL Server
+// takes for a symmetric key and refuses for an asymmetric one.
+func (p *Parser) keysProviderOptions(o *keysOpts, withIdentityValue bool) error {
+	seen := map[string]bool{}
+	for {
+		switch {
+		case p.keysWordIs("ALGORITHM"):
+			if err := p.keysOnce(seen, "ALGORITHM"); err != nil {
+				return err
+			}
+			p.advance()
+			alg, err := p.keysEqWord(keysProviderAlgorithms)
+			if err != nil {
+				return err
+			}
+			o.kv("ALGORITHM", alg)
+		case p.keysWordIs("PROVIDER_KEY_NAME"), withIdentityValue && p.keysWordIs("IDENTITY_VALUE"):
+			name := strings.ToUpper(p.cur.Str)
+			if err := p.keysOnce(seen, name); err != nil {
+				return err
+			}
+			p.advance()
+			v, err := p.keysEqString()
+			if err != nil {
+				return err
+			}
+			o.kv(name, v)
+		case p.keysWordIs("CREATION_DISPOSITION"):
+			// creationDispositionSourceOption, TSql160.g:10562
+			if err := p.keysOnce(seen, "CREATION_DISPOSITION"); err != nil {
+				return err
+			}
+			p.advance()
+			v, err := p.keysEqWord([]string{"CREATE_NEW", "OPEN_EXISTING"})
+			if err != nil {
+				return err
+			}
+			o.kv("CREATION_DISPOSITION", v)
+		default:
+			return p.syntaxErrorAtCur()
+		}
+		if _, ok := p.match(','); !ok {
+			return nil
+		}
+	}
+}
+
+// keysEncryptorList reads ENCRYPTION BY crypto [ , ...n ]
+// (encryptorListWithNoPassword, TSql160.g:10583):
+//
+//	crypto ::= CERTIFICATE name | PASSWORD = 'password'
 //	    | SYMMETRIC KEY name | ASYMMETRIC KEY name
-func (p *Parser) parseAlterSymmetricKeyOptions(stmt *nodes.SecurityKeyStmt) {
-	var items []nodes.Node
-
-	// ADD ENCRYPTION BY ... or DROP ENCRYPTION BY ...
-	var op string
-	if p.cur.Type == kwADD {
-		op = "ADD"
-		p.advance()
-	} else if p.cur.Type == kwDROP {
-		op = "DROP"
-		p.advance()
+func (p *Parser) keysEncryptorList(o *keysOpts) error {
+	if err := p.keysExpectWords("ENCRYPTION", "BY"); err != nil {
+		return err
 	}
-
-	if op != "" {
-		items = append(items, &nodes.String{Str: op})
-		// ENCRYPTION BY
-		if p.cur.Type == kwENCRYPTION {
-			p.advance()
+	for {
+		mech, err := p.keysCrypto()
+		if err != nil {
+			return err
 		}
-		if p.cur.Type == kwBY {
-			p.advance()
+		o.add("ENCRYPTION BY " + mech)
+		if _, ok := p.match(','); !ok {
+			return nil
 		}
-		// Parse encrypting mechanisms: CERTIFICATE name | PASSWORD = 'pwd' | SYMMETRIC KEY name | ASYMMETRIC KEY name
-		for {
-			mech := p.parseEncryptingMechanism()
-			if mech == "" {
-				break
-			}
-			items = append(items, &nodes.String{Str: "ENCRYPTION BY " + mech})
-			if _, ok := p.match(','); !ok {
-				break
-			}
-		}
-	}
-
-	if len(items) > 0 {
-		stmt.Options = &nodes.List{Items: items}
 	}
 }
 
-// parseAlterMasterKeyOptions parses ALTER MASTER KEY options.
+// keysCrypto reads one crypto of cryptoWithNoPasswordOrJustPassword
+// (TSql160.g:10599).
+func (p *Parser) keysCrypto() (string, error) {
+	switch {
+	case p.keysMatchWord("CERTIFICATE"):
+		name, err := p.keysName()
+		if err != nil {
+			return "", err
+		}
+		return "CERTIFICATE " + name, nil
+	case p.keysWordIs("SYMMETRIC"), p.keysWordIs("ASYMMETRIC"):
+		kind := strings.ToUpper(p.cur.Str)
+		p.advance()
+		if err := p.keysExpectWords("KEY"); err != nil {
+			return "", err
+		}
+		name, err := p.keysName()
+		if err != nil {
+			return "", err
+		}
+		return kind + " KEY " + name, nil
+	case p.keysWordIs("PASSWORD"):
+		pwd, err := p.keysPasswordEq()
+		if err != nil {
+			return "", err
+		}
+		return "PASSWORD = " + pwd, nil
+	}
+	return "", p.syntaxErrorAtCur()
+}
+
+// keysAuthorization reads an optional AUTHORIZATION owner (authorizationOpt,
+// TSql160.g:6883).
+func (p *Parser) keysAuthorization(o *keysOpts) error {
+	if p.cur.Type != kwAUTHORIZATION {
+		return nil
+	}
+	p.advance()
+	owner, err := p.keysName()
+	if err != nil {
+		return err
+	}
+	o.add("AUTHORIZATION " + owner)
+	return nil
+}
+
+// keysRemoveProviderKey reads an optional REMOVE PROVIDER KEY
+// (removeProviderKeyOpt, TSql160.g:15400).
+func (p *Parser) keysRemoveProviderKey(o *keysOpts) error {
+	if !p.keysMatchWord("REMOVE") {
+		return nil
+	}
+	if err := p.keysExpectWords("PROVIDER", "KEY"); err != nil {
+		return err
+	}
+	o.add("REMOVE PROVIDER KEY")
+	return nil
+}
+
+// keysAsymmetricKeyBody reads what follows ASYMMETRIC KEY name.
 //
-//	ALTER MASTER KEY <alter_option>
-//	<alter_option> ::= <regenerate_option> | <encryption_option>
-//	<regenerate_option> ::= [ FORCE ] REGENERATE WITH ENCRYPTION BY PASSWORD = 'password'
-//	<encryption_option> ::=
-//	    ADD ENCRYPTION BY { SERVICE MASTER KEY | PASSWORD = 'password' }
-//	    | DROP ENCRYPTION BY { SERVICE MASTER KEY | PASSWORD = 'password' }
-func (p *Parser) parseAlterMasterKeyOptions(stmt *nodes.SecurityKeyStmt) {
-	var items []nodes.Node
-
-	// Check for [FORCE] REGENERATE
-	if p.cur.Type == kwFORCE {
-		items = append(items, &nodes.String{Str: "FORCE"})
-		p.advance()
+//	CREATE ASYMMETRIC KEY name [ AUTHORIZATION owner ]
+//	    { FROM { [ EXECUTABLE ] FILE = 'path' | ASSEMBLY name
+//	           | PROVIDER provider WITH provider_option [ , ...n ] }
+//	    | WITH ALGORITHM = algorithm }
+//	    [ ENCRYPTION BY PASSWORD = 'password' ]
+//	    (createAsymmetricKeyStatement, TSql160.g:1324; createAsymmetricKeyParams, TSql160.g:1347)
+//	ALTER ASYMMETRIC KEY name { REMOVE { PRIVATE KEY | ATTESTED OPTION }
+//	    | WITH PRIVATE KEY ( password_option [ , ...n ] ) | ATTESTED BY 'string' }
+//	    (alterAsymmetricKeyStatement, TSql160.g:11321)
+//	DROP ASYMMETRIC KEY name [ REMOVE PROVIDER KEY ] (dropAsymmetricKeyStatement, TSql160.g:15384)
+func (p *Parser) keysAsymmetricKeyBody(action string, o *keysOpts) error {
+	switch action {
+	case "CREATE":
+		if err := p.keysAuthorization(o); err != nil {
+			return err
+		}
+		switch {
+		case p.keysMatchWord("FROM"):
+			switch {
+			case p.keysWordIs("EXECUTABLE"), p.keysWordIs("FILE"):
+				// fileEncryptionSource, TSql160.g:1389
+				prefix := "FROM "
+				if p.keysMatchWord("EXECUTABLE") {
+					prefix += "EXECUTABLE "
+				}
+				if err := p.keysExpectWords("FILE"); err != nil {
+					return err
+				}
+				path, err := p.keysEqString()
+				if err != nil {
+					return err
+				}
+				o.add(prefix + "FILE = " + path)
+			case p.keysMatchWord("ASSEMBLY"):
+				name, err := p.keysName()
+				if err != nil {
+					return err
+				}
+				o.add("FROM ASSEMBLY " + name)
+			case p.keysMatchWord("PROVIDER"):
+				// providerEncryptionSource, TSql160.g:1377: the WITH list is
+				// required here.
+				prov, err := p.keysName()
+				if err != nil {
+					return err
+				}
+				o.add("FROM PROVIDER " + prov)
+				if err := p.keysExpectWords("WITH"); err != nil {
+					return err
+				}
+				if err := p.keysProviderOptions(o, false); err != nil {
+					return err
+				}
+			default:
+				return p.syntaxErrorAtCur()
+			}
+		case p.keysMatchWord("WITH"):
+			// asymKeySpec, TSql160.g:1405
+			if err := p.keysExpectWords("ALGORITHM"); err != nil {
+				return err
+			}
+			alg, err := p.keysEqWord(keysAlgorithms)
+			if err != nil {
+				return err
+			}
+			o.kv("ALGORITHM", alg)
+		default:
+			return p.syntaxErrorAtCur()
+		}
+		if p.keysWordIs("ENCRYPTION") {
+			pwd, err := p.keysByPassword("ENCRYPTION")
+			if err != nil {
+				return err
+			}
+			o.add("ENCRYPTION BY PASSWORD = " + pwd)
+		}
+	case "ALTER":
+		switch {
+		case p.keysWordIs("REMOVE"), p.keysWordIs("ATTESTED"):
+			return p.keysRemoveOrAttested(o)
+		case p.keysMatchWord("WITH"):
+			if err := p.keysExpectWords("PRIVATE", "KEY"); err != nil {
+				return err
+			}
+			if err := p.keysExpectTok('('); err != nil {
+				return err
+			}
+			// passwordChangeOption, TSql160.g:1534
+			seen := map[string]bool{}
+			for {
+				if !p.keysWordIs("ENCRYPTION") && !p.keysWordIs("DECRYPTION") {
+					return p.syntaxErrorAtCur()
+				}
+				word := strings.ToUpper(p.cur.Str)
+				if err := p.keysOnce(seen, word); err != nil {
+					return err
+				}
+				pwd, err := p.keysByPassword(word)
+				if err != nil {
+					return err
+				}
+				o.add(word + " BY PASSWORD = " + pwd)
+				if _, ok := p.match(','); !ok {
+					break
+				}
+			}
+			return p.keysExpectTok(')')
+		default:
+			return p.syntaxErrorAtCur()
+		}
+	case "DROP":
+		return p.keysRemoveProviderKey(o)
 	}
+	return nil
+}
 
-	if p.cur.Type == kwREGENERATE {
-		items = append(items, &nodes.String{Str: "REGENERATE"})
-		p.advance()
-		// WITH ENCRYPTION BY PASSWORD = 'password'
-		if p.cur.Type == kwWITH {
-			p.advance()
+// keysRemoveOrAttested reads REMOVE { PRIVATE KEY | ATTESTED OPTION } or
+// ATTESTED BY 'string', shared by ALTER CERTIFICATE (TSql160.g:11415) and
+// ALTER ASYMMETRIC KEY (TSql160.g:11321).
+func (p *Parser) keysRemoveOrAttested(o *keysOpts) error {
+	if p.keysMatchWord("ATTESTED") {
+		if err := p.keysExpectWords("BY"); err != nil {
+			return err
 		}
-		if p.cur.Type == kwENCRYPTION {
-			p.advance()
+		s, err := p.keysString()
+		if err != nil {
+			return err
 		}
-		if p.cur.Type == kwBY {
-			p.advance()
+		o.add("ATTESTED BY " + s)
+		return nil
+	}
+	if err := p.keysExpectWords("REMOVE"); err != nil {
+		return err
+	}
+	if p.keysMatchWord("PRIVATE") {
+		if err := p.keysExpectWords("KEY"); err != nil {
+			return err
 		}
-		mech := p.parseEncryptingMechanism()
-		if mech != "" {
-			items = append(items, &nodes.String{Str: "ENCRYPTION BY " + mech})
-		}
-	} else if p.cur.Type == kwADD || p.cur.Type == kwDROP {
-		// ADD/DROP ENCRYPTION BY { SERVICE MASTER KEY | PASSWORD = 'password' }
-		op := "ADD"
-		if p.cur.Type == kwDROP {
-			op = "DROP"
-		}
-		p.advance()
-		items = append(items, &nodes.String{Str: op})
+		o.add("REMOVE PRIVATE KEY")
+		return nil
+	}
+	if err := p.keysExpectWords("ATTESTED", "OPTION"); err != nil {
+		return err
+	}
+	o.add("REMOVE ATTESTED OPTION")
+	return nil
+}
 
-		if p.cur.Type == kwENCRYPTION {
-			p.advance()
+// keysCertificateBody reads what follows CERTIFICATE name.
+//
+//	CREATE CERTIFICATE name [ AUTHORIZATION owner ]
+//	    { FROM source | [ ENCRYPTION BY PASSWORD = 'password' ] WITH option [ , ...n ] }
+//	    [ ACTIVE FOR BEGIN_DIALOG = { ON | OFF } ]
+//	    (createCertificateStatement, TSql160.g:1414; createCertificateParams, TSql160.g:1433)
+//	source ::= ASSEMBLY name
+//	    | { [ EXECUTABLE ] FILE = 'path' | BINARY = bits } [ WITH key_item [ , ...n ] ]
+//	key_item ::= FORMAT = 'format' | PRIVATE KEY ( private_key_option [ , ...n ] )
+//	option ::= SUBJECT = 'subject' | START_DATE = 'date' | EXPIRY_DATE = 'date'
+//	ALTER CERTIFICATE name { REMOVE { PRIVATE KEY | ATTESTED OPTION }
+//	    | WITH { PRIVATE KEY ( private_key_option [ , ...n ] ) | ACTIVE FOR BEGIN_DIALOG = { ON | OFF } }
+//	    | ATTESTED BY 'string' }
+//	    (alterCertificateStatement, TSql160.g:11415)
+//	DROP CERTIFICATE name (dropCertificateStatement, TSql160.g:15414)
+//
+// BINARY and FORMAT are SQL Server's, not the grammar's
+// (https://learn.microsoft.com/en-us/sql/t-sql/statements/create-certificate-transact-sql).
+func (p *Parser) keysCertificateBody(action string, o *keysOpts) error {
+	switch action {
+	case "CREATE":
+		if err := p.keysAuthorization(o); err != nil {
+			return err
 		}
-		if p.cur.Type == kwBY {
-			p.advance()
+		if p.keysMatchWord("FROM") {
+			if p.keysMatchWord("ASSEMBLY") {
+				// assemblyEncryptionSource, TSql160.g:1366
+				name, err := p.keysName()
+				if err != nil {
+					return err
+				}
+				o.add("FROM ASSEMBLY " + name)
+			} else {
+				if err := p.keysCertificateFileSource(o); err != nil {
+					return err
+				}
+				if p.cur.Type == kwWITH {
+					p.advance()
+					if err := p.keysCertificateKeyItems(o, keysPrivateKeyCreate); err != nil {
+						return err
+					}
+				}
+			}
+		} else {
+			if p.keysWordIs("ENCRYPTION") {
+				pwd, err := p.keysByPassword("ENCRYPTION")
+				if err != nil {
+					return err
+				}
+				o.add("ENCRYPTION BY PASSWORD = " + pwd)
+			}
+			if err := p.keysExpectWords("WITH"); err != nil {
+				return err
+			}
+			// certificateOption, TSql160.g:1472
+			seen := map[string]bool{}
+			for {
+				if !p.keysWordIs("SUBJECT") && !p.keysWordIs("START_DATE") && !p.keysWordIs("EXPIRY_DATE") {
+					return p.syntaxErrorAtCur()
+				}
+				name := strings.ToUpper(p.cur.Str)
+				if err := p.keysOnce(seen, name); err != nil {
+					return err
+				}
+				p.advance()
+				v, err := p.keysEqString()
+				if err != nil {
+					return err
+				}
+				o.kv(name, v)
+				if _, ok := p.match(','); !ok {
+					break
+				}
+			}
 		}
-		mech := p.parseEncryptingMechanism()
-		if mech != "" {
-			items = append(items, &nodes.String{Str: "ENCRYPTION BY " + mech})
+		if p.keysWordIs("ACTIVE") {
+			return p.keysActiveForBeginDialog(o)
+		}
+	case "ALTER":
+		switch {
+		case p.keysWordIs("REMOVE"), p.keysWordIs("ATTESTED"):
+			return p.keysRemoveOrAttested(o)
+		case p.keysMatchWord("WITH"):
+			if p.keysWordIs("ACTIVE") {
+				return p.keysActiveForBeginDialog(o)
+			}
+			if err := p.keysExpectWords("PRIVATE", "KEY"); err != nil {
+				return err
+			}
+			return p.keysPrivateKeySpec(o, keysPrivateKeyCreate)
+		default:
+			return p.syntaxErrorAtCur()
 		}
 	}
+	return nil
+}
 
-	if len(items) > 0 {
-		stmt.Options = &nodes.List{Items: items}
+// keysCertificateFileSource reads [ EXECUTABLE ] FILE = 'path' | BINARY = bits.
+func (p *Parser) keysCertificateFileSource(o *keysOpts) error {
+	if p.keysMatchWord("BINARY") {
+		bits, err := p.keysBinaryEq()
+		if err != nil {
+			return err
+		}
+		o.add("FROM BINARY = " + bits)
+		return nil
+	}
+	prefix := "FROM "
+	if p.keysMatchWord("EXECUTABLE") {
+		prefix += "EXECUTABLE "
+	}
+	if err := p.keysExpectWords("FILE"); err != nil {
+		return err
+	}
+	path, err := p.keysEqString()
+	if err != nil {
+		return err
+	}
+	o.add(prefix + "FILE = " + path)
+	return nil
+}
+
+// keysBinaryEq reads `= 0x...`.
+func (p *Parser) keysBinaryEq() (string, error) {
+	if err := p.keysExpectTok('='); err != nil {
+		return "", err
+	}
+	return p.keysBinary()
+}
+
+// keysActiveForBeginDialog reads ACTIVE FOR BEGIN_DIALOG = { ON | OFF }
+// (createCertificateActivityFlag, TSql160.g:1460).
+func (p *Parser) keysActiveForBeginDialog(o *keysOpts) error {
+	if err := p.keysExpectWords("ACTIVE", "FOR", "BEGIN_DIALOG"); err != nil {
+		return err
+	}
+	v, err := p.keysEqWord([]string{"ON", "OFF"})
+	if err != nil {
+		return err
+	}
+	o.add("ACTIVE FOR BEGIN_DIALOG = " + v)
+	return nil
+}
+
+// keysPrivateKeyMode says which private key options a statement takes.
+type keysPrivateKeyMode int
+
+const (
+	// keysPrivateKeyCreate is CREATE and ALTER CERTIFICATE: FILE or BINARY,
+	// not both, and the passwords; the list may hold only passwords.
+	keysPrivateKeyCreate keysPrivateKeyMode = iota
+	// keysPrivateKeyBackup is BACKUP CERTIFICATE: FILE and BINARY may both
+	// appear and one must, and ALGORITHM = 'algorithm' is allowed.
+	keysPrivateKeyBackup
+)
+
+// keysCertificateKeyItems reads key_item [ , ...n ] after WITH, where
+// key_item ::= FORMAT = 'format' | PRIVATE KEY ( ... ), each once.
+func (p *Parser) keysCertificateKeyItems(o *keysOpts, mode keysPrivateKeyMode) error {
+	seen := map[string]bool{}
+	for {
+		switch {
+		case p.keysWordIs("FORMAT"):
+			if err := p.keysOnce(seen, "FORMAT"); err != nil {
+				return err
+			}
+			p.advance()
+			v, err := p.keysEqString()
+			if err != nil {
+				return err
+			}
+			o.kv("FORMAT", v)
+		case p.keysWordIs("PRIVATE"):
+			if err := p.keysOnce(seen, "PRIVATE"); err != nil {
+				return err
+			}
+			p.advance()
+			if err := p.keysExpectWords("KEY"); err != nil {
+				return err
+			}
+			if err := p.keysPrivateKeySpec(o, mode); err != nil {
+				return err
+			}
+		default:
+			return p.syntaxErrorAtCur()
+		}
+		if _, ok := p.match(','); !ok {
+			return nil
+		}
 	}
 }
 
-// parseEncryptingMechanism parses a single encrypting mechanism:
+// keysPrivateKeySpec reads ( private_key_option [ , ...n ] ) after PRIVATE KEY
+// (privateKeySpec, TSql160.g:1512; certificatePrivateKeySpec, TSql160.g:1520):
 //
-//	CERTIFICATE certificate_name | PASSWORD = 'password'
-//	| SYMMETRIC KEY symmetric_key_name | ASYMMETRIC KEY asym_key_name
-//	| SERVICE MASTER KEY
-func (p *Parser) parseEncryptingMechanism() string {
-	if _, ok := p.match(kwCERTIFICATE); ok {
-		name, _ := p.parseIdentifier()
-		return "CERTIFICATE " + name
+//	private_key_option ::= FILE = 'path' | BINARY = bits
+//	    | DECRYPTION BY PASSWORD = 'password' | ENCRYPTION BY PASSWORD = 'password'
+//
+// Each option appears once.
+func (p *Parser) keysPrivateKeySpec(o *keysOpts, mode keysPrivateKeyMode) error {
+	start := p.cur
+	if err := p.keysExpectTok('('); err != nil {
+		return err
 	}
-	if _, ok := p.match(kwPASSWORD); ok {
-		if p.cur.Type == '=' {
+	seen := map[string]bool{}
+	for {
+		switch {
+		case p.keysWordIs("FILE"), p.keysWordIs("BINARY"):
+			name := strings.ToUpper(p.cur.Str)
+			if err := p.keysOnce(seen, name); err != nil {
+				return err
+			}
+			if mode == keysPrivateKeyCreate && seen["FILE"] && seen["BINARY"] {
+				return p.syntaxErrorAtCur()
+			}
 			p.advance()
+			var v string
+			var err error
+			if name == "FILE" {
+				v, err = p.keysEqString()
+			} else {
+				v, err = p.keysBinaryEq()
+			}
+			if err != nil {
+				return err
+			}
+			o.add("PRIVATE KEY " + name + " = " + v)
+		case p.keysWordIs("ENCRYPTION"), p.keysWordIs("DECRYPTION"):
+			word := strings.ToUpper(p.cur.Str)
+			if err := p.keysOnce(seen, word); err != nil {
+				return err
+			}
+			pwd, err := p.keysByPassword(word)
+			if err != nil {
+				return err
+			}
+			o.add("PRIVATE KEY " + word + " BY PASSWORD = " + pwd)
+		case mode == keysPrivateKeyBackup && p.keysWordIs("ALGORITHM"):
+			if err := p.keysOnce(seen, "ALGORITHM"); err != nil {
+				return err
+			}
+			p.advance()
+			v, err := p.keysEqString()
+			if err != nil {
+				return err
+			}
+			o.add("PRIVATE KEY ALGORITHM = " + v)
+		default:
+			return p.syntaxErrorAtCur()
 		}
-		pwd := p.consumeAnyIdent()
-		return "PASSWORD = " + pwd
-	}
-	if _, ok := p.match(kwSYMMETRIC); ok {
-		p.match(kwKEY)
-		name, _ := p.parseIdentifier()
-		return "SYMMETRIC KEY " + name
-	}
-	if _, ok := p.match(kwASYMMETRIC); ok {
-		p.match(kwKEY)
-		name, _ := p.parseIdentifier()
-		return "ASYMMETRIC KEY " + name
-	}
-	if _, ok := p.match(kwSERVICE); ok {
-		// SERVICE MASTER KEY
-		p.match(kwMASTER)
-		p.match(kwKEY)
-		return "SERVICE MASTER KEY"
-	}
-	if _, ok := p.match(kwSERVER); ok {
-		// SERVER CERTIFICATE name or SERVER ASYMMETRIC KEY name
-		if _, ok := p.match(kwCERTIFICATE); ok {
-			name, _ := p.parseIdentifier()
-			return "SERVER CERTIFICATE " + name
-		}
-		if _, ok := p.match(kwASYMMETRIC); ok {
-			p.match(kwKEY)
-			name, _ := p.parseIdentifier()
-			return "SERVER ASYMMETRIC KEY " + name
+		if _, ok := p.match(','); !ok {
+			break
 		}
 	}
-	return ""
+	if mode == keysPrivateKeyBackup && !seen["FILE"] && !seen["BINARY"] {
+		// SQL Server: "Incorrect syntax near 'PRIVATE KEY'".
+		return &ParseError{Message: "PRIVATE KEY needs FILE or BINARY", Position: start.Loc, Source: p.source}
+	}
+	return p.keysExpectTok(')')
+}
+
+// keysCredentialBody reads what follows CREDENTIAL name for CREATE and ALTER:
+//
+//	WITH IDENTITY = 'identity' [ , SECRET = 'secret' ]
+//	    [ FOR CRYPTOGRAPHIC PROVIDER provider ]   -- CREATE only
+//
+// (credentialStatementBody, TSql160.g:1641; createCredentialStatement,
+// TSql160.g:1625; alterCredentialStatement, TSql160.g:11478).
+func (p *Parser) keysCredentialBody(action string, o *keysOpts) error {
+	if err := p.keysExpectWords("WITH", "IDENTITY"); err != nil {
+		return err
+	}
+	id, err := p.keysEqString()
+	if err != nil {
+		return err
+	}
+	o.kv("IDENTITY", id)
+	if _, ok := p.match(','); ok {
+		if err := p.keysExpectWords("SECRET"); err != nil {
+			return err
+		}
+		secret, err := p.keysEqString()
+		if err != nil {
+			return err
+		}
+		o.kv("SECRET", secret)
+	}
+	if action == "CREATE" && p.cur.Type == kwFOR {
+		p.advance()
+		if err := p.keysExpectWords("CRYPTOGRAPHIC", "PROVIDER"); err != nil {
+			return err
+		}
+		prov, err := p.keysName()
+		if err != nil {
+			return err
+		}
+		o.add("FOR CRYPTOGRAPHIC PROVIDER " + prov)
+	}
+	return nil
+}
+
+// keysCryptographicProviderBody reads what follows CRYPTOGRAPHIC PROVIDER name.
+//
+//	CREATE CRYPTOGRAPHIC PROVIDER name FROM FILE = 'path'
+//	    (createCryptographicProviderStatement, TSql160.g:21980)
+//	ALTER CRYPTOGRAPHIC PROVIDER name { FROM FILE = 'path' | ENABLE | DISABLE }
+//	    (alterCryptographicProviderStatement, TSql160.g:22008; SQL Server
+//	    refuses ENABLE or DISABLE after FROM FILE, which the docs show)
+//	DROP CRYPTOGRAPHIC PROVIDER name
+func (p *Parser) keysCryptographicProviderBody(action string, o *keysOpts) error {
+	switch action {
+	case "CREATE":
+		return p.keysCryptographicProviderFile(o)
+	case "ALTER":
+		if p.keysWordIs("ENABLE") || p.keysWordIs("DISABLE") {
+			o.add(strings.ToUpper(p.cur.Str))
+			p.advance()
+			return nil
+		}
+		return p.keysCryptographicProviderFile(o)
+	}
+	return nil
+}
+
+// keysCryptographicProviderFile reads FROM FILE = 'path' (cryptographicProviderFile, TSql160.g:21998).
+func (p *Parser) keysCryptographicProviderFile(o *keysOpts) error {
+	if err := p.keysExpectWords("FROM", "FILE"); err != nil {
+		return err
+	}
+	path, err := p.keysEqString()
+	if err != nil {
+		return err
+	}
+	o.add("FROM FILE = " + path)
+	return nil
 }
 
 // parseSecurityKeyStmtColumn parses CREATE/ALTER/DROP COLUMN { ENCRYPTION KEY | MASTER KEY }.
 // Called after "COLUMN" has been matched by the dispatcher.
 //
-// BNF: mssql/parser/bnf/create-column-encryption-key-transact-sql.bnf
-//
-//	CREATE COLUMN ENCRYPTION KEY key_name
-//	WITH VALUES
-//	  (
-//	    COLUMN_MASTER_KEY = column_master_key_name,
-//	    ALGORITHM = 'algorithm_name',
-//	    ENCRYPTED_VALUE = varbinary_literal
-//	  )
-//	[, (
-//	    COLUMN_MASTER_KEY = column_master_key_name,
-//	    ALGORITHM = 'algorithm_name',
-//	    ENCRYPTED_VALUE = varbinary_literal
-//	  ) ]
-//
-// ALTER COLUMN ENCRYPTION KEY key_name
-//
-//	{ ADD | DROP } VALUE
-//	  (
-//	    COLUMN_MASTER_KEY = column_master_key_name
-//	    [, ALGORITHM = 'algorithm_name', ENCRYPTED_VALUE = varbinary_literal ]
-//	  )
-//
-// BNF: mssql/parser/bnf/create-column-master-key-transact-sql.bnf
-//
-//	CREATE COLUMN MASTER KEY key_name
-//	  WITH (
-//	    KEY_STORE_PROVIDER_NAME = 'key_store_provider_name',
-//	    KEY_PATH = 'key_path'
-//	    [, ENCLAVE_COMPUTATIONS (SIGNATURE = signature)]
-//	  )
-//
-// DROP COLUMN ENCRYPTION KEY key_name
-// DROP COLUMN MASTER KEY key_name
+//	CREATE COLUMN MASTER KEY name WITH ( KEY_STORE_PROVIDER_NAME = 'name', KEY_PATH = 'path'
+//	    [ , ENCLAVE_COMPUTATIONS ( SIGNATURE = bits ) ] )
+//	    (createColumnMasterKeyStatement, TSql160.g:23148; SQL Server takes the
+//	    first two in either order and ENCLAVE_COMPUTATIONS only after them)
+//	CREATE COLUMN ENCRYPTION KEY name WITH VALUES value [ , value ]
+//	    (createColumnEncryptionKeyStatement, TSql160.g:23235)
+//	ALTER COLUMN ENCRYPTION KEY name { ADD VALUE value | DROP VALUE ( COLUMN_MASTER_KEY = name ) }
+//	    (alterColumnEncryptionKeyStatement, TSql160.g:23331)
+//	DROP COLUMN { MASTER | ENCRYPTION } KEY name
 func (p *Parser) parseSecurityKeyStmtColumn(action string) (*nodes.SecurityKeyStmt, error) {
-	loc := p.pos()
 	stmt := &nodes.SecurityKeyStmt{
 		Action: action,
-		Loc:    nodes.Loc{Start: loc, End: -1},
+		Loc:    nodes.Loc{Start: p.pos(), End: -1},
 	}
+	var o keysOpts
 
-	// Determine COLUMN ENCRYPTION KEY or COLUMN MASTER KEY
-	if _, ok := p.match(kwENCRYPTION); ok {
-		p.match(kwKEY)
+	switch {
+	case p.keysWordIs("ENCRYPTION"):
 		stmt.ObjectType = "COLUMN ENCRYPTION KEY"
-	} else if _, ok := p.match(kwMASTER); ok {
-		p.match(kwKEY)
+	case p.keysWordIs("MASTER") && action != "ALTER":
 		stmt.ObjectType = "COLUMN MASTER KEY"
-	} else {
-		stmt.Loc.End = p.prevEnd()
-		return stmt, nil
+	default:
+		return nil, p.syntaxErrorAtCur()
 	}
-
-	// Parse key name
-	name, _ := p.parseIdentifier()
+	p.advance()
+	if err := p.keysExpectWords("KEY"); err != nil {
+		return nil, err
+	}
+	name, err := p.keysName()
+	if err != nil {
+		return nil, err
+	}
 	stmt.Name = name
 
-	// For ALTER COLUMN ENCRYPTION KEY, handle ADD/DROP VALUE specially
-	// because DROP is a statement-start keyword that would cause parseSecurityKeyOptions to stop.
-	if action == "ALTER" && stmt.ObjectType == "COLUMN ENCRYPTION KEY" {
-		// Parse ADD VALUE or DROP VALUE as structured nodes
-		var prefixItems []nodes.Node
-		if p.cur.Type == kwADD {
-			prefixItems = append(prefixItems, &nodes.String{Str: "ADD"})
-			p.advance()
-		} else if p.cur.Type == kwDROP {
-			prefixItems = append(prefixItems, &nodes.String{Str: "DROP"})
-			p.advance()
+	switch {
+	case action == "CREATE" && stmt.ObjectType == "COLUMN MASTER KEY":
+		err = p.keysColumnMasterKeyParams(&o)
+	case action == "CREATE":
+		if err := p.keysExpectWords("WITH", "VALUES"); err != nil {
+			return nil, err
 		}
-		if p.cur.Type == kwVALUE {
-			prefixItems = append(prefixItems, &nodes.String{Str: "VALUE"})
-			p.advance()
-		}
-		// Now consume the rest (parenthesized options)
-		p.parseSecurityKeyOptions(stmt)
-		// Prepend the ADD/DROP VALUE nodes to the options
-		if len(prefixItems) > 0 {
-			if stmt.Options != nil {
-				stmt.Options.Items = append(prefixItems, stmt.Options.Items...)
-			} else {
-				stmt.Options = &nodes.List{Items: prefixItems}
+		if err = p.keysColumnEncryptionKeyValue(&o); err == nil {
+			if _, ok := p.match(','); ok {
+				err = p.keysColumnEncryptionKeyValue(&o)
 			}
 		}
-	} else {
-		// Consume remaining tokens as options
-		p.parseSecurityKeyOptions(stmt)
+	case action == "ALTER":
+		switch p.cur.Type {
+		case kwADD:
+			p.advance()
+			if err := p.keysExpectWords("VALUE"); err != nil {
+				return nil, err
+			}
+			o.add("ADD")
+			o.add("VALUE")
+			err = p.keysColumnEncryptionKeyValue(&o)
+		case kwDROP:
+			// alterColumnEncryptionKeyDropStatement, TSql160.g:23364
+			p.advance()
+			if err := p.keysExpectWords("VALUE"); err != nil {
+				return nil, err
+			}
+			if err := p.keysExpectTok('('); err != nil {
+				return nil, err
+			}
+			if err := p.keysExpectWords("COLUMN_MASTER_KEY"); err != nil {
+				return nil, err
+			}
+			if err := p.keysExpectTok('='); err != nil {
+				return nil, err
+			}
+			cmk, err := p.keysName()
+			if err != nil {
+				return nil, err
+			}
+			o.add("DROP")
+			o.add("VALUE")
+			o.kv("COLUMN_MASTER_KEY", cmk)
+			if err := p.keysExpectTok(')'); err != nil {
+				return nil, err
+			}
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
+	}
+	if err != nil {
+		return nil, err
 	}
 
+	stmt.Options = o.list()
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
+}
+
+// keysColumnMasterKeyParams reads the WITH ( ... ) list of CREATE COLUMN
+// MASTER KEY (columnMasterkeyParameter, TSql160.g:23178).
+func (p *Parser) keysColumnMasterKeyParams(o *keysOpts) error {
+	if err := p.keysExpectWords("WITH"); err != nil {
+		return err
+	}
+	if err := p.keysExpectTok('('); err != nil {
+		return err
+	}
+	seen := map[string]bool{}
+	for i := 0; i < 2; i++ {
+		if i > 0 {
+			if err := p.keysExpectTok(','); err != nil {
+				return err
+			}
+		}
+		if !p.keysWordIs("KEY_STORE_PROVIDER_NAME") && !p.keysWordIs("KEY_PATH") {
+			return p.syntaxErrorAtCur()
+		}
+		name := strings.ToUpper(p.cur.Str)
+		if err := p.keysOnce(seen, name); err != nil {
+			return err
+		}
+		p.advance()
+		v, err := p.keysEqString()
+		if err != nil {
+			return err
+		}
+		o.kv(name, v)
+	}
+	if _, ok := p.match(','); ok {
+		if err := p.keysExpectWords("ENCLAVE_COMPUTATIONS"); err != nil {
+			return err
+		}
+		if err := p.keysExpectTok('('); err != nil {
+			return err
+		}
+		if err := p.keysExpectWords("SIGNATURE"); err != nil {
+			return err
+		}
+		sig, err := p.keysBinaryEq()
+		if err != nil {
+			return err
+		}
+		if err := p.keysExpectTok(')'); err != nil {
+			return err
+		}
+		o.add("ENCLAVE_COMPUTATIONS (SIGNATURE = " + sig + ")")
+	}
+	return p.keysExpectTok(')')
+}
+
+// keysColumnEncryptionKeyValue reads one value of a column encryption key
+// (createColumnEncryptionKeyValue, TSql160.g:23259):
+//
+//	( COLUMN_MASTER_KEY = name, ALGORITHM = 'algorithm', ENCRYPTED_VALUE = bits )
+//
+// in any order, each once.
+func (p *Parser) keysColumnEncryptionKeyValue(o *keysOpts) error {
+	if err := p.keysExpectTok('('); err != nil {
+		return err
+	}
+	seen := map[string]bool{}
+	for i := 0; i < 3; i++ {
+		if i > 0 {
+			if err := p.keysExpectTok(','); err != nil {
+				return err
+			}
+		}
+		var v string
+		var err error
+		name := strings.ToUpper(p.cur.Str)
+		switch {
+		case p.keysWordIs("COLUMN_MASTER_KEY"):
+			if err := p.keysOnce(seen, name); err != nil {
+				return err
+			}
+			p.advance()
+			if err := p.keysExpectTok('='); err != nil {
+				return err
+			}
+			v, err = p.keysName()
+		case p.keysWordIs("ALGORITHM"):
+			if err := p.keysOnce(seen, name); err != nil {
+				return err
+			}
+			p.advance()
+			v, err = p.keysEqString()
+		case p.keysWordIs("ENCRYPTED_VALUE"):
+			if err := p.keysOnce(seen, name); err != nil {
+				return err
+			}
+			p.advance()
+			v, err = p.keysBinaryEq()
+		default:
+			return p.syntaxErrorAtCur()
+		}
+		if err != nil {
+			return err
+		}
+		o.kv(name, v)
+	}
+	return p.keysExpectTok(')')
 }
 
 // parseSecurityKeyStmtDatabaseEncryption parses CREATE/ALTER/DROP DATABASE ENCRYPTION KEY
 // and CREATE/ALTER/DROP DATABASE SCOPED CREDENTIAL.
 // Called after "DATABASE" has been consumed and the next token is "ENCRYPTION" or "SCOPED".
 //
-// BNF: mssql/parser/bnf/create-database-encryption-key-transact-sql.bnf
-//
-//	CREATE DATABASE ENCRYPTION KEY
-//	    WITH ALGORITHM = { AES_128 | AES_192 | AES_256 | TRIPLE_DES_3KEY }
-//	    ENCRYPTION BY SERVER
-//	        { CERTIFICATE Encryptor_Name | ASYMMETRIC KEY Encryptor_Name }
-//
-// BNF: mssql/parser/bnf/alter-database-encryption-key-transact-sql.bnf
-//
-//	ALTER DATABASE ENCRYPTION KEY
-//	    REGENERATE WITH ALGORITHM = { AES_128 | AES_192 | AES_256 | TRIPLE_DES_3KEY }
-//	        [ ENCRYPTION BY SERVER { CERTIFICATE Encryptor_Name | ASYMMETRIC KEY Encryptor_Name } ]
-//	    | ENCRYPTION BY SERVER
-//	        { CERTIFICATE Encryptor_Name | ASYMMETRIC KEY Encryptor_Name }
-//
-// BNF: mssql/parser/bnf/drop-database-encryption-key-transact-sql.bnf
-//
+//	CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM = algorithm
+//	    ENCRYPTION BY SERVER { CERTIFICATE name | ASYMMETRIC KEY name }
+//	    (createDatabaseEncryptionKey, TSql160.g:5506)
+//	ALTER DATABASE ENCRYPTION KEY { REGENERATE WITH ALGORITHM = algorithm
+//	    | ENCRYPTION BY SERVER { CERTIFICATE name | ASYMMETRIC KEY name } }
+//	    (alterDatabaseEncryptionKey, TSql160.g:4235; SQL Server refuses an
+//	    ENCRYPTION BY after REGENERATE, which the grammar allows)
 //	DROP DATABASE ENCRYPTION KEY
-//
-// BNF: mssql/parser/bnf/create-database-scoped-credential-transact-sql.bnf
-//
-//	CREATE DATABASE SCOPED CREDENTIAL credential_name
-//	    WITH IDENTITY = 'identity_name'
-//	    [ , SECRET = 'secret' ]
-//
-//	ALTER DATABASE SCOPED CREDENTIAL credential_name
-//	    WITH IDENTITY = 'identity_name'
-//	    [ , SECRET = 'secret' ]
-//
-//	DROP DATABASE SCOPED CREDENTIAL credential_name
+//	{ CREATE | ALTER } DATABASE SCOPED CREDENTIAL name WITH IDENTITY = 'identity'
+//	    [ , SECRET = 'secret' ] [ FOR CRYPTOGRAPHIC PROVIDER provider ]
+//	    (createDatabaseScopedCredentialStatement, TSql160.g:1614; SQL Server
+//	    takes the FOR clause on CREATE)
+//	DROP DATABASE SCOPED CREDENTIAL name
 func (p *Parser) parseSecurityKeyStmtDatabaseEncryption(action string) (*nodes.SecurityKeyStmt, error) {
-	loc := p.pos()
 	stmt := &nodes.SecurityKeyStmt{
 		Action: action,
-		Loc:    nodes.Loc{Start: loc, End: -1},
+		Loc:    nodes.Loc{Start: p.pos(), End: -1},
 	}
+	var o keysOpts
 
-	if _, ok := p.match(kwENCRYPTION); ok {
-		// DATABASE ENCRYPTION KEY
-		p.match(kwKEY)
+	switch {
+	case p.keysMatchWord("ENCRYPTION"):
+		if err := p.keysExpectWords("KEY"); err != nil {
+			return nil, err
+		}
 		stmt.ObjectType = "DATABASE ENCRYPTION KEY"
-		// No name for database encryption key
-	} else if _, ok := p.match(kwSCOPED); ok {
-		// DATABASE SCOPED CREDENTIAL credential_name
-		p.match(kwCREDENTIAL)
+		var err error
+		switch action {
+		case "CREATE":
+			if err := p.keysExpectWords("WITH", "ALGORITHM"); err != nil {
+				return nil, err
+			}
+			alg, err := p.keysEqWord(keysDEKAlgorithms)
+			if err != nil {
+				return nil, err
+			}
+			o.kv("ALGORITHM", alg)
+			err = p.keysDEKEncryptor(&o)
+			if err != nil {
+				return nil, err
+			}
+		case "ALTER":
+			if p.keysMatchWord("REGENERATE") {
+				if err := p.keysExpectWords("WITH", "ALGORITHM"); err != nil {
+					return nil, err
+				}
+				alg, err := p.keysEqWord(keysDEKAlgorithms)
+				if err != nil {
+					return nil, err
+				}
+				o.add("REGENERATE WITH ALGORITHM = " + alg)
+			} else {
+				err = p.keysDEKEncryptor(&o)
+			}
+		}
+		if err != nil {
+			return nil, err
+		}
+	case p.keysMatchWord("SCOPED"):
+		if err := p.keysExpectWords("CREDENTIAL"); err != nil {
+			return nil, err
+		}
 		stmt.ObjectType = "DATABASE SCOPED CREDENTIAL"
-		name, _ := p.parseIdentifier()
+		name, err := p.keysName()
+		if err != nil {
+			return nil, err
+		}
 		stmt.Name = name
-	} else {
-		stmt.Loc.End = p.prevEnd()
-		return stmt, nil
+		if action != "DROP" {
+			if err := p.keysCredentialBody(action, &o); err != nil {
+				return nil, err
+			}
+		}
+	default:
+		return nil, p.syntaxErrorAtCur()
 	}
 
-	// Consume remaining tokens as options
-	p.parseSecurityKeyOptions(stmt)
-
+	stmt.Options = o.list()
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
+}
+
+// keysDEKEncryptor reads ENCRYPTION BY SERVER { CERTIFICATE | ASYMMETRIC KEY } name
+// (dekEncryptor, TSql160.g:5522; dekEncryptorType, TSql160.g:5532).
+func (p *Parser) keysDEKEncryptor(o *keysOpts) error {
+	if err := p.keysExpectWords("ENCRYPTION", "BY", "SERVER"); err != nil {
+		return err
+	}
+	kind := "CERTIFICATE"
+	if p.keysMatchWord("ASYMMETRIC") {
+		if err := p.keysExpectWords("KEY"); err != nil {
+			return err
+		}
+		kind = "ASYMMETRIC KEY"
+	} else if err := p.keysExpectWords("CERTIFICATE"); err != nil {
+		return err
+	}
+	name, err := p.keysName()
+	if err != nil {
+		return err
+	}
+	o.add("ENCRYPTION BY SERVER " + kind + " " + name)
+	return nil
 }
 
 // parseOpenSymmetricKeyStmt parses OPEN SYMMETRIC KEY statements.
 //
-// BNF: mssql/parser/bnf/open-symmetric-key-transact-sql.bnf
+//	OPEN SYMMETRIC KEY name DECRYPTION BY
+//	    { CERTIFICATE name [ WITH PASSWORD = 'password' ]
+//	    | ASYMMETRIC KEY name [ WITH PASSWORD = 'password' ]
+//	    | SYMMETRIC KEY name
+//	    | PASSWORD = 'password' }
 //
-//	OPEN SYMMETRIC KEY Key_name DECRYPTION BY <decryption_mechanism>
-//	<decryption_mechanism> ::=
-//	    CERTIFICATE certificate_name [ WITH PASSWORD = 'password' ]
-//	    | ASYMMETRIC KEY asym_key_name [ WITH PASSWORD = 'password' ]
-//	    | SYMMETRIC KEY decrypting_Key_name
-//	    | PASSWORD = 'decryption_password'
+// (openSymmetricKeyStatement, TSql160.g:14463; decryptionMechanism, TSql160.g:14430)
 func (p *Parser) parseOpenSymmetricKeyStmt() (*nodes.SecurityKeyStmt, error) {
 	loc := p.pos()
 	p.advance() // consume OPEN
 	stmt := &nodes.SecurityKeyStmt{
-		Action: "OPEN",
-		Loc:    nodes.Loc{Start: loc, End: -1},
+		Action:     "OPEN",
+		ObjectType: "SYMMETRIC KEY",
+		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
-
-	if _, ok := p.match(kwSYMMETRIC); ok {
-		p.match(kwKEY)
-		stmt.ObjectType = "SYMMETRIC KEY"
+	var o keysOpts
+	if err := p.keysExpectWords("SYMMETRIC", "KEY"); err != nil {
+		return nil, err
 	}
-
-	name, _ := p.parseIdentifier()
+	name, err := p.keysName()
+	if err != nil {
+		return nil, err
+	}
 	stmt.Name = name
+	if err := p.keysExpectWords("DECRYPTION", "BY"); err != nil {
+		return nil, err
+	}
+	mech, err := p.keysCrypto()
+	if err != nil {
+		return nil, err
+	}
+	o.add("DECRYPTION BY " + mech)
+	// The action at TSql160.g:14444 refuses WITH after SYMMETRIC KEY.
+	if p.cur.Type == kwWITH && (strings.HasPrefix(mech, "CERTIFICATE ") || strings.HasPrefix(mech, "ASYMMETRIC ")) {
+		p.advance()
+		pwd, err := p.keysPasswordEq()
+		if err != nil {
+			return nil, err
+		}
+		o.add("WITH PASSWORD = " + pwd)
+	}
 
-	p.parseSecurityKeyOptions(stmt)
-
+	stmt.Options = o.list()
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
-// parseCloseSymmetricKeyStmt parses CLOSE SYMMETRIC KEY or CLOSE ALL SYMMETRIC KEYS.
-//
-// BNF: mssql/parser/bnf/close-symmetric-key-transact-sql.bnf
-//
-//	CLOSE { SYMMETRIC KEY key_name | ALL SYMMETRIC KEYS }
+// parseCloseSymmetricKeyStmt parses CLOSE SYMMETRIC KEY or CLOSE ALL SYMMETRIC KEYS
+// (closeSymmetricKeyStatement, TSql160.g:14527).
 func (p *Parser) parseCloseSymmetricKeyStmt() (*nodes.SecurityKeyStmt, error) {
 	loc := p.pos()
 	p.advance() // consume CLOSE
@@ -585,13 +1392,19 @@ func (p *Parser) parseCloseSymmetricKeyStmt() (*nodes.SecurityKeyStmt, error) {
 
 	if p.cur.Type == kwALL {
 		p.advance() // consume ALL
-		p.match(kwSYMMETRIC)
-		p.match(kwKEYS)
+		if err := p.keysExpectWords("SYMMETRIC", "KEYS"); err != nil {
+			return nil, err
+		}
 		stmt.ObjectType = "ALL SYMMETRIC KEYS"
-	} else if _, ok := p.match(kwSYMMETRIC); ok {
-		p.match(kwKEY)
+	} else {
+		if err := p.keysExpectWords("SYMMETRIC", "KEY"); err != nil {
+			return nil, err
+		}
 		stmt.ObjectType = "SYMMETRIC KEY"
-		name, _ := p.parseIdentifier()
+		name, err := p.keysName()
+		if err != nil {
+			return nil, err
+		}
 		stmt.Name = name
 	}
 
@@ -601,26 +1414,18 @@ func (p *Parser) parseCloseSymmetricKeyStmt() (*nodes.SecurityKeyStmt, error) {
 
 // parseBackupCertificateStmt parses BACKUP CERTIFICATE|MASTER KEY|SYMMETRIC KEY statements.
 //
-// BNF: mssql/parser/bnf/backup-certificate-transact-sql.bnf
+//	BACKUP CERTIFICATE name TO FILE = 'path' [ WITH key_item [ , ...n ] ]
+//	    (backupCertificateStatement, TSql160.g:6005)
+//	key_item ::= FORMAT = 'format' | PRIVATE KEY ( private_key_option [ , ...n ] )
+//	private_key_option ::= FILE = 'path' | BINARY = bits | ALGORITHM = 'algorithm'
+//	    | ENCRYPTION BY PASSWORD = 'password' | DECRYPTION BY PASSWORD = 'password'
+//	BACKUP MASTER KEY TO { FILE | URL } = 'path' ENCRYPTION BY PASSWORD = 'password'
+//	    (backupMasterKeyStatement, TSql160.g:6061)
+//	BACKUP SYMMETRIC KEY name TO { FILE | URL } = 'path' ENCRYPTION BY PASSWORD = 'password'
+//	    (https://learn.microsoft.com/en-us/sql/t-sql/statements/backup-symmetric-key-transact-sql)
 //
-//	BACKUP CERTIFICATE certname TO FILE = 'path_to_file'
-//	    [ WITH
-//	      [FORMAT = 'PFX',]
-//	      PRIVATE KEY
-//	      (
-//	        FILE = 'path_to_private_key_file' ,
-//	        ENCRYPTION BY PASSWORD = 'encryption_password'
-//	        [ , DECRYPTION BY PASSWORD = 'decryption_password' ]
-//	      )
-//	    ]
-//
-// BNF: mssql/parser/bnf/backup-master-key-transact-sql.bnf
-//
-//	BACKUP MASTER KEY TO FILE = 'path_to_file'
-//	    ENCRYPTION BY PASSWORD = 'password'
-//
-//	BACKUP SYMMETRIC KEY key_name TO { FILE = 'path' | URL = 'url' }
-//	    ENCRYPTION BY PASSWORD = 'password'
+// FORMAT, BINARY, ALGORITHM and URL are SQL Server's, not the grammar's
+// (https://learn.microsoft.com/en-us/sql/t-sql/statements/backup-certificate-transact-sql).
 func (p *Parser) parseBackupCertificateStmt() (*nodes.SecurityKeyStmt, error) {
 	loc := p.pos()
 	p.advance() // consume BACKUP
@@ -628,28 +1433,92 @@ func (p *Parser) parseBackupCertificateStmt() (*nodes.SecurityKeyStmt, error) {
 		Action: "BACKUP",
 		Loc:    nodes.Loc{Start: loc, End: -1},
 	}
+	var o keysOpts
 
-	if _, ok := p.match(kwCERTIFICATE); ok {
+	switch {
+	case p.keysMatchWord("CERTIFICATE"):
 		stmt.ObjectType = "CERTIFICATE"
-		name, _ := p.parseIdentifier()
+		name, err := p.keysName()
+		if err != nil {
+			return nil, err
+		}
 		stmt.Name = name
-	} else if _, ok := p.match(kwSYMMETRIC); ok {
-		p.match(kwKEY)
+		if err := p.keysExpectWords("TO", "FILE"); err != nil {
+			return nil, err
+		}
+		path, err := p.keysEqString()
+		if err != nil {
+			return nil, err
+		}
+		o.add("TO FILE = " + path)
+		if p.cur.Type == kwWITH {
+			p.advance()
+			if err := p.keysCertificateKeyItems(&o, keysPrivateKeyBackup); err != nil {
+				return nil, err
+			}
+		}
+	case p.keysMatchWord("SYMMETRIC"):
+		if err := p.keysExpectWords("KEY"); err != nil {
+			return nil, err
+		}
 		stmt.ObjectType = "SYMMETRIC KEY"
-		name, _ := p.parseIdentifier()
+		name, err := p.keysName()
+		if err != nil {
+			return nil, err
+		}
 		stmt.Name = name
-	} else if _, ok := p.match(kwMASTER); ok {
-		p.match(kwKEY)
+		if err := p.keysKeyFileTransfer("TO", true, &o); err != nil {
+			return nil, err
+		}
+	case p.keysMatchWord("MASTER"):
+		if err := p.keysExpectWords("KEY"); err != nil {
+			return nil, err
+		}
 		stmt.ObjectType = "MASTER KEY"
+		if err := p.keysKeyFileTransfer("TO", true, &o); err != nil {
+			return nil, err
+		}
+	default:
+		return nil, p.syntaxErrorAtCur()
 	}
 
-	p.parseSecurityKeyOptions(stmt)
-
+	stmt.Options = o.list()
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
-// parseOpenMasterKeyStmt parses OPEN MASTER KEY DECRYPTION BY PASSWORD = 'password'.
+// keysKeyFileTransfer reads `{ TO | FROM } { FILE | URL } = 'path'` (URL only
+// when allowURL) and the password clause after it: ENCRYPTION BY PASSWORD for
+// TO, DECRYPTION BY PASSWORD for FROM.
+func (p *Parser) keysKeyFileTransfer(dir string, allowURL bool, o *keysOpts) error {
+	if err := p.keysExpectWords(dir); err != nil {
+		return err
+	}
+	kind := "FILE"
+	if allowURL && p.keysMatchWord("URL") {
+		kind = "URL"
+	} else if err := p.keysExpectWords("FILE"); err != nil {
+		return err
+	}
+	path, err := p.keysEqString()
+	if err != nil {
+		return err
+	}
+	o.add(dir + " " + kind + " = " + path)
+	word := "ENCRYPTION"
+	if dir == "FROM" {
+		word = "DECRYPTION"
+	}
+	pwd, err := p.keysByPassword(word)
+	if err != nil {
+		return err
+	}
+	o.add(word + " BY PASSWORD = " + pwd)
+	return nil
+}
+
+// parseOpenMasterKeyStmt parses OPEN MASTER KEY DECRYPTION BY PASSWORD = 'password'
+// (openMasterKeyStatement, TSql160.g:14407).
 func (p *Parser) parseOpenMasterKeyStmt() (*nodes.SecurityKeyStmt, error) {
 	loc := p.pos()
 	p.advance() // consume OPEN
@@ -658,18 +1527,21 @@ func (p *Parser) parseOpenMasterKeyStmt() (*nodes.SecurityKeyStmt, error) {
 		ObjectType: "MASTER KEY",
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
-
-	// consume MASTER KEY
-	if _, ok := p.match(kwMASTER); ok {
-		p.match(kwKEY)
+	var o keysOpts
+	if err := p.keysExpectWords("MASTER", "KEY"); err != nil {
+		return nil, err
 	}
-
-	p.parseSecurityKeyOptions(stmt)
+	pwd, err := p.keysByPassword("DECRYPTION")
+	if err != nil {
+		return nil, err
+	}
+	o.add("DECRYPTION BY PASSWORD = " + pwd)
+	stmt.Options = o.list()
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
-// parseCloseMasterKeyStmt parses CLOSE MASTER KEY.
+// parseCloseMasterKeyStmt parses CLOSE MASTER KEY (closeMasterKeyStatement, TSql160.g:14515).
 func (p *Parser) parseCloseMasterKeyStmt() (*nodes.SecurityKeyStmt, error) {
 	loc := p.pos()
 	p.advance() // consume CLOSE
@@ -678,24 +1550,21 @@ func (p *Parser) parseCloseMasterKeyStmt() (*nodes.SecurityKeyStmt, error) {
 		ObjectType: "MASTER KEY",
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
-
-	// consume MASTER KEY
-	if _, ok := p.match(kwMASTER); ok {
-		p.match(kwKEY)
+	if err := p.keysExpectWords("MASTER", "KEY"); err != nil {
+		return nil, err
 	}
-
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
-// parseRestoreMasterKeyStmt parses RESTORE MASTER KEY FROM FILE = 'path' ...
+// parseRestoreMasterKeyStmt parses
 //
-// BNF: mssql/parser/bnf/restore-master-key-transact-sql.bnf
-//
-//	RESTORE MASTER KEY FROM { FILE = 'path_to_file' | URL = 'Azure Blob storage URL' }
+//	RESTORE MASTER KEY FROM { FILE | URL } = 'path'
 //	    DECRYPTION BY PASSWORD = 'password'
-//	    ENCRYPTION BY PASSWORD = 'password'
-//	    [ FORCE ]
+//	    ENCRYPTION BY PASSWORD = 'password' [ FORCE ]
+//
+// (restoreMasterKeyStatement, TSql160.g:6079; URL is SQL Server's:
+// https://learn.microsoft.com/en-us/sql/t-sql/statements/restore-master-key-transact-sql).
 func (p *Parser) parseRestoreMasterKeyStmt() (*nodes.SecurityKeyStmt, error) {
 	loc := p.pos()
 	p.advance() // consume RESTORE
@@ -704,28 +1573,33 @@ func (p *Parser) parseRestoreMasterKeyStmt() (*nodes.SecurityKeyStmt, error) {
 		ObjectType: "MASTER KEY",
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
-
-	// consume MASTER KEY
-	if _, ok := p.match(kwMASTER); ok {
-		p.match(kwKEY)
+	var o keysOpts
+	if err := p.keysExpectWords("MASTER", "KEY"); err != nil {
+		return nil, err
 	}
-
-	p.parseSecurityKeyOptions(stmt)
+	if err := p.keysKeyFileTransfer("FROM", true, &o); err != nil {
+		return nil, err
+	}
+	pwd, err := p.keysByPassword("ENCRYPTION")
+	if err != nil {
+		return nil, err
+	}
+	o.add("ENCRYPTION BY PASSWORD = " + pwd)
+	if p.keysMatchWord("FORCE") {
+		o.add("FORCE")
+	}
+	stmt.Options = o.list()
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
-// parseRestoreSymmetricKeyStmt parses RESTORE SYMMETRIC KEY key_name FROM { FILE | URL } = '...' ...
+// parseRestoreSymmetricKeyStmt parses
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/restore-symmetric-key-transact-sql
+//	RESTORE SYMMETRIC KEY name FROM { FILE | URL } = 'path'
+//	    DECRYPTION BY PASSWORD = 'password'
+//	    ENCRYPTION BY PASSWORD = 'password'
 //
-//	RESTORE SYMMETRIC KEY key_name FROM
-//	  {
-//	    FILE = 'path_to_file'
-//	  | URL = 'Azure Blob storage URL'
-//	  }
-//	      DECRYPTION BY PASSWORD = 'password'
-//	      ENCRYPTION BY PASSWORD = 'password'
+// (https://learn.microsoft.com/en-us/sql/t-sql/statements/restore-symmetric-key-transact-sql).
 func (p *Parser) parseRestoreSymmetricKeyStmt() (*nodes.SecurityKeyStmt, error) {
 	loc := p.pos()
 	p.advance() // consume RESTORE
@@ -734,142 +1608,271 @@ func (p *Parser) parseRestoreSymmetricKeyStmt() (*nodes.SecurityKeyStmt, error) 
 		ObjectType: "SYMMETRIC KEY",
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
-
-	// consume SYMMETRIC KEY
-	if _, ok := p.match(kwSYMMETRIC); ok {
-		p.match(kwKEY)
+	var o keysOpts
+	if err := p.keysExpectWords("SYMMETRIC", "KEY"); err != nil {
+		return nil, err
 	}
-
-	// key name
-	name, _ := p.parseIdentifier()
+	name, err := p.keysName()
+	if err != nil {
+		return nil, err
+	}
 	stmt.Name = name
-
-	p.parseSecurityKeyOptions(stmt)
+	if err := p.keysKeyFileTransfer("FROM", true, &o); err != nil {
+		return nil, err
+	}
+	pwd, err := p.keysByPassword("ENCRYPTION")
+	if err != nil {
+		return nil, err
+	}
+	o.add("ENCRYPTION BY PASSWORD = " + pwd)
+	stmt.Options = o.list()
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
-// parseSecurityKeyOptions consumes remaining tokens until a statement boundary,
-// using structured key-value parsing when possible.
+// keysServiceMasterKeyBody reads what follows { ALTER | BACKUP | RESTORE }
+// SERVICE MASTER KEY.
 //
-// Security key statements use several patterns:
-//   - WITH ( KEY_SOURCE = ..., ALGORITHM = ..., ... )
-//   - WITH SUBJECT = ..., EXPIRY_DATE = ...
-//   - ENCRYPTION BY { PASSWORD = ... | CERTIFICATE ... | ASYMMETRIC KEY ... }
-//   - DECRYPTION BY { PASSWORD = ... | CERTIFICATE ... | ASYMMETRIC KEY ... }
-//   - WITH IDENTITY = '...', SECRET = '...'
-//   - FROM FILE = '...'
-//   - TO FILE = '...'
-//
-// We parse these as alternating name/value pairs in a List of String nodes.
-func (p *Parser) parseSecurityKeyOptions(stmt *nodes.SecurityKeyStmt) {
-	var items []nodes.Node
-	depth := 0
+//	ALTER SERVICE MASTER KEY { [ FORCE ] REGENERATE
+//	    | WITH OLD_ACCOUNT = 'account', OLD_PASSWORD = 'password'
+//	    | WITH NEW_ACCOUNT = 'account', NEW_PASSWORD = 'password' }
+//	    (alterServiceMasterKeyStatement, TSql160.g:12732)
+//	BACKUP SERVICE MASTER KEY TO FILE = 'path' ENCRYPTION BY PASSWORD = 'password'
+//	    (backupServiceMasterKeyStatement, TSql160.g:6022)
+//	RESTORE SERVICE MASTER KEY FROM FILE = 'path' DECRYPTION BY PASSWORD = 'password' [ FORCE ]
+//	    (restoreServiceMasterKeyStatement, TSql160.g:6030)
+func (p *Parser) keysServiceMasterKeyBody(action string, stmt *nodes.SecurityKeyStmt) error {
+	var o keysOpts
+	switch action {
+	case "ALTER":
+		switch {
+		case p.keysWordIs("FORCE"), p.keysWordIs("REGENERATE"):
+			if p.keysMatchWord("FORCE") {
+				o.add("FORCE")
+			}
+			if err := p.keysExpectWords("REGENERATE"); err != nil {
+				return err
+			}
+			o.add("REGENERATE")
+		case p.keysMatchWord("WITH"):
+			prefix := ""
+			switch {
+			case p.keysWordIs("OLD_ACCOUNT"):
+				prefix = "OLD_"
+			case p.keysWordIs("NEW_ACCOUNT"):
+				prefix = "NEW_"
+			default:
+				return p.syntaxErrorAtCur()
+			}
+			p.advance()
+			account, err := p.keysEqString()
+			if err != nil {
+				return err
+			}
+			if err := p.keysExpectTok(','); err != nil {
+				return err
+			}
+			if err := p.keysExpectWords(prefix + "PASSWORD"); err != nil {
+				return err
+			}
+			pwd, err := p.keysEqString()
+			if err != nil {
+				return err
+			}
+			o.kv(prefix+"ACCOUNT", account)
+			o.kv(prefix+"PASSWORD", pwd)
+		default:
+			return p.syntaxErrorAtCur()
+		}
+	case "BACKUP":
+		if err := p.keysKeyFileTransfer("TO", false, &o); err != nil {
+			return err
+		}
+	case "RESTORE":
+		if err := p.keysKeyFileTransfer("FROM", false, &o); err != nil {
+			return err
+		}
+		if p.keysMatchWord("FORCE") {
+			o.add("FORCE")
+		}
+	}
+	stmt.Options = o.list()
+	return nil
+}
 
-	for p.cur.Type != tokEOF && p.cur.Type != ';' {
-		// Break on keywords that start new statements (unless nested in parens)
-		if depth == 0 && isStmtStart(p.cur.Type) {
+// keysAlterDatabaseScopedCredential parses the rest of ALTER DATABASE SCOPED
+// CREDENTIAL name WITH IDENTITY = 'identity' [ , SECRET = 'secret' ] after
+// CREDENTIAL (createDatabaseScopedCredentialStatement, TSql160.g:1614).
+func (p *Parser) keysAlterDatabaseScopedCredential(loc int) (*nodes.SecurityKeyStmt, error) {
+	stmt := &nodes.SecurityKeyStmt{
+		Action:     "ALTER",
+		ObjectType: "DATABASE SCOPED CREDENTIAL",
+		Loc:        nodes.Loc{Start: loc, End: -1},
+	}
+	name, err := p.keysName()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Name = name
+	var o keysOpts
+	if err := p.keysCredentialBody("ALTER", &o); err != nil {
+		return nil, err
+	}
+	stmt.Options = o.list()
+	stmt.Loc.End = p.prevEnd()
+	return stmt, nil
+}
+
+// parseSignatureStmt parses ADD/DROP [COUNTER] SIGNATURE after SIGNATURE.
+//
+//	ADD [ COUNTER ] SIGNATURE TO signable BY crypto [ , ...n ]
+//	DROP [ COUNTER ] SIGNATURE FROM signable BY crypto [ , ...n ]
+//	signable ::= [ { OBJECT | ASSEMBLY | DATABASE } :: ] [ [ db . ] schema . ] name
+//	crypto ::= { CERTIFICATE name | ASYMMETRIC KEY name }
+//	        [ WITH { PASSWORD = 'password' | SIGNATURE = bits } ]
+//	    | SYMMETRIC KEY name | PASSWORD = 'password'
+//
+// (addSignatureStatement, TSql160.g:15747; dropSignatureStatement,
+// TSql160.g:15751; signableElement, TSql160.g:15768;
+// cryptoWithOptionalPasswordSignature, TSql160.g:15809; SQL Server takes
+// SYMMETRIC KEY without the WITH clause.)
+func (p *Parser) parseSignatureStmt(action string) (*nodes.SignatureStmt, error) {
+	stmt := &nodes.SignatureStmt{
+		Action: action,
+		Loc:    nodes.Loc{Start: p.pos(), End: -1},
+	}
+	dir := "TO"
+	if action == "DROP" {
+		dir = "FROM"
+	}
+	if err := p.keysExpectWords(dir); err != nil {
+		return nil, err
+	}
+
+	if (p.keysWordIs("OBJECT") || p.keysWordIs("ASSEMBLY") || p.keysWordIs("DATABASE")) &&
+		p.peekNext().Type == tokCOLONCOLON {
+		stmt.ModuleClass = strings.ToUpper(p.cur.Str)
+		p.advance() // class
+		p.advance() // ::
+	}
+	ref, err := p.keysThreePartName()
+	if err != nil {
+		return nil, err
+	}
+	stmt.ModuleName = ref
+
+	if err := p.keysExpectWords("BY"); err != nil {
+		return nil, err
+	}
+	var cryptos []nodes.Node
+	for {
+		item, err := p.keysSignatureCrypto()
+		if err != nil {
+			return nil, err
+		}
+		cryptos = append(cryptos, item)
+		if _, ok := p.match(','); !ok {
 			break
 		}
+	}
+	stmt.CryptoList = &nodes.List{Items: cryptos}
 
-		// WITH keyword: may introduce parenthesized or inline options
-		if p.cur.Type == kwWITH {
-			p.advance() // consume WITH
-			if p.cur.Type == '(' {
-				// WITH ( NAME = VALUE [, ...] )
-				nested, _ := p.parseKeyValueOptionList()
-				if nested != nil {
-					items = append(items, nested.Items...)
-				}
-				continue
+	stmt.Loc.End = p.prevEnd()
+	return stmt, nil
+}
+
+// keysThreePartName reads the signed module's name (schemaObjectThreePartName,
+// TSql160.g:30325, whose identifierList lets a prefix be empty: `db..p`,
+// `.p`). SQL Server 2022 takes up to three prefixes (`a.b.c.p`) and refuses a
+// fourth with Msg 117; the last part must be a name.
+func (p *Parser) keysThreePartName() (*nodes.TableRef, error) {
+	loc := p.pos()
+	parts := []string{}
+	for {
+		if p.cur.Type == '.' {
+			parts = append(parts, "") // an omitted prefix
+		} else {
+			name, err := p.keysName()
+			if err != nil {
+				return nil, err
 			}
-			// WITH inline options: SUBJECT = ..., IDENTITY = ..., etc.
-			// Fall through to parse as key=value below
-		}
-
-		// ENCRYPTION BY / DECRYPTION BY / FROM / TO patterns
-		if p.cur.Type == kwENCRYPTION || p.cur.Type == kwDECRYPTION {
-			keyword := strings.ToUpper(p.cur.Str)
-			p.advance()
-			if p.cur.Type == kwBY {
-				p.advance() // consume BY
+			parts = append(parts, name)
+			if p.cur.Type != '.' {
+				break
 			}
-			// Use parseEncryptingMechanism for structured parsing
-			for {
-				mech := p.parseEncryptingMechanism()
-				if mech == "" {
-					// Fallback: if no known mechanism matched, just record the keyword
-					items = append(items, &nodes.String{Str: keyword + " BY"})
-					break
-				}
-				items = append(items, &nodes.String{Str: keyword + " BY " + mech})
-				if _, ok := p.match(','); !ok {
-					break
-				}
-				// After comma, check if next token is another mechanism or a different clause
-				if p.cur.Type == kwENCRYPTION || p.cur.Type == kwDECRYPTION {
-					break
-				}
-				if p.cur.Type == kwWITH || p.cur.Type == tokEOF || p.cur.Type == ';' {
-					break
-				}
-				if depth == 0 && isStmtStart(p.cur.Type) {
-					break
-				}
-			}
-			continue
 		}
-
-		if p.cur.Type == kwFROM || p.cur.Type == kwTO {
-			keyword := strings.ToUpper(p.cur.Str)
-			if keyword == "" {
-				if p.cur.Type == kwFROM {
-					keyword = "FROM"
-				} else {
-					keyword = "TO"
-				}
-			}
-			p.advance()
-			items = append(items, &nodes.String{Str: keyword})
-			// Collect FILE = '...' or ASSEMBLY etc.
-			continue
+		if len(parts) == 4 {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance() // consume '.'
+	}
+	n := len(parts)
+	ref := &nodes.TableRef{Object: parts[n-1], Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}
+	if n > 1 {
+		ref.Schema = parts[n-2]
+	}
+	if n > 2 {
+		ref.Database = parts[n-3]
+	}
+	if n > 3 {
+		ref.Server = parts[0]
+	}
+	return ref, nil
+}
 
-		// General key = value parsing
-		if p.isIdentLike() || p.cur.Type == tokICONST || p.cur.Type == tokSCONST {
-			key := p.consumeAnyIdent()
-			items = append(items, &nodes.String{Str: key})
-
-			if p.cur.Type == '=' {
-				p.advance()
-				val := p.consumeAnyIdent()
-				items = append(items, &nodes.String{Str: val})
-			}
-			p.match(',')
-			continue
-		}
-
-		if p.cur.Type == '(' {
-			depth++
-			p.advance()
-			continue
-		}
-		if p.cur.Type == ')' {
-			if depth > 0 {
-				depth--
-				p.advance()
-				continue
-			}
-			break
-		}
-
-		// Unknown token, consume to avoid infinite loop
+// keysSignatureCrypto reads one crypto of a signature's BY list.
+func (p *Parser) keysSignatureCrypto() (*nodes.CryptoItem, error) {
+	item := &nodes.CryptoItem{Loc: nodes.Loc{Start: p.pos(), End: -1}}
+	withAllowed := true
+	switch {
+	case p.keysMatchWord("CERTIFICATE"):
+		item.Mechanism = "CERTIFICATE"
+	case p.keysWordIs("ASYMMETRIC"), p.keysWordIs("SYMMETRIC"):
+		item.Mechanism = strings.ToUpper(p.cur.Str) + " KEY"
+		withAllowed = item.Mechanism == "ASYMMETRIC KEY"
 		p.advance()
+		if err := p.keysExpectWords("KEY"); err != nil {
+			return nil, err
+		}
+	case p.keysWordIs("PASSWORD"):
+		pwd, err := p.keysPasswordEq()
+		if err != nil {
+			return nil, err
+		}
+		item.Mechanism = "PASSWORD"
+		item.WithType = "PASSWORD"
+		item.WithValue = pwd
+		item.Loc.End = p.prevEnd()
+		return item, nil
+	default:
+		return nil, p.syntaxErrorAtCur()
 	}
-
-	if len(items) > 0 {
-		stmt.Options = &nodes.List{Items: items}
+	name, err := p.keysName()
+	if err != nil {
+		return nil, err
 	}
+	item.Name = name
+	if withAllowed && p.cur.Type == kwWITH {
+		p.advance()
+		switch {
+		case p.keysWordIs("PASSWORD"):
+			pwd, err := p.keysPasswordEq()
+			if err != nil {
+				return nil, err
+			}
+			item.WithType, item.WithValue = "PASSWORD", pwd
+		case p.keysMatchWord("SIGNATURE"):
+			sig, err := p.keysBinaryEq()
+			if err != nil {
+				return nil, err
+			}
+			item.WithType, item.WithValue = "SIGNATURE", sig
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
+	}
+	item.Loc.End = p.prevEnd()
+	return item, nil
 }
 
 // isStmtStart returns true if the token type could start a new statement.

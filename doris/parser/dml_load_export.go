@@ -650,38 +650,47 @@ func (p *Parser) parseLoadTableName() (*ast.ObjectName, error) {
 	return &ast.ObjectName{Parts: []string{name}, Loc: loc}, nil
 }
 
-// parseLoadPartitionSpec reads partitionSpec (DorisParser.g4:962):
+// parseLoadPartitionSpec reads a data description's partitionSpec.
+func (p *Parser) parseLoadPartitionSpec(desc *ast.LoadDataDesc) error {
+	names, temporary, err := p.parsePartitionSpec()
+	desc.Partition, desc.TemporaryPart = names, temporary
+	return err
+}
+
+// parsePartitionSpec reads an optional partitionSpec (DorisParser.g4:962):
 //
 //	TEMPORARY? (PARTITION | PARTITIONS) identifierList
 //	| TEMPORARY? PARTITION errorCapturingIdentifier
 //	| (PARTITION | PARTITIONS) LEFT_PAREN ASTERISK RIGHT_PAREN
-func (p *Parser) parseLoadPartitionSpec(desc *ast.LoadDataDesc) error {
+//
+// which the CUP parser's partition_names (DorisLegacyParser.g4:2311) also
+// takes. It returns the names, ["*"] for (*), and whether TEMPORARY was
+// given; nil when no PARTITION or PARTITIONS is at cur.
+func (p *Parser) parsePartitionSpec() ([]string, bool, error) {
+	temporary := false
 	if p.cur.Kind == kwTEMPORARY {
-		desc.TemporaryPart = true
+		temporary = true
 		p.advance()
 		if p.cur.Kind != kwPARTITION && p.cur.Kind != kwPARTITIONS {
-			return p.syntaxErrorAtCur()
+			return nil, true, p.syntaxErrorAtCur()
 		}
 	}
 	if p.cur.Kind != kwPARTITION && p.cur.Kind != kwPARTITIONS {
-		return nil
+		return nil, false, nil
 	}
 	plural := p.advance().Kind == kwPARTITIONS
-	if p.cur.Kind == int('(') && p.peekNext().Kind == int('*') && !desc.TemporaryPart {
+	if p.cur.Kind == int('(') && p.peekNext().Kind == int('*') && !temporary {
 		p.advance() // consume '('
 		p.advance() // consume '*'
-		desc.Partition = []string{"*"}
 		_, err := p.expect(int(')'))
-		return err
+		return []string{"*"}, false, err
 	}
 	if p.cur.Kind == int('(') || plural {
 		parts, err := p.parseLoadIdentifierList()
-		desc.Partition = parts
-		return err
+		return parts, temporary, err
 	}
 	name, _, err := p.parseIdentifier()
-	desc.Partition = []string{name}
-	return err
+	return []string{name}, temporary, err
 }
 
 // parseLoadIdentifierList reads identifierList: '(' identifier (',' identifier)* ')'.

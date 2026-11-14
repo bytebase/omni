@@ -411,6 +411,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseCreateEncryptKey(createTok.Loc)
 		case kwDICTIONARY:
 			return p.parseCreateDictionary(createTok.Loc)
+		case kwANALYZE:
+			return p.parseCreateAnalyze(createTok.Loc)
 		case kwROLE:
 			return p.parseCreateRole(createTok.Loc)
 		case kwUSER:
@@ -524,18 +526,11 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		case kwSTATS:
 			p.advance() // consume STATS
 			return p.parseDropStats(dropTok.Loc, "")
-		case kwEXPIRED:
-			p.advance() // consume EXPIRED
-			if _, err := p.expect(kwSTATS); err != nil {
-				return nil, err
-			}
-			return p.parseDropStats(dropTok.Loc, "EXPIRED")
-		case kwCACHED:
-			p.advance() // consume CACHED
-			if _, err := p.expect(kwSTATS); err != nil {
-				return nil, err
-			}
-			return p.parseDropStats(dropTok.Loc, "CACHED")
+		case kwANALYZE:
+			// dropAnalyzeJobStatement (StarRocks.g4:1329); StarRocks has no
+			// DROP EXPIRED STATS or DROP CACHED STATS.
+			p.advance() // consume ANALYZE
+			return p.parseDropStats(dropTok.Loc, "ANALYZE")
 		case kwPROCEDURE:
 			return p.parseDropProcedure(dropTok.Loc)
 		case kwFUNCTION, kwGLOBAL:
@@ -639,9 +634,21 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		if p.cur.Kind == kwDEFAULT && p.peekNext().Kind == kwSTORAGE {
 			return p.parseSetDefaultStorageVault(setTok.Loc)
 		}
-		// SET PASSWORD = '...'
+		// setDefaultStorageVolumeStatement (StarRocks.g4:824):
+		// SET identifierOrString AS DEFAULT STORAGE VOLUME
+		if (isIdentifierToken(p.cur.Kind) || p.cur.Kind == tokString) && p.peekNext().Kind == kwAS {
+			return p.parseSetDefaultStorageVolume(setTok.Loc)
+		}
+		// SET PASSWORD [FOR user] = ('p' | PASSWORD('p')). PASSWORD is
+		// nonReserved, so where that form does not follow, SET PASSWORD = x
+		// sets a variable (StarRocks takes SET PASSWORD = PASSWORD()).
 		if p.cur.Kind == kwPASSWORD {
-			return p.parseSetPassword(setTok.Loc)
+			mark := p.save()
+			if node, err := p.parseSetPassword(setTok.Loc); err == nil &&
+				(p.cur.Kind == tokEOF || p.cur.Kind == int(';')) {
+				return node, nil
+			}
+			p.restore(mark)
 		}
 		// Generic variable assignment / NAMES / CHARSET / TRANSACTION
 		return p.parseGenericSet(setTok.Loc)

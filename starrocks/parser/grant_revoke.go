@@ -6,456 +6,439 @@ import (
 	"github.com/bytebase/omni/starrocks/ast"
 )
 
-// ---------------------------------------------------------------------------
-// GRANT
-// ---------------------------------------------------------------------------
+// GRANT and REVOKE follow StarRocks.g4's grantRoleStatement,
+// revokeRoleStatement (:1666, :1671), grantPrivilegeStatement and
+// revokePrivilegeStatement (:1690, :1704).
 
-// parseGrant parses:
-//
-//	GRANT priv_list ON [object_type] object TO {USER 'user'@'host' | ROLE 'role'} [WITH GRANT OPTION]
-//	GRANT ROLE role_list TO 'user'@'host' | ROLE 'role'
-//
-// On entry, cur is the token AFTER kwGRANT has been consumed.
+// privTarget is what a privilege GRANT or REVOKE names after ON.
+type privTarget struct {
+	objectType     string
+	objects        []*ast.ObjectName
+	functionArgs   [][]*ast.TypeName
+	inDatabase     string
+	inAllDatabases bool
+}
+
+// grantHead is a GRANT or REVOKE read up to its grantee: a role list, or a
+// privilege list and its target.
+type grantHead struct {
+	roles      []string
+	privileges []string
+	target     privTarget
+}
+
+// parseGrant parses grantRoleStatement and grantPrivilegeStatement. On
+// entry, cur is the token after GRANT.
 func (p *Parser) parseGrant(startLoc ast.Loc) (ast.Node, error) {
-	stmt := &ast.GrantStmt{}
-	endLoc := startLoc
-
-	// Detect the two forms:
-	//   GRANT ROLE role_list TO ...          (explicit role-grant form)
-	//   GRANT 'role1', 'role2' TO ...        (implicit role-grant: string literal grantees)
-	//   GRANT priv_list ON ...               (privilege-grant form)
-	isRoleGrant := p.cur.Kind == kwROLE || p.cur.Kind == tokString
-
-	if isRoleGrant {
-		// Role-grant form: GRANT [ROLE] 'role1'[,'role2'...] TO user|role
-		if p.cur.Kind == kwROLE {
-			p.advance() // consume ROLE keyword
-		}
-		roles, loc, err := p.parseGranteeList()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Roles = roles
-		endLoc = loc
-
-		if _, err := p.expect(kwTO); err != nil {
-			return nil, err
-		}
-		grantees, granteeType, loc2, err := p.parseGranteeSpec()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Grantees = grantees
-		stmt.ToType = granteeType
-		endLoc = loc2
-	} else {
-		// Privilege-grant form: GRANT priv_list ON [object_type] object TO ...
-		privs, loc, err := p.parsePrivilegeList()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Privileges = privs
-		endLoc = loc
-
-		if _, err := p.expect(kwON); err != nil {
-			return nil, err
-		}
-
-		objType, obj, objLoc, err := p.parseObjectTypeAndName()
-		if err != nil {
-			return nil, err
-		}
-		stmt.ObjectType = objType
-		stmt.Object = obj
-		endLoc = objLoc
-
-		if _, err := p.expect(kwTO); err != nil {
-			return nil, err
-		}
-
-		grantees, granteeType, loc2, err := p.parseGranteeSpec()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Grantees = grantees
-		stmt.ToType = granteeType
-		endLoc = loc2
-
-		// Optional WITH GRANT OPTION
-		if p.cur.Kind == kwWITH {
-			p.advance()
-			if p.cur.Kind == kwGRANT {
-				p.advance()
-				// OPTION is likely a non-reserved keyword parsed as identifier
-				if p.cur.Kind == tokIdent && strings.ToUpper(p.cur.Str) == "OPTION" {
-					endLoc = p.cur.Loc
-					p.advance()
-				}
-			}
-			stmt.WithGrantOption = true
-		}
+	head, err := p.parseGrantHead(kwTO)
+	if err != nil {
+		return nil, err
 	}
-
-	stmt.Loc = startLoc.Merge(endLoc)
+	granteeType, grantee, err := p.parseGrantRevokeClause()
+	if err != nil {
+		return nil, err
+	}
+	stmt := &ast.GrantStmt{
+		Roles:          head.roles,
+		Privileges:     head.privileges,
+		ObjectType:     head.target.objectType,
+		Objects:        head.target.objects,
+		FunctionArgs:   head.target.functionArgs,
+		InDatabase:     head.target.inDatabase,
+		InAllDatabases: head.target.inAllDatabases,
+		ToType:         granteeType,
+		Grantees:       []string{grantee},
+	}
+	if len(stmt.Objects) > 0 {
+		stmt.Object = stmt.Objects[0]
+	}
+	if head.roles == nil && p.cur.Kind == kwWITH {
+		// (WITH GRANT OPTION)?
+		p.advance() // consume WITH
+		if _, err := p.expect(kwGRANT); err != nil {
+			return nil, err
+		}
+		if !p.atGrantWord("OPTION") {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		stmt.WithGrantOption = true
+	}
+	stmt.Loc = ast.Loc{Start: startLoc.Start, End: p.prev.Loc.End}
 	return stmt, nil
 }
 
-// ---------------------------------------------------------------------------
-// REVOKE
-// ---------------------------------------------------------------------------
-
-// parseRevoke parses:
-//
-//	REVOKE priv_list ON [object_type] object FROM {USER 'user'@'host' | ROLE 'role'} [, ...]
-//	REVOKE ROLE role_list FROM 'user'@'host' | ROLE 'role'
-//
-// On entry, cur is the token AFTER kwREVOKE has been consumed.
+// parseRevoke parses revokeRoleStatement and revokePrivilegeStatement. On
+// entry, cur is the token after REVOKE.
 func (p *Parser) parseRevoke(startLoc ast.Loc) (ast.Node, error) {
-	stmt := &ast.RevokeStmt{}
-	endLoc := startLoc
-
-	isRoleRevoke := p.cur.Kind == kwROLE || p.cur.Kind == tokString
-
-	if isRoleRevoke {
-		// Role-revoke form: REVOKE [ROLE] 'role1'[,'role2'...] FROM user|role
-		if p.cur.Kind == kwROLE {
-			p.advance() // consume ROLE keyword
-		}
-		roles, loc, err := p.parseGranteeList()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Roles = roles
-		endLoc = loc
-
-		if _, err := p.expect(kwFROM); err != nil {
-			return nil, err
-		}
-		revokees, revokeeType, loc2, err := p.parseGranteeSpec()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Revokees = revokees
-		stmt.FromType = revokeeType
-		endLoc = loc2
-	} else {
-		// Privilege-revoke form
-		privs, loc, err := p.parsePrivilegeList()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Privileges = privs
-		endLoc = loc
-
-		if _, err := p.expect(kwON); err != nil {
-			return nil, err
-		}
-
-		objType, obj, objLoc, err := p.parseObjectTypeAndName()
-		if err != nil {
-			return nil, err
-		}
-		stmt.ObjectType = objType
-		stmt.Object = obj
-		endLoc = objLoc
-
-		if _, err := p.expect(kwFROM); err != nil {
-			return nil, err
-		}
-
-		revokees, revokeeType, loc2, err := p.parseGranteeSpec()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Revokees = revokees
-		stmt.FromType = revokeeType
-		endLoc = loc2
+	head, err := p.parseGrantHead(kwFROM)
+	if err != nil {
+		return nil, err
 	}
-
-	stmt.Loc = startLoc.Merge(endLoc)
+	revokeeType, revokee, err := p.parseGrantRevokeClause()
+	if err != nil {
+		return nil, err
+	}
+	stmt := &ast.RevokeStmt{
+		Roles:          head.roles,
+		Privileges:     head.privileges,
+		ObjectType:     head.target.objectType,
+		Objects:        head.target.objects,
+		FunctionArgs:   head.target.functionArgs,
+		InDatabase:     head.target.inDatabase,
+		InAllDatabases: head.target.inAllDatabases,
+		FromType:       revokeeType,
+		Revokees:       []string{revokee},
+	}
+	if len(stmt.Objects) > 0 {
+		stmt.Object = stmt.Objects[0]
+	}
+	stmt.Loc = ast.Loc{Start: startLoc.Start, End: p.prev.Loc.End}
 	return stmt, nil
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-// parsePrivilegeList parses a comma-separated list of privilege names.
-// Privilege names are identifiers like SELECT_PRIV, USAGE_PRIV, ALL, etc.
-// Optional trailing PRIVILEGES keyword after ALL is consumed.
+// parseGrantHead reads a GRANT or REVOKE from its first item through ON and
+// the target, or up to to (TO or FROM) for a role list, which it consumes.
 //
-// Returns the list of privilege names (uppercased) and the end location.
-func (p *Parser) parsePrivilegeList() ([]string, ast.Loc, error) {
-	var privs []string
-	endLoc := p.cur.Loc
-
+// The two lists share their first tokens (USAGE is a privilege and may name
+// a role), so the items are read as runs of tokens up to ',' and the word
+// after the list decides: ON makes them privileges, to roles.
+func (p *Parser) parseGrantHead(to int) (*grantHead, error) {
+	var items [][]Token
 	for {
-		if !isPrivilegeToken(p.cur.Kind) {
-			return nil, ast.NoLoc(), p.syntaxErrorAtCur()
+		var item []Token
+		for p.cur.Kind != int(',') && p.cur.Kind != kwON && p.cur.Kind != to &&
+			p.cur.Kind != tokEOF && p.cur.Kind != int(';') {
+			item = append(item, p.advance())
 		}
-		priv := strings.ToUpper(p.cur.Str)
-		endLoc = p.cur.Loc
-		p.advance()
-
-		// ALL [PRIVILEGES] — consume optional PRIVILEGES
-		if strings.ToUpper(priv) == "ALL" && p.cur.Kind == kwPRIVILEGES {
-			priv = "ALL PRIVILEGES"
-			endLoc = p.cur.Loc
-			p.advance()
+		if len(item) == 0 {
+			return nil, p.syntaxErrorAtCur()
 		}
-
-		privs = append(privs, priv)
-
+		items = append(items, item)
 		if p.cur.Kind != int(',') {
 			break
 		}
 		p.advance() // consume ','
 	}
 
-	return privs, endLoc, nil
-}
-
-// isPrivilegeToken reports whether the current token can be a privilege name.
-// Privileges are identifiers (SELECT_PRIV, USAGE_PRIV, LOAD_PRIV, …) or
-// certain reserved keywords used as privilege names (ALL, SELECT, INSERT,
-// UPDATE, DELETE, CREATE, DROP, ALTER, LOAD, ADMIN, SHOW, GRANT, USAGE).
-func isPrivilegeToken(kind TokenKind) bool {
-	switch kind {
-	case kwALL, kwSELECT, kwINSERT, kwUPDATE, kwDELETE,
-		kwCREATE, kwDROP, kwALTER, kwLOAD, kwADMIN, kwSHOW, kwGRANT:
-		return true
-	case tokIdent, tokQuotedIdent:
-		return true
+	head := &grantHead{}
+	switch p.cur.Kind {
+	case to:
+		// identifierOrStringList
+		for _, item := range items {
+			if len(item) != 1 || !isGrantNameToken(item[0]) {
+				return nil, grantSyntaxError(item[len(item)-1])
+			}
+			head.roles = append(head.roles, item[0].Str)
+		}
+		p.advance() // consume TO / FROM
+		return head, nil
+	case kwON:
+		for _, item := range items {
+			priv, ok := grantPrivilegeType(item)
+			if !ok {
+				return nil, grantSyntaxError(item[0])
+			}
+			head.privileges = append(head.privileges, priv)
+		}
+		p.advance() // consume ON
 	default:
-		// non-reserved keywords may be privilege names too
-		if kind >= 700 && !IsReserved(kind) {
-			return true
-		}
-		return false
+		return nil, p.syntaxErrorAtCur()
 	}
+
+	impersonate := len(head.privileges) == 1 && head.privileges[0] == "IMPERSONATE"
+	if err := p.parsePrivTarget(&head.target, to, impersonate); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(to); err != nil {
+		return nil, err
+	}
+	return head, nil
 }
 
-// parseObjectTypeAndName parses the optional object-type keyword(s) followed
-// by the object name. Returns (objectType, objectName, endLoc, error).
+// grantPrivilegeType matches item to privilegeType (StarRocks.g4:1743):
 //
-// Object types:
-//
-//	TABLE (default when no keyword)
-//	DATABASE
-//	RESOURCE
-//	CLUSTER
-//	COMPUTE GROUP
-//	STAGE
-//	STORAGE VAULT
-//	WORKLOAD GROUP
-//
-// Object names can be:
-//   - *.* (three-part: catalog.db.table)
-//   - db.* or db.table (two-part)
-//   - * or name (single-part)
-//   - A quoted string (for RESOURCE, STORAGE VAULT, COMPUTE GROUP, WORKLOAD GROUP names)
-func (p *Parser) parseObjectTypeAndName() (string, *ast.ObjectName, ast.Loc, error) {
-	objType := "TABLE"
+//	ALL PRIVILEGES? | ALTER | APPLY | BLACKLIST
+//	| CREATE (DATABASE | TABLE | VIEW | FUNCTION | GLOBAL FUNCTION | MATERIALIZED VIEW
+//	    | RESOURCE | RESOURCE GROUP | EXTERNAL CATALOG | STORAGE VOLUME | WAREHOUSE | PIPE)
+//	| DELETE | DROP | EXPORT | FILE | IMPERSONATE | INSERT | GRANT | NODE | OPERATE
+//	| PLUGIN | REPOSITORY | REFRESH | SELECT | UPDATE | USAGE
+func grantPrivilegeType(item []Token) (string, bool) {
+	words := make([]string, len(item))
+	for i, tok := range item {
+		if words[i] = grantWord(tok); words[i] == "" {
+			return "", false
+		}
+	}
+	text := strings.Join(words, " ")
+	switch text {
+	case "ALL", "ALL PRIVILEGES", "ALTER", "APPLY", "BLACKLIST",
+		"DELETE", "DROP", "EXPORT", "FILE", "IMPERSONATE", "INSERT", "GRANT", "NODE",
+		"OPERATE", "PLUGIN", "REPOSITORY", "REFRESH", "SELECT", "UPDATE", "USAGE",
+		"CREATE DATABASE", "CREATE TABLE", "CREATE VIEW", "CREATE FUNCTION",
+		"CREATE GLOBAL FUNCTION", "CREATE MATERIALIZED VIEW", "CREATE RESOURCE",
+		"CREATE RESOURCE GROUP", "CREATE EXTERNAL CATALOG", "CREATE STORAGE VOLUME",
+		"CREATE WAREHOUSE", "CREATE PIPE":
+		return text, true
+	}
+	return "", false
+}
 
-	switch p.cur.Kind {
-	case kwDATABASE:
-		objType = "DATABASE"
-		p.advance()
-	case kwRESOURCE:
-		objType = "RESOURCE"
-		p.advance()
-	case kwCLUSTER:
-		objType = "CLUSTER"
-		p.advance()
-	case kwSTAGE:
-		objType = "STAGE"
-		p.advance()
-	case kwCOMPUTE:
-		// COMPUTE GROUP
-		p.advance()
-		if p.cur.Kind == kwGROUP {
+// grantWord returns the upper-case spelling of an unquoted word, or "" for a
+// quoted name, a string or punctuation.
+func grantWord(tok Token) string {
+	if tok.Kind == tokIdent || tok.Kind >= 700 {
+		return strings.ToUpper(tok.Str)
+	}
+	return ""
+}
+
+// atGrantWord reports whether cur is the unquoted word w.
+func (p *Parser) atGrantWord(w string) bool {
+	return grantWord(p.cur) == w
+}
+
+// privObjectTypes are privObjectType's words (StarRocks.g4:1753), keyed by
+// their first word; a two-word type lists its second.
+var privObjectTypes = map[string]string{
+	"CATALOG": "", "DATABASE": "", "MATERIALIZED": "VIEW", "RESOURCE": "",
+	"STORAGE": "VOLUME", "SYSTEM": "", "TABLE": "", "VIEW": "", "WAREHOUSE": "", "PIPE": "",
+}
+
+// privObjectTypePlurals are privObjectTypePlural's words (StarRocks.g4:1758),
+// keyed by their first word; a two-word type lists its second.
+var privObjectTypePlurals = map[string]string{
+	"CATALOGS": "", "DATABASES": "", "FUNCTIONS": "", "GLOBAL": "FUNCTIONS",
+	"MATERIALIZED": "VIEWS", "POLICIES": "", "RESOURCES": "", "RESOURCE": "GROUPS",
+	"STORAGE": "VOLUMES", "TABLES": "", "USERS": "", "VIEWS": "", "WAREHOUSES": "", "PIPES": "",
+}
+
+// parsePrivTarget reads what follows ON in a privilege GRANT or REVOKE:
+//
+//	USER user (',' user)*                                    (IMPERSONATE only)
+//	| GLOBAL? FUNCTION privFunctionObjectNameList
+//	| SYSTEM
+//	| privObjectType privObjectNameList
+//	| ALL privObjectTypePlural (IN ALL DATABASES | IN DATABASE identifierOrString)?
+//	| privObjectNameList
+//
+// to is TO or FROM, the word after the target.
+func (p *Parser) parsePrivTarget(t *privTarget, to int, impersonate bool) error {
+	ends := func(tok Token) bool {
+		return tok.Kind == to || tok.Kind == int(',') || tok.Kind == int('.') ||
+			tok.Kind == tokEOF || tok.Kind == int(';')
+	}
+	word := grantWord(p.cur)
+	switch {
+	case impersonate && p.cur.Kind == kwUSER && !ends(p.peekNext()):
+		p.advance() // consume USER
+		t.objectType = "USER"
+		for {
+			user, loc, err := p.parseGrantUser()
+			if err != nil {
+				return err
+			}
+			t.objects = append(t.objects, &ast.ObjectName{Parts: []string{user}, Loc: loc})
+			if p.cur.Kind != int(',') {
+				return nil
+			}
+			p.advance() // consume ','
+		}
+
+	case p.cur.Kind == kwFUNCTION || (p.cur.Kind == kwGLOBAL && p.peekNext().Kind == kwFUNCTION):
+		t.objectType = "FUNCTION"
+		if p.cur.Kind == kwGLOBAL {
+			t.objectType = "GLOBAL FUNCTION"
 			p.advance()
 		}
-		objType = "COMPUTE GROUP"
-	case kwSTORAGE:
-		// STORAGE VAULT
+		p.advance() // consume FUNCTION
+		// privFunctionObjectNameList (:1735): qualifiedName '(' typeList ')' (',' ...)*
+		for {
+			name, err := p.parseMultipartIdentifier()
+			if err != nil {
+				return err
+			}
+			args, _, err := p.parseFunctionTypeList()
+			if err != nil {
+				return err
+			}
+			t.objects = append(t.objects, name)
+			t.functionArgs = append(t.functionArgs, args)
+			if p.cur.Kind != int(',') {
+				return nil
+			}
+			p.advance() // consume ','
+		}
+
+	case p.cur.Kind == kwSYSTEM && p.peekNext().Kind == to:
+		p.advance() // consume SYSTEM
+		t.objectType = "SYSTEM"
+		return nil
+
+	case p.cur.Kind == kwALL:
+		p.advance() // consume ALL
+		first := grantWord(p.cur)
+		second, ok := privObjectTypePlurals[first]
+		if !ok {
+			return p.syntaxErrorAtCur()
+		}
 		p.advance()
-		if p.cur.Kind == kwVAULT {
+		t.objectType = "ALL " + first
+		if second != "" {
+			if !p.atGrantWord(second) {
+				return p.syntaxErrorAtCur()
+			}
 			p.advance()
+			t.objectType += " " + second
 		}
-		objType = "STORAGE VAULT"
-	case kwWORKLOAD:
-		// WORKLOAD GROUP
-		p.advance()
-		if p.cur.Kind == kwGROUP {
+		if p.cur.Kind == kwIN {
+			p.advance() // consume IN
+			if p.cur.Kind == kwALL {
+				p.advance() // consume ALL
+				if _, err := p.expect(kwDATABASES); err != nil {
+					return err
+				}
+				t.inAllDatabases = true
+				return nil
+			}
+			if _, err := p.expect(kwDATABASE); err != nil {
+				return err
+			}
+			db, _, err := p.parseGrantName()
+			if err != nil {
+				return err
+			}
+			t.inDatabase = db
+		}
+		return nil
+	}
+
+	// privObjectType privObjectNameList, when the words name a type and
+	// do not end the object name list themselves.
+	if second, ok := privObjectTypes[word]; ok {
+		if word == "RESOURCE" && grantWord(p.peekNext()) == "GROUP" {
+			second = "GROUP" // RESOURCE GROUP, beside RESOURCE alone
+		}
+		switch {
+		case second != "" && grantWord(p.peekNext()) == second:
 			p.advance()
+			p.advance()
+			t.objectType = word + " " + second
+		case second == "" && !ends(p.peekNext()):
+			p.advance()
+			t.objectType = word
 		}
-		objType = "WORKLOAD GROUP"
 	}
-
-	// Parse object name: may be an identifier path (*.* / db.* / name) or
-	// a quoted string (for non-table resources).
-	obj, objLoc, err := p.parseGrantObject()
-	if err != nil {
-		return "", nil, ast.NoLoc(), err
-	}
-
-	return objType, obj, objLoc, nil
+	return p.parsePrivObjectNameList(t)
 }
 
-// parseGrantObject parses the object name in GRANT/REVOKE ON <object>.
-// Handles the forms:
-//   - *.*.* (three wildcards)
-//   - *.* (two wildcards / catalog.db)
-//   - * (single wildcard)
-//   - db.table  / db.*
-//   - 'name' (quoted string, for RESOURCE / WORKLOAD GROUP / COMPUTE GROUP / STORAGE VAULT)
-func (p *Parser) parseGrantObject() (*ast.ObjectName, ast.Loc, error) {
-	startLoc := p.cur.Loc
-
-	// Quoted string object name (e.g., RESOURCE 'spark_resource')
-	if p.cur.Kind == tokString {
-		name := p.cur.Str
-		loc := p.cur.Loc
-		p.advance()
-		obj := &ast.ObjectName{Parts: []string{name}, Loc: loc}
-		return obj, loc, nil
-	}
-
-	// Wildcard or identifier path
-	var parts []string
-	var endLoc ast.Loc
-
-	part, loc, err := p.parseGrantObjectPart()
-	if err != nil {
-		return nil, ast.NoLoc(), err
-	}
-	parts = append(parts, part)
-	endLoc = loc
-
-	for p.cur.Kind == int('.') {
-		p.advance() // consume '.'
-		next, nextLoc, err2 := p.parseGrantObjectPart()
-		if err2 != nil {
-			return nil, ast.NoLoc(), err2
-		}
-		parts = append(parts, next)
-		endLoc = nextLoc
-	}
-
-	obj := &ast.ObjectName{
-		Parts: parts,
-		Loc:   ast.Loc{Start: startLoc.Start, End: endLoc.End},
-	}
-	return obj, endLoc, nil
-}
-
-// parseGrantObjectPart parses one segment of a grant object name:
-// either '*' (wildcard) or an identifier/keyword.
-func (p *Parser) parseGrantObjectPart() (string, ast.Loc, error) {
-	if p.cur.Kind == int('*') {
-		loc := p.cur.Loc
-		p.advance()
-		return "*", loc, nil
-	}
-	// identifier or keyword used as identifier
-	return p.parseIdentifierQualified()
-}
-
-// parseGranteeList parses a comma-separated list of grantee identifiers
-// (role names or user strings). Used for GRANT ROLE list and REVOKE ROLE list.
-func (p *Parser) parseGranteeList() ([]string, ast.Loc, error) {
-	var names []string
-	endLoc := p.cur.Loc
-
+// parsePrivObjectNameList reads privObjectNameList (StarRocks.g4:1731):
+//
+//	privObjectName (',' privObjectName)*
+//	privObjectName : identifierOrStringOrStar ('.' identifierOrStringOrStar)?
+func (p *Parser) parsePrivObjectNameList(t *privTarget) error {
 	for {
-		name, loc, err := p.parseIdentifierOrString()
-		if err != nil {
-			return nil, ast.NoLoc(), err
+		start := p.cur.Loc
+		var parts []string
+		for {
+			if p.cur.Kind == int('*') {
+				p.advance()
+				parts = append(parts, "*")
+			} else {
+				name, _, err := p.parseGrantName()
+				if err != nil {
+					return err
+				}
+				parts = append(parts, name)
+			}
+			if len(parts) == 2 || p.cur.Kind != int('.') {
+				break
+			}
+			p.advance() // consume '.'
 		}
-		names = append(names, name)
-		endLoc = loc
-
+		t.objects = append(t.objects, &ast.ObjectName{
+			Parts: parts,
+			Loc:   ast.Loc{Start: start.Start, End: p.prev.Loc.End},
+		})
 		if p.cur.Kind != int(',') {
-			break
+			return nil
 		}
 		p.advance() // consume ','
 	}
-
-	return names, endLoc, nil
 }
 
-// parseGranteeSpec parses the grantee / revokee clause after TO / FROM.
-// Handles:
+// parseGrantRevokeClause reads the grantee after TO or FROM:
 //
-//	USER 'user'@'host'
-//	ROLE 'role'
-//	'user'@'host'   (no keyword)
+//	grantRevokeClause : USER? user | ROLE identifierOrString     (:1686)
 //
-// Returns (grantees, granteeType, endLoc, error).
-// granteeType is "USER", "ROLE", or "" when no keyword is present.
-//
-// Multiple grantees separated by commas are supported.
-func (p *Parser) parseGranteeSpec() ([]string, string, ast.Loc, error) {
-	var granteeType string
-	endLoc := p.cur.Loc
-
-	// Optional USER or ROLE keyword before first grantee
-	switch p.cur.Kind {
-	case kwUSER:
-		granteeType = "USER"
-		p.advance()
-	case kwROLE:
-		granteeType = "ROLE"
-		p.advance()
+// and, after a role list, grantRoleStatement's TO USER? user | TO ROLE
+// identifierOrString, which is the same. USER and ROLE are nonReserved, so
+// either may itself be the user's name. It returns USER, ROLE or "" and the
+// grantee as written.
+func (p *Parser) parseGrantRevokeClause() (string, string, error) {
+	kind := ""
+	if (p.cur.Kind == kwUSER || p.cur.Kind == kwROLE) && isGrantNameToken(p.peekNext()) {
+		kind = strings.ToUpper(p.advance().Str)
 	}
-
-	var grantees []string
-
-	for {
-		raw, loc, err := p.parseRawGrantee()
-		if err != nil {
-			return nil, "", ast.NoLoc(), err
-		}
-		grantees = append(grantees, raw)
-		endLoc = loc
-
-		if p.cur.Kind != int(',') {
-			break
-		}
-		p.advance() // consume ','
-
-		// After the first grantee, subsequent items may have USER/ROLE prefix too.
-		switch p.cur.Kind {
-		case kwUSER:
-			p.advance()
-		case kwROLE:
-			p.advance()
-		}
+	if kind == "ROLE" {
+		name, _, err := p.parseGrantName()
+		return kind, name, err
 	}
-
-	return grantees, granteeType, endLoc, nil
+	user, _, err := p.parseGrantUser()
+	return kind, user, err
 }
 
-// parseRawGrantee parses a single grantee as a raw string in 'user'@'host' form
-// or just 'name'. Returns the concatenated raw string and end location.
-func (p *Parser) parseRawGrantee() (string, ast.Loc, error) {
-	name, nameLoc, err := p.parseIdentifierOrString()
+// parseGrantUser reads user (StarRocks.g4:2892):
+//
+//	identifierOrString ('@' (identifierOrString | '[' identifierOrString ']'))?
+func (p *Parser) parseGrantUser() (string, ast.Loc, error) {
+	start := p.cur.Loc
+	name, _, err := p.parseGrantName()
 	if err != nil {
 		return "", ast.NoLoc(), err
 	}
-	endLoc := nameLoc
-
-	// Optional @'host' suffix
 	if p.cur.Kind == int('@') {
 		p.advance() // consume '@'
-		host, hostLoc, err2 := p.parseIdentifierOrString()
-		if err2 != nil {
-			return "", ast.NoLoc(), err2
+		bracket := p.cur.Kind == int('[')
+		if bracket {
+			p.advance()
 		}
-		name = name + "@" + host
-		endLoc = hostLoc
+		host, _, err := p.parseGrantName()
+		if err != nil {
+			return "", ast.NoLoc(), err
+		}
+		if bracket {
+			if _, err := p.expect(int(']')); err != nil {
+				return "", ast.NoLoc(), err
+			}
+			host = "[" + host + "]"
+		}
+		name += "@" + host
 	}
+	return name, ast.Loc{Start: start.Start, End: p.prev.Loc.End}, nil
+}
 
-	return name, endLoc, nil
+// isGrantNameToken reports whether tok is an identifierOrString: a string,
+// an identifier, or a word of StarRocks.g4's nonReserved.
+func isGrantNameToken(tok Token) bool {
+	return tok.Kind == tokString || isIdentifierToken(tok.Kind) || starRocksNonReservedWords[tok.Kind]
+}
+
+// parseGrantName reads identifierOrString, taking the nonReserved words
+// omni reserves elsewhere (starRocksNonReservedWords).
+func (p *Parser) parseGrantName() (string, ast.Loc, error) {
+	if starRocksNonReservedWords[p.cur.Kind] {
+		tok := p.advance()
+		return tok.Str, tok.Loc, nil
+	}
+	return p.parseIdentifierOrString()
+}
+
+// grantSyntaxError is a syntax error at tok, a token already consumed.
+func grantSyntaxError(tok Token) *ParseError {
+	text := tok.Str
+	if text == "" {
+		text = TokenName(tok.Kind)
+	}
+	return &ParseError{Position: tok.Loc.Start, End: tok.Loc.End, Message: "syntax error at or near " + text}
 }

@@ -262,7 +262,7 @@ func TestParseDateTimeFunctionDatepartArgs(t *testing.T) {
 	}
 
 	t.Run("ordinary function preserves column ref", func(t *testing.T) {
-		result := ParseAndCheck(t, "SELECT MYFUNC(HOUR)")
+		result := ParseAndCheck(t, "SELECT ABS(HOUR)")
 		stmt := result.Items[0].(*ast.SelectStmt)
 		target := stmt.TargetList.Items[0].(*ast.ResTarget)
 		fc := target.Val.(*ast.FuncCallExpr)
@@ -324,7 +324,7 @@ func TestParseSpecialFunctionSyntax(t *testing.T) {
 			})
 		}
 
-		result := ParseAndCheck(t, "SELECT MYFUNC(LEADING)")
+		result := ParseAndCheck(t, "SELECT LEN(LEADING)")
 		stmt := result.Items[0].(*ast.SelectStmt)
 		target := stmt.TargetList.Items[0].(*ast.ResTarget)
 		fc := target.Val.(*ast.FuncCallExpr)
@@ -2297,7 +2297,7 @@ func TestParseControlFlow(t *testing.T) {
 	})
 
 	t.Run("return", func(t *testing.T) {
-		sql := "RETURN 0"
+		sql := "RETURN"
 		result := ParseAndCheck(t, sql)
 		_, ok := result.Items[0].(*ast.ReturnStmt)
 		if !ok {
@@ -2306,19 +2306,43 @@ func TestParseControlFlow(t *testing.T) {
 	})
 
 	t.Run("break continue", func(t *testing.T) {
-		// These need to be in a context where they're valid statements
-		sql := "BREAK"
+		// BREAK and CONTINUE belong in a WHILE body: SQL Server refuses
+		// them elsewhere (Msg 135, 136).
+		sql := "WHILE 1 = 1 BREAK"
 		result := ParseAndCheck(t, sql)
-		_, ok := result.Items[0].(*ast.BreakStmt)
+		_, ok := result.Items[0].(*ast.WhileStmt).Body.(*ast.BreakStmt)
 		if !ok {
-			t.Fatalf("expected *BreakStmt, got %T", result.Items[0])
+			t.Fatalf("expected *BreakStmt, got %T", result.Items[0].(*ast.WhileStmt).Body)
 		}
 
-		sql = "CONTINUE"
+		sql = "WHILE 1 = 1 CONTINUE"
 		result = ParseAndCheck(t, sql)
-		_, ok2 := result.Items[0].(*ast.ContinueStmt)
+		_, ok2 := result.Items[0].(*ast.WhileStmt).Body.(*ast.ContinueStmt)
 		if !ok2 {
-			t.Fatalf("expected *ContinueStmt, got %T", result.Items[0])
+			t.Fatalf("expected *ContinueStmt, got %T", result.Items[0].(*ast.WhileStmt).Body)
+		}
+	})
+
+	// SQL Server refuses BREAK and CONTINUE outside a WHILE (Msg 135, 136),
+	// RETURN with a value outside a procedure or function (Msg 178), and
+	// THROW without arguments outside a CATCH block (Msg 10704).
+	t.Run("out of context", func(t *testing.T) {
+		for _, sql := range []string{
+			"BREAK", "CONTINUE", "IF 1 = 1 BREAK", "RETURN 0", "THROW",
+			"CREATE PROCEDURE p AS BREAK", "CREATE TRIGGER t ON a AFTER INSERT AS RETURN 1",
+			"BEGIN TRY THROW END TRY BEGIN CATCH SELECT 1 END CATCH",
+		} {
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q): want an error", sql)
+			}
+		}
+		for _, sql := range []string{
+			"WHILE 1 = 1 BEGIN IF 1 = 1 BREAK END",
+			"CREATE PROCEDURE p AS BEGIN IF 1 = 1 RETURN 2 END",
+			"CREATE FUNCTION f() RETURNS INT AS BEGIN RETURN 1 END",
+			"BEGIN TRY SELECT 1 END TRY BEGIN CATCH IF 1 = 1 THROW END CATCH",
+		} {
+			ParseAndCheck(t, sql)
 		}
 	})
 
@@ -2507,8 +2531,21 @@ func TestParseExecute(t *testing.T) {
 	})
 
 	t.Run("exec with output param", func(t *testing.T) {
-		sql := "EXEC sp_test @param1 = 1, @param2 OUTPUT"
+		sql := "EXEC sp_test @param1 = 1, @param2 = @v OUTPUT"
 		ParseAndCheck(t, sql)
+	})
+
+	// SQL Server refuses a positional parameter after a named one (Msg 119)
+	// and OUTPUT after a constant (Msg 179).
+	t.Run("exec positional after named", func(t *testing.T) {
+		for _, sql := range []string{
+			"EXEC sp_test @param1 = 1, @param2 OUTPUT",
+			"EXEC sp1 1, 'hello', @p3 = 42 OUTPUT",
+		} {
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q): want an error", sql)
+			}
+		}
 	})
 }
 
@@ -2595,11 +2632,12 @@ func TestParseUtility(t *testing.T) {
 	})
 
 	t.Run("throw rethrow", func(t *testing.T) {
-		sql := "THROW"
+		sql := "BEGIN TRY SELECT 1 END TRY BEGIN CATCH THROW END CATCH"
 		result := ParseAndCheck(t, sql)
-		_, ok := result.Items[0].(*ast.ThrowStmt)
+		catch := result.Items[0].(*ast.TryCatchStmt).CatchBlock
+		_, ok := catch.Items[0].(*ast.ThrowStmt)
 		if !ok {
-			t.Fatalf("expected *ThrowStmt, got %T", result.Items[0])
+			t.Fatalf("expected *ThrowStmt, got %T", catch.Items[0])
 		}
 	})
 
@@ -2689,7 +2727,7 @@ func TestParseCursorOperations(t *testing.T) {
 		// DECLARE CURSOR - ISO syntax with FOR READ_ONLY
 		{
 			name: "declare_cursor_for_read_only",
-			sql:  "DECLARE my_cursor CURSOR FOR SELECT * FROM employees FOR READ_ONLY",
+			sql:  "DECLARE my_cursor CURSOR FOR SELECT * FROM employees FOR READ ONLY",
 		},
 		// DECLARE CURSOR - ISO syntax with FOR UPDATE
 		{
@@ -4736,10 +4774,6 @@ func TestParseSecurityContext(t *testing.T) {
 		"EXECUTE AS USER = 'TestUser'",
 		// EXECUTE AS CALLER
 		"EXECUTE AS CALLER",
-		// EXECUTE AS SELF
-		"EXECUTE AS SELF",
-		// EXECUTE AS OWNER
-		"EXECUTE AS OWNER",
 		// EXECUTE AS with NO REVERT
 		"EXECUTE AS USER = 'TestUser' WITH NO REVERT",
 		// EXECUTE AS with COOKIE
@@ -4787,9 +4821,7 @@ func TestParseServiceBrokerAlterDrop(t *testing.T) {
 		"ALTER REMOTE SERVICE BINDING MyBinding WITH USER = NewUser",
 		"ALTER REMOTE SERVICE BINDING MyBinding WITH USER = NewUser, ANONYMOUS = ON",
 		// ALTER MESSAGE TYPE
-		"ALTER MESSAGE TYPE MyMessageType",
-		// ALTER CONTRACT
-		"ALTER CONTRACT MyContract",
+		"ALTER MESSAGE TYPE MyMessageType VALIDATION = NONE",
 		// DROP MESSAGE TYPE
 		"DROP MESSAGE TYPE MyMessageType",
 		// DROP CONTRACT
@@ -5464,7 +5496,7 @@ func TestParseEncryptionKeys(t *testing.T) {
 		},
 		// ALTER CRYPTOGRAPHIC PROVIDER - FROM FILE
 		{
-			sql:        "ALTER CRYPTOGRAPHIC PROVIDER SecurityProvider FROM FILE = 'c:\\SecurityProvider\\SecurityProvider_v2.dll' ENABLE",
+			sql:        "ALTER CRYPTOGRAPHIC PROVIDER SecurityProvider FROM FILE = 'c:\\SecurityProvider\\SecurityProvider_v2.dll'",
 			action:     "ALTER",
 			objectType: "CRYPTOGRAPHIC PROVIDER",
 			name:       "SecurityProvider",
@@ -6373,7 +6405,7 @@ func TestParseSpecializedIndexes(t *testing.T) {
 			// CREATE PRIMARY XML INDEX
 			{`CREATE PRIMARY XML INDEX idx_xml ON dbo.Products (CatalogDescription)`, true},
 			// CREATE PRIMARY XML INDEX with options
-			{`CREATE PRIMARY XML INDEX PXML_ProductModel ON Production.ProductModel (CatalogDescription) WITH (PAD_INDEX = 1)`, true},
+			{`CREATE PRIMARY XML INDEX PXML_ProductModel ON Production.ProductModel (CatalogDescription) WITH (PAD_INDEX = ON)`, true},
 			// CREATE secondary XML INDEX FOR VALUE
 			{`CREATE XML INDEX idx_xml_value ON dbo.Products (CatalogDescription) USING XML INDEX idx_xml FOR VALUE`, false},
 			// CREATE secondary XML INDEX FOR PATH
@@ -6402,7 +6434,7 @@ func TestParseSpecializedIndexes(t *testing.T) {
 	t.Run("selective_xml_index", func(t *testing.T) {
 		tests := []string{
 			`CREATE SELECTIVE XML INDEX sxi_index ON T (xmlcol) FOR (pathab = '/a/b')`,
-			`CREATE SELECTIVE XML INDEX sxi_index ON T (xmlcol) FOR (pathab = '/a/b') WITH (PAD_INDEX = 1)`,
+			`CREATE SELECTIVE XML INDEX sxi_index ON T (xmlcol) FOR (pathab = '/a/b') WITH (PAD_INDEX = ON)`,
 		}
 		for _, sql := range tests {
 			t.Run(sql, func(t *testing.T) {
@@ -6980,7 +7012,7 @@ func TestParseIntegrationPhase3(t *testing.T) {
 		"DROP EXTERNAL LANGUAGE MyLang",
 		"DROP EXTERNAL RESOURCE POOL MyPool",
 		// Batch 58: Encryption keys
-		"CREATE COLUMN MASTER KEY MyCMK WITH (KEY_STORE_PROVIDER_NAME = 'MSSQL_CERTIFICATE_STORE')",
+		"CREATE COLUMN MASTER KEY MyCMK WITH (KEY_STORE_PROVIDER_NAME = 'MSSQL_CERTIFICATE_STORE', KEY_PATH = 'CurrentUser/My/A1B2')",
 		// Batch 59: Resource governor
 		"CREATE WORKLOAD GROUP TestGroup USING [default]",
 		"ALTER RESOURCE GOVERNOR RECONFIGURE",
@@ -7006,7 +7038,7 @@ func TestParseIntegrationPhase3(t *testing.T) {
 		"CREATE RULE range_rule AS @range >= 1000 AND @range < 20000",
 		"ALTER DATABASE SCOPED CONFIGURATION SET MAXDOP = 4",
 		// BEGIN DIALOG (service broker, newly wired)
-		"BEGIN DIALOG @dialog FROM SERVICE 'InitiatorService' TO SERVICE 'TargetService' ON CONTRACT 'MyContract'",
+		"BEGIN DIALOG @dialog FROM SERVICE InitiatorService TO SERVICE 'TargetService' ON CONTRACT MyContract",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
@@ -9495,9 +9527,11 @@ func TestParseCreateTypeIndex(t *testing.T) {
 	})
 
 	t.Run("create_type_table_hash_index", func(t *testing.T) {
+		// WITH follows the column list; SQL Server 2022 refuses it before
+		// (Msg 102).
 		sql := `CREATE TYPE dbo.MemOptType AS TABLE (
 			id INT NOT NULL,
-			INDEX IX_id NONCLUSTERED HASH WITH (BUCKET_COUNT = 1024) (id)
+			INDEX IX_id NONCLUSTERED HASH (id) WITH (BUCKET_COUNT = 1024)
 		)`
 		result := ParseAndCheck(t, sql)
 		stmt := result.Items[0].(*ast.CreateTypeStmt)
@@ -10591,13 +10625,14 @@ func TestParseTriggerWithOptions(t *testing.T) {
 		}
 	})
 
-	// WITH SCHEMABINDING
+	// WITH SCHEMABINDING, which goes with NATIVE_COMPILATION and an ATOMIC
+	// body (SQL Server 2022: Msg 10796 without NATIVE_COMPILATION).
 	t.Run("trigger_with_schemabinding", func(t *testing.T) {
-		sql := "CREATE TRIGGER tr5 ON t5 WITH SCHEMABINDING AFTER INSERT AS BEGIN SELECT 1 END"
+		sql := "CREATE TRIGGER tr5 ON t5 WITH SCHEMABINDING, NATIVE_COMPILATION AFTER INSERT AS BEGIN ATOMIC WITH (TRANSACTION ISOLATION LEVEL = SNAPSHOT, LANGUAGE = N'us_english') SELECT 1 END"
 		result := ParseAndCheck(t, sql)
 		stmt := result.Items[0].(*ast.CreateTriggerStmt)
-		if stmt.TriggerOptions == nil || stmt.TriggerOptions.Len() != 1 {
-			t.Fatalf("expected 1 trigger option")
+		if stmt.TriggerOptions == nil || stmt.TriggerOptions.Len() != 2 {
+			t.Fatalf("expected 2 trigger options")
 		}
 		opt := stmt.TriggerOptions.Items[0].(*ast.TriggerOption)
 		if opt.Name != "SCHEMABINDING" {
@@ -10647,8 +10682,8 @@ func TestParseTriggerEventOptionsStringsDepth(t *testing.T) {
 			wantValue string
 		}{
 			{"encryption", "CREATE TRIGGER tr1 ON t1 WITH ENCRYPTION AFTER INSERT AS SELECT 1", "ENCRYPTION", ""},
-			{"schemabinding", "CREATE TRIGGER tr1 ON t1 WITH SCHEMABINDING AFTER INSERT AS SELECT 1", "SCHEMABINDING", ""},
-			{"native_compilation", "CREATE TRIGGER tr1 ON t1 WITH NATIVE_COMPILATION, SCHEMABINDING AFTER INSERT AS SELECT 1", "NATIVE_COMPILATION", ""},
+			{"schemabinding", "CREATE TRIGGER tr1 ON t1 WITH SCHEMABINDING, NATIVE_COMPILATION AFTER INSERT AS BEGIN ATOMIC WITH (TRANSACTION ISOLATION LEVEL = SNAPSHOT, LANGUAGE = N'us_english') SELECT 1 END", "SCHEMABINDING", ""},
+			{"native_compilation", "CREATE TRIGGER tr1 ON t1 WITH NATIVE_COMPILATION, SCHEMABINDING AFTER INSERT AS BEGIN ATOMIC WITH (TRANSACTION ISOLATION LEVEL = SNAPSHOT, LANGUAGE = N'us_english') SELECT 1 END", "NATIVE_COMPILATION", ""},
 			{"execute_as_caller", "CREATE TRIGGER tr1 ON t1 WITH EXECUTE AS CALLER AFTER INSERT AS SELECT 1", "EXECUTE AS", "CALLER"},
 			{"execute_as_self", "CREATE TRIGGER tr1 ON t1 WITH EXECUTE AS SELF AFTER INSERT AS SELECT 1", "EXECUTE AS", "SELF"},
 			{"execute_as_user", "CREATE TRIGGER tr1 ON t1 WITH EXECUTE AS 'appuser' AFTER INSERT AS SELECT 1", "EXECUTE AS", "appuser"},
@@ -10677,7 +10712,7 @@ func TestParseTriggerEventOptionsStringsDepth(t *testing.T) {
 	t.Run("no_string_nodes", func(t *testing.T) {
 		tests := []string{
 			"CREATE TRIGGER tr1 ON t1 WITH ENCRYPTION, EXECUTE AS OWNER AFTER INSERT, UPDATE AS SELECT 1",
-			"CREATE TRIGGER tr1 ON ALL SERVER WITH SCHEMABINDING AFTER LOGON AS SELECT 1",
+			"CREATE TRIGGER tr1 ON ALL SERVER WITH SCHEMABINDING, NATIVE_COMPILATION AFTER LOGON AS BEGIN ATOMIC WITH (TRANSACTION ISOLATION LEVEL = SNAPSHOT, LANGUAGE = N'us_english') SELECT 1 END",
 			"CREATE TRIGGER tr1 ON DATABASE AFTER CREATE_TABLE, DROP_TABLE AS SELECT 1",
 		}
 		for _, sql := range tests {
@@ -11375,7 +11410,8 @@ func TestParseAlterIndexOptionsDepth(t *testing.T) {
 
 	// ALTER INDEX ... REBUILD with DATA_COMPRESSION ON PARTITIONS
 	t.Run("alter_index_data_compression_partitions", func(t *testing.T) {
-		sql := "ALTER INDEX IX_1 ON dbo.t REBUILD WITH (DATA_COMPRESSION = PAGE ON PARTITIONS (1, 3 TO 5))"
+		// ON PARTITIONS needs PARTITION = ALL (SQL Server Msg 10737).
+		sql := "ALTER INDEX IX_1 ON dbo.t REBUILD PARTITION = ALL WITH (DATA_COMPRESSION = PAGE ON PARTITIONS (1, 3 TO 5))"
 		result := ParseAndCheck(t, sql)
 		stmt := result.Items[0].(*ast.AlterIndexStmt)
 		if stmt.Action != "REBUILD" {
@@ -12144,23 +12180,6 @@ func TestParseServiceBrokerAlterOptionsDepth(t *testing.T) {
 			name: "alter_message_type_validation_valid_xml_schema",
 			sql:  "ALTER MESSAGE TYPE MyMessageType VALIDATION = VALID_XML WITH SCHEMA COLLECTION MySchemaCollection",
 		},
-		// ALTER CONTRACT with message type modifications (ADD/DROP)
-		{
-			name: "alter_contract_add_message_type",
-			sql:  "ALTER CONTRACT MyContract ADD MESSAGE TYPE MyMsgType SENT BY INITIATOR",
-		},
-		{
-			name: "alter_contract_drop_message_type",
-			sql:  "ALTER CONTRACT MyContract DROP MESSAGE TYPE MyMsgType",
-		},
-		{
-			name: "alter_contract_add_sent_by_target",
-			sql:  "ALTER CONTRACT MyContract ADD MESSAGE TYPE ResponseMsg SENT BY TARGET",
-		},
-		{
-			name: "alter_contract_add_sent_by_any",
-			sql:  "ALTER CONTRACT MyContract ADD MESSAGE TYPE AnyMsg SENT BY ANY",
-		},
 		// ALTER ROUTE with structured WITH options
 		{
 			name: "alter_route_all_options",
@@ -12857,26 +12876,13 @@ func TestParseMaterializedView(t *testing.T) {
 		// With join in SELECT
 		"CREATE MATERIALIZED VIEW dbo.mv_join WITH (DISTRIBUTION = HASH(vendor_id)) AS SELECT a.vendor_id, SUM(a.total_amount) AS s, COUNT_BIG(*) AS c FROM t1 a INNER JOIN t2 b ON a.vendor_id = b.vendor_id GROUP BY a.vendor_id",
 	}
+	// CREATE and ALTER MATERIALIZED VIEW are Azure Synapse Analytics syntax,
+	// which SQL Server 2022 refuses (Msg 102), so Parse refuses them.
 	for _, sql := range createTests {
 		t.Run(sql, func(t *testing.T) {
-			result := ParseAndCheck(t, sql)
-			if result.Len() != 1 {
-				t.Fatalf("Parse(%q): got %d statements, want 1", sql, result.Len())
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q): expected an error", sql)
 			}
-			stmt, ok := result.Items[0].(*ast.CreateMaterializedViewStmt)
-			if !ok {
-				t.Fatalf("Parse(%q): expected *CreateMaterializedViewStmt, got %T", sql, result.Items[0])
-			}
-			if stmt.Name == nil {
-				t.Errorf("Parse(%q): Name is nil", sql)
-			}
-			if stmt.Distribution == "" {
-				t.Errorf("Parse(%q): Distribution is empty", sql)
-			}
-			if stmt.Query == nil {
-				t.Errorf("Parse(%q): Query is nil", sql)
-			}
-			checkLocation(t, sql, "CreateMaterializedViewStmt", stmt.Loc)
 		})
 	}
 
@@ -12896,21 +12902,9 @@ func TestParseMaterializedView(t *testing.T) {
 	}
 	for _, tc := range alterTests {
 		t.Run(tc.sql, func(t *testing.T) {
-			result := ParseAndCheck(t, tc.sql)
-			if result.Len() != 1 {
-				t.Fatalf("Parse(%q): got %d statements, want 1", tc.sql, result.Len())
+			if _, err := Parse(tc.sql); err == nil {
+				t.Errorf("Parse(%q): expected an error", tc.sql)
 			}
-			stmt, ok := result.Items[0].(*ast.AlterMaterializedViewStmt)
-			if !ok {
-				t.Fatalf("Parse(%q): expected *AlterMaterializedViewStmt, got %T", tc.sql, result.Items[0])
-			}
-			if stmt.Name == nil {
-				t.Errorf("Parse(%q): Name is nil", tc.sql)
-			}
-			if !strings.EqualFold(stmt.Action, tc.action) {
-				t.Errorf("Parse(%q): Action = %q, want %q", tc.sql, stmt.Action, tc.action)
-			}
-			checkLocation(t, tc.sql, "AlterMaterializedViewStmt", stmt.Loc)
 		})
 	}
 
@@ -13457,9 +13451,6 @@ func TestParseStmtDispatchPhase4(t *testing.T) {
 		{"create_external_model", "CREATE EXTERNAL MODEL mymodel WITH (LOCATION = 'onnx:///mymodel.onnx')", "*ast.SecurityStmt"},
 		// Batch 109 - json/vector index
 		{"create_json_index", "CREATE JSON INDEX idx_json ON dbo.t1 (col1)", "*ast.CreateJsonIndexStmt"},
-		// Batch 110 - materialized view
-		{"create_materialized_view", "CREATE MATERIALIZED VIEW dbo.mv AS SELECT col1 FROM dbo.t1", "*ast.CreateMaterializedViewStmt"},
-		{"alter_materialized_view", "ALTER MATERIALIZED VIEW dbo.mv REBUILD", "*ast.AlterMaterializedViewStmt"},
 		// Batch 111 - copy into
 		{"copy_into", "COPY INTO dbo.t1 FROM 'https://storage.blob.core.windows.net/data/' WITH (FILE_TYPE = 'CSV')", "*ast.CopyIntoStmt"},
 		// Batch 112 - rename, CETAS, clone
@@ -17295,7 +17286,7 @@ func TestParseKillStatsJob(t *testing.T) {
 		},
 		{
 			name: "kill_stats_job_variable",
-			sql:  "KILL STATS JOB @job_id",
+			sql:  "KILL STATS JOB -1",
 		},
 	}
 
@@ -17532,12 +17523,32 @@ func TestParseServiceBrokerOptionsStringsDepth(t *testing.T) {
 		}
 	})
 
-	t.Run("alter_contract_add_drop", func(t *testing.T) {
-		sql := "ALTER CONTRACT MyContract ADD MESSAGE TYPE MyMsgType SENT BY INITIATOR"
-		result := ParseAndCheck(t, sql)
-		opt := getOpt(t, result, 0)
-		if opt.Name != "ADD" || opt.Value != "MyMsgType SENT BY INITIATOR" {
-			t.Errorf("expected ADD=MyMsgType SENT BY INITIATOR, got %s=%s", opt.Name, opt.Value)
+	// SQL Server 2022 refuses each of these at parse time (checked on the
+	// pinned server under SET PARSEONLY ON).
+	t.Run("refused_forms", func(t *testing.T) {
+		for _, sql := range []string{
+			"ALTER CONTRACT MyContract ADD MESSAGE TYPE MyMsgType SENT BY INITIATOR",
+			"ALTER MESSAGE TYPE MyMsg",
+			"CREATE MESSAGE TYPE MyMsg VALIDATION = VALID_XML",
+			"CREATE QUEUE q WITH STATUS = ON, STATUS = OFF",
+			"CREATE QUEUE q WITH ACTIVATION (DROP)",
+			"CREATE QUEUE q WITH ACTIVATION (PROCEDURE_NAME = p, MAX_QUEUE_READERS = 1)",
+			"ALTER QUEUE q WITH ACTIVATION (DROP, STATUS = ON)",
+			"ALTER QUEUE q WITH ACTIVATION (EXECUTE AS CALLER)",
+			"CREATE SERVICE s ON QUEUE a.b.c",
+			"CREATE ROUTE r WITH SERVICE_NAME = 'a'",
+			"CREATE ROUTE r WITH ADDRESS = 'a', ADDRESS = 'b'",
+			"CREATE REMOTE SERVICE BINDING b TO SERVICE 's' WITH ANONYMOUS = ON",
+			"ALTER BROKER PRIORITY p FOR CONVERSATION",
+			"ALTER BROKER PRIORITY p FOR CONVERSATION SET (PRIORITY_LEVEL = ANY)",
+			"ALTER BROKER PRIORITY p FOR CONVERSATION SET (REMOTE_SERVICE_NAME = s)",
+			"BEGIN DIALOG @h FROM SERVICE s TO SERVICE 't' WITH LIFETIME = 1, LIFETIME = 2",
+			"END CONVERSATION @h WITH ERROR = 1",
+			"DROP SERVICE a.b",
+		} {
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q): want an error, SQL Server refuses it", sql)
+			}
 		}
 	})
 
@@ -19824,11 +19835,11 @@ func TestParseViewTriggerBnfReview(t *testing.T) {
 	})
 
 	t.Run("create trigger with append", func(t *testing.T) {
+		// SQL Server 2022 refuses WITH APPEND: "'APPEND' is not a
+		// recognized option" (Msg 195).
 		sql := "CREATE TRIGGER tr1 ON t1 AFTER INSERT WITH APPEND AS SELECT 1"
-		result := ParseAndCheck(t, sql)
-		stmt := result.Items[0].(*ast.CreateTriggerStmt)
-		if !stmt.WithAppend {
-			t.Error("expected WithAppend=true")
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q): expected an error", sql)
 		}
 	})
 
@@ -20044,7 +20055,7 @@ func TestParseViewTriggerBnfReview(t *testing.T) {
 
 	// --- CREATE TRIGGER with native compilation options ---
 	t.Run("create trigger native compilation", func(t *testing.T) {
-		sql := "CREATE TRIGGER tr1 ON t1 WITH NATIVE_COMPILATION, SCHEMABINDING, EXECUTE AS OWNER AFTER INSERT AS BEGIN SELECT 1 END"
+		sql := "CREATE TRIGGER tr1 ON t1 WITH NATIVE_COMPILATION, SCHEMABINDING, EXECUTE AS OWNER AFTER INSERT AS BEGIN ATOMIC WITH (TRANSACTION ISOLATION LEVEL = SNAPSHOT, LANGUAGE = N'us_english') SELECT 1 END"
 		result := ParseAndCheck(t, sql)
 		stmt := result.Items[0].(*ast.CreateTriggerStmt)
 		if stmt.TriggerOptions == nil || stmt.TriggerOptions.Len() != 3 {
@@ -20273,7 +20284,7 @@ func TestParseRoutinesBnfReview(t *testing.T) {
 			"CREATE PROC sp1 @p1 int READONLY AS SELECT 1",
 			"CREATE FUNCTION fn1 (@p1 int) RETURNS TABLE AS RETURN SELECT * FROM t",
 			"CREATE FUNCTION fn1 (@p1 int) RETURNS @t TABLE (id int, name varchar(50)) AS BEGIN RETURN END",
-			"EXEC sp1 1, 'hello', @p3 = 42 OUTPUT",
+			"EXEC sp1 1, 'hello', @p3 = @v OUTPUT",
 			"EXECUTE @result = dbo.sp1 @p1 = 1",
 			"EXEC ('SELECT * FROM ' + @tableName)",
 		}
@@ -20788,9 +20799,9 @@ func TestParseCryptoBnfReview(t *testing.T) {
 				sql:  "CREATE SYMMETRIC KEY MySymKey WITH KEY_SOURCE = 'my pass phrase', ALGORITHM = AES_256, IDENTITY_VALUE = 'my identity' ENCRYPTION BY CERTIFICATE MyCert",
 				name: "MySymKey",
 			},
-			// With PROVIDER_KEY_NAME and CREATION_DISPOSITION
+			// FROM PROVIDER with PROVIDER_KEY_NAME and CREATION_DISPOSITION
 			{
-				sql:  "CREATE SYMMETRIC KEY MySymKey WITH ALGORITHM = AES_256, PROVIDER_KEY_NAME = 'MyEKMKey', CREATION_DISPOSITION = CREATE_NEW ENCRYPTION BY CERTIFICATE MyCert",
+				sql:  "CREATE SYMMETRIC KEY MySymKey FROM PROVIDER MyEKMProvider WITH ALGORITHM = AES_256, PROVIDER_KEY_NAME = 'MyEKMKey', CREATION_DISPOSITION = CREATE_NEW ENCRYPTION BY CERTIFICATE MyCert",
 				name: "MySymKey",
 			},
 			// FROM PROVIDER
@@ -20805,12 +20816,12 @@ func TestParseCryptoBnfReview(t *testing.T) {
 			},
 			// ENCRYPTION BY ASYMMETRIC KEY
 			{
-				sql:  "CREATE SYMMETRIC KEY MySymKey WITH ALGORITHM = TRIPLE_DES_3KEY ENCRYPTION BY ASYMMETRIC KEY MyAsymKey",
+				sql:  "CREATE SYMMETRIC KEY MySymKey WITH ALGORITHM = AES_192 ENCRYPTION BY ASYMMETRIC KEY MyAsymKey",
 				name: "MySymKey",
 			},
-			// DES algorithm
+			// DES from an EKM provider (SQL Server refuses DES for a generated key)
 			{
-				sql:  "CREATE SYMMETRIC KEY MySymKey WITH ALGORITHM = DES ENCRYPTION BY PASSWORD = 'secret123'",
+				sql:  "CREATE SYMMETRIC KEY MySymKey FROM PROVIDER MyEKMProvider WITH ALGORITHM = DES ENCRYPTION BY PASSWORD = 'secret123'",
 				name: "MySymKey",
 			},
 		}
@@ -20883,7 +20894,7 @@ func TestParseCryptoBnfReview(t *testing.T) {
 			// WITH ALGORITHM
 			"CREATE ASYMMETRIC KEY MyAsymKey WITH ALGORITHM = RSA_2048",
 			"CREATE ASYMMETRIC KEY MyAsymKey WITH ALGORITHM = RSA_4096",
-			"CREATE ASYMMETRIC KEY MyAsymKey WITH ALGORITHM = RSA_1024",
+			"CREATE ASYMMETRIC KEY MyAsymKey WITH ALGORITHM = RSA_3072",
 			// WITH AUTHORIZATION
 			"CREATE ASYMMETRIC KEY MyAsymKey AUTHORIZATION dbo WITH ALGORITHM = RSA_2048",
 			// FROM FILE
@@ -21030,8 +21041,6 @@ func TestParseCryptoBnfReview(t *testing.T) {
 			action string
 		}{
 			{"CREATE MASTER KEY ENCRYPTION BY PASSWORD = 'StrongPass!'", "CREATE"},
-			// CREATE without password (Azure SQL)
-			{"CREATE MASTER KEY", "CREATE"},
 			// ALTER - REGENERATE
 			{"ALTER MASTER KEY REGENERATE WITH ENCRYPTION BY PASSWORD = 'NewPass!'", "ALTER"},
 			// ALTER - FORCE REGENERATE
@@ -21071,12 +21080,10 @@ func TestParseCryptoBnfReview(t *testing.T) {
 			{"CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM = AES_256 ENCRYPTION BY SERVER CERTIFICATE MyCert", "CREATE"},
 			// CREATE with ASYMMETRIC KEY
 			{"CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM = AES_128 ENCRYPTION BY SERVER ASYMMETRIC KEY MyAsymKey", "CREATE"},
-			// CREATE with TRIPLE_DES_3KEY
-			{"CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM = TRIPLE_DES_3KEY ENCRYPTION BY SERVER CERTIFICATE MyCert", "CREATE"},
+			// CREATE with AES_192
+			{"CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM = AES_192 ENCRYPTION BY SERVER CERTIFICATE MyCert", "CREATE"},
 			// ALTER - REGENERATE
 			{"ALTER DATABASE ENCRYPTION KEY REGENERATE WITH ALGORITHM = AES_256", "ALTER"},
-			// ALTER - REGENERATE with ENCRYPTION BY
-			{"ALTER DATABASE ENCRYPTION KEY REGENERATE WITH ALGORITHM = AES_256 ENCRYPTION BY SERVER CERTIFICATE NewCert", "ALTER"},
 			// ALTER - ENCRYPTION BY
 			{"ALTER DATABASE ENCRYPTION KEY ENCRYPTION BY SERVER CERTIFICATE MyCert", "ALTER"},
 			// DROP
@@ -21323,7 +21330,7 @@ func TestParseCryptoBnfReview(t *testing.T) {
 			{"CREATE CRYPTOGRAPHIC PROVIDER MyProv FROM FILE = 'c:\\providers\\myprov.dll'", "CREATE"},
 			{"ALTER CRYPTOGRAPHIC PROVIDER MyProv ENABLE", "ALTER"},
 			{"ALTER CRYPTOGRAPHIC PROVIDER MyProv DISABLE", "ALTER"},
-			{"ALTER CRYPTOGRAPHIC PROVIDER MyProv FROM FILE = 'c:\\providers\\myprov_v2.dll' ENABLE", "ALTER"},
+			{"ALTER CRYPTOGRAPHIC PROVIDER MyProv FROM FILE = 'c:\\providers\\myprov_v2.dll'", "ALTER"},
 			{"DROP CRYPTOGRAPHIC PROVIDER MyProv", "DROP"},
 		}
 		for _, tt := range sqls {
@@ -21655,7 +21662,7 @@ func TestParseVariablesCursorsControlFlowBnfReview(t *testing.T) {
 
 	// DECLARE CURSOR ISO syntax
 	t.Run("declare_cursor_iso", func(t *testing.T) {
-		sql := "DECLARE emp_cursor INSENSITIVE SCROLL CURSOR FOR SELECT * FROM employees FOR READ_ONLY"
+		sql := "DECLARE emp_cursor INSENSITIVE SCROLL CURSOR FOR SELECT * FROM employees FOR READ ONLY"
 		result := ParseAndCheck(t, sql)
 		stmt := result.Items[0].(*ast.DeclareCursorStmt)
 		if stmt.Name != "emp_cursor" {
@@ -21826,21 +21833,21 @@ func TestParseVariablesCursorsControlFlowBnfReview(t *testing.T) {
 
 	// BREAK
 	t.Run("break", func(t *testing.T) {
-		sql := "BREAK"
+		sql := "WHILE 1 = 1 BREAK"
 		ParseAndCheck(t, sql)
 	})
 
 	// CONTINUE
 	t.Run("continue", func(t *testing.T) {
-		sql := "CONTINUE"
+		sql := "WHILE 1 = 1 CONTINUE"
 		ParseAndCheck(t, sql)
 	})
 
-	// RETURN with expression
+	// RETURN with expression, which a procedure or function takes
 	t.Run("return_with_expr", func(t *testing.T) {
-		sql := "RETURN 42"
+		sql := "CREATE PROCEDURE p AS RETURN 42"
 		result := ParseAndCheck(t, sql)
-		stmt := result.Items[0].(*ast.ReturnStmt)
+		stmt := result.Items[0].(*ast.CreateProcedureStmt).Body.(*ast.ReturnStmt)
 		if stmt.Value == nil {
 			t.Error("expected return value")
 		}
@@ -21874,9 +21881,9 @@ func TestParseVariablesCursorsControlFlowBnfReview(t *testing.T) {
 
 	// THROW rethrow (no args)
 	t.Run("throw_rethrow", func(t *testing.T) {
-		sql := "THROW;"
+		sql := "BEGIN TRY SELECT 1 END TRY BEGIN CATCH THROW; END CATCH"
 		result := ParseAndCheck(t, sql)
-		stmt := result.Items[0].(*ast.ThrowStmt)
+		stmt := result.Items[0].(*ast.TryCatchStmt).CatchBlock.Items[0].(*ast.ThrowStmt)
 		if stmt.ErrorNumber != nil {
 			t.Error("expected nil ErrorNumber for rethrow")
 		}
@@ -22512,7 +22519,7 @@ func TestParseBackupRestoreBnfReview(t *testing.T) {
 			},
 			{
 				name: "credential",
-				sql:  "BACKUP DATABASE mydb TO URL = 'https://storage.blob.core.windows.net/container/mydb.bak' WITH CREDENTIAL",
+				sql:  "BACKUP DATABASE mydb TO URL = 'https://storage.blob.core.windows.net/container/mydb.bak' WITH CREDENTIAL = 'mycred'",
 			},
 		}
 		for _, tt := range tests {
@@ -23973,7 +23980,7 @@ func TestParseFederationStatements(t *testing.T) {
 func TestParseInsertBulkLineno(t *testing.T) {
 	// Basic INSERT BULK
 	t.Run("insert_bulk_basic", func(t *testing.T) {
-		sql := "INSERT BULK dbo.MyTable"
+		sql := "INSERT BULK dbo.MyTable (id INT)"
 		result := ParseAndCheck(t, sql)
 		stmt := result.Items[0].(*ast.InsertBulkStmt)
 		if stmt.Table == nil || stmt.Table.Object != "MyTable" {
@@ -24014,7 +24021,7 @@ func TestParseInsertBulkLineno(t *testing.T) {
 
 	// INSERT BULK with options
 	t.Run("insert_bulk_with_options", func(t *testing.T) {
-		sql := "INSERT BULK dbo.MyTable WITH (TABLOCK, FIRE_TRIGGERS, BATCHSIZE = 1000)"
+		sql := "INSERT BULK dbo.MyTable (id INT) WITH (TABLOCK, FIRE_TRIGGERS, ROWS_PER_BATCH = 1000)"
 		result := ParseAndCheck(t, sql)
 		stmt := result.Items[0].(*ast.InsertBulkStmt)
 		if stmt.Options == nil || stmt.Options.Len() != 3 {
@@ -24037,7 +24044,7 @@ func TestParseInsertBulkLineno(t *testing.T) {
 
 	// INSERT BULK with three-part name
 	t.Run("insert_bulk_three_part_name", func(t *testing.T) {
-		sql := "INSERT BULK mydb.dbo.MyTable"
+		sql := "INSERT BULK mydb.dbo.MyTable (id INT)"
 		result := ParseAndCheck(t, sql)
 		stmt := result.Items[0].(*ast.InsertBulkStmt)
 		if stmt.Table == nil || stmt.Table.Database != "mydb" || stmt.Table.Schema != "dbo" || stmt.Table.Object != "MyTable" {
@@ -24126,5 +24133,146 @@ func TestParseGrantColumnLists(t *testing.T) {
 		if _, err := Parse(sql); err == nil {
 			t.Errorf("Parse(%q) = nil error, want SQL Server's rejection", sql)
 		}
+	}
+}
+
+// TestUpdateStatisticsStreamOptionsTogether pins that STATS_STREAM, ROWCOUNT
+// and PAGECOUNT may be given together, as the pinned SQL Server takes them.
+func TestUpdateStatisticsStreamOptionsTogether(t *testing.T) {
+	for _, sql := range []string{
+		"UPDATE STATISTICS a WITH ROWCOUNT = 100, PAGECOUNT = 10",
+		"UPDATE STATISTICS a b WITH STATS_STREAM = 0x00, ROWCOUNT = 1, PAGECOUNT = 1",
+	} {
+		ParseAndCheck(t, sql)
+	}
+}
+
+// TestParseBuiltinCallsInContext pins calls the built-in check must not
+// refuse (checked on the pinned server).
+func TestParseBuiltinCallsInContext(t *testing.T) {
+	for _, sql := range []string{
+		"SELECT a FROM a GROUP BY ROLLUP(([a], a))",
+		"SELECT a FROM a GROUP BY CUBE((\"a\", /* , */ a), (a))",
+		"SELECT a, b, c FROM t GROUP BY ROLLUP((a /* outer /* inner */ , */ + b) * c)",
+		"SELECT a, b, c FROM t GROUP BY CUBE(((a + b), c), ('x,y'))",
+		"SELECT 1 FROM a WHERE MATCH(LAST_NODE(a) = LAST_NODE(a))",
+	} {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q): %v", sql, err)
+		}
+	}
+	for _, sql := range []string{"SELECT LAST_NODE(a)", "SELECT a()", "SELECT [getdate]()"} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) = nil error, want SQL Server's rejection", sql)
+		}
+	}
+}
+
+// TestParseProceduralFormsSQLServerTakes pins forms the pinned SQL Server 2022
+// takes, and the ones it refuses, around DBCC options, DECLARE and RETURN.
+func TestParseProceduralFormsSQLServerTakes(t *testing.T) {
+	for _, sql := range []string{
+		"DBCC CHECKCONSTRAINTS WITH ALL_CONSTRAINTS",
+		"DBCC SHOWCONTIG WITH ALL_INDEXES",
+		"DECLARE @pi int, @PI int",
+		"CREATE PROCEDURE p AS SELECT 1; RETURN 0",
+		"ALTER PROCEDURE p AS SET NOCOUNT ON; RETURN 1",
+	} {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q): %v", sql, err)
+		}
+	}
+	for _, sql := range []string{
+		"DECLARE @pi int, @pi int",
+		"CREATE PROCEDURE p AS SELECT 1\nGO\nRETURN 0",
+		"RAISERROR('failure', 16, @@TRANCOUNT)",
+		"SET ROWCOUNT @@ROWCOUNT",
+		"DBCC CHECKDB WITH NOINDEX",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) = nil error, want SQL Server's rejection", sql)
+		}
+	}
+}
+
+// TestParseProceduralForms1070 pins the forms Codex raised on #1070.
+func TestParseProceduralForms1070(t *testing.T) {
+	ParseAndCheck(t, "BEGIN TRY SELECT 1 END TRY BEGIN CATCH IF 1=1 THROW ELSE PRINT 'no' END CATCH")
+
+	sql := "SET @x.[STLength]()"
+	res := ParseAndCheck(t, sql)
+	fc := res.Items[0].(*ast.SetStmt).Value.(*ast.FuncCallExpr)
+	if got := sql[fc.Name.Loc.Start:fc.Name.Loc.End]; got != "[STLength]" {
+		t.Errorf("method name span = %q, want %q", got, "[STLength]")
+	}
+
+	set := ParseAndCheck(t, "SET DATEFIRST 1, LANGUAGE French").Items[0].(*ast.SetOptionStmt)
+	if set.Values == nil || len(set.Values.Items) != 2 {
+		t.Fatalf("SET DATEFIRST 1, LANGUAGE French: Values = %v, want two values", set.Values)
+	}
+
+	ut := ParseAndCheck(t, "UPDATETEXT t.c @dest 0 0 s.c @src1").Items[0].(*ast.UpdatetextStmt)
+	if v, ok := ut.InsertedTextPtr.(*ast.VariableRef); !ok || v.Name != "@src1" {
+		t.Errorf("UPDATETEXT source text pointer = %#v, want @src1", ut.InsertedTextPtr)
+	}
+}
+
+// TestParseProceduralValuesKept pins operands the AST keeps: DBCC's MAXDOP
+// value and the TIMESTAMP of WRITETEXT and UPDATETEXT.
+func TestParseProceduralValuesKept(t *testing.T) {
+	dbcc := ParseAndCheck(t, "DBCC CHECKDB WITH MAXDOP = 4").Items[0].(*ast.DbccStmt)
+	opt := dbcc.Options.Items[0].(*ast.DbccOption)
+	if lit, ok := opt.Value.(*ast.Literal); !ok || lit.Ival != 4 {
+		t.Errorf("MAXDOP value = %#v, want 4", opt.Value)
+	}
+	if ast.NodeToString(ParseAndCheck(t, "WRITETEXT t.c @ptr TIMESTAMP = 0x01 'data'")) ==
+		ast.NodeToString(ParseAndCheck(t, "WRITETEXT t.c @ptr TIMESTAMP = 0x02 'data'")) {
+		t.Error("WRITETEXT keeps no TIMESTAMP")
+	}
+	if ast.NodeToString(ParseAndCheck(t, "UPDATETEXT t.c @ptr TIMESTAMP = 0x01 0 0 'data'")) ==
+		ast.NodeToString(ParseAndCheck(t, "UPDATETEXT t.c @ptr TIMESTAMP = 0x02 0 0 'data'")) {
+		t.Error("UPDATETEXT keeps no TIMESTAMP")
+	}
+}
+
+// TestParseDbccArgumentsAndOptions pins DBCC's named arguments and the
+// command-specific WITH options the pinned server takes.
+func TestParseDbccArgumentsAndOptions(t *testing.T) {
+	if ast.NodeToString(ParseAndCheck(t, "DBCC a(a = 1)")) == ast.NodeToString(ParseAndCheck(t, "DBCC a(b = 1)")) {
+		t.Error("DBCC keeps no argument name")
+	}
+	for _, sql := range []string{
+		"DBCC CLONEDATABASE(a, b) WITH NO_STATISTICS, NO_QUERYSTORE, VERIFY_CLONEDB, SERVICEBROKER, BACKUP_CLONEDB",
+		"DBCC SHOW_STATISTICS(a, b) WITH HISTOGRAM_STEPS",
+		"DBCC SHRINKDATABASE(a) WITH WAIT_AT_LOW_PRIORITY",
+		"DBCC SHRINKDATABASE(a) WITH WAIT_AT_LOW_PRIORITY(ABORT_AFTER_WAIT = SELF)",
+	} {
+		ParseAndCheck(t, sql)
+	}
+	if _, err := Parse("DBCC CHECKDB WITH NO_STATS"); err == nil {
+		t.Error("DBCC CHECKDB WITH NO_STATS parsed; SQL Server refuses it (Msg 195)")
+	}
+}
+
+// TestParseUpdatetextWithoutDataBeforeGo pins that GO ends an UPDATETEXT
+// whose inserted data is left out.
+func TestParseUpdatetextWithoutDataBeforeGo(t *testing.T) {
+	res := ParseAndCheck(t, "UPDATETEXT t.c @ptr 0 0\nGO")
+	if res.Len() != 2 {
+		t.Errorf("got %d statements, want UPDATETEXT and GO", res.Len())
+	}
+}
+
+// TestParseTextStatementBulk pins that the AST keeps BULK on WRITETEXT and
+// UPDATETEXT.
+func TestParseTextStatementBulk(t *testing.T) {
+	if !ParseAndCheck(t, "WRITETEXT BULK t.c @ptr 'x'").Items[0].(*ast.WritetextStmt).Bulk {
+		t.Error("WRITETEXT BULK: Bulk = false")
+	}
+	if !ParseAndCheck(t, "UPDATETEXT BULK t.c @ptr 0 0 'x'").Items[0].(*ast.UpdatetextStmt).Bulk {
+		t.Error("UPDATETEXT BULK: Bulk = false")
+	}
+	if ParseAndCheck(t, "WRITETEXT t.c @ptr 'x'").Items[0].(*ast.WritetextStmt).Bulk {
+		t.Error("WRITETEXT: Bulk = true")
 	}
 }

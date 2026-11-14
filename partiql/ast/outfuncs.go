@@ -80,6 +80,16 @@ func writeNode(sb *strings.Builder, n Node) {
 			sb.WriteString(" WithTimeZone:true")
 		}
 		sb.WriteString("}")
+	case *TimestampLit:
+		sb.WriteString("TimestampLit{Val:")
+		sb.WriteString(v.Val)
+		if v.Precision != nil {
+			fmt.Fprintf(sb, " Precision:%d", *v.Precision)
+		}
+		if v.WithTimeZone {
+			sb.WriteString(" WithTimeZone:true")
+		}
+		sb.WriteString("}")
 	case *IonLit:
 		fmt.Fprintf(sb, "IonLit{Text:%q}", v.Text)
 
@@ -143,6 +153,10 @@ func writeNode(sb *strings.Builder, n Node) {
 	// -----------------------------------------------------------------------
 	case *FuncCall:
 		fmt.Fprintf(sb, "FuncCall{Name:%s", v.Name)
+		if len(v.Qualifier) > 0 {
+			sb.WriteString(" Qualifier:")
+			writeSlice(sb, v.Qualifier)
+		}
 		if v.Quantifier != QuantifierNone {
 			fmt.Fprintf(sb, " Quantifier:%s", v.Quantifier)
 		}
@@ -278,6 +292,16 @@ func writeNode(sb *strings.Builder, n Node) {
 		sb.WriteString("}")
 	case *ParamRef:
 		sb.WriteString("ParamRef{}")
+	case *SessionAttribute:
+		fmt.Fprintf(sb, "SessionAttribute{Name:%s}", v.Name)
+	case *ValueList:
+		sb.WriteString("ValueList{Items:")
+		writeSlice(sb, v.Items)
+		sb.WriteString("}")
+	case *ValuesExpr:
+		sb.WriteString("ValuesExpr{Rows:")
+		writeSlice(sb, v.Rows)
+		sb.WriteString("}")
 	case *SubLink:
 		sb.WriteString("SubLink{Stmt:")
 		writeNode(sb, v.Stmt)
@@ -417,6 +441,10 @@ func writeNode(sb *strings.Builder, n Node) {
 		sb.WriteString(" Right:")
 		writeNode(sb, v.Right)
 		sb.WriteString("}")
+	case *ExprStmt:
+		sb.WriteString("ExprStmt{Expr:")
+		writeNode(sb, v.Expr)
+		sb.WriteString("}")
 	case *ExplainStmt:
 		sb.WriteString("ExplainStmt{Inner:")
 		writeNode(sb, v.Inner)
@@ -480,7 +508,33 @@ func writeNode(sb *strings.Builder, n Node) {
 	case *CreateTableStmt:
 		sb.WriteString("CreateTableStmt{Name:")
 		writeNode(sb, v.Name)
+		if len(v.Qualifier) > 0 {
+			sb.WriteString(" Qualifier:")
+			writeSlice(sb, v.Qualifier)
+		}
+		if len(v.Columns) > 0 {
+			sb.WriteString(" Columns:")
+			writeSlice(sb, v.Columns)
+		}
 		sb.WriteString("}")
+	case *ColumnDef:
+		sb.WriteString("ColumnDef{Name:")
+		writeNode(sb, v.Name)
+		sb.WriteString(" Type:")
+		writeNode(sb, v.Type)
+		if len(v.Constraints) > 0 {
+			sb.WriteString(" Constraints:")
+			writeSlice(sb, v.Constraints)
+		}
+		sb.WriteString("}")
+	case *ColumnConstraint:
+		sb.WriteString("ColumnConstraint{")
+		if v.Name != nil {
+			sb.WriteString("Name:")
+			writeNode(sb, v.Name)
+			sb.WriteString(" ")
+		}
+		fmt.Fprintf(sb, "NotNull:%t}", v.NotNull)
 	case *CreateIndexStmt:
 		sb.WriteString("CreateIndexStmt{Table:")
 		writeNode(sb, v.Table)
@@ -495,6 +549,14 @@ func writeNode(sb *strings.Builder, n Node) {
 	case *DropTableStmt:
 		sb.WriteString("DropTableStmt{Name:")
 		writeNode(sb, v.Name)
+		if len(v.Qualifier) > 0 {
+			sb.WriteString(" Qualifier:")
+			writeSlice(sb, v.Qualifier)
+		}
+		sb.WriteString("}")
+	case *SetStmt:
+		sb.WriteString("SetStmt{Sets:")
+		writeSlice(sb, v.Sets)
 		sb.WriteString("}")
 	case *DropIndexStmt:
 		sb.WriteString("DropIndexStmt{Index:")
@@ -577,6 +639,10 @@ func writeNode(sb *strings.Builder, n Node) {
 		if v.Where != nil {
 			sb.WriteString(" Where:")
 			writeNode(sb, v.Where)
+		}
+		if v.Condition != nil {
+			sb.WriteString(" Condition:")
+			writeNode(sb, v.Condition)
 		}
 		sb.WriteString("}")
 	case *OnConflictTarget:
@@ -677,6 +743,10 @@ func writeNode(sb *strings.Builder, n Node) {
 		if len(v.Labels) > 0 {
 			sep()
 			fmt.Fprintf(sb, "Labels:[%s]", strings.Join(v.Labels, " "))
+		} else if v.Label != nil {
+			sep()
+			sb.WriteString("Label:")
+			writeNode(sb, v.Label)
 		}
 		if v.Where != nil {
 			sep()
@@ -692,6 +762,9 @@ func writeNode(sb *strings.Builder, n Node) {
 		}
 		if len(v.Labels) > 0 {
 			fmt.Fprintf(sb, " Labels:[%s]", strings.Join(v.Labels, " "))
+		} else if v.Label != nil {
+			sb.WriteString(" Label:")
+			writeNode(sb, v.Label)
 		}
 		if v.Where != nil {
 			sb.WriteString(" Where:")
@@ -701,6 +774,36 @@ func writeNode(sb *strings.Builder, n Node) {
 			sb.WriteString(" Quantifier:")
 			writeNode(sb, v.Quantifier)
 		}
+		sb.WriteString("}")
+	case *LabelName:
+		fmt.Fprintf(sb, "LabelName{Name:%s", v.Name)
+		if v.CaseSensitive {
+			sb.WriteString(" CaseSensitive:true")
+		}
+		sb.WriteString("}")
+	case *LabelWildcard:
+		sb.WriteString("LabelWildcard{}")
+	case *LabelNot:
+		sb.WriteString("LabelNot{Operand:")
+		writeNode(sb, v.Operand)
+		sb.WriteString("}")
+	case *LabelAnd:
+		sb.WriteString("LabelAnd{Left:")
+		writeNode(sb, v.Left)
+		sb.WriteString(" Right:")
+		writeNode(sb, v.Right)
+		sb.WriteString("}")
+	case *LabelOr:
+		sb.WriteString("LabelOr{Left:")
+		writeNode(sb, v.Left)
+		sb.WriteString(" Right:")
+		writeNode(sb, v.Right)
+		sb.WriteString("}")
+	case *ExcludePath:
+		sb.WriteString("ExcludePath{Root:")
+		writeNode(sb, v.Root)
+		sb.WriteString(" Steps:")
+		writeSlice(sb, v.Steps)
 		sb.WriteString("}")
 	case *PatternQuantifier:
 		fmt.Fprintf(sb, "PatternQuantifier{Min:%d Max:%d}", v.Min, v.Max)
@@ -756,6 +859,10 @@ func writeSelectStmt(sb *strings.Builder, s *SelectStmt) {
 			writeNode(sb, t)
 		}
 		sb.WriteString("]")
+	}
+	if len(s.Exclude) > 0 {
+		add("Exclude:")
+		writeSlice(sb, s.Exclude)
 	}
 	if s.From != nil {
 		add("From:")
@@ -837,4 +944,16 @@ func writeOptString(sb *strings.Builder, label string, s *string) {
 	}
 	sb.WriteString(label)
 	sb.WriteString(*s)
+}
+
+// writeSlice writes items as `[a b c]`.
+func writeSlice[T Node](sb *strings.Builder, items []T) {
+	sb.WriteString("[")
+	for i, item := range items {
+		if i > 0 {
+			sb.WriteString(" ")
+		}
+		writeNode(sb, item)
+	}
+	sb.WriteString("]")
 }
