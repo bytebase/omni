@@ -56,3 +56,61 @@ func TestStoredProgramLabels(t *testing.T) {
 		})
 	}
 }
+
+// TestStoredProgramDeclarations holds parameters, variables and cursors to a stored program's
+// scope (sp_pcontext::find_variable, find_cursor), and DECLARE to the head of a BEGIN ... END
+// block. code is what mysql:8.0.46 answers to PREPARE of the statement, 0 when the compat
+// judge reads that as parsed (compat.PrepareVerdict).
+func TestStoredProgramDeclarations(t *testing.T) {
+	cases := []struct {
+		sql  string
+		code int
+	}{
+		{sql: "CREATE PROCEDURE p(a INT, b INT) BEGIN DECLARE a INT; END"},
+		{sql: "CREATE PROCEDURE p() BEGIN DECLARE x INT; BEGIN DECLARE x INT; END; END"},
+		{sql: "CREATE PROCEDURE p() BEGIN DECLARE x INT; DECLARE x CURSOR FOR SELECT 1; END"},
+		{sql: "CREATE PROCEDURE p() BEGIN DECLARE c CURSOR FOR SELECT 1; BEGIN DECLARE c CURSOR FOR SELECT 2; OPEN c; END; CLOSE c; END"},
+		{sql: "CREATE PROCEDURE p() BEGIN DECLARE c CURSOR FOR SELECT 1; DECLARE EXIT HANDLER FOR 1 CLOSE c; END"},
+		{sql: "CREATE PROCEDURE p() BEGIN DECLARE x INT; DECLARE EXIT HANDLER FOR 1 BEGIN DECLARE c CURSOR FOR SELECT 1; FETCH NEXT FROM c INTO x; END; END"},
+		{sql: "CREATE PROCEDURE p(n INT) BEGIN DECLARE c CURSOR FOR SELECT 1 LIMIT n; SELECT 1 INTO n; GET DIAGNOSTICS n = NUMBER; END"},
+		{sql: "CREATE PROCEDURE p() BEGIN DECLARE x INT; DECLARE next CURSOR FOR SELECT 1; FETCH NEXT FROM next INTO x; END"},
+		{sql: "CREATE PROCEDURE p() BEGIN DECLARE x INT; DECLARE next CURSOR FOR SELECT 1; FETCH next INTO x; END", code: 1064},
+		{sql: "CREATE FUNCTION f(a INT) RETURNS INT BEGIN DECLARE b INT; SELECT 1 INTO a; SELECT 2 INTO b LIMIT a; RETURN b; END"},
+		{sql: "CREATE PROCEDURE p() BEGIN DECLARE é INT; GET DIAGNOSTICS e = NUMBER; END"},
+		{sql: "GET DIAGNOSTICS @n = NUMBER, @r = ROW_COUNT"},
+		{sql: "SELECT 1 INTO a"},
+		{sql: "SELECT 1 LIMIT a"},
+		{sql: "CREATE PROCEDURE p(a INT, A INT) BEGIN END", code: 1330},
+		{sql: "CREATE PROCEDURE p(IN a INT, INOUT a INT) BEGIN END", code: 1330},
+		{sql: "CREATE PROCEDURE p() BEGIN DECLARE x, y, X INT; END", code: 1331},
+		{sql: "CREATE PROCEDURE p() BEGIN DECLARE c CURSOR FOR SELECT 1; DECLARE C CURSOR FOR SELECT 2; END", code: 1333},
+		{sql: "CREATE PROCEDURE p() BEGIN DECLARE c CURSOR FOR SELECT 1 INTO @a; END", code: 1323},
+		{sql: "CREATE PROCEDURE p() BEGIN DECLARE c CURSOR FOR SELECT 1 UNION SELECT 2 INTO @a; END", code: 1323},
+		{sql: "CREATE PROCEDURE p() OPEN c", code: 1324},
+		{sql: "CREATE PROCEDURE p() BEGIN DECLARE EXIT HANDLER FOR 1 BEGIN DECLARE c CURSOR FOR SELECT 1; END; OPEN c; END", code: 1324},
+		{sql: "CREATE PROCEDURE p() BEGIN DECLARE c CURSOR FOR SELECT 1; FETCH c INTO y; END", code: 1327},
+		{sql: "CREATE PROCEDURE p() BEGIN DECLARE x INT; DECLARE c CURSOR FOR SELECT 1; FETCH c INTO @x; END", code: 1064},
+		{sql: "CREATE PROCEDURE p() BEGIN DECLARE x INT; DECLARE c CURSOR FOR SELECT 1; FETCH NEXT c INTO x; END", code: 1064},
+		{sql: "CREATE PROCEDURE p() GET DIAGNOSTICS a = NUMBER", code: 1327},
+		{sql: "GET DIAGNOSTICS a = NUMBER", code: 1327},
+		{sql: "GET DIAGNOSTICS CONDITION 1 a = MESSAGE_TEXT", code: 1327},
+		{sql: "CREATE PROCEDURE p() SELECT 1 INTO a", code: 1327},
+		{sql: "CREATE PROCEDURE p() BEGIN BEGIN DECLARE a INT; END; SELECT 1 INTO a; END", code: 1327},
+		{sql: "CREATE TRIGGER t BEFORE INSERT ON t FOR EACH ROW BEGIN DECLARE a INT; SELECT 1 INTO a, b; END", code: 1327},
+		{sql: "CREATE EVENT e ON SCHEDULE EVERY 1 DAY DO SELECT 1 LIMIT n", code: 1327},
+		{sql: "CREATE PROCEDURE p() DECLARE x INT", code: 1064},
+		{sql: "CREATE PROCEDURE p() a: LOOP DECLARE x INT; END LOOP", code: 1064},
+		{sql: "CREATE PROCEDURE p() BEGIN DECLARE EXIT HANDLER FOR 1 DECLARE y INT; END", code: 1064},
+	}
+	for _, c := range cases {
+		t.Run(c.sql, func(t *testing.T) {
+			_, err := Parse(c.sql)
+			if c.code == 0 && err != nil {
+				t.Fatalf("Parse refused what MySQL takes: %v", err)
+			}
+			if c.code != 0 && err == nil {
+				t.Fatalf("Parse took what MySQL refuses with %d", c.code)
+			}
+		})
+	}
+}

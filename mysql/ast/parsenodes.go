@@ -464,6 +464,7 @@ const (
 	ColConstrStorage
 	ColConstrEngineAttribute
 	ColConstrSecondaryEngineAttribute
+	ColConstrNotSecondary
 )
 
 // ColumnConstraint represents a column-level constraint.
@@ -904,6 +905,11 @@ type CastExpr struct {
 	// trailing ARRAY keyword after the cast target type. ARRAY is a
 	// non-reserved (contextual) keyword; it only attaches to CAST, never CONVERT.
 	Array bool
+	// AtTimeZone is the zone of CAST(expr AT TIME ZONE [INTERVAL] 'tz' AS
+	// DATETIME[(n)]) (MySQL 8.0.22+), "" when there is none; AtTimeZoneInterval
+	// records the INTERVAL word.
+	AtTimeZone         string
+	AtTimeZoneInterval bool
 }
 
 func (e *CastExpr) nodeTag()  {}
@@ -2077,6 +2083,11 @@ type WeightStringExpr struct {
 	Loc    Loc
 	Expr   ExprNode
 	AsChar *DataType // optional AS CHAR(n); nil when absent
+	// Numbers marks WEIGHT_STRING(expr, result_length, num_codepoints, flags),
+	// whose num_codepoints is AsChar (nil when 0), as MySQL stores it.
+	Numbers      bool
+	ResultLength uint64
+	Flags        uint64
 }
 
 func (e *WeightStringExpr) nodeTag()  {}

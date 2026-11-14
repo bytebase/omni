@@ -57,6 +57,8 @@ func TestKillColumnScope(t *testing.T) {
 		"CREATE PROCEDURE p() BEGIN DECLARE a INT; KILL a; END",
 		"CREATE EVENT e ON SCHEDULE EVERY 1 DAY DO BEGIN DECLARE x INT DEFAULT 1; KILL x; END",
 		"ALTER EVENT e DO BEGIN DECLARE x INT DEFAULT 1; KILL x; END",
+		// USER followed by no user name is a name in the expression.
+		"CREATE PROCEDURE p() BEGIN DECLARE user INT DEFAULT 1; KILL user + 1; END",
 	} {
 		if _, err := Parse(sql); err != nil {
 			t.Errorf("Parse(%q): %v", sql, err)
@@ -64,6 +66,7 @@ func TestKillColumnScope(t *testing.T) {
 	}
 	for _, sql := range []string{
 		"KILL a",
+		"KILL USER + 1",
 		"ALTER EVENT e DO BACKUP STAGE START",
 		"KILL a" + strings.Repeat(" + 1", 1000),
 	} {

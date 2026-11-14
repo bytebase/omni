@@ -102,13 +102,15 @@ type Column struct {
 	// table's collation, a CHARACTER-SET-only column resolves to the charset default,
 	// and an explicit COLLATE is honored verbatim — three cases that are otherwise
 	// indistinguishable once the loader fills Charset/Collation from inheritance.
-	CharsetExplicit              bool
-	CollationExplicit            bool
-	Comment                      string
-	OnUpdate                     string
-	OnUpdateKind                 ColumnDefaultKind
-	Generated                    *GeneratedColumnInfo
-	Invisible                    bool
+	CharsetExplicit   bool
+	CollationExplicit bool
+	Comment           string
+	OnUpdate          string
+	OnUpdateKind      ColumnDefaultKind
+	Generated         *GeneratedColumnInfo
+	Invisible         bool
+	// NotSecondary is NOT SECONDARY: the column stays out of a secondary engine.
+	NotSecondary                 bool
 	GeneratedInvisiblePrimaryKey bool // true for MySQL-generated my_row_id GIPK
 	Hidden                       ColumnHiddenKind
 	SRID                         int // Spatial Reference ID (valid only when HasSRID)

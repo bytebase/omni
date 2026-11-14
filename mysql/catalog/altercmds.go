@@ -1088,6 +1088,8 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 			col.Invisible = false
 		case nodes.ColConstrInvisible:
 			col.Invisible = true
+		case nodes.ColConstrNotSecondary:
+			col.NotSecondary = true
 		case nodes.ColConstrCollate:
 			if cc.Expr != nil {
 				if s, ok := cc.Expr.(*nodes.StringLit); ok {

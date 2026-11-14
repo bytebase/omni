@@ -2361,6 +2361,24 @@ var parseRefusalForms = []struct {
 	{"CREATE TABLE t (a DATE) PARTITION BY LIST (YEAR(a)) (PARTITION p VALUES IN (quarter('2020-06-15')))", true},
 	{"CREATE TABLE t (a DATE) PARTITION BY RANGE (YEAR(a)) (PARTITION p VALUES LESS THAN (microsecond('10:00:00')))", true},
 	{"CREATE TABLE t (a DATE) PARTITION BY LIST (YEAR(a)) (PARTITION p VALUES IN (microsecond('10:00:00')))", true},
+	// A table or WITH element named twice in one list (1066, and 4004 in MariaDB).
+	{"DROP TABLE t, t", false},
+	{"DROP TABLE IF EXISTS t, t", false},
+	{"DROP TABLE t, T", true},
+	{"DROP TABLE x.t, x.t", false},
+	{"DROP TABLE t, x.t", true},
+	{"DROP VIEW v, v", false},
+	{"CHECKSUM TABLE t, t", false},
+	{"FLUSH TABLES t, t", false},
+	{"CHECK TABLE t, t", false},
+	{"REPAIR TABLE t, t", false},
+	{"OPTIMIZE TABLE t, t", false},
+	{"ANALYZE TABLE t, t", false},
+	{"CACHE INDEX t, t IN c", false},
+	{"LOAD INDEX INTO CACHE t, t", false},
+	{"WITH a AS (SELECT 1), a AS (SELECT 2) SELECT 1", false},
+	{"WITH a AS (SELECT 1), A AS (SELECT 2) SELECT 1", false},
+	{"WITH a AS (SELECT 1) SELECT * FROM (WITH a AS (SELECT 2) SELECT 1) d", true},
 }
 
 // TestParseRefusalForms holds Parse to the table.

@@ -554,3 +554,16 @@ func errWrongArguments(fn string) error {
 	return &Error{Code: ErrWrongArguments, SQLState: sqlState(ErrWrongArguments),
 		Message: fmt.Sprintf("Incorrect arguments to %s", fn)}
 }
+
+// errUnknownOption is 1911: an engine-defined option the table's engine does
+// not define. Measured on mariadb:11.8.8.
+func errUnknownOption(name string) error {
+	return &Error{Code: 1911, SQLState: "HY000", Message: fmt.Sprintf("Unknown option '%s'", name)}
+}
+
+// errSequenceInvalidTableStructure is 4086: SEQUENCE=1 on a table whose columns
+// are not a sequence's. Measured on mariadb:11.8.8.
+func errSequenceInvalidTableStructure(db, table string) error {
+	return &Error{Code: 4086, SQLState: "HY000",
+		Message: fmt.Sprintf("Sequence '%s.%s' table structure is invalid (Wrong number of columns)", db, table)}
+}

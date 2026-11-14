@@ -670,7 +670,12 @@ func (p *Parser) parseCreateDatabaseStmt(start int) (nodes.StmtNode, error) {
 						} else if p.cur.Type == '(' {
 							p.advance()
 							var pairs []string
-							for p.cur.Type != ')' && p.cur.Type != tokEOF {
+							for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+								// An item that consumes nothing would come round again.
+								if p.pos() == progress {
+									return nil, p.syntaxErrorAtCur()
+								}
+								progress = p.pos()
 								if p.cur.Type == tokSCONST {
 									pairs = append(pairs, p.cur.Str)
 								}
@@ -1576,7 +1581,12 @@ func (p *Parser) parseAlterDatabaseStmt(start int) (nodes.StmtNode, error) {
 					p.advance() // (
 					// Read column key type: PRIMARY KEY | UNIQUE | FOREIGN KEY | ALL | PL/SQL CALL
 					var parts []string
-					for p.cur.Type != ')' && p.cur.Type != tokEOF {
+					for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+						// An item that consumes nothing would come round again.
+						if p.pos() == progress {
+							return nil, p.syntaxErrorAtCur()
+						}
+						progress = p.pos()
 						if p.isIdentLike() || p.cur.Type == tokSCONST {
 							parts = append(parts, p.cur.Str)
 						} else if p.cur.Type == '/' {
@@ -1657,7 +1667,12 @@ func (p *Parser) parseAlterDatabaseStmt(start int) (nodes.StmtNode, error) {
 				if p.cur.Type == '(' {
 					p.advance()
 					var parts []string
-					for p.cur.Type != ')' && p.cur.Type != tokEOF {
+					for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+						// An item that consumes nothing would come round again.
+						if p.pos() == progress {
+							return nil, p.syntaxErrorAtCur()
+						}
+						progress = p.pos()
 						if p.isIdentLike() || p.cur.Type == tokSCONST {
 							parts = append(parts, p.cur.Str)
 						} else if p.cur.Type == '/' {
@@ -3288,7 +3303,12 @@ func (p *Parser) parsePDBCreationClauses(opts *nodes.List) error {
 			} else if p.cur.Type == '(' {
 				p.advance()
 				storageItems := &nodes.List{}
-				for p.cur.Type != ')' && p.cur.Type != tokEOF {
+				for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+					// An item that consumes nothing would come round again.
+					if p.pos() == progress {
+						return p.syntaxErrorAtCur()
+					}
+					progress = p.pos()
 					sStart := p.pos()
 					if p.isIdentLike() && p.cur.Str == "MAXSIZE" {
 						p.advance()
@@ -3715,7 +3735,12 @@ func (p *Parser) parsePDBConvertClause(opts *nodes.List, key string, optStart in
 	} else if p.cur.Type == '(' {
 		p.advance()
 		var pairs []string
-		for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+			// An item that consumes nothing would come round again.
+			if p.pos() == progress {
+				return p.syntaxErrorAtCur()
+			}
+			progress = p.pos()
 			if p.cur.Type == tokSCONST {
 				pairs = append(pairs, p.cur.Str)
 			}
@@ -3743,7 +3768,12 @@ func (p *Parser) parsePDBAllExceptNoneList(opts *nodes.List, key string, optStar
 			exceptItems := &nodes.List{}
 			if p.cur.Type == '(' {
 				p.advance()
-				for p.cur.Type != ')' && p.cur.Type != tokEOF {
+				for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+					// An item that consumes nothing would come round again.
+					if p.pos() == progress {
+						return p.syntaxErrorAtCur()
+					}
+					progress = p.pos()
 					if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT || p.cur.Type == tokSCONST {
 						exceptItems.Items = append(exceptItems.Items, &nodes.DDLOption{Value: p.cur.Str})
 						p.advance()
@@ -3790,7 +3820,12 @@ func (p *Parser) parsePDBParenList(opts *nodes.List, key string, optStart int) e
 	if p.cur.Type == '(' {
 		p.advance()
 		items := &nodes.List{}
-		for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+			// An item that consumes nothing would come round again.
+			if p.pos() == progress {
+				return p.syntaxErrorAtCur()
+			}
+			progress = p.pos()
 			if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT || p.cur.Type == tokSCONST {
 				items.Items = append(items.Items, &nodes.DDLOption{Value: p.cur.Str})
 				p.advance()
@@ -3892,7 +3927,12 @@ func (p *Parser) parseAlterPluggableDatabaseStmt(start int) (nodes.StmtNode, err
 			exceptItems := &nodes.List{}
 			if p.cur.Type == '(' {
 				p.advance()
-				for p.cur.Type != ')' && p.cur.Type != tokEOF {
+				for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+					// An item that consumes nothing would come round again.
+					if p.pos() == progress {
+						return nil, p.syntaxErrorAtCur()
+					}
+					progress = p.pos()
 					if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT {
 						exceptItems.Items = append(exceptItems.Items, &nodes.DDLOption{Value: p.cur.Str})
 						p.advance()
@@ -4278,7 +4318,12 @@ func (p *Parser) parseAlterPDBClauses(opts *nodes.List) error {
 			} else if p.cur.Type == '(' {
 				p.advance()
 				storageItems := &nodes.List{}
-				for p.cur.Type != ')' && p.cur.Type != tokEOF {
+				for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+					// An item that consumes nothing would come round again.
+					if p.pos() == progress {
+						return p.syntaxErrorAtCur()
+					}
+					progress = p.pos()
 					sStart := p.pos()
 					if p.isIdentLike() && p.cur.Str == "MAXSIZE" {
 						p.advance()
@@ -4798,7 +4843,12 @@ func (p *Parser) parseAlterPDBApplicationClause(opts *nodes.List, optStart int) 
 			exceptItems := &nodes.List{}
 			if p.cur.Type == '(' {
 				p.advance()
-				for p.cur.Type != ')' && p.cur.Type != tokEOF {
+				for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+					// An item that consumes nothing would come round again.
+					if p.pos() == progress {
+						return p.syntaxErrorAtCur()
+					}
+					progress = p.pos()
 					if p.isIdentLike() || p.cur.Type == tokIDENT {
 						exceptItems.Items = append(exceptItems.Items, &nodes.DDLOption{Value: p.cur.Str})
 						p.advance()
