@@ -323,6 +323,61 @@ var roundTrips = []roundTrip{
 		transformErr: "together they change unique key uk_u",
 	},
 	{
+		// The second UPDATE picks flag_target's row by flag_source.flag, which
+		// the first changes, so flag_target's backup misses it.
+		name: "two_targets",
+		setup: "CREATE TABLE flag_source (id INT PRIMARY KEY, flag INT);CREATE TABLE flag_target (id INT PRIMARY KEY, v INT);" +
+			"INSERT INTO flag_source VALUES (1, 0);INSERT INTO flag_target VALUES (1, 0)",
+		script:       "UPDATE flag_source SET flag = 1; UPDATE flag_target JOIN flag_source ON flag_target.id = flag_source.id SET flag_target.v = 2, flag_source.flag = 2 WHERE flag_source.flag = 1",
+		tables:       []string{"flag_target", "flag_source"},
+		transformErr: "prior backup cannot handle a statement that reads",
+	},
+	{
+		// a = 0 moves g from 11 and 31 to 1 and 11, so restoring row 1 meets
+		// row 2's new g.
+		name: "summed_key",
+		setup: "CREATE TABLE summed_key (id INT PRIMARY KEY, a INT, b INT, g INT AS (a + b) STORED, UNIQUE KEY uk_g (g));" +
+			"INSERT INTO summed_key (id, a, b) VALUES (1, 10, 1), (2, 20, 11)",
+		script:     "UPDATE summed_key SET a = 0 ORDER BY id",
+		tables:     []string{"summed_key"},
+		restoreErr: "the UPDATE changes unique key uk_g",
+	},
+	{
+		// The backup reads the variable before the SET changes it.
+		name:         "system_variable",
+		setup:        "CREATE TABLE sysvar_rows (id INT PRIMARY KEY);INSERT INTO sysvar_rows VALUES (1), (2)",
+		script:       "SET SESSION auto_increment_increment = 2; DELETE FROM sysvar_rows WHERE @@session.auto_increment_increment = 2",
+		tables:       []string{"sysvar_rows"},
+		transformErr: "reads @@auto_increment_increment after an earlier statement sets it",
+	},
+	{
+		// The server's ON UPDATE stamp on fk_stamped_parent.ts cascades to
+		// fk_stamped_child, which no backup holds.
+		name: "fk_on_update",
+		setup: "CREATE TABLE fk_stamped_parent (id INT PRIMARY KEY, v INT, ts TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6), UNIQUE KEY uk_ts (ts));" +
+			"CREATE TABLE fk_stamped_child (id INT PRIMARY KEY, parent_ts TIMESTAMP(6) NULL, CONSTRAINT fk_ts FOREIGN KEY (parent_ts) REFERENCES fk_stamped_parent (ts) ON UPDATE CASCADE);" +
+			"INSERT INTO fk_stamped_parent (id, v, ts) VALUES (1, 1, '2000-01-01 00:00:00');INSERT INTO fk_stamped_child VALUES (1, '2000-01-01 00:00:00')",
+		script:       "UPDATE fk_stamped_parent SET v = 2 WHERE id = 1",
+		tables:       []string{"fk_stamped_parent", "fk_stamped_child"},
+		transformErr: "foreign key fk_ts of fk_stamped_child is ON UPDATE CASCADE",
+	},
+	{
+		// The UPDATE with no WHERE skips the rows the outer join makes up.
+		name: "outer_update",
+		setup: "CREATE TABLE outer_update_keep (id INT PRIMARY KEY);CREATE TABLE outer_update_target (id INT PRIMARY KEY, a INT);" +
+			"INSERT INTO outer_update_keep VALUES (1), (2);INSERT INTO outer_update_target VALUES (1, 1)",
+		script: "UPDATE outer_update_keep u LEFT JOIN outer_update_target t ON t.id = u.id SET t.a = 5",
+		tables: []string{"outer_update_target"},
+	},
+	{
+		// EXPLAIN ANALYZE runs the INSERT that the DELETE reads.
+		name:         "explain_insert",
+		setup:        "CREATE TABLE ai_source (id INT PRIMARY KEY);CREATE TABLE ai_target (id INT PRIMARY KEY);INSERT INTO ai_target VALUES (1)",
+		script:       "EXPLAIN ANALYZE INSERT INTO ai_source VALUES (1); DELETE FROM ai_target WHERE id IN (SELECT id FROM ai_source)",
+		tables:       []string{"ai_target"},
+		transformErr: "prior backup cannot handle a statement that reads",
+	},
+	{
 		// Deleting a parent deletes its children in the second database,
 		// which no backup holds.
 		name: "cross_database_cascade",
