@@ -55,6 +55,13 @@ type Dialect struct {
 	// StatementWords returns the words a statement form on a page can
 	// start with.
 	StatementWords func(slug string) map[string]bool
+	// Read, when set, reads the index and the pages in place of fetching
+	// Site+path: docs the repo already quotes, as oracle/parser/bnf/ does.
+	Read func(path string) (string, error)
+	// PinRole is the row of pins.tsv the converter writes, default when
+	// empty. An engine judged by its server keeps the server's row as
+	// default and pins what the converter read in a row of its own.
+	PinRole string
 }
 
 func (d *Dialect) slug(p string) string {

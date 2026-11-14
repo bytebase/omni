@@ -779,21 +779,25 @@ func (p *Parser) parseResetReplicaStmt(start int) (*nodes.ResetReplicaStmt, erro
 		Loc: nodes.Loc{Start: start},
 	}
 
+	// SLAVE ['connection_name'] [ALL] [FOR CHANNEL 'channel'], the channel being
+	// the connection name by another spelling, as on START and STOP SLAVE.
+	//
+	// Ref: reset_option and slave_reset_options in MariaDB 11.8 sql/sql_yacc.yy.
+	name, named := p.parseConnectionName()
+	stmt.Channel = name
+
 	// Optional ALL
 	if p.cur.Type == kwALL {
 		stmt.All = true
 		p.advance()
 	}
 
-	// Optional FOR CHANNEL
-	if p.cur.Type == kwFOR {
-		p.advance() // consume FOR
-		p.advance() // consume CHANNEL
-		name, _, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Channel = name
+	channel, ok, err := p.parseForChannel(named)
+	if err != nil {
+		return nil, err
+	}
+	if ok {
+		stmt.Channel = channel
 	}
 
 	stmt.Loc.End = p.prev.End
@@ -837,6 +841,9 @@ func (p *Parser) parsePurgeBinaryLogsStmt() (*nodes.PurgeBinaryLogsStmt, error) 
 		}
 		if expr == nil {
 			return nil, p.syntaxErrorAtCur()
+		}
+		if err := p.refuseColumnOutsideProgram(expr, ""); err != nil {
+			return nil, err
 		}
 		stmt.BeforeExpr = expr
 	} else {

@@ -195,7 +195,9 @@ func (p *Parser) parseGetDiagnosticsStmt() (*nodes.GetDiagnosticsStmt, error) {
 		stmt.StatementInfo = false
 
 		// condition_number
+		leave := p.enterNoFields("GET DIAGNOSTICS", true)
 		condNum, err := p.parseExpr()
+		leave()
 		if err != nil {
 			return nil, err
 		}
@@ -293,7 +295,9 @@ func (p *Parser) parseSignalInfoItem() (*nodes.SignalInfoItem, error) {
 	}
 
 	// simple_value_specification (expression)
+	leave := p.enterNoFields("SIGNAL", true)
 	val, err := p.parseExpr()
+	leave()
 	if err != nil {
 		return nil, err
 	}

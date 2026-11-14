@@ -32,14 +32,18 @@ func Run(d *Dialect) {
 		fail(err)
 	}
 	f := &fetcher{site: d.Site, cache: *cache, client: &http.Client{Timeout: 60 * time.Second}, pause: 200 * time.Millisecond}
-	index, err := f.get(d.Index)
+	get := f.get
+	if d.Read != nil {
+		get = d.Read
+	}
+	index, err := get(d.Index)
 	if err != nil {
 		fail(err)
 	}
 	digest := sha256.New()
 	var pages []pageGrammar
 	for _, p := range d.Pages(index) {
-		doc, err := f.get(p)
+		doc, err := get(p)
 		if err != nil {
 			fail(err)
 		}
@@ -87,28 +91,45 @@ func readFixes(file string) ([]*Fix, error) {
 	return out, nil
 }
 
-// pinFor returns the default row of pins.tsv for blocks with digest, and
-// writes it: the pinned row as it is when the digest is the same, or a
-// row dated today (or date) when the docs changed.
+// pinFor returns d's row of pins.tsv (default, or d.PinRole) for blocks
+// with digest, and writes it: the pinned row as it is when the digest is
+// the same, or a row dated today (or date) when the docs changed. A
+// default row is the file, under its header; another role's row is
+// replaced or added among the file's other lines.
 func pinFor(d *Dialect, file, digest, date string) (string, error) {
-	header := "# The docs this engine's committed answers come from. default judges compat.tsv:\n" +
-		"# the Syntax blocks of the pages its image (the command index) lists, their\n" +
-		"# SHA-256 as " + d.Command + " reads them, and the date they\n" +
-		"# were read, which is the pin's source tag.\n" +
-		"# columns: role, image, digest, source tag\n"
+	role := d.PinRole
+	if role == "" {
+		role = "default"
+	}
+	var keep []string
+	if role == "default" {
+		keep = []string{
+			"# The docs this engine's committed answers come from. default judges compat.tsv:",
+			"# the Syntax blocks of the pages its image (the command index) lists, their",
+			"# SHA-256 as " + d.Command + " reads them, and the date they",
+			"# were read, which is the pin's source tag.",
+			"# columns: role, image, digest, source tag",
+		}
+	}
 	if b, err := os.ReadFile(file); err == nil {
-		for _, line := range strings.Split(string(b), "\n") {
+		for _, line := range strings.Split(strings.TrimRight(string(b), "\n"), "\n") {
 			cols := strings.Split(line, "\t")
-			if len(cols) == 4 && cols[0] == "default" && cols[2] == digest && date == "" {
-				return line, nil
+			if len(cols) == 4 && cols[0] == role {
+				if cols[2] == digest && date == "" {
+					return line, nil
+				}
+				continue
+			}
+			if role != "default" {
+				keep = append(keep, line)
 			}
 		}
 	}
 	if date == "" {
 		date = time.Now().UTC().Format("2006-01-02")
 	}
-	row := strings.Join([]string{"default", d.Site + d.Index, digest, date}, "\t")
-	return row, os.WriteFile(file, []byte(header+row+"\n"), 0o644)
+	row := strings.Join([]string{role, d.Site + d.Index, digest, date}, "\t")
+	return row, os.WriteFile(file, []byte(strings.Join(append(keep, row), "\n")+"\n"), 0o644)
 }
 
 // report prints what was converted, and why the rest was not.

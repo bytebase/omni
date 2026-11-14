@@ -291,7 +291,7 @@ func (p *Parser) parseSetStatementStmt(start int) (*nodes.SetStatementStmt, erro
 }
 
 // parseSetStatementTarget reads directly_executable_statement: a statement, or a compound
-// statement with no label. omni reads no BEGIN NOT ATOMIC and no FOR loop anywhere.
+// statement with no label. parseStmt reads BEGIN NOT ATOMIC, LOOP and FOR.
 func (p *Parser) parseSetStatementTarget() (nodes.Node, error) {
 	var inner nodes.Node
 	var err error
@@ -304,8 +304,6 @@ func (p *Parser) parseSetStatementTarget() (nodes.Node, error) {
 		inner, err = p.parseWhileStmt("", 0)
 	case kwREPEAT:
 		inner, err = p.parseRepeatStmt("", 0)
-	case kwLOOP:
-		inner, err = p.parseLoopStmt("", 0)
 	default:
 		inner, err = p.parseStmt()
 	}
@@ -441,7 +439,7 @@ func appendSetWord(stmt *nodes.SetStmt, column, value string, start, end int) {
 // BINARY 'x'` is an expression. ON and a bare DEFAULT are the value and nothing more, so `SET a
 // = ON + 1` and `SET a = DEFAULT + 1` are 1064s, where parseExpr would go on to read the sum.
 // DEFAULT(b) is an expression.
-func (p *Parser) parseSetValue(col *nodes.ColumnRef) (nodes.ExprNode, error) {
+func (p *Parser) parseSetValue(col *nodes.ColumnRef, scope string) (nodes.ExprNode, error) {
 	next := p.peekNext().Type
 	bareDefault := p.cur.Type == kwDEFAULT && next != '('
 	if strings.HasPrefix(col.Column, "@") && !strings.HasPrefix(col.Column, "@@") {
@@ -460,6 +458,11 @@ func (p *Parser) parseSetValue(col *nodes.ColumnRef) (nodes.ExprNode, error) {
 		case bareDefault:
 			return p.parseDefaultExpr()
 		}
+	}
+	// A SET of a stored program's variable reads no table (sp_fields.go). A scope word names
+	// the system variable, and MariaDB applies it to its own assignment only.
+	if scope == "" && col.Table == "" && !strings.HasPrefix(col.Column, "@") && p.routine.sp != nil && p.routine.sp.hasVar(col.Column) {
+		defer p.enterNoFields("SET", false)()
 	}
 	// An expr holds no bare DEFAULT, so `SET a = (DEFAULT)` and `SET a = 1 + DEFAULT` are 1064s.
 	outer := p.noBareDefault
@@ -620,7 +623,7 @@ func (p *Parser) parseSetVariableAssignment(start int, scope string) (*nodes.Ass
 		return nil, err
 	}
 
-	val, err := p.parseSetValue(col)
+	val, err := p.parseSetValue(col, scope)
 	if err != nil {
 		return nil, err
 	}
@@ -1034,6 +1037,12 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 				stmt.ForUser = user
 			}
 		default:
+			if p.atWord("PACKAGE") {
+				if err := p.parseShowCreatePackage(stmt); err != nil {
+					return nil, err
+				}
+				break
+			}
 			// SHOW CREATE with nothing after it, or with an object this
 			// engine has no SHOW CREATE for, is a 1064.
 			return nil, p.syntaxErrorAtCur()
@@ -1596,6 +1605,10 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			stmt.Type = "DATABASES"
 			p.advance()
 			if err := p.parseShowLikeOrWhere(stmt); err != nil {
+				return nil, err
+			}
+		} else if p.atWord("PACKAGE") {
+			if err := p.parseShowPackage(stmt); err != nil {
 				return nil, err
 			}
 		} else {

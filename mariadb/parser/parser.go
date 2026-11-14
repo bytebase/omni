@@ -21,6 +21,8 @@ type Parser struct {
 	routineDepth int
 	// storedExpr is the stored expression around the current token, which holds what it reads.
 	storedExpr storedExprKind
+	// noFields is the expression with no query around it that the current token is in.
+	noFields noFieldsScope
 	// procedureArgs is set while a SELECT's PROCEDURE clause reads its arguments, which
 	// take no subquery.
 	procedureArgs bool
@@ -68,6 +70,11 @@ type Parser struct {
 	intoRefused bool
 
 	newlines []int // offsets of the input's newlines, found on first use (see lineCol)
+
+	// ddlTable is the table the CREATE TABLE or ALTER TABLE being parsed names,
+	// which a qualified field_ident must name again (parseFieldIdent) and which
+	// LIKE, EXCHANGE PARTITION and CONVERT TABLE must not (refuseSameTable).
+	ddlTable *nodes.TableRef
 
 	// Completion mode fields.
 	completing bool          // true when collecting completion candidates

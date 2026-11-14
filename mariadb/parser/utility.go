@@ -609,6 +609,10 @@ func (p *Parser) parseDeleteDomainIDs() error {
 	if _, ok := p.match(')'); ok {
 		return nil
 	}
+	// The list may open with a comma, since its first element may be empty
+	// (delete_domain_id_list): mariadb:11.8.8 runs `DELETE_DOMAIN_ID = (, 1)`
+	// and answers 1064 for `(,)` and `(1,,2)`.
+	p.match(',')
 	for {
 		p.match('+')
 		if p.cur.Type != tokICONST && p.cur.Type != tokFCONST {
@@ -686,14 +690,25 @@ func (p *Parser) parseResetStmt() (*nodes.FlushStmt, error) {
 
 // parseKillStmt parses a KILL statement.
 //
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/kill.html
+//	KILL [HARD | SOFT] [CONNECTION | QUERY] {expr | USER user}
+//	KILL [HARD | SOFT] QUERY ID expr
 //
-//	KILL [CONNECTION | QUERY] processlist_id
+// HARD, SOFT, ID and USER are names as well, so each is the keyword only when
+// something follows it: `KILL USER` kills the connection a column named USER
+// holds, which outside a stored program is the 1054 refuseColumnOutsideProgram
+// answers.
+//
+// Ref: kill, kill_type, kill_option, opt_connection and kill_expr in MariaDB 11.8
+// sql/sql_yacc.yy.
 func (p *Parser) parseKillStmt() (*nodes.KillStmt, error) {
 	start := p.pos()
 	p.advance() // consume KILL
 
 	stmt := &nodes.KillStmt{Loc: nodes.Loc{Start: start}}
+
+	if (p.atWord("HARD") || p.atWord("SOFT")) && !p.atStmtEndNext() {
+		stmt.Signal = strings.ToUpper(p.advance().Str)
+	}
 
 	// Optional CONNECTION | QUERY
 	if p.cur.Type == kwCONNECTION {
@@ -701,20 +716,65 @@ func (p *Parser) parseKillStmt() (*nodes.KillStmt, error) {
 	} else if p.cur.Type == kwQUERY {
 		stmt.Query = true
 		p.advance()
+		if p.atWord("ID") && !p.atStmtEndNext() {
+			p.advance()
+			stmt.QueryID = true
+		}
+	}
+
+	// USER is the user form only when a user name follows it; otherwise it is a name in
+	// the expression, a column or a stored program's variable: mariadb:11.8.8 runs
+	// `KILL USER()` and, in a procedure that declares user, `KILL user + 1`.
+	if p.cur.Type == kwUSER && !stmt.QueryID && p.startsUserName(p.peekNext()) {
+		p.advance() // consume USER
+		user, err := p.parseUserName()
+		if err != nil {
+			return nil, err
+		}
+		stmt.User = user
+		stmt.Loc.End = p.prev.End
+		return stmt, nil
 	}
 
 	// Process ID
+	leave := p.enterNoFields("KILL", true)
 	expr, err := p.parseExpr()
+	leave()
 	if err != nil {
 		return nil, err
 	}
 	if expr == nil {
 		return nil, p.syntaxErrorAtCur()
 	}
+	if err := p.refuseColumnOutsideProgram(expr, "KILL"); err != nil {
+		return nil, err
+	}
 	stmt.ConnectionID = expr
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// startsUserName reports whether tok can open a user name: a string, CURRENT_USER, or
+// a name that is no reserved word and no @variable.
+//
+// Ref: user and user_maybe_role in MariaDB 11.8 sql/sql_yacc.yy.
+func (p *Parser) startsUserName(tok Token) bool {
+	switch {
+	case tok.Type == tokSCONST, tok.Type == kwCURRENT_USER:
+		return true
+	case tok.Type == tokIDENT:
+		return !strings.HasPrefix(p.inputText(tok.Loc, tok.End), "@")
+	case tok.Type >= 700:
+		return !isReserved(tok.Type)
+	}
+	return false
+}
+
+// atStmtEndNext reports whether the token after the current one ends the statement.
+func (p *Parser) atStmtEndNext() bool {
+	next := p.peekNext().Type
+	return next == ';' || next == tokEOF
 }
 
 // parseCallStmt parses a CALL statement.
@@ -747,6 +807,7 @@ func (p *Parser) parseCallStmt() (*nodes.CallStmt, error) {
 	// Optional argument list in parentheses
 	if p.cur.Type == '(' {
 		p.advance() // consume '('
+		defer p.enterNoFields("CALL", true)()
 		if p.cur.Type != ')' {
 			for {
 				arg, err := p.parseExpr()
@@ -958,6 +1019,7 @@ func (p *Parser) parseDoStmt() (*nodes.DoStmt, error) {
 	p.advance() // consume DO
 
 	stmt := &nodes.DoStmt{Loc: nodes.Loc{Start: start}}
+	defer p.enterNoFields("DO", false)()
 
 	for {
 		expr, err := p.parseExpr()
@@ -1033,6 +1095,88 @@ func (p *Parser) parseShutdownStmt() (*nodes.ShutdownStmt, error) {
 	p.advance() // consume SHUTDOWN
 
 	stmt := &nodes.ShutdownStmt{Loc: nodes.Loc{Start: start}}
+
+	// [WAIT FOR ALL SLAVES], REPLICAS being SLAVES's other spelling: mariadb:11.8.8
+	// runs `SHUTDOWN WAIT FOR ALL REPLICAS`. Neither WAIT nor SLAVES is a keyword
+	// of this lexer.
+	//
+	// Ref: shutdown and shutdown_option in MariaDB 11.8 sql/sql_yacc.yy.
+	if p.atWord("WAIT") {
+		p.advance()
+		if _, err := p.expect(kwFOR); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(kwALL); err != nil {
+			return nil, err
+		}
+		if !p.atWord("SLAVES") && !p.atWord("REPLICAS") {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		stmt.WaitForAllSlaves = true
+	}
+
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
+}
+
+// parseBackupStmt parses MariaDB's BACKUP statements, none of which a stored
+// program may hold (1314).
+//
+//	BACKUP STAGE {START | FLUSH | BLOCK_DDL | BLOCK_COMMIT | END}
+//	BACKUP LOCK table
+//	BACKUP UNLOCK
+//
+// The stage is an identifier the action looks up, any case and however quoted,
+// refusing another name with 4149: mariadb:11.8.8 runs `BACKUP STAGE start` and a
+// backquoted END, and answers 4149 for `BACKUP STAGE a`.
+//
+// Ref: backup and backup_statements in MariaDB 11.8 sql/sql_yacc.yy.
+func (p *Parser) parseBackupStmt() (*nodes.BackupStmt, error) {
+	start := p.pos()
+	p.advance() // consume BACKUP
+
+	stmt := &nodes.BackupStmt{Loc: nodes.Loc{Start: start}}
+	switch {
+	case p.cur.Type == kwLOCK:
+		if err := p.refuseInProgram("BACKUP LOCK", start); err != nil {
+			return nil, err
+		}
+		p.advance()
+		ref, err := p.parseTableRef()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Lock = ref
+	case p.cur.Type == kwUNLOCK:
+		if err := p.refuseInProgram("BACKUP UNLOCK", start); err != nil {
+			return nil, err
+		}
+		p.advance()
+		stmt.Unlock = true
+	case p.atWord("STAGE"):
+		if err := p.refuseInProgram("BACKUP STAGE", start); err != nil {
+			return nil, err
+		}
+		p.advance()
+		stageLoc := p.pos()
+		name, _, err := p.parseIdent()
+		if err != nil {
+			return nil, err
+		}
+		stage := strings.ToUpper(name)
+		switch stage {
+		case "START", "FLUSH", "BLOCK_DDL", "BLOCK_COMMIT", "END":
+		default:
+			return nil, &ParseError{
+				Message:  "Unknown backup stage: '" + name + "'. Stage should be one of START, FLUSH, BLOCK_DDL, BLOCK_COMMIT or END",
+				Position: stageLoc,
+			}
+		}
+		stmt.Stage = stage
+	default:
+		return nil, p.syntaxErrorAtCur()
+	}
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }

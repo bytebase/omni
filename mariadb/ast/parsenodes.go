@@ -304,21 +304,29 @@ const (
 	ATDropSystemVersioning
 	ATAddPeriod
 	ATDropPeriod
+	// MariaDB's CONVERT PARTITION p TO TABLE t and CONVERT TABLE t TO
+	// PARTITION part_definition.
+	ATConvertPartitionToTable
+	ATConvertTableToPartition
 )
 
 // AlterTableCmd represents a single ALTER TABLE operation.
 type AlterTableCmd struct {
-	Loc            Loc
-	Type           AlterTableCmdType
-	Name           string       // column/constraint/index name
-	NewName        string       // for RENAME operations
-	NewTable       *TableRef    // for RENAME TABLE
-	Column         *ColumnDef   // for ADD/MODIFY/CHANGE COLUMN
-	Columns        []*ColumnDef // for ADD (col1, col2, ...) multi-column form
-	Constraint     *Constraint  // for ADD CONSTRAINT
-	Option         *TableOption // for table options
-	DefaultExpr    ExprNode     // for ALTER COLUMN SET DEFAULT expr
-	IfExists       bool
+	Loc         Loc
+	Type        AlterTableCmdType
+	Name        string       // column/constraint/index name
+	NewName     string       // for RENAME operations
+	NewTable    *TableRef    // for RENAME TABLE
+	Column      *ColumnDef   // for ADD/MODIFY/CHANGE COLUMN
+	Columns     []*ColumnDef // for ADD (col1, col2, ...) multi-column form
+	Constraint  *Constraint  // for ADD CONSTRAINT
+	Option      *TableOption // for table options
+	DefaultExpr ExprNode     // for ALTER COLUMN SET DEFAULT expr
+	IfExists    bool
+	// IfNotExists is ADD [COLUMN] IF NOT EXISTS, MariaDB's
+	// opt_if_not_exists_table_element before a column: a column already there
+	// is skipped with a note (1060) instead of failing the statement.
+	IfNotExists    bool
 	First          bool            // FIRST positioning
 	After          string          // AFTER column positioning
 	PartitionNames []string        // for partition operations (DROP/TRUNCATE/ANALYZE/CHECK/OPTIMIZE/REBUILD/REPAIR/REORGANIZE/DISCARD/IMPORT)
@@ -330,10 +338,15 @@ type AlterTableCmd struct {
 	// takes after the PARTITION keyword. The grammar folds both spellings to
 	// one value, so the spelling used is not kept.
 	NoWriteToBinlog bool
-	ExchangeTable   *TableRef        // for EXCHANGE PARTITION ... WITH TABLE
-	WithValidation  *bool            // for EXCHANGE PARTITION: true=WITH VALIDATION, false=WITHOUT VALIDATION, nil=not specified
-	OrderByItems    []*OrderByItem   // for ORDER BY operation
-	PartitionBy     *PartitionClause // for PARTITION BY (repartition)
+	ExchangeTable   *TableRef // for EXCHANGE PARTITION ... WITH TABLE
+	// ConvertTable is the table of MariaDB's CONVERT PARTITION p TO TABLE t
+	// (the table the partition becomes, Name the partition) and of CONVERT
+	// TABLE t TO PARTITION part_definition (the table that becomes the
+	// partition, PartitionDefs[0] the partition).
+	ConvertTable   *TableRef
+	WithValidation *bool            // for EXCHANGE PARTITION: true=WITH VALIDATION, false=WITHOUT VALIDATION, nil=not specified
+	OrderByItems   []*OrderByItem   // for ORDER BY operation
+	PartitionBy    *PartitionClause // for PARTITION BY (repartition)
 	// PeriodStartCol / PeriodEndCol carry ADD PERIOD FOR <name> (start, end);
 	// PeriodName is the period name ("SYSTEM_TIME" or an application-time name).
 	PeriodStartCol string
@@ -514,6 +527,10 @@ type ColumnDef struct {
 	// appeared, even if a later WITHOUT on the same column overrode the net
 	// attribute. MariaDB marks the TABLE system-versioned once a WITH is seen.
 	SystemVersioningWithSeen bool
+	// EngineOptions are the column's engine-defined options, `name = value`
+	// (serial_attribute's engine_defined_option), in the order written. Each
+	// is an IndexOption with Engine set, as an index's are.
+	EngineOptions []*IndexOption
 }
 
 func (d *ColumnDef) nodeTag() {}
@@ -696,9 +713,13 @@ const (
 
 // PartitionDef represents a single partition definition.
 type PartitionDef struct {
-	Loc           Loc
-	Name          string
-	Values        Node   // VALUES LESS THAN (expr) or IN (list) — kept as Node to support heterogeneous partition value types
+	Loc    Loc
+	Name   string
+	Values Node // VALUES LESS THAN (expr) or IN (list) — kept as Node to support heterogeneous partition value types
+	// ValuesIn marks Values as VALUES IN rather than LESS THAN, which an ALTER
+	// TABLE's partition, read before the table's partitioning is known, needs to
+	// be held to it.
+	ValuesIn      bool
 	SystemTime    string // "HISTORY" | "CURRENT" for SYSTEM_TIME partitions ("" otherwise)
 	Options       []*TableOption
 	SubPartitions []*SubPartitionDef
@@ -1897,11 +1918,14 @@ func (s *CreateFunctionStmt) nodeTag()  {}
 func (s *CreateFunctionStmt) stmtNode() {}
 
 // FuncParam represents a function/procedure parameter.
+// Exactly one of TypeName, RowFields and Anchor is set.
 type FuncParam struct {
 	Loc       Loc
 	Direction string // IN, OUT, INOUT
 	Name      string
 	TypeName  *DataType
+	RowFields []*RowField // MariaDB's ROW(name type, ...)
+	Anchor    *TypeAnchor // MariaDB's TYPE OF / ROW TYPE OF
 }
 
 func (p *FuncParam) nodeTag() {}
@@ -2121,7 +2145,10 @@ func (s *FlushStmt) stmtNode() {}
 type KillStmt struct {
 	Loc          Loc
 	ConnectionID ExprNode
-	Query        bool // KILL QUERY vs KILL CONNECTION
+	Query        bool   // KILL QUERY vs KILL CONNECTION
+	Signal       string // MariaDB's HARD or SOFT, "" when not written
+	QueryID      bool   // KILL QUERY ID expr: ConnectionID is a query's id
+	User         string // KILL [CONNECTION | QUERY] USER user, in place of ConnectionID
 }
 
 func (s *KillStmt) nodeTag()  {}
@@ -2149,7 +2176,8 @@ func (s *ChecksumTableStmt) stmtNode() {}
 
 // ShutdownStmt represents a SHUTDOWN statement.
 type ShutdownStmt struct {
-	Loc Loc
+	Loc              Loc
+	WaitForAllSlaves bool // MariaDB's SHUTDOWN WAIT FOR ALL {SLAVES | REPLICAS}
 }
 
 func (s *ShutdownStmt) nodeTag()  {}
@@ -2484,27 +2512,51 @@ type DiagnosticsItem struct {
 
 func (d *DiagnosticsItem) nodeTag() {}
 
-// BeginEndBlock represents a BEGIN...END compound statement block.
+// BeginEndBlock represents a BEGIN...END compound statement block, or MariaDB's
+// BEGIN NOT ATOMIC ... END, which also stands as a statement of its own.
 type BeginEndBlock struct {
-	Loc      Loc
-	Label    string // optional begin label name
-	EndLabel string // optional end label name
-	Stmts    []Node // statements inside the block
+	Loc       Loc
+	Label     string // optional begin label name
+	EndLabel  string // optional end label name
+	NotAtomic bool   // BEGIN NOT ATOMIC
+	Stmts     []Node // statements inside the block
 }
 
 func (s *BeginEndBlock) nodeTag()  {}
 func (s *BeginEndBlock) stmtNode() {}
 
 // DeclareVarStmt represents a DECLARE variable statement inside a compound block.
+// Exactly one of TypeName, RowFields and Anchor is set.
 type DeclareVarStmt struct {
-	Loc      Loc
-	Names    []string  // variable names
-	TypeName *DataType // data type
-	Default  ExprNode  // DEFAULT value (may be nil)
+	Loc       Loc
+	Names     []string    // variable names
+	TypeName  *DataType   // data type
+	RowFields []*RowField // MariaDB's ROW(name type, ...)
+	Anchor    *TypeAnchor // MariaDB's TYPE OF / ROW TYPE OF
+	Default   ExprNode    // DEFAULT value (may be nil)
 }
 
 func (s *DeclareVarStmt) nodeTag()  {}
 func (s *DeclareVarStmt) stmtNode() {}
+
+// RowField is one field of MariaDB's ROW(name type, ...) variable or parameter type.
+type RowField struct {
+	Loc      Loc
+	Name     string
+	TypeName *DataType
+}
+
+func (f *RowField) nodeTag() {}
+
+// TypeAnchor is MariaDB's anchored type of a stored program variable or parameter: TYPE OF
+// a variable or a [db.]table.column, or ROW TYPE OF a [db.]table or a cursor.
+type TypeAnchor struct {
+	Loc   Loc
+	Row   bool     // ROW TYPE OF
+	Names []string // the dotted name, one to three parts
+}
+
+func (a *TypeAnchor) nodeTag() {}
 
 // HandlerCondKind classifies a handler condition value so that semantic
 // analysis can distinguish SQLSTATE literals, error-code literals, built-in
@@ -2560,8 +2612,9 @@ func (s *DeclareHandlerStmt) stmtNode() {}
 // DeclareCursorStmt represents a DECLARE ... CURSOR FOR statement.
 type DeclareCursorStmt struct {
 	Loc    Loc
-	Name   string      // cursor name
-	Select *SelectStmt // select statement
+	Name   string       // cursor name
+	Params []*FuncParam // MariaDB's cursor parameters, CURSOR (name type, ...)
+	Select *SelectStmt  // select statement
 }
 
 func (s *DeclareCursorStmt) nodeTag()  {}
@@ -2673,6 +2726,21 @@ type LoopStmt struct {
 
 func (s *LoopStmt) nodeTag()  {}
 func (s *LoopStmt) stmtNode() {}
+
+// ForStmt represents MariaDB's FOR loop over the rows of a query:
+// [label:] FOR rec IN [REVERSE] (query) DO statement_list END FOR [label].
+type ForStmt struct {
+	Loc      Loc
+	Label    string      // optional begin label
+	EndLabel string      // optional end label
+	Var      string      // the record variable each row is read into
+	Reverse  bool        // REVERSE
+	Select   *SelectStmt // the query
+	Stmts    []Node      // statement list
+}
+
+func (s *ForStmt) nodeTag()  {}
+func (s *ForStmt) stmtNode() {}
 
 // LeaveStmt represents a LEAVE statement.
 type LeaveStmt struct {
@@ -3057,6 +3125,44 @@ type DropRoutineStmt struct {
 func (s *DropRoutineStmt) nodeTag()  {}
 func (s *DropRoutineStmt) stmtNode() {}
 
+// CreatePackageStmt represents MariaDB's CREATE PACKAGE, a package's specification: the
+// functions and procedures the package publishes, which its body defines.
+type CreatePackageStmt struct {
+	Loc             Loc
+	OrReplace       bool
+	IfNotExists     bool
+	Definer         string
+	Name            *TableRef
+	Characteristics []*RoutineCharacteristic // COMMENT, SQL SECURITY
+	Routines        []*PackageRoutineSpec
+}
+
+func (s *CreatePackageStmt) nodeTag()  {}
+func (s *CreatePackageStmt) stmtNode() {}
+
+// PackageRoutineSpec is one function or procedure a package specification publishes.
+type PackageRoutineSpec struct {
+	Loc             Loc
+	IsProcedure     bool
+	Name            string
+	Params          []*FuncParam
+	Returns         *DataType // a function's RETURNS
+	Characteristics []*RoutineCharacteristic
+}
+
+func (s *PackageRoutineSpec) nodeTag() {}
+
+// DropPackageStmt represents MariaDB's DROP PACKAGE [BODY].
+type DropPackageStmt struct {
+	Loc      Loc
+	Body     bool // DROP PACKAGE BODY
+	IfExists bool
+	Name     *TableRef
+}
+
+func (s *DropPackageStmt) nodeTag()  {}
+func (s *DropPackageStmt) stmtNode() {}
+
 // DropTriggerStmt represents a DROP TRIGGER statement.
 type DropTriggerStmt struct {
 	Loc      Loc
@@ -3173,7 +3279,7 @@ func (s *StopReplicaStmt) stmtNode() {}
 type ResetReplicaStmt struct {
 	Loc     Loc
 	All     bool   // ALL modifier
-	Channel string // FOR CHANNEL channel
+	Channel string // FOR CHANNEL channel, or MariaDB's RESET SLAVE 'connection_name'
 }
 
 func (s *ResetReplicaStmt) nodeTag()  {}
@@ -3235,6 +3341,18 @@ type AlterInstanceStmt struct {
 
 func (s *AlterInstanceStmt) nodeTag()  {}
 func (s *AlterInstanceStmt) stmtNode() {}
+
+// BackupStmt represents MariaDB's BACKUP STAGE stage, BACKUP LOCK table and BACKUP
+// UNLOCK.
+type BackupStmt struct {
+	Loc    Loc
+	Stage  string    // BACKUP STAGE: START, FLUSH, BLOCK_DDL, BLOCK_COMMIT or END
+	Lock   *TableRef // BACKUP LOCK table
+	Unlock bool      // BACKUP UNLOCK
+}
+
+func (s *BackupStmt) nodeTag()  {}
+func (s *BackupStmt) stmtNode() {}
 
 // LockInstanceStmt represents a LOCK INSTANCE FOR BACKUP statement.
 type LockInstanceStmt struct {

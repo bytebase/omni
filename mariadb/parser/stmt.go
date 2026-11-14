@@ -1,8 +1,6 @@
 package parser
 
 import (
-	"strings"
-
 	nodes "github.com/bytebase/omni/mariadb/ast"
 )
 
@@ -85,7 +83,13 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 		return p.parseExplainStmt()
 
 	case kwBEGIN:
+		if p.peekNext().Type == kwNOT {
+			return p.parseCompoundStatement()
+		}
 		return p.parseBeginStmt()
+
+	case kwLOOP, kwFOR:
+		return p.parseCompoundStatement()
 
 	case kwSTART:
 		return p.parseStartDispatch()
@@ -207,6 +211,9 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 
 	case kwSHUTDOWN:
 		return p.parseShutdownStmt()
+
+	case kwBACKUP:
+		return p.parseBackupStmt()
 
 	case kwCLONE:
 		return p.parseCloneStmt()
@@ -331,53 +338,56 @@ func (p *Parser) parseResetDispatch() (nodes.Node, error) {
 	start := p.pos()
 	p.advance() // consume RESET
 
-	if p.cur.Type == kwREPLICA || p.cur.Type == kwSLAVE {
-		return p.parseResetReplicaStmt(start)
-	}
-	if p.cur.Type == kwMASTER {
-		return p.parseResetMasterStmt(start)
-	}
 	if p.cur.Type == kwPERSIST {
 		return p.parseResetPersistStmt(start)
 	}
 
-	// reset_option's last arm is QUERY CACHE, both words, and reset_options
-	// is a comma list of reset_option (reset in MariaDB 11.8 sql/sql_yacc.yy).
-	// A list after QUERY CACHE keeps each later option's text.
-	if p.cur.Type != kwQUERY {
-		return nil, p.syntaxErrorAtCur()
-	}
-	p.advance()
-	if _, err := p.expect(kwCACHE); err != nil {
-		return nil, err
-	}
-	stmt := &nodes.FlushStmt{Loc: nodes.Loc{Start: start}, Options: []string{"QUERY CACHE"}}
+	// reset_options is a comma list of reset_option: SLAVE, MASTER or QUERY CACHE,
+	// in any order and repeated. One SLAVE or MASTER is its own statement; a list,
+	// or QUERY CACHE, is a FlushStmt that keeps each option's text.
+	// mariadb:11.8.8 runs `RESET SLAVE, SLAVE` and `RESET SLAVE ALL, MASTER`.
+	//
+	// Ref: reset, reset_options and reset_option in MariaDB 11.8 sql/sql_yacc.yy.
+	var first nodes.Node
+	var options []string
 	for {
-		if _, ok := p.match(','); !ok {
-			break
-		}
 		optStart := p.pos()
+		nodeStart := optStart
+		if len(options) == 0 {
+			nodeStart = start
+		}
+		var node nodes.Node
+		var err error
 		switch p.cur.Type {
+		case kwREPLICA, kwSLAVE:
+			node, err = p.parseResetReplicaStmt(nodeStart)
+		case kwMASTER:
+			node, err = p.parseResetMasterStmt(nodeStart)
 		case kwQUERY:
 			p.advance()
-			if _, err := p.expect(kwCACHE); err != nil {
-				return nil, err
-			}
-		case kwMASTER:
-			if _, err := p.parseResetMasterStmt(optStart); err != nil {
-				return nil, err
-			}
-		case kwREPLICA, kwSLAVE:
-			if _, err := p.parseResetReplicaStmt(optStart); err != nil {
-				return nil, err
-			}
+			_, err = p.expect(kwCACHE)
 		default:
 			return nil, p.syntaxErrorAtCur()
 		}
-		stmt.Options = append(stmt.Options, p.inputText(optStart, p.prev.End))
+		if err != nil {
+			return nil, err
+		}
+		if len(options) == 0 {
+			first = node
+		}
+		if node == nil {
+			options = append(options, "QUERY CACHE")
+		} else {
+			options = append(options, p.inputText(optStart, p.prev.End))
+		}
+		if _, ok := p.match(','); !ok {
+			break
+		}
 	}
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
+	if len(options) == 1 && first != nil {
+		return first, nil
+	}
+	return &nodes.FlushStmt{Loc: nodes.Loc{Start: start, End: p.prev.End}, Options: options}, nil
 }
 
 // parseStopDispatch dispatches STOP statements.
@@ -552,6 +562,7 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		}
 		// Optional SQL SECURITY {DEFINER|INVOKER} (view_suid)
 		var sqlSecurity string
+		sawSQLSecurity := p.cur.Type == kwSQL
 		if p.cur.Type == kwSQL {
 			if sqlSecurity, err = p.parseViewSQLSecurity(); err != nil {
 				return nil, err
@@ -608,10 +619,17 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 			}
 			return stmt, nil
 		default:
+			// definer_opt sp_handler_package_spec: no SQL SECURITY before PACKAGE.
+			if p.atWord("PACKAGE") && !sawSQLSecurity {
+				return p.parseCreatePackageStmt(start, orReplace, definer)
+			}
 			return nil, &ParseError{Message: "unexpected token after DEFINER clause", Position: p.cur.Loc}
 		}
 
 	default:
+		if p.atWord("PACKAGE") {
+			return p.parseCreatePackageStmt(start, orReplace, "")
+		}
 		return nil, &ParseError{
 			Message:  "unexpected token after CREATE",
 			Position: p.cur.Loc,
@@ -846,6 +864,9 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 		}, nil
 
 	default:
+		if p.atWord("PACKAGE") && !temporary {
+			return p.parseDropPackageStmt(start)
+		}
 		return nil, &ParseError{
 			Message:  "unexpected token after DROP",
 			Position: p.cur.Loc,
@@ -876,8 +897,8 @@ func (p *Parser) parseDefinerValue() (string, error) {
 	// Parse user part: identifier, string literal, CURRENT_USER or CURRENT_ROLE
 	var user string
 	isCurUser := p.cur.Type == kwCURRENT_USER
-	// CURRENT_ROLE is no keyword here; the source text keeps `CURRENT_ROLE`, a name, apart.
-	isCurRole := p.cur.Type == tokIDENT && strings.EqualFold(p.inputText(p.cur.Loc, p.cur.End), "CURRENT_ROLE")
+	// CURRENT_ROLE is a reserved word; a backquoted `CURRENT_ROLE` is a name.
+	isCurRole := p.cur.Type == kwCURRENT_ROLE
 	if p.cur.Type == tokSCONST {
 		user = "'" + p.cur.Str + "'"
 		p.advance()
@@ -888,7 +909,10 @@ func (p *Parser) parseDefinerValue() (string, error) {
 		user = "CURRENT_ROLE"
 		p.advance()
 	} else if p.isIdentToken() {
-		user, _, _ = p.parseIdentifier()
+		var err error
+		if user, _, err = p.parseIdentifier(); err != nil {
+			return "", err
+		}
 	} else {
 		return "", p.syntaxErrorAtCur()
 	}
@@ -912,13 +936,19 @@ func (p *Parser) parseDefinerValue() (string, error) {
 		atHost := p.cur.Str // e.g. "@localhost" or "@"
 		p.advance()
 		if atHost == "@" {
-			// Standalone @ followed by host identifier or string
+			// Standalone @ followed by a host string or name that touches it. With
+			// space after it the host is empty: mariadb:11.8.8 reads `root@ VIEW` as
+			// root@'' and refuses `root@ 'h'` and `root@ h`.
 			var host string
-			if p.cur.Type == tokSCONST {
+			adjacent := p.cur.Loc == p.prev.End
+			if adjacent && p.cur.Type == tokSCONST {
 				host = "'" + p.cur.Str + "'"
 				p.advance()
-			} else if p.isIdentToken() {
-				host, _, _ = p.parseIdentifier()
+			} else if adjacent && p.isIdentToken() {
+				var err error
+				if host, _, err = p.parseIdentifier(); err != nil {
+					return "", err
+				}
 			}
 			return user + "@" + host, nil
 		}

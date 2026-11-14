@@ -362,7 +362,8 @@ END`,
 BEGIN
     SIGNAL SQLSTATE '45000';
 END`,
-			wantCode: "function_missing_return",
+			wantCode:     "function_missing_return",
+			parseRefused: true,
 		},
 		{
 			name: "function with HANDLER + RETURN at end",
@@ -415,7 +416,7 @@ END`,
 		t.Run(c.name, func(t *testing.T) {
 			list, err := parser.Parse(c.sql)
 			if c.parseRefused {
-				// The server refuses it while parsing (1308, 1309, 1313, 1324, ...), and so does Parse;
+				// The server refuses it while parsing (1308, 1313, 1320, 1324, ...), and so does Parse;
 				// the rule stays for a tree that comes from anywhere else.
 				if err == nil {
 					t.Fatalf("Parse(%q) accepted it", c.sql)

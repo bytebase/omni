@@ -47,10 +47,18 @@ func (p *Parser) finishLoadableFunction(stmt *nodes.CreateFunctionStmt) (*nodes.
 	if _, err := p.expect(kwRETURNS); err != nil {
 		return nil, err
 	}
+	// udf_type is STRING, REAL, DECIMAL or INT, each a keyword with the spellings its
+	// lexer gives the token (DEC, INTEGER, INT4); a backquoted name is none of them.
+	//
+	// Ref: udf_type in sql/sql_yacc.yy and the keyword table in sql/lex.h.
 	retStart := p.pos()
-	retType, _, err := p.parseKeywordOrIdent()
-	if err != nil {
-		return nil, err
+	var retType string
+	switch strings.ToUpper(p.inputText(p.cur.Loc, p.cur.End)) {
+	case "STRING", "REAL", "DECIMAL", "DEC", "INT", "INTEGER", "INT4":
+		retType = strings.ToUpper(p.cur.Str)
+		p.advance()
+	default:
+		return nil, p.syntaxErrorAtCur()
 	}
 	stmt.Returns = &nodes.DataType{
 		Loc:  nodes.Loc{Start: retStart, End: p.prev.End},
@@ -210,6 +218,13 @@ func (p *Parser) parseCreateFunctionStmt(start int, isProcedure bool) (*nodes.Cr
 	if err != nil {
 		return nil, err
 	}
+	// A function's body must hold a RETURN somewhere: sf_tail's action answers 1320,
+	// ER_SP_NORETURN, when none was read.
+	//
+	// Ref: sf_tail in MySQL 8.0 sql/sql_yacc.yy (sp_head::HAS_RETURN).
+	if !isProcedure && !p.routine.hasReturn && !p.completing {
+		return nil, &ParseError{Message: "No RETURN found in FUNCTION " + stmt.Name.Name, Position: bodyStart}
+	}
 	bodyEnd := p.pos()
 	stmt.Body = body
 	stmt.BodyText = p.inputText(bodyStart, bodyEnd)
@@ -315,11 +330,16 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 				Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "SQL SECURITY", Value: name,
 			}, true, nil
 		}
-		return nil, false, nil
+		// SQL starts only SQL SECURITY here.
+		return nil, false, p.syntaxErrorAtCur()
 
+	// CONTAINS SQL, READS SQL DATA and MODIFIES SQL DATA are read whole.
+	// Ref: sp_chistic in sql/sql_yacc.yy.
 	case p.cur.Type == kwCONTAINS:
 		p.advance()
-		p.match(kwSQL)
+		if _, err := p.expect(kwSQL); err != nil {
+			return nil, false, err
+		}
 		return &nodes.RoutineCharacteristic{
 			Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "DATA ACCESS", Value: "CONTAINS SQL",
 		}, true, nil
@@ -336,9 +356,8 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 
 	case p.cur.Type == kwREADS:
 		p.advance()
-		p.match(kwSQL)
-		if p.cur.Type == kwDATA {
-			p.advance()
+		if err := p.expectSQLData(); err != nil {
+			return nil, false, err
 		}
 		return &nodes.RoutineCharacteristic{
 			Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "DATA ACCESS", Value: "READS SQL DATA",
@@ -346,9 +365,8 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 
 	case p.cur.Type == kwMODIFIES:
 		p.advance()
-		p.match(kwSQL)
-		if p.cur.Type == kwDATA {
-			p.advance()
+		if err := p.expectSQLData(); err != nil {
+			return nil, false, err
 		}
 		return &nodes.RoutineCharacteristic{
 			Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "DATA ACCESS", Value: "MODIFIES SQL DATA",
@@ -356,6 +374,15 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 	}
 
 	return nil, false, nil
+}
+
+// expectSQLData reads the SQL DATA after READS or MODIFIES.
+func (p *Parser) expectSQLData() error {
+	if _, err := p.expect(kwSQL); err != nil {
+		return err
+	}
+	_, err := p.expect(kwDATA)
+	return err
 }
 
 // parseRoutineDataType reads the type of a routine's parameter, return value or local

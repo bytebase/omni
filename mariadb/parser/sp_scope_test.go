@@ -162,3 +162,314 @@ func TestStoredProgramConditions(t *testing.T) {
 		})
 	}
 }
+
+// TestStoredProgramStatements holds a stored program's statements to what each kind of
+// program may hold (spBadStatement, spNotInFunction, refuseResultSet). Each statement is
+// written as the body of a function, a trigger, a procedure and an event; the codes are what
+// mariadb:11.8.8 answers to PREPARE of each, 0 when the compat judge reads that as parsed.
+func TestStoredProgramStatements(t *testing.T) {
+	cases := []struct {
+		stmt               string
+		fn, trg, proc, evt int
+	}{
+		{"COMMIT", 1422, 1422, 0, 0},
+		{"ROLLBACK", 1422, 1422, 0, 0},
+		{"ROLLBACK TO SAVEPOINT a", 0, 0, 0, 0},
+		{"SAVEPOINT a", 0, 0, 0, 0},
+		{"RELEASE SAVEPOINT a", 0, 0, 0, 0},
+		{"START TRANSACTION", 1422, 1422, 0, 0},
+		{"XA START 'a'", 0, 0, 0, 0},
+		{"SET autocommit = 1", 1445, 1445, 0, 0},
+		{"SET GLOBAL autocommit = 1", 1445, 1445, 0, 0},
+		{"SET @@session.autocommit = 1", 1445, 1445, 0, 0},
+		{"SET sql_mode = '', autocommit = 0", 1445, 1445, 0, 0},
+		{"SET @autocommit = 1", 0, 0, 0, 0},
+		{"SET PASSWORD = 'x'", 1445, 1445, 0, 0},
+		{"SET TRANSACTION READ ONLY", 0, 0, 0, 0},
+		{"PREPARE s FROM 'SELECT 1'", 1336, 1336, 0, 0},
+		{"EXECUTE s", 1336, 1336, 0, 0},
+		{"DEALLOCATE PREPARE s", 1336, 1336, 0, 0},
+		{"FLUSH TABLES", 1336, 1336, 0, 0},
+		{"RESET MASTER", 1336, 1336, 0, 0},
+		{"RESET SLAVE", 1336, 1336, 0, 0},
+		{"CREATE TABLE t2 (a INT)", 1422, 1422, 0, 0},
+		{"CREATE TEMPORARY TABLE t2 (a INT)", 0, 0, 0, 0},
+		{"DROP TABLE t2", 1422, 1422, 0, 0},
+		{"DROP TEMPORARY TABLE t2", 0, 0, 0, 0},
+		{"ALTER TABLE t ADD c INT", 1422, 1422, 0, 0},
+		{"TRUNCATE t", 1422, 1422, 0, 0},
+		{"CREATE INDEX i ON t (a)", 1422, 1422, 0, 0},
+		{"DROP INDEX i ON t", 1422, 1422, 0, 0},
+		{"RENAME TABLE t TO t3", 1422, 1422, 0, 0},
+		{"CREATE VIEW v AS SELECT 1", 1422, 1422, 0, 0},
+		{"DROP VIEW v", 1422, 1422, 0, 0},
+		{"ALTER VIEW v AS SELECT 1", 1314, 1314, 1314, 1314},
+		{"CREATE DATABASE d2", 1422, 1422, 0, 0},
+		{"ALTER DATABASE d2 CHARACTER SET utf8mb4", 0, 0, 0, 0},
+		{"DROP DATABASE d2", 1422, 1422, 0, 0},
+		{"CREATE USER u", 1422, 1422, 0, 0},
+		{"ALTER USER u ACCOUNT LOCK", 1422, 1422, 0, 0},
+		{"DROP USER u", 1422, 1422, 0, 0},
+		{"RENAME USER u TO v", 1422, 1422, 0, 0},
+		{"GRANT SELECT ON *.* TO u", 1422, 1422, 0, 0},
+		{"REVOKE SELECT ON *.* FROM u", 1422, 1422, 0, 0},
+		{"CREATE ROLE r", 1422, 1422, 0, 0},
+		{"DROP ROLE r", 1422, 1422, 0, 0},
+		{"GRANT r TO u", 1422, 1422, 0, 0},
+		{"SET ROLE r", 0, 0, 0, 0},
+		{"INSTALL PLUGIN p SONAME 'p.so'", 1422, 1422, 0, 0},
+		{"UNINSTALL PLUGIN p", 1422, 1422, 0, 0},
+		{"CREATE SERVER s FOREIGN DATA WRAPPER mysql OPTIONS (USER 'u')", 0, 0, 0, 0},
+		{"DROP SERVER s", 0, 0, 0, 0},
+		{"START REPLICA", 0, 0, 0, 0},
+		{"STOP REPLICA", 0, 0, 0, 0},
+		{"PURGE BINARY LOGS TO 'b'", 0, 0, 0, 0},
+		{"CREATE EVENT e ON SCHEDULE EVERY 1 DAY DO SELECT 1", 1576, 1576, 1576, 1576},
+		{"ALTER EVENT e DO SELECT 1", 1576, 1576, 1576, 1576},
+		{"ALTER EVENT e ENABLE", 1422, 1422, 0, 0},
+		{"DROP EVENT e", 1422, 1422, 0, 0},
+		{"CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW SET @a = 1", 1303, 1303, 1303, 1303},
+		{"DROP TRIGGER tr", 1422, 1422, 0, 0},
+		{"CREATE PROCEDURE q() SELECT 1", 1303, 1303, 1303, 1303},
+		{"CREATE FUNCTION g() RETURNS INT RETURN 1", 1303, 1303, 1303, 1303},
+		{"CREATE FUNCTION g RETURNS STRING SONAME 'x.so'", 0, 0, 0, 0},
+		{"DROP PROCEDURE q", 1357, 1357, 1357, 1357},
+		{"DROP FUNCTION g", 1357, 1357, 1357, 1357},
+		{"ALTER PROCEDURE q COMMENT 'c'", 1357, 1357, 1357, 1357},
+		{"USE d", 1314, 1314, 1314, 1314},
+		{"LOCK TABLES t READ", 1314, 1314, 1314, 1314},
+		{"UNLOCK TABLES", 1314, 1314, 1314, 1314},
+		{"CHECK TABLE t", 1314, 1314, 1314, 1314},
+		{"LOAD DATA INFILE 'x' INTO TABLE t", 1314, 1314, 1314, 1314},
+		{"LOAD XML INFILE 'x' INTO TABLE t", 1314, 1314, 1314, 1314},
+		{"HELP 'x'", 1314, 1314, 1314, 1314},
+		{"ANALYZE TABLE t", 1415, 1415, 0, 0},
+		{"OPTIMIZE TABLE t", 1415, 1415, 0, 0},
+		{"REPAIR TABLE t", 1415, 1415, 0, 0},
+		{"CHECKSUM TABLE t", 1415, 1415, 0, 0},
+		{"CACHE INDEX t IN k", 1415, 1415, 0, 0},
+		{"LOAD INDEX INTO CACHE t", 1415, 1415, 0, 0},
+		{"HANDLER t OPEN", 1314, 1314, 1314, 1314},
+		{"HANDLER t READ FIRST", 1314, 1314, 1314, 1314},
+		{"HANDLER t CLOSE", 1314, 1314, 1314, 1314},
+		{"SHOW TABLES", 1415, 1415, 0, 0},
+		{"EXPLAIN SELECT 1", 1415, 1415, 0, 0},
+		{"SELECT 1 INTO @a", 0, 0, 0, 0},
+		{"SELECT 1 INTO OUTFILE 'x'", 0, 0, 0, 0},
+		{"KILL 1", 0, 0, 0, 0},
+		{"SHUTDOWN", 0, 0, 0, 0},
+		{"DO 1", 0, 0, 0, 0},
+		{"CALL q()", 0, 0, 0, 0},
+		{"BINLOG 'x'", 0, 0, 0, 0},
+		{"CREATE SEQUENCE s1", 1422, 1422, 0, 0},
+		{"CREATE TEMPORARY SEQUENCE s1", 0, 0, 0, 0},
+		{"DROP SEQUENCE s1", 1422, 1422, 0, 0},
+		{"ALTER SEQUENCE s1 RESTART", 1422, 1422, 0, 0},
+		{"BACKUP STAGE START", 1314, 1314, 1314, 1314},
+		{"BACKUP LOCK t", 1314, 1314, 1314, 1314},
+		{"BACKUP UNLOCK", 1314, 1314, 1314, 1314},
+		{"DELETE FROM t RETURNING a", 1415, 1415, 0, 0},
+		{"INSERT INTO t VALUES (1) RETURNING a", 1415, 1415, 0, 0},
+		{"REPLACE INTO t VALUES (1) RETURNING a", 1415, 1415, 0, 0},
+		{"CHANGE MASTER TO MASTER_HOST = 'h'", 0, 0, 0, 0},
+		{"START SLAVE", 0, 0, 0, 0},
+		{"STOP SLAVE", 0, 0, 0, 0},
+		{"ALTER SERVER s OPTIONS (USER 'u')", 0, 0, 0, 0},
+		{"ANALYZE SELECT 1", 1415, 1415, 0, 0},
+		{"ANALYZE DELETE FROM t", 1415, 1415, 0, 0},
+		{"EXPLAIN DELETE FROM t", 1415, 1415, 0, 0},
+		{"ALTER TABLE t WAIT 1 ADD c INT", 1314, 1314, 1314, 1314},
+		{"LOCK TABLE t READ WAIT 1", 1314, 1314, 1314, 1314},
+		{"DROP DATABASE IF EXISTS d2", 1422, 1422, 0, 0},
+		{"CREATE OR REPLACE TABLE t2 (a INT)", 1422, 1422, 0, 0},
+		{"RESET QUERY CACHE", 1336, 1336, 0, 0},
+		{"FLUSH STATUS", 1336, 1336, 0, 0},
+		{"KILL QUERY 1", 0, 0, 0, 0},
+		{"SET STATEMENT max_statement_time = 1 FOR SELECT 1", 1415, 1415, 0, 0},
+		{"SET STATEMENT max_statement_time = 1 FOR COMMIT", 1422, 1422, 0, 0},
+	}
+	for _, c := range cases {
+		for i, sql := range []string{
+			"CREATE FUNCTION f() RETURNS INT BEGIN " + c.stmt + "; RETURN 1; END",
+			"CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW BEGIN " + c.stmt + "; END",
+			"CREATE PROCEDURE p() BEGIN " + c.stmt + "; END",
+			"CREATE EVENT e ON SCHEDULE EVERY 1 DAY DO BEGIN " + c.stmt + "; END",
+		} {
+			code := []int{c.fn, c.trg, c.proc, c.evt}[i]
+			_, err := Parse(sql)
+			if code == 0 && err != nil {
+				t.Errorf("Parse(%q) refused what MariaDB takes: %v", sql, err)
+			}
+			if code != 0 && err == nil {
+				t.Errorf("Parse(%q) took what MariaDB refuses with %d", sql, code)
+			}
+		}
+	}
+}
+
+// TestStoredProgramFunctionBodies holds a function's body to a RETURN somewhere in it (1320) and
+// SET autocommit to the system variable. code is what mariadb:11.8.8 answers to PREPARE of the
+// statement, 0 when the compat judge reads that as parsed (compat.PrepareVerdict).
+func TestStoredProgramFunctionBodies(t *testing.T) {
+	cases := []struct {
+		sql  string
+		code int
+	}{
+		{sql: "CREATE FUNCTION f() RETURNS INT BEGIN DECLARE autocommit INT; SET autocommit = 1; RETURN 1; END"},
+		{sql: "CREATE FUNCTION f() RETURNS INT BEGIN DECLARE autocommit INT; SET @@autocommit = 1; RETURN 1; END", code: 1445},
+		{sql: "CREATE FUNCTION f() RETURNS INT BEGIN SET GLOBAL sql_mode = '', autocommit = 1; RETURN 1; END", code: 1445},
+		{sql: "CREATE FUNCTION f() RETURNS INT BEGIN DECLARE EXIT HANDLER FOR 1 RETURN 1; END"},
+		{sql: "CREATE FUNCTION f() RETURNS INT BEGIN END", code: 1320},
+		{sql: "CREATE FUNCTION f() RETURNS INT SELECT 1 INTO @a", code: 1064},
+		{sql: "CREATE FUNCTION f() RETURNS INT BEGIN SIGNAL SQLSTATE '45000'; END", code: 1320},
+		{sql: "CREATE FUNCTION f() RETURNS INT BEGIN CALL p(); RETURN 1; END"},
+		{sql: "CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW CALL p()"},
+		{sql: "CREATE FUNCTION f() RETURNS INT BEGIN SET @'@autocommit' = 1; RETURN 1; END"},
+		{sql: "CREATE FUNCTION f() RETURNS INT BEGIN SET @\"@@autocommit\" = 1; RETURN 1; END"},
+		{sql: "CREATE FUNCTION f(`@@autocommit` INT) RETURNS INT BEGIN SET `@@autocommit` = 1; RETURN 1; END"},
+		{sql: "CREATE FUNCTION f() RETURNS INT BEGIN SET @@autocommit = 1; RETURN 1; END", code: 1445},
+		{sql: "CREATE FUNCTION f() RETURNS INT BEGIN SET @@session.autocommit = 1; RETURN 1; END", code: 1445},
+		{sql: "CREATE FUNCTION f() RETURNS INT BEGIN SET @a = 1, @@autocommit = 1; RETURN 1; END", code: 1445},
+	}
+	for _, c := range cases {
+		t.Run(c.sql, func(t *testing.T) {
+			_, err := Parse(c.sql)
+			if c.code == 0 && err != nil {
+				t.Fatalf("Parse refused what MariaDB takes: %v", err)
+			}
+			if c.code != 0 && err == nil {
+				t.Fatalf("Parse took what MariaDB refuses with %d", c.code)
+			}
+		})
+	}
+}
+
+// TestStoredProgramFieldNames holds a name in an expression no query is around to a stored
+// program's variables (1327), and outside a program to no column at all (1054). code is what
+// mariadb:11.8.8 answers to PREPARE of the statement, 0 when the compat judge reads that as
+// parsed (compat.PrepareVerdict).
+func TestStoredProgramFieldNames(t *testing.T) {
+	cases := []struct {
+		sql  string
+		code int
+	}{
+		{sql: "CALL p(a)", code: 1054},
+		{sql: "CALL p(a.b)", code: 1054},
+		{sql: "CALL p(1 + a)", code: 1054},
+		{sql: "CALL p((SELECT a FROM t))"},
+		{sql: "CALL p(@a)"},
+		{sql: "EXECUTE s USING a", code: 1054},
+		{sql: "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = a", code: 1054},
+		{sql: "RESIGNAL SET MESSAGE_TEXT = a", code: 1054},
+		{sql: "DO a"},
+		{sql: "DO a.b"},
+		{sql: "SET @x = a"},
+		{sql: "SET @x = (SELECT a)"},
+		{sql: "SET sql_mode = a"},
+		{sql: "SELECT a"},
+		{sql: "KILL a", code: 1054},
+		{sql: "GET DIAGNOSTICS CONDITION a @x = MESSAGE_TEXT", code: 1054},
+		{sql: "PREPARE s FROM a", code: 1054},
+		{sql: "SET STATEMENT max_statement_time = a FOR SELECT 1"},
+		{sql: "SHOW TABLES WHERE a"},
+		{sql: "HELP a"},
+		{sql: "CREATE PROCEDURE p() RETURN a", code: 1327},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN a", code: 1327},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN a.b"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN (SELECT a FROM t)"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN 1 + a", code: 1327},
+		{sql: "CREATE FUNCTION f(a INT) RETURNS INT RETURN a"},
+		{sql: "CREATE FUNCTION f() RETURNS INT BEGIN IF a THEN RETURN 1; END IF; RETURN 2; END", code: 1327},
+		{sql: "CREATE FUNCTION f() RETURNS INT BEGIN IF 1 THEN RETURN 1; ELSEIF a THEN RETURN 3; END IF; RETURN 2; END", code: 1327},
+		{sql: "CREATE FUNCTION f() RETURNS INT BEGIN WHILE a DO RETURN 1; END WHILE; RETURN 2; END", code: 1327},
+		{sql: "CREATE FUNCTION f() RETURNS INT BEGIN REPEAT RETURN 1; UNTIL a END REPEAT; RETURN 2; END", code: 1327},
+		{sql: "CREATE FUNCTION f() RETURNS INT BEGIN CASE a WHEN 1 THEN RETURN 1; END CASE; RETURN 2; END", code: 1327},
+		{sql: "CREATE FUNCTION f() RETURNS INT BEGIN CASE WHEN a THEN RETURN 1; END CASE; RETURN 2; END", code: 1327},
+		{sql: "CREATE FUNCTION f() RETURNS INT BEGIN CASE 1 WHEN a THEN RETURN 1; END CASE; RETURN 2; END", code: 1327},
+		{sql: "CREATE PROCEDURE p() BEGIN DECLARE x INT; SET x = a; END", code: 1327},
+		{sql: "CREATE PROCEDURE p() BEGIN DECLARE x INT DEFAULT a; END", code: 1327},
+		{sql: "CREATE PROCEDURE p() SET @x = a"},
+		{sql: "CREATE PROCEDURE p() SET sql_mode = a"},
+		{sql: "CREATE PROCEDURE p() CALL q(a)", code: 1327},
+		{sql: "CREATE PROCEDURE p() SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = a", code: 1327},
+		{sql: "CREATE PROCEDURE p() DO a", code: 1327},
+		{sql: "CREATE PROCEDURE p() SELECT a"},
+		{sql: "CREATE PROCEDURE p() SELECT 1 FROM t WHERE a"},
+		{sql: "CREATE PROCEDURE p() INSERT INTO t VALUES (a)"},
+		{sql: "CREATE PROCEDURE p() UPDATE t SET b = a"},
+		{sql: "CREATE PROCEDURE p() DELETE FROM t WHERE a"},
+		{sql: "CREATE PROCEDURE p() EXECUTE s USING a", code: 1327},
+		{sql: "CREATE PROCEDURE p() GET DIAGNOSTICS CONDITION a @x = MESSAGE_TEXT", code: 1327},
+		{sql: "CREATE PROCEDURE p() BEGIN DECLARE c CURSOR FOR SELECT a; END"},
+		{sql: "CREATE PROCEDURE p(x INT) BEGIN SET x = x + 1; END"},
+		{sql: "CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW SET NEW.b = a"},
+		{sql: "CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW SET NEW.b = NEW.a"},
+		{sql: "CREATE EVENT e ON SCHEDULE EVERY 1 DAY DO SET @x = a"},
+		{sql: "CREATE EVENT e ON SCHEDULE EVERY 1 DAY DO IF a THEN SET @x = 1; END IF", code: 1327},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN f2(a)", code: 1327},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN COALESCE(a, 1)", code: 1327},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN EXISTS (SELECT a FROM t)"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN a IN (SELECT 1)", code: 1327},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN `a`", code: 1327},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN CURRENT_USER"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN NULL"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN TIMESTAMPDIFF(DAY, NOW(), NOW())"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN DATE_ADD(NOW(), INTERVAL 1 DAY) > 0"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN EXTRACT(DAY FROM NOW())"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN CAST('1' AS SIGNED)"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN LENGTH(CONVERT('a' USING utf8mb4))"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN NEXTVAL(s)"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN NEXT VALUE FOR s"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN LASTVAL(s)"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN GET_FORMAT(DATE, 'EUR') IS NULL"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN TRIM(LEADING 'a' FROM 'ab') = 'b'"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN CHAR(65 USING utf8mb4) = 'A'"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN WEIGHT_STRING('a') IS NULL"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN CURRENT_TIMESTAMP > 0"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN TRUE"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN VALUES(a)", code: 1064},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN ROW_COUNT()"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN JSON_VALUE('{}', '$.a') IS NULL"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN 1 COLLATE utf8mb4_bin"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN @a"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN @@sql_mode = ''"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN d.f2()"},
+		{sql: "CREATE PROCEDURE p() CALL q(DAY)", code: 1327},
+		{sql: "CALL q(NOW())"},
+		{sql: "KILL CONNECTION_ID()"},
+		{sql: "EXECUTE s USING DEFAULT"},
+		{sql: "EXECUTE s USING IGNORE"},
+		{sql: "CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW BEGIN DECLARE x INT DEFAULT NEW.a; END"},
+		{sql: "CREATE PROCEDURE p() BEGIN DECLARE x INT; SET x = (SELECT a FROM t); END"},
+		{sql: "CREATE PROCEDURE p() BEGIN DECLARE x INT; SET x = 1, @y = a; END"},
+		{sql: "CREATE PROCEDURE p() BEGIN DECLARE x INT; SET @y = a, x = 1; END"},
+		{sql: "CREATE PROCEDURE p() BEGIN DECLARE x INT; SET x = 1, sql_mode = a; END"},
+		{sql: "CREATE PROCEDURE p(x INT) SET x = DAY", code: 1327},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN ((SELECT 1 AS a) ORDER BY a)"},
+		{sql: "CALL p(((SELECT 1 AS a) ORDER BY a))"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN ((SELECT 1 AS a) UNION (SELECT 2) ORDER BY a LIMIT 1)"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN (SELECT 1 AS a UNION SELECT 2 ORDER BY a LIMIT 1)"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN (WITH c AS (SELECT 1 AS a) SELECT a FROM c ORDER BY a)"},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN 1 + (SELECT 1 AS a ORDER BY a) + a", code: 1327},
+		{sql: "CALL p((SELECT 1 AS a) + a)", code: 1054},
+		{sql: "CREATE FUNCTION f() RETURNS INT RETURN EXISTS ((SELECT 1 AS a) ORDER BY a)"},
+		{sql: "CREATE PROCEDURE p(sql_mode TEXT) SET SESSION sql_mode = ANSI"},
+		{sql: "CREATE PROCEDURE p(sql_mode TEXT) SET sql_mode = ANSI", code: 1327},
+		{sql: "CREATE PROCEDURE p(sql_mode TEXT) SET SESSION autocommit = 1, sql_mode = ANSI", code: 1327},
+		{sql: "CREATE PROCEDURE p(sql_mode TEXT) SET GLOBAL sql_mode = ANSI"},
+		{sql: "CREATE PROCEDURE p(sql_mode TEXT) SET @@session.sql_mode = ANSI"},
+		{sql: "CREATE PROCEDURE p(sql_mode TEXT) SET SESSION sql_mode = a"},
+		{sql: "CREATE PROCEDURE p(x INT) SET SESSION x = a"},
+	}
+	for _, c := range cases {
+		t.Run(c.sql, func(t *testing.T) {
+			_, err := Parse(c.sql)
+			if c.code == 0 && err != nil {
+				t.Fatalf("Parse refused what MariaDB takes: %v", err)
+			}
+			if c.code != 0 && err == nil {
+				t.Fatalf("Parse took what MariaDB refuses with %d", c.code)
+			}
+		})
+	}
+}

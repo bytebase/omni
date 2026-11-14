@@ -1266,6 +1266,27 @@
 < ok 0 0
 > exec ^
 : string
+| select current_role(1)
+< error
+| 1064 42000 …near '1)' at line 1
+> exec ^
+: string
+| select 1 as current_role
+< error
+| 1064 42000 …near 'current_role' at line 1
+> exec ^
+: string
+| select `current_role` from t
+< error
+| 1054 42S22 Unknown column 'current_role' in 'SELECT'
+> exec ^
+: string
+| select `current_role` from t
+| ; SELECT FROM
+< error
+| 1064 42000 …near 'SELECT FROM' at line 2
+> exec ^
+: string
 | SELECT CURRENT_DATE, CURRENT_DATE(), CURDATE(1)
 < error
 | 1064 42000 …near '1)' at line 1

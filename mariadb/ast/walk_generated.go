@@ -66,6 +66,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.ExchangeTable != nil {
 			Walk(v, n.ExchangeTable)
 		}
+		if n.ConvertTable != nil {
+			Walk(v, n.ConvertTable)
+		}
 		for _, item := range n.OrderByItems {
 			if item != nil {
 				Walk(v, item)
@@ -131,6 +134,10 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Column)
 		}
 		Walk(v, n.Value)
+	case *BackupStmt:
+		if n.Lock != nil {
+			Walk(v, n.Lock)
+		}
 	case *BeginEndBlock:
 		for _, item := range n.Stmts {
 			Walk(v, item)
@@ -231,6 +238,11 @@ func walkChildren(v Visitor, node Node) {
 		if n.Generated != nil {
 			Walk(v, n.Generated)
 		}
+		for _, item := range n.EngineOptions {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 	case *CommonTableExpr:
 		if n.Select != nil {
 			Walk(v, n.Select)
@@ -294,6 +306,20 @@ func walkChildren(v Visitor, node Node) {
 			}
 		}
 		for _, item := range n.Options {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+	case *CreatePackageStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, item := range n.Characteristics {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		for _, item := range n.Routines {
 			if item != nil {
 				Walk(v, item)
 			}
@@ -366,6 +392,11 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Select)
 		}
 	case *DeclareCursorStmt:
+		for _, item := range n.Params {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 		if n.Select != nil {
 			Walk(v, n.Select)
 		}
@@ -374,6 +405,14 @@ func walkChildren(v Visitor, node Node) {
 	case *DeclareVarStmt:
 		if n.TypeName != nil {
 			Walk(v, n.TypeName)
+		}
+		for _, item := range n.RowFields {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		if n.Anchor != nil {
+			Walk(v, n.Anchor)
 		}
 		Walk(v, n.Default)
 	case *DeleteStmt:
@@ -408,6 +447,10 @@ func walkChildren(v Visitor, node Node) {
 	case *DropIndexStmt:
 		if n.Table != nil {
 			Walk(v, n.Table)
+		}
+	case *DropPackageStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
 		}
 	case *DropRoutineStmt:
 		if n.Name != nil {
@@ -467,6 +510,13 @@ func walkChildren(v Visitor, node Node) {
 	case *ForPortionOf:
 		Walk(v, n.From)
 		Walk(v, n.To)
+	case *ForStmt:
+		if n.Select != nil {
+			Walk(v, n.Select)
+		}
+		for _, item := range n.Stmts {
+			Walk(v, item)
+		}
 	case *ForUpdate:
 		for _, item := range n.Tables {
 			if item != nil {
@@ -494,6 +544,14 @@ func walkChildren(v Visitor, node Node) {
 	case *FuncParam:
 		if n.TypeName != nil {
 			Walk(v, n.TypeName)
+		}
+		for _, item := range n.RowFields {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		if n.Anchor != nil {
+			Walk(v, n.Anchor)
 		}
 	case *GeneratedColumn:
 		Walk(v, n.Expr)
@@ -697,6 +755,20 @@ func walkChildren(v Visitor, node Node) {
 		}
 	case *OrderByItem:
 		Walk(v, n.Expr)
+	case *PackageRoutineSpec:
+		for _, item := range n.Params {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		if n.Returns != nil {
+			Walk(v, n.Returns)
+		}
+		for _, item := range n.Characteristics {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 	case *ParenExpr:
 		Walk(v, n.Expr)
 	case *PartitionClause:
@@ -783,6 +855,10 @@ func walkChildren(v Visitor, node Node) {
 	case *RowExpr:
 		for _, item := range n.Items {
 			Walk(v, item)
+		}
+	case *RowField:
+		if n.TypeName != nil {
+			Walk(v, n.TypeName)
 		}
 	case *SelectStmt:
 		for _, item := range n.CTEs {
