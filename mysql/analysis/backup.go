@@ -82,6 +82,8 @@ type TableColumns struct {
 	// RowKey reports whether a primary key, or a unique key whose parts are
 	// all non-nullable columns, tells the table's rows apart.
 	RowKey bool
+	// RowKeyColumns are the parts of that key.
+	RowKeyColumns []string
 }
 
 // BackupStatement backs up the rows one table loses or changes.
@@ -100,7 +102,7 @@ type BackupStatement struct {
 // statements of a script change, a statement that copies the rows they touch
 // into a backup table, ordered by position and then table name.
 func TransformDMLToSelect(statement string, opts BackupOptions) ([]BackupStatement, error) {
-	targets, err := prepareTransformation(opts.DefaultDatabase, statement, opts.Catalog)
+	targets, err := prepareTransformation(opts.DefaultDatabase, statement, opts.Catalog, opts.CaseSensitive)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare transformation: %w", err)
 	}
@@ -108,8 +110,10 @@ func TransformDMLToSelect(statement string, opts BackupOptions) ([]BackupStateme
 	return generateSQL(targets, opts)
 }
 
-func prepareTransformation(databaseName, statement string, catalog Catalog) ([]DMLTarget, error) {
+func prepareTransformation(databaseName, statement string, catalog Catalog, caseSensitive bool) ([]DMLTarget, error) {
 	var result []DMLTarget
+	// written holds the tables the statements before the current one change.
+	var written []ColumnResource
 	for i, segment := range parser.Split(statement) {
 		text := segmentText(statement, segment)
 		if len(text) == 0 || segment.Empty() {
@@ -129,6 +133,18 @@ func prepareTransformation(databaseName, statement string, catalog Catalog) ([]D
 			if err != nil {
 				return nil, fmt.Errorf("failed to extract tables: %w", err)
 			}
+			// The backups read their rows before any statement runs, so a
+			// statement must not read a table an earlier one changes.
+			if len(tables) > 0 {
+				for read := range statementReads(databaseName, node, text, tables) {
+					for _, changed := range written {
+						if equalIdentifier(read.Database, changed.Database, caseSensitive) && equalIdentifier(read.Table, changed.Table, caseSensitive) {
+							return nil, fmt.Errorf("prior backup cannot handle a statement that reads %s.%s after an earlier statement changes it", read.Database, read.Table)
+						}
+					}
+				}
+			}
+			written = append(written, statementWrites(databaseName, node, tables)...)
 			for _, table := range tables {
 				table.ByteStart = segment.ByteStart
 				table.ByteEnd = segment.ByteEnd
@@ -138,6 +154,88 @@ func prepareTransformation(databaseName, statement string, catalog Catalog) ([]D
 	}
 
 	return result, nil
+}
+
+// statementReads returns the tables an UPDATE or DELETE reads other than
+// through its targets: subqueries, CTEs, and the other tables it joins.
+func statementReads(databaseName string, node ast.Node, fullSQL string, targets []DMLTarget) ColumnSet {
+	result := make(ColumnSet)
+	target := make(map[string]bool)
+	for _, t := range targets {
+		key := t.Table.Table
+		if t.Table.Alias != "" {
+			key = t.Table.Alias
+		}
+		target[key] = true
+	}
+	var loc ast.Loc
+	var tables []ast.TableExpr
+	switch n := node.(type) {
+	case *ast.UpdateStmt:
+		loc, tables = n.Loc, n.Tables
+		for _, assign := range n.SetList {
+			collectAccessTablesFromExpr(result, assign.Value, databaseName)
+		}
+		collectAccessTablesFromExpr(result, n.Where, databaseName)
+		collectAccessTablesFromOrderBy(result, n.OrderBy, databaseName)
+	case *ast.DeleteStmt:
+		loc, tables = n.Loc, n.Tables
+		if len(n.Using) > 0 {
+			tables = n.Using
+		}
+		collectAccessTablesFromExpr(result, n.Where, databaseName)
+		collectAccessTablesFromOrderBy(result, n.OrderBy, databaseName)
+	default:
+		return result
+	}
+	cteNames := make(map[string]bool)
+	for _, cte := range parseCTEs(withClause(fullSQL, loc)) {
+		cteNames[cte.Name] = true
+		collectAccessTablesFromNode(result, cte.Select, databaseName)
+	}
+	var walk func(expr ast.TableExpr)
+	walk = func(expr ast.TableExpr) {
+		switch e := expr.(type) {
+		case *ast.TableRef:
+			key := e.Name
+			if e.Alias != "" {
+				key = e.Alias
+			}
+			if target[key] || (e.Schema == "" && cteNames[e.Name]) {
+				return
+			}
+			collectAccessTablesFromTableRef(result, e, databaseName)
+		case *ast.JoinClause:
+			walk(e.Left)
+			walk(e.Right)
+			if on, ok := e.Condition.(*ast.OnCondition); ok {
+				collectAccessTablesFromExpr(result, on.Expr, databaseName)
+			}
+		default:
+			collectAccessTablesFromTableExpr(result, expr, databaseName)
+		}
+	}
+	for _, table := range tables {
+		walk(table)
+	}
+	return result
+}
+
+// statementWrites returns the tables a statement changes: an UPDATE's or
+// DELETE's targets, or an INSERT's or REPLACE's table.
+func statementWrites(databaseName string, node ast.Node, targets []DMLTarget) []ColumnResource {
+	var result []ColumnResource
+	for _, t := range targets {
+		result = append(result, ColumnResource{Database: t.Table.Database, Table: t.Table.Table})
+	}
+	if insert, ok := node.(*ast.InsertStmt); ok && insert.Table != nil {
+		database := insert.Table.Schema
+		if database == "" {
+			database = databaseName
+		}
+		result = append(result, ColumnResource{Database: database, Table: insert.Table.Name})
+	}
+	return result
 }
 
 // segmentText is the segment's text with its ';', if any.
@@ -379,17 +477,33 @@ func extractStatementText(fullSQL string, loc ast.Loc) string {
 	return strings.TrimSpace(fullSQL[start:end])
 }
 
-// writeSuffixSelectClause writes the FROM ... WHERE ... suffix of a DML statement.
-func writeSuffixSelectClause(buf *strings.Builder, node ast.Node, fullSQL string) {
+// writeSuffixSelectClause writes the FROM ... WHERE ... suffix of a DML
+// statement, with filter, if any, added to its WHERE.
+func writeSuffixSelectClause(buf *strings.Builder, node ast.Node, fullSQL string, filter string) {
 	switch n := node.(type) {
 	case *ast.UpdateStmt:
-		writeUpdateSuffix(buf, n, fullSQL)
+		writeUpdateSuffix(buf, n, fullSQL, filter)
 	case *ast.DeleteStmt:
-		writeDeleteSuffix(buf, n, fullSQL)
+		writeDeleteSuffix(buf, n, fullSQL, filter)
 	}
 }
 
-func writeUpdateSuffix(buf *strings.Builder, n *ast.UpdateStmt, sql string) {
+// withFilter returns sql[start:end] with filter ANDed to where, which lies in
+// that range, or appended as a WHERE when where is nil. A statement whose
+// target an outer join can leave NULL joins tables, so it has no ORDER BY or
+// LIMIT after its WHERE.
+func withFilter(sql string, start, end int, where ast.ExprNode, filter string) string {
+	if filter == "" {
+		return sql[start:end]
+	}
+	if where == nil {
+		return strings.TrimSpace(sql[start:end]) + " WHERE " + filter
+	}
+	loc, _ := nodeLoc(where)
+	return sql[start:loc.Start] + "(" + sql[loc.Start:loc.End] + ") AND " + filter + sql[loc.End:end]
+}
+
+func writeUpdateSuffix(buf *strings.Builder, n *ast.UpdateStmt, sql string, filter string) {
 	// For UPDATE: write "table_refs WHERE ... ORDER BY ... LIMIT ..."
 	// Use the last table's Loc.End as the boundary — everything from first table
 	// to last table's end is the table reference list.
@@ -411,14 +525,14 @@ func writeUpdateSuffix(buf *strings.Builder, n *ast.UpdateStmt, sql string) {
 		if stmtEnd <= 0 || stmtEnd > len(sql) {
 			stmtEnd = len(sql)
 		}
-		suffix := strings.TrimSpace(sql[afterSet:stmtEnd])
+		suffix := strings.TrimSpace(withFilter(sql, afterSet, stmtEnd, n.Where, filter))
 		if suffix != "" {
 			fmt.Fprintf(buf, " %s", suffix)
 		}
 	}
 }
 
-func writeDeleteSuffix(buf *strings.Builder, n *ast.DeleteStmt, sql string) {
+func writeDeleteSuffix(buf *strings.Builder, n *ast.DeleteStmt, sql string, filter string) {
 	// For single-table DELETE: everything from the table ref to statement end.
 	// For multi-table DELETE: everything from the USING/reference table list to end.
 	if len(n.Using) > 0 {
@@ -428,7 +542,7 @@ func writeDeleteSuffix(buf *strings.Builder, n *ast.DeleteStmt, sql string) {
 			end = len(sql)
 		}
 		if start >= 0 && end > start {
-			buf.WriteString(balancedTableRefs(sql[start:end]))
+			buf.WriteString(balancedTableRefs(withFilter(sql, start, end, n.Where, filter)))
 		}
 	} else if len(n.Tables) > 0 {
 		start := nodeLocStart(n.Tables[0])
@@ -437,7 +551,7 @@ func writeDeleteSuffix(buf *strings.Builder, n *ast.DeleteStmt, sql string) {
 			end = len(sql)
 		}
 		if start >= 0 && end > start {
-			buf.WriteString(balancedTableRefs(sql[start:end]))
+			buf.WriteString(balancedTableRefs(withFilter(sql, start, end, n.Where, filter)))
 		}
 	}
 }
@@ -646,16 +760,21 @@ func generateSQL(targets []DMLTarget, opts BackupOptions) ([]BackupStatement, er
 		}
 	}
 
-	var result []BackupStatement
+	type keyed struct {
+		key       string
+		statement BackupStatement
+	}
+	var backups []keyed
 	for key, list := range groupByTable {
 		backupStatement, err := generateSQLForTable(list, opts)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate SQL for table %s: %w", key, err)
 		}
-		result = append(result, *backupStatement)
+		backups = append(backups, keyed{key: key, statement: *backupStatement})
 	}
 
-	slices.SortFunc(result, func(i, j BackupStatement) int {
+	slices.SortFunc(backups, func(a, b keyed) int {
+		i, j := a.statement, b.statement
 		if i.ByteStart != j.ByteStart {
 			if i.ByteStart < j.ByteStart {
 				return -1
@@ -670,6 +789,18 @@ func generateSQL(targets []DMLTarget, opts BackupOptions) ([]BackupStatement, er
 		}
 		return 0
 	})
+
+	// Truncation can give two tables' backups one name.
+	var result []BackupStatement
+	for i, backup := range backups {
+		for _, earlier := range backups[:i] {
+			if equalIdentifier(backup.statement.BackupTable, earlier.statement.BackupTable, opts.CaseSensitive) {
+				first, second := min(earlier.key, backup.key), max(earlier.key, backup.key)
+				return nil, fmt.Errorf("prior backup cannot name the backups of %s and %s apart: both are %s", first, second, backup.statement.BackupTable)
+			}
+		}
+		result = append(result, backup.statement)
+	}
 
 	return result, nil
 }
@@ -690,6 +821,9 @@ func generateSQLForTable(targets []DMLTarget, opts BackupOptions) (*BackupStatem
 		if joins(targets[0].Node) {
 			return nil, errors.New("prior backup cannot back up a table without a primary key or a unique key of non-null columns from a statement that joins other tables")
 		}
+	}
+	if err := checkForeignKeys(opts, table, targets); err != nil {
+		return nil, err
 	}
 
 	targetTable := fmt.Sprintf("%s_%s_%s", opts.TablePrefix, table.Table, table.Database)
@@ -734,7 +868,11 @@ func generateSQLForTable(targets []DMLTarget, opts BackupOptions) (*BackupStatem
 			buf.WriteString(quoteColumnList(columns.Normal, quoteIdentifier(tableNameOrAlias)+".", ","))
 		}
 		buf.WriteString(" FROM ")
-		writeSuffixSelectClause(&buf, item.Node, item.FullSQL)
+		filter, err := outerJoinFilter(item, tableNameOrAlias, columns)
+		if err != nil {
+			return nil, err
+		}
+		writeSuffixSelectClause(&buf, item.Node, item.FullSQL, filter)
 		if len(targets) > 1 {
 			buf.WriteByte(')')
 		}
@@ -760,6 +898,137 @@ func hasLimit(node ast.Node) bool {
 		return n.Limit != nil
 	}
 	return false
+}
+
+// outerJoinFilter returns the condition that drops the rows an outer join
+// makes up for item's target, which hold NULL in every column, or "" when the
+// target is on no outer join's nullable side.
+func outerJoinFilter(item DMLTarget, tableNameOrAlias string, columns TableColumns) (string, error) {
+	var tables []ast.TableExpr
+	var where ast.ExprNode
+	switch n := item.Node.(type) {
+	case *ast.UpdateStmt:
+		tables, where = n.Tables, n.Where
+	case *ast.DeleteStmt:
+		tables, where = n.Tables, n.Where
+		if len(n.Using) > 0 {
+			tables = n.Using
+		}
+	}
+	if !onNullableSide(tables, tableNameOrAlias, false) {
+		return "", nil
+	}
+	if where != nil {
+		if _, ok := nodeLoc(where); !ok {
+			return "", fmt.Errorf("prior backup cannot place the filter for %s's outer join", tableNameOrAlias)
+		}
+	}
+	if len(columns.RowKeyColumns) == 0 {
+		return "", fmt.Errorf("prior backup cannot tell %s's rows from the rows its outer join makes up", tableNameOrAlias)
+	}
+	return quoteIdentifier(tableNameOrAlias) + "." + quoteIdentifier(columns.RowKeyColumns[0]) + " IS NOT NULL", nil
+}
+
+// onNullableSide reports whether the table named name (its alias, if any) is
+// on the side of an outer join that the join fills with NULLs.
+func onNullableSide(exprs []ast.TableExpr, name string, nullable bool) bool {
+	for _, expr := range exprs {
+		switch e := expr.(type) {
+		case *ast.TableRef:
+			key := e.Name
+			if e.Alias != "" {
+				key = e.Alias
+			}
+			if key == name {
+				return nullable
+			}
+		case *ast.JoinClause:
+			left, right := nullable, nullable
+			switch e.Type {
+			case ast.JoinLeft, ast.JoinNaturalLeft:
+				right = true
+			case ast.JoinRight, ast.JoinNaturalRight:
+				left = true
+			default:
+			}
+			if onNullableSide([]ast.TableExpr{e.Left}, name, left) || onNullableSide([]ast.TableExpr{e.Right}, name, right) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// checkForeignKeys refuses a backup when a foreign key of another table in
+// the database cascades the change to rows the backup leaves out: ON DELETE
+// for a DELETE, and ON UPDATE for an UPDATE that sets a column the key
+// references. A catalog without GetDatabase has no foreign keys to read.
+func checkForeignKeys(opts BackupOptions, table *TableReference, targets []DMLTarget) error {
+	if opts.Catalog.GetDatabase == nil {
+		return nil
+	}
+	db, err := findDatabase(opts.Catalog, opts.CaseSensitive, table.Database)
+	if err != nil {
+		return fmt.Errorf("prior backup cannot read the foreign keys of %s.%s: %w", table.Database, table.Table, err)
+	}
+	if db == nil || !db.HasSchema() {
+		return fmt.Errorf("prior backup cannot read the foreign keys of %s.%s: the database has no metadata", table.Database, table.Table)
+	}
+	setColumns := make(map[string]bool)
+	for _, item := range targets {
+		if update, ok := item.Node.(*ast.UpdateStmt); ok {
+			for _, assign := range update.SetList {
+				if assign.Column != nil {
+					setColumns[strings.ToLower(assign.Column.Column)] = true
+				}
+			}
+		}
+	}
+	for _, name := range db.ListTableNames() {
+		child := db.GetTable(name)
+		for _, fk := range child.GetForeignKeys() {
+			if !equalIdentifier(fk.GetReferencedTable(), table.Table, opts.CaseSensitive) {
+				continue
+			}
+			if fk.GetReferencedSchema() != "" && !equalIdentifier(fk.GetReferencedSchema(), table.Database, opts.CaseSensitive) {
+				continue
+			}
+			action, event := fk.GetOnDelete(), "DELETE"
+			if table.StatementType == DMLTypeUpdate {
+				action, event = fk.GetOnUpdate(), "UPDATE"
+				referenced := false
+				for _, column := range fk.GetReferencedColumns() {
+					referenced = referenced || setColumns[strings.ToLower(column)]
+				}
+				if !referenced {
+					continue
+				}
+			}
+			switch strings.ToUpper(action) {
+			case "CASCADE", "SET NULL", "SET DEFAULT":
+				return fmt.Errorf("prior backup cannot back up %s.%s: foreign key %s of %s is ON %s %s, and the rows it changes are not backed up", table.Database, table.Table, fk.GetName(), child.GetName(), event, strings.ToUpper(action))
+			default:
+			}
+		}
+	}
+	return nil
+}
+
+// findDatabase returns the database the catalog lists under name, or nil.
+func findDatabase(catalog Catalog, caseSensitive bool, name string) (Database, error) {
+	if catalog.ListDatabaseNames == nil {
+		return nil, errors.New("the catalog has no ListDatabaseNames")
+	}
+	names, err := catalog.ListDatabaseNames()
+	if err != nil {
+		return nil, err
+	}
+	for _, listed := range names {
+		if equalIdentifier(listed, name, caseSensitive) {
+			return catalog.GetDatabase(listed)
+		}
+	}
+	return nil, nil
 }
 
 // joins reports whether an UPDATE or DELETE reads more than one table, so a
@@ -870,21 +1139,22 @@ func ClassifyColumns(catalog Catalog, caseSensitive bool, database, table string
 			columns.Normal = append(columns.Normal, column.GetName())
 		}
 	}
-	columns.RowKey = hasRowKey(tableSchema)
+	columns.RowKeyColumns = rowKey(tableSchema)
+	columns.RowKey = columns.RowKeyColumns != nil
 	return columns, nil
 }
 
-// hasRowKey reports whether a primary key, or a unique key whose parts are all
-// non-nullable columns, tells table's rows apart. NULLs never collide, and an
-// expression part may be NULL.
-func hasRowKey(table *metadata.TableMetadata) bool {
+// rowKey returns the parts of a primary key, or of a unique key whose parts
+// are all non-nullable columns, which tells table's rows apart, or nil. NULLs
+// never collide, and an expression part may be NULL.
+func rowKey(table *metadata.TableMetadata) []string {
 	nullable := make(map[string]bool)
 	for _, column := range table.GetColumns() {
 		nullable[strings.ToLower(column.GetName())] = column.GetNullable()
 	}
 	for _, index := range table.GetIndexes() {
 		if index.GetPrimary() {
-			return true
+			return index.GetExpressions()
 		}
 		if !index.GetUnique() || len(index.GetExpressions()) == 0 {
 			continue
@@ -897,10 +1167,10 @@ func hasRowKey(table *metadata.TableMetadata) bool {
 			}
 		}
 		if key {
-			return true
+			return index.GetExpressions()
 		}
 	}
-	return false
+	return nil
 }
 
 func equalIdentifier(a, b string, caseSensitive bool) bool {

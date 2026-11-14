@@ -165,8 +165,10 @@ func generateUpdateRestore(catalog Catalog, stmts []*ast.UpdateStmt, originalDat
 	// hasDisjointUniqueKey lower-case map convention.
 	seen := make(map[string]bool)
 	var updateColumns []string
+	var assignments [][]*ast.Assignment
 	for _, stmt := range stmts {
 		singleTables := extractSingleTablesFromTableExprs(originalDatabase, stmt.Tables)
+		assignments = append(assignments, targetAssignments(stmt.SetList, originalDatabase, originalTable, singleTables, normalColumns))
 		for _, col := range extractUpdateColumns(stmt.SetList, originalDatabase, originalTable, singleTables, normalColumns) {
 			key := strings.ToLower(col)
 			if !seen[key] {
@@ -176,12 +178,31 @@ func generateUpdateRestore(catalog Catalog, stmts []*ast.UpdateStmt, originalDat
 		}
 	}
 
-	has, err := hasDisjointUniqueKey(catalog, originalDatabase, originalTable, updateColumns)
+	tableProto, err := getTable(catalog, originalDatabase, originalTable)
 	if err != nil {
 		return "", err
 	}
-	if !has {
+	// A column the server sets ON UPDATE changed too, and is restored with
+	// the rest.
+	normal := make(map[string]bool)
+	for _, column := range normalColumns {
+		normal[strings.ToLower(column)] = true
+	}
+	for _, column := range tableProto.Columns {
+		key := strings.ToLower(column.GetName())
+		if column.GetOnUpdate() != "" && column.GetGeneration() == nil && normal[key] && !seen[key] {
+			seen[key] = true
+			updateColumns = append(updateColumns, column.GetName())
+		}
+	}
+
+	if !hasDisjointUniqueKey(tableProto, updateColumns) {
 		return "", fmt.Errorf("no disjoint unique key found for %s.%s", originalDatabase, originalTable)
+	}
+	// The upsert matches a backed-up row on any unique key, so a key the
+	// UPDATEs change can match another row.
+	if key := changedUniqueKey(tableProto, updateColumns, assignments); key != "" {
+		return "", fmt.Errorf("prior backup cannot restore %s.%s: the UPDATE changes unique key %s, so the restore could match another row", originalDatabase, originalTable, key)
 	}
 
 	var buf strings.Builder
@@ -294,15 +315,57 @@ func extractUpdateColumns(setList []*ast.Assignment, database, originalTable str
 	return result
 }
 
-func hasDisjointUniqueKey(catalog Catalog, originalDatabase, originalTable string, updateColumns []string) (bool, error) {
+// targetAssignments returns the SET assignments extractUpdateColumns takes
+// the column names of.
+func targetAssignments(setList []*ast.Assignment, database, originalTable string, singleTables map[string]*tableReference, normalColumns []string) []*ast.Assignment {
+	var result []*ast.Assignment
+	for _, assignment := range setList {
+		col := assignment.Column
+		if col == nil {
+			continue
+		}
+
+		if col.Schema != "" && !strings.EqualFold(col.Schema, database) {
+			continue
+		}
+
+		if col.Table == "" {
+			// Unqualified column: check if it belongs to the normalColumns set.
+			for _, c := range normalColumns {
+				if strings.EqualFold(c, col.Column) {
+					result = append(result, assignment)
+					break
+				}
+			}
+			continue
+		}
+
+		// Qualified column: resolve the qualifier through the alias map
+		// (handles self-joins deterministically). Lookup key is
+		// lowercased to match the case-insensitive insert convention
+		// in collectTableRefs. BOTH Database AND Table must match —
+		// without the Database check, cross-database joins with
+		// homonymous tables (e.g. `UPDATE db1.test t1 JOIN db2.test t2
+		// SET t2.a = ...`) would incorrectly include the joined-DB
+		// SET column in the target-DB's rollback.
+		if entry, ok := singleTables[strings.ToLower(col.Table)]; ok && strings.EqualFold(entry.Database, database) && strings.EqualFold(entry.Table, originalTable) {
+			result = append(result, assignment)
+			continue
+		}
+		// Fallback: qualifier IS the bare table name (no alias used).
+		// col.Schema check above already filtered explicit-schema
+		// mismatches.
+		if strings.EqualFold(col.Table, originalTable) {
+			result = append(result, assignment)
+		}
+	}
+	return result
+}
+
+func hasDisjointUniqueKey(tableProto *metadata.TableMetadata, updateColumns []string) bool {
 	columnMap := make(map[string]bool)
 	for _, column := range updateColumns {
 		columnMap[strings.ToLower(column)] = true
-	}
-
-	tableProto, err := getTable(catalog, originalDatabase, originalTable)
-	if err != nil {
-		return false, err
 	}
 
 	// Build a fast lookup of regular (non-generated) column names. Used
@@ -351,11 +414,11 @@ func hasDisjointUniqueKey(catalog Catalog, originalDatabase, originalTable strin
 			continue
 		}
 		if disjoint(index.Expressions, columnMap) {
-			return true, nil
+			return true
 		}
 	}
 
-	return false, nil
+	return false
 }
 
 func disjoint(a []string, b map[string]bool) bool {
@@ -499,6 +562,82 @@ func tableExprReferences(expr ast.TableExpr, database, table string) bool {
 		return strings.EqualFold(db, database) && strings.EqualFold(n.Name, table)
 	case *ast.JoinClause:
 		return tableExprReferences(n.Left, database, table) || tableExprReferences(n.Right, database, table)
+	}
+	return false
+}
+
+// changedUniqueKey returns the name of a unique key whose old values the
+// restore could find in another row, or "". A key's value can move to
+// another row only when more than one statement changes the columns it
+// reads, through its parts, generated columns or expressions, or when the
+// one that does sets them to anything but a literal, which every row it
+// changes then shares, or when the server changes them ON UPDATE.
+func changedUniqueKey(tableMetadata *metadata.TableMetadata, updateColumns []string, assignments [][]*ast.Assignment) string {
+	changed := make(map[string]bool)
+	for _, column := range updateColumns {
+		changed[strings.ToLower(column)] = true
+	}
+	columns := make(map[string]*metadata.ColumnMetadata)
+	for _, column := range tableMetadata.Columns {
+		columns[strings.ToLower(column.GetName())] = column
+	}
+	for _, index := range tableMetadata.Indexes {
+		if !index.Primary && !index.Unique {
+			continue
+		}
+		reads := make(map[string]bool)
+		for _, part := range index.Expressions {
+			key := strings.ToLower(part)
+			expression := part
+			if column, ok := columns[key]; ok {
+				if changed[key] {
+					reads[key] = true
+				}
+				if column.GetGeneration() == nil {
+					continue
+				}
+				expression = column.GetGeneration().GetExpression()
+			}
+			for _, token := range parser.Tokenize(expression) {
+				if name := strings.ToLower(token.Str); changed[name] {
+					reads[name] = true
+				}
+			}
+		}
+		if len(reads) == 0 {
+			continue
+		}
+		statements := 0
+		assigned := make(map[string]bool)
+		for _, list := range assignments {
+			touches := false
+			for _, assignment := range list {
+				name := strings.ToLower(assignment.Column.Column)
+				if !reads[name] {
+					continue
+				}
+				touches = true
+				assigned[name] = true
+				if !isLiteral(assignment.Value) {
+					return index.Name
+				}
+			}
+			if touches {
+				statements++
+			}
+		}
+		if statements > 1 || len(assigned) < len(reads) {
+			return index.Name
+		}
+	}
+	return ""
+}
+
+// isLiteral reports whether expr is a literal.
+func isLiteral(expr ast.ExprNode) bool {
+	switch expr.(type) {
+	case *ast.IntLit, *ast.FloatLit, *ast.StringLit, *ast.BoolLit, *ast.NullLit, *ast.HexLit, *ast.BitLit:
+		return true
 	}
 	return false
 }

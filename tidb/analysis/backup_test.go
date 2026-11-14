@@ -62,6 +62,15 @@ var backupDB = &backupDatabase{
 		{Name: "t", Columns: backupColumns("a", "b", "c"), Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Expressions: []string{"a"}}}},
 		{Name: "t1", Columns: backupColumns("a", "b"), Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Expressions: []string{"a"}}}},
 		{Name: "t2", Columns: backupColumns("c", "d"), Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Expressions: []string{"c"}}}},
+		{Name: "stamped", Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "v"}, {Name: "ts", OnUpdate: "CURRENT_TIMESTAMP"}}, Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Expressions: []string{"id"}}}},
+		{Name: "stamped_key", Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "v"}, {Name: "ts", OnUpdate: "CURRENT_TIMESTAMP"}}, Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Expressions: []string{"id"}}, {Name: "uk_ts", Unique: true, Expressions: []string{"ts"}}}},
+		{Name: "swapped", Columns: backupColumns("id", "u", "v", "w"), Indexes: []*metadata.IndexMetadata{
+			{Name: "PRIMARY", Primary: true, Expressions: []string{"id"}},
+			{Name: "uk_u", Unique: true, Expressions: []string{"u"}},
+			{Name: "uk_w", Unique: true, Expressions: []string{"(lower(`w`))"}},
+		}},
+		{Name: "parent", Columns: backupColumns("id", "v"), Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Expressions: []string{"id"}}}},
+		{Name: "child", Columns: backupColumns("id", "parent_id"), Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Expressions: []string{"id"}}}, ForeignKeys: []*metadata.ForeignKeyMetadata{{Name: "fk_cascade", Columns: []string{"parent_id"}, ReferencedTable: "parent", ReferencedColumns: []string{"id"}, OnDelete: "SET NULL", OnUpdate: "CASCADE"}}},
 		{Name: "nokey", Columns: []*metadata.ColumnMetadata{{Name: "a", Nullable: true}, {Name: "b"}}, Indexes: []*metadata.IndexMetadata{uniqueKey("a")}},
 		{Name: "tg", Columns: backupColumns("a", "b", "g_c"), Indexes: []*metadata.IndexMetadata{uniqueKey("g_c"), uniqueKey(), uniqueKey("B")}},
 	},
@@ -178,7 +187,7 @@ func TestTransformDMLToSelectOptions(t *testing.T) {
 func TestClassifyColumns(t *testing.T) {
 	columns, err := analysis.ClassifyColumns(backupCatalog(), false, "Db", "tg")
 	require.NoError(t, err)
-	require.Equal(t, analysis.TableColumns{Generated: []string{"g_c"}, Normal: []string{"a", "b"}, RowKey: true}, columns)
+	require.Equal(t, analysis.TableColumns{Generated: []string{"g_c"}, Normal: []string{"a", "b"}, RowKey: true, RowKeyColumns: []string{"g_c"}}, columns)
 
 	_, err = analysis.ClassifyColumns(backupCatalog(), true, "db", "tg")
 	var notFound *analysis.NotFoundError
@@ -273,4 +282,57 @@ func TestTransformDMLToSelectCTEAlias(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, got, 1)
 	require.Equal(t, "t", got[0].SourceTable)
+}
+
+func TestTransformDMLToSelectRefusesUnsafeScripts(t *testing.T) {
+	long := strings.Repeat("x", 62)
+	tests := []struct {
+		statement string
+		want      string
+	}{
+		{"UPDATE t1 SET b = 1 WHERE a = 1; DELETE FROM t WHERE a IN (SELECT a FROM t1 WHERE b = 1)", "failed to prepare transformation: prior backup cannot handle a statement that reads db.t1 after an earlier statement changes it"},
+		{"INSERT INTO t1 VALUES (1, 1); UPDATE t JOIN t1 ON t.a = t1.a SET t.b = 1", "failed to prepare transformation: prior backup cannot handle a statement that reads db.t1 after an earlier statement changes it"},
+		{"DELETE FROM parent WHERE id = 1", "prior backup cannot back up db.parent: foreign key fk_cascade of child is ON DELETE SET NULL, and the rows it changes are not backed up"},
+		{"UPDATE parent SET id = 2 WHERE id = 1", "prior backup cannot back up db.parent: foreign key fk_cascade of child is ON UPDATE CASCADE, and the rows it changes are not backed up"},
+		// Separate backups both hold a row a DELETE removes.
+		{"UPDATE t SET b = 1 WHERE a = 1; DELETE FROM t WHERE a = 1", "prior backup cannot back up a DELETE and another statement on the same table db.t separately"},
+		// Both targets of one statement share its offset in their names.
+		{"DELETE a, b FROM `" + long + "1` a JOIN `" + long + "2` b ON a.a = b.a", "prior backup cannot name the backups of db." + long + "1 and db." + long + "2 apart: both are pre_0_" + strings.Repeat("x", 58)},
+	}
+	for _, tc := range tests {
+		_, err := analysis.TransformDMLToSelect(tc.statement, analysis.BackupOptions{
+			DefaultDatabase: "db",
+			BackupDatabase:  "bak",
+			TablePrefix:     "pre",
+			Catalog:         backupCatalog(),
+			Columns: func(database, table string) (analysis.TableColumns, error) {
+				if strings.HasPrefix(table, "xxx") {
+					return analysis.TableColumns{Normal: []string{"a"}, RowKey: true, RowKeyColumns: []string{"a"}}, nil
+				}
+				return analysis.ClassifyColumns(backupCatalog(), false, database, table)
+			},
+		})
+		require.EqualError(t, err, tc.want, tc.statement)
+	}
+}
+
+func TestTransformDMLToSelectKeepsSafeScripts(t *testing.T) {
+	for _, script := range []string{
+		"UPDATE t SET b = 1 WHERE a = 1; UPDATE t SET c = 2 WHERE b = 1",
+		"UPDATE t1 SET b = 1; DELETE FROM t WHERE a = 1",
+		"UPDATE parent SET v = 1",
+		"DELETE FROM t WHERE a = 1; DELETE FROM t1 WHERE a = 1",
+	} {
+		_, err := transform(t, script)
+		require.NoError(t, err, script)
+	}
+}
+
+func TestTransformDMLToSelectSkipsOuterJoinRows(t *testing.T) {
+	got, err := transform(t, "DELETE t FROM t1 LEFT JOIN t ON t.a = t1.a WHERE t1.b = 1 OR t1.b = 2")
+	require.NoError(t, err)
+	require.True(t, strings.HasSuffix(got[0].Statement, "FROM t1 LEFT JOIN t ON t.a = t1.a WHERE (t1.b = 1 OR t1.b = 2) AND `t`.`a` IS NOT NULL;"), got[0].Statement)
+	got, err = transform(t, "DELETE t1 FROM t1 LEFT JOIN t ON t.a = t1.a")
+	require.NoError(t, err)
+	require.True(t, strings.HasSuffix(got[0].Statement, "FROM t1 LEFT JOIN t ON t.a = t1.a;"), got[0].Statement)
 }

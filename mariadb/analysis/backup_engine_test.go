@@ -135,6 +135,66 @@ var roundTrips = []roundTrip{
 		tables: []string{"other.u", "other.t"},
 	},
 	{
+		// Truncated to 64 characters, both backups would get one name.
+		name:         "long_names",
+		setup:        "CREATE TABLE nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn_one (id INT PRIMARY KEY);CREATE TABLE nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn_two (id INT PRIMARY KEY)",
+		script:       "DELETE FROM nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn_one WHERE id = 1; DELETE FROM nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn_two WHERE id = 1",
+		tables:       []string{"nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn_one"},
+		transformErr: "prior backup cannot name the backups of",
+	},
+	{
+		// The server stamps ts on UPDATE; the restore writes the old stamp back.
+		name: "stamped",
+		setup: "CREATE TABLE stamped (id INT PRIMARY KEY, v INT, ts TIMESTAMP NOT NULL DEFAULT '2000-01-01 00:00:00' ON UPDATE CURRENT_TIMESTAMP);" +
+			"INSERT INTO stamped VALUES (1, 1, '2000-01-01 00:00:00'), (2, 2, '2000-01-01 00:00:00')",
+		script: "UPDATE stamped SET v = 5 WHERE id = 1",
+		tables: []string{"stamped"},
+	},
+	{
+		// The UPDATEs swap the unique u, so restoring one row's u collides
+		// with the other's.
+		name:       "swapped_key",
+		setup:      "CREATE TABLE swapped_key (id INT PRIMARY KEY, u INT NOT NULL, UNIQUE KEY uk_u (u));INSERT INTO swapped_key VALUES (1, 10), (2, 20)",
+		script:     "UPDATE swapped_key SET u = 30 WHERE id = 1; UPDATE swapped_key SET u = 10 WHERE id = 2; UPDATE swapped_key SET u = 20 WHERE id = 1",
+		tables:     []string{"swapped_key"},
+		restoreErr: "the UPDATE changes unique key uk_u",
+	},
+	{
+		// The DELETE reads flags after the UPDATE changes it; its backup
+		// would read flags before.
+		name: "read_after_write",
+		setup: "CREATE TABLE flags (id INT PRIMARY KEY, enabled INT);CREATE TABLE flagged (id INT PRIMARY KEY);" +
+			"INSERT INTO flags VALUES (1, 0);INSERT INTO flagged VALUES (1)",
+		script:       "UPDATE flags SET enabled = 1 WHERE id = 1; DELETE FROM flagged WHERE id IN (SELECT id FROM flags WHERE enabled = 1)",
+		tables:       []string{"flagged"},
+		transformErr: "prior backup cannot handle a statement that reads",
+	},
+	{
+		// Deleting a parent deletes its children, which no backup holds.
+		name: "cascade",
+		setup: "CREATE TABLE fk_parent (id INT PRIMARY KEY);CREATE TABLE fk_child (id INT PRIMARY KEY, parent_id INT, FOREIGN KEY fk_child_parent (parent_id) REFERENCES fk_parent (id) ON DELETE CASCADE);" +
+			"INSERT INTO fk_parent VALUES (1);INSERT INTO fk_child VALUES (1, 1)",
+		script:       "DELETE FROM fk_parent WHERE id = 1",
+		tables:       []string{"fk_parent"},
+		transformErr: "is ON DELETE CASCADE",
+	},
+	{
+		// The rows the outer join makes up for t are not backed up.
+		name: "outer_join",
+		setup: "CREATE TABLE outer_keep (id INT PRIMARY KEY);CREATE TABLE outer_gone (id INT PRIMARY KEY, a INT);" +
+			"INSERT INTO outer_keep VALUES (1), (2);INSERT INTO outer_gone VALUES (1, 1)",
+		script: "DELETE t FROM outer_keep u LEFT JOIN outer_gone t ON t.id = u.id",
+		tables: []string{"outer_gone"},
+	},
+	{
+		// One statement setting a unique key to a literal leaves its old value
+		// free, so the restore matches the row by its primary key.
+		name:   "single_key",
+		setup:  "CREATE TABLE single_key (id INT PRIMARY KEY, u INT NOT NULL, UNIQUE KEY uk_u (u));INSERT INTO single_key VALUES (1, 10), (2, 20)",
+		script: "UPDATE single_key SET u = 30 WHERE id = 1",
+		tables: []string{"single_key"},
+	},
+	{
 		// The restore quotes the statement in a comment that "*/" must not end.
 		name: "comments",
 		setup: "CREATE TABLE comments (id INT PRIMARY KEY, note VARCHAR(10));" +
@@ -332,12 +392,15 @@ func engineCatalog(t *testing.T, db *sql.DB, databases ...string) analysis.Catal
 			}
 			return tables[name]
 		}
-		rows, err := db.Query("SELECT TABLE_NAME, COLUMN_NAME, IFNULL(GENERATION_EXPRESSION, ''), IS_NULLABLE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, ORDINAL_POSITION", database)
+		rows, err := db.Query("SELECT TABLE_NAME, COLUMN_NAME, IFNULL(GENERATION_EXPRESSION, ''), IS_NULLABLE, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, ORDINAL_POSITION", database)
 		require.NoError(t, err)
 		for rows.Next() {
-			var tableName, name, generation, nullable string
-			require.NoError(t, rows.Scan(&tableName, &name, &generation, &nullable))
+			var tableName, name, generation, nullable, extra string
+			require.NoError(t, rows.Scan(&tableName, &name, &generation, &nullable, &extra))
 			column := &metadata.ColumnMetadata{Name: name, Nullable: nullable == "YES"}
+			if strings.Contains(strings.ToLower(extra), "on update") {
+				column.OnUpdate = "CURRENT_TIMESTAMP"
+			}
 			if generation != "" {
 				column.Generation = &metadata.GenerationMetadata{Expression: generation}
 			}
@@ -358,6 +421,22 @@ func engineCatalog(t *testing.T, db *sql.DB, databases ...string) analysis.Catal
 				table(tableName).Indexes = append(table(tableName).Indexes, index)
 			}
 			index.Expressions = append(index.Expressions, part)
+		}
+		require.NoError(t, rows.Close())
+		rows, err = db.Query("SELECT k.TABLE_NAME, k.CONSTRAINT_NAME, k.COLUMN_NAME, k.REFERENCED_TABLE_NAME, k.REFERENCED_COLUMN_NAME, r.UPDATE_RULE, r.DELETE_RULE FROM information_schema.KEY_COLUMN_USAGE k JOIN information_schema.REFERENTIAL_CONSTRAINTS r ON r.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA AND r.CONSTRAINT_NAME = k.CONSTRAINT_NAME WHERE k.TABLE_SCHEMA = ? AND k.REFERENCED_TABLE_NAME IS NOT NULL ORDER BY k.TABLE_NAME, k.CONSTRAINT_NAME, k.ORDINAL_POSITION", database)
+		require.NoError(t, err)
+		keys := map[string]*metadata.ForeignKeyMetadata{}
+		for rows.Next() {
+			var tableName, name, column, referencedTable, referencedColumn, onUpdate, onDelete string
+			require.NoError(t, rows.Scan(&tableName, &name, &column, &referencedTable, &referencedColumn, &onUpdate, &onDelete))
+			fk := keys[tableName+"."+name]
+			if fk == nil {
+				fk = &metadata.ForeignKeyMetadata{Name: name, ReferencedTable: referencedTable, OnUpdate: onUpdate, OnDelete: onDelete}
+				keys[tableName+"."+name] = fk
+				table(tableName).ForeignKeys = append(table(tableName).ForeignKeys, fk)
+			}
+			fk.Columns = append(fk.Columns, column)
+			fk.ReferencedColumns = append(fk.ReferencedColumns, referencedColumn)
 		}
 		require.NoError(t, rows.Close())
 		loaded[database] = &backupDatabase{name: database, tables: order}
