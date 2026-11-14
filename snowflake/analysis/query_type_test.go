@@ -8,9 +8,9 @@ import (
 )
 
 // TestGetQueryType_CallExecuteAreDML locks the classification of
-// CALL / EXECUTE IMMEDIATE / EXECUTE TASK / EXECUTE [ INFERENCE ] JOB SERVICE
-// as DML (procedures, tasks and jobs can mutate data; the DDL fallback would map
-// them to the wrong ACL bucket).
+// CALL / EXECUTE IMMEDIATE / EXECUTE TASK [ GRAPH ] / EXECUTE ALERT /
+// EXECUTE [ INFERENCE ] JOB SERVICE as DML (procedures, tasks, alerts and jobs
+// can mutate data; the DDL fallback would map them to the wrong ACL bucket).
 func TestGetQueryType_CallExecuteAreDML(t *testing.T) {
 	for _, sql := range []string{
 		"CALL P(1);",
@@ -20,6 +20,8 @@ func TestGetQueryType_CallExecuteAreDML(t *testing.T) {
 		"EXECUTE DBT PROJECT P ARGS = 'run';",
 		"EXECUTE DCM PROJECT P DEPLOY FROM '@S/DEFS';",
 		"EXECUTE CODE BUNDLE D.S.B ENTRYPOINT = 'main.py';",
+		"EXECUTE TASK GRAPH G1;",
+		"EXECUTE ALERT A1;",
 		"EXECUTE JOB SERVICE IN COMPUTE POOL P FROM SPECIFICATION 'spec' NAME = J;",
 		"EXECUTE INFERENCE JOB SERVICE IN COMPUTE POOL P WITH SPECIFICATION 'spec' FROM (SELECT 1) MODEL = M;",
 	} {
