@@ -765,7 +765,7 @@ reject	reject	engine	create/create_or_replace_server_def!drop-12	CREATE SERVER a
 reject	reject	engine	create/create_or_replace_server_def!truncate	CREATE SERVER a FOREIGN DATA WRAPPER a OPTIONS(USER 's'
 reject	reject	engine	create/create_or_replace_server_def!insert	CREATE SERVER a FOREIGN DATA WRAPPER a OPTIONS(USER 's') zzz;
 reject	reject	engine	create/create_or_replace_server_def!swap	CROSS SERVER a FOREIGN DATA WRAPPER a OPTIONS(USER 's');
-reject	accept	engine	create/create_routine	CREATE PACKAGE a END;
+accept	accept	engine	create/create_routine	CREATE PACKAGE a END;
 reject	reject	engine	create/create_routine!drop-1	PACKAGE a END;
 reject	reject	engine	create/create_routine!drop-2	CREATE a END;
 reject	reject	engine	create/create_routine!drop-3	CREATE PACKAGE END;
@@ -990,16 +990,16 @@ reject	reject	engine	sp_handler/FUNCTION_SYM!swap	DROP GENERAL a;
 accept	accept	engine	sp_handler/PROCEDURE_SYM	DROP PROCEDURE a;
 reject	reject	engine	sp_handler/PROCEDURE_SYM!insert	DROP PROCEDURE zzz a;
 reject	reject	engine	sp_handler/PROCEDURE_SYM!swap	DROP PROCESS a;
-reject	accept	engine	sp_handler/sp_handler_package_spec	DROP PACKAGE a;
+accept	accept	engine	sp_handler/sp_handler_package_spec	DROP PACKAGE a;
 reject	reject	engine	sp_handler/sp_handler_package_spec!insert	DROP PACKAGE zzz a;
 reject	reject	engine	sp_handler/sp_handler_package_spec!swap	DROP PACK_KEYS a;
-reject	accept	engine	sp_handler/sp_handler_package_body	DROP PACKAGE BODY a;
+accept	accept	engine	sp_handler/sp_handler_package_body	DROP PACKAGE BODY a;
 reject	reject	engine	sp_handler/sp_handler_package_body!drop-1	DROP BODY a;
 reject	reject	engine	sp_handler/sp_handler_package_body!truncate	DROP PACKAGE
 reject	reject	engine	sp_handler/sp_handler_package_body!insert	DROP PACKAGE BODY zzz a;
 reject	reject	engine	sp_handler/sp_handler_package_body!swap	DROP PACK_KEYS BODY a;
-reject	accept	engine	sp_handler_package_spec/PACKAGE_MARIADB_SYM	DROP PACKAGE a;
-reject	accept	engine	sp_handler_package_body/PACKAGE_MARIADB_SYM_BODY_MARIADB_SYM	DROP PACKAGE BODY a;
+accept	accept	engine	sp_handler_package_spec/PACKAGE_MARIADB_SYM	DROP PACKAGE a;
+accept	accept	engine	sp_handler_package_body/PACKAGE_MARIADB_SYM_BODY_MARIADB_SYM	DROP PACKAGE BODY a;
 accept	accept	engine	drop_routine/DROP_sp_handler_opt_if_exists_ident_._ident	DROP FUNCTION a.a;
 reject	reject	engine	drop_routine/DROP_sp_handler_opt_if_exists_ident_._ident!drop-1	FUNCTION a.a;
 reject	reject	engine	drop_routine/DROP_sp_handler_opt_if_exists_ident_._ident!drop-2	DROP a.a;
@@ -5048,8 +5048,8 @@ accept	accept	engine	remember_end/%empty	SELECT a;
 accept	accept	engine	remember_cpp_ptr/%empty	SET autocommit = a;
 reject	reject	engine	remember_cpp_ptr/%empty!insert	SET autocommit = zzz a;
 reject	reject	engine	remember_start_opt/%empty	ALTER EVENT a DO RETURN a;
-reject	accept	engine	remember_end_opt/%empty	CREATE PACKAGE a END;
-reject	accept	engine	remember_lex/%empty	CREATE PACKAGE a PROCEDURE a(); END;
+accept	accept	engine	remember_end_opt/%empty	CREATE PACKAGE a END;
+accept	accept	engine	remember_lex/%empty	CREATE PACKAGE a PROCEDURE a(); END;
 reject	reject	engine	remember_lex/%empty!insert	CREATE PACKAGE a PROCEDURE zzz a(); END;
 accept	accept	engine	select_alias/%empty	SELECT a;
 accept	accept	engine	select_alias/AS_ident	SELECT a AS a;
@@ -8534,17 +8534,17 @@ reject	reject	engine	show_param/CREATE_FUNCTION_SYM_sp_name!drop-3	SHOW CREATE F
 reject	reject	engine	show_param/CREATE_FUNCTION_SYM_sp_name!truncate	SHOW CREATE FUNCTION
 reject	reject	engine	show_param/CREATE_FUNCTION_SYM_sp_name!insert	SHOW CREATE FUNCTION a zzz;
 reject	reject	engine	show_param/CREATE_FUNCTION_SYM_sp_name!swap	SHOW CROSS FUNCTION a;
-reject	accept	engine	show_param/CREATE_PACKAGE_MARIADB_SYM_sp_name	SHOW CREATE PACKAGE a;
+accept	accept	engine	show_param/CREATE_PACKAGE_MARIADB_SYM_sp_name	SHOW CREATE PACKAGE a;
 reject	reject	engine	show_param/CREATE_PACKAGE_MARIADB_SYM_sp_name!drop-1	SHOW PACKAGE a;
 reject	reject	engine	show_param/CREATE_PACKAGE_MARIADB_SYM_sp_name!drop-3	SHOW CREATE PACKAGE;
 reject	reject	engine	show_param/CREATE_PACKAGE_MARIADB_SYM_sp_name!truncate	SHOW CREATE PACKAGE
 reject	reject	engine	show_param/CREATE_PACKAGE_MARIADB_SYM_sp_name!insert	SHOW CREATE PACKAGE a zzz;
 reject	reject	engine	show_param/CREATE_PACKAGE_MARIADB_SYM_sp_name!swap	SHOW CROSS PACKAGE a;
-reject	accept	engine	show_param/CREATE_PACKAGE_MARIADB_SYM_BODY_MARIADB_SYM_sp_name	SHOW CREATE PACKAGE BODY a;
+accept	accept	engine	show_param/CREATE_PACKAGE_MARIADB_SYM_BODY_MARIADB_SYM_sp_name	SHOW CREATE PACKAGE BODY a;
 reject	reject	engine	show_param/CREATE_PACKAGE_MARIADB_SYM_BODY_MARIADB_SYM_sp_name!drop-1	SHOW PACKAGE BODY a;
 reject	reject	engine	show_param/CREATE_PACKAGE_MARIADB_SYM_BODY_MARIADB_SYM_sp_name!drop-2	SHOW CREATE BODY a;
-reject	accept	engine	show_param/CREATE_PACKAGE_MARIADB_SYM_BODY_MARIADB_SYM_sp_name!drop-4	SHOW CREATE PACKAGE BODY;
-reject	accept	engine	show_param/CREATE_PACKAGE_MARIADB_SYM_BODY_MARIADB_SYM_sp_name!truncate	SHOW CREATE PACKAGE BODY
+accept	accept	engine	show_param/CREATE_PACKAGE_MARIADB_SYM_BODY_MARIADB_SYM_sp_name!drop-4	SHOW CREATE PACKAGE BODY;
+accept	accept	engine	show_param/CREATE_PACKAGE_MARIADB_SYM_BODY_MARIADB_SYM_sp_name!truncate	SHOW CREATE PACKAGE BODY
 reject	reject	engine	show_param/CREATE_PACKAGE_MARIADB_SYM_BODY_MARIADB_SYM_sp_name!insert	SHOW CREATE PACKAGE BODY a zzz;
 reject	reject	engine	show_param/CREATE_PACKAGE_MARIADB_SYM_BODY_MARIADB_SYM_sp_name!swap	SHOW CROSS PACKAGE BODY a;
 accept	accept	engine	show_param/CREATE_SERVER_SYM_ident_or_text	SHOW CREATE SERVER a;
@@ -8579,12 +8579,12 @@ reject	reject	engine	show_param/FUNCTION_SYM_STATUS_SYM_wild_and_where!drop-2	SH
 reject	reject	engine	show_param/FUNCTION_SYM_STATUS_SYM_wild_and_where!truncate	SHOW FUNCTION
 reject	reject	engine	show_param/FUNCTION_SYM_STATUS_SYM_wild_and_where!insert	SHOW FUNCTION STATUS zzz;
 reject	reject	engine	show_param/FUNCTION_SYM_STATUS_SYM_wild_and_where!swap	SHOW GENERAL STATUS;
-reject	accept	engine	show_param/PACKAGE_MARIADB_SYM_STATUS_SYM_wild_and_where	SHOW PACKAGE STATUS;
+accept	accept	engine	show_param/PACKAGE_MARIADB_SYM_STATUS_SYM_wild_and_where	SHOW PACKAGE STATUS;
 reject	reject	engine	show_param/PACKAGE_MARIADB_SYM_STATUS_SYM_wild_and_where!drop-2	SHOW PACKAGE;
 reject	reject	engine	show_param/PACKAGE_MARIADB_SYM_STATUS_SYM_wild_and_where!truncate	SHOW PACKAGE
 reject	reject	engine	show_param/PACKAGE_MARIADB_SYM_STATUS_SYM_wild_and_where!insert	SHOW PACKAGE STATUS zzz;
 reject	reject	engine	show_param/PACKAGE_MARIADB_SYM_STATUS_SYM_wild_and_where!swap	SHOW PACK_KEYS STATUS;
-reject	accept	engine	show_param/PACKAGE_MARIADB_SYM_BODY_MARIADB_SYM_STATUS_SYM_wild_and_where	SHOW PACKAGE BODY STATUS;
+accept	accept	engine	show_param/PACKAGE_MARIADB_SYM_BODY_MARIADB_SYM_STATUS_SYM_wild_and_where	SHOW PACKAGE BODY STATUS;
 reject	reject	engine	show_param/PACKAGE_MARIADB_SYM_BODY_MARIADB_SYM_STATUS_SYM_wild_and_where!drop-1	SHOW BODY STATUS;
 reject	reject	engine	show_param/PACKAGE_MARIADB_SYM_BODY_MARIADB_SYM_STATUS_SYM_wild_and_where!drop-3	SHOW PACKAGE BODY;
 reject	reject	engine	show_param/PACKAGE_MARIADB_SYM_BODY_MARIADB_SYM_STATUS_SYM_wild_and_where!truncate	SHOW PACKAGE BODY
@@ -8601,7 +8601,7 @@ reject	reject	engine	show_param/FUNCTION_SYM_CODE_SYM_sp_name!drop-3	SHOW FUNCTI
 reject	reject	engine	show_param/FUNCTION_SYM_CODE_SYM_sp_name!truncate	SHOW FUNCTION CODE
 reject	accept	engine	show_param/FUNCTION_SYM_CODE_SYM_sp_name!insert	SHOW FUNCTION CODE a zzz;
 reject	reject	engine	show_param/FUNCTION_SYM_CODE_SYM_sp_name!swap	SHOW GENERAL CODE a;
-reject	accept	engine	show_param/PACKAGE_MARIADB_SYM_BODY_MARIADB_SYM_CODE_SYM_sp_name	SHOW PACKAGE BODY CODE a;
+accept	accept	engine	show_param/PACKAGE_MARIADB_SYM_BODY_MARIADB_SYM_CODE_SYM_sp_name	SHOW PACKAGE BODY CODE a;
 reject	reject	engine	show_param/PACKAGE_MARIADB_SYM_BODY_MARIADB_SYM_CODE_SYM_sp_name!drop-1	SHOW BODY CODE a;
 reject	reject	engine	show_param/PACKAGE_MARIADB_SYM_BODY_MARIADB_SYM_CODE_SYM_sp_name!drop-2	SHOW PACKAGE CODE a;
 reject	reject	engine	show_param/PACKAGE_MARIADB_SYM_BODY_MARIADB_SYM_CODE_SYM_sp_name!drop-4	SHOW PACKAGE BODY CODE;
@@ -12367,21 +12367,21 @@ reject	reject	engine	on_update_cols/on_update_cols_,_ident!drop-3	CREATE TRIGGER
 reject	reject	engine	on_update_cols/on_update_cols_,_ident!truncate	CREATE TRIGGER a BEFORE INSERT OF a,
 reject	reject	engine	on_update_cols/on_update_cols_,_ident!insert	CREATE TRIGGER a BEFORE INSERT OF a, a zzz ON a FOR EACH ROW COMMIT;
 accept	reject	engine	trigger_tail/remember_name_opt_if_not_exists_sp_name_trg_action_time_trg_event_opt_on_update_cols_ON_remember_name_table_ident_FOR_SYM_remember_name_EACH_SYM_ROW_SYM_trigger_follows_precedes_clause_sp_proc_stmt_force_lookahead	CREATE TRIGGER a BEFORE INSERT ON a FOR EACH ROW COMMIT;
-reject	accept	engine	create_package_chistic/COMMENT_SYM_TEXT_STRING_sys	CREATE PACKAGE a COMMENT 's' END;
+accept	accept	engine	create_package_chistic/COMMENT_SYM_TEXT_STRING_sys	CREATE PACKAGE a COMMENT 's' END;
 reject	reject	engine	create_package_chistic/COMMENT_SYM_TEXT_STRING_sys!drop-1	CREATE PACKAGE a 's' END;
 reject	reject	engine	create_package_chistic/COMMENT_SYM_TEXT_STRING_sys!drop-2	CREATE PACKAGE a COMMENT END;
 reject	reject	engine	create_package_chistic/COMMENT_SYM_TEXT_STRING_sys!truncate	CREATE PACKAGE a COMMENT
 reject	reject	engine	create_package_chistic/COMMENT_SYM_TEXT_STRING_sys!insert	CREATE PACKAGE a COMMENT 's' zzz END;
 reject	reject	engine	create_package_chistic/COMMENT_SYM_TEXT_STRING_sys!swap	CREATE PACKAGE a COMMIT 's' END;
-reject	accept	engine	create_package_chistic/sp_suid	CREATE PACKAGE a SQL SECURITY DEFINER END;
+accept	accept	engine	create_package_chistic/sp_suid	CREATE PACKAGE a SQL SECURITY DEFINER END;
 reject	reject	engine	create_package_chistic/sp_suid!drop-1	CREATE PACKAGE a SECURITY DEFINER END;
 reject	reject	engine	create_package_chistic/sp_suid!drop-2	CREATE PACKAGE a SQL DEFINER END;
 reject	reject	engine	create_package_chistic/sp_suid!drop-3	CREATE PACKAGE a SQL SECURITY END;
 reject	reject	engine	create_package_chistic/sp_suid!truncate	CREATE PACKAGE a SQL SECURITY
 reject	reject	engine	create_package_chistic/sp_suid!insert	CREATE PACKAGE a SQL SECURITY DEFINER zzz END;
 reject	reject	engine	create_package_chistic/sp_suid!swap	CREATE PACKAGE a SQLEXCEPTION SECURITY DEFINER END;
-reject	accept	engine	create_package_chistics/create_package_chistic	CREATE PACKAGE a COMMENT 's' END;
-reject	accept	engine	create_package_chistics/create_package_chistics_create_package_chistic	CREATE PACKAGE a COMMENT 's' COMMENT 's' END;
+accept	accept	engine	create_package_chistics/create_package_chistic	CREATE PACKAGE a COMMENT 's' END;
+accept	accept	engine	create_package_chistics/create_package_chistics_create_package_chistic	CREATE PACKAGE a COMMENT 's' COMMENT 's' END;
 reject	reject	engine	create_package_chistics/create_package_chistics_create_package_chistic!drop-1	CREATE PACKAGE a 's' COMMENT 's' END;
 reject	reject	engine	create_package_chistics/create_package_chistics_create_package_chistic!drop-2	CREATE PACKAGE a COMMENT COMMENT 's' END;
 reject	reject	engine	create_package_chistics/create_package_chistics_create_package_chistic!drop-3	CREATE PACKAGE a COMMENT 's' 's' END;
@@ -12389,10 +12389,10 @@ reject	reject	engine	create_package_chistics/create_package_chistics_create_pack
 reject	reject	engine	create_package_chistics/create_package_chistics_create_package_chistic!truncate	CREATE PACKAGE a COMMENT 's' COMMENT
 reject	reject	engine	create_package_chistics/create_package_chistics_create_package_chistic!insert	CREATE PACKAGE a COMMENT 's' COMMENT 's' zzz END;
 reject	reject	engine	create_package_chistics/create_package_chistics_create_package_chistic!swap	CREATE PACKAGE a COMMIT 's' COMMENT 's' END;
-reject	accept	engine	opt_create_package_chistics/%empty	CREATE PACKAGE a END;
+accept	accept	engine	opt_create_package_chistics/%empty	CREATE PACKAGE a END;
 reject	reject	engine	opt_create_package_chistics/%empty!insert	CREATE PACKAGE a zzz END;
-reject	accept	engine	opt_create_package_chistics/create_package_chistics	CREATE PACKAGE a COMMENT 's' END;
-reject	accept	engine	opt_create_package_chistics_init/opt_create_package_chistics	CREATE PACKAGE a END;
+accept	accept	engine	opt_create_package_chistics/create_package_chistics	CREATE PACKAGE a COMMENT 's' END;
+accept	accept	engine	opt_create_package_chistics_init/opt_create_package_chistics	CREATE PACKAGE a END;
 accept	accept	engine	xa/XA_SYM_begin_or_start_xid_opt_join_or_resume	XA BEGIN 's';
 reject	reject	engine	xa/XA_SYM_begin_or_start_xid_opt_join_or_resume!drop-1	BEGIN 's';
 reject	reject	engine	xa/XA_SYM_begin_or_start_xid_opt_join_or_resume!drop-2	XA 's';
@@ -12505,7 +12505,7 @@ reject	reject	engine	sp_if_then_statements/sp_proc_stmts1	IF a THEN COMMIT; END 
 reject	reject	engine	sp_if_then_statements/sp_proc_stmts1!swap	IF a THEN COMMITTED; END IF;
 reject	reject	engine	sp_case_then_statements/sp_proc_stmts1	CASE WHEN a THEN COMMIT; END CASE;
 reject	reject	engine	sp_case_then_statements/sp_proc_stmts1!swap	CASE WHEN a THEN COMMITTED; END CASE;
-reject	accept	engine	sp_tail_is/%empty	CREATE PACKAGE a END;
+accept	accept	engine	sp_tail_is/%empty	CREATE PACKAGE a END;
 reject	reject	engine	sp_package_function_body/sp_proc_stmt_in_returns_clause	CREATE PACKAGE BODY a FUNCTION a() RETURNS INT RETURN a; END;
 reject	reject	engine	sp_package_function_body/sp_proc_stmt_in_returns_clause!drop-1	CREATE PACKAGE BODY a FUNCTION a() RETURNS INT a; END;
 reject	reject	engine	sp_package_function_body/sp_proc_stmt_in_returns_clause!drop-2	CREATE PACKAGE BODY a FUNCTION a() RETURNS INT RETURN; END;
@@ -12516,10 +12516,10 @@ reject	reject	engine	sp_package_procedure_body/sp_proc_stmt	CREATE PACKAGE BODY 
 reject	reject	engine	sp_package_procedure_body/sp_proc_stmt!truncate	CREATE PACKAGE BODY a PROCEDURE a()
 reject	reject	engine	sp_package_procedure_body/sp_proc_stmt!insert	CREATE PACKAGE BODY a PROCEDURE a() COMMIT zzz; END;
 reject	reject	engine	sp_package_procedure_body/sp_proc_stmt!swap	CREATE PACKAGE BODY a PROCEDURE a() COMMITTED; END;
-reject	accept	engine	opt_trailing_sp_name/%empty	CREATE PACKAGE a END;
+accept	accept	engine	opt_trailing_sp_name/%empty	CREATE PACKAGE a END;
 reject	reject	engine	opt_package_routine_end_name/%empty	CREATE PACKAGE BODY a PROCEDURE a() COMMIT; END;
 accept	reject	engine	sf_parameters/sp_parenthesized_fdparam_list	CREATE FUNCTION a() RETURNS INT RETURN a;
-reject	accept	engine	sp_parameters/sp_parenthesized_pdparam_list	CREATE PACKAGE a PROCEDURE a(); END;
+accept	accept	engine	sp_parameters/sp_parenthesized_pdparam_list	CREATE PACKAGE a PROCEDURE a(); END;
 reject	reject	engine	sp_parameters/sp_parenthesized_pdparam_list!drop-1	CREATE PACKAGE a PROCEDURE a); END;
 reject	reject	engine	sp_parameters/sp_parenthesized_pdparam_list!drop-2	CREATE PACKAGE a PROCEDURE a(; END;
 reject	reject	engine	sp_parameters/sp_parenthesized_pdparam_list!truncate	CREATE PACKAGE a PROCEDURE a(
@@ -12855,7 +12855,7 @@ reject	reject	engine	package_implementation_declare_section_list2/package_implem
 reject	reject	engine	package_implementation_declare_section_list2/package_implementation_declare_section_list2_package_implementation_routine_definition!truncate	CREATE PACKAGE BODY a PROCEDURE a(); PROCEDURE a()
 reject	reject	engine	package_implementation_declare_section_list2/package_implementation_declare_section_list2_package_implementation_routine_definition!insert	CREATE PACKAGE BODY a PROCEDURE a(); PROCEDURE a(); zzz END;
 reject	reject	engine	package_implementation_declare_section_list2/package_implementation_declare_section_list2_package_implementation_routine_definition!swap	CREATE PACKAGE BODY a PROCESS a(); PROCEDURE a(); END;
-reject	accept	engine	package_specification_function/remember_lex_ident_sf_parameters_sf_returned_type_clause_sp_c_chistics	CREATE PACKAGE a FUNCTION a() RETURNS INT; END;
+accept	accept	engine	package_specification_function/remember_lex_ident_sf_parameters_sf_returned_type_clause_sp_c_chistics	CREATE PACKAGE a FUNCTION a() RETURNS INT; END;
 reject	reject	engine	package_specification_function/remember_lex_ident_sf_parameters_sf_returned_type_clause_sp_c_chistics!drop-1	CREATE PACKAGE a FUNCTION() RETURNS INT; END;
 reject	reject	engine	package_specification_function/remember_lex_ident_sf_parameters_sf_returned_type_clause_sp_c_chistics!drop-2	CREATE PACKAGE a FUNCTION a) RETURNS INT; END;
 reject	reject	engine	package_specification_function/remember_lex_ident_sf_parameters_sf_returned_type_clause_sp_c_chistics!drop-3	CREATE PACKAGE a FUNCTION a(RETURNS INT; END;
@@ -12864,7 +12864,7 @@ reject	reject	engine	package_specification_function/remember_lex_ident_sf_parame
 reject	reject	engine	package_specification_function/remember_lex_ident_sf_parameters_sf_returned_type_clause_sp_c_chistics!truncate	CREATE PACKAGE a FUNCTION a() RETURNS
 reject	reject	engine	package_specification_function/remember_lex_ident_sf_parameters_sf_returned_type_clause_sp_c_chistics!insert	CREATE PACKAGE a FUNCTION a() RETURNS INT zzz; END;
 reject	reject	engine	package_specification_function/remember_lex_ident_sf_parameters_sf_returned_type_clause_sp_c_chistics!swap	CREATE PACKAGE a FUNCTION a() REUSE INT; END;
-reject	accept	engine	package_specification_procedure/remember_lex_ident_sp_parameters_sp_c_chistics	CREATE PACKAGE a PROCEDURE a(); END;
+accept	accept	engine	package_specification_procedure/remember_lex_ident_sp_parameters_sp_c_chistics	CREATE PACKAGE a PROCEDURE a(); END;
 reject	reject	engine	package_specification_procedure/remember_lex_ident_sp_parameters_sp_c_chistics!drop-1	CREATE PACKAGE a PROCEDURE(); END;
 reject	reject	engine	package_implementation_routine_definition/FUNCTION_SYM_package_specification_function_package_implementation_function_body_;	CREATE PACKAGE BODY a FUNCTION a() RETURNS INT RETURN a; END;
 reject	reject	engine	package_implementation_routine_definition/FUNCTION_SYM_package_specification_function_package_implementation_function_body_;!drop-1	CREATE PACKAGE BODY a a() RETURNS INT RETURN a; END;
@@ -12889,14 +12889,14 @@ reject	reject	engine	package_implementation_routine_definition/PROCEDURE_SYM_pac
 reject	reject	engine	package_implementation_routine_definition/package_specification_element	CREATE PACKAGE BODY a PROCEDURE a(); END;
 reject	reject	engine	package_implementation_function_body/sp_tail_is_remember_lex_sp_package_function_body_opt_package_routine_end_name	CREATE PACKAGE BODY a FUNCTION a() RETURNS INT RETURN a; END;
 reject	reject	engine	package_implementation_procedure_body/sp_tail_is_remember_lex_sp_package_procedure_body_opt_package_routine_end_name	CREATE PACKAGE BODY a PROCEDURE a() COMMIT; END;
-reject	accept	engine	opt_package_specification_element_list/_empty	CREATE PACKAGE a END;
-reject	accept	engine	opt_package_specification_element_list/package_specification_element_list	CREATE PACKAGE a PROCEDURE a(); END;
+accept	accept	engine	opt_package_specification_element_list/_empty	CREATE PACKAGE a END;
+accept	accept	engine	opt_package_specification_element_list/package_specification_element_list	CREATE PACKAGE a PROCEDURE a(); END;
 reject	reject	engine	opt_package_specification_element_list/package_specification_element_list!drop-1	CREATE PACKAGE a a(); END;
 reject	reject	engine	opt_package_specification_element_list/package_specification_element_list!drop-5	CREATE PACKAGE a PROCEDURE a() END;
 reject	reject	engine	opt_package_specification_element_list/package_specification_element_list!truncate	CREATE PACKAGE a PROCEDURE a()
 reject	reject	engine	opt_package_specification_element_list/package_specification_element_list!insert	CREATE PACKAGE a PROCEDURE a(); zzz END;
 reject	reject	engine	opt_package_specification_element_list/package_specification_element_list!swap	CREATE PACKAGE a PROCESS a(); END;
-reject	accept	engine	package_specification_element_list/package_specification_element	CREATE PACKAGE a PROCEDURE a(); END;
+accept	accept	engine	package_specification_element_list/package_specification_element	CREATE PACKAGE a PROCEDURE a(); END;
 reject	reject	engine	package_specification_element_list/package_specification_element_list_package_specification_element	CREATE PACKAGE a PROCEDURE a(); PROCEDURE a(); END;
 reject	reject	engine	package_specification_element_list/package_specification_element_list_package_specification_element!drop-1	CREATE PACKAGE a a(); PROCEDURE a(); END;
 reject	reject	engine	package_specification_element_list/package_specification_element_list_package_specification_element!drop-2	CREATE PACKAGE a PROCEDURE(); PROCEDURE a(); END;
@@ -12911,13 +12911,13 @@ reject	reject	engine	package_specification_element_list/package_specification_el
 reject	reject	engine	package_specification_element_list/package_specification_element_list_package_specification_element!truncate	CREATE PACKAGE a PROCEDURE a(); PROCEDURE a()
 reject	reject	engine	package_specification_element_list/package_specification_element_list_package_specification_element!insert	CREATE PACKAGE a PROCEDURE a(); PROCEDURE a(); zzz END;
 reject	reject	engine	package_specification_element_list/package_specification_element_list_package_specification_element!swap	CREATE PACKAGE a PROCESS a(); PROCEDURE a(); END;
-reject	accept	engine	package_specification_element/FUNCTION_SYM_package_specification_function_;	CREATE PACKAGE a FUNCTION a() RETURNS INT; END;
+accept	accept	engine	package_specification_element/FUNCTION_SYM_package_specification_function_;	CREATE PACKAGE a FUNCTION a() RETURNS INT; END;
 reject	reject	engine	package_specification_element/FUNCTION_SYM_package_specification_function_;!drop-1	CREATE PACKAGE a a() RETURNS INT; END;
 reject	reject	engine	package_specification_element/FUNCTION_SYM_package_specification_function_;!drop-7	CREATE PACKAGE a FUNCTION a() RETURNS INT END;
 reject	reject	engine	package_specification_element/FUNCTION_SYM_package_specification_function_;!truncate	CREATE PACKAGE a FUNCTION a() RETURNS INT
 reject	reject	engine	package_specification_element/FUNCTION_SYM_package_specification_function_;!insert	CREATE PACKAGE a FUNCTION a() RETURNS INT; zzz END;
 reject	reject	engine	package_specification_element/FUNCTION_SYM_package_specification_function_;!swap	CREATE PACKAGE a GENERAL a() RETURNS INT; END;
-reject	accept	engine	package_specification_element/PROCEDURE_SYM_package_specification_procedure_;	CREATE PACKAGE a PROCEDURE a(); END;
+accept	accept	engine	package_specification_element/PROCEDURE_SYM_package_specification_procedure_;	CREATE PACKAGE a PROCEDURE a(); END;
 accept	accept	engine	create_routine/create_or_replace_definer_opt_PROCEDURE_SYM_opt_if_not_exists_sp_tail_standalone	CREATE PROCEDURE a() COMMIT;
 reject	reject	engine	create_routine/create_or_replace_definer_opt_PROCEDURE_SYM_opt_if_not_exists_sp_tail_standalone!drop-1	PROCEDURE a() COMMIT;
 reject	reject	engine	create_routine/create_or_replace_definer_opt_PROCEDURE_SYM_opt_if_not_exists_sp_tail_standalone!drop-2	CREATE a() COMMIT;
@@ -12953,7 +12953,7 @@ reject	reject	engine	create_routine/create_or_replace_no_definer_opt_aggregate_F
 reject	reject	engine	create_routine/create_or_replace_no_definer_opt_aggregate_FUNCTION_SYM_opt_if_not_exists_ident_RETURNS_SYM_udf_type_SONAME_SYM_TEXT_STRING_sys!truncate	CREATE FUNCTION a RETURNS STRING SONAME
 reject	reject	engine	create_routine/create_or_replace_no_definer_opt_aggregate_FUNCTION_SYM_opt_if_not_exists_ident_RETURNS_SYM_udf_type_SONAME_SYM_TEXT_STRING_sys!insert	CREATE FUNCTION a RETURNS STRING SONAME 's' zzz;
 reject	reject	engine	create_routine/create_or_replace_no_definer_opt_aggregate_FUNCTION_SYM_opt_if_not_exists_ident_RETURNS_SYM_udf_type_SONAME_SYM_TEXT_STRING_sys!swap	CROSS FUNCTION a RETURNS STRING SONAME 's';
-reject	accept	engine	create_routine/create_or_replace_definer_opt_sp_handler_package_spec_opt_if_not_exists_sp_name_opt_create_package_chistics_init_sp_tail_is_opt_package_specification_element_list_END_remember_end_opt_opt_trailing_sp_name	CREATE PACKAGE a END;
+accept	accept	engine	create_routine/create_or_replace_definer_opt_sp_handler_package_spec_opt_if_not_exists_sp_name_opt_create_package_chistics_init_sp_tail_is_opt_package_specification_element_list_END_remember_end_opt_opt_trailing_sp_name	CREATE PACKAGE a END;
 reject	reject	engine	create_routine/create_or_replace_definer_opt_sp_handler_package_body_opt_if_not_exists_sp_name_opt_create_package_chistics_init_sp_tail_is_package_implementation_declare_section_package_implementation_executable_section_remember_end_opt_opt_trailing_sp_name	CREATE PACKAGE BODY a DECLARE a INT; END;
 reject	reject	engine	create_routine/create_or_replace_definer_opt_sp_handler_package_body_opt_if_not_exists_sp_name_opt_create_package_chistics_init_sp_tail_is_package_implementation_declare_section_package_implementation_executable_section_remember_end_opt_opt_trailing_sp_name!drop-1	PACKAGE BODY a DECLARE a INT; END;
 reject	reject	engine	create_routine/create_or_replace_definer_opt_sp_handler_package_body_opt_if_not_exists_sp_name_opt_create_package_chistics_init_sp_tail_is_package_implementation_declare_section_package_implementation_executable_section_remember_end_opt_opt_trailing_sp_name!drop-2	CREATE BODY a DECLARE a INT; END;

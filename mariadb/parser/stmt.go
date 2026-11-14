@@ -547,6 +547,7 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		definer := p.parseDefinerValue()
 		// Optional SQL SECURITY {DEFINER|INVOKER}
 		var sqlSecurity string
+		sawSQLSecurity := p.cur.Type == kwSQL
 		if p.cur.Type == kwSQL {
 			p.advance()
 			p.match(kwSECURITY)
@@ -605,10 +606,17 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 			}
 			return stmt, nil
 		default:
+			// definer_opt sp_handler_package_spec: no SQL SECURITY before PACKAGE.
+			if p.atWord("PACKAGE") && !sawSQLSecurity {
+				return p.parseCreatePackageStmt(start, orReplace, definer)
+			}
 			return nil, &ParseError{Message: "unexpected token after DEFINER clause", Position: p.cur.Loc}
 		}
 
 	default:
+		if p.atWord("PACKAGE") {
+			return p.parseCreatePackageStmt(start, orReplace, "")
+		}
 		return nil, &ParseError{
 			Message:  "unexpected token after CREATE",
 			Position: p.cur.Loc,
@@ -822,6 +830,9 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 		}, nil
 
 	default:
+		if p.atWord("PACKAGE") && !temporary {
+			return p.parseDropPackageStmt(start)
+		}
 		return nil, &ParseError{
 			Message:  "unexpected token after DROP",
 			Position: p.cur.Loc,

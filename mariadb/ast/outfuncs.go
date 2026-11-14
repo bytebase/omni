@@ -417,6 +417,12 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeAlterRoutineStmt(sb, n)
 	case *DropRoutineStmt:
 		writeDropRoutineStmt(sb, n)
+	case *CreatePackageStmt:
+		writeCreatePackageStmt(sb, n)
+	case *PackageRoutineSpec:
+		writePackageRoutineSpec(sb, n)
+	case *DropPackageStmt:
+		writeDropPackageStmt(sb, n)
 	case *DropTriggerStmt:
 		writeDropTriggerStmt(sb, n)
 	case *DropEventStmt:
@@ -4753,6 +4759,83 @@ func writeDropRoutineStmt(sb *strings.Builder, n *DropRoutineStmt) {
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
 	if n.IsProcedure {
 		sb.WriteString(" :is_procedure true")
+	}
+	if n.IfExists {
+		sb.WriteString(" :if_exists true")
+	}
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	sb.WriteString("}")
+}
+
+func writeCreatePackageStmt(sb *strings.Builder, n *CreatePackageStmt) {
+	sb.WriteString("{CREATE_PACKAGE")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.OrReplace {
+		sb.WriteString(" :or_replace true")
+	}
+	if n.IfNotExists {
+		sb.WriteString(" :if_not_exists true")
+	}
+	if n.Definer != "" {
+		fmt.Fprintf(sb, " :definer %s", n.Definer)
+	}
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	if len(n.Characteristics) > 0 {
+		sb.WriteString(" :characteristics")
+		for _, c := range n.Characteristics {
+			sb.WriteString(" ")
+			writeNode(sb, c)
+		}
+	}
+	if len(n.Routines) > 0 {
+		sb.WriteString(" :routines")
+		for _, r := range n.Routines {
+			sb.WriteString(" ")
+			writeNode(sb, r)
+		}
+	}
+	sb.WriteString("}")
+}
+
+func writePackageRoutineSpec(sb *strings.Builder, n *PackageRoutineSpec) {
+	sb.WriteString("{PACKAGE_ROUTINE")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.IsProcedure {
+		sb.WriteString(" :is_procedure true")
+	}
+	fmt.Fprintf(sb, " :name %s", n.Name)
+	if len(n.Params) > 0 {
+		sb.WriteString(" :params")
+		for _, prm := range n.Params {
+			sb.WriteString(" ")
+			writeNode(sb, prm)
+		}
+	}
+	if n.Returns != nil {
+		sb.WriteString(" :returns ")
+		writeNode(sb, n.Returns)
+	}
+	if len(n.Characteristics) > 0 {
+		sb.WriteString(" :characteristics")
+		for _, c := range n.Characteristics {
+			sb.WriteString(" ")
+			writeNode(sb, c)
+		}
+	}
+	sb.WriteString("}")
+}
+
+func writeDropPackageStmt(sb *strings.Builder, n *DropPackageStmt) {
+	sb.WriteString("{DROP_PACKAGE")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Body {
+		sb.WriteString(" :body true")
 	}
 	if n.IfExists {
 		sb.WriteString(" :if_exists true")

@@ -1,5 +1,7 @@
 package parser
 
+import "regexp"
+
 // Segment represents a portion of SQL text delimited by top-level semicolons.
 type Segment struct {
 	Text      string // the raw text of this segment (without trailing semicolon)
@@ -328,6 +330,16 @@ func Split(sql string) []Segment {
 			atStmtStart = false
 			i = endOfWord
 
+		// PACKAGE as the object of CREATE [OR REPLACE] [DEFINER = user] opens MariaDB's
+		// package, which its END closes: the ';' after each routine it lists do not end
+		// it. Anywhere else PACKAGE is a word (DROP PACKAGE, a column named package).
+		case (b == 'p' || b == 'P') && matchWord(sql, i, "PACKAGE"):
+			if depth == 0 && createsPackage(sql[stmtStart:i]) {
+				depth++
+			}
+			atStmtStart = false
+			i = skipToEndOfWord(sql, i)
+
 		// IF — compound flow-control iff at stmt-start and not preceded by END.
 		// atStmtStart encodes MySQL's yacc grammar-position disambiguation:
 		// IF in expression context (after '=', ',', '(', keywords like DROP/
@@ -484,6 +496,35 @@ func Split(sql string) []Segment {
 		return nil
 	}
 	return segments
+}
+
+// createPackageHead is the text of a statement before the PACKAGE of CREATE PACKAGE: CREATE,
+// OR REPLACE, and a definer, CURRENT_USER or user[@host].
+//
+// Ref: create_routine's sp_handler_package_spec and sp_handler_package_body arms in MariaDB
+// 11.8 sql/sql_yacc.yy.
+var createPackageHead = regexp.MustCompile(`(?is)^CREATE\s+(?:OR\s+REPLACE\s+)?` +
+	`(?:DEFINER\s*=\s*(?:CURRENT_USER(?:\s*\(\s*\))?|[^\s@]+(?:\s*@\s*[^\s@]+)?)\s+)?$`)
+
+// createsPackage reports whether head, the text of a statement up to a PACKAGE, is the head
+// of CREATE PACKAGE, after any comments the statement starts with.
+func createsPackage(head string) bool {
+	i := 0
+	for i < len(head) {
+		switch {
+		case head[i] == ' ' || head[i] == '\t' || head[i] == '\n' || head[i] == '\r':
+			i++
+		case isDashComment(head, i):
+			i = skipDashComment(head, i)
+		case head[i] == '#':
+			i = skipHashComment(head, i)
+		case head[i] == '/' && i+1 < len(head) && head[i+1] == '*':
+			i = skipBlockCommentMySQL(head, i)
+		default:
+			return createPackageHead.MatchString(head[i:])
+		}
+	}
+	return false
 }
 
 // skipSingleQuoteMySQL skips a single-quoted string starting at position i.

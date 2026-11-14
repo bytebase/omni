@@ -2996,6 +2996,44 @@ type DropRoutineStmt struct {
 func (s *DropRoutineStmt) nodeTag()  {}
 func (s *DropRoutineStmt) stmtNode() {}
 
+// CreatePackageStmt represents MariaDB's CREATE PACKAGE, a package's specification: the
+// functions and procedures the package publishes, which its body defines.
+type CreatePackageStmt struct {
+	Loc             Loc
+	OrReplace       bool
+	IfNotExists     bool
+	Definer         string
+	Name            *TableRef
+	Characteristics []*RoutineCharacteristic // COMMENT, SQL SECURITY
+	Routines        []*PackageRoutineSpec
+}
+
+func (s *CreatePackageStmt) nodeTag()  {}
+func (s *CreatePackageStmt) stmtNode() {}
+
+// PackageRoutineSpec is one function or procedure a package specification publishes.
+type PackageRoutineSpec struct {
+	Loc             Loc
+	IsProcedure     bool
+	Name            string
+	Params          []*FuncParam
+	Returns         *DataType // a function's RETURNS
+	Characteristics []*RoutineCharacteristic
+}
+
+func (s *PackageRoutineSpec) nodeTag() {}
+
+// DropPackageStmt represents MariaDB's DROP PACKAGE [BODY].
+type DropPackageStmt struct {
+	Loc      Loc
+	Body     bool // DROP PACKAGE BODY
+	IfExists bool
+	Name     *TableRef
+}
+
+func (s *DropPackageStmt) nodeTag()  {}
+func (s *DropPackageStmt) stmtNode() {}
+
 // DropTriggerStmt represents a DROP TRIGGER statement.
 type DropTriggerStmt struct {
 	Loc      Loc
