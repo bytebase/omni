@@ -1501,6 +1501,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.ScopeName != nil {
 			Walk(v, n.ScopeName)
 		}
+		if n.QualifierName != nil {
+			Walk(v, n.QualifierName)
+		}
 		if n.GrantsOn != nil {
 			Walk(v, n.GrantsOn)
 		}
