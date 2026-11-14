@@ -122,8 +122,9 @@ func (p *Parser) parseDeallocateStmt() (*nodes.DeallocateStmt, error) {
 }
 
 // atUsingVariable reports whether p.cur is a user variable as singleAtIdentifier
-// spells one, an empty quoted name (`@”`, "@“") included: the lexer folds that
-// into a token whose text is "@" alone, and its source text says it was quoted.
+// spells one, an empty quoted name included: the lexer folds an @ followed by two
+// quotes or two backquotes into a token whose text is "@" alone, and its source
+// text says it was quoted.
 func (p *Parser) atUsingVariable() bool {
 	if p.isUserVariable() {
 		return true
