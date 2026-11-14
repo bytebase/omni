@@ -549,57 +549,76 @@ func createsPackage(head string) bool {
 const maxPackageHeadTokens = 8
 
 // packageHeadTokens cuts a statement's head into words, quoted names and strings, and the
-// characters @ = ( ), dropping whitespace and comments. It returns nil for anything else,
-// which no CREATE PACKAGE head holds: a first word other than CREATE, more tokens than
-// maxPackageHeadTokens, or another character. It stops there, so a statement that names
-// package many times is not scanned again from its start at each one.
+// characters @ = ( ), dropping whitespace and comments and reading an executable comment's
+// text as the lexer does. It returns nil for anything else, which no CREATE PACKAGE head
+// holds: a first word other than CREATE, more tokens than maxPackageHeadTokens, or another
+// character. It stops there, so a statement that names package many times is not scanned
+// again from its start at each one.
 func packageHeadTokens(head string) []string {
 	var toks []string
-	i := 0
-	for i < len(head) {
-		if len(toks) > maxPackageHeadTokens || (len(toks) == 1 && !strings.EqualFold(toks[0], "CREATE")) {
-			return nil
-		}
-		c := head[i]
-		switch {
-		case c == ' ' || c == '\t' || c == '\n' || c == '\r':
-			i++
-		case isDashComment(head, i):
-			i = skipDashComment(head, i)
-		case c == '#':
-			i = skipHashComment(head, i)
-		case c == '/' && i+1 < len(head) && head[i+1] == '*' && !isExecutableCommentStart(head, i):
-			i = skipBlockCommentMySQL(head, i)
-		case c == '\'':
-			j := skipSingleQuoteMySQL(head, i)
-			toks = append(toks, head[i:j])
-			i = j
-		case c == '"':
-			j := skipDoubleQuoteMySQL(head, i)
-			toks = append(toks, head[i:j])
-			i = j
-		case c == '`':
-			j := skipBacktick(head, i)
-			toks = append(toks, head[i:j])
-			i = j
-		case c == '@' || c == '=' || c == '(' || c == ')':
-			toks = append(toks, string(c))
-			i++
-		case isPackageHeadIdentByte(c):
-			j := i
-			for j < len(head) && isPackageHeadIdentByte(head[j]) {
-				j++
-			}
-			toks = append(toks, head[i:j])
-			i = j
-		default:
-			return nil
-		}
-	}
-	if len(toks) > maxPackageHeadTokens {
+	if !appendPackageHeadTokens(head, &toks) || len(toks) > maxPackageHeadTokens {
 		return nil
 	}
 	return toks
+}
+
+// appendPackageHeadTokens appends text's tokens to toks, reporting false where
+// packageHeadTokens gives up.
+func appendPackageHeadTokens(text string, toks *[]string) bool {
+	i := 0
+	for i < len(text) {
+		if len(*toks) > maxPackageHeadTokens || (len(*toks) == 1 && !strings.EqualFold((*toks)[0], "CREATE")) {
+			return false
+		}
+		c := text[i]
+		switch {
+		case c == ' ' || c == '\t' || c == '\n' || c == '\r':
+			i++
+		case isDashComment(text, i):
+			i = skipDashComment(text, i)
+		case c == '#':
+			i = skipHashComment(text, i)
+		case c == '/' && i+1 < len(text) && text[i+1] == '*':
+			end := skipBlockCommentMySQL(text, i)
+			if bodyStart, ok := execOpener(text, i); ok {
+				// The server reads an executable comment's text, /*! ... */ and /*M! ... */,
+				// as the statement's; a versioned one it skips is an ordinary comment.
+				bodyEnd := end
+				if bodyEnd-2 >= bodyStart && text[bodyEnd-2:bodyEnd] == "*/" {
+					bodyEnd -= 2
+				}
+				if !appendPackageHeadTokens(text[bodyStart:bodyEnd], toks) {
+					return false
+				}
+			}
+			i = end
+		case c == '\'':
+			j := skipSingleQuoteMySQL(text, i)
+			*toks = append(*toks, text[i:j])
+			i = j
+		case c == '"':
+			j := skipDoubleQuoteMySQL(text, i)
+			*toks = append(*toks, text[i:j])
+			i = j
+		case c == '`':
+			j := skipBacktick(text, i)
+			*toks = append(*toks, text[i:j])
+			i = j
+		case c == '@' || c == '=' || c == '(' || c == ')':
+			*toks = append(*toks, string(c))
+			i++
+		case isPackageHeadIdentByte(c):
+			j := i
+			for j < len(text) && isPackageHeadIdentByte(text[j]) {
+				j++
+			}
+			*toks = append(*toks, text[i:j])
+			i = j
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 // isPackageHeadIdentByte reports a byte of an unquoted name as the lexer reads one: a

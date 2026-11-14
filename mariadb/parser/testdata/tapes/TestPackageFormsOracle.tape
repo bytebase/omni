@@ -181,6 +181,33 @@
 < ok 0 0
 > exec ^
 : string
+| CREATE /*! DEFINER = root */ PACKAGE pk PROCEDURE p(); END
+< ok 0 0
+> exec ^
+: string
+| CREATE /*M!100000 OR REPLACE */ PACKAGE pk PROCEDURE p(); END
+< ok 0 0
+> exec ^
+: string
+| CREATE PACKAGE pk PROCEDURE p() LANGUAGE SQL; END
+< ok 0 0
+> exec ^
+: string
+| CREATE PACKAGE pk PROCEDURE p() CONTAINS; END
+< error
+| 1064 42000 …near '; END' at line 1
+> exec ^
+: string
+| CREATE PACKAGE pk PROCEDURE p() READS DATA; END
+< error
+| 1064 42000 …near 'DATA; END' at line 1
+> exec ^
+: string
+| CREATE PACKAGE pk PROCEDURE p() SQL SECURITY garbage; END
+< error
+| 1064 42000 …near 'garbage; END' at line 1
+> exec ^
+: string
 | DROP PACKAGE pk
 < ok 0 0
 > exec ^

@@ -248,7 +248,9 @@ func (p *Parser) parseFuncParam(isProcedure bool) (*nodes.FuncParam, error) {
 	return param, nil
 }
 
-// parseRoutineCharacteristic parses a routine characteristic.
+// parseRoutineCharacteristic parses a routine characteristic, every word of it required.
+//
+// Ref: sp_chistic, sp_c_chistic and sp_suid in MariaDB 11.8 sql/sql_yacc.yy.
 func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, bool, error) {
 	start := p.pos()
 
@@ -267,13 +269,13 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 		return nil, false, p.syntaxErrorAtCur()
 
 	case p.cur.Type == kwLANGUAGE:
+		// LANGUAGE SQL, the one language.
 		p.advance()
-		name, _, err := p.parseKeywordOrIdent()
-		if err != nil {
+		if _, err := p.expect(kwSQL); err != nil {
 			return nil, false, err
 		}
 		return &nodes.RoutineCharacteristic{
-			Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "LANGUAGE", Value: name,
+			Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "LANGUAGE", Value: "SQL",
 		}, true, nil
 
 	case p.cur.Type == kwDETERMINISTIC:
@@ -295,22 +297,30 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 		return nil, false, nil
 
 	case p.cur.Type == kwSQL:
+		// sp_suid: SQL SECURITY {DEFINER | INVOKER}.
 		p.advance()
-		if p.cur.Type == kwSECURITY {
-			p.advance()
-			name, _, err := p.parseKeywordOrIdent()
-			if err != nil {
-				return nil, false, err
-			}
-			return &nodes.RoutineCharacteristic{
-				Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "SQL SECURITY", Value: name,
-			}, true, nil
+		if _, err := p.expect(kwSECURITY); err != nil {
+			return nil, false, err
 		}
-		return nil, false, nil
+		var val string
+		switch p.cur.Type {
+		case kwDEFINER:
+			val = "DEFINER"
+		case kwINVOKER:
+			val = "INVOKER"
+		default:
+			return nil, false, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		return &nodes.RoutineCharacteristic{
+			Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "SQL SECURITY", Value: val,
+		}, true, nil
 
 	case p.cur.Type == kwCONTAINS:
 		p.advance()
-		p.match(kwSQL)
+		if _, err := p.expect(kwSQL); err != nil {
+			return nil, false, err
+		}
 		return &nodes.RoutineCharacteristic{
 			Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "DATA ACCESS", Value: "CONTAINS SQL",
 		}, true, nil
@@ -327,9 +337,8 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 
 	case p.cur.Type == kwREADS:
 		p.advance()
-		p.match(kwSQL)
-		if p.cur.Type == kwDATA {
-			p.advance()
+		if err := p.expectWords(kwSQL, kwDATA); err != nil {
+			return nil, false, err
 		}
 		return &nodes.RoutineCharacteristic{
 			Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "DATA ACCESS", Value: "READS SQL DATA",
@@ -337,9 +346,8 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 
 	case p.cur.Type == kwMODIFIES:
 		p.advance()
-		p.match(kwSQL)
-		if p.cur.Type == kwDATA {
-			p.advance()
+		if err := p.expectWords(kwSQL, kwDATA); err != nil {
+			return nil, false, err
 		}
 		return &nodes.RoutineCharacteristic{
 			Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "DATA ACCESS", Value: "MODIFIES SQL DATA",
@@ -347,4 +355,14 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 	}
 
 	return nil, false, nil
+}
+
+// expectWords consumes the given tokens in order, failing at the first that is missing.
+func (p *Parser) expectWords(words ...int) error {
+	for _, w := range words {
+		if _, err := p.expect(w); err != nil {
+			return err
+		}
+	}
+	return nil
 }

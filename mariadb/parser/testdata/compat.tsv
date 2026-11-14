@@ -1040,7 +1040,7 @@ reject	reject	engine	sp_c_chistics/sp_c_chistics_sp_c_chistic!insert	CREATE PROC
 reject	reject	engine	sp_c_chistics/sp_c_chistics_sp_c_chistic!swap	CREATE PROCEDURE a() DIAGNOSTICS COMMIT;
 accept	accept	engine	sp_chistic/COMMENT_SYM_TEXT_STRING_sys	ALTER PROCEDURE a COMMENT 's';
 accept	accept	engine	sp_chistic/LANGUAGE_SYM_SQL_SYM	ALTER PROCEDURE a LANGUAGE SQL;
-accept	reject	engine	sp_chistic/LANGUAGE_SYM_SQL_SYM!drop-1	ALTER PROCEDURE a SQL;
+reject	reject	engine	sp_chistic/LANGUAGE_SYM_SQL_SYM!drop-1	ALTER PROCEDURE a SQL;
 reject	reject	engine	sp_chistic/LANGUAGE_SYM_SQL_SYM!drop-2	ALTER PROCEDURE a LANGUAGE;
 reject	reject	engine	sp_chistic/LANGUAGE_SYM_SQL_SYM!truncate	ALTER PROCEDURE a LANGUAGE
 reject	reject	engine	sp_chistic/LANGUAGE_SYM_SQL_SYM!insert	ALTER PROCEDURE a LANGUAGE SQL zzz;
@@ -1051,21 +1051,21 @@ reject	reject	engine	sp_chistic/NO_SYM_SQL_SYM!truncate	ALTER PROCEDURE a NO
 reject	reject	engine	sp_chistic/NO_SYM_SQL_SYM!insert	ALTER PROCEDURE a NO SQL zzz;
 reject	reject	engine	sp_chistic/NO_SYM_SQL_SYM!swap	ALTER PROCEDURE a NOCACHE SQL;
 accept	accept	engine	sp_chistic/CONTAINS_SYM_SQL_SYM	ALTER PROCEDURE a CONTAINS SQL;
-accept	reject	engine	sp_chistic/CONTAINS_SYM_SQL_SYM!drop-2	ALTER PROCEDURE a CONTAINS;
-accept	reject	engine	sp_chistic/CONTAINS_SYM_SQL_SYM!truncate	ALTER PROCEDURE a CONTAINS
+reject	reject	engine	sp_chistic/CONTAINS_SYM_SQL_SYM!drop-2	ALTER PROCEDURE a CONTAINS;
+reject	reject	engine	sp_chistic/CONTAINS_SYM_SQL_SYM!truncate	ALTER PROCEDURE a CONTAINS
 reject	reject	engine	sp_chistic/CONTAINS_SYM_SQL_SYM!insert	ALTER PROCEDURE a CONTAINS SQL zzz;
 reject	reject	engine	sp_chistic/CONTAINS_SYM_SQL_SYM!swap	ALTER PROCEDURE a CONTEXT SQL;
 accept	accept	engine	sp_chistic/READS_SYM_SQL_SYM_DATA_SYM	ALTER PROCEDURE a READS SQL DATA;
 reject	reject	engine	sp_chistic/READS_SYM_SQL_SYM_DATA_SYM!drop-1	ALTER PROCEDURE a SQL DATA;
-accept	reject	engine	sp_chistic/READS_SYM_SQL_SYM_DATA_SYM!drop-2	ALTER PROCEDURE a READS DATA;
-accept	reject	engine	sp_chistic/READS_SYM_SQL_SYM_DATA_SYM!drop-3	ALTER PROCEDURE a READS SQL;
-accept	reject	engine	sp_chistic/READS_SYM_SQL_SYM_DATA_SYM!truncate	ALTER PROCEDURE a READS SQL
+reject	reject	engine	sp_chistic/READS_SYM_SQL_SYM_DATA_SYM!drop-2	ALTER PROCEDURE a READS DATA;
+reject	reject	engine	sp_chistic/READS_SYM_SQL_SYM_DATA_SYM!drop-3	ALTER PROCEDURE a READS SQL;
+reject	reject	engine	sp_chistic/READS_SYM_SQL_SYM_DATA_SYM!truncate	ALTER PROCEDURE a READS SQL
 reject	reject	engine	sp_chistic/READS_SYM_SQL_SYM_DATA_SYM!insert	ALTER PROCEDURE a READS SQL DATA zzz;
 reject	reject	engine	sp_chistic/READS_SYM_SQL_SYM_DATA_SYM!swap	ALTER PROCEDURE a READ_ONLY SQL DATA;
 accept	accept	engine	sp_chistic/MODIFIES_SYM_SQL_SYM_DATA_SYM	ALTER PROCEDURE a MODIFIES SQL DATA;
-accept	reject	engine	sp_chistic/MODIFIES_SYM_SQL_SYM_DATA_SYM!drop-2	ALTER PROCEDURE a MODIFIES DATA;
-accept	reject	engine	sp_chistic/MODIFIES_SYM_SQL_SYM_DATA_SYM!drop-3	ALTER PROCEDURE a MODIFIES SQL;
-accept	reject	engine	sp_chistic/MODIFIES_SYM_SQL_SYM_DATA_SYM!truncate	ALTER PROCEDURE a MODIFIES SQL
+reject	reject	engine	sp_chistic/MODIFIES_SYM_SQL_SYM_DATA_SYM!drop-2	ALTER PROCEDURE a MODIFIES DATA;
+reject	reject	engine	sp_chistic/MODIFIES_SYM_SQL_SYM_DATA_SYM!drop-3	ALTER PROCEDURE a MODIFIES SQL;
+reject	reject	engine	sp_chistic/MODIFIES_SYM_SQL_SYM_DATA_SYM!truncate	ALTER PROCEDURE a MODIFIES SQL
 reject	reject	engine	sp_chistic/MODIFIES_SYM_SQL_SYM_DATA_SYM!insert	ALTER PROCEDURE a MODIFIES SQL DATA zzz;
 reject	reject	engine	sp_chistic/MODIFIES_SYM_SQL_SYM_DATA_SYM!swap	ALTER PROCEDURE a MODIFY SQL DATA;
 accept	accept	engine	sp_chistic/sp_suid	ALTER PROCEDURE a SQL SECURITY DEFINER;

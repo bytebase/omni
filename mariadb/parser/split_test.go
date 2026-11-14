@@ -42,6 +42,8 @@ func TestSplitCompoundBlocks(t *testing.T) {
 			want: []string{"-- spec\nCREATE OR REPLACE DEFINER = `u`@`%` PACKAGE pk PROCEDURE p(); END", " SELECT 1"}},
 		{name: "CREATE PACKAGE with comments and a quoted definer", sql: "CREATE /* c */ OR REPLACE DEFINER = 'a b'@'localhost' PACKAGE pk PROCEDURE p(); END; SELECT 1;",
 			want: []string{"CREATE /* c */ OR REPLACE DEFINER = 'a b'@'localhost' PACKAGE pk PROCEDURE p(); END", " SELECT 1"}},
+		{name: "CREATE PACKAGE with an executable comment", sql: "CREATE /*! DEFINER = root */ PACKAGE pk PROCEDURE p(); END; SELECT 1;",
+			want: []string{"CREATE /*! DEFINER = root */ PACKAGE pk PROCEDURE p(); END", " SELECT 1"}},
 		{name: "PACKAGE elsewhere is a word", sql: "DROP PACKAGE pk; SELECT package FROM t; SHOW CREATE PACKAGE pk; SELECT 1;",
 			want: []string{"DROP PACKAGE pk", " SELECT package FROM t", " SHOW CREATE PACKAGE pk", " SELECT 1"}},
 		{name: "REPEAT function is not compound", sql: "SELECT REPEAT('x', 3); SELECT 1;",
