@@ -1577,6 +1577,7 @@ type CreateTableStmt struct {
 	Duplicated       bool             // DUPLICATED
 	Immutable        bool             // IMMUTABLE
 	Blockchain       bool             // BLOCKCHAIN
+	OfType           *ObjectName      // OF [schema.]object_type: an object or XMLType table
 	Name             *ObjectName      // table name
 	Sharing          string           // SHARING = { METADATA | DATA | EXTENDED DATA | NONE }
 	Columns          *List            // column definitions (list of *ColumnDef)

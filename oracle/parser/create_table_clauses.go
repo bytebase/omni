@@ -32,13 +32,6 @@ func (p *Parser) parseCreateTableSharing(stmt *nodes.CreateTableStmt) error {
 		p.advance() // consume EXTENDED
 		stmt.Sharing = "EXTENDED DATA"
 		if !p.isKeywordStr("DATA") {
-			// Oracle refuses EXTENDED without DATA. compat.tsv records a
-			// statement that ends at EXTENDED as accepted until the
-			// rejudge of #1106; omni keeps its earlier reading of it
-			// until then.
-			if p.isStatementEnd() {
-				return nil
-			}
 			return p.syntaxErrorAtCur()
 		}
 	default:
@@ -612,9 +605,6 @@ func (p *Parser) parseCreateTableVarrayColProperties(hasColumns bool) error {
 	if err := p.expectCreateTableToken(kwAS); err != nil {
 		return err
 	}
-	if p.isCreateTableCutAtProperty(hasColumns) {
-		return nil
-	}
 	return p.parseCreateTableVarrayLobTarget()
 }
 
@@ -680,9 +670,6 @@ func (p *Parser) parseCreateTableNestedTableColProperties(hasColumns bool) error
 	}
 	if err := p.expectCreateTableToken(kwAS); err != nil {
 		return err
-	}
-	if p.isCreateTableCutAtProperty(hasColumns) {
-		return nil
 	}
 	if err := p.parseCreateTableName(); err != nil {
 		return err
@@ -839,10 +826,6 @@ func (p *Parser) parseCreateTableSize() error {
 //	    | { DELETE | ENABLE | DISABLE } POLICY ilm_policy_name
 //	    | DELETE_ALL | ENABLE_ALL | DISABLE_ALL
 //	    }
-//
-// Oracle refuses a statement that ends at ADD POLICY (ORA-38339), but
-// compat.tsv records it as accepted until the rejudge of #1106; omni keeps
-// its earlier reading of it until then.
 func (p *Parser) parseCreateTableIlmClause() error {
 	p.advance() // consume ILM
 	switch {
@@ -850,9 +833,6 @@ func (p *Parser) parseCreateTableIlmClause() error {
 		p.advance() // consume ADD
 		if err := p.expectCreateTableWord("POLICY"); err != nil {
 			return err
-		}
-		if p.isStatementEnd() {
-			return nil
 		}
 		return p.parseCreateTableIlmPolicy()
 	case p.cur.Type == kwDELETE, p.cur.Type == kwENABLE, p.cur.Type == kwDISABLE:
@@ -1051,15 +1031,6 @@ func (p *Parser) parseCreateTableIlmFunction() error {
 	return err
 }
 
-// isCreateTableCutAtProperty reports whether a table without a column
-// list ends here. Oracle refuses such a statement, cut off inside some of
-// its properties (CREATE TABLE a VARRAY a STORE AS), but compat.tsv
-// records it as accepted until the rejudge of #1085 and #1106; omni keeps
-// its earlier reading of these ends until then.
-func (p *Parser) isCreateTableCutAtProperty(hasColumns bool) bool {
-	return !hasColumns && p.isStatementEnd()
-}
-
 // isCreateTableRefusedFileSegname reports whether the LOB segment name
 // after SECUREFILE or BASICFILE is one Oracle 23ai refuses there with
 // ORA-00922: the one-letter names A, D, E, G, K, M, P and T, quoted or
@@ -1172,4 +1143,499 @@ func (p *Parser) parseCreateTableExternalData() error {
 		}
 	}
 	return p.expectCreateTableToken(')')
+}
+
+// ---------------------------------------------------------------------------
+// column_definition, virtual_column_definition, period_definition
+// ---------------------------------------------------------------------------
+
+// isCreateTableColumnClauseStart reports whether the word after a column's
+// name starts one of its clauses rather than naming its datatype: COLLATE,
+// ENCRYPT, ANNOTATIONS, or SCOPE IS.
+func (p *Parser) isCreateTableColumnClauseStart() bool {
+	switch {
+	case p.isKeywordStr("COLLATE"), p.isKeywordStr("ENCRYPT"), p.isKeywordStr("ANNOTATIONS"):
+		return true
+	case p.isKeywordStr("SCOPE"):
+		return p.peekNext().Type == kwIS
+	}
+	return false
+}
+
+// parseCreateTableAnnotations reads a column's annotations_clause.
+//
+//	ANNOTATIONS ( [ ADD ] annotation_name [ 'annotation_value' ] [, ...] )
+//
+// CREATE TABLE adds annotations: Oracle 23ai refuses DROP there, and a name
+// given twice, at the second.
+func (p *Parser) parseCreateTableAnnotations() error {
+	p.advance() // consume ANNOTATIONS
+	if err := p.expectCreateTableToken('('); err != nil {
+		return err
+	}
+	seen := map[string]bool{}
+	for {
+		if p.cur.Type == kwADD {
+			p.advance()
+		}
+		if seen[p.cur.Str] && p.isCreateTableNameStart() {
+			return p.syntaxErrorAtCur()
+		}
+		seen[p.cur.Str] = true
+		if err := p.parseCreateTableName(); err != nil {
+			return err
+		}
+		if p.cur.Type == tokSCONST {
+			p.advance()
+		}
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance() // consume ','
+	}
+	return p.expectCreateTableToken(')')
+}
+
+// parseCreateTableEditionClauses reads a virtual column's
+// evaluation_edition_clause and unusable_editions_clause.
+//
+//	evaluation_edition_clause:
+//	    EVALUATE USING { CURRENT EDITION | EDITION edition | NULL EDITION }
+//	unusable_editions_clause:
+//	    [ UNUSABLE BEFORE { CURRENT EDITION | EDITION edition } ]
+//	    [ UNUSABLE BEGINNING WITH { CURRENT EDITION | EDITION edition | NULL EDITION } ]
+func (p *Parser) parseCreateTableEditionClauses() error {
+	if p.isKeywordStr("EVALUATE") {
+		p.advance() // consume EVALUATE
+		if err := p.expectCreateTableToken(kwUSING); err != nil {
+			return err
+		}
+		if err := p.parseCreateTableEdition(true); err != nil {
+			return err
+		}
+	}
+	before := false
+	for p.isKeywordStr("UNUSABLE") {
+		p.advance() // consume UNUSABLE
+		switch {
+		case !before && p.isKeywordStr("BEFORE"):
+			p.advance()
+			before = true
+			if err := p.parseCreateTableEdition(false); err != nil {
+				return err
+			}
+		case p.isKeywordStr("BEGINNING"):
+			p.advance()
+			if err := p.expectCreateTableToken(kwWITH); err != nil {
+				return err
+			}
+			return p.parseCreateTableEdition(true)
+		default:
+			return p.syntaxErrorAtCur()
+		}
+	}
+	return nil
+}
+
+// parseCreateTableEdition reads { CURRENT EDITION | EDITION edition |
+// NULL EDITION }, NULL EDITION where null allows it.
+func (p *Parser) parseCreateTableEdition(null bool) error {
+	switch {
+	case p.cur.Type == kwCURRENT, null && p.cur.Type == kwNULL:
+		p.advance()
+		return p.expectCreateTableWord("EDITION")
+	case p.isKeywordStr("EDITION"):
+		p.advance()
+		return p.parseCreateTableName()
+	}
+	return p.syntaxErrorAtCur()
+}
+
+// isCreateTablePeriodStart reports whether a period_definition starts here.
+func (p *Parser) isCreateTablePeriodStart() bool {
+	return p.isKeywordStr("PERIOD") && p.peekNext().Type == kwFOR
+}
+
+// parseCreateTablePeriod reads a period_definition, which adds the hidden
+// start and end columns of its valid time.
+//
+//	PERIOD FOR valid_time_column [ ( start_time_column , end_time_column ) ]
+func (p *Parser) parseCreateTablePeriod() error {
+	p.advance() // consume PERIOD
+	p.advance() // consume FOR
+	if err := p.parseCreateTableName(); err != nil {
+		return err
+	}
+	if p.cur.Type != '(' {
+		return nil
+	}
+	p.advance() // consume '('
+	if err := p.parseCreateTableName(); err != nil {
+		return err
+	}
+	if err := p.expectCreateTableToken(','); err != nil {
+		return err
+	}
+	if err := p.parseCreateTableName(); err != nil {
+		return err
+	}
+	return p.expectCreateTableToken(')')
+}
+
+// ---------------------------------------------------------------------------
+// object_table, XMLType_table
+// ---------------------------------------------------------------------------
+
+// parseCreateTableObjectTable reads the part of an object_table or an
+// XMLType_table before its physical and table properties, after OF.
+//
+//	object_table:
+//	    OF [ schema. ] object_type
+//	    [ object_table_substitution ]
+//	    [ ( object_properties ) ]
+//	    [ ON COMMIT { DELETE | PRESERVE } ROWS ]
+//	    [ oid_clause ] [ oid_index_clause ]
+//	XMLType_table:
+//	    OF XMLTYPE
+//	    [ ( object_properties ) ]
+//	    [ XMLSchema_spec ]
+//	    [ ON COMMIT { DELETE | PRESERVE } ROWS ]
+//	    [ oid_clause ] [ oid_index_clause ]
+//
+//	object_table_substitution: [ NOT ] SUBSTITUTABLE AT ALL LEVELS
+//	oid_clause: OBJECT IDENTIFIER IS { SYSTEM GENERATED | PRIMARY KEY }
+//	oid_index_clause:
+//	    OIDINDEX [ index ] ( [ physical_attributes_clause | TABLESPACE tablespace ] [ ... ] )
+//
+// Oracle 23ai takes OBJECT IDENTIFIER without IS, and refuses STORE AS
+// (XMLType_storage) after OF XMLTYPE at STORE.
+func (p *Parser) parseCreateTableObjectTable(stmt *nodes.CreateTableStmt) error {
+	p.advance() // consume OF
+	if !p.isCreateTableNameStart() {
+		return p.syntaxErrorAtCur()
+	}
+	typeName, err := p.parseObjectName()
+	if err != nil {
+		return err
+	}
+	stmt.OfType = typeName
+	xmlType := typeName.Schema == "" && typeName.Name == "XMLTYPE"
+	if !xmlType && (p.isKeywordStr("SUBSTITUTABLE") || p.cur.Type == kwNOT && isCreateTableWordTok(p.peekNext(), "SUBSTITUTABLE")) {
+		if err := p.parseCreateTableSubstitutable(); err != nil {
+			return err
+		}
+	}
+	if p.cur.Type == '(' {
+		if err := p.parseCreateTableObjectProperties(stmt); err != nil {
+			return err
+		}
+	}
+	if xmlType && (p.isKeywordStr("XMLSCHEMA") || p.isKeywordStr("ELEMENT")) {
+		if err := p.parseCreateTableXMLSchemaSpec(); err != nil {
+			return err
+		}
+	}
+	if p.isKeywordStr("OBJECT") {
+		p.advance() // consume OBJECT
+		if err := p.expectCreateTableWord("IDENTIFIER"); err != nil {
+			return err
+		}
+		if p.cur.Type == kwIS {
+			p.advance()
+		}
+		switch {
+		case p.isKeywordStr("SYSTEM"):
+			p.advance()
+			if err := p.expectCreateTableWord("GENERATED"); err != nil {
+				return err
+			}
+		case p.cur.Type == kwPRIMARY:
+			p.advance()
+			if err := p.expectCreateTableToken(kwKEY); err != nil {
+				return err
+			}
+		default:
+			return p.syntaxErrorAtCur()
+		}
+	}
+	if p.isKeywordStr("OIDINDEX") {
+		p.advance() // consume OIDINDEX
+		if p.cur.Type != '(' {
+			if err := p.parseCreateTableName(); err != nil {
+				return err
+			}
+		}
+		if err := p.expectCreateTableToken('('); err != nil {
+			return err
+		}
+		for p.cur.Type != ')' {
+			switch {
+			case p.cur.Type == kwTABLESPACE:
+				p.advance()
+				if err := p.parseCreateTableName(); err != nil {
+					return err
+				}
+			case p.cur.Type == kwPCTFREE, p.isKeywordStr("PCTUSED"), p.isKeywordStr("INITRANS"), p.isKeywordStr("MAXTRANS"):
+				p.advance()
+				if err := p.parseCreateTableInteger(); err != nil {
+					return err
+				}
+			case p.isKeywordStr("STORAGE"):
+				if err := p.parseCreateTableStorageClause(); err != nil {
+					return err
+				}
+			default:
+				return p.syntaxErrorAtCur()
+			}
+		}
+		p.advance() // consume ')'
+	}
+	return nil
+}
+
+// parseCreateTableXMLSchemaSpec reads an XMLSchema_spec.
+//
+//	[ XMLSCHEMA XMLSchema_URL ]
+//	ELEMENT { element | XMLSchema_URL # element }
+//	[ STORE ALL VARRAYS AS { LOBS | TABLES } ]
+//	[ { ALLOW | DISALLOW } NONSCHEMA ]
+//	[ { ALLOW | DISALLOW } ANYSCHEMA ]
+func (p *Parser) parseCreateTableXMLSchemaSpec() error {
+	if p.isKeywordStr("XMLSCHEMA") {
+		p.advance()
+		if err := p.expectCreateTableToken(tokSCONST); err != nil {
+			return err
+		}
+	}
+	if err := p.expectCreateTableWord("ELEMENT"); err != nil {
+		return err
+	}
+	if p.cur.Type == tokSCONST {
+		p.advance()
+		if err := p.expectCreateTableToken('#'); err != nil {
+			return err
+		}
+	}
+	if err := p.parseCreateTableName(); err != nil {
+		return err
+	}
+	if p.isKeywordStr("STORE") {
+		p.advance()
+		if err := p.expectCreateTableToken(kwALL); err != nil {
+			return err
+		}
+		if err := p.expectCreateTableWord("VARRAYS"); err != nil {
+			return err
+		}
+		if err := p.expectCreateTableToken(kwAS); err != nil {
+			return err
+		}
+		if !p.isKeywordStr("LOBS") && !p.isKeywordStr("TABLES") {
+			return p.syntaxErrorAtCur()
+		}
+		p.advance()
+	}
+	for _, schema := range []string{"NONSCHEMA", "ANYSCHEMA"} {
+		if (p.isKeywordStr("ALLOW") || p.isKeywordStr("DISALLOW")) && isCreateTableWordTok(p.peekNext(), schema) {
+			p.advance()
+			p.advance()
+		}
+	}
+	return nil
+}
+
+// parseCreateTableObjectProperties reads ( object_properties ).
+//
+//	{ { column | attribute }
+//	  [ DEFAULT expr ]
+//	  [ { inline_constraint | inline_ref_constraint } [ ... ] ]
+//	| out_of_line_constraint
+//	| out_of_line_ref_constraint
+//	| supplemental_logging_props
+//	} [, ... ]
+//
+// An attribute takes a default or a constraint: Oracle 23ai refuses one
+// alone (ORA-00922 at the word after it).
+func (p *Parser) parseCreateTableObjectProperties(stmt *nodes.CreateTableStmt) error {
+	p.advance() // consume '('
+	for {
+		switch {
+		case p.isKeywordStr("SUPPLEMENTAL"):
+			if err := p.parseCreateTableSupplementalLogging(); err != nil {
+				return err
+			}
+		case p.isOutOfLineRefConstraintStart():
+			tc, err := p.parseOutOfLineRefConstraint()
+			if err != nil {
+				return err
+			}
+			stmt.Constraints.Items = append(stmt.Constraints.Items, tc)
+		case p.isTableConstraintStart():
+			tc, err := p.parseTableConstraint()
+			if err != nil {
+				return err
+			}
+			if tc == nil {
+				return p.syntaxErrorAtCur()
+			}
+			stmt.Constraints.Items = append(stmt.Constraints.Items, tc)
+		default:
+			if err := p.parseCreateTableObjectAttribute(stmt); err != nil {
+				return err
+			}
+		}
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance() // consume ','
+	}
+	return p.expectCreateTableToken(')')
+}
+
+// parseCreateTableObjectAttribute reads an attribute of object_properties:
+// its name, then [ DEFAULT expr ] and its constraints, at least one of
+// them.
+func (p *Parser) parseCreateTableObjectAttribute(stmt *nodes.CreateTableStmt) error {
+	start := p.pos()
+	if !p.isCreateTableNameStart() {
+		return p.syntaxErrorAtCur()
+	}
+	col := &nodes.ColumnDef{Constraints: &nodes.List{}, Loc: nodes.Loc{Start: start}}
+	var err error
+	if col.Name, err = p.parseIdentifier(); err != nil {
+		return err
+	}
+	if p.cur.Type == kwDEFAULT {
+		p.advance()
+		if col.Default, err = p.parseExpr(); err != nil {
+			return err
+		}
+		if col.Default == nil {
+			return p.syntaxErrorAtCur()
+		}
+	}
+	for {
+		switch {
+		case p.cur.Type == kwNOT && p.peekNext().Type == kwNULL, p.cur.Type == kwNULL:
+			if col.Null || col.NotNull {
+				return p.syntaxErrorAtCur()
+			}
+			if p.cur.Type == kwNOT {
+				p.advance()
+				col.NotNull = true
+			} else {
+				col.Null = true
+			}
+			p.advance() // consume NULL
+			var cs constraintState
+			if err := p.parseConstraintState(&cs); err != nil {
+				return err
+			}
+		case p.cur.Type == kwCONSTRAINT:
+			cc, err := p.parseColumnConstraint()
+			if err != nil {
+				return err
+			}
+			if cc != nil {
+				col.Constraints.Items = append(col.Constraints.Items, cc)
+			}
+		case p.cur.Type == kwPRIMARY, p.cur.Type == kwUNIQUE, p.cur.Type == kwCHECK, p.cur.Type == kwREFERENCES:
+			cc, err := p.parseColumnConstraintInline()
+			if err != nil {
+				return err
+			}
+			if cc != nil {
+				col.Constraints.Items = append(col.Constraints.Items, cc)
+			}
+		case p.cur.Type == kwWITH && p.peekNext().Type == kwROWID:
+			p.advance() // consume WITH
+			p.advance() // consume ROWID
+			col.Constraints.Items = append(col.Constraints.Items, &nodes.ColumnConstraint{Type: nodes.CONSTRAINT_WITH_ROWID, Loc: nodes.Loc{Start: p.prev.Loc, End: p.prev.End}})
+		case p.isKeywordStr("SCOPE") && p.peekNext().Type == kwIS:
+			p.advance() // consume SCOPE
+			p.advance() // consume IS
+			table, err := p.parseRefScopeTable()
+			if err != nil {
+				return err
+			}
+			col.Constraints.Items = append(col.Constraints.Items, &nodes.ColumnConstraint{Type: nodes.CONSTRAINT_SCOPE, RefTable: table})
+		default:
+			if col.Default == nil && !col.Null && !col.NotNull && col.Constraints.Len() == 0 {
+				return p.syntaxErrorAtCur()
+			}
+			col.Loc.End = p.prev.End
+			stmt.Columns.Items = append(stmt.Columns.Items, col)
+			return nil
+		}
+	}
+}
+
+// parseCreateTableSupplementalLogging reads supplemental_logging_props.
+//
+//	SUPPLEMENTAL LOG { supplemental_log_grp_clause | supplemental_id_key_clause }
+//	supplemental_log_grp_clause:
+//	    GROUP log_group ( column [ NO LOG ] [, column [ NO LOG ] ] ... ) [ ALWAYS ]
+//	supplemental_id_key_clause:
+//	    DATA ( { ALL | PRIMARY KEY | UNIQUE | FOREIGN KEY } [, ...] ) COLUMNS
+func (p *Parser) parseCreateTableSupplementalLogging() error {
+	p.advance() // consume SUPPLEMENTAL
+	if err := p.expectCreateTableWord("LOG"); err != nil {
+		return err
+	}
+	if p.isKeywordStr("DATA") {
+		p.advance()
+		if err := p.expectCreateTableToken('('); err != nil {
+			return err
+		}
+		for {
+			switch {
+			case p.cur.Type == kwALL, p.cur.Type == kwUNIQUE:
+				p.advance()
+			case p.cur.Type == kwPRIMARY, p.cur.Type == kwFOREIGN:
+				p.advance()
+				if err := p.expectCreateTableToken(kwKEY); err != nil {
+					return err
+				}
+			default:
+				return p.syntaxErrorAtCur()
+			}
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance()
+		}
+		if err := p.expectCreateTableToken(')'); err != nil {
+			return err
+		}
+		return p.expectCreateTableToken(kwCOLUMNS)
+	}
+	if err := p.expectCreateTableToken(kwGROUP); err != nil {
+		return err
+	}
+	if err := p.parseCreateTableName(); err != nil {
+		return err
+	}
+	if err := p.expectCreateTableToken('('); err != nil {
+		return err
+	}
+	for {
+		if err := p.parseCreateTableName(); err != nil {
+			return err
+		}
+		if p.isKeywordStr("NO") && isCreateTableWordTok(p.peekNext(), "LOG") {
+			p.advance()
+			p.advance()
+		}
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	if err := p.expectCreateTableToken(')'); err != nil {
+		return err
+	}
+	if p.cur.Type == kwALWAYS {
+		p.advance()
+	}
+	return nil
 }

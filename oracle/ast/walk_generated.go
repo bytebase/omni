@@ -698,6 +698,9 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Target)
 		}
 	case *CreateTableStmt:
+		if n.OfType != nil {
+			Walk(v, n.OfType)
+		}
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}

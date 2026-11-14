@@ -35,6 +35,14 @@ type Parser struct {
 	// does Oracle take an index_compression (COMPRESS n, COMPRESS ADVANCED).
 	createTableIndexOrganized bool
 
+	// createTableEngineCheck is set while CREATE TABLE is parsed once a
+	// clause Oracle checks against the table before it asks for a missing
+	// column list has been read: enable_disable_clause (ORA-02432),
+	// ILM DELETE_ALL, ENABLE_ALL or DISABLE_ALL (ORA-38346), DEFAULT
+	// COLLATION (ORA-43929) and PARENT (ORA-02523). Those are the engine's
+	// answers, not syntax, and omni leaves them to it.
+	createTableEngineCheck bool
+
 	// caseKinds tells, for each CASE token from the first one parsePrimary
 	// met to the end of the range, whether it opens a CASE expression (true)
 	// or names a column (false). decideCaseTokens fills it in one pass.

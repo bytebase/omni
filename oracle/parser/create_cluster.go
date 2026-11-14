@@ -4,22 +4,9 @@ import (
 	nodes "github.com/bytebase/omni/oracle/ast"
 )
 
-// isClusterValueCut reports whether the statement ends where a cluster
-// option's value belongs. Oracle refuses the missing value with the
-// option's own code (ORA-02211 for PCTFREE, ORA-02229 for SIZE, ORA-02216
-// for TABLESPACE), but compat.tsv records such a statement as accepted
-// until the rejudge of #1106; omni keeps its earlier reading of these ends
-// until then.
-func (p *Parser) isClusterValueCut() bool {
-	return p.isStatementEnd()
-}
-
 // parseClusterInteger reads an option's integer value into *v when v is
 // not nil.
 func (p *Parser) parseClusterInteger(v **int) error {
-	if p.isClusterValueCut() {
-		return nil
-	}
 	if p.cur.Type != tokICONST {
 		return p.syntaxErrorAtCur()
 	}
@@ -156,17 +143,11 @@ func (p *Parser) parseCreateClusterStmt(start int) (*nodes.CreateClusterStmt, er
 			}
 		case p.cur.Type == kwSIZE:
 			p.advance()
-			if p.isClusterValueCut() {
-				break
-			}
 			if stmt.Size, err = p.parseClusterSize(); err != nil {
 				return nil, err
 			}
 		case p.cur.Type == kwTABLESPACE:
 			p.advance()
-			if p.isClusterValueCut() {
-				break
-			}
 			stmt.Tablespace = p.cur.Str
 			if err := p.parseCreateTableName(); err != nil {
 				return nil, err
@@ -177,9 +158,6 @@ func (p *Parser) parseCreateClusterStmt(start int) (*nodes.CreateClusterStmt, er
 		case p.isKeywordStr("HASHKEYS"):
 			p.advance()
 			stmt.IsHash = true
-			if p.isClusterValueCut() {
-				break
-			}
 			stmt.HashKeys = p.cur.Str
 			if err := p.parseCreateTableInteger(); err != nil {
 				return nil, err
@@ -199,9 +177,6 @@ func (p *Parser) parseCreateClusterStmt(start int) (*nodes.CreateClusterStmt, er
 		case p.isKeywordStr("SINGLE"):
 			p.advance()
 			stmt.SingleTable = true
-			if p.isClusterValueCut() {
-				break
-			}
 			if err := p.expectCreateTableToken(kwTABLE); err != nil {
 				return nil, err
 			}
@@ -302,7 +277,7 @@ func (p *Parser) parseClusterRangePartitions() error {
 		return err
 	}
 	for {
-		def, err := p.parseCreateTablePartitionDesc(createTableRangeBound, false, createTableHashBound, false)
+		def, err := p.parseCreateTablePartitionDesc(createTableRangeBound, false, createTableHashBound)
 		if err != nil {
 			return err
 		}
@@ -378,9 +353,6 @@ func (p *Parser) parseAlterClusterStmt(start int) (*nodes.AlterClusterStmt, erro
 		case p.cur.Type == kwSIZE:
 			p.advance()
 			stmt.Action = "SIZE"
-			if p.isClusterValueCut() {
-				break
-			}
 			if stmt.Size, err = p.parseClusterSize(); err != nil {
 				return nil, err
 			}
@@ -445,9 +417,6 @@ func (p *Parser) parseAlterClusterStmt(start int) (*nodes.AlterClusterStmt, erro
 			}
 			if p.isKeywordStr("KEEP") {
 				p.advance()
-				if p.isClusterValueCut() {
-					break
-				}
 				keep, err := p.parseClusterSize()
 				if err != nil {
 					return nil, err
