@@ -151,7 +151,9 @@ func (p *Parser) parseCreateProcedureStmt(orAlter bool) (*nodes.CreateProcedureS
 		return nil, errCollecting
 	}
 
-	// RETURN takes a value inside a routine's body (procRoutineDepth).
+	// RETURN takes a value inside a routine's body (procRoutineDepth), and,
+	// without BEGIN ... END, anywhere after it until GO (procedureBatch).
+	p.procedureBatch = true
 	p.procRoutineDepth++
 	defer func() { p.procRoutineDepth-- }()
 	switch {

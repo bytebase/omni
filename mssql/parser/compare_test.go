@@ -24147,3 +24147,30 @@ func TestParseBuiltinCallsInContext(t *testing.T) {
 		}
 	}
 }
+
+// TestParseProceduralFormsSQLServerTakes pins forms the pinned SQL Server 2022
+// takes, and the ones it refuses, around DBCC options, DECLARE and RETURN.
+func TestParseProceduralFormsSQLServerTakes(t *testing.T) {
+	for _, sql := range []string{
+		"DBCC CHECKCONSTRAINTS WITH ALL_CONSTRAINTS",
+		"DBCC SHOWCONTIG WITH ALL_INDEXES",
+		"DECLARE @pi int, @PI int",
+		"CREATE PROCEDURE p AS SELECT 1; RETURN 0",
+		"ALTER PROCEDURE p AS SET NOCOUNT ON; RETURN 1",
+	} {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q): %v", sql, err)
+		}
+	}
+	for _, sql := range []string{
+		"DECLARE @pi int, @pi int",
+		"CREATE PROCEDURE p AS SELECT 1\nGO\nRETURN 0",
+		"RAISERROR('failure', 16, @@TRANCOUNT)",
+		"SET ROWCOUNT @@ROWCOUNT",
+		"DBCC CHECKDB WITH NOINDEX",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) = nil error, want SQL Server's rejection", sql)
+		}
+	}
+}

@@ -46,6 +46,11 @@ type Parser struct {
 	procWhileDepth   int
 	procCatchDepth   int
 	procRoutineDepth int
+	// procedureBatch is set by CREATE or ALTER PROCEDURE and cleared by GO:
+	// a procedure's body runs to the end of its batch, so every statement
+	// after AS is the procedure's (procedureStatementBody, TSql160.g), and a
+	// RETURN there may take a value.
+	procedureBatch bool
 }
 
 // enterSearchCondition / leaveSearchCondition push and pop the boolean

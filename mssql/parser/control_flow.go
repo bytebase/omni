@@ -341,7 +341,7 @@ func (p *Parser) parseReturnStmt() (*nodes.ReturnStmt, error) {
 		if err != nil {
 			return nil, err
 		}
-		if stmt.Value != nil && p.procRoutineDepth == 0 {
+		if stmt.Value != nil && p.procRoutineDepth == 0 && !p.procedureBatch {
 			return nil, p.newParseError(valLoc, "a RETURN statement with a return value cannot be used in this context")
 		}
 	}

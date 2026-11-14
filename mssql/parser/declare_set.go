@@ -137,7 +137,10 @@ func (p *Parser) parseDeclareStmt() (*nodes.DeclareStmt, error) {
 			}
 			return nil, p.syntaxErrorAtCur()
 		}
-		key := strings.ToLower(vd.Name)
+		// Names are compared as written: whether @a and @A collide depends
+		// on the server's collation, which Parse does not know, while the
+		// same spelling twice fails under any (Msg 134).
+		key := vd.Name
 		if seen[key] {
 			return nil, p.newParseError(vd.Loc.Start, fmt.Sprintf("the variable name '%s' has already been declared", vd.Name))
 		}

@@ -11,7 +11,7 @@ import (
 // any other word (Msg 195), whatever the command.
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/database-console-commands/dbcc-transact-sql
 var dbccOptionNames = map[string]bool{
-	"ALL_ERRORMSGS": true, "ALL_LEVELS": true, "COUNT_ROWS": true, "DATA_PURITY": true,
+	"ALL_CONSTRAINTS": true, "ALL_ERRORMSGS": true, "ALL_INDEXES": true, "ALL_LEVELS": true, "COUNT_ROWS": true, "DATA_PURITY": true,
 	"DENSITY_VECTOR": true, "ESTIMATEONLY": true, "EXTENDED_LOGICAL_CHECKS": true, "FAST": true,
 	"HISTOGRAM": true, "NO_INFOMSGS": true, "PHYSICAL_ONLY": true, "STAT_HEADER": true,
 	"STATS_STREAM": true, "TABLERESULTS": true, "TABLOCK": true, "MAXDOP": true,
