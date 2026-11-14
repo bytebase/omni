@@ -592,6 +592,10 @@ var noFuture = map[string]bool{
 	"ROW ACCESS POLICY": true, "SESSION POLICY": true, "STORAGE LIFECYCLE POLICY": true,
 }
 
+// noAll holds the object types ON ALL cannot name, from the GRANT page's
+// object_type_plural parameter and usage notes.
+var noAll = map[string]bool{"MAINTENANCE POLICY": true, "PIPE": true, "TAG": true, "MASKING POLICY": true}
+
 // objectPrivilegesRef grants account-object privileges on a choice of
 // object types, as GRANT and REVOKE write it.
 var objectPrivilegesRef = regexp.MustCompile(`\{ accountObjectPrivileges\s+\| ALL \[ PRIVILEGES \] \} ON \{ ([A-Z |]+) \} (<[a-z_]+>)`)
@@ -645,6 +649,10 @@ func objectPrivileges(blocks []string) ([]string, bool) {
 						// A function or procedure is named with its argument
 						// types, which tell overloads apart.
 						target += " ( [ <arg_data_type> [ , ... ] ] )"
+					}
+					if noAll[o] {
+						alts = append(alts, privilegesFor(takes[o])+" ON "+target)
+						continue
 					}
 					alts = append(alts, privilegesFor(takes[o])+" ON { "+target+" | ALL "+plural(o)+" IN "+in+" }")
 				}
@@ -857,7 +865,9 @@ func convertPage(slug string, blocks []string, fixes []*fix) pageGrammar {
 			var err error
 			for _, u := range defs[name] {
 				var a []string
+				c.commas = commaOptionLists(name)
 				a, err = c.definition(u.lines, u.variant)
+				c.commas = false
 				if err != nil {
 					break
 				}
@@ -981,6 +991,15 @@ func ruleName(slug string) string {
 type converter struct {
 	page string
 	defs map[string]bool // fragments the page defines and that converted
+	// commas is set while converting a list of options the pages say may be
+	// separated by spaces, commas or newlines.
+	commas bool
+}
+
+// commaOptionLists names the definitions whose options may be separated by
+// spaces, commas or newlines, as the file format and COPY pages say.
+func commaOptionLists(def string) bool {
+	return strings.HasPrefix(def, "formatTypeOptions") || def == "copyOptions"
 }
 
 func (c *converter) fragName(def string) string { return c.page + "_" + def }
@@ -1048,7 +1067,11 @@ func (c *converter) definition(lines []codeLine, variant bool) ([]string, error)
 			}
 			alts = append(alts, a...)
 		}
-		return []string{"(" + strings.Join(dedupe(alts), " | ") + ")+"}, nil
+		x := "(" + strings.Join(dedupe(alts), " | ") + ")"
+		if c.commas {
+			return []string{x + " (','? " + x + ")*"}, nil
+		}
+		return []string{x + "+"}, nil
 	case commented && len(code) >= 2:
 		var alts []string
 		for _, t := range code {
