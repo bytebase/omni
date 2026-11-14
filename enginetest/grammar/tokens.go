@@ -29,6 +29,11 @@ const (
 	// recognizer also matches qualified, two or three of them joined by
 	// dots, as Snowflake writes db.schema.table wherever it takes a name.
 	Qualified = "(qualified)"
+	// Path, at the start of a row's note: the token's sample is a variable,
+	// and a recognizer reads its sigil as the start of a path, one token
+	// through any ~ or % after the sigil and every name character, dot and
+	// slash after that, as Snowflake writes stages: @~, @%t, @db.s.a/dir.
+	Path = "(path)"
 )
 
 // Tokens is an engine's testdata/tokens.tsv: the text generated rows write
@@ -47,6 +52,7 @@ const (
 type Tokens struct {
 	forms     map[string]string
 	qualified map[string]bool
+	path      map[string]bool
 }
 
 // ReadTokens reads a tokens.tsv. Each row is token, form, and a note citing
@@ -56,7 +62,7 @@ func ReadTokens(path string) (*Tokens, error) {
 	if err != nil {
 		return nil, err
 	}
-	t := &Tokens{forms: map[string]string{}, qualified: map[string]bool{}}
+	t := &Tokens{forms: map[string]string{}, qualified: map[string]bool{}, path: map[string]bool{}}
 	for i, line := range strings.Split(string(b), "\n") {
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
@@ -75,6 +81,9 @@ func ReadTokens(path string) (*Tokens, error) {
 		t.forms[name] = form
 		if len(f) == 3 && strings.HasPrefix(f[2], Qualified) {
 			t.qualified[name] = true
+		}
+		if len(f) == 3 && strings.HasPrefix(f[2], Path) {
+			t.path[name] = true
 		}
 	}
 	return t, nil

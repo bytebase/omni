@@ -1999,15 +1999,17 @@ reject	undocumented	docs	statement/createExternalFunction!drop-12	CREATE EXTERNA
 reject	undocumented	docs	statement/createExternalFunction!drop-13	CREATE EXTERNAL FUNCTION a() RETURNS INT API_INTEGRATION = a AS
 reject	undocumented	docs	statement/createExternalFunction!insert	CREATE EXTERNAL FUNCTION a() RETURNS INT API_INTEGRATION = a AS 's' zzz
 reject	undocumented	docs	statement/createExternalFunction!swap	CREATION EXTERNAL FUNCTION a() RETURNS INT API_INTEGRATION = a AS 's'
-reject	accept	docs	statement/createExternalTable	CREATE EXTERNAL TABLE a USING TEMPLATE SELECT 1
-reject	undocumented	docs	statement/createExternalTable!drop-1	EXTERNAL TABLE a USING TEMPLATE SELECT 1
-reject	undocumented	docs	statement/createExternalTable!drop-3	CREATE EXTERNAL a USING TEMPLATE SELECT 1
-reject	undocumented	docs	statement/createExternalTable!drop-4	CREATE EXTERNAL TABLE USING TEMPLATE SELECT 1
-reject	undocumented	docs	statement/createExternalTable!drop-5	CREATE EXTERNAL TABLE a TEMPLATE SELECT 1
-reject	undocumented	docs	statement/createExternalTable!drop-6	CREATE EXTERNAL TABLE a USING SELECT 1
-reject	undocumented	docs	statement/createExternalTable!drop-7	CREATE EXTERNAL TABLE a USING TEMPLATE
-reject	undocumented	docs	statement/createExternalTable!insert	CREATE EXTERNAL TABLE a USING TEMPLATE SELECT 1 zzz
-reject	undocumented	docs	statement/createExternalTable!swap	CREATION EXTERNAL TABLE a USING TEMPLATE SELECT 1
+reject	accept	docs	statement/createExternalTable	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1)
+reject	undocumented	docs	statement/createExternalTable!drop-1	EXTERNAL TABLE a USING TEMPLATE(SELECT 1)
+reject	undocumented	docs	statement/createExternalTable!drop-3	CREATE EXTERNAL a USING TEMPLATE(SELECT 1)
+reject	undocumented	docs	statement/createExternalTable!drop-4	CREATE EXTERNAL TABLE USING TEMPLATE(SELECT 1)
+reject	undocumented	docs	statement/createExternalTable!drop-5	CREATE EXTERNAL TABLE a TEMPLATE(SELECT 1)
+reject	undocumented	docs	statement/createExternalTable!drop-6	CREATE EXTERNAL TABLE a USING(SELECT 1)
+reject	undocumented	docs	statement/createExternalTable!drop-7	CREATE EXTERNAL TABLE a USING TEMPLATE SELECT 1)
+reject	undocumented	docs	statement/createExternalTable!drop-8	CREATE EXTERNAL TABLE a USING TEMPLATE()
+reject	undocumented	docs	statement/createExternalTable!drop-9	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1
+reject	undocumented	docs	statement/createExternalTable!insert	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) zzz
+reject	undocumented	docs	statement/createExternalTable!swap	CREATION EXTERNAL TABLE a USING TEMPLATE(SELECT 1)
 accept	accept	docs	statement/createFailoverGroup	CREATE FAILOVER GROUP a OBJECT_TYPES = DATABASES ALLOWED_ACCOUNTS = a.a
 reject	undocumented	docs	statement/createFailoverGroup!drop-1	FAILOVER GROUP a OBJECT_TYPES = DATABASES ALLOWED_ACCOUNTS = a.a
 reject	undocumented	docs	statement/createFailoverGroup!drop-2	CREATE GROUP a OBJECT_TYPES = DATABASES ALLOWED_ACCOUNTS = a.a
@@ -35186,14 +35188,14 @@ reject	undocumented	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE
 accept	undocumented	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~64e96ec0!insert	CREATE EXTERNAL TABLE a LOCATION = @a PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT =(FORMAT_NAME = 's') zzz
 reject	undocumented	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~64e96ec0!swap	CREATION EXTERNAL TABLE a LOCATION = @a PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT =(FORMAT_NAME = 's')
 accept	accept	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_ID~43a591ab	CREATE EXTERNAL TABLE a LOCATION = @a PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT =(FORMAT_NAME = 's')
-reject	accept	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_ID_USING_TEMPLATE_(~18bd8776	CREATE EXTERNAL TABLE a USING TEMPLATE SELECT 1
-reject	accept	docs	createExternalTable(OR_REPLACE)?/%empty	CREATE EXTERNAL TABLE a USING TEMPLATE SELECT 1
-reject	undocumented	docs	createExternalTable(OR_REPLACE)?/%empty!insert	CREATE zzz EXTERNAL TABLE a USING TEMPLATE SELECT 1
-reject	accept	docs	createExternalTable(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE EXTERNAL TABLE a USING TEMPLATE SELECT 1
-reject	undocumented	docs	createExternalTable(OR_REPLACE)?/OR_REPLACE!drop-1	CREATE REPLACE EXTERNAL TABLE a USING TEMPLATE SELECT 1
-reject	undocumented	docs	createExternalTable(OR_REPLACE)?/OR_REPLACE!drop-2	CREATE OR EXTERNAL TABLE a USING TEMPLATE SELECT 1
-reject	undocumented	docs	createExternalTable(OR_REPLACE)?/OR_REPLACE!insert	CREATE OR REPLACE zzz EXTERNAL TABLE a USING TEMPLATE SELECT 1
-reject	undocumented	docs	createExternalTable(OR_REPLACE)?/OR_REPLACE!swap	CREATE ORC REPLACE EXTERNAL TABLE a USING TEMPLATE SELECT 1
+reject	accept	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_ID_USING_TEMPLATE_(~19ec7795	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1)
+reject	accept	docs	createExternalTable(OR_REPLACE)?/%empty	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1)
+reject	undocumented	docs	createExternalTable(OR_REPLACE)?/%empty!insert	CREATE zzz EXTERNAL TABLE a USING TEMPLATE(SELECT 1)
+reject	accept	docs	createExternalTable(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE EXTERNAL TABLE a USING TEMPLATE(SELECT 1)
+reject	undocumented	docs	createExternalTable(OR_REPLACE)?/OR_REPLACE!drop-1	CREATE REPLACE EXTERNAL TABLE a USING TEMPLATE(SELECT 1)
+reject	undocumented	docs	createExternalTable(OR_REPLACE)?/OR_REPLACE!drop-2	CREATE OR EXTERNAL TABLE a USING TEMPLATE(SELECT 1)
+reject	undocumented	docs	createExternalTable(OR_REPLACE)?/OR_REPLACE!insert	CREATE OR REPLACE zzz EXTERNAL TABLE a USING TEMPLATE(SELECT 1)
+reject	undocumented	docs	createExternalTable(OR_REPLACE)?/OR_REPLACE!swap	CREATE ORC REPLACE EXTERNAL TABLE a USING TEMPLATE(SELECT 1)
 accept	accept	docs	createExternalTable(IF_NOT_EXISTS)?/%empty	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 accept	undocumented	docs	createExternalTable(IF_NOT_EXISTS)?/%empty!insert	CREATE EXTERNAL TABLE zzz a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 accept	accept	docs	createExternalTable(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE EXTERNAL TABLE IF NOT EXISTS a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
@@ -35365,21 +35367,21 @@ reject	undocumented	docs	createExternalTable(AWS_SNS_TOPIC_=_STRING)?/AWS_SNS_TO
 reject	undocumented	docs	createExternalTable(AWS_SNS_TOPIC_=_STRING)?/AWS_SNS_TOPIC_=_STRING!drop-3	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') AWS_SNS_TOPIC =
 accept	undocumented	docs	createExternalTable(AWS_SNS_TOPIC_=_STRING)?/AWS_SNS_TOPIC_=_STRING!insert	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') AWS_SNS_TOPIC = 's' zzz
 accept	undocumented	docs	createExternalTable(AWS_SNS_TOPIC_=_STRING)?/AWS_SNS_TOPIC_=_STRING!swap	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') AWS_SNS_TOPIC_ARN = 's'
-reject	accept	docs	createExternalTable(COPY_GRANTS)?/%empty	CREATE EXTERNAL TABLE a USING TEMPLATE SELECT 1
-reject	accept	docs	createExternalTable(COPY_GRANTS)?/COPY_GRANTS	CREATE EXTERNAL TABLE a USING TEMPLATE SELECT 1 COPY GRANTS
-reject	undocumented	docs	createExternalTable(COPY_GRANTS)?/COPY_GRANTS!drop-1	CREATE EXTERNAL TABLE a USING TEMPLATE SELECT 1 GRANTS
-reject	undocumented	docs	createExternalTable(COPY_GRANTS)?/COPY_GRANTS!drop-2	CREATE EXTERNAL TABLE a USING TEMPLATE SELECT 1 COPY
-reject	undocumented	docs	createExternalTable(COPY_GRANTS)?/COPY_GRANTS!insert	CREATE EXTERNAL TABLE a USING TEMPLATE SELECT 1 COPY GRANTS zzz
-reject	undocumented	docs	createExternalTable(COPY_GRANTS)?/COPY_GRANTS!swap	CREATE EXTERNAL TABLE a USING TEMPLATE SELECT 1 CORE GRANTS
-reject	accept	docs	createExternalTable(COPY_=_(_GRANTS_))?/%empty	CREATE EXTERNAL TABLE a USING TEMPLATE SELECT 1
-reject	accept	docs	createExternalTable(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)	CREATE EXTERNAL TABLE a USING TEMPLATE SELECT 1 COPY =(GRANTS)
-reject	undocumented	docs	createExternalTable(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!drop-1	CREATE EXTERNAL TABLE a USING TEMPLATE SELECT 1 =(GRANTS)
-reject	undocumented	docs	createExternalTable(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!drop-2	CREATE EXTERNAL TABLE a USING TEMPLATE SELECT 1 COPY(GRANTS)
-reject	undocumented	docs	createExternalTable(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!drop-3	CREATE EXTERNAL TABLE a USING TEMPLATE SELECT 1 COPY = GRANTS)
-reject	undocumented	docs	createExternalTable(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!drop-4	CREATE EXTERNAL TABLE a USING TEMPLATE SELECT 1 COPY =()
-reject	undocumented	docs	createExternalTable(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!drop-5	CREATE EXTERNAL TABLE a USING TEMPLATE SELECT 1 COPY =(GRANTS
-reject	undocumented	docs	createExternalTable(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!insert	CREATE EXTERNAL TABLE a USING TEMPLATE SELECT 1 COPY =(GRANTS) zzz
-reject	undocumented	docs	createExternalTable(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!swap	CREATE EXTERNAL TABLE a USING TEMPLATE SELECT 1 CORE =(GRANTS)
+reject	accept	docs	createExternalTable(COPY_GRANTS)?/%empty	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1)
+reject	accept	docs	createExternalTable(COPY_GRANTS)?/COPY_GRANTS	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) COPY GRANTS
+reject	undocumented	docs	createExternalTable(COPY_GRANTS)?/COPY_GRANTS!drop-1	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) GRANTS
+reject	undocumented	docs	createExternalTable(COPY_GRANTS)?/COPY_GRANTS!drop-2	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) COPY
+reject	undocumented	docs	createExternalTable(COPY_GRANTS)?/COPY_GRANTS!insert	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) COPY GRANTS zzz
+reject	undocumented	docs	createExternalTable(COPY_GRANTS)?/COPY_GRANTS!swap	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) CORE GRANTS
+reject	accept	docs	createExternalTable(COPY_=_(_GRANTS_))?/%empty	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1)
+reject	accept	docs	createExternalTable(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) COPY =(GRANTS)
+reject	undocumented	docs	createExternalTable(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!drop-1	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) =(GRANTS)
+reject	undocumented	docs	createExternalTable(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!drop-2	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) COPY(GRANTS)
+reject	undocumented	docs	createExternalTable(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!drop-3	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) COPY = GRANTS)
+reject	undocumented	docs	createExternalTable(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!drop-4	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) COPY =()
+reject	undocumented	docs	createExternalTable(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!drop-5	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) COPY =(GRANTS
+reject	undocumented	docs	createExternalTable(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!insert	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) COPY =(GRANTS) zzz
+reject	undocumented	docs	createExternalTable(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!swap	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) CORE =(GRANTS)
 accept	accept	docs	createExternalTable(COMMENT_=_STRING)?/%empty	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 accept	accept	docs	createExternalTable(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') COMMENT = 's'
 reject	undocumented	docs	createExternalTable(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') COMMENT 's'
@@ -35444,9 +35446,9 @@ accept	undocumented	docs	createExternalTable(TABLE_FORMAT_=_DELTA)?/TABLE_FORMAT
 reject	undocumented	docs	createExternalTable(TABLE_FORMAT_=_DELTA)?/TABLE_FORMAT_=_DELTA!drop-3	CREATE EXTERNAL TABLE a LOCATION = @a PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT =(FORMAT_NAME = 's') TABLE_FORMAT =
 accept	undocumented	docs	createExternalTable(TABLE_FORMAT_=_DELTA)?/TABLE_FORMAT_=_DELTA!insert	CREATE EXTERNAL TABLE a LOCATION = @a PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT =(FORMAT_NAME = 's') TABLE_FORMAT = DELTA zzz
 accept	undocumented	docs	createExternalTable(TABLE_FORMAT_=_DELTA)?/TABLE_FORMAT_=_DELTA!swap	CREATE EXTERNAL TABLE a LOCATION = @a PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT =(FORMAT_NAME = 's') TABULAR = DELTA
-reject	accept	docs	createExternalTable(QUERY)+/QUERY	CREATE EXTERNAL TABLE a USING TEMPLATE SELECT 1
-reject	accept	docs	createExternalTable(QUERY)+/QUERY_(QUERY)+	CREATE EXTERNAL TABLE a USING TEMPLATE SELECT 1 SELECT 1
-reject	undocumented	docs	createExternalTable(QUERY)+/QUERY_(QUERY)+!insert	CREATE EXTERNAL TABLE a USING TEMPLATE SELECT 1 SELECT 1 zzz
+reject	accept	docs	createExternalTable())+/)	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1)
+reject	accept	docs	createExternalTable())+/)_())+	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1))
+reject	undocumented	docs	createExternalTable())+/)_())+!insert	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1)) zzz
 accept	accept	docs	createExternalTable_inlineConstraint/(NOT_NULL)?_(CONSTRAINT_ID)?_(UNIQUE|PRIMARY_KEY|(FOREI~37357200	CREATE EXTERNAL TABLE a(a INT AS 1 UNIQUE) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 accept	accept	docs	createExternalTable_inlineConstraint(NOT_NULL)?/%empty	CREATE EXTERNAL TABLE a(a INT AS 1 UNIQUE) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint(NOT_NULL)?/%empty!insert	CREATE EXTERNAL TABLE a(a INT AS 1 zzz UNIQUE) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
@@ -45450,9 +45452,9 @@ accept	undocumented	docs	createSemanticView_windowFunctionMetricExpression(,_EXP
 accept	undocumented	docs	createSemanticView_windowFunctionMetricExpression(,_EXPR_(ASC|DESC)?_(NULLS_(FIRST|LAST))?)*/,_EXPR_(ASC|DESC)?_(NULLS_(FIRST|LAST))?_(,_EXPR_(ASC|D~d1548df9!drop-2	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY 1,))
 reject	undocumented	docs	createSemanticView_windowFunctionMetricExpression(,_EXPR_(ASC|DESC)?_(NULLS_(FIRST|LAST))?)*/,_EXPR_(ASC|DESC)?_(NULLS_(FIRST|LAST))?_(,_EXPR_(ASC|D~d1548df9!truncate	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY 1,
 accept	undocumented	docs	createSemanticView_windowFunctionMetricExpression(,_EXPR_(ASC|DESC)?_(NULLS_(FIRST|LAST))?)*/,_EXPR_(ASC|DESC)?_(NULLS_(FIRST|LAST))?_(,_EXPR_(ASC|D~d1548df9!insert	CREATE SEMANTIC VIEW a TABLES(a) METRICS(a.a AS a(a) OVER(ORDER BY 1, 1 zzz))
-accept	accept	docs	createSemanticView_verifiedQuery/ID_AS_(_QUESTION_STRING_(VERIFIED_AT_NUMBER)?_(ONBOARDI~23cc6562	CREATE SEMANTIC VIEW a TABLES(a) AI_VERIFIED_QUERIES(a AS(QUESTION 's' SQL 's'))
-reject	undocumented	docs	createSemanticView_verifiedQuery/ID_AS_(_QUESTION_STRING_(VERIFIED_AT_NUMBER)?_(ONBOARDI~23cc6562!truncate	CREATE SEMANTIC VIEW a TABLES(a) AI_VERIFIED_QUERIES(a AS(QUESTION 's' SQL 's'
-accept	undocumented	docs	createSemanticView_verifiedQuery/ID_AS_(_QUESTION_STRING_(VERIFIED_AT_NUMBER)?_(ONBOARDI~23cc6562!swap	CREATE SEMANTIC VIEW a TABLES(a) AI_VERIFIED_QUERIES(a ASC(QUESTION 's' SQL 's'))
+accept	accept	docs	createSemanticView_verifiedQuery/ID_AS_(_QUESTION_STRING_(VERIFIED_AT_NUMBER)?_(ONBOARDI~94266845	CREATE SEMANTIC VIEW a TABLES(a) AI_VERIFIED_QUERIES(a AS(QUESTION 's' SQL 's'))
+reject	undocumented	docs	createSemanticView_verifiedQuery/ID_AS_(_QUESTION_STRING_(VERIFIED_AT_NUMBER)?_(ONBOARDI~94266845!truncate	CREATE SEMANTIC VIEW a TABLES(a) AI_VERIFIED_QUERIES(a AS(QUESTION 's' SQL 's'
+accept	undocumented	docs	createSemanticView_verifiedQuery/ID_AS_(_QUESTION_STRING_(VERIFIED_AT_NUMBER)?_(ONBOARDI~94266845!swap	CREATE SEMANTIC VIEW a TABLES(a) AI_VERIFIED_QUERIES(a ASC(QUESTION 's' SQL 's'))
 accept	accept	docs	createSemanticView_verifiedQuery(VERIFIED_AT_NUMBER)?/%empty	CREATE SEMANTIC VIEW a TABLES(a) AI_VERIFIED_QUERIES(a AS(QUESTION 's' SQL 's'))
 accept	undocumented	docs	createSemanticView_verifiedQuery(VERIFIED_AT_NUMBER)?/%empty!insert	CREATE SEMANTIC VIEW a TABLES(a) AI_VERIFIED_QUERIES(a AS(QUESTION 's' zzz SQL 's'))
 accept	accept	docs	createSemanticView_verifiedQuery(VERIFIED_AT_NUMBER)?/VERIFIED_AT_NUMBER	CREATE SEMANTIC VIEW a TABLES(a) AI_VERIFIED_QUERIES(a AS(QUESTION 's' VERIFIED_AT 1 SQL 's'))
@@ -45461,13 +45463,18 @@ accept	undocumented	docs	createSemanticView_verifiedQuery(VERIFIED_AT_NUMBER)?/V
 reject	undocumented	docs	createSemanticView_verifiedQuery(VERIFIED_AT_NUMBER)?/VERIFIED_AT_NUMBER!truncate	CREATE SEMANTIC VIEW a TABLES(a) AI_VERIFIED_QUERIES(a AS(QUESTION 's' VERIFIED_AT
 accept	undocumented	docs	createSemanticView_verifiedQuery(VERIFIED_AT_NUMBER)?/VERIFIED_AT_NUMBER!insert	CREATE SEMANTIC VIEW a TABLES(a) AI_VERIFIED_QUERIES(a AS(QUESTION 's' VERIFIED_AT 1 zzz SQL 's'))
 accept	undocumented	docs	createSemanticView_verifiedQuery(VERIFIED_AT_NUMBER)?/VERIFIED_AT_NUMBER!swap	CREATE SEMANTIC VIEW a TABLES(a) AI_VERIFIED_QUERIES(a AS(QUESTION 's' VERIFIED_BY 1 SQL 's'))
-accept	accept	docs	createSemanticView_verifiedQuery(ONBOARDING_QUESTION_ID)?/%empty	CREATE SEMANTIC VIEW a TABLES(a) AI_VERIFIED_QUERIES(a AS(QUESTION 's' SQL 's'))
-accept	accept	docs	createSemanticView_verifiedQuery(ONBOARDING_QUESTION_ID)?/ONBOARDING_QUESTION_ID	CREATE SEMANTIC VIEW a TABLES(a) AI_VERIFIED_QUERIES(a AS(QUESTION 's' ONBOARDING_QUESTION a SQL 's'))
-accept	undocumented	docs	createSemanticView_verifiedQuery(ONBOARDING_QUESTION_ID)?/ONBOARDING_QUESTION_ID!drop-1	CREATE SEMANTIC VIEW a TABLES(a) AI_VERIFIED_QUERIES(a AS(QUESTION 's' a SQL 's'))
-accept	undocumented	docs	createSemanticView_verifiedQuery(ONBOARDING_QUESTION_ID)?/ONBOARDING_QUESTION_ID!drop-2	CREATE SEMANTIC VIEW a TABLES(a) AI_VERIFIED_QUERIES(a AS(QUESTION 's' ONBOARDING_QUESTION SQL 's'))
-reject	undocumented	docs	createSemanticView_verifiedQuery(ONBOARDING_QUESTION_ID)?/ONBOARDING_QUESTION_ID!truncate	CREATE SEMANTIC VIEW a TABLES(a) AI_VERIFIED_QUERIES(a AS(QUESTION 's' ONBOARDING_QUESTION
-accept	undocumented	docs	createSemanticView_verifiedQuery(ONBOARDING_QUESTION_ID)?/ONBOARDING_QUESTION_ID!insert	CREATE SEMANTIC VIEW a TABLES(a) AI_VERIFIED_QUERIES(a AS(QUESTION 's' ONBOARDING_QUESTION a zzz SQL 's'))
-accept	undocumented	docs	createSemanticView_verifiedQuery(ONBOARDING_QUESTION_ID)?/ONBOARDING_QUESTION_ID!swap	CREATE SEMANTIC VIEW a TABLES(a) AI_VERIFIED_QUERIES(a AS(QUESTION 's' ONLINE a SQL 's'))
+accept	accept	docs	createSemanticView_verifiedQuery(ONBOARDING_QUESTION_(TRUE|FALSE))?/%empty	CREATE SEMANTIC VIEW a TABLES(a) AI_VERIFIED_QUERIES(a AS(QUESTION 's' SQL 's'))
+accept	accept	docs	createSemanticView_verifiedQuery(ONBOARDING_QUESTION_(TRUE|FALSE))?/ONBOARDING_QUESTION_(TRUE|FALSE)	CREATE SEMANTIC VIEW a TABLES(a) AI_VERIFIED_QUERIES(a AS(QUESTION 's' ONBOARDING_QUESTION TRUE SQL 's'))
+accept	undocumented	docs	createSemanticView_verifiedQuery(ONBOARDING_QUESTION_(TRUE|FALSE))?/ONBOARDING_QUESTION_(TRUE|FALSE)!drop-1	CREATE SEMANTIC VIEW a TABLES(a) AI_VERIFIED_QUERIES(a AS(QUESTION 's' TRUE SQL 's'))
+accept	undocumented	docs	createSemanticView_verifiedQuery(ONBOARDING_QUESTION_(TRUE|FALSE))?/ONBOARDING_QUESTION_(TRUE|FALSE)!drop-2	CREATE SEMANTIC VIEW a TABLES(a) AI_VERIFIED_QUERIES(a AS(QUESTION 's' ONBOARDING_QUESTION SQL 's'))
+reject	undocumented	docs	createSemanticView_verifiedQuery(ONBOARDING_QUESTION_(TRUE|FALSE))?/ONBOARDING_QUESTION_(TRUE|FALSE)!truncate	CREATE SEMANTIC VIEW a TABLES(a) AI_VERIFIED_QUERIES(a AS(QUESTION 's' ONBOARDING_QUESTION
+accept	undocumented	docs	createSemanticView_verifiedQuery(ONBOARDING_QUESTION_(TRUE|FALSE))?/ONBOARDING_QUESTION_(TRUE|FALSE)!insert	CREATE SEMANTIC VIEW a TABLES(a) AI_VERIFIED_QUERIES(a AS(QUESTION 's' ONBOARDING_QUESTION TRUE zzz SQL 's'))
+accept	undocumented	docs	createSemanticView_verifiedQuery(ONBOARDING_QUESTION_(TRUE|FALSE))?/ONBOARDING_QUESTION_(TRUE|FALSE)!swap	CREATE SEMANTIC VIEW a TABLES(a) AI_VERIFIED_QUERIES(a AS(QUESTION 's' ONLINE TRUE SQL 's'))
+accept	accept	docs	createSemanticView_verifiedQuery(TRUE|FALSE)/TRUE	CREATE SEMANTIC VIEW a TABLES(a) AI_VERIFIED_QUERIES(a AS(QUESTION 's' ONBOARDING_QUESTION TRUE SQL 's'))
+accept	undocumented	docs	createSemanticView_verifiedQuery(TRUE|FALSE)/TRUE!swap	CREATE SEMANTIC VIEW a TABLES(a) AI_VERIFIED_QUERIES(a AS(QUESTION 's' ONBOARDING_QUESTION TRUNCATE SQL 's'))
+accept	accept	docs	createSemanticView_verifiedQuery(TRUE|FALSE)/FALSE	CREATE SEMANTIC VIEW a TABLES(a) AI_VERIFIED_QUERIES(a AS(QUESTION 's' ONBOARDING_QUESTION FALSE SQL 's'))
+accept	undocumented	docs	createSemanticView_verifiedQuery(TRUE|FALSE)/FALSE!insert	CREATE SEMANTIC VIEW a TABLES(a) AI_VERIFIED_QUERIES(a AS(QUESTION 's' ONBOARDING_QUESTION FALSE zzz SQL 's'))
+accept	undocumented	docs	createSemanticView_verifiedQuery(TRUE|FALSE)/FALSE!swap	CREATE SEMANTIC VIEW a TABLES(a) AI_VERIFIED_QUERIES(a AS(QUESTION 's' ONBOARDING_QUESTION FAMILIES SQL 's'))
 accept	accept	docs	createSemanticView_verifiedQuery(VERIFIED_BY_STRING)?/%empty	CREATE SEMANTIC VIEW a TABLES(a) AI_VERIFIED_QUERIES(a AS(QUESTION 's' SQL 's'))
 accept	accept	docs	createSemanticView_verifiedQuery(VERIFIED_BY_STRING)?/VERIFIED_BY_STRING	CREATE SEMANTIC VIEW a TABLES(a) AI_VERIFIED_QUERIES(a AS(QUESTION 's' VERIFIED_BY 's' SQL 's'))
 accept	undocumented	docs	createSemanticView_verifiedQuery(VERIFIED_BY_STRING)?/VERIFIED_BY_STRING!drop-1	CREATE SEMANTIC VIEW a TABLES(a) AI_VERIFIED_QUERIES(a AS(QUESTION 's' 's' SQL 's'))
@@ -47669,15 +47676,17 @@ reject	undocumented	docs	createTable/CREATE_OR_ALTER_((((LOCAL|GLOBAL))?_TEMP|TE
 reject	undocumented	docs	createTable/CREATE_OR_ALTER_((((LOCAL|GLOBAL))?_TEMP|TEMPORARY|TRAN~fa019015!insert	CREATE OR ALTER TABLE a(a INT) zzz
 reject	undocumented	docs	createTable/CREATE_OR_ALTER_((((LOCAL|GLOBAL))?_TEMP|TEMPORARY|TRAN~fa019015!swap	CREATION OR ALTER TABLE a(a INT)
 accept	accept	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_((_ID_DATA_TYPE?_(,_ID_DA~141d7cc1	CREATE TABLE a AS SELECT 1
-reject	accept	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_(COPY_GRANTS)?_USING_TEMP~53ed9377	CREATE TABLE a USING TEMPLATE SELECT 1
-reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_(COPY_GRANTS)?_USING_TEMP~53ed9377!drop-1	TABLE a USING TEMPLATE SELECT 1
-reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_(COPY_GRANTS)?_USING_TEMP~53ed9377!drop-2	CREATE a USING TEMPLATE SELECT 1
-reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_(COPY_GRANTS)?_USING_TEMP~53ed9377!drop-3	CREATE TABLE USING TEMPLATE SELECT 1
-reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_(COPY_GRANTS)?_USING_TEMP~53ed9377!drop-4	CREATE TABLE a TEMPLATE SELECT 1
-reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_(COPY_GRANTS)?_USING_TEMP~53ed9377!drop-5	CREATE TABLE a USING SELECT 1
-reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_(COPY_GRANTS)?_USING_TEMP~53ed9377!drop-6	CREATE TABLE a USING TEMPLATE
-reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_(COPY_GRANTS)?_USING_TEMP~53ed9377!insert	CREATE TABLE a USING TEMPLATE SELECT 1 zzz
-reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_(COPY_GRANTS)?_USING_TEMP~53ed9377!swap	CREATION TABLE a USING TEMPLATE SELECT 1
+reject	accept	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_(COPY_GRANTS)?_USING_TEMP~7a936234	CREATE TABLE a USING TEMPLATE(SELECT 1)
+reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_(COPY_GRANTS)?_USING_TEMP~7a936234!drop-1	TABLE a USING TEMPLATE(SELECT 1)
+reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_(COPY_GRANTS)?_USING_TEMP~7a936234!drop-2	CREATE a USING TEMPLATE(SELECT 1)
+reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_(COPY_GRANTS)?_USING_TEMP~7a936234!drop-3	CREATE TABLE USING TEMPLATE(SELECT 1)
+reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_(COPY_GRANTS)?_USING_TEMP~7a936234!drop-4	CREATE TABLE a TEMPLATE(SELECT 1)
+reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_(COPY_GRANTS)?_USING_TEMP~7a936234!drop-5	CREATE TABLE a USING(SELECT 1)
+reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_(COPY_GRANTS)?_USING_TEMP~7a936234!drop-6	CREATE TABLE a USING TEMPLATE SELECT 1)
+reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_(COPY_GRANTS)?_USING_TEMP~7a936234!drop-7	CREATE TABLE a USING TEMPLATE()
+reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_(COPY_GRANTS)?_USING_TEMP~7a936234!drop-8	CREATE TABLE a USING TEMPLATE(SELECT 1
+reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_(COPY_GRANTS)?_USING_TEMP~7a936234!insert	CREATE TABLE a USING TEMPLATE(SELECT 1) zzz
+reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_(COPY_GRANTS)?_USING_TEMP~7a936234!swap	CREATION TABLE a USING TEMPLATE(SELECT 1)
 accept	accept	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_LIKE_ID_(CLUSTER_BY_(_EXP~1145fe51	CREATE TABLE a LIKE a
 reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_LIKE_ID_(CLUSTER_BY_(_EXP~1145fe51!drop-1	TABLE a LIKE a
 reject	undocumented	docs	createTable/CREATE_(OR_REPLACE)?_TABLE_ID_LIKE_ID_(CLUSTER_BY_(_EXP~1145fe51!drop-2	CREATE a LIKE a
@@ -47736,7 +47745,7 @@ accept	accept	docs	createTable(LOCAL|GLOBAL)/GLOBAL	CREATE GLOBAL TEMP TABLE a C
 reject	undocumented	docs	createTable(LOCAL|GLOBAL)/GLOBAL!insert	CREATE GLOBAL zzz TEMP TABLE a CLONE a
 reject	undocumented	docs	createTable(LOCAL|GLOBAL)/GLOBAL!swap	CREATE GLUE TEMP TABLE a CLONE a
 accept	accept	docs	createTable(IF_NOT_EXISTS)?/%empty	CREATE TABLE a(a INT)
-reject	accept	docs	createTable(IF_NOT_EXISTS)?/%empty!insert	CREATE TABLE zzz a(a INT)
+reject	undocumented	docs	createTable(IF_NOT_EXISTS)?/%empty!insert	CREATE TABLE zzz a(a INT)
 accept	accept	docs	createTable(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE TABLE IF NOT EXISTS a(a INT)
 reject	undocumented	docs	createTable(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE TABLE NOT EXISTS a(a INT)
 reject	undocumented	docs	createTable(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE TABLE IF EXISTS a(a INT)
@@ -48554,12 +48563,12 @@ accept	undocumented	docs	createTableConstraint/ALTER_TABLE_ID_ADD_COLUMN_ID_DATA
 accept	undocumented	docs	createTableConstraint/ALTER_TABLE_ID_ADD_COLUMN_ID_DATA_TYPE_(NOT_NULL)?_(cre~60951f91!drop-7	ALTER TABLE a ADD COLUMN a UNIQUE
 reject	undocumented	docs	createTableConstraint/ALTER_TABLE_ID_ADD_COLUMN_ID_DATA_TYPE_(NOT_NULL)?_(cre~60951f91!insert	ALTER TABLE a ADD COLUMN a INT UNIQUE zzz
 reject	undocumented	docs	createTableConstraint/ALTER_TABLE_ID_ADD_COLUMN_ID_DATA_TYPE_(NOT_NULL)?_(cre~60951f91!swap	ALWAYS TABLE a ADD COLUMN a INT UNIQUE
-accept	accept	docs	createTableConstraint/CREATE_TABLE_(ID)+_(_ID_DATA_TYPE_(,_ID_DATA_TYPE)*_(,_~34021e39	CREATE TABLE a(a INT)
-accept	accept	docs	createTableConstraint/ALTER_TABLE_(ID)+_ADD_(createTableConstraint_outoflineU~280af563	ALTER TABLE a ADD UNIQUE(a)
-reject	undocumented	docs	createTableConstraint/ALTER_TABLE_(ID)+_ADD_(createTableConstraint_outoflineU~280af563!drop-1	TABLE a ADD UNIQUE(a)
-reject	undocumented	docs	createTableConstraint/ALTER_TABLE_(ID)+_ADD_(createTableConstraint_outoflineU~280af563!drop-2	ALTER a ADD UNIQUE(a)
-reject	undocumented	docs	createTableConstraint/ALTER_TABLE_(ID)+_ADD_(createTableConstraint_outoflineU~280af563!drop-3	ALTER TABLE ADD UNIQUE(a)
-reject	undocumented	docs	createTableConstraint/ALTER_TABLE_(ID)+_ADD_(createTableConstraint_outoflineU~280af563!swap	ALWAYS TABLE a ADD UNIQUE(a)
+accept	accept	docs	createTableConstraint/CREATE_TABLE_ID_(_ID_DATA_TYPE_(,_ID_DATA_TYPE)*_(,_(cr~f22411ef	CREATE TABLE a(a INT)
+accept	accept	docs	createTableConstraint/ALTER_TABLE_ID_ADD_(createTableConstraint_outoflineUniq~cc596e68	ALTER TABLE a ADD UNIQUE(a)
+reject	undocumented	docs	createTableConstraint/ALTER_TABLE_ID_ADD_(createTableConstraint_outoflineUniq~cc596e68!drop-1	TABLE a ADD UNIQUE(a)
+reject	undocumented	docs	createTableConstraint/ALTER_TABLE_ID_ADD_(createTableConstraint_outoflineUniq~cc596e68!drop-2	ALTER a ADD UNIQUE(a)
+reject	undocumented	docs	createTableConstraint/ALTER_TABLE_ID_ADD_(createTableConstraint_outoflineUniq~cc596e68!drop-3	ALTER TABLE ADD UNIQUE(a)
+reject	undocumented	docs	createTableConstraint/ALTER_TABLE_ID_ADD_(createTableConstraint_outoflineUniq~cc596e68!swap	ALWAYS TABLE a ADD UNIQUE(a)
 accept	accept	docs	createTableConstraint(NOT_NULL)?/%empty	CREATE TABLE a(a INT UNIQUE)
 accept	accept	docs	createTableConstraint(NOT_NULL)?/NOT_NULL	CREATE TABLE a(a INT NOT NULL UNIQUE)
 accept	undocumented	docs	createTableConstraint(NOT_NULL)?/NOT_NULL!drop-1	CREATE TABLE a(a INT NULL UNIQUE)
@@ -48578,11 +48587,6 @@ accept	accept	docs	createTableConstraint(,_ID_DATA_TYPE_(NOT_NULL)?_(createTa~e9
 reject	undocumented	docs	createTableConstraint(,_ID_DATA_TYPE_(NOT_NULL)?_(createTa~e933539d)*/,_ID_DATA_TYPE_(NOT_NULL)?_(createTableConstraint_inlin~5df2c8c3!truncate	CREATE TABLE a(a INT UNIQUE, a INT
 reject	undocumented	docs	createTableConstraint(,_ID_DATA_TYPE_(NOT_NULL)?_(createTa~e933539d)*/,_ID_DATA_TYPE_(NOT_NULL)?_(createTableConstraint_inlin~5df2c8c3!insert	CREATE TABLE a(a INT UNIQUE, a INT UNIQUE zzz)
 accept	undocumented	docs	createTableConstraint(,_ID_DATA_TYPE_(NOT_NULL)?_(createTa~e933539d)*/,_ID_DATA_TYPE_(NOT_NULL)?_(createTableConstraint_inlin~5df2c8c3!swap	CREATE TABLE a(a INT UNIQUE, a INTEGER UNIQUE)
-accept	accept	docs	createTableConstraint(ID)+/ID	CREATE TABLE a(a INT)
-reject	undocumented	docs	createTableConstraint(ID)+/ID!truncate	CREATE TABLE
-reject	accept	docs	createTableConstraint(ID)+/ID!insert	CREATE TABLE a zzz(a INT)
-reject	accept	docs	createTableConstraint(ID)+/ID_(ID)+	CREATE TABLE a a(a INT)
-reject	accept	docs	createTableConstraint(ID)+/ID_(ID)+!insert	CREATE TABLE a a zzz(a INT)
 accept	accept	docs	createTableConstraint(,_ID_DATA_TYPE)*/%empty	CREATE TABLE a(a INT)
 accept	accept	docs	createTableConstraint(,_ID_DATA_TYPE)*/,_ID_DATA_TYPE_(,_ID_DATA_TYPE)*	CREATE TABLE a(a INT, a INT)
 accept	accept	docs	createTableConstraint(,_(createTableConstraint_outoflineUn~691252be)?/%empty	CREATE TABLE a(a INT)

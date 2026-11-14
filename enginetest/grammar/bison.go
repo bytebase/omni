@@ -49,6 +49,8 @@ type Grammar struct {
 	// qualified holds the name tokens a recognizer also matches qualified
 	// (see Qualified).
 	qualified map[string]bool
+	// path holds the variable tokens whose sigil starts a path (see Path).
+	path map[string]bool
 }
 
 // A rule is one left-hand side and its alternatives, in source order.
@@ -141,6 +143,7 @@ func newGrammar(tokens *Tokens) *Grammar {
 		spellings:   map[string][]string{},
 		ruleText:    map[string]string{},
 		qualified:   tokens.qualified,
+		path:        tokens.path,
 	}
 	for name, form := range tokens.forms {
 		switch form {

@@ -3154,6 +3154,7 @@ createExternalFunction
 // https://docs.snowflake.com/en/sql-reference/sql/create-external-table
 // fix: the ORC options' NULL_IF list is not closed; closed, as the CSV options write it
 // fix: each column, with its constraint, follows a comma, as the page's examples write them; the whole list is optional, since a table may have only its VALUE column
+// fix: the template is a parenthesized subquery, as the parameters and examples write it
 // fix: read: <constraint_properties> is the properties CREATE TABLE's constraint page lists
 // fix: read: each -- If TYPE = X section of formatTypeOptions is the options of TYPE = X alone, and TYPE = { ... } [ formatTypeOptions ] chooses a TYPE with its own options
 // fix: read: a foreign key's REFERENCES takes MATCH and ON UPDATE/DELETE, the properties the constraint page gives foreign keys
@@ -3161,7 +3162,7 @@ createExternalTable
     : 'CREATE' ('OR' 'REPLACE')? 'EXTERNAL' 'TABLE' ('IF' 'NOT' 'EXISTS')? ID ('(' (ID DATA_TYPE 'AS' EXPR createExternalTable_inlineConstraint? (',' ID DATA_TYPE 'AS' EXPR createExternalTable_inlineConstraint?)*)? ')')? createExternalTable_cloudProviderParams ('PARTITION' 'BY' '(' ID (',' ID)* ')')? 'WITH'? 'LOCATION' '=' createExternalTable_externalStage ('REFRESH_ON_CREATE' '=' ('TRUE' | 'FALSE'))? ('AUTO_REFRESH' '=' ('TRUE' | 'FALSE'))? ('PATTERN' '=' STRING)? 'FILE_FORMAT' '=' '(' ('FORMAT_NAME' '=' STRING | ('TYPE' '=' 'CSV' createExternalTable_formatTypeOptions_CSV? | 'TYPE' '=' 'JSON' createExternalTable_formatTypeOptions_JSON? | 'TYPE' '=' 'AVRO' createExternalTable_formatTypeOptions_AVRO? | 'TYPE' '=' 'ORC' createExternalTable_formatTypeOptions_ORC? | 'TYPE' '=' 'PARQUET' createExternalTable_formatTypeOptions_PARQUET?)) ')' ('AWS_SNS_TOPIC' '=' STRING)? ('COPY' 'GRANTS')? ('COPY' '=' '(' 'GRANTS' ')')? ('COMMENT' '=' STRING)? ('WITH'? 'ROW' 'ACCESS' 'POLICY' ID 'ON' '(' 'VALUE' ')')? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('WITH' 'CONTACT' '(' ID '=' ID (',' ID '=' ID)* ')')?
     | 'CREATE' ('OR' 'REPLACE')? 'EXTERNAL' 'TABLE' ('IF' 'NOT' 'EXISTS')? ID ('(' (ID DATA_TYPE 'AS' EXPR createExternalTable_inlineConstraint? (',' ID DATA_TYPE 'AS' EXPR createExternalTable_inlineConstraint?)*)? ')')? createExternalTable_cloudProviderParams ('PARTITION' 'BY' '(' ID (',' ID)* ')')? 'WITH'? 'LOCATION' '=' createExternalTable_externalStage 'PARTITION_TYPE' '=' 'USER_SPECIFIED' 'FILE_FORMAT' '=' '(' ('FORMAT_NAME' '=' STRING | ('TYPE' '=' 'CSV' createExternalTable_formatTypeOptions_CSV? | 'TYPE' '=' 'JSON' createExternalTable_formatTypeOptions_JSON? | 'TYPE' '=' 'AVRO' createExternalTable_formatTypeOptions_AVRO? | 'TYPE' '=' 'ORC' createExternalTable_formatTypeOptions_ORC? | 'TYPE' '=' 'PARQUET' createExternalTable_formatTypeOptions_PARQUET?)) ')' ('COPY' 'GRANTS')? ('COPY' '=' '(' 'GRANTS' ')')? ('COMMENT' '=' STRING)? ('WITH'? 'ROW' 'ACCESS' 'POLICY' ID 'ON' '(' 'VALUE' ')')? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('WITH' 'CONTACT' '(' ID '=' ID (',' ID '=' ID)* ')')?
     | 'CREATE' ('OR' 'REPLACE')? 'EXTERNAL' 'TABLE' ('IF' 'NOT' 'EXISTS')? ID ('(' (ID DATA_TYPE 'AS' EXPR createExternalTable_inlineConstraint? (',' ID DATA_TYPE 'AS' EXPR createExternalTable_inlineConstraint?)*)? ')')? createExternalTable_cloudProviderParams ('PARTITION' 'BY' '(' ID (',' ID)* ')')? 'WITH'? 'LOCATION' '=' createExternalTable_externalStage 'PARTITION_TYPE' '=' 'USER_SPECIFIED' 'FILE_FORMAT' '=' '(' ('FORMAT_NAME' '=' STRING | ('TYPE' '=' 'CSV' createExternalTable_formatTypeOptions_CSV? | 'TYPE' '=' 'JSON' createExternalTable_formatTypeOptions_JSON? | 'TYPE' '=' 'AVRO' createExternalTable_formatTypeOptions_AVRO? | 'TYPE' '=' 'ORC' createExternalTable_formatTypeOptions_ORC? | 'TYPE' '=' 'PARQUET' createExternalTable_formatTypeOptions_PARQUET?)) ')' ('TABLE_FORMAT' '=' 'DELTA')? ('COPY' 'GRANTS')? ('COPY' '=' '(' 'GRANTS' ')')? ('COMMENT' '=' STRING)? ('WITH'? 'ROW' 'ACCESS' 'POLICY' ID 'ON' '(' 'VALUE' ')')? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('WITH' 'CONTACT' '(' ID '=' ID (',' ID '=' ID)* ')')?
-    | 'CREATE' ('OR' 'REPLACE')? 'EXTERNAL' 'TABLE' ID 'USING' 'TEMPLATE' QUERY+ ('COPY' 'GRANTS')? ('COPY' '=' '(' 'GRANTS' ')')?
+    | 'CREATE' ('OR' 'REPLACE')? 'EXTERNAL' 'TABLE' ID 'USING' 'TEMPLATE' '(' QUERY (')')+ ('COPY' 'GRANTS')? ('COPY' '=' '(' 'GRANTS' ')')?
     ;
 createExternalTable_inlineConstraint
     : ('NOT' 'NULL')? ('CONSTRAINT' ID)? ('UNIQUE' | 'PRIMARY' 'KEY' | ('FOREIGN' 'KEY')? 'REFERENCES' ID ('(' ID (',' ID)? ')')? ('MATCH' ('FULL' | 'SIMPLE' | 'PARTIAL'))? ('ON' ('UPDATE' ('CASCADE' | 'SET' 'NULL' | 'SET' 'DEFAULT' | 'RESTRICT' | 'NO' 'ACTION'))? ('DELETE' ('CASCADE' | 'SET' 'NULL' | 'SET' 'DEFAULT' | 'RESTRICT' | 'NO' 'ACTION'))?)?) ('NOT'? 'ENFORCED')? ('NOT'? 'DEFERRABLE')? ('INITIALLY' ('DEFERRED' | 'IMMEDIATE'))? (('ENABLE' | 'DISABLE'))? (('VALIDATE' | 'NOVALIDATE'))? (('RELY' | 'NORELY'))?
@@ -3861,6 +3862,7 @@ createSecurityIntegrationScim
 // fix: the [ ... ] repeats the whole UNIQUE ( ... ) clause
 // fix: the frame clause is window-function syntax, which the command pages do not define
 // fix: VERIFIED_AT is seconds since the Unix epoch, as the parameters say
+// fix: the flag is a boolean, as the parameters say
 createSemanticView
     : 'CREATE' ('OR' 'REPLACE')? 'SEMANTIC' 'VIEW' ('IF' 'NOT' 'EXISTS')? ID 'TABLES' '(' createSemanticView_logicalTable (',' createSemanticView_logicalTable)* ')' ('RELATIONSHIPS' '(' createSemanticView_relationshipDef (',' createSemanticView_relationshipDef)* ')')? ('FACTS' '(' createSemanticView_factExpression (',' createSemanticView_factExpression)* ')')? ('DIMENSIONS' '(' createSemanticView_dimensionExpression (',' createSemanticView_dimensionExpression)* ')')? ('METRICS' '(' (createSemanticView_metricExpression | createSemanticView_windowFunctionMetricExpression) (',' (createSemanticView_metricExpression | createSemanticView_windowFunctionMetricExpression))* ')')? ('COMMENT' '=' STRING)? ('MAX_STALENESS' '=' NUMBER)? ('AI_SQL_GENERATION' STRING)? ('AI_QUESTION_CATEGORIZATION' STRING)? ('AI_VERIFIED_QUERIES' '(' createSemanticView_verifiedQuery (',' createSemanticView_verifiedQuery)* ')')? ('WITH'? 'TAG' '(' ID '=' STRING (',' ID '=' STRING)* ')')? ('COPY' 'GRANTS')?
     | 'CREATE' 'OR' 'ALTER' 'SEMANTIC' 'VIEW' ID 'TABLES' '(' createSemanticView_logicalTable (',' createSemanticView_logicalTable)* ')' ('RELATIONSHIPS' '(' createSemanticView_relationshipDef (',' createSemanticView_relationshipDef)* ')')? ('FACTS' '(' createSemanticView_factExpression (',' createSemanticView_factExpression)* ')')? ('DIMENSIONS' '(' createSemanticView_dimensionExpression (',' createSemanticView_dimensionExpression)* ')')? ('METRICS' '(' (createSemanticView_metricExpression | createSemanticView_windowFunctionMetricExpression) (',' (createSemanticView_metricExpression | createSemanticView_windowFunctionMetricExpression))* ')')? ('COMMENT' '=' STRING)? ('MAX_STALENESS' '=' NUMBER)? ('AI_SQL_GENERATION' STRING)? ('AI_QUESTION_CATEGORIZATION' STRING)? ('AI_VERIFIED_QUERIES' '(' createSemanticView_verifiedQuery (',' createSemanticView_verifiedQuery)* ')')?
@@ -3884,7 +3886,7 @@ createSemanticView_windowFunctionMetricExpression
     : (('PRIVATE' | 'PUBLIC'))? ID '.' ID 'AS' ID '(' ID ')' 'OVER' '(' ('PARTITION' 'BY' (EXPR | 'EXCLUDING' ID))? ('ORDER' 'BY' EXPR ('ASC' | 'DESC')? ('NULLS' ('FIRST' | 'LAST'))? (',' EXPR ('ASC' | 'DESC')? ('NULLS' ('FIRST' | 'LAST'))?)*)? ')'
     ;
 createSemanticView_verifiedQuery
-    : ID 'AS' '(' 'QUESTION' STRING ('VERIFIED_AT' NUMBER)? ('ONBOARDING_QUESTION' ID)? ('VERIFIED_BY' STRING)? 'SQL' STRING ')'
+    : ID 'AS' '(' 'QUESTION' STRING ('VERIFIED_AT' NUMBER)? ('ONBOARDING_QUESTION' ('TRUE' | 'FALSE'))? ('VERIFIED_BY' STRING)? 'SQL' STRING ')'
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-sequence
@@ -4028,6 +4030,7 @@ createStreamlit
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-table
+// fix: the template is a parenthesized subquery, as the parameters and examples write it
 // fix: read: Time Travel's OFFSET is a negative number of seconds, -N, and its STATEMENT a quoted query ID, as the Time Travel parameters say
 // fix: read: <constraint_properties> is the properties CREATE TABLE's constraint page lists
 // fix: read: <constraint_properties> is the properties CREATE TABLE's constraint page lists
@@ -4045,7 +4048,7 @@ createTable
     | 'CREATE' 'TABLE' ID 'FROM' 'BACKUP' 'SET' ID 'IDENTIFIER' STRING
     | 'CREATE' 'OR' 'ALTER' (((('LOCAL' | 'GLOBAL'))? 'TEMP' | 'TEMPORARY' | 'TRANSIENT'))? 'TABLE' ID '(' ID DATA_TYPE createTable_inlineConstraint? ('NOT' 'NULL')? ('COLLATE' STRING)? (('DEFAULT' EXPR | ('AUTOINCREMENT' | 'IDENTITY') (('(' NUMBER ',' NUMBER ')' | 'START' NUMBER 'INCREMENT' NUMBER))? (('ORDER' | 'NOORDER'))?))? ('COMMENT' STRING)? (',' ID DATA_TYPE createTable_inlineConstraint? ('NOT' 'NULL')? ('COLLATE' STRING)? (('DEFAULT' EXPR | ('AUTOINCREMENT' | 'IDENTITY') (('(' NUMBER ',' NUMBER ')' | 'START' NUMBER 'INCREMENT' NUMBER))? (('ORDER' | 'NOORDER'))?))? ('COMMENT' STRING)?)* (',' createTable_outoflineConstraint)* ')' ('CLUSTER' 'BY' '(' EXPR (',' EXPR)* ')')? ('ENABLE_SCHEMA_EVOLUTION' '=' ('TRUE' | 'FALSE'))? ('DATA_RETENTION_TIME_IN_DAYS' '=' NUMBER)? ('MAX_DATA_EXTENSION_TIME_IN_DAYS' '=' NUMBER)? ('CHANGE_TRACKING' '=' ('TRUE' | 'FALSE'))? ('DEFAULT_DDL_COLLATION' '=' STRING)? ('ICEBERG_DEFAULT_DDL_COLLATION' '=' STRING)? ('ERROR_LOGGING' '=' ('TRUE' | 'FALSE'))? ('COMMENT' '=' STRING)? ('ROW_TIMESTAMP' '=' ('TRUE' | 'FALSE'))?
     | 'CREATE' ('OR' 'REPLACE')? 'TABLE' ID ('(' ID DATA_TYPE? (',' ID DATA_TYPE?)* ')')? ('CLUSTER' 'BY' '(' EXPR (',' EXPR)* ')')? ('COPY' 'GRANTS')? ('COPY' 'TAGS')? ('COPY' '=' '(' ('COMMENTS' | 'TAGS' | 'GRANTS') (',' ('COMMENTS' | 'TAGS' | 'GRANTS'))* ')')* 'AS' QUERY
-    | 'CREATE' ('OR' 'REPLACE')? 'TABLE' ID ('COPY' 'GRANTS')? 'USING' 'TEMPLATE' QUERY
+    | 'CREATE' ('OR' 'REPLACE')? 'TABLE' ID ('COPY' 'GRANTS')? 'USING' 'TEMPLATE' '(' QUERY ')'
     | 'CREATE' ('OR' 'REPLACE')? 'TABLE' ID 'LIKE' ID ('CLUSTER' 'BY' '(' EXPR (',' EXPR)* ')')? ('COPY' 'GRANTS')? ('COPY' 'TAGS')? ('COPY' '=' '(' ('COMMENTS' | 'TAGS' | 'GRANTS') (',' ('COMMENTS' | 'TAGS' | 'GRANTS'))* ')')?
     | 'CREATE' ('OR' 'REPLACE')? (((('LOCAL' | 'GLOBAL'))? 'TEMP' ('READ' 'ONLY')? | 'TEMPORARY' ('READ' 'ONLY')? | 'VOLATILE' | 'TRANSIENT'))? 'TABLE' ID 'CLONE' ID (('AT' | 'BEFORE') '(' ('TIMESTAMP' '=>' STRING | 'OFFSET' '=>' '-' NUMBER | 'STATEMENT' '=>' STRING) ')')? ('COPY' 'GRANTS')? ('COPY' 'TAGS')? ('COPY' '=' '(' ('COMMENTS' | 'TAGS' | 'GRANTS') (',' ('COMMENTS' | 'TAGS' | 'GRANTS'))* ')')?
     | 'CREATE' 'TRANSIENT'? 'TABLE' ('IF' 'NOT' 'EXISTS')? ID 'FROM' 'ARCHIVE' 'OF' ID ('AS'? ID)? 'WHERE' EXPR
@@ -4058,11 +4061,13 @@ createTable_outoflineConstraint
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-table-constraint
+// fix: ... stands for the table's other clauses; the form is read without them
+// fix: ... stands for the table's other clauses; the form is read without them
 createTableConstraint
     : 'CREATE' 'TABLE' ID '(' ID DATA_TYPE ('NOT' 'NULL')? (createTableConstraint_inlineUniquePK | createTableConstraint_inlineFK | createTableConstraint_inlineCH) (',' ID DATA_TYPE ('NOT' 'NULL')? (createTableConstraint_inlineUniquePK | createTableConstraint_inlineFK | createTableConstraint_inlineCH))* ')'
     | 'ALTER' 'TABLE' ID 'ADD' 'COLUMN' ID DATA_TYPE ('NOT' 'NULL')? (createTableConstraint_inlineUniquePK | createTableConstraint_inlineFK | createTableConstraint_inlineCH)
-    | 'CREATE' 'TABLE' ID+ '(' ID DATA_TYPE (',' ID DATA_TYPE)* (',' (createTableConstraint_outoflineUniquePK | createTableConstraint_outoflineFK | createTableConstraint_outoflineCH))? (',' (createTableConstraint_outoflineUniquePK | createTableConstraint_outoflineFK | createTableConstraint_outoflineCH))* ')'
-    | 'ALTER' 'TABLE' ID+ 'ADD' (createTableConstraint_outoflineUniquePK | createTableConstraint_outoflineFK | createTableConstraint_outoflineCH)
+    | 'CREATE' 'TABLE' ID '(' ID DATA_TYPE (',' ID DATA_TYPE)* (',' (createTableConstraint_outoflineUniquePK | createTableConstraint_outoflineFK | createTableConstraint_outoflineCH))? (',' (createTableConstraint_outoflineUniquePK | createTableConstraint_outoflineFK | createTableConstraint_outoflineCH))* ')'
+    | 'ALTER' 'TABLE' ID 'ADD' (createTableConstraint_outoflineUniquePK | createTableConstraint_outoflineFK | createTableConstraint_outoflineCH)
     ;
 createTableConstraint_inlineUniquePK
     : ('CONSTRAINT' ID)? ('UNIQUE' | 'PRIMARY' 'KEY') ('NOT'? 'ENFORCED')? ('NOT'? 'DEFERRABLE')? ('INITIALLY' ('DEFERRED' | 'IMMEDIATE'))? (('ENABLE' | 'DISABLE'))? (('VALIDATE' | 'NOVALIDATE'))? (('RELY' | 'NORELY'))?

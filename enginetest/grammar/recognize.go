@@ -32,6 +32,8 @@ type Recognizer struct {
 	null   []bool                // per rule: derives the empty string
 	first  []bitset              // per rule: the terminals it can start with
 	altFst [][]bitset            // per rule and alternative
+	// pathSigil holds the sigils that start a path (see Path).
+	pathSigil map[rune]bool
 
 	mu        sync.Mutex
 	sets      []*earleySet
@@ -94,7 +96,12 @@ func (b bitset) union(o bitset) bool {
 
 // Recognizer returns a recognizer for the grammar.
 func (g *Grammar) Recognizer() *Recognizer {
-	r := &Recognizer{g: g, exact: map[string][]spelling{}, class: map[string][]int{}}
+	r := &Recognizer{g: g, exact: map[string][]spelling{}, class: map[string][]int{}, pathSigil: map[rune]bool{}}
+	for name := range g.path {
+		if text := g.termText[name]; text != "" && (text[0] == '@' || text[0] == '$') {
+			r.pathSigil[rune(text[0])] = true
+		}
+	}
 	ruleID := map[string]int{}
 	for i, gr := range g.rules {
 		ruleID[gr.name] = i
@@ -620,6 +627,17 @@ func (r *Recognizer) lex(s string) []ltok {
 		case unicode.IsDigit(c) || (c == '.' && i+1 < n && unicode.IsDigit(rs[i+1])):
 			j, ok := number(rs, i)
 			out = append(out, ltok{kind: closedKind(ok, kNumber), text: string(rs[i:j])})
+			i = j
+		case r.pathSigil[c] && i+1 < n && (isWordPart(rs[i+1]) || rs[i+1] == '~' || rs[i+1] == '%'):
+			// A path: @~, @%t, @db.s.a/dir/file.csv (see Path).
+			j := i + 1
+			if rs[j] == '~' || rs[j] == '%' {
+				j++
+			}
+			for j < n && (isWordPart(rs[j]) || rs[j] == '.' || rs[j] == '/') {
+				j++
+			}
+			out = append(out, ltok{kind: kVar, text: string(rs[i:j])})
 			i = j
 		case (c == '@' || c == '$') && i+1 < n && (isWordPart(rs[i+1]) || rs[i+1] == '@'):
 			j := i + 1

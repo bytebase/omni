@@ -827,3 +827,27 @@ func TestRecognizerReadsQualifiedNames(t *testing.T) {
 		}
 	}
 }
+
+// TestRecognizerReadsPaths pins a variable token marked as a path: its
+// sigil starts one token through ~ or %, names, dots and slashes.
+func TestRecognizerReadsPaths(t *testing.T) {
+	const src = "grammar P; s : 'LIST' STAGE ; STAGE : '@' [a-z]+ ;"
+	tok := &Tokens{forms: map[string]string{"STAGE": "@a"}, path: map[string]bool{"STAGE": true}}
+	g, err := ReadANTLR(src, tok)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := g.Recognizer()
+	for sql, want := range map[string]bool{
+		"LIST @a":                true,
+		"LIST @db.s.a/dir/f.csv": true,
+		"LIST @~":                true,
+		"LIST @%t":               true,
+		"LIST @a b":              false,
+		"LIST a":                 false,
+	} {
+		if got := rec.Accepts(sql); got != want {
+			t.Errorf("Accepts(%q) = %v, want %v", sql, got, want)
+		}
+	}
+}
