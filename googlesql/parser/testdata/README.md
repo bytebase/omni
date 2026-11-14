@@ -58,6 +58,11 @@ verdict cells, judged by a recording:
 ?	?	-	suite:select	<statement>
 ```
 
+The other oracle tests compare something else with the emulator's verdict (an
+expression or a type parsed alone, a Spanner docs block with its comments and
+line breaks, which a row cannot hold) and replay tapes (`tapes/`): the
+harness's answer for each statement they send, recorded with `OMNI_RECORD=1`.
+
 ## What the judge needs
 
 - **The harness decides.** `googlesql/spanner-oracle` sends each statement to

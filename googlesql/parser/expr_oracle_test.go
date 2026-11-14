@@ -1,8 +1,9 @@
 // Differential test for the `expressions` node against the live Cloud Spanner
-// emulator oracle. Run with:
+// emulator oracle. It replays
+// testdata/tapes/TestExprDifferential.tape, the harness's answers, and starts no server;
+// record it on the pinned emulator with:
 //
-//	SPANNER_EMULATOR_HOST=localhost:9010 \
-//	  go test ./googlesql/parser/ -run TestExprDifferential
+//	OMNI_RECORD=1 go test ./googlesql/parser/ -run '^TestExprDifferential$'
 //
 // It is the PROVE gate for googlesql/expressions (correctness-protocol.md): for
 // every fixture it (1) feeds a full statement embedding the expression to the
@@ -28,15 +29,6 @@
 package parser
 
 import (
-	"bufio"
-	"encoding/base64"
-	"encoding/json"
-	"fmt"
-	"io"
-	"os"
-	"os/exec"
-	"strings"
-	"sync"
 	"testing"
 
 	"github.com/bytebase/omni/googlesql/internal/testcontainer"
@@ -235,14 +227,13 @@ var exprFixtures = []exprFixture{
 }
 
 func TestExprDifferential(t *testing.T) {
-	h := newExprHarness(t)
-	defer h.close()
+	o := testcontainer.Open(t)
 
 	for _, fx := range exprFixtures {
 		fx := fx
 		t.Run(fx.expr, func(t *testing.T) {
 			// 1. Oracle verdict for the embedded statement.
-			v := h.verdict(t, fx.stmt)
+			v := o.MustVerdict(t, fx.stmt)
 			switch v.Verdict {
 			case "accept", "reject":
 				// proceed
@@ -270,72 +261,5 @@ func TestExprDifferential(t *testing.T) {
 					fx.expr, omniAccepts, oracleAccepts, v.Reason, v.Message)
 			}
 		})
-	}
-}
-
-// --- harness plumbing (one persistent batch process, mirrors datatypes_oracle_test) ---
-
-type exprHarnessVerdict struct {
-	Verdict string `json:"verdict"`
-	Kind    string `json:"kind"`
-	Reason  string `json:"reason"`
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
-
-type exprHarness struct {
-	cmd    *exec.Cmd
-	stdin  io.WriteCloser
-	stdout *bufio.Reader
-	mu     sync.Mutex
-}
-
-func newExprHarness(t *testing.T) *exprHarness {
-	t.Helper()
-	testcontainer.Host(t)
-	bin := testcontainer.HarnessBinary(t)
-
-	cmd := exec.Command(bin)
-	cmd.Env = append(os.Environ(), "GOOGLESQL_HARNESS_LINE=1")
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		t.Fatalf("stdin pipe: %v", err)
-	}
-	stdoutPipe, err := cmd.StdoutPipe()
-	if err != nil {
-		t.Fatalf("stdout pipe: %v", err)
-	}
-	cmd.Stderr = os.Stderr
-	if err := cmd.Start(); err != nil {
-		t.Fatalf("starting harness: %v", err)
-	}
-	return &exprHarness{cmd: cmd, stdin: stdin, stdout: bufio.NewReader(stdoutPipe)}
-}
-
-func (h *exprHarness) verdict(t *testing.T, stmt string) exprHarnessVerdict {
-	t.Helper()
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	enc := base64.StdEncoding.EncodeToString([]byte(stmt))
-	if _, err := fmt.Fprintln(h.stdin, enc); err != nil {
-		t.Fatalf("writing to harness: %v", err)
-	}
-	line, err := h.stdout.ReadString('\n')
-	if err != nil {
-		t.Fatalf("reading harness verdict: %v", err)
-	}
-	var v exprHarnessVerdict
-	if err := json.Unmarshal([]byte(strings.TrimSpace(line)), &v); err != nil {
-		t.Fatalf("decoding harness verdict %q: %v", line, err)
-	}
-	return v
-}
-
-func (h *exprHarness) close() {
-	if h.stdin != nil {
-		_ = h.stdin.Close()
-	}
-	if h.cmd != nil && h.cmd.Process != nil {
-		_ = h.cmd.Wait()
 	}
 }
