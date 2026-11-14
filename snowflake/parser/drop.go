@@ -89,8 +89,24 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 		return p.parseDropObject(ast.DropStream, start, true, false)
 
 	case kwTASK:
-		p.advance() // consume TASK
-		return p.parseDropObject(ast.DropTask, start, true, false)
+		// DROP TASK, or DROP TASK GRAPH (task_graph.go).
+		task := func() (ast.Node, error) {
+			p.advance() // consume TASK
+			return p.parseDropObject(ast.DropTask, start, true, false)
+		}
+		if p.startsTaskGraph() {
+			return p.parseTaskOrGraph(func() (ast.Node, error) {
+				p.advance() // consume TASK
+				p.advance() // consume GRAPH
+				node, err := p.parseDropObject(ast.DropObject, start, true, false)
+				if err != nil {
+					return nil, err
+				}
+				node.(*ast.DropStmt).Object = taskGraphForm.kind
+				return node, nil
+			}, task)
+		}
+		return task()
 
 	case kwSEQUENCE:
 		p.advance() // consume SEQUENCE

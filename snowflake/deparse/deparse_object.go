@@ -34,16 +34,16 @@ func (w *writer) writeObjectStmt(n *ast.ObjectStmt) error {
 			}
 			continue
 		}
-		if err := w.writeObjectClause(c); err != nil {
+		if err := w.writeObjectClause(n.Kind, c); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// writeObjectClause writes one clause: its keywords, then the names, keys,
-// properties, tags and query it holds.
-func (w *writer) writeObjectClause(c *ast.ObjectClause) error {
+// writeObjectClause writes one clause of an object of kind: its keywords, then
+// the names, keys, properties, tags and query it holds.
+func (w *writer) writeObjectClause(kind string, c *ast.ObjectClause) error {
 	if c.Keywords != "" {
 		w.buf.WriteByte(' ')
 		w.buf.WriteString(c.Keywords)
@@ -60,9 +60,11 @@ func (w *writer) writeObjectClause(c *ast.ObjectClause) error {
 		w.buf.WriteByte(' ')
 		w.buf.WriteString(strings.Join(c.Keys, ", "))
 	}
+	commas := objectOptionCommas(kind, c.Keywords)
 	for i, o := range c.Options {
-		if i > 0 && o.Bare && c.Options[i-1].Bare {
-			// A clause's bare entries are a list (VECTOR INDEXES).
+		// A clause's bare entries are a list (VECTOR INDEXES); some pages
+		// separate a clause's properties with commas (objectOptionCommas).
+		if i > 0 && (commas || (o.Bare && c.Options[i-1].Bare)) {
 			w.buf.WriteByte(',')
 		}
 		w.buf.WriteByte(' ')
@@ -91,11 +93,29 @@ func (w *writer) writeObjectClause(c *ast.ObjectClause) error {
 	return nil
 }
 
+// objectOptionCommas reports whether a clause of an object of kind separates
+// its properties with commas, as the object's page writes them.
+func objectOptionCommas(kind, keywords string) bool {
+	switch keywords {
+	case "SET CONTACT":
+		return true
+	case "SET":
+		return kind == "TASK GRAPH"
+	}
+	return false
+}
+
 // writeObjectOption writes a property as `NAME = value`, or its value alone
 // when it has no name (an element of a list of groups). A bare entry is its
 // name alone, followed by its Group in parentheses when it has one
 // (VECTOR INDEXES' <column> ( model = '<model>' )).
 func (w *writer) writeObjectOption(o *ast.CopyOption) error {
+	if o.Name == "EXECUTE AS USER" && !o.Bare {
+		// TASK GRAPH's TASK_DEFAULTS ( EXECUTE AS USER <user_name> ): no '='.
+		w.buf.WriteString("EXECUTE AS USER ")
+		w.buf.WriteString(o.Words)
+		return nil
+	}
 	if o.Name != "" {
 		w.buf.WriteString(o.Name)
 		if o.Bare {

@@ -71,7 +71,7 @@ func QueryTypeOf(node ast.Node) QueryType {
 
 	case *ast.InsertStmt, *ast.InsertMultiStmt,
 		*ast.UpdateStmt, *ast.DeleteStmt, *ast.MergeStmt,
-		*ast.CallStmt, *ast.ExecuteImmediateStmt, *ast.ExecuteTaskStmt:
+		*ast.CallStmt, *ast.ExecuteImmediateStmt, *ast.ExecuteTaskStmt, *ast.ExecuteAlertStmt:
 		return DML
 
 	case *ast.ResultScanStmt:
