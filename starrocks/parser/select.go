@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	"github.com/bytebase/omni/starrocks/ast"
 )
 
@@ -703,9 +705,17 @@ func (p *Parser) parsePrimarySource() (ast.Node, error) {
 			ref := &ast.TableRef{
 				Loc: ast.Loc{Start: startLoc.Start},
 			}
+			// subqueryWithAlias (StarRocks.g4:2192): subquery (AS? alias columnAliases?)?
 			alias, _ := p.parseOptionalAlias(false)
 			if alias != "" {
 				ref.Alias = alias
+				if p.cur.Kind == int('(') {
+					cols, err := p.parseColumnAliasList()
+					if err != nil {
+						return nil, err
+					}
+					ref.ColumnAliases = cols
+				}
 			}
 			// Legacy consumers still read the raw text out of Name.Parts[0];
 			// Subquery is the discriminator — table names like `selected` or
@@ -743,6 +753,10 @@ func (p *Parser) parsePrimarySource() (ast.Node, error) {
 			return nil, err
 		}
 		return inner, nil
+	}
+
+	if p.cur.Kind == kwTABLE && p.peekNext().Kind == int('(') {
+		return p.parseNormalizedTableFunction()
 	}
 
 	// Default: a table reference or a table function.
@@ -802,22 +816,216 @@ func (p *Parser) parseTableOrFunction() (ast.Node, error) {
 		return p.parseTableFunction(name)
 	}
 
+	// tableAtom (StarRocks.g4:2188):
+	//
+	//	qualifiedName queryPeriod? partitionNames? tabletList? replicaList?
+	//	    (AS? alias=identifier)? bracketHint? (BEFORE ts=string)?
 	ref := &ast.TableRef{
 		Name: name,
 		Loc:  ast.Loc{Start: name.Loc.Start},
 	}
 
-	// TABLET(id, ...) sits between the name and the alias (grammar:
-	// tabletList? tableAlias). Only TABLET followed by '(' is the clause.
-	if p.cur.Kind == kwTABLET && p.peekNext().Kind == int('(') {
-		p.advance() // consume TABLET
-		p.advance() // consume '('
-		for {
-			idTok, err := p.expect(tokInt)
-			if err != nil {
+	if p.isQueryPeriodStart() {
+		if ref.Period, err = p.parseQueryPeriod(); err != nil {
+			return nil, err
+		}
+	}
+	if k := p.cur.Kind; k == kwTEMPORARY || k == kwPARTITION || k == kwPARTITIONS {
+		if next := p.peekNext().Kind; next == int('(') || next == tokString || isIdentifierToken(next) ||
+			next == kwPARTITION || next == kwPARTITIONS {
+			var names ast.AlterTableAction
+			if err := p.parseAlterPartitionNames(&names); err != nil {
 				return nil, err
 			}
-			ref.TabletIDs = append(ref.TabletIDs, idTok.Ival)
+			ref.TemporaryPartition = names.Temporary
+			ref.Partitions = names.PartitionList
+			if names.PartitionName != "" {
+				ref.Partitions = []string{names.PartitionName}
+			}
+		}
+	}
+
+	// TABLET(id, ...) and REPLICA(id, ...) sit between the name and the
+	// alias. Only the word followed by '(' is the clause.
+	if p.cur.Kind == kwTABLET && p.peekNext().Kind == int('(') {
+		if ref.TabletIDs, err = p.parseIntegerIDList(); err != nil {
+			return nil, err
+		}
+	}
+	if p.cur.Kind == kwREPLICA && p.peekNext().Kind == int('(') {
+		if ref.ReplicaIDs, err = p.parseIntegerIDList(); err != nil {
+			return nil, err
+		}
+	}
+
+	if alias, _ := p.parseOptionalAlias(false); alias != "" {
+		ref.Alias = alias
+	}
+	if p.cur.Kind == int('[') {
+		if ref.Hints, err = p.parseBracketHint(); err != nil {
+			return nil, err
+		}
+	}
+	if p.atWordToken("BEFORE") && p.peekNext().Kind == tokString {
+		p.advance() // consume BEFORE
+		ref.Before = p.advance().Str
+	}
+
+	ref.Loc.End = p.prev.Loc.End
+	return ref, nil
+}
+
+// atWordToken reports whether cur is the unquoted word w, spelled as a
+// keyword or, where omni has no keyword for it, as an identifier.
+func (p *Parser) atWordToken(w string) bool {
+	if kind, ok := KeywordToken(w); ok {
+		return p.cur.Kind == kind
+	}
+	return p.cur.Kind == tokIdent && strings.EqualFold(p.cur.Str, w)
+}
+
+// parseIntegerIDList reads WORD '(' INTEGER_VALUE (',' INTEGER_VALUE)* ')',
+// tabletList and replicaList (StarRocks.g4:2278, :2299); cur is the word.
+func (p *Parser) parseIntegerIDList() ([]int64, error) {
+	p.advance() // consume TABLET / REPLICA
+	p.advance() // consume '('
+	var ids []int64
+	for {
+		idTok, err := p.expect(tokInt)
+		if err != nil {
+			return nil, err
+		}
+		ids = append(ids, idTok.Ival)
+		if p.cur.Kind != int(',') {
+			break
+		}
+		p.advance() // consume ','
+	}
+	if _, err := p.expect(int(')')); err != nil {
+		return nil, err
+	}
+	return ids, nil
+}
+
+// periodTypeWord returns the periodType (StarRocks.g4:2109) tok spells:
+// SYSTEM_TIME, TIMESTAMP or VERSION, or "".
+func periodTypeWord(tok Token) string {
+	switch {
+	case tok.Kind == kwTIMESTAMP:
+		return "TIMESTAMP"
+	case tok.Kind == kwVERSION:
+		return "VERSION"
+	case tok.Kind == tokIdent && strings.EqualFold(tok.Str, "SYSTEM_TIME"):
+		return "SYSTEM_TIME"
+	}
+	return ""
+}
+
+// isQueryPeriodStart reports whether cur begins a queryPeriod: FOR, or a
+// periodType followed by BETWEEN, FROM, ALL or AS. TIMESTAMP and VERSION are
+// nonReserved, so a periodType followed by anything else is the alias.
+func (p *Parser) isQueryPeriodStart() bool {
+	if p.cur.Kind == kwFOR {
+		return periodTypeWord(p.peekNext()) != ""
+	}
+	if periodTypeWord(p.cur) == "" {
+		return false
+	}
+	switch p.peekNext().Kind {
+	case kwBETWEEN, kwFROM, kwALL, kwAS:
+		return true
+	}
+	return false
+}
+
+// parseQueryPeriod reads queryPeriod (StarRocks.g4:2102):
+//
+//	FOR? periodType BETWEEN expression AND expression
+//	| FOR? periodType FROM expression TO expression
+//	| FOR? periodType ALL
+//	| FOR? periodType AS OF expression
+func (p *Parser) parseQueryPeriod() (*ast.QueryPeriod, error) {
+	if p.cur.Kind == kwFOR {
+		p.advance() // consume FOR
+	}
+	period := &ast.QueryPeriod{Kind: periodTypeWord(p.cur)}
+	p.advance() // consume the period type
+	var err error
+	switch p.cur.Kind {
+	case kwBETWEEN:
+		p.advance()
+		period.Op = "BETWEEN"
+		// The bounds bind tighter than AND, as BETWEEN's do in an expression.
+		if period.Start, err = p.parseExprPrec(bpPred + 1); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(kwAND); err != nil {
+			return nil, err
+		}
+		if period.End, err = p.parseExprPrec(bpPred + 1); err != nil {
+			return nil, err
+		}
+	case kwFROM:
+		p.advance()
+		period.Op = "FROM"
+		if period.Start, err = p.parseExpr(); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(kwTO); err != nil {
+			return nil, err
+		}
+		if period.End, err = p.parseExpr(); err != nil {
+			return nil, err
+		}
+	case kwALL:
+		p.advance()
+		period.Op = "ALL"
+	case kwAS:
+		p.advance()
+		if _, err := p.expect(kwOF); err != nil {
+			return nil, err
+		}
+		period.Op = "AS OF"
+		if period.Start, err = p.parseExpr(); err != nil {
+			return nil, err
+		}
+	default:
+		return nil, p.syntaxErrorAtCur()
+	}
+	return period, nil
+}
+
+// parseBracketHint reads bracketHint (StarRocks.g4:2249):
+//
+//	'[' identifier (',' identifier)* ']'
+//	| '[' identifier '|' primaryExpression literalExpressionList ']'
+//
+// and returns each item as written.
+func (p *Parser) parseBracketHint() ([]string, error) {
+	p.advance() // consume '['
+	var hints []string
+	start := p.cur.Loc
+	if _, _, err := p.parseIdentifier(); err != nil {
+		return nil, err
+	}
+	if p.cur.Kind == int('|') {
+		p.advance() // consume '|'
+		// primaryExpression: the literalExpressionList's '(' follows it, so
+		// a word followed by '(' is the expression alone, not a call
+		// (StarRocks takes [ a | f(NULL) ]). omni reads it as one word,
+		// the form a skew hint names a column by.
+		if p.cur.Kind != tokIdent && p.cur.Kind != tokQuotedIdent && p.cur.Kind < 700 {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		// literalExpressionList (:2637): '(' literalExpression (',' literalExpression)* ')'
+		if _, err := p.expect(int('(')); err != nil {
+			return nil, err
+		}
+		for {
+			if err := p.parseAlterLiteralExpression(); err != nil {
+				return nil, err
+			}
 			if p.cur.Kind != int(',') {
 				break
 			}
@@ -826,14 +1034,99 @@ func (p *Parser) parseTableOrFunction() (ast.Node, error) {
 		if _, err := p.expect(int(')')); err != nil {
 			return nil, err
 		}
+		hints = append(hints, p.input[start.Start-p.baseOffset:p.prev.Loc.End-p.baseOffset])
+	} else {
+		hints = append(hints, p.input[start.Start-p.baseOffset:p.prev.Loc.End-p.baseOffset])
+		for p.cur.Kind == int(',') {
+			p.advance() // consume ','
+			name, _, err := p.parseIdentifier()
+			if err != nil {
+				return nil, err
+			}
+			hints = append(hints, name)
+		}
 	}
+	if _, err := p.expect(int(']')); err != nil {
+		return nil, err
+	}
+	return hints, nil
+}
 
+// parseNormalizedTableFunction reads normalizedTableFunction (StarRocks.g4:2195):
+//
+//	TABLE '(' qualifiedName '(' argumentList ')' ')' (AS? alias=identifier columnAliases?)?
+//	argumentList : expressionList | namedArgumentList
+//	namedArgument : identifier '=>' expression
+func (p *Parser) parseNormalizedTableFunction() (ast.Node, error) {
+	start := p.advance().Loc // consume TABLE
+	p.advance()              // consume '('
+	name, err := p.parseMultipartIdentifier()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(int('(')); err != nil {
+		return nil, err
+	}
+	call := &ast.FuncCallExpr{Name: name, Loc: ast.Loc{Start: name.Loc.Start}}
+	tf := &ast.TableFunctionRef{Call: call, Normalized: true, Loc: ast.Loc{Start: start.Start}}
+	named := isIdentifierToken(p.cur.Kind) && p.atNamedArrow()
+	for {
+		argName := ""
+		if named {
+			if argName, _, err = p.parseIdentifier(); err != nil {
+				return nil, err
+			}
+			if !p.atNamedArrow() {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance() // consume '='
+			p.advance() // consume '>'
+		}
+		arg, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		call.Args = append(call.Args, arg)
+		tf.ArgNames = append(tf.ArgNames, argName)
+		if p.cur.Kind != int(',') {
+			break
+		}
+		p.advance() // consume ','
+	}
+	if _, err := p.expect(int(')')); err != nil {
+		return nil, err
+	}
+	call.Loc.End = p.prev.Loc.End
+	if _, err := p.expect(int(')')); err != nil {
+		return nil, err
+	}
 	if alias, _ := p.parseOptionalAlias(false); alias != "" {
-		ref.Alias = alias
+		tf.Alias = alias
+		if p.cur.Kind == int('(') {
+			cols, err := p.parseColumnAliasList()
+			if err != nil {
+				return nil, err
+			}
+			tf.ColumnAliases = cols
+		}
 	}
+	tf.Loc.End = p.prev.Loc.End
+	return tf, nil
+}
 
-	ref.Loc.End = p.prev.Loc.End
-	return ref, nil
+// atNamedArrow reports whether a namedArgument's '=>' is next: at cur, or
+// after cur when cur is the argument's name. omni lexes '=>' as '=' and
+// '>', so the '>' must follow the '=' with nothing between them.
+func (p *Parser) atNamedArrow() bool {
+	tok := p.cur
+	if tok.Kind != int('=') {
+		tok = p.peekNext()
+	}
+	if tok.Kind != int('=') {
+		return false
+	}
+	end := tok.Loc.End - p.baseOffset
+	return end < len(p.input) && p.input[end] == '>'
 }
 
 // parseTableFunction parses a table-function relation primary:
@@ -847,6 +1140,14 @@ func (p *Parser) parseTableFunction(name *ast.ObjectName) (ast.Node, error) {
 	call, err := p.parseFuncCall(name)
 	if err != nil {
 		return nil, err
+	}
+	if len(call.Args) == 0 && !call.Star {
+		// tableFunction (StarRocks.g4:2193) takes an expressionList, so
+		// at least one argument: FROM a() is refused.
+		return nil, &ParseError{
+			Position: p.prev.Loc.Start, End: p.prev.Loc.End,
+			Message: "syntax error at or near )",
+		}
 	}
 	tf := &ast.TableFunctionRef{
 		Call: call,
@@ -994,13 +1295,25 @@ func (p *Parser) parseColumnAliasList() ([]string, error) {
 // JOIN keywords following the left source.
 func (p *Parser) parseJoinChain(left ast.Node) (ast.Node, error) {
 	for {
+		start := p.cur
 		joinType, natural, ok := p.parseJoinKeywords()
 		if !ok {
+			if p.cur.Loc.Start != start.Loc.Start {
+				// LEFT/RIGHT/FULL [OUTER | SEMI | ANTI] without JOIN: those
+				// words lead nothing else after a FROM item.
+				return nil, p.syntaxErrorAtCur()
+			}
 			break
 		}
 
-		// Skip optional Doris execution hints: [shuffle], [broadcast], etc.
-		hints := p.parseJoinHints()
+		// bracketHint? (StarRocks.g4:2230)
+		var hints []string
+		if p.cur.Kind == int('[') {
+			var err error
+			if hints, err = p.parseBracketHint(); err != nil {
+				return nil, err
+			}
+		}
 
 		// The right-hand relation may carry a LATERAL prefix
 		// (joinRelation: ... LATERAL? rightRelation).
@@ -1018,10 +1331,13 @@ func (p *Parser) parseJoinChain(left ast.Node) (ast.Node, error) {
 			Loc:     ast.Loc{Start: ast.NodeLoc(left).Start},
 		}
 
-		// Parse join condition
+		// joinCriteria: optional after crossOrInnerJoinType, required after
+		// outerAndSemiJoinType (StarRocks.g4:2229-2234).
 		switch {
-		case joinType == ast.JoinCross || natural:
-			// CROSS JOIN and NATURAL JOIN: no condition required
+		case p.cur.Kind != kwON && p.cur.Kind != kwUSING:
+			if joinType != ast.JoinCross && joinType != ast.JoinInner && !natural {
+				return nil, p.syntaxErrorAtCur()
+			}
 
 		case p.cur.Kind == kwON:
 			p.advance() // consume ON
@@ -1062,50 +1378,12 @@ func (p *Parser) parseJoinChain(left ast.Node) (ast.Node, error) {
 	return left, nil
 }
 
-// parseJoinHints skips any Doris execution hint between join keywords and
-// the right-side table reference. Hints have the form [identifier] or
-// /*+ identifier */ (comment-style). Only bracket-style is handled here.
-// Returns the consumed hint identifiers (may be empty).
-func (p *Parser) parseJoinHints() []string {
-	var hints []string
-	for p.cur.Kind == int('[') {
-		p.advance() // consume '['
-		// Collect tokens until ']'
-		for p.cur.Kind != int(']') && p.cur.Kind != tokEOF {
-			if p.cur.Kind == tokIdent || p.cur.Kind == tokQuotedIdent ||
-				(p.cur.Kind >= 700) {
-				hints = append(hints, p.cur.Str)
-			}
-			p.advance()
-		}
-		if p.cur.Kind == int(']') {
-			p.advance() // consume ']'
-		}
-	}
-	return hints
-}
-
 // parseJoinKeywords checks whether the current token position starts a
 // JOIN keyword sequence. If so, it consumes the tokens and returns
 // (joinType, natural, true). If not, returns (0, false, false)
 // without consuming any tokens.
 func (p *Parser) parseJoinKeywords() (ast.JoinType, bool, bool) {
-	// NATURAL [LEFT|RIGHT|FULL] [OUTER] JOIN
-	if p.cur.Kind == kwNATURAL {
-		next := p.peekNext()
-		if next.Kind == kwJOIN {
-			p.advance() // consume NATURAL
-			p.advance() // consume JOIN
-			return ast.JoinInner, true, true
-		}
-		if next.Kind == kwLEFT || next.Kind == kwRIGHT || next.Kind == kwFULL {
-			p.advance() // consume NATURAL
-			jt := p.consumeDirectionAndJoin()
-			return jt, true, true
-		}
-		return 0, false, false
-	}
-
+	// NATURAL: joinRelation (StarRocks.g4:2229) has none.
 	// INNER JOIN
 	if p.cur.Kind == kwINNER {
 		next := p.peekNext()
@@ -1187,15 +1465,13 @@ func (p *Parser) parseJoinKeywords() (ast.JoinType, bool, bool) {
 		return 0, false, false
 	}
 
-	// CROSS JOIN
+	// CROSS | CROSS JOIN (crossOrInnerJoinType, StarRocks.g4:2236)
 	if p.cur.Kind == kwCROSS {
-		next := p.peekNext()
-		if next.Kind == kwJOIN {
-			p.advance() // consume CROSS
+		p.advance() // consume CROSS
+		if p.cur.Kind == kwJOIN {
 			p.advance() // consume JOIN
-			return ast.JoinCross, false, true
 		}
-		return 0, false, false
+		return ast.JoinCross, false, true
 	}
 
 	// Bare JOIN (= INNER)

@@ -239,6 +239,14 @@ func walkChildren(v Visitor, node Node) {
 		case n.Name != nil:
 			Walk(v, n.Name)
 		}
+		for _, prop := range n.FuncProperties {
+			Walk(v, prop)
+		}
+		if n.ScanParams != nil {
+			for _, prop := range n.ScanParams.Properties {
+				Walk(v, prop)
+			}
+		}
 		if n.Sample != nil {
 			if n.Sample.Value != nil {
 				Walk(v, n.Sample.Value)

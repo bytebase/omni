@@ -208,36 +208,51 @@ func TestJoinRightAnti(t *testing.T) {
 // NATURAL JOIN
 // ---------------------------------------------------------------------------
 
+// TestJoinNatural: joinRelation (StarRocks.g4:2229) has no NATURAL.
 func TestJoinNatural(t *testing.T) {
-	join := mustParseJoin(t, "SELECT * FROM a NATURAL JOIN b")
-	if join.Type != ast.JoinInner {
-		t.Errorf("join.Type = %v, want JoinInner (natural)", join.Type)
-	}
-	if !join.Natural {
-		t.Error("Natural = false, want true")
-	}
-	if join.On != nil {
-		t.Error("On should be nil for NATURAL JOIN")
-	}
-}
-
-func TestJoinNaturalLeft(t *testing.T) {
-	join := mustParseJoin(t, "SELECT * FROM a NATURAL LEFT JOIN b")
-	if join.Type != ast.JoinLeft {
-		t.Errorf("join.Type = %v, want JoinLeft", join.Type)
-	}
-	if !join.Natural {
-		t.Error("Natural = false, want true")
+	for _, sql := range []string{
+		"SELECT * FROM a NATURAL JOIN b",
+		"SELECT * FROM a NATURAL LEFT JOIN b",
+		"SELECT * FROM a NATURAL RIGHT JOIN b",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) succeeded; StarRocks has no NATURAL join", sql)
+		}
 	}
 }
 
-func TestJoinNaturalRight(t *testing.T) {
-	join := mustParseJoin(t, "SELECT * FROM a NATURAL RIGHT JOIN b")
-	if join.Type != ast.JoinRight {
-		t.Errorf("join.Type = %v, want JoinRight", join.Type)
+// TestFromClauseGrammar holds FROM items to StarRocks.g4's relationPrimary
+// and joinRelation; testdata/compat.tsv has StarRocks's verdicts.
+func TestFromClauseGrammar(t *testing.T) {
+	cases := []struct {
+		sql string
+		ok  bool
+	}{
+		{"SELECT 1 FROM a LEFT JOIN b", false},
+		{"SELECT 1 FROM a LEFT ANTI JOIN b ON 1", true},
+		{"SELECT 1 FROM a CROSS b", true},
+		{"SELECT 1 FROM a JOIN [shuffle] b", true},
+		{"SELECT 1 FROM a JOIN [ ] b", false},
+		{"SELECT 1 FROM a LEFT OUTER", false},
+		{"SELECT 1 FROM a FOR SYSTEM_TIME AS OF '2024-01-01'", true},
+		{"SELECT 1 FROM a VERSION BETWEEN 1 AND 2", true},
+		{"SELECT 1 FROM a TIMESTAMP ALL t", true},
+		{"SELECT 1 FROM a timestamp", true}, // TIMESTAMP names the alias
+		{"SELECT 1 FROM a TEMPORARY PARTITION (p1, p2) TABLET(1) REPLICA(1, 2) t [h] BEFORE '2024-01-01'", true},
+		{"SELECT 1 FROM a PARTITION (k = 1)", true},
+		{"SELECT 1 FROM a [ a | b(1, NULL) ]", true},
+		{"SELECT 1 FROM (SELECT 1) t(c)", true},
+		{"SELECT 1 FROM TABLE(f(a => 1, b => 'x')) t(c)", true},
+		{"SELECT 1 FROM TABLE(f(1, 2))", true},
+		{"SELECT 1 FROM TABLE(f(a => 1, 2))", false},
+		{"SELECT 1 FROM a()", false},
+		{"SELECT 1 FROM unnest([1]) t(c)", true},
 	}
-	if !join.Natural {
-		t.Error("Natural = false, want true")
+	for _, c := range cases {
+		_, err := Parse(c.sql)
+		if (err == nil) != c.ok {
+			t.Errorf("Parse(%q): err = %v, want accepted=%v", c.sql, err, c.ok)
+		}
 	}
 }
 
