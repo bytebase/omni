@@ -159,9 +159,10 @@ func (p *Parser) parseObjectStmt(verb string, f *objectForm, start ast.Loc, orRe
 
 // startsObjectProperty reports whether cur begins a `KEY = value` property:
 // a name word followed by '='.
+// The key is an unquoted identifier or a keyword: a property's name is never
+// quoted.
 func (p *Parser) startsObjectProperty() bool {
-	return p.isOptionWord(p.cur.Type) && p.cur.Type != tokInt && p.cur.Type != tokFloat && p.cur.Type != tokReal &&
-		p.peekNext().Type == '='
+	return (p.cur.Type == tokIdent || p.cur.Type >= 700) && p.peekNext().Type == '='
 }
 
 // parseObjectProperties reads a run of `KEY = value` properties and
