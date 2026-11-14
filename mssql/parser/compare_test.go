@@ -9493,9 +9493,11 @@ func TestParseCreateTypeIndex(t *testing.T) {
 	})
 
 	t.Run("create_type_table_hash_index", func(t *testing.T) {
+		// WITH follows the column list; SQL Server 2022 refuses it before
+		// (Msg 102).
 		sql := `CREATE TYPE dbo.MemOptType AS TABLE (
 			id INT NOT NULL,
-			INDEX IX_id NONCLUSTERED HASH WITH (BUCKET_COUNT = 1024) (id)
+			INDEX IX_id NONCLUSTERED HASH (id) WITH (BUCKET_COUNT = 1024)
 		)`
 		result := ParseAndCheck(t, sql)
 		stmt := result.Items[0].(*ast.CreateTypeStmt)
@@ -12840,26 +12842,13 @@ func TestParseMaterializedView(t *testing.T) {
 		// With join in SELECT
 		"CREATE MATERIALIZED VIEW dbo.mv_join WITH (DISTRIBUTION = HASH(vendor_id)) AS SELECT a.vendor_id, SUM(a.total_amount) AS s, COUNT_BIG(*) AS c FROM t1 a INNER JOIN t2 b ON a.vendor_id = b.vendor_id GROUP BY a.vendor_id",
 	}
+	// CREATE and ALTER MATERIALIZED VIEW are Azure Synapse Analytics syntax,
+	// which SQL Server 2022 refuses (Msg 102), so Parse refuses them.
 	for _, sql := range createTests {
 		t.Run(sql, func(t *testing.T) {
-			result := ParseAndCheck(t, sql)
-			if result.Len() != 1 {
-				t.Fatalf("Parse(%q): got %d statements, want 1", sql, result.Len())
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q): expected an error", sql)
 			}
-			stmt, ok := result.Items[0].(*ast.CreateMaterializedViewStmt)
-			if !ok {
-				t.Fatalf("Parse(%q): expected *CreateMaterializedViewStmt, got %T", sql, result.Items[0])
-			}
-			if stmt.Name == nil {
-				t.Errorf("Parse(%q): Name is nil", sql)
-			}
-			if stmt.Distribution == "" {
-				t.Errorf("Parse(%q): Distribution is empty", sql)
-			}
-			if stmt.Query == nil {
-				t.Errorf("Parse(%q): Query is nil", sql)
-			}
-			checkLocation(t, sql, "CreateMaterializedViewStmt", stmt.Loc)
 		})
 	}
 
@@ -12879,21 +12868,9 @@ func TestParseMaterializedView(t *testing.T) {
 	}
 	for _, tc := range alterTests {
 		t.Run(tc.sql, func(t *testing.T) {
-			result := ParseAndCheck(t, tc.sql)
-			if result.Len() != 1 {
-				t.Fatalf("Parse(%q): got %d statements, want 1", tc.sql, result.Len())
+			if _, err := Parse(tc.sql); err == nil {
+				t.Errorf("Parse(%q): expected an error", tc.sql)
 			}
-			stmt, ok := result.Items[0].(*ast.AlterMaterializedViewStmt)
-			if !ok {
-				t.Fatalf("Parse(%q): expected *AlterMaterializedViewStmt, got %T", tc.sql, result.Items[0])
-			}
-			if stmt.Name == nil {
-				t.Errorf("Parse(%q): Name is nil", tc.sql)
-			}
-			if !strings.EqualFold(stmt.Action, tc.action) {
-				t.Errorf("Parse(%q): Action = %q, want %q", tc.sql, stmt.Action, tc.action)
-			}
-			checkLocation(t, tc.sql, "AlterMaterializedViewStmt", stmt.Loc)
 		})
 	}
 
@@ -13440,9 +13417,6 @@ func TestParseStmtDispatchPhase4(t *testing.T) {
 		{"create_external_model", "CREATE EXTERNAL MODEL mymodel WITH (LOCATION = 'onnx:///mymodel.onnx')", "*ast.SecurityStmt"},
 		// Batch 109 - json/vector index
 		{"create_json_index", "CREATE JSON INDEX idx_json ON dbo.t1 (col1)", "*ast.CreateJsonIndexStmt"},
-		// Batch 110 - materialized view
-		{"create_materialized_view", "CREATE MATERIALIZED VIEW dbo.mv AS SELECT col1 FROM dbo.t1", "*ast.CreateMaterializedViewStmt"},
-		{"alter_materialized_view", "ALTER MATERIALIZED VIEW dbo.mv REBUILD", "*ast.AlterMaterializedViewStmt"},
 		// Batch 111 - copy into
 		{"copy_into", "COPY INTO dbo.t1 FROM 'https://storage.blob.core.windows.net/data/' WITH (FILE_TYPE = 'CSV')", "*ast.CopyIntoStmt"},
 		// Batch 112 - rename, CETAS, clone

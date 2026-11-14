@@ -13,7 +13,7 @@ reject	reject	engine	batch(Semicolon)*/Semicolon_(Semicolon)*!insert	; zzz
 accept	accept	engine	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 reject	reject	engine	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi!drop-1	SCHEMA a
 reject	reject	engine	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi!drop-2	CREATE a
-accept	reject	engine	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi!drop-3	CREATE SCHEMA
+reject	reject	engine	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi!drop-3	CREATE SCHEMA
 reject	reject	engine	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi!insert	CREATE SCHEMA a zzz
 reject	reject	engine	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi!swap	CREATE_INDEX SCHEMA a
 accept	accept	engine	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/optSimpleExecute_(statementOptSemi)*	
@@ -296,10 +296,10 @@ accept	reject	engine	statement/raiseErrorStatement!drop-7	RAISERROR(1, 1,)
 reject	reject	engine	statement/raiseErrorStatement!drop-8	RAISERROR(1, 1, 1
 reject	reject	engine	statement/raiseErrorStatement!insert	RAISERROR(1, 1, 1) zzz
 reject	reject	engine	statement/raiseErrorStatement!swap	RANDOMIZED(1, 1, 1)
-accept	reject	engine	statement/alter2005Statements	ALTER ASSEMBLY a
+reject	reject	engine	statement/alter2005Statements	ALTER ASSEMBLY a
 reject	accept	engine	statement/alter2005Statements!drop-1	ASSEMBLY a
 reject	reject	engine	statement/alter2005Statements!drop-2	ALTER a
-accept	reject	engine	statement/alter2005Statements!drop-3	ALTER ASSEMBLY
+reject	reject	engine	statement/alter2005Statements!drop-3	ALTER ASSEMBLY
 reject	reject	engine	statement/alter2005Statements!insert	ALTER ASSEMBLY a zzz
 reject	reject	engine	statement/alter2005Statements!swap	ALWAYS ASSEMBLY a
 reject	reject	engine	statement/create2005Statements	CREATE MASTER KEY
@@ -564,7 +564,7 @@ reject	reject	engine	lastStatement/createRuleStatement!swap	CREATE_INDEX RULE a 
 accept	accept	engine	lastStatement/createViewStatement	CREATE VIEW a AS SELECT *
 reject	reject	engine	lastStatement/createViewStatement!drop-1	VIEW a AS SELECT *
 reject	reject	engine	lastStatement/createViewStatement!drop-2	CREATE a AS SELECT *
-accept	reject	engine	lastStatement/createViewStatement!drop-3	CREATE VIEW AS SELECT *
+reject	reject	engine	lastStatement/createViewStatement!drop-3	CREATE VIEW AS SELECT *
 reject	reject	engine	lastStatement/createViewStatement!drop-4	CREATE VIEW a SELECT *
 reject	reject	engine	lastStatement/createViewStatement!drop-5	CREATE VIEW a AS *
 reject	reject	engine	lastStatement/createViewStatement!drop-6	CREATE VIEW a AS SELECT
@@ -572,7 +572,7 @@ reject	reject	engine	lastStatement/createViewStatement!insert	CREATE VIEW a AS S
 reject	reject	engine	lastStatement/createViewStatement!swap	CREATE_INDEX VIEW a AS SELECT *
 accept	accept	engine	lastStatement/alterViewStatement	ALTER VIEW a AS SELECT *
 reject	reject	engine	lastStatement/alterViewStatement!drop-2	ALTER a AS SELECT *
-accept	reject	engine	lastStatement/alterViewStatement!drop-3	ALTER VIEW AS SELECT *
+reject	reject	engine	lastStatement/alterViewStatement!drop-3	ALTER VIEW AS SELECT *
 reject	reject	engine	lastStatement/alterViewStatement!drop-4	ALTER VIEW a SELECT *
 reject	reject	engine	lastStatement/alterViewStatement!drop-5	ALTER VIEW a AS *
 reject	reject	engine	lastStatement/alterViewStatement!drop-6	ALTER VIEW a AS SELECT
@@ -614,12 +614,12 @@ accept	reject	engine	lastStatement/createIdentifierStatement!drop-7	CREATE FEDER
 accept	reject	engine	lastStatement/createIdentifierStatement!drop-8	CREATE FEDERATION a(a a RANGE
 reject	reject	engine	lastStatement/createIdentifierStatement!insert	CREATE FEDERATION a(a a RANGE) zzz
 reject	reject	engine	lastStatement/createIdentifierStatement!swap	CREATE_INDEX FEDERATION a(a a RANGE)
-accept	reject	engine	lastStatement/alterIdentifierStatement	ALTER MATERIALIZED VIEW a REBUILD
+reject	reject	engine	lastStatement/alterIdentifierStatement	ALTER MATERIALIZED VIEW a REBUILD
 reject	reject	engine	lastStatement/alterIdentifierStatement!drop-1	MATERIALIZED VIEW a REBUILD
 reject	reject	engine	lastStatement/alterIdentifierStatement!drop-2	ALTER VIEW a REBUILD
 reject	reject	engine	lastStatement/alterIdentifierStatement!drop-3	ALTER MATERIALIZED a REBUILD
-accept	reject	engine	lastStatement/alterIdentifierStatement!drop-4	ALTER MATERIALIZED VIEW REBUILD
-accept	reject	engine	lastStatement/alterIdentifierStatement!drop-5	ALTER MATERIALIZED VIEW a
+reject	reject	engine	lastStatement/alterIdentifierStatement!drop-4	ALTER MATERIALIZED VIEW REBUILD
+reject	reject	engine	lastStatement/alterIdentifierStatement!drop-5	ALTER MATERIALIZED VIEW a
 reject	reject	engine	lastStatement/alterIdentifierStatement!insert	ALTER MATERIALIZED VIEW a REBUILD zzz
 reject	reject	engine	lastStatement/alterIdentifierStatement!swap	ALWAYS MATERIALIZED VIEW a REBUILD
 accept	accept	engine	lastStatement/useFederationStatement	USE FEDERATION ROOT WITH RESET
@@ -640,23 +640,23 @@ reject	reject	engine	lastStatement/createOrAlterStatements!drop-6	CREATE OR ALTE
 reject	reject	engine	lastStatement/createOrAlterStatements!insert	CREATE OR ALTER PROC a AS zzz
 reject	reject	engine	lastStatement/createOrAlterStatements!swap	CREATE_INDEX OR ALTER PROC a AS
 accept	reject	engine	createIdentifierStatement/Create_(createMaterializedViewStatement_MATE~799f03ed)	CREATE FEDERATION a(a a RANGE)
-accept	reject	engine	createIdentifierStatement(createMaterializedViewStatement_MATE~799f03ed)/createMaterializedViewStatement_MATERIALIZED	CREATE MATERIALIZED VIEW a WITH(FOR_APPEND) AS SELECT *
+reject	reject	engine	createIdentifierStatement(createMaterializedViewStatement_MATE~799f03ed)/createMaterializedViewStatement_MATERIALIZED	CREATE MATERIALIZED VIEW a WITH(FOR_APPEND) AS SELECT *
 reject	reject	engine	createIdentifierStatement(createMaterializedViewStatement_MATE~799f03ed)/createMaterializedViewStatement_MATERIALIZED!drop-1	CREATE VIEW a WITH(FOR_APPEND) AS SELECT *
 reject	reject	engine	createIdentifierStatement(createMaterializedViewStatement_MATE~799f03ed)/createMaterializedViewStatement_MATERIALIZED!drop-2	CREATE MATERIALIZED a WITH(FOR_APPEND) AS SELECT *
-accept	reject	engine	createIdentifierStatement(createMaterializedViewStatement_MATE~799f03ed)/createMaterializedViewStatement_MATERIALIZED!drop-3	CREATE MATERIALIZED VIEW WITH(FOR_APPEND) AS SELECT *
+reject	reject	engine	createIdentifierStatement(createMaterializedViewStatement_MATE~799f03ed)/createMaterializedViewStatement_MATERIALIZED!drop-3	CREATE MATERIALIZED VIEW WITH(FOR_APPEND) AS SELECT *
 reject	reject	engine	createIdentifierStatement(createMaterializedViewStatement_MATE~799f03ed)/createMaterializedViewStatement_MATERIALIZED!drop-4	CREATE MATERIALIZED VIEW a(FOR_APPEND) AS SELECT *
 reject	reject	engine	createIdentifierStatement(createMaterializedViewStatement_MATE~799f03ed)/createMaterializedViewStatement_MATERIALIZED!drop-5	CREATE MATERIALIZED VIEW a WITH FOR_APPEND) AS SELECT *
-accept	reject	engine	createIdentifierStatement(createMaterializedViewStatement_MATE~799f03ed)/createMaterializedViewStatement_MATERIALIZED!drop-6	CREATE MATERIALIZED VIEW a WITH() AS SELECT *
+reject	reject	engine	createIdentifierStatement(createMaterializedViewStatement_MATE~799f03ed)/createMaterializedViewStatement_MATERIALIZED!drop-6	CREATE MATERIALIZED VIEW a WITH() AS SELECT *
 reject	reject	engine	createIdentifierStatement(createMaterializedViewStatement_MATE~799f03ed)/createMaterializedViewStatement_MATERIALIZED!drop-7	CREATE MATERIALIZED VIEW a WITH(FOR_APPEND AS SELECT *
-accept	reject	engine	createIdentifierStatement(createMaterializedViewStatement_MATE~799f03ed)/createMaterializedViewStatement_MATERIALIZED!drop-8	CREATE MATERIALIZED VIEW a WITH(FOR_APPEND) SELECT *
+reject	reject	engine	createIdentifierStatement(createMaterializedViewStatement_MATE~799f03ed)/createMaterializedViewStatement_MATERIALIZED!drop-8	CREATE MATERIALIZED VIEW a WITH(FOR_APPEND) SELECT *
 reject	reject	engine	createIdentifierStatement(createMaterializedViewStatement_MATE~799f03ed)/createMaterializedViewStatement_MATERIALIZED!drop-9	CREATE MATERIALIZED VIEW a WITH(FOR_APPEND) AS *
 reject	reject	engine	createIdentifierStatement(createMaterializedViewStatement_MATE~799f03ed)/createMaterializedViewStatement_MATERIALIZED!drop-10	CREATE MATERIALIZED VIEW a WITH(FOR_APPEND) AS SELECT
 reject	reject	engine	createIdentifierStatement(createMaterializedViewStatement_MATE~799f03ed)/createMaterializedViewStatement_MATERIALIZED!insert	CREATE MATERIALIZED VIEW a WITH(FOR_APPEND) AS SELECT * zzz
 reject	reject	engine	createIdentifierStatement(createMaterializedViewStatement_MATE~799f03ed)/createMaterializedViewStatement_MATERIALIZED!swap	CREATE MAX VIEW a WITH(FOR_APPEND) AS SELECT *
 accept	reject	engine	createIdentifierStatement(createMaterializedViewStatement_MATE~799f03ed)/createFederationStatement_FEDERATION	CREATE FEDERATION a(a a RANGE)
 reject	reject	engine	createIdentifierStatement(createMaterializedViewStatement_MATE~799f03ed)/createFederationStatement_FEDERATION!swap	CREATE FETCH a(a a RANGE)
-accept	reject	engine	alterIdentifierStatement/Alter_(alterMaterializedViewStatement_MATER~9627793e)	ALTER MATERIALIZED VIEW a REBUILD
-accept	reject	engine	alterIdentifierStatement(alterMaterializedViewStatement_MATER~9627793e)/alterMaterializedViewStatement_MATERIALIZED	ALTER MATERIALIZED VIEW a REBUILD
+reject	reject	engine	alterIdentifierStatement/Alter_(alterMaterializedViewStatement_MATER~9627793e)	ALTER MATERIALIZED VIEW a REBUILD
+reject	reject	engine	alterIdentifierStatement(alterMaterializedViewStatement_MATER~9627793e)/alterMaterializedViewStatement_MATERIALIZED	ALTER MATERIALIZED VIEW a REBUILD
 reject	reject	engine	alterIdentifierStatement(alterMaterializedViewStatement_MATER~9627793e)/alterMaterializedViewStatement_MATERIALIZED!swap	ALTER MAX VIEW a REBUILD
 accept	reject	engine	alterIdentifierStatement(alterMaterializedViewStatement_MATER~9627793e)/alterFederationStatement_FEDERATION	ALTER FEDERATION a SPLIT AT(a = 1)
 reject	reject	engine	alterIdentifierStatement(alterMaterializedViewStatement_MATER~9627793e)/alterFederationStatement_FEDERATION!drop-1	ALTER a SPLIT AT(a = 1)
@@ -698,7 +698,7 @@ reject	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|crea
 reject	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterTriggerStatement!swap	CREATE OR ALTER TRIM a ON a FOR a AS SELECT 1
 accept	accept	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterViewStatement	CREATE OR ALTER VIEW a AS SELECT *
 reject	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterViewStatement!drop-1	CREATE OR ALTER a AS SELECT *
-accept	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterViewStatement!drop-2	CREATE OR ALTER VIEW AS SELECT *
+reject	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterViewStatement!drop-2	CREATE OR ALTER VIEW AS SELECT *
 reject	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterViewStatement!drop-3	CREATE OR ALTER VIEW a SELECT *
 reject	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterViewStatement!drop-4	CREATE OR ALTER VIEW a AS *
 reject	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterViewStatement!drop-5	CREATE OR ALTER VIEW a AS SELECT
@@ -775,16 +775,16 @@ reject	reject	engine	enableDisableTriggerBody(Comma_schemaObjectThreePartName)*/
 reject	reject	engine	create2005Statements/Create_(createAggregateStatement_AGGREGATE|c~84c54389)	CREATE MASTER KEY
 accept	accept	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createAggregateStatement_AGGREGATE	CREATE AGGREGATE a(@a a) RETURNS a EXTERNAL NAME a
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createAggregateStatement_AGGREGATE!drop-1	CREATE a(@a a) RETURNS a EXTERNAL NAME a
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createAggregateStatement_AGGREGATE!drop-2	CREATE AGGREGATE(@a a) RETURNS a EXTERNAL NAME a
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createAggregateStatement_AGGREGATE!drop-2	CREATE AGGREGATE(@a a) RETURNS a EXTERNAL NAME a
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createAggregateStatement_AGGREGATE!drop-3	CREATE AGGREGATE a @a a) RETURNS a EXTERNAL NAME a
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createAggregateStatement_AGGREGATE!drop-4	CREATE AGGREGATE a(a) RETURNS a EXTERNAL NAME a
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createAggregateStatement_AGGREGATE!drop-5	CREATE AGGREGATE a(@a) RETURNS a EXTERNAL NAME a
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createAggregateStatement_AGGREGATE!drop-6	CREATE AGGREGATE a(@a a RETURNS a EXTERNAL NAME a
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createAggregateStatement_AGGREGATE!drop-4	CREATE AGGREGATE a(a) RETURNS a EXTERNAL NAME a
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createAggregateStatement_AGGREGATE!drop-5	CREATE AGGREGATE a(@a) RETURNS a EXTERNAL NAME a
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createAggregateStatement_AGGREGATE!drop-6	CREATE AGGREGATE a(@a a RETURNS a EXTERNAL NAME a
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createAggregateStatement_AGGREGATE!drop-7	CREATE AGGREGATE a(@a a) a EXTERNAL NAME a
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createAggregateStatement_AGGREGATE!drop-8	CREATE AGGREGATE a(@a a) RETURNS EXTERNAL NAME a
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createAggregateStatement_AGGREGATE!drop-9	CREATE AGGREGATE a(@a a) RETURNS a NAME a
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createAggregateStatement_AGGREGATE!drop-10	CREATE AGGREGATE a(@a a) RETURNS a EXTERNAL a
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createAggregateStatement_AGGREGATE!drop-11	CREATE AGGREGATE a(@a a) RETURNS a EXTERNAL NAME
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createAggregateStatement_AGGREGATE!drop-10	CREATE AGGREGATE a(@a a) RETURNS a EXTERNAL a
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createAggregateStatement_AGGREGATE!drop-11	CREATE AGGREGATE a(@a a) RETURNS a EXTERNAL NAME
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createAggregateStatement_AGGREGATE!insert	CREATE AGGREGATE a(@a a) RETURNS a EXTERNAL NAME a zzz
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createAggregateStatement_AGGREGATE!swap	CREATE ALGORITHM a(@a a) RETURNS a EXTERNAL NAME a
 accept	accept	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createApplicationRoleStatement_APPLICATION	CREATE APPLICATION ROLE a WITH PASSWORD = 'a'
@@ -799,9 +799,9 @@ reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~8
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createApplicationRoleStatement_APPLICATION!swap	CREATE APPLICATION_LOG ROLE a WITH PASSWORD = 'a'
 accept	accept	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createAssemblyStatement_ASSEMBLY	CREATE ASSEMBLY a FROM 1
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createAssemblyStatement_ASSEMBLY!drop-1	CREATE a FROM 1
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createAssemblyStatement_ASSEMBLY!drop-2	CREATE ASSEMBLY FROM 1
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createAssemblyStatement_ASSEMBLY!drop-2	CREATE ASSEMBLY FROM 1
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createAssemblyStatement_ASSEMBLY!drop-3	CREATE ASSEMBLY a 1
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createAssemblyStatement_ASSEMBLY!drop-4	CREATE ASSEMBLY a FROM
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createAssemblyStatement_ASSEMBLY!drop-4	CREATE ASSEMBLY a FROM
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createAssemblyStatement_ASSEMBLY!insert	CREATE ASSEMBLY a FROM 1 zzz
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createAssemblyStatement_ASSEMBLY!swap	CREATE ASYMMETRIC a FROM 1
 accept	accept	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createAsymmetricKeyStatement_ASYMMETRIC	CREATE ASYMMETRIC KEY a FROM ASSEMBLY a
@@ -987,14 +987,14 @@ reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~8
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createLoginStatement_LOGIN!insert	CREATE LOGIN a FROM WINDOWS zzz
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createLoginStatement_LOGIN!swap	CREATE LOGIN_TYPE a FROM WINDOWS
 accept	accept	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createMessageTypeStatement_MESSAGE	CREATE MESSAGE TYPE a
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createMessageTypeStatement_MESSAGE!drop-1	CREATE TYPE a
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createMessageTypeStatement_MESSAGE!drop-1	CREATE TYPE a
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createMessageTypeStatement_MESSAGE!drop-2	CREATE MESSAGE a
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createMessageTypeStatement_MESSAGE!drop-3	CREATE MESSAGE TYPE
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createMessageTypeStatement_MESSAGE!insert	CREATE MESSAGE TYPE a zzz
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createMessageTypeStatement_MESSAGE!swap	CREATE MESSAGE_FORWARDING TYPE a
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createMasterKeyStatement_MASTER	CREATE MASTER KEY
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createMasterKeyStatement_MASTER!swap	CREATE MATCH KEY
-reject	accept	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createPartitionStatement_PARTITION	CREATE PARTITION SCHEME a AS PARTITION a TO('a')
+accept	accept	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createPartitionStatement_PARTITION	CREATE PARTITION SCHEME a AS PARTITION a TO('a')
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createPartitionStatement_PARTITION!drop-1	CREATE SCHEME a AS PARTITION a TO('a')
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createPartitionStatement_PARTITION!drop-2	CREATE PARTITION a AS PARTITION a TO('a')
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createPartitionStatement_PARTITION!drop-3	CREATE PARTITION SCHEME AS PARTITION a TO('a')
@@ -1003,7 +1003,7 @@ reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~8
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createPartitionStatement_PARTITION!drop-6	CREATE PARTITION SCHEME a AS PARTITION TO('a')
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createPartitionStatement_PARTITION!drop-7	CREATE PARTITION SCHEME a AS PARTITION a('a')
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createPartitionStatement_PARTITION!drop-8	CREATE PARTITION SCHEME a AS PARTITION a TO 'a')
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createPartitionStatement_PARTITION!drop-9	CREATE PARTITION SCHEME a AS PARTITION a TO()
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createPartitionStatement_PARTITION!drop-9	CREATE PARTITION SCHEME a AS PARTITION a TO()
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createPartitionStatement_PARTITION!drop-10	CREATE PARTITION SCHEME a AS PARTITION a TO('a'
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createPartitionStatement_PARTITION!insert	CREATE PARTITION SCHEME a AS PARTITION a TO('a') zzz
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createPartitionStatement_PARTITION!swap	CREATE PARTITIONS SCHEME a AS PARTITION a TO('a')
@@ -1087,9 +1087,9 @@ reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~8
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSynonymStatement_SYNONYM!swap	CREATE SYSTEM a FOR a
 accept	accept	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createTypeStatement_TYPE	CREATE TYPE a FROM a
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createTypeStatement_TYPE!drop-1	CREATE a FROM a
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createTypeStatement_TYPE!drop-2	CREATE TYPE FROM a
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createTypeStatement_TYPE!drop-2	CREATE TYPE FROM a
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createTypeStatement_TYPE!drop-3	CREATE TYPE a a
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createTypeStatement_TYPE!drop-4	CREATE TYPE a FROM
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createTypeStatement_TYPE!drop-4	CREATE TYPE a FROM
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createTypeStatement_TYPE!insert	CREATE TYPE a FROM a zzz
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createTypeStatement_TYPE!swap	CREATE UNBOUNDED a FROM a
 accept	accept	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createServerStatements_SERVER	CREATE SERVER ROLE a
@@ -1104,7 +1104,7 @@ reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~8
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createWorkloadStatements_WORKLOAD!insert	CREATE WORKLOAD GROUP a zzz
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createWorkloadStatements_WORKLOAD!swap	CREATE WORKLOAD_GROUP GROUP a
 accept	accept	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSequenceStatement_SEQUENCE	CREATE SEQUENCE a
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSequenceStatement_SEQUENCE!drop-2	CREATE SEQUENCE
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSequenceStatement_SEQUENCE!drop-2	CREATE SEQUENCE
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSequenceStatement_SEQUENCE!insert	CREATE SEQUENCE a zzz
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSequenceStatement_SEQUENCE!swap	CREATE SEQUENCE_NUMBER_COLUMN_NAME a
 accept	accept	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSecurityPolicyStatement_SECURITY	CREATE SECURITY POLICY a
@@ -1118,16 +1118,16 @@ reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~8
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createUserStatement!insert	CREATE USER a zzz
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createUserStatement!swap	CREATE USER_DB a
 accept	accept	engine	aggregateParameter/identifierVariable_(As)?_scalarDataType_(nullableConstraint)?	CREATE AGGREGATE a(@a a) RETURNS a EXTERNAL NAME a
-accept	reject	engine	aggregateParameter/identifierVariable_(As)?_scalarDataType_(nullableConstraint)?!truncate	CREATE AGGREGATE a(@a
+reject	reject	engine	aggregateParameter/identifierVariable_(As)?_scalarDataType_(nullableConstraint)?!truncate	CREATE AGGREGATE a(@a
 reject	reject	engine	aggregateParameter/identifierVariable_(As)?_scalarDataType_(nullableConstraint)?!insert	CREATE AGGREGATE a(@a a zzz) RETURNS a EXTERNAL NAME a
 accept	accept	engine	aggregateParameter(As)?/%empty	CREATE AGGREGATE a(@a a) RETURNS a EXTERNAL NAME a
 reject	reject	engine	aggregateParameter(As)?/%empty!insert	CREATE AGGREGATE a(@a zzz a) RETURNS a EXTERNAL NAME a
-reject	accept	engine	aggregateParameter(As)?/As	CREATE AGGREGATE a(@a AS a) RETURNS a EXTERNAL NAME a
+accept	accept	engine	aggregateParameter(As)?/As	CREATE AGGREGATE a(@a AS a) RETURNS a EXTERNAL NAME a
 reject	reject	engine	aggregateParameter(As)?/As!insert	CREATE AGGREGATE a(@a AS zzz a) RETURNS a EXTERNAL NAME a
 reject	reject	engine	aggregateParameter(As)?/As!swap	CREATE AGGREGATE a(@a ASC a) RETURNS a EXTERNAL NAME a
 accept	accept	engine	aggregateParameter(nullableConstraint)?/%empty	CREATE AGGREGATE a(@a a) RETURNS a EXTERNAL NAME a
-reject	accept	engine	aggregateParameter(nullableConstraint)?/nullableConstraint	CREATE AGGREGATE a(@a a NULL) RETURNS a EXTERNAL NAME a
-accept	reject	engine	aggregateParameter(nullableConstraint)?/nullableConstraint!truncate	CREATE AGGREGATE a(@a a
+accept	accept	engine	aggregateParameter(nullableConstraint)?/nullableConstraint	CREATE AGGREGATE a(@a a NULL) RETURNS a EXTERNAL NAME a
+reject	reject	engine	aggregateParameter(nullableConstraint)?/nullableConstraint!truncate	CREATE AGGREGATE a(@a a
 reject	reject	engine	aggregateParameter(nullableConstraint)?/nullableConstraint!insert	CREATE AGGREGATE a(@a a NULL zzz) RETURNS a EXTERNAL NAME a
 reject	reject	engine	aggregateParameter(nullableConstraint)?/nullableConstraint!swap	CREATE AGGREGATE a(@a a NULLIF) RETURNS a EXTERNAL NAME a
 accept	accept	engine	binaryOrString/binary	ALTER EXTERNAL LANGUAGE a SET(CONTENT = 0x00, FILE_NAME = 'a')
@@ -4628,37 +4628,37 @@ reject	reject	engine	literalReplicaOption(stringLiteral|integer)/integer	ALTER A
 reject	reject	engine	literalReplicaOption(stringLiteral|integer)/integer!insert	ALTER AVAILABILITY GROUP a ADD REPLICA ON 'a' WITH(a = 1 zzz)
 accept	accept	engine	createPartitionFunction/Function_identifier_LeftParenthesis_partitionParameterT~86654136	CREATE PARTITION FUNCTION a(a) AS RANGE FOR VALUES()
 reject	reject	engine	createPartitionFunction/Function_identifier_LeftParenthesis_partitionParameterT~86654136!drop-1	CREATE PARTITION a(a) AS RANGE FOR VALUES()
-accept	reject	engine	createPartitionFunction/Function_identifier_LeftParenthesis_partitionParameterT~86654136!drop-2	CREATE PARTITION FUNCTION(a) AS RANGE FOR VALUES()
+reject	reject	engine	createPartitionFunction/Function_identifier_LeftParenthesis_partitionParameterT~86654136!drop-2	CREATE PARTITION FUNCTION(a) AS RANGE FOR VALUES()
 reject	reject	engine	createPartitionFunction/Function_identifier_LeftParenthesis_partitionParameterT~86654136!drop-3	CREATE PARTITION FUNCTION a a) AS RANGE FOR VALUES()
-accept	reject	engine	createPartitionFunction/Function_identifier_LeftParenthesis_partitionParameterT~86654136!drop-4	CREATE PARTITION FUNCTION a() AS RANGE FOR VALUES()
-accept	reject	engine	createPartitionFunction/Function_identifier_LeftParenthesis_partitionParameterT~86654136!drop-5	CREATE PARTITION FUNCTION a(a AS RANGE FOR VALUES()
-accept	reject	engine	createPartitionFunction/Function_identifier_LeftParenthesis_partitionParameterT~86654136!drop-6	CREATE PARTITION FUNCTION a(a) RANGE FOR VALUES()
-accept	reject	engine	createPartitionFunction/Function_identifier_LeftParenthesis_partitionParameterT~86654136!drop-7	CREATE PARTITION FUNCTION a(a) AS FOR VALUES()
-accept	reject	engine	createPartitionFunction/Function_identifier_LeftParenthesis_partitionParameterT~86654136!drop-8	CREATE PARTITION FUNCTION a(a) AS RANGE VALUES()
-accept	reject	engine	createPartitionFunction/Function_identifier_LeftParenthesis_partitionParameterT~86654136!drop-9	CREATE PARTITION FUNCTION a(a) AS RANGE FOR()
+reject	reject	engine	createPartitionFunction/Function_identifier_LeftParenthesis_partitionParameterT~86654136!drop-4	CREATE PARTITION FUNCTION a() AS RANGE FOR VALUES()
+reject	reject	engine	createPartitionFunction/Function_identifier_LeftParenthesis_partitionParameterT~86654136!drop-5	CREATE PARTITION FUNCTION a(a AS RANGE FOR VALUES()
+reject	reject	engine	createPartitionFunction/Function_identifier_LeftParenthesis_partitionParameterT~86654136!drop-6	CREATE PARTITION FUNCTION a(a) RANGE FOR VALUES()
+reject	reject	engine	createPartitionFunction/Function_identifier_LeftParenthesis_partitionParameterT~86654136!drop-7	CREATE PARTITION FUNCTION a(a) AS FOR VALUES()
+reject	reject	engine	createPartitionFunction/Function_identifier_LeftParenthesis_partitionParameterT~86654136!drop-8	CREATE PARTITION FUNCTION a(a) AS RANGE VALUES()
+reject	reject	engine	createPartitionFunction/Function_identifier_LeftParenthesis_partitionParameterT~86654136!drop-9	CREATE PARTITION FUNCTION a(a) AS RANGE FOR()
 reject	reject	engine	createPartitionFunction/Function_identifier_LeftParenthesis_partitionParameterT~86654136!drop-10	CREATE PARTITION FUNCTION a(a) AS RANGE FOR VALUES)
-accept	reject	engine	createPartitionFunction/Function_identifier_LeftParenthesis_partitionParameterT~86654136!drop-11	CREATE PARTITION FUNCTION a(a) AS RANGE FOR VALUES(
+reject	reject	engine	createPartitionFunction/Function_identifier_LeftParenthesis_partitionParameterT~86654136!drop-11	CREATE PARTITION FUNCTION a(a) AS RANGE FOR VALUES(
 reject	reject	engine	createPartitionFunction/Function_identifier_LeftParenthesis_partitionParameterT~86654136!insert	CREATE PARTITION FUNCTION a(a) AS RANGE FOR VALUES() zzz
 reject	reject	engine	createPartitionFunction/Function_identifier_LeftParenthesis_partitionParameterT~86654136!swap	CREATE PARTITION GB a(a) AS RANGE FOR VALUES()
 accept	accept	engine	partitionParameterType/scalarDataType_collationOpt	CREATE PARTITION FUNCTION a(a) AS RANGE FOR VALUES()
-accept	reject	engine	partitionParameterType/scalarDataType_collationOpt!truncate	CREATE PARTITION FUNCTION a(
+reject	reject	engine	partitionParameterType/scalarDataType_collationOpt!truncate	CREATE PARTITION FUNCTION a(
 reject	reject	engine	partitionParameterType/scalarDataType_collationOpt!insert	CREATE PARTITION FUNCTION a(a zzz) AS RANGE FOR VALUES()
 accept	accept	engine	partitionFunctionTypes/RANGE_partitionFunctionRange_For_Values_LeftParenthesis~70ee9a92	CREATE PARTITION FUNCTION a(a) AS RANGE FOR VALUES()
 reject	reject	engine	partitionFunctionTypes/RANGE_partitionFunctionRange_For_Values_LeftParenthesis~70ee9a92!swap	CREATE PARTITION FUNCTION a(a) AS RCFILE FOR VALUES()
 accept	accept	engine	partitionFunctionTypes(expression_(Comma_expression)*)?/%empty	CREATE PARTITION FUNCTION a(a) AS RANGE FOR VALUES()
-accept	reject	engine	partitionFunctionTypes(expression_(Comma_expression)*)?/%empty!insert	CREATE PARTITION FUNCTION a(a) AS RANGE FOR VALUES(zzz)
+reject	reject	engine	partitionFunctionTypes(expression_(Comma_expression)*)?/%empty!insert	CREATE PARTITION FUNCTION a(a) AS RANGE FOR VALUES(zzz)
 accept	accept	engine	partitionFunctionTypes(expression_(Comma_expression)*)?/expression_(Comma_expression)*	CREATE PARTITION FUNCTION a(a) AS RANGE FOR VALUES(1)
 reject	reject	engine	partitionFunctionTypes(expression_(Comma_expression)*)?/expression_(Comma_expression)*!insert	CREATE PARTITION FUNCTION a(a) AS RANGE FOR VALUES(1 zzz)
 accept	accept	engine	partitionFunctionTypes(Comma_expression)*/%empty	CREATE PARTITION FUNCTION a(a) AS RANGE FOR VALUES(1)
 accept	accept	engine	partitionFunctionTypes(Comma_expression)*/Comma_expression_(Comma_expression)*	CREATE PARTITION FUNCTION a(a) AS RANGE FOR VALUES(1, 1)
 reject	reject	engine	partitionFunctionTypes(Comma_expression)*/Comma_expression_(Comma_expression)*!drop-1	CREATE PARTITION FUNCTION a(a) AS RANGE FOR VALUES(1 1)
-accept	reject	engine	partitionFunctionTypes(Comma_expression)*/Comma_expression_(Comma_expression)*!drop-2	CREATE PARTITION FUNCTION a(a) AS RANGE FOR VALUES(1,)
-accept	reject	engine	partitionFunctionTypes(Comma_expression)*/Comma_expression_(Comma_expression)*!truncate	CREATE PARTITION FUNCTION a(a) AS RANGE FOR VALUES(1,
+reject	reject	engine	partitionFunctionTypes(Comma_expression)*/Comma_expression_(Comma_expression)*!drop-2	CREATE PARTITION FUNCTION a(a) AS RANGE FOR VALUES(1,)
+reject	reject	engine	partitionFunctionTypes(Comma_expression)*/Comma_expression_(Comma_expression)*!truncate	CREATE PARTITION FUNCTION a(a) AS RANGE FOR VALUES(1,
 reject	reject	engine	partitionFunctionTypes(Comma_expression)*/Comma_expression_(Comma_expression)*!insert	CREATE PARTITION FUNCTION a(a) AS RANGE FOR VALUES(1, 1 zzz)
 accept	accept	engine	partitionFunctionRange/%empty	CREATE PARTITION FUNCTION a(a) AS RANGE FOR VALUES()
 reject	reject	engine	partitionFunctionRange/%empty!insert	CREATE PARTITION FUNCTION a(a) AS RANGE zzz FOR VALUES()
 accept	accept	engine	partitionFunctionRange/Left	CREATE PARTITION FUNCTION a(a) AS RANGE LEFT FOR VALUES()
-accept	reject	engine	partitionFunctionRange/Left!truncate	CREATE PARTITION FUNCTION a(a) AS RANGE
+reject	reject	engine	partitionFunctionRange/Left!truncate	CREATE PARTITION FUNCTION a(a) AS RANGE
 reject	reject	engine	partitionFunctionRange/Left!insert	CREATE PARTITION FUNCTION a(a) AS RANGE LEFT zzz FOR VALUES()
 reject	reject	engine	partitionFunctionRange/Left!swap	CREATE PARTITION FUNCTION a(a) AS RANGE LEGACY_CARDINALITY_ESTIMATION FOR VALUES()
 accept	accept	engine	partitionFunctionRange/Right	CREATE PARTITION FUNCTION a(a) AS RANGE RIGHT FOR VALUES()
@@ -4692,17 +4692,17 @@ reject	reject	engine	partitionTableOptionRange/Left!swap	CREATE TABLE a AS WITH(
 reject	reject	engine	partitionTableOptionRange/Right	CREATE TABLE a AS WITH(PARTITION(a RANGE RIGHT FOR VALUES()))
 reject	reject	engine	partitionTableOptionRange/Right!insert	CREATE TABLE a AS WITH(PARTITION(a RANGE RIGHT zzz FOR VALUES()))
 reject	reject	engine	partitionTableOptionRange/Right!swap	CREATE TABLE a AS WITH(PARTITION(a RANGE ROLE FOR VALUES()))
-reject	accept	engine	createPartitionScheme/SCHEME_identifier_As_PARTITION_identifier_(All)?_To_Lef~f560c8a8	CREATE PARTITION SCHEME a AS PARTITION a TO('a')
+accept	accept	engine	createPartitionScheme/SCHEME_identifier_As_PARTITION_identifier_(All)?_To_Lef~f560c8a8	CREATE PARTITION SCHEME a AS PARTITION a TO('a')
 reject	reject	engine	createPartitionScheme/SCHEME_identifier_As_PARTITION_identifier_(All)?_To_Lef~f560c8a8!swap	CREATE PARTITION SCOPED a AS PARTITION a TO('a')
-reject	accept	engine	createPartitionScheme(All)?/%empty	CREATE PARTITION SCHEME a AS PARTITION a TO('a')
+accept	accept	engine	createPartitionScheme(All)?/%empty	CREATE PARTITION SCHEME a AS PARTITION a TO('a')
 reject	reject	engine	createPartitionScheme(All)?/%empty!insert	CREATE PARTITION SCHEME a AS PARTITION a zzz TO('a')
-reject	accept	engine	createPartitionScheme(All)?/All	CREATE PARTITION SCHEME a AS PARTITION a ALL TO('a')
-accept	reject	engine	createPartitionScheme(All)?/All!truncate	CREATE PARTITION SCHEME a AS PARTITION a
+accept	accept	engine	createPartitionScheme(All)?/All	CREATE PARTITION SCHEME a AS PARTITION a ALL TO('a')
+reject	reject	engine	createPartitionScheme(All)?/All!truncate	CREATE PARTITION SCHEME a AS PARTITION a
 reject	reject	engine	createPartitionScheme(All)?/All!insert	CREATE PARTITION SCHEME a AS PARTITION a ALL zzz TO('a')
 reject	reject	engine	createPartitionScheme(All)?/All!swap	CREATE PARTITION SCHEME a AS PARTITION a ALLOW_CONNECTIONS TO('a')
-reject	accept	engine	createPartitionScheme(Comma_stringOrIdentifier)*/%empty	CREATE PARTITION SCHEME a AS PARTITION a TO('a')
+accept	accept	engine	createPartitionScheme(Comma_stringOrIdentifier)*/%empty	CREATE PARTITION SCHEME a AS PARTITION a TO('a')
 reject	reject	engine	createPartitionScheme(Comma_stringOrIdentifier)*/%empty!insert	CREATE PARTITION SCHEME a AS PARTITION a TO('a' zzz)
-reject	accept	engine	createPartitionScheme(Comma_stringOrIdentifier)*/Comma_stringOrIdentifier_(Comma_stringOrIdentifier)*	CREATE PARTITION SCHEME a AS PARTITION a TO('a', 'a')
+accept	accept	engine	createPartitionScheme(Comma_stringOrIdentifier)*/Comma_stringOrIdentifier_(Comma_stringOrIdentifier)*	CREATE PARTITION SCHEME a AS PARTITION a TO('a', 'a')
 reject	reject	engine	createPartitionScheme(Comma_stringOrIdentifier)*/Comma_stringOrIdentifier_(Comma_stringOrIdentifier)*!drop-1	CREATE PARTITION SCHEME a AS PARTITION a TO('a' 'a')
 reject	reject	engine	createPartitionScheme(Comma_stringOrIdentifier)*/Comma_stringOrIdentifier_(Comma_stringOrIdentifier)*!drop-2	CREATE PARTITION SCHEME a AS PARTITION a TO('a',)
 reject	reject	engine	createPartitionScheme(Comma_stringOrIdentifier)*/Comma_stringOrIdentifier_(Comma_stringOrIdentifier)*!truncate	CREATE PARTITION SCHEME a AS PARTITION a TO('a',
@@ -4891,15 +4891,15 @@ reject	reject	engine	createTypeUddtStatement(nullableConstraint)?/nullableConstr
 reject	reject	engine	createTypeUddtStatement(nullableConstraint)?/nullableConstraint!swap	CREATE TYPE a FROM a NULLIF
 accept	accept	engine	createTypeUdtStatement/External_assemblyName	CREATE TYPE a EXTERNAL NAME a
 reject	reject	engine	createTypeUdtStatement/External_assemblyName!drop-1	CREATE TYPE a NAME a
-accept	reject	engine	createTypeUdtStatement/External_assemblyName!drop-2	CREATE TYPE a EXTERNAL a
-accept	reject	engine	createTypeUdtStatement/External_assemblyName!drop-3	CREATE TYPE a EXTERNAL NAME
+reject	reject	engine	createTypeUdtStatement/External_assemblyName!drop-2	CREATE TYPE a EXTERNAL a
+reject	reject	engine	createTypeUdtStatement/External_assemblyName!drop-3	CREATE TYPE a EXTERNAL NAME
 reject	reject	engine	createTypeUdtStatement/External_assemblyName!insert	CREATE TYPE a EXTERNAL NAME a zzz
 reject	reject	engine	createTypeUdtStatement/External_assemblyName!swap	CREATE TYPE a EXTERNAL_MONITOR NAME a
 reject	reject	engine	createTypeTableStatement/As_Table_LeftParenthesis_tableDefinition_RightParenthes~47ec4b89	CREATE TYPE a AS TABLE(a)
 reject	reject	engine	createTypeTableStatement/As_Table_LeftParenthesis_tableDefinition_RightParenthes~47ec4b89!drop-1	CREATE TYPE a TABLE(a)
 reject	reject	engine	createTypeTableStatement/As_Table_LeftParenthesis_tableDefinition_RightParenthes~47ec4b89!drop-2	CREATE TYPE a AS(a)
 reject	reject	engine	createTypeTableStatement/As_Table_LeftParenthesis_tableDefinition_RightParenthes~47ec4b89!drop-3	CREATE TYPE a AS TABLE a)
-accept	reject	engine	createTypeTableStatement/As_Table_LeftParenthesis_tableDefinition_RightParenthes~47ec4b89!drop-4	CREATE TYPE a AS TABLE()
+reject	reject	engine	createTypeTableStatement/As_Table_LeftParenthesis_tableDefinition_RightParenthes~47ec4b89!drop-4	CREATE TYPE a AS TABLE()
 reject	reject	engine	createTypeTableStatement/As_Table_LeftParenthesis_tableDefinition_RightParenthes~47ec4b89!drop-5	CREATE TYPE a AS TABLE(a
 reject	reject	engine	createTypeTableStatement/As_Table_LeftParenthesis_tableDefinition_RightParenthes~47ec4b89!insert	CREATE TYPE a AS TABLE(a) zzz
 reject	reject	engine	createTypeTableStatement/As_Table_LeftParenthesis_tableDefinition_RightParenthes~47ec4b89!swap	CREATE TYPE a ASC TABLE(a)
@@ -4975,7 +4975,7 @@ reject	reject	engine	literalCreateUserOption/integer!insert	CREATE USER a WITH a
 reject	reject	engine	literalCreateUserOption/nullLiteral	CREATE USER a WITH a = NULL
 reject	reject	engine	literalCreateUserOption/nullLiteral!insert	CREATE USER a WITH a = NULL zzz
 reject	reject	engine	literalCreateUserOption/nullLiteral!swap	CREATE USER a WITH a = NULLIF
-accept	reject	engine	alter2005Statements/Alter_(alterApplicationRoleStatement_APPLIC~c8ed16c5)	ALTER ASSEMBLY a
+reject	reject	engine	alter2005Statements/Alter_(alterApplicationRoleStatement_APPLIC~c8ed16c5)	ALTER ASSEMBLY a
 accept	accept	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterApplicationRoleStatement_APPLICATION	ALTER APPLICATION ROLE a WITH PASSWORD = 'a'
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterApplicationRoleStatement_APPLICATION!drop-1	ALTER ROLE a WITH PASSWORD = 'a'
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterApplicationRoleStatement_APPLICATION!drop-2	ALTER APPLICATION a WITH PASSWORD = 'a'
@@ -4986,7 +4986,7 @@ reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterApplicationRoleStatement_APPLICATION!drop-7	ALTER APPLICATION ROLE a WITH PASSWORD =
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterApplicationRoleStatement_APPLICATION!insert	ALTER APPLICATION ROLE a WITH PASSWORD = 'a' zzz
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterApplicationRoleStatement_APPLICATION!swap	ALTER APPLICATION_LOG ROLE a WITH PASSWORD = 'a'
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterAssemblyStatement_ASSEMBLY	ALTER ASSEMBLY a
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterAssemblyStatement_ASSEMBLY	ALTER ASSEMBLY a
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterAssemblyStatement_ASSEMBLY!swap	ALTER ASYMMETRIC a
 accept	accept	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterAsymmetricKeyStatement_ASYMMETRIC	ALTER ASYMMETRIC KEY a REMOVE PRIVATE KEY
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterAsymmetricKeyStatement_ASYMMETRIC!drop-1	ALTER KEY a REMOVE PRIVATE KEY
@@ -5112,9 +5112,9 @@ reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8
 accept	accept	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterPartitionStatement_PARTITION	ALTER PARTITION SCHEME a NEXT USED
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterPartitionStatement_PARTITION!drop-1	ALTER SCHEME a NEXT USED
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterPartitionStatement_PARTITION!drop-2	ALTER PARTITION a NEXT USED
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterPartitionStatement_PARTITION!drop-3	ALTER PARTITION SCHEME NEXT USED
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterPartitionStatement_PARTITION!drop-4	ALTER PARTITION SCHEME a USED
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterPartitionStatement_PARTITION!drop-5	ALTER PARTITION SCHEME a NEXT
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterPartitionStatement_PARTITION!drop-3	ALTER PARTITION SCHEME NEXT USED
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterPartitionStatement_PARTITION!drop-4	ALTER PARTITION SCHEME a USED
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterPartitionStatement_PARTITION!drop-5	ALTER PARTITION SCHEME a NEXT
 accept	accept	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterPartitionStatement_PARTITION!insert	ALTER PARTITION SCHEME a NEXT USED zzz
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterPartitionStatement_PARTITION!swap	ALTER PARTITIONS SCHEME a NEXT USED
 accept	accept	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterQueueStatement_QUEUE	ALTER QUEUE a WITH STATUS = ON
@@ -5151,13 +5151,13 @@ reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterSearchPropertyListStatement_SEARCH!swap	ALTER SECONDARY_ROLE PROPERTY LIST a DROP 'a'
 accept	accept	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterSchemaStatement	ALTER SCHEMA a TRANSFER a
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterSchemaStatement!drop-1	ALTER a TRANSFER a
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterSchemaStatement!drop-2	ALTER SCHEMA TRANSFER a
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterSchemaStatement!drop-3	ALTER SCHEMA a a
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterSchemaStatement!drop-4	ALTER SCHEMA a TRANSFER
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterSchemaStatement!drop-2	ALTER SCHEMA TRANSFER a
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterSchemaStatement!drop-3	ALTER SCHEMA a a
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterSchemaStatement!drop-4	ALTER SCHEMA a TRANSFER
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterSchemaStatement!insert	ALTER SCHEMA a TRANSFER a zzz
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterSchemaStatement!swap	ALTER SCHEMABINDING a TRANSFER a
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterSequenceStatement_SEQUENCE	ALTER SEQUENCE a
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterSequenceStatement_SEQUENCE!drop-2	ALTER SEQUENCE
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterSequenceStatement_SEQUENCE	ALTER SEQUENCE a
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterSequenceStatement_SEQUENCE!drop-2	ALTER SEQUENCE
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterSequenceStatement_SEQUENCE!insert	ALTER SEQUENCE a zzz
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterSequenceStatement_SEQUENCE!swap	ALTER SEQUENCE_NUMBER_COLUMN_NAME a
 accept	accept	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterServiceStatements_SERVICE	ALTER SERVICE MASTER KEY REGENERATE
@@ -5219,7 +5219,7 @@ reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterColumnEncryptionKeyStatement!drop-11	ALTER COLUMN ENCRYPTION KEY a DROP VALUE(COLUMN_MASTER_KEY = a
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterColumnEncryptionKeyStatement!insert	ALTER COLUMN ENCRYPTION KEY a DROP VALUE(COLUMN_MASTER_KEY = a) zzz
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterColumnEncryptionKeyStatement!swap	ALTER COLUMNSTORE ENCRYPTION KEY a DROP VALUE(COLUMN_MASTER_KEY = a)
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterMaterializedViewStatement_MATERIALIZED	ALTER MATERIALIZED VIEW a REBUILD
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterMaterializedViewStatement_MATERIALIZED	ALTER MATERIALIZED VIEW a REBUILD
 accept	accept	engine	applicationRoleOption/PASSWORD_EqualsSign_stringLiteral	ALTER APPLICATION ROLE a WITH PASSWORD = 'a'
 reject	reject	engine	applicationRoleOption/PASSWORD_EqualsSign_stringLiteral!swap	ALTER APPLICATION ROLE a WITH PATH = 'a'
 reject	reject	engine	applicationRoleOption/Identifier_EqualsSign_identifier	ALTER APPLICATION ROLE a WITH a = a
@@ -5227,69 +5227,69 @@ reject	reject	engine	applicationRoleOption/Identifier_EqualsSign_identifier!drop
 reject	reject	engine	applicationRoleOption/Identifier_EqualsSign_identifier!drop-2	ALTER APPLICATION ROLE a WITH a a
 reject	reject	engine	applicationRoleOption/Identifier_EqualsSign_identifier!drop-3	ALTER APPLICATION ROLE a WITH a =
 reject	reject	engine	applicationRoleOption/Identifier_EqualsSign_identifier!insert	ALTER APPLICATION ROLE a WITH a = a zzz
-reject	accept	engine	alterAssemblyFromClause/From_expression	ALTER ASSEMBLY a FROM 1
+accept	accept	engine	alterAssemblyFromClause/From_expression	ALTER ASSEMBLY a FROM 1
 reject	reject	engine	alterAssemblyFromClause/From_expression!drop-1	ALTER ASSEMBLY a 1
-accept	reject	engine	alterAssemblyFromClause/From_expression!drop-2	ALTER ASSEMBLY a FROM
+reject	reject	engine	alterAssemblyFromClause/From_expression!drop-2	ALTER ASSEMBLY a FROM
 reject	reject	engine	alterAssemblyFromClause/From_expression!insert	ALTER ASSEMBLY a FROM 1 zzz
 reject	reject	engine	alterAssemblyFromClause/From_expression!swap	ALTER ASSEMBLY a FULL 1
 accept	accept	engine	alterAssemblyWith/With_alterAssemblyWithItem_(Comma_alterAssemblyWithItem)*	ALTER ASSEMBLY a WITH UNCHECKED DATA
 reject	reject	engine	alterAssemblyWith/With_alterAssemblyWithItem_(Comma_alterAssemblyWithItem)*!drop-1	ALTER ASSEMBLY a UNCHECKED DATA
-accept	reject	engine	alterAssemblyWith/With_alterAssemblyWithItem_(Comma_alterAssemblyWithItem)*!drop-2	ALTER ASSEMBLY a WITH DATA
-accept	reject	engine	alterAssemblyWith/With_alterAssemblyWithItem_(Comma_alterAssemblyWithItem)*!drop-3	ALTER ASSEMBLY a WITH UNCHECKED
+reject	reject	engine	alterAssemblyWith/With_alterAssemblyWithItem_(Comma_alterAssemblyWithItem)*!drop-2	ALTER ASSEMBLY a WITH DATA
+reject	reject	engine	alterAssemblyWith/With_alterAssemblyWithItem_(Comma_alterAssemblyWithItem)*!drop-3	ALTER ASSEMBLY a WITH UNCHECKED
 reject	reject	engine	alterAssemblyWith/With_alterAssemblyWithItem_(Comma_alterAssemblyWithItem)*!insert	ALTER ASSEMBLY a WITH UNCHECKED DATA zzz
 reject	reject	engine	alterAssemblyWith/With_alterAssemblyWithItem_(Comma_alterAssemblyWithItem)*!swap	ALTER ASSEMBLY a WITHIN UNCHECKED DATA
 accept	accept	engine	alterAssemblyWith(Comma_alterAssemblyWithItem)*/%empty	ALTER ASSEMBLY a WITH UNCHECKED DATA
-accept	reject	engine	alterAssemblyWith(Comma_alterAssemblyWithItem)*/Comma_alterAssemblyWithItem_(Comma_alterAssemblyWithItem)*	ALTER ASSEMBLY a WITH UNCHECKED DATA, UNCHECKED DATA
+reject	reject	engine	alterAssemblyWith(Comma_alterAssemblyWithItem)*/Comma_alterAssemblyWithItem_(Comma_alterAssemblyWithItem)*	ALTER ASSEMBLY a WITH UNCHECKED DATA, UNCHECKED DATA
 reject	reject	engine	alterAssemblyWith(Comma_alterAssemblyWithItem)*/Comma_alterAssemblyWithItem_(Comma_alterAssemblyWithItem)*!drop-1	ALTER ASSEMBLY a WITH UNCHECKED DATA UNCHECKED DATA
-accept	reject	engine	alterAssemblyWith(Comma_alterAssemblyWithItem)*/Comma_alterAssemblyWithItem_(Comma_alterAssemblyWithItem)*!drop-2	ALTER ASSEMBLY a WITH UNCHECKED DATA, DATA
-accept	reject	engine	alterAssemblyWith(Comma_alterAssemblyWithItem)*/Comma_alterAssemblyWithItem_(Comma_alterAssemblyWithItem)*!drop-3	ALTER ASSEMBLY a WITH UNCHECKED DATA, UNCHECKED
+reject	reject	engine	alterAssemblyWith(Comma_alterAssemblyWithItem)*/Comma_alterAssemblyWithItem_(Comma_alterAssemblyWithItem)*!drop-2	ALTER ASSEMBLY a WITH UNCHECKED DATA, DATA
+reject	reject	engine	alterAssemblyWith(Comma_alterAssemblyWithItem)*/Comma_alterAssemblyWithItem_(Comma_alterAssemblyWithItem)*!drop-3	ALTER ASSEMBLY a WITH UNCHECKED DATA, UNCHECKED
 reject	reject	engine	alterAssemblyWith(Comma_alterAssemblyWithItem)*/Comma_alterAssemblyWithItem_(Comma_alterAssemblyWithItem)*!insert	ALTER ASSEMBLY a WITH UNCHECKED DATA, UNCHECKED DATA zzz
 reject	reject	engine	alterAssemblyWith(Comma_alterAssemblyWithItem)*/Comma_alterAssemblyWithItem_(Comma_alterAssemblyWithItem)*!swap	ALTER ASSEMBLY a WITH UNCHECKED DATA, UNCOMMITTED DATA
-accept	reject	engine	alterAssemblyWithItem/assemblyPermissionSetOrVisibilityOption	ALTER ASSEMBLY a WITH a = a
+reject	reject	engine	alterAssemblyWithItem/assemblyPermissionSetOrVisibilityOption	ALTER ASSEMBLY a WITH a = a
 reject	reject	engine	alterAssemblyWithItem/assemblyPermissionSetOrVisibilityOption!drop-1	ALTER ASSEMBLY a WITH = a
 reject	reject	engine	alterAssemblyWithItem/assemblyPermissionSetOrVisibilityOption!drop-2	ALTER ASSEMBLY a WITH a a
-accept	reject	engine	alterAssemblyWithItem/assemblyPermissionSetOrVisibilityOption!drop-3	ALTER ASSEMBLY a WITH a =
+reject	reject	engine	alterAssemblyWithItem/assemblyPermissionSetOrVisibilityOption!drop-3	ALTER ASSEMBLY a WITH a =
 reject	reject	engine	alterAssemblyWithItem/assemblyPermissionSetOrVisibilityOption!insert	ALTER ASSEMBLY a WITH a = a zzz
 accept	accept	engine	alterAssemblyWithItem/assemblyUncheckedDataOption	ALTER ASSEMBLY a WITH UNCHECKED DATA
 reject	reject	engine	alterAssemblyWithItem/assemblyUncheckedDataOption!swap	ALTER ASSEMBLY a WITH UNCOMMITTED DATA
-accept	reject	engine	assemblyPermissionSetOrVisibilityOption/Identifier_EqualsSign_(assemblyPermissionSetOption|asse~c4ef6088	ALTER ASSEMBLY a WITH a = a
-accept	reject	engine	assemblyPermissionSetOrVisibilityOption(assemblyPermissionSetOption|assembly~654cef79)/assemblyPermissionSetOption	ALTER ASSEMBLY a WITH a = a
-accept	reject	engine	assemblyPermissionSetOrVisibilityOption(assemblyPermissionSetOption|assembly~654cef79)/assemblyVisibilityOption	ALTER ASSEMBLY a WITH a = ON
+reject	reject	engine	assemblyPermissionSetOrVisibilityOption/Identifier_EqualsSign_(assemblyPermissionSetOption|asse~c4ef6088	ALTER ASSEMBLY a WITH a = a
+reject	reject	engine	assemblyPermissionSetOrVisibilityOption(assemblyPermissionSetOption|assembly~654cef79)/assemblyPermissionSetOption	ALTER ASSEMBLY a WITH a = a
+reject	reject	engine	assemblyPermissionSetOrVisibilityOption(assemblyPermissionSetOption|assembly~654cef79)/assemblyVisibilityOption	ALTER ASSEMBLY a WITH a = ON
 reject	reject	engine	assemblyPermissionSetOrVisibilityOption(assemblyPermissionSetOption|assembly~654cef79)/assemblyVisibilityOption!insert	ALTER ASSEMBLY a WITH a = ON zzz
-accept	reject	engine	assemblyPermissionSetOrVisibilityOption(assemblyPermissionSetOption|assembly~654cef79)/assemblyVisibilityOption!swap	ALTER ASSEMBLY a WITH a = ONLINE
-accept	reject	engine	assemblyPermissionSetOption/Identifier	ALTER ASSEMBLY a WITH a = a
-accept	reject	engine	assemblyVisibilityOption/optionOnOff	ALTER ASSEMBLY a WITH a = ON
+reject	reject	engine	assemblyPermissionSetOrVisibilityOption(assemblyPermissionSetOption|assembly~654cef79)/assemblyVisibilityOption!swap	ALTER ASSEMBLY a WITH a = ONLINE
+reject	reject	engine	assemblyPermissionSetOption/Identifier	ALTER ASSEMBLY a WITH a = a
+reject	reject	engine	assemblyVisibilityOption/optionOnOff	ALTER ASSEMBLY a WITH a = ON
 accept	accept	engine	assemblyUncheckedDataOption/UNCHECKED_DATA	ALTER ASSEMBLY a WITH UNCHECKED DATA
 accept	accept	engine	alterAssemblyDropFile/Drop_File_(All|stringLiteral_(Comma_stringLiteral)*)	ALTER ASSEMBLY a DROP FILE ALL
 reject	reject	engine	alterAssemblyDropFile/Drop_File_(All|stringLiteral_(Comma_stringLiteral)*)!drop-1	ALTER ASSEMBLY a FILE ALL
 reject	reject	engine	alterAssemblyDropFile/Drop_File_(All|stringLiteral_(Comma_stringLiteral)*)!drop-2	ALTER ASSEMBLY a DROP ALL
-accept	reject	engine	alterAssemblyDropFile/Drop_File_(All|stringLiteral_(Comma_stringLiteral)*)!drop-3	ALTER ASSEMBLY a DROP FILE
+reject	reject	engine	alterAssemblyDropFile/Drop_File_(All|stringLiteral_(Comma_stringLiteral)*)!drop-3	ALTER ASSEMBLY a DROP FILE
 reject	reject	engine	alterAssemblyDropFile/Drop_File_(All|stringLiteral_(Comma_stringLiteral)*)!insert	ALTER ASSEMBLY a DROP FILE ALL zzz
 reject	reject	engine	alterAssemblyDropFile/Drop_File_(All|stringLiteral_(Comma_stringLiteral)*)!swap	ALTER ASSEMBLY a DROP_INDEX FILE ALL
 accept	accept	engine	alterAssemblyDropFile(All|stringLiteral_(Comma_stringLiteral)*)/All	ALTER ASSEMBLY a DROP FILE ALL
-accept	reject	engine	alterAssemblyDropFile(All|stringLiteral_(Comma_stringLiteral)*)/All!swap	ALTER ASSEMBLY a DROP FILE ALLOW_CONNECTIONS
+reject	reject	engine	alterAssemblyDropFile(All|stringLiteral_(Comma_stringLiteral)*)/All!swap	ALTER ASSEMBLY a DROP FILE ALLOW_CONNECTIONS
 accept	accept	engine	alterAssemblyDropFile(All|stringLiteral_(Comma_stringLiteral)*)/stringLiteral_(Comma_stringLiteral)*	ALTER ASSEMBLY a DROP FILE 'a'
 reject	reject	engine	alterAssemblyDropFile(All|stringLiteral_(Comma_stringLiteral)*)/stringLiteral_(Comma_stringLiteral)*!insert	ALTER ASSEMBLY a DROP FILE 'a' zzz
 accept	accept	engine	alterAssemblyDropFile(Comma_stringLiteral)*/%empty	ALTER ASSEMBLY a DROP FILE 'a'
 accept	accept	engine	alterAssemblyDropFile(Comma_stringLiteral)*/Comma_stringLiteral_(Comma_stringLiteral)*	ALTER ASSEMBLY a DROP FILE 'a', 'a'
 reject	reject	engine	alterAssemblyDropFile(Comma_stringLiteral)*/Comma_stringLiteral_(Comma_stringLiteral)*!drop-1	ALTER ASSEMBLY a DROP FILE 'a' 'a'
-accept	reject	engine	alterAssemblyDropFile(Comma_stringLiteral)*/Comma_stringLiteral_(Comma_stringLiteral)*!drop-2	ALTER ASSEMBLY a DROP FILE 'a',
+reject	reject	engine	alterAssemblyDropFile(Comma_stringLiteral)*/Comma_stringLiteral_(Comma_stringLiteral)*!drop-2	ALTER ASSEMBLY a DROP FILE 'a',
 reject	reject	engine	alterAssemblyDropFile(Comma_stringLiteral)*/Comma_stringLiteral_(Comma_stringLiteral)*!insert	ALTER ASSEMBLY a DROP FILE 'a', 'a' zzz
-reject	accept	engine	alterAssemblyAddFile/Add_File_From_alterAssemblyAddFileSpec_(Comma_alterAsse~b1773d9a	ALTER ASSEMBLY a ADD FILE FROM 1
+accept	accept	engine	alterAssemblyAddFile/Add_File_From_alterAssemblyAddFileSpec_(Comma_alterAsse~b1773d9a	ALTER ASSEMBLY a ADD FILE FROM 1
 reject	reject	engine	alterAssemblyAddFile/Add_File_From_alterAssemblyAddFileSpec_(Comma_alterAsse~b1773d9a!drop-1	ALTER ASSEMBLY a FILE FROM 1
 reject	reject	engine	alterAssemblyAddFile/Add_File_From_alterAssemblyAddFileSpec_(Comma_alterAsse~b1773d9a!drop-2	ALTER ASSEMBLY a ADD FROM 1
 reject	reject	engine	alterAssemblyAddFile/Add_File_From_alterAssemblyAddFileSpec_(Comma_alterAsse~b1773d9a!drop-3	ALTER ASSEMBLY a ADD FILE 1
-accept	reject	engine	alterAssemblyAddFile/Add_File_From_alterAssemblyAddFileSpec_(Comma_alterAsse~b1773d9a!drop-4	ALTER ASSEMBLY a ADD FILE FROM
+reject	reject	engine	alterAssemblyAddFile/Add_File_From_alterAssemblyAddFileSpec_(Comma_alterAsse~b1773d9a!drop-4	ALTER ASSEMBLY a ADD FILE FROM
 reject	reject	engine	alterAssemblyAddFile/Add_File_From_alterAssemblyAddFileSpec_(Comma_alterAsse~b1773d9a!insert	ALTER ASSEMBLY a ADD FILE FROM 1 zzz
 reject	reject	engine	alterAssemblyAddFile/Add_File_From_alterAssemblyAddFileSpec_(Comma_alterAsse~b1773d9a!swap	ALTER ASSEMBLY a ADMIN FILE FROM 1
-reject	accept	engine	alterAssemblyAddFile(Comma_alterAssemblyAddFileSpec)*/%empty	ALTER ASSEMBLY a ADD FILE FROM 1
-reject	accept	engine	alterAssemblyAddFile(Comma_alterAssemblyAddFileSpec)*/Comma_alterAssemblyAddFileSpec_(Comma_alterAssemblyAddFileSpec)*	ALTER ASSEMBLY a ADD FILE FROM 1, 1
+accept	accept	engine	alterAssemblyAddFile(Comma_alterAssemblyAddFileSpec)*/%empty	ALTER ASSEMBLY a ADD FILE FROM 1
+accept	accept	engine	alterAssemblyAddFile(Comma_alterAssemblyAddFileSpec)*/Comma_alterAssemblyAddFileSpec_(Comma_alterAssemblyAddFileSpec)*	ALTER ASSEMBLY a ADD FILE FROM 1, 1
 reject	reject	engine	alterAssemblyAddFile(Comma_alterAssemblyAddFileSpec)*/Comma_alterAssemblyAddFileSpec_(Comma_alterAssemblyAddFileSpec)*!drop-1	ALTER ASSEMBLY a ADD FILE FROM 1 1
 reject	reject	engine	alterAssemblyAddFile(Comma_alterAssemblyAddFileSpec)*/Comma_alterAssemblyAddFileSpec_(Comma_alterAssemblyAddFileSpec)*!drop-2	ALTER ASSEMBLY a ADD FILE FROM 1,
 reject	reject	engine	alterAssemblyAddFile(Comma_alterAssemblyAddFileSpec)*/Comma_alterAssemblyAddFileSpec_(Comma_alterAssemblyAddFileSpec)*!insert	ALTER ASSEMBLY a ADD FILE FROM 1, 1 zzz
-reject	accept	engine	alterAssemblyAddFileSpec/expression_(As_stringLiteral)?	ALTER ASSEMBLY a ADD FILE FROM 1
-reject	accept	engine	alterAssemblyAddFileSpec(As_stringLiteral)?/%empty	ALTER ASSEMBLY a ADD FILE FROM 1
-reject	accept	engine	alterAssemblyAddFileSpec(As_stringLiteral)?/As_stringLiteral	ALTER ASSEMBLY a ADD FILE FROM 1 AS 'a'
+accept	accept	engine	alterAssemblyAddFileSpec/expression_(As_stringLiteral)?	ALTER ASSEMBLY a ADD FILE FROM 1
+accept	accept	engine	alterAssemblyAddFileSpec(As_stringLiteral)?/%empty	ALTER ASSEMBLY a ADD FILE FROM 1
+accept	accept	engine	alterAssemblyAddFileSpec(As_stringLiteral)?/As_stringLiteral	ALTER ASSEMBLY a ADD FILE FROM 1 AS 'a'
 reject	reject	engine	alterAssemblyAddFileSpec(As_stringLiteral)?/As_stringLiteral!drop-1	ALTER ASSEMBLY a ADD FILE FROM 1 'a'
 reject	reject	engine	alterAssemblyAddFileSpec(As_stringLiteral)?/As_stringLiteral!drop-2	ALTER ASSEMBLY a ADD FILE FROM 1 AS
 reject	reject	engine	alterAssemblyAddFileSpec(As_stringLiteral)?/As_stringLiteral!insert	ALTER ASSEMBLY a ADD FILE FROM 1 AS 'a' zzz
@@ -5543,9 +5543,9 @@ reject	reject	engine	passwordAlterLoginOption(Identifier)*/Identifier_(Identifie
 reject	reject	engine	passwordAlterLoginOption(Identifier)*/Identifier_(Identifier)*!insert	ALTER LOGIN a WITH a = 0x00 a zzz
 accept	accept	engine	alterPartitionFunctionStatement/Function_identifier_LeftParenthesis_RightParenthesis_(S~10a29a71	ALTER PARTITION FUNCTION a() SPLIT
 reject	reject	engine	alterPartitionFunctionStatement/Function_identifier_LeftParenthesis_RightParenthesis_(S~10a29a71!drop-1	ALTER PARTITION a() SPLIT
-accept	reject	engine	alterPartitionFunctionStatement/Function_identifier_LeftParenthesis_RightParenthesis_(S~10a29a71!drop-2	ALTER PARTITION FUNCTION() SPLIT
+reject	reject	engine	alterPartitionFunctionStatement/Function_identifier_LeftParenthesis_RightParenthesis_(S~10a29a71!drop-2	ALTER PARTITION FUNCTION() SPLIT
 reject	reject	engine	alterPartitionFunctionStatement/Function_identifier_LeftParenthesis_RightParenthesis_(S~10a29a71!drop-3	ALTER PARTITION FUNCTION a) SPLIT
-accept	reject	engine	alterPartitionFunctionStatement/Function_identifier_LeftParenthesis_RightParenthesis_(S~10a29a71!drop-4	ALTER PARTITION FUNCTION a(SPLIT
+reject	reject	engine	alterPartitionFunctionStatement/Function_identifier_LeftParenthesis_RightParenthesis_(S~10a29a71!drop-4	ALTER PARTITION FUNCTION a(SPLIT
 reject	reject	engine	alterPartitionFunctionStatement/Function_identifier_LeftParenthesis_RightParenthesis_(S~10a29a71!drop-5	ALTER PARTITION FUNCTION a()
 reject	reject	engine	alterPartitionFunctionStatement/Function_identifier_LeftParenthesis_RightParenthesis_(S~10a29a71!insert	ALTER PARTITION FUNCTION a() SPLIT zzz
 reject	reject	engine	alterPartitionFunctionStatement/Function_identifier_LeftParenthesis_RightParenthesis_(S~10a29a71!swap	ALTER PARTITION GB a() SPLIT
@@ -5556,16 +5556,16 @@ reject	reject	engine	alterPartitionFunctionStatement(SPLIT|Merge)/Merge!insert	A
 reject	reject	engine	alterPartitionFunctionStatement(SPLIT|Merge)/Merge!swap	ALTER PARTITION FUNCTION a() MESSAGE
 accept	accept	engine	alterPartitionFunctionStatement(RANGE_LeftParenthesis_expression_Rig~8f0d3184)?/%empty	ALTER PARTITION FUNCTION a() SPLIT
 accept	accept	engine	alterPartitionFunctionStatement(RANGE_LeftParenthesis_expression_Rig~8f0d3184)?/RANGE_LeftParenthesis_expression_RightParenthesis	ALTER PARTITION FUNCTION a() SPLIT RANGE(1)
-accept	reject	engine	alterPartitionFunctionStatement(RANGE_LeftParenthesis_expression_Rig~8f0d3184)?/RANGE_LeftParenthesis_expression_RightParenthesis!drop-1	ALTER PARTITION FUNCTION a() SPLIT(1)
+reject	reject	engine	alterPartitionFunctionStatement(RANGE_LeftParenthesis_expression_Rig~8f0d3184)?/RANGE_LeftParenthesis_expression_RightParenthesis!drop-1	ALTER PARTITION FUNCTION a() SPLIT(1)
 reject	reject	engine	alterPartitionFunctionStatement(RANGE_LeftParenthesis_expression_Rig~8f0d3184)?/RANGE_LeftParenthesis_expression_RightParenthesis!drop-2	ALTER PARTITION FUNCTION a() SPLIT RANGE 1)
-accept	reject	engine	alterPartitionFunctionStatement(RANGE_LeftParenthesis_expression_Rig~8f0d3184)?/RANGE_LeftParenthesis_expression_RightParenthesis!drop-3	ALTER PARTITION FUNCTION a() SPLIT RANGE()
-accept	reject	engine	alterPartitionFunctionStatement(RANGE_LeftParenthesis_expression_Rig~8f0d3184)?/RANGE_LeftParenthesis_expression_RightParenthesis!drop-4	ALTER PARTITION FUNCTION a() SPLIT RANGE(1
+reject	reject	engine	alterPartitionFunctionStatement(RANGE_LeftParenthesis_expression_Rig~8f0d3184)?/RANGE_LeftParenthesis_expression_RightParenthesis!drop-3	ALTER PARTITION FUNCTION a() SPLIT RANGE()
+reject	reject	engine	alterPartitionFunctionStatement(RANGE_LeftParenthesis_expression_Rig~8f0d3184)?/RANGE_LeftParenthesis_expression_RightParenthesis!drop-4	ALTER PARTITION FUNCTION a() SPLIT RANGE(1
 reject	reject	engine	alterPartitionFunctionStatement(RANGE_LeftParenthesis_expression_Rig~8f0d3184)?/RANGE_LeftParenthesis_expression_RightParenthesis!insert	ALTER PARTITION FUNCTION a() SPLIT RANGE(1) zzz
 reject	reject	engine	alterPartitionFunctionStatement(RANGE_LeftParenthesis_expression_Rig~8f0d3184)?/RANGE_LeftParenthesis_expression_RightParenthesis!swap	ALTER PARTITION FUNCTION a() SPLIT RCFILE(1)
 accept	accept	engine	alterPartitionSchemeStatement/SCHEME_identifier_NEXT_USED_(stringOrIdentifier)?	ALTER PARTITION SCHEME a NEXT USED
 reject	reject	engine	alterPartitionSchemeStatement/SCHEME_identifier_NEXT_USED_(stringOrIdentifier)?!swap	ALTER PARTITION SCOPED a NEXT USED
 accept	accept	engine	alterPartitionSchemeStatement(stringOrIdentifier)?/%empty	ALTER PARTITION SCHEME a NEXT USED
-reject	accept	engine	alterPartitionSchemeStatement(stringOrIdentifier)?/stringOrIdentifier	ALTER PARTITION SCHEME a NEXT USED 'a'
+accept	accept	engine	alterPartitionSchemeStatement(stringOrIdentifier)?/stringOrIdentifier	ALTER PARTITION SCHEME a NEXT USED 'a'
 reject	reject	engine	alterPartitionSchemeStatement(stringOrIdentifier)?/stringOrIdentifier!insert	ALTER PARTITION SCHEME a NEXT USED 'a' zzz
 accept	accept	engine	executeAsClause/(Exec|Execute)_As_(stringLiteral|Identifier)	CREATE PROC a WITH EXEC AS 'a' AS
 reject	reject	engine	executeAsClause/(Exec|Execute)_As_(stringLiteral|Identifier)!drop-1	CREATE PROC a WITH AS 'a' AS
@@ -5693,9 +5693,9 @@ reject	reject	engine	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9
 accept	accept	engine	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/XML_Schema_COLLECTION_DoubleColon	ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION :: a
 reject	reject	engine	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/XML_Schema_COLLECTION_DoubleColon!drop-1	ALTER SCHEMA a TRANSFER SCHEMA COLLECTION :: a
 reject	reject	engine	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/XML_Schema_COLLECTION_DoubleColon!drop-2	ALTER SCHEMA a TRANSFER XML COLLECTION :: a
-accept	reject	engine	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/XML_Schema_COLLECTION_DoubleColon!drop-3	ALTER SCHEMA a TRANSFER XML SCHEMA :: a
-accept	reject	engine	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/XML_Schema_COLLECTION_DoubleColon!drop-4	ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION a
-accept	reject	engine	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/XML_Schema_COLLECTION_DoubleColon!truncate	ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION
+reject	reject	engine	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/XML_Schema_COLLECTION_DoubleColon!drop-3	ALTER SCHEMA a TRANSFER XML SCHEMA :: a
+reject	reject	engine	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/XML_Schema_COLLECTION_DoubleColon!drop-4	ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION a
+reject	reject	engine	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/XML_Schema_COLLECTION_DoubleColon!truncate	ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION
 reject	reject	engine	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/XML_Schema_COLLECTION_DoubleColon!insert	ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION :: zzz a
 reject	reject	engine	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/XML_Schema_COLLECTION_DoubleColon!swap	ALTER SCHEMA a TRANSFER XMLNAMESPACES SCHEMA COLLECTION :: a
 accept	accept	engine	alterSchemaStatement(OBJECT|TYPE)/OBJECT	ALTER SCHEMA a TRANSFER OBJECT :: a
@@ -5707,7 +5707,7 @@ accept	accept	engine	alterSequenceOptionList/(alterSequenceOptionListElement)+	A
 reject	reject	engine	alterSequenceOptionList/(alterSequenceOptionListElement)+!insert	ALTER SEQUENCE a RESTART zzz
 reject	reject	engine	alterSequenceOptionList/(alterSequenceOptionListElement)+!swap	ALTER SEQUENCE a RESTORE
 accept	accept	engine	alterSequenceOptionList(alterSequenceOptionListElement)+/alterSequenceOptionListElement	ALTER SEQUENCE a RESTART
-accept	reject	engine	alterSequenceOptionList(alterSequenceOptionListElement)+/alterSequenceOptionListElement_(alterSequenceOptionListElement)+	ALTER SEQUENCE a RESTART RESTART
+reject	reject	engine	alterSequenceOptionList(alterSequenceOptionListElement)+/alterSequenceOptionListElement_(alterSequenceOptionListElement)+	ALTER SEQUENCE a RESTART RESTART
 reject	reject	engine	alterSequenceOptionList(alterSequenceOptionListElement)+/alterSequenceOptionListElement_(alterSequenceOptionListElement)+!insert	ALTER SEQUENCE a RESTART RESTART zzz
 reject	reject	engine	alterSequenceOptionList(alterSequenceOptionListElement)+/alterSequenceOptionListElement_(alterSequenceOptionListElement)+!swap	ALTER SEQUENCE a RESTORE RESTART
 accept	accept	engine	alterServiceMasterKeyStatement/MASTER_Key_(FORCE_REGENERATE|REGENERATE|With_(OL~e16cab8d)	ALTER SERVICE MASTER KEY REGENERATE
@@ -5773,7 +5773,7 @@ reject	reject	engine	alterUserStatement(Comma_alterUserOption)*/Comma_alterUserO
 accept	accept	engine	createSchemaStatement/Create_Schema_(identifier_authorizationOpt|authorizatio~38441c4c	CREATE SCHEMA a
 accept	accept	engine	createSchemaStatement(identifier_authorizationOpt|authorization)/identifier_authorizationOpt	CREATE SCHEMA a
 accept	accept	engine	createSchemaStatement(identifier_authorizationOpt|authorization)/authorization	CREATE SCHEMA AUTHORIZATION a
-accept	reject	engine	createSchemaStatement(identifier_authorizationOpt|authorization)/authorization!drop-2	CREATE SCHEMA AUTHORIZATION
+reject	reject	engine	createSchemaStatement(identifier_authorizationOpt|authorization)/authorization!drop-2	CREATE SCHEMA AUTHORIZATION
 reject	reject	engine	createSchemaStatement(identifier_authorizationOpt|authorization)/authorization!insert	CREATE SCHEMA AUTHORIZATION a zzz
 reject	reject	engine	createSchemaStatement(identifier_authorizationOpt|authorization)/authorization!swap	CREATE SCHEMA AUTH_REALM a
 accept	accept	engine	createSchemaElementList/(createSchemaElement)*	CREATE SCHEMA a
@@ -5789,7 +5789,7 @@ reject	reject	engine	createSchemaElement/(createViewStatement|createTableState~7
 accept	accept	engine	createSchemaElement(createViewStatement|createTableState~7fe00a04)/createViewStatement	CREATE SCHEMA a CREATE VIEW a AS SELECT *
 reject	reject	engine	createSchemaElement(createViewStatement|createTableState~7fe00a04)/createViewStatement!drop-1	CREATE SCHEMA a VIEW a AS SELECT *
 reject	reject	engine	createSchemaElement(createViewStatement|createTableState~7fe00a04)/createViewStatement!drop-2	CREATE SCHEMA a CREATE a AS SELECT *
-accept	reject	engine	createSchemaElement(createViewStatement|createTableState~7fe00a04)/createViewStatement!drop-3	CREATE SCHEMA a CREATE VIEW AS SELECT *
+reject	reject	engine	createSchemaElement(createViewStatement|createTableState~7fe00a04)/createViewStatement!drop-3	CREATE SCHEMA a CREATE VIEW AS SELECT *
 reject	reject	engine	createSchemaElement(createViewStatement|createTableState~7fe00a04)/createViewStatement!drop-4	CREATE SCHEMA a CREATE VIEW a SELECT *
 reject	reject	engine	createSchemaElement(createViewStatement|createTableState~7fe00a04)/createViewStatement!drop-5	CREATE SCHEMA a CREATE VIEW a AS *
 reject	reject	engine	createSchemaElement(createViewStatement|createTableState~7fe00a04)/createViewStatement!drop-6	CREATE SCHEMA a CREATE VIEW a AS SELECT
@@ -10463,7 +10463,7 @@ accept	accept	engine	createSequenceOptionList/(createSequenceOptionListElement)+
 reject	reject	engine	createSequenceOptionList/(createSequenceOptionListElement)+!insert	CREATE SEQUENCE a CACHE zzz
 reject	reject	engine	createSequenceOptionList/(createSequenceOptionListElement)+!swap	CREATE SEQUENCE a CALLED
 accept	accept	engine	createSequenceOptionList(createSequenceOptionListElement)+/createSequenceOptionListElement	CREATE SEQUENCE a CACHE
-accept	reject	engine	createSequenceOptionList(createSequenceOptionListElement)+/createSequenceOptionListElement_(createSequenceOptionLi~c3c133a7	CREATE SEQUENCE a CACHE CACHE
+reject	reject	engine	createSequenceOptionList(createSequenceOptionListElement)+/createSequenceOptionListElement_(createSequenceOptionLi~c3c133a7	CREATE SEQUENCE a CACHE CACHE
 reject	reject	engine	createSequenceOptionList(createSequenceOptionListElement)+/createSequenceOptionListElement_(createSequenceOptionLi~c3c133a7!insert	CREATE SEQUENCE a CACHE CACHE zzz
 reject	reject	engine	createSequenceOptionList(createSequenceOptionListElement)+/createSequenceOptionListElement_(createSequenceOptionLi~c3c133a7!swap	CREATE SEQUENCE a CALLED CACHE
 accept	accept	engine	alterSequenceOptionListElement/sequenceRestartOptionListElement_RESTART	ALTER SEQUENCE a RESTART
@@ -10472,13 +10472,13 @@ reject	reject	engine	alterSequenceOptionListElement/commonSequenceOptionListElem
 reject	reject	engine	alterSequenceOptionListElement/commonSequenceOptionListElement!swap	ALTER SEQUENCE a CALLED
 accept	accept	engine	createSequenceOptionListElement/sequenceDatatypeOptionListElement	CREATE SEQUENCE a AS a
 reject	reject	engine	createSequenceOptionListElement/sequenceDatatypeOptionListElement!drop-1	CREATE SEQUENCE a a
-accept	reject	engine	createSequenceOptionListElement/sequenceDatatypeOptionListElement!drop-2	CREATE SEQUENCE a AS
+reject	reject	engine	createSequenceOptionListElement/sequenceDatatypeOptionListElement!drop-2	CREATE SEQUENCE a AS
 reject	reject	engine	createSequenceOptionListElement/sequenceDatatypeOptionListElement!insert	CREATE SEQUENCE a AS a zzz
 reject	reject	engine	createSequenceOptionListElement/sequenceDatatypeOptionListElement!swap	CREATE SEQUENCE a ASC a
 accept	accept	engine	createSequenceOptionListElement/sequenceStartOptionListElement_START	CREATE SEQUENCE a START WITH 1
 reject	reject	engine	createSequenceOptionListElement/sequenceStartOptionListElement_START!drop-1	CREATE SEQUENCE a WITH 1
-accept	reject	engine	createSequenceOptionListElement/sequenceStartOptionListElement_START!drop-2	CREATE SEQUENCE a START 1
-accept	reject	engine	createSequenceOptionListElement/sequenceStartOptionListElement_START!drop-3	CREATE SEQUENCE a START WITH
+reject	reject	engine	createSequenceOptionListElement/sequenceStartOptionListElement_START!drop-2	CREATE SEQUENCE a START 1
+reject	reject	engine	createSequenceOptionListElement/sequenceStartOptionListElement_START!drop-3	CREATE SEQUENCE a START WITH
 reject	reject	engine	createSequenceOptionListElement/sequenceStartOptionListElement_START!insert	CREATE SEQUENCE a START WITH 1 zzz
 reject	reject	engine	createSequenceOptionListElement/sequenceStartOptionListElement_START!swap	CREATE SEQUENCE a STARTUP_STATE WITH 1
 accept	accept	engine	createSequenceOptionListElement/commonSequenceOptionListElement	CREATE SEQUENCE a CACHE
@@ -10489,12 +10489,12 @@ reject	reject	engine	commonSequenceOptionListElement(sequenceCacheOptionListElem
 reject	reject	engine	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceCycleOptionListElement_CYCLE!swap	ALTER SEQUENCE a DATA
 accept	accept	engine	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceIncrementOptionListElement_INCREMENT	ALTER SEQUENCE a INCREMENT BY 1
 reject	reject	engine	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceIncrementOptionListElement_INCREMENT!drop-1	ALTER SEQUENCE a BY 1
-accept	reject	engine	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceIncrementOptionListElement_INCREMENT!drop-2	ALTER SEQUENCE a INCREMENT 1
-accept	reject	engine	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceIncrementOptionListElement_INCREMENT!drop-3	ALTER SEQUENCE a INCREMENT BY
+reject	reject	engine	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceIncrementOptionListElement_INCREMENT!drop-2	ALTER SEQUENCE a INCREMENT 1
+reject	reject	engine	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceIncrementOptionListElement_INCREMENT!drop-3	ALTER SEQUENCE a INCREMENT BY
 reject	reject	engine	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceIncrementOptionListElement_INCREMENT!insert	ALTER SEQUENCE a INCREMENT BY 1 zzz
 reject	reject	engine	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceIncrementOptionListElement_INCREMENT!swap	ALTER SEQUENCE a INCREMENTAL BY 1
 accept	accept	engine	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceNoOptionListElement_NO	ALTER SEQUENCE a NO MINVALUE
-accept	reject	engine	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceNoOptionListElement_NO!drop-1	ALTER SEQUENCE a MINVALUE
+reject	reject	engine	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceNoOptionListElement_NO!drop-1	ALTER SEQUENCE a MINVALUE
 reject	reject	engine	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceNoOptionListElement_NO!drop-2	ALTER SEQUENCE a NO
 reject	reject	engine	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceNoOptionListElement_NO!insert	ALTER SEQUENCE a NO MINVALUE zzz
 reject	reject	engine	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceNoOptionListElement_NO!swap	ALTER SEQUENCE a NOCHECK MINVALUE
@@ -10918,27 +10918,27 @@ accept	accept	engine	viewStatementBody(With_Check_Option)?/%empty	CREATE VIEW a 
 accept	accept	engine	viewStatementBody(With_Check_Option)?/With_Check_Option	CREATE VIEW a AS SELECT * WITH CHECK OPTION
 reject	reject	engine	viewStatementBody(With_Check_Option)?/With_Check_Option!drop-1	CREATE VIEW a AS SELECT * CHECK OPTION
 reject	reject	engine	viewStatementBody(With_Check_Option)?/With_Check_Option!drop-2	CREATE VIEW a AS SELECT * WITH OPTION
-accept	reject	engine	viewStatementBody(With_Check_Option)?/With_Check_Option!drop-3	CREATE VIEW a AS SELECT * WITH CHECK
+reject	reject	engine	viewStatementBody(With_Check_Option)?/With_Check_Option!drop-3	CREATE VIEW a AS SELECT * WITH CHECK
 reject	reject	engine	viewStatementBody(With_Check_Option)?/With_Check_Option!insert	CREATE VIEW a AS SELECT * WITH CHECK OPTION zzz
 reject	reject	engine	viewStatementBody(With_Check_Option)?/With_Check_Option!swap	CREATE VIEW a AS SELECT * WITHIN CHECK OPTION
 reject	reject	engine	viewOption/Identifier	CREATE VIEW a WITH a AS SELECT *
-accept	reject	engine	createMaterializedViewOption/viewDistributionOption_DISTRIBUTION	CREATE MATERIALIZED VIEW a WITH(DISTRIBUTION = ROUND_ROBIN) AS SELECT *
+reject	reject	engine	createMaterializedViewOption/viewDistributionOption_DISTRIBUTION	CREATE MATERIALIZED VIEW a WITH(DISTRIBUTION = ROUND_ROBIN) AS SELECT *
 reject	reject	engine	createMaterializedViewOption/viewDistributionOption_DISTRIBUTION!drop-1	CREATE MATERIALIZED VIEW a WITH(= ROUND_ROBIN) AS SELECT *
 reject	reject	engine	createMaterializedViewOption/viewDistributionOption_DISTRIBUTION!drop-2	CREATE MATERIALIZED VIEW a WITH(DISTRIBUTION ROUND_ROBIN) AS SELECT *
-accept	reject	engine	createMaterializedViewOption/viewDistributionOption_DISTRIBUTION!drop-3	CREATE MATERIALIZED VIEW a WITH(DISTRIBUTION =) AS SELECT *
+reject	reject	engine	createMaterializedViewOption/viewDistributionOption_DISTRIBUTION!drop-3	CREATE MATERIALIZED VIEW a WITH(DISTRIBUTION =) AS SELECT *
 reject	reject	engine	createMaterializedViewOption/viewDistributionOption_DISTRIBUTION!truncate	CREATE MATERIALIZED VIEW a WITH(DISTRIBUTION =
 reject	reject	engine	createMaterializedViewOption/viewDistributionOption_DISTRIBUTION!insert	CREATE MATERIALIZED VIEW a WITH(DISTRIBUTION = ROUND_ROBIN zzz) AS SELECT *
 reject	reject	engine	createMaterializedViewOption/viewDistributionOption_DISTRIBUTION!swap	CREATE MATERIALIZED VIEW a WITH(DOUBLE = ROUND_ROBIN) AS SELECT *
-accept	reject	engine	createMaterializedViewOption/viewForAppendOption_FOR_APPEND	CREATE MATERIALIZED VIEW a WITH(FOR_APPEND) AS SELECT *
+reject	reject	engine	createMaterializedViewOption/viewForAppendOption_FOR_APPEND	CREATE MATERIALIZED VIEW a WITH(FOR_APPEND) AS SELECT *
 reject	reject	engine	createMaterializedViewOption/viewForAppendOption_FOR_APPEND!truncate	CREATE MATERIALIZED VIEW a WITH(
 reject	reject	engine	createMaterializedViewOption/viewForAppendOption_FOR_APPEND!insert	CREATE MATERIALIZED VIEW a WITH(FOR_APPEND zzz) AS SELECT *
 reject	reject	engine	createMaterializedViewOption/viewForAppendOption_FOR_APPEND!swap	CREATE MATERIALIZED VIEW a WITH(FREETEXT) AS SELECT *
-accept	reject	engine	viewDistributionPolicy/viewRoundRobinDistributionPolicy_ROUND_ROBIN	CREATE MATERIALIZED VIEW a WITH(DISTRIBUTION = ROUND_ROBIN) AS SELECT *
-accept	reject	engine	viewDistributionPolicy/viewRoundRobinDistributionPolicy_ROUND_ROBIN!swap	CREATE MATERIALIZED VIEW a WITH(DISTRIBUTION = ROUTE) AS SELECT *
-accept	reject	engine	viewDistributionPolicy/viewHashDistributionPolicy_HASH	CREATE MATERIALIZED VIEW a WITH(DISTRIBUTION = HASH(a)) AS SELECT *
+reject	reject	engine	viewDistributionPolicy/viewRoundRobinDistributionPolicy_ROUND_ROBIN	CREATE MATERIALIZED VIEW a WITH(DISTRIBUTION = ROUND_ROBIN) AS SELECT *
+reject	reject	engine	viewDistributionPolicy/viewRoundRobinDistributionPolicy_ROUND_ROBIN!swap	CREATE MATERIALIZED VIEW a WITH(DISTRIBUTION = ROUTE) AS SELECT *
+reject	reject	engine	viewDistributionPolicy/viewHashDistributionPolicy_HASH	CREATE MATERIALIZED VIEW a WITH(DISTRIBUTION = HASH(a)) AS SELECT *
 reject	reject	engine	viewDistributionPolicy/viewHashDistributionPolicy_HASH!drop-1	CREATE MATERIALIZED VIEW a WITH(DISTRIBUTION =(a)) AS SELECT *
 reject	reject	engine	viewDistributionPolicy/viewHashDistributionPolicy_HASH!drop-2	CREATE MATERIALIZED VIEW a WITH(DISTRIBUTION = HASH a)) AS SELECT *
-accept	reject	engine	viewDistributionPolicy/viewHashDistributionPolicy_HASH!drop-3	CREATE MATERIALIZED VIEW a WITH(DISTRIBUTION = HASH()) AS SELECT *
+reject	reject	engine	viewDistributionPolicy/viewHashDistributionPolicy_HASH!drop-3	CREATE MATERIALIZED VIEW a WITH(DISTRIBUTION = HASH()) AS SELECT *
 reject	reject	engine	viewDistributionPolicy/viewHashDistributionPolicy_HASH!drop-4	CREATE MATERIALIZED VIEW a WITH(DISTRIBUTION = HASH(a) AS SELECT *
 reject	reject	engine	viewDistributionPolicy/viewHashDistributionPolicy_HASH!truncate	CREATE MATERIALIZED VIEW a WITH(DISTRIBUTION = HASH(a
 reject	reject	engine	viewDistributionPolicy/viewHashDistributionPolicy_HASH!insert	CREATE MATERIALIZED VIEW a WITH(DISTRIBUTION = HASH(a) zzz) AS SELECT *
@@ -13127,13 +13127,13 @@ accept	accept	engine	dataTypeSchemaObjectName(Dot_identifier)?/Dot_identifier	DE
 reject	reject	engine	dataTypeSchemaObjectName(Dot_identifier)?/Dot_identifier!drop-1	DECLARE @a a a
 accept	reject	engine	dataTypeSchemaObjectName(Dot_identifier)?/Dot_identifier!drop-2	DECLARE @a a.
 reject	reject	engine	dataTypeSchemaObjectName(Dot_identifier)?/Dot_identifier!insert	DECLARE @a a.a zzz
-accept	reject	engine	schemaObjectNonEmptyTwoPartName/identifier_(Dot_identifier)?	ALTER SEQUENCE a
-accept	reject	engine	schemaObjectNonEmptyTwoPartName(Dot_identifier)?/%empty	ALTER SEQUENCE a
-accept	reject	engine	schemaObjectNonEmptyTwoPartName(Dot_identifier)?/Dot_identifier	ALTER SEQUENCE a.a
+reject	reject	engine	schemaObjectNonEmptyTwoPartName/identifier_(Dot_identifier)?	ALTER SEQUENCE a
+reject	reject	engine	schemaObjectNonEmptyTwoPartName(Dot_identifier)?/%empty	ALTER SEQUENCE a
+reject	reject	engine	schemaObjectNonEmptyTwoPartName(Dot_identifier)?/Dot_identifier	ALTER SEQUENCE a.a
 reject	reject	engine	schemaObjectNonEmptyTwoPartName(Dot_identifier)?/Dot_identifier!drop-1	ALTER SEQUENCE a a
-accept	reject	engine	schemaObjectNonEmptyTwoPartName(Dot_identifier)?/Dot_identifier!drop-2	ALTER SEQUENCE a.
+reject	reject	engine	schemaObjectNonEmptyTwoPartName(Dot_identifier)?/Dot_identifier!drop-2	ALTER SEQUENCE a.
 reject	reject	engine	schemaObjectNonEmptyTwoPartName(Dot_identifier)?/Dot_identifier!insert	ALTER SEQUENCE a.a zzz
-accept	reject	engine	schemaObjectTwoPartName/schemaObjectNonEmptyTwoPartName	ALTER SEQUENCE a
+reject	reject	engine	schemaObjectTwoPartName/schemaObjectNonEmptyTwoPartName	ALTER SEQUENCE a
 reject	reject	engine	schemaObjectTwoPartName/Dot_identifier	ALTER SEQUENCE.a
 reject	reject	engine	schemaObjectTwoPartName/Dot_identifier!drop-2	ALTER SEQUENCE.
 reject	reject	engine	schemaObjectTwoPartName/Dot_identifier!insert	ALTER SEQUENCE.a zzz
@@ -14314,7 +14314,7 @@ accept	accept	engine	authorizationOpt/(authorization)?	CREATE SCHEMA a
 accept	accept	engine	authorizationOpt(authorization)?/%empty	CREATE SCHEMA a
 accept	accept	engine	authorizationOpt(authorization)?/authorization	CREATE SCHEMA a AUTHORIZATION a
 reject	reject	engine	authorizationOpt(authorization)?/authorization!drop-1	CREATE SCHEMA a a
-accept	reject	engine	authorizationOpt(authorization)?/authorization!drop-2	CREATE SCHEMA a AUTHORIZATION
+reject	reject	engine	authorizationOpt(authorization)?/authorization!drop-2	CREATE SCHEMA a AUTHORIZATION
 reject	reject	engine	authorizationOpt(authorization)?/authorization!insert	CREATE SCHEMA a AUTHORIZATION a zzz
 reject	reject	engine	authorizationOpt(authorization)?/authorization!swap	CREATE SCHEMA a AUTH_REALM a
 accept	accept	engine	authorization/Authorization_identifier	CREATE SCHEMA AUTHORIZATION a
@@ -14329,7 +14329,7 @@ reject	reject	engine	assemblyName/NAME_identifier_(Dot_identifier)?!swap	CREATE 
 accept	accept	engine	assemblyName(Dot_identifier)?/%empty	CREATE TYPE a EXTERNAL NAME a
 accept	accept	engine	assemblyName(Dot_identifier)?/Dot_identifier	CREATE TYPE a EXTERNAL NAME a.a
 reject	reject	engine	assemblyName(Dot_identifier)?/Dot_identifier!drop-1	CREATE TYPE a EXTERNAL NAME a a
-accept	reject	engine	assemblyName(Dot_identifier)?/Dot_identifier!drop-2	CREATE TYPE a EXTERNAL NAME a.
+reject	reject	engine	assemblyName(Dot_identifier)?/Dot_identifier!drop-2	CREATE TYPE a EXTERNAL NAME a.
 reject	reject	engine	assemblyName(Dot_identifier)?/Dot_identifier!insert	CREATE TYPE a EXTERNAL NAME a.a zzz
 accept	accept	engine	identifierVariable/Variable	DECLARE @a a
 accept	reject	engine	identifierVariable/Variable!truncate	DECLARE
@@ -14934,21 +14934,21 @@ reject	reject	engine	securityStatementPermission/With!swap	GRANT WITHIN TO PUBLI
 reject	reject	engine	securityStatementPermission/WriteText	GRANT WRITETEXT TO PUBLIC
 reject	reject	engine	securityStatementPermission/WriteText!insert	GRANT WRITETEXT zzz TO PUBLIC
 reject	reject	engine	securityStatementPermission/WriteText!swap	GRANT WSDL TO PUBLIC
-accept	reject	engine	createMaterializedViewStatement_MATERIALIZED/MATERIALIZED_View_schemaObjectTwoPartName_With_LeftPare~7e21030a	CREATE MATERIALIZED VIEW a WITH(FOR_APPEND) AS SELECT *
-accept	reject	engine	createMaterializedViewStatement_MATERIALIZED(Comma_createMaterializedViewOption)?/%empty	CREATE MATERIALIZED VIEW a WITH(FOR_APPEND) AS SELECT *
-accept	reject	engine	createMaterializedViewStatement_MATERIALIZED(Comma_createMaterializedViewOption)?/Comma_createMaterializedViewOption	CREATE MATERIALIZED VIEW a WITH(FOR_APPEND, FOR_APPEND) AS SELECT *
+reject	reject	engine	createMaterializedViewStatement_MATERIALIZED/MATERIALIZED_View_schemaObjectTwoPartName_With_LeftPare~7e21030a	CREATE MATERIALIZED VIEW a WITH(FOR_APPEND) AS SELECT *
+reject	reject	engine	createMaterializedViewStatement_MATERIALIZED(Comma_createMaterializedViewOption)?/%empty	CREATE MATERIALIZED VIEW a WITH(FOR_APPEND) AS SELECT *
+reject	reject	engine	createMaterializedViewStatement_MATERIALIZED(Comma_createMaterializedViewOption)?/Comma_createMaterializedViewOption	CREATE MATERIALIZED VIEW a WITH(FOR_APPEND, FOR_APPEND) AS SELECT *
 reject	reject	engine	createMaterializedViewStatement_MATERIALIZED(Comma_createMaterializedViewOption)?/Comma_createMaterializedViewOption!drop-1	CREATE MATERIALIZED VIEW a WITH(FOR_APPEND FOR_APPEND) AS SELECT *
-accept	reject	engine	createMaterializedViewStatement_MATERIALIZED(Comma_createMaterializedViewOption)?/Comma_createMaterializedViewOption!drop-2	CREATE MATERIALIZED VIEW a WITH(FOR_APPEND,) AS SELECT *
+reject	reject	engine	createMaterializedViewStatement_MATERIALIZED(Comma_createMaterializedViewOption)?/Comma_createMaterializedViewOption!drop-2	CREATE MATERIALIZED VIEW a WITH(FOR_APPEND,) AS SELECT *
 reject	reject	engine	createMaterializedViewStatement_MATERIALIZED(Comma_createMaterializedViewOption)?/Comma_createMaterializedViewOption!truncate	CREATE MATERIALIZED VIEW a WITH(FOR_APPEND,
 reject	reject	engine	createMaterializedViewStatement_MATERIALIZED(Comma_createMaterializedViewOption)?/Comma_createMaterializedViewOption!insert	CREATE MATERIALIZED VIEW a WITH(FOR_APPEND, FOR_APPEND zzz) AS SELECT *
 reject	reject	engine	createMaterializedViewStatement_MATERIALIZED(Comma_createMaterializedViewOption)?/Comma_createMaterializedViewOption!swap	CREATE MATERIALIZED VIEW a WITH(FOR_APPEND, FREETEXT) AS SELECT *
 accept	reject	engine	createFederationStatement_FEDERATION/FEDERATION_identifier_LeftParenthesis_identifier_scalar~447eb3d3	CREATE FEDERATION a(a a RANGE)
-accept	reject	engine	alterMaterializedViewStatement_MATERIALIZED/MATERIALIZED_View_schemaObjectTwoPartName_(REBUILD|DISABLE)	ALTER MATERIALIZED VIEW a REBUILD
-accept	reject	engine	alterMaterializedViewStatement_MATERIALIZED(REBUILD|DISABLE)/REBUILD	ALTER MATERIALIZED VIEW a REBUILD
-accept	reject	engine	alterMaterializedViewStatement_MATERIALIZED(REBUILD|DISABLE)/REBUILD!swap	ALTER MATERIALIZED VIEW a RECEIVE
-accept	reject	engine	alterMaterializedViewStatement_MATERIALIZED(REBUILD|DISABLE)/DISABLE	ALTER MATERIALIZED VIEW a DISABLE
+reject	reject	engine	alterMaterializedViewStatement_MATERIALIZED/MATERIALIZED_View_schemaObjectTwoPartName_(REBUILD|DISABLE)	ALTER MATERIALIZED VIEW a REBUILD
+reject	reject	engine	alterMaterializedViewStatement_MATERIALIZED(REBUILD|DISABLE)/REBUILD	ALTER MATERIALIZED VIEW a REBUILD
+reject	reject	engine	alterMaterializedViewStatement_MATERIALIZED(REBUILD|DISABLE)/REBUILD!swap	ALTER MATERIALIZED VIEW a RECEIVE
+reject	reject	engine	alterMaterializedViewStatement_MATERIALIZED(REBUILD|DISABLE)/DISABLE	ALTER MATERIALIZED VIEW a DISABLE
 reject	reject	engine	alterMaterializedViewStatement_MATERIALIZED(REBUILD|DISABLE)/DISABLE!insert	ALTER MATERIALIZED VIEW a DISABLE zzz
-accept	reject	engine	alterMaterializedViewStatement_MATERIALIZED(REBUILD|DISABLE)/DISABLE!swap	ALTER MATERIALIZED VIEW a DISABLED
+reject	reject	engine	alterMaterializedViewStatement_MATERIALIZED(REBUILD|DISABLE)/DISABLE!swap	ALTER MATERIALIZED VIEW a DISABLED
 accept	reject	engine	alterFederationStatement_FEDERATION/FEDERATION_identifier_(SPLIT_AT_LeftParenthesis|Drop_AT~acf65172	ALTER FEDERATION a SPLIT AT(a = 1)
 accept	reject	engine	alterFederationStatement_FEDERATION(SPLIT_AT_LeftParenthesis|Drop_AT_Lef~e6a517a9)/SPLIT_AT_LeftParenthesis	ALTER FEDERATION a SPLIT AT(a = 1)
 accept	reject	engine	alterFederationStatement_FEDERATION(SPLIT_AT_LeftParenthesis|Drop_AT_Lef~e6a517a9)/SPLIT_AT_LeftParenthesis!truncate	ALTER FEDERATION a SPLIT AT
@@ -15054,9 +15054,9 @@ accept	accept	engine	createAggregateStatement_AGGREGATE/AGGREGATE_schemaObjectTh
 accept	accept	engine	createAggregateStatement_AGGREGATE(Comma_aggregateParameter)*/%empty	CREATE AGGREGATE a(@a a) RETURNS a EXTERNAL NAME a
 accept	accept	engine	createAggregateStatement_AGGREGATE(Comma_aggregateParameter)*/Comma_aggregateParameter_(Comma_aggregateParameter)*	CREATE AGGREGATE a(@a a, @a a) RETURNS a EXTERNAL NAME a
 reject	reject	engine	createAggregateStatement_AGGREGATE(Comma_aggregateParameter)*/Comma_aggregateParameter_(Comma_aggregateParameter)*!drop-1	CREATE AGGREGATE a(@a a @a a) RETURNS a EXTERNAL NAME a
-accept	reject	engine	createAggregateStatement_AGGREGATE(Comma_aggregateParameter)*/Comma_aggregateParameter_(Comma_aggregateParameter)*!drop-2	CREATE AGGREGATE a(@a a, a) RETURNS a EXTERNAL NAME a
-accept	reject	engine	createAggregateStatement_AGGREGATE(Comma_aggregateParameter)*/Comma_aggregateParameter_(Comma_aggregateParameter)*!drop-3	CREATE AGGREGATE a(@a a, @a) RETURNS a EXTERNAL NAME a
-accept	reject	engine	createAggregateStatement_AGGREGATE(Comma_aggregateParameter)*/Comma_aggregateParameter_(Comma_aggregateParameter)*!truncate	CREATE AGGREGATE a(@a a, @a
+reject	reject	engine	createAggregateStatement_AGGREGATE(Comma_aggregateParameter)*/Comma_aggregateParameter_(Comma_aggregateParameter)*!drop-2	CREATE AGGREGATE a(@a a, a) RETURNS a EXTERNAL NAME a
+reject	reject	engine	createAggregateStatement_AGGREGATE(Comma_aggregateParameter)*/Comma_aggregateParameter_(Comma_aggregateParameter)*!drop-3	CREATE AGGREGATE a(@a a, @a) RETURNS a EXTERNAL NAME a
+reject	reject	engine	createAggregateStatement_AGGREGATE(Comma_aggregateParameter)*/Comma_aggregateParameter_(Comma_aggregateParameter)*!truncate	CREATE AGGREGATE a(@a a, @a
 reject	reject	engine	createAggregateStatement_AGGREGATE(Comma_aggregateParameter)*/Comma_aggregateParameter_(Comma_aggregateParameter)*!insert	CREATE AGGREGATE a(@a a, @a a zzz) RETURNS a EXTERNAL NAME a
 accept	accept	engine	applicationRoleStatement_APPLICATION/APPLICATION_ROLE_identifier_With_applicationRoleOption_~101c0358	ALTER APPLICATION ROLE a WITH PASSWORD = 'a'
 accept	accept	engine	applicationRoleStatement_APPLICATION(Comma_applicationRoleOption)*/%empty	ALTER APPLICATION ROLE a WITH PASSWORD = 'a'
@@ -15305,9 +15305,9 @@ reject	reject	engine	createMasterKeyStatement_MASTER(ENCRYPTION_By_PASSWORD_Equa
 reject	reject	engine	createMasterKeyStatement_MASTER(ENCRYPTION_By_PASSWORD_EqualsSign_st~806d391f)?/ENCRYPTION_By_PASSWORD_EqualsSign_stringLiteral!drop-5	CREATE MASTER KEY ENCRYPTION BY PASSWORD =
 reject	reject	engine	createMasterKeyStatement_MASTER(ENCRYPTION_By_PASSWORD_EqualsSign_st~806d391f)?/ENCRYPTION_By_PASSWORD_EqualsSign_stringLiteral!insert	CREATE MASTER KEY ENCRYPTION BY PASSWORD = 'a' zzz
 reject	reject	engine	createMasterKeyStatement_MASTER(ENCRYPTION_By_PASSWORD_EqualsSign_st~806d391f)?/ENCRYPTION_By_PASSWORD_EqualsSign_stringLiteral!swap	CREATE MASTER KEY ENCRYPTION_TYPE BY PASSWORD = 'a'
-reject	accept	engine	createPartitionStatement_PARTITION/PARTITION_(createPartitionFunction|createPartitionScheme)	CREATE PARTITION SCHEME a AS PARTITION a TO('a')
+accept	accept	engine	createPartitionStatement_PARTITION/PARTITION_(createPartitionFunction|createPartitionScheme)	CREATE PARTITION SCHEME a AS PARTITION a TO('a')
 accept	accept	engine	createPartitionStatement_PARTITION(createPartitionFunction|createPartitionScheme)/createPartitionFunction	CREATE PARTITION FUNCTION a(a) AS RANGE FOR VALUES()
-reject	accept	engine	createPartitionStatement_PARTITION(createPartitionFunction|createPartitionScheme)/createPartitionScheme	CREATE PARTITION SCHEME a AS PARTITION a TO('a')
+accept	accept	engine	createPartitionStatement_PARTITION(createPartitionFunction|createPartitionScheme)/createPartitionScheme	CREATE PARTITION SCHEME a AS PARTITION a TO('a')
 accept	accept	engine	createQueueStatement_QUEUE/QUEUE_schemaObjectThreePartName_(queueOptionList)?_(On_~7c380851	CREATE QUEUE a
 accept	accept	engine	createQueueStatement_QUEUE(queueOptionList)?/%empty	CREATE QUEUE a
 accept	accept	engine	createQueueStatement_QUEUE(queueOptionList)?/queueOptionList	CREATE QUEUE a WITH STATUS = ON
@@ -16347,15 +16347,15 @@ accept	accept	engine	keySourceKeySpec_KEY_SOURCE/KEY_SOURCE_EqualsSign_stringLit
 reject	reject	engine	algorithmKeySpec_ALGORITHM/ALGORITHM_EqualsSign_Identifier	CREATE ASYMMETRIC KEY a FROM PROVIDER a WITH ALGORITHM = a
 accept	accept	engine	providerKeyNameSourceOption_PROVIDER_KEY_NAME/PROVIDER_KEY_NAME_EqualsSign_stringLiteral	CREATE ASYMMETRIC KEY a FROM PROVIDER a WITH PROVIDER_KEY_NAME = 'a'
 accept	accept	engine	alterApplicationRoleStatement_APPLICATION/applicationRoleStatement_APPLICATION	ALTER APPLICATION ROLE a WITH PASSWORD = 'a'
-accept	reject	engine	alterAssemblyStatement_ASSEMBLY/ASSEMBLY_identifier_(alterAssemblyFromClause)?_(alterAs~dfb56d6e	ALTER ASSEMBLY a
-accept	reject	engine	alterAssemblyStatement_ASSEMBLY(alterAssemblyFromClause)?/%empty	ALTER ASSEMBLY a
-reject	accept	engine	alterAssemblyStatement_ASSEMBLY(alterAssemblyFromClause)?/alterAssemblyFromClause	ALTER ASSEMBLY a FROM 1
-accept	reject	engine	alterAssemblyStatement_ASSEMBLY(alterAssemblyWith)?/%empty	ALTER ASSEMBLY a
+reject	reject	engine	alterAssemblyStatement_ASSEMBLY/ASSEMBLY_identifier_(alterAssemblyFromClause)?_(alterAs~dfb56d6e	ALTER ASSEMBLY a
+reject	reject	engine	alterAssemblyStatement_ASSEMBLY(alterAssemblyFromClause)?/%empty	ALTER ASSEMBLY a
+accept	accept	engine	alterAssemblyStatement_ASSEMBLY(alterAssemblyFromClause)?/alterAssemblyFromClause	ALTER ASSEMBLY a FROM 1
+reject	reject	engine	alterAssemblyStatement_ASSEMBLY(alterAssemblyWith)?/%empty	ALTER ASSEMBLY a
 accept	accept	engine	alterAssemblyStatement_ASSEMBLY(alterAssemblyWith)?/alterAssemblyWith	ALTER ASSEMBLY a WITH UNCHECKED DATA
-accept	reject	engine	alterAssemblyStatement_ASSEMBLY(alterAssemblyDropFile)?/%empty	ALTER ASSEMBLY a
+reject	reject	engine	alterAssemblyStatement_ASSEMBLY(alterAssemblyDropFile)?/%empty	ALTER ASSEMBLY a
 accept	accept	engine	alterAssemblyStatement_ASSEMBLY(alterAssemblyDropFile)?/alterAssemblyDropFile	ALTER ASSEMBLY a DROP FILE ALL
-accept	reject	engine	alterAssemblyStatement_ASSEMBLY(alterAssemblyAddFile)?/%empty	ALTER ASSEMBLY a
-reject	accept	engine	alterAssemblyStatement_ASSEMBLY(alterAssemblyAddFile)?/alterAssemblyAddFile	ALTER ASSEMBLY a ADD FILE FROM 1
+reject	reject	engine	alterAssemblyStatement_ASSEMBLY(alterAssemblyAddFile)?/%empty	ALTER ASSEMBLY a
+accept	accept	engine	alterAssemblyStatement_ASSEMBLY(alterAssemblyAddFile)?/alterAssemblyAddFile	ALTER ASSEMBLY a ADD FILE FROM 1
 accept	accept	engine	alterAsymmetricKeyStatement_ASYMMETRIC/ASYMMETRIC_Key_identifier_(REMOVE_(PRIVATE_Key|ATTESTED~e69550ad	ALTER ASYMMETRIC KEY a REMOVE PRIVATE KEY
 accept	accept	engine	alterAsymmetricKeyStatement_ASYMMETRIC(REMOVE_(PRIVATE_Key|ATTESTED_Option)~1750c70e)/REMOVE_(PRIVATE_Key|ATTESTED_Option)	ALTER ASYMMETRIC KEY a REMOVE PRIVATE KEY
 reject	reject	engine	alterAsymmetricKeyStatement_ASYMMETRIC(REMOVE_(PRIVATE_Key|ATTESTED_Option)~1750c70e)/REMOVE_(PRIVATE_Key|ATTESTED_Option)!swap	ALTER ASYMMETRIC KEY a RENAME PRIVATE KEY
@@ -16536,8 +16536,8 @@ accept	accept	engine	alterQueueStatement_QUEUE/QUEUE_schemaObjectThreePartName_q
 accept	accept	engine	alterRoleStatement_ROLE/ROLE_identifier_alterRoleAction	ALTER ROLE a ADD MEMBER a
 accept	accept	engine	alterRouteStatement_ROUTE/ROUTE_identifier_routeOptionList	ALTER ROUTE a WITH LIFETIME = 1
 reject	reject	engine	alterSearchPropertyListStatement_SEARCH/SEARCH_PROPERTY_LIST_identifier_searchPropertyListActio~362c84f1	ALTER SEARCH PROPERTY LIST a DROP 'a'
-accept	reject	engine	alterSequenceStatement_SEQUENCE/SEQUENCE_schemaObjectTwoPartName_(alterSequenceOptionList)?	ALTER SEQUENCE a
-accept	reject	engine	alterSequenceStatement_SEQUENCE(alterSequenceOptionList)?/%empty	ALTER SEQUENCE a
+reject	reject	engine	alterSequenceStatement_SEQUENCE/SEQUENCE_schemaObjectTwoPartName_(alterSequenceOptionList)?	ALTER SEQUENCE a
+reject	reject	engine	alterSequenceStatement_SEQUENCE(alterSequenceOptionList)?/%empty	ALTER SEQUENCE a
 accept	accept	engine	alterSequenceStatement_SEQUENCE(alterSequenceOptionList)?/alterSequenceOptionList	ALTER SEQUENCE a RESTART
 accept	accept	engine	alterServiceStatements_SERVICE/SERVICE_(alterServiceMasterKeyStatement|alter~e32902e2)	ALTER SERVICE MASTER KEY REGENERATE
 accept	accept	engine	alterServiceStatements_SERVICE(alterServiceMasterKeyStatement|alter~e32902e2)/alterServiceMasterKeyStatement	ALTER SERVICE MASTER KEY REGENERATE
@@ -17054,7 +17054,7 @@ accept	accept	engine	sequenceRestartOptionListElement_RESTART/RESTART_(With_seed
 accept	accept	engine	sequenceRestartOptionListElement_RESTART(With_seedIncrement)?/%empty	ALTER SEQUENCE a RESTART
 accept	accept	engine	sequenceRestartOptionListElement_RESTART(With_seedIncrement)?/With_seedIncrement	ALTER SEQUENCE a RESTART WITH 1
 reject	reject	engine	sequenceRestartOptionListElement_RESTART(With_seedIncrement)?/With_seedIncrement!drop-1	ALTER SEQUENCE a RESTART 1
-accept	reject	engine	sequenceRestartOptionListElement_RESTART(With_seedIncrement)?/With_seedIncrement!drop-2	ALTER SEQUENCE a RESTART WITH
+reject	reject	engine	sequenceRestartOptionListElement_RESTART(With_seedIncrement)?/With_seedIncrement!drop-2	ALTER SEQUENCE a RESTART WITH
 reject	reject	engine	sequenceRestartOptionListElement_RESTART(With_seedIncrement)?/With_seedIncrement!insert	ALTER SEQUENCE a RESTART WITH 1 zzz
 reject	reject	engine	sequenceRestartOptionListElement_RESTART(With_seedIncrement)?/With_seedIncrement!swap	ALTER SEQUENCE a RESTART WITHIN 1
 accept	accept	engine	sequenceStartOptionListElement_START/START_With_seedIncrement	CREATE SEQUENCE a START WITH 1
@@ -17157,15 +17157,15 @@ reject	reject	engine	externalDataFormatUseTypeDefaultOption_USE_TYPE_DEFAULT(TRU
 accept	accept	engine	boundingBoxSpatialIndexOption_BOUNDING_BOX/BOUNDING_BOX_EqualsSign_boundingBoxParameter	CREATE SPATIAL INDEX a ON a(a) WITH(BOUNDING_BOX =(1))
 accept	accept	engine	gridsSpatialIndexOption_GRIDS/GRIDS_EqualsSign_gridParameter	CREATE SPATIAL INDEX a ON a(a) WITH(GRIDS =(a))
 accept	accept	engine	cellsPerObjectSpatialIndexOption_CELLS_PER_OBJECT/CELLS_PER_OBJECT_EqualsSign_integer	CREATE SPATIAL INDEX a ON a(a) WITH(CELLS_PER_OBJECT = 1)
-accept	reject	engine	viewDistributionOption_DISTRIBUTION/DISTRIBUTION_EqualsSign_viewDistributionPolicy	CREATE MATERIALIZED VIEW a WITH(DISTRIBUTION = ROUND_ROBIN) AS SELECT *
-accept	reject	engine	viewForAppendOption_FOR_APPEND/FOR_APPEND	CREATE MATERIALIZED VIEW a WITH(FOR_APPEND) AS SELECT *
-accept	reject	engine	viewRoundRobinDistributionPolicy_ROUND_ROBIN/ROUND_ROBIN	CREATE MATERIALIZED VIEW a WITH(DISTRIBUTION = ROUND_ROBIN) AS SELECT *
-accept	reject	engine	viewHashDistributionPolicy_HASH/HASH_LeftParenthesis_identifier_(Comma_identifier)*_Rig~4db0b7c5	CREATE MATERIALIZED VIEW a WITH(DISTRIBUTION = HASH(a)) AS SELECT *
-accept	reject	engine	viewHashDistributionPolicy_HASH(Comma_identifier)*/%empty	CREATE MATERIALIZED VIEW a WITH(DISTRIBUTION = HASH(a)) AS SELECT *
+reject	reject	engine	viewDistributionOption_DISTRIBUTION/DISTRIBUTION_EqualsSign_viewDistributionPolicy	CREATE MATERIALIZED VIEW a WITH(DISTRIBUTION = ROUND_ROBIN) AS SELECT *
+reject	reject	engine	viewForAppendOption_FOR_APPEND/FOR_APPEND	CREATE MATERIALIZED VIEW a WITH(FOR_APPEND) AS SELECT *
+reject	reject	engine	viewRoundRobinDistributionPolicy_ROUND_ROBIN/ROUND_ROBIN	CREATE MATERIALIZED VIEW a WITH(DISTRIBUTION = ROUND_ROBIN) AS SELECT *
+reject	reject	engine	viewHashDistributionPolicy_HASH/HASH_LeftParenthesis_identifier_(Comma_identifier)*_Rig~4db0b7c5	CREATE MATERIALIZED VIEW a WITH(DISTRIBUTION = HASH(a)) AS SELECT *
+reject	reject	engine	viewHashDistributionPolicy_HASH(Comma_identifier)*/%empty	CREATE MATERIALIZED VIEW a WITH(DISTRIBUTION = HASH(a)) AS SELECT *
 reject	reject	engine	viewHashDistributionPolicy_HASH(Comma_identifier)*/%empty!insert	CREATE MATERIALIZED VIEW a WITH(DISTRIBUTION = HASH(a zzz)) AS SELECT *
-accept	reject	engine	viewHashDistributionPolicy_HASH(Comma_identifier)*/Comma_identifier_(Comma_identifier)*	CREATE MATERIALIZED VIEW a WITH(DISTRIBUTION = HASH(a, a)) AS SELECT *
+reject	reject	engine	viewHashDistributionPolicy_HASH(Comma_identifier)*/Comma_identifier_(Comma_identifier)*	CREATE MATERIALIZED VIEW a WITH(DISTRIBUTION = HASH(a, a)) AS SELECT *
 reject	reject	engine	viewHashDistributionPolicy_HASH(Comma_identifier)*/Comma_identifier_(Comma_identifier)*!drop-1	CREATE MATERIALIZED VIEW a WITH(DISTRIBUTION = HASH(a a)) AS SELECT *
-accept	reject	engine	viewHashDistributionPolicy_HASH(Comma_identifier)*/Comma_identifier_(Comma_identifier)*!drop-2	CREATE MATERIALIZED VIEW a WITH(DISTRIBUTION = HASH(a,)) AS SELECT *
+reject	reject	engine	viewHashDistributionPolicy_HASH(Comma_identifier)*/Comma_identifier_(Comma_identifier)*!drop-2	CREATE MATERIALIZED VIEW a WITH(DISTRIBUTION = HASH(a,)) AS SELECT *
 reject	reject	engine	viewHashDistributionPolicy_HASH(Comma_identifier)*/Comma_identifier_(Comma_identifier)*!truncate	CREATE MATERIALIZED VIEW a WITH(DISTRIBUTION = HASH(a,
 reject	reject	engine	viewHashDistributionPolicy_HASH(Comma_identifier)*/Comma_identifier_(Comma_identifier)*!insert	CREATE MATERIALIZED VIEW a WITH(DISTRIBUTION = HASH(a, a zzz)) AS SELECT *
 accept	accept	engine	executeOptionRecompile_RECOMPILE/RECOMPILE	EXECUTE a WITH RECOMPILE
