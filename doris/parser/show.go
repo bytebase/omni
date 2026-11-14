@@ -802,24 +802,23 @@ func (p *Parser) parseGenericSet(startLoc ast.Loc) (ast.Node, error) {
 	}
 
 	stmt := &ast.SetStmt{Loc: startLoc, Type: "VARIABLE"}
+	var kind string
 	for {
-		item, err := p.parseSetOption()
+		item, k, err := p.parseSetOption()
 		if err != nil {
 			return nil, err
 		}
+		kind = k
 		stmt.Items = append(stmt.Items, item)
 		if p.cur.Kind != int(',') {
 			break
 		}
 		p.advance() // consume ','
 	}
+	// One NAMES or CHARSET option keeps its form's Type; a variable named
+	// so (SET `names` = 1, SET @names = 1) stays a VARIABLE statement.
 	if len(stmt.Items) == 1 {
-		switch stmt.Items[0].Name {
-		case "names":
-			stmt.Type = "NAMES"
-		case "charset":
-			stmt.Type = "CHARSET"
-		}
+		stmt.Type = kind
 	}
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
@@ -837,12 +836,14 @@ func (p *Parser) parseGenericSet(startLoc ast.Loc) (ast.Node, error) {
 //	setValue : expression | DEFAULT | ON | ALL
 //
 // A scope word followed by '=' names the variable itself (SET GLOBAL = 1).
-func (p *Parser) parseSetOption() (*ast.SetItem, error) {
+func (p *Parser) parseSetOption() (*ast.SetItem, string, error) {
 	item := &ast.SetItem{Loc: p.cur.Loc}
+	kind := "VARIABLE"
 	switch {
 	case p.cur.Kind == kwNAMES:
 		p.advance() // consume NAMES
 		item.Name = "names"
+		kind = "NAMES"
 		// Doris refuses NAMES = expression, which both grammars list, and a
 		// DEFAULT after the charset (testdata/compat.tsv: SET NAMES = 1,
 		// SET NAMES a DEFAULT).
@@ -852,7 +853,7 @@ func (p *Parser) parseSetOption() (*ast.SetItem, error) {
 		} else {
 			val, _, err := p.parseIdentifierOrString()
 			if err != nil {
-				return nil, err
+				return nil, "", err
 			}
 			item.Raw = val
 		}
@@ -860,7 +861,7 @@ func (p *Parser) parseSetOption() (*ast.SetItem, error) {
 			p.advance()
 			collation, _, err := p.parseIdentifierOrString()
 			if err != nil {
-				return nil, err
+				return nil, "", err
 			}
 			item.Raw += " COLLATE " + collation
 		}
@@ -870,13 +871,14 @@ func (p *Parser) parseSetOption() (*ast.SetItem, error) {
 			p.advance() // consume SET
 		}
 		item.Name = "charset"
+		kind = "CHARSET"
 		if p.cur.Kind == kwDEFAULT {
 			p.advance()
 			item.Raw = "DEFAULT"
 		} else {
 			val, _, err := p.parseIdentifierOrString()
 			if err != nil {
-				return nil, err
+				return nil, "", err
 			}
 			item.Raw = val
 		}
@@ -885,24 +887,24 @@ func (p *Parser) parseSetOption() (*ast.SetItem, error) {
 		p.advance()
 		item.Name = "ldap_admin_password"
 		if _, err := p.expect(int('=')); err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		if p.cur.Kind == kwPASSWORD {
 			p.advance()
 			if _, err := p.expect(int('(')); err != nil {
-				return nil, err
+				return nil, "", err
 			}
 			if p.cur.Kind != tokString {
-				return nil, p.syntaxErrorAtCur()
+				return nil, "", p.syntaxErrorAtCur()
 			}
 			item.Raw = p.advance().Str
 			if _, err := p.expect(int(')')); err != nil {
-				return nil, err
+				return nil, "", err
 			}
 		} else if p.cur.Kind == tokString {
 			item.Raw = p.advance().Str
 		} else {
-			return nil, p.syntaxErrorAtCur()
+			return nil, "", p.syntaxErrorAtCur()
 		}
 
 	case p.cur.Kind == int('@'):
@@ -910,15 +912,15 @@ func (p *Parser) parseSetOption() (*ast.SetItem, error) {
 		item.UserVariable = true
 		name, _, err := p.parseIdentifier()
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		item.Name = name
 		if _, err := p.expect(int('=')); err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		expr, err := p.parseExpr()
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		item.Value = expr
 
@@ -941,12 +943,12 @@ func (p *Parser) parseSetOption() (*ast.SetItem, error) {
 			// A scope word followed by '=' is the variable's name.
 			name = p.advance().Str
 		} else if name, _, err = p.parseIdentifier(); err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		item.Name = name
 		// EQ: Doris refuses the CUP parser's := (SET a := DEFAULT).
 		if _, err := p.expect(int('=')); err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		switch p.cur.Kind {
 		case kwDEFAULT, kwON, kwALL:
@@ -957,7 +959,7 @@ func (p *Parser) parseSetOption() (*ast.SetItem, error) {
 			case err == nil:
 				item.Value = expr
 			case p.strictTrailing:
-				return nil, err
+				return nil, "", err
 			default:
 				// Best effort keeps the malformed value as raw text.
 				item.Raw = p.collectUntilCommaOrEOF()
@@ -965,7 +967,7 @@ func (p *Parser) parseSetOption() (*ast.SetItem, error) {
 		}
 	}
 	item.Loc.End = p.prev.Loc.End
-	return item, nil
+	return item, kind, nil
 }
 
 // parseSetProperty parses #setUserProperties (DorisParser.g4:885) as the CUP

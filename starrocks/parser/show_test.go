@@ -568,11 +568,30 @@ func TestSetGrammar(t *testing.T) {
 		{"SET PASSWORD FOR u = 'p'", true},
 		{"SET a", false},
 		{"SET a := 1", false},
+		{"SET SESSION warehouse = 1", true},
+		{"SET SESSION warehouse = 'w', x = 1", true},
+		{"SET `names` = 1", true},
 	}
 	for _, c := range cases {
 		_, err := Parse(c.sql)
 		if (err == nil) != c.ok {
 			t.Errorf("Parse(%q): err = %v, want accepted=%v", c.sql, err, c.ok)
+		}
+	}
+}
+
+// TestSetTypeFromOption: a variable named NAMES or CHARSET keeps the
+// VARIABLE type; the NAMES and CHARSET options keep theirs.
+func TestSetTypeFromOption(t *testing.T) {
+	for sql, want := range map[string]string{
+		"SET `names` = 1":  "VARIABLE",
+		"SET @charset = 1": "VARIABLE",
+		"SET NAMES utf8":   "NAMES",
+		"SET CHARSET utf8": "CHARSET",
+	} {
+		stmt := parseOne(t, sql).(*ast.SetStmt)
+		if stmt.Type != want {
+			t.Errorf("%s: Type = %q, want %q", sql, stmt.Type, want)
 		}
 	}
 }
