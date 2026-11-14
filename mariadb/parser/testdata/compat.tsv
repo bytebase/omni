@@ -42,7 +42,7 @@ reject	reject	engine	verb_clause/analyze_stmt_command!drop-3	ANALYZE SELECT;
 reject	reject	engine	verb_clause/analyze_stmt_command!truncate	ANALYZE SELECT
 accept	accept	engine	verb_clause/analyze_stmt_command!insert	ANALYZE SELECT a zzz;
 reject	reject	engine	verb_clause/analyze_stmt_command!swap	AND SELECT a;
-reject	accept	engine	verb_clause/backup	BACKUP UNLOCK;
+accept	accept	engine	verb_clause/backup	BACKUP UNLOCK;
 reject	reject	engine	verb_clause/backup!drop-1	UNLOCK;
 reject	reject	engine	verb_clause/backup!drop-2	BACKUP;
 reject	reject	engine	verb_clause/backup!truncate	BACKUP
@@ -190,7 +190,7 @@ reject	reject	engine	verb_clause/keycache!drop-5	CACHE INDEX a IN;
 reject	reject	engine	verb_clause/keycache!truncate	CACHE INDEX a IN
 reject	reject	engine	verb_clause/keycache!insert	CACHE INDEX a IN a zzz;
 reject	reject	engine	verb_clause/keycache!swap	CALL INDEX a IN a;
-accept	reject	engine	verb_clause/kill	KILL a;
+reject	reject	engine	verb_clause/kill	KILL a;
 reject	reject	engine	verb_clause/kill!drop-2	KILL;
 reject	reject	engine	verb_clause/kill!truncate	KILL
 reject	reject	engine	verb_clause/kill!insert	KILL a zzz;
@@ -618,14 +618,14 @@ accept	accept	engine	optional_connection_name/connection_name!truncate	FLUSH SLA
 reject	reject	engine	optional_connection_name/connection_name!insert	FLUSH SLAVE 's' zzz;
 accept	accept	engine	connection_name/TEXT_STRING_sys	FLUSH SLAVE 's';
 accept	accept	engine	optional_for_channel/%empty	RESET SLAVE;
-reject	accept	engine	optional_for_channel/for_channel	RESET SLAVE FOR CHANNEL 's';
+accept	accept	engine	optional_for_channel/for_channel	RESET SLAVE FOR CHANNEL 's';
 reject	reject	engine	optional_for_channel/for_channel!drop-1	RESET SLAVE CHANNEL 's';
 reject	reject	engine	optional_for_channel/for_channel!drop-2	RESET SLAVE FOR 's';
 reject	reject	engine	optional_for_channel/for_channel!drop-3	RESET SLAVE FOR CHANNEL;
 reject	reject	engine	optional_for_channel/for_channel!truncate	RESET SLAVE FOR CHANNEL
 reject	reject	engine	optional_for_channel/for_channel!insert	RESET SLAVE FOR CHANNEL 's' zzz;
 reject	reject	engine	optional_for_channel/for_channel!swap	RESET SLAVE FORCE CHANNEL 's';
-reject	accept	engine	for_channel/FOR_SYM_CHANNEL_SYM_TEXT_STRING_sys	RESET SLAVE FOR CHANNEL 's';
+accept	accept	engine	for_channel/FOR_SYM_CHANNEL_SYM_TEXT_STRING_sys	RESET SLAVE FOR CHANNEL 's';
 accept	accept	engine	create/create_or_replace_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_create_body	CREATE TABLE a;
 accept	accept	engine	create/create_or_replace_opt_temporary_SEQUENCE_SYM_opt_if_not_exists_table_ident_opt_sequence_opt_create_table_options	CREATE SEQUENCE a;
 reject	reject	engine	create/create_or_replace_opt_temporary_SEQUENCE_SYM_opt_if_not_exists_table_ident_opt_sequence_opt_create_table_options!drop-1	SEQUENCE a;
@@ -8880,19 +8880,19 @@ accept	accept	engine	opt_table_list/%empty	FLUSH TABLE;
 accept	accept	engine	opt_table_list/table_list	FLUSH TABLE a;
 accept	accept	engine	opt_table_list/table_list!truncate	FLUSH TABLE
 reject	reject	engine	opt_table_list/table_list!insert	FLUSH TABLE a zzz;
-reject	accept	engine	backup/BACKUP_SYM_backup_statements	BACKUP UNLOCK;
+accept	accept	engine	backup/BACKUP_SYM_backup_statements	BACKUP UNLOCK;
 reject	reject	engine	backup_statements/STAGE_SYM_ident	BACKUP STAGE a;
 reject	reject	engine	backup_statements/STAGE_SYM_ident!drop-1	BACKUP a;
 reject	reject	engine	backup_statements/STAGE_SYM_ident!drop-2	BACKUP STAGE;
 reject	reject	engine	backup_statements/STAGE_SYM_ident!truncate	BACKUP STAGE
 reject	reject	engine	backup_statements/STAGE_SYM_ident!insert	BACKUP STAGE a zzz;
 reject	reject	engine	backup_statements/STAGE_SYM_ident!swap	BACKUP START a;
-reject	accept	engine	backup_statements/LOCK_SYM_table_ident	BACKUP LOCK a;
+accept	accept	engine	backup_statements/LOCK_SYM_table_ident	BACKUP LOCK a;
 reject	reject	engine	backup_statements/LOCK_SYM_table_ident!drop-2	BACKUP LOCK;
 reject	reject	engine	backup_statements/LOCK_SYM_table_ident!truncate	BACKUP LOCK
 reject	reject	engine	backup_statements/LOCK_SYM_table_ident!insert	BACKUP LOCK a zzz;
 reject	reject	engine	backup_statements/LOCK_SYM_table_ident!swap	BACKUP LOCKED a;
-reject	accept	engine	backup_statements/UNLOCK_SYM	BACKUP UNLOCK;
+accept	accept	engine	backup_statements/UNLOCK_SYM	BACKUP UNLOCK;
 reject	reject	engine	backup_statements/UNLOCK_SYM!swap	BACKUP UNSIGNED;
 accept	accept	engine	opt_delete_gtid_domain/%empty	FLUSH BINARY LOGS;
 accept	accept	engine	opt_delete_gtid_domain/DELETE_DOMAIN_ID_SYM_=_(_delete_domain_id_list_)	FLUSH BINARY LOGS DELETE_DOMAIN_ID =();
@@ -8907,7 +8907,7 @@ accept	accept	engine	delete_domain_id_list/%empty	FLUSH BINARY LOGS DELETE_DOMAI
 reject	reject	engine	delete_domain_id_list/%empty!insert	FLUSH BINARY LOGS DELETE_DOMAIN_ID =(zzz);
 accept	accept	engine	delete_domain_id_list/delete_domain_id	FLUSH BINARY LOGS DELETE_DOMAIN_ID =(1);
 reject	reject	engine	delete_domain_id_list/delete_domain_id!insert	FLUSH BINARY LOGS DELETE_DOMAIN_ID =(1 zzz);
-reject	accept	engine	delete_domain_id_list/delete_domain_id_list_,_delete_domain_id	FLUSH BINARY LOGS DELETE_DOMAIN_ID =(, 1);
+accept	accept	engine	delete_domain_id_list/delete_domain_id_list_,_delete_domain_id	FLUSH BINARY LOGS DELETE_DOMAIN_ID =(, 1);
 reject	reject	engine	delete_domain_id_list/delete_domain_id_list_,_delete_domain_id!drop-2	FLUSH BINARY LOGS DELETE_DOMAIN_ID =(,);
 reject	reject	engine	delete_domain_id_list/delete_domain_id_list_,_delete_domain_id!truncate	FLUSH BINARY LOGS DELETE_DOMAIN_ID =(,
 reject	reject	engine	delete_domain_id_list/delete_domain_id_list_,_delete_domain_id!insert	FLUSH BINARY LOGS DELETE_DOMAIN_ID =(, 1 zzz);
@@ -8921,7 +8921,7 @@ reject	reject	engine	optional_flush_tables_arguments/AND_SYM_DISABLE_SYM_CHECKPO
 reject	reject	engine	optional_flush_tables_arguments/AND_SYM_DISABLE_SYM_CHECKPOINT_SYM!insert	FLUSH TABLE WITH READ LOCK AND DISABLE CHECKPOINT zzz;
 reject	reject	engine	optional_flush_tables_arguments/AND_SYM_DISABLE_SYM_CHECKPOINT_SYM!swap	FLUSH TABLE WITH READ LOCK ANY DISABLE CHECKPOINT;
 accept	accept	engine	reset/RESET_SYM_reset_options	RESET SLAVE;
-reject	accept	engine	reset_options/reset_options_,_reset_option	RESET SLAVE, SLAVE;
+accept	accept	engine	reset_options/reset_options_,_reset_option	RESET SLAVE, SLAVE;
 reject	reject	engine	reset_options/reset_options_,_reset_option!drop-1	RESET, SLAVE;
 reject	reject	engine	reset_options/reset_options_,_reset_option!drop-2	RESET SLAVE SLAVE;
 reject	reject	engine	reset_options/reset_options_,_reset_option!drop-3	RESET SLAVE,;
@@ -8950,7 +8950,7 @@ accept	accept	engine	master_reset_options/TO_SYM_ulong_num	RESET MASTER TO 1;
 reject	reject	engine	master_reset_options/TO_SYM_ulong_num!drop-1	RESET MASTER 1;
 reject	reject	engine	master_reset_options/TO_SYM_ulong_num!swap	RESET MASTER TRAILING 1;
 accept	accept	engine	purge/PURGE_master_or_binary_LOGS_SYM_TO_SYM_TEXT_STRING_sys	PURGE MASTER LOGS TO 's';
-accept	reject	engine	purge/PURGE_master_or_binary_LOGS_SYM_BEFORE_SYM_expr	PURGE MASTER LOGS BEFORE a;
+reject	reject	engine	purge/PURGE_master_or_binary_LOGS_SYM_BEFORE_SYM_expr	PURGE MASTER LOGS BEFORE a;
 reject	reject	engine	purge/PURGE_master_or_binary_LOGS_SYM_BEFORE_SYM_expr!drop-1	MASTER LOGS BEFORE a;
 reject	reject	engine	purge/PURGE_master_or_binary_LOGS_SYM_BEFORE_SYM_expr!drop-2	PURGE LOGS BEFORE a;
 reject	reject	engine	purge/PURGE_master_or_binary_LOGS_SYM_BEFORE_SYM_expr!drop-3	PURGE MASTER BEFORE a;
@@ -8959,8 +8959,8 @@ reject	reject	engine	purge/PURGE_master_or_binary_LOGS_SYM_BEFORE_SYM_expr!drop-
 reject	reject	engine	purge/PURGE_master_or_binary_LOGS_SYM_BEFORE_SYM_expr!truncate	PURGE MASTER LOGS BEFORE
 reject	reject	engine	purge/PURGE_master_or_binary_LOGS_SYM_BEFORE_SYM_expr!insert	PURGE MASTER LOGS BEFORE a zzz;
 reject	reject	engine	purge/PURGE_master_or_binary_LOGS_SYM_BEFORE_SYM_expr!swap	QUARTER MASTER LOGS BEFORE a;
-accept	reject	engine	kill/KILL_SYM_kill_type_kill_option	KILL a;
-accept	reject	engine	kill_type/%empty	KILL a;
+reject	reject	engine	kill/KILL_SYM_kill_type_kill_option	KILL a;
+reject	reject	engine	kill_type/%empty	KILL a;
 reject	reject	engine	kill_type/%empty!insert	KILL zzz a;
 reject	reject	engine	kill_type/HARD_SYM	KILL HARD a;
 reject	reject	engine	kill_type/HARD_SYM!insert	KILL HARD zzz a;
@@ -8968,31 +8968,31 @@ reject	reject	engine	kill_type/HARD_SYM!swap	KILL HASH a;
 reject	reject	engine	kill_type/SOFT_SYM	KILL SOFT a;
 reject	reject	engine	kill_type/SOFT_SYM!insert	KILL SOFT zzz a;
 reject	reject	engine	kill_type/SOFT_SYM!swap	KILL SONAME a;
-accept	reject	engine	kill_option/opt_connection_kill_expr	KILL a;
-accept	reject	engine	kill_option/QUERY_SYM_kill_expr	KILL QUERY a;
+reject	reject	engine	kill_option/opt_connection_kill_expr	KILL a;
+reject	reject	engine	kill_option/QUERY_SYM_kill_expr	KILL QUERY a;
 reject	reject	engine	kill_option/QUERY_SYM_kill_expr!drop-2	KILL QUERY;
 reject	reject	engine	kill_option/QUERY_SYM_kill_expr!truncate	KILL QUERY
 reject	reject	engine	kill_option/QUERY_SYM_kill_expr!insert	KILL QUERY a zzz;
 reject	reject	engine	kill_option/QUERY_SYM_kill_expr!swap	KILL QUICK a;
 reject	reject	engine	kill_option/QUERY_SYM_ID_SYM_expr	KILL QUERY ID a;
 reject	reject	engine	kill_option/QUERY_SYM_ID_SYM_expr!drop-1	KILL ID a;
-accept	reject	engine	kill_option/QUERY_SYM_ID_SYM_expr!drop-3	KILL QUERY ID;
-accept	reject	engine	kill_option/QUERY_SYM_ID_SYM_expr!truncate	KILL QUERY ID
+reject	reject	engine	kill_option/QUERY_SYM_ID_SYM_expr!drop-3	KILL QUERY ID;
+reject	reject	engine	kill_option/QUERY_SYM_ID_SYM_expr!truncate	KILL QUERY ID
 reject	reject	engine	kill_option/QUERY_SYM_ID_SYM_expr!insert	KILL QUERY ID a zzz;
 reject	reject	engine	kill_option/QUERY_SYM_ID_SYM_expr!swap	KILL QUICK ID a;
-accept	reject	engine	opt_connection/%empty	KILL a;
-accept	reject	engine	opt_connection/CONNECTION_SYM	KILL CONNECTION a;
+reject	reject	engine	opt_connection/%empty	KILL a;
+reject	reject	engine	opt_connection/CONNECTION_SYM	KILL CONNECTION a;
 reject	reject	engine	opt_connection/CONNECTION_SYM!insert	KILL CONNECTION zzz a;
 reject	reject	engine	opt_connection/CONNECTION_SYM!swap	KILL CONSISTENT a;
-accept	reject	engine	kill_expr/expr	KILL a;
-reject	accept	engine	kill_expr/USER_SYM_user	KILL USER a;
-accept	reject	engine	kill_expr/USER_SYM_user!drop-2	KILL USER;
-accept	reject	engine	kill_expr/USER_SYM_user!truncate	KILL USER
+reject	reject	engine	kill_expr/expr	KILL a;
+accept	accept	engine	kill_expr/USER_SYM_user	KILL USER a;
+reject	reject	engine	kill_expr/USER_SYM_user!drop-2	KILL USER;
+reject	reject	engine	kill_expr/USER_SYM_user!truncate	KILL USER
 reject	reject	engine	kill_expr/USER_SYM_user!insert	KILL USER a zzz;
 reject	reject	engine	kill_expr/USER_SYM_user!swap	KILL USER_RESOURCES a;
 accept	accept	engine	shutdown/SHUTDOWN_shutdown_option	SHUTDOWN;
 accept	accept	engine	shutdown_option/%empty	SHUTDOWN;
-reject	accept	engine	shutdown_option/WAIT_SYM_FOR_SYM_ALL_SLAVES	SHUTDOWN WAIT FOR ALL SLAVES;
+accept	accept	engine	shutdown_option/WAIT_SYM_FOR_SYM_ALL_SLAVES	SHUTDOWN WAIT FOR ALL SLAVES;
 reject	reject	engine	shutdown_option/WAIT_SYM_FOR_SYM_ALL_SLAVES!drop-1	SHUTDOWN FOR ALL SLAVES;
 reject	reject	engine	shutdown_option/WAIT_SYM_FOR_SYM_ALL_SLAVES!drop-2	SHUTDOWN WAIT ALL SLAVES;
 reject	reject	engine	shutdown_option/WAIT_SYM_FOR_SYM_ALL_SLAVES!drop-3	SHUTDOWN WAIT FOR SLAVES;

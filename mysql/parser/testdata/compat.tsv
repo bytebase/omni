@@ -8966,7 +8966,7 @@ accept	accept	engine	reset/RESET_SYM_PERSIST_SYM_opt_if_exists_ident	RESET PERSI
 reject	reject	engine	reset/RESET_SYM_PERSIST_SYM_opt_if_exists_ident!drop-1	PERSIST;
 accept	accept	engine	reset/RESET_SYM_PERSIST_SYM_opt_if_exists_ident!insert	RESET PERSIST zzz;
 reject	reject	engine	reset/RESET_SYM_PERSIST_SYM_opt_if_exists_ident!swap	RESIGNAL PERSIST;
-reject	accept	engine	reset_options/reset_options_,_reset_option	RESET SLAVE, SLAVE;
+accept	accept	engine	reset_options/reset_options_,_reset_option	RESET SLAVE, SLAVE;
 reject	reject	engine	reset_options/reset_options_,_reset_option!drop-1	RESET, SLAVE;
 reject	reject	engine	reset_options/reset_options_,_reset_option!drop-2	RESET SLAVE SLAVE;
 reject	reject	engine	reset_options/reset_options_,_reset_option!drop-3	RESET SLAVE,;
