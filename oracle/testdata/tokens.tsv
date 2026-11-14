@@ -29,7 +29,7 @@ FUNCTION_SOURCE	BEGIN RETURN 1; END;	plsql_function_source after IS or AS: a bod
 PROCEDURE_SOURCE	IS BEGIN NULL; END;	plsql_procedure_source after the procedure's name
 PACKAGE_SOURCE	END;	plsql_package_source after IS or AS: a specification with no items
 PACKAGE_BODY_SOURCE	END;	plsql_package_body_source after IS or AS: a body with no items
-TRIGGER_SOURCE	a BEFORE INSERT ON a BEGIN NULL; END;	plsql_trigger_source after TRIGGER, on the table the judge's schema holds
+TRIGGER_SOURCE	a BEFORE INSERT ON t BEGIN NULL; END;	plsql_trigger_source after TRIGGER, on the table t the judge's schema holds
 TYPE_SOURCE	a AS OBJECT (a NUMBER)	plsql_type_source after TYPE: an object type
 TYPE_BODY_SOURCE	MEMBER PROCEDURE a IS BEGIN NULL; END;	plsql_type_body_source between IS and END: one method
 CALL_SPEC	LANGUAGE JAVA NAME 'a'	call_spec: a Java method by its signature

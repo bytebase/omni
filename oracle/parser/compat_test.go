@@ -75,13 +75,15 @@ func omniVerdict(sql string) string {
 // it must run the pinned release, and its user must be a scratch account,
 // since every statement that runs is followed by dropping all it owns.
 //
-// A statement Oracle gives no answer to in judgeTimeout is no verdict: the
-// judge leaves that session, whose driver may wait on it for good, and asks
-// the next statement on a new one.
+// A text Oracle gives no answer to in judgeTimeout gets compat.ErrNoAnswer.
+// Some it never answers: its parse runs on in the server, and its session
+// with it, holding the locks the next statements wait on. On the pinned
+// server the judge ends that session's process and asks on a new session;
+// on ORACLE_PARSER_REF_DSN's it cannot, and the recording fails.
 func compatJudge(t testing.TB, pin enginetest.Pin) func(string) (string, error) {
 	t.Helper()
-	open := judgeSessions(t, pin)
-	db := open()
+	open, canEnd := judgeSessions(t, pin)
+	db, end := open()
 	return func(stmt string) (string, error) {
 		return compat.OracleVerdict(stmt, func(text string) error {
 			done := make(chan error, 1)
@@ -94,33 +96,37 @@ func compatJudge(t testing.TB, pin enginetest.Pin) func(string) (string, error) 
 			case err := <-done:
 				return err
 			case <-time.After(judgeTimeout):
-				db = open()
-				return fmt.Errorf("Oracle gave no answer in %s", judgeTimeout)
+				if !canEnd {
+					t.Fatalf("Oracle gave no answer in %s to %q, and ORACLE_PARSER_REF_DSN's session cannot be ended from here", judgeTimeout, text)
+				}
+				end()
+				select {
+				case <-done:
+				case <-time.After(10 * time.Second):
+				}
+				db, end = open()
+				return fmt.Errorf("after %s: %w", judgeTimeout, compat.ErrNoAnswer)
 			}
 		})
 	}
 }
 
-// judgeTimeout bounds one statement of the judge's.
-const judgeTimeout = 2 * time.Minute
+// judgeTimeout bounds one text of the judge's. A text takes a few
+// milliseconds, and DDL with the schema's rebuild after it a second on a
+// loaded host.
+const judgeTimeout = 15 * time.Second
 
-// judgeSessions returns what opens a session for the judge: the pinned
-// server's (testcontainer.Judge), or ORACLE_PARSER_REF_DSN's.
-func judgeSessions(t testing.TB, pin enginetest.Pin) func() *sql.DB {
+// judgeSessions returns what opens a session for the judge, the pinned
+// server's (testcontainer.Judge) or ORACLE_PARSER_REF_DSN's, and whether
+// it can end a session the server does not answer on.
+func judgeSessions(t testing.TB, pin enginetest.Pin) (open func() (*sql.DB, func()), canEnd bool) {
 	t.Helper()
 	dsn := os.Getenv("ORACLE_PARSER_REF_DSN")
 	if dsn == "" {
-		return testcontainer.Judge(t, pin)
+		return testcontainer.Judge(t, pin), true
 	}
-	open := func() *sql.DB {
-		db, err := sql.Open("oracle", dsn)
-		if err != nil {
-			t.Fatalf("ORACLE_PARSER_REF_DSN: %v", err)
-		}
-		db.SetMaxOpenConns(1)
-		return db
-	}
-	db := open()
+	open = func() (*sql.DB, func()) { return testcontainer.Cuttable(dsn) }
+	db, _ := open()
 	defer db.Close()
 	ctx := context.Background()
 	var version string
@@ -131,14 +137,14 @@ func judgeSessions(t testing.TB, pin enginetest.Pin) func() *sql.DB {
 		t.Fatalf("ORACLE_PARSER_REF_DSN runs Oracle %s, and compat.tsv's answers come from %s", version, pin.Tag)
 	}
 	// The scratch schema starts as OracleParse leaves it: the fixture alone.
-	if err := db.QueryRowContext(ctx, "SELECT 1 FROM user_tables WHERE table_name = 'A'").Scan(new(int)); errors.Is(err, sql.ErrNoRows) {
+	if err := db.QueryRowContext(ctx, "SELECT 1 FROM user_tables WHERE table_name = 'T'").Scan(new(int)); errors.Is(err, sql.ErrNoRows) {
 		if _, err := db.ExecContext(ctx, testcontainer.JudgeFixture); err != nil {
 			t.Fatalf("ORACLE_PARSER_REF_DSN: %s: %v", testcontainer.JudgeFixture, err)
 		}
 	} else if err != nil {
 		t.Fatalf("ORACLE_PARSER_REF_DSN: %v", err)
 	}
-	return open
+	return open, false
 }
 
 // lexerCorpus is the suite:lexer rows: the token forms the Language
