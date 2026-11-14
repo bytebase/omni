@@ -467,3 +467,36 @@ func TestGrantRevokeNodeTags(t *testing.T) {
 		t.Errorf("revoke tag = %v, want T_RevokeStmt", revokeNode.Tag())
 	}
 }
+
+// TestGrantRevokeGrammar holds GRANT and REVOKE to what both of Doris's
+// parsers take; testdata/compat.tsv judged the near misses.
+func TestGrantRevokeGrammar(t *testing.T) {
+	cases := []struct {
+		sql string
+		ok  bool
+	}{
+		{"GRANT a(a) ON a TO a", true},
+		{"GRANT a ON CLUSTER TO a", true}, // CLUSTER names the table
+		{"GRANT a ON RESOURCE TO ROLE 'a'", true},
+		{"GRANT a ON STAGE * TO a", true},
+		{"GRANT a ON COMPUTE GROUP 'g' TO a", true},
+		{"GRANT a ON ctl.db.tbl TO a", true},
+		{"GRANT a ON a.b.c.d TO a", false},
+		{"GRANT a ON 'db'.t TO a", false},
+		{"GRANT ALTER ON * TO a", false},
+		{"GRANT a ON COMPUTE * TO a", false},
+		{"GRANT a ON STORAGE a TO a", false},
+		{"GRANT a ON WORKLOAD * TO a", false},
+		{"GRANT a ON * TO a WITH GRANT OPTION", false},
+		{"GRANT 'r1', 'r2' TO a@'%'", true},
+		{"GRANT 'r1' TO ROLE 'r2'", false},
+		{"GRANT ROLE 'r1' TO a", false},
+		{"GRANT a ON * TO a@('h')", false},
+	}
+	for _, c := range cases {
+		_, err := Parse(c.sql)
+		if (err == nil) != c.ok {
+			t.Errorf("Parse(%q): err = %v, want accepted=%v", c.sql, err, c.ok)
+		}
+	}
+}

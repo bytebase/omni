@@ -560,13 +560,16 @@ func (p *Parser) parseAtTimeZoneExpr(expr nodes.ExprNode) (nodes.ExprNode, error
 
 // parseMultiplication parses multiplication/division/modulo.
 //
-//	multiplication_expr = unary_expr { ('*' | '/' | '%') unary_expr }
+//	multiplication_expr = unary_expr { ('*' | '/' | '%' | '<<' | '>>') unary_expr }
+//
+// The shift operators of SQL Server 2022 bind as tightly as '*'
+// (expressionMultiplication's LeftShift and RightShift, TSql160.g).
 func (p *Parser) parseMultiplication() (nodes.ExprNode, error) {
 	left, err := p.parseUnary()
 	if err != nil {
 		return nil, err
 	}
-	for p.cur.Type == '*' || p.cur.Type == '/' || p.cur.Type == '%' {
+	for p.cur.Type == '*' || p.cur.Type == '/' || p.cur.Type == '%' || p.cur.Type == tokSHIFTLEFT || p.cur.Type == tokSHIFTRIGHT {
 		loc := p.pos()
 		var op nodes.BinaryOp
 		switch p.cur.Type {
@@ -576,6 +579,10 @@ func (p *Parser) parseMultiplication() (nodes.ExprNode, error) {
 			op = nodes.BinOpDiv
 		case '%':
 			op = nodes.BinOpMod
+		case tokSHIFTLEFT:
+			op = nodes.BinOpShiftLeft
+		case tokSHIFTRIGHT:
+			op = nodes.BinOpShiftRight
 		}
 		p.advance()
 		if p.collectMode() {
@@ -989,7 +996,7 @@ func (p *Parser) parseConvert() (nodes.ExprNode, error) {
 		p.addRuleCandidate("func_name")
 		return nil, errCollecting
 	}
-	expr, err := p.parseExpr()
+	expr, err := p.parseRequiredExpr()
 	if err != nil {
 		return nil, err
 	}
@@ -1000,7 +1007,7 @@ func (p *Parser) parseConvert() (nodes.ExprNode, error) {
 			p.addRuleCandidate("func_name")
 			return nil, errCollecting
 		}
-		style, err = p.parseExpr()
+		style, err = p.parseRequiredExpr()
 		if err != nil {
 			return nil, err
 		}
@@ -1047,7 +1054,7 @@ func (p *Parser) parseTryConvert() (nodes.ExprNode, error) {
 		p.addRuleCandidate("func_name")
 		return nil, errCollecting
 	}
-	expr, err := p.parseExpr()
+	expr, err := p.parseRequiredExpr()
 	if err != nil {
 		return nil, err
 	}
@@ -1058,7 +1065,7 @@ func (p *Parser) parseTryConvert() (nodes.ExprNode, error) {
 			p.addRuleCandidate("func_name")
 			return nil, errCollecting
 		}
-		style, err = p.parseExpr()
+		style, err = p.parseRequiredExpr()
 		if err != nil {
 			return nil, err
 		}
@@ -1072,6 +1079,20 @@ func (p *Parser) parseTryConvert() (nodes.ExprNode, error) {
 		Style:    style,
 		Loc:      nodes.Loc{Start: loc, End: p.prevEnd()},
 	}, nil
+}
+
+// parseRequiredExpr parses an expression where the grammar requires one, as
+// after a comma in an argument list: parseExpr returns nil when no
+// expression starts here.
+func (p *Parser) parseRequiredExpr() (nodes.ExprNode, error) {
+	e, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if e == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	return e, nil
 }
 
 // parseCaseExpr parses a CASE expression (both simple and searched).
@@ -1091,8 +1112,16 @@ func (p *Parser) parseCaseExpr() (nodes.ExprNode, error) {
 		if err != nil {
 			return nil, err
 		}
+		if arg == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 	}
 
+	// CASE takes one WHEN at least, THEN after each, a value after ELSE,
+	// and END (caseExpression, TSql160.g; Msg 102 / 156 otherwise).
+	if p.cur.Type != kwWHEN && !p.collectMode() {
+		return nil, p.syntaxErrorAtCur()
+	}
 	var whenList []nodes.Node
 	for p.cur.Type == kwWHEN {
 		wloc := p.pos()
@@ -1120,7 +1149,7 @@ func (p *Parser) parseCaseExpr() (nodes.ExprNode, error) {
 			return nil, p.unexpectedToken()
 		}
 		if _, err := p.expect(kwTHEN); err != nil {
-			break
+			return nil, err
 		}
 		// Completion: after CASE WHEN x THEN → columnref, func_name
 		if p.collectMode() {
@@ -1155,9 +1184,14 @@ func (p *Parser) parseCaseExpr() (nodes.ExprNode, error) {
 		if err != nil {
 			return nil, err
 		}
+		if elseExpr == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 	}
 
-	_, _ = p.expect(kwEND)
+	if _, err := p.expect(kwEND); err != nil {
+		return nil, err
+	}
 
 	return &nodes.CaseExpr{
 		Arg:      arg,
@@ -1239,7 +1273,7 @@ func (p *Parser) parseNullif() (nodes.ExprNode, error) {
 	if _, err := p.expect(','); err != nil {
 		return nil, err
 	}
-	right, err := p.parseExpr()
+	right, err := p.parseRequiredExpr()
 	if err != nil {
 		return nil, err
 	}
@@ -1280,14 +1314,14 @@ func (p *Parser) parseIif() (nodes.ExprNode, error) {
 	if _, err := p.expect(','); err != nil {
 		return nil, err
 	}
-	trueVal, err := p.parseExpr()
+	trueVal, err := p.parseRequiredExpr()
 	if err != nil {
 		return nil, err
 	}
 	if _, err := p.expect(','); err != nil {
 		return nil, err
 	}
-	falseVal, err := p.parseExpr()
+	falseVal, err := p.parseRequiredExpr()
 	if err != nil {
 		return nil, err
 	}
@@ -1704,6 +1738,10 @@ func (p *Parser) parseJsonArrayArgs(fc *nodes.FuncCallExpr) error {
 		if _, ok := p.match(','); !ok {
 			break
 		}
+		// A comma needs a value after it: JSON_ARRAY(1,) is refused.
+		if p.cur.Type == ')' {
+			return p.unexpectedToken()
+		}
 	}
 	fc.Args = &nodes.List{Items: items}
 	if err := p.parseJsonNullClause(fc); err != nil {
@@ -1935,71 +1973,11 @@ func (p *Parser) parseOverClause() (*nodes.OverClause, error) {
 	over := &nodes.OverClause{
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
-
-	// PARTITION BY
-	if p.cur.Type == kwPARTITION {
-		p.advance()
-		if _, err := p.expect(kwBY); err != nil {
-			return over, nil
-		}
-		// Completion: after PARTITION BY → columnref
-		if p.collectMode() {
-			p.addRuleCandidate("columnref")
-			p.addRuleCandidate("func_name")
-			return nil, errCollecting
-		}
-		list, err := p.parseExprList()
-		if err != nil {
-			return nil, err
-		}
-		over.PartitionBy = list
+	spec, err := p.parseWindowSpecBody(true)
+	if err != nil {
+		return nil, err
 	}
-
-	// ORDER BY
-	if p.cur.Type == kwORDER {
-		p.advance()
-		if _, err := p.expect(kwBY); err != nil {
-			return over, nil
-		}
-		// Completion: after ORDER BY in OVER → columnref
-		if p.collectMode() {
-			p.addRuleCandidate("columnref")
-			p.addRuleCandidate("func_name")
-			return nil, errCollecting
-		}
-		var orders []nodes.Node
-		for {
-			oloc := p.pos()
-			expr, err := p.parseExpr()
-			if err != nil {
-				return nil, err
-			}
-			dir := nodes.SortDefault
-			if _, ok := p.match(kwASC); ok {
-				dir = nodes.SortAsc
-			} else if _, ok := p.match(kwDESC); ok {
-				dir = nodes.SortDesc
-			}
-			orders = append(orders, &nodes.OrderByItem{
-				Expr:    expr,
-				SortDir: dir,
-				Loc:     nodes.Loc{Start: oloc, End: p.prevEnd()},
-			})
-			if _, ok := p.match(','); !ok {
-				break
-			}
-		}
-		over.OrderBy = &nodes.List{Items: orders}
-	}
-
-	// ROWS | RANGE | GROUPS window frame clause
-	if p.cur.Type == kwROWS || p.cur.Type == kwRANGE || p.cur.Type == kwGROUPS {
-		var err error
-		over.WindowFrame, err = p.parseWindowFrame()
-		if err != nil {
-			return nil, err
-		}
-	}
+	over.WindowName, over.PartitionBy, over.OrderBy, over.WindowFrame = spec.ref, spec.partitionBy, spec.orderBy, spec.frame
 
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
@@ -2021,17 +1999,18 @@ func (p *Parser) parseWindowFrame() (*nodes.WindowFrame, error) {
 		Loc: nodes.Loc{Start: p.pos(), End: -1},
 	}
 
+	// SQL Server has ROWS and RANGE, not GROUPS (Msg 102).
 	switch p.cur.Type {
 	case kwROWS:
 		frame.Type = nodes.FrameRows
 	case kwRANGE:
 		frame.Type = nodes.FrameRange
-	case kwGROUPS:
-		frame.Type = nodes.FrameGroups
+	default:
+		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance()
 
-	// Completion: after ROWS/RANGE/GROUPS → BETWEEN, UNBOUNDED, CURRENT
+	// Completion: after ROWS/RANGE → BETWEEN, UNBOUNDED, CURRENT
 	if p.collectMode() {
 		p.addTokenCandidate(kwBETWEEN)
 		p.addTokenCandidate(kwUNBOUNDED)
@@ -2048,19 +2027,22 @@ func (p *Parser) parseWindowFrame() (*nodes.WindowFrame, error) {
 			return nil, err
 		}
 		if _, err := p.expect(kwAND); err != nil {
-			frame.Loc.End = p.prevEnd()
-			return frame, nil
+			return nil, err
 		}
 		frame.End, err = p.parseWindowFrameBound()
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		// Short syntax: <window frame preceding> (implies AND CURRENT ROW)
+		// One bound, which SQL Server's parser takes but for UNBOUNDED
+		// FOLLOWING (Msg 102).
 		var err error
 		frame.Start, err = p.parseWindowFrameBound()
 		if err != nil {
 			return nil, err
+		}
+		if frame.Start.Type == nodes.BoundUnboundedFollowing {
+			return nil, &ParseError{Message: "syntax error at or near \"FOLLOWING\"", Position: p.prev.Loc}
 		}
 	}
 
@@ -2073,10 +2055,13 @@ func (p *Parser) parseWindowFrame() (*nodes.WindowFrame, error) {
 //	<window frame bound> ::=
 //	  {   UNBOUNDED PRECEDING
 //	    | UNBOUNDED FOLLOWING
-//	    | <unsigned_value_specification> PRECEDING
-//	    | <unsigned_value_specification> FOLLOWING
+//	    | unsigned_integer PRECEDING
+//	    | unsigned_integer FOLLOWING
 //	    | CURRENT ROW
 //	  }
+//
+// The offset is an integer literal: SQL Server refuses a variable or an
+// expression there (Msg 102; windowFrameBound, TSql160.g).
 func (p *Parser) parseWindowFrameBound() (*nodes.WindowBound, error) {
 	bound := &nodes.WindowBound{
 		Loc: nodes.Loc{Start: p.pos(), End: -1},
@@ -2089,25 +2074,114 @@ func (p *Parser) parseWindowFrameBound() (*nodes.WindowBound, error) {
 			bound.Type = nodes.BoundUnboundedPreceding
 		} else if _, ok := p.match(kwFOLLOWING); ok {
 			bound.Type = nodes.BoundUnboundedFollowing
+		} else {
+			return nil, p.syntaxErrorAtCur()
 		}
 	case p.cur.Type == kwCURRENT:
 		p.advance()
-		p.matchIdentCI("ROW")
-		bound.Type = nodes.BoundCurrentRow
-	default:
-		// <unsigned_value_specification> PRECEDING | FOLLOWING
-		var err error
-		bound.Offset, err = p.parseExpr()
-		if err != nil {
+		if _, err := p.expect(kwROW); err != nil {
 			return nil, err
 		}
+		bound.Type = nodes.BoundCurrentRow
+	case p.cur.Type == tokICONST:
+		bound.Offset = &nodes.Literal{Type: nodes.LitInteger, Ival: p.cur.Ival, Str: p.cur.Str, Loc: nodes.Loc{Start: p.cur.Loc, End: p.cur.End}}
+		p.advance()
 		if _, ok := p.match(kwPRECEDING); ok {
 			bound.Type = nodes.BoundPreceding
 		} else if _, ok := p.match(kwFOLLOWING); ok {
 			bound.Type = nodes.BoundFollowing
+		} else {
+			return nil, p.syntaxErrorAtCur()
 		}
+	default:
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	bound.Loc.End = p.prevEnd()
 	return bound, nil
+}
+
+// windowSpec is the body of an OVER ( ... ) or a WINDOW definition.
+type windowSpec struct {
+	ref         string
+	partitionBy *nodes.List
+	orderBy     *nodes.List
+	frame       *nodes.WindowFrame
+}
+
+// parseWindowSpecBody parses
+//
+//	[ window_name ] [ PARTITION BY expr [ ,...n ] ] [ ORDER BY order_item [ ,...n ] ] [ frame ]
+//
+// up to the closing parenthesis, which it leaves. SQL Server takes a frame
+// only after a window name, PARTITION BY or ORDER BY (Msg 102 on OVER (ROWS
+// ...)), and BY and a non-empty list after PARTITION and ORDER. In OVER, a
+// window name needs something after it: OVER (w) is refused (Msg 102),
+// OVER w is the form.
+func (p *Parser) parseWindowSpecBody(over bool) (windowSpec, error) {
+	var spec windowSpec
+	if p.isIdentLike() && p.cur.Type != kwPARTITION && p.cur.Type != kwORDER && p.cur.Type != kwROWS && p.cur.Type != kwRANGE {
+		spec.ref = p.cur.Str
+		p.advance()
+	}
+
+	// PARTITION BY
+	if p.cur.Type == kwPARTITION {
+		p.advance()
+		if _, err := p.expect(kwBY); err != nil {
+			return spec, err
+		}
+		// Completion: after PARTITION BY → columnref
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			p.addRuleCandidate("func_name")
+			return spec, errCollecting
+		}
+		list, err := p.parseExprList()
+		if err != nil {
+			return spec, err
+		}
+		if list == nil || len(list.Items) == 0 {
+			return spec, p.syntaxErrorAtCur()
+		}
+		spec.partitionBy = list
+	}
+
+	// ORDER BY
+	if p.cur.Type == kwORDER {
+		p.advance()
+		if _, err := p.expect(kwBY); err != nil {
+			return spec, err
+		}
+		// Completion: after ORDER BY in OVER → columnref
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			p.addRuleCandidate("func_name")
+			return spec, errCollecting
+		}
+		list, err := p.parseOrderByList()
+		if err != nil {
+			return spec, err
+		}
+		if list == nil || len(list.Items) == 0 {
+			return spec, p.syntaxErrorAtCur()
+		}
+		spec.orderBy = list
+	}
+
+	// ROWS | RANGE window frame clause
+	if p.cur.Type == kwROWS || p.cur.Type == kwRANGE || p.cur.Type == kwGROUPS {
+		if spec.ref == "" && spec.partitionBy == nil && spec.orderBy == nil {
+			return spec, p.syntaxErrorAtCur()
+		}
+		frame, err := p.parseWindowFrame()
+		if err != nil {
+			return spec, err
+		}
+		spec.frame = frame
+	}
+	if over && spec.ref != "" && spec.partitionBy == nil && spec.orderBy == nil && spec.frame == nil {
+		return spec, p.syntaxErrorAtCur()
+	}
+	return spec, nil
 }
