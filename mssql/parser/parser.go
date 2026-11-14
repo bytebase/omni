@@ -358,11 +358,8 @@ func (p *Parser) parseStmt() (nodes.StmtNode, error) {
 			loc := p.pos()
 			p.advance() // consume BACKUP
 			p.advance() // consume SERVICE
-			if p.cur.Type == kwMASTER {
-				p.advance() // consume MASTER
-			}
-			if p.cur.Type == kwKEY {
-				p.advance() // consume KEY
+			if err := p.keysExpectWords("MASTER", "KEY"); err != nil {
+				return nil, err
 			}
 			stmt, err := p.parseBackupServiceMasterKeyStmt()
 			if err != nil {
@@ -390,11 +387,8 @@ func (p *Parser) parseStmt() (nodes.StmtNode, error) {
 			loc := p.pos()
 			p.advance() // consume RESTORE
 			p.advance() // consume SERVICE
-			if p.cur.Type == kwMASTER {
-				p.advance() // consume MASTER
-			}
-			if p.cur.Type == kwKEY {
-				p.advance() // consume KEY
+			if err := p.keysExpectWords("MASTER", "KEY"); err != nil {
+				return nil, err
 			}
 			stmt, err := p.parseRestoreServiceMasterKeyStmt()
 			if err != nil {
@@ -742,7 +736,8 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 				return stmt, nil
 			}
 			// CREATE DATABASE ENCRYPTION KEY / CREATE DATABASE SCOPED CREDENTIAL
-			if next.Str != "" && (next.Type == kwENCRYPTION || next.Type == kwSCOPED) {
+			if next.Str != "" && ((next.Type == kwENCRYPTION && p.peekSecond().Type == kwKEY) ||
+				(next.Type == kwSCOPED && p.peekSecond().Type == kwCREDENTIAL)) {
 				p.advance() // consume DATABASE
 				stmt, err := p.parseSecurityKeyStmtDatabaseEncryption("CREATE")
 				if err != nil {
@@ -1435,21 +1430,11 @@ func (p *Parser) parseAlterStmt() (nodes.StmtNode, error) {
 				// Otherwise it's DATABASE SCOPED CREDENTIAL - reparse via existing handler
 				// At this point we've consumed DATABASE SCOPED, and cur is CREDENTIAL or similar
 				if p.matchIdentCI("CREDENTIAL") {
-					// Manually handle SCOPED CREDENTIAL
-					stmtKey := &nodes.SecurityKeyStmt{
-						Action:     "ALTER",
-						ObjectType: "DATABASE SCOPED CREDENTIAL",
-						Loc:        nodes.Loc{Start: loc, End: -1},
-					}
-					name, _ := p.parseIdentifier()
-					stmtKey.Name = name
-					p.parseSecurityKeyOptions(stmtKey)
-					stmtKey.Loc.End = p.prevEnd()
-					return stmtKey, nil
+					return p.keysAlterDatabaseScopedCredential(loc)
 				}
 				return nil, nil
 			}
-			if next.Type == kwENCRYPTION {
+			if next.Type == kwENCRYPTION && p.peekSecond().Type == kwKEY {
 				p.advance() // consume DATABASE
 				stmt, err := p.parseSecurityKeyStmtDatabaseEncryption("ALTER")
 				if err != nil {
@@ -1760,9 +1745,8 @@ func (p *Parser) parseAlterStmt() (nodes.StmtNode, error) {
 			if next.Type == kwMASTER {
 				// ALTER SERVICE MASTER KEY
 				p.advance() // consume SERVICE
-				p.advance() // consume MASTER
-				if p.cur.Type == kwKEY {
-					p.advance() // consume KEY
+				if err := p.keysExpectWords("MASTER", "KEY"); err != nil {
+					return nil, err
 				}
 				stmt, err := p.parseAlterServiceMasterKeyStmt()
 				if err != nil {
@@ -2089,7 +2073,8 @@ func (p *Parser) parseDropOrSecurityStmt() (nodes.StmtNode, error) {
 			return stmt, nil
 		}
 		// DROP DATABASE ENCRYPTION KEY / DROP DATABASE SCOPED CREDENTIAL
-		if p.isIdentLike() && (p.cur.Type == kwENCRYPTION || p.cur.Type == kwSCOPED) {
+		if (p.cur.Type == kwENCRYPTION && p.peekNext().Type == kwKEY) ||
+			(p.cur.Type == kwSCOPED && p.peekNext().Type == kwCREDENTIAL) {
 			stmt, err := p.parseSecurityKeyStmtDatabaseEncryption("DROP")
 			if err != nil {
 				return nil, err

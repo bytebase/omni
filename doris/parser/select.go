@@ -734,9 +734,24 @@ func (p *Parser) parsePrimarySource() (ast.Node, error) {
 			ref := &ast.TableRef{
 				Loc: ast.Loc{Start: startLoc.Start},
 			}
-			alias, _ := p.parseOptionalAlias(false)
-			if alias != "" {
-				ref.Alias = alias
+			// aliasedQuery (DorisParser.g4:1366): LEFT_PAREN query RIGHT_PAREN
+			// tableAlias lateralView*. The grammar makes the alias optional,
+			// but Doris's AST builder refuses a subquery without one
+			// (testdata/compat.tsv: SELECT 1 FROM(SELECT 1)).
+			alias, ok := p.parseOptionalAlias(false)
+			if !ok {
+				return nil, p.syntaxErrorAtCur()
+			}
+			ref.Alias = alias
+			if err := p.parseTableColumnAliases(ref); err != nil {
+				return nil, err
+			}
+			for p.cur.Kind == kwLATERAL {
+				lv, err := p.parseLateralView()
+				if err != nil {
+					return nil, err
+				}
+				ref.LateralViews = append(ref.LateralViews, lv)
 			}
 			// Legacy consumers still read the raw text out of Name.Parts[0];
 			// Subquery is the discriminator — table names like `selected` or
@@ -779,9 +794,12 @@ func (p *Parser) parsePrimarySource() (ast.Node, error) {
 	return p.parseTableRef()
 }
 
-// parseTableRef parses one simple table reference with its suffixes, in
-// grammar order (relationPrimary): name — or a table-valued function call —
-// then TABLET(...), then the alias, then TABLESAMPLE(...) [REPEATABLE seed].
+// parseTableRef parses a table reference or a table-valued function,
+// relationPrimary's #tableName and #tableValuedFunction (DorisParser.g4:1363):
+//
+//	multipartIdentifier optScanParams? materializedViewName? tableSnapshot?
+//	    specifiedPartition? tabletList? tableAlias sample? relationHint? lateralView*
+//	| identifier LEFT_PAREN propertyItemList? RIGHT_PAREN tableAlias
 func (p *Parser) parseTableRef() (*ast.TableRef, error) {
 	name, err := p.parseMultipartIdentifier()
 	if err != nil {
@@ -793,8 +811,8 @@ func (p *Parser) parseTableRef() (*ast.TableRef, error) {
 		Loc:  ast.Loc{Start: name.Loc.Start},
 	}
 
-	// Table-valued function: BACKENDS(), numbers("number" = "10"). The grammar
-	// (#tableValuedFunction) takes a single identifier as the function name.
+	// Table-valued function: BACKENDS(), numbers("number" = "10"). Its
+	// arguments are property items, not expressions: FROM a(1) is refused.
 	if p.cur.Kind == int('(') && len(name.Parts) == 1 {
 		p.advance() // consume '('
 		fc := &ast.FuncCallExpr{
@@ -802,18 +820,55 @@ func (p *Parser) parseTableRef() (*ast.TableRef, error) {
 			Loc:  ast.Loc{Start: name.Loc.Start},
 		}
 		if p.cur.Kind != int(')') {
-			args, err := p.parseExprList()
+			props, err := p.parsePropertyItems(p.parsePropertyItem)
 			if err != nil {
 				return nil, err
 			}
-			fc.Args = args
+			ref.FuncProperties = props
+		} else {
+			p.advance() // consume ')'
 		}
-		closeTok, err := p.expect(int(')'))
-		if err != nil {
+		fc.Loc.End = p.prev.Loc.End
+		ref.Func = fc
+		alias, _ := p.parseOptionalAlias(false)
+		ref.Alias = alias
+		ref.Loc.End = p.prev.Loc.End
+		return ref, nil
+	}
+
+	if p.cur.Kind == int('@') {
+		if ref.ScanParams, err = p.parseScanParams(); err != nil {
 			return nil, err
 		}
-		fc.Loc.End = closeTok.Loc.End
-		ref.Func = fc
+	}
+	if p.cur.Kind == kwINDEX {
+		// materializedViewName (:1373): INDEX identifier
+		p.advance() // consume INDEX
+		if ref.Index, _, err = p.parseIdentifier(); err != nil {
+			return nil, err
+		}
+	}
+	if p.cur.Kind == kwFOR && (p.peekNext().Kind == kwVERSION || p.peekNext().Kind == kwTIME) {
+		// tableSnapshot (:1788): FOR (VERSION | TIME) AS OF (INTEGER_VALUE | STRING_LITERAL)
+		p.advance() // consume FOR
+		ref.SnapshotKind = strings.ToUpper(p.advance().Str)
+		if _, err := p.expect(kwAS); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(kwOF); err != nil {
+			return nil, err
+		}
+		if p.cur.Kind != tokInt && p.cur.Kind != tokString {
+			return nil, p.syntaxErrorAtCur()
+		}
+		tok := p.advance()
+		ref.SnapshotValue = tok.Str
+		if tok.Kind == tokInt {
+			ref.SnapshotValue = p.sourceText(tok.Loc)
+		}
+	}
+	if err := p.parseSpecifiedPartition(ref); err != nil {
+		return nil, err
 	}
 
 	// TABLET(id, ...) sits between the name and the alias (grammar:
@@ -837,10 +892,11 @@ func (p *Parser) parseTableRef() (*ast.TableRef, error) {
 		}
 	}
 
+	// tableAlias may carry an identifierList, but Doris's AST builder
+	// refuses column aliases on a table (testdata/compat.tsv: FROM a JOIN a
+	// VALUE(a), VALUE being nonReserved); only a subquery takes them.
 	alias, _ := p.parseOptionalAlias(false)
-	if alias != "" {
-		ref.Alias = alias
-	}
+	ref.Alias = alias
 
 	// TABLESAMPLE(...) [REPEATABLE seed] follows the alias (grammar:
 	// tableAlias sample?).
@@ -850,6 +906,19 @@ func (p *Parser) parseTableRef() (*ast.TableRef, error) {
 			return nil, err
 		}
 		ref.Sample = sample
+	}
+
+	if p.cur.Kind == int('[') {
+		// relationHint (:1260): LEFT_BRACKET identifier (COMMA identifier)* RIGHT_BRACKET
+		p.advance() // consume '['
+		names, err := p.parseIdentifierList()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(int(']')); err != nil {
+			return nil, err
+		}
+		ref.Hints = names
 	}
 
 	// LATERAL VIEW generator(args) tableAlias AS col[, col...] — chainable.
@@ -865,6 +934,95 @@ func (p *Parser) parseTableRef() (*ast.TableRef, error) {
 
 	ref.Loc.End = p.prev.Loc.End
 	return ref, nil
+}
+
+// parseTableColumnAliases reads tableAlias's identifierList (DorisParser.g4:1393),
+// AS t(c1, c2), when a subquery's alias has one.
+func (p *Parser) parseTableColumnAliases(ref *ast.TableRef) error {
+	if ref.Alias == "" || p.cur.Kind != int('(') {
+		return nil
+	}
+	p.advance() // consume '('
+	names, err := p.parseIdentifierList()
+	if err != nil {
+		return err
+	}
+	ref.ColumnAliases = names
+	_, err = p.expect(int(')'))
+	return err
+}
+
+// parseScanParams reads optScanParams (DorisParser.g4:1359):
+//
+//	ATSIGN identifier LEFT_PAREN (propertyItemList | identifierSeq)? RIGHT_PAREN
+func (p *Parser) parseScanParams() (*ast.ScanParams, error) {
+	p.advance() // consume '@'
+	fn, _, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+	sp := &ast.ScanParams{Func: fn}
+	if _, err := p.expect(int('(')); err != nil {
+		return nil, err
+	}
+	switch {
+	case p.cur.Kind == int(')'):
+		p.advance()
+	case p.peekNext().Kind == int('='):
+		if sp.Properties, err = p.parsePropertyItems(p.parsePropertyItem); err != nil {
+			return nil, err
+		}
+	default:
+		if sp.Names, err = p.parseIdentifierList(); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(int(')')); err != nil {
+			return nil, err
+		}
+	}
+	return sp, nil
+}
+
+// parseSpecifiedPartition reads specifiedPartition (DorisParser.g4:1663):
+//
+//	TEMPORARY? PARTITION (identifier | identifierList)
+//	| TEMPORARY? PARTITIONS identifierList
+//
+// PARTITION is taken as the clause only when a name or '(' follows it.
+func (p *Parser) parseSpecifiedPartition(ref *ast.TableRef) error {
+	if p.cur.Kind == kwTEMPORARY {
+		if next := p.peekNext().Kind; next != kwPARTITION && next != kwPARTITIONS {
+			return nil
+		}
+		p.advance() // consume TEMPORARY
+		ref.TemporaryPartition = true
+	}
+	switch p.cur.Kind {
+	case kwPARTITION:
+		if next := p.peekNext().Kind; next != int('(') && !isIdentifierToken(next) {
+			return nil
+		}
+		p.advance() // consume PARTITION
+		if p.cur.Kind != int('(') {
+			name, _, err := p.parseIdentifier()
+			ref.Partitions = []string{name}
+			return err
+		}
+	case kwPARTITIONS:
+		p.advance() // consume PARTITIONS
+	default:
+		return nil
+	}
+	if _, err := p.expect(int('(')); err != nil {
+		return err
+	}
+	names, err := p.parseIdentifierList()
+	if err != nil {
+		return err
+	}
+	ref.Partitions = names
+	_, err = p.expect(int(')'))
+	return err
 }
 
 // parseLateralView parses one LATERAL VIEW suffix. On entry cur is LATERAL.
@@ -967,13 +1125,21 @@ func (p *Parser) parseTableSample() (*ast.TableSample, error) {
 // JOIN keywords following the left source.
 func (p *Parser) parseJoinChain(left ast.Node) (ast.Node, error) {
 	for {
+		start := p.cur
 		joinType, natural, ok := p.parseJoinKeywords()
 		if !ok {
+			if p.cur.Loc.Start != start.Loc.Start {
+				// LEFT/RIGHT/FULL [OUTER | SEMI | ANTI] without JOIN: those
+				// words lead nothing else after a FROM item.
+				return nil, p.syntaxErrorAtCur()
+			}
 			break
 		}
 
-		// Skip optional Doris execution hints: [shuffle], [broadcast], etc.
-		hints := p.parseJoinHints()
+		hints, err := p.parseJoinHints()
+		if err != nil {
+			return nil, err
+		}
 
 		right, err := p.parsePrimarySource()
 		if err != nil {
@@ -989,10 +1155,15 @@ func (p *Parser) parseJoinChain(left ast.Node) (ast.Node, error) {
 			Loc:     ast.Loc{Start: ast.NodeLoc(left).Start},
 		}
 
-		// Parse join condition
+		// joinCriteria? (DorisParser.g4:1346). The grammar makes it
+		// optional, but Doris's AST builder refuses an outer, semi or anti
+		// join without one (testdata/compat.tsv: SELECT 1 FROM a LEFT JOIN a).
 		switch {
 		case joinType == ast.JoinCross || natural:
-			// CROSS JOIN and NATURAL JOIN: no condition required
+			// CROSS JOIN: no condition required
+
+		case p.cur.Kind != kwON && p.cur.Kind != kwUSING && joinType != ast.JoinInner:
+			return nil, p.syntaxErrorAtCur()
 
 		case p.cur.Kind == kwON:
 			p.advance() // consume ON
@@ -1033,27 +1204,28 @@ func (p *Parser) parseJoinChain(left ast.Node) (ast.Node, error) {
 	return left, nil
 }
 
-// parseJoinHints skips any Doris execution hint between join keywords and
-// the right-side table reference. Hints have the form [identifier] or
-// /*+ identifier */ (comment-style). Only bracket-style is handled here.
-// Returns the consumed hint identifiers (may be empty).
-func (p *Parser) parseJoinHints() []string {
-	var hints []string
-	for p.cur.Kind == int('[') {
-		p.advance() // consume '['
-		// Collect tokens until ']'
-		for p.cur.Kind != int(']') && p.cur.Kind != tokEOF {
-			if p.cur.Kind == tokIdent || p.cur.Kind == tokQuotedIdent ||
-				(p.cur.Kind >= 700) {
-				hints = append(hints, p.cur.Str)
-			}
-			p.advance()
-		}
-		if p.cur.Kind == int(']') {
-			p.advance() // consume ']'
-		}
+// parseJoinHints reads an optional distributeType between JOIN and the
+// right side (DorisParser.g4:1255): LEFT_BRACKET identifier RIGHT_BRACKET.
+// Doris's AST builder takes only SHUFFLE and BROADCAST there
+// (testdata/compat.tsv refuses JOIN [ a ] a); nextToken skips the
+// /*+ ... */ form as a hint span.
+func (p *Parser) parseJoinHints() ([]string, error) {
+	if p.cur.Kind != int('[') {
+		return nil, nil
 	}
-	return hints
+	p.advance() // consume '['
+	tok := p.cur
+	name, _, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+	if u := strings.ToUpper(name); u != "SHUFFLE" && u != "BROADCAST" {
+		return nil, syntaxErrorAt(tok)
+	}
+	if _, err := p.expect(int(']')); err != nil {
+		return nil, err
+	}
+	return []string{name}, nil
 }
 
 // parseJoinKeywords checks whether the current token position starts a
@@ -1061,22 +1233,7 @@ func (p *Parser) parseJoinHints() []string {
 // (joinType, natural, true). If not, returns (0, false, false)
 // without consuming any tokens.
 func (p *Parser) parseJoinKeywords() (ast.JoinType, bool, bool) {
-	// NATURAL [LEFT|RIGHT|FULL] [OUTER] JOIN
-	if p.cur.Kind == kwNATURAL {
-		next := p.peekNext()
-		if next.Kind == kwJOIN {
-			p.advance() // consume NATURAL
-			p.advance() // consume JOIN
-			return ast.JoinInner, true, true
-		}
-		if next.Kind == kwLEFT || next.Kind == kwRIGHT || next.Kind == kwFULL {
-			p.advance() // consume NATURAL
-			jt := p.consumeDirectionAndJoin()
-			return jt, true, true
-		}
-		return 0, false, false
-	}
-
+	// NATURAL: joinType (DorisParser.g4:1334) has none.
 	// INNER JOIN
 	if p.cur.Kind == kwINNER {
 		next := p.peekNext()

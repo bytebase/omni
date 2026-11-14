@@ -15,6 +15,9 @@ const (
 	PhasePre  MigrationPhase = iota // DROP operations
 	PhaseMain                       // CREATE + ALTER operations
 	PhasePost                       // Deferred (FK constraints)
+	// PhaseLateDrop holds the DROP operations that wait for a PhaseMain ALTER
+	// to stop a column or attribute from using what they drop.
+	PhaseLateDrop
 )
 
 // Priority constants for tie-breaking within a phase during topological sort.
@@ -228,6 +231,7 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 	// Post-processing: wrap ALTER COLUMN TYPE ops with DROP VIEW / CREATE VIEW
 	// for dependent views. PG cannot ALTER a column type when a view depends on it.
 	ops = wrapColumnTypeChangesWithViewOps(from, to, diff, ops)
+	ops = deferDropsOfTypesInUse(from, to, ops)
 
 	// Dependency-driven ordering: sort ops by phase, then topologically within each phase.
 	ops = sortMigrationOps(from, to, ops)
@@ -688,6 +692,115 @@ func topoSortOps(c *Catalog, ops []MigrationOp, reverse bool) (sorted []Migratio
 	return sorted, deferred
 }
 
+// deferDropsOfTypesInUse moves to PhaseLateDrop each type drop whose type a
+// column or composite attribute uses in from and still has in to: PhaseMain
+// changes its type, and only then can the type go. The drops of what such a
+// type uses, and of the schemas holding them, wait with it. A drop that the
+// plan pairs with a create of the same name keeps its place, since the create
+// needs the name free; so does one whose users the plan drops and rebuilds.
+func deferDropsOfTypesInUse(from, to *Catalog, ops []MigrationOp) []MigrationOp {
+	created := make(map[string]bool)
+	rebuilt := make(map[uint32]bool)
+	for _, op := range ops {
+		switch op.Type {
+		case OpCreateType:
+			created[op.SchemaName+"."+op.ObjectName] = true
+		case OpDropTable, OpDropType, OpDropView:
+			if op.Phase == PhasePre && op.ObjType == 'r' {
+				rebuilt[op.ObjOID] = true
+			}
+		}
+	}
+	// typeOID is the type a drop removes: the type itself, or a composite's
+	// row type.
+	typeOID := func(op MigrationOp) uint32 {
+		if op.ObjType == 'r' {
+			if rel := from.GetRelationByOID(op.ObjOID); rel != nil {
+				return rel.RowTypeOID
+			}
+			return 0
+		}
+		return op.ObjOID
+	}
+	late := make(map[int]bool)
+	for i, op := range ops {
+		if op.Phase == PhasePre && op.Type == OpDropType && !created[op.SchemaName+"."+op.ObjectName] && typeUsedByKeptColumn(from, to, rebuilt, typeOID(op)) {
+			late[i] = true
+		}
+	}
+	if len(late) == 0 {
+		return ops
+	}
+
+	// Close over what the late drops depend on, lifting each dependency to
+	// the drop that removes its object, as topoSortOps does.
+	oidToIdx := make(map[depKey][]int)
+	for i, op := range ops {
+		if op.Phase == PhasePre && op.ObjOID != 0 {
+			oidToIdx[depKey{op.ObjType, op.ObjOID}] = append(oidToIdx[depKey{op.ObjType, op.ObjOID}], i)
+		}
+	}
+	for changed := true; changed; {
+		changed = false
+		for _, d := range from.deps {
+			if d.DepType == DepInternal {
+				continue
+			}
+			for _, i := range liftDepToOp(from, d.ObjType, d.ObjOID, oidToIdx) {
+				if !late[i] {
+					continue
+				}
+				for _, j := range liftDepToOp(from, d.RefType, d.RefOID, oidToIdx) {
+					if !late[j] && ops[j].Type == OpDropType {
+						late[j], changed = true, true
+					}
+				}
+			}
+		}
+	}
+	schemas := make(map[string]bool)
+	for i := range late {
+		schemas[ops[i].SchemaName] = true
+	}
+	for i, op := range ops {
+		if op.Phase == PhasePre && op.Type == OpDropSchema && schemas[op.ObjectName] {
+			late[i] = true
+		}
+	}
+	for i := range late {
+		ops[i].Phase = PhaseLateDrop
+	}
+	return ops
+}
+
+// typeUsedByKeptColumn reports whether a column of a table or an attribute of
+// a composite type in from has the type, or an array of it, and to still has
+// that column. The relations in dropped keep none.
+func typeUsedByKeptColumn(from, to *Catalog, dropped map[uint32]bool, typ uint32) bool {
+	if typ == 0 {
+		return false
+	}
+	for _, rel := range from.relationByOID {
+		if rel.RelKind != 'r' && rel.RelKind != 'p' && rel.RelKind != 'c' || rel.Schema == nil || dropped[rel.OID] {
+			continue
+		}
+		toRel := to.GetRelation(rel.Schema.Name, rel.Name)
+		if toRel == nil || toRel.RelKind != rel.RelKind {
+			continue
+		}
+		for _, col := range rel.Columns {
+			used := col.TypeOID == typ
+			if t := from.typeByOID[col.TypeOID]; t != nil && t.Elem == typ && t.Category == 'A' {
+				used = true
+			}
+			if _, kept := toRel.colByName[col.Name]; used && kept {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // sortMigrationOps separates ops into phases and sorts each phase.
 // PhasePre: reverse topological sort using from catalog deps (drop dependents first).
 // PhaseMain: topologically sorted using to catalog deps (forward ordering).
@@ -697,7 +810,7 @@ func topoSortOps(c *Catalog, ops []MigrationOp, reverse bool) (sorted []Migratio
 // CHECK constraints) to PhasePost to break the cycle. Those ops are then
 // collected into postOps for the final assembly.
 func sortMigrationOps(from, to *Catalog, ops []MigrationOp) []MigrationOp {
-	var preOps, mainOps, postOps []MigrationOp
+	var preOps, mainOps, postOps, lateDropOps []MigrationOp
 	for _, op := range ops {
 		switch op.Phase {
 		case PhasePre:
@@ -706,6 +819,8 @@ func sortMigrationOps(from, to *Catalog, ops []MigrationOp) []MigrationOp {
 			mainOps = append(mainOps, op)
 		case PhasePost:
 			postOps = append(postOps, op)
+		case PhaseLateDrop:
+			lateDropOps = append(lateDropOps, op)
 		}
 	}
 
@@ -723,9 +838,13 @@ func sortMigrationOps(from, to *Catalog, ops []MigrationOp) []MigrationOp {
 		return postOps[i].ObjectName < postOps[j].ObjectName
 	})
 
+	// PhaseLateDrop: the same reverse order as PhasePre.
+	lateDropOps, _ = topoSortOps(from, lateDropOps, true)
+
 	result := make([]MigrationOp, 0, len(ops))
 	result = append(result, preOps...)
 	result = append(result, mainSorted...)
 	result = append(result, postOps...)
+	result = append(result, lateDropOps...)
 	return result
 }

@@ -798,12 +798,21 @@ func (p *Parser) parseEnableDisableTriggerStmt(enable bool) (*nodes.EnableDisabl
 			stmt.OnDatabase = true
 			p.advance()
 		} else if p.cur.Type == kwALL {
+			// ALL SERVER (triggerScope, TSql160.g:25412)
 			p.advance()
-			if p.matchIdentCI("SERVER") {
-				stmt.OnAllServer = true
+			if !p.matchIdentCI("SERVER") {
+				return nil, p.syntaxErrorAtCur()
 			}
+			stmt.OnAllServer = true
 		} else {
-			stmt.OnObject, _ = p.parseTableRef()
+			obj, err := p.parseTableRef()
+			if err != nil {
+				return nil, err
+			}
+			if obj == nil {
+				return nil, p.syntaxErrorAtCur()
+			}
+			stmt.OnObject = obj
 		}
 	}
 
