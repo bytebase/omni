@@ -834,10 +834,10 @@ The docs judged the 8,075 rows in under a second:
 
 | Statements | Total | Agree | Only docs accept | Undocumented |
 | --- | --- | --- | --- | --- |
-| One per alternative | 2,245 | 1,932 | 313 | 0 |
-| Near-misses | 5,830 | 93 | 52 | 5,685 |
+| One per alternative | 2,245 | 1,939 | 306 | 0 |
+| Near-misses | 5,830 | 105 | 40 | 5,685 |
 
-- **365 disagreements,** all one way: `GRANT` and `REVOKE` (111: `ASSUMEROLE`, `DEBUG`, templates, datashares), `SHOW` (81), templates (47), `CREATE` and `ALTER DATABASE` (42), `COPY` (18), `CREATE MATERIALIZED VIEW` (16), `SELECT` (12: `EXCLUDE`, `CONNECT BY`), `UNLOAD` (9), `MERGE` (8). 19 are statements omni took until pg's parser fixes were ported (#938 to #958): a `MERGE` with no `WHEN` clause, which the MERGE page brackets as optional, and `ROLE` as a name. None was fixed (`redshift/parser/testdata/README.md`).
+- **346 disagreements,** all one way: `GRANT` and `REVOKE` (102: `ASSUMEROLE`, `DEBUG`, templates, datashares), `SHOW` (81), templates (47), `CREATE` and `ALTER DATABASE` (42), `COPY` (18), `CREATE MATERIALIZED VIEW` (16), `SELECT` (12: `EXCLUDE`, `CONNECT BY`), `UNLOAD` (9). 19 more, which the ports of pg's parser fixes (#938 to #958) had refused, read again: a `MERGE` with no `WHEN` clause, which the MERGE page brackets as optional, and `ROLE` as a grantee's name. No other row was fixed (`redshift/parser/testdata/README.md`).
 - **What the docs cannot decide** is Snowflake's list, and where the docs are wrong as written (`ALTER USER`'s options with commas, `REVOKE [ GRANT OPTION ]` without `FOR`) the grammar keeps them. `REDSHIFT_COMPAT_DSN` would let a recording ask a dedicated cluster through `compat.RawParseVerdict`; that judge is not built.
 
 **PartiQL, recorded.** `partiql/parser/testdata/compat.tsv` (2026-11-13): 632 alternatives and 1,217 near-misses of `PartiQLParser.g4`, the grammar of the reference implementation (partiql-lang-kotlin, Apache-2.0, committed), and the 61 statements DynamoDB's developer guide prints. No server: a recognizer over the grammar judges, in 0.1 seconds.
@@ -951,5 +951,6 @@ What the harness handles:
 - **`tape.Main(m)`** runs the package's tests. After a passing run of every test, a replay fails on a tape or stream no test opened, and a recording deletes such tapes. A run that failed, selected tests (`-run`, `-skip`) or ran none (`-list`, a fuzz worker) settles nothing: it neither fails on those tapes nor deletes them.
 - **Filters.** A stream replays in order, so a `-run` pattern that skips some subtests sharing their parent's connection fails replay. Select whole top-level tests, as `-run '^TestName$'` does. A recording rewrites the whole tape of each test it runs, including one that no longer parses, such as a tape left with merge conflict markers.
 - **Compact requests.** A request's text or text argument over 64 KB is written as its SHA-256 and length, since a replay only compares it. A request that repeats the text of the one before it writes `^` for it.
-- **Not built yet:** `tape.Live(t)` for tests with nothing to replay, and package setup recorded once in `_setup.tape`. No package on tapes has needed them.
+- **`tape.Live(t)`** skips a test with nothing to replay outside a recording (§4.5).
+- **Not built yet:** package setup recorded once in `_setup.tape`. No package on tapes has needed it.
 - **Other boundaries.** Trino's HTTP API and the programs tests run (ScriptDOM, the Spanner oracle) record at their own boundary, in the same format.
