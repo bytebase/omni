@@ -713,8 +713,9 @@ func (p *Parser) parseAddRowAccessPolicyTail() (*ast.ObjectName, []ast.Ident, er
 //	ROW ACCESS POLICY <p> [ , ADD ROW ACCESS POLICY <p2> ON ( <col> [ , ... ] ) ]
 //	ALL ROW ACCESS POLICIES
 //
-// and reports all for the second form.
-func (p *Parser) parseDropRowAccessPolicyTail() (all bool, name, addName *ast.ObjectName, addCols []ast.Ident, err error) {
+// and reports all for the second form. With legacy, DROP ROW ACCESS POLICIES
+// (no ALL), which omni has always read for views, is the second form too.
+func (p *Parser) parseDropRowAccessPolicyTail(legacy bool) (all bool, name, addName *ast.ObjectName, addCols []ast.Ident, err error) {
 	if p.cur.Type == kwALL {
 		p.advance() // consume ALL
 		for _, t := range []int{kwROW, kwACCESS, kwPOLICIES} {
@@ -729,8 +730,7 @@ func (p *Parser) parseDropRowAccessPolicyTail() (all bool, name, addName *ast.Ob
 			return false, nil, nil, nil, err
 		}
 	}
-	if p.cur.Type == kwPOLICIES {
-		// DROP ROW ACCESS POLICIES, as omni has always read it for views.
+	if legacy && p.cur.Type == kwPOLICIES {
 		p.advance()
 		return true, nil, nil, nil, nil
 	}

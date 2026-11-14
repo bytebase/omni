@@ -546,7 +546,7 @@ func (p *Parser) parseAlterDynamicTableStmt() (ast.Node, error) {
 			}
 			stmt.Action = ast.AlterDynamicTableDropClusteringKey
 		case kwROW, kwALL:
-			all, name, addName, addCols, err := p.parseDropRowAccessPolicyTail()
+			all, name, addName, addCols, err := p.parseDropRowAccessPolicyTail(false)
 			if err != nil {
 				return nil, err
 			}

@@ -771,7 +771,7 @@ func (p *Parser) parseAlterViewAddRowAccessPolicy(stmt *ast.AlterViewStmt) error
 //	ROW ACCESS POLICY <p> [ , ADD ROW ACCESS POLICY <p2> ON ( <col> [ , ... ] ) ]
 //	ALL ROW ACCESS POLICIES
 func (p *Parser) parseAlterViewDropRowAccessPolicy(stmt *ast.AlterViewStmt) error {
-	all, name, addName, addCols, err := p.parseDropRowAccessPolicyTail()
+	all, name, addName, addCols, err := p.parseDropRowAccessPolicyTail(true)
 	if err != nil {
 		return err
 	}
@@ -939,24 +939,11 @@ func (p *Parser) parseAlterViewColumnAction() (*ast.AlterViewColumnAction, error
 			// Optional USING (col, ...)
 			if p.cur.Type == kwUSING {
 				p.advance() // consume USING
-				if _, err := p.expect('('); err != nil {
+				using, err := p.parseIdentListInParens()
+				if err != nil {
 					return nil, err
 				}
-				for p.cur.Type != ')' && p.cur.Type != tokEOF {
-					id, err := p.parseIdent()
-					if err != nil {
-						return nil, err
-					}
-					action.MaskingUsing = append(action.MaskingUsing, id)
-					if p.cur.Type == ',' {
-						p.advance()
-					} else {
-						break
-					}
-				}
-				if _, err := p.expect(')'); err != nil {
-					return nil, err
-				}
+				action.MaskingUsing = using
 			}
 
 			// Optional FORCE
