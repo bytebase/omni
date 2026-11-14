@@ -282,6 +282,32 @@ var roundTrips = []roundTrip{
 		transformErr: "trigger tr_bump runs on UPDATE, and the backup and its restore do not account for it",
 	},
 	{
+		// REPLACE overwrites row 1, which no backup holds.
+		name:         "replaced",
+		setup:        "CREATE TABLE replaced (id INT PRIMARY KEY, v INT);INSERT INTO replaced VALUES (1, 1)",
+		script:       "REPLACE INTO replaced VALUES (1, 2); DELETE FROM replaced WHERE v = 2",
+		tables:       []string{"replaced"},
+		transformErr: "prior backup does not support REPLACE or INSERT ... ON DUPLICATE KEY UPDATE statements",
+	},
+	{
+		// The backup's own := moves @n, so it copies no row and the DELETE
+		// removes row 1.
+		name:         "self_assignment",
+		setup:        "CREATE TABLE self_assignment (id INT PRIMARY KEY);INSERT INTO self_assignment VALUES (1)",
+		script:       "DELETE FROM self_assignment WHERE (@n := COALESCE(@n, 0) + 1) = 2",
+		tables:       []string{"self_assignment"},
+		transformErr: "prior backup cannot back up a statement whose row selection sets @n, as the backup sets it too",
+	},
+	{
+		// uk_g2 reads a through g1, and the UPDATEs swap its values.
+		name: "chained_key",
+		setup: "CREATE TABLE chained_key (id INT PRIMARY KEY, a INT, g1 INT AS (a + 1), g2 INT AS (g1 + 1), UNIQUE KEY uk_g2 (g2));" +
+			"INSERT INTO chained_key (id, a) VALUES (1, 10), (2, 20)",
+		script:     "UPDATE chained_key SET a = 30 WHERE id = 1; UPDATE chained_key SET a = 10 WHERE id = 2; UPDATE chained_key SET a = 20 WHERE id = 1",
+		tables:     []string{"chained_key"},
+		restoreErr: "the UPDATE changes unique key uk_g2",
+	},
+	{
 		// After the USE the unqualified table is the second database's; the
 		// backup would read the first's.
 		name: "use_database",

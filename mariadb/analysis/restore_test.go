@@ -184,3 +184,16 @@ func TestRestoreSQLSkipsGeneratedColumns(t *testing.T) {
 		require.True(t, strings.HasSuffix(got, "ON DUPLICATE KEY UPDATE `a` = VALUES(`a`);"), got)
 	}
 }
+
+func TestRestoreSQLFollowsGeneratedColumnsToKeys(t *testing.T) {
+	// uk_g2 reads a through g2 and g1.
+	for _, statement := range []string{
+		"UPDATE chained SET a = 30 WHERE id = 1; UPDATE chained SET a = 10 WHERE id = 2",
+		"UPDATE chained SET a = a + 1",
+	} {
+		_, err := restore(t, statement, "chained")
+		require.EqualError(t, err, "prior backup cannot restore db.chained: the UPDATE changes unique key uk_g2, so the restore could match another row", statement)
+	}
+	_, err := restore(t, "UPDATE chained SET a = 30 WHERE id = 1", "chained")
+	require.NoError(t, err)
+}

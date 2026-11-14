@@ -126,6 +126,9 @@ func prepareTransformation(databaseName, statement string, catalog Catalog, isCa
 				if name := assignedUserVariable(node, text, assigned); name != "" {
 					return nil, fmt.Errorf("prior backup cannot handle a statement that reads @%s after an earlier statement sets it", name)
 				}
+				if name := rowSelectionAssignment(node, text); name != "" {
+					return nil, fmt.Errorf("prior backup cannot back up a statement whose row selection sets @%s, as the backup sets it too", name)
+				}
 				if used != "" {
 					return nil, fmt.Errorf("prior backup cannot handle a statement after USE %s changes the database", used)
 				}
@@ -211,6 +214,23 @@ func rowSelection(node ast.Node, fullSQL string) []ast.Node {
 		result = append(result, n.Limit)
 	}
 	return result
+}
+
+// rowSelectionAssignment returns a user variable the parts of a statement
+// that choose its rows set with :=, or "" if they set none.
+func rowSelectionAssignment(node ast.Node, fullSQL string) string {
+	var found string
+	for _, n := range rowSelection(node, fullSQL) {
+		ast.Inspect(n, func(n ast.Node) bool {
+			if e, ok := n.(*ast.BinaryExpr); ok && e.Op == ast.BinOpAssign && found == "" {
+				if v, ok := e.Left.(*ast.VariableRef); ok && !v.System {
+					found = v.Name
+				}
+			}
+			return found == ""
+		})
+	}
+	return found
 }
 
 // assignUserVariables adds to assigned the user variables a statement sets:

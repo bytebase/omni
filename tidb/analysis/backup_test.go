@@ -71,6 +71,7 @@ var backupDB = &backupDatabase{
 		}},
 		{Name: "parent", Columns: backupColumns("id", "v"), Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Expressions: []string{"id"}}}},
 		{Name: "child", Columns: backupColumns("id", "parent_id"), Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Expressions: []string{"id"}}}, ForeignKeys: []*metadata.ForeignKeyMetadata{{Name: "fk_cascade", Columns: []string{"parent_id"}, ReferencedTable: "parent", ReferencedColumns: []string{"id"}, OnDelete: "SET NULL", OnUpdate: "CASCADE"}}},
+		{Name: "chained", Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "a"}, {Name: "g1", Generation: &metadata.GenerationMetadata{Expression: "`a` + 1"}}, {Name: "g2", Generation: &metadata.GenerationMetadata{Expression: "`g1` + 1"}}}, Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Expressions: []string{"id"}}, {Name: "uk_g2", Unique: true, Expressions: []string{"g2"}}}},
 		{Name: "nokey", Columns: []*metadata.ColumnMetadata{{Name: "a", Nullable: true}, {Name: "b"}}, Indexes: []*metadata.IndexMetadata{uniqueKey("a")}},
 		{Name: "tg", Columns: backupColumns("a", "b", "g_c"), Indexes: []*metadata.IndexMetadata{uniqueKey("g_c"), uniqueKey(), uniqueKey("B")}},
 	},
@@ -311,6 +312,8 @@ func TestTransformDMLToSelectRefusesUnsafeScripts(t *testing.T) {
 		{"SELECT @v := 2; UPDATE t SET b = 1 WHERE a = @V", "failed to prepare transformation: prior backup cannot handle a statement that reads @V after an earlier statement sets it"},
 		{"SELECT @v := 2; UPDATE t JOIN t1 ON t1.a = @v SET t.b = 1", "failed to prepare transformation: prior backup cannot handle a statement that reads @v after an earlier statement sets it"},
 		{"SET @v = 1; WITH c AS (SELECT @v AS a) DELETE t FROM t JOIN c ON t.a = c.a", "failed to prepare transformation: prior backup cannot handle a statement that reads @v after an earlier statement sets it"},
+		// The backup runs the row selection's := too.
+		{"DELETE FROM t WHERE (@n := COALESCE(@n, 0) + 1) = 2", "failed to prepare transformation: prior backup cannot back up a statement whose row selection sets @n, as the backup sets it too"},
 		// A USE before the statement moves its unqualified tables.
 		{"USE other; DELETE FROM t WHERE a = 1", "failed to prepare transformation: prior backup cannot handle a statement after USE other changes the database"},
 		// Two references known by one name.
@@ -367,6 +370,8 @@ func TestTransformDMLToSelectKeepsSafeScripts(t *testing.T) {
 		"WITH t AS (SELECT 1 AS a) UPDATE db.t JOIN t ON db.t.a = t.a SET db.t.b = 1",
 		// A random value only the SET list draws.
 		"UPDATE t SET b = RAND() WHERE a = 1",
+		"UPDATE t SET b = (@n := @n + 1) WHERE a = 1",
+		"DELETE FROM t WHERE @n = a",
 		"UPDATE t SET b = NOW() WHERE a = 1",
 		"DELETE FROM t WHERE a = UNIX_TIMESTAMP(b)",
 		"UPDATE t1 SET b = 1; DELETE FROM t WHERE a = 1",

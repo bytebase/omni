@@ -72,6 +72,7 @@ var backupDB = &backupDatabase{
 		{Name: "bumped", Columns: backupColumns("id", "v"), Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Expressions: []string{"id"}}}, Triggers: []*metadata.TriggerMetadata{{Name: "tr_bump", Event: "UPDATE", Timing: "BEFORE"}}},
 		{Name: "logged", Columns: backupColumns("id", "v"), Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Expressions: []string{"id"}}}, Triggers: []*metadata.TriggerMetadata{{Name: "tr_log", Event: "delete", Timing: "AFTER"}}},
 		{Name: "stamped_insert", Columns: backupColumns("id", "v"), Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Expressions: []string{"id"}}}, Triggers: []*metadata.TriggerMetadata{{Name: "tr_insert", Event: "INSERT", Timing: "BEFORE"}}},
+		{Name: "chained", Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "a"}, {Name: "g1", Generation: &metadata.GenerationMetadata{Expression: "`a` + 1"}}, {Name: "g2", Generation: &metadata.GenerationMetadata{Expression: "`g1` + 1"}}}, Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Expressions: []string{"id"}}, {Name: "uk_g2", Unique: true, Expressions: []string{"g2"}}}},
 		{Name: "nokey", Columns: []*metadata.ColumnMetadata{{Name: "a", Nullable: true}, {Name: "b"}}, Indexes: []*metadata.IndexMetadata{{Name: "uk", Unique: true, Expressions: []string{"a"}}}},
 		{Name: "tk", Columns: backupColumns("a", "b", "g_c"), Indexes: []*metadata.IndexMetadata{
 			{Name: "uk_generated", Unique: true, Expressions: []string{"g_c"}},
@@ -385,6 +386,8 @@ func TestTransformDMLToSelectRefusesUnsafeScripts(t *testing.T) {
 		{"SELECT 1 INTO @v; UPDATE t SET b = 1 WHERE a = @V", "failed to prepare transformation: prior backup cannot handle a statement that reads @V after an earlier statement sets it"},
 		{"SELECT @v := 2; UPDATE t JOIN t1 ON t1.a = @v SET t.b = 1", "failed to prepare transformation: prior backup cannot handle a statement that reads @v after an earlier statement sets it"},
 		{"SET @v = 1; WITH c AS (SELECT @v AS a) DELETE t FROM t JOIN c ON t.a = c.a", "failed to prepare transformation: prior backup cannot handle a statement that reads @v after an earlier statement sets it"},
+		// The backup runs the row selection's := too.
+		{"DELETE FROM t WHERE (@n := COALESCE(@n, 0) + 1) = 2", "failed to prepare transformation: prior backup cannot back up a statement whose row selection sets @n, as the backup sets it too"},
 		// A USE before the statement moves its unqualified tables.
 		{"USE other; DELETE FROM t WHERE a = 1", "failed to prepare transformation: prior backup cannot handle a statement after USE other changes the database"},
 		// Two references known by one name.
@@ -404,6 +407,9 @@ func TestTransformDMLToSelectRefusesUnsafeScripts(t *testing.T) {
 		{"DELETE FROM logged WHERE id = 1", "failed to generate SQL for table db.logged: prior backup cannot back up db.logged: trigger tr_log runs on DELETE, and the backup and its restore do not account for it"},
 		{"UPDATE stamped_insert SET v = 2 WHERE id = 1", "failed to generate SQL for table db.stamped_insert: prior backup cannot back up db.stamped_insert: trigger tr_insert runs on INSERT, and the backup and its restore do not account for it"},
 		{"DELETE FROM stamped_insert WHERE id = 1", "failed to generate SQL for table db.stamped_insert: prior backup cannot back up db.stamped_insert: trigger tr_insert runs on INSERT, and the backup and its restore do not account for it"},
+		// REPLACE and INSERT ... ON DUPLICATE KEY UPDATE overwrite rows.
+		{"REPLACE INTO t VALUES (1, 2, 3); DELETE FROM t WHERE b = 2", "failed to prepare transformation: prior backup does not support REPLACE or INSERT ... ON DUPLICATE KEY UPDATE statements"},
+		{"INSERT INTO t1 VALUES (1, 1) ON DUPLICATE KEY UPDATE b = 2", "failed to prepare transformation: prior backup does not support REPLACE or INSERT ... ON DUPLICATE KEY UPDATE statements"},
 		// Truncation gives both tables' backups one name.
 		{"DELETE FROM `" + strings.Repeat("x", 62) + "1`; DELETE FROM `" + strings.Repeat("x", 62) + "2`", "prior backup cannot name the backups of db." + strings.Repeat("x", 62) + "1 and db." + strings.Repeat("x", 62) + "2 apart: both are pre_" + strings.Repeat("x", 60)},
 	}
@@ -442,11 +448,14 @@ func TestTransformDMLToSelectKeepsSafeScripts(t *testing.T) {
 		"WITH t AS (SELECT 1 AS a) UPDATE db.t JOIN t ON db.t.a = t.a SET db.t.b = 1",
 		// A random value only the SET list draws.
 		"UPDATE t SET b = RAND() WHERE a = 1",
+		"UPDATE t SET b = (@n := @n + 1) WHERE a = 1",
+		"DELETE FROM t WHERE @n = a",
 		"UPDATE t SET b = NOW() WHERE a = 1",
 		"DELETE FROM t WHERE a = UNIX_TIMESTAMP(b)",
 		// A trigger on events neither the statement nor its restore runs.
 		"DELETE FROM bumped WHERE id = 1",
 		"UPDATE logged SET v = 1 WHERE id = 1",
+		"INSERT IGNORE INTO t1 VALUES (1, 1)",
 		// An earlier write to a table the later statement does not read.
 		"UPDATE t1 SET b = 1; DELETE FROM t WHERE a = 1",
 		// The child's RESTRICT key does not cascade an UPDATE.

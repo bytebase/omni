@@ -11600,7 +11600,7 @@
 : int64 1
 : int64 5
 : bytes
-| 2026-11-14 12:08:57
+| 2026-11-14 14:08:26
 < row
 : int64 2
 : int64 2
@@ -30835,3 +30835,5871 @@
 | NO ACTION
 : bytes
 | CASCADE
+> exec
+| CREATE TABLE replaced (id INT PRIMARY KEY, v INT)
+< ok 0 0
+> exec
+| INSERT INTO replaced VALUES (1, 1)
+< ok 1 0
+> query
+| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+: string
+| test
+: string
+| replaced
+< result
+< column "COLUMN_NAME" "VARCHAR"
+< row
+: bytes
+| id
+< row
+: bytes
+| v
+> query
+| SELECT `id`, `v` FROM `test`.`replaced` ORDER BY 1, 2
+< result
+< column "id" "INT"
+< column "v" "INT"
+< row
+: int64 1
+: int64 1
+> query
+| SELECT TABLE_NAME, COLUMN_NAME, IFNULL(GENERATION_EXPRESSION, ''), IS_NULLABLE, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, ORDINAL_POSITION
+: string
+| test
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "COLUMN_NAME" "VARCHAR"
+< column "IFNULL(GENERATION_EXPRESSION, '')" "TEXT"
+< column "IS_NULLABLE" "VARCHAR"
+< column "EXTRA" "VARCHAR"
+< row
+: bytes
+| back`tick
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| back`tick
+: bytes
+| c`ol
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_back`tick
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_0_back`tick
+: bytes
+| c`ol
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_comments
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_0_comments
+: bytes
+| note
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_covered_updates
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_0_covered_updates
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_covered_updates
+: bytes
+| b
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_cte_alias
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_0_cte_alias
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_expression_key
+: bytes
+| id
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_expression_key
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_generated_default
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_0_generated_default
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_generated_default
+: bytes
+| g
+: bytes
+| `a` + 1
+: bytes
+| YES
+: bytes
+| VIRTUAL GENERATED
+< row
+: bytes
+| bak_0_generated_key
+: bytes
+| id
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_generated_key
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_generated_key
+: bytes
+| g
+: bytes
+| `a` + 1
+: bytes
+| YES
+: bytes
+| VIRTUAL GENERATED
+< row
+: bytes
+| bak_0_keyless_rows
+: bytes
+| id
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_keyless_rows
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_nullable_key
+: bytes
+| u
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_nullable_key
+: bytes
+| v
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_one_to_many
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_0_one_to_many
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_outer_gone
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_0_outer_gone
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_parens
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_0_parens
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_single_key
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_0_single_key
+: bytes
+| u
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_0_stamped
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_0_stamped
+: bytes
+| v
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_stamped
+: bytes
+| ts
+: bytes
+|
+: bytes
+| NO
+: bytes
+| DEFAULT_GENERATED on update CURRENT_TIMESTAMP
+< row
+: bytes
+| bak_0_swapped_key
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_0_swapped_key
+: bytes
+| u
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_1_covered_updates
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_1_covered_updates
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_1_covered_updates
+: bytes
+| b
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_limits_test
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_limits_test
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_limits_test
+: bytes
+| b
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_limits_test
+: bytes
+| g
+: bytes
+| `a` + `b`
+: bytes
+| YES
+: bytes
+| VIRTUAL GENERATED
+< row
+: bytes
+| bak_overlapping_rows_test
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_overlapping_rows_test
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_updates_test
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_updates_test
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_updates_test
+: bytes
+| b
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_updates_test
+: bytes
+| g
+: bytes
+| `a` * 2
+: bytes
+| YES
+: bytes
+| STORED GENERATED
+< row
+: bytes
+| children
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| children
+: bytes
+| parent
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| comments
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| comments
+: bytes
+| note
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| covered_updates
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| covered_updates
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| covered_updates
+: bytes
+| b
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| cte_alias
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| cte_alias
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| dependent_updates
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| dependent_updates
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| dependent_updates
+: bytes
+| b
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| expression_key
+: bytes
+| id
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| expression_key
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| fk_child
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| fk_child
+: bytes
+| parent_id
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| fk_parent
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| flagged
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| flags
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| flags
+: bytes
+| enabled
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| generated_default
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| generated_default
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| generated_default
+: bytes
+| g
+: bytes
+| `a` + 1
+: bytes
+| YES
+: bytes
+| VIRTUAL GENERATED
+< row
+: bytes
+| generated_key
+: bytes
+| id
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| generated_key
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| generated_key
+: bytes
+| g
+: bytes
+| `a` + 1
+: bytes
+| YES
+: bytes
+| VIRTUAL GENERATED
+< row
+: bytes
+| keyless_children
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| keyless_children
+: bytes
+| parent
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| keyless_join
+: bytes
+| id
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| keyless_join
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| keyless_rows
+: bytes
+| id
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| keyless_rows
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| limits
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| limits
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| limits
+: bytes
+| b
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| limits
+: bytes
+| g
+: bytes
+| `a` + `b`
+: bytes
+| YES
+: bytes
+| VIRTUAL GENERATED
+< row
+: bytes
+| nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn_one
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn_two
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| nullable_key
+: bytes
+| u
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| nullable_key
+: bytes
+| v
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| one_to_many
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| one_to_many
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| outer_gone
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| outer_gone
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| outer_keep
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| overlapping_limits
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| overlapping_rows
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| overlapping_rows
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| paren_peers
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| parens
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| parens
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| random_rows
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| replaced
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| replaced
+: bytes
+| v
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| separate_overlap
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| separate_overlap
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| single_key
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| single_key
+: bytes
+| u
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| stamped
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| stamped
+: bytes
+| v
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| stamped
+: bytes
+| ts
+: bytes
+|
+: bytes
+| NO
+: bytes
+| DEFAULT_GENERATED on update CURRENT_TIMESTAMP
+< row
+: bytes
+| swapped_key
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| swapped_key
+: bytes
+| u
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| updates
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| updates
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| updates
+: bytes
+| b
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| updates
+: bytes
+| g
+: bytes
+| `a` * 2
+: bytes
+| YES
+: bytes
+| STORED GENERATED
+< row
+: bytes
+| use_target
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| user_variable
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+> query
+| SELECT TABLE_NAME, INDEX_NAME, NON_UNIQUE, COALESCE(COLUMN_NAME, EXPRESSION) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX
+: string
+| test
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "INDEX_NAME" "VARCHAR"
+< column "NON_UNIQUE" "VARCHAR"
+< column "COALESCE(COLUMN_NAME, EXPRESSION)" "VARCHAR"
+< row
+: bytes
+| back`tick
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| bak_0_back`tick
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| bak_0_comments
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| bak_0_covered_updates
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| bak_0_cte_alias
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| bak_0_expression_key
+: bytes
+| uk_a
+: bytes
+| 0
+: bytes
+| NULL
+< row
+: bytes
+| bak_0_generated_default
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| bak_0_generated_key
+: bytes
+| uk_g
+: bytes
+| 0
+: bytes
+| g
+< row
+: bytes
+| bak_0_nullable_key
+: bytes
+| uk_u
+: bytes
+| 0
+: bytes
+| u
+< row
+: bytes
+| bak_0_one_to_many
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| bak_0_outer_gone
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| bak_0_parens
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| bak_0_single_key
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| bak_0_single_key
+: bytes
+| uk_u
+: bytes
+| 0
+: bytes
+| u
+< row
+: bytes
+| bak_0_stamped
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| bak_0_swapped_key
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| bak_0_swapped_key
+: bytes
+| uk_u
+: bytes
+| 0
+: bytes
+| u
+< row
+: bytes
+| bak_1_covered_updates
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| bak_limits_test
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| bak_limits_test
+: bytes
+| uk_b
+: bytes
+| 0
+: bytes
+| b
+< row
+: bytes
+| bak_overlapping_rows_test
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| bak_updates_test
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| children
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| comments
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| covered_updates
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| cte_alias
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| dependent_updates
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| expression_key
+: bytes
+| uk_a
+: bytes
+| 0
+: bytes
+| NULL
+< row
+: bytes
+| fk_child
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| fk_child
+: bytes
+| fk_child_parent
+: bytes
+| 1
+: bytes
+| parent_id
+< row
+: bytes
+| fk_parent
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| flagged
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| flags
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| generated_default
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| generated_key
+: bytes
+| uk_g
+: bytes
+| 0
+: bytes
+| g
+< row
+: bytes
+| keyless_children
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| limits
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| limits
+: bytes
+| uk_b
+: bytes
+| 0
+: bytes
+| b
+< row
+: bytes
+| nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn_one
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn_two
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| nullable_key
+: bytes
+| uk_u
+: bytes
+| 0
+: bytes
+| u
+< row
+: bytes
+| one_to_many
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| outer_gone
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| outer_keep
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| overlapping_limits
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| overlapping_rows
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| paren_peers
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| parens
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| random_rows
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| replaced
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| separate_overlap
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| single_key
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| single_key
+: bytes
+| uk_u
+: bytes
+| 0
+: bytes
+| u
+< row
+: bytes
+| stamped
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| swapped_key
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| swapped_key
+: bytes
+| uk_u
+: bytes
+| 0
+: bytes
+| u
+< row
+: bytes
+| updates
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| use_target
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| user_variable
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+> query
+| SELECT k.TABLE_NAME, k.CONSTRAINT_NAME, k.COLUMN_NAME, k.REFERENCED_TABLE_NAME, k.REFERENCED_COLUMN_NAME, r.UPDATE_RULE, r.DELETE_RULE FROM information_schema.KEY_COLUMN_USAGE k JOIN information_schema.REFERENTIAL_CONSTRAINTS r ON r.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA AND r.CONSTRAINT_NAME = k.CONSTRAINT_NAME WHERE k.TABLE_SCHEMA = ? AND k.REFERENCED_TABLE_NAME IS NOT NULL ORDER BY k.TABLE_NAME, k.CONSTRAINT_NAME, k.ORDINAL_POSITION
+: string
+| test
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR"
+< column "COLUMN_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_COLUMN_NAME" "VARCHAR"
+< column "UPDATE_RULE" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR"
+< row
+: bytes
+| fk_child
+: bytes
+| fk_child_parent
+: bytes
+| parent_id
+: bytes
+| fk_parent
+: bytes
+| id
+: bytes
+| NO ACTION
+: bytes
+| CASCADE
+> exec
+| CREATE TABLE self_assignment (id INT PRIMARY KEY)
+< ok 0 0
+> exec
+| INSERT INTO self_assignment VALUES (1)
+< ok 1 0
+> query
+| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+: string
+| test
+: string
+| self_assignment
+< result
+< column "COLUMN_NAME" "VARCHAR"
+< row
+: bytes
+| id
+> query
+| SELECT `id` FROM `test`.`self_assignment` ORDER BY 1
+< result
+< column "id" "INT"
+< row
+: int64 1
+> query
+| SELECT TABLE_NAME, COLUMN_NAME, IFNULL(GENERATION_EXPRESSION, ''), IS_NULLABLE, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, ORDINAL_POSITION
+: string
+| test
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "COLUMN_NAME" "VARCHAR"
+< column "IFNULL(GENERATION_EXPRESSION, '')" "TEXT"
+< column "IS_NULLABLE" "VARCHAR"
+< column "EXTRA" "VARCHAR"
+< row
+: bytes
+| back`tick
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| back`tick
+: bytes
+| c`ol
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_back`tick
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_0_back`tick
+: bytes
+| c`ol
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_comments
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_0_comments
+: bytes
+| note
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_covered_updates
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_0_covered_updates
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_covered_updates
+: bytes
+| b
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_cte_alias
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_0_cte_alias
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_expression_key
+: bytes
+| id
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_expression_key
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_generated_default
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_0_generated_default
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_generated_default
+: bytes
+| g
+: bytes
+| `a` + 1
+: bytes
+| YES
+: bytes
+| VIRTUAL GENERATED
+< row
+: bytes
+| bak_0_generated_key
+: bytes
+| id
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_generated_key
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_generated_key
+: bytes
+| g
+: bytes
+| `a` + 1
+: bytes
+| YES
+: bytes
+| VIRTUAL GENERATED
+< row
+: bytes
+| bak_0_keyless_rows
+: bytes
+| id
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_keyless_rows
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_nullable_key
+: bytes
+| u
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_nullable_key
+: bytes
+| v
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_one_to_many
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_0_one_to_many
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_outer_gone
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_0_outer_gone
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_parens
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_0_parens
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_single_key
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_0_single_key
+: bytes
+| u
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_0_stamped
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_0_stamped
+: bytes
+| v
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_stamped
+: bytes
+| ts
+: bytes
+|
+: bytes
+| NO
+: bytes
+| DEFAULT_GENERATED on update CURRENT_TIMESTAMP
+< row
+: bytes
+| bak_0_swapped_key
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_0_swapped_key
+: bytes
+| u
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_1_covered_updates
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_1_covered_updates
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_1_covered_updates
+: bytes
+| b
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_limits_test
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_limits_test
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_limits_test
+: bytes
+| b
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_limits_test
+: bytes
+| g
+: bytes
+| `a` + `b`
+: bytes
+| YES
+: bytes
+| VIRTUAL GENERATED
+< row
+: bytes
+| bak_overlapping_rows_test
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_overlapping_rows_test
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_updates_test
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_updates_test
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_updates_test
+: bytes
+| b
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_updates_test
+: bytes
+| g
+: bytes
+| `a` * 2
+: bytes
+| YES
+: bytes
+| STORED GENERATED
+< row
+: bytes
+| children
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| children
+: bytes
+| parent
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| comments
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| comments
+: bytes
+| note
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| covered_updates
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| covered_updates
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| covered_updates
+: bytes
+| b
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| cte_alias
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| cte_alias
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| dependent_updates
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| dependent_updates
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| dependent_updates
+: bytes
+| b
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| expression_key
+: bytes
+| id
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| expression_key
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| fk_child
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| fk_child
+: bytes
+| parent_id
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| fk_parent
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| flagged
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| flags
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| flags
+: bytes
+| enabled
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| generated_default
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| generated_default
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| generated_default
+: bytes
+| g
+: bytes
+| `a` + 1
+: bytes
+| YES
+: bytes
+| VIRTUAL GENERATED
+< row
+: bytes
+| generated_key
+: bytes
+| id
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| generated_key
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| generated_key
+: bytes
+| g
+: bytes
+| `a` + 1
+: bytes
+| YES
+: bytes
+| VIRTUAL GENERATED
+< row
+: bytes
+| keyless_children
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| keyless_children
+: bytes
+| parent
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| keyless_join
+: bytes
+| id
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| keyless_join
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| keyless_rows
+: bytes
+| id
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| keyless_rows
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| limits
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| limits
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| limits
+: bytes
+| b
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| limits
+: bytes
+| g
+: bytes
+| `a` + `b`
+: bytes
+| YES
+: bytes
+| VIRTUAL GENERATED
+< row
+: bytes
+| nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn_one
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn_two
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| nullable_key
+: bytes
+| u
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| nullable_key
+: bytes
+| v
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| one_to_many
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| one_to_many
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| outer_gone
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| outer_gone
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| outer_keep
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| overlapping_limits
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| overlapping_rows
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| overlapping_rows
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| paren_peers
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| parens
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| parens
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| random_rows
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| replaced
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| replaced
+: bytes
+| v
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| self_assignment
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| separate_overlap
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| separate_overlap
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| single_key
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| single_key
+: bytes
+| u
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| stamped
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| stamped
+: bytes
+| v
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| stamped
+: bytes
+| ts
+: bytes
+|
+: bytes
+| NO
+: bytes
+| DEFAULT_GENERATED on update CURRENT_TIMESTAMP
+< row
+: bytes
+| swapped_key
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| swapped_key
+: bytes
+| u
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| updates
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| updates
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| updates
+: bytes
+| b
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| updates
+: bytes
+| g
+: bytes
+| `a` * 2
+: bytes
+| YES
+: bytes
+| STORED GENERATED
+< row
+: bytes
+| use_target
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| user_variable
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+> query
+| SELECT TABLE_NAME, INDEX_NAME, NON_UNIQUE, COALESCE(COLUMN_NAME, EXPRESSION) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX
+: string
+| test
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "INDEX_NAME" "VARCHAR"
+< column "NON_UNIQUE" "VARCHAR"
+< column "COALESCE(COLUMN_NAME, EXPRESSION)" "VARCHAR"
+< row
+: bytes
+| back`tick
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| bak_0_back`tick
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| bak_0_comments
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| bak_0_covered_updates
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| bak_0_cte_alias
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| bak_0_expression_key
+: bytes
+| uk_a
+: bytes
+| 0
+: bytes
+| NULL
+< row
+: bytes
+| bak_0_generated_default
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| bak_0_generated_key
+: bytes
+| uk_g
+: bytes
+| 0
+: bytes
+| g
+< row
+: bytes
+| bak_0_nullable_key
+: bytes
+| uk_u
+: bytes
+| 0
+: bytes
+| u
+< row
+: bytes
+| bak_0_one_to_many
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| bak_0_outer_gone
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| bak_0_parens
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| bak_0_single_key
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| bak_0_single_key
+: bytes
+| uk_u
+: bytes
+| 0
+: bytes
+| u
+< row
+: bytes
+| bak_0_stamped
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| bak_0_swapped_key
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| bak_0_swapped_key
+: bytes
+| uk_u
+: bytes
+| 0
+: bytes
+| u
+< row
+: bytes
+| bak_1_covered_updates
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| bak_limits_test
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| bak_limits_test
+: bytes
+| uk_b
+: bytes
+| 0
+: bytes
+| b
+< row
+: bytes
+| bak_overlapping_rows_test
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| bak_updates_test
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| children
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| comments
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| covered_updates
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| cte_alias
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| dependent_updates
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| expression_key
+: bytes
+| uk_a
+: bytes
+| 0
+: bytes
+| NULL
+< row
+: bytes
+| fk_child
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| fk_child
+: bytes
+| fk_child_parent
+: bytes
+| 1
+: bytes
+| parent_id
+< row
+: bytes
+| fk_parent
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| flagged
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| flags
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| generated_default
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| generated_key
+: bytes
+| uk_g
+: bytes
+| 0
+: bytes
+| g
+< row
+: bytes
+| keyless_children
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| limits
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| limits
+: bytes
+| uk_b
+: bytes
+| 0
+: bytes
+| b
+< row
+: bytes
+| nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn_one
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn_two
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| nullable_key
+: bytes
+| uk_u
+: bytes
+| 0
+: bytes
+| u
+< row
+: bytes
+| one_to_many
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| outer_gone
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| outer_keep
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| overlapping_limits
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| overlapping_rows
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| paren_peers
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| parens
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| random_rows
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| replaced
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| self_assignment
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| separate_overlap
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| single_key
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| single_key
+: bytes
+| uk_u
+: bytes
+| 0
+: bytes
+| u
+< row
+: bytes
+| stamped
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| swapped_key
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| swapped_key
+: bytes
+| uk_u
+: bytes
+| 0
+: bytes
+| u
+< row
+: bytes
+| updates
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| use_target
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| user_variable
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+> query
+| SELECT k.TABLE_NAME, k.CONSTRAINT_NAME, k.COLUMN_NAME, k.REFERENCED_TABLE_NAME, k.REFERENCED_COLUMN_NAME, r.UPDATE_RULE, r.DELETE_RULE FROM information_schema.KEY_COLUMN_USAGE k JOIN information_schema.REFERENTIAL_CONSTRAINTS r ON r.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA AND r.CONSTRAINT_NAME = k.CONSTRAINT_NAME WHERE k.TABLE_SCHEMA = ? AND k.REFERENCED_TABLE_NAME IS NOT NULL ORDER BY k.TABLE_NAME, k.CONSTRAINT_NAME, k.ORDINAL_POSITION
+: string
+| test
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR"
+< column "COLUMN_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_COLUMN_NAME" "VARCHAR"
+< column "UPDATE_RULE" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR"
+< row
+: bytes
+| fk_child
+: bytes
+| fk_child_parent
+: bytes
+| parent_id
+: bytes
+| fk_parent
+: bytes
+| id
+: bytes
+| NO ACTION
+: bytes
+| CASCADE
+> exec
+| CREATE TABLE chained_key (id INT PRIMARY KEY, a INT, g1 INT AS (a + 1), g2 INT AS (g1 + 1), UNIQUE KEY uk_g2 (g2))
+< ok 0 0
+> exec
+| INSERT INTO chained_key (id, a) VALUES (1, 10), (2, 20)
+< ok 2 0
+> query
+| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+: string
+| test
+: string
+| chained_key
+< result
+< column "COLUMN_NAME" "VARCHAR"
+< row
+: bytes
+| id
+< row
+: bytes
+| a
+< row
+: bytes
+| g1
+< row
+: bytes
+| g2
+> query
+| SELECT `id`, `a`, `g1`, `g2` FROM `test`.`chained_key` ORDER BY 1, 2, 3, 4
+< result
+< column "id" "INT"
+< column "a" "INT"
+< column "g1" "INT"
+< column "g2" "INT"
+< row
+: int64 1
+: int64 10
+: int64 11
+: int64 12
+< row
+: int64 2
+: int64 20
+: int64 21
+: int64 22
+> query
+| SELECT TABLE_NAME, COLUMN_NAME, IFNULL(GENERATION_EXPRESSION, ''), IS_NULLABLE, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, ORDINAL_POSITION
+: string
+| test
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "COLUMN_NAME" "VARCHAR"
+< column "IFNULL(GENERATION_EXPRESSION, '')" "TEXT"
+< column "IS_NULLABLE" "VARCHAR"
+< column "EXTRA" "VARCHAR"
+< row
+: bytes
+| back`tick
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| back`tick
+: bytes
+| c`ol
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_back`tick
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_0_back`tick
+: bytes
+| c`ol
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_comments
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_0_comments
+: bytes
+| note
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_covered_updates
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_0_covered_updates
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_covered_updates
+: bytes
+| b
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_cte_alias
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_0_cte_alias
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_expression_key
+: bytes
+| id
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_expression_key
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_generated_default
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_0_generated_default
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_generated_default
+: bytes
+| g
+: bytes
+| `a` + 1
+: bytes
+| YES
+: bytes
+| VIRTUAL GENERATED
+< row
+: bytes
+| bak_0_generated_key
+: bytes
+| id
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_generated_key
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_generated_key
+: bytes
+| g
+: bytes
+| `a` + 1
+: bytes
+| YES
+: bytes
+| VIRTUAL GENERATED
+< row
+: bytes
+| bak_0_keyless_rows
+: bytes
+| id
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_keyless_rows
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_nullable_key
+: bytes
+| u
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_nullable_key
+: bytes
+| v
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_one_to_many
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_0_one_to_many
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_outer_gone
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_0_outer_gone
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_parens
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_0_parens
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_single_key
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_0_single_key
+: bytes
+| u
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_0_stamped
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_0_stamped
+: bytes
+| v
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_0_stamped
+: bytes
+| ts
+: bytes
+|
+: bytes
+| NO
+: bytes
+| DEFAULT_GENERATED on update CURRENT_TIMESTAMP
+< row
+: bytes
+| bak_0_swapped_key
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_0_swapped_key
+: bytes
+| u
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_1_covered_updates
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_1_covered_updates
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_1_covered_updates
+: bytes
+| b
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_limits_test
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_limits_test
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_limits_test
+: bytes
+| b
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_limits_test
+: bytes
+| g
+: bytes
+| `a` + `b`
+: bytes
+| YES
+: bytes
+| VIRTUAL GENERATED
+< row
+: bytes
+| bak_overlapping_rows_test
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_overlapping_rows_test
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_updates_test
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_updates_test
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_updates_test
+: bytes
+| b
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_updates_test
+: bytes
+| g
+: bytes
+| `a` * 2
+: bytes
+| YES
+: bytes
+| STORED GENERATED
+< row
+: bytes
+| chained_key
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| chained_key
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| chained_key
+: bytes
+| g1
+: bytes
+| `a` + 1
+: bytes
+| YES
+: bytes
+| VIRTUAL GENERATED
+< row
+: bytes
+| chained_key
+: bytes
+| g2
+: bytes
+| `g1` + 1
+: bytes
+| YES
+: bytes
+| VIRTUAL GENERATED
+< row
+: bytes
+| children
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| children
+: bytes
+| parent
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| comments
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| comments
+: bytes
+| note
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| covered_updates
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| covered_updates
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| covered_updates
+: bytes
+| b
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| cte_alias
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| cte_alias
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| dependent_updates
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| dependent_updates
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| dependent_updates
+: bytes
+| b
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| expression_key
+: bytes
+| id
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| expression_key
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| fk_child
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| fk_child
+: bytes
+| parent_id
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| fk_parent
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| flagged
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| flags
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| flags
+: bytes
+| enabled
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| generated_default
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| generated_default
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| generated_default
+: bytes
+| g
+: bytes
+| `a` + 1
+: bytes
+| YES
+: bytes
+| VIRTUAL GENERATED
+< row
+: bytes
+| generated_key
+: bytes
+| id
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| generated_key
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| generated_key
+: bytes
+| g
+: bytes
+| `a` + 1
+: bytes
+| YES
+: bytes
+| VIRTUAL GENERATED
+< row
+: bytes
+| keyless_children
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| keyless_children
+: bytes
+| parent
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| keyless_join
+: bytes
+| id
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| keyless_join
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| keyless_rows
+: bytes
+| id
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| keyless_rows
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| limits
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| limits
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| limits
+: bytes
+| b
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| limits
+: bytes
+| g
+: bytes
+| `a` + `b`
+: bytes
+| YES
+: bytes
+| VIRTUAL GENERATED
+< row
+: bytes
+| nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn_one
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn_two
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| nullable_key
+: bytes
+| u
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| nullable_key
+: bytes
+| v
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| one_to_many
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| one_to_many
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| outer_gone
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| outer_gone
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| outer_keep
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| overlapping_limits
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| overlapping_rows
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| overlapping_rows
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| paren_peers
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| parens
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| parens
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| random_rows
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| replaced
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| replaced
+: bytes
+| v
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| self_assignment
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| separate_overlap
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| separate_overlap
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| single_key
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| single_key
+: bytes
+| u
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| stamped
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| stamped
+: bytes
+| v
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| stamped
+: bytes
+| ts
+: bytes
+|
+: bytes
+| NO
+: bytes
+| DEFAULT_GENERATED on update CURRENT_TIMESTAMP
+< row
+: bytes
+| swapped_key
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| swapped_key
+: bytes
+| u
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| updates
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| updates
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| updates
+: bytes
+| b
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| updates
+: bytes
+| g
+: bytes
+| `a` * 2
+: bytes
+| YES
+: bytes
+| STORED GENERATED
+< row
+: bytes
+| use_target
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| user_variable
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+> query
+| SELECT TABLE_NAME, INDEX_NAME, NON_UNIQUE, COALESCE(COLUMN_NAME, EXPRESSION) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX
+: string
+| test
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "INDEX_NAME" "VARCHAR"
+< column "NON_UNIQUE" "VARCHAR"
+< column "COALESCE(COLUMN_NAME, EXPRESSION)" "VARCHAR"
+< row
+: bytes
+| back`tick
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| bak_0_back`tick
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| bak_0_comments
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| bak_0_covered_updates
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| bak_0_cte_alias
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| bak_0_expression_key
+: bytes
+| uk_a
+: bytes
+| 0
+: bytes
+| NULL
+< row
+: bytes
+| bak_0_generated_default
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| bak_0_generated_key
+: bytes
+| uk_g
+: bytes
+| 0
+: bytes
+| g
+< row
+: bytes
+| bak_0_nullable_key
+: bytes
+| uk_u
+: bytes
+| 0
+: bytes
+| u
+< row
+: bytes
+| bak_0_one_to_many
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| bak_0_outer_gone
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| bak_0_parens
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| bak_0_single_key
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| bak_0_single_key
+: bytes
+| uk_u
+: bytes
+| 0
+: bytes
+| u
+< row
+: bytes
+| bak_0_stamped
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| bak_0_swapped_key
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| bak_0_swapped_key
+: bytes
+| uk_u
+: bytes
+| 0
+: bytes
+| u
+< row
+: bytes
+| bak_1_covered_updates
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| bak_limits_test
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| bak_limits_test
+: bytes
+| uk_b
+: bytes
+| 0
+: bytes
+| b
+< row
+: bytes
+| bak_overlapping_rows_test
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| bak_updates_test
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| chained_key
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| chained_key
+: bytes
+| uk_g2
+: bytes
+| 0
+: bytes
+| g2
+< row
+: bytes
+| children
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| comments
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| covered_updates
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| cte_alias
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| dependent_updates
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| expression_key
+: bytes
+| uk_a
+: bytes
+| 0
+: bytes
+| NULL
+< row
+: bytes
+| fk_child
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| fk_child
+: bytes
+| fk_child_parent
+: bytes
+| 1
+: bytes
+| parent_id
+< row
+: bytes
+| fk_parent
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| flagged
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| flags
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| generated_default
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| generated_key
+: bytes
+| uk_g
+: bytes
+| 0
+: bytes
+| g
+< row
+: bytes
+| keyless_children
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| limits
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| limits
+: bytes
+| uk_b
+: bytes
+| 0
+: bytes
+| b
+< row
+: bytes
+| nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn_one
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn_two
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| nullable_key
+: bytes
+| uk_u
+: bytes
+| 0
+: bytes
+| u
+< row
+: bytes
+| one_to_many
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| outer_gone
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| outer_keep
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| overlapping_limits
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| overlapping_rows
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| paren_peers
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| parens
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| random_rows
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| replaced
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| self_assignment
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| separate_overlap
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| single_key
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| single_key
+: bytes
+| uk_u
+: bytes
+| 0
+: bytes
+| u
+< row
+: bytes
+| stamped
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| swapped_key
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| swapped_key
+: bytes
+| uk_u
+: bytes
+| 0
+: bytes
+| u
+< row
+: bytes
+| updates
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| use_target
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+< row
+: bytes
+| user_variable
+: bytes
+| PRIMARY
+: bytes
+| 0
+: bytes
+| id
+> query
+| SELECT k.TABLE_NAME, k.CONSTRAINT_NAME, k.COLUMN_NAME, k.REFERENCED_TABLE_NAME, k.REFERENCED_COLUMN_NAME, r.UPDATE_RULE, r.DELETE_RULE FROM information_schema.KEY_COLUMN_USAGE k JOIN information_schema.REFERENTIAL_CONSTRAINTS r ON r.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA AND r.CONSTRAINT_NAME = k.CONSTRAINT_NAME WHERE k.TABLE_SCHEMA = ? AND k.REFERENCED_TABLE_NAME IS NOT NULL ORDER BY k.TABLE_NAME, k.CONSTRAINT_NAME, k.ORDINAL_POSITION
+: string
+| test
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR"
+< column "COLUMN_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_COLUMN_NAME" "VARCHAR"
+< column "UPDATE_RULE" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR"
+< row
+: bytes
+| fk_child
+: bytes
+| fk_child_parent
+: bytes
+| parent_id
+: bytes
+| fk_parent
+: bytes
+| id
+: bytes
+| NO ACTION
+: bytes
+| CASCADE
+> exec
+| CREATE TABLE `test`.`bak_0_chained_key` LIKE `test`.`chained_key`
+< ok 0 0
+> exec
+|
+| INSERT INTO `test`.`bak_0_chained_key` (`id`,`a`) SELECT `chained_key`.`id`,`chained_key`.`a` FROM chained_key WHERE id = 1
+< ok 1 0
+> exec
+| UPDATE chained_key SET a = a + 5 WHERE id = 1
+< ok 1 0
+> query
+| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+: string
+| test
+: string
+| chained_key
+< result
+< column "COLUMN_NAME" "VARCHAR"
+< row
+: bytes
+| id
+< row
+: bytes
+| a
+< row
+: bytes
+| g1
+< row
+: bytes
+| g2
+> query
+| SELECT `id`, `a`, `g1`, `g2` FROM `test`.`chained_key` ORDER BY 1, 2, 3, 4
+< result
+< column "id" "INT"
+< column "a" "INT"
+< column "g1" "INT"
+< column "g2" "INT"
+< row
+: int64 1
+: int64 15
+: int64 16
+: int64 17
+< row
+: int64 2
+: int64 20
+: int64 21
+: int64 22

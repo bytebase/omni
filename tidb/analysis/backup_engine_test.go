@@ -276,6 +276,32 @@ var roundTrips = []roundTrip{
 		tables:       []string{"use_target"},
 		transformErr: "prior backup cannot handle a statement after USE mysql changes the database",
 	},
+	{
+		// REPLACE overwrites row 1, which no backup holds.
+		name:         "replaced",
+		setup:        "CREATE TABLE replaced (id INT PRIMARY KEY, v INT);INSERT INTO replaced VALUES (1, 1)",
+		script:       "REPLACE INTO replaced VALUES (1, 2); DELETE FROM replaced WHERE v = 2",
+		tables:       []string{"replaced"},
+		transformErr: "prior backup does not support REPLACE or INSERT ... ON DUPLICATE KEY UPDATE statements",
+	},
+	{
+		// The backup's own := moves @n, so it copies no row and the DELETE
+		// removes row 1.
+		name:         "self_assignment",
+		setup:        "CREATE TABLE self_assignment (id INT PRIMARY KEY);INSERT INTO self_assignment VALUES (1)",
+		script:       "DELETE FROM self_assignment WHERE (@n := COALESCE(@n, 0) + 1) = 2",
+		tables:       []string{"self_assignment"},
+		transformErr: "prior backup cannot back up a statement whose row selection sets @n, as the backup sets it too",
+	},
+	{
+		// uk_g2 reads a through g1.
+		name: "chained_key",
+		setup: "CREATE TABLE chained_key (id INT PRIMARY KEY, a INT, g1 INT AS (a + 1), g2 INT AS (g1 + 1), UNIQUE KEY uk_g2 (g2));" +
+			"INSERT INTO chained_key (id, a) VALUES (1, 10), (2, 20)",
+		script:     "UPDATE chained_key SET a = a + 5 WHERE id = 1",
+		tables:     []string{"chained_key"},
+		restoreErr: "the UPDATE changes unique key uk_g2",
+	},
 }
 
 // TestBackupRestoreRoundTrip runs each backup, its statements and their

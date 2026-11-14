@@ -329,24 +329,30 @@ func changedUniqueKey(tableMetadata *metadata.TableMetadata, updateColumns []str
 		if !index.Primary && !index.Unique {
 			continue
 		}
+		// reads holds the changed columns the key reads, through the generated
+		// columns it reads, however deep.
 		reads := make(map[string]bool)
-		for _, part := range index.Expressions {
-			key := strings.ToLower(part)
-			expression := part
-			if column, ok := columns[key]; ok {
-				if changed[key] {
-					reads[key] = true
+		expanded := make(map[string]bool)
+		var read func(name, expression string)
+		read = func(name, expression string) {
+			if column, ok := columns[name]; ok {
+				if changed[name] {
+					reads[name] = true
 				}
-				if column.GetGeneration() == nil {
-					continue
+				if column.GetGeneration() == nil || expanded[name] {
+					return
 				}
+				expanded[name] = true
 				expression = column.GetGeneration().GetExpression()
 			}
 			for _, token := range parser.Tokenize(expression) {
-				if name := strings.ToLower(token.Str); changed[name] {
-					reads[name] = true
+				if name := strings.ToLower(token.Str); columns[name] != nil {
+					read(name, "")
 				}
 			}
+		}
+		for _, part := range index.Expressions {
+			read(strings.ToLower(part), part)
 		}
 		if len(reads) == 0 {
 			continue
