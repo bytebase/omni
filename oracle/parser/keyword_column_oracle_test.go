@@ -1,13 +1,13 @@
 package parser
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
-	"time"
 )
 
 var oracleKeywordColumnGaps = filepath.Join("testdata", "coverage", "oracle_keyword_column_gaps.tsv")
@@ -46,13 +46,16 @@ var keywordColumnContexts = []struct {
 // Disagreements still open are recorded in oracle_keyword_column_gaps.tsv;
 // the list only shrinks, and -update regenerates it.
 func TestOracleNonReservedKeywordsAsColumns(t *testing.T) {
-	o := startOracleDB(t)
+	ctx := context.Background()
+	admin := openOracleSystem(t)
+	db := openOracleUser(t, "omni_kw")
 
 	reserved := map[string]bool{}
-	rows, err := o.adminDB.QueryContext(o.ctx, `
+	rows, err := admin.QueryContext(ctx, `
 SELECT keyword FROM v$reserved_words
  WHERE keyword IS NOT NULL
-   AND (reserved = 'Y' OR res_type = 'Y' OR res_attr = 'Y' OR res_semi = 'Y')`)
+   AND (reserved = 'Y' OR res_type = 'Y' OR res_attr = 'Y' OR res_semi = 'Y')
+ ORDER BY keyword`)
 	if err != nil {
 		t.Fatalf("query v$reserved_words: %v", err)
 	}
@@ -88,7 +91,6 @@ SELECT keyword FROM v$reserved_words
 		}
 	}
 
-	run := fmt.Sprintf("%d", time.Now().UnixNano()%1_000_000_000)
 	var gaps []string
 	var newGaps, fixed, checks int
 	// check records a disagreement with the table renamed to t, so the
@@ -113,18 +115,18 @@ SELECT keyword FROM v$reserved_words
 	}
 
 	for i, word := range words {
-		table := fmt.Sprintf("omni_kw_%s_%d", run, i)
+		table := fmt.Sprintf("omni_kw_%d", i)
 		create := fmt.Sprintf("CREATE TABLE %s (a NUMBER, %s NUMBER)", table, word)
-		_, createErr := o.db.ExecContext(o.ctx, create)
+		_, createErr := db.ExecContext(ctx, create)
 		check(word, "column definition", table, create, createErr == nil)
 		if createErr != nil {
 			continue
 		}
 		for _, c := range keywordColumnContexts {
 			sqlText := fmt.Sprintf(c.sql, table, word)
-			check(word, c.name, table, sqlText, oracleParseOnly(o.ctx, o.db, sqlText) == nil)
+			check(word, c.name, table, sqlText, oracleParseOnly(ctx, db, sqlText) == nil)
 		}
-		if _, err := o.db.ExecContext(o.ctx, "DROP TABLE "+table+" PURGE"); err != nil {
+		if _, err := db.ExecContext(ctx, "DROP TABLE "+table+" PURGE"); err != nil {
 			t.Logf("drop %s: %v", table, err)
 		}
 	}

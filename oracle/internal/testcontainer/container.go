@@ -1,6 +1,7 @@
-// Package testcontainer is how oracle's tests reach Oracle. The compat
-// judge, which runs only in a recording (OMNI_RECORD=1), asks the pinned
-// server directly (Judge).
+// Package testcontainer is how oracle's tests reach Oracle: through a tape
+// (enginetest/tape) that replays the pinned server's answers, or, in a
+// recording (OMNI_RECORD=1), through the pinned server itself. The compat
+// judge, which runs only in a recording, asks the server directly (Judge).
 //
 // The server is one testcontainer per test binary, started by the first
 // test that records on it and removed by Terminate, which the package's
@@ -11,10 +12,13 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
+	"errors"
 	"fmt"
 	"net"
 	"path/filepath"
+	"regexp"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -22,10 +26,12 @@ import (
 	"time"
 
 	go_ora "github.com/sijms/go-ora/v2"
+	"github.com/sijms/go-ora/v2/network"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 
 	"github.com/bytebase/omni/enginetest"
+	"github.com/bytebase/omni/enginetest/tape"
 )
 
 // Pins is oracle/testdata/pins.tsv.
@@ -34,12 +40,16 @@ var Pins = func() string {
 	return filepath.Join(filepath.Dir(file), "..", "..", "testdata", "pins.tsv")
 }()
 
-// The image's accounts: SYSTEM, whose password the image takes from
-// ORACLE_PASSWORD, and the pluggable database FREEPDB1 the tests use.
-const (
-	adminPassword = "omni_test"
-	service       = "FREEPDB1"
-)
+// Default is the pin row of the one server the tests ask.
+const Default = "default"
+
+// Password is every account's password: SYSTEM's, which the image takes
+// from ORACLE_PASSWORD, and that of each user a test creates, which Open
+// logs in with.
+const Password = "omni_test"
+
+// service is the pluggable database the tests use.
+const service = "FREEPDB1"
 
 // The judge's account, which owns the scratch schema compat.OracleParse
 // runs DDL in. It may create the objects a statement row makes, so DDL runs
@@ -58,6 +68,22 @@ const (
 // on a table a find none, and answer at once.
 const JudgeFixture = "CREATE TABLE t (a NUMBER)"
 
+// Open returns t's connection to Oracle as user, SYSTEM or a user the test
+// created with Password: a replay of its tape, or the pinned server in a
+// recording. Each call is a session of its own, and the pool holds that one
+// session, so session state holds across statements. In a recording each
+// top-level test starts on a server that holds nothing another test made:
+// before its first session the users and public synonyms the image did not
+// start with are dropped, and so is what SYSTEM owns that it did not.
+func Open(t testing.TB, user string) *sql.DB {
+	t.Helper()
+	s := &tape.Server{Pins: Pins, Codec: Codec{}, Live: func(t testing.TB, pin enginetest.Pin) driver.Connector {
+		t.Helper()
+		return live(t, pin, user)
+	}}
+	return tape.Open(t, s, Default)
+}
+
 var server struct {
 	once      sync.Once
 	pin       enginetest.Pin
@@ -65,13 +91,51 @@ var server struct {
 	host      string
 	port      string
 	err       error
+
+	mu      sync.Mutex
+	image   imageState      // what the server held when it started
+	emptied map[string]bool // the top-level tests the server was emptied for
 }
 
-// start starts the pinned server once, and checks it is the pinned image
-// and release.
+// imageState is what the pluggable database held when the server started,
+// which emptying leaves: its users, its public synonyms, and SYSTEM's
+// objects.
+type imageState struct {
+	users, synonyms, systemObjects map[string]bool
+}
+
+// live connects to the pinned server as user, emptying the server first on
+// t's top-level test's first session.
+func live(t testing.TB, pin enginetest.Pin, user string) driver.Connector {
+	t.Helper()
+	ctx := context.Background()
+	if err := start(ctx, pin); err != nil {
+		t.Fatalf("Oracle: %v", err)
+	}
+	top := enginetest.TopName(t.Name())
+	server.mu.Lock()
+	defer server.mu.Unlock()
+	if !server.emptied[top] {
+		if err := empty(ctx); err != nil {
+			t.Fatalf("Oracle: empty the server for %s: %v", top, err)
+		}
+		server.emptied[top] = true
+	}
+	return connector(user, Password)
+}
+
+// connector connects to FREEPDB1 as user.
+func connector(user, password string) driver.Connector {
+	port, _ := strconv.Atoi(server.port)
+	return go_ora.NewConnector(go_ora.BuildUrl(server.host, port, service, user, password, nil))
+}
+
+// start starts the pinned server once, checks it is the pinned image and
+// release, and reads what it holds.
 func start(ctx context.Context, pin enginetest.Pin) error {
 	server.once.Do(func() {
 		server.pin = pin
+		server.emptied = map[string]bool{}
 		server.err = boot(ctx, pin)
 	})
 	if server.err != nil {
@@ -88,7 +152,7 @@ func boot(ctx context.Context, pin enginetest.Pin) error {
 		ContainerRequest: testcontainers.ContainerRequest{
 			Image:        pin.Image,
 			ExposedPorts: []string{"1521/tcp"},
-			Env:          map[string]string{"ORACLE_PASSWORD": adminPassword},
+			Env:          map[string]string{"ORACLE_PASSWORD": Password},
 			WaitingFor:   wait.ForLog("DATABASE IS READY TO USE!").WithStartupTimeout(10 * time.Minute),
 		},
 		Started: true,
@@ -110,7 +174,7 @@ func boot(ctx context.Context, pin enginetest.Pin) error {
 		return err
 	}
 	server.port = port.Port()
-	db := sql.OpenDB(connector("system", adminPassword))
+	db := sql.OpenDB(connector("system", Password))
 	defer db.Close()
 	var version string
 	if err := db.QueryRowContext(ctx, `SELECT version_full FROM product_component_version WHERE product LIKE 'Oracle%'`).Scan(&version); err != nil {
@@ -119,13 +183,92 @@ func boot(ctx context.Context, pin enginetest.Pin) error {
 	if version != pin.Tag {
 		return fmt.Errorf("the server reports %q, but %s pins %s", version, Pins, pin.Tag)
 	}
+	if server.image.users, err = names(ctx, db, "SELECT username FROM dba_users"); err != nil {
+		return err
+	}
+	if server.image.synonyms, err = names(ctx, db, "SELECT synonym_name FROM dba_synonyms WHERE owner = 'PUBLIC'"); err != nil {
+		return err
+	}
+	if server.image.systemObjects, err = names(ctx, db, systemObjects); err != nil {
+		return err
+	}
 	return nil
 }
 
-// connector connects to FREEPDB1 as user.
-func connector(user, password string) driver.Connector {
-	port, _ := strconv.Atoi(server.port)
-	return go_ora.NewConnector(go_ora.BuildUrl(server.host, port, service, user, password, nil))
+// systemObjects lists the objects of SYSTEM's a test may make.
+const systemObjects = "SELECT object_type || ' ' || object_name FROM user_objects WHERE object_type IN ('TABLE', 'VIEW', 'SEQUENCE', 'SYNONYM', 'PROCEDURE', 'FUNCTION', 'PACKAGE', 'TYPE')"
+
+func names(ctx context.Context, db *sql.DB, query string) (map[string]bool, error) {
+	rows, err := db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", query, err)
+	}
+	defer rows.Close()
+	out := map[string]bool{}
+	for rows.Next() {
+		var n string
+		if err := rows.Scan(&n); err != nil {
+			return nil, err
+		}
+		out[n] = true
+	}
+	return out, rows.Err()
+}
+
+// empty drops what tests made since the server started: users with all
+// they own, public synonyms, and SYSTEM's own objects.
+func empty(ctx context.Context) error {
+	db := sql.OpenDB(connector("system", Password))
+	defer db.Close()
+	db.SetMaxOpenConns(1)
+	var stmts []string
+	users, err := names(ctx, db, "SELECT username FROM dba_users")
+	if err != nil {
+		return err
+	}
+	for _, u := range sorted(users) {
+		if !server.image.users[u] {
+			stmts = append(stmts, `DROP USER "`+u+`" CASCADE`)
+		}
+	}
+	synonyms, err := names(ctx, db, "SELECT synonym_name FROM dba_synonyms WHERE owner = 'PUBLIC'")
+	if err != nil {
+		return err
+	}
+	for _, s := range sorted(synonyms) {
+		if !server.image.synonyms[s] {
+			stmts = append(stmts, `DROP PUBLIC SYNONYM "`+s+`"`)
+		}
+	}
+	objects, err := names(ctx, db, systemObjects)
+	if err != nil {
+		return err
+	}
+	for _, o := range sorted(objects) {
+		if !server.image.systemObjects[o] {
+			kind, name, _ := strings.Cut(o, " ")
+			stmt := "DROP " + kind + ` "` + name + `"`
+			if kind == "TABLE" {
+				stmt += " CASCADE CONSTRAINTS PURGE"
+			}
+			stmts = append(stmts, stmt)
+		}
+	}
+	for _, stmt := range stmts {
+		if _, err := db.ExecContext(ctx, stmt); err != nil {
+			return fmt.Errorf("%s: %w", stmt, err)
+		}
+	}
+	return nil
+}
+
+func sorted(m map[string]bool) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }
 
 // checkDigest fails unless c runs the image with the pinned repository
@@ -166,7 +309,7 @@ func Judge(t testing.TB, pin enginetest.Pin) func() (*sql.DB, func()) {
 	if err := start(ctx, pin); err != nil {
 		t.Fatalf("Oracle: %v", err)
 	}
-	admin := sql.OpenDB(connector("system", adminPassword))
+	admin := sql.OpenDB(connector("system", Password))
 	t.Cleanup(func() { _ = admin.Close() })
 	var users int
 	if err := admin.QueryRowContext(ctx, "SELECT COUNT(*) FROM dba_users WHERE username = :1", judgeUser).Scan(&users); err != nil {
@@ -260,4 +403,69 @@ func Terminate() {
 	if server.container != nil {
 		_ = testcontainers.TerminateContainer(server.container)
 	}
+}
+
+// Codec renders go-ora's *network.OracleError as "<code> <message>": the
+// ORA- number, and the error's text without the position go-ora appends.
+// It is also the Renamer of the names Oracle makes up, which differ on
+// every run: a constraint's or an index's SYS_C, a materialized view's
+// constraint's SYS_C_SNAP$_, a LOB segment's and its
+// index's SYS_LOB and SYS_IL, an identity column's sequence ISEQ$$_.
+type Codec struct{}
+
+func (Codec) EncodeError(err error) (string, bool) {
+	var oe *network.OracleError
+	if !errors.As(err, &oe) {
+		return "", false
+	}
+	return strconv.Itoa(oe.ErrCode) + " " + oe.ErrMsg, true
+}
+
+func (Codec) DecodeError(text string) error {
+	code, msg, ok := strings.Cut(text, " ")
+	n, err := strconv.Atoi(code)
+	if !ok || err != nil {
+		return fmt.Errorf("tape: an Oracle error %q", text)
+	}
+	oe := network.NewOracleError(n)
+	oe.ErrMsg = msg
+	return oe
+}
+
+var madeUp = regexp.MustCompile(`SYS_C\d{6,}|SYS_C_SNAP\$_\d+|SYS_(?:LOB|IL)\d{10}C\d{5}\$\$|ISEQ\$\$_\d+`)
+
+// MadeUp matches a name Oracle made up.
+func (Codec) MadeUp() *regexp.Regexp { return madeUp }
+
+// StandIn is the nth made-up name's stand-in, of its own kind, numbered
+// from 9 million, which Oracle reaches on no server a test starts.
+func (Codec) StandIn(name string, n int) string {
+	switch {
+	case strings.HasPrefix(name, "SYS_C_SNAP$_"):
+		return fmt.Sprintf("SYS_C_SNAP$_9%06d", n)
+	case strings.HasPrefix(name, "SYS_C"):
+		return fmt.Sprintf("SYS_C9%06d", n)
+	case strings.HasPrefix(name, "ISEQ$$_"):
+		return fmt.Sprintf("ISEQ$$_9%06d", n)
+	}
+	return fmt.Sprintf("%s9%09dC00001$$", strings.TrimRight(name[:7], "0123456789"), n)
+}
+
+// OpenLive returns a session as user to the pinned server outside any tape,
+// for a test with nothing to replay: its input is Oracle's own data, which
+// a tape may not hold. It skips t outside a recording (tape.Live).
+func OpenLive(t testing.TB, user string) *sql.DB {
+	t.Helper()
+	tape.Live(t)
+	pin, err := enginetest.LoadPin(Pins, Default)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	if err := start(context.Background(), pin); err != nil {
+		t.Fatalf("Oracle: %v", err)
+	}
+	db := sql.OpenDB(connector(user, Password))
+	db.SetMaxOpenConns(1)
+	t.Cleanup(func() { _ = db.Close() })
+	return db
 }
