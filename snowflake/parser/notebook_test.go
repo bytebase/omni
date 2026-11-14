@@ -58,6 +58,7 @@ func TestParseAlterNotebook(t *testing.T) {
 		"ALTER NOTEBOOK IF EXISTS a RENAME TO b":                          "RENAME TO",
 		"ALTER NOTEBOOK a SET COMMENT = 'c' QUERY_WAREHOUSE = wh":         "SET",
 		"ALTER NOTEBOOK a SET SECRETS = ('k' = db.s.secret, 'l' = other)": "SET",
+		"ALTER NOTEBOOK a UNSET QUERY_WAREHOUSE, COMMENT":                 "UNSET",
 	} {
 		s := mustObjectStmt(t, in)
 		if len(s.Clauses) != 1 || s.Clauses[0].Keywords != want {
@@ -80,7 +81,11 @@ func TestParseExecuteNotebook(t *testing.T) {
 			t.Errorf("%q: got %+v", in, s)
 		}
 	}
-	s := mustObjectStmt(t, "EXECUTE NOTEBOOK PROJECT db.s.p MAIN_FILE = 'nb.ipynb' COMPUTE_POOL = 'cp' "+
+	s := mustObjectStmt(t, "EXECUTE NOTEBOOK PROJECT p MAIN_FILE = 'm' COMPUTE_POOL = 'c' QUERY_WAREHOUSE = 'w' RUNTIME = 'r' ARGUMENTS = :nb_args")
+	if o := s.Clauses[0].Options[4]; o.Name != "ARGUMENTS" || o.Words != ":NB_ARGS" {
+		t.Errorf("ARGUMENTS = %+v", o)
+	}
+	s = mustObjectStmt(t, "EXECUTE NOTEBOOK PROJECT db.s.p MAIN_FILE = 'nb.ipynb' COMPUTE_POOL = 'cp' "+
 		"QUERY_WAREHOUSE = 'wh' RUNTIME = '2.2-CPU-PY3.11' ARGUMENTS = '-x 1' SECRETS = (db.s.k1, db.s.k2)")
 	if s.Kind != "NOTEBOOK PROJECT" || s.Name.String() != "db.s.p" || len(s.Clauses) != 1 || len(s.Clauses[0].Options) != 6 {
 		t.Fatalf("got %+v", s)
@@ -96,7 +101,10 @@ func TestParseNotebookRejects(t *testing.T) {
 		"CREATE NOTEBOOK PROJECT db.s.p FROM 's' MAIN_FILE",  //
 		"CREATE OR REPLACE NOTEBOOK PROJECT db.s.p FROM 's'", // not documented
 		"ALTER NOTEBOOK a",
-		"ALTER NOTEBOOK a UNSET COMMENT", // not documented
+		"ALTER NOTEBOOK a UNSET MAIN_FILE", // only QUERY_WAREHOUSE and COMMENT
+		"EXECUTE NOTEBOOK PROJECT db.s.p MAIN_FILE = 'm' COMPUTE_POOL = 'c' QUERY_WAREHOUSE = 'w' RUNTIME = 'r' ARGUMENTS = : v",
+		"EXECUTE NOTEBOOK PROJECT db.s.p MAIN_FILE = 'm' COMPUTE_POOL = 'c' QUERY_WAREHOUSE = 'w' RUNTIME = 'r' ARGUMENTS = v",
+		"EXECUTE NOTEBOOK PROJECT db.s.p MAIN_FILE = 'm' COMPUTE_POOL = 'c' QUERY_WAREHOUSE = 'w' RUNTIME = 'r' ARGUMENTS = :v ARGUMENTS = 'x'",
 		"ALTER NOTEBOOK a SET SECRETS = ('k' = 1)",
 		"ALTER NOTEBOOK a SET SECRETS = ('k' = a.b.c.d)",
 		"ALTER NOTEBOOK a SET",

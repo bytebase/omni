@@ -42,7 +42,7 @@ var streamlitProps = objectProps{
 // each set once. The page writes their values as bare placeholders
 // (<git_author_email>, ...), which an email address cannot be, so the ones a
 // person types (USERNAME, NAME, EMAIL, COMMENT) take a string or a name;
-// GIT_CREDENTIALS names a secret, and PASSWORD is a string.
+// GIT_CREDENTIALS names a secret (qualified or not), and PASSWORD is a string.
 func streamlitCheckPush(opts []*ast.CopyOption) error {
 	for i, o := range opts {
 		ok := true
@@ -53,7 +53,8 @@ func streamlitCheckPush(opts []*ast.CopyOption) error {
 		case "USERNAME", "NAME", "EMAIL", "COMMENT":
 			ok = ok && (propName.matches(o) || propString.matches(o))
 		case "GIT_CREDENTIALS":
-			ok = ok && propName.matches(o)
+			// A secret object, which db.schema may qualify.
+			ok = ok && propQName.matches(o)
 		case "PASSWORD":
 			ok = ok && propString.matches(o)
 		default:

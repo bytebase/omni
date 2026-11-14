@@ -55,6 +55,7 @@ func TestParseAlterStreamlit(t *testing.T) {
 		"ALTER STREAMLIT a PUSH COMMENT = 'c'",
 		"ALTER STREAMLIT a PUSH TO main",
 		"ALTER STREAMLIT a PUSH GIT_CREDENTIALS = s NAME = n EMAIL = e",
+		"ALTER STREAMLIT a PUSH GIT_CREDENTIALS = db.s.secret NAME = 'n' EMAIL = 'e@x.com'",
 	} {
 		mustObjectStmt(t, in)
 	}

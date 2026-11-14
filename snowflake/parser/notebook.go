@@ -46,7 +46,9 @@ func init() {
 			"IDLE_AUTO_SHUTDOWN_TIME_SECONDS": propNumber,
 			"SECRETS":                         propGroup,
 		},
-		unset: []string{},
+		// The page's parameters and example unset QUERY_WAREHOUSE and COMMENT,
+		// though its syntax summary leaves UNSET out.
+		unset: []string{"QUERY_WAREHOUSE", "COMMENT"},
 	})
 }
 
@@ -85,6 +87,9 @@ func notebookCheckOptions(c *ast.ObjectClause, props objectProps) error {
 				}
 			}
 		}
+		if o.Name == "ARGUMENTS" && strings.HasPrefix(o.Words, ":") {
+			continue // a SQL variable (parseNotebookExecuteProperties)
+		}
 		if v, ok := props[o.Name]; !ok || !v.matches(o) {
 			return &ParseError{
 				Position: o.Loc.Start, End: o.Loc.End,
@@ -93,6 +98,42 @@ func notebookCheckOptions(c *ast.ObjectClause, props objectProps) error {
 		}
 	}
 	return nil
+}
+
+// parseNotebookExecuteProperties reads EXECUTE NOTEBOOK PROJECT's
+// `KEY = value` properties into one clause of no keywords. ARGUMENTS may also
+// be a SQL variable, ARGUMENTS = :<variable>, which the option keeps as the
+// word :<VARIABLE> (https://docs.snowflake.com/en/sql-reference/sql/execute-notebook-project,
+// "Pass arguments computed at runtime").
+func (p *Parser) parseNotebookExecuteProperties(s *ast.ObjectStmt) (*ast.ObjectClause, error) {
+	c := &ast.ObjectClause{Loc: ast.Loc{Start: p.cur.Loc.Start}}
+	for p.startsObjectProperty() {
+		if !p.curIsWord("ARGUMENTS") {
+			opt, err := p.parseObjectProperty()
+			if err != nil {
+				return nil, err
+			}
+			c.Options = append(c.Options, opt)
+			continue
+		}
+		key := p.advance()
+		p.advance() // consume '='
+		opt := &ast.CopyOption{Name: "ARGUMENTS", Loc: ast.Loc{Start: key.Loc.Start}}
+		if colon := p.cur; colon.Type == ':' && p.peekNext().Type == tokIdent && p.peekNext().Loc.Start == colon.Loc.End {
+			p.advance() // consume ':'
+			opt.Words = ":" + strings.ToUpper(p.advance().Str)
+		} else if err := p.parseObjectValue(opt); err != nil {
+			return nil, err
+		}
+		opt.Loc.End = p.prev.Loc.End
+		c.Options = append(c.Options, opt)
+	}
+	if len(c.Options) == 0 {
+		return nil, p.syntaxErrorAtCur()
+	}
+	c.Loc.End = p.prev.Loc.End
+	s.Clauses = append(s.Clauses, c)
+	return c, nil
 }
 
 // parseCreateNotebook reads what follows the name of
@@ -187,10 +228,13 @@ func (p *Parser) parseCreateNotebookProject(s *ast.ObjectStmt) error {
 //	  [ QUERY_WAREHOUSE = <warehouse_to_run_nb_and_sql_queries_in> ]
 //	  [ IDLE_AUTO_SHUTDOWN_TIME_SECONDS = <number_of_seconds> ]
 //	  [ SECRETS = ( '<snowflake_secret_variable_name>' = <snowflake_secret_name> [ , ... ] ) ]
+//	ALTER NOTEBOOK [ IF EXISTS ] <name> UNSET { QUERY_WAREHOUSE | COMMENT } [ , ... ]
+//
+// UNSET is in the page's parameters and example, not its syntax summary.
 //
 // https://docs.snowflake.com/en/sql-reference/sql/alter-notebook
 func parseAlterNotebook(p *Parser, s *ast.ObjectStmt) error {
-	if ok, err := p.parseObjectAlterCommon(s, actSet|actRename); ok || err != nil {
+	if ok, err := p.parseObjectAlterCommon(s, actSet|actUnset|actRename); ok || err != nil {
 		if err != nil {
 			return err
 		}
@@ -238,7 +282,7 @@ func (p *Parser) parseExecuteNotebook(start ast.Loc) (ast.Node, error) {
 	}
 	s.Name = name
 	if project {
-		props, err := p.parseObjectProperties(s, "", true)
+		props, err := p.parseNotebookExecuteProperties(s)
 		if err != nil {
 			return nil, err
 		}
