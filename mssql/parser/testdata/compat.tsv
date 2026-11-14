@@ -199,7 +199,7 @@ reject	reject	engine	statement/setStatements!insert	SET a ON zzz
 reject	reject	engine	statement/setStatements!swap	SETS a ON
 accept	accept	engine	statement/beginStatements	BEGIN TRAN
 reject	reject	engine	statement/beginStatements!drop-1	TRAN
-accept	reject	engine	statement/beginStatements!drop-2	BEGIN
+reject	reject	engine	statement/beginStatements!drop-2	BEGIN
 accept	accept	engine	statement/beginStatements!insert	BEGIN TRAN zzz
 reject	reject	engine	statement/beginStatements!swap	BEGIN_DIALOG TRAN
 accept	reject	engine	statement/breakStatement	BREAK
@@ -510,38 +510,38 @@ reject	reject	engine	withCommonTableExpressionsAndXmlNamespacesStatements(select
 reject	reject	engine	withCommonTableExpressionsAndXmlNamespacesStatements(select|deleteStatement|insertStateme~29258719)/mergeStatement!swap	MESSAGE a USING @a ON 1 = 1 WHEN MATCHED THEN DELETE
 accept	accept	engine	lastStatement/createProcedureStatement	CREATE PROC a AS
 reject	reject	engine	lastStatement/createProcedureStatement!drop-1	PROC a AS
-accept	reject	engine	lastStatement/createProcedureStatement!drop-3	CREATE PROC AS
-accept	reject	engine	lastStatement/createProcedureStatement!drop-4	CREATE PROC a
+reject	reject	engine	lastStatement/createProcedureStatement!drop-3	CREATE PROC AS
+reject	reject	engine	lastStatement/createProcedureStatement!drop-4	CREATE PROC a
 reject	reject	engine	lastStatement/createProcedureStatement!insert	CREATE PROC a AS zzz
 reject	reject	engine	lastStatement/createProcedureStatement!swap	CREATE_INDEX PROC a AS
 accept	accept	engine	lastStatement/alterProcedureStatement	ALTER PROC a AS
 reject	reject	engine	lastStatement/alterProcedureStatement!drop-2	ALTER a AS
-accept	reject	engine	lastStatement/alterProcedureStatement!drop-3	ALTER PROC AS
-accept	reject	engine	lastStatement/alterProcedureStatement!drop-4	ALTER PROC a
+reject	reject	engine	lastStatement/alterProcedureStatement!drop-3	ALTER PROC AS
+reject	reject	engine	lastStatement/alterProcedureStatement!drop-4	ALTER PROC a
 reject	reject	engine	lastStatement/alterProcedureStatement!insert	ALTER PROC a AS zzz
 reject	reject	engine	lastStatement/alterProcedureStatement!swap	ALWAYS PROC a AS
-accept	reject	engine	lastStatement/createTriggerStatement	CREATE TRIGGER a ON a FOR a AS SELECT 1
+reject	reject	engine	lastStatement/createTriggerStatement	CREATE TRIGGER a ON a FOR a AS SELECT 1
 reject	reject	engine	lastStatement/createTriggerStatement!drop-1	TRIGGER a ON a FOR a AS SELECT 1
 reject	reject	engine	lastStatement/createTriggerStatement!drop-2	CREATE a ON a FOR a AS SELECT 1
-accept	reject	engine	lastStatement/createTriggerStatement!drop-3	CREATE TRIGGER ON a FOR a AS SELECT 1
+reject	reject	engine	lastStatement/createTriggerStatement!drop-3	CREATE TRIGGER ON a FOR a AS SELECT 1
 reject	reject	engine	lastStatement/createTriggerStatement!drop-4	CREATE TRIGGER a a FOR a AS SELECT 1
-accept	reject	engine	lastStatement/createTriggerStatement!drop-5	CREATE TRIGGER a ON FOR a AS SELECT 1
-accept	reject	engine	lastStatement/createTriggerStatement!drop-6	CREATE TRIGGER a ON a a AS SELECT 1
-accept	reject	engine	lastStatement/createTriggerStatement!drop-7	CREATE TRIGGER a ON a FOR AS SELECT 1
-accept	reject	engine	lastStatement/createTriggerStatement!drop-8	CREATE TRIGGER a ON a FOR a SELECT 1
-accept	reject	engine	lastStatement/createTriggerStatement!drop-9	CREATE TRIGGER a ON a FOR a AS
-accept	reject	engine	lastStatement/createTriggerStatement!insert	CREATE TRIGGER a ON a FOR a AS SELECT 1 zzz
+reject	reject	engine	lastStatement/createTriggerStatement!drop-5	CREATE TRIGGER a ON FOR a AS SELECT 1
+reject	reject	engine	lastStatement/createTriggerStatement!drop-6	CREATE TRIGGER a ON a a AS SELECT 1
+reject	reject	engine	lastStatement/createTriggerStatement!drop-7	CREATE TRIGGER a ON a FOR AS SELECT 1
+reject	reject	engine	lastStatement/createTriggerStatement!drop-8	CREATE TRIGGER a ON a FOR a SELECT 1
+reject	reject	engine	lastStatement/createTriggerStatement!drop-9	CREATE TRIGGER a ON a FOR a AS
+reject	reject	engine	lastStatement/createTriggerStatement!insert	CREATE TRIGGER a ON a FOR a AS SELECT 1 zzz
 reject	reject	engine	lastStatement/createTriggerStatement!swap	CREATE_INDEX TRIGGER a ON a FOR a AS SELECT 1
-accept	reject	engine	lastStatement/alterTriggerStatement	ALTER TRIGGER a ON a FOR a AS SELECT 1
+reject	reject	engine	lastStatement/alterTriggerStatement	ALTER TRIGGER a ON a FOR a AS SELECT 1
 reject	reject	engine	lastStatement/alterTriggerStatement!drop-2	ALTER a ON a FOR a AS SELECT 1
-accept	reject	engine	lastStatement/alterTriggerStatement!drop-3	ALTER TRIGGER ON a FOR a AS SELECT 1
+reject	reject	engine	lastStatement/alterTriggerStatement!drop-3	ALTER TRIGGER ON a FOR a AS SELECT 1
 reject	reject	engine	lastStatement/alterTriggerStatement!drop-4	ALTER TRIGGER a a FOR a AS SELECT 1
-accept	reject	engine	lastStatement/alterTriggerStatement!drop-5	ALTER TRIGGER a ON FOR a AS SELECT 1
-accept	reject	engine	lastStatement/alterTriggerStatement!drop-6	ALTER TRIGGER a ON a a AS SELECT 1
-accept	reject	engine	lastStatement/alterTriggerStatement!drop-7	ALTER TRIGGER a ON a FOR AS SELECT 1
-accept	reject	engine	lastStatement/alterTriggerStatement!drop-8	ALTER TRIGGER a ON a FOR a SELECT 1
-accept	reject	engine	lastStatement/alterTriggerStatement!drop-9	ALTER TRIGGER a ON a FOR a AS
-accept	reject	engine	lastStatement/alterTriggerStatement!insert	ALTER TRIGGER a ON a FOR a AS SELECT 1 zzz
+reject	reject	engine	lastStatement/alterTriggerStatement!drop-5	ALTER TRIGGER a ON FOR a AS SELECT 1
+reject	reject	engine	lastStatement/alterTriggerStatement!drop-6	ALTER TRIGGER a ON a a AS SELECT 1
+reject	reject	engine	lastStatement/alterTriggerStatement!drop-7	ALTER TRIGGER a ON a FOR AS SELECT 1
+reject	reject	engine	lastStatement/alterTriggerStatement!drop-8	ALTER TRIGGER a ON a FOR a SELECT 1
+reject	reject	engine	lastStatement/alterTriggerStatement!drop-9	ALTER TRIGGER a ON a FOR a AS
+reject	reject	engine	lastStatement/alterTriggerStatement!insert	ALTER TRIGGER a ON a FOR a AS SELECT 1 zzz
 reject	reject	engine	lastStatement/alterTriggerStatement!swap	ALWAYS TRIGGER a ON a FOR a AS SELECT 1
 accept	accept	engine	lastStatement/createDefaultStatement	CREATE DEFAULT a AS 1
 reject	reject	engine	lastStatement/createDefaultStatement!drop-1	DEFAULT a AS 1
@@ -581,26 +581,26 @@ reject	reject	engine	lastStatement/alterViewStatement!swap	ALWAYS VIEW a AS SELE
 accept	accept	engine	lastStatement/createFunctionStatement	CREATE FUNCTION a() RETURNS a BEGIN SELECT 1 END
 reject	reject	engine	lastStatement/createFunctionStatement!drop-1	FUNCTION a() RETURNS a BEGIN SELECT 1 END
 reject	reject	engine	lastStatement/createFunctionStatement!drop-2	CREATE a() RETURNS a BEGIN SELECT 1 END
-accept	reject	engine	lastStatement/createFunctionStatement!drop-3	CREATE FUNCTION() RETURNS a BEGIN SELECT 1 END
+reject	reject	engine	lastStatement/createFunctionStatement!drop-3	CREATE FUNCTION() RETURNS a BEGIN SELECT 1 END
 reject	reject	engine	lastStatement/createFunctionStatement!drop-4	CREATE FUNCTION a) RETURNS a BEGIN SELECT 1 END
 reject	reject	engine	lastStatement/createFunctionStatement!drop-5	CREATE FUNCTION a(RETURNS a BEGIN SELECT 1 END
 reject	reject	engine	lastStatement/createFunctionStatement!drop-6	CREATE FUNCTION a() a BEGIN SELECT 1 END
 reject	reject	engine	lastStatement/createFunctionStatement!drop-7	CREATE FUNCTION a() RETURNS BEGIN SELECT 1 END
 reject	reject	engine	lastStatement/createFunctionStatement!drop-8	CREATE FUNCTION a() RETURNS a SELECT 1 END
-accept	reject	engine	lastStatement/createFunctionStatement!drop-9	CREATE FUNCTION a() RETURNS a BEGIN END
-accept	reject	engine	lastStatement/createFunctionStatement!drop-10	CREATE FUNCTION a() RETURNS a BEGIN SELECT 1
+reject	reject	engine	lastStatement/createFunctionStatement!drop-9	CREATE FUNCTION a() RETURNS a BEGIN END
+reject	reject	engine	lastStatement/createFunctionStatement!drop-10	CREATE FUNCTION a() RETURNS a BEGIN SELECT 1
 reject	reject	engine	lastStatement/createFunctionStatement!insert	CREATE FUNCTION a() RETURNS a BEGIN SELECT 1 END zzz
 reject	reject	engine	lastStatement/createFunctionStatement!swap	CREATE_INDEX FUNCTION a() RETURNS a BEGIN SELECT 1 END
 accept	accept	engine	lastStatement/alterFunctionStatement	ALTER FUNCTION a() RETURNS a BEGIN SELECT 1 END
 reject	reject	engine	lastStatement/alterFunctionStatement!drop-2	ALTER a() RETURNS a BEGIN SELECT 1 END
-accept	reject	engine	lastStatement/alterFunctionStatement!drop-3	ALTER FUNCTION() RETURNS a BEGIN SELECT 1 END
+reject	reject	engine	lastStatement/alterFunctionStatement!drop-3	ALTER FUNCTION() RETURNS a BEGIN SELECT 1 END
 reject	reject	engine	lastStatement/alterFunctionStatement!drop-4	ALTER FUNCTION a) RETURNS a BEGIN SELECT 1 END
 reject	reject	engine	lastStatement/alterFunctionStatement!drop-5	ALTER FUNCTION a(RETURNS a BEGIN SELECT 1 END
 reject	reject	engine	lastStatement/alterFunctionStatement!drop-6	ALTER FUNCTION a() a BEGIN SELECT 1 END
 reject	reject	engine	lastStatement/alterFunctionStatement!drop-7	ALTER FUNCTION a() RETURNS BEGIN SELECT 1 END
 reject	reject	engine	lastStatement/alterFunctionStatement!drop-8	ALTER FUNCTION a() RETURNS a SELECT 1 END
-accept	reject	engine	lastStatement/alterFunctionStatement!drop-9	ALTER FUNCTION a() RETURNS a BEGIN END
-accept	reject	engine	lastStatement/alterFunctionStatement!drop-10	ALTER FUNCTION a() RETURNS a BEGIN SELECT 1
+reject	reject	engine	lastStatement/alterFunctionStatement!drop-9	ALTER FUNCTION a() RETURNS a BEGIN END
+reject	reject	engine	lastStatement/alterFunctionStatement!drop-10	ALTER FUNCTION a() RETURNS a BEGIN SELECT 1
 reject	reject	engine	lastStatement/alterFunctionStatement!insert	ALTER FUNCTION a() RETURNS a BEGIN SELECT 1 END zzz
 reject	reject	engine	lastStatement/alterFunctionStatement!swap	ALWAYS FUNCTION a() RETURNS a BEGIN SELECT 1 END
 accept	accept	engine	lastStatement/createSchemaStatement	CREATE SCHEMA a
@@ -635,8 +635,8 @@ reject	reject	engine	lastStatement/createOrAlterStatements!drop-1	OR ALTER PROC 
 reject	reject	engine	lastStatement/createOrAlterStatements!drop-2	CREATE ALTER PROC a AS
 reject	reject	engine	lastStatement/createOrAlterStatements!drop-3	CREATE OR PROC a AS
 reject	reject	engine	lastStatement/createOrAlterStatements!drop-4	CREATE OR ALTER a AS
-accept	reject	engine	lastStatement/createOrAlterStatements!drop-5	CREATE OR ALTER PROC AS
-accept	reject	engine	lastStatement/createOrAlterStatements!drop-6	CREATE OR ALTER PROC a
+reject	reject	engine	lastStatement/createOrAlterStatements!drop-5	CREATE OR ALTER PROC AS
+reject	reject	engine	lastStatement/createOrAlterStatements!drop-6	CREATE OR ALTER PROC a
 reject	reject	engine	lastStatement/createOrAlterStatements!insert	CREATE OR ALTER PROC a AS zzz
 reject	reject	engine	lastStatement/createOrAlterStatements!swap	CREATE_INDEX OR ALTER PROC a AS
 accept	reject	engine	createIdentifierStatement/Create_(createMaterializedViewStatement_MATE~799f03ed)	CREATE FEDERATION a(a a RANGE)
@@ -673,28 +673,28 @@ reject	reject	engine	alterIdentifierStatement(alterMaterializedViewStatement_MAT
 accept	accept	engine	createOrAlterStatements/Create_Or_Alter_(createOrAlterFunctionStatement|creat~bea47e32)	CREATE OR ALTER PROC a AS
 accept	accept	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterFunctionStatement	CREATE OR ALTER FUNCTION a() RETURNS a BEGIN SELECT 1 END
 reject	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterFunctionStatement!drop-1	CREATE OR ALTER a() RETURNS a BEGIN SELECT 1 END
-accept	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterFunctionStatement!drop-2	CREATE OR ALTER FUNCTION() RETURNS a BEGIN SELECT 1 END
+reject	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterFunctionStatement!drop-2	CREATE OR ALTER FUNCTION() RETURNS a BEGIN SELECT 1 END
 reject	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterFunctionStatement!drop-3	CREATE OR ALTER FUNCTION a) RETURNS a BEGIN SELECT 1 END
 reject	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterFunctionStatement!drop-4	CREATE OR ALTER FUNCTION a(RETURNS a BEGIN SELECT 1 END
 reject	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterFunctionStatement!drop-5	CREATE OR ALTER FUNCTION a() a BEGIN SELECT 1 END
 reject	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterFunctionStatement!drop-6	CREATE OR ALTER FUNCTION a() RETURNS BEGIN SELECT 1 END
 reject	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterFunctionStatement!drop-7	CREATE OR ALTER FUNCTION a() RETURNS a SELECT 1 END
-accept	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterFunctionStatement!drop-8	CREATE OR ALTER FUNCTION a() RETURNS a BEGIN END
-accept	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterFunctionStatement!drop-9	CREATE OR ALTER FUNCTION a() RETURNS a BEGIN SELECT 1
+reject	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterFunctionStatement!drop-8	CREATE OR ALTER FUNCTION a() RETURNS a BEGIN END
+reject	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterFunctionStatement!drop-9	CREATE OR ALTER FUNCTION a() RETURNS a BEGIN SELECT 1
 reject	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterFunctionStatement!insert	CREATE OR ALTER FUNCTION a() RETURNS a BEGIN SELECT 1 END zzz
 reject	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterFunctionStatement!swap	CREATE OR ALTER GB a() RETURNS a BEGIN SELECT 1 END
 accept	accept	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterProcedureStatement	CREATE OR ALTER PROC a AS
 accept	accept	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterProcedureStatement!swap	CREATE OR ALTER PROCEDURE a AS
-accept	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterTriggerStatement	CREATE OR ALTER TRIGGER a ON a FOR a AS SELECT 1
+reject	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterTriggerStatement	CREATE OR ALTER TRIGGER a ON a FOR a AS SELECT 1
 reject	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterTriggerStatement!drop-1	CREATE OR ALTER a ON a FOR a AS SELECT 1
-accept	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterTriggerStatement!drop-2	CREATE OR ALTER TRIGGER ON a FOR a AS SELECT 1
+reject	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterTriggerStatement!drop-2	CREATE OR ALTER TRIGGER ON a FOR a AS SELECT 1
 reject	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterTriggerStatement!drop-3	CREATE OR ALTER TRIGGER a a FOR a AS SELECT 1
-accept	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterTriggerStatement!drop-4	CREATE OR ALTER TRIGGER a ON FOR a AS SELECT 1
-accept	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterTriggerStatement!drop-5	CREATE OR ALTER TRIGGER a ON a a AS SELECT 1
-accept	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterTriggerStatement!drop-6	CREATE OR ALTER TRIGGER a ON a FOR AS SELECT 1
-accept	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterTriggerStatement!drop-7	CREATE OR ALTER TRIGGER a ON a FOR a SELECT 1
-accept	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterTriggerStatement!drop-8	CREATE OR ALTER TRIGGER a ON a FOR a AS
-accept	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterTriggerStatement!insert	CREATE OR ALTER TRIGGER a ON a FOR a AS SELECT 1 zzz
+reject	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterTriggerStatement!drop-4	CREATE OR ALTER TRIGGER a ON FOR a AS SELECT 1
+reject	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterTriggerStatement!drop-5	CREATE OR ALTER TRIGGER a ON a a AS SELECT 1
+reject	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterTriggerStatement!drop-6	CREATE OR ALTER TRIGGER a ON a FOR AS SELECT 1
+reject	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterTriggerStatement!drop-7	CREATE OR ALTER TRIGGER a ON a FOR a SELECT 1
+reject	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterTriggerStatement!drop-8	CREATE OR ALTER TRIGGER a ON a FOR a AS
+reject	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterTriggerStatement!insert	CREATE OR ALTER TRIGGER a ON a FOR a AS SELECT 1 zzz
 reject	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterTriggerStatement!swap	CREATE OR ALTER TRIM a ON a FOR a AS SELECT 1
 accept	accept	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterViewStatement	CREATE OR ALTER VIEW a AS SELECT *
 reject	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|creat~bea47e32)/createOrAlterViewStatement!drop-1	CREATE OR ALTER a AS SELECT *
@@ -709,14 +709,14 @@ reject	reject	engine	identifierStatements/disableTriggerStatement_DISABLE!drop-1
 reject	reject	engine	identifierStatements/disableTriggerStatement_DISABLE!drop-2	DISABLE a ON a
 accept	reject	engine	identifierStatements/disableTriggerStatement_DISABLE!drop-3	DISABLE TRIGGER ON a
 reject	reject	engine	identifierStatements/disableTriggerStatement_DISABLE!drop-4	DISABLE TRIGGER a a
-accept	reject	engine	identifierStatements/disableTriggerStatement_DISABLE!drop-5	DISABLE TRIGGER a ON
+reject	reject	engine	identifierStatements/disableTriggerStatement_DISABLE!drop-5	DISABLE TRIGGER a ON
 reject	reject	engine	identifierStatements/disableTriggerStatement_DISABLE!insert	DISABLE TRIGGER a ON a zzz
 reject	reject	engine	identifierStatements/disableTriggerStatement_DISABLE!swap	DISABLED TRIGGER a ON a
 accept	accept	engine	identifierStatements/enableTriggerStatement_ENABLE	ENABLE TRIGGER a ON a
 reject	reject	engine	identifierStatements/enableTriggerStatement_ENABLE!drop-2	ENABLE a ON a
 accept	reject	engine	identifierStatements/enableTriggerStatement_ENABLE!drop-3	ENABLE TRIGGER ON a
 reject	reject	engine	identifierStatements/enableTriggerStatement_ENABLE!drop-4	ENABLE TRIGGER a a
-accept	reject	engine	identifierStatements/enableTriggerStatement_ENABLE!drop-5	ENABLE TRIGGER a ON
+reject	reject	engine	identifierStatements/enableTriggerStatement_ENABLE!drop-5	ENABLE TRIGGER a ON
 reject	reject	engine	identifierStatements/enableTriggerStatement_ENABLE!insert	ENABLE TRIGGER a ON a zzz
 reject	reject	engine	identifierStatements/enableTriggerStatement_ENABLE!swap	ENABLED TRIGGER a ON a
 reject	accept	engine	identifierStatements/moveConversationStatement_MOVE	MOVE CONVERSATION 1 TO 1
@@ -5569,9 +5569,9 @@ reject	accept	engine	alterPartitionSchemeStatement(stringOrIdentifier)?/stringOr
 reject	reject	engine	alterPartitionSchemeStatement(stringOrIdentifier)?/stringOrIdentifier!insert	ALTER PARTITION SCHEME a NEXT USED 'a' zzz
 accept	accept	engine	executeAsClause/(Exec|Execute)_As_(stringLiteral|Identifier)	CREATE PROC a WITH EXEC AS 'a' AS
 reject	reject	engine	executeAsClause/(Exec|Execute)_As_(stringLiteral|Identifier)!drop-1	CREATE PROC a WITH AS 'a' AS
-accept	reject	engine	executeAsClause/(Exec|Execute)_As_(stringLiteral|Identifier)!drop-2	CREATE PROC a WITH EXEC 'a' AS
-accept	reject	engine	executeAsClause/(Exec|Execute)_As_(stringLiteral|Identifier)!drop-3	CREATE PROC a WITH EXEC AS AS
-accept	reject	engine	executeAsClause/(Exec|Execute)_As_(stringLiteral|Identifier)!truncate	CREATE PROC a WITH EXEC AS
+reject	reject	engine	executeAsClause/(Exec|Execute)_As_(stringLiteral|Identifier)!drop-2	CREATE PROC a WITH EXEC 'a' AS
+reject	reject	engine	executeAsClause/(Exec|Execute)_As_(stringLiteral|Identifier)!drop-3	CREATE PROC a WITH EXEC AS AS
+reject	reject	engine	executeAsClause/(Exec|Execute)_As_(stringLiteral|Identifier)!truncate	CREATE PROC a WITH EXEC AS
 reject	reject	engine	executeAsClause/(Exec|Execute)_As_(stringLiteral|Identifier)!insert	CREATE PROC a WITH EXEC AS 'a' zzz AS
 reject	reject	engine	executeAsClause/(Exec|Execute)_As_(stringLiteral|Identifier)!swap	CREATE PROC a WITH EXECUTABLE AS 'a' AS
 accept	accept	engine	executeAsClause(Exec|Execute)/Exec	CREATE PROC a WITH EXEC AS 'a' AS
@@ -5581,7 +5581,7 @@ accept	accept	engine	executeAsClause(Exec|Execute)/Execute	CREATE PROC a WITH EX
 reject	reject	engine	executeAsClause(Exec|Execute)/Execute!insert	CREATE PROC a WITH EXECUTE zzz AS 'a' AS
 reject	reject	engine	executeAsClause(Exec|Execute)/Execute!swap	CREATE PROC a WITH EXISTS AS 'a' AS
 accept	accept	engine	executeAsClause(stringLiteral|Identifier)/stringLiteral	CREATE PROC a WITH EXEC AS 'a' AS
-accept	reject	engine	executeAsClause(stringLiteral|Identifier)/Identifier	CREATE PROC a WITH EXEC AS a AS
+reject	reject	engine	executeAsClause(stringLiteral|Identifier)/Identifier	CREATE PROC a WITH EXEC AS a AS
 reject	reject	engine	executeAsClause(stringLiteral|Identifier)/Identifier!insert	CREATE PROC a WITH EXEC AS a zzz AS
 accept	accept	engine	queueOptionList/With_queueOption_(Comma_queueOption)*	ALTER QUEUE a WITH STATUS = ON
 reject	reject	engine	queueOptionList/With_queueOption_(Comma_queueOption)*!swap	ALTER QUEUE a WITHIN STATUS = ON
@@ -5824,15 +5824,15 @@ accept	accept	engine	functionStatementBody(functionParameterList)?/%empty	CREATE
 reject	reject	engine	functionStatementBody(functionParameterList)?/%empty!insert	CREATE FUNCTION a(zzz) RETURNS a BEGIN SELECT 1 END
 accept	accept	engine	functionStatementBody(functionParameterList)?/functionParameterList	CREATE FUNCTION a(@a a) RETURNS a BEGIN SELECT 1 END
 reject	reject	engine	functionStatementBody(functionParameterList)?/functionParameterList!drop-1	CREATE FUNCTION a(a) RETURNS a BEGIN SELECT 1 END
-accept	reject	engine	functionStatementBody(functionParameterList)?/functionParameterList!drop-2	CREATE FUNCTION a(@a) RETURNS a BEGIN SELECT 1 END
+reject	reject	engine	functionStatementBody(functionParameterList)?/functionParameterList!drop-2	CREATE FUNCTION a(@a) RETURNS a BEGIN SELECT 1 END
 reject	reject	engine	functionStatementBody(functionParameterList)?/functionParameterList!truncate	CREATE FUNCTION a(@a
 reject	reject	engine	functionStatementBody(functionParameterList)?/functionParameterList!insert	CREATE FUNCTION a(@a a zzz) RETURNS a BEGIN SELECT 1 END
 accept	accept	engine	functionParameterList/functionParameter_(Comma_functionParameter)*	CREATE FUNCTION a(@a a) RETURNS a BEGIN SELECT 1 END
 accept	accept	engine	functionParameterList(Comma_functionParameter)*/%empty	CREATE FUNCTION a(@a a) RETURNS a BEGIN SELECT 1 END
-accept	reject	engine	functionParameterList(Comma_functionParameter)*/Comma_functionParameter_(Comma_functionParameter)*	CREATE FUNCTION a(@a a, @a a) RETURNS a BEGIN SELECT 1 END
+reject	reject	engine	functionParameterList(Comma_functionParameter)*/Comma_functionParameter_(Comma_functionParameter)*	CREATE FUNCTION a(@a a, @a a) RETURNS a BEGIN SELECT 1 END
 reject	reject	engine	functionParameterList(Comma_functionParameter)*/Comma_functionParameter_(Comma_functionParameter)*!drop-1	CREATE FUNCTION a(@a a @a a) RETURNS a BEGIN SELECT 1 END
 reject	reject	engine	functionParameterList(Comma_functionParameter)*/Comma_functionParameter_(Comma_functionParameter)*!drop-2	CREATE FUNCTION a(@a a, a) RETURNS a BEGIN SELECT 1 END
-accept	reject	engine	functionParameterList(Comma_functionParameter)*/Comma_functionParameter_(Comma_functionParameter)*!drop-3	CREATE FUNCTION a(@a a, @a) RETURNS a BEGIN SELECT 1 END
+reject	reject	engine	functionParameterList(Comma_functionParameter)*/Comma_functionParameter_(Comma_functionParameter)*!drop-3	CREATE FUNCTION a(@a a, @a) RETURNS a BEGIN SELECT 1 END
 reject	reject	engine	functionParameterList(Comma_functionParameter)*/Comma_functionParameter_(Comma_functionParameter)*!truncate	CREATE FUNCTION a(@a a, @a
 reject	reject	engine	functionParameterList(Comma_functionParameter)*/Comma_functionParameter_(Comma_functionParameter)*!insert	CREATE FUNCTION a(@a a, @a a zzz) RETURNS a BEGIN SELECT 1 END
 accept	accept	engine	functionParameter/identifierVariable_(As)?_scalarProcedureParameter	CREATE FUNCTION a(@a a) RETURNS a BEGIN SELECT 1 END
@@ -5844,35 +5844,35 @@ reject	reject	engine	functionParameter(As)?/As!swap	CREATE FUNCTION a(@a ASC a) 
 accept	accept	engine	functionReturnTypeAndBody/scalarDataType_(functionAttributes)?_(As)?_(beginEndBlo~be78d18b	CREATE FUNCTION a() RETURNS a BEGIN SELECT 1 END
 reject	reject	engine	functionReturnTypeAndBody/scalarDataType_(functionAttributes)?_(As)?_(beginEndBlo~be78d18b!swap	CREATE FUNCTION a() RETURNS a BEGIN_DIALOG SELECT 1 END
 accept	accept	engine	functionReturnTypeAndBody/Table_(functionAttributesNoExecuteAs)?_(As)?_Return_fun~d3b2c518	CREATE FUNCTION a() RETURNS TABLE RETURN SELECT *
-accept	reject	engine	functionReturnTypeAndBody/Table_(functionAttributesNoExecuteAs)?_(As)?_Return_fun~d3b2c518!drop-1	CREATE FUNCTION a() RETURNS RETURN SELECT *
-accept	reject	engine	functionReturnTypeAndBody/Table_(functionAttributesNoExecuteAs)?_(As)?_Return_fun~d3b2c518!drop-2	CREATE FUNCTION a() RETURNS TABLE SELECT *
+reject	reject	engine	functionReturnTypeAndBody/Table_(functionAttributesNoExecuteAs)?_(As)?_Return_fun~d3b2c518!drop-1	CREATE FUNCTION a() RETURNS RETURN SELECT *
+reject	reject	engine	functionReturnTypeAndBody/Table_(functionAttributesNoExecuteAs)?_(As)?_Return_fun~d3b2c518!drop-2	CREATE FUNCTION a() RETURNS TABLE SELECT *
 reject	reject	engine	functionReturnTypeAndBody/Table_(functionAttributesNoExecuteAs)?_(As)?_Return_fun~d3b2c518!drop-3	CREATE FUNCTION a() RETURNS TABLE RETURN *
 reject	reject	engine	functionReturnTypeAndBody/Table_(functionAttributesNoExecuteAs)?_(As)?_Return_fun~d3b2c518!drop-4	CREATE FUNCTION a() RETURNS TABLE RETURN SELECT
 accept	reject	engine	functionReturnTypeAndBody/Table_(functionAttributesNoExecuteAs)?_(As)?_Return_fun~d3b2c518!insert	CREATE FUNCTION a() RETURNS TABLE RETURN SELECT * zzz
-accept	reject	engine	functionReturnTypeAndBody/Table_(functionAttributesNoExecuteAs)?_(As)?_Return_fun~d3b2c518!swap	CREATE FUNCTION a() RETURNS TABLESAMPLE RETURN SELECT *
+reject	reject	engine	functionReturnTypeAndBody/Table_(functionAttributesNoExecuteAs)?_(As)?_Return_fun~d3b2c518!swap	CREATE FUNCTION a() RETURNS TABLESAMPLE RETURN SELECT *
 accept	reject	engine	functionReturnTypeAndBody/declareTableBody_(functionAttributes)?_(As)?_beginEndBl~18d2faeb	CREATE FUNCTION a() RETURNS @a TABLE(a) BEGIN SELECT 1 END
-accept	reject	engine	functionReturnTypeAndBody/declareTableBody_(functionAttributes)?_(As)?_beginEndBl~18d2faeb!drop-1	CREATE FUNCTION a() RETURNS TABLE(a) BEGIN SELECT 1 END
+reject	reject	engine	functionReturnTypeAndBody/declareTableBody_(functionAttributes)?_(As)?_beginEndBl~18d2faeb!drop-1	CREATE FUNCTION a() RETURNS TABLE(a) BEGIN SELECT 1 END
 reject	reject	engine	functionReturnTypeAndBody/declareTableBody_(functionAttributes)?_(As)?_beginEndBl~18d2faeb!drop-2	CREATE FUNCTION a() RETURNS @a(a) BEGIN SELECT 1 END
 reject	reject	engine	functionReturnTypeAndBody/declareTableBody_(functionAttributes)?_(As)?_beginEndBl~18d2faeb!drop-3	CREATE FUNCTION a() RETURNS @a TABLE a) BEGIN SELECT 1 END
-accept	reject	engine	functionReturnTypeAndBody/declareTableBody_(functionAttributes)?_(As)?_beginEndBl~18d2faeb!drop-4	CREATE FUNCTION a() RETURNS @a TABLE() BEGIN SELECT 1 END
+reject	reject	engine	functionReturnTypeAndBody/declareTableBody_(functionAttributes)?_(As)?_beginEndBl~18d2faeb!drop-4	CREATE FUNCTION a() RETURNS @a TABLE() BEGIN SELECT 1 END
 reject	reject	engine	functionReturnTypeAndBody/declareTableBody_(functionAttributes)?_(As)?_beginEndBl~18d2faeb!drop-5	CREATE FUNCTION a() RETURNS @a TABLE(a BEGIN SELECT 1 END
 reject	reject	engine	functionReturnTypeAndBody/declareTableBody_(functionAttributes)?_(As)?_beginEndBl~18d2faeb!drop-6	CREATE FUNCTION a() RETURNS @a TABLE(a) SELECT 1 END
-accept	reject	engine	functionReturnTypeAndBody/declareTableBody_(functionAttributes)?_(As)?_beginEndBl~18d2faeb!drop-7	CREATE FUNCTION a() RETURNS @a TABLE(a) BEGIN END
-accept	reject	engine	functionReturnTypeAndBody/declareTableBody_(functionAttributes)?_(As)?_beginEndBl~18d2faeb!drop-8	CREATE FUNCTION a() RETURNS @a TABLE(a) BEGIN SELECT 1
+reject	reject	engine	functionReturnTypeAndBody/declareTableBody_(functionAttributes)?_(As)?_beginEndBl~18d2faeb!drop-7	CREATE FUNCTION a() RETURNS @a TABLE(a) BEGIN END
+reject	reject	engine	functionReturnTypeAndBody/declareTableBody_(functionAttributes)?_(As)?_beginEndBl~18d2faeb!drop-8	CREATE FUNCTION a() RETURNS @a TABLE(a) BEGIN SELECT 1
 reject	reject	engine	functionReturnTypeAndBody/declareTableBody_(functionAttributes)?_(As)?_beginEndBl~18d2faeb!insert	CREATE FUNCTION a() RETURNS @a TABLE(a) BEGIN SELECT 1 END zzz
 reject	reject	engine	functionReturnTypeAndBody/declareTableBody_(functionAttributes)?_(As)?_beginEndBl~18d2faeb!swap	CREATE FUNCTION a() RETURNS @a TABLESAMPLE(a) BEGIN SELECT 1 END
 accept	reject	engine	functionReturnTypeAndBody/Table_declareTableBodyMain_(functionAttributes)?_(clrTa~38c31a30	CREATE FUNCTION a() RETURNS TABLE(a) EXTERNAL NAME a.a.a
 reject	reject	engine	functionReturnTypeAndBody/Table_declareTableBodyMain_(functionAttributes)?_(clrTa~38c31a30!drop-1	CREATE FUNCTION a() RETURNS(a) EXTERNAL NAME a.a.a
 reject	reject	engine	functionReturnTypeAndBody/Table_declareTableBodyMain_(functionAttributes)?_(clrTa~38c31a30!drop-2	CREATE FUNCTION a() RETURNS TABLE a) EXTERNAL NAME a.a.a
-accept	reject	engine	functionReturnTypeAndBody/Table_declareTableBodyMain_(functionAttributes)?_(clrTa~38c31a30!drop-3	CREATE FUNCTION a() RETURNS TABLE() EXTERNAL NAME a.a.a
+reject	reject	engine	functionReturnTypeAndBody/Table_declareTableBodyMain_(functionAttributes)?_(clrTa~38c31a30!drop-3	CREATE FUNCTION a() RETURNS TABLE() EXTERNAL NAME a.a.a
 reject	reject	engine	functionReturnTypeAndBody/Table_declareTableBodyMain_(functionAttributes)?_(clrTa~38c31a30!drop-4	CREATE FUNCTION a() RETURNS TABLE(a EXTERNAL NAME a.a.a
 reject	reject	engine	functionReturnTypeAndBody/Table_declareTableBodyMain_(functionAttributes)?_(clrTa~38c31a30!drop-5	CREATE FUNCTION a() RETURNS TABLE(a) NAME a.a.a
-accept	reject	engine	functionReturnTypeAndBody/Table_declareTableBodyMain_(functionAttributes)?_(clrTa~38c31a30!drop-6	CREATE FUNCTION a() RETURNS TABLE(a) EXTERNAL a.a.a
+reject	reject	engine	functionReturnTypeAndBody/Table_declareTableBodyMain_(functionAttributes)?_(clrTa~38c31a30!drop-6	CREATE FUNCTION a() RETURNS TABLE(a) EXTERNAL a.a.a
 reject	reject	engine	functionReturnTypeAndBody/Table_declareTableBodyMain_(functionAttributes)?_(clrTa~38c31a30!drop-7	CREATE FUNCTION a() RETURNS TABLE(a) EXTERNAL NAME.a.a
 reject	reject	engine	functionReturnTypeAndBody/Table_declareTableBodyMain_(functionAttributes)?_(clrTa~38c31a30!drop-8	CREATE FUNCTION a() RETURNS TABLE(a) EXTERNAL NAME a a.a
 reject	reject	engine	functionReturnTypeAndBody/Table_declareTableBodyMain_(functionAttributes)?_(clrTa~38c31a30!drop-9	CREATE FUNCTION a() RETURNS TABLE(a) EXTERNAL NAME a..a
 reject	reject	engine	functionReturnTypeAndBody/Table_declareTableBodyMain_(functionAttributes)?_(clrTa~38c31a30!drop-10	CREATE FUNCTION a() RETURNS TABLE(a) EXTERNAL NAME a.a a
-accept	reject	engine	functionReturnTypeAndBody/Table_declareTableBodyMain_(functionAttributes)?_(clrTa~38c31a30!drop-11	CREATE FUNCTION a() RETURNS TABLE(a) EXTERNAL NAME a.a.
+reject	reject	engine	functionReturnTypeAndBody/Table_declareTableBodyMain_(functionAttributes)?_(clrTa~38c31a30!drop-11	CREATE FUNCTION a() RETURNS TABLE(a) EXTERNAL NAME a.a.
 reject	reject	engine	functionReturnTypeAndBody/Table_declareTableBodyMain_(functionAttributes)?_(clrTa~38c31a30!insert	CREATE FUNCTION a() RETURNS TABLE(a) EXTERNAL NAME a.a.a zzz
 accept	reject	engine	functionReturnTypeAndBody/Table_declareTableBodyMain_(functionAttributes)?_(clrTa~38c31a30!swap	CREATE FUNCTION a() RETURNS TABLESAMPLE(a) EXTERNAL NAME a.a.a
 accept	accept	engine	functionReturnTypeAndBody(functionAttributes)?/%empty	CREATE FUNCTION a() RETURNS a BEGIN SELECT 1 END
@@ -5885,18 +5885,18 @@ reject	reject	engine	functionReturnTypeAndBody(functionAttributes)?/functionAttr
 reject	reject	engine	functionReturnTypeAndBody(functionAttributes)?/functionAttributes!swap	CREATE FUNCTION a() RETURNS a WITHIN a BEGIN SELECT 1 END
 accept	accept	engine	functionReturnTypeAndBody(As)?/%empty	CREATE FUNCTION a() RETURNS a BEGIN SELECT 1 END
 accept	accept	engine	functionReturnTypeAndBody(As)?/As	CREATE FUNCTION a() RETURNS a AS BEGIN SELECT 1 END
-accept	reject	engine	functionReturnTypeAndBody(As)?/As!truncate	CREATE FUNCTION a() RETURNS a
+reject	reject	engine	functionReturnTypeAndBody(As)?/As!truncate	CREATE FUNCTION a() RETURNS a
 reject	reject	engine	functionReturnTypeAndBody(As)?/As!insert	CREATE FUNCTION a() RETURNS a AS zzz BEGIN SELECT 1 END
 reject	reject	engine	functionReturnTypeAndBody(As)?/As!swap	CREATE FUNCTION a() RETURNS a ASC BEGIN SELECT 1 END
 accept	accept	engine	functionReturnTypeAndBody(beginEndBlockStatement|methodSpecifi~da17a7f7)/beginEndBlockStatement	CREATE FUNCTION a() RETURNS a BEGIN SELECT 1 END
 accept	accept	engine	functionReturnTypeAndBody(beginEndBlockStatement|methodSpecifi~da17a7f7)/methodSpecifier_optSemicolons	CREATE FUNCTION a() RETURNS a EXTERNAL NAME a.a.a
 reject	reject	engine	functionReturnTypeAndBody(beginEndBlockStatement|methodSpecifi~da17a7f7)/methodSpecifier_optSemicolons!drop-1	CREATE FUNCTION a() RETURNS a NAME a.a.a
-accept	reject	engine	functionReturnTypeAndBody(beginEndBlockStatement|methodSpecifi~da17a7f7)/methodSpecifier_optSemicolons!drop-2	CREATE FUNCTION a() RETURNS a EXTERNAL a.a.a
+reject	reject	engine	functionReturnTypeAndBody(beginEndBlockStatement|methodSpecifi~da17a7f7)/methodSpecifier_optSemicolons!drop-2	CREATE FUNCTION a() RETURNS a EXTERNAL a.a.a
 reject	reject	engine	functionReturnTypeAndBody(beginEndBlockStatement|methodSpecifi~da17a7f7)/methodSpecifier_optSemicolons!drop-3	CREATE FUNCTION a() RETURNS a EXTERNAL NAME.a.a
 reject	reject	engine	functionReturnTypeAndBody(beginEndBlockStatement|methodSpecifi~da17a7f7)/methodSpecifier_optSemicolons!drop-4	CREATE FUNCTION a() RETURNS a EXTERNAL NAME a a.a
 reject	reject	engine	functionReturnTypeAndBody(beginEndBlockStatement|methodSpecifi~da17a7f7)/methodSpecifier_optSemicolons!drop-5	CREATE FUNCTION a() RETURNS a EXTERNAL NAME a..a
 reject	reject	engine	functionReturnTypeAndBody(beginEndBlockStatement|methodSpecifi~da17a7f7)/methodSpecifier_optSemicolons!drop-6	CREATE FUNCTION a() RETURNS a EXTERNAL NAME a.a a
-accept	reject	engine	functionReturnTypeAndBody(beginEndBlockStatement|methodSpecifi~da17a7f7)/methodSpecifier_optSemicolons!drop-7	CREATE FUNCTION a() RETURNS a EXTERNAL NAME a.a.
+reject	reject	engine	functionReturnTypeAndBody(beginEndBlockStatement|methodSpecifi~da17a7f7)/methodSpecifier_optSemicolons!drop-7	CREATE FUNCTION a() RETURNS a EXTERNAL NAME a.a.
 reject	reject	engine	functionReturnTypeAndBody(beginEndBlockStatement|methodSpecifi~da17a7f7)/methodSpecifier_optSemicolons!insert	CREATE FUNCTION a() RETURNS a EXTERNAL NAME a.a.a zzz
 reject	reject	engine	functionReturnTypeAndBody(beginEndBlockStatement|methodSpecifi~da17a7f7)/methodSpecifier_optSemicolons!swap	CREATE FUNCTION a() RETURNS a EXTERNAL_MONITOR NAME a.a.a
 accept	accept	engine	functionReturnTypeAndBody(functionAttributesNoExecuteAs)?/%empty	CREATE FUNCTION a() RETURNS TABLE RETURN SELECT *
@@ -5912,7 +5912,7 @@ reject	reject	engine	functionReturnTypeAndBody(clrTableValuedFunctionOrderHint)?
 accept	reject	engine	functionReturnTypeAndBody(clrTableValuedFunctionOrderHint)?/clrTableValuedFunctionOrderHint	CREATE FUNCTION a() RETURNS TABLE(a) ORDER(a) EXTERNAL NAME a.a.a
 reject	reject	engine	functionReturnTypeAndBody(clrTableValuedFunctionOrderHint)?/clrTableValuedFunctionOrderHint!drop-1	CREATE FUNCTION a() RETURNS TABLE(a)(a) EXTERNAL NAME a.a.a
 reject	reject	engine	functionReturnTypeAndBody(clrTableValuedFunctionOrderHint)?/clrTableValuedFunctionOrderHint!drop-2	CREATE FUNCTION a() RETURNS TABLE(a) ORDER a) EXTERNAL NAME a.a.a
-accept	reject	engine	functionReturnTypeAndBody(clrTableValuedFunctionOrderHint)?/clrTableValuedFunctionOrderHint!drop-3	CREATE FUNCTION a() RETURNS TABLE(a) ORDER() EXTERNAL NAME a.a.a
+reject	reject	engine	functionReturnTypeAndBody(clrTableValuedFunctionOrderHint)?/clrTableValuedFunctionOrderHint!drop-3	CREATE FUNCTION a() RETURNS TABLE(a) ORDER() EXTERNAL NAME a.a.a
 reject	reject	engine	functionReturnTypeAndBody(clrTableValuedFunctionOrderHint)?/clrTableValuedFunctionOrderHint!drop-4	CREATE FUNCTION a() RETURNS TABLE(a) ORDER(a EXTERNAL NAME a.a.a
 reject	reject	engine	functionReturnTypeAndBody(clrTableValuedFunctionOrderHint)?/clrTableValuedFunctionOrderHint!truncate	CREATE FUNCTION a() RETURNS TABLE(a) ORDER(a
 reject	reject	engine	functionReturnTypeAndBody(clrTableValuedFunctionOrderHint)?/clrTableValuedFunctionOrderHint!insert	CREATE FUNCTION a() RETURNS TABLE(a) ORDER(a) zzz EXTERNAL NAME a.a.a
@@ -5949,33 +5949,33 @@ reject	reject	engine	functionAttributeNoExecuteAs/Identifier	CREATE FUNCTION a()
 accept	accept	engine	functionAttributeNoExecuteAs/RETURNS_Null_On_Null_INPUT	CREATE FUNCTION a() RETURNS a WITH RETURNS NULL ON NULL INPUT BEGIN SELECT 1 END
 reject	reject	engine	functionAttributeNoExecuteAs/RETURNS_Null_On_Null_INPUT!drop-1	CREATE FUNCTION a() RETURNS a WITH NULL ON NULL INPUT BEGIN SELECT 1 END
 reject	reject	engine	functionAttributeNoExecuteAs/RETURNS_Null_On_Null_INPUT!drop-2	CREATE FUNCTION a() RETURNS a WITH RETURNS ON NULL INPUT BEGIN SELECT 1 END
-accept	reject	engine	functionAttributeNoExecuteAs/RETURNS_Null_On_Null_INPUT!drop-3	CREATE FUNCTION a() RETURNS a WITH RETURNS NULL NULL INPUT BEGIN SELECT 1 END
-accept	reject	engine	functionAttributeNoExecuteAs/RETURNS_Null_On_Null_INPUT!drop-4	CREATE FUNCTION a() RETURNS a WITH RETURNS NULL ON INPUT BEGIN SELECT 1 END
-accept	reject	engine	functionAttributeNoExecuteAs/RETURNS_Null_On_Null_INPUT!drop-5	CREATE FUNCTION a() RETURNS a WITH RETURNS NULL ON NULL BEGIN SELECT 1 END
-accept	reject	engine	functionAttributeNoExecuteAs/RETURNS_Null_On_Null_INPUT!truncate	CREATE FUNCTION a() RETURNS a WITH RETURNS NULL ON NULL
+reject	reject	engine	functionAttributeNoExecuteAs/RETURNS_Null_On_Null_INPUT!drop-3	CREATE FUNCTION a() RETURNS a WITH RETURNS NULL NULL INPUT BEGIN SELECT 1 END
+reject	reject	engine	functionAttributeNoExecuteAs/RETURNS_Null_On_Null_INPUT!drop-4	CREATE FUNCTION a() RETURNS a WITH RETURNS NULL ON INPUT BEGIN SELECT 1 END
+reject	reject	engine	functionAttributeNoExecuteAs/RETURNS_Null_On_Null_INPUT!drop-5	CREATE FUNCTION a() RETURNS a WITH RETURNS NULL ON NULL BEGIN SELECT 1 END
+reject	reject	engine	functionAttributeNoExecuteAs/RETURNS_Null_On_Null_INPUT!truncate	CREATE FUNCTION a() RETURNS a WITH RETURNS NULL ON NULL
 reject	reject	engine	functionAttributeNoExecuteAs/RETURNS_Null_On_Null_INPUT!insert	CREATE FUNCTION a() RETURNS a WITH RETURNS NULL ON NULL INPUT zzz BEGIN SELECT 1 END
 reject	reject	engine	functionAttributeNoExecuteAs/RETURNS_Null_On_Null_INPUT!swap	CREATE FUNCTION a() RETURNS a WITH REVERT NULL ON NULL INPUT BEGIN SELECT 1 END
 accept	accept	engine	functionAttributeNoExecuteAs/CALLED_On_Null_INPUT	CREATE FUNCTION a() RETURNS a WITH CALLED ON NULL INPUT BEGIN SELECT 1 END
 reject	reject	engine	functionAttributeNoExecuteAs/CALLED_On_Null_INPUT!drop-1	CREATE FUNCTION a() RETURNS a WITH ON NULL INPUT BEGIN SELECT 1 END
-accept	reject	engine	functionAttributeNoExecuteAs/CALLED_On_Null_INPUT!drop-2	CREATE FUNCTION a() RETURNS a WITH CALLED NULL INPUT BEGIN SELECT 1 END
-accept	reject	engine	functionAttributeNoExecuteAs/CALLED_On_Null_INPUT!drop-3	CREATE FUNCTION a() RETURNS a WITH CALLED ON INPUT BEGIN SELECT 1 END
-accept	reject	engine	functionAttributeNoExecuteAs/CALLED_On_Null_INPUT!drop-4	CREATE FUNCTION a() RETURNS a WITH CALLED ON NULL BEGIN SELECT 1 END
-accept	reject	engine	functionAttributeNoExecuteAs/CALLED_On_Null_INPUT!truncate	CREATE FUNCTION a() RETURNS a WITH CALLED ON NULL
+reject	reject	engine	functionAttributeNoExecuteAs/CALLED_On_Null_INPUT!drop-2	CREATE FUNCTION a() RETURNS a WITH CALLED NULL INPUT BEGIN SELECT 1 END
+reject	reject	engine	functionAttributeNoExecuteAs/CALLED_On_Null_INPUT!drop-3	CREATE FUNCTION a() RETURNS a WITH CALLED ON INPUT BEGIN SELECT 1 END
+reject	reject	engine	functionAttributeNoExecuteAs/CALLED_On_Null_INPUT!drop-4	CREATE FUNCTION a() RETURNS a WITH CALLED ON NULL BEGIN SELECT 1 END
+reject	reject	engine	functionAttributeNoExecuteAs/CALLED_On_Null_INPUT!truncate	CREATE FUNCTION a() RETURNS a WITH CALLED ON NULL
 reject	reject	engine	functionAttributeNoExecuteAs/CALLED_On_Null_INPUT!insert	CREATE FUNCTION a() RETURNS a WITH CALLED ON NULL INPUT zzz BEGIN SELECT 1 END
 reject	reject	engine	functionAttributeNoExecuteAs/CALLED_On_Null_INPUT!swap	CREATE FUNCTION a() RETURNS a WITH CASCADE ON NULL INPUT BEGIN SELECT 1 END
 accept	accept	engine	functionAttributeNoExecuteAs/inlineFunctionOption_INLINE	CREATE FUNCTION a() RETURNS a WITH INLINE = ON BEGIN SELECT 1 END
 reject	reject	engine	functionAttributeNoExecuteAs/inlineFunctionOption_INLINE!drop-1	CREATE FUNCTION a() RETURNS a WITH = ON BEGIN SELECT 1 END
 reject	reject	engine	functionAttributeNoExecuteAs/inlineFunctionOption_INLINE!drop-2	CREATE FUNCTION a() RETURNS a WITH INLINE ON BEGIN SELECT 1 END
-accept	reject	engine	functionAttributeNoExecuteAs/inlineFunctionOption_INLINE!drop-3	CREATE FUNCTION a() RETURNS a WITH INLINE = BEGIN SELECT 1 END
-accept	reject	engine	functionAttributeNoExecuteAs/inlineFunctionOption_INLINE!truncate	CREATE FUNCTION a() RETURNS a WITH INLINE =
+reject	reject	engine	functionAttributeNoExecuteAs/inlineFunctionOption_INLINE!drop-3	CREATE FUNCTION a() RETURNS a WITH INLINE = BEGIN SELECT 1 END
+reject	reject	engine	functionAttributeNoExecuteAs/inlineFunctionOption_INLINE!truncate	CREATE FUNCTION a() RETURNS a WITH INLINE =
 reject	reject	engine	functionAttributeNoExecuteAs/inlineFunctionOption_INLINE!insert	CREATE FUNCTION a() RETURNS a WITH INLINE = ON zzz BEGIN SELECT 1 END
 reject	reject	engine	functionAttributeNoExecuteAs/inlineFunctionOption_INLINE!swap	CREATE FUNCTION a() RETURNS a WITH INNER = ON BEGIN SELECT 1 END
 reject	reject	engine	functionAttribute/functionAttributeNoExecuteAs	CREATE FUNCTION a() RETURNS a WITH a BEGIN SELECT 1 END
 accept	accept	engine	functionAttribute/functionExecuteAsOption	CREATE FUNCTION a() RETURNS a WITH EXEC AS 'a' BEGIN SELECT 1 END
 reject	reject	engine	functionAttribute/functionExecuteAsOption!drop-1	CREATE FUNCTION a() RETURNS a WITH AS 'a' BEGIN SELECT 1 END
-accept	reject	engine	functionAttribute/functionExecuteAsOption!drop-2	CREATE FUNCTION a() RETURNS a WITH EXEC 'a' BEGIN SELECT 1 END
-accept	reject	engine	functionAttribute/functionExecuteAsOption!drop-3	CREATE FUNCTION a() RETURNS a WITH EXEC AS BEGIN SELECT 1 END
-accept	reject	engine	functionAttribute/functionExecuteAsOption!truncate	CREATE FUNCTION a() RETURNS a WITH EXEC AS
+reject	reject	engine	functionAttribute/functionExecuteAsOption!drop-2	CREATE FUNCTION a() RETURNS a WITH EXEC 'a' BEGIN SELECT 1 END
+reject	reject	engine	functionAttribute/functionExecuteAsOption!drop-3	CREATE FUNCTION a() RETURNS a WITH EXEC AS BEGIN SELECT 1 END
+reject	reject	engine	functionAttribute/functionExecuteAsOption!truncate	CREATE FUNCTION a() RETURNS a WITH EXEC AS
 reject	reject	engine	functionAttribute/functionExecuteAsOption!insert	CREATE FUNCTION a() RETURNS a WITH EXEC AS 'a' zzz BEGIN SELECT 1 END
 reject	reject	engine	functionAttribute/functionExecuteAsOption!swap	CREATE FUNCTION a() RETURNS a WITH EXECUTABLE AS 'a' BEGIN SELECT 1 END
 accept	accept	engine	functionExecuteAsOption/executeAsClause	CREATE FUNCTION a() RETURNS a WITH EXEC AS 'a' BEGIN SELECT 1 END
@@ -7181,7 +7181,7 @@ accept	accept	engine	beginStatements/tryCatchStatement	BEGIN TRY SELECT 1 END TR
 reject	reject	engine	beginStatements/tryCatchStatement!drop-1	TRY SELECT 1 END TRY BEGIN CATCH END CATCH
 reject	reject	engine	beginStatements/tryCatchStatement!drop-2	BEGIN SELECT 1 END TRY BEGIN CATCH END CATCH
 accept	reject	engine	beginStatements/tryCatchStatement!drop-3	BEGIN TRY END TRY BEGIN CATCH END CATCH
-accept	reject	engine	beginStatements/tryCatchStatement!drop-4	BEGIN TRY SELECT 1 TRY BEGIN CATCH END CATCH
+reject	reject	engine	beginStatements/tryCatchStatement!drop-4	BEGIN TRY SELECT 1 TRY BEGIN CATCH END CATCH
 accept	reject	engine	beginStatements/tryCatchStatement!drop-5	BEGIN TRY SELECT 1 END BEGIN CATCH END CATCH
 accept	reject	engine	beginStatements/tryCatchStatement!drop-6	BEGIN TRY SELECT 1 END TRY CATCH END CATCH
 accept	reject	engine	beginStatements/tryCatchStatement!drop-7	BEGIN TRY SELECT 1 END TRY BEGIN END CATCH
@@ -7215,8 +7215,8 @@ reject	reject	engine	beginStatements/beginDialogStatement!insert	BEGIN DIALOG @a
 reject	reject	engine	beginStatements/beginDialogStatement!swap	BEGIN_DIALOG DIALOG @a FROM SERVICE @a TO SERVICE 'a'
 accept	accept	engine	beginStatements/beginEndBlockStatement	BEGIN SELECT 1 END
 reject	reject	engine	beginStatements/beginEndBlockStatement!drop-1	SELECT 1 END
-accept	reject	engine	beginStatements/beginEndBlockStatement!drop-2	BEGIN END
-accept	reject	engine	beginStatements/beginEndBlockStatement!drop-3	BEGIN SELECT 1
+reject	reject	engine	beginStatements/beginEndBlockStatement!drop-2	BEGIN END
+reject	reject	engine	beginStatements/beginEndBlockStatement!drop-3	BEGIN SELECT 1
 reject	reject	engine	beginStatements/beginEndBlockStatement!insert	BEGIN SELECT 1 END zzz
 reject	reject	engine	beginStatements/beginEndBlockStatement!swap	BEGIN_DIALOG SELECT 1 END
 accept	accept	engine	saveTransactionStatement/Save_(Tran|Transaction)_transactionName	SAVE TRAN @a
@@ -10953,23 +10953,23 @@ accept	reject	engine	columnNameList(Comma_identifier)*/Comma_identifier_(Comma_i
 reject	reject	engine	columnNameList(Comma_identifier)*/Comma_identifier_(Comma_identifier)*!insert	UPDATE STATISTICS a(a, a zzz)
 accept	accept	engine	methodSpecifier/External_NAME_identifier_Dot_identifier_Dot_identifier	CREATE PROC a AS EXTERNAL NAME a.a.a
 reject	reject	engine	methodSpecifier/External_NAME_identifier_Dot_identifier_Dot_identifier!drop-1	CREATE PROC a AS NAME a.a.a
-accept	reject	engine	methodSpecifier/External_NAME_identifier_Dot_identifier_Dot_identifier!drop-2	CREATE PROC a AS EXTERNAL a.a.a
+reject	reject	engine	methodSpecifier/External_NAME_identifier_Dot_identifier_Dot_identifier!drop-2	CREATE PROC a AS EXTERNAL a.a.a
 reject	reject	engine	methodSpecifier/External_NAME_identifier_Dot_identifier_Dot_identifier!drop-3	CREATE PROC a AS EXTERNAL NAME.a.a
 reject	reject	engine	methodSpecifier/External_NAME_identifier_Dot_identifier_Dot_identifier!drop-4	CREATE PROC a AS EXTERNAL NAME a a.a
 reject	reject	engine	methodSpecifier/External_NAME_identifier_Dot_identifier_Dot_identifier!drop-5	CREATE PROC a AS EXTERNAL NAME a..a
 reject	reject	engine	methodSpecifier/External_NAME_identifier_Dot_identifier_Dot_identifier!drop-6	CREATE PROC a AS EXTERNAL NAME a.a a
-accept	reject	engine	methodSpecifier/External_NAME_identifier_Dot_identifier_Dot_identifier!drop-7	CREATE PROC a AS EXTERNAL NAME a.a.
+reject	reject	engine	methodSpecifier/External_NAME_identifier_Dot_identifier_Dot_identifier!drop-7	CREATE PROC a AS EXTERNAL NAME a.a.
 reject	reject	engine	methodSpecifier/External_NAME_identifier_Dot_identifier_Dot_identifier!insert	CREATE PROC a AS EXTERNAL NAME a.a.a zzz
 reject	reject	engine	methodSpecifier/External_NAME_identifier_Dot_identifier_Dot_identifier!swap	CREATE PROC a AS EXTERNAL_MONITOR NAME a.a.a
 reject	reject	engine	triggerOption/Identifier	CREATE TRIGGER a ON a WITH a FOR a AS SELECT 1
-accept	reject	engine	triggerOption/Identifier!drop-1	CREATE TRIGGER a ON a WITH FOR a AS SELECT 1
-accept	reject	engine	triggerOption/Identifier!truncate	CREATE TRIGGER a ON a WITH
+reject	reject	engine	triggerOption/Identifier!drop-1	CREATE TRIGGER a ON a WITH FOR a AS SELECT 1
+reject	reject	engine	triggerOption/Identifier!truncate	CREATE TRIGGER a ON a WITH
 reject	reject	engine	triggerOption/Identifier!insert	CREATE TRIGGER a ON a WITH a zzz FOR a AS SELECT 1
-accept	reject	engine	triggerOption/executeAsClause	CREATE TRIGGER a ON a WITH EXEC AS 'a' FOR a AS SELECT 1
+reject	reject	engine	triggerOption/executeAsClause	CREATE TRIGGER a ON a WITH EXEC AS 'a' FOR a AS SELECT 1
 reject	reject	engine	triggerOption/executeAsClause!drop-1	CREATE TRIGGER a ON a WITH AS 'a' FOR a AS SELECT 1
-accept	reject	engine	triggerOption/executeAsClause!drop-2	CREATE TRIGGER a ON a WITH EXEC 'a' FOR a AS SELECT 1
-accept	reject	engine	triggerOption/executeAsClause!drop-3	CREATE TRIGGER a ON a WITH EXEC AS FOR a AS SELECT 1
-accept	reject	engine	triggerOption/executeAsClause!truncate	CREATE TRIGGER a ON a WITH EXEC AS
+reject	reject	engine	triggerOption/executeAsClause!drop-2	CREATE TRIGGER a ON a WITH EXEC 'a' FOR a AS SELECT 1
+reject	reject	engine	triggerOption/executeAsClause!drop-3	CREATE TRIGGER a ON a WITH EXEC AS FOR a AS SELECT 1
+reject	reject	engine	triggerOption/executeAsClause!truncate	CREATE TRIGGER a ON a WITH EXEC AS
 reject	reject	engine	triggerOption/executeAsClause!insert	CREATE TRIGGER a ON a WITH EXEC AS 'a' zzz FOR a AS SELECT 1
 reject	reject	engine	triggerOption/executeAsClause!swap	CREATE TRIGGER a ON a WITH EXECUTABLE AS 'a' FOR a AS SELECT 1
 reject	reject	engine	procedureOptions/With_procedureOption_(Comma_procedureOption)*	CREATE PROC a WITH a AS
@@ -10997,7 +10997,7 @@ reject	reject	engine	procedureStatementBody(Proc|Procedure)/Procedure!swap	CREAT
 accept	accept	engine	procedureStatementBody(LeftParenthesis_procedureParameterLi~2895def8)/LeftParenthesis_procedureParameterList_RightParenthesis	CREATE PROC a(@a a) AS
 reject	reject	engine	procedureStatementBody(LeftParenthesis_procedureParameterLi~2895def8)/LeftParenthesis_procedureParameterList_RightParenthesis!drop-1	CREATE PROC a @a a) AS
 reject	reject	engine	procedureStatementBody(LeftParenthesis_procedureParameterLi~2895def8)/LeftParenthesis_procedureParameterList_RightParenthesis!drop-2	CREATE PROC a(a) AS
-accept	reject	engine	procedureStatementBody(LeftParenthesis_procedureParameterLi~2895def8)/LeftParenthesis_procedureParameterList_RightParenthesis!drop-3	CREATE PROC a(@a) AS
+reject	reject	engine	procedureStatementBody(LeftParenthesis_procedureParameterLi~2895def8)/LeftParenthesis_procedureParameterList_RightParenthesis!drop-3	CREATE PROC a(@a) AS
 reject	reject	engine	procedureStatementBody(LeftParenthesis_procedureParameterLi~2895def8)/LeftParenthesis_procedureParameterList_RightParenthesis!drop-4	CREATE PROC a(@a a AS
 reject	reject	engine	procedureStatementBody(LeftParenthesis_procedureParameterLi~2895def8)/LeftParenthesis_procedureParameterList_RightParenthesis!truncate	CREATE PROC a(@a a
 reject	reject	engine	procedureStatementBody(LeftParenthesis_procedureParameterLi~2895def8)/LeftParenthesis_procedureParameterList_RightParenthesis!insert	CREATE PROC a(@a a) zzz AS
@@ -11005,8 +11005,8 @@ accept	accept	engine	procedureStatementBody(LeftParenthesis_procedureParameterLi
 reject	reject	engine	procedureStatementBody(LeftParenthesis_procedureParameterLi~2895def8)/(procedureParameterList)?!insert	CREATE PROC a zzz AS
 accept	accept	engine	procedureStatementBody(procedureParameterList)?/%empty	CREATE PROC a AS
 accept	accept	engine	procedureStatementBody(procedureParameterList)?/procedureParameterList	CREATE PROC a @a a AS
-accept	reject	engine	procedureStatementBody(procedureParameterList)?/procedureParameterList!drop-2	CREATE PROC a @a AS
-accept	reject	engine	procedureStatementBody(procedureParameterList)?/procedureParameterList!truncate	CREATE PROC a @a
+reject	reject	engine	procedureStatementBody(procedureParameterList)?/procedureParameterList!drop-2	CREATE PROC a @a AS
+reject	reject	engine	procedureStatementBody(procedureParameterList)?/procedureParameterList!truncate	CREATE PROC a @a
 reject	reject	engine	procedureStatementBody(procedureParameterList)?/procedureParameterList!insert	CREATE PROC a @a a zzz AS
 accept	accept	engine	procedureStatementBody(procedureOptions)?/%empty	CREATE PROC a AS
 reject	reject	engine	procedureStatementBody(procedureOptions)?/procedureOptions	CREATE PROC a WITH a AS
@@ -11028,11 +11028,11 @@ accept	accept	engine	statementList(statementOptSemi)+/statementOptSemi_(statemen
 accept	accept	engine	statementList(statementOptSemi)+/statementOptSemi_(statementOptSemi)+!insert	CREATE PROC a AS SELECT 1 SELECT 1 zzz
 accept	accept	engine	procedureParameterList/procedureParameter_(Comma_procedureParameter)*	CREATE PROC a @a a AS
 accept	accept	engine	procedureParameterList(Comma_procedureParameter)*/%empty	CREATE PROC a @a a AS
-accept	reject	engine	procedureParameterList(Comma_procedureParameter)*/Comma_procedureParameter_(Comma_procedureParameter)*	CREATE PROC a @a a, @a a AS
+reject	reject	engine	procedureParameterList(Comma_procedureParameter)*/Comma_procedureParameter_(Comma_procedureParameter)*	CREATE PROC a @a a, @a a AS
 reject	reject	engine	procedureParameterList(Comma_procedureParameter)*/Comma_procedureParameter_(Comma_procedureParameter)*!drop-1	CREATE PROC a @a a @a a AS
 reject	reject	engine	procedureParameterList(Comma_procedureParameter)*/Comma_procedureParameter_(Comma_procedureParameter)*!drop-2	CREATE PROC a @a a, a AS
-accept	reject	engine	procedureParameterList(Comma_procedureParameter)*/Comma_procedureParameter_(Comma_procedureParameter)*!drop-3	CREATE PROC a @a a, @a AS
-accept	reject	engine	procedureParameterList(Comma_procedureParameter)*/Comma_procedureParameter_(Comma_procedureParameter)*!truncate	CREATE PROC a @a a, @a
+reject	reject	engine	procedureParameterList(Comma_procedureParameter)*/Comma_procedureParameter_(Comma_procedureParameter)*!drop-3	CREATE PROC a @a a, @a AS
+reject	reject	engine	procedureParameterList(Comma_procedureParameter)*/Comma_procedureParameter_(Comma_procedureParameter)*!truncate	CREATE PROC a @a a, @a
 reject	reject	engine	procedureParameterList(Comma_procedureParameter)*/Comma_procedureParameter_(Comma_procedureParameter)*!insert	CREATE PROC a @a a, @a a zzz AS
 accept	accept	engine	procedureParameter/identifierVariable_(As)?_(cursorProcedureParameter|scal~e0b7add1	CREATE PROC a @a a AS
 accept	accept	engine	procedureParameter(As)?/%empty	CREATE PROC a @a a AS
@@ -11041,24 +11041,24 @@ accept	accept	engine	procedureParameter(As)?/As	CREATE PROC a @a AS a AS
 reject	reject	engine	procedureParameter(As)?/As!insert	CREATE PROC a @a AS zzz a AS
 reject	reject	engine	procedureParameter(As)?/As!swap	CREATE PROC a @a ASC a AS
 accept	accept	engine	procedureParameter(cursorProcedureParameter|scalarProce~6c551644)/cursorProcedureParameter	CREATE PROC a @a CURSOR VARYING OUTPUT AS
-accept	reject	engine	procedureParameter(cursorProcedureParameter|scalarProce~6c551644)/cursorProcedureParameter!drop-1	CREATE PROC a @a VARYING OUTPUT AS
-accept	reject	engine	procedureParameter(cursorProcedureParameter|scalarProce~6c551644)/cursorProcedureParameter!drop-2	CREATE PROC a @a CURSOR OUTPUT AS
-accept	reject	engine	procedureParameter(cursorProcedureParameter|scalarProce~6c551644)/cursorProcedureParameter!drop-3	CREATE PROC a @a CURSOR VARYING AS
-accept	reject	engine	procedureParameter(cursorProcedureParameter|scalarProce~6c551644)/cursorProcedureParameter!truncate	CREATE PROC a @a CURSOR VARYING
+reject	reject	engine	procedureParameter(cursorProcedureParameter|scalarProce~6c551644)/cursorProcedureParameter!drop-1	CREATE PROC a @a VARYING OUTPUT AS
+reject	reject	engine	procedureParameter(cursorProcedureParameter|scalarProce~6c551644)/cursorProcedureParameter!drop-2	CREATE PROC a @a CURSOR OUTPUT AS
+reject	reject	engine	procedureParameter(cursorProcedureParameter|scalarProce~6c551644)/cursorProcedureParameter!drop-3	CREATE PROC a @a CURSOR VARYING AS
+reject	reject	engine	procedureParameter(cursorProcedureParameter|scalarProce~6c551644)/cursorProcedureParameter!truncate	CREATE PROC a @a CURSOR VARYING
 reject	reject	engine	procedureParameter(cursorProcedureParameter|scalarProce~6c551644)/cursorProcedureParameter!insert	CREATE PROC a @a CURSOR VARYING OUTPUT zzz AS
-accept	reject	engine	procedureParameter(cursorProcedureParameter|scalarProce~6c551644)/cursorProcedureParameter!swap	CREATE PROC a @a CURSOR_DEFAULT VARYING OUTPUT AS
+reject	reject	engine	procedureParameter(cursorProcedureParameter|scalarProce~6c551644)/cursorProcedureParameter!swap	CREATE PROC a @a CURSOR_DEFAULT VARYING OUTPUT AS
 accept	accept	engine	procedureParameter(cursorProcedureParameter|scalarProce~6c551644)/scalarProcedureParameter	CREATE PROC a @a a AS
 accept	accept	engine	scalarProcedureParameter/scalarDataType_(nullableConstraint)?_(EqualsSign_(possi~792c3dd3	CREATE PROC a @a a AS
 accept	accept	engine	scalarProcedureParameter(nullableConstraint)?/%empty	CREATE PROC a @a a AS
 accept	accept	engine	scalarProcedureParameter(nullableConstraint)?/nullableConstraint	CREATE PROC a @a a NULL AS
-accept	reject	engine	scalarProcedureParameter(nullableConstraint)?/nullableConstraint!truncate	CREATE PROC a @a a
+reject	reject	engine	scalarProcedureParameter(nullableConstraint)?/nullableConstraint!truncate	CREATE PROC a @a a
 reject	reject	engine	scalarProcedureParameter(nullableConstraint)?/nullableConstraint!insert	CREATE PROC a @a a NULL zzz AS
 reject	reject	engine	scalarProcedureParameter(nullableConstraint)?/nullableConstraint!swap	CREATE PROC a @a a NULLIF AS
 accept	accept	engine	scalarProcedureParameter(EqualsSign_(possibleNegativeConstant~dd11ae41)?/%empty	CREATE PROC a @a a AS
 accept	accept	engine	scalarProcedureParameter(EqualsSign_(possibleNegativeConstant~dd11ae41)?/EqualsSign_possibleNegativeConstantOrIdentifierWithDefault	CREATE PROC a @a a = 1 AS
 reject	reject	engine	scalarProcedureParameter(EqualsSign_(possibleNegativeConstant~dd11ae41)?/EqualsSign_possibleNegativeConstantOrIdentifierWithDefault!drop-1	CREATE PROC a @a a 1 AS
-accept	reject	engine	scalarProcedureParameter(EqualsSign_(possibleNegativeConstant~dd11ae41)?/EqualsSign_possibleNegativeConstantOrIdentifierWithDefault!drop-2	CREATE PROC a @a a = AS
-accept	reject	engine	scalarProcedureParameter(EqualsSign_(possibleNegativeConstant~dd11ae41)?/EqualsSign_possibleNegativeConstantOrIdentifierWithDefault!truncate	CREATE PROC a @a a =
+reject	reject	engine	scalarProcedureParameter(EqualsSign_(possibleNegativeConstant~dd11ae41)?/EqualsSign_possibleNegativeConstantOrIdentifierWithDefault!drop-2	CREATE PROC a @a a = AS
+reject	reject	engine	scalarProcedureParameter(EqualsSign_(possibleNegativeConstant~dd11ae41)?/EqualsSign_possibleNegativeConstantOrIdentifierWithDefault!truncate	CREATE PROC a @a a =
 reject	reject	engine	scalarProcedureParameter(EqualsSign_(possibleNegativeConstant~dd11ae41)?/EqualsSign_possibleNegativeConstantOrIdentifierWithDefault!insert	CREATE PROC a @a a = 1 zzz AS
 accept	accept	engine	scalarProcedureParameter((READONLY|OUTPUT|OUT))?/%empty	CREATE PROC a @a a AS
 accept	accept	engine	scalarProcedureParameter((READONLY|OUTPUT|OUT))?/(READONLY|OUTPUT|OUT)	CREATE PROC a @a a READONLY AS
@@ -11093,12 +11093,12 @@ reject	accept	engine	possibleNegativeConstant/negativeConstant	a - 1
 reject	reject	engine	possibleNegativeConstant/negativeConstant!drop-2	a -
 reject	reject	engine	possibleNegativeConstant/negativeConstant!insert	a - 1 zzz
 reject	accept	engine	negativeConstant/Minus_subroutineParameterLiteral	a - 1
-accept	reject	engine	alterTriggerStatement/Alter_triggerStatementBody	ALTER TRIGGER a ON a FOR a AS SELECT 1
-accept	reject	engine	createTriggerStatement/Create_triggerStatementBody	CREATE TRIGGER a ON a FOR a AS SELECT 1
-accept	reject	engine	createOrAlterTriggerStatement/triggerStatementBody	CREATE OR ALTER TRIGGER a ON a FOR a AS SELECT 1
-accept	reject	engine	triggerStatementBody/Trigger_schemaObjectThreePartName_On_triggerObject_(Wit~5a7a7ba5	CREATE TRIGGER a ON a FOR a AS SELECT 1
+reject	reject	engine	alterTriggerStatement/Alter_triggerStatementBody	ALTER TRIGGER a ON a FOR a AS SELECT 1
+reject	reject	engine	createTriggerStatement/Create_triggerStatementBody	CREATE TRIGGER a ON a FOR a AS SELECT 1
+reject	reject	engine	createOrAlterTriggerStatement/triggerStatementBody	CREATE OR ALTER TRIGGER a ON a FOR a AS SELECT 1
+reject	reject	engine	triggerStatementBody/Trigger_schemaObjectThreePartName_On_triggerObject_(Wit~5a7a7ba5	CREATE TRIGGER a ON a FOR a AS SELECT 1
 reject	reject	engine	triggerStatementBody/Trigger_schemaObjectThreePartName_On_triggerObject_(Wit~5a7a7ba5!swap	CREATE TRIM a ON a FOR a AS SELECT 1
-accept	reject	engine	triggerStatementBody(With_triggerOption_(Comma_triggerOption)*)?/%empty	CREATE TRIGGER a ON a FOR a AS SELECT 1
+reject	reject	engine	triggerStatementBody(With_triggerOption_(Comma_triggerOption)*)?/%empty	CREATE TRIGGER a ON a FOR a AS SELECT 1
 reject	reject	engine	triggerStatementBody(With_triggerOption_(Comma_triggerOption)*)?/%empty!insert	CREATE TRIGGER a ON a zzz FOR a AS SELECT 1
 reject	reject	engine	triggerStatementBody(With_triggerOption_(Comma_triggerOption)*)?/With_triggerOption_(Comma_triggerOption)*	CREATE TRIGGER a ON a WITH a FOR a AS SELECT 1
 reject	reject	engine	triggerStatementBody(With_triggerOption_(Comma_triggerOption)*)?/With_triggerOption_(Comma_triggerOption)*!drop-1	CREATE TRIGGER a ON a a FOR a AS SELECT 1
@@ -11107,77 +11107,77 @@ reject	reject	engine	triggerStatementBody(Comma_triggerOption)*/%empty	CREATE TR
 reject	reject	engine	triggerStatementBody(Comma_triggerOption)*/Comma_triggerOption_(Comma_triggerOption)*	CREATE TRIGGER a ON a WITH a, a FOR a AS SELECT 1
 reject	reject	engine	triggerStatementBody(Comma_triggerOption)*/Comma_triggerOption_(Comma_triggerOption)*!drop-1	CREATE TRIGGER a ON a WITH a a FOR a AS SELECT 1
 reject	reject	engine	triggerStatementBody(Comma_triggerOption)*/Comma_triggerOption_(Comma_triggerOption)*!drop-2	CREATE TRIGGER a ON a WITH a, FOR a AS SELECT 1
-accept	reject	engine	triggerStatementBody(Comma_triggerOption)*/Comma_triggerOption_(Comma_triggerOption)*!truncate	CREATE TRIGGER a ON a WITH a,
+reject	reject	engine	triggerStatementBody(Comma_triggerOption)*/Comma_triggerOption_(Comma_triggerOption)*!truncate	CREATE TRIGGER a ON a WITH a,
 reject	reject	engine	triggerStatementBody(Comma_triggerOption)*/Comma_triggerOption_(Comma_triggerOption)*!insert	CREATE TRIGGER a ON a WITH a, a zzz FOR a AS SELECT 1
-accept	reject	engine	triggerStatementBody(ddlTriggerMidSection|dmlTriggerMidSection)/ddlTriggerMidSection	CREATE TRIGGER a ON a FOR a AS SELECT 1
-accept	reject	engine	triggerStatementBody(ddlTriggerMidSection|dmlTriggerMidSection)/ddlTriggerMidSection!truncate	CREATE TRIGGER a ON a FOR
+reject	reject	engine	triggerStatementBody(ddlTriggerMidSection|dmlTriggerMidSection)/ddlTriggerMidSection	CREATE TRIGGER a ON a FOR a AS SELECT 1
+reject	reject	engine	triggerStatementBody(ddlTriggerMidSection|dmlTriggerMidSection)/ddlTriggerMidSection!truncate	CREATE TRIGGER a ON a FOR
 reject	reject	engine	triggerStatementBody(ddlTriggerMidSection|dmlTriggerMidSection)/ddlTriggerMidSection!insert	CREATE TRIGGER a ON a FOR a zzz AS SELECT 1
 reject	reject	engine	triggerStatementBody(ddlTriggerMidSection|dmlTriggerMidSection)/ddlTriggerMidSection!swap	CREATE TRIGGER a ON a FORCE a AS SELECT 1
 accept	accept	engine	triggerStatementBody(ddlTriggerMidSection|dmlTriggerMidSection)/dmlTriggerMidSection	CREATE TRIGGER a ON a FOR INSERT AS SELECT 1
-accept	reject	engine	triggerStatementBody(ddlTriggerMidSection|dmlTriggerMidSection)/dmlTriggerMidSection!drop-1	CREATE TRIGGER a ON a INSERT AS SELECT 1
+reject	reject	engine	triggerStatementBody(ddlTriggerMidSection|dmlTriggerMidSection)/dmlTriggerMidSection!drop-1	CREATE TRIGGER a ON a INSERT AS SELECT 1
 reject	reject	engine	triggerStatementBody(ddlTriggerMidSection|dmlTriggerMidSection)/dmlTriggerMidSection!insert	CREATE TRIGGER a ON a FOR INSERT zzz AS SELECT 1
 reject	reject	engine	triggerStatementBody(ddlTriggerMidSection|dmlTriggerMidSection)/dmlTriggerMidSection!swap	CREATE TRIGGER a ON a FORCE INSERT AS SELECT 1
-accept	reject	engine	triggerStatementBody(((Semicolon)*_statementList)|methodS~cc9cee92)/(Semicolon)*_statementList	CREATE TRIGGER a ON a FOR a AS SELECT 1
-accept	reject	engine	triggerStatementBody(((Semicolon)*_statementList)|methodS~cc9cee92)/methodSpecifier_optSemicolons	CREATE TRIGGER a ON a FOR a AS EXTERNAL NAME a.a.a
+reject	reject	engine	triggerStatementBody(((Semicolon)*_statementList)|methodS~cc9cee92)/(Semicolon)*_statementList	CREATE TRIGGER a ON a FOR a AS SELECT 1
+reject	reject	engine	triggerStatementBody(((Semicolon)*_statementList)|methodS~cc9cee92)/methodSpecifier_optSemicolons	CREATE TRIGGER a ON a FOR a AS EXTERNAL NAME a.a.a
 reject	reject	engine	triggerStatementBody(((Semicolon)*_statementList)|methodS~cc9cee92)/methodSpecifier_optSemicolons!drop-1	CREATE TRIGGER a ON a FOR a AS NAME a.a.a
-accept	reject	engine	triggerStatementBody(((Semicolon)*_statementList)|methodS~cc9cee92)/methodSpecifier_optSemicolons!drop-2	CREATE TRIGGER a ON a FOR a AS EXTERNAL a.a.a
+reject	reject	engine	triggerStatementBody(((Semicolon)*_statementList)|methodS~cc9cee92)/methodSpecifier_optSemicolons!drop-2	CREATE TRIGGER a ON a FOR a AS EXTERNAL a.a.a
 reject	reject	engine	triggerStatementBody(((Semicolon)*_statementList)|methodS~cc9cee92)/methodSpecifier_optSemicolons!drop-3	CREATE TRIGGER a ON a FOR a AS EXTERNAL NAME.a.a
 reject	reject	engine	triggerStatementBody(((Semicolon)*_statementList)|methodS~cc9cee92)/methodSpecifier_optSemicolons!drop-4	CREATE TRIGGER a ON a FOR a AS EXTERNAL NAME a a.a
 reject	reject	engine	triggerStatementBody(((Semicolon)*_statementList)|methodS~cc9cee92)/methodSpecifier_optSemicolons!drop-5	CREATE TRIGGER a ON a FOR a AS EXTERNAL NAME a..a
 reject	reject	engine	triggerStatementBody(((Semicolon)*_statementList)|methodS~cc9cee92)/methodSpecifier_optSemicolons!drop-6	CREATE TRIGGER a ON a FOR a AS EXTERNAL NAME a.a a
-accept	reject	engine	triggerStatementBody(((Semicolon)*_statementList)|methodS~cc9cee92)/methodSpecifier_optSemicolons!drop-7	CREATE TRIGGER a ON a FOR a AS EXTERNAL NAME a.a.
+reject	reject	engine	triggerStatementBody(((Semicolon)*_statementList)|methodS~cc9cee92)/methodSpecifier_optSemicolons!drop-7	CREATE TRIGGER a ON a FOR a AS EXTERNAL NAME a.a.
 reject	reject	engine	triggerStatementBody(((Semicolon)*_statementList)|methodS~cc9cee92)/methodSpecifier_optSemicolons!insert	CREATE TRIGGER a ON a FOR a AS EXTERNAL NAME a.a.a zzz
 reject	reject	engine	triggerStatementBody(((Semicolon)*_statementList)|methodS~cc9cee92)/methodSpecifier_optSemicolons!swap	CREATE TRIGGER a ON a FOR a AS EXTERNAL_MONITOR NAME a.a.a
-accept	reject	engine	triggerStatementBody(Semicolon)*/%empty	CREATE TRIGGER a ON a FOR a AS SELECT 1
+reject	reject	engine	triggerStatementBody(Semicolon)*/%empty	CREATE TRIGGER a ON a FOR a AS SELECT 1
 reject	reject	engine	triggerStatementBody(Semicolon)*/%empty!insert	CREATE TRIGGER a ON a FOR a AS zzz SELECT 1
-accept	reject	engine	triggerStatementBody(Semicolon)*/Semicolon_(Semicolon)*	CREATE TRIGGER a ON a FOR a AS; SELECT 1
+reject	reject	engine	triggerStatementBody(Semicolon)*/Semicolon_(Semicolon)*	CREATE TRIGGER a ON a FOR a AS; SELECT 1
 reject	reject	engine	triggerStatementBody(Semicolon)*/Semicolon_(Semicolon)*!insert	CREATE TRIGGER a ON a FOR a AS; zzz SELECT 1
 accept	accept	engine	dmlTriggerMidSection/(For|(INSTEAD|AFTER)_(Of)?)_dmlTriggerAction_(Comma_dml~2dba25ab	CREATE TRIGGER a ON a FOR INSERT AS SELECT 1
 accept	accept	engine	dmlTriggerMidSection(For|(INSTEAD|AFTER)_(Of)?)/For	CREATE TRIGGER a ON a FOR INSERT AS SELECT 1
-accept	reject	engine	dmlTriggerMidSection(For|(INSTEAD|AFTER)_(Of)?)/For!truncate	CREATE TRIGGER a ON a
+reject	reject	engine	dmlTriggerMidSection(For|(INSTEAD|AFTER)_(Of)?)/For!truncate	CREATE TRIGGER a ON a
 reject	reject	engine	dmlTriggerMidSection(For|(INSTEAD|AFTER)_(Of)?)/For!insert	CREATE TRIGGER a ON a FOR zzz INSERT AS SELECT 1
-accept	reject	engine	dmlTriggerMidSection(For|(INSTEAD|AFTER)_(Of)?)/(INSTEAD|AFTER)_(Of)?	CREATE TRIGGER a ON a INSTEAD INSERT AS SELECT 1
+reject	reject	engine	dmlTriggerMidSection(For|(INSTEAD|AFTER)_(Of)?)/(INSTEAD|AFTER)_(Of)?	CREATE TRIGGER a ON a INSTEAD INSERT AS SELECT 1
 reject	reject	engine	dmlTriggerMidSection(For|(INSTEAD|AFTER)_(Of)?)/(INSTEAD|AFTER)_(Of)?!insert	CREATE TRIGGER a ON a INSTEAD zzz INSERT AS SELECT 1
 reject	reject	engine	dmlTriggerMidSection(For|(INSTEAD|AFTER)_(Of)?)/(INSTEAD|AFTER)_(Of)?!swap	CREATE TRIGGER a ON a INTERSECT INSERT AS SELECT 1
-accept	reject	engine	dmlTriggerMidSection(INSTEAD|AFTER)/INSTEAD	CREATE TRIGGER a ON a INSTEAD INSERT AS SELECT 1
+reject	reject	engine	dmlTriggerMidSection(INSTEAD|AFTER)/INSTEAD	CREATE TRIGGER a ON a INSTEAD INSERT AS SELECT 1
 accept	accept	engine	dmlTriggerMidSection(INSTEAD|AFTER)/AFTER	CREATE TRIGGER a ON a AFTER INSERT AS SELECT 1
 reject	reject	engine	dmlTriggerMidSection(INSTEAD|AFTER)/AFTER!insert	CREATE TRIGGER a ON a AFTER zzz INSERT AS SELECT 1
 reject	reject	engine	dmlTriggerMidSection(INSTEAD|AFTER)/AFTER!swap	CREATE TRIGGER a ON a AGGREGATE INSERT AS SELECT 1
-accept	reject	engine	dmlTriggerMidSection(Of)?/%empty	CREATE TRIGGER a ON a INSTEAD INSERT AS SELECT 1
+reject	reject	engine	dmlTriggerMidSection(Of)?/%empty	CREATE TRIGGER a ON a INSTEAD INSERT AS SELECT 1
 accept	accept	engine	dmlTriggerMidSection(Of)?/Of	CREATE TRIGGER a ON a INSTEAD OF INSERT AS SELECT 1
-accept	reject	engine	dmlTriggerMidSection(Of)?/Of!truncate	CREATE TRIGGER a ON a INSTEAD
+reject	reject	engine	dmlTriggerMidSection(Of)?/Of!truncate	CREATE TRIGGER a ON a INSTEAD
 reject	reject	engine	dmlTriggerMidSection(Of)?/Of!insert	CREATE TRIGGER a ON a INSTEAD OF zzz INSERT AS SELECT 1
 reject	reject	engine	dmlTriggerMidSection(Of)?/Of!swap	CREATE TRIGGER a ON a INSTEAD OFF INSERT AS SELECT 1
 accept	accept	engine	dmlTriggerMidSection(Comma_dmlTriggerAction)*/%empty	CREATE TRIGGER a ON a FOR INSERT AS SELECT 1
-accept	reject	engine	dmlTriggerMidSection(Comma_dmlTriggerAction)*/Comma_dmlTriggerAction_(Comma_dmlTriggerAction)*	CREATE TRIGGER a ON a FOR INSERT, INSERT AS SELECT 1
+reject	reject	engine	dmlTriggerMidSection(Comma_dmlTriggerAction)*/Comma_dmlTriggerAction_(Comma_dmlTriggerAction)*	CREATE TRIGGER a ON a FOR INSERT, INSERT AS SELECT 1
 reject	reject	engine	dmlTriggerMidSection(Comma_dmlTriggerAction)*/Comma_dmlTriggerAction_(Comma_dmlTriggerAction)*!drop-1	CREATE TRIGGER a ON a FOR INSERT INSERT AS SELECT 1
-accept	reject	engine	dmlTriggerMidSection(Comma_dmlTriggerAction)*/Comma_dmlTriggerAction_(Comma_dmlTriggerAction)*!drop-2	CREATE TRIGGER a ON a FOR INSERT, AS SELECT 1
-accept	reject	engine	dmlTriggerMidSection(Comma_dmlTriggerAction)*/Comma_dmlTriggerAction_(Comma_dmlTriggerAction)*!truncate	CREATE TRIGGER a ON a FOR INSERT,
+reject	reject	engine	dmlTriggerMidSection(Comma_dmlTriggerAction)*/Comma_dmlTriggerAction_(Comma_dmlTriggerAction)*!drop-2	CREATE TRIGGER a ON a FOR INSERT, AS SELECT 1
+reject	reject	engine	dmlTriggerMidSection(Comma_dmlTriggerAction)*/Comma_dmlTriggerAction_(Comma_dmlTriggerAction)*!truncate	CREATE TRIGGER a ON a FOR INSERT,
 reject	reject	engine	dmlTriggerMidSection(Comma_dmlTriggerAction)*/Comma_dmlTriggerAction_(Comma_dmlTriggerAction)*!insert	CREATE TRIGGER a ON a FOR INSERT, INSERT zzz AS SELECT 1
-accept	reject	engine	dmlTriggerMidSection(Comma_dmlTriggerAction)*/Comma_dmlTriggerAction_(Comma_dmlTriggerAction)*!swap	CREATE TRIGGER a ON a FOR INSERT, INSTEAD AS SELECT 1
+reject	reject	engine	dmlTriggerMidSection(Comma_dmlTriggerAction)*/Comma_dmlTriggerAction_(Comma_dmlTriggerAction)*!swap	CREATE TRIGGER a ON a FOR INSERT, INSTEAD AS SELECT 1
 accept	accept	engine	dmlTriggerMidSection(Not_For_Replication)?/%empty	CREATE TRIGGER a ON a FOR INSERT AS SELECT 1
 accept	accept	engine	dmlTriggerMidSection(Not_For_Replication)?/Not_For_Replication	CREATE TRIGGER a ON a FOR INSERT NOT FOR REPLICATION AS SELECT 1
 reject	reject	engine	dmlTriggerMidSection(Not_For_Replication)?/Not_For_Replication!drop-1	CREATE TRIGGER a ON a FOR INSERT FOR REPLICATION AS SELECT 1
 reject	reject	engine	dmlTriggerMidSection(Not_For_Replication)?/Not_For_Replication!drop-2	CREATE TRIGGER a ON a FOR INSERT NOT REPLICATION AS SELECT 1
-accept	reject	engine	dmlTriggerMidSection(Not_For_Replication)?/Not_For_Replication!drop-3	CREATE TRIGGER a ON a FOR INSERT NOT FOR AS SELECT 1
-accept	reject	engine	dmlTriggerMidSection(Not_For_Replication)?/Not_For_Replication!truncate	CREATE TRIGGER a ON a FOR INSERT NOT FOR
+reject	reject	engine	dmlTriggerMidSection(Not_For_Replication)?/Not_For_Replication!drop-3	CREATE TRIGGER a ON a FOR INSERT NOT FOR AS SELECT 1
+reject	reject	engine	dmlTriggerMidSection(Not_For_Replication)?/Not_For_Replication!truncate	CREATE TRIGGER a ON a FOR INSERT NOT FOR
 reject	reject	engine	dmlTriggerMidSection(Not_For_Replication)?/Not_For_Replication!insert	CREATE TRIGGER a ON a FOR INSERT NOT FOR REPLICATION zzz AS SELECT 1
 reject	reject	engine	dmlTriggerMidSection(Not_For_Replication)?/Not_For_Replication!swap	CREATE TRIGGER a ON a FOR INSERT NOTIFICATION FOR REPLICATION AS SELECT 1
-accept	reject	engine	ddlTriggerMidSection/(For|AFTER)_((ddlTriggerAction_(Comma_ddlTriggerA~426b0935)	CREATE TRIGGER a ON a FOR a AS SELECT 1
-accept	reject	engine	ddlTriggerMidSection(For|AFTER)/For	CREATE TRIGGER a ON a FOR a AS SELECT 1
+reject	reject	engine	ddlTriggerMidSection/(For|AFTER)_((ddlTriggerAction_(Comma_ddlTriggerA~426b0935)	CREATE TRIGGER a ON a FOR a AS SELECT 1
+reject	reject	engine	ddlTriggerMidSection(For|AFTER)/For	CREATE TRIGGER a ON a FOR a AS SELECT 1
 reject	reject	engine	ddlTriggerMidSection(For|AFTER)/For!insert	CREATE TRIGGER a ON a FOR zzz a AS SELECT 1
-accept	reject	engine	ddlTriggerMidSection(For|AFTER)/AFTER	CREATE TRIGGER a ON a AFTER a AS SELECT 1
+reject	reject	engine	ddlTriggerMidSection(For|AFTER)/AFTER	CREATE TRIGGER a ON a AFTER a AS SELECT 1
 reject	reject	engine	ddlTriggerMidSection(For|AFTER)/AFTER!insert	CREATE TRIGGER a ON a AFTER zzz a AS SELECT 1
 reject	reject	engine	ddlTriggerMidSection(For|AFTER)/AFTER!swap	CREATE TRIGGER a ON a AGGREGATE a AS SELECT 1
-accept	reject	engine	ddlTriggerMidSection((ddlTriggerAction_(Comma_ddlTriggerA~426b0935)/ddlTriggerAction_(Comma_ddlTriggerAction)*	CREATE TRIGGER a ON a FOR a AS SELECT 1
-accept	reject	engine	ddlTriggerMidSection((ddlTriggerAction_(Comma_ddlTriggerA~426b0935)/LOGON	CREATE TRIGGER a ON a FOR LOGON AS SELECT 1
+reject	reject	engine	ddlTriggerMidSection((ddlTriggerAction_(Comma_ddlTriggerA~426b0935)/ddlTriggerAction_(Comma_ddlTriggerAction)*	CREATE TRIGGER a ON a FOR a AS SELECT 1
+reject	reject	engine	ddlTriggerMidSection((ddlTriggerAction_(Comma_ddlTriggerA~426b0935)/LOGON	CREATE TRIGGER a ON a FOR LOGON AS SELECT 1
 reject	reject	engine	ddlTriggerMidSection((ddlTriggerAction_(Comma_ddlTriggerA~426b0935)/LOGON!insert	CREATE TRIGGER a ON a FOR LOGON zzz AS SELECT 1
-accept	reject	engine	ddlTriggerMidSection((ddlTriggerAction_(Comma_ddlTriggerA~426b0935)/LOGON!swap	CREATE TRIGGER a ON a FOR LOW AS SELECT 1
-accept	reject	engine	ddlTriggerMidSection(Comma_ddlTriggerAction)*/%empty	CREATE TRIGGER a ON a FOR a AS SELECT 1
-accept	reject	engine	ddlTriggerMidSection(Comma_ddlTriggerAction)*/Comma_ddlTriggerAction_(Comma_ddlTriggerAction)*	CREATE TRIGGER a ON a FOR a, a AS SELECT 1
+reject	reject	engine	ddlTriggerMidSection((ddlTriggerAction_(Comma_ddlTriggerA~426b0935)/LOGON!swap	CREATE TRIGGER a ON a FOR LOW AS SELECT 1
+reject	reject	engine	ddlTriggerMidSection(Comma_ddlTriggerAction)*/%empty	CREATE TRIGGER a ON a FOR a AS SELECT 1
+reject	reject	engine	ddlTriggerMidSection(Comma_ddlTriggerAction)*/Comma_ddlTriggerAction_(Comma_ddlTriggerAction)*	CREATE TRIGGER a ON a FOR a, a AS SELECT 1
 reject	reject	engine	ddlTriggerMidSection(Comma_ddlTriggerAction)*/Comma_ddlTriggerAction_(Comma_ddlTriggerAction)*!drop-1	CREATE TRIGGER a ON a FOR a a AS SELECT 1
-accept	reject	engine	ddlTriggerMidSection(Comma_ddlTriggerAction)*/Comma_ddlTriggerAction_(Comma_ddlTriggerAction)*!drop-2	CREATE TRIGGER a ON a FOR a, AS SELECT 1
-accept	reject	engine	ddlTriggerMidSection(Comma_ddlTriggerAction)*/Comma_ddlTriggerAction_(Comma_ddlTriggerAction)*!truncate	CREATE TRIGGER a ON a FOR a,
+reject	reject	engine	ddlTriggerMidSection(Comma_ddlTriggerAction)*/Comma_ddlTriggerAction_(Comma_ddlTriggerAction)*!drop-2	CREATE TRIGGER a ON a FOR a, AS SELECT 1
+reject	reject	engine	ddlTriggerMidSection(Comma_ddlTriggerAction)*/Comma_ddlTriggerAction_(Comma_ddlTriggerAction)*!truncate	CREATE TRIGGER a ON a FOR a,
 reject	reject	engine	ddlTriggerMidSection(Comma_ddlTriggerAction)*/Comma_ddlTriggerAction_(Comma_ddlTriggerAction)*!insert	CREATE TRIGGER a ON a FOR a, a zzz AS SELECT 1
 accept	accept	engine	triggerObject/schemaObjectThreePartName	DISABLE TRIGGER a ON a
 accept	accept	engine	triggerObject/triggerScope	DISABLE TRIGGER a ON DATABASE
@@ -11186,18 +11186,18 @@ accept	accept	engine	triggerObject/triggerScope!swap	DISABLE TRIGGER a ON DATA_C
 accept	accept	engine	triggerScope/Database	DISABLE TRIGGER a ON DATABASE
 accept	accept	engine	triggerScope/All_SERVER	DISABLE TRIGGER a ON ALL SERVER
 accept	accept	engine	triggerScope/All_SERVER!drop-1	DISABLE TRIGGER a ON SERVER
-accept	reject	engine	triggerScope/All_SERVER!drop-2	DISABLE TRIGGER a ON ALL
+reject	reject	engine	triggerScope/All_SERVER!drop-2	DISABLE TRIGGER a ON ALL
 reject	reject	engine	triggerScope/All_SERVER!insert	DISABLE TRIGGER a ON ALL SERVER zzz
 reject	reject	engine	triggerScope/All_SERVER!swap	DISABLE TRIGGER a ON ALLOW_CONNECTIONS SERVER
 accept	accept	engine	dmlTriggerAction/Insert	CREATE TRIGGER a ON a FOR INSERT AS SELECT 1
-accept	reject	engine	dmlTriggerAction/Insert!swap	CREATE TRIGGER a ON a FOR INSTEAD AS SELECT 1
+reject	reject	engine	dmlTriggerAction/Insert!swap	CREATE TRIGGER a ON a FOR INSTEAD AS SELECT 1
 accept	accept	engine	dmlTriggerAction/Update	CREATE TRIGGER a ON a FOR UPDATE AS SELECT 1
 reject	reject	engine	dmlTriggerAction/Update!insert	CREATE TRIGGER a ON a FOR UPDATE zzz AS SELECT 1
 reject	reject	engine	dmlTriggerAction/Update!swap	CREATE TRIGGER a ON a FOR UPDATETEXT AS SELECT 1
 accept	accept	engine	dmlTriggerAction/Delete	CREATE TRIGGER a ON a FOR DELETE AS SELECT 1
 reject	reject	engine	dmlTriggerAction/Delete!insert	CREATE TRIGGER a ON a FOR DELETE zzz AS SELECT 1
-accept	reject	engine	dmlTriggerAction/Delete!swap	CREATE TRIGGER a ON a FOR DELIMITEDTEXT AS SELECT 1
-accept	reject	engine	ddlTriggerAction/Identifier	CREATE TRIGGER a ON a FOR a AS SELECT 1
+reject	reject	engine	dmlTriggerAction/Delete!swap	CREATE TRIGGER a ON a FOR DELIMITEDTEXT AS SELECT 1
+reject	reject	engine	ddlTriggerAction/Identifier	CREATE TRIGGER a ON a FOR a AS SELECT 1
 reject	accept	engine	endConversationStatement/End_CONVERSATION_expression_endConversationArgumentsOpt	END CONVERSATION 1
 reject	accept	engine	endConversationArgumentsOpt/(With_Identifier_(|EqualsSign_integer~99c44fa3)?	END CONVERSATION 1
 reject	accept	engine	endConversationArgumentsOpt(With_Identifier_(|EqualsSign_integer~99c44fa3)?/%empty	END CONVERSATION 1
