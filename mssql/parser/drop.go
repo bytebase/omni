@@ -223,31 +223,18 @@ func (p *Parser) parseDropStmt() (*nodes.DropStmt, error) {
 				names = append(names, ref)
 			}
 		}
+	} else if stmt.ObjectType == nodes.DropIndex {
+		// DROP INDEX clauses are read by parseDropIndexClauses (create_index.go).
+		if err := p.parseDropIndexClauses(stmt); err != nil {
+			return nil, err
+		}
+		names = stmt.Names.Items
+		onTables = stmt.OnTables.Items
 	} else {
 		for {
 			name, _ := p.parseObjectRef(dropObjectCompletionRule(stmt.ObjectType))
 			if name == nil {
 				break
-			}
-			// For DROP INDEX: index_name ON table_name [ WITH ( options ) ]
-			// Backward-compatible form `tbl.idx` has no ON clause; keep nil placeholder
-			// so OnTables.Items[i] aligns with Names.Items[i].
-			if stmt.ObjectType == nodes.DropIndex {
-				var onTable nodes.Node
-				if _, ok := p.match(kwON); ok {
-					ref, _ := p.parseTableRef()
-					if ref != nil {
-						onTable = ref
-					}
-				}
-				onTables = append(onTables, onTable)
-				// WITH ( <drop_clustered_index_option> [ ,...n ] )
-				if p.cur.Type == kwWITH {
-					p.advance()
-					if p.cur.Type == '(' {
-						stmt.Options, _ = p.parseAlterIndexOptions()
-					}
-				}
 			}
 			names = append(names, name)
 			if _, ok := p.match(','); !ok {

@@ -5464,7 +5464,7 @@ func TestParseEncryptionKeys(t *testing.T) {
 		},
 		// ALTER CRYPTOGRAPHIC PROVIDER - FROM FILE
 		{
-			sql:        "ALTER CRYPTOGRAPHIC PROVIDER SecurityProvider FROM FILE = 'c:\\SecurityProvider\\SecurityProvider_v2.dll' ENABLE",
+			sql:        "ALTER CRYPTOGRAPHIC PROVIDER SecurityProvider FROM FILE = 'c:\\SecurityProvider\\SecurityProvider_v2.dll'",
 			action:     "ALTER",
 			objectType: "CRYPTOGRAPHIC PROVIDER",
 			name:       "SecurityProvider",
@@ -6373,7 +6373,7 @@ func TestParseSpecializedIndexes(t *testing.T) {
 			// CREATE PRIMARY XML INDEX
 			{`CREATE PRIMARY XML INDEX idx_xml ON dbo.Products (CatalogDescription)`, true},
 			// CREATE PRIMARY XML INDEX with options
-			{`CREATE PRIMARY XML INDEX PXML_ProductModel ON Production.ProductModel (CatalogDescription) WITH (PAD_INDEX = 1)`, true},
+			{`CREATE PRIMARY XML INDEX PXML_ProductModel ON Production.ProductModel (CatalogDescription) WITH (PAD_INDEX = ON)`, true},
 			// CREATE secondary XML INDEX FOR VALUE
 			{`CREATE XML INDEX idx_xml_value ON dbo.Products (CatalogDescription) USING XML INDEX idx_xml FOR VALUE`, false},
 			// CREATE secondary XML INDEX FOR PATH
@@ -6402,7 +6402,7 @@ func TestParseSpecializedIndexes(t *testing.T) {
 	t.Run("selective_xml_index", func(t *testing.T) {
 		tests := []string{
 			`CREATE SELECTIVE XML INDEX sxi_index ON T (xmlcol) FOR (pathab = '/a/b')`,
-			`CREATE SELECTIVE XML INDEX sxi_index ON T (xmlcol) FOR (pathab = '/a/b') WITH (PAD_INDEX = 1)`,
+			`CREATE SELECTIVE XML INDEX sxi_index ON T (xmlcol) FOR (pathab = '/a/b') WITH (PAD_INDEX = ON)`,
 		}
 		for _, sql := range tests {
 			t.Run(sql, func(t *testing.T) {
@@ -6980,7 +6980,7 @@ func TestParseIntegrationPhase3(t *testing.T) {
 		"DROP EXTERNAL LANGUAGE MyLang",
 		"DROP EXTERNAL RESOURCE POOL MyPool",
 		// Batch 58: Encryption keys
-		"CREATE COLUMN MASTER KEY MyCMK WITH (KEY_STORE_PROVIDER_NAME = 'MSSQL_CERTIFICATE_STORE')",
+		"CREATE COLUMN MASTER KEY MyCMK WITH (KEY_STORE_PROVIDER_NAME = 'MSSQL_CERTIFICATE_STORE', KEY_PATH = 'CurrentUser/My/A1B2')",
 		// Batch 59: Resource governor
 		"CREATE WORKLOAD GROUP TestGroup USING [default]",
 		"ALTER RESOURCE GOVERNOR RECONFIGURE",
@@ -10591,13 +10591,14 @@ func TestParseTriggerWithOptions(t *testing.T) {
 		}
 	})
 
-	// WITH SCHEMABINDING
+	// WITH SCHEMABINDING, which goes with NATIVE_COMPILATION and an ATOMIC
+	// body (SQL Server 2022: Msg 10796 without NATIVE_COMPILATION).
 	t.Run("trigger_with_schemabinding", func(t *testing.T) {
-		sql := "CREATE TRIGGER tr5 ON t5 WITH SCHEMABINDING AFTER INSERT AS BEGIN SELECT 1 END"
+		sql := "CREATE TRIGGER tr5 ON t5 WITH SCHEMABINDING, NATIVE_COMPILATION AFTER INSERT AS BEGIN ATOMIC WITH (TRANSACTION ISOLATION LEVEL = SNAPSHOT, LANGUAGE = N'us_english') SELECT 1 END"
 		result := ParseAndCheck(t, sql)
 		stmt := result.Items[0].(*ast.CreateTriggerStmt)
-		if stmt.TriggerOptions == nil || stmt.TriggerOptions.Len() != 1 {
-			t.Fatalf("expected 1 trigger option")
+		if stmt.TriggerOptions == nil || stmt.TriggerOptions.Len() != 2 {
+			t.Fatalf("expected 2 trigger options")
 		}
 		opt := stmt.TriggerOptions.Items[0].(*ast.TriggerOption)
 		if opt.Name != "SCHEMABINDING" {
@@ -10647,8 +10648,8 @@ func TestParseTriggerEventOptionsStringsDepth(t *testing.T) {
 			wantValue string
 		}{
 			{"encryption", "CREATE TRIGGER tr1 ON t1 WITH ENCRYPTION AFTER INSERT AS SELECT 1", "ENCRYPTION", ""},
-			{"schemabinding", "CREATE TRIGGER tr1 ON t1 WITH SCHEMABINDING AFTER INSERT AS SELECT 1", "SCHEMABINDING", ""},
-			{"native_compilation", "CREATE TRIGGER tr1 ON t1 WITH NATIVE_COMPILATION, SCHEMABINDING AFTER INSERT AS SELECT 1", "NATIVE_COMPILATION", ""},
+			{"schemabinding", "CREATE TRIGGER tr1 ON t1 WITH SCHEMABINDING, NATIVE_COMPILATION AFTER INSERT AS BEGIN ATOMIC WITH (TRANSACTION ISOLATION LEVEL = SNAPSHOT, LANGUAGE = N'us_english') SELECT 1 END", "SCHEMABINDING", ""},
+			{"native_compilation", "CREATE TRIGGER tr1 ON t1 WITH NATIVE_COMPILATION, SCHEMABINDING AFTER INSERT AS BEGIN ATOMIC WITH (TRANSACTION ISOLATION LEVEL = SNAPSHOT, LANGUAGE = N'us_english') SELECT 1 END", "NATIVE_COMPILATION", ""},
 			{"execute_as_caller", "CREATE TRIGGER tr1 ON t1 WITH EXECUTE AS CALLER AFTER INSERT AS SELECT 1", "EXECUTE AS", "CALLER"},
 			{"execute_as_self", "CREATE TRIGGER tr1 ON t1 WITH EXECUTE AS SELF AFTER INSERT AS SELECT 1", "EXECUTE AS", "SELF"},
 			{"execute_as_user", "CREATE TRIGGER tr1 ON t1 WITH EXECUTE AS 'appuser' AFTER INSERT AS SELECT 1", "EXECUTE AS", "appuser"},
@@ -10677,7 +10678,7 @@ func TestParseTriggerEventOptionsStringsDepth(t *testing.T) {
 	t.Run("no_string_nodes", func(t *testing.T) {
 		tests := []string{
 			"CREATE TRIGGER tr1 ON t1 WITH ENCRYPTION, EXECUTE AS OWNER AFTER INSERT, UPDATE AS SELECT 1",
-			"CREATE TRIGGER tr1 ON ALL SERVER WITH SCHEMABINDING AFTER LOGON AS SELECT 1",
+			"CREATE TRIGGER tr1 ON ALL SERVER WITH SCHEMABINDING, NATIVE_COMPILATION AFTER LOGON AS BEGIN ATOMIC WITH (TRANSACTION ISOLATION LEVEL = SNAPSHOT, LANGUAGE = N'us_english') SELECT 1 END",
 			"CREATE TRIGGER tr1 ON DATABASE AFTER CREATE_TABLE, DROP_TABLE AS SELECT 1",
 		}
 		for _, sql := range tests {
@@ -11375,7 +11376,8 @@ func TestParseAlterIndexOptionsDepth(t *testing.T) {
 
 	// ALTER INDEX ... REBUILD with DATA_COMPRESSION ON PARTITIONS
 	t.Run("alter_index_data_compression_partitions", func(t *testing.T) {
-		sql := "ALTER INDEX IX_1 ON dbo.t REBUILD WITH (DATA_COMPRESSION = PAGE ON PARTITIONS (1, 3 TO 5))"
+		// ON PARTITIONS needs PARTITION = ALL (SQL Server Msg 10737).
+		sql := "ALTER INDEX IX_1 ON dbo.t REBUILD PARTITION = ALL WITH (DATA_COMPRESSION = PAGE ON PARTITIONS (1, 3 TO 5))"
 		result := ParseAndCheck(t, sql)
 		stmt := result.Items[0].(*ast.AlterIndexStmt)
 		if stmt.Action != "REBUILD" {
@@ -19824,11 +19826,11 @@ func TestParseViewTriggerBnfReview(t *testing.T) {
 	})
 
 	t.Run("create trigger with append", func(t *testing.T) {
+		// SQL Server 2022 refuses WITH APPEND: "'APPEND' is not a
+		// recognized option" (Msg 195).
 		sql := "CREATE TRIGGER tr1 ON t1 AFTER INSERT WITH APPEND AS SELECT 1"
-		result := ParseAndCheck(t, sql)
-		stmt := result.Items[0].(*ast.CreateTriggerStmt)
-		if !stmt.WithAppend {
-			t.Error("expected WithAppend=true")
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q): expected an error", sql)
 		}
 	})
 
@@ -20044,7 +20046,7 @@ func TestParseViewTriggerBnfReview(t *testing.T) {
 
 	// --- CREATE TRIGGER with native compilation options ---
 	t.Run("create trigger native compilation", func(t *testing.T) {
-		sql := "CREATE TRIGGER tr1 ON t1 WITH NATIVE_COMPILATION, SCHEMABINDING, EXECUTE AS OWNER AFTER INSERT AS BEGIN SELECT 1 END"
+		sql := "CREATE TRIGGER tr1 ON t1 WITH NATIVE_COMPILATION, SCHEMABINDING, EXECUTE AS OWNER AFTER INSERT AS BEGIN ATOMIC WITH (TRANSACTION ISOLATION LEVEL = SNAPSHOT, LANGUAGE = N'us_english') SELECT 1 END"
 		result := ParseAndCheck(t, sql)
 		stmt := result.Items[0].(*ast.CreateTriggerStmt)
 		if stmt.TriggerOptions == nil || stmt.TriggerOptions.Len() != 3 {
@@ -20788,9 +20790,9 @@ func TestParseCryptoBnfReview(t *testing.T) {
 				sql:  "CREATE SYMMETRIC KEY MySymKey WITH KEY_SOURCE = 'my pass phrase', ALGORITHM = AES_256, IDENTITY_VALUE = 'my identity' ENCRYPTION BY CERTIFICATE MyCert",
 				name: "MySymKey",
 			},
-			// With PROVIDER_KEY_NAME and CREATION_DISPOSITION
+			// FROM PROVIDER with PROVIDER_KEY_NAME and CREATION_DISPOSITION
 			{
-				sql:  "CREATE SYMMETRIC KEY MySymKey WITH ALGORITHM = AES_256, PROVIDER_KEY_NAME = 'MyEKMKey', CREATION_DISPOSITION = CREATE_NEW ENCRYPTION BY CERTIFICATE MyCert",
+				sql:  "CREATE SYMMETRIC KEY MySymKey FROM PROVIDER MyEKMProvider WITH ALGORITHM = AES_256, PROVIDER_KEY_NAME = 'MyEKMKey', CREATION_DISPOSITION = CREATE_NEW ENCRYPTION BY CERTIFICATE MyCert",
 				name: "MySymKey",
 			},
 			// FROM PROVIDER
@@ -20805,12 +20807,12 @@ func TestParseCryptoBnfReview(t *testing.T) {
 			},
 			// ENCRYPTION BY ASYMMETRIC KEY
 			{
-				sql:  "CREATE SYMMETRIC KEY MySymKey WITH ALGORITHM = TRIPLE_DES_3KEY ENCRYPTION BY ASYMMETRIC KEY MyAsymKey",
+				sql:  "CREATE SYMMETRIC KEY MySymKey WITH ALGORITHM = AES_192 ENCRYPTION BY ASYMMETRIC KEY MyAsymKey",
 				name: "MySymKey",
 			},
-			// DES algorithm
+			// DES from an EKM provider (SQL Server refuses DES for a generated key)
 			{
-				sql:  "CREATE SYMMETRIC KEY MySymKey WITH ALGORITHM = DES ENCRYPTION BY PASSWORD = 'secret123'",
+				sql:  "CREATE SYMMETRIC KEY MySymKey FROM PROVIDER MyEKMProvider WITH ALGORITHM = DES ENCRYPTION BY PASSWORD = 'secret123'",
 				name: "MySymKey",
 			},
 		}
@@ -20883,7 +20885,7 @@ func TestParseCryptoBnfReview(t *testing.T) {
 			// WITH ALGORITHM
 			"CREATE ASYMMETRIC KEY MyAsymKey WITH ALGORITHM = RSA_2048",
 			"CREATE ASYMMETRIC KEY MyAsymKey WITH ALGORITHM = RSA_4096",
-			"CREATE ASYMMETRIC KEY MyAsymKey WITH ALGORITHM = RSA_1024",
+			"CREATE ASYMMETRIC KEY MyAsymKey WITH ALGORITHM = RSA_3072",
 			// WITH AUTHORIZATION
 			"CREATE ASYMMETRIC KEY MyAsymKey AUTHORIZATION dbo WITH ALGORITHM = RSA_2048",
 			// FROM FILE
@@ -21030,8 +21032,6 @@ func TestParseCryptoBnfReview(t *testing.T) {
 			action string
 		}{
 			{"CREATE MASTER KEY ENCRYPTION BY PASSWORD = 'StrongPass!'", "CREATE"},
-			// CREATE without password (Azure SQL)
-			{"CREATE MASTER KEY", "CREATE"},
 			// ALTER - REGENERATE
 			{"ALTER MASTER KEY REGENERATE WITH ENCRYPTION BY PASSWORD = 'NewPass!'", "ALTER"},
 			// ALTER - FORCE REGENERATE
@@ -21071,12 +21071,10 @@ func TestParseCryptoBnfReview(t *testing.T) {
 			{"CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM = AES_256 ENCRYPTION BY SERVER CERTIFICATE MyCert", "CREATE"},
 			// CREATE with ASYMMETRIC KEY
 			{"CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM = AES_128 ENCRYPTION BY SERVER ASYMMETRIC KEY MyAsymKey", "CREATE"},
-			// CREATE with TRIPLE_DES_3KEY
-			{"CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM = TRIPLE_DES_3KEY ENCRYPTION BY SERVER CERTIFICATE MyCert", "CREATE"},
+			// CREATE with AES_192
+			{"CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM = AES_192 ENCRYPTION BY SERVER CERTIFICATE MyCert", "CREATE"},
 			// ALTER - REGENERATE
 			{"ALTER DATABASE ENCRYPTION KEY REGENERATE WITH ALGORITHM = AES_256", "ALTER"},
-			// ALTER - REGENERATE with ENCRYPTION BY
-			{"ALTER DATABASE ENCRYPTION KEY REGENERATE WITH ALGORITHM = AES_256 ENCRYPTION BY SERVER CERTIFICATE NewCert", "ALTER"},
 			// ALTER - ENCRYPTION BY
 			{"ALTER DATABASE ENCRYPTION KEY ENCRYPTION BY SERVER CERTIFICATE MyCert", "ALTER"},
 			// DROP
@@ -21323,7 +21321,7 @@ func TestParseCryptoBnfReview(t *testing.T) {
 			{"CREATE CRYPTOGRAPHIC PROVIDER MyProv FROM FILE = 'c:\\providers\\myprov.dll'", "CREATE"},
 			{"ALTER CRYPTOGRAPHIC PROVIDER MyProv ENABLE", "ALTER"},
 			{"ALTER CRYPTOGRAPHIC PROVIDER MyProv DISABLE", "ALTER"},
-			{"ALTER CRYPTOGRAPHIC PROVIDER MyProv FROM FILE = 'c:\\providers\\myprov_v2.dll' ENABLE", "ALTER"},
+			{"ALTER CRYPTOGRAPHIC PROVIDER MyProv FROM FILE = 'c:\\providers\\myprov_v2.dll'", "ALTER"},
 			{"DROP CRYPTOGRAPHIC PROVIDER MyProv", "DROP"},
 		}
 		for _, tt := range sqls {
@@ -22512,7 +22510,7 @@ func TestParseBackupRestoreBnfReview(t *testing.T) {
 			},
 			{
 				name: "credential",
-				sql:  "BACKUP DATABASE mydb TO URL = 'https://storage.blob.core.windows.net/container/mydb.bak' WITH CREDENTIAL",
+				sql:  "BACKUP DATABASE mydb TO URL = 'https://storage.blob.core.windows.net/container/mydb.bak' WITH CREDENTIAL = 'mycred'",
 			},
 		}
 		for _, tt := range tests {

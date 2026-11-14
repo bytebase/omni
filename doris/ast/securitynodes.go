@@ -321,21 +321,22 @@ var _ Node = (*SetPasswordStmt)(nil)
 // GRANT / REVOKE (T7.1)
 // ---------------------------------------------------------------------------
 
-// GrantStmt represents:
+// GrantStmt represents (DorisParser.g4:533-538):
 //
-//	GRANT priv_list ON [object_type] object TO {USER 'user'@'host' | ROLE 'role'} [, ...] [WITH GRANT OPTION]
-//	GRANT ROLE role_list TO 'user'@'host' | role
+//	GRANT priv [(cols)], ... ON [object_type] object TO 'user'@'host' | ROLE 'role'
+//	GRANT 'role', ... TO 'user'@'host'
 //
 // The two forms are distinguished by whether Roles is non-empty (role-grant
 // form) or Privileges is non-empty (privilege-grant form).
 type GrantStmt struct {
 	// Privilege-grant form fields.
-	Privileges      []string    // SELECT_PRIV, INSERT_PRIV, ALL, etc.
-	ObjectType      string      // TABLE (default), DATABASE, RESOURCE, CLUSTER, COMPUTE GROUP, STAGE, STORAGE VAULT, WORKLOAD GROUP
-	Object          *ObjectName // target object (may be *.* or db.*)
-	ToType          string      // USER or ROLE (empty when grantee has no explicit keyword)
-	Grantees        []string    // user@host or role names (raw text)
-	WithGrantOption bool
+	Privileges       []string    // SELECT_PRIV, INSERT_PRIV, ALL, etc.
+	PrivilegeColumns [][]string  // each privilege's column list, beside Privileges; nil when it has none
+	ObjectType       string      // TABLE (default), RESOURCE, CLUSTER, COMPUTE GROUP, STAGE, STORAGE VAULT, WORKLOAD GROUP
+	Object           *ObjectName // target object (may be *.* or db.*)
+	ToType           string      // USER or ROLE (empty when grantee has no explicit keyword)
+	Grantees         []string    // user@host or role names (raw text)
+	WithGrantOption  bool
 
 	// Role-grant form fields (GRANT ROLE role1,role2 TO user/role).
 	Roles []string // non-empty only for GRANT ROLE ... TO ... form
@@ -350,15 +351,16 @@ var _ Node = (*GrantStmt)(nil)
 
 // RevokeStmt represents:
 //
-//	REVOKE priv_list ON [object_type] object FROM {USER 'user'@'host' | ROLE 'role'} [, ...]
-//	REVOKE ROLE role_list FROM 'user'@'host' | role
+//	REVOKE priv [(cols)], ... ON [object_type] object FROM 'user'@'host' | ROLE 'role'
+//	REVOKE 'role', ... FROM 'user'@'host'
 type RevokeStmt struct {
 	// Privilege-revoke form fields.
-	Privileges []string
-	ObjectType string
-	Object     *ObjectName
-	FromType   string   // USER or ROLE (empty when revokee has no explicit keyword)
-	Revokees   []string // user@host or role names (raw text)
+	Privileges       []string
+	PrivilegeColumns [][]string // each privilege's column list, beside Privileges
+	ObjectType       string
+	Object           *ObjectName
+	FromType         string   // USER or ROLE (empty when revokee has no explicit keyword)
+	Revokees         []string // user@host or role names (raw text)
 
 	// Role-revoke form fields.
 	Roles []string // non-empty only for REVOKE ROLE ... FROM ... form

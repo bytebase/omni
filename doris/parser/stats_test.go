@@ -352,8 +352,13 @@ func TestDropStats_WithColumns(t *testing.T) {
 	}
 }
 
+// TestDropStats_Expired: DROP EXPIRED STATS names no table
+// (DorisParser.g4:762, DorisLegacyParser.g4:985).
 func TestDropStats_Expired(t *testing.T) {
-	file, errs := parseForTest("DROP EXPIRED STATS mytable")
+	if _, err := Parse("DROP EXPIRED STATS mytable"); err == nil {
+		t.Error("DROP EXPIRED STATS mytable parsed; it names no table")
+	}
+	file, errs := parseForTest("DROP EXPIRED STATS")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -641,6 +646,37 @@ func TestNodeTagsForStatsNodes(t *testing.T) {
 		}
 		if got := file.Stmts[0].Tag(); got != tt.tag {
 			t.Errorf("%q: Tag() = %v, want %v", tt.input, got, tt.tag)
+		}
+	}
+}
+
+// TestAnalyzeGrammar holds ANALYZE and the stats statements to what both of
+// Doris's parsers take; testdata/compat.tsv judged the near misses.
+func TestAnalyzeGrammar(t *testing.T) {
+	cases := []struct {
+		sql string
+		ok  bool
+	}{
+		{"ANALYZE TABLE a PARTITION a (c1, c2) WITH SAMPLE ROWS 10 WITH SYNC PROPERTIES('k' = 'v')", true},
+		{"ANALYZE TABLE a WITH CRON '0 0 * * * ?' WITH PERIOD 1 WITH BUCKETS 1 WITH FULL WITH SQL WITH HISTOGRAM", true},
+		{"ANALYZE DATABASE db.d WITH INCREMENTAL", true},
+		{"ANALYZE TABLE a WITH CRON", false},
+		{"ANALYZE TABLE a WITH FUNCTION", false},
+		{"ANALYZE TABLE a WITH SAMPLE PERCENT 1.5", false},
+		{"ANALYZE TABLE a()", false},
+		{"ANALYZE a", false},
+		{"ANALYZE SCHEMA a", false},
+		{"ANALYZE", false},
+		{"DROP STATS a (c) PARTITION (p)", true},
+		{"DROP STATS a()", false},
+		{"DROP ANALYZE JOB 1", true},
+		{"DROP ANALYZE JOB", false},
+		{"SHOW TABLE STATS 1", true},
+	}
+	for _, c := range cases {
+		_, err := Parse(c.sql)
+		if (err == nil) != c.ok {
+			t.Errorf("Parse(%q): err = %v, want accepted=%v", c.sql, err, c.ok)
 		}
 	}
 }
