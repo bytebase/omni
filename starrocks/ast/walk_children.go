@@ -564,6 +564,18 @@ func walkChildren(v Visitor, node Node) {
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+		if n.Where != nil {
+			Walk(v, n.Where)
+		}
+		for _, item := range n.OrderBy {
+			Walk(v, item)
+		}
+		if n.Limit != nil {
+			Walk(v, n.Limit)
+		}
+		if n.Offset != nil {
+			Walk(v, n.Offset)
+		}
 	case *ShowRoutineLoadTaskStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)

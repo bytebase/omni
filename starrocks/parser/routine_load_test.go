@@ -503,3 +503,19 @@ func TestSync_Tag(t *testing.T) {
 		t.Errorf("Tag() = %v, want T_SyncStmt", file.Stmts[0].Tag())
 	}
 }
+
+// TestShowRoutineLoad_WalkReachesClauses: the walker visits WHERE, ORDER BY
+// and LIMIT, so the parser's tree-height check reaches them.
+func TestShowRoutineLoad_WalkReachesClauses(t *testing.T) {
+	stmt := parseOne(t, "SHOW ROUTINE LOAD WHERE a = 1 ORDER BY b LIMIT 2, 3")
+	var refs int
+	ast.Inspect(stmt, func(n ast.Node) bool {
+		if _, ok := n.(*ast.ColumnRef); ok {
+			refs++
+		}
+		return true
+	})
+	if refs != 2 {
+		t.Errorf("walk saw %d column references, want 2 (WHERE a, ORDER BY b)", refs)
+	}
+}

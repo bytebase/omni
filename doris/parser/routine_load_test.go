@@ -544,3 +544,16 @@ func TestRoutineLoadGrammar(t *testing.T) {
 		}
 	}
 }
+
+// TestCreateRoutineLoad_QuotedName: a quoted part holding a dot stays one
+// part of the job's name.
+func TestCreateRoutineLoad_QuotedName(t *testing.T) {
+	file, errs := parseForTest("CREATE ROUTINE LOAD `db.name`.`job.name` ON t FROM KAFKA ('k' = 'v')")
+	if len(errs) != 0 {
+		t.Fatalf("Parse errors: %v", errs)
+	}
+	stmt := file.Stmts[0].(*ast.CreateRoutineLoadStmt)
+	if len(stmt.Name.Parts) != 2 || stmt.Name.Parts[0] != "db.name" || stmt.Name.Parts[1] != "job.name" {
+		t.Errorf("Name.Parts = %q", stmt.Name.Parts)
+	}
+}

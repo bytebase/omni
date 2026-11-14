@@ -31,12 +31,22 @@ func (p *Parser) parseCreateRoutineLoad(startLoc ast.Loc) (ast.Node, error) {
 	}
 	stmt := &ast.CreateRoutineLoadStmt{}
 
-	// job_label: ident ('.' ident)?
-	label, err := p.parseLoadLabel()
+	// job_label: ident ('.' ident)?, each part kept as written, so a quoted
+	// name holding a dot stays one part.
+	first, loc, err := p.parseIdentifier()
 	if err != nil {
 		return nil, err
 	}
-	stmt.Name = &ast.ObjectName{Parts: strings.Split(label, "."), Loc: ast.Loc{Start: startLoc.Start, End: p.prev.Loc.End}}
+	stmt.Name = &ast.ObjectName{Parts: []string{first}, Loc: loc}
+	if p.cur.Kind == int('.') {
+		p.advance() // consume '.'
+		second, loc2, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Name.Parts = append(stmt.Name.Parts, second)
+		stmt.Name.Loc.End = loc2.End
+	}
 
 	if p.cur.Kind == kwON {
 		p.advance() // consume ON
