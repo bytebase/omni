@@ -2104,12 +2104,16 @@ func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd) error 
 		tbl.Partitioning.NumParts = len(tbl.Partitioning.Partitions)
 		return nil
 	}
+	if err := checkAddedRangeBounds(tbl, cmd.PartitionDefs); err != nil {
+		return err
+	}
 	for _, pd := range cmd.PartitionDefs {
 		pdi := &PartitionDefInfo{
 			Name: pd.Name,
 		}
 		if pd.Values != nil {
 			pdi.ValueExpr = partitionValueToString(pd.Values, partitionTypeFromString(tbl.Partitioning.Type))
+			pdi.bound = pd.Values
 		}
 		for _, opt := range pd.Options {
 			switch toLower(opt.Name) {
@@ -2211,6 +2215,7 @@ func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd)
 		}
 		if pd.Values != nil {
 			pdi.ValueExpr = partitionValueToString(pd.Values, partitionTypeFromString(tbl.Partitioning.Type))
+			pdi.bound = pd.Values
 		}
 		for _, opt := range pd.Options {
 			switch toLower(opt.Name) {
@@ -2330,8 +2335,9 @@ func (c *Catalog) alterConvertTableToPartition(db *Database, tbl *Table, cmd *no
 	if src.Partitioning != nil || c.tableDefinitionText(src) != c.tableDefinitionText(tbl) {
 		return errTablesDifferentMetadata()
 	}
-	// The new partition's name is one the table does not have (1517), checked
-	// before either table changes.
+	// The new partition's name is one the table does not have (1517), and its
+	// bound comes after the table's last (1493, 1481), checked before either
+	// table changes.
 	for _, pd := range cmd.PartitionDefs {
 		for _, have := range tbl.Partitioning.Partitions {
 			if strings.EqualFold(have.Name, pd.Name) {
@@ -2339,6 +2345,7 @@ func (c *Catalog) alterConvertTableToPartition(db *Database, tbl *Table, cmd *no
 			}
 		}
 	}
+	// alterAddPartition orders the bound before it adds anything.
 	if err := c.alterAddPartition(tbl, &nodes.AlterTableCmd{PartitionDefs: cmd.PartitionDefs}); err != nil {
 		return err
 	}
@@ -2358,6 +2365,53 @@ func (c *Catalog) tableDefinitionText(tbl *Table) string {
 	tbl.Partitioning = partitioning
 	text = strings.TrimPrefix(text, "CREATE TABLE "+backtickIDQ(tbl.Name))
 	return strings.TrimPrefix(text, "CREATE TEMPORARY TABLE "+backtickIDQ(tbl.Name))
+}
+
+// checkAddedRangeBounds holds the partitions ADD PARTITION and CONVERT TABLE add
+// to a RANGE or RANGE COLUMNS table to bounds that go on rising from the table's
+// last: past a MAXVALUE partition is 1481 on RANGE, and a bound not above the one
+// before is 1493. Measured on mariadb:11.8.8, which answers 1493 for
+// `ADD PARTITION (PARTITION p1 VALUES LESS THAN (5))` after LESS THAN (10), and
+// for a bound equal to it. A bound the catalog cannot order passes.
+func checkAddedRangeBounds(tbl *Table, defs []*nodes.PartitionDef) error {
+	pi := tbl.Partitioning
+	if pi == nil || (pi.Type != "RANGE" && pi.Type != "RANGE COLUMNS") {
+		return nil
+	}
+	var prev nodes.Node
+	if n := len(pi.Partitions); n > 0 {
+		prev = pi.Partitions[n-1].bound
+	}
+	kinds := rangeColumnsBoundKinds(tbl, pi.Columns)
+	for _, pd := range defs {
+		cur := pd.Values
+		if prev != nil && cur != nil {
+			if pi.Type == "RANGE COLUMNS" {
+				if rangeColumnsNotIncreasing(prev, cur, kinds) {
+					return errRangeNotIncreasing()
+				}
+			} else {
+				p, c := partitionBoundItems(prev), partitionBoundItems(cur)
+				if len(p) == 1 && isPartitionMaxvalue(p[0]) {
+					return &Error{Code: 1481, SQLState: "HY000", Message: "MAXVALUE can only be used in last partition definition"}
+				}
+				if len(p) == 1 && len(c) == 1 {
+					pv, ok1 := partitionBoundInt(p[0])
+					cv, ok2 := partitionBoundInt(c[0])
+					if ok1 && ok2 && cv <= pv {
+						return errRangeNotIncreasing()
+					}
+				}
+			}
+		}
+		prev = cur
+	}
+	return nil
+}
+
+// errRangeNotIncreasing is 1493, a RANGE bound not above the one before it.
+func errRangeNotIncreasing() error {
+	return &Error{Code: 1493, SQLState: "HY000", Message: "VALUES LESS THAN value must be strictly increasing for each partition"}
 }
 
 // partitionTypeFromString converts a string partition type to AST PartitionType.

@@ -1169,6 +1169,7 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 		// Values.
 		if pd.Values != nil {
 			pdi.ValueExpr = partitionValueToString(pd.Values, pc.Type)
+			pdi.bound = pd.Values
 		}
 		// Options.
 		for _, opt := range pd.Options {

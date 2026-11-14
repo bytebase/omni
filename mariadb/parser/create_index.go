@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"math"
 	"strconv"
 	"strings"
 
@@ -546,10 +547,11 @@ func (p *Parser) parseEngineIndexOption(start int) (*nodes.IndexOption, bool, er
 		opt.Value = &nodes.StringLit{Loc: nodes.Loc{Start: valStart, End: p.cur.End}, Value: p.cur.Str}
 		p.advance()
 	case p.cur.Type == tokICONST:
-		if _, err := strconv.ParseUint(p.cur.Str, 10, 64); err != nil {
+		v, err := strconv.ParseUint(p.cur.Str, 10, 64)
+		if err != nil {
 			return nil, false, p.syntaxErrorAtCur()
 		}
-		opt.Value = &nodes.IntLit{Loc: nodes.Loc{Start: valStart, End: p.cur.End}, Value: p.cur.Ival}
+		opt.Value, opt.ValueIsWord = engineOptionNumber(v, valStart, p.cur.End)
 		p.advance()
 	case p.cur.Type == tokXCONST && strings.HasPrefix(p.cur.Str, "0x"):
 		// 0x10 is an integer here and X'10' is not. The token holds the digits of the
@@ -558,7 +560,7 @@ func (p *Parser) parseEngineIndexOption(start int) (*nodes.IndexOption, bool, er
 		if err != nil {
 			return nil, false, p.syntaxErrorAtCur()
 		}
-		opt.Value = &nodes.IntLit{Loc: nodes.Loc{Start: valStart, End: p.cur.End}, Value: int64(v)}
+		opt.Value, opt.ValueIsWord = engineOptionNumber(v, valStart, p.cur.End)
 		p.advance()
 	case p.cur.Type == kwDEFAULT:
 		p.advance()
@@ -572,6 +574,17 @@ func (p *Parser) parseEngineIndexOption(start int) (*nodes.IndexOption, bool, er
 	}
 	opt.Loc = nodes.Loc{Start: start, End: p.prev.End}
 	return opt, true, nil
+}
+
+// engineOptionNumber is an engine-defined option's unsigned value: an IntLit where
+// it fits one, and past 2^63-1 its decimal digits as a bare word, which is how
+// MariaDB 11.8.8 prints it (`x`=18446744073709551615 for x=0xffffffffffffffff).
+func engineOptionNumber(v uint64, start, end int) (nodes.Node, bool) {
+	loc := nodes.Loc{Start: start, End: end}
+	if v > math.MaxInt64 {
+		return &nodes.StringLit{Loc: loc, Value: strconv.FormatUint(v, 10)}, true
+	}
+	return &nodes.IntLit{Loc: loc, Value: int64(v)}, false
 }
 
 // atNotIgnored reports whether the cursor is at NOT followed by an unquoted

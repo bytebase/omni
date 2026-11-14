@@ -203,7 +203,7 @@
 | SET sql_mode = 'IGNORE_BAD_TABLE_OPTIONS'
 < ok 0 0
 > exec
-| CREATE TABLE o (a INT NOT NULL DEFAULT 1 COMMENT 'c' x = 1 INVISIBLE CHECK (a > 0), b INT y = 2 z := 'it''s' Y = w, c INT q = 1 q = DEFAULT, d INT `select` = 0x41 READ_ONLY = 7, e INT `x``y` = 1, KEY k (e) `m``n` = 2)
+| CREATE TABLE o (a INT NOT NULL DEFAULT 1 COMMENT 'c' x = 1 INVISIBLE CHECK (a > 0), b INT y = 2 z := 'it''s' Y = w, c INT q = 1 q = DEFAULT, d INT `select` = 0x41 READ_ONLY = 7, e INT `x``y` = 1, f INT u = 0xffffffffffffffff v = 9223372036854775808 t = 9223372036854775807, KEY k (e) `m``n` = 2, KEY k2 (f) w = 18446744073709551615)
 < ok 0 0
 > query
 | SHOW CREATE TABLE o
@@ -220,7 +220,9 @@
 |   `c` int(11) DEFAULT NULL,
 |   `d` int(11) DEFAULT NULL `select`=65 `READ_ONLY`=7,
 |   `e` int(11) DEFAULT NULL `x``y`=1,
-|   KEY `k` (`e`) `m``n`=2
+|   `f` int(11) DEFAULT NULL `u`=18446744073709551615 `v`=9223372036854775808 `t`=9223372036854775807,
+|   KEY `k` (`e`) `m``n`=2,
+|   KEY `k2` (`f`) `w`=18446744073709551615
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
 > exec
 | SET sql_mode = DEFAULT
@@ -566,6 +568,89 @@
 | ALTER TABLE pt CONVERT TABLE ct TO PARTITION P0 VALUES LESS THAN (20)
 < error
 | 1517 HY000 Duplicate partition name P0
+> exec
+| SET sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
+< ok 0 0
+> exec
+| CREATE TABLE pt (a INT) PARTITION BY RANGE COLUMNS (a) (PARTITION p0 VALUES LESS THAN (10))
+< ok 0 0
+> exec
+| CREATE TABLE ct (a INT)
+< ok 0 0
+> exec
+| ALTER TABLE pt CONVERT TABLE ct TO PARTITION p1 VALUES LESS THAN (5)
+< error
+| 1493 HY000 VALUES LESS THAN value must be strictly increasing for each partition
+> exec
+| SET sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
+< ok 0 0
+> exec
+| CREATE TABLE pt (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))
+< ok 0 0
+> exec
+| ALTER TABLE pt ADD PARTITION (p1 VALUES LESS THAN (10))
+< error
+| 1493 HY000 VALUES LESS THAN value must be strictly increasing for each partition
+> exec
+| SET sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
+< ok 0 0
+> exec
+| CREATE TABLE pt (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN MAXVALUE)
+< ok 0 0
+> exec
+| ALTER TABLE pt ADD PARTITION (p1 VALUES LESS THAN (5))
+< error
+| 1481 HY000 MAXVALUE can only be used in last partition definition
+> exec
+| SET sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
+< ok 0 0
+> exec
+| CREATE TABLE pt (a INT, b INT) PARTITION BY RANGE COLUMNS (a, b) (PARTITION p0 VALUES LESS THAN (10, MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE pt ADD PARTITION (p1 VALUES LESS THAN (10, 5))
+< error
+| 1493 HY000 VALUES LESS THAN value must be strictly increasing for each partition
+> exec
+| SET sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
+< ok 0 0
+> exec
+| CREATE TABLE pt (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))
+< ok 0 0
+> exec
+| ALTER TABLE pt ADD PARTITION (p1 VALUES LESS THAN (20), p2 VALUES LESS THAN MAXVALUE)
+< ok 0 0
+> query
+| SHOW CREATE TABLE pt
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| pt
+: bytes
+| CREATE TABLE `pt` (
+|   `a` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE (`a`)
+| (PARTITION `p0` VALUES LESS THAN (10) ENGINE = InnoDB,
+|  PARTITION `p1` VALUES LESS THAN (20) ENGINE = InnoDB,
+|  PARTITION `p2` VALUES LESS THAN MAXVALUE ENGINE = InnoDB)
 > exec
 | SET sql_mode = DEFAULT
 < ok 0 0

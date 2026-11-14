@@ -75,7 +75,7 @@ var columnPartitionClauseCases = []struct {
 	{
 		name:   "engine-defined options under IGNORE_BAD_TABLE_OPTIONS",
 		setup:  []string{"SET sql_mode = 'IGNORE_BAD_TABLE_OPTIONS'"},
-		sql:    "CREATE TABLE o (a INT NOT NULL DEFAULT 1 COMMENT 'c' x = 1 INVISIBLE CHECK (a > 0), b INT y = 2 z := 'it''s' Y = w, c INT q = 1 q = DEFAULT, d INT `select` = 0x41 READ_ONLY = 7, e INT `x``y` = 1, KEY k (e) `m``n` = 2)",
+		sql:    "CREATE TABLE o (a INT NOT NULL DEFAULT 1 COMMENT 'c' x = 1 INVISIBLE CHECK (a > 0), b INT y = 2 z := 'it''s' Y = w, c INT q = 1 q = DEFAULT, d INT `select` = 0x41 READ_ONLY = 7, e INT `x``y` = 1, f INT u = 0xffffffffffffffff v = 9223372036854775808 t = 9223372036854775807, KEY k (e) `m``n` = 2, KEY k2 (f) w = 18446744073709551615)",
 		tables: []string{"o"},
 	},
 	{
@@ -154,6 +154,36 @@ var columnPartitionClauseCases = []struct {
 		setup:   []string{"CREATE TABLE pt (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))", "CREATE TABLE ct (a INT)"},
 		sql:     "ALTER TABLE pt CONVERT TABLE ct TO PARTITION P0 VALUES LESS THAN (20)",
 		errCode: 1517,
+	},
+	{
+		name:    "CONVERT TABLE to a bound below the table's last",
+		setup:   []string{"CREATE TABLE pt (a INT) PARTITION BY RANGE COLUMNS (a) (PARTITION p0 VALUES LESS THAN (10))", "CREATE TABLE ct (a INT)"},
+		sql:     "ALTER TABLE pt CONVERT TABLE ct TO PARTITION p1 VALUES LESS THAN (5)",
+		errCode: 1493,
+	},
+	{
+		name:    "ADD PARTITION at the table's last bound",
+		setup:   []string{"CREATE TABLE pt (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))"},
+		sql:     "ALTER TABLE pt ADD PARTITION (p1 VALUES LESS THAN (10))",
+		errCode: 1493,
+	},
+	{
+		name:    "ADD PARTITION after MAXVALUE",
+		setup:   []string{"CREATE TABLE pt (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN MAXVALUE)"},
+		sql:     "ALTER TABLE pt ADD PARTITION (p1 VALUES LESS THAN (5))",
+		errCode: 1481,
+	},
+	{
+		name:    "ADD PARTITION below a RANGE COLUMNS bound of two columns",
+		setup:   []string{"CREATE TABLE pt (a INT, b INT) PARTITION BY RANGE COLUMNS (a, b) (PARTITION p0 VALUES LESS THAN (10, MAXVALUE))"},
+		sql:     "ALTER TABLE pt ADD PARTITION (p1 VALUES LESS THAN (10, 5))",
+		errCode: 1493,
+	},
+	{
+		name:   "ADD PARTITION above the table's last bound",
+		setup:  []string{"CREATE TABLE pt (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))"},
+		sql:    "ALTER TABLE pt ADD PARTITION (p1 VALUES LESS THAN (20), p2 VALUES LESS THAN MAXVALUE)",
+		tables: []string{"pt"},
 	},
 	{
 		name:    "CONVERT TABLE of no table",

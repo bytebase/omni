@@ -1,5 +1,7 @@
 package catalog
 
+import nodes "github.com/bytebase/omni/mariadb/ast"
+
 type Table struct {
 	Name             string
 	Database         *Database
@@ -94,6 +96,9 @@ type PartitionDefInfo struct {
 	Engine        string // ENGINE option for this partition
 	Comment       string // COMMENT option for this partition
 	SubPartitions []*SubPartitionDefInfo
+	// bound is the VALUES bound as the statement wrote it, which a partition
+	// added later is ordered against (checkAddedRangeBounds). Nil when not known.
+	bound nodes.Node
 }
 
 // SubPartitionDefInfo holds a single subpartition definition.
