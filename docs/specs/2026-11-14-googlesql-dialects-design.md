@@ -1,6 +1,7 @@
 # GoogleSQL dialects: BigQuery and Spanner
 
-Date: 2026-11-14. Status: draft for review. §8 lists the decisions it needs.
+Date: 2026-11-14. Status: approved 2026-11-14, with every decision of §8 as
+recommended.
 
 ## 1. Goal
 
@@ -205,13 +206,15 @@ go into one final PR, as for the compatibility spec.
 
 ## 8. Decisions
 
-- **D1. One parser with a dialect, not a fork** (§3). Recommended.
+All five were decided as written here on 2026-11-14.
+
+- **D1. One parser with a dialect, not a fork** (§3).
 - **D2. What `Parse` means afterwards.** `Union` keeps every caller working
   and breaks AGENTS.md's rule; removing `Parse` in favor of `ParseDialect`
-  makes every caller choose. Recommended: keep `Union` until step 7, then
+  makes every caller choose. Decided: keep `Union` until step 7, then
   decide with Bytebase's tests in hand.
-- **D3. Parser verdicts, not analyzer verdicts** (§4). Recommended, as every
-  engine's judge does. The alternative, refusing what Spanner's analyzer
+- **D3. Parser verdicts, not analyzer verdicts** (§4), as every engine's judge
+  does. The alternative, refusing what Spanner's analyzer
   refuses, makes the parser track Spanner's feature list and needs a judge
   that reads "not supported" as a rejection.
 - **D4. BigQuery's dry runs on `bytebase-dev`.** Done: the devbox's service
