@@ -1117,11 +1117,11 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 				stmt.Loc.Start = loc
 				return stmt, nil
 			}
-			if p.cur.Type == kwSERVICE {
-				p.advance() // consume SERVICE
+			if _, err := p.expect(kwSERVICE); err != nil {
+				return nil, err
 			}
-			if p.cur.Type == kwBINDING {
-				p.advance() // consume BINDING
+			if _, err := p.expect(kwBINDING); err != nil {
+				return nil, err
 			}
 			stmt, err := p.parseCreateRemoteServiceBindingStmt()
 			if err != nil {
@@ -1300,8 +1300,8 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 		// CREATE BROKER PRIORITY (service broker)
 		if p.cur.Type == kwBROKER {
 			p.advance() // consume BROKER
-			if p.cur.Type == kwPRIORITY {
-				p.advance() // consume PRIORITY
+			if _, err := p.expect(kwPRIORITY); err != nil {
+				return nil, err
 			}
 			stmt, err := p.parseCreateBrokerPriorityStmt()
 			if err != nil {
@@ -1776,11 +1776,11 @@ func (p *Parser) parseAlterStmt() (nodes.StmtNode, error) {
 		// ALTER REMOTE SERVICE BINDING (service broker)
 		if p.cur.Type == kwREMOTE {
 			p.advance() // consume REMOTE
-			if p.cur.Type == kwSERVICE {
-				p.advance() // consume SERVICE
+			if _, err := p.expect(kwSERVICE); err != nil {
+				return nil, err
 			}
-			if p.cur.Type == kwBINDING {
-				p.advance() // consume BINDING
+			if _, err := p.expect(kwBINDING); err != nil {
+				return nil, err
 			}
 			stmt, err := p.parseAlterRemoteServiceBindingStmt()
 			if err != nil {
@@ -1792,8 +1792,8 @@ func (p *Parser) parseAlterStmt() (nodes.StmtNode, error) {
 		// ALTER BROKER PRIORITY (service broker)
 		if p.cur.Type == kwBROKER {
 			p.advance() // consume BROKER
-			if p.cur.Type == kwPRIORITY {
-				p.advance() // consume PRIORITY
+			if _, err := p.expect(kwPRIORITY); err != nil {
+				return nil, err
 			}
 			stmt, err := p.parseAlterBrokerPriorityStmt()
 			if err != nil {
@@ -1819,8 +1819,8 @@ func (p *Parser) parseAlterStmt() (nodes.StmtNode, error) {
 		// ALTER MESSAGE TYPE (service broker)
 		if p.cur.Type == kwMESSAGE {
 			p.advance() // consume MESSAGE
-			if p.cur.Type == kwTYPE {
-				p.advance() // consume TYPE
+			if _, err := p.expect(kwTYPE); err != nil {
+				return nil, err
 			}
 			stmt, err := p.parseAlterMessageTypeStmt()
 			if err != nil {
@@ -2214,8 +2214,8 @@ func (p *Parser) parseDropOrSecurityStmt() (nodes.StmtNode, error) {
 		if next.Type == kwMESSAGE {
 			p.advance() // consume DROP
 			p.advance() // consume MESSAGE
-			if p.cur.Type == kwTYPE {
-				p.advance() // consume TYPE
+			if _, err := p.expect(kwTYPE); err != nil {
+				return nil, err
 			}
 			stmt, err := p.parseDropServiceBrokerStmt("MESSAGE TYPE")
 			if err != nil {
@@ -2267,11 +2267,11 @@ func (p *Parser) parseDropOrSecurityStmt() (nodes.StmtNode, error) {
 		if next.Type == kwREMOTE {
 			p.advance() // consume DROP
 			p.advance() // consume REMOTE
-			if p.cur.Type == kwSERVICE {
-				p.advance() // consume SERVICE
+			if _, err := p.expect(kwSERVICE); err != nil {
+				return nil, err
 			}
-			if p.cur.Type == kwBINDING {
-				p.advance() // consume BINDING
+			if _, err := p.expect(kwBINDING); err != nil {
+				return nil, err
 			}
 			stmt, err := p.parseDropServiceBrokerStmt("REMOTE SERVICE BINDING")
 			if err != nil {
@@ -2283,8 +2283,8 @@ func (p *Parser) parseDropOrSecurityStmt() (nodes.StmtNode, error) {
 		if next.Type == kwBROKER {
 			p.advance() // consume DROP
 			p.advance() // consume BROKER
-			if p.cur.Type == kwPRIORITY {
-				p.advance() // consume PRIORITY
+			if _, err := p.expect(kwPRIORITY); err != nil {
+				return nil, err
 			}
 			stmt, err := p.parseDropServiceBrokerStmt("BROKER PRIORITY")
 			if err != nil {

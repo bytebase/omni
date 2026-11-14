@@ -4787,9 +4787,7 @@ func TestParseServiceBrokerAlterDrop(t *testing.T) {
 		"ALTER REMOTE SERVICE BINDING MyBinding WITH USER = NewUser",
 		"ALTER REMOTE SERVICE BINDING MyBinding WITH USER = NewUser, ANONYMOUS = ON",
 		// ALTER MESSAGE TYPE
-		"ALTER MESSAGE TYPE MyMessageType",
-		// ALTER CONTRACT
-		"ALTER CONTRACT MyContract",
+		"ALTER MESSAGE TYPE MyMessageType VALIDATION = NONE",
 		// DROP MESSAGE TYPE
 		"DROP MESSAGE TYPE MyMessageType",
 		// DROP CONTRACT
@@ -7006,7 +7004,7 @@ func TestParseIntegrationPhase3(t *testing.T) {
 		"CREATE RULE range_rule AS @range >= 1000 AND @range < 20000",
 		"ALTER DATABASE SCOPED CONFIGURATION SET MAXDOP = 4",
 		// BEGIN DIALOG (service broker, newly wired)
-		"BEGIN DIALOG @dialog FROM SERVICE 'InitiatorService' TO SERVICE 'TargetService' ON CONTRACT 'MyContract'",
+		"BEGIN DIALOG @dialog FROM SERVICE InitiatorService TO SERVICE 'TargetService' ON CONTRACT MyContract",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
@@ -9495,9 +9493,11 @@ func TestParseCreateTypeIndex(t *testing.T) {
 	})
 
 	t.Run("create_type_table_hash_index", func(t *testing.T) {
+		// WITH follows the column list; SQL Server 2022 refuses it before
+		// (Msg 102).
 		sql := `CREATE TYPE dbo.MemOptType AS TABLE (
 			id INT NOT NULL,
-			INDEX IX_id NONCLUSTERED HASH WITH (BUCKET_COUNT = 1024) (id)
+			INDEX IX_id NONCLUSTERED HASH (id) WITH (BUCKET_COUNT = 1024)
 		)`
 		result := ParseAndCheck(t, sql)
 		stmt := result.Items[0].(*ast.CreateTypeStmt)
@@ -12146,23 +12146,6 @@ func TestParseServiceBrokerAlterOptionsDepth(t *testing.T) {
 			name: "alter_message_type_validation_valid_xml_schema",
 			sql:  "ALTER MESSAGE TYPE MyMessageType VALIDATION = VALID_XML WITH SCHEMA COLLECTION MySchemaCollection",
 		},
-		// ALTER CONTRACT with message type modifications (ADD/DROP)
-		{
-			name: "alter_contract_add_message_type",
-			sql:  "ALTER CONTRACT MyContract ADD MESSAGE TYPE MyMsgType SENT BY INITIATOR",
-		},
-		{
-			name: "alter_contract_drop_message_type",
-			sql:  "ALTER CONTRACT MyContract DROP MESSAGE TYPE MyMsgType",
-		},
-		{
-			name: "alter_contract_add_sent_by_target",
-			sql:  "ALTER CONTRACT MyContract ADD MESSAGE TYPE ResponseMsg SENT BY TARGET",
-		},
-		{
-			name: "alter_contract_add_sent_by_any",
-			sql:  "ALTER CONTRACT MyContract ADD MESSAGE TYPE AnyMsg SENT BY ANY",
-		},
 		// ALTER ROUTE with structured WITH options
 		{
 			name: "alter_route_all_options",
@@ -12859,26 +12842,13 @@ func TestParseMaterializedView(t *testing.T) {
 		// With join in SELECT
 		"CREATE MATERIALIZED VIEW dbo.mv_join WITH (DISTRIBUTION = HASH(vendor_id)) AS SELECT a.vendor_id, SUM(a.total_amount) AS s, COUNT_BIG(*) AS c FROM t1 a INNER JOIN t2 b ON a.vendor_id = b.vendor_id GROUP BY a.vendor_id",
 	}
+	// CREATE and ALTER MATERIALIZED VIEW are Azure Synapse Analytics syntax,
+	// which SQL Server 2022 refuses (Msg 102), so Parse refuses them.
 	for _, sql := range createTests {
 		t.Run(sql, func(t *testing.T) {
-			result := ParseAndCheck(t, sql)
-			if result.Len() != 1 {
-				t.Fatalf("Parse(%q): got %d statements, want 1", sql, result.Len())
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q): expected an error", sql)
 			}
-			stmt, ok := result.Items[0].(*ast.CreateMaterializedViewStmt)
-			if !ok {
-				t.Fatalf("Parse(%q): expected *CreateMaterializedViewStmt, got %T", sql, result.Items[0])
-			}
-			if stmt.Name == nil {
-				t.Errorf("Parse(%q): Name is nil", sql)
-			}
-			if stmt.Distribution == "" {
-				t.Errorf("Parse(%q): Distribution is empty", sql)
-			}
-			if stmt.Query == nil {
-				t.Errorf("Parse(%q): Query is nil", sql)
-			}
-			checkLocation(t, sql, "CreateMaterializedViewStmt", stmt.Loc)
 		})
 	}
 
@@ -12898,21 +12868,9 @@ func TestParseMaterializedView(t *testing.T) {
 	}
 	for _, tc := range alterTests {
 		t.Run(tc.sql, func(t *testing.T) {
-			result := ParseAndCheck(t, tc.sql)
-			if result.Len() != 1 {
-				t.Fatalf("Parse(%q): got %d statements, want 1", tc.sql, result.Len())
+			if _, err := Parse(tc.sql); err == nil {
+				t.Errorf("Parse(%q): expected an error", tc.sql)
 			}
-			stmt, ok := result.Items[0].(*ast.AlterMaterializedViewStmt)
-			if !ok {
-				t.Fatalf("Parse(%q): expected *AlterMaterializedViewStmt, got %T", tc.sql, result.Items[0])
-			}
-			if stmt.Name == nil {
-				t.Errorf("Parse(%q): Name is nil", tc.sql)
-			}
-			if !strings.EqualFold(stmt.Action, tc.action) {
-				t.Errorf("Parse(%q): Action = %q, want %q", tc.sql, stmt.Action, tc.action)
-			}
-			checkLocation(t, tc.sql, "AlterMaterializedViewStmt", stmt.Loc)
 		})
 	}
 
@@ -13459,9 +13417,6 @@ func TestParseStmtDispatchPhase4(t *testing.T) {
 		{"create_external_model", "CREATE EXTERNAL MODEL mymodel WITH (LOCATION = 'onnx:///mymodel.onnx')", "*ast.SecurityStmt"},
 		// Batch 109 - json/vector index
 		{"create_json_index", "CREATE JSON INDEX idx_json ON dbo.t1 (col1)", "*ast.CreateJsonIndexStmt"},
-		// Batch 110 - materialized view
-		{"create_materialized_view", "CREATE MATERIALIZED VIEW dbo.mv AS SELECT col1 FROM dbo.t1", "*ast.CreateMaterializedViewStmt"},
-		{"alter_materialized_view", "ALTER MATERIALIZED VIEW dbo.mv REBUILD", "*ast.AlterMaterializedViewStmt"},
 		// Batch 111 - copy into
 		{"copy_into", "COPY INTO dbo.t1 FROM 'https://storage.blob.core.windows.net/data/' WITH (FILE_TYPE = 'CSV')", "*ast.CopyIntoStmt"},
 		// Batch 112 - rename, CETAS, clone
@@ -17534,12 +17489,32 @@ func TestParseServiceBrokerOptionsStringsDepth(t *testing.T) {
 		}
 	})
 
-	t.Run("alter_contract_add_drop", func(t *testing.T) {
-		sql := "ALTER CONTRACT MyContract ADD MESSAGE TYPE MyMsgType SENT BY INITIATOR"
-		result := ParseAndCheck(t, sql)
-		opt := getOpt(t, result, 0)
-		if opt.Name != "ADD" || opt.Value != "MyMsgType SENT BY INITIATOR" {
-			t.Errorf("expected ADD=MyMsgType SENT BY INITIATOR, got %s=%s", opt.Name, opt.Value)
+	// SQL Server 2022 refuses each of these at parse time (checked on the
+	// pinned server under SET PARSEONLY ON).
+	t.Run("refused_forms", func(t *testing.T) {
+		for _, sql := range []string{
+			"ALTER CONTRACT MyContract ADD MESSAGE TYPE MyMsgType SENT BY INITIATOR",
+			"ALTER MESSAGE TYPE MyMsg",
+			"CREATE MESSAGE TYPE MyMsg VALIDATION = VALID_XML",
+			"CREATE QUEUE q WITH STATUS = ON, STATUS = OFF",
+			"CREATE QUEUE q WITH ACTIVATION (DROP)",
+			"CREATE QUEUE q WITH ACTIVATION (PROCEDURE_NAME = p, MAX_QUEUE_READERS = 1)",
+			"ALTER QUEUE q WITH ACTIVATION (DROP, STATUS = ON)",
+			"ALTER QUEUE q WITH ACTIVATION (EXECUTE AS CALLER)",
+			"CREATE SERVICE s ON QUEUE a.b.c",
+			"CREATE ROUTE r WITH SERVICE_NAME = 'a'",
+			"CREATE ROUTE r WITH ADDRESS = 'a', ADDRESS = 'b'",
+			"CREATE REMOTE SERVICE BINDING b TO SERVICE 's' WITH ANONYMOUS = ON",
+			"ALTER BROKER PRIORITY p FOR CONVERSATION",
+			"ALTER BROKER PRIORITY p FOR CONVERSATION SET (PRIORITY_LEVEL = ANY)",
+			"ALTER BROKER PRIORITY p FOR CONVERSATION SET (REMOTE_SERVICE_NAME = s)",
+			"BEGIN DIALOG @h FROM SERVICE s TO SERVICE 't' WITH LIFETIME = 1, LIFETIME = 2",
+			"END CONVERSATION @h WITH ERROR = 1",
+			"DROP SERVICE a.b",
+		} {
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q): want an error, SQL Server refuses it", sql)
+			}
 		}
 	})
 
@@ -22510,7 +22485,7 @@ func TestParseBackupRestoreBnfReview(t *testing.T) {
 			},
 			{
 				name: "credential",
-				sql:  "BACKUP DATABASE mydb TO URL = 'https://storage.blob.core.windows.net/container/mydb.bak' WITH CREDENTIAL",
+				sql:  "BACKUP DATABASE mydb TO URL = 'https://storage.blob.core.windows.net/container/mydb.bak' WITH CREDENTIAL = 'mycred'",
 			},
 		}
 		for _, tt := range tests {

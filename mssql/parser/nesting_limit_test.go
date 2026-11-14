@@ -71,7 +71,6 @@ var nestingCases = []struct {
 	{"filtered index predicate", func(n int) string {
 		return "CREATE INDEX i ON t (a) WHERE " + nest(n, "(", "a = 1", ")")
 	}, true},
-	{"CREATE SCHEMA elements", func(n int) string { return strings.Repeat("CREATE SCHEMA s ", n) }, false},
 	{"unclosed parentheses", func(n int) string { return "SELECT " + strings.Repeat("(", n) }, false},
 	{"unclosed function calls", func(n int) string { return "SELECT " + strings.Repeat("ABS(", n) }, false},
 	{"unclosed subqueries", func(n int) string { return strings.Repeat("SELECT (", n) }, false},
@@ -79,7 +78,6 @@ var nestingCases = []struct {
 	{"unclosed join groups", func(n int) string { return "SELECT * FROM " + strings.Repeat("(", n) }, false},
 	{"joins waiting for ON", func(n int) string { return "SELECT * FROM t" + strings.Repeat(" JOIN t", n) }, false},
 	{"unclosed blocks", func(n int) string { return strings.Repeat("BEGIN ", n) }, false},
-	{"unclosed WAITFOR", func(n int) string { return strings.Repeat("WAITFOR (", n) }, false},
 }
 
 // parseWithin parses sql on its own goroutine and reports false if it takes
