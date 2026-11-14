@@ -586,14 +586,6 @@ func (p *Parser) parseFlashbackClause() (*nodes.FlashbackClause, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		p.advance()
-		// Oracle 23ai answers AS OF at the end of the text with ORA-03055
-		// at the end, which compat.OracleVerdict, deciding an answer at
-		// the end by its code, records as an acceptance; omni keeps
-		// accepting it until that row is judged again.
-		if p.cur.Type == tokEOF {
-			fc.Loc.End = p.prev.End
-			return fc, nil
-		}
 		if err := periodFor(); err != nil {
 			return nil, err
 		}
@@ -1093,13 +1085,9 @@ func (p *Parser) parseUnpivotClause() (*nodes.UnpivotClause, error) {
 					Loc:      nodes.Loc{Start: labelStart, End: p.prev.End},
 				}
 			} else {
-				// Oracle 23ai parses a parenthesized label for one FOR
-				// column, (c AS (1)), but the recorded answers for AS()
-				// and AS(1, 1) are at the '(': kept until rejudged.
-				if p.cur.Type == '(' {
-					return nil, p.syntaxErrorAtCur()
-				}
+				p.scalarParen = p.cur.Type == '('
 				label, err := p.parseExpr()
+				p.scalarParen = false
 				if err != nil {
 					return nil, err
 				}

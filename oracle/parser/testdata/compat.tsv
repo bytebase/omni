@@ -328,7 +328,7 @@ reject@15	reject@15	engine	statement/auditUnifiedAuditing!insert	AUDIT POLICY a 
 reject@0	reject@0	engine	statement/auditUnifiedAuditing!swap	AUTHENTICATED POLICY a
 accept	accept	engine	statement/call	CALL a()
 reject@0	reject@0	engine	statement/call!drop-1	a()
-accept	reject@5	engine	statement/call!drop-2	CALL()
+reject@5	reject@5	engine	statement/call!drop-2	CALL()
 reject@6	reject@5	engine	statement/call!drop-3	CALL a)
 reject@7	reject@7	engine	statement/call!drop-4	CALL a(
 reject@9	reject@9	engine	statement/call!insert	CALL a() zzz
@@ -1013,7 +1013,7 @@ accept	accept	engine	statement/insert	INSERT INTO a SELECT 1 FROM dual
 reject@0	reject@0	engine	statement/insert!drop-1	INTO a SELECT 1 FROM dual
 reject@7	reject@7	engine	statement/insert!drop-2	INSERT a SELECT 1 FROM dual
 reject@19	reject@12	engine	statement/insert!drop-3	INSERT INTO SELECT 1 FROM dual
-accept	reject@13	engine	statement/insert!drop-4	INSERT INTO a
+reject@13	reject@13	engine	statement/insert!drop-4	INSERT INTO a
 accept	accept	engine	statement/insert!insert	INSERT INTO a SELECT 1 FROM dual zzz
 reject@0	reject@0	engine	statement/insert!swap	INSTALL INTO a SELECT 1 FROM dual
 accept	accept	engine	statement/lockTable	LOCK TABLE a IN SHARE MODE
@@ -21562,15 +21562,15 @@ reject@44	reject@44	engine	auditUnifiedAuditing(BY_ID_(,_ID)?)*/BY_ID_(,_ID)?_(B
 reject@39	reject@39	engine	auditUnifiedAuditing(BY_ID_(,_ID)?)*/BY_ID_(,_ID)?_(BY_ID_(,_ID)?)*!swap	AUDIT CONTEXT NAMESPACE a ATTRIBUTES a CACHE a
 accept	accept	engine	call/CALL_(call_routine_clause|call_object_acce~73bee1f4)_(I~cfdedb44	CALL a()
 accept	accept	engine	call(call_routine_clause|call_object_acce~73bee1f4)/call_routine_clause	CALL a()
-reject@7	accept	engine	call(call_routine_clause|call_object_acce~73bee1f4)/call_object_access_expression	CALL(1).a()
+accept	accept	engine	call(call_routine_clause|call_object_acce~73bee1f4)/call_object_access_expression	CALL(1).a()
 reject@6	reject@5	engine	call(call_routine_clause|call_object_acce~73bee1f4)/call_object_access_expression!drop-1	CALL 1).a()
-reject@6	reject@5	engine	call(call_routine_clause|call_object_acce~73bee1f4)/call_object_access_expression!drop-2	CALL().a()
+reject@5	reject@5	engine	call(call_routine_clause|call_object_acce~73bee1f4)/call_object_access_expression!drop-2	CALL().a()
 reject@10	reject@7	engine	call(call_routine_clause|call_object_acce~73bee1f4)/call_object_access_expression!drop-3	CALL(1.a()
 reject@8	reject@5	engine	call(call_routine_clause|call_object_acce~73bee1f4)/call_object_access_expression!drop-4	CALL(1) a()
-reject@7	reject@8	engine	call(call_routine_clause|call_object_acce~73bee1f4)/call_object_access_expression!drop-5	CALL(1).()
+reject@8	reject@8	engine	call(call_routine_clause|call_object_acce~73bee1f4)/call_object_access_expression!drop-5	CALL(1).()
 reject@9	reject@7	engine	call(call_routine_clause|call_object_acce~73bee1f4)/call_object_access_expression!drop-6	CALL(1).a)
 reject@10	reject@10	engine	call(call_routine_clause|call_object_acce~73bee1f4)/call_object_access_expression!drop-7	CALL(1).a(
-reject@7	reject@12	engine	call(call_routine_clause|call_object_acce~73bee1f4)/call_object_access_expression!insert	CALL(1).a() zzz
+reject@12	reject@12	engine	call(call_routine_clause|call_object_acce~73bee1f4)/call_object_access_expression!insert	CALL(1).a() zzz
 accept	accept	engine	call(INTO_COLON_ID_(INDICATOR?_COLON_ID)?)?/%empty	CALL a()
 reject@14	accept	engine	call(INTO_COLON_ID_(INDICATOR?_COLON_ID)?)?/INTO_COLON_ID_(INDICATOR?_COLON_ID)?	CALL a() INTO : a
 reject@9	reject@9	engine	call(INTO_COLON_ID_(INDICATOR?_COLON_ID)?)?/INTO_COLON_ID_(INDICATOR?_COLON_ID)?!drop-1	CALL a() : a
@@ -21612,17 +21612,17 @@ reject@9	reject@9	engine	call_routine_clause(,_ID)?/,_ID!drop-1	CALL a(a a)
 reject@9	reject@9	engine	call_routine_clause(,_ID)?/,_ID!drop-2	CALL a(a,)
 reject@9	reject@9	engine	call_routine_clause(,_ID)?/,_ID!truncate	CALL a(a,
 reject@12	reject@12	engine	call_routine_clause(,_ID)?/,_ID!insert	CALL a(a, a zzz)
-reject@7	accept	engine	call_object_access_expression/(_EXPR_)_._ID_(_(ID_(,_ID)?)*_)	CALL(1).a()
-reject@7	accept	engine	call_object_access_expression(ID_(,_ID)?)*/%empty	CALL(1).a()
-reject@7	accept	engine	call_object_access_expression(ID_(,_ID)?)*/%empty!insert	CALL(1).a(zzz)
-reject@7	accept	engine	call_object_access_expression(ID_(,_ID)?)*/ID_(,_ID)?_(ID_(,_ID)?)*	CALL(1).a(a)
-reject@7	reject@12	engine	call_object_access_expression(ID_(,_ID)?)*/ID_(,_ID)?_(ID_(,_ID)?)*!insert	CALL(1).a(a zzz)
-reject@7	accept	engine	call_object_access_expression(,_ID)?/%empty	CALL(1).a(a)
-reject@7	accept	engine	call_object_access_expression(,_ID)?/,_ID	CALL(1).a(a, a)
-reject@7	reject@12	engine	call_object_access_expression(,_ID)?/,_ID!drop-1	CALL(1).a(a a)
-reject@7	reject@12	engine	call_object_access_expression(,_ID)?/,_ID!drop-2	CALL(1).a(a,)
+accept	accept	engine	call_object_access_expression/(_EXPR_)_._ID_(_(ID_(,_ID)?)*_)	CALL(1).a()
+accept	accept	engine	call_object_access_expression(ID_(,_ID)?)*/%empty	CALL(1).a()
+accept	accept	engine	call_object_access_expression(ID_(,_ID)?)*/%empty!insert	CALL(1).a(zzz)
+accept	accept	engine	call_object_access_expression(ID_(,_ID)?)*/ID_(,_ID)?_(ID_(,_ID)?)*	CALL(1).a(a)
+reject@12	reject@12	engine	call_object_access_expression(ID_(,_ID)?)*/ID_(,_ID)?_(ID_(,_ID)?)*!insert	CALL(1).a(a zzz)
+accept	accept	engine	call_object_access_expression(,_ID)?/%empty	CALL(1).a(a)
+accept	accept	engine	call_object_access_expression(,_ID)?/,_ID	CALL(1).a(a, a)
+reject@12	reject@12	engine	call_object_access_expression(,_ID)?/,_ID!drop-1	CALL(1).a(a a)
+reject@12	reject@12	engine	call_object_access_expression(,_ID)?/,_ID!drop-2	CALL(1).a(a,)
 reject@12	reject@12	engine	call_object_access_expression(,_ID)?/,_ID!truncate	CALL(1).a(a,
-reject@7	reject@15	engine	call_object_access_expression(,_ID)?/,_ID!insert	CALL(1).a(a, a zzz)
+reject@15	reject@15	engine	call_object_access_expression(,_ID)?/,_ID!insert	CALL(1).a(a, a zzz)
 accept	accept	engine	comment/COMMENT_ON_(AUDIT_POLICY_ID|COLUMN_(ID_.)?_ID_._~a3a573~7693b18a	COMMENT ON EDITION a IS 's'
 reject@24	accept	engine	comment(AUDIT_POLICY_ID|COLUMN_(ID_.)?_ID_._~a3a5738d)/AUDIT_POLICY_ID	COMMENT ON AUDIT POLICY a IS 's'
 accept	reject@11	engine	comment(AUDIT_POLICY_ID|COLUMN_(ID_.)?_ID_._~a3a5738d)/AUDIT_POLICY_ID!drop-1	COMMENT ON POLICY a IS 's'
@@ -31677,7 +31677,7 @@ reject@17	reject@27	engine	createSynonym(METADATA|NONE)/NONE!swap	CREATE SYNONYM
 accept	accept	engine	createSynonym(@_ID)?/%empty	CREATE SYNONYM a FOR a
 accept	accept	engine	createSynonym(@_ID)?/@_ID	CREATE SYNONYM a FOR a@a
 reject@23	reject@23	engine	createSynonym(@_ID)?/@_ID!drop-1	CREATE SYNONYM a FOR a a
-accept	reject@23	engine	createSynonym(@_ID)?/@_ID!drop-2	CREATE SYNONYM a FOR a@
+reject@23	reject@23	engine	createSynonym(@_ID)?/@_ID!drop-2	CREATE SYNONYM a FOR a@
 reject@25	reject@25	engine	createSynonym(@_ID)?/@_ID!insert	CREATE SYNONYM a FOR a@a zzz
 reject@14	reject@14	engine	createTable/CREATE_((GLOBAL_TEMPORARY|PRIVATE_TEMPORARY|~d15612ed)?~1e4d5176	CREATE TABLE a
 reject@14	reject@14	engine	createTable((GLOBAL_TEMPORARY|PRIVATE_TEMPORARY|~d15612ed)?/%empty	CREATE TABLE a
@@ -37822,13 +37822,13 @@ accept	accept	engine	delete_dml_table_expression_clause(delete_partition_extensi
 accept	accept	engine	delete_dml_table_expression_clause(delete_partition_extension_clause)?/delete_partition_extension_clause	DELETE a PARTITION(a)
 reject@8	reject@8	engine	delete_dml_table_expression_clause(delete_partition_extension_clause)?/delete_partition_extension_clause!drop-1	DELETE a(a)
 reject@20	reject@19	engine	delete_dml_table_expression_clause(delete_partition_extension_clause)?/delete_partition_extension_clause!drop-2	DELETE a PARTITION a)
-accept	reject@18	engine	delete_dml_table_expression_clause(delete_partition_extension_clause)?/delete_partition_extension_clause!drop-3	DELETE a PARTITION()
+reject@18	reject@18	engine	delete_dml_table_expression_clause(delete_partition_extension_clause)?/delete_partition_extension_clause!drop-3	DELETE a PARTITION()
 reject@20	reject@18	engine	delete_dml_table_expression_clause(delete_partition_extension_clause)?/delete_partition_extension_clause!drop-4	DELETE a PARTITION(a
 accept	accept	engine	delete_dml_table_expression_clause(delete_partition_extension_clause)?/delete_partition_extension_clause!insert	DELETE a PARTITION(a) zzz
 reject@21	reject@21	engine	delete_dml_table_expression_clause(delete_partition_extension_clause)?/delete_partition_extension_clause!swap	DELETE a PARTITIONING(a)
 accept	accept	engine	delete_dml_table_expression_clause(@_ID)?/%empty	DELETE a
 accept	accept	engine	delete_dml_table_expression_clause(@_ID)?/@_ID	DELETE a@a
-accept	reject@9	engine	delete_dml_table_expression_clause(@_ID)?/@_ID!drop-2	DELETE a@
+reject@9	reject@9	engine	delete_dml_table_expression_clause(@_ID)?/@_ID!drop-2	DELETE a@
 accept	accept	engine	delete_dml_table_expression_clause(@_ID)?/@_ID!insert	DELETE a@a zzz
 accept	accept	engine	delete_dml_table_expression_clause(ID)?/%empty	DELETE a
 accept	accept	engine	delete_dml_table_expression_clause(ID)?/ID	DELETE a a
@@ -37920,7 +37920,7 @@ accept	accept	engine	delete_partition_extension_clause/(PARTITION_(_ID_)|SUBPART
 accept	accept	engine	delete_partition_extension_clause(PARTITION_(_ID_)|SUBPARTITION_(_ID_))/PARTITION_(_ID_)	DELETE a PARTITION(a)
 accept	accept	engine	delete_partition_extension_clause(PARTITION_(_ID_)|SUBPARTITION_(_ID_))/SUBPARTITION_(_ID_)	DELETE a SUBPARTITION(a)
 reject@23	reject@22	engine	delete_partition_extension_clause(PARTITION_(_ID_)|SUBPARTITION_(_ID_))/SUBPARTITION_(_ID_)!drop-2	DELETE a SUBPARTITION a)
-accept	reject@21	engine	delete_partition_extension_clause(PARTITION_(_ID_)|SUBPARTITION_(_ID_))/SUBPARTITION_(_ID_)!drop-3	DELETE a SUBPARTITION()
+reject@21	reject@21	engine	delete_partition_extension_clause(PARTITION_(_ID_)|SUBPARTITION_(_ID_))/SUBPARTITION_(_ID_)!drop-3	DELETE a SUBPARTITION()
 reject@23	reject@21	engine	delete_partition_extension_clause(PARTITION_(_ID_)|SUBPARTITION_(_ID_))/SUBPARTITION_(_ID_)!drop-4	DELETE a SUBPARTITION(a
 accept	accept	engine	delete_partition_extension_clause(PARTITION_(_ID_)|SUBPARTITION_(_ID_))/SUBPARTITION_(_ID_)!insert	DELETE a SUBPARTITION(a) zzz
 reject@22	reject@22	engine	delete_partition_extension_clause(PARTITION_(_ID_)|SUBPARTITION_(_ID_))/SUBPARTITION_(_ID_)!swap	DELETE a SUBPARTITIONS(a)
@@ -40003,7 +40003,7 @@ reject@24	reject@24	engine	explainPlan(ID_.)?/ID_.!insert	EXPLAIN PLAN INTO a.zz
 reject@24	reject@24	engine	explainPlan(@_ID)?/%empty	EXPLAIN PLAN INTO a FOR a
 reject@26	reject@26	engine	explainPlan(@_ID)?/@_ID	EXPLAIN PLAN INTO a@a FOR a
 reject@24	reject@20	engine	explainPlan(@_ID)?/@_ID!drop-2	EXPLAIN PLAN INTO a@FOR a
-accept	reject@20	engine	explainPlan(@_ID)?/@_ID!truncate	EXPLAIN PLAN INTO a@
+reject@20	reject@20	engine	explainPlan(@_ID)?/@_ID!truncate	EXPLAIN PLAN INTO a@
 reject@22	reject@22	engine	explainPlan(@_ID)?/@_ID!insert	EXPLAIN PLAN INTO a@a zzz FOR a
 accept	accept	engine	flashbackDatabase/FLASHBACK_(STANDBY|PLUGGABLE)?_DATABASE_(ID)?_(TO_SCN_N~ef06639e	FLASHBACK DATABASE TO SCN 1
 accept	accept	engine	flashbackDatabase(STANDBY|PLUGGABLE)?/%empty	FLASHBACK DATABASE TO SCN 1
@@ -40514,7 +40514,7 @@ accept	accept	engine	insert_insert_into_clause(insert_partition_extension_clause
 accept	accept	engine	insert_insert_into_clause(@_ID)?/%empty	INSERT INTO a SELECT 1 FROM dual
 accept	accept	engine	insert_insert_into_clause(@_ID)?/@_ID	INSERT INTO a@a SELECT 1 FROM dual
 reject@21	reject@14	engine	insert_insert_into_clause(@_ID)?/@_ID!drop-2	INSERT INTO a@SELECT 1 FROM dual
-accept	reject@14	engine	insert_insert_into_clause(@_ID)?/@_ID!truncate	INSERT INTO a@
+reject@14	reject@14	engine	insert_insert_into_clause(@_ID)?/@_ID!truncate	INSERT INTO a@
 accept	accept	engine	insert_insert_into_clause(@_ID)?/@_ID!insert	INSERT INTO a@a zzz SELECT 1 FROM dual
 accept	accept	engine	insert_insert_into_clause(ID)?/%empty	INSERT INTO a SELECT 1 FROM dual
 accept	accept	engine	insert_insert_into_clause(ID)?/ID	INSERT INTO a a SELECT 1 FROM dual
@@ -42026,13 +42026,13 @@ accept	accept	engine	select_query_table_expression(select_partition_extension_cl
 accept	accept	engine	select_query_table_expression(select_partition_extension_clause)?/select_partition_extension_clause	SELECT * FROM a PARTITION(a)
 reject@15	accept	engine	select_query_table_expression(select_partition_extension_clause)?/select_partition_extension_clause!drop-1	SELECT * FROM a(a)
 reject@27	reject@26	engine	select_query_table_expression(select_partition_extension_clause)?/select_partition_extension_clause!drop-2	SELECT * FROM a PARTITION a)
-accept	reject@25	engine	select_query_table_expression(select_partition_extension_clause)?/select_partition_extension_clause!drop-3	SELECT * FROM a PARTITION()
+reject@25	reject@25	engine	select_query_table_expression(select_partition_extension_clause)?/select_partition_extension_clause!drop-3	SELECT * FROM a PARTITION()
 reject@27	reject@25	engine	select_query_table_expression(select_partition_extension_clause)?/select_partition_extension_clause!drop-4	SELECT * FROM a PARTITION(a
 accept	accept	engine	select_query_table_expression(select_partition_extension_clause)?/select_partition_extension_clause!insert	SELECT * FROM a PARTITION(a) zzz
 reject@28	reject@28	engine	select_query_table_expression(select_partition_extension_clause)?/select_partition_extension_clause!swap	SELECT * FROM a PARTITIONING(a)
 accept	accept	engine	select_query_table_expression(@_ID)?/%empty	SELECT * FROM a
 accept	accept	engine	select_query_table_expression(@_ID)?/@_ID	SELECT * FROM a@a
-accept	reject@16	engine	select_query_table_expression(@_ID)?/@_ID!drop-2	SELECT * FROM a@
+reject@16	reject@16	engine	select_query_table_expression(@_ID)?/@_ID!drop-2	SELECT * FROM a@
 accept	accept	engine	select_query_table_expression(@_ID)?/@_ID!insert	SELECT * FROM a@a zzz
 reject@14	accept	engine	select_query_table_expression(select_subquery_restriction_clause)?/%empty	SELECT * FROM(SELECT *)
 reject@14	reject@23	engine	select_query_table_expression(select_subquery_restriction_clause)?/%empty!insert	SELECT * FROM(SELECT * zzz)
@@ -42340,7 +42340,7 @@ accept	accept	engine	select_partition_extension_clause(PARTITION_(_ID_)|PARTITIO
 reject@32	reject@32	engine	select_partition_extension_clause(PARTITION_(_ID_)|PARTITION_FOR_(_EXP~c3018d04)/PARTITION_FOR_(_EXPR_(,_EXPR)*_)!swap	SELECT * FROM a PARTITIONING FOR(1)
 accept	accept	engine	select_partition_extension_clause(PARTITION_(_ID_)|PARTITION_FOR_(_EXP~c3018d04)/SUBPARTITION_(_ID_)	SELECT * FROM a SUBPARTITION(a)
 reject@30	reject@29	engine	select_partition_extension_clause(PARTITION_(_ID_)|PARTITION_FOR_(_EXP~c3018d04)/SUBPARTITION_(_ID_)!drop-2	SELECT * FROM a SUBPARTITION a)
-accept	reject@28	engine	select_partition_extension_clause(PARTITION_(_ID_)|PARTITION_FOR_(_EXP~c3018d04)/SUBPARTITION_(_ID_)!drop-3	SELECT * FROM a SUBPARTITION()
+reject@28	reject@28	engine	select_partition_extension_clause(PARTITION_(_ID_)|PARTITION_FOR_(_EXP~c3018d04)/SUBPARTITION_(_ID_)!drop-3	SELECT * FROM a SUBPARTITION()
 reject@30	reject@28	engine	select_partition_extension_clause(PARTITION_(_ID_)|PARTITION_FOR_(_EXP~c3018d04)/SUBPARTITION_(_ID_)!drop-4	SELECT * FROM a SUBPARTITION(a
 accept	accept	engine	select_partition_extension_clause(PARTITION_(_ID_)|PARTITION_FOR_(_EXP~c3018d04)/SUBPARTITION_(_ID_)!insert	SELECT * FROM a SUBPARTITION(a) zzz
 reject@29	reject@29	engine	select_partition_extension_clause(PARTITION_(_ID_)|PARTITION_FOR_(_EXP~c3018d04)/SUBPARTITION_(_ID_)!swap	SELECT * FROM a SUBPARTITIONS(a)
@@ -42417,7 +42417,7 @@ reject@34	reject@34	engine	select_flashback_query_clause(VERSIONS_BETWEEN_(SCN|T
 accept	accept	engine	select_flashback_query_clause(VERSIONS_BETWEEN_(SCN|TIMESTAMP)_EXP~52c058c4)/AS_OF_PERIOD_FOR_ID_EXPR!insert	SELECT * FROM a AS OF PERIOD FOR a 1 zzz
 reject@16	reject@16	engine	select_flashback_query_clause(VERSIONS_BETWEEN_(SCN|TIMESTAMP)_EXP~52c058c4)/AS_OF_PERIOD_FOR_ID_EXPR!swap	SELECT * FROM a ASC OF PERIOD FOR a 1
 accept	accept	engine	select_flashback_query_clause(SCN|TIMESTAMP)/SCN	SELECT * FROM a AS OF SCN 1
-accept	reject@21	engine	select_flashback_query_clause(SCN|TIMESTAMP)/SCN!truncate	SELECT * FROM a AS OF
+reject@21	reject@21	engine	select_flashback_query_clause(SCN|TIMESTAMP)/SCN!truncate	SELECT * FROM a AS OF
 reject@30	reject@30	engine	select_flashback_query_clause(SCN|TIMESTAMP)/SCN!insert	SELECT * FROM a AS OF SCN zzz 1
 reject@22	reject@22	engine	select_flashback_query_clause(SCN|TIMESTAMP)/SCN!swap	SELECT * FROM a AS OF SCOPE 1
 accept	accept	engine	select_flashback_query_clause(SCN|TIMESTAMP)/TIMESTAMP	SELECT * FROM a AS OF TIMESTAMP 1
@@ -43068,19 +43068,19 @@ reject@39	reject@39	engine	select_unpivot_in_clause(AS_(EXPR|(_EXPR_(,_EXPR)*_))
 reject@42	reject@42	engine	select_unpivot_in_clause(AS_(EXPR|(_EXPR_(,_EXPR)*_)))?/AS_(EXPR|(_EXPR_(,_EXPR)*_))!insert	SELECT * FROM a UNPIVOT(a FOR a IN(a AS 1 zzz))
 reject@37	reject@37	engine	select_unpivot_in_clause(AS_(EXPR|(_EXPR_(,_EXPR)*_)))?/AS_(EXPR|(_EXPR_(,_EXPR)*_))!swap	SELECT * FROM a UNPIVOT(a FOR a IN(a ASC 1))
 accept	accept	engine	select_unpivot_in_clause(EXPR|(_EXPR_(,_EXPR)*_))/EXPR	SELECT * FROM a UNPIVOT(a FOR a IN(a AS 1))
-reject@39	accept	engine	select_unpivot_in_clause(EXPR|(_EXPR_(,_EXPR)*_))/(_EXPR_(,_EXPR)*_)	SELECT * FROM a UNPIVOT(a FOR a IN(a AS(1)))
+accept	accept	engine	select_unpivot_in_clause(EXPR|(_EXPR_(,_EXPR)*_))/(_EXPR_(,_EXPR)*_)	SELECT * FROM a UNPIVOT(a FOR a IN(a AS(1)))
 reject@43	reject@43	engine	select_unpivot_in_clause(EXPR|(_EXPR_(,_EXPR)*_))/(_EXPR_(,_EXPR)*_)!drop-1	SELECT * FROM a UNPIVOT(a FOR a IN(a AS 1)))
-reject@39	reject@40	engine	select_unpivot_in_clause(EXPR|(_EXPR_(,_EXPR)*_))/(_EXPR_(,_EXPR)*_)!drop-2	SELECT * FROM a UNPIVOT(a FOR a IN(a AS()))
+reject@40	reject@40	engine	select_unpivot_in_clause(EXPR|(_EXPR_(,_EXPR)*_))/(_EXPR_(,_EXPR)*_)!drop-2	SELECT * FROM a UNPIVOT(a FOR a IN(a AS()))
 reject@43	reject@43	engine	select_unpivot_in_clause(EXPR|(_EXPR_(,_EXPR)*_))/(_EXPR_(,_EXPR)*_)!drop-3	SELECT * FROM a UNPIVOT(a FOR a IN(a AS(1))
 reject@41	reject@41	engine	select_unpivot_in_clause(EXPR|(_EXPR_(,_EXPR)*_))/(_EXPR_(,_EXPR)*_)!truncate	SELECT * FROM a UNPIVOT(a FOR a IN(a AS(1
-reject@39	reject@43	engine	select_unpivot_in_clause(EXPR|(_EXPR_(,_EXPR)*_))/(_EXPR_(,_EXPR)*_)!insert	SELECT * FROM a UNPIVOT(a FOR a IN(a AS(1) zzz))
-reject@39	accept	engine	select_unpivot_in_clause(,_EXPR)*/%empty	SELECT * FROM a UNPIVOT(a FOR a IN(a AS(1)))
-reject@39	reject@42	engine	select_unpivot_in_clause(,_EXPR)*/%empty!insert	SELECT * FROM a UNPIVOT(a FOR a IN(a AS(1 zzz)))
-reject@39	reject@41	engine	select_unpivot_in_clause(,_EXPR)*/,_EXPR_(,_EXPR)*	SELECT * FROM a UNPIVOT(a FOR a IN(a AS(1, 1)))
-reject@39	reject@42	engine	select_unpivot_in_clause(,_EXPR)*/,_EXPR_(,_EXPR)*!drop-1	SELECT * FROM a UNPIVOT(a FOR a IN(a AS(1 1)))
-reject@39	reject@41	engine	select_unpivot_in_clause(,_EXPR)*/,_EXPR_(,_EXPR)*!drop-2	SELECT * FROM a UNPIVOT(a FOR a IN(a AS(1,)))
+reject@43	reject@43	engine	select_unpivot_in_clause(EXPR|(_EXPR_(,_EXPR)*_))/(_EXPR_(,_EXPR)*_)!insert	SELECT * FROM a UNPIVOT(a FOR a IN(a AS(1) zzz))
+accept	accept	engine	select_unpivot_in_clause(,_EXPR)*/%empty	SELECT * FROM a UNPIVOT(a FOR a IN(a AS(1)))
+reject@42	reject@42	engine	select_unpivot_in_clause(,_EXPR)*/%empty!insert	SELECT * FROM a UNPIVOT(a FOR a IN(a AS(1 zzz)))
+reject@41	reject@41	engine	select_unpivot_in_clause(,_EXPR)*/,_EXPR_(,_EXPR)*	SELECT * FROM a UNPIVOT(a FOR a IN(a AS(1, 1)))
+reject@42	reject@42	engine	select_unpivot_in_clause(,_EXPR)*/,_EXPR_(,_EXPR)*!drop-1	SELECT * FROM a UNPIVOT(a FOR a IN(a AS(1 1)))
+reject@41	reject@41	engine	select_unpivot_in_clause(,_EXPR)*/,_EXPR_(,_EXPR)*!drop-2	SELECT * FROM a UNPIVOT(a FOR a IN(a AS(1,)))
 reject@42	reject@41	engine	select_unpivot_in_clause(,_EXPR)*/,_EXPR_(,_EXPR)*!truncate	SELECT * FROM a UNPIVOT(a FOR a IN(a AS(1,
-reject@39	reject@41	engine	select_unpivot_in_clause(,_EXPR)*/,_EXPR_(,_EXPR)*!insert	SELECT * FROM a UNPIVOT(a FOR a IN(a AS(1, 1 zzz)))
+reject@41	reject@41	engine	select_unpivot_in_clause(,_EXPR)*/,_EXPR_(,_EXPR)*!insert	SELECT * FROM a UNPIVOT(a FOR a IN(a AS(1, 1 zzz)))
 accept	accept	engine	select_unpivot_in_clause(,_(ID|(_ID_(,_ID)*_))_(AS_(EXPR|(_EX~252373e9)*/%empty	SELECT * FROM a UNPIVOT(a FOR a IN(a))
 accept	accept	engine	select_unpivot_in_clause(,_(ID|(_ID_(,_ID)*_))_(AS_(EXPR|(_EX~252373e9)*/,_(ID|(_ID_(,_ID)*_))_(AS_(EXPR|(_EXPR_(,_EXPR)*_)))?_(~a02f9a00	SELECT * FROM a UNPIVOT(a FOR a IN(a, a))
 reject@37	reject@37	engine	select_unpivot_in_clause(,_(ID|(_ID_(,_ID)*_))_(AS_(EXPR|(_EX~252373e9)*/,_(ID|(_ID_(,_ID)*_))_(AS_(EXPR|(_EXPR_(,_EXPR)*_)))?_(~a02f9a00!drop-1	SELECT * FROM a UNPIVOT(a FOR a IN(a a))
@@ -43948,7 +43948,7 @@ accept	accept	engine	update(update_partition_extension_clause)?/%empty	UPDATE a 
 accept	accept	engine	update(update_partition_extension_clause)?/update_partition_extension_clause	UPDATE a PARTITION(a) SET a = 1
 reject@8	reject@8	engine	update(update_partition_extension_clause)?/update_partition_extension_clause!drop-1	UPDATE a(a) SET a = 1
 reject@20	reject@19	engine	update(update_partition_extension_clause)?/update_partition_extension_clause!drop-2	UPDATE a PARTITION a) SET a = 1
-reject@19	reject@18	engine	update(update_partition_extension_clause)?/update_partition_extension_clause!drop-3	UPDATE a PARTITION() SET a = 1
+reject@18	reject@18	engine	update(update_partition_extension_clause)?/update_partition_extension_clause!drop-3	UPDATE a PARTITION() SET a = 1
 reject@30	reject@18	engine	update(update_partition_extension_clause)?/update_partition_extension_clause!drop-4	UPDATE a PARTITION(a SET a = 1
 reject@20	reject@18	engine	update(update_partition_extension_clause)?/update_partition_extension_clause!truncate	UPDATE a PARTITION(a
 accept	accept	engine	update(update_partition_extension_clause)?/update_partition_extension_clause!insert	UPDATE a PARTITION(a) zzz SET a = 1
@@ -44005,7 +44005,7 @@ accept	accept	engine	update_partition_extension_clause(PARTITION_(_ID_)|PARTITIO
 reject@22	reject@25	engine	update_partition_extension_clause(PARTITION_(_ID_)|PARTITION_FOR_(_EXP~c3018d04)/PARTITION_FOR_(_EXPR_(,_EXPR)*_)!swap	UPDATE a PARTITIONING FOR(1) SET a = 1
 accept	accept	engine	update_partition_extension_clause(PARTITION_(_ID_)|PARTITION_FOR_(_EXP~c3018d04)/SUBPARTITION_(_ID_)	UPDATE a SUBPARTITION(a) SET a = 1
 reject@23	reject@22	engine	update_partition_extension_clause(PARTITION_(_ID_)|PARTITION_FOR_(_EXP~c3018d04)/SUBPARTITION_(_ID_)!drop-2	UPDATE a SUBPARTITION a) SET a = 1
-reject@22	reject@21	engine	update_partition_extension_clause(PARTITION_(_ID_)|PARTITION_FOR_(_EXP~c3018d04)/SUBPARTITION_(_ID_)!drop-3	UPDATE a SUBPARTITION() SET a = 1
+reject@21	reject@21	engine	update_partition_extension_clause(PARTITION_(_ID_)|PARTITION_FOR_(_EXP~c3018d04)/SUBPARTITION_(_ID_)!drop-3	UPDATE a SUBPARTITION() SET a = 1
 reject@33	reject@21	engine	update_partition_extension_clause(PARTITION_(_ID_)|PARTITION_FOR_(_EXP~c3018d04)/SUBPARTITION_(_ID_)!drop-4	UPDATE a SUBPARTITION(a SET a = 1
 reject@23	reject@21	engine	update_partition_extension_clause(PARTITION_(_ID_)|PARTITION_FOR_(_EXP~c3018d04)/SUBPARTITION_(_ID_)!truncate	UPDATE a SUBPARTITION(a
 accept	accept	engine	update_partition_extension_clause(PARTITION_(_ID_)|PARTITION_FOR_(_EXP~c3018d04)/SUBPARTITION_(_ID_)!insert	UPDATE a SUBPARTITION(a) zzz SET a = 1
@@ -44168,7 +44168,7 @@ accept	accept	engine	update_error_logging_clause(REJECT_LIMIT_(NUMBER|UNLIMITED)
 accept	accept	engine	update_error_logging_clause(REJECT_LIMIT_(NUMBER|UNLIMITED))?/REJECT_LIMIT_(NUMBER|UNLIMITED)	UPDATE a SET a = 1 LOG ERRORS REJECT LIMIT 1
 reject@30	reject@30	engine	update_error_logging_clause(REJECT_LIMIT_(NUMBER|UNLIMITED))?/REJECT_LIMIT_(NUMBER|UNLIMITED)!drop-1	UPDATE a SET a = 1 LOG ERRORS LIMIT 1
 reject@37	reject@37	engine	update_error_logging_clause(REJECT_LIMIT_(NUMBER|UNLIMITED))?/REJECT_LIMIT_(NUMBER|UNLIMITED)!drop-2	UPDATE a SET a = 1 LOG ERRORS REJECT 1
-accept	reject@42	engine	update_error_logging_clause(REJECT_LIMIT_(NUMBER|UNLIMITED))?/REJECT_LIMIT_(NUMBER|UNLIMITED)!drop-3	UPDATE a SET a = 1 LOG ERRORS REJECT LIMIT
+reject@42	reject@42	engine	update_error_logging_clause(REJECT_LIMIT_(NUMBER|UNLIMITED))?/REJECT_LIMIT_(NUMBER|UNLIMITED)!drop-3	UPDATE a SET a = 1 LOG ERRORS REJECT LIMIT
 reject@45	reject@45	engine	update_error_logging_clause(REJECT_LIMIT_(NUMBER|UNLIMITED))?/REJECT_LIMIT_(NUMBER|UNLIMITED)!insert	UPDATE a SET a = 1 LOG ERRORS REJECT LIMIT 1 zzz
 reject@30	reject@30	engine	update_error_logging_clause(REJECT_LIMIT_(NUMBER|UNLIMITED))?/REJECT_LIMIT_(NUMBER|UNLIMITED)!swap	UPDATE a SET a = 1 LOG ERRORS REKEY LIMIT 1
 accept	accept	engine	update_error_logging_clause(NUMBER|UNLIMITED)/NUMBER	UPDATE a SET a = 1 LOG ERRORS REJECT LIMIT 1
@@ -45801,7 +45801,7 @@ accept	accept	engine	suite:lexer	SELECT	1	FROM	dual
 accept	accept	engine	suite:lexer	SELECT 1 FROM dual;
 accept	accept	engine	suite:lexer	SELECT 1 FROM dual;;
 reject@19	reject@19	engine	suite:lexer	SELECT 1 FROM dual /
-accept	reject@20	engine	suite:lexer	SELECT 1 FROM dual @
+reject@20	reject@20	engine	suite:lexer	SELECT 1 FROM dual @
 reject@19	reject@19	engine	suite:lexer	SELECT 1 FROM dual ~
 reject@19	reject@19	engine	suite:lexer	SELECT 1 FROM dual \
 reject@19	reject@19	engine	suite:lexer	SELECT 1 FROM dual `

@@ -316,12 +316,17 @@ func (p *Parser) parseCallStmt() (nodes.StmtNode, error) {
 	}
 	var parseErr1153 error
 
-	stmt.Name, stmt.Package, parseErr1153 = p.parseRoutineName()
-	if parseErr1153 !=
-
-		// Arguments
-		nil {
-		return nil, parseErr1153
+	if p.cur.Type == '(' {
+		// object_access_expression: ( expr ) . method_name, the object
+		// required (ORA-00936 for CALL ().m()).
+		if parseErr1153 = p.parseCallObjectAccess(stmt); parseErr1153 != nil {
+			return nil, parseErr1153
+		}
+	} else {
+		stmt.Name, stmt.Package, parseErr1153 = p.parseRoutineName()
+		if parseErr1153 != nil {
+			return nil, parseErr1153
+		}
 	}
 
 	// A routine takes its arguments in parentheses, which it needs even
@@ -381,6 +386,38 @@ func (p *Parser) parseCallStmt() (nodes.StmtNode, error) {
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// parseCallObjectAccess parses the ( expr ) . method_name that opens a
+// CALL of an object's method, up to its arguments.
+func (p *Parser) parseCallObjectAccess(stmt *nodes.CallStmt) error {
+	p.advance() // consume (
+	obj, err := p.parseExpr()
+	if err != nil {
+		return err
+	}
+	if obj == nil || p.cur.Type != ')' {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance()
+	if p.cur.Type != '.' {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance()
+	methodStart := p.pos()
+	if !p.isIdentLike() {
+		return p.syntaxErrorAtCur()
+	}
+	if err := p.syntaxErrorIfReservedIdentifier(); err != nil {
+		return err
+	}
+	method, err := p.parseIdentifier()
+	if err != nil {
+		return err
+	}
+	stmt.Object = obj
+	stmt.Name = &nodes.ObjectName{Name: method, Loc: nodes.Loc{Start: methodStart, End: p.prev.End}}
+	return nil
 }
 
 // parseRenameStmt parses a RENAME statement.

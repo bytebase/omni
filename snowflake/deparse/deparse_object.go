@@ -28,6 +28,12 @@ func (w *writer) writeObjectStmt(n *ast.ObjectStmt) error {
 		w.writeObjectNameNoSpace(n.Name)
 	}
 	for _, c := range n.Clauses {
+		if ok, err := w.writeServiceClause(n, c); ok || err != nil {
+			if err != nil {
+				return err
+			}
+			continue
+		}
 		if err := w.writeObjectClause(n.Kind, c); err != nil {
 			return err
 		}

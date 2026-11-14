@@ -141,10 +141,14 @@ func (p *Parser) parseCallArgValue() (ast.Node, error) {
 // ---------------------------------------------------------------------------
 
 // parseExecuteStmt dispatches an EXECUTE statement on the keyword that follows
-// EXECUTE (IMMEDIATE or TASK). The EXECUTE word (a plain identifier, not a
-// keyword) has NOT yet been consumed when this function is called.
+// EXECUTE (IMMEDIATE, TASK, or [ INFERENCE ] JOB SERVICE). The EXECUTE word (a
+// plain identifier, not a keyword) has NOT yet been consumed when this function
+// is called.
 func (p *Parser) parseExecuteStmt() (ast.Node, error) {
 	execTok := p.advance() // consume EXECUTE
+	if p.startsExecuteJobService() {
+		return p.parseExecuteJobService(execTok.Loc) // service.go
+	}
 	switch p.cur.Type {
 	case kwIMMEDIATE:
 		return p.parseExecuteImmediateStmt(execTok.Loc)
