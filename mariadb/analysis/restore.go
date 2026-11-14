@@ -3,6 +3,7 @@ package analysis
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/bytebase/omni/mariadb/ast"
@@ -220,14 +221,14 @@ func extractUpdateColumns(setList []*ast.Assignment, database string, targets []
 	return result
 }
 
-// targetAssignments returns the SET assignments that belong to the original
-// table: qualified by one of its references, or unqualified and naming one
-// of its columns.
+// targetAssignments returns the SET assignments to the original table's
+// non-generated columns: qualified by one of its references, or unqualified.
+// A generated column only takes DEFAULT, so the restore leaves it out.
 func targetAssignments(setList []*ast.Assignment, database string, targets []*TableReference, normalColumns []string) []*ast.Assignment {
 	var result []*ast.Assignment
 	for _, assignment := range setList {
 		col := assignment.Column
-		if col == nil {
+		if col == nil || !slices.ContainsFunc(normalColumns, func(c string) bool { return strings.EqualFold(c, col.Column) }) {
 			continue
 		}
 
@@ -236,13 +237,7 @@ func targetAssignments(setList []*ast.Assignment, database string, targets []*Ta
 		}
 
 		if col.Table == "" {
-			// Unqualified column: check if it belongs to the normalColumns set.
-			for _, c := range normalColumns {
-				if strings.EqualFold(c, col.Column) {
-					result = append(result, assignment)
-					break
-				}
-			}
+			result = append(result, assignment)
 			continue
 		}
 

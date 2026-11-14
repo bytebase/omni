@@ -226,6 +226,40 @@ var roundTrips = []roundTrip{
 		tables:       []string{"separate_overlap"},
 		transformErr: "prior backup cannot back up a DELETE and another statement on the same table",
 	},
+	{
+		// A generated column assigned DEFAULT stays out of the restore, which
+		// could not assign it a value.
+		name: "generated_default",
+		setup: "CREATE TABLE generated_default (id INT PRIMARY KEY, a INT, g INT AS (a + 1));" +
+			"INSERT INTO generated_default (id, a) VALUES (1, 1), (2, 2)",
+		script: "UPDATE generated_default SET generated_default.a = 5, generated_default.g = DEFAULT WHERE id = 1",
+		tables: []string{"generated_default"},
+	},
+	{
+		// The backup would read the rows before the SET gives @victim a value.
+		name:         "user_variable",
+		setup:        "CREATE TABLE user_variable (id INT PRIMARY KEY);INSERT INTO user_variable VALUES (1), (2)",
+		script:       "SET @victim = 1; DELETE FROM user_variable WHERE id = @victim",
+		tables:       []string{"user_variable"},
+		transformErr: "prior backup cannot handle a statement that reads @victim after an earlier statement sets it",
+	},
+	{
+		// The second UPDATE picks row 1 only once the first changes a, so
+		// only the first backup holds it, and its restore leaves b alone.
+		name:         "dependent_updates",
+		setup:        "CREATE TABLE dependent_updates (id INT PRIMARY KEY, a INT, b INT);INSERT INTO dependent_updates VALUES (1, 1, 0)",
+		script:       "UPDATE dependent_updates SET a = 2 WHERE id = 1; UPDATE dependent_updates SET b = 3 WHERE a = 2",
+		tables:       []string{"dependent_updates"},
+		transformErr: "prior backup cannot back up UPDATEs of test.dependent_updates separately when one picks its rows by a column an earlier one changes",
+	},
+	{
+		// The first restore sets back a, the only column the second UPDATE
+		// sets, on row 1, which the second backup misses.
+		name:   "covered_updates",
+		setup:  "CREATE TABLE covered_updates (id INT PRIMARY KEY, a INT, b INT);INSERT INTO covered_updates VALUES (1, 1, 0), (2, 2, 0)",
+		script: "UPDATE covered_updates SET a = 2 WHERE id = 1; UPDATE covered_updates SET a = 3 WHERE a = 2",
+		tables: []string{"covered_updates"},
+	},
 }
 
 // TestBackupRestoreRoundTrip runs each backup, its statements and their
@@ -265,20 +299,29 @@ func TestBackupRestoreRoundTrip(t *testing.T) {
 			continue
 		}
 		require.NoError(t, err, rt.name)
-		require.Len(t, backups, 1, rt.name)
-		runScript(t, db, sortUnionArms(backups[0].Statement))
-		runScript(t, db, rt.script)
+		require.NotEmpty(t, backups, rt.name)
 		sourceDatabase, sourceTable := name(rt.tables[0])
-		require.Equal(t, sourceTable, backups[0].SourceTable, rt.name)
+		for _, backup := range backups {
+			require.Equal(t, sourceTable, backup.SourceTable, rt.name)
+			runScript(t, db, sortUnionArms(backup.Statement))
+		}
+		runScript(t, db, rt.script)
 		require.NotEqual(t, before[0], tableRows(t, db, sourceDatabase, sourceTable), rt.name)
 
-		restored, err := restoreSQL(t, rt.script, sourceDatabase, database, backups[0], catalog)
+		// The restores undo the statements last first.
+		var restoreErr error
+		for i := len(backups) - 1; i >= 0 && restoreErr == nil; i-- {
+			var restored string
+			restored, restoreErr = restoreSQL(t, rt.script, sourceDatabase, database, backups[i], catalog)
+			if restoreErr == nil {
+				runScript(t, db, restored)
+			}
+		}
 		if rt.restoreErr != "" {
-			require.ErrorContains(t, err, rt.restoreErr, rt.name)
+			require.ErrorContains(t, restoreErr, rt.restoreErr, rt.name)
 			continue
 		}
-		require.NoError(t, err, rt.name)
-		runScript(t, db, restored)
+		require.NoError(t, restoreErr, rt.name)
 		for i, table := range rt.tables {
 			require.Equal(t, before[i], rowsOf(table), rt.name)
 		}

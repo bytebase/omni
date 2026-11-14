@@ -228,6 +228,48 @@ var roundTrips = []roundTrip{
 		tables:     []string{"nullable_key"},
 		restoreErr: "no disjoint unique key found",
 	},
+	{
+		// A generated column assigned DEFAULT stays out of the restore, which
+		// could not assign it a value.
+		name: "generated_default",
+		setup: "CREATE TABLE generated_default (id INT PRIMARY KEY, a INT, g INT AS (a + 1));" +
+			"INSERT INTO generated_default (id, a) VALUES (1, 1), (2, 2)",
+		script: "UPDATE generated_default SET generated_default.a = 5, generated_default.g = DEFAULT WHERE id = 1",
+		tables: []string{"generated_default"},
+	},
+	{
+		// The backup would read the rows before the SET gives @victim a value.
+		name:         "user_variable",
+		setup:        "CREATE TABLE user_variable (id INT PRIMARY KEY);INSERT INTO user_variable VALUES (1), (2)",
+		script:       "SET @victim = 1; DELETE FROM user_variable WHERE id = @victim",
+		tables:       []string{"user_variable"},
+		transformErr: "prior backup cannot handle a statement that reads @victim after an earlier statement sets it",
+	},
+	{
+		// FOR PORTION OF splits the row in three.
+		name: "portioned",
+		setup: "CREATE TABLE portioned (id INT, s DATE, e DATE, v INT, PERIOD FOR app_time (s, e), PRIMARY KEY (id, s));" +
+			"INSERT INTO portioned VALUES (1, '2020-01-01', '2020-05-01', 1)",
+		script:       "UPDATE portioned FOR PORTION OF app_time FROM '2020-02-01' TO '2020-03-01' SET v = 2 WHERE id = 1",
+		tables:       []string{"portioned"},
+		transformErr: "prior backup cannot back up an UPDATE ... FOR PORTION OF, which can split rows",
+	},
+	{
+		name: "portion_delete",
+		setup: "CREATE TABLE portion_delete (id INT, s DATE, e DATE, PERIOD FOR app_time (s, e), PRIMARY KEY (id, s));" +
+			"INSERT INTO portion_delete VALUES (1, '2020-01-01', '2020-05-01')",
+		script:       "DELETE FROM portion_delete FOR PORTION OF app_time FROM '2020-02-01' TO '2020-03-01' WHERE id = 1",
+		tables:       []string{"portion_delete"},
+		transformErr: "prior backup cannot back up a DELETE ... FOR PORTION OF, which can split rows",
+	},
+	{
+		// The backup would read the current rows, not the history.
+		name:         "history",
+		setup:        "CREATE TABLE history (id INT PRIMARY KEY, v INT) WITH SYSTEM VERSIONING;INSERT INTO history VALUES (1, 1);UPDATE history SET v = 2",
+		script:       "DELETE HISTORY FROM history",
+		tables:       []string{"history"},
+		transformErr: "prior backup cannot back up DELETE HISTORY, which removes history rows",
+	},
 }
 
 // TestBackupRestoreRoundTrip runs each backup, its statements and their

@@ -25142,3 +25142,3838 @@
 < row
 : int64 2
 : int64 2
+> exec
+| CREATE TABLE generated_default (id INT PRIMARY KEY, a INT, g INT AS (a + 1))
+< ok 0 0
+> exec
+| INSERT INTO generated_default (id, a) VALUES (1, 1), (2, 2)
+< ok 2 0
+> query
+| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+: string
+| omni_t_mysql_analysis_backup
+: string
+| generated_default
+< result
+< column "COLUMN_NAME" "VARCHAR"
+< row
+: bytes
+| id
+< row
+: bytes
+| a
+< row
+: bytes
+| g
+> query
+| SELECT `id`, `a`, `g` FROM `omni_t_mysql_analysis_backup`.`generated_default` ORDER BY 1, 2, 3
+< result
+< column "id" "INT"
+< column "a" "INT"
+< column "g" "INT"
+< row
+: int64 1
+: int64 1
+: int64 2
+< row
+: int64 2
+: int64 2
+: int64 3
+> query
+| SELECT TABLE_NAME, COLUMN_NAME, IFNULL(GENERATION_EXPRESSION, ''), IS_NULLABLE, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, ORDINAL_POSITION
+: string
+| omni_t_mysql_analysis_backup
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "COLUMN_NAME" "VARCHAR"
+< column "IFNULL(GENERATION_EXPRESSION, '')" "TEXT"
+< column "IS_NULLABLE" "VARCHAR"
+< column "EXTRA" "VARCHAR"
+< row
+: bytes
+| back`tick
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| back`tick
+: bytes
+| c`ol
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_back`tick_omni_t_mysql_analysis_backup
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_back`tick_omni_t_mysql_analysis_backup
+: bytes
+| c`ol
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_comments_omni_t_mysql_analysis_backup
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_comments_omni_t_mysql_analysis_backup
+: bytes
+| note
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_cte_alias_omni_t_mysql_analysis_backup
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_cte_alias_omni_t_mysql_analysis_backup
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_cte_arms_omni_t_mysql_analysis_backup
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_cte_arms_omni_t_mysql_analysis_backup
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_expression_key_omni_t_mysql_analysis_backup
+: bytes
+| id
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_expression_key_omni_t_mysql_analysis_backup
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_generated_key_omni_t_mysql_analysis_backup
+: bytes
+| id
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_generated_key_omni_t_mysql_analysis_backup
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_generated_key_omni_t_mysql_analysis_backup
+: bytes
+| g
+: bytes
+| (`a` + 1)
+: bytes
+| YES
+: bytes
+| VIRTUAL GENERATED
+< row
+: bytes
+| bak_invisible_omni_t_mysql_analysis_backup
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_invisible_omni_t_mysql_analysis_backup
+: bytes
+| secret
+: bytes
+|
+: bytes
+| YES
+: bytes
+| INVISIBLE
+< row
+: bytes
+| bak_keyless_rows_omni_t_mysql_analysis_backup
+: bytes
+| id
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_keyless_rows_omni_t_mysql_analysis_backup
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_limits_omni_t_mysql_analysis_backup
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_limits_omni_t_mysql_analysis_backup
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_limits_omni_t_mysql_analysis_backup
+: bytes
+| b
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_limits_omni_t_mysql_analysis_backup
+: bytes
+| g
+: bytes
+| (`a` + `b`)
+: bytes
+| YES
+: bytes
+| VIRTUAL GENERATED
+< row
+: bytes
+| bak_nullable_key_omni_t_mysql_analysis_backup
+: bytes
+| u
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_nullable_key_omni_t_mysql_analysis_backup
+: bytes
+| v
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_one_to_many_omni_t_mysql_analysis_backup
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_one_to_many_omni_t_mysql_analysis_backup
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_outer_gone_omni_t_mysql_analysis_backup
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_outer_gone_omni_t_mysql_analysis_backup
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_parens_omni_t_mysql_analysis_backup
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_parens_omni_t_mysql_analysis_backup
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_self_join_omni_t_mysql_analysis_backup
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_self_join_omni_t_mysql_analysis_backup
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_self_join_omni_t_mysql_analysis_backup
+: bytes
+| b
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_single_key_omni_t_mysql_analysis_backup
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_single_key_omni_t_mysql_analysis_backup
+: bytes
+| u
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_stamped_omni_t_mysql_analysis_backup
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_stamped_omni_t_mysql_analysis_backup
+: bytes
+| v
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_stamped_omni_t_mysql_analysis_backup
+: bytes
+| ts
+: bytes
+|
+: bytes
+| NO
+: bytes
+| on update CURRENT_TIMESTAMP
+< row
+: bytes
+| bak_swapped_key_omni_t_mysql_analysis_backup
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_swapped_key_omni_t_mysql_analysis_backup
+: bytes
+| u
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_u_omni_t_mysql_analysis_backup_other
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_u_omni_t_mysql_analysis_backup_other
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_updates_omni_t_mysql_analysis_backup
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_updates_omni_t_mysql_analysis_backup
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_updates_omni_t_mysql_analysis_backup
+: bytes
+| b
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_updates_omni_t_mysql_analysis_backup
+: bytes
+| g
+: bytes
+| (`a` * 2)
+: bytes
+| YES
+: bytes
+| STORED GENERATED
+< row
+: bytes
+| children
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| children
+: bytes
+| parent
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| comments
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| comments
+: bytes
+| note
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| cte_alias
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| cte_alias
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| cte_arms
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| cte_arms
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| expression_key
+: bytes
+| id
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| expression_key
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| fk_child
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| fk_child
+: bytes
+| parent_id
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| fk_parent
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| flagged
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| flags
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| flags
+: bytes
+| enabled
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| generated_default
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| generated_default
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| generated_default
+: bytes
+| g
+: bytes
+| (`a` + 1)
+: bytes
+| YES
+: bytes
+| VIRTUAL GENERATED
+< row
+: bytes
+| generated_key
+: bytes
+| id
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| generated_key
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| generated_key
+: bytes
+| g
+: bytes
+| (`a` + 1)
+: bytes
+| YES
+: bytes
+| VIRTUAL GENERATED
+< row
+: bytes
+| invisible
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| invisible
+: bytes
+| secret
+: bytes
+|
+: bytes
+| YES
+: bytes
+| INVISIBLE
+< row
+: bytes
+| keyless_children
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| keyless_children
+: bytes
+| parent
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| keyless_join
+: bytes
+| id
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| keyless_join
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| keyless_rows
+: bytes
+| id
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| keyless_rows
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| limits
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| limits
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| limits
+: bytes
+| b
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| limits
+: bytes
+| g
+: bytes
+| (`a` + `b`)
+: bytes
+| YES
+: bytes
+| VIRTUAL GENERATED
+< row
+: bytes
+| nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn_one
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn_two
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| nullable_key
+: bytes
+| u
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| nullable_key
+: bytes
+| v
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| one_to_many
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| one_to_many
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| outer_gone
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| outer_gone
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| outer_keep
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| overlapping_limits
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| paren_peers
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| parens
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| parens
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| self_join
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| self_join
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| self_join
+: bytes
+| b
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| single_key
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| single_key
+: bytes
+| u
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| stamped
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| stamped
+: bytes
+| v
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| stamped
+: bytes
+| ts
+: bytes
+|
+: bytes
+| NO
+: bytes
+| on update CURRENT_TIMESTAMP
+< row
+: bytes
+| swapped_key
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| swapped_key
+: bytes
+| u
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| t
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| t
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| u
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| u
+: bytes
+| b
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| updates
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| updates
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| updates
+: bytes
+| b
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| updates
+: bytes
+| g
+: bytes
+| (`a` * 2)
+: bytes
+| YES
+: bytes
+| STORED GENERATED
+> query
+| SELECT TABLE_NAME, INDEX_NAME, NON_UNIQUE, COALESCE(COLUMN_NAME, EXPRESSION) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX
+: string
+| omni_t_mysql_analysis_backup
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "INDEX_NAME" "VARCHAR"
+< column "NON_UNIQUE" "INT"
+< column "COALESCE(COLUMN_NAME, EXPRESSION)" "TEXT"
+< row
+: bytes
+| back`tick
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| bak_back`tick_omni_t_mysql_analysis_backup
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| bak_comments_omni_t_mysql_analysis_backup
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| bak_cte_alias_omni_t_mysql_analysis_backup
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| bak_cte_arms_omni_t_mysql_analysis_backup
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| bak_expression_key_omni_t_mysql_analysis_backup
+: bytes
+| uk_a
+: int64 0
+: bytes
+| (`a` + 1)
+< row
+: bytes
+| bak_generated_key_omni_t_mysql_analysis_backup
+: bytes
+| uk_g
+: int64 0
+: bytes
+| g
+< row
+: bytes
+| bak_invisible_omni_t_mysql_analysis_backup
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| bak_limits_omni_t_mysql_analysis_backup
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| bak_limits_omni_t_mysql_analysis_backup
+: bytes
+| uk_b
+: int64 0
+: bytes
+| b
+< row
+: bytes
+| bak_nullable_key_omni_t_mysql_analysis_backup
+: bytes
+| uk_u
+: int64 0
+: bytes
+| u
+< row
+: bytes
+| bak_one_to_many_omni_t_mysql_analysis_backup
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| bak_outer_gone_omni_t_mysql_analysis_backup
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| bak_parens_omni_t_mysql_analysis_backup
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| bak_self_join_omni_t_mysql_analysis_backup
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| bak_single_key_omni_t_mysql_analysis_backup
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| bak_single_key_omni_t_mysql_analysis_backup
+: bytes
+| uk_u
+: int64 0
+: bytes
+| u
+< row
+: bytes
+| bak_stamped_omni_t_mysql_analysis_backup
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| bak_swapped_key_omni_t_mysql_analysis_backup
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| bak_swapped_key_omni_t_mysql_analysis_backup
+: bytes
+| uk_u
+: int64 0
+: bytes
+| u
+< row
+: bytes
+| bak_u_omni_t_mysql_analysis_backup_other
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| bak_updates_omni_t_mysql_analysis_backup
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| children
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| comments
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| cte_alias
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| cte_arms
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| expression_key
+: bytes
+| uk_a
+: int64 0
+: bytes
+| (`a` + 1)
+< row
+: bytes
+| fk_child
+: bytes
+| fk_child_parent
+: int64 1
+: bytes
+| parent_id
+< row
+: bytes
+| fk_child
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| fk_parent
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| flagged
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| flags
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| generated_default
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| generated_key
+: bytes
+| uk_g
+: int64 0
+: bytes
+| g
+< row
+: bytes
+| invisible
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| keyless_children
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| limits
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| limits
+: bytes
+| uk_b
+: int64 0
+: bytes
+| b
+< row
+: bytes
+| nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn_one
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn_two
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| nullable_key
+: bytes
+| uk_u
+: int64 0
+: bytes
+| u
+< row
+: bytes
+| one_to_many
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| outer_gone
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| outer_keep
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| overlapping_limits
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| paren_peers
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| parens
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| self_join
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| single_key
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| single_key
+: bytes
+| uk_u
+: int64 0
+: bytes
+| u
+< row
+: bytes
+| stamped
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| swapped_key
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| swapped_key
+: bytes
+| uk_u
+: int64 0
+: bytes
+| u
+< row
+: bytes
+| t
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| u
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| updates
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+> query
+| SELECT k.TABLE_NAME, k.CONSTRAINT_NAME, k.COLUMN_NAME, k.REFERENCED_TABLE_NAME, k.REFERENCED_COLUMN_NAME, r.UPDATE_RULE, r.DELETE_RULE FROM information_schema.KEY_COLUMN_USAGE k JOIN information_schema.REFERENTIAL_CONSTRAINTS r ON r.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA AND r.CONSTRAINT_NAME = k.CONSTRAINT_NAME WHERE k.TABLE_SCHEMA = ? AND k.REFERENCED_TABLE_NAME IS NOT NULL ORDER BY k.TABLE_NAME, k.CONSTRAINT_NAME, k.ORDINAL_POSITION
+: string
+| omni_t_mysql_analysis_backup
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR"
+< column "COLUMN_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_COLUMN_NAME" "VARCHAR"
+< column "UPDATE_RULE" "ENUM"
+< column "DELETE_RULE" "ENUM"
+< row
+: bytes
+| fk_child
+: bytes
+| fk_child_ibfk_1
+: bytes
+| parent_id
+: bytes
+| fk_parent
+: bytes
+| id
+: bytes
+| NO ACTION
+: bytes
+| CASCADE
+> query
+| SELECT TABLE_NAME, COLUMN_NAME, IFNULL(GENERATION_EXPRESSION, ''), IS_NULLABLE, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, ORDINAL_POSITION
+: string
+| omni_t_mysql_analysis_backup_other
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "COLUMN_NAME" "VARCHAR"
+< column "IFNULL(GENERATION_EXPRESSION, '')" "TEXT"
+< column "IS_NULLABLE" "VARCHAR"
+< column "EXTRA" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| t
+: bytes
+| b
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| u
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| u
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+> query
+| SELECT TABLE_NAME, INDEX_NAME, NON_UNIQUE, COALESCE(COLUMN_NAME, EXPRESSION) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX
+: string
+| omni_t_mysql_analysis_backup_other
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "INDEX_NAME" "VARCHAR"
+< column "NON_UNIQUE" "INT"
+< column "COALESCE(COLUMN_NAME, EXPRESSION)" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| u
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+> query
+| SELECT k.TABLE_NAME, k.CONSTRAINT_NAME, k.COLUMN_NAME, k.REFERENCED_TABLE_NAME, k.REFERENCED_COLUMN_NAME, r.UPDATE_RULE, r.DELETE_RULE FROM information_schema.KEY_COLUMN_USAGE k JOIN information_schema.REFERENTIAL_CONSTRAINTS r ON r.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA AND r.CONSTRAINT_NAME = k.CONSTRAINT_NAME WHERE k.TABLE_SCHEMA = ? AND k.REFERENCED_TABLE_NAME IS NOT NULL ORDER BY k.TABLE_NAME, k.CONSTRAINT_NAME, k.ORDINAL_POSITION
+: string
+| omni_t_mysql_analysis_backup_other
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR"
+< column "COLUMN_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_COLUMN_NAME" "VARCHAR"
+< column "UPDATE_RULE" "ENUM"
+< column "DELETE_RULE" "ENUM"
+> exec
+| CREATE TABLE `omni_t_mysql_analysis_backup`.`bak_generated_default_omni_t_mysql_analysis_backup` LIKE `omni_t_mysql_analysis_backup`.`generated_default`
+< ok 0 0
+> exec
+|
+| INSERT INTO `omni_t_mysql_analysis_backup`.`bak_generated_default_omni_t_mysql_analysis_backup` (`id`,`a`)  SELECT `generated_default`.`id`,`generated_default`.`a` FROM generated_default WHERE id = 1
+< ok 1 0
+> exec
+| UPDATE generated_default SET generated_default.a = 5, generated_default.g = DEFAULT WHERE id = 1
+< ok 1 0
+> query
+| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+: string
+| omni_t_mysql_analysis_backup
+: string
+| generated_default
+< result
+< column "COLUMN_NAME" "VARCHAR"
+< row
+: bytes
+| id
+< row
+: bytes
+| a
+< row
+: bytes
+| g
+> query
+| SELECT `id`, `a`, `g` FROM `omni_t_mysql_analysis_backup`.`generated_default` ORDER BY 1, 2, 3
+< result
+< column "id" "INT"
+< column "a" "INT"
+< column "g" "INT"
+< row
+: int64 1
+: int64 5
+: int64 6
+< row
+: int64 2
+: int64 2
+: int64 3
+> exec
+| /*
+| Original SQL:
+| UPDATE generated_default SET generated_default.a = 5, generated_default.g = DEFAULT WHERE id = 1;
+| */
+| INSERT INTO `omni_t_mysql_analysis_backup`.`generated_default` (`id`, `a`) SELECT `id`, `a` FROM `omni_t_mysql_analysis_backup`.`bak_generated_default_omni_t_mysql_analysis_backup` ON DUPLICATE KEY UPDATE `a` = VALUES(`a`)
+< ok 2 0
+> query
+| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+: string
+| omni_t_mysql_analysis_backup
+: string
+| generated_default
+< result
+< column "COLUMN_NAME" "VARCHAR"
+< row
+: bytes
+| id
+< row
+: bytes
+| a
+< row
+: bytes
+| g
+> query
+| SELECT `id`, `a`, `g` FROM `omni_t_mysql_analysis_backup`.`generated_default` ORDER BY 1, 2, 3
+< result
+< column "id" "INT"
+< column "a" "INT"
+< column "g" "INT"
+< row
+: int64 1
+: int64 1
+: int64 2
+< row
+: int64 2
+: int64 2
+: int64 3
+> exec
+| CREATE TABLE user_variable (id INT PRIMARY KEY)
+< ok 0 0
+> exec
+| INSERT INTO user_variable VALUES (1), (2)
+< ok 2 0
+> query
+| SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION
+: string
+| omni_t_mysql_analysis_backup
+: string
+| user_variable
+< result
+< column "COLUMN_NAME" "VARCHAR"
+< row
+: bytes
+| id
+> query
+| SELECT `id` FROM `omni_t_mysql_analysis_backup`.`user_variable` ORDER BY 1
+< result
+< column "id" "INT"
+< row
+: int64 1
+< row
+: int64 2
+> query
+| SELECT TABLE_NAME, COLUMN_NAME, IFNULL(GENERATION_EXPRESSION, ''), IS_NULLABLE, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, ORDINAL_POSITION
+: string
+| omni_t_mysql_analysis_backup
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "COLUMN_NAME" "VARCHAR"
+< column "IFNULL(GENERATION_EXPRESSION, '')" "TEXT"
+< column "IS_NULLABLE" "VARCHAR"
+< column "EXTRA" "VARCHAR"
+< row
+: bytes
+| back`tick
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| back`tick
+: bytes
+| c`ol
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_back`tick_omni_t_mysql_analysis_backup
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_back`tick_omni_t_mysql_analysis_backup
+: bytes
+| c`ol
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_comments_omni_t_mysql_analysis_backup
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_comments_omni_t_mysql_analysis_backup
+: bytes
+| note
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_cte_alias_omni_t_mysql_analysis_backup
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_cte_alias_omni_t_mysql_analysis_backup
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_cte_arms_omni_t_mysql_analysis_backup
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_cte_arms_omni_t_mysql_analysis_backup
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_expression_key_omni_t_mysql_analysis_backup
+: bytes
+| id
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_expression_key_omni_t_mysql_analysis_backup
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_generated_default_omni_t_mysql_analysis_backup
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_generated_default_omni_t_mysql_analysis_backup
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_generated_default_omni_t_mysql_analysis_backup
+: bytes
+| g
+: bytes
+| (`a` + 1)
+: bytes
+| YES
+: bytes
+| VIRTUAL GENERATED
+< row
+: bytes
+| bak_generated_key_omni_t_mysql_analysis_backup
+: bytes
+| id
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_generated_key_omni_t_mysql_analysis_backup
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_generated_key_omni_t_mysql_analysis_backup
+: bytes
+| g
+: bytes
+| (`a` + 1)
+: bytes
+| YES
+: bytes
+| VIRTUAL GENERATED
+< row
+: bytes
+| bak_invisible_omni_t_mysql_analysis_backup
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_invisible_omni_t_mysql_analysis_backup
+: bytes
+| secret
+: bytes
+|
+: bytes
+| YES
+: bytes
+| INVISIBLE
+< row
+: bytes
+| bak_keyless_rows_omni_t_mysql_analysis_backup
+: bytes
+| id
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_keyless_rows_omni_t_mysql_analysis_backup
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_limits_omni_t_mysql_analysis_backup
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_limits_omni_t_mysql_analysis_backup
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_limits_omni_t_mysql_analysis_backup
+: bytes
+| b
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_limits_omni_t_mysql_analysis_backup
+: bytes
+| g
+: bytes
+| (`a` + `b`)
+: bytes
+| YES
+: bytes
+| VIRTUAL GENERATED
+< row
+: bytes
+| bak_nullable_key_omni_t_mysql_analysis_backup
+: bytes
+| u
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_nullable_key_omni_t_mysql_analysis_backup
+: bytes
+| v
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_one_to_many_omni_t_mysql_analysis_backup
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_one_to_many_omni_t_mysql_analysis_backup
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_outer_gone_omni_t_mysql_analysis_backup
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_outer_gone_omni_t_mysql_analysis_backup
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_parens_omni_t_mysql_analysis_backup
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_parens_omni_t_mysql_analysis_backup
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_self_join_omni_t_mysql_analysis_backup
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_self_join_omni_t_mysql_analysis_backup
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_self_join_omni_t_mysql_analysis_backup
+: bytes
+| b
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_single_key_omni_t_mysql_analysis_backup
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_single_key_omni_t_mysql_analysis_backup
+: bytes
+| u
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_stamped_omni_t_mysql_analysis_backup
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_stamped_omni_t_mysql_analysis_backup
+: bytes
+| v
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_stamped_omni_t_mysql_analysis_backup
+: bytes
+| ts
+: bytes
+|
+: bytes
+| NO
+: bytes
+| on update CURRENT_TIMESTAMP
+< row
+: bytes
+| bak_swapped_key_omni_t_mysql_analysis_backup
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_swapped_key_omni_t_mysql_analysis_backup
+: bytes
+| u
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_u_omni_t_mysql_analysis_backup_other
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_u_omni_t_mysql_analysis_backup_other
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_updates_omni_t_mysql_analysis_backup
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| bak_updates_omni_t_mysql_analysis_backup
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_updates_omni_t_mysql_analysis_backup
+: bytes
+| b
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| bak_updates_omni_t_mysql_analysis_backup
+: bytes
+| g
+: bytes
+| (`a` * 2)
+: bytes
+| YES
+: bytes
+| STORED GENERATED
+< row
+: bytes
+| children
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| children
+: bytes
+| parent
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| comments
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| comments
+: bytes
+| note
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| cte_alias
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| cte_alias
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| cte_arms
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| cte_arms
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| expression_key
+: bytes
+| id
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| expression_key
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| fk_child
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| fk_child
+: bytes
+| parent_id
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| fk_parent
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| flagged
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| flags
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| flags
+: bytes
+| enabled
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| generated_default
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| generated_default
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| generated_default
+: bytes
+| g
+: bytes
+| (`a` + 1)
+: bytes
+| YES
+: bytes
+| VIRTUAL GENERATED
+< row
+: bytes
+| generated_key
+: bytes
+| id
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| generated_key
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| generated_key
+: bytes
+| g
+: bytes
+| (`a` + 1)
+: bytes
+| YES
+: bytes
+| VIRTUAL GENERATED
+< row
+: bytes
+| invisible
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| invisible
+: bytes
+| secret
+: bytes
+|
+: bytes
+| YES
+: bytes
+| INVISIBLE
+< row
+: bytes
+| keyless_children
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| keyless_children
+: bytes
+| parent
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| keyless_join
+: bytes
+| id
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| keyless_join
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| keyless_rows
+: bytes
+| id
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| keyless_rows
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| limits
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| limits
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| limits
+: bytes
+| b
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| limits
+: bytes
+| g
+: bytes
+| (`a` + `b`)
+: bytes
+| YES
+: bytes
+| VIRTUAL GENERATED
+< row
+: bytes
+| nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn_one
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn_two
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| nullable_key
+: bytes
+| u
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| nullable_key
+: bytes
+| v
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| one_to_many
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| one_to_many
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| outer_gone
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| outer_gone
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| outer_keep
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| overlapping_limits
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| paren_peers
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| parens
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| parens
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| self_join
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| self_join
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| self_join
+: bytes
+| b
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| single_key
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| single_key
+: bytes
+| u
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| stamped
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| stamped
+: bytes
+| v
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| stamped
+: bytes
+| ts
+: bytes
+|
+: bytes
+| NO
+: bytes
+| on update CURRENT_TIMESTAMP
+< row
+: bytes
+| swapped_key
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| swapped_key
+: bytes
+| u
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| t
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| t
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| u
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| u
+: bytes
+| b
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| updates
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| updates
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| updates
+: bytes
+| b
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| updates
+: bytes
+| g
+: bytes
+| (`a` * 2)
+: bytes
+| YES
+: bytes
+| STORED GENERATED
+< row
+: bytes
+| user_variable
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+> query
+| SELECT TABLE_NAME, INDEX_NAME, NON_UNIQUE, COALESCE(COLUMN_NAME, EXPRESSION) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX
+: string
+| omni_t_mysql_analysis_backup
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "INDEX_NAME" "VARCHAR"
+< column "NON_UNIQUE" "INT"
+< column "COALESCE(COLUMN_NAME, EXPRESSION)" "TEXT"
+< row
+: bytes
+| back`tick
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| bak_back`tick_omni_t_mysql_analysis_backup
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| bak_comments_omni_t_mysql_analysis_backup
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| bak_cte_alias_omni_t_mysql_analysis_backup
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| bak_cte_arms_omni_t_mysql_analysis_backup
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| bak_expression_key_omni_t_mysql_analysis_backup
+: bytes
+| uk_a
+: int64 0
+: bytes
+| (`a` + 1)
+< row
+: bytes
+| bak_generated_default_omni_t_mysql_analysis_backup
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| bak_generated_key_omni_t_mysql_analysis_backup
+: bytes
+| uk_g
+: int64 0
+: bytes
+| g
+< row
+: bytes
+| bak_invisible_omni_t_mysql_analysis_backup
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| bak_limits_omni_t_mysql_analysis_backup
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| bak_limits_omni_t_mysql_analysis_backup
+: bytes
+| uk_b
+: int64 0
+: bytes
+| b
+< row
+: bytes
+| bak_nullable_key_omni_t_mysql_analysis_backup
+: bytes
+| uk_u
+: int64 0
+: bytes
+| u
+< row
+: bytes
+| bak_one_to_many_omni_t_mysql_analysis_backup
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| bak_outer_gone_omni_t_mysql_analysis_backup
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| bak_parens_omni_t_mysql_analysis_backup
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| bak_self_join_omni_t_mysql_analysis_backup
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| bak_single_key_omni_t_mysql_analysis_backup
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| bak_single_key_omni_t_mysql_analysis_backup
+: bytes
+| uk_u
+: int64 0
+: bytes
+| u
+< row
+: bytes
+| bak_stamped_omni_t_mysql_analysis_backup
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| bak_swapped_key_omni_t_mysql_analysis_backup
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| bak_swapped_key_omni_t_mysql_analysis_backup
+: bytes
+| uk_u
+: int64 0
+: bytes
+| u
+< row
+: bytes
+| bak_u_omni_t_mysql_analysis_backup_other
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| bak_updates_omni_t_mysql_analysis_backup
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| children
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| comments
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| cte_alias
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| cte_arms
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| expression_key
+: bytes
+| uk_a
+: int64 0
+: bytes
+| (`a` + 1)
+< row
+: bytes
+| fk_child
+: bytes
+| fk_child_parent
+: int64 1
+: bytes
+| parent_id
+< row
+: bytes
+| fk_child
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| fk_parent
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| flagged
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| flags
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| generated_default
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| generated_key
+: bytes
+| uk_g
+: int64 0
+: bytes
+| g
+< row
+: bytes
+| invisible
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| keyless_children
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| limits
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| limits
+: bytes
+| uk_b
+: int64 0
+: bytes
+| b
+< row
+: bytes
+| nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn_one
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn_two
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| nullable_key
+: bytes
+| uk_u
+: int64 0
+: bytes
+| u
+< row
+: bytes
+| one_to_many
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| outer_gone
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| outer_keep
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| overlapping_limits
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| paren_peers
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| parens
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| self_join
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| single_key
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| single_key
+: bytes
+| uk_u
+: int64 0
+: bytes
+| u
+< row
+: bytes
+| stamped
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| swapped_key
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| swapped_key
+: bytes
+| uk_u
+: int64 0
+: bytes
+| u
+< row
+: bytes
+| t
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| u
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| updates
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| user_variable
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+> query
+| SELECT k.TABLE_NAME, k.CONSTRAINT_NAME, k.COLUMN_NAME, k.REFERENCED_TABLE_NAME, k.REFERENCED_COLUMN_NAME, r.UPDATE_RULE, r.DELETE_RULE FROM information_schema.KEY_COLUMN_USAGE k JOIN information_schema.REFERENTIAL_CONSTRAINTS r ON r.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA AND r.CONSTRAINT_NAME = k.CONSTRAINT_NAME WHERE k.TABLE_SCHEMA = ? AND k.REFERENCED_TABLE_NAME IS NOT NULL ORDER BY k.TABLE_NAME, k.CONSTRAINT_NAME, k.ORDINAL_POSITION
+: string
+| omni_t_mysql_analysis_backup
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR"
+< column "COLUMN_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_COLUMN_NAME" "VARCHAR"
+< column "UPDATE_RULE" "ENUM"
+< column "DELETE_RULE" "ENUM"
+< row
+: bytes
+| fk_child
+: bytes
+| fk_child_ibfk_1
+: bytes
+| parent_id
+: bytes
+| fk_parent
+: bytes
+| id
+: bytes
+| NO ACTION
+: bytes
+| CASCADE
+> query
+| SELECT TABLE_NAME, COLUMN_NAME, IFNULL(GENERATION_EXPRESSION, ''), IS_NULLABLE, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, ORDINAL_POSITION
+: string
+| omni_t_mysql_analysis_backup_other
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "COLUMN_NAME" "VARCHAR"
+< column "IFNULL(GENERATION_EXPRESSION, '')" "TEXT"
+< column "IS_NULLABLE" "VARCHAR"
+< column "EXTRA" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| t
+: bytes
+| b
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+< row
+: bytes
+| u
+: bytes
+| id
+: bytes
+|
+: bytes
+| NO
+: bytes
+|
+< row
+: bytes
+| u
+: bytes
+| a
+: bytes
+|
+: bytes
+| YES
+: bytes
+|
+> query
+| SELECT TABLE_NAME, INDEX_NAME, NON_UNIQUE, COALESCE(COLUMN_NAME, EXPRESSION) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX
+: string
+| omni_t_mysql_analysis_backup_other
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "INDEX_NAME" "VARCHAR"
+< column "NON_UNIQUE" "INT"
+< column "COALESCE(COLUMN_NAME, EXPRESSION)" "TEXT"
+< row
+: bytes
+| t
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+< row
+: bytes
+| u
+: bytes
+| PRIMARY
+: int64 0
+: bytes
+| id
+> query
+| SELECT k.TABLE_NAME, k.CONSTRAINT_NAME, k.COLUMN_NAME, k.REFERENCED_TABLE_NAME, k.REFERENCED_COLUMN_NAME, r.UPDATE_RULE, r.DELETE_RULE FROM information_schema.KEY_COLUMN_USAGE k JOIN information_schema.REFERENTIAL_CONSTRAINTS r ON r.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA AND r.CONSTRAINT_NAME = k.CONSTRAINT_NAME WHERE k.TABLE_SCHEMA = ? AND k.REFERENCED_TABLE_NAME IS NOT NULL ORDER BY k.TABLE_NAME, k.CONSTRAINT_NAME, k.ORDINAL_POSITION
+: string
+| omni_t_mysql_analysis_backup_other
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR"
+< column "COLUMN_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_COLUMN_NAME" "VARCHAR"
+< column "UPDATE_RULE" "ENUM"
+< column "DELETE_RULE" "ENUM"

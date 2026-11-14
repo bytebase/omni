@@ -3,6 +3,7 @@ package analysis
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/bytebase/omni/metadata"
@@ -93,8 +94,10 @@ func TransformDMLToSelect(statement string, opts BackupOptions) ([]BackupStateme
 
 func prepareTransformation(databaseName, statement string, catalog Catalog, isCaseSensitive bool) ([]statementInfo, error) {
 	var result []statementInfo
-	// written holds the tables the statements before the current one change.
+	// written holds the tables the statements before the current one change,
+	// and assigned the user variables they set.
 	var written []ColumnResource
+	assigned := make(map[string]bool)
 	for i, segment := range parser.Split(statement) {
 		text := segmentText(statement, segment)
 		if len(text) == 0 || segment.Empty() {
@@ -115,8 +118,12 @@ func prepareTransformation(databaseName, statement string, catalog Catalog, isCa
 				return nil, fmt.Errorf("failed to extract tables: %w", err)
 			}
 			// The backups read their rows before any statement runs, so a
-			// statement must not read a table an earlier one changes.
+			// statement must not read a table or a user variable an earlier
+			// one changes.
 			if len(tables) > 0 {
+				if name := assignedUserVariable(node, text, assigned); name != "" {
+					return nil, fmt.Errorf("prior backup cannot handle a statement that reads @%s after an earlier statement sets it", name)
+				}
 				for read := range statementReads(databaseName, node, text, tables, isCaseSensitive) {
 					for _, changed := range written {
 						if equalIdentifier(read.Database, changed.Database, isCaseSensitive) && equalIdentifier(read.Table, changed.Table, isCaseSensitive) {
@@ -126,6 +133,7 @@ func prepareTransformation(databaseName, statement string, catalog Catalog, isCa
 				}
 			}
 			written = append(written, statementWrites(databaseName, node, tables)...)
+			assignUserVariables(node, text, assigned)
 			for _, table := range tables {
 				// A BackupStatement carries no source database, and the executor
 				// records the task database for the backed-up table. Reject
@@ -143,6 +151,95 @@ func prepareTransformation(databaseName, statement string, catalog Catalog, isCa
 	}
 
 	return result, nil
+}
+
+// withCTEs returns node and, for an UPDATE or DELETE, the CTEs of its WITH
+// clause, which the parser leaves out of the node.
+func withCTEs(node ast.Node, fullSQL string) []ast.Node {
+	result := []ast.Node{node}
+	var loc ast.Loc
+	switch n := node.(type) {
+	case *ast.UpdateStmt:
+		loc = n.Loc
+	case *ast.DeleteStmt:
+		loc = n.Loc
+	default:
+		return result
+	}
+	for _, cte := range parseCTEs(withClause(fullSQL, loc)) {
+		result = append(result, cte)
+	}
+	return result
+}
+
+// rowSelection returns the parts of a statement that choose the rows it
+// changes: all of a DELETE, and all of an UPDATE but its SET list.
+func rowSelection(node ast.Node, fullSQL string) []ast.Node {
+	nodes := withCTEs(node, fullSQL)
+	n, ok := node.(*ast.UpdateStmt)
+	if !ok {
+		return nodes
+	}
+	result := nodes[1:]
+	for _, table := range n.Tables {
+		result = append(result, table)
+	}
+	if n.Where != nil {
+		result = append(result, n.Where)
+	}
+	for _, item := range n.OrderBy {
+		result = append(result, item)
+	}
+	if n.Limit != nil {
+		result = append(result, n.Limit)
+	}
+	return result
+}
+
+// assignUserVariables adds to assigned the user variables a statement sets:
+// by SET, SELECT ... INTO, or :=. User variable names are case-insensitive.
+func assignUserVariables(node ast.Node, fullSQL string, assigned map[string]bool) {
+	for _, n := range withCTEs(node, fullSQL) {
+		ast.Inspect(n, func(n ast.Node) bool {
+			switch n := n.(type) {
+			case *ast.SetStmt:
+				for _, assignment := range n.Assignments {
+					if assignment.Column == nil {
+						continue
+					}
+					if name, ok := strings.CutPrefix(assignment.Column.Column, "@"); ok {
+						assigned[strings.ToLower(name)] = true
+					}
+				}
+			case *ast.IntoClause:
+				for _, v := range n.Vars {
+					if !v.System {
+						assigned[strings.ToLower(v.Name)] = true
+					}
+				}
+			case *ast.BinaryExpr:
+				if v, ok := n.Left.(*ast.VariableRef); ok && n.Op == ast.BinOpAssign && !v.System {
+					assigned[strings.ToLower(v.Name)] = true
+				}
+			}
+			return true
+		})
+	}
+}
+
+// assignedUserVariable returns a user variable assigned holds that the rows
+// a statement changes depend on, or "" if there is none.
+func assignedUserVariable(node ast.Node, fullSQL string, assigned map[string]bool) string {
+	var found string
+	for _, n := range rowSelection(node, fullSQL) {
+		ast.Inspect(n, func(n ast.Node) bool {
+			if v, ok := n.(*ast.VariableRef); ok && !v.System && assigned[strings.ToLower(v.Name)] && found == "" {
+				found = v.Name
+			}
+			return found == ""
+		})
+	}
+	return found
 }
 
 // statementReads returns the tables an UPDATE or DELETE reads other than
@@ -710,9 +807,123 @@ func generateSQL(statementInfoList []statementInfo, opts BackupOptions) ([]Backu
 				}
 			}
 		}
+		if err := checkDependentUpdates(statementInfoList, opts); err != nil {
+			return nil, err
+		}
 		return generateSQLForMixedDML(statementInfoList, opts)
 	}
 	return generateSQLForSingleTable(statementInfoList, opts)
+}
+
+// checkDependentUpdates refuses an UPDATE that picks its rows by a column an
+// earlier UPDATE of its table changes, unless the earlier restore covers every
+// column it sets. Its own backup reads the rows before the earlier UPDATE
+// runs, so only the earlier backup holds a row the earlier UPDATE makes it
+// match.
+func checkDependentUpdates(statementInfoList []statementInfo, opts BackupOptions) error {
+	for i, item := range statementInfoList {
+		update, ok := item.node.(*ast.UpdateStmt)
+		if !ok {
+			continue
+		}
+		for _, earlier := range statementInfoList[:i] {
+			earlierUpdate, ok := earlier.node.(*ast.UpdateStmt)
+			if !ok || !equalTable(earlier.table, item.table, opts.CaseSensitive) {
+				continue
+			}
+			table := item.table
+			columns, err := opts.classifyColumns(table.Database, table.Table)
+			if err != nil {
+				return fmt.Errorf("failed to classify columns: %w", err)
+			}
+			restored := make(map[string]bool)
+			for _, column := range restoredColumns(earlierUpdate, table, columns.Normal) {
+				restored[strings.ToLower(column)] = true
+			}
+			if !slices.ContainsFunc(restoredColumns(update, table, columns.Normal), func(column string) bool { return !restored[strings.ToLower(column)] }) {
+				continue
+			}
+			changed := make(map[string]bool)
+			for _, assignment := range earlierUpdate.SetList {
+				if assignment.Column != nil {
+					changed[strings.ToLower(assignment.Column.Column)] = true
+				}
+			}
+			for _, column := range columns.Generated {
+				changed[strings.ToLower(column)] = true
+			}
+			onUpdate, err := onUpdateColumns(opts, table)
+			if err != nil {
+				return err
+			}
+			for _, column := range onUpdate {
+				changed[strings.ToLower(column)] = true
+			}
+			if selectsBy(update, changed) {
+				return fmt.Errorf("prior backup cannot back up UPDATEs of %s.%s separately when one picks its rows by a column an earlier one changes", table.Database, table.Table)
+			}
+		}
+	}
+	return nil
+}
+
+// restoredColumns returns the columns of table an UPDATE's restore sets back.
+func restoredColumns(n *ast.UpdateStmt, table *tableReference, normalColumns []string) []string {
+	singleTables := extractSingleTablesFromTableExprs(table.Database, n.Tables)
+	return extractUpdateColumns(n.SetList, table.Database, table.Table, singleTables, normalColumns)
+}
+
+// onUpdateColumns returns the columns of table the server sets ON UPDATE.
+func onUpdateColumns(opts BackupOptions, table *tableReference) ([]string, error) {
+	if opts.Catalog.GetDatabase == nil {
+		return nil, nil
+	}
+	db, err := findDatabase(opts.Catalog, opts.CaseSensitive, table.Database)
+	if err != nil {
+		return nil, fmt.Errorf("prior backup cannot read the columns of %s.%s: %w", table.Database, table.Table, err)
+	}
+	if db == nil || !db.HasSchema() {
+		return nil, fmt.Errorf("prior backup cannot read the columns of %s.%s: the database has no metadata", table.Database, table.Table)
+	}
+	tableMetadata := db.GetTable(table.Table)
+	if tableMetadata == nil {
+		return nil, fmt.Errorf("prior backup cannot read the columns of %s.%s: the table has no metadata", table.Database, table.Table)
+	}
+	var result []string
+	for _, column := range tableMetadata.Columns {
+		if column.GetOnUpdate() != "" {
+			result = append(result, column.GetName())
+		}
+	}
+	return result, nil
+}
+
+// selectsBy reports whether an UPDATE's WHERE or joins may read a column
+// named in columns. A NATURAL join reads columns it does not name.
+func selectsBy(n *ast.UpdateStmt, columns map[string]bool) bool {
+	found := false
+	inspect := func(node ast.Node) {
+		ast.Inspect(node, func(node ast.Node) bool {
+			switch node := node.(type) {
+			case *ast.ColumnRef:
+				found = found || columns[strings.ToLower(node.Column)]
+			case *ast.UsingCondition:
+				for _, column := range node.Columns {
+					found = found || columns[strings.ToLower(column)]
+				}
+			case *ast.JoinClause:
+				found = found || node.Type == ast.JoinNatural || node.Type == ast.JoinNaturalLeft || node.Type == ast.JoinNaturalRight
+			}
+			return !found
+		})
+	}
+	for _, table := range n.Tables {
+		inspect(table)
+	}
+	if n.Where != nil {
+		inspect(n.Where)
+	}
+	return found
 }
 
 func generateSQLForSingleTable(statementInfoList []statementInfo, opts BackupOptions) ([]BackupStatement, error) {

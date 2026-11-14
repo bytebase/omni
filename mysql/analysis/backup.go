@@ -112,8 +112,10 @@ func TransformDMLToSelect(statement string, opts BackupOptions) ([]BackupStateme
 
 func prepareTransformation(databaseName, statement string, catalog Catalog, caseSensitive bool) ([]DMLTarget, error) {
 	var result []DMLTarget
-	// written holds the tables the statements before the current one change.
+	// written holds the tables the statements before the current one change,
+	// and assigned the user variables they set.
 	var written []ColumnResource
+	assigned := make(map[string]bool)
 	for i, segment := range parser.Split(statement) {
 		text := segmentText(statement, segment)
 		if len(text) == 0 || segment.Empty() {
@@ -134,8 +136,12 @@ func prepareTransformation(databaseName, statement string, catalog Catalog, case
 				return nil, fmt.Errorf("failed to extract tables: %w", err)
 			}
 			// The backups read their rows before any statement runs, so a
-			// statement must not read a table an earlier one changes.
+			// statement must not read a table or a user variable an earlier
+			// one changes.
 			if len(tables) > 0 {
+				if name := assignedUserVariable(node, text, assigned); name != "" {
+					return nil, fmt.Errorf("prior backup cannot handle a statement that reads @%s after an earlier statement sets it", name)
+				}
 				for read := range statementReads(databaseName, node, text, tables) {
 					for _, changed := range written {
 						if equalIdentifier(read.Database, changed.Database, caseSensitive) && equalIdentifier(read.Table, changed.Table, caseSensitive) {
@@ -145,6 +151,7 @@ func prepareTransformation(databaseName, statement string, catalog Catalog, case
 				}
 			}
 			written = append(written, statementWrites(databaseName, node, tables)...)
+			assignUserVariables(node, text, assigned)
 			for _, table := range tables {
 				table.ByteStart = segment.ByteStart
 				table.ByteEnd = segment.ByteEnd
@@ -154,6 +161,95 @@ func prepareTransformation(databaseName, statement string, catalog Catalog, case
 	}
 
 	return result, nil
+}
+
+// withCTEs returns node and, for an UPDATE or DELETE, the CTEs of its WITH
+// clause, which the parser leaves out of the node.
+func withCTEs(node ast.Node, fullSQL string) []ast.Node {
+	result := []ast.Node{node}
+	var loc ast.Loc
+	switch n := node.(type) {
+	case *ast.UpdateStmt:
+		loc = n.Loc
+	case *ast.DeleteStmt:
+		loc = n.Loc
+	default:
+		return result
+	}
+	for _, cte := range parseCTEs(withClause(fullSQL, loc)) {
+		result = append(result, cte)
+	}
+	return result
+}
+
+// rowSelection returns the parts of a statement that choose the rows it
+// changes: all of a DELETE, and all of an UPDATE but its SET list.
+func rowSelection(node ast.Node, fullSQL string) []ast.Node {
+	nodes := withCTEs(node, fullSQL)
+	n, ok := node.(*ast.UpdateStmt)
+	if !ok {
+		return nodes
+	}
+	result := nodes[1:]
+	for _, table := range n.Tables {
+		result = append(result, table)
+	}
+	if n.Where != nil {
+		result = append(result, n.Where)
+	}
+	for _, item := range n.OrderBy {
+		result = append(result, item)
+	}
+	if n.Limit != nil {
+		result = append(result, n.Limit)
+	}
+	return result
+}
+
+// assignUserVariables adds to assigned the user variables a statement sets:
+// by SET, SELECT ... INTO, or :=. User variable names are case-insensitive.
+func assignUserVariables(node ast.Node, fullSQL string, assigned map[string]bool) {
+	for _, n := range withCTEs(node, fullSQL) {
+		ast.Inspect(n, func(n ast.Node) bool {
+			switch n := n.(type) {
+			case *ast.SetStmt:
+				for _, assignment := range n.Assignments {
+					if assignment.Column == nil {
+						continue
+					}
+					if name, ok := strings.CutPrefix(assignment.Column.Column, "@"); ok {
+						assigned[strings.ToLower(name)] = true
+					}
+				}
+			case *ast.IntoClause:
+				for _, v := range n.Vars {
+					if !v.System {
+						assigned[strings.ToLower(v.Name)] = true
+					}
+				}
+			case *ast.BinaryExpr:
+				if v, ok := n.Left.(*ast.VariableRef); ok && n.Op == ast.BinOpAssign && !v.System {
+					assigned[strings.ToLower(v.Name)] = true
+				}
+			}
+			return true
+		})
+	}
+}
+
+// assignedUserVariable returns a user variable assigned holds that the rows
+// a statement changes depend on, or "" if there is none.
+func assignedUserVariable(node ast.Node, fullSQL string, assigned map[string]bool) string {
+	var found string
+	for _, n := range rowSelection(node, fullSQL) {
+		ast.Inspect(n, func(n ast.Node) bool {
+			if v, ok := n.(*ast.VariableRef); ok && !v.System && assigned[strings.ToLower(v.Name)] && found == "" {
+				found = v.Name
+			}
+			return found == ""
+		})
+	}
+	return found
 }
 
 // statementReads returns the tables an UPDATE or DELETE reads other than

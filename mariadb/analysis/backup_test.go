@@ -376,6 +376,15 @@ func TestTransformDMLToSelectRefusesUnsafeScripts(t *testing.T) {
 		{"INSERT INTO t1 VALUES (1, 1); UPDATE t JOIN t1 ON t.a = t1.a SET t.b = 1", "failed to prepare transformation: prior backup cannot handle a statement that reads db.t1 after an earlier statement changes it"},
 		// A foreign key cascades the DELETE to rows the backup leaves out.
 		{"DELETE FROM parent WHERE id = 1", "failed to generate SQL for table db.parent: prior backup cannot back up db.parent: foreign key fk_cascade of child is ON DELETE CASCADE, and the rows it changes are not backed up"},
+		// A user variable an earlier statement sets picks the rows.
+		{"SET @victim = 1; DELETE FROM t WHERE a = @victim", "failed to prepare transformation: prior backup cannot handle a statement that reads @victim after an earlier statement sets it"},
+		{"SELECT 1 INTO @v; UPDATE t SET b = 1 WHERE a = @V", "failed to prepare transformation: prior backup cannot handle a statement that reads @V after an earlier statement sets it"},
+		{"SELECT @v := 2; UPDATE t JOIN t1 ON t1.a = @v SET t.b = 1", "failed to prepare transformation: prior backup cannot handle a statement that reads @v after an earlier statement sets it"},
+		{"SET @v = 1; WITH c AS (SELECT @v AS a) DELETE t FROM t JOIN c ON t.a = c.a", "failed to prepare transformation: prior backup cannot handle a statement that reads @v after an earlier statement sets it"},
+		// FOR PORTION OF can split a row, and DELETE HISTORY removes history.
+		{"UPDATE t FOR PORTION OF p FROM '2020-02-01' TO '2020-03-01' SET b = 2 WHERE a = 1", "failed to prepare transformation: prior backup cannot back up an UPDATE ... FOR PORTION OF, which can split rows"},
+		{"DELETE FROM t FOR PORTION OF p FROM '2020-02-01' TO '2020-03-01' WHERE a = 1", "failed to prepare transformation: prior backup cannot back up a DELETE ... FOR PORTION OF, which can split rows"},
+		{"DELETE HISTORY FROM t BEFORE SYSTEM_TIME '2020-01-01'", "failed to prepare transformation: prior backup cannot back up DELETE HISTORY, which removes history rows"},
 		// Truncation gives both tables' backups one name.
 		{"DELETE FROM `" + strings.Repeat("x", 62) + "1`; DELETE FROM `" + strings.Repeat("x", 62) + "2`", "prior backup cannot name the backups of db." + strings.Repeat("x", 62) + "1 and db." + strings.Repeat("x", 62) + "2 apart: both are pre_" + strings.Repeat("x", 60)},
 	}
@@ -400,6 +409,11 @@ func TestTransformDMLToSelectKeepsSafeScripts(t *testing.T) {
 	for _, script := range []string{
 		// Statements on one table read its rows only through the backup.
 		"UPDATE t SET b = 1 WHERE a = 1; UPDATE t SET c = 2 WHERE b = 1",
+		// A user variable only the SET list reads, or set after its use.
+		"SET @v = 1; UPDATE t SET b = @v WHERE a = 1",
+		"DELETE FROM t WHERE a = @v; SET @v = 1",
+		"SET @@session.v = 1; DELETE FROM t WHERE a = @v",
+		"SET @v = 1; DELETE FROM t WHERE a = @@v",
 		// An earlier write to a table the later statement does not read.
 		"UPDATE t1 SET b = 1; DELETE FROM t WHERE a = 1",
 		// The child's RESTRICT key does not cascade an UPDATE.

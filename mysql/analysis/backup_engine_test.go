@@ -245,6 +245,23 @@ var roundTrips = []roundTrip{
 		tables:     []string{"nullable_key"},
 		restoreErr: "no disjoint unique key found",
 	},
+	{
+		// A generated column assigned DEFAULT stays out of the restore, which
+		// could not assign it a value.
+		name: "generated_default",
+		setup: "CREATE TABLE generated_default (id INT PRIMARY KEY, a INT, g INT AS (a + 1));" +
+			"INSERT INTO generated_default (id, a) VALUES (1, 1), (2, 2)",
+		script: "UPDATE generated_default SET generated_default.a = 5, generated_default.g = DEFAULT WHERE id = 1",
+		tables: []string{"generated_default"},
+	},
+	{
+		// The backup would read the rows before the SET gives @victim a value.
+		name:         "user_variable",
+		setup:        "CREATE TABLE user_variable (id INT PRIMARY KEY);INSERT INTO user_variable VALUES (1), (2)",
+		script:       "SET @victim = 1; DELETE FROM user_variable WHERE id = @victim",
+		tables:       []string{"user_variable"},
+		transformErr: "prior backup cannot handle a statement that reads @victim after an earlier statement sets it",
+	},
 }
 
 // TestBackupRestoreRoundTrip runs each backup, its statements and their

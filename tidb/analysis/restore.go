@@ -3,6 +3,7 @@ package analysis
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/bytebase/omni/metadata"
@@ -274,7 +275,8 @@ func extractUpdateColumns(setList []*ast.Assignment, database, originalTable str
 	var result []string
 	for _, assignment := range setList {
 		col := assignment.Column
-		if col == nil {
+		// A generated column only takes DEFAULT, so the restore leaves it out.
+		if col == nil || !slices.ContainsFunc(normalColumns, func(c string) bool { return strings.EqualFold(c, col.Column) }) {
 			continue
 		}
 
@@ -283,13 +285,7 @@ func extractUpdateColumns(setList []*ast.Assignment, database, originalTable str
 		}
 
 		if col.Table == "" {
-			// Unqualified column: check if it belongs to the normalColumns set.
-			for _, c := range normalColumns {
-				if strings.EqualFold(c, col.Column) {
-					result = append(result, col.Column)
-					break
-				}
-			}
+			result = append(result, col.Column)
 			continue
 		}
 
@@ -321,7 +317,8 @@ func targetAssignments(setList []*ast.Assignment, database, originalTable string
 	var result []*ast.Assignment
 	for _, assignment := range setList {
 		col := assignment.Column
-		if col == nil {
+		// A generated column only takes DEFAULT, so the restore leaves it out.
+		if col == nil || !slices.ContainsFunc(normalColumns, func(c string) bool { return strings.EqualFold(c, col.Column) }) {
 			continue
 		}
 
@@ -330,13 +327,7 @@ func targetAssignments(setList []*ast.Assignment, database, originalTable string
 		}
 
 		if col.Table == "" {
-			// Unqualified column: check if it belongs to the normalColumns set.
-			for _, c := range normalColumns {
-				if strings.EqualFold(c, col.Column) {
-					result = append(result, assignment)
-					break
-				}
-			}
+			result = append(result, assignment)
 			continue
 		}
 

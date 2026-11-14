@@ -171,3 +171,16 @@ func TestRestoreSQLRefusesChangedUniqueKeys(t *testing.T) {
 		require.NoError(t, err, statement)
 	}
 }
+
+func TestRestoreSQLSkipsGeneratedColumns(t *testing.T) {
+	// A generated column only takes DEFAULT, however its table is named.
+	for _, statement := range []string{
+		"UPDATE tg SET a = 1, g_c = DEFAULT",
+		"UPDATE tg SET tg.a = 1, tg.g_c = DEFAULT",
+		"UPDATE tg x SET x.a = 1, x.g_c = DEFAULT",
+	} {
+		got, err := restore(t, statement, "tg")
+		require.NoError(t, err, statement)
+		require.True(t, strings.HasSuffix(got, "ON DUPLICATE KEY UPDATE `a` = VALUES(`a`);"), got)
+	}
+}
