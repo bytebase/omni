@@ -33,61 +33,9 @@ func TestAnalyze_Table(t *testing.T) {
 	}
 }
 
-func TestAnalyze_TableWithSamplePercent(t *testing.T) {
-	file, errs := parseForTest("ANALYZE TABLE lineitem WITH SAMPLE PERCENT 10")
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	stmt := file.Stmts[0].(*ast.AnalyzeStmt)
-	if len(stmt.Properties) != 1 {
-		t.Fatalf("expected 1 property, got %d", len(stmt.Properties))
-	}
-	if stmt.Properties[0].Key != "SAMPLE PERCENT" {
-		t.Errorf("property key = %q, want SAMPLE PERCENT", stmt.Properties[0].Key)
-	}
-	if stmt.Properties[0].Value != "10" {
-		t.Errorf("property value = %q, want 10", stmt.Properties[0].Value)
-	}
-}
 
-func TestAnalyze_TableWithSampleRows(t *testing.T) {
-	file, errs := parseForTest("ANALYZE TABLE lineitem WITH SAMPLE ROWS 100000")
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	stmt := file.Stmts[0].(*ast.AnalyzeStmt)
-	if len(stmt.Properties) != 1 {
-		t.Fatalf("expected 1 property, got %d", len(stmt.Properties))
-	}
-	if stmt.Properties[0].Key != "SAMPLE ROWS" {
-		t.Errorf("property key = %q, want SAMPLE ROWS", stmt.Properties[0].Key)
-	}
-	if stmt.Properties[0].Value != "100000" {
-		t.Errorf("property value = %q, want 100000", stmt.Properties[0].Value)
-	}
-}
 
-func TestAnalyze_TableWithSync(t *testing.T) {
-	file, errs := parseForTest("ANALYZE TABLE t WITH SYNC")
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	stmt := file.Stmts[0].(*ast.AnalyzeStmt)
-	if len(stmt.Properties) != 1 || stmt.Properties[0].Key != "SYNC" {
-		t.Errorf("expected SYNC property, got %v", stmt.Properties)
-	}
-}
 
-func TestAnalyze_TableWithIncremental(t *testing.T) {
-	file, errs := parseForTest("ANALYZE TABLE t WITH INCREMENTAL")
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	stmt := file.Stmts[0].(*ast.AnalyzeStmt)
-	if len(stmt.Properties) != 1 || stmt.Properties[0].Key != "INCREMENTAL" {
-		t.Errorf("expected INCREMENTAL property, got %v", stmt.Properties)
-	}
-}
 
 func TestAnalyze_TableWithColumns(t *testing.T) {
 	file, errs := parseForTest("ANALYZE TABLE t (col1, col2)")
@@ -103,30 +51,7 @@ func TestAnalyze_TableWithColumns(t *testing.T) {
 	}
 }
 
-func TestAnalyze_Database(t *testing.T) {
-	file, errs := parseForTest("ANALYZE DATABASE mydb")
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	stmt := file.Stmts[0].(*ast.AnalyzeStmt)
-	if stmt.TargetType != "DATABASE" {
-		t.Errorf("TargetType = %q, want DATABASE", stmt.TargetType)
-	}
-	if stmt.Target.String() != "mydb" {
-		t.Errorf("Target = %v, want mydb", stmt.Target)
-	}
-}
 
-func TestAnalyze_QualifiedTable(t *testing.T) {
-	file, errs := parseForTest("ANALYZE TABLE mydb.lineitem WITH SAMPLE PERCENT 10")
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	stmt := file.Stmts[0].(*ast.AnalyzeStmt)
-	if stmt.Target.String() != "mydb.lineitem" {
-		t.Errorf("Target = %v, want mydb.lineitem", stmt.Target)
-	}
-}
 
 // ---------------------------------------------------------------------------
 // SHOW ANALYZE
@@ -330,50 +255,8 @@ func TestDropStats_Table(t *testing.T) {
 	}
 }
 
-func TestDropStats_WithColumns(t *testing.T) {
-	file, errs := parseForTest("DROP STATS table1 (col1, col2)")
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	stmt := file.Stmts[0].(*ast.DropStatsStmt)
-	if len(stmt.Columns) != 2 {
-		t.Fatalf("expected 2 columns, got %d", len(stmt.Columns))
-	}
-	if stmt.Columns[0] != "col1" || stmt.Columns[1] != "col2" {
-		t.Errorf("columns = %v, want [col1 col2]", stmt.Columns)
-	}
-}
 
-func TestDropStats_Expired(t *testing.T) {
-	file, errs := parseForTest("DROP EXPIRED STATS mytable")
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	stmt, ok := file.Stmts[0].(*ast.DropStatsStmt)
-	if !ok {
-		t.Fatalf("expected *ast.DropStatsStmt, got %T", file.Stmts[0])
-	}
-	if stmt.Variant != "EXPIRED" {
-		t.Errorf("Variant = %q, want EXPIRED", stmt.Variant)
-	}
-}
 
-func TestDropStats_Cached(t *testing.T) {
-	file, errs := parseForTest("DROP CACHED STATS mytable")
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	stmt, ok := file.Stmts[0].(*ast.DropStatsStmt)
-	if !ok {
-		t.Fatalf("expected *ast.DropStatsStmt, got %T", file.Stmts[0])
-	}
-	if stmt.Variant != "CACHED" {
-		t.Errorf("Variant = %q, want CACHED", stmt.Variant)
-	}
-	if stmt.Target.String() != "mytable" {
-		t.Errorf("Target = %v, want mytable", stmt.Target)
-	}
-}
 
 // ---------------------------------------------------------------------------
 // KILL ANALYZE
@@ -490,32 +373,7 @@ func TestAlterTableDropConstraint(t *testing.T) {
 // Legacy corpus forms (from statistics.sql)
 // ---------------------------------------------------------------------------
 
-func TestLegacyCorpus_AnalyzeWithSamplePercent(t *testing.T) {
-	// ANALYZE TABLE lineitem WITH SAMPLE PERCENT 10;
-	file, errs := parseForTest("ANALYZE TABLE lineitem WITH SAMPLE PERCENT 10")
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	stmt := file.Stmts[0].(*ast.AnalyzeStmt)
-	if stmt.Target.String() != "lineitem" {
-		t.Errorf("Target = %v, want lineitem", stmt.Target)
-	}
-	if stmt.Properties[0].Key != "SAMPLE PERCENT" || stmt.Properties[0].Value != "10" {
-		t.Errorf("property = %v", stmt.Properties[0])
-	}
-}
 
-func TestLegacyCorpus_AnalyzeWithSampleRows(t *testing.T) {
-	// ANALYZE TABLE lineitem WITH SAMPLE ROWS 100000;
-	file, errs := parseForTest("ANALYZE TABLE lineitem WITH SAMPLE ROWS 100000")
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	stmt := file.Stmts[0].(*ast.AnalyzeStmt)
-	if stmt.Properties[0].Key != "SAMPLE ROWS" || stmt.Properties[0].Value != "100000" {
-		t.Errorf("property = %v", stmt.Properties[0])
-	}
-}
 
 func TestLegacyCorpus_DropStats(t *testing.T) {
 	// DROP STATS table1;
@@ -529,17 +387,6 @@ func TestLegacyCorpus_DropStats(t *testing.T) {
 	}
 }
 
-func TestLegacyCorpus_DropStatsWithColumns(t *testing.T) {
-	// DROP STATS table1 (col1, col2);
-	file, errs := parseForTest("DROP STATS table1 (col1, col2)")
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	stmt := file.Stmts[0].(*ast.DropStatsStmt)
-	if len(stmt.Columns) != 2 {
-		t.Fatalf("expected 2 columns, got %d", len(stmt.Columns))
-	}
-}
 
 func TestLegacyCorpus_ShowTableStats(t *testing.T) {
 	// SHOW TABLE STATS test1;
@@ -641,4 +488,41 @@ func TestNodeTagsForStatsNodes(t *testing.T) {
 func parseDorisFormForTest(sql string) (*ast.File, []ParseError) {
 	r := ParseBestEffort(sql)
 	return r.File, r.Errors
+}
+
+// TestAnalyzeGrammar holds ANALYZE and the stats statements to StarRocks.g4
+// (:1297-1354); the rejected forms are Doris's, which this file once pinned.
+func TestAnalyzeGrammar(t *testing.T) {
+	cases := []struct {
+		sql string
+		ok  bool
+	}{
+		{"ANALYZE FULL TABLE db.t (c1, s.c2) WITH ASYNC MODE PROPERTIES('k' = 'v')", true},
+		{"ANALYZE SAMPLE TABLE t WITH SYNC MODE", true},
+		{"ANALYZE TABLE t UPDATE HISTOGRAM ON c1, c2 WITH 32 BUCKETS PROPERTIES('k' = 'v') WITH SYNC MODE", true},
+		{"ANALYZE TABLE t DROP HISTOGRAM ON c1", true},
+		{"ANALYZE PROFILE FROM 'q', 1, 2", true},
+		{"CREATE ANALYZE FULL ALL PROPERTIES('k' = 'v')", true},
+		{"CREATE ANALYZE SAMPLE DATABASE d", true},
+		{"CREATE ANALYZE TABLE t (c)", true},
+		{"CREATE ANALYZE TABLE t UPDATE HISTOGRAM ON c", true},
+		{"CREATE ANALYZE TABLE t DROP HISTOGRAM ON c", false},
+		{"CREATE ANALYZE TABLE t WITH SYNC MODE", false},
+		{"DROP ANALYZE 1", true},
+		{"ANALYZE TABLE t WITH SYNC", false},
+		{"ANALYZE TABLE t()", false},
+		{"ANALYZE TABLE lineitem WITH SAMPLE PERCENT 10", false},
+		{"ANALYZE DATABASE d", false},
+		{"ANALYZE t", false},
+		{"ANALYZE", false},
+		{"DROP STATS t (c1, c2)", false},
+		{"DROP EXPIRED STATS", false},
+		{"DROP CACHED STATS t", false},
+	}
+	for _, c := range cases {
+		_, err := Parse(c.sql)
+		if (err == nil) != c.ok {
+			t.Errorf("Parse(%q): err = %v, want accepted=%v", c.sql, err, c.ok)
+		}
+	}
 }

@@ -265,7 +265,7 @@ reject	reject	engine	unsupportedStatement/unsupportedDropStatement!drop-3	DROP D
 reject	reject	engine	unsupportedStatement/unsupportedDropStatement!insert	DROP DATABASE a zzz
 reject	reject	engine	unsupportedStatement/unsupportedDropStatement!swap	DROPP DATABASE a
 accept	accept	engine	unsupportedStatement/unsupportedStatsStatement	SHOW ANALYZE
-accept	reject	engine	unsupportedStatement/unsupportedStatsStatement!drop-1	ANALYZE
+reject	reject	engine	unsupportedStatement/unsupportedStatsStatement!drop-1	ANALYZE
 accept	accept	engine	unsupportedStatement/unsupportedStatsStatement!insert	SHOW ANALYZE zzz
 reject	reject	engine	unsupportedStatement/unsupportedStatsStatement!swap	SIGNED ANALYZE
 accept	accept	engine	unsupportedStatement/unsupportedAlterStatement	ALTER RESOURCE a
@@ -3962,7 +3962,7 @@ reject	reject	engine	unsupportedDropStatement(userIdentify|ROLE_identifier)/ROLE
 reject	reject	engine	unsupportedDropStatement(userIdentify|ROLE_identifier)/ROLE_identifier!insert	DROP ROW POLICY a ON a FOR ROLE a zzz
 reject	reject	engine	unsupportedDropStatement(userIdentify|ROLE_identifier)/ROLE_identifier!swap	DROP ROW POLICY a ON a FOR ROLES a
 accept	accept	engine	unsupportedStatsStatement/ANALYZE_TABLE_multipartIdentifier_(partitionSpec)?_(ide~3cc488a4	ANALYZE TABLE a
-accept	reject	engine	unsupportedStatsStatement/ANALYZE_TABLE_multipartIdentifier_(partitionSpec)?_(ide~3cc488a4!drop-2	ANALYZE a
+reject	reject	engine	unsupportedStatsStatement/ANALYZE_TABLE_multipartIdentifier_(partitionSpec)?_(ide~3cc488a4!drop-2	ANALYZE a
 reject	reject	engine	unsupportedStatsStatement/ANALYZE_TABLE_multipartIdentifier_(partitionSpec)?_(ide~3cc488a4!drop-3	ANALYZE TABLE
 reject	reject	engine	unsupportedStatsStatement/ANALYZE_TABLE_multipartIdentifier_(partitionSpec)?_(ide~3cc488a4!insert	ANALYZE TABLE a zzz
 reject	reject	engine	unsupportedStatsStatement/ANALYZE_TABLE_multipartIdentifier_(partitionSpec)?_(ide~3cc488a4!swap	ANALYZED TABLE a
@@ -4009,12 +4009,12 @@ reject	reject	engine	unsupportedStatsStatement/DROP_CACHED_STATS_multipartIdenti
 reject	reject	engine	unsupportedStatsStatement/DROP_CACHED_STATS_multipartIdentifier!drop-4	DROP CACHED STATS
 reject	reject	engine	unsupportedStatsStatement/DROP_CACHED_STATS_multipartIdentifier!insert	DROP CACHED STATS a zzz
 reject	reject	engine	unsupportedStatsStatement/DROP_CACHED_STATS_multipartIdentifier!swap	DROPP CACHED STATS a
-reject	accept	engine	unsupportedStatsStatement/DROP_EXPIRED_STATS	DROP EXPIRED STATS
+accept	accept	engine	unsupportedStatsStatement/DROP_EXPIRED_STATS	DROP EXPIRED STATS
 reject	reject	engine	unsupportedStatsStatement/DROP_EXPIRED_STATS!drop-1	EXPIRED STATS
 reject	reject	engine	unsupportedStatsStatement/DROP_EXPIRED_STATS!drop-3	DROP EXPIRED
-accept	reject	engine	unsupportedStatsStatement/DROP_EXPIRED_STATS!insert	DROP EXPIRED STATS zzz
+reject	reject	engine	unsupportedStatsStatement/DROP_EXPIRED_STATS!insert	DROP EXPIRED STATS zzz
 reject	reject	engine	unsupportedStatsStatement/DROP_EXPIRED_STATS!swap	DROPP EXPIRED STATS
-reject	accept	engine	unsupportedStatsStatement/DROP_ANALYZE_JOB_INTEGER_VALUE	DROP ANALYZE JOB 1
+accept	accept	engine	unsupportedStatsStatement/DROP_ANALYZE_JOB_INTEGER_VALUE	DROP ANALYZE JOB 1
 reject	reject	engine	unsupportedStatsStatement/DROP_ANALYZE_JOB_INTEGER_VALUE!drop-1	ANALYZE JOB 1
 reject	reject	engine	unsupportedStatsStatement/DROP_ANALYZE_JOB_INTEGER_VALUE!drop-2	DROP JOB 1
 reject	reject	engine	unsupportedStatsStatement/DROP_ANALYZE_JOB_INTEGER_VALUE!drop-3	DROP ANALYZE 1
@@ -4032,7 +4032,7 @@ reject	reject	engine	unsupportedStatsStatement/SHOW_TABLE_STATS_multipartIdentif
 reject	reject	engine	unsupportedStatsStatement/SHOW_TABLE_STATS_multipartIdentifier_(partitionSpec)?_(~449d0112!drop-4	SHOW TABLE STATS
 reject	reject	engine	unsupportedStatsStatement/SHOW_TABLE_STATS_multipartIdentifier_(partitionSpec)?_(~449d0112!insert	SHOW TABLE STATS a zzz
 reject	reject	engine	unsupportedStatsStatement/SHOW_TABLE_STATS_multipartIdentifier_(partitionSpec)?_(~449d0112!swap	SIGNED TABLE STATS a
-reject	accept	engine	unsupportedStatsStatement/SHOW_TABLE_STATS_INTEGER_VALUE	SHOW TABLE STATS 1
+accept	accept	engine	unsupportedStatsStatement/SHOW_TABLE_STATS_INTEGER_VALUE	SHOW TABLE STATS 1
 reject	reject	engine	unsupportedStatsStatement/SHOW_TABLE_STATS_INTEGER_VALUE!drop-1	TABLE STATS 1
 reject	reject	engine	unsupportedStatsStatement/SHOW_TABLE_STATS_INTEGER_VALUE!drop-2	SHOW STATS 1
 reject	reject	engine	unsupportedStatsStatement/SHOW_TABLE_STATS_INTEGER_VALUE!insert	SHOW TABLE STATS 1 zzz
@@ -4079,7 +4079,7 @@ reject	reject	engine	unsupportedStatsStatement/SHOW_ANALYZE_TASK_STATUS_INTEGER_
 reject	reject	engine	unsupportedStatsStatement/SHOW_ANALYZE_TASK_STATUS_INTEGER_VALUE!insert	SHOW ANALYZE TASK STATUS 1 zzz
 reject	reject	engine	unsupportedStatsStatement/SHOW_ANALYZE_TASK_STATUS_INTEGER_VALUE!swap	SIGNED ANALYZE TASK STATUS 1
 accept	accept	engine	unsupportedStatsStatement(partitionSpec)?/%empty	ANALYZE TABLE a
-reject	accept	engine	unsupportedStatsStatement(partitionSpec)?/partitionSpec	ANALYZE TABLE a PARTITION a
+accept	accept	engine	unsupportedStatsStatement(partitionSpec)?/partitionSpec	ANALYZE TABLE a PARTITION a
 reject	reject	engine	unsupportedStatsStatement(partitionSpec)?/partitionSpec!drop-1	ANALYZE TABLE a a
 reject	reject	engine	unsupportedStatsStatement(partitionSpec)?/partitionSpec!drop-2	ANALYZE TABLE a PARTITION
 reject	reject	engine	unsupportedStatsStatement(partitionSpec)?/partitionSpec!insert	ANALYZE TABLE a PARTITION a zzz
@@ -4087,7 +4087,7 @@ reject	reject	engine	unsupportedStatsStatement(partitionSpec)?/partitionSpec!swa
 accept	accept	engine	unsupportedStatsStatement(identifierList)?/%empty	ANALYZE TABLE a
 accept	accept	engine	unsupportedStatsStatement(identifierList)?/identifierList	ANALYZE TABLE a(a)
 reject	reject	engine	unsupportedStatsStatement(identifierList)?/identifierList!drop-1	ANALYZE TABLE a a)
-accept	reject	engine	unsupportedStatsStatement(identifierList)?/identifierList!drop-2	ANALYZE TABLE a()
+reject	reject	engine	unsupportedStatsStatement(identifierList)?/identifierList!drop-2	ANALYZE TABLE a()
 reject	reject	engine	unsupportedStatsStatement(identifierList)?/identifierList!drop-3	ANALYZE TABLE a(a
 reject	reject	engine	unsupportedStatsStatement(identifierList)?/identifierList!insert	ANALYZE TABLE a(a) zzz
 accept	accept	engine	unsupportedStatsStatement(WITH_analyzeProperties)*/%empty	ANALYZE TABLE a
@@ -4135,9 +4135,9 @@ reject	reject	engine	analyzeProperties/SYNC!swap	ANALYZE TABLE a WITH SYSTEM
 accept	accept	engine	analyzeProperties/INCREMENTAL	ANALYZE TABLE a WITH INCREMENTAL
 reject	reject	engine	analyzeProperties/INCREMENTAL!insert	ANALYZE TABLE a WITH INCREMENTAL zzz
 reject	reject	engine	analyzeProperties/INCREMENTAL!swap	ANALYZE TABLE a WITH INDEX
-reject	accept	engine	analyzeProperties/FULL	ANALYZE TABLE a WITH FULL
+accept	accept	engine	analyzeProperties/FULL	ANALYZE TABLE a WITH FULL
 reject	reject	engine	analyzeProperties/FULL!insert	ANALYZE TABLE a WITH FULL zzz
-accept	reject	engine	analyzeProperties/FULL!swap	ANALYZE TABLE a WITH FUNCTION
+reject	reject	engine	analyzeProperties/FULL!swap	ANALYZE TABLE a WITH FUNCTION
 accept	accept	engine	analyzeProperties/SQL	ANALYZE TABLE a WITH SQL
 reject	reject	engine	analyzeProperties/SQL!insert	ANALYZE TABLE a WITH SQL zzz
 reject	reject	engine	analyzeProperties/SQL!swap	ANALYZE TABLE a WITH SQL_BLOCK_RULE
@@ -4150,18 +4150,18 @@ reject	reject	engine	analyzeProperties/SAMPLE_((ROWS_INTEGER_VALUE)|(PERCENT_INT
 reject	reject	engine	analyzeProperties/SAMPLE_((ROWS_INTEGER_VALUE)|(PERCENT_INTEGER_VALUE))!drop-3	ANALYZE TABLE a WITH SAMPLE ROWS
 reject	reject	engine	analyzeProperties/SAMPLE_((ROWS_INTEGER_VALUE)|(PERCENT_INTEGER_VALUE))!insert	ANALYZE TABLE a WITH SAMPLE ROWS 1 zzz
 reject	reject	engine	analyzeProperties/SAMPLE_((ROWS_INTEGER_VALUE)|(PERCENT_INTEGER_VALUE))!swap	ANALYZE TABLE a WITH SCHEDULE ROWS 1
-reject	accept	engine	analyzeProperties/BUCKETS_INTEGER_VALUE	ANALYZE TABLE a WITH BUCKETS 1
+accept	accept	engine	analyzeProperties/BUCKETS_INTEGER_VALUE	ANALYZE TABLE a WITH BUCKETS 1
 reject	reject	engine	analyzeProperties/BUCKETS_INTEGER_VALUE!drop-1	ANALYZE TABLE a WITH 1
-accept	reject	engine	analyzeProperties/BUCKETS_INTEGER_VALUE!drop-2	ANALYZE TABLE a WITH BUCKETS
+reject	reject	engine	analyzeProperties/BUCKETS_INTEGER_VALUE!drop-2	ANALYZE TABLE a WITH BUCKETS
 reject	reject	engine	analyzeProperties/BUCKETS_INTEGER_VALUE!insert	ANALYZE TABLE a WITH BUCKETS 1 zzz
 reject	reject	engine	analyzeProperties/BUCKETS_INTEGER_VALUE!swap	ANALYZE TABLE a WITH BUILD 1
-reject	accept	engine	analyzeProperties/PERIOD_INTEGER_VALUE	ANALYZE TABLE a WITH PERIOD 1
-accept	reject	engine	analyzeProperties/PERIOD_INTEGER_VALUE!drop-2	ANALYZE TABLE a WITH PERIOD
+accept	accept	engine	analyzeProperties/PERIOD_INTEGER_VALUE	ANALYZE TABLE a WITH PERIOD 1
+reject	reject	engine	analyzeProperties/PERIOD_INTEGER_VALUE!drop-2	ANALYZE TABLE a WITH PERIOD
 reject	reject	engine	analyzeProperties/PERIOD_INTEGER_VALUE!insert	ANALYZE TABLE a WITH PERIOD 1 zzz
 reject	reject	engine	analyzeProperties/PERIOD_INTEGER_VALUE!swap	ANALYZE TABLE a WITH PERMISSIVE 1
-reject	accept	engine	analyzeProperties/CRON_STRING_LITERAL	ANALYZE TABLE a WITH CRON 'a'
+accept	accept	engine	analyzeProperties/CRON_STRING_LITERAL	ANALYZE TABLE a WITH CRON 'a'
 reject	reject	engine	analyzeProperties/CRON_STRING_LITERAL!drop-1	ANALYZE TABLE a WITH 'a'
-accept	reject	engine	analyzeProperties/CRON_STRING_LITERAL!drop-2	ANALYZE TABLE a WITH CRON
+reject	reject	engine	analyzeProperties/CRON_STRING_LITERAL!drop-2	ANALYZE TABLE a WITH CRON
 reject	reject	engine	analyzeProperties/CRON_STRING_LITERAL!insert	ANALYZE TABLE a WITH CRON 'a' zzz
 reject	reject	engine	analyzeProperties/CRON_STRING_LITERAL!swap	ANALYZE TABLE a WITH CROSS 'a'
 accept	accept	engine	analyzeProperties((ROWS_INTEGER_VALUE)|(PERCENT_INTEGER_VALUE))/ROWS_INTEGER_VALUE	ANALYZE TABLE a WITH SAMPLE ROWS 1
@@ -8695,7 +8695,7 @@ reject	reject	engine	stmt/clean_stmt!drop-3	CLEAN ALL
 reject	reject	engine	stmt/clean_stmt!insert	CLEAN ALL PROFILE zzz
 reject	reject	engine	stmt/clean_stmt!swap	CLUSTER ALL PROFILE
 accept	accept	engine	stmt/analyze_stmt	ANALYZE TABLE a
-accept	reject	engine	stmt/analyze_stmt!drop-2	ANALYZE a
+reject	reject	engine	stmt/analyze_stmt!drop-2	ANALYZE a
 reject	reject	engine	stmt/analyze_stmt!drop-3	ANALYZE TABLE
 reject	reject	engine	stmt/analyze_stmt!insert	ANALYZE TABLE a zzz
 reject	reject	engine	stmt/analyze_stmt!swap	ANALYZED TABLE a
@@ -10267,7 +10267,7 @@ accept	accept	engine	opt_col_list/%empty	DROP STATS a
 reject	reject	engine	opt_col_list/%empty!insert	DROP STATS a zzz
 accept	accept	engine	opt_col_list/(_ident_list_)	DROP STATS a(a)
 reject	reject	engine	opt_col_list/(_ident_list_)!drop-1	DROP STATS a a)
-accept	reject	engine	opt_col_list/(_ident_list_)!drop-2	DROP STATS a()
+reject	reject	engine	opt_col_list/(_ident_list_)!drop-2	DROP STATS a()
 reject	reject	engine	opt_col_list/(_ident_list_)!drop-3	DROP STATS a(a
 reject	reject	engine	opt_col_list/(_ident_list_)!insert	DROP STATS a(a) zzz
 accept	accept	engine	opt_col_with_comment_list/%empty	ALTER VIEW a AS SELECT 1
@@ -10510,7 +10510,7 @@ reject	accept	engine	show_create_load_stmt/SHOW_CREATE_LOAD_FOR_job_label	SHOW C
 reject	accept	engine	show_create_reporitory_stmt/SHOW_CREATE_REPOSITORY_FOR_ident	SHOW CREATE REPOSITORY FOR a
 accept	accept	engine	analyze_stmt/ANALYZE_TABLE_table_name_opt_partition_names_opt_col_li~781d5f06	ANALYZE TABLE a
 accept	accept	engine	analyze_stmt/ANALYZE_DATABASE_ident_._ident_opt_with_analysis_proper~14f3cf02	ANALYZE DATABASE a.a
-accept	reject	engine	analyze_stmt/ANALYZE_DATABASE_ident_._ident_opt_with_analysis_proper~14f3cf02!drop-2	ANALYZE a.a
+reject	reject	engine	analyze_stmt/ANALYZE_DATABASE_ident_._ident_opt_with_analysis_proper~14f3cf02!drop-2	ANALYZE a.a
 reject	reject	engine	analyze_stmt/ANALYZE_DATABASE_ident_._ident_opt_with_analysis_proper~14f3cf02!drop-3	ANALYZE DATABASE.a
 reject	reject	engine	analyze_stmt/ANALYZE_DATABASE_ident_._ident_opt_with_analysis_proper~14f3cf02!drop-4	ANALYZE DATABASE a a
 reject	reject	engine	analyze_stmt/ANALYZE_DATABASE_ident_._ident_opt_with_analysis_proper~14f3cf02!drop-5	ANALYZE DATABASE a.
@@ -10992,12 +10992,12 @@ reject	reject	engine	drop_stmt/DROP_CACHED_STATS_table_name!drop-3	DROP CACHED a
 reject	reject	engine	drop_stmt/DROP_CACHED_STATS_table_name!drop-4	DROP CACHED STATS
 reject	reject	engine	drop_stmt/DROP_CACHED_STATS_table_name!insert	DROP CACHED STATS a zzz
 reject	reject	engine	drop_stmt/DROP_CACHED_STATS_table_name!swap	DROPP CACHED STATS a
-reject	accept	engine	drop_stmt/DROP_EXPIRED_STATS	DROP EXPIRED STATS
+accept	accept	engine	drop_stmt/DROP_EXPIRED_STATS	DROP EXPIRED STATS
 reject	reject	engine	drop_stmt/DROP_EXPIRED_STATS!drop-1	EXPIRED STATS
 reject	reject	engine	drop_stmt/DROP_EXPIRED_STATS!drop-3	DROP EXPIRED
-accept	reject	engine	drop_stmt/DROP_EXPIRED_STATS!insert	DROP EXPIRED STATS zzz
+reject	reject	engine	drop_stmt/DROP_EXPIRED_STATS!insert	DROP EXPIRED STATS zzz
 reject	reject	engine	drop_stmt/DROP_EXPIRED_STATS!swap	DROPP EXPIRED STATS
-reject	accept	engine	drop_stmt/DROP_ANALYZE_JOB_INTEGER_VALUE	DROP ANALYZE JOB 1
+accept	accept	engine	drop_stmt/DROP_ANALYZE_JOB_INTEGER_VALUE	DROP ANALYZE JOB 1
 reject	reject	engine	drop_stmt/DROP_ANALYZE_JOB_INTEGER_VALUE!drop-1	ANALYZE JOB 1
 reject	reject	engine	drop_stmt/DROP_ANALYZE_JOB_INTEGER_VALUE!drop-2	DROP JOB 1
 reject	reject	engine	drop_stmt/DROP_ANALYZE_JOB_INTEGER_VALUE!drop-3	DROP ANALYZE 1
@@ -12182,7 +12182,7 @@ reject	reject	engine	show_param/TABLE_STATS_table_name_opt_partition_names_opt_c
 reject	reject	engine	show_param/TABLE_STATS_table_name_opt_partition_names_opt_col_list!drop-3	SHOW TABLE STATS
 reject	reject	engine	show_param/TABLE_STATS_table_name_opt_partition_names_opt_col_list!insert	SHOW TABLE STATS a zzz
 reject	reject	engine	show_param/TABLE_STATS_table_name_opt_partition_names_opt_col_list!swap	SHOW TABLES STATS a
-reject	accept	engine	show_param/TABLE_STATS_INTEGER_VALUE	SHOW TABLE STATS 1
+accept	accept	engine	show_param/TABLE_STATS_INTEGER_VALUE	SHOW TABLE STATS 1
 reject	reject	engine	show_param/TABLE_STATS_INTEGER_VALUE!drop-1	SHOW STATS 1
 reject	reject	engine	show_param/TABLE_STATS_INTEGER_VALUE!insert	SHOW TABLE STATS 1 zzz
 reject	reject	engine	show_param/TABLE_STATS_INTEGER_VALUE!swap	SHOW TABLES STATS 1
@@ -13665,26 +13665,26 @@ reject	reject	engine	with_analysis_properties/SAMPLE_ROWS_INTEGER_VALUE!drop-1	A
 reject	reject	engine	with_analysis_properties/SAMPLE_ROWS_INTEGER_VALUE!drop-3	ANALYZE TABLE a WITH SAMPLE ROWS
 reject	reject	engine	with_analysis_properties/SAMPLE_ROWS_INTEGER_VALUE!insert	ANALYZE TABLE a WITH SAMPLE ROWS 1 zzz
 reject	reject	engine	with_analysis_properties/SAMPLE_ROWS_INTEGER_VALUE!swap	ANALYZE TABLE a WITH SCHEDULE ROWS 1
-reject	accept	engine	with_analysis_properties/BUCKETS_INTEGER_VALUE	ANALYZE TABLE a WITH BUCKETS 1
+accept	accept	engine	with_analysis_properties/BUCKETS_INTEGER_VALUE	ANALYZE TABLE a WITH BUCKETS 1
 reject	reject	engine	with_analysis_properties/BUCKETS_INTEGER_VALUE!drop-1	ANALYZE TABLE a WITH 1
-accept	reject	engine	with_analysis_properties/BUCKETS_INTEGER_VALUE!drop-2	ANALYZE TABLE a WITH BUCKETS
+reject	reject	engine	with_analysis_properties/BUCKETS_INTEGER_VALUE!drop-2	ANALYZE TABLE a WITH BUCKETS
 reject	reject	engine	with_analysis_properties/BUCKETS_INTEGER_VALUE!insert	ANALYZE TABLE a WITH BUCKETS 1 zzz
 reject	reject	engine	with_analysis_properties/BUCKETS_INTEGER_VALUE!swap	ANALYZE TABLE a WITH BUILD 1
-reject	accept	engine	with_analysis_properties/PERIOD_INTEGER_VALUE	ANALYZE TABLE a WITH PERIOD 1
-accept	reject	engine	with_analysis_properties/PERIOD_INTEGER_VALUE!drop-2	ANALYZE TABLE a WITH PERIOD
+accept	accept	engine	with_analysis_properties/PERIOD_INTEGER_VALUE	ANALYZE TABLE a WITH PERIOD 1
+reject	reject	engine	with_analysis_properties/PERIOD_INTEGER_VALUE!drop-2	ANALYZE TABLE a WITH PERIOD
 reject	reject	engine	with_analysis_properties/PERIOD_INTEGER_VALUE!insert	ANALYZE TABLE a WITH PERIOD 1 zzz
 reject	reject	engine	with_analysis_properties/PERIOD_INTEGER_VALUE!swap	ANALYZE TABLE a WITH PERMISSIVE 1
 accept	accept	engine	with_analysis_properties/HISTOGRAM	ANALYZE TABLE a WITH HISTOGRAM
 reject	reject	engine	with_analysis_properties/HISTOGRAM!insert	ANALYZE TABLE a WITH HISTOGRAM zzz
 reject	reject	engine	with_analysis_properties/HISTOGRAM!swap	ANALYZE TABLE a WITH HLL
-reject	accept	engine	with_analysis_properties/CRON_STRING_LITERAL	ANALYZE TABLE a WITH CRON 'a'
+accept	accept	engine	with_analysis_properties/CRON_STRING_LITERAL	ANALYZE TABLE a WITH CRON 'a'
 reject	reject	engine	with_analysis_properties/CRON_STRING_LITERAL!drop-1	ANALYZE TABLE a WITH 'a'
-accept	reject	engine	with_analysis_properties/CRON_STRING_LITERAL!drop-2	ANALYZE TABLE a WITH CRON
+reject	reject	engine	with_analysis_properties/CRON_STRING_LITERAL!drop-2	ANALYZE TABLE a WITH CRON
 reject	reject	engine	with_analysis_properties/CRON_STRING_LITERAL!insert	ANALYZE TABLE a WITH CRON 'a' zzz
 reject	reject	engine	with_analysis_properties/CRON_STRING_LITERAL!swap	ANALYZE TABLE a WITH CROSS 'a'
-reject	accept	engine	with_analysis_properties/FULL	ANALYZE TABLE a WITH FULL
+accept	accept	engine	with_analysis_properties/FULL	ANALYZE TABLE a WITH FULL
 reject	reject	engine	with_analysis_properties/FULL!insert	ANALYZE TABLE a WITH FULL zzz
-accept	reject	engine	with_analysis_properties/FULL!swap	ANALYZE TABLE a WITH FUNCTION
+reject	reject	engine	with_analysis_properties/FULL!swap	ANALYZE TABLE a WITH FUNCTION
 accept	accept	engine	with_analysis_properties/SQL	ANALYZE TABLE a WITH SQL
 reject	reject	engine	with_analysis_properties/SQL!insert	ANALYZE TABLE a WITH SQL zzz
 reject	reject	engine	with_analysis_properties/SQL!swap	ANALYZE TABLE a WITH SQL_BLOCK_RULE

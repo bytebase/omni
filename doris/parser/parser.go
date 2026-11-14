@@ -520,6 +520,9 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 				return nil, err
 			}
 			return p.parseDropStats(dropTok.Loc, "CACHED")
+		case kwANALYZE:
+			p.advance() // consume ANALYZE
+			return p.parseDropStats(dropTok.Loc, "ANALYZE JOB")
 		case kwPROCEDURE:
 			return p.parseDropProcedure(dropTok.Loc)
 		case kwFUNCTION, kwGLOBAL:

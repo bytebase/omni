@@ -75,7 +75,15 @@ type AnalyzeStmt struct {
 	TargetType string      // "DATABASE", "TABLE", "PROFILE", or ""
 	Target     *ObjectName // nil for PROFILE
 	Columns    []string    // ANALYZE TABLE t(col1, col2) — optional column list
-	Properties []*Property // WITH ... or PROPERTIES(...)
+	Properties []*Property // PROPERTIES(...)
+
+	Create      bool    // CREATE ANALYZE: a job; TargetType may be "ALL"
+	Method      string  // FULL or SAMPLE, or ""
+	Mode        string  // WITH SYNC MODE or WITH ASYNC MODE: SYNC or ASYNC
+	Histogram   string  // UPDATE or DROP for ANALYZE TABLE t ... HISTOGRAM ON cols
+	Buckets     int64   // UPDATE HISTOGRAM ... WITH n BUCKETS
+	ProfileID   string  // ANALYZE PROFILE FROM 'query_id'
+	PlanNodeIDs []int64 // ANALYZE PROFILE FROM 'query_id', id, ...
 	Loc        Loc
 }
 
@@ -133,7 +141,8 @@ var _ Node = (*ShowStatsStmt)(nil)
 //	DROP EXPIRED STATS target
 //	DROP CACHED STATS target
 type DropStatsStmt struct {
-	Variant string      // "", "EXPIRED", "CACHED"
+	Variant string      // "" or "ANALYZE" (DROP ANALYZE job_id)
+	JobID   int64       // DROP ANALYZE job_id
 	Target  *ObjectName
 	Columns []string    // optional column list for plain DROP STATS
 	Loc     Loc

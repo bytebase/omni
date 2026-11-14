@@ -76,6 +76,11 @@ type AnalyzeStmt struct {
 	Target     *ObjectName // nil for PROFILE
 	Columns    []string    // ANALYZE TABLE t(col1, col2) — optional column list
 	Properties []*Property // WITH ... or PROPERTIES(...)
+
+	// Partitions holds ANALYZE TABLE's partitionSpec; TemporaryPartition
+	// marks TEMPORARY. ["*"] for PARTITION(*).
+	Partitions         []string
+	TemporaryPartition bool
 	Loc        Loc
 }
 
@@ -114,6 +119,7 @@ var _ Node = (*ShowAnalyzeStmt)(nil)
 type ShowStatsStmt struct {
 	Type    string      // "COLUMN", "TABLE", "INDEX", "PARTITION", or ""
 	Target  *ObjectName // optional table reference
+	TableID int64       // SHOW TABLE STATS table_id, when given by id
 	Where   Node        // optional WHERE clause
 	Loc     Loc
 }
@@ -133,9 +139,15 @@ var _ Node = (*ShowStatsStmt)(nil)
 //	DROP EXPIRED STATS target
 //	DROP CACHED STATS target
 type DropStatsStmt struct {
-	Variant string      // "", "EXPIRED", "CACHED"
-	Target  *ObjectName
+	Variant string      // "", "EXPIRED", "CACHED", or "ANALYZE JOB"
+	Target  *ObjectName // nil for EXPIRED and ANALYZE JOB
 	Columns []string    // optional column list for plain DROP STATS
+	JobID   int64       // DROP ANALYZE JOB job_id
+
+	// Partitions holds plain DROP STATS's partitionSpec; TemporaryPartition
+	// marks TEMPORARY.
+	Partitions         []string
+	TemporaryPartition bool
 	Loc     Loc
 }
 
