@@ -272,6 +272,9 @@ func parseCreateApplication(p *Parser, s *ast.ObjectStmt) error {
 		}
 		opt.Words = policy
 		opt.Loc.End = p.prev.Loc.End
+		if !propQName.matches(opt) {
+			return applicationOptionError(opt)
+		}
 		p.addObjectKeywordsClause(s, "WITH", start).Options = []*ast.CopyOption{opt}
 	}
 	return nil

@@ -76,16 +76,16 @@ func (p *Parser) parseGrantRole(start ast.Loc, roleKind ast.GrantedRoleKind) (as
 	if _, err := p.expect(kwTO); err != nil {
 		return nil, err
 	}
+	toRole := p.cur.Type == kwROLE
 	grantee, err := p.parseGrantee()
 	if err != nil {
 		return nil, err
 	}
 	stmt.Grantee = grantee
 
-	// An application role granted to an account role may carry
-	// WITH GRANT OPTION.
+	// An application role granted TO ROLE <name> may carry WITH GRANT OPTION.
 	// https://docs.snowflake.com/en/sql-reference/sql/grant-application-role
-	if roleKind == ast.GrantedApplicationRole && grantee.Kind == ast.GranteeRole && p.acceptWords("WITH", "GRANT", "OPTION") {
+	if roleKind == ast.GrantedApplicationRole && toRole && p.acceptWords("WITH", "GRANT", "OPTION") {
 		stmt.GrantOption = true
 	}
 
@@ -259,13 +259,16 @@ func (p *Parser) parseRevokeRole(start ast.Loc, roleKind ast.GrantedRoleKind, gr
 	if _, err := p.expect(kwFROM); err != nil {
 		return nil, err
 	}
+	fromRole := p.cur.Type == kwROLE
 	grantee, err := p.parseGrantee()
 	if err != nil {
 		return nil, err
 	}
 	stmt.Grantee = grantee
 
-	if roleKind == ast.GrantedApplicationRole && grantee.Kind == ast.GranteeRole {
+	// The page writes GRANT OPTION FOR and RESTRICT | CASCADE for an
+	// application role revoked FROM ROLE <name>.
+	if roleKind == ast.GrantedApplicationRole && fromRole {
 		switch p.cur.Type {
 		case kwCASCADE:
 			p.advance()

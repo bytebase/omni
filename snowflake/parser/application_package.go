@@ -321,7 +321,7 @@ func (p *Parser) parseApplicationModifyReleaseDirective(s *ast.ObjectStmt) error
 				return err
 			}
 			if p.curIsWord("VERSION") {
-				if err := p.parseApplicationOptions(c, applicationReleaseDirectiveProps); err != nil {
+				if err := p.parseApplicationOptions(c, applicationAccountsVersionProps); err != nil {
 					return err
 				}
 				if err := p.requireObjectProperties(c, "PATCH"); err != nil {
@@ -341,6 +341,14 @@ func (p *Parser) parseApplicationModifyReleaseDirective(s *ast.ObjectStmt) error
 		return err
 	}
 	return p.requireObjectProperties(c, "VERSION", "PATCH")
+}
+
+// applicationAccountsVersionProps are what ADD or REMOVE ACCOUNTS on a
+// release directive may take after the accounts: the version and patch alone,
+// without the upgrade schedule a version change takes.
+var applicationAccountsVersionProps = objectProps{
+	"VERSION": propName,
+	"PATCH":   propNumber,
 }
 
 // parseApplicationAccounts reads ACCOUNTS = ( <org_name>.<account_name>
