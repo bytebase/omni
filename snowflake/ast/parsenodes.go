@@ -3344,7 +3344,10 @@ const (
 // + FILE_FORMAT + FILES + PATTERN + STORAGE_INTEGRATION + CREDENTIALS + ...) and,
 // for transfer statements, PUT/GET (PARALLEL, AUTO_COMPRESS, ...). The option
 // name is uppercased; the value is one of the mutually-exclusive forms below.
-// A bare option (e.g. HEADER, FORCE with no `=`) has Bare=true and no value.
+// A bare option (e.g. HEADER, FORCE with no `=`) has Bare=true and no value,
+// except that a bare entry of an ObjectStmt clause may hold a Group, written
+// NAME ( ... ) with no `=` (CORTEX SEARCH SERVICE's VECTOR INDEXES
+// <column> ( model = '<model>' )).
 type CopyOption struct {
 	Name string // uppercased option name (e.g. "ON_ERROR", "FILE_FORMAT")
 	Bare bool   // true for a value-less option (e.g. bare HEADER)

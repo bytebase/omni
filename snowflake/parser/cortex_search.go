@@ -10,10 +10,11 @@ import (
 // CORTEX SEARCH SERVICE, read as an ast.ObjectStmt
 // ---------------------------------------------------------------------------
 //
-// Column lists (ON, TEXT INDEXES, VECTOR INDEXES, ATTRIBUTES) are clauses
-// whose Names hold one single-part name per column; a parenthesized one
-// (PRIMARY KEY ( ... ), SET ATTRIBUTES ( ... )) is a clause whose one
-// nameless option lists the columns as bare names.
+// Column lists (ON, TEXT INDEXES, ATTRIBUTES) are clauses whose Names hold
+// one single-part name per column; a parenthesized one (PRIMARY KEY ( ... ),
+// SET ATTRIBUTES ( ... )) is a clause whose one nameless option lists the
+// columns as bare names. VECTOR INDEXES, whose columns may each carry a model,
+// holds one bare option per column, with the model as its Group.
 
 func init() {
 	registerObject(&objectForm{
@@ -176,9 +177,9 @@ func parseCreateCortexSearch(p *Parser, s *ast.ObjectStmt) error {
 
 // parseCortexVectorIndexes reads
 // VECTOR INDEXES <vector_column_name> [ ( { model | query_model } = '<model_name>' ) ] [ , ... ]
-// into a VECTOR INDEXES clause: Names lists the columns, and Options holds,
-// for each column given a model, an option named by the column whose Group is
-// that one setting.
+// into a VECTOR INDEXES clause holding one bare option per column, named by
+// the column as written (a quoted name keeps its quotes) and, when the column
+// is given a model, holding that one setting as its Group.
 func (p *Parser) parseCortexVectorIndexes(s *ast.ObjectStmt) error {
 	start := p.cur.Loc.Start
 	if err := p.expectWords("VECTOR", "INDEXES"); err != nil {
@@ -190,9 +191,12 @@ func (p *Parser) parseCortexVectorIndexes(s *ast.ObjectStmt) error {
 		if err != nil {
 			return err
 		}
-		c.Names = append(c.Names, col)
+		opt := &ast.CopyOption{Name: col.Name.Normalize(), Bare: true, Loc: col.Loc}
+		if col.Name.Quoted {
+			opt.Name = col.Name.String()
+		}
+		c.Options = append(c.Options, opt)
 		if p.cur.Type == '(' {
-			opt := &ast.CopyOption{Name: col.Name.Normalize(), Loc: ast.Loc{Start: col.Loc.Start}}
 			p.advance() // consume '('
 			if !p.curIsWord("MODEL") && !p.curIsWord("QUERY_MODEL") || !p.startsObjectProperty() {
 				return p.syntaxErrorAtCur()
@@ -209,7 +213,6 @@ func (p *Parser) parseCortexVectorIndexes(s *ast.ObjectStmt) error {
 			}
 			opt.Group = []*ast.CopyOption{setting}
 			opt.Loc.End = p.prev.Loc.End
-			c.Options = append(c.Options, opt)
 		}
 		if p.cur.Type != ',' {
 			break
@@ -374,6 +377,24 @@ func (p *Parser) parseCortexColumnList(s *ast.ObjectStmt, keywords string, start
 	}
 	c.Loc.End = p.prev.Loc.End
 	return c, nil
+}
+
+// parseAiStageFrom reads @<stage>[/<path>] after FROM into a FROM clause,
+// begun at start, whose one nameless option keeps the location verbatim in
+// Words. cur is '@'.
+func (p *Parser) parseAiStageFrom(s *ast.ObjectStmt, start int) error {
+	// A stage's name (or ~ or %) follows the '@' with no space.
+	if next := p.peekNext(); next.Loc.Start != p.cur.Loc.End ||
+		!(next.Type == tokIdent || next.Type == tokQuotedIdent || next.Type >= 700 || next.Type == '~' || next.Type == '%') {
+		return p.syntaxErrorAtCur()
+	}
+	ref, err := p.parseStageOperand()
+	if err != nil {
+		return err
+	}
+	src := &ast.CopyOption{Words: ref.Raw, Loc: ref.Loc}
+	p.addObjectKeywordsClause(s, "FROM", start).Options = []*ast.CopyOption{src}
+	return nil
 }
 
 // parseAiSingleName reads a name the page writes as a single <name> (a

@@ -6,8 +6,9 @@ import "github.com/bytebase/omni/snowflake/ast"
 // MODEL and MODEL MONITOR (Snowflake ML), read as an ast.ObjectStmt
 // ---------------------------------------------------------------------------
 //
-// A model's FROM @<stage> form (CREATE MODEL, ALTER MODEL ... ADD VERSION) is
-// not read yet: ObjectClause has no field for a stage location.
+// A stage location (CREATE MODEL ... FROM @<stage>, CREATE AGENT ... FROM
+// @<stage_path>) is a FROM clause whose one nameless option keeps the
+// location verbatim in Words.
 
 func init() {
 	registerObject(&objectForm{
@@ -86,6 +87,8 @@ var modelMonitorCreateProps = objectProps{
 //
 //	CREATE [ OR REPLACE ] MODEL [ IF NOT EXISTS ] <name> [ WITH VERSION <version_name> ]
 //	  FROM MODEL <source_model_name> [ VERSION <version_name> ]
+//	CREATE [ OR REPLACE ] MODEL [ IF NOT EXISTS ] <name> [ WITH VERSION <version_name> ]
+//	  FROM <internal_stage>
 //
 // https://docs.snowflake.com/en/sql-reference/sql/create-model
 func parseCreateModel(p *Parser, s *ast.ObjectStmt) error {
@@ -98,11 +101,15 @@ func parseCreateModel(p *Parser, s *ast.ObjectStmt) error {
 }
 
 // parseModelFromModel reads FROM MODEL <model_name> [ VERSION <version_name> ]
-// into a FROM MODEL clause and, when given, a VERSION clause.
+// into a FROM MODEL clause and, when given, a VERSION clause, or
+// FROM @<stage>[/<path>] into a FROM clause (parseAiStageFrom).
 func (p *Parser) parseModelFromModel(s *ast.ObjectStmt) error {
 	start := p.cur.Loc.Start
 	if _, err := p.expect(kwFROM); err != nil {
 		return err
+	}
+	if p.cur.Type == '@' {
+		return p.parseAiStageFrom(s, start)
 	}
 	if err := p.expectWords("MODEL"); err != nil {
 		return err
@@ -132,6 +139,7 @@ func (p *Parser) parseModelFromModel(s *ast.ObjectStmt) error {
 //
 //	ALTER MODEL [ IF EXISTS ] <name> ADD VERSION <version_name>
 //	  FROM MODEL <source_model_name> [ VERSION <source_version_or_alias_name> ]
+//	ALTER MODEL [ IF EXISTS ] <name> ADD VERSION <version_name> FROM <internal_stage>
 //
 // https://docs.snowflake.com/en/sql-reference/sql/alter-model-add-version
 //

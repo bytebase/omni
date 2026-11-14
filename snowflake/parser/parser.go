@@ -42,6 +42,10 @@ type Parser struct {
 	// body cannot blow the Go stack. See scripting.go.
 	scriptDepth int
 	depth       int // nesting depth of the productions being parsed (see enterNesting)
+	// inDatasetQuery is true while parsing ALTER DATASET ... ADD VERSION's
+	// FROM <query>, whose trailing PARTITION BY / COMMENT = / METADATA =
+	// clauses must not be read as an implicit alias (semantic_view.go).
+	inDatasetQuery bool
 }
 
 // advance consumes the current token and moves to the next one.

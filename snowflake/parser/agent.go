@@ -6,8 +6,8 @@ import "github.com/bytebase/omni/snowflake/ast"
 // AGENT and EXTERNAL AGENT (Cortex Agents), read as an ast.ObjectStmt
 // ---------------------------------------------------------------------------
 //
-// CREATE AGENT's modifiers before AGENT ({ TEMP | TEMPORARY }, SECURE) and its
-// FROM @<stage_path> form are not read yet: ObjectStmt records neither.
+// CREATE AGENT's modifiers before AGENT ({ TEMP | TEMPORARY }, SECURE) are not
+// read yet: ObjectStmt records none.
 
 func init() {
 	registerObject(&objectForm{
@@ -44,20 +44,35 @@ func init() {
 //	  [ PROFILE = '<profile_object>' ]
 //	  FROM SPECIFICATION '<specification_text>'
 //
+//	CREATE [ OR REPLACE ] [ SECURE ] AGENT [ IF NOT EXISTS ] <name>
+//	  [ COPY GRANTS ]
+//	  [ COMMENT = '<comment>' ]
+//	  FROM @<stage_path>
+//
 // https://docs.snowflake.com/en/sql-reference/sql/create-agent
 //
 // The FROM SPECIFICATION clause holds the specification as its one nameless
-// option.
+// option; a FROM clause holds the stage path the same way, verbatim in Words.
 func parseCreateAgent(p *Parser, s *ast.ObjectStmt) error {
 	if start := p.cur.Loc.Start; p.acceptWords("COPY", "GRANTS") {
 		p.addObjectKeywordsClause(s, "COPY GRANTS", start)
 	}
-	if _, err := p.parseObjectProperties(s, "", false); err != nil {
+	props, err := p.parseObjectProperties(s, "", false)
+	if err != nil {
 		return err
 	}
 	start := p.cur.Loc.Start
 	if _, err := p.expect(kwFROM); err != nil {
 		return err
+	}
+	if p.cur.Type == '@' {
+		// The stage form takes COMMENT alone.
+		if props != nil {
+			if err := aiCheckOptions(props.Options, objectProps{"COMMENT": propString}); err != nil {
+				return err
+			}
+		}
+		return p.parseAiStageFrom(s, start)
 	}
 	if err := p.expectWords("SPECIFICATION"); err != nil {
 		return err

@@ -706,7 +706,7 @@ reject	undocumented	docs	statement/alterModel!drop-5	ALTER MODEL a UNSET a
 reject	undocumented	docs	statement/alterModel!drop-6	ALTER MODEL a UNSET TAG
 reject	undocumented	docs	statement/alterModel!insert	ALTER MODEL a UNSET TAG a zzz
 reject	undocumented	docs	statement/alterModel!swap	ALWAYS MODEL a UNSET TAG a
-reject	accept	docs	statement/alterModelAddVersion	ALTER MODEL a ADD VERSION a FROM @a
+accept	accept	docs	statement/alterModelAddVersion	ALTER MODEL a ADD VERSION a FROM @a
 reject	undocumented	docs	statement/alterModelAddVersion!drop-1	MODEL a ADD VERSION a FROM @a
 reject	undocumented	docs	statement/alterModelAddVersion!drop-2	ALTER a ADD VERSION a FROM @a
 reject	undocumented	docs	statement/alterModelAddVersion!drop-3	ALTER MODEL ADD VERSION a FROM @a
@@ -1447,7 +1447,7 @@ reject	undocumented	docs	statement/createAccount!drop-14	CREATE ACCOUNT a ADMIN_
 reject	undocumented	docs	statement/createAccount!drop-15	CREATE ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION =
 accept	undocumented	docs	statement/createAccount!insert	CREATE ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = STANDARD zzz
 reject	undocumented	docs	statement/createAccount!swap	CREATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = STANDARD
-reject	accept	docs	statement/createAgent	CREATE AGENT a FROM @a
+accept	accept	docs	statement/createAgent	CREATE AGENT a FROM @a
 reject	undocumented	docs	statement/createAgent!drop-1	AGENT a FROM @a
 reject	undocumented	docs	statement/createAgent!drop-2	CREATE a FROM @a
 reject	undocumented	docs	statement/createAgent!drop-3	CREATE AGENT FROM @a
@@ -2263,7 +2263,7 @@ reject	undocumented	docs	statement/createMcpServer!drop-6	CREATE MCP SERVER a FR
 reject	undocumented	docs	statement/createMcpServer!drop-7	CREATE MCP SERVER a FROM SPECIFICATION
 reject	undocumented	docs	statement/createMcpServer!insert	CREATE MCP SERVER a FROM SPECIFICATION 's' zzz
 reject	undocumented	docs	statement/createMcpServer!swap	CREATION MCP SERVER a FROM SPECIFICATION 's'
-reject	accept	docs	statement/createModel	CREATE MODEL a FROM @a
+accept	accept	docs	statement/createModel	CREATE MODEL a FROM @a
 reject	undocumented	docs	statement/createModel!drop-1	MODEL a FROM @a
 reject	undocumented	docs	statement/createModel!drop-3	CREATE MODEL FROM @a
 reject	undocumented	docs	statement/createModel!drop-4	CREATE MODEL a @a
@@ -11089,21 +11089,21 @@ reject	undocumented	docs	alterDatabaseRole(,_QNAME)*/,_QNAME_(,_QNAME)*!drop-2	A
 reject	undocumented	docs	alterDatabaseRole(,_QNAME)*/,_QNAME_(,_QNAME)*!insert	ALTER DATABASE ROLE a UNSET TAG a, a zzz
 accept	accept	docs	alterDatasetAddVersion/ALTER_DATASET_QNAME_ADD_VERSION_ID_FROM_QUERY_(PARTITIO~64d7220b	ALTER DATASET a ADD VERSION a FROM SELECT 1
 accept	accept	docs	alterDatasetAddVersion(PARTITION_BY_EXPR)?/%empty	ALTER DATASET a ADD VERSION a FROM SELECT 1
-reject	accept	docs	alterDatasetAddVersion(PARTITION_BY_EXPR)?/PARTITION_BY_EXPR	ALTER DATASET a ADD VERSION a FROM SELECT 1 PARTITION BY 1
+accept	accept	docs	alterDatasetAddVersion(PARTITION_BY_EXPR)?/PARTITION_BY_EXPR	ALTER DATASET a ADD VERSION a FROM SELECT 1 PARTITION BY 1
 reject	undocumented	docs	alterDatasetAddVersion(PARTITION_BY_EXPR)?/PARTITION_BY_EXPR!drop-1	ALTER DATASET a ADD VERSION a FROM SELECT 1 BY 1
 reject	undocumented	docs	alterDatasetAddVersion(PARTITION_BY_EXPR)?/PARTITION_BY_EXPR!drop-2	ALTER DATASET a ADD VERSION a FROM SELECT 1 PARTITION 1
 reject	undocumented	docs	alterDatasetAddVersion(PARTITION_BY_EXPR)?/PARTITION_BY_EXPR!drop-3	ALTER DATASET a ADD VERSION a FROM SELECT 1 PARTITION BY
 reject	undocumented	docs	alterDatasetAddVersion(PARTITION_BY_EXPR)?/PARTITION_BY_EXPR!insert	ALTER DATASET a ADD VERSION a FROM SELECT 1 PARTITION BY 1 zzz
 reject	undocumented	docs	alterDatasetAddVersion(PARTITION_BY_EXPR)?/PARTITION_BY_EXPR!swap	ALTER DATASET a ADD VERSION a FROM SELECT 1 PARTITION_TYPE BY 1
 accept	accept	docs	alterDatasetAddVersion(COMMENT_=_STRING)?/%empty	ALTER DATASET a ADD VERSION a FROM SELECT 1
-reject	accept	docs	alterDatasetAddVersion(COMMENT_=_STRING)?/COMMENT_=_STRING	ALTER DATASET a ADD VERSION a FROM SELECT 1 COMMENT = 's'
+accept	accept	docs	alterDatasetAddVersion(COMMENT_=_STRING)?/COMMENT_=_STRING	ALTER DATASET a ADD VERSION a FROM SELECT 1 COMMENT = 's'
 accept	undocumented	docs	alterDatasetAddVersion(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-1	ALTER DATASET a ADD VERSION a FROM SELECT 1 = 's'
 reject	undocumented	docs	alterDatasetAddVersion(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	ALTER DATASET a ADD VERSION a FROM SELECT 1 COMMENT 's'
 reject	undocumented	docs	alterDatasetAddVersion(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	ALTER DATASET a ADD VERSION a FROM SELECT 1 COMMENT =
 reject	undocumented	docs	alterDatasetAddVersion(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	ALTER DATASET a ADD VERSION a FROM SELECT 1 COMMENT = 's' zzz
 reject	undocumented	docs	alterDatasetAddVersion(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	ALTER DATASET a ADD VERSION a FROM SELECT 1 COMMENTS = 's'
 accept	accept	docs	alterDatasetAddVersion(METADATA_=_STRING)?/%empty	ALTER DATASET a ADD VERSION a FROM SELECT 1
-reject	accept	docs	alterDatasetAddVersion(METADATA_=_STRING)?/METADATA_=_STRING	ALTER DATASET a ADD VERSION a FROM SELECT 1 METADATA = 's'
+accept	accept	docs	alterDatasetAddVersion(METADATA_=_STRING)?/METADATA_=_STRING	ALTER DATASET a ADD VERSION a FROM SELECT 1 METADATA = 's'
 reject	undocumented	docs	alterDatasetAddVersion(METADATA_=_STRING)?/METADATA_=_STRING!drop-2	ALTER DATASET a ADD VERSION a FROM SELECT 1 METADATA 's'
 reject	undocumented	docs	alterDatasetAddVersion(METADATA_=_STRING)?/METADATA_=_STRING!drop-3	ALTER DATASET a ADD VERSION a FROM SELECT 1 METADATA =
 reject	undocumented	docs	alterDatasetAddVersion(METADATA_=_STRING)?/METADATA_=_STRING!insert	ALTER DATASET a ADD VERSION a FROM SELECT 1 METADATA = 's' zzz
@@ -16207,10 +16207,10 @@ reject	undocumented	docs	alterModelAddVersion/ALTER_MODEL_(IF_EXISTS)?_QNAME_ADD
 reject	undocumented	docs	alterModelAddVersion/ALTER_MODEL_(IF_EXISTS)?_QNAME_ADD_VERSION_ID_FROM_MODE~61c83427!drop-9	ALTER MODEL a ADD VERSION a FROM MODEL
 reject	undocumented	docs	alterModelAddVersion/ALTER_MODEL_(IF_EXISTS)?_QNAME_ADD_VERSION_ID_FROM_MODE~61c83427!insert	ALTER MODEL a ADD VERSION a FROM MODEL a zzz
 reject	undocumented	docs	alterModelAddVersion/ALTER_MODEL_(IF_EXISTS)?_QNAME_ADD_VERSION_ID_FROM_MODE~61c83427!swap	ALWAYS MODEL a ADD VERSION a FROM MODEL a
-reject	accept	docs	alterModelAddVersion/ALTER_MODEL_(IF_EXISTS)?_QNAME_ADD_VERSION_ID_FROM_alte~6e1130c4	ALTER MODEL a ADD VERSION a FROM @a
-reject	accept	docs	alterModelAddVersion(IF_EXISTS)?/%empty	ALTER MODEL a ADD VERSION a FROM @a
+accept	accept	docs	alterModelAddVersion/ALTER_MODEL_(IF_EXISTS)?_QNAME_ADD_VERSION_ID_FROM_alte~6e1130c4	ALTER MODEL a ADD VERSION a FROM @a
+accept	accept	docs	alterModelAddVersion(IF_EXISTS)?/%empty	ALTER MODEL a ADD VERSION a FROM @a
 reject	undocumented	docs	alterModelAddVersion(IF_EXISTS)?/%empty!insert	ALTER MODEL zzz a ADD VERSION a FROM @a
-reject	accept	docs	alterModelAddVersion(IF_EXISTS)?/IF_EXISTS	ALTER MODEL IF EXISTS a ADD VERSION a FROM @a
+accept	accept	docs	alterModelAddVersion(IF_EXISTS)?/IF_EXISTS	ALTER MODEL IF EXISTS a ADD VERSION a FROM @a
 reject	undocumented	docs	alterModelAddVersion(IF_EXISTS)?/IF_EXISTS!drop-1	ALTER MODEL EXISTS a ADD VERSION a FROM @a
 reject	undocumented	docs	alterModelAddVersion(IF_EXISTS)?/IF_EXISTS!drop-2	ALTER MODEL IF a ADD VERSION a FROM @a
 reject	undocumented	docs	alterModelAddVersion(IF_EXISTS)?/IF_EXISTS!insert	ALTER MODEL IF EXISTS zzz a ADD VERSION a FROM @a
@@ -16221,7 +16221,7 @@ reject	undocumented	docs	alterModelAddVersion(VERSION_ID)?/VERSION_ID!drop-1	ALT
 reject	undocumented	docs	alterModelAddVersion(VERSION_ID)?/VERSION_ID!drop-2	ALTER MODEL a ADD VERSION a FROM MODEL a VERSION
 reject	undocumented	docs	alterModelAddVersion(VERSION_ID)?/VERSION_ID!insert	ALTER MODEL a ADD VERSION a FROM MODEL a VERSION a zzz
 reject	undocumented	docs	alterModelAddVersion(VERSION_ID)?/VERSION_ID!swap	ALTER MODEL a ADD VERSION a FROM MODEL a VERSIONED a
-reject	accept	docs	alterModelAddVersion_internalStage/STAGE	ALTER MODEL a ADD VERSION a FROM @a
+accept	accept	docs	alterModelAddVersion_internalStage/STAGE	ALTER MODEL a ADD VERSION a FROM @a
 accept	accept	docs	alterModelDropVersion/ALTER_MODEL_(IF_EXISTS)?_QNAME_DROP_VERSION_ID	ALTER MODEL a DROP VERSION a
 accept	accept	docs	alterModelDropVersion(IF_EXISTS)?/%empty	ALTER MODEL a DROP VERSION a
 reject	undocumented	docs	alterModelDropVersion(IF_EXISTS)?/%empty!insert	ALTER MODEL zzz a DROP VERSION a
@@ -31159,11 +31159,11 @@ reject	undocumented	docs	createAgent/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(S
 reject	undocumented	docs	createAgent/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_AGEN~076b96bd!insert	CREATE AGENT a FROM SPECIFICATION 's' zzz
 reject	undocumented	docs	createAgent/CREATE_(OR_REPLACE)?_((TEMP|TEMPORARY))?_(SECURE)?_AGEN~076b96bd!swap	CREATION AGENT a FROM SPECIFICATION 's'
 accept	accept	docs	createAgent/CREATE_((TEMP|TEMPORARY))?_(SECURE)?_AGENT_(IF_NOT_EXIS~8d44af6e	CREATE AGENT a FROM SPECIFICATION 's'
-reject	accept	docs	createAgent/CREATE_(OR_REPLACE)?_(SECURE)?_AGENT_QNAME_(COPY_GRANTS~d269a53c	CREATE AGENT a FROM @a
-reject	accept	docs	createAgent/CREATE_(SECURE)?_AGENT_(IF_NOT_EXISTS)?_QNAME_(COPY_GRA~7e18fb18	CREATE AGENT a FROM @a
-reject	accept	docs	createAgent(OR_REPLACE)?/%empty	CREATE AGENT a FROM @a
+accept	accept	docs	createAgent/CREATE_(OR_REPLACE)?_(SECURE)?_AGENT_QNAME_(COPY_GRANTS~d269a53c	CREATE AGENT a FROM @a
+accept	accept	docs	createAgent/CREATE_(SECURE)?_AGENT_(IF_NOT_EXISTS)?_QNAME_(COPY_GRA~7e18fb18	CREATE AGENT a FROM @a
+accept	accept	docs	createAgent(OR_REPLACE)?/%empty	CREATE AGENT a FROM @a
 reject	undocumented	docs	createAgent(OR_REPLACE)?/%empty!insert	CREATE zzz AGENT a FROM @a
-reject	accept	docs	createAgent(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE AGENT a FROM @a
+accept	accept	docs	createAgent(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE AGENT a FROM @a
 reject	undocumented	docs	createAgent(OR_REPLACE)?/OR_REPLACE!drop-1	CREATE REPLACE AGENT a FROM @a
 reject	undocumented	docs	createAgent(OR_REPLACE)?/OR_REPLACE!drop-2	CREATE OR AGENT a FROM @a
 reject	undocumented	docs	createAgent(OR_REPLACE)?/OR_REPLACE!insert	CREATE OR REPLACE zzz AGENT a FROM @a
@@ -31178,13 +31178,13 @@ reject	accept	docs	createAgent(TEMP|TEMPORARY)/TEMP	CREATE TEMP AGENT a FROM SPE
 reject	accept	docs	createAgent(TEMP|TEMPORARY)/TEMPORARY	CREATE TEMPORARY AGENT a FROM SPECIFICATION 's'
 reject	undocumented	docs	createAgent(TEMP|TEMPORARY)/TEMPORARY!insert	CREATE TEMPORARY zzz AGENT a FROM SPECIFICATION 's'
 reject	undocumented	docs	createAgent(TEMP|TEMPORARY)/TEMPORARY!swap	CREATE TENANT_TYPE AGENT a FROM SPECIFICATION 's'
-reject	accept	docs	createAgent(SECURE)?/%empty	CREATE AGENT a FROM @a
+accept	accept	docs	createAgent(SECURE)?/%empty	CREATE AGENT a FROM @a
 reject	accept	docs	createAgent(SECURE)?/SECURE	CREATE SECURE AGENT a FROM @a
 reject	undocumented	docs	createAgent(SECURE)?/SECURE!insert	CREATE SECURE zzz AGENT a FROM @a
 reject	undocumented	docs	createAgent(SECURE)?/SECURE!swap	CREATE SECURE_OBJECTS_ONLY AGENT a FROM @a
-reject	accept	docs	createAgent(COPY_GRANTS)?/%empty	CREATE AGENT a FROM @a
+accept	accept	docs	createAgent(COPY_GRANTS)?/%empty	CREATE AGENT a FROM @a
 reject	undocumented	docs	createAgent(COPY_GRANTS)?/%empty!insert	CREATE AGENT a zzz FROM @a
-reject	accept	docs	createAgent(COPY_GRANTS)?/COPY_GRANTS	CREATE AGENT a COPY GRANTS FROM @a
+accept	accept	docs	createAgent(COPY_GRANTS)?/COPY_GRANTS	CREATE AGENT a COPY GRANTS FROM @a
 reject	undocumented	docs	createAgent(COPY_GRANTS)?/COPY_GRANTS!drop-1	CREATE AGENT a GRANTS FROM @a
 reject	undocumented	docs	createAgent(COPY_GRANTS)?/COPY_GRANTS!drop-2	CREATE AGENT a COPY FROM @a
 reject	undocumented	docs	createAgent(COPY_GRANTS)?/COPY_GRANTS!truncate	CREATE AGENT a COPY
@@ -31204,8 +31204,8 @@ reject	undocumented	docs	createAgent(TRUE|FALSE)/TRUE!swap	CREATE AGENT a SECURE
 accept	accept	docs	createAgent(TRUE|FALSE)/FALSE	CREATE AGENT a SECURE = FALSE FROM SPECIFICATION 's'
 reject	undocumented	docs	createAgent(TRUE|FALSE)/FALSE!insert	CREATE AGENT a SECURE = FALSE zzz FROM SPECIFICATION 's'
 reject	undocumented	docs	createAgent(TRUE|FALSE)/FALSE!swap	CREATE AGENT a SECURE = FAMILIES FROM SPECIFICATION 's'
-reject	accept	docs	createAgent(COMMENT_=_STRING)?/%empty	CREATE AGENT a FROM @a
-reject	accept	docs	createAgent(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE AGENT a COMMENT = 's' FROM @a
+accept	accept	docs	createAgent(COMMENT_=_STRING)?/%empty	CREATE AGENT a FROM @a
+accept	accept	docs	createAgent(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE AGENT a COMMENT = 's' FROM @a
 reject	undocumented	docs	createAgent(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-1	CREATE AGENT a = 's' FROM @a
 reject	undocumented	docs	createAgent(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	CREATE AGENT a COMMENT 's' FROM @a
 reject	undocumented	docs	createAgent(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE AGENT a COMMENT = FROM @a
@@ -31220,9 +31220,9 @@ reject	undocumented	docs	createAgent(PROFILE_=_STRING)?/PROFILE_=_STRING!drop-3	
 reject	undocumented	docs	createAgent(PROFILE_=_STRING)?/PROFILE_=_STRING!truncate	CREATE AGENT a PROFILE =
 reject	undocumented	docs	createAgent(PROFILE_=_STRING)?/PROFILE_=_STRING!insert	CREATE AGENT a PROFILE = 's' zzz FROM SPECIFICATION 's'
 reject	undocumented	docs	createAgent(PROFILE_=_STRING)?/PROFILE_=_STRING!swap	CREATE AGENT a PROFILES = 's' FROM SPECIFICATION 's'
-reject	accept	docs	createAgent(IF_NOT_EXISTS)?/%empty	CREATE AGENT a FROM @a
+accept	accept	docs	createAgent(IF_NOT_EXISTS)?/%empty	CREATE AGENT a FROM @a
 reject	undocumented	docs	createAgent(IF_NOT_EXISTS)?/%empty!insert	CREATE AGENT zzz a FROM @a
-reject	accept	docs	createAgent(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE AGENT IF NOT EXISTS a FROM @a
+accept	accept	docs	createAgent(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE AGENT IF NOT EXISTS a FROM @a
 reject	undocumented	docs	createAgent(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE AGENT NOT EXISTS a FROM @a
 reject	undocumented	docs	createAgent(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE AGENT IF EXISTS a FROM @a
 reject	undocumented	docs	createAgent(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE AGENT IF NOT a FROM @a
@@ -41433,18 +41433,18 @@ reject	undocumented	docs	createModel/CREATE_(OR_REPLACE)?_MODEL_QNAME_(WITH_VERS
 reject	undocumented	docs	createModel/CREATE_(OR_REPLACE)?_MODEL_QNAME_(WITH_VERSION_ID)?_FRO~bf4bd1ca!insert	CREATE MODEL a FROM MODEL a zzz
 reject	undocumented	docs	createModel/CREATE_(OR_REPLACE)?_MODEL_QNAME_(WITH_VERSION_ID)?_FRO~bf4bd1ca!swap	CREATION MODEL a FROM MODEL a
 accept	accept	docs	createModel/CREATE_MODEL_(IF_NOT_EXISTS)?_QNAME_(WITH_VERSION_ID)?_~9a389f53	CREATE MODEL a FROM MODEL a
-reject	accept	docs	createModel/CREATE_(OR_REPLACE)?_MODEL_QNAME_(WITH_VERSION_ID)?_FRO~f95674dd	CREATE MODEL a FROM @a
-reject	accept	docs	createModel/CREATE_MODEL_(IF_NOT_EXISTS)?_QNAME_(WITH_VERSION_ID)?_~e3448630	CREATE MODEL a FROM @a
-reject	accept	docs	createModel(OR_REPLACE)?/%empty	CREATE MODEL a FROM @a
+accept	accept	docs	createModel/CREATE_(OR_REPLACE)?_MODEL_QNAME_(WITH_VERSION_ID)?_FRO~f95674dd	CREATE MODEL a FROM @a
+accept	accept	docs	createModel/CREATE_MODEL_(IF_NOT_EXISTS)?_QNAME_(WITH_VERSION_ID)?_~e3448630	CREATE MODEL a FROM @a
+accept	accept	docs	createModel(OR_REPLACE)?/%empty	CREATE MODEL a FROM @a
 reject	undocumented	docs	createModel(OR_REPLACE)?/%empty!insert	CREATE zzz MODEL a FROM @a
-reject	accept	docs	createModel(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE MODEL a FROM @a
+accept	accept	docs	createModel(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE MODEL a FROM @a
 reject	undocumented	docs	createModel(OR_REPLACE)?/OR_REPLACE!drop-1	CREATE REPLACE MODEL a FROM @a
 reject	undocumented	docs	createModel(OR_REPLACE)?/OR_REPLACE!drop-2	CREATE OR MODEL a FROM @a
 reject	undocumented	docs	createModel(OR_REPLACE)?/OR_REPLACE!insert	CREATE OR REPLACE zzz MODEL a FROM @a
 reject	undocumented	docs	createModel(OR_REPLACE)?/OR_REPLACE!swap	CREATE ORC REPLACE MODEL a FROM @a
-reject	accept	docs	createModel(WITH_VERSION_ID)?/%empty	CREATE MODEL a FROM @a
+accept	accept	docs	createModel(WITH_VERSION_ID)?/%empty	CREATE MODEL a FROM @a
 reject	undocumented	docs	createModel(WITH_VERSION_ID)?/%empty!insert	CREATE MODEL a zzz FROM @a
-reject	accept	docs	createModel(WITH_VERSION_ID)?/WITH_VERSION_ID	CREATE MODEL a WITH VERSION a FROM @a
+accept	accept	docs	createModel(WITH_VERSION_ID)?/WITH_VERSION_ID	CREATE MODEL a WITH VERSION a FROM @a
 reject	undocumented	docs	createModel(WITH_VERSION_ID)?/WITH_VERSION_ID!drop-1	CREATE MODEL a VERSION a FROM @a
 reject	undocumented	docs	createModel(WITH_VERSION_ID)?/WITH_VERSION_ID!drop-2	CREATE MODEL a WITH a FROM @a
 reject	undocumented	docs	createModel(WITH_VERSION_ID)?/WITH_VERSION_ID!drop-3	CREATE MODEL a WITH VERSION FROM @a
@@ -41457,16 +41457,16 @@ reject	undocumented	docs	createModel(VERSION_ID)?/VERSION_ID!drop-1	CREATE MODEL
 reject	undocumented	docs	createModel(VERSION_ID)?/VERSION_ID!drop-2	CREATE MODEL a FROM MODEL a VERSION
 reject	undocumented	docs	createModel(VERSION_ID)?/VERSION_ID!insert	CREATE MODEL a FROM MODEL a VERSION a zzz
 reject	undocumented	docs	createModel(VERSION_ID)?/VERSION_ID!swap	CREATE MODEL a FROM MODEL a VERSIONED a
-reject	accept	docs	createModel(IF_NOT_EXISTS)?/%empty	CREATE MODEL a FROM @a
+accept	accept	docs	createModel(IF_NOT_EXISTS)?/%empty	CREATE MODEL a FROM @a
 reject	undocumented	docs	createModel(IF_NOT_EXISTS)?/%empty!insert	CREATE MODEL zzz a FROM @a
-reject	accept	docs	createModel(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE MODEL IF NOT EXISTS a FROM @a
+accept	accept	docs	createModel(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE MODEL IF NOT EXISTS a FROM @a
 reject	undocumented	docs	createModel(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE MODEL NOT EXISTS a FROM @a
 reject	undocumented	docs	createModel(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE MODEL IF EXISTS a FROM @a
 reject	undocumented	docs	createModel(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE MODEL IF NOT a FROM @a
 reject	undocumented	docs	createModel(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE MODEL IF NOT
 reject	undocumented	docs	createModel(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE MODEL IF NOT EXISTS zzz a FROM @a
 reject	undocumented	docs	createModel(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE MODEL IGNORE NOT EXISTS a FROM @a
-reject	accept	docs	createModel_internalStage/STAGE	CREATE MODEL a FROM @a
+accept	accept	docs	createModel_internalStage/STAGE	CREATE MODEL a FROM @a
 accept	accept	docs	createModelMonitor/CREATE_(OR_REPLACE)?_MODEL_MONITOR_ID_WITH_MODEL_=_QNAM~31f42af0	CREATE MODEL MONITOR a WITH MODEL = a VERSION = 's' FUNCTION = 's' SOURCE = a WAREHOUSE = a REFRESH_INTERVAL = 's' AGGREGATION_WINDOW = 's' TIMESTAMP_COLUMN = a
 reject	undocumented	docs	createModelMonitor/CREATE_(OR_REPLACE)?_MODEL_MONITOR_ID_WITH_MODEL_=_QNAM~31f42af0!drop-1	MODEL MONITOR a WITH MODEL = a VERSION = 's' FUNCTION = 's' SOURCE = a WAREHOUSE = a REFRESH_INTERVAL = 's' AGGREGATION_WINDOW = 's' TIMESTAMP_COLUMN = a
 reject	undocumented	docs	createModelMonitor/CREATE_(OR_REPLACE)?_MODEL_MONITOR_ID_WITH_MODEL_=_QNAM~31f42af0!drop-2	CREATE MONITOR a WITH MODEL = a VERSION = 's' FUNCTION = 's' SOURCE = a WAREHOUSE = a REFRESH_INTERVAL = 's' AGGREGATION_WINDOW = 's' TIMESTAMP_COLUMN = a

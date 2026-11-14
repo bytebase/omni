@@ -556,6 +556,16 @@ func (p *Parser) parseCreateDatasetStmt(start ast.Loc, orReplace, orAlter bool) 
 	return stmt, nil
 }
 
+// startsDatasetVersionClause reports whether cur begins one of ADD VERSION's
+// clauses after its query: PARTITION BY, COMMENT =, or METADATA =. It
+// consumes nothing.
+func (p *Parser) startsDatasetVersionClause() bool {
+	if p.cur.Type == kwPARTITION {
+		return p.peekNext().Type == kwBY
+	}
+	return (isWordToken(p.cur, "COMMENT") || isWordToken(p.cur, "METADATA")) && p.peekNext().Type == '='
+}
+
 // startsIfNotExistsDataset reports whether cur begins IF NOT EXISTS DATASET.
 // It consumes nothing.
 func (p *Parser) startsIfNotExistsDataset() bool {
@@ -630,11 +640,16 @@ func (p *Parser) parseAlterDatasetStmt(start ast.Loc) (ast.Node, error) {
 	if _, err := p.expect(kwFROM); err != nil {
 		return nil, err
 	}
+	// The query may run up to the version's clauses unparenthesized, so its
+	// last item or table takes no implicit alias that starts one of them.
+	outer := p.inDatasetQuery
+	p.inDatasetQuery = true
 	if p.cur.Type == kwWITH {
 		stmt.Query, err = p.parseWithQueryExpr()
 	} else {
 		stmt.Query, err = p.parseQueryExpr()
 	}
+	p.inDatasetQuery = outer
 	if err != nil {
 		return nil, err
 	}

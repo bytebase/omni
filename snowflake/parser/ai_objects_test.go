@@ -32,7 +32,8 @@ func TestParseCortexSearch(t *testing.T) {
 		"ATTRIBUTES a WAREHOUSE = wh TARGET_LAG = '1 day' AS (SELECT a, b FROM t)"
 	s = mustObjectStmt(t, in)
 	wantClauses(t, in, s, "TEXT INDEXES", "VECTOR INDEXES", "ATTRIBUTES", "", "AS")
-	if v := s.Clauses[1]; len(v.Names) != 3 || len(v.Options) != 2 || v.Options[0].Name != "V1" || v.Options[1].Group[0].Name != "QUERY_MODEL" {
+	if v := s.Clauses[1]; len(v.Options) != 3 || v.Options[0].Name != "V1" || v.Options[0].Group[0].Name != "MODEL" ||
+		!v.Options[1].Bare || v.Options[1].Group != nil || v.Options[2].Group[0].Name != "QUERY_MODEL" {
 		t.Errorf("VECTOR INDEXES = %+v", v)
 	}
 
@@ -100,6 +101,8 @@ func TestParseAgent(t *testing.T) {
 	}
 	for _, in := range []string{
 		"CREATE AGENT a",
+		"CREATE AGENT a PROFILE = '{}' FROM @s/agents/a", // the stage form takes COMMENT alone
+		"CREATE AGENT a FROM s/agents/a",
 		"CREATE AGENT a FROM SPECIFICATION",
 		"CREATE AGENT a FROM SPECIFICATION x",
 		"CREATE AGENT a SECURE = 'yes' FROM SPECIFICATION 's'",
@@ -161,6 +164,7 @@ func TestParseModel(t *testing.T) {
 		"CREATE MODEL m",
 		"CREATE MODEL m FROM MODEL",
 		"CREATE MODEL m FROM src",
+		"CREATE MODEL m FROM @",
 		"ALTER MODEL m SET ALIAS = a",
 		"ALTER MODEL m VERSION v1 SET COMMENT = 'c'",
 		"ALTER MODEL m VERSION v1 UNSET COMMENT",
@@ -205,6 +209,9 @@ func TestParseExperiment(t *testing.T) {
 		"ALTER EXPERIMENT e ADD RUN",
 		"ALTER EXPERIMENT e MODIFY RUN r",
 		"ALTER EXPERIMENT e MODIFY RUN r SET STATUS = PAUSED",
+		"ALTER EXPERIMENT e COMMIT RUN r WITH STATUS = 'BOGUS'",
+		"ALTER EXPERIMENT e COMMIT RUN r WITH STATUS = 'RUNNING'", // MODIFY's
+		"ALTER EXPERIMENT e MODIFY RUN r SET STATUS = 'FINISHED'", // COMMIT's
 		"ALTER EXPERIMENT e COMMIT RUN r WITH COMMENT = 'c'",
 		"ALTER EXPERIMENT e SET STATUS = 'x'",
 		"DROP EXPERIMENT IF EXISTS e", // the page writes no IF EXISTS
@@ -291,6 +298,18 @@ func TestParseAlterDataset(t *testing.T) {
 		t.Fatalf("got %#v", d)
 	}
 	mustParseOne(t, "ALTER DATASET d ADD VERSION v1 FROM SELECT 1")
+	// An unparenthesized query stops before the version's clauses.
+	for in, n := range map[string]int{
+		"ALTER DATASET d ADD VERSION v1 FROM SELECT 1 COMMENT = 'c'":                            1,
+		"ALTER DATASET d ADD VERSION v1 FROM SELECT * FROM t PARTITION BY part METADATA = '{}'": 1,
+		"ALTER DATASET d ADD VERSION v1 FROM SELECT a comment FROM t metadata = 'm'":            1,
+		"ALTER DATASET d ADD VERSION v1 FROM SELECT 1 AS comment":                               0,
+	} {
+		d, ok := mustParseOne(t, in).(*ast.AlterDatasetStmt)
+		if !ok || len(d.Options) != n || d.Loc.End != len(in) {
+			t.Errorf("%q: got %#v", in, d)
+		}
+	}
 	for _, in := range []string{
 		"ALTER DATASET IF EXISTS d ADD VERSION v1 FROM SELECT 1",
 		"ALTER DATASET d ADD VERSION v1",

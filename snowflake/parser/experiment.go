@@ -1,6 +1,11 @@
 package parser
 
-import "github.com/bytebase/omni/snowflake/ast"
+import (
+	"slices"
+	"strings"
+
+	"github.com/bytebase/omni/snowflake/ast"
+)
 
 // ---------------------------------------------------------------------------
 // EXPERIMENT (Snowflake ML experiment tracking), read as an ast.ObjectStmt
@@ -66,20 +71,21 @@ func parseAlterExperiment(p *Parser, s *ast.ObjectStmt) error {
 	case "COMMIT":
 		if p.cur.Type == kwWITH {
 			p.advance() // consume WITH
-			return p.parseExperimentStatus(s, "WITH", start)
+			return p.parseExperimentStatus(s, "WITH", start, "FINISHED", "FAILED", "CANCELLED")
 		}
 	case "MODIFY":
 		if _, err := p.expect(kwSET); err != nil {
 			return err
 		}
-		return p.parseExperimentStatus(s, "SET", start)
+		return p.parseExperimentStatus(s, "SET", start, "RUNNING", "PAUSED")
 	}
 	return nil
 }
 
 // parseExperimentStatus reads STATUS = '<status>' into a clause of keywords,
-// begun at start and already consumed.
-func (p *Parser) parseExperimentStatus(s *ast.ObjectStmt, keywords string, start int) error {
+// begun at start and already consumed, where the status is one of statuses,
+// the strings the page lists for the action.
+func (p *Parser) parseExperimentStatus(s *ast.ObjectStmt, keywords string, start int, statuses ...string) error {
 	if !p.curIsWord("STATUS") || !p.startsObjectProperty() {
 		return p.syntaxErrorAtCur()
 	}
@@ -87,8 +93,11 @@ func (p *Parser) parseExperimentStatus(s *ast.ObjectStmt, keywords string, start
 	if err != nil {
 		return err
 	}
-	if status.Lit == nil || status.Lit.Kind != ast.LitString {
-		return &ParseError{Position: status.Loc.Start, End: status.Loc.End, Message: "syntax error: a run status is a string"}
+	if status.Lit == nil || status.Lit.Kind != ast.LitString || !slices.Contains(statuses, status.Lit.Value) {
+		return &ParseError{
+			Position: status.Loc.Start, End: status.Loc.End,
+			Message: "syntax error: the run status is one of '" + strings.Join(statuses, "', '") + "'",
+		}
 	}
 	p.addObjectKeywordsClause(s, keywords, start).Options = []*ast.CopyOption{status}
 	return nil
