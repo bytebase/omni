@@ -33,7 +33,7 @@ type Table struct {
 	// EngineOptions are the engine-defined options, `name`=value, in the order
 	// MariaDB prints them: a later setting of a name moves it to the end.
 	EngineOptions []EngineOption
-	Partitioning     *PartitionInfo
+	Partitioning  *PartitionInfo
 
 	// System versioning (MariaDB temporal). SystemVersioned is set by
 	// WITH SYSTEM VERSIONING or by any versioned/period column.

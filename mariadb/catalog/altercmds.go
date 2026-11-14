@@ -1644,6 +1644,10 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 		return nil
 	}
 
+	// An engine-defined option is the engine's by its form, whatever its name.
+	if opt.EngineDefined {
+		return tbl.setEngineOption(opt.Name, opt.Value, opt.StringValue)
+	}
 	switch toLower(opt.Name) {
 	case "engine":
 		tbl.Engine = opt.Value
@@ -1694,10 +1698,6 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	case "sequence":
 		if opt.Value == "1" {
 			return errSequenceInvalidTableStructure(tbl.Database.Name, tbl.Name)
-		}
-	default:
-		if opt.EngineDefined {
-			return tbl.setEngineOption(opt.Name, opt.Value, opt.StringValue)
 		}
 	}
 	return nil
