@@ -52,18 +52,6 @@ func (p *Parser) atExpect(t int) error {
 	return nil
 }
 
-// atCutOff reports a statement that ends where a clause needs more. Oracle
-// refuses such a statement with the clause's own error (ORA-02211 for
-// PCTFREE, ORA-14004 or ORA-14020 in a partition clause, ORA-10630 for
-// SHRINK), none of which is its parser's, so the judge of compat.tsv records
-// the statement as accepted (the judge bug enginetest #1106 fixes). It keeps
-// only the cut-off forms the soup this file replaced accepted, so their rows
-// do not regress before compat.tsv is rejudged; once it is, remove atCutOff
-// and its callers. A clause cut off anywhere else is refused.
-func (p *Parser) atCutOff() bool {
-	return p.isStatementEnd()
-}
-
 // isATNameStart reports whether the current token can be a name: an
 // identifier, a quoted identifier or a keyword Oracle does not reserve.
 func (p *Parser) isATNameStart() bool {
@@ -297,9 +285,6 @@ func (p *Parser) parseATPhysicalAttr() error {
 		return p.parseATStorageClause()
 	}
 	p.advance()
-	if p.atCutOff() {
-		return nil
-	}
 	err := p.parseATInteger()
 	return err
 }
@@ -323,9 +308,6 @@ func (p *Parser) parseATSegmentAttr() error {
 		return p.parseATPhysicalAttr()
 	case p.cur.Type == kwTABLESPACE:
 		p.advance()
-		if p.atCutOff() {
-			return nil
-		}
 		err := p.parseATName()
 		return err
 	case p.isATLoggingStart():
@@ -387,28 +369,23 @@ func (p *Parser) parseATTableCompression(prefix bool) error {
 	case p.cur.Type == kwROW:
 		p.advance() // ROW
 		p.advance() // STORE
-		if p.atCutOff() {
+		// Oracle takes ROW STORE and COLUMN STORE without COMPRESS, as it
+		// does in an ILM policy.
+		if p.cur.Type != kwCOMPRESS {
 			return nil
 		}
-		if err := p.atExpect(kwCOMPRESS); err != nil {
-			return err
-		}
+		p.advance()
 		p.atOptOneOf("BASIC", "ADVANCED")
 		return nil
 	case p.cur.Type == kwCOLUMN:
 		p.advance() // COLUMN
 		p.advance() // STORE
-		if p.atCutOff() {
+		if p.cur.Type != kwCOMPRESS {
 			return nil
 		}
-		if err := p.atExpect(kwCOMPRESS); err != nil {
-			return err
-		}
+		p.advance()
 		if p.cur.Type == kwFOR {
 			p.advance()
-			if p.atCutOff() {
-				return nil
-			}
 			if err := p.atOneOf("QUERY", "ARCHIVE"); err != nil {
 				return err
 			}
@@ -580,15 +557,12 @@ func (p *Parser) parseATInmemoryColumnItem() error {
 	} else {
 		p.advance() // INMEMORY
 		if p.atWord("NO") && (p.peekNext().Type == ';' || p.peekNext().Type == tokEOF) {
-			// NO cut off before MEMCOMPRESS (see atCutOff).
+			// Oracle takes INMEMORY NO ending the statement.
 			p.advance()
 			return nil
 		}
 		if err := p.parseATInmemoryMemcompress(); err != nil {
 			return err
-		}
-		if p.atCutOff() {
-			return nil
 		}
 	}
 	return p.parseATNameList()
@@ -606,9 +580,6 @@ func (p *Parser) parseATIlmClause() error {
 		p.advance()
 		if err := p.atExpectWord("POLICY"); err != nil {
 			return err
-		}
-		if p.atCutOff() {
-			return nil
 		}
 		return p.parseATIlmPolicy()
 	case p.cur.Type == kwDELETE, p.cur.Type == kwENABLE, p.cur.Type == kwDISABLE:
@@ -721,9 +692,6 @@ func (p *Parser) parseATIlmPolicy() error {
 // only after ROW STORE COMPRESS ADVANCED or COLUMN STORE COMPRESS FOR QUERY
 // (rowLevel); an inmemory policy takes only SEGMENT, and may leave it out.
 func (p *Parser) parseATIlmCondition(rowLevel, inmemory bool) error {
-	if p.atCutOff() {
-		return nil
-	}
 	switch {
 	case p.atWord("SEGMENT"):
 		p.advance()
@@ -823,9 +791,6 @@ func (p *Parser) parseATDeallocateUnused() error {
 	}
 	if p.atWord("KEEP") {
 		p.advance()
-		if p.atCutOff() {
-			return nil
-		}
 		return p.parseATSizeClause()
 	}
 	return nil
@@ -839,9 +804,6 @@ func (p *Parser) isATShrinkStart() bool {
 // parseATShrink reads SHRINK SPACE [ COMPACT ] [ CASCADE ].
 func (p *Parser) parseATShrink() error {
 	p.advance() // SHRINK
-	if p.atCutOff() {
-		return nil
-	}
 	if err := p.atExpectWord("SPACE"); err != nil {
 		return err
 	}
@@ -1048,7 +1010,7 @@ func (p *Parser) parseATLobStoreAs() error {
 		return err
 	}
 	any := p.atOptOneOf("SECUREFILE", "BASICFILE")
-	if p.cur.Type != '(' && p.isATNameStart() {
+	if p.cur.Type != '(' && p.isATNameStart() && !p.isATAfterLobStorage() {
 		p.advance()
 		any = true
 	}
@@ -1059,6 +1021,15 @@ func (p *Parser) parseATLobStoreAs() error {
 		return p.syntaxErrorAtCur()
 	}
 	return nil
+}
+
+// isATAfterLobStorage reports a word that starts what may follow a LOB
+// storage clause, which an optional LOB_segname before it does not take:
+// another column property, a partition clause or an ALTER TABLE action.
+func (p *Parser) isATAfterLobStorage() bool {
+	return p.isATLobStorageStart() || p.cur.Type == kwNESTED || p.atWord("XMLTYPE") ||
+		(p.cur.Type == kwJSON && p.peekNext().Type == '(') || p.isATAlterTableActionWord() ||
+		p.atClauseAt(atcTablePartitionDescription|atcPartitioningStorage|atcIndexMaintenance|atcParallel) != 0
 }
 
 // parseATLobItemList reads ( lob_item [, lob_item ]... ).
@@ -1265,10 +1236,6 @@ const (
 	atcUpdateIndexes
 	// atcInvalidate is INVALIDATE GLOBAL INDEXES.
 	atcInvalidate
-	// atcStrictEnd turns off atCutOff in the clauses: Oracle answers a
-	// clause cut off at the end with one of its parser's errors here
-	// (ORA-01735 in MODIFY DEFAULT ATTRIBUTES).
-	atcStrictEnd
 	// atcParallel is parallel_clause.
 	atcParallel
 	// atcClustering is allow_disallow_clustering.
@@ -1294,6 +1261,9 @@ const (
 	atcExchange
 	// atcNestedTable is nested_table_col_properties ... STORE AS.
 	atcNestedTable
+	// atcExternal is external_part_subpart_data_props: [ DEFAULT DIRECTORY
+	// directory ] [ LOCATION ( ... ) ].
+	atcExternal
 )
 
 // atcTablePartitionDescription is table_partition_description:
@@ -1365,6 +1335,8 @@ func (p *Parser) atClauseAt(allowed atClauses) atClauses {
 		return atcLobModify
 	case has(atcNestedTable) && p.cur.Type == kwNESTED:
 		return atcNestedTable
+	case has(atcExternal) && p.isATExternalDataPropStart():
+		return atcExternal
 	case has(atcUpdateIndexes) && p.cur.Type == kwUPDATE:
 		return atcUpdateIndexes
 	case has(atcInvalidate) && p.atWord("INVALIDATE"):
@@ -1399,7 +1371,6 @@ func (p *Parser) atClauseAt(allowed atClauses) atClauses {
 // parseATClause reads one of the clauses allowed lists, or reports false
 // when the current token starts none of them.
 func (p *Parser) parseATClause(allowed atClauses, opts *nodes.List) (bool, error) {
-	cutOff := func() bool { return allowed&atcStrictEnd == 0 && p.atCutOff() }
 	switch p.atClauseAt(allowed) {
 	case 0:
 		return false, nil
@@ -1416,9 +1387,6 @@ func (p *Parser) parseATClause(allowed atClauses, opts *nodes.List) (bool, error
 		if p.cur.Type == kwSET {
 			p.advance()
 		}
-		if cutOff() {
-			return true, nil
-		}
 		err := p.parseATName()
 		return true, err
 	case atcCompression:
@@ -1426,20 +1394,9 @@ func (p *Parser) parseATClause(allowed atClauses, opts *nodes.List) (bool, error
 	case atcInmemory:
 		return true, p.parseATInmemoryClause()
 	case atcIlm:
-		if p.peekNext().Type == ';' || p.peekNext().Type == tokEOF {
-			// ILM cut off (see atCutOff); at the top of ALTER TABLE
-			// Oracle answers it with ORA-03048.
-			if allowed&atcStrictEnd == 0 {
-				p.advance()
-				return true, nil
-			}
-		}
 		return true, p.parseATIlmClause()
 	case atcReadOnly:
 		p.advance()
-		if cutOff() {
-			return true, nil
-		}
 		if p.cur.Type == kwWRITE {
 			p.advance()
 			return true, nil
@@ -1447,9 +1404,6 @@ func (p *Parser) parseATClause(allowed atClauses, opts *nodes.List) (bool, error
 		return true, p.atExpectWord("ONLY")
 	case atcIndexing:
 		p.advance()
-		if cutOff() {
-			return true, nil
-		}
 		if p.cur.Type == kwON {
 			p.advance()
 			return true, nil
@@ -1460,9 +1414,6 @@ func (p *Parser) parseATClause(allowed atClauses, opts *nodes.List) (bool, error
 		if err := p.atExpectWord("CREATION"); err != nil {
 			return true, err
 		}
-		if cutOff() {
-			return true, nil
-		}
 		if p.cur.Type == kwIMMEDIATE || p.cur.Type == kwDEFERRED {
 			p.advance()
 			return true, nil
@@ -1472,9 +1423,6 @@ func (p *Parser) parseATClause(allowed atClauses, opts *nodes.List) (bool, error
 		p.advance()
 		if p.cur.Type == kwTABLESPACE {
 			p.advance()
-			if cutOff() {
-				return true, nil
-			}
 			err := p.parseATName()
 			return true, err
 		}
@@ -1491,6 +1439,8 @@ func (p *Parser) parseATClause(allowed atClauses, opts *nodes.List) (bool, error
 		return true, p.parseATLobModify()
 	case atcNestedTable:
 		return true, p.parseATNestedTableStorage()
+	case atcExternal:
+		return true, p.parseATExternalDataProp()
 	case atcUpdateIndexes:
 		return true, p.parseATUpdateIndexClauses()
 	case atcParallel:
@@ -1507,9 +1457,6 @@ func (p *Parser) parseATClause(allowed atClauses, opts *nodes.List) (bool, error
 		return true, p.parseATDependentTables()
 	case atcMappingTable:
 		p.advance()
-		if cutOff() {
-			return true, nil
-		}
 		return true, p.atExpect(kwTABLE)
 	case atcAllocate:
 		return true, p.parseATAllocateExtent()
@@ -1521,15 +1468,9 @@ func (p *Parser) parseATClause(allowed atClauses, opts *nodes.List) (bool, error
 		switch {
 		case p.atWord("INCLUDING"), p.atWord("EXCLUDING"):
 			p.advance()
-			if cutOff() {
-				return true, nil
-			}
 			return true, p.atExpectWord("INDEXES")
 		case p.cur.Type == kwWITH, p.atWord("WITHOUT"):
 			p.advance()
-			if cutOff() {
-				return true, nil
-			}
 			return true, p.atExpectWord("VALIDATION")
 		}
 		p.advance() // EXCEPTIONS
@@ -1670,6 +1611,49 @@ func (p *Parser) parseATObjectProperties() error {
 					return p.syntaxErrorAtCur()
 				}
 			}
+		}
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	return p.atExpect(')')
+}
+
+// isATExternalDataPropStart reports an item of external_table_data_props or
+// external_part_subpart_data_props: DEFAULT DIRECTORY or LOCATION.
+func (p *Parser) isATExternalDataPropStart() bool {
+	return (p.cur.Type == kwDEFAULT && p.atNextWord("DIRECTORY")) ||
+		(p.atWord("LOCATION") && p.peekNext().Type == '(')
+}
+
+// parseATExternalDataProp reads one of
+//
+//	DEFAULT DIRECTORY directory
+//	LOCATION ( [ directory: ] 'location_specifier' [, ...] )
+func (p *Parser) parseATExternalDataProp() error {
+	if p.cur.Type == kwDEFAULT {
+		p.advance()
+		if err := p.atExpectWord("DIRECTORY"); err != nil {
+			return err
+		}
+		return p.parseATName()
+	}
+	p.advance() // LOCATION
+	if err := p.atExpect('('); err != nil {
+		return err
+	}
+	for {
+		if p.cur.Type != tokSCONST {
+			if err := p.parseATName(); err != nil {
+				return err
+			}
+			if err := p.atExpect(':'); err != nil {
+				return err
+			}
+		}
+		if err := p.atExpect(tokSCONST); err != nil {
+			return err
 		}
 		if p.cur.Type != ',' {
 			break
@@ -1960,6 +1944,11 @@ func (p *Parser) isATPartitionNameHere(allowed atClauses) bool {
 	if !p.isATNameStart() || p.cur.Type == kwVALUES {
 		return false
 	}
+	// A word that ends the partition is its name (ADD PARTITION INDEXING).
+	switch p.peekNext().Type {
+	case ';', tokEOF, ',', ')':
+		return true
+	}
 	const follow = atcDependentTables | atcIndexMaintenance | atcParallel | atcFilter | atcClustering
 	return p.atClauseAt(allowed|follow) == 0
 }
@@ -2018,7 +2007,7 @@ func (p *Parser) parseATSubpartitionDesc(method atMethod) error {
 	if err := p.atExpect(kwSUBPARTITION); err != nil {
 		return err
 	}
-	const allowed = atcReadOnly | atcIndexing | atcPartitioningStorage
+	const allowed = atcReadOnly | atcIndexing | atcPartitioningStorage | atcExternal
 	if p.isATPartitionNameHere(allowed) {
 		p.advance()
 	}
@@ -2049,9 +2038,6 @@ func (p *Parser) parseATSubpartitionDescList(method atMethod) error {
 // SUBPARTITIONS integer [ STORE IN ( tablespace [, tablespace ]... ) ].
 func (p *Parser) parseATHashSubpartsByQuantity() error {
 	p.advance() // SUBPARTITIONS
-	if p.atCutOff() {
-		return nil
-	}
 	if err := p.parseATInteger(); err != nil {
 		return err
 	}
@@ -2099,9 +2085,6 @@ func (p *Parser) parseATTablePartitioning(opts *nodes.List) error {
 	}
 	if err := p.atExpect(kwBY); err != nil {
 		return err
-	}
-	if p.atCutOff() {
-		return nil
 	}
 	switch {
 	case p.atWord("RANGE"), p.atWord("LIST"):
@@ -2270,9 +2253,6 @@ func (p *Parser) parseATSubpartitionBy(method *atMethod) error {
 func (p *Parser) parseATSubpartitionTemplate(method atMethod) error {
 	p.advance() // SUBPARTITION
 	p.advance() // TEMPLATE
-	if p.atCutOff() {
-		return nil
-	}
 	if p.cur.Type == tokICONST && (method == atMethodAny || method == atMethodHash) {
 		p.advance()
 		return nil
@@ -2343,14 +2323,8 @@ func (p *Parser) parseATValuePartitionList(method, sub atMethod) error {
 //	PARTITIONS integer [ STORE IN ( tablespace [, tablespace ]... ) ]
 //	    [ table_compression ] [ OVERFLOW STORE IN ( tablespace [, ...] ) ]
 func (p *Parser) parseATHashPartitions() error {
-	if p.atCutOff() {
-		return nil
-	}
 	if p.atWord("PARTITIONS") {
 		p.advance()
-		if p.atCutOff() {
-			return nil
-		}
 		if err := p.parseATInteger(); err != nil {
 			return err
 		}

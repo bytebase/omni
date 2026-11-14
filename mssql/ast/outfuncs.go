@@ -1264,6 +1264,13 @@ func writeDeclareStmt(sb *strings.Builder, n *DeclareStmt) {
 func writeSetStmt(sb *strings.Builder, n *SetStmt) {
 	sb.WriteString("{SET")
 	sb.WriteString(fmt.Sprintf(" :variable \"%s\"", escapeString(n.Variable)))
+	if n.Property != "" {
+		sb.WriteString(fmt.Sprintf(" :property \"%s\"", escapeString(n.Property)))
+	}
+	if n.Cursor != nil {
+		sb.WriteString(" :cursor ")
+		writeNode(sb, n.Cursor)
+	}
 	if n.Operator != "" && n.Operator != "=" {
 		sb.WriteString(fmt.Sprintf(" :operator \"%s\"", n.Operator))
 	}
@@ -3406,6 +3413,10 @@ func writeDbccStmt(sb *strings.Builder, n *DbccStmt) {
 func writeDbccOption(sb *strings.Builder, n *DbccOption) {
 	sb.WriteString("{DBCCOPTION")
 	fmt.Fprintf(sb, " :name \"%s\"", escapeString(n.Name))
+	if n.Value != nil {
+		sb.WriteString(" :value ")
+		writeNode(sb, n.Value)
+	}
 	fmt.Fprintf(sb, " :loc %d %d", n.Loc.Start, n.Loc.End)
 	sb.WriteString("}")
 }
@@ -3570,6 +3581,10 @@ func writeSetOptionStmt(sb *strings.Builder, n *SetOptionStmt) {
 	if n.Value != nil {
 		sb.WriteString(" :value ")
 		writeNode(sb, n.Value)
+	}
+	if n.Values != nil {
+		sb.WriteString(" :values ")
+		writeNode(sb, n.Values)
 	}
 	fmt.Fprintf(sb, " :loc %d %d}", n.Loc.Start, n.Loc.End)
 }
@@ -3897,11 +3912,15 @@ func writeWritetextStmt(sb *strings.Builder, n *WritetextStmt) {
 		sb.WriteString(" :textPtr ")
 		writeNode(sb, n.TextPtr)
 	}
+	if n.Timestamp != nil {
+		sb.WriteString(" :timestamp ")
+		writeNode(sb, n.Timestamp)
+	}
 	if n.Data != nil {
 		sb.WriteString(" :data ")
 		writeNode(sb, n.Data)
 	}
-	fmt.Fprintf(sb, " :withLog %v :loc %d %d}", n.WithLog, n.Loc.Start, n.Loc.End)
+	fmt.Fprintf(sb, " :bulk %v :withLog %v :loc %d %d}", n.Bulk, n.WithLog, n.Loc.Start, n.Loc.End)
 }
 
 func writeUpdatetextStmt(sb *strings.Builder, n *UpdatetextStmt) {
@@ -3913,6 +3932,10 @@ func writeUpdatetextStmt(sb *strings.Builder, n *UpdatetextStmt) {
 	if n.DestTextPtr != nil {
 		sb.WriteString(" :destTextPtr ")
 		writeNode(sb, n.DestTextPtr)
+	}
+	if n.Timestamp != nil {
+		sb.WriteString(" :timestamp ")
+		writeNode(sb, n.Timestamp)
 	}
 	if n.InsertOffset != nil {
 		sb.WriteString(" :insertOffset ")
@@ -3926,7 +3949,11 @@ func writeUpdatetextStmt(sb *strings.Builder, n *UpdatetextStmt) {
 		sb.WriteString(" :insertedData ")
 		writeNode(sb, n.InsertedData)
 	}
-	fmt.Fprintf(sb, " :withLog %v :loc %d %d}", n.WithLog, n.Loc.Start, n.Loc.End)
+	if n.InsertedTextPtr != nil {
+		sb.WriteString(" :insertedTextPtr ")
+		writeNode(sb, n.InsertedTextPtr)
+	}
+	fmt.Fprintf(sb, " :bulk %v :withLog %v :loc %d %d}", n.Bulk, n.WithLog, n.Loc.Start, n.Loc.End)
 }
 
 func writePivotExpr(sb *strings.Builder, n *PivotExpr) {

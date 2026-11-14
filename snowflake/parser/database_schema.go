@@ -326,7 +326,13 @@ func (p *Parser) parseCreateSchemaStmt(start ast.Loc, orReplace, orAlter, transi
 // Handles DATABASE, SCHEMA, VIEW, and MATERIALIZED VIEW; falls back to
 // unsupported for other objects.
 func (p *Parser) parseAlterStmt() (ast.Node, error) {
-	p.advance() // consume ALTER
+	alterTok := p.advance() // consume ALTER
+
+	// An object read by its documented shape (object.go) is dispatched by the
+	// registry before the switch.
+	if f := p.matchObjectForm(); f != nil {
+		return p.parseObjectStmt("ALTER", f, alterTok.Loc, false, false)
+	}
 
 	switch p.cur.Type {
 	case kwTABLE:
@@ -447,6 +453,10 @@ func (p *Parser) parseAlterStmt() (ast.Node, error) {
 		}
 		return p.unsupported("ALTER")
 	default:
+		// ALTER ICEBERG TABLE: ICEBERG is not a keyword.
+		if p.startsAlterIcebergTable() {
+			return p.parseAlterIcebergTableStmt()
+		}
 		// AUTHENTICATION is not a reserved keyword, so ALTER AUTHENTICATION POLICY
 		// lexes as an "AUTHENTICATION" identifier followed by POLICY (T4.6).
 		if p.startsPolicyKeyword() {

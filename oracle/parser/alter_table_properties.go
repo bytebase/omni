@@ -62,9 +62,6 @@ func (p *Parser) parseATSupplementalLogging(add bool, opts *nodes.List) error {
 			}
 		case p.cur.Type == kwGROUP:
 			p.advance()
-			if !add && p.atCutOff() {
-				return nil
-			}
 			if err := p.parseATName(); err != nil {
 				return err
 			}
@@ -275,9 +272,6 @@ func (p *Parser) parseATXMLTypeColumnProperties() error {
 	if p.atWord("XMLSCHEMA") || p.atWord("ELEMENT") {
 		if p.atWord("XMLSCHEMA") {
 			p.advance()
-			if p.atCutOff() {
-				return nil
-			}
 			// Oracle refuses a string here (ORA-02000 at XMLSCHEMA 's').
 			if err := p.parseATName(); err != nil {
 				return err

@@ -42,7 +42,7 @@ func checkDisallowDropObject(sql string, s *statement, r *reporter) {
 				}
 				name += "(" + strings.Join(args, ", ") + ")"
 			}
-			report(anchor(s, v, v.Loc), strings.ToLower(v.Kind.String()), name)
+			report(anchor(s, v, v.Loc), strings.ToLower(v.ObjectType()), name)
 		case *ast.DropDatabaseStmt:
 			report(anchor(s, v, v.Loc), "database", object(v.Name))
 		case *ast.DropSchemaStmt:

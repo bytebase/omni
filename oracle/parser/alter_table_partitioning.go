@@ -168,9 +168,6 @@ func (p *Parser) parseATModifyDefaultAttrs(cmd *nodes.AlterTableCmd) error {
 		if err := p.atExpect(kwPARTITION); err != nil {
 			return err
 		}
-		if p.atCutOff() {
-			return nil
-		}
 		name, err := p.parseATPartitionName()
 		if err != nil {
 			return err
@@ -179,12 +176,18 @@ func (p *Parser) parseATModifyDefaultAttrs(cmd *nodes.AlterTableCmd) error {
 		p.atOption(cmd.Options, start)
 	}
 	const allowed = atcSegmentCreation | atcReadOnly | atcIndexing | atcSegment |
-		atcCompression | atcInmemory | atcOverflow | atcStrictEnd
+		atcCompression | atcInmemory | atcOverflow
+	// Oracle needs an attribute to modify (ORA-14121 for MODIFY DEFAULT
+	// ATTRIBUTES alone).
+	attrStart := p.pos()
 	for {
 		if err := p.parseATClauses(allowed, cmd.Options); err != nil {
 			return err
 		}
 		if !(p.atWord("LOB") && p.peekNext().Type == '(') && !p.atWord("VARRAY") {
+			if p.pos() == attrStart {
+				return p.syntaxErrorAtCur()
+			}
 			return nil
 		}
 		start := p.pos()
@@ -243,8 +246,10 @@ func (p *Parser) parseATModifyPartition(cmd *nodes.AlterTableCmd) error {
 		p.atOption(cmd.Options, start)
 		return p.parseATClauses(atcDependentTables|atcIndexMaintenance|atcParallel, cmd.Options)
 	case p.atWord("COALESCE"):
+		// Oracle takes COALESCE alone as well, as it does at the top of
+		// ALTER TABLE for an index-organized table.
 		p.advance()
-		if p.atCutOff() {
+		if p.isStatementEnd() {
 			return nil
 		}
 		if err := p.atExpect(kwSUBPARTITION); err != nil {
@@ -270,14 +275,13 @@ func (p *Parser) parseATModifyPartition(cmd *nodes.AlterTableCmd) error {
 	if p.atWord("OVERFLOW") {
 		start := p.pos()
 		p.advance()
-		if !p.atCutOff() {
-			ok, err := p.parseATClause(atcPhysical|atcAllocate|atcDeallocate|atcShrink, nil)
-			if err != nil {
-				return err
-			}
-			if !ok {
-				return p.syntaxErrorAtCur()
-			}
+		// Oracle takes OVERFLOW alone as well.
+		ok, err := p.parseATClause(atcPhysical|atcAllocate|atcDeallocate|atcShrink, nil)
+		if err != nil {
+			return err
+		}
+		if !ok && !p.isStatementEnd() {
+			return p.syntaxErrorAtCur()
 		}
 		p.atOption(cmd.Options, start)
 	}
@@ -315,7 +319,9 @@ func (p *Parser) parseATModifySubpartition(cmd *nodes.AlterTableCmd) error {
 		return err
 	}
 	cmd.ColumnName = name
-	if p.atCutOff() {
+	if p.isStatementEnd() {
+		// Oracle takes MODIFY SUBPARTITION s alone, as it takes MODIFY
+		// PARTITION p with no partition_attributes.
 		return nil
 	}
 	start := p.pos()
@@ -375,7 +381,8 @@ func (p *Parser) parseATSetPartitioning(cmd *nodes.AlterTableCmd) error {
 	case p.atWord("PARTITIONING"):
 		cmd.Action = nodes.AT_SET_PARTITIONING
 		p.advance()
-		if p.atCutOff() {
+		// Oracle takes SET PARTITIONING alone as well.
+		if p.isStatementEnd() {
 			return nil
 		}
 		if !p.atWord("AUTOMATIC") && !p.atWord("MANUAL") {
@@ -430,6 +437,7 @@ func (p *Parser) parseATSetPartitioning(cmd *nodes.AlterTableCmd) error {
 //
 //	ADD PARTITION [ partition ] [ range_values_clause | list_values_clause ]
 //	    [ table_partition_description | partitioning_storage_clause ]
+//	    [ external_part_subpart_data_props ]
 //	    [ ( subpartition_desc [, ...] ) | hash_subparts_by_quantity ]
 //	    [ update_index_clauses ] [ parallel_clause ] [ read_only_clause ]
 //	    [ indexing_clause ]
@@ -442,7 +450,7 @@ func (p *Parser) parseATAddPartition(cmd *nodes.AlterTableCmd) error {
 	cmd.Action = nodes.AT_ADD_PARTITION
 	cmd.Subtype = "PARTITION"
 	p.advance() // ADD
-	const allowed = atcTablePartitionDescription | atcPartitioningStorage |
+	const allowed = atcTablePartitionDescription | atcPartitioningStorage | atcExternal |
 		atcIndexMaintenance | atcParallel
 	for {
 		p.advance() // PARTITION
@@ -508,9 +516,6 @@ func (p *Parser) parseATDropPartition(cmd *nodes.AlterTableCmd) error {
 		cmd.Action = nodes.AT_DROP_SUBPARTITION
 	}
 	p.advance() // PARTITION | SUBPARTITION
-	if p.atCutOff() {
-		return nil
-	}
 	if err := p.parseATPartitionOrKeyList(cmd); err != nil {
 		return err
 	}
@@ -532,9 +537,6 @@ func (p *Parser) parseATPartitionOrKeyList(cmd *nodes.AlterTableCmd) error {
 			return nil
 		}
 		p.advance()
-		if p.atCutOff() {
-			return nil
-		}
 	}
 }
 
@@ -585,17 +587,11 @@ func (p *Parser) parseATRenamePartition(cmd *nodes.AlterTableCmd) error {
 func (p *Parser) parseATTruncatePartition(cmd *nodes.AlterTableCmd) error {
 	p.advance() // TRUNCATE
 	cmd.Action = nodes.AT_TRUNCATE_PARTITION
-	if p.atCutOff() {
-		return nil
-	}
 	if p.cur.Type != kwPARTITION && p.cur.Type != kwSUBPARTITION {
 		return p.syntaxErrorAtCur()
 	}
 	cmd.Subtype = p.cur.Str
 	p.advance() // PARTITION | SUBPARTITION
-	if p.atCutOff() {
-		return nil
-	}
 	if err := p.parseATPartitionOrKeyList(cmd); err != nil {
 		return err
 	}
@@ -609,10 +605,8 @@ func (p *Parser) parseATTruncatePartition(cmd *nodes.AlterTableCmd) error {
 		} else {
 			p.advance()
 		}
-		if !p.atCutOff() {
-			if err := p.atExpectWord("STORAGE"); err != nil {
-				return err
-			}
+		if err := p.atExpectWord("STORAGE"); err != nil {
+			return err
 		}
 		p.atOption(cmd.Options, start)
 	}
@@ -817,9 +811,6 @@ func (p *Parser) parseATMergePartitions(cmd *nodes.AlterTableCmd) error {
 		cmd.Subtype = "SUBPARTITIONS"
 	}
 	p.advance() // PARTITIONS | SUBPARTITIONS
-	if p.atCutOff() {
-		return nil
-	}
 	start := p.pos()
 	if err := p.parseATPartitionOrKey(&cmd.ColumnName); err != nil {
 		return err
@@ -828,18 +819,12 @@ func (p *Parser) parseATMergePartitions(cmd *nodes.AlterTableCmd) error {
 	switch p.cur.Type {
 	case kwTO:
 		p.advance()
-		if p.atCutOff() {
-			return nil
-		}
 		if err := p.parseATPartitionOrKey(nil); err != nil {
 			return err
 		}
 	case ',':
 		for p.cur.Type == ',' {
 			p.advance()
-			if p.atCutOff() {
-				return nil
-			}
 			if err := p.parseATPartitionOrKey(nil); err != nil {
 				return err
 			}
@@ -849,9 +834,6 @@ func (p *Parser) parseATMergePartitions(cmd *nodes.AlterTableCmd) error {
 	}
 	if p.cur.Type == kwINTO {
 		p.advance()
-		if p.atCutOff() {
-			return nil
-		}
 		if sub {
 			err = p.parseATSubpartitionSpec(nil)
 		} else {
@@ -880,9 +862,6 @@ func (p *Parser) parseATExchangePartition(cmd *nodes.AlterTableCmd) error {
 	cmd.Action = nodes.AT_EXCHANGE_PARTITION
 	cmd.Subtype = p.cur.Str
 	p.advance() // PARTITION | SUBPARTITION
-	if p.atCutOff() {
-		return nil
-	}
 	name, err := p.parseATPartitionName()
 	if err != nil {
 		return err

@@ -96,6 +96,8 @@ func (w *writer) writeNode(node ast.Node) error {
 	// --- DDL: drop / undrop ---
 	case *ast.DropStmt:
 		return w.writeDropStmt(n)
+	case *ast.ObjectStmt:
+		return w.writeObjectStmt(n)
 	case *ast.UndropStmt:
 		return w.writeUndropStmt(n)
 

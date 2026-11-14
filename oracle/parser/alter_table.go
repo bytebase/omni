@@ -46,6 +46,10 @@ func (p *Parser) parseAlterTableStmt(start int) (*nodes.AlterTableStmt, error) {
 		return nil, err
 	}
 
+	// ALTER TABLE t alone is refused (ORA-02210).
+	if p.isStatementEnd() {
+		return nil, p.syntaxErrorAtCur()
+	}
 	enableDisable := false
 	for !p.isStatementEnd() {
 		tok := p.cur
@@ -615,11 +619,6 @@ func (p *Parser) parseAlterTableModifyConstraint(start int) (*nodes.AlterTableCm
 	switch p.cur.Type {
 	case kwCONSTRAINT, kwCONSTRAINTS:
 		p.advance()
-		if p.atCutOff() {
-			cmd.Constraint = tc
-			cmd.Loc = nodes.Loc{Start: start, End: p.prev.End}
-			return cmd, nil
-		}
 		name, err := p.parseATNameString()
 		if err != nil {
 			return nil, err
@@ -684,30 +683,27 @@ func (p *Parser) parseAlterTableModifyOpaqueType(start int) (*nodes.AlterTableCm
 	}
 	optStart := p.pos()
 	if p.cur.Type == kwAS {
-		// STORE AS cut off (see atCutOff).
+		// Oracle refuses what follows the page's STORE AS.
 		p.advance()
-		if !p.atCutOff() {
-			return nil, p.syntaxErrorAtCur()
-		}
-	} else {
-		if err := p.atExpect('('); err != nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if err := p.atExpect('('); err != nil {
+		return nil, err
+	}
+	for {
+		if err := p.parseATQualifiedName(); err != nil {
 			return nil, err
 		}
-		for {
-			if err := p.parseATQualifiedName(); err != nil {
-				return nil, err
-			}
-			if p.cur.Type != ',' {
-				break
-			}
-			p.advance()
+		if p.cur.Type != ',' {
+			break
 		}
-		if err := p.atExpect(')'); err != nil {
-			return nil, err
-		}
-		if err := p.atExpectWord("UNPACKED"); err != nil {
-			return nil, err
-		}
+		p.advance()
+	}
+	if err := p.atExpect(')'); err != nil {
+		return nil, err
+	}
+	if err := p.atExpectWord("UNPACKED"); err != nil {
+		return nil, err
 	}
 	p.atOption(cmd.Options, optStart)
 	cmd.Loc = nodes.Loc{Start: start, End: p.prev.End}
@@ -757,11 +753,9 @@ func (p *Parser) parseAlterTableDrop() (*nodes.AlterTableCmd, error) {
 	case p.cur.Type == kwCONSTRAINT, p.cur.Type == kwCONSTRAINTS:
 		p.advance() // consume CONSTRAINT
 		name := ""
-		if !p.atCutOff() {
-			var err error
-			if name, err = p.parseATNameString(); err != nil {
-				return nil, err
-			}
+		var err error
+		if name, err = p.parseATNameString(); err != nil {
+			return nil, err
 		}
 		if p.cur.Type == kwCASCADE {
 			p.advance()
@@ -928,11 +922,11 @@ func (p *Parser) parseATCheckpoint() error {
 		return nil
 	}
 	p.advance()
-	if p.atCutOff() {
+	// Oracle takes CHECKPOINT without its integer as well.
+	if p.cur.Type != tokICONST {
 		return nil
 	}
-	err := p.parseATInteger()
-	return err
+	return p.parseATInteger()
 }
 
 // parseATKeepDropIndex reads [ { KEEP | DROP } INDEX ].
@@ -1131,11 +1125,9 @@ func (p *Parser) parseAlterTableEnableDisable() (*nodes.AlterTableCmd, error) {
 	case kwCONSTRAINT, kwCONSTRAINTS:
 		constraintType = "CONSTRAINT"
 		p.advance()
-		if !p.atCutOff() {
-			var err error
-			if name, err = p.parseATNameString(); err != nil {
-				return nil, err
-			}
+		var err error
+		if name, err = p.parseATNameString(); err != nil {
+			return nil, err
 		}
 	default:
 		return nil, p.syntaxErrorAtCur()
@@ -1269,18 +1261,17 @@ func (p *Parser) parseAlterTableMove() (*nodes.AlterTableCmd, error) {
 
 // parseATIndexOrgOverflow reads index_org_overflow_clause:
 // [ INCLUDING column_name ] OVERFLOW [ segment_attributes_clause ].
+//
+// Oracle takes INCLUDING column_name without OVERFLOW as well.
 func (p *Parser) parseATIndexOrgOverflow() error {
 	if p.atWord("INCLUDING") {
 		p.advance()
-		if p.atCutOff() {
-			return nil
-		}
 		if err := p.parseATName(); err != nil {
 			return err
 		}
-	}
-	if p.atCutOff() {
-		return nil
+		if !p.atWord("OVERFLOW") {
+			return nil
+		}
 	}
 	if err := p.atExpectWord("OVERFLOW"); err != nil {
 		return err
@@ -1461,7 +1452,7 @@ func (p *Parser) parseAlterTableCompression() (*nodes.AlterTableCmd, error) {
 //	{ CACHE | NOCACHE }
 //	RESULT_CACHE ( MODE { DEFAULT | FORCE } )
 //	MEMOPTIMIZE FOR { READ | WRITE }
-//	upgrade_table_clause: UPGRADE [ NOT ] INCLUDING DATA [ column_properties ]
+//	upgrade_table_clause: UPGRADE [ [ NOT ] INCLUDING DATA [ column_properties ] ]
 //	annotations_clause:   ANNOTATIONS ( ... )
 //	records_per_block_clause: { MINIMIZE | NOMINIMIZE } RECORDS_PER_BLOCK
 //
@@ -1501,8 +1492,9 @@ func (p *Parser) parseAlterTableProperty() (*nodes.AlterTableCmd, error) {
 		}
 		p.advance()
 	case p.atWord("UPGRADE"):
+		// Oracle takes UPGRADE alone as well.
 		p.advance()
-		if !p.atCutOff() {
+		if p.cur.Type == kwNOT || p.atWord("INCLUDING") {
 			if p.cur.Type == kwNOT {
 				p.advance()
 			}
@@ -1582,10 +1574,8 @@ func (p *Parser) parseAlterTablePhysicalAttr() (*nodes.AlterTableCmd, error) {
 	propName := p.cur.Str
 	if p.atWord("PCTTHRESHOLD") {
 		p.advance()
-		if !p.atCutOff() {
-			if err := p.parseATInteger(); err != nil {
-				return nil, err
-			}
+		if err := p.parseATInteger(); err != nil {
+			return nil, err
 		}
 	} else if p.atWord("STORAGE") {
 		// ALTER TABLE cannot change INITIAL (ORA-02203).
@@ -1626,22 +1616,25 @@ func (p *Parser) parseAlterTableIOT() (*nodes.AlterTableCmd, error) {
 	propName := p.cur.Str
 	options := &nodes.List{}
 	switch {
-	case p.atWord("COALESCE"), p.atWord("NOMAPPING"):
+	case p.atWord("COALESCE"):
 		p.advance()
+	case p.atWord("NOMAPPING"):
+		// Oracle reads NOMAPPING here and refuses whatever follows it, the
+		// end of the statement included (ORA-01735); MOVE takes it.
+		p.advance()
+		return nil, p.syntaxErrorAtCur()
 	case p.atWord("MAPPING"):
 		p.advance()
 		if err := p.atExpect(kwTABLE); err != nil {
 			return nil, err
 		}
 		optStart := p.pos()
-		if !p.atCutOff() {
-			ok, err := p.parseATClause(atcAllocate|atcDeallocate, nil)
-			if err != nil {
-				return nil, err
-			}
-			if !ok {
-				return nil, p.syntaxErrorAtCur()
-			}
+		ok, err := p.parseATClause(atcAllocate|atcDeallocate, nil)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			return nil, p.syntaxErrorAtCur()
 		}
 		p.atOption(options, optStart)
 	case p.atWord("INCLUDING"):
@@ -1652,7 +1645,8 @@ func (p *Parser) parseAlterTableIOT() (*nodes.AlterTableCmd, error) {
 		p.advance() // OVERFLOW
 		optStart := p.pos()
 		switch {
-		case p.atCutOff():
+		case p.isStatementEnd():
+			// Oracle takes OVERFLOW alone as well.
 		case p.isATAllocateExtentStart():
 			if err := p.parseATAllocateExtent(); err != nil {
 				return nil, err
@@ -1705,15 +1699,9 @@ func (p *Parser) parseAlterTableExternal() (*nodes.AlterTableCmd, error) {
 	start := p.pos()
 	propName := p.cur.Str
 	switch {
-	case p.cur.Type == kwDEFAULT:
-		p.advance()
-		if err := p.atExpectWord("DIRECTORY"); err != nil {
+	case p.cur.Type == kwDEFAULT, p.atWord("LOCATION"):
+		if err := p.parseATExternalDataProp(); err != nil {
 			return nil, err
-		}
-		if !p.atCutOff() {
-			if err := p.parseATName(); err != nil {
-				return nil, err
-			}
 		}
 	case p.atWord("ACCESS"):
 		p.advance()
@@ -1739,31 +1727,6 @@ func (p *Parser) parseAlterTableExternal() (*nodes.AlterTableCmd, error) {
 			if q == nil {
 				return nil, p.syntaxErrorAtCur()
 			}
-		}
-	case p.atWord("LOCATION"):
-		p.advance()
-		if err := p.atExpect('('); err != nil {
-			return nil, err
-		}
-		for {
-			if p.cur.Type != tokSCONST {
-				if err := p.parseATName(); err != nil {
-					return nil, err
-				}
-				if err := p.atExpect(':'); err != nil {
-					return nil, err
-				}
-			}
-			if err := p.atExpect(tokSCONST); err != nil {
-				return nil, err
-			}
-			if p.cur.Type != ',' {
-				break
-			}
-			p.advance()
-		}
-		if err := p.atExpect(')'); err != nil {
-			return nil, err
 		}
 	case p.atWord("REJECT"):
 		p.advance()

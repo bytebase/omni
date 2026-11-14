@@ -57,6 +57,10 @@ func (p *Parser) parseConstant() (ast.ExprNode, error) {
 		p.advance()
 		return &ast.CodeBlock{Val: tok.Str, Loc: ast.Loc{Start: tok.Loc, End: tok.End}}, nil
 
+	case tokDURATIONLIT:
+		p.advance()
+		return &ast.DurationLit{Val: tok.Str, Loc: ast.Loc{Start: tok.Loc, End: tok.End}}, nil
+
 	case tokMINUS:
 		start := tok.Loc
 		p.advance()
@@ -74,6 +78,9 @@ func (p *Parser) parseConstant() (ast.ExprNode, error) {
 		case tokNAN:
 			p.advance()
 			return &ast.FloatLit{Val: "-NaN", Loc: ast.Loc{Start: start, End: next.End}}, nil
+		case tokDURATIONLIT:
+			p.advance()
+			return &ast.DurationLit{Val: "-" + next.Str, Loc: ast.Loc{Start: start, End: next.End}}, nil
 		default:
 			return nil, p.errorf("expected number after '-', got %s", p.tokenDesc())
 		}
