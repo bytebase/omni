@@ -270,14 +270,14 @@ reject@30	reject@30	engine	statement/alterTablespaceSet	ALTER TABLESPACE SET a D
 reject@0	reject@0	engine	statement/alterTablespaceSet!drop-1	TABLESPACE SET a DEFAULT
 reject@6	reject@6	engine	statement/alterTablespaceSet!drop-2	ALTER SET a DEFAULT
 reject@21	reject@21	engine	statement/alterTablespaceSet!drop-4	ALTER TABLESPACE SET DEFAULT
-accept	reject@22	engine	statement/alterTablespaceSet!drop-5	ALTER TABLESPACE SET a
+reject@22	reject@22	engine	statement/alterTablespaceSet!drop-5	ALTER TABLESPACE SET a
 reject@31	reject@31	engine	statement/alterTablespaceSet!insert	ALTER TABLESPACE SET a DEFAULT zzz
 reject@0	reject@0	engine	statement/alterTablespaceSet!swap	ALTERNATE TABLESPACE SET a DEFAULT
 reject@26	reject@26	engine	statement/alterTablespace	ALTER TABLESPACE a DEFAULT
 reject@0	reject@0	engine	statement/alterTablespace!drop-1	TABLESPACE a DEFAULT
 reject@6	reject@6	engine	statement/alterTablespace!drop-2	ALTER a DEFAULT
 reject@17	reject@17	engine	statement/alterTablespace!drop-3	ALTER TABLESPACE DEFAULT
-accept	reject@18	engine	statement/alterTablespace!drop-4	ALTER TABLESPACE a
+reject@18	reject@18	engine	statement/alterTablespace!drop-4	ALTER TABLESPACE a
 reject@27	reject@27	engine	statement/alterTablespace!insert	ALTER TABLESPACE a DEFAULT zzz
 reject@0	reject@0	engine	statement/alterTablespace!swap	ALTERNATE TABLESPACE a DEFAULT
 accept	accept	engine	statement/alterTrigger	ALTER TRIGGER a COMPILE
@@ -696,12 +696,12 @@ reject@0	reject@0	engine	statement/createTable!swap	CREATE_FILE_DEST TABLE a
 accept	accept	engine	statement/createTablespaceSet	CREATE TABLESPACE SET a
 reject@0	reject@0	engine	statement/createTablespaceSet!drop-1	TABLESPACE SET a
 reject@7	reject@7	engine	statement/createTablespaceSet!drop-2	CREATE SET a
-accept	reject@21	engine	statement/createTablespaceSet!drop-4	CREATE TABLESPACE SET
+reject@21	reject@21	engine	statement/createTablespaceSet!drop-4	CREATE TABLESPACE SET
 reject@24	reject@24	engine	statement/createTablespaceSet!insert	CREATE TABLESPACE SET a zzz
 reject@0	reject@0	engine	statement/createTablespaceSet!swap	CREATE_FILE_DEST TABLESPACE SET a
 accept	accept	engine	statement/createTablespace	CREATE TABLESPACE a
 reject@0	reject@0	engine	statement/createTablespace!drop-1	TABLESPACE a
-accept	reject@17	engine	statement/createTablespace!drop-3	CREATE TABLESPACE
+reject@17	reject@17	engine	statement/createTablespace!drop-3	CREATE TABLESPACE
 reject@20	reject@20	engine	statement/createTablespace!insert	CREATE TABLESPACE a zzz
 reject@0	reject@0	engine	statement/createTablespace!swap	CREATE_FILE_DEST TABLESPACE a
 accept	accept	engine	statement/createTrigger	CREATE TRIGGER a BEFORE INSERT ON t BEGIN NULL; END;
@@ -950,7 +950,7 @@ accept	accept	engine	statement/dropTablespaceSet!drop-4	DROP TABLESPACE SET
 reject@22	reject@20	engine	statement/dropTablespaceSet!insert	DROP TABLESPACE SET a zzz
 reject@0	reject@0	engine	statement/dropTablespaceSet!swap	DUALITY TABLESPACE SET a
 accept	accept	engine	statement/dropTablespace	DROP TABLESPACE a
-accept	reject@15	engine	statement/dropTablespace!drop-3	DROP TABLESPACE
+reject@15	reject@15	engine	statement/dropTablespace!drop-3	DROP TABLESPACE
 reject@18	reject@18	engine	statement/dropTablespace!insert	DROP TABLESPACE a zzz
 reject@0	reject@0	engine	statement/dropTablespace!swap	DUALITY TABLESPACE a
 accept	accept	engine	statement/dropTrigger	DROP TRIGGER a
@@ -18961,7 +18961,7 @@ reject@23	reject@23	engine	alterTablespaceSet_alter_tablespace_attrs/(alterTable
 reject@30	reject@30	engine	alterTablespaceSet_alter_tablespace_attrs(alterTablespaceSet_default_tablespac~c6662f50)/alterTablespaceSet_default_tablespace_params	ALTER TABLESPACE SET a DEFAULT
 accept	accept	engine	alterTablespaceSet_alter_tablespace_attrs(alterTablespaceSet_default_tablespac~c6662f50)/RESIZE_alterTablespaceSet_size_clause	ALTER TABLESPACE SET a RESIZE 1
 reject@23	reject@23	engine	alterTablespaceSet_alter_tablespace_attrs(alterTablespaceSet_default_tablespac~c6662f50)/RESIZE_alterTablespaceSet_size_clause!drop-1	ALTER TABLESPACE SET a 1
-accept	reject@29	engine	alterTablespaceSet_alter_tablespace_attrs(alterTablespaceSet_default_tablespac~c6662f50)/RESIZE_alterTablespaceSet_size_clause!drop-2	ALTER TABLESPACE SET a RESIZE
+reject@29	reject@29	engine	alterTablespaceSet_alter_tablespace_attrs(alterTablespaceSet_default_tablespac~c6662f50)/RESIZE_alterTablespaceSet_size_clause!drop-2	ALTER TABLESPACE SET a RESIZE
 reject@32	reject@32	engine	alterTablespaceSet_alter_tablespace_attrs(alterTablespaceSet_default_tablespac~c6662f50)/RESIZE_alterTablespaceSet_size_clause!insert	ALTER TABLESPACE SET a RESIZE 1 zzz
 reject@23	reject@23	engine	alterTablespaceSet_alter_tablespace_attrs(alterTablespaceSet_default_tablespac~c6662f50)/RESIZE_alterTablespaceSet_size_clause!swap	ALTER TABLESPACE SET a RESOLVE 1
 accept	accept	engine	alterTablespaceSet_alter_tablespace_attrs(alterTablespaceSet_default_tablespac~c6662f50)/COALESCE	ALTER TABLESPACE SET a COALESCE
@@ -18970,20 +18970,20 @@ reject@23	reject@23	engine	alterTablespaceSet_alter_tablespace_attrs(alterTables
 accept	accept	engine	alterTablespaceSet_alter_tablespace_attrs(alterTablespaceSet_default_tablespac~c6662f50)/RENAME_TO_ID	ALTER TABLESPACE SET a RENAME TO a
 reject@23	reject@23	engine	alterTablespaceSet_alter_tablespace_attrs(alterTablespaceSet_default_tablespac~c6662f50)/RENAME_TO_ID!drop-1	ALTER TABLESPACE SET a TO a
 reject@30	reject@30	engine	alterTablespaceSet_alter_tablespace_attrs(alterTablespaceSet_default_tablespac~c6662f50)/RENAME_TO_ID!drop-2	ALTER TABLESPACE SET a RENAME a
-accept	reject@32	engine	alterTablespaceSet_alter_tablespace_attrs(alterTablespaceSet_default_tablespac~c6662f50)/RENAME_TO_ID!drop-3	ALTER TABLESPACE SET a RENAME TO
+reject@32	reject@32	engine	alterTablespaceSet_alter_tablespace_attrs(alterTablespaceSet_default_tablespac~c6662f50)/RENAME_TO_ID!drop-3	ALTER TABLESPACE SET a RENAME TO
 reject@35	reject@35	engine	alterTablespaceSet_alter_tablespace_attrs(alterTablespaceSet_default_tablespac~c6662f50)/RENAME_TO_ID!insert	ALTER TABLESPACE SET a RENAME TO a zzz
 reject@23	reject@23	engine	alterTablespaceSet_alter_tablespace_attrs(alterTablespaceSet_default_tablespac~c6662f50)/RENAME_TO_ID!swap	ALTER TABLESPACE SET a REPAIR TO a
 accept	accept	engine	alterTablespaceSet_alter_tablespace_attrs(alterTablespaceSet_default_tablespac~c6662f50)/BEGIN_BACKUP	ALTER TABLESPACE SET a BEGIN BACKUP
 reject@23	reject@23	engine	alterTablespaceSet_alter_tablespace_attrs(alterTablespaceSet_default_tablespac~c6662f50)/BEGIN_BACKUP!drop-1	ALTER TABLESPACE SET a BACKUP
-accept	reject@28	engine	alterTablespaceSet_alter_tablespace_attrs(alterTablespaceSet_default_tablespac~c6662f50)/BEGIN_BACKUP!drop-2	ALTER TABLESPACE SET a BEGIN
+reject@28	reject@28	engine	alterTablespaceSet_alter_tablespace_attrs(alterTablespaceSet_default_tablespac~c6662f50)/BEGIN_BACKUP!drop-2	ALTER TABLESPACE SET a BEGIN
 reject@36	reject@36	engine	alterTablespaceSet_alter_tablespace_attrs(alterTablespaceSet_default_tablespac~c6662f50)/BEGIN_BACKUP!insert	ALTER TABLESPACE SET a BEGIN BACKUP zzz
 reject@23	reject@23	engine	alterTablespaceSet_alter_tablespace_attrs(alterTablespaceSet_default_tablespac~c6662f50)/BEGIN_BACKUP!swap	ALTER TABLESPACE SET a BEGINNING BACKUP
 accept	accept	engine	alterTablespaceSet_alter_tablespace_attrs(alterTablespaceSet_default_tablespac~c6662f50)/END_BACKUP	ALTER TABLESPACE SET a END BACKUP
-accept	reject@26	engine	alterTablespaceSet_alter_tablespace_attrs(alterTablespaceSet_default_tablespac~c6662f50)/END_BACKUP!drop-2	ALTER TABLESPACE SET a END
+reject@26	reject@26	engine	alterTablespaceSet_alter_tablespace_attrs(alterTablespaceSet_default_tablespac~c6662f50)/END_BACKUP!drop-2	ALTER TABLESPACE SET a END
 reject@34	reject@34	engine	alterTablespaceSet_alter_tablespace_attrs(alterTablespaceSet_default_tablespac~c6662f50)/END_BACKUP!insert	ALTER TABLESPACE SET a END BACKUP zzz
 reject@23	reject@23	engine	alterTablespaceSet_alter_tablespace_attrs(alterTablespaceSet_default_tablespac~c6662f50)/END_BACKUP!swap	ALTER TABLESPACE SET a ENFORCED BACKUP
 accept	accept	engine	alterTablespaceSet_alter_tablespace_attrs(alterTablespaceSet_default_tablespac~c6662f50)/alterTablespaceSet_datafile_tempfile_clauses	ALTER TABLESPACE SET a ADD DATAFILE
-accept	reject@31	engine	alterTablespaceSet_alter_tablespace_attrs(alterTablespaceSet_default_tablespac~c6662f50)/alterTablespaceSet_datafile_tempfile_clauses!drop-1	ALTER TABLESPACE SET a DATAFILE
+reject@31	reject@31	engine	alterTablespaceSet_alter_tablespace_attrs(alterTablespaceSet_default_tablespac~c6662f50)/alterTablespaceSet_datafile_tempfile_clauses!drop-1	ALTER TABLESPACE SET a DATAFILE
 reject@26	reject@26	engine	alterTablespaceSet_alter_tablespace_attrs(alterTablespaceSet_default_tablespac~c6662f50)/alterTablespaceSet_datafile_tempfile_clauses!drop-2	ALTER TABLESPACE SET a ADD
 reject@36	reject@36	engine	alterTablespaceSet_alter_tablespace_attrs(alterTablespaceSet_default_tablespac~c6662f50)/alterTablespaceSet_datafile_tempfile_clauses!insert	ALTER TABLESPACE SET a ADD DATAFILE zzz
 reject@23	reject@23	engine	alterTablespaceSet_alter_tablespace_attrs(alterTablespaceSet_default_tablespac~c6662f50)/alterTablespaceSet_datafile_tempfile_clauses!swap	ALTER TABLESPACE SET a ADMIN DATAFILE
@@ -18995,11 +18995,11 @@ reject@30	reject@30	engine	alterTablespaceSet_alter_tablespace_attrs(alterTables
 reject@23	reject@23	engine	alterTablespaceSet_alter_tablespace_attrs(alterTablespaceSet_default_tablespac~c6662f50)/alterTablespaceSet_tablespace_state_clauses!swap	ALTER TABLESPACE SET a ONLY
 accept	accept	engine	alterTablespaceSet_alter_tablespace_attrs(alterTablespaceSet_default_tablespac~c6662f50)/alterTablespaceSet_autoextend_clause	ALTER TABLESPACE SET a AUTOEXTEND OFF
 reject@23	reject@23	engine	alterTablespaceSet_alter_tablespace_attrs(alterTablespaceSet_default_tablespac~c6662f50)/alterTablespaceSet_autoextend_clause!drop-1	ALTER TABLESPACE SET a OFF
-accept	reject@33	engine	alterTablespaceSet_alter_tablespace_attrs(alterTablespaceSet_default_tablespac~c6662f50)/alterTablespaceSet_autoextend_clause!drop-2	ALTER TABLESPACE SET a AUTOEXTEND
+reject@33	reject@33	engine	alterTablespaceSet_alter_tablespace_attrs(alterTablespaceSet_default_tablespac~c6662f50)/alterTablespaceSet_autoextend_clause!drop-2	ALTER TABLESPACE SET a AUTOEXTEND
 reject@38	reject@38	engine	alterTablespaceSet_alter_tablespace_attrs(alterTablespaceSet_default_tablespac~c6662f50)/alterTablespaceSet_autoextend_clause!insert	ALTER TABLESPACE SET a AUTOEXTEND OFF zzz
 reject@23	reject@23	engine	alterTablespaceSet_alter_tablespace_attrs(alterTablespaceSet_default_tablespac~c6662f50)/alterTablespaceSet_autoextend_clause!swap	ALTER TABLESPACE SET a AUTOMATIC OFF
-accept	reject@40	engine	alterTablespaceSet_alter_tablespace_attrs(alterTablespaceSet_default_tablespac~c6662f50)/alterTablespaceSet_alter_tablespace_encryption	ALTER TABLESPACE SET a ENCRYPTION ONLINE
-accept	reject@33	engine	alterTablespaceSet_alter_tablespace_attrs(alterTablespaceSet_default_tablespac~c6662f50)/alterTablespaceSet_alter_tablespace_encryption!drop-2	ALTER TABLESPACE SET a ENCRYPTION
+reject@40	reject@40	engine	alterTablespaceSet_alter_tablespace_attrs(alterTablespaceSet_default_tablespac~c6662f50)/alterTablespaceSet_alter_tablespace_encryption	ALTER TABLESPACE SET a ENCRYPTION ONLINE
+reject@33	reject@33	engine	alterTablespaceSet_alter_tablespace_attrs(alterTablespaceSet_default_tablespac~c6662f50)/alterTablespaceSet_alter_tablespace_encryption!drop-2	ALTER TABLESPACE SET a ENCRYPTION
 reject@41	reject@41	engine	alterTablespaceSet_alter_tablespace_attrs(alterTablespaceSet_default_tablespac~c6662f50)/alterTablespaceSet_alter_tablespace_encryption!insert	ALTER TABLESPACE SET a ENCRYPTION ONLINE zzz
 reject@27	reject@27	engine	alterTablespaceSet_alter_tablespace_attrs(alterTablespaceSet_default_tablespac~c6662f50)/alterTablespaceSet_alter_tablespace_encryption!swap	ALTER TABLESPACE SET a END ONLINE
 accept	accept	engine	alterTablespaceSet_alter_tablespace_attrs(alterTablespaceSet_default_tablespac~c6662f50)/alterTablespaceSet_lost_write_protection	ALTER TABLESPACE SET a ENABLE LOST WRITE PROTECTION
@@ -19067,7 +19067,7 @@ reject@32	reject@32	engine	alterTablespaceSet_datafile_tempfile_clauses(ADD_(DAT
 reject@30	reject@30	engine	alterTablespaceSet_datafile_tempfile_clauses(ADD_(DATAFILE|TEMPFILE)_(alterTables~7ac5164c)/RENAME_DATAFILE_STRING_(,_STRING)*_TO_STRING_(,_STRING)*!drop-2	ALTER TABLESPACE SET a RENAME 's' TO 's'
 reject@39	reject@39	engine	alterTablespaceSet_datafile_tempfile_clauses(ADD_(DATAFILE|TEMPFILE)_(alterTables~7ac5164c)/RENAME_DATAFILE_STRING_(,_STRING)*_TO_STRING_(,_STRING)*!drop-3	ALTER TABLESPACE SET a RENAME DATAFILE TO 's'
 reject@43	reject@43	engine	alterTablespaceSet_datafile_tempfile_clauses(ADD_(DATAFILE|TEMPFILE)_(alterTables~7ac5164c)/RENAME_DATAFILE_STRING_(,_STRING)*_TO_STRING_(,_STRING)*!drop-4	ALTER TABLESPACE SET a RENAME DATAFILE 's' 's'
-accept	reject@45	engine	alterTablespaceSet_datafile_tempfile_clauses(ADD_(DATAFILE|TEMPFILE)_(alterTables~7ac5164c)/RENAME_DATAFILE_STRING_(,_STRING)*_TO_STRING_(,_STRING)*!drop-5	ALTER TABLESPACE SET a RENAME DATAFILE 's' TO
+reject@45	reject@45	engine	alterTablespaceSet_datafile_tempfile_clauses(ADD_(DATAFILE|TEMPFILE)_(alterTables~7ac5164c)/RENAME_DATAFILE_STRING_(,_STRING)*_TO_STRING_(,_STRING)*!drop-5	ALTER TABLESPACE SET a RENAME DATAFILE 's' TO
 reject@50	reject@50	engine	alterTablespaceSet_datafile_tempfile_clauses(ADD_(DATAFILE|TEMPFILE)_(alterTables~7ac5164c)/RENAME_DATAFILE_STRING_(,_STRING)*_TO_STRING_(,_STRING)*!insert	ALTER TABLESPACE SET a RENAME DATAFILE 's' TO 's' zzz
 reject@23	reject@23	engine	alterTablespaceSet_datafile_tempfile_clauses(ADD_(DATAFILE|TEMPFILE)_(alterTables~7ac5164c)/RENAME_DATAFILE_STRING_(,_STRING)*_TO_STRING_(,_STRING)*!swap	ALTER TABLESPACE SET a REPAIR DATAFILE 's' TO 's'
 accept	accept	engine	alterTablespaceSet_datafile_tempfile_clauses(ADD_(DATAFILE|TEMPFILE)_(alterTables~7ac5164c)/(DATAFILE|TEMPFILE)_(ONLINE|OFFLINE)	ALTER TABLESPACE SET a DATAFILE ONLINE
@@ -19075,7 +19075,7 @@ reject@39	reject@39	engine	alterTablespaceSet_datafile_tempfile_clauses(ADD_(DAT
 reject@23	reject@23	engine	alterTablespaceSet_datafile_tempfile_clauses(ADD_(DATAFILE|TEMPFILE)_(alterTables~7ac5164c)/(DATAFILE|TEMPFILE)_(ONLINE|OFFLINE)!swap	ALTER TABLESPACE SET a DATAFILES ONLINE
 accept	accept	engine	alterTablespaceSet_datafile_tempfile_clauses(DATAFILE|TEMPFILE)/DATAFILE	ALTER TABLESPACE SET a ADD DATAFILE
 reject@27	reject@27	engine	alterTablespaceSet_datafile_tempfile_clauses(DATAFILE|TEMPFILE)/DATAFILE!swap	ALTER TABLESPACE SET a ADD DATAFILES
-accept	reject@35	engine	alterTablespaceSet_datafile_tempfile_clauses(DATAFILE|TEMPFILE)/TEMPFILE	ALTER TABLESPACE SET a ADD TEMPFILE
+reject@35	reject@35	engine	alterTablespaceSet_datafile_tempfile_clauses(DATAFILE|TEMPFILE)/TEMPFILE	ALTER TABLESPACE SET a ADD TEMPFILE
 reject@36	reject@36	engine	alterTablespaceSet_datafile_tempfile_clauses(DATAFILE|TEMPFILE)/TEMPFILE!insert	ALTER TABLESPACE SET a ADD TEMPFILE zzz
 reject@27	reject@27	engine	alterTablespaceSet_datafile_tempfile_clauses(DATAFILE|TEMPFILE)/TEMPFILE!swap	ALTER TABLESPACE SET a ADD TEMPLATE
 accept	accept	engine	alterTablespaceSet_datafile_tempfile_clauses(alterTablespaceSet_file_specificatio~8f3323eb)*/%empty	ALTER TABLESPACE SET a ADD DATAFILE
@@ -19089,7 +19089,7 @@ reject@39	reject@37	engine	alterTablespaceSet_datafile_tempfile_clauses(STRING|N
 accept	accept	engine	alterTablespaceSet_datafile_tempfile_clauses(KEEP_alterTablespaceSet_size_clause)?/%empty	ALTER TABLESPACE SET a SHRINK TEMPFILE 's'
 accept	accept	engine	alterTablespaceSet_datafile_tempfile_clauses(KEEP_alterTablespaceSet_size_clause)?/KEEP_alterTablespaceSet_size_clause	ALTER TABLESPACE SET a SHRINK TEMPFILE 's' KEEP 1
 reject@43	reject@43	engine	alterTablespaceSet_datafile_tempfile_clauses(KEEP_alterTablespaceSet_size_clause)?/KEEP_alterTablespaceSet_size_clause!drop-1	ALTER TABLESPACE SET a SHRINK TEMPFILE 's' 1
-accept	reject@47	engine	alterTablespaceSet_datafile_tempfile_clauses(KEEP_alterTablespaceSet_size_clause)?/KEEP_alterTablespaceSet_size_clause!drop-2	ALTER TABLESPACE SET a SHRINK TEMPFILE 's' KEEP
+reject@47	reject@47	engine	alterTablespaceSet_datafile_tempfile_clauses(KEEP_alterTablespaceSet_size_clause)?/KEEP_alterTablespaceSet_size_clause!drop-2	ALTER TABLESPACE SET a SHRINK TEMPFILE 's' KEEP
 reject@50	reject@50	engine	alterTablespaceSet_datafile_tempfile_clauses(KEEP_alterTablespaceSet_size_clause)?/KEEP_alterTablespaceSet_size_clause!insert	ALTER TABLESPACE SET a SHRINK TEMPFILE 's' KEEP 1 zzz
 reject@43	reject@43	engine	alterTablespaceSet_datafile_tempfile_clauses(KEEP_alterTablespaceSet_size_clause)?/KEEP_alterTablespaceSet_size_clause!swap	ALTER TABLESPACE SET a SHRINK TEMPFILE 's' KEEP_DUPLICATES 1
 accept	accept	engine	alterTablespaceSet_datafile_tempfile_clauses(,_STRING)*/%empty	ALTER TABLESPACE SET a RENAME DATAFILE 's' TO 's'
@@ -19107,7 +19107,7 @@ reject@32	reject@32	engine	alterTablespaceSet_datafile_tempfile_clauses(ONLINE|O
 accept	accept	engine	alterTablespaceSet_tablespace_logging_clauses/(alterTablespaceSet_logging_clause|NO~dc1199db)	ALTER TABLESPACE SET a LOGGING
 accept	accept	engine	alterTablespaceSet_tablespace_logging_clauses(alterTablespaceSet_logging_clause|NO~dc1199db)/alterTablespaceSet_logging_clause	ALTER TABLESPACE SET a LOGGING
 accept	accept	engine	alterTablespaceSet_tablespace_logging_clauses(alterTablespaceSet_logging_clause|NO~dc1199db)/(NO)?_FORCE_LOGGING	ALTER TABLESPACE SET a FORCE LOGGING
-accept	reject@28	engine	alterTablespaceSet_tablespace_logging_clauses(alterTablespaceSet_logging_clause|NO~dc1199db)/(NO)?_FORCE_LOGGING!drop-2	ALTER TABLESPACE SET a FORCE
+reject@28	reject@28	engine	alterTablespaceSet_tablespace_logging_clauses(alterTablespaceSet_logging_clause|NO~dc1199db)/(NO)?_FORCE_LOGGING!drop-2	ALTER TABLESPACE SET a FORCE
 reject@37	reject@37	engine	alterTablespaceSet_tablespace_logging_clauses(alterTablespaceSet_logging_clause|NO~dc1199db)/(NO)?_FORCE_LOGGING!insert	ALTER TABLESPACE SET a FORCE LOGGING zzz
 reject@23	reject@23	engine	alterTablespaceSet_tablespace_logging_clauses(alterTablespaceSet_logging_clause|NO~dc1199db)/(NO)?_FORCE_LOGGING!swap	ALTER TABLESPACE SET a FOREIGN LOGGING
 accept	accept	engine	alterTablespaceSet_tablespace_logging_clauses(NO)?/%empty	ALTER TABLESPACE SET a FORCE LOGGING
@@ -19121,7 +19121,7 @@ accept	accept	engine	alterTablespaceSet_tablespace_state_clauses(ONLINE|OFFLINE_
 reject@31	reject@31	engine	alterTablespaceSet_tablespace_state_clauses(ONLINE|OFFLINE_(NORMAL|TEMPORARY|IMM~24a2fb73)/OFFLINE_(NORMAL|TEMPORARY|IMMEDIATE)?!insert	ALTER TABLESPACE SET a OFFLINE zzz
 reject@23	reject@23	engine	alterTablespaceSet_tablespace_state_clauses(ONLINE|OFFLINE_(NORMAL|TEMPORARY|IMM~24a2fb73)/OFFLINE_(NORMAL|TEMPORARY|IMMEDIATE)?!swap	ALTER TABLESPACE SET a OFFSET
 accept	accept	engine	alterTablespaceSet_tablespace_state_clauses(ONLINE|OFFLINE_(NORMAL|TEMPORARY|IMM~24a2fb73)/READ_ONLY	ALTER TABLESPACE SET a READ ONLY
-accept	reject@27	engine	alterTablespaceSet_tablespace_state_clauses(ONLINE|OFFLINE_(NORMAL|TEMPORARY|IMM~24a2fb73)/READ_ONLY!drop-2	ALTER TABLESPACE SET a READ
+reject@27	reject@27	engine	alterTablespaceSet_tablespace_state_clauses(ONLINE|OFFLINE_(NORMAL|TEMPORARY|IMM~24a2fb73)/READ_ONLY!drop-2	ALTER TABLESPACE SET a READ
 reject@33	reject@33	engine	alterTablespaceSet_tablespace_state_clauses(ONLINE|OFFLINE_(NORMAL|TEMPORARY|IMM~24a2fb73)/READ_ONLY!insert	ALTER TABLESPACE SET a READ ONLY zzz
 reject@23	reject@23	engine	alterTablespaceSet_tablespace_state_clauses(ONLINE|OFFLINE_(NORMAL|TEMPORARY|IMM~24a2fb73)/READ_ONLY!swap	ALTER TABLESPACE SET a READS ONLY
 accept	accept	engine	alterTablespaceSet_tablespace_state_clauses(ONLINE|OFFLINE_(NORMAL|TEMPORARY|IMM~24a2fb73)/READ_WRITE	ALTER TABLESPACE SET a READ WRITE
@@ -19153,32 +19153,32 @@ reject@34	reject@34	engine	alterTablespaceSet_autoextend_clause(OFF|ON_(NEXT_alt
 accept	accept	engine	alterTablespaceSet_autoextend_clause(NEXT_alterTablespaceSet_size_clause)?/%empty	ALTER TABLESPACE SET a AUTOEXTEND ON
 accept	accept	engine	alterTablespaceSet_autoextend_clause(NEXT_alterTablespaceSet_size_clause)?/NEXT_alterTablespaceSet_size_clause	ALTER TABLESPACE SET a AUTOEXTEND ON NEXT 1
 reject@37	reject@37	engine	alterTablespaceSet_autoextend_clause(NEXT_alterTablespaceSet_size_clause)?/NEXT_alterTablespaceSet_size_clause!drop-1	ALTER TABLESPACE SET a AUTOEXTEND ON 1
-accept	reject@41	engine	alterTablespaceSet_autoextend_clause(NEXT_alterTablespaceSet_size_clause)?/NEXT_alterTablespaceSet_size_clause!drop-2	ALTER TABLESPACE SET a AUTOEXTEND ON NEXT
+reject@41	reject@41	engine	alterTablespaceSet_autoextend_clause(NEXT_alterTablespaceSet_size_clause)?/NEXT_alterTablespaceSet_size_clause!drop-2	ALTER TABLESPACE SET a AUTOEXTEND ON NEXT
 reject@44	reject@44	engine	alterTablespaceSet_autoextend_clause(NEXT_alterTablespaceSet_size_clause)?/NEXT_alterTablespaceSet_size_clause!insert	ALTER TABLESPACE SET a AUTOEXTEND ON NEXT 1 zzz
 reject@37	reject@37	engine	alterTablespaceSet_autoextend_clause(NEXT_alterTablespaceSet_size_clause)?/NEXT_alterTablespaceSet_size_clause!swap	ALTER TABLESPACE SET a AUTOEXTEND ON NO 1
 accept	accept	engine	alterTablespaceSet_autoextend_clause(alterTablespaceSet_maxsize_clause)?/%empty	ALTER TABLESPACE SET a AUTOEXTEND ON
 accept	accept	engine	alterTablespaceSet_autoextend_clause(alterTablespaceSet_maxsize_clause)?/alterTablespaceSet_maxsize_clause	ALTER TABLESPACE SET a AUTOEXTEND ON MAXSIZE 1
-accept	reject@44	engine	alterTablespaceSet_autoextend_clause(alterTablespaceSet_maxsize_clause)?/alterTablespaceSet_maxsize_clause!drop-2	ALTER TABLESPACE SET a AUTOEXTEND ON MAXSIZE
+reject@44	reject@44	engine	alterTablespaceSet_autoextend_clause(alterTablespaceSet_maxsize_clause)?/alterTablespaceSet_maxsize_clause!drop-2	ALTER TABLESPACE SET a AUTOEXTEND ON MAXSIZE
 reject@47	reject@47	engine	alterTablespaceSet_autoextend_clause(alterTablespaceSet_maxsize_clause)?/alterTablespaceSet_maxsize_clause!insert	ALTER TABLESPACE SET a AUTOEXTEND ON MAXSIZE 1 zzz
 reject@37	reject@37	engine	alterTablespaceSet_autoextend_clause(alterTablespaceSet_maxsize_clause)?/alterTablespaceSet_maxsize_clause!swap	ALTER TABLESPACE SET a AUTOEXTEND ON MAXTRANS 1
-accept	reject@40	engine	alterTablespaceSet_alter_tablespace_encryption/ENCRYPTION_(ONLINE_alterTablespaceSet_tablespace~725b9c9f)	ALTER TABLESPACE SET a ENCRYPTION ONLINE
-accept	reject@40	engine	alterTablespaceSet_alter_tablespace_encryption(ONLINE_alterTablespaceSet_tablespace~725b9c9f)/ONLINE_(alterTablespaceSet_tablespace_encryption_spec)?~78fb4f5e	ALTER TABLESPACE SET a ENCRYPTION ONLINE
+reject@40	reject@40	engine	alterTablespaceSet_alter_tablespace_encryption/ENCRYPTION_(ONLINE_alterTablespaceSet_tablespace~725b9c9f)	ALTER TABLESPACE SET a ENCRYPTION ONLINE
+reject@40	reject@40	engine	alterTablespaceSet_alter_tablespace_encryption(ONLINE_alterTablespaceSet_tablespace~725b9c9f)/ONLINE_(alterTablespaceSet_tablespace_encryption_spec)?~78fb4f5e	ALTER TABLESPACE SET a ENCRYPTION ONLINE
 reject@34	reject@34	engine	alterTablespaceSet_alter_tablespace_encryption(ONLINE_alterTablespaceSet_tablespace~725b9c9f)/ONLINE_(alterTablespaceSet_tablespace_encryption_spec)?~78fb4f5e!swap	ALTER TABLESPACE SET a ENCRYPTION ONLY
 accept	accept	engine	alterTablespaceSet_alter_tablespace_encryption(ONLINE_alterTablespaceSet_tablespace~725b9c9f)/OFFLINE_(ENCRYPT_alterTablespaceSet_tablespac~b924f902)	ALTER TABLESPACE SET a ENCRYPTION OFFLINE ENCRYPT
 accept	accept	engine	alterTablespaceSet_alter_tablespace_encryption(ONLINE_alterTablespaceSet_tablespace~725b9c9f)/OFFLINE_(ENCRYPT_alterTablespaceSet_tablespac~b924f902)!drop-1	ALTER TABLESPACE SET a ENCRYPTION ENCRYPT
-accept	reject@41	engine	alterTablespaceSet_alter_tablespace_encryption(ONLINE_alterTablespaceSet_tablespace~725b9c9f)/OFFLINE_(ENCRYPT_alterTablespaceSet_tablespac~b924f902)!drop-2	ALTER TABLESPACE SET a ENCRYPTION OFFLINE
+reject@41	reject@41	engine	alterTablespaceSet_alter_tablespace_encryption(ONLINE_alterTablespaceSet_tablespace~725b9c9f)/OFFLINE_(ENCRYPT_alterTablespaceSet_tablespac~b924f902)!drop-2	ALTER TABLESPACE SET a ENCRYPTION OFFLINE
 reject@50	reject@50	engine	alterTablespaceSet_alter_tablespace_encryption(ONLINE_alterTablespaceSet_tablespace~725b9c9f)/OFFLINE_(ENCRYPT_alterTablespaceSet_tablespac~b924f902)!insert	ALTER TABLESPACE SET a ENCRYPTION OFFLINE ENCRYPT zzz
 reject@34	reject@34	engine	alterTablespaceSet_alter_tablespace_encryption(ONLINE_alterTablespaceSet_tablespace~725b9c9f)/OFFLINE_(ENCRYPT_alterTablespaceSet_tablespac~b924f902)!swap	ALTER TABLESPACE SET a ENCRYPTION OFFSET ENCRYPT
-accept	reject@40	engine	alterTablespaceSet_alter_tablespace_encryption(ONLINE_alterTablespaceSet_tablespace~725b9c9f)/FINISH_(ENCRYPT|DECRYPT)?_(alterTablespaceSet_ts_file_n~5dcbc64b	ALTER TABLESPACE SET a ENCRYPTION FINISH
+reject@40	reject@40	engine	alterTablespaceSet_alter_tablespace_encryption(ONLINE_alterTablespaceSet_tablespace~725b9c9f)/FINISH_(ENCRYPT|DECRYPT)?_(alterTablespaceSet_ts_file_n~5dcbc64b	ALTER TABLESPACE SET a ENCRYPTION FINISH
 reject@41	reject@41	engine	alterTablespaceSet_alter_tablespace_encryption(ONLINE_alterTablespaceSet_tablespace~725b9c9f)/FINISH_(ENCRYPT|DECRYPT)?_(alterTablespaceSet_ts_file_n~5dcbc64b!insert	ALTER TABLESPACE SET a ENCRYPTION FINISH zzz
 reject@34	reject@34	engine	alterTablespaceSet_alter_tablespace_encryption(ONLINE_alterTablespaceSet_tablespace~725b9c9f)/FINISH_(ENCRYPT|DECRYPT)?_(alterTablespaceSet_ts_file_n~5dcbc64b!swap	ALTER TABLESPACE SET a ENCRYPTION FIRST
-accept	reject@40	engine	alterTablespaceSet_alter_tablespace_encryption(alterTablespaceSet_tablespace_encryption_spec)?/%empty	ALTER TABLESPACE SET a ENCRYPTION ONLINE
-accept	reject@47	engine	alterTablespaceSet_alter_tablespace_encryption(alterTablespaceSet_tablespace_encryption_spec)?/alterTablespaceSet_tablespace_encryption_spec	ALTER TABLESPACE SET a ENCRYPTION ONLINE USING 's'
+reject@40	reject@40	engine	alterTablespaceSet_alter_tablespace_encryption(alterTablespaceSet_tablespace_encryption_spec)?/%empty	ALTER TABLESPACE SET a ENCRYPTION ONLINE
+reject@50	reject@47	engine	alterTablespaceSet_alter_tablespace_encryption(alterTablespaceSet_tablespace_encryption_spec)?/alterTablespaceSet_tablespace_encryption_spec	ALTER TABLESPACE SET a ENCRYPTION ONLINE USING 's'
 reject@41	reject@41	engine	alterTablespaceSet_alter_tablespace_encryption(alterTablespaceSet_tablespace_encryption_spec)?/alterTablespaceSet_tablespace_encryption_spec!drop-1	ALTER TABLESPACE SET a ENCRYPTION ONLINE 's'
-accept	reject@46	engine	alterTablespaceSet_alter_tablespace_encryption(alterTablespaceSet_tablespace_encryption_spec)?/alterTablespaceSet_tablespace_encryption_spec!drop-2	ALTER TABLESPACE SET a ENCRYPTION ONLINE USING
+reject@46	reject@46	engine	alterTablespaceSet_alter_tablespace_encryption(alterTablespaceSet_tablespace_encryption_spec)?/alterTablespaceSet_tablespace_encryption_spec!drop-2	ALTER TABLESPACE SET a ENCRYPTION ONLINE USING
 reject@51	reject@47	engine	alterTablespaceSet_alter_tablespace_encryption(alterTablespaceSet_tablespace_encryption_spec)?/alterTablespaceSet_tablespace_encryption_spec!insert	ALTER TABLESPACE SET a ENCRYPTION ONLINE USING 's' zzz
 reject@41	reject@41	engine	alterTablespaceSet_alter_tablespace_encryption(alterTablespaceSet_tablespace_encryption_spec)?/alterTablespaceSet_tablespace_encryption_spec!swap	ALTER TABLESPACE SET a ENCRYPTION ONLINE VALIDATE 's'
-accept	reject@40	engine	alterTablespaceSet_alter_tablespace_encryption(alterTablespaceSet_ts_file_name_convert)?/%empty	ALTER TABLESPACE SET a ENCRYPTION ONLINE
+reject@40	reject@40	engine	alterTablespaceSet_alter_tablespace_encryption(alterTablespaceSet_ts_file_name_convert)?/%empty	ALTER TABLESPACE SET a ENCRYPTION ONLINE
 reject@41	reject@41	engine	alterTablespaceSet_alter_tablespace_encryption(alterTablespaceSet_ts_file_name_convert)?/alterTablespaceSet_ts_file_name_convert	ALTER TABLESPACE SET a ENCRYPTION ONLINE FILE_NAME_CONVERT =('s', 's')
 reject@41	reject@41	engine	alterTablespaceSet_alter_tablespace_encryption(alterTablespaceSet_ts_file_name_convert)?/alterTablespaceSet_ts_file_name_convert!drop-1	ALTER TABLESPACE SET a ENCRYPTION ONLINE =('s', 's')
 reject@41	reject@41	engine	alterTablespaceSet_alter_tablespace_encryption(alterTablespaceSet_ts_file_name_convert)?/alterTablespaceSet_ts_file_name_convert!drop-2	ALTER TABLESPACE SET a ENCRYPTION ONLINE FILE_NAME_CONVERT('s', 's')
@@ -19194,7 +19194,7 @@ reject@42	reject@42	engine	alterTablespaceSet_alter_tablespace_encryption(ENCRYP
 accept	accept	engine	alterTablespaceSet_alter_tablespace_encryption(ENCRYPT_alterTablespaceSet_tablespac~b924f902)/DECRYPT	ALTER TABLESPACE SET a ENCRYPTION OFFLINE DECRYPT
 reject@50	reject@50	engine	alterTablespaceSet_alter_tablespace_encryption(ENCRYPT_alterTablespaceSet_tablespac~b924f902)/DECRYPT!insert	ALTER TABLESPACE SET a ENCRYPTION OFFLINE DECRYPT zzz
 reject@42	reject@42	engine	alterTablespaceSet_alter_tablespace_encryption(ENCRYPT_alterTablespaceSet_tablespac~b924f902)/DECRYPT!swap	ALTER TABLESPACE SET a ENCRYPTION OFFLINE DEDUPLICATE
-accept	reject@40	engine	alterTablespaceSet_alter_tablespace_encryption(ENCRYPT|DECRYPT)?/%empty	ALTER TABLESPACE SET a ENCRYPTION FINISH
+reject@40	reject@40	engine	alterTablespaceSet_alter_tablespace_encryption(ENCRYPT|DECRYPT)?/%empty	ALTER TABLESPACE SET a ENCRYPTION FINISH
 accept	accept	engine	alterTablespaceSet_alter_tablespace_encryption(ENCRYPT|DECRYPT)?/ENCRYPT	ALTER TABLESPACE SET a ENCRYPTION FINISH ENCRYPT
 reject@49	reject@49	engine	alterTablespaceSet_alter_tablespace_encryption(ENCRYPT|DECRYPT)?/ENCRYPT!insert	ALTER TABLESPACE SET a ENCRYPTION FINISH ENCRYPT zzz
 reject@41	reject@41	engine	alterTablespaceSet_alter_tablespace_encryption(ENCRYPT|DECRYPT)?/ENCRYPT!swap	ALTER TABLESPACE SET a ENCRYPTION FINISH ENCRYPTION
@@ -19232,7 +19232,7 @@ reject@52	reject@52	engine	alterTablespaceSet_default_table_compression(BASIC|FO
 reject@46	reject@46	engine	alterTablespaceSet_default_table_compression(BASIC|FOR_OLTP)?/BASIC!swap	ALTER TABLESPACE SET a DEFAULT TABLE COMPRESS BASICFILE
 accept	accept	engine	alterTablespaceSet_default_table_compression(BASIC|FOR_OLTP)?/FOR_OLTP	ALTER TABLESPACE SET a DEFAULT TABLE COMPRESS FOR OLTP
 reject@46	reject@46	engine	alterTablespaceSet_default_table_compression(BASIC|FOR_OLTP)?/FOR_OLTP!drop-1	ALTER TABLESPACE SET a DEFAULT TABLE COMPRESS OLTP
-accept	reject@49	engine	alterTablespaceSet_default_table_compression(BASIC|FOR_OLTP)?/FOR_OLTP!drop-2	ALTER TABLESPACE SET a DEFAULT TABLE COMPRESS FOR
+reject@49	reject@49	engine	alterTablespaceSet_default_table_compression(BASIC|FOR_OLTP)?/FOR_OLTP!drop-2	ALTER TABLESPACE SET a DEFAULT TABLE COMPRESS FOR
 reject@55	reject@55	engine	alterTablespaceSet_default_table_compression(BASIC|FOR_OLTP)?/FOR_OLTP!insert	ALTER TABLESPACE SET a DEFAULT TABLE COMPRESS FOR OLTP zzz
 reject@46	reject@46	engine	alterTablespaceSet_default_table_compression(BASIC|FOR_OLTP)?/FOR_OLTP!swap	ALTER TABLESPACE SET a DEFAULT TABLE COMPRESS FORCE OLTP
 reject@37	reject@37	engine	alterTablespaceSet_default_table_compression(BASIC|ADVANCED)?/%empty	ALTER TABLESPACE SET a DEFAULT TABLE ROW STORE COMPRESS
@@ -19338,7 +19338,7 @@ accept	accept	engine	alterTablespaceSet_maxsize_clause(alterTablespaceSet_size_c
 accept	accept	engine	alterTablespaceSet_maxsize_clause(alterTablespaceSet_size_clause|UNLIMITED)/UNLIMITED	ALTER TABLESPACE SET a AUTOEXTEND ON MAXSIZE UNLIMITED
 reject@55	reject@55	engine	alterTablespaceSet_maxsize_clause(alterTablespaceSet_size_clause|UNLIMITED)/UNLIMITED!insert	ALTER TABLESPACE SET a AUTOEXTEND ON MAXSIZE UNLIMITED zzz
 reject@45	reject@45	engine	alterTablespaceSet_maxsize_clause(alterTablespaceSet_size_clause|UNLIMITED)/UNLIMITED!swap	ALTER TABLESPACE SET a AUTOEXTEND ON MAXSIZE UNLOCK
-accept	reject@47	engine	alterTablespaceSet_tablespace_encryption_spec/USING_STRING	ALTER TABLESPACE SET a ENCRYPTION ONLINE USING 's'
+reject@50	reject@47	engine	alterTablespaceSet_tablespace_encryption_spec/USING_STRING	ALTER TABLESPACE SET a ENCRYPTION ONLINE USING 's'
 reject@41	reject@41	engine	alterTablespaceSet_ts_file_name_convert/FILE_NAME_CONVERT_=_(_STRING_,_STRING_(,_STRING_,_STRIN~0a11638f	ALTER TABLESPACE SET a ENCRYPTION ONLINE FILE_NAME_CONVERT =('s', 's')
 reject@41	reject@41	engine	alterTablespaceSet_ts_file_name_convert(,_STRING_,_STRING)*/%empty	ALTER TABLESPACE SET a ENCRYPTION ONLINE FILE_NAME_CONVERT =('s', 's')
 reject@41	reject@41	engine	alterTablespaceSet_ts_file_name_convert(,_STRING_,_STRING)*/%empty!insert	ALTER TABLESPACE SET a ENCRYPTION ONLINE FILE_NAME_CONVERT =('s', 's' zzz)
@@ -19435,10 +19435,10 @@ reject@49	reject@49	engine	alterTablespaceSet_inmemory_priority(LOW|MEDIUM|HIGH|
 reject@51	reject@51	engine	alterTablespaceSet_inmemory_distribute/DISTRIBUTE_BY_(ROWID_(ACROSS_NUMBER?)?|PARTITION|SUBPARTITION)	ALTER TABLESPACE SET a DEFAULT INMEMORY DISTRIBUTE BY ROWID
 reject@51	reject@51	engine	alterTablespaceSet_inmemory_distribute(ROWID_(ACROSS_NUMBER?)?|PARTITION|SUBPARTITION)/ROWID_(ACROSS_NUMBER?)?	ALTER TABLESPACE SET a DEFAULT INMEMORY DISTRIBUTE BY ROWID
 reject@51	reject@51	engine	alterTablespaceSet_inmemory_distribute(ROWID_(ACROSS_NUMBER?)?|PARTITION|SUBPARTITION)/ROWID_(ACROSS_NUMBER?)?!swap	ALTER TABLESPACE SET a DEFAULT INMEMORY DISTRIBUTE BY ROWS
-accept	reject@63	engine	alterTablespaceSet_inmemory_distribute(ROWID_(ACROSS_NUMBER?)?|PARTITION|SUBPARTITION)/PARTITION	ALTER TABLESPACE SET a DEFAULT INMEMORY DISTRIBUTE BY PARTITION
+reject@63	reject@63	engine	alterTablespaceSet_inmemory_distribute(ROWID_(ACROSS_NUMBER?)?|PARTITION|SUBPARTITION)/PARTITION	ALTER TABLESPACE SET a DEFAULT INMEMORY DISTRIBUTE BY PARTITION
 reject@64	reject@64	engine	alterTablespaceSet_inmemory_distribute(ROWID_(ACROSS_NUMBER?)?|PARTITION|SUBPARTITION)/PARTITION!insert	ALTER TABLESPACE SET a DEFAULT INMEMORY DISTRIBUTE BY PARTITION zzz
 reject@51	reject@51	engine	alterTablespaceSet_inmemory_distribute(ROWID_(ACROSS_NUMBER?)?|PARTITION|SUBPARTITION)/PARTITION!swap	ALTER TABLESPACE SET a DEFAULT INMEMORY DISTRIBUTE BY PARTITIONING
-accept	reject@66	engine	alterTablespaceSet_inmemory_distribute(ROWID_(ACROSS_NUMBER?)?|PARTITION|SUBPARTITION)/SUBPARTITION	ALTER TABLESPACE SET a DEFAULT INMEMORY DISTRIBUTE BY SUBPARTITION
+reject@66	reject@66	engine	alterTablespaceSet_inmemory_distribute(ROWID_(ACROSS_NUMBER?)?|PARTITION|SUBPARTITION)/SUBPARTITION	ALTER TABLESPACE SET a DEFAULT INMEMORY DISTRIBUTE BY SUBPARTITION
 reject@67	reject@67	engine	alterTablespaceSet_inmemory_distribute(ROWID_(ACROSS_NUMBER?)?|PARTITION|SUBPARTITION)/SUBPARTITION!insert	ALTER TABLESPACE SET a DEFAULT INMEMORY DISTRIBUTE BY SUBPARTITION zzz
 reject@51	reject@51	engine	alterTablespaceSet_inmemory_distribute(ROWID_(ACROSS_NUMBER?)?|PARTITION|SUBPARTITION)/SUBPARTITION!swap	ALTER TABLESPACE SET a DEFAULT INMEMORY DISTRIBUTE BY SUBPARTITIONS
 reject@51	reject@51	engine	alterTablespaceSet_inmemory_distribute(ACROSS_NUMBER?)?/%empty	ALTER TABLESPACE SET a DEFAULT INMEMORY DISTRIBUTE BY ROWID
@@ -19467,43 +19467,43 @@ reject@50	reject@50	engine	alterTablespaceSet_inmemory_duplicate(,_ID)*/,_ID_(,_
 reject@50	reject@50	engine	alterTablespaceSet_inmemory_duplicate(,_ID)*/,_ID_(,_ID)*!insert	ALTER TABLESPACE SET a DEFAULT INMEMORY DUPLICATE FOR SERVICE a, a zzz
 accept	accept	engine	alterTablespaceSet_ilm_compression_policy/(alterTablespaceSet_table_compression~821575cd)_(SEGMEN~1122f5b0	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COMPRESS SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	alterTablespaceSet_ilm_compression_policy(alterTablespaceSet_table_compression~821575cd)/alterTablespaceSet_table_compression	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COMPRESS SEGMENT AFTER 1 DAY OF CREATION
-accept	reject@45	engine	alterTablespaceSet_ilm_compression_policy(alterTablespaceSet_table_compression~821575cd)/alterTablespaceSet_table_compression!truncate	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY
+reject@45	reject@45	engine	alterTablespaceSet_ilm_compression_policy(alterTablespaceSet_table_compression~821575cd)/alterTablespaceSet_table_compression!truncate	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY
 reject@55	reject@55	engine	alterTablespaceSet_ilm_compression_policy(alterTablespaceSet_table_compression~821575cd)/alterTablespaceSet_table_compression!insert	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COMPRESS zzz SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	alterTablespaceSet_ilm_compression_policy(alterTablespaceSet_table_compression~821575cd)/ROW_STORE_COMPRESS_(ADVANCED)?	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY ROW STORE COMPRESS SEGMENT AFTER 1 DAY OF CREATION
 reject@46	reject@46	engine	alterTablespaceSet_ilm_compression_policy(alterTablespaceSet_table_compression~821575cd)/ROW_STORE_COMPRESS_(ADVANCED)?!drop-1	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY STORE COMPRESS SEGMENT AFTER 1 DAY OF CREATION
 reject@50	reject@50	engine	alterTablespaceSet_ilm_compression_policy(alterTablespaceSet_table_compression~821575cd)/ROW_STORE_COMPRESS_(ADVANCED)?!drop-2	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY ROW COMPRESS SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	alterTablespaceSet_ilm_compression_policy(alterTablespaceSet_table_compression~821575cd)/ROW_STORE_COMPRESS_(ADVANCED)?!drop-3	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY ROW STORE SEGMENT AFTER 1 DAY OF CREATION
-accept	reject@55	engine	alterTablespaceSet_ilm_compression_policy(alterTablespaceSet_table_compression~821575cd)/ROW_STORE_COMPRESS_(ADVANCED)?!truncate	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY ROW STORE
+reject@55	reject@55	engine	alterTablespaceSet_ilm_compression_policy(alterTablespaceSet_table_compression~821575cd)/ROW_STORE_COMPRESS_(ADVANCED)?!truncate	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY ROW STORE
 reject@65	reject@65	engine	alterTablespaceSet_ilm_compression_policy(alterTablespaceSet_table_compression~821575cd)/ROW_STORE_COMPRESS_(ADVANCED)?!insert	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY ROW STORE COMPRESS zzz SEGMENT AFTER 1 DAY OF CREATION
 reject@46	reject@46	engine	alterTablespaceSet_ilm_compression_policy(alterTablespaceSet_table_compression~821575cd)/ROW_STORE_COMPRESS_(ADVANCED)?!swap	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY ROWDEPENDENCIES STORE COMPRESS SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	alterTablespaceSet_ilm_compression_policy(alterTablespaceSet_table_compression~821575cd)/COLUMN_STORE_COMPRESS_(FOR_QUERY_(LOW|HIGH)?)?	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS SEGMENT AFTER 1 DAY OF CREATION
 reject@53	reject@53	engine	alterTablespaceSet_ilm_compression_policy(alterTablespaceSet_table_compression~821575cd)/COLUMN_STORE_COMPRESS_(FOR_QUERY_(LOW|HIGH)?)?!drop-2	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COLUMN COMPRESS SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	alterTablespaceSet_ilm_compression_policy(alterTablespaceSet_table_compression~821575cd)/COLUMN_STORE_COMPRESS_(FOR_QUERY_(LOW|HIGH)?)?!drop-3	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COLUMN STORE SEGMENT AFTER 1 DAY OF CREATION
-accept	reject@58	engine	alterTablespaceSet_ilm_compression_policy(alterTablespaceSet_table_compression~821575cd)/COLUMN_STORE_COMPRESS_(FOR_QUERY_(LOW|HIGH)?)?!truncate	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COLUMN STORE
+reject@58	reject@58	engine	alterTablespaceSet_ilm_compression_policy(alterTablespaceSet_table_compression~821575cd)/COLUMN_STORE_COMPRESS_(FOR_QUERY_(LOW|HIGH)?)?!truncate	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COLUMN STORE
 reject@68	reject@68	engine	alterTablespaceSet_ilm_compression_policy(alterTablespaceSet_table_compression~821575cd)/COLUMN_STORE_COMPRESS_(FOR_QUERY_(LOW|HIGH)?)?!insert	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS zzz SEGMENT AFTER 1 DAY OF CREATION
 reject@46	reject@46	engine	alterTablespaceSet_ilm_compression_policy(alterTablespaceSet_table_compression~821575cd)/COLUMN_STORE_COMPRESS_(FOR_QUERY_(LOW|HIGH)?)?!swap	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COLUMNS STORE COMPRESS SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	alterTablespaceSet_ilm_compression_policy(ADVANCED)?/%empty	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY ROW STORE COMPRESS SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	alterTablespaceSet_ilm_compression_policy(ADVANCED)?/ADVANCED	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY ROW STORE COMPRESS ADVANCED SEGMENT AFTER 1 DAY OF CREATION
-accept	reject@64	engine	alterTablespaceSet_ilm_compression_policy(ADVANCED)?/ADVANCED!truncate	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY ROW STORE COMPRESS
+reject@64	reject@64	engine	alterTablespaceSet_ilm_compression_policy(ADVANCED)?/ADVANCED!truncate	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY ROW STORE COMPRESS
 reject@74	reject@74	engine	alterTablespaceSet_ilm_compression_policy(ADVANCED)?/ADVANCED!insert	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY ROW STORE COMPRESS ADVANCED zzz SEGMENT AFTER 1 DAY OF CREATION
 reject@65	reject@65	engine	alterTablespaceSet_ilm_compression_policy(ADVANCED)?/ADVANCED!swap	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY ROW STORE COMPRESS ADVISE SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	alterTablespaceSet_ilm_compression_policy(FOR_QUERY_(LOW|HIGH)?)?/%empty	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	alterTablespaceSet_ilm_compression_policy(FOR_QUERY_(LOW|HIGH)?)?/FOR_QUERY_(LOW|HIGH)?	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS FOR QUERY SEGMENT AFTER 1 DAY OF CREATION
 reject@68	reject@68	engine	alterTablespaceSet_ilm_compression_policy(FOR_QUERY_(LOW|HIGH)?)?/FOR_QUERY_(LOW|HIGH)?!drop-1	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS QUERY SEGMENT AFTER 1 DAY OF CREATION
 reject@72	reject@72	engine	alterTablespaceSet_ilm_compression_policy(FOR_QUERY_(LOW|HIGH)?)?/FOR_QUERY_(LOW|HIGH)?!drop-2	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS FOR SEGMENT AFTER 1 DAY OF CREATION
-accept	reject@71	engine	alterTablespaceSet_ilm_compression_policy(FOR_QUERY_(LOW|HIGH)?)?/FOR_QUERY_(LOW|HIGH)?!truncate	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS FOR
+reject@71	reject@71	engine	alterTablespaceSet_ilm_compression_policy(FOR_QUERY_(LOW|HIGH)?)?/FOR_QUERY_(LOW|HIGH)?!truncate	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS FOR
 reject@78	reject@78	engine	alterTablespaceSet_ilm_compression_policy(FOR_QUERY_(LOW|HIGH)?)?/FOR_QUERY_(LOW|HIGH)?!insert	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS FOR QUERY zzz SEGMENT AFTER 1 DAY OF CREATION
 reject@68	reject@68	engine	alterTablespaceSet_ilm_compression_policy(FOR_QUERY_(LOW|HIGH)?)?/FOR_QUERY_(LOW|HIGH)?!swap	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS FORCE QUERY SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	alterTablespaceSet_ilm_compression_policy(LOW|HIGH)?/%empty	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS FOR QUERY SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	alterTablespaceSet_ilm_compression_policy(LOW|HIGH)?/LOW	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS FOR QUERY LOW SEGMENT AFTER 1 DAY OF CREATION
-accept	reject@77	engine	alterTablespaceSet_ilm_compression_policy(LOW|HIGH)?/LOW!truncate	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS FOR QUERY
+reject@77	reject@77	engine	alterTablespaceSet_ilm_compression_policy(LOW|HIGH)?/LOW!truncate	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS FOR QUERY
 reject@82	reject@82	engine	alterTablespaceSet_ilm_compression_policy(LOW|HIGH)?/LOW!insert	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS FOR QUERY LOW zzz SEGMENT AFTER 1 DAY OF CREATION
 reject@78	reject@78	engine	alterTablespaceSet_ilm_compression_policy(LOW|HIGH)?/LOW!swap	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS FOR QUERY M SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	alterTablespaceSet_ilm_compression_policy(LOW|HIGH)?/HIGH	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS FOR QUERY HIGH SEGMENT AFTER 1 DAY OF CREATION
 reject@83	reject@83	engine	alterTablespaceSet_ilm_compression_policy(LOW|HIGH)?/HIGH!insert	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS FOR QUERY HIGH zzz SEGMENT AFTER 1 DAY OF CREATION
 reject@78	reject@78	engine	alterTablespaceSet_ilm_compression_policy(LOW|HIGH)?/HIGH!swap	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS FOR QUERY HNSW SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	alterTablespaceSet_ilm_compression_policy(SEGMENT|GROUP|ROW)/SEGMENT	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COMPRESS SEGMENT AFTER 1 DAY OF CREATION
-accept	reject@54	engine	alterTablespaceSet_ilm_compression_policy(SEGMENT|GROUP|ROW)/SEGMENT!truncate	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COMPRESS
+reject@54	reject@54	engine	alterTablespaceSet_ilm_compression_policy(SEGMENT|GROUP|ROW)/SEGMENT!truncate	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COMPRESS
 reject@63	reject@63	engine	alterTablespaceSet_ilm_compression_policy(SEGMENT|GROUP|ROW)/SEGMENT!insert	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COMPRESS SEGMENT zzz AFTER 1 DAY OF CREATION
 reject@55	reject@55	engine	alterTablespaceSet_ilm_compression_policy(SEGMENT|GROUP|ROW)/SEGMENT!swap	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COMPRESS SELECT AFTER 1 DAY OF CREATION
 accept	accept	engine	alterTablespaceSet_ilm_compression_policy(SEGMENT|GROUP|ROW)/GROUP	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COMPRESS GROUP AFTER 1 DAY OF CREATION
@@ -19590,7 +19590,7 @@ accept	accept	engine	alterTablespaceSet_table_compression(COMPRESS_BASIC?|COMPRE
 reject@46	reject@46	engine	alterTablespaceSet_table_compression(COMPRESS_BASIC?|COMPRESS_FOR_(OLTP|Q~e159a79e)/COMPRESS_FOR_(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)!drop-1	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY FOR OLTP SEGMENT AFTER 1 DAY OF CREATION
 reject@55	reject@55	engine	alterTablespaceSet_table_compression(COMPRESS_BASIC?|COMPRESS_FOR_(OLTP|Q~e159a79e)/COMPRESS_FOR_(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)!drop-2	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COMPRESS OLTP SEGMENT AFTER 1 DAY OF CREATION
 reject@59	reject@59	engine	alterTablespaceSet_table_compression(COMPRESS_BASIC?|COMPRESS_FOR_(OLTP|Q~e159a79e)/COMPRESS_FOR_(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)!drop-3	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COMPRESS FOR SEGMENT AFTER 1 DAY OF CREATION
-accept	reject@58	engine	alterTablespaceSet_table_compression(COMPRESS_BASIC?|COMPRESS_FOR_(OLTP|Q~e159a79e)/COMPRESS_FOR_(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)!truncate	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COMPRESS FOR
+reject@58	reject@58	engine	alterTablespaceSet_table_compression(COMPRESS_BASIC?|COMPRESS_FOR_(OLTP|Q~e159a79e)/COMPRESS_FOR_(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)!truncate	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COMPRESS FOR
 reject@64	reject@64	engine	alterTablespaceSet_table_compression(COMPRESS_BASIC?|COMPRESS_FOR_(OLTP|Q~e159a79e)/COMPRESS_FOR_(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)!insert	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COMPRESS FOR OLTP zzz SEGMENT AFTER 1 DAY OF CREATION
 reject@46	reject@46	engine	alterTablespaceSet_table_compression(COMPRESS_BASIC?|COMPRESS_FOR_(OLTP|Q~e159a79e)/COMPRESS_FOR_(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)!swap	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COMPUTATION FOR OLTP SEGMENT AFTER 1 DAY OF CREATION
 reject@46	reject@46	engine	alterTablespaceSet_table_compression(COMPRESS_BASIC?|COMPRESS_FOR_(OLTP|Q~e159a79e)/NOCOMPRESS	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY NOCOMPRESS SEGMENT AFTER 1 DAY OF CREATION
@@ -19610,7 +19610,7 @@ reject@67	reject@67	engine	alterTablespaceSet_table_compression(OLTP|QUERY_(LOW|
 reject@59	reject@59	engine	alterTablespaceSet_table_compression(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?!swap	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COMPRESS FOR ARCHIVED SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	alterTablespaceSet_table_compression(LOW|HIGH)?/%empty	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COMPRESS FOR QUERY SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	alterTablespaceSet_table_compression(LOW|HIGH)?/LOW	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COMPRESS FOR QUERY LOW SEGMENT AFTER 1 DAY OF CREATION
-accept	reject@64	engine	alterTablespaceSet_table_compression(LOW|HIGH)?/LOW!truncate	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COMPRESS FOR QUERY
+reject@64	reject@64	engine	alterTablespaceSet_table_compression(LOW|HIGH)?/LOW!truncate	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COMPRESS FOR QUERY
 reject@69	reject@69	engine	alterTablespaceSet_table_compression(LOW|HIGH)?/LOW!insert	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COMPRESS FOR QUERY LOW zzz SEGMENT AFTER 1 DAY OF CREATION
 reject@65	reject@65	engine	alterTablespaceSet_table_compression(LOW|HIGH)?/LOW!swap	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COMPRESS FOR QUERY M SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	alterTablespaceSet_table_compression(LOW|HIGH)?/HIGH	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COMPRESS FOR QUERY HIGH SEGMENT AFTER 1 DAY OF CREATION
@@ -19639,7 +19639,7 @@ reject@21	reject@21	engine	alterTablespace(IF_EXISTS)?/%empty!insert	ALTER TABLE
 reject@36	reject@36	engine	alterTablespace(IF_EXISTS)?/IF_EXISTS	ALTER TABLESPACE IF EXISTS a DEFAULT
 reject@17	reject@17	engine	alterTablespace(IF_EXISTS)?/IF_EXISTS!drop-1	ALTER TABLESPACE EXISTS a DEFAULT
 reject@20	reject@20	engine	alterTablespace(IF_EXISTS)?/IF_EXISTS!drop-2	ALTER TABLESPACE IF a DEFAULT
-accept	reject@19	engine	alterTablespace(IF_EXISTS)?/IF_EXISTS!truncate	ALTER TABLESPACE IF
+reject@19	reject@19	engine	alterTablespace(IF_EXISTS)?/IF_EXISTS!truncate	ALTER TABLESPACE IF
 reject@31	reject@31	engine	alterTablespace(IF_EXISTS)?/IF_EXISTS!insert	ALTER TABLESPACE IF EXISTS zzz a DEFAULT
 reject@24	reject@24	engine	alterTablespace(IF_EXISTS)?/IF_EXISTS!swap	ALTER TABLESPACE IGNORE EXISTS a DEFAULT
 reject@26	reject@26	engine	alterTablespace_alter_tablespace_attrs/(alterTablespace_default_tablespace_p~b8ee20ad)	ALTER TABLESPACE a DEFAULT
@@ -19653,7 +19653,7 @@ reject@36	reject@36	engine	alterTablespace_alter_tablespace_attrs(alterTablespac
 reject@19	reject@19	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/MINIMUM_EXTENT_alterTablespace_size_clause!swap	ALTER TABLESPACE a MINING EXTENT 1
 accept	accept	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/RESIZE_alterTablespace_size_clause	ALTER TABLESPACE a RESIZE 1
 reject@19	reject@19	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/RESIZE_alterTablespace_size_clause!drop-1	ALTER TABLESPACE a 1
-accept	reject@25	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/RESIZE_alterTablespace_size_clause!drop-2	ALTER TABLESPACE a RESIZE
+reject@25	reject@25	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/RESIZE_alterTablespace_size_clause!drop-2	ALTER TABLESPACE a RESIZE
 reject@28	reject@28	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/RESIZE_alterTablespace_size_clause!insert	ALTER TABLESPACE a RESIZE 1 zzz
 reject@19	reject@19	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/RESIZE_alterTablespace_size_clause!swap	ALTER TABLESPACE a RESOLVE 1
 accept	accept	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/COALESCE	ALTER TABLESPACE a COALESCE
@@ -19667,20 +19667,20 @@ reject@19	reject@19	engine	alterTablespace_alter_tablespace_attrs(alterTablespac
 accept	accept	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/RENAME_TO_ID	ALTER TABLESPACE a RENAME TO a
 reject@19	reject@19	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/RENAME_TO_ID!drop-1	ALTER TABLESPACE a TO a
 reject@26	reject@26	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/RENAME_TO_ID!drop-2	ALTER TABLESPACE a RENAME a
-accept	reject@28	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/RENAME_TO_ID!drop-3	ALTER TABLESPACE a RENAME TO
+reject@28	reject@28	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/RENAME_TO_ID!drop-3	ALTER TABLESPACE a RENAME TO
 reject@31	reject@31	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/RENAME_TO_ID!insert	ALTER TABLESPACE a RENAME TO a zzz
 reject@19	reject@19	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/RENAME_TO_ID!swap	ALTER TABLESPACE a REPAIR TO a
 accept	accept	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/BEGIN_BACKUP	ALTER TABLESPACE a BEGIN BACKUP
 reject@19	reject@19	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/BEGIN_BACKUP!drop-1	ALTER TABLESPACE a BACKUP
-accept	reject@24	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/BEGIN_BACKUP!drop-2	ALTER TABLESPACE a BEGIN
+reject@24	reject@24	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/BEGIN_BACKUP!drop-2	ALTER TABLESPACE a BEGIN
 reject@32	reject@32	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/BEGIN_BACKUP!insert	ALTER TABLESPACE a BEGIN BACKUP zzz
 reject@19	reject@19	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/BEGIN_BACKUP!swap	ALTER TABLESPACE a BEGINNING BACKUP
 accept	accept	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/END_BACKUP	ALTER TABLESPACE a END BACKUP
-accept	reject@22	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/END_BACKUP!drop-2	ALTER TABLESPACE a END
+reject@22	reject@22	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/END_BACKUP!drop-2	ALTER TABLESPACE a END
 reject@30	reject@30	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/END_BACKUP!insert	ALTER TABLESPACE a END BACKUP zzz
 reject@19	reject@19	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/END_BACKUP!swap	ALTER TABLESPACE a ENFORCED BACKUP
-accept	reject@31	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/alterTablespace_datafile_tempfile_clauses	ALTER TABLESPACE a ADD DATAFILE
-accept	reject@27	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/alterTablespace_datafile_tempfile_clauses!drop-1	ALTER TABLESPACE a DATAFILE
+reject@31	reject@31	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/alterTablespace_datafile_tempfile_clauses	ALTER TABLESPACE a ADD DATAFILE
+reject@27	reject@27	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/alterTablespace_datafile_tempfile_clauses!drop-1	ALTER TABLESPACE a DATAFILE
 reject@22	reject@22	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/alterTablespace_datafile_tempfile_clauses!drop-2	ALTER TABLESPACE a ADD
 reject@32	reject@32	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/alterTablespace_datafile_tempfile_clauses!insert	ALTER TABLESPACE a ADD DATAFILE zzz
 reject@19	reject@19	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/alterTablespace_datafile_tempfile_clauses!swap	ALTER TABLESPACE a ADMIN DATAFILE
@@ -19697,21 +19697,21 @@ reject@26	reject@26	engine	alterTablespace_alter_tablespace_attrs(alterTablespac
 reject@19	reject@19	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/alterTablespace_tablespace_state_clauses!swap	ALTER TABLESPACE a ONLY
 accept	accept	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/alterTablespace_autoextend_clause	ALTER TABLESPACE a AUTOEXTEND OFF
 reject@19	reject@19	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/alterTablespace_autoextend_clause!drop-1	ALTER TABLESPACE a OFF
-accept	reject@29	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/alterTablespace_autoextend_clause!drop-2	ALTER TABLESPACE a AUTOEXTEND
+reject@29	reject@29	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/alterTablespace_autoextend_clause!drop-2	ALTER TABLESPACE a AUTOEXTEND
 reject@34	reject@34	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/alterTablespace_autoextend_clause!insert	ALTER TABLESPACE a AUTOEXTEND OFF zzz
 reject@19	reject@19	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/alterTablespace_autoextend_clause!swap	ALTER TABLESPACE a AUTOMATIC OFF
 accept	accept	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/alterTablespace_flashback_mode_clause	ALTER TABLESPACE a FLASHBACK ON
 reject@19	reject@19	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/alterTablespace_flashback_mode_clause!drop-1	ALTER TABLESPACE a ON
-accept	reject@28	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/alterTablespace_flashback_mode_clause!drop-2	ALTER TABLESPACE a FLASHBACK
+reject@28	reject@28	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/alterTablespace_flashback_mode_clause!drop-2	ALTER TABLESPACE a FLASHBACK
 reject@32	reject@32	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/alterTablespace_flashback_mode_clause!insert	ALTER TABLESPACE a FLASHBACK ON zzz
 reject@19	reject@19	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/alterTablespace_flashback_mode_clause!swap	ALTER TABLESPACE a FLASH_CACHE ON
 accept	accept	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/alterTablespace_tablespace_retention_clause	ALTER TABLESPACE a RETENTION GUARANTEE
 reject@19	reject@19	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/alterTablespace_tablespace_retention_clause!drop-1	ALTER TABLESPACE a GUARANTEE
-accept	reject@28	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/alterTablespace_tablespace_retention_clause!drop-2	ALTER TABLESPACE a RETENTION
+reject@28	reject@28	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/alterTablespace_tablespace_retention_clause!drop-2	ALTER TABLESPACE a RETENTION
 reject@39	reject@39	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/alterTablespace_tablespace_retention_clause!insert	ALTER TABLESPACE a RETENTION GUARANTEE zzz
 reject@19	reject@19	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/alterTablespace_tablespace_retention_clause!swap	ALTER TABLESPACE a RETURN GUARANTEE
-accept	reject@36	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/alterTablespace_alter_tablespace_encryption	ALTER TABLESPACE a ENCRYPTION ONLINE
-accept	reject@29	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/alterTablespace_alter_tablespace_encryption!drop-2	ALTER TABLESPACE a ENCRYPTION
+reject@36	reject@36	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/alterTablespace_alter_tablespace_encryption	ALTER TABLESPACE a ENCRYPTION ONLINE
+reject@29	reject@29	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/alterTablespace_alter_tablespace_encryption!drop-2	ALTER TABLESPACE a ENCRYPTION
 reject@37	reject@37	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/alterTablespace_alter_tablespace_encryption!insert	ALTER TABLESPACE a ENCRYPTION ONLINE zzz
 reject@23	reject@23	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/alterTablespace_alter_tablespace_encryption!swap	ALTER TABLESPACE a END ONLINE
 accept	accept	engine	alterTablespace_alter_tablespace_attrs(alterTablespace_default_tablespace_p~b8ee20ad)/alterTablespace_lost_write_protection	ALTER TABLESPACE a ENABLE LOST WRITE PROTECTION
@@ -19724,7 +19724,7 @@ reject@19	reject@19	engine	alterTablespace_alter_tablespace_attrs(alterTablespac
 accept	accept	engine	alterTablespace_alter_tablespace_attrs(KEEP_alterTablespace_size_clause)?/%empty	ALTER TABLESPACE a SHRINK SPACE
 accept	accept	engine	alterTablespace_alter_tablespace_attrs(KEEP_alterTablespace_size_clause)?/KEEP_alterTablespace_size_clause	ALTER TABLESPACE a SHRINK SPACE KEEP 1
 reject@32	reject@32	engine	alterTablespace_alter_tablespace_attrs(KEEP_alterTablespace_size_clause)?/KEEP_alterTablespace_size_clause!drop-1	ALTER TABLESPACE a SHRINK SPACE 1
-accept	reject@36	engine	alterTablespace_alter_tablespace_attrs(KEEP_alterTablespace_size_clause)?/KEEP_alterTablespace_size_clause!drop-2	ALTER TABLESPACE a SHRINK SPACE KEEP
+reject@36	reject@36	engine	alterTablespace_alter_tablespace_attrs(KEEP_alterTablespace_size_clause)?/KEEP_alterTablespace_size_clause!drop-2	ALTER TABLESPACE a SHRINK SPACE KEEP
 reject@39	reject@39	engine	alterTablespace_alter_tablespace_attrs(KEEP_alterTablespace_size_clause)?/KEEP_alterTablespace_size_clause!insert	ALTER TABLESPACE a SHRINK SPACE KEEP 1 zzz
 reject@32	reject@32	engine	alterTablespace_alter_tablespace_attrs(KEEP_alterTablespace_size_clause)?/KEEP_alterTablespace_size_clause!swap	ALTER TABLESPACE a SHRINK SPACE KEEP_DUPLICATES 1
 reject@26	reject@26	engine	alterTablespace_default_tablespace_params/DEFAULT_(alterTablespace_default_table_compression)?_(a~5f60dfd4	ALTER TABLESPACE a DEFAULT
@@ -19766,8 +19766,8 @@ reject@28	reject@28	engine	alterTablespace_size_clause(K|M|G|T|P)?/T!swap	ALTER 
 accept	accept	engine	alterTablespace_size_clause(K|M|G|T|P)?/P	ALTER TABLESPACE a RESIZE 1 P
 reject@30	reject@30	engine	alterTablespace_size_clause(K|M|G|T|P)?/P!insert	ALTER TABLESPACE a RESIZE 1 P zzz
 reject@28	reject@28	engine	alterTablespace_size_clause(K|M|G|T|P)?/P!swap	ALTER TABLESPACE a RESIZE 1 PACKAGE
-accept	reject@31	engine	alterTablespace_datafile_tempfile_clauses/(ADD_(DATAFILE|TEMPFILE)_(alterTables~41ea4e7f)	ALTER TABLESPACE a ADD DATAFILE
-accept	reject@31	engine	alterTablespace_datafile_tempfile_clauses(ADD_(DATAFILE|TEMPFILE)_(alterTables~41ea4e7f)/ADD_(DATAFILE|TEMPFILE)_(alterTablespace_file_specifica~f8bca8a2	ALTER TABLESPACE a ADD DATAFILE
+reject@31	reject@31	engine	alterTablespace_datafile_tempfile_clauses/(ADD_(DATAFILE|TEMPFILE)_(alterTables~41ea4e7f)	ALTER TABLESPACE a ADD DATAFILE
+reject@31	reject@31	engine	alterTablespace_datafile_tempfile_clauses(ADD_(DATAFILE|TEMPFILE)_(alterTables~41ea4e7f)/ADD_(DATAFILE|TEMPFILE)_(alterTablespace_file_specifica~f8bca8a2	ALTER TABLESPACE a ADD DATAFILE
 accept	accept	engine	alterTablespace_datafile_tempfile_clauses(ADD_(DATAFILE|TEMPFILE)_(alterTables~41ea4e7f)/DROP_(DATAFILE|TEMPFILE)_(STRING|NUMBER)	ALTER TABLESPACE a DROP DATAFILE 's'
 reject@28	reject@28	engine	alterTablespace_datafile_tempfile_clauses(ADD_(DATAFILE|TEMPFILE)_(alterTables~41ea4e7f)/DROP_(DATAFILE|TEMPFILE)_(STRING|NUMBER)!drop-1	ALTER TABLESPACE a DATAFILE 's'
 reject@24	reject@24	engine	alterTablespace_datafile_tempfile_clauses(ADD_(DATAFILE|TEMPFILE)_(alterTables~41ea4e7f)/DROP_(DATAFILE|TEMPFILE)_(STRING|NUMBER)!drop-2	ALTER TABLESPACE a DROP 's'
@@ -19785,20 +19785,20 @@ reject@28	reject@28	engine	alterTablespace_datafile_tempfile_clauses(ADD_(DATAFI
 reject@26	reject@26	engine	alterTablespace_datafile_tempfile_clauses(ADD_(DATAFILE|TEMPFILE)_(alterTables~41ea4e7f)/RENAME_DATAFILE_STRING_(,_STRING)*_TO_STRING_(,_STRING)*!drop-2	ALTER TABLESPACE a RENAME 's' TO 's'
 reject@35	reject@35	engine	alterTablespace_datafile_tempfile_clauses(ADD_(DATAFILE|TEMPFILE)_(alterTables~41ea4e7f)/RENAME_DATAFILE_STRING_(,_STRING)*_TO_STRING_(,_STRING)*!drop-3	ALTER TABLESPACE a RENAME DATAFILE TO 's'
 reject@39	reject@39	engine	alterTablespace_datafile_tempfile_clauses(ADD_(DATAFILE|TEMPFILE)_(alterTables~41ea4e7f)/RENAME_DATAFILE_STRING_(,_STRING)*_TO_STRING_(,_STRING)*!drop-4	ALTER TABLESPACE a RENAME DATAFILE 's' 's'
-accept	reject@41	engine	alterTablespace_datafile_tempfile_clauses(ADD_(DATAFILE|TEMPFILE)_(alterTables~41ea4e7f)/RENAME_DATAFILE_STRING_(,_STRING)*_TO_STRING_(,_STRING)*!drop-5	ALTER TABLESPACE a RENAME DATAFILE 's' TO
+reject@41	reject@41	engine	alterTablespace_datafile_tempfile_clauses(ADD_(DATAFILE|TEMPFILE)_(alterTables~41ea4e7f)/RENAME_DATAFILE_STRING_(,_STRING)*_TO_STRING_(,_STRING)*!drop-5	ALTER TABLESPACE a RENAME DATAFILE 's' TO
 reject@46	reject@46	engine	alterTablespace_datafile_tempfile_clauses(ADD_(DATAFILE|TEMPFILE)_(alterTables~41ea4e7f)/RENAME_DATAFILE_STRING_(,_STRING)*_TO_STRING_(,_STRING)*!insert	ALTER TABLESPACE a RENAME DATAFILE 's' TO 's' zzz
 reject@19	reject@19	engine	alterTablespace_datafile_tempfile_clauses(ADD_(DATAFILE|TEMPFILE)_(alterTables~41ea4e7f)/RENAME_DATAFILE_STRING_(,_STRING)*_TO_STRING_(,_STRING)*!swap	ALTER TABLESPACE a REPAIR DATAFILE 's' TO 's'
 accept	accept	engine	alterTablespace_datafile_tempfile_clauses(ADD_(DATAFILE|TEMPFILE)_(alterTables~41ea4e7f)/(DATAFILE|TEMPFILE)_(ONLINE|OFFLINE)	ALTER TABLESPACE a DATAFILE ONLINE
 reject@35	reject@35	engine	alterTablespace_datafile_tempfile_clauses(ADD_(DATAFILE|TEMPFILE)_(alterTables~41ea4e7f)/(DATAFILE|TEMPFILE)_(ONLINE|OFFLINE)!insert	ALTER TABLESPACE a DATAFILE ONLINE zzz
 reject@19	reject@19	engine	alterTablespace_datafile_tempfile_clauses(ADD_(DATAFILE|TEMPFILE)_(alterTables~41ea4e7f)/(DATAFILE|TEMPFILE)_(ONLINE|OFFLINE)!swap	ALTER TABLESPACE a DATAFILES ONLINE
-accept	reject@31	engine	alterTablespace_datafile_tempfile_clauses(DATAFILE|TEMPFILE)/DATAFILE	ALTER TABLESPACE a ADD DATAFILE
+reject@31	reject@31	engine	alterTablespace_datafile_tempfile_clauses(DATAFILE|TEMPFILE)/DATAFILE	ALTER TABLESPACE a ADD DATAFILE
 reject@23	reject@23	engine	alterTablespace_datafile_tempfile_clauses(DATAFILE|TEMPFILE)/DATAFILE!swap	ALTER TABLESPACE a ADD DATAFILES
-accept	reject@31	engine	alterTablespace_datafile_tempfile_clauses(DATAFILE|TEMPFILE)/TEMPFILE	ALTER TABLESPACE a ADD TEMPFILE
+reject@31	reject@31	engine	alterTablespace_datafile_tempfile_clauses(DATAFILE|TEMPFILE)/TEMPFILE	ALTER TABLESPACE a ADD TEMPFILE
 reject@32	reject@32	engine	alterTablespace_datafile_tempfile_clauses(DATAFILE|TEMPFILE)/TEMPFILE!insert	ALTER TABLESPACE a ADD TEMPFILE zzz
 reject@23	reject@23	engine	alterTablespace_datafile_tempfile_clauses(DATAFILE|TEMPFILE)/TEMPFILE!swap	ALTER TABLESPACE a ADD TEMPLATE
-accept	reject@31	engine	alterTablespace_datafile_tempfile_clauses(alterTablespace_file_specification_(~ab5c8d3f)*/%empty	ALTER TABLESPACE a ADD DATAFILE
-accept	reject@31	engine	alterTablespace_datafile_tempfile_clauses(alterTablespace_file_specification_(~ab5c8d3f)*/alterTablespace_file_specification_(,_alterTablespace_f~3ed7e78e	ALTER TABLESPACE a ADD DATAFILE
-accept	reject@31	engine	alterTablespace_datafile_tempfile_clauses(,_alterTablespace_file_specification)?/%empty	ALTER TABLESPACE a ADD DATAFILE
+reject@31	reject@31	engine	alterTablespace_datafile_tempfile_clauses(alterTablespace_file_specification_(~ab5c8d3f)*/%empty	ALTER TABLESPACE a ADD DATAFILE
+reject@31	reject@31	engine	alterTablespace_datafile_tempfile_clauses(alterTablespace_file_specification_(~ab5c8d3f)*/alterTablespace_file_specification_(,_alterTablespace_f~3ed7e78e	ALTER TABLESPACE a ADD DATAFILE
+reject@31	reject@31	engine	alterTablespace_datafile_tempfile_clauses(,_alterTablespace_file_specification)?/%empty	ALTER TABLESPACE a ADD DATAFILE
 reject@31	reject@31	engine	alterTablespace_datafile_tempfile_clauses(,_alterTablespace_file_specification)?/,_alterTablespace_file_specification	ALTER TABLESPACE a ADD DATAFILE,
 reject@31	reject@31	engine	alterTablespace_datafile_tempfile_clauses(,_alterTablespace_file_specification)?/,_alterTablespace_file_specification!insert	ALTER TABLESPACE a ADD DATAFILE, zzz
 accept	accept	engine	alterTablespace_datafile_tempfile_clauses(STRING|NUMBER)/STRING	ALTER TABLESPACE a DROP DATAFILE 's'
@@ -19807,7 +19807,7 @@ reject@35	reject@35	engine	alterTablespace_datafile_tempfile_clauses(STRING|NUMB
 accept	accept	engine	alterTablespace_datafile_tempfile_clauses(KEEP_alterTablespace_size_clause)?/%empty	ALTER TABLESPACE a SHRINK TEMPFILE 's'
 accept	accept	engine	alterTablespace_datafile_tempfile_clauses(KEEP_alterTablespace_size_clause)?/KEEP_alterTablespace_size_clause	ALTER TABLESPACE a SHRINK TEMPFILE 's' KEEP 1
 reject@39	reject@39	engine	alterTablespace_datafile_tempfile_clauses(KEEP_alterTablespace_size_clause)?/KEEP_alterTablespace_size_clause!drop-1	ALTER TABLESPACE a SHRINK TEMPFILE 's' 1
-accept	reject@43	engine	alterTablespace_datafile_tempfile_clauses(KEEP_alterTablespace_size_clause)?/KEEP_alterTablespace_size_clause!drop-2	ALTER TABLESPACE a SHRINK TEMPFILE 's' KEEP
+reject@43	reject@43	engine	alterTablespace_datafile_tempfile_clauses(KEEP_alterTablespace_size_clause)?/KEEP_alterTablespace_size_clause!drop-2	ALTER TABLESPACE a SHRINK TEMPFILE 's' KEEP
 reject@46	reject@46	engine	alterTablespace_datafile_tempfile_clauses(KEEP_alterTablespace_size_clause)?/KEEP_alterTablespace_size_clause!insert	ALTER TABLESPACE a SHRINK TEMPFILE 's' KEEP 1 zzz
 reject@39	reject@39	engine	alterTablespace_datafile_tempfile_clauses(KEEP_alterTablespace_size_clause)?/KEEP_alterTablespace_size_clause!swap	ALTER TABLESPACE a SHRINK TEMPFILE 's' KEEP_DUPLICATES 1
 accept	accept	engine	alterTablespace_datafile_tempfile_clauses(,_STRING)*/%empty	ALTER TABLESPACE a RENAME DATAFILE 's' TO 's'
@@ -19825,7 +19825,7 @@ reject@28	reject@28	engine	alterTablespace_datafile_tempfile_clauses(ONLINE|OFFL
 accept	accept	engine	alterTablespace_tablespace_logging_clauses/(alterTablespace_logging_clause|NO?_F~7fae1c17)	ALTER TABLESPACE a LOGGING
 accept	accept	engine	alterTablespace_tablespace_logging_clauses(alterTablespace_logging_clause|NO?_F~7fae1c17)/alterTablespace_logging_clause	ALTER TABLESPACE a LOGGING
 accept	accept	engine	alterTablespace_tablespace_logging_clauses(alterTablespace_logging_clause|NO?_F~7fae1c17)/(NO)?_FORCE_LOGGING	ALTER TABLESPACE a FORCE LOGGING
-accept	reject@24	engine	alterTablespace_tablespace_logging_clauses(alterTablespace_logging_clause|NO?_F~7fae1c17)/(NO)?_FORCE_LOGGING!drop-2	ALTER TABLESPACE a FORCE
+reject@24	reject@24	engine	alterTablespace_tablespace_logging_clauses(alterTablespace_logging_clause|NO?_F~7fae1c17)/(NO)?_FORCE_LOGGING!drop-2	ALTER TABLESPACE a FORCE
 reject@33	reject@33	engine	alterTablespace_tablespace_logging_clauses(alterTablespace_logging_clause|NO?_F~7fae1c17)/(NO)?_FORCE_LOGGING!insert	ALTER TABLESPACE a FORCE LOGGING zzz
 reject@19	reject@19	engine	alterTablespace_tablespace_logging_clauses(alterTablespace_logging_clause|NO?_F~7fae1c17)/(NO)?_FORCE_LOGGING!swap	ALTER TABLESPACE a FOREIGN LOGGING
 accept	accept	engine	alterTablespace_tablespace_logging_clauses(NO)?/%empty	ALTER TABLESPACE a FORCE LOGGING
@@ -19843,7 +19843,7 @@ accept	accept	engine	alterTablespace_tablespace_state_clauses(ONLINE|OFFLINE_(NO
 reject@27	reject@27	engine	alterTablespace_tablespace_state_clauses(ONLINE|OFFLINE_(NORMAL|TEMPORARY|IMM~24a2fb73)/OFFLINE_(NORMAL|TEMPORARY|IMMEDIATE)?!insert	ALTER TABLESPACE a OFFLINE zzz
 reject@19	reject@19	engine	alterTablespace_tablespace_state_clauses(ONLINE|OFFLINE_(NORMAL|TEMPORARY|IMM~24a2fb73)/OFFLINE_(NORMAL|TEMPORARY|IMMEDIATE)?!swap	ALTER TABLESPACE a OFFSET
 accept	accept	engine	alterTablespace_tablespace_state_clauses(ONLINE|OFFLINE_(NORMAL|TEMPORARY|IMM~24a2fb73)/READ_ONLY	ALTER TABLESPACE a READ ONLY
-accept	reject@23	engine	alterTablespace_tablespace_state_clauses(ONLINE|OFFLINE_(NORMAL|TEMPORARY|IMM~24a2fb73)/READ_ONLY!drop-2	ALTER TABLESPACE a READ
+reject@23	reject@23	engine	alterTablespace_tablespace_state_clauses(ONLINE|OFFLINE_(NORMAL|TEMPORARY|IMM~24a2fb73)/READ_ONLY!drop-2	ALTER TABLESPACE a READ
 reject@29	reject@29	engine	alterTablespace_tablespace_state_clauses(ONLINE|OFFLINE_(NORMAL|TEMPORARY|IMM~24a2fb73)/READ_ONLY!insert	ALTER TABLESPACE a READ ONLY zzz
 reject@19	reject@19	engine	alterTablespace_tablespace_state_clauses(ONLINE|OFFLINE_(NORMAL|TEMPORARY|IMM~24a2fb73)/READ_ONLY!swap	ALTER TABLESPACE a READS ONLY
 accept	accept	engine	alterTablespace_tablespace_state_clauses(ONLINE|OFFLINE_(NORMAL|TEMPORARY|IMM~24a2fb73)/READ_WRITE	ALTER TABLESPACE a READ WRITE
@@ -19875,13 +19875,13 @@ reject@30	reject@30	engine	alterTablespace_autoextend_clause(OFF|ON_(NEXT_alterT
 accept	accept	engine	alterTablespace_autoextend_clause(NEXT_alterTablespace_size_clause)?/%empty	ALTER TABLESPACE a AUTOEXTEND ON
 accept	accept	engine	alterTablespace_autoextend_clause(NEXT_alterTablespace_size_clause)?/NEXT_alterTablespace_size_clause	ALTER TABLESPACE a AUTOEXTEND ON NEXT 1
 reject@33	reject@33	engine	alterTablespace_autoextend_clause(NEXT_alterTablespace_size_clause)?/NEXT_alterTablespace_size_clause!drop-1	ALTER TABLESPACE a AUTOEXTEND ON 1
-accept	reject@37	engine	alterTablespace_autoextend_clause(NEXT_alterTablespace_size_clause)?/NEXT_alterTablespace_size_clause!drop-2	ALTER TABLESPACE a AUTOEXTEND ON NEXT
+reject@37	reject@37	engine	alterTablespace_autoextend_clause(NEXT_alterTablespace_size_clause)?/NEXT_alterTablespace_size_clause!drop-2	ALTER TABLESPACE a AUTOEXTEND ON NEXT
 reject@40	reject@40	engine	alterTablespace_autoextend_clause(NEXT_alterTablespace_size_clause)?/NEXT_alterTablespace_size_clause!insert	ALTER TABLESPACE a AUTOEXTEND ON NEXT 1 zzz
 reject@33	reject@33	engine	alterTablespace_autoextend_clause(NEXT_alterTablespace_size_clause)?/NEXT_alterTablespace_size_clause!swap	ALTER TABLESPACE a AUTOEXTEND ON NO 1
 accept	accept	engine	alterTablespace_autoextend_clause(alterTablespace_maxsize_clause)?/%empty	ALTER TABLESPACE a AUTOEXTEND ON
 accept	accept	engine	alterTablespace_autoextend_clause(alterTablespace_maxsize_clause)?/alterTablespace_maxsize_clause	ALTER TABLESPACE a AUTOEXTEND ON MAXSIZE UNLIMITED
 reject@33	reject@33	engine	alterTablespace_autoextend_clause(alterTablespace_maxsize_clause)?/alterTablespace_maxsize_clause!drop-1	ALTER TABLESPACE a AUTOEXTEND ON UNLIMITED
-accept	reject@40	engine	alterTablespace_autoextend_clause(alterTablespace_maxsize_clause)?/alterTablespace_maxsize_clause!drop-2	ALTER TABLESPACE a AUTOEXTEND ON MAXSIZE
+reject@40	reject@40	engine	alterTablespace_autoextend_clause(alterTablespace_maxsize_clause)?/alterTablespace_maxsize_clause!drop-2	ALTER TABLESPACE a AUTOEXTEND ON MAXSIZE
 reject@51	reject@51	engine	alterTablespace_autoextend_clause(alterTablespace_maxsize_clause)?/alterTablespace_maxsize_clause!insert	ALTER TABLESPACE a AUTOEXTEND ON MAXSIZE UNLIMITED zzz
 reject@33	reject@33	engine	alterTablespace_autoextend_clause(alterTablespace_maxsize_clause)?/alterTablespace_maxsize_clause!swap	ALTER TABLESPACE a AUTOEXTEND ON MAXTRANS UNLIMITED
 accept	accept	engine	alterTablespace_flashback_mode_clause/FLASHBACK_(ON|OFF)	ALTER TABLESPACE a FLASHBACK ON
@@ -19896,24 +19896,24 @@ reject@29	reject@29	engine	alterTablespace_tablespace_retention_clause(GUARANTEE
 accept	accept	engine	alterTablespace_tablespace_retention_clause(GUARANTEE|NOGUARANTEE)/NOGUARANTEE	ALTER TABLESPACE a RETENTION NOGUARANTEE
 reject@41	reject@41	engine	alterTablespace_tablespace_retention_clause(GUARANTEE|NOGUARANTEE)/NOGUARANTEE!insert	ALTER TABLESPACE a RETENTION NOGUARANTEE zzz
 reject@29	reject@29	engine	alterTablespace_tablespace_retention_clause(GUARANTEE|NOGUARANTEE)/NOGUARANTEE!swap	ALTER TABLESPACE a RETENTION NOKEEP
-accept	reject@36	engine	alterTablespace_alter_tablespace_encryption/ENCRYPTION_(ONLINE_alterTablespace_tablespace_en~99e704e8)	ALTER TABLESPACE a ENCRYPTION ONLINE
-accept	reject@36	engine	alterTablespace_alter_tablespace_encryption(ONLINE_alterTablespace_tablespace_en~99e704e8)/ONLINE_(alterTablespace_tablespace_encryption_spec)?_(a~1ff64e4f	ALTER TABLESPACE a ENCRYPTION ONLINE
+reject@36	reject@36	engine	alterTablespace_alter_tablespace_encryption/ENCRYPTION_(ONLINE_alterTablespace_tablespace_en~99e704e8)	ALTER TABLESPACE a ENCRYPTION ONLINE
+reject@36	reject@36	engine	alterTablespace_alter_tablespace_encryption(ONLINE_alterTablespace_tablespace_en~99e704e8)/ONLINE_(alterTablespace_tablespace_encryption_spec)?_(a~1ff64e4f	ALTER TABLESPACE a ENCRYPTION ONLINE
 reject@30	reject@30	engine	alterTablespace_alter_tablespace_encryption(ONLINE_alterTablespace_tablespace_en~99e704e8)/ONLINE_(alterTablespace_tablespace_encryption_spec)?_(a~1ff64e4f!swap	ALTER TABLESPACE a ENCRYPTION ONLY
 accept	accept	engine	alterTablespace_alter_tablespace_encryption(ONLINE_alterTablespace_tablespace_en~99e704e8)/OFFLINE_(ENCRYPT_alterTablespace_tablespace_e~dd293910)	ALTER TABLESPACE a ENCRYPTION OFFLINE ENCRYPT
 accept	accept	engine	alterTablespace_alter_tablespace_encryption(ONLINE_alterTablespace_tablespace_en~99e704e8)/OFFLINE_(ENCRYPT_alterTablespace_tablespace_e~dd293910)!drop-1	ALTER TABLESPACE a ENCRYPTION ENCRYPT
-accept	reject@37	engine	alterTablespace_alter_tablespace_encryption(ONLINE_alterTablespace_tablespace_en~99e704e8)/OFFLINE_(ENCRYPT_alterTablespace_tablespace_e~dd293910)!drop-2	ALTER TABLESPACE a ENCRYPTION OFFLINE
+reject@37	reject@37	engine	alterTablespace_alter_tablespace_encryption(ONLINE_alterTablespace_tablespace_en~99e704e8)/OFFLINE_(ENCRYPT_alterTablespace_tablespace_e~dd293910)!drop-2	ALTER TABLESPACE a ENCRYPTION OFFLINE
 reject@46	reject@46	engine	alterTablespace_alter_tablespace_encryption(ONLINE_alterTablespace_tablespace_en~99e704e8)/OFFLINE_(ENCRYPT_alterTablespace_tablespace_e~dd293910)!insert	ALTER TABLESPACE a ENCRYPTION OFFLINE ENCRYPT zzz
 reject@30	reject@30	engine	alterTablespace_alter_tablespace_encryption(ONLINE_alterTablespace_tablespace_en~99e704e8)/OFFLINE_(ENCRYPT_alterTablespace_tablespace_e~dd293910)!swap	ALTER TABLESPACE a ENCRYPTION OFFSET ENCRYPT
-accept	reject@36	engine	alterTablespace_alter_tablespace_encryption(ONLINE_alterTablespace_tablespace_en~99e704e8)/FINISH_(ENCRYPT|DECRYPT)?_(alterTablespace_ts_file_name~77ba9405	ALTER TABLESPACE a ENCRYPTION FINISH
+reject@36	reject@36	engine	alterTablespace_alter_tablespace_encryption(ONLINE_alterTablespace_tablespace_en~99e704e8)/FINISH_(ENCRYPT|DECRYPT)?_(alterTablespace_ts_file_name~77ba9405	ALTER TABLESPACE a ENCRYPTION FINISH
 reject@37	reject@37	engine	alterTablespace_alter_tablespace_encryption(ONLINE_alterTablespace_tablespace_en~99e704e8)/FINISH_(ENCRYPT|DECRYPT)?_(alterTablespace_ts_file_name~77ba9405!insert	ALTER TABLESPACE a ENCRYPTION FINISH zzz
 reject@30	reject@30	engine	alterTablespace_alter_tablespace_encryption(ONLINE_alterTablespace_tablespace_en~99e704e8)/FINISH_(ENCRYPT|DECRYPT)?_(alterTablespace_ts_file_name~77ba9405!swap	ALTER TABLESPACE a ENCRYPTION FIRST
-accept	reject@36	engine	alterTablespace_alter_tablespace_encryption(alterTablespace_tablespace_encryption_spec)?/%empty	ALTER TABLESPACE a ENCRYPTION ONLINE
-accept	reject@43	engine	alterTablespace_alter_tablespace_encryption(alterTablespace_tablespace_encryption_spec)?/alterTablespace_tablespace_encryption_spec	ALTER TABLESPACE a ENCRYPTION ONLINE USING 's'
+reject@36	reject@36	engine	alterTablespace_alter_tablespace_encryption(alterTablespace_tablespace_encryption_spec)?/%empty	ALTER TABLESPACE a ENCRYPTION ONLINE
+reject@46	reject@43	engine	alterTablespace_alter_tablespace_encryption(alterTablespace_tablespace_encryption_spec)?/alterTablespace_tablespace_encryption_spec	ALTER TABLESPACE a ENCRYPTION ONLINE USING 's'
 reject@37	reject@37	engine	alterTablespace_alter_tablespace_encryption(alterTablespace_tablespace_encryption_spec)?/alterTablespace_tablespace_encryption_spec!drop-1	ALTER TABLESPACE a ENCRYPTION ONLINE 's'
-accept	reject@42	engine	alterTablespace_alter_tablespace_encryption(alterTablespace_tablespace_encryption_spec)?/alterTablespace_tablespace_encryption_spec!drop-2	ALTER TABLESPACE a ENCRYPTION ONLINE USING
+reject@42	reject@42	engine	alterTablespace_alter_tablespace_encryption(alterTablespace_tablespace_encryption_spec)?/alterTablespace_tablespace_encryption_spec!drop-2	ALTER TABLESPACE a ENCRYPTION ONLINE USING
 reject@47	reject@43	engine	alterTablespace_alter_tablespace_encryption(alterTablespace_tablespace_encryption_spec)?/alterTablespace_tablespace_encryption_spec!insert	ALTER TABLESPACE a ENCRYPTION ONLINE USING 's' zzz
 reject@37	reject@37	engine	alterTablespace_alter_tablespace_encryption(alterTablespace_tablespace_encryption_spec)?/alterTablespace_tablespace_encryption_spec!swap	ALTER TABLESPACE a ENCRYPTION ONLINE VALIDATE 's'
-accept	reject@36	engine	alterTablespace_alter_tablespace_encryption(alterTablespace_ts_file_name_convert)?/%empty	ALTER TABLESPACE a ENCRYPTION ONLINE
+reject@36	reject@36	engine	alterTablespace_alter_tablespace_encryption(alterTablespace_ts_file_name_convert)?/%empty	ALTER TABLESPACE a ENCRYPTION ONLINE
 reject@37	reject@37	engine	alterTablespace_alter_tablespace_encryption(alterTablespace_ts_file_name_convert)?/alterTablespace_ts_file_name_convert	ALTER TABLESPACE a ENCRYPTION ONLINE FILE_NAME_CONVERT =('s', 's')
 reject@37	reject@37	engine	alterTablespace_alter_tablespace_encryption(alterTablespace_ts_file_name_convert)?/alterTablespace_ts_file_name_convert!drop-1	ALTER TABLESPACE a ENCRYPTION ONLINE =('s', 's')
 reject@37	reject@37	engine	alterTablespace_alter_tablespace_encryption(alterTablespace_ts_file_name_convert)?/alterTablespace_ts_file_name_convert!drop-2	ALTER TABLESPACE a ENCRYPTION ONLINE FILE_NAME_CONVERT('s', 's')
@@ -19929,7 +19929,7 @@ reject@38	reject@38	engine	alterTablespace_alter_tablespace_encryption(ENCRYPT_a
 accept	accept	engine	alterTablespace_alter_tablespace_encryption(ENCRYPT_alterTablespace_tablespace_e~dd293910)/DECRYPT	ALTER TABLESPACE a ENCRYPTION OFFLINE DECRYPT
 reject@46	reject@46	engine	alterTablespace_alter_tablespace_encryption(ENCRYPT_alterTablespace_tablespace_e~dd293910)/DECRYPT!insert	ALTER TABLESPACE a ENCRYPTION OFFLINE DECRYPT zzz
 reject@38	reject@38	engine	alterTablespace_alter_tablespace_encryption(ENCRYPT_alterTablespace_tablespace_e~dd293910)/DECRYPT!swap	ALTER TABLESPACE a ENCRYPTION OFFLINE DEDUPLICATE
-accept	reject@36	engine	alterTablespace_alter_tablespace_encryption(ENCRYPT|DECRYPT)?/%empty	ALTER TABLESPACE a ENCRYPTION FINISH
+reject@36	reject@36	engine	alterTablespace_alter_tablespace_encryption(ENCRYPT|DECRYPT)?/%empty	ALTER TABLESPACE a ENCRYPTION FINISH
 accept	accept	engine	alterTablespace_alter_tablespace_encryption(ENCRYPT|DECRYPT)?/ENCRYPT	ALTER TABLESPACE a ENCRYPTION FINISH ENCRYPT
 reject@45	reject@45	engine	alterTablespace_alter_tablespace_encryption(ENCRYPT|DECRYPT)?/ENCRYPT!insert	ALTER TABLESPACE a ENCRYPTION FINISH ENCRYPT zzz
 reject@37	reject@37	engine	alterTablespace_alter_tablespace_encryption(ENCRYPT|DECRYPT)?/ENCRYPT!swap	ALTER TABLESPACE a ENCRYPTION FINISH ENCRYPTION
@@ -19971,7 +19971,7 @@ reject@48	reject@48	engine	alterTablespace_default_table_compression(BASIC|FOR_O
 reject@42	reject@42	engine	alterTablespace_default_table_compression(BASIC|FOR_OLTP)?/BASIC!swap	ALTER TABLESPACE a DEFAULT TABLE COMPRESS BASICFILE
 accept	accept	engine	alterTablespace_default_table_compression(BASIC|FOR_OLTP)?/FOR_OLTP	ALTER TABLESPACE a DEFAULT TABLE COMPRESS FOR OLTP
 reject@42	reject@42	engine	alterTablespace_default_table_compression(BASIC|FOR_OLTP)?/FOR_OLTP!drop-1	ALTER TABLESPACE a DEFAULT TABLE COMPRESS OLTP
-accept	reject@45	engine	alterTablespace_default_table_compression(BASIC|FOR_OLTP)?/FOR_OLTP!drop-2	ALTER TABLESPACE a DEFAULT TABLE COMPRESS FOR
+reject@45	reject@45	engine	alterTablespace_default_table_compression(BASIC|FOR_OLTP)?/FOR_OLTP!drop-2	ALTER TABLESPACE a DEFAULT TABLE COMPRESS FOR
 reject@51	reject@51	engine	alterTablespace_default_table_compression(BASIC|FOR_OLTP)?/FOR_OLTP!insert	ALTER TABLESPACE a DEFAULT TABLE COMPRESS FOR OLTP zzz
 reject@42	reject@42	engine	alterTablespace_default_table_compression(BASIC|FOR_OLTP)?/FOR_OLTP!swap	ALTER TABLESPACE a DEFAULT TABLE COMPRESS FORCE OLTP
 reject@33	reject@33	engine	alterTablespace_default_table_compression(BASIC|ADVANCED)?/%empty	ALTER TABLESPACE a DEFAULT TABLE ROW STORE COMPRESS
@@ -20047,21 +20047,21 @@ reject@31	reject@31	engine	alterTablespace_ilm_clause(ADD_POLICY_alterTablespace
 accept	accept	engine	alterTablespace_ilm_clause(ADD_POLICY_alterTablespace_ilm_polic~88b68a7a)/DISABLE_ALL	ALTER TABLESPACE a DEFAULT ILM DISABLE_ALL
 reject@43	reject@43	engine	alterTablespace_ilm_clause(ADD_POLICY_alterTablespace_ilm_polic~88b68a7a)/DISABLE_ALL!insert	ALTER TABLESPACE a DEFAULT ILM DISABLE_ALL zzz
 reject@31	reject@31	engine	alterTablespace_ilm_clause(ADD_POLICY_alterTablespace_ilm_polic~88b68a7a)/DISABLE_ALL!swap	ALTER TABLESPACE a DEFAULT ILM DISALLOW
-accept	reject@31	engine	alterTablespace_file_specification/(STRING)?_(SIZE_alterTablespace_size_clause)?_(REUSE)?_~3f57ce51	ALTER TABLESPACE a ADD DATAFILE
-accept	reject@31	engine	alterTablespace_file_specification(STRING)?/%empty	ALTER TABLESPACE a ADD DATAFILE
+reject@31	reject@31	engine	alterTablespace_file_specification/(STRING)?_(SIZE_alterTablespace_size_clause)?_(REUSE)?_~3f57ce51	ALTER TABLESPACE a ADD DATAFILE
+reject@31	reject@31	engine	alterTablespace_file_specification(STRING)?/%empty	ALTER TABLESPACE a ADD DATAFILE
 accept	accept	engine	alterTablespace_file_specification(STRING)?/STRING	ALTER TABLESPACE a ADD DATAFILE 's'
 reject@36	reject@36	engine	alterTablespace_file_specification(STRING)?/STRING!insert	ALTER TABLESPACE a ADD DATAFILE 's' zzz
-accept	reject@31	engine	alterTablespace_file_specification(SIZE_alterTablespace_size_clause)?/%empty	ALTER TABLESPACE a ADD DATAFILE
+reject@31	reject@31	engine	alterTablespace_file_specification(SIZE_alterTablespace_size_clause)?/%empty	ALTER TABLESPACE a ADD DATAFILE
 reject@32	reject@32	engine	alterTablespace_file_specification(SIZE_alterTablespace_size_clause)?/SIZE_alterTablespace_size_clause	ALTER TABLESPACE a ADD DATAFILE SIZE 1
 reject@32	reject@32	engine	alterTablespace_file_specification(SIZE_alterTablespace_size_clause)?/SIZE_alterTablespace_size_clause!drop-1	ALTER TABLESPACE a ADD DATAFILE 1
 reject@32	reject@32	engine	alterTablespace_file_specification(SIZE_alterTablespace_size_clause)?/SIZE_alterTablespace_size_clause!drop-2	ALTER TABLESPACE a ADD DATAFILE SIZE
 reject@32	reject@32	engine	alterTablespace_file_specification(SIZE_alterTablespace_size_clause)?/SIZE_alterTablespace_size_clause!insert	ALTER TABLESPACE a ADD DATAFILE SIZE 1 zzz
 reject@32	reject@32	engine	alterTablespace_file_specification(SIZE_alterTablespace_size_clause)?/SIZE_alterTablespace_size_clause!swap	ALTER TABLESPACE a ADD DATAFILE SKIP 1
-accept	reject@31	engine	alterTablespace_file_specification(REUSE)?/%empty	ALTER TABLESPACE a ADD DATAFILE
+reject@31	reject@31	engine	alterTablespace_file_specification(REUSE)?/%empty	ALTER TABLESPACE a ADD DATAFILE
 reject@32	reject@32	engine	alterTablespace_file_specification(REUSE)?/REUSE	ALTER TABLESPACE a ADD DATAFILE REUSE
 reject@32	reject@32	engine	alterTablespace_file_specification(REUSE)?/REUSE!insert	ALTER TABLESPACE a ADD DATAFILE REUSE zzz
 reject@32	reject@32	engine	alterTablespace_file_specification(REUSE)?/REUSE!swap	ALTER TABLESPACE a ADD DATAFILE REVERSE
-accept	reject@31	engine	alterTablespace_file_specification(alterTablespace_autoextend_clause)?/%empty	ALTER TABLESPACE a ADD DATAFILE
+reject@31	reject@31	engine	alterTablespace_file_specification(alterTablespace_autoextend_clause)?/%empty	ALTER TABLESPACE a ADD DATAFILE
 reject@32	reject@32	engine	alterTablespace_file_specification(alterTablespace_autoextend_clause)?/alterTablespace_autoextend_clause	ALTER TABLESPACE a ADD DATAFILE AUTOEXTEND OFF
 reject@32	reject@32	engine	alterTablespace_file_specification(alterTablespace_autoextend_clause)?/alterTablespace_autoextend_clause!drop-1	ALTER TABLESPACE a ADD DATAFILE OFF
 reject@32	reject@32	engine	alterTablespace_file_specification(alterTablespace_autoextend_clause)?/alterTablespace_autoextend_clause!drop-2	ALTER TABLESPACE a ADD DATAFILE AUTOEXTEND
@@ -20077,7 +20077,7 @@ accept	accept	engine	alterTablespace_maxsize_clause(UNLIMITED|alterTablespace_si
 reject@41	reject@41	engine	alterTablespace_maxsize_clause(UNLIMITED|alterTablespace_size_clause)/UNLIMITED!swap	ALTER TABLESPACE a AUTOEXTEND ON MAXSIZE UNLOCK
 accept	accept	engine	alterTablespace_maxsize_clause(UNLIMITED|alterTablespace_size_clause)/alterTablespace_size_clause	ALTER TABLESPACE a AUTOEXTEND ON MAXSIZE 1
 reject@43	reject@43	engine	alterTablespace_maxsize_clause(UNLIMITED|alterTablespace_size_clause)/alterTablespace_size_clause!insert	ALTER TABLESPACE a AUTOEXTEND ON MAXSIZE 1 zzz
-accept	reject@43	engine	alterTablespace_tablespace_encryption_spec/USING_STRING	ALTER TABLESPACE a ENCRYPTION ONLINE USING 's'
+reject@46	reject@43	engine	alterTablespace_tablespace_encryption_spec/USING_STRING	ALTER TABLESPACE a ENCRYPTION ONLINE USING 's'
 reject@37	reject@37	engine	alterTablespace_ts_file_name_convert/FILE_NAME_CONVERT_=_(_STRING_,_STRING_(,_STRING_,_STRIN~0a11638f	ALTER TABLESPACE a ENCRYPTION ONLINE FILE_NAME_CONVERT =('s', 's')
 reject@37	reject@37	engine	alterTablespace_ts_file_name_convert(,_STRING_,_STRING)*/%empty	ALTER TABLESPACE a ENCRYPTION ONLINE FILE_NAME_CONVERT =('s', 's')
 reject@37	reject@37	engine	alterTablespace_ts_file_name_convert(,_STRING_,_STRING)*/%empty!insert	ALTER TABLESPACE a ENCRYPTION ONLINE FILE_NAME_CONVERT =('s', 's' zzz)
@@ -20174,10 +20174,10 @@ reject@45	reject@45	engine	alterTablespace_inmemory_priority(LOW|MEDIUM|HIGH|CRI
 reject@47	reject@47	engine	alterTablespace_inmemory_distribute/DISTRIBUTE_BY_(ROWID_(ACROSS_NUMBER?)?|PARTITION|SUBPARTITION)	ALTER TABLESPACE a DEFAULT INMEMORY DISTRIBUTE BY ROWID
 reject@47	reject@47	engine	alterTablespace_inmemory_distribute(ROWID_(ACROSS_NUMBER?)?|PARTITION|SUBPARTITION)/ROWID_(ACROSS_NUMBER?)?	ALTER TABLESPACE a DEFAULT INMEMORY DISTRIBUTE BY ROWID
 reject@47	reject@47	engine	alterTablespace_inmemory_distribute(ROWID_(ACROSS_NUMBER?)?|PARTITION|SUBPARTITION)/ROWID_(ACROSS_NUMBER?)?!swap	ALTER TABLESPACE a DEFAULT INMEMORY DISTRIBUTE BY ROWS
-accept	reject@59	engine	alterTablespace_inmemory_distribute(ROWID_(ACROSS_NUMBER?)?|PARTITION|SUBPARTITION)/PARTITION	ALTER TABLESPACE a DEFAULT INMEMORY DISTRIBUTE BY PARTITION
+reject@59	reject@59	engine	alterTablespace_inmemory_distribute(ROWID_(ACROSS_NUMBER?)?|PARTITION|SUBPARTITION)/PARTITION	ALTER TABLESPACE a DEFAULT INMEMORY DISTRIBUTE BY PARTITION
 reject@60	reject@60	engine	alterTablespace_inmemory_distribute(ROWID_(ACROSS_NUMBER?)?|PARTITION|SUBPARTITION)/PARTITION!insert	ALTER TABLESPACE a DEFAULT INMEMORY DISTRIBUTE BY PARTITION zzz
 reject@47	reject@47	engine	alterTablespace_inmemory_distribute(ROWID_(ACROSS_NUMBER?)?|PARTITION|SUBPARTITION)/PARTITION!swap	ALTER TABLESPACE a DEFAULT INMEMORY DISTRIBUTE BY PARTITIONING
-accept	reject@62	engine	alterTablespace_inmemory_distribute(ROWID_(ACROSS_NUMBER?)?|PARTITION|SUBPARTITION)/SUBPARTITION	ALTER TABLESPACE a DEFAULT INMEMORY DISTRIBUTE BY SUBPARTITION
+reject@62	reject@62	engine	alterTablespace_inmemory_distribute(ROWID_(ACROSS_NUMBER?)?|PARTITION|SUBPARTITION)/SUBPARTITION	ALTER TABLESPACE a DEFAULT INMEMORY DISTRIBUTE BY SUBPARTITION
 reject@63	reject@63	engine	alterTablespace_inmemory_distribute(ROWID_(ACROSS_NUMBER?)?|PARTITION|SUBPARTITION)/SUBPARTITION!insert	ALTER TABLESPACE a DEFAULT INMEMORY DISTRIBUTE BY SUBPARTITION zzz
 reject@47	reject@47	engine	alterTablespace_inmemory_distribute(ROWID_(ACROSS_NUMBER?)?|PARTITION|SUBPARTITION)/SUBPARTITION!swap	ALTER TABLESPACE a DEFAULT INMEMORY DISTRIBUTE BY SUBPARTITIONS
 reject@47	reject@47	engine	alterTablespace_inmemory_distribute(ACROSS_NUMBER?)?/%empty	ALTER TABLESPACE a DEFAULT INMEMORY DISTRIBUTE BY ROWID
@@ -20206,43 +20206,43 @@ reject@46	reject@46	engine	alterTablespace_inmemory_duplicate(,_ID)*/,_ID_(,_ID)
 reject@46	reject@46	engine	alterTablespace_inmemory_duplicate(,_ID)*/,_ID_(,_ID)*!insert	ALTER TABLESPACE a DEFAULT INMEMORY DUPLICATE FOR SERVICE a, a zzz
 accept	accept	engine	alterTablespace_ilm_compression_policy/(alterTablespace_table_compression|RO~2ce03d6f)_(SEGMEN~0cb333a5	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	alterTablespace_ilm_compression_policy(alterTablespace_table_compression|RO~2ce03d6f)/alterTablespace_table_compression	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS SEGMENT AFTER 1 DAY OF CREATION
-accept	reject@41	engine	alterTablespace_ilm_compression_policy(alterTablespace_table_compression|RO~2ce03d6f)/alterTablespace_table_compression!truncate	ALTER TABLESPACE a DEFAULT ILM ADD POLICY
+reject@41	reject@41	engine	alterTablespace_ilm_compression_policy(alterTablespace_table_compression|RO~2ce03d6f)/alterTablespace_table_compression!truncate	ALTER TABLESPACE a DEFAULT ILM ADD POLICY
 reject@51	reject@51	engine	alterTablespace_ilm_compression_policy(alterTablespace_table_compression|RO~2ce03d6f)/alterTablespace_table_compression!insert	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS zzz SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	alterTablespace_ilm_compression_policy(alterTablespace_table_compression|RO~2ce03d6f)/ROW_STORE_COMPRESS_(ADVANCED)?	ALTER TABLESPACE a DEFAULT ILM ADD POLICY ROW STORE COMPRESS SEGMENT AFTER 1 DAY OF CREATION
 reject@42	reject@42	engine	alterTablespace_ilm_compression_policy(alterTablespace_table_compression|RO~2ce03d6f)/ROW_STORE_COMPRESS_(ADVANCED)?!drop-1	ALTER TABLESPACE a DEFAULT ILM ADD POLICY STORE COMPRESS SEGMENT AFTER 1 DAY OF CREATION
 reject@46	reject@46	engine	alterTablespace_ilm_compression_policy(alterTablespace_table_compression|RO~2ce03d6f)/ROW_STORE_COMPRESS_(ADVANCED)?!drop-2	ALTER TABLESPACE a DEFAULT ILM ADD POLICY ROW COMPRESS SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	alterTablespace_ilm_compression_policy(alterTablespace_table_compression|RO~2ce03d6f)/ROW_STORE_COMPRESS_(ADVANCED)?!drop-3	ALTER TABLESPACE a DEFAULT ILM ADD POLICY ROW STORE SEGMENT AFTER 1 DAY OF CREATION
-accept	reject@51	engine	alterTablespace_ilm_compression_policy(alterTablespace_table_compression|RO~2ce03d6f)/ROW_STORE_COMPRESS_(ADVANCED)?!truncate	ALTER TABLESPACE a DEFAULT ILM ADD POLICY ROW STORE
+reject@51	reject@51	engine	alterTablespace_ilm_compression_policy(alterTablespace_table_compression|RO~2ce03d6f)/ROW_STORE_COMPRESS_(ADVANCED)?!truncate	ALTER TABLESPACE a DEFAULT ILM ADD POLICY ROW STORE
 reject@61	reject@61	engine	alterTablespace_ilm_compression_policy(alterTablespace_table_compression|RO~2ce03d6f)/ROW_STORE_COMPRESS_(ADVANCED)?!insert	ALTER TABLESPACE a DEFAULT ILM ADD POLICY ROW STORE COMPRESS zzz SEGMENT AFTER 1 DAY OF CREATION
 reject@42	reject@42	engine	alterTablespace_ilm_compression_policy(alterTablespace_table_compression|RO~2ce03d6f)/ROW_STORE_COMPRESS_(ADVANCED)?!swap	ALTER TABLESPACE a DEFAULT ILM ADD POLICY ROWDEPENDENCIES STORE COMPRESS SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	alterTablespace_ilm_compression_policy(alterTablespace_table_compression|RO~2ce03d6f)/COLUMN_STORE_COMPRESS_(FOR_QUERY_(LOW|HIGH)?)?	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS SEGMENT AFTER 1 DAY OF CREATION
 reject@49	reject@49	engine	alterTablespace_ilm_compression_policy(alterTablespace_table_compression|RO~2ce03d6f)/COLUMN_STORE_COMPRESS_(FOR_QUERY_(LOW|HIGH)?)?!drop-2	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COLUMN COMPRESS SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	alterTablespace_ilm_compression_policy(alterTablespace_table_compression|RO~2ce03d6f)/COLUMN_STORE_COMPRESS_(FOR_QUERY_(LOW|HIGH)?)?!drop-3	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COLUMN STORE SEGMENT AFTER 1 DAY OF CREATION
-accept	reject@54	engine	alterTablespace_ilm_compression_policy(alterTablespace_table_compression|RO~2ce03d6f)/COLUMN_STORE_COMPRESS_(FOR_QUERY_(LOW|HIGH)?)?!truncate	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COLUMN STORE
+reject@54	reject@54	engine	alterTablespace_ilm_compression_policy(alterTablespace_table_compression|RO~2ce03d6f)/COLUMN_STORE_COMPRESS_(FOR_QUERY_(LOW|HIGH)?)?!truncate	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COLUMN STORE
 reject@64	reject@64	engine	alterTablespace_ilm_compression_policy(alterTablespace_table_compression|RO~2ce03d6f)/COLUMN_STORE_COMPRESS_(FOR_QUERY_(LOW|HIGH)?)?!insert	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS zzz SEGMENT AFTER 1 DAY OF CREATION
 reject@42	reject@42	engine	alterTablespace_ilm_compression_policy(alterTablespace_table_compression|RO~2ce03d6f)/COLUMN_STORE_COMPRESS_(FOR_QUERY_(LOW|HIGH)?)?!swap	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COLUMNS STORE COMPRESS SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	alterTablespace_ilm_compression_policy(ADVANCED)?/%empty	ALTER TABLESPACE a DEFAULT ILM ADD POLICY ROW STORE COMPRESS SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	alterTablespace_ilm_compression_policy(ADVANCED)?/ADVANCED	ALTER TABLESPACE a DEFAULT ILM ADD POLICY ROW STORE COMPRESS ADVANCED SEGMENT AFTER 1 DAY OF CREATION
-accept	reject@60	engine	alterTablespace_ilm_compression_policy(ADVANCED)?/ADVANCED!truncate	ALTER TABLESPACE a DEFAULT ILM ADD POLICY ROW STORE COMPRESS
+reject@60	reject@60	engine	alterTablespace_ilm_compression_policy(ADVANCED)?/ADVANCED!truncate	ALTER TABLESPACE a DEFAULT ILM ADD POLICY ROW STORE COMPRESS
 reject@70	reject@70	engine	alterTablespace_ilm_compression_policy(ADVANCED)?/ADVANCED!insert	ALTER TABLESPACE a DEFAULT ILM ADD POLICY ROW STORE COMPRESS ADVANCED zzz SEGMENT AFTER 1 DAY OF CREATION
 reject@61	reject@61	engine	alterTablespace_ilm_compression_policy(ADVANCED)?/ADVANCED!swap	ALTER TABLESPACE a DEFAULT ILM ADD POLICY ROW STORE COMPRESS ADVISE SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	alterTablespace_ilm_compression_policy(FOR_QUERY_(LOW|HIGH)?)?/%empty	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	alterTablespace_ilm_compression_policy(FOR_QUERY_(LOW|HIGH)?)?/FOR_QUERY_(LOW|HIGH)?	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS FOR QUERY SEGMENT AFTER 1 DAY OF CREATION
 reject@64	reject@64	engine	alterTablespace_ilm_compression_policy(FOR_QUERY_(LOW|HIGH)?)?/FOR_QUERY_(LOW|HIGH)?!drop-1	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS QUERY SEGMENT AFTER 1 DAY OF CREATION
 reject@68	reject@68	engine	alterTablespace_ilm_compression_policy(FOR_QUERY_(LOW|HIGH)?)?/FOR_QUERY_(LOW|HIGH)?!drop-2	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS FOR SEGMENT AFTER 1 DAY OF CREATION
-accept	reject@67	engine	alterTablespace_ilm_compression_policy(FOR_QUERY_(LOW|HIGH)?)?/FOR_QUERY_(LOW|HIGH)?!truncate	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS FOR
+reject@67	reject@67	engine	alterTablespace_ilm_compression_policy(FOR_QUERY_(LOW|HIGH)?)?/FOR_QUERY_(LOW|HIGH)?!truncate	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS FOR
 reject@74	reject@74	engine	alterTablespace_ilm_compression_policy(FOR_QUERY_(LOW|HIGH)?)?/FOR_QUERY_(LOW|HIGH)?!insert	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS FOR QUERY zzz SEGMENT AFTER 1 DAY OF CREATION
 reject@64	reject@64	engine	alterTablespace_ilm_compression_policy(FOR_QUERY_(LOW|HIGH)?)?/FOR_QUERY_(LOW|HIGH)?!swap	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS FORCE QUERY SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	alterTablespace_ilm_compression_policy(LOW|HIGH)?/%empty	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS FOR QUERY SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	alterTablespace_ilm_compression_policy(LOW|HIGH)?/LOW	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS FOR QUERY LOW SEGMENT AFTER 1 DAY OF CREATION
-accept	reject@73	engine	alterTablespace_ilm_compression_policy(LOW|HIGH)?/LOW!truncate	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS FOR QUERY
+reject@73	reject@73	engine	alterTablespace_ilm_compression_policy(LOW|HIGH)?/LOW!truncate	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS FOR QUERY
 reject@78	reject@78	engine	alterTablespace_ilm_compression_policy(LOW|HIGH)?/LOW!insert	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS FOR QUERY LOW zzz SEGMENT AFTER 1 DAY OF CREATION
 reject@74	reject@74	engine	alterTablespace_ilm_compression_policy(LOW|HIGH)?/LOW!swap	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS FOR QUERY M SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	alterTablespace_ilm_compression_policy(LOW|HIGH)?/HIGH	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS FOR QUERY HIGH SEGMENT AFTER 1 DAY OF CREATION
 reject@79	reject@79	engine	alterTablespace_ilm_compression_policy(LOW|HIGH)?/HIGH!insert	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS FOR QUERY HIGH zzz SEGMENT AFTER 1 DAY OF CREATION
 reject@74	reject@74	engine	alterTablespace_ilm_compression_policy(LOW|HIGH)?/HIGH!swap	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS FOR QUERY HNSW SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	alterTablespace_ilm_compression_policy(SEGMENT|GROUP|ROW)/SEGMENT	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS SEGMENT AFTER 1 DAY OF CREATION
-accept	reject@50	engine	alterTablespace_ilm_compression_policy(SEGMENT|GROUP|ROW)/SEGMENT!truncate	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS
+reject@50	reject@50	engine	alterTablespace_ilm_compression_policy(SEGMENT|GROUP|ROW)/SEGMENT!truncate	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS
 reject@59	reject@59	engine	alterTablespace_ilm_compression_policy(SEGMENT|GROUP|ROW)/SEGMENT!insert	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS SEGMENT zzz AFTER 1 DAY OF CREATION
 reject@51	reject@51	engine	alterTablespace_ilm_compression_policy(SEGMENT|GROUP|ROW)/SEGMENT!swap	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS SELECT AFTER 1 DAY OF CREATION
 accept	accept	engine	alterTablespace_ilm_compression_policy(SEGMENT|GROUP|ROW)/GROUP	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS GROUP AFTER 1 DAY OF CREATION
@@ -20329,7 +20329,7 @@ accept	accept	engine	alterTablespace_table_compression(COMPRESS_BASIC?|COMPRESS_
 reject@42	reject@42	engine	alterTablespace_table_compression(COMPRESS_BASIC?|COMPRESS_FOR_(OLTP|Q~e159a79e)/COMPRESS_FOR_(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)!drop-1	ALTER TABLESPACE a DEFAULT ILM ADD POLICY FOR OLTP SEGMENT AFTER 1 DAY OF CREATION
 reject@51	reject@51	engine	alterTablespace_table_compression(COMPRESS_BASIC?|COMPRESS_FOR_(OLTP|Q~e159a79e)/COMPRESS_FOR_(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)!drop-2	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS OLTP SEGMENT AFTER 1 DAY OF CREATION
 reject@55	reject@55	engine	alterTablespace_table_compression(COMPRESS_BASIC?|COMPRESS_FOR_(OLTP|Q~e159a79e)/COMPRESS_FOR_(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)!drop-3	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS FOR SEGMENT AFTER 1 DAY OF CREATION
-accept	reject@54	engine	alterTablespace_table_compression(COMPRESS_BASIC?|COMPRESS_FOR_(OLTP|Q~e159a79e)/COMPRESS_FOR_(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)!truncate	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS FOR
+reject@54	reject@54	engine	alterTablespace_table_compression(COMPRESS_BASIC?|COMPRESS_FOR_(OLTP|Q~e159a79e)/COMPRESS_FOR_(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)!truncate	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS FOR
 reject@60	reject@60	engine	alterTablespace_table_compression(COMPRESS_BASIC?|COMPRESS_FOR_(OLTP|Q~e159a79e)/COMPRESS_FOR_(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)!insert	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS FOR OLTP zzz SEGMENT AFTER 1 DAY OF CREATION
 reject@42	reject@42	engine	alterTablespace_table_compression(COMPRESS_BASIC?|COMPRESS_FOR_(OLTP|Q~e159a79e)/COMPRESS_FOR_(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)!swap	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COMPUTATION FOR OLTP SEGMENT AFTER 1 DAY OF CREATION
 reject@42	reject@42	engine	alterTablespace_table_compression(COMPRESS_BASIC?|COMPRESS_FOR_(OLTP|Q~e159a79e)/NOCOMPRESS	ALTER TABLESPACE a DEFAULT ILM ADD POLICY NOCOMPRESS SEGMENT AFTER 1 DAY OF CREATION
@@ -20349,7 +20349,7 @@ reject@63	reject@63	engine	alterTablespace_table_compression(OLTP|QUERY_(LOW|HIG
 reject@55	reject@55	engine	alterTablespace_table_compression(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?!swap	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS FOR ARCHIVED SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	alterTablespace_table_compression(LOW|HIGH)?/%empty	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS FOR QUERY SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	alterTablespace_table_compression(LOW|HIGH)?/LOW	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS FOR QUERY LOW SEGMENT AFTER 1 DAY OF CREATION
-accept	reject@60	engine	alterTablespace_table_compression(LOW|HIGH)?/LOW!truncate	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS FOR QUERY
+reject@60	reject@60	engine	alterTablespace_table_compression(LOW|HIGH)?/LOW!truncate	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS FOR QUERY
 reject@65	reject@65	engine	alterTablespace_table_compression(LOW|HIGH)?/LOW!insert	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS FOR QUERY LOW zzz SEGMENT AFTER 1 DAY OF CREATION
 reject@61	reject@61	engine	alterTablespace_table_compression(LOW|HIGH)?/LOW!swap	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS FOR QUERY M SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	alterTablespace_table_compression(LOW|HIGH)?/HIGH	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS FOR QUERY HIGH SEGMENT AFTER 1 DAY OF CREATION
@@ -36381,12 +36381,12 @@ accept	accept	engine	createTablespace(createTablespace_permanent_tablespac~f56be
 reject@7	reject@7	engine	createTablespace(createTablespace_permanent_tablespac~f56be543)/createTablespace_permanent_tablespace_clause!swap	CREATE TAG a
 accept	accept	engine	createTablespace(createTablespace_permanent_tablespac~f56be543)/createTablespace_temporary_tablespace_clause	CREATE TEMPORARY TABLESPACE a
 reject@17	reject@7	engine	createTablespace(createTablespace_permanent_tablespac~f56be543)/createTablespace_temporary_tablespace_clause!drop-2	CREATE TEMPORARY a
-accept	reject@27	engine	createTablespace(createTablespace_permanent_tablespac~f56be543)/createTablespace_temporary_tablespace_clause!drop-3	CREATE TEMPORARY TABLESPACE
+reject@27	reject@27	engine	createTablespace(createTablespace_permanent_tablespac~f56be543)/createTablespace_temporary_tablespace_clause!drop-3	CREATE TEMPORARY TABLESPACE
 reject@30	reject@30	engine	createTablespace(createTablespace_permanent_tablespac~f56be543)/createTablespace_temporary_tablespace_clause!insert	CREATE TEMPORARY TABLESPACE a zzz
 reject@7	reject@7	engine	createTablespace(createTablespace_permanent_tablespac~f56be543)/createTablespace_temporary_tablespace_clause!swap	CREATE TEST TABLESPACE a
 accept	accept	engine	createTablespace(createTablespace_permanent_tablespac~f56be543)/createTablespace_undo_tablespace_clause	CREATE UNDO TABLESPACE a
 reject@7	reject@7	engine	createTablespace(createTablespace_permanent_tablespac~f56be543)/createTablespace_undo_tablespace_clause!drop-2	CREATE UNDO a
-accept	reject@22	engine	createTablespace(createTablespace_permanent_tablespac~f56be543)/createTablespace_undo_tablespace_clause!drop-3	CREATE UNDO TABLESPACE
+reject@22	reject@22	engine	createTablespace(createTablespace_permanent_tablespac~f56be543)/createTablespace_undo_tablespace_clause!drop-3	CREATE UNDO TABLESPACE
 reject@25	reject@25	engine	createTablespace(createTablespace_permanent_tablespac~f56be543)/createTablespace_undo_tablespace_clause!insert	CREATE UNDO TABLESPACE a zzz
 reject@7	reject@7	engine	createTablespace(createTablespace_permanent_tablespac~f56be543)/createTablespace_undo_tablespace_clause!swap	CREATE UNDROP TABLESPACE a
 accept	accept	engine	createTablespace_permanent_tablespace_clause/TABLESPACE_ID_(IF_NOT_EXISTS)?_(DATAFILE_createTablespa~30af0ce1	CREATE TABLESPACE a
@@ -36398,10 +36398,10 @@ reject@20	reject@20	engine	createTablespace_permanent_tablespace_clause(IF_NOT_E
 reject@20	reject@20	engine	createTablespace_permanent_tablespace_clause(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE TABLESPACE a IF NOT EXISTS zzz
 reject@20	reject@20	engine	createTablespace_permanent_tablespace_clause(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE TABLESPACE a IGNORE NOT EXISTS
 accept	accept	engine	createTablespace_permanent_tablespace_clause(DATAFILE_createTablespace_file_speci~e18505f6)*/%empty	CREATE TABLESPACE a
-accept	reject@28	engine	createTablespace_permanent_tablespace_clause(DATAFILE_createTablespace_file_speci~e18505f6)*/DATAFILE_createTablespace_file_specification_(,_createT~a8ecb017	CREATE TABLESPACE a DATAFILE
+reject@28	reject@28	engine	createTablespace_permanent_tablespace_clause(DATAFILE_createTablespace_file_speci~e18505f6)*/DATAFILE_createTablespace_file_specification_(,_createT~a8ecb017	CREATE TABLESPACE a DATAFILE
 reject@29	reject@29	engine	createTablespace_permanent_tablespace_clause(DATAFILE_createTablespace_file_speci~e18505f6)*/DATAFILE_createTablespace_file_specification_(,_createT~a8ecb017!insert	CREATE TABLESPACE a DATAFILE zzz
 reject@20	reject@20	engine	createTablespace_permanent_tablespace_clause(DATAFILE_createTablespace_file_speci~e18505f6)*/DATAFILE_createTablespace_file_specification_(,_createT~a8ecb017!swap	CREATE TABLESPACE a DATAFILES
-accept	reject@28	engine	createTablespace_permanent_tablespace_clause(,_createTablespace_file_specification)?/%empty	CREATE TABLESPACE a DATAFILE
+reject@28	reject@28	engine	createTablespace_permanent_tablespace_clause(,_createTablespace_file_specification)?/%empty	CREATE TABLESPACE a DATAFILE
 reject@28	reject@28	engine	createTablespace_permanent_tablespace_clause(,_createTablespace_file_specification)?/,_createTablespace_file_specification	CREATE TABLESPACE a DATAFILE,
 reject@28	reject@28	engine	createTablespace_permanent_tablespace_clause(,_createTablespace_file_specification)?/,_createTablespace_file_specification!insert	CREATE TABLESPACE a DATAFILE, zzz
 accept	accept	engine	createTablespace_permanent_tablespace_clause(createTablespace_permanent_tablespace_attrs)?/%empty	CREATE TABLESPACE a
@@ -36420,24 +36420,24 @@ reject@30	reject@30	engine	createTablespace_temporary_tablespace_clause(IF_NOT_E
 reject@30	reject@30	engine	createTablespace_temporary_tablespace_clause(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE TEMPORARY TABLESPACE a IF NOT EXISTS zzz
 reject@30	reject@30	engine	createTablespace_temporary_tablespace_clause(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE TEMPORARY TABLESPACE a IGNORE NOT EXISTS
 accept	accept	engine	createTablespace_temporary_tablespace_clause(TEMPFILE_createTablespace_file_speci~1162ca89)*/%empty	CREATE TEMPORARY TABLESPACE a
-accept	reject@38	engine	createTablespace_temporary_tablespace_clause(TEMPFILE_createTablespace_file_speci~1162ca89)*/TEMPFILE_createTablespace_file_specification_(,_createT~b93aef65	CREATE TEMPORARY TABLESPACE a TEMPFILE
+reject@38	reject@38	engine	createTablespace_temporary_tablespace_clause(TEMPFILE_createTablespace_file_speci~1162ca89)*/TEMPFILE_createTablespace_file_specification_(,_createT~b93aef65	CREATE TEMPORARY TABLESPACE a TEMPFILE
 reject@39	reject@39	engine	createTablespace_temporary_tablespace_clause(TEMPFILE_createTablespace_file_speci~1162ca89)*/TEMPFILE_createTablespace_file_specification_(,_createT~b93aef65!insert	CREATE TEMPORARY TABLESPACE a TEMPFILE zzz
 reject@30	reject@30	engine	createTablespace_temporary_tablespace_clause(TEMPFILE_createTablespace_file_speci~1162ca89)*/TEMPFILE_createTablespace_file_specification_(,_createT~b93aef65!swap	CREATE TEMPORARY TABLESPACE a TEMPLATE
-accept	reject@38	engine	createTablespace_temporary_tablespace_clause(,_createTablespace_file_specification)?/%empty	CREATE TEMPORARY TABLESPACE a TEMPFILE
+reject@38	reject@38	engine	createTablespace_temporary_tablespace_clause(,_createTablespace_file_specification)?/%empty	CREATE TEMPORARY TABLESPACE a TEMPFILE
 reject@38	reject@38	engine	createTablespace_temporary_tablespace_clause(,_createTablespace_file_specification)?/,_createTablespace_file_specification	CREATE TEMPORARY TABLESPACE a TEMPFILE,
 reject@38	reject@38	engine	createTablespace_temporary_tablespace_clause(,_createTablespace_file_specification)?/,_createTablespace_file_specification!insert	CREATE TEMPORARY TABLESPACE a TEMPFILE, zzz
 accept	accept	engine	createTablespace_temporary_tablespace_clause(createTablespace_tablespace_group_clause)?/%empty	CREATE TEMPORARY TABLESPACE a
 accept	accept	engine	createTablespace_temporary_tablespace_clause(createTablespace_tablespace_group_clause)?/createTablespace_tablespace_group_clause	CREATE TEMPORARY TABLESPACE a TABLESPACE GROUP a
 reject@30	reject@30	engine	createTablespace_temporary_tablespace_clause(createTablespace_tablespace_group_clause)?/createTablespace_tablespace_group_clause!drop-1	CREATE TEMPORARY TABLESPACE a GROUP a
 reject@41	reject@41	engine	createTablespace_temporary_tablespace_clause(createTablespace_tablespace_group_clause)?/createTablespace_tablespace_group_clause!drop-2	CREATE TEMPORARY TABLESPACE a TABLESPACE a
-accept	reject@46	engine	createTablespace_temporary_tablespace_clause(createTablespace_tablespace_group_clause)?/createTablespace_tablespace_group_clause!drop-3	CREATE TEMPORARY TABLESPACE a TABLESPACE GROUP
+reject@46	reject@46	engine	createTablespace_temporary_tablespace_clause(createTablespace_tablespace_group_clause)?/createTablespace_tablespace_group_clause!drop-3	CREATE TEMPORARY TABLESPACE a TABLESPACE GROUP
 reject@49	reject@49	engine	createTablespace_temporary_tablespace_clause(createTablespace_tablespace_group_clause)?/createTablespace_tablespace_group_clause!insert	CREATE TEMPORARY TABLESPACE a TABLESPACE GROUP a zzz
 reject@30	reject@30	engine	createTablespace_temporary_tablespace_clause(createTablespace_tablespace_group_clause)?/createTablespace_tablespace_group_clause!swap	CREATE TEMPORARY TABLESPACE a TAG GROUP a
 accept	accept	engine	createTablespace_temporary_tablespace_clause(createTablespace_extent_management_clause)?/%empty	CREATE TEMPORARY TABLESPACE a
 accept	accept	engine	createTablespace_temporary_tablespace_clause(createTablespace_extent_management_clause)?/createTablespace_extent_management_clause	CREATE TEMPORARY TABLESPACE a EXTENT MANAGEMENT LOCAL
 reject@30	reject@30	engine	createTablespace_temporary_tablespace_clause(createTablespace_extent_management_clause)?/createTablespace_extent_management_clause!drop-1	CREATE TEMPORARY TABLESPACE a MANAGEMENT LOCAL
 reject@37	reject@37	engine	createTablespace_temporary_tablespace_clause(createTablespace_extent_management_clause)?/createTablespace_extent_management_clause!drop-2	CREATE TEMPORARY TABLESPACE a EXTENT LOCAL
-accept	reject@47	engine	createTablespace_temporary_tablespace_clause(createTablespace_extent_management_clause)?/createTablespace_extent_management_clause!drop-3	CREATE TEMPORARY TABLESPACE a EXTENT MANAGEMENT
+reject@47	reject@47	engine	createTablespace_temporary_tablespace_clause(createTablespace_extent_management_clause)?/createTablespace_extent_management_clause!drop-3	CREATE TEMPORARY TABLESPACE a EXTENT MANAGEMENT
 reject@54	reject@54	engine	createTablespace_temporary_tablespace_clause(createTablespace_extent_management_clause)?/createTablespace_extent_management_clause!insert	CREATE TEMPORARY TABLESPACE a EXTENT MANAGEMENT LOCAL zzz
 reject@30	reject@30	engine	createTablespace_temporary_tablespace_clause(createTablespace_extent_management_clause)?/createTablespace_extent_management_clause!swap	CREATE TEMPORARY TABLESPACE a EXTERNAL MANAGEMENT LOCAL
 accept	accept	engine	createTablespace_temporary_tablespace_clause(createTablespace_tablespace_encryption_clause)?/%empty	CREATE TEMPORARY TABLESPACE a
@@ -36466,23 +36466,23 @@ reject@25	reject@25	engine	createTablespace_undo_tablespace_clause(IF_NOT_EXISTS
 reject@25	reject@25	engine	createTablespace_undo_tablespace_clause(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE UNDO TABLESPACE a IF NOT EXISTS zzz
 reject@25	reject@25	engine	createTablespace_undo_tablespace_clause(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE UNDO TABLESPACE a IGNORE NOT EXISTS
 accept	accept	engine	createTablespace_undo_tablespace_clause(DATAFILE_createTablespace_file_speci~e18505f6)*/%empty	CREATE UNDO TABLESPACE a
-accept	reject@33	engine	createTablespace_undo_tablespace_clause(DATAFILE_createTablespace_file_speci~e18505f6)*/DATAFILE_createTablespace_file_specification_(,_createT~a8ecb017	CREATE UNDO TABLESPACE a DATAFILE
+reject@33	reject@33	engine	createTablespace_undo_tablespace_clause(DATAFILE_createTablespace_file_speci~e18505f6)*/DATAFILE_createTablespace_file_specification_(,_createT~a8ecb017	CREATE UNDO TABLESPACE a DATAFILE
 reject@34	reject@34	engine	createTablespace_undo_tablespace_clause(DATAFILE_createTablespace_file_speci~e18505f6)*/DATAFILE_createTablespace_file_specification_(,_createT~a8ecb017!insert	CREATE UNDO TABLESPACE a DATAFILE zzz
 reject@25	reject@25	engine	createTablespace_undo_tablespace_clause(DATAFILE_createTablespace_file_speci~e18505f6)*/DATAFILE_createTablespace_file_specification_(,_createT~a8ecb017!swap	CREATE UNDO TABLESPACE a DATAFILES
-accept	reject@33	engine	createTablespace_undo_tablespace_clause(,_createTablespace_file_specification)?/%empty	CREATE UNDO TABLESPACE a DATAFILE
+reject@33	reject@33	engine	createTablespace_undo_tablespace_clause(,_createTablespace_file_specification)?/%empty	CREATE UNDO TABLESPACE a DATAFILE
 reject@33	reject@33	engine	createTablespace_undo_tablespace_clause(,_createTablespace_file_specification)?/,_createTablespace_file_specification	CREATE UNDO TABLESPACE a DATAFILE,
 reject@33	reject@33	engine	createTablespace_undo_tablespace_clause(,_createTablespace_file_specification)?/,_createTablespace_file_specification!insert	CREATE UNDO TABLESPACE a DATAFILE, zzz
 accept	accept	engine	createTablespace_undo_tablespace_clause(createTablespace_extent_management_clause)?/%empty	CREATE UNDO TABLESPACE a
 accept	accept	engine	createTablespace_undo_tablespace_clause(createTablespace_extent_management_clause)?/createTablespace_extent_management_clause	CREATE UNDO TABLESPACE a EXTENT MANAGEMENT LOCAL
 reject@25	reject@25	engine	createTablespace_undo_tablespace_clause(createTablespace_extent_management_clause)?/createTablespace_extent_management_clause!drop-1	CREATE UNDO TABLESPACE a MANAGEMENT LOCAL
 reject@32	reject@32	engine	createTablespace_undo_tablespace_clause(createTablespace_extent_management_clause)?/createTablespace_extent_management_clause!drop-2	CREATE UNDO TABLESPACE a EXTENT LOCAL
-accept	reject@42	engine	createTablespace_undo_tablespace_clause(createTablespace_extent_management_clause)?/createTablespace_extent_management_clause!drop-3	CREATE UNDO TABLESPACE a EXTENT MANAGEMENT
+reject@42	reject@42	engine	createTablespace_undo_tablespace_clause(createTablespace_extent_management_clause)?/createTablespace_extent_management_clause!drop-3	CREATE UNDO TABLESPACE a EXTENT MANAGEMENT
 reject@49	reject@49	engine	createTablespace_undo_tablespace_clause(createTablespace_extent_management_clause)?/createTablespace_extent_management_clause!insert	CREATE UNDO TABLESPACE a EXTENT MANAGEMENT LOCAL zzz
 reject@25	reject@25	engine	createTablespace_undo_tablespace_clause(createTablespace_extent_management_clause)?/createTablespace_extent_management_clause!swap	CREATE UNDO TABLESPACE a EXTERNAL MANAGEMENT LOCAL
 accept	accept	engine	createTablespace_undo_tablespace_clause(createTablespace_tablespace_retention_clause)?/%empty	CREATE UNDO TABLESPACE a
 accept	accept	engine	createTablespace_undo_tablespace_clause(createTablespace_tablespace_retention_clause)?/createTablespace_tablespace_retention_clause	CREATE UNDO TABLESPACE a RETENTION GUARANTEE
 reject@25	reject@25	engine	createTablespace_undo_tablespace_clause(createTablespace_tablespace_retention_clause)?/createTablespace_tablespace_retention_clause!drop-1	CREATE UNDO TABLESPACE a GUARANTEE
-accept	reject@34	engine	createTablespace_undo_tablespace_clause(createTablespace_tablespace_retention_clause)?/createTablespace_tablespace_retention_clause!drop-2	CREATE UNDO TABLESPACE a RETENTION
+reject@34	reject@34	engine	createTablespace_undo_tablespace_clause(createTablespace_tablespace_retention_clause)?/createTablespace_tablespace_retention_clause!drop-2	CREATE UNDO TABLESPACE a RETENTION
 reject@45	reject@45	engine	createTablespace_undo_tablespace_clause(createTablespace_tablespace_retention_clause)?/createTablespace_tablespace_retention_clause!insert	CREATE UNDO TABLESPACE a RETENTION GUARANTEE zzz
 reject@25	reject@25	engine	createTablespace_undo_tablespace_clause(createTablespace_tablespace_retention_clause)?/createTablespace_tablespace_retention_clause!swap	CREATE UNDO TABLESPACE a RETURN GUARANTEE
 accept	accept	engine	createTablespace_undo_tablespace_clause(createTablespace_tablespace_encryption_clause)?/%empty	CREATE UNDO TABLESPACE a
@@ -36491,21 +36491,21 @@ reject@25	reject@25	engine	createTablespace_undo_tablespace_clause(createTablesp
 accept	accept	engine	createTablespace_undo_tablespace_clause(createTablespace_tablespace_encryption_clause)?/createTablespace_tablespace_encryption_clause!drop-2	CREATE UNDO TABLESPACE a ENCRYPTION
 reject@44	reject@44	engine	createTablespace_undo_tablespace_clause(createTablespace_tablespace_encryption_clause)?/createTablespace_tablespace_encryption_clause!insert	CREATE UNDO TABLESPACE a ENCRYPTION ENCRYPT zzz
 reject@25	reject@25	engine	createTablespace_undo_tablespace_clause(createTablespace_tablespace_encryption_clause)?/createTablespace_tablespace_encryption_clause!swap	CREATE UNDO TABLESPACE a END ENCRYPT
-accept	reject@28	engine	createTablespace_file_specification/(STRING)?_(SIZE_createTablespace_size_clause)?_(REUSE)?~7ee2e1ec	CREATE TABLESPACE a DATAFILE
-accept	reject@28	engine	createTablespace_file_specification(STRING)?/%empty	CREATE TABLESPACE a DATAFILE
+reject@28	reject@28	engine	createTablespace_file_specification/(STRING)?_(SIZE_createTablespace_size_clause)?_(REUSE)?~7ee2e1ec	CREATE TABLESPACE a DATAFILE
+reject@28	reject@28	engine	createTablespace_file_specification(STRING)?/%empty	CREATE TABLESPACE a DATAFILE
 accept	accept	engine	createTablespace_file_specification(STRING)?/STRING	CREATE TABLESPACE a DATAFILE 's'
 reject@33	reject@33	engine	createTablespace_file_specification(STRING)?/STRING!insert	CREATE TABLESPACE a DATAFILE 's' zzz
-accept	reject@28	engine	createTablespace_file_specification(SIZE_createTablespace_size_clause)?/%empty	CREATE TABLESPACE a DATAFILE
+reject@28	reject@28	engine	createTablespace_file_specification(SIZE_createTablespace_size_clause)?/%empty	CREATE TABLESPACE a DATAFILE
 reject@29	reject@29	engine	createTablespace_file_specification(SIZE_createTablespace_size_clause)?/SIZE_createTablespace_size_clause	CREATE TABLESPACE a DATAFILE SIZE 1
 reject@29	reject@29	engine	createTablespace_file_specification(SIZE_createTablespace_size_clause)?/SIZE_createTablespace_size_clause!drop-1	CREATE TABLESPACE a DATAFILE 1
 reject@29	reject@29	engine	createTablespace_file_specification(SIZE_createTablespace_size_clause)?/SIZE_createTablespace_size_clause!drop-2	CREATE TABLESPACE a DATAFILE SIZE
 reject@29	reject@29	engine	createTablespace_file_specification(SIZE_createTablespace_size_clause)?/SIZE_createTablespace_size_clause!insert	CREATE TABLESPACE a DATAFILE SIZE 1 zzz
 reject@29	reject@29	engine	createTablespace_file_specification(SIZE_createTablespace_size_clause)?/SIZE_createTablespace_size_clause!swap	CREATE TABLESPACE a DATAFILE SKIP 1
-accept	reject@28	engine	createTablespace_file_specification(REUSE)?/%empty	CREATE TABLESPACE a DATAFILE
+reject@28	reject@28	engine	createTablespace_file_specification(REUSE)?/%empty	CREATE TABLESPACE a DATAFILE
 reject@29	reject@29	engine	createTablespace_file_specification(REUSE)?/REUSE	CREATE TABLESPACE a DATAFILE REUSE
 reject@29	reject@29	engine	createTablespace_file_specification(REUSE)?/REUSE!insert	CREATE TABLESPACE a DATAFILE REUSE zzz
 reject@29	reject@29	engine	createTablespace_file_specification(REUSE)?/REUSE!swap	CREATE TABLESPACE a DATAFILE REVERSE
-accept	reject@28	engine	createTablespace_file_specification(createTablespace_autoextend_clause)?/%empty	CREATE TABLESPACE a DATAFILE
+reject@28	reject@28	engine	createTablespace_file_specification(createTablespace_autoextend_clause)?/%empty	CREATE TABLESPACE a DATAFILE
 reject@29	reject@29	engine	createTablespace_file_specification(createTablespace_autoextend_clause)?/createTablespace_autoextend_clause	CREATE TABLESPACE a DATAFILE AUTOEXTEND OFF
 reject@29	reject@29	engine	createTablespace_file_specification(createTablespace_autoextend_clause)?/createTablespace_autoextend_clause!drop-1	CREATE TABLESPACE a DATAFILE OFF
 reject@29	reject@29	engine	createTablespace_file_specification(createTablespace_autoextend_clause)?/createTablespace_autoextend_clause!drop-2	CREATE TABLESPACE a DATAFILE AUTOEXTEND
@@ -36522,7 +36522,7 @@ reject@20	reject@20	engine	createTablespace_permanent_tablespace_attrs(MINIMUM_E
 accept	accept	engine	createTablespace_permanent_tablespace_attrs(BLOCKSIZE_NUMBER_K?)?/%empty	CREATE TABLESPACE a
 accept	accept	engine	createTablespace_permanent_tablespace_attrs(BLOCKSIZE_NUMBER_K?)?/BLOCKSIZE_NUMBER_(K)?	CREATE TABLESPACE a BLOCKSIZE 1
 reject@20	reject@20	engine	createTablespace_permanent_tablespace_attrs(BLOCKSIZE_NUMBER_K?)?/BLOCKSIZE_NUMBER_(K)?!drop-1	CREATE TABLESPACE a 1
-accept	reject@29	engine	createTablespace_permanent_tablespace_attrs(BLOCKSIZE_NUMBER_K?)?/BLOCKSIZE_NUMBER_(K)?!drop-2	CREATE TABLESPACE a BLOCKSIZE
+reject@29	reject@29	engine	createTablespace_permanent_tablespace_attrs(BLOCKSIZE_NUMBER_K?)?/BLOCKSIZE_NUMBER_(K)?!drop-2	CREATE TABLESPACE a BLOCKSIZE
 reject@32	reject@32	engine	createTablespace_permanent_tablespace_attrs(BLOCKSIZE_NUMBER_K?)?/BLOCKSIZE_NUMBER_(K)?!insert	CREATE TABLESPACE a BLOCKSIZE 1 zzz
 reject@20	reject@20	engine	createTablespace_permanent_tablespace_attrs(BLOCKSIZE_NUMBER_K?)?/BLOCKSIZE_NUMBER_(K)?!swap	CREATE TABLESPACE a BODY 1
 accept	accept	engine	createTablespace_permanent_tablespace_attrs(K)?/%empty	CREATE TABLESPACE a BLOCKSIZE 1
@@ -36535,7 +36535,7 @@ reject@28	reject@28	engine	createTablespace_permanent_tablespace_attrs(createTab
 reject@20	reject@20	engine	createTablespace_permanent_tablespace_attrs(createTablespace_logging_clause)?/createTablespace_logging_clause!swap	CREATE TABLESPACE a LOGICAL
 accept	accept	engine	createTablespace_permanent_tablespace_attrs(FORCE_LOGGING)?/%empty	CREATE TABLESPACE a
 accept	accept	engine	createTablespace_permanent_tablespace_attrs(FORCE_LOGGING)?/FORCE_LOGGING	CREATE TABLESPACE a FORCE LOGGING
-accept	reject@25	engine	createTablespace_permanent_tablespace_attrs(FORCE_LOGGING)?/FORCE_LOGGING!drop-2	CREATE TABLESPACE a FORCE
+reject@25	reject@25	engine	createTablespace_permanent_tablespace_attrs(FORCE_LOGGING)?/FORCE_LOGGING!drop-2	CREATE TABLESPACE a FORCE
 reject@34	reject@34	engine	createTablespace_permanent_tablespace_attrs(FORCE_LOGGING)?/FORCE_LOGGING!insert	CREATE TABLESPACE a FORCE LOGGING zzz
 reject@20	reject@20	engine	createTablespace_permanent_tablespace_attrs(FORCE_LOGGING)?/FORCE_LOGGING!swap	CREATE TABLESPACE a FOREIGN LOGGING
 accept	accept	engine	createTablespace_permanent_tablespace_attrs(createTablespace_tablespace_encryption_clause)?/%empty	CREATE TABLESPACE a
@@ -36564,7 +36564,7 @@ accept	accept	engine	createTablespace_permanent_tablespace_attrs(createTablespac
 accept	accept	engine	createTablespace_permanent_tablespace_attrs(createTablespace_extent_management_clause)?/createTablespace_extent_management_clause	CREATE TABLESPACE a EXTENT MANAGEMENT LOCAL
 reject@20	reject@20	engine	createTablespace_permanent_tablespace_attrs(createTablespace_extent_management_clause)?/createTablespace_extent_management_clause!drop-1	CREATE TABLESPACE a MANAGEMENT LOCAL
 reject@27	reject@27	engine	createTablespace_permanent_tablespace_attrs(createTablespace_extent_management_clause)?/createTablespace_extent_management_clause!drop-2	CREATE TABLESPACE a EXTENT LOCAL
-accept	reject@37	engine	createTablespace_permanent_tablespace_attrs(createTablespace_extent_management_clause)?/createTablespace_extent_management_clause!drop-3	CREATE TABLESPACE a EXTENT MANAGEMENT
+reject@37	reject@37	engine	createTablespace_permanent_tablespace_attrs(createTablespace_extent_management_clause)?/createTablespace_extent_management_clause!drop-3	CREATE TABLESPACE a EXTENT MANAGEMENT
 reject@44	reject@44	engine	createTablespace_permanent_tablespace_attrs(createTablespace_extent_management_clause)?/createTablespace_extent_management_clause!insert	CREATE TABLESPACE a EXTENT MANAGEMENT LOCAL zzz
 reject@20	reject@20	engine	createTablespace_permanent_tablespace_attrs(createTablespace_extent_management_clause)?/createTablespace_extent_management_clause!swap	CREATE TABLESPACE a EXTERNAL MANAGEMENT LOCAL
 accept	accept	engine	createTablespace_permanent_tablespace_attrs(createTablespace_segment_management_clause)?/%empty	CREATE TABLESPACE a
@@ -36572,13 +36572,13 @@ accept	accept	engine	createTablespace_permanent_tablespace_attrs(createTablespac
 reject@20	reject@20	engine	createTablespace_permanent_tablespace_attrs(createTablespace_segment_management_clause)?/createTablespace_segment_management_clause!drop-1	CREATE TABLESPACE a SPACE MANAGEMENT AUTO
 reject@28	reject@28	engine	createTablespace_permanent_tablespace_attrs(createTablespace_segment_management_clause)?/createTablespace_segment_management_clause!drop-2	CREATE TABLESPACE a SEGMENT MANAGEMENT AUTO
 reject@34	reject@34	engine	createTablespace_permanent_tablespace_attrs(createTablespace_segment_management_clause)?/createTablespace_segment_management_clause!drop-3	CREATE TABLESPACE a SEGMENT SPACE AUTO
-accept	reject@44	engine	createTablespace_permanent_tablespace_attrs(createTablespace_segment_management_clause)?/createTablespace_segment_management_clause!drop-4	CREATE TABLESPACE a SEGMENT SPACE MANAGEMENT
+reject@44	reject@44	engine	createTablespace_permanent_tablespace_attrs(createTablespace_segment_management_clause)?/createTablespace_segment_management_clause!drop-4	CREATE TABLESPACE a SEGMENT SPACE MANAGEMENT
 reject@50	reject@50	engine	createTablespace_permanent_tablespace_attrs(createTablespace_segment_management_clause)?/createTablespace_segment_management_clause!insert	CREATE TABLESPACE a SEGMENT SPACE MANAGEMENT AUTO zzz
 reject@20	reject@20	engine	createTablespace_permanent_tablespace_attrs(createTablespace_segment_management_clause)?/createTablespace_segment_management_clause!swap	CREATE TABLESPACE a SELECT SPACE MANAGEMENT AUTO
 accept	accept	engine	createTablespace_permanent_tablespace_attrs(createTablespace_flashback_mode_clause)?/%empty	CREATE TABLESPACE a
 accept	accept	engine	createTablespace_permanent_tablespace_attrs(createTablespace_flashback_mode_clause)?/createTablespace_flashback_mode_clause	CREATE TABLESPACE a FLASHBACK ON
 reject@20	reject@20	engine	createTablespace_permanent_tablespace_attrs(createTablespace_flashback_mode_clause)?/createTablespace_flashback_mode_clause!drop-1	CREATE TABLESPACE a ON
-accept	reject@29	engine	createTablespace_permanent_tablespace_attrs(createTablespace_flashback_mode_clause)?/createTablespace_flashback_mode_clause!drop-2	CREATE TABLESPACE a FLASHBACK
+reject@29	reject@29	engine	createTablespace_permanent_tablespace_attrs(createTablespace_flashback_mode_clause)?/createTablespace_flashback_mode_clause!drop-2	CREATE TABLESPACE a FLASHBACK
 reject@33	reject@33	engine	createTablespace_permanent_tablespace_attrs(createTablespace_flashback_mode_clause)?/createTablespace_flashback_mode_clause!insert	CREATE TABLESPACE a FLASHBACK ON zzz
 reject@20	reject@20	engine	createTablespace_permanent_tablespace_attrs(createTablespace_flashback_mode_clause)?/createTablespace_flashback_mode_clause!swap	CREATE TABLESPACE a FLASH_CACHE ON
 accept	accept	engine	createTablespace_permanent_tablespace_attrs(createTablespace_lost_write_protection)?/%empty	CREATE TABLESPACE a
@@ -36619,7 +36619,7 @@ reject@31	reject@31	engine	createTablespace_tablespace_encryption_clause(createT
 accept	reject@37	engine	createTablespace_tablespace_encryption_clause(createTablespace_tablespace_encryption_spec)?/createTablespace_tablespace_encryption_spec	CREATE TABLESPACE a ENCRYPTION USING 's' ENCRYPT
 reject@31	reject@31	engine	createTablespace_tablespace_encryption_clause(createTablespace_tablespace_encryption_spec)?/createTablespace_tablespace_encryption_spec!drop-1	CREATE TABLESPACE a ENCRYPTION 's' ENCRYPT
 reject@37	reject@37	engine	createTablespace_tablespace_encryption_clause(createTablespace_tablespace_encryption_spec)?/createTablespace_tablespace_encryption_spec!drop-2	CREATE TABLESPACE a ENCRYPTION USING ENCRYPT
-accept	reject@36	engine	createTablespace_tablespace_encryption_clause(createTablespace_tablespace_encryption_spec)?/createTablespace_tablespace_encryption_spec!truncate	CREATE TABLESPACE a ENCRYPTION USING
+reject@36	reject@36	engine	createTablespace_tablespace_encryption_clause(createTablespace_tablespace_encryption_spec)?/createTablespace_tablespace_encryption_spec!truncate	CREATE TABLESPACE a ENCRYPTION USING
 reject@41	reject@37	engine	createTablespace_tablespace_encryption_clause(createTablespace_tablespace_encryption_spec)?/createTablespace_tablespace_encryption_spec!insert	CREATE TABLESPACE a ENCRYPTION USING 's' zzz ENCRYPT
 reject@31	reject@31	engine	createTablespace_tablespace_encryption_clause(createTablespace_tablespace_encryption_spec)?/createTablespace_tablespace_encryption_spec!swap	CREATE TABLESPACE a ENCRYPTION VALIDATE 's' ENCRYPT
 accept	accept	engine	createTablespace_tablespace_encryption_clause(ENCRYPT|DECRYPT)/ENCRYPT	CREATE TABLESPACE a ENCRYPTION ENCRYPT
@@ -36733,7 +36733,7 @@ accept	accept	engine	createTablespace_default_table_compression/TABLE_(COMPRESS_
 accept	accept	engine	createTablespace_default_table_compression(COMPRESS_FOR_(OLTP|QUERY_(LOW|HIGH)?~f42968d0)/COMPRESS_FOR_(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)	CREATE TABLESPACE a DEFAULT TABLE COMPRESS FOR OLTP
 reject@34	reject@34	engine	createTablespace_default_table_compression(COMPRESS_FOR_(OLTP|QUERY_(LOW|HIGH)?~f42968d0)/COMPRESS_FOR_(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)!drop-1	CREATE TABLESPACE a DEFAULT TABLE FOR OLTP
 reject@43	reject@43	engine	createTablespace_default_table_compression(COMPRESS_FOR_(OLTP|QUERY_(LOW|HIGH)?~f42968d0)/COMPRESS_FOR_(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)!drop-2	CREATE TABLESPACE a DEFAULT TABLE COMPRESS OLTP
-accept	reject@46	engine	createTablespace_default_table_compression(COMPRESS_FOR_(OLTP|QUERY_(LOW|HIGH)?~f42968d0)/COMPRESS_FOR_(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)!drop-3	CREATE TABLESPACE a DEFAULT TABLE COMPRESS FOR
+reject@46	reject@46	engine	createTablespace_default_table_compression(COMPRESS_FOR_(OLTP|QUERY_(LOW|HIGH)?~f42968d0)/COMPRESS_FOR_(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)!drop-3	CREATE TABLESPACE a DEFAULT TABLE COMPRESS FOR
 reject@52	reject@52	engine	createTablespace_default_table_compression(COMPRESS_FOR_(OLTP|QUERY_(LOW|HIGH)?~f42968d0)/COMPRESS_FOR_(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)!insert	CREATE TABLESPACE a DEFAULT TABLE COMPRESS FOR OLTP zzz
 reject@34	reject@34	engine	createTablespace_default_table_compression(COMPRESS_FOR_(OLTP|QUERY_(LOW|HIGH)?~f42968d0)/COMPRESS_FOR_(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)!swap	CREATE TABLESPACE a DEFAULT TABLE COMPUTATION FOR OLTP
 accept	accept	engine	createTablespace_default_table_compression(COMPRESS_FOR_(OLTP|QUERY_(LOW|HIGH)?~f42968d0)/NOCOMPRESS	CREATE TABLESPACE a DEFAULT TABLE NOCOMPRESS
@@ -36915,7 +36915,7 @@ accept	accept	engine	createTablespace_inmemory_distribute(AUTO|BY_(ROWID_RANGE|P
 accept	accept	engine	createTablespace_inmemory_distribute(AUTO|BY_(ROWID_RANGE|PARTITION|SUBPARTITION))?/AUTO	CREATE TABLESPACE a DEFAULT INMEMORY DISTRIBUTE AUTO
 reject@53	reject@53	engine	createTablespace_inmemory_distribute(AUTO|BY_(ROWID_RANGE|PARTITION|SUBPARTITION))?/AUTO!insert	CREATE TABLESPACE a DEFAULT INMEMORY DISTRIBUTE AUTO zzz
 accept	accept	engine	createTablespace_inmemory_distribute(AUTO|BY_(ROWID_RANGE|PARTITION|SUBPARTITION))?/AUTO!swap	CREATE TABLESPACE a DEFAULT INMEMORY DISTRIBUTE AUTOALLOCATE
-accept	reject@60	engine	createTablespace_inmemory_distribute(AUTO|BY_(ROWID_RANGE|PARTITION|SUBPARTITION))?/BY_(ROWID_RANGE|PARTITION|SUBPARTITION)	CREATE TABLESPACE a DEFAULT INMEMORY DISTRIBUTE BY PARTITION
+reject@60	reject@60	engine	createTablespace_inmemory_distribute(AUTO|BY_(ROWID_RANGE|PARTITION|SUBPARTITION))?/BY_(ROWID_RANGE|PARTITION|SUBPARTITION)	CREATE TABLESPACE a DEFAULT INMEMORY DISTRIBUTE BY PARTITION
 reject@48	reject@48	engine	createTablespace_inmemory_distribute(AUTO|BY_(ROWID_RANGE|PARTITION|SUBPARTITION))?/BY_(ROWID_RANGE|PARTITION|SUBPARTITION)!drop-1	CREATE TABLESPACE a DEFAULT INMEMORY DISTRIBUTE PARTITION
 reject@48	reject@48	engine	createTablespace_inmemory_distribute(AUTO|BY_(ROWID_RANGE|PARTITION|SUBPARTITION))?/BY_(ROWID_RANGE|PARTITION|SUBPARTITION)!drop-2	CREATE TABLESPACE a DEFAULT INMEMORY DISTRIBUTE BY
 reject@61	reject@61	engine	createTablespace_inmemory_distribute(AUTO|BY_(ROWID_RANGE|PARTITION|SUBPARTITION))?/BY_(ROWID_RANGE|PARTITION|SUBPARTITION)!insert	CREATE TABLESPACE a DEFAULT INMEMORY DISTRIBUTE BY PARTITION zzz
@@ -36925,9 +36925,9 @@ reject@48	reject@48	engine	createTablespace_inmemory_distribute(ROWID_RANGE|PART
 reject@48	reject@48	engine	createTablespace_inmemory_distribute(ROWID_RANGE|PARTITION|SUBPARTITION)/ROWID_RANGE!drop-2	CREATE TABLESPACE a DEFAULT INMEMORY DISTRIBUTE BY ROWID
 reject@63	reject@63	engine	createTablespace_inmemory_distribute(ROWID_RANGE|PARTITION|SUBPARTITION)/ROWID_RANGE!insert	CREATE TABLESPACE a DEFAULT INMEMORY DISTRIBUTE BY ROWID RANGE zzz
 reject@48	reject@48	engine	createTablespace_inmemory_distribute(ROWID_RANGE|PARTITION|SUBPARTITION)/ROWID_RANGE!swap	CREATE TABLESPACE a DEFAULT INMEMORY DISTRIBUTE BY ROWS RANGE
-accept	reject@60	engine	createTablespace_inmemory_distribute(ROWID_RANGE|PARTITION|SUBPARTITION)/PARTITION	CREATE TABLESPACE a DEFAULT INMEMORY DISTRIBUTE BY PARTITION
+reject@60	reject@60	engine	createTablespace_inmemory_distribute(ROWID_RANGE|PARTITION|SUBPARTITION)/PARTITION	CREATE TABLESPACE a DEFAULT INMEMORY DISTRIBUTE BY PARTITION
 reject@48	reject@48	engine	createTablespace_inmemory_distribute(ROWID_RANGE|PARTITION|SUBPARTITION)/PARTITION!swap	CREATE TABLESPACE a DEFAULT INMEMORY DISTRIBUTE BY PARTITIONING
-accept	reject@63	engine	createTablespace_inmemory_distribute(ROWID_RANGE|PARTITION|SUBPARTITION)/SUBPARTITION	CREATE TABLESPACE a DEFAULT INMEMORY DISTRIBUTE BY SUBPARTITION
+reject@63	reject@63	engine	createTablespace_inmemory_distribute(ROWID_RANGE|PARTITION|SUBPARTITION)/SUBPARTITION	CREATE TABLESPACE a DEFAULT INMEMORY DISTRIBUTE BY SUBPARTITION
 reject@64	reject@64	engine	createTablespace_inmemory_distribute(ROWID_RANGE|PARTITION|SUBPARTITION)/SUBPARTITION!insert	CREATE TABLESPACE a DEFAULT INMEMORY DISTRIBUTE BY SUBPARTITION zzz
 reject@48	reject@48	engine	createTablespace_inmemory_distribute(ROWID_RANGE|PARTITION|SUBPARTITION)/SUBPARTITION!swap	CREATE TABLESPACE a DEFAULT INMEMORY DISTRIBUTE BY SUBPARTITIONS
 accept	accept	engine	createTablespace_inmemory_duplicate/(DUPLICATE|DUPLICATE_ALL|NO_DUPLICATE)	CREATE TABLESPACE a DEFAULT INMEMORY DUPLICATE
@@ -36941,43 +36941,43 @@ reject@50	reject@50	engine	createTablespace_inmemory_duplicate(DUPLICATE|DUPLICA
 reject@37	reject@37	engine	createTablespace_inmemory_duplicate(DUPLICATE|DUPLICATE_ALL|NO_DUPLICATE)/NO_DUPLICATE!swap	CREATE TABLESPACE a DEFAULT INMEMORY NOARCHIVELOG DUPLICATE
 accept	accept	engine	createTablespace_ilm_compression_policy/(createTablespace_table_compression|R~b0e225a2)_(SEGMEN~b6415ac7	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	createTablespace_ilm_compression_policy(createTablespace_table_compression|R~b0e225a2)/createTablespace_table_compression	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS SEGMENT AFTER 1 DAY OF CREATION
-accept	reject@42	engine	createTablespace_ilm_compression_policy(createTablespace_table_compression|R~b0e225a2)/createTablespace_table_compression!truncate	CREATE TABLESPACE a DEFAULT ILM ADD POLICY
+reject@42	reject@42	engine	createTablespace_ilm_compression_policy(createTablespace_table_compression|R~b0e225a2)/createTablespace_table_compression!truncate	CREATE TABLESPACE a DEFAULT ILM ADD POLICY
 reject@52	reject@52	engine	createTablespace_ilm_compression_policy(createTablespace_table_compression|R~b0e225a2)/createTablespace_table_compression!insert	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS zzz SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	createTablespace_ilm_compression_policy(createTablespace_table_compression|R~b0e225a2)/ROW_STORE_COMPRESS_(ADVANCED)?	CREATE TABLESPACE a DEFAULT ILM ADD POLICY ROW STORE COMPRESS SEGMENT AFTER 1 DAY OF CREATION
 reject@43	reject@43	engine	createTablespace_ilm_compression_policy(createTablespace_table_compression|R~b0e225a2)/ROW_STORE_COMPRESS_(ADVANCED)?!drop-1	CREATE TABLESPACE a DEFAULT ILM ADD POLICY STORE COMPRESS SEGMENT AFTER 1 DAY OF CREATION
 reject@47	reject@47	engine	createTablespace_ilm_compression_policy(createTablespace_table_compression|R~b0e225a2)/ROW_STORE_COMPRESS_(ADVANCED)?!drop-2	CREATE TABLESPACE a DEFAULT ILM ADD POLICY ROW COMPRESS SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	createTablespace_ilm_compression_policy(createTablespace_table_compression|R~b0e225a2)/ROW_STORE_COMPRESS_(ADVANCED)?!drop-3	CREATE TABLESPACE a DEFAULT ILM ADD POLICY ROW STORE SEGMENT AFTER 1 DAY OF CREATION
-accept	reject@52	engine	createTablespace_ilm_compression_policy(createTablespace_table_compression|R~b0e225a2)/ROW_STORE_COMPRESS_(ADVANCED)?!truncate	CREATE TABLESPACE a DEFAULT ILM ADD POLICY ROW STORE
+reject@52	reject@52	engine	createTablespace_ilm_compression_policy(createTablespace_table_compression|R~b0e225a2)/ROW_STORE_COMPRESS_(ADVANCED)?!truncate	CREATE TABLESPACE a DEFAULT ILM ADD POLICY ROW STORE
 reject@62	reject@62	engine	createTablespace_ilm_compression_policy(createTablespace_table_compression|R~b0e225a2)/ROW_STORE_COMPRESS_(ADVANCED)?!insert	CREATE TABLESPACE a DEFAULT ILM ADD POLICY ROW STORE COMPRESS zzz SEGMENT AFTER 1 DAY OF CREATION
 reject@43	reject@43	engine	createTablespace_ilm_compression_policy(createTablespace_table_compression|R~b0e225a2)/ROW_STORE_COMPRESS_(ADVANCED)?!swap	CREATE TABLESPACE a DEFAULT ILM ADD POLICY ROWDEPENDENCIES STORE COMPRESS SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	createTablespace_ilm_compression_policy(createTablespace_table_compression|R~b0e225a2)/COLUMN_STORE_COMPRESS_(FOR_QUERY_(LOW|HIGH)?)?	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS SEGMENT AFTER 1 DAY OF CREATION
 reject@50	reject@50	engine	createTablespace_ilm_compression_policy(createTablespace_table_compression|R~b0e225a2)/COLUMN_STORE_COMPRESS_(FOR_QUERY_(LOW|HIGH)?)?!drop-2	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COLUMN COMPRESS SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	createTablespace_ilm_compression_policy(createTablespace_table_compression|R~b0e225a2)/COLUMN_STORE_COMPRESS_(FOR_QUERY_(LOW|HIGH)?)?!drop-3	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COLUMN STORE SEGMENT AFTER 1 DAY OF CREATION
-accept	reject@55	engine	createTablespace_ilm_compression_policy(createTablespace_table_compression|R~b0e225a2)/COLUMN_STORE_COMPRESS_(FOR_QUERY_(LOW|HIGH)?)?!truncate	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COLUMN STORE
+reject@55	reject@55	engine	createTablespace_ilm_compression_policy(createTablespace_table_compression|R~b0e225a2)/COLUMN_STORE_COMPRESS_(FOR_QUERY_(LOW|HIGH)?)?!truncate	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COLUMN STORE
 reject@65	reject@65	engine	createTablespace_ilm_compression_policy(createTablespace_table_compression|R~b0e225a2)/COLUMN_STORE_COMPRESS_(FOR_QUERY_(LOW|HIGH)?)?!insert	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS zzz SEGMENT AFTER 1 DAY OF CREATION
 reject@43	reject@43	engine	createTablespace_ilm_compression_policy(createTablespace_table_compression|R~b0e225a2)/COLUMN_STORE_COMPRESS_(FOR_QUERY_(LOW|HIGH)?)?!swap	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COLUMNS STORE COMPRESS SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	createTablespace_ilm_compression_policy(ADVANCED)?/%empty	CREATE TABLESPACE a DEFAULT ILM ADD POLICY ROW STORE COMPRESS SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	createTablespace_ilm_compression_policy(ADVANCED)?/ADVANCED	CREATE TABLESPACE a DEFAULT ILM ADD POLICY ROW STORE COMPRESS ADVANCED SEGMENT AFTER 1 DAY OF CREATION
-accept	reject@61	engine	createTablespace_ilm_compression_policy(ADVANCED)?/ADVANCED!truncate	CREATE TABLESPACE a DEFAULT ILM ADD POLICY ROW STORE COMPRESS
+reject@61	reject@61	engine	createTablespace_ilm_compression_policy(ADVANCED)?/ADVANCED!truncate	CREATE TABLESPACE a DEFAULT ILM ADD POLICY ROW STORE COMPRESS
 reject@71	reject@71	engine	createTablespace_ilm_compression_policy(ADVANCED)?/ADVANCED!insert	CREATE TABLESPACE a DEFAULT ILM ADD POLICY ROW STORE COMPRESS ADVANCED zzz SEGMENT AFTER 1 DAY OF CREATION
 reject@62	reject@62	engine	createTablespace_ilm_compression_policy(ADVANCED)?/ADVANCED!swap	CREATE TABLESPACE a DEFAULT ILM ADD POLICY ROW STORE COMPRESS ADVISE SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	createTablespace_ilm_compression_policy(FOR_QUERY_(LOW|HIGH)?)?/%empty	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	createTablespace_ilm_compression_policy(FOR_QUERY_(LOW|HIGH)?)?/FOR_QUERY_(LOW|HIGH)?	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS FOR QUERY SEGMENT AFTER 1 DAY OF CREATION
 reject@65	reject@65	engine	createTablespace_ilm_compression_policy(FOR_QUERY_(LOW|HIGH)?)?/FOR_QUERY_(LOW|HIGH)?!drop-1	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS QUERY SEGMENT AFTER 1 DAY OF CREATION
 reject@69	reject@69	engine	createTablespace_ilm_compression_policy(FOR_QUERY_(LOW|HIGH)?)?/FOR_QUERY_(LOW|HIGH)?!drop-2	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS FOR SEGMENT AFTER 1 DAY OF CREATION
-accept	reject@68	engine	createTablespace_ilm_compression_policy(FOR_QUERY_(LOW|HIGH)?)?/FOR_QUERY_(LOW|HIGH)?!truncate	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS FOR
+reject@68	reject@68	engine	createTablespace_ilm_compression_policy(FOR_QUERY_(LOW|HIGH)?)?/FOR_QUERY_(LOW|HIGH)?!truncate	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS FOR
 reject@75	reject@75	engine	createTablespace_ilm_compression_policy(FOR_QUERY_(LOW|HIGH)?)?/FOR_QUERY_(LOW|HIGH)?!insert	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS FOR QUERY zzz SEGMENT AFTER 1 DAY OF CREATION
 reject@65	reject@65	engine	createTablespace_ilm_compression_policy(FOR_QUERY_(LOW|HIGH)?)?/FOR_QUERY_(LOW|HIGH)?!swap	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS FORCE QUERY SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	createTablespace_ilm_compression_policy(LOW|HIGH)?/%empty	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS FOR QUERY SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	createTablespace_ilm_compression_policy(LOW|HIGH)?/LOW	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS FOR QUERY LOW SEGMENT AFTER 1 DAY OF CREATION
-accept	reject@74	engine	createTablespace_ilm_compression_policy(LOW|HIGH)?/LOW!truncate	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS FOR QUERY
+reject@74	reject@74	engine	createTablespace_ilm_compression_policy(LOW|HIGH)?/LOW!truncate	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS FOR QUERY
 reject@79	reject@79	engine	createTablespace_ilm_compression_policy(LOW|HIGH)?/LOW!insert	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS FOR QUERY LOW zzz SEGMENT AFTER 1 DAY OF CREATION
 reject@75	reject@75	engine	createTablespace_ilm_compression_policy(LOW|HIGH)?/LOW!swap	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS FOR QUERY M SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	createTablespace_ilm_compression_policy(LOW|HIGH)?/HIGH	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS FOR QUERY HIGH SEGMENT AFTER 1 DAY OF CREATION
 reject@80	reject@80	engine	createTablespace_ilm_compression_policy(LOW|HIGH)?/HIGH!insert	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS FOR QUERY HIGH zzz SEGMENT AFTER 1 DAY OF CREATION
 reject@75	reject@75	engine	createTablespace_ilm_compression_policy(LOW|HIGH)?/HIGH!swap	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COLUMN STORE COMPRESS FOR QUERY HNSW SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	createTablespace_ilm_compression_policy(SEGMENT|GROUP|ROW)/SEGMENT	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS SEGMENT AFTER 1 DAY OF CREATION
-accept	reject@51	engine	createTablespace_ilm_compression_policy(SEGMENT|GROUP|ROW)/SEGMENT!truncate	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS
+reject@51	reject@51	engine	createTablespace_ilm_compression_policy(SEGMENT|GROUP|ROW)/SEGMENT!truncate	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS
 reject@60	reject@60	engine	createTablespace_ilm_compression_policy(SEGMENT|GROUP|ROW)/SEGMENT!insert	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS SEGMENT zzz AFTER 1 DAY OF CREATION
 reject@52	reject@52	engine	createTablespace_ilm_compression_policy(SEGMENT|GROUP|ROW)/SEGMENT!swap	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS SELECT AFTER 1 DAY OF CREATION
 accept	accept	engine	createTablespace_ilm_compression_policy(SEGMENT|GROUP|ROW)/GROUP	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS GROUP AFTER 1 DAY OF CREATION
@@ -37062,7 +37062,7 @@ accept	accept	engine	createTablespace_table_compression(COMPRESS_BASIC?|COMPRESS
 reject@43	reject@43	engine	createTablespace_table_compression(COMPRESS_BASIC?|COMPRESS_FOR_(OLTP|Q~e159a79e)/COMPRESS_FOR_(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)!drop-1	CREATE TABLESPACE a DEFAULT ILM ADD POLICY FOR OLTP SEGMENT AFTER 1 DAY OF CREATION
 reject@52	reject@52	engine	createTablespace_table_compression(COMPRESS_BASIC?|COMPRESS_FOR_(OLTP|Q~e159a79e)/COMPRESS_FOR_(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)!drop-2	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS OLTP SEGMENT AFTER 1 DAY OF CREATION
 reject@56	reject@56	engine	createTablespace_table_compression(COMPRESS_BASIC?|COMPRESS_FOR_(OLTP|Q~e159a79e)/COMPRESS_FOR_(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)!drop-3	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS FOR SEGMENT AFTER 1 DAY OF CREATION
-accept	reject@55	engine	createTablespace_table_compression(COMPRESS_BASIC?|COMPRESS_FOR_(OLTP|Q~e159a79e)/COMPRESS_FOR_(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)!truncate	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS FOR
+reject@55	reject@55	engine	createTablespace_table_compression(COMPRESS_BASIC?|COMPRESS_FOR_(OLTP|Q~e159a79e)/COMPRESS_FOR_(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)!truncate	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS FOR
 reject@61	reject@61	engine	createTablespace_table_compression(COMPRESS_BASIC?|COMPRESS_FOR_(OLTP|Q~e159a79e)/COMPRESS_FOR_(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)!insert	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS FOR OLTP zzz SEGMENT AFTER 1 DAY OF CREATION
 reject@43	reject@43	engine	createTablespace_table_compression(COMPRESS_BASIC?|COMPRESS_FOR_(OLTP|Q~e159a79e)/COMPRESS_FOR_(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)!swap	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COMPUTATION FOR OLTP SEGMENT AFTER 1 DAY OF CREATION
 reject@43	reject@43	engine	createTablespace_table_compression(COMPRESS_BASIC?|COMPRESS_FOR_(OLTP|Q~e159a79e)/NOCOMPRESS	CREATE TABLESPACE a DEFAULT ILM ADD POLICY NOCOMPRESS SEGMENT AFTER 1 DAY OF CREATION
@@ -37082,7 +37082,7 @@ reject@64	reject@64	engine	createTablespace_table_compression(OLTP|QUERY_(LOW|HI
 reject@56	reject@56	engine	createTablespace_table_compression(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?!swap	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS FOR ARCHIVED SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	createTablespace_table_compression(LOW|HIGH)?/%empty	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS FOR QUERY SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	createTablespace_table_compression(LOW|HIGH)?/LOW	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS FOR QUERY LOW SEGMENT AFTER 1 DAY OF CREATION
-accept	reject@61	engine	createTablespace_table_compression(LOW|HIGH)?/LOW!truncate	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS FOR QUERY
+reject@61	reject@61	engine	createTablespace_table_compression(LOW|HIGH)?/LOW!truncate	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS FOR QUERY
 reject@66	reject@66	engine	createTablespace_table_compression(LOW|HIGH)?/LOW!insert	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS FOR QUERY LOW zzz SEGMENT AFTER 1 DAY OF CREATION
 reject@62	reject@62	engine	createTablespace_table_compression(LOW|HIGH)?/LOW!swap	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS FOR QUERY M SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	createTablespace_table_compression(LOW|HIGH)?/HIGH	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS FOR QUERY HIGH SEGMENT AFTER 1 DAY OF CREATION
@@ -39830,7 +39830,7 @@ accept	reject@20	engine	dropTablespaceSet/DROP_TABLESPACE_SET_ID_(INCLUDING_CONT
 accept	reject@20	engine	dropTablespaceSet(INCLUDING_CONTENTS_((AND_DATAFILES|K~35a785f2)?/%empty	DROP TABLESPACE SET a
 accept	reject@20	engine	dropTablespaceSet(INCLUDING_CONTENTS_((AND_DATAFILES|K~35a785f2)?/INCLUDING_CONTENTS_((AND_DATAFILES|KEEP_DATAFILES))?_(C~545b75a8	DROP TABLESPACE SET a INCLUDING CONTENTS
 reject@22	reject@20	engine	dropTablespaceSet(INCLUDING_CONTENTS_((AND_DATAFILES|K~35a785f2)?/INCLUDING_CONTENTS_((AND_DATAFILES|KEEP_DATAFILES))?_(C~545b75a8!drop-1	DROP TABLESPACE SET a CONTENTS
-accept	reject@20	engine	dropTablespaceSet(INCLUDING_CONTENTS_((AND_DATAFILES|K~35a785f2)?/INCLUDING_CONTENTS_((AND_DATAFILES|KEEP_DATAFILES))?_(C~545b75a8!drop-2	DROP TABLESPACE SET a INCLUDING
+reject@31	reject@20	engine	dropTablespaceSet(INCLUDING_CONTENTS_((AND_DATAFILES|K~35a785f2)?/INCLUDING_CONTENTS_((AND_DATAFILES|KEEP_DATAFILES))?_(C~545b75a8!drop-2	DROP TABLESPACE SET a INCLUDING
 reject@41	reject@20	engine	dropTablespaceSet(INCLUDING_CONTENTS_((AND_DATAFILES|K~35a785f2)?/INCLUDING_CONTENTS_((AND_DATAFILES|KEEP_DATAFILES))?_(C~545b75a8!insert	DROP TABLESPACE SET a INCLUDING CONTENTS zzz
 reject@22	reject@20	engine	dropTablespaceSet(INCLUDING_CONTENTS_((AND_DATAFILES|K~35a785f2)?/INCLUDING_CONTENTS_((AND_DATAFILES|KEEP_DATAFILES))?_(C~545b75a8!swap	DROP TABLESPACE SET a INCREMENT CONTENTS
 accept	reject@20	engine	dropTablespaceSet((AND_DATAFILES|KEEP_DATAFILES))?/%empty	DROP TABLESPACE SET a INCLUDING CONTENTS
@@ -39873,7 +39873,7 @@ reject@18	reject@18	engine	dropTablespace(DROP|KEEP)/KEEP!swap	DROP TABLESPACE a
 accept	accept	engine	dropTablespace(INCLUDING_CONTENTS_((AND_DATAFILES|K~35a785f2)?/%empty	DROP TABLESPACE a
 accept	accept	engine	dropTablespace(INCLUDING_CONTENTS_((AND_DATAFILES|K~35a785f2)?/INCLUDING_CONTENTS_((AND_DATAFILES|KEEP_DATAFILES))?_(C~545b75a8	DROP TABLESPACE a INCLUDING CONTENTS
 reject@18	reject@18	engine	dropTablespace(INCLUDING_CONTENTS_((AND_DATAFILES|K~35a785f2)?/INCLUDING_CONTENTS_((AND_DATAFILES|KEEP_DATAFILES))?_(C~545b75a8!drop-1	DROP TABLESPACE a CONTENTS
-accept	reject@27	engine	dropTablespace(INCLUDING_CONTENTS_((AND_DATAFILES|K~35a785f2)?/INCLUDING_CONTENTS_((AND_DATAFILES|KEEP_DATAFILES))?_(C~545b75a8!drop-2	DROP TABLESPACE a INCLUDING
+reject@27	reject@27	engine	dropTablespace(INCLUDING_CONTENTS_((AND_DATAFILES|K~35a785f2)?/INCLUDING_CONTENTS_((AND_DATAFILES|KEEP_DATAFILES))?_(C~545b75a8!drop-2	DROP TABLESPACE a INCLUDING
 reject@37	reject@37	engine	dropTablespace(INCLUDING_CONTENTS_((AND_DATAFILES|K~35a785f2)?/INCLUDING_CONTENTS_((AND_DATAFILES|KEEP_DATAFILES))?_(C~545b75a8!insert	DROP TABLESPACE a INCLUDING CONTENTS zzz
 reject@18	reject@18	engine	dropTablespace(INCLUDING_CONTENTS_((AND_DATAFILES|K~35a785f2)?/INCLUDING_CONTENTS_((AND_DATAFILES|KEEP_DATAFILES))?_(C~545b75a8!swap	DROP TABLESPACE a INCREMENT CONTENTS
 accept	accept	engine	dropTablespace((AND_DATAFILES|KEEP_DATAFILES))?/%empty	DROP TABLESPACE a INCLUDING CONTENTS
