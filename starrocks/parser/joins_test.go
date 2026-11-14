@@ -241,6 +241,8 @@ func TestFromClauseGrammar(t *testing.T) {
 		{"SELECT 1 FROM a TEMPORARY PARTITION (p1, p2) TABLET(1) REPLICA(1, 2) t [h] BEFORE '2024-01-01'", true},
 		{"SELECT 1 FROM a PARTITION (k = 1)", true},
 		{"SELECT 1 FROM a [ a | b(1, NULL) ]", true},
+		{"SELECT * FROM t1 JOIN [skew | t1.k(1)] t2 ON t1.k = t2.k", true},
+		{"SELECT * FROM t1 JOIN [skew | t1.(1)] t2 ON 1", false},
 		{"SELECT 1 FROM (SELECT 1) t(c)", true},
 		{"SELECT 1 FROM TABLE(f(a => 1, b => 'x')) t(c)", true},
 		{"SELECT 1 FROM TABLE(f(1, 2))", true},

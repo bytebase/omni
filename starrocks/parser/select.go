@@ -1011,13 +1011,19 @@ func (p *Parser) parseBracketHint() ([]string, error) {
 	if p.cur.Kind == int('|') {
 		p.advance() // consume '|'
 		// primaryExpression: the literalExpressionList's '(' follows it, so
-		// a word followed by '(' is the expression alone, not a call
-		// (StarRocks takes [ a | f(NULL) ]). omni reads it as one word,
-		// the form a skew hint names a column by.
-		if p.cur.Kind != tokIdent && p.cur.Kind != tokQuotedIdent && p.cur.Kind < 700 {
-			return nil, p.syntaxErrorAtCur()
+		// a name followed by '(' is the expression alone, not a call
+		// (StarRocks takes [ a | f(NULL) ]). omni reads the column
+		// reference a skew hint names, qualified or not: word ('.' word)*.
+		for {
+			if p.cur.Kind != tokIdent && p.cur.Kind != tokQuotedIdent && p.cur.Kind < 700 {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance()
+			if p.cur.Kind != int('.') {
+				break
+			}
+			p.advance() // consume '.'
 		}
-		p.advance()
 		// literalExpressionList (:2637): '(' literalExpression (',' literalExpression)* ')'
 		if _, err := p.expect(int('(')); err != nil {
 			return nil, err
