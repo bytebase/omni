@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/tidb/ast"
 )
 
@@ -122,13 +124,10 @@ func (p *Parser) parseDeallocateStmt() (*nodes.DeallocateStmt, error) {
 }
 
 // atUsingVariable reports whether p.cur is a user variable as singleAtIdentifier
-// spells one, an empty quoted name included: the lexer folds an @ followed by two
-// quotes or two backquotes into a token whose text is "@" alone, and its source
-// text says it was quoted.
+// spells one, the unnamed one included: a bare @, and an @ before two quotes or
+// two backquotes, which the lexer folds into a token whose text is "@" alone. The
+// source text, which starts at the @, tells it from a backquoted name.
 func (p *Parser) atUsingVariable() bool {
-	if p.isUserVariable() {
-		return true
-	}
-	src := p.inputText(p.cur.Loc, p.cur.End)
-	return p.cur.Type == tokIDENT && p.cur.Str == "@" && len(src) > 1 && src[0] == '@'
+	return p.cur.Type == tokIDENT && strings.HasPrefix(p.cur.Str, "@") &&
+		strings.HasPrefix(p.inputText(p.cur.Loc, p.cur.End), "@")
 }
