@@ -21457,13 +21457,11 @@ func TestParseAuditEventBnfReview(t *testing.T) {
 		}
 	})
 
-	// Event session with MAX_DURATION option
+	// MAX_DURATION is SQL Server 2025's: SQL Server 2022 refuses it.
 	t.Run("event_session_max_duration", func(t *testing.T) {
 		sql := "CREATE EVENT SESSION test_session ON SERVER ADD EVENT sqlserver.sql_batch_starting WITH (MAX_DURATION = 60 MINUTES)"
-		result := ParseAndCheck(t, sql)
-		stmt := result.Items[0].(*ast.SecurityStmt)
-		if stmt.Options == nil {
-			t.Fatal("expected options")
+		if _, err := Parse(sql); err == nil {
+			t.Fatalf("Parse(%q): want an error", sql)
 		}
 	})
 
