@@ -275,12 +275,18 @@ func TestRewriteResultLimitMariaDBForms(t *testing.T) {
 		{"SELECT a FROM t PROCEDURE ANALYSE()", "SELECT a FROM t LIMIT 10 PROCEDURE ANALYSE()"},
 		{"SELECT a FROM (SELECT b FROM u LIMIT 50) x PROCEDURE ANALYSE(10, 2000);", "SELECT a FROM (SELECT b FROM u LIMIT 50) x LIMIT 10 PROCEDURE ANALYSE(10, 2000);"},
 		{"SELECT a FROM t LIMIT 50 PROCEDURE ANALYSE()", "SELECT a FROM t LIMIT 10 PROCEDURE ANALYSE()"},
-		{"SELECT * FROM t FETCH FIRST 50 ROWS ONLY", "SELECT * FROM t FETCH FIRST 10 ROWS ONLY"},
 	} {
 		got, err := RewriteResultLimit(tc.stmt, 10)
 		require.NoError(t, err, tc.stmt)
 		require.Equal(t, tc.want, got, tc.stmt)
 	}
-	_, err := RewriteResultLimit("SELECT * FROM t OFFSET 5 ROWS", 10)
-	require.Error(t, err)
+	for _, stmt := range []string{
+		"SELECT * FROM t OFFSET 5 ROWS",
+		"SELECT * FROM t FETCH FIRST 50 ROWS ONLY",
+		"SELECT a FROM t ORDER BY a FETCH FIRST 50 ROWS WITH TIES",
+		"SELECT a FROM t ORDER BY a FETCH FIRST 5 ROWS WITH TIES",
+	} {
+		_, err := RewriteResultLimit(stmt, 10)
+		require.Error(t, err, stmt)
+	}
 }
