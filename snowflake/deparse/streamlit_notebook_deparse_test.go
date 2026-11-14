@@ -32,6 +32,9 @@ func TestDeparse_StreamlitNotebook(t *testing.T) {
 		// EXECUTE NOTEBOOK [ PROJECT ]
 		"EXECUTE NOTEBOOK db.s.nb()",
 		"EXECUTE NOTEBOOK nb('a', 'b c')",
+		"EXECUTE NOTEBOOK nb(1, -2.5, TRUE, FALSE, NULL)",
+		"ALTER STREAMLIT a UNSET TAG t, u",
+		"ALTER NOTEBOOK a UNSET TAG t",
 		"EXECUTE NOTEBOOK PROJECT p MAIN_FILE = 'm' COMPUTE_POOL = 'c' QUERY_WAREHOUSE = 'w' RUNTIME = 'r' ARGUMENTS = :nb_args",
 		"EXECUTE NOTEBOOK PROJECT db.s.p MAIN_FILE = 'nb.ipynb' COMPUTE_POOL = 'cp' QUERY_WAREHOUSE = 'wh' RUNTIME = '2.2-CPU-PY3.11' SECRETS = (db.s.k1, db.s.k2)",
 	} {

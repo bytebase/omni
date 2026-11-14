@@ -39,6 +39,7 @@ func TestParseAlterStreamlit(t *testing.T) {
 	for in, want := range map[string]string{
 		"ALTER STREAMLIT IF EXISTS a SET MAIN_FILE = 'm.py' SECRETS = ('k' = s, 'l' = t)": "SET",
 		"ALTER STREAMLIT a UNSET SECRETS, TITLE":                                          "UNSET",
+		"ALTER STREAMLIT a UNSET TAG t, u":                                                "UNSET TAG",
 		"ALTER STREAMLIT IF EXISTS a RENAME TO b":                                         "RENAME TO",
 		"ALTER STREAMLIT a COMMIT":                                                        "COMMIT",
 		"ALTER STREAMLIT a ABORT":                                                         "ABORT",
@@ -105,6 +106,10 @@ func TestParseStreamlitRejects(t *testing.T) {
 		"ALTER STREAMLIT a PUSH GIT_CREDENTIALS = 's'",
 		"ALTER STREAMLIT a PUSH TO = b",
 		"ALTER STREAMLIT a PUSH NAME = n NAME = m",
+		// The ROOT_LOCATION form takes no runtime, compute pool or secrets.
+		"CREATE STREAMLIT a ROOT_LOCATION = '@s/app' MAIN_FILE = 'main.py' RUNTIME_NAME = 'r' COMPUTE_POOL = pool",
+		"CREATE STREAMLIT a ROOT_LOCATION = '@s/app' MAIN_FILE = 'main.py' SECRETS = ('k' = s)",
+		"ALTER STREAMLIT a SET ROOT_LOCATION = '@s/app' COMPUTE_POOL = pool",
 		// PUSH's Git properties go together: a secret or a login, with NAME and EMAIL.
 		"ALTER STREAMLIT a PUSH PASSWORD = 'p'",
 		"ALTER STREAMLIT a PUSH USERNAME = u NAME = n EMAIL = e",

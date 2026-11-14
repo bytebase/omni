@@ -116,7 +116,37 @@ func parseCreateStreamlit(p *Parser, s *ast.ObjectStmt) error {
 			return err
 		}
 	}
+	if err := streamlitCheckLegacy(s); err != nil {
+		return err
+	}
 	return streamlitCheckSecrets(s, 3)
+}
+
+// streamlitLegacyProps are the properties the ROOT_LOCATION form of CREATE
+// STREAMLIT and ALTER STREAMLIT ... SET takes: it has no runtime, compute
+// pool or secrets.
+var streamlitLegacyProps = map[string]bool{
+	"ROOT_LOCATION": true, "MAIN_FILE": true, "QUERY_WAREHOUSE": true, "COMMENT": true,
+	"TITLE": true, "IMPORTS": true, "EXTERNAL_ACCESS_INTEGRATIONS": true,
+}
+
+// streamlitCheckLegacy holds a property run or SET that sets ROOT_LOCATION to
+// the legacy form's properties.
+func streamlitCheckLegacy(s *ast.ObjectStmt) error {
+	for _, c := range s.Clauses {
+		if (c.Keywords != "" && c.Keywords != "SET") || !streamlitHasProperty(c, "ROOT_LOCATION") {
+			continue
+		}
+		for _, o := range c.Options {
+			if !streamlitLegacyProps[o.Name] {
+				return &ParseError{
+					Position: o.Loc.Start, End: o.Loc.End,
+					Message: "syntax error: " + o.Name + " is not taken with ROOT_LOCATION",
+				}
+			}
+		}
+	}
+	return nil
 }
 
 // parseAlterStreamlit reads what follows the name of
@@ -139,8 +169,11 @@ func parseCreateStreamlit(p *Parser, s *ast.ObjectStmt) error {
 // https://docs.snowflake.com/en/sql-reference/sql/alter-streamlit
 func parseAlterStreamlit(p *Parser, s *ast.ObjectStmt) error {
 	start := p.cur.Loc.Start
-	if ok, err := p.parseObjectAlterCommon(s, actSet|actUnset|actRename); ok || err != nil {
+	if ok, err := p.parseObjectAlterCommon(s, actSet|actUnset|actUnsetTag|actRename); ok || err != nil {
 		if err != nil {
+			return err
+		}
+		if err := streamlitCheckLegacy(s); err != nil {
 			return err
 		}
 		return streamlitCheckSecrets(s, 3)

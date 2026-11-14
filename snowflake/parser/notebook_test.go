@@ -59,6 +59,7 @@ func TestParseAlterNotebook(t *testing.T) {
 		"ALTER NOTEBOOK a SET COMMENT = 'c' QUERY_WAREHOUSE = wh":         "SET",
 		"ALTER NOTEBOOK a SET SECRETS = ('k' = db.s.secret, 'l' = other)": "SET",
 		"ALTER NOTEBOOK a UNSET QUERY_WAREHOUSE, COMMENT":                 "UNSET",
+		"ALTER NOTEBOOK a UNSET TAG t, u":                                 "UNSET TAG",
 	} {
 		s := mustObjectStmt(t, in)
 		if len(s.Clauses) != 1 || s.Clauses[0].Keywords != want {
@@ -69,12 +70,13 @@ func TestParseAlterNotebook(t *testing.T) {
 
 func TestParseExecuteNotebook(t *testing.T) {
 	for in, n := range map[string]int{
-		"EXECUTE NOTEBOOK db.s.nb()":             0,
-		"EXECUTE NOTEBOOK nb('a', 'b c')":        2,
-		"EXECUTE NOTEBOOK project('x')":          1,
-		"EXECUTE NOTEBOOK PROJECT.s.n()":         0,
-		`EXECUTE NOTEBOOK "PROJECT" ()`:          0,
-		"EXECUTE NOTEBOOK IDENTIFIER('nb')('x')": 1,
+		"EXECUTE NOTEBOOK db.s.nb()":               0,
+		"EXECUTE NOTEBOOK nb('a', 'b c')":          2,
+		"EXECUTE NOTEBOOK nb(1, -2.5, TRUE, NULL)": 4,
+		"EXECUTE NOTEBOOK project('x')":            1,
+		"EXECUTE NOTEBOOK PROJECT.s.n()":           0,
+		`EXECUTE NOTEBOOK "PROJECT" ()`:            0,
+		"EXECUTE NOTEBOOK IDENTIFIER('nb')('x')":   1,
 	} {
 		s := mustObjectStmt(t, in)
 		if s.Verb != "EXECUTE" || s.Kind != "NOTEBOOK" || len(s.Clauses) != 1 || len(s.Clauses[0].Options[0].List) != n {
@@ -110,7 +112,8 @@ func TestParseNotebookRejects(t *testing.T) {
 		"ALTER NOTEBOOK a SET",
 		"EXECUTE NOTEBOOK nb",
 		"EXECUTE NOTEBOOK nb(x)",
-		"EXECUTE NOTEBOOK nb(1)",
+		"EXECUTE NOTEBOOK nb(- 'a')",
+		"EXECUTE NOTEBOOK nb(1 + 1)",
 		"EXECUTE NOTEBOOK nb('a',)",
 		"EXECUTE NOTEBOOK nb('a' 'b')",
 		"EXECUTE NOTEBOOK PROJECT db.s.p MAIN_FILE = 'm' COMPUTE_POOL = 'c' QUERY_WAREHOUSE = 'w'", // RUNTIME is required

@@ -234,7 +234,7 @@ func (p *Parser) parseCreateNotebookProject(s *ast.ObjectStmt) error {
 //
 // https://docs.snowflake.com/en/sql-reference/sql/alter-notebook
 func parseAlterNotebook(p *Parser, s *ast.ObjectStmt) error {
-	if ok, err := p.parseObjectAlterCommon(s, actSet|actUnset|actRename); ok || err != nil {
+	if ok, err := p.parseObjectAlterCommon(s, actSet|actUnset|actUnsetTag|actRename); ok || err != nil {
 		if err != nil {
 			return err
 		}
@@ -246,6 +246,9 @@ func parseAlterNotebook(p *Parser, s *ast.ObjectStmt) error {
 // parseExecuteNotebook reads
 //
 //	EXECUTE NOTEBOOK <name>( [ '<parameter_string>' [ , ... ] ] )
+//
+// (an argument that is not a string, such as a number or a boolean, reaches
+// the notebook as NULL, as the page says, so it is read too)
 //
 // https://docs.snowflake.com/en/sql-reference/sql/execute-notebook
 //
@@ -301,11 +304,11 @@ func (p *Parser) parseExecuteNotebook(start ast.Loc) (ast.Node, error) {
 	}
 	args := &ast.CopyOption{Loc: ast.Loc{Start: argsStart}, List: []*ast.Literal{}}
 	for p.cur.Type != ')' {
-		tok, err := p.expect(tokString)
+		arg, err := p.parseNotebookArgument()
 		if err != nil {
 			return nil, err
 		}
-		args.List = append(args.List, &ast.Literal{Kind: ast.LitString, Value: tok.Str, Loc: tok.Loc})
+		args.List = append(args.List, arg)
 		if p.cur.Type != ',' {
 			break
 		}
@@ -321,4 +324,34 @@ func (p *Parser) parseExecuteNotebook(start ast.Loc) (ast.Node, error) {
 	p.addObjectKeywordsClause(s, "", argsStart).Options = []*ast.CopyOption{args}
 	s.Loc.End = p.prev.Loc.End
 	return s, nil
+}
+
+// parseNotebookArgument reads one EXECUTE NOTEBOOK argument: a string, or a
+// literal the page says the notebook receives as NULL (a number, TRUE,
+// FALSE or NULL), kept with its own type.
+func (p *Parser) parseNotebookArgument() (*ast.Literal, error) {
+	switch p.cur.Type {
+	case kwTRUE, kwFALSE:
+		tok := p.advance()
+		return &ast.Literal{Kind: ast.LitBool, Bval: tok.Type == kwTRUE, Value: strings.ToUpper(tok.Str), Loc: tok.Loc}, nil
+	case kwNULL:
+		tok := p.advance()
+		return &ast.Literal{Kind: ast.LitNull, Value: "NULL", Loc: tok.Loc}, nil
+	case tokString, tokInt, tokFloat, tokReal:
+		return p.parseCopyLiteral()
+	case '-':
+		switch p.peekNext().Type {
+		case tokInt, tokFloat, tokReal:
+			minus := p.advance()
+			lit, err := p.parseCopyLiteral()
+			if err != nil {
+				return nil, err
+			}
+			lit.Value = "-" + lit.Value
+			lit.Ival = -lit.Ival
+			lit.Loc.Start = minus.Loc.Start
+			return lit, nil
+		}
+	}
+	return nil, p.syntaxErrorAtCur()
 }
