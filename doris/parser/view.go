@@ -101,6 +101,23 @@ func (p *Parser) parseAlterView() (ast.Node, error) {
 	}
 	stmt.Name = name
 
+	// ALTER VIEW name (MODIFY commentSpec | ('(' simpleColumnDefs ')')?
+	// commentSpec? AS query) (DorisParser.g4:203).
+	if p.cur.Kind == kwMODIFY {
+		p.advance()
+		if _, err := p.expect(kwCOMMENT); err != nil {
+			return nil, err
+		}
+		tok, err := p.alterExpectString()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Comment = tok.Str
+		stmt.ModifyComment = true
+		stmt.Loc = startLoc.Merge(tok.Loc)
+		return stmt, nil
+	}
+
 	// Optional column list
 	if p.cur.Kind == int('(') {
 		cols, err := p.parseViewColumns()
@@ -108,6 +125,16 @@ func (p *Parser) parseAlterView() (ast.Node, error) {
 			return nil, err
 		}
 		stmt.Columns = cols
+	}
+
+	// Optional commentSpec
+	if p.cur.Kind == kwCOMMENT {
+		p.advance()
+		tok, err := p.alterExpectString()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Comment = tok.Str
 	}
 
 	// AS keyword
@@ -201,10 +228,19 @@ func (p *Parser) parseViewColumns() ([]*ast.ViewColumn, error) {
 
 		cols = append(cols, col)
 
-		// Optional comma
-		if p.cur.Kind == int(',') {
-			p.advance()
+		// simpleColumnDefs (DorisParser.g4:1402): the columns are
+		// comma-separated, and the list does not end on a comma.
+		if p.cur.Kind != int(',') {
+			break
 		}
+		p.advance()
+		if p.cur.Kind == int(')') {
+			return nil, p.syntaxErrorAtCur()
+		}
+	}
+	if len(cols) == 0 {
+		// An empty list: simpleColumnDefs holds at least one column.
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	if _, err := p.expect(int(')')); err != nil {

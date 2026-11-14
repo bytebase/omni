@@ -212,24 +212,20 @@ func TestAlterTableModifyColumn(t *testing.T) {
 func TestAlterTableRename(t *testing.T) {
 	cases := []alterTableTestCase{
 		{
-			sql: "ALTER TABLE t RENAME TO new_name",
-			check: func(t *testing.T, stmt *ast.AlterTableStmt) {
-				a := stmt.Actions[0]
-				if a.Type != ast.AlterRenameTable {
-					t.Errorf("expected AlterRenameTable, got %v", a.Type)
-				}
-				if a.NewTableName == nil || a.NewTableName.Parts[0] != "new_name" {
-					t.Errorf("expected new_name, got %v", a.NewTableName)
-				}
-			},
+			// RENAME takes the new name alone (DorisParser.g4:650 renameClause;
+			// DorisLegacyParser.g4:318 'RENAME' ident, TO being no ident).
+			sql:     "ALTER TABLE t RENAME TO new_name",
+			wantErr: true,
 		},
 		{
-			// RENAME without TO
 			sql: "ALTER TABLE table1 RENAME table2",
 			check: func(t *testing.T, stmt *ast.AlterTableStmt) {
 				a := stmt.Actions[0]
 				if a.Type != ast.AlterRenameTable {
 					t.Errorf("expected AlterRenameTable, got %v", a.Type)
+				}
+				if a.NewTableName == nil || a.NewTableName.Parts[0] != "table2" {
+					t.Errorf("expected table2, got %v", a.NewTableName)
 				}
 			},
 		},

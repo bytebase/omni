@@ -32,17 +32,17 @@ type CreateTableStmt struct {
 	External      bool
 	Temporary     bool
 	Columns       []*ColumnDef
-	Indexes       []*IndexDef       // inline INDEX definitions
+	Indexes       []*IndexDef        // inline INDEX definitions
 	Constraints   []*TableConstraint // table-level constraints
-	KeyDesc       *KeyDesc          // AGGREGATE KEY / UNIQUE KEY / DUPLICATE KEY
-	PartitionBy   *PartitionDesc    // PARTITION BY RANGE/LIST
-	DistributedBy *DistributionDesc // DISTRIBUTED BY HASH/RANDOM
-	Rollup        []*RollupDef      // ROLLUP (...)
-	Properties    []*Property       // PROPERTIES (...)
-	Engine        string            // ENGINE = xxx
-	Comment       string            // COMMENT 'xxx'
-	Like          *ObjectName       // CREATE TABLE ... LIKE other_table
-	AsSelect      *RawQuery         // CREATE TABLE ... AS SELECT ...
+	KeyDesc       *KeyDesc           // AGGREGATE KEY / UNIQUE KEY / DUPLICATE KEY
+	PartitionBy   *PartitionDesc     // PARTITION BY RANGE/LIST
+	DistributedBy *DistributionDesc  // DISTRIBUTED BY HASH/RANDOM
+	Rollup        []*RollupDef       // ROLLUP (...)
+	Properties    []*Property        // PROPERTIES (...)
+	Engine        string             // ENGINE = xxx
+	Comment       string             // COMMENT 'xxx'
+	Like          *ObjectName        // CREATE TABLE ... LIKE other_table
+	AsSelect      *RawQuery          // CREATE TABLE ... AS SELECT ...
 	Loc           Loc
 }
 
@@ -61,17 +61,17 @@ var _ Node = (*CreateTableStmt)(nil)
 //	    [ON UPDATE CURRENT_TIMESTAMP]
 //	    [COMMENT 'str']
 type ColumnDef struct {
-	Name       string
-	Type       *TypeName
-	Nullable   *bool  // nil = not specified, true = NULL, false = NOT NULL
-	Default    Node   // DEFAULT expression (nil if absent)
-	Comment    string // COMMENT string
-	IsKey      bool   // KEY keyword
-	AggType    string // aggregate type: SUM, MAX, MIN, REPLACE, REPLACE_IF_NOT_NULL, etc.
-	AutoInc    bool   // AUTO_INCREMENT
-	Generated  Node   // GENERATED ALWAYS AS (expr) -- the expression
-	OnUpdate   string // ON UPDATE CURRENT_TIMESTAMP
-	Loc        Loc
+	Name      string
+	Type      *TypeName
+	Nullable  *bool  // nil = not specified, true = NULL, false = NOT NULL
+	Default   Node   // DEFAULT expression (nil if absent)
+	Comment   string // COMMENT string
+	IsKey     bool   // KEY keyword
+	AggType   string // aggregate type: SUM, MAX, MIN, REPLACE, REPLACE_IF_NOT_NULL, etc.
+	AutoInc   bool   // AUTO_INCREMENT
+	Generated Node   // GENERATED ALWAYS AS (expr) -- the expression
+	OnUpdate  string // ON UPDATE CURRENT_TIMESTAMP
+	Loc       Loc
 }
 
 // Tag implements Node.
@@ -100,7 +100,7 @@ var _ Node = (*IndexDef)(nil)
 // TableConstraint represents a table-level constraint: PRIMARY KEY or UNIQUE.
 type TableConstraint struct {
 	Type    ConstraintType
-	Name    string   // constraint name (may be empty)
+	Name    string // constraint name (may be empty)
 	Columns []string
 	Loc     Loc
 }
@@ -114,7 +114,7 @@ var _ Node = (*TableConstraint)(nil)
 //
 //	AGGREGATE KEY(cols) | UNIQUE KEY(cols) | DUPLICATE KEY(cols)
 type KeyDesc struct {
-	Type    string   // "AGGREGATE", "UNIQUE", "DUPLICATE"
+	Type    string // "AGGREGATE", "UNIQUE", "DUPLICATE"
 	Columns []string
 	Loc     Loc
 }
@@ -147,18 +147,18 @@ var _ Node = (*PartitionDesc)(nil)
 // For IN: PARTITION name VALUES IN ((values), (values))
 // For step: FROM (values) TO (values) INTERVAL n [unit]
 type PartitionItem struct {
-	Name       string   // partition name (empty for step partitions)
-	IsMaxValue bool     // VALUES LESS THAN MAXVALUE
-	Values     []string // raw value strings for LESS THAN / fixed
+	Name       string     // partition name (empty for step partitions)
+	IsMaxValue bool       // VALUES LESS THAN MAXVALUE
+	Values     []string   // raw value strings for LESS THAN / fixed
 	InValues   [][]string // for IN partitions: list of value lists
 	// Step partition fields
-	IsStep     bool
-	FromValues []string
-	ToValues   []string
-	Interval   string // interval amount
-	IntervalUnit string // interval unit (e.g., "DAY")
-	Properties []*Property // optional inline (key = value, ...) list after the values
-	Loc        Loc
+	IsStep       bool
+	FromValues   []string
+	ToValues     []string
+	Interval     string      // interval amount
+	IntervalUnit string      // interval unit (e.g., "DAY")
+	Properties   []*Property // optional inline (key = value, ...) list after the values
+	Loc          Loc
 }
 
 // Tag implements Node.
@@ -247,6 +247,15 @@ const (
 	AlterEnableFeature                      // ENABLE FEATURE 'name' [WITH PROPERTIES (...)]
 	AlterOrderBy                            // ORDER BY (col1, col2, ...)
 	AlterRaw                                // fallback: raw text for unparsed actions
+	AlterAddIndex                           // ADD INDEX [IF NOT EXISTS] name (cols) [USING type] [PROPERTIES(...)] [COMMENT 'c']
+	AlterDropIndex                          // DROP INDEX [IF EXISTS] name
+	AlterReplaceTable                       // REPLACE WITH TABLE name [PROPERTIES(...)]
+	AlterAddPartitions                      // ADD [TEMPORARY] PARTITIONS FROM (...) TO (...) INTERVAL n [unit]
+	AlterCreateBranch                       // CREATE [OR REPLACE] BRANCH / REPLACE BRANCH name ...
+	AlterCreateTag                          // CREATE [OR REPLACE] TAG / REPLACE TAG name ...
+	AlterDropBranch                         // DROP BRANCH [IF EXISTS] name
+	AlterDropTag                            // DROP TAG [IF EXISTS] name
+	AlterSetStats                           // [INDEX i] MODIFY COLUMN c SET STATS (...) / SET STATS (...)
 )
 
 // AlterTableAction represents a single action in an ALTER TABLE statement.
@@ -268,8 +277,8 @@ type AlterTableAction struct {
 	PartitionList []string       // for MODIFY PARTITION (p1, p2) or (*)
 	PartitionStar bool           // MODIFY PARTITION (*)
 	// ADD PARTITION extras:
-	PartitionDist *DistributionDesc // optional DISTRIBUTED BY after ADD PARTITION
-	PartitionProps []*Property      // optional properties after ADD PARTITION
+	PartitionDist  *DistributionDesc // optional DISTRIBUTED BY after ADD PARTITION
+	PartitionProps []*Property       // optional properties after ADD PARTITION
 	// Rollup actions:
 	Rollup     *RollupDef // for ADD ROLLUP
 	RollupName string     // for DROP ROLLUP / RENAME ROLLUP (old name)
@@ -287,7 +296,33 @@ type AlterTableAction struct {
 	OrderByColumns []string
 	// Raw text for unsupported/complex actions:
 	RawText string
-	Loc     Loc
+
+	// Columns holds every column of ADD COLUMN (col, ...); Column is the first.
+	Columns []*ColumnDef
+	// Temporary marks a TEMPORARY partition (ADD / DROP / MODIFY PARTITION).
+	Temporary bool
+	// IfExists / IfNotExists record IF [NOT] EXISTS.
+	IfExists    bool
+	IfNotExists bool
+	// Force records a FORCE (DROP PARTITION, REPLACE PARTITION).
+	Force bool
+	// TempPartitionList holds the partitions after REPLACE ... WITH.
+	TempPartitionList []string
+	// Index is the ADD INDEX definition; IndexName the DROP INDEX name, the
+	// DROP PARTITION ... FROM INDEX name, or the INDEX of SET STATS.
+	Index     *IndexDef
+	IndexName string
+	// RefName names the branch or tag; OrReplace records CREATE OR REPLACE
+	// or REPLACE. AsOfVersion, RetainTime, MinSnapshots and MaxSnapshotAge
+	// hold the branch or tag options as written ("" when absent).
+	RefName        string
+	OrReplace      bool
+	AsOfVersion    string
+	RetainTime     string
+	MinSnapshots   string
+	MaxSnapshotAge string
+
+	Loc Loc
 }
 
 // Tag implements Node.
@@ -350,12 +385,16 @@ var _ Node = (*CreateViewStmt)(nil)
 
 // AlterViewStmt represents:
 //
-//	ALTER VIEW view_name [(col1 [COMMENT 'text'], ...)] AS query
+//	ALTER VIEW view_name [(col1 [COMMENT 'text'], ...)] [COMMENT 'text'] AS query
+//	ALTER VIEW view_name MODIFY COMMENT 'text'
 type AlterViewStmt struct {
 	Name    *ObjectName
 	Columns []*ViewColumn
-	Query   Node
-	Loc     Loc
+	Query   Node // nil for MODIFY COMMENT
+	// Comment is the view's COMMENT; ModifyComment marks MODIFY COMMENT.
+	Comment       string
+	ModifyComment bool
+	Loc           Loc
 }
 
 // Tag implements Node.
@@ -613,6 +652,7 @@ type DropFileStmt struct {
 func (n *DropFileStmt) Tag() NodeTag { return T_DropFileStmt }
 
 var _ Node = (*DropFileStmt)(nil)
+
 // ---------------------------------------------------------------------------
 // WORKLOAD GROUP DDL nodes (T5.4)
 // ---------------------------------------------------------------------------

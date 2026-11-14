@@ -413,6 +413,9 @@ func (p *Parser) parseKillAnalyze(startLoc ast.Loc) (ast.Node, error) {
 //	ALTER TABLE name ADD CONSTRAINT cname UNIQUE (cols)
 //	ALTER TABLE name ADD CONSTRAINT cname FOREIGN KEY (cols) REFERENCES ref (cols)
 //
+// Each column list is an identifierList, and the referenced columns are not
+// optional (DorisParser.g4:954 constraint).
+//
 // ALTER TABLE and the table name have been parsed; table is the table ObjectName.
 // ADD has already been consumed; cur is CONSTRAINT.
 func (p *Parser) parseAddConstraint(startLoc ast.Loc, table *ast.ObjectName) (ast.Node, error) {
@@ -436,7 +439,7 @@ func (p *Parser) parseAddConstraint(startLoc ast.Loc, table *ast.ObjectName) (as
 			return nil, err
 		}
 		stmt.Type = "PRIMARY KEY"
-		cols, colsEnd, err := p.parseParenIdentifierList()
+		cols, colsEnd, err := p.alterParenIdentList()
 		if err != nil {
 			return nil, err
 		}
@@ -446,7 +449,7 @@ func (p *Parser) parseAddConstraint(startLoc ast.Loc, table *ast.ObjectName) (as
 	case kwUNIQUE:
 		p.advance() // consume UNIQUE
 		stmt.Type = "UNIQUE"
-		cols, colsEnd, err := p.parseParenIdentifierList()
+		cols, colsEnd, err := p.alterParenIdentList()
 		if err != nil {
 			return nil, err
 		}
@@ -459,7 +462,7 @@ func (p *Parser) parseAddConstraint(startLoc ast.Loc, table *ast.ObjectName) (as
 			return nil, err
 		}
 		stmt.Type = "FOREIGN KEY"
-		cols, _, err := p.parseParenIdentifierList()
+		cols, _, err := p.alterParenIdentList()
 		if err != nil {
 			return nil, err
 		}
@@ -475,14 +478,12 @@ func (p *Parser) parseAddConstraint(startLoc ast.Loc, table *ast.ObjectName) (as
 		stmt.RefTable = refTable
 		endLoc = refTable.Loc
 
-		if p.cur.Kind == int('(') {
-			refCols, refColsEnd, err := p.parseParenIdentifierList()
-			if err != nil {
-				return nil, err
-			}
-			stmt.RefColumns = refCols
-			endLoc = refColsEnd
+		refCols, refColsEnd, err := p.alterParenIdentList()
+		if err != nil {
+			return nil, err
 		}
+		stmt.RefColumns = refCols
+		endLoc = refColsEnd
 
 	default:
 		return nil, p.syntaxErrorAtCur()

@@ -300,21 +300,23 @@ func (p *Parser) parseAlterMTMV(startLoc ast.Loc) (ast.Node, error) {
 		stmt.Loc = startLoc.Merge(ast.NodeLoc(newName))
 
 	case kwREFRESH:
+		// REFRESH (refreshMethod | refreshTrigger | refreshMethod
+		// refreshTrigger) (DorisParser.g4:104), refreshMethod COMPLETE |
+		// AUTO (DorisParser.g4:1023).
 		p.advance() // consume REFRESH
-		switch p.cur.Kind {
-		case kwCOMPLETE:
-			stmt.RefreshMethod = "COMPLETE"
-		case kwAUTO:
-			stmt.RefreshMethod = "AUTO"
-		case kwNEVER:
-			stmt.RefreshMethod = "NEVER"
-		case kwINCREMENTAL:
-			stmt.RefreshMethod = "INCREMENTAL"
-		default:
-			stmt.RefreshMethod = strings.ToUpper(p.cur.Str)
+		if p.cur.Kind == kwCOMPLETE || p.cur.Kind == kwAUTO {
+			stmt.RefreshMethod = strings.ToUpper(p.advance().Str)
 		}
-		stmt.Loc = startLoc.Merge(p.cur.Loc)
-		p.advance()
+		if p.cur.Kind == kwON {
+			trigger, err := p.parseAlterMTMVRefreshTrigger()
+			if err != nil {
+				return nil, err
+			}
+			stmt.RefreshTrigger = trigger
+		} else if stmt.RefreshMethod == "" {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.Loc = startLoc.Merge(p.prev.Loc)
 
 	case kwREPLACE:
 		// REPLACE WITH MATERIALIZED VIEW other_mv
@@ -608,4 +610,49 @@ func (p *Parser) parseCancelMTMVTask(startLoc ast.Loc) (ast.Node, error) {
 	stmt.Name = name
 	stmt.Loc = startLoc.Merge(ast.NodeLoc(name))
 	return stmt, nil
+}
+
+// parseAlterMTMVRefreshTrigger reads refreshTrigger (DorisParser.g4:1013):
+//
+//	ON MANUAL | ON COMMIT | ON SCHEDULE EVERY INTEGER_VALUE identifier [STARTS STRING_LITERAL]
+//
+// with refreshSchedule (DorisParser.g4:1019). cur is ON.
+func (p *Parser) parseAlterMTMVRefreshTrigger() (*ast.MTMVRefreshTrigger, error) {
+	trigger := &ast.MTMVRefreshTrigger{Loc: p.cur.Loc}
+	p.advance() // consume ON
+	switch p.cur.Kind {
+	case kwMANUAL:
+		trigger.OnManual = true
+		p.advance()
+	case kwCOMMIT:
+		trigger.OnCommit = true
+		p.advance()
+	case kwSCHEDULE:
+		trigger.OnSchedule = true
+		p.advance()
+		if _, err := p.expect(kwEVERY); err != nil {
+			return nil, err
+		}
+		n, err := p.alterExpectInt()
+		if err != nil {
+			return nil, err
+		}
+		unit, _, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		trigger.Interval = n.Str + " " + strings.ToUpper(unit)
+		if p.cur.Kind == kwSTARTS {
+			p.advance()
+			tok, err := p.alterExpectString()
+			if err != nil {
+				return nil, err
+			}
+			trigger.StartsAt = tok.Str
+		}
+	default:
+		return nil, p.syntaxErrorAtCur()
+	}
+	trigger.Loc.End = p.prev.Loc.End
+	return trigger, nil
 }

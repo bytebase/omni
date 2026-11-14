@@ -36,10 +36,9 @@ func TestAlterSystemAddBackend_Single(t *testing.T) {
 func TestAlterSystemAddBackend_WithProperties(t *testing.T) {
 	// StarRocks.g4 addBackendClause takes no PROPERTIES (that is Doris's
 	// form); it takes INTO WAREHOUSE.
-	for _, sql := range []string{} {
-		if _, errs := parseForTest(sql); len(errs) == 0 {
-			t.Errorf("%q parsed; want a syntax error", sql)
-		}
+	sql := `ALTER SYSTEM ADD BACKEND "doris-be01:9050" PROPERTIES ("tag.location" = "groupb")`
+	if _, errs := parseForTest(sql); len(errs) == 0 {
+		t.Errorf("%q parsed; want a syntax error", sql)
 	}
 	node := parseOne(t, `ALTER SYSTEM ADD BACKEND "doris-be01:9050" INTO WAREHOUSE w1`)
 	stmt := node.(*ast.SystemAlterStmt)

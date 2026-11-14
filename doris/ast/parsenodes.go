@@ -30,6 +30,8 @@ type AlterDatabaseStmt struct {
 	Name       *ObjectName
 	NewName    *ObjectName // for RENAME
 	Properties []*Property // for SET PROPERTIES
+	QuotaType  string      // DATA, REPLICA or TRANSACTION for SET ... QUOTA
+	Quota      string      // the quota of SET ... QUOTA
 	Loc        Loc
 }
 
@@ -211,7 +213,7 @@ type StructField struct {
 type CreateIndexStmt struct {
 	Name        *ObjectName
 	Table       *ObjectName
-	Columns     []string    // column names (bare, stripped of backticks)
+	Columns     []string // column names (bare, stripped of backticks)
 	IfNotExists bool
 	IndexType   string      // BITMAP, NGRAM_BF, INVERTED, ANN, or ""
 	Properties  []*Property // optional PROPERTIES(...)
