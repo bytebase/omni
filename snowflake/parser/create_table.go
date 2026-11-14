@@ -1,6 +1,10 @@
 package parser
 
-import "github.com/bytebase/omni/snowflake/ast"
+import (
+	"strings"
+
+	"github.com/bytebase/omni/snowflake/ast"
+)
 
 // ---------------------------------------------------------------------------
 // CREATE statement dispatch
@@ -159,6 +163,12 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 	if p.curIsWord("HYBRID") && p.peekNext().Type == kwTABLE {
 		p.advance() // consume HYBRID
 		hybrid = true
+	}
+
+	// CREATE [OR REPLACE] [TRANSIENT] ICEBERG TABLE (iceberg_table.go). ICEBERG is
+	// not a reserved keyword, so it is matched by text and only before TABLE.
+	if p.curIsWord("ICEBERG") && p.peekNext().Type == kwTABLE && !orAlter && !temporary && !volatile {
+		return p.parseCreateIcebergTableStmt(start, orReplace, transient)
 	}
 
 	switch p.cur.Type {
@@ -405,11 +415,9 @@ func (p *Parser) parseCreateTableBody(stmt *ast.CreateTableStmt) (ast.Node, erro
 		stmt.Clone = clone
 		// [ COPY GRANTS ] [ COPY TAGS ] [ COPY = ( ... ) ]
 		for p.startsCopyClause() {
-			grants, err := p.parseCopyClause(false)
-			if err != nil {
+			if err := p.parseTableCopyClause(stmt); err != nil {
 				return nil, err
 			}
-			stmt.CopyGrants = stmt.CopyGrants || grants
 		}
 
 	case kwFROM:
@@ -494,9 +502,14 @@ func (p *Parser) checkInteractiveColumns(stmt *ast.CreateTableStmt) error {
 }
 
 // parseCreateTableAsQuery parses the optional AS <query> that ends a CTAS.
+// An interactive table's every form puts CLUSTER BY before its AS
+// (https://docs.snowflake.com/en/sql-reference/sql/create-interactive-table).
 func (p *Parser) parseCreateTableAsQuery(stmt *ast.CreateTableStmt) error {
 	if p.cur.Type != kwAS {
 		return nil
+	}
+	if stmt.Interactive && len(stmt.ClusterBy) == 0 {
+		return p.syntaxErrorAtCur()
 	}
 	p.advance() // consume AS
 	query, err := p.parseQueryExpr()
@@ -1624,9 +1637,17 @@ func (p *Parser) parseTableProperties(stmt *ast.CreateTableStmt) error {
 	}
 	for {
 		if c := p.startsObjectClause(clauses); c != 0 {
-			if _, err := p.parseObjectClause(c); err != nil {
+			res, err := p.parseObjectClause(c)
+			if err != nil {
 				return err
 			}
+			if res.RowPolicy != nil {
+				stmt.RowPolicy = res.RowPolicy
+			}
+			if res.AggregationPolicy != nil {
+				stmt.AggregationPolicy = res.AggregationPolicy
+			}
+			stmt.Contacts = append(stmt.Contacts, res.Contacts...)
 			continue
 		}
 		// An interactive table's refresh settings
@@ -1667,11 +1688,9 @@ func (p *Parser) parseTableProperties(stmt *ast.CreateTableStmt) error {
 			if !p.startsCopyClause() {
 				return nil
 			}
-			grants, err := p.parseCopyClause(false)
-			if err != nil {
+			if err := p.parseTableCopyClause(stmt); err != nil {
 				return err
 			}
-			stmt.CopyGrants = stmt.CopyGrants || grants
 
 		case kwCOMMENT:
 			// COMMENT = 'text'
@@ -1886,131 +1905,157 @@ func (p *Parser) startsObjectClause(allowed objectClause) objectClause {
 	return c & allowed
 }
 
-// parseObjectClause parses the clause startsObjectClause reported. A row
-// access policy is returned for the objects whose AST keeps it; the other
-// clauses are read and not kept, as CREATE TABLE has always done with its
-// governance clauses.
-func (p *Parser) parseObjectClause(c objectClause) (*ast.RowAccessPolicy, error) {
+// objectClauseResult is what parseObjectClause keeps of a clause, for the
+// objects whose AST holds it: the row access policy, the aggregation policy's
+// name, and the contacts. The rest of each clause is read and not kept.
+type objectClauseResult struct {
+	RowPolicy         *ast.RowAccessPolicy
+	AggregationPolicy *ast.ObjectName
+	Contacts          []*ast.CopyOption
+}
+
+// parseObjectClause parses the clause startsObjectClause reported.
+func (p *Parser) parseObjectClause(c objectClause) (objectClauseResult, error) {
+	var res objectClauseResult
 	if p.cur.Type == kwWITH {
 		p.advance() // consume WITH
 	}
 	switch c {
 	case clauseRowAccess:
-		return p.parseRowAccessPolicyClause()
+		rp, err := p.parseRowAccessPolicyClause()
+		if err != nil {
+			return res, err
+		}
+		res.RowPolicy = rp
 	case clauseAggregation:
 		p.advance() // consume AGGREGATION
-		if err := p.parsePolicyName(); err != nil {
-			return nil, err
+		name, err := p.parsePolicyName()
+		if err != nil {
+			return res, err
 		}
+		res.AggregationPolicy = name
 		if p.curIsWord("ENTITY") {
 			p.advance() // consume ENTITY
 			if _, err := p.expect(kwKEY); err != nil {
-				return nil, err
+				return res, err
 			}
 			if _, err := p.parseIdentListInParens(); err != nil {
-				return nil, err
+				return res, err
 			}
 		}
 	case clauseJoin:
 		p.advance() // consume JOIN
-		if err := p.parsePolicyName(); err != nil {
-			return nil, err
+		if _, err := p.parsePolicyName(); err != nil {
+			return res, err
 		}
 		if p.curIsWord("ALLOWED") {
 			p.advance() // consume ALLOWED
 			if _, err := p.expect(kwJOIN); err != nil {
-				return nil, err
+				return res, err
 			}
 			if _, err := p.expect(kwKEYS); err != nil {
-				return nil, err
+				return res, err
 			}
 			if _, err := p.parseIdentListInParens(); err != nil {
-				return nil, err
+				return res, err
 			}
 		}
 	case clauseStorageLifecycle:
 		p.advance() // consume STORAGE
 		if !p.curIsWord("LIFECYCLE") {
-			return nil, p.syntaxErrorAtCur()
+			return res, p.syntaxErrorAtCur()
 		}
 		p.advance() // consume LIFECYCLE
-		if err := p.parsePolicyName(); err != nil {
-			return nil, err
+		if _, err := p.parsePolicyName(); err != nil {
+			return res, err
 		}
 		if _, err := p.expect(kwON); err != nil {
-			return nil, err
+			return res, err
 		}
 		if _, err := p.parseIdentListInParens(); err != nil {
-			return nil, err
+			return res, err
 		}
 	case clauseContact:
-		p.advance() // consume CONTACT
-		if err := p.parseContactList(); err != nil {
-			return nil, err
+		contacts, err := p.parseWithContact()
+		if err != nil {
+			return res, err
 		}
+		res.Contacts = contacts
 	default:
-		return nil, p.syntaxErrorAtCur()
+		return res, p.syntaxErrorAtCur()
 	}
-	return nil, nil
+	return res, nil
 }
 
 // parseRefreshSetting parses one of the refresh settings an interactive or a
-// cloned dynamic table takes:
+// cloned dynamic table takes
+// (https://docs.snowflake.com/en/sql-reference/sql/create-interactive-table,
+// https://docs.snowflake.com/en/sql-reference/sql/create-dynamic-table):
 //
 //	TARGET_LAG = { '<num> { seconds | minutes | hours | days }' | DOWNSTREAM }
 //	{ WAREHOUSE | INITIALIZATION_WAREHOUSE } = <warehouse_name>
 //
 // DOWNSTREAM is a dynamic table's only; downstream says whether it is allowed.
+// A warehouse name is an identifier, so a quoted one keeps its quotes in
+// Words, as the option's text.
 func (p *Parser) parseRefreshSetting(downstream bool) (*ast.CopyOption, error) {
-	targetLag := p.cur.Type == kwTARGET_LAG
-	opt, err := p.parseCopyOption()
-	if err != nil {
+	nameTok := p.advance() // consume the setting name
+	opt := &ast.CopyOption{
+		Name: strings.ToUpper(nameTok.Str),
+		Loc:  ast.Loc{Start: nameTok.Loc.Start},
+	}
+	if _, err := p.expect('='); err != nil {
 		return nil, err
 	}
-	ok := !opt.Bare && opt.Group == nil && opt.List == nil
-	if targetLag {
-		ok = ok && ((opt.Lit != nil && opt.Lit.Kind == ast.LitString) || (downstream && opt.Words == "DOWNSTREAM"))
-	} else {
-		ok = ok && opt.Lit == nil
+	switch {
+	case opt.Name != "TARGET_LAG":
+		name, err := p.parseIdent()
+		if err != nil {
+			return nil, err
+		}
+		opt.Words = name.String()
+	case p.cur.Type == tokString:
+		tok := p.advance()
+		opt.Lit = &ast.Literal{Kind: ast.LitString, Value: tok.Str, Loc: tok.Loc}
+	case downstream && p.curIsWord("DOWNSTREAM"):
+		p.advance() // consume DOWNSTREAM
+		opt.Words = "DOWNSTREAM"
+	default:
+		return nil, p.syntaxErrorAtCur()
 	}
-	if !ok {
-		return nil, &ParseError{Position: opt.Loc.Start, End: opt.Loc.End, Message: "syntax error at or near " + opt.Name}
-	}
+	opt.Loc.End = p.prev.Loc.End
 	return opt, nil
 }
 
-// parsePolicyName parses POLICY <name>.
-func (p *Parser) parsePolicyName() error {
+// parsePolicyName parses POLICY <name> and returns the name.
+func (p *Parser) parsePolicyName() (*ast.ObjectName, error) {
 	if _, err := p.expect(kwPOLICY); err != nil {
-		return err
+		return nil, err
 	}
-	_, err := p.parseObjectName()
-	return err
+	return p.parseObjectName()
 }
 
-// parseContactList parses ( <purpose> = <contact> [ , ... ] ), the list
-// after WITH CONTACT. On entry cur is '('.
-func (p *Parser) parseContactList() error {
-	if _, err := p.expect('('); err != nil {
-		return err
+// parseTableCopyClause parses CREATE TABLE's COPY GRANTS, COPY TAGS or
+// COPY = ( ... ) into the fields CREATE ICEBERG TABLE also sets. The caller
+// has confirmed startsCopyClause.
+func (p *Parser) parseTableCopyClause(stmt *ast.CreateTableStmt) error {
+	switch p.peekNext().Type {
+	case kwGRANTS:
+		p.advance() // consume COPY
+		p.advance() // consume GRANTS
+		stmt.CopyGrants = true
+	case kwTAGS:
+		p.advance() // consume COPY
+		p.advance() // consume TAGS
+		stmt.CopyTags = true
+	default:
+		opt, err := p.parseCopyWhatOption()
+		if err != nil {
+			return err
+		}
+		stmt.Options = append(stmt.Options, opt)
 	}
-	for {
-		if _, err := p.parseIdent(); err != nil {
-			return err
-		}
-		if _, err := p.expect('='); err != nil {
-			return err
-		}
-		if _, err := p.parseObjectName(); err != nil {
-			return err
-		}
-		if p.cur.Type != ',' {
-			break
-		}
-		p.advance() // consume ','
-	}
-	_, err := p.expect(')')
-	return err
+	return nil
 }
 
 // startsCopyClause reports whether cur begins COPY GRANTS, COPY TAGS, or

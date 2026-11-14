@@ -893,7 +893,7 @@ func (p *Parser) parseExternalRowAccessOrContact(c objectClause) error {
 	if _, err := p.expect(kwACCESS); err != nil {
 		return err
 	}
-	if err := p.parsePolicyName(); err != nil {
+	if _, err := p.parsePolicyName(); err != nil {
 		return err
 	}
 	if _, err := p.expect(kwON); err != nil {

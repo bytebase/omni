@@ -61,8 +61,9 @@ func TestCreateTable_CTASClausesBeforeAs(t *testing.T) {
 	if len(errs) > 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
-	if len(stmt.ClusterBy) != 1 || !stmt.CopyGrants || stmt.AsSelect == nil {
-		t.Errorf("ClusterBy = %v, CopyGrants = %v, AsSelect = %v", stmt.ClusterBy, stmt.CopyGrants, stmt.AsSelect)
+	// COPY = ( ... ) is kept in Options, as CREATE ICEBERG TABLE keeps it.
+	if len(stmt.ClusterBy) != 1 || len(stmt.Options) != 1 || stmt.Options[0].Name != "COPY" || stmt.AsSelect == nil {
+		t.Errorf("ClusterBy = %v, Options = %v, AsSelect = %v", stmt.ClusterBy, stmt.Options, stmt.AsSelect)
 	}
 }
 
@@ -113,6 +114,26 @@ func TestCreateInteractiveTable(t *testing.T) {
 	}
 	if _, errs := testParseCreateTable("CREATE INTERACTIVE TABLE t CLUSTER BY (a) AS SELECT a FROM s"); len(errs) > 0 {
 		t.Errorf("unexpected errors: %v", errs)
+	}
+}
+
+// A warehouse setting is an identifier: a quoted name keeps its quotes.
+func TestRefreshSetting_QuotedWarehouse(t *testing.T) {
+	stmt, errs := testParseCreateTable(`CREATE INTERACTIVE TABLE t CLUSTER BY (a) WAREHOUSE = "my warehouse" INITIALIZATION_WAREHOUSE = wh AS SELECT 1 AS a`)
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if len(stmt.Options) != 2 || stmt.Options[0].Words != `"my warehouse"` || stmt.Options[1].Words != "wh" {
+		t.Errorf("Options = %+v, want WAREHOUSE \"my warehouse\" and INITIALIZATION_WAREHOUSE wh", stmt.Options)
+	}
+	sql := `CREATE DYNAMIC TABLE t CLONE s WAREHOUSE = "my warehouse"`
+	file, err := Parse(sql)
+	if err != nil {
+		t.Fatalf("Parse(%q): %v", sql, err)
+	}
+	dt := file.Stmts[0].(*ast.CreateDynamicTableStmt)
+	if len(dt.Options) != 1 || dt.Options[0].Words != `"my warehouse"` {
+		t.Errorf("Options = %+v, want WAREHOUSE \"my warehouse\"", dt.Options)
 	}
 }
 
@@ -183,6 +204,9 @@ func TestCreateTableVariants_Rejected(t *testing.T) {
 		// An interactive table needs CLUSTER BY and AS.
 		"CREATE INTERACTIVE TABLE t (a INT)",
 		"CREATE INTERACTIVE TABLE t AS SELECT 1",
+		"CREATE INTERACTIVE TABLE t (a INT) AS SELECT 1 AS a",
+		// A warehouse is a name, not a string.
+		"CREATE INTERACTIVE TABLE t CLUSTER BY (a) WAREHOUSE = 'wh' AS SELECT 1 AS a",
 		// TARGET_LAG is an interactive table's, not a table's.
 		"CREATE TABLE t (a INT) TARGET_LAG = '1 minute'",
 		// A materialized view copies only grants.

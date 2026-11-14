@@ -32,6 +32,9 @@ func (w *writer) writeCreateTableStmt(n *ast.CreateTableStmt) error {
 	if n.Hybrid {
 		w.buf.WriteString(" HYBRID")
 	}
+	if n.Iceberg {
+		w.buf.WriteString(" ICEBERG")
+	}
 	if n.Interactive {
 		w.buf.WriteString(" INTERACTIVE")
 	}
@@ -58,26 +61,6 @@ func (w *writer) writeCreateTableStmt(n *ast.CreateTableStmt) error {
 		return writeExprNoLeadSpace(w, a.Where)
 	}
 
-	// LIKE
-	if n.Like != nil {
-		w.buf.WriteString(" LIKE ")
-		w.writeObjectNameNoSpace(n.Like)
-		return nil
-	}
-
-	// CLONE
-	if n.Clone != nil {
-		w.buf.WriteString(" CLONE ")
-		w.writeObjectNameNoSpace(n.Clone.Source)
-		if err := w.writeCloneTimeTravelSuffix(n.Clone); err != nil {
-			return err
-		}
-		if n.CopyGrants {
-			w.buf.WriteString(" COPY GRANTS")
-		}
-		return nil
-	}
-
 	// [ COPY GRANTS ] USING TEMPLATE ( <query> )
 	if n.UsingTemplate != nil {
 		if n.CopyGrants {
@@ -91,8 +74,18 @@ func (w *writer) writeCreateTableStmt(n *ast.CreateTableStmt) error {
 		return nil
 	}
 
-	// Column definitions, table constraints and inline INDEX elements (HYBRID).
-	if len(n.Columns) > 0 || len(n.Constraints) > 0 || len(n.Indexes) > 0 {
+	switch {
+	case n.Like != nil:
+		w.buf.WriteString(" LIKE ")
+		w.writeObjectNameNoSpace(n.Like)
+	case n.Clone != nil:
+		w.buf.WriteString(" CLONE ")
+		w.writeObjectNameNoSpace(n.Clone.Source)
+		if err := w.writeCloneTimeTravelSuffix(n.Clone); err != nil {
+			return err
+		}
+	case len(n.Columns) > 0 || len(n.Constraints) > 0 || len(n.Indexes) > 0:
+		// Column definitions, table constraints and inline INDEX elements (HYBRID).
 		w.buf.WriteString(" (")
 		idx := 0
 		for _, col := range n.Columns {
@@ -123,25 +116,68 @@ func (w *writer) writeCreateTableStmt(n *ast.CreateTableStmt) error {
 		w.buf.WriteByte(')')
 	}
 
+	// PARTITION BY (Iceberg)
+	if len(n.PartitionBy) > 0 {
+		w.buf.WriteString(" PARTITION BY (")
+		for i, expr := range n.PartitionBy {
+			if i > 0 {
+				w.buf.WriteString(", ")
+			}
+			if err := writeExprNoLeadSpace(w, expr); err != nil {
+				return err
+			}
+		}
+		w.buf.WriteByte(')')
+	}
+
 	// CLUSTER BY
 	if err := w.writeClusterBy(n.ClusterBy, n.Linear); err != nil {
 		return err
 	}
 
-	// An interactive table's TARGET_LAG / WAREHOUSE / INITIALIZATION_WAREHOUSE
+	// Iceberg catalog and storage parameters, COPY = ( ... ), and an
+	// interactive table's TARGET_LAG / WAREHOUSE / INITIALIZATION_WAREHOUSE
 	if err := w.writeCopyOptions(n.Options); err != nil {
 		return err
 	}
 
-	// COPY GRANTS
+	// COPY GRANTS / COPY TAGS / PURGE
 	if n.CopyGrants {
 		w.buf.WriteString(" COPY GRANTS")
+	}
+	if n.CopyTags {
+		w.buf.WriteString(" COPY TAGS")
+	}
+	if n.Purge {
+		w.buf.WriteString(" PURGE")
 	}
 
 	// COMMENT
 	if n.Comment != nil {
 		w.buf.WriteString(" COMMENT = ")
 		w.buf.WriteString(quoteString(*n.Comment))
+	}
+
+	// WITH ROW ACCESS POLICY
+	if n.RowPolicy != nil {
+		w.buf.WriteString(" WITH ROW ACCESS POLICY ")
+		w.writeObjectNameNoSpace(n.RowPolicy.PolicyName)
+		if len(n.RowPolicy.Columns) > 0 {
+			w.buf.WriteString(" ON (")
+			for i, col := range n.RowPolicy.Columns {
+				if i > 0 {
+					w.buf.WriteString(", ")
+				}
+				w.buf.WriteString(col.String())
+			}
+			w.buf.WriteByte(')')
+		}
+	}
+
+	// WITH AGGREGATION POLICY
+	if n.AggregationPolicy != nil {
+		w.buf.WriteString(" WITH AGGREGATION POLICY ")
+		w.writeObjectNameNoSpace(n.AggregationPolicy)
 	}
 
 	// WITH TAG
@@ -151,12 +187,25 @@ func (w *writer) writeCreateTableStmt(n *ast.CreateTableStmt) error {
 		w.buf.WriteByte(')')
 	}
 
+	// WITH CONTACT
+	if len(n.Contacts) > 0 {
+		w.buf.WriteString(" WITH CONTACT (")
+		for i, c := range n.Contacts {
+			if i > 0 {
+				w.buf.WriteString(", ")
+			}
+			w.buf.WriteString(c.Name)
+			w.buf.WriteString(" = ")
+			w.buf.WriteString(c.Words)
+		}
+		w.buf.WriteByte(')')
+	}
+
 	// AS SELECT, after the clauses the CTAS form writes before it
 	if n.AsSelect != nil {
 		w.buf.WriteString(" AS ")
 		return w.writeQueryExpr(n.AsSelect)
 	}
-
 	return nil
 }
 
@@ -671,6 +720,9 @@ func (w *writer) writeUndropSchemaStmt(n *ast.UndropSchemaStmt) error {
 
 func (w *writer) writeDropStmt(n *ast.DropStmt) error {
 	w.buf.WriteString("DROP ")
+	if n.Iceberg {
+		w.buf.WriteString("ICEBERG ")
+	}
 	w.buf.WriteString(n.Kind.String())
 	if n.IfExists {
 		w.buf.WriteString(" IF EXISTS")
@@ -693,11 +745,19 @@ func (w *writer) writeDropStmt(n *ast.DropStmt) error {
 	} else if n.Restrict {
 		w.buf.WriteString(" RESTRICT")
 	}
+	if n.Purge {
+		w.buf.WriteString(" PURGE")
+	} else if n.NoPurge {
+		w.buf.WriteString(" NOPURGE")
+	}
 	return nil
 }
 
 func (w *writer) writeUndropStmt(n *ast.UndropStmt) error {
 	w.buf.WriteString("UNDROP ")
+	if n.Iceberg {
+		w.buf.WriteString("ICEBERG ")
+	}
 	w.buf.WriteString(n.Kind.String())
 	w.buf.WriteByte(' ')
 	w.writeObjectNameNoSpace(n.Name)

@@ -430,6 +430,12 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+		if n.PolicyName != nil {
+			Walk(v, n.PolicyName)
+		}
+		if n.CredentialName != nil {
+			Walk(v, n.CredentialName)
+		}
 	case *AlterViewStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -900,11 +906,6 @@ func walkChildren(v Visitor, node Node) {
 			}
 		}
 		walkNodes(v, n.ClusterBy)
-		for _, item := range n.Options {
-			if item != nil {
-				Walk(v, item)
-			}
-		}
 		for _, item := range n.Tags {
 			walkTagAssignment(v, item)
 		}
@@ -916,6 +917,21 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.UsingTemplate)
 		walkArchiveSource(v, n.FromArchive)
 		walkBackupSource(v, n.FromBackup)
+		walkRowAccessPolicy(v, n.RowPolicy)
+		for _, item := range n.Options {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		walkNodes(v, n.PartitionBy)
+		if n.AggregationPolicy != nil {
+			Walk(v, n.AggregationPolicy)
+		}
+		for _, item := range n.Contacts {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 	case *CreateTagStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)

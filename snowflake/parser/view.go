@@ -316,11 +316,11 @@ func (p *Parser) parseViewProperties(stmt interface{}) error {
 	}
 	for {
 		if c := p.startsObjectClause(clauses); c != 0 {
-			rp, err := p.parseObjectClause(c)
+			res, err := p.parseObjectClause(c)
 			if err != nil {
 				return err
 			}
-			if rp != nil {
+			if rp := res.RowPolicy; rp != nil {
 				switch s := stmt.(type) {
 				case *ast.CreateViewStmt:
 					s.RowPolicy = rp
