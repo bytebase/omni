@@ -16,6 +16,7 @@ func TestUDFArgAlias(t *testing.T) {
 		"DO `abs`(1 x)",
 		"DO f(1 'x')",
 		"DO f(1 AS 'x')",
+		"DO f(1 AS '')",
 	} {
 		if _, err := Parse(sql); err != nil {
 			t.Errorf("Parse(%q): %v", sql, err)
@@ -30,12 +31,13 @@ func TestUDFArgAlias(t *testing.T) {
 			t.Errorf("Parse(%q): want a syntax error", sql)
 		}
 	}
-	stmts, err := Parse("DO f(1, 2 AS y)")
+	stmts, err := Parse("DO f(1, 2 AS y, 3 '')")
 	if err != nil {
 		t.Fatal(err)
 	}
 	fc := stmts.Items[0].(*nodes.DoStmt).Exprs[0].(*nodes.FuncCallExpr)
-	if len(fc.ArgAliases) != 2 || fc.ArgAliases[0] != "" || fc.ArgAliases[1] != "y" {
-		t.Errorf("ArgAliases = %q, want [\"\" \"y\"]", fc.ArgAliases)
+	if len(fc.ArgAliases) != 3 || fc.ArgAliases[0] != nil || fc.ArgAliases[1] == nil || *fc.ArgAliases[1] != "y" ||
+		fc.ArgAliases[2] == nil || *fc.ArgAliases[2] != "" {
+		t.Errorf("ArgAliases = %v, want [nil y '']", fc.ArgAliases)
 	}
 }

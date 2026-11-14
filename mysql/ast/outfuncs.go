@@ -2211,7 +2211,18 @@ func writeFuncCallExpr(sb *strings.Builder, n *FuncCallExpr) {
 		writeExprNodeList(sb, n.Args)
 	}
 	if len(n.ArgAliases) > 0 {
-		fmt.Fprintf(sb, " :arg_aliases %q", n.ArgAliases)
+		sb.WriteString(" :arg_aliases (")
+		for i, a := range n.ArgAliases {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			if a == nil {
+				sb.WriteString("<>")
+			} else {
+				fmt.Fprintf(sb, "%q", *a)
+			}
+		}
+		sb.WriteString(")")
 	}
 	if n.JSONValueArm {
 		sb.WriteString(" :json_value_arm true")

@@ -993,9 +993,9 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 			if err != nil {
 				return nil, err
 			}
-			if alias != "" {
+			if alias != nil {
 				for len(fc.ArgAliases) < len(fc.Args)-1 {
-					fc.ArgAliases = append(fc.ArgAliases, "")
+					fc.ArgAliases = append(fc.ArgAliases, nil)
 				}
 				fc.ArgAliases = append(fc.ArgAliases, alias)
 			}
@@ -2202,24 +2202,22 @@ func (p *Parser) parseCastExpr() (nodes.ExprNode, error) {
 }
 
 // parseUDFArgAlias reads a udf_expr's select_alias, `[AS] ident` or `[AS]
-// 'text'`, and returns "" when none follows.
+// 'text'`, and returns nil when none follows. An alias may be empty: `f(a AS '')`.
 // Ref: udf_expr and select_alias in MySQL 8.0 sql/sql_yacc.yy.
-func (p *Parser) parseUDFArgAlias() (string, error) {
-	if _, ok := p.match(kwAS); ok {
-		if p.cur.Type == tokSCONST {
-			return p.advance().Str, nil
-		}
-		name, _, err := p.parseIdent()
-		return name, err
-	}
+func (p *Parser) parseUDFArgAlias() (*string, error) {
+	_, as := p.match(kwAS)
 	if p.cur.Type == tokSCONST {
-		return p.advance().Str, nil
+		alias := p.advance().Str
+		return &alias, nil
 	}
-	if p.isIdentToken() {
-		name, _, err := p.parseIdent()
-		return name, err
+	if as || p.isIdentToken() {
+		alias, _, err := p.parseIdent()
+		if err != nil {
+			return nil, err
+		}
+		return &alias, nil
 	}
-	return "", nil
+	return nil, nil
 }
 
 // adjacentSymFn reports whether the function word just read is a SYM_FN word
