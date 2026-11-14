@@ -33,11 +33,16 @@ func (fakeChangeMetadata) IndexTable(searchPath []string, name string) (string, 
 
 func changesOf(t *testing.T, script string, searchPath []string) Changes {
 	t.Helper()
-	stmts, err := omnipg.Parse(script)
-	require.NoError(t, err)
 	var changeStmts []ChangeStatement
-	for _, stmt := range stmts {
-		changeStmts = append(changeStmts, ChangeStatement{Node: stmt.AST, Text: stmt.Text})
+	for _, segment := range omnipg.Split(script) {
+		if segment.Empty() {
+			continue
+		}
+		stmts, err := omnipg.Parse(segment.Text)
+		require.NoError(t, err)
+		for _, stmt := range stmts {
+			changeStmts = append(changeStmts, ChangeStatement{Node: stmt.AST, Text: segment.Text})
+		}
 	}
 	return ExtractChangedResources(changeStmts, "db", searchPath, fakeChangeMetadata{})
 }
@@ -107,4 +112,9 @@ SET search_path = app; DISCARD ALL; UPDATE t SET a = 4`, nil)
 		{"db", "public", "t", false},
 		{"db", "public", "t", false},
 	}, changes.Resources)
+}
+
+func TestExtractChangedResourcesUnwrapsExplainAnalyze(t *testing.T) {
+	changes := changesOf(t, "SELECT 1; EXPLAIN ANALYZE DELETE FROM t;", nil)
+	require.Equal(t, []DMLStatement{{Text: "DELETE FROM t;"}}, changes.DMLStatements)
 }

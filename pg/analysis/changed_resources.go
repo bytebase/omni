@@ -41,7 +41,9 @@ type Changes struct {
 	InsertCount int
 }
 
-// ChangeStatement is one parsed statement of a script.
+// ChangeStatement is one statement of a script, parsed on its own: Node's
+// locations are byte offsets into Text, as when each split segment is parsed
+// separately.
 type ChangeStatement struct {
 	Node ast.Node
 	Text string
