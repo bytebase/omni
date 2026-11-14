@@ -8,9 +8,13 @@ import (
 )
 
 // dbccOptionNames are the options DBCC takes after WITH: SQL Server refuses
-// any other word (Msg 195), whatever the command.
+// any other word (Msg 195), whatever the command. The list is every word of
+// CodeGenerationSupporter.cs, the lexer and the T-SQL docs that the pinned
+// server takes in DBCC CHECKDB WITH word, and MAXDOP.
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/database-console-commands/dbcc-transact-sql
 var dbccOptionNames = map[string]bool{
+	"BACKUP_CLONEDB": true, "HISTOGRAM_STEPS": true, "MARK_IN_USE_FOR_REMOVAL": true, "NO_QUERYSTORE": true,
+	"NO_STATISTICS": true, "SERVICEBROKER": true, "VERIFY_CLONEDB": true, "WAIT_AT_LOW_PRIORITY": true,
 	"ALL_CONSTRAINTS": true, "ALL_ERRORMSGS": true, "ALL_INDEXES": true, "ALL_LEVELS": true, "COUNT_ROWS": true, "DATA_PURITY": true,
 	"DENSITY_VECTOR": true, "ESTIMATEONLY": true, "EXTENDED_LOGICAL_CHECKS": true, "FAST": true,
 	"HISTOGRAM": true, "NO_INFOMSGS": true, "PHYSICAL_ONLY": true, "STAT_HEADER": true,
@@ -46,13 +50,20 @@ func (p *Parser) parseDbccStmt() (*nodes.DbccStmt, error) {
 		var args []nodes.Node
 		for p.cur.Type != ')' {
 			// [ name = ] value
+			// (dbccNamedLiteral, TSql160.g:6502): the name is kept as the
+			// left side of a name = value BinaryExpr.
+			var name *nodes.ColumnRef
 			if p.isIdentLike() && p.peekNext().Type == '=' {
+				name = &nodes.ColumnRef{Column: p.cur.Str, Loc: nodes.Loc{Start: p.cur.Loc, End: p.cur.End}}
 				p.advance() // name
 				p.advance() // =
 			}
 			arg, err := p.parseProcConstantOrIdentifier()
 			if err != nil {
 				return nil, err
+			}
+			if name != nil {
+				arg = &nodes.BinaryExpr{Op: nodes.BinOpEq, Left: name, Right: arg, Loc: nodes.Loc{Start: name.Loc.Start, End: p.prevEnd()}}
 			}
 			args = append(args, arg)
 			if _, ok := p.match(','); !ok {
@@ -90,6 +101,26 @@ func (p *Parser) parseDbccStmt() (*nodes.DbccStmt, error) {
 				}
 				value = &nodes.Literal{Type: nodes.LitInteger, Ival: p.cur.Ival, Str: p.cur.Str, Loc: nodes.Loc{Start: p.cur.Loc, End: p.cur.End}}
 				p.advance()
+			}
+			// WAIT_AT_LOW_PRIORITY [ ( ABORT_AFTER_WAIT = { SELF | BLOCKERS } ) ]
+			// (DBCC SHRINKDATABASE and SHRINKFILE, SQL Server 2022).
+			if optName == "WAIT_AT_LOW_PRIORITY" && p.cur.Type == '(' {
+				p.advance()
+				if !p.procIsWord("ABORT_AFTER_WAIT") {
+					return nil, p.syntaxErrorAtCur()
+				}
+				p.advance()
+				if _, err := p.expect('='); err != nil {
+					return nil, err
+				}
+				if !p.procIsWord("SELF") && !p.procIsWord("BLOCKERS") {
+					return nil, p.syntaxErrorAtCur()
+				}
+				value = &nodes.ColumnRef{Column: strings.ToUpper(p.cur.Str), Loc: nodes.Loc{Start: p.cur.Loc, End: p.cur.End}}
+				p.advance()
+				if _, err := p.expect(')'); err != nil {
+					return nil, err
+				}
 			}
 			opts = append(opts, &nodes.DbccOption{
 				Name:  optName,

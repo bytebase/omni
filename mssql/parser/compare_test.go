@@ -24234,3 +24234,22 @@ func TestParseProceduralValuesKept(t *testing.T) {
 		t.Error("UPDATETEXT keeps no TIMESTAMP")
 	}
 }
+
+// TestParseDbccArgumentsAndOptions pins DBCC's named arguments and the
+// command-specific WITH options the pinned server takes.
+func TestParseDbccArgumentsAndOptions(t *testing.T) {
+	if ast.NodeToString(ParseAndCheck(t, "DBCC a(a = 1)")) == ast.NodeToString(ParseAndCheck(t, "DBCC a(b = 1)")) {
+		t.Error("DBCC keeps no argument name")
+	}
+	for _, sql := range []string{
+		"DBCC CLONEDATABASE(a, b) WITH NO_STATISTICS, NO_QUERYSTORE, VERIFY_CLONEDB, SERVICEBROKER, BACKUP_CLONEDB",
+		"DBCC SHOW_STATISTICS(a, b) WITH HISTOGRAM_STEPS",
+		"DBCC SHRINKDATABASE(a) WITH WAIT_AT_LOW_PRIORITY",
+		"DBCC SHRINKDATABASE(a) WITH WAIT_AT_LOW_PRIORITY(ABORT_AFTER_WAIT = SELF)",
+	} {
+		ParseAndCheck(t, sql)
+	}
+	if _, err := Parse("DBCC CHECKDB WITH NO_STATS"); err == nil {
+		t.Error("DBCC CHECKDB WITH NO_STATS parsed; SQL Server refuses it (Msg 195)")
+	}
+}
