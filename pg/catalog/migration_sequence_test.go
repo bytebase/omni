@@ -210,6 +210,21 @@ ALTER SEQUENCE "public"."s3" OWNED BY "public"."u"."id"`,
 DROP TABLE "public"."t" CASCADE`,
 		},
 		{
+			name: "a sequence a kept column stops drawing on drops after the change",
+			from: `CREATE SEQUENCE s; CREATE TABLE t (id int DEFAULT nextval('s')); ALTER SEQUENCE s OWNED BY t.id;`,
+			to:   `CREATE TABLE t (id int);`,
+			want: `ALTER TABLE public.t ALTER COLUMN id DROP DEFAULT;
+DROP SEQUENCE "public"."s"`,
+		},
+		{
+			name: "a sequence moving off a dropped owner is released first",
+			from: `CREATE TABLE old (id int); CREATE TABLE kept (id int); CREATE SEQUENCE s OWNED BY old.id;`,
+			to:   `CREATE TABLE kept (id int); CREATE SEQUENCE s OWNED BY kept.id;`,
+			want: `ALTER SEQUENCE "public"."s" OWNED BY NONE;
+DROP TABLE "public"."old" CASCADE;
+ALTER SEQUENCE "public"."s" OWNED BY "public"."kept"."id"`,
+		},
+		{
 			// The owner's default still draws from s1, so only the owner's drop can take it.
 			name: "an owned sequence goes with its owner",
 			from: `CREATE SEQUENCE s1; CREATE TABLE t (id int DEFAULT nextval('s1')); ALTER SEQUENCE s1 OWNED BY t.id;`,

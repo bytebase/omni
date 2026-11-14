@@ -53,13 +53,18 @@ func generateSequenceDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				continue
 			}
 			qn := migrationQualifiedName(entry.SchemaName, entry.Name)
+			phase := PhasePre
+			if sequenceDrawnByKeptColumn(from, to, entry.From) {
+				// The ALTER COLUMN that changes that default runs first.
+				phase = PhaseLateDrop
+			}
 			ops = append(ops, MigrationOp{
 				Type:          OpDropSequence,
 				SchemaName:    entry.SchemaName,
 				ObjectName:    entry.Name,
 				SQL:           fmt.Sprintf("DROP SEQUENCE %s", qn),
 				Transactional: true,
-				Phase:         PhasePre,
+				Phase:         phase,
 				ObjType:       preSequenceObjType,
 				ObjOID:        entry.From.OID,
 				Priority:      PrioritySequence,
@@ -71,10 +76,12 @@ func generateSequenceDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 			}
 			sql := formatAlterSequence(from, to, entry.SchemaName, entry.From, entry.To)
 			if fromOwner, toOwner := sequenceOwner(from, entry.From), sequenceOwner(to, entry.To); fromOwner != toOwner {
+				// Release the old owner first: dropping it would take the sequence.
+				if fromOwner != "" {
+					ops = append(ops, sequenceOwnedByOp(entry.SchemaName, entry.From, "NONE", PhasePre))
+				}
 				if toOwner != "" {
 					ops = append(ops, sequenceOwnedByOp(entry.SchemaName, entry.To, toOwner, PhasePost))
-				} else {
-					ops = append(ops, sequenceOwnedByOp(entry.SchemaName, entry.From, "NONE", PhasePre))
 				}
 			}
 			if sql != "" {
@@ -106,6 +113,26 @@ func generateSequenceDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 	})
 
 	return ops
+}
+
+// sequenceDrawnByKeptColumn reports whether a column default in from draws
+// on seq and to still has that column.
+func sequenceDrawnByKeptColumn(from, to *Catalog, seq *Sequence) bool {
+	for _, d := range from.deps {
+		if d.RefType != 's' || d.RefOID != seq.OID || d.ObjType != 'r' || d.ObjSubID == 0 {
+			continue
+		}
+		rel := from.GetRelationByOID(d.ObjOID)
+		if rel == nil || rel.Schema == nil {
+			continue
+		}
+		if toRel := to.GetRelation(rel.Schema.Name, rel.Name); toRel != nil {
+			if _, kept := toRel.colByName[resolveAttNum(rel, int16(d.ObjSubID))]; kept {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // ownerDropped reports whether the column that owns seq in from is gone in to.

@@ -318,6 +318,16 @@ CREATE INDEX ci ON child (id);`
 			after:  `CREATE TABLE t (x text COLLATE "POSIX"); CREATE VIEW v AS SELECT x FROM t;`,
 		},
 		{
+			name:   "default_stops_drawing_on_sequence",
+			before: `CREATE SEQUENCE s; CREATE TABLE t (id int DEFAULT nextval('s')); ALTER SEQUENCE s OWNED BY t.id;`,
+			after:  `CREATE TABLE t (id int);`,
+		},
+		{
+			name:   "sequence_moves_off_dropped_owner",
+			before: `CREATE TABLE old (id int); CREATE TABLE kept (id int); CREATE SEQUENCE s OWNED BY old.id;`,
+			after:  `CREATE TABLE kept (id int); CREATE SEQUENCE s OWNED BY kept.id;`,
+		},
+		{
 			name:   "owner_takes_its_sequence",
 			before: `CREATE SEQUENCE s; CREATE TABLE t (id int DEFAULT nextval('s')); ALTER SEQUENCE s OWNED BY t.id;`,
 			after:  ``,

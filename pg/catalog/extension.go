@@ -75,7 +75,7 @@ func (c *Catalog) CreateExtension(stmt *nodes.CreateExtensionStmt) error {
 	if err != nil {
 		return fmt.Errorf("extension %q: parse error: %w", stmt.Extname, err)
 	}
-	firstMember := c.oidGen.next
+	firstMember, firstGrant := c.oidGen.next, len(c.grants)
 
 	// Temporarily prepend target schema to search path so unqualified types
 	// and functions land in the extension's schema.
@@ -113,6 +113,9 @@ func (c *Catalog) CreateExtension(stmt *nodes.CreateExtensionStmt) error {
 	// Restore original search path.
 	c.searchPath = origSearchPath
 	c.markExtensionMembers(firstMember, c.oidGen.next)
+	for i := firstGrant; i < len(c.grants); i++ {
+		c.grants[i].FromExtension = true
+	}
 
 	// Register extension metadata.
 	ext := &Extension{

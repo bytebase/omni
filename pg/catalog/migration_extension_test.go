@@ -190,6 +190,12 @@ func TestMigrationExtensionSchemaVersionAndMembers(t *testing.T) {
 			want: ``,
 		},
 		{
+			name: "a grant on an extension's function is the user's",
+			from: `CREATE EXTENSION pgcrypto;`,
+			to:   `CREATE EXTENSION pgcrypto; GRANT EXECUTE ON FUNCTION public.crypt(text, text) TO app;`,
+			want: `GRANT EXECUTE ON FUNCTION public.crypt(text,text) TO "app"`,
+		},
+		{
 			name: "an extension without a bundled script is still created",
 			from: ``,
 			to:   `CREATE EXTENSION postgis;`,
