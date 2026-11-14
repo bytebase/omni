@@ -7,7 +7,7 @@ import (
 )
 
 var p2ModernFeaturePositiveSQL = []string{
-	"CREATE ANALYTIC VIEW sales_av USING sales_fact DIMENSION BY (time_dim) MEASURES (amount)",
+	"CREATE ANALYTIC VIEW sales_av USING sales_fact DIMENSION BY (time_dim KEY month_id REFERENCES month_id HIERARCHIES (time_hier)) MEASURES (amount)",
 	"ALTER ANALYTIC VIEW sales_av RENAME TO sales_av2",
 	"DROP ANALYTIC VIEW sales_av",
 	"CREATE ATTRIBUTE DIMENSION time_attr_dim USING time_dim ATTRIBUTES (yr) LEVEL detail KEY yr",
@@ -88,7 +88,7 @@ func TestP2ModernFeatureNegative(t *testing.T) {
 }
 
 func TestP2ModernFeatureStructuredOptions(t *testing.T) {
-	result := ParseAndCheck(t, "CREATE ANALYTIC VIEW sales_av USING sales_fact DIMENSION BY (time_dim) MEASURES (amount) CACHE")
+	result := ParseAndCheck(t, "CREATE ANALYTIC VIEW sales_av USING sales_fact DIMENSION BY (time_dim KEY month_id REFERENCES month_id HIERARCHIES (time_hier)) MEASURES (amount) CACHE MEASURE GROUP ALL LEVELS (time_hier.month) MATERIALIZED")
 	raw := result.Items[0].(*ast.RawStmt)
 	stmt := raw.Stmt.(*ast.CreateAnalyticViewStmt)
 	if stmt.Options == nil || stmt.Options.Len() != 1 {
