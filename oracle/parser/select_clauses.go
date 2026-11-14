@@ -28,17 +28,18 @@ func (p *Parser) takeSelectStar() *nodes.Star {
 //	    [ order_by_clause ]
 //	    [ windowing_clause ]
 //
-// The existing window is one named earlier in the clause, in defined
-// (ORA-32784 at its name), and a window built on it takes no PARTITION BY
-// of its own (ORA-32783 at the window's name, nameTok). A windowing clause
-// needs an ORDER BY, its own or an existing window's (ORA-30485 at ROWS,
-// RANGE or GROUPS).
-func (p *Parser) parseSelectWindowSpec(nameTok Token, defined map[string]*nodes.WindowSpec) (*nodes.WindowSpec, error) {
+// The existing window is one named earlier in the clause, a key of
+// ordered (ORA-32784 at its name), and a window built on it takes no
+// PARTITION BY of its own (ORA-32783 at the window's name, nameTok). A
+// windowing clause needs an ORDER BY, its own or an existing window's,
+// which ordered records for each window (ORA-30485 at ROWS, RANGE or
+// GROUPS).
+func (p *Parser) parseSelectWindowSpec(nameTok Token, ordered map[string]bool) (*nodes.WindowSpec, error) {
 	p.advance() // consume '('
 	ws := &nodes.WindowSpec{Loc: nodes.Loc{Start: p.pos()}}
 	var err error
 
-	var base *nodes.WindowSpec
+	based, baseOrdered := false, false
 	if p.isIdentLike() && !p.isSelectWindowSpecKeyword() {
 		if err := p.syntaxErrorIfReservedIdentifier(); err != nil {
 			return nil, err
@@ -47,14 +48,13 @@ func (p *Parser) parseSelectWindowSpec(nameTok Token, defined map[string]*nodes.
 		if ws.WindowName, err = p.parseIdentifier(); err != nil {
 			return nil, err
 		}
-		var ok bool
-		if base, ok = defined[ws.WindowName]; !ok {
+		if baseOrdered, based = ordered[ws.WindowName]; !based {
 			return nil, p.syntaxErrorAtTok(refTok)
 		}
 	}
 
 	if p.cur.Type == kwPARTITION {
-		if base != nil {
+		if based {
 			return nil, p.syntaxErrorAtTok(nameTok)
 		}
 		p.advance()
@@ -98,7 +98,7 @@ func (p *Parser) parseSelectWindowSpec(nameTok Token, defined map[string]*nodes.
 	}
 
 	if p.cur.Type == kwROWS || p.cur.Type == kwRANGE || p.cur.Type == kwGROUPS {
-		if ws.OrderBy == nil && !selectWindowOrdered(base, defined) {
+		if ws.OrderBy == nil && !baseOrdered {
 			return nil, p.syntaxErrorAtCur()
 		}
 		if ws.Frame, err = p.parseWindowFrame(); err != nil {
@@ -112,21 +112,6 @@ func (p *Parser) parseSelectWindowSpec(nameTok Token, defined map[string]*nodes.
 	p.advance()
 	ws.Loc.End = p.prev.End
 	return ws, nil
-}
-
-// selectWindowOrdered reports whether the window spec, or one it builds on
-// in defined, has an ORDER BY.
-func selectWindowOrdered(spec *nodes.WindowSpec, defined map[string]*nodes.WindowSpec) bool {
-	for seen := 0; spec != nil && seen <= len(defined); seen++ {
-		if spec.OrderBy != nil {
-			return true
-		}
-		if spec.WindowName == "" {
-			return false
-		}
-		spec = defined[spec.WindowName]
-	}
-	return false
 }
 
 // isSelectWindowSpecKeyword reports whether the current token opens a

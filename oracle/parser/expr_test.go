@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -690,4 +691,16 @@ func TestParseExprStar(t *testing.T) {
 	}
 	// A quoted "*" names a column, which takes an alias.
 	ParseAndCheck(t, `SELECT "*" AS c, t."*" d FROM t`)
+}
+
+// TestParseWindowClauseOrdering tests that a framed window orders its rows
+// itself or through the windows it builds on (ORA-30485 otherwise).
+func TestParseWindowClauseOrdering(t *testing.T) {
+	ParseAndCheck(t, "SELECT * FROM t WINDOW a AS (ORDER BY x), b AS (a), c AS (b ROWS UNBOUNDED PRECEDING)")
+	const unordered = "SELECT * FROM t WINDOW a AS (PARTITION BY x), b AS (a), c AS (b ROWS UNBOUNDED PRECEDING)"
+	_, err := Parse(unordered)
+	var pe *ParseError
+	if !errors.As(err, &pe) || !strings.HasPrefix(unordered[pe.Position:], "ROWS") {
+		t.Errorf("Parse(%q) = %v, want an error at ROWS", unordered, err)
+	}
 }

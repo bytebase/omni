@@ -331,6 +331,9 @@ func (s *splitState) observeTopLevel(tok Token) {
 		s.withUnit = true
 		return
 	}
+	// Any other token after a declaration starts the query, where FUNCTION
+	// and PROCEDURE are names.
+	s.withDecls = false
 	s.pendingWith = s.topLevelTokens == 0 && tok.Type == kwWITH
 
 	if s.topLevelTokens == 0 {

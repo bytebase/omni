@@ -3076,7 +3076,9 @@ func (p *Parser) parseWindowClause() ([]*nodes.WindowDef, error) {
 	// Each window is named once (ORA-32782), and a window it builds on is
 	// one named before it (ORA-32784).
 	var defs []*nodes.WindowDef
-	defined := map[string]*nodes.WindowSpec{}
+	// ordered records each window named so far, and whether it orders its
+	// rows, itself or through the window it builds on.
+	ordered := map[string]bool{}
 	for {
 		start := p.pos()
 		nameTok := p.cur
@@ -3090,7 +3092,7 @@ func (p *Parser) parseWindowClause() ([]*nodes.WindowDef, error) {
 		if err != nil {
 			return nil, err
 		}
-		if _, dup := defined[name]; dup {
+		if _, dup := ordered[name]; dup {
 			return nil, p.syntaxErrorAtTok(nameTok)
 		}
 		wd := &nodes.WindowDef{
@@ -3104,10 +3106,10 @@ func (p *Parser) parseWindowClause() ([]*nodes.WindowDef, error) {
 		if p.cur.Type != '(' {
 			return nil, p.syntaxErrorAtCur()
 		}
-		if wd.Spec, err = p.parseSelectWindowSpec(nameTok, defined); err != nil {
+		if wd.Spec, err = p.parseSelectWindowSpec(nameTok, ordered); err != nil {
 			return nil, err
 		}
-		defined[name] = wd.Spec
+		ordered[name] = wd.Spec.OrderBy != nil || wd.Spec.WindowName != "" && ordered[wd.Spec.WindowName]
 
 		wd.Loc.End = p.prev.End
 		defs = append(defs, wd)
