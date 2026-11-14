@@ -24133,6 +24133,8 @@ func TestParseBuiltinCallsInContext(t *testing.T) {
 	for _, sql := range []string{
 		"SELECT a FROM a GROUP BY ROLLUP(([a], a))",
 		"SELECT a FROM a GROUP BY CUBE((\"a\", /* , */ a), (a))",
+		"SELECT a, b, c FROM t GROUP BY ROLLUP((a /* outer /* inner */ , */ + b) * c)",
+		"SELECT a, b, c FROM t GROUP BY CUBE(((a + b), c), ('x,y'))",
 		"SELECT 1 FROM a WHERE MATCH(LAST_NODE(a) = LAST_NODE(a))",
 	} {
 		if _, err := Parse(sql); err != nil {

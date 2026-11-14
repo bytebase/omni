@@ -2414,54 +2414,30 @@ func (p *Parser) parseRollupCube() (nodes.Node, error) {
 // groupingElementIsComposite reports whether the parenthesis at the current
 // token opens a composite element (a, b) of ROLLUP or CUBE rather than a
 // parenthesized expression: a comma at its own depth, or nothing inside. It
-// reads the source past quoted names, strings and comments.
+// reads the lexer's tokens ahead, so names, strings and comments, nested
+// ones included, are skipped as the parser skips them; the lexer is put back
+// after.
 func (p *Parser) groupingElementIsComposite() bool {
-	src := p.source
-	depth := 0
-	empty := true
-	for i := p.cur.Loc; i < len(src); i++ {
-		c := src[i]
-		switch {
-		case c == '(':
+	tok := p.peekNext()
+	pos, start, lexErr := p.lexer.pos, p.lexer.start, p.lexer.Err
+	defer func() { p.lexer.pos, p.lexer.start, p.lexer.Err = pos, start, lexErr }()
+	if tok.Type == ')' {
+		return true
+	}
+	depth := 1
+	for ; tok.Type != tokEOF; tok = p.lexer.NextToken() {
+		switch tok.Type {
+		case '(':
 			depth++
-			if depth > 1 {
-				empty = false
-			}
-		case c == ')':
+		case ')':
 			depth--
 			if depth == 0 {
-				return empty
-			}
-		case c == ',' && depth == 1:
-			return true
-		case c == '\'' || c == '"' || c == '[':
-			end := byte(c)
-			if c == '[' {
-				end = ']'
-			}
-			// A doubled closing character stays inside the token.
-			for i++; i < len(src); i++ {
-				if src[i] == end {
-					if i+1 < len(src) && src[i+1] == end {
-						i++
-						continue
-					}
-					break
-				}
-			}
-			empty = false
-		case c == '-' && i+1 < len(src) && src[i+1] == '-':
-			for i < len(src) && src[i] != '\n' {
-				i++
-			}
-		case c == '/' && i+1 < len(src) && src[i+1] == '*':
-			if k := strings.Index(src[i+2:], "*/"); k >= 0 {
-				i += k + 3
-			} else {
 				return false
 			}
-		case c != ' ' && c != '\t' && c != '\n' && c != '\r':
-			empty = false
+		case ',':
+			if depth == 1 {
+				return true
+			}
 		}
 	}
 	return false
