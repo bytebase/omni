@@ -8,14 +8,19 @@ func diffConstraints(from, to *Catalog, fromRelOID, toRelOID uint32) []Constrain
 	fromCons := from.ConstraintsOf(fromRelOID)
 	toCons := to.ConstraintsOf(toRelOID)
 
-	// Build name → *Constraint maps.
+	// Build name → *Constraint maps, leaving out a partition's constraints
+	// that come with its parent's, which PostgreSQL adds and drops along.
 	fromMap := make(map[string]*Constraint, len(fromCons))
 	for _, c := range fromCons {
-		fromMap[c.Name] = c
+		if !from.inheritedFromPartitionedTable(c) {
+			fromMap[c.Name] = c
+		}
 	}
 	toMap := make(map[string]*Constraint, len(toCons))
 	for _, c := range toCons {
-		toMap[c.Name] = c
+		if !to.inheritedFromPartitionedTable(c) {
+			toMap[c.Name] = c
+		}
 	}
 
 	var result []ConstraintDiffEntry
@@ -68,7 +73,7 @@ func constraintsEqual(from, to *Catalog, a, b *Constraint) bool {
 	if a.Type != b.Type {
 		return false
 	}
-	if !int16SliceEqual(a.Columns, b.Columns) {
+	if !sameColumns(from, a.RelOID, a.Columns, to, b.RelOID, b.Columns) {
 		return false
 	}
 	if a.CheckExpr != b.CheckExpr {
@@ -92,7 +97,7 @@ func constraintsEqual(from, to *Catalog, a, b *Constraint) bool {
 
 	// For FK constraints, compare referenced table by resolved name and referenced columns.
 	if a.Type == ConstraintFK {
-		if !int16SliceEqual(a.FColumns, b.FColumns) {
+		if !sameColumns(from, a.FRelOID, a.FColumns, to, b.FRelOID, b.FColumns) {
 			return false
 		}
 		// Resolve referenced table names via GetRelationByOID.
@@ -109,6 +114,29 @@ func constraintsEqual(from, to *Catalog, a, b *Constraint) bool {
 	}
 
 	return true
+}
+
+// inheritedFromPartitionedTable reports whether con, on a partition, is the
+// copy of a constraint of the partitioned table: cloned from it, backed by an
+// index attached to the parent's, the partition's primary key under the
+// parent's, or a CHECK or FK of the parent's name.
+func (c *Catalog) inheritedFromPartitionedTable(con *Constraint) bool {
+	rel := c.GetRelationByOID(con.RelOID)
+	if rel == nil || rel.PartitionOf == 0 {
+		return false
+	}
+	if con.ConParentID != 0 {
+		return true
+	}
+	if idx := c.indexes[con.IndexOID]; idx != nil && idx.ParentIndexOID != 0 {
+		return true
+	}
+	for _, pc := range c.ConstraintsOf(rel.PartitionOf) {
+		if pc.Type == con.Type && (pc.Name == con.Name || con.Type == ConstraintPK) {
+			return true
+		}
+	}
+	return false
 }
 
 // fkRefTableEqual compares the referenced table of two FK constraints
@@ -135,6 +163,26 @@ func fkRefTableEqual(from, to *Catalog, a, b *Constraint) bool {
 		toSchema = toRel.Schema.Name
 	}
 	return fromSchema == toSchema
+}
+
+// sameColumns reports whether two attnum lists name the same columns of
+// their relations. Attnums alone differ when a column was added in the
+// middle of one side's table.
+func sameColumns(fromCat *Catalog, fromRelOID uint32, a []int16, toCat *Catalog, toRelOID uint32, b []int16) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	fromRel, toRel := fromCat.GetRelationByOID(fromRelOID), toCat.GetRelationByOID(toRelOID)
+	if fromRel == nil || toRel == nil {
+		return int16SliceEqual(a, b)
+	}
+	for i := range a {
+		// Attnum 0 is an expression, compared on its own.
+		if (a[i] == 0) != (b[i] == 0) || a[i] != 0 && resolveAttNum(fromRel, a[i]) != resolveAttNum(toRel, b[i]) {
+			return false
+		}
+	}
+	return true
 }
 
 // int16SliceEqual returns true if two int16 slices are identical.

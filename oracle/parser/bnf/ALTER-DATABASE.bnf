@@ -203,9 +203,9 @@ maximize_standby_db_clause ::=
     }
 
 register_logfile_clause ::=
-  RECOVER [ MANAGED STANDBY DATABASE ]
-    REGISTER LOGFILE redo_log_file_spec [, redo_log_file_spec ]...
-    [ OR REPLACE ]
+  REGISTER [ OR REPLACE ]
+    [ PHYSICAL | LOGICAL ]
+    LOGFILE [ file_specification [, file_specification ]... ]
     [ FOR logminer_session_name ]
 
 switchover_clause ::=

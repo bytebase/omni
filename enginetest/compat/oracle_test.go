@@ -58,6 +58,15 @@ func TestOracleVerdictReadsParseErrors(t *testing.T) {
 		{"a probe answered at the tail by another error", "ALTER MATERIALIZED VIEW LOG ON a MERGE PARTITIONS a, a", &answer{12002, 0, ""}, &answer{14006, 56, ""}, Accept},
 		{"a probe the tail stops early, after a lookup", "ALTER INDEX a UNUSABLE", &answer{1418, 0, ""}, &answer{14048, 14, ""}, Accept},
 		{"a probe the tail stops early, after a syntax error", "SELECT 1 FROM dual a b", &answer{933, 21, ""}, &answer{923, 7, ""}, "reject@21"},
+		{"a syntax error in a statement lexed whole first", "ALTER MATERIALIZED VIEW a zzz yyy", &answer{3049, 26, ""}, &answer{911, 35, ""}, "reject@26"},
+		{"a privilege no grammar knows, lexed whole first", "GRANT a a TO a", &answer{990, 6, ""}, &answer{911, 16, ""}, "reject@6"},
+		{"no column list, lexed whole first", "CREATE TABLE a NO INMEMORY", &answer{906, 15, ""}, &answer{911, 28, ""}, "reject@15"},
+		{"a role looked up, lexed whole first", "GRANT zzz TO a", &answer{1924, 6, ""}, &answer{911, 16, ""}, Accept},
+		{"a data type looked up after the parse", "CREATE TABLE a(a UNITE)", &answer{902, 17, ""}, &answer{911, 25, ""}, Accept},
+		{"a tablespace looked up after the parse", "ALTER FLASHBACK ARCHIVE a ADD TABLESPACE a", &answer{959, 41, ""}, &answer{911, 44, ""}, Accept},
+		{"a cluster looked up after the parse", "ALTER CLUSTER a ALLOCATE EXTENT", &answer{943, 0, ""}, &answer{911, 33, ""}, Accept},
+		{"a view column to name, after the parse", "CREATE VIEW a AS SELECT 1 FROM dual WITH READ ONLY", &answer{998, 24, ""}, &answer{911, 53, ""}, Accept},
+		{"a database link looked up after the parse", "SELECT * FROM a@a zzz", &answer{2019, 16, ""}, &answer{911, 23, ""}, Accept},
 	} {
 		var asked []string
 		parse := func(text string) error {
