@@ -32,18 +32,19 @@ type CreateTableStmt struct {
 	External      bool
 	Temporary     bool
 	Columns       []*ColumnDef
-	Indexes       []*IndexDef       // inline INDEX definitions
+	Indexes       []*IndexDef        // inline INDEX definitions
 	Constraints   []*TableConstraint // table-level constraints
-	KeyDesc       *KeyDesc          // AGGREGATE KEY / UNIQUE KEY / DUPLICATE KEY
-	PartitionBy   *PartitionDesc    // PARTITION BY RANGE/LIST
-	DistributedBy *DistributionDesc // DISTRIBUTED BY HASH/RANDOM
-	Rollup        []*RollupDef      // ROLLUP (...)
-	Properties    []*Property       // PROPERTIES (...)
-	Engine        string            // ENGINE = xxx
-	Comment       string            // COMMENT 'xxx'
-	Like          *ObjectName       // CREATE TABLE ... LIKE other_table
-	AsSelect      *RawQuery         // CREATE TABLE ... AS SELECT ...
-	CTASColumns   []string          // CTAS column-name list: CREATE TABLE t (a, b) AS SELECT ...
+	KeyDesc       *KeyDesc           // AGGREGATE KEY / UNIQUE KEY / DUPLICATE KEY
+	PartitionBy   *PartitionDesc     // PARTITION BY RANGE/LIST
+	DistributedBy *DistributionDesc  // DISTRIBUTED BY HASH/RANDOM
+	Rollup        []*RollupDef       // ROLLUP (...)
+	Properties    []*Property        // PROPERTIES (...)
+	Engine        string             // ENGINE = xxx
+	Comment       string             // COMMENT 'xxx'
+	Like          *ObjectName        // CREATE TABLE ... LIKE other_table
+	AsSelect      *RawQuery          // CREATE TABLE ... AS SELECT ...
+	CTASColumns   []string           // CTAS column-name list: CREATE TABLE t (a, b) AS SELECT ...
+	OrderBy       []string           // ORDER BY (cols)
 	Loc           Loc
 }
 
@@ -62,17 +63,17 @@ var _ Node = (*CreateTableStmt)(nil)
 //	    [ON UPDATE CURRENT_TIMESTAMP]
 //	    [COMMENT 'str']
 type ColumnDef struct {
-	Name       string
-	Type       *TypeName
-	Nullable   *bool  // nil = not specified, true = NULL, false = NOT NULL
-	Default    Node   // DEFAULT expression (nil if absent)
-	Comment    string // COMMENT string
-	IsKey      bool   // KEY keyword
-	AggType    string // aggregate type: SUM, MAX, MIN, REPLACE, REPLACE_IF_NOT_NULL, etc.
-	AutoInc    bool   // AUTO_INCREMENT
-	Generated  Node   // GENERATED ALWAYS AS (expr) -- the expression
-	OnUpdate   string // ON UPDATE CURRENT_TIMESTAMP
-	Loc        Loc
+	Name      string
+	Type      *TypeName
+	Nullable  *bool  // nil = not specified, true = NULL, false = NOT NULL
+	Default   Node   // DEFAULT expression (nil if absent)
+	Comment   string // COMMENT string
+	IsKey     bool   // KEY keyword
+	AggType   string // aggregate type: SUM, MAX, MIN, REPLACE, REPLACE_IF_NOT_NULL, etc.
+	AutoInc   bool   // AUTO_INCREMENT
+	Generated Node   // GENERATED ALWAYS AS (expr) -- the expression
+	OnUpdate  string // ON UPDATE CURRENT_TIMESTAMP
+	Loc       Loc
 }
 
 // Tag implements Node.
@@ -101,7 +102,7 @@ var _ Node = (*IndexDef)(nil)
 // TableConstraint represents a table-level constraint: PRIMARY KEY or UNIQUE.
 type TableConstraint struct {
 	Type    ConstraintType
-	Name    string   // constraint name (may be empty)
+	Name    string // constraint name (may be empty)
 	Columns []string
 	Loc     Loc
 }
@@ -115,7 +116,7 @@ var _ Node = (*TableConstraint)(nil)
 //
 //	AGGREGATE KEY(cols) | UNIQUE KEY(cols) | DUPLICATE KEY(cols)
 type KeyDesc struct {
-	Type    string   // "AGGREGATE", "UNIQUE", "DUPLICATE"
+	Type    string // "AGGREGATE", "UNIQUE", "DUPLICATE"
 	Columns []string
 	Loc     Loc
 }
@@ -148,18 +149,18 @@ var _ Node = (*PartitionDesc)(nil)
 // For IN: PARTITION name VALUES IN ((values), (values))
 // For step: FROM (values) TO (values) INTERVAL n [unit]
 type PartitionItem struct {
-	Name       string   // partition name (empty for step partitions)
-	IsMaxValue bool     // VALUES LESS THAN MAXVALUE
-	Values     []string // raw value strings for LESS THAN / fixed
+	Name       string     // partition name (empty for step partitions)
+	IsMaxValue bool       // VALUES LESS THAN MAXVALUE
+	Values     []string   // raw value strings for LESS THAN / fixed
 	InValues   [][]string // for IN partitions: list of value lists
 	// Step partition fields
-	IsStep     bool
-	FromValues []string
-	ToValues   []string
-	Interval   string // interval amount
-	IntervalUnit string // interval unit (e.g., "DAY")
-	Properties []*Property // optional inline (key = value, ...) list after the values
-	Loc        Loc
+	IsStep       bool
+	FromValues   []string
+	ToValues     []string
+	Interval     string      // interval amount
+	IntervalUnit string      // interval unit (e.g., "DAY")
+	Properties   []*Property // optional inline (key = value, ...) list after the values
+	Loc          Loc
 }
 
 // Tag implements Node.
@@ -668,6 +669,7 @@ type DropFileStmt struct {
 func (n *DropFileStmt) Tag() NodeTag { return T_DropFileStmt }
 
 var _ Node = (*DropFileStmt)(nil)
+
 // ---------------------------------------------------------------------------
 // WORKLOAD GROUP DDL nodes (T5.4)
 // ---------------------------------------------------------------------------

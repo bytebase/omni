@@ -73,7 +73,20 @@ func (p *Parser) parseCreateTable() (ast.Node, error) {
 			return nil, err
 		}
 		stmt.Like = likeName
-		stmt.Loc = startLoc.Merge(ast.NodeLoc(likeName))
+		// (WITH ROLLUP identifierList?)? (DorisParser.g4:186)
+		if p.cur.Kind == kwWITH {
+			p.advance() // consume WITH
+			if _, err := p.expect(kwROLLUP); err != nil {
+				return nil, err
+			}
+			stmt.LikeRollup = true
+			if p.cur.Kind == int('(') {
+				if stmt.LikeRollups, err = p.parseLoadIdentifierList(); err != nil {
+					return nil, err
+				}
+			}
+		}
+		stmt.Loc = ast.Loc{Start: startLoc.Start, End: p.prev.Loc.End}
 		return stmt, nil
 	}
 
@@ -96,49 +109,73 @@ func (p *Parser) parseCreateTable() (ast.Node, error) {
 	return stmt, nil
 }
 
-// parseColumnDefsBlock parses the parenthesized column definitions block,
-// including inline index definitions and trailing commas.
+// parseColumnDefsBlock parses what follows the table's name in parentheses
+// (DorisParser.g4:169):
 //
-//	'(' column_def [, column_def]* [, index_def]* ')'
+//	identifierList                                           (a CTAS's column names)
+//	| LEFT_PAREN columnDefs (COMMA indexDefs)? COMMA? RIGHT_PAREN
+//
+// Table constraints (PRIMARY KEY, UNIQUE, CONSTRAINT) are read among the
+// columns, as before; the grammar has none.
 func (p *Parser) parseColumnDefsBlock(stmt *ast.CreateTableStmt) error {
 	if _, err := p.expect(int('(')); err != nil {
 		return err
 	}
 
-	// Parse column defs and index defs.
-	for p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
-		// Check if this is an INDEX definition
-		if p.cur.Kind == kwINDEX {
+	// ctasCols: names alone, each followed by ',' or ')'.
+	if isIdentifierToken(p.cur.Kind) {
+		if next := p.peekNext().Kind; next == int(',') || next == int(')') {
+			names, err := p.parseIdentifierList()
+			if err != nil {
+				return err
+			}
+			for _, n := range names {
+				stmt.Columns = append(stmt.Columns, &ast.ColumnDef{Name: n})
+			}
+			_, err = p.expect(int(')'))
+			return err
+		}
+	}
+
+	indexes := false
+	for {
+		switch {
+		case p.cur.Kind == kwINDEX:
 			idx, err := p.parseInlineIndexDef()
 			if err != nil {
 				return err
 			}
 			stmt.Indexes = append(stmt.Indexes, idx)
-		} else if p.cur.Kind == kwCONSTRAINT || p.cur.Kind == kwPRIMARY || p.cur.Kind == kwUNIQUE {
-			// Table-level constraint
+			indexes = true
+		case indexes:
+			// indexDefs come last.
+			return p.syntaxErrorAtCur()
+		case p.cur.Kind == kwCONSTRAINT || p.cur.Kind == kwPRIMARY || p.cur.Kind == kwUNIQUE:
 			constraint, err := p.parseTableConstraint()
 			if err != nil {
 				return err
 			}
 			stmt.Constraints = append(stmt.Constraints, constraint)
-		} else {
+		default:
 			col, err := p.parseColumnDef()
 			if err != nil {
 				return err
 			}
 			stmt.Columns = append(stmt.Columns, col)
 		}
-
-		// Optional comma separator
-		if p.cur.Kind == int(',') {
-			p.advance()
+		if p.cur.Kind != int(',') {
+			break
+		}
+		p.advance() // consume ','
+		if p.cur.Kind == int(')') && len(stmt.Columns) > 0 {
+			break // COMMA? RIGHT_PAREN
 		}
 	}
-
-	if _, err := p.expect(int(')')); err != nil {
-		return err
+	if len(stmt.Columns) == 0 {
+		return p.syntaxErrorAtCur()
 	}
-	return nil
+	_, err := p.expect(int(')'))
+	return err
 }
 
 // parseColumnDef parses a single column definition.
@@ -169,28 +206,29 @@ func (p *Parser) parseColumnDef() (*ast.ColumnDef, error) {
 		Loc:  ast.Loc{Start: startLoc.Start, End: colType.Loc.End},
 	}
 
-	// Parse optional column attributes in flexible order.
-	// Each attribute can appear at most once, and they can appear in various orders
-	// based on the grammar.
+	// The attributes follow columnDef's order (DorisParser.g4:1414), each at
+	// most once: KEY, the aggregate type, the generated expression, [NOT]
+	// NULL, AUTO_INCREMENT, DEFAULT, ON UPDATE, COMMENT.
+	last := 0
 	for {
+		stage := columnAttrStage(p.cur.Kind, p.peekNext().Kind)
+		if stage == 0 || stage <= last {
+			break
+		}
+		last = stage
 		switch p.cur.Kind {
 		case kwKEY:
 			col.IsKey = true
-			col.Loc.End = p.cur.Loc.End
-			p.advance()
-			continue
+			col.Loc.End = p.advance().Loc.End
 
-		case kwMAX, kwMIN, kwSUM, kwREPLACE, kwREPLACE_IF_NOT_NULL,
-			kwHLL_UNION, kwBITMAP_UNION, kwQUANTILE_UNION, kwGENERIC:
-			col.AggType = strings.ToUpper(p.cur.Str)
-			col.Loc.End = p.cur.Loc.End
-			p.advance()
-			continue
-
-		case kwGENERATED:
-			p.advance() // consume GENERATED
-			// Optional ALWAYS
-			p.match(kwALWAYS)
+		case kwGENERATED, kwAS:
+			// (GENERATED ALWAYS)? AS LEFT_PAREN expression RIGHT_PAREN
+			if p.cur.Kind == kwGENERATED {
+				p.advance() // consume GENERATED
+				if _, err := p.expect(kwALWAYS); err != nil {
+					return nil, err
+				}
+			}
 			if _, err := p.expect(kwAS); err != nil {
 				return nil, err
 			}
@@ -207,42 +245,39 @@ func (p *Parser) parseColumnDef() (*ast.ColumnDef, error) {
 			}
 			col.Generated = expr
 			col.Loc.End = closeTok.Loc.End
-			continue
 
 		case kwNOT:
-			// NOT NULL
-			p.advance()
+			p.advance() // consume NOT
 			if _, err := p.expect(kwNULL); err != nil {
 				return nil, err
 			}
 			b := false
 			col.Nullable = &b
 			col.Loc.End = p.prev.Loc.End
-			continue
 
 		case kwNULL:
 			b := true
 			col.Nullable = &b
-			col.Loc.End = p.cur.Loc.End
-			p.advance()
-			continue
+			col.Loc.End = p.advance().Loc.End
 
 		case kwAUTO_INCREMENT:
 			col.AutoInc = true
-			col.Loc.End = p.cur.Loc.End
-			p.advance()
-			// Optional (initial_value)
+			col.Loc.End = p.advance().Loc.End
+			// (LEFT_PAREN number RIGHT_PAREN)?
 			if p.cur.Kind == int('(') {
 				p.advance()
-				if p.cur.Kind == tokInt {
+				if p.cur.Kind == int('-') {
 					p.advance()
 				}
+				if p.cur.Kind != tokInt && p.cur.Kind != tokFloat {
+					return nil, p.syntaxErrorAtCur()
+				}
+				p.advance()
 				if _, err := p.expect(int(')')); err != nil {
 					return nil, err
 				}
 				col.Loc.End = p.prev.Loc.End
 			}
-			continue
 
 		case kwDEFAULT:
 			p.advance() // consume DEFAULT
@@ -252,10 +287,9 @@ func (p *Parser) parseColumnDef() (*ast.ColumnDef, error) {
 			}
 			col.Default = def
 			col.Loc.End = ast.NodeLoc(def).End
-			continue
 
 		case kwON:
-			// ON UPDATE CURRENT_TIMESTAMP
+			// ON UPDATE CURRENT_TIMESTAMP (LEFT_PAREN number RIGHT_PAREN)?
 			p.advance() // consume ON
 			if _, err := p.expect(kwUPDATE); err != nil {
 				return nil, err
@@ -264,21 +298,19 @@ func (p *Parser) parseColumnDef() (*ast.ColumnDef, error) {
 				return nil, p.syntaxErrorAtCur()
 			}
 			col.OnUpdate = "CURRENT_TIMESTAMP"
-			col.Loc.End = p.cur.Loc.End
-			p.advance()
-			// Optional precision: (n)
+			col.Loc.End = p.advance().Loc.End
 			if p.cur.Kind == int('(') {
 				p.advance()
-				if p.cur.Kind == tokInt {
-					p.advance()
+				if p.cur.Kind != tokInt {
+					return nil, p.syntaxErrorAtCur()
 				}
+				p.advance()
 				closeTok, err := p.expect(int(')'))
 				if err != nil {
 					return nil, err
 				}
 				col.Loc.End = closeTok.Loc.End
 			}
-			continue
 
 		case kwCOMMENT:
 			p.advance()
@@ -286,14 +318,46 @@ func (p *Parser) parseColumnDef() (*ast.ColumnDef, error) {
 				return nil, p.syntaxErrorAtCur()
 			}
 			col.Comment = p.cur.Str
-			col.Loc.End = p.cur.Loc.End
-			p.advance()
-			continue
+			col.Loc.End = p.advance().Loc.End
+
+		default:
+			// aggTypeDef
+			col.AggType = strings.ToUpper(p.cur.Str)
+			col.Loc.End = p.advance().Loc.End
 		}
-		break
 	}
 
 	return col, nil
+}
+
+// columnAttrStage returns the position in columnDef (DorisParser.g4:1414)
+// of the attribute cur begins, next being the token after it, or 0 when cur
+// begins none. AS begins the generated expression only when '(' follows.
+func columnAttrStage(cur, next TokenKind) int {
+	switch cur {
+	case kwKEY:
+		return 1
+	case kwMAX, kwMIN, kwSUM, kwREPLACE, kwREPLACE_IF_NOT_NULL,
+		kwHLL_UNION, kwBITMAP_UNION, kwQUANTILE_UNION, kwGENERIC:
+		return 2
+	case kwGENERATED:
+		return 3
+	case kwAS:
+		if next == int('(') {
+			return 3
+		}
+	case kwNOT, kwNULL:
+		return 4
+	case kwAUTO_INCREMENT:
+		return 5
+	case kwDEFAULT:
+		return 6
+	case kwON:
+		return 7
+	case kwCOMMENT:
+		return 8
+	}
+	return 0
 }
 
 // parseDefaultValue parses the value after DEFAULT keyword.
@@ -606,7 +670,7 @@ func (p *Parser) parseCreateTableClauses(stmt *ast.CreateTableStmt) error {
 			continue
 
 		case kwPROPERTIES:
-			props, err := p.parseProperties()
+			props, err := p.parseCreateTablePropertyClause()
 			if err != nil {
 				return err
 			}
@@ -614,13 +678,16 @@ func (p *Parser) parseCreateTableClauses(stmt *ast.CreateTableStmt) error {
 			continue
 
 		case kwBROKER:
-			// BROKER ext_properties -- skip the broker properties clause
+			// BROKER propertyClause (DorisParser.g4:180)
 			p.advance() // consume BROKER
-			if p.cur.Kind == kwPROPERTIES {
-				if _, err := p.parseProperties(); err != nil {
-					return err
-				}
+			if p.cur.Kind != kwPROPERTIES {
+				return p.syntaxErrorAtCur()
 			}
+			props, err := p.parseCreateTablePropertyClause()
+			if err != nil {
+				return err
+			}
+			stmt.BrokerProps = props
 			continue
 
 		case kwAS:
@@ -647,6 +714,17 @@ func (p *Parser) parseCreateTableClauses(stmt *ast.CreateTableStmt) error {
 		break
 	}
 	return nil
+}
+
+// parseCreateTablePropertyClause reads propertyClause (DorisParser.g4:1377)
+// in the grammar's full item form: CREATE TABLE is a supportedCreateStatement,
+// which only the ANTLR parser reads, so PROPERTIES (a = a) parses.
+func (p *Parser) parseCreateTablePropertyClause() ([]*ast.Property, error) {
+	p.advance() // consume PROPERTIES
+	if _, err := p.expect(int('(')); err != nil {
+		return nil, err
+	}
+	return p.parsePropertyItems(p.parsePropertyItem)
 }
 
 // parseKeyDesc parses: AGGREGATE|UNIQUE|DUPLICATE KEY (col1, col2, ...)
@@ -714,37 +792,37 @@ func (p *Parser) parsePartitionBy() (*ast.PartitionDesc, error) {
 		pd.Type = "RANGE" // default for AUTO
 	}
 
-	// Parse partition column/function list: (col1, func(col2), ...)
-	if p.cur.Kind == int('(') {
-		cols, funcs, err := p.parseIdentityOrFunctionList()
-		if err != nil {
-			return nil, err
-		}
-		pd.Columns = cols
-		pd.FuncExprs = funcs
+	// partitionTable (DorisParser.g4:970): identityOrFunctionList, then
+	// LEFT_PAREN partitionsDef? RIGHT_PAREN, both required.
+	cols, funcs, err := p.parseIdentityOrFunctionList()
+	if err != nil {
+		return nil, err
 	}
+	pd.Columns = cols
+	pd.FuncExprs = funcs
 
-	// Parse partition definitions: (...)
-	if p.cur.Kind == int('(') {
-		p.advance() // consume '('
-		for p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
+	if _, err := p.expect(int('(')); err != nil {
+		return nil, err
+	}
+	if p.cur.Kind != int(')') {
+		// partitionsDef (:1435): partitionDef (COMMA partitionDef)*
+		for {
 			item, err := p.parsePartitionItem()
 			if err != nil {
 				return nil, err
 			}
 			pd.Partitions = append(pd.Partitions, item)
-
-			if p.cur.Kind == int(',') {
-				p.advance()
+			if p.cur.Kind != int(',') {
+				break
 			}
+			p.advance() // consume ','
 		}
-		closeTok, err := p.expect(int(')'))
-		if err != nil {
-			return nil, err
-		}
-		pd.Loc.End = closeTok.Loc.End
 	}
-
+	closeTok, err := p.expect(int(')'))
+	if err != nil {
+		return nil, err
+	}
+	pd.Loc.End = closeTok.Loc.End
 	return pd, nil
 }
 
@@ -994,10 +1072,10 @@ func (p *Parser) parseStepPartition(startLoc ast.Loc) (*ast.PartitionItem, error
 	item.Loc.End = p.cur.Loc.End
 	p.advance()
 
-	// Optional interval unit
+	// Optional unitIdentifier (DorisParser.g4:1697)
 	if p.cur.Kind == kwDAY || p.cur.Kind == kwWEEK || p.cur.Kind == kwMONTH ||
 		p.cur.Kind == kwYEAR || p.cur.Kind == kwHOUR || p.cur.Kind == kwMINUTE ||
-		p.cur.Kind == kwSECOND || p.cur.Kind == tokIdent {
+		p.cur.Kind == kwSECOND {
 		item.IntervalUnit = strings.ToUpper(p.cur.Str)
 		item.Loc.End = p.cur.Loc.End
 		p.advance()
@@ -1013,17 +1091,19 @@ func (p *Parser) parsePartitionValueList() ([]string, int, error) {
 		return nil, 0, err
 	}
 
+	// partitionValueList (DorisParser.g4:1460): at least one value,
+	// comma-separated.
 	var vals []string
-	for p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
+	for {
 		val, err := p.parsePartitionValueDef()
 		if err != nil {
 			return nil, 0, err
 		}
 		vals = append(vals, val)
-
-		if p.cur.Kind == int(',') {
-			p.advance()
+		if p.cur.Kind != int(',') {
+			break
 		}
+		p.advance() // consume ','
 	}
 
 	closeTok, err := p.expect(int(')'))
@@ -1223,17 +1303,18 @@ func (p *Parser) parseRollup() ([]*ast.RollupDef, error) {
 		return nil, err
 	}
 
+	// rollupDefs (DorisParser.g4:1468): rollupDef (COMMA rollupDef)*
 	var rollups []*ast.RollupDef
-	for p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
+	for {
 		rd, err := p.parseRollupDef()
 		if err != nil {
 			return nil, err
 		}
 		rollups = append(rollups, rd)
-
-		if p.cur.Kind == int(',') {
-			p.advance()
+		if p.cur.Kind != int(',') {
+			break
 		}
+		p.advance() // consume ','
 	}
 
 	if _, err := p.expect(int(')')); err != nil {
@@ -1294,9 +1375,9 @@ func (p *Parser) parseRollupDef() (*ast.RollupDef, error) {
 		rd.Loc.End = closeTok.Loc.End
 	}
 
-	// Optional PROPERTIES
+	// Optional propertyClause
 	if p.cur.Kind == kwPROPERTIES {
-		props, err := p.parseProperties()
+		props, err := p.parseCreateTablePropertyClause()
 		if err != nil {
 			return nil, err
 		}

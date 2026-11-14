@@ -93,7 +93,9 @@ func (p *Parser) parseCreateTable() (ast.Node, error) {
 
 	// A column-name list (no column types) is valid ONLY as CTAS — it requires
 	// an AS <query>. Without it the statement is invalid (StarRocks rejects it).
-	if len(stmt.CTASColumns) > 0 && stmt.AsSelect == nil {
+	// So does a table with no columns, no query and no LIKE: CREATE TABLE a.
+	if (len(stmt.CTASColumns) > 0 || len(stmt.Indexes) > 0 && stmt.Columns == nil ||
+		stmt.Columns == nil && stmt.Like == nil) && stmt.AsSelect == nil {
 		return nil, &ParseError{
 			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 			Message: "column-name list requires AS <query> (CTAS)",
@@ -114,6 +116,11 @@ func (p *Parser) parseColumnDefsBlock(stmt *ast.CreateTableStmt) error {
 		return err
 	}
 
+	// createTableAsSelectStatement's list may also hold indexes alone.
+	if p.cur.Kind == kwINDEX {
+		return p.parseCTASColumnNames(stmt)
+	}
+
 	// StarRocks CTAS column-name list: ( ident (, ident)* (, indexDesc)* ) AS query.
 	// A CTAS column carries NO type/attributes, so its name is followed by `,`
 	// or `)`; a full-def column name is followed by a type. The token sets are
@@ -125,15 +132,18 @@ func (p *Parser) parseColumnDefsBlock(stmt *ast.CreateTableStmt) error {
 		}
 	}
 
-	// Parse column defs and index defs.
-	for p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
-		// Check if this is an INDEX definition
-		if p.cur.Kind == kwINDEX {
+	// '(' columnDesc (',' columnDesc)* (',' indexDesc)* ')' (StarRocks.g4:382):
+	// at least one column, commas between items, indexes last. Table
+	// constraints are read among the columns, as before.
+	for {
+		if p.cur.Kind == kwINDEX && len(stmt.Columns) > 0 {
 			idx, err := p.parseInlineIndexDef()
 			if err != nil {
 				return err
 			}
 			stmt.Indexes = append(stmt.Indexes, idx)
+		} else if len(stmt.Indexes) > 0 {
+			return p.syntaxErrorAtCur()
 		} else if p.cur.Kind == kwCONSTRAINT || p.cur.Kind == kwPRIMARY || p.cur.Kind == kwUNIQUE {
 			// Table-level constraint
 			constraint, err := p.parseTableConstraint()
@@ -148,17 +158,16 @@ func (p *Parser) parseColumnDefsBlock(stmt *ast.CreateTableStmt) error {
 			}
 			stmt.Columns = append(stmt.Columns, col)
 		}
-
-		// Optional comma separator
-		if p.cur.Kind == int(',') {
-			p.advance()
+		if p.cur.Kind != int(',') {
+			break
 		}
+		p.advance() // consume ','
 	}
-
-	if _, err := p.expect(int(')')); err != nil {
-		return err
+	if len(stmt.Columns) == 0 {
+		return p.syntaxErrorAtCur()
 	}
-	return nil
+	_, err := p.expect(int(')'))
+	return err
 }
 
 // parseCTASColumnNames parses a StarRocks CTAS column-name list, with cur at the
@@ -169,13 +178,17 @@ func (p *Parser) parseColumnDefsBlock(stmt *ast.CreateTableStmt) error {
 // Names go to stmt.CTASColumns; trailing INDEX entries reuse the inline-index
 // parser. The AS query tail is parsed later by parseCreateTableClauses.
 func (p *Parser) parseCTASColumnNames(stmt *ast.CreateTableStmt) error {
-	for p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
+	// identifier (',' identifier)* (',' indexDesc)* | indexDesc (',' indexDesc)*
+	// (StarRocks.g4:490), comma-separated, indexes last.
+	for {
 		if p.cur.Kind == kwINDEX {
 			idx, err := p.parseInlineIndexDef()
 			if err != nil {
 				return err
 			}
 			stmt.Indexes = append(stmt.Indexes, idx)
+		} else if len(stmt.Indexes) > 0 {
+			return p.syntaxErrorAtCur()
 		} else {
 			name, _, err := p.parseIdentifier()
 			if err != nil {
@@ -183,15 +196,13 @@ func (p *Parser) parseCTASColumnNames(stmt *ast.CreateTableStmt) error {
 			}
 			stmt.CTASColumns = append(stmt.CTASColumns, name)
 		}
-
-		if p.cur.Kind == int(',') {
-			p.advance()
+		if p.cur.Kind != int(',') {
+			break
 		}
+		p.advance() // consume ','
 	}
-	if _, err := p.expect(int(')')); err != nil {
-		return err
-	}
-	return nil
+	_, err := p.expect(int(')'))
+	return err
 }
 
 // parseColumnDef parses a single column definition.
@@ -723,16 +734,40 @@ func (p *Parser) parseCreateTableClauses(stmt *ast.CreateTableStmt) error {
 			continue
 		}
 
-		// Check for bare SELECT/WITH without AS (also valid CTAS per grammar: AS? query)
-		if p.cur.Kind == kwSELECT || p.cur.Kind == kwWITH {
-			rawQuery, err := p.parseRawQuery()
+		// orderByDesc (StarRocks.g4:436): ORDER BY identifierList
+		if p.cur.Kind == kwORDER {
+			p.advance() // consume ORDER
+			if _, err := p.expect(kwBY); err != nil {
+				return err
+			}
+			if _, err := p.expect(int('(')); err != nil {
+				return err
+			}
+			cols, err := p.parseIdentifierList()
 			if err != nil {
 				return err
 			}
-			stmt.AsSelect = rawQuery
+			if _, err := p.expect(int(')')); err != nil {
+				return err
+			}
+			stmt.OrderBy = cols
 			continue
 		}
 
+		// createTableLikeStatement (StarRocks.g4:565): partitionDesc?
+		// distributionDesc? properties? LIKE qualifiedName, ending it.
+		if p.cur.Kind == kwLIKE && stmt.Columns == nil && stmt.CTASColumns == nil && stmt.Indexes == nil {
+			p.advance() // consume LIKE
+			likeName, err := p.parseMultipartIdentifier()
+			if err != nil {
+				return err
+			}
+			stmt.Like = likeName
+			return nil
+		}
+
+		// StarRocks's CTAS needs AS (StarRocks.g4:497): CREATE TABLE a SELECT
+		// ... is refused.
 		break
 	}
 	return nil
@@ -801,6 +836,13 @@ func (p *Parser) parsePartitionBy() (*ast.PartitionDesc, error) {
 	default:
 		// Type may be inferred from context (AUTO partition can omit it)
 		pd.Type = "RANGE" // default for AUTO
+	}
+
+	// partitionDesc (StarRocks.g4:2593) names its columns after BY; the
+	// parenthesized list is the form omni reads, so PARTITION BY with
+	// nothing after it is refused.
+	if p.cur.Kind != int('(') {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	// Parse partition column/function list: (col1, func(col2), ...)
