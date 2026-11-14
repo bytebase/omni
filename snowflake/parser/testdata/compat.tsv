@@ -29467,8 +29467,8 @@ accept	accept	docs	copyIntoLocation(copyIntoLocation_internalStage|copyI~187452c
 reject	undocumented	docs	copyIntoLocation(copyIntoLocation_internalStage|copyI~187452c4)/copyIntoLocation_internalStage!truncate	COPY INTO
 reject	undocumented	docs	copyIntoLocation(copyIntoLocation_internalStage|copyI~187452c4)/copyIntoLocation_internalStage!insert	COPY INTO @a zzz FROM a
 accept	accept	docs	copyIntoLocation(copyIntoLocation_internalStage|copyI~187452c4)/copyIntoLocation_externalStage	COPY INTO @a FROM a
-reject	accept	docs	copyIntoLocation(copyIntoLocation_internalStage|copyI~187452c4)/copyIntoLocation_externalLocation	COPY INTO 's' FROM a
-reject	undocumented	docs	copyIntoLocation(copyIntoLocation_internalStage|copyI~187452c4)/copyIntoLocation_externalLocation!insert	COPY INTO 's' zzz FROM a
+accept	accept	docs	copyIntoLocation(copyIntoLocation_internalStage|copyI~187452c4)/copyIntoLocation_externalLocation	COPY INTO 's3://bucket/path/' FROM a
+reject	undocumented	docs	copyIntoLocation(copyIntoLocation_internalStage|copyI~187452c4)/copyIntoLocation_externalLocation!insert	COPY INTO 's3://bucket/path/' zzz FROM a
 accept	accept	docs	copyIntoLocation((ID_._(ID_.)?)?_ID|(_QUERY_))/(ID_._(ID_.)?)?_ID	COPY INTO @a FROM a
 accept	accept	docs	copyIntoLocation((ID_._(ID_.)?)?_ID|(_QUERY_))/(_QUERY_)	COPY INTO @a FROM(SELECT 1)
 reject	undocumented	docs	copyIntoLocation((ID_._(ID_.)?)?_ID|(_QUERY_))/(_QUERY_)!drop-1	COPY INTO @a FROM SELECT 1)
@@ -29577,135 +29577,171 @@ accept	undocumented	docs	copyIntoLocation(TRUE|FALSE)/FALSE!insert	COPY INTO @a 
 accept	undocumented	docs	copyIntoLocation(TRUE|FALSE)/FALSE!swap	COPY INTO @a FROM a HEADER = FAMILIES
 accept	accept	docs	copyIntoLocation_internalStage/STAGE	COPY INTO @a FROM a
 accept	accept	docs	copyIntoLocation_externalStage/STAGE	COPY INTO @a FROM a
-reject	accept	docs	copyIntoLocation_externalLocation/STRING_(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?~407f6802	COPY INTO 's' FROM a
-reject	accept	docs	copyIntoLocation_externalLocation/STRING_(STORAGE_INTEGRATION_=_ID)?_(ENCRYPTION_=_(_((TY~1115dcd9	COPY INTO 's' FROM a
-reject	accept	docs	copyIntoLocation_externalLocation/STRING_(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?~1060e576	COPY INTO 's' FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/%empty	COPY INTO 's' FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/STORAGE_INTEGRATION_=_ID	COPY INTO 's' STORAGE_INTEGRATION = a FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/STORAGE_INTEGRATION_=_ID!drop-1	COPY INTO 's' = a FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/STORAGE_INTEGRATION_=_ID!drop-2	COPY INTO 's' STORAGE_INTEGRATION a FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/STORAGE_INTEGRATION_=_ID!drop-3	COPY INTO 's' STORAGE_INTEGRATION = FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/STORAGE_INTEGRATION_=_ID!truncate	COPY INTO 's' STORAGE_INTEGRATION =
-reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/STORAGE_INTEGRATION_=_ID!insert	COPY INTO 's' STORAGE_INTEGRATION = a zzz FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/STORAGE_INTEGRATION_=_ID!swap	COPY INTO 's' STORAGE_LOCATION = a FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2	COPY INTO 's' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's') FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!drop-1	COPY INTO 's' =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's') FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!drop-2	COPY INTO 's' CREDENTIALS(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's') FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!drop-3	COPY INTO 's' CREDENTIALS = AWS_KEY_ID = 's' AWS_SECRET_KEY = 's') FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!drop-4	COPY INTO 's' CREDENTIALS =(= 's' AWS_SECRET_KEY = 's') FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!drop-5	COPY INTO 's' CREDENTIALS =(AWS_KEY_ID 's' AWS_SECRET_KEY = 's') FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!drop-6	COPY INTO 's' CREDENTIALS =(AWS_KEY_ID = AWS_SECRET_KEY = 's') FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!drop-7	COPY INTO 's' CREDENTIALS =(AWS_KEY_ID = 's' = 's') FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!drop-8	COPY INTO 's' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY 's') FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!drop-9	COPY INTO 's' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY =) FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!drop-10	COPY INTO 's' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's' FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!truncate	COPY INTO 's' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's'
-reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!insert	COPY INTO 's' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's') zzz FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!swap	COPY INTO 's' CREDIT_QUOTA =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's') FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(AWS_TOKEN_=_STRING)?/%empty	COPY INTO 's' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's') FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(AWS_TOKEN_=_STRING)?/%empty!insert	COPY INTO 's' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's' zzz) FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(AWS_TOKEN_=_STRING)?/AWS_TOKEN_=_STRING	COPY INTO 's' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's' AWS_TOKEN = 's') FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(AWS_TOKEN_=_STRING)?/AWS_TOKEN_=_STRING!drop-1	COPY INTO 's' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's' = 's') FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(AWS_TOKEN_=_STRING)?/AWS_TOKEN_=_STRING!drop-2	COPY INTO 's' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's' AWS_TOKEN 's') FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(AWS_TOKEN_=_STRING)?/AWS_TOKEN_=_STRING!drop-3	COPY INTO 's' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's' AWS_TOKEN =) FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(AWS_TOKEN_=_STRING)?/AWS_TOKEN_=_STRING!truncate	COPY INTO 's' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's' AWS_TOKEN =
-reject	undocumented	docs	copyIntoLocation_externalLocation(AWS_TOKEN_=_STRING)?/AWS_TOKEN_=_STRING!insert	COPY INTO 's' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's' AWS_TOKEN = 's' zzz) FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(AWS_TOKEN_=_STRING)?/AWS_TOKEN_=_STRING!swap	COPY INTO 's' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's' AZURE = 's') FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~199ced99)?/%empty	COPY INTO 's' FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~199ced99)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)_)	COPY INTO 's' ENCRYPTION =() FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~199ced99)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)_)!drop-1	COPY INTO 's' =() FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~199ced99)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)_)!drop-2	COPY INTO 's' ENCRYPTION() FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~199ced99)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)_)!drop-3	COPY INTO 's' ENCRYPTION =) FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~199ced99)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)_)!drop-4	COPY INTO 's' ENCRYPTION =(FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~199ced99)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)_)!truncate	COPY INTO 's' ENCRYPTION =(
-reject	undocumented	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~199ced99)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)_)!insert	COPY INTO 's' ENCRYPTION =() zzz FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~199ced99)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)_)!swap	COPY INTO 's' ENDPOINT =() FROM a
-reject	accept	docs	copyIntoLocation_externalLocation((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)/(TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_STRING)?	COPY INTO 's' ENCRYPTION =() FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)/(TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_STRING)?!insert	COPY INTO 's' ENCRYPTION =(zzz) FROM a
-reject	accept	docs	copyIntoLocation_externalLocation((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)/(TYPE_=_'AWS_SSE_S3')?	COPY INTO 's' ENCRYPTION =() FROM a
-reject	accept	docs	copyIntoLocation_externalLocation((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)/(TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?)?	COPY INTO 's' ENCRYPTION =() FROM a
-reject	accept	docs	copyIntoLocation_externalLocation((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)/(TYPE_=_'NONE')?	COPY INTO 's' ENCRYPTION =() FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_CSE')?/%empty	COPY INTO 's' ENCRYPTION =() FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_CSE')?/TYPE_=_'AWS_CSE'	COPY INTO 's' ENCRYPTION =(TYPE = 'AWS_CSE') FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_CSE')?/TYPE_=_'AWS_CSE'!drop-1	COPY INTO 's' ENCRYPTION =(= 'AWS_CSE') FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_CSE')?/TYPE_=_'AWS_CSE'!drop-2	COPY INTO 's' ENCRYPTION =(TYPE 'AWS_CSE') FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_CSE')?/TYPE_=_'AWS_CSE'!drop-3	COPY INTO 's' ENCRYPTION =(TYPE =) FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_CSE')?/TYPE_=_'AWS_CSE'!truncate	COPY INTO 's' ENCRYPTION =(TYPE =
-reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_CSE')?/TYPE_=_'AWS_CSE'!insert	COPY INTO 's' ENCRYPTION =(TYPE = 'AWS_CSE' zzz) FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_CSE')?/TYPE_=_'AWS_CSE'!swap	COPY INTO 's' ENCRYPTION =(TYPES = 'AWS_CSE') FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(MASTER_KEY_=_STRING)?/%empty	COPY INTO 's' ENCRYPTION =() FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(MASTER_KEY_=_STRING)?/MASTER_KEY_=_STRING	COPY INTO 's' ENCRYPTION =(MASTER_KEY = 's') FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(MASTER_KEY_=_STRING)?/MASTER_KEY_=_STRING!drop-1	COPY INTO 's' ENCRYPTION =(= 's') FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(MASTER_KEY_=_STRING)?/MASTER_KEY_=_STRING!drop-2	COPY INTO 's' ENCRYPTION =(MASTER_KEY 's') FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(MASTER_KEY_=_STRING)?/MASTER_KEY_=_STRING!drop-3	COPY INTO 's' ENCRYPTION =(MASTER_KEY =) FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(MASTER_KEY_=_STRING)?/MASTER_KEY_=_STRING!truncate	COPY INTO 's' ENCRYPTION =(MASTER_KEY =
-reject	undocumented	docs	copyIntoLocation_externalLocation(MASTER_KEY_=_STRING)?/MASTER_KEY_=_STRING!insert	COPY INTO 's' ENCRYPTION =(MASTER_KEY = 's' zzz) FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(MASTER_KEY_=_STRING)?/MASTER_KEY_=_STRING!swap	COPY INTO 's' ENCRYPTION =(MATCH = 's') FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_SSE_S3')?/%empty	COPY INTO 's' ENCRYPTION =() FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_SSE_S3')?/TYPE_=_'AWS_SSE_S3'	COPY INTO 's' ENCRYPTION =(TYPE = 'AWS_SSE_S3') FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_SSE_S3')?/TYPE_=_'AWS_SSE_S3'!drop-1	COPY INTO 's' ENCRYPTION =(= 'AWS_SSE_S3') FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_SSE_S3')?/TYPE_=_'AWS_SSE_S3'!drop-2	COPY INTO 's' ENCRYPTION =(TYPE 'AWS_SSE_S3') FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_SSE_S3')?/TYPE_=_'AWS_SSE_S3'!insert	COPY INTO 's' ENCRYPTION =(TYPE = 'AWS_SSE_S3' zzz) FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_SSE_S3')?/TYPE_=_'AWS_SSE_S3'!swap	COPY INTO 's' ENCRYPTION =(TYPES = 'AWS_SSE_S3') FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?)?/%empty	COPY INTO 's' ENCRYPTION =() FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?)?/TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?	COPY INTO 's' ENCRYPTION =(TYPE = 'AWS_SSE_KMS') FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?)?/TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?!drop-1	COPY INTO 's' ENCRYPTION =(= 'AWS_SSE_KMS') FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?)?/TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?!drop-2	COPY INTO 's' ENCRYPTION =(TYPE 'AWS_SSE_KMS') FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?)?/TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?!insert	COPY INTO 's' ENCRYPTION =(TYPE = 'AWS_SSE_KMS' zzz) FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?)?/TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?!swap	COPY INTO 's' ENCRYPTION =(TYPES = 'AWS_SSE_KMS') FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(KMS_KEY_ID_=_STRING)?/%empty	COPY INTO 's' ENCRYPTION =() FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(KMS_KEY_ID_=_STRING)?/KMS_KEY_ID_=_STRING	COPY INTO 's' ENCRYPTION =(KMS_KEY_ID = 's') FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(KMS_KEY_ID_=_STRING)?/KMS_KEY_ID_=_STRING!drop-2	COPY INTO 's' ENCRYPTION =(KMS_KEY_ID 's') FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(KMS_KEY_ID_=_STRING)?/KMS_KEY_ID_=_STRING!drop-3	COPY INTO 's' ENCRYPTION =(KMS_KEY_ID =) FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(KMS_KEY_ID_=_STRING)?/KMS_KEY_ID_=_STRING!truncate	COPY INTO 's' ENCRYPTION =(KMS_KEY_ID =
-reject	undocumented	docs	copyIntoLocation_externalLocation(KMS_KEY_ID_=_STRING)?/KMS_KEY_ID_=_STRING!insert	COPY INTO 's' ENCRYPTION =(KMS_KEY_ID = 's' zzz) FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(KMS_KEY_ID_=_STRING)?/KMS_KEY_ID_=_STRING!swap	COPY INTO 's' ENCRYPTION =(LABEL = 's') FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(TYPE_=_'NONE')?/%empty	COPY INTO 's' ENCRYPTION =() FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(TYPE_=_'NONE')?/TYPE_=_'NONE'	COPY INTO 's' ENCRYPTION =(TYPE = 'NONE') FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'NONE')?/TYPE_=_'NONE'!drop-1	COPY INTO 's' ENCRYPTION =(= 'NONE') FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'NONE')?/TYPE_=_'NONE'!drop-2	COPY INTO 's' ENCRYPTION =(TYPE 'NONE') FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'NONE')?/TYPE_=_'NONE'!insert	COPY INTO 's' ENCRYPTION =(TYPE = 'NONE' zzz) FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'NONE')?/TYPE_=_'NONE'!swap	COPY INTO 's' ENCRYPTION =(TYPES = 'NONE') FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID)?/%empty	COPY INTO 's' FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID)?/STORAGE_INTEGRATION_=_ID	COPY INTO 's' STORAGE_INTEGRATION = a FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS~c96c1507)?/%empty	COPY INTO 's' FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS~c96c1507)?/ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS')?_(KMS_KEY_ID_~1b776b0b)_)	COPY INTO 's' ENCRYPTION =() FROM a
-reject	accept	docs	copyIntoLocation_externalLocation((TYPE_=_'GCS_SSE_KMS')?_(KMS_KEY_ID_~1b776b0b)/(TYPE_=_'GCS_SSE_KMS')?_(KMS_KEY_ID_=_STRING)?	COPY INTO 's' ENCRYPTION =() FROM a
-reject	accept	docs	copyIntoLocation_externalLocation((TYPE_=_'GCS_SSE_KMS')?_(KMS_KEY_ID_~1b776b0b)/(TYPE_=_'NONE')?	COPY INTO 's' ENCRYPTION =() FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(TYPE_=_'GCS_SSE_KMS')?/%empty	COPY INTO 's' ENCRYPTION =() FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(TYPE_=_'GCS_SSE_KMS')?/TYPE_=_'GCS_SSE_KMS'	COPY INTO 's' ENCRYPTION =(TYPE = 'GCS_SSE_KMS') FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'GCS_SSE_KMS')?/TYPE_=_'GCS_SSE_KMS'!drop-1	COPY INTO 's' ENCRYPTION =(= 'GCS_SSE_KMS') FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'GCS_SSE_KMS')?/TYPE_=_'GCS_SSE_KMS'!drop-2	COPY INTO 's' ENCRYPTION =(TYPE 'GCS_SSE_KMS') FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'GCS_SSE_KMS')?/TYPE_=_'GCS_SSE_KMS'!insert	COPY INTO 's' ENCRYPTION =(TYPE = 'GCS_SSE_KMS' zzz) FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'GCS_SSE_KMS')?/TYPE_=_'GCS_SSE_KMS'!swap	COPY INTO 's' ENCRYPTION =(TYPES = 'GCS_SSE_KMS') FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/%empty	COPY INTO 's' FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/STORAGE_INTEGRATION_=_ID	COPY INTO 's' STORAGE_INTEGRATION = a FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)	COPY INTO 's' CREDENTIALS =() FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)!drop-2	COPY INTO 's' CREDENTIALS() FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)!drop-3	COPY INTO 's' CREDENTIALS =) FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)!drop-4	COPY INTO 's' CREDENTIALS =(FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)!truncate	COPY INTO 's' CREDENTIALS =(
-reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)!insert	COPY INTO 's' CREDENTIALS =() zzz FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)!swap	COPY INTO 's' CREDIT_QUOTA =() FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(AZURE_SAS_TOKEN_=_STRING)?/%empty	COPY INTO 's' CREDENTIALS =() FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(AZURE_SAS_TOKEN_=_STRING)?/%empty!insert	COPY INTO 's' CREDENTIALS =(zzz) FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(AZURE_SAS_TOKEN_=_STRING)?/AZURE_SAS_TOKEN_=_STRING	COPY INTO 's' CREDENTIALS =(AZURE_SAS_TOKEN = 's') FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(AZURE_SAS_TOKEN_=_STRING)?/AZURE_SAS_TOKEN_=_STRING!drop-1	COPY INTO 's' CREDENTIALS =(= 's') FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(AZURE_SAS_TOKEN_=_STRING)?/AZURE_SAS_TOKEN_=_STRING!drop-2	COPY INTO 's' CREDENTIALS =(AZURE_SAS_TOKEN 's') FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(AZURE_SAS_TOKEN_=_STRING)?/AZURE_SAS_TOKEN_=_STRING!drop-3	COPY INTO 's' CREDENTIALS =(AZURE_SAS_TOKEN =) FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(AZURE_SAS_TOKEN_=_STRING)?/AZURE_SAS_TOKEN_=_STRING!truncate	COPY INTO 's' CREDENTIALS =(AZURE_SAS_TOKEN =
-reject	undocumented	docs	copyIntoLocation_externalLocation(AZURE_SAS_TOKEN_=_STRING)?/AZURE_SAS_TOKEN_=_STRING!insert	COPY INTO 's' CREDENTIALS =(AZURE_SAS_TOKEN = 's' zzz) FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(AZURE_SAS_TOKEN_=_STRING)?/AZURE_SAS_TOKEN_=_STRING!swap	COPY INTO 's' CREDENTIALS =(AZURE_STORAGE_QUEUE = 's') FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|~8085ade8)?/%empty	COPY INTO 's' FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|~8085ade8)?/ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|'NONE'))?_(MASTER_K~c65f08a5	COPY INTO 's' ENCRYPTION =() FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(TYPE_=_('AZURE_CSE'|'NONE'))?/%empty	COPY INTO 's' ENCRYPTION =() FROM a
-reject	accept	docs	copyIntoLocation_externalLocation(TYPE_=_('AZURE_CSE'|'NONE'))?/TYPE_=_('AZURE_CSE'|'NONE')	COPY INTO 's' ENCRYPTION =(TYPE = 'AZURE_CSE') FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_('AZURE_CSE'|'NONE'))?/TYPE_=_('AZURE_CSE'|'NONE')!drop-1	COPY INTO 's' ENCRYPTION =(= 'AZURE_CSE') FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_('AZURE_CSE'|'NONE'))?/TYPE_=_('AZURE_CSE'|'NONE')!drop-2	COPY INTO 's' ENCRYPTION =(TYPE 'AZURE_CSE') FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_('AZURE_CSE'|'NONE'))?/TYPE_=_('AZURE_CSE'|'NONE')!insert	COPY INTO 's' ENCRYPTION =(TYPE = 'AZURE_CSE' zzz) FROM a
-reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_('AZURE_CSE'|'NONE'))?/TYPE_=_('AZURE_CSE'|'NONE')!swap	COPY INTO 's' ENCRYPTION =(TYPES = 'AZURE_CSE') FROM a
-reject	accept	docs	copyIntoLocation_externalLocation('AZURE_CSE'|'NONE')/'AZURE_CSE'	COPY INTO 's' ENCRYPTION =(TYPE = 'AZURE_CSE') FROM a
-reject	accept	docs	copyIntoLocation_externalLocation('AZURE_CSE'|'NONE')/'NONE'	COPY INTO 's' ENCRYPTION =(TYPE = 'NONE') FROM a
+accept	accept	docs	copyIntoLocation_externalLocation/'s3COLONSLASHSLASHbucketSLASHpathSLASH'_(STORAGE_INTEGR~bed25284	COPY INTO 's3://bucket/path/' FROM a
+accept	accept	docs	copyIntoLocation_externalLocation/'gcsCOLONSLASHSLASHbucketSLASHpathSLASH'_(STORAGE_INTEG~fbee69b9	COPY INTO 'gcs://bucket/path/' FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation/'gcsCOLONSLASHSLASHbucketSLASHpathSLASH'_(STORAGE_INTEG~fbee69b9!insert	COPY INTO 'gcs://bucket/path/' zzz FROM a
+accept	accept	docs	copyIntoLocation_externalLocation/'azureCOLONSLASHSLASHaccount.blob.core.windows.netSLASH~acedb867	COPY INTO 'azure://account.blob.core.windows.net/container/path/' FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation/'azureCOLONSLASHSLASHaccount.blob.core.windows.netSLASH~acedb867!insert	COPY INTO 'azure://account.blob.core.windows.net/container/path/' zzz FROM a
+accept	accept	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/%empty	COPY INTO 's3://bucket/path/' FROM a
+reject	accept	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/STORAGE_INTEGRATION_=_ID	COPY INTO 's3://bucket/path/' STORAGE_INTEGRATION = a FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/STORAGE_INTEGRATION_=_ID!drop-1	COPY INTO 's3://bucket/path/' = a FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/STORAGE_INTEGRATION_=_ID!drop-2	COPY INTO 's3://bucket/path/' STORAGE_INTEGRATION a FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/STORAGE_INTEGRATION_=_ID!drop-3	COPY INTO 's3://bucket/path/' STORAGE_INTEGRATION = FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/STORAGE_INTEGRATION_=_ID!truncate	COPY INTO 's3://bucket/path/' STORAGE_INTEGRATION =
+reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/STORAGE_INTEGRATION_=_ID!insert	COPY INTO 's3://bucket/path/' STORAGE_INTEGRATION = a zzz FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/STORAGE_INTEGRATION_=_ID!swap	COPY INTO 's3://bucket/path/' STORAGE_LOCATION = a FROM a
+reject	accept	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2	COPY INTO 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's') FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!drop-1	COPY INTO 's3://bucket/path/' =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's') FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!drop-2	COPY INTO 's3://bucket/path/' CREDENTIALS(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's') FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!drop-3	COPY INTO 's3://bucket/path/' CREDENTIALS = AWS_KEY_ID = 's' AWS_SECRET_KEY = 's') FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!drop-4	COPY INTO 's3://bucket/path/' CREDENTIALS =(= 's' AWS_SECRET_KEY = 's') FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!drop-5	COPY INTO 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID 's' AWS_SECRET_KEY = 's') FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!drop-6	COPY INTO 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID = AWS_SECRET_KEY = 's') FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!drop-7	COPY INTO 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID = 's' = 's') FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!drop-8	COPY INTO 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY 's') FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!drop-9	COPY INTO 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY =) FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!drop-10	COPY INTO 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's' FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!truncate	COPY INTO 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's'
+reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!insert	COPY INTO 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's') zzz FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!swap	COPY INTO 's3://bucket/path/' CREDIT_QUOTA =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's') FROM a
+reject	accept	docs	copyIntoLocation_externalLocation(AWS_TOKEN_=_STRING)?/%empty	COPY INTO 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's') FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(AWS_TOKEN_=_STRING)?/%empty!insert	COPY INTO 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's' zzz) FROM a
+reject	accept	docs	copyIntoLocation_externalLocation(AWS_TOKEN_=_STRING)?/AWS_TOKEN_=_STRING	COPY INTO 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's' AWS_TOKEN = 's') FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(AWS_TOKEN_=_STRING)?/AWS_TOKEN_=_STRING!drop-1	COPY INTO 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's' = 's') FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(AWS_TOKEN_=_STRING)?/AWS_TOKEN_=_STRING!drop-2	COPY INTO 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's' AWS_TOKEN 's') FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(AWS_TOKEN_=_STRING)?/AWS_TOKEN_=_STRING!drop-3	COPY INTO 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's' AWS_TOKEN =) FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(AWS_TOKEN_=_STRING)?/AWS_TOKEN_=_STRING!truncate	COPY INTO 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's' AWS_TOKEN =
+reject	undocumented	docs	copyIntoLocation_externalLocation(AWS_TOKEN_=_STRING)?/AWS_TOKEN_=_STRING!insert	COPY INTO 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's' AWS_TOKEN = 's' zzz) FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(AWS_TOKEN_=_STRING)?/AWS_TOKEN_=_STRING!swap	COPY INTO 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's' AZURE = 's') FROM a
+accept	accept	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~199ced99)?/%empty	COPY INTO 's3://bucket/path/' FROM a
+reject	accept	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~199ced99)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)_)	COPY INTO 's3://bucket/path/' ENCRYPTION =() FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~199ced99)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)_)!drop-1	COPY INTO 's3://bucket/path/' =() FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~199ced99)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)_)!drop-2	COPY INTO 's3://bucket/path/' ENCRYPTION() FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~199ced99)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)_)!drop-3	COPY INTO 's3://bucket/path/' ENCRYPTION =) FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~199ced99)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)_)!drop-4	COPY INTO 's3://bucket/path/' ENCRYPTION =(FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~199ced99)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)_)!truncate	COPY INTO 's3://bucket/path/' ENCRYPTION =(
+reject	undocumented	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~199ced99)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)_)!insert	COPY INTO 's3://bucket/path/' ENCRYPTION =() zzz FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~199ced99)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)_)!swap	COPY INTO 's3://bucket/path/' ENDPOINT =() FROM a
+reject	accept	docs	copyIntoLocation_externalLocation((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)/(TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_STRING)?	COPY INTO 's3://bucket/path/' ENCRYPTION =() FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)/(TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_STRING)?!insert	COPY INTO 's3://bucket/path/' ENCRYPTION =(zzz) FROM a
+reject	accept	docs	copyIntoLocation_externalLocation((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)/(TYPE_=_'AWS_SSE_S3')?	COPY INTO 's3://bucket/path/' ENCRYPTION =() FROM a
+reject	accept	docs	copyIntoLocation_externalLocation((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)/(TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?)?	COPY INTO 's3://bucket/path/' ENCRYPTION =() FROM a
+reject	accept	docs	copyIntoLocation_externalLocation((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)/(TYPE_=_'NONE')?	COPY INTO 's3://bucket/path/' ENCRYPTION =() FROM a
+reject	accept	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_CSE')?/%empty	COPY INTO 's3://bucket/path/' ENCRYPTION =() FROM a
+reject	accept	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_CSE')?/TYPE_=_'AWS_CSE'	COPY INTO 's3://bucket/path/' ENCRYPTION =(TYPE = 'AWS_CSE') FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_CSE')?/TYPE_=_'AWS_CSE'!drop-1	COPY INTO 's3://bucket/path/' ENCRYPTION =(= 'AWS_CSE') FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_CSE')?/TYPE_=_'AWS_CSE'!drop-2	COPY INTO 's3://bucket/path/' ENCRYPTION =(TYPE 'AWS_CSE') FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_CSE')?/TYPE_=_'AWS_CSE'!drop-3	COPY INTO 's3://bucket/path/' ENCRYPTION =(TYPE =) FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_CSE')?/TYPE_=_'AWS_CSE'!truncate	COPY INTO 's3://bucket/path/' ENCRYPTION =(TYPE =
+reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_CSE')?/TYPE_=_'AWS_CSE'!insert	COPY INTO 's3://bucket/path/' ENCRYPTION =(TYPE = 'AWS_CSE' zzz) FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_CSE')?/TYPE_=_'AWS_CSE'!swap	COPY INTO 's3://bucket/path/' ENCRYPTION =(TYPES = 'AWS_CSE') FROM a
+reject	accept	docs	copyIntoLocation_externalLocation(MASTER_KEY_=_STRING)?/%empty	COPY INTO 's3://bucket/path/' ENCRYPTION =() FROM a
+reject	accept	docs	copyIntoLocation_externalLocation(MASTER_KEY_=_STRING)?/MASTER_KEY_=_STRING	COPY INTO 's3://bucket/path/' ENCRYPTION =(MASTER_KEY = 's') FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(MASTER_KEY_=_STRING)?/MASTER_KEY_=_STRING!drop-1	COPY INTO 's3://bucket/path/' ENCRYPTION =(= 's') FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(MASTER_KEY_=_STRING)?/MASTER_KEY_=_STRING!drop-2	COPY INTO 's3://bucket/path/' ENCRYPTION =(MASTER_KEY 's') FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(MASTER_KEY_=_STRING)?/MASTER_KEY_=_STRING!drop-3	COPY INTO 's3://bucket/path/' ENCRYPTION =(MASTER_KEY =) FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(MASTER_KEY_=_STRING)?/MASTER_KEY_=_STRING!truncate	COPY INTO 's3://bucket/path/' ENCRYPTION =(MASTER_KEY =
+reject	undocumented	docs	copyIntoLocation_externalLocation(MASTER_KEY_=_STRING)?/MASTER_KEY_=_STRING!insert	COPY INTO 's3://bucket/path/' ENCRYPTION =(MASTER_KEY = 's' zzz) FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(MASTER_KEY_=_STRING)?/MASTER_KEY_=_STRING!swap	COPY INTO 's3://bucket/path/' ENCRYPTION =(MATCH = 's') FROM a
+reject	accept	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_SSE_S3')?/%empty	COPY INTO 's3://bucket/path/' ENCRYPTION =() FROM a
+reject	accept	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_SSE_S3')?/TYPE_=_'AWS_SSE_S3'	COPY INTO 's3://bucket/path/' ENCRYPTION =(TYPE = 'AWS_SSE_S3') FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_SSE_S3')?/TYPE_=_'AWS_SSE_S3'!drop-1	COPY INTO 's3://bucket/path/' ENCRYPTION =(= 'AWS_SSE_S3') FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_SSE_S3')?/TYPE_=_'AWS_SSE_S3'!drop-2	COPY INTO 's3://bucket/path/' ENCRYPTION =(TYPE 'AWS_SSE_S3') FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_SSE_S3')?/TYPE_=_'AWS_SSE_S3'!insert	COPY INTO 's3://bucket/path/' ENCRYPTION =(TYPE = 'AWS_SSE_S3' zzz) FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_SSE_S3')?/TYPE_=_'AWS_SSE_S3'!swap	COPY INTO 's3://bucket/path/' ENCRYPTION =(TYPES = 'AWS_SSE_S3') FROM a
+reject	accept	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?)?/%empty	COPY INTO 's3://bucket/path/' ENCRYPTION =() FROM a
+reject	accept	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?)?/TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?	COPY INTO 's3://bucket/path/' ENCRYPTION =(TYPE = 'AWS_SSE_KMS') FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?)?/TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?!drop-1	COPY INTO 's3://bucket/path/' ENCRYPTION =(= 'AWS_SSE_KMS') FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?)?/TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?!drop-2	COPY INTO 's3://bucket/path/' ENCRYPTION =(TYPE 'AWS_SSE_KMS') FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?)?/TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?!insert	COPY INTO 's3://bucket/path/' ENCRYPTION =(TYPE = 'AWS_SSE_KMS' zzz) FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?)?/TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?!swap	COPY INTO 's3://bucket/path/' ENCRYPTION =(TYPES = 'AWS_SSE_KMS') FROM a
+reject	accept	docs	copyIntoLocation_externalLocation(KMS_KEY_ID_=_STRING)?/%empty	COPY INTO 'gcs://bucket/path/' ENCRYPTION =() FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(KMS_KEY_ID_=_STRING)?/%empty!insert	COPY INTO 'gcs://bucket/path/' ENCRYPTION =(zzz) FROM a
+reject	accept	docs	copyIntoLocation_externalLocation(KMS_KEY_ID_=_STRING)?/KMS_KEY_ID_=_STRING	COPY INTO 'gcs://bucket/path/' ENCRYPTION =(KMS_KEY_ID = 's') FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(KMS_KEY_ID_=_STRING)?/KMS_KEY_ID_=_STRING!drop-1	COPY INTO 'gcs://bucket/path/' ENCRYPTION =(= 's') FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(KMS_KEY_ID_=_STRING)?/KMS_KEY_ID_=_STRING!drop-2	COPY INTO 'gcs://bucket/path/' ENCRYPTION =(KMS_KEY_ID 's') FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(KMS_KEY_ID_=_STRING)?/KMS_KEY_ID_=_STRING!drop-3	COPY INTO 'gcs://bucket/path/' ENCRYPTION =(KMS_KEY_ID =) FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(KMS_KEY_ID_=_STRING)?/KMS_KEY_ID_=_STRING!truncate	COPY INTO 'gcs://bucket/path/' ENCRYPTION =(KMS_KEY_ID =
+reject	undocumented	docs	copyIntoLocation_externalLocation(KMS_KEY_ID_=_STRING)?/KMS_KEY_ID_=_STRING!insert	COPY INTO 'gcs://bucket/path/' ENCRYPTION =(KMS_KEY_ID = 's' zzz) FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(KMS_KEY_ID_=_STRING)?/KMS_KEY_ID_=_STRING!swap	COPY INTO 'gcs://bucket/path/' ENCRYPTION =(LABEL = 's') FROM a
+reject	accept	docs	copyIntoLocation_externalLocation(TYPE_=_'NONE')?/%empty	COPY INTO 's3://bucket/path/' ENCRYPTION =() FROM a
+reject	accept	docs	copyIntoLocation_externalLocation(TYPE_=_'NONE')?/TYPE_=_'NONE'	COPY INTO 's3://bucket/path/' ENCRYPTION =(TYPE = 'NONE') FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'NONE')?/TYPE_=_'NONE'!drop-1	COPY INTO 's3://bucket/path/' ENCRYPTION =(= 'NONE') FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'NONE')?/TYPE_=_'NONE'!drop-2	COPY INTO 's3://bucket/path/' ENCRYPTION =(TYPE 'NONE') FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'NONE')?/TYPE_=_'NONE'!insert	COPY INTO 's3://bucket/path/' ENCRYPTION =(TYPE = 'NONE' zzz) FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'NONE')?/TYPE_=_'NONE'!swap	COPY INTO 's3://bucket/path/' ENCRYPTION =(TYPES = 'NONE') FROM a
+accept	accept	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID)?/%empty	COPY INTO 'gcs://bucket/path/' FROM a
+reject	accept	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID)?/STORAGE_INTEGRATION_=_ID	COPY INTO 'gcs://bucket/path/' STORAGE_INTEGRATION = a FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID)?/STORAGE_INTEGRATION_=_ID!drop-1	COPY INTO 'gcs://bucket/path/' = a FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID)?/STORAGE_INTEGRATION_=_ID!drop-2	COPY INTO 'gcs://bucket/path/' STORAGE_INTEGRATION a FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID)?/STORAGE_INTEGRATION_=_ID!drop-3	COPY INTO 'gcs://bucket/path/' STORAGE_INTEGRATION = FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID)?/STORAGE_INTEGRATION_=_ID!truncate	COPY INTO 'gcs://bucket/path/' STORAGE_INTEGRATION =
+reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID)?/STORAGE_INTEGRATION_=_ID!insert	COPY INTO 'gcs://bucket/path/' STORAGE_INTEGRATION = a zzz FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID)?/STORAGE_INTEGRATION_=_ID!swap	COPY INTO 'gcs://bucket/path/' STORAGE_LOCATION = a FROM a
+accept	accept	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS~c96c1507)?/%empty	COPY INTO 'gcs://bucket/path/' FROM a
+reject	accept	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS~c96c1507)?/ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS')?_(KMS_KEY_ID_~1b776b0b)_)	COPY INTO 'gcs://bucket/path/' ENCRYPTION =() FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS~c96c1507)?/ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS')?_(KMS_KEY_ID_~1b776b0b)_)!drop-1	COPY INTO 'gcs://bucket/path/' =() FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS~c96c1507)?/ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS')?_(KMS_KEY_ID_~1b776b0b)_)!drop-2	COPY INTO 'gcs://bucket/path/' ENCRYPTION() FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS~c96c1507)?/ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS')?_(KMS_KEY_ID_~1b776b0b)_)!drop-3	COPY INTO 'gcs://bucket/path/' ENCRYPTION =) FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS~c96c1507)?/ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS')?_(KMS_KEY_ID_~1b776b0b)_)!drop-4	COPY INTO 'gcs://bucket/path/' ENCRYPTION =(FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS~c96c1507)?/ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS')?_(KMS_KEY_ID_~1b776b0b)_)!truncate	COPY INTO 'gcs://bucket/path/' ENCRYPTION =(
+reject	undocumented	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS~c96c1507)?/ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS')?_(KMS_KEY_ID_~1b776b0b)_)!insert	COPY INTO 'gcs://bucket/path/' ENCRYPTION =() zzz FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS~c96c1507)?/ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS')?_(KMS_KEY_ID_~1b776b0b)_)!swap	COPY INTO 'gcs://bucket/path/' ENDPOINT =() FROM a
+reject	accept	docs	copyIntoLocation_externalLocation((TYPE_=_'GCS_SSE_KMS')?_(KMS_KEY_ID_~1b776b0b)/(TYPE_=_'GCS_SSE_KMS')?_(KMS_KEY_ID_=_STRING)?	COPY INTO 'gcs://bucket/path/' ENCRYPTION =() FROM a
+reject	accept	docs	copyIntoLocation_externalLocation((TYPE_=_'GCS_SSE_KMS')?_(KMS_KEY_ID_~1b776b0b)/(TYPE_=_'NONE')?	COPY INTO 'gcs://bucket/path/' ENCRYPTION =() FROM a
+reject	accept	docs	copyIntoLocation_externalLocation(TYPE_=_'GCS_SSE_KMS')?/%empty	COPY INTO 'gcs://bucket/path/' ENCRYPTION =() FROM a
+reject	accept	docs	copyIntoLocation_externalLocation(TYPE_=_'GCS_SSE_KMS')?/TYPE_=_'GCS_SSE_KMS'	COPY INTO 'gcs://bucket/path/' ENCRYPTION =(TYPE = 'GCS_SSE_KMS') FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'GCS_SSE_KMS')?/TYPE_=_'GCS_SSE_KMS'!drop-1	COPY INTO 'gcs://bucket/path/' ENCRYPTION =(= 'GCS_SSE_KMS') FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'GCS_SSE_KMS')?/TYPE_=_'GCS_SSE_KMS'!drop-2	COPY INTO 'gcs://bucket/path/' ENCRYPTION =(TYPE 'GCS_SSE_KMS') FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'GCS_SSE_KMS')?/TYPE_=_'GCS_SSE_KMS'!drop-3	COPY INTO 'gcs://bucket/path/' ENCRYPTION =(TYPE =) FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'GCS_SSE_KMS')?/TYPE_=_'GCS_SSE_KMS'!truncate	COPY INTO 'gcs://bucket/path/' ENCRYPTION =(TYPE =
+reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'GCS_SSE_KMS')?/TYPE_=_'GCS_SSE_KMS'!insert	COPY INTO 'gcs://bucket/path/' ENCRYPTION =(TYPE = 'GCS_SSE_KMS' zzz) FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_'GCS_SSE_KMS')?/TYPE_=_'GCS_SSE_KMS'!swap	COPY INTO 'gcs://bucket/path/' ENCRYPTION =(TYPES = 'GCS_SSE_KMS') FROM a
+accept	accept	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/%empty	COPY INTO 'azure://account.blob.core.windows.net/container/path/' FROM a
+reject	accept	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/STORAGE_INTEGRATION_=_ID	COPY INTO 'azure://account.blob.core.windows.net/container/path/' STORAGE_INTEGRATION = a FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/STORAGE_INTEGRATION_=_ID!drop-1	COPY INTO 'azure://account.blob.core.windows.net/container/path/' = a FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/STORAGE_INTEGRATION_=_ID!drop-2	COPY INTO 'azure://account.blob.core.windows.net/container/path/' STORAGE_INTEGRATION a FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/STORAGE_INTEGRATION_=_ID!drop-3	COPY INTO 'azure://account.blob.core.windows.net/container/path/' STORAGE_INTEGRATION = FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/STORAGE_INTEGRATION_=_ID!truncate	COPY INTO 'azure://account.blob.core.windows.net/container/path/' STORAGE_INTEGRATION =
+reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/STORAGE_INTEGRATION_=_ID!insert	COPY INTO 'azure://account.blob.core.windows.net/container/path/' STORAGE_INTEGRATION = a zzz FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/STORAGE_INTEGRATION_=_ID!swap	COPY INTO 'azure://account.blob.core.windows.net/container/path/' STORAGE_LOCATION = a FROM a
+reject	accept	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)	COPY INTO 'azure://account.blob.core.windows.net/container/path/' CREDENTIALS =() FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)!drop-1	COPY INTO 'azure://account.blob.core.windows.net/container/path/' =() FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)!drop-2	COPY INTO 'azure://account.blob.core.windows.net/container/path/' CREDENTIALS() FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)!drop-3	COPY INTO 'azure://account.blob.core.windows.net/container/path/' CREDENTIALS =) FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)!drop-4	COPY INTO 'azure://account.blob.core.windows.net/container/path/' CREDENTIALS =(FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)!truncate	COPY INTO 'azure://account.blob.core.windows.net/container/path/' CREDENTIALS =(
+reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)!insert	COPY INTO 'azure://account.blob.core.windows.net/container/path/' CREDENTIALS =() zzz FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)!swap	COPY INTO 'azure://account.blob.core.windows.net/container/path/' CREDIT_QUOTA =() FROM a
+reject	accept	docs	copyIntoLocation_externalLocation(AZURE_SAS_TOKEN_=_STRING)?/%empty	COPY INTO 'azure://account.blob.core.windows.net/container/path/' CREDENTIALS =() FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(AZURE_SAS_TOKEN_=_STRING)?/%empty!insert	COPY INTO 'azure://account.blob.core.windows.net/container/path/' CREDENTIALS =(zzz) FROM a
+reject	accept	docs	copyIntoLocation_externalLocation(AZURE_SAS_TOKEN_=_STRING)?/AZURE_SAS_TOKEN_=_STRING	COPY INTO 'azure://account.blob.core.windows.net/container/path/' CREDENTIALS =(AZURE_SAS_TOKEN = 's') FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(AZURE_SAS_TOKEN_=_STRING)?/AZURE_SAS_TOKEN_=_STRING!drop-1	COPY INTO 'azure://account.blob.core.windows.net/container/path/' CREDENTIALS =(= 's') FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(AZURE_SAS_TOKEN_=_STRING)?/AZURE_SAS_TOKEN_=_STRING!drop-2	COPY INTO 'azure://account.blob.core.windows.net/container/path/' CREDENTIALS =(AZURE_SAS_TOKEN 's') FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(AZURE_SAS_TOKEN_=_STRING)?/AZURE_SAS_TOKEN_=_STRING!drop-3	COPY INTO 'azure://account.blob.core.windows.net/container/path/' CREDENTIALS =(AZURE_SAS_TOKEN =) FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(AZURE_SAS_TOKEN_=_STRING)?/AZURE_SAS_TOKEN_=_STRING!truncate	COPY INTO 'azure://account.blob.core.windows.net/container/path/' CREDENTIALS =(AZURE_SAS_TOKEN =
+reject	undocumented	docs	copyIntoLocation_externalLocation(AZURE_SAS_TOKEN_=_STRING)?/AZURE_SAS_TOKEN_=_STRING!insert	COPY INTO 'azure://account.blob.core.windows.net/container/path/' CREDENTIALS =(AZURE_SAS_TOKEN = 's' zzz) FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(AZURE_SAS_TOKEN_=_STRING)?/AZURE_SAS_TOKEN_=_STRING!swap	COPY INTO 'azure://account.blob.core.windows.net/container/path/' CREDENTIALS =(AZURE_STORAGE_QUEUE = 's') FROM a
+accept	accept	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|~8085ade8)?/%empty	COPY INTO 'azure://account.blob.core.windows.net/container/path/' FROM a
+reject	accept	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|~8085ade8)?/ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|'NONE'))?_(MASTER_K~c65f08a5	COPY INTO 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =() FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|~8085ade8)?/ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|'NONE'))?_(MASTER_K~c65f08a5!drop-2	COPY INTO 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION() FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|~8085ade8)?/ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|'NONE'))?_(MASTER_K~c65f08a5!drop-3	COPY INTO 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =) FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|~8085ade8)?/ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|'NONE'))?_(MASTER_K~c65f08a5!drop-4	COPY INTO 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =(FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|~8085ade8)?/ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|'NONE'))?_(MASTER_K~c65f08a5!truncate	COPY INTO 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =(
+reject	undocumented	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|~8085ade8)?/ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|'NONE'))?_(MASTER_K~c65f08a5!insert	COPY INTO 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =() zzz FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|~8085ade8)?/ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|'NONE'))?_(MASTER_K~c65f08a5!swap	COPY INTO 'azure://account.blob.core.windows.net/container/path/' ENDPOINT =() FROM a
+reject	accept	docs	copyIntoLocation_externalLocation(TYPE_=_('AZURE_CSE'|'NONE'))?/%empty	COPY INTO 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =() FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_('AZURE_CSE'|'NONE'))?/%empty!insert	COPY INTO 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =(zzz) FROM a
+reject	accept	docs	copyIntoLocation_externalLocation(TYPE_=_('AZURE_CSE'|'NONE'))?/TYPE_=_('AZURE_CSE'|'NONE')	COPY INTO 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =(TYPE = 'AZURE_CSE') FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_('AZURE_CSE'|'NONE'))?/TYPE_=_('AZURE_CSE'|'NONE')!drop-1	COPY INTO 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =(= 'AZURE_CSE') FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_('AZURE_CSE'|'NONE'))?/TYPE_=_('AZURE_CSE'|'NONE')!drop-2	COPY INTO 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =(TYPE 'AZURE_CSE') FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_('AZURE_CSE'|'NONE'))?/TYPE_=_('AZURE_CSE'|'NONE')!drop-3	COPY INTO 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =(TYPE =) FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_('AZURE_CSE'|'NONE'))?/TYPE_=_('AZURE_CSE'|'NONE')!truncate	COPY INTO 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =(TYPE =
+reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_('AZURE_CSE'|'NONE'))?/TYPE_=_('AZURE_CSE'|'NONE')!insert	COPY INTO 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =(TYPE = 'AZURE_CSE' zzz) FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation(TYPE_=_('AZURE_CSE'|'NONE'))?/TYPE_=_('AZURE_CSE'|'NONE')!swap	COPY INTO 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =(TYPES = 'AZURE_CSE') FROM a
+reject	accept	docs	copyIntoLocation_externalLocation('AZURE_CSE'|'NONE')/'AZURE_CSE'	COPY INTO 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =(TYPE = 'AZURE_CSE') FROM a
+reject	accept	docs	copyIntoLocation_externalLocation('AZURE_CSE'|'NONE')/'NONE'	COPY INTO 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =(TYPE = 'NONE') FROM a
+reject	undocumented	docs	copyIntoLocation_externalLocation('AZURE_CSE'|'NONE')/'NONE'!insert	COPY INTO 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =(TYPE = 'NONE' zzz) FROM a
 accept	accept	docs	copyIntoLocation_formatTypeOptions_CSV/(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~8adb387b)_(,?_(CO~fca1836f	COPY INTO @a FROM a FILE_FORMAT =(TYPE = CSV COMPRESSION = AUTO)
 accept	accept	docs	copyIntoLocation_formatTypeOptions_CSV(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~8adb387b)/COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|ZSTD|DEFLATE|RA~ec9870d1)	COPY INTO @a FROM a FILE_FORMAT =(TYPE = CSV COMPRESSION = AUTO)
 accept	accept	docs	copyIntoLocation_formatTypeOptions_CSV(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~8adb387b)/RECORD_DELIMITER_=_(STRING|NONE)	COPY INTO @a FROM a FILE_FORMAT =(TYPE = CSV RECORD_DELIMITER = 's')
@@ -29999,8 +30035,8 @@ reject	undocumented	docs	copyIntoTable(ID_.)?/ID_.!truncate	COPY INTO a.a
 reject	undocumented	docs	copyIntoTable(ID_.)?/ID_.!insert	COPY INTO a.a.zzz a FROM @a
 accept	accept	docs	copyIntoTable(copyIntoTable_internalStage|copyInto~7d6a35fa)/copyIntoTable_internalStage	COPY INTO a FROM @a
 accept	accept	docs	copyIntoTable(copyIntoTable_internalStage|copyInto~7d6a35fa)/copyIntoTable_externalStage	COPY INTO a FROM @a
-reject	accept	docs	copyIntoTable(copyIntoTable_internalStage|copyInto~7d6a35fa)/copyIntoTable_externalLocation	COPY INTO a FROM 's'
-reject	undocumented	docs	copyIntoTable(copyIntoTable_internalStage|copyInto~7d6a35fa)/copyIntoTable_externalLocation!insert	COPY INTO a FROM 's' zzz
+accept	accept	docs	copyIntoTable(copyIntoTable_internalStage|copyInto~7d6a35fa)/copyIntoTable_externalLocation	COPY INTO a FROM 's3://bucket/path/'
+accept	undocumented	docs	copyIntoTable(copyIntoTable_internalStage|copyInto~7d6a35fa)/copyIntoTable_externalLocation!insert	COPY INTO a FROM 's3://bucket/path/' zzz
 accept	accept	docs	copyIntoTable(FILES_=_(_STRING_(,_STRING)*_))?/%empty	COPY INTO a FROM @a
 accept	accept	docs	copyIntoTable(FILES_=_(_STRING_(,_STRING)*_))?/FILES_=_(_STRING_(,_STRING)*_)	COPY INTO a FROM @a FILES =('s')
 reject	undocumented	docs	copyIntoTable(FILES_=_(_STRING_(,_STRING)*_))?/FILES_=_(_STRING_(,_STRING)*_)!drop-1	COPY INTO a FROM @a =('s')
@@ -30178,131 +30214,163 @@ accept	undocumented	docs	copyIntoTable(copyIntoTable_internalStage|copyInto~84cd
 accept	accept	docs	copyIntoTable(copyIntoTable_internalStage|copyInto~84cd881e)/copyIntoTable_externalStage	COPY INTO a FROM(SELECT $1 FROM @a)
 accept	accept	docs	copyIntoTable_internalStage/STAGE	COPY INTO a FROM @a
 accept	accept	docs	copyIntoTable_externalStage/STAGE	COPY INTO a FROM @a
-reject	accept	docs	copyIntoTable_externalLocation/STRING_(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?~407f6802	COPY INTO a FROM 's'
-reject	accept	docs	copyIntoTable_externalLocation/STRING_(STORAGE_INTEGRATION_=_ID)?_(ENCRYPTION_=_(_((TY~1115dcd9	COPY INTO a FROM 's'
-reject	accept	docs	copyIntoTable_externalLocation/STRING_(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?~1060e576	COPY INTO a FROM 's'
-reject	accept	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/%empty	COPY INTO a FROM 's'
-reject	accept	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/STORAGE_INTEGRATION_=_ID	COPY INTO a FROM 's' STORAGE_INTEGRATION = a
-reject	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/STORAGE_INTEGRATION_=_ID!drop-1	COPY INTO a FROM 's' = a
-reject	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/STORAGE_INTEGRATION_=_ID!drop-2	COPY INTO a FROM 's' STORAGE_INTEGRATION a
-reject	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/STORAGE_INTEGRATION_=_ID!drop-3	COPY INTO a FROM 's' STORAGE_INTEGRATION =
-reject	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/STORAGE_INTEGRATION_=_ID!insert	COPY INTO a FROM 's' STORAGE_INTEGRATION = a zzz
-reject	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/STORAGE_INTEGRATION_=_ID!swap	COPY INTO a FROM 's' STORAGE_LOCATION = a
-reject	accept	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2	COPY INTO a FROM 's' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's')
-reject	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!drop-1	COPY INTO a FROM 's' =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's')
-reject	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!drop-2	COPY INTO a FROM 's' CREDENTIALS(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's')
-reject	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!drop-3	COPY INTO a FROM 's' CREDENTIALS = AWS_KEY_ID = 's' AWS_SECRET_KEY = 's')
-reject	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!drop-4	COPY INTO a FROM 's' CREDENTIALS =(= 's' AWS_SECRET_KEY = 's')
-reject	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!drop-5	COPY INTO a FROM 's' CREDENTIALS =(AWS_KEY_ID 's' AWS_SECRET_KEY = 's')
-reject	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!drop-6	COPY INTO a FROM 's' CREDENTIALS =(AWS_KEY_ID = AWS_SECRET_KEY = 's')
-reject	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!drop-7	COPY INTO a FROM 's' CREDENTIALS =(AWS_KEY_ID = 's' = 's')
-reject	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!drop-8	COPY INTO a FROM 's' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY 's')
-reject	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!drop-9	COPY INTO a FROM 's' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY =)
-reject	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!drop-10	COPY INTO a FROM 's' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's'
-reject	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!insert	COPY INTO a FROM 's' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's') zzz
-reject	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!swap	COPY INTO a FROM 's' CREDIT_QUOTA =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's')
-reject	accept	docs	copyIntoTable_externalLocation(AWS_TOKEN_=_STRING)?/%empty	COPY INTO a FROM 's' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's')
-reject	undocumented	docs	copyIntoTable_externalLocation(AWS_TOKEN_=_STRING)?/%empty!insert	COPY INTO a FROM 's' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's' zzz)
-reject	accept	docs	copyIntoTable_externalLocation(AWS_TOKEN_=_STRING)?/AWS_TOKEN_=_STRING	COPY INTO a FROM 's' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's' AWS_TOKEN = 's')
-reject	undocumented	docs	copyIntoTable_externalLocation(AWS_TOKEN_=_STRING)?/AWS_TOKEN_=_STRING!drop-1	COPY INTO a FROM 's' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's' = 's')
-reject	undocumented	docs	copyIntoTable_externalLocation(AWS_TOKEN_=_STRING)?/AWS_TOKEN_=_STRING!drop-2	COPY INTO a FROM 's' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's' AWS_TOKEN 's')
-reject	undocumented	docs	copyIntoTable_externalLocation(AWS_TOKEN_=_STRING)?/AWS_TOKEN_=_STRING!drop-3	COPY INTO a FROM 's' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's' AWS_TOKEN =)
-reject	undocumented	docs	copyIntoTable_externalLocation(AWS_TOKEN_=_STRING)?/AWS_TOKEN_=_STRING!truncate	COPY INTO a FROM 's' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's' AWS_TOKEN =
-reject	undocumented	docs	copyIntoTable_externalLocation(AWS_TOKEN_=_STRING)?/AWS_TOKEN_=_STRING!insert	COPY INTO a FROM 's' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's' AWS_TOKEN = 's' zzz)
-reject	undocumented	docs	copyIntoTable_externalLocation(AWS_TOKEN_=_STRING)?/AWS_TOKEN_=_STRING!swap	COPY INTO a FROM 's' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's' AZURE = 's')
-reject	accept	docs	copyIntoTable_externalLocation(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~199ced99)?/%empty	COPY INTO a FROM 's'
-reject	accept	docs	copyIntoTable_externalLocation(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~199ced99)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)_)	COPY INTO a FROM 's' ENCRYPTION =()
-reject	undocumented	docs	copyIntoTable_externalLocation(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~199ced99)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)_)!drop-1	COPY INTO a FROM 's' =()
-reject	undocumented	docs	copyIntoTable_externalLocation(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~199ced99)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)_)!drop-2	COPY INTO a FROM 's' ENCRYPTION()
-reject	undocumented	docs	copyIntoTable_externalLocation(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~199ced99)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)_)!drop-3	COPY INTO a FROM 's' ENCRYPTION =)
-reject	undocumented	docs	copyIntoTable_externalLocation(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~199ced99)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)_)!drop-4	COPY INTO a FROM 's' ENCRYPTION =(
-reject	undocumented	docs	copyIntoTable_externalLocation(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~199ced99)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)_)!insert	COPY INTO a FROM 's' ENCRYPTION =() zzz
-reject	undocumented	docs	copyIntoTable_externalLocation(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~199ced99)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)_)!swap	COPY INTO a FROM 's' ENDPOINT =()
-reject	accept	docs	copyIntoTable_externalLocation((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)/(TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_STRING)?	COPY INTO a FROM 's' ENCRYPTION =()
-reject	undocumented	docs	copyIntoTable_externalLocation((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)/(TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_STRING)?!insert	COPY INTO a FROM 's' ENCRYPTION =(zzz)
-reject	accept	docs	copyIntoTable_externalLocation((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)/(TYPE_=_'AWS_SSE_S3')?	COPY INTO a FROM 's' ENCRYPTION =()
-reject	accept	docs	copyIntoTable_externalLocation((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)/(TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?)?	COPY INTO a FROM 's' ENCRYPTION =()
-reject	accept	docs	copyIntoTable_externalLocation((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)/(TYPE_=_'NONE')?	COPY INTO a FROM 's' ENCRYPTION =()
-reject	accept	docs	copyIntoTable_externalLocation(TYPE_=_'AWS_CSE')?/%empty	COPY INTO a FROM 's' ENCRYPTION =()
-reject	accept	docs	copyIntoTable_externalLocation(TYPE_=_'AWS_CSE')?/TYPE_=_'AWS_CSE'	COPY INTO a FROM 's' ENCRYPTION =(TYPE = 'AWS_CSE')
-reject	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_'AWS_CSE')?/TYPE_=_'AWS_CSE'!drop-1	COPY INTO a FROM 's' ENCRYPTION =(= 'AWS_CSE')
-reject	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_'AWS_CSE')?/TYPE_=_'AWS_CSE'!drop-2	COPY INTO a FROM 's' ENCRYPTION =(TYPE 'AWS_CSE')
-reject	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_'AWS_CSE')?/TYPE_=_'AWS_CSE'!drop-3	COPY INTO a FROM 's' ENCRYPTION =(TYPE =)
-reject	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_'AWS_CSE')?/TYPE_=_'AWS_CSE'!truncate	COPY INTO a FROM 's' ENCRYPTION =(TYPE =
-reject	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_'AWS_CSE')?/TYPE_=_'AWS_CSE'!insert	COPY INTO a FROM 's' ENCRYPTION =(TYPE = 'AWS_CSE' zzz)
-reject	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_'AWS_CSE')?/TYPE_=_'AWS_CSE'!swap	COPY INTO a FROM 's' ENCRYPTION =(TYPES = 'AWS_CSE')
-reject	accept	docs	copyIntoTable_externalLocation(MASTER_KEY_=_STRING)?/%empty	COPY INTO a FROM 's' ENCRYPTION =()
-reject	accept	docs	copyIntoTable_externalLocation(MASTER_KEY_=_STRING)?/MASTER_KEY_=_STRING	COPY INTO a FROM 's' ENCRYPTION =(MASTER_KEY = 's')
-reject	undocumented	docs	copyIntoTable_externalLocation(MASTER_KEY_=_STRING)?/MASTER_KEY_=_STRING!drop-1	COPY INTO a FROM 's' ENCRYPTION =(= 's')
-reject	undocumented	docs	copyIntoTable_externalLocation(MASTER_KEY_=_STRING)?/MASTER_KEY_=_STRING!drop-2	COPY INTO a FROM 's' ENCRYPTION =(MASTER_KEY 's')
-reject	undocumented	docs	copyIntoTable_externalLocation(MASTER_KEY_=_STRING)?/MASTER_KEY_=_STRING!drop-3	COPY INTO a FROM 's' ENCRYPTION =(MASTER_KEY =)
-reject	undocumented	docs	copyIntoTable_externalLocation(MASTER_KEY_=_STRING)?/MASTER_KEY_=_STRING!truncate	COPY INTO a FROM 's' ENCRYPTION =(MASTER_KEY =
-reject	undocumented	docs	copyIntoTable_externalLocation(MASTER_KEY_=_STRING)?/MASTER_KEY_=_STRING!insert	COPY INTO a FROM 's' ENCRYPTION =(MASTER_KEY = 's' zzz)
-reject	undocumented	docs	copyIntoTable_externalLocation(MASTER_KEY_=_STRING)?/MASTER_KEY_=_STRING!swap	COPY INTO a FROM 's' ENCRYPTION =(MATCH = 's')
-reject	accept	docs	copyIntoTable_externalLocation(TYPE_=_'AWS_SSE_S3')?/%empty	COPY INTO a FROM 's' ENCRYPTION =()
-reject	accept	docs	copyIntoTable_externalLocation(TYPE_=_'AWS_SSE_S3')?/TYPE_=_'AWS_SSE_S3'	COPY INTO a FROM 's' ENCRYPTION =(TYPE = 'AWS_SSE_S3')
-reject	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_'AWS_SSE_S3')?/TYPE_=_'AWS_SSE_S3'!drop-1	COPY INTO a FROM 's' ENCRYPTION =(= 'AWS_SSE_S3')
-reject	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_'AWS_SSE_S3')?/TYPE_=_'AWS_SSE_S3'!drop-2	COPY INTO a FROM 's' ENCRYPTION =(TYPE 'AWS_SSE_S3')
-reject	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_'AWS_SSE_S3')?/TYPE_=_'AWS_SSE_S3'!insert	COPY INTO a FROM 's' ENCRYPTION =(TYPE = 'AWS_SSE_S3' zzz)
-reject	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_'AWS_SSE_S3')?/TYPE_=_'AWS_SSE_S3'!swap	COPY INTO a FROM 's' ENCRYPTION =(TYPES = 'AWS_SSE_S3')
-reject	accept	docs	copyIntoTable_externalLocation(TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?)?/%empty	COPY INTO a FROM 's' ENCRYPTION =()
-reject	accept	docs	copyIntoTable_externalLocation(TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?)?/TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?	COPY INTO a FROM 's' ENCRYPTION =(TYPE = 'AWS_SSE_KMS')
-reject	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?)?/TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?!drop-1	COPY INTO a FROM 's' ENCRYPTION =(= 'AWS_SSE_KMS')
-reject	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?)?/TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?!drop-2	COPY INTO a FROM 's' ENCRYPTION =(TYPE 'AWS_SSE_KMS')
-reject	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?)?/TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?!insert	COPY INTO a FROM 's' ENCRYPTION =(TYPE = 'AWS_SSE_KMS' zzz)
-reject	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?)?/TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?!swap	COPY INTO a FROM 's' ENCRYPTION =(TYPES = 'AWS_SSE_KMS')
-reject	accept	docs	copyIntoTable_externalLocation(KMS_KEY_ID_=_STRING)?/%empty	COPY INTO a FROM 's' ENCRYPTION =()
-reject	accept	docs	copyIntoTable_externalLocation(KMS_KEY_ID_=_STRING)?/KMS_KEY_ID_=_STRING	COPY INTO a FROM 's' ENCRYPTION =(KMS_KEY_ID = 's')
-reject	undocumented	docs	copyIntoTable_externalLocation(KMS_KEY_ID_=_STRING)?/KMS_KEY_ID_=_STRING!drop-2	COPY INTO a FROM 's' ENCRYPTION =(KMS_KEY_ID 's')
-reject	undocumented	docs	copyIntoTable_externalLocation(KMS_KEY_ID_=_STRING)?/KMS_KEY_ID_=_STRING!drop-3	COPY INTO a FROM 's' ENCRYPTION =(KMS_KEY_ID =)
-reject	undocumented	docs	copyIntoTable_externalLocation(KMS_KEY_ID_=_STRING)?/KMS_KEY_ID_=_STRING!truncate	COPY INTO a FROM 's' ENCRYPTION =(KMS_KEY_ID =
-reject	undocumented	docs	copyIntoTable_externalLocation(KMS_KEY_ID_=_STRING)?/KMS_KEY_ID_=_STRING!insert	COPY INTO a FROM 's' ENCRYPTION =(KMS_KEY_ID = 's' zzz)
-reject	undocumented	docs	copyIntoTable_externalLocation(KMS_KEY_ID_=_STRING)?/KMS_KEY_ID_=_STRING!swap	COPY INTO a FROM 's' ENCRYPTION =(LABEL = 's')
-reject	accept	docs	copyIntoTable_externalLocation(TYPE_=_'NONE')?/%empty	COPY INTO a FROM 's' ENCRYPTION =()
-reject	accept	docs	copyIntoTable_externalLocation(TYPE_=_'NONE')?/TYPE_=_'NONE'	COPY INTO a FROM 's' ENCRYPTION =(TYPE = 'NONE')
-reject	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_'NONE')?/TYPE_=_'NONE'!drop-1	COPY INTO a FROM 's' ENCRYPTION =(= 'NONE')
-reject	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_'NONE')?/TYPE_=_'NONE'!drop-2	COPY INTO a FROM 's' ENCRYPTION =(TYPE 'NONE')
-reject	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_'NONE')?/TYPE_=_'NONE'!insert	COPY INTO a FROM 's' ENCRYPTION =(TYPE = 'NONE' zzz)
-reject	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_'NONE')?/TYPE_=_'NONE'!swap	COPY INTO a FROM 's' ENCRYPTION =(TYPES = 'NONE')
-reject	accept	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID)?/%empty	COPY INTO a FROM 's'
-reject	accept	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID)?/STORAGE_INTEGRATION_=_ID	COPY INTO a FROM 's' STORAGE_INTEGRATION = a
-reject	accept	docs	copyIntoTable_externalLocation(ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS~c96c1507)?/%empty	COPY INTO a FROM 's'
-reject	accept	docs	copyIntoTable_externalLocation(ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS~c96c1507)?/ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS')?_(KMS_KEY_ID_~1b776b0b)_)	COPY INTO a FROM 's' ENCRYPTION =()
-reject	accept	docs	copyIntoTable_externalLocation((TYPE_=_'GCS_SSE_KMS')?_(KMS_KEY_ID_~1b776b0b)/(TYPE_=_'GCS_SSE_KMS')?_(KMS_KEY_ID_=_STRING)?	COPY INTO a FROM 's' ENCRYPTION =()
-reject	accept	docs	copyIntoTable_externalLocation((TYPE_=_'GCS_SSE_KMS')?_(KMS_KEY_ID_~1b776b0b)/(TYPE_=_'NONE')?	COPY INTO a FROM 's' ENCRYPTION =()
-reject	accept	docs	copyIntoTable_externalLocation(TYPE_=_'GCS_SSE_KMS')?/%empty	COPY INTO a FROM 's' ENCRYPTION =()
-reject	accept	docs	copyIntoTable_externalLocation(TYPE_=_'GCS_SSE_KMS')?/TYPE_=_'GCS_SSE_KMS'	COPY INTO a FROM 's' ENCRYPTION =(TYPE = 'GCS_SSE_KMS')
-reject	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_'GCS_SSE_KMS')?/TYPE_=_'GCS_SSE_KMS'!drop-1	COPY INTO a FROM 's' ENCRYPTION =(= 'GCS_SSE_KMS')
-reject	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_'GCS_SSE_KMS')?/TYPE_=_'GCS_SSE_KMS'!drop-2	COPY INTO a FROM 's' ENCRYPTION =(TYPE 'GCS_SSE_KMS')
-reject	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_'GCS_SSE_KMS')?/TYPE_=_'GCS_SSE_KMS'!insert	COPY INTO a FROM 's' ENCRYPTION =(TYPE = 'GCS_SSE_KMS' zzz)
-reject	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_'GCS_SSE_KMS')?/TYPE_=_'GCS_SSE_KMS'!swap	COPY INTO a FROM 's' ENCRYPTION =(TYPES = 'GCS_SSE_KMS')
-reject	accept	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/%empty	COPY INTO a FROM 's'
-reject	accept	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/STORAGE_INTEGRATION_=_ID	COPY INTO a FROM 's' STORAGE_INTEGRATION = a
-reject	accept	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)	COPY INTO a FROM 's' CREDENTIALS =()
-reject	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)!drop-2	COPY INTO a FROM 's' CREDENTIALS()
-reject	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)!drop-3	COPY INTO a FROM 's' CREDENTIALS =)
-reject	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)!drop-4	COPY INTO a FROM 's' CREDENTIALS =(
-reject	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)!insert	COPY INTO a FROM 's' CREDENTIALS =() zzz
-reject	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)!swap	COPY INTO a FROM 's' CREDIT_QUOTA =()
-reject	accept	docs	copyIntoTable_externalLocation(AZURE_SAS_TOKEN_=_STRING)?/%empty	COPY INTO a FROM 's' CREDENTIALS =()
-reject	undocumented	docs	copyIntoTable_externalLocation(AZURE_SAS_TOKEN_=_STRING)?/%empty!insert	COPY INTO a FROM 's' CREDENTIALS =(zzz)
-reject	accept	docs	copyIntoTable_externalLocation(AZURE_SAS_TOKEN_=_STRING)?/AZURE_SAS_TOKEN_=_STRING	COPY INTO a FROM 's' CREDENTIALS =(AZURE_SAS_TOKEN = 's')
-reject	undocumented	docs	copyIntoTable_externalLocation(AZURE_SAS_TOKEN_=_STRING)?/AZURE_SAS_TOKEN_=_STRING!drop-1	COPY INTO a FROM 's' CREDENTIALS =(= 's')
-reject	undocumented	docs	copyIntoTable_externalLocation(AZURE_SAS_TOKEN_=_STRING)?/AZURE_SAS_TOKEN_=_STRING!drop-2	COPY INTO a FROM 's' CREDENTIALS =(AZURE_SAS_TOKEN 's')
-reject	undocumented	docs	copyIntoTable_externalLocation(AZURE_SAS_TOKEN_=_STRING)?/AZURE_SAS_TOKEN_=_STRING!drop-3	COPY INTO a FROM 's' CREDENTIALS =(AZURE_SAS_TOKEN =)
-reject	undocumented	docs	copyIntoTable_externalLocation(AZURE_SAS_TOKEN_=_STRING)?/AZURE_SAS_TOKEN_=_STRING!truncate	COPY INTO a FROM 's' CREDENTIALS =(AZURE_SAS_TOKEN =
-reject	undocumented	docs	copyIntoTable_externalLocation(AZURE_SAS_TOKEN_=_STRING)?/AZURE_SAS_TOKEN_=_STRING!insert	COPY INTO a FROM 's' CREDENTIALS =(AZURE_SAS_TOKEN = 's' zzz)
-reject	undocumented	docs	copyIntoTable_externalLocation(AZURE_SAS_TOKEN_=_STRING)?/AZURE_SAS_TOKEN_=_STRING!swap	COPY INTO a FROM 's' CREDENTIALS =(AZURE_STORAGE_QUEUE = 's')
-reject	accept	docs	copyIntoTable_externalLocation(ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|~8085ade8)?/%empty	COPY INTO a FROM 's'
-reject	accept	docs	copyIntoTable_externalLocation(ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|~8085ade8)?/ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|'NONE'))?_(MASTER_K~c65f08a5	COPY INTO a FROM 's' ENCRYPTION =()
-reject	accept	docs	copyIntoTable_externalLocation(TYPE_=_('AZURE_CSE'|'NONE'))?/%empty	COPY INTO a FROM 's' ENCRYPTION =()
-reject	accept	docs	copyIntoTable_externalLocation(TYPE_=_('AZURE_CSE'|'NONE'))?/TYPE_=_('AZURE_CSE'|'NONE')	COPY INTO a FROM 's' ENCRYPTION =(TYPE = 'AZURE_CSE')
-reject	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_('AZURE_CSE'|'NONE'))?/TYPE_=_('AZURE_CSE'|'NONE')!drop-1	COPY INTO a FROM 's' ENCRYPTION =(= 'AZURE_CSE')
-reject	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_('AZURE_CSE'|'NONE'))?/TYPE_=_('AZURE_CSE'|'NONE')!drop-2	COPY INTO a FROM 's' ENCRYPTION =(TYPE 'AZURE_CSE')
-reject	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_('AZURE_CSE'|'NONE'))?/TYPE_=_('AZURE_CSE'|'NONE')!insert	COPY INTO a FROM 's' ENCRYPTION =(TYPE = 'AZURE_CSE' zzz)
-reject	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_('AZURE_CSE'|'NONE'))?/TYPE_=_('AZURE_CSE'|'NONE')!swap	COPY INTO a FROM 's' ENCRYPTION =(TYPES = 'AZURE_CSE')
-reject	accept	docs	copyIntoTable_externalLocation('AZURE_CSE'|'NONE')/'AZURE_CSE'	COPY INTO a FROM 's' ENCRYPTION =(TYPE = 'AZURE_CSE')
-reject	accept	docs	copyIntoTable_externalLocation('AZURE_CSE'|'NONE')/'NONE'	COPY INTO a FROM 's' ENCRYPTION =(TYPE = 'NONE')
+accept	accept	docs	copyIntoTable_externalLocation/'s3COLONSLASHSLASHbucketSLASHpathSLASH'_(STORAGE_INTEGR~bed25284	COPY INTO a FROM 's3://bucket/path/'
+accept	accept	docs	copyIntoTable_externalLocation/'gcsCOLONSLASHSLASHbucketSLASHpathSLASH'_(STORAGE_INTEG~fbee69b9	COPY INTO a FROM 'gcs://bucket/path/'
+accept	undocumented	docs	copyIntoTable_externalLocation/'gcsCOLONSLASHSLASHbucketSLASHpathSLASH'_(STORAGE_INTEG~fbee69b9!insert	COPY INTO a FROM 'gcs://bucket/path/' zzz
+accept	accept	docs	copyIntoTable_externalLocation/'azureCOLONSLASHSLASHaccount.blob.core.windows.netSLASH~acedb867	COPY INTO a FROM 'azure://account.blob.core.windows.net/container/path/'
+accept	undocumented	docs	copyIntoTable_externalLocation/'azureCOLONSLASHSLASHaccount.blob.core.windows.netSLASH~acedb867!insert	COPY INTO a FROM 'azure://account.blob.core.windows.net/container/path/' zzz
+accept	accept	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/%empty	COPY INTO a FROM 's3://bucket/path/'
+accept	accept	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/STORAGE_INTEGRATION_=_ID	COPY INTO a FROM 's3://bucket/path/' STORAGE_INTEGRATION = a
+reject	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/STORAGE_INTEGRATION_=_ID!drop-1	COPY INTO a FROM 's3://bucket/path/' = a
+accept	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/STORAGE_INTEGRATION_=_ID!drop-2	COPY INTO a FROM 's3://bucket/path/' STORAGE_INTEGRATION a
+reject	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/STORAGE_INTEGRATION_=_ID!drop-3	COPY INTO a FROM 's3://bucket/path/' STORAGE_INTEGRATION =
+accept	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/STORAGE_INTEGRATION_=_ID!insert	COPY INTO a FROM 's3://bucket/path/' STORAGE_INTEGRATION = a zzz
+accept	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/STORAGE_INTEGRATION_=_ID!swap	COPY INTO a FROM 's3://bucket/path/' STORAGE_LOCATION = a
+accept	accept	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2	COPY INTO a FROM 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's')
+reject	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!drop-1	COPY INTO a FROM 's3://bucket/path/' =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's')
+reject	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!drop-2	COPY INTO a FROM 's3://bucket/path/' CREDENTIALS(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's')
+reject	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!drop-3	COPY INTO a FROM 's3://bucket/path/' CREDENTIALS = AWS_KEY_ID = 's' AWS_SECRET_KEY = 's')
+reject	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!drop-4	COPY INTO a FROM 's3://bucket/path/' CREDENTIALS =(= 's' AWS_SECRET_KEY = 's')
+accept	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!drop-5	COPY INTO a FROM 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID 's' AWS_SECRET_KEY = 's')
+reject	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!drop-6	COPY INTO a FROM 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID = AWS_SECRET_KEY = 's')
+reject	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!drop-7	COPY INTO a FROM 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID = 's' = 's')
+accept	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!drop-8	COPY INTO a FROM 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY 's')
+reject	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!drop-9	COPY INTO a FROM 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY =)
+reject	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!drop-10	COPY INTO a FROM 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's'
+accept	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!insert	COPY INTO a FROM 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's') zzz
+accept	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~a69788c5)?/CREDENTIALS_=_(_AWS_KEY_ID_=_STRING_AWS_SECRET_KEY_=_ST~e2f6e5b2!swap	COPY INTO a FROM 's3://bucket/path/' CREDIT_QUOTA =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's')
+accept	accept	docs	copyIntoTable_externalLocation(AWS_TOKEN_=_STRING)?/%empty	COPY INTO a FROM 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's')
+accept	undocumented	docs	copyIntoTable_externalLocation(AWS_TOKEN_=_STRING)?/%empty!insert	COPY INTO a FROM 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's' zzz)
+accept	accept	docs	copyIntoTable_externalLocation(AWS_TOKEN_=_STRING)?/AWS_TOKEN_=_STRING	COPY INTO a FROM 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's' AWS_TOKEN = 's')
+reject	undocumented	docs	copyIntoTable_externalLocation(AWS_TOKEN_=_STRING)?/AWS_TOKEN_=_STRING!drop-1	COPY INTO a FROM 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's' = 's')
+accept	undocumented	docs	copyIntoTable_externalLocation(AWS_TOKEN_=_STRING)?/AWS_TOKEN_=_STRING!drop-2	COPY INTO a FROM 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's' AWS_TOKEN 's')
+reject	undocumented	docs	copyIntoTable_externalLocation(AWS_TOKEN_=_STRING)?/AWS_TOKEN_=_STRING!drop-3	COPY INTO a FROM 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's' AWS_TOKEN =)
+reject	undocumented	docs	copyIntoTable_externalLocation(AWS_TOKEN_=_STRING)?/AWS_TOKEN_=_STRING!truncate	COPY INTO a FROM 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's' AWS_TOKEN =
+accept	undocumented	docs	copyIntoTable_externalLocation(AWS_TOKEN_=_STRING)?/AWS_TOKEN_=_STRING!insert	COPY INTO a FROM 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's' AWS_TOKEN = 's' zzz)
+accept	undocumented	docs	copyIntoTable_externalLocation(AWS_TOKEN_=_STRING)?/AWS_TOKEN_=_STRING!swap	COPY INTO a FROM 's3://bucket/path/' CREDENTIALS =(AWS_KEY_ID = 's' AWS_SECRET_KEY = 's' AZURE = 's')
+accept	accept	docs	copyIntoTable_externalLocation(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~199ced99)?/%empty	COPY INTO a FROM 's3://bucket/path/'
+accept	accept	docs	copyIntoTable_externalLocation(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~199ced99)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)_)	COPY INTO a FROM 's3://bucket/path/' ENCRYPTION =()
+reject	undocumented	docs	copyIntoTable_externalLocation(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~199ced99)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)_)!drop-1	COPY INTO a FROM 's3://bucket/path/' =()
+reject	undocumented	docs	copyIntoTable_externalLocation(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~199ced99)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)_)!drop-2	COPY INTO a FROM 's3://bucket/path/' ENCRYPTION()
+reject	undocumented	docs	copyIntoTable_externalLocation(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~199ced99)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)_)!drop-3	COPY INTO a FROM 's3://bucket/path/' ENCRYPTION =)
+reject	undocumented	docs	copyIntoTable_externalLocation(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~199ced99)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)_)!drop-4	COPY INTO a FROM 's3://bucket/path/' ENCRYPTION =(
+accept	undocumented	docs	copyIntoTable_externalLocation(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~199ced99)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)_)!insert	COPY INTO a FROM 's3://bucket/path/' ENCRYPTION =() zzz
+accept	undocumented	docs	copyIntoTable_externalLocation(ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_~199ced99)?/ENCRYPTION_=_(_((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)_)!swap	COPY INTO a FROM 's3://bucket/path/' ENDPOINT =()
+accept	accept	docs	copyIntoTable_externalLocation((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)/(TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_STRING)?	COPY INTO a FROM 's3://bucket/path/' ENCRYPTION =()
+accept	undocumented	docs	copyIntoTable_externalLocation((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)/(TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_STRING)?!insert	COPY INTO a FROM 's3://bucket/path/' ENCRYPTION =(zzz)
+accept	accept	docs	copyIntoTable_externalLocation((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)/(TYPE_=_'AWS_SSE_S3')?	COPY INTO a FROM 's3://bucket/path/' ENCRYPTION =()
+accept	accept	docs	copyIntoTable_externalLocation((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)/(TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?)?	COPY INTO a FROM 's3://bucket/path/' ENCRYPTION =()
+accept	accept	docs	copyIntoTable_externalLocation((TYPE_=_'AWS_CSE')?_(MASTER_KEY_=_ST~f06d4e9c)/(TYPE_=_'NONE')?	COPY INTO a FROM 's3://bucket/path/' ENCRYPTION =()
+accept	accept	docs	copyIntoTable_externalLocation(TYPE_=_'AWS_CSE')?/%empty	COPY INTO a FROM 's3://bucket/path/' ENCRYPTION =()
+accept	accept	docs	copyIntoTable_externalLocation(TYPE_=_'AWS_CSE')?/TYPE_=_'AWS_CSE'	COPY INTO a FROM 's3://bucket/path/' ENCRYPTION =(TYPE = 'AWS_CSE')
+reject	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_'AWS_CSE')?/TYPE_=_'AWS_CSE'!drop-1	COPY INTO a FROM 's3://bucket/path/' ENCRYPTION =(= 'AWS_CSE')
+accept	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_'AWS_CSE')?/TYPE_=_'AWS_CSE'!drop-2	COPY INTO a FROM 's3://bucket/path/' ENCRYPTION =(TYPE 'AWS_CSE')
+reject	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_'AWS_CSE')?/TYPE_=_'AWS_CSE'!drop-3	COPY INTO a FROM 's3://bucket/path/' ENCRYPTION =(TYPE =)
+reject	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_'AWS_CSE')?/TYPE_=_'AWS_CSE'!truncate	COPY INTO a FROM 's3://bucket/path/' ENCRYPTION =(TYPE =
+accept	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_'AWS_CSE')?/TYPE_=_'AWS_CSE'!insert	COPY INTO a FROM 's3://bucket/path/' ENCRYPTION =(TYPE = 'AWS_CSE' zzz)
+accept	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_'AWS_CSE')?/TYPE_=_'AWS_CSE'!swap	COPY INTO a FROM 's3://bucket/path/' ENCRYPTION =(TYPES = 'AWS_CSE')
+accept	accept	docs	copyIntoTable_externalLocation(MASTER_KEY_=_STRING)?/%empty	COPY INTO a FROM 's3://bucket/path/' ENCRYPTION =()
+accept	accept	docs	copyIntoTable_externalLocation(MASTER_KEY_=_STRING)?/MASTER_KEY_=_STRING	COPY INTO a FROM 's3://bucket/path/' ENCRYPTION =(MASTER_KEY = 's')
+reject	undocumented	docs	copyIntoTable_externalLocation(MASTER_KEY_=_STRING)?/MASTER_KEY_=_STRING!drop-1	COPY INTO a FROM 's3://bucket/path/' ENCRYPTION =(= 's')
+accept	undocumented	docs	copyIntoTable_externalLocation(MASTER_KEY_=_STRING)?/MASTER_KEY_=_STRING!drop-2	COPY INTO a FROM 's3://bucket/path/' ENCRYPTION =(MASTER_KEY 's')
+reject	undocumented	docs	copyIntoTable_externalLocation(MASTER_KEY_=_STRING)?/MASTER_KEY_=_STRING!drop-3	COPY INTO a FROM 's3://bucket/path/' ENCRYPTION =(MASTER_KEY =)
+reject	undocumented	docs	copyIntoTable_externalLocation(MASTER_KEY_=_STRING)?/MASTER_KEY_=_STRING!truncate	COPY INTO a FROM 's3://bucket/path/' ENCRYPTION =(MASTER_KEY =
+accept	undocumented	docs	copyIntoTable_externalLocation(MASTER_KEY_=_STRING)?/MASTER_KEY_=_STRING!insert	COPY INTO a FROM 's3://bucket/path/' ENCRYPTION =(MASTER_KEY = 's' zzz)
+accept	undocumented	docs	copyIntoTable_externalLocation(MASTER_KEY_=_STRING)?/MASTER_KEY_=_STRING!swap	COPY INTO a FROM 's3://bucket/path/' ENCRYPTION =(MATCH = 's')
+accept	accept	docs	copyIntoTable_externalLocation(TYPE_=_'AWS_SSE_S3')?/%empty	COPY INTO a FROM 's3://bucket/path/' ENCRYPTION =()
+accept	accept	docs	copyIntoTable_externalLocation(TYPE_=_'AWS_SSE_S3')?/TYPE_=_'AWS_SSE_S3'	COPY INTO a FROM 's3://bucket/path/' ENCRYPTION =(TYPE = 'AWS_SSE_S3')
+reject	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_'AWS_SSE_S3')?/TYPE_=_'AWS_SSE_S3'!drop-1	COPY INTO a FROM 's3://bucket/path/' ENCRYPTION =(= 'AWS_SSE_S3')
+accept	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_'AWS_SSE_S3')?/TYPE_=_'AWS_SSE_S3'!drop-2	COPY INTO a FROM 's3://bucket/path/' ENCRYPTION =(TYPE 'AWS_SSE_S3')
+accept	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_'AWS_SSE_S3')?/TYPE_=_'AWS_SSE_S3'!insert	COPY INTO a FROM 's3://bucket/path/' ENCRYPTION =(TYPE = 'AWS_SSE_S3' zzz)
+accept	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_'AWS_SSE_S3')?/TYPE_=_'AWS_SSE_S3'!swap	COPY INTO a FROM 's3://bucket/path/' ENCRYPTION =(TYPES = 'AWS_SSE_S3')
+accept	accept	docs	copyIntoTable_externalLocation(TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?)?/%empty	COPY INTO a FROM 's3://bucket/path/' ENCRYPTION =()
+accept	accept	docs	copyIntoTable_externalLocation(TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?)?/TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?	COPY INTO a FROM 's3://bucket/path/' ENCRYPTION =(TYPE = 'AWS_SSE_KMS')
+reject	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?)?/TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?!drop-1	COPY INTO a FROM 's3://bucket/path/' ENCRYPTION =(= 'AWS_SSE_KMS')
+accept	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?)?/TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?!drop-2	COPY INTO a FROM 's3://bucket/path/' ENCRYPTION =(TYPE 'AWS_SSE_KMS')
+accept	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?)?/TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?!insert	COPY INTO a FROM 's3://bucket/path/' ENCRYPTION =(TYPE = 'AWS_SSE_KMS' zzz)
+accept	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?)?/TYPE_=_'AWS_SSE_KMS'_(KMS_KEY_ID_=_STRING)?!swap	COPY INTO a FROM 's3://bucket/path/' ENCRYPTION =(TYPES = 'AWS_SSE_KMS')
+accept	accept	docs	copyIntoTable_externalLocation(KMS_KEY_ID_=_STRING)?/%empty	COPY INTO a FROM 'gcs://bucket/path/' ENCRYPTION =()
+accept	undocumented	docs	copyIntoTable_externalLocation(KMS_KEY_ID_=_STRING)?/%empty!insert	COPY INTO a FROM 'gcs://bucket/path/' ENCRYPTION =(zzz)
+accept	accept	docs	copyIntoTable_externalLocation(KMS_KEY_ID_=_STRING)?/KMS_KEY_ID_=_STRING	COPY INTO a FROM 'gcs://bucket/path/' ENCRYPTION =(KMS_KEY_ID = 's')
+reject	undocumented	docs	copyIntoTable_externalLocation(KMS_KEY_ID_=_STRING)?/KMS_KEY_ID_=_STRING!drop-1	COPY INTO a FROM 'gcs://bucket/path/' ENCRYPTION =(= 's')
+accept	undocumented	docs	copyIntoTable_externalLocation(KMS_KEY_ID_=_STRING)?/KMS_KEY_ID_=_STRING!drop-2	COPY INTO a FROM 'gcs://bucket/path/' ENCRYPTION =(KMS_KEY_ID 's')
+reject	undocumented	docs	copyIntoTable_externalLocation(KMS_KEY_ID_=_STRING)?/KMS_KEY_ID_=_STRING!drop-3	COPY INTO a FROM 'gcs://bucket/path/' ENCRYPTION =(KMS_KEY_ID =)
+reject	undocumented	docs	copyIntoTable_externalLocation(KMS_KEY_ID_=_STRING)?/KMS_KEY_ID_=_STRING!truncate	COPY INTO a FROM 'gcs://bucket/path/' ENCRYPTION =(KMS_KEY_ID =
+accept	undocumented	docs	copyIntoTable_externalLocation(KMS_KEY_ID_=_STRING)?/KMS_KEY_ID_=_STRING!insert	COPY INTO a FROM 'gcs://bucket/path/' ENCRYPTION =(KMS_KEY_ID = 's' zzz)
+accept	undocumented	docs	copyIntoTable_externalLocation(KMS_KEY_ID_=_STRING)?/KMS_KEY_ID_=_STRING!swap	COPY INTO a FROM 'gcs://bucket/path/' ENCRYPTION =(LABEL = 's')
+accept	accept	docs	copyIntoTable_externalLocation(TYPE_=_'NONE')?/%empty	COPY INTO a FROM 's3://bucket/path/' ENCRYPTION =()
+accept	accept	docs	copyIntoTable_externalLocation(TYPE_=_'NONE')?/TYPE_=_'NONE'	COPY INTO a FROM 's3://bucket/path/' ENCRYPTION =(TYPE = 'NONE')
+reject	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_'NONE')?/TYPE_=_'NONE'!drop-1	COPY INTO a FROM 's3://bucket/path/' ENCRYPTION =(= 'NONE')
+accept	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_'NONE')?/TYPE_=_'NONE'!drop-2	COPY INTO a FROM 's3://bucket/path/' ENCRYPTION =(TYPE 'NONE')
+accept	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_'NONE')?/TYPE_=_'NONE'!insert	COPY INTO a FROM 's3://bucket/path/' ENCRYPTION =(TYPE = 'NONE' zzz)
+accept	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_'NONE')?/TYPE_=_'NONE'!swap	COPY INTO a FROM 's3://bucket/path/' ENCRYPTION =(TYPES = 'NONE')
+accept	accept	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID)?/%empty	COPY INTO a FROM 'gcs://bucket/path/'
+accept	accept	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID)?/STORAGE_INTEGRATION_=_ID	COPY INTO a FROM 'gcs://bucket/path/' STORAGE_INTEGRATION = a
+reject	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID)?/STORAGE_INTEGRATION_=_ID!drop-1	COPY INTO a FROM 'gcs://bucket/path/' = a
+accept	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID)?/STORAGE_INTEGRATION_=_ID!drop-2	COPY INTO a FROM 'gcs://bucket/path/' STORAGE_INTEGRATION a
+reject	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID)?/STORAGE_INTEGRATION_=_ID!drop-3	COPY INTO a FROM 'gcs://bucket/path/' STORAGE_INTEGRATION =
+accept	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID)?/STORAGE_INTEGRATION_=_ID!insert	COPY INTO a FROM 'gcs://bucket/path/' STORAGE_INTEGRATION = a zzz
+accept	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID)?/STORAGE_INTEGRATION_=_ID!swap	COPY INTO a FROM 'gcs://bucket/path/' STORAGE_LOCATION = a
+accept	accept	docs	copyIntoTable_externalLocation(ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS~c96c1507)?/%empty	COPY INTO a FROM 'gcs://bucket/path/'
+accept	accept	docs	copyIntoTable_externalLocation(ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS~c96c1507)?/ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS')?_(KMS_KEY_ID_~1b776b0b)_)	COPY INTO a FROM 'gcs://bucket/path/' ENCRYPTION =()
+reject	undocumented	docs	copyIntoTable_externalLocation(ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS~c96c1507)?/ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS')?_(KMS_KEY_ID_~1b776b0b)_)!drop-1	COPY INTO a FROM 'gcs://bucket/path/' =()
+reject	undocumented	docs	copyIntoTable_externalLocation(ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS~c96c1507)?/ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS')?_(KMS_KEY_ID_~1b776b0b)_)!drop-2	COPY INTO a FROM 'gcs://bucket/path/' ENCRYPTION()
+reject	undocumented	docs	copyIntoTable_externalLocation(ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS~c96c1507)?/ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS')?_(KMS_KEY_ID_~1b776b0b)_)!drop-3	COPY INTO a FROM 'gcs://bucket/path/' ENCRYPTION =)
+reject	undocumented	docs	copyIntoTable_externalLocation(ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS~c96c1507)?/ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS')?_(KMS_KEY_ID_~1b776b0b)_)!drop-4	COPY INTO a FROM 'gcs://bucket/path/' ENCRYPTION =(
+accept	undocumented	docs	copyIntoTable_externalLocation(ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS~c96c1507)?/ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS')?_(KMS_KEY_ID_~1b776b0b)_)!insert	COPY INTO a FROM 'gcs://bucket/path/' ENCRYPTION =() zzz
+accept	undocumented	docs	copyIntoTable_externalLocation(ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS~c96c1507)?/ENCRYPTION_=_(_((TYPE_=_'GCS_SSE_KMS')?_(KMS_KEY_ID_~1b776b0b)_)!swap	COPY INTO a FROM 'gcs://bucket/path/' ENDPOINT =()
+accept	accept	docs	copyIntoTable_externalLocation((TYPE_=_'GCS_SSE_KMS')?_(KMS_KEY_ID_~1b776b0b)/(TYPE_=_'GCS_SSE_KMS')?_(KMS_KEY_ID_=_STRING)?	COPY INTO a FROM 'gcs://bucket/path/' ENCRYPTION =()
+accept	accept	docs	copyIntoTable_externalLocation((TYPE_=_'GCS_SSE_KMS')?_(KMS_KEY_ID_~1b776b0b)/(TYPE_=_'NONE')?	COPY INTO a FROM 'gcs://bucket/path/' ENCRYPTION =()
+accept	accept	docs	copyIntoTable_externalLocation(TYPE_=_'GCS_SSE_KMS')?/%empty	COPY INTO a FROM 'gcs://bucket/path/' ENCRYPTION =()
+accept	accept	docs	copyIntoTable_externalLocation(TYPE_=_'GCS_SSE_KMS')?/TYPE_=_'GCS_SSE_KMS'	COPY INTO a FROM 'gcs://bucket/path/' ENCRYPTION =(TYPE = 'GCS_SSE_KMS')
+reject	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_'GCS_SSE_KMS')?/TYPE_=_'GCS_SSE_KMS'!drop-1	COPY INTO a FROM 'gcs://bucket/path/' ENCRYPTION =(= 'GCS_SSE_KMS')
+accept	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_'GCS_SSE_KMS')?/TYPE_=_'GCS_SSE_KMS'!drop-2	COPY INTO a FROM 'gcs://bucket/path/' ENCRYPTION =(TYPE 'GCS_SSE_KMS')
+reject	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_'GCS_SSE_KMS')?/TYPE_=_'GCS_SSE_KMS'!drop-3	COPY INTO a FROM 'gcs://bucket/path/' ENCRYPTION =(TYPE =)
+reject	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_'GCS_SSE_KMS')?/TYPE_=_'GCS_SSE_KMS'!truncate	COPY INTO a FROM 'gcs://bucket/path/' ENCRYPTION =(TYPE =
+accept	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_'GCS_SSE_KMS')?/TYPE_=_'GCS_SSE_KMS'!insert	COPY INTO a FROM 'gcs://bucket/path/' ENCRYPTION =(TYPE = 'GCS_SSE_KMS' zzz)
+accept	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_'GCS_SSE_KMS')?/TYPE_=_'GCS_SSE_KMS'!swap	COPY INTO a FROM 'gcs://bucket/path/' ENCRYPTION =(TYPES = 'GCS_SSE_KMS')
+accept	accept	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/%empty	COPY INTO a FROM 'azure://account.blob.core.windows.net/container/path/'
+accept	accept	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/STORAGE_INTEGRATION_=_ID	COPY INTO a FROM 'azure://account.blob.core.windows.net/container/path/' STORAGE_INTEGRATION = a
+reject	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/STORAGE_INTEGRATION_=_ID!drop-1	COPY INTO a FROM 'azure://account.blob.core.windows.net/container/path/' = a
+accept	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/STORAGE_INTEGRATION_=_ID!drop-2	COPY INTO a FROM 'azure://account.blob.core.windows.net/container/path/' STORAGE_INTEGRATION a
+reject	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/STORAGE_INTEGRATION_=_ID!drop-3	COPY INTO a FROM 'azure://account.blob.core.windows.net/container/path/' STORAGE_INTEGRATION =
+accept	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/STORAGE_INTEGRATION_=_ID!insert	COPY INTO a FROM 'azure://account.blob.core.windows.net/container/path/' STORAGE_INTEGRATION = a zzz
+accept	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/STORAGE_INTEGRATION_=_ID!swap	COPY INTO a FROM 'azure://account.blob.core.windows.net/container/path/' STORAGE_LOCATION = a
+accept	accept	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)	COPY INTO a FROM 'azure://account.blob.core.windows.net/container/path/' CREDENTIALS =()
+reject	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)!drop-1	COPY INTO a FROM 'azure://account.blob.core.windows.net/container/path/' =()
+reject	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)!drop-2	COPY INTO a FROM 'azure://account.blob.core.windows.net/container/path/' CREDENTIALS()
+reject	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)!drop-3	COPY INTO a FROM 'azure://account.blob.core.windows.net/container/path/' CREDENTIALS =)
+reject	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)!drop-4	COPY INTO a FROM 'azure://account.blob.core.windows.net/container/path/' CREDENTIALS =(
+accept	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)!insert	COPY INTO a FROM 'azure://account.blob.core.windows.net/container/path/' CREDENTIALS =() zzz
+accept	undocumented	docs	copyIntoTable_externalLocation(STORAGE_INTEGRATION_=_ID|CREDENTIALS~f48eaec7)?/CREDENTIALS_=_(_(AZURE_SAS_TOKEN_=_STRING)?_)!swap	COPY INTO a FROM 'azure://account.blob.core.windows.net/container/path/' CREDIT_QUOTA =()
+accept	accept	docs	copyIntoTable_externalLocation(AZURE_SAS_TOKEN_=_STRING)?/%empty	COPY INTO a FROM 'azure://account.blob.core.windows.net/container/path/' CREDENTIALS =()
+accept	undocumented	docs	copyIntoTable_externalLocation(AZURE_SAS_TOKEN_=_STRING)?/%empty!insert	COPY INTO a FROM 'azure://account.blob.core.windows.net/container/path/' CREDENTIALS =(zzz)
+accept	accept	docs	copyIntoTable_externalLocation(AZURE_SAS_TOKEN_=_STRING)?/AZURE_SAS_TOKEN_=_STRING	COPY INTO a FROM 'azure://account.blob.core.windows.net/container/path/' CREDENTIALS =(AZURE_SAS_TOKEN = 's')
+reject	undocumented	docs	copyIntoTable_externalLocation(AZURE_SAS_TOKEN_=_STRING)?/AZURE_SAS_TOKEN_=_STRING!drop-1	COPY INTO a FROM 'azure://account.blob.core.windows.net/container/path/' CREDENTIALS =(= 's')
+accept	undocumented	docs	copyIntoTable_externalLocation(AZURE_SAS_TOKEN_=_STRING)?/AZURE_SAS_TOKEN_=_STRING!drop-2	COPY INTO a FROM 'azure://account.blob.core.windows.net/container/path/' CREDENTIALS =(AZURE_SAS_TOKEN 's')
+reject	undocumented	docs	copyIntoTable_externalLocation(AZURE_SAS_TOKEN_=_STRING)?/AZURE_SAS_TOKEN_=_STRING!drop-3	COPY INTO a FROM 'azure://account.blob.core.windows.net/container/path/' CREDENTIALS =(AZURE_SAS_TOKEN =)
+reject	undocumented	docs	copyIntoTable_externalLocation(AZURE_SAS_TOKEN_=_STRING)?/AZURE_SAS_TOKEN_=_STRING!truncate	COPY INTO a FROM 'azure://account.blob.core.windows.net/container/path/' CREDENTIALS =(AZURE_SAS_TOKEN =
+accept	undocumented	docs	copyIntoTable_externalLocation(AZURE_SAS_TOKEN_=_STRING)?/AZURE_SAS_TOKEN_=_STRING!insert	COPY INTO a FROM 'azure://account.blob.core.windows.net/container/path/' CREDENTIALS =(AZURE_SAS_TOKEN = 's' zzz)
+accept	undocumented	docs	copyIntoTable_externalLocation(AZURE_SAS_TOKEN_=_STRING)?/AZURE_SAS_TOKEN_=_STRING!swap	COPY INTO a FROM 'azure://account.blob.core.windows.net/container/path/' CREDENTIALS =(AZURE_STORAGE_QUEUE = 's')
+accept	accept	docs	copyIntoTable_externalLocation(ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|~8085ade8)?/%empty	COPY INTO a FROM 'azure://account.blob.core.windows.net/container/path/'
+accept	accept	docs	copyIntoTable_externalLocation(ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|~8085ade8)?/ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|'NONE'))?_(MASTER_K~c65f08a5	COPY INTO a FROM 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =()
+reject	undocumented	docs	copyIntoTable_externalLocation(ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|~8085ade8)?/ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|'NONE'))?_(MASTER_K~c65f08a5!drop-2	COPY INTO a FROM 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION()
+reject	undocumented	docs	copyIntoTable_externalLocation(ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|~8085ade8)?/ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|'NONE'))?_(MASTER_K~c65f08a5!drop-3	COPY INTO a FROM 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =)
+reject	undocumented	docs	copyIntoTable_externalLocation(ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|~8085ade8)?/ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|'NONE'))?_(MASTER_K~c65f08a5!drop-4	COPY INTO a FROM 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =(
+accept	undocumented	docs	copyIntoTable_externalLocation(ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|~8085ade8)?/ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|'NONE'))?_(MASTER_K~c65f08a5!insert	COPY INTO a FROM 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =() zzz
+accept	undocumented	docs	copyIntoTable_externalLocation(ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|~8085ade8)?/ENCRYPTION_=_(_(TYPE_=_('AZURE_CSE'|'NONE'))?_(MASTER_K~c65f08a5!swap	COPY INTO a FROM 'azure://account.blob.core.windows.net/container/path/' ENDPOINT =()
+accept	accept	docs	copyIntoTable_externalLocation(TYPE_=_('AZURE_CSE'|'NONE'))?/%empty	COPY INTO a FROM 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =()
+accept	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_('AZURE_CSE'|'NONE'))?/%empty!insert	COPY INTO a FROM 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =(zzz)
+accept	accept	docs	copyIntoTable_externalLocation(TYPE_=_('AZURE_CSE'|'NONE'))?/TYPE_=_('AZURE_CSE'|'NONE')	COPY INTO a FROM 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =(TYPE = 'AZURE_CSE')
+reject	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_('AZURE_CSE'|'NONE'))?/TYPE_=_('AZURE_CSE'|'NONE')!drop-1	COPY INTO a FROM 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =(= 'AZURE_CSE')
+accept	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_('AZURE_CSE'|'NONE'))?/TYPE_=_('AZURE_CSE'|'NONE')!drop-2	COPY INTO a FROM 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =(TYPE 'AZURE_CSE')
+reject	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_('AZURE_CSE'|'NONE'))?/TYPE_=_('AZURE_CSE'|'NONE')!drop-3	COPY INTO a FROM 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =(TYPE =)
+reject	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_('AZURE_CSE'|'NONE'))?/TYPE_=_('AZURE_CSE'|'NONE')!truncate	COPY INTO a FROM 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =(TYPE =
+accept	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_('AZURE_CSE'|'NONE'))?/TYPE_=_('AZURE_CSE'|'NONE')!insert	COPY INTO a FROM 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =(TYPE = 'AZURE_CSE' zzz)
+accept	undocumented	docs	copyIntoTable_externalLocation(TYPE_=_('AZURE_CSE'|'NONE'))?/TYPE_=_('AZURE_CSE'|'NONE')!swap	COPY INTO a FROM 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =(TYPES = 'AZURE_CSE')
+accept	accept	docs	copyIntoTable_externalLocation('AZURE_CSE'|'NONE')/'AZURE_CSE'	COPY INTO a FROM 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =(TYPE = 'AZURE_CSE')
+accept	accept	docs	copyIntoTable_externalLocation('AZURE_CSE'|'NONE')/'NONE'	COPY INTO a FROM 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =(TYPE = 'NONE')
+accept	undocumented	docs	copyIntoTable_externalLocation('AZURE_CSE'|'NONE')/'NONE'!insert	COPY INTO a FROM 'azure://account.blob.core.windows.net/container/path/' ENCRYPTION =(TYPE = 'NONE' zzz)
 accept	accept	docs	copyIntoTable_formatTypeOptions_CSV/(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~da065df9)_(,?_(CO~eb51629b	COPY INTO a FROM @a FILE_FORMAT =(TYPE = CSV COMPRESSION = AUTO)
 accept	accept	docs	copyIntoTable_formatTypeOptions_CSV(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~da065df9)/COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|ZSTD|DEFLATE|RA~ec9870d1)	COPY INTO a FROM @a FILE_FORMAT =(TYPE = CSV COMPRESSION = AUTO)
 accept	accept	docs	copyIntoTable_formatTypeOptions_CSV(COMPRESSION_=_(AUTO|GZIP|BZ2|BROTLI|~da065df9)/RECORD_DELIMITER_=_(STRING|NONE)	COPY INTO a FROM @a FILE_FORMAT =(TYPE = CSV RECORD_DELIMITER = 's')
