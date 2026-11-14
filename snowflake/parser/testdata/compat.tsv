@@ -242,7 +242,7 @@ reject	undocumented	docs	statement/alterAuthenticationPolicy!drop-5	ALTER AUTHEN
 reject	undocumented	docs	statement/alterAuthenticationPolicy!drop-6	ALTER AUTHENTICATION POLICY a UNSET
 reject	undocumented	docs	statement/alterAuthenticationPolicy!insert	ALTER AUTHENTICATION POLICY a UNSET AUTHENTICATION_METHODS zzz
 reject	undocumented	docs	statement/alterAuthenticationPolicy!swap	ALWAYS AUTHENTICATION POLICY a UNSET AUTHENTICATION_METHODS
-reject	accept	docs	statement/alterBackupPolicy	ALTER BACKUP POLICY a UNSET COMMENT
+accept	accept	docs	statement/alterBackupPolicy	ALTER BACKUP POLICY a UNSET COMMENT
 reject	undocumented	docs	statement/alterBackupPolicy!drop-1	BACKUP POLICY a UNSET COMMENT
 reject	undocumented	docs	statement/alterBackupPolicy!drop-3	ALTER BACKUP a UNSET COMMENT
 reject	undocumented	docs	statement/alterBackupPolicy!drop-4	ALTER BACKUP POLICY UNSET COMMENT
@@ -250,7 +250,7 @@ reject	undocumented	docs	statement/alterBackupPolicy!drop-5	ALTER BACKUP POLICY 
 reject	undocumented	docs	statement/alterBackupPolicy!drop-6	ALTER BACKUP POLICY a UNSET
 reject	undocumented	docs	statement/alterBackupPolicy!insert	ALTER BACKUP POLICY a UNSET COMMENT zzz
 reject	undocumented	docs	statement/alterBackupPolicy!swap	ALWAYS BACKUP POLICY a UNSET COMMENT
-reject	accept	docs	statement/alterBackupSet	ALTER BACKUP SET a ADD BACKUP
+accept	accept	docs	statement/alterBackupSet	ALTER BACKUP SET a ADD BACKUP
 reject	undocumented	docs	statement/alterBackupSet!drop-1	BACKUP SET a ADD BACKUP
 reject	undocumented	docs	statement/alterBackupSet!drop-2	ALTER SET a ADD BACKUP
 reject	undocumented	docs	statement/alterBackupSet!drop-3	ALTER BACKUP a ADD BACKUP
@@ -303,7 +303,7 @@ reject	undocumented	docs	statement/alterCortexSearch!drop-5	ALTER CORTEX SEARCH 
 reject	undocumented	docs	statement/alterCortexSearch!drop-6	ALTER CORTEX SEARCH SERVICE a
 reject	undocumented	docs	statement/alterCortexSearch!insert	ALTER CORTEX SEARCH SERVICE a SUSPEND zzz
 reject	undocumented	docs	statement/alterCortexSearch!swap	ALWAYS CORTEX SEARCH SERVICE a SUSPEND
-reject	accept	docs	statement/alterDataMovementPolicy	ALTER DATA MOVEMENT POLICY a UNSET COMMENT
+accept	accept	docs	statement/alterDataMovementPolicy	ALTER DATA MOVEMENT POLICY a UNSET COMMENT
 reject	undocumented	docs	statement/alterDataMovementPolicy!drop-1	DATA MOVEMENT POLICY a UNSET COMMENT
 reject	undocumented	docs	statement/alterDataMovementPolicy!drop-2	ALTER MOVEMENT POLICY a UNSET COMMENT
 reject	undocumented	docs	statement/alterDataMovementPolicy!drop-3	ALTER DATA POLICY a UNSET COMMENT
@@ -313,7 +313,7 @@ reject	undocumented	docs	statement/alterDataMovementPolicy!drop-6	ALTER DATA MOV
 reject	undocumented	docs	statement/alterDataMovementPolicy!drop-7	ALTER DATA MOVEMENT POLICY a UNSET
 reject	undocumented	docs	statement/alterDataMovementPolicy!insert	ALTER DATA MOVEMENT POLICY a UNSET COMMENT zzz
 reject	undocumented	docs	statement/alterDataMovementPolicy!swap	ALWAYS DATA MOVEMENT POLICY a UNSET COMMENT
-reject	accept	docs	statement/alterDataMovementRule	ALTER DATA MOVEMENT RULE a UNSET COMMENT
+accept	accept	docs	statement/alterDataMovementRule	ALTER DATA MOVEMENT RULE a UNSET COMMENT
 reject	undocumented	docs	statement/alterDataMovementRule!drop-1	DATA MOVEMENT RULE a UNSET COMMENT
 reject	undocumented	docs	statement/alterDataMovementRule!drop-2	ALTER MOVEMENT RULE a UNSET COMMENT
 reject	undocumented	docs	statement/alterDataMovementRule!drop-3	ALTER DATA RULE a UNSET COMMENT
@@ -1126,7 +1126,7 @@ reject	undocumented	docs	statement/alterShare!drop-4	ALTER SHARE a COMMENT
 reject	undocumented	docs	statement/alterShare!drop-5	ALTER SHARE a UNSET
 accept	undocumented	docs	statement/alterShare!insert	ALTER SHARE a UNSET COMMENT zzz
 reject	undocumented	docs	statement/alterShare!swap	ALWAYS SHARE a UNSET COMMENT
-reject	accept	docs	statement/alterSnapshot	ALTER SNAPSHOT a SET COMMENT = 's'
+accept	accept	docs	statement/alterSnapshot	ALTER SNAPSHOT a SET COMMENT = 's'
 reject	undocumented	docs	statement/alterSnapshot!drop-1	SNAPSHOT a SET COMMENT = 's'
 reject	undocumented	docs	statement/alterSnapshot!drop-2	ALTER a SET COMMENT = 's'
 reject	undocumented	docs	statement/alterSnapshot!drop-3	ALTER SNAPSHOT SET COMMENT = 's'
@@ -1136,7 +1136,7 @@ reject	undocumented	docs	statement/alterSnapshot!drop-6	ALTER SNAPSHOT a SET COM
 reject	undocumented	docs	statement/alterSnapshot!drop-7	ALTER SNAPSHOT a SET COMMENT =
 reject	undocumented	docs	statement/alterSnapshot!insert	ALTER SNAPSHOT a SET COMMENT = 's' zzz
 reject	undocumented	docs	statement/alterSnapshot!swap	ALWAYS SNAPSHOT a SET COMMENT = 's'
-reject	accept	docs	statement/alterSnapshotPolicy	ALTER SNAPSHOT POLICY a UNSET COMMENT
+accept	accept	docs	statement/alterSnapshotPolicy	ALTER SNAPSHOT POLICY a UNSET COMMENT
 reject	undocumented	docs	statement/alterSnapshotPolicy!drop-1	SNAPSHOT POLICY a UNSET COMMENT
 reject	undocumented	docs	statement/alterSnapshotPolicy!drop-3	ALTER SNAPSHOT a UNSET COMMENT
 reject	undocumented	docs	statement/alterSnapshotPolicy!drop-4	ALTER SNAPSHOT POLICY UNSET COMMENT
@@ -1144,7 +1144,7 @@ reject	undocumented	docs	statement/alterSnapshotPolicy!drop-5	ALTER SNAPSHOT POL
 reject	undocumented	docs	statement/alterSnapshotPolicy!drop-6	ALTER SNAPSHOT POLICY a UNSET
 reject	undocumented	docs	statement/alterSnapshotPolicy!insert	ALTER SNAPSHOT POLICY a UNSET COMMENT zzz
 reject	undocumented	docs	statement/alterSnapshotPolicy!swap	ALWAYS SNAPSHOT POLICY a UNSET COMMENT
-reject	accept	docs	statement/alterSnapshotSet	ALTER SNAPSHOT SET a ADD SNAPSHOT
+accept	accept	docs	statement/alterSnapshotSet	ALTER SNAPSHOT SET a ADD SNAPSHOT
 reject	undocumented	docs	statement/alterSnapshotSet!drop-1	SNAPSHOT SET a ADD SNAPSHOT
 reject	undocumented	docs	statement/alterSnapshotSet!drop-2	ALTER SET a ADD SNAPSHOT
 reject	undocumented	docs	statement/alterSnapshotSet!drop-3	ALTER SNAPSHOT a ADD SNAPSHOT
@@ -1161,7 +1161,7 @@ reject	undocumented	docs	statement/alterStage!drop-4	ALTER STAGE a
 accept	undocumented	docs	statement/alterStage!insert	ALTER STAGE a SET zzz
 reject	undocumented	docs	statement/alterStage!swap	ALWAYS STAGE a SET
 accept	accept	docs	statement/alterStorageIntegration	ALTER INTEGRATION a UNSET ENABLED
-reject	accept	docs	statement/alterStorageLifecyclePolicy	ALTER STORAGE LIFECYCLE POLICY a UNSET ARCHIVE_FOR_DAYS
+accept	accept	docs	statement/alterStorageLifecyclePolicy	ALTER STORAGE LIFECYCLE POLICY a UNSET ARCHIVE_FOR_DAYS
 reject	undocumented	docs	statement/alterStorageLifecyclePolicy!drop-1	STORAGE LIFECYCLE POLICY a UNSET ARCHIVE_FOR_DAYS
 reject	undocumented	docs	statement/alterStorageLifecyclePolicy!drop-2	ALTER LIFECYCLE POLICY a UNSET ARCHIVE_FOR_DAYS
 reject	undocumented	docs	statement/alterStorageLifecyclePolicy!drop-3	ALTER STORAGE POLICY a UNSET ARCHIVE_FOR_DAYS
@@ -1535,13 +1535,13 @@ reject	undocumented	docs	statement/createAuthenticationPolicy!drop-3	CREATE AUTH
 reject	undocumented	docs	statement/createAuthenticationPolicy!drop-4	CREATE AUTHENTICATION POLICY
 accept	undocumented	docs	statement/createAuthenticationPolicy!insert	CREATE AUTHENTICATION POLICY a zzz
 reject	undocumented	docs	statement/createAuthenticationPolicy!swap	CREATION AUTHENTICATION POLICY a
-reject	accept	docs	statement/createBackupPolicy	CREATE BACKUP POLICY a
+accept	accept	docs	statement/createBackupPolicy	CREATE BACKUP POLICY a
 reject	undocumented	docs	statement/createBackupPolicy!drop-1	BACKUP POLICY a
 reject	undocumented	docs	statement/createBackupPolicy!drop-3	CREATE BACKUP a
 reject	undocumented	docs	statement/createBackupPolicy!drop-4	CREATE BACKUP POLICY
 reject	undocumented	docs	statement/createBackupPolicy!insert	CREATE BACKUP POLICY a zzz
 reject	undocumented	docs	statement/createBackupPolicy!swap	CREATION BACKUP POLICY a
-reject	accept	docs	statement/createBackupSet	CREATE BACKUP SET a FOR TABLE a
+accept	accept	docs	statement/createBackupSet	CREATE BACKUP SET a FOR TABLE a
 reject	undocumented	docs	statement/createBackupSet!drop-1	BACKUP SET a FOR TABLE a
 reject	undocumented	docs	statement/createBackupSet!drop-2	CREATE SET a FOR TABLE a
 reject	undocumented	docs	statement/createBackupSet!drop-3	CREATE BACKUP a FOR TABLE a
@@ -1868,7 +1868,7 @@ reject	undocumented	docs	statement/createDataMetricFunction!drop-16	CREATE DATA 
 reject	undocumented	docs	statement/createDataMetricFunction!drop-17	CREATE DATA METRIC FUNCTION a(a TABLE(a INT)) RETURNS NUMBER AS
 reject	undocumented	docs	statement/createDataMetricFunction!insert	CREATE DATA METRIC FUNCTION a(a TABLE(a INT)) RETURNS NUMBER AS 's' zzz
 reject	undocumented	docs	statement/createDataMetricFunction!swap	CREATION DATA METRIC FUNCTION a(a TABLE(a INT)) RETURNS NUMBER AS 's'
-reject	accept	docs	statement/createDataMovementPolicy	CREATE DATA MOVEMENT POLICY a
+accept	accept	docs	statement/createDataMovementPolicy	CREATE DATA MOVEMENT POLICY a
 reject	undocumented	docs	statement/createDataMovementPolicy!drop-1	DATA MOVEMENT POLICY a
 reject	undocumented	docs	statement/createDataMovementPolicy!drop-2	CREATE MOVEMENT POLICY a
 reject	undocumented	docs	statement/createDataMovementPolicy!drop-3	CREATE DATA POLICY a
@@ -2962,13 +2962,13 @@ reject	undocumented	docs	statement/createSnapshot!drop-9	CREATE SNAPSHOT a FROM 
 reject	undocumented	docs	statement/createSnapshot!drop-10	CREATE SNAPSHOT a FROM SERVICE a VOLUME a INSTANCE
 reject	undocumented	docs	statement/createSnapshot!insert	CREATE SNAPSHOT a FROM SERVICE a VOLUME a INSTANCE a zzz
 reject	undocumented	docs	statement/createSnapshot!swap	CREATION SNAPSHOT a FROM SERVICE a VOLUME a INSTANCE a
-reject	accept	docs	statement/createSnapshotPolicy	CREATE SNAPSHOT POLICY a
+accept	accept	docs	statement/createSnapshotPolicy	CREATE SNAPSHOT POLICY a
 reject	undocumented	docs	statement/createSnapshotPolicy!drop-1	SNAPSHOT POLICY a
 reject	undocumented	docs	statement/createSnapshotPolicy!drop-3	CREATE SNAPSHOT a
 reject	undocumented	docs	statement/createSnapshotPolicy!drop-4	CREATE SNAPSHOT POLICY
 reject	undocumented	docs	statement/createSnapshotPolicy!insert	CREATE SNAPSHOT POLICY a zzz
 reject	undocumented	docs	statement/createSnapshotPolicy!swap	CREATION SNAPSHOT POLICY a
-reject	accept	docs	statement/createSnapshotSet	CREATE SNAPSHOT SET a FOR TABLE a
+accept	accept	docs	statement/createSnapshotSet	CREATE SNAPSHOT SET a FOR TABLE a
 reject	undocumented	docs	statement/createSnapshotSet!drop-1	SNAPSHOT SET a FOR TABLE a
 reject	undocumented	docs	statement/createSnapshotSet!drop-3	CREATE SNAPSHOT a FOR TABLE a
 reject	undocumented	docs	statement/createSnapshotSet!drop-4	CREATE SNAPSHOT SET FOR TABLE a
@@ -3621,12 +3621,12 @@ reject	undocumented	docs	statement/dropAuthenticationPolicy!drop-3	DROP AUTHENTI
 reject	undocumented	docs	statement/dropAuthenticationPolicy!drop-4	DROP AUTHENTICATION POLICY
 reject	undocumented	docs	statement/dropAuthenticationPolicy!insert	DROP AUTHENTICATION POLICY a zzz
 reject	undocumented	docs	statement/dropAuthenticationPolicy!swap	DROP_FROM_SOURCE_CATALOG AUTHENTICATION POLICY a
-reject	accept	docs	statement/dropBackupPolicy	DROP BACKUP POLICY a
+accept	accept	docs	statement/dropBackupPolicy	DROP BACKUP POLICY a
 reject	undocumented	docs	statement/dropBackupPolicy!drop-3	DROP BACKUP a
 reject	undocumented	docs	statement/dropBackupPolicy!drop-4	DROP BACKUP POLICY
 reject	undocumented	docs	statement/dropBackupPolicy!insert	DROP BACKUP POLICY a zzz
 reject	undocumented	docs	statement/dropBackupPolicy!swap	DROP_FROM_SOURCE_CATALOG BACKUP POLICY a
-reject	accept	docs	statement/dropBackupSet	DROP BACKUP SET a
+accept	accept	docs	statement/dropBackupSet	DROP BACKUP SET a
 reject	undocumented	docs	statement/dropBackupSet!drop-2	DROP SET a
 reject	undocumented	docs	statement/dropBackupSet!drop-4	DROP BACKUP SET
 reject	undocumented	docs	statement/dropBackupSet!insert	DROP BACKUP SET a zzz
@@ -3657,14 +3657,14 @@ reject	undocumented	docs	statement/dropCortexSearch!drop-4	DROP CORTEX SEARCH a
 reject	undocumented	docs	statement/dropCortexSearch!drop-5	DROP CORTEX SEARCH SERVICE
 reject	undocumented	docs	statement/dropCortexSearch!insert	DROP CORTEX SEARCH SERVICE a zzz
 reject	undocumented	docs	statement/dropCortexSearch!swap	DROP_FROM_SOURCE_CATALOG CORTEX SEARCH SERVICE a
-reject	accept	docs	statement/dropDataMovementPolicy	DROP DATA MOVEMENT POLICY a
+accept	accept	docs	statement/dropDataMovementPolicy	DROP DATA MOVEMENT POLICY a
 reject	undocumented	docs	statement/dropDataMovementPolicy!drop-2	DROP MOVEMENT POLICY a
 reject	undocumented	docs	statement/dropDataMovementPolicy!drop-3	DROP DATA POLICY a
 reject	undocumented	docs	statement/dropDataMovementPolicy!drop-4	DROP DATA MOVEMENT a
 reject	undocumented	docs	statement/dropDataMovementPolicy!drop-5	DROP DATA MOVEMENT POLICY
 reject	undocumented	docs	statement/dropDataMovementPolicy!insert	DROP DATA MOVEMENT POLICY a zzz
 reject	undocumented	docs	statement/dropDataMovementPolicy!swap	DROP_FROM_SOURCE_CATALOG DATA MOVEMENT POLICY a
-reject	accept	docs	statement/dropDataMovementRule	DROP DATA MOVEMENT RULE a
+accept	accept	docs	statement/dropDataMovementRule	DROP DATA MOVEMENT RULE a
 reject	undocumented	docs	statement/dropDataMovementRule!drop-2	DROP MOVEMENT RULE a
 reject	undocumented	docs	statement/dropDataMovementRule!drop-3	DROP DATA RULE a
 reject	undocumented	docs	statement/dropDataMovementRule!drop-5	DROP DATA MOVEMENT RULE
@@ -4013,15 +4013,15 @@ accept	accept	docs	statement/dropShare	DROP SHARE a
 reject	undocumented	docs	statement/dropShare!drop-3	DROP SHARE
 reject	undocumented	docs	statement/dropShare!insert	DROP SHARE a zzz
 reject	undocumented	docs	statement/dropShare!swap	DROP_FROM_SOURCE_CATALOG SHARE a
-reject	accept	docs	statement/dropSnapshot	DROP SNAPSHOT a
+accept	accept	docs	statement/dropSnapshot	DROP SNAPSHOT a
 reject	undocumented	docs	statement/dropSnapshot!drop-3	DROP SNAPSHOT
 reject	undocumented	docs	statement/dropSnapshot!insert	DROP SNAPSHOT a zzz
 reject	undocumented	docs	statement/dropSnapshot!swap	DROP_FROM_SOURCE_CATALOG SNAPSHOT a
-reject	accept	docs	statement/dropSnapshotPolicy	DROP SNAPSHOT POLICY a
+accept	accept	docs	statement/dropSnapshotPolicy	DROP SNAPSHOT POLICY a
 reject	accept	docs	statement/dropSnapshotPolicy!drop-4	DROP SNAPSHOT POLICY
 reject	undocumented	docs	statement/dropSnapshotPolicy!insert	DROP SNAPSHOT POLICY a zzz
 reject	undocumented	docs	statement/dropSnapshotPolicy!swap	DROP_FROM_SOURCE_CATALOG SNAPSHOT POLICY a
-reject	accept	docs	statement/dropSnapshotSet	DROP SNAPSHOT SET a
+accept	accept	docs	statement/dropSnapshotSet	DROP SNAPSHOT SET a
 reject	undocumented	docs	statement/dropSnapshotSet!drop-4	DROP SNAPSHOT SET
 reject	undocumented	docs	statement/dropSnapshotSet!insert	DROP SNAPSHOT SET a zzz
 reject	undocumented	docs	statement/dropSnapshotSet!swap	DROP_FROM_SOURCE_CATALOG SNAPSHOT SET a
@@ -4029,7 +4029,7 @@ accept	accept	docs	statement/dropStage	DROP STAGE a
 reject	undocumented	docs	statement/dropStage!drop-3	DROP STAGE
 reject	undocumented	docs	statement/dropStage!insert	DROP STAGE a zzz
 reject	undocumented	docs	statement/dropStage!swap	DROP_FROM_SOURCE_CATALOG STAGE a
-reject	accept	docs	statement/dropStorageLifecyclePolicy	DROP STORAGE LIFECYCLE POLICY a
+accept	accept	docs	statement/dropStorageLifecyclePolicy	DROP STORAGE LIFECYCLE POLICY a
 reject	undocumented	docs	statement/dropStorageLifecyclePolicy!drop-2	DROP LIFECYCLE POLICY a
 reject	undocumented	docs	statement/dropStorageLifecyclePolicy!drop-3	DROP STORAGE POLICY a
 reject	undocumented	docs	statement/dropStorageLifecyclePolicy!drop-4	DROP STORAGE LIFECYCLE a
@@ -4551,7 +4551,7 @@ reject	undocumented	docs	statement/showBackupSets!drop-1	BACKUP SETS
 accept	undocumented	docs	statement/showBackupSets!drop-2	SHOW SETS
 accept	undocumented	docs	statement/showBackupSets!insert	SHOW BACKUP SETS zzz
 reject	undocumented	docs	statement/showBackupSets!swap	SHOW_INITIAL_ROWS BACKUP SETS
-reject	accept	docs	statement/showBackupsInBackupSet	SHOW BACKUPS IN BACKUP SET a
+accept	accept	docs	statement/showBackupsInBackupSet	SHOW BACKUPS IN BACKUP SET a
 reject	undocumented	docs	statement/showBackupsInBackupSet!drop-1	BACKUPS IN BACKUP SET a
 reject	undocumented	docs	statement/showBackupsInBackupSet!drop-2	SHOW IN BACKUP SET a
 accept	undocumented	docs	statement/showBackupsInBackupSet!drop-3	SHOW BACKUPS BACKUP SET a
@@ -5408,7 +5408,7 @@ accept	accept	docs	statement/showSnapshots	SHOW SNAPSHOTS
 reject	undocumented	docs	statement/showSnapshots!drop-1	SNAPSHOTS
 accept	undocumented	docs	statement/showSnapshots!insert	SHOW SNAPSHOTS zzz
 reject	undocumented	docs	statement/showSnapshots!swap	SHOW_INITIAL_ROWS SNAPSHOTS
-reject	accept	docs	statement/showSnapshotsInSnapshotSet	SHOW SNAPSHOTS IN SNAPSHOT SET a
+accept	accept	docs	statement/showSnapshotsInSnapshotSet	SHOW SNAPSHOTS IN SNAPSHOT SET a
 reject	undocumented	docs	statement/showSnapshotsInSnapshotSet!drop-1	SNAPSHOTS IN SNAPSHOT SET a
 reject	undocumented	docs	statement/showSnapshotsInSnapshotSet!drop-2	SHOW IN SNAPSHOT SET a
 accept	undocumented	docs	statement/showSnapshotsInSnapshotSet!drop-3	SHOW SNAPSHOTS SNAPSHOT SET a
@@ -5821,7 +5821,7 @@ accept	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_MAINTENANCE_POLICY_FOR
 accept	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_MAINTENANCE_POLICY_FOR_ALL_APPLICATIONS!drop-8	ALTER ACCOUNT UNSET MAINTENANCE POLICY FOR ALL
 accept	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_MAINTENANCE_POLICY_FOR_ALL_APPLICATIONS!insert	ALTER ACCOUNT UNSET MAINTENANCE POLICY FOR ALL APPLICATIONS zzz
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_MAINTENANCE_POLICY_FOR_ALL_APPLICATIONS!swap	ALWAYS ACCOUNT UNSET MAINTENANCE POLICY FOR ALL APPLICATIONS
-reject	accept	docs	alterAccount/ALTER_ACCOUNT_SET_DATA_MOVEMENT_POLICY_QNAME_(FORCE)?	ALTER ACCOUNT SET DATA MOVEMENT POLICY a
+accept	accept	docs	alterAccount/ALTER_ACCOUNT_SET_DATA_MOVEMENT_POLICY_QNAME_(FORCE)?	ALTER ACCOUNT SET DATA MOVEMENT POLICY a
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_SET_DATA_MOVEMENT_POLICY_QNAME_(FORCE)?!drop-1	ACCOUNT SET DATA MOVEMENT POLICY a
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_SET_DATA_MOVEMENT_POLICY_QNAME_(FORCE)?!drop-2	ALTER SET DATA MOVEMENT POLICY a
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_SET_DATA_MOVEMENT_POLICY_QNAME_(FORCE)?!drop-3	ALTER ACCOUNT DATA MOVEMENT POLICY a
@@ -5838,7 +5838,7 @@ reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_DATA_MOVEMENT_POLICY!d
 accept	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_DATA_MOVEMENT_POLICY!drop-4	ALTER ACCOUNT UNSET MOVEMENT POLICY
 accept	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_DATA_MOVEMENT_POLICY!drop-5	ALTER ACCOUNT UNSET DATA POLICY
 accept	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_DATA_MOVEMENT_POLICY!drop-6	ALTER ACCOUNT UNSET DATA MOVEMENT
-accept	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_DATA_MOVEMENT_POLICY!insert	ALTER ACCOUNT UNSET DATA MOVEMENT POLICY zzz
+reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_DATA_MOVEMENT_POLICY!insert	ALTER ACCOUNT UNSET DATA MOVEMENT POLICY zzz
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_DATA_MOVEMENT_POLICY!swap	ALWAYS ACCOUNT UNSET DATA MOVEMENT POLICY
 accept	accept	docs	alterAccount/ALTER_ACCOUNT_SET_(PACKAGES|PASSWORD|MULTI_PARTY_APPROV~1ea3fb7c	ALTER ACCOUNT SET PACKAGES POLICY a
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_SET_(PACKAGES|PASSWORD|MULTI_PARTY_APPROV~1ea3fb7c!drop-1	ACCOUNT SET PACKAGES POLICY a
@@ -9244,7 +9244,7 @@ reject	undocumented	docs	alterAuthenticationPolicy(,_(AUTHENTICATION_METHODS|CLI
 reject	undocumented	docs	alterAuthenticationPolicy(,_(AUTHENTICATION_METHODS|CLIENT_TYP~08e8ce0d)*/,_(AUTHENTICATION_METHODS|CLIENT_TYPES|~db8dfe21)_(,_(A~6e5f67ba!drop-2	ALTER AUTHENTICATION POLICY a UNSET AUTHENTICATION_METHODS,
 reject	undocumented	docs	alterAuthenticationPolicy(,_(AUTHENTICATION_METHODS|CLIENT_TYP~08e8ce0d)*/,_(AUTHENTICATION_METHODS|CLIENT_TYPES|~db8dfe21)_(,_(A~6e5f67ba!insert	ALTER AUTHENTICATION POLICY a UNSET AUTHENTICATION_METHODS, AUTHENTICATION_METHODS zzz
 accept	undocumented	docs	alterAuthenticationPolicy(,_(AUTHENTICATION_METHODS|CLIENT_TYP~08e8ce0d)*/,_(AUTHENTICATION_METHODS|CLIENT_TYPES|~db8dfe21)_(,_(A~6e5f67ba!swap	ALTER AUTHENTICATION POLICY a UNSET AUTHENTICATION_METHODS, AUTHENTICATION_PROPERTIES
-reject	accept	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_RENAME_TO_QNAME	ALTER BACKUP POLICY a RENAME TO a
+accept	accept	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_RENAME_TO_QNAME	ALTER BACKUP POLICY a RENAME TO a
 reject	undocumented	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_RENAME_TO_QNAME!drop-1	BACKUP POLICY a RENAME TO a
 reject	undocumented	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_RENAME_TO_QNAME!drop-3	ALTER BACKUP a RENAME TO a
 reject	undocumented	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_RENAME_TO_QNAME!drop-4	ALTER BACKUP POLICY RENAME TO a
@@ -9253,7 +9253,7 @@ reject	undocumented	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_RENAME_TO_Q
 reject	undocumented	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_RENAME_TO_QNAME!drop-7	ALTER BACKUP POLICY a RENAME TO
 reject	undocumented	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_RENAME_TO_QNAME!insert	ALTER BACKUP POLICY a RENAME TO a zzz
 reject	undocumented	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_RENAME_TO_QNAME!swap	ALWAYS BACKUP POLICY a RENAME TO a
-reject	accept	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_SET_(COMMENT_=_STRING_(SCHEDU~3b605bfc	ALTER BACKUP POLICY a SET COMMENT = 's'
+accept	accept	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_SET_(COMMENT_=_STRING_(SCHEDU~3b605bfc	ALTER BACKUP POLICY a SET COMMENT = 's'
 reject	undocumented	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_SET_(COMMENT_=_STRING_(SCHEDU~3b605bfc!drop-1	BACKUP POLICY a SET COMMENT = 's'
 reject	undocumented	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_SET_(COMMENT_=_STRING_(SCHEDU~3b605bfc!drop-3	ALTER BACKUP a SET COMMENT = 's'
 reject	undocumented	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_SET_(COMMENT_=_STRING_(SCHEDU~3b605bfc!drop-4	ALTER BACKUP POLICY SET COMMENT = 's'
@@ -9263,8 +9263,8 @@ reject	undocumented	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_SET_(COMMEN
 reject	undocumented	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_SET_(COMMENT_=_STRING_(SCHEDU~3b605bfc!drop-8	ALTER BACKUP POLICY a SET COMMENT =
 reject	undocumented	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_SET_(COMMENT_=_STRING_(SCHEDU~3b605bfc!insert	ALTER BACKUP POLICY a SET COMMENT = 's' zzz
 reject	undocumented	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_SET_(COMMENT_=_STRING_(SCHEDU~3b605bfc!swap	ALWAYS BACKUP POLICY a SET COMMENT = 's'
-reject	accept	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_UNSET_(COMMENT|SCHEDULE|EXPIR~f6064383	ALTER BACKUP POLICY a UNSET COMMENT
-reject	accept	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_SET_TAG_QNAME_=_STRING_(,_QNA~092870cc	ALTER BACKUP POLICY a SET TAG a = 's'
+accept	accept	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_UNSET_(COMMENT|SCHEDULE|EXPIR~f6064383	ALTER BACKUP POLICY a UNSET COMMENT
+accept	accept	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_SET_TAG_QNAME_=_STRING_(,_QNA~092870cc	ALTER BACKUP POLICY a SET TAG a = 's'
 reject	undocumented	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_SET_TAG_QNAME_=_STRING_(,_QNA~092870cc!drop-1	BACKUP POLICY a SET TAG a = 's'
 reject	undocumented	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_SET_TAG_QNAME_=_STRING_(,_QNA~092870cc!drop-3	ALTER BACKUP a SET TAG a = 's'
 reject	undocumented	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_SET_TAG_QNAME_=_STRING_(,_QNA~092870cc!drop-4	ALTER BACKUP POLICY SET TAG a = 's'
@@ -9275,7 +9275,7 @@ reject	undocumented	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_SET_TAG_QNA
 reject	undocumented	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_SET_TAG_QNAME_=_STRING_(,_QNA~092870cc!drop-9	ALTER BACKUP POLICY a SET TAG a =
 reject	undocumented	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_SET_TAG_QNAME_=_STRING_(,_QNA~092870cc!insert	ALTER BACKUP POLICY a SET TAG a = 's' zzz
 reject	undocumented	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_SET_TAG_QNAME_=_STRING_(,_QNA~092870cc!swap	ALWAYS BACKUP POLICY a SET TAG a = 's'
-reject	accept	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_UNSET_TAG_QNAME_(,_QNAME)*	ALTER BACKUP POLICY a UNSET TAG a
+accept	accept	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_UNSET_TAG_QNAME_(,_QNAME)*	ALTER BACKUP POLICY a UNSET TAG a
 reject	undocumented	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!drop-1	BACKUP POLICY a UNSET TAG a
 reject	undocumented	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!drop-3	ALTER BACKUP a UNSET TAG a
 reject	undocumented	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!drop-4	ALTER BACKUP POLICY UNSET TAG a
@@ -9284,55 +9284,55 @@ reject	undocumented	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_UNSET_TAG_Q
 reject	undocumented	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!drop-7	ALTER BACKUP POLICY a UNSET TAG
 reject	undocumented	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!insert	ALTER BACKUP POLICY a UNSET TAG a zzz
 reject	undocumented	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!swap	ALWAYS BACKUP POLICY a UNSET TAG a
-reject	accept	docs	alterBackupPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/COMMENT_=_STRING_(SCHEDULE_=_STRING)?_(EXPIRE_AFTER_DAY~62aa0fb2	ALTER BACKUP POLICY a SET COMMENT = 's'
+accept	accept	docs	alterBackupPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/COMMENT_=_STRING_(SCHEDULE_=_STRING)?_(EXPIRE_AFTER_DAY~62aa0fb2	ALTER BACKUP POLICY a SET COMMENT = 's'
 reject	undocumented	docs	alterBackupPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/COMMENT_=_STRING_(SCHEDULE_=_STRING)?_(EXPIRE_AFTER_DAY~62aa0fb2!swap	ALTER BACKUP POLICY a SET COMMENTS = 's'
-reject	accept	docs	alterBackupPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/SCHEDULE_=_STRING_(EXPIRE_AFTER_DAYS_=_NUMBER)?	ALTER BACKUP POLICY a SET SCHEDULE = 's'
+accept	accept	docs	alterBackupPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/SCHEDULE_=_STRING_(EXPIRE_AFTER_DAYS_=_NUMBER)?	ALTER BACKUP POLICY a SET SCHEDULE = 's'
 reject	undocumented	docs	alterBackupPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/SCHEDULE_=_STRING_(EXPIRE_AFTER_DAYS_=_NUMBER)?!drop-2	ALTER BACKUP POLICY a SET SCHEDULE 's'
 reject	undocumented	docs	alterBackupPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/SCHEDULE_=_STRING_(EXPIRE_AFTER_DAYS_=_NUMBER)?!drop-3	ALTER BACKUP POLICY a SET SCHEDULE =
 reject	undocumented	docs	alterBackupPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/SCHEDULE_=_STRING_(EXPIRE_AFTER_DAYS_=_NUMBER)?!insert	ALTER BACKUP POLICY a SET SCHEDULE = 's' zzz
 reject	undocumented	docs	alterBackupPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/SCHEDULE_=_STRING_(EXPIRE_AFTER_DAYS_=_NUMBER)?!swap	ALTER BACKUP POLICY a SET SCHEDULER = 's'
-reject	accept	docs	alterBackupPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/EXPIRE_AFTER_DAYS_=_NUMBER	ALTER BACKUP POLICY a SET EXPIRE_AFTER_DAYS = 1
+accept	accept	docs	alterBackupPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/EXPIRE_AFTER_DAYS_=_NUMBER	ALTER BACKUP POLICY a SET EXPIRE_AFTER_DAYS = 1
 reject	undocumented	docs	alterBackupPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/EXPIRE_AFTER_DAYS_=_NUMBER!drop-1	ALTER BACKUP POLICY a SET = 1
 reject	undocumented	docs	alterBackupPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/EXPIRE_AFTER_DAYS_=_NUMBER!drop-2	ALTER BACKUP POLICY a SET EXPIRE_AFTER_DAYS 1
 reject	undocumented	docs	alterBackupPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/EXPIRE_AFTER_DAYS_=_NUMBER!drop-3	ALTER BACKUP POLICY a SET EXPIRE_AFTER_DAYS =
 reject	undocumented	docs	alterBackupPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/EXPIRE_AFTER_DAYS_=_NUMBER!insert	ALTER BACKUP POLICY a SET EXPIRE_AFTER_DAYS = 1 zzz
 reject	undocumented	docs	alterBackupPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/EXPIRE_AFTER_DAYS_=_NUMBER!swap	ALTER BACKUP POLICY a SET EXPIRE_ROTATED_KEY_PAIR_AFTER_HOURS = 1
-reject	accept	docs	alterBackupPolicy(SCHEDULE_=_STRING)?/%empty	ALTER BACKUP POLICY a SET COMMENT = 's'
-reject	accept	docs	alterBackupPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING	ALTER BACKUP POLICY a SET COMMENT = 's' SCHEDULE = 's'
+accept	accept	docs	alterBackupPolicy(SCHEDULE_=_STRING)?/%empty	ALTER BACKUP POLICY a SET COMMENT = 's'
+accept	accept	docs	alterBackupPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING	ALTER BACKUP POLICY a SET COMMENT = 's' SCHEDULE = 's'
 reject	undocumented	docs	alterBackupPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!drop-1	ALTER BACKUP POLICY a SET COMMENT = 's' = 's'
 reject	undocumented	docs	alterBackupPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!drop-2	ALTER BACKUP POLICY a SET COMMENT = 's' SCHEDULE 's'
 reject	undocumented	docs	alterBackupPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!drop-3	ALTER BACKUP POLICY a SET COMMENT = 's' SCHEDULE =
 reject	undocumented	docs	alterBackupPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!insert	ALTER BACKUP POLICY a SET COMMENT = 's' SCHEDULE = 's' zzz
 reject	undocumented	docs	alterBackupPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!swap	ALTER BACKUP POLICY a SET COMMENT = 's' SCHEDULER = 's'
-reject	accept	docs	alterBackupPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/%empty	ALTER BACKUP POLICY a SET COMMENT = 's'
-reject	accept	docs	alterBackupPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER	ALTER BACKUP POLICY a SET COMMENT = 's' EXPIRE_AFTER_DAYS = 1
+accept	accept	docs	alterBackupPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/%empty	ALTER BACKUP POLICY a SET COMMENT = 's'
+accept	accept	docs	alterBackupPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER	ALTER BACKUP POLICY a SET COMMENT = 's' EXPIRE_AFTER_DAYS = 1
 reject	undocumented	docs	alterBackupPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER!drop-1	ALTER BACKUP POLICY a SET COMMENT = 's' = 1
 reject	undocumented	docs	alterBackupPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER!drop-2	ALTER BACKUP POLICY a SET COMMENT = 's' EXPIRE_AFTER_DAYS 1
 reject	undocumented	docs	alterBackupPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER!drop-3	ALTER BACKUP POLICY a SET COMMENT = 's' EXPIRE_AFTER_DAYS =
 reject	undocumented	docs	alterBackupPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER!insert	ALTER BACKUP POLICY a SET COMMENT = 's' EXPIRE_AFTER_DAYS = 1 zzz
 reject	undocumented	docs	alterBackupPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER!swap	ALTER BACKUP POLICY a SET COMMENT = 's' EXPIRE_ROTATED_KEY_PAIR_AFTER_HOURS = 1
-reject	accept	docs	alterBackupPolicy(COMMENT|SCHEDULE|EXPIRE_AFTER_DAYS)/COMMENT	ALTER BACKUP POLICY a UNSET COMMENT
+accept	accept	docs	alterBackupPolicy(COMMENT|SCHEDULE|EXPIRE_AFTER_DAYS)/COMMENT	ALTER BACKUP POLICY a UNSET COMMENT
 reject	undocumented	docs	alterBackupPolicy(COMMENT|SCHEDULE|EXPIRE_AFTER_DAYS)/COMMENT!swap	ALTER BACKUP POLICY a UNSET COMMENTS
-reject	accept	docs	alterBackupPolicy(COMMENT|SCHEDULE|EXPIRE_AFTER_DAYS)/SCHEDULE	ALTER BACKUP POLICY a UNSET SCHEDULE
+accept	accept	docs	alterBackupPolicy(COMMENT|SCHEDULE|EXPIRE_AFTER_DAYS)/SCHEDULE	ALTER BACKUP POLICY a UNSET SCHEDULE
 reject	undocumented	docs	alterBackupPolicy(COMMENT|SCHEDULE|EXPIRE_AFTER_DAYS)/SCHEDULE!insert	ALTER BACKUP POLICY a UNSET SCHEDULE zzz
 reject	undocumented	docs	alterBackupPolicy(COMMENT|SCHEDULE|EXPIRE_AFTER_DAYS)/SCHEDULE!swap	ALTER BACKUP POLICY a UNSET SCHEDULER
-reject	accept	docs	alterBackupPolicy(COMMENT|SCHEDULE|EXPIRE_AFTER_DAYS)/EXPIRE_AFTER_DAYS	ALTER BACKUP POLICY a UNSET EXPIRE_AFTER_DAYS
+accept	accept	docs	alterBackupPolicy(COMMENT|SCHEDULE|EXPIRE_AFTER_DAYS)/EXPIRE_AFTER_DAYS	ALTER BACKUP POLICY a UNSET EXPIRE_AFTER_DAYS
 reject	undocumented	docs	alterBackupPolicy(COMMENT|SCHEDULE|EXPIRE_AFTER_DAYS)/EXPIRE_AFTER_DAYS!insert	ALTER BACKUP POLICY a UNSET EXPIRE_AFTER_DAYS zzz
 reject	undocumented	docs	alterBackupPolicy(COMMENT|SCHEDULE|EXPIRE_AFTER_DAYS)/EXPIRE_AFTER_DAYS!swap	ALTER BACKUP POLICY a UNSET EXPIRE_ROTATED_KEY_PAIR_AFTER_HOURS
-reject	accept	docs	alterBackupPolicy(,_QNAME_=_STRING)*/%empty	ALTER BACKUP POLICY a SET TAG a = 's'
-reject	accept	docs	alterBackupPolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*	ALTER BACKUP POLICY a SET TAG a = 's', a = 's'
+accept	accept	docs	alterBackupPolicy(,_QNAME_=_STRING)*/%empty	ALTER BACKUP POLICY a SET TAG a = 's'
+accept	accept	docs	alterBackupPolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*	ALTER BACKUP POLICY a SET TAG a = 's', a = 's'
 reject	undocumented	docs	alterBackupPolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-1	ALTER BACKUP POLICY a SET TAG a = 's' a = 's'
 reject	undocumented	docs	alterBackupPolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-2	ALTER BACKUP POLICY a SET TAG a = 's', = 's'
 reject	undocumented	docs	alterBackupPolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-3	ALTER BACKUP POLICY a SET TAG a = 's', a 's'
 reject	undocumented	docs	alterBackupPolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-4	ALTER BACKUP POLICY a SET TAG a = 's', a =
 reject	undocumented	docs	alterBackupPolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!insert	ALTER BACKUP POLICY a SET TAG a = 's', a = 's' zzz
-reject	accept	docs	alterBackupPolicy(,_QNAME)*/%empty	ALTER BACKUP POLICY a UNSET TAG a
-reject	accept	docs	alterBackupPolicy(,_QNAME)*/,_QNAME_(,_QNAME)*	ALTER BACKUP POLICY a UNSET TAG a, a
+accept	accept	docs	alterBackupPolicy(,_QNAME)*/%empty	ALTER BACKUP POLICY a UNSET TAG a
+accept	accept	docs	alterBackupPolicy(,_QNAME)*/,_QNAME_(,_QNAME)*	ALTER BACKUP POLICY a UNSET TAG a, a
 reject	undocumented	docs	alterBackupPolicy(,_QNAME)*/,_QNAME_(,_QNAME)*!drop-1	ALTER BACKUP POLICY a UNSET TAG a a
 reject	undocumented	docs	alterBackupPolicy(,_QNAME)*/,_QNAME_(,_QNAME)*!drop-2	ALTER BACKUP POLICY a UNSET TAG a,
 reject	undocumented	docs	alterBackupPolicy(,_QNAME)*/,_QNAME_(,_QNAME)*!insert	ALTER BACKUP POLICY a UNSET TAG a, a zzz
-reject	accept	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_ADD_BACKUP	ALTER BACKUP SET a ADD BACKUP
-reject	accept	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_APPLY_BACKUP_POLICY_QNAME_(FORCE)?	ALTER BACKUP SET a APPLY BACKUP POLICY a
+accept	accept	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_ADD_BACKUP	ALTER BACKUP SET a ADD BACKUP
+accept	accept	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_APPLY_BACKUP_POLICY_QNAME_(FORCE)?	ALTER BACKUP SET a APPLY BACKUP POLICY a
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_APPLY_BACKUP_POLICY_QNAME_(FORCE)?!drop-1	BACKUP SET a APPLY BACKUP POLICY a
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_APPLY_BACKUP_POLICY_QNAME_(FORCE)?!drop-2	ALTER SET a APPLY BACKUP POLICY a
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_APPLY_BACKUP_POLICY_QNAME_(FORCE)?!drop-3	ALTER BACKUP a APPLY BACKUP POLICY a
@@ -9343,7 +9343,7 @@ reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_APPLY_BACKUP_POLI
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_APPLY_BACKUP_POLICY_QNAME_(FORCE)?!drop-8	ALTER BACKUP SET a APPLY BACKUP POLICY
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_APPLY_BACKUP_POLICY_QNAME_(FORCE)?!insert	ALTER BACKUP SET a APPLY BACKUP POLICY a zzz
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_APPLY_BACKUP_POLICY_QNAME_(FORCE)?!swap	ALWAYS BACKUP SET a APPLY BACKUP POLICY a
-reject	accept	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_SUSPEND_BACKUP_((CREATION|EXPIRA~d089fd60	ALTER BACKUP SET a SUSPEND BACKUP POLICY
+accept	accept	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_SUSPEND_BACKUP_((CREATION|EXPIRA~d089fd60	ALTER BACKUP SET a SUSPEND BACKUP POLICY
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_SUSPEND_BACKUP_((CREATION|EXPIRA~d089fd60!drop-1	BACKUP SET a SUSPEND BACKUP POLICY
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_SUSPEND_BACKUP_((CREATION|EXPIRA~d089fd60!drop-2	ALTER SET a SUSPEND BACKUP POLICY
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_SUSPEND_BACKUP_((CREATION|EXPIRA~d089fd60!drop-3	ALTER BACKUP a SUSPEND BACKUP POLICY
@@ -9353,7 +9353,7 @@ reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_SUSPEND_BACKUP_((
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_SUSPEND_BACKUP_((CREATION|EXPIRA~d089fd60!drop-7	ALTER BACKUP SET a SUSPEND BACKUP
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_SUSPEND_BACKUP_((CREATION|EXPIRA~d089fd60!insert	ALTER BACKUP SET a SUSPEND BACKUP POLICY zzz
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_SUSPEND_BACKUP_((CREATION|EXPIRA~d089fd60!swap	ALWAYS BACKUP SET a SUSPEND BACKUP POLICY
-reject	accept	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_RESUME_BACKUP_((CREATION|EXPIRAT~ed23a331	ALTER BACKUP SET a RESUME BACKUP POLICY
+accept	accept	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_RESUME_BACKUP_((CREATION|EXPIRAT~ed23a331	ALTER BACKUP SET a RESUME BACKUP POLICY
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_RESUME_BACKUP_((CREATION|EXPIRAT~ed23a331!drop-1	BACKUP SET a RESUME BACKUP POLICY
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_RESUME_BACKUP_((CREATION|EXPIRAT~ed23a331!drop-2	ALTER SET a RESUME BACKUP POLICY
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_RESUME_BACKUP_((CREATION|EXPIRAT~ed23a331!drop-3	ALTER BACKUP a RESUME BACKUP POLICY
@@ -9362,7 +9362,7 @@ reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_RESUME_BACKUP_((C
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_RESUME_BACKUP_((CREATION|EXPIRAT~ed23a331!drop-7	ALTER BACKUP SET a RESUME BACKUP
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_RESUME_BACKUP_((CREATION|EXPIRAT~ed23a331!insert	ALTER BACKUP SET a RESUME BACKUP POLICY zzz
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_RESUME_BACKUP_((CREATION|EXPIRAT~ed23a331!swap	ALWAYS BACKUP SET a RESUME BACKUP POLICY
-reject	accept	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_DELETE_BACKUP_IDENTIFIER_STRING	ALTER BACKUP SET a DELETE BACKUP IDENTIFIER 's'
+accept	accept	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_DELETE_BACKUP_IDENTIFIER_STRING	ALTER BACKUP SET a DELETE BACKUP IDENTIFIER 's'
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_DELETE_BACKUP_IDENTIFIER_STRING!drop-1	BACKUP SET a DELETE BACKUP IDENTIFIER 's'
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_DELETE_BACKUP_IDENTIFIER_STRING!drop-2	ALTER SET a DELETE BACKUP IDENTIFIER 's'
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_DELETE_BACKUP_IDENTIFIER_STRING!drop-3	ALTER BACKUP a DELETE BACKUP IDENTIFIER 's'
@@ -9373,7 +9373,7 @@ reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_DELETE_BACKUP_IDE
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_DELETE_BACKUP_IDENTIFIER_STRING!drop-8	ALTER BACKUP SET a DELETE BACKUP IDENTIFIER
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_DELETE_BACKUP_IDENTIFIER_STRING!insert	ALTER BACKUP SET a DELETE BACKUP IDENTIFIER 's' zzz
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_DELETE_BACKUP_IDENTIFIER_STRING!swap	ALWAYS BACKUP SET a DELETE BACKUP IDENTIFIER 's'
-reject	accept	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_MODIFY_BACKUP_IDENTIFIER_STRING_~f6667c44	ALTER BACKUP SET a MODIFY BACKUP IDENTIFIER 's' ADD LEGAL HOLD
+accept	accept	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_MODIFY_BACKUP_IDENTIFIER_STRING_~f6667c44	ALTER BACKUP SET a MODIFY BACKUP IDENTIFIER 's' ADD LEGAL HOLD
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_MODIFY_BACKUP_IDENTIFIER_STRING_~f6667c44!drop-1	BACKUP SET a MODIFY BACKUP IDENTIFIER 's' ADD LEGAL HOLD
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_MODIFY_BACKUP_IDENTIFIER_STRING_~f6667c44!drop-2	ALTER SET a MODIFY BACKUP IDENTIFIER 's' ADD LEGAL HOLD
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_MODIFY_BACKUP_IDENTIFIER_STRING_~f6667c44!drop-3	ALTER BACKUP a MODIFY BACKUP IDENTIFIER 's' ADD LEGAL HOLD
@@ -9387,7 +9387,7 @@ reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_MODIFY_BACKUP_IDE
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_MODIFY_BACKUP_IDENTIFIER_STRING_~f6667c44!drop-11	ALTER BACKUP SET a MODIFY BACKUP IDENTIFIER 's' ADD LEGAL
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_MODIFY_BACKUP_IDENTIFIER_STRING_~f6667c44!insert	ALTER BACKUP SET a MODIFY BACKUP IDENTIFIER 's' ADD LEGAL HOLD zzz
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_MODIFY_BACKUP_IDENTIFIER_STRING_~f6667c44!swap	ALWAYS BACKUP SET a MODIFY BACKUP IDENTIFIER 's' ADD LEGAL HOLD
-reject	accept	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_MODIFY_BACKUP_IDENTIFIER_STRING_~7c5d405d	ALTER BACKUP SET a MODIFY BACKUP IDENTIFIER 's' SET COMMENT = 's'
+accept	accept	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_MODIFY_BACKUP_IDENTIFIER_STRING_~7c5d405d	ALTER BACKUP SET a MODIFY BACKUP IDENTIFIER 's' SET COMMENT = 's'
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_MODIFY_BACKUP_IDENTIFIER_STRING_~7c5d405d!drop-1	BACKUP SET a MODIFY BACKUP IDENTIFIER 's' SET COMMENT = 's'
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_MODIFY_BACKUP_IDENTIFIER_STRING_~7c5d405d!drop-2	ALTER SET a MODIFY BACKUP IDENTIFIER 's' SET COMMENT = 's'
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_MODIFY_BACKUP_IDENTIFIER_STRING_~7c5d405d!drop-3	ALTER BACKUP a MODIFY BACKUP IDENTIFIER 's' SET COMMENT = 's'
@@ -9402,7 +9402,7 @@ reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_MODIFY_BACKUP_IDE
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_MODIFY_BACKUP_IDENTIFIER_STRING_~7c5d405d!drop-12	ALTER BACKUP SET a MODIFY BACKUP IDENTIFIER 's' SET COMMENT =
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_MODIFY_BACKUP_IDENTIFIER_STRING_~7c5d405d!insert	ALTER BACKUP SET a MODIFY BACKUP IDENTIFIER 's' SET COMMENT = 's' zzz
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_MODIFY_BACKUP_IDENTIFIER_STRING_~7c5d405d!swap	ALWAYS BACKUP SET a MODIFY BACKUP IDENTIFIER 's' SET COMMENT = 's'
-reject	accept	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_MODIFY_BACKUP_IDENTIFIER_STRING_~badbc598	ALTER BACKUP SET a MODIFY BACKUP IDENTIFIER 's' UNSET COMMENT
+accept	accept	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_MODIFY_BACKUP_IDENTIFIER_STRING_~badbc598	ALTER BACKUP SET a MODIFY BACKUP IDENTIFIER 's' UNSET COMMENT
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_MODIFY_BACKUP_IDENTIFIER_STRING_~badbc598!drop-1	BACKUP SET a MODIFY BACKUP IDENTIFIER 's' UNSET COMMENT
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_MODIFY_BACKUP_IDENTIFIER_STRING_~badbc598!drop-2	ALTER SET a MODIFY BACKUP IDENTIFIER 's' UNSET COMMENT
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_MODIFY_BACKUP_IDENTIFIER_STRING_~badbc598!drop-3	ALTER BACKUP a MODIFY BACKUP IDENTIFIER 's' UNSET COMMENT
@@ -9415,7 +9415,7 @@ reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_MODIFY_BACKUP_IDE
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_MODIFY_BACKUP_IDENTIFIER_STRING_~badbc598!drop-10	ALTER BACKUP SET a MODIFY BACKUP IDENTIFIER 's' UNSET
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_MODIFY_BACKUP_IDENTIFIER_STRING_~badbc598!insert	ALTER BACKUP SET a MODIFY BACKUP IDENTIFIER 's' UNSET COMMENT zzz
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_MODIFY_BACKUP_IDENTIFIER_STRING_~badbc598!swap	ALWAYS BACKUP SET a MODIFY BACKUP IDENTIFIER 's' UNSET COMMENT
-reject	accept	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_RENAME_TO_QNAME	ALTER BACKUP SET a RENAME TO a
+accept	accept	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_RENAME_TO_QNAME	ALTER BACKUP SET a RENAME TO a
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_RENAME_TO_QNAME!drop-1	BACKUP SET a RENAME TO a
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_RENAME_TO_QNAME!drop-2	ALTER SET a RENAME TO a
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_RENAME_TO_QNAME!drop-4	ALTER BACKUP SET RENAME TO a
@@ -9424,7 +9424,7 @@ reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_RENAME_TO_QNAME!d
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_RENAME_TO_QNAME!drop-7	ALTER BACKUP SET a RENAME TO
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_RENAME_TO_QNAME!insert	ALTER BACKUP SET a RENAME TO a zzz
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_RENAME_TO_QNAME!swap	ALWAYS BACKUP SET a RENAME TO a
-reject	accept	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_SET_COMMENT_=_STRING	ALTER BACKUP SET a SET COMMENT = 's'
+accept	accept	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_SET_COMMENT_=_STRING	ALTER BACKUP SET a SET COMMENT = 's'
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_SET_COMMENT_=_STRING!drop-1	BACKUP SET a SET COMMENT = 's'
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_SET_COMMENT_=_STRING!drop-2	ALTER SET a SET COMMENT = 's'
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_SET_COMMENT_=_STRING!drop-4	ALTER BACKUP SET SET COMMENT = 's'
@@ -9434,7 +9434,7 @@ reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_SET_COMMENT_=_STR
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_SET_COMMENT_=_STRING!drop-8	ALTER BACKUP SET a SET COMMENT =
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_SET_COMMENT_=_STRING!insert	ALTER BACKUP SET a SET COMMENT = 's' zzz
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_SET_COMMENT_=_STRING!swap	ALWAYS BACKUP SET a SET COMMENT = 's'
-reject	accept	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_UNSET_COMMENT	ALTER BACKUP SET a UNSET COMMENT
+accept	accept	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_UNSET_COMMENT	ALTER BACKUP SET a UNSET COMMENT
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_UNSET_COMMENT!drop-1	BACKUP SET a UNSET COMMENT
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_UNSET_COMMENT!drop-2	ALTER SET a UNSET COMMENT
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_UNSET_COMMENT!drop-4	ALTER BACKUP SET UNSET COMMENT
@@ -9442,7 +9442,7 @@ reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_UNSET_COMMENT!dro
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_UNSET_COMMENT!drop-6	ALTER BACKUP SET a UNSET
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_UNSET_COMMENT!insert	ALTER BACKUP SET a UNSET COMMENT zzz
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_UNSET_COMMENT!swap	ALWAYS BACKUP SET a UNSET COMMENT
-reject	accept	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_SET_TAG_QNAME_=_STRING_(,_QNAME_~7c2ec93d	ALTER BACKUP SET a SET TAG a = 's'
+accept	accept	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_SET_TAG_QNAME_=_STRING_(,_QNAME_~7c2ec93d	ALTER BACKUP SET a SET TAG a = 's'
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_SET_TAG_QNAME_=_STRING_(,_QNAME_~7c2ec93d!drop-1	BACKUP SET a SET TAG a = 's'
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_SET_TAG_QNAME_=_STRING_(,_QNAME_~7c2ec93d!drop-2	ALTER SET a SET TAG a = 's'
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_SET_TAG_QNAME_=_STRING_(,_QNAME_~7c2ec93d!drop-4	ALTER BACKUP SET SET TAG a = 's'
@@ -9453,7 +9453,7 @@ reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_SET_TAG_QNAME_=_S
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_SET_TAG_QNAME_=_STRING_(,_QNAME_~7c2ec93d!drop-9	ALTER BACKUP SET a SET TAG a =
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_SET_TAG_QNAME_=_STRING_(,_QNAME_~7c2ec93d!insert	ALTER BACKUP SET a SET TAG a = 's' zzz
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_SET_TAG_QNAME_=_STRING_(,_QNAME_~7c2ec93d!swap	ALWAYS BACKUP SET a SET TAG a = 's'
-reject	accept	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_UNSET_TAG_QNAME_(,_QNAME)*	ALTER BACKUP SET a UNSET TAG a
+accept	accept	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_UNSET_TAG_QNAME_(,_QNAME)*	ALTER BACKUP SET a UNSET TAG a
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!drop-1	BACKUP SET a UNSET TAG a
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!drop-2	ALTER SET a UNSET TAG a
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!drop-4	ALTER BACKUP SET UNSET TAG a
@@ -9462,35 +9462,35 @@ reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_UNSET_TAG_QNAME_(
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!drop-7	ALTER BACKUP SET a UNSET TAG
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!insert	ALTER BACKUP SET a UNSET TAG a zzz
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!swap	ALWAYS BACKUP SET a UNSET TAG a
-reject	accept	docs	alterBackupSet(FORCE)?/%empty	ALTER BACKUP SET a APPLY BACKUP POLICY a
-reject	accept	docs	alterBackupSet(FORCE)?/FORCE	ALTER BACKUP SET a APPLY BACKUP POLICY a FORCE
+accept	accept	docs	alterBackupSet(FORCE)?/%empty	ALTER BACKUP SET a APPLY BACKUP POLICY a
+accept	accept	docs	alterBackupSet(FORCE)?/FORCE	ALTER BACKUP SET a APPLY BACKUP POLICY a FORCE
 reject	undocumented	docs	alterBackupSet(FORCE)?/FORCE!insert	ALTER BACKUP SET a APPLY BACKUP POLICY a FORCE zzz
 reject	undocumented	docs	alterBackupSet(FORCE)?/FORCE!swap	ALTER BACKUP SET a APPLY BACKUP POLICY a FORECAST
-reject	accept	docs	alterBackupSet((CREATION|EXPIRATION))?/%empty	ALTER BACKUP SET a SUSPEND BACKUP POLICY
+accept	accept	docs	alterBackupSet((CREATION|EXPIRATION))?/%empty	ALTER BACKUP SET a SUSPEND BACKUP POLICY
 reject	undocumented	docs	alterBackupSet((CREATION|EXPIRATION))?/%empty!insert	ALTER BACKUP SET a SUSPEND BACKUP zzz POLICY
-reject	accept	docs	alterBackupSet((CREATION|EXPIRATION))?/(CREATION|EXPIRATION)	ALTER BACKUP SET a SUSPEND BACKUP CREATION POLICY
+accept	accept	docs	alterBackupSet((CREATION|EXPIRATION))?/(CREATION|EXPIRATION)	ALTER BACKUP SET a SUSPEND BACKUP CREATION POLICY
 reject	undocumented	docs	alterBackupSet((CREATION|EXPIRATION))?/(CREATION|EXPIRATION)!insert	ALTER BACKUP SET a SUSPEND BACKUP CREATION zzz POLICY
 reject	undocumented	docs	alterBackupSet((CREATION|EXPIRATION))?/(CREATION|EXPIRATION)!swap	ALTER BACKUP SET a SUSPEND BACKUP CREDENTIALS POLICY
-reject	accept	docs	alterBackupSet(CREATION|EXPIRATION)/CREATION	ALTER BACKUP SET a SUSPEND BACKUP CREATION POLICY
-reject	accept	docs	alterBackupSet(CREATION|EXPIRATION)/EXPIRATION	ALTER BACKUP SET a SUSPEND BACKUP EXPIRATION POLICY
+accept	accept	docs	alterBackupSet(CREATION|EXPIRATION)/CREATION	ALTER BACKUP SET a SUSPEND BACKUP CREATION POLICY
+accept	accept	docs	alterBackupSet(CREATION|EXPIRATION)/EXPIRATION	ALTER BACKUP SET a SUSPEND BACKUP EXPIRATION POLICY
 reject	undocumented	docs	alterBackupSet(CREATION|EXPIRATION)/EXPIRATION!insert	ALTER BACKUP SET a SUSPEND BACKUP EXPIRATION zzz POLICY
 reject	undocumented	docs	alterBackupSet(CREATION|EXPIRATION)/EXPIRATION!swap	ALTER BACKUP SET a SUSPEND BACKUP EXPIRE_AFTER_DAYS POLICY
-reject	accept	docs	alterBackupSet(ADD|REMOVE)/ADD	ALTER BACKUP SET a MODIFY BACKUP IDENTIFIER 's' ADD LEGAL HOLD
+accept	accept	docs	alterBackupSet(ADD|REMOVE)/ADD	ALTER BACKUP SET a MODIFY BACKUP IDENTIFIER 's' ADD LEGAL HOLD
 reject	undocumented	docs	alterBackupSet(ADD|REMOVE)/ADD!truncate	ALTER BACKUP SET a MODIFY BACKUP IDENTIFIER 's'
 reject	undocumented	docs	alterBackupSet(ADD|REMOVE)/ADD!insert	ALTER BACKUP SET a MODIFY BACKUP IDENTIFIER 's' ADD zzz LEGAL HOLD
 reject	undocumented	docs	alterBackupSet(ADD|REMOVE)/ADD!swap	ALTER BACKUP SET a MODIFY BACKUP IDENTIFIER 's' ADDITIONAL_CREATION_BLOCKLIST LEGAL HOLD
-reject	accept	docs	alterBackupSet(ADD|REMOVE)/REMOVE	ALTER BACKUP SET a MODIFY BACKUP IDENTIFIER 's' REMOVE LEGAL HOLD
+accept	accept	docs	alterBackupSet(ADD|REMOVE)/REMOVE	ALTER BACKUP SET a MODIFY BACKUP IDENTIFIER 's' REMOVE LEGAL HOLD
 reject	undocumented	docs	alterBackupSet(ADD|REMOVE)/REMOVE!insert	ALTER BACKUP SET a MODIFY BACKUP IDENTIFIER 's' REMOVE zzz LEGAL HOLD
 reject	undocumented	docs	alterBackupSet(ADD|REMOVE)/REMOVE!swap	ALTER BACKUP SET a MODIFY BACKUP IDENTIFIER 's' REMOVE_POSITION_DELETES LEGAL HOLD
-reject	accept	docs	alterBackupSet(,_QNAME_=_STRING)*/%empty	ALTER BACKUP SET a SET TAG a = 's'
-reject	accept	docs	alterBackupSet(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*	ALTER BACKUP SET a SET TAG a = 's', a = 's'
+accept	accept	docs	alterBackupSet(,_QNAME_=_STRING)*/%empty	ALTER BACKUP SET a SET TAG a = 's'
+accept	accept	docs	alterBackupSet(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*	ALTER BACKUP SET a SET TAG a = 's', a = 's'
 reject	undocumented	docs	alterBackupSet(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-1	ALTER BACKUP SET a SET TAG a = 's' a = 's'
 reject	undocumented	docs	alterBackupSet(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-2	ALTER BACKUP SET a SET TAG a = 's', = 's'
 reject	undocumented	docs	alterBackupSet(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-3	ALTER BACKUP SET a SET TAG a = 's', a 's'
 reject	undocumented	docs	alterBackupSet(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-4	ALTER BACKUP SET a SET TAG a = 's', a =
 reject	undocumented	docs	alterBackupSet(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!insert	ALTER BACKUP SET a SET TAG a = 's', a = 's' zzz
-reject	accept	docs	alterBackupSet(,_QNAME)*/%empty	ALTER BACKUP SET a UNSET TAG a
-reject	accept	docs	alterBackupSet(,_QNAME)*/,_QNAME_(,_QNAME)*	ALTER BACKUP SET a UNSET TAG a, a
+accept	accept	docs	alterBackupSet(,_QNAME)*/%empty	ALTER BACKUP SET a UNSET TAG a
+accept	accept	docs	alterBackupSet(,_QNAME)*/,_QNAME_(,_QNAME)*	ALTER BACKUP SET a UNSET TAG a, a
 reject	undocumented	docs	alterBackupSet(,_QNAME)*/,_QNAME_(,_QNAME)*!drop-1	ALTER BACKUP SET a UNSET TAG a a
 reject	undocumented	docs	alterBackupSet(,_QNAME)*/,_QNAME_(,_QNAME)*!drop-2	ALTER BACKUP SET a UNSET TAG a,
 reject	undocumented	docs	alterBackupSet(,_QNAME)*/,_QNAME_(,_QNAME)*!insert	ALTER BACKUP SET a UNSET TAG a, a zzz
@@ -10142,7 +10142,7 @@ accept	accept	docs	alterCortexSearch(,_QNAME)*/,_QNAME_(,_QNAME)*	ALTER CORTEX S
 reject	undocumented	docs	alterCortexSearch(,_QNAME)*/,_QNAME_(,_QNAME)*!drop-1	ALTER CORTEX SEARCH SERVICE a UNSET TAG a a
 reject	undocumented	docs	alterCortexSearch(,_QNAME)*/,_QNAME_(,_QNAME)*!drop-2	ALTER CORTEX SEARCH SERVICE a UNSET TAG a,
 reject	undocumented	docs	alterCortexSearch(,_QNAME)*/,_QNAME_(,_QNAME)*!insert	ALTER CORTEX SEARCH SERVICE a UNSET TAG a, a zzz
-reject	accept	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_RENAME_TO_QNAME	ALTER DATA MOVEMENT POLICY a RENAME TO a
+accept	accept	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_RENAME_TO_QNAME	ALTER DATA MOVEMENT POLICY a RENAME TO a
 reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_RENAME_TO_QNAME!drop-1	DATA MOVEMENT POLICY a RENAME TO a
 reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_RENAME_TO_QNAME!drop-2	ALTER MOVEMENT POLICY a RENAME TO a
 reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_RENAME_TO_QNAME!drop-3	ALTER DATA POLICY a RENAME TO a
@@ -10153,7 +10153,7 @@ reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_
 reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_RENAME_TO_QNAME!drop-8	ALTER DATA MOVEMENT POLICY a RENAME TO
 reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_RENAME_TO_QNAME!insert	ALTER DATA MOVEMENT POLICY a RENAME TO a zzz
 reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_RENAME_TO_QNAME!swap	ALWAYS DATA MOVEMENT POLICY a RENAME TO a
-reject	accept	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_SET_ENFOR~2b082ed4	ALTER DATA MOVEMENT POLICY a SET ENFORCE_RULES =(a)
+accept	accept	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_SET_ENFOR~2b082ed4	ALTER DATA MOVEMENT POLICY a SET ENFORCE_RULES =(a)
 reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_SET_ENFOR~2b082ed4!drop-1	DATA MOVEMENT POLICY a SET ENFORCE_RULES =(a)
 reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_SET_ENFOR~2b082ed4!drop-2	ALTER MOVEMENT POLICY a SET ENFORCE_RULES =(a)
 reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_SET_ENFOR~2b082ed4!drop-3	ALTER DATA POLICY a SET ENFORCE_RULES =(a)
@@ -10167,7 +10167,7 @@ reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_
 reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_SET_ENFOR~2b082ed4!drop-11	ALTER DATA MOVEMENT POLICY a SET ENFORCE_RULES =(a
 reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_SET_ENFOR~2b082ed4!insert	ALTER DATA MOVEMENT POLICY a SET ENFORCE_RULES =(a) zzz
 reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_SET_ENFOR~2b082ed4!swap	ALWAYS DATA MOVEMENT POLICY a SET ENFORCE_RULES =(a)
-reject	accept	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_SET_ALERT~90037834	ALTER DATA MOVEMENT POLICY a SET ALERT_RULES =(a)
+accept	accept	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_SET_ALERT~90037834	ALTER DATA MOVEMENT POLICY a SET ALERT_RULES =(a)
 reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_SET_ALERT~90037834!drop-1	DATA MOVEMENT POLICY a SET ALERT_RULES =(a)
 reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_SET_ALERT~90037834!drop-2	ALTER MOVEMENT POLICY a SET ALERT_RULES =(a)
 reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_SET_ALERT~90037834!drop-3	ALTER DATA POLICY a SET ALERT_RULES =(a)
@@ -10180,7 +10180,7 @@ reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_
 reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_SET_ALERT~90037834!drop-11	ALTER DATA MOVEMENT POLICY a SET ALERT_RULES =(a
 reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_SET_ALERT~90037834!insert	ALTER DATA MOVEMENT POLICY a SET ALERT_RULES =(a) zzz
 reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_SET_ALERT~90037834!swap	ALWAYS DATA MOVEMENT POLICY a SET ALERT_RULES =(a)
-reject	accept	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_ADD_ENFOR~f22bd7bd	ALTER DATA MOVEMENT POLICY a ADD ENFORCE_RULES =(a)
+accept	accept	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_ADD_ENFOR~f22bd7bd	ALTER DATA MOVEMENT POLICY a ADD ENFORCE_RULES =(a)
 reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_ADD_ENFOR~f22bd7bd!drop-1	DATA MOVEMENT POLICY a ADD ENFORCE_RULES =(a)
 reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_ADD_ENFOR~f22bd7bd!drop-2	ALTER MOVEMENT POLICY a ADD ENFORCE_RULES =(a)
 reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_ADD_ENFOR~f22bd7bd!drop-3	ALTER DATA POLICY a ADD ENFORCE_RULES =(a)
@@ -10193,7 +10193,7 @@ reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_
 reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_ADD_ENFOR~f22bd7bd!drop-11	ALTER DATA MOVEMENT POLICY a ADD ENFORCE_RULES =(a
 reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_ADD_ENFOR~f22bd7bd!insert	ALTER DATA MOVEMENT POLICY a ADD ENFORCE_RULES =(a) zzz
 reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_ADD_ENFOR~f22bd7bd!swap	ALWAYS DATA MOVEMENT POLICY a ADD ENFORCE_RULES =(a)
-reject	accept	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_ADD_ALERT~1ea1dc2a	ALTER DATA MOVEMENT POLICY a ADD ALERT_RULES =(a)
+accept	accept	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_ADD_ALERT~1ea1dc2a	ALTER DATA MOVEMENT POLICY a ADD ALERT_RULES =(a)
 reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_ADD_ALERT~1ea1dc2a!drop-1	DATA MOVEMENT POLICY a ADD ALERT_RULES =(a)
 reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_ADD_ALERT~1ea1dc2a!drop-2	ALTER MOVEMENT POLICY a ADD ALERT_RULES =(a)
 reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_ADD_ALERT~1ea1dc2a!drop-3	ALTER DATA POLICY a ADD ALERT_RULES =(a)
@@ -10205,7 +10205,7 @@ reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_
 reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_ADD_ALERT~1ea1dc2a!drop-11	ALTER DATA MOVEMENT POLICY a ADD ALERT_RULES =(a
 reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_ADD_ALERT~1ea1dc2a!insert	ALTER DATA MOVEMENT POLICY a ADD ALERT_RULES =(a) zzz
 reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_ADD_ALERT~1ea1dc2a!swap	ALWAYS DATA MOVEMENT POLICY a ADD ALERT_RULES =(a)
-reject	accept	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_REMOVE_EN~fb137974	ALTER DATA MOVEMENT POLICY a REMOVE ENFORCE_RULES =(a)
+accept	accept	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_REMOVE_EN~fb137974	ALTER DATA MOVEMENT POLICY a REMOVE ENFORCE_RULES =(a)
 reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_REMOVE_EN~fb137974!drop-1	DATA MOVEMENT POLICY a REMOVE ENFORCE_RULES =(a)
 reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_REMOVE_EN~fb137974!drop-2	ALTER MOVEMENT POLICY a REMOVE ENFORCE_RULES =(a)
 reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_REMOVE_EN~fb137974!drop-3	ALTER DATA POLICY a REMOVE ENFORCE_RULES =(a)
@@ -10218,7 +10218,7 @@ reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_
 reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_REMOVE_EN~fb137974!drop-11	ALTER DATA MOVEMENT POLICY a REMOVE ENFORCE_RULES =(a
 reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_REMOVE_EN~fb137974!insert	ALTER DATA MOVEMENT POLICY a REMOVE ENFORCE_RULES =(a) zzz
 reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_REMOVE_EN~fb137974!swap	ALWAYS DATA MOVEMENT POLICY a REMOVE ENFORCE_RULES =(a)
-reject	accept	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_REMOVE_AL~9596e4c7	ALTER DATA MOVEMENT POLICY a REMOVE ALERT_RULES =(a)
+accept	accept	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_REMOVE_AL~9596e4c7	ALTER DATA MOVEMENT POLICY a REMOVE ALERT_RULES =(a)
 reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_REMOVE_AL~9596e4c7!drop-1	DATA MOVEMENT POLICY a REMOVE ALERT_RULES =(a)
 reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_REMOVE_AL~9596e4c7!drop-2	ALTER MOVEMENT POLICY a REMOVE ALERT_RULES =(a)
 reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_REMOVE_AL~9596e4c7!drop-3	ALTER DATA POLICY a REMOVE ALERT_RULES =(a)
@@ -10230,7 +10230,7 @@ reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_
 reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_REMOVE_AL~9596e4c7!drop-11	ALTER DATA MOVEMENT POLICY a REMOVE ALERT_RULES =(a
 reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_REMOVE_AL~9596e4c7!insert	ALTER DATA MOVEMENT POLICY a REMOVE ALERT_RULES =(a) zzz
 reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_REMOVE_AL~9596e4c7!swap	ALWAYS DATA MOVEMENT POLICY a REMOVE ALERT_RULES =(a)
-reject	accept	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_SET_COMME~d637356a	ALTER DATA MOVEMENT POLICY a SET COMMENT = 's'
+accept	accept	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_SET_COMME~d637356a	ALTER DATA MOVEMENT POLICY a SET COMMENT = 's'
 reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_SET_COMME~d637356a!drop-1	DATA MOVEMENT POLICY a SET COMMENT = 's'
 reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_SET_COMME~d637356a!drop-2	ALTER MOVEMENT POLICY a SET COMMENT = 's'
 reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_SET_COMME~d637356a!drop-3	ALTER DATA POLICY a SET COMMENT = 's'
@@ -10242,18 +10242,18 @@ reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_
 reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_SET_COMME~d637356a!drop-9	ALTER DATA MOVEMENT POLICY a SET COMMENT =
 reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_SET_COMME~d637356a!insert	ALTER DATA MOVEMENT POLICY a SET COMMENT = 's' zzz
 reject	undocumented	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_SET_COMME~d637356a!swap	ALWAYS DATA MOVEMENT POLICY a SET COMMENT = 's'
-reject	accept	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_UNSET_COMMENT	ALTER DATA MOVEMENT POLICY a UNSET COMMENT
-reject	accept	docs	alterDataMovementPolicy(IF_EXISTS)?/%empty	ALTER DATA MOVEMENT POLICY a UNSET COMMENT
+accept	accept	docs	alterDataMovementPolicy/ALTER_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME_UNSET_COMMENT	ALTER DATA MOVEMENT POLICY a UNSET COMMENT
+accept	accept	docs	alterDataMovementPolicy(IF_EXISTS)?/%empty	ALTER DATA MOVEMENT POLICY a UNSET COMMENT
 reject	undocumented	docs	alterDataMovementPolicy(IF_EXISTS)?/%empty!insert	ALTER DATA MOVEMENT POLICY zzz a UNSET COMMENT
-reject	accept	docs	alterDataMovementPolicy(IF_EXISTS)?/IF_EXISTS	ALTER DATA MOVEMENT POLICY IF EXISTS a UNSET COMMENT
+accept	accept	docs	alterDataMovementPolicy(IF_EXISTS)?/IF_EXISTS	ALTER DATA MOVEMENT POLICY IF EXISTS a UNSET COMMENT
 reject	undocumented	docs	alterDataMovementPolicy(IF_EXISTS)?/IF_EXISTS!drop-1	ALTER DATA MOVEMENT POLICY EXISTS a UNSET COMMENT
 reject	undocumented	docs	alterDataMovementPolicy(IF_EXISTS)?/IF_EXISTS!drop-2	ALTER DATA MOVEMENT POLICY IF a UNSET COMMENT
 reject	undocumented	docs	alterDataMovementPolicy(IF_EXISTS)?/IF_EXISTS!truncate	ALTER DATA MOVEMENT POLICY IF
 reject	undocumented	docs	alterDataMovementPolicy(IF_EXISTS)?/IF_EXISTS!insert	ALTER DATA MOVEMENT POLICY IF EXISTS zzz a UNSET COMMENT
 reject	undocumented	docs	alterDataMovementPolicy(IF_EXISTS)?/IF_EXISTS!swap	ALTER DATA MOVEMENT POLICY IGNORE EXISTS a UNSET COMMENT
-reject	accept	docs	alterDataMovementPolicy(,_ID)*/%empty	ALTER DATA MOVEMENT POLICY a SET ENFORCE_RULES =(a)
+accept	accept	docs	alterDataMovementPolicy(,_ID)*/%empty	ALTER DATA MOVEMENT POLICY a SET ENFORCE_RULES =(a)
 reject	undocumented	docs	alterDataMovementPolicy(,_ID)*/%empty!insert	ALTER DATA MOVEMENT POLICY a SET ENFORCE_RULES =(a zzz)
-reject	accept	docs	alterDataMovementPolicy(,_ID)*/,_ID_(,_ID)*	ALTER DATA MOVEMENT POLICY a SET ENFORCE_RULES =(a, a)
+accept	accept	docs	alterDataMovementPolicy(,_ID)*/,_ID_(,_ID)*	ALTER DATA MOVEMENT POLICY a SET ENFORCE_RULES =(a, a)
 reject	undocumented	docs	alterDataMovementPolicy(,_ID)*/,_ID_(,_ID)*!drop-1	ALTER DATA MOVEMENT POLICY a SET ENFORCE_RULES =(a a)
 reject	undocumented	docs	alterDataMovementPolicy(,_ID)*/,_ID_(,_ID)*!drop-2	ALTER DATA MOVEMENT POLICY a SET ENFORCE_RULES =(a,)
 reject	undocumented	docs	alterDataMovementPolicy(,_ID)*/,_ID_(,_ID)*!truncate	ALTER DATA MOVEMENT POLICY a SET ENFORCE_RULES =(a,
@@ -10277,7 +10277,7 @@ reject	undocumented	docs	alterDataMovementRule/ALTER_DATA_MOVEMENT_RULE_(IF_EXIS
 reject	undocumented	docs	alterDataMovementRule/ALTER_DATA_MOVEMENT_RULE_(IF_EXISTS)?_QNAME_SET_MAX_ROW~c29c5b6e!drop-16	ALTER DATA MOVEMENT RULE a SET MAX_ROWS AS() RETURNS INTEGER ->(1
 reject	undocumented	docs	alterDataMovementRule/ALTER_DATA_MOVEMENT_RULE_(IF_EXISTS)?_QNAME_SET_MAX_ROW~c29c5b6e!insert	ALTER DATA MOVEMENT RULE a SET MAX_ROWS AS() RETURNS INTEGER ->(1) zzz
 reject	undocumented	docs	alterDataMovementRule/ALTER_DATA_MOVEMENT_RULE_(IF_EXISTS)?_QNAME_SET_MAX_ROW~c29c5b6e!swap	ALWAYS DATA MOVEMENT RULE a SET MAX_ROWS AS() RETURNS INTEGER ->(1)
-reject	accept	docs	alterDataMovementRule/ALTER_DATA_MOVEMENT_RULE_(IF_EXISTS)?_QNAME_SET_COMMENT_=_STRING	ALTER DATA MOVEMENT RULE a SET COMMENT = 's'
+accept	accept	docs	alterDataMovementRule/ALTER_DATA_MOVEMENT_RULE_(IF_EXISTS)?_QNAME_SET_COMMENT_=_STRING	ALTER DATA MOVEMENT RULE a SET COMMENT = 's'
 reject	undocumented	docs	alterDataMovementRule/ALTER_DATA_MOVEMENT_RULE_(IF_EXISTS)?_QNAME_SET_COMMENT_=_STRING!drop-1	DATA MOVEMENT RULE a SET COMMENT = 's'
 reject	undocumented	docs	alterDataMovementRule/ALTER_DATA_MOVEMENT_RULE_(IF_EXISTS)?_QNAME_SET_COMMENT_=_STRING!drop-2	ALTER MOVEMENT RULE a SET COMMENT = 's'
 reject	undocumented	docs	alterDataMovementRule/ALTER_DATA_MOVEMENT_RULE_(IF_EXISTS)?_QNAME_SET_COMMENT_=_STRING!drop-3	ALTER DATA RULE a SET COMMENT = 's'
@@ -10288,8 +10288,8 @@ reject	undocumented	docs	alterDataMovementRule/ALTER_DATA_MOVEMENT_RULE_(IF_EXIS
 reject	undocumented	docs	alterDataMovementRule/ALTER_DATA_MOVEMENT_RULE_(IF_EXISTS)?_QNAME_SET_COMMENT_=_STRING!drop-9	ALTER DATA MOVEMENT RULE a SET COMMENT =
 reject	undocumented	docs	alterDataMovementRule/ALTER_DATA_MOVEMENT_RULE_(IF_EXISTS)?_QNAME_SET_COMMENT_=_STRING!insert	ALTER DATA MOVEMENT RULE a SET COMMENT = 's' zzz
 reject	undocumented	docs	alterDataMovementRule/ALTER_DATA_MOVEMENT_RULE_(IF_EXISTS)?_QNAME_SET_COMMENT_=_STRING!swap	ALWAYS DATA MOVEMENT RULE a SET COMMENT = 's'
-reject	accept	docs	alterDataMovementRule/ALTER_DATA_MOVEMENT_RULE_(IF_EXISTS)?_QNAME_UNSET_COMMENT	ALTER DATA MOVEMENT RULE a UNSET COMMENT
-reject	accept	docs	alterDataMovementRule/ALTER_DATA_MOVEMENT_RULE_(IF_EXISTS)?_QNAME_RENAME_TO_QNAME	ALTER DATA MOVEMENT RULE a RENAME TO a
+accept	accept	docs	alterDataMovementRule/ALTER_DATA_MOVEMENT_RULE_(IF_EXISTS)?_QNAME_UNSET_COMMENT	ALTER DATA MOVEMENT RULE a UNSET COMMENT
+accept	accept	docs	alterDataMovementRule/ALTER_DATA_MOVEMENT_RULE_(IF_EXISTS)?_QNAME_RENAME_TO_QNAME	ALTER DATA MOVEMENT RULE a RENAME TO a
 reject	undocumented	docs	alterDataMovementRule/ALTER_DATA_MOVEMENT_RULE_(IF_EXISTS)?_QNAME_RENAME_TO_QNAME!drop-1	DATA MOVEMENT RULE a RENAME TO a
 reject	undocumented	docs	alterDataMovementRule/ALTER_DATA_MOVEMENT_RULE_(IF_EXISTS)?_QNAME_RENAME_TO_QNAME!drop-2	ALTER MOVEMENT RULE a RENAME TO a
 reject	undocumented	docs	alterDataMovementRule/ALTER_DATA_MOVEMENT_RULE_(IF_EXISTS)?_QNAME_RENAME_TO_QNAME!drop-3	ALTER DATA RULE a RENAME TO a
@@ -10299,9 +10299,9 @@ reject	undocumented	docs	alterDataMovementRule/ALTER_DATA_MOVEMENT_RULE_(IF_EXIS
 reject	undocumented	docs	alterDataMovementRule/ALTER_DATA_MOVEMENT_RULE_(IF_EXISTS)?_QNAME_RENAME_TO_QNAME!drop-8	ALTER DATA MOVEMENT RULE a RENAME TO
 reject	undocumented	docs	alterDataMovementRule/ALTER_DATA_MOVEMENT_RULE_(IF_EXISTS)?_QNAME_RENAME_TO_QNAME!insert	ALTER DATA MOVEMENT RULE a RENAME TO a zzz
 reject	undocumented	docs	alterDataMovementRule/ALTER_DATA_MOVEMENT_RULE_(IF_EXISTS)?_QNAME_RENAME_TO_QNAME!swap	ALWAYS DATA MOVEMENT RULE a RENAME TO a
-reject	accept	docs	alterDataMovementRule(IF_EXISTS)?/%empty	ALTER DATA MOVEMENT RULE a UNSET COMMENT
+accept	accept	docs	alterDataMovementRule(IF_EXISTS)?/%empty	ALTER DATA MOVEMENT RULE a UNSET COMMENT
 reject	undocumented	docs	alterDataMovementRule(IF_EXISTS)?/%empty!insert	ALTER DATA MOVEMENT RULE zzz a UNSET COMMENT
-reject	accept	docs	alterDataMovementRule(IF_EXISTS)?/IF_EXISTS	ALTER DATA MOVEMENT RULE IF EXISTS a UNSET COMMENT
+accept	accept	docs	alterDataMovementRule(IF_EXISTS)?/IF_EXISTS	ALTER DATA MOVEMENT RULE IF EXISTS a UNSET COMMENT
 reject	undocumented	docs	alterDataMovementRule(IF_EXISTS)?/IF_EXISTS!drop-1	ALTER DATA MOVEMENT RULE EXISTS a UNSET COMMENT
 reject	undocumented	docs	alterDataMovementRule(IF_EXISTS)?/IF_EXISTS!drop-2	ALTER DATA MOVEMENT RULE IF a UNSET COMMENT
 reject	undocumented	docs	alterDataMovementRule(IF_EXISTS)?/IF_EXISTS!truncate	ALTER DATA MOVEMENT RULE IF
@@ -22794,16 +22794,16 @@ accept	accept	docs	alterShare(,_QNAME)*/,_QNAME_(,_QNAME)*	ALTER SHARE a UNSET T
 reject	undocumented	docs	alterShare(,_QNAME)*/,_QNAME_(,_QNAME)*!drop-1	ALTER SHARE a UNSET TAG a a
 reject	undocumented	docs	alterShare(,_QNAME)*/,_QNAME_(,_QNAME)*!drop-2	ALTER SHARE a UNSET TAG a,
 reject	undocumented	docs	alterShare(,_QNAME)*/,_QNAME_(,_QNAME)*!insert	ALTER SHARE a UNSET TAG a, a zzz
-reject	accept	docs	alterSnapshot/ALTER_SNAPSHOT_(IF_EXISTS)?_QNAME_SET_COMMENT_=_STRING	ALTER SNAPSHOT a SET COMMENT = 's'
-reject	accept	docs	alterSnapshot(IF_EXISTS)?/%empty	ALTER SNAPSHOT a SET COMMENT = 's'
+accept	accept	docs	alterSnapshot/ALTER_SNAPSHOT_(IF_EXISTS)?_QNAME_SET_COMMENT_=_STRING	ALTER SNAPSHOT a SET COMMENT = 's'
+accept	accept	docs	alterSnapshot(IF_EXISTS)?/%empty	ALTER SNAPSHOT a SET COMMENT = 's'
 reject	undocumented	docs	alterSnapshot(IF_EXISTS)?/%empty!insert	ALTER SNAPSHOT zzz a SET COMMENT = 's'
-reject	accept	docs	alterSnapshot(IF_EXISTS)?/IF_EXISTS	ALTER SNAPSHOT IF EXISTS a SET COMMENT = 's'
+accept	accept	docs	alterSnapshot(IF_EXISTS)?/IF_EXISTS	ALTER SNAPSHOT IF EXISTS a SET COMMENT = 's'
 reject	undocumented	docs	alterSnapshot(IF_EXISTS)?/IF_EXISTS!drop-1	ALTER SNAPSHOT EXISTS a SET COMMENT = 's'
 reject	undocumented	docs	alterSnapshot(IF_EXISTS)?/IF_EXISTS!drop-2	ALTER SNAPSHOT IF a SET COMMENT = 's'
 reject	undocumented	docs	alterSnapshot(IF_EXISTS)?/IF_EXISTS!truncate	ALTER SNAPSHOT IF
 reject	undocumented	docs	alterSnapshot(IF_EXISTS)?/IF_EXISTS!insert	ALTER SNAPSHOT IF EXISTS zzz a SET COMMENT = 's'
 reject	undocumented	docs	alterSnapshot(IF_EXISTS)?/IF_EXISTS!swap	ALTER SNAPSHOT IGNORE EXISTS a SET COMMENT = 's'
-reject	accept	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_RENAME_TO_QNAME	ALTER SNAPSHOT POLICY a RENAME TO a
+accept	accept	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_RENAME_TO_QNAME	ALTER SNAPSHOT POLICY a RENAME TO a
 reject	undocumented	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_RENAME_TO_QNAME!drop-1	SNAPSHOT POLICY a RENAME TO a
 reject	undocumented	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_RENAME_TO_QNAME!drop-3	ALTER SNAPSHOT a RENAME TO a
 reject	undocumented	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_RENAME_TO_QNAME!drop-4	ALTER SNAPSHOT POLICY RENAME TO a
@@ -22812,7 +22812,7 @@ reject	undocumented	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_RENAME_
 reject	undocumented	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_RENAME_TO_QNAME!drop-7	ALTER SNAPSHOT POLICY a RENAME TO
 reject	undocumented	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_RENAME_TO_QNAME!insert	ALTER SNAPSHOT POLICY a RENAME TO a zzz
 reject	undocumented	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_RENAME_TO_QNAME!swap	ALWAYS SNAPSHOT POLICY a RENAME TO a
-reject	accept	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_SET_(COMMENT_=_STRING_(SCHE~556bf7cf	ALTER SNAPSHOT POLICY a SET COMMENT = 's'
+accept	accept	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_SET_(COMMENT_=_STRING_(SCHE~556bf7cf	ALTER SNAPSHOT POLICY a SET COMMENT = 's'
 reject	undocumented	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_SET_(COMMENT_=_STRING_(SCHE~556bf7cf!drop-1	SNAPSHOT POLICY a SET COMMENT = 's'
 reject	accept	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_SET_(COMMENT_=_STRING_(SCHE~556bf7cf!drop-4	ALTER SNAPSHOT POLICY SET COMMENT = 's'
 reject	undocumented	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_SET_(COMMENT_=_STRING_(SCHE~556bf7cf!drop-5	ALTER SNAPSHOT POLICY a COMMENT = 's'
@@ -22821,8 +22821,8 @@ reject	undocumented	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_SET_(CO
 reject	undocumented	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_SET_(COMMENT_=_STRING_(SCHE~556bf7cf!drop-8	ALTER SNAPSHOT POLICY a SET COMMENT =
 reject	undocumented	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_SET_(COMMENT_=_STRING_(SCHE~556bf7cf!insert	ALTER SNAPSHOT POLICY a SET COMMENT = 's' zzz
 reject	undocumented	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_SET_(COMMENT_=_STRING_(SCHE~556bf7cf!swap	ALWAYS SNAPSHOT POLICY a SET COMMENT = 's'
-reject	accept	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_UNSET_(COMMENT|SCHEDULE|EXP~b8bbabd5	ALTER SNAPSHOT POLICY a UNSET COMMENT
-reject	accept	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_SET_TAG_QNAME_=_STRING_(,_Q~ba29d981	ALTER SNAPSHOT POLICY a SET TAG a = 's'
+accept	accept	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_UNSET_(COMMENT|SCHEDULE|EXP~b8bbabd5	ALTER SNAPSHOT POLICY a UNSET COMMENT
+accept	accept	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_SET_TAG_QNAME_=_STRING_(,_Q~ba29d981	ALTER SNAPSHOT POLICY a SET TAG a = 's'
 reject	undocumented	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_SET_TAG_QNAME_=_STRING_(,_Q~ba29d981!drop-1	SNAPSHOT POLICY a SET TAG a = 's'
 reject	undocumented	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_SET_TAG_QNAME_=_STRING_(,_Q~ba29d981!drop-3	ALTER SNAPSHOT a SET TAG a = 's'
 reject	undocumented	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_SET_TAG_QNAME_=_STRING_(,_Q~ba29d981!drop-4	ALTER SNAPSHOT POLICY SET TAG a = 's'
@@ -22833,7 +22833,7 @@ reject	undocumented	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_SET_TAG
 reject	undocumented	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_SET_TAG_QNAME_=_STRING_(,_Q~ba29d981!drop-9	ALTER SNAPSHOT POLICY a SET TAG a =
 reject	undocumented	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_SET_TAG_QNAME_=_STRING_(,_Q~ba29d981!insert	ALTER SNAPSHOT POLICY a SET TAG a = 's' zzz
 reject	undocumented	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_SET_TAG_QNAME_=_STRING_(,_Q~ba29d981!swap	ALWAYS SNAPSHOT POLICY a SET TAG a = 's'
-reject	accept	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_UNSET_TAG_QNAME_(,_QNAME)*	ALTER SNAPSHOT POLICY a UNSET TAG a
+accept	accept	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_UNSET_TAG_QNAME_(,_QNAME)*	ALTER SNAPSHOT POLICY a UNSET TAG a
 reject	undocumented	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!drop-1	SNAPSHOT POLICY a UNSET TAG a
 reject	undocumented	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!drop-3	ALTER SNAPSHOT a UNSET TAG a
 reject	undocumented	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!drop-4	ALTER SNAPSHOT POLICY UNSET TAG a
@@ -22842,55 +22842,55 @@ reject	undocumented	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_UNSET_T
 reject	undocumented	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!drop-7	ALTER SNAPSHOT POLICY a UNSET TAG
 reject	undocumented	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!insert	ALTER SNAPSHOT POLICY a UNSET TAG a zzz
 reject	undocumented	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!swap	ALWAYS SNAPSHOT POLICY a UNSET TAG a
-reject	accept	docs	alterSnapshotPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/COMMENT_=_STRING_(SCHEDULE_=_STRING)?_(EXPIRE_AFTER_DAY~62aa0fb2	ALTER SNAPSHOT POLICY a SET COMMENT = 's'
+accept	accept	docs	alterSnapshotPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/COMMENT_=_STRING_(SCHEDULE_=_STRING)?_(EXPIRE_AFTER_DAY~62aa0fb2	ALTER SNAPSHOT POLICY a SET COMMENT = 's'
 reject	undocumented	docs	alterSnapshotPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/COMMENT_=_STRING_(SCHEDULE_=_STRING)?_(EXPIRE_AFTER_DAY~62aa0fb2!swap	ALTER SNAPSHOT POLICY a SET COMMENTS = 's'
-reject	accept	docs	alterSnapshotPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/SCHEDULE_=_STRING_(EXPIRE_AFTER_DAYS_=_NUMBER)?	ALTER SNAPSHOT POLICY a SET SCHEDULE = 's'
+accept	accept	docs	alterSnapshotPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/SCHEDULE_=_STRING_(EXPIRE_AFTER_DAYS_=_NUMBER)?	ALTER SNAPSHOT POLICY a SET SCHEDULE = 's'
 reject	undocumented	docs	alterSnapshotPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/SCHEDULE_=_STRING_(EXPIRE_AFTER_DAYS_=_NUMBER)?!drop-2	ALTER SNAPSHOT POLICY a SET SCHEDULE 's'
 reject	undocumented	docs	alterSnapshotPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/SCHEDULE_=_STRING_(EXPIRE_AFTER_DAYS_=_NUMBER)?!drop-3	ALTER SNAPSHOT POLICY a SET SCHEDULE =
 reject	undocumented	docs	alterSnapshotPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/SCHEDULE_=_STRING_(EXPIRE_AFTER_DAYS_=_NUMBER)?!insert	ALTER SNAPSHOT POLICY a SET SCHEDULE = 's' zzz
 reject	undocumented	docs	alterSnapshotPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/SCHEDULE_=_STRING_(EXPIRE_AFTER_DAYS_=_NUMBER)?!swap	ALTER SNAPSHOT POLICY a SET SCHEDULER = 's'
-reject	accept	docs	alterSnapshotPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/EXPIRE_AFTER_DAYS_=_NUMBER	ALTER SNAPSHOT POLICY a SET EXPIRE_AFTER_DAYS = 1
+accept	accept	docs	alterSnapshotPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/EXPIRE_AFTER_DAYS_=_NUMBER	ALTER SNAPSHOT POLICY a SET EXPIRE_AFTER_DAYS = 1
 reject	undocumented	docs	alterSnapshotPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/EXPIRE_AFTER_DAYS_=_NUMBER!drop-1	ALTER SNAPSHOT POLICY a SET = 1
 reject	undocumented	docs	alterSnapshotPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/EXPIRE_AFTER_DAYS_=_NUMBER!drop-2	ALTER SNAPSHOT POLICY a SET EXPIRE_AFTER_DAYS 1
 reject	undocumented	docs	alterSnapshotPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/EXPIRE_AFTER_DAYS_=_NUMBER!drop-3	ALTER SNAPSHOT POLICY a SET EXPIRE_AFTER_DAYS =
 reject	undocumented	docs	alterSnapshotPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/EXPIRE_AFTER_DAYS_=_NUMBER!insert	ALTER SNAPSHOT POLICY a SET EXPIRE_AFTER_DAYS = 1 zzz
 reject	undocumented	docs	alterSnapshotPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/EXPIRE_AFTER_DAYS_=_NUMBER!swap	ALTER SNAPSHOT POLICY a SET EXPIRE_ROTATED_KEY_PAIR_AFTER_HOURS = 1
-reject	accept	docs	alterSnapshotPolicy(SCHEDULE_=_STRING)?/%empty	ALTER SNAPSHOT POLICY a SET COMMENT = 's'
-reject	accept	docs	alterSnapshotPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING	ALTER SNAPSHOT POLICY a SET COMMENT = 's' SCHEDULE = 's'
+accept	accept	docs	alterSnapshotPolicy(SCHEDULE_=_STRING)?/%empty	ALTER SNAPSHOT POLICY a SET COMMENT = 's'
+accept	accept	docs	alterSnapshotPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING	ALTER SNAPSHOT POLICY a SET COMMENT = 's' SCHEDULE = 's'
 reject	undocumented	docs	alterSnapshotPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!drop-1	ALTER SNAPSHOT POLICY a SET COMMENT = 's' = 's'
 reject	undocumented	docs	alterSnapshotPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!drop-2	ALTER SNAPSHOT POLICY a SET COMMENT = 's' SCHEDULE 's'
 reject	undocumented	docs	alterSnapshotPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!drop-3	ALTER SNAPSHOT POLICY a SET COMMENT = 's' SCHEDULE =
 reject	undocumented	docs	alterSnapshotPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!insert	ALTER SNAPSHOT POLICY a SET COMMENT = 's' SCHEDULE = 's' zzz
 reject	undocumented	docs	alterSnapshotPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!swap	ALTER SNAPSHOT POLICY a SET COMMENT = 's' SCHEDULER = 's'
-reject	accept	docs	alterSnapshotPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/%empty	ALTER SNAPSHOT POLICY a SET COMMENT = 's'
-reject	accept	docs	alterSnapshotPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER	ALTER SNAPSHOT POLICY a SET COMMENT = 's' EXPIRE_AFTER_DAYS = 1
+accept	accept	docs	alterSnapshotPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/%empty	ALTER SNAPSHOT POLICY a SET COMMENT = 's'
+accept	accept	docs	alterSnapshotPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER	ALTER SNAPSHOT POLICY a SET COMMENT = 's' EXPIRE_AFTER_DAYS = 1
 reject	undocumented	docs	alterSnapshotPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER!drop-1	ALTER SNAPSHOT POLICY a SET COMMENT = 's' = 1
 reject	undocumented	docs	alterSnapshotPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER!drop-2	ALTER SNAPSHOT POLICY a SET COMMENT = 's' EXPIRE_AFTER_DAYS 1
 reject	undocumented	docs	alterSnapshotPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER!drop-3	ALTER SNAPSHOT POLICY a SET COMMENT = 's' EXPIRE_AFTER_DAYS =
 reject	undocumented	docs	alterSnapshotPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER!insert	ALTER SNAPSHOT POLICY a SET COMMENT = 's' EXPIRE_AFTER_DAYS = 1 zzz
 reject	undocumented	docs	alterSnapshotPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER!swap	ALTER SNAPSHOT POLICY a SET COMMENT = 's' EXPIRE_ROTATED_KEY_PAIR_AFTER_HOURS = 1
-reject	accept	docs	alterSnapshotPolicy(COMMENT|SCHEDULE|EXPIRE_AFTER_DAYS)/COMMENT	ALTER SNAPSHOT POLICY a UNSET COMMENT
+accept	accept	docs	alterSnapshotPolicy(COMMENT|SCHEDULE|EXPIRE_AFTER_DAYS)/COMMENT	ALTER SNAPSHOT POLICY a UNSET COMMENT
 reject	undocumented	docs	alterSnapshotPolicy(COMMENT|SCHEDULE|EXPIRE_AFTER_DAYS)/COMMENT!swap	ALTER SNAPSHOT POLICY a UNSET COMMENTS
-reject	accept	docs	alterSnapshotPolicy(COMMENT|SCHEDULE|EXPIRE_AFTER_DAYS)/SCHEDULE	ALTER SNAPSHOT POLICY a UNSET SCHEDULE
+accept	accept	docs	alterSnapshotPolicy(COMMENT|SCHEDULE|EXPIRE_AFTER_DAYS)/SCHEDULE	ALTER SNAPSHOT POLICY a UNSET SCHEDULE
 reject	undocumented	docs	alterSnapshotPolicy(COMMENT|SCHEDULE|EXPIRE_AFTER_DAYS)/SCHEDULE!insert	ALTER SNAPSHOT POLICY a UNSET SCHEDULE zzz
 reject	undocumented	docs	alterSnapshotPolicy(COMMENT|SCHEDULE|EXPIRE_AFTER_DAYS)/SCHEDULE!swap	ALTER SNAPSHOT POLICY a UNSET SCHEDULER
-reject	accept	docs	alterSnapshotPolicy(COMMENT|SCHEDULE|EXPIRE_AFTER_DAYS)/EXPIRE_AFTER_DAYS	ALTER SNAPSHOT POLICY a UNSET EXPIRE_AFTER_DAYS
+accept	accept	docs	alterSnapshotPolicy(COMMENT|SCHEDULE|EXPIRE_AFTER_DAYS)/EXPIRE_AFTER_DAYS	ALTER SNAPSHOT POLICY a UNSET EXPIRE_AFTER_DAYS
 reject	undocumented	docs	alterSnapshotPolicy(COMMENT|SCHEDULE|EXPIRE_AFTER_DAYS)/EXPIRE_AFTER_DAYS!insert	ALTER SNAPSHOT POLICY a UNSET EXPIRE_AFTER_DAYS zzz
 reject	undocumented	docs	alterSnapshotPolicy(COMMENT|SCHEDULE|EXPIRE_AFTER_DAYS)/EXPIRE_AFTER_DAYS!swap	ALTER SNAPSHOT POLICY a UNSET EXPIRE_ROTATED_KEY_PAIR_AFTER_HOURS
-reject	accept	docs	alterSnapshotPolicy(,_QNAME_=_STRING)*/%empty	ALTER SNAPSHOT POLICY a SET TAG a = 's'
-reject	accept	docs	alterSnapshotPolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*	ALTER SNAPSHOT POLICY a SET TAG a = 's', a = 's'
+accept	accept	docs	alterSnapshotPolicy(,_QNAME_=_STRING)*/%empty	ALTER SNAPSHOT POLICY a SET TAG a = 's'
+accept	accept	docs	alterSnapshotPolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*	ALTER SNAPSHOT POLICY a SET TAG a = 's', a = 's'
 reject	undocumented	docs	alterSnapshotPolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-1	ALTER SNAPSHOT POLICY a SET TAG a = 's' a = 's'
 reject	undocumented	docs	alterSnapshotPolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-2	ALTER SNAPSHOT POLICY a SET TAG a = 's', = 's'
 reject	undocumented	docs	alterSnapshotPolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-3	ALTER SNAPSHOT POLICY a SET TAG a = 's', a 's'
 reject	undocumented	docs	alterSnapshotPolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-4	ALTER SNAPSHOT POLICY a SET TAG a = 's', a =
 reject	undocumented	docs	alterSnapshotPolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!insert	ALTER SNAPSHOT POLICY a SET TAG a = 's', a = 's' zzz
-reject	accept	docs	alterSnapshotPolicy(,_QNAME)*/%empty	ALTER SNAPSHOT POLICY a UNSET TAG a
-reject	accept	docs	alterSnapshotPolicy(,_QNAME)*/,_QNAME_(,_QNAME)*	ALTER SNAPSHOT POLICY a UNSET TAG a, a
+accept	accept	docs	alterSnapshotPolicy(,_QNAME)*/%empty	ALTER SNAPSHOT POLICY a UNSET TAG a
+accept	accept	docs	alterSnapshotPolicy(,_QNAME)*/,_QNAME_(,_QNAME)*	ALTER SNAPSHOT POLICY a UNSET TAG a, a
 reject	undocumented	docs	alterSnapshotPolicy(,_QNAME)*/,_QNAME_(,_QNAME)*!drop-1	ALTER SNAPSHOT POLICY a UNSET TAG a a
 reject	undocumented	docs	alterSnapshotPolicy(,_QNAME)*/,_QNAME_(,_QNAME)*!drop-2	ALTER SNAPSHOT POLICY a UNSET TAG a,
 reject	undocumented	docs	alterSnapshotPolicy(,_QNAME)*/,_QNAME_(,_QNAME)*!insert	ALTER SNAPSHOT POLICY a UNSET TAG a, a zzz
-reject	accept	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_ADD_SNAPSHOT	ALTER SNAPSHOT SET a ADD SNAPSHOT
-reject	accept	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_APPLY_SNAPSHOT_POLICY_QNAME_(FORCE)?	ALTER SNAPSHOT SET a APPLY SNAPSHOT POLICY a
+accept	accept	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_ADD_SNAPSHOT	ALTER SNAPSHOT SET a ADD SNAPSHOT
+accept	accept	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_APPLY_SNAPSHOT_POLICY_QNAME_(FORCE)?	ALTER SNAPSHOT SET a APPLY SNAPSHOT POLICY a
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_APPLY_SNAPSHOT_POLICY_QNAME_(FORCE)?!drop-1	SNAPSHOT SET a APPLY SNAPSHOT POLICY a
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_APPLY_SNAPSHOT_POLICY_QNAME_(FORCE)?!drop-2	ALTER SET a APPLY SNAPSHOT POLICY a
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_APPLY_SNAPSHOT_POLICY_QNAME_(FORCE)?!drop-3	ALTER SNAPSHOT a APPLY SNAPSHOT POLICY a
@@ -22901,7 +22901,7 @@ reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_APPLY_SNAPSHO
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_APPLY_SNAPSHOT_POLICY_QNAME_(FORCE)?!drop-8	ALTER SNAPSHOT SET a APPLY SNAPSHOT POLICY
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_APPLY_SNAPSHOT_POLICY_QNAME_(FORCE)?!insert	ALTER SNAPSHOT SET a APPLY SNAPSHOT POLICY a zzz
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_APPLY_SNAPSHOT_POLICY_QNAME_(FORCE)?!swap	ALWAYS SNAPSHOT SET a APPLY SNAPSHOT POLICY a
-reject	accept	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_SUSPEND_SNAPSHOT_((CREATION|EX~28270f62	ALTER SNAPSHOT SET a SUSPEND SNAPSHOT POLICY
+accept	accept	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_SUSPEND_SNAPSHOT_((CREATION|EX~28270f62	ALTER SNAPSHOT SET a SUSPEND SNAPSHOT POLICY
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_SUSPEND_SNAPSHOT_((CREATION|EX~28270f62!drop-1	SNAPSHOT SET a SUSPEND SNAPSHOT POLICY
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_SUSPEND_SNAPSHOT_((CREATION|EX~28270f62!drop-2	ALTER SET a SUSPEND SNAPSHOT POLICY
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_SUSPEND_SNAPSHOT_((CREATION|EX~28270f62!drop-3	ALTER SNAPSHOT a SUSPEND SNAPSHOT POLICY
@@ -22911,7 +22911,7 @@ reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_SUSPEND_SNAPS
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_SUSPEND_SNAPSHOT_((CREATION|EX~28270f62!drop-7	ALTER SNAPSHOT SET a SUSPEND SNAPSHOT
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_SUSPEND_SNAPSHOT_((CREATION|EX~28270f62!insert	ALTER SNAPSHOT SET a SUSPEND SNAPSHOT POLICY zzz
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_SUSPEND_SNAPSHOT_((CREATION|EX~28270f62!swap	ALWAYS SNAPSHOT SET a SUSPEND SNAPSHOT POLICY
-reject	accept	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_RESUME_SNAPSHOT_((CREATION|EXP~7d07351d	ALTER SNAPSHOT SET a RESUME SNAPSHOT POLICY
+accept	accept	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_RESUME_SNAPSHOT_((CREATION|EXP~7d07351d	ALTER SNAPSHOT SET a RESUME SNAPSHOT POLICY
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_RESUME_SNAPSHOT_((CREATION|EXP~7d07351d!drop-1	SNAPSHOT SET a RESUME SNAPSHOT POLICY
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_RESUME_SNAPSHOT_((CREATION|EXP~7d07351d!drop-2	ALTER SET a RESUME SNAPSHOT POLICY
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_RESUME_SNAPSHOT_((CREATION|EXP~7d07351d!drop-3	ALTER SNAPSHOT a RESUME SNAPSHOT POLICY
@@ -22920,7 +22920,7 @@ reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_RESUME_SNAPSH
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_RESUME_SNAPSHOT_((CREATION|EXP~7d07351d!drop-7	ALTER SNAPSHOT SET a RESUME SNAPSHOT
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_RESUME_SNAPSHOT_((CREATION|EXP~7d07351d!insert	ALTER SNAPSHOT SET a RESUME SNAPSHOT POLICY zzz
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_RESUME_SNAPSHOT_((CREATION|EXP~7d07351d!swap	ALWAYS SNAPSHOT SET a RESUME SNAPSHOT POLICY
-reject	accept	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_DELETE_SNAPSHOT_IDENTIFIER_STRING	ALTER SNAPSHOT SET a DELETE SNAPSHOT IDENTIFIER 's'
+accept	accept	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_DELETE_SNAPSHOT_IDENTIFIER_STRING	ALTER SNAPSHOT SET a DELETE SNAPSHOT IDENTIFIER 's'
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_DELETE_SNAPSHOT_IDENTIFIER_STRING!drop-1	SNAPSHOT SET a DELETE SNAPSHOT IDENTIFIER 's'
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_DELETE_SNAPSHOT_IDENTIFIER_STRING!drop-2	ALTER SET a DELETE SNAPSHOT IDENTIFIER 's'
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_DELETE_SNAPSHOT_IDENTIFIER_STRING!drop-3	ALTER SNAPSHOT a DELETE SNAPSHOT IDENTIFIER 's'
@@ -22931,7 +22931,7 @@ reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_DELETE_SNAPSH
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_DELETE_SNAPSHOT_IDENTIFIER_STRING!drop-8	ALTER SNAPSHOT SET a DELETE SNAPSHOT IDENTIFIER
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_DELETE_SNAPSHOT_IDENTIFIER_STRING!insert	ALTER SNAPSHOT SET a DELETE SNAPSHOT IDENTIFIER 's' zzz
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_DELETE_SNAPSHOT_IDENTIFIER_STRING!swap	ALWAYS SNAPSHOT SET a DELETE SNAPSHOT IDENTIFIER 's'
-reject	accept	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_MODIFY_SNAPSHOT_IDENTIFIER_STR~fec88418	ALTER SNAPSHOT SET a MODIFY SNAPSHOT IDENTIFIER 's' ADD LEGAL HOLD
+accept	accept	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_MODIFY_SNAPSHOT_IDENTIFIER_STR~fec88418	ALTER SNAPSHOT SET a MODIFY SNAPSHOT IDENTIFIER 's' ADD LEGAL HOLD
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_MODIFY_SNAPSHOT_IDENTIFIER_STR~fec88418!drop-1	SNAPSHOT SET a MODIFY SNAPSHOT IDENTIFIER 's' ADD LEGAL HOLD
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_MODIFY_SNAPSHOT_IDENTIFIER_STR~fec88418!drop-2	ALTER SET a MODIFY SNAPSHOT IDENTIFIER 's' ADD LEGAL HOLD
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_MODIFY_SNAPSHOT_IDENTIFIER_STR~fec88418!drop-3	ALTER SNAPSHOT a MODIFY SNAPSHOT IDENTIFIER 's' ADD LEGAL HOLD
@@ -22945,7 +22945,7 @@ reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_MODIFY_SNAPSH
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_MODIFY_SNAPSHOT_IDENTIFIER_STR~fec88418!drop-11	ALTER SNAPSHOT SET a MODIFY SNAPSHOT IDENTIFIER 's' ADD LEGAL
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_MODIFY_SNAPSHOT_IDENTIFIER_STR~fec88418!insert	ALTER SNAPSHOT SET a MODIFY SNAPSHOT IDENTIFIER 's' ADD LEGAL HOLD zzz
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_MODIFY_SNAPSHOT_IDENTIFIER_STR~fec88418!swap	ALWAYS SNAPSHOT SET a MODIFY SNAPSHOT IDENTIFIER 's' ADD LEGAL HOLD
-reject	accept	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_MODIFY_SNAPSHOT_IDENTIFIER_STR~0e406ac0	ALTER SNAPSHOT SET a MODIFY SNAPSHOT IDENTIFIER 's' SET COMMENT = 's'
+accept	accept	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_MODIFY_SNAPSHOT_IDENTIFIER_STR~0e406ac0	ALTER SNAPSHOT SET a MODIFY SNAPSHOT IDENTIFIER 's' SET COMMENT = 's'
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_MODIFY_SNAPSHOT_IDENTIFIER_STR~0e406ac0!drop-1	SNAPSHOT SET a MODIFY SNAPSHOT IDENTIFIER 's' SET COMMENT = 's'
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_MODIFY_SNAPSHOT_IDENTIFIER_STR~0e406ac0!drop-2	ALTER SET a MODIFY SNAPSHOT IDENTIFIER 's' SET COMMENT = 's'
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_MODIFY_SNAPSHOT_IDENTIFIER_STR~0e406ac0!drop-3	ALTER SNAPSHOT a MODIFY SNAPSHOT IDENTIFIER 's' SET COMMENT = 's'
@@ -22960,7 +22960,7 @@ reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_MODIFY_SNAPSH
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_MODIFY_SNAPSHOT_IDENTIFIER_STR~0e406ac0!drop-12	ALTER SNAPSHOT SET a MODIFY SNAPSHOT IDENTIFIER 's' SET COMMENT =
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_MODIFY_SNAPSHOT_IDENTIFIER_STR~0e406ac0!insert	ALTER SNAPSHOT SET a MODIFY SNAPSHOT IDENTIFIER 's' SET COMMENT = 's' zzz
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_MODIFY_SNAPSHOT_IDENTIFIER_STR~0e406ac0!swap	ALWAYS SNAPSHOT SET a MODIFY SNAPSHOT IDENTIFIER 's' SET COMMENT = 's'
-reject	accept	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_MODIFY_SNAPSHOT_IDENTIFIER_STR~5f692bb7	ALTER SNAPSHOT SET a MODIFY SNAPSHOT IDENTIFIER 's' UNSET COMMENT
+accept	accept	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_MODIFY_SNAPSHOT_IDENTIFIER_STR~5f692bb7	ALTER SNAPSHOT SET a MODIFY SNAPSHOT IDENTIFIER 's' UNSET COMMENT
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_MODIFY_SNAPSHOT_IDENTIFIER_STR~5f692bb7!drop-1	SNAPSHOT SET a MODIFY SNAPSHOT IDENTIFIER 's' UNSET COMMENT
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_MODIFY_SNAPSHOT_IDENTIFIER_STR~5f692bb7!drop-2	ALTER SET a MODIFY SNAPSHOT IDENTIFIER 's' UNSET COMMENT
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_MODIFY_SNAPSHOT_IDENTIFIER_STR~5f692bb7!drop-3	ALTER SNAPSHOT a MODIFY SNAPSHOT IDENTIFIER 's' UNSET COMMENT
@@ -22973,7 +22973,7 @@ reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_MODIFY_SNAPSH
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_MODIFY_SNAPSHOT_IDENTIFIER_STR~5f692bb7!drop-10	ALTER SNAPSHOT SET a MODIFY SNAPSHOT IDENTIFIER 's' UNSET
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_MODIFY_SNAPSHOT_IDENTIFIER_STR~5f692bb7!insert	ALTER SNAPSHOT SET a MODIFY SNAPSHOT IDENTIFIER 's' UNSET COMMENT zzz
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_MODIFY_SNAPSHOT_IDENTIFIER_STR~5f692bb7!swap	ALWAYS SNAPSHOT SET a MODIFY SNAPSHOT IDENTIFIER 's' UNSET COMMENT
-reject	accept	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_SET_COMMENT_=_STRING	ALTER SNAPSHOT SET a SET COMMENT = 's'
+accept	accept	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_SET_COMMENT_=_STRING	ALTER SNAPSHOT SET a SET COMMENT = 's'
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_SET_COMMENT_=_STRING!drop-1	SNAPSHOT SET a SET COMMENT = 's'
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_SET_COMMENT_=_STRING!drop-4	ALTER SNAPSHOT SET SET COMMENT = 's'
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_SET_COMMENT_=_STRING!drop-5	ALTER SNAPSHOT SET a COMMENT = 's'
@@ -22982,14 +22982,14 @@ reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_SET_COMMENT_=
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_SET_COMMENT_=_STRING!drop-8	ALTER SNAPSHOT SET a SET COMMENT =
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_SET_COMMENT_=_STRING!insert	ALTER SNAPSHOT SET a SET COMMENT = 's' zzz
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_SET_COMMENT_=_STRING!swap	ALWAYS SNAPSHOT SET a SET COMMENT = 's'
-reject	accept	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_UNSET_COMMENT	ALTER SNAPSHOT SET a UNSET COMMENT
+accept	accept	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_UNSET_COMMENT	ALTER SNAPSHOT SET a UNSET COMMENT
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_UNSET_COMMENT!drop-1	SNAPSHOT SET a UNSET COMMENT
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_UNSET_COMMENT!drop-4	ALTER SNAPSHOT SET UNSET COMMENT
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_UNSET_COMMENT!drop-5	ALTER SNAPSHOT SET a COMMENT
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_UNSET_COMMENT!drop-6	ALTER SNAPSHOT SET a UNSET
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_UNSET_COMMENT!insert	ALTER SNAPSHOT SET a UNSET COMMENT zzz
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_UNSET_COMMENT!swap	ALWAYS SNAPSHOT SET a UNSET COMMENT
-reject	accept	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_SET_TAG_QNAME_=_STRING_(,_QNAM~a672ef58	ALTER SNAPSHOT SET a SET TAG a = 's'
+accept	accept	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_SET_TAG_QNAME_=_STRING_(,_QNAM~a672ef58	ALTER SNAPSHOT SET a SET TAG a = 's'
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_SET_TAG_QNAME_=_STRING_(,_QNAM~a672ef58!drop-1	SNAPSHOT SET a SET TAG a = 's'
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_SET_TAG_QNAME_=_STRING_(,_QNAM~a672ef58!drop-4	ALTER SNAPSHOT SET SET TAG a = 's'
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_SET_TAG_QNAME_=_STRING_(,_QNAM~a672ef58!drop-5	ALTER SNAPSHOT SET a TAG a = 's'
@@ -22999,7 +22999,7 @@ reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_SET_TAG_QNAME
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_SET_TAG_QNAME_=_STRING_(,_QNAM~a672ef58!drop-9	ALTER SNAPSHOT SET a SET TAG a =
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_SET_TAG_QNAME_=_STRING_(,_QNAM~a672ef58!insert	ALTER SNAPSHOT SET a SET TAG a = 's' zzz
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_SET_TAG_QNAME_=_STRING_(,_QNAM~a672ef58!swap	ALWAYS SNAPSHOT SET a SET TAG a = 's'
-reject	accept	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_UNSET_TAG_QNAME_(,_QNAME)*	ALTER SNAPSHOT SET a UNSET TAG a
+accept	accept	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_UNSET_TAG_QNAME_(,_QNAME)*	ALTER SNAPSHOT SET a UNSET TAG a
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!drop-1	SNAPSHOT SET a UNSET TAG a
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!drop-4	ALTER SNAPSHOT SET UNSET TAG a
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!drop-5	ALTER SNAPSHOT SET a TAG a
@@ -23007,35 +23007,35 @@ reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_UNSET_TAG_QNA
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!drop-7	ALTER SNAPSHOT SET a UNSET TAG
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!insert	ALTER SNAPSHOT SET a UNSET TAG a zzz
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!swap	ALWAYS SNAPSHOT SET a UNSET TAG a
-reject	accept	docs	alterSnapshotSet(FORCE)?/%empty	ALTER SNAPSHOT SET a APPLY SNAPSHOT POLICY a
-reject	accept	docs	alterSnapshotSet(FORCE)?/FORCE	ALTER SNAPSHOT SET a APPLY SNAPSHOT POLICY a FORCE
+accept	accept	docs	alterSnapshotSet(FORCE)?/%empty	ALTER SNAPSHOT SET a APPLY SNAPSHOT POLICY a
+accept	accept	docs	alterSnapshotSet(FORCE)?/FORCE	ALTER SNAPSHOT SET a APPLY SNAPSHOT POLICY a FORCE
 reject	undocumented	docs	alterSnapshotSet(FORCE)?/FORCE!insert	ALTER SNAPSHOT SET a APPLY SNAPSHOT POLICY a FORCE zzz
 reject	undocumented	docs	alterSnapshotSet(FORCE)?/FORCE!swap	ALTER SNAPSHOT SET a APPLY SNAPSHOT POLICY a FORECAST
-reject	accept	docs	alterSnapshotSet((CREATION|EXPIRATION))?/%empty	ALTER SNAPSHOT SET a SUSPEND SNAPSHOT POLICY
+accept	accept	docs	alterSnapshotSet((CREATION|EXPIRATION))?/%empty	ALTER SNAPSHOT SET a SUSPEND SNAPSHOT POLICY
 reject	undocumented	docs	alterSnapshotSet((CREATION|EXPIRATION))?/%empty!insert	ALTER SNAPSHOT SET a SUSPEND SNAPSHOT zzz POLICY
-reject	accept	docs	alterSnapshotSet((CREATION|EXPIRATION))?/(CREATION|EXPIRATION)	ALTER SNAPSHOT SET a SUSPEND SNAPSHOT CREATION POLICY
+accept	accept	docs	alterSnapshotSet((CREATION|EXPIRATION))?/(CREATION|EXPIRATION)	ALTER SNAPSHOT SET a SUSPEND SNAPSHOT CREATION POLICY
 reject	undocumented	docs	alterSnapshotSet((CREATION|EXPIRATION))?/(CREATION|EXPIRATION)!insert	ALTER SNAPSHOT SET a SUSPEND SNAPSHOT CREATION zzz POLICY
 reject	undocumented	docs	alterSnapshotSet((CREATION|EXPIRATION))?/(CREATION|EXPIRATION)!swap	ALTER SNAPSHOT SET a SUSPEND SNAPSHOT CREDENTIALS POLICY
-reject	accept	docs	alterSnapshotSet(CREATION|EXPIRATION)/CREATION	ALTER SNAPSHOT SET a SUSPEND SNAPSHOT CREATION POLICY
-reject	accept	docs	alterSnapshotSet(CREATION|EXPIRATION)/EXPIRATION	ALTER SNAPSHOT SET a SUSPEND SNAPSHOT EXPIRATION POLICY
+accept	accept	docs	alterSnapshotSet(CREATION|EXPIRATION)/CREATION	ALTER SNAPSHOT SET a SUSPEND SNAPSHOT CREATION POLICY
+accept	accept	docs	alterSnapshotSet(CREATION|EXPIRATION)/EXPIRATION	ALTER SNAPSHOT SET a SUSPEND SNAPSHOT EXPIRATION POLICY
 reject	undocumented	docs	alterSnapshotSet(CREATION|EXPIRATION)/EXPIRATION!insert	ALTER SNAPSHOT SET a SUSPEND SNAPSHOT EXPIRATION zzz POLICY
 reject	undocumented	docs	alterSnapshotSet(CREATION|EXPIRATION)/EXPIRATION!swap	ALTER SNAPSHOT SET a SUSPEND SNAPSHOT EXPIRE_AFTER_DAYS POLICY
-reject	accept	docs	alterSnapshotSet(ADD|REMOVE)/ADD	ALTER SNAPSHOT SET a MODIFY SNAPSHOT IDENTIFIER 's' ADD LEGAL HOLD
+accept	accept	docs	alterSnapshotSet(ADD|REMOVE)/ADD	ALTER SNAPSHOT SET a MODIFY SNAPSHOT IDENTIFIER 's' ADD LEGAL HOLD
 reject	undocumented	docs	alterSnapshotSet(ADD|REMOVE)/ADD!truncate	ALTER SNAPSHOT SET a MODIFY SNAPSHOT IDENTIFIER 's'
 reject	undocumented	docs	alterSnapshotSet(ADD|REMOVE)/ADD!insert	ALTER SNAPSHOT SET a MODIFY SNAPSHOT IDENTIFIER 's' ADD zzz LEGAL HOLD
 reject	undocumented	docs	alterSnapshotSet(ADD|REMOVE)/ADD!swap	ALTER SNAPSHOT SET a MODIFY SNAPSHOT IDENTIFIER 's' ADDITIONAL_CREATION_BLOCKLIST LEGAL HOLD
-reject	accept	docs	alterSnapshotSet(ADD|REMOVE)/REMOVE	ALTER SNAPSHOT SET a MODIFY SNAPSHOT IDENTIFIER 's' REMOVE LEGAL HOLD
+accept	accept	docs	alterSnapshotSet(ADD|REMOVE)/REMOVE	ALTER SNAPSHOT SET a MODIFY SNAPSHOT IDENTIFIER 's' REMOVE LEGAL HOLD
 reject	undocumented	docs	alterSnapshotSet(ADD|REMOVE)/REMOVE!insert	ALTER SNAPSHOT SET a MODIFY SNAPSHOT IDENTIFIER 's' REMOVE zzz LEGAL HOLD
 reject	undocumented	docs	alterSnapshotSet(ADD|REMOVE)/REMOVE!swap	ALTER SNAPSHOT SET a MODIFY SNAPSHOT IDENTIFIER 's' REMOVE_POSITION_DELETES LEGAL HOLD
-reject	accept	docs	alterSnapshotSet(,_QNAME_=_STRING)*/%empty	ALTER SNAPSHOT SET a SET TAG a = 's'
-reject	accept	docs	alterSnapshotSet(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*	ALTER SNAPSHOT SET a SET TAG a = 's', a = 's'
+accept	accept	docs	alterSnapshotSet(,_QNAME_=_STRING)*/%empty	ALTER SNAPSHOT SET a SET TAG a = 's'
+accept	accept	docs	alterSnapshotSet(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*	ALTER SNAPSHOT SET a SET TAG a = 's', a = 's'
 reject	undocumented	docs	alterSnapshotSet(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-1	ALTER SNAPSHOT SET a SET TAG a = 's' a = 's'
 reject	undocumented	docs	alterSnapshotSet(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-2	ALTER SNAPSHOT SET a SET TAG a = 's', = 's'
 reject	undocumented	docs	alterSnapshotSet(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-3	ALTER SNAPSHOT SET a SET TAG a = 's', a 's'
 reject	undocumented	docs	alterSnapshotSet(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-4	ALTER SNAPSHOT SET a SET TAG a = 's', a =
 reject	undocumented	docs	alterSnapshotSet(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!insert	ALTER SNAPSHOT SET a SET TAG a = 's', a = 's' zzz
-reject	accept	docs	alterSnapshotSet(,_QNAME)*/%empty	ALTER SNAPSHOT SET a UNSET TAG a
-reject	accept	docs	alterSnapshotSet(,_QNAME)*/,_QNAME_(,_QNAME)*	ALTER SNAPSHOT SET a UNSET TAG a, a
+accept	accept	docs	alterSnapshotSet(,_QNAME)*/%empty	ALTER SNAPSHOT SET a UNSET TAG a
+accept	accept	docs	alterSnapshotSet(,_QNAME)*/,_QNAME_(,_QNAME)*	ALTER SNAPSHOT SET a UNSET TAG a, a
 reject	undocumented	docs	alterSnapshotSet(,_QNAME)*/,_QNAME_(,_QNAME)*!drop-1	ALTER SNAPSHOT SET a UNSET TAG a a
 reject	undocumented	docs	alterSnapshotSet(,_QNAME)*/,_QNAME_(,_QNAME)*!drop-2	ALTER SNAPSHOT SET a UNSET TAG a,
 reject	undocumented	docs	alterSnapshotSet(,_QNAME)*/,_QNAME_(,_QNAME)*!insert	ALTER SNAPSHOT SET a UNSET TAG a, a zzz
@@ -24135,7 +24135,7 @@ accept	undocumented	docs	alterStorageIntegration_cloudProviderParams(TRUE|FALSE)
 accept	accept	docs	alterStorageIntegration_cloudProviderParams(TRUE|FALSE)/FALSE	ALTER INTEGRATION a SET STORAGE_AWS_ROLE_ARN = 's' USE_PRIVATELINK_ENDPOINT = FALSE
 accept	undocumented	docs	alterStorageIntegration_cloudProviderParams(TRUE|FALSE)/FALSE!insert	ALTER INTEGRATION a SET STORAGE_AWS_ROLE_ARN = 's' USE_PRIVATELINK_ENDPOINT = FALSE zzz
 accept	undocumented	docs	alterStorageIntegration_cloudProviderParams(TRUE|FALSE)/FALSE!swap	ALTER INTEGRATION a SET STORAGE_AWS_ROLE_ARN = 's' USE_PRIVATELINK_ENDPOINT = FAMILIES
-reject	accept	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_RENAM~fe73c95a	ALTER STORAGE LIFECYCLE POLICY a RENAME TO a
+accept	accept	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_RENAM~fe73c95a	ALTER STORAGE LIFECYCLE POLICY a RENAME TO a
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_RENAM~fe73c95a!drop-1	STORAGE LIFECYCLE POLICY a RENAME TO a
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_RENAM~fe73c95a!drop-2	ALTER LIFECYCLE POLICY a RENAME TO a
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_RENAM~fe73c95a!drop-3	ALTER STORAGE POLICY a RENAME TO a
@@ -24158,7 +24158,7 @@ reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POL
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_SET_B~f654b1bf!drop-9	ALTER STORAGE LIFECYCLE POLICY a SET BODY ->
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_SET_B~f654b1bf!insert	ALTER STORAGE LIFECYCLE POLICY a SET BODY -> 1 zzz
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_SET_B~f654b1bf!swap	ALWAYS STORAGE LIFECYCLE POLICY a SET BODY -> 1
-reject	accept	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_SET_A~dd02ac6d	ALTER STORAGE LIFECYCLE POLICY a SET ARCHIVE_TIER = COOL
+accept	accept	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_SET_A~dd02ac6d	ALTER STORAGE LIFECYCLE POLICY a SET ARCHIVE_TIER = COOL
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_SET_A~dd02ac6d!drop-1	STORAGE LIFECYCLE POLICY a SET ARCHIVE_TIER = COOL
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_SET_A~dd02ac6d!drop-2	ALTER LIFECYCLE POLICY a SET ARCHIVE_TIER = COOL
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_SET_A~dd02ac6d!drop-3	ALTER STORAGE POLICY a SET ARCHIVE_TIER = COOL
@@ -24170,7 +24170,7 @@ reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POL
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_SET_A~dd02ac6d!drop-9	ALTER STORAGE LIFECYCLE POLICY a SET ARCHIVE_TIER =
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_SET_A~dd02ac6d!insert	ALTER STORAGE LIFECYCLE POLICY a SET ARCHIVE_TIER = COOL zzz
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_SET_A~dd02ac6d!swap	ALWAYS STORAGE LIFECYCLE POLICY a SET ARCHIVE_TIER = COOL
-reject	accept	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_SET_A~816c7bf3	ALTER STORAGE LIFECYCLE POLICY a SET ARCHIVE_FOR_DAYS = 1
+accept	accept	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_SET_A~816c7bf3	ALTER STORAGE LIFECYCLE POLICY a SET ARCHIVE_FOR_DAYS = 1
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_SET_A~816c7bf3!drop-1	STORAGE LIFECYCLE POLICY a SET ARCHIVE_FOR_DAYS = 1
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_SET_A~816c7bf3!drop-2	ALTER LIFECYCLE POLICY a SET ARCHIVE_FOR_DAYS = 1
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_SET_A~816c7bf3!drop-3	ALTER STORAGE POLICY a SET ARCHIVE_FOR_DAYS = 1
@@ -24182,7 +24182,7 @@ reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POL
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_SET_A~816c7bf3!drop-9	ALTER STORAGE LIFECYCLE POLICY a SET ARCHIVE_FOR_DAYS =
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_SET_A~816c7bf3!insert	ALTER STORAGE LIFECYCLE POLICY a SET ARCHIVE_FOR_DAYS = 1 zzz
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_SET_A~816c7bf3!swap	ALWAYS STORAGE LIFECYCLE POLICY a SET ARCHIVE_FOR_DAYS = 1
-reject	accept	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_SET_C~9c4b7b7d	ALTER STORAGE LIFECYCLE POLICY a SET COMMENT = 's'
+accept	accept	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_SET_C~9c4b7b7d	ALTER STORAGE LIFECYCLE POLICY a SET COMMENT = 's'
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_SET_C~9c4b7b7d!drop-1	STORAGE LIFECYCLE POLICY a SET COMMENT = 's'
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_SET_C~9c4b7b7d!drop-2	ALTER LIFECYCLE POLICY a SET COMMENT = 's'
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_SET_C~9c4b7b7d!drop-3	ALTER STORAGE POLICY a SET COMMENT = 's'
@@ -24194,7 +24194,7 @@ reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POL
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_SET_C~9c4b7b7d!drop-9	ALTER STORAGE LIFECYCLE POLICY a SET COMMENT =
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_SET_C~9c4b7b7d!insert	ALTER STORAGE LIFECYCLE POLICY a SET COMMENT = 's' zzz
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_SET_C~9c4b7b7d!swap	ALWAYS STORAGE LIFECYCLE POLICY a SET COMMENT = 's'
-reject	accept	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_SET_T~5b9aeafe	ALTER STORAGE LIFECYCLE POLICY a SET TAG a = 's'
+accept	accept	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_SET_T~5b9aeafe	ALTER STORAGE LIFECYCLE POLICY a SET TAG a = 's'
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_SET_T~5b9aeafe!drop-1	STORAGE LIFECYCLE POLICY a SET TAG a = 's'
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_SET_T~5b9aeafe!drop-2	ALTER LIFECYCLE POLICY a SET TAG a = 's'
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_SET_T~5b9aeafe!drop-3	ALTER STORAGE POLICY a SET TAG a = 's'
@@ -24207,8 +24207,8 @@ reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POL
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_SET_T~5b9aeafe!drop-10	ALTER STORAGE LIFECYCLE POLICY a SET TAG a =
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_SET_T~5b9aeafe!insert	ALTER STORAGE LIFECYCLE POLICY a SET TAG a = 's' zzz
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_SET_T~5b9aeafe!swap	ALWAYS STORAGE LIFECYCLE POLICY a SET TAG a = 's'
-reject	accept	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_UNSET~9c292126	ALTER STORAGE LIFECYCLE POLICY a UNSET ARCHIVE_FOR_DAYS
-reject	accept	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_UNSET_COMMENT	ALTER STORAGE LIFECYCLE POLICY a UNSET COMMENT
+accept	accept	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_UNSET~9c292126	ALTER STORAGE LIFECYCLE POLICY a UNSET ARCHIVE_FOR_DAYS
+accept	accept	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_UNSET_COMMENT	ALTER STORAGE LIFECYCLE POLICY a UNSET COMMENT
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_UNSET_COMMENT!drop-1	STORAGE LIFECYCLE POLICY a UNSET COMMENT
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_UNSET_COMMENT!drop-2	ALTER LIFECYCLE POLICY a UNSET COMMENT
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_UNSET_COMMENT!drop-3	ALTER STORAGE POLICY a UNSET COMMENT
@@ -24217,7 +24217,7 @@ reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POL
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_UNSET_COMMENT!drop-6	ALTER STORAGE LIFECYCLE POLICY a COMMENT
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_UNSET_COMMENT!insert	ALTER STORAGE LIFECYCLE POLICY a UNSET COMMENT zzz
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_UNSET_COMMENT!swap	ALWAYS STORAGE LIFECYCLE POLICY a UNSET COMMENT
-reject	accept	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_UNSET~22820137	ALTER STORAGE LIFECYCLE POLICY a UNSET TAG a
+accept	accept	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_UNSET~22820137	ALTER STORAGE LIFECYCLE POLICY a UNSET TAG a
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_UNSET~22820137!drop-1	STORAGE LIFECYCLE POLICY a UNSET TAG a
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_UNSET~22820137!drop-2	ALTER LIFECYCLE POLICY a UNSET TAG a
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_UNSET~22820137!drop-3	ALTER STORAGE POLICY a UNSET TAG a
@@ -24228,28 +24228,28 @@ reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POL
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_UNSET~22820137!drop-8	ALTER STORAGE LIFECYCLE POLICY a UNSET TAG
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_UNSET~22820137!insert	ALTER STORAGE LIFECYCLE POLICY a UNSET TAG a zzz
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_UNSET~22820137!swap	ALWAYS STORAGE LIFECYCLE POLICY a UNSET TAG a
-reject	accept	docs	alterStorageLifecyclePolicy(IF_EXISTS)?/%empty	ALTER STORAGE LIFECYCLE POLICY a UNSET ARCHIVE_FOR_DAYS
+accept	accept	docs	alterStorageLifecyclePolicy(IF_EXISTS)?/%empty	ALTER STORAGE LIFECYCLE POLICY a UNSET ARCHIVE_FOR_DAYS
 reject	undocumented	docs	alterStorageLifecyclePolicy(IF_EXISTS)?/%empty!insert	ALTER STORAGE LIFECYCLE POLICY zzz a UNSET ARCHIVE_FOR_DAYS
-reject	accept	docs	alterStorageLifecyclePolicy(IF_EXISTS)?/IF_EXISTS	ALTER STORAGE LIFECYCLE POLICY IF EXISTS a UNSET ARCHIVE_FOR_DAYS
+accept	accept	docs	alterStorageLifecyclePolicy(IF_EXISTS)?/IF_EXISTS	ALTER STORAGE LIFECYCLE POLICY IF EXISTS a UNSET ARCHIVE_FOR_DAYS
 reject	undocumented	docs	alterStorageLifecyclePolicy(IF_EXISTS)?/IF_EXISTS!drop-1	ALTER STORAGE LIFECYCLE POLICY EXISTS a UNSET ARCHIVE_FOR_DAYS
 reject	undocumented	docs	alterStorageLifecyclePolicy(IF_EXISTS)?/IF_EXISTS!drop-2	ALTER STORAGE LIFECYCLE POLICY IF a UNSET ARCHIVE_FOR_DAYS
 reject	undocumented	docs	alterStorageLifecyclePolicy(IF_EXISTS)?/IF_EXISTS!truncate	ALTER STORAGE LIFECYCLE POLICY IF
 reject	undocumented	docs	alterStorageLifecyclePolicy(IF_EXISTS)?/IF_EXISTS!insert	ALTER STORAGE LIFECYCLE POLICY IF EXISTS zzz a UNSET ARCHIVE_FOR_DAYS
 reject	undocumented	docs	alterStorageLifecyclePolicy(IF_EXISTS)?/IF_EXISTS!swap	ALTER STORAGE LIFECYCLE POLICY IGNORE EXISTS a UNSET ARCHIVE_FOR_DAYS
-reject	accept	docs	alterStorageLifecyclePolicy(COOL|COLD)/COOL	ALTER STORAGE LIFECYCLE POLICY a SET ARCHIVE_TIER = COOL
+accept	accept	docs	alterStorageLifecyclePolicy(COOL|COLD)/COOL	ALTER STORAGE LIFECYCLE POLICY a SET ARCHIVE_TIER = COOL
 reject	undocumented	docs	alterStorageLifecyclePolicy(COOL|COLD)/COOL!swap	ALTER STORAGE LIFECYCLE POLICY a SET ARCHIVE_TIER = COPY
-reject	accept	docs	alterStorageLifecyclePolicy(COOL|COLD)/COLD	ALTER STORAGE LIFECYCLE POLICY a SET ARCHIVE_TIER = COLD
+accept	accept	docs	alterStorageLifecyclePolicy(COOL|COLD)/COLD	ALTER STORAGE LIFECYCLE POLICY a SET ARCHIVE_TIER = COLD
 reject	undocumented	docs	alterStorageLifecyclePolicy(COOL|COLD)/COLD!insert	ALTER STORAGE LIFECYCLE POLICY a SET ARCHIVE_TIER = COLD zzz
 reject	undocumented	docs	alterStorageLifecyclePolicy(COOL|COLD)/COLD!swap	ALTER STORAGE LIFECYCLE POLICY a SET ARCHIVE_TIER = COLLATE
-reject	accept	docs	alterStorageLifecyclePolicy(,_QNAME_=_STRING)*/%empty	ALTER STORAGE LIFECYCLE POLICY a SET TAG a = 's'
-reject	accept	docs	alterStorageLifecyclePolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*	ALTER STORAGE LIFECYCLE POLICY a SET TAG a = 's', a = 's'
+accept	accept	docs	alterStorageLifecyclePolicy(,_QNAME_=_STRING)*/%empty	ALTER STORAGE LIFECYCLE POLICY a SET TAG a = 's'
+accept	accept	docs	alterStorageLifecyclePolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*	ALTER STORAGE LIFECYCLE POLICY a SET TAG a = 's', a = 's'
 reject	undocumented	docs	alterStorageLifecyclePolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-1	ALTER STORAGE LIFECYCLE POLICY a SET TAG a = 's' a = 's'
 reject	undocumented	docs	alterStorageLifecyclePolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-2	ALTER STORAGE LIFECYCLE POLICY a SET TAG a = 's', = 's'
 reject	undocumented	docs	alterStorageLifecyclePolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-3	ALTER STORAGE LIFECYCLE POLICY a SET TAG a = 's', a 's'
 reject	undocumented	docs	alterStorageLifecyclePolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-4	ALTER STORAGE LIFECYCLE POLICY a SET TAG a = 's', a =
 reject	undocumented	docs	alterStorageLifecyclePolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!insert	ALTER STORAGE LIFECYCLE POLICY a SET TAG a = 's', a = 's' zzz
-reject	accept	docs	alterStorageLifecyclePolicy(,_QNAME)*/%empty	ALTER STORAGE LIFECYCLE POLICY a UNSET TAG a
-reject	accept	docs	alterStorageLifecyclePolicy(,_QNAME)*/,_QNAME_(,_QNAME)*	ALTER STORAGE LIFECYCLE POLICY a UNSET TAG a, a
+accept	accept	docs	alterStorageLifecyclePolicy(,_QNAME)*/%empty	ALTER STORAGE LIFECYCLE POLICY a UNSET TAG a
+accept	accept	docs	alterStorageLifecyclePolicy(,_QNAME)*/,_QNAME_(,_QNAME)*	ALTER STORAGE LIFECYCLE POLICY a UNSET TAG a, a
 reject	undocumented	docs	alterStorageLifecyclePolicy(,_QNAME)*/,_QNAME_(,_QNAME)*!drop-1	ALTER STORAGE LIFECYCLE POLICY a UNSET TAG a a
 reject	undocumented	docs	alterStorageLifecyclePolicy(,_QNAME)*/,_QNAME_(,_QNAME)*!drop-2	ALTER STORAGE LIFECYCLE POLICY a UNSET TAG a,
 reject	undocumented	docs	alterStorageLifecyclePolicy(,_QNAME)*/,_QNAME_(,_QNAME)*!insert	ALTER STORAGE LIFECYCLE POLICY a UNSET TAG a, a zzz
@@ -32363,9 +32363,9 @@ reject	undocumented	docs	createAuthenticationPolicy(IF_NOT_EXISTS)?/IF_NOT_EXIST
 reject	undocumented	docs	createAuthenticationPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE AUTHENTICATION POLICY IF NOT
 accept	undocumented	docs	createAuthenticationPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE AUTHENTICATION POLICY IF NOT EXISTS zzz a
 accept	undocumented	docs	createAuthenticationPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE AUTHENTICATION POLICY IGNORE NOT EXISTS a
-reject	accept	docs	createBackupPolicy/CREATE_(OR_REPLACE)?_BACKUP_POLICY_QNAME_(WITH?_TAG_(_Q~a62b3a55	CREATE BACKUP POLICY a
-reject	accept	docs	createBackupPolicy/CREATE_BACKUP_POLICY_(IF_NOT_EXISTS)?_QNAME_(WITH?_TAG_~fd042669	CREATE BACKUP POLICY a
-reject	accept	docs	createBackupPolicy/CREATE_OR_ALTER_BACKUP_POLICY_QNAME_(WITH_RETENTION_LOC~e976ea9a	CREATE OR ALTER BACKUP POLICY a
+accept	accept	docs	createBackupPolicy/CREATE_(OR_REPLACE)?_BACKUP_POLICY_QNAME_(WITH?_TAG_(_Q~a62b3a55	CREATE BACKUP POLICY a
+accept	accept	docs	createBackupPolicy/CREATE_BACKUP_POLICY_(IF_NOT_EXISTS)?_QNAME_(WITH?_TAG_~fd042669	CREATE BACKUP POLICY a
+accept	accept	docs	createBackupPolicy/CREATE_OR_ALTER_BACKUP_POLICY_QNAME_(WITH_RETENTION_LOC~e976ea9a	CREATE OR ALTER BACKUP POLICY a
 reject	undocumented	docs	createBackupPolicy/CREATE_OR_ALTER_BACKUP_POLICY_QNAME_(WITH_RETENTION_LOC~e976ea9a!drop-1	OR ALTER BACKUP POLICY a
 reject	undocumented	docs	createBackupPolicy/CREATE_OR_ALTER_BACKUP_POLICY_QNAME_(WITH_RETENTION_LOC~e976ea9a!drop-2	CREATE ALTER BACKUP POLICY a
 reject	undocumented	docs	createBackupPolicy/CREATE_OR_ALTER_BACKUP_POLICY_QNAME_(WITH_RETENTION_LOC~e976ea9a!drop-3	CREATE OR BACKUP POLICY a
@@ -32373,14 +32373,14 @@ reject	undocumented	docs	createBackupPolicy/CREATE_OR_ALTER_BACKUP_POLICY_QNAME_
 reject	undocumented	docs	createBackupPolicy/CREATE_OR_ALTER_BACKUP_POLICY_QNAME_(WITH_RETENTION_LOC~e976ea9a!drop-6	CREATE OR ALTER BACKUP POLICY
 reject	undocumented	docs	createBackupPolicy/CREATE_OR_ALTER_BACKUP_POLICY_QNAME_(WITH_RETENTION_LOC~e976ea9a!insert	CREATE OR ALTER BACKUP POLICY a zzz
 reject	undocumented	docs	createBackupPolicy/CREATE_OR_ALTER_BACKUP_POLICY_QNAME_(WITH_RETENTION_LOC~e976ea9a!swap	CREATION OR ALTER BACKUP POLICY a
-reject	accept	docs	createBackupPolicy(OR_REPLACE)?/%empty	CREATE BACKUP POLICY a
+accept	accept	docs	createBackupPolicy(OR_REPLACE)?/%empty	CREATE BACKUP POLICY a
 reject	undocumented	docs	createBackupPolicy(OR_REPLACE)?/%empty!insert	CREATE zzz BACKUP POLICY a
-reject	accept	docs	createBackupPolicy(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE BACKUP POLICY a
+accept	accept	docs	createBackupPolicy(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE BACKUP POLICY a
 reject	undocumented	docs	createBackupPolicy(OR_REPLACE)?/OR_REPLACE!drop-1	CREATE REPLACE BACKUP POLICY a
 reject	undocumented	docs	createBackupPolicy(OR_REPLACE)?/OR_REPLACE!insert	CREATE OR REPLACE zzz BACKUP POLICY a
 reject	undocumented	docs	createBackupPolicy(OR_REPLACE)?/OR_REPLACE!swap	CREATE ORC REPLACE BACKUP POLICY a
-reject	accept	docs	createBackupPolicy(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/%empty	CREATE BACKUP POLICY a
-reject	accept	docs	createBackupPolicy(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)	CREATE BACKUP POLICY a TAG(a = 's')
+accept	accept	docs	createBackupPolicy(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/%empty	CREATE BACKUP POLICY a
+accept	accept	docs	createBackupPolicy(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)	CREATE BACKUP POLICY a TAG(a = 's')
 reject	undocumented	docs	createBackupPolicy(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!drop-1	CREATE BACKUP POLICY a(a = 's')
 reject	undocumented	docs	createBackupPolicy(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!drop-2	CREATE BACKUP POLICY a TAG a = 's')
 reject	undocumented	docs	createBackupPolicy(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!drop-3	CREATE BACKUP POLICY a TAG(= 's')
@@ -32389,59 +32389,59 @@ reject	undocumented	docs	createBackupPolicy(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_
 reject	undocumented	docs	createBackupPolicy(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!drop-6	CREATE BACKUP POLICY a TAG(a = 's'
 reject	undocumented	docs	createBackupPolicy(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!insert	CREATE BACKUP POLICY a TAG(a = 's') zzz
 reject	undocumented	docs	createBackupPolicy(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!swap	CREATE BACKUP POLICY a TAGS(a = 's')
-reject	accept	docs	createBackupPolicy(WITH)?/%empty	CREATE BACKUP POLICY a TAG(a = 's')
+accept	accept	docs	createBackupPolicy(WITH)?/%empty	CREATE BACKUP POLICY a TAG(a = 's')
 reject	undocumented	docs	createBackupPolicy(WITH)?/%empty!insert	CREATE BACKUP POLICY a zzz TAG(a = 's')
-reject	accept	docs	createBackupPolicy(WITH)?/WITH	CREATE BACKUP POLICY a WITH TAG(a = 's')
+accept	accept	docs	createBackupPolicy(WITH)?/WITH	CREATE BACKUP POLICY a WITH TAG(a = 's')
 reject	undocumented	docs	createBackupPolicy(WITH)?/WITH!insert	CREATE BACKUP POLICY a WITH zzz TAG(a = 's')
 reject	undocumented	docs	createBackupPolicy(WITH)?/WITH!swap	CREATE BACKUP POLICY a WITHIN TAG(a = 's')
-reject	accept	docs	createBackupPolicy(,_QNAME_=_STRING)*/%empty	CREATE BACKUP POLICY a TAG(a = 's')
+accept	accept	docs	createBackupPolicy(,_QNAME_=_STRING)*/%empty	CREATE BACKUP POLICY a TAG(a = 's')
 reject	undocumented	docs	createBackupPolicy(,_QNAME_=_STRING)*/%empty!insert	CREATE BACKUP POLICY a TAG(a = 's' zzz)
-reject	accept	docs	createBackupPolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*	CREATE BACKUP POLICY a TAG(a = 's', a = 's')
+accept	accept	docs	createBackupPolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*	CREATE BACKUP POLICY a TAG(a = 's', a = 's')
 reject	undocumented	docs	createBackupPolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-1	CREATE BACKUP POLICY a TAG(a = 's' a = 's')
 reject	undocumented	docs	createBackupPolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-2	CREATE BACKUP POLICY a TAG(a = 's', = 's')
 reject	undocumented	docs	createBackupPolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-3	CREATE BACKUP POLICY a TAG(a = 's', a 's')
 reject	undocumented	docs	createBackupPolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-4	CREATE BACKUP POLICY a TAG(a = 's', a =)
 reject	undocumented	docs	createBackupPolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!truncate	CREATE BACKUP POLICY a TAG(a = 's', a =
 reject	undocumented	docs	createBackupPolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!insert	CREATE BACKUP POLICY a TAG(a = 's', a = 's' zzz)
-reject	accept	docs	createBackupPolicy(WITH_RETENTION_LOCK)?/%empty	CREATE BACKUP POLICY a
-reject	accept	docs	createBackupPolicy(WITH_RETENTION_LOCK)?/WITH_RETENTION_LOCK	CREATE BACKUP POLICY a WITH RETENTION LOCK
+accept	accept	docs	createBackupPolicy(WITH_RETENTION_LOCK)?/%empty	CREATE BACKUP POLICY a
+accept	accept	docs	createBackupPolicy(WITH_RETENTION_LOCK)?/WITH_RETENTION_LOCK	CREATE BACKUP POLICY a WITH RETENTION LOCK
 reject	undocumented	docs	createBackupPolicy(WITH_RETENTION_LOCK)?/WITH_RETENTION_LOCK!drop-1	CREATE BACKUP POLICY a RETENTION LOCK
 reject	undocumented	docs	createBackupPolicy(WITH_RETENTION_LOCK)?/WITH_RETENTION_LOCK!drop-2	CREATE BACKUP POLICY a WITH LOCK
 reject	undocumented	docs	createBackupPolicy(WITH_RETENTION_LOCK)?/WITH_RETENTION_LOCK!drop-3	CREATE BACKUP POLICY a WITH RETENTION
 reject	undocumented	docs	createBackupPolicy(WITH_RETENTION_LOCK)?/WITH_RETENTION_LOCK!insert	CREATE BACKUP POLICY a WITH RETENTION LOCK zzz
 reject	undocumented	docs	createBackupPolicy(WITH_RETENTION_LOCK)?/WITH_RETENTION_LOCK!swap	CREATE BACKUP POLICY a WITHIN RETENTION LOCK
-reject	accept	docs	createBackupPolicy(SCHEDULE_=_STRING)?/%empty	CREATE BACKUP POLICY a
-reject	accept	docs	createBackupPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING	CREATE BACKUP POLICY a SCHEDULE = 's'
+accept	accept	docs	createBackupPolicy(SCHEDULE_=_STRING)?/%empty	CREATE BACKUP POLICY a
+accept	accept	docs	createBackupPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING	CREATE BACKUP POLICY a SCHEDULE = 's'
 reject	undocumented	docs	createBackupPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!drop-1	CREATE BACKUP POLICY a = 's'
 reject	undocumented	docs	createBackupPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!drop-2	CREATE BACKUP POLICY a SCHEDULE 's'
 reject	undocumented	docs	createBackupPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!drop-3	CREATE BACKUP POLICY a SCHEDULE =
 reject	undocumented	docs	createBackupPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!insert	CREATE BACKUP POLICY a SCHEDULE = 's' zzz
 reject	undocumented	docs	createBackupPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!swap	CREATE BACKUP POLICY a SCHEDULER = 's'
-reject	accept	docs	createBackupPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/%empty	CREATE BACKUP POLICY a
-reject	accept	docs	createBackupPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER	CREATE BACKUP POLICY a EXPIRE_AFTER_DAYS = 1
+accept	accept	docs	createBackupPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/%empty	CREATE BACKUP POLICY a
+accept	accept	docs	createBackupPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER	CREATE BACKUP POLICY a EXPIRE_AFTER_DAYS = 1
 reject	undocumented	docs	createBackupPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER!drop-1	CREATE BACKUP POLICY a = 1
 reject	undocumented	docs	createBackupPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER!drop-2	CREATE BACKUP POLICY a EXPIRE_AFTER_DAYS 1
 reject	undocumented	docs	createBackupPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER!drop-3	CREATE BACKUP POLICY a EXPIRE_AFTER_DAYS =
 reject	undocumented	docs	createBackupPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER!insert	CREATE BACKUP POLICY a EXPIRE_AFTER_DAYS = 1 zzz
 reject	undocumented	docs	createBackupPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER!swap	CREATE BACKUP POLICY a EXPIRE_ROTATED_KEY_PAIR_AFTER_HOURS = 1
-reject	accept	docs	createBackupPolicy(COMMENT_=_STRING)?/%empty	CREATE BACKUP POLICY a
-reject	accept	docs	createBackupPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE BACKUP POLICY a COMMENT = 's'
+accept	accept	docs	createBackupPolicy(COMMENT_=_STRING)?/%empty	CREATE BACKUP POLICY a
+accept	accept	docs	createBackupPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE BACKUP POLICY a COMMENT = 's'
 reject	undocumented	docs	createBackupPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	CREATE BACKUP POLICY a COMMENT 's'
 reject	undocumented	docs	createBackupPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE BACKUP POLICY a COMMENT =
 reject	undocumented	docs	createBackupPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE BACKUP POLICY a COMMENT = 's' zzz
 reject	undocumented	docs	createBackupPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE BACKUP POLICY a COMMENTS = 's'
-reject	accept	docs	createBackupPolicy(IF_NOT_EXISTS)?/%empty	CREATE BACKUP POLICY a
+accept	accept	docs	createBackupPolicy(IF_NOT_EXISTS)?/%empty	CREATE BACKUP POLICY a
 reject	undocumented	docs	createBackupPolicy(IF_NOT_EXISTS)?/%empty!insert	CREATE BACKUP POLICY zzz a
-reject	accept	docs	createBackupPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE BACKUP POLICY IF NOT EXISTS a
+accept	accept	docs	createBackupPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE BACKUP POLICY IF NOT EXISTS a
 reject	undocumented	docs	createBackupPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE BACKUP POLICY NOT EXISTS a
 reject	undocumented	docs	createBackupPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE BACKUP POLICY IF EXISTS a
 reject	undocumented	docs	createBackupPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE BACKUP POLICY IF NOT a
 reject	undocumented	docs	createBackupPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE BACKUP POLICY IF NOT
 reject	undocumented	docs	createBackupPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE BACKUP POLICY IF NOT EXISTS zzz a
 reject	undocumented	docs	createBackupPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE BACKUP POLICY IGNORE NOT EXISTS a
-reject	accept	docs	createBackupSet/CREATE_(OR_REPLACE)?_BACKUP_SET_QNAME_FOR_(DYNAMIC)?_(I~34ec4dd7	CREATE BACKUP SET a FOR TABLE a
-reject	accept	docs	createBackupSet/CREATE_BACKUP_SET_(IF_NOT_EXISTS)?_QNAME_FOR_(DYNAMIC)?~22aeb39c	CREATE BACKUP SET a FOR TABLE a
-reject	accept	docs	createBackupSet/CREATE_(OR_REPLACE)?_BACKUP_SET_QNAME_FOR_SCHEMA_QNAME2~424348ee	CREATE BACKUP SET a FOR SCHEMA a
+accept	accept	docs	createBackupSet/CREATE_(OR_REPLACE)?_BACKUP_SET_QNAME_FOR_(DYNAMIC)?_(I~34ec4dd7	CREATE BACKUP SET a FOR TABLE a
+accept	accept	docs	createBackupSet/CREATE_BACKUP_SET_(IF_NOT_EXISTS)?_QNAME_FOR_(DYNAMIC)?~22aeb39c	CREATE BACKUP SET a FOR TABLE a
+accept	accept	docs	createBackupSet/CREATE_(OR_REPLACE)?_BACKUP_SET_QNAME_FOR_SCHEMA_QNAME2~424348ee	CREATE BACKUP SET a FOR SCHEMA a
 reject	undocumented	docs	createBackupSet/CREATE_(OR_REPLACE)?_BACKUP_SET_QNAME_FOR_SCHEMA_QNAME2~424348ee!drop-1	BACKUP SET a FOR SCHEMA a
 reject	undocumented	docs	createBackupSet/CREATE_(OR_REPLACE)?_BACKUP_SET_QNAME_FOR_SCHEMA_QNAME2~424348ee!drop-2	CREATE SET a FOR SCHEMA a
 reject	undocumented	docs	createBackupSet/CREATE_(OR_REPLACE)?_BACKUP_SET_QNAME_FOR_SCHEMA_QNAME2~424348ee!drop-3	CREATE BACKUP a FOR SCHEMA a
@@ -32450,8 +32450,8 @@ reject	undocumented	docs	createBackupSet/CREATE_(OR_REPLACE)?_BACKUP_SET_QNAME_F
 reject	undocumented	docs	createBackupSet/CREATE_(OR_REPLACE)?_BACKUP_SET_QNAME_FOR_SCHEMA_QNAME2~424348ee!drop-7	CREATE BACKUP SET a FOR SCHEMA
 reject	undocumented	docs	createBackupSet/CREATE_(OR_REPLACE)?_BACKUP_SET_QNAME_FOR_SCHEMA_QNAME2~424348ee!insert	CREATE BACKUP SET a FOR SCHEMA a zzz
 reject	undocumented	docs	createBackupSet/CREATE_(OR_REPLACE)?_BACKUP_SET_QNAME_FOR_SCHEMA_QNAME2~424348ee!swap	CREATION BACKUP SET a FOR SCHEMA a
-reject	accept	docs	createBackupSet/CREATE_BACKUP_SET_(IF_NOT_EXISTS)?_QNAME_FOR_SCHEMA_QNA~f112a611	CREATE BACKUP SET a FOR SCHEMA a
-reject	accept	docs	createBackupSet/CREATE_(OR_REPLACE)?_BACKUP_SET_QNAME_FOR_DATABASE_ID_(~9bb8d692	CREATE BACKUP SET a FOR DATABASE a
+accept	accept	docs	createBackupSet/CREATE_BACKUP_SET_(IF_NOT_EXISTS)?_QNAME_FOR_SCHEMA_QNA~f112a611	CREATE BACKUP SET a FOR SCHEMA a
+accept	accept	docs	createBackupSet/CREATE_(OR_REPLACE)?_BACKUP_SET_QNAME_FOR_DATABASE_ID_(~9bb8d692	CREATE BACKUP SET a FOR DATABASE a
 reject	undocumented	docs	createBackupSet/CREATE_(OR_REPLACE)?_BACKUP_SET_QNAME_FOR_DATABASE_ID_(~9bb8d692!drop-1	BACKUP SET a FOR DATABASE a
 reject	undocumented	docs	createBackupSet/CREATE_(OR_REPLACE)?_BACKUP_SET_QNAME_FOR_DATABASE_ID_(~9bb8d692!drop-2	CREATE SET a FOR DATABASE a
 reject	undocumented	docs	createBackupSet/CREATE_(OR_REPLACE)?_BACKUP_SET_QNAME_FOR_DATABASE_ID_(~9bb8d692!drop-3	CREATE BACKUP a FOR DATABASE a
@@ -32460,8 +32460,8 @@ reject	undocumented	docs	createBackupSet/CREATE_(OR_REPLACE)?_BACKUP_SET_QNAME_F
 reject	undocumented	docs	createBackupSet/CREATE_(OR_REPLACE)?_BACKUP_SET_QNAME_FOR_DATABASE_ID_(~9bb8d692!drop-7	CREATE BACKUP SET a FOR DATABASE
 reject	undocumented	docs	createBackupSet/CREATE_(OR_REPLACE)?_BACKUP_SET_QNAME_FOR_DATABASE_ID_(~9bb8d692!insert	CREATE BACKUP SET a FOR DATABASE a zzz
 reject	undocumented	docs	createBackupSet/CREATE_(OR_REPLACE)?_BACKUP_SET_QNAME_FOR_DATABASE_ID_(~9bb8d692!swap	CREATION BACKUP SET a FOR DATABASE a
-reject	accept	docs	createBackupSet/CREATE_BACKUP_SET_(IF_NOT_EXISTS)?_QNAME_FOR_DATABASE_I~d1ec8e29	CREATE BACKUP SET a FOR DATABASE a
-reject	accept	docs	createBackupSet/CREATE_OR_ALTER_BACKUP_SET_QNAME_FOR_(DYNAMIC)?_(ICEBER~ea7491dc	CREATE OR ALTER BACKUP SET a FOR TABLE a
+accept	accept	docs	createBackupSet/CREATE_BACKUP_SET_(IF_NOT_EXISTS)?_QNAME_FOR_DATABASE_I~d1ec8e29	CREATE BACKUP SET a FOR DATABASE a
+accept	accept	docs	createBackupSet/CREATE_OR_ALTER_BACKUP_SET_QNAME_FOR_(DYNAMIC)?_(ICEBER~ea7491dc	CREATE OR ALTER BACKUP SET a FOR TABLE a
 reject	undocumented	docs	createBackupSet/CREATE_OR_ALTER_BACKUP_SET_QNAME_FOR_(DYNAMIC)?_(ICEBER~ea7491dc!drop-1	OR ALTER BACKUP SET a FOR TABLE a
 reject	undocumented	docs	createBackupSet/CREATE_OR_ALTER_BACKUP_SET_QNAME_FOR_(DYNAMIC)?_(ICEBER~ea7491dc!drop-2	CREATE ALTER BACKUP SET a FOR TABLE a
 reject	undocumented	docs	createBackupSet/CREATE_OR_ALTER_BACKUP_SET_QNAME_FOR_(DYNAMIC)?_(ICEBER~ea7491dc!drop-3	CREATE OR BACKUP SET a FOR TABLE a
@@ -32473,7 +32473,7 @@ reject	undocumented	docs	createBackupSet/CREATE_OR_ALTER_BACKUP_SET_QNAME_FOR_(D
 reject	undocumented	docs	createBackupSet/CREATE_OR_ALTER_BACKUP_SET_QNAME_FOR_(DYNAMIC)?_(ICEBER~ea7491dc!drop-9	CREATE OR ALTER BACKUP SET a FOR TABLE
 reject	undocumented	docs	createBackupSet/CREATE_OR_ALTER_BACKUP_SET_QNAME_FOR_(DYNAMIC)?_(ICEBER~ea7491dc!insert	CREATE OR ALTER BACKUP SET a FOR TABLE a zzz
 reject	undocumented	docs	createBackupSet/CREATE_OR_ALTER_BACKUP_SET_QNAME_FOR_(DYNAMIC)?_(ICEBER~ea7491dc!swap	CREATION OR ALTER BACKUP SET a FOR TABLE a
-reject	accept	docs	createBackupSet/CREATE_OR_ALTER_BACKUP_SET_QNAME_FOR_SCHEMA_QNAME2_(WIT~b120afd7	CREATE OR ALTER BACKUP SET a FOR SCHEMA a
+accept	accept	docs	createBackupSet/CREATE_OR_ALTER_BACKUP_SET_QNAME_FOR_SCHEMA_QNAME2_(WIT~b120afd7	CREATE OR ALTER BACKUP SET a FOR SCHEMA a
 reject	undocumented	docs	createBackupSet/CREATE_OR_ALTER_BACKUP_SET_QNAME_FOR_SCHEMA_QNAME2_(WIT~b120afd7!drop-1	OR ALTER BACKUP SET a FOR SCHEMA a
 reject	undocumented	docs	createBackupSet/CREATE_OR_ALTER_BACKUP_SET_QNAME_FOR_SCHEMA_QNAME2_(WIT~b120afd7!drop-2	CREATE ALTER BACKUP SET a FOR SCHEMA a
 reject	undocumented	docs	createBackupSet/CREATE_OR_ALTER_BACKUP_SET_QNAME_FOR_SCHEMA_QNAME2_(WIT~b120afd7!drop-3	CREATE OR BACKUP SET a FOR SCHEMA a
@@ -32484,7 +32484,7 @@ reject	undocumented	docs	createBackupSet/CREATE_OR_ALTER_BACKUP_SET_QNAME_FOR_SC
 reject	undocumented	docs	createBackupSet/CREATE_OR_ALTER_BACKUP_SET_QNAME_FOR_SCHEMA_QNAME2_(WIT~b120afd7!drop-9	CREATE OR ALTER BACKUP SET a FOR SCHEMA
 reject	undocumented	docs	createBackupSet/CREATE_OR_ALTER_BACKUP_SET_QNAME_FOR_SCHEMA_QNAME2_(WIT~b120afd7!insert	CREATE OR ALTER BACKUP SET a FOR SCHEMA a zzz
 reject	undocumented	docs	createBackupSet/CREATE_OR_ALTER_BACKUP_SET_QNAME_FOR_SCHEMA_QNAME2_(WIT~b120afd7!swap	CREATION OR ALTER BACKUP SET a FOR SCHEMA a
-reject	accept	docs	createBackupSet/CREATE_OR_ALTER_BACKUP_SET_QNAME_FOR_DATABASE_ID_(WITH_~88948adc	CREATE OR ALTER BACKUP SET a FOR DATABASE a
+accept	accept	docs	createBackupSet/CREATE_OR_ALTER_BACKUP_SET_QNAME_FOR_DATABASE_ID_(WITH_~88948adc	CREATE OR ALTER BACKUP SET a FOR DATABASE a
 reject	undocumented	docs	createBackupSet/CREATE_OR_ALTER_BACKUP_SET_QNAME_FOR_DATABASE_ID_(WITH_~88948adc!drop-1	OR ALTER BACKUP SET a FOR DATABASE a
 reject	undocumented	docs	createBackupSet/CREATE_OR_ALTER_BACKUP_SET_QNAME_FOR_DATABASE_ID_(WITH_~88948adc!drop-2	CREATE ALTER BACKUP SET a FOR DATABASE a
 reject	undocumented	docs	createBackupSet/CREATE_OR_ALTER_BACKUP_SET_QNAME_FOR_DATABASE_ID_(WITH_~88948adc!drop-3	CREATE OR BACKUP SET a FOR DATABASE a
@@ -32495,24 +32495,24 @@ reject	undocumented	docs	createBackupSet/CREATE_OR_ALTER_BACKUP_SET_QNAME_FOR_DA
 reject	undocumented	docs	createBackupSet/CREATE_OR_ALTER_BACKUP_SET_QNAME_FOR_DATABASE_ID_(WITH_~88948adc!drop-9	CREATE OR ALTER BACKUP SET a FOR DATABASE
 reject	undocumented	docs	createBackupSet/CREATE_OR_ALTER_BACKUP_SET_QNAME_FOR_DATABASE_ID_(WITH_~88948adc!insert	CREATE OR ALTER BACKUP SET a FOR DATABASE a zzz
 reject	undocumented	docs	createBackupSet/CREATE_OR_ALTER_BACKUP_SET_QNAME_FOR_DATABASE_ID_(WITH_~88948adc!swap	CREATION OR ALTER BACKUP SET a FOR DATABASE a
-reject	accept	docs	createBackupSet(OR_REPLACE)?/%empty	CREATE BACKUP SET a FOR TABLE a
+accept	accept	docs	createBackupSet(OR_REPLACE)?/%empty	CREATE BACKUP SET a FOR TABLE a
 reject	undocumented	docs	createBackupSet(OR_REPLACE)?/%empty!insert	CREATE zzz BACKUP SET a FOR TABLE a
-reject	accept	docs	createBackupSet(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE BACKUP SET a FOR TABLE a
+accept	accept	docs	createBackupSet(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE BACKUP SET a FOR TABLE a
 reject	undocumented	docs	createBackupSet(OR_REPLACE)?/OR_REPLACE!drop-1	CREATE REPLACE BACKUP SET a FOR TABLE a
 reject	undocumented	docs	createBackupSet(OR_REPLACE)?/OR_REPLACE!insert	CREATE OR REPLACE zzz BACKUP SET a FOR TABLE a
 reject	undocumented	docs	createBackupSet(OR_REPLACE)?/OR_REPLACE!swap	CREATE ORC REPLACE BACKUP SET a FOR TABLE a
-reject	accept	docs	createBackupSet(DYNAMIC)?/%empty	CREATE BACKUP SET a FOR TABLE a
+accept	accept	docs	createBackupSet(DYNAMIC)?/%empty	CREATE BACKUP SET a FOR TABLE a
 reject	undocumented	docs	createBackupSet(DYNAMIC)?/%empty!insert	CREATE BACKUP SET a FOR zzz TABLE a
-reject	accept	docs	createBackupSet(DYNAMIC)?/DYNAMIC	CREATE BACKUP SET a FOR DYNAMIC TABLE a
+accept	accept	docs	createBackupSet(DYNAMIC)?/DYNAMIC	CREATE BACKUP SET a FOR DYNAMIC TABLE a
 reject	undocumented	docs	createBackupSet(DYNAMIC)?/DYNAMIC!truncate	CREATE BACKUP SET a FOR
 reject	undocumented	docs	createBackupSet(DYNAMIC)?/DYNAMIC!insert	CREATE BACKUP SET a FOR DYNAMIC zzz TABLE a
 reject	undocumented	docs	createBackupSet(DYNAMIC)?/DYNAMIC!swap	CREATE BACKUP SET a FOR ECONOMY TABLE a
-reject	accept	docs	createBackupSet(ICEBERG)?/%empty	CREATE BACKUP SET a FOR TABLE a
-reject	accept	docs	createBackupSet(ICEBERG)?/ICEBERG	CREATE BACKUP SET a FOR ICEBERG TABLE a
+accept	accept	docs	createBackupSet(ICEBERG)?/%empty	CREATE BACKUP SET a FOR TABLE a
+accept	accept	docs	createBackupSet(ICEBERG)?/ICEBERG	CREATE BACKUP SET a FOR ICEBERG TABLE a
 reject	undocumented	docs	createBackupSet(ICEBERG)?/ICEBERG!insert	CREATE BACKUP SET a FOR ICEBERG zzz TABLE a
 reject	undocumented	docs	createBackupSet(ICEBERG)?/ICEBERG!swap	CREATE BACKUP SET a FOR ICEBERG_DEFAULT_DDL_COLLATION TABLE a
-reject	accept	docs	createBackupSet(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/%empty	CREATE BACKUP SET a FOR TABLE a
-reject	accept	docs	createBackupSet(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)	CREATE BACKUP SET a FOR TABLE a TAG(a = 's')
+accept	accept	docs	createBackupSet(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/%empty	CREATE BACKUP SET a FOR TABLE a
+accept	accept	docs	createBackupSet(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)	CREATE BACKUP SET a FOR TABLE a TAG(a = 's')
 reject	undocumented	docs	createBackupSet(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!drop-1	CREATE BACKUP SET a FOR TABLE a(a = 's')
 reject	undocumented	docs	createBackupSet(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!drop-2	CREATE BACKUP SET a FOR TABLE a TAG a = 's')
 reject	undocumented	docs	createBackupSet(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!drop-3	CREATE BACKUP SET a FOR TABLE a TAG(= 's')
@@ -32521,38 +32521,38 @@ reject	undocumented	docs	createBackupSet(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a9
 reject	undocumented	docs	createBackupSet(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!drop-6	CREATE BACKUP SET a FOR TABLE a TAG(a = 's'
 reject	undocumented	docs	createBackupSet(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!insert	CREATE BACKUP SET a FOR TABLE a TAG(a = 's') zzz
 reject	undocumented	docs	createBackupSet(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!swap	CREATE BACKUP SET a FOR TABLE a TAGS(a = 's')
-reject	accept	docs	createBackupSet(WITH)?/%empty	CREATE BACKUP SET a FOR TABLE a TAG(a = 's')
+accept	accept	docs	createBackupSet(WITH)?/%empty	CREATE BACKUP SET a FOR TABLE a TAG(a = 's')
 reject	undocumented	docs	createBackupSet(WITH)?/%empty!insert	CREATE BACKUP SET a FOR TABLE a zzz TAG(a = 's')
-reject	accept	docs	createBackupSet(WITH)?/WITH	CREATE BACKUP SET a FOR TABLE a WITH TAG(a = 's')
+accept	accept	docs	createBackupSet(WITH)?/WITH	CREATE BACKUP SET a FOR TABLE a WITH TAG(a = 's')
 reject	undocumented	docs	createBackupSet(WITH)?/WITH!insert	CREATE BACKUP SET a FOR TABLE a WITH zzz TAG(a = 's')
 reject	undocumented	docs	createBackupSet(WITH)?/WITH!swap	CREATE BACKUP SET a FOR TABLE a WITHIN TAG(a = 's')
-reject	accept	docs	createBackupSet(,_QNAME_=_STRING)*/%empty	CREATE BACKUP SET a FOR TABLE a TAG(a = 's')
+accept	accept	docs	createBackupSet(,_QNAME_=_STRING)*/%empty	CREATE BACKUP SET a FOR TABLE a TAG(a = 's')
 reject	undocumented	docs	createBackupSet(,_QNAME_=_STRING)*/%empty!insert	CREATE BACKUP SET a FOR TABLE a TAG(a = 's' zzz)
-reject	accept	docs	createBackupSet(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*	CREATE BACKUP SET a FOR TABLE a TAG(a = 's', a = 's')
+accept	accept	docs	createBackupSet(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*	CREATE BACKUP SET a FOR TABLE a TAG(a = 's', a = 's')
 reject	undocumented	docs	createBackupSet(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-1	CREATE BACKUP SET a FOR TABLE a TAG(a = 's' a = 's')
 reject	undocumented	docs	createBackupSet(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-2	CREATE BACKUP SET a FOR TABLE a TAG(a = 's', = 's')
 reject	undocumented	docs	createBackupSet(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-3	CREATE BACKUP SET a FOR TABLE a TAG(a = 's', a 's')
 reject	undocumented	docs	createBackupSet(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-4	CREATE BACKUP SET a FOR TABLE a TAG(a = 's', a =)
 reject	undocumented	docs	createBackupSet(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!truncate	CREATE BACKUP SET a FOR TABLE a TAG(a = 's', a =
 reject	undocumented	docs	createBackupSet(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!insert	CREATE BACKUP SET a FOR TABLE a TAG(a = 's', a = 's' zzz)
-reject	accept	docs	createBackupSet(WITH_BACKUP_POLICY_QNAME)?/%empty	CREATE BACKUP SET a FOR TABLE a
-reject	accept	docs	createBackupSet(WITH_BACKUP_POLICY_QNAME)?/WITH_BACKUP_POLICY_QNAME	CREATE BACKUP SET a FOR TABLE a WITH BACKUP POLICY a
+accept	accept	docs	createBackupSet(WITH_BACKUP_POLICY_QNAME)?/%empty	CREATE BACKUP SET a FOR TABLE a
+accept	accept	docs	createBackupSet(WITH_BACKUP_POLICY_QNAME)?/WITH_BACKUP_POLICY_QNAME	CREATE BACKUP SET a FOR TABLE a WITH BACKUP POLICY a
 reject	undocumented	docs	createBackupSet(WITH_BACKUP_POLICY_QNAME)?/WITH_BACKUP_POLICY_QNAME!drop-1	CREATE BACKUP SET a FOR TABLE a BACKUP POLICY a
 reject	undocumented	docs	createBackupSet(WITH_BACKUP_POLICY_QNAME)?/WITH_BACKUP_POLICY_QNAME!drop-2	CREATE BACKUP SET a FOR TABLE a WITH POLICY a
 reject	undocumented	docs	createBackupSet(WITH_BACKUP_POLICY_QNAME)?/WITH_BACKUP_POLICY_QNAME!drop-3	CREATE BACKUP SET a FOR TABLE a WITH BACKUP a
 reject	undocumented	docs	createBackupSet(WITH_BACKUP_POLICY_QNAME)?/WITH_BACKUP_POLICY_QNAME!drop-4	CREATE BACKUP SET a FOR TABLE a WITH BACKUP POLICY
 reject	undocumented	docs	createBackupSet(WITH_BACKUP_POLICY_QNAME)?/WITH_BACKUP_POLICY_QNAME!insert	CREATE BACKUP SET a FOR TABLE a WITH BACKUP POLICY a zzz
 reject	undocumented	docs	createBackupSet(WITH_BACKUP_POLICY_QNAME)?/WITH_BACKUP_POLICY_QNAME!swap	CREATE BACKUP SET a FOR TABLE a WITHIN BACKUP POLICY a
-reject	accept	docs	createBackupSet(COMMENT_=_STRING)?/%empty	CREATE BACKUP SET a FOR TABLE a
-reject	accept	docs	createBackupSet(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE BACKUP SET a FOR TABLE a COMMENT = 's'
+accept	accept	docs	createBackupSet(COMMENT_=_STRING)?/%empty	CREATE BACKUP SET a FOR TABLE a
+accept	accept	docs	createBackupSet(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE BACKUP SET a FOR TABLE a COMMENT = 's'
 reject	undocumented	docs	createBackupSet(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-1	CREATE BACKUP SET a FOR TABLE a = 's'
 reject	undocumented	docs	createBackupSet(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	CREATE BACKUP SET a FOR TABLE a COMMENT 's'
 reject	undocumented	docs	createBackupSet(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE BACKUP SET a FOR TABLE a COMMENT =
 reject	undocumented	docs	createBackupSet(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE BACKUP SET a FOR TABLE a COMMENT = 's' zzz
 reject	undocumented	docs	createBackupSet(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE BACKUP SET a FOR TABLE a COMMENTS = 's'
-reject	accept	docs	createBackupSet(IF_NOT_EXISTS)?/%empty	CREATE BACKUP SET a FOR TABLE a
+accept	accept	docs	createBackupSet(IF_NOT_EXISTS)?/%empty	CREATE BACKUP SET a FOR TABLE a
 reject	undocumented	docs	createBackupSet(IF_NOT_EXISTS)?/%empty!insert	CREATE BACKUP SET zzz a FOR TABLE a
-reject	accept	docs	createBackupSet(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE BACKUP SET IF NOT EXISTS a FOR TABLE a
+accept	accept	docs	createBackupSet(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE BACKUP SET IF NOT EXISTS a FOR TABLE a
 reject	undocumented	docs	createBackupSet(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE BACKUP SET NOT EXISTS a FOR TABLE a
 reject	undocumented	docs	createBackupSet(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE BACKUP SET IF EXISTS a FOR TABLE a
 reject	undocumented	docs	createBackupSet(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE BACKUP SET IF NOT a FOR TABLE a
@@ -33808,17 +33808,17 @@ reject	undocumented	docs	createDataMetricFunction(IF_NOT_EXISTS)?/IF_NOT_EXISTS!
 reject	undocumented	docs	createDataMetricFunction(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE DATA METRIC FUNCTION IF NOT
 reject	undocumented	docs	createDataMetricFunction(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE DATA METRIC FUNCTION IF NOT EXISTS zzz a(a TABLE(a INT)) RETURNS NUMBER AS 's'
 reject	undocumented	docs	createDataMetricFunction(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE DATA METRIC FUNCTION IGNORE NOT EXISTS a(a TABLE(a INT)) RETURNS NUMBER AS 's'
-reject	accept	docs	createDataMovementPolicy/CREATE_(OR_REPLACE)?_DATA_MOVEMENT_POLICY_QNAME_(ENFORC~a1bfa9d1	CREATE DATA MOVEMENT POLICY a
-reject	accept	docs	createDataMovementPolicy/CREATE_DATA_MOVEMENT_POLICY_(IF_NOT_EXISTS)?_QNAME_(ENF~39bf418d	CREATE DATA MOVEMENT POLICY a
-reject	accept	docs	createDataMovementPolicy(OR_REPLACE)?/%empty	CREATE DATA MOVEMENT POLICY a
+accept	accept	docs	createDataMovementPolicy/CREATE_(OR_REPLACE)?_DATA_MOVEMENT_POLICY_QNAME_(ENFORC~a1bfa9d1	CREATE DATA MOVEMENT POLICY a
+accept	accept	docs	createDataMovementPolicy/CREATE_DATA_MOVEMENT_POLICY_(IF_NOT_EXISTS)?_QNAME_(ENF~39bf418d	CREATE DATA MOVEMENT POLICY a
+accept	accept	docs	createDataMovementPolicy(OR_REPLACE)?/%empty	CREATE DATA MOVEMENT POLICY a
 reject	undocumented	docs	createDataMovementPolicy(OR_REPLACE)?/%empty!insert	CREATE zzz DATA MOVEMENT POLICY a
-reject	accept	docs	createDataMovementPolicy(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE DATA MOVEMENT POLICY a
+accept	accept	docs	createDataMovementPolicy(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE DATA MOVEMENT POLICY a
 reject	undocumented	docs	createDataMovementPolicy(OR_REPLACE)?/OR_REPLACE!drop-1	CREATE REPLACE DATA MOVEMENT POLICY a
 reject	undocumented	docs	createDataMovementPolicy(OR_REPLACE)?/OR_REPLACE!drop-2	CREATE OR DATA MOVEMENT POLICY a
 reject	undocumented	docs	createDataMovementPolicy(OR_REPLACE)?/OR_REPLACE!insert	CREATE OR REPLACE zzz DATA MOVEMENT POLICY a
 reject	undocumented	docs	createDataMovementPolicy(OR_REPLACE)?/OR_REPLACE!swap	CREATE ORC REPLACE DATA MOVEMENT POLICY a
-reject	accept	docs	createDataMovementPolicy(ENFORCE_RULES_=_(_ID_(,_ID)*_))?/%empty	CREATE DATA MOVEMENT POLICY a
-reject	accept	docs	createDataMovementPolicy(ENFORCE_RULES_=_(_ID_(,_ID)*_))?/ENFORCE_RULES_=_(_ID_(,_ID)*_)	CREATE DATA MOVEMENT POLICY a ENFORCE_RULES =(a)
+accept	accept	docs	createDataMovementPolicy(ENFORCE_RULES_=_(_ID_(,_ID)*_))?/%empty	CREATE DATA MOVEMENT POLICY a
+accept	accept	docs	createDataMovementPolicy(ENFORCE_RULES_=_(_ID_(,_ID)*_))?/ENFORCE_RULES_=_(_ID_(,_ID)*_)	CREATE DATA MOVEMENT POLICY a ENFORCE_RULES =(a)
 reject	undocumented	docs	createDataMovementPolicy(ENFORCE_RULES_=_(_ID_(,_ID)*_))?/ENFORCE_RULES_=_(_ID_(,_ID)*_)!drop-1	CREATE DATA MOVEMENT POLICY a =(a)
 reject	undocumented	docs	createDataMovementPolicy(ENFORCE_RULES_=_(_ID_(,_ID)*_))?/ENFORCE_RULES_=_(_ID_(,_ID)*_)!drop-2	CREATE DATA MOVEMENT POLICY a ENFORCE_RULES(a)
 reject	undocumented	docs	createDataMovementPolicy(ENFORCE_RULES_=_(_ID_(,_ID)*_))?/ENFORCE_RULES_=_(_ID_(,_ID)*_)!drop-3	CREATE DATA MOVEMENT POLICY a ENFORCE_RULES = a)
@@ -33826,31 +33826,31 @@ reject	undocumented	docs	createDataMovementPolicy(ENFORCE_RULES_=_(_ID_(,_ID)*_)
 reject	undocumented	docs	createDataMovementPolicy(ENFORCE_RULES_=_(_ID_(,_ID)*_))?/ENFORCE_RULES_=_(_ID_(,_ID)*_)!drop-5	CREATE DATA MOVEMENT POLICY a ENFORCE_RULES =(a
 reject	undocumented	docs	createDataMovementPolicy(ENFORCE_RULES_=_(_ID_(,_ID)*_))?/ENFORCE_RULES_=_(_ID_(,_ID)*_)!insert	CREATE DATA MOVEMENT POLICY a ENFORCE_RULES =(a) zzz
 reject	undocumented	docs	createDataMovementPolicy(ENFORCE_RULES_=_(_ID_(,_ID)*_))?/ENFORCE_RULES_=_(_ID_(,_ID)*_)!swap	CREATE DATA MOVEMENT POLICY a ENFORCE_TAG_PROPAGATION_FOR_DATA_MOVEMENT_POLICIES =(a)
-reject	accept	docs	createDataMovementPolicy(,_ID)*/%empty	CREATE DATA MOVEMENT POLICY a ENFORCE_RULES =(a)
+accept	accept	docs	createDataMovementPolicy(,_ID)*/%empty	CREATE DATA MOVEMENT POLICY a ENFORCE_RULES =(a)
 reject	undocumented	docs	createDataMovementPolicy(,_ID)*/%empty!insert	CREATE DATA MOVEMENT POLICY a ENFORCE_RULES =(a zzz)
-reject	accept	docs	createDataMovementPolicy(,_ID)*/,_ID_(,_ID)*	CREATE DATA MOVEMENT POLICY a ENFORCE_RULES =(a, a)
+accept	accept	docs	createDataMovementPolicy(,_ID)*/,_ID_(,_ID)*	CREATE DATA MOVEMENT POLICY a ENFORCE_RULES =(a, a)
 reject	undocumented	docs	createDataMovementPolicy(,_ID)*/,_ID_(,_ID)*!drop-1	CREATE DATA MOVEMENT POLICY a ENFORCE_RULES =(a a)
 reject	undocumented	docs	createDataMovementPolicy(,_ID)*/,_ID_(,_ID)*!drop-2	CREATE DATA MOVEMENT POLICY a ENFORCE_RULES =(a,)
 reject	undocumented	docs	createDataMovementPolicy(,_ID)*/,_ID_(,_ID)*!truncate	CREATE DATA MOVEMENT POLICY a ENFORCE_RULES =(a,
 reject	undocumented	docs	createDataMovementPolicy(,_ID)*/,_ID_(,_ID)*!insert	CREATE DATA MOVEMENT POLICY a ENFORCE_RULES =(a, a zzz)
-reject	accept	docs	createDataMovementPolicy(ALERT_RULES_=_(_ID_(,_ID)*_))?/%empty	CREATE DATA MOVEMENT POLICY a
-reject	accept	docs	createDataMovementPolicy(ALERT_RULES_=_(_ID_(,_ID)*_))?/ALERT_RULES_=_(_ID_(,_ID)*_)	CREATE DATA MOVEMENT POLICY a ALERT_RULES =(a)
+accept	accept	docs	createDataMovementPolicy(ALERT_RULES_=_(_ID_(,_ID)*_))?/%empty	CREATE DATA MOVEMENT POLICY a
+accept	accept	docs	createDataMovementPolicy(ALERT_RULES_=_(_ID_(,_ID)*_))?/ALERT_RULES_=_(_ID_(,_ID)*_)	CREATE DATA MOVEMENT POLICY a ALERT_RULES =(a)
 reject	undocumented	docs	createDataMovementPolicy(ALERT_RULES_=_(_ID_(,_ID)*_))?/ALERT_RULES_=_(_ID_(,_ID)*_)!drop-2	CREATE DATA MOVEMENT POLICY a ALERT_RULES(a)
 reject	undocumented	docs	createDataMovementPolicy(ALERT_RULES_=_(_ID_(,_ID)*_))?/ALERT_RULES_=_(_ID_(,_ID)*_)!drop-3	CREATE DATA MOVEMENT POLICY a ALERT_RULES = a)
 reject	undocumented	docs	createDataMovementPolicy(ALERT_RULES_=_(_ID_(,_ID)*_))?/ALERT_RULES_=_(_ID_(,_ID)*_)!drop-4	CREATE DATA MOVEMENT POLICY a ALERT_RULES =()
 reject	undocumented	docs	createDataMovementPolicy(ALERT_RULES_=_(_ID_(,_ID)*_))?/ALERT_RULES_=_(_ID_(,_ID)*_)!drop-5	CREATE DATA MOVEMENT POLICY a ALERT_RULES =(a
 reject	undocumented	docs	createDataMovementPolicy(ALERT_RULES_=_(_ID_(,_ID)*_))?/ALERT_RULES_=_(_ID_(,_ID)*_)!insert	CREATE DATA MOVEMENT POLICY a ALERT_RULES =(a) zzz
 reject	undocumented	docs	createDataMovementPolicy(ALERT_RULES_=_(_ID_(,_ID)*_))?/ALERT_RULES_=_(_ID_(,_ID)*_)!swap	CREATE DATA MOVEMENT POLICY a ALGORITHM =(a)
-reject	accept	docs	createDataMovementPolicy(COMMENT_=_STRING)?/%empty	CREATE DATA MOVEMENT POLICY a
-reject	accept	docs	createDataMovementPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE DATA MOVEMENT POLICY a COMMENT = 's'
+accept	accept	docs	createDataMovementPolicy(COMMENT_=_STRING)?/%empty	CREATE DATA MOVEMENT POLICY a
+accept	accept	docs	createDataMovementPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE DATA MOVEMENT POLICY a COMMENT = 's'
 reject	undocumented	docs	createDataMovementPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-1	CREATE DATA MOVEMENT POLICY a = 's'
 reject	undocumented	docs	createDataMovementPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	CREATE DATA MOVEMENT POLICY a COMMENT 's'
 reject	undocumented	docs	createDataMovementPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE DATA MOVEMENT POLICY a COMMENT =
 reject	undocumented	docs	createDataMovementPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE DATA MOVEMENT POLICY a COMMENT = 's' zzz
 reject	undocumented	docs	createDataMovementPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE DATA MOVEMENT POLICY a COMMENTS = 's'
-reject	accept	docs	createDataMovementPolicy(IF_NOT_EXISTS)?/%empty	CREATE DATA MOVEMENT POLICY a
+accept	accept	docs	createDataMovementPolicy(IF_NOT_EXISTS)?/%empty	CREATE DATA MOVEMENT POLICY a
 reject	undocumented	docs	createDataMovementPolicy(IF_NOT_EXISTS)?/%empty!insert	CREATE DATA MOVEMENT POLICY zzz a
-reject	accept	docs	createDataMovementPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE DATA MOVEMENT POLICY IF NOT EXISTS a
+accept	accept	docs	createDataMovementPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE DATA MOVEMENT POLICY IF NOT EXISTS a
 reject	undocumented	docs	createDataMovementPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE DATA MOVEMENT POLICY NOT EXISTS a
 reject	undocumented	docs	createDataMovementPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE DATA MOVEMENT POLICY IF EXISTS a
 reject	undocumented	docs	createDataMovementPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE DATA MOVEMENT POLICY IF NOT a
@@ -46541,17 +46541,17 @@ reject	undocumented	docs	createSnapshot(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CRE
 reject	undocumented	docs	createSnapshot(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE SNAPSHOT IF NOT
 reject	undocumented	docs	createSnapshot(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE SNAPSHOT IF NOT EXISTS zzz a FROM SERVICE a VOLUME a INSTANCE a
 reject	undocumented	docs	createSnapshot(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE SNAPSHOT IGNORE NOT EXISTS a FROM SERVICE a VOLUME a INSTANCE a
-reject	accept	docs	createSnapshotPolicy/CREATE_(OR_REPLACE)?_SNAPSHOT_POLICY_QNAME_(WITH?_TAG_(~f1a7303f	CREATE SNAPSHOT POLICY a
-reject	accept	docs	createSnapshotPolicy/CREATE_SNAPSHOT_POLICY_(IF_NOT_EXISTS)?_QNAME_(WITH?_TA~c1f539e2	CREATE SNAPSHOT POLICY a
-reject	accept	docs	createSnapshotPolicy(OR_REPLACE)?/%empty	CREATE SNAPSHOT POLICY a
+accept	accept	docs	createSnapshotPolicy/CREATE_(OR_REPLACE)?_SNAPSHOT_POLICY_QNAME_(WITH?_TAG_(~f1a7303f	CREATE SNAPSHOT POLICY a
+accept	accept	docs	createSnapshotPolicy/CREATE_SNAPSHOT_POLICY_(IF_NOT_EXISTS)?_QNAME_(WITH?_TA~c1f539e2	CREATE SNAPSHOT POLICY a
+accept	accept	docs	createSnapshotPolicy(OR_REPLACE)?/%empty	CREATE SNAPSHOT POLICY a
 reject	undocumented	docs	createSnapshotPolicy(OR_REPLACE)?/%empty!insert	CREATE zzz SNAPSHOT POLICY a
-reject	accept	docs	createSnapshotPolicy(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE SNAPSHOT POLICY a
+accept	accept	docs	createSnapshotPolicy(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE SNAPSHOT POLICY a
 reject	undocumented	docs	createSnapshotPolicy(OR_REPLACE)?/OR_REPLACE!drop-1	CREATE REPLACE SNAPSHOT POLICY a
 reject	undocumented	docs	createSnapshotPolicy(OR_REPLACE)?/OR_REPLACE!drop-2	CREATE OR SNAPSHOT POLICY a
 reject	undocumented	docs	createSnapshotPolicy(OR_REPLACE)?/OR_REPLACE!insert	CREATE OR REPLACE zzz SNAPSHOT POLICY a
 reject	undocumented	docs	createSnapshotPolicy(OR_REPLACE)?/OR_REPLACE!swap	CREATE ORC REPLACE SNAPSHOT POLICY a
-reject	accept	docs	createSnapshotPolicy(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/%empty	CREATE SNAPSHOT POLICY a
-reject	accept	docs	createSnapshotPolicy(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)	CREATE SNAPSHOT POLICY a TAG(a = 's')
+accept	accept	docs	createSnapshotPolicy(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/%empty	CREATE SNAPSHOT POLICY a
+accept	accept	docs	createSnapshotPolicy(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)	CREATE SNAPSHOT POLICY a TAG(a = 's')
 reject	undocumented	docs	createSnapshotPolicy(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!drop-1	CREATE SNAPSHOT POLICY a(a = 's')
 reject	undocumented	docs	createSnapshotPolicy(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!drop-2	CREATE SNAPSHOT POLICY a TAG a = 's')
 reject	undocumented	docs	createSnapshotPolicy(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!drop-3	CREATE SNAPSHOT POLICY a TAG(= 's')
@@ -46560,59 +46560,59 @@ reject	undocumented	docs	createSnapshotPolicy(WITH?_TAG_(_QNAME_=_STRING_(,_QNAM
 reject	undocumented	docs	createSnapshotPolicy(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!drop-6	CREATE SNAPSHOT POLICY a TAG(a = 's'
 reject	undocumented	docs	createSnapshotPolicy(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!insert	CREATE SNAPSHOT POLICY a TAG(a = 's') zzz
 reject	undocumented	docs	createSnapshotPolicy(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!swap	CREATE SNAPSHOT POLICY a TAGS(a = 's')
-reject	accept	docs	createSnapshotPolicy(WITH)?/%empty	CREATE SNAPSHOT POLICY a TAG(a = 's')
+accept	accept	docs	createSnapshotPolicy(WITH)?/%empty	CREATE SNAPSHOT POLICY a TAG(a = 's')
 reject	undocumented	docs	createSnapshotPolicy(WITH)?/%empty!insert	CREATE SNAPSHOT POLICY a zzz TAG(a = 's')
-reject	accept	docs	createSnapshotPolicy(WITH)?/WITH	CREATE SNAPSHOT POLICY a WITH TAG(a = 's')
+accept	accept	docs	createSnapshotPolicy(WITH)?/WITH	CREATE SNAPSHOT POLICY a WITH TAG(a = 's')
 reject	undocumented	docs	createSnapshotPolicy(WITH)?/WITH!insert	CREATE SNAPSHOT POLICY a WITH zzz TAG(a = 's')
 reject	undocumented	docs	createSnapshotPolicy(WITH)?/WITH!swap	CREATE SNAPSHOT POLICY a WITHIN TAG(a = 's')
-reject	accept	docs	createSnapshotPolicy(,_QNAME_=_STRING)*/%empty	CREATE SNAPSHOT POLICY a TAG(a = 's')
+accept	accept	docs	createSnapshotPolicy(,_QNAME_=_STRING)*/%empty	CREATE SNAPSHOT POLICY a TAG(a = 's')
 reject	undocumented	docs	createSnapshotPolicy(,_QNAME_=_STRING)*/%empty!insert	CREATE SNAPSHOT POLICY a TAG(a = 's' zzz)
-reject	accept	docs	createSnapshotPolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*	CREATE SNAPSHOT POLICY a TAG(a = 's', a = 's')
+accept	accept	docs	createSnapshotPolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*	CREATE SNAPSHOT POLICY a TAG(a = 's', a = 's')
 reject	undocumented	docs	createSnapshotPolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-1	CREATE SNAPSHOT POLICY a TAG(a = 's' a = 's')
 reject	undocumented	docs	createSnapshotPolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-2	CREATE SNAPSHOT POLICY a TAG(a = 's', = 's')
 reject	undocumented	docs	createSnapshotPolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-3	CREATE SNAPSHOT POLICY a TAG(a = 's', a 's')
 reject	undocumented	docs	createSnapshotPolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-4	CREATE SNAPSHOT POLICY a TAG(a = 's', a =)
 reject	undocumented	docs	createSnapshotPolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!truncate	CREATE SNAPSHOT POLICY a TAG(a = 's', a =
 reject	undocumented	docs	createSnapshotPolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!insert	CREATE SNAPSHOT POLICY a TAG(a = 's', a = 's' zzz)
-reject	accept	docs	createSnapshotPolicy(WITH_RETENTION_LOCK)?/%empty	CREATE SNAPSHOT POLICY a
-reject	accept	docs	createSnapshotPolicy(WITH_RETENTION_LOCK)?/WITH_RETENTION_LOCK	CREATE SNAPSHOT POLICY a WITH RETENTION LOCK
+accept	accept	docs	createSnapshotPolicy(WITH_RETENTION_LOCK)?/%empty	CREATE SNAPSHOT POLICY a
+accept	accept	docs	createSnapshotPolicy(WITH_RETENTION_LOCK)?/WITH_RETENTION_LOCK	CREATE SNAPSHOT POLICY a WITH RETENTION LOCK
 reject	undocumented	docs	createSnapshotPolicy(WITH_RETENTION_LOCK)?/WITH_RETENTION_LOCK!drop-1	CREATE SNAPSHOT POLICY a RETENTION LOCK
 reject	undocumented	docs	createSnapshotPolicy(WITH_RETENTION_LOCK)?/WITH_RETENTION_LOCK!drop-2	CREATE SNAPSHOT POLICY a WITH LOCK
 reject	undocumented	docs	createSnapshotPolicy(WITH_RETENTION_LOCK)?/WITH_RETENTION_LOCK!drop-3	CREATE SNAPSHOT POLICY a WITH RETENTION
 reject	undocumented	docs	createSnapshotPolicy(WITH_RETENTION_LOCK)?/WITH_RETENTION_LOCK!insert	CREATE SNAPSHOT POLICY a WITH RETENTION LOCK zzz
 reject	undocumented	docs	createSnapshotPolicy(WITH_RETENTION_LOCK)?/WITH_RETENTION_LOCK!swap	CREATE SNAPSHOT POLICY a WITHIN RETENTION LOCK
-reject	accept	docs	createSnapshotPolicy(SCHEDULE_=_STRING)?/%empty	CREATE SNAPSHOT POLICY a
-reject	accept	docs	createSnapshotPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING	CREATE SNAPSHOT POLICY a SCHEDULE = 's'
+accept	accept	docs	createSnapshotPolicy(SCHEDULE_=_STRING)?/%empty	CREATE SNAPSHOT POLICY a
+accept	accept	docs	createSnapshotPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING	CREATE SNAPSHOT POLICY a SCHEDULE = 's'
 reject	undocumented	docs	createSnapshotPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!drop-1	CREATE SNAPSHOT POLICY a = 's'
 reject	undocumented	docs	createSnapshotPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!drop-2	CREATE SNAPSHOT POLICY a SCHEDULE 's'
 reject	undocumented	docs	createSnapshotPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!drop-3	CREATE SNAPSHOT POLICY a SCHEDULE =
 reject	undocumented	docs	createSnapshotPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!insert	CREATE SNAPSHOT POLICY a SCHEDULE = 's' zzz
 reject	undocumented	docs	createSnapshotPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!swap	CREATE SNAPSHOT POLICY a SCHEDULER = 's'
-reject	accept	docs	createSnapshotPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/%empty	CREATE SNAPSHOT POLICY a
-reject	accept	docs	createSnapshotPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER	CREATE SNAPSHOT POLICY a EXPIRE_AFTER_DAYS = 1
+accept	accept	docs	createSnapshotPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/%empty	CREATE SNAPSHOT POLICY a
+accept	accept	docs	createSnapshotPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER	CREATE SNAPSHOT POLICY a EXPIRE_AFTER_DAYS = 1
 reject	undocumented	docs	createSnapshotPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER!drop-1	CREATE SNAPSHOT POLICY a = 1
 reject	undocumented	docs	createSnapshotPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER!drop-2	CREATE SNAPSHOT POLICY a EXPIRE_AFTER_DAYS 1
 reject	undocumented	docs	createSnapshotPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER!drop-3	CREATE SNAPSHOT POLICY a EXPIRE_AFTER_DAYS =
 reject	undocumented	docs	createSnapshotPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER!insert	CREATE SNAPSHOT POLICY a EXPIRE_AFTER_DAYS = 1 zzz
 reject	undocumented	docs	createSnapshotPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER!swap	CREATE SNAPSHOT POLICY a EXPIRE_ROTATED_KEY_PAIR_AFTER_HOURS = 1
-reject	accept	docs	createSnapshotPolicy(COMMENT_=_STRING)?/%empty	CREATE SNAPSHOT POLICY a
-reject	accept	docs	createSnapshotPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE SNAPSHOT POLICY a COMMENT = 's'
+accept	accept	docs	createSnapshotPolicy(COMMENT_=_STRING)?/%empty	CREATE SNAPSHOT POLICY a
+accept	accept	docs	createSnapshotPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE SNAPSHOT POLICY a COMMENT = 's'
 reject	undocumented	docs	createSnapshotPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	CREATE SNAPSHOT POLICY a COMMENT 's'
 reject	undocumented	docs	createSnapshotPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE SNAPSHOT POLICY a COMMENT =
 reject	undocumented	docs	createSnapshotPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE SNAPSHOT POLICY a COMMENT = 's' zzz
 reject	undocumented	docs	createSnapshotPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE SNAPSHOT POLICY a COMMENTS = 's'
-reject	accept	docs	createSnapshotPolicy(IF_NOT_EXISTS)?/%empty	CREATE SNAPSHOT POLICY a
+accept	accept	docs	createSnapshotPolicy(IF_NOT_EXISTS)?/%empty	CREATE SNAPSHOT POLICY a
 reject	undocumented	docs	createSnapshotPolicy(IF_NOT_EXISTS)?/%empty!insert	CREATE SNAPSHOT POLICY zzz a
-reject	accept	docs	createSnapshotPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE SNAPSHOT POLICY IF NOT EXISTS a
+accept	accept	docs	createSnapshotPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE SNAPSHOT POLICY IF NOT EXISTS a
 reject	undocumented	docs	createSnapshotPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE SNAPSHOT POLICY NOT EXISTS a
 reject	undocumented	docs	createSnapshotPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE SNAPSHOT POLICY IF EXISTS a
 reject	undocumented	docs	createSnapshotPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE SNAPSHOT POLICY IF NOT a
 reject	undocumented	docs	createSnapshotPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE SNAPSHOT POLICY IF NOT
 reject	undocumented	docs	createSnapshotPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE SNAPSHOT POLICY IF NOT EXISTS zzz a
 reject	undocumented	docs	createSnapshotPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE SNAPSHOT POLICY IGNORE NOT EXISTS a
-reject	accept	docs	createSnapshotSet/CREATE_(OR_REPLACE)?_SNAPSHOT_SET_QNAME_FOR_(DYNAMIC)?_~96104be0	CREATE SNAPSHOT SET a FOR TABLE a
-reject	accept	docs	createSnapshotSet/CREATE_SNAPSHOT_SET_(IF_NOT_EXISTS)?_QNAME_FOR_(DYNAMIC~fac430c5	CREATE SNAPSHOT SET a FOR TABLE a
-reject	accept	docs	createSnapshotSet/CREATE_(OR_REPLACE)?_SNAPSHOT_SET_QNAME_FOR_SCHEMA_QNAM~0cd54abd	CREATE SNAPSHOT SET a FOR SCHEMA a
+accept	accept	docs	createSnapshotSet/CREATE_(OR_REPLACE)?_SNAPSHOT_SET_QNAME_FOR_(DYNAMIC)?_~96104be0	CREATE SNAPSHOT SET a FOR TABLE a
+accept	accept	docs	createSnapshotSet/CREATE_SNAPSHOT_SET_(IF_NOT_EXISTS)?_QNAME_FOR_(DYNAMIC~fac430c5	CREATE SNAPSHOT SET a FOR TABLE a
+accept	accept	docs	createSnapshotSet/CREATE_(OR_REPLACE)?_SNAPSHOT_SET_QNAME_FOR_SCHEMA_QNAM~0cd54abd	CREATE SNAPSHOT SET a FOR SCHEMA a
 reject	undocumented	docs	createSnapshotSet/CREATE_(OR_REPLACE)?_SNAPSHOT_SET_QNAME_FOR_SCHEMA_QNAM~0cd54abd!drop-1	SNAPSHOT SET a FOR SCHEMA a
 reject	undocumented	docs	createSnapshotSet/CREATE_(OR_REPLACE)?_SNAPSHOT_SET_QNAME_FOR_SCHEMA_QNAM~0cd54abd!drop-3	CREATE SNAPSHOT a FOR SCHEMA a
 reject	undocumented	docs	createSnapshotSet/CREATE_(OR_REPLACE)?_SNAPSHOT_SET_QNAME_FOR_SCHEMA_QNAM~0cd54abd!drop-4	CREATE SNAPSHOT SET FOR SCHEMA a
@@ -46620,8 +46620,8 @@ reject	undocumented	docs	createSnapshotSet/CREATE_(OR_REPLACE)?_SNAPSHOT_SET_QNA
 reject	undocumented	docs	createSnapshotSet/CREATE_(OR_REPLACE)?_SNAPSHOT_SET_QNAME_FOR_SCHEMA_QNAM~0cd54abd!drop-7	CREATE SNAPSHOT SET a FOR SCHEMA
 reject	undocumented	docs	createSnapshotSet/CREATE_(OR_REPLACE)?_SNAPSHOT_SET_QNAME_FOR_SCHEMA_QNAM~0cd54abd!insert	CREATE SNAPSHOT SET a FOR SCHEMA a zzz
 reject	undocumented	docs	createSnapshotSet/CREATE_(OR_REPLACE)?_SNAPSHOT_SET_QNAME_FOR_SCHEMA_QNAM~0cd54abd!swap	CREATION SNAPSHOT SET a FOR SCHEMA a
-reject	accept	docs	createSnapshotSet/CREATE_SNAPSHOT_SET_(IF_NOT_EXISTS)?_QNAME_FOR_SCHEMA_Q~7eea5711	CREATE SNAPSHOT SET a FOR SCHEMA a
-reject	accept	docs	createSnapshotSet/CREATE_(OR_REPLACE)?_SNAPSHOT_SET_QNAME_FOR_DATABASE_ID~79a59c89	CREATE SNAPSHOT SET a FOR DATABASE a
+accept	accept	docs	createSnapshotSet/CREATE_SNAPSHOT_SET_(IF_NOT_EXISTS)?_QNAME_FOR_SCHEMA_Q~7eea5711	CREATE SNAPSHOT SET a FOR SCHEMA a
+accept	accept	docs	createSnapshotSet/CREATE_(OR_REPLACE)?_SNAPSHOT_SET_QNAME_FOR_DATABASE_ID~79a59c89	CREATE SNAPSHOT SET a FOR DATABASE a
 reject	undocumented	docs	createSnapshotSet/CREATE_(OR_REPLACE)?_SNAPSHOT_SET_QNAME_FOR_DATABASE_ID~79a59c89!drop-1	SNAPSHOT SET a FOR DATABASE a
 reject	undocumented	docs	createSnapshotSet/CREATE_(OR_REPLACE)?_SNAPSHOT_SET_QNAME_FOR_DATABASE_ID~79a59c89!drop-3	CREATE SNAPSHOT a FOR DATABASE a
 reject	undocumented	docs	createSnapshotSet/CREATE_(OR_REPLACE)?_SNAPSHOT_SET_QNAME_FOR_DATABASE_ID~79a59c89!drop-4	CREATE SNAPSHOT SET FOR DATABASE a
@@ -46629,22 +46629,22 @@ reject	undocumented	docs	createSnapshotSet/CREATE_(OR_REPLACE)?_SNAPSHOT_SET_QNA
 reject	undocumented	docs	createSnapshotSet/CREATE_(OR_REPLACE)?_SNAPSHOT_SET_QNAME_FOR_DATABASE_ID~79a59c89!drop-7	CREATE SNAPSHOT SET a FOR DATABASE
 reject	undocumented	docs	createSnapshotSet/CREATE_(OR_REPLACE)?_SNAPSHOT_SET_QNAME_FOR_DATABASE_ID~79a59c89!insert	CREATE SNAPSHOT SET a FOR DATABASE a zzz
 reject	undocumented	docs	createSnapshotSet/CREATE_(OR_REPLACE)?_SNAPSHOT_SET_QNAME_FOR_DATABASE_ID~79a59c89!swap	CREATION SNAPSHOT SET a FOR DATABASE a
-reject	accept	docs	createSnapshotSet/CREATE_SNAPSHOT_SET_(IF_NOT_EXISTS)?_QNAME_FOR_DATABASE~1e91aebd	CREATE SNAPSHOT SET a FOR DATABASE a
-reject	accept	docs	createSnapshotSet(OR_REPLACE)?/%empty	CREATE SNAPSHOT SET a FOR TABLE a
+accept	accept	docs	createSnapshotSet/CREATE_SNAPSHOT_SET_(IF_NOT_EXISTS)?_QNAME_FOR_DATABASE~1e91aebd	CREATE SNAPSHOT SET a FOR DATABASE a
+accept	accept	docs	createSnapshotSet(OR_REPLACE)?/%empty	CREATE SNAPSHOT SET a FOR TABLE a
 reject	undocumented	docs	createSnapshotSet(OR_REPLACE)?/%empty!insert	CREATE zzz SNAPSHOT SET a FOR TABLE a
-reject	accept	docs	createSnapshotSet(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE SNAPSHOT SET a FOR TABLE a
+accept	accept	docs	createSnapshotSet(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE SNAPSHOT SET a FOR TABLE a
 reject	undocumented	docs	createSnapshotSet(OR_REPLACE)?/OR_REPLACE!drop-1	CREATE REPLACE SNAPSHOT SET a FOR TABLE a
 reject	undocumented	docs	createSnapshotSet(OR_REPLACE)?/OR_REPLACE!drop-2	CREATE OR SNAPSHOT SET a FOR TABLE a
 reject	undocumented	docs	createSnapshotSet(OR_REPLACE)?/OR_REPLACE!insert	CREATE OR REPLACE zzz SNAPSHOT SET a FOR TABLE a
 reject	undocumented	docs	createSnapshotSet(OR_REPLACE)?/OR_REPLACE!swap	CREATE ORC REPLACE SNAPSHOT SET a FOR TABLE a
-reject	accept	docs	createSnapshotSet(DYNAMIC)?/%empty	CREATE SNAPSHOT SET a FOR TABLE a
+accept	accept	docs	createSnapshotSet(DYNAMIC)?/%empty	CREATE SNAPSHOT SET a FOR TABLE a
 reject	undocumented	docs	createSnapshotSet(DYNAMIC)?/%empty!insert	CREATE SNAPSHOT SET a FOR zzz TABLE a
-reject	accept	docs	createSnapshotSet(DYNAMIC)?/DYNAMIC	CREATE SNAPSHOT SET a FOR DYNAMIC TABLE a
+accept	accept	docs	createSnapshotSet(DYNAMIC)?/DYNAMIC	CREATE SNAPSHOT SET a FOR DYNAMIC TABLE a
 reject	undocumented	docs	createSnapshotSet(DYNAMIC)?/DYNAMIC!truncate	CREATE SNAPSHOT SET a FOR
 reject	undocumented	docs	createSnapshotSet(DYNAMIC)?/DYNAMIC!insert	CREATE SNAPSHOT SET a FOR DYNAMIC zzz TABLE a
 reject	undocumented	docs	createSnapshotSet(DYNAMIC)?/DYNAMIC!swap	CREATE SNAPSHOT SET a FOR ECONOMY TABLE a
-reject	accept	docs	createSnapshotSet(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/%empty	CREATE SNAPSHOT SET a FOR TABLE a
-reject	accept	docs	createSnapshotSet(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)	CREATE SNAPSHOT SET a FOR TABLE a TAG(a = 's')
+accept	accept	docs	createSnapshotSet(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/%empty	CREATE SNAPSHOT SET a FOR TABLE a
+accept	accept	docs	createSnapshotSet(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)	CREATE SNAPSHOT SET a FOR TABLE a TAG(a = 's')
 reject	undocumented	docs	createSnapshotSet(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!drop-1	CREATE SNAPSHOT SET a FOR TABLE a(a = 's')
 reject	undocumented	docs	createSnapshotSet(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!drop-2	CREATE SNAPSHOT SET a FOR TABLE a TAG a = 's')
 reject	undocumented	docs	createSnapshotSet(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!drop-3	CREATE SNAPSHOT SET a FOR TABLE a TAG(= 's')
@@ -46653,38 +46653,38 @@ reject	undocumented	docs	createSnapshotSet(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~
 reject	undocumented	docs	createSnapshotSet(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!drop-6	CREATE SNAPSHOT SET a FOR TABLE a TAG(a = 's'
 reject	undocumented	docs	createSnapshotSet(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!insert	CREATE SNAPSHOT SET a FOR TABLE a TAG(a = 's') zzz
 reject	undocumented	docs	createSnapshotSet(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!swap	CREATE SNAPSHOT SET a FOR TABLE a TAGS(a = 's')
-reject	accept	docs	createSnapshotSet(WITH)?/%empty	CREATE SNAPSHOT SET a FOR TABLE a TAG(a = 's')
+accept	accept	docs	createSnapshotSet(WITH)?/%empty	CREATE SNAPSHOT SET a FOR TABLE a TAG(a = 's')
 reject	undocumented	docs	createSnapshotSet(WITH)?/%empty!insert	CREATE SNAPSHOT SET a FOR TABLE a zzz TAG(a = 's')
-reject	accept	docs	createSnapshotSet(WITH)?/WITH	CREATE SNAPSHOT SET a FOR TABLE a WITH TAG(a = 's')
+accept	accept	docs	createSnapshotSet(WITH)?/WITH	CREATE SNAPSHOT SET a FOR TABLE a WITH TAG(a = 's')
 reject	undocumented	docs	createSnapshotSet(WITH)?/WITH!insert	CREATE SNAPSHOT SET a FOR TABLE a WITH zzz TAG(a = 's')
 reject	undocumented	docs	createSnapshotSet(WITH)?/WITH!swap	CREATE SNAPSHOT SET a FOR TABLE a WITHIN TAG(a = 's')
-reject	accept	docs	createSnapshotSet(,_QNAME_=_STRING)*/%empty	CREATE SNAPSHOT SET a FOR TABLE a TAG(a = 's')
+accept	accept	docs	createSnapshotSet(,_QNAME_=_STRING)*/%empty	CREATE SNAPSHOT SET a FOR TABLE a TAG(a = 's')
 reject	undocumented	docs	createSnapshotSet(,_QNAME_=_STRING)*/%empty!insert	CREATE SNAPSHOT SET a FOR TABLE a TAG(a = 's' zzz)
-reject	accept	docs	createSnapshotSet(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*	CREATE SNAPSHOT SET a FOR TABLE a TAG(a = 's', a = 's')
+accept	accept	docs	createSnapshotSet(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*	CREATE SNAPSHOT SET a FOR TABLE a TAG(a = 's', a = 's')
 reject	undocumented	docs	createSnapshotSet(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-1	CREATE SNAPSHOT SET a FOR TABLE a TAG(a = 's' a = 's')
 reject	undocumented	docs	createSnapshotSet(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-2	CREATE SNAPSHOT SET a FOR TABLE a TAG(a = 's', = 's')
 reject	undocumented	docs	createSnapshotSet(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-3	CREATE SNAPSHOT SET a FOR TABLE a TAG(a = 's', a 's')
 reject	undocumented	docs	createSnapshotSet(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-4	CREATE SNAPSHOT SET a FOR TABLE a TAG(a = 's', a =)
 reject	undocumented	docs	createSnapshotSet(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!truncate	CREATE SNAPSHOT SET a FOR TABLE a TAG(a = 's', a =
 reject	undocumented	docs	createSnapshotSet(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!insert	CREATE SNAPSHOT SET a FOR TABLE a TAG(a = 's', a = 's' zzz)
-reject	accept	docs	createSnapshotSet(WITH_SNAPSHOT_POLICY_QNAME)?/%empty	CREATE SNAPSHOT SET a FOR TABLE a
-reject	accept	docs	createSnapshotSet(WITH_SNAPSHOT_POLICY_QNAME)?/WITH_SNAPSHOT_POLICY_QNAME	CREATE SNAPSHOT SET a FOR TABLE a WITH SNAPSHOT POLICY a
+accept	accept	docs	createSnapshotSet(WITH_SNAPSHOT_POLICY_QNAME)?/%empty	CREATE SNAPSHOT SET a FOR TABLE a
+accept	accept	docs	createSnapshotSet(WITH_SNAPSHOT_POLICY_QNAME)?/WITH_SNAPSHOT_POLICY_QNAME	CREATE SNAPSHOT SET a FOR TABLE a WITH SNAPSHOT POLICY a
 reject	undocumented	docs	createSnapshotSet(WITH_SNAPSHOT_POLICY_QNAME)?/WITH_SNAPSHOT_POLICY_QNAME!drop-1	CREATE SNAPSHOT SET a FOR TABLE a SNAPSHOT POLICY a
 reject	undocumented	docs	createSnapshotSet(WITH_SNAPSHOT_POLICY_QNAME)?/WITH_SNAPSHOT_POLICY_QNAME!drop-2	CREATE SNAPSHOT SET a FOR TABLE a WITH POLICY a
 reject	undocumented	docs	createSnapshotSet(WITH_SNAPSHOT_POLICY_QNAME)?/WITH_SNAPSHOT_POLICY_QNAME!drop-3	CREATE SNAPSHOT SET a FOR TABLE a WITH SNAPSHOT a
 reject	undocumented	docs	createSnapshotSet(WITH_SNAPSHOT_POLICY_QNAME)?/WITH_SNAPSHOT_POLICY_QNAME!drop-4	CREATE SNAPSHOT SET a FOR TABLE a WITH SNAPSHOT POLICY
 reject	undocumented	docs	createSnapshotSet(WITH_SNAPSHOT_POLICY_QNAME)?/WITH_SNAPSHOT_POLICY_QNAME!insert	CREATE SNAPSHOT SET a FOR TABLE a WITH SNAPSHOT POLICY a zzz
 reject	undocumented	docs	createSnapshotSet(WITH_SNAPSHOT_POLICY_QNAME)?/WITH_SNAPSHOT_POLICY_QNAME!swap	CREATE SNAPSHOT SET a FOR TABLE a WITHIN SNAPSHOT POLICY a
-reject	accept	docs	createSnapshotSet(COMMENT_=_STRING)?/%empty	CREATE SNAPSHOT SET a FOR TABLE a
-reject	accept	docs	createSnapshotSet(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE SNAPSHOT SET a FOR TABLE a COMMENT = 's'
+accept	accept	docs	createSnapshotSet(COMMENT_=_STRING)?/%empty	CREATE SNAPSHOT SET a FOR TABLE a
+accept	accept	docs	createSnapshotSet(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE SNAPSHOT SET a FOR TABLE a COMMENT = 's'
 reject	undocumented	docs	createSnapshotSet(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-1	CREATE SNAPSHOT SET a FOR TABLE a = 's'
 reject	undocumented	docs	createSnapshotSet(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	CREATE SNAPSHOT SET a FOR TABLE a COMMENT 's'
 reject	undocumented	docs	createSnapshotSet(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE SNAPSHOT SET a FOR TABLE a COMMENT =
 reject	undocumented	docs	createSnapshotSet(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE SNAPSHOT SET a FOR TABLE a COMMENT = 's' zzz
 reject	undocumented	docs	createSnapshotSet(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE SNAPSHOT SET a FOR TABLE a COMMENTS = 's'
-reject	accept	docs	createSnapshotSet(IF_NOT_EXISTS)?/%empty	CREATE SNAPSHOT SET a FOR TABLE a
+accept	accept	docs	createSnapshotSet(IF_NOT_EXISTS)?/%empty	CREATE SNAPSHOT SET a FOR TABLE a
 reject	undocumented	docs	createSnapshotSet(IF_NOT_EXISTS)?/%empty!insert	CREATE SNAPSHOT SET zzz a FOR TABLE a
-reject	accept	docs	createSnapshotSet(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE SNAPSHOT SET IF NOT EXISTS a FOR TABLE a
+accept	accept	docs	createSnapshotSet(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE SNAPSHOT SET IF NOT EXISTS a FOR TABLE a
 reject	undocumented	docs	createSnapshotSet(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE SNAPSHOT SET NOT EXISTS a FOR TABLE a
 reject	undocumented	docs	createSnapshotSet(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE SNAPSHOT SET IF EXISTS a FOR TABLE a
 reject	undocumented	docs	createSnapshotSet(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE SNAPSHOT SET IF NOT a FOR TABLE a
@@ -51978,8 +51978,8 @@ reject	undocumented	docs	dropAuthenticationPolicy(IF_EXISTS)?/IF_EXISTS!drop-2	D
 reject	accept	docs	dropAuthenticationPolicy(IF_EXISTS)?/IF_EXISTS!truncate	DROP AUTHENTICATION POLICY IF
 reject	undocumented	docs	dropAuthenticationPolicy(IF_EXISTS)?/IF_EXISTS!insert	DROP AUTHENTICATION POLICY IF EXISTS zzz a
 reject	undocumented	docs	dropAuthenticationPolicy(IF_EXISTS)?/IF_EXISTS!swap	DROP AUTHENTICATION POLICY IGNORE EXISTS a
-reject	accept	docs	dropBackupPolicy/DROP_BACKUP_POLICY_QNAME	DROP BACKUP POLICY a
-reject	accept	docs	dropBackupSet/DROP_BACKUP_SET_QNAME	DROP BACKUP SET a
+accept	accept	docs	dropBackupPolicy/DROP_BACKUP_POLICY_QNAME	DROP BACKUP POLICY a
+accept	accept	docs	dropBackupSet/DROP_BACKUP_SET_QNAME	DROP BACKUP SET a
 accept	accept	docs	dropCatalogIntegration/DROP_CATALOG_INTEGRATION_(IF_EXISTS)?_ID	DROP CATALOG INTEGRATION a
 accept	accept	docs	dropCatalogIntegration(IF_EXISTS)?/%empty	DROP CATALOG INTEGRATION a
 reject	undocumented	docs	dropCatalogIntegration(IF_EXISTS)?/%empty!insert	DROP CATALOG INTEGRATION zzz a
@@ -52009,22 +52009,22 @@ reject	undocumented	docs	dropConnection(IF_EXISTS)?/IF_EXISTS!insert	DROP CONNEC
 reject	undocumented	docs	dropConnection(IF_EXISTS)?/IF_EXISTS!swap	DROP CONNECTION IGNORE EXISTS a
 reject	accept	docs	dropContact/DROP_CONTACT_QNAME	DROP CONTACT a
 accept	accept	docs	dropCortexSearch/DROP_CORTEX_SEARCH_SERVICE_QNAME	DROP CORTEX SEARCH SERVICE a
-reject	accept	docs	dropDataMovementPolicy/DROP_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME	DROP DATA MOVEMENT POLICY a
-reject	accept	docs	dropDataMovementPolicy(IF_EXISTS)?/%empty	DROP DATA MOVEMENT POLICY a
+accept	accept	docs	dropDataMovementPolicy/DROP_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME	DROP DATA MOVEMENT POLICY a
+accept	accept	docs	dropDataMovementPolicy(IF_EXISTS)?/%empty	DROP DATA MOVEMENT POLICY a
 reject	undocumented	docs	dropDataMovementPolicy(IF_EXISTS)?/%empty!insert	DROP DATA MOVEMENT POLICY zzz a
-reject	accept	docs	dropDataMovementPolicy(IF_EXISTS)?/IF_EXISTS	DROP DATA MOVEMENT POLICY IF EXISTS a
+accept	accept	docs	dropDataMovementPolicy(IF_EXISTS)?/IF_EXISTS	DROP DATA MOVEMENT POLICY IF EXISTS a
 reject	undocumented	docs	dropDataMovementPolicy(IF_EXISTS)?/IF_EXISTS!drop-1	DROP DATA MOVEMENT POLICY EXISTS a
 reject	undocumented	docs	dropDataMovementPolicy(IF_EXISTS)?/IF_EXISTS!drop-2	DROP DATA MOVEMENT POLICY IF a
-reject	accept	docs	dropDataMovementPolicy(IF_EXISTS)?/IF_EXISTS!truncate	DROP DATA MOVEMENT POLICY IF
+accept	accept	docs	dropDataMovementPolicy(IF_EXISTS)?/IF_EXISTS!truncate	DROP DATA MOVEMENT POLICY IF
 reject	undocumented	docs	dropDataMovementPolicy(IF_EXISTS)?/IF_EXISTS!insert	DROP DATA MOVEMENT POLICY IF EXISTS zzz a
 reject	undocumented	docs	dropDataMovementPolicy(IF_EXISTS)?/IF_EXISTS!swap	DROP DATA MOVEMENT POLICY IGNORE EXISTS a
-reject	accept	docs	dropDataMovementRule/DROP_DATA_MOVEMENT_RULE_(IF_EXISTS)?_QNAME	DROP DATA MOVEMENT RULE a
-reject	accept	docs	dropDataMovementRule(IF_EXISTS)?/%empty	DROP DATA MOVEMENT RULE a
+accept	accept	docs	dropDataMovementRule/DROP_DATA_MOVEMENT_RULE_(IF_EXISTS)?_QNAME	DROP DATA MOVEMENT RULE a
+accept	accept	docs	dropDataMovementRule(IF_EXISTS)?/%empty	DROP DATA MOVEMENT RULE a
 reject	undocumented	docs	dropDataMovementRule(IF_EXISTS)?/%empty!insert	DROP DATA MOVEMENT RULE zzz a
-reject	accept	docs	dropDataMovementRule(IF_EXISTS)?/IF_EXISTS	DROP DATA MOVEMENT RULE IF EXISTS a
+accept	accept	docs	dropDataMovementRule(IF_EXISTS)?/IF_EXISTS	DROP DATA MOVEMENT RULE IF EXISTS a
 reject	undocumented	docs	dropDataMovementRule(IF_EXISTS)?/IF_EXISTS!drop-1	DROP DATA MOVEMENT RULE EXISTS a
 reject	undocumented	docs	dropDataMovementRule(IF_EXISTS)?/IF_EXISTS!drop-2	DROP DATA MOVEMENT RULE IF a
-reject	accept	docs	dropDataMovementRule(IF_EXISTS)?/IF_EXISTS!truncate	DROP DATA MOVEMENT RULE IF
+accept	accept	docs	dropDataMovementRule(IF_EXISTS)?/IF_EXISTS!truncate	DROP DATA MOVEMENT RULE IF
 reject	undocumented	docs	dropDataMovementRule(IF_EXISTS)?/IF_EXISTS!insert	DROP DATA MOVEMENT RULE IF EXISTS zzz a
 reject	undocumented	docs	dropDataMovementRule(IF_EXISTS)?/IF_EXISTS!swap	DROP DATA MOVEMENT RULE IGNORE EXISTS a
 accept	accept	docs	dropDatabase/DROP_DATABASE_(IF_EXISTS)?_ID_(CASCADE|RESTRICT)?	DROP DATABASE a
@@ -52621,17 +52621,17 @@ accept	accept	docs	dropSessionPolicy(IF_EXISTS)?/IF_EXISTS!truncate	DROP SESSION
 reject	undocumented	docs	dropSessionPolicy(IF_EXISTS)?/IF_EXISTS!insert	DROP SESSION POLICY IF EXISTS zzz a
 reject	undocumented	docs	dropSessionPolicy(IF_EXISTS)?/IF_EXISTS!swap	DROP SESSION POLICY IGNORE EXISTS a
 accept	accept	docs	dropShare/DROP_SHARE_ID	DROP SHARE a
-reject	accept	docs	dropSnapshot/DROP_SNAPSHOT_(IF_EXISTS)?_QNAME	DROP SNAPSHOT a
-reject	accept	docs	dropSnapshot(IF_EXISTS)?/%empty	DROP SNAPSHOT a
+accept	accept	docs	dropSnapshot/DROP_SNAPSHOT_(IF_EXISTS)?_QNAME	DROP SNAPSHOT a
+accept	accept	docs	dropSnapshot(IF_EXISTS)?/%empty	DROP SNAPSHOT a
 reject	undocumented	docs	dropSnapshot(IF_EXISTS)?/%empty!insert	DROP SNAPSHOT zzz a
-reject	accept	docs	dropSnapshot(IF_EXISTS)?/IF_EXISTS	DROP SNAPSHOT IF EXISTS a
+accept	accept	docs	dropSnapshot(IF_EXISTS)?/IF_EXISTS	DROP SNAPSHOT IF EXISTS a
 reject	undocumented	docs	dropSnapshot(IF_EXISTS)?/IF_EXISTS!drop-1	DROP SNAPSHOT EXISTS a
 reject	undocumented	docs	dropSnapshot(IF_EXISTS)?/IF_EXISTS!drop-2	DROP SNAPSHOT IF a
-reject	accept	docs	dropSnapshot(IF_EXISTS)?/IF_EXISTS!truncate	DROP SNAPSHOT IF
+accept	accept	docs	dropSnapshot(IF_EXISTS)?/IF_EXISTS!truncate	DROP SNAPSHOT IF
 reject	undocumented	docs	dropSnapshot(IF_EXISTS)?/IF_EXISTS!insert	DROP SNAPSHOT IF EXISTS zzz a
 reject	undocumented	docs	dropSnapshot(IF_EXISTS)?/IF_EXISTS!swap	DROP SNAPSHOT IGNORE EXISTS a
-reject	accept	docs	dropSnapshotPolicy/DROP_SNAPSHOT_POLICY_QNAME	DROP SNAPSHOT POLICY a
-reject	accept	docs	dropSnapshotSet/DROP_SNAPSHOT_SET_QNAME	DROP SNAPSHOT SET a
+accept	accept	docs	dropSnapshotPolicy/DROP_SNAPSHOT_POLICY_QNAME	DROP SNAPSHOT POLICY a
+accept	accept	docs	dropSnapshotSet/DROP_SNAPSHOT_SET_QNAME	DROP SNAPSHOT SET a
 accept	accept	docs	dropStage/DROP_STAGE_(IF_EXISTS)?_QNAME	DROP STAGE a
 accept	accept	docs	dropStage(IF_EXISTS)?/%empty	DROP STAGE a
 reject	undocumented	docs	dropStage(IF_EXISTS)?/%empty!insert	DROP STAGE zzz a
@@ -52641,13 +52641,13 @@ reject	undocumented	docs	dropStage(IF_EXISTS)?/IF_EXISTS!drop-2	DROP STAGE IF a
 accept	accept	docs	dropStage(IF_EXISTS)?/IF_EXISTS!truncate	DROP STAGE IF
 reject	undocumented	docs	dropStage(IF_EXISTS)?/IF_EXISTS!insert	DROP STAGE IF EXISTS zzz a
 reject	undocumented	docs	dropStage(IF_EXISTS)?/IF_EXISTS!swap	DROP STAGE IGNORE EXISTS a
-reject	accept	docs	dropStorageLifecyclePolicy/DROP_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME	DROP STORAGE LIFECYCLE POLICY a
-reject	accept	docs	dropStorageLifecyclePolicy(IF_EXISTS)?/%empty	DROP STORAGE LIFECYCLE POLICY a
+accept	accept	docs	dropStorageLifecyclePolicy/DROP_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME	DROP STORAGE LIFECYCLE POLICY a
+accept	accept	docs	dropStorageLifecyclePolicy(IF_EXISTS)?/%empty	DROP STORAGE LIFECYCLE POLICY a
 reject	undocumented	docs	dropStorageLifecyclePolicy(IF_EXISTS)?/%empty!insert	DROP STORAGE LIFECYCLE POLICY zzz a
-reject	accept	docs	dropStorageLifecyclePolicy(IF_EXISTS)?/IF_EXISTS	DROP STORAGE LIFECYCLE POLICY IF EXISTS a
+accept	accept	docs	dropStorageLifecyclePolicy(IF_EXISTS)?/IF_EXISTS	DROP STORAGE LIFECYCLE POLICY IF EXISTS a
 reject	undocumented	docs	dropStorageLifecyclePolicy(IF_EXISTS)?/IF_EXISTS!drop-1	DROP STORAGE LIFECYCLE POLICY EXISTS a
 reject	undocumented	docs	dropStorageLifecyclePolicy(IF_EXISTS)?/IF_EXISTS!drop-2	DROP STORAGE LIFECYCLE POLICY IF a
-reject	accept	docs	dropStorageLifecyclePolicy(IF_EXISTS)?/IF_EXISTS!truncate	DROP STORAGE LIFECYCLE POLICY IF
+accept	accept	docs	dropStorageLifecyclePolicy(IF_EXISTS)?/IF_EXISTS!truncate	DROP STORAGE LIFECYCLE POLICY IF
 reject	undocumented	docs	dropStorageLifecyclePolicy(IF_EXISTS)?/IF_EXISTS!insert	DROP STORAGE LIFECYCLE POLICY IF EXISTS zzz a
 reject	undocumented	docs	dropStorageLifecyclePolicy(IF_EXISTS)?/IF_EXISTS!swap	DROP STORAGE LIFECYCLE POLICY IGNORE EXISTS a
 accept	accept	docs	dropStream/DROP_STREAM_(IF_EXISTS)?_QNAME	DROP STREAM a
@@ -68315,9 +68315,9 @@ reject	undocumented	docs	showBackupSets(LIMIT_NUMBER)?/LIMIT_NUMBER!drop-1	SHOW 
 reject	undocumented	docs	showBackupSets(LIMIT_NUMBER)?/LIMIT_NUMBER!drop-2	SHOW BACKUP SETS IN ACCOUNT LIMIT
 reject	undocumented	docs	showBackupSets(LIMIT_NUMBER)?/LIMIT_NUMBER!insert	SHOW BACKUP SETS IN ACCOUNT LIMIT 1 zzz
 reject	undocumented	docs	showBackupSets(LIMIT_NUMBER)?/LIMIT_NUMBER!swap	SHOW BACKUP SETS IN ACCOUNT LINKED_CATALOG 1
-reject	accept	docs	showBackupsInBackupSet/SHOW_BACKUPS_IN_BACKUP_SET_QNAME_(LIMIT_NUMBER)?	SHOW BACKUPS IN BACKUP SET a
-reject	accept	docs	showBackupsInBackupSet(LIMIT_NUMBER)?/%empty	SHOW BACKUPS IN BACKUP SET a
-reject	accept	docs	showBackupsInBackupSet(LIMIT_NUMBER)?/LIMIT_NUMBER	SHOW BACKUPS IN BACKUP SET a LIMIT 1
+accept	accept	docs	showBackupsInBackupSet/SHOW_BACKUPS_IN_BACKUP_SET_QNAME_(LIMIT_NUMBER)?	SHOW BACKUPS IN BACKUP SET a
+accept	accept	docs	showBackupsInBackupSet(LIMIT_NUMBER)?/%empty	SHOW BACKUPS IN BACKUP SET a
+accept	accept	docs	showBackupsInBackupSet(LIMIT_NUMBER)?/LIMIT_NUMBER	SHOW BACKUPS IN BACKUP SET a LIMIT 1
 reject	undocumented	docs	showBackupsInBackupSet(LIMIT_NUMBER)?/LIMIT_NUMBER!drop-1	SHOW BACKUPS IN BACKUP SET a 1
 reject	undocumented	docs	showBackupsInBackupSet(LIMIT_NUMBER)?/LIMIT_NUMBER!drop-2	SHOW BACKUPS IN BACKUP SET a LIMIT
 reject	undocumented	docs	showBackupsInBackupSet(LIMIT_NUMBER)?/LIMIT_NUMBER!insert	SHOW BACKUPS IN BACKUP SET a LIMIT 1 zzz
@@ -72763,7 +72763,7 @@ reject	undocumented	docs	showSnapshots(FROM_STRING)?/FROM_STRING!drop-1	SHOW SNA
 reject	undocumented	docs	showSnapshots(FROM_STRING)?/FROM_STRING!drop-2	SHOW SNAPSHOTS LIMIT 1 FROM
 reject	undocumented	docs	showSnapshots(FROM_STRING)?/FROM_STRING!insert	SHOW SNAPSHOTS LIMIT 1 FROM 's' zzz
 reject	undocumented	docs	showSnapshots(FROM_STRING)?/FROM_STRING!swap	SHOW SNAPSHOTS LIMIT 1 FROZEN 's'
-reject	accept	docs	showSnapshotsInSnapshotSet/SHOW_SNAPSHOTS_IN_SNAPSHOT_SET_QNAME	SHOW SNAPSHOTS IN SNAPSHOT SET a
+accept	accept	docs	showSnapshotsInSnapshotSet/SHOW_SNAPSHOTS_IN_SNAPSHOT_SET_QNAME	SHOW SNAPSHOTS IN SNAPSHOT SET a
 accept	accept	docs	showSpecifications/SHOW_((APPROVED|DECLINED|PENDING))?_SPECIFICATIONS_(IN_~5048fa85	SHOW SPECIFICATIONS
 accept	accept	docs	showSpecifications((APPROVED|DECLINED|PENDING))?/%empty	SHOW SPECIFICATIONS
 accept	undocumented	docs	showSpecifications((APPROVED|DECLINED|PENDING))?/%empty!insert	SHOW zzz SPECIFICATIONS
