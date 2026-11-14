@@ -764,6 +764,11 @@ var (
 	propertySet = "[ { [ NOT ] ENFORCED | [ NOT ] DEFERRABLE | INITIALLY { DEFERRED | IMMEDIATE } | { ENABLE | DISABLE } | { VALIDATE | NOVALIDATE } | { RELY | NORELY } } [ ... ] ]"
 )
 
+// objectTypeChoice is <object_type>: the account-level objects GRANT names
+// and the schema-level ones its object_type parameter lists, from
+// https://docs.snowflake.com/en/sql-reference/sql/grant-privilege.
+const objectTypeChoice = "('ACCOUNT' | 'APPLICATION' | 'APPLICATION' 'PACKAGE' | 'COMPUTE' 'POOL' | 'CONNECTION' | 'DATA' 'EXCHANGE' 'LISTING' | 'DATABASE' | 'DATABASE' 'ROLE' | 'EXTERNAL' 'VOLUME' | 'FAILOVER' 'GROUP' | 'INTEGRATION' | 'REPLICATION' 'GROUP' | 'RESOURCE' 'MONITOR' | 'ROLE' | 'SCHEMA' | 'SHARE' | 'USER' | 'WAREHOUSE' | 'AGENT' | 'AGGREGATION' 'POLICY' | 'ALERT' | 'AUTHENTICATION' 'POLICY' | 'CORTEX' 'EXTENSION' | 'CORTEX' 'SEARCH' 'SERVICE' | 'DATA' 'METRIC' 'FUNCTION' | 'DATASET' | 'DBT' 'PROJECT' | 'DCM' 'PROJECT' | 'DYNAMIC' 'TABLE' | 'EVENT' 'TABLE' | 'EXPERIMENT' | 'EXTERNAL' 'TABLE' | 'FILE' 'FORMAT' | 'FUNCTION' | 'GATEWAY' | 'GIT' 'REPOSITORY' | 'ICEBERG' 'TABLE' | 'IMAGE' 'REPOSITORY' | 'INTERACTIVE' 'TABLE' | 'JOIN' 'POLICY' | 'MAINTENANCE' 'POLICY' | 'MASKING' 'POLICY' | 'MATERIALIZED' 'VIEW' | 'MCP' 'SERVER' | 'MODEL' | 'MODEL' 'MONITOR' | 'NETWORK' 'RULE' | 'NOTEBOOK' | 'ONLINE' 'FEATURE' 'TABLE' | 'PACKAGES' 'POLICY' | 'PASSWORD' 'POLICY' | 'PIPE' | 'PRIVACY' 'POLICY' | 'PROCEDURE' | 'PROJECTION' 'POLICY' | 'RESTRICTED' 'SESSION' 'SCOPE' | 'ROW' 'ACCESS' 'POLICY' | 'SECRET' | 'SEMANTIC' 'VIEW' | 'SEQUENCE' | 'SERVICE' | 'SESSION' 'POLICY' | 'SNAPSHOT' | 'SNAPSHOT' 'POLICY' | 'SNAPSHOT' 'SET' | 'STAGE' | 'STORAGE' 'LIFECYCLE' 'POLICY' | 'STREAM' | 'STREAMLIT' | 'TABLE' | 'TAG' | 'TASK' | 'TYPE' | 'VIEW' | 'WORKSPACE')"
+
 // templateValue is a template argument, USING ( <key> => <value> ).
 var templateValue = regexp.MustCompile(`=> <value>`)
 
@@ -1474,6 +1479,11 @@ func (c *converter) token(t ntok) (string, error) {
 			return "", fmt.Errorf("%w fragment %q: the page does not define it", errUndefined, t.text)
 		}
 		cls := placeholderClass(t.text)
+		if cls == tObjectType {
+			// SHOW GRANTS ON <object_type> <name>: one of the object types
+			// the GRANT page lists.
+			return objectTypeChoice, nil
+		}
 		if cls == tQName && (t.text == "name" || t.text == "new_name" || t.text == "object_name") {
 			switch {
 			case c.accountLevel:
@@ -1546,8 +1556,8 @@ func writeG4(pin string, pages []pageGrammar) string {
 // correct a page's text in docs-fixes.tsv and run the converter again.
 //
 // Keywords are literals. ID, QNAME, QNAME2, STRING, NUMBER, EXPR, QUERY,
-// COPY_STATEMENT, DATA_TYPE, STAGE, FILE, POSITION, VARIABLE, OBJECT_TYPE and
-// OBJECT_TYPES are the values the docs write as <placeholders>; tokens.tsv
+// COPY_STATEMENT, DATA_TYPE, STAGE, FILE, POSITION, VARIABLE and OBJECT_TYPES
+// are the values the docs write as <placeholders>; tokens.tsv
 // samples them. A
 // form a page writes with ... for text it leaves out, or with a word it
 // never defines, is not converted and is listed under its page.

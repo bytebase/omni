@@ -26,7 +26,6 @@ DATA_TYPE	INT	a data type; INT is a synonym of NUMBER(38,0)
 STAGE	@a	(path) @<stage>: a named stage, its path after a slash, quoted when it has spaces; @~ is the user's stage and @%t a table's
 POSITION	$1	$<col_position>: a column of a staged file by its position
 VARIABLE	$a	$<session_variable>: a session variable by its name
-OBJECT_TYPE	TABLE	<object_type> in GRANT and SHOW GRANTS: an object type keyword
 OBJECT_TYPES	TABLES	<object_type_plural>: the plural of one
 FILE	file:///tmp/a	file://<path>/<file>: a local file or directory in PUT and GET, an absolute path, written without quotes
 
