@@ -149,11 +149,11 @@ func checkDigest(ctx context.Context, c testcontainers.Container, digest string)
 	return fmt.Errorf("the Oracle container runs an image with digests %v, but %s pins %s", img.RepoDigests, Pins, digest)
 }
 
-// Judge returns a connection for the compat judge, whose answers go to
-// compat.tsv: as the judge's account, on a scratch schema made again for
-// this call, holding JudgeFixture. It runs in a recording only, and starts
-// the server.
-func Judge(t testing.TB, pin enginetest.Pin) *sql.DB {
+// Judge makes the compat judge's account, whose answers go to compat.tsv,
+// with a scratch schema holding JudgeFixture, and returns what opens a
+// session as that account. It runs in a recording only, and starts the
+// server.
+func Judge(t testing.TB, pin enginetest.Pin) func() *sql.DB {
 	t.Helper()
 	if !enginetest.Recording(t) {
 		t.Fatalf("testcontainer: the judge runs in a recording only")
@@ -181,13 +181,17 @@ func Judge(t testing.TB, pin enginetest.Pin) *sql.DB {
 			t.Fatalf("Oracle: %s: %v", stmt, err)
 		}
 	}
-	db := sql.OpenDB(connector(judgeUser, judgeSecret))
-	db.SetMaxOpenConns(1)
-	t.Cleanup(func() { _ = db.Close() })
+	open := func() *sql.DB {
+		db := sql.OpenDB(connector(judgeUser, judgeSecret))
+		db.SetMaxOpenConns(1)
+		return db
+	}
+	db := open()
+	defer db.Close()
 	if _, err := db.ExecContext(ctx, JudgeFixture); err != nil {
 		t.Fatalf("Oracle: %s: %v", JudgeFixture, err)
 	}
-	return db
+	return open
 }
 
 // Terminate removes the server this process started.
