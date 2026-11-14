@@ -32,6 +32,14 @@ func walkChildren(v Visitor, node Node) {
 		if n.NewName != nil {
 			Walk(v, n.NewName)
 		}
+		if n.UserGroup != nil {
+			Walk(v, n.UserGroup)
+		}
+		for _, item := range n.Contacts {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 	case *AlterAlertStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -345,6 +353,24 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+		if n.Materialization != nil {
+			Walk(v, n.Materialization)
+		}
+		if n.Warehouse != nil {
+			Walk(v, n.Warehouse)
+		}
+		Walk(v, n.ImmutableWhere)
+		for _, item := range n.Dimensions {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		for _, item := range n.Metrics {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		Walk(v, n.Where)
 	case *AlterSequenceStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -1144,6 +1170,9 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+		for _, item := range n.TableArgs {
+			walkRoutineTableArgType(v, item)
+		}
 	case *DollarRef:
 		if n.Qualifier != nil {
 			Walk(v, n.Qualifier)
@@ -1167,6 +1196,9 @@ func walkChildren(v Visitor, node Node) {
 			if item != nil {
 				Walk(v, item)
 			}
+		}
+		for _, item := range n.TableArgs {
+			walkRoutineTableArgType(v, item)
 		}
 	case *ExecuteAlertStmt:
 		if n.Name != nil {
@@ -1245,6 +1277,16 @@ func walkChildren(v Visitor, node Node) {
 	case *GroupOption:
 		if n.Lit != nil {
 			Walk(v, n.Lit)
+		}
+		for _, item := range n.Pairs {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		for _, item := range n.List {
+			if item != nil {
+				Walk(v, item)
+			}
 		}
 	case *IffExpr:
 		Walk(v, n.Cond)
@@ -1586,6 +1628,9 @@ func walkChildren(v Visitor, node Node) {
 	case *UndropStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
+		}
+		if n.NewName != nil {
+			Walk(v, n.NewName)
 		}
 	case *UnpivotClause:
 		for _, item := range n.Columns {

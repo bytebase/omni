@@ -13,7 +13,7 @@ reject	undocumented	docs	statement/alterAccountSetIngressPolicy!drop-2	ALTER UNS
 reject	undocumented	docs	statement/alterAccountSetIngressPolicy!drop-3	ALTER ACCOUNT INGRESS POLICY
 accept	accept	docs	statement/alterAccountSetIngressPolicy!drop-4	ALTER ACCOUNT UNSET POLICY
 accept	accept	docs	statement/alterAccountSetIngressPolicy!drop-5	ALTER ACCOUNT UNSET INGRESS
-accept	undocumented	docs	statement/alterAccountSetIngressPolicy!insert	ALTER ACCOUNT UNSET INGRESS POLICY zzz
+reject	undocumented	docs	statement/alterAccountSetIngressPolicy!insert	ALTER ACCOUNT UNSET INGRESS POLICY zzz
 reject	undocumented	docs	statement/alterAccountSetIngressPolicy!swap	ALWAYS ACCOUNT UNSET INGRESS POLICY
 accept	accept	docs	statement/alterAgent	ALTER AGENT a UNSET TAG a
 reject	undocumented	docs	statement/alterAgent!drop-1	AGENT a UNSET TAG a
@@ -3281,7 +3281,7 @@ reject	undocumented	docs	statement/descFunction!drop-3	DESC FUNCTION()
 reject	undocumented	docs	statement/descFunction!drop-4	DESC FUNCTION a)
 reject	undocumented	docs	statement/descFunction!drop-5	DESC FUNCTION a(
 reject	undocumented	docs	statement/descFunction!insert	DESC FUNCTION a() zzz
-reject	accept	docs	statement/descFunctionDmf	DESC FUNCTION a(TABLE(INT))
+accept	accept	docs	statement/descFunctionDmf	DESC FUNCTION a(TABLE(INT))
 reject	undocumented	docs	statement/descFunctionDmf!drop-1	FUNCTION a(TABLE(INT))
 reject	undocumented	docs	statement/descFunctionDmf!drop-2	DESC a(TABLE(INT))
 reject	undocumented	docs	statement/descFunctionDmf!drop-3	DESC FUNCTION(TABLE(INT))
@@ -3726,7 +3726,7 @@ reject	undocumented	docs	statement/dropExternalVolume!drop-2	DROP VOLUME a
 reject	undocumented	docs	statement/dropExternalVolume!drop-4	DROP EXTERNAL VOLUME
 reject	undocumented	docs	statement/dropExternalVolume!insert	DROP EXTERNAL VOLUME a zzz
 reject	undocumented	docs	statement/dropExternalVolume!swap	DROP_FROM_SOURCE_CATALOG EXTERNAL VOLUME a
-reject	accept	docs	statement/undropExternalVolume	UNDROP EXTERNAL VOLUME a
+accept	accept	docs	statement/undropExternalVolume	UNDROP EXTERNAL VOLUME a
 reject	undocumented	docs	statement/undropExternalVolume!drop-2	UNDROP VOLUME a
 reject	undocumented	docs	statement/undropExternalVolume!drop-3	UNDROP EXTERNAL a
 reject	undocumented	docs	statement/undropExternalVolume!drop-4	UNDROP EXTERNAL VOLUME
@@ -3757,7 +3757,7 @@ reject	undocumented	docs	statement/dropFunction!drop-4	DROP FUNCTION a)
 reject	undocumented	docs	statement/dropFunction!drop-5	DROP FUNCTION a(
 reject	undocumented	docs	statement/dropFunction!insert	DROP FUNCTION a() zzz
 reject	undocumented	docs	statement/dropFunction!swap	DROP_FROM_SOURCE_CATALOG FUNCTION a()
-reject	accept	docs	statement/dropFunctionDmf	DROP FUNCTION a(TABLE(INT))
+accept	accept	docs	statement/dropFunctionDmf	DROP FUNCTION a(TABLE(INT))
 reject	undocumented	docs	statement/dropFunctionDmf!drop-2	DROP a(TABLE(INT))
 reject	undocumented	docs	statement/dropFunctionDmf!drop-3	DROP FUNCTION(TABLE(INT))
 reject	undocumented	docs	statement/dropFunctionDmf!drop-4	DROP FUNCTION a TABLE(INT))
@@ -3877,7 +3877,7 @@ accept	accept	docs	statement/dropNotebook	DROP NOTEBOOK a
 reject	undocumented	docs	statement/dropNotebook!drop-3	DROP NOTEBOOK
 reject	undocumented	docs	statement/dropNotebook!insert	DROP NOTEBOOK a zzz
 reject	undocumented	docs	statement/dropNotebook!swap	DROP_FROM_SOURCE_CATALOG NOTEBOOK a
-reject	accept	docs	statement/undropNotebook	UNDROP NOTEBOOK a
+accept	accept	docs	statement/undropNotebook	UNDROP NOTEBOOK a
 reject	undocumented	docs	statement/undropNotebook!drop-2	UNDROP a
 reject	undocumented	docs	statement/undropNotebook!drop-3	UNDROP NOTEBOOK
 reject	undocumented	docs	statement/undropNotebook!insert	UNDROP NOTEBOOK a zzz
@@ -5602,12 +5602,12 @@ reject	undocumented	docs	statement/truncateTable!drop-1	a
 reject	undocumented	docs	statement/truncateTable!drop-2	TRUNCATE
 reject	undocumented	docs	statement/truncateTable!insert	TRUNCATE a zzz
 reject	undocumented	docs	statement/truncateTable!swap	TRUNCATECOLUMNS a
-reject	accept	docs	statement/undropAccount	UNDROP ACCOUNT a
+accept	accept	docs	statement/undropAccount	UNDROP ACCOUNT a
 reject	undocumented	docs	statement/undropAccount!drop-1	ACCOUNT a
 reject	undocumented	docs	statement/undropAccount!drop-3	UNDROP ACCOUNT
 reject	undocumented	docs	statement/undropAccount!insert	UNDROP ACCOUNT a zzz
 reject	undocumented	docs	statement/undropAccount!swap	UNIQUE ACCOUNT a
-reject	accept	docs	statement/undropAgent	UNDROP AGENT a
+accept	accept	docs	statement/undropAgent	UNDROP AGENT a
 reject	undocumented	docs	statement/undropAgent!drop-3	UNDROP AGENT
 reject	undocumented	docs	statement/undropAgent!insert	UNDROP AGENT a zzz
 reject	undocumented	docs	statement/undropAgent!swap	UNIQUE AGENT a
@@ -5624,15 +5624,15 @@ accept	accept	docs	statement/undropSchema	UNDROP SCHEMA a
 reject	undocumented	docs	statement/undropSchema!drop-3	UNDROP SCHEMA
 reject	undocumented	docs	statement/undropSchema!insert	UNDROP SCHEMA a zzz
 reject	undocumented	docs	statement/undropSchema!swap	UNIQUE SCHEMA a
-reject	accept	docs	statement/undropSnapshot	UNDROP SNAPSHOT a
+accept	accept	docs	statement/undropSnapshot	UNDROP SNAPSHOT a
 reject	undocumented	docs	statement/undropSnapshot!drop-3	UNDROP SNAPSHOT
 reject	undocumented	docs	statement/undropSnapshot!insert	UNDROP SNAPSHOT a zzz
 reject	undocumented	docs	statement/undropSnapshot!swap	UNIQUE SNAPSHOT a
-reject	accept	docs	statement/undropStage	UNDROP STAGE a
+accept	accept	docs	statement/undropStage	UNDROP STAGE a
 reject	undocumented	docs	statement/undropStage!drop-3	UNDROP STAGE
 reject	undocumented	docs	statement/undropStage!insert	UNDROP STAGE a zzz
 reject	undocumented	docs	statement/undropStage!swap	UNIQUE STAGE a
-reject	accept	docs	statement/undropStreamlit	UNDROP STREAMLIT a
+accept	accept	docs	statement/undropStreamlit	UNDROP STREAMLIT a
 reject	undocumented	docs	statement/undropStreamlit!drop-3	UNDROP STREAMLIT
 reject	undocumented	docs	statement/undropStreamlit!insert	UNDROP STREAMLIT a zzz
 reject	undocumented	docs	statement/undropStreamlit!swap	UNIQUE STREAMLIT a
@@ -5698,7 +5698,7 @@ reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_SET_RESOURCE_MONITOR_=_ID!dr
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_SET_RESOURCE_MONITOR_=_ID!drop-6	ALTER ACCOUNT SET RESOURCE_MONITOR =
 accept	undocumented	docs	alterAccount/ALTER_ACCOUNT_SET_RESOURCE_MONITOR_=_ID!insert	ALTER ACCOUNT SET RESOURCE_MONITOR = a zzz
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_SET_RESOURCE_MONITOR_=_ID!swap	ALWAYS ACCOUNT SET RESOURCE_MONITOR = a
-reject	accept	docs	alterAccount/ALTER_ACCOUNT_ADD_ORGANIZATION_USER_GROUP_ID	ALTER ACCOUNT ADD ORGANIZATION USER GROUP a
+accept	accept	docs	alterAccount/ALTER_ACCOUNT_ADD_ORGANIZATION_USER_GROUP_ID	ALTER ACCOUNT ADD ORGANIZATION USER GROUP a
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_ADD_ORGANIZATION_USER_GROUP_ID!drop-1	ACCOUNT ADD ORGANIZATION USER GROUP a
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_ADD_ORGANIZATION_USER_GROUP_ID!drop-2	ALTER ADD ORGANIZATION USER GROUP a
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_ADD_ORGANIZATION_USER_GROUP_ID!drop-3	ALTER ACCOUNT ORGANIZATION USER GROUP a
@@ -5708,7 +5708,7 @@ reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_ADD_ORGANIZATION_USER_GROUP_
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_ADD_ORGANIZATION_USER_GROUP_ID!drop-7	ALTER ACCOUNT ADD ORGANIZATION USER GROUP
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_ADD_ORGANIZATION_USER_GROUP_ID!insert	ALTER ACCOUNT ADD ORGANIZATION USER GROUP a zzz
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_ADD_ORGANIZATION_USER_GROUP_ID!swap	ALWAYS ACCOUNT ADD ORGANIZATION USER GROUP a
-reject	accept	docs	alterAccount/ALTER_ACCOUNT_REMOVE_ORGANIZATION_USER_GROUP_ID	ALTER ACCOUNT REMOVE ORGANIZATION USER GROUP a
+accept	accept	docs	alterAccount/ALTER_ACCOUNT_REMOVE_ORGANIZATION_USER_GROUP_ID	ALTER ACCOUNT REMOVE ORGANIZATION USER GROUP a
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_REMOVE_ORGANIZATION_USER_GROUP_ID!drop-1	ACCOUNT REMOVE ORGANIZATION USER GROUP a
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_REMOVE_ORGANIZATION_USER_GROUP_ID!drop-2	ALTER REMOVE ORGANIZATION USER GROUP a
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_REMOVE_ORGANIZATION_USER_GROUP_ID!drop-4	ALTER ACCOUNT REMOVE USER GROUP a
@@ -5741,9 +5741,9 @@ reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_SET_FEATURE_POLICY_QNAME_FOR
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_SET_FEATURE_POLICY_QNAME_FOR_ALL_APPLICAT~7546878d!drop-5	ALTER ACCOUNT SET FEATURE a FOR ALL APPLICATIONS
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_SET_FEATURE_POLICY_QNAME_FOR_ALL_APPLICAT~7546878d!drop-6	ALTER ACCOUNT SET FEATURE POLICY FOR ALL APPLICATIONS
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_SET_FEATURE_POLICY_QNAME_FOR_ALL_APPLICAT~7546878d!drop-7	ALTER ACCOUNT SET FEATURE POLICY a ALL APPLICATIONS
-accept	undocumented	docs	alterAccount/ALTER_ACCOUNT_SET_FEATURE_POLICY_QNAME_FOR_ALL_APPLICAT~7546878d!drop-8	ALTER ACCOUNT SET FEATURE POLICY a FOR APPLICATIONS
-accept	undocumented	docs	alterAccount/ALTER_ACCOUNT_SET_FEATURE_POLICY_QNAME_FOR_ALL_APPLICAT~7546878d!drop-9	ALTER ACCOUNT SET FEATURE POLICY a FOR ALL
-accept	undocumented	docs	alterAccount/ALTER_ACCOUNT_SET_FEATURE_POLICY_QNAME_FOR_ALL_APPLICAT~7546878d!insert	ALTER ACCOUNT SET FEATURE POLICY a FOR ALL APPLICATIONS zzz
+reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_SET_FEATURE_POLICY_QNAME_FOR_ALL_APPLICAT~7546878d!drop-8	ALTER ACCOUNT SET FEATURE POLICY a FOR APPLICATIONS
+reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_SET_FEATURE_POLICY_QNAME_FOR_ALL_APPLICAT~7546878d!drop-9	ALTER ACCOUNT SET FEATURE POLICY a FOR ALL
+reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_SET_FEATURE_POLICY_QNAME_FOR_ALL_APPLICAT~7546878d!insert	ALTER ACCOUNT SET FEATURE POLICY a FOR ALL APPLICATIONS zzz
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_SET_FEATURE_POLICY_QNAME_FOR_ALL_APPLICAT~7546878d!swap	ALWAYS ACCOUNT SET FEATURE POLICY a FOR ALL APPLICATIONS
 accept	accept	docs	alterAccount/ALTER_ACCOUNT_UNSET_FEATURE_POLICY_FOR_ALL_APPLICATIONS	ALTER ACCOUNT UNSET FEATURE POLICY FOR ALL APPLICATIONS
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_FEATURE_POLICY_FOR_ALL_APPLICATIONS!drop-1	ACCOUNT UNSET FEATURE POLICY FOR ALL APPLICATIONS
@@ -5752,9 +5752,9 @@ reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_FEATURE_POLICY_FOR_ALL
 accept	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_FEATURE_POLICY_FOR_ALL_APPLICATIONS!drop-4	ALTER ACCOUNT UNSET POLICY FOR ALL APPLICATIONS
 accept	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_FEATURE_POLICY_FOR_ALL_APPLICATIONS!drop-5	ALTER ACCOUNT UNSET FEATURE FOR ALL APPLICATIONS
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_FEATURE_POLICY_FOR_ALL_APPLICATIONS!drop-6	ALTER ACCOUNT UNSET FEATURE POLICY ALL APPLICATIONS
-accept	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_FEATURE_POLICY_FOR_ALL_APPLICATIONS!drop-7	ALTER ACCOUNT UNSET FEATURE POLICY FOR APPLICATIONS
-accept	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_FEATURE_POLICY_FOR_ALL_APPLICATIONS!drop-8	ALTER ACCOUNT UNSET FEATURE POLICY FOR ALL
-accept	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_FEATURE_POLICY_FOR_ALL_APPLICATIONS!insert	ALTER ACCOUNT UNSET FEATURE POLICY FOR ALL APPLICATIONS zzz
+reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_FEATURE_POLICY_FOR_ALL_APPLICATIONS!drop-7	ALTER ACCOUNT UNSET FEATURE POLICY FOR APPLICATIONS
+reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_FEATURE_POLICY_FOR_ALL_APPLICATIONS!drop-8	ALTER ACCOUNT UNSET FEATURE POLICY FOR ALL
+reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_FEATURE_POLICY_FOR_ALL_APPLICATIONS!insert	ALTER ACCOUNT UNSET FEATURE POLICY FOR ALL APPLICATIONS zzz
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_FEATURE_POLICY_FOR_ALL_APPLICATIONS!swap	ALWAYS ACCOUNT UNSET FEATURE POLICY FOR ALL APPLICATIONS
 accept	accept	docs	alterAccount/ALTER_ACCOUNT_SET_FEATURE_POLICY_QNAME_FOR_ALL_DATABASE~a082cea6	ALTER ACCOUNT SET FEATURE POLICY a FOR ALL DATABASES
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_SET_FEATURE_POLICY_QNAME_FOR_ALL_DATABASE~a082cea6!drop-1	ACCOUNT SET FEATURE POLICY a FOR ALL DATABASES
@@ -5764,8 +5764,8 @@ reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_SET_FEATURE_POLICY_QNAME_FOR
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_SET_FEATURE_POLICY_QNAME_FOR_ALL_DATABASE~a082cea6!drop-5	ALTER ACCOUNT SET FEATURE a FOR ALL DATABASES
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_SET_FEATURE_POLICY_QNAME_FOR_ALL_DATABASE~a082cea6!drop-6	ALTER ACCOUNT SET FEATURE POLICY FOR ALL DATABASES
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_SET_FEATURE_POLICY_QNAME_FOR_ALL_DATABASE~a082cea6!drop-7	ALTER ACCOUNT SET FEATURE POLICY a ALL DATABASES
-accept	undocumented	docs	alterAccount/ALTER_ACCOUNT_SET_FEATURE_POLICY_QNAME_FOR_ALL_DATABASE~a082cea6!drop-8	ALTER ACCOUNT SET FEATURE POLICY a FOR DATABASES
-accept	undocumented	docs	alterAccount/ALTER_ACCOUNT_SET_FEATURE_POLICY_QNAME_FOR_ALL_DATABASE~a082cea6!insert	ALTER ACCOUNT SET FEATURE POLICY a FOR ALL DATABASES zzz
+reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_SET_FEATURE_POLICY_QNAME_FOR_ALL_DATABASE~a082cea6!drop-8	ALTER ACCOUNT SET FEATURE POLICY a FOR DATABASES
+reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_SET_FEATURE_POLICY_QNAME_FOR_ALL_DATABASE~a082cea6!insert	ALTER ACCOUNT SET FEATURE POLICY a FOR ALL DATABASES zzz
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_SET_FEATURE_POLICY_QNAME_FOR_ALL_DATABASE~a082cea6!swap	ALWAYS ACCOUNT SET FEATURE POLICY a FOR ALL DATABASES
 accept	accept	docs	alterAccount/ALTER_ACCOUNT_UNSET_FEATURE_POLICY_FOR_ALL_DATABASES	ALTER ACCOUNT UNSET FEATURE POLICY FOR ALL DATABASES
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_FEATURE_POLICY_FOR_ALL_DATABASES!drop-1	ACCOUNT UNSET FEATURE POLICY FOR ALL DATABASES
@@ -5774,8 +5774,8 @@ reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_FEATURE_POLICY_FOR_ALL
 accept	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_FEATURE_POLICY_FOR_ALL_DATABASES!drop-4	ALTER ACCOUNT UNSET POLICY FOR ALL DATABASES
 accept	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_FEATURE_POLICY_FOR_ALL_DATABASES!drop-5	ALTER ACCOUNT UNSET FEATURE FOR ALL DATABASES
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_FEATURE_POLICY_FOR_ALL_DATABASES!drop-6	ALTER ACCOUNT UNSET FEATURE POLICY ALL DATABASES
-accept	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_FEATURE_POLICY_FOR_ALL_DATABASES!drop-7	ALTER ACCOUNT UNSET FEATURE POLICY FOR DATABASES
-accept	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_FEATURE_POLICY_FOR_ALL_DATABASES!insert	ALTER ACCOUNT UNSET FEATURE POLICY FOR ALL DATABASES zzz
+reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_FEATURE_POLICY_FOR_ALL_DATABASES!drop-7	ALTER ACCOUNT UNSET FEATURE POLICY FOR DATABASES
+reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_FEATURE_POLICY_FOR_ALL_DATABASES!insert	ALTER ACCOUNT UNSET FEATURE POLICY FOR ALL DATABASES zzz
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_FEATURE_POLICY_FOR_ALL_DATABASES!swap	ALWAYS ACCOUNT UNSET FEATURE POLICY FOR ALL DATABASES
 accept	accept	docs	alterAccount/ALTER_ACCOUNT_SET_FEATURE_POLICY_QNAME_FOR_ALL_PERSONAL~f5f47cca	ALTER ACCOUNT SET FEATURE POLICY a FOR ALL PERSONAL DATABASES
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_SET_FEATURE_POLICY_QNAME_FOR_ALL_PERSONAL~f5f47cca!drop-1	ACCOUNT SET FEATURE POLICY a FOR ALL PERSONAL DATABASES
@@ -5785,9 +5785,9 @@ reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_SET_FEATURE_POLICY_QNAME_FOR
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_SET_FEATURE_POLICY_QNAME_FOR_ALL_PERSONAL~f5f47cca!drop-5	ALTER ACCOUNT SET FEATURE a FOR ALL PERSONAL DATABASES
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_SET_FEATURE_POLICY_QNAME_FOR_ALL_PERSONAL~f5f47cca!drop-6	ALTER ACCOUNT SET FEATURE POLICY FOR ALL PERSONAL DATABASES
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_SET_FEATURE_POLICY_QNAME_FOR_ALL_PERSONAL~f5f47cca!drop-7	ALTER ACCOUNT SET FEATURE POLICY a ALL PERSONAL DATABASES
-accept	undocumented	docs	alterAccount/ALTER_ACCOUNT_SET_FEATURE_POLICY_QNAME_FOR_ALL_PERSONAL~f5f47cca!drop-8	ALTER ACCOUNT SET FEATURE POLICY a FOR PERSONAL DATABASES
-accept	undocumented	docs	alterAccount/ALTER_ACCOUNT_SET_FEATURE_POLICY_QNAME_FOR_ALL_PERSONAL~f5f47cca!drop-10	ALTER ACCOUNT SET FEATURE POLICY a FOR ALL PERSONAL
-accept	undocumented	docs	alterAccount/ALTER_ACCOUNT_SET_FEATURE_POLICY_QNAME_FOR_ALL_PERSONAL~f5f47cca!insert	ALTER ACCOUNT SET FEATURE POLICY a FOR ALL PERSONAL DATABASES zzz
+reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_SET_FEATURE_POLICY_QNAME_FOR_ALL_PERSONAL~f5f47cca!drop-8	ALTER ACCOUNT SET FEATURE POLICY a FOR PERSONAL DATABASES
+reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_SET_FEATURE_POLICY_QNAME_FOR_ALL_PERSONAL~f5f47cca!drop-10	ALTER ACCOUNT SET FEATURE POLICY a FOR ALL PERSONAL
+reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_SET_FEATURE_POLICY_QNAME_FOR_ALL_PERSONAL~f5f47cca!insert	ALTER ACCOUNT SET FEATURE POLICY a FOR ALL PERSONAL DATABASES zzz
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_SET_FEATURE_POLICY_QNAME_FOR_ALL_PERSONAL~f5f47cca!swap	ALWAYS ACCOUNT SET FEATURE POLICY a FOR ALL PERSONAL DATABASES
 accept	accept	docs	alterAccount/ALTER_ACCOUNT_UNSET_FEATURE_POLICY_FOR_ALL_PERSONAL_DATABASES	ALTER ACCOUNT UNSET FEATURE POLICY FOR ALL PERSONAL DATABASES
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_FEATURE_POLICY_FOR_ALL_PERSONAL_DATABASES!drop-1	ACCOUNT UNSET FEATURE POLICY FOR ALL PERSONAL DATABASES
@@ -5796,11 +5796,11 @@ reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_FEATURE_POLICY_FOR_ALL
 accept	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_FEATURE_POLICY_FOR_ALL_PERSONAL_DATABASES!drop-4	ALTER ACCOUNT UNSET POLICY FOR ALL PERSONAL DATABASES
 accept	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_FEATURE_POLICY_FOR_ALL_PERSONAL_DATABASES!drop-5	ALTER ACCOUNT UNSET FEATURE FOR ALL PERSONAL DATABASES
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_FEATURE_POLICY_FOR_ALL_PERSONAL_DATABASES!drop-6	ALTER ACCOUNT UNSET FEATURE POLICY ALL PERSONAL DATABASES
-accept	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_FEATURE_POLICY_FOR_ALL_PERSONAL_DATABASES!drop-7	ALTER ACCOUNT UNSET FEATURE POLICY FOR PERSONAL DATABASES
-accept	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_FEATURE_POLICY_FOR_ALL_PERSONAL_DATABASES!drop-9	ALTER ACCOUNT UNSET FEATURE POLICY FOR ALL PERSONAL
-accept	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_FEATURE_POLICY_FOR_ALL_PERSONAL_DATABASES!insert	ALTER ACCOUNT UNSET FEATURE POLICY FOR ALL PERSONAL DATABASES zzz
+reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_FEATURE_POLICY_FOR_ALL_PERSONAL_DATABASES!drop-7	ALTER ACCOUNT UNSET FEATURE POLICY FOR PERSONAL DATABASES
+reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_FEATURE_POLICY_FOR_ALL_PERSONAL_DATABASES!drop-9	ALTER ACCOUNT UNSET FEATURE POLICY FOR ALL PERSONAL
+reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_FEATURE_POLICY_FOR_ALL_PERSONAL_DATABASES!insert	ALTER ACCOUNT UNSET FEATURE POLICY FOR ALL PERSONAL DATABASES zzz
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_FEATURE_POLICY_FOR_ALL_PERSONAL_DATABASES!swap	ALWAYS ACCOUNT UNSET FEATURE POLICY FOR ALL PERSONAL DATABASES
-reject	accept	docs	alterAccount/ALTER_ACCOUNT_SET_MAINTENANCE_POLICY_QNAME_(FORCE)?_FOR~cb1024f5	ALTER ACCOUNT SET MAINTENANCE POLICY a FOR ALL APPLICATIONS
+accept	accept	docs	alterAccount/ALTER_ACCOUNT_SET_MAINTENANCE_POLICY_QNAME_(FORCE)?_FOR~cb1024f5	ALTER ACCOUNT SET MAINTENANCE POLICY a FOR ALL APPLICATIONS
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_SET_MAINTENANCE_POLICY_QNAME_(FORCE)?_FOR~cb1024f5!drop-1	ACCOUNT SET MAINTENANCE POLICY a FOR ALL APPLICATIONS
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_SET_MAINTENANCE_POLICY_QNAME_(FORCE)?_FOR~cb1024f5!drop-2	ALTER SET MAINTENANCE POLICY a FOR ALL APPLICATIONS
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_SET_MAINTENANCE_POLICY_QNAME_(FORCE)?_FOR~cb1024f5!drop-3	ALTER ACCOUNT MAINTENANCE POLICY a FOR ALL APPLICATIONS
@@ -5816,10 +5816,10 @@ reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_MAINTENANCE_POLICY_FOR
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_MAINTENANCE_POLICY_FOR_ALL_APPLICATIONS!drop-2	ALTER UNSET MAINTENANCE POLICY FOR ALL APPLICATIONS
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_MAINTENANCE_POLICY_FOR_ALL_APPLICATIONS!drop-3	ALTER ACCOUNT MAINTENANCE POLICY FOR ALL APPLICATIONS
 accept	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_MAINTENANCE_POLICY_FOR_ALL_APPLICATIONS!drop-5	ALTER ACCOUNT UNSET MAINTENANCE FOR ALL APPLICATIONS
-accept	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_MAINTENANCE_POLICY_FOR_ALL_APPLICATIONS!drop-6	ALTER ACCOUNT UNSET MAINTENANCE POLICY ALL APPLICATIONS
-accept	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_MAINTENANCE_POLICY_FOR_ALL_APPLICATIONS!drop-7	ALTER ACCOUNT UNSET MAINTENANCE POLICY FOR APPLICATIONS
-accept	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_MAINTENANCE_POLICY_FOR_ALL_APPLICATIONS!drop-8	ALTER ACCOUNT UNSET MAINTENANCE POLICY FOR ALL
-accept	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_MAINTENANCE_POLICY_FOR_ALL_APPLICATIONS!insert	ALTER ACCOUNT UNSET MAINTENANCE POLICY FOR ALL APPLICATIONS zzz
+reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_MAINTENANCE_POLICY_FOR_ALL_APPLICATIONS!drop-6	ALTER ACCOUNT UNSET MAINTENANCE POLICY ALL APPLICATIONS
+reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_MAINTENANCE_POLICY_FOR_ALL_APPLICATIONS!drop-7	ALTER ACCOUNT UNSET MAINTENANCE POLICY FOR APPLICATIONS
+reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_MAINTENANCE_POLICY_FOR_ALL_APPLICATIONS!drop-8	ALTER ACCOUNT UNSET MAINTENANCE POLICY FOR ALL
+reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_MAINTENANCE_POLICY_FOR_ALL_APPLICATIONS!insert	ALTER ACCOUNT UNSET MAINTENANCE POLICY FOR ALL APPLICATIONS zzz
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_MAINTENANCE_POLICY_FOR_ALL_APPLICATIONS!swap	ALWAYS ACCOUNT UNSET MAINTENANCE POLICY FOR ALL APPLICATIONS
 accept	accept	docs	alterAccount/ALTER_ACCOUNT_SET_DATA_MOVEMENT_POLICY_QNAME_(FORCE)?	ALTER ACCOUNT SET DATA MOVEMENT POLICY a
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_SET_DATA_MOVEMENT_POLICY_QNAME_(FORCE)?!drop-1	ACCOUNT SET DATA MOVEMENT POLICY a
@@ -5855,7 +5855,7 @@ reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_(PACKAGES|PASSWORD|MUL
 accept	accept	docs	alterAccount/ALTER_ACCOUNT_UNSET_(PACKAGES|PASSWORD|MULTI_PARTY_APPR~7cf82729!drop-5	ALTER ACCOUNT UNSET PACKAGES
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_(PACKAGES|PASSWORD|MULTI_PARTY_APPR~7cf82729!insert	ALTER ACCOUNT UNSET PACKAGES POLICY zzz
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_UNSET_(PACKAGES|PASSWORD|MULTI_PARTY_APPR~7cf82729!swap	ALWAYS ACCOUNT UNSET PACKAGES POLICY
-reject	accept	docs	alterAccount/ALTER_ACCOUNT_SET_CONTACT_ID_=_ID_(,_ID_=_ID)*	ALTER ACCOUNT SET CONTACT a = a
+accept	accept	docs	alterAccount/ALTER_ACCOUNT_SET_CONTACT_ID_=_ID_(,_ID_=_ID)*	ALTER ACCOUNT SET CONTACT a = a
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_SET_CONTACT_ID_=_ID_(,_ID_=_ID)*!drop-1	ACCOUNT SET CONTACT a = a
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_SET_CONTACT_ID_=_ID_(,_ID_=_ID)*!drop-2	ALTER SET CONTACT a = a
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_SET_CONTACT_ID_=_ID_(,_ID_=_ID)*!drop-3	ALTER ACCOUNT CONTACT a = a
@@ -5919,7 +5919,7 @@ reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_ID_SET_TENANT_TYPE_=_(INTERN
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_ID_SET_TENANT_TYPE_=_(INTERNAL|EXTERNAL)!drop-7	ALTER ACCOUNT a SET TENANT_TYPE =
 accept	undocumented	docs	alterAccount/ALTER_ACCOUNT_ID_SET_TENANT_TYPE_=_(INTERNAL|EXTERNAL)!insert	ALTER ACCOUNT a SET TENANT_TYPE = INTERNAL zzz
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_ID_SET_TENANT_TYPE_=_(INTERNAL|EXTERNAL)!swap	ALWAYS ACCOUNT a SET TENANT_TYPE = INTERNAL
-reject	accept	docs	alterAccount/ALTER_ACCOUNT_ID_SET_DOMAIN_NAMES_=_(_STRING_(,_STRING)*_)	ALTER ACCOUNT a SET DOMAIN_NAMES =('s')
+accept	accept	docs	alterAccount/ALTER_ACCOUNT_ID_SET_DOMAIN_NAMES_=_(_STRING_(,_STRING)*_)	ALTER ACCOUNT a SET DOMAIN_NAMES =('s')
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_ID_SET_DOMAIN_NAMES_=_(_STRING_(,_STRING)*_)!drop-1	ACCOUNT a SET DOMAIN_NAMES =('s')
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_ID_SET_DOMAIN_NAMES_=_(_STRING_(,_STRING)*_)!drop-2	ALTER a SET DOMAIN_NAMES =('s')
 reject	undocumented	docs	alterAccount/ALTER_ACCOUNT_ID_SET_DOMAIN_NAMES_=_(_STRING_(,_STRING)*_)!drop-3	ALTER ACCOUNT SET DOMAIN_NAMES =('s')
@@ -5998,17 +5998,17 @@ accept	undocumented	docs	alterAccount(AUTHENTICATION|SESSION)/SESSION!swap	ALTER
 accept	accept	docs	alterAccount((FOR_ALL_PERSON_USERS|FOR_ALL_SERVICE_USERS))?/%empty	ALTER ACCOUNT UNSET AUTHENTICATION POLICY
 accept	accept	docs	alterAccount((FOR_ALL_PERSON_USERS|FOR_ALL_SERVICE_USERS))?/(FOR_ALL_PERSON_USERS|FOR_ALL_SERVICE_USERS)	ALTER ACCOUNT UNSET AUTHENTICATION POLICY FOR ALL PERSON USERS
 reject	undocumented	docs	alterAccount((FOR_ALL_PERSON_USERS|FOR_ALL_SERVICE_USERS))?/(FOR_ALL_PERSON_USERS|FOR_ALL_SERVICE_USERS)!drop-1	ALTER ACCOUNT UNSET AUTHENTICATION POLICY ALL PERSON USERS
-accept	undocumented	docs	alterAccount((FOR_ALL_PERSON_USERS|FOR_ALL_SERVICE_USERS))?/(FOR_ALL_PERSON_USERS|FOR_ALL_SERVICE_USERS)!drop-2	ALTER ACCOUNT UNSET AUTHENTICATION POLICY FOR PERSON USERS
-accept	undocumented	docs	alterAccount((FOR_ALL_PERSON_USERS|FOR_ALL_SERVICE_USERS))?/(FOR_ALL_PERSON_USERS|FOR_ALL_SERVICE_USERS)!drop-3	ALTER ACCOUNT UNSET AUTHENTICATION POLICY FOR ALL USERS
-accept	undocumented	docs	alterAccount((FOR_ALL_PERSON_USERS|FOR_ALL_SERVICE_USERS))?/(FOR_ALL_PERSON_USERS|FOR_ALL_SERVICE_USERS)!drop-4	ALTER ACCOUNT UNSET AUTHENTICATION POLICY FOR ALL PERSON
-accept	undocumented	docs	alterAccount((FOR_ALL_PERSON_USERS|FOR_ALL_SERVICE_USERS))?/(FOR_ALL_PERSON_USERS|FOR_ALL_SERVICE_USERS)!insert	ALTER ACCOUNT UNSET AUTHENTICATION POLICY FOR ALL PERSON USERS zzz
+reject	undocumented	docs	alterAccount((FOR_ALL_PERSON_USERS|FOR_ALL_SERVICE_USERS))?/(FOR_ALL_PERSON_USERS|FOR_ALL_SERVICE_USERS)!drop-2	ALTER ACCOUNT UNSET AUTHENTICATION POLICY FOR PERSON USERS
+reject	undocumented	docs	alterAccount((FOR_ALL_PERSON_USERS|FOR_ALL_SERVICE_USERS))?/(FOR_ALL_PERSON_USERS|FOR_ALL_SERVICE_USERS)!drop-3	ALTER ACCOUNT UNSET AUTHENTICATION POLICY FOR ALL USERS
+reject	undocumented	docs	alterAccount((FOR_ALL_PERSON_USERS|FOR_ALL_SERVICE_USERS))?/(FOR_ALL_PERSON_USERS|FOR_ALL_SERVICE_USERS)!drop-4	ALTER ACCOUNT UNSET AUTHENTICATION POLICY FOR ALL PERSON
+reject	undocumented	docs	alterAccount((FOR_ALL_PERSON_USERS|FOR_ALL_SERVICE_USERS))?/(FOR_ALL_PERSON_USERS|FOR_ALL_SERVICE_USERS)!insert	ALTER ACCOUNT UNSET AUTHENTICATION POLICY FOR ALL PERSON USERS zzz
 reject	undocumented	docs	alterAccount((FOR_ALL_PERSON_USERS|FOR_ALL_SERVICE_USERS))?/(FOR_ALL_PERSON_USERS|FOR_ALL_SERVICE_USERS)!swap	ALTER ACCOUNT UNSET AUTHENTICATION POLICY FORCE ALL PERSON USERS
 accept	accept	docs	alterAccount(FOR_ALL_PERSON_USERS|FOR_ALL_SERVICE_USERS)/FOR_ALL_PERSON_USERS	ALTER ACCOUNT UNSET AUTHENTICATION POLICY FOR ALL PERSON USERS
 accept	accept	docs	alterAccount(FOR_ALL_PERSON_USERS|FOR_ALL_SERVICE_USERS)/FOR_ALL_SERVICE_USERS	ALTER ACCOUNT UNSET AUTHENTICATION POLICY FOR ALL SERVICE USERS
 reject	undocumented	docs	alterAccount(FOR_ALL_PERSON_USERS|FOR_ALL_SERVICE_USERS)/FOR_ALL_SERVICE_USERS!drop-1	ALTER ACCOUNT UNSET AUTHENTICATION POLICY ALL SERVICE USERS
-accept	undocumented	docs	alterAccount(FOR_ALL_PERSON_USERS|FOR_ALL_SERVICE_USERS)/FOR_ALL_SERVICE_USERS!drop-2	ALTER ACCOUNT UNSET AUTHENTICATION POLICY FOR SERVICE USERS
-accept	undocumented	docs	alterAccount(FOR_ALL_PERSON_USERS|FOR_ALL_SERVICE_USERS)/FOR_ALL_SERVICE_USERS!drop-4	ALTER ACCOUNT UNSET AUTHENTICATION POLICY FOR ALL SERVICE
-accept	undocumented	docs	alterAccount(FOR_ALL_PERSON_USERS|FOR_ALL_SERVICE_USERS)/FOR_ALL_SERVICE_USERS!insert	ALTER ACCOUNT UNSET AUTHENTICATION POLICY FOR ALL SERVICE USERS zzz
+reject	undocumented	docs	alterAccount(FOR_ALL_PERSON_USERS|FOR_ALL_SERVICE_USERS)/FOR_ALL_SERVICE_USERS!drop-2	ALTER ACCOUNT UNSET AUTHENTICATION POLICY FOR SERVICE USERS
+reject	undocumented	docs	alterAccount(FOR_ALL_PERSON_USERS|FOR_ALL_SERVICE_USERS)/FOR_ALL_SERVICE_USERS!drop-4	ALTER ACCOUNT UNSET AUTHENTICATION POLICY FOR ALL SERVICE
+reject	undocumented	docs	alterAccount(FOR_ALL_PERSON_USERS|FOR_ALL_SERVICE_USERS)/FOR_ALL_SERVICE_USERS!insert	ALTER ACCOUNT UNSET AUTHENTICATION POLICY FOR ALL SERVICE USERS zzz
 reject	undocumented	docs	alterAccount(FOR_ALL_PERSON_USERS|FOR_ALL_SERVICE_USERS)/FOR_ALL_SERVICE_USERS!swap	ALTER ACCOUNT UNSET AUTHENTICATION POLICY FORCE ALL SERVICE USERS
 accept	accept	docs	alterAccount(FORCE)?/%empty	ALTER ACCOUNT SET AUTHENTICATION POLICY a
 accept	accept	docs	alterAccount(FORCE)?/FORCE	ALTER ACCOUNT SET AUTHENTICATION POLICY a FORCE
@@ -6027,8 +6027,8 @@ accept	undocumented	docs	alterAccount(PACKAGES|PASSWORD|MULTI_PARTY_APPROVAL)/MU
 accept	undocumented	docs	alterAccount(PACKAGES|PASSWORD|MULTI_PARTY_APPROVAL)/MULTI_PARTY_APPROVAL!truncate	ALTER ACCOUNT UNSET MULTI PARTY
 accept	undocumented	docs	alterAccount(PACKAGES|PASSWORD|MULTI_PARTY_APPROVAL)/MULTI_PARTY_APPROVAL!insert	ALTER ACCOUNT UNSET MULTI PARTY APPROVAL zzz POLICY
 accept	undocumented	docs	alterAccount(PACKAGES|PASSWORD|MULTI_PARTY_APPROVAL)/MULTI_PARTY_APPROVAL!swap	ALTER ACCOUNT UNSET MULTIPLE_INSTANCES PARTY APPROVAL POLICY
-reject	accept	docs	alterAccount(,_ID_=_ID)*/%empty	ALTER ACCOUNT SET CONTACT a = a
-reject	accept	docs	alterAccount(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*	ALTER ACCOUNT SET CONTACT a = a, a = a
+accept	accept	docs	alterAccount(,_ID_=_ID)*/%empty	ALTER ACCOUNT SET CONTACT a = a
+accept	accept	docs	alterAccount(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*	ALTER ACCOUNT SET CONTACT a = a, a = a
 reject	undocumented	docs	alterAccount(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-1	ALTER ACCOUNT SET CONTACT a = a a = a
 reject	undocumented	docs	alterAccount(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-2	ALTER ACCOUNT SET CONTACT a = a, = a
 reject	undocumented	docs	alterAccount(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-3	ALTER ACCOUNT SET CONTACT a = a, a a
@@ -6061,9 +6061,9 @@ accept	undocumented	docs	alterAccount(INTERNAL|EXTERNAL)/INTERNAL!swap	ALTER ACC
 accept	accept	docs	alterAccount(INTERNAL|EXTERNAL)/EXTERNAL	ALTER ACCOUNT a SET TENANT_TYPE = EXTERNAL
 accept	undocumented	docs	alterAccount(INTERNAL|EXTERNAL)/EXTERNAL!insert	ALTER ACCOUNT a SET TENANT_TYPE = EXTERNAL zzz
 accept	undocumented	docs	alterAccount(INTERNAL|EXTERNAL)/EXTERNAL!swap	ALTER ACCOUNT a SET TENANT_TYPE = EXTERNAL_ACCESS
-reject	accept	docs	alterAccount(,_STRING)*/%empty	ALTER ACCOUNT a SET DOMAIN_NAMES =('s')
+accept	accept	docs	alterAccount(,_STRING)*/%empty	ALTER ACCOUNT a SET DOMAIN_NAMES =('s')
 reject	undocumented	docs	alterAccount(,_STRING)*/%empty!insert	ALTER ACCOUNT a SET DOMAIN_NAMES =('s' zzz)
-reject	accept	docs	alterAccount(,_STRING)*/,_STRING_(,_STRING)*	ALTER ACCOUNT a SET DOMAIN_NAMES =('s', 's')
+accept	accept	docs	alterAccount(,_STRING)*/,_STRING_(,_STRING)*	ALTER ACCOUNT a SET DOMAIN_NAMES =('s', 's')
 reject	undocumented	docs	alterAccount(,_STRING)*/,_STRING_(,_STRING)*!drop-1	ALTER ACCOUNT a SET DOMAIN_NAMES =('s' 's')
 reject	undocumented	docs	alterAccount(,_STRING)*/,_STRING_(,_STRING)*!drop-2	ALTER ACCOUNT a SET DOMAIN_NAMES =('s',)
 reject	undocumented	docs	alterAccount(,_STRING)*/,_STRING_(,_STRING)*!truncate	ALTER ACCOUNT a SET DOMAIN_NAMES =('s',
@@ -6086,7 +6086,7 @@ accept	undocumented	docs	alterAccount_accountProperties(LOGIN_IDP_REDIRECT_=_(_I
 reject	undocumented	docs	alterAccount_accountProperties(LOGIN_IDP_REDIRECT_=_(_ID_=_ID_(,_ID~e9efae3d)+/(LOGIN_IDP_REDIRECT_=_(_ID_=_ID_(,_ID~e9efae3d)_(LOGIN_~f23531fb!drop-6	ALTER ACCOUNT SET OBJECT_VISIBILITY = a OBJECT_VISIBILITY =
 accept	undocumented	docs	alterAccount_accountProperties(LOGIN_IDP_REDIRECT_=_(_ID_=_ID_(,_ID~e9efae3d)+/(LOGIN_IDP_REDIRECT_=_(_ID_=_ID_(,_ID~e9efae3d)_(LOGIN_~f23531fb!insert	ALTER ACCOUNT SET OBJECT_VISIBILITY = a OBJECT_VISIBILITY = a zzz
 accept	undocumented	docs	alterAccount_accountProperties(LOGIN_IDP_REDIRECT_=_(_ID_=_ID_(,_ID~e9efae3d)+/(LOGIN_IDP_REDIRECT_=_(_ID_=_ID_(,_ID~e9efae3d)_(LOGIN_~f23531fb!swap	ALTER ACCOUNT SET OF = a OBJECT_VISIBILITY = a
-reject	accept	docs	alterAccount_accountProperties(LOGIN_IDP_REDIRECT_=_(_ID_=_ID_(,_ID~e9efae3d)/LOGIN_IDP_REDIRECT_=_(_ID_=_ID_(,_ID_=_ID)*_)	ALTER ACCOUNT SET LOGIN_IDP_REDIRECT =(a = a)
+accept	accept	docs	alterAccount_accountProperties(LOGIN_IDP_REDIRECT_=_(_ID_=_ID_(,_ID~e9efae3d)/LOGIN_IDP_REDIRECT_=_(_ID_=_ID_(,_ID_=_ID)*_)	ALTER ACCOUNT SET LOGIN_IDP_REDIRECT =(a = a)
 reject	undocumented	docs	alterAccount_accountProperties(LOGIN_IDP_REDIRECT_=_(_ID_=_ID_(,_ID~e9efae3d)/LOGIN_IDP_REDIRECT_=_(_ID_=_ID_(,_ID_=_ID)*_)!drop-1	ALTER ACCOUNT SET =(a = a)
 reject	undocumented	docs	alterAccount_accountProperties(LOGIN_IDP_REDIRECT_=_(_ID_=_ID_(,_ID~e9efae3d)/LOGIN_IDP_REDIRECT_=_(_ID_=_ID_(,_ID_=_ID)*_)!drop-2	ALTER ACCOUNT SET LOGIN_IDP_REDIRECT(a = a)
 reject	undocumented	docs	alterAccount_accountProperties(LOGIN_IDP_REDIRECT_=_(_ID_=_ID_(,_ID~e9efae3d)/LOGIN_IDP_REDIRECT_=_(_ID_=_ID_(,_ID_=_ID)*_)!drop-3	ALTER ACCOUNT SET LOGIN_IDP_REDIRECT = a = a)
@@ -6097,9 +6097,9 @@ reject	undocumented	docs	alterAccount_accountProperties(LOGIN_IDP_REDIRECT_=_(_I
 reject	undocumented	docs	alterAccount_accountProperties(LOGIN_IDP_REDIRECT_=_(_ID_=_ID_(,_ID~e9efae3d)/LOGIN_IDP_REDIRECT_=_(_ID_=_ID_(,_ID_=_ID)*_)!insert	ALTER ACCOUNT SET LOGIN_IDP_REDIRECT =(a = a) zzz
 reject	undocumented	docs	alterAccount_accountProperties(LOGIN_IDP_REDIRECT_=_(_ID_=_ID_(,_ID~e9efae3d)/LOGIN_IDP_REDIRECT_=_(_ID_=_ID_(,_ID_=_ID)*_)!swap	ALTER ACCOUNT SET LOGIN_NAME =(a = a)
 accept	accept	docs	alterAccount_accountProperties(LOGIN_IDP_REDIRECT_=_(_ID_=_ID_(,_ID~e9efae3d)/OBJECT_VISIBILITY_=_(ID|PRIVILEGED)	ALTER ACCOUNT SET OBJECT_VISIBILITY = a
-reject	accept	docs	alterAccount_accountProperties(,_ID_=_ID)*/%empty	ALTER ACCOUNT SET LOGIN_IDP_REDIRECT =(a = a)
+accept	accept	docs	alterAccount_accountProperties(,_ID_=_ID)*/%empty	ALTER ACCOUNT SET LOGIN_IDP_REDIRECT =(a = a)
 reject	undocumented	docs	alterAccount_accountProperties(,_ID_=_ID)*/%empty!insert	ALTER ACCOUNT SET LOGIN_IDP_REDIRECT =(a = a zzz)
-reject	accept	docs	alterAccount_accountProperties(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*	ALTER ACCOUNT SET LOGIN_IDP_REDIRECT =(a = a, a = a)
+accept	accept	docs	alterAccount_accountProperties(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*	ALTER ACCOUNT SET LOGIN_IDP_REDIRECT =(a = a, a = a)
 reject	undocumented	docs	alterAccount_accountProperties(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-1	ALTER ACCOUNT SET LOGIN_IDP_REDIRECT =(a = a a = a)
 reject	undocumented	docs	alterAccount_accountProperties(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-2	ALTER ACCOUNT SET LOGIN_IDP_REDIRECT =(a = a, = a)
 reject	undocumented	docs	alterAccount_accountProperties(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-3	ALTER ACCOUNT SET LOGIN_IDP_REDIRECT =(a = a, a a)
@@ -6672,7 +6672,7 @@ accept	undocumented	docs	alterAccount_sessionParams(TRUE|FALSE)/TRUE!swap	ALTER 
 accept	accept	docs	alterAccount_sessionParams(TRUE|FALSE)/FALSE	ALTER ACCOUNT SET ABORT_DETACHED_QUERY = FALSE
 accept	undocumented	docs	alterAccount_sessionParams(TRUE|FALSE)/FALSE!insert	ALTER ACCOUNT SET ABORT_DETACHED_QUERY = FALSE zzz
 accept	undocumented	docs	alterAccount_sessionParams(TRUE|FALSE)/FALSE!swap	ALTER ACCOUNT SET ABORT_DETACHED_QUERY = FAMILIES
-reject	accept	docs	alterAccountSetIngressPolicy/ALTER_ACCOUNT_SET_INGRESS_POLICY_QNAME_(FORCE)?	ALTER ACCOUNT SET INGRESS POLICY a
+accept	accept	docs	alterAccountSetIngressPolicy/ALTER_ACCOUNT_SET_INGRESS_POLICY_QNAME_(FORCE)?	ALTER ACCOUNT SET INGRESS POLICY a
 reject	undocumented	docs	alterAccountSetIngressPolicy/ALTER_ACCOUNT_SET_INGRESS_POLICY_QNAME_(FORCE)?!drop-1	ACCOUNT SET INGRESS POLICY a
 reject	undocumented	docs	alterAccountSetIngressPolicy/ALTER_ACCOUNT_SET_INGRESS_POLICY_QNAME_(FORCE)?!drop-2	ALTER SET INGRESS POLICY a
 reject	undocumented	docs	alterAccountSetIngressPolicy/ALTER_ACCOUNT_SET_INGRESS_POLICY_QNAME_(FORCE)?!drop-3	ALTER ACCOUNT INGRESS POLICY a
@@ -6681,8 +6681,8 @@ reject	undocumented	docs	alterAccountSetIngressPolicy/ALTER_ACCOUNT_SET_INGRESS_
 reject	undocumented	docs	alterAccountSetIngressPolicy/ALTER_ACCOUNT_SET_INGRESS_POLICY_QNAME_(FORCE)?!insert	ALTER ACCOUNT SET INGRESS POLICY a zzz
 reject	undocumented	docs	alterAccountSetIngressPolicy/ALTER_ACCOUNT_SET_INGRESS_POLICY_QNAME_(FORCE)?!swap	ALWAYS ACCOUNT SET INGRESS POLICY a
 accept	accept	docs	alterAccountSetIngressPolicy/ALTER_ACCOUNT_UNSET_INGRESS_POLICY	ALTER ACCOUNT UNSET INGRESS POLICY
-reject	accept	docs	alterAccountSetIngressPolicy(FORCE)?/%empty	ALTER ACCOUNT SET INGRESS POLICY a
-reject	accept	docs	alterAccountSetIngressPolicy(FORCE)?/FORCE	ALTER ACCOUNT SET INGRESS POLICY a FORCE
+accept	accept	docs	alterAccountSetIngressPolicy(FORCE)?/%empty	ALTER ACCOUNT SET INGRESS POLICY a
+accept	accept	docs	alterAccountSetIngressPolicy(FORCE)?/FORCE	ALTER ACCOUNT SET INGRESS POLICY a FORCE
 reject	undocumented	docs	alterAccountSetIngressPolicy(FORCE)?/FORCE!insert	ALTER ACCOUNT SET INGRESS POLICY a FORCE zzz
 reject	undocumented	docs	alterAccountSetIngressPolicy(FORCE)?/FORCE!swap	ALTER ACCOUNT SET INGRESS POLICY a FORECAST
 accept	accept	docs	alterAgent/ALTER_AGENT_QNAME_SET_(COMMENT_=_STRING_(PROFILE_=_STRI~c4ad8062	ALTER AGENT a SET COMMENT = 's'
@@ -21775,7 +21775,7 @@ accept	undocumented	docs	alterSemanticView/ALTER_SEMANTIC_VIEW_QNAME_UNSET_TAG_Q
 reject	undocumented	docs	alterSemanticView/ALTER_SEMANTIC_VIEW_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!drop-7	ALTER SEMANTIC VIEW a UNSET TAG
 reject	undocumented	docs	alterSemanticView/ALTER_SEMANTIC_VIEW_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!insert	ALTER SEMANTIC VIEW a UNSET TAG a zzz
 reject	undocumented	docs	alterSemanticView/ALTER_SEMANTIC_VIEW_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!swap	ALWAYS SEMANTIC VIEW a UNSET TAG a
-reject	accept	docs	alterSemanticView/ALTER_SEMANTIC_VIEW_QNAME_ADD_MATERIALIZATION_ID_WAREHO~7228fec5	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a AS DIMENSIONS a METRICS a
+accept	accept	docs	alterSemanticView/ALTER_SEMANTIC_VIEW_QNAME_ADD_MATERIALIZATION_ID_WAREHO~7228fec5	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a AS DIMENSIONS a METRICS a
 reject	undocumented	docs	alterSemanticView/ALTER_SEMANTIC_VIEW_QNAME_ADD_MATERIALIZATION_ID_WAREHO~7228fec5!drop-1	SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a AS DIMENSIONS a METRICS a
 reject	undocumented	docs	alterSemanticView/ALTER_SEMANTIC_VIEW_QNAME_ADD_MATERIALIZATION_ID_WAREHO~7228fec5!drop-2	ALTER VIEW a ADD MATERIALIZATION a WAREHOUSE = a AS DIMENSIONS a METRICS a
 reject	undocumented	docs	alterSemanticView/ALTER_SEMANTIC_VIEW_QNAME_ADD_MATERIALIZATION_ID_WAREHO~7228fec5!drop-3	ALTER SEMANTIC a ADD MATERIALIZATION a WAREHOUSE = a AS DIMENSIONS a METRICS a
@@ -21793,7 +21793,7 @@ reject	undocumented	docs	alterSemanticView/ALTER_SEMANTIC_VIEW_QNAME_ADD_MATERIA
 reject	undocumented	docs	alterSemanticView/ALTER_SEMANTIC_VIEW_QNAME_ADD_MATERIALIZATION_ID_WAREHO~7228fec5!drop-15	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a AS DIMENSIONS a METRICS
 reject	undocumented	docs	alterSemanticView/ALTER_SEMANTIC_VIEW_QNAME_ADD_MATERIALIZATION_ID_WAREHO~7228fec5!insert	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a AS DIMENSIONS a METRICS a zzz
 reject	undocumented	docs	alterSemanticView/ALTER_SEMANTIC_VIEW_QNAME_ADD_MATERIALIZATION_ID_WAREHO~7228fec5!swap	ALWAYS SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a AS DIMENSIONS a METRICS a
-reject	accept	docs	alterSemanticView/ALTER_SEMANTIC_VIEW_QNAME_DROP_MATERIALIZATION_ID	ALTER SEMANTIC VIEW a DROP MATERIALIZATION a
+accept	accept	docs	alterSemanticView/ALTER_SEMANTIC_VIEW_QNAME_DROP_MATERIALIZATION_ID	ALTER SEMANTIC VIEW a DROP MATERIALIZATION a
 reject	undocumented	docs	alterSemanticView/ALTER_SEMANTIC_VIEW_QNAME_DROP_MATERIALIZATION_ID!drop-1	SEMANTIC VIEW a DROP MATERIALIZATION a
 reject	undocumented	docs	alterSemanticView/ALTER_SEMANTIC_VIEW_QNAME_DROP_MATERIALIZATION_ID!drop-2	ALTER VIEW a DROP MATERIALIZATION a
 reject	undocumented	docs	alterSemanticView/ALTER_SEMANTIC_VIEW_QNAME_DROP_MATERIALIZATION_ID!drop-3	ALTER SEMANTIC a DROP MATERIALIZATION a
@@ -21803,7 +21803,7 @@ reject	undocumented	docs	alterSemanticView/ALTER_SEMANTIC_VIEW_QNAME_DROP_MATERI
 reject	undocumented	docs	alterSemanticView/ALTER_SEMANTIC_VIEW_QNAME_DROP_MATERIALIZATION_ID!drop-7	ALTER SEMANTIC VIEW a DROP MATERIALIZATION
 reject	undocumented	docs	alterSemanticView/ALTER_SEMANTIC_VIEW_QNAME_DROP_MATERIALIZATION_ID!insert	ALTER SEMANTIC VIEW a DROP MATERIALIZATION a zzz
 reject	undocumented	docs	alterSemanticView/ALTER_SEMANTIC_VIEW_QNAME_DROP_MATERIALIZATION_ID!swap	ALWAYS SEMANTIC VIEW a DROP MATERIALIZATION a
-reject	accept	docs	alterSemanticView/ALTER_SEMANTIC_VIEW_QNAME_SUSPEND_MATERIALIZATION_ID	ALTER SEMANTIC VIEW a SUSPEND MATERIALIZATION a
+accept	accept	docs	alterSemanticView/ALTER_SEMANTIC_VIEW_QNAME_SUSPEND_MATERIALIZATION_ID	ALTER SEMANTIC VIEW a SUSPEND MATERIALIZATION a
 reject	undocumented	docs	alterSemanticView/ALTER_SEMANTIC_VIEW_QNAME_SUSPEND_MATERIALIZATION_ID!drop-1	SEMANTIC VIEW a SUSPEND MATERIALIZATION a
 reject	undocumented	docs	alterSemanticView/ALTER_SEMANTIC_VIEW_QNAME_SUSPEND_MATERIALIZATION_ID!drop-2	ALTER VIEW a SUSPEND MATERIALIZATION a
 reject	undocumented	docs	alterSemanticView/ALTER_SEMANTIC_VIEW_QNAME_SUSPEND_MATERIALIZATION_ID!drop-3	ALTER SEMANTIC a SUSPEND MATERIALIZATION a
@@ -21812,7 +21812,7 @@ reject	undocumented	docs	alterSemanticView/ALTER_SEMANTIC_VIEW_QNAME_SUSPEND_MAT
 reject	undocumented	docs	alterSemanticView/ALTER_SEMANTIC_VIEW_QNAME_SUSPEND_MATERIALIZATION_ID!drop-7	ALTER SEMANTIC VIEW a SUSPEND MATERIALIZATION
 reject	undocumented	docs	alterSemanticView/ALTER_SEMANTIC_VIEW_QNAME_SUSPEND_MATERIALIZATION_ID!insert	ALTER SEMANTIC VIEW a SUSPEND MATERIALIZATION a zzz
 reject	undocumented	docs	alterSemanticView/ALTER_SEMANTIC_VIEW_QNAME_SUSPEND_MATERIALIZATION_ID!swap	ALWAYS SEMANTIC VIEW a SUSPEND MATERIALIZATION a
-reject	accept	docs	alterSemanticView/ALTER_SEMANTIC_VIEW_QNAME_RESUME_MATERIALIZATION_ID	ALTER SEMANTIC VIEW a RESUME MATERIALIZATION a
+accept	accept	docs	alterSemanticView/ALTER_SEMANTIC_VIEW_QNAME_RESUME_MATERIALIZATION_ID	ALTER SEMANTIC VIEW a RESUME MATERIALIZATION a
 reject	undocumented	docs	alterSemanticView/ALTER_SEMANTIC_VIEW_QNAME_RESUME_MATERIALIZATION_ID!drop-1	SEMANTIC VIEW a RESUME MATERIALIZATION a
 reject	undocumented	docs	alterSemanticView/ALTER_SEMANTIC_VIEW_QNAME_RESUME_MATERIALIZATION_ID!drop-2	ALTER VIEW a RESUME MATERIALIZATION a
 reject	undocumented	docs	alterSemanticView/ALTER_SEMANTIC_VIEW_QNAME_RESUME_MATERIALIZATION_ID!drop-3	ALTER SEMANTIC a RESUME MATERIALIZATION a
@@ -21821,7 +21821,7 @@ reject	undocumented	docs	alterSemanticView/ALTER_SEMANTIC_VIEW_QNAME_RESUME_MATE
 reject	undocumented	docs	alterSemanticView/ALTER_SEMANTIC_VIEW_QNAME_RESUME_MATERIALIZATION_ID!drop-7	ALTER SEMANTIC VIEW a RESUME MATERIALIZATION
 reject	undocumented	docs	alterSemanticView/ALTER_SEMANTIC_VIEW_QNAME_RESUME_MATERIALIZATION_ID!insert	ALTER SEMANTIC VIEW a RESUME MATERIALIZATION a zzz
 reject	undocumented	docs	alterSemanticView/ALTER_SEMANTIC_VIEW_QNAME_RESUME_MATERIALIZATION_ID!swap	ALWAYS SEMANTIC VIEW a RESUME MATERIALIZATION a
-reject	accept	docs	alterSemanticView/ALTER_SEMANTIC_VIEW_QNAME_REFRESH_MATERIALIZATION_ID	ALTER SEMANTIC VIEW a REFRESH MATERIALIZATION a
+accept	accept	docs	alterSemanticView/ALTER_SEMANTIC_VIEW_QNAME_REFRESH_MATERIALIZATION_ID	ALTER SEMANTIC VIEW a REFRESH MATERIALIZATION a
 reject	undocumented	docs	alterSemanticView/ALTER_SEMANTIC_VIEW_QNAME_REFRESH_MATERIALIZATION_ID!drop-1	SEMANTIC VIEW a REFRESH MATERIALIZATION a
 reject	undocumented	docs	alterSemanticView/ALTER_SEMANTIC_VIEW_QNAME_REFRESH_MATERIALIZATION_ID!drop-2	ALTER VIEW a REFRESH MATERIALIZATION a
 reject	undocumented	docs	alterSemanticView/ALTER_SEMANTIC_VIEW_QNAME_REFRESH_MATERIALIZATION_ID!drop-3	ALTER SEMANTIC a REFRESH MATERIALIZATION a
@@ -21863,25 +21863,25 @@ accept	accept	docs	alterSemanticView(,_QNAME)*/,_QNAME_(,_QNAME)*	ALTER SEMANTIC
 reject	undocumented	docs	alterSemanticView(,_QNAME)*/,_QNAME_(,_QNAME)*!drop-1	ALTER SEMANTIC VIEW a UNSET TAG a a
 reject	undocumented	docs	alterSemanticView(,_QNAME)*/,_QNAME_(,_QNAME)*!drop-2	ALTER SEMANTIC VIEW a UNSET TAG a,
 reject	undocumented	docs	alterSemanticView(,_QNAME)*/,_QNAME_(,_QNAME)*!insert	ALTER SEMANTIC VIEW a UNSET TAG a, a zzz
-reject	accept	docs	alterSemanticView(REFRESH_MODE_=_(AUTO|FULL|INCREMENTAL))?/%empty	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a AS DIMENSIONS a METRICS a
+accept	accept	docs	alterSemanticView(REFRESH_MODE_=_(AUTO|FULL|INCREMENTAL))?/%empty	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a AS DIMENSIONS a METRICS a
 reject	undocumented	docs	alterSemanticView(REFRESH_MODE_=_(AUTO|FULL|INCREMENTAL))?/%empty!insert	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a zzz AS DIMENSIONS a METRICS a
-reject	accept	docs	alterSemanticView(REFRESH_MODE_=_(AUTO|FULL|INCREMENTAL))?/REFRESH_MODE_=_(AUTO|FULL|INCREMENTAL)	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a REFRESH_MODE = AUTO AS DIMENSIONS a METRICS a
+accept	accept	docs	alterSemanticView(REFRESH_MODE_=_(AUTO|FULL|INCREMENTAL))?/REFRESH_MODE_=_(AUTO|FULL|INCREMENTAL)	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a REFRESH_MODE = AUTO AS DIMENSIONS a METRICS a
 reject	undocumented	docs	alterSemanticView(REFRESH_MODE_=_(AUTO|FULL|INCREMENTAL))?/REFRESH_MODE_=_(AUTO|FULL|INCREMENTAL)!drop-1	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a = AUTO AS DIMENSIONS a METRICS a
 reject	undocumented	docs	alterSemanticView(REFRESH_MODE_=_(AUTO|FULL|INCREMENTAL))?/REFRESH_MODE_=_(AUTO|FULL|INCREMENTAL)!drop-2	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a REFRESH_MODE AUTO AS DIMENSIONS a METRICS a
 reject	undocumented	docs	alterSemanticView(REFRESH_MODE_=_(AUTO|FULL|INCREMENTAL))?/REFRESH_MODE_=_(AUTO|FULL|INCREMENTAL)!drop-3	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a REFRESH_MODE = AS DIMENSIONS a METRICS a
 reject	undocumented	docs	alterSemanticView(REFRESH_MODE_=_(AUTO|FULL|INCREMENTAL))?/REFRESH_MODE_=_(AUTO|FULL|INCREMENTAL)!truncate	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a REFRESH_MODE =
 reject	undocumented	docs	alterSemanticView(REFRESH_MODE_=_(AUTO|FULL|INCREMENTAL))?/REFRESH_MODE_=_(AUTO|FULL|INCREMENTAL)!insert	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a REFRESH_MODE = AUTO zzz AS DIMENSIONS a METRICS a
 reject	undocumented	docs	alterSemanticView(REFRESH_MODE_=_(AUTO|FULL|INCREMENTAL))?/REFRESH_MODE_=_(AUTO|FULL|INCREMENTAL)!swap	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a REFRESH_ON_CREATE = AUTO AS DIMENSIONS a METRICS a
-reject	accept	docs	alterSemanticView(AUTO|FULL|INCREMENTAL)/AUTO	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a REFRESH_MODE = AUTO AS DIMENSIONS a METRICS a
+accept	accept	docs	alterSemanticView(AUTO|FULL|INCREMENTAL)/AUTO	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a REFRESH_MODE = AUTO AS DIMENSIONS a METRICS a
 reject	undocumented	docs	alterSemanticView(AUTO|FULL|INCREMENTAL)/AUTO!swap	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a REFRESH_MODE = AUTOCOMMIT AS DIMENSIONS a METRICS a
-reject	accept	docs	alterSemanticView(AUTO|FULL|INCREMENTAL)/FULL	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a REFRESH_MODE = FULL AS DIMENSIONS a METRICS a
+accept	accept	docs	alterSemanticView(AUTO|FULL|INCREMENTAL)/FULL	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a REFRESH_MODE = FULL AS DIMENSIONS a METRICS a
 reject	undocumented	docs	alterSemanticView(AUTO|FULL|INCREMENTAL)/FULL!insert	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a REFRESH_MODE = FULL zzz AS DIMENSIONS a METRICS a
 reject	undocumented	docs	alterSemanticView(AUTO|FULL|INCREMENTAL)/FULL!swap	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a REFRESH_MODE = FULL_INDEX_BUILD_INTERVAL_DAYS AS DIMENSIONS a METRICS a
-reject	accept	docs	alterSemanticView(AUTO|FULL|INCREMENTAL)/INCREMENTAL	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a REFRESH_MODE = INCREMENTAL AS DIMENSIONS a METRICS a
+accept	accept	docs	alterSemanticView(AUTO|FULL|INCREMENTAL)/INCREMENTAL	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a REFRESH_MODE = INCREMENTAL AS DIMENSIONS a METRICS a
 reject	undocumented	docs	alterSemanticView(AUTO|FULL|INCREMENTAL)/INCREMENTAL!insert	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a REFRESH_MODE = INCREMENTAL zzz AS DIMENSIONS a METRICS a
 reject	undocumented	docs	alterSemanticView(AUTO|FULL|INCREMENTAL)/INCREMENTAL!swap	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a REFRESH_MODE = INDEX AS DIMENSIONS a METRICS a
-reject	accept	docs	alterSemanticView(IMMUTABLE_WHERE_(_EXPR_))?/%empty	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a AS DIMENSIONS a METRICS a
-reject	accept	docs	alterSemanticView(IMMUTABLE_WHERE_(_EXPR_))?/IMMUTABLE_WHERE_(_EXPR_)	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a IMMUTABLE WHERE(1) AS DIMENSIONS a METRICS a
+accept	accept	docs	alterSemanticView(IMMUTABLE_WHERE_(_EXPR_))?/%empty	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a AS DIMENSIONS a METRICS a
+accept	accept	docs	alterSemanticView(IMMUTABLE_WHERE_(_EXPR_))?/IMMUTABLE_WHERE_(_EXPR_)	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a IMMUTABLE WHERE(1) AS DIMENSIONS a METRICS a
 reject	undocumented	docs	alterSemanticView(IMMUTABLE_WHERE_(_EXPR_))?/IMMUTABLE_WHERE_(_EXPR_)!drop-1	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a WHERE(1) AS DIMENSIONS a METRICS a
 reject	undocumented	docs	alterSemanticView(IMMUTABLE_WHERE_(_EXPR_))?/IMMUTABLE_WHERE_(_EXPR_)!drop-2	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a IMMUTABLE(1) AS DIMENSIONS a METRICS a
 reject	undocumented	docs	alterSemanticView(IMMUTABLE_WHERE_(_EXPR_))?/IMMUTABLE_WHERE_(_EXPR_)!drop-3	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a IMMUTABLE WHERE 1) AS DIMENSIONS a METRICS a
@@ -21890,15 +21890,15 @@ reject	undocumented	docs	alterSemanticView(IMMUTABLE_WHERE_(_EXPR_))?/IMMUTABLE_
 reject	undocumented	docs	alterSemanticView(IMMUTABLE_WHERE_(_EXPR_))?/IMMUTABLE_WHERE_(_EXPR_)!truncate	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a IMMUTABLE WHERE(1
 reject	undocumented	docs	alterSemanticView(IMMUTABLE_WHERE_(_EXPR_))?/IMMUTABLE_WHERE_(_EXPR_)!insert	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a IMMUTABLE WHERE(1) zzz AS DIMENSIONS a METRICS a
 reject	undocumented	docs	alterSemanticView(IMMUTABLE_WHERE_(_EXPR_))?/IMMUTABLE_WHERE_(_EXPR_)!swap	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a IMPERSONATE WHERE(1) AS DIMENSIONS a METRICS a
-reject	accept	docs	alterSemanticView(,_ID)*/%empty	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a AS DIMENSIONS a METRICS a
+accept	accept	docs	alterSemanticView(,_ID)*/%empty	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a AS DIMENSIONS a METRICS a
 reject	undocumented	docs	alterSemanticView(,_ID)*/%empty!insert	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a AS DIMENSIONS a zzz METRICS a
-reject	accept	docs	alterSemanticView(,_ID)*/,_ID_(,_ID)*	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a AS DIMENSIONS a, a METRICS a
+accept	accept	docs	alterSemanticView(,_ID)*/,_ID_(,_ID)*	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a AS DIMENSIONS a, a METRICS a
 reject	undocumented	docs	alterSemanticView(,_ID)*/,_ID_(,_ID)*!drop-1	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a AS DIMENSIONS a a METRICS a
 reject	undocumented	docs	alterSemanticView(,_ID)*/,_ID_(,_ID)*!drop-2	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a AS DIMENSIONS a, METRICS a
 reject	undocumented	docs	alterSemanticView(,_ID)*/,_ID_(,_ID)*!truncate	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a AS DIMENSIONS a,
 reject	undocumented	docs	alterSemanticView(,_ID)*/,_ID_(,_ID)*!insert	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a AS DIMENSIONS a, a zzz METRICS a
-reject	accept	docs	alterSemanticView(WHERE_(_EXPR_))?/%empty	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a AS DIMENSIONS a METRICS a
-reject	accept	docs	alterSemanticView(WHERE_(_EXPR_))?/WHERE_(_EXPR_)	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a AS DIMENSIONS a METRICS a WHERE(1)
+accept	accept	docs	alterSemanticView(WHERE_(_EXPR_))?/%empty	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a AS DIMENSIONS a METRICS a
+accept	accept	docs	alterSemanticView(WHERE_(_EXPR_))?/WHERE_(_EXPR_)	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a AS DIMENSIONS a METRICS a WHERE(1)
 reject	undocumented	docs	alterSemanticView(WHERE_(_EXPR_))?/WHERE_(_EXPR_)!drop-1	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a AS DIMENSIONS a METRICS a(1)
 reject	undocumented	docs	alterSemanticView(WHERE_(_EXPR_))?/WHERE_(_EXPR_)!drop-2	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a AS DIMENSIONS a METRICS a WHERE 1)
 reject	undocumented	docs	alterSemanticView(WHERE_(_EXPR_))?/WHERE_(_EXPR_)!drop-3	ALTER SEMANTIC VIEW a ADD MATERIALIZATION a WAREHOUSE = a AS DIMENSIONS a METRICS a WHERE()
@@ -51460,31 +51460,31 @@ accept	undocumented	docs	descFunction(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!d
 reject	undocumented	docs	descFunction(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!truncate	DESC FUNCTION a(INT,
 reject	undocumented	docs	descFunction(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!insert	DESC FUNCTION a(INT, INT zzz)
 accept	undocumented	docs	descFunction(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!swap	DESC FUNCTION a(INT, INTEGER)
-reject	accept	docs	descFunctionDmf/(DESC|DESCRIBE)_FUNCTION_(IF_EXISTS)?_QNAME_(_TABLE_(_D~0643cc8e	DESC FUNCTION a(TABLE(INT))
-reject	accept	docs	descFunctionDmf(DESC|DESCRIBE)/DESC	DESC FUNCTION a(TABLE(INT))
+accept	accept	docs	descFunctionDmf/(DESC|DESCRIBE)_FUNCTION_(IF_EXISTS)?_QNAME_(_TABLE_(_D~0643cc8e	DESC FUNCTION a(TABLE(INT))
+accept	accept	docs	descFunctionDmf(DESC|DESCRIBE)/DESC	DESC FUNCTION a(TABLE(INT))
 reject	undocumented	docs	descFunctionDmf(DESC|DESCRIBE)/DESC!insert	DESC zzz FUNCTION a(TABLE(INT))
-reject	accept	docs	descFunctionDmf(DESC|DESCRIBE)/DESCRIBE	DESCRIBE FUNCTION a(TABLE(INT))
+accept	accept	docs	descFunctionDmf(DESC|DESCRIBE)/DESCRIBE	DESCRIBE FUNCTION a(TABLE(INT))
 reject	undocumented	docs	descFunctionDmf(DESC|DESCRIBE)/DESCRIBE!insert	DESCRIBE zzz FUNCTION a(TABLE(INT))
 reject	undocumented	docs	descFunctionDmf(DESC|DESCRIBE)/DESCRIBE!swap	DESCRIPTION FUNCTION a(TABLE(INT))
-reject	accept	docs	descFunctionDmf(IF_EXISTS)?/%empty	DESC FUNCTION a(TABLE(INT))
+accept	accept	docs	descFunctionDmf(IF_EXISTS)?/%empty	DESC FUNCTION a(TABLE(INT))
 reject	undocumented	docs	descFunctionDmf(IF_EXISTS)?/%empty!insert	DESC FUNCTION zzz a(TABLE(INT))
-reject	accept	docs	descFunctionDmf(IF_EXISTS)?/IF_EXISTS	DESC FUNCTION IF EXISTS a(TABLE(INT))
+accept	accept	docs	descFunctionDmf(IF_EXISTS)?/IF_EXISTS	DESC FUNCTION IF EXISTS a(TABLE(INT))
 reject	undocumented	docs	descFunctionDmf(IF_EXISTS)?/IF_EXISTS!drop-1	DESC FUNCTION EXISTS a(TABLE(INT))
 reject	undocumented	docs	descFunctionDmf(IF_EXISTS)?/IF_EXISTS!drop-2	DESC FUNCTION IF a(TABLE(INT))
 accept	undocumented	docs	descFunctionDmf(IF_EXISTS)?/IF_EXISTS!truncate	DESC FUNCTION IF
 reject	undocumented	docs	descFunctionDmf(IF_EXISTS)?/IF_EXISTS!insert	DESC FUNCTION IF EXISTS zzz a(TABLE(INT))
 reject	undocumented	docs	descFunctionDmf(IF_EXISTS)?/IF_EXISTS!swap	DESC FUNCTION IGNORE EXISTS a(TABLE(INT))
-reject	accept	docs	descFunctionDmf(,_DATA_TYPE)*/%empty	DESC FUNCTION a(TABLE(INT))
+accept	accept	docs	descFunctionDmf(,_DATA_TYPE)*/%empty	DESC FUNCTION a(TABLE(INT))
 reject	undocumented	docs	descFunctionDmf(,_DATA_TYPE)*/%empty!insert	DESC FUNCTION a(TABLE(INT zzz))
-reject	accept	docs	descFunctionDmf(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*	DESC FUNCTION a(TABLE(INT, INT))
+accept	accept	docs	descFunctionDmf(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*	DESC FUNCTION a(TABLE(INT, INT))
 reject	undocumented	docs	descFunctionDmf(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!drop-1	DESC FUNCTION a(TABLE(INT INT))
 reject	undocumented	docs	descFunctionDmf(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!drop-2	DESC FUNCTION a(TABLE(INT,))
 reject	undocumented	docs	descFunctionDmf(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!truncate	DESC FUNCTION a(TABLE(INT,
 reject	undocumented	docs	descFunctionDmf(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!insert	DESC FUNCTION a(TABLE(INT, INT zzz))
-reject	undocumented	docs	descFunctionDmf(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!swap	DESC FUNCTION a(TABLE(INT, INTEGER))
-reject	accept	docs	descFunctionDmf(,_TABLE_(_DATA_TYPE_(,_DATA_TYPE)*_))?/%empty	DESC FUNCTION a(TABLE(INT))
+accept	undocumented	docs	descFunctionDmf(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!swap	DESC FUNCTION a(TABLE(INT, INTEGER))
+accept	accept	docs	descFunctionDmf(,_TABLE_(_DATA_TYPE_(,_DATA_TYPE)*_))?/%empty	DESC FUNCTION a(TABLE(INT))
 reject	undocumented	docs	descFunctionDmf(,_TABLE_(_DATA_TYPE_(,_DATA_TYPE)*_))?/%empty!insert	DESC FUNCTION a(TABLE(INT) zzz)
-reject	accept	docs	descFunctionDmf(,_TABLE_(_DATA_TYPE_(,_DATA_TYPE)*_))?/,_TABLE_(_DATA_TYPE_(,_DATA_TYPE)*_)	DESC FUNCTION a(TABLE(INT), TABLE(INT))
+accept	accept	docs	descFunctionDmf(,_TABLE_(_DATA_TYPE_(,_DATA_TYPE)*_))?/,_TABLE_(_DATA_TYPE_(,_DATA_TYPE)*_)	DESC FUNCTION a(TABLE(INT), TABLE(INT))
 reject	undocumented	docs	descFunctionDmf(,_TABLE_(_DATA_TYPE_(,_DATA_TYPE)*_))?/,_TABLE_(_DATA_TYPE_(,_DATA_TYPE)*_)!drop-1	DESC FUNCTION a(TABLE(INT) TABLE(INT))
 reject	undocumented	docs	descFunctionDmf(,_TABLE_(_DATA_TYPE_(,_DATA_TYPE)*_))?/,_TABLE_(_DATA_TYPE_(,_DATA_TYPE)*_)!drop-2	DESC FUNCTION a(TABLE(INT),(INT))
 reject	undocumented	docs	descFunctionDmf(,_TABLE_(_DATA_TYPE_(,_DATA_TYPE)*_))?/,_TABLE_(_DATA_TYPE_(,_DATA_TYPE)*_)!drop-3	DESC FUNCTION a(TABLE(INT), TABLE INT))
@@ -52154,7 +52154,7 @@ reject	undocumented	docs	dropExternalVolume(IF_EXISTS)?/IF_EXISTS!drop-2	DROP EX
 reject	accept	docs	dropExternalVolume(IF_EXISTS)?/IF_EXISTS!truncate	DROP EXTERNAL VOLUME IF
 reject	undocumented	docs	dropExternalVolume(IF_EXISTS)?/IF_EXISTS!insert	DROP EXTERNAL VOLUME IF EXISTS zzz a
 reject	undocumented	docs	dropExternalVolume(IF_EXISTS)?/IF_EXISTS!swap	DROP EXTERNAL VOLUME IGNORE EXISTS a
-reject	accept	docs	undropExternalVolume/UNDROP_EXTERNAL_VOLUME_ID	UNDROP EXTERNAL VOLUME a
+accept	accept	docs	undropExternalVolume/UNDROP_EXTERNAL_VOLUME_ID	UNDROP EXTERNAL VOLUME a
 accept	accept	docs	dropFailoverGroup/DROP_FAILOVER_GROUP_(IF_EXISTS)?_ID	DROP FAILOVER GROUP a
 accept	accept	docs	dropFailoverGroup(IF_EXISTS)?/%empty	DROP FAILOVER GROUP a
 reject	undocumented	docs	dropFailoverGroup(IF_EXISTS)?/%empty!insert	DROP FAILOVER GROUP zzz a
@@ -52195,25 +52195,25 @@ accept	undocumented	docs	dropFunction(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!d
 reject	undocumented	docs	dropFunction(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!truncate	DROP FUNCTION a(INT,
 reject	undocumented	docs	dropFunction(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!insert	DROP FUNCTION a(INT, INT zzz)
 accept	undocumented	docs	dropFunction(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!swap	DROP FUNCTION a(INT, INTEGER)
-reject	accept	docs	dropFunctionDmf/DROP_FUNCTION_(IF_EXISTS)?_QNAME_(_TABLE_(_DATA_TYPE_(,~2ba36542	DROP FUNCTION a(TABLE(INT))
-reject	accept	docs	dropFunctionDmf(IF_EXISTS)?/%empty	DROP FUNCTION a(TABLE(INT))
+accept	accept	docs	dropFunctionDmf/DROP_FUNCTION_(IF_EXISTS)?_QNAME_(_TABLE_(_DATA_TYPE_(,~2ba36542	DROP FUNCTION a(TABLE(INT))
+accept	accept	docs	dropFunctionDmf(IF_EXISTS)?/%empty	DROP FUNCTION a(TABLE(INT))
 reject	undocumented	docs	dropFunctionDmf(IF_EXISTS)?/%empty!insert	DROP FUNCTION zzz a(TABLE(INT))
-reject	accept	docs	dropFunctionDmf(IF_EXISTS)?/IF_EXISTS	DROP FUNCTION IF EXISTS a(TABLE(INT))
+accept	accept	docs	dropFunctionDmf(IF_EXISTS)?/IF_EXISTS	DROP FUNCTION IF EXISTS a(TABLE(INT))
 reject	undocumented	docs	dropFunctionDmf(IF_EXISTS)?/IF_EXISTS!drop-1	DROP FUNCTION EXISTS a(TABLE(INT))
 reject	undocumented	docs	dropFunctionDmf(IF_EXISTS)?/IF_EXISTS!drop-2	DROP FUNCTION IF a(TABLE(INT))
 reject	undocumented	docs	dropFunctionDmf(IF_EXISTS)?/IF_EXISTS!insert	DROP FUNCTION IF EXISTS zzz a(TABLE(INT))
 reject	undocumented	docs	dropFunctionDmf(IF_EXISTS)?/IF_EXISTS!swap	DROP FUNCTION IGNORE EXISTS a(TABLE(INT))
-reject	accept	docs	dropFunctionDmf(,_DATA_TYPE)*/%empty	DROP FUNCTION a(TABLE(INT))
+accept	accept	docs	dropFunctionDmf(,_DATA_TYPE)*/%empty	DROP FUNCTION a(TABLE(INT))
 reject	undocumented	docs	dropFunctionDmf(,_DATA_TYPE)*/%empty!insert	DROP FUNCTION a(TABLE(INT zzz))
-reject	accept	docs	dropFunctionDmf(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*	DROP FUNCTION a(TABLE(INT, INT))
+accept	accept	docs	dropFunctionDmf(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*	DROP FUNCTION a(TABLE(INT, INT))
 reject	undocumented	docs	dropFunctionDmf(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!drop-1	DROP FUNCTION a(TABLE(INT INT))
 reject	undocumented	docs	dropFunctionDmf(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!drop-2	DROP FUNCTION a(TABLE(INT,))
 reject	undocumented	docs	dropFunctionDmf(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!truncate	DROP FUNCTION a(TABLE(INT,
 reject	undocumented	docs	dropFunctionDmf(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!insert	DROP FUNCTION a(TABLE(INT, INT zzz))
-reject	undocumented	docs	dropFunctionDmf(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!swap	DROP FUNCTION a(TABLE(INT, INTEGER))
-reject	accept	docs	dropFunctionDmf(,_TABLE_(_DATA_TYPE_(,_DATA_TYPE)*_))?/%empty	DROP FUNCTION a(TABLE(INT))
+accept	undocumented	docs	dropFunctionDmf(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!swap	DROP FUNCTION a(TABLE(INT, INTEGER))
+accept	accept	docs	dropFunctionDmf(,_TABLE_(_DATA_TYPE_(,_DATA_TYPE)*_))?/%empty	DROP FUNCTION a(TABLE(INT))
 reject	undocumented	docs	dropFunctionDmf(,_TABLE_(_DATA_TYPE_(,_DATA_TYPE)*_))?/%empty!insert	DROP FUNCTION a(TABLE(INT) zzz)
-reject	accept	docs	dropFunctionDmf(,_TABLE_(_DATA_TYPE_(,_DATA_TYPE)*_))?/,_TABLE_(_DATA_TYPE_(,_DATA_TYPE)*_)	DROP FUNCTION a(TABLE(INT), TABLE(INT))
+accept	accept	docs	dropFunctionDmf(,_TABLE_(_DATA_TYPE_(,_DATA_TYPE)*_))?/,_TABLE_(_DATA_TYPE_(,_DATA_TYPE)*_)	DROP FUNCTION a(TABLE(INT), TABLE(INT))
 reject	undocumented	docs	dropFunctionDmf(,_TABLE_(_DATA_TYPE_(,_DATA_TYPE)*_))?/,_TABLE_(_DATA_TYPE_(,_DATA_TYPE)*_)!drop-1	DROP FUNCTION a(TABLE(INT) TABLE(INT))
 reject	undocumented	docs	dropFunctionDmf(,_TABLE_(_DATA_TYPE_(,_DATA_TYPE)*_))?/,_TABLE_(_DATA_TYPE_(,_DATA_TYPE)*_)!drop-2	DROP FUNCTION a(TABLE(INT),(INT))
 reject	undocumented	docs	dropFunctionDmf(,_TABLE_(_DATA_TYPE_(,_DATA_TYPE)*_))?/,_TABLE_(_DATA_TYPE_(,_DATA_TYPE)*_)!drop-3	DROP FUNCTION a(TABLE(INT), TABLE INT))
@@ -52406,7 +52406,7 @@ accept	accept	docs	dropNetworkRule(IF_EXISTS)?/IF_EXISTS!truncate	DROP NETWORK R
 reject	undocumented	docs	dropNetworkRule(IF_EXISTS)?/IF_EXISTS!insert	DROP NETWORK RULE IF EXISTS zzz a
 reject	undocumented	docs	dropNetworkRule(IF_EXISTS)?/IF_EXISTS!swap	DROP NETWORK RULE IGNORE EXISTS a
 accept	accept	docs	dropNotebook/DROP_NOTEBOOK_QNAME	DROP NOTEBOOK a
-reject	accept	docs	undropNotebook/UNDROP_NOTEBOOK_QNAME	UNDROP NOTEBOOK a
+accept	accept	docs	undropNotebook/UNDROP_NOTEBOOK_QNAME	UNDROP NOTEBOOK a
 accept	accept	docs	dropOnlineFeatureTable/DROP_ONLINE_FEATURE_TABLE_(IF_EXISTS)?_QNAME	DROP ONLINE FEATURE TABLE a
 accept	accept	docs	dropOnlineFeatureTable(IF_EXISTS)?/%empty	DROP ONLINE FEATURE TABLE a
 reject	undocumented	docs	dropOnlineFeatureTable(IF_EXISTS)?/%empty!insert	DROP ONLINE FEATURE TABLE zzz a
@@ -73559,29 +73559,29 @@ reject	undocumented	docs	truncateTable(IF_EXISTS)?/IF_EXISTS!drop-2	TRUNCATE IF 
 accept	accept	docs	truncateTable(IF_EXISTS)?/IF_EXISTS!truncate	TRUNCATE IF
 reject	undocumented	docs	truncateTable(IF_EXISTS)?/IF_EXISTS!insert	TRUNCATE IF EXISTS zzz a
 reject	undocumented	docs	truncateTable(IF_EXISTS)?/IF_EXISTS!swap	TRUNCATE IGNORE EXISTS a
-reject	accept	docs	undropAccount/UNDROP_ACCOUNT_ID	UNDROP ACCOUNT a
-reject	accept	docs	undropAgent/UNDROP_AGENT_QNAME	UNDROP AGENT a
+accept	accept	docs	undropAccount/UNDROP_ACCOUNT_ID	UNDROP ACCOUNT a
+accept	accept	docs	undropAgent/UNDROP_AGENT_QNAME	UNDROP AGENT a
 accept	accept	docs	undropDatabase/UNDROP_DATABASE_ID	UNDROP DATABASE a
 accept	accept	docs	undropDynamicTable/UNDROP_DYNAMIC_TABLE_QNAME	UNDROP DYNAMIC TABLE a
 accept	accept	docs	undropSchema/UNDROP_SCHEMA_QNAME2	UNDROP SCHEMA a
-reject	accept	docs	undropSnapshot/UNDROP_SNAPSHOT_(QNAME|IDENTIFIER_(_NUMBER_))_(RENAME_TO_ID)?	UNDROP SNAPSHOT a
-reject	accept	docs	undropSnapshot(QNAME|IDENTIFIER_(_NUMBER_))/QNAME	UNDROP SNAPSHOT a
-reject	accept	docs	undropSnapshot(QNAME|IDENTIFIER_(_NUMBER_))/IDENTIFIER_(_NUMBER_)	UNDROP SNAPSHOT IDENTIFIER(1)
+accept	accept	docs	undropSnapshot/UNDROP_SNAPSHOT_(QNAME|IDENTIFIER_(_NUMBER_))_(RENAME_TO_ID)?	UNDROP SNAPSHOT a
+accept	accept	docs	undropSnapshot(QNAME|IDENTIFIER_(_NUMBER_))/QNAME	UNDROP SNAPSHOT a
+accept	accept	docs	undropSnapshot(QNAME|IDENTIFIER_(_NUMBER_))/IDENTIFIER_(_NUMBER_)	UNDROP SNAPSHOT IDENTIFIER(1)
 reject	undocumented	docs	undropSnapshot(QNAME|IDENTIFIER_(_NUMBER_))/IDENTIFIER_(_NUMBER_)!drop-1	UNDROP SNAPSHOT(1)
 reject	undocumented	docs	undropSnapshot(QNAME|IDENTIFIER_(_NUMBER_))/IDENTIFIER_(_NUMBER_)!drop-2	UNDROP SNAPSHOT IDENTIFIER 1)
 reject	undocumented	docs	undropSnapshot(QNAME|IDENTIFIER_(_NUMBER_))/IDENTIFIER_(_NUMBER_)!drop-3	UNDROP SNAPSHOT IDENTIFIER()
 reject	undocumented	docs	undropSnapshot(QNAME|IDENTIFIER_(_NUMBER_))/IDENTIFIER_(_NUMBER_)!drop-4	UNDROP SNAPSHOT IDENTIFIER(1
 reject	undocumented	docs	undropSnapshot(QNAME|IDENTIFIER_(_NUMBER_))/IDENTIFIER_(_NUMBER_)!insert	UNDROP SNAPSHOT IDENTIFIER(1) zzz
 reject	undocumented	docs	undropSnapshot(QNAME|IDENTIFIER_(_NUMBER_))/IDENTIFIER_(_NUMBER_)!swap	UNDROP SNAPSHOT IDENTITY(1)
-reject	accept	docs	undropSnapshot(RENAME_TO_ID)?/%empty	UNDROP SNAPSHOT a
-reject	accept	docs	undropSnapshot(RENAME_TO_ID)?/RENAME_TO_ID	UNDROP SNAPSHOT a RENAME TO a
+accept	accept	docs	undropSnapshot(RENAME_TO_ID)?/%empty	UNDROP SNAPSHOT a
+accept	accept	docs	undropSnapshot(RENAME_TO_ID)?/RENAME_TO_ID	UNDROP SNAPSHOT a RENAME TO a
 reject	undocumented	docs	undropSnapshot(RENAME_TO_ID)?/RENAME_TO_ID!drop-1	UNDROP SNAPSHOT a TO a
 reject	undocumented	docs	undropSnapshot(RENAME_TO_ID)?/RENAME_TO_ID!drop-2	UNDROP SNAPSHOT a RENAME a
 reject	undocumented	docs	undropSnapshot(RENAME_TO_ID)?/RENAME_TO_ID!drop-3	UNDROP SNAPSHOT a RENAME TO
 reject	undocumented	docs	undropSnapshot(RENAME_TO_ID)?/RENAME_TO_ID!insert	UNDROP SNAPSHOT a RENAME TO a zzz
 reject	undocumented	docs	undropSnapshot(RENAME_TO_ID)?/RENAME_TO_ID!swap	UNDROP SNAPSHOT a REPLACE TO a
-reject	accept	docs	undropStage/UNDROP_STAGE_QNAME	UNDROP STAGE a
-reject	accept	docs	undropStreamlit/UNDROP_STREAMLIT_QNAME	UNDROP STREAMLIT a
+accept	accept	docs	undropStage/UNDROP_STAGE_QNAME	UNDROP STAGE a
+accept	accept	docs	undropStreamlit/UNDROP_STREAMLIT_QNAME	UNDROP STREAMLIT a
 accept	accept	docs	undropTag/UNDROP_TAG_QNAME	UNDROP TAG a
 accept	accept	docs	undropType/UNDROP_TYPE_QNAME	UNDROP TYPE a
 accept	accept	docs	undropVariable/UNDROP_VARIABLE_QNAME	UNDROP VARIABLE a

@@ -329,9 +329,19 @@ func (p *Parser) parseDropObject(kind ast.DropObjectKind, start ast.Loc, ifExist
 	}
 	stmt.Name = name
 
+	// A data metric function's signature, ( TABLE ( ... ) [ , TABLE ( ... ) ] )
+	// (data_metric_function.go).
+	if kind == ast.DropFunction && p.startsDataMetricTableArgs() {
+		args, err := p.parseDataMetricTableArgs()
+		if err != nil {
+			return nil, err
+		}
+		stmt.TableArgs = args
+	}
+
 	// Optional argument-type signature for FUNCTION / PROCEDURE overload
 	// disambiguation: DROP FUNCTION f(NUMBER, VARCHAR) / DROP PROCEDURE p().
-	if (kind == ast.DropFunction || kind == ast.DropProcedure) && p.cur.Type == '(' {
+	if (kind == ast.DropFunction || kind == ast.DropProcedure) && stmt.TableArgs == nil && p.cur.Type == '(' {
 		p.advance() // consume '('
 		stmt.HasArgs = true
 		for p.cur.Type != ')' && p.cur.Type != tokEOF {
@@ -392,6 +402,11 @@ func (p *Parser) parseUndropStmt() (ast.Node, error) {
 			return nil, err
 		}
 		us.Object = f.kind
+		if f.undropRename {
+			if err := p.parseUndropRename(us); err != nil {
+				return nil, err
+			}
+		}
 		return us, nil
 	}
 
@@ -421,6 +436,9 @@ func (p *Parser) parseUndropStmt() (ast.Node, error) {
 		return p.parseUndropObject(ast.UndropTag, start)
 
 	default:
+		if o := p.startsUndropObject(); o != nil {
+			return p.parseUndropOther(o, start)
+		}
 		// UNDROP ICEBERG TABLE
 		// (https://docs.snowflake.com/en/sql-reference/sql/undrop-iceberg-table).
 		if p.curIsWord("ICEBERG") && p.peekNext().Type == kwTABLE {

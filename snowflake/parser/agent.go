@@ -19,9 +19,11 @@ func init() {
 		// IF EXISTS.
 		noIfExists: true,
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-agent
-		drop:  true,
-		props: objectProps{"SECURE": propBool, "COMMENT": propString, "PROFILE": propString},
-		unset: []string{},
+		drop: true,
+		// https://docs.snowflake.com/en/sql-reference/sql/undrop-agent
+		undrop: true,
+		props:  objectProps{"SECURE": propBool, "COMMENT": propString, "PROFILE": propString},
+		unset:  []string{},
 	})
 	registerObject(&objectForm{
 		words:     []string{"EXTERNAL", "AGENT"},
