@@ -464,6 +464,7 @@ const (
 	ColConstrStorage
 	ColConstrEngineAttribute
 	ColConstrSecondaryEngineAttribute
+	ColConstrNotSecondary
 )
 
 // ColumnConstraint represents a column-level constraint.
