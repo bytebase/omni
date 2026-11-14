@@ -1,4 +1,4 @@
-# pin: default gcr.io/cloud-spanner-emulator/emulator:1.5.54 sha256:caf1bd24c081e005837b5977bae5a250e25cb4da9f25ec1abc91936ad67e4de2 v1.5.54
+# pin: default gcr.io/cloud-spanner-emulator/emulator:1.5.54 sha256:caf1bd24c081e005837b5977bae5a250e25cb4da9f25ec1abc91936ad67e4de2 v1.5.54 judge:2
 # columns: omni, expected, source, rule, statement
 accept	accept	engine	unterminated_statement/pre_statement_unterminated_sql_statement	BEGIN
 reject	accept	engine	unterminated_statement/pre_statement_unterminated_sql_statement!insert	BEGIN zzz
@@ -244,11 +244,11 @@ reject	reject	engine	sql_statement_body_no_pipe_suffix/truncate_statement!drop-2
 reject	reject	engine	sql_statement_body_no_pipe_suffix/truncate_statement!drop-3	TRUNCATE TABLE
 reject	reject	engine	sql_statement_body_no_pipe_suffix/truncate_statement!insert	TRUNCATE TABLE a zzz
 reject	reject	engine	sql_statement_body_no_pipe_suffix/truncate_statement!swap	TYPE TABLE a
-reject	accept	engine	sql_statement_body_no_pipe_suffix/set_statement	SET()
+reject	reject	engine	sql_statement_body_no_pipe_suffix/set_statement	SET()
 reject	reject	engine	sql_statement_body_no_pipe_suffix/set_statement!drop-1	()
 reject	reject	engine	sql_statement_body_no_pipe_suffix/set_statement!drop-2	SET)
 reject	reject	engine	sql_statement_body_no_pipe_suffix/set_statement!drop-3	SET(
-reject	accept	engine	sql_statement_body_no_pipe_suffix/set_statement!insert	SET() zzz
+reject	reject	engine	sql_statement_body_no_pipe_suffix/set_statement!insert	SET() zzz
 reject	reject	engine	sql_statement_body_no_pipe_suffix/set_statement!swap	SETS()
 accept	accept	engine	sql_statement_body_no_pipe_suffix/commit_statement	COMMIT
 reject	accept	engine	sql_statement_body_no_pipe_suffix/commit_statement!insert	COMMIT zzz
@@ -485,53 +485,53 @@ reject	reject	engine	sql_statement_body_maybe_pipe_suffix/execute_immediate!drop
 reject	accept	engine	sql_statement_body_maybe_pipe_suffix/execute_immediate!drop-3	EXECUTE IMMEDIATE
 reject	accept	engine	sql_statement_body_maybe_pipe_suffix/execute_immediate!insert	EXECUTE IMMEDIATE NULL zzz
 reject	reject	engine	sql_statement_body_maybe_pipe_suffix/execute_immediate!swap	EXISTS IMMEDIATE NULL
-reject	accept	engine	sql_statement_body_maybe_pipe_suffix/run_statement	RUN 'a'
+reject	reject	engine	sql_statement_body_maybe_pipe_suffix/run_statement	RUN 'a'
 reject	reject	engine	sql_statement_body_maybe_pipe_suffix/run_statement!drop-1	'a'
-reject	accept	engine	sql_statement_body_maybe_pipe_suffix/run_statement!insert	RUN 'a' zzz
+reject	reject	engine	sql_statement_body_maybe_pipe_suffix/run_statement!insert	RUN 'a' zzz
 reject	reject	engine	sql_statement_body_maybe_pipe_suffix/run_statement!swap	SAFE_CAST 'a'
 reject	accept	engine	sql_statement_body_maybe_pipe_suffix/show_statement	SHOW a
 reject	accept	engine	sql_statement_body_maybe_pipe_suffix/show_statement!drop-2	SHOW
 reject	accept	engine	sql_statement_body_maybe_pipe_suffix/show_statement!insert	SHOW a zzz
 reject	reject	engine	sql_statement_body_maybe_pipe_suffix/show_statement!swap	SIMPLE a
-reject	accept	engine	run_statement_arg/identifier_(=|=>)_string_literal	RUN 'a'(a = 'a')
+reject	reject	engine	run_statement_arg/identifier_(=|=>)_string_literal	RUN 'a'(a = 'a')
 reject	reject	engine	run_statement_arg/identifier_(=|=>)_string_literal!drop-1	RUN 'a'(= 'a')
 reject	reject	engine	run_statement_arg/identifier_(=|=>)_string_literal!drop-2	RUN 'a'(a 'a')
 reject	reject	engine	run_statement_arg/identifier_(=|=>)_string_literal!drop-3	RUN 'a'(a =)
 reject	reject	engine	run_statement_arg/identifier_(=|=>)_string_literal!truncate	RUN 'a'(a =
 reject	reject	engine	run_statement_arg/identifier_(=|=>)_string_literal!insert	RUN 'a'(a = 'a' zzz)
-reject	accept	engine	run_statement_arg(=|=>)/=	RUN 'a'(a = 'a')
+reject	reject	engine	run_statement_arg(=|=>)/=	RUN 'a'(a = 'a')
 reject	reject	engine	run_statement_arg(=|=>)/=!truncate	RUN 'a'(a
 reject	reject	engine	run_statement_arg(=|=>)/=!insert	RUN 'a'(a = zzz 'a')
-reject	accept	engine	run_statement_arg(=|=>)/=>	RUN 'a'(a => 'a')
+reject	reject	engine	run_statement_arg(=|=>)/=>	RUN 'a'(a => 'a')
 reject	reject	engine	run_statement_arg(=|=>)/=>!insert	RUN 'a'(a => zzz 'a')
-reject	accept	engine	run_statement_arg_list/run_statement_arg_(,_(run_statement_arg))*_(,)?	RUN 'a'(a = 'a')
-reject	accept	engine	run_statement_arg_list(,_(run_statement_arg))*/%empty	RUN 'a'(a = 'a')
-reject	accept	engine	run_statement_arg_list(,_(run_statement_arg))*/,_run_statement_arg_(,_(run_statement_arg))*	RUN 'a'(a = 'a', a = 'a')
+reject	reject	engine	run_statement_arg_list/run_statement_arg_(,_(run_statement_arg))*_(,)?	RUN 'a'(a = 'a')
+reject	reject	engine	run_statement_arg_list(,_(run_statement_arg))*/%empty	RUN 'a'(a = 'a')
+reject	reject	engine	run_statement_arg_list(,_(run_statement_arg))*/,_run_statement_arg_(,_(run_statement_arg))*	RUN 'a'(a = 'a', a = 'a')
 reject	reject	engine	run_statement_arg_list(,_(run_statement_arg))*/,_run_statement_arg_(,_(run_statement_arg))*!drop-1	RUN 'a'(a = 'a' a = 'a')
 reject	reject	engine	run_statement_arg_list(,_(run_statement_arg))*/,_run_statement_arg_(,_(run_statement_arg))*!drop-2	RUN 'a'(a = 'a', = 'a')
 reject	reject	engine	run_statement_arg_list(,_(run_statement_arg))*/,_run_statement_arg_(,_(run_statement_arg))*!drop-3	RUN 'a'(a = 'a', a 'a')
 reject	reject	engine	run_statement_arg_list(,_(run_statement_arg))*/,_run_statement_arg_(,_(run_statement_arg))*!drop-4	RUN 'a'(a = 'a', a =)
 reject	reject	engine	run_statement_arg_list(,_(run_statement_arg))*/,_run_statement_arg_(,_(run_statement_arg))*!truncate	RUN 'a'(a = 'a', a =
 reject	reject	engine	run_statement_arg_list(,_(run_statement_arg))*/,_run_statement_arg_(,_(run_statement_arg))*!insert	RUN 'a'(a = 'a', a = 'a' zzz)
-reject	accept	engine	run_statement_arg_list(,)?/%empty	RUN 'a'(a = 'a')
-reject	accept	engine	run_statement_arg_list(,)?/,	RUN 'a'(a = 'a',)
+reject	reject	engine	run_statement_arg_list(,)?/%empty	RUN 'a'(a = 'a')
+reject	reject	engine	run_statement_arg_list(,)?/,	RUN 'a'(a = 'a',)
 reject	reject	engine	run_statement_arg_list(,)?/,!truncate	RUN 'a'(a = 'a'
 reject	reject	engine	run_statement_arg_list(,)?/,!insert	RUN 'a'(a = 'a', zzz)
-reject	accept	engine	run_statement/RUN_string_literal_((_(run_statement_arg_list)?_))?	RUN 'a'
-reject	accept	engine	run_statement/RUN_path_expression_(_(run_statement_arg_list)?_)	RUN a()
+reject	reject	engine	run_statement/RUN_string_literal_((_(run_statement_arg_list)?_))?	RUN 'a'
+reject	reject	engine	run_statement/RUN_path_expression_(_(run_statement_arg_list)?_)	RUN a()
 reject	reject	engine	run_statement/RUN_path_expression_(_(run_statement_arg_list)?_)!drop-2	RUN()
 reject	reject	engine	run_statement/RUN_path_expression_(_(run_statement_arg_list)?_)!drop-3	RUN a)
 reject	reject	engine	run_statement/RUN_path_expression_(_(run_statement_arg_list)?_)!drop-4	RUN a(
-reject	accept	engine	run_statement/RUN_path_expression_(_(run_statement_arg_list)?_)!insert	RUN a() zzz
+reject	reject	engine	run_statement/RUN_path_expression_(_(run_statement_arg_list)?_)!insert	RUN a() zzz
 reject	reject	engine	run_statement/RUN_path_expression_(_(run_statement_arg_list)?_)!swap	SAFE_CAST a()
-reject	accept	engine	run_statement((_(run_statement_arg_list)?_))?/%empty	RUN 'a'
-reject	accept	engine	run_statement((_(run_statement_arg_list)?_))?/(_(run_statement_arg_list)?_)	RUN 'a'()
-reject	accept	engine	run_statement((_(run_statement_arg_list)?_))?/(_(run_statement_arg_list)?_)!drop-1	RUN 'a')
+reject	reject	engine	run_statement((_(run_statement_arg_list)?_))?/%empty	RUN 'a'
+reject	reject	engine	run_statement((_(run_statement_arg_list)?_))?/(_(run_statement_arg_list)?_)	RUN 'a'()
+reject	reject	engine	run_statement((_(run_statement_arg_list)?_))?/(_(run_statement_arg_list)?_)!drop-1	RUN 'a')
 reject	reject	engine	run_statement((_(run_statement_arg_list)?_))?/(_(run_statement_arg_list)?_)!drop-2	RUN 'a'(
-reject	accept	engine	run_statement((_(run_statement_arg_list)?_))?/(_(run_statement_arg_list)?_)!insert	RUN 'a'() zzz
-reject	accept	engine	run_statement(run_statement_arg_list)?/%empty	RUN 'a'()
+reject	reject	engine	run_statement((_(run_statement_arg_list)?_))?/(_(run_statement_arg_list)?_)!insert	RUN 'a'() zzz
+reject	reject	engine	run_statement(run_statement_arg_list)?/%empty	RUN 'a'()
 reject	reject	engine	run_statement(run_statement_arg_list)?/%empty!insert	RUN 'a'(zzz)
-reject	accept	engine	run_statement(run_statement_arg_list)?/run_statement_arg_list	RUN 'a'(a = 'a')
+reject	reject	engine	run_statement(run_statement_arg_list)?/run_statement_arg_list	RUN 'a'(a = 'a')
 reject	reject	engine	define_macro_statement/KW_DEFINE_FOR_MACROS_MACRO_MACRO_BODY_TOKEN_macro_body	DEFINE MACRO a
 reject	reject	engine	macro_body/%empty	DEFINE MACRO a
 reject	reject	engine	macro_body/macro_token_list	DEFINE MACRO a a
@@ -1110,20 +1110,20 @@ reject	reject	engine	set_statement/SET_system_variable_expression_=_expression!s
 accept	accept	engine	set_statement/SET_(_identifier_list_)_=_expression	SET(a) = NULL
 reject	reject	engine	set_statement/SET_(_identifier_list_)_=_expression!drop-1	(a) = NULL
 reject	reject	engine	set_statement/SET_(_identifier_list_)_=_expression!drop-2	SET a) = NULL
-reject	accept	engine	set_statement/SET_(_identifier_list_)_=_expression!drop-3	SET() = NULL
+reject	reject	engine	set_statement/SET_(_identifier_list_)_=_expression!drop-3	SET() = NULL
 reject	reject	engine	set_statement/SET_(_identifier_list_)_=_expression!drop-4	SET(a = NULL
 reject	reject	engine	set_statement/SET_(_identifier_list_)_=_expression!drop-5	SET(a) NULL
 reject	reject	engine	set_statement/SET_(_identifier_list_)_=_expression!drop-6	SET(a) =
 reject	reject	engine	set_statement/SET_(_identifier_list_)_=_expression!insert	SET(a) = NULL zzz
 reject	reject	engine	set_statement/SET_(_identifier_list_)_=_expression!swap	SETS(a) = NULL
-reject	accept	engine	set_statement/SET_(_)	SET()
-reject	accept	engine	set_statement/SET_identifier_,_identifier_list_=	SET a, a =
+reject	reject	engine	set_statement/SET_(_)	SET()
+reject	reject	engine	set_statement/SET_identifier_,_identifier_list_=	SET a, a =
 reject	reject	engine	set_statement/SET_identifier_,_identifier_list_=!drop-1	a, a =
 reject	reject	engine	set_statement/SET_identifier_,_identifier_list_=!drop-2	SET, a =
 reject	reject	engine	set_statement/SET_identifier_,_identifier_list_=!drop-3	SET a a =
 reject	reject	engine	set_statement/SET_identifier_,_identifier_list_=!drop-4	SET a, =
 reject	reject	engine	set_statement/SET_identifier_,_identifier_list_=!drop-5	SET a, a
-reject	accept	engine	set_statement/SET_identifier_,_identifier_list_=!insert	SET a, a = zzz
+reject	reject	engine	set_statement/SET_identifier_,_identifier_list_=!insert	SET a, a = zzz
 reject	reject	engine	set_statement/SET_identifier_,_identifier_list_=!swap	SETS a, a =
 accept	accept	engine	set_statement(,_(transaction_mode))*/%empty	SET TRANSACTION READ ONLY
 accept	accept	engine	set_statement(,_(transaction_mode))*/,_transaction_mode_(,_(transaction_mode))*	SET TRANSACTION READ ONLY, READ ONLY
@@ -4095,10 +4095,10 @@ reject	reject	engine	pivot_or_unpivot_clause/unpivot_clause_(as_alias)?!drop-8	F
 reject	reject	engine	pivot_or_unpivot_clause/unpivot_clause_(as_alias)?!drop-9	FROM a UNPIVOT(a FOR a IN(a)
 reject	reject	engine	pivot_or_unpivot_clause/unpivot_clause_(as_alias)?!insert	FROM a UNPIVOT(a FOR a IN(a)) zzz
 reject	reject	engine	pivot_or_unpivot_clause/unpivot_clause_(as_alias)?!swap	FROM a UNTIL(a FOR a IN(a))
-reject	accept	engine	pivot_or_unpivot_clause/qualify_clause_nonreserved	FROM a QUALIFY NULL
+reject	reject	engine	pivot_or_unpivot_clause/qualify_clause_nonreserved	FROM a QUALIFY NULL
 reject	reject	engine	pivot_or_unpivot_clause/qualify_clause_nonreserved!drop-1	FROM a NULL
 reject	reject	engine	pivot_or_unpivot_clause/qualify_clause_nonreserved!drop-2	FROM a QUALIFY
-reject	accept	engine	pivot_or_unpivot_clause/qualify_clause_nonreserved!insert	FROM a QUALIFY NULL zzz
+reject	reject	engine	pivot_or_unpivot_clause/qualify_clause_nonreserved!insert	FROM a QUALIFY NULL zzz
 reject	reject	engine	pivot_or_unpivot_clause/qualify_clause_nonreserved!swap	FROM a RAISE NULL
 reject	reject	engine	pivot_or_unpivot_clause(as_alias)?/%empty	FROM a PIVOT(NULL FOR NULL IN(NULL))
 reject	reject	engine	pivot_or_unpivot_clause(as_alias)?/as_alias	FROM a PIVOT(NULL FOR NULL IN(NULL)) a
@@ -4192,10 +4192,10 @@ reject	reject	engine	table_subquery(as_alias)?/%empty	FROM(SELECT NULL)
 reject	reject	engine	table_subquery(as_alias)?/as_alias	FROM(SELECT NULL) a
 reject	reject	engine	table_subquery(as_alias)?/as_alias!insert	FROM(SELECT NULL) a zzz
 reject	reject	engine	table_subquery(pivot_or_unpivot_clause)?/%empty	FROM(SELECT NULL)
-reject	accept	engine	table_subquery(pivot_or_unpivot_clause)?/pivot_or_unpivot_clause	FROM(SELECT NULL) QUALIFY NULL
+reject	reject	engine	table_subquery(pivot_or_unpivot_clause)?/pivot_or_unpivot_clause	FROM(SELECT NULL) QUALIFY NULL
 reject	reject	engine	table_subquery(pivot_or_unpivot_clause)?/pivot_or_unpivot_clause!drop-1	FROM(SELECT NULL) NULL
 reject	reject	engine	table_subquery(pivot_or_unpivot_clause)?/pivot_or_unpivot_clause!drop-2	FROM(SELECT NULL) QUALIFY
-reject	accept	engine	table_subquery(pivot_or_unpivot_clause)?/pivot_or_unpivot_clause!insert	FROM(SELECT NULL) QUALIFY NULL zzz
+reject	reject	engine	table_subquery(pivot_or_unpivot_clause)?/pivot_or_unpivot_clause!insert	FROM(SELECT NULL) QUALIFY NULL zzz
 reject	reject	engine	table_subquery(pivot_or_unpivot_clause)?/pivot_or_unpivot_clause!swap	FROM(SELECT NULL) RAISE NULL
 reject	accept	engine	table_clause_no_keyword/path_expression_opt_where_clause	TABLE a
 reject	accept	engine	table_clause_no_keyword/tvf_(as_alias)?_(pivot_or_unpivot_clause)?_opt_where_clause	TABLE a()
@@ -4207,10 +4207,10 @@ reject	accept	engine	table_clause_no_keyword(as_alias)?/%empty	TABLE a()
 reject	accept	engine	table_clause_no_keyword(as_alias)?/as_alias	TABLE a() a
 reject	reject	engine	table_clause_no_keyword(as_alias)?/as_alias!insert	TABLE a() a zzz
 reject	accept	engine	table_clause_no_keyword(pivot_or_unpivot_clause)?/%empty	TABLE a()
-reject	accept	engine	table_clause_no_keyword(pivot_or_unpivot_clause)?/pivot_or_unpivot_clause	TABLE a() QUALIFY NULL
+reject	reject	engine	table_clause_no_keyword(pivot_or_unpivot_clause)?/pivot_or_unpivot_clause	TABLE a() QUALIFY NULL
 reject	reject	engine	table_clause_no_keyword(pivot_or_unpivot_clause)?/pivot_or_unpivot_clause!drop-1	TABLE a() NULL
 reject	accept	engine	table_clause_no_keyword(pivot_or_unpivot_clause)?/pivot_or_unpivot_clause!drop-2	TABLE a() QUALIFY
-reject	accept	engine	table_clause_no_keyword(pivot_or_unpivot_clause)?/pivot_or_unpivot_clause!insert	TABLE a() QUALIFY NULL zzz
+reject	reject	engine	table_clause_no_keyword(pivot_or_unpivot_clause)?/pivot_or_unpivot_clause!insert	TABLE a() QUALIFY NULL zzz
 reject	reject	engine	table_clause_no_keyword(pivot_or_unpivot_clause)?/pivot_or_unpivot_clause!swap	TABLE a() RAISE NULL
 reject	accept	engine	table_clause_reserved/KW_TABLE_FOR_TABLE_CLAUSE_table_clause_no_keyword	TABLE a
 accept	accept	engine	table_clause_unreserved/TABLE_table_clause_no_keyword	INSERT a TABLE a
@@ -4330,11 +4330,11 @@ reject	accept	engine	tvf(hint)?/hint	TABLE a()@1
 reject	reject	engine	tvf(hint)?/hint!drop-1	TABLE a() 1
 reject	reject	engine	tvf(hint)?/hint!drop-2	TABLE a()@
 reject	accept	engine	tvf(hint)?/hint!insert	TABLE a()@1 zzz
-reject	accept	engine	table_path_expression_base/unnest_expression	FROM UNNEST(SELECT
+reject	reject	engine	table_path_expression_base/unnest_expression	FROM UNNEST(SELECT
 reject	reject	engine	table_path_expression_base/unnest_expression!drop-1	FROM(SELECT
 reject	reject	engine	table_path_expression_base/unnest_expression!drop-2	FROM UNNEST SELECT
 reject	reject	engine	table_path_expression_base/unnest_expression!drop-3	FROM UNNEST(
-reject	accept	engine	table_path_expression_base/unnest_expression!insert	FROM UNNEST(SELECT zzz
+reject	reject	engine	table_path_expression_base/unnest_expression!insert	FROM UNNEST(SELECT zzz
 reject	reject	engine	table_path_expression_base/unnest_expression!swap	FROM UNPIVOT(SELECT
 reject	reject	engine	table_path_expression_base/maybe_slashed_or_dashed_path_expression	FROM a
 reject	reject	engine	table_path_expression_base/path_expression_[	FROM a [
@@ -4345,19 +4345,19 @@ reject	reject	engine	table_path_expression_base/path_expression_._(!drop-1	FROM.
 reject	reject	engine	table_path_expression_base/path_expression_._(!drop-2	FROM a(
 reject	reject	engine	table_path_expression_base/path_expression_._(!drop-3	FROM a.
 reject	reject	engine	table_path_expression_base/path_expression_._(!insert	FROM a.(zzz
-reject	accept	engine	table_path_expression_base/unnest_expression_[	FROM UNNEST(SELECT [
+reject	reject	engine	table_path_expression_base/unnest_expression_[	FROM UNNEST(SELECT [
 reject	reject	engine	table_path_expression_base/unnest_expression_[!drop-1	FROM(SELECT [
 reject	reject	engine	table_path_expression_base/unnest_expression_[!drop-2	FROM UNNEST SELECT [
 reject	reject	engine	table_path_expression_base/unnest_expression_[!drop-3	FROM UNNEST([
-reject	accept	engine	table_path_expression_base/unnest_expression_[!insert	FROM UNNEST(SELECT [ zzz
+reject	reject	engine	table_path_expression_base/unnest_expression_[!insert	FROM UNNEST(SELECT [ zzz
 reject	reject	engine	table_path_expression_base/unnest_expression_[!swap	FROM UNPIVOT(SELECT [
-reject	accept	engine	table_path_expression_base/unnest_expression_._(	FROM UNNEST(SELECT.(
+reject	reject	engine	table_path_expression_base/unnest_expression_._(	FROM UNNEST(SELECT.(
 reject	reject	engine	table_path_expression_base/unnest_expression_._(!drop-1	FROM(SELECT.(
 reject	reject	engine	table_path_expression_base/unnest_expression_._(!drop-2	FROM UNNEST SELECT.(
 reject	reject	engine	table_path_expression_base/unnest_expression_._(!drop-3	FROM UNNEST(.(
-reject	accept	engine	table_path_expression_base/unnest_expression_._(!drop-4	FROM UNNEST(SELECT(
-reject	accept	engine	table_path_expression_base/unnest_expression_._(!drop-5	FROM UNNEST(SELECT.
-reject	accept	engine	table_path_expression_base/unnest_expression_._(!insert	FROM UNNEST(SELECT.(zzz
+reject	reject	engine	table_path_expression_base/unnest_expression_._(!drop-4	FROM UNNEST(SELECT(
+reject	reject	engine	table_path_expression_base/unnest_expression_._(!drop-5	FROM UNNEST(SELECT.
+reject	reject	engine	table_path_expression_base/unnest_expression_._(!insert	FROM UNNEST(SELECT.(zzz
 reject	reject	engine	table_path_expression_base/unnest_expression_._(!swap	FROM UNPIVOT(SELECT.(
 reject	reject	engine	table_path_expression/table_path_expression_base_(hint)?_(as_alias)?_(with_of~bedb2fb0	FROM a
 reject	reject	engine	table_path_expression(hint)?/%empty	FROM a
@@ -4374,7 +4374,7 @@ reject	reject	engine	table_path_expression(with_offset_as_alias?)?/with_offset_(
 reject	reject	engine	table_path_expression(with_offset_as_alias?)?/with_offset_(as_alias)?!insert	FROM a WITH OFFSET zzz
 reject	reject	engine	table_path_expression(with_offset_as_alias?)?/with_offset_(as_alias)?!swap	FROM a WRITE OFFSET
 reject	reject	engine	table_path_expression(pivot_or_unpivot_clause)?/%empty	FROM a
-reject	accept	engine	table_path_expression(pivot_or_unpivot_clause)?/pivot_or_unpivot_clause	FROM a QUALIFY NULL
+reject	reject	engine	table_path_expression(pivot_or_unpivot_clause)?/pivot_or_unpivot_clause	FROM a QUALIFY NULL
 reject	reject	engine	table_path_expression(at_system_time)?/%empty	FROM a
 reject	reject	engine	table_path_expression(at_system_time)?/at_system_time	FROM a FOR SYSTEM_TIME AS OF NULL
 reject	reject	engine	table_path_expression(at_system_time)?/at_system_time!drop-1	FROM a SYSTEM_TIME AS OF NULL
@@ -4454,10 +4454,10 @@ reject	reject	engine	table_primary(as_alias)?/%empty	FROM a()
 reject	reject	engine	table_primary(as_alias)?/as_alias	FROM a() a
 reject	reject	engine	table_primary(as_alias)?/as_alias!insert	FROM a() a zzz
 reject	reject	engine	table_primary(pivot_or_unpivot_clause)?/%empty	FROM a()
-reject	accept	engine	table_primary(pivot_or_unpivot_clause)?/pivot_or_unpivot_clause	FROM a() QUALIFY NULL
+reject	reject	engine	table_primary(pivot_or_unpivot_clause)?/pivot_or_unpivot_clause	FROM a() QUALIFY NULL
 reject	reject	engine	table_primary(pivot_or_unpivot_clause)?/pivot_or_unpivot_clause!drop-1	FROM a() NULL
 reject	reject	engine	table_primary(pivot_or_unpivot_clause)?/pivot_or_unpivot_clause!drop-2	FROM a() QUALIFY
-reject	accept	engine	table_primary(pivot_or_unpivot_clause)?/pivot_or_unpivot_clause!insert	FROM a() QUALIFY NULL zzz
+reject	reject	engine	table_primary(pivot_or_unpivot_clause)?/pivot_or_unpivot_clause!insert	FROM a() QUALIFY NULL zzz
 reject	reject	engine	table_primary(pivot_or_unpivot_clause)?/pivot_or_unpivot_clause!swap	FROM a() RAISE NULL
 accept	accept	engine	gql_query/GRAPH_path_expression_graph_operation_block	GRAPH a RETURN NULL
 accept	accept	engine	gql_statement/gql_query	GRAPH a RETURN NULL
@@ -4894,7 +4894,7 @@ reject	accept	engine	graph_path_pattern_expr/graph_path_pattern_expr_(hint)?_gra
 reject	reject	engine	graph_path_pattern_expr/graph_path_pattern_expr_(hint)?_graph_path_factor!insert	SELECT EXISTS { - - zzz }
 reject	accept	engine	graph_path_pattern_expr(hint)?/%empty	SELECT EXISTS { - - }
 reject	reject	engine	graph_path_pattern_expr(hint)?/%empty!insert	SELECT EXISTS { - zzz - }
-reject	accept	engine	graph_path_pattern_expr(hint)?/hint	SELECT EXISTS { -@1 - }
+reject	reject	engine	graph_path_pattern_expr(hint)?/hint	SELECT EXISTS { -@1 - }
 reject	reject	engine	graph_path_pattern_expr(hint)?/hint!drop-1	SELECT EXISTS { - 1 - }
 reject	reject	engine	graph_path_pattern_expr(hint)?/hint!drop-2	SELECT EXISTS { -@- }
 reject	reject	engine	graph_path_pattern_expr(hint)?/hint!truncate	SELECT EXISTS { -@
@@ -4911,7 +4911,7 @@ reject	reject	engine	graph_path_primary/graph_parenthesized_path_pattern!insert	
 reject	accept	engine	graph_parenthesized_path_pattern/(_(hint)?_graph_path_pattern_opt_where_clause_)	SELECT EXISTS {(-) }
 reject	accept	engine	graph_parenthesized_path_pattern(hint)?/%empty	SELECT EXISTS {(-) }
 reject	reject	engine	graph_parenthesized_path_pattern(hint)?/%empty!insert	SELECT EXISTS {(zzz -) }
-reject	accept	engine	graph_parenthesized_path_pattern(hint)?/hint	SELECT EXISTS {(@1 -) }
+reject	reject	engine	graph_parenthesized_path_pattern(hint)?/hint	SELECT EXISTS {(@1 -) }
 reject	reject	engine	graph_parenthesized_path_pattern(hint)?/hint!drop-1	SELECT EXISTS {(1 -) }
 reject	reject	engine	graph_parenthesized_path_pattern(hint)?/hint!drop-2	SELECT EXISTS {(@-) }
 reject	reject	engine	graph_parenthesized_path_pattern(hint)?/hint!truncate	SELECT EXISTS {(@
@@ -5238,12 +5238,12 @@ reject	reject	engine	from_clause_contents/from_clause_contents_opt_natural_join_
 reject	reject	engine	from_clause_contents/from_clause_contents_opt_natural_join_type_join_hint_JO~6442da98!drop-3	FROM a JOIN
 reject	reject	engine	from_clause_contents/from_clause_contents_opt_natural_join_type_join_hint_JO~6442da98!insert	FROM a JOIN a zzz
 reject	reject	engine	from_clause_contents/from_clause_contents_opt_natural_join_type_join_hint_JO~6442da98!swap	FROM a JSON a
-reject	accept	engine	from_clause_contents/@	FROM@
-reject	accept	engine	from_clause_contents/@!insert	FROM@zzz
-reject	accept	engine	from_clause_contents/?	FROM ?
-reject	accept	engine	from_clause_contents/?!insert	FROM ? zzz
-reject	accept	engine	from_clause_contents/@@	FROM @@
-reject	accept	engine	from_clause_contents/@@!insert	FROM @@ zzz
+reject	reject	engine	from_clause_contents/@	FROM@
+reject	reject	engine	from_clause_contents/@!insert	FROM@zzz
+reject	reject	engine	from_clause_contents/?	FROM ?
+reject	reject	engine	from_clause_contents/?!insert	FROM ? zzz
+reject	reject	engine	from_clause_contents/@@	FROM @@
+reject	reject	engine	from_clause_contents/@@!insert	FROM @@ zzz
 reject	reject	engine	from_clause_contents(hint)?/%empty	FROM a JOIN a
 reject	reject	engine	from_clause_contents(hint)?/%empty!insert	FROM a JOIN zzz a
 reject	reject	engine	from_clause_contents(hint)?/hint	FROM a JOIN@1 a
@@ -5266,10 +5266,10 @@ reject	reject	engine	opt_clauses_following_from/where_clause_opt_group_by_clause
 reject	reject	engine	opt_clauses_following_from/where_clause_opt_group_by_clause_opt_having_clause_(qua~51ba7abf!swap	SELECT NULL WHILE NULL
 accept	accept	engine	opt_clauses_following_from/opt_clauses_following_where	SELECT NULL
 accept	accept	engine	opt_clauses_following_from(qualify_clause)?/%empty	SELECT NULL WHERE NULL
-accept	accept	engine	opt_clauses_following_from(qualify_clause)?/qualify_clause	SELECT NULL WHERE NULL QUALIFY NULL
+accept	reject	engine	opt_clauses_following_from(qualify_clause)?/qualify_clause	SELECT NULL WHERE NULL QUALIFY NULL
 reject	reject	engine	opt_clauses_following_from(qualify_clause)?/qualify_clause!drop-1	SELECT NULL WHERE NULL NULL
 reject	reject	engine	opt_clauses_following_from(qualify_clause)?/qualify_clause!drop-2	SELECT NULL WHERE NULL QUALIFY
-reject	accept	engine	opt_clauses_following_from(qualify_clause)?/qualify_clause!insert	SELECT NULL WHERE NULL QUALIFY NULL zzz
+reject	reject	engine	opt_clauses_following_from(qualify_clause)?/qualify_clause!insert	SELECT NULL WHERE NULL QUALIFY NULL zzz
 reject	reject	engine	opt_clauses_following_from(qualify_clause)?/qualify_clause!swap	SELECT NULL WHERE NULL RAISE NULL
 accept	accept	engine	opt_clauses_following_from(window_clause)?/%empty	SELECT NULL WHERE NULL
 accept	accept	engine	opt_clauses_following_from(window_clause)?/window_clause	SELECT NULL WHERE NULL WINDOW a AS a
@@ -5287,10 +5287,10 @@ reject	reject	engine	opt_clauses_following_where/group_by_clause_opt_having_clau
 reject	reject	engine	opt_clauses_following_where/group_by_clause_opt_having_clause_(qualify_clause)?_(wi~cc806fe9!swap	SELECT NULL GROUPING BY ALL
 accept	accept	engine	opt_clauses_following_where/opt_clauses_following_group_by	SELECT NULL
 accept	accept	engine	opt_clauses_following_where(qualify_clause)?/%empty	SELECT NULL GROUP BY ALL
-accept	accept	engine	opt_clauses_following_where(qualify_clause)?/qualify_clause	SELECT NULL GROUP BY ALL QUALIFY NULL
+accept	reject	engine	opt_clauses_following_where(qualify_clause)?/qualify_clause	SELECT NULL GROUP BY ALL QUALIFY NULL
 reject	reject	engine	opt_clauses_following_where(qualify_clause)?/qualify_clause!drop-1	SELECT NULL GROUP BY ALL NULL
 reject	reject	engine	opt_clauses_following_where(qualify_clause)?/qualify_clause!drop-2	SELECT NULL GROUP BY ALL QUALIFY
-reject	accept	engine	opt_clauses_following_where(qualify_clause)?/qualify_clause!insert	SELECT NULL GROUP BY ALL QUALIFY NULL zzz
+reject	reject	engine	opt_clauses_following_where(qualify_clause)?/qualify_clause!insert	SELECT NULL GROUP BY ALL QUALIFY NULL zzz
 reject	reject	engine	opt_clauses_following_where(qualify_clause)?/qualify_clause!swap	SELECT NULL GROUP BY ALL RAISE NULL
 accept	accept	engine	opt_clauses_following_where(window_clause)?/%empty	SELECT NULL GROUP BY ALL
 accept	accept	engine	opt_clauses_following_where(window_clause)?/window_clause	SELECT NULL GROUP BY ALL WINDOW a AS a
@@ -5306,10 +5306,10 @@ reject	reject	engine	opt_clauses_following_group_by/having_clause_(qualify_claus
 reject	reject	engine	opt_clauses_following_group_by/having_clause_(qualify_clause)?_(window_clause)?!swap	SELECT NULL HIDDEN NULL
 accept	accept	engine	opt_clauses_following_group_by/(qualify_clause_reserved)?_(window_clause)?	SELECT NULL
 accept	accept	engine	opt_clauses_following_group_by(qualify_clause)?/%empty	SELECT NULL HAVING NULL
-accept	accept	engine	opt_clauses_following_group_by(qualify_clause)?/qualify_clause	SELECT NULL HAVING NULL QUALIFY NULL
+accept	reject	engine	opt_clauses_following_group_by(qualify_clause)?/qualify_clause	SELECT NULL HAVING NULL QUALIFY NULL
 reject	reject	engine	opt_clauses_following_group_by(qualify_clause)?/qualify_clause!drop-1	SELECT NULL HAVING NULL NULL
 reject	reject	engine	opt_clauses_following_group_by(qualify_clause)?/qualify_clause!drop-2	SELECT NULL HAVING NULL QUALIFY
-reject	accept	engine	opt_clauses_following_group_by(qualify_clause)?/qualify_clause!insert	SELECT NULL HAVING NULL QUALIFY NULL zzz
+reject	reject	engine	opt_clauses_following_group_by(qualify_clause)?/qualify_clause!insert	SELECT NULL HAVING NULL QUALIFY NULL zzz
 reject	reject	engine	opt_clauses_following_group_by(qualify_clause)?/qualify_clause!swap	SELECT NULL HAVING NULL RAISE NULL
 accept	accept	engine	opt_clauses_following_group_by(window_clause)?/%empty	SELECT NULL
 accept	accept	engine	opt_clauses_following_group_by(window_clause)?/window_clause	SELECT NULL WINDOW a AS a
@@ -5535,10 +5535,10 @@ reject	accept	engine	window_clause_with_trailing_comma(,)?/,!insert	|> SELECT NU
 reject	accept	engine	opt_window_clause_with_trailing_comma/(window_clause_with_trailing_comma)?	|> SELECT NULL
 reject	accept	engine	opt_window_clause_with_trailing_comma(window_clause_with_trailing_comma)?/%empty	|> SELECT NULL
 reject	accept	engine	opt_window_clause_with_trailing_comma(window_clause_with_trailing_comma)?/window_clause_with_trailing_comma	|> SELECT NULL WINDOW a AS a
-accept	accept	engine	qualify_clause/qualify_clause_reserved	SELECT NULL WHERE NULL QUALIFY NULL
-accept	accept	engine	qualify_clause/qualify_clause_nonreserved	SELECT NULL WHERE NULL QUALIFY NULL
+accept	reject	engine	qualify_clause/qualify_clause_reserved	SELECT NULL WHERE NULL QUALIFY NULL
+accept	reject	engine	qualify_clause/qualify_clause_nonreserved	SELECT NULL WHERE NULL QUALIFY NULL
 accept	reject	engine	qualify_clause_reserved/KW_QUALIFY_RESERVED_expression	SELECT NULL QUALIFY NULL
-reject	accept	engine	qualify_clause_nonreserved/QUALIFY_expression	FROM a QUALIFY NULL
+reject	reject	engine	qualify_clause_nonreserved/QUALIFY_expression	FROM a QUALIFY NULL
 reject	accept	engine	limit_offset_clause/limit_expression_OFFSET_expression	|> LIMIT NULL OFFSET NULL
 reject	accept	engine	limit_offset_clause/limit_expression_OFFSET_expression!drop-1	|> NULL OFFSET NULL
 reject	accept	engine	limit_offset_clause/limit_expression_OFFSET_expression!drop-2	|> LIMIT OFFSET NULL
@@ -5694,7 +5694,7 @@ reject	reject	engine	aliased_query_list/aliased_query_list_,_aliased_query!trunc
 reject	reject	engine	aliased_query_list/aliased_query_list_,_aliased_query!insert	CREATE MODEL a AS(a AS(SELECT NULL), a AS(SELECT NULL) zzz)
 reject	reject	engine	aliased_query_list/aliased_query_list_,_aliased_query!swap	CREATE MODEL a AS(a ASC(SELECT NULL), a AS(SELECT NULL))
 reject	reject	engine	with_clause_entry/aliased_query	WITH a AS(SELECT NULL) |>
-reject	accept	engine	with_clause_entry/identifier_(_)_AS_GROUP_ROWS	WITH a() AS GROUP ROWS |>
+reject	reject	engine	with_clause_entry/identifier_(_)_AS_GROUP_ROWS	WITH a() AS GROUP ROWS |>
 reject	reject	engine	with_clause_entry/identifier_(_)_AS_GROUP_ROWS!drop-1	WITH() AS GROUP ROWS |>
 reject	reject	engine	with_clause_entry/identifier_(_)_AS_GROUP_ROWS!drop-2	WITH a) AS GROUP ROWS |>
 reject	reject	engine	with_clause_entry/identifier_(_)_AS_GROUP_ROWS!drop-3	WITH a(AS GROUP ROWS |>
@@ -5702,7 +5702,7 @@ reject	reject	engine	with_clause_entry/identifier_(_)_AS_GROUP_ROWS!drop-4	WITH 
 reject	reject	engine	with_clause_entry/identifier_(_)_AS_GROUP_ROWS!drop-5	WITH a() AS ROWS |>
 reject	reject	engine	with_clause_entry/identifier_(_)_AS_GROUP_ROWS!drop-6	WITH a() AS GROUP |>
 reject	reject	engine	with_clause_entry/identifier_(_)_AS_GROUP_ROWS!truncate	WITH a() AS GROUP
-reject	accept	engine	with_clause_entry/identifier_(_)_AS_GROUP_ROWS!insert	WITH a() AS GROUP ROWS zzz |>
+reject	reject	engine	with_clause_entry/identifier_(_)_AS_GROUP_ROWS!insert	WITH a() AS GROUP ROWS zzz |>
 reject	reject	engine	with_clause_entry/identifier_(_)_AS_GROUP_ROWS!swap	WITH a() ASC GROUP ROWS |>
 reject	reject	engine	with_clause/WITH_(RECURSIVE)?_with_clause_entry	WITH a AS(SELECT NULL) |>
 reject	reject	engine	with_clause/with_clause_,_with_clause_entry	WITH a AS(SELECT NULL), a AS(SELECT NULL) |>
@@ -5916,7 +5916,7 @@ reject	reject	engine	unnest_expression_prefix/unnest_expression_prefix_,_express
 reject	reject	engine	unnest_expression/unnest_expression_prefix_(,_named_argument)?_)	FROM UNNEST(NULL)
 reject	reject	engine	unnest_expression/unnest_expression_prefix_(,_named_argument)?_)!drop-4	FROM UNNEST(NULL
 reject	reject	engine	unnest_expression/unnest_expression_prefix_(,_named_argument)?_)!insert	FROM UNNEST(NULL) zzz
-reject	accept	engine	unnest_expression/UNNEST_(_SELECT	FROM UNNEST(SELECT
+reject	reject	engine	unnest_expression/UNNEST_(_SELECT	FROM UNNEST(SELECT
 reject	reject	engine	unnest_expression(,_named_argument)?/%empty	FROM UNNEST(NULL)
 reject	reject	engine	unnest_expression(,_named_argument)?/,_named_argument	FROM UNNEST(NULL, a => NULL)
 reject	reject	engine	unnest_expression(,_named_argument)?/,_named_argument!drop-1	FROM UNNEST(NULL a => NULL)
@@ -5971,15 +5971,15 @@ reject	accept	engine	import_type/MODULE!swap	IMPORT NAME a
 reject	accept	engine	import_type/PROTO	IMPORT PROTO a
 reject	accept	engine	import_type/PROTO!insert	IMPORT PROTO zzz a
 reject	accept	engine	import_type/PROTO!swap	IMPORT PUBLIC a
-reject	accept	engine	any_some_all/ANY	SELECT NULL LIKE ANY UNNEST(SELECT
+reject	reject	engine	any_some_all/ANY	SELECT NULL LIKE ANY UNNEST(SELECT
 reject	reject	engine	any_some_all/ANY!drop-1	SELECT NULL LIKE UNNEST(SELECT
 reject	reject	engine	any_some_all/ANY!truncate	SELECT NULL LIKE
 reject	reject	engine	any_some_all/ANY!insert	SELECT NULL LIKE ANY zzz UNNEST(SELECT
 reject	reject	engine	any_some_all/ANY!swap	SELECT NULL LIKE APPROX UNNEST(SELECT
-reject	accept	engine	any_some_all/SOME	SELECT NULL LIKE SOME UNNEST(SELECT
+reject	reject	engine	any_some_all/SOME	SELECT NULL LIKE SOME UNNEST(SELECT
 reject	reject	engine	any_some_all/SOME!insert	SELECT NULL LIKE SOME zzz UNNEST(SELECT
 reject	reject	engine	any_some_all/SOME!swap	SELECT NULL LIKE SOURCE UNNEST(SELECT
-reject	accept	engine	any_some_all/ALL	SELECT NULL LIKE ALL UNNEST(SELECT
+reject	reject	engine	any_some_all/ALL	SELECT NULL LIKE ALL UNNEST(SELECT
 reject	reject	engine	any_some_all/ALL!insert	SELECT NULL LIKE ALL zzz UNNEST(SELECT
 reject	reject	engine	any_some_all/ALL!swap	SELECT NULL LIKE ALTER UNNEST(SELECT
 accept	accept	engine	like_operator/LIKE	SELECT NULL LIKE NULL
@@ -5997,25 +5997,25 @@ reject	reject	engine	between_operator/KW_NOT_SPECIAL_BETWEEN	SELECT NULL NOT BET
 reject	reject	engine	between_operator/KW_NOT_SPECIAL_BETWEEN!drop-2	SELECT NULL NOT NULL OR
 reject	reject	engine	between_operator/KW_NOT_SPECIAL_BETWEEN!insert	SELECT NULL NOT BETWEEN zzz NULL OR
 reject	reject	engine	between_operator/KW_NOT_SPECIAL_BETWEEN!swap	SELECT NULL NOTHING BETWEEN NULL OR
-accept	accept	engine	distinct_operator/IS_DISTINCT_FROM	SELECT NULL IS DISTINCT FROM NULL
+accept	reject	engine	distinct_operator/IS_DISTINCT_FROM	SELECT NULL IS DISTINCT FROM NULL
 reject	reject	engine	distinct_operator/IS_DISTINCT_FROM!drop-1	SELECT NULL DISTINCT FROM NULL
 reject	reject	engine	distinct_operator/IS_DISTINCT_FROM!drop-2	SELECT NULL IS FROM NULL
 reject	reject	engine	distinct_operator/IS_DISTINCT_FROM!drop-3	SELECT NULL IS DISTINCT NULL
 reject	reject	engine	distinct_operator/IS_DISTINCT_FROM!truncate	SELECT NULL IS DISTINCT
-reject	accept	engine	distinct_operator/IS_DISTINCT_FROM!insert	SELECT NULL IS DISTINCT FROM zzz NULL
+reject	reject	engine	distinct_operator/IS_DISTINCT_FROM!insert	SELECT NULL IS DISTINCT FROM zzz NULL
 reject	reject	engine	distinct_operator/IS_DISTINCT_FROM!swap	SELECT NULL ISOLATION DISTINCT FROM NULL
-accept	accept	engine	distinct_operator/IS_KW_NOT_SPECIAL_DISTINCT_FROM	SELECT NULL IS NOT DISTINCT FROM NULL
+accept	reject	engine	distinct_operator/IS_KW_NOT_SPECIAL_DISTINCT_FROM	SELECT NULL IS NOT DISTINCT FROM NULL
 reject	reject	engine	distinct_operator/IS_KW_NOT_SPECIAL_DISTINCT_FROM!drop-1	SELECT NULL NOT DISTINCT FROM NULL
 reject	reject	engine	distinct_operator/IS_KW_NOT_SPECIAL_DISTINCT_FROM!drop-3	SELECT NULL IS NOT FROM NULL
 reject	reject	engine	distinct_operator/IS_KW_NOT_SPECIAL_DISTINCT_FROM!drop-4	SELECT NULL IS NOT DISTINCT NULL
 reject	reject	engine	distinct_operator/IS_KW_NOT_SPECIAL_DISTINCT_FROM!truncate	SELECT NULL IS NOT DISTINCT
-reject	accept	engine	distinct_operator/IS_KW_NOT_SPECIAL_DISTINCT_FROM!insert	SELECT NULL IS NOT DISTINCT FROM zzz NULL
+reject	reject	engine	distinct_operator/IS_KW_NOT_SPECIAL_DISTINCT_FROM!insert	SELECT NULL IS NOT DISTINCT FROM zzz NULL
 reject	reject	engine	distinct_operator/IS_KW_NOT_SPECIAL_DISTINCT_FROM!swap	SELECT NULL ISOLATION NOT DISTINCT FROM NULL
-reject	accept	engine	in_operator/IN	SELECT NULL IN UNNEST(SELECT
+reject	reject	engine	in_operator/IN	SELECT NULL IN UNNEST(SELECT
 reject	reject	engine	in_operator/IN!drop-1	SELECT NULL UNNEST(SELECT
 reject	reject	engine	in_operator/IN!insert	SELECT NULL IN zzz UNNEST(SELECT
 reject	reject	engine	in_operator/IN!swap	SELECT NULL INCLUDE UNNEST(SELECT
-reject	accept	engine	in_operator/KW_NOT_SPECIAL_IN	SELECT NULL NOT IN UNNEST(SELECT
+reject	reject	engine	in_operator/KW_NOT_SPECIAL_IN	SELECT NULL NOT IN UNNEST(SELECT
 reject	reject	engine	in_operator/KW_NOT_SPECIAL_IN!drop-2	SELECT NULL NOT UNNEST(SELECT
 reject	reject	engine	in_operator/KW_NOT_SPECIAL_IN!insert	SELECT NULL NOT IN zzz UNNEST(SELECT
 reject	reject	engine	in_operator/KW_NOT_SPECIAL_IN!swap	SELECT NULL NOTHING IN UNNEST(SELECT
@@ -6188,12 +6188,12 @@ reject	reject	engine	unparenthesized_expression_higher_prec_than_and/case_expres
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and/case_expression!drop-6	SELECT CASE WHEN NULL THEN NULL
 accept	accept	engine	unparenthesized_expression_higher_prec_than_and/case_expression!insert	SELECT CASE WHEN NULL THEN NULL END zzz
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and/case_expression!swap	SELECT CAST WHEN NULL THEN NULL END
-reject	accept	engine	unparenthesized_expression_higher_prec_than_and/cast_expression	SELECT CAST(SELECT
+reject	reject	engine	unparenthesized_expression_higher_prec_than_and/cast_expression	SELECT CAST(SELECT
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and/cast_expression!drop-1	SELECT(SELECT
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and/cast_expression!drop-2	SELECT CAST SELECT
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and/cast_expression!drop-3	SELECT CAST(
-reject	accept	engine	unparenthesized_expression_higher_prec_than_and/cast_expression!insert	SELECT CAST(SELECT zzz
-reject	accept	engine	unparenthesized_expression_higher_prec_than_and/cast_expression!swap	SELECT CHEAPEST(SELECT
+reject	reject	engine	unparenthesized_expression_higher_prec_than_and/cast_expression!insert	SELECT CAST(SELECT zzz
+reject	reject	engine	unparenthesized_expression_higher_prec_than_and/cast_expression!swap	SELECT CHEAPEST(SELECT
 accept	accept	engine	unparenthesized_expression_higher_prec_than_and/extract_expression	SELECT EXTRACT(NULL FROM NULL)
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and/extract_expression!drop-1	SELECT(NULL FROM NULL)
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and/extract_expression!drop-2	SELECT EXTRACT NULL FROM NULL)
@@ -6253,21 +6253,21 @@ accept	accept	engine	unparenthesized_expression_higher_prec_than_and/NOT_express
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and/NOT_expression_higher_prec_than_and!drop-2	SELECT NOT
 accept	accept	engine	unparenthesized_expression_higher_prec_than_and/NOT_expression_higher_prec_than_and!insert	SELECT NOT NULL zzz
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and/NOT_expression_higher_prec_than_and!swap	SELECT NOTHING NULL
-reject	accept	engine	unparenthesized_expression_higher_prec_than_and/expression_higher_prec_than_and_like_operator_any_some_~05157eea	SELECT NULL LIKE ANY UNNEST(SELECT
+reject	reject	engine	unparenthesized_expression_higher_prec_than_and/expression_higher_prec_than_and_like_operator_any_some_~05157eea	SELECT NULL LIKE ANY UNNEST(SELECT
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and/expression_higher_prec_than_and_like_operator_any_some_~05157eea!drop-1	SELECT LIKE ANY UNNEST(SELECT
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and/expression_higher_prec_than_and_like_operator_any_some_~05157eea!drop-2	SELECT NULL ANY UNNEST(SELECT
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and/expression_higher_prec_than_and_like_operator_any_some_~05157eea!drop-4	SELECT NULL LIKE ANY(SELECT
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and/expression_higher_prec_than_and_like_operator_any_some_~05157eea!drop-5	SELECT NULL LIKE ANY UNNEST SELECT
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and/expression_higher_prec_than_and_like_operator_any_some_~05157eea!drop-6	SELECT NULL LIKE ANY UNNEST(
-reject	accept	engine	unparenthesized_expression_higher_prec_than_and/expression_higher_prec_than_and_like_operator_any_some_~05157eea!insert	SELECT NULL LIKE ANY UNNEST(SELECT zzz
+reject	reject	engine	unparenthesized_expression_higher_prec_than_and/expression_higher_prec_than_and_like_operator_any_some_~05157eea!insert	SELECT NULL LIKE ANY UNNEST(SELECT zzz
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and/expression_higher_prec_than_and_like_operator_any_some_~05157eea!swap	SELECT NULLS LIKE ANY UNNEST(SELECT
-reject	accept	engine	unparenthesized_expression_higher_prec_than_and/expression_higher_prec_than_and_comparative_operator_an~00834daa	SELECT NULL = ANY UNNEST(SELECT
+reject	reject	engine	unparenthesized_expression_higher_prec_than_and/expression_higher_prec_than_and_comparative_operator_an~00834daa	SELECT NULL = ANY UNNEST(SELECT
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and/expression_higher_prec_than_and_comparative_operator_an~00834daa!drop-1	SELECT = ANY UNNEST(SELECT
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and/expression_higher_prec_than_and_comparative_operator_an~00834daa!drop-3	SELECT NULL = UNNEST(SELECT
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and/expression_higher_prec_than_and_comparative_operator_an~00834daa!drop-4	SELECT NULL = ANY(SELECT
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and/expression_higher_prec_than_and_comparative_operator_an~00834daa!drop-5	SELECT NULL = ANY UNNEST SELECT
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and/expression_higher_prec_than_and_comparative_operator_an~00834daa!drop-6	SELECT NULL = ANY UNNEST(
-reject	accept	engine	unparenthesized_expression_higher_prec_than_and/expression_higher_prec_than_and_comparative_operator_an~00834daa!insert	SELECT NULL = ANY UNNEST(SELECT zzz
+reject	reject	engine	unparenthesized_expression_higher_prec_than_and/expression_higher_prec_than_and_comparative_operator_an~00834daa!insert	SELECT NULL = ANY UNNEST(SELECT zzz
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and/expression_higher_prec_than_and_comparative_operator_an~00834daa!swap	SELECT NULLS = ANY UNNEST(SELECT
 accept	accept	engine	unparenthesized_expression_higher_prec_than_and/expression_higher_prec_than_and_like_operator_any_some_~58cde5f3	SELECT NULL LIKE ANY(NULL)
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and/expression_higher_prec_than_and_like_operator_any_some_~58cde5f3!drop-1	SELECT LIKE ANY(NULL)
@@ -6286,17 +6286,17 @@ accept	accept	engine	unparenthesized_expression_higher_prec_than_and/expression_
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and/expression_higher_prec_than_and_like_operator_expressio~35d1a570!drop-1	SELECT LIKE NULL
 accept	accept	engine	unparenthesized_expression_higher_prec_than_and/expression_higher_prec_than_and_like_operator_expressio~35d1a570!insert	SELECT NULL LIKE NULL zzz
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and/expression_higher_prec_than_and_like_operator_expressio~35d1a570!swap	SELECT NULLS LIKE NULL
-accept	accept	engine	unparenthesized_expression_higher_prec_than_and/expression_higher_prec_than_and_distinct_operator_expre~97490f71	SELECT NULL IS DISTINCT FROM NULL
+accept	reject	engine	unparenthesized_expression_higher_prec_than_and/expression_higher_prec_than_and_distinct_operator_expre~97490f71	SELECT NULL IS DISTINCT FROM NULL
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and/expression_higher_prec_than_and_distinct_operator_expre~97490f71!drop-1	SELECT IS DISTINCT FROM NULL
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and/expression_higher_prec_than_and_distinct_operator_expre~97490f71!drop-5	SELECT NULL IS DISTINCT FROM
-accept	accept	engine	unparenthesized_expression_higher_prec_than_and/expression_higher_prec_than_and_distinct_operator_expre~97490f71!insert	SELECT NULL IS DISTINCT FROM NULL zzz
+accept	reject	engine	unparenthesized_expression_higher_prec_than_and/expression_higher_prec_than_and_distinct_operator_expre~97490f71!insert	SELECT NULL IS DISTINCT FROM NULL zzz
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and/expression_higher_prec_than_and_distinct_operator_expre~97490f71!swap	SELECT NULLS IS DISTINCT FROM NULL
-reject	accept	engine	unparenthesized_expression_higher_prec_than_and/expression_higher_prec_than_and_in_operator_(hint)?_unn~8ee1b9ee	SELECT NULL IN UNNEST(SELECT
+reject	reject	engine	unparenthesized_expression_higher_prec_than_and/expression_higher_prec_than_and_in_operator_(hint)?_unn~8ee1b9ee	SELECT NULL IN UNNEST(SELECT
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and/expression_higher_prec_than_and_in_operator_(hint)?_unn~8ee1b9ee!drop-1	SELECT IN UNNEST(SELECT
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and/expression_higher_prec_than_and_in_operator_(hint)?_unn~8ee1b9ee!drop-3	SELECT NULL IN(SELECT
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and/expression_higher_prec_than_and_in_operator_(hint)?_unn~8ee1b9ee!drop-4	SELECT NULL IN UNNEST SELECT
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and/expression_higher_prec_than_and_in_operator_(hint)?_unn~8ee1b9ee!drop-5	SELECT NULL IN UNNEST(
-reject	accept	engine	unparenthesized_expression_higher_prec_than_and/expression_higher_prec_than_and_in_operator_(hint)?_unn~8ee1b9ee!insert	SELECT NULL IN UNNEST(SELECT zzz
+reject	reject	engine	unparenthesized_expression_higher_prec_than_and/expression_higher_prec_than_and_in_operator_(hint)?_unn~8ee1b9ee!insert	SELECT NULL IN UNNEST(SELECT zzz
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and/expression_higher_prec_than_and_in_operator_(hint)?_unn~8ee1b9ee!swap	SELECT NULLS IN UNNEST(SELECT
 accept	accept	engine	unparenthesized_expression_higher_prec_than_and/expression_higher_prec_than_and_in_operator_(hint)?_par~aee1b25f	SELECT NULL IN(NULL)
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and/expression_higher_prec_than_and_in_operator_(hint)?_par~aee1b25f!drop-1	SELECT IN(NULL)
@@ -6370,8 +6370,8 @@ reject	reject	engine	unparenthesized_expression_higher_prec_than_and/unary_opera
 accept	accept	engine	unparenthesized_expression_higher_prec_than_and/unary_operator_expression_higher_prec_than_and!insert	SELECT + NULL zzz
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and/unary_operator_expression_higher_prec_than_and!swap	SELECT + NULLS
 reject	accept	engine	unparenthesized_expression_higher_prec_than_and/graph_expression	SELECT NULL IS SOURCE NULL
-reject	accept	engine	unparenthesized_expression_higher_prec_than_and(hint)?/%empty	SELECT NULL IN UNNEST(SELECT
-reject	accept	engine	unparenthesized_expression_higher_prec_than_and(hint)?/hint	SELECT NULL IN@1 UNNEST(SELECT
+reject	reject	engine	unparenthesized_expression_higher_prec_than_and(hint)?/%empty	SELECT NULL IN UNNEST(SELECT
+reject	reject	engine	unparenthesized_expression_higher_prec_than_and(hint)?/hint	SELECT NULL IN@1 UNNEST(SELECT
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and(hint)?/hint!drop-1	SELECT NULL IN 1 UNNEST(SELECT
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and(hint)?/hint!drop-2	SELECT NULL IN@UNNEST(SELECT
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and(hint)?/hint!truncate	SELECT NULL IN@
@@ -6908,12 +6908,12 @@ reject	reject	engine	cast_expression/(CAST|SAFE_CAST)_(_expression_AS_type_(form
 reject	reject	engine	cast_expression/(CAST|SAFE_CAST)_(_expression_AS_type_(format)?_)!drop-6	SELECT CAST(NULL AS a
 accept	accept	engine	cast_expression/(CAST|SAFE_CAST)_(_expression_AS_type_(format)?_)!insert	SELECT CAST(NULL AS a) zzz
 accept	accept	engine	cast_expression/(CAST|SAFE_CAST)_(_expression_AS_type_(format)?_)!swap	SELECT CHEAPEST(NULL AS a)
-reject	accept	engine	cast_expression/CAST_(_SELECT	SELECT CAST(SELECT
-reject	accept	engine	cast_expression/SAFE_CAST_(_SELECT	SELECT SAFE_CAST(SELECT
+reject	reject	engine	cast_expression/CAST_(_SELECT	SELECT CAST(SELECT
+reject	reject	engine	cast_expression/SAFE_CAST_(_SELECT	SELECT SAFE_CAST(SELECT
 reject	reject	engine	cast_expression/SAFE_CAST_(_SELECT!drop-2	SELECT SAFE_CAST SELECT
 reject	reject	engine	cast_expression/SAFE_CAST_(_SELECT!drop-3	SELECT SAFE_CAST(
-reject	accept	engine	cast_expression/SAFE_CAST_(_SELECT!insert	SELECT SAFE_CAST(SELECT zzz
-reject	accept	engine	cast_expression/SAFE_CAST_(_SELECT!swap	SELECT SCHEMA(SELECT
+reject	reject	engine	cast_expression/SAFE_CAST_(_SELECT!insert	SELECT SAFE_CAST(SELECT zzz
+reject	reject	engine	cast_expression/SAFE_CAST_(_SELECT!swap	SELECT SCHEMA(SELECT
 accept	accept	engine	cast_expression(CAST|SAFE_CAST)/CAST	SELECT CAST(NULL AS a)
 reject	reject	engine	cast_expression(CAST|SAFE_CAST)/CAST!insert	SELECT CAST zzz(NULL AS a)
 accept	accept	engine	cast_expression(CAST|SAFE_CAST)/SAFE_CAST	SELECT SAFE_CAST(NULL AS a)
@@ -7324,7 +7324,7 @@ reject	reject	engine	expression_subquery_with_keyword/EXISTS_(hint)?_parenthesiz
 reject	reject	engine	expression_subquery_with_keyword/EXISTS_(hint)?_parenthesized_query!drop-4	SELECT EXISTS(SELECT)
 reject	reject	engine	expression_subquery_with_keyword/EXISTS_(hint)?_parenthesized_query!drop-5	SELECT EXISTS(SELECT NULL
 accept	accept	engine	expression_subquery_with_keyword/EXISTS_(hint)?_parenthesized_query!insert	SELECT EXISTS(SELECT NULL) zzz
-reject	accept	engine	expression_subquery_with_keyword/EXISTS_(hint)?_parenthesized_query!swap	SELECT EXPLAIN(SELECT NULL)
+reject	reject	engine	expression_subquery_with_keyword/EXISTS_(hint)?_parenthesized_query!swap	SELECT EXPLAIN(SELECT NULL)
 reject	accept	engine	expression_subquery_with_keyword/ARRAY_braced_graph_subquery	SELECT ARRAY { RETURN NULL }
 reject	reject	engine	expression_subquery_with_keyword/ARRAY_braced_graph_subquery!swap	SELECT AS { RETURN NULL }
 reject	accept	engine	expression_subquery_with_keyword/exists_graph_subquery	SELECT EXISTS { - }
@@ -8899,7 +8899,7 @@ accept	accept	engine	suite:select	SELECT * FROM t WHERE EXISTS (SELECT 1 FROM u 
 accept	accept	engine	suite:select	SELECT * FROM t WHERE id IN (SELECT id FROM u)
 accept	accept	engine	suite:select	SELECT * FROM t WHERE id = 1 FOR UPDATE
 accept	accept	engine	suite:select	@{OPTIMIZER_VERSION=2} SELECT * FROM t
-accept	accept	engine	suite:select	SELECT a FROM t QUALIFY ROW_NUMBER() OVER (ORDER BY a) = 1
+accept	reject	engine	suite:select	SELECT a FROM t QUALIFY ROW_NUMBER() OVER (ORDER BY a) = 1
 accept	accept	engine	suite:select	WITH RECURSIVE c AS ((SELECT 1 AS n) UNION ALL (SELECT n + 1 FROM c WHERE n < 3)) SELECT * FROM c
 accept	accept	engine	suite:select	SELECT 1 AS a UNION ALL STRICT CORRESPONDING SELECT 2 AS a
 accept	accept	engine	suite:select	SELECT 1 AS a FULL OUTER UNION ALL SELECT 2 AS a

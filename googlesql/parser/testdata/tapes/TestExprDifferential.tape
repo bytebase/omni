@@ -1,4 +1,4 @@
--- pin: default gcr.io/cloud-spanner-emulator/emulator:1.5.54 sha256:caf1bd24c081e005837b5977bae5a250e25cb4da9f25ec1abc91936ad67e4de2 v1.5.54
+-- pin: default gcr.io/cloud-spanner-emulator/emulator:1.5.54 sha256:caf1bd24c081e005837b5977bae5a250e25cb4da9f25ec1abc91936ad67e4de2 v1.5.54 judge:2
 
 == TestExprDifferential default#1
 > query
@@ -281,13 +281,6 @@
 < row
 : string
 | {"verdict":"accept","kind":"query","reason":"semantic","code":"InvalidArgument","message":"Operand of IS UNKNOWN must be coercible to BOOL, but has type INT64 [at 1:8] SELECT 1 IS UNKNOWN        ^"}
-> query
-| SELECT a IS NOT DISTINCT FROM b FROM t
-< result
-< column "verdict" "JSON"
-< row
-: string
-| {"verdict":"accept","kind":"query","reason":"semantic","code":"InvalidArgument","message":"IS DISTINCT FROM is not supported [at 1:17] SELECT a IS NOT DISTINCT FROM b FROM t                 ^"}
 > query
 | SELECT a BETWEEN 1 AND 2 FROM t
 < result

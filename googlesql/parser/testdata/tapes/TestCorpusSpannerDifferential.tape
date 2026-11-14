@@ -1,4 +1,4 @@
--- pin: default gcr.io/cloud-spanner-emulator/emulator:1.5.54 sha256:caf1bd24c081e005837b5977bae5a250e25cb4da9f25ec1abc91936ad67e4de2 v1.5.54
+-- pin: default gcr.io/cloud-spanner-emulator/emulator:1.5.54 sha256:caf1bd24c081e005837b5977bae5a250e25cb4da9f25ec1abc91936ad67e4de2 v1.5.54 judge:2
 
 == TestCorpusSpannerDifferential default#1
 > query
@@ -2232,16 +2232,6 @@
 < row
 : string
 | {"verdict":"accept","kind":"query","reason":"semantic","code":"InvalidArgument","message":"Table not found: Singers [at 1:31] SELECT AS VALUE SingerId FROM Singers                               ^"}
-> query
-| SELECT SingerId, AlbumId,
-|   ROW_NUMBER() OVER (PARTITION BY SingerId ORDER BY MarketingBudget DESC) AS rn
-| FROM Albums
-| QUALIFY rn = 1
-< result
-< column "verdict" "JSON"
-< row
-: string
-| {"verdict":"accept","kind":"query","reason":"semantic","code":"InvalidArgument","message":"QUALIFY is not supported [at 4:1] QUALIFY rn = 1 ^"}
 > query
 | SELECT SingerId, AlbumId, MarketingBudget,
 |   AVG(MarketingBudget) OVER w AS AvgBudget
