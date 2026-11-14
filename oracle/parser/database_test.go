@@ -577,3 +577,18 @@ func TestAlterDatabaseRecoverTargets(t *testing.T) {
 		})
 	}
 }
+
+// TestAlterDatabaseManagedRecoveryQuotedOption checks that a quoted word or a
+// literal where a managed recovery option stands fails to parse.
+func TestAlterDatabaseManagedRecoveryQuotedOption(t *testing.T) {
+	for _, sql := range []string{
+		`ALTER DATABASE RECOVER MANAGED STANDBY DATABASE "PARALLEL"`,
+		`ALTER DATABASE RECOVER MANAGED STANDBY DATABASE "NODELAY"`,
+		`ALTER DATABASE RECOVER MANAGED STANDBY DATABASE 'x'`,
+		`ALTER DATABASE RECOVER MANAGED STANDBY DATABASE 1`,
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) succeeded", sql)
+		}
+	}
+}
