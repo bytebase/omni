@@ -1890,14 +1890,14 @@ reject	reject	engine	create_body/create_field_list_parens_opt_create_table_optio
 reject	reject	engine	create_body/create_field_list_parens_opt_create_table_options_opt_create_partitioning_opt_create_select!insert	CREATE TABLE a(a INT) zzz;
 reject	reject	engine	create_body/create_field_list_parens_opt_create_table_options_opt_create_partitioning_opt_create_select!swap	CREATE TABLE a(a INTERSECT);
 accept	accept	engine	create_body/opt_create_table_options_opt_create_partitioning_opt_create_select	CREATE TABLE a;
-accept	reject	engine	create_body/create_like	CREATE TABLE a LIKE a;
+reject	reject	engine	create_body/create_like	CREATE TABLE a LIKE a;
 reject	reject	engine	create_body/create_like!drop-1	CREATE TABLE a a;
 reject	reject	engine	create_body/create_like!drop-2	CREATE TABLE a LIKE;
 reject	reject	engine	create_body/create_like!truncate	CREATE TABLE a LIKE
 reject	reject	engine	create_body/create_like!insert	CREATE TABLE a LIKE a zzz;
 reject	reject	engine	create_body/create_like!swap	CREATE TABLE a LIMIT a;
-accept	reject	engine	create_like/LIKE_table_ident	CREATE TABLE a LIKE a;
-accept	reject	engine	create_like/LEFT_PAREN_LIKE_LIKE_table_ident_)	CREATE TABLE a(LIKE a);
+reject	reject	engine	create_like/LIKE_table_ident	CREATE TABLE a LIKE a;
+reject	reject	engine	create_like/LEFT_PAREN_LIKE_LIKE_table_ident_)	CREATE TABLE a(LIKE a);
 reject	reject	engine	create_like/LEFT_PAREN_LIKE_LIKE_table_ident_)!drop-1	CREATE TABLE a LIKE a);
 reject	reject	engine	create_like/LEFT_PAREN_LIKE_LIKE_table_ident_)!drop-3	CREATE TABLE a(LIKE);
 reject	reject	engine	create_like/LEFT_PAREN_LIKE_LIKE_table_ident_)!drop-4	CREATE TABLE a(LIKE a;
@@ -2337,7 +2337,7 @@ reject	reject	engine	create_database_option/COMMENT_SYM_opt_equal_TEXT_STRING_sy
 reject	reject	engine	create_database_option/COMMENT_SYM_opt_equal_TEXT_STRING_sys!swap	ALTER DATABASE COMMIT 's';
 accept	accept	engine	opt_if_not_exists_table_element/%empty	ALTER TABLE a ADD a INT;
 reject	reject	engine	opt_if_not_exists_table_element/%empty!insert	ALTER TABLE a ADD zzz a INT;
-reject	accept	engine	opt_if_not_exists_table_element/IF_SYM_not_EXISTS	ALTER TABLE a ADD IF NOT EXISTS a INT;
+accept	accept	engine	opt_if_not_exists_table_element/IF_SYM_not_EXISTS	ALTER TABLE a ADD IF NOT EXISTS a INT;
 reject	reject	engine	opt_if_not_exists_table_element/IF_SYM_not_EXISTS!drop-1	ALTER TABLE a ADD NOT EXISTS a INT;
 reject	reject	engine	opt_if_not_exists_table_element/IF_SYM_not_EXISTS!drop-2	ALTER TABLE a ADD IF EXISTS a INT;
 reject	reject	engine	opt_if_not_exists_table_element/IF_SYM_not_EXISTS!drop-3	ALTER TABLE a ADD IF NOT a INT;
@@ -2699,7 +2699,7 @@ reject	reject	engine	field_list_item/period_for_system_time!drop-7	CREATE TABLE 
 reject	reject	engine	field_list_item/period_for_system_time!truncate	CREATE TABLE a(PERIOD FOR SYSTEM_TIME(a, a
 reject	reject	engine	field_list_item/period_for_system_time!insert	CREATE TABLE a(PERIOD FOR SYSTEM_TIME(a, a) zzz);
 reject	reject	engine	field_list_item/period_for_system_time!swap	CREATE TABLE a(PERSISTENT FOR SYSTEM_TIME(a, a));
-accept	reject	engine	field_list_item/PERIOD_SYM_period_for_application_time	CREATE TABLE a(PERIOD FOR a(a, a));
+reject	reject	engine	field_list_item/PERIOD_SYM_period_for_application_time	CREATE TABLE a(PERIOD FOR a(a, a));
 reject	reject	engine	field_list_item/PERIOD_SYM_period_for_application_time!drop-1	CREATE TABLE a(FOR a(a, a));
 reject	reject	engine	field_list_item/PERIOD_SYM_period_for_application_time!drop-2	CREATE TABLE a(PERIOD a(a, a));
 reject	reject	engine	field_list_item/PERIOD_SYM_period_for_application_time!drop-3	CREATE TABLE a(PERIOD FOR(a, a));
@@ -2801,7 +2801,7 @@ reject	reject	engine	period_for_system_time/PERIOD_SYM_FOR_SYSTEM_TIME_SYM_(_ide
 reject	reject	engine	period_for_system_time/PERIOD_SYM_FOR_SYSTEM_TIME_SYM_(_ident_,_ident_)!truncate	ALTER TABLE a ADD PERIOD FOR SYSTEM_TIME(a, a
 reject	reject	engine	period_for_system_time/PERIOD_SYM_FOR_SYSTEM_TIME_SYM_(_ident_,_ident_)!insert	ALTER TABLE a ADD PERIOD FOR SYSTEM_TIME(a, a) zzz;
 reject	reject	engine	period_for_system_time/PERIOD_SYM_FOR_SYSTEM_TIME_SYM_(_ident_,_ident_)!swap	ALTER TABLE a ADD PERSISTENT FOR SYSTEM_TIME(a, a);
-accept	reject	engine	period_for_application_time/FOR_SYM_ident_(_ident_,_ident_)	ALTER TABLE a ADD PERIOD FOR a(a, a);
+reject	reject	engine	period_for_application_time/FOR_SYM_ident_(_ident_,_ident_)	ALTER TABLE a ADD PERIOD FOR a(a, a);
 reject	reject	engine	period_for_application_time/FOR_SYM_ident_(_ident_,_ident_)!drop-1	ALTER TABLE a ADD PERIOD a(a, a);
 reject	reject	engine	period_for_application_time/FOR_SYM_ident_(_ident_,_ident_)!drop-2	ALTER TABLE a ADD PERIOD FOR(a, a);
 reject	reject	engine	period_for_application_time/FOR_SYM_ident_(_ident_,_ident_)!drop-3	ALTER TABLE a ADD PERIOD FOR a a, a);
@@ -2830,11 +2830,11 @@ reject	reject	engine	opt_constraint_no_id/CONSTRAINT!insert	ALTER TABLE a DROP C
 reject	reject	engine	opt_constraint_no_id/CONSTRAINT!swap	ALTER TABLE a DROP CONSTRAINT_CATALOG PRIMARY KEY;
 accept	accept	engine	opt_constraint/%empty	ALTER TABLE a ADD a INT REFERENCES a;
 reject	reject	engine	opt_constraint/%empty!insert	ALTER TABLE a ADD a INT zzz REFERENCES a;
-reject	accept	engine	opt_constraint/constraint	ALTER TABLE a ADD a INT CONSTRAINT REFERENCES a;
+accept	accept	engine	opt_constraint/constraint	ALTER TABLE a ADD a INT CONSTRAINT REFERENCES a;
 accept	accept	engine	opt_constraint/constraint!truncate	ALTER TABLE a ADD a INT
-reject	accept	engine	opt_constraint/constraint!insert	ALTER TABLE a ADD a INT CONSTRAINT zzz REFERENCES a;
+accept	accept	engine	opt_constraint/constraint!insert	ALTER TABLE a ADD a INT CONSTRAINT zzz REFERENCES a;
 reject	reject	engine	opt_constraint/constraint!swap	ALTER TABLE a ADD a INT CONSTRAINT_CATALOG REFERENCES a;
-reject	accept	engine	constraint/CONSTRAINT_opt_ident	ALTER TABLE a ADD a INT CONSTRAINT REFERENCES a;
+accept	accept	engine	constraint/CONSTRAINT_opt_ident	ALTER TABLE a ADD a INT CONSTRAINT REFERENCES a;
 accept	accept	engine	field_spec/field_ident_field_type_or_serial_opt_check_constraint	ALTER TABLE a ADD a INT;
 accept	accept	engine	field_type_or_serial/qualified_field_type_field_def	ALTER TABLE a ADD a INT;
 accept	accept	engine	field_type_or_serial/SERIAL_SYM_opt_serial_attribute	ALTER TABLE a ADD a SERIAL;
@@ -2852,15 +2852,15 @@ reject	reject	engine	opt_serial_attribute_list/opt_serial_attribute_list_serial_
 accept	accept	engine	opt_serial_attribute_list/serial_attribute	ALTER TABLE a ADD a SERIAL KEY;
 accept	accept	engine	opt_asrow_attribute/%empty	ALTER TABLE a ADD a INT AS ROW START;
 reject	reject	engine	opt_asrow_attribute/%empty!insert	ALTER TABLE a ADD a INT AS ROW START zzz;
-reject	accept	engine	opt_asrow_attribute/opt_asrow_attribute_list	ALTER TABLE a ADD a INT AS ROW START KEY;
+accept	accept	engine	opt_asrow_attribute/opt_asrow_attribute_list	ALTER TABLE a ADD a INT AS ROW START KEY;
 accept	accept	engine	opt_asrow_attribute/opt_asrow_attribute_list!truncate	ALTER TABLE a ADD a INT AS ROW START
 reject	reject	engine	opt_asrow_attribute/opt_asrow_attribute_list!insert	ALTER TABLE a ADD a INT AS ROW START KEY zzz;
 reject	reject	engine	opt_asrow_attribute/opt_asrow_attribute_list!swap	ALTER TABLE a ADD a INT AS ROW START KEYS;
-reject	accept	engine	opt_asrow_attribute_list/opt_asrow_attribute_list_asrow_attribute	ALTER TABLE a ADD a INT AS ROW START KEY KEY;
-reject	accept	engine	opt_asrow_attribute_list/opt_asrow_attribute_list_asrow_attribute!truncate	ALTER TABLE a ADD a INT AS ROW START KEY
+accept	accept	engine	opt_asrow_attribute_list/opt_asrow_attribute_list_asrow_attribute	ALTER TABLE a ADD a INT AS ROW START KEY KEY;
+accept	accept	engine	opt_asrow_attribute_list/opt_asrow_attribute_list_asrow_attribute!truncate	ALTER TABLE a ADD a INT AS ROW START KEY
 reject	reject	engine	opt_asrow_attribute_list/opt_asrow_attribute_list_asrow_attribute!insert	ALTER TABLE a ADD a INT AS ROW START KEY KEY zzz;
 reject	reject	engine	opt_asrow_attribute_list/opt_asrow_attribute_list_asrow_attribute!swap	ALTER TABLE a ADD a INT AS ROW START KEYS KEY;
-reject	accept	engine	opt_asrow_attribute_list/asrow_attribute	ALTER TABLE a ADD a INT AS ROW START KEY;
+accept	accept	engine	opt_asrow_attribute_list/asrow_attribute	ALTER TABLE a ADD a INT AS ROW START KEY;
 accept	accept	engine	field_def/%empty	ALTER TABLE a ADD a INT;
 accept	accept	engine	field_def/attribute_list	ALTER TABLE a ADD a INT NULL;
 reject	reject	engine	field_def/attribute_list!insert	ALTER TABLE a ADD a INT NULL zzz;
@@ -2887,7 +2887,7 @@ accept	accept	engine	opt_generated_always/%empty	ALTER TABLE a ADD a INT AS ROW 
 reject	reject	engine	opt_generated_always/%empty!insert	ALTER TABLE a ADD a INT zzz AS ROW START;
 accept	accept	engine	opt_generated_always/GENERATED_SYM_ALWAYS_SYM	ALTER TABLE a ADD a INT GENERATED ALWAYS AS ROW START;
 reject	reject	engine	opt_generated_always/GENERATED_SYM_ALWAYS_SYM!drop-1	ALTER TABLE a ADD a INT ALWAYS AS ROW START;
-accept	reject	engine	opt_generated_always/GENERATED_SYM_ALWAYS_SYM!drop-2	ALTER TABLE a ADD a INT GENERATED AS ROW START;
+reject	reject	engine	opt_generated_always/GENERATED_SYM_ALWAYS_SYM!drop-2	ALTER TABLE a ADD a INT GENERATED AS ROW START;
 reject	reject	engine	opt_generated_always/GENERATED_SYM_ALWAYS_SYM!truncate	ALTER TABLE a ADD a INT GENERATED
 reject	reject	engine	opt_generated_always/GENERATED_SYM_ALWAYS_SYM!insert	ALTER TABLE a ADD a INT GENERATED ALWAYS zzz AS ROW START;
 reject	reject	engine	opt_generated_always/GENERATED_SYM_ALWAYS_SYM!swap	ALTER TABLE a ADD a INT GET ALWAYS AS ROW START;
@@ -3273,7 +3273,7 @@ reject	reject	engine	opt_compressed/compressed!insert	ALTER TABLE a ADD a NVARCH
 reject	reject	engine	opt_compressed/compressed!swap	ALTER TABLE a ADD a NVARCHAR CONCURRENT;
 accept	accept	engine	opt_enable/%empty	ALTER TABLE a ADD a INT NOT NULL;
 reject	reject	engine	opt_enable/%empty!insert	ALTER TABLE a ADD a INT NOT NULL zzz;
-reject	accept	engine	opt_enable/ENABLE_SYM	ALTER TABLE a ADD a INT NOT NULL ENABLE;
+accept	accept	engine	opt_enable/ENABLE_SYM	ALTER TABLE a ADD a INT NOT NULL ENABLE;
 accept	accept	engine	opt_enable/ENABLE_SYM!truncate	ALTER TABLE a ADD a INT NOT NULL
 reject	reject	engine	opt_enable/ENABLE_SYM!insert	ALTER TABLE a ADD a INT NOT NULL ENABLE zzz;
 reject	reject	engine	opt_enable/ENABLE_SYM!swap	ALTER TABLE a ADD a INT NOT NULL ENCLOSED;
@@ -3285,7 +3285,7 @@ reject	reject	engine	asrow_attribute/not_NULL_SYM_opt_enable!swap	ALTER TABLE a 
 accept	accept	engine	asrow_attribute/opt_primary_KEY_SYM	ALTER TABLE a ADD a INT KEY;
 accept	accept	engine	asrow_attribute/vcol_attribute	ALTER TABLE a ADD a INT UNIQUE;
 accept	accept	engine	serial_attribute/asrow_attribute	ALTER TABLE a ADD a INT KEY;
-reject	accept	engine	serial_attribute/engine_defined_option	ALTER TABLE a ADD a INT a = 's';
+accept	accept	engine	serial_attribute/engine_defined_option	ALTER TABLE a ADD a INT a = 's';
 reject	reject	engine	serial_attribute/engine_defined_option!drop-1	ALTER TABLE a ADD a INT = 's';
 reject	reject	engine	serial_attribute/engine_defined_option!drop-2	ALTER TABLE a ADD a INT a 's';
 reject	reject	engine	serial_attribute/engine_defined_option!drop-3	ALTER TABLE a ADD a INT a =;
@@ -3987,7 +3987,7 @@ accept	accept	engine	alter_commands/reorg_partition_rule	ALTER TABLE a REORGANIZ
 reject	reject	engine	alter_commands/reorg_partition_rule!drop-2	ALTER TABLE a REORGANIZE;
 reject	reject	engine	alter_commands/reorg_partition_rule!truncate	ALTER TABLE a REORGANIZE
 reject	reject	engine	alter_commands/reorg_partition_rule!insert	ALTER TABLE a REORGANIZE PARTITION zzz;
-accept	reject	engine	alter_commands/EXCHANGE_SYM_PARTITION_SYM_alt_part_name_item_WITH_TABLE_SYM_table_ident_opt_without_validation_have_partitioning	ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a;
+reject	reject	engine	alter_commands/EXCHANGE_SYM_PARTITION_SYM_alt_part_name_item_WITH_TABLE_SYM_table_ident_opt_without_validation_have_partitioning	ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a;
 reject	reject	engine	alter_commands/EXCHANGE_SYM_PARTITION_SYM_alt_part_name_item_WITH_TABLE_SYM_table_ident_opt_without_validation_have_partitioning!drop-1	ALTER TABLE a PARTITION a WITH TABLE a;
 reject	reject	engine	alter_commands/EXCHANGE_SYM_PARTITION_SYM_alt_part_name_item_WITH_TABLE_SYM_table_ident_opt_without_validation_have_partitioning!drop-2	ALTER TABLE a EXCHANGE a WITH TABLE a;
 reject	reject	engine	alter_commands/EXCHANGE_SYM_PARTITION_SYM_alt_part_name_item_WITH_TABLE_SYM_table_ident_opt_without_validation_have_partitioning!drop-3	ALTER TABLE a EXCHANGE PARTITION WITH TABLE a;
@@ -3997,7 +3997,7 @@ reject	reject	engine	alter_commands/EXCHANGE_SYM_PARTITION_SYM_alt_part_name_ite
 reject	reject	engine	alter_commands/EXCHANGE_SYM_PARTITION_SYM_alt_part_name_item_WITH_TABLE_SYM_table_ident_opt_without_validation_have_partitioning!truncate	ALTER TABLE a EXCHANGE PARTITION a WITH TABLE
 reject	reject	engine	alter_commands/EXCHANGE_SYM_PARTITION_SYM_alt_part_name_item_WITH_TABLE_SYM_table_ident_opt_without_validation_have_partitioning!insert	ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a zzz;
 reject	reject	engine	alter_commands/EXCHANGE_SYM_PARTITION_SYM_alt_part_name_item_WITH_TABLE_SYM_table_ident_opt_without_validation_have_partitioning!swap	ALTER TABLE a EXCLUDE PARTITION a WITH TABLE a;
-reject	accept	engine	alter_commands/CONVERT_SYM_PARTITION_SYM_alt_part_name_item_TO_SYM_TABLE_SYM_table_ident_opt_without_validation_have_partitioning	ALTER TABLE a CONVERT PARTITION a TO TABLE a;
+accept	accept	engine	alter_commands/CONVERT_SYM_PARTITION_SYM_alt_part_name_item_TO_SYM_TABLE_SYM_table_ident_opt_without_validation_have_partitioning	ALTER TABLE a CONVERT PARTITION a TO TABLE a;
 reject	reject	engine	alter_commands/CONVERT_SYM_PARTITION_SYM_alt_part_name_item_TO_SYM_TABLE_SYM_table_ident_opt_without_validation_have_partitioning!drop-1	ALTER TABLE a PARTITION a TO TABLE a;
 reject	reject	engine	alter_commands/CONVERT_SYM_PARTITION_SYM_alt_part_name_item_TO_SYM_TABLE_SYM_table_ident_opt_without_validation_have_partitioning!drop-2	ALTER TABLE a CONVERT a TO TABLE a;
 reject	reject	engine	alter_commands/CONVERT_SYM_PARTITION_SYM_alt_part_name_item_TO_SYM_TABLE_SYM_table_ident_opt_without_validation_have_partitioning!drop-3	ALTER TABLE a CONVERT PARTITION TO TABLE a;
@@ -4024,7 +4024,7 @@ accept	accept	engine	all_or_alt_part_name_list/alt_part_name_list	ALTER TABLE a 
 reject	reject	engine	all_or_alt_part_name_list/alt_part_name_list!insert	ALTER TABLE a REBUILD PARTITION a zzz;
 accept	accept	engine	add_partition_rule/ADD_PARTITION_SYM_opt_if_not_exists_opt_no_write_to_binlog_add_part_extra	ALTER TABLE a ADD PARTITION;
 accept	accept	engine	add_part_extra/%empty	ALTER TABLE a ADD PARTITION;
-reject	accept	engine	add_part_extra/(_part_def_list_)	ALTER TABLE a ADD PARTITION(a);
+accept	accept	engine	add_part_extra/(_part_def_list_)	ALTER TABLE a ADD PARTITION(a);
 reject	reject	engine	add_part_extra/(_part_def_list_)!drop-1	ALTER TABLE a ADD PARTITION a);
 reject	reject	engine	add_part_extra/(_part_def_list_)!drop-2	ALTER TABLE a ADD PARTITION();
 reject	reject	engine	add_part_extra/(_part_def_list_)!drop-3	ALTER TABLE a ADD PARTITION(a;
@@ -4038,7 +4038,7 @@ reject	reject	engine	add_part_extra/PARTITIONS_SYM_real_ulong_num!insert	ALTER T
 reject	reject	engine	add_part_extra/PARTITIONS_SYM_real_ulong_num!swap	ALTER TABLE a ADD PARTITION PASSWORD 1;
 accept	accept	engine	reorg_partition_rule/REORGANIZE_SYM_PARTITION_SYM_opt_no_write_to_binlog_reorg_parts_rule	ALTER TABLE a REORGANIZE PARTITION;
 accept	accept	engine	reorg_parts_rule/%empty	ALTER TABLE a REORGANIZE PARTITION;
-reject	accept	engine	reorg_parts_rule/alt_part_name_list_INTO_(_part_def_list_)	ALTER TABLE a REORGANIZE PARTITION a INTO(a);
+accept	accept	engine	reorg_parts_rule/alt_part_name_list_INTO_(_part_def_list_)	ALTER TABLE a REORGANIZE PARTITION a INTO(a);
 reject	reject	engine	reorg_parts_rule/alt_part_name_list_INTO_(_part_def_list_)!drop-1	ALTER TABLE a REORGANIZE PARTITION INTO(a);
 reject	reject	engine	reorg_parts_rule/alt_part_name_list_INTO_(_part_def_list_)!drop-2	ALTER TABLE a REORGANIZE PARTITION a(a);
 reject	reject	engine	reorg_parts_rule/alt_part_name_list_INTO_(_part_def_list_)!drop-3	ALTER TABLE a REORGANIZE PARTITION a INTO a);
@@ -4073,7 +4073,7 @@ reject	reject	engine	alter_list_item/ADD_key_def!swap	ALTER TABLE a ADDDATE KEY(
 accept	accept	engine	alter_list_item/ADD_period_for_system_time	ALTER TABLE a ADD PERIOD FOR SYSTEM_TIME(a, a);
 reject	reject	engine	alter_list_item/ADD_period_for_system_time!drop-1	ALTER TABLE a PERIOD FOR SYSTEM_TIME(a, a);
 reject	reject	engine	alter_list_item/ADD_period_for_system_time!swap	ALTER TABLE a ADDDATE PERIOD FOR SYSTEM_TIME(a, a);
-accept	reject	engine	alter_list_item/ADD_PERIOD_SYM_opt_if_not_exists_table_element_period_for_application_time	ALTER TABLE a ADD PERIOD FOR a(a, a);
+reject	reject	engine	alter_list_item/ADD_PERIOD_SYM_opt_if_not_exists_table_element_period_for_application_time	ALTER TABLE a ADD PERIOD FOR a(a, a);
 reject	reject	engine	alter_list_item/ADD_PERIOD_SYM_opt_if_not_exists_table_element_period_for_application_time!drop-1	ALTER TABLE a PERIOD FOR a(a, a);
 reject	reject	engine	alter_list_item/ADD_PERIOD_SYM_opt_if_not_exists_table_element_period_for_application_time!drop-2	ALTER TABLE a ADD FOR a(a, a);
 reject	reject	engine	alter_list_item/ADD_PERIOD_SYM_opt_if_not_exists_table_element_period_for_application_time!swap	ALTER TABLE a ADDDATE PERIOD FOR a(a, a);
@@ -4263,14 +4263,14 @@ reject	reject	engine	alter_list_item/DROP_PERIOD_SYM_opt_if_exists_table_element
 reject	reject	engine	alter_list_item/DROP_PERIOD_SYM_opt_if_exists_table_element_FOR_SYM_ident!truncate	ALTER TABLE a DROP PERIOD FOR
 reject	reject	engine	alter_list_item/DROP_PERIOD_SYM_opt_if_exists_table_element_FOR_SYM_ident!insert	ALTER TABLE a DROP PERIOD FOR a zzz;
 reject	reject	engine	alter_list_item/DROP_PERIOD_SYM_opt_if_exists_table_element_FOR_SYM_ident!swap	ALTER TABLE a DUAL PERIOD FOR a;
-accept	reject	engine	opt_without_validation/%empty	ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a;
-accept	reject	engine	opt_without_validation/WITH_VALIDATION_SYM	ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a WITH VALIDATION;
+reject	reject	engine	opt_without_validation/%empty	ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a;
+reject	reject	engine	opt_without_validation/WITH_VALIDATION_SYM	ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a WITH VALIDATION;
 reject	reject	engine	opt_without_validation/WITH_VALIDATION_SYM!drop-1	ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a VALIDATION;
 reject	reject	engine	opt_without_validation/WITH_VALIDATION_SYM!drop-2	ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a WITH;
 reject	reject	engine	opt_without_validation/WITH_VALIDATION_SYM!truncate	ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a WITH
 reject	reject	engine	opt_without_validation/WITH_VALIDATION_SYM!insert	ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a WITH VALIDATION zzz;
 reject	reject	engine	opt_without_validation/WITH_VALIDATION_SYM!swap	ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a WITHIN VALIDATION;
-accept	reject	engine	opt_without_validation/WITHOUT_VALIDATION_SYM	ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a WITHOUT VALIDATION;
+reject	reject	engine	opt_without_validation/WITHOUT_VALIDATION_SYM	ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a WITHOUT VALIDATION;
 reject	reject	engine	opt_without_validation/WITHOUT_VALIDATION_SYM!drop-2	ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a WITHOUT;
 reject	reject	engine	opt_without_validation/WITHOUT_VALIDATION_SYM!truncate	ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a WITHOUT
 reject	reject	engine	opt_without_validation/WITHOUT_VALIDATION_SYM!insert	ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a WITHOUT VALIDATION zzz;
@@ -9365,7 +9365,7 @@ reject	reject	engine	field_ident/ident_._ident_._ident!drop-4	ALTER TABLE a DROP
 reject	reject	engine	field_ident/ident_._ident_._ident!drop-5	ALTER TABLE a DROP a.a.;
 reject	reject	engine	field_ident/ident_._ident_._ident!truncate	ALTER TABLE a DROP a.a.
 reject	reject	engine	field_ident/ident_._ident_._ident!insert	ALTER TABLE a DROP a.a.a zzz;
-reject	accept	engine	field_ident/ident_._ident	ALTER TABLE a DROP a.a;
+accept	accept	engine	field_ident/ident_._ident	ALTER TABLE a DROP a.a;
 reject	reject	engine	field_ident/ident_._ident!drop-2	ALTER TABLE a DROP a a;
 reject	reject	engine	field_ident/ident_._ident!drop-3	ALTER TABLE a DROP a.;
 reject	reject	engine	field_ident/ident_._ident!truncate	ALTER TABLE a DROP a.

@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	nodes "github.com/bytebase/omni/mariadb/ast"
@@ -102,6 +103,18 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		for _, cmd := range stmt.Commands {
 			if addsColumnVersioning(cmd) {
 				return errNotSystemVersioned(tbl.Name)
+			}
+		}
+		// So is a ROW START or ROW END column, unless the statement makes the
+		// table system-versioned too. Measured on mariadb:11.8.8, which answers
+		// 4124 for `ALTER TABLE t ADD s TIMESTAMP(6) AS ROW START` and for MODIFY,
+		// before it looks at the column's name or keys, and runs the ADD of both
+		// columns, the period and SYSTEM VERSIONING in one statement.
+		if !alterAddsSystemVersioning(stmt.Commands) {
+			for _, cmd := range stmt.Commands {
+				if addsRowBoundColumn(cmd) {
+					return errNotSystemVersioned(tbl.Name)
+				}
 			}
 		}
 	} else {
@@ -291,6 +304,10 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 		return c.alterReorganizePartition(tbl, cmd)
 	case nodes.ATExchangePartition:
 		return c.alterExchangePartition(db, tbl, cmd)
+	case nodes.ATConvertPartitionToTable:
+		return c.alterConvertPartitionToTable(db, tbl, cmd)
+	case nodes.ATConvertTableToPartition:
+		return c.alterConvertTableToPartition(db, tbl, cmd)
 	case nodes.ATRemovePartitioning:
 		tbl.Partitioning = nil
 		return nil
@@ -460,6 +477,33 @@ func addsColumnVersioning(cmd *nodes.AlterTableCmd) bool {
 	return false
 }
 
+// alterAddsSystemVersioning reports whether a command of the statement is ADD
+// SYSTEM VERSIONING.
+func alterAddsSystemVersioning(cmds []*nodes.AlterTableCmd) bool {
+	for _, cmd := range cmds {
+		if cmd.Type == nodes.ATAddSystemVersioning {
+			return true
+		}
+	}
+	return false
+}
+
+// addsRowBoundColumn reports whether an ADD, MODIFY or CHANGE gives a column
+// GENERATED ALWAYS AS ROW START or ROW END.
+func addsRowBoundColumn(cmd *nodes.AlterTableCmd) bool {
+	switch cmd.Type {
+	case nodes.ATAddColumn, nodes.ATModifyColumn, nodes.ATChangeColumn:
+	default:
+		return false
+	}
+	for _, c := range append([]*nodes.ColumnDef{cmd.Column}, cmd.Columns...) {
+		if c != nil && c.Generated != nil && c.Generated.RowBound != nodes.RowBoundNone {
+			return true
+		}
+	}
+	return false
+}
+
 // colDefHasVersioningMeta reports whether a column definition carries
 // system-versioning metadata (a ROW START/END bound or WITH/WITHOUT versioning).
 func colDefHasVersioningMeta(colDef *nodes.ColumnDef) bool {
@@ -481,6 +525,9 @@ func (c *Catalog) alterAddColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	// the primary key for exactly that statement.
 	if len(cmd.Columns) > 0 || len(cmd.Constraints) > 0 {
 		for _, colDef := range cmd.Columns {
+			if cmd.IfNotExists && tableHasColumn(tbl, colDef.Name) {
+				continue
+			}
 			if err := c.addSingleColumn(tbl, colDef, false, ""); err != nil {
 				return err
 			}
@@ -503,8 +550,21 @@ func (c *Catalog) alterAddColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if colDef == nil {
 		return nil
 	}
+	// ADD IF NOT EXISTS leaves a column already there as it is, with a note
+	// (1060), and so does it for each column of the paren form. A plain ADD
+	// of the name after it still fails: MariaDB 11.8.8 answers 1060 for
+	// `ADD IF NOT EXISTS c INT, ADD c INT` and a note for the other order.
+	if cmd.IfNotExists && tableHasColumn(tbl, colDef.Name) {
+		return nil
+	}
 
 	return c.addSingleColumn(tbl, colDef, cmd.First, cmd.After)
+}
+
+// tableHasColumn reports whether the table has a column of the name.
+func tableHasColumn(tbl *Table, name string) bool {
+	_, ok := tbl.colByName[toLower(name)]
+	return ok
 }
 
 // addSingleColumn adds one column definition to the table.
@@ -518,6 +578,9 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 	}
 
 	col := buildColumnFromDef(tbl, colDef)
+	if err := c.applyColumnEngineOptions(tbl, col, colDef); err != nil {
+		return err
+	}
 	if col.AutoIncrement && tableHasOtherAutoIncrementColumn(tbl, "") {
 		return errIncorrectAutoIncrementDefinition()
 	}
@@ -898,6 +961,9 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 	}
 
 	col := buildColumnFromDef(tbl, colDef)
+	if err := c.applyColumnEngineOptions(tbl, col, colDef); err != nil {
+		return err
+	}
 	if col.AutoIncrement && tableHasOtherAutoIncrementColumn(tbl, oldName) {
 		return errIncorrectAutoIncrementDefinition()
 	}
@@ -2028,7 +2094,7 @@ var _ = strings.ToLower
 // alterAddPartition adds partition definitions to a partitioned table.
 func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if tbl.Partitioning == nil {
-		return fmt.Errorf("ALTER TABLE ADD PARTITION: table '%s' is not partitioned", tbl.Name)
+		return errPartitionMgmtOnNonpartitioned()
 	}
 	if cmd.Number > 0 && len(cmd.PartitionDefs) == 0 {
 		start := len(tbl.Partitioning.Partitions)
@@ -2043,12 +2109,19 @@ func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd) error 
 		tbl.Partitioning.NumParts = len(tbl.Partitioning.Partitions)
 		return nil
 	}
+	if err := checkAddedPartitionKinds(tbl.Partitioning, cmd.PartitionDefs); err != nil {
+		return err
+	}
+	if err := checkAddedRangeBounds(tbl, cmd.PartitionDefs); err != nil {
+		return err
+	}
 	for _, pd := range cmd.PartitionDefs {
 		pdi := &PartitionDefInfo{
 			Name: pd.Name,
 		}
 		if pd.Values != nil {
 			pdi.ValueExpr = partitionValueToString(pd.Values, partitionTypeFromString(tbl.Partitioning.Type))
+			pdi.bound = pd.Values
 		}
 		for _, opt := range pd.Options {
 			switch toLower(opt.Name) {
@@ -2071,7 +2144,7 @@ func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd) error 
 // alterDropPartition drops named partitions from a partitioned table.
 func (c *Catalog) alterDropPartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if tbl.Partitioning == nil {
-		return fmt.Errorf("ALTER TABLE DROP PARTITION: table '%s' is not partitioned", tbl.Name)
+		return errPartitionMgmtOnNonpartitioned()
 	}
 	dropSet := make(map[string]bool)
 	for _, name := range cmd.PartitionNames {
@@ -2090,7 +2163,7 @@ func (c *Catalog) alterDropPartition(tbl *Table, cmd *nodes.AlterTableCmd) error
 // alterTruncatePartition truncates named partitions (no-op for metadata catalog).
 func (c *Catalog) alterTruncatePartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if tbl.Partitioning == nil {
-		return fmt.Errorf("ALTER TABLE TRUNCATE PARTITION: table '%s' is not partitioned", tbl.Name)
+		return errPartitionMgmtOnNonpartitioned()
 	}
 	// Truncate is a data operation; for DDL catalog purposes, it's a no-op.
 	return nil
@@ -2099,7 +2172,7 @@ func (c *Catalog) alterTruncatePartition(tbl *Table, cmd *nodes.AlterTableCmd) e
 // alterCoalescePartition reduces the number of partitions for HASH/KEY partitioned tables.
 func (c *Catalog) alterCoalescePartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if tbl.Partitioning == nil {
-		return fmt.Errorf("ALTER TABLE COALESCE PARTITION: table '%s' is not partitioned", tbl.Name)
+		return errPartitionMgmtOnNonpartitioned()
 	}
 	// Determine current partition count.
 	currentCount := len(tbl.Partitioning.Partitions)
@@ -2120,7 +2193,7 @@ func (c *Catalog) alterCoalescePartition(tbl *Table, cmd *nodes.AlterTableCmd) e
 // alterReorganizePartition reorganizes partitions into new definitions.
 func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if tbl.Partitioning == nil {
-		return fmt.Errorf("ALTER TABLE REORGANIZE PARTITION: table '%s' is not partitioned", tbl.Name)
+		return errPartitionMgmtOnNonpartitioned()
 	}
 	// Remove the old partitions.
 	dropSet := make(map[string]bool)
@@ -2150,6 +2223,7 @@ func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd)
 		}
 		if pd.Values != nil {
 			pdi.ValueExpr = partitionValueToString(pd.Values, partitionTypeFromString(tbl.Partitioning.Type))
+			pdi.bound = pd.Values
 		}
 		for _, opt := range pd.Options {
 			switch toLower(opt.Name) {
@@ -2182,7 +2256,7 @@ func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd)
 // alterExchangePartition exchanges a partition with a non-partitioned table.
 func (c *Catalog) alterExchangePartition(db *Database, tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if tbl.Partitioning == nil {
-		return fmt.Errorf("ALTER TABLE EXCHANGE PARTITION: table '%s' is not partitioned", tbl.Name)
+		return errPartitionMgmtOnNonpartitioned()
 	}
 	// For DDL catalog purposes, exchange is primarily a data operation.
 	// We just validate both tables exist.
@@ -2200,6 +2274,295 @@ func (c *Catalog) alterExchangePartition(db *Database, tbl *Table, cmd *nodes.Al
 		}
 	}
 	return nil
+}
+
+// alterConvertPartitionToTable runs CONVERT PARTITION p TO TABLE t: the partition
+// leaves the table and becomes t, a table of the same definition with no
+// partitioning. Measured on mariadb:11.8.8, which answers 1505 on a table with no
+// partitions, 1512 on one partitioned other than by RANGE or LIST, 4184 on one
+// with subpartitions, 1507 for a
+// partition it does not have, 1508 for its last partition and 1050 for a table t
+// that exists.
+func (c *Catalog) alterConvertPartitionToTable(db *Database, tbl *Table, cmd *nodes.AlterTableCmd) error {
+	if tbl.Partitioning == nil {
+		return errPartitionMgmtOnNonpartitioned()
+	}
+	if !strings.HasPrefix(tbl.Partitioning.Type, "RANGE") && !strings.HasPrefix(tbl.Partitioning.Type, "LIST") {
+		return errOnlyOnRangeListPartitioning("CONVERT PARTITION")
+	}
+	if tbl.Partitioning.SubType != "" {
+		return &Error{Code: 4184, SQLState: "HY000", Message: "Convert partition is not supported for subpartitioned table."}
+	}
+	at := -1
+	for i, pd := range tbl.Partitioning.Partitions {
+		if strings.EqualFold(pd.Name, cmd.Name) {
+			at = i
+		}
+	}
+	if at < 0 {
+		return errDropPartitionNonExistent()
+	}
+	if len(tbl.Partitioning.Partitions) == 1 {
+		return errDropLastPartition()
+	}
+	target, err := c.resolveDatabase(cmd.ConvertTable.Schema)
+	if err != nil {
+		return err
+	}
+	key := toLower(cmd.ConvertTable.Name)
+	switch {
+	case target.Tables[key] == tbl:
+		// The table itself: MariaDB 11.8.8 runs it, and SHOW CREATE TABLE then
+		// shows the table without the partition and no other table. The
+		// server's files are not right after it (a later DROP TABLE leaves a
+		// table behind), so no oracle test pins it.
+	case target.Tables[key] != nil || target.Views[key] != nil:
+		return errDupTable(cmd.ConvertTable.Name)
+	default:
+		if err := c.createTableLike(target, cmd.ConvertTable.Name, key, tbl, &nodes.CreateTableStmt{}); err != nil {
+			return err
+		}
+	}
+	parts := tbl.Partitioning.Partitions
+	tbl.Partitioning.Partitions = append(parts[:at:at], parts[at+1:]...)
+	tbl.Partitioning.NumParts = len(tbl.Partitioning.Partitions)
+	return nil
+}
+
+// alterConvertTableToPartition runs CONVERT TABLE t TO PARTITION part_definition:
+// t becomes a new partition of the table and is gone. Measured on mariadb:11.8.8,
+// which answers 1505 on a table with no partitions, 1734 on one with
+// subpartitions, 1146 for a table t that does
+// not exist, 1736 for one whose definition is not the table's or that has
+// partitions of its own, and 1517 for a partition name the table has.
+func (c *Catalog) alterConvertTableToPartition(db *Database, tbl *Table, cmd *nodes.AlterTableCmd) error {
+	if tbl.Partitioning == nil {
+		return errPartitionMgmtOnNonpartitioned()
+	}
+	if tbl.Partitioning.SubType != "" {
+		return &Error{Code: 1734, SQLState: "HY000", Message: "Subpartitioned table, use subpartition instead of partition"}
+	}
+	source, err := c.resolveDatabase(cmd.ConvertTable.Schema)
+	if err != nil {
+		return err
+	}
+	src := source.GetTable(cmd.ConvertTable.Name)
+	if src == nil {
+		return errNoSuchTable(source.Name, cmd.ConvertTable.Name)
+	}
+	// The source is a table of no partitions: a partitioned one is 1736 whatever
+	// its columns, and so is a definition other than the table's.
+	if src.Partitioning != nil || c.tableDefinitionText(src) != c.tableDefinitionText(tbl) {
+		return errTablesDifferentMetadata()
+	}
+	// The new partition's name is one the table does not have (1517), and its
+	// bound comes after the table's last (1493, 1481), checked before either
+	// table changes.
+	for _, pd := range cmd.PartitionDefs {
+		for _, have := range tbl.Partitioning.Partitions {
+			if strings.EqualFold(have.Name, pd.Name) {
+				return errSameNamePartition(pd.Name)
+			}
+		}
+	}
+	// alterAddPartition orders the bound before it adds anything.
+	if err := c.alterAddPartition(tbl, &nodes.AlterTableCmd{PartitionDefs: cmd.PartitionDefs}); err != nil {
+		return err
+	}
+	c.dropReplacedTable(source, src)
+	return nil
+}
+
+// tableDefinitionText is SHOW CREATE TABLE of the table without its name and its
+// partitioning, which is what CONVERT TABLE holds the two tables to. The table is
+// printed with no partitioning rather than cut at the clause, which a comment can
+// spell too, and loses the exact head that names it, which a quoted name can make
+// look like anything.
+func (c *Catalog) tableDefinitionText(tbl *Table) string {
+	partitioning := tbl.Partitioning
+	tbl.Partitioning = nil
+	text := c.ShowCreateTable(tbl.Database.Name, tbl.Name)
+	tbl.Partitioning = partitioning
+	text = strings.TrimPrefix(text, "CREATE TABLE "+backtickIDQ(tbl.Name))
+	return strings.TrimPrefix(text, "CREATE TEMPORARY TABLE "+backtickIDQ(tbl.Name))
+}
+
+// checkAddedPartitionKinds holds each partition ADD PARTITION and CONVERT TABLE
+// add to the bound its table's partitioning takes: VALUES LESS THAN on RANGE,
+// VALUES IN or DEFAULT on LIST, HISTORY or CURRENT on SYSTEM_TIME, and none on
+// HASH and KEY. Measured on mariadb:11.8.8: VALUES IN or DEFAULT on another is
+// 1480, LESS THAN on another is 1480, no bound on RANGE or LIST is 1479, and
+// HISTORY or CURRENT on another is 4113.
+func checkAddedPartitionKinds(pi *PartitionInfo, defs []*nodes.PartitionDef) error {
+	isRange := strings.HasPrefix(pi.Type, "RANGE")
+	isList := strings.HasPrefix(pi.Type, "LIST")
+	for _, pd := range defs {
+		def, _ := pd.Values.(*nodes.String)
+		isDefault := def != nil && strings.EqualFold(def.Str, "DEFAULT")
+		switch {
+		case pd.SystemTime != "":
+			if pi.Type != "SYSTEM_TIME" {
+				return &Error{Code: 4113, SQLState: "HY000", Message: "Only SYSTEM_TIME PARTITIONING can use HISTORY or CURRENT in partition definition"}
+			}
+		case pd.ValuesIn || isDefault:
+			if !isList {
+				return &Error{Code: 1480, SQLState: "HY000", Message: "Only LIST PARTITIONING can use VALUES IN in partition definition"}
+			}
+		case pd.Values != nil:
+			if !isRange {
+				return &Error{Code: 1480, SQLState: "HY000", Message: "Only RANGE PARTITIONING can use VALUES LESS THAN in partition definition"}
+			}
+		case isRange:
+			return &Error{Code: 1479, SQLState: "HY000", Message: "Syntax error: RANGE PARTITIONING requires definition of VALUES LESS THAN for each partition"}
+		case isList:
+			return &Error{Code: 1479, SQLState: "HY000", Message: "Syntax error: LIST PARTITIONING requires definition of VALUES IN for each partition"}
+		}
+		if !isDefault && pd.Values != nil && !boundFitsColumns(pi, pd) {
+			return &Error{Code: 1653, SQLState: "HY000", Message: "Inconsistency in usage of column lists for partitioning"}
+		}
+	}
+	return nil
+}
+
+// boundFitsColumns reports whether a partition's bound has the width its table's
+// partitioning takes: one value per COLUMNS column, one value with no COLUMNS, and
+// for LIST each value of that width. MariaDB 11.8.8 answers 1653 for LESS THAN (20)
+// on RANGE COLUMNS (a, b), for LESS THAN (20, 30) on RANGE (a), for IN (3) on LIST
+// COLUMNS (a, b) and for IN ((3, 4)) on LIST (a).
+func boundFitsColumns(pi *PartitionInfo, pd *nodes.PartitionDef) bool {
+	width := len(pi.Columns)
+	if width == 0 {
+		width = 1
+	}
+	if !pd.ValuesIn {
+		return len(partitionBoundItems(pd.Values)) == width
+	}
+	for _, item := range partitionBoundItems(pd.Values) {
+		if len(partitionBoundItems(item)) != width {
+			return false
+		}
+	}
+	return true
+}
+
+// checkAddedRangeBounds holds the partitions ADD PARTITION and CONVERT TABLE add
+// to a LIST table to values of their own (checkAddedListValues), and to a RANGE or
+// RANGE COLUMNS table to bounds that go on rising from the table's
+// last: past a MAXVALUE partition is 1481 on RANGE, and a bound not above the one
+// before is 1493. Measured on mariadb:11.8.8, which answers 1493 for
+// `ADD PARTITION (PARTITION p1 VALUES LESS THAN (5))` after LESS THAN (10), and
+// for a bound equal to it. A bound the catalog cannot order passes.
+func checkAddedRangeBounds(tbl *Table, defs []*nodes.PartitionDef) error {
+	pi := tbl.Partitioning
+	if pi != nil && (pi.Type == "LIST" || pi.Type == "LIST COLUMNS") {
+		return checkAddedListValues(pi, defs)
+	}
+	if pi == nil || (pi.Type != "RANGE" && pi.Type != "RANGE COLUMNS") {
+		return nil
+	}
+	var prev nodes.Node
+	if n := len(pi.Partitions); n > 0 {
+		prev = pi.Partitions[n-1].bound
+	}
+	kinds := rangeColumnsBoundKinds(tbl, pi.Columns)
+	for _, pd := range defs {
+		cur := pd.Values
+		if prev != nil && cur != nil {
+			if pi.Type == "RANGE COLUMNS" {
+				if rangeColumnsNotIncreasing(prev, cur, kinds) {
+					return errRangeNotIncreasing()
+				}
+			} else {
+				p, c := partitionBoundItems(prev), partitionBoundItems(cur)
+				if len(p) == 1 && isPartitionMaxvalue(p[0]) {
+					return &Error{Code: 1481, SQLState: "HY000", Message: "MAXVALUE can only be used in last partition definition"}
+				}
+				if len(p) == 1 && len(c) == 1 {
+					pv, ok1 := partitionBoundInt(p[0])
+					cv, ok2 := partitionBoundInt(c[0])
+					if ok1 && ok2 && cv <= pv {
+						return errRangeNotIncreasing()
+					}
+				}
+			}
+		}
+		prev = cur
+	}
+	return nil
+}
+
+// checkAddedListValues holds the partitions added to a LIST or LIST COLUMNS table
+// to values no partition holds yet, theirs or each other's: MariaDB 11.8.8 answers
+// 1495 for `ADD PARTITION (PARTITION p1 VALUES IN (1))` beside IN (1, 2), for two
+// new partitions of one value, for a tuple again and for NULL again. A partition
+// whose values the catalog does not hold is passed over.
+func checkAddedListValues(pi *PartitionInfo, defs []*nodes.PartitionDef) error {
+	seen := make(map[string]bool)
+	add := func(bound nodes.Node) bool {
+		for _, item := range partitionBoundItems(bound) {
+			key := listValueKey(item)
+			if key == "" {
+				continue
+			}
+			if seen[key] {
+				return false
+			}
+			seen[key] = true
+		}
+		return true
+	}
+	for _, have := range pi.Partitions {
+		if have.bound != nil {
+			add(have.bound)
+		}
+	}
+	for _, pd := range defs {
+		if pd.Values != nil && !add(pd.Values) {
+			return &Error{Code: 1495, SQLState: "HY000", Message: "Multiple definition of same constant in list partitioning"}
+		}
+	}
+	return nil
+}
+
+// listValueKey is a LIST value as checkAddedListValues compares it: an integer by
+// its value, a tuple by its members, a tuple of one as its member, and anything
+// else by its text as written; "" for a value it cannot compare. Text is compared
+// exactly, since whether 'a' and 'A' are one value is the column's collation's to
+// say: a utf8mb4_bin column holds both, and the catalog passes what it cannot
+// settle.
+func listValueKey(n nodes.Node) string {
+	if l, ok := n.(*nodes.List); ok {
+		if len(l.Items) == 1 {
+			return listValueKey(l.Items[0])
+		}
+		keys := make([]string, len(l.Items))
+		for i, item := range l.Items {
+			if keys[i] = listValueKey(item); keys[i] == "" {
+				return ""
+			}
+		}
+		return "(" + strings.Join(keys, ", ") + ")"
+	}
+	if v, ok := partitionBoundInt(n); ok {
+		return strconv.FormatInt(v, 10)
+	}
+	// An integer partitionBoundInt declines is one the lexer clamped, so two of
+	// them written apart can read alike: not comparable.
+	if _, ok := n.(*nodes.IntLit); ok {
+		return ""
+	}
+	switch v := n.(type) {
+	case nodes.ExprNode:
+		return nodeToSQL(v)
+	case *nodes.String:
+		return v.Str
+	}
+	return ""
+}
+
+// errRangeNotIncreasing is 1493, a RANGE bound not above the one before it.
+func errRangeNotIncreasing() error {
+	return &Error{Code: 1493, SQLState: "HY000", Message: "VALUES LESS THAN value must be strictly increasing for each partition"}
 }
 
 // partitionTypeFromString converts a string partition type to AST PartitionType.

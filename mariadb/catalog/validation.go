@@ -85,7 +85,10 @@ func validateColumnDefSemantics(colDef *nodes.ColumnDef, indexed map[string]bool
 	if colDef.Generated != nil && (colDef.DefaultValue != nil || hasColumnDefaultConstraint(colDef)) {
 		return errInvalidDefault(colDef.Name)
 	}
-	if colDef.Generated != nil {
+	// A ROW START or ROW END column has no expression and holds a value of its
+	// own, so a key may cover it: MariaDB 11.8.8 makes `s TIMESTAMP(6) AS ROW
+	// START KEY` the primary key.
+	if colDef.Generated != nil && colDef.Generated.RowBound == nodes.RowBoundNone {
 		// A key over the column makes a VIRTUAL value materialized, and the
 		// server then refuses a non-deterministic expression for it.
 		stored := colDef.Generated.Stored || columnDefHasKey(colDef) ||
@@ -237,7 +240,7 @@ func errPrimaryKeyOnGeneratedColumn(colName string) error {
 func validatePrimaryKeyColumns(tbl *Table, cols []string) error {
 	for _, colName := range cols {
 		col := tbl.GetColumn(colName)
-		if col != nil && col.Generated != nil && !col.Generated.Stored {
+		if col != nil && col.Generated != nil && !col.Generated.Stored && col.Generated.RowBound == "" {
 			return errPrimaryKeyOnGeneratedColumn(colName)
 		}
 	}
