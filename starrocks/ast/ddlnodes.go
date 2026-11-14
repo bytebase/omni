@@ -327,9 +327,14 @@ type AlterTableAction struct {
 	// CompactType is "BASE", "CUMULATIVE" or "" for COMPACT.
 	CompactType string
 	// RefName names the branch or tag; OrReplace records CREATE OR REPLACE
-	// or REPLACE.
-	RefName   string
-	OrReplace bool
+	// or REPLACE. AsOfVersion, RetainTime, MinSnapshots and MaxSnapshotAge
+	// hold the branch or tag options as written ("" when absent).
+	RefName        string
+	OrReplace      bool
+	AsOfVersion    string
+	RetainTime     string
+	MinSnapshots   string
+	MaxSnapshotAge string
 	// Call is the function call of EXECUTE.
 	Call Node
 	// TabletIDs lists DROP PERSISTENT INDEX ON TABLETS (ids).

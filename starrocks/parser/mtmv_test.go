@@ -349,6 +349,20 @@ func TestAlterMTMV_RefreshComplete(t *testing.T) {
 	}
 }
 
+func TestAlterMTMV_RefreshAsyncSchedule(t *testing.T) {
+	stmt := parseAlterMTMVStmt(t, "ALTER MATERIALIZED VIEW mv REFRESH ASYNC START ('2024-01-01') EVERY (INTERVAL 1 DAY)")
+	tr := stmt.RefreshTrigger
+	if tr == nil {
+		t.Fatal("RefreshTrigger is nil")
+	}
+	if !tr.OnSchedule || tr.StartsAt != "2024-01-01" || tr.Interval != "1 DAY" {
+		t.Errorf("RefreshTrigger = %+v, want schedule from 2024-01-01 every 1 DAY", tr)
+	}
+	if stmt := parseAlterMTMVStmt(t, "ALTER MATERIALIZED VIEW mv REFRESH ASYNC"); stmt.RefreshTrigger != nil {
+		t.Errorf("REFRESH ASYNC: RefreshTrigger = %+v, want nil", stmt.RefreshTrigger)
+	}
+}
+
 func TestAlterMTMV_SetProperties(t *testing.T) {
 	// Legacy corpus: ALTER MATERIALIZED VIEW partition_mv SET ("grace_period" = "10", ...);
 	sql := `ALTER MATERIALIZED VIEW partition_mv SET ("grace_period" = "10", "excluded_trigger_tables" = "lineitem,partsupp")`

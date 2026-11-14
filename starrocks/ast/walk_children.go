@@ -601,6 +601,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.SwapWith != nil {
 			Walk(v, n.SwapWith)
 		}
+		if n.RefreshTrigger != nil {
+			Walk(v, n.RefreshTrigger)
+		}
 		for _, prop := range n.Properties {
 			Walk(v, prop)
 		}

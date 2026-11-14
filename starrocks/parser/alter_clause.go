@@ -1061,7 +1061,7 @@ func (p *Parser) parseAlterCreateOrReplaceClause(action *ast.AlterTableAction) e
 		return err
 	}
 	action.RefName = name
-	return p.parseAlterRefOptions(action.Type == ast.AlterCreateBranch)
+	return p.parseAlterRefOptions(action, action.Type == ast.AlterCreateBranch)
 }
 
 // parseAlterRefOptions reads tagOptions (StarRocks.g4:1106) or branchOptions
@@ -1073,7 +1073,8 @@ func (p *Parser) parseAlterCreateOrReplaceClause(action *ast.AlterTableAction) e
 // snapshotId and number are StarRocks.g4:2906 number, but the AST builder
 // reads each as a long, so only an INTEGER_VALUE is accepted (RETAIN 1.5
 // DAYS is refused).
-func (p *Parser) parseAlterRefOptions(branch bool) error {
+func (p *Parser) parseAlterRefOptions(action *ast.AlterTableAction, branch bool) error {
+	var err error
 	if p.cur.Kind == kwAS {
 		p.advance()
 		if _, err := p.alterExpectWord("OF"); err != nil {
@@ -1082,14 +1083,16 @@ func (p *Parser) parseAlterRefOptions(branch bool) error {
 		if _, err := p.alterExpectWord("VERSION"); err != nil {
 			return err
 		}
-		if _, err := p.alterExpectInt(); err != nil {
+		tok, err := p.alterExpectInt()
+		if err != nil {
 			return err
 		}
+		action.AsOfVersion = tok.Str
 	}
 	if p.alterAt("RETAIN") {
 		// StarRocks.g4:1120 refRetain: RETAIN number timeUnit
 		p.advance()
-		if err := p.parseAlterTimeValue(); err != nil {
+		if action.RetainTime, err = p.parseAlterTimeValue(); err != nil {
 			return err
 		}
 	}
@@ -1106,29 +1109,31 @@ func (p *Parser) parseAlterRefOptions(branch bool) error {
 			return err
 		}
 		if p.cur.Kind == tokInt && alterWordTok(p.peekNext(), "SNAPSHOTS") {
-			p.advance()
-			p.advance()
+			action.MinSnapshots = p.advance().Str
+			p.advance() // consume SNAPSHOTS
 			if p.cur.Kind == tokInt {
-				return p.parseAlterTimeValue()
+				action.MaxSnapshotAge, err = p.parseAlterTimeValue()
 			}
-			return nil
+			return err
 		}
-		return p.parseAlterTimeValue()
+		action.MaxSnapshotAge, err = p.parseAlterTimeValue()
+		return err
 	}
 	return nil
 }
 
 // parseAlterTimeValue reads number timeUnit (StarRocks.g4:1124
-// maxSnapshotAge, timeUnit StarRocks.g4:1136: DAYS | HOURS | MINUTES).
-func (p *Parser) parseAlterTimeValue() error {
-	if _, err := p.alterExpectInt(); err != nil {
-		return err
+// maxSnapshotAge, timeUnit StarRocks.g4:1136: DAYS | HOURS | MINUTES) and
+// returns it as written, "7 DAYS".
+func (p *Parser) parseAlterTimeValue() (string, error) {
+	n, err := p.alterExpectInt()
+	if err != nil {
+		return "", err
 	}
 	if p.alterAt("DAYS") || p.alterAt("HOURS") || p.alterAt("MINUTES") {
-		p.advance()
-		return nil
+		return n.Str + " " + strings.ToUpper(p.advance().Str), nil
 	}
-	return p.syntaxErrorAtCur()
+	return "", p.syntaxErrorAtCur()
 }
 
 // parseAlterTableOperation reads tableOperationClause (StarRocks.g4:1102):

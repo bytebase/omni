@@ -453,14 +453,17 @@ func (p *Parser) parseAlterMTMVRefresh(stmt *ast.AlterMTMVStmt) error {
 	case p.alterAt("ASYNC"):
 		method = append(method, "ASYNC")
 		p.advance()
+		trigger := &ast.MTMVRefreshTrigger{OnSchedule: true, Loc: p.cur.Loc}
 		if p.alterAt("START") {
 			p.advance()
 			if _, err := p.expect(int('(')); err != nil {
 				return err
 			}
-			if _, err := p.alterExpectString(); err != nil {
+			start, err := p.alterExpectString()
+			if err != nil {
 				return err
 			}
+			trigger.StartsAt = start.Str
 			if _, err := p.expect(int(')')); err != nil {
 				return err
 			}
@@ -476,16 +479,19 @@ func (p *Parser) parseAlterMTMVRefresh(stmt *ast.AlterMTMVStmt) error {
 			if _, err := p.expect(kwINTERVAL); err != nil {
 				return err
 			}
-			if _, err := p.alterExpectInt(); err != nil {
+			n, err := p.alterExpectInt()
+			if err != nil {
 				return err
 			}
 			if !alterIsUnitIdentifier(p.cur) {
 				return p.syntaxErrorAtCur()
 			}
-			p.advance()
+			trigger.Interval = n.Str + " " + strings.ToUpper(p.advance().Str)
 			if _, err := p.expect(int(')')); err != nil {
 				return err
 			}
+			trigger.Loc.End = p.prev.Loc.End
+			stmt.RefreshTrigger = trigger
 		}
 	case p.cur.Kind == kwINCREMENTAL, p.alterAt("MANUAL"):
 		method = append(method, strings.ToUpper(p.advance().Str))

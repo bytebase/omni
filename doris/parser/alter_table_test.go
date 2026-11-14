@@ -831,3 +831,30 @@ func TestAlterTableLegacyRollup(t *testing.T) {
 	}
 	runAlterTableTests(t, cases)
 }
+
+func TestAlterTableBranchTagOptions(t *testing.T) {
+	runAlterTableTests(t, []alterTableTestCase{
+		{
+			sql: "ALTER TABLE t CREATE BRANCH b AS OF VERSION 123 RETAIN 7 DAYS WITH SNAPSHOT RETENTION 5 SNAPSHOTS 2 HOURS",
+			check: func(t *testing.T, stmt *ast.AlterTableStmt) {
+				a := stmt.Actions[0]
+				if a.Type != ast.AlterCreateBranch || a.RefName != "b" {
+					t.Fatalf("got %v %q, want AlterCreateBranch b", a.Type, a.RefName)
+				}
+				if a.AsOfVersion != "123" || a.RetainTime != "7 DAYS" || a.MinSnapshots != "5" || a.MaxSnapshotAge != "2 HOURS" {
+					t.Errorf("options = %q %q %q %q, want 123, 7 DAYS, 5, 2 HOURS",
+						a.AsOfVersion, a.RetainTime, a.MinSnapshots, a.MaxSnapshotAge)
+				}
+			},
+		},
+		{
+			sql: "ALTER TABLE t CREATE OR REPLACE TAG g AS OF VERSION 9 RETAIN 30 MINUTES",
+			check: func(t *testing.T, stmt *ast.AlterTableStmt) {
+				a := stmt.Actions[0]
+				if a.Type != ast.AlterCreateTag || !a.OrReplace || a.AsOfVersion != "9" || a.RetainTime != "30 MINUTES" {
+					t.Errorf("got %+v", a)
+				}
+			},
+		},
+	})
+}
