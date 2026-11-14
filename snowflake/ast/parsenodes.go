@@ -2220,24 +2220,31 @@ var _ Node = (*CreateMaterializedViewStmt)(nil)
 type AlterViewAction int
 
 const (
-	AlterViewRename                   AlterViewAction = iota // RENAME TO
-	AlterViewSetComment                                      // SET COMMENT = '...'
-	AlterViewUnsetComment                                    // UNSET COMMENT
-	AlterViewSetSecure                                       // SET SECURE
-	AlterViewUnsetSecure                                     // UNSET SECURE
-	AlterViewSetTag                                          // SET TAG (...)
-	AlterViewUnsetTag                                        // UNSET TAG (...)
-	AlterViewAddRowAccessPolicy                              // ADD ROW ACCESS POLICY
-	AlterViewDropRowAccessPolicy                             // DROP ROW ACCESS POLICY
-	AlterViewDropAllRowAccessPolicies                        // DROP ALL ROW ACCESS POLICIES
-	AlterViewColumnSetMaskingPolicy                          // ALTER COLUMN col SET MASKING POLICY
-	AlterViewColumnUnsetMaskingPolicy                        // ALTER COLUMN col UNSET MASKING POLICY
-	AlterViewColumnSetTag                                    // ALTER COLUMN col SET TAG (...)
-	AlterViewColumnUnsetTag                                  // ALTER COLUMN col UNSET TAG (...)
-	AlterViewSetAggregationPolicy                            // SET AGGREGATION POLICY name [ ENTITY KEY (...) ] [ FORCE ]
-	AlterViewUnsetAggregationPolicy                          // UNSET AGGREGATION POLICY
-	AlterViewSetJoinPolicy                                   // SET JOIN POLICY name [ ALLOWED/ENFORCED JOIN KEYS (...) ]
-	AlterViewUnsetJoinPolicy                                 // UNSET JOIN POLICY
+	AlterViewRename                      AlterViewAction = iota // RENAME TO
+	AlterViewSetComment                                         // SET COMMENT = '...'
+	AlterViewUnsetComment                                       // UNSET COMMENT
+	AlterViewSetSecure                                          // SET SECURE
+	AlterViewUnsetSecure                                        // UNSET SECURE
+	AlterViewSetTag                                             // SET TAG (...)
+	AlterViewUnsetTag                                           // UNSET TAG (...)
+	AlterViewAddRowAccessPolicy                                 // ADD ROW ACCESS POLICY
+	AlterViewDropRowAccessPolicy                                // DROP ROW ACCESS POLICY
+	AlterViewDropAllRowAccessPolicies                           // DROP ALL ROW ACCESS POLICIES
+	AlterViewColumnSetMaskingPolicy                             // ALTER COLUMN col SET MASKING POLICY
+	AlterViewColumnUnsetMaskingPolicy                           // ALTER COLUMN col UNSET MASKING POLICY
+	AlterViewColumnSetTag                                       // ALTER COLUMN col SET TAG (...)
+	AlterViewColumnUnsetTag                                     // ALTER COLUMN col UNSET TAG (...)
+	AlterViewSetAggregationPolicy                               // SET AGGREGATION POLICY name [ ENTITY KEY (...) ] [ FORCE ]
+	AlterViewUnsetAggregationPolicy                             // UNSET AGGREGATION POLICY
+	AlterViewSetJoinPolicy                                      // SET JOIN POLICY name [ ALLOWED/ENFORCED JOIN KEYS (...) ]
+	AlterViewUnsetJoinPolicy                                    // UNSET JOIN POLICY
+	AlterViewSetChangeTracking                                  // SET CHANGE_TRACKING = { TRUE | FALSE }
+	AlterViewSetContact                                         // SET CONTACT purpose = contact [, ...]
+	AlterViewUnsetContact                                       // UNSET CONTACT purpose
+	AlterViewDataMetric                                         // data metric function action (see DataMetric)
+	AlterViewColumnSetProjectionPolicy                          // ALTER COLUMN col SET PROJECTION POLICY p [FORCE]
+	AlterViewColumnUnsetProjectionPolicy                        // ALTER COLUMN col UNSET PROJECTION POLICY
+	AlterViewAddColumn                                          // ADD [COLUMN] [IF NOT EXISTS] col type [policies] [TAG (...)]
 )
 
 // AlterViewStmt represents ALTER VIEW ... (all action variants).
@@ -2254,8 +2261,8 @@ type AlterViewStmt struct {
 	PolicyCols    []Ident          // ON (col, ...) for ADD ROW ACCESS POLICY
 	PolicyKeyCols []Ident          // ENTITY KEY (...) / ALLOWED|ENFORCED JOIN KEYS (...) for SET {AGGREGATION|JOIN} POLICY
 	PolicyKeyKind string           // "ALLOWED" or "ENFORCED" for SET JOIN POLICY ... JOIN KEYS; "" if no keys clause
-	PolicyForce   bool             // FORCE for SET AGGREGATION POLICY
-	Column        Ident            // ALTER COLUMN col name
+	PolicyForce   bool             // FORCE for SET {AGGREGATION|JOIN} POLICY
+	Column        Ident            // ALTER COLUMN col name; ADD COLUMN col name
 	MaskingPolicy *ObjectName      // SET MASKING POLICY p
 	MaskingUsing  []Ident          // USING (col, ...)
 	// ColumnActions is the full comma-separated MODIFY/ALTER column action
@@ -2271,26 +2278,41 @@ type AlterViewStmt struct {
 	// They are set only when Action == AlterViewDropRowAccessPolicy.
 	AddPolicyName *ObjectName
 	AddPolicyCols []Ident
-	Loc           Loc
+	// ChangeTracking is the SET CHANGE_TRACKING value.
+	ChangeTracking bool
+	// Contact is the verbatim `purpose = contact [, ...]` of SET CONTACT, or
+	// the purpose of UNSET CONTACT.
+	Contact    string
+	DataMetric *DataMetricAction // AlterViewDataMetric
+	// ADD COLUMN: Column, ColumnType, IfNotExists, MaskingPolicy /
+	// MaskingUsing, ProjectionPolicy and Tags.
+	IfNotExists      bool
+	ColumnType       *TypeName
+	ProjectionPolicy *ObjectName
+	Loc              Loc
 }
 
 // AlterViewColumnAction is one element of an ALTER VIEW column action list:
 //
 //	{ALTER|MODIFY} [COLUMN] <col> SET MASKING POLICY <p> [USING (...)] [FORCE]
 //	                        | UNSET MASKING POLICY
+//	                        | SET PROJECTION POLICY <p> [FORCE]
+//	                        | UNSET PROJECTION POLICY
 //	                        | SET TAG <t> = '<v>' [, ...]
 //	                        | UNSET TAG <t> [, ...]
 //
-// Action is one of the AlterViewColumn* values.
+// Action is one of the AlterViewColumn* values. ALTER DYNAMIC TABLE's column
+// actions have the same grammar and use this type too.
 type AlterViewColumnAction struct {
-	Column        Ident
-	Action        AlterViewAction
-	MaskingPolicy *ObjectName      // SET MASKING POLICY p
-	MaskingUsing  []Ident          // USING (col, ...)
-	Force         bool             // FORCE after SET MASKING POLICY
-	Tags          []*TagAssignment // SET TAG (...)
-	UnsetTags     []*ObjectName    // UNSET TAG (...)
-	Loc           Loc
+	Column           Ident
+	Action           AlterViewAction
+	MaskingPolicy    *ObjectName      // SET MASKING POLICY p
+	MaskingUsing     []Ident          // USING (col, ...)
+	ProjectionPolicy *ObjectName      // SET PROJECTION POLICY p
+	Force            bool             // FORCE after SET MASKING / PROJECTION POLICY
+	Tags             []*TagAssignment // SET TAG (...)
+	UnsetTags        []*ObjectName    // UNSET TAG (...)
+	Loc              Loc
 }
 
 // Tag implements Node.
@@ -2317,6 +2339,9 @@ const (
 	AlterMVUnsetSecure                                          // UNSET SECURE
 	AlterMVSetComment                                           // SET COMMENT = '...'
 	AlterMVUnsetComment                                         // UNSET COMMENT
+	AlterMVSetContact                                           // SET CONTACT purpose = contact [, ...] [COMMENT = '...']
+	AlterMVUnsetContact                                         // UNSET CONTACT purpose
+	AlterMVDataMetric                                           // SET / UNSET DATA_METRIC_SCHEDULE (see DataMetric)
 )
 
 // AlterMaterializedViewStmt represents ALTER MATERIALIZED VIEW ... (all action variants).
@@ -2329,7 +2354,11 @@ type AlterMaterializedViewStmt struct {
 	Linear    bool        // CLUSTER BY LINEAR modifier
 	Comment   *string     // SET COMMENT = '...'
 	Secure    bool        // true = SET SECURE; false = UNSET SECURE (check Action)
-	Loc       Loc
+	// Contact is the verbatim `purpose = contact [, ...]` of SET [SECURE]
+	// CONTACT, or the purpose of UNSET CONTACT.
+	Contact    string
+	DataMetric *DataMetricAction // AlterMVDataMetric
+	Loc        Loc
 }
 
 // Tag implements Node.
@@ -5229,17 +5258,31 @@ func (n *CreateDynamicTableStmt) Tag() NodeTag { return T_CreateDynamicTableStmt
 type AlterDynamicTableAction int
 
 const (
-	AlterDynamicTableSuspend           AlterDynamicTableAction = iota // SUSPEND
-	AlterDynamicTableResume                                           // RESUME
-	AlterDynamicTableRefresh                                          // REFRESH [ COPY SESSION ]
-	AlterDynamicTableRename                                           // RENAME TO <new_name>
-	AlterDynamicTableSwap                                             // SWAP WITH <other_name>
-	AlterDynamicTableSet                                              // SET <settable params>
-	AlterDynamicTableUnset                                            // UNSET <property> [, ...]
-	AlterDynamicTableSetTag                                           // SET TAG <tag> = '<value>' [, ...]
-	AlterDynamicTableUnsetTag                                         // UNSET TAG <tag> [, ...]
-	AlterDynamicTableClusterBy                                        // CLUSTER BY ( exprs )
-	AlterDynamicTableDropClusteringKey                                // DROP CLUSTERING KEY
+	AlterDynamicTableSuspend                    AlterDynamicTableAction = iota // SUSPEND
+	AlterDynamicTableResume                                                    // RESUME
+	AlterDynamicTableRefresh                                                   // REFRESH [ COPY SESSION ]
+	AlterDynamicTableRename                                                    // RENAME TO <new_name>
+	AlterDynamicTableSwap                                                      // SWAP WITH <other_name>
+	AlterDynamicTableSet                                                       // SET <settable params>
+	AlterDynamicTableUnset                                                     // UNSET <property> [, ...]
+	AlterDynamicTableSetTag                                                    // SET TAG <tag> = '<value>' [, ...]
+	AlterDynamicTableUnsetTag                                                  // UNSET TAG <tag> [, ...]
+	AlterDynamicTableClusterBy                                                 // CLUSTER BY ( exprs )
+	AlterDynamicTableDropClusteringKey                                         // DROP CLUSTERING KEY
+	AlterDynamicTableSuspendRecluster                                          // SUSPEND RECLUSTER
+	AlterDynamicTableResumeRecluster                                           // RESUME RECLUSTER
+	AlterDynamicTableAddRowAccessPolicy                                        // ADD ROW ACCESS POLICY p ON (cols)
+	AlterDynamicTableDropRowAccessPolicy                                       // DROP ROW ACCESS POLICY p [, ADD ROW ACCESS POLICY p2 ON (cols)]
+	AlterDynamicTableDropAllRowAccessPolicies                                  // DROP ALL ROW ACCESS POLICIES
+	AlterDynamicTableSetAggregationPolicy                                      // SET AGGREGATION POLICY p [ENTITY KEY (cols)] [FORCE]
+	AlterDynamicTableUnsetAggregationPolicy                                    // UNSET AGGREGATION POLICY
+	AlterDynamicTableColumn                                                    // { ALTER | MODIFY } column policy / tag actions
+	AlterDynamicTableAddSearchOpt                                              // ADD SEARCH OPTIMIZATION [ON ...]
+	AlterDynamicTableDropSearchOpt                                             // DROP SEARCH OPTIMIZATION [ON ...]
+	AlterDynamicTableSuspendSearchOpt                                          // SUSPEND SEARCH OPTIMIZATION [ON ...]
+	AlterDynamicTableResumeSearchOpt                                           // RESUME SEARCH OPTIMIZATION [ON ...]
+	AlterDynamicTableAddStorageLifecyclePolicy                                 // ADD STORAGE LIFECYCLE POLICY p ON (cols)
+	AlterDynamicTableDropStorageLifecyclePolicy                                // DROP STORAGE LIFECYCLE POLICY
 )
 
 // AlterDynamicTableStmt represents ALTER DYNAMIC TABLE [ IF EXISTS ] <name> <action>.
@@ -5268,7 +5311,25 @@ type AlterDynamicTableStmt struct {
 	ClusterBy          []Node           // CLUSTER BY exprs; for AlterDynamicTableClusterBy
 	Linear             bool             // CLUSTER BY LINEAR modifier
 	RefreshCopySession bool             // REFRESH COPY SESSION; for AlterDynamicTableRefresh
-	Loc                Loc
+	// MoreNames are the further tables of ALTER DYNAMIC TABLE a, b REFRESH.
+	MoreNames []*ObjectName
+	// Row access / aggregation / storage lifecycle policies.
+	PolicyName    *ObjectName
+	PolicyCols    []Ident     // ON (cols)
+	AddPolicyName *ObjectName // DROP ROW ACCESS POLICY p, ADD ROW ACCESS POLICY p2 ON (cols)
+	AddPolicyCols []Ident
+	PolicyKeyCols []Ident // ENTITY KEY (cols)
+	PolicyForce   bool
+	// ColumnActions is the comma-separated { ALTER | MODIFY } column action
+	// list; for AlterDynamicTableColumn.
+	ColumnActions []*AlterViewColumnAction
+	SearchOptOn   []string // SEARCH OPTIMIZATION ON targets (verbatim); nil without ON
+	// SET properties that are not KEY = value pairs.
+	Contact        string   // CONTACT ( purpose = contact [, ...] ), verbatim
+	FrozenWhere    Node     // FROZEN WHERE ( expr )
+	ExecuteAsUser  *Ident   // EXECUTE AS USER u
+	SecondaryRoles []string // USE SECONDARY ROLES { ALL | NONE | r [, ...] }
+	Loc            Loc
 }
 
 // Tag implements Node.

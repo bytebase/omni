@@ -166,6 +166,31 @@ var oracleResolved = map[int]bool{
 	955: true, 957: true, 959: true, 964: true, 979: true, 989: true, 998: true, 2014: true, 2019: true, 2024: true,
 }
 
+// oracleCheckedAtEnd are codes Oracle reports at the end of a statement it
+// has parsed, checking the statement as a whole against the server or
+// itself; any other error there names what the parser wanted and did not
+// find (ALTER TABLE a, ORA-02210; ALTER DATABASE DEFAULT TABLESPACE,
+// ORA-02216). Each was measured at the end of a row on the pinned server.
+// The server's setup: a data file needs a name without managed files
+// (02199, CREATE BIGFILE TABLESPACE a) and a PDB's file names a conversion
+// (65016); shard DDL is off (02557, 02523, 02501); a time zone file (01804);
+// a feature not built in (03001). The statement against itself: a key the
+// table does not define (02432, 02433, 02434), an annotation named twice
+// (11562, 11602), INMEMORY twice for a column (64360), a zonemap's query
+// without GROUP BY (31974), MAXVALUE for some bound columns only (32373),
+// too many bound values (14017), a split into other than two partitions
+// (14046, 14804), partitions named both ways (14764), a resource twice
+// (02376), sizes out of range (25121, 25147, 30020), data files of a
+// tablespace set (02580, 02238), SINGLE TABLE on a cluster that is not a
+// hash cluster (25135), a LOB option of a hash partition (22877), an ILM
+// operation the statement does not support (38346).
+var oracleCheckedAtEnd = map[int]bool{
+	1804: true, 2199: true, 2238: true, 2376: true, 2432: true, 2433: true, 2434: true, 2501: true,
+	2523: true, 2557: true, 2580: true, 3001: true, 11562: true, 11602: true, 14017: true, 14046: true,
+	14764: true, 14804: true, 22877: true, 25121: true, 25135: true, 25147: true, 30020: true, 31974: true,
+	32373: true, 38346: true, 64360: true, 65016: true,
+}
+
 // oracleLexerOnly is ORA-00911, an invalid character: the probe's ~ when
 // the lexer meets it. Oracle reads some statements' every token before it
 // parses any (ALTER MATERIALIZED VIEW, CREATE TABLE, GRANT, REVOKE), so on
@@ -250,7 +275,8 @@ func oracleFailed(err error) bool {
 // block's carries LAST_ERROR_POSITION. A probe could not tell: its tail is
 // in the block. The errors in oracleAfterParse are acceptances. An error at
 // the very end of the statement, where the probe's tail is met either way,
-// is decided by its code. And Oracle failing in its own code on the
+// is a rejection, whatever its code, unless Oracle checks it of the parsed
+// statement (oracleCheckedAtEnd). And Oracle failing in its own code on the
 // statement (oracleFailure, or no answer at all: ErrNoAnswer), on two
 // sessions, is a rejection with no byte: no statement Oracle runs, though
 // not one its parser names an error in.
@@ -301,7 +327,13 @@ func OracleVerdict(statement string, parse func(text string) error) (string, err
 		return Accept
 	}
 	if e.position == len(statement) {
-		return byCode(), nil
+		// Past the last token nothing is looked up: what the parser wanted
+		// is missing, whatever the code, unless it is a check Oracle makes
+		// of the whole statement after the parse.
+		if oracleCheckedAtEnd[e.code] {
+			return Accept, nil
+		}
+		return reject, nil
 	}
 	probeErr := parse(statement + OracleProbeTail)
 	if probeErr == nil {
