@@ -1429,7 +1429,17 @@ type CreateTableStmt struct {
 	AsSelect    Node             // CREATE TABLE ... AS SELECT; nil if absent
 	Like        *ObjectName      // CREATE TABLE ... LIKE source; nil if absent
 	Clone       *CloneSource     // CREATE TABLE ... CLONE source; nil if absent
-	Loc         Loc
+	RowPolicy   *RowAccessPolicy // [WITH] ROW ACCESS POLICY name ON (cols); nil if absent
+
+	// The fields below are set only by CREATE ICEBERG TABLE (Iceberg == true).
+	Iceberg           bool          // CREATE [TRANSIENT] ICEBERG TABLE
+	PartitionBy       []Node        // PARTITION BY ( col | transform(...) , ... ); ColumnRef or FuncCallExpr items; nil if absent
+	Options           []*CopyOption // KEY = value parameters (EXTERNAL_VOLUME, CATALOG, BASE_LOCATION, ...) and COPY = ( ... ); nil if absent
+	CopyTags          bool          // COPY TAGS
+	Purge             bool          // PURGE
+	AggregationPolicy *ObjectName   // [WITH] AGGREGATION POLICY name; nil if absent
+	Contacts          []*CopyOption // WITH CONTACT ( purpose = contact [, ...] ); nil if absent
+	Loc               Loc
 }
 
 func (n *CreateTableStmt) Tag() NodeTag { return T_CreateTableStmt }
@@ -1781,6 +1791,9 @@ type DropStmt struct {
 	ArgTypes []*TypeName
 	Cascade  bool // CASCADE option (mutually exclusive with Restrict)
 	Restrict bool // RESTRICT option (mutually exclusive with Cascade)
+	Iceberg  bool // DROP ICEBERG TABLE (Kind is DropTable)
+	Purge    bool // PURGE (DROP [ICEBERG] TABLE only; mutually exclusive with NoPurge)
+	NoPurge  bool // NOPURGE (DROP [ICEBERG] TABLE only; mutually exclusive with Purge)
 	Loc      Loc
 }
 
@@ -1814,9 +1827,10 @@ func (k UndropObjectKind) String() string {
 // UndropStmt represents an UNDROP <object_type> name statement.
 // DATABASE and SCHEMA are handled by T2.1.
 type UndropStmt struct {
-	Kind UndropObjectKind
-	Name *ObjectName
-	Loc  Loc
+	Kind    UndropObjectKind
+	Iceberg bool // UNDROP ICEBERG TABLE (Kind is UndropTable)
+	Name    *ObjectName
+	Loc     Loc
 }
 
 // Tag implements Node.
