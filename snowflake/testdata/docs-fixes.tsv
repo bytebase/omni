@@ -170,3 +170,4 @@ create-table-constraint	ALTER TABLE <name> ... ADD	ALTER TABLE <name> ADD	... st
 create-table	USING TEMPLATE <query>	USING TEMPLATE ( <query> )	the template is a parenthesized subquery, as the parameters and examples write it
 create-external-table	USING TEMPLATE <query>	USING TEMPLATE ( <query> )	the template is a parenthesized subquery, as the parameters and examples write it
 create-semantic-view	[ ONBOARDING_QUESTION <boolean> ]	[ ONBOARDING_QUESTION { TRUE | FALSE } ]	the flag is a boolean, as the parameters say
+create-storage-integration	  STORAGE_PROVIDER = 'S3'\n	  STORAGE_PROVIDER = { 'S3' | 'S3CHINA' | 'S3GOV' }\n	the S3 providers include S3CHINA and S3GOV, as the cloud provider parameters say

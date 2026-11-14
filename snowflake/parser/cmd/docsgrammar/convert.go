@@ -580,6 +580,18 @@ func sortedObjects(takes map[string][]string) []string {
 	return out
 }
 
+// routine holds the object types granted on with their argument types.
+var routine = map[string]bool{"FUNCTION": true, "PROCEDURE": true}
+
+// noFuture holds the object types future grants cannot name, from
+// https://docs.snowflake.com/en/sql-reference/sql/grant-privilege#restrictions-and-limitations.
+var noFuture = map[string]bool{
+	"COMPUTE POOL": true, "IMAGE REPOSITORY": true, "SNAPSHOT": true, "TAG": true,
+	"AGGREGATION POLICY": true, "JOIN POLICY": true, "MAINTENANCE POLICY": true,
+	"MASKING POLICY": true, "PACKAGES POLICY": true, "PROJECTION POLICY": true,
+	"ROW ACCESS POLICY": true, "SESSION POLICY": true, "STORAGE LIFECYCLE POLICY": true,
+}
+
 // objectPrivilegesRef grants account-object privileges on a choice of
 // object types, as GRANT and REVOKE write it.
 var objectPrivilegesRef = regexp.MustCompile(`\{ accountObjectPrivileges\s+\| ALL \[ PRIVILEGES \] \} ON \{ ([A-Z |]+) \} (<[a-z_]+>)`)
@@ -628,7 +640,13 @@ func objectPrivileges(blocks []string) ([]string, bool) {
 				in := schemaObjectRef.FindStringSubmatch(m)[1]
 				var alts []string
 				for _, o := range objects {
-					alts = append(alts, privilegesFor(takes[o])+" ON { "+o+" <object_name> | ALL "+plural(o)+" IN "+in+" }")
+					target := o + " <object_name>"
+					if routine[o] {
+						// A function or procedure is named with its argument
+						// types, which tell overloads apart.
+						target += " ( [ <arg_data_type> [ , ... ] ] )"
+					}
+					alts = append(alts, privilegesFor(takes[o])+" ON { "+target+" | ALL "+plural(o)+" IN "+in+" }")
 				}
 				// The brace the page closes the ON choice with closes this.
 				return "{ " + strings.Join(alts, " | ")
@@ -637,6 +655,9 @@ func objectPrivileges(blocks []string) ([]string, bool) {
 				in := schemaFutureRef.FindStringSubmatch(m)[1]
 				var alts []string
 				for _, o := range objects {
+					if noFuture[o] {
+						continue
+					}
 					alts = append(alts, privilegesFor(takes[o])+" ON FUTURE "+plural(o)+" IN "+in)
 				}
 				return "{ " + strings.Join(alts, " | ") + " }"
