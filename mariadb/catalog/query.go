@@ -738,6 +738,13 @@ type FuncCallExprQ struct {
 	// argument without one. It is nil for every other call.
 	ArgTypes []string
 
+	// WithinGroup is PERCENTILE_CONT and PERCENTILE_DISC's
+	// WITHIN GROUP (ORDER BY expr [DESC]) item, nil for every other call, and
+	// WithinGroupDesc its direction. Their window, a PARTITION BY list or
+	// nothing, is Over.
+	WithinGroup     AnalyzedExpr
+	WithinGroupDesc bool
+
 	// IsAggregate marks this call as an aggregate function (COUNT, SUM, AVG,
 	// MIN, MAX, GROUP_CONCAT, etc.). Set by the analyzer based on a function
 	// catalog, NOT by string-matching `Name` at consumer sites. Lineage

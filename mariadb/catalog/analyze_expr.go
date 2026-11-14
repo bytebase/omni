@@ -104,6 +104,11 @@ func analyzeFuncCall(c *Catalog, fc *nodes.FuncCallExpr, scope *analyzerScope) (
 	if lower == "coalesce" || lower == "ifnull" {
 		return &CoalesceExprQ{Args: args}, nil
 	}
+	// TRIM_ORACLE reads as oracle_schema.TRIM, which is another function than
+	// TRIM: it returns NULL where TRIM returns ''. The name keeps the schema.
+	if strings.EqualFold(fc.Schema, "oracle_schema") && fc.Package == "" && strings.HasPrefix(lower, "trim") {
+		lower = "oracle_schema." + lower
+	}
 	result := &FuncCallExprQ{
 		Name: lower,
 		Args: args,
@@ -112,6 +117,29 @@ func analyzeFuncCall(c *Catalog, fc *nodes.FuncCallExpr, scope *analyzerScope) (
 		IsAggregate: isAggregateFunc(fc.Name) && !fc.SpacedParen,
 		Distinct:    fc.Quantifier.RemovesDuplicates(),
 		SpacedParen: fc.SpacedParen,
+	}
+	// PERCENTILE_CONT, PERCENTILE_DISC and MEDIAN carry their own window, a
+	// PARTITION BY list or nothing, and the first two a WITHIN GROUP order:
+	// neither parses without the other.
+	if fc.WithinGroup || (lower == "median" && fc.Over != nil && fc.Schema == "") {
+		if fc.WithinGroup && len(fc.OrderBy) == 1 {
+			order, err := analyzeExpr(c, fc.OrderBy[0].Expr, scope)
+			if err != nil {
+				return nil, err
+			}
+			result.WithinGroup, result.WithinGroupDesc = order, fc.OrderBy[0].Desc
+		}
+		if fc.Over != nil {
+			over := &WindowDefQ{}
+			for _, e := range fc.Over.PartitionBy {
+				a, err := analyzeExpr(c, e, scope)
+				if err != nil {
+					return nil, err
+				}
+				over.PartitionBy = append(over.PartitionBy, a)
+			}
+			result.Over = over
+		}
 	}
 	// A dynamic column function's AS types are part of the call: COLUMN_GET
 	// does not parse without one.

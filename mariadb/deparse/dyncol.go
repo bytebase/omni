@@ -73,7 +73,12 @@ func deparseDynColType(dt *ast.DataType) string {
 	case "NCHAR":
 		return "char charset utf8mb3 collate utf8mb3_general_ci "
 	case "CHAR":
+		// The Resolver fills in the connection's character set and collation;
+		// without one this takes a COLLATE's own character set, else utf8mb4.
 		cs := strings.ToLower(dt.Charset)
+		if cs == "" && dt.Collate != "" {
+			cs = collationCharset(dt.Collate)
+		}
 		switch cs {
 		case "":
 			cs = "utf8mb4"
