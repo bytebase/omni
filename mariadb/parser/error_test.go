@@ -565,6 +565,29 @@ func TestParseError_InvalidIntervalUnit(t *testing.T) {
 	}
 }
 
+// TestParseBareIntervalOperand holds the INTERVAL literal to the operand of + and -.
+func TestParseBareIntervalOperand(t *testing.T) {
+	for _, sql := range []string{
+		"DO - INTERVAL 1 DAY + d",
+		"DO (d, d + INTERVAL 1 DAY)",
+	} {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q): %v", sql, err)
+		}
+	}
+	for _, sql := range []string{
+		"DO - INTERVAL 1 DAY",
+		"DO + INTERVAL 1 DAY",
+		"DO ~ INTERVAL 1 DAY",
+		"DO (d, INTERVAL 1 DAY)",
+		"DO ROW(d, INTERVAL 1 DAY)",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q): want a syntax error", sql)
+		}
+	}
+}
+
 // TestParseWeightStringLevelsAndNumbers holds WEIGHT_STRING to MariaDB's
 // opt_ws_levels and its four-number form.
 func TestParseWeightStringLevelsAndNumbers(t *testing.T) {

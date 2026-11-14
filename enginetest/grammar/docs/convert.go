@@ -1,0 +1,994 @@
+package docs
+
+import (
+	"errors"
+	"fmt"
+	"regexp"
+	"strings"
+	"unicode"
+)
+
+// Token classes the notation itself spells, whatever a dialect's
+// placeholders stand for. tokens.tsv samples each class a grammar uses.
+const (
+	ClassName     = "ID"
+	ClassString   = "STRING"
+	ClassNumber   = "NUMBER"
+	ClassExpr     = "EXPR"
+	ClassQuery    = "QUERY"
+	ClassDataType = "DATA_TYPE"
+	ClassStage    = "STAGE"    // @<stage>
+	ClassPosition = "POSITION" // $<col_position>
+	ClassFile     = "FILE"     // file://<path>
+	ClassVariable = "VARIABLE" // $<variable>
+	// A name qualified by up to two names, or by one: db.schema.name,
+	// db.name. A dialect's Classify returns them for a schema object and a
+	// database object.
+	ClassQName  = "QNAME"
+	ClassQName2 = "QNAME2"
+)
+
+const (
+	tName     = ClassName
+	tString   = ClassString
+	tNumber   = ClassNumber
+	tQuery    = ClassQuery
+	tStage    = ClassStage
+	tPosition = ClassPosition
+	tFile     = ClassFile
+	tVariable = ClassVariable
+	tQName    = ClassQName
+	tQName2   = ClassQName2
+)
+
+// A Fix is one hand correction of a page's syntax text, from
+// docs-fixes.tsv: the docs are prose, and some blocks do not read as
+// notation as written. Every occurrence of Find on Page is replaced, and
+// Used records that one was.
+type Fix struct {
+	Page, Find, Replace, Reason string
+	Used                        bool
+}
+
+// A unit is one statement form or one ::= definition of a page.
+type unit struct {
+	def string // the defined fragment, or "" for a statement form
+	// variant is set for a definition written for one variant, as
+	// restAuthenticationParams (for Bearer token) ::= is.
+	variant bool
+	lines   []codeLine // the text, without the definition's head
+}
+
+type codeLine struct {
+	text    string
+	comment bool // a line that is only a -- comment
+}
+
+var defHead = regexp.MustCompile(`^\s*([A-Za-z_][A-Za-z0-9_]*)\s*(\([^)]*\))?\s*::=\s*`)
+
+// splitUnits splits a page's blocks into statement forms and definitions.
+// A form starts on a line outside any bracket that is not indented and
+// starts with one of the page's statement words, or that starts with the
+// first two words of the form before it, as ALTER TABLE's indented forms
+// do; a definition starts at name ::= and runs to the next unit. Any other
+// line continues the unit before it: COPY INTO writes its clauses
+// unindented.
+func splitUnits(blocks []string, starts map[string]bool) []unit {
+	var out []unit
+	for _, blk := range blocks {
+		depth := 0
+		var cur *unit
+		flush := func() {
+			if cur != nil && hasCode(cur.lines) {
+				out = append(out, *cur)
+			}
+			cur = nil
+		}
+		for _, line := range strings.Split(blk, "\n") {
+			trimmed := strings.TrimSpace(line)
+			if trimmed == "" {
+				continue
+			}
+			if strings.HasPrefix(trimmed, "--") || strings.HasPrefix(trimmed, "/*") && strings.HasSuffix(trimmed, "*/") {
+				if cur != nil {
+					cur.lines = append(cur.lines, codeLine{text: trimmed, comment: true})
+				}
+				continue
+			}
+			if m := defHead.FindStringSubmatch(line); m != nil {
+				flush()
+				depth = 0
+				cur = &unit{def: m[1], variant: m[2] != ""}
+				line = line[len(m[0]):]
+				if strings.TrimSpace(line) == "" {
+					continue
+				}
+			} else if depth <= 0 && (cur == nil || cur.def == "" &&
+				(!unicode.IsSpace([]rune(line)[0]) && startsForm(trimmed, starts) || repeatsHead(trimmed, cur.lines))) &&
+				!strings.ContainsAny(trimmed[:1], "|)]}") {
+				flush()
+				depth = 0
+				cur = &unit{}
+			}
+			if cur == nil {
+				cur = &unit{}
+			}
+			cur.lines = append(cur.lines, codeLine{text: line})
+			depth += bracketDepth(line)
+		}
+		flush()
+	}
+	return out
+}
+
+// repeatsHead reports whether a line starts with the first two words of
+// a unit's first line.
+func repeatsHead(line string, lines []codeLine) bool {
+	for _, l := range lines {
+		if l.comment {
+			continue
+		}
+		head := strings.Fields(l.text)
+		if len(head) < 2 {
+			return false
+		}
+		words := strings.Fields(line)
+		return len(words) >= 2 && words[0] == head[0] && words[1] == head[1]
+	}
+	return false
+}
+
+// startsForm reports whether a line starts with one of a page's statement
+// words.
+func startsForm(line string, starts map[string]bool) bool {
+	word := strings.FieldsFunc(line, func(r rune) bool { return !unicode.IsLetter(r) && r != '_' })
+	if len(word) == 0 || !starts[word[0]] || !strings.HasPrefix(line, word[0]) {
+		return false
+	}
+	// COMMENT = '...' sets a property; it is not a statement.
+	return !strings.HasPrefix(strings.TrimSpace(line[len(word[0]):]), "=")
+}
+
+func hasCode(lines []codeLine) bool {
+	for _, l := range lines {
+		if !l.comment {
+			return true
+		}
+	}
+	return false
+}
+
+// bracketDepth returns how far a line opens brackets, outside quotes and
+// comments.
+// repeatChoice reads a definition of choices whose last line is only
+// [ , ... ],
+//
+//	schemaPrivileges ::=
+//	    ADD SEARCH OPTIMIZATION | APPLYBUDGET
+//	  | MODIFY | MONITOR | USAGE
+//	  [ , ... ]
+//
+// as a list of the whole choice, not of its last alternative.
+func repeatChoice(lines []codeLine) []codeLine {
+	last := len(lines) - 1
+	for last >= 0 && (lines[last].comment || strings.TrimSpace(lines[last].text) == "") {
+		last--
+	}
+	if last < 1 || strings.TrimSpace(lines[last].text) != "[ , ... ]" {
+		return lines
+	}
+	depth, bar := 0, false
+	for _, l := range lines[:last] {
+		if l.comment {
+			return lines
+		}
+		t := strings.TrimSpace(l.text)
+		if depth == 0 && (strings.HasPrefix(t, "|") || strings.HasSuffix(t, "|")) {
+			bar = true
+		}
+		depth += bracketDepth(l.text)
+	}
+	if !bar || depth != 0 {
+		return lines
+	}
+	out := append([]codeLine(nil), lines...)
+	first := 0
+	for strings.TrimSpace(out[first].text) == "" {
+		first++
+	}
+	out[first].text = "{ " + out[first].text
+	prev := last - 1
+	for strings.TrimSpace(out[prev].text) == "" {
+		prev--
+	}
+	out[prev].text += " }"
+	return out
+}
+
+func bracketDepth(line string) int {
+	d := 0
+	var quote rune
+	rs := []rune(line)
+	for i := 0; i < len(rs); i++ {
+		c := rs[i]
+		switch {
+		case quote != 0:
+			if c == quote {
+				quote = 0
+			}
+		case c == '\'' || c == '"':
+			quote = c
+		case c == '-' && i+1 < len(rs) && rs[i+1] == '-':
+			return d
+		case c == '[' || c == '{' || c == '(':
+			d++
+		case c == ']' || c == '}' || c == ')':
+			d--
+		}
+	}
+	return d
+}
+
+// A pageGrammar is what one page converts to.
+type pageGrammar struct {
+	slug, url, rule string
+	fixes           []string
+	forms           []string // converted alternatives of rule, as ANTLR text
+	frags           []fragRule
+	failed          []failure // forms and definitions not converted
+}
+
+type fragRule struct {
+	name string
+	alts []string
+}
+
+type failure struct {
+	what, text, reason string
+}
+
+var errUndefined = errors.New("undefined")
+
+// valueChoiceLine is a line that is KEY = A | B, with no bracket on it.
+var valueChoiceLine = regexp.MustCompile(`(?m)^(\s*)([A-Z][A-Z0-9_]*\s*=\s*)([^\[\]{}\n]*\|[^\[\]{}\n]*?)\s*$`)
+
+// countKey is a property that holds a count: of seconds, days, or things.
+var countKey = regexp.MustCompile(`_(SECONDS|MINUTES|HOURS|DAYS|COUNT)$`)
+
+// camelName is a placeholder written as a fragment's name, <tagAction>.
+var camelName = regexp.MustCompile(`^[a-z]+[A-Z][A-Za-z]*$`)
+
+// omittedTail is a last line holding only ..., after a line that does not
+// end in a comma: CLONE <source> ... leaves the rest of CREATE out, where
+// X ,\n ... repeats X.
+var omittedTail = regexp.MustCompile(`[^,\s][ \t]*\n[ \t]*\.\.\.\s*$`)
+
+// optionalTail is a last line holding only [ ... ], after a line that does
+// not end in a comma: optional text the page leaves out.
+var optionalTail = regexp.MustCompile(`([^,\s])[ \t]*\n[ \t]*\[ \.\.\. \]\s*$`)
+
+// errProjectOnly marks a DEFINE form, which runs only in a DCM project's
+// definition files, not as a statement of its own.
+var errProjectOnly = errors.New("DEFINE runs only in DCM project files, not as a statement")
+
+// listName is the name of a list of settings, which a fragment holds.
+var listName = regexp.MustCompile(`(parameters|params|options|properties|privileges)$`)
+
+// convertPage converts one page of d's docs: slug names it in fixes, url
+// is cited above its rules.
+func convertPage(d *Dialect, slug, url string, blocks []string, fixes []*Fix) pageGrammar {
+	pg := pageGrammar{slug: slug, url: url, rule: d.ruleName(slug)}
+	var sql []string
+	for _, b := range blocks {
+		if strings.HasPrefix(strings.TrimSpace(b), "\"") {
+			// "notification_config": { ... }: a JSON example, not SQL.
+			continue
+		}
+		sql = append(sql, b)
+	}
+	blocks = sql
+	for _, f := range fixes {
+		if f.Page != slug {
+			continue
+		}
+		for i, b := range blocks {
+			if strings.Contains(b, f.Find) {
+				blocks[i] = strings.ReplaceAll(b, f.Find, f.Replace)
+				f.Used = true
+			}
+		}
+		if f.Used {
+			pg.fixes = append(pg.fixes, f.Reason)
+		}
+	}
+	for i, b := range blocks {
+		// A line that sets a property to one of several values, with no
+		// bracket to say so: OAUTH_CLIENT_TYPE = 'CONFIDENTIAL' | 'PUBLIC'.
+		blocks[i] = valueChoiceLine.ReplaceAllStringFunc(b, func(line string) string {
+			m := valueChoiceLine.FindStringSubmatch(line)
+			if strings.HasSuffix(strings.TrimSpace(m[3]), "|") {
+				// EVENT_TABLE = <name> | in a list of names: the | is the
+				// list's, not a choice of values.
+				return line
+			}
+			return m[1] + m[2] + "{ " + m[3] + " }"
+		})
+	}
+	if d.Prepare != nil {
+		var notes []string
+		blocks, notes = d.Prepare(slug, blocks)
+		pg.fixes = append(pg.fixes, notes...)
+	}
+	units := splitUnits(blocks, d.StatementWords(slug))
+
+	// Definitions first: forms refer to them by name. A name defined twice,
+	// as cloudProviderParams (for Amazon S3) and (for Google Cloud Storage)
+	// are, has both bodies as alternatives.
+	defs := map[string][]unit{}
+	var defOrder []string
+	for _, u := range units {
+		if u.def == "" {
+			continue
+		}
+		if _, ok := defs[u.def]; !ok {
+			defOrder = append(defOrder, u.def)
+		}
+		defs[u.def] = append(defs[u.def], u)
+	}
+	c := &converter{d: d, slug: slug, page: pg.rule, defs: map[string]bool{}}
+	for _, name := range defOrder {
+		c.defs[name] = true
+	}
+	// A definition that fails to convert is left out, and so is every form
+	// that uses it: drop them until none fails.
+	converted := map[string][]string{}
+	for changed := true; changed; {
+		changed = false
+		for _, name := range defOrder {
+			if !c.defs[name] || converted[name] != nil {
+				continue
+			}
+			var alts []string
+			var err error
+			for _, u := range defs[name] {
+				var a []string
+				c.commas = commaOptionLists(name)
+				a, err = c.definition(u.lines, u.variant)
+				c.commas = false
+				if err != nil {
+					break
+				}
+				alts = append(alts, a...)
+			}
+			if err != nil {
+				c.defs[name] = false
+				pg.failed = append(pg.failed, failure{what: name + " ::=", text: unitText(defs[name][0].lines), reason: err.Error()})
+				converted = map[string][]string{}
+				changed = true
+				break
+			}
+			converted[name] = dedupe(alts)
+		}
+	}
+	for _, name := range defOrder {
+		if c.defs[name] {
+			pg.frags = append(pg.frags, fragRule{name: c.fragName(name), alts: converted[name]})
+		}
+	}
+	for _, u := range units {
+		if u.def != "" {
+			continue
+		}
+		alts, err := c.statement(unitText(u.lines))
+		if err != nil {
+			pg.failed = append(pg.failed, failure{what: "form", text: unitText(u.lines), reason: err.Error()})
+			continue
+		}
+		pg.forms = append(pg.forms, alts...)
+	}
+	pg.forms = dedupe(pg.forms)
+	pg.frags = usedFrags(pg)
+	return pg
+}
+
+// usedFrags drops the fragments no converted form reaches.
+func usedFrags(pg pageGrammar) []fragRule {
+	byName := map[string]fragRule{}
+	for _, f := range pg.frags {
+		byName[f.name] = f
+	}
+	used := map[string]bool{}
+	var visit func(text string)
+	visit = func(text string) {
+		for _, f := range pg.frags {
+			if !used[f.name] && containsWord(text, f.name) {
+				used[f.name] = true
+				for _, a := range f.alts {
+					visit(a)
+				}
+			}
+		}
+	}
+	for _, a := range pg.forms {
+		visit(a)
+	}
+	var out []fragRule
+	for _, f := range pg.frags {
+		if used[f.name] {
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
+func containsWord(text, word string) bool {
+	for i := 0; ; {
+		j := strings.Index(text[i:], word)
+		if j < 0 {
+			return false
+		}
+		j += i
+		end := j + len(word)
+		before := j == 0 || !isWordByte(text[j-1])
+		after := end == len(text) || !isWordByte(text[end])
+		if before && after {
+			return true
+		}
+		i = j + 1
+	}
+}
+
+func isWordByte(b byte) bool {
+	return b == '_' || b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z' || b >= '0' && b <= '9'
+}
+
+func unitText(lines []codeLine) string {
+	var b strings.Builder
+	for _, l := range lines {
+		if l.comment {
+			continue
+		}
+		b.WriteString(l.text + "\n")
+	}
+	return strings.TrimRight(b.String(), "\n")
+}
+
+func dedupe(xs []string) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, x := range xs {
+		if !seen[x] {
+			seen[x] = true
+			out = append(out, x)
+		}
+	}
+	return out
+}
+
+// RuleName turns a page's slug into a parser rule name: alter-warehouse is
+// alterWarehouse. It is a Dialect's rule name unless the Dialect gives one.
+func RuleName(slug string) string {
+	parts := strings.FieldsFunc(slug, func(r rune) bool { return r == '-' || r == '_' })
+	for i := 1; i < len(parts); i++ {
+		parts[i] = strings.ToUpper(parts[i][:1]) + parts[i][1:]
+	}
+	return strings.Join(parts, "")
+}
+
+// isNameClass reports whether a class is a name's, qualified or not.
+func isNameClass(cls string) bool { return cls == tName || cls == tQName || cls == tQName2 }
+
+type converter struct {
+	d    *Dialect
+	slug string
+	page string
+	defs map[string]bool // fragments the page defines and that converted
+	// commas is set while converting a list of options the pages say may be
+	// separated by spaces, commas or newlines.
+	commas bool
+}
+
+// commaOptionLists names the definitions whose options may be separated by
+// spaces, commas or newlines, as the file format and COPY pages say.
+func commaOptionLists(def string) bool {
+	return strings.HasPrefix(def, "formatTypeOptions") || def == "copyOptions"
+}
+
+func (c *converter) fragName(def string) string { return c.page + "_" + def }
+
+var propertyLine = regexp.MustCompile(`^\s*[A-Z][A-Z0-9_]*\s*=`)
+
+// definition converts a ::= body. A body that lists one property per line
+// (NAME = value), or variants between -- comments, is a choice among its
+// lines: any number of properties, one variant. A definition written for
+// one variant, name (for X) ::=, lists that variant's parameters, which
+// it needs in order. Anything else is one sequence.
+func (c *converter) definition(lines []codeLine, variant bool) ([]string, error) {
+	type item struct {
+		text    string
+		comment bool
+	}
+	lines = repeatChoice(lines)
+	var items []item
+	depth := 0
+	for _, l := range lines {
+		if l.comment {
+			// A comment between lines, -- For X, separates variants; one
+			// inside brackets only explains.
+			if depth <= 0 {
+				items = append(items, item{comment: true})
+			}
+			continue
+		}
+		t := strings.TrimSpace(l.text)
+		joins := len(items) > 0 && !items[len(items)-1].comment &&
+			(depth > 0 || strings.HasPrefix(t, "|") || strings.HasSuffix(strings.TrimSpace(items[len(items)-1].text), "|") ||
+				strings.ContainsAny(t[:1], ")]}"))
+		if joins {
+			items[len(items)-1].text += "\n" + l.text
+		} else {
+			items = append(items, item{text: l.text})
+		}
+		depth += bracketDepth(l.text)
+	}
+	var code []string
+	var sections [][]string // the code between comments
+	commented := false
+	for _, it := range items {
+		if it.comment {
+			commented = true
+			sections = append(sections, nil)
+			continue
+		}
+		code = append(code, it.text)
+		if len(sections) == 0 {
+			sections = append(sections, nil)
+		}
+		sections[len(sections)-1] = append(sections[len(sections)-1], it.text)
+	}
+	properties := len(code) >= 2 && !variant
+	for _, t := range code {
+		if !propertyLine.MatchString(t) {
+			properties = false
+		}
+	}
+	switch {
+	case properties:
+		var alts []string
+		for _, t := range code {
+			// NAME = A | B: the choice is the value's.
+			k := strings.Index(t, "=")
+			t = t[:k+1] + " { " + t[k+1:] + " }"
+			a, err := c.form(t)
+			if err != nil {
+				return nil, err
+			}
+			alts = append(alts, a...)
+		}
+		x := "(" + strings.Join(dedupe(alts), " | ") + ")"
+		if c.commas {
+			return []string{x + " (','? " + x + ")*"}, nil
+		}
+		return []string{x + "+"}, nil
+	case commented && len(code) >= 2:
+		// Each line between comments is a variant, or the lines are one
+		// where a variant needs several, as a whole GRANT form does: a
+		// section whose first line starts a statement the page shows.
+		var variants []string
+		for _, sec := range sections {
+			if len(sec) > 1 && startsForm(strings.TrimSpace(sec[0]), c.d.StatementWords(c.slug)) {
+				variants = append(variants, strings.Join(sec, "\n"))
+				continue
+			}
+			variants = append(variants, sec...)
+		}
+		var alts []string
+		for _, t := range variants {
+			a, err := c.form(t)
+			if err != nil {
+				return nil, err
+			}
+			alts = append(alts, a...)
+		}
+		return alts, nil
+	}
+	return c.form(strings.Join(code, "\n"))
+}
+
+// errScope marks a statement form with a | outside any bracket whose
+// scope the docs do not show.
+var errScope = errors.New("a | outside brackets, whose scope the docs do not show")
+
+// statement converts a statement form. A | outside brackets is how the
+// docs write a choice of what follows the object's name, or of the last
+// word when the choices are single words:
+//
+//	ALTER TASK [ IF EXISTS ] <name> RESUME | SUSPEND
+//	ALTER INTEGRATION <name> UNSET ENABLED | COMMENT
+//
+// so an alternative that does not start with the statement's first word
+// takes the first one's words before the choice.
+func (c *converter) statement(text string) ([]string, error) {
+	return c.convert(text, true)
+}
+
+// form converts notation to ANTLR alternatives.
+func (c *converter) form(text string) ([]string, error) {
+	return c.convert(text, false)
+}
+
+var (
+	orReplace   = regexp.MustCompile(`\[\s*OR\s+REPLACE\s*\]`)
+	ifNotExists = regexp.MustCompile(`\[\s*IF\s+NOT\s+EXISTS\s*\]`)
+)
+
+// scopeChoices gives each statement alternative that does not start with
+// the statement's first word the first alternative's words through the
+// object's name.
+func scopeChoices(tree [][]*node) ([][]*node, error) {
+	if len(tree) < 2 || len(tree[0]) == 0 || tree[0][0].tok == nil || tree[0][0].tok.kind != nKeyword {
+		return tree, nil
+	}
+	head := tree[0]
+	verb := head[0].tok.text
+	name := -1
+	for i, n := range head {
+		if isName(n) {
+			name = i
+			break
+		}
+	}
+	// The choice starts after the name, or is the head's last word when
+	// each other choice is one word and the head has more after the name.
+	from := name + 1
+	// <name> SET A | B | C: each choice is set, so SET stays with each.
+	if from < len(head) && head[from].tok != nil && head[from].tok.kind == nKeyword && (head[from].tok.text == "SET" || head[from].tok.text == "UNSET") {
+		shared := true
+		for _, alt := range tree[1:] {
+			if len(alt) > 0 && alt[0].tok != nil && alt[0].tok.text == head[from].tok.text {
+				shared = false
+			}
+		}
+		if shared {
+			from++
+		}
+	}
+	words := true
+	for _, alt := range tree[1:] {
+		if len(alt) != 1 || alt[0].tok == nil || alt[0].tok.kind != nKeyword {
+			words = false
+		}
+	}
+	if words && name >= 0 && len(head)-name-1 > 1 {
+		from = len(head) - 1
+	}
+	out := [][]*node{head}
+	for _, alt := range tree[1:] {
+		if len(alt) > 0 && alt[0].tok != nil && alt[0].tok.text == verb {
+			out = append(out, alt)
+			continue
+		}
+		if name < 0 || name == len(head)-1 {
+			return nil, errScope
+		}
+		out = append(out, append(append([]*node(nil), head[:from]...), alt...))
+	}
+	return out, nil
+}
+
+// isName reports whether a node is a value, such as an object's <name>,
+// or an optional one.
+func isName(n *node) bool {
+	if n.tok != nil {
+		return n.tok.kind == nPlaceholder || n.tok.kind == nTerminal
+	}
+	return n.op == '?' && len(n.alts) == 1 && len(n.alts[0]) == 1 && isName(n.alts[0][0])
+}
+
+func (c *converter) convert(text string, statement bool) ([]string, error) {
+	if orReplace.MatchString(text) && ifNotExists.MatchString(text) {
+		// CREATE [ OR REPLACE ] T [ IF NOT EXISTS ]: the two are mutually
+		// exclusive, as the CREATE pages say; a form has one or neither.
+		a, err := c.convert(ifNotExists.ReplaceAllString(text, ""), statement)
+		if err != nil {
+			return nil, err
+		}
+		b, err := c.convert(orReplace.ReplaceAllString(text, ""), statement)
+		if err != nil {
+			return nil, err
+		}
+		return dedupe(append(a, b...)), nil
+	}
+	if omittedTail.MatchString(text) {
+		return nil, errElided
+	}
+	if optionalTail.MatchString(text) {
+		// CLONE <source> [ ... ]: the rest is optional and left out, so the
+		// form without it is the form.
+		text = optionalTail.ReplaceAllString(text, "$1")
+	}
+	if strings.HasPrefix(strings.TrimSpace(text), "DEFINE ") {
+		return nil, errProjectOnly
+	}
+	toks, err := lexNotation(text, c.d.Classify)
+	if err != nil {
+		return nil, err
+	}
+	for len(toks) > 0 && toks[len(toks)-1].kind == nLiteral && toks[len(toks)-1].text == ";" {
+		toks = toks[:len(toks)-1]
+	}
+	if len(toks) == 0 {
+		return nil, fmt.Errorf("no syntax")
+	}
+	if err := c.checkWords(toks); err != nil {
+		return nil, err
+	}
+	// CREATE <integration_type> INTEGRATION, ALTER [ <integration_type> ]
+	// INTEGRATION: a placeholder standing for the keyword of a type, whose
+	// own page gives its syntax. Not a value.
+	for i, t := range toks {
+		next := i + 1
+		if next < len(toks) && toks[next].kind == nClose && i > 0 && toks[i-1].kind == nOpen {
+			next++ // [ <integration_type> ] INTEGRATION
+		}
+		if t.kind == nPlaceholder && strings.HasSuffix(t.text, "_type") && isNameClass(c.d.Classify(t.text)) &&
+			i > 0 && toks[i-1].kind != nKeyword && !isLiteral(toks[i-1], "=") &&
+			next < len(toks) && toks[next].kind == nKeyword {
+			return nil, fmt.Errorf("<%s> stands for a type's keyword, whose page gives its syntax", t.text)
+		}
+	}
+	// REFRESH_INTERVAL_SECONDS = <value>: a value a key names as a count of
+	// time units, or a count, is a number, whatever the placeholder says.
+	for i, t := range toks {
+		if t.kind == nPlaceholder && isNameClass(c.d.Classify(t.text)) && i >= 2 && isLiteral(toks[i-1], "=") &&
+			toks[i-2].kind == nKeyword && countKey.MatchString(toks[i-2].text) {
+			toks[i].text = "num"
+		}
+	}
+	// [ <db_name>. ]<name>: a name the notation already qualifies is one
+	// part, not a QNAME qualified again.
+	for i, t := range toks {
+		if t.kind != nPlaceholder || c.d.Classify(t.text) != tQName && c.d.Classify(t.text) != tQName2 {
+			continue
+		}
+		j := i - 1
+		for j >= 0 && toks[j].kind == nClose && toks[j].text == "]" {
+			j--
+		}
+		if j >= 0 && isLiteral(toks[j], ".") {
+			toks[i].text = "part_name"
+		}
+	}
+	// KEY = with nothing after it is a value the docs left out; an = alone
+	// in brackets, INCREMENT [ BY ] [ = ] <n>, is an optional sign, and one
+	// alone in a choice, SET <parameter> { TO | = } <value>, a choice of sign.
+	for i, t := range toks {
+		if isLiteral(t, "=") && i > 0 && toks[i-1].kind != nOpen && toks[i-1].kind != nBar && (i+1 == len(toks) || toks[i+1].kind == nClose || toks[i+1].kind == nBar) {
+			return nil, fmt.Errorf("an = with no value after it")
+		}
+	}
+	// AS SELECT <query>: the query's sample starts with its own SELECT.
+	for i := len(toks) - 2; i >= 0; i-- {
+		if toks[i].kind == nKeyword && toks[i].text == "SELECT" && toks[i+1].kind == nPlaceholder && c.d.Classify(toks[i+1].text) == tQuery {
+			toks = append(toks[:i], toks[i+1:]...)
+		}
+	}
+	tree, err := parseNotation(toks)
+	if err != nil {
+		return nil, err
+	}
+	tree, err = resolveEllipses(tree)
+	if err != nil {
+		return nil, err
+	}
+	if statement {
+		if tree, err = scopeChoices(tree); err != nil {
+			return nil, err
+		}
+	}
+	var alts []string
+	for _, seq := range tree {
+		s, err := c.seq(seq)
+		if err != nil {
+			return nil, err
+		}
+		if s == "" {
+			continue
+		}
+		alts = append(alts, s)
+	}
+	if len(alts) == 0 {
+		return nil, fmt.Errorf("no syntax")
+	}
+	return alts, nil
+}
+
+func (c *converter) seq(seq []*node) (string, error) {
+	var parts []string
+	for _, n := range seq {
+		s, err := c.node(n)
+		if err != nil {
+			return "", err
+		}
+		if s != "" {
+			parts = append(parts, s)
+		}
+	}
+	return strings.Join(parts, " "), nil
+}
+
+func (c *converter) node(n *node) (string, error) {
+	if n.tok != nil {
+		s, err := c.token(*n.tok)
+		if err != nil || n.op == 0 || s == "" {
+			return s, err
+		}
+		// intoClause [ ... ]: a repeated token keeps its operator.
+		if strings.ContainsAny(s, " ()") {
+			s = "(" + s + ")"
+		}
+		return s + string(n.op), nil
+	}
+	// An empty alternative, { A | B | }, is a | left before the brace, as
+	// the SHOW pages' IN lists have: it adds nothing to choose.
+	var alts []string
+	for _, seq := range n.alts {
+		s, err := c.seq(seq)
+		if err != nil {
+			return "", err
+		}
+		if s != "" {
+			alts = append(alts, s)
+		}
+	}
+	alts = dedupe(alts)
+	if len(alts) == 0 {
+		return "", nil
+	}
+	body := strings.Join(alts, " | ")
+	if n.op == 0 {
+		if len(alts) == 1 {
+			return body, nil
+		}
+		return "(" + body + ")", nil
+	}
+	// A body that ends in its own operator keeps it in parentheses:
+	// ANTLR reads X+? as a non-greedy X+, not as an optional X+.
+	if len(alts) == 1 && !strings.ContainsAny(body, " ()") && !strings.ContainsAny(body[len(body)-1:], "?*+") {
+		return body + string(n.op), nil
+	}
+	return "(" + body + ")" + string(n.op), nil
+}
+
+func (c *converter) token(t ntok) (string, error) {
+	switch t.kind {
+	case nKeyword:
+		return quote(t.text), nil
+	case nLiteral:
+		return quote(t.text), nil
+	case nTerminal:
+		return t.text, nil
+	case nPlaceholder:
+		if def, ok := c.defs[t.text]; ok && !def {
+			// A value the page defines, where option is:, whose definition
+			// did not convert.
+			return "", fmt.Errorf("%w fragment %q: it did not convert", errUndefined, t.text)
+		}
+		if c.defs[t.text] {
+			return c.fragName(t.text), nil
+		}
+		if camelName.MatchString(t.text) {
+			// <tagAction> names a fragment, as tagAction ::= would define,
+			// not text to fill in.
+			return "", fmt.Errorf("%w fragment %q: the page does not define it", errUndefined, t.text)
+		}
+		cls := c.d.Classify(t.text)
+		if c.d.Value != nil {
+			return c.d.Value(c.slug, t.text, cls), nil
+		}
+		return cls, nil
+	case nFragment:
+		if c.defs[t.text] {
+			return c.fragName(t.text), nil
+		}
+		if strings.ToLower(t.text) == t.text {
+			// A lowercase value, as in API_PROVIDER = { aws_api_gateway | ... }:
+			// checkWords let it through only where a value stands.
+			return quote(t.text), nil
+		}
+		return "", fmt.Errorf("%w fragment %q: the page does not define it, or it did not convert", errUndefined, t.text)
+	case nEllipsis:
+		return "", errElided
+	}
+	return "", fmt.Errorf("token %q", t.text)
+}
+
+// checkWords refuses a lowercase word the page does not define unless it
+// stands where a value does, first in its alternative (after =, |, {, [
+// or (), or where a property's name does, before =. Anywhere else, as in
+// TYPE = OAUTH2 oauth_parameters, it names a fragment the page never
+// wrote down.
+func (c *converter) checkWords(toks []ntok) error {
+	for i, t := range toks {
+		if t.kind != nFragment || c.defs[t.text] || strings.ToLower(t.text) != t.text {
+			continue
+		}
+		valueBefore := i > 0 && (toks[i-1].kind == nBar || toks[i-1].kind == nOpen || isLiteral(toks[i-1], "=") || isLiteral(toks[i-1], "("))
+		valueAfter := i+1 < len(toks) && isLiteral(toks[i+1], "=")
+		// A word alone in braces is text to fill in, as <name> is:
+		// APPLICATION {app_name}. One that names a list of parameters,
+		// {oauth_parameters}, is a fragment the page never wrote down.
+		if i > 0 && toks[i-1].kind == nOpen && toks[i-1].text == "{" && i+1 < len(toks) && toks[i+1].kind == nClose {
+			if listName.MatchString(t.text) {
+				return fmt.Errorf("%w fragment %q: the page does not define it", errUndefined, t.text)
+			}
+			toks[i].kind = nPlaceholder
+			continue
+		}
+		if !valueBefore && !valueAfter {
+			return fmt.Errorf("%w fragment %q: the page does not define it", errUndefined, t.text)
+		}
+	}
+	return nil
+}
+
+// quote writes text as an ANTLR literal.
+func quote(s string) string {
+	return "'" + strings.NewReplacer(`\`, `\\`, `'`, `\'`).Replace(s) + "'"
+}
+
+// writeG4 writes d's grammar: its header, a statement rule naming every page's rule,
+// then each page's rules under its URL, and what was not converted.
+func writeG4(d *Dialect, pin string, pages []pageGrammar) string {
+	var b strings.Builder
+	b.WriteString(d.Header)
+	fmt.Fprintf(&b, "//\n// pin: %s\n\ngrammar %s;\n\nstatement\n", pin, d.Grammar)
+	first := true
+	for _, pg := range pages {
+		if len(pg.forms) == 0 {
+			continue
+		}
+		if first {
+			fmt.Fprintf(&b, "    : %s\n", pg.rule)
+			first = false
+		} else {
+			fmt.Fprintf(&b, "    | %s\n", pg.rule)
+		}
+	}
+	b.WriteString("    ;\n")
+	for _, pg := range pages {
+		fmt.Fprintf(&b, "\n// %s\n", pg.url)
+		for _, f := range pg.fixes {
+			fmt.Fprintf(&b, "// fix: %s\n", f)
+		}
+		for _, f := range pg.failed {
+			fmt.Fprintf(&b, "// not converted (%s): %s\n", f.what, f.reason)
+			for _, l := range strings.Split(f.text, "\n") {
+				fmt.Fprintf(&b, "//   %s\n", strings.TrimRight(l, " "))
+			}
+		}
+		if len(pg.forms) == 0 {
+			if len(pg.failed) == 0 {
+				b.WriteString("// no syntax\n")
+			}
+			continue
+		}
+		writeRule(&b, pg.rule, pg.forms)
+		for _, f := range pg.frags {
+			writeRule(&b, f.name, f.alts)
+		}
+	}
+	return b.String()
+}
+
+func writeRule(b *strings.Builder, name string, alts []string) {
+	fmt.Fprintf(b, "%s\n", name)
+	for i, a := range alts {
+		lead := "    |"
+		if i == 0 {
+			lead = "    :"
+		}
+		fmt.Fprintf(b, "%s %s\n", lead, a)
+	}
+	b.WriteString("    ;\n")
+}

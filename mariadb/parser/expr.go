@@ -386,7 +386,14 @@ func (p *Parser) parsePrefixExpr() (nodes.ExprNode, error) {
 		}
 		defer p.leaveNesting()
 		p.advance()
-		return p.parsePrefixExpr()
+		operand, err := p.parsePrefixExpr()
+		if err != nil {
+			return nil, err
+		}
+		if err := p.refuseBareIntervalOperand(operand); err != nil {
+			return nil, err
+		}
+		return operand, nil
 	case '~':
 		return p.parseUnaryExpr(nodes.UnaryBitNot)
 	case '!':
@@ -451,12 +458,27 @@ func (p *Parser) parseUserVarAssign(rhsPrec int) (nodes.ExprNode, error) {
 }
 
 // parseUnaryExpr parses a unary expression.
+// refuseBareIntervalOperand refuses an INTERVAL literal as the operand of a
+// prefix operator: '-', '+', '~', '!' and BINARY take a simple_expr, and the
+// literal is one only as `INTERVAL_SYM expr interval '+' expr`, so `DO - INTERVAL
+// a DAY` is a 1064. A '+' after it is that production's, read by the caller.
+// Ref: simple_expr in sql/sql_yacc.yy.
+func (p *Parser) refuseBareIntervalOperand(operand nodes.ExprNode) error {
+	if isBareInterval(operand) && p.cur.Type != '+' {
+		return p.syntaxErrorAtCur()
+	}
+	return nil
+}
+
 func (p *Parser) parseUnaryExpr(op nodes.UnaryOp) (nodes.ExprNode, error) {
 	start := p.pos()
 	p.advance() // consume operator
 
 	operand, err := p.parseExprPrec(precUnary)
 	if err != nil {
+		return nil, err
+	}
+	if err := p.refuseBareIntervalOperand(operand); err != nil {
 		return nil, err
 	}
 
@@ -2843,6 +2865,12 @@ func (p *Parser) parseRowItem() (nodes.ExprNode, error) {
 func checkRowItem(e nodes.ExprNode, start int) error {
 	if d, ok := e.(*nodes.DefaultExpr); ok && d.Column == "" {
 		return &ParseError{Message: `syntax error at or near "DEFAULT"`, Position: start}
+	}
+	// A row element is an expr, and a bare INTERVAL literal is none: it is only
+	// an operand of + and -. Ref: simple_expr's `'(' expr ',' expr_list ')'` and
+	// `INTERVAL_SYM expr interval '+' expr` in sql/sql_yacc.yy.
+	if isBareInterval(e) {
+		return &ParseError{Message: `syntax error at or near "INTERVAL"`, Position: start}
 	}
 	return nil
 }
