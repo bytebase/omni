@@ -50,7 +50,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -2384,7 +2385,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -6688,7 +6690,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -11320,7 +11323,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -12319,36 +12323,6 @@
 : string
 | OTHER1
 : string
-| BIN$YDhH4TcKAwHgYwYAEaw9ZQ==$0
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhH4TcKAwHgYwYAEaw9ZQ==$0
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhH4TcKAwHgYwYAEaw9ZQ==$0
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
 | V
 : string
 | ID
@@ -12420,15 +12394,6 @@
 : string
 | OTHER1
 : string
-| BIN$YDhH4TcKAwHgYwYAEaw9ZQ==$0
-: null
-: null
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
 | V
 : null
 : null
@@ -12469,36 +12434,6 @@
 < column "TBL" "NCHAR"
 < column "N" "NCHAR"
 < column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhH4TcKAwHgYwYAEaw9ZQ==$0
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhH4TcKAwHgYwYAEaw9ZQ==$0
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhH4TcKAwHgYwYAEaw9ZQ==$0
-: string
-| Y
-: null
 < row
 : string
 | column
@@ -12586,15 +12521,6 @@
 : string
 | OTHER1
 : string
-| BIN$YDhH4TcKAwHgYwYAEaw9ZQ==$0
-: null
-: null
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
 | V
 : null
 : null
@@ -12635,36 +12561,6 @@
 < column "TBL" "NCHAR"
 < column "N" "NCHAR"
 < column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhH4TcKAwHgYwYAEaw9ZQ==$0
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhH4TcKAwHgYwYAEaw9ZQ==$0
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhH4TcKAwHgYwYAEaw9ZQ==$0
-: string
-| Y
-: null
 < row
 : string
 | column
@@ -12752,15 +12648,6 @@
 : string
 | OTHER1
 : string
-| BIN$YDhH4TcKAwHgYwYAEaw9ZQ==$0
-: null
-: null
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
 | V
 : null
 : null
@@ -12801,36 +12688,6 @@
 < column "TBL" "NCHAR"
 < column "N" "NCHAR"
 < column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhH4TcKAwHgYwYAEaw9ZQ==$0
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhH4TcKAwHgYwYAEaw9ZQ==$0
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhH4TcKAwHgYwYAEaw9ZQ==$0
-: string
-| Y
-: null
 < row
 : string
 | column
@@ -12918,15 +12775,6 @@
 : string
 | OTHER1
 : string
-| BIN$YDhH4TcKAwHgYwYAEaw9ZQ==$0
-: null
-: null
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
 | V
 : null
 : null
@@ -12967,36 +12815,6 @@
 < column "TBL" "NCHAR"
 < column "N" "NCHAR"
 < column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhH4TcKAwHgYwYAEaw9ZQ==$0
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhH4TcKAwHgYwYAEaw9ZQ==$0
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhH4TcKAwHgYwYAEaw9ZQ==$0
-: string
-| Y
-: null
 < row
 : string
 | column
@@ -13084,15 +12902,6 @@
 : string
 | OTHER1
 : string
-| BIN$YDhH4TcKAwHgYwYAEaw9ZQ==$0
-: null
-: null
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
 | V
 : null
 : null
@@ -13133,36 +12942,6 @@
 < column "TBL" "NCHAR"
 < column "N" "NCHAR"
 < column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhH4TcKAwHgYwYAEaw9ZQ==$0
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhH4TcKAwHgYwYAEaw9ZQ==$0
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhH4TcKAwHgYwYAEaw9ZQ==$0
-: string
-| Y
-: null
 < row
 : string
 | column
@@ -13250,15 +13029,6 @@
 : string
 | OTHER1
 : string
-| BIN$YDhH4TcKAwHgYwYAEaw9ZQ==$0
-: null
-: null
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
 | V
 : null
 : null
@@ -13299,36 +13069,6 @@
 < column "TBL" "NCHAR"
 < column "N" "NCHAR"
 < column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhH4TcKAwHgYwYAEaw9ZQ==$0
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhH4TcKAwHgYwYAEaw9ZQ==$0
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhH4TcKAwHgYwYAEaw9ZQ==$0
-: string
-| Y
-: null
 < row
 : string
 | column
@@ -13410,15 +13150,6 @@
 | a
 : string
 | VIEW
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| BIN$YDhH4TcKAwHgYwYAEaw9ZQ==$0
-: null
-: null
 < row
 : string
 | primary key
@@ -13597,7 +13328,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -16416,7 +16148,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -17218,36 +16951,6 @@
 : string
 | OTHER1
 : string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
 | V
 : string
 | ID
@@ -17313,15 +17016,6 @@
 | a
 : string
 | VIEW
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: null
-: null
 < row
 : string
 | primary key
@@ -17374,36 +17068,6 @@
 : string
 | OTHER1
 : string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
 | V
 : string
 | ID
@@ -17469,15 +17133,6 @@
 | a
 : string
 | VIEW
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: null
-: null
 < row
 : string
 | primary key
@@ -17530,36 +17185,6 @@
 : string
 | OTHER1
 : string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
 | V
 : string
 | ID
@@ -17625,15 +17250,6 @@
 | a
 : string
 | VIEW
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: null
-: null
 < row
 : string
 | primary key
@@ -17686,36 +17302,6 @@
 : string
 | OTHER1
 : string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
 | V
 : string
 | ID
@@ -17781,15 +17367,6 @@
 | a
 : string
 | VIEW
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: null
-: null
 < row
 : string
 | primary key
@@ -17842,36 +17419,6 @@
 : string
 | OTHER1
 : string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
 | V
 : string
 | ID
@@ -17937,15 +17484,6 @@
 | a
 : string
 | VIEW
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: null
-: null
 < row
 : string
 | primary key
@@ -17998,36 +17536,6 @@
 : string
 | OTHER1
 : string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
 | V
 : string
 | ID
@@ -18093,15 +17601,6 @@
 | a
 : string
 | VIEW
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: null
-: null
 < row
 : string
 | primary key
@@ -18154,36 +17653,6 @@
 : string
 | OTHER1
 : string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
 | V
 : string
 | ID
@@ -18249,15 +17718,6 @@
 | a
 : string
 | VIEW
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: null
-: null
 < row
 : string
 | primary key
@@ -18310,36 +17770,6 @@
 : string
 | OTHER1
 : string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
 | V
 : string
 | ID
@@ -18405,15 +17835,6 @@
 | a
 : string
 | VIEW
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: null
-: null
 < row
 : string
 | primary key
@@ -18466,36 +17887,6 @@
 : string
 | OTHER1
 : string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
 | V
 : string
 | ID
@@ -18561,15 +17952,6 @@
 | a
 : string
 | VIEW
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: null
-: null
 < row
 : string
 | primary key
@@ -18622,36 +18004,6 @@
 : string
 | OTHER1
 : string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
 | V
 : string
 | ID
@@ -18717,15 +18069,6 @@
 | a
 : string
 | VIEW
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: null
-: null
 < row
 : string
 | primary key
@@ -18778,36 +18121,6 @@
 : string
 | OTHER1
 : string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
 | V
 : string
 | ID
@@ -18873,15 +18186,6 @@
 | a
 : string
 | VIEW
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: null
-: null
 < row
 : string
 | primary key
@@ -18934,36 +18238,6 @@
 : string
 | OTHER1
 : string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
 | V
 : string
 | ID
@@ -19029,15 +18303,6 @@
 | a
 : string
 | VIEW
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: null
-: null
 < row
 : string
 | primary key
@@ -19090,36 +18355,6 @@
 : string
 | OTHER1
 : string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
 | V
 : string
 | ID
@@ -19185,15 +18420,6 @@
 | a
 : string
 | VIEW
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: null
-: null
 < row
 : string
 | primary key
@@ -19246,36 +18472,6 @@
 : string
 | OTHER1
 : string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
 | V
 : string
 | ID
@@ -19341,15 +18537,6 @@
 | a
 : string
 | VIEW
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: null
-: null
 < row
 : string
 | primary key
@@ -19402,36 +18589,6 @@
 : string
 | OTHER1
 : string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
 | V
 : string
 | ID
@@ -19497,15 +18654,6 @@
 | a
 : string
 | VIEW
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: null
-: null
 < row
 : string
 | primary key
@@ -19558,36 +18706,6 @@
 : string
 | OTHER1
 : string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
 | V
 : string
 | ID
@@ -19653,15 +18771,6 @@
 | a
 : string
 | VIEW
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: null
-: null
 < row
 : string
 | primary key
@@ -19714,36 +18823,6 @@
 : string
 | OTHER1
 : string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
 | V
 : string
 | ID
@@ -19809,15 +18888,6 @@
 | a
 : string
 | VIEW
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| BIN$YDhJUV6WAw3gYwYAEaxOVA==$0
-: null
-: null
 < row
 : string
 | primary key
@@ -20043,7 +19113,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -27201,7 +26272,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -32906,7 +31978,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -38023,7 +37096,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -41741,7 +40815,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -46387,7 +45462,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -52311,7 +51387,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -54927,7 +54004,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -55617,7 +54695,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -57090,7 +56169,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -57833,7 +56913,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -58394,7 +57475,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -60222,7 +59304,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -62691,7 +61774,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -63547,24 +62631,31 @@
 < column "K" "NCHAR"
 < row
 : string
-| column
+| object
 : string
 | SHOP1
-: string
-| BIN$YDhP92cPA1/gYwYAEawyOw==$0
-: string
-| X
 : null
+: string
+| C
+: string
+| SEQUENCE
 < row
 : string
-| column
+| sequence
 : string
 | SHOP1
-: string
-| BIN$YDhP92cPA1/gYwYAEawyOw==$0
-: string
-| Y
 : null
+: string
+| C
+: string
+| SEQUENCE
+> query ^
+< result
+< column "S" "NCHAR"
+< column "O" "NCHAR"
+< column "TBL" "NCHAR"
+< column "N" "NCHAR"
+< column "K" "NCHAR"
 < row
 : string
 | object
@@ -63594,24 +62685,31 @@
 < column "K" "NCHAR"
 < row
 : string
-| column
+| object
 : string
 | SHOP1
-: string
-| BIN$YDhP92cPA1/gYwYAEawyOw==$0
-: string
-| X
 : null
+: string
+| C
+: string
+| SEQUENCE
 < row
 : string
-| column
+| sequence
 : string
 | SHOP1
-: string
-| BIN$YDhP92cPA1/gYwYAEawyOw==$0
-: string
-| Y
 : null
+: string
+| C
+: string
+| SEQUENCE
+> query ^
+< result
+< column "S" "NCHAR"
+< column "O" "NCHAR"
+< column "TBL" "NCHAR"
+< column "N" "NCHAR"
+< column "K" "NCHAR"
 < row
 : string
 | object
@@ -63641,26 +62739,6 @@
 < column "K" "NCHAR"
 < row
 : string
-| column
-: string
-| SHOP1
-: string
-| BIN$YDhP92cPA1/gYwYAEawyOw==$0
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| BIN$YDhP92cPA1/gYwYAEawyOw==$0
-: string
-| Y
-: null
-< row
-: string
 | object
 : string
 | SHOP1
@@ -63688,26 +62766,6 @@
 < column "K" "NCHAR"
 < row
 : string
-| column
-: string
-| SHOP1
-: string
-| BIN$YDhP92cPA1/gYwYAEawyOw==$0
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| BIN$YDhP92cPA1/gYwYAEawyOw==$0
-: string
-| Y
-: null
-< row
-: string
 | object
 : string
 | SHOP1
@@ -63733,120 +62791,6 @@
 < column "TBL" "NCHAR"
 < column "N" "NCHAR"
 < column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| BIN$YDhP92cPA1/gYwYAEawyOw==$0
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| BIN$YDhP92cPA1/gYwYAEawyOw==$0
-: string
-| Y
-: null
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| C
-: string
-| SEQUENCE
-< row
-: string
-| sequence
-: string
-| SHOP1
-: null
-: string
-| C
-: string
-| SEQUENCE
-> query ^
-< result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| BIN$YDhP92cPA1/gYwYAEawyOw==$0
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| BIN$YDhP92cPA1/gYwYAEawyOw==$0
-: string
-| Y
-: null
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| C
-: string
-| SEQUENCE
-< row
-: string
-| sequence
-: string
-| SHOP1
-: null
-: string
-| C
-: string
-| SEQUENCE
-> query ^
-< result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| BIN$YDhP92cPA1/gYwYAEawyOw==$0
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| BIN$YDhP92cPA1/gYwYAEawyOw==$0
-: string
-| Y
-: null
 < row
 : string
 | object
@@ -64031,7 +62975,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -65105,7 +64050,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -67006,7 +65952,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -68423,7 +67370,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -73341,7 +72289,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -73628,7 +72577,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -74542,7 +73492,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -77545,7 +76496,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -78937,7 +77889,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -79365,7 +78318,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -80612,7 +79566,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -82283,7 +81238,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -86379,7 +85335,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -87284,7 +86241,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -88290,7 +87248,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -92603,7 +91562,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -95027,7 +93987,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -97643,7 +96604,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -102238,7 +101200,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -104237,36 +103200,6 @@
 : string
 | SHOP1
 : string
-| BIN$YDhFwWoIAuvgYwYAEaz8Kg==$0
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| BIN$YDhFwWoIAuvgYwYAEaz8Kg==$0
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| BIN$YDhFwWoIAuvgYwYAEaz8Kg==$0
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
 | V
 : string
 | X
@@ -104363,15 +103296,6 @@
 | OTHER1
 : string
 | V
-: null
-: null
-< row
-: string
-| primary key
-: string
-| SHOP1
-: string
-| BIN$YDhFwWoIAuvgYwYAEaz8Kg==$0
 : null
 : null
 < row
@@ -104467,36 +103391,6 @@
 : string
 | SHOP1
 : string
-| BIN$YDhFwWoIAuvgYwYAEaz8Kg==$0
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| BIN$YDhFwWoIAuvgYwYAEaz8Kg==$0
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| BIN$YDhFwWoIAuvgYwYAEaz8Kg==$0
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
 | V
 : string
 | X
@@ -104593,15 +103487,6 @@
 | OTHER1
 : string
 | V
-: null
-: null
-< row
-: string
-| primary key
-: string
-| SHOP1
-: string
-| BIN$YDhFwWoIAuvgYwYAEaz8Kg==$0
 : null
 : null
 < row
@@ -104697,36 +103582,6 @@
 : string
 | SHOP1
 : string
-| BIN$YDhFwWoIAuvgYwYAEaz8Kg==$0
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| BIN$YDhFwWoIAuvgYwYAEaz8Kg==$0
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| BIN$YDhFwWoIAuvgYwYAEaz8Kg==$0
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
 | V
 : string
 | X
@@ -104823,15 +103678,6 @@
 | OTHER1
 : string
 | V
-: null
-: null
-< row
-: string
-| primary key
-: string
-| SHOP1
-: string
-| BIN$YDhFwWoIAuvgYwYAEaz8Kg==$0
 : null
 : null
 < row
@@ -105007,7 +103853,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"

@@ -50,7 +50,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -3949,7 +3950,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_25PK_P
+| SYS_C_SNAP$_9000007PK_P
 : string
 | P
 : null
@@ -4039,7 +4040,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_25PK_P
+| SYS_C_SNAP$_9000007PK_P
 : string
 | ID
 : string
@@ -4068,7 +4069,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_25PK_P
+| SYS_C_SNAP$_9000007PK_P
 : string
 | NORMAL
 < row
@@ -4252,7 +4253,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -9493,7 +9495,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_41PK_P
+| SYS_C_SNAP$_9000009PK_P
 : string
 | P
 : null
@@ -9583,7 +9585,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_41PK_P
+| SYS_C_SNAP$_9000009PK_P
 : string
 | ID
 : string
@@ -9612,7 +9614,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_41PK_P
+| SYS_C_SNAP$_9000009PK_P
 : string
 | NORMAL
 < row
@@ -9790,7 +9792,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -10319,26 +10322,6 @@
 : string
 | SHOP
 : string
-| BIN$YDg00+7DAgHgYwYAEaz5mQ==$0
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| BIN$YDg00+7DAgHgYwYAEaz5mQ==$0
-: string
-| NOTE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
 | MV
 : string
 | ID
@@ -10627,15 +10610,6 @@
 : string
 | SHOP
 : string
-| BIN$YDg00+7DAgHgYwYAEaz5mQ==$0
-: null
-: null
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
 | MV
 : null
 : null
@@ -10901,7 +10875,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_70PK_P
+| SYS_C_SNAP$_9000025PK_P
 : string
 | P
 : null
@@ -10991,7 +10965,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_70PK_P
+| SYS_C_SNAP$_9000025PK_P
 : string
 | ID
 : string
@@ -11020,7 +10994,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_70PK_P
+| SYS_C_SNAP$_9000025PK_P
 : string
 | NORMAL
 < row
@@ -11161,7 +11135,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -15858,7 +15833,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_89PK_P
+| SYS_C_SNAP$_9000044PK_P
 : string
 | P
 : null
@@ -15948,7 +15923,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_89PK_P
+| SYS_C_SNAP$_9000044PK_P
 : string
 | ID
 : string
@@ -15977,7 +15952,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_89PK_P
+| SYS_C_SNAP$_9000044PK_P
 : string
 | NORMAL
 < row
@@ -16140,7 +16115,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -19899,7 +19875,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_98PK_P
+| SYS_C_SNAP$_9000055PK_P
 : string
 | P
 : null
@@ -19989,7 +19965,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_98PK_P
+| SYS_C_SNAP$_9000055PK_P
 : string
 | ID
 : string
@@ -20018,7 +19994,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_98PK_P
+| SYS_C_SNAP$_9000055PK_P
 : string
 | NORMAL
 < row
@@ -20173,7 +20149,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -26147,16 +26124,6 @@
 : string
 | SHOP
 : string
-| BIN$YDg6WE7aAkvgYwYAEaxpDQ==$0
-: string
-| A
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
 | MV
 : string
 | ID
@@ -26713,16 +26680,6 @@
 | OTHER
 : string
 | OT
-: string
-| A
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| BIN$YDg6WE7aAkvgYwYAEaxpDQ==$0
 : string
 | A
 : null
@@ -27436,7 +27393,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_82PK_P
+| SYS_C_SNAP$_9000037PK_P
 : string
 | P
 : null
@@ -27526,7 +27483,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_82PK_P
+| SYS_C_SNAP$_9000037PK_P
 : string
 | ID
 : string
@@ -27555,7 +27512,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_82PK_P
+| SYS_C_SNAP$_9000037PK_P
 : string
 | NORMAL
 < row
@@ -27770,7 +27727,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -28974,7 +28932,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_83PK_P
+| SYS_C_SNAP$_9000038PK_P
 : string
 | P
 : null
@@ -29064,7 +29022,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_83PK_P
+| SYS_C_SNAP$_9000038PK_P
 : string
 | ID
 : string
@@ -29093,7 +29051,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_83PK_P
+| SYS_C_SNAP$_9000038PK_P
 : string
 | NORMAL
 < row
@@ -29242,7 +29200,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -35141,16 +35100,6 @@
 : string
 | SHOP
 : string
-| BIN$YDgyOHu5AdngYwYAEawJ9w==$0
-: string
-| A
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
 | MV
 : string
 | ID
@@ -35656,16 +35605,6 @@
 : string
 | SHOP
 : string
-| BIN$YDgyOHu5AdngYwYAEawJ9w==$0
-: string
-| A
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
 | MV
 : string
 | ID
@@ -36165,16 +36104,6 @@
 < column "TBL" "NCHAR"
 < column "N" "NCHAR"
 < column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| BIN$YDgyOHu5AdngYwYAEawJ9w==$0
-: string
-| A
-: null
 < row
 : string
 | column
@@ -36826,7 +36755,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_64PK_P
+| SYS_C_SNAP$_9000016PK_P
 : string
 | P
 : null
@@ -36916,7 +36845,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_64PK_P
+| SYS_C_SNAP$_9000016PK_P
 : string
 | ID
 : string
@@ -36945,7 +36874,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_64PK_P
+| SYS_C_SNAP$_9000016PK_P
 : string
 | NORMAL
 < row
@@ -37154,7 +37083,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -40149,7 +40079,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_68PK_P
+| SYS_C_SNAP$_9000021PK_P
 : string
 | P
 : null
@@ -40248,7 +40178,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_68PK_P
+| SYS_C_SNAP$_9000021PK_P
 : string
 | ID
 : string
@@ -40284,7 +40214,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_68PK_P
+| SYS_C_SNAP$_9000021PK_P
 : string
 | NORMAL
 < row
@@ -40443,7 +40373,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -44202,7 +44133,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_73PK_P
+| SYS_C_SNAP$_9000028PK_P
 : string
 | P
 : null
@@ -44292,7 +44223,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_73PK_P
+| SYS_C_SNAP$_9000028PK_P
 : string
 | ID
 : string
@@ -44321,7 +44252,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_73PK_P
+| SYS_C_SNAP$_9000028PK_P
 : string
 | NORMAL
 < row
@@ -44486,7 +44417,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -56500,7 +56432,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_72PK_P
+| SYS_C_SNAP$_9000027PK_P
 : string
 | P
 : null
@@ -56590,7 +56522,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_72PK_P
+| SYS_C_SNAP$_9000027PK_P
 : string
 | ID
 : string
@@ -56619,7 +56551,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_72PK_P
+| SYS_C_SNAP$_9000027PK_P
 : string
 | NORMAL
 < row
@@ -56858,7 +56790,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -62222,7 +62155,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_21PK_P
+| SYS_C_SNAP$_9000003PK_P
 : string
 | P
 : null
@@ -62312,7 +62245,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_21PK_P
+| SYS_C_SNAP$_9000003PK_P
 : string
 | ID
 : string
@@ -62341,7 +62274,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_21PK_P
+| SYS_C_SNAP$_9000003PK_P
 : string
 | NORMAL
 < row
@@ -62509,7 +62442,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -65258,7 +65192,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_97PK_P
+| SYS_C_SNAP$_9000054PK_P
 : string
 | P
 : null
@@ -65348,7 +65282,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_97PK_P
+| SYS_C_SNAP$_9000054PK_P
 : string
 | ID
 : string
@@ -65377,7 +65311,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_97PK_P
+| SYS_C_SNAP$_9000054PK_P
 : string
 | NORMAL
 < row
@@ -65526,7 +65460,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -68850,7 +68785,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_3PK_P
+| SYS_C_SNAP$_9000002PK_P
 : string
 | P
 : null
@@ -68940,7 +68875,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_3PK_P
+| SYS_C_SNAP$_9000002PK_P
 : string
 | ID
 : string
@@ -68969,7 +68904,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_3PK_P
+| SYS_C_SNAP$_9000002PK_P
 : string
 | NORMAL
 < row
@@ -69138,7 +69073,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -76642,7 +76578,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_79PK_P
+| SYS_C_SNAP$_9000034PK_P
 : string
 | P
 : null
@@ -76732,7 +76668,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_79PK_P
+| SYS_C_SNAP$_9000034PK_P
 : string
 | ID
 : string
@@ -76761,7 +76697,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_79PK_P
+| SYS_C_SNAP$_9000034PK_P
 : string
 | NORMAL
 < row
@@ -76961,7 +76897,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -82788,7 +82725,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_63PK_P
+| SYS_C_SNAP$_9000015PK_P
 : string
 | P
 : null
@@ -82878,7 +82815,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_63PK_P
+| SYS_C_SNAP$_9000015PK_P
 : string
 | ID
 : string
@@ -82907,7 +82844,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_63PK_P
+| SYS_C_SNAP$_9000015PK_P
 : string
 | NORMAL
 < row
@@ -83085,7 +83022,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -85299,7 +85237,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_80PK_P
+| SYS_C_SNAP$_9000035PK_P
 : string
 | P
 : null
@@ -85389,7 +85327,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_80PK_P
+| SYS_C_SNAP$_9000035PK_P
 : string
 | ID
 : string
@@ -85418,7 +85356,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_80PK_P
+| SYS_C_SNAP$_9000035PK_P
 : string
 | NORMAL
 < row
@@ -85568,7 +85506,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -90537,7 +90476,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_71PK_P
+| SYS_C_SNAP$_9000026PK_P
 : string
 | P
 : null
@@ -90627,7 +90566,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_71PK_P
+| SYS_C_SNAP$_9000026PK_P
 : string
 | ID
 : string
@@ -90656,7 +90595,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_71PK_P
+| SYS_C_SNAP$_9000026PK_P
 : string
 | NORMAL
 < row
@@ -90848,7 +90787,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -95747,7 +95687,7 @@
 : string
 | JCT
 : string
-| SYS_C9000002
+| SYS_C9000022
 : string
 | P
 : null
@@ -95755,7 +95695,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_69PK_P
+| SYS_C_SNAP$_9000023PK_P
 : string
 | P
 : null
@@ -95845,14 +95785,14 @@
 | 0
 < row
 : string
-| SYS_C9000002
+| SYS_C9000022
 : string
 | RESID
 : string
 | 1
 < row
 : string
-| SYS_C_SNAP$_69PK_P
+| SYS_C_SNAP$_9000023PK_P
 : string
 | ID
 : string
@@ -95874,14 +95814,14 @@
 : string
 | JCT
 : string
-| SYS_C9000002
+| SYS_C9000022
 : string
 | FUNCTION-BASED NORMAL
 < row
 : string
 | JCT
 : string
-| SYS_IL9000000003C00001$$
+| SYS_IL9000000024C00001$$
 : string
 | LOB
 < row
@@ -95895,7 +95835,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_69PK_P
+| SYS_C_SNAP$_9000023PK_P
 : string
 | NORMAL
 < row
@@ -96072,7 +96012,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -98332,7 +98273,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_96PK_P
+| SYS_C_SNAP$_9000053PK_P
 : string
 | P
 : null
@@ -98422,7 +98363,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_96PK_P
+| SYS_C_SNAP$_9000053PK_P
 : string
 | ID
 : string
@@ -98451,7 +98392,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_96PK_P
+| SYS_C_SNAP$_9000053PK_P
 : string
 | NORMAL
 < row
@@ -98602,7 +98543,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -100732,7 +100674,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_61PK_P
+| SYS_C_SNAP$_9000013PK_P
 : string
 | P
 : null
@@ -100822,7 +100764,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_61PK_P
+| SYS_C_SNAP$_9000013PK_P
 : string
 | ID
 : string
@@ -100851,7 +100793,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_61PK_P
+| SYS_C_SNAP$_9000013PK_P
 : string
 | NORMAL
 < row
@@ -100997,7 +100939,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -103609,7 +103552,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_62PK_P
+| SYS_C_SNAP$_9000014PK_P
 : string
 | P
 : null
@@ -103699,7 +103642,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_62PK_P
+| SYS_C_SNAP$_9000014PK_P
 : string
 | ID
 : string
@@ -103728,7 +103671,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_62PK_P
+| SYS_C_SNAP$_9000014PK_P
 : string
 | NORMAL
 < row
@@ -103880,7 +103823,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -104409,56 +104353,6 @@
 : string
 | SHOP
 : string
-| BIN$YDgyrtRhAd/gYwYAEaywkA==$0
-: string
-| CODE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| BIN$YDgyrtRhAd/gYwYAEaywkA==$0
-: string
-| H
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| BIN$YDgyrtRhAd/gYwYAEaywkA==$0
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| BIN$YDgyrtRhAd/gYwYAEaywkA==$0
-: string
-| N
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| BIN$YDgyrtRhAd/gYwYAEaywkA==$0
-: string
-| P_ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
 | MV
 : string
 | ID
@@ -104662,15 +104556,6 @@
 : string
 | SHOP
 : string
-| BIN$YDgyrtRhAd/gYwYAEaywkA==$0
-: null
-: null
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
 | MV
 : null
 : null
@@ -104750,56 +104635,6 @@
 < column "TBL" "NCHAR"
 < column "N" "NCHAR"
 < column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| BIN$YDgyrtRhAd/gYwYAEaywkA==$0
-: string
-| CODE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| BIN$YDgyrtRhAd/gYwYAEaywkA==$0
-: string
-| H
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| BIN$YDgyrtRhAd/gYwYAEaywkA==$0
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| BIN$YDgyrtRhAd/gYwYAEaywkA==$0
-: string
-| N
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| BIN$YDgyrtRhAd/gYwYAEaywkA==$0
-: string
-| P_ID
-: null
 < row
 : string
 | column
@@ -105020,15 +104855,6 @@
 : string
 | SHOP
 : string
-| BIN$YDgyrtRhAd/gYwYAEaywkA==$0
-: null
-: null
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
 | MV
 : null
 : null
@@ -105108,56 +104934,6 @@
 < column "TBL" "NCHAR"
 < column "N" "NCHAR"
 < column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| BIN$YDgyrtRhAd/gYwYAEaywkA==$0
-: string
-| CODE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| BIN$YDgyrtRhAd/gYwYAEaywkA==$0
-: string
-| H
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| BIN$YDgyrtRhAd/gYwYAEaywkA==$0
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| BIN$YDgyrtRhAd/gYwYAEaywkA==$0
-: string
-| N
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| BIN$YDgyrtRhAd/gYwYAEaywkA==$0
-: string
-| P_ID
-: null
 < row
 : string
 | column
@@ -105389,15 +105165,6 @@
 : string
 | SHOP
 : string
-| BIN$YDgyrtRhAd/gYwYAEaywkA==$0
-: null
-: null
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
 | MV
 : null
 : null
@@ -105487,56 +105254,6 @@
 < column "TBL" "NCHAR"
 < column "N" "NCHAR"
 < column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| BIN$YDgyrtRhAd/gYwYAEaywkA==$0
-: string
-| CODE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| BIN$YDgyrtRhAd/gYwYAEaywkA==$0
-: string
-| H
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| BIN$YDgyrtRhAd/gYwYAEaywkA==$0
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| BIN$YDgyrtRhAd/gYwYAEaywkA==$0
-: string
-| N
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| BIN$YDgyrtRhAd/gYwYAEaywkA==$0
-: string
-| P_ID
-: null
 < row
 : string
 | column
@@ -105782,15 +105499,6 @@
 | TY
 : string
 | TYPE
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
-| BIN$YDgyrtRhAd/gYwYAEaywkA==$0
-: null
-: null
 < row
 : string
 | primary key
@@ -105912,56 +105620,6 @@
 : string
 | SHOP
 : string
-| BIN$YDgyrtRhAd/gYwYAEaywkA==$0
-: string
-| CODE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| BIN$YDgyrtRhAd/gYwYAEaywkA==$0
-: string
-| H
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| BIN$YDgyrtRhAd/gYwYAEaywkA==$0
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| BIN$YDgyrtRhAd/gYwYAEaywkA==$0
-: string
-| N
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| BIN$YDgyrtRhAd/gYwYAEaywkA==$0
-: string
-| P_ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
 | MV
 : string
 | ID
@@ -106201,15 +105859,6 @@
 | TY
 : string
 | TYPE
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
-| BIN$YDgyrtRhAd/gYwYAEaywkA==$0
-: null
-: null
 < row
 : string
 | primary key
@@ -106331,56 +105980,6 @@
 : string
 | SHOP
 : string
-| BIN$YDgyrtRhAd/gYwYAEaywkA==$0
-: string
-| CODE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| BIN$YDgyrtRhAd/gYwYAEaywkA==$0
-: string
-| H
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| BIN$YDgyrtRhAd/gYwYAEaywkA==$0
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| BIN$YDgyrtRhAd/gYwYAEaywkA==$0
-: string
-| N
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| BIN$YDgyrtRhAd/gYwYAEaywkA==$0
-: string
-| P_ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
 | MV
 : string
 | ID
@@ -106620,15 +106219,6 @@
 | TY
 : string
 | TYPE
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
-| BIN$YDgyrtRhAd/gYwYAEaywkA==$0
-: null
-: null
 < row
 : string
 | primary key
@@ -106890,7 +106480,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_65PK_P
+| SYS_C_SNAP$_9000017PK_P
 : string
 | P
 : null
@@ -106980,7 +106570,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_65PK_P
+| SYS_C_SNAP$_9000017PK_P
 : string
 | ID
 : string
@@ -107009,7 +106599,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_65PK_P
+| SYS_C_SNAP$_9000017PK_P
 : string
 | NORMAL
 < row
@@ -107166,7 +106756,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -107699,16 +107290,6 @@
 < column "TBL" "NCHAR"
 < column "N" "NCHAR"
 < column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| BIN$YDg9oW/mAo/gYwYAEaxygQ==$0
-: string
-| A
-: null
 < row
 : string
 | column
@@ -108356,7 +107937,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_93PK_P
+| SYS_C_SNAP$_9000048PK_P
 : string
 | P
 : null
@@ -108446,7 +108027,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_93PK_P
+| SYS_C_SNAP$_9000048PK_P
 : string
 | ID
 : string
@@ -108475,7 +108056,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_93PK_P
+| SYS_C_SNAP$_9000048PK_P
 : string
 | NORMAL
 < row
@@ -108621,7 +108202,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -109154,16 +108736,6 @@
 < column "TBL" "NCHAR"
 < column "N" "NCHAR"
 < column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| BIN$YDg9cogSAongYwYAEayV6w==$0
-: string
-| A
-: null
 < row
 : string
 | column
@@ -109808,7 +109380,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_92PK_P
+| SYS_C_SNAP$_9000047PK_P
 : string
 | P
 : null
@@ -109898,7 +109470,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_92PK_P
+| SYS_C_SNAP$_9000047PK_P
 : string
 | ID
 : string
@@ -109927,7 +109499,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_92PK_P
+| SYS_C_SNAP$_9000047PK_P
 : string
 | NORMAL
 < row
@@ -110073,7 +109645,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -112281,16 +111854,6 @@
 < column "TBL" "NCHAR"
 < column "N" "NCHAR"
 < column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| BIN$YDg9HxRgAoPgYwYAEazMTQ==$0
-: string
-| A
-: null
 < row
 : string
 | column
@@ -112975,7 +112538,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_91PK_P
+| SYS_C_SNAP$_9000046PK_P
 : string
 | P
 : null
@@ -113065,7 +112628,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_91PK_P
+| SYS_C_SNAP$_9000046PK_P
 : string
 | ID
 : string
@@ -113094,7 +112657,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_91PK_P
+| SYS_C_SNAP$_9000046PK_P
 : string
 | NORMAL
 < row
@@ -113260,7 +112823,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -114584,26 +114148,6 @@
 : string
 | SHOP
 : string
-| BIN$YDgzaDEQAevgYwYAEaxyKw==$0
-: string
-| A
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| BIN$YDgzaDEQAevgYwYAEaxyKw==$0
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
 | MV
 : string
 | ID
@@ -114955,15 +114499,6 @@
 : string
 | SHOP
 : string
-| BIN$YDgzaDEQAevgYwYAEaxyKw==$0
-: null
-: null
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
 | MV
 : null
 : null
@@ -115122,26 +114657,6 @@
 < column "TBL" "NCHAR"
 < column "N" "NCHAR"
 < column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| BIN$YDgzaDEQAevgYwYAEaxyKw==$0
-: string
-| A
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| BIN$YDgzaDEQAevgYwYAEaxyKw==$0
-: string
-| ID
-: null
 < row
 : string
 | column
@@ -115519,15 +115034,6 @@
 : string
 | SHOP
 : string
-| BIN$YDgzaDEQAevgYwYAEaxyKw==$0
-: null
-: null
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
 | MV
 : null
 : null
@@ -115898,7 +115404,7 @@
 : string
 | ML
 : string
-| SYS_C9000001
+| SYS_C9000019
 : string
 | P
 : null
@@ -115906,7 +115412,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_67PK_P
+| SYS_C_SNAP$_9000020PK_P
 : string
 | P
 : null
@@ -116003,14 +115509,14 @@
 | 0
 < row
 : string
-| SYS_C9000001
+| SYS_C9000019
 : string
 | ID
 : string
 | 0
 < row
 : string
-| SYS_C_SNAP$_67PK_P
+| SYS_C_SNAP$_9000020PK_P
 : string
 | ID
 : string
@@ -116032,7 +115538,7 @@
 : string
 | ML
 : string
-| SYS_C9000001
+| SYS_C9000019
 : string
 | NORMAL
 < row
@@ -116053,7 +115559,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_67PK_P
+| SYS_C_SNAP$_9000020PK_P
 : string
 | NORMAL
 < row
@@ -116202,7 +115708,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -117506,26 +117013,6 @@
 : string
 | SHOP
 : string
-| BIN$YDg+HtgEApvgYwYAEawsMQ==$0
-: string
-| A
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| BIN$YDg+HtgEApvgYwYAEawsMQ==$0
-: string
-| C
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
 | MV
 : string
 | ID
@@ -118105,661 +117592,6 @@
 < column "TBL" "NCHAR"
 < column "N" "NCHAR"
 < column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| BIN$YDg+HtgEApvgYwYAEawsMQ==$0
-: string
-| A
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| BIN$YDg+HtgEApvgYwYAEawsMQ==$0
-: string
-| C
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| CHILD
-: string
-| A
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| MV
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| MV
-: string
-| NOTE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| NOKEY
-: string
-| A
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| P
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| P
-: string
-| NOTE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| PARENT2
-: string
-| A
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| PARENT2
-: string
-| C
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| PV
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| PV
-: string
-| NOTE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| CODE
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| H
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| N
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| T
-: string
-| P_ID
-: null
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| P
-: string
-| PK_P
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| CK_N
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| FK_P
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| NN_CODE
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| PK_T
-: string
-| SHOP
-< row
-: string
-| constraint
-: string
-| SHOP
-: string
-| T
-: string
-| UK_CODE
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| MV
-: string
-| MV_IX
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| P
-: string
-| PK_P
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| T
-: string
-| IX_N
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| T
-: string
-| PK_T
-: string
-| SHOP
-< row
-: string
-| index
-: string
-| SHOP
-: string
-| T
-: string
-| UK_CODE
-: string
-| SHOP
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| CHILD
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| CHILD2
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| F
-: string
-| FUNCTION
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| MV
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| NOKEY
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| NT_TY
-: string
-| TYPE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| P
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| PARENT2
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| PKG
-: string
-| PACKAGE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| PR
-: string
-| PROCEDURE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| PV
-: string
-| VIEW
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| SQ
-: string
-| SEQUENCE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| SYN
-: string
-| SYNONYM
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| T
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP
-: null
-: string
-| TY
-: string
-| TYPE
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
-| MV
-: null
-: null
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
-| P
-: null
-: null
-< row
-: string
-| primary key
-: string
-| SHOP
-: string
-| T
-: null
-: null
-< row
-: string
-| sequence
-: string
-| SHOP
-: null
-: string
-| SQ
-: string
-| SEQUENCE
-< row
-: string
-| synonym
-: string
-| SHOP
-: null
-: string
-| SYN
-: string
-| SYNONYM
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| CHILD
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| CHILD2
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| MV
-: string
-| MATERIALIZED VIEW
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| NOKEY
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| P
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| PARENT2
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP
-: null
-: string
-| T
-: string
-| TABLE
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| P
-: string
-| PK_P
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| CK_N
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| FK_P
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| NN_CODE
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| PK_T
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP
-: string
-| T
-: string
-| UK_CODE
-: null
-< row
-: string
-| view
-: string
-| SHOP
-: null
-: string
-| PV
-: string
-| VIEW
-> query ^
-< result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| BIN$YDg+HtgEApvgYwYAEawsMQ==$0
-: string
-| A
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| BIN$YDg+HtgEApvgYwYAEawsMQ==$0
-: string
-| C
-: null
 < row
 : string
 | column
@@ -119381,7 +118213,7 @@
 : string
 | SHOP
 : string
-| BIN$YDg+HtgEApvgYwYAEawsMQ==$0
+| CHILD
 : string
 | A
 : null
@@ -119391,10 +118223,605 @@
 : string
 | SHOP
 : string
-| BIN$YDg+HtgEApvgYwYAEawsMQ==$0
+| MV
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| MV
+: string
+| NOTE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| NOKEY
+: string
+| A
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| P
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| P
+: string
+| NOTE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| PARENT2
+: string
+| A
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| PARENT2
 : string
 | C
 : null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| PV
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| PV
+: string
+| NOTE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| CODE
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| H
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| N
+: null
+< row
+: string
+| column
+: string
+| SHOP
+: string
+| T
+: string
+| P_ID
+: null
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| P
+: string
+| PK_P
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| CK_N
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| FK_P
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| NN_CODE
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| PK_T
+: string
+| SHOP
+< row
+: string
+| constraint
+: string
+| SHOP
+: string
+| T
+: string
+| UK_CODE
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| MV
+: string
+| MV_IX
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| P
+: string
+| PK_P
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| T
+: string
+| IX_N
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| T
+: string
+| PK_T
+: string
+| SHOP
+< row
+: string
+| index
+: string
+| SHOP
+: string
+| T
+: string
+| UK_CODE
+: string
+| SHOP
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| CHILD
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| CHILD2
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| F
+: string
+| FUNCTION
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| MV
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| NOKEY
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| NT_TY
+: string
+| TYPE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| P
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| PARENT2
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| PKG
+: string
+| PACKAGE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| PR
+: string
+| PROCEDURE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| PV
+: string
+| VIEW
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| SQ
+: string
+| SEQUENCE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| SYN
+: string
+| SYNONYM
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| T
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP
+: null
+: string
+| TY
+: string
+| TYPE
+< row
+: string
+| primary key
+: string
+| SHOP
+: string
+| MV
+: null
+: null
+< row
+: string
+| primary key
+: string
+| SHOP
+: string
+| P
+: null
+: null
+< row
+: string
+| primary key
+: string
+| SHOP
+: string
+| T
+: null
+: null
+< row
+: string
+| sequence
+: string
+| SHOP
+: null
+: string
+| SQ
+: string
+| SEQUENCE
+< row
+: string
+| synonym
+: string
+| SHOP
+: null
+: string
+| SYN
+: string
+| SYNONYM
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| CHILD
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| CHILD2
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| MV
+: string
+| MATERIALIZED VIEW
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| NOKEY
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| P
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| PARENT2
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP
+: null
+: string
+| T
+: string
+| TABLE
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| P
+: string
+| PK_P
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| CK_N
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| FK_P
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| NN_CODE
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| PK_T
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP
+: string
+| T
+: string
+| UK_CODE
+: null
+< row
+: string
+| view
+: string
+| SHOP
+: null
+: string
+| PV
+: string
+| VIEW
+> query ^
+< result
+< column "S" "NCHAR"
+< column "O" "NCHAR"
+< column "TBL" "NCHAR"
+< column "N" "NCHAR"
+< column "K" "NCHAR"
 < row
 : string
 | column
@@ -119986,26 +119413,6 @@
 : string
 | SHOP
 : string
-| BIN$YDg+HtgEApvgYwYAEawsMQ==$0
-: string
-| A
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| BIN$YDg+HtgEApvgYwYAEawsMQ==$0
-: string
-| C
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
 | CHILD
 : string
 | A
@@ -120615,26 +120022,6 @@
 < column "TBL" "NCHAR"
 < column "N" "NCHAR"
 < column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| BIN$YDg+HtgEApvgYwYAEawsMQ==$0
-: string
-| A
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| BIN$YDg+HtgEApvgYwYAEawsMQ==$0
-: string
-| C
-: null
 < row
 : string
 | column
@@ -121280,26 +120667,6 @@
 < column "TBL" "NCHAR"
 < column "N" "NCHAR"
 < column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| BIN$YDg+HtgEApvgYwYAEawsMQ==$0
-: string
-| A
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| BIN$YDg+HtgEApvgYwYAEawsMQ==$0
-: string
-| C
-: null
 < row
 : string
 | column
@@ -122140,7 +121507,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_95PK_P
+| SYS_C_SNAP$_9000050PK_P
 : string
 | P
 : null
@@ -122156,7 +121523,7 @@
 : string
 | PARENT
 : string
-| SYS_C9000004
+| SYS_C9000051
 : string
 | U
 : null
@@ -122164,7 +121531,7 @@
 : string
 | PARENT2
 : string
-| SYS_C9000005
+| SYS_C9000052
 : string
 | U
 : null
@@ -122246,35 +121613,35 @@
 | 0
 < row
 : string
-| SYS_C9000004
+| SYS_C9000051
 : string
 | C
 : string
 | 0
 < row
 : string
-| SYS_C9000005
+| SYS_C9000052
 : string
 | C
 : string
 | 0
 < row
 : string
-| SYS_C_SNAP$_95PK_P
+| SYS_C_SNAP$_9000050PK_P
 : string
 | ID
 : string
 | 0
 < row
 : string
-| SYS_FK0000075021N00002$
+| SYS_FK0000074276N00002$
 : string
 | NESTED_TABLE_ID
 : string
 | 0
 < row
 : string
-| SYS_FK0000075025N00002$
+| SYS_FK0000074280N00002$
 : string
 | NESTED_TABLE_ID
 : string
@@ -122296,14 +121663,14 @@
 : string
 | CHILD
 : string
-| SYS_FK0000075021N00002$
+| SYS_FK0000074276N00002$
 : string
 | NORMAL
 < row
 : string
 | CHILD2
 : string
-| SYS_FK0000075025N00002$
+| SYS_FK0000074280N00002$
 : string
 | NORMAL
 < row
@@ -122317,7 +121684,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_95PK_P
+| SYS_C_SNAP$_9000050PK_P
 : string
 | NORMAL
 < row
@@ -122331,14 +121698,14 @@
 : string
 | PARENT
 : string
-| SYS_C9000004
+| SYS_C9000051
 : string
 | NORMAL
 < row
 : string
 | PARENT2
 : string
-| SYS_C9000005
+| SYS_C9000052
 : string
 | NORMAL
 < row
@@ -122495,7 +121862,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -126254,7 +125622,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_22PK_P
+| SYS_C_SNAP$_9000004PK_P
 : string
 | P
 : null
@@ -126344,7 +125712,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_22PK_P
+| SYS_C_SNAP$_9000004PK_P
 : string
 | ID
 : string
@@ -126373,7 +125741,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_22PK_P
+| SYS_C_SNAP$_9000004PK_P
 : string
 | NORMAL
 < row
@@ -126538,7 +125906,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -133015,7 +132384,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_23PK_P
+| SYS_C_SNAP$_9000005PK_P
 : string
 | P
 : null
@@ -133105,7 +132474,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_23PK_P
+| SYS_C_SNAP$_9000005PK_P
 : string
 | ID
 : string
@@ -133134,7 +132503,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_23PK_P
+| SYS_C_SNAP$_9000005PK_P
 : string
 | NORMAL
 < row
@@ -133307,7 +132676,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -133877,16 +133247,6 @@
 | OTHER
 : string
 | OT
-: string
-| A
-: null
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| BIN$YDg6/nz/AlfgYwYAEawCsw==$0
 : string
 | A
 : null
@@ -134557,7 +133917,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_84PK_P
+| SYS_C_SNAP$_9000039PK_P
 : string
 | P
 : null
@@ -134647,7 +134007,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_84PK_P
+| SYS_C_SNAP$_9000039PK_P
 : string
 | ID
 : string
@@ -134676,7 +134036,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_84PK_P
+| SYS_C_SNAP$_9000039PK_P
 : string
 | NORMAL
 < row
@@ -134825,7 +134185,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -135358,16 +134719,6 @@
 < column "TBL" "NCHAR"
 < column "N" "NCHAR"
 < column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| SHOP
-: string
-| BIN$YDg91ww2ApXgYwYAEazhfg==$0
-: string
-| A
-: null
 < row
 : string
 | column
@@ -136012,7 +135363,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_94PK_P
+| SYS_C_SNAP$_9000049PK_P
 : string
 | P
 : null
@@ -136102,7 +135453,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_94PK_P
+| SYS_C_SNAP$_9000049PK_P
 : string
 | ID
 : string
@@ -136131,7 +135482,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_94PK_P
+| SYS_C_SNAP$_9000049PK_P
 : string
 | NORMAL
 < row
@@ -136277,7 +135628,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -138039,7 +137391,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_88PK_P
+| SYS_C_SNAP$_9000043PK_P
 : string
 | P
 : null
@@ -138129,7 +137481,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_88PK_P
+| SYS_C_SNAP$_9000043PK_P
 : string
 | ID
 : string
@@ -138158,7 +137510,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_88PK_P
+| SYS_C_SNAP$_9000043PK_P
 : string
 | NORMAL
 < row
@@ -138312,7 +137664,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -140762,7 +140115,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_86PK_P
+| SYS_C_SNAP$_9000041PK_P
 : string
 | P
 : null
@@ -140852,7 +140205,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_86PK_P
+| SYS_C_SNAP$_9000041PK_P
 : string
 | ID
 : string
@@ -140881,7 +140234,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_86PK_P
+| SYS_C_SNAP$_9000041PK_P
 : string
 | NORMAL
 < row
@@ -141036,7 +140389,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -145361,7 +144715,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_42PK_P
+| SYS_C_SNAP$_9000010PK_P
 : string
 | P
 : null
@@ -145451,7 +144805,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_42PK_P
+| SYS_C_SNAP$_9000010PK_P
 : string
 | ID
 : string
@@ -145480,7 +144834,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_42PK_P
+| SYS_C_SNAP$_9000010PK_P
 : string
 | NORMAL
 < row
@@ -145635,7 +144989,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -147463,7 +146818,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_90PK_P
+| SYS_C_SNAP$_9000045PK_P
 : string
 | P
 : null
@@ -147553,7 +146908,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_90PK_P
+| SYS_C_SNAP$_9000045PK_P
 : string
 | ID
 : string
@@ -147582,7 +146937,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_90PK_P
+| SYS_C_SNAP$_9000045PK_P
 : string
 | NORMAL
 < row
@@ -147737,7 +147092,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -149546,7 +148902,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_76PK_P
+| SYS_C_SNAP$_9000031PK_P
 : string
 | P
 : null
@@ -149636,7 +148992,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_76PK_P
+| SYS_C_SNAP$_9000031PK_P
 : string
 | ID
 : string
@@ -149665,7 +149021,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_76PK_P
+| SYS_C_SNAP$_9000031PK_P
 : string
 | NORMAL
 < row
@@ -149822,7 +149178,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -151543,7 +150900,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_77PK_P
+| SYS_C_SNAP$_9000032PK_P
 : string
 | P
 : null
@@ -151633,7 +150990,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_77PK_P
+| SYS_C_SNAP$_9000032PK_P
 : string
 | ID
 : string
@@ -151662,7 +151019,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_77PK_P
+| SYS_C_SNAP$_9000032PK_P
 : string
 | NORMAL
 < row
@@ -151805,7 +151162,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -155882,7 +155240,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_78PK_P
+| SYS_C_SNAP$_9000033PK_P
 : string
 | P
 : null
@@ -155972,7 +155330,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_78PK_P
+| SYS_C_SNAP$_9000033PK_P
 : string
 | ID
 : string
@@ -156001,7 +155359,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_78PK_P
+| SYS_C_SNAP$_9000033PK_P
 : string
 | NORMAL
 < row
@@ -156161,7 +155519,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -158975,16 +158334,6 @@
 : string
 | column
 : string
-| OTHER
-: string
-| BIN$YDgzDyAXAeXgYwYAEaz2+A==$0
-: string
-| A
-: null
-< row
-: string
-| column
-: string
 | SHOP
 : string
 | MV
@@ -159496,16 +158845,6 @@
 < column "TBL" "NCHAR"
 < column "N" "NCHAR"
 < column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| OTHER
-: string
-| BIN$YDgzDyAXAeXgYwYAEaz2+A==$0
-: string
-| A
-: null
 < row
 : string
 | column
@@ -160181,7 +159520,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_66PK_P
+| SYS_C_SNAP$_9000018PK_P
 : string
 | P
 : null
@@ -160271,7 +159610,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_66PK_P
+| SYS_C_SNAP$_9000018PK_P
 : string
 | ID
 : string
@@ -160300,7 +159639,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_66PK_P
+| SYS_C_SNAP$_9000018PK_P
 : string
 | NORMAL
 < row
@@ -160460,7 +159799,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -166774,7 +166114,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_26PK_P
+| SYS_C_SNAP$_9000008PK_P
 : string
 | P
 : null
@@ -166864,7 +166204,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_26PK_P
+| SYS_C_SNAP$_9000008PK_P
 : string
 | ID
 : string
@@ -166893,7 +166233,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_26PK_P
+| SYS_C_SNAP$_9000008PK_P
 : string
 | NORMAL
 < row
@@ -167080,7 +166420,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -173559,7 +172900,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_44PK_P
+| SYS_C_SNAP$_9000012PK_P
 : string
 | P
 : null
@@ -173649,7 +172990,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_44PK_P
+| SYS_C_SNAP$_9000012PK_P
 : string
 | ID
 : string
@@ -173678,7 +173019,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_44PK_P
+| SYS_C_SNAP$_9000012PK_P
 : string
 | NORMAL
 < row
@@ -173854,7 +173195,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -181218,7 +180560,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_43PK_P
+| SYS_C_SNAP$_9000011PK_P
 : string
 | P
 : null
@@ -181308,7 +180650,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_43PK_P
+| SYS_C_SNAP$_9000011PK_P
 : string
 | ID
 : string
@@ -181337,7 +180679,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_43PK_P
+| SYS_C_SNAP$_9000011PK_P
 : string
 | NORMAL
 < row
@@ -181537,7 +180879,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -190212,7 +189555,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_74PK_P
+| SYS_C_SNAP$_9000029PK_P
 : string
 | P
 : null
@@ -190302,7 +189645,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_74PK_P
+| SYS_C_SNAP$_9000029PK_P
 : string
 | ID
 : string
@@ -190331,7 +189674,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_74PK_P
+| SYS_C_SNAP$_9000029PK_P
 : string
 | NORMAL
 < row
@@ -190538,7 +189881,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -192752,7 +192096,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_24PK_P
+| SYS_C_SNAP$_9000006PK_P
 : string
 | P
 : null
@@ -192842,7 +192186,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_24PK_P
+| SYS_C_SNAP$_9000006PK_P
 : string
 | ID
 : string
@@ -192871,7 +192215,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_24PK_P
+| SYS_C_SNAP$_9000006PK_P
 : string
 | NORMAL
 < row
@@ -193024,7 +192368,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -195281,7 +194626,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_87PK_P
+| SYS_C_SNAP$_9000042PK_P
 : string
 | P
 : null
@@ -195371,7 +194716,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_87PK_P
+| SYS_C_SNAP$_9000042PK_P
 : string
 | ID
 : string
@@ -195400,7 +194745,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_87PK_P
+| SYS_C_SNAP$_9000042PK_P
 : string
 | NORMAL
 < row
@@ -195557,7 +194902,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -197917,7 +197263,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_85PK_P
+| SYS_C_SNAP$_9000040PK_P
 : string
 | P
 : null
@@ -198007,7 +197353,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_85PK_P
+| SYS_C_SNAP$_9000040PK_P
 : string
 | ID
 : string
@@ -198036,7 +197382,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_85PK_P
+| SYS_C_SNAP$_9000040PK_P
 : string
 | NORMAL
 < row
@@ -198193,7 +197539,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -206473,7 +205820,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_2PK_P
+| SYS_C_SNAP$_9000001PK_P
 : string
 | P
 : null
@@ -206563,7 +205910,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_2PK_P
+| SYS_C_SNAP$_9000001PK_P
 : string
 | ID
 : string
@@ -206592,7 +205939,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_2PK_P
+| SYS_C_SNAP$_9000001PK_P
 : string
 | NORMAL
 < row
@@ -206811,7 +206158,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -212718,7 +212066,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_75PK_P
+| SYS_C_SNAP$_9000030PK_P
 : string
 | P
 : null
@@ -212808,7 +212156,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_75PK_P
+| SYS_C_SNAP$_9000030PK_P
 : string
 | ID
 : string
@@ -212837,7 +212185,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_75PK_P
+| SYS_C_SNAP$_9000030PK_P
 : string
 | NORMAL
 < row
@@ -213011,7 +212359,8 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP', 'OTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP', 'OTHER')
-| ) WHERE n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%')
+| ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
+|   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
 < column "S" "NCHAR"
@@ -220383,7 +219732,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_81PK_P
+| SYS_C_SNAP$_9000036PK_P
 : string
 | P
 : null
@@ -220473,7 +219822,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_81PK_P
+| SYS_C_SNAP$_9000036PK_P
 : string
 | ID
 : string
@@ -220502,7 +219851,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_81PK_P
+| SYS_C_SNAP$_9000036PK_P
 : string
 | NORMAL
 < row
