@@ -1,16 +1,57 @@
 package parser
 
-import "github.com/bytebase/omni/snowflake/ast"
+import (
+	"strings"
+
+	"github.com/bytebase/omni/snowflake/ast"
+)
 
 // ---------------------------------------------------------------------------
 // ALTER TABLE statement parser
+//
+//	https://docs.snowflake.com/en/sql-reference/sql/alter-table
+//	https://docs.snowflake.com/en/sql-reference/sql/alter-iceberg-table
 // ---------------------------------------------------------------------------
 
 // parseAlterTableStmt parses ALTER TABLE [IF EXISTS] name action [, action ...].
 // The ALTER keyword has already been consumed.
 func (p *Parser) parseAlterTableStmt() (ast.Node, error) {
 	altTok := p.advance() // consume TABLE
-	stmt := &ast.AlterTableStmt{Loc: ast.Loc{Start: altTok.Loc.Start}}
+	return p.parseAlterTableBody(altTok.Loc.Start, false)
+}
+
+// startsAlterIcebergTable reports whether cur begins ICEBERG TABLE (after
+// ALTER). ICEBERG is not a keyword, so it lexes as an identifier.
+func (p *Parser) startsAlterIcebergTable() bool {
+	return p.curIsWord("ICEBERG") && p.peekNext().Type == kwTABLE
+}
+
+// parseAlterIcebergTableStmt parses ALTER ICEBERG TABLE ..., modeled as an
+// AlterTableStmt with Iceberg set so the table review rules see it. The ALTER
+// keyword has already been consumed; cur is ICEBERG.
+func (p *Parser) parseAlterIcebergTableStmt() (ast.Node, error) {
+	icebergTok := p.advance() // consume ICEBERG
+	p.advance()               // consume TABLE
+	return p.parseAlterTableBody(icebergTok.Loc.Start, true)
+}
+
+// isAlterTableColumnActionKind reports whether k is an ALTER / MODIFY column
+// action, which a comma can follow with another column without repeating the
+// verb.
+func isAlterTableColumnActionKind(k ast.AlterTableActionKind) bool {
+	switch k {
+	case ast.AlterTableAlterColumn, ast.AlterTableSetMaskingPolicy, ast.AlterTableUnsetMaskingPolicy,
+		ast.AlterTableSetColumnTag, ast.AlterTableUnsetColumnTag,
+		ast.AlterTableSetProjectionPolicy, ast.AlterTableUnsetProjectionPolicy:
+		return true
+	}
+	return false
+}
+
+// parseAlterTableBody parses [IF EXISTS] name action [, action ...] after
+// ALTER [ICEBERG] TABLE.
+func (p *Parser) parseAlterTableBody(start int, iceberg bool) (ast.Node, error) {
+	stmt := &ast.AlterTableStmt{Iceberg: iceberg, Loc: ast.Loc{Start: start}}
 
 	// Optional IF EXISTS
 	if p.cur.Type == kwIF {
@@ -33,11 +74,30 @@ func (p *Parser) parseAlterTableStmt() (ast.Node, error) {
 	// generically at this level (the grammar allows multiple actions for ADD
 	// COLUMN, DROP COLUMN, etc.).
 	for {
-		action, err := p.parseAlterTableAction()
+		action, err := p.parseAlterTableAction(iceberg)
 		if err != nil {
 			return nil, err
 		}
 		stmt.Actions = append(stmt.Actions, action)
+
+		// The column actions after ALTER / MODIFY are a comma-separated list
+		// that does not repeat the verb (ALTER a SET TAG t = 'v', b SET TAG t =
+		// 'v'), as the page's examples show. Each further column becomes its
+		// own action.
+		last := action
+		for p.cur.Type == ',' && isAlterTableColumnActionKind(last.Kind) {
+			next := p.peekNext().Type
+			if p.isAlterTableActionKeyword(next) || !p.isAlterColumnStart(next) {
+				break
+			}
+			p.advance() // consume ','
+			last = &ast.AlterTableAction{Continuation: true, Loc: p.cur.Loc}
+			if err := p.parseAlterTableModifyAction(last, iceberg); err != nil {
+				return nil, err
+			}
+			last.Loc.End = p.prev.Loc.End
+			stmt.Actions = append(stmt.Actions, last)
+		}
 
 		// Some action forms allow comma-chaining (ADD COLUMN col, col; DROP COLUMN a, b...)
 		// but the top-level multi-action form (action , action) is handled here.
@@ -71,8 +131,32 @@ func (p *Parser) isAlterTableActionKeyword(tokType int) bool {
 }
 
 // parseAlterTableAction parses a single ALTER TABLE action and returns it.
-func (p *Parser) parseAlterTableAction() (*ast.AlterTableAction, error) {
+//
+// iceberg selects ALTER ICEBERG TABLE: its page adds REFRESH, CONVERT TO
+// MANAGED, OPTIMIZE, PARTITION BY evolution, version tags and UPGRADE, and
+// lacks RENAME TO, SWAP WITH, RECLUSTER, constraint actions, data metric
+// functions and storage lifecycle policies.
+func (p *Parser) parseAlterTableAction(iceberg bool) (*ast.AlterTableAction, error) {
 	action := &ast.AlterTableAction{Loc: p.cur.Loc}
+
+	if iceberg {
+		handled, err := p.parseAlterIcebergOnlyAction(action)
+		if err != nil {
+			return nil, err
+		}
+		if handled {
+			action.Loc.End = p.prev.Loc.End
+			return action, nil
+		}
+		switch p.cur.Type {
+		case kwSWAP, kwRECLUSTER:
+			return nil, p.syntaxErrorAtCur()
+		case kwRENAME:
+			if next := p.peekNext().Type; next == kwTO || next == kwCONSTRAINT {
+				return nil, p.syntaxErrorAtCur()
+			}
+		}
+	}
 
 	switch p.cur.Type {
 	case kwRENAME:
@@ -141,21 +225,43 @@ func (p *Parser) parseAlterTableAction() (*ast.AlterTableAction, error) {
 		action.Kind = ast.AlterTableSwapWith
 		action.NewName = otherName
 
-	case kwADD:
-		p.advance() // consume ADD
-		if err := p.parseAlterTableAddAction(action); err != nil {
+	case kwADD, kwDROP, kwMODIFY:
+		verb := p.advance() // consume ADD / DROP / MODIFY
+		if p.startsDataMetricFunction() {
+			if iceberg {
+				return nil, p.syntaxErrorAtCur()
+			}
+			kind := ast.DataMetricAdd
+			switch verb.Type {
+			case kwDROP:
+				kind = ast.DataMetricDrop
+			case kwMODIFY:
+				kind = ast.DataMetricModify
+			}
+			dm, err := p.parseDataMetricFunctionAction(kind, verb.Loc.Start)
+			if err != nil {
+				return nil, err
+			}
+			action.Kind = ast.AlterTableDataMetric
+			action.DataMetric = dm
+			break
+		}
+		var err error
+		switch verb.Type {
+		case kwADD:
+			err = p.parseAlterTableAddAction(action, iceberg)
+		case kwDROP:
+			err = p.parseAlterTableDropAction(action, iceberg)
+		default:
+			err = p.parseAlterTableModifyAction(action, iceberg)
+		}
+		if err != nil {
 			return nil, err
 		}
 
-	case kwDROP:
-		p.advance() // consume DROP
-		if err := p.parseAlterTableDropAction(action); err != nil {
-			return nil, err
-		}
-
-	case kwALTER, kwMODIFY:
-		p.advance() // consume ALTER or MODIFY
-		if err := p.parseAlterTableModifyAction(action); err != nil {
+	case kwALTER:
+		p.advance() // consume ALTER
+		if err := p.parseAlterTableModifyAction(action, iceberg); err != nil {
 			return nil, err
 		}
 
@@ -229,38 +335,95 @@ func (p *Parser) parseAlterTableAction() (*ast.AlterTableAction, error) {
 		}
 
 	case kwSET:
-		p.advance() // consume SET
-		if p.cur.Type == kwTAG {
-			// SET TAG (name = 'val', ...)
-			tags, err := p.parseTagAssignments()
+		setTok := p.advance() // consume SET
+		switch {
+		case p.cur.Type == kwTAG:
+			// SET TAG name = 'val' [, ...] | SET TAG (name = 'val', ...)
+			tags, err := p.parseSetTagClause()
 			if err != nil {
 				return nil, err
 			}
 			action.Kind = ast.AlterTableSetTag
 			action.Tags = tags
-		} else {
-			// SET table properties
-			props, err := p.parseTableSetProps()
+		case p.startsDataMetricSchedule() && !iceberg:
+			// SET DATA_METRIC_SCHEDULE = '<schedule>'
+			dm, err := p.parseDataMetricSchedule(true, setTok.Loc.Start)
 			if err != nil {
 				return nil, err
+			}
+			action.Kind = ast.AlterTableDataMetric
+			action.DataMetric = dm
+		case p.startsPolicyWord("AGGREGATION"):
+			// SET AGGREGATION POLICY name [ENTITY KEY (cols)] [FORCE]
+			name, keys, force, err := p.parseSetAggregationPolicy()
+			if err != nil {
+				return nil, err
+			}
+			action.Kind = ast.AlterTableSetAggregationPolicy
+			action.PolicyName = name
+			action.PolicyKeyCols = keys
+			action.PolicyForce = force
+		case p.cur.Type == kwJOIN:
+			// SET JOIN POLICY name [FORCE]
+			p.advance() // consume JOIN
+			if _, err := p.expect(kwPOLICY); err != nil {
+				return nil, err
+			}
+			name, err := p.parseObjectName()
+			if err != nil {
+				return nil, err
+			}
+			action.Kind = ast.AlterTableSetJoinPolicy
+			action.PolicyName = name
+			if p.cur.Type == kwFORCE {
+				p.advance() // consume FORCE
+				action.PolicyForce = true
+			}
+		default:
+			// SET table properties
+			props, err := p.parseTableSetProps(iceberg)
+			if err != nil {
+				return nil, err
+			}
+			if len(props) == 0 {
+				return nil, p.syntaxErrorAtCur()
 			}
 			action.Kind = ast.AlterTableSet
 			action.Props = props
 		}
 
 	case kwUNSET:
-		p.advance() // consume UNSET
-		if p.cur.Type == kwTAG {
-			// UNSET TAG (name, ...)
-			names, err := p.parseUnsetTagList()
+		unsetTok := p.advance() // consume UNSET
+		switch {
+		case p.cur.Type == kwTAG:
+			// UNSET TAG name [, ...] | UNSET TAG (name, ...)
+			names, err := p.parseUnsetTagClause()
 			if err != nil {
 				return nil, err
 			}
 			action.Kind = ast.AlterTableUnsetTag
 			action.UnsetTags = names
-		} else {
+		case p.startsDataMetricSchedule() && !iceberg:
+			dm, err := p.parseDataMetricSchedule(false, unsetTok.Loc.Start)
+			if err != nil {
+				return nil, err
+			}
+			action.Kind = ast.AlterTableDataMetric
+			action.DataMetric = dm
+		case p.startsPolicyWord("AGGREGATION"):
+			if err := p.expectPolicyWord(); err != nil {
+				return nil, err
+			}
+			action.Kind = ast.AlterTableUnsetAggregationPolicy
+		case p.cur.Type == kwJOIN:
+			p.advance() // consume JOIN
+			if _, err := p.expect(kwPOLICY); err != nil {
+				return nil, err
+			}
+			action.Kind = ast.AlterTableUnsetJoinPolicy
+		default:
 			// UNSET property_name [, ...]
-			props, err := p.parseTableUnsetProps()
+			props, err := p.parseTableUnsetProps(iceberg)
 			if err != nil {
 				return nil, err
 			}
@@ -281,7 +444,30 @@ func (p *Parser) parseAlterTableAction() (*ast.AlterTableAction, error) {
 // ---------------------------------------------------------------------------
 
 // parseAlterTableAddAction parses the portion after ADD in an ALTER TABLE action.
-func (p *Parser) parseAlterTableAddAction(action *ast.AlterTableAction) error {
+func (p *Parser) parseAlterTableAddAction(action *ast.AlterTableAction, iceberg bool) error {
+	if p.cur.Type == kwSTORAGE && p.peekIsWord("LIFECYCLE") && !iceberg {
+		// ADD STORAGE LIFECYCLE POLICY name ON (cols)
+		p.advance() // consume STORAGE
+		p.advance() // consume LIFECYCLE
+		if _, err := p.expect(kwPOLICY); err != nil {
+			return err
+		}
+		name, err := p.parseObjectName()
+		if err != nil {
+			return err
+		}
+		if _, err := p.expect(kwON); err != nil {
+			return err
+		}
+		cols, err := p.parseIdentListInParens()
+		if err != nil {
+			return err
+		}
+		action.Kind = ast.AlterTableAddStorageLifecyclePolicy
+		action.PolicyName = name
+		action.PolicyCols = cols
+		return nil
+	}
 	switch p.cur.Type {
 	case kwCOLUMN, kwIF:
 		// ADD [COLUMN] [IF NOT EXISTS] col_def [, col_def ...]
@@ -303,7 +489,11 @@ func (p *Parser) parseAlterTableAddAction(action *ast.AlterTableAction) error {
 		return p.parseAddColumnList(action)
 
 	case kwCONSTRAINT, kwPRIMARY, kwUNIQUE, kwFOREIGN, kwCHECK:
-		// ADD [CONSTRAINT name] PK/UK/FK/CHECK
+		// ADD [CONSTRAINT name] PK/UK/FK/CHECK. ALTER ICEBERG TABLE takes
+		// constraints only inline, in ADD COLUMN.
+		if iceberg {
+			return p.syntaxErrorAtCur()
+		}
 		con, err := p.parseOutOfLineConstraint()
 		if err != nil {
 			return err
@@ -346,9 +536,11 @@ func (p *Parser) parseAlterTableAddAction(action *ast.AlterTableAction) error {
 		action.Kind = ast.AlterTableAddSearchOpt
 		if p.cur.Type == kwON {
 			p.advance() // consume ON
-			if err := p.parseSearchOptTargets(action); err != nil {
+			on, err := p.parseSearchOptTargets(false)
+			if err != nil {
 				return err
 			}
+			action.SearchOptOn = on
 		}
 		return nil
 
@@ -399,11 +591,26 @@ const searchOptMethodCap = 1024
 // comma-separated list of column/path expressions (e.g.
 // EQUALITY(c1, c2, c3) or EQUALITY(src:user.id)). The whole methods list may be
 // comma-separated (e.g. EQUALITY(c1), EQUALITY(c2, c3)). The verbatim source of
-// each method clause is recorded in SearchOptOn so the form round-trips.
-func (p *Parser) parseSearchOptTargets(action *ast.AlterTableAction) error {
+// each method clause is returned so the form round-trips.
+//
+// FULL_TEXT takes a trailing ANALYZER => '<analyzer>' argument. With drop set
+// (DROP SEARCH OPTIMIZATION ON ...), an entry may also be a bare column name or
+// expression ID, as the page's parameters say.
+func (p *Parser) parseSearchOptTargets(drop bool) ([]string, error) {
+	var out []string
 	for i := 0; ; i++ {
 		if i >= searchOptMethodCap {
-			return p.syntaxErrorAtCur()
+			return nil, p.syntaxErrorAtCur()
+		}
+		if drop && p.peekNext().Type != '(' && (p.cur.Type == tokInt || p.isColumnNameToken(p.cur.Type) || p.cur.Type == tokQuotedIdent) {
+			// A column name or an expression ID (SHOW SEARCH OPTIMIZATION's id).
+			tok := p.advance()
+			out = append(out, p.srcSlice(tok.Loc.Start, tok.Loc.End))
+			if p.cur.Type != ',' || p.isAlterTableActionKeyword(p.peekNext().Type) {
+				break
+			}
+			p.advance() // consume ','
+			continue
 		}
 		// method can be EQUALITY, SUBSTRING, GEO, or an identifier
 		var method string
@@ -421,11 +628,11 @@ func (p *Parser) parseSearchOptTargets(action *ast.AlterTableAction) error {
 			tok := p.advance()
 			method = tok.Str
 		default:
-			return p.syntaxErrorAtCur()
+			return nil, p.syntaxErrorAtCur()
 		}
-		// ( STAR | expr [, expr ...] )
+		// ( STAR | expr [, expr ...] [, ANALYZER => '<analyzer>'] )
 		if _, err := p.expect('('); err != nil {
-			return err
+			return nil, err
 		}
 		// Capture the verbatim target text spanning the parenthesized content.
 		innerStart := p.cur.Loc.Start
@@ -433,13 +640,26 @@ func (p *Parser) parseSearchOptTargets(action *ast.AlterTableAction) error {
 		if p.cur.Type == '*' {
 			p.advance()
 			target = "*"
+			if p.cur.Type == ',' && p.peekIsWord("ANALYZER") {
+				p.advance() // consume ','
+				if err := p.parseSearchOptAnalyzer(); err != nil {
+					return nil, err
+				}
+				target = p.srcSlice(innerStart, p.prev.Loc.End)
+			}
 		} else {
 			for j := 0; ; j++ {
 				if j >= searchOptMethodCap {
-					return p.syntaxErrorAtCur()
+					return nil, p.syntaxErrorAtCur()
+				}
+				if j > 0 && p.curIsWord("ANALYZER") && p.peekNext().Type == tokAssoc {
+					if err := p.parseSearchOptAnalyzer(); err != nil {
+						return nil, err
+					}
+					break // the analyzer closes the argument list
 				}
 				if _, err := p.parseExpr(); err != nil {
-					return err
+					return nil, err
 				}
 				if p.cur.Type != ',' {
 					break
@@ -449,15 +669,29 @@ func (p *Parser) parseSearchOptTargets(action *ast.AlterTableAction) error {
 			target = p.srcSlice(innerStart, p.prev.Loc.End)
 		}
 		if _, err := p.expect(')'); err != nil {
-			return err
+			return nil, err
 		}
-		action.SearchOptOn = append(action.SearchOptOn, method+"("+target+")")
+		out = append(out, method+"("+target+")")
 		if p.cur.Type != ',' {
 			break
 		}
 		p.advance() // consume ',' between methods
 	}
-	return nil
+	return out, nil
+}
+
+// parseSearchOptAnalyzer parses ANALYZER => '<analyzer>', the trailing
+// FULL_TEXT argument. cur is ANALYZER.
+func (p *Parser) parseSearchOptAnalyzer() error {
+	if !p.curIsWord("ANALYZER") {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance() // consume ANALYZER
+	if _, err := p.expect(tokAssoc); err != nil {
+		return err
+	}
+	_, err := p.expect(tokString)
+	return err
 }
 
 // ---------------------------------------------------------------------------
@@ -465,7 +699,27 @@ func (p *Parser) parseSearchOptTargets(action *ast.AlterTableAction) error {
 // ---------------------------------------------------------------------------
 
 // parseAlterTableDropAction parses the portion after DROP in an ALTER TABLE action.
-func (p *Parser) parseAlterTableDropAction(action *ast.AlterTableAction) error {
+func (p *Parser) parseAlterTableDropAction(action *ast.AlterTableAction, iceberg bool) error {
+	switch {
+	case p.cur.Type == kwSTORAGE && p.peekIsWord("LIFECYCLE") && !iceberg:
+		// DROP STORAGE LIFECYCLE POLICY
+		p.advance() // consume STORAGE
+		p.advance() // consume LIFECYCLE
+		if _, err := p.expect(kwPOLICY); err != nil {
+			return err
+		}
+		action.Kind = ast.AlterTableDropStorageLifecyclePolicy
+		return nil
+	case iceberg && (p.cur.Type == kwCONSTRAINT || p.cur.Type == kwUNIQUE ||
+		(p.cur.Type == kwPRIMARY || p.cur.Type == kwFOREIGN) && p.peekNext().Type == kwKEY):
+		// ALTER ICEBERG TABLE has no constraint actions.
+		return p.syntaxErrorAtCur()
+	case p.cur.Type == kwCLUSTERING && p.peekNext().Type != kwKEY,
+		p.cur.Type == kwSEARCH && p.peekNext().Type != kwOPTIMIZATION:
+		// A column named CLUSTERING or SEARCH (neither is reserved).
+		action.Kind = ast.AlterTableDropColumn
+		return p.parseDropColumnList(action)
+	}
 	switch p.cur.Type {
 	case kwCOLUMN, kwIF:
 		// DROP [COLUMN] [IF EXISTS] col [, col ...]
@@ -619,9 +873,11 @@ func (p *Parser) parseAlterTableDropAction(action *ast.AlterTableAction) error {
 		action.Kind = ast.AlterTableDropSearchOpt
 		if p.cur.Type == kwON {
 			p.advance() // consume ON
-			if err := p.parseSearchOptTargets(action); err != nil {
+			on, err := p.parseSearchOptTargets(true)
+			if err != nil {
 				return err
 			}
+			action.SearchOptOn = on
 		}
 		return nil
 
@@ -676,8 +932,12 @@ func (p *Parser) parseDropCascadeRestrict(action *ast.AlterTableAction) {
 // ---------------------------------------------------------------------------
 
 // parseAlterTableModifyAction parses the portion after ALTER/MODIFY in an
-// ALTER TABLE action (column modifications, masking policies, tag ops).
-func (p *Parser) parseAlterTableModifyAction(action *ast.AlterTableAction) error {
+// ALTER TABLE action (column modifications, masking / projection policies, tag
+// ops, constraint properties).
+func (p *Parser) parseAlterTableModifyAction(action *ast.AlterTableAction, iceberg bool) error {
+	if !iceberg && p.startsAlterConstraint() {
+		return p.parseAlterConstraintAction(action)
+	}
 	switch p.cur.Type {
 	case kwCOLUMN:
 		// ALTER/MODIFY COLUMN col <specific-op>
@@ -686,7 +946,7 @@ func (p *Parser) parseAlterTableModifyAction(action *ast.AlterTableAction) error
 		if err != nil {
 			return err
 		}
-		return p.parseColumnSpecificOp(action, colName)
+		return p.parseColumnSpecificOp(action, colName, iceberg)
 
 	default:
 		// ALTER/MODIFY col <specific-op> or
@@ -695,7 +955,7 @@ func (p *Parser) parseAlterTableModifyAction(action *ast.AlterTableAction) error
 		if p.cur.Type == '(' {
 			// ALTER MODIFY (alter_column_clause, ...)
 			p.advance() // consume '('
-			if err := p.parseAlterColumnClauses(action); err != nil {
+			if err := p.parseAlterColumnClauses(action, iceberg); err != nil {
 				return err
 			}
 			if _, err := p.expect(')'); err != nil {
@@ -703,28 +963,94 @@ func (p *Parser) parseAlterTableModifyAction(action *ast.AlterTableAction) error
 			}
 			return nil
 		}
-		// check if it looks like a column name (ident or non-reserved kw)
-		if p.cur.Type == tokIdent || p.isNonReservedKeyword(p.cur.Type) {
+		// check if it looks like a column name (ident, quoted ident or non-reserved kw)
+		if p.cur.Type == tokIdent || p.cur.Type == tokQuotedIdent || p.isNonReservedKeyword(p.cur.Type) {
 			colName, err := p.parseIdent()
 			if err != nil {
 				return err
 			}
-			return p.parseColumnSpecificOp(action, colName)
+			return p.parseColumnSpecificOp(action, colName, iceberg)
 		}
 		return p.syntaxErrorAtCur()
 	}
 }
 
+// startsAlterConstraint reports whether cur begins the constraint target of
+//
+//	{ ALTER | MODIFY } { CONSTRAINT <name> | PRIMARY KEY | UNIQUE | FOREIGN KEY } ( <col> [ , ... ] )
+//
+// PRIMARY and FOREIGN are not reserved, so KEY must follow them.
+func (p *Parser) startsAlterConstraint() bool {
+	switch p.cur.Type {
+	case kwCONSTRAINT, kwUNIQUE:
+		return true
+	case kwPRIMARY, kwFOREIGN:
+		return p.peekNext().Type == kwKEY
+	}
+	return false
+}
+
+// parseAlterConstraintAction parses, after ALTER / MODIFY,
+//
+//	{ CONSTRAINT <name> | PRIMARY KEY | UNIQUE | FOREIGN KEY } ( <col> [ , ... ] )
+//	  [ [ NOT ] ENFORCED ] [ VALIDATE | NOVALIDATE ] [ RELY | NORELY ]
+func (p *Parser) parseAlterConstraintAction(action *ast.AlterTableAction) error {
+	switch p.cur.Type {
+	case kwCONSTRAINT:
+		p.advance() // consume CONSTRAINT
+		name, err := p.parseIdent()
+		if err != nil {
+			return err
+		}
+		action.ConstraintName = name
+	case kwUNIQUE:
+		p.advance() // consume UNIQUE
+		action.ConstraintTarget = "UNIQUE"
+	case kwPRIMARY:
+		p.advance() // consume PRIMARY
+		p.advance() // consume KEY
+		action.ConstraintTarget = "PRIMARY KEY"
+	default: // kwFOREIGN
+		p.advance() // consume FOREIGN
+		p.advance() // consume KEY
+		action.ConstraintTarget = "FOREIGN KEY"
+	}
+	cols, err := p.parseIdentListInParens()
+	if err != nil {
+		return err
+	}
+	action.Kind = ast.AlterTableAlterConstraint
+	action.ConstraintCols = cols
+	if p.cur.Type == kwENFORCED {
+		p.advance()
+		action.ConstraintProps = append(action.ConstraintProps, "ENFORCED")
+	} else if p.cur.Type == kwNOT && p.peekNext().Type == kwENFORCED {
+		p.advance()
+		p.advance()
+		action.ConstraintProps = append(action.ConstraintProps, "NOT ENFORCED")
+	}
+	if p.cur.Type == kwVALIDATE || p.cur.Type == kwNOVALIDATE {
+		tok := p.advance()
+		action.ConstraintProps = append(action.ConstraintProps, TokenName(tok.Type))
+	}
+	if p.cur.Type == kwRELY || p.cur.Type == kwNORELY {
+		tok := p.advance()
+		action.ConstraintProps = append(action.ConstraintProps, TokenName(tok.Type))
+	}
+	return nil
+}
+
 // parseColumnSpecificOp handles ALTER/MODIFY COLUMN col <op>.
 // <op> is one of: SET MASKING POLICY, UNSET MASKING POLICY,
+// SET PROJECTION POLICY, UNSET PROJECTION POLICY,
 //
 //	SET TAG, UNSET TAG, or the standard alter_column_opts.
-func (p *Parser) parseColumnSpecificOp(action *ast.AlterTableAction, colName ast.Ident) error {
+func (p *Parser) parseColumnSpecificOp(action *ast.AlterTableAction, colName ast.Ident, iceberg bool) error {
 	switch p.cur.Type {
 	case kwSET:
 		next := p.peekNext()
-		switch next.Type {
-		case kwMASKING:
+		switch {
+		case next.Type == kwMASKING:
 			// SET MASKING POLICY name [USING (...)] [FORCE]
 			p.advance() // consume SET
 			p.advance() // consume MASKING
@@ -749,10 +1075,10 @@ func (p *Parser) parseColumnSpecificOp(action *ast.AlterTableAction, colName ast
 			action.MaskingPolicy = policyName
 			return nil
 
-		case kwTAG:
-			// SET TAG (name = 'val', ...)
+		case next.Type == kwTAG:
+			// SET TAG name = 'val' [, ...] | SET TAG (name = 'val', ...)
 			p.advance() // consume SET
-			tags, err := p.parseTagAssignments()
+			tags, err := p.parseSetTagClause()
 			if err != nil {
 				return err
 			}
@@ -761,14 +1087,33 @@ func (p *Parser) parseColumnSpecificOp(action *ast.AlterTableAction, colName ast
 			action.Tags = tags
 			return nil
 
+		case strings.EqualFold(next.Str, "PROJECTION"):
+			// SET PROJECTION POLICY name [FORCE]
+			p.advance() // consume SET
+			if err := p.expectPolicyWord(); err != nil {
+				return err
+			}
+			policyName, err := p.parseObjectName()
+			if err != nil {
+				return err
+			}
+			action.Kind = ast.AlterTableSetProjectionPolicy
+			action.ProjectionColumn = colName
+			action.ProjectionPolicy = policyName
+			if p.cur.Type == kwFORCE {
+				p.advance() // consume FORCE
+				action.PolicyForce = true
+			}
+			return nil
+
 		default:
 			// SET DEFAULT, SET NOT NULL, SET DATA TYPE handled below
 		}
 
 	case kwUNSET:
 		next := p.peekNext()
-		switch next.Type {
-		case kwMASKING:
+		switch {
+		case next.Type == kwMASKING:
 			// UNSET MASKING POLICY
 			p.advance() // consume UNSET
 			p.advance() // consume MASKING
@@ -779,10 +1124,10 @@ func (p *Parser) parseColumnSpecificOp(action *ast.AlterTableAction, colName ast
 			action.MaskColumn = colName
 			return nil
 
-		case kwTAG:
-			// UNSET TAG (name, ...)
+		case next.Type == kwTAG:
+			// UNSET TAG name [, ...] | UNSET TAG (name, ...)
 			p.advance() // consume UNSET
-			names, err := p.parseUnsetTagList()
+			names, err := p.parseUnsetTagClause()
 			if err != nil {
 				return err
 			}
@@ -791,23 +1136,35 @@ func (p *Parser) parseColumnSpecificOp(action *ast.AlterTableAction, colName ast
 			action.UnsetTags = names
 			return nil
 
+		case strings.EqualFold(next.Str, "PROJECTION"):
+			// UNSET PROJECTION POLICY
+			p.advance() // consume UNSET
+			if err := p.expectPolicyWord(); err != nil {
+				return err
+			}
+			action.Kind = ast.AlterTableUnsetProjectionPolicy
+			action.ProjectionColumn = colName
+			return nil
+
 		default:
 			// UNSET COMMENT handled below
 		}
 	}
 
 	// Standard alter_column_opts (inline, non-parenthesized form)
-	ca, err := p.parseAlterColumnOpts(colName)
+	ca, err := p.parseAlterColumnOpts(colName, iceberg)
 	if err != nil {
 		return err
 	}
 	action.Kind = ast.AlterTableAlterColumn
 	action.ColumnAlters = append(action.ColumnAlters, ca)
 
-	// More column alters may follow, comma-separated (no parentheses)
+	// More column alters may follow, comma-separated (no parentheses). A
+	// following policy or tag column action is left to the statement loop,
+	// which makes it its own action.
 	for p.cur.Type == ',' {
 		next := p.peekNext()
-		if !p.isAlterColumnStart(next.Type) {
+		if !p.isAlterColumnStart(next.Type) || !p.commaStartsPlainColumnAlter() {
 			break
 		}
 		p.advance() // consume ','
@@ -819,7 +1176,7 @@ func (p *Parser) parseColumnSpecificOp(action *ast.AlterTableAction, colName ast
 		if err != nil {
 			return err
 		}
-		ca, err = p.parseAlterColumnOpts(nextCol)
+		ca, err = p.parseAlterColumnOpts(nextCol, iceberg)
 		if err != nil {
 			return err
 		}
@@ -828,9 +1185,29 @@ func (p *Parser) parseColumnSpecificOp(action *ast.AlterTableAction, colName ast
 	return nil
 }
 
+// commaStartsPlainColumnAlter reports whether the ',' at cur is followed by
+// `[COLUMN] <col>` and an alter_column_opts change rather than a masking
+// policy, projection policy or tag change.
+func (p *Parser) commaStartsPlainColumnAlter() bool {
+	snap := p.snapshot()
+	defer p.restore(snap)
+	p.advance() // consume ','
+	if p.cur.Type == kwCOLUMN {
+		p.advance()
+	}
+	if _, err := p.parseIdent(); err != nil {
+		return false
+	}
+	if p.cur.Type != kwSET && p.cur.Type != kwUNSET {
+		return true
+	}
+	next := p.peekNext()
+	return next.Type != kwMASKING && next.Type != kwTAG && !strings.EqualFold(next.Str, "PROJECTION")
+}
+
 // parseAlterColumnClauses parses ALTER/MODIFY ( col_alter, ... ) — the
 // parenthesized multi-column form. Expects the opening '(' already consumed.
-func (p *Parser) parseAlterColumnClauses(action *ast.AlterTableAction) error {
+func (p *Parser) parseAlterColumnClauses(action *ast.AlterTableAction, iceberg bool) error {
 	action.Kind = ast.AlterTableAlterColumn
 
 	for p.cur.Type != ')' && p.cur.Type != tokEOF {
@@ -842,7 +1219,7 @@ func (p *Parser) parseAlterColumnClauses(action *ast.AlterTableAction) error {
 		if err != nil {
 			return err
 		}
-		ca, err := p.parseAlterColumnOpts(colName)
+		ca, err := p.parseAlterColumnOpts(colName, iceberg)
 		if err != nil {
 			return err
 		}
@@ -865,8 +1242,30 @@ func (p *Parser) parseAlterColumnClauses(action *ast.AlterTableAction) error {
 //	(SET DATA)? TYPE? data_type  | just data_type
 //	COMMENT 'str'
 //	UNSET COMMENT
-func (p *Parser) parseAlterColumnOpts(colName ast.Ident) (*ast.ColumnAlter, error) {
+//
+// ALTER ICEBERG TABLE adds SET WRITE DEFAULT expr, DROP WRITE DEFAULT, and
+// SET DATA TYPE data_type RENAME FIELDS.
+func (p *Parser) parseAlterColumnOpts(colName ast.Ident, iceberg bool) (*ast.ColumnAlter, error) {
 	ca := &ast.ColumnAlter{Column: colName}
+
+	if iceberg && (p.cur.Type == kwSET || p.cur.Type == kwDROP) && p.peekNext().Type == kwWRITE {
+		verb := p.advance() // consume SET / DROP
+		p.advance()         // consume WRITE
+		if _, err := p.expect(kwDEFAULT); err != nil {
+			return nil, err
+		}
+		if verb.Type == kwDROP {
+			ca.Kind = ast.ColumnAlterDropWriteDefault
+			return ca, nil
+		}
+		expr, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		ca.Kind = ast.ColumnAlterSetWriteDefault
+		ca.DefaultExpr = expr
+		return ca, nil
+	}
 
 	switch p.cur.Type {
 	case kwDROP:
@@ -921,6 +1320,11 @@ func (p *Parser) parseAlterColumnOpts(colName ast.Ident) (*ast.ColumnAlter, erro
 			}
 			ca.Kind = ast.ColumnAlterSetDataType
 			ca.DataType = dt
+			if iceberg && p.cur.Type == kwRENAME && p.peekIsWord("FIELDS") {
+				p.advance() // consume RENAME
+				p.advance() // consume FIELDS
+				ca.RenameFields = true
+			}
 
 		default:
 			return nil, p.syntaxErrorAtCur()
@@ -980,7 +1384,7 @@ func (p *Parser) parseAlterColumnOpts(colName ast.Ident) (*ast.ColumnAlter, erro
 // a multi-column ALTER MODIFY list.
 func (p *Parser) isAlterColumnStart(tokType int) bool {
 	switch tokType {
-	case tokIdent, kwCOLUMN:
+	case tokIdent, tokQuotedIdent, kwCOLUMN:
 		return true
 	}
 	return p.isNonReservedKeyword(tokType)
@@ -992,10 +1396,10 @@ func (p *Parser) isAlterColumnStart(tokType int) bool {
 
 // parseTableSetProps parses the SET properties after ALTER TABLE ... SET.
 // Returns a slice of TableProp, consuming all recognized properties.
-func (p *Parser) parseTableSetProps() ([]*ast.TableProp, error) {
+func (p *Parser) parseTableSetProps(iceberg bool) ([]*ast.TableProp, error) {
 	var props []*ast.TableProp
 	for {
-		prop, ok, err := p.parseOneTableProp()
+		prop, ok, err := p.parseOneTableProp(iceberg)
 		if err != nil {
 			return nil, err
 		}
@@ -1009,7 +1413,17 @@ func (p *Parser) parseTableSetProps() ([]*ast.TableProp, error) {
 
 // parseOneTableProp attempts to parse a single known SET property.
 // Returns (prop, true, nil) on success, (nil, false, nil) if no property found.
-func (p *Parser) parseOneTableProp() (*ast.TableProp, bool, error) {
+func (p *Parser) parseOneTableProp(iceberg bool) (*ast.TableProp, bool, error) {
+	if iceberg {
+		// Of the properties named below, ALTER ICEBERG TABLE's SET takes only
+		// DATA_RETENTION_TIME_IN_DAYS and CONTACT; the rest are in
+		// icebergTableSetProperties.
+		switch p.cur.Type {
+		case kwMAX_DATA_EXTENSION_TIME_IN_DAYS, kwCHANGE_TRACKING, kwDEFAULT_DDL_COLLATION,
+			kwCOMMENT, kwSTAGE_FILE_FORMAT, kwSTAGE_COPY_OPTIONS:
+			return nil, false, nil
+		}
+	}
 	switch p.cur.Type {
 	case kwDATA_RETENTION_TIME_IN_DAYS:
 		p.advance()
@@ -1087,13 +1501,72 @@ func (p *Parser) parseOneTableProp() (*ast.TableProp, bool, error) {
 		return &ast.TableProp{Name: "STAGE_COPY_OPTIONS", Value: "(...)"}, true, nil
 
 	default:
+		// CONTACT <purpose> = <contact> [, ...] | CONTACT ( ... ).
+		if p.curIsWord("CONTACT") {
+			val, err := p.parseContactValue()
+			if err != nil {
+				return nil, false, err
+			}
+			return &ast.TableProp{Name: "CONTACT", Value: val}, true, nil
+		}
+		// The other properties the page lists (ICEBERG_DEFAULT_DDL_COLLATION,
+		// ENABLE_SCHEMA_EVOLUTION, ERROR_LOGGING, ROW_TIMESTAMP, or the ALTER
+		// ICEBERG TABLE ones) are KEY = value pairs; parseAssignment holds each
+		// to its documented values (propertyValues). Value keeps the value's
+		// source text.
+		known := tableSetProperties
+		if iceberg {
+			known = icebergTableSetProperties
+		}
+		if p.startsAssignment() && p.isColumnNameToken(p.cur.Type) && known[strings.ToUpper(p.cur.Str)] {
+			eq := p.peekNext()
+			opt, err := p.parseAssignment()
+			if err != nil {
+				return nil, false, err
+			}
+			return &ast.TableProp{Name: opt.Name, Value: strings.TrimSpace(p.srcSlice(eq.Loc.End, opt.Loc.End))}, true, nil
+		}
 		return nil, false, nil
 	}
 }
 
+// tableUnsetProperties and icebergTableUnsetProperties are the properties the
+// ALTER TABLE and ALTER ICEBERG TABLE pages let UNSET name (CONTACT <purpose>
+// is handled apart, for ALTER TABLE only). STAGE_FILE_FORMAT and
+// STAGE_COPY_OPTIONS stay because omni's SET has always taken them.
+//
+//	https://docs.snowflake.com/en/sql-reference/sql/alter-table
+//	https://docs.snowflake.com/en/sql-reference/sql/alter-iceberg-table
+var (
+	tableUnsetProperties = map[string]bool{
+		"DATA_RETENTION_TIME_IN_DAYS":     true,
+		"MAX_DATA_EXTENSION_TIME_IN_DAYS": true,
+		"CHANGE_TRACKING":                 true,
+		"DEFAULT_DDL_COLLATION":           true,
+		"ICEBERG_DEFAULT_DDL_COLLATION":   true,
+		"ENABLE_SCHEMA_EVOLUTION":         true,
+		"ERROR_LOGGING":                   true,
+		"COMMENT":                         true,
+		"ROW_TIMESTAMP":                   true,
+		"STAGE_FILE_FORMAT":               true,
+		"STAGE_COPY_OPTIONS":              true,
+	}
+	icebergTableUnsetProperties = map[string]bool{
+		"REPLACE_INVALID_CHARACTERS":     true,
+		"PATH_LAYOUT":                    true,
+		"LOG_EVENT_LEVEL":                true,
+		"ERROR_LOGGING":                  true,
+		"ENABLE_DATA_COMPACTION":         true,
+		"ICEBERG_MERGE_ON_READ_BEHAVIOR": true,
+		"ENABLE_ICEBERG_MERGE_ON_READ":   true,
+		"ENABLE_SCHEMA_EVOLUTION":        true,
+		"ALLOW_V3_EXPRESSION_DEFAULTS":   true,
+	}
+)
+
 // parseTableUnsetProps parses the UNSET property names (one or more, comma-sep).
-func (p *Parser) parseTableUnsetProps() ([]string, error) {
-	name, err := p.parseTableUnsetPropName()
+func (p *Parser) parseTableUnsetProps(iceberg bool) ([]string, error) {
+	name, err := p.parseTableUnsetPropName(iceberg)
 	if err != nil {
 		return nil, err
 	}
@@ -1104,7 +1577,7 @@ func (p *Parser) parseTableUnsetProps() ([]string, error) {
 			break
 		}
 		p.advance() // consume ','
-		name, err = p.parseTableUnsetPropName()
+		name, err = p.parseTableUnsetPropName(iceberg)
 		if err != nil {
 			return nil, err
 		}
@@ -1113,40 +1586,33 @@ func (p *Parser) parseTableUnsetProps() ([]string, error) {
 	return names, nil
 }
 
-// parseTableUnsetPropName parses a single UNSET property name keyword.
-func (p *Parser) parseTableUnsetPropName() (string, error) {
-	switch p.cur.Type {
-	case kwDATA_RETENTION_TIME_IN_DAYS:
-		p.advance()
-		return "DATA_RETENTION_TIME_IN_DAYS", nil
-	case kwMAX_DATA_EXTENSION_TIME_IN_DAYS:
-		p.advance()
-		return "MAX_DATA_EXTENSION_TIME_IN_DAYS", nil
-	case kwCHANGE_TRACKING:
-		p.advance()
-		return "CHANGE_TRACKING", nil
-	case kwDEFAULT_DDL_COLLATION:
-		p.advance()
-		return "DEFAULT_DDL_COLLATION", nil
-	case kwCOMMENT:
-		p.advance()
-		return "COMMENT", nil
-	case tokIdent:
-		tok := p.advance()
-		return tok.Str, nil
-	default:
+// parseTableUnsetPropName parses a single UNSET property name: one the page
+// lists, or (ALTER TABLE only) CONTACT <purpose>.
+func (p *Parser) parseTableUnsetPropName(iceberg bool) (string, error) {
+	if !iceberg && p.curIsWord("CONTACT") && p.isColumnNameToken(p.peekNext().Type) {
+		// UNSET CONTACT <purpose>
+		return p.parseUnsetContact()
+	}
+	known := tableUnsetProperties
+	if iceberg {
+		known = icebergTableUnsetProperties
+	}
+	name := strings.ToUpper(p.cur.Str)
+	if p.cur.Type == tokQuotedIdent || !known[name] {
 		return "", p.syntaxErrorAtCur()
 	}
+	p.advance()
+	return name, nil
 }
 
 // isTableUnsetPropToken returns true if tok can be a TABLE UNSET prop name.
 func (p *Parser) isTableUnsetPropToken(tokType int) bool {
 	switch tokType {
 	case kwDATA_RETENTION_TIME_IN_DAYS, kwMAX_DATA_EXTENSION_TIME_IN_DAYS,
-		kwCHANGE_TRACKING, kwDEFAULT_DDL_COLLATION, kwCOMMENT, tokIdent:
+		kwCHANGE_TRACKING, kwDEFAULT_DDL_COLLATION, kwCOMMENT:
 		return true
 	}
-	return false
+	return p.isColumnNameToken(tokType) && !p.isAlterTableActionKeyword(tokType)
 }
 
 // ---------------------------------------------------------------------------
