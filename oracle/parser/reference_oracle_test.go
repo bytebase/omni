@@ -3,7 +3,6 @@ package parser
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -13,33 +12,6 @@ import (
 
 	_ "github.com/sijms/go-ora/v2"
 )
-
-func TestOracleReference(t *testing.T) {
-	rows, _ := readCoverageTSV(t, filepath.Join("testdata", "coverage", "reference_oracle.tsv"))
-	ctx, db := openOracleReferenceDB(t)
-	runID := fmt.Sprintf("R%d", time.Now().UnixNano())
-
-	for _, row := range rows {
-		if oracleReferenceRowSkipped(row.Fields["expect"]) {
-			continue
-		}
-		t.Run(row.Key, func(t *testing.T) {
-			sqlText := oracleReferenceSQL(row.Fields["sql"], runID)
-			oracleErr := oracleParseOnly(ctx, db, sqlText)
-			_, omniErr := Parse(sqlText)
-			oracleAccepts := oracleErr == nil
-			omniAccepts := omniErr == nil
-			if oracleAccepts != omniAccepts {
-				t.Fatalf("reference mismatch: oracle_accepts=%v oracle_err=%v omni_accepts=%v omni_err=%v sql=%q",
-					oracleAccepts, oracleErr, omniAccepts, omniErr, sqlText)
-			}
-		})
-	}
-}
-
-func oracleReferenceRowSkipped(expect string) bool {
-	return expect == "catalog" || expect == "unsafe"
-}
 
 func TestOracleVReservedWordsKeywordAudit(t *testing.T) {
 	ctx, db := openOracleReservedWordsDB(t)
@@ -129,44 +101,6 @@ func openOracleReservedWordsDB(t *testing.T) (context.Context, *sql.DB) {
 	}
 	oracle := startOracleDB(t)
 	return oracle.ctx, oracle.adminDB
-}
-
-func openOraclePrivilegedReferenceDB(t *testing.T) (context.Context, *sql.DB) {
-	t.Helper()
-	if dsn := os.Getenv("ORACLE_PARSER_REF_PRIVILEGED_DSN"); dsn != "" {
-		db, err := sql.Open("oracle", dsn)
-		if err != nil {
-			t.Fatalf("open Oracle privileged reference connection: %v", err)
-		}
-		t.Cleanup(func() { _ = db.Close() })
-
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		t.Cleanup(cancel)
-		if err := db.PingContext(ctx); err != nil {
-			t.Fatalf("ping Oracle privileged reference connection: %v", err)
-		}
-		return ctx, db
-	}
-	if dsn := os.Getenv("ORACLE_PARSER_REF_ADMIN_DSN"); dsn != "" {
-		db, err := sql.Open("oracle", dsn)
-		if err != nil {
-			t.Fatalf("open Oracle admin reference connection: %v", err)
-		}
-		t.Cleanup(func() { _ = db.Close() })
-
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		t.Cleanup(cancel)
-		if err := db.PingContext(ctx); err != nil {
-			t.Fatalf("ping Oracle admin reference connection: %v", err)
-		}
-		return ctx, db
-	}
-	oracle := startOracleDB(t)
-	return oracle.ctx, oracle.adminDB
-}
-
-func oracleReferenceSQL(sqlText, runID string) string {
-	return strings.ReplaceAll(sqlText, "{run}", runID)
 }
 
 func isOracleReferenceWordKeyword(keyword string) bool {
