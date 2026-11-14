@@ -125,14 +125,18 @@ func (p *Parser) parseColumnDefsBlock(stmt *ast.CreateTableStmt) error {
 	// ctasCols: names alone, each followed by ',' or ')'.
 	if isIdentifierToken(p.cur.Kind) {
 		if next := p.peekNext().Kind; next == int(',') || next == int(')') {
-			names, err := p.parseIdentifierList()
-			if err != nil {
-				return err
+			for {
+				name, loc, err := p.parseIdentifier()
+				if err != nil {
+					return err
+				}
+				stmt.Columns = append(stmt.Columns, &ast.ColumnDef{Name: name, Loc: loc})
+				if p.cur.Kind != int(',') {
+					break
+				}
+				p.advance() // consume ','
 			}
-			for _, n := range names {
-				stmt.Columns = append(stmt.Columns, &ast.ColumnDef{Name: n})
-			}
-			_, err = p.expect(int(')'))
+			_, err := p.expect(int(')'))
 			return err
 		}
 	}

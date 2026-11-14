@@ -622,6 +622,15 @@ func (p *Parser) parseTableConstraint() (*ast.TableConstraint, error) {
 	return tc, nil
 }
 
+// isCreateTableLikeShape reports whether what stmt holds so far is what
+// createTableLikeStatement (StarRocks.g4:565) takes before LIKE: at most a
+// partition, a distribution and properties.
+func isCreateTableLikeShape(stmt *ast.CreateTableStmt) bool {
+	return stmt.Columns == nil && stmt.CTASColumns == nil && stmt.Indexes == nil &&
+		stmt.Constraints == nil && stmt.KeyDesc == nil && stmt.Rollup == nil &&
+		stmt.Engine == "" && stmt.Comment == "" && stmt.OrderBy == nil
+}
+
 // parseCreateTableClauses parses the optional trailing clauses of CREATE TABLE
 // in flexible order.
 func (p *Parser) parseCreateTableClauses(stmt *ast.CreateTableStmt) error {
@@ -756,7 +765,7 @@ func (p *Parser) parseCreateTableClauses(stmt *ast.CreateTableStmt) error {
 
 		// createTableLikeStatement (StarRocks.g4:565): partitionDesc?
 		// distributionDesc? properties? LIKE qualifiedName, ending it.
-		if p.cur.Kind == kwLIKE && stmt.Columns == nil && stmt.CTASColumns == nil && stmt.Indexes == nil {
+		if p.cur.Kind == kwLIKE && isCreateTableLikeShape(stmt) {
 			p.advance() // consume LIKE
 			likeName, err := p.parseMultipartIdentifier()
 			if err != nil {

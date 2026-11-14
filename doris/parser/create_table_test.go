@@ -816,3 +816,19 @@ func TestCreateTableGrammar(t *testing.T) {
 		}
 	}
 }
+
+// TestCreateTableCTASColumnLocs: a CTAS column name carries its own span.
+func TestCreateTableCTASColumnLocs(t *testing.T) {
+	sql := "CREATE TABLE t (a, bb) AS SELECT 1, 2"
+	stmt, err := Parse(sql)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ct := stmt.Stmts[0].(*ast.CreateTableStmt)
+	for i, want := range []string{"a", "bb"} {
+		loc := ct.Columns[i].Loc
+		if got := sql[loc.Start:loc.End]; got != want {
+			t.Errorf("Columns[%d] spans %q, want %q", i, got, want)
+		}
+	}
+}
