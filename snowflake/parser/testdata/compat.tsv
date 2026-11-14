@@ -285,7 +285,7 @@ reject	undocumented	docs	statement/alterConnection!drop-3	ALTER CONNECTION PRIMA
 reject	undocumented	docs	statement/alterConnection!drop-4	ALTER CONNECTION a
 reject	undocumented	docs	statement/alterConnection!insert	ALTER CONNECTION a PRIMARY zzz
 reject	undocumented	docs	statement/alterConnection!swap	ALWAYS CONNECTION a PRIMARY
-reject	accept	docs	statement/alterContact	ALTER CONTACT a RENAME TO a
+accept	accept	docs	statement/alterContact	ALTER CONTACT a RENAME TO a
 reject	undocumented	docs	statement/alterContact!drop-1	CONTACT a RENAME TO a
 reject	undocumented	docs	statement/alterContact!drop-2	ALTER a RENAME TO a
 reject	undocumented	docs	statement/alterContact!drop-3	ALTER CONTACT RENAME TO a
@@ -421,7 +421,7 @@ reject	undocumented	docs	statement/alterExternalAgent!drop-6	ALTER EXTERNAL AGEN
 reject	undocumented	docs	statement/alterExternalAgent!drop-7	ALTER EXTERNAL AGENT a ADD VERSION
 reject	undocumented	docs	statement/alterExternalAgent!insert	ALTER EXTERNAL AGENT a ADD VERSION a zzz
 reject	undocumented	docs	statement/alterExternalAgent!swap	ALWAYS EXTERNAL AGENT a ADD VERSION a
-reject	accept	docs	statement/alterExternalConsumer	ALTER EXTERNAL CONSUMER a UNSET COMMENT
+accept	accept	docs	statement/alterExternalConsumer	ALTER EXTERNAL CONSUMER a UNSET COMMENT
 reject	undocumented	docs	statement/alterExternalConsumer!drop-1	EXTERNAL CONSUMER a UNSET COMMENT
 reject	undocumented	docs	statement/alterExternalConsumer!drop-2	ALTER CONSUMER a UNSET COMMENT
 reject	undocumented	docs	statement/alterExternalConsumer!drop-3	ALTER EXTERNAL a UNSET COMMENT
@@ -430,7 +430,7 @@ reject	undocumented	docs	statement/alterExternalConsumer!drop-5	ALTER EXTERNAL C
 reject	undocumented	docs	statement/alterExternalConsumer!drop-6	ALTER EXTERNAL CONSUMER a UNSET
 reject	undocumented	docs	statement/alterExternalConsumer!insert	ALTER EXTERNAL CONSUMER a UNSET COMMENT zzz
 reject	undocumented	docs	statement/alterExternalConsumer!swap	ALWAYS EXTERNAL CONSUMER a UNSET COMMENT
-reject	accept	docs	statement/alterExternalConsumerAddProgrammaticAccessToken	ALTER EXTERNAL CONSUMER a ADD PAT a
+accept	accept	docs	statement/alterExternalConsumerAddProgrammaticAccessToken	ALTER EXTERNAL CONSUMER a ADD PAT a
 reject	undocumented	docs	statement/alterExternalConsumerAddProgrammaticAccessToken!drop-1	EXTERNAL CONSUMER a ADD PAT a
 reject	undocumented	docs	statement/alterExternalConsumerAddProgrammaticAccessToken!drop-2	ALTER CONSUMER a ADD PAT a
 reject	undocumented	docs	statement/alterExternalConsumerAddProgrammaticAccessToken!drop-3	ALTER EXTERNAL a ADD PAT a
@@ -440,7 +440,7 @@ reject	undocumented	docs	statement/alterExternalConsumerAddProgrammaticAccessTok
 reject	undocumented	docs	statement/alterExternalConsumerAddProgrammaticAccessToken!drop-7	ALTER EXTERNAL CONSUMER a ADD PAT
 reject	undocumented	docs	statement/alterExternalConsumerAddProgrammaticAccessToken!insert	ALTER EXTERNAL CONSUMER a ADD PAT a zzz
 reject	undocumented	docs	statement/alterExternalConsumerAddProgrammaticAccessToken!swap	ALWAYS EXTERNAL CONSUMER a ADD PAT a
-reject	accept	docs	statement/alterExternalConsumerModifyProgrammaticAccessToken	ALTER EXTERNAL CONSUMER a MODIFY PAT a
+accept	accept	docs	statement/alterExternalConsumerModifyProgrammaticAccessToken	ALTER EXTERNAL CONSUMER a MODIFY PAT a
 reject	undocumented	docs	statement/alterExternalConsumerModifyProgrammaticAccessToken!drop-1	EXTERNAL CONSUMER a MODIFY PAT a
 reject	undocumented	docs	statement/alterExternalConsumerModifyProgrammaticAccessToken!drop-2	ALTER CONSUMER a MODIFY PAT a
 reject	undocumented	docs	statement/alterExternalConsumerModifyProgrammaticAccessToken!drop-3	ALTER EXTERNAL a MODIFY PAT a
@@ -449,7 +449,7 @@ reject	undocumented	docs	statement/alterExternalConsumerModifyProgrammaticAccess
 reject	undocumented	docs	statement/alterExternalConsumerModifyProgrammaticAccessToken!drop-7	ALTER EXTERNAL CONSUMER a MODIFY PAT
 reject	undocumented	docs	statement/alterExternalConsumerModifyProgrammaticAccessToken!insert	ALTER EXTERNAL CONSUMER a MODIFY PAT a zzz
 reject	undocumented	docs	statement/alterExternalConsumerModifyProgrammaticAccessToken!swap	ALWAYS EXTERNAL CONSUMER a MODIFY PAT a
-reject	accept	docs	statement/alterExternalConsumerRemoveProgrammaticAccessToken	ALTER EXTERNAL CONSUMER a REMOVE PAT a
+accept	accept	docs	statement/alterExternalConsumerRemoveProgrammaticAccessToken	ALTER EXTERNAL CONSUMER a REMOVE PAT a
 reject	undocumented	docs	statement/alterExternalConsumerRemoveProgrammaticAccessToken!drop-1	EXTERNAL CONSUMER a REMOVE PAT a
 reject	undocumented	docs	statement/alterExternalConsumerRemoveProgrammaticAccessToken!drop-2	ALTER CONSUMER a REMOVE PAT a
 reject	undocumented	docs	statement/alterExternalConsumerRemoveProgrammaticAccessToken!drop-3	ALTER EXTERNAL a REMOVE PAT a
@@ -458,7 +458,7 @@ reject	undocumented	docs	statement/alterExternalConsumerRemoveProgrammaticAccess
 reject	undocumented	docs	statement/alterExternalConsumerRemoveProgrammaticAccessToken!drop-7	ALTER EXTERNAL CONSUMER a REMOVE PAT
 reject	undocumented	docs	statement/alterExternalConsumerRemoveProgrammaticAccessToken!insert	ALTER EXTERNAL CONSUMER a REMOVE PAT a zzz
 reject	undocumented	docs	statement/alterExternalConsumerRemoveProgrammaticAccessToken!swap	ALWAYS EXTERNAL CONSUMER a REMOVE PAT a
-reject	accept	docs	statement/alterExternalConsumerRotateProgrammaticAccessToken	ALTER EXTERNAL CONSUMER a ROTATE PAT a
+accept	accept	docs	statement/alterExternalConsumerRotateProgrammaticAccessToken	ALTER EXTERNAL CONSUMER a ROTATE PAT a
 reject	undocumented	docs	statement/alterExternalConsumerRotateProgrammaticAccessToken!drop-1	EXTERNAL CONSUMER a ROTATE PAT a
 reject	undocumented	docs	statement/alterExternalConsumerRotateProgrammaticAccessToken!drop-2	ALTER CONSUMER a ROTATE PAT a
 reject	undocumented	docs	statement/alterExternalConsumerRotateProgrammaticAccessToken!drop-3	ALTER EXTERNAL a ROTATE PAT a
@@ -668,7 +668,7 @@ reject	undocumented	docs	statement/alterJoinPolicy!drop-5	ALTER JOIN POLICY a CO
 reject	undocumented	docs	statement/alterJoinPolicy!drop-6	ALTER JOIN POLICY a UNSET
 reject	undocumented	docs	statement/alterJoinPolicy!insert	ALTER JOIN POLICY a UNSET COMMENT zzz
 reject	undocumented	docs	statement/alterJoinPolicy!swap	ALWAYS JOIN POLICY a UNSET COMMENT
-reject	accept	docs	statement/alterListing	ALTER LISTING a
+accept	accept	docs	statement/alterListing	ALTER LISTING a
 reject	undocumented	docs	statement/alterListing!drop-1	LISTING a
 reject	undocumented	docs	statement/alterListing!drop-2	ALTER a
 reject	undocumented	docs	statement/alterListing!drop-3	ALTER LISTING
@@ -746,7 +746,7 @@ reject	undocumented	docs	statement/alterModelMonitor!drop-4	ALTER MODEL MONITOR 
 reject	undocumented	docs	statement/alterModelMonitor!drop-5	ALTER MODEL MONITOR a
 reject	undocumented	docs	statement/alterModelMonitor!insert	ALTER MODEL MONITOR a SUSPEND zzz
 reject	undocumented	docs	statement/alterModelMonitor!swap	ALWAYS MODEL MONITOR a SUSPEND
-reject	accept	docs	statement/alterMultiPartyApprovalPolicy	ALTER MULTI PARTY APPROVAL POLICY a AS 's'
+accept	accept	docs	statement/alterMultiPartyApprovalPolicy	ALTER MULTI PARTY APPROVAL POLICY a AS 's'
 reject	undocumented	docs	statement/alterMultiPartyApprovalPolicy!drop-1	MULTI PARTY APPROVAL POLICY a AS 's'
 reject	undocumented	docs	statement/alterMultiPartyApprovalPolicy!drop-2	ALTER PARTY APPROVAL POLICY a AS 's'
 reject	undocumented	docs	statement/alterMultiPartyApprovalPolicy!drop-3	ALTER MULTI APPROVAL POLICY a AS 's'
@@ -1009,7 +1009,7 @@ reject	undocumented	docs	statement/alterResourceMonitor!drop-3	ALTER RESOURCE a
 reject	undocumented	docs	statement/alterResourceMonitor!drop-4	ALTER RESOURCE MONITOR
 reject	undocumented	docs	statement/alterResourceMonitor!insert	ALTER RESOURCE MONITOR a zzz
 reject	undocumented	docs	statement/alterResourceMonitor!swap	ALWAYS RESOURCE MONITOR a
-reject	accept	docs	statement/alterRestrictedSessionScope	ALTER RSS a AS 's'
+accept	accept	docs	statement/alterRestrictedSessionScope	ALTER RSS a AS 's'
 reject	undocumented	docs	statement/alterRestrictedSessionScope!drop-1	RSS a AS 's'
 reject	undocumented	docs	statement/alterRestrictedSessionScope!drop-2	ALTER a AS 's'
 reject	undocumented	docs	statement/alterRestrictedSessionScope!drop-3	ALTER RSS AS 's'
@@ -1824,7 +1824,7 @@ reject	undocumented	docs	statement/createConnection!drop-2	CREATE a
 reject	undocumented	docs	statement/createConnection!drop-3	CREATE CONNECTION
 accept	undocumented	docs	statement/createConnection!insert	CREATE CONNECTION a zzz
 reject	undocumented	docs	statement/createConnection!swap	CREATION CONNECTION a
-reject	accept	docs	statement/createContact	CREATE CONTACT a
+accept	accept	docs	statement/createContact	CREATE CONTACT a
 reject	undocumented	docs	statement/createContact!drop-1	CONTACT a
 reject	undocumented	docs	statement/createContact!drop-3	CREATE CONTACT
 reject	undocumented	docs	statement/createContact!insert	CREATE CONTACT a zzz
@@ -1961,7 +1961,7 @@ reject	undocumented	docs	statement/createExternalAgent!drop-3	CREATE EXTERNAL a
 reject	undocumented	docs	statement/createExternalAgent!drop-4	CREATE EXTERNAL AGENT
 reject	undocumented	docs	statement/createExternalAgent!insert	CREATE EXTERNAL AGENT a zzz
 reject	undocumented	docs	statement/createExternalAgent!swap	CREATION EXTERNAL AGENT a
-reject	accept	docs	statement/createExternalConsumer	CREATE EXTERNAL CONSUMER a
+accept	accept	docs	statement/createExternalConsumer	CREATE EXTERNAL CONSUMER a
 reject	undocumented	docs	statement/createExternalConsumer!drop-1	EXTERNAL CONSUMER a
 reject	undocumented	docs	statement/createExternalConsumer!drop-2	CREATE CONSUMER a
 reject	undocumented	docs	statement/createExternalConsumer!drop-4	CREATE EXTERNAL CONSUMER
@@ -2192,7 +2192,7 @@ reject	undocumented	docs	statement/createJoinPolicy!drop-10	CREATE JOIN POLICY a
 reject	undocumented	docs	statement/createJoinPolicy!drop-11	CREATE JOIN POLICY a AS() RETURNS JOIN_CONSTRAINT ->
 reject	undocumented	docs	statement/createJoinPolicy!insert	CREATE JOIN POLICY a AS() RETURNS JOIN_CONSTRAINT -> 1 zzz
 reject	undocumented	docs	statement/createJoinPolicy!swap	CREATION JOIN POLICY a AS() RETURNS JOIN_CONSTRAINT -> 1
-reject	accept	docs	statement/createListing	CREATE EXTERNAL LISTING a AS 's'
+accept	accept	docs	statement/createListing	CREATE EXTERNAL LISTING a AS 's'
 reject	undocumented	docs	statement/createListing!drop-1	EXTERNAL LISTING a AS 's'
 reject	undocumented	docs	statement/createListing!drop-2	CREATE LISTING a AS 's'
 reject	undocumented	docs	statement/createListing!drop-3	CREATE EXTERNAL a AS 's'
@@ -2296,7 +2296,7 @@ reject	undocumented	docs	statement/createModelMonitor!drop-22	CREATE MODEL MONIT
 reject	undocumented	docs	statement/createModelMonitor!drop-23	CREATE MODEL MONITOR a WITH MODEL = a GATEWAY = a FUNCTION = 's' WAREHOUSE = a REFRESH_INTERVAL = 's' AGGREGATION_WINDOW =
 reject	undocumented	docs	statement/createModelMonitor!insert	CREATE MODEL MONITOR a WITH MODEL = a GATEWAY = a FUNCTION = 's' WAREHOUSE = a REFRESH_INTERVAL = 's' AGGREGATION_WINDOW = 's' zzz
 reject	undocumented	docs	statement/createModelMonitor!swap	CREATION MODEL MONITOR a WITH MODEL = a GATEWAY = a FUNCTION = 's' WAREHOUSE = a REFRESH_INTERVAL = 's' AGGREGATION_WINDOW = 's'
-reject	accept	docs	statement/createMultiPartyApprovalPolicy	CREATE MULTI PARTY APPROVAL POLICY a AS 's'
+accept	accept	docs	statement/createMultiPartyApprovalPolicy	CREATE MULTI PARTY APPROVAL POLICY a AS 's'
 reject	undocumented	docs	statement/createMultiPartyApprovalPolicy!drop-2	CREATE PARTY APPROVAL POLICY a AS 's'
 reject	undocumented	docs	statement/createMultiPartyApprovalPolicy!drop-3	CREATE MULTI APPROVAL POLICY a AS 's'
 reject	undocumented	docs	statement/createMultiPartyApprovalPolicy!drop-4	CREATE MULTI PARTY POLICY a AS 's'
@@ -2578,7 +2578,7 @@ reject	undocumented	docs	statement/createOrganizationAccount!drop-15	CREATE ORGA
 reject	undocumented	docs	statement/createOrganizationAccount!drop-16	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION =
 reject	undocumented	docs	statement/createOrganizationAccount!insert	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = ENTERPRISE zzz
 reject	undocumented	docs	statement/createOrganizationAccount!swap	CREATION ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = ENTERPRISE
-reject	accept	docs	statement/createOrganizationListing	CREATE ORGANIZATION LISTING a AS 's'
+accept	accept	docs	statement/createOrganizationListing	CREATE ORGANIZATION LISTING a AS 's'
 reject	undocumented	docs	statement/createOrganizationListing!drop-1	ORGANIZATION LISTING a AS 's'
 reject	undocumented	docs	statement/createOrganizationListing!drop-3	CREATE ORGANIZATION a AS 's'
 reject	undocumented	docs	statement/createOrganizationListing!drop-4	CREATE ORGANIZATION LISTING AS 's'
@@ -2722,7 +2722,7 @@ reject	undocumented	docs	statement/createResourceMonitor!drop-4	CREATE RESOURCE 
 reject	undocumented	docs	statement/createResourceMonitor!drop-5	CREATE RESOURCE MONITOR a
 accept	undocumented	docs	statement/createResourceMonitor!insert	CREATE RESOURCE MONITOR a WITH zzz
 reject	undocumented	docs	statement/createResourceMonitor!swap	CREATION RESOURCE MONITOR a WITH
-reject	accept	docs	statement/createRestrictedSessionScope	CREATE RSS a AS 's'
+accept	accept	docs	statement/createRestrictedSessionScope	CREATE RSS a AS 's'
 reject	undocumented	docs	statement/createRestrictedSessionScope!drop-2	CREATE a AS 's'
 reject	undocumented	docs	statement/createRestrictedSessionScope!drop-3	CREATE RSS AS 's'
 reject	undocumented	docs	statement/createRestrictedSessionScope!drop-4	CREATE RSS a 's'
@@ -3646,7 +3646,7 @@ accept	accept	docs	statement/dropConnection	DROP CONNECTION a
 reject	undocumented	docs	statement/dropConnection!drop-3	DROP CONNECTION
 reject	undocumented	docs	statement/dropConnection!insert	DROP CONNECTION a zzz
 reject	undocumented	docs	statement/dropConnection!swap	DROP_FROM_SOURCE_CATALOG CONNECTION a
-reject	accept	docs	statement/dropContact	DROP CONTACT a
+accept	accept	docs	statement/dropContact	DROP CONTACT a
 reject	undocumented	docs	statement/dropContact!drop-3	DROP CONTACT
 reject	undocumented	docs	statement/dropContact!insert	DROP CONTACT a zzz
 reject	undocumented	docs	statement/dropContact!swap	DROP_FROM_SOURCE_CATALOG CONTACT a
@@ -3711,7 +3711,7 @@ reject	undocumented	docs	statement/dropExternalAgent!drop-3	DROP EXTERNAL a
 reject	undocumented	docs	statement/dropExternalAgent!drop-4	DROP EXTERNAL AGENT
 reject	undocumented	docs	statement/dropExternalAgent!insert	DROP EXTERNAL AGENT a zzz
 reject	undocumented	docs	statement/dropExternalAgent!swap	DROP_FROM_SOURCE_CATALOG EXTERNAL AGENT a
-reject	accept	docs	statement/dropExternalConsumer	DROP EXTERNAL CONSUMER a
+accept	accept	docs	statement/dropExternalConsumer	DROP EXTERNAL CONSUMER a
 reject	undocumented	docs	statement/dropExternalConsumer!drop-2	DROP CONSUMER a
 reject	undocumented	docs	statement/dropExternalConsumer!drop-4	DROP EXTERNAL CONSUMER
 reject	undocumented	docs	statement/dropExternalConsumer!insert	DROP EXTERNAL CONSUMER a zzz
@@ -3813,7 +3813,7 @@ reject	undocumented	docs	statement/dropJoinPolicy!drop-3	DROP JOIN a
 reject	undocumented	docs	statement/dropJoinPolicy!drop-4	DROP JOIN POLICY
 reject	undocumented	docs	statement/dropJoinPolicy!insert	DROP JOIN POLICY a zzz
 reject	undocumented	docs	statement/dropJoinPolicy!swap	DROP_FROM_SOURCE_CATALOG JOIN POLICY a
-reject	accept	docs	statement/dropListing	DROP LISTING a
+accept	accept	docs	statement/dropListing	DROP LISTING a
 reject	undocumented	docs	statement/dropListing!drop-3	DROP LISTING
 reject	undocumented	docs	statement/dropListing!insert	DROP LISTING a zzz
 reject	undocumented	docs	statement/dropListing!swap	DROP_FROM_SOURCE_CATALOG LISTING a
@@ -3855,7 +3855,7 @@ reject	undocumented	docs	statement/dropModelMonitor!drop-2	DROP MONITOR a
 reject	accept	docs	statement/dropModelMonitor!drop-4	DROP MODEL MONITOR
 reject	undocumented	docs	statement/dropModelMonitor!insert	DROP MODEL MONITOR a zzz
 reject	undocumented	docs	statement/dropModelMonitor!swap	DROP_FROM_SOURCE_CATALOG MODEL MONITOR a
-reject	accept	docs	statement/dropMultiPartyApprovalPolicy	DROP MULTI PARTY APPROVAL POLICY a
+accept	accept	docs	statement/dropMultiPartyApprovalPolicy	DROP MULTI PARTY APPROVAL POLICY a
 reject	undocumented	docs	statement/dropMultiPartyApprovalPolicy!drop-2	DROP PARTY APPROVAL POLICY a
 reject	undocumented	docs	statement/dropMultiPartyApprovalPolicy!drop-3	DROP MULTI APPROVAL POLICY a
 reject	undocumented	docs	statement/dropMultiPartyApprovalPolicy!drop-4	DROP MULTI PARTY POLICY a
@@ -3968,7 +3968,7 @@ reject	undocumented	docs	statement/dropResourceMonitor!drop-3	DROP RESOURCE a
 reject	undocumented	docs	statement/dropResourceMonitor!drop-4	DROP RESOURCE MONITOR
 reject	undocumented	docs	statement/dropResourceMonitor!insert	DROP RESOURCE MONITOR a zzz
 reject	undocumented	docs	statement/dropResourceMonitor!swap	DROP_FROM_SOURCE_CATALOG RESOURCE MONITOR a
-reject	accept	docs	statement/dropRestrictedSessionScope	DROP RSS a
+accept	accept	docs	statement/dropRestrictedSessionScope	DROP RSS a
 reject	undocumented	docs	statement/dropRestrictedSessionScope!drop-3	DROP RSS
 reject	undocumented	docs	statement/dropRestrictedSessionScope!insert	DROP RSS a zzz
 reject	undocumented	docs	statement/dropRestrictedSessionScope!swap	DROP_FROM_SOURCE_CATALOG RSS a
@@ -4763,7 +4763,7 @@ reject	undocumented	docs	statement/showExternalAgents!drop-1	EXTERNAL AGENTS
 accept	undocumented	docs	statement/showExternalAgents!drop-3	SHOW EXTERNAL
 accept	undocumented	docs	statement/showExternalAgents!insert	SHOW EXTERNAL AGENTS zzz
 reject	undocumented	docs	statement/showExternalAgents!swap	SHOW_INITIAL_ROWS EXTERNAL AGENTS
-reject	accept	docs	statement/showExternalConsumerProgrammaticAccessTokens	SHOW USER PATS FOR EXTERNAL CONSUMER a
+accept	accept	docs	statement/showExternalConsumerProgrammaticAccessTokens	SHOW USER PATS FOR EXTERNAL CONSUMER a
 reject	undocumented	docs	statement/showExternalConsumerProgrammaticAccessTokens!drop-1	USER PATS FOR EXTERNAL CONSUMER a
 reject	undocumented	docs	statement/showExternalConsumerProgrammaticAccessTokens!drop-2	SHOW PATS FOR EXTERNAL CONSUMER a
 reject	undocumented	docs	statement/showExternalConsumerProgrammaticAccessTokens!drop-3	SHOW USER FOR EXTERNAL CONSUMER a
@@ -9843,8 +9843,8 @@ reject	undocumented	docs	alterConnection(TO_ACCOUNTS_ID_._ID_(,_ID_._ID)*)?/TO_A
 reject	undocumented	docs	alterConnection(TO_ACCOUNTS_ID_._ID_(,_ID_._ID)*)?/TO_ACCOUNTS_ID_._ID_(,_ID_._ID)*!drop-5	ALTER CONNECTION a DISABLE FAILOVER TO ACCOUNTS a.
 reject	undocumented	docs	alterConnection(TO_ACCOUNTS_ID_._ID_(,_ID_._ID)*)?/TO_ACCOUNTS_ID_._ID_(,_ID_._ID)*!insert	ALTER CONNECTION a DISABLE FAILOVER TO ACCOUNTS a.a zzz
 reject	undocumented	docs	alterConnection(TO_ACCOUNTS_ID_._ID_(,_ID_._ID)*)?/TO_ACCOUNTS_ID_._ID_(,_ID_._ID)*!swap	ALTER CONNECTION a DISABLE FAILOVER TOKEN ACCOUNTS a.a
-reject	accept	docs	alterContact/ALTER_CONTACT_(IF_EXISTS)?_QNAME_RENAME_TO_QNAME	ALTER CONTACT a RENAME TO a
-reject	accept	docs	alterContact/ALTER_CONTACT_(IF_EXISTS)?_QNAME_SET_((USERS_=_(_STRING~d2c3b62d	ALTER CONTACT a SET EMAIL_DISTRIBUTION_LIST = 's'
+accept	accept	docs	alterContact/ALTER_CONTACT_(IF_EXISTS)?_QNAME_RENAME_TO_QNAME	ALTER CONTACT a RENAME TO a
+accept	accept	docs	alterContact/ALTER_CONTACT_(IF_EXISTS)?_QNAME_SET_((USERS_=_(_STRING~d2c3b62d	ALTER CONTACT a SET EMAIL_DISTRIBUTION_LIST = 's'
 reject	undocumented	docs	alterContact/ALTER_CONTACT_(IF_EXISTS)?_QNAME_SET_((USERS_=_(_STRING~d2c3b62d!drop-1	CONTACT a SET EMAIL_DISTRIBUTION_LIST = 's'
 reject	undocumented	docs	alterContact/ALTER_CONTACT_(IF_EXISTS)?_QNAME_SET_((USERS_=_(_STRING~d2c3b62d!drop-2	ALTER a SET EMAIL_DISTRIBUTION_LIST = 's'
 reject	undocumented	docs	alterContact/ALTER_CONTACT_(IF_EXISTS)?_QNAME_SET_((USERS_=_(_STRING~d2c3b62d!drop-3	ALTER CONTACT SET EMAIL_DISTRIBUTION_LIST = 's'
@@ -9854,22 +9854,22 @@ reject	undocumented	docs	alterContact/ALTER_CONTACT_(IF_EXISTS)?_QNAME_SET_((USE
 reject	undocumented	docs	alterContact/ALTER_CONTACT_(IF_EXISTS)?_QNAME_SET_((USERS_=_(_STRING~d2c3b62d!drop-7	ALTER CONTACT a SET EMAIL_DISTRIBUTION_LIST =
 reject	undocumented	docs	alterContact/ALTER_CONTACT_(IF_EXISTS)?_QNAME_SET_((USERS_=_(_STRING~d2c3b62d!insert	ALTER CONTACT a SET EMAIL_DISTRIBUTION_LIST = 's' zzz
 reject	undocumented	docs	alterContact/ALTER_CONTACT_(IF_EXISTS)?_QNAME_SET_((USERS_=_(_STRING~d2c3b62d!swap	ALWAYS CONTACT a SET EMAIL_DISTRIBUTION_LIST = 's'
-reject	accept	docs	alterContact(IF_EXISTS)?/%empty	ALTER CONTACT a RENAME TO a
+accept	accept	docs	alterContact(IF_EXISTS)?/%empty	ALTER CONTACT a RENAME TO a
 reject	undocumented	docs	alterContact(IF_EXISTS)?/%empty!insert	ALTER CONTACT zzz a RENAME TO a
-reject	accept	docs	alterContact(IF_EXISTS)?/IF_EXISTS	ALTER CONTACT IF EXISTS a RENAME TO a
+accept	accept	docs	alterContact(IF_EXISTS)?/IF_EXISTS	ALTER CONTACT IF EXISTS a RENAME TO a
 reject	undocumented	docs	alterContact(IF_EXISTS)?/IF_EXISTS!drop-1	ALTER CONTACT EXISTS a RENAME TO a
 reject	undocumented	docs	alterContact(IF_EXISTS)?/IF_EXISTS!drop-2	ALTER CONTACT IF a RENAME TO a
 reject	undocumented	docs	alterContact(IF_EXISTS)?/IF_EXISTS!truncate	ALTER CONTACT IF
 reject	undocumented	docs	alterContact(IF_EXISTS)?/IF_EXISTS!insert	ALTER CONTACT IF EXISTS zzz a RENAME TO a
 reject	undocumented	docs	alterContact(IF_EXISTS)?/IF_EXISTS!swap	ALTER CONTACT IGNORE EXISTS a RENAME TO a
-reject	accept	docs	alterContact((USERS_=_(_STRING_(,_STRING)*_)|EMAI~93dcb7cb)/(USERS_=_(_STRING_(,_STRING)*_)|EMAIL~7564221b)_(COMMEN~8a0c0dc5	ALTER CONTACT a SET EMAIL_DISTRIBUTION_LIST = 's'
+accept	accept	docs	alterContact((USERS_=_(_STRING_(,_STRING)*_)|EMAI~93dcb7cb)/(USERS_=_(_STRING_(,_STRING)*_)|EMAIL~7564221b)_(COMMEN~8a0c0dc5	ALTER CONTACT a SET EMAIL_DISTRIBUTION_LIST = 's'
 reject	undocumented	docs	alterContact((USERS_=_(_STRING_(,_STRING)*_)|EMAI~93dcb7cb)/(USERS_=_(_STRING_(,_STRING)*_)|EMAIL~7564221b)_(COMMEN~8a0c0dc5!swap	ALTER CONTACT a SET EMBEDDING_MODEL = 's'
-reject	accept	docs	alterContact((USERS_=_(_STRING_(,_STRING)*_)|EMAI~93dcb7cb)/COMMENT_=_STRING	ALTER CONTACT a SET COMMENT = 's'
+accept	accept	docs	alterContact((USERS_=_(_STRING_(,_STRING)*_)|EMAI~93dcb7cb)/COMMENT_=_STRING	ALTER CONTACT a SET COMMENT = 's'
 reject	undocumented	docs	alterContact((USERS_=_(_STRING_(,_STRING)*_)|EMAI~93dcb7cb)/COMMENT_=_STRING!drop-2	ALTER CONTACT a SET COMMENT 's'
 reject	undocumented	docs	alterContact((USERS_=_(_STRING_(,_STRING)*_)|EMAI~93dcb7cb)/COMMENT_=_STRING!drop-3	ALTER CONTACT a SET COMMENT =
 reject	undocumented	docs	alterContact((USERS_=_(_STRING_(,_STRING)*_)|EMAI~93dcb7cb)/COMMENT_=_STRING!insert	ALTER CONTACT a SET COMMENT = 's' zzz
 reject	undocumented	docs	alterContact((USERS_=_(_STRING_(,_STRING)*_)|EMAI~93dcb7cb)/COMMENT_=_STRING!swap	ALTER CONTACT a SET COMMENTS = 's'
-reject	accept	docs	alterContact(USERS_=_(_STRING_(,_STRING)*_)|EMAIL~7564221b)/USERS_=_(_STRING_(,_STRING)*_)	ALTER CONTACT a SET USERS =('s')
+accept	accept	docs	alterContact(USERS_=_(_STRING_(,_STRING)*_)|EMAIL~7564221b)/USERS_=_(_STRING_(,_STRING)*_)	ALTER CONTACT a SET USERS =('s')
 reject	undocumented	docs	alterContact(USERS_=_(_STRING_(,_STRING)*_)|EMAIL~7564221b)/USERS_=_(_STRING_(,_STRING)*_)!drop-1	ALTER CONTACT a SET =('s')
 reject	undocumented	docs	alterContact(USERS_=_(_STRING_(,_STRING)*_)|EMAIL~7564221b)/USERS_=_(_STRING_(,_STRING)*_)!drop-2	ALTER CONTACT a SET USERS('s')
 reject	undocumented	docs	alterContact(USERS_=_(_STRING_(,_STRING)*_)|EMAIL~7564221b)/USERS_=_(_STRING_(,_STRING)*_)!drop-3	ALTER CONTACT a SET USERS = 's')
@@ -9877,21 +9877,21 @@ reject	undocumented	docs	alterContact(USERS_=_(_STRING_(,_STRING)*_)|EMAIL~75642
 reject	undocumented	docs	alterContact(USERS_=_(_STRING_(,_STRING)*_)|EMAIL~7564221b)/USERS_=_(_STRING_(,_STRING)*_)!drop-5	ALTER CONTACT a SET USERS =('s'
 reject	undocumented	docs	alterContact(USERS_=_(_STRING_(,_STRING)*_)|EMAIL~7564221b)/USERS_=_(_STRING_(,_STRING)*_)!insert	ALTER CONTACT a SET USERS =('s') zzz
 reject	undocumented	docs	alterContact(USERS_=_(_STRING_(,_STRING)*_)|EMAIL~7564221b)/USERS_=_(_STRING_(,_STRING)*_)!swap	ALTER CONTACT a SET USER_SPECIFIED =('s')
-reject	accept	docs	alterContact(USERS_=_(_STRING_(,_STRING)*_)|EMAIL~7564221b)/EMAIL_DISTRIBUTION_LIST_=_STRING	ALTER CONTACT a SET EMAIL_DISTRIBUTION_LIST = 's'
-reject	accept	docs	alterContact(USERS_=_(_STRING_(,_STRING)*_)|EMAIL~7564221b)/URL_=_STRING	ALTER CONTACT a SET URL = 's'
+accept	accept	docs	alterContact(USERS_=_(_STRING_(,_STRING)*_)|EMAIL~7564221b)/EMAIL_DISTRIBUTION_LIST_=_STRING	ALTER CONTACT a SET EMAIL_DISTRIBUTION_LIST = 's'
+accept	accept	docs	alterContact(USERS_=_(_STRING_(,_STRING)*_)|EMAIL~7564221b)/URL_=_STRING	ALTER CONTACT a SET URL = 's'
 reject	undocumented	docs	alterContact(USERS_=_(_STRING_(,_STRING)*_)|EMAIL~7564221b)/URL_=_STRING!drop-2	ALTER CONTACT a SET URL 's'
 reject	undocumented	docs	alterContact(USERS_=_(_STRING_(,_STRING)*_)|EMAIL~7564221b)/URL_=_STRING!drop-3	ALTER CONTACT a SET URL =
 reject	undocumented	docs	alterContact(USERS_=_(_STRING_(,_STRING)*_)|EMAIL~7564221b)/URL_=_STRING!insert	ALTER CONTACT a SET URL = 's' zzz
 reject	undocumented	docs	alterContact(USERS_=_(_STRING_(,_STRING)*_)|EMAIL~7564221b)/URL_=_STRING!swap	ALTER CONTACT a SET USAGE = 's'
-reject	accept	docs	alterContact(,_STRING)*/%empty	ALTER CONTACT a SET USERS =('s')
+accept	accept	docs	alterContact(,_STRING)*/%empty	ALTER CONTACT a SET USERS =('s')
 reject	undocumented	docs	alterContact(,_STRING)*/%empty!insert	ALTER CONTACT a SET USERS =('s' zzz)
-reject	accept	docs	alterContact(,_STRING)*/,_STRING_(,_STRING)*	ALTER CONTACT a SET USERS =('s', 's')
+accept	accept	docs	alterContact(,_STRING)*/,_STRING_(,_STRING)*	ALTER CONTACT a SET USERS =('s', 's')
 reject	undocumented	docs	alterContact(,_STRING)*/,_STRING_(,_STRING)*!drop-1	ALTER CONTACT a SET USERS =('s' 's')
 reject	undocumented	docs	alterContact(,_STRING)*/,_STRING_(,_STRING)*!drop-2	ALTER CONTACT a SET USERS =('s',)
 reject	undocumented	docs	alterContact(,_STRING)*/,_STRING_(,_STRING)*!truncate	ALTER CONTACT a SET USERS =('s',
 reject	undocumented	docs	alterContact(,_STRING)*/,_STRING_(,_STRING)*!insert	ALTER CONTACT a SET USERS =('s', 's' zzz)
-reject	accept	docs	alterContact(COMMENT_=_STRING)?/%empty	ALTER CONTACT a SET EMAIL_DISTRIBUTION_LIST = 's'
-reject	accept	docs	alterContact(COMMENT_=_STRING)?/COMMENT_=_STRING	ALTER CONTACT a SET EMAIL_DISTRIBUTION_LIST = 's' COMMENT = 's'
+accept	accept	docs	alterContact(COMMENT_=_STRING)?/%empty	ALTER CONTACT a SET EMAIL_DISTRIBUTION_LIST = 's'
+accept	accept	docs	alterContact(COMMENT_=_STRING)?/COMMENT_=_STRING	ALTER CONTACT a SET EMAIL_DISTRIBUTION_LIST = 's' COMMENT = 's'
 reject	undocumented	docs	alterContact(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-1	ALTER CONTACT a SET EMAIL_DISTRIBUTION_LIST = 's' = 's'
 reject	undocumented	docs	alterContact(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	ALTER CONTACT a SET EMAIL_DISTRIBUTION_LIST = 's' COMMENT 's'
 reject	undocumented	docs	alterContact(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	ALTER CONTACT a SET EMAIL_DISTRIBUTION_LIST = 's' COMMENT =
@@ -12129,7 +12129,7 @@ reject	undocumented	docs	alterExternalAgent(IF_EXISTS)?/IF_EXISTS!drop-2	ALTER E
 reject	undocumented	docs	alterExternalAgent(IF_EXISTS)?/IF_EXISTS!truncate	ALTER EXTERNAL AGENT IF
 reject	undocumented	docs	alterExternalAgent(IF_EXISTS)?/IF_EXISTS!insert	ALTER EXTERNAL AGENT IF EXISTS zzz a ADD VERSION a
 reject	undocumented	docs	alterExternalAgent(IF_EXISTS)?/IF_EXISTS!swap	ALTER EXTERNAL AGENT IGNORE EXISTS a ADD VERSION a
-reject	accept	docs	alterExternalConsumer/ALTER_EXTERNAL_CONSUMER_(IF_EXISTS)?_QNAME_SET_(COMMENT~edc13398	ALTER EXTERNAL CONSUMER a SET COMMENT = 's'
+accept	accept	docs	alterExternalConsumer/ALTER_EXTERNAL_CONSUMER_(IF_EXISTS)?_QNAME_SET_(COMMENT~edc13398	ALTER EXTERNAL CONSUMER a SET COMMENT = 's'
 reject	undocumented	docs	alterExternalConsumer/ALTER_EXTERNAL_CONSUMER_(IF_EXISTS)?_QNAME_SET_(COMMENT~edc13398!drop-1	EXTERNAL CONSUMER a SET COMMENT = 's'
 reject	undocumented	docs	alterExternalConsumer/ALTER_EXTERNAL_CONSUMER_(IF_EXISTS)?_QNAME_SET_(COMMENT~edc13398!drop-2	ALTER CONSUMER a SET COMMENT = 's'
 reject	undocumented	docs	alterExternalConsumer/ALTER_EXTERNAL_CONSUMER_(IF_EXISTS)?_QNAME_SET_(COMMENT~edc13398!drop-4	ALTER EXTERNAL CONSUMER SET COMMENT = 's'
@@ -12139,8 +12139,8 @@ reject	undocumented	docs	alterExternalConsumer/ALTER_EXTERNAL_CONSUMER_(IF_EXIST
 reject	undocumented	docs	alterExternalConsumer/ALTER_EXTERNAL_CONSUMER_(IF_EXISTS)?_QNAME_SET_(COMMENT~edc13398!drop-8	ALTER EXTERNAL CONSUMER a SET COMMENT =
 reject	undocumented	docs	alterExternalConsumer/ALTER_EXTERNAL_CONSUMER_(IF_EXISTS)?_QNAME_SET_(COMMENT~edc13398!insert	ALTER EXTERNAL CONSUMER a SET COMMENT = 's' zzz
 reject	undocumented	docs	alterExternalConsumer/ALTER_EXTERNAL_CONSUMER_(IF_EXISTS)?_QNAME_SET_(COMMENT~edc13398!swap	ALWAYS EXTERNAL CONSUMER a SET COMMENT = 's'
-reject	accept	docs	alterExternalConsumer/ALTER_EXTERNAL_CONSUMER_(IF_EXISTS)?_QNAME_UNSET_(COMME~e254161c	ALTER EXTERNAL CONSUMER a UNSET COMMENT
-reject	accept	docs	alterExternalConsumer/ALTER_EXTERNAL_CONSUMER_(IF_EXISTS)?_QNAME_RENAME_TO_QNAME	ALTER EXTERNAL CONSUMER a RENAME TO a
+accept	accept	docs	alterExternalConsumer/ALTER_EXTERNAL_CONSUMER_(IF_EXISTS)?_QNAME_UNSET_(COMME~e254161c	ALTER EXTERNAL CONSUMER a UNSET COMMENT
+accept	accept	docs	alterExternalConsumer/ALTER_EXTERNAL_CONSUMER_(IF_EXISTS)?_QNAME_RENAME_TO_QNAME	ALTER EXTERNAL CONSUMER a RENAME TO a
 reject	undocumented	docs	alterExternalConsumer/ALTER_EXTERNAL_CONSUMER_(IF_EXISTS)?_QNAME_RENAME_TO_QNAME!drop-1	EXTERNAL CONSUMER a RENAME TO a
 reject	undocumented	docs	alterExternalConsumer/ALTER_EXTERNAL_CONSUMER_(IF_EXISTS)?_QNAME_RENAME_TO_QNAME!drop-2	ALTER CONSUMER a RENAME TO a
 reject	undocumented	docs	alterExternalConsumer/ALTER_EXTERNAL_CONSUMER_(IF_EXISTS)?_QNAME_RENAME_TO_QNAME!drop-3	ALTER EXTERNAL a RENAME TO a
@@ -12150,161 +12150,161 @@ reject	undocumented	docs	alterExternalConsumer/ALTER_EXTERNAL_CONSUMER_(IF_EXIST
 reject	undocumented	docs	alterExternalConsumer/ALTER_EXTERNAL_CONSUMER_(IF_EXISTS)?_QNAME_RENAME_TO_QNAME!drop-7	ALTER EXTERNAL CONSUMER a RENAME TO
 reject	undocumented	docs	alterExternalConsumer/ALTER_EXTERNAL_CONSUMER_(IF_EXISTS)?_QNAME_RENAME_TO_QNAME!insert	ALTER EXTERNAL CONSUMER a RENAME TO a zzz
 reject	undocumented	docs	alterExternalConsumer/ALTER_EXTERNAL_CONSUMER_(IF_EXISTS)?_QNAME_RENAME_TO_QNAME!swap	ALWAYS EXTERNAL CONSUMER a RENAME TO a
-reject	accept	docs	alterExternalConsumer(IF_EXISTS)?/%empty	ALTER EXTERNAL CONSUMER a UNSET COMMENT
+accept	accept	docs	alterExternalConsumer(IF_EXISTS)?/%empty	ALTER EXTERNAL CONSUMER a UNSET COMMENT
 reject	undocumented	docs	alterExternalConsumer(IF_EXISTS)?/%empty!insert	ALTER EXTERNAL CONSUMER zzz a UNSET COMMENT
-reject	accept	docs	alterExternalConsumer(IF_EXISTS)?/IF_EXISTS	ALTER EXTERNAL CONSUMER IF EXISTS a UNSET COMMENT
+accept	accept	docs	alterExternalConsumer(IF_EXISTS)?/IF_EXISTS	ALTER EXTERNAL CONSUMER IF EXISTS a UNSET COMMENT
 reject	undocumented	docs	alterExternalConsumer(IF_EXISTS)?/IF_EXISTS!drop-1	ALTER EXTERNAL CONSUMER EXISTS a UNSET COMMENT
 reject	undocumented	docs	alterExternalConsumer(IF_EXISTS)?/IF_EXISTS!drop-2	ALTER EXTERNAL CONSUMER IF a UNSET COMMENT
 reject	undocumented	docs	alterExternalConsumer(IF_EXISTS)?/IF_EXISTS!truncate	ALTER EXTERNAL CONSUMER IF
 reject	undocumented	docs	alterExternalConsumer(IF_EXISTS)?/IF_EXISTS!insert	ALTER EXTERNAL CONSUMER IF EXISTS zzz a UNSET COMMENT
 reject	undocumented	docs	alterExternalConsumer(IF_EXISTS)?/IF_EXISTS!swap	ALTER EXTERNAL CONSUMER IGNORE EXISTS a UNSET COMMENT
-reject	accept	docs	alterExternalConsumer(COMMENT_=_STRING_(EMAIL_=_STRING)?|E~464060f0)/COMMENT_=_STRING_(EMAIL_=_STRING)?	ALTER EXTERNAL CONSUMER a SET COMMENT = 's'
+accept	accept	docs	alterExternalConsumer(COMMENT_=_STRING_(EMAIL_=_STRING)?|E~464060f0)/COMMENT_=_STRING_(EMAIL_=_STRING)?	ALTER EXTERNAL CONSUMER a SET COMMENT = 's'
 reject	undocumented	docs	alterExternalConsumer(COMMENT_=_STRING_(EMAIL_=_STRING)?|E~464060f0)/COMMENT_=_STRING_(EMAIL_=_STRING)?!swap	ALTER EXTERNAL CONSUMER a SET COMMENTS = 's'
-reject	accept	docs	alterExternalConsumer(COMMENT_=_STRING_(EMAIL_=_STRING)?|E~464060f0)/EMAIL_=_STRING	ALTER EXTERNAL CONSUMER a SET EMAIL = 's'
+accept	accept	docs	alterExternalConsumer(COMMENT_=_STRING_(EMAIL_=_STRING)?|E~464060f0)/EMAIL_=_STRING	ALTER EXTERNAL CONSUMER a SET EMAIL = 's'
 reject	undocumented	docs	alterExternalConsumer(COMMENT_=_STRING_(EMAIL_=_STRING)?|E~464060f0)/EMAIL_=_STRING!drop-2	ALTER EXTERNAL CONSUMER a SET EMAIL 's'
 reject	undocumented	docs	alterExternalConsumer(COMMENT_=_STRING_(EMAIL_=_STRING)?|E~464060f0)/EMAIL_=_STRING!drop-3	ALTER EXTERNAL CONSUMER a SET EMAIL =
 reject	undocumented	docs	alterExternalConsumer(COMMENT_=_STRING_(EMAIL_=_STRING)?|E~464060f0)/EMAIL_=_STRING!insert	ALTER EXTERNAL CONSUMER a SET EMAIL = 's' zzz
 reject	undocumented	docs	alterExternalConsumer(COMMENT_=_STRING_(EMAIL_=_STRING)?|E~464060f0)/EMAIL_=_STRING!swap	ALTER EXTERNAL CONSUMER a SET EMAIL_DISTRIBUTION_LIST = 's'
-reject	accept	docs	alterExternalConsumer(EMAIL_=_STRING)?/%empty	ALTER EXTERNAL CONSUMER a SET COMMENT = 's'
-reject	accept	docs	alterExternalConsumer(EMAIL_=_STRING)?/EMAIL_=_STRING	ALTER EXTERNAL CONSUMER a SET COMMENT = 's' EMAIL = 's'
+accept	accept	docs	alterExternalConsumer(EMAIL_=_STRING)?/%empty	ALTER EXTERNAL CONSUMER a SET COMMENT = 's'
+accept	accept	docs	alterExternalConsumer(EMAIL_=_STRING)?/EMAIL_=_STRING	ALTER EXTERNAL CONSUMER a SET COMMENT = 's' EMAIL = 's'
 reject	undocumented	docs	alterExternalConsumer(EMAIL_=_STRING)?/EMAIL_=_STRING!drop-1	ALTER EXTERNAL CONSUMER a SET COMMENT = 's' = 's'
 reject	undocumented	docs	alterExternalConsumer(EMAIL_=_STRING)?/EMAIL_=_STRING!drop-2	ALTER EXTERNAL CONSUMER a SET COMMENT = 's' EMAIL 's'
 reject	undocumented	docs	alterExternalConsumer(EMAIL_=_STRING)?/EMAIL_=_STRING!drop-3	ALTER EXTERNAL CONSUMER a SET COMMENT = 's' EMAIL =
 reject	undocumented	docs	alterExternalConsumer(EMAIL_=_STRING)?/EMAIL_=_STRING!insert	ALTER EXTERNAL CONSUMER a SET COMMENT = 's' EMAIL = 's' zzz
 reject	undocumented	docs	alterExternalConsumer(EMAIL_=_STRING)?/EMAIL_=_STRING!swap	ALTER EXTERNAL CONSUMER a SET COMMENT = 's' EMAIL_DISTRIBUTION_LIST = 's'
-reject	accept	docs	alterExternalConsumer(COMMENT|EMAIL)/COMMENT	ALTER EXTERNAL CONSUMER a UNSET COMMENT
+accept	accept	docs	alterExternalConsumer(COMMENT|EMAIL)/COMMENT	ALTER EXTERNAL CONSUMER a UNSET COMMENT
 reject	undocumented	docs	alterExternalConsumer(COMMENT|EMAIL)/COMMENT!swap	ALTER EXTERNAL CONSUMER a UNSET COMMENTS
-reject	accept	docs	alterExternalConsumer(COMMENT|EMAIL)/EMAIL	ALTER EXTERNAL CONSUMER a UNSET EMAIL
+accept	accept	docs	alterExternalConsumer(COMMENT|EMAIL)/EMAIL	ALTER EXTERNAL CONSUMER a UNSET EMAIL
 reject	undocumented	docs	alterExternalConsumer(COMMENT|EMAIL)/EMAIL!insert	ALTER EXTERNAL CONSUMER a UNSET EMAIL zzz
 reject	undocumented	docs	alterExternalConsumer(COMMENT|EMAIL)/EMAIL!swap	ALTER EXTERNAL CONSUMER a UNSET EMAIL_DISTRIBUTION_LIST
-reject	accept	docs	alterExternalConsumer(,_(COMMENT|EMAIL))*/%empty	ALTER EXTERNAL CONSUMER a UNSET COMMENT
-reject	accept	docs	alterExternalConsumer(,_(COMMENT|EMAIL))*/,_(COMMENT|EMAIL)_(,_(COMMENT|EMAIL))*	ALTER EXTERNAL CONSUMER a UNSET COMMENT, COMMENT
+accept	accept	docs	alterExternalConsumer(,_(COMMENT|EMAIL))*/%empty	ALTER EXTERNAL CONSUMER a UNSET COMMENT
+accept	accept	docs	alterExternalConsumer(,_(COMMENT|EMAIL))*/,_(COMMENT|EMAIL)_(,_(COMMENT|EMAIL))*	ALTER EXTERNAL CONSUMER a UNSET COMMENT, COMMENT
 reject	undocumented	docs	alterExternalConsumer(,_(COMMENT|EMAIL))*/,_(COMMENT|EMAIL)_(,_(COMMENT|EMAIL))*!drop-1	ALTER EXTERNAL CONSUMER a UNSET COMMENT COMMENT
 reject	undocumented	docs	alterExternalConsumer(,_(COMMENT|EMAIL))*/,_(COMMENT|EMAIL)_(,_(COMMENT|EMAIL))*!drop-2	ALTER EXTERNAL CONSUMER a UNSET COMMENT,
 reject	undocumented	docs	alterExternalConsumer(,_(COMMENT|EMAIL))*/,_(COMMENT|EMAIL)_(,_(COMMENT|EMAIL))*!insert	ALTER EXTERNAL CONSUMER a UNSET COMMENT, COMMENT zzz
 reject	undocumented	docs	alterExternalConsumer(,_(COMMENT|EMAIL))*/,_(COMMENT|EMAIL)_(,_(COMMENT|EMAIL))*!swap	ALTER EXTERNAL CONSUMER a UNSET COMMENT, COMMENTS
-reject	accept	docs	alterExternalConsumerAddProgrammaticAccessToken/ALTER_EXTERNAL_CONSUMER_QNAME_ADD_(PROGRAMMATIC_ACCESS_~638e1ef7	ALTER EXTERNAL CONSUMER a ADD PAT a
-reject	accept	docs	alterExternalConsumerAddProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PROGRAMMATIC_ACCESS_TOKEN	ALTER EXTERNAL CONSUMER a ADD PROGRAMMATIC ACCESS TOKEN a
+accept	accept	docs	alterExternalConsumerAddProgrammaticAccessToken/ALTER_EXTERNAL_CONSUMER_QNAME_ADD_(PROGRAMMATIC_ACCESS_~638e1ef7	ALTER EXTERNAL CONSUMER a ADD PAT a
+accept	accept	docs	alterExternalConsumerAddProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PROGRAMMATIC_ACCESS_TOKEN	ALTER EXTERNAL CONSUMER a ADD PROGRAMMATIC ACCESS TOKEN a
 reject	undocumented	docs	alterExternalConsumerAddProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PROGRAMMATIC_ACCESS_TOKEN!drop-1	ALTER EXTERNAL CONSUMER a ADD ACCESS TOKEN a
 reject	undocumented	docs	alterExternalConsumerAddProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PROGRAMMATIC_ACCESS_TOKEN!drop-2	ALTER EXTERNAL CONSUMER a ADD PROGRAMMATIC TOKEN a
 reject	undocumented	docs	alterExternalConsumerAddProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PROGRAMMATIC_ACCESS_TOKEN!drop-3	ALTER EXTERNAL CONSUMER a ADD PROGRAMMATIC ACCESS a
 reject	undocumented	docs	alterExternalConsumerAddProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PROGRAMMATIC_ACCESS_TOKEN!truncate	ALTER EXTERNAL CONSUMER a ADD PROGRAMMATIC ACCESS
 reject	undocumented	docs	alterExternalConsumerAddProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PROGRAMMATIC_ACCESS_TOKEN!insert	ALTER EXTERNAL CONSUMER a ADD PROGRAMMATIC ACCESS TOKEN zzz a
 reject	undocumented	docs	alterExternalConsumerAddProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PROGRAMMATIC_ACCESS_TOKEN!swap	ALTER EXTERNAL CONSUMER a ADD PROJECT ACCESS TOKEN a
-reject	accept	docs	alterExternalConsumerAddProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PAT	ALTER EXTERNAL CONSUMER a ADD PAT a
+accept	accept	docs	alterExternalConsumerAddProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PAT	ALTER EXTERNAL CONSUMER a ADD PAT a
 reject	undocumented	docs	alterExternalConsumerAddProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PAT!truncate	ALTER EXTERNAL CONSUMER a ADD
 reject	undocumented	docs	alterExternalConsumerAddProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PAT!insert	ALTER EXTERNAL CONSUMER a ADD PAT zzz a
 reject	undocumented	docs	alterExternalConsumerAddProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PAT!swap	ALTER EXTERNAL CONSUMER a ADD PATCH a
-reject	accept	docs	alterExternalConsumerAddProgrammaticAccessToken(IF_NOT_EXISTS)?/%empty	ALTER EXTERNAL CONSUMER a ADD PAT a
-reject	accept	docs	alterExternalConsumerAddProgrammaticAccessToken(IF_NOT_EXISTS)?/IF_NOT_EXISTS	ALTER EXTERNAL CONSUMER a ADD PAT IF NOT EXISTS a
+accept	accept	docs	alterExternalConsumerAddProgrammaticAccessToken(IF_NOT_EXISTS)?/%empty	ALTER EXTERNAL CONSUMER a ADD PAT a
+accept	accept	docs	alterExternalConsumerAddProgrammaticAccessToken(IF_NOT_EXISTS)?/IF_NOT_EXISTS	ALTER EXTERNAL CONSUMER a ADD PAT IF NOT EXISTS a
 reject	undocumented	docs	alterExternalConsumerAddProgrammaticAccessToken(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	ALTER EXTERNAL CONSUMER a ADD PAT NOT EXISTS a
 reject	undocumented	docs	alterExternalConsumerAddProgrammaticAccessToken(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	ALTER EXTERNAL CONSUMER a ADD PAT IF EXISTS a
 reject	undocumented	docs	alterExternalConsumerAddProgrammaticAccessToken(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	ALTER EXTERNAL CONSUMER a ADD PAT IF NOT a
 reject	undocumented	docs	alterExternalConsumerAddProgrammaticAccessToken(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	ALTER EXTERNAL CONSUMER a ADD PAT IF NOT
 reject	undocumented	docs	alterExternalConsumerAddProgrammaticAccessToken(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	ALTER EXTERNAL CONSUMER a ADD PAT IF NOT EXISTS zzz a
 reject	undocumented	docs	alterExternalConsumerAddProgrammaticAccessToken(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	ALTER EXTERNAL CONSUMER a ADD PAT IGNORE NOT EXISTS a
-reject	accept	docs	alterExternalConsumerAddProgrammaticAccessToken(DAYS_TO_EXPIRY_=_NUMBER)?/%empty	ALTER EXTERNAL CONSUMER a ADD PAT a
-reject	accept	docs	alterExternalConsumerAddProgrammaticAccessToken(DAYS_TO_EXPIRY_=_NUMBER)?/DAYS_TO_EXPIRY_=_NUMBER	ALTER EXTERNAL CONSUMER a ADD PAT a DAYS_TO_EXPIRY = 1
+accept	accept	docs	alterExternalConsumerAddProgrammaticAccessToken(DAYS_TO_EXPIRY_=_NUMBER)?/%empty	ALTER EXTERNAL CONSUMER a ADD PAT a
+accept	accept	docs	alterExternalConsumerAddProgrammaticAccessToken(DAYS_TO_EXPIRY_=_NUMBER)?/DAYS_TO_EXPIRY_=_NUMBER	ALTER EXTERNAL CONSUMER a ADD PAT a DAYS_TO_EXPIRY = 1
 reject	undocumented	docs	alterExternalConsumerAddProgrammaticAccessToken(DAYS_TO_EXPIRY_=_NUMBER)?/DAYS_TO_EXPIRY_=_NUMBER!drop-1	ALTER EXTERNAL CONSUMER a ADD PAT a = 1
 reject	undocumented	docs	alterExternalConsumerAddProgrammaticAccessToken(DAYS_TO_EXPIRY_=_NUMBER)?/DAYS_TO_EXPIRY_=_NUMBER!drop-2	ALTER EXTERNAL CONSUMER a ADD PAT a DAYS_TO_EXPIRY 1
 reject	undocumented	docs	alterExternalConsumerAddProgrammaticAccessToken(DAYS_TO_EXPIRY_=_NUMBER)?/DAYS_TO_EXPIRY_=_NUMBER!drop-3	ALTER EXTERNAL CONSUMER a ADD PAT a DAYS_TO_EXPIRY =
 reject	undocumented	docs	alterExternalConsumerAddProgrammaticAccessToken(DAYS_TO_EXPIRY_=_NUMBER)?/DAYS_TO_EXPIRY_=_NUMBER!insert	ALTER EXTERNAL CONSUMER a ADD PAT a DAYS_TO_EXPIRY = 1 zzz
 reject	undocumented	docs	alterExternalConsumerAddProgrammaticAccessToken(DAYS_TO_EXPIRY_=_NUMBER)?/DAYS_TO_EXPIRY_=_NUMBER!swap	ALTER EXTERNAL CONSUMER a ADD PAT a DBT = 1
-reject	accept	docs	alterExternalConsumerAddProgrammaticAccessToken(COMMENT_=_STRING)?/%empty	ALTER EXTERNAL CONSUMER a ADD PAT a
-reject	accept	docs	alterExternalConsumerAddProgrammaticAccessToken(COMMENT_=_STRING)?/COMMENT_=_STRING	ALTER EXTERNAL CONSUMER a ADD PAT a COMMENT = 's'
+accept	accept	docs	alterExternalConsumerAddProgrammaticAccessToken(COMMENT_=_STRING)?/%empty	ALTER EXTERNAL CONSUMER a ADD PAT a
+accept	accept	docs	alterExternalConsumerAddProgrammaticAccessToken(COMMENT_=_STRING)?/COMMENT_=_STRING	ALTER EXTERNAL CONSUMER a ADD PAT a COMMENT = 's'
 reject	undocumented	docs	alterExternalConsumerAddProgrammaticAccessToken(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-1	ALTER EXTERNAL CONSUMER a ADD PAT a = 's'
 reject	undocumented	docs	alterExternalConsumerAddProgrammaticAccessToken(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	ALTER EXTERNAL CONSUMER a ADD PAT a COMMENT 's'
 reject	undocumented	docs	alterExternalConsumerAddProgrammaticAccessToken(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	ALTER EXTERNAL CONSUMER a ADD PAT a COMMENT =
 reject	undocumented	docs	alterExternalConsumerAddProgrammaticAccessToken(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	ALTER EXTERNAL CONSUMER a ADD PAT a COMMENT = 's' zzz
 reject	undocumented	docs	alterExternalConsumerAddProgrammaticAccessToken(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	ALTER EXTERNAL CONSUMER a ADD PAT a COMMENTS = 's'
-reject	accept	docs	alterExternalConsumerModifyProgrammaticAccessToken/ALTER_EXTERNAL_CONSUMER_QNAME_MODIFY_(PROGRAMMATIC_ACCE~ac9bb624	ALTER EXTERNAL CONSUMER a MODIFY PAT a
-reject	accept	docs	alterExternalConsumerModifyProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PROGRAMMATIC_ACCESS_TOKEN	ALTER EXTERNAL CONSUMER a MODIFY PROGRAMMATIC ACCESS TOKEN a
+accept	accept	docs	alterExternalConsumerModifyProgrammaticAccessToken/ALTER_EXTERNAL_CONSUMER_QNAME_MODIFY_(PROGRAMMATIC_ACCE~ac9bb624	ALTER EXTERNAL CONSUMER a MODIFY PAT a
+accept	accept	docs	alterExternalConsumerModifyProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PROGRAMMATIC_ACCESS_TOKEN	ALTER EXTERNAL CONSUMER a MODIFY PROGRAMMATIC ACCESS TOKEN a
 reject	undocumented	docs	alterExternalConsumerModifyProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PROGRAMMATIC_ACCESS_TOKEN!drop-1	ALTER EXTERNAL CONSUMER a MODIFY ACCESS TOKEN a
 reject	undocumented	docs	alterExternalConsumerModifyProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PROGRAMMATIC_ACCESS_TOKEN!drop-2	ALTER EXTERNAL CONSUMER a MODIFY PROGRAMMATIC TOKEN a
 reject	undocumented	docs	alterExternalConsumerModifyProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PROGRAMMATIC_ACCESS_TOKEN!drop-3	ALTER EXTERNAL CONSUMER a MODIFY PROGRAMMATIC ACCESS a
 reject	undocumented	docs	alterExternalConsumerModifyProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PROGRAMMATIC_ACCESS_TOKEN!truncate	ALTER EXTERNAL CONSUMER a MODIFY PROGRAMMATIC ACCESS
 reject	undocumented	docs	alterExternalConsumerModifyProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PROGRAMMATIC_ACCESS_TOKEN!insert	ALTER EXTERNAL CONSUMER a MODIFY PROGRAMMATIC ACCESS TOKEN zzz a
 reject	undocumented	docs	alterExternalConsumerModifyProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PROGRAMMATIC_ACCESS_TOKEN!swap	ALTER EXTERNAL CONSUMER a MODIFY PROJECT ACCESS TOKEN a
-reject	accept	docs	alterExternalConsumerModifyProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PAT	ALTER EXTERNAL CONSUMER a MODIFY PAT a
+accept	accept	docs	alterExternalConsumerModifyProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PAT	ALTER EXTERNAL CONSUMER a MODIFY PAT a
 reject	undocumented	docs	alterExternalConsumerModifyProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PAT!truncate	ALTER EXTERNAL CONSUMER a MODIFY
 reject	undocumented	docs	alterExternalConsumerModifyProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PAT!insert	ALTER EXTERNAL CONSUMER a MODIFY PAT zzz a
 reject	undocumented	docs	alterExternalConsumerModifyProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PAT!swap	ALTER EXTERNAL CONSUMER a MODIFY PATCH a
-reject	accept	docs	alterExternalConsumerModifyProgrammaticAccessToken(IF_EXISTS)?/%empty	ALTER EXTERNAL CONSUMER a MODIFY PAT a
-reject	accept	docs	alterExternalConsumerModifyProgrammaticAccessToken(IF_EXISTS)?/IF_EXISTS	ALTER EXTERNAL CONSUMER a MODIFY PAT IF EXISTS a
+accept	accept	docs	alterExternalConsumerModifyProgrammaticAccessToken(IF_EXISTS)?/%empty	ALTER EXTERNAL CONSUMER a MODIFY PAT a
+accept	accept	docs	alterExternalConsumerModifyProgrammaticAccessToken(IF_EXISTS)?/IF_EXISTS	ALTER EXTERNAL CONSUMER a MODIFY PAT IF EXISTS a
 reject	undocumented	docs	alterExternalConsumerModifyProgrammaticAccessToken(IF_EXISTS)?/IF_EXISTS!drop-1	ALTER EXTERNAL CONSUMER a MODIFY PAT EXISTS a
 reject	undocumented	docs	alterExternalConsumerModifyProgrammaticAccessToken(IF_EXISTS)?/IF_EXISTS!drop-2	ALTER EXTERNAL CONSUMER a MODIFY PAT IF a
-reject	accept	docs	alterExternalConsumerModifyProgrammaticAccessToken(IF_EXISTS)?/IF_EXISTS!truncate	ALTER EXTERNAL CONSUMER a MODIFY PAT IF
+accept	accept	docs	alterExternalConsumerModifyProgrammaticAccessToken(IF_EXISTS)?/IF_EXISTS!truncate	ALTER EXTERNAL CONSUMER a MODIFY PAT IF
 reject	undocumented	docs	alterExternalConsumerModifyProgrammaticAccessToken(IF_EXISTS)?/IF_EXISTS!insert	ALTER EXTERNAL CONSUMER a MODIFY PAT IF EXISTS zzz a
 reject	undocumented	docs	alterExternalConsumerModifyProgrammaticAccessToken(IF_EXISTS)?/IF_EXISTS!swap	ALTER EXTERNAL CONSUMER a MODIFY PAT IGNORE EXISTS a
-reject	accept	docs	alterExternalConsumerModifyProgrammaticAccessToken(SET_(DAYS_TO_EXPIRY_=_NUMBER_(COMMEN~9457f03c)?/%empty	ALTER EXTERNAL CONSUMER a MODIFY PAT a
-reject	accept	docs	alterExternalConsumerModifyProgrammaticAccessToken(SET_(DAYS_TO_EXPIRY_=_NUMBER_(COMMEN~9457f03c)?/SET_(DAYS_TO_EXPIRY_=_NUMBER_(COMMENT_=_S~6bdc9afe)	ALTER EXTERNAL CONSUMER a MODIFY PAT a SET DAYS_TO_EXPIRY = 1
+accept	accept	docs	alterExternalConsumerModifyProgrammaticAccessToken(SET_(DAYS_TO_EXPIRY_=_NUMBER_(COMMEN~9457f03c)?/%empty	ALTER EXTERNAL CONSUMER a MODIFY PAT a
+accept	accept	docs	alterExternalConsumerModifyProgrammaticAccessToken(SET_(DAYS_TO_EXPIRY_=_NUMBER_(COMMEN~9457f03c)?/SET_(DAYS_TO_EXPIRY_=_NUMBER_(COMMENT_=_S~6bdc9afe)	ALTER EXTERNAL CONSUMER a MODIFY PAT a SET DAYS_TO_EXPIRY = 1
 reject	undocumented	docs	alterExternalConsumerModifyProgrammaticAccessToken(SET_(DAYS_TO_EXPIRY_=_NUMBER_(COMMEN~9457f03c)?/SET_(DAYS_TO_EXPIRY_=_NUMBER_(COMMENT_=_S~6bdc9afe)!drop-1	ALTER EXTERNAL CONSUMER a MODIFY PAT a DAYS_TO_EXPIRY = 1
 reject	undocumented	docs	alterExternalConsumerModifyProgrammaticAccessToken(SET_(DAYS_TO_EXPIRY_=_NUMBER_(COMMEN~9457f03c)?/SET_(DAYS_TO_EXPIRY_=_NUMBER_(COMMENT_=_S~6bdc9afe)!drop-2	ALTER EXTERNAL CONSUMER a MODIFY PAT a SET = 1
 reject	undocumented	docs	alterExternalConsumerModifyProgrammaticAccessToken(SET_(DAYS_TO_EXPIRY_=_NUMBER_(COMMEN~9457f03c)?/SET_(DAYS_TO_EXPIRY_=_NUMBER_(COMMENT_=_S~6bdc9afe)!drop-3	ALTER EXTERNAL CONSUMER a MODIFY PAT a SET DAYS_TO_EXPIRY 1
 reject	undocumented	docs	alterExternalConsumerModifyProgrammaticAccessToken(SET_(DAYS_TO_EXPIRY_=_NUMBER_(COMMEN~9457f03c)?/SET_(DAYS_TO_EXPIRY_=_NUMBER_(COMMENT_=_S~6bdc9afe)!drop-4	ALTER EXTERNAL CONSUMER a MODIFY PAT a SET DAYS_TO_EXPIRY =
 reject	undocumented	docs	alterExternalConsumerModifyProgrammaticAccessToken(SET_(DAYS_TO_EXPIRY_=_NUMBER_(COMMEN~9457f03c)?/SET_(DAYS_TO_EXPIRY_=_NUMBER_(COMMENT_=_S~6bdc9afe)!insert	ALTER EXTERNAL CONSUMER a MODIFY PAT a SET DAYS_TO_EXPIRY = 1 zzz
 reject	undocumented	docs	alterExternalConsumerModifyProgrammaticAccessToken(SET_(DAYS_TO_EXPIRY_=_NUMBER_(COMMEN~9457f03c)?/SET_(DAYS_TO_EXPIRY_=_NUMBER_(COMMENT_=_S~6bdc9afe)!swap	ALTER EXTERNAL CONSUMER a MODIFY PAT a SETS DAYS_TO_EXPIRY = 1
-reject	accept	docs	alterExternalConsumerModifyProgrammaticAccessToken(DAYS_TO_EXPIRY_=_NUMBER_(COMMENT_=_S~6bdc9afe)/DAYS_TO_EXPIRY_=_NUMBER_(COMMENT_=_STRING)?	ALTER EXTERNAL CONSUMER a MODIFY PAT a SET DAYS_TO_EXPIRY = 1
+accept	accept	docs	alterExternalConsumerModifyProgrammaticAccessToken(DAYS_TO_EXPIRY_=_NUMBER_(COMMENT_=_S~6bdc9afe)/DAYS_TO_EXPIRY_=_NUMBER_(COMMENT_=_STRING)?	ALTER EXTERNAL CONSUMER a MODIFY PAT a SET DAYS_TO_EXPIRY = 1
 reject	undocumented	docs	alterExternalConsumerModifyProgrammaticAccessToken(DAYS_TO_EXPIRY_=_NUMBER_(COMMENT_=_S~6bdc9afe)/DAYS_TO_EXPIRY_=_NUMBER_(COMMENT_=_STRING)?!swap	ALTER EXTERNAL CONSUMER a MODIFY PAT a SET DBT = 1
-reject	accept	docs	alterExternalConsumerModifyProgrammaticAccessToken(DAYS_TO_EXPIRY_=_NUMBER_(COMMENT_=_S~6bdc9afe)/COMMENT_=_STRING	ALTER EXTERNAL CONSUMER a MODIFY PAT a SET COMMENT = 's'
+accept	accept	docs	alterExternalConsumerModifyProgrammaticAccessToken(DAYS_TO_EXPIRY_=_NUMBER_(COMMENT_=_S~6bdc9afe)/COMMENT_=_STRING	ALTER EXTERNAL CONSUMER a MODIFY PAT a SET COMMENT = 's'
 reject	undocumented	docs	alterExternalConsumerModifyProgrammaticAccessToken(DAYS_TO_EXPIRY_=_NUMBER_(COMMENT_=_S~6bdc9afe)/COMMENT_=_STRING!drop-1	ALTER EXTERNAL CONSUMER a MODIFY PAT a SET = 's'
 reject	undocumented	docs	alterExternalConsumerModifyProgrammaticAccessToken(DAYS_TO_EXPIRY_=_NUMBER_(COMMENT_=_S~6bdc9afe)/COMMENT_=_STRING!drop-2	ALTER EXTERNAL CONSUMER a MODIFY PAT a SET COMMENT 's'
 reject	undocumented	docs	alterExternalConsumerModifyProgrammaticAccessToken(DAYS_TO_EXPIRY_=_NUMBER_(COMMENT_=_S~6bdc9afe)/COMMENT_=_STRING!drop-3	ALTER EXTERNAL CONSUMER a MODIFY PAT a SET COMMENT =
 reject	undocumented	docs	alterExternalConsumerModifyProgrammaticAccessToken(DAYS_TO_EXPIRY_=_NUMBER_(COMMENT_=_S~6bdc9afe)/COMMENT_=_STRING!insert	ALTER EXTERNAL CONSUMER a MODIFY PAT a SET COMMENT = 's' zzz
 reject	undocumented	docs	alterExternalConsumerModifyProgrammaticAccessToken(DAYS_TO_EXPIRY_=_NUMBER_(COMMENT_=_S~6bdc9afe)/COMMENT_=_STRING!swap	ALTER EXTERNAL CONSUMER a MODIFY PAT a SET COMMENTS = 's'
-reject	accept	docs	alterExternalConsumerModifyProgrammaticAccessToken(COMMENT_=_STRING)?/%empty	ALTER EXTERNAL CONSUMER a MODIFY PAT a SET DAYS_TO_EXPIRY = 1
-reject	accept	docs	alterExternalConsumerModifyProgrammaticAccessToken(COMMENT_=_STRING)?/COMMENT_=_STRING	ALTER EXTERNAL CONSUMER a MODIFY PAT a SET DAYS_TO_EXPIRY = 1 COMMENT = 's'
+accept	accept	docs	alterExternalConsumerModifyProgrammaticAccessToken(COMMENT_=_STRING)?/%empty	ALTER EXTERNAL CONSUMER a MODIFY PAT a SET DAYS_TO_EXPIRY = 1
+accept	accept	docs	alterExternalConsumerModifyProgrammaticAccessToken(COMMENT_=_STRING)?/COMMENT_=_STRING	ALTER EXTERNAL CONSUMER a MODIFY PAT a SET DAYS_TO_EXPIRY = 1 COMMENT = 's'
 reject	undocumented	docs	alterExternalConsumerModifyProgrammaticAccessToken(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-1	ALTER EXTERNAL CONSUMER a MODIFY PAT a SET DAYS_TO_EXPIRY = 1 = 's'
 reject	undocumented	docs	alterExternalConsumerModifyProgrammaticAccessToken(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	ALTER EXTERNAL CONSUMER a MODIFY PAT a SET DAYS_TO_EXPIRY = 1 COMMENT 's'
 reject	undocumented	docs	alterExternalConsumerModifyProgrammaticAccessToken(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	ALTER EXTERNAL CONSUMER a MODIFY PAT a SET DAYS_TO_EXPIRY = 1 COMMENT =
 reject	undocumented	docs	alterExternalConsumerModifyProgrammaticAccessToken(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	ALTER EXTERNAL CONSUMER a MODIFY PAT a SET DAYS_TO_EXPIRY = 1 COMMENT = 's' zzz
 reject	undocumented	docs	alterExternalConsumerModifyProgrammaticAccessToken(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	ALTER EXTERNAL CONSUMER a MODIFY PAT a SET DAYS_TO_EXPIRY = 1 COMMENTS = 's'
-reject	accept	docs	alterExternalConsumerModifyProgrammaticAccessToken(UNSET_COMMENT)?/%empty	ALTER EXTERNAL CONSUMER a MODIFY PAT a
-reject	accept	docs	alterExternalConsumerModifyProgrammaticAccessToken(UNSET_COMMENT)?/UNSET_COMMENT	ALTER EXTERNAL CONSUMER a MODIFY PAT a UNSET COMMENT
+accept	accept	docs	alterExternalConsumerModifyProgrammaticAccessToken(UNSET_COMMENT)?/%empty	ALTER EXTERNAL CONSUMER a MODIFY PAT a
+accept	accept	docs	alterExternalConsumerModifyProgrammaticAccessToken(UNSET_COMMENT)?/UNSET_COMMENT	ALTER EXTERNAL CONSUMER a MODIFY PAT a UNSET COMMENT
 reject	undocumented	docs	alterExternalConsumerModifyProgrammaticAccessToken(UNSET_COMMENT)?/UNSET_COMMENT!drop-1	ALTER EXTERNAL CONSUMER a MODIFY PAT a COMMENT
 reject	undocumented	docs	alterExternalConsumerModifyProgrammaticAccessToken(UNSET_COMMENT)?/UNSET_COMMENT!drop-2	ALTER EXTERNAL CONSUMER a MODIFY PAT a UNSET
 reject	undocumented	docs	alterExternalConsumerModifyProgrammaticAccessToken(UNSET_COMMENT)?/UNSET_COMMENT!insert	ALTER EXTERNAL CONSUMER a MODIFY PAT a UNSET COMMENT zzz
 reject	undocumented	docs	alterExternalConsumerModifyProgrammaticAccessToken(UNSET_COMMENT)?/UNSET_COMMENT!swap	ALTER EXTERNAL CONSUMER a MODIFY PAT a UNSUPPORTED_DDL_ACTION COMMENT
-reject	accept	docs	alterExternalConsumerRemoveProgrammaticAccessToken/ALTER_EXTERNAL_CONSUMER_(IF_EXISTS)?_QNAME_REMOVE_(PROG~0241f3d6	ALTER EXTERNAL CONSUMER a REMOVE PAT a
-reject	accept	docs	alterExternalConsumerRemoveProgrammaticAccessToken(IF_EXISTS)?/%empty	ALTER EXTERNAL CONSUMER a REMOVE PAT a
+accept	accept	docs	alterExternalConsumerRemoveProgrammaticAccessToken/ALTER_EXTERNAL_CONSUMER_(IF_EXISTS)?_QNAME_REMOVE_(PROG~0241f3d6	ALTER EXTERNAL CONSUMER a REMOVE PAT a
+accept	accept	docs	alterExternalConsumerRemoveProgrammaticAccessToken(IF_EXISTS)?/%empty	ALTER EXTERNAL CONSUMER a REMOVE PAT a
 reject	undocumented	docs	alterExternalConsumerRemoveProgrammaticAccessToken(IF_EXISTS)?/%empty!insert	ALTER EXTERNAL CONSUMER zzz a REMOVE PAT a
-reject	accept	docs	alterExternalConsumerRemoveProgrammaticAccessToken(IF_EXISTS)?/IF_EXISTS	ALTER EXTERNAL CONSUMER IF EXISTS a REMOVE PAT a
+accept	accept	docs	alterExternalConsumerRemoveProgrammaticAccessToken(IF_EXISTS)?/IF_EXISTS	ALTER EXTERNAL CONSUMER IF EXISTS a REMOVE PAT a
 reject	undocumented	docs	alterExternalConsumerRemoveProgrammaticAccessToken(IF_EXISTS)?/IF_EXISTS!drop-1	ALTER EXTERNAL CONSUMER EXISTS a REMOVE PAT a
 reject	undocumented	docs	alterExternalConsumerRemoveProgrammaticAccessToken(IF_EXISTS)?/IF_EXISTS!drop-2	ALTER EXTERNAL CONSUMER IF a REMOVE PAT a
 reject	undocumented	docs	alterExternalConsumerRemoveProgrammaticAccessToken(IF_EXISTS)?/IF_EXISTS!insert	ALTER EXTERNAL CONSUMER IF EXISTS zzz a REMOVE PAT a
 reject	undocumented	docs	alterExternalConsumerRemoveProgrammaticAccessToken(IF_EXISTS)?/IF_EXISTS!swap	ALTER EXTERNAL CONSUMER IGNORE EXISTS a REMOVE PAT a
-reject	accept	docs	alterExternalConsumerRemoveProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PROGRAMMATIC_ACCESS_TOKEN	ALTER EXTERNAL CONSUMER a REMOVE PROGRAMMATIC ACCESS TOKEN a
+accept	accept	docs	alterExternalConsumerRemoveProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PROGRAMMATIC_ACCESS_TOKEN	ALTER EXTERNAL CONSUMER a REMOVE PROGRAMMATIC ACCESS TOKEN a
 reject	undocumented	docs	alterExternalConsumerRemoveProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PROGRAMMATIC_ACCESS_TOKEN!drop-1	ALTER EXTERNAL CONSUMER a REMOVE ACCESS TOKEN a
 reject	undocumented	docs	alterExternalConsumerRemoveProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PROGRAMMATIC_ACCESS_TOKEN!drop-2	ALTER EXTERNAL CONSUMER a REMOVE PROGRAMMATIC TOKEN a
 reject	undocumented	docs	alterExternalConsumerRemoveProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PROGRAMMATIC_ACCESS_TOKEN!drop-3	ALTER EXTERNAL CONSUMER a REMOVE PROGRAMMATIC ACCESS a
 reject	undocumented	docs	alterExternalConsumerRemoveProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PROGRAMMATIC_ACCESS_TOKEN!truncate	ALTER EXTERNAL CONSUMER a REMOVE PROGRAMMATIC ACCESS
 reject	undocumented	docs	alterExternalConsumerRemoveProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PROGRAMMATIC_ACCESS_TOKEN!insert	ALTER EXTERNAL CONSUMER a REMOVE PROGRAMMATIC ACCESS TOKEN zzz a
 reject	undocumented	docs	alterExternalConsumerRemoveProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PROGRAMMATIC_ACCESS_TOKEN!swap	ALTER EXTERNAL CONSUMER a REMOVE PROJECT ACCESS TOKEN a
-reject	accept	docs	alterExternalConsumerRemoveProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PAT	ALTER EXTERNAL CONSUMER a REMOVE PAT a
+accept	accept	docs	alterExternalConsumerRemoveProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PAT	ALTER EXTERNAL CONSUMER a REMOVE PAT a
 reject	undocumented	docs	alterExternalConsumerRemoveProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PAT!truncate	ALTER EXTERNAL CONSUMER a REMOVE
 reject	undocumented	docs	alterExternalConsumerRemoveProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PAT!insert	ALTER EXTERNAL CONSUMER a REMOVE PAT zzz a
 reject	undocumented	docs	alterExternalConsumerRemoveProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PAT!swap	ALTER EXTERNAL CONSUMER a REMOVE PATCH a
-reject	accept	docs	alterExternalConsumerRotateProgrammaticAccessToken/ALTER_EXTERNAL_CONSUMER_QNAME_ROTATE_(PROGRAMMATIC_ACCE~d6654625	ALTER EXTERNAL CONSUMER a ROTATE PAT a
-reject	accept	docs	alterExternalConsumerRotateProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PROGRAMMATIC_ACCESS_TOKEN	ALTER EXTERNAL CONSUMER a ROTATE PROGRAMMATIC ACCESS TOKEN a
+accept	accept	docs	alterExternalConsumerRotateProgrammaticAccessToken/ALTER_EXTERNAL_CONSUMER_QNAME_ROTATE_(PROGRAMMATIC_ACCE~d6654625	ALTER EXTERNAL CONSUMER a ROTATE PAT a
+accept	accept	docs	alterExternalConsumerRotateProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PROGRAMMATIC_ACCESS_TOKEN	ALTER EXTERNAL CONSUMER a ROTATE PROGRAMMATIC ACCESS TOKEN a
 reject	undocumented	docs	alterExternalConsumerRotateProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PROGRAMMATIC_ACCESS_TOKEN!drop-1	ALTER EXTERNAL CONSUMER a ROTATE ACCESS TOKEN a
 reject	undocumented	docs	alterExternalConsumerRotateProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PROGRAMMATIC_ACCESS_TOKEN!drop-2	ALTER EXTERNAL CONSUMER a ROTATE PROGRAMMATIC TOKEN a
 reject	undocumented	docs	alterExternalConsumerRotateProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PROGRAMMATIC_ACCESS_TOKEN!drop-3	ALTER EXTERNAL CONSUMER a ROTATE PROGRAMMATIC ACCESS a
 reject	undocumented	docs	alterExternalConsumerRotateProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PROGRAMMATIC_ACCESS_TOKEN!truncate	ALTER EXTERNAL CONSUMER a ROTATE PROGRAMMATIC ACCESS
 reject	undocumented	docs	alterExternalConsumerRotateProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PROGRAMMATIC_ACCESS_TOKEN!insert	ALTER EXTERNAL CONSUMER a ROTATE PROGRAMMATIC ACCESS TOKEN zzz a
 reject	undocumented	docs	alterExternalConsumerRotateProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PROGRAMMATIC_ACCESS_TOKEN!swap	ALTER EXTERNAL CONSUMER a ROTATE PROJECT ACCESS TOKEN a
-reject	accept	docs	alterExternalConsumerRotateProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PAT	ALTER EXTERNAL CONSUMER a ROTATE PAT a
+accept	accept	docs	alterExternalConsumerRotateProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PAT	ALTER EXTERNAL CONSUMER a ROTATE PAT a
 reject	undocumented	docs	alterExternalConsumerRotateProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PAT!truncate	ALTER EXTERNAL CONSUMER a ROTATE
 reject	undocumented	docs	alterExternalConsumerRotateProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PAT!insert	ALTER EXTERNAL CONSUMER a ROTATE PAT zzz a
 reject	undocumented	docs	alterExternalConsumerRotateProgrammaticAccessToken(PROGRAMMATIC_ACCESS_TOKEN|PAT)/PAT!swap	ALTER EXTERNAL CONSUMER a ROTATE PATCH a
-reject	accept	docs	alterExternalConsumerRotateProgrammaticAccessToken(IF_EXISTS)?/%empty	ALTER EXTERNAL CONSUMER a ROTATE PAT a
-reject	accept	docs	alterExternalConsumerRotateProgrammaticAccessToken(IF_EXISTS)?/IF_EXISTS	ALTER EXTERNAL CONSUMER a ROTATE PAT IF EXISTS a
+accept	accept	docs	alterExternalConsumerRotateProgrammaticAccessToken(IF_EXISTS)?/%empty	ALTER EXTERNAL CONSUMER a ROTATE PAT a
+accept	accept	docs	alterExternalConsumerRotateProgrammaticAccessToken(IF_EXISTS)?/IF_EXISTS	ALTER EXTERNAL CONSUMER a ROTATE PAT IF EXISTS a
 reject	undocumented	docs	alterExternalConsumerRotateProgrammaticAccessToken(IF_EXISTS)?/IF_EXISTS!drop-1	ALTER EXTERNAL CONSUMER a ROTATE PAT EXISTS a
 reject	undocumented	docs	alterExternalConsumerRotateProgrammaticAccessToken(IF_EXISTS)?/IF_EXISTS!drop-2	ALTER EXTERNAL CONSUMER a ROTATE PAT IF a
-reject	accept	docs	alterExternalConsumerRotateProgrammaticAccessToken(IF_EXISTS)?/IF_EXISTS!truncate	ALTER EXTERNAL CONSUMER a ROTATE PAT IF
+accept	accept	docs	alterExternalConsumerRotateProgrammaticAccessToken(IF_EXISTS)?/IF_EXISTS!truncate	ALTER EXTERNAL CONSUMER a ROTATE PAT IF
 reject	undocumented	docs	alterExternalConsumerRotateProgrammaticAccessToken(IF_EXISTS)?/IF_EXISTS!insert	ALTER EXTERNAL CONSUMER a ROTATE PAT IF EXISTS zzz a
 reject	undocumented	docs	alterExternalConsumerRotateProgrammaticAccessToken(IF_EXISTS)?/IF_EXISTS!swap	ALTER EXTERNAL CONSUMER a ROTATE PAT IGNORE EXISTS a
-reject	accept	docs	alterExternalConsumerRotateProgrammaticAccessToken(EXPIRE_ROTATED_TOKEN_AFTER_HOURS_=_NUMBER)?/%empty	ALTER EXTERNAL CONSUMER a ROTATE PAT a
-reject	accept	docs	alterExternalConsumerRotateProgrammaticAccessToken(EXPIRE_ROTATED_TOKEN_AFTER_HOURS_=_NUMBER)?/EXPIRE_ROTATED_TOKEN_AFTER_HOURS_=_NUMBER	ALTER EXTERNAL CONSUMER a ROTATE PAT a EXPIRE_ROTATED_TOKEN_AFTER_HOURS = 1
+accept	accept	docs	alterExternalConsumerRotateProgrammaticAccessToken(EXPIRE_ROTATED_TOKEN_AFTER_HOURS_=_NUMBER)?/%empty	ALTER EXTERNAL CONSUMER a ROTATE PAT a
+accept	accept	docs	alterExternalConsumerRotateProgrammaticAccessToken(EXPIRE_ROTATED_TOKEN_AFTER_HOURS_=_NUMBER)?/EXPIRE_ROTATED_TOKEN_AFTER_HOURS_=_NUMBER	ALTER EXTERNAL CONSUMER a ROTATE PAT a EXPIRE_ROTATED_TOKEN_AFTER_HOURS = 1
 reject	undocumented	docs	alterExternalConsumerRotateProgrammaticAccessToken(EXPIRE_ROTATED_TOKEN_AFTER_HOURS_=_NUMBER)?/EXPIRE_ROTATED_TOKEN_AFTER_HOURS_=_NUMBER!drop-1	ALTER EXTERNAL CONSUMER a ROTATE PAT a = 1
 reject	undocumented	docs	alterExternalConsumerRotateProgrammaticAccessToken(EXPIRE_ROTATED_TOKEN_AFTER_HOURS_=_NUMBER)?/EXPIRE_ROTATED_TOKEN_AFTER_HOURS_=_NUMBER!drop-2	ALTER EXTERNAL CONSUMER a ROTATE PAT a EXPIRE_ROTATED_TOKEN_AFTER_HOURS 1
 reject	undocumented	docs	alterExternalConsumerRotateProgrammaticAccessToken(EXPIRE_ROTATED_TOKEN_AFTER_HOURS_=_NUMBER)?/EXPIRE_ROTATED_TOKEN_AFTER_HOURS_=_NUMBER!drop-3	ALTER EXTERNAL CONSUMER a ROTATE PAT a EXPIRE_ROTATED_TOKEN_AFTER_HOURS =
@@ -15785,8 +15785,8 @@ reject	accept	docs	alterJoinPolicy(,_QNAME)*/,_QNAME_(,_QNAME)*	ALTER JOIN POLIC
 reject	undocumented	docs	alterJoinPolicy(,_QNAME)*/,_QNAME_(,_QNAME)*!drop-1	ALTER JOIN POLICY a UNSET TAG a a
 reject	undocumented	docs	alterJoinPolicy(,_QNAME)*/,_QNAME_(,_QNAME)*!drop-2	ALTER JOIN POLICY a UNSET TAG a,
 reject	undocumented	docs	alterJoinPolicy(,_QNAME)*/,_QNAME_(,_QNAME)*!insert	ALTER JOIN POLICY a UNSET TAG a, a zzz
-reject	accept	docs	alterListing/ALTER_LISTING_(IF_EXISTS)?_ID_((PUBLISH|UNPUBLISH|REVIEW))?	ALTER LISTING a
-reject	accept	docs	alterListing/ALTER_LISTING_(IF_EXISTS)?_ID_AS_STRING_(PUBLISH_=_(TRU~ac0dea31	ALTER LISTING a AS 's'
+accept	accept	docs	alterListing/ALTER_LISTING_(IF_EXISTS)?_ID_((PUBLISH|UNPUBLISH|REVIEW))?	ALTER LISTING a
+accept	accept	docs	alterListing/ALTER_LISTING_(IF_EXISTS)?_ID_AS_STRING_(PUBLISH_=_(TRU~ac0dea31	ALTER LISTING a AS 's'
 reject	undocumented	docs	alterListing/ALTER_LISTING_(IF_EXISTS)?_ID_AS_STRING_(PUBLISH_=_(TRU~ac0dea31!drop-1	LISTING a AS 's'
 reject	undocumented	docs	alterListing/ALTER_LISTING_(IF_EXISTS)?_ID_AS_STRING_(PUBLISH_=_(TRU~ac0dea31!drop-3	ALTER LISTING AS 's'
 reject	undocumented	docs	alterListing/ALTER_LISTING_(IF_EXISTS)?_ID_AS_STRING_(PUBLISH_=_(TRU~ac0dea31!drop-4	ALTER LISTING a 's'
@@ -15812,7 +15812,7 @@ reject	undocumented	docs	alterListing/ALTER_LISTING_(IF_EXISTS)?_ID_(ADD|REMOVE)
 reject	undocumented	docs	alterListing/ALTER_LISTING_(IF_EXISTS)?_ID_(ADD|REMOVE)_TARGETS_ID!drop-6	ALTER LISTING a ADD TARGETS
 reject	undocumented	docs	alterListing/ALTER_LISTING_(IF_EXISTS)?_ID_(ADD|REMOVE)_TARGETS_ID!insert	ALTER LISTING a ADD TARGETS a zzz
 reject	undocumented	docs	alterListing/ALTER_LISTING_(IF_EXISTS)?_ID_(ADD|REMOVE)_TARGETS_ID!swap	ALWAYS LISTING a ADD TARGETS a
-reject	accept	docs	alterListing/ALTER_LISTING_(IF_EXISTS)?_ID_RENAME_TO_ID	ALTER LISTING a RENAME TO a
+accept	accept	docs	alterListing/ALTER_LISTING_(IF_EXISTS)?_ID_RENAME_TO_ID	ALTER LISTING a RENAME TO a
 reject	undocumented	docs	alterListing/ALTER_LISTING_(IF_EXISTS)?_ID_RENAME_TO_ID!drop-1	LISTING a RENAME TO a
 reject	undocumented	docs	alterListing/ALTER_LISTING_(IF_EXISTS)?_ID_RENAME_TO_ID!drop-3	ALTER LISTING RENAME TO a
 reject	undocumented	docs	alterListing/ALTER_LISTING_(IF_EXISTS)?_ID_RENAME_TO_ID!drop-4	ALTER LISTING a TO a
@@ -15820,7 +15820,7 @@ reject	undocumented	docs	alterListing/ALTER_LISTING_(IF_EXISTS)?_ID_RENAME_TO_ID
 reject	undocumented	docs	alterListing/ALTER_LISTING_(IF_EXISTS)?_ID_RENAME_TO_ID!drop-6	ALTER LISTING a RENAME TO
 reject	undocumented	docs	alterListing/ALTER_LISTING_(IF_EXISTS)?_ID_RENAME_TO_ID!insert	ALTER LISTING a RENAME TO a zzz
 reject	undocumented	docs	alterListing/ALTER_LISTING_(IF_EXISTS)?_ID_RENAME_TO_ID!swap	ALWAYS LISTING a RENAME TO a
-reject	accept	docs	alterListing/ALTER_LISTING_(IF_EXISTS)?_ID_SET_COMMENT_=_STRING	ALTER LISTING a SET COMMENT = 's'
+accept	accept	docs	alterListing/ALTER_LISTING_(IF_EXISTS)?_ID_SET_COMMENT_=_STRING	ALTER LISTING a SET COMMENT = 's'
 reject	undocumented	docs	alterListing/ALTER_LISTING_(IF_EXISTS)?_ID_SET_COMMENT_=_STRING!drop-1	LISTING a SET COMMENT = 's'
 reject	undocumented	docs	alterListing/ALTER_LISTING_(IF_EXISTS)?_ID_SET_COMMENT_=_STRING!drop-3	ALTER LISTING SET COMMENT = 's'
 reject	undocumented	docs	alterListing/ALTER_LISTING_(IF_EXISTS)?_ID_SET_COMMENT_=_STRING!drop-4	ALTER LISTING a COMMENT = 's'
@@ -15829,45 +15829,45 @@ reject	undocumented	docs	alterListing/ALTER_LISTING_(IF_EXISTS)?_ID_SET_COMMENT_
 reject	undocumented	docs	alterListing/ALTER_LISTING_(IF_EXISTS)?_ID_SET_COMMENT_=_STRING!drop-7	ALTER LISTING a SET COMMENT =
 reject	undocumented	docs	alterListing/ALTER_LISTING_(IF_EXISTS)?_ID_SET_COMMENT_=_STRING!insert	ALTER LISTING a SET COMMENT = 's' zzz
 reject	undocumented	docs	alterListing/ALTER_LISTING_(IF_EXISTS)?_ID_SET_COMMENT_=_STRING!swap	ALWAYS LISTING a SET COMMENT = 's'
-reject	accept	docs	alterListing(IF_EXISTS)?/%empty	ALTER LISTING a
+accept	accept	docs	alterListing(IF_EXISTS)?/%empty	ALTER LISTING a
 reject	undocumented	docs	alterListing(IF_EXISTS)?/%empty!insert	ALTER LISTING zzz a
-reject	accept	docs	alterListing(IF_EXISTS)?/IF_EXISTS	ALTER LISTING IF EXISTS a
+accept	accept	docs	alterListing(IF_EXISTS)?/IF_EXISTS	ALTER LISTING IF EXISTS a
 reject	undocumented	docs	alterListing(IF_EXISTS)?/IF_EXISTS!drop-1	ALTER LISTING EXISTS a
 reject	undocumented	docs	alterListing(IF_EXISTS)?/IF_EXISTS!drop-2	ALTER LISTING IF a
-reject	accept	docs	alterListing(IF_EXISTS)?/IF_EXISTS!truncate	ALTER LISTING IF
+accept	accept	docs	alterListing(IF_EXISTS)?/IF_EXISTS!truncate	ALTER LISTING IF
 reject	undocumented	docs	alterListing(IF_EXISTS)?/IF_EXISTS!insert	ALTER LISTING IF EXISTS zzz a
 reject	undocumented	docs	alterListing(IF_EXISTS)?/IF_EXISTS!swap	ALTER LISTING IGNORE EXISTS a
-reject	accept	docs	alterListing((PUBLISH|UNPUBLISH|REVIEW))?/%empty	ALTER LISTING a
-reject	accept	docs	alterListing((PUBLISH|UNPUBLISH|REVIEW))?/(PUBLISH|UNPUBLISH|REVIEW)	ALTER LISTING a PUBLISH
+accept	accept	docs	alterListing((PUBLISH|UNPUBLISH|REVIEW))?/%empty	ALTER LISTING a
+accept	accept	docs	alterListing((PUBLISH|UNPUBLISH|REVIEW))?/(PUBLISH|UNPUBLISH|REVIEW)	ALTER LISTING a PUBLISH
 reject	undocumented	docs	alterListing((PUBLISH|UNPUBLISH|REVIEW))?/(PUBLISH|UNPUBLISH|REVIEW)!insert	ALTER LISTING a PUBLISH zzz
 reject	undocumented	docs	alterListing((PUBLISH|UNPUBLISH|REVIEW))?/(PUBLISH|UNPUBLISH|REVIEW)!swap	ALTER LISTING a PUBLISHED
-reject	accept	docs	alterListing(PUBLISH|UNPUBLISH|REVIEW)/PUBLISH	ALTER LISTING a PUBLISH
-reject	accept	docs	alterListing(PUBLISH|UNPUBLISH|REVIEW)/UNPUBLISH	ALTER LISTING a UNPUBLISH
+accept	accept	docs	alterListing(PUBLISH|UNPUBLISH|REVIEW)/PUBLISH	ALTER LISTING a PUBLISH
+accept	accept	docs	alterListing(PUBLISH|UNPUBLISH|REVIEW)/UNPUBLISH	ALTER LISTING a UNPUBLISH
 reject	undocumented	docs	alterListing(PUBLISH|UNPUBLISH|REVIEW)/UNPUBLISH!insert	ALTER LISTING a UNPUBLISH zzz
 reject	undocumented	docs	alterListing(PUBLISH|UNPUBLISH|REVIEW)/UNPUBLISH!swap	ALTER LISTING a UNREDACTED
-reject	accept	docs	alterListing(PUBLISH|UNPUBLISH|REVIEW)/REVIEW	ALTER LISTING a REVIEW
+accept	accept	docs	alterListing(PUBLISH|UNPUBLISH|REVIEW)/REVIEW	ALTER LISTING a REVIEW
 reject	undocumented	docs	alterListing(PUBLISH|UNPUBLISH|REVIEW)/REVIEW!insert	ALTER LISTING a REVIEW zzz
 reject	undocumented	docs	alterListing(PUBLISH|UNPUBLISH|REVIEW)/REVIEW!swap	ALTER LISTING a REVISION
-reject	accept	docs	alterListing(PUBLISH_=_(TRUE|FALSE))?/%empty	ALTER LISTING a AS 's'
-reject	accept	docs	alterListing(PUBLISH_=_(TRUE|FALSE))?/PUBLISH_=_(TRUE|FALSE)	ALTER LISTING a AS 's' PUBLISH = TRUE
+accept	accept	docs	alterListing(PUBLISH_=_(TRUE|FALSE))?/%empty	ALTER LISTING a AS 's'
+accept	accept	docs	alterListing(PUBLISH_=_(TRUE|FALSE))?/PUBLISH_=_(TRUE|FALSE)	ALTER LISTING a AS 's' PUBLISH = TRUE
 reject	undocumented	docs	alterListing(PUBLISH_=_(TRUE|FALSE))?/PUBLISH_=_(TRUE|FALSE)!drop-1	ALTER LISTING a AS 's' = TRUE
 reject	undocumented	docs	alterListing(PUBLISH_=_(TRUE|FALSE))?/PUBLISH_=_(TRUE|FALSE)!drop-2	ALTER LISTING a AS 's' PUBLISH TRUE
 reject	undocumented	docs	alterListing(PUBLISH_=_(TRUE|FALSE))?/PUBLISH_=_(TRUE|FALSE)!drop-3	ALTER LISTING a AS 's' PUBLISH =
 reject	undocumented	docs	alterListing(PUBLISH_=_(TRUE|FALSE))?/PUBLISH_=_(TRUE|FALSE)!insert	ALTER LISTING a AS 's' PUBLISH = TRUE zzz
 reject	undocumented	docs	alterListing(PUBLISH_=_(TRUE|FALSE))?/PUBLISH_=_(TRUE|FALSE)!swap	ALTER LISTING a AS 's' PUBLISHED = TRUE
-reject	accept	docs	alterListing(TRUE|FALSE)/TRUE	ALTER LISTING a AS 's' PUBLISH = TRUE
+accept	accept	docs	alterListing(TRUE|FALSE)/TRUE	ALTER LISTING a AS 's' PUBLISH = TRUE
 reject	undocumented	docs	alterListing(TRUE|FALSE)/TRUE!swap	ALTER LISTING a AS 's' PUBLISH = TRUNCATE
-reject	accept	docs	alterListing(TRUE|FALSE)/FALSE	ALTER LISTING a AS 's' PUBLISH = FALSE
+accept	accept	docs	alterListing(TRUE|FALSE)/FALSE	ALTER LISTING a AS 's' PUBLISH = FALSE
 reject	undocumented	docs	alterListing(TRUE|FALSE)/FALSE!insert	ALTER LISTING a AS 's' PUBLISH = FALSE zzz
 reject	undocumented	docs	alterListing(TRUE|FALSE)/FALSE!swap	ALTER LISTING a AS 's' PUBLISH = FAMILIES
-reject	accept	docs	alterListing(REVIEW_=_(TRUE|FALSE))?/%empty	ALTER LISTING a AS 's'
-reject	accept	docs	alterListing(REVIEW_=_(TRUE|FALSE))?/REVIEW_=_(TRUE|FALSE)	ALTER LISTING a AS 's' REVIEW = TRUE
+accept	accept	docs	alterListing(REVIEW_=_(TRUE|FALSE))?/%empty	ALTER LISTING a AS 's'
+accept	accept	docs	alterListing(REVIEW_=_(TRUE|FALSE))?/REVIEW_=_(TRUE|FALSE)	ALTER LISTING a AS 's' REVIEW = TRUE
 reject	undocumented	docs	alterListing(REVIEW_=_(TRUE|FALSE))?/REVIEW_=_(TRUE|FALSE)!drop-2	ALTER LISTING a AS 's' REVIEW TRUE
 reject	undocumented	docs	alterListing(REVIEW_=_(TRUE|FALSE))?/REVIEW_=_(TRUE|FALSE)!drop-3	ALTER LISTING a AS 's' REVIEW =
 reject	undocumented	docs	alterListing(REVIEW_=_(TRUE|FALSE))?/REVIEW_=_(TRUE|FALSE)!insert	ALTER LISTING a AS 's' REVIEW = TRUE zzz
 reject	undocumented	docs	alterListing(REVIEW_=_(TRUE|FALSE))?/REVIEW_=_(TRUE|FALSE)!swap	ALTER LISTING a AS 's' REVISION = TRUE
-reject	accept	docs	alterListing(COMMENT_=_STRING)?/%empty	ALTER LISTING a AS 's'
-reject	accept	docs	alterListing(COMMENT_=_STRING)?/COMMENT_=_STRING	ALTER LISTING a AS 's' COMMENT = 's'
+accept	accept	docs	alterListing(COMMENT_=_STRING)?/%empty	ALTER LISTING a AS 's'
+accept	accept	docs	alterListing(COMMENT_=_STRING)?/COMMENT_=_STRING	ALTER LISTING a AS 's' COMMENT = 's'
 reject	undocumented	docs	alterListing(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-1	ALTER LISTING a AS 's' = 's'
 reject	undocumented	docs	alterListing(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	ALTER LISTING a AS 's' COMMENT 's'
 reject	undocumented	docs	alterListing(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	ALTER LISTING a AS 's' COMMENT =
@@ -16352,7 +16352,7 @@ reject	undocumented	docs	alterModelMonitor(COMMENT_=_STRING)?/COMMENT_=_STRING!d
 reject	undocumented	docs	alterModelMonitor(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	ALTER MODEL MONITOR a SET REFRESH_INTERVAL = 's' COMMENT =
 reject	undocumented	docs	alterModelMonitor(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	ALTER MODEL MONITOR a SET REFRESH_INTERVAL = 's' COMMENT = 's' zzz
 reject	undocumented	docs	alterModelMonitor(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	ALTER MODEL MONITOR a SET REFRESH_INTERVAL = 's' COMMENTS = 's'
-reject	accept	docs	alterMultiPartyApprovalPolicy/ALTER_MULTI_PARTY_APPROVAL_POLICY_QNAME_RENAME_TO_QNAME	ALTER MULTI PARTY APPROVAL POLICY a RENAME TO a
+accept	accept	docs	alterMultiPartyApprovalPolicy/ALTER_MULTI_PARTY_APPROVAL_POLICY_QNAME_RENAME_TO_QNAME	ALTER MULTI PARTY APPROVAL POLICY a RENAME TO a
 reject	undocumented	docs	alterMultiPartyApprovalPolicy/ALTER_MULTI_PARTY_APPROVAL_POLICY_QNAME_RENAME_TO_QNAME!drop-1	MULTI PARTY APPROVAL POLICY a RENAME TO a
 reject	undocumented	docs	alterMultiPartyApprovalPolicy/ALTER_MULTI_PARTY_APPROVAL_POLICY_QNAME_RENAME_TO_QNAME!drop-2	ALTER PARTY APPROVAL POLICY a RENAME TO a
 reject	undocumented	docs	alterMultiPartyApprovalPolicy/ALTER_MULTI_PARTY_APPROVAL_POLICY_QNAME_RENAME_TO_QNAME!drop-3	ALTER MULTI APPROVAL POLICY a RENAME TO a
@@ -16364,7 +16364,7 @@ reject	undocumented	docs	alterMultiPartyApprovalPolicy/ALTER_MULTI_PARTY_APPROVA
 reject	undocumented	docs	alterMultiPartyApprovalPolicy/ALTER_MULTI_PARTY_APPROVAL_POLICY_QNAME_RENAME_TO_QNAME!drop-9	ALTER MULTI PARTY APPROVAL POLICY a RENAME TO
 reject	undocumented	docs	alterMultiPartyApprovalPolicy/ALTER_MULTI_PARTY_APPROVAL_POLICY_QNAME_RENAME_TO_QNAME!insert	ALTER MULTI PARTY APPROVAL POLICY a RENAME TO a zzz
 reject	undocumented	docs	alterMultiPartyApprovalPolicy/ALTER_MULTI_PARTY_APPROVAL_POLICY_QNAME_RENAME_TO_QNAME!swap	ALWAYS MULTI PARTY APPROVAL POLICY a RENAME TO a
-reject	accept	docs	alterMultiPartyApprovalPolicy/ALTER_MULTI_PARTY_APPROVAL_POLICY_QNAME_AS_STRING	ALTER MULTI PARTY APPROVAL POLICY a AS 's'
+accept	accept	docs	alterMultiPartyApprovalPolicy/ALTER_MULTI_PARTY_APPROVAL_POLICY_QNAME_AS_STRING	ALTER MULTI PARTY APPROVAL POLICY a AS 's'
 accept	accept	docs	alterNetworkPolicy/ALTER_NETWORK_POLICY_(IF_EXISTS)?_ID_SET_(ALLOWED_NETWO~c4f76a53	ALTER NETWORK POLICY a SET COMMENT = 's'
 reject	undocumented	docs	alterNetworkPolicy/ALTER_NETWORK_POLICY_(IF_EXISTS)?_ID_SET_(ALLOWED_NETWO~c4f76a53!drop-1	NETWORK POLICY a SET COMMENT = 's'
 reject	undocumented	docs	alterNetworkPolicy/ALTER_NETWORK_POLICY_(IF_EXISTS)?_ID_SET_(ALLOWED_NETWO~c4f76a53!drop-3	ALTER NETWORK a SET COMMENT = 's'
@@ -19499,24 +19499,24 @@ reject	undocumented	docs	alterResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_
 reject	accept	docs	alterResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/NOTIFY	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO NOTIFY
 reject	undocumented	docs	alterResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/NOTIFY!insert	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO NOTIFY zzz
 reject	undocumented	docs	alterResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/NOTIFY!swap	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO NOTIFY_USERS
-reject	accept	docs	alterRestrictedSessionScope/ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_(IF_EXISTS)?_QNAME~b061fa32	ALTER RSS a AS 's'
-reject	accept	docs	alterRestrictedSessionScope/ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_(IF_EXISTS)?_QNAME~0b104a72	ALTER RSS a ADD AS 's'
+accept	accept	docs	alterRestrictedSessionScope/ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_(IF_EXISTS)?_QNAME~b061fa32	ALTER RSS a AS 's'
+accept	accept	docs	alterRestrictedSessionScope/ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_(IF_EXISTS)?_QNAME~0b104a72	ALTER RSS a ADD AS 's'
 reject	undocumented	docs	alterRestrictedSessionScope/ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_(IF_EXISTS)?_QNAME~0b104a72!drop-1	RSS a ADD AS 's'
 reject	undocumented	docs	alterRestrictedSessionScope/ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_(IF_EXISTS)?_QNAME~0b104a72!drop-2	ALTER a ADD AS 's'
-reject	accept	docs	alterRestrictedSessionScope/ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_(IF_EXISTS)?_QNAME~0b104a72!drop-3	ALTER RSS ADD AS 's'
+accept	accept	docs	alterRestrictedSessionScope/ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_(IF_EXISTS)?_QNAME~0b104a72!drop-3	ALTER RSS ADD AS 's'
 reject	undocumented	docs	alterRestrictedSessionScope/ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_(IF_EXISTS)?_QNAME~0b104a72!drop-5	ALTER RSS a ADD 's'
 reject	undocumented	docs	alterRestrictedSessionScope/ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_(IF_EXISTS)?_QNAME~0b104a72!drop-6	ALTER RSS a ADD AS
 reject	undocumented	docs	alterRestrictedSessionScope/ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_(IF_EXISTS)?_QNAME~0b104a72!insert	ALTER RSS a ADD AS 's' zzz
 reject	undocumented	docs	alterRestrictedSessionScope/ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_(IF_EXISTS)?_QNAME~0b104a72!swap	ALWAYS RSS a ADD AS 's'
-reject	accept	docs	alterRestrictedSessionScope/ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_(IF_EXISTS)?_QNAME~8325916b	ALTER RSS a REMOVE AS 's'
+accept	accept	docs	alterRestrictedSessionScope/ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_(IF_EXISTS)?_QNAME~8325916b	ALTER RSS a REMOVE AS 's'
 reject	undocumented	docs	alterRestrictedSessionScope/ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_(IF_EXISTS)?_QNAME~8325916b!drop-1	RSS a REMOVE AS 's'
 reject	undocumented	docs	alterRestrictedSessionScope/ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_(IF_EXISTS)?_QNAME~8325916b!drop-2	ALTER a REMOVE AS 's'
-reject	accept	docs	alterRestrictedSessionScope/ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_(IF_EXISTS)?_QNAME~8325916b!drop-3	ALTER RSS REMOVE AS 's'
+accept	accept	docs	alterRestrictedSessionScope/ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_(IF_EXISTS)?_QNAME~8325916b!drop-3	ALTER RSS REMOVE AS 's'
 reject	undocumented	docs	alterRestrictedSessionScope/ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_(IF_EXISTS)?_QNAME~8325916b!drop-5	ALTER RSS a REMOVE 's'
 reject	undocumented	docs	alterRestrictedSessionScope/ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_(IF_EXISTS)?_QNAME~8325916b!drop-6	ALTER RSS a REMOVE AS
 reject	undocumented	docs	alterRestrictedSessionScope/ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_(IF_EXISTS)?_QNAME~8325916b!insert	ALTER RSS a REMOVE AS 's' zzz
 reject	undocumented	docs	alterRestrictedSessionScope/ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_(IF_EXISTS)?_QNAME~8325916b!swap	ALWAYS RSS a REMOVE AS 's'
-reject	accept	docs	alterRestrictedSessionScope/ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_(IF_EXISTS)?_QNAME~59014340	ALTER RSS a SET COMMENT = 's'
+accept	accept	docs	alterRestrictedSessionScope/ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_(IF_EXISTS)?_QNAME~59014340	ALTER RSS a SET COMMENT = 's'
 reject	undocumented	docs	alterRestrictedSessionScope/ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_(IF_EXISTS)?_QNAME~59014340!drop-1	RSS a SET COMMENT = 's'
 reject	undocumented	docs	alterRestrictedSessionScope/ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_(IF_EXISTS)?_QNAME~59014340!drop-3	ALTER RSS SET COMMENT = 's'
 reject	undocumented	docs	alterRestrictedSessionScope/ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_(IF_EXISTS)?_QNAME~59014340!drop-4	ALTER RSS a COMMENT = 's'
@@ -19525,25 +19525,25 @@ reject	undocumented	docs	alterRestrictedSessionScope/ALTER_(RESTRICTED_SESSION_S
 reject	undocumented	docs	alterRestrictedSessionScope/ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_(IF_EXISTS)?_QNAME~59014340!drop-7	ALTER RSS a SET COMMENT =
 reject	undocumented	docs	alterRestrictedSessionScope/ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_(IF_EXISTS)?_QNAME~59014340!insert	ALTER RSS a SET COMMENT = 's' zzz
 reject	undocumented	docs	alterRestrictedSessionScope/ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_(IF_EXISTS)?_QNAME~59014340!swap	ALWAYS RSS a SET COMMENT = 's'
-reject	accept	docs	alterRestrictedSessionScope/ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_(IF_EXISTS)?_QNAME~9bf15041	ALTER RSS a UNSET COMMENT
+accept	accept	docs	alterRestrictedSessionScope/ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_(IF_EXISTS)?_QNAME~9bf15041	ALTER RSS a UNSET COMMENT
 reject	undocumented	docs	alterRestrictedSessionScope/ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_(IF_EXISTS)?_QNAME~9bf15041!drop-1	RSS a UNSET COMMENT
 reject	undocumented	docs	alterRestrictedSessionScope/ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_(IF_EXISTS)?_QNAME~9bf15041!drop-3	ALTER RSS UNSET COMMENT
 reject	undocumented	docs	alterRestrictedSessionScope/ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_(IF_EXISTS)?_QNAME~9bf15041!drop-4	ALTER RSS a COMMENT
 reject	undocumented	docs	alterRestrictedSessionScope/ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_(IF_EXISTS)?_QNAME~9bf15041!drop-5	ALTER RSS a UNSET
 reject	undocumented	docs	alterRestrictedSessionScope/ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_(IF_EXISTS)?_QNAME~9bf15041!insert	ALTER RSS a UNSET COMMENT zzz
 reject	undocumented	docs	alterRestrictedSessionScope/ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_(IF_EXISTS)?_QNAME~9bf15041!swap	ALWAYS RSS a UNSET COMMENT
-reject	accept	docs	alterRestrictedSessionScope(RESTRICTED_SESSION_SCOPE|RSS)/RESTRICTED_SESSION_SCOPE	ALTER RESTRICTED SESSION SCOPE a AS 's'
+accept	accept	docs	alterRestrictedSessionScope(RESTRICTED_SESSION_SCOPE|RSS)/RESTRICTED_SESSION_SCOPE	ALTER RESTRICTED SESSION SCOPE a AS 's'
 reject	undocumented	docs	alterRestrictedSessionScope(RESTRICTED_SESSION_SCOPE|RSS)/RESTRICTED_SESSION_SCOPE!drop-1	ALTER SESSION SCOPE a AS 's'
 reject	undocumented	docs	alterRestrictedSessionScope(RESTRICTED_SESSION_SCOPE|RSS)/RESTRICTED_SESSION_SCOPE!drop-2	ALTER RESTRICTED SCOPE a AS 's'
 reject	undocumented	docs	alterRestrictedSessionScope(RESTRICTED_SESSION_SCOPE|RSS)/RESTRICTED_SESSION_SCOPE!drop-3	ALTER RESTRICTED SESSION a AS 's'
 reject	undocumented	docs	alterRestrictedSessionScope(RESTRICTED_SESSION_SCOPE|RSS)/RESTRICTED_SESSION_SCOPE!truncate	ALTER RESTRICTED SESSION
 reject	undocumented	docs	alterRestrictedSessionScope(RESTRICTED_SESSION_SCOPE|RSS)/RESTRICTED_SESSION_SCOPE!insert	ALTER RESTRICTED SESSION SCOPE zzz a AS 's'
 reject	undocumented	docs	alterRestrictedSessionScope(RESTRICTED_SESSION_SCOPE|RSS)/RESTRICTED_SESSION_SCOPE!swap	ALTER RESTRICTIONS SESSION SCOPE a AS 's'
-reject	accept	docs	alterRestrictedSessionScope(RESTRICTED_SESSION_SCOPE|RSS)/RSS	ALTER RSS a AS 's'
+accept	accept	docs	alterRestrictedSessionScope(RESTRICTED_SESSION_SCOPE|RSS)/RSS	ALTER RSS a AS 's'
 reject	undocumented	docs	alterRestrictedSessionScope(RESTRICTED_SESSION_SCOPE|RSS)/RSS!insert	ALTER RSS zzz a AS 's'
 reject	undocumented	docs	alterRestrictedSessionScope(RESTRICTED_SESSION_SCOPE|RSS)/RSS!swap	ALTER RULE a AS 's'
-reject	accept	docs	alterRestrictedSessionScope(IF_EXISTS)?/%empty	ALTER RSS a AS 's'
-reject	accept	docs	alterRestrictedSessionScope(IF_EXISTS)?/IF_EXISTS	ALTER RSS IF EXISTS a AS 's'
+accept	accept	docs	alterRestrictedSessionScope(IF_EXISTS)?/%empty	ALTER RSS a AS 's'
+accept	accept	docs	alterRestrictedSessionScope(IF_EXISTS)?/IF_EXISTS	ALTER RSS IF EXISTS a AS 's'
 reject	undocumented	docs	alterRestrictedSessionScope(IF_EXISTS)?/IF_EXISTS!drop-1	ALTER RSS EXISTS a AS 's'
 reject	undocumented	docs	alterRestrictedSessionScope(IF_EXISTS)?/IF_EXISTS!drop-2	ALTER RSS IF a AS 's'
 reject	undocumented	docs	alterRestrictedSessionScope(IF_EXISTS)?/IF_EXISTS!truncate	ALTER RSS IF
@@ -33529,23 +33529,23 @@ reject	undocumented	docs	createConnection(COMMENT_=_STRING)?/COMMENT_=_STRING!dr
 reject	undocumented	docs	createConnection(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE CONNECTION a COMMENT =
 accept	undocumented	docs	createConnection(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE CONNECTION a COMMENT = 's' zzz
 accept	undocumented	docs	createConnection(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE CONNECTION a COMMENTS = 's'
-reject	accept	docs	createContact/CREATE_(OR_REPLACE)?_CONTACT_QNAME_((USERS_=_(_STRING_(~bbb8f6c0	CREATE CONTACT a
-reject	accept	docs	createContact/CREATE_CONTACT_(IF_NOT_EXISTS)?_QNAME_((USERS_=_(_STRIN~cf3d03ae	CREATE CONTACT a
-reject	accept	docs	createContact(OR_REPLACE)?/%empty	CREATE CONTACT a
+accept	accept	docs	createContact/CREATE_(OR_REPLACE)?_CONTACT_QNAME_((USERS_=_(_STRING_(~bbb8f6c0	CREATE CONTACT a
+accept	accept	docs	createContact/CREATE_CONTACT_(IF_NOT_EXISTS)?_QNAME_((USERS_=_(_STRIN~cf3d03ae	CREATE CONTACT a
+accept	accept	docs	createContact(OR_REPLACE)?/%empty	CREATE CONTACT a
 reject	undocumented	docs	createContact(OR_REPLACE)?/%empty!insert	CREATE zzz CONTACT a
-reject	accept	docs	createContact(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE CONTACT a
+accept	accept	docs	createContact(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE CONTACT a
 reject	undocumented	docs	createContact(OR_REPLACE)?/OR_REPLACE!drop-1	CREATE REPLACE CONTACT a
 reject	undocumented	docs	createContact(OR_REPLACE)?/OR_REPLACE!drop-2	CREATE OR CONTACT a
 reject	undocumented	docs	createContact(OR_REPLACE)?/OR_REPLACE!insert	CREATE OR REPLACE zzz CONTACT a
 reject	undocumented	docs	createContact(OR_REPLACE)?/OR_REPLACE!swap	CREATE ORC REPLACE CONTACT a
-reject	accept	docs	createContact((USERS_=_(_STRING_(,_STRING)*_)|EMAI~ba2f0ace)?/%empty	CREATE CONTACT a
-reject	accept	docs	createContact((USERS_=_(_STRING_(,_STRING)*_)|EMAI~ba2f0ace)?/(USERS_=_(_STRING_(,_STRING)*_)|EMAIL~7564221b)	CREATE CONTACT a EMAIL_DISTRIBUTION_LIST = 's'
+accept	accept	docs	createContact((USERS_=_(_STRING_(,_STRING)*_)|EMAI~ba2f0ace)?/%empty	CREATE CONTACT a
+accept	accept	docs	createContact((USERS_=_(_STRING_(,_STRING)*_)|EMAI~ba2f0ace)?/(USERS_=_(_STRING_(,_STRING)*_)|EMAIL~7564221b)	CREATE CONTACT a EMAIL_DISTRIBUTION_LIST = 's'
 reject	undocumented	docs	createContact((USERS_=_(_STRING_(,_STRING)*_)|EMAI~ba2f0ace)?/(USERS_=_(_STRING_(,_STRING)*_)|EMAIL~7564221b)!drop-1	CREATE CONTACT a = 's'
 reject	undocumented	docs	createContact((USERS_=_(_STRING_(,_STRING)*_)|EMAI~ba2f0ace)?/(USERS_=_(_STRING_(,_STRING)*_)|EMAIL~7564221b)!drop-2	CREATE CONTACT a EMAIL_DISTRIBUTION_LIST 's'
 reject	undocumented	docs	createContact((USERS_=_(_STRING_(,_STRING)*_)|EMAI~ba2f0ace)?/(USERS_=_(_STRING_(,_STRING)*_)|EMAIL~7564221b)!drop-3	CREATE CONTACT a EMAIL_DISTRIBUTION_LIST =
 reject	undocumented	docs	createContact((USERS_=_(_STRING_(,_STRING)*_)|EMAI~ba2f0ace)?/(USERS_=_(_STRING_(,_STRING)*_)|EMAIL~7564221b)!insert	CREATE CONTACT a EMAIL_DISTRIBUTION_LIST = 's' zzz
 reject	undocumented	docs	createContact((USERS_=_(_STRING_(,_STRING)*_)|EMAI~ba2f0ace)?/(USERS_=_(_STRING_(,_STRING)*_)|EMAIL~7564221b)!swap	CREATE CONTACT a EMBEDDING_MODEL = 's'
-reject	accept	docs	createContact(USERS_=_(_STRING_(,_STRING)*_)|EMAIL~7564221b)/USERS_=_(_STRING_(,_STRING)*_)	CREATE CONTACT a USERS =('s')
+accept	accept	docs	createContact(USERS_=_(_STRING_(,_STRING)*_)|EMAIL~7564221b)/USERS_=_(_STRING_(,_STRING)*_)	CREATE CONTACT a USERS =('s')
 reject	undocumented	docs	createContact(USERS_=_(_STRING_(,_STRING)*_)|EMAIL~7564221b)/USERS_=_(_STRING_(,_STRING)*_)!drop-1	CREATE CONTACT a =('s')
 reject	undocumented	docs	createContact(USERS_=_(_STRING_(,_STRING)*_)|EMAIL~7564221b)/USERS_=_(_STRING_(,_STRING)*_)!drop-2	CREATE CONTACT a USERS('s')
 reject	undocumented	docs	createContact(USERS_=_(_STRING_(,_STRING)*_)|EMAIL~7564221b)/USERS_=_(_STRING_(,_STRING)*_)!drop-3	CREATE CONTACT a USERS = 's')
@@ -33553,28 +33553,28 @@ reject	undocumented	docs	createContact(USERS_=_(_STRING_(,_STRING)*_)|EMAIL~7564
 reject	undocumented	docs	createContact(USERS_=_(_STRING_(,_STRING)*_)|EMAIL~7564221b)/USERS_=_(_STRING_(,_STRING)*_)!drop-5	CREATE CONTACT a USERS =('s'
 reject	undocumented	docs	createContact(USERS_=_(_STRING_(,_STRING)*_)|EMAIL~7564221b)/USERS_=_(_STRING_(,_STRING)*_)!insert	CREATE CONTACT a USERS =('s') zzz
 reject	undocumented	docs	createContact(USERS_=_(_STRING_(,_STRING)*_)|EMAIL~7564221b)/USERS_=_(_STRING_(,_STRING)*_)!swap	CREATE CONTACT a USER_SPECIFIED =('s')
-reject	accept	docs	createContact(USERS_=_(_STRING_(,_STRING)*_)|EMAIL~7564221b)/EMAIL_DISTRIBUTION_LIST_=_STRING	CREATE CONTACT a EMAIL_DISTRIBUTION_LIST = 's'
-reject	accept	docs	createContact(USERS_=_(_STRING_(,_STRING)*_)|EMAIL~7564221b)/URL_=_STRING	CREATE CONTACT a URL = 's'
+accept	accept	docs	createContact(USERS_=_(_STRING_(,_STRING)*_)|EMAIL~7564221b)/EMAIL_DISTRIBUTION_LIST_=_STRING	CREATE CONTACT a EMAIL_DISTRIBUTION_LIST = 's'
+accept	accept	docs	createContact(USERS_=_(_STRING_(,_STRING)*_)|EMAIL~7564221b)/URL_=_STRING	CREATE CONTACT a URL = 's'
 reject	undocumented	docs	createContact(USERS_=_(_STRING_(,_STRING)*_)|EMAIL~7564221b)/URL_=_STRING!drop-2	CREATE CONTACT a URL 's'
 reject	undocumented	docs	createContact(USERS_=_(_STRING_(,_STRING)*_)|EMAIL~7564221b)/URL_=_STRING!drop-3	CREATE CONTACT a URL =
 reject	undocumented	docs	createContact(USERS_=_(_STRING_(,_STRING)*_)|EMAIL~7564221b)/URL_=_STRING!insert	CREATE CONTACT a URL = 's' zzz
 reject	undocumented	docs	createContact(USERS_=_(_STRING_(,_STRING)*_)|EMAIL~7564221b)/URL_=_STRING!swap	CREATE CONTACT a USAGE = 's'
-reject	accept	docs	createContact(,_STRING)*/%empty	CREATE CONTACT a USERS =('s')
+accept	accept	docs	createContact(,_STRING)*/%empty	CREATE CONTACT a USERS =('s')
 reject	undocumented	docs	createContact(,_STRING)*/%empty!insert	CREATE CONTACT a USERS =('s' zzz)
-reject	accept	docs	createContact(,_STRING)*/,_STRING_(,_STRING)*	CREATE CONTACT a USERS =('s', 's')
+accept	accept	docs	createContact(,_STRING)*/,_STRING_(,_STRING)*	CREATE CONTACT a USERS =('s', 's')
 reject	undocumented	docs	createContact(,_STRING)*/,_STRING_(,_STRING)*!drop-1	CREATE CONTACT a USERS =('s' 's')
 reject	undocumented	docs	createContact(,_STRING)*/,_STRING_(,_STRING)*!drop-2	CREATE CONTACT a USERS =('s',)
 reject	undocumented	docs	createContact(,_STRING)*/,_STRING_(,_STRING)*!truncate	CREATE CONTACT a USERS =('s',
 reject	undocumented	docs	createContact(,_STRING)*/,_STRING_(,_STRING)*!insert	CREATE CONTACT a USERS =('s', 's' zzz)
-reject	accept	docs	createContact(COMMENT_=_STRING)?/%empty	CREATE CONTACT a
-reject	accept	docs	createContact(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE CONTACT a COMMENT = 's'
+accept	accept	docs	createContact(COMMENT_=_STRING)?/%empty	CREATE CONTACT a
+accept	accept	docs	createContact(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE CONTACT a COMMENT = 's'
 reject	undocumented	docs	createContact(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	CREATE CONTACT a COMMENT 's'
 reject	undocumented	docs	createContact(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE CONTACT a COMMENT =
 reject	undocumented	docs	createContact(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE CONTACT a COMMENT = 's' zzz
 reject	undocumented	docs	createContact(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE CONTACT a COMMENTS = 's'
-reject	accept	docs	createContact(IF_NOT_EXISTS)?/%empty	CREATE CONTACT a
+accept	accept	docs	createContact(IF_NOT_EXISTS)?/%empty	CREATE CONTACT a
 reject	undocumented	docs	createContact(IF_NOT_EXISTS)?/%empty!insert	CREATE CONTACT zzz a
-reject	accept	docs	createContact(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE CONTACT IF NOT EXISTS a
+accept	accept	docs	createContact(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE CONTACT IF NOT EXISTS a
 reject	undocumented	docs	createContact(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE CONTACT NOT EXISTS a
 reject	undocumented	docs	createContact(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE CONTACT IF EXISTS a
 reject	undocumented	docs	createContact(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE CONTACT IF NOT a
@@ -35446,37 +35446,37 @@ reject	undocumented	docs	createExternalAgent(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-
 reject	undocumented	docs	createExternalAgent(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE EXTERNAL AGENT IF NOT
 reject	undocumented	docs	createExternalAgent(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE EXTERNAL AGENT IF NOT EXISTS zzz a
 reject	undocumented	docs	createExternalAgent(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE EXTERNAL AGENT IGNORE NOT EXISTS a
-reject	accept	docs	createExternalConsumer/CREATE_(OR_REPLACE)?_EXTERNAL_CONSUMER_QNAME_(REGION_=_~0ec115ea	CREATE EXTERNAL CONSUMER a
-reject	accept	docs	createExternalConsumer/CREATE_EXTERNAL_CONSUMER_(IF_NOT_EXISTS)?_QNAME_(REGION~6d61a499	CREATE EXTERNAL CONSUMER a
-reject	accept	docs	createExternalConsumer(OR_REPLACE)?/%empty	CREATE EXTERNAL CONSUMER a
+accept	accept	docs	createExternalConsumer/CREATE_(OR_REPLACE)?_EXTERNAL_CONSUMER_QNAME_(REGION_=_~0ec115ea	CREATE EXTERNAL CONSUMER a
+accept	accept	docs	createExternalConsumer/CREATE_EXTERNAL_CONSUMER_(IF_NOT_EXISTS)?_QNAME_(REGION~6d61a499	CREATE EXTERNAL CONSUMER a
+accept	accept	docs	createExternalConsumer(OR_REPLACE)?/%empty	CREATE EXTERNAL CONSUMER a
 reject	undocumented	docs	createExternalConsumer(OR_REPLACE)?/%empty!insert	CREATE zzz EXTERNAL CONSUMER a
-reject	accept	docs	createExternalConsumer(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE EXTERNAL CONSUMER a
+accept	accept	docs	createExternalConsumer(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE EXTERNAL CONSUMER a
 reject	undocumented	docs	createExternalConsumer(OR_REPLACE)?/OR_REPLACE!drop-1	CREATE REPLACE EXTERNAL CONSUMER a
 reject	undocumented	docs	createExternalConsumer(OR_REPLACE)?/OR_REPLACE!drop-2	CREATE OR EXTERNAL CONSUMER a
 reject	undocumented	docs	createExternalConsumer(OR_REPLACE)?/OR_REPLACE!insert	CREATE OR REPLACE zzz EXTERNAL CONSUMER a
 reject	undocumented	docs	createExternalConsumer(OR_REPLACE)?/OR_REPLACE!swap	CREATE ORC REPLACE EXTERNAL CONSUMER a
-reject	accept	docs	createExternalConsumer(REGION_=_STRING)?/%empty	CREATE EXTERNAL CONSUMER a
-reject	accept	docs	createExternalConsumer(REGION_=_STRING)?/REGION_=_STRING	CREATE EXTERNAL CONSUMER a REGION = 's'
+accept	accept	docs	createExternalConsumer(REGION_=_STRING)?/%empty	CREATE EXTERNAL CONSUMER a
+accept	accept	docs	createExternalConsumer(REGION_=_STRING)?/REGION_=_STRING	CREATE EXTERNAL CONSUMER a REGION = 's'
 reject	undocumented	docs	createExternalConsumer(REGION_=_STRING)?/REGION_=_STRING!drop-1	CREATE EXTERNAL CONSUMER a = 's'
 reject	undocumented	docs	createExternalConsumer(REGION_=_STRING)?/REGION_=_STRING!drop-2	CREATE EXTERNAL CONSUMER a REGION 's'
 reject	undocumented	docs	createExternalConsumer(REGION_=_STRING)?/REGION_=_STRING!drop-3	CREATE EXTERNAL CONSUMER a REGION =
 reject	undocumented	docs	createExternalConsumer(REGION_=_STRING)?/REGION_=_STRING!insert	CREATE EXTERNAL CONSUMER a REGION = 's' zzz
 reject	undocumented	docs	createExternalConsumer(REGION_=_STRING)?/REGION_=_STRING!swap	CREATE EXTERNAL CONSUMER a REGIONS = 's'
-reject	accept	docs	createExternalConsumer(COMMENT_=_STRING)?/%empty	CREATE EXTERNAL CONSUMER a
-reject	accept	docs	createExternalConsumer(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE EXTERNAL CONSUMER a COMMENT = 's'
+accept	accept	docs	createExternalConsumer(COMMENT_=_STRING)?/%empty	CREATE EXTERNAL CONSUMER a
+accept	accept	docs	createExternalConsumer(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE EXTERNAL CONSUMER a COMMENT = 's'
 reject	undocumented	docs	createExternalConsumer(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	CREATE EXTERNAL CONSUMER a COMMENT 's'
 reject	undocumented	docs	createExternalConsumer(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE EXTERNAL CONSUMER a COMMENT =
 reject	undocumented	docs	createExternalConsumer(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE EXTERNAL CONSUMER a COMMENT = 's' zzz
 reject	undocumented	docs	createExternalConsumer(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE EXTERNAL CONSUMER a COMMENTS = 's'
-reject	accept	docs	createExternalConsumer(EMAIL_=_STRING)?/%empty	CREATE EXTERNAL CONSUMER a
-reject	accept	docs	createExternalConsumer(EMAIL_=_STRING)?/EMAIL_=_STRING	CREATE EXTERNAL CONSUMER a EMAIL = 's'
+accept	accept	docs	createExternalConsumer(EMAIL_=_STRING)?/%empty	CREATE EXTERNAL CONSUMER a
+accept	accept	docs	createExternalConsumer(EMAIL_=_STRING)?/EMAIL_=_STRING	CREATE EXTERNAL CONSUMER a EMAIL = 's'
 reject	undocumented	docs	createExternalConsumer(EMAIL_=_STRING)?/EMAIL_=_STRING!drop-2	CREATE EXTERNAL CONSUMER a EMAIL 's'
 reject	undocumented	docs	createExternalConsumer(EMAIL_=_STRING)?/EMAIL_=_STRING!drop-3	CREATE EXTERNAL CONSUMER a EMAIL =
 reject	undocumented	docs	createExternalConsumer(EMAIL_=_STRING)?/EMAIL_=_STRING!insert	CREATE EXTERNAL CONSUMER a EMAIL = 's' zzz
 reject	undocumented	docs	createExternalConsumer(EMAIL_=_STRING)?/EMAIL_=_STRING!swap	CREATE EXTERNAL CONSUMER a EMAIL_DISTRIBUTION_LIST = 's'
-reject	accept	docs	createExternalConsumer(IF_NOT_EXISTS)?/%empty	CREATE EXTERNAL CONSUMER a
+accept	accept	docs	createExternalConsumer(IF_NOT_EXISTS)?/%empty	CREATE EXTERNAL CONSUMER a
 reject	undocumented	docs	createExternalConsumer(IF_NOT_EXISTS)?/%empty!insert	CREATE EXTERNAL CONSUMER zzz a
-reject	accept	docs	createExternalConsumer(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE EXTERNAL CONSUMER IF NOT EXISTS a
+accept	accept	docs	createExternalConsumer(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE EXTERNAL CONSUMER IF NOT EXISTS a
 reject	undocumented	docs	createExternalConsumer(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE EXTERNAL CONSUMER NOT EXISTS a
 reject	undocumented	docs	createExternalConsumer(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE EXTERNAL CONSUMER IF EXISTS a
 reject	undocumented	docs	createExternalConsumer(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE EXTERNAL CONSUMER IF NOT a
@@ -41055,8 +41055,8 @@ reject	undocumented	docs	createJoinPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	C
 reject	undocumented	docs	createJoinPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE JOIN POLICY IF NOT
 reject	undocumented	docs	createJoinPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE JOIN POLICY IF NOT EXISTS zzz a AS() RETURNS JOIN_CONSTRAINT -> 1
 reject	undocumented	docs	createJoinPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE JOIN POLICY IGNORE NOT EXISTS a AS() RETURNS JOIN_CONSTRAINT -> 1
-reject	accept	docs	createListing/CREATE_EXTERNAL_LISTING_(IF_NOT_EXISTS)?_ID_((SHARE_ID|~9f49c2d4	CREATE EXTERNAL LISTING a AS 's'
-reject	accept	docs	createListing/CREATE_EXTERNAL_LISTING_(IF_NOT_EXISTS)?_ID_((SHARE_ID|~342cf826	CREATE EXTERNAL LISTING a FROM 's'
+accept	accept	docs	createListing/CREATE_EXTERNAL_LISTING_(IF_NOT_EXISTS)?_ID_((SHARE_ID|~9f49c2d4	CREATE EXTERNAL LISTING a AS 's'
+accept	accept	docs	createListing/CREATE_EXTERNAL_LISTING_(IF_NOT_EXISTS)?_ID_((SHARE_ID|~342cf826	CREATE EXTERNAL LISTING a FROM 's'
 reject	undocumented	docs	createListing/CREATE_EXTERNAL_LISTING_(IF_NOT_EXISTS)?_ID_((SHARE_ID|~342cf826!drop-1	EXTERNAL LISTING a FROM 's'
 reject	undocumented	docs	createListing/CREATE_EXTERNAL_LISTING_(IF_NOT_EXISTS)?_ID_((SHARE_ID|~342cf826!drop-2	CREATE LISTING a FROM 's'
 reject	undocumented	docs	createListing/CREATE_EXTERNAL_LISTING_(IF_NOT_EXISTS)?_ID_((SHARE_ID|~342cf826!drop-3	CREATE EXTERNAL a FROM 's'
@@ -41064,51 +41064,51 @@ reject	undocumented	docs	createListing/CREATE_EXTERNAL_LISTING_(IF_NOT_EXISTS)?_
 reject	undocumented	docs	createListing/CREATE_EXTERNAL_LISTING_(IF_NOT_EXISTS)?_ID_((SHARE_ID|~342cf826!drop-6	CREATE EXTERNAL LISTING a FROM
 reject	undocumented	docs	createListing/CREATE_EXTERNAL_LISTING_(IF_NOT_EXISTS)?_ID_((SHARE_ID|~342cf826!insert	CREATE EXTERNAL LISTING a FROM 's' zzz
 reject	undocumented	docs	createListing/CREATE_EXTERNAL_LISTING_(IF_NOT_EXISTS)?_ID_((SHARE_ID|~342cf826!swap	CREATION EXTERNAL LISTING a FROM 's'
-reject	accept	docs	createListing(IF_NOT_EXISTS)?/%empty	CREATE EXTERNAL LISTING a AS 's'
+accept	accept	docs	createListing(IF_NOT_EXISTS)?/%empty	CREATE EXTERNAL LISTING a AS 's'
 reject	undocumented	docs	createListing(IF_NOT_EXISTS)?/%empty!insert	CREATE EXTERNAL LISTING zzz a AS 's'
-reject	accept	docs	createListing(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE EXTERNAL LISTING IF NOT EXISTS a AS 's'
+accept	accept	docs	createListing(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE EXTERNAL LISTING IF NOT EXISTS a AS 's'
 reject	undocumented	docs	createListing(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE EXTERNAL LISTING NOT EXISTS a AS 's'
 reject	undocumented	docs	createListing(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE EXTERNAL LISTING IF EXISTS a AS 's'
 reject	undocumented	docs	createListing(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE EXTERNAL LISTING IF NOT a AS 's'
 reject	undocumented	docs	createListing(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE EXTERNAL LISTING IF NOT
 reject	undocumented	docs	createListing(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE EXTERNAL LISTING IF NOT EXISTS zzz a AS 's'
 reject	undocumented	docs	createListing(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE EXTERNAL LISTING IGNORE NOT EXISTS a AS 's'
-reject	accept	docs	createListing((SHARE_ID|APPLICATION_PACKAGE_ID))?/%empty	CREATE EXTERNAL LISTING a AS 's'
+accept	accept	docs	createListing((SHARE_ID|APPLICATION_PACKAGE_ID))?/%empty	CREATE EXTERNAL LISTING a AS 's'
 reject	undocumented	docs	createListing((SHARE_ID|APPLICATION_PACKAGE_ID))?/%empty!insert	CREATE EXTERNAL LISTING a zzz AS 's'
-reject	accept	docs	createListing((SHARE_ID|APPLICATION_PACKAGE_ID))?/(SHARE_ID|APPLICATION_PACKAGE_ID)	CREATE EXTERNAL LISTING a SHARE a AS 's'
+accept	accept	docs	createListing((SHARE_ID|APPLICATION_PACKAGE_ID))?/(SHARE_ID|APPLICATION_PACKAGE_ID)	CREATE EXTERNAL LISTING a SHARE a AS 's'
 reject	undocumented	docs	createListing((SHARE_ID|APPLICATION_PACKAGE_ID))?/(SHARE_ID|APPLICATION_PACKAGE_ID)!drop-1	CREATE EXTERNAL LISTING a a AS 's'
 reject	undocumented	docs	createListing((SHARE_ID|APPLICATION_PACKAGE_ID))?/(SHARE_ID|APPLICATION_PACKAGE_ID)!drop-2	CREATE EXTERNAL LISTING a SHARE AS 's'
 reject	undocumented	docs	createListing((SHARE_ID|APPLICATION_PACKAGE_ID))?/(SHARE_ID|APPLICATION_PACKAGE_ID)!truncate	CREATE EXTERNAL LISTING a SHARE
 reject	undocumented	docs	createListing((SHARE_ID|APPLICATION_PACKAGE_ID))?/(SHARE_ID|APPLICATION_PACKAGE_ID)!insert	CREATE EXTERNAL LISTING a SHARE a zzz AS 's'
 reject	undocumented	docs	createListing((SHARE_ID|APPLICATION_PACKAGE_ID))?/(SHARE_ID|APPLICATION_PACKAGE_ID)!swap	CREATE EXTERNAL LISTING a SHARED a AS 's'
-reject	accept	docs	createListing(SHARE_ID|APPLICATION_PACKAGE_ID)/SHARE_ID	CREATE EXTERNAL LISTING a SHARE a AS 's'
-reject	accept	docs	createListing(SHARE_ID|APPLICATION_PACKAGE_ID)/APPLICATION_PACKAGE_ID	CREATE EXTERNAL LISTING a APPLICATION PACKAGE a AS 's'
+accept	accept	docs	createListing(SHARE_ID|APPLICATION_PACKAGE_ID)/SHARE_ID	CREATE EXTERNAL LISTING a SHARE a AS 's'
+accept	accept	docs	createListing(SHARE_ID|APPLICATION_PACKAGE_ID)/APPLICATION_PACKAGE_ID	CREATE EXTERNAL LISTING a APPLICATION PACKAGE a AS 's'
 reject	undocumented	docs	createListing(SHARE_ID|APPLICATION_PACKAGE_ID)/APPLICATION_PACKAGE_ID!drop-1	CREATE EXTERNAL LISTING a PACKAGE a AS 's'
 reject	undocumented	docs	createListing(SHARE_ID|APPLICATION_PACKAGE_ID)/APPLICATION_PACKAGE_ID!drop-2	CREATE EXTERNAL LISTING a APPLICATION a AS 's'
 reject	undocumented	docs	createListing(SHARE_ID|APPLICATION_PACKAGE_ID)/APPLICATION_PACKAGE_ID!drop-3	CREATE EXTERNAL LISTING a APPLICATION PACKAGE AS 's'
 reject	undocumented	docs	createListing(SHARE_ID|APPLICATION_PACKAGE_ID)/APPLICATION_PACKAGE_ID!truncate	CREATE EXTERNAL LISTING a APPLICATION PACKAGE
 reject	undocumented	docs	createListing(SHARE_ID|APPLICATION_PACKAGE_ID)/APPLICATION_PACKAGE_ID!insert	CREATE EXTERNAL LISTING a APPLICATION PACKAGE a zzz AS 's'
 reject	undocumented	docs	createListing(SHARE_ID|APPLICATION_PACKAGE_ID)/APPLICATION_PACKAGE_ID!swap	CREATE EXTERNAL LISTING a APPLICATIONS PACKAGE a AS 's'
-reject	accept	docs	createListing(PUBLISH_=_(TRUE|FALSE))?/%empty	CREATE EXTERNAL LISTING a AS 's'
-reject	accept	docs	createListing(PUBLISH_=_(TRUE|FALSE))?/PUBLISH_=_(TRUE|FALSE)	CREATE EXTERNAL LISTING a AS 's' PUBLISH = TRUE
+accept	accept	docs	createListing(PUBLISH_=_(TRUE|FALSE))?/%empty	CREATE EXTERNAL LISTING a AS 's'
+accept	accept	docs	createListing(PUBLISH_=_(TRUE|FALSE))?/PUBLISH_=_(TRUE|FALSE)	CREATE EXTERNAL LISTING a AS 's' PUBLISH = TRUE
 reject	undocumented	docs	createListing(PUBLISH_=_(TRUE|FALSE))?/PUBLISH_=_(TRUE|FALSE)!drop-1	CREATE EXTERNAL LISTING a AS 's' = TRUE
 reject	undocumented	docs	createListing(PUBLISH_=_(TRUE|FALSE))?/PUBLISH_=_(TRUE|FALSE)!drop-2	CREATE EXTERNAL LISTING a AS 's' PUBLISH TRUE
 reject	undocumented	docs	createListing(PUBLISH_=_(TRUE|FALSE))?/PUBLISH_=_(TRUE|FALSE)!drop-3	CREATE EXTERNAL LISTING a AS 's' PUBLISH =
 reject	undocumented	docs	createListing(PUBLISH_=_(TRUE|FALSE))?/PUBLISH_=_(TRUE|FALSE)!insert	CREATE EXTERNAL LISTING a AS 's' PUBLISH = TRUE zzz
 reject	undocumented	docs	createListing(PUBLISH_=_(TRUE|FALSE))?/PUBLISH_=_(TRUE|FALSE)!swap	CREATE EXTERNAL LISTING a AS 's' PUBLISHED = TRUE
-reject	accept	docs	createListing(TRUE|FALSE)/TRUE	CREATE EXTERNAL LISTING a AS 's' PUBLISH = TRUE
+accept	accept	docs	createListing(TRUE|FALSE)/TRUE	CREATE EXTERNAL LISTING a AS 's' PUBLISH = TRUE
 reject	undocumented	docs	createListing(TRUE|FALSE)/TRUE!swap	CREATE EXTERNAL LISTING a AS 's' PUBLISH = TRUNCATE
-reject	accept	docs	createListing(TRUE|FALSE)/FALSE	CREATE EXTERNAL LISTING a AS 's' PUBLISH = FALSE
+accept	accept	docs	createListing(TRUE|FALSE)/FALSE	CREATE EXTERNAL LISTING a AS 's' PUBLISH = FALSE
 reject	undocumented	docs	createListing(TRUE|FALSE)/FALSE!insert	CREATE EXTERNAL LISTING a AS 's' PUBLISH = FALSE zzz
 reject	undocumented	docs	createListing(TRUE|FALSE)/FALSE!swap	CREATE EXTERNAL LISTING a AS 's' PUBLISH = FAMILIES
-reject	accept	docs	createListing(REVIEW_=_(TRUE|FALSE))?/%empty	CREATE EXTERNAL LISTING a AS 's'
-reject	accept	docs	createListing(REVIEW_=_(TRUE|FALSE))?/REVIEW_=_(TRUE|FALSE)	CREATE EXTERNAL LISTING a AS 's' REVIEW = TRUE
+accept	accept	docs	createListing(REVIEW_=_(TRUE|FALSE))?/%empty	CREATE EXTERNAL LISTING a AS 's'
+accept	accept	docs	createListing(REVIEW_=_(TRUE|FALSE))?/REVIEW_=_(TRUE|FALSE)	CREATE EXTERNAL LISTING a AS 's' REVIEW = TRUE
 reject	undocumented	docs	createListing(REVIEW_=_(TRUE|FALSE))?/REVIEW_=_(TRUE|FALSE)!drop-2	CREATE EXTERNAL LISTING a AS 's' REVIEW TRUE
 reject	undocumented	docs	createListing(REVIEW_=_(TRUE|FALSE))?/REVIEW_=_(TRUE|FALSE)!drop-3	CREATE EXTERNAL LISTING a AS 's' REVIEW =
 reject	undocumented	docs	createListing(REVIEW_=_(TRUE|FALSE))?/REVIEW_=_(TRUE|FALSE)!insert	CREATE EXTERNAL LISTING a AS 's' REVIEW = TRUE zzz
 reject	undocumented	docs	createListing(REVIEW_=_(TRUE|FALSE))?/REVIEW_=_(TRUE|FALSE)!swap	CREATE EXTERNAL LISTING a AS 's' REVISION = TRUE
-reject	accept	docs	createListing(COMMENT_=_STRING)?/%empty	CREATE EXTERNAL LISTING a AS 's'
-reject	accept	docs	createListing(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE EXTERNAL LISTING a AS 's' COMMENT = 's'
+accept	accept	docs	createListing(COMMENT_=_STRING)?/%empty	CREATE EXTERNAL LISTING a AS 's'
+accept	accept	docs	createListing(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE EXTERNAL LISTING a AS 's' COMMENT = 's'
 reject	undocumented	docs	createListing(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-1	CREATE EXTERNAL LISTING a AS 's' = 's'
 reject	undocumented	docs	createListing(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	CREATE EXTERNAL LISTING a AS 's' COMMENT 's'
 reject	undocumented	docs	createListing(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE EXTERNAL LISTING a AS 's' COMMENT =
@@ -41602,18 +41602,18 @@ reject	undocumented	docs	createModelMonitor(GROUND_TRUTH_=_QNAME)?/GROUND_TRUTH_
 reject	undocumented	docs	createModelMonitor(GROUND_TRUTH_=_QNAME)?/GROUND_TRUTH_=_QNAME!drop-3	CREATE MODEL MONITOR a WITH MODEL = a GATEWAY = a FUNCTION = 's' WAREHOUSE = a REFRESH_INTERVAL = 's' AGGREGATION_WINDOW = 's' GROUND_TRUTH =
 reject	undocumented	docs	createModelMonitor(GROUND_TRUTH_=_QNAME)?/GROUND_TRUTH_=_QNAME!insert	CREATE MODEL MONITOR a WITH MODEL = a GATEWAY = a FUNCTION = 's' WAREHOUSE = a REFRESH_INTERVAL = 's' AGGREGATION_WINDOW = 's' GROUND_TRUTH = a zzz
 reject	undocumented	docs	createModelMonitor(GROUND_TRUTH_=_QNAME)?/GROUND_TRUTH_=_QNAME!swap	CREATE MODEL MONITOR a WITH MODEL = a GATEWAY = a FUNCTION = 's' WAREHOUSE = a REFRESH_INTERVAL = 's' AGGREGATION_WINDOW = 's' GROUP = a
-reject	accept	docs	createMultiPartyApprovalPolicy/CREATE_(OR_REPLACE)?_MULTI_PARTY_APPROVAL_POLICY_QNAME_AS_STRING	CREATE MULTI PARTY APPROVAL POLICY a AS 's'
-reject	accept	docs	createMultiPartyApprovalPolicy/CREATE_MULTI_PARTY_APPROVAL_POLICY_(IF_NOT_EXISTS)?_QNA~d1be9558	CREATE MULTI PARTY APPROVAL POLICY a AS 's'
-reject	accept	docs	createMultiPartyApprovalPolicy(OR_REPLACE)?/%empty	CREATE MULTI PARTY APPROVAL POLICY a AS 's'
+accept	accept	docs	createMultiPartyApprovalPolicy/CREATE_(OR_REPLACE)?_MULTI_PARTY_APPROVAL_POLICY_QNAME_AS_STRING	CREATE MULTI PARTY APPROVAL POLICY a AS 's'
+accept	accept	docs	createMultiPartyApprovalPolicy/CREATE_MULTI_PARTY_APPROVAL_POLICY_(IF_NOT_EXISTS)?_QNA~d1be9558	CREATE MULTI PARTY APPROVAL POLICY a AS 's'
+accept	accept	docs	createMultiPartyApprovalPolicy(OR_REPLACE)?/%empty	CREATE MULTI PARTY APPROVAL POLICY a AS 's'
 reject	undocumented	docs	createMultiPartyApprovalPolicy(OR_REPLACE)?/%empty!insert	CREATE zzz MULTI PARTY APPROVAL POLICY a AS 's'
-reject	accept	docs	createMultiPartyApprovalPolicy(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE MULTI PARTY APPROVAL POLICY a AS 's'
+accept	accept	docs	createMultiPartyApprovalPolicy(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE MULTI PARTY APPROVAL POLICY a AS 's'
 reject	undocumented	docs	createMultiPartyApprovalPolicy(OR_REPLACE)?/OR_REPLACE!drop-1	CREATE REPLACE MULTI PARTY APPROVAL POLICY a AS 's'
 reject	undocumented	docs	createMultiPartyApprovalPolicy(OR_REPLACE)?/OR_REPLACE!drop-2	CREATE OR MULTI PARTY APPROVAL POLICY a AS 's'
 reject	undocumented	docs	createMultiPartyApprovalPolicy(OR_REPLACE)?/OR_REPLACE!insert	CREATE OR REPLACE zzz MULTI PARTY APPROVAL POLICY a AS 's'
 reject	undocumented	docs	createMultiPartyApprovalPolicy(OR_REPLACE)?/OR_REPLACE!swap	CREATE ORC REPLACE MULTI PARTY APPROVAL POLICY a AS 's'
-reject	accept	docs	createMultiPartyApprovalPolicy(IF_NOT_EXISTS)?/%empty	CREATE MULTI PARTY APPROVAL POLICY a AS 's'
+accept	accept	docs	createMultiPartyApprovalPolicy(IF_NOT_EXISTS)?/%empty	CREATE MULTI PARTY APPROVAL POLICY a AS 's'
 reject	undocumented	docs	createMultiPartyApprovalPolicy(IF_NOT_EXISTS)?/%empty!insert	CREATE MULTI PARTY APPROVAL POLICY zzz a AS 's'
-reject	accept	docs	createMultiPartyApprovalPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE MULTI PARTY APPROVAL POLICY IF NOT EXISTS a AS 's'
+accept	accept	docs	createMultiPartyApprovalPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE MULTI PARTY APPROVAL POLICY IF NOT EXISTS a AS 's'
 reject	undocumented	docs	createMultiPartyApprovalPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE MULTI PARTY APPROVAL POLICY NOT EXISTS a AS 's'
 reject	undocumented	docs	createMultiPartyApprovalPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE MULTI PARTY APPROVAL POLICY IF EXISTS a AS 's'
 reject	undocumented	docs	createMultiPartyApprovalPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE MULTI PARTY APPROVAL POLICY IF NOT a AS 's'
@@ -42453,49 +42453,49 @@ reject	undocumented	docs	createOrganizationAccount(COMMENT_=_STRING)?/COMMENT_=_
 reject	undocumented	docs	createOrganizationAccount(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = ENTERPRISE COMMENT =
 reject	undocumented	docs	createOrganizationAccount(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = ENTERPRISE COMMENT = 's' zzz
 reject	undocumented	docs	createOrganizationAccount(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE ORGANIZATION ACCOUNT a ADMIN_NAME = 's' ADMIN_PASSWORD = 's' EMAIL = 's' EDITION = ENTERPRISE COMMENTS = 's'
-reject	accept	docs	createOrganizationListing/CREATE_ORGANIZATION_LISTING_(IF_NOT_EXISTS)?_ID_((SHARE~990be235	CREATE ORGANIZATION LISTING a AS 's'
-reject	accept	docs	createOrganizationListing/CREATE_ORGANIZATION_LISTING_(IF_NOT_EXISTS)?_ID_((SHARE~541d56df	CREATE ORGANIZATION LISTING a FROM 's'
+accept	accept	docs	createOrganizationListing/CREATE_ORGANIZATION_LISTING_(IF_NOT_EXISTS)?_ID_((SHARE~990be235	CREATE ORGANIZATION LISTING a AS 's'
+accept	accept	docs	createOrganizationListing/CREATE_ORGANIZATION_LISTING_(IF_NOT_EXISTS)?_ID_((SHARE~541d56df	CREATE ORGANIZATION LISTING a FROM 's'
 reject	undocumented	docs	createOrganizationListing/CREATE_ORGANIZATION_LISTING_(IF_NOT_EXISTS)?_ID_((SHARE~541d56df!drop-1	ORGANIZATION LISTING a FROM 's'
 reject	undocumented	docs	createOrganizationListing/CREATE_ORGANIZATION_LISTING_(IF_NOT_EXISTS)?_ID_((SHARE~541d56df!drop-3	CREATE ORGANIZATION a FROM 's'
 reject	undocumented	docs	createOrganizationListing/CREATE_ORGANIZATION_LISTING_(IF_NOT_EXISTS)?_ID_((SHARE~541d56df!drop-4	CREATE ORGANIZATION LISTING FROM 's'
 reject	undocumented	docs	createOrganizationListing/CREATE_ORGANIZATION_LISTING_(IF_NOT_EXISTS)?_ID_((SHARE~541d56df!drop-6	CREATE ORGANIZATION LISTING a FROM
 reject	undocumented	docs	createOrganizationListing/CREATE_ORGANIZATION_LISTING_(IF_NOT_EXISTS)?_ID_((SHARE~541d56df!insert	CREATE ORGANIZATION LISTING a FROM 's' zzz
 reject	undocumented	docs	createOrganizationListing/CREATE_ORGANIZATION_LISTING_(IF_NOT_EXISTS)?_ID_((SHARE~541d56df!swap	CREATION ORGANIZATION LISTING a FROM 's'
-reject	accept	docs	createOrganizationListing(IF_NOT_EXISTS)?/%empty	CREATE ORGANIZATION LISTING a AS 's'
+accept	accept	docs	createOrganizationListing(IF_NOT_EXISTS)?/%empty	CREATE ORGANIZATION LISTING a AS 's'
 reject	undocumented	docs	createOrganizationListing(IF_NOT_EXISTS)?/%empty!insert	CREATE ORGANIZATION LISTING zzz a AS 's'
-reject	accept	docs	createOrganizationListing(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE ORGANIZATION LISTING IF NOT EXISTS a AS 's'
+accept	accept	docs	createOrganizationListing(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE ORGANIZATION LISTING IF NOT EXISTS a AS 's'
 reject	undocumented	docs	createOrganizationListing(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE ORGANIZATION LISTING NOT EXISTS a AS 's'
 reject	undocumented	docs	createOrganizationListing(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE ORGANIZATION LISTING IF EXISTS a AS 's'
 reject	undocumented	docs	createOrganizationListing(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE ORGANIZATION LISTING IF NOT a AS 's'
 reject	undocumented	docs	createOrganizationListing(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE ORGANIZATION LISTING IF NOT
 reject	undocumented	docs	createOrganizationListing(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE ORGANIZATION LISTING IF NOT EXISTS zzz a AS 's'
 reject	undocumented	docs	createOrganizationListing(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE ORGANIZATION LISTING IGNORE NOT EXISTS a AS 's'
-reject	accept	docs	createOrganizationListing((SHARE_ID|APPLICATION_PACKAGE_ID))?/%empty	CREATE ORGANIZATION LISTING a AS 's'
+accept	accept	docs	createOrganizationListing((SHARE_ID|APPLICATION_PACKAGE_ID))?/%empty	CREATE ORGANIZATION LISTING a AS 's'
 reject	undocumented	docs	createOrganizationListing((SHARE_ID|APPLICATION_PACKAGE_ID))?/%empty!insert	CREATE ORGANIZATION LISTING a zzz AS 's'
-reject	accept	docs	createOrganizationListing((SHARE_ID|APPLICATION_PACKAGE_ID))?/(SHARE_ID|APPLICATION_PACKAGE_ID)	CREATE ORGANIZATION LISTING a SHARE a AS 's'
+accept	accept	docs	createOrganizationListing((SHARE_ID|APPLICATION_PACKAGE_ID))?/(SHARE_ID|APPLICATION_PACKAGE_ID)	CREATE ORGANIZATION LISTING a SHARE a AS 's'
 reject	undocumented	docs	createOrganizationListing((SHARE_ID|APPLICATION_PACKAGE_ID))?/(SHARE_ID|APPLICATION_PACKAGE_ID)!drop-1	CREATE ORGANIZATION LISTING a a AS 's'
 reject	undocumented	docs	createOrganizationListing((SHARE_ID|APPLICATION_PACKAGE_ID))?/(SHARE_ID|APPLICATION_PACKAGE_ID)!drop-2	CREATE ORGANIZATION LISTING a SHARE AS 's'
 reject	undocumented	docs	createOrganizationListing((SHARE_ID|APPLICATION_PACKAGE_ID))?/(SHARE_ID|APPLICATION_PACKAGE_ID)!truncate	CREATE ORGANIZATION LISTING a SHARE
 reject	undocumented	docs	createOrganizationListing((SHARE_ID|APPLICATION_PACKAGE_ID))?/(SHARE_ID|APPLICATION_PACKAGE_ID)!insert	CREATE ORGANIZATION LISTING a SHARE a zzz AS 's'
 reject	undocumented	docs	createOrganizationListing((SHARE_ID|APPLICATION_PACKAGE_ID))?/(SHARE_ID|APPLICATION_PACKAGE_ID)!swap	CREATE ORGANIZATION LISTING a SHARED a AS 's'
-reject	accept	docs	createOrganizationListing(SHARE_ID|APPLICATION_PACKAGE_ID)/SHARE_ID	CREATE ORGANIZATION LISTING a SHARE a AS 's'
-reject	accept	docs	createOrganizationListing(SHARE_ID|APPLICATION_PACKAGE_ID)/APPLICATION_PACKAGE_ID	CREATE ORGANIZATION LISTING a APPLICATION PACKAGE a AS 's'
+accept	accept	docs	createOrganizationListing(SHARE_ID|APPLICATION_PACKAGE_ID)/SHARE_ID	CREATE ORGANIZATION LISTING a SHARE a AS 's'
+accept	accept	docs	createOrganizationListing(SHARE_ID|APPLICATION_PACKAGE_ID)/APPLICATION_PACKAGE_ID	CREATE ORGANIZATION LISTING a APPLICATION PACKAGE a AS 's'
 reject	undocumented	docs	createOrganizationListing(SHARE_ID|APPLICATION_PACKAGE_ID)/APPLICATION_PACKAGE_ID!drop-1	CREATE ORGANIZATION LISTING a PACKAGE a AS 's'
 reject	undocumented	docs	createOrganizationListing(SHARE_ID|APPLICATION_PACKAGE_ID)/APPLICATION_PACKAGE_ID!drop-2	CREATE ORGANIZATION LISTING a APPLICATION a AS 's'
 reject	undocumented	docs	createOrganizationListing(SHARE_ID|APPLICATION_PACKAGE_ID)/APPLICATION_PACKAGE_ID!drop-3	CREATE ORGANIZATION LISTING a APPLICATION PACKAGE AS 's'
 reject	undocumented	docs	createOrganizationListing(SHARE_ID|APPLICATION_PACKAGE_ID)/APPLICATION_PACKAGE_ID!truncate	CREATE ORGANIZATION LISTING a APPLICATION PACKAGE
 reject	undocumented	docs	createOrganizationListing(SHARE_ID|APPLICATION_PACKAGE_ID)/APPLICATION_PACKAGE_ID!insert	CREATE ORGANIZATION LISTING a APPLICATION PACKAGE a zzz AS 's'
 reject	undocumented	docs	createOrganizationListing(SHARE_ID|APPLICATION_PACKAGE_ID)/APPLICATION_PACKAGE_ID!swap	CREATE ORGANIZATION LISTING a APPLICATIONS PACKAGE a AS 's'
-reject	accept	docs	createOrganizationListing(PUBLISH_=_(TRUE|FALSE))?/%empty	CREATE ORGANIZATION LISTING a AS 's'
-reject	accept	docs	createOrganizationListing(PUBLISH_=_(TRUE|FALSE))?/PUBLISH_=_(TRUE|FALSE)	CREATE ORGANIZATION LISTING a AS 's' PUBLISH = TRUE
+accept	accept	docs	createOrganizationListing(PUBLISH_=_(TRUE|FALSE))?/%empty	CREATE ORGANIZATION LISTING a AS 's'
+accept	accept	docs	createOrganizationListing(PUBLISH_=_(TRUE|FALSE))?/PUBLISH_=_(TRUE|FALSE)	CREATE ORGANIZATION LISTING a AS 's' PUBLISH = TRUE
 reject	undocumented	docs	createOrganizationListing(PUBLISH_=_(TRUE|FALSE))?/PUBLISH_=_(TRUE|FALSE)!drop-1	CREATE ORGANIZATION LISTING a AS 's' = TRUE
 reject	undocumented	docs	createOrganizationListing(PUBLISH_=_(TRUE|FALSE))?/PUBLISH_=_(TRUE|FALSE)!drop-2	CREATE ORGANIZATION LISTING a AS 's' PUBLISH TRUE
 reject	undocumented	docs	createOrganizationListing(PUBLISH_=_(TRUE|FALSE))?/PUBLISH_=_(TRUE|FALSE)!drop-3	CREATE ORGANIZATION LISTING a AS 's' PUBLISH =
 reject	undocumented	docs	createOrganizationListing(PUBLISH_=_(TRUE|FALSE))?/PUBLISH_=_(TRUE|FALSE)!insert	CREATE ORGANIZATION LISTING a AS 's' PUBLISH = TRUE zzz
 reject	undocumented	docs	createOrganizationListing(PUBLISH_=_(TRUE|FALSE))?/PUBLISH_=_(TRUE|FALSE)!swap	CREATE ORGANIZATION LISTING a AS 's' PUBLISHED = TRUE
-reject	accept	docs	createOrganizationListing(TRUE|FALSE)/TRUE	CREATE ORGANIZATION LISTING a AS 's' PUBLISH = TRUE
+accept	accept	docs	createOrganizationListing(TRUE|FALSE)/TRUE	CREATE ORGANIZATION LISTING a AS 's' PUBLISH = TRUE
 reject	undocumented	docs	createOrganizationListing(TRUE|FALSE)/TRUE!swap	CREATE ORGANIZATION LISTING a AS 's' PUBLISH = TRUNCATE
-reject	accept	docs	createOrganizationListing(TRUE|FALSE)/FALSE	CREATE ORGANIZATION LISTING a AS 's' PUBLISH = FALSE
+accept	accept	docs	createOrganizationListing(TRUE|FALSE)/FALSE	CREATE ORGANIZATION LISTING a AS 's' PUBLISH = FALSE
 reject	undocumented	docs	createOrganizationListing(TRUE|FALSE)/FALSE!insert	CREATE ORGANIZATION LISTING a AS 's' PUBLISH = FALSE zzz
 reject	undocumented	docs	createOrganizationListing(TRUE|FALSE)/FALSE!swap	CREATE ORGANIZATION LISTING a AS 's' PUBLISH = FAMILIES
 reject	accept	docs	createOrganizationProfile/CREATE_ORGANIZATION_PROFILE_(IF_NOT_EXISTS)?_ID	CREATE ORGANIZATION PROFILE a
@@ -43833,8 +43833,8 @@ reject	undocumented	docs	createResourceMonitor_triggerDefinition(SUSPEND|SUSPEND
 accept	accept	docs	createResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/NOTIFY	CREATE RESOURCE MONITOR a WITH TRIGGERS ON 1 PERCENT DO NOTIFY
 reject	undocumented	docs	createResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/NOTIFY!insert	CREATE RESOURCE MONITOR a WITH TRIGGERS ON 1 PERCENT DO NOTIFY zzz
 reject	undocumented	docs	createResourceMonitor_triggerDefinition(SUSPEND|SUSPEND_IMMEDIATE|NOTIFY)/NOTIFY!swap	CREATE RESOURCE MONITOR a WITH TRIGGERS ON 1 PERCENT DO NOTIFY_USERS
-reject	accept	docs	createRestrictedSessionScope/CREATE_(RESTRICTED_SESSION_SCOPE|RSS)_(IF_NOT_EXISTS)?_~1bf70480	CREATE RSS a AS 's'
-reject	accept	docs	createRestrictedSessionScope/CREATE_OR_ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_QNAME_(C~8867ec33	CREATE OR ALTER RSS a AS 's'
+accept	accept	docs	createRestrictedSessionScope/CREATE_(RESTRICTED_SESSION_SCOPE|RSS)_(IF_NOT_EXISTS)?_~1bf70480	CREATE RSS a AS 's'
+accept	accept	docs	createRestrictedSessionScope/CREATE_OR_ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_QNAME_(C~8867ec33	CREATE OR ALTER RSS a AS 's'
 reject	undocumented	docs	createRestrictedSessionScope/CREATE_OR_ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_QNAME_(C~8867ec33!drop-1	OR ALTER RSS a AS 's'
 reject	undocumented	docs	createRestrictedSessionScope/CREATE_OR_ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_QNAME_(C~8867ec33!drop-2	CREATE ALTER RSS a AS 's'
 reject	undocumented	docs	createRestrictedSessionScope/CREATE_OR_ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_QNAME_(C~8867ec33!drop-3	CREATE OR RSS a AS 's'
@@ -43844,27 +43844,27 @@ reject	undocumented	docs	createRestrictedSessionScope/CREATE_OR_ALTER_(RESTRICTE
 reject	undocumented	docs	createRestrictedSessionScope/CREATE_OR_ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_QNAME_(C~8867ec33!drop-7	CREATE OR ALTER RSS a AS
 reject	undocumented	docs	createRestrictedSessionScope/CREATE_OR_ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_QNAME_(C~8867ec33!insert	CREATE OR ALTER RSS a AS 's' zzz
 reject	undocumented	docs	createRestrictedSessionScope/CREATE_OR_ALTER_(RESTRICTED_SESSION_SCOPE|RSS)_QNAME_(C~8867ec33!swap	CREATION OR ALTER RSS a AS 's'
-reject	accept	docs	createRestrictedSessionScope(RESTRICTED_SESSION_SCOPE|RSS)/RESTRICTED_SESSION_SCOPE	CREATE RESTRICTED SESSION SCOPE a AS 's'
+accept	accept	docs	createRestrictedSessionScope(RESTRICTED_SESSION_SCOPE|RSS)/RESTRICTED_SESSION_SCOPE	CREATE RESTRICTED SESSION SCOPE a AS 's'
 reject	undocumented	docs	createRestrictedSessionScope(RESTRICTED_SESSION_SCOPE|RSS)/RESTRICTED_SESSION_SCOPE!drop-1	CREATE SESSION SCOPE a AS 's'
 reject	undocumented	docs	createRestrictedSessionScope(RESTRICTED_SESSION_SCOPE|RSS)/RESTRICTED_SESSION_SCOPE!drop-2	CREATE RESTRICTED SCOPE a AS 's'
 reject	undocumented	docs	createRestrictedSessionScope(RESTRICTED_SESSION_SCOPE|RSS)/RESTRICTED_SESSION_SCOPE!drop-3	CREATE RESTRICTED SESSION a AS 's'
 reject	undocumented	docs	createRestrictedSessionScope(RESTRICTED_SESSION_SCOPE|RSS)/RESTRICTED_SESSION_SCOPE!truncate	CREATE RESTRICTED SESSION
 reject	undocumented	docs	createRestrictedSessionScope(RESTRICTED_SESSION_SCOPE|RSS)/RESTRICTED_SESSION_SCOPE!insert	CREATE RESTRICTED SESSION SCOPE zzz a AS 's'
 reject	undocumented	docs	createRestrictedSessionScope(RESTRICTED_SESSION_SCOPE|RSS)/RESTRICTED_SESSION_SCOPE!swap	CREATE RESTRICTIONS SESSION SCOPE a AS 's'
-reject	accept	docs	createRestrictedSessionScope(RESTRICTED_SESSION_SCOPE|RSS)/RSS	CREATE RSS a AS 's'
+accept	accept	docs	createRestrictedSessionScope(RESTRICTED_SESSION_SCOPE|RSS)/RSS	CREATE RSS a AS 's'
 reject	undocumented	docs	createRestrictedSessionScope(RESTRICTED_SESSION_SCOPE|RSS)/RSS!insert	CREATE RSS zzz a AS 's'
 reject	undocumented	docs	createRestrictedSessionScope(RESTRICTED_SESSION_SCOPE|RSS)/RSS!swap	CREATE RULE a AS 's'
-reject	accept	docs	createRestrictedSessionScope(IF_NOT_EXISTS)?/%empty	CREATE RSS a AS 's'
-reject	accept	docs	createRestrictedSessionScope(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE RSS IF NOT EXISTS a AS 's'
+accept	accept	docs	createRestrictedSessionScope(IF_NOT_EXISTS)?/%empty	CREATE RSS a AS 's'
+accept	accept	docs	createRestrictedSessionScope(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE RSS IF NOT EXISTS a AS 's'
 reject	undocumented	docs	createRestrictedSessionScope(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE RSS NOT EXISTS a AS 's'
 reject	undocumented	docs	createRestrictedSessionScope(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE RSS IF EXISTS a AS 's'
 reject	undocumented	docs	createRestrictedSessionScope(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE RSS IF NOT a AS 's'
 reject	undocumented	docs	createRestrictedSessionScope(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE RSS IF NOT
 reject	undocumented	docs	createRestrictedSessionScope(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE RSS IF NOT EXISTS zzz a AS 's'
 reject	undocumented	docs	createRestrictedSessionScope(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE RSS IGNORE NOT EXISTS a AS 's'
-reject	accept	docs	createRestrictedSessionScope(COMMENT_=_STRING)?/%empty	CREATE RSS a AS 's'
+accept	accept	docs	createRestrictedSessionScope(COMMENT_=_STRING)?/%empty	CREATE RSS a AS 's'
 reject	undocumented	docs	createRestrictedSessionScope(COMMENT_=_STRING)?/%empty!insert	CREATE RSS a zzz AS 's'
-reject	accept	docs	createRestrictedSessionScope(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE RSS a COMMENT = 's' AS 's'
+accept	accept	docs	createRestrictedSessionScope(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE RSS a COMMENT = 's' AS 's'
 reject	undocumented	docs	createRestrictedSessionScope(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-1	CREATE RSS a = 's' AS 's'
 reject	undocumented	docs	createRestrictedSessionScope(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	CREATE RSS a COMMENT 's' AS 's'
 reject	undocumented	docs	createRestrictedSessionScope(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE RSS a COMMENT = AS 's'
@@ -51547,15 +51547,15 @@ accept	accept	docs	descListing(DESC|DESCRIBE)/DESCRIBE	DESCRIBE LISTING a
 accept	undocumented	docs	descListing(DESC|DESCRIBE)/DESCRIBE!insert	DESCRIBE zzz LISTING a
 reject	undocumented	docs	descListing(DESC|DESCRIBE)/DESCRIBE!swap	DESCRIPTION LISTING a
 accept	accept	docs	descListing(REVISION_=_(DRAFT|PUBLISHED))?/%empty	DESC LISTING a
-reject	accept	docs	descListing(REVISION_=_(DRAFT|PUBLISHED))?/REVISION_=_(DRAFT|PUBLISHED)	DESC LISTING a REVISION = DRAFT
+accept	accept	docs	descListing(REVISION_=_(DRAFT|PUBLISHED))?/REVISION_=_(DRAFT|PUBLISHED)	DESC LISTING a REVISION = DRAFT
 reject	undocumented	docs	descListing(REVISION_=_(DRAFT|PUBLISHED))?/REVISION_=_(DRAFT|PUBLISHED)!drop-1	DESC LISTING a = DRAFT
 accept	undocumented	docs	descListing(REVISION_=_(DRAFT|PUBLISHED))?/REVISION_=_(DRAFT|PUBLISHED)!drop-2	DESC LISTING a REVISION DRAFT
 reject	undocumented	docs	descListing(REVISION_=_(DRAFT|PUBLISHED))?/REVISION_=_(DRAFT|PUBLISHED)!drop-3	DESC LISTING a REVISION =
 reject	undocumented	docs	descListing(REVISION_=_(DRAFT|PUBLISHED))?/REVISION_=_(DRAFT|PUBLISHED)!insert	DESC LISTING a REVISION = DRAFT zzz
 reject	undocumented	docs	descListing(REVISION_=_(DRAFT|PUBLISHED))?/REVISION_=_(DRAFT|PUBLISHED)!swap	DESC LISTING a REVOKE = DRAFT
-reject	accept	docs	descListing(DRAFT|PUBLISHED)/DRAFT	DESC LISTING a REVISION = DRAFT
+accept	accept	docs	descListing(DRAFT|PUBLISHED)/DRAFT	DESC LISTING a REVISION = DRAFT
 reject	undocumented	docs	descListing(DRAFT|PUBLISHED)/DRAFT!swap	DESC LISTING a REVISION = DROP
-reject	accept	docs	descListing(DRAFT|PUBLISHED)/PUBLISHED	DESC LISTING a REVISION = PUBLISHED
+accept	accept	docs	descListing(DRAFT|PUBLISHED)/PUBLISHED	DESC LISTING a REVISION = PUBLISHED
 reject	undocumented	docs	descListing(DRAFT|PUBLISHED)/PUBLISHED!insert	DESC LISTING a REVISION = PUBLISHED zzz
 reject	undocumented	docs	descListing(DRAFT|PUBLISHED)/PUBLISHED!swap	DESC LISTING a REVISION = PULL
 accept	accept	docs	descMaintenancePolicy/DESCRIBE_MAINTENANCE_POLICY_QNAME	DESCRIBE MAINTENANCE POLICY a
@@ -52007,7 +52007,7 @@ reject	undocumented	docs	dropConnection(IF_EXISTS)?/IF_EXISTS!drop-2	DROP CONNEC
 accept	accept	docs	dropConnection(IF_EXISTS)?/IF_EXISTS!truncate	DROP CONNECTION IF
 reject	undocumented	docs	dropConnection(IF_EXISTS)?/IF_EXISTS!insert	DROP CONNECTION IF EXISTS zzz a
 reject	undocumented	docs	dropConnection(IF_EXISTS)?/IF_EXISTS!swap	DROP CONNECTION IGNORE EXISTS a
-reject	accept	docs	dropContact/DROP_CONTACT_QNAME	DROP CONTACT a
+accept	accept	docs	dropContact/DROP_CONTACT_QNAME	DROP CONTACT a
 reject	accept	docs	dropCortexSearch/DROP_CORTEX_SEARCH_SERVICE_QNAME	DROP CORTEX SEARCH SERVICE a
 reject	accept	docs	dropDataMovementPolicy/DROP_DATA_MOVEMENT_POLICY_(IF_EXISTS)?_QNAME	DROP DATA MOVEMENT POLICY a
 reject	accept	docs	dropDataMovementPolicy(IF_EXISTS)?/%empty	DROP DATA MOVEMENT POLICY a
@@ -52090,13 +52090,13 @@ reject	undocumented	docs	dropExternalAgent(IF_EXISTS)?/IF_EXISTS!drop-2	DROP EXT
 reject	accept	docs	dropExternalAgent(IF_EXISTS)?/IF_EXISTS!truncate	DROP EXTERNAL AGENT IF
 reject	undocumented	docs	dropExternalAgent(IF_EXISTS)?/IF_EXISTS!insert	DROP EXTERNAL AGENT IF EXISTS zzz a
 reject	undocumented	docs	dropExternalAgent(IF_EXISTS)?/IF_EXISTS!swap	DROP EXTERNAL AGENT IGNORE EXISTS a
-reject	accept	docs	dropExternalConsumer/DROP_EXTERNAL_CONSUMER_(IF_EXISTS)?_QNAME	DROP EXTERNAL CONSUMER a
-reject	accept	docs	dropExternalConsumer(IF_EXISTS)?/%empty	DROP EXTERNAL CONSUMER a
+accept	accept	docs	dropExternalConsumer/DROP_EXTERNAL_CONSUMER_(IF_EXISTS)?_QNAME	DROP EXTERNAL CONSUMER a
+accept	accept	docs	dropExternalConsumer(IF_EXISTS)?/%empty	DROP EXTERNAL CONSUMER a
 reject	undocumented	docs	dropExternalConsumer(IF_EXISTS)?/%empty!insert	DROP EXTERNAL CONSUMER zzz a
-reject	accept	docs	dropExternalConsumer(IF_EXISTS)?/IF_EXISTS	DROP EXTERNAL CONSUMER IF EXISTS a
+accept	accept	docs	dropExternalConsumer(IF_EXISTS)?/IF_EXISTS	DROP EXTERNAL CONSUMER IF EXISTS a
 reject	undocumented	docs	dropExternalConsumer(IF_EXISTS)?/IF_EXISTS!drop-1	DROP EXTERNAL CONSUMER EXISTS a
 reject	undocumented	docs	dropExternalConsumer(IF_EXISTS)?/IF_EXISTS!drop-2	DROP EXTERNAL CONSUMER IF a
-reject	accept	docs	dropExternalConsumer(IF_EXISTS)?/IF_EXISTS!truncate	DROP EXTERNAL CONSUMER IF
+accept	accept	docs	dropExternalConsumer(IF_EXISTS)?/IF_EXISTS!truncate	DROP EXTERNAL CONSUMER IF
 reject	undocumented	docs	dropExternalConsumer(IF_EXISTS)?/IF_EXISTS!insert	DROP EXTERNAL CONSUMER IF EXISTS zzz a
 reject	undocumented	docs	dropExternalConsumer(IF_EXISTS)?/IF_EXISTS!swap	DROP EXTERNAL CONSUMER IGNORE EXISTS a
 accept	accept	docs	dropExternalTable/DROP_EXTERNAL_TABLE_(IF_EXISTS)?_QNAME_(CASCADE|RESTRICT)?	DROP EXTERNAL TABLE a
@@ -52308,7 +52308,7 @@ accept	accept	docs	dropIntegration(IF_EXISTS)?/IF_EXISTS!truncate	DROP INTEGRATI
 reject	undocumented	docs	dropIntegration(IF_EXISTS)?/IF_EXISTS!insert	DROP INTEGRATION IF EXISTS zzz a
 reject	undocumented	docs	dropIntegration(IF_EXISTS)?/IF_EXISTS!swap	DROP INTEGRATION IGNORE EXISTS a
 reject	accept	docs	dropJoinPolicy/DROP_JOIN_POLICY_QNAME	DROP JOIN POLICY a
-reject	accept	docs	dropListing/DROP_LISTING_ID	DROP LISTING a
+accept	accept	docs	dropListing/DROP_LISTING_ID	DROP LISTING a
 reject	accept	docs	dropMaintenancePolicy/DROP_MAINTENANCE_POLICY_(IF_EXISTS)?_QNAME	DROP MAINTENANCE POLICY a
 reject	accept	docs	dropMaintenancePolicy(IF_EXISTS)?/%empty	DROP MAINTENANCE POLICY a
 reject	undocumented	docs	dropMaintenancePolicy(IF_EXISTS)?/%empty!insert	DROP MAINTENANCE POLICY zzz a
@@ -52348,13 +52348,13 @@ reject	undocumented	docs	dropModelMonitor(IF_EXISTS)?/IF_EXISTS!drop-2	DROP MODE
 reject	accept	docs	dropModelMonitor(IF_EXISTS)?/IF_EXISTS!truncate	DROP MODEL MONITOR IF
 reject	undocumented	docs	dropModelMonitor(IF_EXISTS)?/IF_EXISTS!insert	DROP MODEL MONITOR IF EXISTS zzz a
 reject	undocumented	docs	dropModelMonitor(IF_EXISTS)?/IF_EXISTS!swap	DROP MODEL MONITOR IGNORE EXISTS a
-reject	accept	docs	dropMultiPartyApprovalPolicy/DROP_MULTI_PARTY_APPROVAL_POLICY_(IF_EXISTS)?_QNAME	DROP MULTI PARTY APPROVAL POLICY a
-reject	accept	docs	dropMultiPartyApprovalPolicy(IF_EXISTS)?/%empty	DROP MULTI PARTY APPROVAL POLICY a
+accept	accept	docs	dropMultiPartyApprovalPolicy/DROP_MULTI_PARTY_APPROVAL_POLICY_(IF_EXISTS)?_QNAME	DROP MULTI PARTY APPROVAL POLICY a
+accept	accept	docs	dropMultiPartyApprovalPolicy(IF_EXISTS)?/%empty	DROP MULTI PARTY APPROVAL POLICY a
 reject	undocumented	docs	dropMultiPartyApprovalPolicy(IF_EXISTS)?/%empty!insert	DROP MULTI PARTY APPROVAL POLICY zzz a
-reject	accept	docs	dropMultiPartyApprovalPolicy(IF_EXISTS)?/IF_EXISTS	DROP MULTI PARTY APPROVAL POLICY IF EXISTS a
+accept	accept	docs	dropMultiPartyApprovalPolicy(IF_EXISTS)?/IF_EXISTS	DROP MULTI PARTY APPROVAL POLICY IF EXISTS a
 reject	undocumented	docs	dropMultiPartyApprovalPolicy(IF_EXISTS)?/IF_EXISTS!drop-1	DROP MULTI PARTY APPROVAL POLICY EXISTS a
 reject	undocumented	docs	dropMultiPartyApprovalPolicy(IF_EXISTS)?/IF_EXISTS!drop-2	DROP MULTI PARTY APPROVAL POLICY IF a
-reject	accept	docs	dropMultiPartyApprovalPolicy(IF_EXISTS)?/IF_EXISTS!truncate	DROP MULTI PARTY APPROVAL POLICY IF
+accept	accept	docs	dropMultiPartyApprovalPolicy(IF_EXISTS)?/IF_EXISTS!truncate	DROP MULTI PARTY APPROVAL POLICY IF
 reject	undocumented	docs	dropMultiPartyApprovalPolicy(IF_EXISTS)?/IF_EXISTS!insert	DROP MULTI PARTY APPROVAL POLICY IF EXISTS zzz a
 reject	undocumented	docs	dropMultiPartyApprovalPolicy(IF_EXISTS)?/IF_EXISTS!swap	DROP MULTI PARTY APPROVAL POLICY IGNORE EXISTS a
 accept	accept	docs	dropNetworkPolicy/DROP_NETWORK_POLICY_(IF_EXISTS)?_ID	DROP NETWORK POLICY a
@@ -52513,21 +52513,21 @@ reject	undocumented	docs	dropResourceMonitor(IF_EXISTS)?/IF_EXISTS!drop-2	DROP R
 accept	accept	docs	dropResourceMonitor(IF_EXISTS)?/IF_EXISTS!truncate	DROP RESOURCE MONITOR IF
 reject	undocumented	docs	dropResourceMonitor(IF_EXISTS)?/IF_EXISTS!insert	DROP RESOURCE MONITOR IF EXISTS zzz a
 reject	undocumented	docs	dropResourceMonitor(IF_EXISTS)?/IF_EXISTS!swap	DROP RESOURCE MONITOR IGNORE EXISTS a
-reject	accept	docs	dropRestrictedSessionScope/DROP_(RESTRICTED_SESSION_SCOPE|RSS)_(IF_EXISTS)?_QNAME	DROP RSS a
-reject	accept	docs	dropRestrictedSessionScope(RESTRICTED_SESSION_SCOPE|RSS)/RESTRICTED_SESSION_SCOPE	DROP RESTRICTED SESSION SCOPE a
+accept	accept	docs	dropRestrictedSessionScope/DROP_(RESTRICTED_SESSION_SCOPE|RSS)_(IF_EXISTS)?_QNAME	DROP RSS a
+accept	accept	docs	dropRestrictedSessionScope(RESTRICTED_SESSION_SCOPE|RSS)/RESTRICTED_SESSION_SCOPE	DROP RESTRICTED SESSION SCOPE a
 reject	undocumented	docs	dropRestrictedSessionScope(RESTRICTED_SESSION_SCOPE|RSS)/RESTRICTED_SESSION_SCOPE!drop-1	DROP SESSION SCOPE a
 reject	undocumented	docs	dropRestrictedSessionScope(RESTRICTED_SESSION_SCOPE|RSS)/RESTRICTED_SESSION_SCOPE!drop-2	DROP RESTRICTED SCOPE a
 reject	undocumented	docs	dropRestrictedSessionScope(RESTRICTED_SESSION_SCOPE|RSS)/RESTRICTED_SESSION_SCOPE!drop-3	DROP RESTRICTED SESSION a
 reject	undocumented	docs	dropRestrictedSessionScope(RESTRICTED_SESSION_SCOPE|RSS)/RESTRICTED_SESSION_SCOPE!truncate	DROP RESTRICTED SESSION
 reject	undocumented	docs	dropRestrictedSessionScope(RESTRICTED_SESSION_SCOPE|RSS)/RESTRICTED_SESSION_SCOPE!insert	DROP RESTRICTED SESSION SCOPE zzz a
 reject	undocumented	docs	dropRestrictedSessionScope(RESTRICTED_SESSION_SCOPE|RSS)/RESTRICTED_SESSION_SCOPE!swap	DROP RESTRICTIONS SESSION SCOPE a
-reject	accept	docs	dropRestrictedSessionScope(RESTRICTED_SESSION_SCOPE|RSS)/RSS	DROP RSS a
+accept	accept	docs	dropRestrictedSessionScope(RESTRICTED_SESSION_SCOPE|RSS)/RSS	DROP RSS a
 reject	undocumented	docs	dropRestrictedSessionScope(RESTRICTED_SESSION_SCOPE|RSS)/RSS!insert	DROP RSS zzz a
-reject	accept	docs	dropRestrictedSessionScope(IF_EXISTS)?/%empty	DROP RSS a
-reject	accept	docs	dropRestrictedSessionScope(IF_EXISTS)?/IF_EXISTS	DROP RSS IF EXISTS a
+accept	accept	docs	dropRestrictedSessionScope(IF_EXISTS)?/%empty	DROP RSS a
+accept	accept	docs	dropRestrictedSessionScope(IF_EXISTS)?/IF_EXISTS	DROP RSS IF EXISTS a
 reject	undocumented	docs	dropRestrictedSessionScope(IF_EXISTS)?/IF_EXISTS!drop-1	DROP RSS EXISTS a
 reject	undocumented	docs	dropRestrictedSessionScope(IF_EXISTS)?/IF_EXISTS!drop-2	DROP RSS IF a
-reject	accept	docs	dropRestrictedSessionScope(IF_EXISTS)?/IF_EXISTS!truncate	DROP RSS IF
+accept	accept	docs	dropRestrictedSessionScope(IF_EXISTS)?/IF_EXISTS!truncate	DROP RSS IF
 reject	undocumented	docs	dropRestrictedSessionScope(IF_EXISTS)?/IF_EXISTS!insert	DROP RSS IF EXISTS zzz a
 reject	undocumented	docs	dropRestrictedSessionScope(IF_EXISTS)?/IF_EXISTS!swap	DROP RSS IGNORE EXISTS a
 accept	accept	docs	dropRole/DROP_ROLE_(IF_EXISTS)?_ID	DROP ROLE a
@@ -68206,19 +68206,19 @@ reject	undocumented	docs	showAvailableListings(LIMIT_NUMBER)?/LIMIT_NUMBER!drop-
 reject	undocumented	docs	showAvailableListings(LIMIT_NUMBER)?/LIMIT_NUMBER!insert	SHOW AVAILABLE LISTINGS LIMIT 1 zzz
 reject	undocumented	docs	showAvailableListings(LIMIT_NUMBER)?/LIMIT_NUMBER!swap	SHOW AVAILABLE LISTINGS LINKED_CATALOG 1
 accept	accept	docs	showAvailableListings(IS_IMPORTED_=_TRUE)?/%empty	SHOW AVAILABLE LISTINGS
-reject	accept	docs	showAvailableListings(IS_IMPORTED_=_TRUE)?/IS_IMPORTED_=_TRUE	SHOW AVAILABLE LISTINGS IS_IMPORTED = TRUE
+accept	accept	docs	showAvailableListings(IS_IMPORTED_=_TRUE)?/IS_IMPORTED_=_TRUE	SHOW AVAILABLE LISTINGS IS_IMPORTED = TRUE
 reject	undocumented	docs	showAvailableListings(IS_IMPORTED_=_TRUE)?/IS_IMPORTED_=_TRUE!drop-1	SHOW AVAILABLE LISTINGS = TRUE
 accept	undocumented	docs	showAvailableListings(IS_IMPORTED_=_TRUE)?/IS_IMPORTED_=_TRUE!drop-2	SHOW AVAILABLE LISTINGS IS_IMPORTED TRUE
 reject	undocumented	docs	showAvailableListings(IS_IMPORTED_=_TRUE)?/IS_IMPORTED_=_TRUE!drop-3	SHOW AVAILABLE LISTINGS IS_IMPORTED =
 reject	undocumented	docs	showAvailableListings(IS_IMPORTED_=_TRUE)?/IS_IMPORTED_=_TRUE!insert	SHOW AVAILABLE LISTINGS IS_IMPORTED = TRUE zzz
 accept	accept	docs	showAvailableListings(IS_ORGANIZATION_=_TRUE)?/%empty	SHOW AVAILABLE LISTINGS
-reject	accept	docs	showAvailableListings(IS_ORGANIZATION_=_TRUE)?/IS_ORGANIZATION_=_TRUE	SHOW AVAILABLE LISTINGS IS_ORGANIZATION = TRUE
+accept	accept	docs	showAvailableListings(IS_ORGANIZATION_=_TRUE)?/IS_ORGANIZATION_=_TRUE	SHOW AVAILABLE LISTINGS IS_ORGANIZATION = TRUE
 accept	undocumented	docs	showAvailableListings(IS_ORGANIZATION_=_TRUE)?/IS_ORGANIZATION_=_TRUE!drop-2	SHOW AVAILABLE LISTINGS IS_ORGANIZATION TRUE
 reject	undocumented	docs	showAvailableListings(IS_ORGANIZATION_=_TRUE)?/IS_ORGANIZATION_=_TRUE!drop-3	SHOW AVAILABLE LISTINGS IS_ORGANIZATION =
 reject	undocumented	docs	showAvailableListings(IS_ORGANIZATION_=_TRUE)?/IS_ORGANIZATION_=_TRUE!insert	SHOW AVAILABLE LISTINGS IS_ORGANIZATION = TRUE zzz
 reject	undocumented	docs	showAvailableListings(IS_ORGANIZATION_=_TRUE)?/IS_ORGANIZATION_=_TRUE!swap	SHOW AVAILABLE LISTINGS IS_ORG_ADMIN = TRUE
 accept	accept	docs	showAvailableListings(IS_SHARED_WITH_ME_=_TRUE)?/%empty	SHOW AVAILABLE LISTINGS
-reject	accept	docs	showAvailableListings(IS_SHARED_WITH_ME_=_TRUE)?/IS_SHARED_WITH_ME_=_TRUE	SHOW AVAILABLE LISTINGS IS_SHARED_WITH_ME = TRUE
+accept	accept	docs	showAvailableListings(IS_SHARED_WITH_ME_=_TRUE)?/IS_SHARED_WITH_ME_=_TRUE	SHOW AVAILABLE LISTINGS IS_SHARED_WITH_ME = TRUE
 accept	undocumented	docs	showAvailableListings(IS_SHARED_WITH_ME_=_TRUE)?/IS_SHARED_WITH_ME_=_TRUE!drop-2	SHOW AVAILABLE LISTINGS IS_SHARED_WITH_ME TRUE
 reject	undocumented	docs	showAvailableListings(IS_SHARED_WITH_ME_=_TRUE)?/IS_SHARED_WITH_ME_=_TRUE!drop-3	SHOW AVAILABLE LISTINGS IS_SHARED_WITH_ME =
 reject	undocumented	docs	showAvailableListings(IS_SHARED_WITH_ME_=_TRUE)?/IS_SHARED_WITH_ME_=_TRUE!insert	SHOW AVAILABLE LISTINGS IS_SHARED_WITH_ME = TRUE zzz
@@ -69510,7 +69510,7 @@ reject	undocumented	docs	showExternalAgents(ID)?/ID!insert	SHOW EXTERNAL AGENTS 
 accept	accept	docs	showExternalAgents(QNAME2)?/%empty	SHOW EXTERNAL AGENTS IN SCHEMA
 accept	accept	docs	showExternalAgents(QNAME2)?/QNAME2	SHOW EXTERNAL AGENTS IN SCHEMA a
 reject	undocumented	docs	showExternalAgents(QNAME2)?/QNAME2!insert	SHOW EXTERNAL AGENTS IN SCHEMA a zzz
-reject	accept	docs	showExternalConsumerProgrammaticAccessTokens/SHOW_USER_PROGRAMMATIC_ACCESS_TOKENS_FOR_EXTERNAL_CONSUMER_QNAME	SHOW USER PROGRAMMATIC ACCESS TOKENS FOR EXTERNAL CONSUMER a
+accept	accept	docs	showExternalConsumerProgrammaticAccessTokens/SHOW_USER_PROGRAMMATIC_ACCESS_TOKENS_FOR_EXTERNAL_CONSUMER_QNAME	SHOW USER PROGRAMMATIC ACCESS TOKENS FOR EXTERNAL CONSUMER a
 reject	undocumented	docs	showExternalConsumerProgrammaticAccessTokens/SHOW_USER_PROGRAMMATIC_ACCESS_TOKENS_FOR_EXTERNAL_CONSUMER_QNAME!drop-1	USER PROGRAMMATIC ACCESS TOKENS FOR EXTERNAL CONSUMER a
 reject	undocumented	docs	showExternalConsumerProgrammaticAccessTokens/SHOW_USER_PROGRAMMATIC_ACCESS_TOKENS_FOR_EXTERNAL_CONSUMER_QNAME!drop-2	SHOW PROGRAMMATIC ACCESS TOKENS FOR EXTERNAL CONSUMER a
 reject	undocumented	docs	showExternalConsumerProgrammaticAccessTokens/SHOW_USER_PROGRAMMATIC_ACCESS_TOKENS_FOR_EXTERNAL_CONSUMER_QNAME!drop-3	SHOW USER ACCESS TOKENS FOR EXTERNAL CONSUMER a
@@ -69522,7 +69522,7 @@ reject	undocumented	docs	showExternalConsumerProgrammaticAccessTokens/SHOW_USER_
 reject	undocumented	docs	showExternalConsumerProgrammaticAccessTokens/SHOW_USER_PROGRAMMATIC_ACCESS_TOKENS_FOR_EXTERNAL_CONSUMER_QNAME!drop-9	SHOW USER PROGRAMMATIC ACCESS TOKENS FOR EXTERNAL CONSUMER
 reject	undocumented	docs	showExternalConsumerProgrammaticAccessTokens/SHOW_USER_PROGRAMMATIC_ACCESS_TOKENS_FOR_EXTERNAL_CONSUMER_QNAME!insert	SHOW USER PROGRAMMATIC ACCESS TOKENS FOR EXTERNAL CONSUMER a zzz
 reject	undocumented	docs	showExternalConsumerProgrammaticAccessTokens/SHOW_USER_PROGRAMMATIC_ACCESS_TOKENS_FOR_EXTERNAL_CONSUMER_QNAME!swap	SHOW_INITIAL_ROWS USER PROGRAMMATIC ACCESS TOKENS FOR EXTERNAL CONSUMER a
-reject	accept	docs	showExternalConsumerProgrammaticAccessTokens/SHOW_USER_PATS_FOR_EXTERNAL_CONSUMER_QNAME	SHOW USER PATS FOR EXTERNAL CONSUMER a
+accept	accept	docs	showExternalConsumerProgrammaticAccessTokens/SHOW_USER_PATS_FOR_EXTERNAL_CONSUMER_QNAME	SHOW USER PATS FOR EXTERNAL CONSUMER a
 accept	accept	docs	showExternalConsumers/SHOW_EXTERNAL_CONSUMERS_(LIKE_STRING)?	SHOW EXTERNAL CONSUMERS
 accept	accept	docs	showExternalConsumers(LIKE_STRING)?/%empty	SHOW EXTERNAL CONSUMERS
 accept	accept	docs	showExternalConsumers(LIKE_STRING)?/LIKE_STRING	SHOW EXTERNAL CONSUMERS LIKE 's'
