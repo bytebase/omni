@@ -116,3 +116,10 @@ func TestExplainStatementExecutableComment(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, statement, got)
 }
+
+func TestExplainStatementNotExplainable(t *testing.T) {
+	for _, statement := range []string{"ANALYZE TABLE t", "SHOW TABLES", "CREATE TABLE t (a INT)", "SET @a = 1"} {
+		_, err := ExplainStatement(statement, false)
+		require.ErrorIsf(t, err, ErrNotExplainable, "%q", statement)
+	}
+}

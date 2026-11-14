@@ -119,3 +119,23 @@ func TestExplainStatementExecutableComment(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, statement, got)
 }
+
+func TestExplainStatementNotExplainable(t *testing.T) {
+	for _, statement := range []string{"ANALYZE TABLE t", "SHOW TABLES", "CREATE TABLE t (a INT)", "SET @a = 1"} {
+		_, err := ExplainStatement(statement, false)
+		require.ErrorIsf(t, err, ErrNotExplainable, "%q", statement)
+	}
+}
+
+func TestExplainAlterTable(t *testing.T) {
+	got, err := ExplainStatement("EXPLAIN ALTER TABLE t ADD INDEX (a)", true)
+	require.NoError(t, err)
+	require.Equal(t, "EXPLAIN FORMAT=tidb_json ALTER TABLE t ADD INDEX (a)", got)
+	got, err = ExplainStatement("ALTER TABLE t ADD INDEX (a)", false)
+	require.NoError(t, err)
+	require.Equal(t, "EXPLAIN ALTER TABLE t ADD INDEX (a)", got)
+	_, err = ExplainStatement("EXPLAIN ANALYZE ALTER TABLE t ADD INDEX (a)", false)
+	require.ErrorIs(t, err, ErrExplainAnalyzeExecutes)
+	format, executed, ok := DescribeExplain("EXPLAIN ANALYZE ALTER TABLE t ADD INDEX (a)")
+	require.Equal(t, []any{"text", true, true}, []any{format, executed, ok})
+}

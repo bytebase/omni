@@ -12,6 +12,11 @@ import (
 // which runs the statement it plans.
 var ErrExplainAnalyzeExecutes = errors.New("EXPLAIN ANALYZE executes the statement it plans, which an explain request never does: run it as a query, or drop ANALYZE to plan the statement")
 
+// ErrNotExplainable is ExplainStatement's error for a statement EXPLAIN cannot
+// plan. Prefixing one could form another statement, as ANALYZE TABLE t becomes
+// EXPLAIN ANALYZE TABLE t, which runs TABLE t.
+var ErrNotExplainable = errors.New("EXPLAIN plans only a query or a data change")
+
 // tidbJSONFormat is TiDB's name for the plan as a tree of JSON objects. Its
 // other JSON-ish format, plain `json`, TiDB rejects outright.
 //
@@ -24,14 +29,20 @@ const tidbJSONFormat = "tidb_json"
 // FORMAT=tidb_json, unquoted so that the result parses again, when json is set,
 // otherwise EXPLAIN, the engine's default plan. An EXPLAIN is rebuilt around the
 // statement it plans; one that plans nothing, such as EXPLAIN tbl_name, is
-// returned as written. EXPLAIN ANALYZE returns ErrExplainAnalyzeExecutes, and a
-// statement that does not parse returns the parser's error.
+// returned as written. EXPLAIN ANALYZE returns ErrExplainAnalyzeExecutes, a
+// statement EXPLAIN cannot plan returns ErrNotExplainable, and a statement that
+// does not parse returns the parser's error.
 func ExplainStatement(statement string, json bool) (string, error) {
 	node, err := singleStatement(statement)
 	if err != nil {
 		return "", err
 	}
 	planned := statement
+	if _, ok := node.(*ast.ExplainStmt); !ok {
+		if _, plans := explainedStart(node); !plans {
+			return "", ErrNotExplainable
+		}
+	}
 	if explain, ok := node.(*ast.ExplainStmt); ok {
 		if explain.Analyze {
 			return "", ErrExplainAnalyzeExecutes
@@ -128,6 +139,9 @@ func explainedStart(node ast.Node) (int, bool) {
 	case *ast.TableStmt:
 		return n.Loc.Start, true
 	case *ast.ValuesStmt:
+		return n.Loc.Start, true
+	// TiDB also plans ALTER TABLE.
+	case *ast.AlterTableStmt:
 		return n.Loc.Start, true
 	default:
 		return 0, false

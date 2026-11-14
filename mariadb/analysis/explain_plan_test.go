@@ -555,3 +555,17 @@ func parseSingleStatement(t *testing.T, statement string) ast.Node {
 	require.Len(t, list.Items, 1)
 	return list.Items[0]
 }
+
+func TestCapAffectedRowsByParenthesizedLimit(t *testing.T) {
+	for _, tc := range []struct {
+		statement string
+		want      int64
+	}{
+		{"INSERT INTO t2 (SELECT * FROM t LIMIT 5)", 5},
+		{"INSERT INTO t2 (SELECT * FROM t LIMIT 5) LIMIT 400", 5},
+		{"INSERT INTO t2 (SELECT * FROM t LIMIT 500) LIMIT 40", 40},
+		{"INSERT INTO t2 ((SELECT * FROM t LIMIT 7))", 7},
+	} {
+		require.Equalf(t, tc.want, CapAffectedRowsByLimit(parseSingleStatement(t, tc.statement), 1000), "%q", tc.statement)
+	}
+}

@@ -157,25 +157,37 @@ func EstimateAffectedRowsFromExplainJSON(stmt ast.Node, plan string) (int64, err
 // CapAffectedRowsByLimit rounds an estimate of the rows an INSERT, REPLACE, UPDATE, or DELETE
 // statement modifies and caps it by the statement's LIMIT.
 func CapAffectedRowsByLimit(stmt ast.Node, rows float64) int64 {
-	var limit *ast.Limit
+	var limits []*ast.Limit
 	switch s := stmt.(type) {
 	case *ast.InsertStmt:
 		if s.Select != nil {
-			limit = s.Select.Limit
+			limits = selectLimits(s.Select)
 		} else if s.TableSource != nil {
-			limit = s.TableSource.Limit
+			limits = []*ast.Limit{s.TableSource.Limit}
 		}
 	case *ast.UpdateStmt:
-		limit = s.Limit
+		limits = []*ast.Limit{s.Limit}
 	case *ast.DeleteStmt:
-		limit = s.Limit
+		limits = []*ast.Limit{s.Limit}
 	default:
 	}
 	count := roundRows(rows)
-	if limitRows, ok := limitCount(limit); ok && limitRows < count {
-		return limitRows
+	for _, limit := range limits {
+		if limitRows, ok := limitCount(limit); ok && limitRows < count {
+			count = limitRows
+		}
 	}
 	return count
+}
+
+// selectLimits returns the LIMIT of sel and of each parenthesized query it
+// wraps, as in (SELECT ... LIMIT 5) LIMIT 400; the smallest one caps the rows.
+func selectLimits(sel *ast.SelectStmt) []*ast.Limit {
+	var limits []*ast.Limit
+	for ; sel != nil; sel = sel.ParenSource {
+		limits = append(limits, sel.Limit)
+	}
+	return limits
 }
 
 // queryBlockRows returns the planner's estimate of the rows a query block produces. A UNION sums its
