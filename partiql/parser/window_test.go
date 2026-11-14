@@ -77,23 +77,6 @@ func TestParser_Window(t *testing.T) {
 			want:  "FuncCall{Name:LAG Args:[VarRef{Name:x}] Over:WindowSpec{PartitionBy:[] OrderBy:[OrderByItem{Expr:VarRef{Name:y} Desc:true NullsFirst:false}]}}",
 		},
 		// ----------------------------------------------------------------
-		// DIVERGENCE (parser accepts, semantic analyzer may reject): the
-		// grammar oracle accepts a partition-only OVER and an empty OVER,
-		// even though the docs say ORDER BY is required for LAG/LEAD. We
-		// follow the parse-stage oracle. See window.go + the divergence
-		// packet in the PR body.
-		// ----------------------------------------------------------------
-		{
-			name:  "lag_partition_only",
-			input: "LAG(x) OVER (PARTITION BY a)",
-			want:  "FuncCall{Name:LAG Args:[VarRef{Name:x}] Over:WindowSpec{PartitionBy:[VarRef{Name:a}] OrderBy:[]}}",
-		},
-		{
-			name:  "lag_empty_over",
-			input: "LAG(x) OVER ()",
-			want:  "FuncCall{Name:LAG Args:[VarRef{Name:x}] Over:WindowSpec{PartitionBy:[] OrderBy:[]}}",
-		},
-		// ----------------------------------------------------------------
 		// Case-insensitive keywords; the function name is normalized to
 		// uppercase (matching aggregate/builtin handling).
 		// ----------------------------------------------------------------
@@ -153,6 +136,19 @@ func TestParser_Window_Errors(t *testing.T) {
 		input     string
 		wantErrIn string
 	}{
+		// --- the window must be ordered: the grammar takes OVER () and a
+		// partition alone, and the reference parser's visitor refuses them
+		// (PartiQLParserDefault.kt:1910) ---
+		{
+			name:      "lag_partition_only",
+			input:     "LAG(x) OVER (PARTITION BY a)",
+			wantErrIn: "LAG requires window ORDER BY",
+		},
+		{
+			name:      "lead_empty_over",
+			input:     "LEAD(x) OVER ()",
+			wantErrIn: "LEAD requires window ORDER BY",
+		},
 		// --- OVER is mandatory (windowFunction has no `over?`) ---
 		{
 			name:      "lag_no_over",
@@ -320,8 +316,6 @@ func TestParser_Window_RoundTrip(t *testing.T) {
 		"LEAD(x) OVER (ORDER BY y)",
 		"LEAD(x, 1, 0) OVER (PARTITION BY a ORDER BY b)",
 		"LAG(x) OVER (PARTITION BY a, b ORDER BY c, d DESC)",
-		"LAG(x) OVER (PARTITION BY a)",
-		"LAG(x) OVER ()",
 		"LAG(t.a[0]) OVER (PARTITION BY t.k ORDER BY t.b)",
 	}
 	for _, in := range inputs {

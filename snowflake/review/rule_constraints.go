@@ -43,6 +43,8 @@ func kindOf(t ast.ConstraintType) constraintKind {
 		return uniqueKey
 	case ast.ConstrForeignKey:
 		return foreignKey
+	case ast.ConstrCheck:
+		return checkKey
 	}
 	return unknownKind
 }

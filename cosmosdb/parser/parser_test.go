@@ -141,3 +141,49 @@ func TestParseGroupByHaving(t *testing.T) {
 		t.Fatal("expected HAVING clause")
 	}
 }
+
+// TestParseGrammarForms holds the forms sql.g4 derives that omni once read
+// differently: each case parses, or fails, as the grammar says.
+func TestParseGrammarForms(t *testing.T) {
+	for _, tc := range []struct {
+		sql string
+		ok  bool
+	}{
+		{"SELECT TOP @n * FROM c", true},                    // sql.g4:13
+		{"SELECT * FROM c ORDER BY RANK f(c.x) DESC", true}, // sql.g4:67
+		{"SELECT ALL(SELECT VALUE 1)", true},                // sql.g4:183
+		{"SELECT first(SELECT VALUE 1)", true},              // sql.g4:184
+		{"SELECT ALL(c) FROM c", true},                      // ALL is also a name, sql.g4:203
+		{"SELECT LEFT(c.s, 1) FROM c", true},                // sql.g4:191
+		{"SELECT c.left FROM c", true},                      // a property name after a dot
+		{"SELECT COUNT(*) FROM c", false},                   // an argument is an expression, sql.g4:190
+		{"SELECT c IN () FROM c", false},                    // sql.g4:105
+		{"SELECT LEFT FROM c", false},                       // a keyword is no name, sql.g4:201
+		{"SELECT * FROM IN c", false},
+		{"SELECT value FROM c", false},
+		{"SELECT * FROM c JOIN JOIN IN c.a", false},
+	} {
+		_, err := Parse(tc.sql)
+		if (err == nil) != tc.ok {
+			t.Errorf("Parse(%q): err = %v, want ok = %v", tc.sql, err, tc.ok)
+		}
+	}
+}
+
+func TestParseSubqueryFuncAndTopParam(t *testing.T) {
+	result, err := Parse("SELECT TOP @n LAST(SELECT VALUE c.a FROM c) AS l")
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+	sel := result.Items[0].(*nodes.RawStmt).Stmt.(*nodes.SelectStmt)
+	if sel.Top != nil || sel.TopParam == nil || sel.TopParam.Name != "n" {
+		t.Fatalf("TOP: got Top=%v TopParam=%+v", sel.Top, sel.TopParam)
+	}
+	fn, ok := sel.Targets[0].Expr.(*nodes.SubqueryFuncExpr)
+	if !ok || fn.Func != "LAST" || fn.Select == nil {
+		t.Fatalf("target: got %#v", sel.Targets[0].Expr)
+	}
+	if fn.Loc.Start != 14 || fn.Loc.End != 43 {
+		t.Errorf("loc: got %+v", fn.Loc)
+	}
+}

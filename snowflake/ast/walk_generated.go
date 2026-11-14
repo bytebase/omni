@@ -526,6 +526,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.MaskingPolicy != nil {
 			Walk(v, n.MaskingPolicy)
 		}
+		if n.ProjectionPolicy != nil {
+			Walk(v, n.ProjectionPolicy)
+		}
 		walkInlineConstraint(v, n.InlineConstraint)
 		for _, item := range n.Tags {
 			walkTagAssignment(v, item)
@@ -1324,6 +1327,7 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Query)
 	case *TableConstraint:
 		walkForeignKeyRef(v, n.References)
+		Walk(v, n.Check)
 	case *TableRef:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -1539,6 +1543,7 @@ func walkInlineConstraint(v Visitor, n *InlineConstraint) {
 		return
 	}
 	walkForeignKeyRef(v, n.References)
+	Walk(v, n.Check)
 }
 
 // walkInsertMultiBranch walks the node-bearing fields of the non-Node helper struct

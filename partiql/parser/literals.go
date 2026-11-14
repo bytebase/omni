@@ -2,7 +2,9 @@ package parser
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
+	"time"
 
 	"github.com/bytebase/omni/partiql/ast"
 )
@@ -87,9 +89,9 @@ func (p *Parser) parseLiteral() (ast.ExprNode, error) {
 // TIMESTAMP here only so a future grammar revision has a single seam to
 // extend; today it is a precise syntax error.
 //
-// The string body is NOT validated at the syntax layer — any string is
-// grammatically accepted after DATE/TIME, matching the legacy ANTLR
-// parser. Calendar/clock validity is a downstream semantic concern.
+// The grammar takes any string after DATE or TIME, and the reference
+// parser's visitor refuses one that is no date or no time
+// (validDateLiteral, validTimeLiteral), so omni does too.
 func (p *Parser) parseDateTimeLiteral() (ast.ExprNode, error) {
 	switch p.cur.Type {
 	case tokDATE:
@@ -119,6 +121,12 @@ func (p *Parser) parseDateLiteral() (ast.ExprNode, error) {
 	body, err := p.expectStringLiteral("DATE")
 	if err != nil {
 		return nil, err
+	}
+	if !validDateLiteral(body.Str) {
+		return nil, &ParseError{
+			Message:  fmt.Sprintf("DATE string %q is not a date of the format yyyy-MM-dd", body.Str),
+			Position: body.Loc.Start, End: body.Loc.End,
+		}
 	}
 	return &ast.DateLit{
 		Val: body.Str,
@@ -182,6 +190,12 @@ func (p *Parser) parseTimeLiteral() (ast.ExprNode, error) {
 	if err != nil {
 		return nil, err
 	}
+	if msg := checkTimeLiteral(body.Str, precision); msg != "" {
+		return nil, &ParseError{
+			Message:  fmt.Sprintf("TIME string %q: %s", body.Str, msg),
+			Position: body.Loc.Start, End: body.Loc.End,
+		}
+	}
 	return &ast.TimeLit{
 		Val:          body.Str,
 		Precision:    precision,
@@ -220,4 +234,54 @@ func (p *Parser) expectStringLiteral(kind string) (Token, error) {
 		return Token{}, err
 	}
 	return tok, nil
+}
+
+// The patterns of the reference parser at v0.14.9:
+// PartiQLParserDefault.kt:483-485 and util/DateTimeUtils.kt:14-15.
+var (
+	datePatternRegex  = regexp.MustCompile(`^\d\d\d\d-\d\d-\d\d$`)
+	genericTimeRegex  = regexp.MustCompile(`\d\d:\d\d:\d\d(\.\d*)?([+|-]\d\d:\d\d)?`)
+	timeLiteralRegexp = regexp.MustCompile(`^(\d{2,}):(\d{2,}):(\d{2,})(?:\.(\d+))?\s*(?:([+-])(\d\d):(\d\d)|[Zz])?$`)
+)
+
+// validDateLiteral reports whether s is a DATE literal's body the reference
+// parser takes: yyyy-MM-dd and a day of the calendar
+// (PartiQLParserDefault.kt:2005-2018, ISO_LOCAL_DATE).
+func validDateLiteral(s string) bool {
+	if !datePatternRegex.MatchString(s) {
+		return false
+	}
+	_, err := time.Parse("2006-01-02", s)
+	return err == nil
+}
+
+// checkTimeLiteral returns why the reference parser refuses s as a TIME
+// literal's body with the given precision, or "" when it takes it
+// (PartiQLParserDefault.kt:2020-2028, 2177-2206; DateTimeUtils.kt:34-56).
+func checkTimeLiteral(s string, precision *int) string {
+	if precision == nil {
+		if !genericTimeRegex.MatchString(s) {
+			return "unable to parse precision"
+		}
+	} else if *precision < 0 || *precision > 9 {
+		return "precision out of bounds"
+	}
+	m := timeLiteralRegexp.FindStringSubmatch(s)
+	if m == nil {
+		return "expected the format HH:mm:ss[.ddd][+|-hh:mm|z]"
+	}
+	hour, herr := strconv.Atoi(m[1])
+	minute, merr := strconv.Atoi(m[2])
+	second, serr := strconv.Atoi(m[3])
+	if herr != nil || merr != nil || serr != nil || hour > 23 || minute > 59 || second > 59 {
+		return "invalid time"
+	}
+	if m[5] != "" {
+		tzHour, _ := strconv.Atoi(m[6])
+		tzMinute, _ := strconv.Atoi(m[7])
+		if tzHour > 23 || tzMinute > 59 {
+			return "invalid time zone offset"
+		}
+	}
+	return ""
 }
