@@ -448,3 +448,16 @@ func TestANamespaceIsOneOrTwoParts(t *testing.T) {
 		t.Errorf("forms %q, want %s", pg.forms, want)
 	}
 }
+
+// TestCommaKeywordsAreAChoice pins privileges written with commas: a
+// choice the [ , ... ] makes a list of.
+func TestCommaKeywordsAreAChoice(t *testing.T) {
+	pg := convertPage("grant-x", []string{"GRANT p ON T <n> TO <r>", "p ::=\n-- For T\n     MONITOR, OPERATE [ , ... ]\n-- For G\n     { READ, WRITE } [ , ... ]"}, nil)
+	frags := map[string]string{}
+	for _, f := range pg.frags {
+		frags[f.name] = strings.Join(f.alts, " | ")
+	}
+	if got, want := frags["grantX_p"], "('MONITOR' | 'OPERATE') (',' ('MONITOR' | 'OPERATE'))* | ('READ' | 'WRITE') (',' ('READ' | 'WRITE'))*"; got != want {
+		t.Errorf("got  %s\nwant %s (fragments %v, failed %+v)", got, want, frags, pg.failed)
+	}
+}

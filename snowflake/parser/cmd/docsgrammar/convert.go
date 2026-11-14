@@ -744,6 +744,18 @@ const foreignKeyProperties = " [ MATCH { FULL | SIMPLE | PARTIAL } ] [ ON [ UPDA
 // one elided URL, ('<...>'): a list of URLs.
 var prefixList = regexp.MustCompile(`(_PREFIXES = )\(\s*'[^'\n]*<\.\.\.>'\s*\)`)
 
+// commaKeywords is a list of keywords written with commas where a choice
+// is meant: { READ, WRITE } [ , ... ], or a line MONITOR, OPERATE, SELECT
+// [ , ... ]; the [ , ... ] already makes the list.
+var (
+	commaKeywordBrace = regexp.MustCompile(`\{ ((?:[A-Z][A-Z_ ]*[A-Z_], )+[A-Z][A-Z_ ]*[A-Z_]) \}`)
+	commaSep          = regexp.MustCompile(`,[ \t]*`)
+	commaKeywordLine  = regexp.MustCompile(`(?m)^([ \t]*)((?:[A-Z][A-Z_ ]*[A-Z_],[ \t]*)+[A-Z][A-Z_ ]*[A-Z_])[ \t]*(\[ , \.\.\. \])[ \t]*$`)
+	// temporary is CREATE TABLE's [ { LOCAL | GLOBAL } ] TEMP | TEMPORARY,
+	// where the prefix takes either spelling.
+	temporary = regexp.MustCompile(`\[ \{ LOCAL \| GLOBAL \} \] TEMP \| TEMPORARY`)
+)
+
 // templateValue is a template argument, USING ( <key> => <value> ).
 var templateValue = regexp.MustCompile(`=> <value>`)
 
@@ -854,6 +866,25 @@ func convertPage(slug string, blocks []string, fixes []*fix) pageGrammar {
 	}
 	for i, b := range blocks {
 		blocks[i] = namespaceRef.ReplaceAllString(b, "${1}[ <ns1> . [ <ns2> . ] ]")
+	}
+	choices := false
+	for i, b := range blocks {
+		fixed := commaKeywordBrace.ReplaceAllStringFunc(b, func(m string) string {
+			return "{ " + strings.ReplaceAll(commaKeywordBrace.FindStringSubmatch(m)[1], ", ", " | ") + " }"
+		})
+		fixed = commaKeywordLine.ReplaceAllStringFunc(fixed, func(m string) string {
+			sub := commaKeywordLine.FindStringSubmatch(m)
+			words := commaSep.Split(sub[2], -1)
+			return sub[1] + "{ " + strings.Join(words, " | ") + " } " + sub[3]
+		})
+		fixed = temporary.ReplaceAllString(fixed, "[ { LOCAL | GLOBAL } ] { TEMP | TEMPORARY }")
+		if fixed != b {
+			blocks[i] = fixed
+			choices = true
+		}
+	}
+	if choices {
+		pg.fixes = append(pg.fixes, "read: keywords written with commas before [ , ... ] are a choice, the list the [ , ... ] makes")
 	}
 	columns := false
 	for i, b := range blocks {
