@@ -47,6 +47,9 @@ func placeholderClass(name string) string {
 		return tObjectTypes
 	case n == "copy_statement":
 		return tCopy
+	case strings.HasPrefix(n, "json_"):
+		// SAML_IDENTITY_PROVIDER = <json_object>: JSON is written quoted.
+		return tString
 	case strings.Contains(n, "public_key") || strings.HasPrefix(n, "path_to_"):
 		// RSA_PUBLIC_KEY = '<key>'; USING '@stage/path': quoted, as the
 		// examples write them.
