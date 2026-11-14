@@ -19,6 +19,11 @@ import (
 //
 // On entry, SHOW has NOT yet been consumed (cur == kwSHOW).
 func (p *Parser) parseShow() (ast.Node, error) {
+	if p.strictTrailing {
+		if err := p.checkShowGrammar(dorisShowForms); err != nil {
+			return nil, err
+		}
+	}
 	startLoc := p.cur.Loc
 	p.advance() // consume SHOW
 

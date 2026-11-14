@@ -145,17 +145,6 @@ func TestShowCreateTable(t *testing.T) {
 	}
 }
 
-func TestShowBriefCreateTable(t *testing.T) {
-	file, errs := parseForTest("SHOW BRIEF CREATE TABLE demo.test_table")
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	n := file.Stmts[0].(*ast.ShowStmt)
-	if n.Type != "BRIEF CREATE TABLE" {
-		t.Errorf("Type = %q, want BRIEF CREATE TABLE", n.Type)
-	}
-}
-
 func TestShowCreateView(t *testing.T) {
 	file, errs := parseForTest("SHOW CREATE VIEW my_view")
 	if len(errs) != 0 {
@@ -296,20 +285,6 @@ func TestShowGrantsForUser(t *testing.T) {
 	}
 }
 
-func TestShowAllGrants(t *testing.T) {
-	file, errs := parseForTest("SHOW ALL GRANTS")
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	n := file.Stmts[0].(*ast.ShowStmt)
-	if n.Type != "GRANTS" {
-		t.Errorf("Type = %q, want GRANTS", n.Type)
-	}
-	if n.Args != "ALL" {
-		t.Errorf("Args = %q, want ALL", n.Args)
-	}
-}
-
 func TestShowRoles(t *testing.T) {
 	file, errs := parseForTest("SHOW ROLES")
 	if len(errs) != 0 {
@@ -333,17 +308,6 @@ func TestShowCatalogs(t *testing.T) {
 	n := file.Stmts[0].(*ast.ShowStmt)
 	if n.Type != "CATALOGS" {
 		t.Errorf("Type = %q, want CATALOGS", n.Type)
-	}
-}
-
-func TestShowCatalogsLike(t *testing.T) {
-	file, errs := parseForTest("SHOW CATALOGS LIKE 'hi%'")
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	n := file.Stmts[0].(*ast.ShowStmt)
-	if n.Like != "hi%" {
-		t.Errorf("Like = %q, want hi%%", n.Like)
 	}
 }
 
@@ -479,6 +443,42 @@ func TestShowDatabasesFromCatalog(t *testing.T) {
 		n := file.Stmts[0].(*ast.ShowStmt)
 		if n.Type != "DATABASES" || n.From != "hive_catalog" {
 			t.Errorf("parseForTest(%q) = Type %q From %q, want DATABASES hive_catalog", sql, n.Type, n.From)
+		}
+	}
+}
+
+// TestShowStrictRejects holds Parse to the SHOW forms of StarRocks.g4: a form
+// cut short, or a Doris form StarRocks does not have, is a syntax error.
+func TestShowStrictRejects(t *testing.T) {
+	for _, sql := range []string{
+		"SHOW",
+		"SHOW a",
+		"SHOW PROCESSLIST zzz",
+		"SHOW CREATE TABLE",
+		"SHOW BRIEF CREATE TABLE demo.test_table",       // Doris only
+		"SHOW ROUTINE LOAD LIKE 'job%'",                 // StarRocks.g4:1275 has no LIKE
+		"SHOW CREATE ROUTINE LOAD FOR a",                // StarRocks.g4:1287 has no FOR
+		"SHOW ALL GRANTS",                               // StarRocks.g4:1717
+		"SHOW CATALOGS LIKE 'hi%'",                      // StarRocks.g4:773
+		"SHOW WORKLOAD GROUPS",                          // Doris only
+		"SHOW TABLETS FROM t PARTITION (p) LIMIT 1, ?x", // a cut limit
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) = nil error, want a syntax error", sql)
+		}
+	}
+	for _, sql := range []string{
+		"SHOW FULL TABLES FROM db LIKE 'a%'",
+		"SHOW TABLETS FROM t PARTITION (p1, p2) WHERE a = 1 ORDER BY a LIMIT 1, 2",
+		"SHOW GRANTS FOR ROLE r",
+		"SHOW GRANTS FOR ROLE",
+		"SHOW GRANTS FOR 'u'@'%'",
+		"SHOW AUTHENTICATION FOR 'u'@['h']",
+		"SHOW ROUTINE LOAD TASK FROM db WHERE JobName = 'j'",
+		"SHOW PIPES FROM db ORDER BY a LIMIT ?",
+	} {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q): %v", sql, err)
 		}
 	}
 }

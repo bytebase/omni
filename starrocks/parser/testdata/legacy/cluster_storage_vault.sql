@@ -76,5 +76,3 @@ ALTER STORAGE VAULT old_vault_name PROPERTIES (
     "VAULT_NAME" = "new_vault_name",
     "s3.access_key" = "new_ak"
 );
-SHOW STORAGE VAULTS;
-SHOW COMPUTE GROUPS

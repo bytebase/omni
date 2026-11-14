@@ -109,7 +109,8 @@ func parseCancelTaskStmt(t *testing.T, sql string) *ast.CancelTaskStmt {
 
 func parseShowJobStmt(t *testing.T, sql string) *ast.ShowJobStmt {
 	t.Helper()
-	file, errs := parseForTest(sql)
+	r := ParseBestEffort(sql)
+	file, errs := r.File, r.Errors
 	if len(errs) != 0 {
 		t.Fatalf("parseForTest(%q) errors: %v", sql, errs)
 	}
@@ -125,7 +126,8 @@ func parseShowJobStmt(t *testing.T, sql string) *ast.ShowJobStmt {
 
 func parseShowJobTaskStmt(t *testing.T, sql string) *ast.ShowJobTaskStmt {
 	t.Helper()
-	file, errs := parseForTest(sql)
+	r := ParseBestEffort(sql)
+	file, errs := r.File, r.Errors
 	if len(errs) != 0 {
 		t.Fatalf("parseForTest(%q) errors: %v", sql, errs)
 	}

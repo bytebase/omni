@@ -411,8 +411,10 @@ func TestShowRoutineLoad_Like(t *testing.T) {
 }
 
 func TestShowRoutineLoad_FromDB(t *testing.T) {
+	// Doris has no FROM here (DorisParser.g4:391): best effort reads it.
 	sql := `SHOW ROUTINE LOAD FROM mydb`
-	file, errs := parseForTest(sql)
+	r := ParseBestEffort(sql)
+	file, errs := r.File, r.Errors
 	if len(errs) != 0 {
 		t.Fatalf("Parse errors: %v", errs)
 	}
