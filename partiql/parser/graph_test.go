@@ -313,7 +313,6 @@ func TestParseGraphMatch_Reject(t *testing.T) {
 		{"node_unclosed", "(g MATCH (a)"},
 		{"node_paren_unclosed", "(g MATCH (a -[e]->(b))"},
 		{"edge_spec_unclosed", "(g MATCH (a)-[e->(b))"},
-		{"leading_edge", "(g MATCH -[e]->(b))"},
 		{"quantifier_brace_no_comma", "(g MATCH (a)-[e]->{3}(b))"},
 		{"quantifier_brace_no_lower", "(g MATCH (a)-[e]->{,3}(b))"},
 		{"quantifier_brace_unclosed", "(g MATCH (a)-[e]->{1,3(b))"},
@@ -490,8 +489,9 @@ func TestParseGraphMatch_FromClause_Reject(t *testing.T) {
 		// antlr_fallback oracle an empty pattern is accepted (divergence #3);
 		// it is covered as an accept case above.
 		//
-		// A leading edge with no source node is rejected in pattern position.
-		{"from_match_leading_edge", "SELECT * FROM g MATCH -[e]->(b)"},
+		// A bare alias after a FROM-clause MATCH: TableBaseRefMatch takes
+		// AS, AT and BY only (PartiQLParser.g4:483).
+		{"from_match_bare_alias", "SELECT * FROM g MATCH (a) x"},
 		// Unclosed node in the FROM pattern.
 		{"from_match_node_unclosed", "SELECT * FROM g MATCH (a"},
 		// Unclosed edge spec.
@@ -560,5 +560,67 @@ func TestParseGraphMatch_Goldens(t *testing.T) {
 				t.Errorf("AST mismatch\ngot:\n%s\nwant:\n%s", got, string(want))
 			}
 		})
+	}
+}
+
+// TestParseGraphMatch_EdgeFirstAndLabels covers a pattern that begins with
+// an edge, which graphPart allows in any order (PartiQLParser.g4:381-388),
+// and the label expressions of labelSpec (g4:433-452). The reference
+// parser's visitor takes both (visitMatchPattern, visitPattern,
+// visitLabelSpecOr .. visitLabelPrimaryParen).
+func TestParseGraphMatch_EdgeFirstAndLabels(t *testing.T) {
+	cases := []struct {
+		input string
+		want  string
+	}{
+		{
+			"(g MATCH -[e]->(b))",
+			"MatchExpr{Expr:VarRef{Name:g} Patterns:[GraphPattern{Parts:[EdgePattern{Direction:-> Variable:VarRef{Name:e}} NodePattern{Variable:VarRef{Name:b}}]}]}",
+		},
+		{
+			"(g MATCH ~ +)",
+			"MatchExpr{Expr:VarRef{Name:g} Patterns:[GraphPattern{Parts:[EdgePattern{Direction:~ Quantifier:PatternQuantifier{Min:1 Max:-1}}]}]}",
+		},
+		{
+			"(g MATCH (TRAIL ~))",
+			"MatchExpr{Expr:VarRef{Name:g} Patterns:[GraphPattern{Parts:[GraphPattern{Restrictor:TRAIL Parts:[EdgePattern{Direction:~}]}]}]}",
+		},
+		{
+			"(g MATCH (:a))",
+			"MatchExpr{Expr:VarRef{Name:g} Patterns:[GraphPattern{Parts:[NodePattern{Labels:[a]}]}]}",
+		},
+		{
+			"(g MATCH (x:a|b&!c))",
+			"MatchExpr{Expr:VarRef{Name:g} Patterns:[GraphPattern{Parts:[NodePattern{Variable:VarRef{Name:x} Label:LabelOr{Left:LabelName{Name:a} Right:LabelAnd{Left:LabelName{Name:b} Right:LabelNot{Operand:LabelName{Name:c}}}}}]}]}",
+		},
+		{
+			"(g MATCH (:(a|%)&b))",
+			"MatchExpr{Expr:VarRef{Name:g} Patterns:[GraphPattern{Parts:[NodePattern{Label:LabelAnd{Left:LabelOr{Left:LabelName{Name:a} Right:LabelWildcard{}} Right:LabelName{Name:b}}}]}]}",
+		},
+		{
+			"(g MATCH (a)-[e:!x]->(b))",
+			"MatchExpr{Expr:VarRef{Name:g} Patterns:[GraphPattern{Parts:[NodePattern{Variable:VarRef{Name:a}} EdgePattern{Direction:-> Variable:VarRef{Name:e} Label:LabelNot{Operand:LabelName{Name:x}}} NodePattern{Variable:VarRef{Name:b}}]}]}",
+		},
+	}
+	for _, tc := range cases {
+		expr, err := NewParser(tc.input).ParseExpr()
+		if err != nil {
+			t.Errorf("ParseExpr(%q): %v", tc.input, err)
+			continue
+		}
+		if got := ast.NodeToString(expr); got != tc.want {
+			t.Errorf("ParseExpr(%q)\ngot:  %s\nwant: %s", tc.input, got, tc.want)
+		}
+	}
+	for _, bad := range []string{
+		"(g MATCH (:))",
+		"(g MATCH (:a|))",
+		"(g MATCH (:!!a))", // BANG takes a labelPrimary
+		"(g MATCH (:(a))",
+		"(g MATCH (:a &))",
+	} {
+		if _, err := NewParser(bad).ParseExpr(); err == nil {
+			t.Errorf("ParseExpr(%q): want an error", bad)
+		}
 	}
 }

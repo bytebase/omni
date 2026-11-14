@@ -96,6 +96,10 @@ func (p *Parser) parseStatement() (ast.StmtNode, error) {
 		return p.parseRevoke()
 	case tokLIST:
 		return p.parseList()
+	case tokDESCRIBE, tokDESC:
+		return p.parseDescribe()
+	case tokADD:
+		return p.parseAddIdentity()
 	case tokAPPLY:
 		// APPLY BATCH is handled within parseBatch; standalone APPLY is an error
 		return nil, p.errorf("unexpected APPLY without matching BEGIN BATCH")
@@ -180,6 +184,26 @@ func (p *Parser) errorf(format string, args ...any) *ParseError {
 	}
 }
 
+// errorAt is errorf for an earlier token: a refusal the parser decides only
+// after reading past what it refuses, such as a column declared twice.
+func (p *Parser) errorAt(tok Token, format string, args ...any) *ParseError {
+	if pe, ok := p.lexer.Err.(*ParseError); ok {
+		return pe
+	}
+	line, col := offsetToLineCol(p.lexer.lineIdx, tok.Loc)
+	near := tok.Str
+	if near == "" && tok.Type != tokEOF {
+		near = p.extractNear(tok.Loc)
+	}
+	return &ParseError{
+		Message:  fmt.Sprintf(format, args...),
+		Position: tok.Loc, End: tok.End,
+		Line:   line,
+		Column: col,
+		Near:   near,
+	}
+}
+
 func (p *Parser) extractNear(offset int) string {
 	if offset >= len(p.source) {
 		return ""
@@ -213,6 +237,10 @@ func (p *Parser) tokenDesc() string {
 func (p *Parser) parseIdentifier() (*ast.Identifier, error) {
 	tok := p.cur
 	switch {
+	case reservedKeywords[tokWord(tok)]:
+		// A word Lexer.g reads as a keyword that unreserved_keyword
+		// (Parser.g:1946) leaves out is never a name; quote it to use it.
+		return nil, p.errorf("expected identifier, got reserved word %s", p.tokenDesc())
 	case tok.Type == tokIDENT:
 		p.advance()
 		return &ast.Identifier{Name: tok.Str, Loc: ast.Loc{Start: tok.Loc, End: tok.End}}, nil
@@ -224,6 +252,57 @@ func (p *Parser) parseIdentifier() (*ast.Identifier, error) {
 		return &ast.Identifier{Name: tok.Str, Loc: ast.Loc{Start: tok.Loc, End: tok.End}}, nil
 	default:
 		return nil, p.errorf("expected identifier, got %s", p.tokenDesc())
+	}
+}
+
+// isWord reports whether tok is the unquoted word w, read as an identifier
+// or as a keyword, in any case. CQL's unreserved keywords that omni's lexer
+// reads as identifiers (CLUSTER, MASKED, USERS, IDENTITY, ...) are matched by
+// their text, so they stay names everywhere else.
+func isWord(tok Token, w string) bool {
+	return (tok.Type == tokIDENT || isKeyword(tok.Type)) && strings.EqualFold(tok.Str, w)
+}
+
+// curIs reports whether the current token is the word w (see isWord).
+func (p *Parser) curIs(w string) bool { return isWord(p.cur, w) }
+
+// identKey is the name Cassandra compares an identifier by: an unquoted name
+// folds to lower case, a quoted one is kept as written (ColumnIdentifier).
+func identKey(id *ast.Identifier) string {
+	if id.Quoted {
+		return id.Name
+	}
+	return strings.ToLower(id.Name)
+}
+
+// parseRoleName parses roleName (Parser.g:1519): an identifier, a quoted
+// name, an unreserved keyword or a string literal. A string comes back as a
+// quoted Identifier, since Cassandra keeps its case.
+func (p *Parser) parseRoleName() (*ast.Identifier, error) {
+	if isStringLiteral(p.cur.Type) {
+		tok := p.cur
+		p.advance()
+		return &ast.Identifier{Name: tok.Str, Quoted: true, Loc: ast.Loc{Start: tok.Loc, End: tok.End}}, nil
+	}
+	return p.parseIdentifier()
+}
+
+// parseUsername parses username (Parser.g:1921) and identity (Parser.g:1927):
+// an identifier or a string literal. A quoted name is refused by the
+// grammar's own action, and no keyword of Lexer.g is a user name; a word
+// only omni's lexer makes a keyword (REPLICATION, NOW, SAI) is an IDENT to
+// Cassandra.
+func (p *Parser) parseUsername(what string) (*ast.Identifier, error) {
+	tok := p.cur
+	switch {
+	case tokWord(tok) != "" && !isLexerKeyword(tokWord(tok)):
+		p.advance()
+		return &ast.Identifier{Name: tok.Str, Loc: ast.Loc{Start: tok.Loc, End: tok.End}}, nil
+	case isStringLiteral(tok.Type):
+		p.advance()
+		return &ast.Identifier{Name: tok.Str, Quoted: true, Loc: ast.Loc{Start: tok.Loc, End: tok.End}}, nil
+	default:
+		return nil, p.errorf("expected %s (identifier or string), got %s", what, p.tokenDesc())
 	}
 }
 
@@ -334,188 +413,6 @@ func (p *Parser) parseRelationElements() ([]ast.ExprNode, error) {
 	return relations, nil
 }
 
-// parseRelationElement parses a single WHERE condition.
-func (p *Parser) parseRelationElement() (ast.ExprNode, error) {
-	start := p.curLoc()
-
-	// Handle tuple comparison: (col1, col2, ...) op/IN (...)
-	if p.cur.Type == tokLPAREN {
-		return p.parseTupleRelation(start)
-	}
-
-	// Could be: identifier op constant, identifier IN (...), identifier CONTAINS [KEY] constant,
-	// or function op constant/function.
-	left, err := p.parseRelationLeft()
-	if err != nil {
-		return nil, err
-	}
-
-	switch p.cur.Type {
-	case tokEQ, tokLT, tokGT, tokLTE, tokGTE, tokNE:
-		op := p.cur.Str
-		p.advance()
-		right, err := p.parseRelationRight()
-		if err != nil {
-			return nil, err
-		}
-		return &ast.BinaryExpr{Left: left, Op: op, Right: right, Loc: p.makeLoc(start)}, nil
-
-	case tokIN:
-		p.advance()
-		if _, err := p.expect(tokLPAREN); err != nil {
-			return nil, err
-		}
-		var values []ast.ExprNode
-		if p.cur.Type != tokRPAREN {
-			values, err = p.parseExpressionList()
-			if err != nil {
-				return nil, err
-			}
-		}
-		if _, err := p.expect(tokRPAREN); err != nil {
-			return nil, err
-		}
-		return &ast.InExpr{Column: left, Values: values, Loc: p.makeLoc(start)}, nil
-
-	case tokCONTAINS:
-		p.advance()
-		isKey := false
-		if p.cur.Type == tokKEY {
-			isKey = true
-			p.advance()
-		}
-		val, err := p.parseConstant()
-		if err != nil {
-			return nil, err
-		}
-		return &ast.ContainsExpr{Column: left, Value: val, IsKey: isKey, Loc: p.makeLoc(start)}, nil
-
-	default:
-		return nil, p.errorf("expected operator after expression in WHERE clause, got %s", p.tokenDesc())
-	}
-}
-
-func (p *Parser) parseRelationLeft() (ast.ExprNode, error) {
-	if isIdentLike(p.cur.Type) {
-		name, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		// Check for function call: name(...)
-		if p.cur.Type == tokLPAREN {
-			return p.parseFunctionCallWithName(name)
-		}
-		// Check for dotted name: name.field
-		if p.cur.Type == tokDOT {
-			start := name.Loc.Start
-			p.advance()
-			field, err := p.parseIdentifier()
-			if err != nil {
-				return nil, err
-			}
-			return &ast.DotAccess{Object: name, Field: field, Loc: p.makeLoc(start)}, nil
-		}
-		return name, nil
-	}
-	return nil, p.errorf("expected identifier or function call in relation, got %s", p.tokenDesc())
-}
-
-func (p *Parser) parseRelationRight() (ast.ExprNode, error) {
-	// Bind markers
-	if p.cur.Type == tokQMARK {
-		m := &ast.BindMarker{Loc: ast.Loc{Start: p.cur.Loc, End: p.cur.End}}
-		p.advance()
-		return m, nil
-	}
-	if p.cur.Type == tokCOLON {
-		start := p.curLoc()
-		p.advance()
-		name, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		return &ast.BindMarker{Name: name.Name, Loc: p.makeLoc(start)}, nil
-	}
-	// Could be a constant or a function call.
-	if isIdentLike(p.cur.Type) && p.peekNext().Type == tokLPAREN {
-		name, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		return p.parseFunctionCallWithName(name)
-	}
-	return p.parseConstant()
-}
-
-func (p *Parser) parseTupleRelation(start int) (ast.ExprNode, error) {
-	p.advance() // (
-	var cols []ast.ExprNode
-	for {
-		col, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		cols = append(cols, col)
-		if !p.match(tokCOMMA) {
-			break
-		}
-	}
-	if _, err := p.expect(tokRPAREN); err != nil {
-		return nil, err
-	}
-
-	if p.cur.Type == tokIN {
-		p.advance()
-		if _, err := p.expect(tokLPAREN); err != nil {
-			return nil, err
-		}
-		var tuples []*ast.TupleLit
-		for {
-			t, err := p.parseTupleLit()
-			if err != nil {
-				return nil, err
-			}
-			tuples = append(tuples, t)
-			if !p.match(tokCOMMA) {
-				break
-			}
-		}
-		if _, err := p.expect(tokRPAREN); err != nil {
-			return nil, err
-		}
-		return &ast.TupleInExpr{Columns: cols, Tuples: tuples, Loc: p.makeLoc(start)}, nil
-	}
-
-	// Tuple comparison: (col1, col2) op (val1, val2)
-	op := p.cur.Str
-	if !p.match(tokEQ, tokLT, tokGT, tokLTE, tokGTE, tokNE) {
-		return nil, p.errorf("expected operator or IN after tuple columns")
-	}
-	var values []ast.ExprNode
-	// Could be a single tuple or multiple tuples
-	t, err := p.parseTupleLit()
-	if err != nil {
-		return nil, err
-	}
-	values = t.Elements
-	return &ast.TupleCompareExpr{Columns: cols, Op: op, Values: values, Loc: p.makeLoc(start)}, nil
-}
-
-func (p *Parser) parseTupleLit() (*ast.TupleLit, error) {
-	start := p.curLoc()
-	if _, err := p.expect(tokLPAREN); err != nil {
-		return nil, err
-	}
-	elems, err := p.parseExpressionList()
-	if err != nil {
-		return nil, err
-	}
-	if _, err := p.expect(tokRPAREN); err != nil {
-		return nil, err
-	}
-	return &ast.TupleLit{Elements: elems, Loc: p.makeLoc(start)}, nil
-}
-
 // tokenName returns a human-readable name for a token type.
 func tokenName(typ int) string {
 	switch {
@@ -569,6 +466,14 @@ func tokenName(typ int) string {
 		return "'!='"
 	case typ == tokQMARK:
 		return "'?'"
+	case typ == tokRANGE:
+		return "'..'"
+	case typ == tokPLUSEQ:
+		return "'+='"
+	case typ == tokMINUSEQ:
+		return "'-='"
+	case typ == tokDURATIONLIT:
+		return "duration"
 	default:
 		// For keywords, reverse lookup
 		for name, t := range keywords {

@@ -8289,6 +8289,10 @@
 |
 < ok 0 -
 > exec
+| SET search_path TO "test_25", public;
+| ALTER TABLE t1 ALTER COLUMN name TYPE text COLLATE "POSIX"
+< ok 0 -
+> exec
 | SET search_path TO "test_26", public;
 |
 | CREATE TABLE t1 (

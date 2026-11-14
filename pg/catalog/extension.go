@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"maps"
 
 	nodes "github.com/bytebase/omni/pg/ast"
 	pgparser "github.com/bytebase/omni/pg/parser"
@@ -15,6 +16,9 @@ type Extension struct {
 	Name        string
 	SchemaOID   uint32
 	Relocatable bool
+	// Version is the VERSION the extension was created with, or "" when the
+	// statement named none.
+	Version string
 }
 
 // CreateExtension loads and executes a bundled extension DDL script.
@@ -33,17 +37,22 @@ func (c *Catalog) CreateExtension(stmt *nodes.CreateExtensionStmt) error {
 
 	// Parse Options for "schema" DefElem.
 	// pg: src/backend/commands/extension.c — CreateExtension (option parsing)
-	var schemaName string
+	var schemaName, version string
 	if stmt.Options != nil {
 		for _, item := range stmt.Options.Items {
 			de, ok := item.(*nodes.DefElem)
 			if !ok {
 				continue
 			}
-			if de.Defname == "schema" {
-				if sv, ok := de.Arg.(*nodes.String); ok {
-					schemaName = sv.Str
-				}
+			sv, ok := de.Arg.(*nodes.String)
+			if !ok {
+				continue
+			}
+			switch de.Defname {
+			case "schema":
+				schemaName = sv.Str
+			case "new_version":
+				version = sv.Str
 			}
 		}
 	}
@@ -55,12 +64,11 @@ func (c *Catalog) CreateExtension(stmt *nodes.CreateExtensionStmt) error {
 		return err
 	}
 
-	// Look up bundled extension script.
+	// An extension without a bundled script is registered with no objects.
 	sql, ok := extensionScripts[stmt.Extname]
 	if !ok {
 		c.addWarning(CodeWarning,
-			fmt.Sprintf("extension %q is not bundled; CREATE EXTENSION ignored", stmt.Extname))
-		return nil
+			fmt.Sprintf("extension %q is not bundled; its objects are unknown", stmt.Extname))
 	}
 
 	// Parse the extension DDL script.
@@ -68,6 +76,8 @@ func (c *Catalog) CreateExtension(stmt *nodes.CreateExtensionStmt) error {
 	if err != nil {
 		return fmt.Errorf("extension %q: parse error: %w", stmt.Extname, err)
 	}
+	firstMember, firstGrant := c.oidGen.next, len(c.grants)
+	commentsBefore := maps.Clone(c.comments)
 
 	// Temporarily prepend target schema to search path so unqualified types
 	// and functions land in the extension's schema.
@@ -104,6 +114,15 @@ func (c *Catalog) CreateExtension(stmt *nodes.CreateExtensionStmt) error {
 
 	// Restore original search path.
 	c.searchPath = origSearchPath
+	c.markExtensionMembers(firstMember, c.oidGen.next, stmt.Extname)
+	for i := firstGrant; i < len(c.grants); i++ {
+		c.grants[i].FromExtension = true
+	}
+	for key, text := range c.comments {
+		if before, ok := commentsBefore[key]; !ok || before != text {
+			c.extensionComments[key] = text
+		}
+	}
 
 	// Register extension metadata.
 	ext := &Extension{
@@ -111,11 +130,51 @@ func (c *Catalog) CreateExtension(stmt *nodes.CreateExtensionStmt) error {
 		Name:        stmt.Extname,
 		SchemaOID:   targetSchema.OID,
 		Relocatable: true,
+		Version:     version,
 	}
 	c.extensions[ext.OID] = ext
 	c.extByName[ext.Name] = ext
 
 	return nil
+}
+
+// markExtensionMembers records the objects whose OIDs fall in [first, end)
+// as belonging to the extension ext, "" when unknown, as pg_depend's 'e'
+// entries do. Every object an extension script creates takes its OID while
+// the script runs.
+func (c *Catalog) markExtensionMembers(first, end uint32, ext string) {
+	for oid := first; oid < end; oid++ {
+		c.extensionMembers[oid] = ext
+	}
+}
+
+// isExtensionMember reports whether the object with this OID belongs to an
+// extension. Such objects come and go with their extension, so Diff leaves
+// them out.
+func (c *Catalog) isExtensionMember(oid uint32) bool {
+	_, ok := c.extensionMembers[oid]
+	return ok
+}
+
+// diffsMemberSetting reports whether Diff compares a comment or grant on the
+// object with this OID in c, the from catalog when isFrom, against other.
+// On an extension's object, everything is compared while both catalogs have
+// the extension. When only from has it, the settings go with the extension;
+// when only the target has it, those beyond the script's baseline are the
+// user's and are compared. On an object of an unknown extension, which a
+// snapshot marks skip_dump, there is no baseline and nothing is compared.
+func (c *Catalog) diffsMemberSetting(oid uint32, other *Catalog, isFrom, baseline bool) bool {
+	ext, ok := c.extensionMembers[oid]
+	switch {
+	case !ok:
+		return true
+	case ext == "":
+		return false
+	case other.extByName[ext] != nil:
+		return true
+	default:
+		return !isFrom && !baseline
+	}
 }
 
 // RegisterExtensionSQL allows external code to register extension DDL scripts.

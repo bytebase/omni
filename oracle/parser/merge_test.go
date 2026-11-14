@@ -93,19 +93,19 @@ func TestParseMergeBothClauses(t *testing.T) {
 
 // TestParseMergeMatchedDelete tests MERGE with WHEN MATCHED THEN DELETE.
 func TestParseMergeMatchedDelete(t *testing.T) {
-	sql := `MERGE INTO t USING src ON (t.id = src.id) WHEN MATCHED THEN DELETE`
-	result := ParseAndCheck(t, sql)
+	// WHEN MATCHED THEN takes UPDATE, with an optional DELETE WHERE; a lone
+	// DELETE is ORA-02000 at DELETE on Oracle 23ai.
+	ParseShouldFail(t, `MERGE INTO t USING src ON (t.id = src.id) WHEN MATCHED THEN DELETE`)
+	ParseShouldFail(t, `MERGE INTO t USING src ON (t.id = src.id) WHEN MATCHED THEN UPDATE SET a = 1 DELETE 1 = 1`)
+	result := ParseAndCheck(t, `MERGE INTO t USING src ON (t.id = src.id) WHEN MATCHED THEN UPDATE SET a = 1 DELETE WHERE a = 1`)
 	raw := result.Items[0].(*ast.RawStmt)
 	m := raw.Stmt.(*ast.MergeStmt)
 	if m.Clauses.Len() != 1 {
 		t.Fatalf("expected 1 clause, got %d", m.Clauses.Len())
 	}
 	mc := m.Clauses.Items[0].(*ast.MergeClause)
-	if !mc.Matched {
-		t.Errorf("expected Matched=true")
-	}
-	if !mc.IsDelete {
-		t.Errorf("expected IsDelete=true")
+	if !mc.Matched || mc.DeleteWhere == nil {
+		t.Errorf("expected a matched clause with DELETE WHERE, got %+v", mc)
 	}
 }
 

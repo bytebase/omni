@@ -453,6 +453,12 @@ func TestLexer_Tokens(t *testing.T) {
 		{"op_concat", "||", []Token{{tokCONCAT, "||", ast.Loc{Start: 0, End: 2}}}},
 		{"op_angle_double_left", "<<", []Token{{tokANGLE_DOUBLE_LEFT, "<<", ast.Loc{Start: 0, End: 2}}}},
 		{"op_angle_double_right", ">>", []Token{{tokANGLE_DOUBLE_RIGHT, ">>", ast.Loc{Start: 0, End: 2}}}},
+		// VERTBAR, AMPERSAND and BANG (PartiQLTokens.g4:330-332).
+		{"op_vertbar_ampersand_bang", "| & !", []Token{
+			{tokVERTBAR, "|", ast.Loc{Start: 0, End: 1}},
+			{tokAMPERSAND, "&", ast.Loc{Start: 2, End: 3}},
+			{tokBANG, "!", ast.Loc{Start: 4, End: 5}},
+		}},
 
 		// =============================================================
 		// Multi-token integration sequences (Task 9)
@@ -1500,8 +1506,8 @@ func TestLexer_Errors(t *testing.T) {
 			wantErrIn: "unterminated block comment",
 		},
 		{
-			name:      "unexpected_character_lone_bang",
-			input:     "! 1",
+			name:      "unexpected_character_hash",
+			input:     "# 1",
 			wantErrIn: "unexpected character",
 		},
 	}
@@ -1537,7 +1543,7 @@ func TestLexer_Errors(t *testing.T) {
 // without being added here. New tok* constants must be added to all three
 // places.
 func TestTokenName_AllCovered(t *testing.T) {
-	// Total: 2 specials + 6 literals + 28 operators/punctuation + 266 keywords = 302.
+	// Total: 2 specials + 6 literals + 31 operators/punctuation + 268 keywords = 307.
 	all := []int{
 		// Specials.
 		tokEOF, tokInvalid,
@@ -1549,7 +1555,7 @@ func TestTokenName_AllCovered(t *testing.T) {
 		tokLT_EQ, tokGT_EQ, tokCONCAT, tokANGLE_DOUBLE_LEFT, tokANGLE_DOUBLE_RIGHT,
 		tokPAREN_LEFT, tokPAREN_RIGHT, tokBRACKET_LEFT, tokBRACKET_RIGHT,
 		tokBRACE_LEFT, tokBRACE_RIGHT, tokCOLON, tokCOLON_SEMI, tokCOMMA,
-		tokPERIOD, tokQUESTION_MARK,
+		tokPERIOD, tokQUESTION_MARK, tokVERTBAR, tokAMPERSAND, tokBANG,
 		// Keywords (alphabetical).
 		tokABSOLUTE, tokACTION, tokADD, tokALL, tokALLOCATE, tokALTER, tokAND,
 		tokANY, tokARE, tokAS, tokASC, tokASSERTION, tokAT, tokAUTHORIZATION,
@@ -1566,7 +1572,7 @@ func TestTokenName_AllCovered(t *testing.T) {
 		tokDEFERRED, tokDELETE, tokDESC, tokDESCRIBE, tokDESCRIPTOR,
 		tokDIAGNOSTICS, tokDISCONNECT, tokDISTINCT, tokDO, tokDOMAIN, tokDOUBLE,
 		tokDROP, tokELSE, tokEND, tokEND_EXEC, tokESCAPE, tokEXCEPT, tokEXCEPTION,
-		tokEXCLUDED, tokEXEC, tokEXECUTE, tokEXISTS, tokEXPLAIN, tokEXTERNAL,
+		tokEVERY, tokEXCLUDE, tokEXCLUDED, tokEXEC, tokEXECUTE, tokEXISTS, tokEXPLAIN, tokEXTERNAL,
 		tokEXTRACT, tokFALSE, tokFETCH, tokFIRST, tokFLOAT, tokFOR, tokFOREIGN,
 		tokFOUND, tokFROM, tokFULL, tokGET, tokGLOBAL, tokGO, tokGOTO, tokGRANT,
 		tokGROUP, tokHAVING, tokIDENTITY, tokIMMEDIATE, tokIN, tokINDEX,
@@ -1595,8 +1601,8 @@ func TestTokenName_AllCovered(t *testing.T) {
 		tokVIEW, tokWHEN, tokWHENEVER, tokWHERE, tokWITH, tokWORK, tokWRITE,
 		tokZONE,
 	}
-	if got := len(all); got != 302 {
-		t.Errorf("test list has %d entries, want 302 — did a tok* constant get added or removed without updating this test?", got)
+	if got := len(all); got != 307 {
+		t.Errorf("test list has %d entries, want 307 — did a tok* constant get added or removed without updating this test?", got)
 	}
 	for _, tt := range all {
 		name := tokenName(tt)
@@ -1607,20 +1613,20 @@ func TestTokenName_AllCovered(t *testing.T) {
 }
 
 // TestKeywords_LenMatchesConstants asserts that the keywords map in
-// keywords.go has exactly 265 entries and that every map value resolves
+// keywords.go has exactly 267 entries and that every map value resolves
 // to a non-empty tokenName. The length check catches add/remove drift;
 // the per-value check catches the case where a keyword maps to a deleted
 // or renamed constant (which leaves the lengths equal but the mapping
 // stale).
 //
-// 265 = 266 keyword constants in token.go minus tokEND_EXEC, which has no
+// 267 = 268 keyword constants in token.go minus tokEND_EXEC, which has no
 // map entry on purpose: its grammar spelling 'END-EXEC' contains a hyphen
 // the lexer can never lex into a single identifier, so the "end-exec" key
 // was unreachable dead code (see keywords.go). tokEND_EXEC is still a real
 // constant covered by TestTokenName_AllCovered, so that test's count is
 // unaffected.
 func TestKeywords_LenMatchesConstants(t *testing.T) {
-	const expectedKeywordCount = 265
+	const expectedKeywordCount = 267
 	if got := len(keywords); got != expectedKeywordCount {
 		t.Errorf("len(keywords) = %d, want %d — did a tok* keyword constant get added or removed without updating the keywords map?", got, expectedKeywordCount)
 	}

@@ -2665,6 +2665,12 @@ func writeCreateTableStmt(sb *strings.Builder, n *CreateTableStmt) {
 	if n.Duplicated {
 		sb.WriteString(" :duplicated true")
 	}
+	if n.Immutable {
+		sb.WriteString(" :immutable true")
+	}
+	if n.Blockchain {
+		sb.WriteString(" :blockchain true")
+	}
 	if n.Name != nil {
 		sb.WriteString(" :name ")
 		writeNode(sb, n.Name)
@@ -5893,6 +5899,9 @@ func writeCreateTablespaceSetStmt(sb *strings.Builder, n *CreateTablespaceSetStm
 	if n.Name != nil {
 		sb.WriteString(" :name ")
 		writeNode(sb, n.Name)
+	}
+	if n.IfNotExists {
+		sb.WriteString(" :if_not_exists true")
 	}
 	if n.Shardspace != "" {
 		sb.WriteString(fmt.Sprintf(" :shardspace %q", n.Shardspace))

@@ -17,6 +17,10 @@ func (p *Parser) parseCreate() (ast.StmtNode, error) {
 			return nil, err
 		}
 		orReplace = true
+		// OR REPLACE belongs to FUNCTION and AGGREGATE only (Parser.g:662, Parser.g:711).
+		if p.cur.Type != tokFUNCTION && p.cur.Type != tokAGGREGATE {
+			return nil, p.errorf("expected FUNCTION or AGGREGATE after CREATE OR REPLACE, got %s", p.tokenDesc())
+		}
 	}
 
 	// Handle CUSTOM INDEX.
@@ -157,45 +161,35 @@ func (p *Parser) parseCreateMVInline(start int) (*ast.CreateMVStmt, error) {
 	}
 	stmt.FromTable = from
 
-	// WHERE
-	if err := p.expectKeyword(tokWHERE); err != nil {
-		return nil, err
-	}
-
-	for {
-		if !p.isColumnNotNull() {
-			break
+	// [WHERE whereClause] (Parser.g:884): optional in the grammar; a view
+	// with none is refused only when the statement runs. col IS NOT NULL
+	// relations go to WhereNotNull, any other to WhereRelations.
+	if p.match(tokWHERE) {
+		for {
+			if p.isColumnNotNull() {
+				col, err := p.parseIdentifier()
+				if err != nil {
+					return nil, err
+				}
+				p.advance() // IS
+				if err := p.expectKeyword(tokNOT); err != nil {
+					return nil, err
+				}
+				if err := p.expectKeyword(tokNULL); err != nil {
+					return nil, err
+				}
+				stmt.WhereNotNull = append(stmt.WhereNotNull, col)
+			} else {
+				rel, err := p.parseRelationElement()
+				if err != nil {
+					return nil, err
+				}
+				stmt.WhereRelations = append(stmt.WhereRelations, rel)
+			}
+			if !p.match(tokAND) {
+				break
+			}
 		}
-		col, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		if err := p.expectKeyword(tokIS); err != nil {
-			return nil, err
-		}
-		if err := p.expectKeyword(tokNOT); err != nil {
-			return nil, err
-		}
-		if err := p.expectKeyword(tokNULL); err != nil {
-			return nil, err
-		}
-		stmt.WhereNotNull = append(stmt.WhereNotNull, col)
-		if p.cur.Type != tokAND {
-			break
-		}
-		next := p.peekNext()
-		if !p.isNextColumnNotNull(next) {
-			break
-		}
-		p.advance() // AND
-	}
-
-	if p.match(tokAND) {
-		rels, err := p.parseRelationElements()
-		if err != nil {
-			return nil, err
-		}
-		stmt.WhereRelations = rels
 	}
 
 	// PRIMARY KEY
@@ -395,6 +389,9 @@ func (p *Parser) parseDrop() (ast.StmtNode, error) {
 		stmt.Loc.Start = start
 		return stmt, nil
 	default:
+		if p.curIs("identity") {
+			return p.parseDropIdentity(start)
+		}
 		return nil, p.errorf("expected object type after DROP, got %s", p.tokenDesc())
 	}
 }

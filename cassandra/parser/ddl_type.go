@@ -13,7 +13,7 @@ func (p *Parser) parseCreateType() (*ast.CreateTypeStmt, error) {
 		return nil, err
 	}
 
-	name, err := p.parseQualifiedName()
+	name, err := p.parseUserTypeQualifiedName()
 	if err != nil {
 		return nil, err
 	}
@@ -27,21 +27,24 @@ func (p *Parser) parseCreateType() (*ast.CreateTypeStmt, error) {
 		Name:        name,
 	}
 
-	for {
-		fStart := p.curLoc()
-		col, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
+	// typeColumns (',' typeColumns?)* (Parser.g:833): a trailing ',' is allowed.
+	for first := true; ; first = false {
+		if first || (p.cur.Type != tokCOMMA && p.cur.Type != tokRPAREN) {
+			fStart := p.curLoc()
+			col, err := p.parseIdentifier()
+			if err != nil {
+				return nil, err
+			}
+			dt, err := p.parseDataType()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Fields = append(stmt.Fields, &ast.ColumnDef{
+				Name: col,
+				Type: dt,
+				Loc:  p.makeLoc(fStart),
+			})
 		}
-		dt, err := p.parseDataType()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Fields = append(stmt.Fields, &ast.ColumnDef{
-			Name: col,
-			Type: dt,
-			Loc:  p.makeLoc(fStart),
-		})
 		if !p.match(tokCOMMA) {
 			break
 		}
@@ -61,7 +64,7 @@ func (p *Parser) parseAlterType() (*ast.AlterTypeStmt, error) {
 
 	ifExists := p.parseIfExists()
 
-	name, err := p.parseQualifiedName()
+	name, err := p.parseUserTypeQualifiedName()
 	if err != nil {
 		return nil, err
 	}
@@ -94,25 +97,21 @@ func (p *Parser) parseAlterType() (*ast.AlterTypeStmt, error) {
 			return nil, err
 		}
 		stmt.AddIfNotExists = ine
-		for {
-			fStart := p.curLoc()
-			col, err := p.parseIdentifier()
-			if err != nil {
-				return nil, err
-			}
-			dt, err := p.parseDataType()
-			if err != nil {
-				return nil, err
-			}
-			stmt.AddFields = append(stmt.AddFields, &ast.ColumnDef{
-				Name: col,
-				Type: dt,
-				Loc:  p.makeLoc(fStart),
-			})
-			if !p.match(tokCOMMA) {
-				break
-			}
+		// ADD takes one field (Parser.g:1012).
+		fStart := p.curLoc()
+		col, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
 		}
+		dt, err := p.parseDataType()
+		if err != nil {
+			return nil, err
+		}
+		stmt.AddFields = append(stmt.AddFields, &ast.ColumnDef{
+			Name: col,
+			Type: dt,
+			Loc:  p.makeLoc(fStart),
+		})
 
 	case tokRENAME:
 		stmt.Op = ast.AlterTypeRename
@@ -155,7 +154,7 @@ func (p *Parser) parseDropType() (*ast.DropTypeStmt, error) {
 
 	ifExists := p.parseIfExists()
 
-	name, err := p.parseQualifiedName()
+	name, err := p.parseUserTypeQualifiedName()
 	if err != nil {
 		return nil, err
 	}
@@ -165,4 +164,19 @@ func (p *Parser) parseDropType() (*ast.DropTypeStmt, error) {
 		Name:     name,
 		Loc:      p.makeLoc(start),
 	}, nil
+}
+
+// parseUserTypeQualifiedName parses userTypeName (Parser.g:1489) as a
+// QualifiedName.
+func (p *Parser) parseUserTypeQualifiedName() (*ast.QualifiedName, error) {
+	start := p.curLoc()
+	ks, name, err := p.parseUserTypeName()
+	if err != nil {
+		return nil, err
+	}
+	parts := []*ast.Identifier{name}
+	if ks != nil {
+		parts = []*ast.Identifier{ks, name}
+	}
+	return &ast.QualifiedName{Parts: parts, Loc: p.makeLoc(start)}, nil
 }
