@@ -85,6 +85,9 @@ func TestCreateTable_FromArchiveAndBackup(t *testing.T) {
 	if a := stmt.FromArchive; a == nil || a.Table.Normalize() != "S" || a.Alias.Normalize() != "X" || a.Where == nil {
 		t.Errorf("FromArchive = %+v", stmt.FromArchive)
 	}
+	if _, errs := testParseCreateTable("CREATE TRANSIENT TABLE IF NOT EXISTS t FROM ARCHIVE OF s WHERE 1"); len(errs) > 0 {
+		t.Errorf("unexpected errors: %v", errs)
+	}
 	stmt, errs = testParseCreateTable("CREATE TABLE t FROM BACKUP SET bs IDENTIFIER 'b1'")
 	if len(errs) > 0 {
 		t.Fatalf("unexpected errors: %v", errs)
@@ -231,6 +234,19 @@ func TestCreateTableVariants_Rejected(t *testing.T) {
 		"CREATE DYNAMIC TABLE t TARGET_LAG = DOWNSTREAM WAREHOUSE = wh START AT (STREAM => 123) AS SELECT 1",
 		"CREATE DYNAMIC TABLE t TARGET_LAG = DOWNSTREAM WAREHOUSE = wh START AT (OFFSET => 'x') AS SELECT 1",
 		"CREATE DYNAMIC TABLE t TARGET_LAG = DOWNSTREAM WAREHOUSE = wh START AT (OFFSET => 60) AS SELECT 1",
+		// FROM BACKUP SET takes no modifier; FROM ARCHIVE OF only TRANSIENT and IF NOT EXISTS.
+		"CREATE OR REPLACE TABLE t FROM BACKUP SET bs IDENTIFIER 'b1'",
+		"CREATE TEMP TABLE t FROM BACKUP SET bs IDENTIFIER 'b1'",
+		"CREATE TRANSIENT TABLE t FROM BACKUP SET bs IDENTIFIER 'b1'",
+		"CREATE TABLE IF NOT EXISTS t FROM BACKUP SET bs IDENTIFIER 'b1'",
+		"CREATE OR REPLACE TABLE t FROM ARCHIVE OF s WHERE 1",
+		"CREATE TEMP TABLE t FROM ARCHIVE OF s WHERE 1",
+		"CREATE HYBRID TABLE t FROM ARCHIVE OF s WHERE 1",
+		// USING TEMPLATE takes only OR REPLACE and COPY GRANTS.
+		"CREATE TEMP TABLE t USING TEMPLATE (SELECT 1)",
+		"CREATE TABLE IF NOT EXISTS t USING TEMPLATE (SELECT 1)",
+		"CREATE TABLE t CLUSTER BY (a) USING TEMPLATE (SELECT 1)",
+		"CREATE TABLE t COMMENT = 'c' USING TEMPLATE (SELECT 1)",
 		// An interactive table takes only its page's properties.
 		"CREATE INTERACTIVE TABLE t (a INT) CLUSTER BY (a) CHANGE_TRACKING = TRUE AS SELECT 1 AS a",
 		"CREATE INTERACTIVE TABLE t (a INT) CLUSTER BY (a) ENABLE_SCHEMA_EVOLUTION = TRUE AS SELECT 1 AS a",

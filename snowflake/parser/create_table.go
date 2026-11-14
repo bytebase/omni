@@ -444,27 +444,17 @@ func (p *Parser) parseCreateTableBody(stmt *ast.CreateTableStmt) (ast.Node, erro
 		}
 
 	default:
-		// No column list: CTAS, whose CLUSTER BY / COPY clauses come before AS;
-		// [ COPY GRANTS ] USING TEMPLATE ( <query> ); or just table properties
-		// (e.g. CREATE TABLE t COMMENT = '...').
-		if err := p.parseTableProperties(stmt); err != nil {
-			return nil, err
-		}
-		if p.cur.Type == kwUSING && p.peekIsWord("TEMPLATE") {
-			p.advance() // consume USING
-			p.advance() // consume TEMPLATE
-			if _, err := p.expect('('); err != nil {
-				return nil, err
-			}
-			query, err := p.parseQueryExpr()
+		// No column list: [ COPY GRANTS ] USING TEMPLATE ( <query> ); CTAS,
+		// whose CLUSTER BY / COPY clauses come before AS; or just table
+		// properties (e.g. CREATE TABLE t COMMENT = '...').
+		if matched, err := p.tryParseUsingTemplate(stmt); err != nil || matched {
 			if err != nil {
 				return nil, err
 			}
-			if _, err := p.expect(')'); err != nil {
-				return nil, err
-			}
-			stmt.UsingTemplate = query
 			break
+		}
+		if err := p.parseTableProperties(stmt); err != nil {
+			return nil, err
 		}
 		if err := p.parseCreateTableAsQuery(stmt); err != nil {
 			return nil, err
@@ -501,6 +491,45 @@ func (p *Parser) checkInteractiveColumns(stmt *ast.CreateTableStmt) error {
 	return nil
 }
 
+// tryParseUsingTemplate parses
+//
+//	[ COPY GRANTS ] USING TEMPLATE ( <query> )
+//
+// when it follows the table name, and reports whether it did; otherwise it
+// leaves the parser where it was. The page gives this form only OR REPLACE
+// (https://docs.snowflake.com/en/sql-reference/sql/create-table).
+func (p *Parser) tryParseUsingTemplate(stmt *ast.CreateTableStmt) (bool, error) {
+	snap := p.snapshot()
+	copyGrants := false
+	if p.startsCopyGrants() {
+		p.advance() // consume COPY
+		p.advance() // consume GRANTS
+		copyGrants = true
+	}
+	if p.cur.Type != kwUSING || !p.peekIsWord("TEMPLATE") {
+		p.restore(snap)
+		return false, nil
+	}
+	if stmt.OrAlter || stmt.Transient || stmt.Temporary || stmt.Volatile || stmt.Hybrid || stmt.IfNotExists {
+		return false, p.syntaxErrorAtCur()
+	}
+	p.advance() // consume USING
+	p.advance() // consume TEMPLATE
+	if _, err := p.expect('('); err != nil {
+		return false, err
+	}
+	query, err := p.parseQueryExpr()
+	if err != nil {
+		return false, err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return false, err
+	}
+	stmt.CopyGrants = copyGrants
+	stmt.UsingTemplate = query
+	return true, nil
+}
+
 // parseCreateTableAsQuery parses the optional AS <query> that ends a CTAS.
 // An interactive table's every form puts CLUSTER BY before its AS
 // (https://docs.snowflake.com/en/sql-reference/sql/create-interactive-table).
@@ -526,8 +555,13 @@ func (p *Parser) parseCreateTableAsQuery(stmt *ast.CreateTableStmt) error {
 //	FROM ARCHIVE OF <table> [ [ AS ] <alias> ] WHERE <expr>
 //	FROM BACKUP SET <backup_set> IDENTIFIER '<backup_id>'
 //
-// On entry cur is FROM.
+// The page gives FROM BACKUP SET no modifier, and FROM ARCHIVE OF only
+// TRANSIENT and IF NOT EXISTS. On entry cur is FROM.
 func (p *Parser) parseCreateTableFrom(stmt *ast.CreateTableStmt) error {
+	// Modifiers neither form takes.
+	if stmt.OrReplace || stmt.OrAlter || stmt.Temporary || stmt.Volatile || stmt.Hybrid {
+		return p.syntaxErrorAtCur()
+	}
 	p.advance() // consume FROM
 	if p.curIsWord("ARCHIVE") {
 		p.advance() // consume ARCHIVE
@@ -563,6 +597,9 @@ func (p *Parser) parseCreateTableFrom(stmt *ast.CreateTableStmt) error {
 		src.Where = where
 		stmt.FromArchive = src
 		return nil
+	}
+	if stmt.Transient || stmt.IfNotExists {
+		return p.syntaxErrorAtCur()
 	}
 	backup, err := p.parseBackupSource()
 	if err != nil {
