@@ -1,1 +1,9 @@
+# The server and the docs this engine's committed answers come from.
+# default judges compat.tsv and records the tapes: Oracle Database 23ai Free,
+# release 23.26.3 (product_component_version.version_full). docs is the
+# syntax OracleDocs.g4 is converted from: the statement pages of the SQL
+# Language Reference oracle/parser/bnf/ quotes, the SHA-256 of what
+# oracle/parser/cmd/docsgrammar reads of them, and the date they were quoted.
+# columns: role, image, digest, source tag
+default	gvenzl/oracle-free:23.26.3-slim-faststart	sha256:f5ff19033860d662c821cb04eb10483fa94f14f78eae252d054291ea07028093	23.26.3.0.0
 docs	https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/	sha256:c523850bf1fa8fa444fe7cf746e5fb2de3b63fe9c62b16b1bd1c5ab03d0b5b0e	2026-03-15

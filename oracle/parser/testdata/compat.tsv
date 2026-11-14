@@ -1,0 +1,990 @@
+?	?	-	suite:lexer	SELECT a$b, a#c, a_1 FROM dual
+?	?	-	suite:lexer	SELECT "a" FROM dual
+?	?	-	suite:lexer	SELECT 1 "a b" FROM dual
+?	?	-	suite:lexer	SELECT 1 "select" FROM dual
+?	?	-	suite:lexer	SELECT 1 "a""b" FROM dual
+?	?	-	suite:lexer	SELECT 1 "" FROM dual
+?	?	-	suite:lexer	SELECT 1 "a FROM dual
+?	?	-	suite:lexer	SELECT 1 _a FROM dual
+?	?	-	suite:lexer	SELECT 1 $a FROM dual
+?	?	-	suite:lexer	SELECT 1 a.b FROM dual
+?	?	-	suite:lexer	SELECT 1 FROM "DUAL"
+?	?	-	suite:lexer	SELECT 1 FROM dual "d"
+?	?	-	suite:lexer	SELECT dummy FROM sys.dual
+?	?	-	suite:lexer	SELECT dummy FROM "SYS"."DUAL"
+?	?	-	suite:lexer	SELECT 1 FROM dual@a
+?	?	-	suite:lexer	SELECT 'it''s' FROM dual
+?	?	-	suite:lexer	SELECT '' FROM dual
+?	?	-	suite:lexer	SELECT 'a FROM dual
+?	?	-	suite:lexer	SELECT N'a' FROM dual
+?	?	-	suite:lexer	SELECT n'a' FROM dual
+?	?	-	suite:lexer	SELECT q'[a'b]' FROM dual
+?	?	-	suite:lexer	SELECT Q'{a}' FROM dual
+?	?	-	suite:lexer	SELECT q'(a)' FROM dual
+?	?	-	suite:lexer	SELECT q'<a>' FROM dual
+?	?	-	suite:lexer	SELECT q'!a!' FROM dual
+?	?	-	suite:lexer	SELECT q'#a#' FROM dual
+?	?	-	suite:lexer	SELECT nq'[a]' FROM dual
+?	?	-	suite:lexer	SELECT NQ'[a]' FROM dual
+?	?	-	suite:lexer	SELECT q'[a' FROM dual
+?	?	-	suite:lexer	SELECT q'[a)' FROM dual
+?	?	-	suite:lexer	SELECT q' a ' FROM dual
+?	?	-	suite:lexer	SELECT 'a' 'b' FROM dual
+?	?	-	suite:lexer	SELECT 1, 1.5, .5, 1., 1e3, 1E-3, 1.5e+3 FROM dual
+?	?	-	suite:lexer	SELECT 1f, 1.5F, 1d, 2.5D FROM dual
+?	?	-	suite:lexer	SELECT -1, +1 FROM dual
+?	?	-	suite:lexer	SELECT 0x1F FROM dual
+?	?	-	suite:lexer	SELECT 1e FROM dual
+?	?	-	suite:lexer	SELECT 1..2 FROM dual
+?	?	-	suite:lexer	SELECT BINARY_FLOAT_INFINITY, BINARY_DOUBLE_NAN FROM dual
+?	?	-	suite:lexer	SELECT DATE '2026-01-01' FROM dual
+?	?	-	suite:lexer	SELECT TIMESTAMP '2026-01-01 00:00:00' FROM dual
+?	?	-	suite:lexer	SELECT TIMESTAMP '2026-01-01 00:00:00 +00:00' FROM dual
+?	?	-	suite:lexer	SELECT INTERVAL '1' DAY FROM dual
+?	?	-	suite:lexer	SELECT INTERVAL '1-2' YEAR TO MONTH FROM dual
+?	?	-	suite:lexer	SELECT DATE 1 FROM dual
+?	?	-	suite:lexer	SELECT :a FROM dual
+?	?	-	suite:lexer	SELECT :1 FROM dual
+?	?	-	suite:lexer	SELECT :"a b" FROM dual
+?	?	-	suite:lexer	SELECT :a :b FROM dual
+?	?	-	suite:lexer	SELECT : a FROM dual
+?	?	-	suite:lexer	SELECT 1 FROM dual WHERE dummy = :a
+?	?	-	suite:lexer	SELECT 1 FROM dual -- a
+?	?	-	suite:lexer	SELECT 1 /* a */ FROM dual
+?	?	-	suite:lexer	SELECT /* a */ 1 FROM dual
+?	?	-	suite:lexer	SELECT /*+ FULL(d) */ 1 FROM dual d
+?	?	-	suite:lexer	SELECT /*+ */ 1 FROM dual
+?	?	-	suite:lexer	SELECT 1 /* a FROM dual
+?	?	-	suite:lexer	SELECT 1 /* /* a */ */ FROM dual
+?	?	-	suite:lexer	SELECT 1 FROM dual REM a
+?	?	-	suite:lexer	SELECT 1 FROM dual WHERE 1 != 2
+?	?	-	suite:lexer	SELECT 1 FROM dual WHERE 1 ^= 2
+?	?	-	suite:lexer	SELECT 1 FROM dual WHERE 1 <> 2
+?	?	-	suite:lexer	SELECT 1 FROM dual WHERE 1 ~= 2
+?	?	-	suite:lexer	SELECT 1 FROM dual WHERE 1 < > 2
+?	?	-	suite:lexer	SELECT 1 FROM dual WHERE 1 ! = 2
+?	?	-	suite:lexer	SELECT 'a' || 'b' FROM dual
+?	?	-	suite:lexer	SELECT 'a' | | 'b' FROM dual
+?	?	-	suite:lexer	SELECT 1 FROM dual WHERE 1 >= 2 AND 1 <= 2
+?	?	-	suite:lexer	select 1 from DUAL
+?	?	-	suite:lexer	SELECT	1	FROM	dual
+?	?	-	suite:lexer	SELECT 1 FROM dual;
+?	?	-	suite:lexer	SELECT 1 FROM dual;;
+?	?	-	suite:lexer	SELECT 1 FROM dual /
+?	?	-	suite:lexer	SELECT 1 FROM dual @
+?	?	-	suite:lexer	SELECT 1 FROM dual ~
+?	?	-	suite:lexer	SELECT 1 FROM dual \
+?	?	-	suite:lexer	SELECT 1 FROM dual `
+?	?	-	suite:reference	SELECT 1 FROM dual
+?	?	-	suite:reference	SELECT a FROM t WHERE a BETWEEN 1 AND 2
+?	?	-	suite:reference	SELECT 1 +
+?	?	-	suite:reference	SELECT * FROM
+?	?	-	suite:reference	SELECT 1 FETCH FIRST 1
+?	?	-	suite:reference	INSERT INTO t (a) VALUES (1)
+?	?	-	suite:reference	INSERT INTO t VALUES (1,
+?	?	-	suite:reference	UPDATE t SET a = 1 WHERE id = 2
+?	?	-	suite:reference	UPDATE t SET a =
+?	?	-	suite:reference	DELETE FROM t WHERE id = 1
+?	?	-	suite:reference	DELETE FROM t WHERE
+?	?	-	suite:reference	MERGE INTO t USING s ON (t.id = s.id) WHEN MATCHED THEN UPDATE SET t.x = s.x
+?	?	-	suite:reference	MERGE INTO t USING s ON (t.id = s.id) WHEN
+?	?	-	suite:reference	CREATE TABLE omni_ref_R1 (a NUMBER)
+?	?	-	suite:reference	CREATE TABLE omni_bad_R1 (a NUMBER
+?	?	-	suite:reference	CREATE INDEX omni_idx_R1 ON t(a)
+?	?	-	suite:reference	CREATE INDEX idx ON
+?	?	-	suite:reference	BEGIN NULL; END;
+?	?	-	suite:reference	BEGIN NULL;
+?	?	-	suite:reference	CREATE TABLE SELECT (a NUMBER)
+?	?	-	suite:reference	CREATE USER omni_user_R1 IDENTIFIED BY "Temp#12345"
+?	?	-	suite:reference	CREATE USER IDENTIFIED BY "Temp#12345"
+?	?	-	suite:reference	ALTER TABLE omni_ref_R1 ADD (b NUMBER)
+?	?	-	suite:reference	ALTER TABLE ADD (b NUMBER)
+?	?	-	suite:reference	CREATE TABLE omni_ct_R1 (a NUMBER) INMEMORY
+?	?	-	suite:reference	CREATE TABLE omni_bad_ct_R1 (a NUMBER) LOB STORE AS secure_lob
+?	?	-	suite:reference	CREATE INDEX omni_idx_p2_R1 ON omni_ref_R1(a) LOCAL
+?	?	-	suite:reference	CREATE INDEX omni_bad_idx_R1 ON omni_ref_R1(a) STORAGE INITIAL 1M
+?	?	-	suite:reference	CREATE TYPE omni_obj_R1 AS OBJECT (MEMBER FUNCTION f RETURN NUMBER);
+?	?	-	suite:reference	CREATE TYPE BODY omni_obj_R1 AS MEMBER FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END;
+?	?	-	suite:reference	CREATE DOMAIN omni_domain_R1 AS NUMBER
+?	?	-	suite:reference	CREATE DOMAIN AS NUMBER
+?	?	-	suite:reference	CREATE ANALYTIC VIEW USING sales_fact
+?	?	-	suite:reference	CREATE SEQUENCE omni_seq_R1_a START WITH 1 INCREMENT BY 1 CACHE 20 NOORDER NOCYCLE NOKEEP NOSCALE GLOBAL
+?	?	-	suite:reference	CREATE SEQUENCE omni_seq_R1_b KEEP SCALE EXTEND SESSION
+?	?	-	suite:reference	CREATE SEQUENCE IF NOT EXISTS omni_seq_R1_c SHARING = NONE START WITH 1
+?	?	-	suite:reference	CREATE SEQUENCE omni_seq_R1_d KEEP NOKEEP
+?	?	-	suite:reference	CREATE SEQUENCE omni_seq_R1_e CACHE 5 NOCACHE
+?	?	-	suite:reference	CREATE SEQUENCE omni_seq_R1_f START WITH 1 SHARING = NONE
+?	?	-	suite:reference	CREATE SEQUENCE omni_seq_R1_g IF NOT EXISTS
+?	?	-	suite:reference	SELECT offset, partition FROM t_offset
+?	?	-	suite:reference	SELECT t.offset FROM t_offset t WHERE offset > 0 ORDER BY offset OFFSET 1 ROWS
+?	?	-	suite:reference	UPDATE t_offset SET offset = 1 WHERE offset > 0
+?	?	-	suite:reference	CREATE INDEX omni_idx_off_R1 ON t_offset (a, offset)
+?	?	-	suite:reference	DECLARE TYPE nt IS TABLE OF NUMBER; x nt; y nt; BEGIN SELECT a, b BULK COLLECT INTO x, y FROM t; END;
+?	?	-	suite:reference	DECLARE TYPE nt IS TABLE OF NUMBER; x nt; y nt; BEGIN DELETE FROM t RETURNING a, b BULK COLLECT INTO x, y; END;
+?	?	-	suite:reference	DECLARE TYPE nt IS TABLE OF NUMBER; x nt; y nt; BEGIN EXECUTE IMMEDIATE 'SELECT a, b FROM t' BULK COLLECT INTO x, y; END;
+?	?	-	suite:reference	DECLARE TYPE nt IS TABLE OF NUMBER; y nt; BEGIN EXECUTE IMMEDIATE 'DELETE FROM t WHERE a = :1 RETURNING b INTO :2' USING 1 RETURNING BULK COLLECT INTO y; END;
+?	?	-	suite:reference	DECLARE TYPE nt IS TABLE OF NUMBER; x nt; BEGIN SELECT a BULK COLLECT x FROM t; END;
+?	?	-	suite:reference	CREATE OR REPLACE FUNCTION omni_jfn_R1 (p IN VARCHAR2) RETURN VARCHAR2 AS LANGUAGE JAVA NAME 'X.y(java.lang.String) return java.lang.String';
+?	?	-	suite:reference	CREATE OR REPLACE PACKAGE omni_jpk_R1 AS FUNCTION f RETURN NUMBER AS LANGUAGE JAVA NAME 'X.f() return int'; PROCEDURE p; END;
+?	?	-	suite:reference	CREATE OR REPLACE FUNCTION omni_cfn_R1 (p IN BINARY_INTEGER) RETURN BINARY_INTEGER AS LANGUAGE C LIBRARY omni_lib NAME "c_f" WITH CONTEXT PARAMETERS (CONTEXT, p INT, RETURN INT);
+?	?	-	suite:reference	CREATE OR REPLACE FUNCTION omni_bad_jfn_R1 RETURN VARCHAR2 AS LANGUAGE JAVA NAME "X.y() return java.lang.String";
+?	?	-	suite:reference	CREATE OR REPLACE FUNCTION omni_bad_cfn_R1 (p IN BINARY_INTEGER) RETURN BINARY_INTEGER AS LANGUAGE C LIBRARY omni_lib PARAMETERS ();
+?	?	-	suite:reference	CREATE OR REPLACE PROCEDURE omni_extp_R1 AS EXTERNAL LANGUAGE C NAME "c_p" LIBRARY omni_lib;
+?	?	-	suite:reference	CREATE OR REPLACE PROCEDURE omni_extq_R1 AS EXTERNAL CALLING STANDARD PASCAL LIBRARY omni_lib;
+?	?	-	suite:reference	CREATE OR REPLACE PROCEDURE omni_bad_extp_R1 AS EXTERNAL LIBRARY omni_lib LANGUAGE PASCAL;
+?	?	-	suite:reference	DECLARE TYPE nt IS TABLE OF NUMBER; x nt; BEGIN EXECUTE IMMEDIATE 'SELECT a FROM t' BULK COLLECT INTO; END;
+?	?	-	suite:reference	DECLARE v NUMBER; BEGIN EXECUTE IMMEDIATE 'SELECT a FROM t' INTO; END;
+?	?	-	suite:reference	DECLARE v NUMBER; BEGIN EXECUTE IMMEDIATE 'BEGIN NULL; END;' USING; END;
+?	?	-	suite:reference	DECLARE v NUMBER := 1; w NUMBER; BEGIN EXECUTE IMMEDIATE 'BEGIN :1 := :2 + 1; END;' USING OUT w, IN v; END;
+?	?	-	suite:reference	CREATE OR REPLACE FUNCTION omni_nosemi_jfn_R1 RETURN VARCHAR2 AS LANGUAGE JAVA NAME 'X.y() return java.lang.String'
+?	?	-	suite:reference	CREATE OR REPLACE PROCEDURE omni_extpa_R1 (x IN BINARY_INTEGER) AS LANGUAGE C LIBRARY omni_lib PARAMETERS (x, x INDICATOR IN INT, x LENGTH BY VALUE INT);
+?	?	-	suite:reference	CREATE OR REPLACE PROCEDURE omni_bad_extpa_R1 (x IN OUT BINARY_INTEGER) AS LANGUAGE C LIBRARY omni_lib PARAMETERS (x BY REFERENCE BY REFERENCE INT);
+?	?	-	suite:reference	CREATE OR REPLACE PROCEDURE omni_bad_agent_R1 (x IN BINARY_INTEGER, y IN BINARY_INTEGER) AS LANGUAGE C LIBRARY omni_lib AGENT IN (x, y);
+?	?	-	suite:reference	CREATE OR REPLACE TYPE omni_tsm_R1 AS OBJECT (a NUMBER, MEMBER FUNCTION f RETURN NUMBER AS LANGUAGE JAVA NAME 'X.f() return int', STATIC PROCEDURE s, PRAGMA RESTRICT_REFERENCES (f, WNDS)) NOT FINAL
+?	?	-	suite:reference	CREATE OR REPLACE TYPE omni_bad_tsm_R1 AS OBJECT (a NUMBER, MEMBER FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END)
+?	?	-	suite:reference	CREATE OR REPLACE TYPE omni_bad_tsn_R1 AS OBJECT (map NUMBER)
+?	?	-	suite:reference	CREATE SEQUENCE omni_seq_R1_q "NOKEEP"
+?	?	-	suite:reference	CREATE SEQUENCE omni_seq_R1_r SCALE "EXTEND"
+?	?	-	suite:reference	CREATE JAVA "SOURCE" NAMED omni_jq_R1 AS class X {}
+?	?	-	suite:reference	CREATE JAVA SOURCE NAMED omni_jg_R1 garbage AS class X {}
+?	?	-	suite:reference	CREATE OR REPLACE FUNCTION omni_mle_mod_R1 RETURN NUMBER AS MLE MODULE omni_missing_mod ENV omni_missing_env SIGNATURE 'f()';
+?	?	-	suite:reference	CREATE OR REPLACE FUNCTION omni_bad_mle_sig_R1 RETURN NUMBER AS MLE MODULE omni_missing_mod;
+?	?	-	suite:reference	CREATE OR REPLACE FUNCTION omni_bad_mle_end_R1 RETURN NUMBER AS MLE MODULE omni_missing_mod SIGNATURE 'f()'
+?	?	-	suite:reference	CREATE OR REPLACE FUNCTION omni_bad_mle_var_R1 RETURN NUMBER IS mle NUMBER; BEGIN mle := 1; RETURN mle; END;
+?	?	-	suite:reference	CREATE OR REPLACE FUNCTION omni_bad_ext_var_R1 RETURN NUMBER IS external NUMBER; BEGIN external := 1; RETURN external; END;
+?	?	-	suite:reference	CREATE OR REPLACE FUNCTION omni_mle_qvar_R1 RETURN NUMBER IS "MLE" NUMBER; BEGIN "MLE" := 1; RETURN "MLE"; END;
+?	?	-	suite:reference	CREATE OR REPLACE TYPE omni_tsmle_R1 AS OBJECT (a NUMBER, MEMBER FUNCTION f RETURN NUMBER AS MLE MODULE omni_missing_mod SIGNATURE 'f()')
+?	?	-	suite:reference	CREATE OR REPLACE TYPE omni_bad_tse_R1 AS OBJECT (a NUMBER, MEMBER FUNCTION f RETURN NUMBER AS EXTERNAL LIBRARY omni_lib)
+?	?	-	suite:reference	CREATE OR REPLACE TYPE omni_bad_tsr_R1 AS OBJECT (a NUMBER, MEMBER FUNCTION f)
+?	?	-	suite:reference	CREATE OR REPLACE TYPE omni_bad_tsp_R1 AS OBJECT (a NUMBER, MEMBER PROCEDURE)
+?	?	-	suite:reference	CREATE JAVA IF NOT EXISTS SOURCE NAMED omni_jine_R1 AS class X {}
+?	?	-	suite:reference	CREATE IF NOT EXISTS JAVA SOURCE NAMED omni_jinb_R1 AS class X {}
+?	?	-	suite:reference	CREATE JAVA CLASS SCHEMA omni_s IF NOT EXISTS USING BFILE (omni_d, 'x.class')
+?	?	-	suite:reference	CREATE JAVA SOURCE IF EXISTS NAMED omni_jie_R1 AS class X {}
+?	?	-	suite:reference	CREATE OR REPLACE JAVA SOURCE IF NOT EXISTS NAMED omni_jor_R1 AS class X {}
+?	?	-	suite:reference	CREATE OR REPLACE TYPE omni_bad_ctor_R1 AS OBJECT (a NUMBER, CONSTRUCTOR FUNCTION omni_bad_ctor_R1 RETURN SELF)
+?	?	-	suite:reference	CREATE OR REPLACE TYPE omni_bad_ctas_R1 AS OBJECT (a NUMBER, CONSTRUCTOR FUNCTION omni_bad_ctas_R1 RETURN SELF AS)
+?	?	-	suite:reference	CREATE OR REPLACE PROCEDURE omni_bad_lang_R1 AS LANGUAGE PYTHON;
+?	?	-	suite:reference	CREATE OR REPLACE FUNCTION omni_cs_names_R1 (language IN VARCHAR2, wrapped NUMBER) RETURN NUMBER IS x NUMBER; external NUMBER; mle NUMBER; BEGIN RETURN 1; END;
+?	?	-	suite:reference	CREATE OR REPLACE TYPE omni_bad_novr_R1 AS OBJECT (a NUMBER, NOT OVERRIDING MEMBER FUNCTION f RETURN NUMBER) NOT FINAL
+?	?	-	suite:reference	CREATE OR REPLACE TYPE omni_bad_fovr_R1 AS OBJECT (a NUMBER, FINAL OVERRIDING MEMBER FUNCTION f RETURN NUMBER)
+?	?	-	suite:reference	CREATE OR REPLACE TYPE omni_ninf_R1 AS OBJECT (a NUMBER, NOT INSTANTIABLE NOT FINAL MEMBER FUNCTION f RETURN NUMBER) NOT FINAL NOT INSTANTIABLE
+?	?	-	suite:reference	SELECT CASE NOT TRUE WHEN TRUE THEN 1 ELSE 0 END FROM dual
+?	?	-	suite:reference	SELECT 1 FROM t, s WHERE systimestamp(+) = s.x
+?	?	-	suite:reference	SELECT a FROM t_kwcol ORDER BY case NULLS FIRST
+?	?	-	suite:reference	SELECT a FROM t_kwcol ORDER BY case DESC NULLS LAST
+?	?	-	suite:reference	SELECT a FROM t_kwcol WHERE case LIKEC '1%'
+?	?	-	suite:reference	SELECT CASE nulls WHEN 1 THEN 2 END FROM t_kwcol
+?	?	-	suite:reference	SELECT CASE likec WHEN 'x' THEN 2 END FROM t_kwcol
+?	?	-	suite:reference	SELECT CASE likec = 'x' WHEN TRUE THEN 1 ELSE 0 END FROM t_kwcol
+?	?	-	suite:reference	SELECT k, j, v FROM (SELECT 1 k, 1 j, 10 v FROM dual) MODEL DIMENSION BY (k, j) MEASURES (v) RULES (v[2, 1] = CASE v[1, 1] WHEN 10 THEN 20 END)
+?	?	-	suite:reference	SELECT k, case FROM (SELECT 1 k, 10 v FROM dual) MODEL DIMENSION BY (k) MEASURES (v case) RULES (case[2] = CASE case[1] WHEN 10 THEN 20 END)
+?	?	-	suite:reference	BEGIN SAVEPOINT s; ROLLBACK TO SAVEPOINT s; ROLLBACK WORK; COMMIT WORK; SET TRANSACTION READ ONLY; COMMIT; END;
+?	?	-	suite:reference	BEGIN LOCK TABLE t IN EXCLUSIVE MODE NOWAIT; ROLLBACK; END;
+?	?	-	suite:reference	DECLARE PROCEDURE pr (x VARCHAR2) IS BEGIN NULL; END; BEGIN PRAGMA INLINE (pr, 'YES'); pr('a'); PRAGMA COVERAGE ('NOT_FEASIBLE'); NULL; END;
+?	?	-	suite:reference	BEGIN PRAGMA AUTONOMOUS_TRANSACTION; NULL; END;
+?	?	-	suite:reference	BEGIN NULL END;
+?	?	-	suite:reference	BEGIN IF 1 = 1 THEN NULL; END IF END;
+?	?	-	suite:reference	BEGIN BEGIN NULL; END END;
+?	?	-	suite:reference	BEGIN NULL;; END;
+?	?	-	suite:reference	DECLARE x NUMBER y NUMBER; BEGIN NULL; END;
+?	?	-	suite:reference	DECLARE x NUMBER;; BEGIN NULL; END;
+?	?	-	suite:reference	CREATE OR REPLACE PROCEDURE omni_nosemi_p_R1 AS BEGIN NULL; END
+?	?	-	suite:reference	CREATE OR REPLACE PACKAGE omni_nosemi_pk_R1 AS PROCEDURE q; END
+?	?	-	suite:reference	CREATE OR REPLACE PACKAGE omni_semi_pk_R1 AS c CONSTANT PLS_INTEGER := 1;; END;
+?	?	-	suite:reference	CREATE OR REPLACE PACKAGE omni_noitem_pk_R1 AS c CONSTANT PLS_INTEGER := 1; 42; END;
+?	?	-	suite:reference	DECLARE SUBTYPE s IS PLS_INTEGER RANGE 0 .. 3 NOT NULL; SUBTYPE v IS VARCHAR2(10); SUBTYPE n IS NUMBER(8, 2); x s := 1; BEGIN NULL; END;
+?	?	-	suite:reference	DECLARE SUBTYPE n IS NUMBER 8, 2; BEGIN NULL; END;
+?	?	-	suite:reference	DECLARE SUBTYPE s IS PLS_INTEGER RANGE 1; BEGIN NULL; END;
+?	?	-	suite:reference	DECLARE v VARCHAR2(ORA_MAX_NAME_LEN + 2); r RAW(2 * 8); c CHAR(ORA_MAX_NAME_LEN BYTE); BEGIN NULL; END;
+?	?	-	suite:reference	DECLARE v VARCHAR2(10 x); BEGIN NULL; END;
+?	?	-	suite:reference	DECLARE TYPE a IS TABLE OF NUMBER NOT NULL INDEX BY PLS_INTEGER; TYPE b IS VARRAY(3) OF BLOB NOT NULL; TYPE c IS TABLE OF VARCHAR2(ORA_MAX_NAME_LEN) NOT NULL; BEGIN NULL; END;
+?	?	-	suite:reference	CREATE OR REPLACE PACKAGE omni_subtype_pk_R1 AS SUBTYPE s IS PLS_INTEGER RANGE 1 .. 31; c CONSTANT PLS_INTEGER := 10; TYPE r IS RECORD (a VARCHAR2(c), b NUMBER(c, 2)); END;
+?	?	-	suite:reference	DECLARE TYPE e IS (a, b); BEGIN NULL; END;
+?	?	-	suite:reference	BEGIN <<l>> BEGIN NULL; END l; <<m>> LOOP EXIT; END LOOP m; BEGIN NULL; END loop; BEGIN NULL; END type; END;
+?	?	-	suite:reference	BEGIN BEGIN NULL; END if; END;
+?	?	-	suite:reference	DECLARE x NUMBER; BEGIN CASE WHEN 1 = 1 THEN NULL x := 1; END CASE; END;
+?	?	-	suite:reference	BEGIN CASE 1 WHEN 1 THEN NULL; END; END;
+?	?	-	suite:reference	BEGIN IF 1 = 1 THEN NULL; END; END;
+?	?	-	suite:reference	BEGIN END;
+?	?	-	suite:reference	BEGIN IF 1 = 1 THEN NULL; ELSE END IF; END;
+?	?	-	suite:reference	BEGIN NULL; EXCEPTION WHEN OTHERS NULL; END;
+?	?	-	suite:reference	DECLARE x NUMBER; BEGIN <<l>> CASE WHEN 1 = 1 THEN NULL; x := 1; ELSE x := 2; END CASE l; <<m>> IF x = 1 THEN NULL; END IF m; END;
+?	?	-	suite:reference	BEGIN LOCK t IN EXCLUSIVE MODE; END;
+?	?	-	suite:reference	LOCK t IN EXCLUSIVE MODE
+?	?	-	suite:reference	DECLARE v VARCHAR2(CAST(1 AS NUMBER(foo))); BEGIN NULL; END;
+?	?	-	suite:reference	DECLARE SUBTYPE s IS PLS_INTEGER RANGE 1 .. ; BEGIN NULL; END;
+?	?	-	suite:reference	LOCK TABLE t IN FOO MODE
+?	?	-	suite:reference	LOCK TABLE t IN SHARE EXCLUSIVE MODE
+?	?	-	suite:reference	LOCK TABLE t IN EXCLUSIVE MODE WAIT
+?	?	-	suite:reference	LOCK TABLE t IN EXCLUSIVE MODE WAIT 2.5
+?	?	-	suite:reference	LOCK TABLE t PARTITION (p1, p2) IN EXCLUSIVE MODE
+?	?	-	suite:reference	BEGIN LOCK TABLE t IN SHARE UPDATE MODE WAIT 5; ROLLBACK; END;
+?	?	-	suite:reference	BEGIN LOCK TABLE t IN FOO MODE; END;
+?	?	-	suite:reference	CREATE OR REPLACE PROCEDURE omni_ab_R1 (a NUMBER) AUTHID DEFINER ACCESSIBLE BY (PACKAGE omni_x, PROCEDURE omni_y, FUNCTION omni_z, TRIGGER omni_t, TYPE omni_ty, omni_plain, omni_s.omni_q) IS BEGIN NULL; END;
+?	?	-	suite:reference	CREATE OR REPLACE PACKAGE omni_abk_R1 ACCESSIBLE BY (omni_x) AUTHID CURRENT_USER AS PROCEDURE p ACCESSIBLE BY (PACKAGE omni_x); FUNCTION f RETURN NUMBER ACCESSIBLE BY (omni_y); END;
+?	?	-	suite:reference	CREATE OR REPLACE PROCEDURE omni_bad_ab_R1 ACCESSIBLE BY (PACKAGE) IS BEGIN NULL; END;
+?	?	-	suite:reference	CREATE OR REPLACE FUNCTION omni_bad_abl_R1 RETURN NUMBER ACCESSIBLE BY (omni_x@omni_lnk) IS BEGIN RETURN 1; END;
+?	?	-	suite:reference	CREATE OR REPLACE FUNCTION omni_agg_R1 (x NUMBER) RETURN NUMBER DETERMINISTIC AGGREGATE USING omni_s.omni_impl;
+?	?	-	suite:reference	CREATE OR REPLACE FUNCTION omni_pip_R1 (c SYS_REFCURSOR) RETURN omni_tab PIPELINED PARALLEL_ENABLE (PARTITION c BY ANY) USING omni_impl;
+?	?	-	suite:reference	CREATE OR REPLACE FUNCTION omni_bad_agg_R1 (x NUMBER) RETURN NUMBER AGGREGATE USING omni_impl IS BEGIN RETURN 1; END;
+?	?	-	suite:reference	CREATE OR REPLACE FUNCTION omni_bad_pip_R1 RETURN omni_tab USING omni_impl PIPELINED;
+?	?	-	suite:reference	CREATE OR REPLACE FUNCTION omni_par_R1 (c omni_rcpkg.rc) RETURN omni_tab PIPELINED PARALLEL_ENABLE (PARTITION c BY HASH (a, b)) ORDER c BY (a) CLUSTER c BY (b) IS BEGIN RETURN; END;
+?	?	-	suite:reference	CREATE OR REPLACE FUNCTION omni_bad_par_R1 (c SYS_REFCURSOR) RETURN omni_tab PARALLEL_ENABLE (PARTITION c BY LIST (a)) IS BEGIN RETURN; END;
+?	?	-	suite:reference	CREATE OR REPLACE FUNCTION omni_ptf_R1 (t TABLE) RETURN TABLE PIPELINED ROW POLYMORPHIC USING omni_pkg;
+?	?	-	suite:reference	CREATE OR REPLACE FUNCTION omni_rc_R1 RETURN NUMBER RESULT_CACHE RELIES_ON (omni_t1, omni_s.omni_t2) IS BEGIN RETURN 1; END;
+?	?	-	suite:reference	CREATE OR REPLACE FUNCTION omni_bad_sm_R1 RETURN VARCHAR2 SQL_MACRO (foo) IS BEGIN RETURN 'x'; END;
+?	?	-	suite:reference	CREATE OR REPLACE FUNCTION omni_cs_R1 (p IN VARCHAR2 CHARACTER SET ANY_CS, q IN OUT NOCOPY CLOB CHARACTER SET ANY_CS) RETURN VARCHAR2 CHARACTER SET p%CHARSET IS v VARCHAR2(10) CHARACTER SET p%CHARSET; BEGIN RETURN p; END;
+?	?	-	suite:reference	CREATE OR REPLACE PROCEDURE omni_bad_cs_R1 (p VARCHAR2 CHARACTER SET p%TYPE) IS BEGIN NULL; END;
+?	?	-	suite:reference	CREATE OR REPLACE PROCEDURE omni_bad_len_R1 (p VARCHAR2(10)) IS BEGIN NULL; END;
+?	?	-	suite:reference	CREATE OR REPLACE FUNCTION omni_bad_ret_R1 RETURN NUMBER(5) IS BEGIN RETURN 1; END;
+?	?	-	suite:reference	DECLARE CURSOR c (q VARCHAR2(10)) IS SELECT 1 FROM dual; BEGIN NULL; END;
+?	?	-	suite:reference	CREATE OR REPLACE PROCEDURE omni_unc_R1 (p TIMESTAMP WITH TIME ZONE, q INTERVAL DAY TO SECOND, r LONG RAW, s RAW) IS BEGIN NULL; END;
+?	?	-	suite:reference	CREATE OR REPLACE FUNCTION omni_bad_ro_R1 RETURN NUMBER RESULT_CACHE RELIES_ON (omni_t1,) IS BEGIN RETURN 1; END;
+?	?	-	suite:reference	CREATE OR REPLACE PROCEDURE omni_bad_qab_R1 "ACCESSIBLE" BY (omni_x) IS BEGIN NULL; END;
+?	?	-	suite:reference	CREATE OR REPLACE FUNCTION omni_bad_impl_R1 (x NUMBER) RETURN NUMBER AGGREGATE USING omni_impl.;
+?	?	-	suite:reference	CREATE OR REPLACE FUNCTION omni_ptfb_R1 (t TABLE) RETURN TABLE PIPELINED ROW POLYMORPHIC IS BEGIN RETURN NULL; END;
+?	?	-	suite:reference	CREATE OR REPLACE FUNCTION omni_retdt_R1 RETURN pipelined.using IS BEGIN RETURN NULL; END;
+?	?	-	suite:reference	CREATE OR REPLACE PROCEDURE omni_bad_abr_R1 ACCESSIBLE BY (SELECT) IS BEGIN NULL; END;
+?	?	-	suite:reference	CREATE OR REPLACE FUNCTION omni_bad_ror_R1 RETURN NUMBER RESULT_CACHE RELIES_ON (BEGIN) IS BEGIN RETURN 1; END;
+?	?	-	suite:reference	CREATE OR REPLACE PROCEDURE omni_abn_R1 ACCESSIBLE BY (loop, "SELECT") IS BEGIN NULL; END;
+?	?	-	suite:reference	CREATE OR REPLACE FUNCTION omni_agg2_R1 (a NUMBER, b IN OUT NUMBER) RETURN NUMBER AGGREGATE USING omni_impl;
+?	?	-	suite:reference	CREATE OR REPLACE FUNCTION omni_smn_R1 RETURN NVARCHAR2 SQL_MACRO IS BEGIN RETURN NULL; END;
+?	?	-	suite:reference	CREATE OR REPLACE FUNCTION omni_bad_ptk_R1 (t TABLE) RETURN TABLE PIPELINED POLYMORPHIC USING omni_pkg;
+?	?	-	suite:reference	DECLARE FUNCTION f (t TABLE) RETURN TABLE PIPELINED ROW POLYMORPHIC IS BEGIN RETURN NULL; END; BEGIN NULL; END;
+?	?	-	suite:reference	CREATE OR REPLACE FUNCTION omni_sma_R1 (a VARCHAR2) RETURN VARCHAR2 SQL_MACRO AGGREGATE USING omni_impl;
+?	?	-	suite:reference	CREATE OR REPLACE FUNCTION omni_bad_qpoly_R1 (t TABLE) RETURN TABLE PIPELINED ROW "POLYMORPHIC" USING omni_pkg;
+?	?	-	suite:reference	CREATE OR REPLACE PACKAGE omni_bad_qcoll_R1 DEFAULT "COLLATION" USING_NLS_COMP AS PROCEDURE p; END;
+?	?	-	suite:reference	CREATE OR REPLACE PROCEDURE omni_qtab_R1 (a "TABLE") IS BEGIN NULL; END;
+?	?	-	suite:reference	CREATE OR REPLACE PROCEDURE omni_bad_aid_R1 AUTHID CURRENT USER IS BEGIN NULL; END;
+?	?	-	suite:reference	CREATE OR REPLACE PROCEDURE omni_qaid_R1 AUTHID "CURRENT_USER" IS BEGIN NULL; END;
+?	?	-	suite:reference	CREATE OR REPLACE PACKAGE omni_quoted_R1 AS SUBTYPE "NUMBER" IS VARCHAR2(100); FUNCTION m RETURN "NUMBER" SQL_MACRO; SUBTYPE "CLOB" IS NUMBER; FUNCTION r RETURN "CLOB" RESULT_CACHE; END;
+?	?	-	suite:reference	DECLARE FUNCTION f RETURN NUMBER RESULT_CACHE IS BEGIN RETURN 1; END; BEGIN NULL; END;
+?	?	-	suite:reference	DECLARE FUNCTION f RETURN NUMBER PARALLEL_ENABLE IS BEGIN RETURN 1; END; BEGIN NULL; END;
+?	?	-	suite:reference	DECLARE CURSOR c (a NUMBER, b VARCHAR2 CHARACTER SET a%CHARSET) IS SELECT 1 FROM dual; BEGIN NULL; END;
+?	?	-	suite:reference	DECLARE CURSOR c (a VARCHAR2, b VARCHAR2 CHARACTER SET a%CHARSET) IS SELECT 1 FROM dual; BEGIN NULL; END;
+?	?	-	suite:reference	CREATE OR REPLACE TYPE omni_tyf_R1 FORCE AS OBJECT (a NUMBER)
+?	?	-	suite:reference	CREATE OR REPLACE TYPE omni_tyh_R1 SHARING = NONE FORCE AUTHID CURRENT_USER ACCESSIBLE BY (PACKAGE omni_x) AS OBJECT (a NUMBER) NOT FINAL
+?	?	-	suite:reference	CREATE OR REPLACE TYPE omni_tyi_R1
+?	?	-	suite:reference	CREATE OR REPLACE TYPE omni_tyu_R1 UNDER omni_missing_base (b NUMBER, MEMBER FUNCTION f RETURN NUMBER) NOT FINAL
+?	?	-	suite:reference	CREATE OR REPLACE TYPE omni_tyue_R1 UNDER omni_missing_base ()
+?	?	-	suite:reference	CREATE OR REPLACE TYPE omni_tyc_R1 AS TABLE OF (NUMBER NOT NULL) NOT PERSISTABLE
+?	?	-	suite:reference	CREATE OR REPLACE TYPE omni_tyv_R1 AS VARYING ARRAY(3) OF VARCHAR2(ORA_MAX_NAME_LEN) NOT NULL
+?	?	-	suite:reference	CREATE OR REPLACE TYPE omni_tya_R1 AS OBJECT (a CHARACTER(1 BYTE), b CHARACTER VARYING(3), c NATIONAL CHARACTER VARYING(3), d DOUBLE PRECISION, e VARCHAR2(ORA_MAX_NAME_LEN), f VARCHAR2(10) CHARACTER SET NCHAR_CS, g REF omni_missing_t, h CHARACTER LARGE OBJECT)
+?	?	-	suite:reference	CREATE TABLE omni_ansi_R1 (a CHARACTER(1 BYTE), b DOUBLE PRECISION, c NATIONAL CHARACTER VARYING(3), d NCHAR VARYING(3), e LONG VARCHAR)
+?	?	-	suite:reference	CREATE OR REPLACE TYPE omni_bad_tyf_R1 FORCE
+?	?	-	suite:reference	CREATE OR REPLACE TYPE omni_bad_tyo_R1 OBJECT (a NUMBER)
+?	?	-	suite:reference	CREATE OR REPLACE TYPE omni_bad_tyu_R1 AS UNDER omni_x (b NUMBER)
+?	?	-	suite:reference	CREATE OR REPLACE TYPE omni_bad_tyn_R1 UNDER omni_x
+?	?	-	suite:reference	CREATE OR REPLACE TYPE omni_bad_typ_R1 AS TABLE OF NUMBER NOT PERSISTABLE
+?	?	-	suite:reference	CREATE OR REPLACE TYPE omni_bad_tyfo_R1 AUTHID DEFINER FORCE AS OBJECT (a NUMBER)
+?	?	-	suite:reference	CREATE OR REPLACE TYPE omni_bad_tys_R1 SHARING NONE AS OBJECT (a NUMBER)
+?	?	-	suite:reference	CREATE OR REPLACE TYPE omni_bad_tyd_R1 AS OBJECT (a DOUBLE)
+?	?	-	suite:reference	CREATE OR REPLACE TYPE BODY omni_bad_tyb_R1 MEMBER FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END; END;
+?	?	-	suite:reference	CREATE TABLE omni_bad_long_R1 (a LONG RAW(10))
+?	?	-	suite:reference	CREATE TABLE omni_bad_clo_R1 (a CHARACTER LARGE OBJECT)
+?	?	-	suite:reference	CREATE OR REPLACE PACKAGE BODY omni_pi_R1 AS PROCEDURE p IS BEGIN NULL; END; BEGIN NULL; EXCEPTION WHEN OTHERS THEN NULL; END;
+?	?	-	suite:reference	CREATE OR REPLACE PACKAGE BODY omni_bad_pi_R1 AS PROCEDURE p IS BEGIN NULL; END; BEGIN END;
+?	?	-	suite:reference	CREATE OR REPLACE PACKAGE omni_bad_pis_R1 AS c NUMBER; BEGIN NULL; END;
+?	?	-	suite:reference	CREATE OR REPLACE TYPE BODY omni_tbm_R1 AS FINAL INSTANTIABLE CONSTRUCTOR FUNCTION omni_tbm_R1 (x NUMBER) RETURN SELF AS RESULT IS BEGIN RETURN; END; END;
+?	?	-	suite:reference	CREATE OR REPLACE TYPE BODY omni_bad_tbm_R1 AS FINAL END;
+?	?	-	suite:reference	DECLARE n NUMBER; BEGIN FOR i IN 1..SQL%BULK_EXCEPTIONS.COUNT LOOP n := SQL%BULK_EXCEPTIONS(i).ERROR_CODE + SQL%BULK_ROWCOUNT(i); END LOOP; END;
+?	?	-	suite:reference	DECLARE n NUMBER; BEGIN n := SQL%BULK_EXCEPTIONS(1, 2).ERROR_CODE; END;
+?	?	-	suite:reference	CREATE TABLE omni_bad_refty_R1 (x REF omni_u%TYPE)
+?	?	-	suite:reference	CREATE TABLE omni_bad_vary_R1 (x CHARACTER VARYING)
+?	?	-	suite:reference	CREATE OR REPLACE TYPE omni_tyvs_R1 AS OBJECT (x CHARACTER VARYING, y NATIONAL CHARACTER VARYING)
+?	?	-	suite:reference	BEGIN NULL; EXCEPTION END;
+?	?	-	suite:reference	BEGIN DBMS_OUTPUT.PUT_LINE(a => 'x', 'y'); END;
+?	?	-	suite:reference	CREATE OR REPLACE TYPE BODY omni_bad_tbk_R1 AS MEMBER END;
+?	?	-	suite:reference	CREATE OR REPLACE PACKAGE BODY omni_bad_pie_R1 AS PROCEDURE p IS BEGIN NULL; END; BEGIN NULL; EXCEPTION END;
+?	?	-	suite:reference	DECLARE x LONG(10, 2); BEGIN NULL; END;
+?	?	-	suite:reference	DECLARE x REF omni_missing_t CHARACTER SET NCHAR_CS; BEGIN NULL; END;
+?	?	-	suite:reference	(SELECT 1 FROM dual) UNION ALL (SELECT 2 FROM dual) ORDER BY 1
+?	?	-	suite:reference	SELECT * FROM ((SELECT 1 a FROM dual) UNION (SELECT 2 FROM dual)) x
+?	?	-	suite:reference	SELECT 1 FROM dual WHERE 1 IN ((SELECT 1 FROM dual) UNION (SELECT 2 FROM dual))
+?	?	-	suite:reference	SELECT 1 FROM dual EXCEPT ALL SELECT 2 FROM dual
+?	?	-	suite:reference	CREATE TABLE omni_ctas_R1 AS (SELECT 1 a FROM dual) UNION (SELECT 2 FROM dual)
+?	?	-	suite:reference	DECLARE CURSOR c IS (SELECT 1 a FROM dual) UNION (SELECT 2 FROM dual); BEGIN NULL; END;
+?	?	-	suite:reference	BEGIN FOR r IN ((SELECT 1 a FROM dual) UNION ALL (SELECT 2 FROM dual)) LOOP NULL; END LOOP; END;
+?	?	-	suite:reference	(SELECT 1 a FROM dual ORDER BY 1)
+?	?	-	suite:reference	(WITH w AS (SELECT 1 a FROM dual) SELECT a FROM w) UNION SELECT 1 FROM dual
+?	?	-	suite:reference	SELECT 1 FROM dual ORDER BY 1 UNION SELECT 2 FROM dual
+?	?	-	suite:reference	SELECT 1 except FROM dual
+?	?	-	suite:reference	CREATE TABLE omni_bad_ctas_R1 AS (SELECT 1 a FROM dual ORDER BY 1)
+?	?	-	suite:reference	SELECT JSON_OBJECT(KEY 'a' VALUE 1, KEY 'b' VALUE 'x' RETURNING VARCHAR2(100) STRICT WITH UNIQUE KEYS) FROM dual
+?	?	-	suite:reference	SELECT JSON_ARRAYAGG(dummy ORDER BY dummy DESC NULL ON NULL RETURNING CLOB STRICT) FROM dual
+?	?	-	suite:reference	SELECT JSON_OBJECTAGG(KEY dummy VALUE 1 ABSENT ON NULL RETURNING CLOB) FROM dual
+?	?	-	suite:reference	SELECT JSON_SERIALIZE('{}' RETURNING CLOB PRETTY ASCII ORDERED NULL ON ERROR) FROM dual
+?	?	-	suite:reference	SELECT JSON_ARRAY(SELECT 1 FROM dual NULL ON NULL) FROM dual
+?	?	-	suite:reference	SELECT JSON_OBJECT('a' 1) FROM dual
+?	?	-	suite:reference	SELECT JSON_OBJECT('a' VALUE 1 STRICT RETURNING CLOB) FROM dual
+?	?	-	suite:reference	SELECT JSON_ARRAYAGG(dummy RETURNING CLOB ORDER BY dummy) FROM dual
+?	?	-	suite:reference	SELECT JSON_SERIALIZE('{}' PRETTY RETURNING CLOB) FROM dual
+?	?	-	suite:reference	SELECT JSON_OBJECTAGG(dummy VALUE 1, 'b' VALUE 2) FROM dual
+?	?	-	suite:reference	CREATE OR REPLACE TYPE omni_np_R1 AS OBJECT (x PLS_INTEGER, y LONG) NOT PERSISTABLE
+?	?	-	suite:reference	CREATE OR REPLACE TYPE omni_npc_R1 AS TABLE OF (PLS_INTEGER) NOT PERSISTABLE
+?	?	-	suite:reference	CREATE OR REPLACE TYPE omni_bad_oid_R1 OID 'ABC' AS OBJECT (a NUMBER)
+?	?	-	suite:reference	CREATE TABLE omni_bad_nch_R1 (x NCHAR(2 CHAR))
+?	?	-	suite:reference	SELECT x.a FROM (((SELECT 1 a FROM dual) UNION (SELECT 2 FROM dual))) x
+?	?	-	suite:reference	(SELECT 1 FROM dual EXCEPT)
+?	?	-	suite:reference	SELECT JSON_OBJECT(* RETURNING CLOB) FROM dual
+?	?	-	suite:reference	SELECT JSON_OBJECT(KEY 'VALUE' VALUE 1) FROM dual
+?	?	-	suite:reference	SELECT JSON_ARRAYAGG(dummy ORDER BY dummy,) FROM dual
+?	?	-	suite:reference	SELECT JSON_OBJECTAGG(* VALUE 1) FROM dual
+?	?	-	suite:reference	(SELECT *) UNION SELECT 1 FROM dual
+?	?	-	suite:reference	SELECT JSON_SERIALIZE('{}' RETURNING VARCHAR2()) FROM dual
+?	?	-	suite:reference	SELECT JSON_OBJECTAGG("*" VALUE 1) FROM (SELECT 'k' "*" FROM dual)
+?	?	-	suite:reference	SELECT 1 FROM dual MINUS ALL WITH w AS (SELECT 2 x FROM dual) SELECT x FROM w
+?	?	-	suite:reference	SELECT JSON_OBJECT('a':dummy) FROM dual
+?	?	-	suite:reference	SELECT JSON_OBJECT('a' VALUE 1 STRICT WITH UNIQUE KEYS WITH TYPENAME) FROM dual
+?	?	-	suite:reference	SELECT JSON_OBJECT(dummy STRICT) FROM dual
+?	?	-	suite:reference	DECLARE $IF DBMS_DB_VERSION.VERSION >= 12 $THEN a NUMBER; $ELSE a VARCHAR2(10); $END BEGIN NULL; END;
+?	?	-	suite:reference	BEGIN $IF FALSE $THEN garbage garbage; $ELSE NULL; $END END;
+?	?	-	suite:reference	BEGIN DBMS_OUTPUT.PUT_LINE($$PLSQL_LINE || $$PLSQL_UNIT); END;
+?	?	-	suite:reference	CREATE OR REPLACE PACKAGE omni_cc_R1 AUTHID $IF TRUE $THEN DEFINER $ELSE CURRENT_USER $END AS c NUMBER; END;
+?	?	-	suite:reference	BEGIN NULL; $END END;
+?	?	-	suite:reference	BEGIN $IF $$x $THEN NULL; $ELSE NULL; $ELSE NULL; $END END;
+?	?	-	suite:reference	BEGIN $IF TRUE $THEN $ERROR 'x' $END $END NULL; END;
+?	?	-	suite:reference	SELECT 1 FROM dual WHERE $$x IS NULL
+?	?	-	suite:reference	BEGIN $IF NOT TRUE $THEN garbage garbage; $ELSE NULL; $END END;
+?	?	-	suite:reference	BEGIN $IF 1 + 2 $THEN NULL; $END END;
+?	?	-	suite:reference	CREATE OR REPLACE PROCEDURE omni_ccp_R1 $IF TRUE $THEN IS $END BEGIN NULL; END;
+?	?	-	suite:reference	DECLARE TYPE t IS TABLE OF BOOLEAN INDEX BY VARCHAR2(30); x t := t('A' => TRUE, 'B' => FALSE); BEGIN NULL; END;
+?	?	-	suite:reference	DECLARE TYPE t IS TABLE OF NUMBER INDEX BY PLS_INTEGER; x t := t(1|2 => 5, 4..6 => 7, FOR i IN 10..12 => i); BEGIN NULL; END;
+?	?	-	suite:reference	BEGIN FOR i IN 1..10 BY 2 WHEN i > 3 LOOP NULL; END LOOP; END;
+?	?	-	suite:reference	BEGIN FOR i, j IN 1..3 LOOP NULL; END LOOP; END;
+?	?	-	suite:reference	SELECT UPPER(1 => 'x') FROM dual
+?	?	-	suite:reference	DECLARE TYPE t IS TABLE OF NUMBER INDEX BY PLS_INTEGER; x t := t(1 => 10, 20); BEGIN NULL; END;
+?	?	-	suite:reference	BEGIN $IF 1 + 1 = 3 $THEN garbage garbage; $ELSE NULL; $END END;
+?	?	-	suite:reference	BEGIN $IF ABS(1) $THEN NULL; $END END;
+?	?	-	suite:reference	BEGIN $IF TRUE $THEN :n := 1; $END END;
+?	?	-	suite:reference	CREATE TABLE omni_bad_dec_R1 (x DEC(0))
+?	?	-	suite:reference	CREATE TABLE omni_bad_scale_R1 (x NUMBER(5, 128))
+?	?	-	suite:reference	SELECT CAST(1 AS FLOAT(127)) FROM dual
+?	?	-	suite:reference	CREATE TABLE omni_bad_tsp_R1 (x TIMESTAMP(10))
+?	?	-	suite:reference	CREATE TABLE omni_numr_R1 (a NUMBER(38), b DEC(1), c NUMBER(5, -84), d NUMERIC(5, 127), e FLOAT(126), f TIMESTAMP(9), g INTERVAL DAY(9) TO SECOND(9))
+?	?	-	suite:reference	CREATE TABLE omni_bad_rlnk_R1 (n NUMBER REFERENCES omni_missing@omni_lnk (a))
+?	?	-	suite:reference	BEGIN $IF 1 / 3 * 3 = 1 $THEN garbage garbage; $ELSE NULL; $END END;
+?	?	-	suite:reference	BEGIN $IF TRUE = FALSE OR ROUND(1.24, 1) = 1.3 $THEN garbage garbage; $ELSE NULL; $END END;
+?	?	-	suite:reference	BEGIN $IF debug $THEN NULL; $END END;
+?	?	-	suite:reference	DECLARE PROCEDURE p(a NUMBER) IS BEGIN NULL; END; BEGIN p($$PLSQL_LINE => 1); END;
+?	?	-	suite:reference	DECLARE x NUMBER; BEGIN SELECT 1 INTO $$PLSQL_LINE FROM dual; END;
+?	?	-	suite:reference	SELECT 1 FROM dual WHERE 1 IN (SELECT 1 FROM dual ORDER BY 1)
+?	?	-	suite:reference	SELECT 1 FROM dual WHERE 1 IN ((SELECT 1 FROM dual) ORDER BY 1)
+?	?	-	suite:reference	SELECT ((SELECT 1 FROM dual) ORDER BY 1) FROM dual
+?	?	-	suite:reference	SELECT 1 FROM dual WHERE 1 IN ((SELECT 1 FROM dual) ORDER BY 1 FETCH FIRST 1 ROWS ONLY)
+?	?	-	suite:reference	BEGIN FOR r IN ((SELECT 1 a FROM dual) ORDER BY 1) LOOP NULL; END LOOP; END;
+?	?	-	suite:reference	SELECT 1 FROM dual WHERE EXISTS (SELECT * FETCH FIRST 1 ROWS ONLY)
+?	?	-	suite:reference	SELECT 1 + except FROM dual
+?	?	-	suite:reference	SELECT * FROM except
+?	?	-	suite:reference	DECLARE except NUMBER := 1; x NUMBER; BEGIN x := except + 1; except := x; END;
+?	?	-	suite:reference	SELECT 1 FROM dual WHERE EXISTS (WITH w AS (SELECT 1 c FROM dual) (SELECT *))
+?	?	-	suite:reference	SELECT 1 FROM dual WHERE EXISTS ((SELECT dummy FROM dual) FOR UPDATE)
+?	?	-	suite:reference	WITH w AS (SELECT dummy FROM dual FOR UPDATE) SELECT * FROM w
+?	?	-	suite:reference	BEGIN FOR r IN (SELECT dummy FROM dual FOR UPDATE) LOOP NULL; END LOOP; END;
+?	?	-	suite:reference	BEGIN FOR r IN ((SELECT dummy FROM dual) FOR UPDATE) LOOP NULL; END LOOP; END;
+?	?	-	suite:reference	BEGIN FOR i IN (SELECT 1 FROM dual) + 1 LOOP NULL; END LOOP; END;
+?	?	-	suite:reference	SELECT (SELECT d.*) FROM dual d
+?	?	-	suite:reference	SELECT 1 FROM dual d WHERE EXISTS (SELECT d.*)
+?	?	-	suite:reference	SELECT JSON_ARRAY(SELECT 1 FROM dual UNION SELECT 2 FROM dual) FROM dual
+?	?	-	suite:reference	CREATE MATERIALIZED ZONEMAP omni_bad_zm_R1 AS SELECT SYS_OP_ZONE_ID(rowid), MIN(dummy), MAX(dummy) FROM dual GROUP BY SYS_OP_ZONE_ID(rowid) FOR UPDATE
+?	?	-	suite:reference	SELECT dummy FROM dual FETCH FIRST 1 ROW ONLY FOR UPDATE
+?	?	-	suite:reference	SELECT dummy FROM dual FOR UPDATE FETCH FIRST 1 ROW ONLY
+?	?	-	suite:reference	(SELECT dummy FROM dual OFFSET 1 ROWS) FOR UPDATE
+?	?	-	suite:reference	DECLARE c SYS_REFCURSOR; BEGIN OPEN c FOR (SELECT dummy FROM dual); CLOSE c; END;
+?	?	-	suite:reference	SELECT DISTINCT dummy FROM dual FOR UPDATE
+?	?	-	suite:reference	SELECT dummy FROM dual FETCH FIRST 1 ROWS WITH TIES FOR UPDATE
+?	?	-	suite:reference	SELECT CURSOR(SELECT 1 FROM dual) FROM dual FOR UPDATE
+?	?	-	suite:reference	CREATE JSON RELATIONAL DUALITY VIEW omni_bad_dv_R1 AS SELECT JSON_OBJECT('_id' VALUE dummy) FROM dual FOR UPDATE
+?	?	-	suite:manifest	SELECT 'x' AS c FROM dual
+?	?	-	suite:manifest	SELECT DATE '2020-01-01' FROM dual
+?	?	-	suite:manifest	SELECT TIMESTAMP '2020-01-01 10:20:30' FROM dual
+?	?	-	suite:manifest	SELECT NULL FROM dual
+?	?	-	suite:manifest	SELECT ROWNUM FROM dual
+?	?	-	suite:manifest	SELECT LEVEL FROM dual CONNECT BY LEVEL <= 3
+?	?	-	suite:manifest	SELECT 1 + 2 * 3 FROM dual
+?	?	-	suite:manifest	SELECT -1 FROM dual
+?	?	-	suite:manifest	SELECT CASE WHEN 1 = 1 THEN 'Y' ELSE 'N' END FROM dual
+?	?	-	suite:manifest	SELECT DECODE(1, 1, 'one', 'other') FROM dual
+?	?	-	suite:manifest	SELECT CAST(1 AS NUMBER) FROM dual
+?	?	-	suite:manifest	SELECT EXTRACT(YEAR FROM DATE '2020-01-01') FROM dual
+?	?	-	suite:manifest	SELECT NVL(NULL, 1) FROM dual
+?	?	-	suite:manifest	SELECT COUNT(*) FROM employees
+?	?	-	suite:manifest	SELECT department_id, COUNT(*) FROM employees GROUP BY department_id
+?	?	-	suite:manifest	SELECT department_id, COUNT(*) FROM employees GROUP BY department_id HAVING COUNT(*) > 1
+?	?	-	suite:manifest	SELECT employee_id FROM employees ORDER BY employee_id DESC NULLS LAST
+?	?	-	suite:manifest	SELECT employee_id FROM employees FETCH FIRST 5 ROWS ONLY
+?	?	-	suite:manifest	SELECT employee_id FROM employees OFFSET 1 ROWS FETCH NEXT 5 ROWS ONLY
+?	?	-	suite:manifest	SELECT * FROM employees WHERE salary BETWEEN 1000 AND 5000
+?	?	-	suite:manifest	SELECT * FROM employees WHERE department_id IN (10, 20)
+?	?	-	suite:manifest	SELECT * FROM employees WHERE last_name LIKE 'S%'
+?	?	-	suite:manifest	SELECT * FROM employees WHERE commission_pct IS NOT NULL
+?	?	-	suite:manifest	SELECT * FROM employees e JOIN departments d ON e.department_id = d.department_id
+?	?	-	suite:manifest	SELECT * FROM employees e LEFT OUTER JOIN departments d ON e.department_id = d.department_id
+?	?	-	suite:manifest	SELECT * FROM employees e, departments d WHERE e.department_id = d.department_id(+)
+?	?	-	suite:manifest	WITH q AS (SELECT 1 a FROM dual) SELECT a FROM q
+?	?	-	suite:manifest	SELECT * FROM (SELECT employee_id FROM employees) q
+?	?	-	suite:manifest	SELECT * FROM employees WHERE EXISTS (SELECT 1 FROM departments)
+?	?	-	suite:manifest	SELECT employee_id, SUM(salary) OVER (PARTITION BY department_id ORDER BY employee_id) FROM employees
+?	?	-	suite:manifest	SELECT employee_id, RANK() OVER (ORDER BY salary DESC) FROM employees
+?	?	-	suite:manifest	SELECT /*+ FULL(e) */ * FROM employees e
+?	?	-	suite:manifest	SELECT * FROM employees SAMPLE (10)
+?	?	-	suite:manifest	SELECT * FROM employees AS OF TIMESTAMP SYSTIMESTAMP
+?	?	-	suite:manifest	SELECT department_id, SUM(salary) FROM employees GROUP BY ROLLUP(department_id)
+?	?	-	suite:manifest	SELECT department_id, SUM(salary) FROM employees GROUP BY CUBE(department_id)
+?	?	-	suite:manifest	SELECT department_id, SUM(salary) FROM employees GROUP BY GROUPING SETS ((department_id), ())
+?	?	-	suite:manifest	SELECT * FROM JSON_TABLE('{"id":1}', '$' COLUMNS (id NUMBER PATH '$.id')) jt
+?	?	-	suite:manifest	SELECT * FROM XMLTABLE('/r' PASSING XMLTYPE('<r><id>1</id></r>') COLUMNS id NUMBER PATH 'id') xt
+?	?	-	suite:manifest	SELECT
+?	?	-	suite:manifest	SELECT FROM dual
+?	?	-	suite:manifest	SELECT 1 + FROM dual
+?	?	-	suite:manifest	SELECT * FROM WHERE
+?	?	-	suite:manifest	SELECT * FROM employees WHERE
+?	?	-	suite:manifest	SELECT * FROM employees WHERE salary BETWEEN 1 AND
+?	?	-	suite:manifest	SELECT * FROM employees WHERE department_id IN (10,
+?	?	-	suite:manifest	SELECT * FROM employees WHERE last_name LIKE
+?	?	-	suite:manifest	SELECT * FROM employees GROUP BY
+?	?	-	suite:manifest	SELECT * FROM employees ORDER BY
+?	?	-	suite:manifest	SELECT * FROM employees FETCH FIRST 5
+?	?	-	suite:manifest	SELECT * FROM employees JOIN departments ON
+?	?	-	suite:manifest	WITH q AS SELECT 1 FROM dual SELECT * FROM q
+?	?	-	suite:manifest	SELECT 1 FROM dual UNION SELECT 2 FROM dual
+?	?	-	suite:manifest	SELECT 1 FROM dual UNION ALL SELECT 2 FROM dual
+?	?	-	suite:manifest	SELECT 1 FROM dual INTERSECT SELECT 1 FROM dual
+?	?	-	suite:manifest	SELECT 1 FROM dual MINUS SELECT 2 FROM dual
+?	?	-	suite:manifest	SELECT 1 FROM dual UNION
+?	?	-	suite:manifest	SELECT 1 FROM dual INTERSECT
+?	?	-	suite:manifest	INSERT INTO t (a, b) VALUES (1, 2)
+?	?	-	suite:manifest	INSERT INTO t (a) SELECT employee_id FROM employees
+?	?	-	suite:manifest	INSERT INTO t (a) VALUES (:id)
+?	?	-	suite:manifest	INSERT ALL INTO t (a) VALUES (1) INTO t (a) VALUES (2) SELECT 1 FROM dual
+?	?	-	suite:manifest	INSERT FIRST WHEN 1 = 1 THEN INTO t (a) VALUES (1) SELECT 1 FROM dual
+?	?	-	suite:manifest	UPDATE t SET a = 1
+?	?	-	suite:manifest	UPDATE t SET a = 1, b = 2 WHERE id = 3
+?	?	-	suite:manifest	UPDATE t SET a = (SELECT 1 FROM dual) WHERE id = 1
+?	?	-	suite:manifest	DELETE FROM t WHERE EXISTS (SELECT 1 FROM s WHERE s.id = t.id)
+?	?	-	suite:manifest	INSERT INTO t (a) VALUES (1,
+?	?	-	suite:manifest	INSERT INTO t (a VALUES (1)
+?	?	-	suite:manifest	INSERT INTO t VALUES
+?	?	-	suite:manifest	UPDATE t SET
+?	?	-	suite:manifest	UPDATE SET a = 1
+?	?	-	suite:manifest	DELETE FROM
+?	?	-	suite:manifest	MERGE INTO t USING s ON (t.id = s.id) WHEN NOT MATCHED THEN INSERT (id, x) VALUES (s.id, s.x)
+?	?	-	suite:manifest	MERGE INTO t USING s ON (t.id = s.id) WHEN MATCHED THEN UPDATE SET t.x = s.x DELETE WHERE t.x = 0
+?	?	-	suite:manifest	MERGE INTO t USING s
+?	?	-	suite:manifest	MERGE INTO t USING s ON (t.id = s.id) WHEN MATCHED THEN
+?	?	-	suite:manifest	SELECT DISTINCT department_id FROM employees
+?	?	-	suite:manifest	SELECT ALL department_id FROM employees
+?	?	-	suite:manifest	SELECT salary sal FROM employees
+?	?	-	suite:manifest	SELECT salary "SALARY ALIAS" FROM employees
+?	?	-	suite:manifest	SELECT (1 + 2) * 3 FROM dual
+?	?	-	suite:manifest	SELECT * FROM employees WHERE salary <= 5000
+?	?	-	suite:manifest	SELECT * FROM employees WHERE last_name NOT LIKE 'S%'
+?	?	-	suite:manifest	SELECT * FROM employees WHERE commission_pct IS NULL
+?	?	-	suite:manifest	SELECT * FROM employees WHERE department_id NOT IN (SELECT department_id FROM departments)
+?	?	-	suite:manifest	SELECT * FROM employees WHERE salary > ANY (SELECT salary FROM employees)
+?	?	-	suite:manifest	SELECT * FROM employees WHERE salary >= ALL (SELECT salary FROM employees)
+?	?	-	suite:manifest	SELECT (SELECT COUNT(*) FROM employees) FROM dual
+?	?	-	suite:manifest	SELECT * FROM employees e WHERE EXISTS (SELECT 1 FROM departments d WHERE d.department_id = e.department_id)
+?	?	-	suite:manifest	WITH q1 AS (SELECT 1 a FROM dual), q2 AS (SELECT a + 1 b FROM q1) SELECT b FROM q2
+?	?	-	suite:manifest	SELECT 1 FROM dual WHERE 1 = 1
+?	?	-	suite:manifest	SELECT * FROM employees CROSS JOIN departments
+?	?	-	suite:manifest	SELECT * FROM employees e RIGHT OUTER JOIN departments d ON e.department_id = d.department_id
+?	?	-	suite:manifest	SELECT * FROM employees e FULL OUTER JOIN departments d ON e.department_id = d.department_id
+?	?	-	suite:manifest	SELECT * FROM employees JOIN departments USING (department_id)
+?	?	-	suite:manifest	SELECT * FROM employees NATURAL JOIN departments
+?	?	-	suite:manifest	SELECT employee_id FROM employees WHERE department_id = (SELECT department_id FROM departments WHERE department_id = 10)
+?	?	-	suite:manifest	SELECT department_id, SUM(salary) FROM employees GROUP BY department_id ORDER BY department_id
+?	?	-	suite:manifest	SELECT COUNT(DISTINCT department_id) FROM employees
+?	?	-	suite:manifest	SELECT MIN(salary) KEEP (DENSE_RANK FIRST ORDER BY employee_id) FROM employees
+?	?	-	suite:manifest	SELECT LISTAGG(last_name, ',') WITHIN GROUP (ORDER BY last_name) FROM employees
+?	?	-	suite:manifest	SELECT ROW_NUMBER() OVER (ORDER BY employee_id) FROM employees
+?	?	-	suite:manifest	SELECT LAG(salary, 1) OVER (ORDER BY employee_id) FROM employees
+?	?	-	suite:manifest	SELECT LEAD(salary, 1) OVER (ORDER BY employee_id) FROM employees
+?	?	-	suite:manifest	SELECT FIRST_VALUE(salary) OVER (ORDER BY employee_id) FROM employees
+?	?	-	suite:manifest	SELECT SUM(salary) OVER (ORDER BY employee_id ROWS BETWEEN 1 PRECEDING AND CURRENT ROW) FROM employees
+?	?	-	suite:manifest	SELECT employee_id FROM employees ORDER BY employee_id FETCH FIRST 10 PERCENT ROWS ONLY
+?	?	-	suite:manifest	SELECT employee_id FROM employees ORDER BY employee_id FETCH FIRST 5 ROWS WITH TIES
+?	?	-	suite:manifest	SELECT employee_id FROM employees ORDER BY employee_id OFFSET 5 ROWS
+?	?	-	suite:manifest	SELECT * FROM employees FOR UPDATE
+?	?	-	suite:manifest	SELECT * FROM employees FOR UPDATE NOWAIT
+?	?	-	suite:manifest	SELECT * FROM employees FOR UPDATE SKIP LOCKED
+?	?	-	suite:manifest	SELECT employee_id FROM employees START WITH manager_id IS NULL CONNECT BY PRIOR employee_id = manager_id
+?	?	-	suite:manifest	SELECT LEVEL FROM dual CONNECT BY PRIOR 1 = 1
+?	?	-	suite:manifest	SELECT department_id, job_id, SUM(salary) FROM employees GROUP BY ROLLUP(department_id, job_id)
+?	?	-	suite:manifest	SELECT department_id, job_id, SUM(salary) FROM employees GROUP BY CUBE(department_id, job_id)
+?	?	-	suite:manifest	SELECT GROUPING(department_id), SUM(salary) FROM employees GROUP BY ROLLUP(department_id)
+?	?	-	suite:manifest	SELECT department_id, SUM(salary) FROM employees GROUP BY department_id HAVING SUM(salary) > 1000
+?	?	-	suite:manifest	SELECT employee_id FROM employees START WITH manager_id IS NULL CONNECT BY PRIOR employee_id = manager_id ORDER SIBLINGS BY employee_id
+?	?	-	suite:manifest	SELECT * FROM employees SAMPLE BLOCK (5)
+?	?	-	suite:manifest	SELECT * FROM employees SAMPLE BLOCK (5) SEED (42)
+?	?	-	suite:manifest	SELECT JSON_VALUE('{"id":1}', '$.id') FROM dual
+?	?	-	suite:manifest	SELECT JSON_QUERY('{"id":1}', '$') FROM dual
+?	?	-	suite:manifest	SELECT JSON_EXISTS('{"id":1}', '$.id') FROM dual
+?	?	-	suite:manifest	SELECT XMLCAST(XMLQUERY('/r/id' PASSING XMLTYPE('<r><id>1</id></r>') RETURNING CONTENT) AS NUMBER) FROM dual
+?	?	-	suite:manifest	SELECT * FROM employees PIVOT (SUM(salary) FOR department_id IN (10 AS d10, 20 AS d20))
+?	?	-	suite:manifest	SELECT * FROM (SELECT 1 id, 10 d10, 20 d20 FROM dual) UNPIVOT (amount FOR dept IN (d10 AS '10', d20 AS '20'))
+?	?	-	suite:manifest	SELECT * FROM employees MATCH_RECOGNIZE (ORDER BY employee_id MEASURES employee_id AS id PATTERN (A) DEFINE A AS salary > 0)
+?	?	-	suite:manifest	SELECT * FROM employees e CROSS APPLY (SELECT e.employee_id id FROM dual) x
+?	?	-	suite:manifest	SELECT * FROM employees e OUTER APPLY (SELECT e.employee_id id FROM dual) x
+?	?	-	suite:manifest	SELECT employee_id, salary FROM employees MODEL DIMENSION BY (employee_id) MEASURES (salary) RULES (salary[employee_id] = salary[employee_id])
+?	?	-	suite:manifest	SELECT * FROM employees WHERE salary =
+?	?	-	suite:manifest	SELECT * FROM employees ORDER BY employee_id NULLS
+?	?	-	suite:manifest	SELECT * FROM employees FETCH NEXT ROWS ONLY
+?	?	-	suite:manifest	SELECT * FROM employees OFFSET ROWS
+?	?	-	suite:manifest	SELECT * FROM employees GROUP BY ROLLUP(
+?	?	-	suite:manifest	SELECT * FROM employees PIVOT (
+?	?	-	suite:manifest	SELECT * FROM employees FOR UPDATE OF
+?	?	-	suite:manifest	SELECT * FROM employees CONNECT BY PRIOR
+?	?	-	suite:manifest	SELECT * FROM employees WHERE EXISTS
+?	?	-	suite:manifest	SELECT * FROM employees WHERE department_id NOT IN (
+?	?	-	suite:manifest	SELECT 1 FROM dual UNION ALL
+?	?	-	suite:manifest	SELECT * FROM employees WHERE last_name LIKE 'S%' ESCAPE
+?	?	-	suite:manifest	INSERT INTO t VALUES (1, 2, 3, 4, 5, '{}')
+?	?	-	suite:manifest	INSERT INTO t (a, b) SELECT 1, 2 FROM dual
+?	?	-	suite:manifest	INSERT INTO t (a) WITH q AS (SELECT 1 a FROM dual) SELECT a FROM q
+?	?	-	suite:manifest	INSERT INTO t (a) VALUES (DEFAULT)
+?	?	-	suite:manifest	UPDATE t SET a = DEFAULT WHERE id = 1
+?	?	-	suite:manifest	UPDATE t SET (a, b) = (SELECT 1, 2 FROM dual) WHERE id = 1
+?	?	-	suite:manifest	UPDATE (SELECT a FROM t) SET a = 1
+?	?	-	suite:manifest	DELETE t WHERE id = 1
+?	?	-	suite:manifest	DELETE FROM (SELECT * FROM t) WHERE id = 1
+?	?	-	suite:manifest	INSERT ALL WHEN 1 = 1 THEN INTO t(a) VALUES(1) SELECT 1 FROM dual
+?	?	-	suite:manifest	INSERT ALL INTO t(a) VALUES(1) SELECT 1 FROM dual
+?	?	-	suite:manifest	INSERT FIRST WHEN 1 = 0 THEN INTO t(a) VALUES(1) ELSE INTO t(a) VALUES(2) SELECT 1 FROM dual
+?	?	-	suite:manifest	UPDATE t SET a = a + 1 RETURNING a INTO :out_a
+?	?	-	suite:manifest	DELETE FROM t WHERE id = :id RETURNING id INTO :out_id
+?	?	-	suite:manifest	INSERT INTO t(a) VALUES(1) RETURNING a INTO :out_a
+?	?	-	suite:manifest	INSERT INTO t (a,) VALUES (1)
+?	?	-	suite:manifest	INSERT INTO t (a) VALUES ()
+?	?	-	suite:manifest	INSERT INTO t (a) SELECT FROM dual
+?	?	-	suite:manifest	INSERT ALL INTO t(a) VALUES(1)
+?	?	-	suite:manifest	UPDATE t SET a = 1 WHERE
+?	?	-	suite:manifest	UPDATE t SET a = , b = 2
+?	?	-	suite:manifest	UPDATE t SET (a, b) = (SELECT 1 FROM dual)
+?	?	-	suite:manifest	DELETE t WHERE
+?	?	-	suite:manifest	DELETE FROM t RETURNING INTO :x
+?	?	-	suite:manifest	INSERT FIRST WHEN THEN INTO t(a) VALUES(1) SELECT 1 FROM dual
+?	?	-	suite:manifest	MERGE INTO t USING s ON (t.id = s.id) WHEN MATCHED THEN UPDATE SET t.x = s.x WHEN NOT MATCHED THEN INSERT (id, x) VALUES (s.id, s.x)
+?	?	-	suite:manifest	MERGE INTO t USING s ON (t.id = s.id) WHEN MATCHED THEN UPDATE SET t.x = s.x WHERE s.x > 0
+?	?	-	suite:manifest	MERGE INTO t USING s ON (t.id = s.id) WHEN NOT MATCHED THEN INSERT (id, x) VALUES (s.id, s.x) WHERE s.x > 0
+?	?	-	suite:manifest	MERGE INTO t USING (SELECT id, x FROM s) s2 ON (t.id = s2.id) WHEN MATCHED THEN UPDATE SET t.x = s2.x
+?	?	-	suite:manifest	MERGE INTO t USING s ON (t.id = s.id) WHEN MATCHED THEN UPDATE SET t.a = s.x, t.b = s.id
+?	?	-	suite:manifest	MERGE INTO t USING s ON (t.id = s.id) WHEN MATCHED THEN UPDATE SET t.x = s.x WHERE s.x > 0 DELETE WHERE t.x = 0
+?	?	-	suite:manifest	MERGE INTO USING s ON (t.id = s.id) WHEN MATCHED THEN UPDATE SET t.x = s.x
+?	?	-	suite:manifest	MERGE INTO t USING s ON t.id = s.id WHEN MATCHED THEN UPDATE SET t.x = s.x
+?	?	-	suite:manifest	MERGE INTO t USING s ON (t.id = s.id) WHEN MATCHED THEN UPDATE SET
+?	?	-	suite:manifest	MERGE INTO t USING s ON (t.id = s.id) WHEN NOT MATCHED THEN INSERT VALUES
+?	?	-	suite:manifest	CREATE TABLE compat_t_R1 (a NUMBER)
+?	?	-	suite:manifest	CREATE GLOBAL TEMPORARY TABLE compat_gtt_R1 (a NUMBER) ON COMMIT DELETE ROWS
+?	?	-	suite:manifest	CREATE TABLE compat_ctas_R1 AS SELECT 1 a FROM dual
+?	?	-	suite:manifest	CREATE TABLE compat_cons_R1 (a NUMBER CONSTRAINT compat_nn_R1 NOT NULL, CONSTRAINT compat_pk_R1 PRIMARY KEY (a))
+?	?	-	suite:manifest	CREATE TABLE (a NUMBER)
+?	?	-	suite:manifest	CREATE TABLE compat_bad_R1 (a NUMBER
+?	?	-	suite:manifest	CREATE TABLE compat_bad_R1 (SELECT NUMBER)
+?	?	-	suite:manifest	CREATE INDEX compat_idx_R1 ON t(a)
+?	?	-	suite:manifest	CREATE UNIQUE INDEX compat_uidx_R1 ON t(b)
+?	?	-	suite:manifest	CREATE INDEX compat_bad_idx_R1 ON
+?	?	-	suite:manifest	CREATE VIEW compat_v_R1 AS SELECT 1 a FROM dual
+?	?	-	suite:manifest	CREATE OR REPLACE VIEW compat_v_R1 AS SELECT 1 a FROM dual
+?	?	-	suite:manifest	CREATE VIEW compat_bad_v_R1 SELECT 1 FROM dual
+?	?	-	suite:manifest	CREATE SEQUENCE compat_seq_R1 START WITH 1 INCREMENT BY 1
+?	?	-	suite:manifest	CREATE SEQUENCE START WITH 1
+?	?	-	suite:manifest	CREATE SYNONYM compat_syn_R1 FOR t
+?	?	-	suite:manifest	CREATE SYNONYM FOR t
+?	?	-	suite:manifest	COMMENT ON TABLE t IS 'compat'
+?	?	-	suite:manifest	TRUNCATE TABLE t
+?	?	-	suite:manifest	DROP TABLE
+?	?	-	suite:manifest	CREATE TABLE compat_types_R1 (n NUMBER(10,2), v VARCHAR2(100), d DATE, ts TIMESTAMP, c CLOB)
+?	?	-	suite:manifest	CREATE TABLE compat_ident_R1 (id NUMBER GENERATED ALWAYS AS IDENTITY, name VARCHAR2(30))
+?	?	-	suite:manifest	CREATE TABLE compat_defaults_R1 (id NUMBER DEFAULT 1, created_at DATE DEFAULT SYSDATE)
+?	?	-	suite:manifest	CREATE TABLE compat_check_R1 (a NUMBER CHECK (a > 0))
+?	?	-	suite:manifest	CREATE TABLE compat_fk_R1 (department_id NUMBER REFERENCES departments(department_id))
+?	?	-	suite:manifest	CREATE TABLE compat_tblsp_R1 (a NUMBER) TABLESPACE users
+?	?	-	suite:manifest	CREATE TABLE compat_part_range_R1 (a NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (10), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+?	?	-	suite:manifest	CREATE TABLE compat_part_list_R1 (region VARCHAR2(10)) PARTITION BY LIST (region) (PARTITION p1 VALUES ('E'), PARTITION p2 VALUES ('W'))
+?	?	-	suite:manifest	CREATE TABLE compat_part_hash_R1 (a NUMBER) PARTITION BY HASH (a) PARTITIONS 4
+?	?	-	suite:manifest	CREATE TABLE compat_lob_R1 (id NUMBER, doc CLOB) LOB (doc) STORE AS (TABLESPACE users)
+?	?	-	suite:manifest	CREATE TABLE compat_bad_cols_R1 (a NUMBER,)
+?	?	-	suite:manifest	CREATE TABLE compat_bad_col_R1 (a)
+?	?	-	suite:manifest	CREATE TABLE compat_bad_ctas_R1 AS
+?	?	-	suite:manifest	CREATE TABLE compat_bad_part_R1 (a NUMBER) PARTITION BY RANGE (a) (PARTITION p1)
+?	?	-	suite:manifest	CREATE BITMAP INDEX compat_bidx_R1 ON t(a)
+?	?	-	suite:manifest	CREATE INDEX compat_fidx_R1 ON employees(UPPER(last_name))
+?	?	-	suite:manifest	CREATE INDEX compat_ridx_R1 ON t(a) REVERSE
+?	?	-	suite:manifest	CREATE INDEX compat_oidx_R1 ON t(a) ONLINE
+?	?	-	suite:manifest	CREATE INDEX compat_cidx_R1 ON t(a) COMPRESS
+?	?	-	suite:manifest	CREATE INDEX compat_bad_idx_R1 ON t()
+?	?	-	suite:manifest	CREATE INDEX compat_bad_idx_R1 ON t(a,)
+?	?	-	suite:manifest	CREATE INDEX compat_bad_idx_R1 ON t
+?	?	-	suite:manifest	CREATE VIEW compat_vcols_R1 (a, b) AS SELECT 1 a, 2 b FROM dual
+?	?	-	suite:manifest	CREATE FORCE VIEW compat_force_v_R1 AS SELECT * FROM t
+?	?	-	suite:manifest	CREATE VIEW compat_ro_v_R1 AS SELECT 1 a FROM dual WITH READ ONLY
+?	?	-	suite:manifest	CREATE VIEW compat_ck_v_R1 AS SELECT 1 a FROM dual WITH CHECK OPTION
+?	?	-	suite:manifest	CREATE VIEW compat_bad_v_R1 AS
+?	?	-	suite:manifest	CREATE VIEW compat_bad_v_R1 () AS SELECT 1 FROM dual
+?	?	-	suite:manifest	CREATE SEQUENCE compat_seq_minmax_R1 MINVALUE 1 MAXVALUE 999999
+?	?	-	suite:manifest	CREATE SEQUENCE compat_seq_cache_R1 MAXVALUE 999999 CYCLE CACHE 20 ORDER
+?	?	-	suite:manifest	CREATE SEQUENCE compat_seq_nocache_R1 NOCACHE NOORDER NOCYCLE
+?	?	-	suite:manifest	CREATE SEQUENCE compat_seq_nomax_R1 NOMINVALUE NOMAXVALUE
+?	?	-	suite:manifest	CREATE SEQUENCE compat_bad_seq_R1 CACHE
+?	?	-	suite:manifest	CREATE SEQUENCE compat_bad_seq_R1 INCREMENT BY
+?	?	-	suite:manifest	CREATE OR REPLACE SYNONYM compat_syn_replace_R1 FOR t
+?	?	-	suite:manifest	CREATE SYNONYM compat_syn_schema_R1 FOR testuser.t
+?	?	-	suite:manifest	CREATE SYNONYM compat_bad_syn_R1 FOR
+?	?	-	suite:manifest	CREATE SYNONYM compat_bad_syn_R1 t
+?	?	-	suite:manifest	DROP TABLE compat_drop_R1 CASCADE CONSTRAINTS PURGE
+?	?	-	suite:manifest	DROP TABLE IF EXISTS compat_missing_R1 PURGE
+?	?	-	suite:manifest	DROP VIEW compat_drop_v_R1
+?	?	-	suite:manifest	DROP INDEX compat_drop_idx_R1 ONLINE
+?	?	-	suite:manifest	DROP SEQUENCE compat_drop_seq_R1
+?	?	-	suite:manifest	DROP SYNONYM compat_drop_syn_R1 FORCE
+?	?	-	suite:manifest	DROP TABLE t CASCADE PURGE
+?	?	-	suite:manifest	DROP INDEX ONLINE
+?	?	-	suite:manifest	ALTER TABLE compat_alt_addp_R1 ADD (z NUMBER)
+?	?	-	suite:manifest	ALTER TABLE compat_alt_add_R1 ADD z NUMBER
+?	?	-	suite:manifest	ALTER TABLE compat_alt_mod_R1 MODIFY (a NUMBER(10))
+?	?	-	suite:manifest	ALTER TABLE compat_alt_drop_R1 DROP COLUMN c
+?	?	-	suite:manifest	ALTER TABLE compat_alt_rename_col_R1 RENAME COLUMN a TO aa
+?	?	-	suite:manifest	ALTER TABLE compat_alt_rename_tab_R1 RENAME TO compat_renamed_R1
+?	?	-	suite:manifest	ALTER TABLE compat_alt_chk_R1 ADD CONSTRAINT compat_chk_R1 CHECK (a > 0)
+?	?	-	suite:manifest	ALTER TABLE compat_alt_drop_chk_R1 DROP CONSTRAINT compat_chk_drop_R1
+?	?	-	suite:manifest	ALTER TABLE compat_alt_read_R1 READ ONLY
+?	?	-	suite:manifest	ALTER TABLE compat_alt_nolog_R1 NOLOGGING
+?	?	-	suite:manifest	ALTER TABLE compat_alt_move_R1 MOVE
+?	?	-	suite:manifest	ALTER TABLE t ADD
+?	?	-	suite:manifest	ALTER TABLE t RENAME COLUMN a
+?	?	-	suite:manifest	ALTER TABLE ADD (a NUMBER)
+?	?	-	suite:manifest	COMMENT ON COLUMN compat_comment_R1.a IS 'compat column'
+?	?	-	suite:manifest	COMMENT ON TABLE t IS NULL
+?	?	-	suite:manifest	COMMENT ON TABLE t
+?	?	-	suite:manifest	COMMENT ON COLUMN t.a IS
+?	?	-	suite:manifest	TRUNCATE TABLE compat_trunc_drop_R1 DROP STORAGE
+?	?	-	suite:manifest	TRUNCATE TABLE compat_trunc_reuse_R1 REUSE STORAGE
+?	?	-	suite:manifest	TRUNCATE TABLE compat_trunc_cascade_R1 CASCADE
+?	?	-	suite:manifest	TRUNCATE TABLE compat_trunc_mvlog_R1 PURGE MATERIALIZED VIEW LOG
+?	?	-	suite:manifest	TRUNCATE TABLE
+?	?	-	suite:manifest	TRUNCATE TABLE t DROP
+?	?	-	suite:manifest	CREATE MATERIALIZED VIEW compat_mv_R1 AS SELECT 1 a FROM dual
+?	?	-	suite:manifest	CREATE MATERIALIZED VIEW compat_mv_def_R1 BUILD DEFERRED AS SELECT 1 a FROM dual
+?	?	-	suite:manifest	CREATE MATERIALIZED VIEW compat_mv_comp_R1 REFRESH COMPLETE ON DEMAND AS SELECT 1 a FROM dual
+?	?	-	suite:manifest	CREATE MATERIALIZED VIEW compat_mv_force_R1 REFRESH FORCE WITH PRIMARY KEY AS SELECT a FROM t
+?	?	-	suite:manifest	CREATE MATERIALIZED VIEW compat_mv_never_R1 NEVER REFRESH AS SELECT 1 a FROM dual
+?	?	-	suite:manifest	CREATE MATERIALIZED VIEW compat_mv_cache_R1 CACHE PARALLEL 2 AS SELECT 1 a FROM dual
+?	?	-	suite:manifest	CREATE MATERIALIZED VIEW compat_bad_mv_R1 AS
+?	?	-	suite:manifest	CREATE MATERIALIZED VIEW AS SELECT 1 FROM dual
+?	?	-	suite:manifest	CREATE MATERIALIZED VIEW compat_bad_mv_R1 REFRESH FAST AS
+?	?	-	suite:manifest	CREATE MATERIALIZED VIEW LOG ON compat_mlog_t_R1
+?	?	-	suite:manifest	CREATE MATERIALIZED VIEW LOG ON compat_mlog_pk_R1 WITH PRIMARY KEY INCLUDING NEW VALUES
+?	?	-	suite:manifest	CREATE MATERIALIZED VIEW LOG ON compat_mlog_rowid_R1 WITH ROWID, SEQUENCE (a) INCLUDING NEW VALUES
+?	?	-	suite:manifest	CREATE MATERIALIZED VIEW LOG ON compat_mlog_purge_R1 WITH ROWID PURGE IMMEDIATE SYNCHRONOUS
+?	?	-	suite:manifest	CREATE MATERIALIZED VIEW LOG ON
+?	?	-	suite:manifest	CREATE MATERIALIZED VIEW LOG compat_bad_mlog_R1
+?	?	-	suite:manifest	CREATE MATERIALIZED VIEW LOG ON compat_bad_mlog_R1 WITH (
+?	?	-	suite:manifest	ALTER MATERIALIZED VIEW compat_alt_mv_R1 COMPILE
+?	?	-	suite:manifest	ALTER MATERIALIZED VIEW compat_alt_mv_cache_R1 CACHE
+?	?	-	suite:manifest	ALTER MATERIALIZED VIEW compat_alt_mv_refresh_R1 REFRESH COMPLETE ON DEMAND
+?	?	-	suite:manifest	ALTER MATERIALIZED VIEW compat_bad_mv_R1
+?	?	-	suite:manifest	ALTER MATERIALIZED VIEW compat_bad_mv_R1 REFRESH
+?	?	-	suite:manifest	DROP MATERIALIZED VIEW compat_drop_mv_R1
+?	?	-	suite:manifest	DROP MATERIALIZED VIEW LOG ON compat_drop_mlog_t_R1
+?	?	-	suite:manifest	DROP MATERIALIZED VIEW LOG
+?	?	-	suite:manifest	DROP MATERIALIZED VIEW LOG ON
+?	?	-	suite:manifest	DROP MATERIALIZED VIEW LOG compat_bad_mlog_R1
+?	?	-	suite:manifest	COMMENT ON MATERIALIZED VIEW compat_comment_mv_R1 IS 'compat mv'
+?	?	-	suite:manifest	CREATE CLUSTER compat_cluster_R1 (id NUMBER)
+?	?	-	suite:manifest	CREATE CLUSTER compat_cluster_hash_R1 (id NUMBER) HASHKEYS 10
+?	?	-	suite:manifest	CREATE CLUSTER compat_cluster_size_R1 (id NUMBER) SIZE 512 CACHE
+?	?	-	suite:manifest	CREATE CLUSTER compat_bad_cluster_R1
+?	?	-	suite:manifest	CREATE CLUSTER compat_bad_cluster_R1 ()
+?	?	-	suite:manifest	ALTER CLUSTER compat_alt_cluster_R1 SIZE 1024
+?	?	-	suite:manifest	ALTER CLUSTER compat_bad_cluster_R1
+?	?	-	suite:manifest	TRUNCATE CLUSTER compat_trunc_cluster_R1
+?	?	-	suite:manifest	TRUNCATE CLUSTER compat_trunc_cluster2_R1 REUSE STORAGE
+?	?	-	suite:manifest	DROP CLUSTER compat_drop_cluster_R1
+?	?	-	suite:manifest	DROP CLUSTER
+?	?	-	suite:manifest	CREATE TABLE compat_pk_R1 (id NUMBER PRIMARY KEY)
+?	?	-	suite:manifest	CREATE TABLE compat_nn_uq_R1 (email VARCHAR2(100) NOT NULL UNIQUE)
+?	?	-	suite:manifest	CREATE TABLE compat_def_null_R1 (status VARCHAR2(10) DEFAULT ON NULL 'ACTIVE')
+?	?	-	suite:manifest	CREATE TABLE compat_tbl_chk_R1 (a NUMBER, CONSTRAINT compat_tbl_chk_R1 CHECK (a >= 0))
+?	?	-	suite:manifest	CREATE TABLE compat_fk_child_R1 (pid NUMBER REFERENCES compat_fk_parent_R1(id))
+?	?	-	suite:manifest	CREATE TABLE compat_ctas_where_R1 AS SELECT employee_id id FROM employees WHERE 1 = 0
+?	?	-	suite:manifest	CREATE GLOBAL TEMPORARY TABLE compat_gtt_del_R1 (id NUMBER) ON COMMIT DELETE ROWS
+?	?	-	suite:manifest	CREATE GLOBAL TEMPORARY TABLE compat_gtt_pres_R1 (id NUMBER) ON COMMIT PRESERVE ROWS
+?	?	-	suite:manifest	CREATE TABLE compat_virtual_R1 (price NUMBER, qty NUMBER, total NUMBER GENERATED ALWAYS AS (price * qty) VIRTUAL)
+?	?	-	suite:manifest	CREATE TABLE compat_invis_R1 (id NUMBER, secret VARCHAR2(30) INVISIBLE)
+?	?	-	suite:manifest	CREATE TABLE compat_iot_R1 (id NUMBER PRIMARY KEY, name VARCHAR2(30)) ORGANIZATION INDEX
+?	?	-	suite:manifest	CREATE TABLE compat_segment_R1 (id NUMBER) SEGMENT CREATION IMMEDIATE
+?	?	-	suite:manifest	CREATE TABLE compat_compress_R1 (id NUMBER) COMPRESS
+?	?	-	suite:manifest	CREATE TABLE compat_rowdep_R1 (id NUMBER) ROWDEPENDENCIES
+?	?	-	suite:manifest	CREATE TABLE compat_rowmove_R1 (id NUMBER) ENABLE ROW MOVEMENT
+?	?	-	suite:manifest	ALTER TABLE compat_alt_uq_R1 ADD CONSTRAINT compat_alt_uq_R1 UNIQUE (email)
+?	?	-	suite:manifest	ALTER TABLE compat_alt_rw_R1 READ WRITE
+?	?	-	suite:manifest	ALTER TABLE compat_alt_rencon_R1 RENAME CONSTRAINT compat_old_con_R1 TO compat_new_con_R1
+?	?	-	suite:manifest	ALTER TABLE compat_alt_droppk_R1 DROP PRIMARY KEY
+?	?	-	suite:manifest	ALTER SEQUENCE compat_alt_seq_inc_R1 INCREMENT BY 2
+?	?	-	suite:manifest	ALTER SEQUENCE compat_alt_seq_max_R1 MAXVALUE 999999
+?	?	-	suite:manifest	ALTER SEQUENCE compat_alt_seq_cache_R1 CACHE 30
+?	?	-	suite:manifest	ALTER SEQUENCE compat_alt_seq_cycle_R1 MAXVALUE 999999 CYCLE
+?	?	-	suite:manifest	ALTER VIEW compat_alt_view_R1 COMPILE
+?	?	-	suite:manifest	ALTER VIEW compat_alt_view_ro_R1 READ ONLY
+?	?	-	suite:manifest	CREATE DATABASE LINK compat_dblink_R1 CONNECT TO remote_user IDENTIFIED BY remote_pass USING 'remote_tns'
+?	?	-	suite:manifest	DROP VIEW IF EXISTS compat_missing_view_R1
+?	?	-	suite:manifest	CREATE OR REPLACE SYNONYM compat_syn_or_R1 FOR employees
+?	?	-	suite:manifest	DROP TABLE IF EXISTS compat_never_there_R1 PURGE
+?	?	-	suite:manifest	CREATE UNIQUE INDEX compat_uidx_R1 ON compat_idx_uq_R1(email)
+?	?	-	suite:manifest	CREATE INDEX compat_desc_idx_R1 ON employees(last_name DESC)
+?	?	-	suite:manifest	CREATE TABLE compat_bad_default_R1 (a NUMBER DEFAULT)
+?	?	-	suite:manifest	CREATE TABLE compat_bad_comma_R1 (a NUMBER,, b NUMBER)
+?	?	-	suite:manifest	CREATE TABLE compat_bad_check_R1 (a NUMBER CHECK)
+?	?	-	suite:manifest	CREATE TABLE compat_bad_ref_R1 (a NUMBER REFERENCES)
+?	?	-	suite:manifest	CREATE TABLE compat_bad_pk_R1 (a NUMBER, CONSTRAINT compat_bad_pk_R1 PRIMARY KEY)
+?	?	-	suite:manifest	ALTER TABLE t ADD CONSTRAINT
+?	?	-	suite:manifest	ALTER TABLE t DROP COLUMN
+?	?	-	suite:manifest	ALTER TABLE t MODIFY
+?	?	-	suite:manifest	ALTER SEQUENCE
+?	?	-	suite:manifest	ALTER SEQUENCE compat_bad_seq_R1 CACHE
+?	?	-	suite:manifest	ALTER VIEW
+?	?	-	suite:manifest	ALTER VIEW compat_bad_view_R1 COMPILE EXTRA
+?	?	-	suite:manifest	CREATE DATABASE LINK
+?	?	-	suite:manifest	CREATE DATABASE LINK compat_bad_link_R1 CONNECT TO
+?	?	-	suite:manifest	DROP DATABASE LINK
+?	?	-	suite:manifest	CREATE VIEW compat_bad_select_v_R1 AS SELECT
+?	?	-	suite:manifest	CREATE SYNONYM compat_bad_syn2_R1 FOR
+?	?	-	suite:manifest	COMMENT ON MATERIALIZED VIEW compat_bad_mv_R1 IS
+?	?	-	suite:manifest	CREATE INDEX compat_bad_idx2_R1 ON
+?	?	-	suite:manifest	CREATE INDEX compat_bad_idx3_R1 ON t(UPPER(
+?	?	-	suite:manifest	CREATE PROCEDURE compat_p_R1 IS BEGIN NULL; END;
+?	?	-	suite:manifest	CREATE FUNCTION compat_f_R1 RETURN NUMBER IS BEGIN RETURN 1; END;
+?	?	-	suite:manifest	CREATE PACKAGE compat_pkg_R1 IS PROCEDURE p; END;
+?	?	-	suite:manifest	CREATE TRIGGER compat_tr_R1 BEFORE INSERT ON t BEGIN NULL; END;
+?	?	-	suite:manifest	CREATE TYPE compat_obj_R1 AS OBJECT (a NUMBER)
+?	?	-	suite:manifest	CREATE PROCEDURE compat_bad_p_R1 IS BEGIN NULL;
+?	?	-	suite:manifest	CREATE FUNCTION compat_bad_f_R1 RETURN NUMBER IS BEGIN RETURN;
+?	?	-	suite:manifest	CREATE PACKAGE compat_bad_pkg_R1 IS PROCEDURE p
+?	?	-	suite:manifest	CREATE TRIGGER compat_bad_tr_R1 BEFORE INSERT ON t BEGIN
+?	?	-	suite:manifest	CREATE TYPE compat_bad_obj_R1 AS OBJECT
+?	?	-	suite:manifest	DECLARE x NUMBER; BEGIN x := 1; END;
+?	?	-	suite:manifest	BEGIN IF 1 = 1 THEN NULL; END IF; END;
+?	?	-	suite:manifest	BEGIN LOOP EXIT; END LOOP; END;
+?	?	-	suite:manifest	DECLARE x NUMBER;
+?	?	-	suite:manifest	CREATE OR REPLACE PROCEDURE compat_p_or_R1 IS BEGIN NULL; END;
+?	?	-	suite:manifest	CREATE PROCEDURE compat_p_param_R1 (p_id IN NUMBER) IS BEGIN NULL; END;
+?	?	-	suite:manifest	CREATE PROCEDURE compat_p_out_R1 (p_id IN OUT NUMBER, p_name OUT VARCHAR2) IS BEGIN p_id := NVL(p_id, 0); END;
+?	?	-	suite:manifest	CREATE PROCEDURE compat_p_decl_R1 IS v NUMBER := 1; BEGIN v := v + 1; END;
+?	?	-	suite:manifest	CREATE PROCEDURE compat_p_if_R1 IS BEGIN IF 1 = 1 THEN NULL; ELSE NULL; END IF; END;
+?	?	-	suite:manifest	CREATE PROCEDURE compat_p_loop_R1 IS v NUMBER := 0; BEGIN LOOP v := v + 1; EXIT WHEN v > 1; END LOOP; END;
+?	?	-	suite:manifest	CREATE PROCEDURE compat_p_exc_R1 IS BEGIN NULL; EXCEPTION WHEN OTHERS THEN NULL; END;
+?	?	-	suite:manifest	CREATE FUNCTION compat_f_param_R1 (p_id NUMBER) RETURN NUMBER IS BEGIN RETURN p_id + 1; END;
+?	?	-	suite:manifest	CREATE FUNCTION compat_f_det_R1 RETURN NUMBER DETERMINISTIC IS BEGIN RETURN 1; END;
+?	?	-	suite:manifest	CREATE FUNCTION compat_f_auth_R1 RETURN NUMBER AUTHID CURRENT_USER IS BEGIN RETURN 1; END;
+?	?	-	suite:manifest	CREATE FUNCTION compat_f_cache_R1 RETURN NUMBER RESULT_CACHE IS BEGIN RETURN 1; END;
+?	?	-	suite:manifest	CREATE PACKAGE compat_pkg_auth_R1 AUTHID CURRENT_USER IS PROCEDURE p; FUNCTION f RETURN NUMBER; END;
+?	?	-	suite:manifest	CREATE PACKAGE compat_pkg_vars_R1 IS g_value CONSTANT NUMBER := 1; TYPE t_tab IS TABLE OF NUMBER; END;
+?	?	-	suite:manifest	CREATE TRIGGER compat_tr_after_R1 AFTER UPDATE ON t BEGIN NULL; END;
+?	?	-	suite:manifest	CREATE TRIGGER compat_tr_row_R1 BEFORE INSERT ON t FOR EACH ROW BEGIN :NEW.a := NVL(:NEW.a, 0); END;
+?	?	-	suite:manifest	CREATE TRIGGER compat_tr_when_R1 BEFORE UPDATE OF a ON t FOR EACH ROW WHEN (NEW.a > 0) BEGIN NULL; END;
+?	?	-	suite:manifest	CREATE TRIGGER compat_tr_schema_R1 AFTER CREATE ON SCHEMA BEGIN NULL; END;
+?	?	-	suite:manifest	CREATE TYPE compat_varray_R1 AS VARRAY(5) OF NUMBER
+?	?	-	suite:manifest	CREATE TYPE compat_nt_R1 AS TABLE OF NUMBER
+?	?	-	suite:manifest	CREATE TYPE compat_obj_m_R1 AS OBJECT (a NUMBER, b VARCHAR2(10))
+?	?	-	suite:manifest	CREATE PROCEDURE IS BEGIN NULL; END;
+?	?	-	suite:manifest	CREATE PROCEDURE compat_bad_p_param_R1 (p_id) IS BEGIN NULL; END;
+?	?	-	suite:manifest	CREATE PROCEDURE compat_bad_p_empty_R1 IS
+?	?	-	suite:manifest	CREATE FUNCTION compat_bad_f_ret_R1 IS BEGIN RETURN 1; END;
+?	?	-	suite:manifest	CREATE FUNCTION compat_bad_f_type_R1 RETURN IS BEGIN RETURN 1; END;
+?	?	-	suite:manifest	CREATE PACKAGE compat_bad_pkg2_R1 END;
+?	?	-	suite:manifest	CREATE PACKAGE compat_bad_pkg3_R1 IS FUNCTION f RETURN; END;
+?	?	-	suite:manifest	CREATE TRIGGER compat_bad_tr2_R1 BEFORE INSERT BEGIN NULL; END;
+?	?	-	suite:manifest	CREATE TRIGGER compat_bad_tr3_R1 BEFORE ON t BEGIN NULL; END;
+?	?	-	suite:manifest	CREATE TYPE compat_bad_type2_R1 AS VARRAY OF NUMBER
+?	?	-	suite:manifest	CREATE TYPE compat_bad_type3_R1 AS TABLE OF
+?	?	-	suite:manifest	CREATE TYPE compat_bad_type4_R1 AS OBJECT (a)
+?	?	-	suite:manifest	DECLARE x NUMBER := 1; BEGIN x := x + 1; END;
+?	?	-	suite:manifest	BEGIN IF 1 = 0 THEN NULL; ELSIF 1 = 1 THEN NULL; ELSE NULL; END IF; END;
+?	?	-	suite:manifest	DECLARE x NUMBER := 0; BEGIN WHILE x < 2 LOOP x := x + 1; END LOOP; END;
+?	?	-	suite:manifest	BEGIN FOR i IN 1..3 LOOP NULL; END LOOP; END;
+?	?	-	suite:manifest	BEGIN FOR i IN REVERSE 1..3 LOOP NULL; END LOOP; END;
+?	?	-	suite:manifest	BEGIN BEGIN NULL; END; END;
+?	?	-	suite:manifest	BEGIN NULL; EXCEPTION WHEN OTHERS THEN NULL; END;
+?	?	-	suite:manifest	BEGIN EXECUTE IMMEDIATE 'CREATE TABLE compat_dyn_R1 (a NUMBER)'; END;
+?	?	-	suite:manifest	DECLARE CURSOR c IS SELECT 1 a FROM dual; v NUMBER; BEGIN OPEN c; FETCH c INTO v; CLOSE c; END;
+?	?	-	suite:manifest	BEGIN CASE WHEN 1 = 1 THEN NULL; ELSE NULL; END CASE; END;
+?	?	-	suite:manifest	DECLARE x NUMBER := 1; BEGIN CASE x WHEN 1 THEN NULL; ELSE NULL; END CASE; END;
+?	?	-	suite:manifest	BEGIN LOOP CONTINUE WHEN 1 = 0; EXIT WHEN 1 = 1; END LOOP; END;
+?	?	-	suite:manifest	BEGIN NULL; NULL; END;
+?	?	-	suite:manifest	DECLARE TYPE t_rec IS RECORD (a NUMBER, b VARCHAR2(10)); r t_rec; BEGIN r.a := 1; END;
+?	?	-	suite:manifest	DECLARE TYPE t_tab IS TABLE OF NUMBER INDEX BY PLS_INTEGER; x t_tab; BEGIN x(1) := 1; END;
+?	?	-	suite:manifest	DECLARE PRAGMA AUTONOMOUS_TRANSACTION; BEGIN NULL; END;
+?	?	-	suite:manifest	DECLARE e EXCEPTION; PRAGMA EXCEPTION_INIT(e, -20001); BEGIN RAISE e; EXCEPTION WHEN e THEN NULL; END;
+?	?	-	suite:manifest	BEGIN INSERT INTO t(a) VALUES (1); UPDATE t SET a = 2 WHERE a = 1; DELETE FROM t WHERE a = 2; END;
+?	?	-	suite:manifest	BEGIN MERGE INTO t USING s ON (t.id = s.id) WHEN MATCHED THEN UPDATE SET t.x = s.x; END;
+?	?	-	suite:manifest	BEGIN IF 1 = 1 NULL; END IF; END;
+?	?	-	suite:manifest	BEGIN WHILE 1 = 1 NULL; END LOOP; END;
+?	?	-	suite:manifest	BEGIN FOR i IN 1..3 NULL; END LOOP; END;
+?	?	-	suite:manifest	BEGIN CASE WHEN 1 = 1 NULL; END CASE; END;
+?	?	-	suite:manifest	BEGIN EXECUTE IMMEDIATE; END;
+?	?	-	suite:manifest	BEGIN OPEN; END;
+?	?	-	suite:manifest	BEGIN FETCH c; END;
+?	?	-	suite:manifest	BEGIN CLOSE; END;
+?	?	-	suite:manifest	DECLARE TYPE t_bad IS TABLE OF; BEGIN NULL; END;
+?	?	-	suite:manifest	BEGIN LOOP CONTINUE WHEN; END LOOP; END;
+?	?	-	suite:manifest	DECLARE v NUMBER; BEGIN SELECT 1 INTO v FROM dual; END;
+?	?	-	suite:manifest	BEGIN RAISE NO_DATA_FOUND; EXCEPTION WHEN NO_DATA_FOUND THEN NULL; END;
+?	?	-	suite:manifest	BEGIN RAISE ; EXCEPTION WHEN THEN NULL; END;
+?	?	-	suite:manifest	CREATE TABLE "SELECT" (a NUMBER)
+?	?	-	suite:manifest	CREATE TABLE compat_kw_R1 (SELECT NUMBER)
+?	?	-	suite:manifest	CREATE TABLE compat_kw_R1 ("SELECT" NUMBER)
+?	?	-	suite:manifest	SELECT 1 value FROM dual
+?	?	-	suite:manifest	SELECT 1 "FROM" FROM dual
+?	?	-	suite:manifest	CREATE TABLE FROM (a NUMBER)
+?	?	-	suite:manifest	CREATE TABLE WHERE (a NUMBER)
+?	?	-	suite:manifest	CREATE TABLE DATE (a NUMBER)
+?	?	-	suite:manifest	CREATE TABLE NUMBER (a NUMBER)
+?	?	-	suite:manifest	CREATE TABLE ROWID (a NUMBER)
+?	?	-	suite:manifest	CREATE TABLE USER (a NUMBER)
+?	?	-	suite:manifest	CREATE TABLE TABLE (a NUMBER)
+?	?	-	suite:manifest	CREATE TABLE GROUP (a NUMBER)
+?	?	-	suite:manifest	CREATE TABLE "FROM" (a NUMBER)
+?	?	-	suite:manifest	CREATE TABLE "WHERE" (a NUMBER)
+?	?	-	suite:manifest	CREATE TABLE "DATE" (a NUMBER)
+?	?	-	suite:manifest	CREATE TABLE "NUMBER" (a NUMBER)
+?	?	-	suite:manifest	CREATE TABLE "ROWID" (a NUMBER)
+?	?	-	suite:manifest	CREATE TABLE "USER" (a NUMBER)
+?	?	-	suite:manifest	CREATE TABLE "TABLE" (a NUMBER)
+?	?	-	suite:manifest	CREATE TABLE "GROUP" (a NUMBER)
+?	?	-	suite:manifest	CREATE TABLE compat_kw_from_R1 (FROM NUMBER)
+?	?	-	suite:manifest	CREATE TABLE compat_kw_where_R1 (WHERE NUMBER)
+?	?	-	suite:manifest	CREATE TABLE compat_kw_date_R1 (DATE NUMBER)
+?	?	-	suite:manifest	CREATE TABLE compat_kw_number_R1 (NUMBER NUMBER)
+?	?	-	suite:manifest	CREATE TABLE compat_kw_rowid_R1 (ROWID NUMBER)
+?	?	-	suite:manifest	CREATE TABLE compat_kw_user_R1 (USER NUMBER)
+?	?	-	suite:manifest	CREATE TABLE compat_kw_group_R1 (GROUP NUMBER)
+?	?	-	suite:manifest	CREATE TABLE compat_kw_order_R1 (ORDER NUMBER)
+?	?	-	suite:manifest	CREATE TABLE compat_kw_qfrom_R1 ("FROM" NUMBER)
+?	?	-	suite:manifest	CREATE TABLE compat_kw_qwhere_R1 ("WHERE" NUMBER)
+?	?	-	suite:manifest	CREATE TABLE compat_kw_qdate_R1 ("DATE" NUMBER)
+?	?	-	suite:manifest	CREATE TABLE compat_kw_qnumber_R1 ("NUMBER" NUMBER)
+?	?	-	suite:manifest	CREATE TABLE compat_kw_qrowid_R1 ("ROWID" NUMBER)
+?	?	-	suite:manifest	CREATE TABLE compat_kw_quser_R1 ("USER" NUMBER)
+?	?	-	suite:manifest	CREATE TABLE compat_kw_qgroup_R1 ("GROUP" NUMBER)
+?	?	-	suite:manifest	CREATE TABLE compat_kw_qorder_R1 ("ORDER" NUMBER)
+?	?	-	suite:manifest	CREATE TABLE compat_ctx_generated_R1 (GENERATED NUMBER)
+?	?	-	suite:manifest	CREATE TABLE compat_ctx_identity_R1 (IDENTITY NUMBER)
+?	?	-	suite:manifest	CREATE TABLE compat_ctx_json_R1 (JSON NUMBER)
+?	?	-	suite:manifest	CREATE TABLE compat_ctx_lateral_R1 (LATERAL NUMBER)
+?	?	-	suite:manifest	CREATE TABLE compat_ctx_xmltable_R1 (XMLTABLE NUMBER)
+?	?	-	suite:manifest	CREATE TABLE compat_ctx_versions_R1 (VERSIONS NUMBER)
+?	?	-	suite:manifest	CREATE TABLE compat_ctx_measures_R1 (MEASURES NUMBER)
+?	?	-	suite:manifest	CREATE TABLE compat_ctx_path_R1 (PATH NUMBER)
+?	?	-	suite:manifest	CREATE TABLE GENERATED (a NUMBER)
+?	?	-	suite:manifest	CREATE TABLE IDENTITY (a NUMBER)
+?	?	-	suite:manifest	CREATE TABLE JSON (a NUMBER)
+?	?	-	suite:manifest	CREATE TABLE LATERAL (a NUMBER)
+?	?	-	suite:manifest	CREATE TABLE XMLTABLE (a NUMBER)
+?	?	-	suite:manifest	CREATE TABLE VERSIONS (a NUMBER)
+?	?	-	suite:manifest	CREATE TABLE MEASURES (a NUMBER)
+?	?	-	suite:manifest	CREATE TABLE PATH (a NUMBER)
+?	?	-	suite:manifest	SELECT SYSDATE FROM dual
+?	?	-	suite:manifest	SELECT USER FROM dual
+?	?	-	suite:manifest	SELECT CAST('x' AS VARCHAR2(10)) FROM dual
+?	?	-	suite:manifest	SELECT COUNT(*) FROM dual
+?	?	-	suite:manifest	SELECT DECODE(1, 1, 'Y', 'N') FROM dual
+?	?	-	suite:manifest	SELECT 1 "SELECT" FROM dual
+?	?	-	suite:manifest	SELECT 1 "WHERE" FROM dual
+?	?	-	suite:manifest	SELECT 1 "GROUP" FROM dual
+?	?	-	suite:manifest	SELECT 1 "ORDER" FROM dual
+?	?	-	suite:manifest	SELECT 1 "DATE" FROM dual
+?	?	-	suite:manifest	SELECT 1 "NUMBER" FROM dual
+?	?	-	suite:manifest	SELECT 1 "ROWID" FROM dual
+?	?	-	suite:manifest	SELECT 1 "USER" FROM dual
+?	?	-	suite:manifest	CREATE INDEX SELECT ON compat_kw_idx_R1(a)
+?	?	-	suite:manifest	CREATE INDEX "SELECT" ON compat_kw_iq_R1(a)
+?	?	-	suite:manifest	CREATE SEQUENCE SELECT
+?	?	-	suite:manifest	CREATE SEQUENCE "SELECT"
+?	?	-	suite:manifest	CREATE VIEW SELECT AS SELECT 1 a FROM dual
+?	?	-	suite:manifest	CREATE VIEW "SELECT" AS SELECT 1 a FROM dual
+?	?	-	suite:manifest	CREATE SYNONYM SELECT FOR compat_missing_R1
+?	?	-	suite:manifest	CREATE SYNONYM "SELECT" FOR compat_missing_R1
+?	?	-	suite:manifest	CREATE PROCEDURE SELECT AS BEGIN NULL; END;
+?	?	-	suite:manifest	CREATE PROCEDURE "SELECT" AS BEGIN NULL; END;
+?	?	-	suite:manifest	CREATE USER compat_user_R1 IDENTIFIED BY pass123
+?	?	-	suite:manifest	CREATE USER compat_user_noauth_R1 NO AUTHENTICATION
+?	?	-	suite:manifest	CREATE USER compat_user_ext_R1 IDENTIFIED EXTERNALLY
+?	?	-	suite:manifest	CREATE USER compat_user_opts_R1 IDENTIFIED BY pass123 DEFAULT TABLESPACE users TEMPORARY TABLESPACE temp QUOTA 1M ON users PROFILE DEFAULT PASSWORD EXPIRE ACCOUNT LOCK
+?	?	-	suite:manifest	ALTER USER compat_user_R1 IDENTIFIED BY pass456 ACCOUNT UNLOCK PASSWORD EXPIRE
+?	?	-	suite:manifest	ALTER USER compat_user_R1 DEFAULT ROLE ALL
+?	?	-	suite:manifest	ALTER USER compat_user_R1 QUOTA UNLIMITED ON users
+?	?	-	suite:manifest	DROP USER compat_user_R1 CASCADE
+?	?	-	suite:manifest	CREATE ROLE compat_role_R1
+?	?	-	suite:manifest	CREATE ROLE compat_role_pwd_R1 IDENTIFIED BY pass123
+?	?	-	suite:manifest	CREATE ROLE compat_role_ext_R1 IDENTIFIED EXTERNALLY
+?	?	-	suite:manifest	ALTER ROLE compat_role_R1 NOT IDENTIFIED
+?	?	-	suite:manifest	ALTER ROLE compat_role_R1 IDENTIFIED BY pass456
+?	?	-	suite:manifest	DROP ROLE compat_role_R1
+?	?	-	suite:manifest	CREATE PROFILE compat_profile_R1 LIMIT SESSIONS_PER_USER 2 FAILED_LOGIN_ATTEMPTS 3 PASSWORD_LIFE_TIME 30
+?	?	-	suite:manifest	ALTER PROFILE compat_profile_R1 LIMIT IDLE_TIME 10 PASSWORD_LOCK_TIME 1
+?	?	-	suite:manifest	DROP PROFILE compat_profile_R1 CASCADE
+?	?	-	suite:manifest	GRANT CREATE SESSION TO compat_user_R1
+?	?	-	suite:manifest	GRANT SELECT ON t TO compat_user_R1
+?	?	-	suite:manifest	GRANT SELECT, INSERT ON t TO compat_user_R1 WITH GRANT OPTION
+?	?	-	suite:manifest	GRANT compat_role_R1 TO compat_user_R1 WITH ADMIN OPTION
+?	?	-	suite:manifest	GRANT ALL PRIVILEGES TO compat_user_R1
+?	?	-	suite:manifest	GRANT READ ON DIRECTORY compat_dir_R1 TO compat_user_R1
+?	?	-	suite:manifest	REVOKE CREATE SESSION FROM compat_user_R1
+?	?	-	suite:manifest	REVOKE SELECT ON t FROM compat_user_R1
+?	?	-	suite:manifest	REVOKE compat_role_R1 FROM compat_user_R1
+?	?	-	suite:manifest	REVOKE ALL PRIVILEGES FROM compat_user_R1
+?	?	-	suite:manifest	GRANT TO compat_user_R1
+?	?	-	suite:manifest	REVOKE FROM compat_user_R1
+?	?	-	suite:manifest	GRANT SELECT ON t
+?	?	-	suite:manifest	CREATE AUDIT POLICY compat_audit_pol_R1 PRIVILEGES CREATE SESSION
+?	?	-	suite:manifest	CREATE AUDIT POLICY compat_audit_act_R1 ACTIONS SELECT ON t
+?	?	-	suite:manifest	ALTER AUDIT POLICY compat_audit_pol_R1 ADD PRIVILEGES CREATE TABLE
+?	?	-	suite:manifest	DROP AUDIT POLICY compat_audit_pol_R1
+?	?	-	suite:manifest	AUDIT POLICY compat_audit_pol_R1 BY compat_user_R1 WHENEVER SUCCESSFUL
+?	?	-	suite:manifest	NOAUDIT POLICY compat_audit_pol_R1 BY compat_user_R1
+?	?	-	suite:manifest	AUDIT SELECT ON t BY ACCESS WHENEVER NOT SUCCESSFUL
+?	?	-	suite:manifest	NOAUDIT SELECT ON t WHENEVER NOT SUCCESSFUL
+?	?	-	suite:manifest	AUDIT POLICY
+?	?	-	suite:manifest	CREATE AUDIT POLICY compat_bad_audit_R1 PRIVILEGES
+?	?	-	suite:manifest	CREATE TABLESPACE compat_ts_R1 DATAFILE 'compat_ts_R1.dbf' SIZE 1M
+?	?	-	suite:manifest	CREATE BIGFILE TABLESPACE compat_big_ts_R1 DATAFILE 'compat_big_ts_R1.dbf' SIZE 1M AUTOEXTEND OFF
+?	?	-	suite:manifest	CREATE TEMPORARY TABLESPACE compat_temp_ts_R1 TEMPFILE 'compat_temp_ts_R1.dbf' SIZE 1M
+?	?	-	suite:manifest	CREATE UNDO TABLESPACE compat_undo_ts_R1 DATAFILE 'compat_undo_ts_R1.dbf' SIZE 1M
+?	?	-	suite:manifest	ALTER TABLESPACE users OFFLINE
+?	?	-	suite:manifest	ALTER TABLESPACE users ONLINE
+?	?	-	suite:manifest	ALTER TABLESPACE users READ ONLY
+?	?	-	suite:manifest	DROP TABLESPACE compat_ts_R1 INCLUDING CONTENTS AND DATAFILES
+?	?	-	suite:manifest	CREATE DATABASE compatdb USER SYS IDENTIFIED BY pass USER SYSTEM IDENTIFIED BY pass
+?	?	-	suite:manifest	ALTER DATABASE OPEN
+?	?	-	suite:manifest	ALTER DATABASE MOUNT
+?	?	-	suite:manifest	ALTER DATABASE BACKUP CONTROLFILE TO TRACE
+?	?	-	suite:manifest	FLASHBACK DATABASE TO SCN 100
+?	?	-	suite:manifest	FLASHBACK PLUGGABLE DATABASE pdb1 TO RESTORE POINT rp1
+?	?	-	suite:manifest	CREATE PLUGGABLE DATABASE compat_pdb_R1 ADMIN USER pdbadmin IDENTIFIED BY pass
+?	?	-	suite:manifest	ALTER PLUGGABLE DATABASE compat_pdb_R1 OPEN
+?	?	-	suite:manifest	DROP PLUGGABLE DATABASE compat_pdb_R1 INCLUDING DATAFILES
+?	?	-	suite:manifest	DROP DATABASE
+?	?	-	suite:manifest	CREATE DIRECTORY compat_dir_R1 AS '/tmp'
+?	?	-	suite:manifest	CREATE CONTEXT compat_ctx_R1 USING compat_pkg_R1
+?	?	-	suite:manifest	CREATE LIBRARY compat_lib_R1 AS '/tmp/libcompat.so'
+?	?	-	suite:manifest	CREATE EDITION compat_edition_R1
+?	?	-	suite:manifest	LOCK TABLE t IN SHARE MODE NOWAIT
+?	?	-	suite:manifest	LOCK TABLE t IN ROW EXCLUSIVE MODE WAIT 1
+?	?	-	suite:manifest	ANALYZE TABLE t VALIDATE STRUCTURE CASCADE
+?	?	-	suite:manifest	ANALYZE INDEX compat_desc_idx_R1 VALIDATE STRUCTURE
+?	?	-	suite:manifest	ANALYZE TABLE t DELETE STATISTICS
+?	?	-	suite:manifest	ANALYZE TABLE t COMPUTE STATISTICS FOR ALL COLUMNS
+?	?	-	suite:manifest	FLASHBACK TABLE t TO SCN 100 ENABLE TRIGGERS
+?	?	-	suite:manifest	FLASHBACK TABLE t TO TIMESTAMP SYSTIMESTAMP DISABLE TRIGGERS
+?	?	-	suite:manifest	FLASHBACK TABLE t TO BEFORE DROP RENAME TO t_old
+?	?	-	suite:manifest	PURGE TABLE compat_purged_R1
+?	?	-	suite:manifest	PURGE INDEX compat_purged_idx_R1
+?	?	-	suite:manifest	PURGE RECYCLEBIN
+?	?	-	suite:manifest	PURGE DBA_RECYCLEBIN
+?	?	-	suite:manifest	LOCK TABLE t SHARE MODE
+?	?	-	suite:manifest	LOCK TABLE IN SHARE MODE
+?	?	-	suite:manifest	ANALYZE TABLE VALIDATE STRUCTURE
+?	?	-	suite:manifest	FLASHBACK TABLE t TO
+?	?	-	suite:manifest	PURGE TABLE

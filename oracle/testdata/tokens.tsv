@@ -1,0 +1,42 @@
+# Oracle token forms for generated compat rows: the text written for each
+# value OracleDocs.g4 names by class, where the syntax pages write a name in
+# lower case that no page defines. Keywords and punctuation are literals in
+# the grammar and need no row. Sources, in the SQL Language Reference 26
+# (https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/):
+#   Database-Object-Names-and-Qualifiers.html: nonquoted and "quoted" names
+#   Literals.html, Text-Literals.html, Numeric-Literals.html: 's', q'[...]',
+#     N'...', numbers, BINARY_FLOAT and BINARY_DOUBLE literals
+#   Comments.html: -- and /* */ comments, and /*+ */ hints
+#   Data-Types.html: NUMBER
+#   About-SQL-Expressions.html, About-SQL-Conditions.html
+# and the PL/SQL Language Reference 26 for a unit's source after its header
+# (https://docs.oracle.com/en/database/oracle/oracle-database/26/lnpls/),
+# and for bind variables (:name, :1), which SQL statements from PL/SQL and
+# OCI take where a value stands.
+# A token has one form here. The other forms the pages give (quoted names,
+# q'' and N'' strings, numbers, bind variables, comments and hints) are the
+# suite:lexer rows of oracle/parser/testdata/compat.tsv.
+# columns: token, form, note
+ID	a	nonquoted name: a letter, then letters, digits, _, $ and #; a "quoted" one is a name too
+STRING	's'	text literal in single quotes; '' is a quote in it
+NUMBER	1	numeric literal: an integer
+EXPR	1	an expression; the statement pages give no expression grammar, so a number
+CONDITION	1 = 1	a condition; the statement pages give no condition grammar, so a comparison
+DATA_TYPE	NUMBER	a data type: Oracle's built-in NUMBER
+QUERY	SELECT 1 FROM dual	a query; another page names SELECT's subquery, which it does not copy
+HINT	/*+ a */	a hint: a comment that opens with /*+
+FUNCTION_SOURCE	BEGIN RETURN 1; END;	plsql_function_source after IS or AS: a body that returns
+PROCEDURE_SOURCE	IS BEGIN NULL; END;	plsql_procedure_source after the procedure's name
+PACKAGE_SOURCE	END;	plsql_package_source after IS or AS: a specification with no items
+PACKAGE_BODY_SOURCE	END;	plsql_package_body_source after IS or AS: a body with no items
+TRIGGER_SOURCE	a BEFORE INSERT ON a BEGIN NULL; END;	plsql_trigger_source after TRIGGER, on the table the judge's schema holds
+TYPE_SOURCE	a AS OBJECT (a NUMBER)	plsql_type_source after TYPE: an object type
+TYPE_BODY_SOURCE	MEMBER PROCEDURE a IS BEGIN NULL; END;	plsql_type_body_source between IS and END: one method
+CALL_SPEC	LANGUAGE JAVA NAME 'a'	call_spec: a Java method by its signature
+CREATE_TABLE	CREATE TABLE a (a NUMBER)	create_table_statement in CREATE SCHEMA
+CREATE_VIEW	CREATE VIEW a AS SELECT 1 a FROM dual	create_view_statement in CREATE SCHEMA
+GRANT	GRANT SELECT ON a TO a	grant_statement in CREATE SCHEMA
+SUBPROGRAM_SPEC	MEMBER PROCEDURE a	subprogram_spec of ALTER TYPE: a method's specification
+MAP_ORDER_SPEC	MAP MEMBER FUNCTION a RETURN NUMBER	map_order_function_spec of ALTER TYPE
+FUNCTION_DECLARATION	FUNCTION a RETURN NUMBER IS BEGIN RETURN 1; END;	function_declaration in WITH's plsql_declarations
+PROCEDURE_DECLARATION	PROCEDURE a IS BEGIN NULL; END;	procedure_declaration in WITH's plsql_declarations
