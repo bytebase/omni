@@ -250,11 +250,43 @@ func TestCreateMTMV_OnCommit(t *testing.T) {
 	}
 }
 
+// TestCreateMTMV_RefreshNever: refreshMethod (DorisParser.g4:1023) is
+// COMPLETE or AUTO.
 func TestCreateMTMV_RefreshNever(t *testing.T) {
-	sql := "CREATE MATERIALIZED VIEW mv REFRESH NEVER AS SELECT * FROM t"
-	stmt := parseCreateMTMVStmt(t, sql)
-	if stmt.RefreshMethod != "NEVER" {
-		t.Errorf("RefreshMethod = %q, want NEVER", stmt.RefreshMethod)
+	if _, err := Parse("CREATE MATERIALIZED VIEW mv REFRESH NEVER AS SELECT * FROM t"); err == nil {
+		t.Error("REFRESH NEVER parsed; refreshMethod is COMPLETE or AUTO")
+	}
+}
+
+// TestCreateMTMV_Grammar holds CREATE and REFRESH MATERIALIZED VIEW to
+// DorisParser.g4:92-102 and to the AS Doris needs; testdata/compat.tsv has
+// its verdicts.
+func TestCreateMTMV_Grammar(t *testing.T) {
+	cases := []struct {
+		sql string
+		ok  bool
+	}{
+		{"CREATE MATERIALIZED VIEW a BUILD DEFERRED SELECT 1", true},
+		{"CREATE MATERIALIZED VIEW a DUPLICATE KEY(a) SELECT 1", true},
+		{"CREATE MATERIALIZED VIEW a(a) SELECT 1", true},
+		{"CREATE MATERIALIZED VIEW a SELECT 1", false},
+		{"CREATE MATERIALIZED VIEW a COMMENT 'c' SELECT 1", false},
+		{"CREATE MATERIALIZED VIEW a COMMENT 'c' AS SELECT 1", true},
+		{"CREATE MATERIALIZED VIEW a REFRESH SELECT 1", false},
+		{"CREATE MATERIALIZED VIEW a PARTITION BY (a) AS SELECT 1", true},
+		{"CREATE MATERIALIZED VIEW a PARTITION BY (a + 1) AS SELECT 1", false},
+		{"CREATE MATERIALIZED VIEW a REFRESH ON SCHEDULE EVERY DAY AS SELECT 1", false},
+		{"CREATE MATERIALIZED VIEW a BUILD IMMEDIATE REFRESH AUTO AS SELECT 1", true},
+		{"CREATE MATERIALIZED VIEW a REFRESH AUTO BUILD IMMEDIATE AS SELECT 1", false},
+		{"REFRESH MATERIALIZED VIEW a PARTITION a", true},
+		{"REFRESH MATERIALIZED VIEW a PARTITIONS (a, b)", true},
+		{"CREATE VIEW a(a COMMENT 'c') SELECT 1", true},
+	}
+	for _, c := range cases {
+		_, err := Parse(c.sql)
+		if (err == nil) != c.ok {
+			t.Errorf("Parse(%q): err = %v, want accepted=%v", c.sql, err, c.ok)
+		}
 	}
 }
 
