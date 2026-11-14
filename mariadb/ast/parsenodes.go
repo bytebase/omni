@@ -1574,6 +1574,9 @@ type ResourceOption struct {
 	HasMaxUpdates         bool
 	HasMaxConnections     bool
 	HasMaxUserConn        bool
+	// MaxStatementTime is MariaDB's MAX_STATEMENT_TIME, a number of seconds as written.
+	MaxStatementTime    string
+	HasMaxStatementTime bool
 }
 
 func (r *ResourceOption) nodeTag() {}
@@ -1740,6 +1743,9 @@ type UserSpec struct {
 	InitialAuthPlugin     string      // INITIAL AUTHENTICATION IDENTIFIED WITH plugin
 	InitialAuthString     string      // INITIAL AUTHENTICATION ... AS/BY 'auth_string'
 	InitialAuthRandom     bool        // INITIAL AUTHENTICATION IDENTIFIED BY RANDOM PASSWORD
+	// AuthAlternatives are the plugins after the first of MariaDB's `IDENTIFIED VIA p1 OR
+	// p2 ...`, each with its AuthPlugin and its AuthHash or Password.
+	AuthAlternatives []*UserSpec
 }
 
 func (u *UserSpec) nodeTag() {}
@@ -1750,6 +1756,7 @@ type CreateRoleStmt struct {
 	OrReplace   bool // CREATE OR REPLACE ROLE: drops an existing role first
 	IfNotExists bool
 	Roles       []string
+	Admin       string // WITH ADMIN user_or_role
 }
 
 func (s *CreateRoleStmt) nodeTag()  {}
@@ -1805,6 +1812,7 @@ func (s *GrantRoleStmt) stmtNode() {}
 type RevokeRoleStmt struct {
 	Loc               Loc
 	IfExists          bool
+	AdminOption       bool // REVOKE ADMIN OPTION FOR role: the grant stays, its admin option goes
 	Roles             []string
 	From              []string
 	IgnoreUnknownUser bool
