@@ -50,9 +50,9 @@ func TestParseAlterStreamlit(t *testing.T) {
 		}
 	}
 	s := mustObjectStmt(t, "ALTER STREAMLIT a PUSH TO 'https://g/r/main' USERNAME = u PASSWORD = 'p' NAME = n EMAIL = e COMMENT = c")
-	if opts := s.Clauses[0].Options; len(opts) != 6 || opts[0].Name != "TO" || opts[0].Lit.Value != "https://g/r/main" ||
-		opts[5].Name != "COMMENT" {
-		t.Errorf("PUSH options = %+v", opts)
+	if c := s.Clauses[0]; c.Keywords != "PUSH TO" || len(c.Options) != 6 || c.Options[0].Name != "" ||
+		c.Options[0].Lit.Value != "https://g/r/main" || c.Options[5].Name != "COMMENT" {
+		t.Errorf("PUSH clause = %+v", c)
 	}
 }
 
@@ -93,6 +93,9 @@ func TestParseStreamlitRejects(t *testing.T) {
 		"ALTER STREAMLIT a PUSH BRANCH = b",
 		"ALTER STREAMLIT a PUSH PASSWORD = p",
 		"ALTER STREAMLIT a PUSH GIT_CREDENTIALS = 's'",
+		"ALTER STREAMLIT a PUSH TO = b",
+		"ALTER STREAMLIT a PUSH NAME = n NAME = m",
+		"ALTER STREAMLIT a SET TITLE = 't' TITLE = 'u'",
 	} {
 		mustRejectObject(t, in)
 	}

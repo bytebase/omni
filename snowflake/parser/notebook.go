@@ -28,8 +28,9 @@ func init() {
 		alter:     parseAlterNotebook,
 		orReplace: true,
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-notebook writes
-		// DROP NOTEBOOK <name> with no IF EXISTS, which the registry's DROP
-		// always takes, so DROP NOTEBOOK is not registered.
+		// no IF EXISTS.
+		drop:           true,
+		dropNoIfExists: true,
 		props: objectProps{
 			"MAIN_FILE":                       propString,
 			"COMMENT":                         propString,
@@ -75,7 +76,15 @@ func notebookCheckOptions(c *ast.ObjectClause, props objectProps) error {
 	if len(c.Tags) > 0 {
 		return &ParseError{Position: c.Loc.Start, End: c.Loc.End, Message: "syntax error: TAG is not documented here"}
 	}
-	for _, o := range c.Options {
+	for i, o := range c.Options {
+		for _, prev := range c.Options[:i] {
+			if prev.Name == o.Name {
+				return &ParseError{
+					Position: o.Loc.Start, End: o.Loc.End,
+					Message: "syntax error: " + o.Name + " is set twice",
+				}
+			}
+		}
 		if v, ok := props[o.Name]; !ok || !v.matches(o) {
 			return &ParseError{
 				Position: o.Loc.Start, End: o.Loc.End,

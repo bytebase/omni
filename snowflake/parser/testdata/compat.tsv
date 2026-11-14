@@ -3873,7 +3873,7 @@ reject	undocumented	docs	statement/dropNetworkRule!drop-2	DROP RULE a
 reject	undocumented	docs	statement/dropNetworkRule!drop-4	DROP NETWORK RULE
 reject	undocumented	docs	statement/dropNetworkRule!insert	DROP NETWORK RULE a zzz
 reject	undocumented	docs	statement/dropNetworkRule!swap	DROP_FROM_SOURCE_CATALOG NETWORK RULE a
-reject	accept	docs	statement/dropNotebook	DROP NOTEBOOK a
+accept	accept	docs	statement/dropNotebook	DROP NOTEBOOK a
 reject	undocumented	docs	statement/dropNotebook!drop-3	DROP NOTEBOOK
 reject	undocumented	docs	statement/dropNotebook!insert	DROP NOTEBOOK a zzz
 reject	undocumented	docs	statement/dropNotebook!swap	DROP_FROM_SOURCE_CATALOG NOTEBOOK a
@@ -52375,7 +52375,7 @@ reject	undocumented	docs	dropNetworkRule(IF_EXISTS)?/IF_EXISTS!drop-2	DROP NETWO
 accept	accept	docs	dropNetworkRule(IF_EXISTS)?/IF_EXISTS!truncate	DROP NETWORK RULE IF
 reject	undocumented	docs	dropNetworkRule(IF_EXISTS)?/IF_EXISTS!insert	DROP NETWORK RULE IF EXISTS zzz a
 reject	undocumented	docs	dropNetworkRule(IF_EXISTS)?/IF_EXISTS!swap	DROP NETWORK RULE IGNORE EXISTS a
-reject	accept	docs	dropNotebook/DROP_NOTEBOOK_QNAME	DROP NOTEBOOK a
+accept	accept	docs	dropNotebook/DROP_NOTEBOOK_QNAME	DROP NOTEBOOK a
 reject	accept	docs	undropNotebook/UNDROP_NOTEBOOK_QNAME	UNDROP NOTEBOOK a
 reject	accept	docs	dropOnlineFeatureTable/DROP_ONLINE_FEATURE_TABLE_(IF_EXISTS)?_QNAME	DROP ONLINE FEATURE TABLE a
 reject	accept	docs	dropOnlineFeatureTable(IF_EXISTS)?/%empty	DROP ONLINE FEATURE TABLE a
@@ -53280,9 +53280,9 @@ reject	undocumented	docs	executeNotebookProject(SECRETS_=_(_ID_._ID_._ID_(,_ID_.
 reject	undocumented	docs	executeNotebookProject(SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_))?/SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_)!drop-3	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS = a.a.a)
 reject	undocumented	docs	executeNotebookProject(SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_))?/SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_)!drop-4	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(.a.a)
 reject	undocumented	docs	executeNotebookProject(SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_))?/SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_)!drop-5	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a a.a)
-accept	undocumented	docs	executeNotebookProject(SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_))?/SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_)!drop-6	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a..a)
+reject	undocumented	docs	executeNotebookProject(SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_))?/SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_)!drop-6	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a..a)
 reject	undocumented	docs	executeNotebookProject(SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_))?/SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_)!drop-7	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a a)
-accept	undocumented	docs	executeNotebookProject(SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_))?/SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_)!drop-8	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.)
+reject	undocumented	docs	executeNotebookProject(SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_))?/SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_)!drop-8	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.)
 reject	undocumented	docs	executeNotebookProject(SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_))?/SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_)!drop-9	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.a
 reject	undocumented	docs	executeNotebookProject(SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_))?/SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_)!insert	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.a) zzz
 reject	undocumented	docs	executeNotebookProject(SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_))?/SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_)!swap	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRET_AUTHORIZATION =(a.a.a)
@@ -53292,9 +53292,9 @@ accept	accept	docs	executeNotebookProject(,_ID_._ID_._ID)*/,_ID_._ID_._ID_(,_ID_
 reject	undocumented	docs	executeNotebookProject(,_ID_._ID_._ID)*/,_ID_._ID_._ID_(,_ID_._ID_._ID)*!drop-1	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.a a.a.a)
 reject	undocumented	docs	executeNotebookProject(,_ID_._ID_._ID)*/,_ID_._ID_._ID_(,_ID_._ID_._ID)*!drop-2	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.a,.a.a)
 reject	undocumented	docs	executeNotebookProject(,_ID_._ID_._ID)*/,_ID_._ID_._ID_(,_ID_._ID_._ID)*!drop-3	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.a, a a.a)
-accept	undocumented	docs	executeNotebookProject(,_ID_._ID_._ID)*/,_ID_._ID_._ID_(,_ID_._ID_._ID)*!drop-4	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.a, a..a)
+reject	undocumented	docs	executeNotebookProject(,_ID_._ID_._ID)*/,_ID_._ID_._ID_(,_ID_._ID_._ID)*!drop-4	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.a, a..a)
 reject	undocumented	docs	executeNotebookProject(,_ID_._ID_._ID)*/,_ID_._ID_._ID_(,_ID_._ID_._ID)*!drop-5	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.a, a.a a)
-accept	undocumented	docs	executeNotebookProject(,_ID_._ID_._ID)*/,_ID_._ID_._ID_(,_ID_._ID_._ID)*!drop-6	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.a, a.a.)
+reject	undocumented	docs	executeNotebookProject(,_ID_._ID_._ID)*/,_ID_._ID_._ID_(,_ID_._ID_._ID)*!drop-6	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.a, a.a.)
 reject	undocumented	docs	executeNotebookProject(,_ID_._ID_._ID)*/,_ID_._ID_._ID_(,_ID_._ID_._ID)*!truncate	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.a, a.a.
 reject	undocumented	docs	executeNotebookProject(,_ID_._ID_._ID)*/,_ID_._ID_._ID_(,_ID_._ID_._ID)*!insert	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.a, a.a.a zzz)
 reject	accept	docs	executeCodeBundle/EXECUTE_CODE_BUNDLE_QNAME_ENTRYPOINT_=_STRING_(ARGUMENT~4862c172	EXECUTE CODE BUNDLE a ENTRYPOINT = 's'

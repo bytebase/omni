@@ -1,6 +1,10 @@
 package parser
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/bytebase/omni/snowflake/ast"
+)
 
 func TestParseCreateNotebook(t *testing.T) {
 	s := mustObjectStmt(t, "CREATE OR REPLACE NOTEBOOK db.s.nb FROM '@db.s.stage' MAIN_FILE = 'nb.ipynb' "+
@@ -39,6 +43,13 @@ func TestParseCreateNotebookProject(t *testing.T) {
 		if got := clauseKeywords(s); got[0] != "FROM" {
 			t.Errorf("%q: clauses = %q", in, got)
 		}
+	}
+}
+
+func TestParseDropNotebook(t *testing.T) {
+	d, ok := mustParseOne(t, "DROP NOTEBOOK db.s.nb").(*ast.DropStmt)
+	if !ok || d.Object != "NOTEBOOK" || d.IfExists || d.Name.String() != "db.s.nb" {
+		t.Fatalf("got %#v", d)
 	}
 }
 
@@ -95,6 +106,8 @@ func TestParseNotebookRejects(t *testing.T) {
 		"EXECUTE NOTEBOOK PROJECT db.s.p MAIN_FILE = 'm' COMPUTE_POOL = 'c' QUERY_WAREHOUSE = 'w'", // RUNTIME is required
 		"EXECUTE NOTEBOOK PROJECT db.s.p",
 		"EXECUTE NOTEBOOK",
+		"DROP NOTEBOOK IF EXISTS a", // the page writes no IF EXISTS
+		"EXECUTE NOTEBOOK PROJECT db.s.p MAIN_FILE = 'm' COMPUTE_POOL = 'c' QUERY_WAREHOUSE = 'w' RUNTIME = 'r' RUNTIME = 'r'",
 		// Properties the page does not document, or of another shape.
 		"CREATE NOTEBOOK a SECRETS = ('k' = s)",                   // ALTER's alone
 		"CREATE NOTEBOOK a IDLE_AUTO_SHUTDOWN_TIME_SECONDS = 'x'", //

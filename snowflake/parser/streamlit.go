@@ -34,21 +34,26 @@ var streamlitProps = objectProps{
 	"SECRETS":                      propGroup,
 }
 
-// streamlitCheckPush holds PUSH's options to the ones the page documents. The
-// page writes their values as bare placeholders (<git_author_email>, ...),
-// which an email address cannot be, so the ones a person types (TO, USERNAME,
-// NAME, EMAIL, COMMENT) take a string or a name; GIT_CREDENTIALS names a
-// secret, and PASSWORD is a string.
+// streamlitCheckPush holds PUSH's properties to the ones the page documents,
+// each set once. The page writes their values as bare placeholders
+// (<git_author_email>, ...), which an email address cannot be, so the ones a
+// person types (USERNAME, NAME, EMAIL, COMMENT) take a string or a name;
+// GIT_CREDENTIALS names a secret, and PASSWORD is a string.
 func streamlitCheckPush(opts []*ast.CopyOption) error {
-	for _, o := range opts {
-		ok := false
+	for i, o := range opts {
+		ok := true
+		for _, prev := range opts[:i] {
+			ok = ok && prev.Name != o.Name
+		}
 		switch o.Name {
-		case "TO", "USERNAME", "NAME", "EMAIL", "COMMENT":
-			ok = propName.matches(o) || propString.matches(o)
+		case "USERNAME", "NAME", "EMAIL", "COMMENT":
+			ok = ok && (propName.matches(o) || propString.matches(o))
 		case "GIT_CREDENTIALS":
-			ok = propName.matches(o)
+			ok = ok && propName.matches(o)
 		case "PASSWORD":
-			ok = propString.matches(o)
+			ok = ok && propString.matches(o)
+		default:
+			ok = false
 		}
 		if !ok {
 			return &ParseError{
@@ -150,32 +155,39 @@ func parseAlterStreamlit(p *Parser, s *ast.ObjectStmt) error {
 	return nil
 }
 
-// parseStreamlitPush reads PUSH's [ TO <git_branch_uri> ] and its
-// `KEY = value` properties into one PUSH clause, TO as an option named TO.
-// PUSH has been consumed; start is where it began.
+// parseStreamlitPush reads PUSH [ TO <git_branch_uri> ] and its
+// `KEY = value` properties into one clause: PUSH, or PUSH TO whose first
+// option, nameless, holds the branch. PUSH has been consumed; start is where
+// it began.
 func (p *Parser) parseStreamlitPush(s *ast.ObjectStmt, start int) error {
 	c := p.addObjectKeywordsClause(s, "PUSH", start)
+	props := c.Options
 	if p.cur.Type == kwTO {
-		to := p.advance()
-		opt := &ast.CopyOption{Name: "TO", Loc: ast.Loc{Start: to.Loc.Start}}
+		p.advance() // consume TO
+		c.Keywords = "PUSH TO"
+		branch := &ast.CopyOption{Loc: ast.Loc{Start: p.cur.Loc.Start}}
 		if p.cur.Type == '(' {
 			return p.syntaxErrorAtCur()
 		}
-		if err := p.parseObjectValue(opt); err != nil {
+		if err := p.parseObjectValue(branch); err != nil {
 			return err
 		}
-		opt.Loc.End = p.prev.Loc.End
-		c.Options = append(c.Options, opt)
+		branch.Loc.End = p.prev.Loc.End
+		if !propName.matches(branch) && !propString.matches(branch) {
+			return &ParseError{Position: branch.Loc.Start, End: branch.Loc.End, Message: "syntax error: a branch is a string or a name"}
+		}
+		c.Options = append(c.Options, branch)
 	}
 	for p.startsObjectProperty() {
 		opt, err := p.parseObjectProperty()
 		if err != nil {
 			return err
 		}
+		props = append(props, opt)
 		c.Options = append(c.Options, opt)
 	}
 	c.Loc.End = p.prev.Loc.End
-	return streamlitCheckPush(c.Options)
+	return streamlitCheckPush(props)
 }
 
 // parseStreamlitFrom reads FROM '<source_location>' into a FROM clause whose
