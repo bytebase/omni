@@ -2331,7 +2331,10 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 			writeTrimDirectional(b, "both", n.Args)
 			return
 		case "TRIM":
-			if oracleTrim {
+			// TRIM's own arms read one argument or remstr FROM str. Any other
+			// count is an ordinary call of a routine by that name, written as
+			// one below: oracle_schema.trim() parses (1630 comes later).
+			if oracleTrim && (len(n.Args) == 1 || len(n.Args) == 2) {
 				b.WriteString(prefix)
 				if len(n.Args) == 2 {
 					// remstr FROM str trims both ends.

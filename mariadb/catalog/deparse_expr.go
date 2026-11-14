@@ -168,6 +168,9 @@ func writeFuncCallExprQ(b *strings.Builder, f *FuncCallExprQ, q *deparseScope) {
 			b.WriteString(", ")
 		}
 		writeAnalyzedExpr(b, arg, q)
+		if i < len(f.ArgTypes) {
+			b.WriteString(f.ArgTypes[i])
+		}
 	}
 	b.WriteByte(')')
 

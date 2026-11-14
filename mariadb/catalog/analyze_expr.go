@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	nodes "github.com/bytebase/omni/mariadb/ast"
+	"github.com/bytebase/omni/mariadb/deparse"
 )
 
 // analyzeExpr is the main expression analysis dispatcher.
@@ -111,6 +112,14 @@ func analyzeFuncCall(c *Catalog, fc *nodes.FuncCallExpr, scope *analyzerScope) (
 		IsAggregate: isAggregateFunc(fc.Name) && !fc.SpacedParen,
 		Distinct:    fc.Quantifier.RemovesDuplicates(),
 		SpacedParen: fc.SpacedParen,
+	}
+	// A dynamic column function's AS types are part of the call: COLUMN_GET
+	// does not parse without one.
+	if len(fc.ArgTypes) > 0 {
+		result.ArgTypes = make([]string, len(fc.Args))
+		for i := range fc.Args {
+			result.ArgTypes[i] = deparse.DynColArgType(fc, i)
+		}
 	}
 	// Phase 3: populate return type from function type table.
 	result.ResultType = functionReturnType(result.Name, result.Args)

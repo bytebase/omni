@@ -732,6 +732,12 @@ type FuncCallExprQ struct {
 	// Args are the analyzed arguments in source order.
 	Args []AnalyzedExpr
 
+	// ArgTypes holds, beside Args, the AS clause a dynamic column function
+	// writes after an argument (COLUMN_GET(b, 'a' AS INT), COLUMN_CREATE('a',
+	// 1 AS INT)) as the server stores it, with its leading space, and "" for an
+	// argument without one. It is nil for every other call.
+	ArgTypes []string
+
 	// IsAggregate marks this call as an aggregate function (COUNT, SUM, AVG,
 	// MIN, MAX, GROUP_CONCAT, etc.). Set by the analyzer based on a function
 	// catalog, NOT by string-matching `Name` at consumer sites. Lineage

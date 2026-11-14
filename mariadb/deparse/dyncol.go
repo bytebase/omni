@@ -35,19 +35,23 @@ func writeDynColCall(b *strings.Builder, n *ast.FuncCallExpr) {
 			b.WriteString(",")
 		}
 		writeExpr(b, arg)
-		dt := n.ArgTypes[i]
-		if dt == nil {
-			continue
-		}
-		if name == "COLUMN_GET" {
-			b.WriteString(" as ")
-			b.WriteString(deparseDataType(dt))
-		} else {
-			b.WriteString(" AS ")
-			b.WriteString(deparseDynColType(dt))
-		}
+		b.WriteString(DynColArgType(n, i))
 	}
 	b.WriteString(")")
+}
+
+// DynColArgType returns the AS clause MariaDB stores after argument i of a
+// dynamic column function, with its leading space, or "" when the argument
+// has none: ` as signed` for COLUMN_GET(b, 'a' AS INT), whose type is a CAST
+// type, and ` AS int` for a value of COLUMN_CREATE or COLUMN_ADD.
+func DynColArgType(n *ast.FuncCallExpr, i int) string {
+	if i >= len(n.ArgTypes) || n.ArgTypes[i] == nil {
+		return ""
+	}
+	if strings.EqualFold(n.Name, "COLUMN_GET") {
+		return " as " + deparseDataType(n.ArgTypes[i])
+	}
+	return " AS " + deparseDynColType(n.ArgTypes[i])
 }
 
 // deparseDynColType writes a dynamic column's value type as the server
