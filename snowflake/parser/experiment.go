@@ -1,0 +1,104 @@
+package parser
+
+import (
+	"slices"
+	"strings"
+
+	"github.com/bytebase/omni/snowflake/ast"
+)
+
+// ---------------------------------------------------------------------------
+// EXPERIMENT (Snowflake ML experiment tracking), read as an ast.ObjectStmt
+// ---------------------------------------------------------------------------
+
+func init() {
+	registerObject(&objectForm{
+		words:     []string{"EXPERIMENT"},
+		create:    parseCreateExperiment,
+		alter:     parseAlterExperiment,
+		orReplace: true,
+		// https://docs.snowflake.com/en/sql-reference/sql/drop-experiment
+		// writes no IF EXISTS, as alter-experiment does not.
+		drop:           true,
+		dropNoIfExists: true,
+		noIfExists:     true,
+		// MODIFY RUN <run> SET STATUS = '<status>' is the one SET.
+		props: objectProps{"STATUS": propString},
+		unset: []string{},
+	})
+}
+
+// parseCreateExperiment reads what follows the name of
+//
+//	CREATE [ OR REPLACE ] EXPERIMENT [ IF NOT EXISTS ] <name>
+//
+// which is nothing.
+//
+// https://docs.snowflake.com/en/sql-reference/sql/create-experiment
+func parseCreateExperiment(p *Parser, s *ast.ObjectStmt) error {
+	return nil
+}
+
+// parseAlterExperiment reads what follows the name of
+//
+//	ALTER EXPERIMENT <name> ADD RUN <run_name>
+//	ALTER EXPERIMENT <name> COMMIT RUN <run_name>
+//	  [ WITH STATUS = { 'FINISHED' | 'FAILED' | 'CANCELLED' } ]
+//	ALTER EXPERIMENT <name> MODIFY RUN <run_name> SET STATUS = { 'RUNNING' | 'PAUSED' }
+//	ALTER EXPERIMENT <name> DROP RUN <run_name>
+//
+// The page writes no IF EXISTS. WITH and SET are clauses of their own.
+//
+// https://docs.snowflake.com/en/sql-reference/sql/alter-experiment
+func parseAlterExperiment(p *Parser, s *ast.ObjectStmt) error {
+	start := p.cur.Loc.Start
+	var verb string
+	for _, v := range []string{"ADD", "COMMIT", "MODIFY", "DROP"} {
+		if p.atWords(v, "RUN") {
+			verb = v
+		}
+	}
+	if verb == "" {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance() // consume the verb
+	p.advance() // consume RUN
+	if err := p.parseAiNameClause(s, verb+" RUN", start); err != nil {
+		return err
+	}
+	start = p.cur.Loc.Start
+	switch verb {
+	case "COMMIT":
+		if p.cur.Type == kwWITH {
+			p.advance() // consume WITH
+			return p.parseExperimentStatus(s, "WITH", start, "FINISHED", "FAILED", "CANCELLED")
+		}
+	case "MODIFY":
+		if _, err := p.expect(kwSET); err != nil {
+			return err
+		}
+		return p.parseExperimentStatus(s, "SET", start, "RUNNING", "PAUSED")
+	}
+	return nil
+}
+
+// parseExperimentStatus reads STATUS = '<status>' into a clause of keywords,
+// begun at start and already consumed, where the status is one of statuses,
+// the strings the page lists for the action.
+func (p *Parser) parseExperimentStatus(s *ast.ObjectStmt, keywords string, start int, statuses ...string) error {
+	if !p.curIsWord("STATUS") || !p.startsObjectProperty() {
+		return p.syntaxErrorAtCur()
+	}
+	status, err := p.parseObjectProperty()
+	if err != nil {
+		return err
+	}
+	if status.Lit == nil || status.Lit.Kind != ast.LitString || !slices.Contains(statuses, status.Lit.Value) {
+		return &ParseError{
+			Position: status.Loc.Start, End: status.Loc.End,
+			Message: "syntax error: the run status is one of '" + strings.Join(statuses, "', '") + "'",
+		}
+	}
+	p.addObjectKeywordsClause(s, keywords, start).Options = []*ast.CopyOption{status}
+	return nil
+}
