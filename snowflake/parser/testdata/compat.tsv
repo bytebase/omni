@@ -5248,7 +5248,7 @@ accept	undocumented	docs	statement/showRowAccessPolicies!drop-3	SHOW ROW POLICIE
 accept	undocumented	docs	statement/showRowAccessPolicies!drop-4	SHOW ROW ACCESS
 accept	undocumented	docs	statement/showRowAccessPolicies!insert	SHOW ROW ACCESS POLICIES zzz
 reject	undocumented	docs	statement/showRowAccessPolicies!swap	SHOW_INITIAL_ROWS ROW ACCESS POLICIES
-reject	accept	docs	statement/showRulesInEventRoutingTable	SHOW RULES IN EVENT ROUTING TABLE(a)
+accept	accept	docs	statement/showRulesInEventRoutingTable	SHOW RULES IN EVENT ROUTING TABLE(a)
 reject	undocumented	docs	statement/showRulesInEventRoutingTable!drop-1	RULES IN EVENT ROUTING TABLE(a)
 reject	undocumented	docs	statement/showRulesInEventRoutingTable!drop-2	SHOW IN EVENT ROUTING TABLE(a)
 reject	undocumented	docs	statement/showRulesInEventRoutingTable!drop-3	SHOW RULES EVENT ROUTING TABLE(a)
@@ -5300,7 +5300,7 @@ accept	undocumented	docs	statement/showSemanticDimensions!drop-2	SHOW DIMENSIONS
 accept	undocumented	docs	statement/showSemanticDimensions!drop-3	SHOW SEMANTIC
 accept	undocumented	docs	statement/showSemanticDimensions!insert	SHOW SEMANTIC DIMENSIONS zzz
 reject	undocumented	docs	statement/showSemanticDimensions!swap	SHOW_INITIAL_ROWS SEMANTIC DIMENSIONS
-reject	accept	docs	statement/showSemanticDimensionsForMetric	SHOW SEMANTIC DIMENSIONS IN a FOR METRIC a
+accept	accept	docs	statement/showSemanticDimensionsForMetric	SHOW SEMANTIC DIMENSIONS IN a FOR METRIC a
 reject	undocumented	docs	statement/showSemanticDimensionsForMetric!drop-1	SEMANTIC DIMENSIONS IN a FOR METRIC a
 reject	undocumented	docs	statement/showSemanticDimensionsForMetric!drop-2	SHOW DIMENSIONS IN a FOR METRIC a
 reject	undocumented	docs	statement/showSemanticDimensionsForMetric!drop-3	SHOW SEMANTIC IN a FOR METRIC a
@@ -5363,7 +5363,7 @@ reject	undocumented	docs	statement/showSessionPolicies!drop-1	SESSION POLICIES
 accept	undocumented	docs	statement/showSessionPolicies!drop-3	SHOW SESSION
 accept	undocumented	docs	statement/showSessionPolicies!insert	SHOW SESSION POLICIES zzz
 reject	undocumented	docs	statement/showSessionPolicies!swap	SHOW_INITIAL_ROWS SESSION POLICIES
-reject	accept	docs	statement/showSharedContent	SHOW SHARED CONTENT IN APPLICATION PACKAGE a FOR VERSION a
+accept	accept	docs	statement/showSharedContent	SHOW SHARED CONTENT IN APPLICATION PACKAGE a FOR VERSION a
 reject	undocumented	docs	statement/showSharedContent!drop-1	SHARED CONTENT IN APPLICATION PACKAGE a FOR VERSION a
 reject	undocumented	docs	statement/showSharedContent!drop-2	SHOW CONTENT IN APPLICATION PACKAGE a FOR VERSION a
 reject	undocumented	docs	statement/showSharedContent!drop-3	SHOW SHARED IN APPLICATION PACKAGE a FOR VERSION a
@@ -5520,7 +5520,7 @@ accept	undocumented	docs	statement/showVersions!drop-5	SHOW VERSIONS IN APPLICAT
 accept	undocumented	docs	statement/showVersions!drop-6	SHOW VERSIONS IN APPLICATION PACKAGE
 reject	undocumented	docs	statement/showVersions!insert	SHOW VERSIONS IN APPLICATION PACKAGE a zzz
 reject	undocumented	docs	statement/showVersions!swap	SHOW_INITIAL_ROWS VERSIONS IN APPLICATION PACKAGE a
-reject	accept	docs	statement/showVersionsInArtifactRepository	SHOW VERSIONS IN ARTIFACT REPOSITORY a FOR PACKAGE a
+accept	accept	docs	statement/showVersionsInArtifactRepository	SHOW VERSIONS IN ARTIFACT REPOSITORY a FOR PACKAGE a
 reject	undocumented	docs	statement/showVersionsInArtifactRepository!drop-1	VERSIONS IN ARTIFACT REPOSITORY a FOR PACKAGE a
 reject	undocumented	docs	statement/showVersionsInArtifactRepository!drop-2	SHOW IN ARTIFACT REPOSITORY a FOR PACKAGE a
 reject	undocumented	docs	statement/showVersionsInArtifactRepository!drop-3	SHOW VERSIONS ARTIFACT REPOSITORY a FOR PACKAGE a
@@ -5561,7 +5561,7 @@ accept	undocumented	docs	statement/showVersionsInModel!drop-3	SHOW VERSIONS MODE
 accept	undocumented	docs	statement/showVersionsInModel!drop-5	SHOW VERSIONS IN MODEL
 reject	undocumented	docs	statement/showVersionsInModel!insert	SHOW VERSIONS IN MODEL a zzz
 reject	undocumented	docs	statement/showVersionsInModel!swap	SHOW_INITIAL_ROWS VERSIONS IN MODEL a
-reject	accept	docs	statement/showVersionsInOpenflowConnector	SHOW VERSIONS IN OPENFLOW CONNECTOR a
+accept	accept	docs	statement/showVersionsInOpenflowConnector	SHOW VERSIONS IN OPENFLOW CONNECTOR a
 reject	undocumented	docs	statement/showVersionsInOpenflowConnector!drop-1	VERSIONS IN OPENFLOW CONNECTOR a
 reject	undocumented	docs	statement/showVersionsInOpenflowConnector!drop-2	SHOW IN OPENFLOW CONNECTOR a
 accept	undocumented	docs	statement/showVersionsInOpenflowConnector!drop-3	SHOW VERSIONS OPENFLOW CONNECTOR a
@@ -68746,9 +68746,9 @@ accept	accept	docs	showChannels(ACCOUNT|DATABASE|DATABASE_ID|SCHEMA|~df917d6c)/T
 reject	undocumented	docs	showChannels(ACCOUNT|DATABASE|DATABASE_ID|SCHEMA|~df917d6c)/TABLE_QNAME!insert	SHOW CHANNELS IN TABLE a zzz
 reject	undocumented	docs	showChannels(ACCOUNT|DATABASE|DATABASE_ID|SCHEMA|~df917d6c)/TABLE_QNAME!swap	SHOW CHANNELS IN TABLEAU_DESKTOP a
 accept	accept	docs	showChannels(ACCOUNT|DATABASE|DATABASE_ID|SCHEMA|~df917d6c)/PIPE	SHOW CHANNELS IN PIPE
-reject	accept	docs	showChannels(ACCOUNT|DATABASE|DATABASE_ID|SCHEMA|~df917d6c)/PIPE!insert	SHOW CHANNELS IN PIPE zzz
+accept	accept	docs	showChannels(ACCOUNT|DATABASE|DATABASE_ID|SCHEMA|~df917d6c)/PIPE!insert	SHOW CHANNELS IN PIPE zzz
 accept	accept	docs	showChannels(ACCOUNT|DATABASE|DATABASE_ID|SCHEMA|~df917d6c)/PIPE!swap	SHOW CHANNELS IN PIPES
-reject	accept	docs	showChannels(ACCOUNT|DATABASE|DATABASE_ID|SCHEMA|~df917d6c)/PIPE_QNAME	SHOW CHANNELS IN PIPE a
+accept	accept	docs	showChannels(ACCOUNT|DATABASE|DATABASE_ID|SCHEMA|~df917d6c)/PIPE_QNAME	SHOW CHANNELS IN PIPE a
 reject	undocumented	docs	showChannels(ACCOUNT|DATABASE|DATABASE_ID|SCHEMA|~df917d6c)/PIPE_QNAME!insert	SHOW CHANNELS IN PIPE a zzz
 reject	undocumented	docs	showChannels(ACCOUNT|DATABASE|DATABASE_ID|SCHEMA|~df917d6c)/PIPE_QNAME!swap	SHOW CHANNELS IN PIPES a
 accept	accept	docs	showClasses/SHOW_CLASSES_(LIKE_STRING)?_(IN_DATABASE_ID?)?_(LIMIT_N~3bebddb5	SHOW CLASSES
@@ -69653,7 +69653,7 @@ reject	undocumented	docs	showExternalVolumes(LIKE_STRING)?/LIKE_STRING!insert	SH
 reject	undocumented	docs	showExternalVolumes(LIKE_STRING)?/LIKE_STRING!swap	SHOW EXTERNAL VOLUMES LIMIT 's'
 accept	accept	docs	showFailoverGroups/SHOW_FAILOVER_GROUPS_(IN_ACCOUNT_ID)?	SHOW FAILOVER GROUPS
 accept	accept	docs	showFailoverGroups(IN_ACCOUNT_ID)?/%empty	SHOW FAILOVER GROUPS
-reject	accept	docs	showFailoverGroups(IN_ACCOUNT_ID)?/IN_ACCOUNT_ID	SHOW FAILOVER GROUPS IN ACCOUNT a
+accept	accept	docs	showFailoverGroups(IN_ACCOUNT_ID)?/IN_ACCOUNT_ID	SHOW FAILOVER GROUPS IN ACCOUNT a
 accept	undocumented	docs	showFailoverGroups(IN_ACCOUNT_ID)?/IN_ACCOUNT_ID!drop-1	SHOW FAILOVER GROUPS ACCOUNT a
 accept	undocumented	docs	showFailoverGroups(IN_ACCOUNT_ID)?/IN_ACCOUNT_ID!drop-2	SHOW FAILOVER GROUPS IN a
 accept	undocumented	docs	showFailoverGroups(IN_ACCOUNT_ID)?/IN_ACCOUNT_ID!drop-3	SHOW FAILOVER GROUPS IN ACCOUNT
@@ -69777,7 +69777,7 @@ reject	undocumented	docs	showFunctions(IN_(ACCOUNT|CLASS_ID|DATABASE|DATABA~665a
 accept	undocumented	docs	showFunctions(IN_(ACCOUNT|CLASS_ID|DATABASE|DATABA~665a7d8e)?/IN_(ACCOUNT|CLASS_ID|DATABASE|DATABASE_I~5f11ebb9)!swap	SHOW FUNCTIONS INBOUND ACCOUNT
 accept	accept	docs	showFunctions(ACCOUNT|CLASS_ID|DATABASE|DATABASE_I~5f11ebb9)/ACCOUNT	SHOW FUNCTIONS IN ACCOUNT
 accept	accept	docs	showFunctions(ACCOUNT|CLASS_ID|DATABASE|DATABASE_I~5f11ebb9)/ACCOUNT!swap	SHOW FUNCTIONS IN ACCOUNTS
-reject	accept	docs	showFunctions(ACCOUNT|CLASS_ID|DATABASE|DATABASE_I~5f11ebb9)/CLASS_ID	SHOW FUNCTIONS IN CLASS a
+accept	accept	docs	showFunctions(ACCOUNT|CLASS_ID|DATABASE|DATABASE_I~5f11ebb9)/CLASS_ID	SHOW FUNCTIONS IN CLASS a
 accept	accept	docs	showFunctions(ACCOUNT|CLASS_ID|DATABASE|DATABASE_I~5f11ebb9)/CLASS_ID!drop-2	SHOW FUNCTIONS IN CLASS
 reject	undocumented	docs	showFunctions(ACCOUNT|CLASS_ID|DATABASE|DATABASE_I~5f11ebb9)/CLASS_ID!insert	SHOW FUNCTIONS IN CLASS a zzz
 reject	undocumented	docs	showFunctions(ACCOUNT|CLASS_ID|DATABASE|DATABASE_I~5f11ebb9)/CLASS_ID!swap	SHOW FUNCTIONS IN CLASSES a
@@ -69804,7 +69804,7 @@ reject	undocumented	docs	showFunctionsInModel(LIKE_STRING)?/LIKE_STRING!drop-2	S
 reject	undocumented	docs	showFunctionsInModel(LIKE_STRING)?/LIKE_STRING!insert	SHOW FUNCTIONS LIKE 's' zzz IN MODEL a
 reject	undocumented	docs	showFunctionsInModel(LIKE_STRING)?/LIKE_STRING!swap	SHOW FUNCTIONS LIMIT 's' IN MODEL a
 accept	accept	docs	showFunctionsInModel(VERSION_ID)?/%empty	SHOW FUNCTIONS IN MODEL a
-reject	accept	docs	showFunctionsInModel(VERSION_ID)?/VERSION_ID	SHOW FUNCTIONS IN MODEL a VERSION a
+accept	accept	docs	showFunctionsInModel(VERSION_ID)?/VERSION_ID	SHOW FUNCTIONS IN MODEL a VERSION a
 reject	undocumented	docs	showFunctionsInModel(VERSION_ID)?/VERSION_ID!drop-1	SHOW FUNCTIONS IN MODEL a a
 reject	undocumented	docs	showFunctionsInModel(VERSION_ID)?/VERSION_ID!drop-2	SHOW FUNCTIONS IN MODEL a VERSION
 reject	undocumented	docs	showFunctionsInModel(VERSION_ID)?/VERSION_ID!insert	SHOW FUNCTIONS IN MODEL a VERSION a zzz
@@ -69868,7 +69868,7 @@ reject	undocumented	docs	showGitBranches(LIKE_STRING)?/LIKE_STRING!insert	SHOW G
 reject	undocumented	docs	showGitBranches(LIKE_STRING)?/LIKE_STRING!swap	SHOW GIT BRANCHES LIMIT 's' IN a
 accept	accept	docs	showGitBranches(GIT_REPOSITORY)?/%empty	SHOW GIT BRANCHES IN a
 reject	undocumented	docs	showGitBranches(GIT_REPOSITORY)?/%empty!insert	SHOW GIT BRANCHES IN zzz a
-reject	accept	docs	showGitBranches(GIT_REPOSITORY)?/GIT_REPOSITORY	SHOW GIT BRANCHES IN GIT REPOSITORY a
+accept	accept	docs	showGitBranches(GIT_REPOSITORY)?/GIT_REPOSITORY	SHOW GIT BRANCHES IN GIT REPOSITORY a
 reject	undocumented	docs	showGitBranches(GIT_REPOSITORY)?/GIT_REPOSITORY!drop-1	SHOW GIT BRANCHES IN REPOSITORY a
 reject	undocumented	docs	showGitBranches(GIT_REPOSITORY)?/GIT_REPOSITORY!drop-2	SHOW GIT BRANCHES IN GIT a
 accept	accept	docs	showGitBranches(GIT_REPOSITORY)?/GIT_REPOSITORY!truncate	SHOW GIT BRANCHES IN GIT
@@ -69926,7 +69926,7 @@ reject	undocumented	docs	showGitTags(LIKE_STRING)?/LIKE_STRING!insert	SHOW GIT T
 reject	undocumented	docs	showGitTags(LIKE_STRING)?/LIKE_STRING!swap	SHOW GIT TAGS LIMIT 's' IN a
 accept	accept	docs	showGitTags(GIT_REPOSITORY)?/%empty	SHOW GIT TAGS IN a
 reject	undocumented	docs	showGitTags(GIT_REPOSITORY)?/%empty!insert	SHOW GIT TAGS IN zzz a
-reject	accept	docs	showGitTags(GIT_REPOSITORY)?/GIT_REPOSITORY	SHOW GIT TAGS IN GIT REPOSITORY a
+accept	accept	docs	showGitTags(GIT_REPOSITORY)?/GIT_REPOSITORY	SHOW GIT TAGS IN GIT REPOSITORY a
 reject	undocumented	docs	showGitTags(GIT_REPOSITORY)?/GIT_REPOSITORY!drop-1	SHOW GIT TAGS IN REPOSITORY a
 reject	undocumented	docs	showGitTags(GIT_REPOSITORY)?/GIT_REPOSITORY!drop-2	SHOW GIT TAGS IN GIT a
 accept	accept	docs	showGitTags(GIT_REPOSITORY)?/GIT_REPOSITORY!truncate	SHOW GIT TAGS IN GIT
@@ -69964,7 +69964,7 @@ reject	undocumented	docs	showGrants/SHOW_GRANTS_TO_(APPLICATION_ID|APPLICATION_R
 reject	undocumented	docs	showGrants/SHOW_GRANTS_TO_(APPLICATION_ID|APPLICATION_ROLE_(ID_~a0~09034c4f!swap	SHOW_INITIAL_ROWS GRANTS TO APPLICATION a
 accept	accept	docs	showGrants/SHOW_GRANTS_OF_(APPLICATION_ROLE_ID|SERVICE_ROLE_QNA~72~447c01fa	SHOW GRANTS OF ROLE a
 reject	undocumented	docs	showGrants/SHOW_GRANTS_OF_(APPLICATION_ROLE_ID|SERVICE_ROLE_QNA~72~447c01fa!drop-1	GRANTS OF ROLE a
-accept	undocumented	docs	showGrants/SHOW_GRANTS_OF_(APPLICATION_ROLE_ID|SERVICE_ROLE_QNA~72~447c01fa!drop-2	SHOW OF ROLE a
+reject	undocumented	docs	showGrants/SHOW_GRANTS_OF_(APPLICATION_ROLE_ID|SERVICE_ROLE_QNA~72~447c01fa!drop-2	SHOW OF ROLE a
 reject	undocumented	docs	showGrants/SHOW_GRANTS_OF_(APPLICATION_ROLE_ID|SERVICE_ROLE_QNA~72~447c01fa!drop-3	SHOW GRANTS ROLE a
 accept	undocumented	docs	showGrants/SHOW_GRANTS_OF_(APPLICATION_ROLE_ID|SERVICE_ROLE_QNA~72~447c01fa!drop-4	SHOW GRANTS OF a
 reject	undocumented	docs	showGrants/SHOW_GRANTS_OF_(APPLICATION_ROLE_ID|SERVICE_ROLE_QNA~72~447c01fa!drop-5	SHOW GRANTS OF ROLE
@@ -69972,7 +69972,7 @@ reject	undocumented	docs	showGrants/SHOW_GRANTS_OF_(APPLICATION_ROLE_ID|SERVICE_
 reject	undocumented	docs	showGrants/SHOW_GRANTS_OF_(APPLICATION_ROLE_ID|SERVICE_ROLE_QNA~72~447c01fa!swap	SHOW_INITIAL_ROWS GRANTS OF ROLE a
 accept	accept	docs	showGrants/SHOW_GRANTS_OF_SHARE_ID_(LIMIT_NUMBER)?	SHOW GRANTS OF SHARE a
 reject	undocumented	docs	showGrants/SHOW_GRANTS_OF_SHARE_ID_(LIMIT_NUMBER)?!drop-1	GRANTS OF SHARE a
-accept	undocumented	docs	showGrants/SHOW_GRANTS_OF_SHARE_ID_(LIMIT_NUMBER)?!drop-2	SHOW OF SHARE a
+reject	undocumented	docs	showGrants/SHOW_GRANTS_OF_SHARE_ID_(LIMIT_NUMBER)?!drop-2	SHOW OF SHARE a
 reject	undocumented	docs	showGrants/SHOW_GRANTS_OF_SHARE_ID_(LIMIT_NUMBER)?!drop-3	SHOW GRANTS SHARE a
 reject	undocumented	docs	showGrants/SHOW_GRANTS_OF_SHARE_ID_(LIMIT_NUMBER)?!drop-5	SHOW GRANTS OF SHARE
 reject	undocumented	docs	showGrants/SHOW_GRANTS_OF_SHARE_ID_(LIMIT_NUMBER)?!insert	SHOW GRANTS OF SHARE a zzz
@@ -70384,7 +70384,7 @@ reject	undocumented	docs	showGrants(ID_.)?/ID_.!drop-1	SHOW GRANTS TO APPLICATIO
 reject	undocumented	docs	showGrants(ID_.)?/ID_.!drop-2	SHOW GRANTS TO APPLICATION ROLE a a
 reject	undocumented	docs	showGrants(ID_.)?/ID_.!insert	SHOW GRANTS TO APPLICATION ROLE a.zzz a
 accept	accept	docs	showGrants(IN_APPLICATION_PACKAGE_ID)?/%empty	SHOW GRANTS TO SHARE a
-reject	accept	docs	showGrants(IN_APPLICATION_PACKAGE_ID)?/IN_APPLICATION_PACKAGE_ID	SHOW GRANTS TO SHARE a IN APPLICATION PACKAGE a
+accept	accept	docs	showGrants(IN_APPLICATION_PACKAGE_ID)?/IN_APPLICATION_PACKAGE_ID	SHOW GRANTS TO SHARE a IN APPLICATION PACKAGE a
 reject	undocumented	docs	showGrants(IN_APPLICATION_PACKAGE_ID)?/IN_APPLICATION_PACKAGE_ID!drop-1	SHOW GRANTS TO SHARE a APPLICATION PACKAGE a
 reject	undocumented	docs	showGrants(IN_APPLICATION_PACKAGE_ID)?/IN_APPLICATION_PACKAGE_ID!drop-2	SHOW GRANTS TO SHARE a IN PACKAGE a
 reject	undocumented	docs	showGrants(IN_APPLICATION_PACKAGE_ID)?/IN_APPLICATION_PACKAGE_ID!drop-3	SHOW GRANTS TO SHARE a IN APPLICATION a
@@ -71619,7 +71619,7 @@ accept	accept	docs	showParameters(USER|WAREHOUSE|DATABASE|SCHEMA|TASK|PIPE)/TASK
 accept	accept	docs	showParameters(USER|WAREHOUSE|DATABASE|SCHEMA|TASK|PIPE)/TASK!insert	SHOW PARAMETERS IN TASK zzz
 accept	undocumented	docs	showParameters(USER|WAREHOUSE|DATABASE|SCHEMA|TASK|PIPE)/TASK!swap	SHOW PARAMETERS IN TASKS
 accept	accept	docs	showParameters(USER|WAREHOUSE|DATABASE|SCHEMA|TASK|PIPE)/PIPE	SHOW PARAMETERS IN PIPE
-reject	accept	docs	showParameters(USER|WAREHOUSE|DATABASE|SCHEMA|TASK|PIPE)/PIPE!insert	SHOW PARAMETERS IN PIPE zzz
+accept	accept	docs	showParameters(USER|WAREHOUSE|DATABASE|SCHEMA|TASK|PIPE)/PIPE!insert	SHOW PARAMETERS IN PIPE zzz
 accept	undocumented	docs	showParameters(USER|WAREHOUSE|DATABASE|SCHEMA|TASK|PIPE)/PIPE!swap	SHOW PARAMETERS IN PIPES
 accept	accept	docs	showParameters(QNAME)?/%empty	SHOW PARAMETERS IN USER
 accept	accept	docs	showParameters(QNAME)?/QNAME	SHOW PARAMETERS IN USER a
@@ -71837,7 +71837,7 @@ reject	undocumented	docs	showProcedures(IN_(ACCOUNT|CLASS_ID|DATABASE|DATABA~c1e
 accept	undocumented	docs	showProcedures(IN_(ACCOUNT|CLASS_ID|DATABASE|DATABA~c1e1b530)?/IN_(ACCOUNT|CLASS_ID|DATABASE|DATABASE_I~3fd9695c)!swap	SHOW PROCEDURES INBOUND ACCOUNT
 accept	accept	docs	showProcedures(ACCOUNT|CLASS_ID|DATABASE|DATABASE_I~3fd9695c)/ACCOUNT	SHOW PROCEDURES IN ACCOUNT
 accept	accept	docs	showProcedures(ACCOUNT|CLASS_ID|DATABASE|DATABASE_I~3fd9695c)/ACCOUNT!swap	SHOW PROCEDURES IN ACCOUNTS
-reject	accept	docs	showProcedures(ACCOUNT|CLASS_ID|DATABASE|DATABASE_I~3fd9695c)/CLASS_ID	SHOW PROCEDURES IN CLASS a
+accept	accept	docs	showProcedures(ACCOUNT|CLASS_ID|DATABASE|DATABASE_I~3fd9695c)/CLASS_ID	SHOW PROCEDURES IN CLASS a
 accept	accept	docs	showProcedures(ACCOUNT|CLASS_ID|DATABASE|DATABASE_I~3fd9695c)/CLASS_ID!drop-2	SHOW PROCEDURES IN CLASS
 reject	undocumented	docs	showProcedures(ACCOUNT|CLASS_ID|DATABASE|DATABASE_I~3fd9695c)/CLASS_ID!insert	SHOW PROCEDURES IN CLASS a zzz
 reject	undocumented	docs	showProcedures(ACCOUNT|CLASS_ID|DATABASE|DATABASE_I~3fd9695c)/CLASS_ID!swap	SHOW PROCEDURES IN CLASSES a
@@ -71919,7 +71919,7 @@ reject	undocumented	docs	showReleaseDirectives(LIKE_STRING)?/LIKE_STRING!truncat
 reject	undocumented	docs	showReleaseDirectives(LIKE_STRING)?/LIKE_STRING!insert	SHOW RELEASE DIRECTIVES LIKE 's' zzz IN APPLICATION PACKAGE a
 reject	undocumented	docs	showReleaseDirectives(LIKE_STRING)?/LIKE_STRING!swap	SHOW RELEASE DIRECTIVES LIMIT 's' IN APPLICATION PACKAGE a
 accept	accept	docs	showReleaseDirectives(FOR_RELEASE_CHANNEL_ID)?/%empty	SHOW RELEASE DIRECTIVES IN APPLICATION PACKAGE a
-reject	accept	docs	showReleaseDirectives(FOR_RELEASE_CHANNEL_ID)?/FOR_RELEASE_CHANNEL_ID	SHOW RELEASE DIRECTIVES IN APPLICATION PACKAGE a FOR RELEASE CHANNEL a
+accept	accept	docs	showReleaseDirectives(FOR_RELEASE_CHANNEL_ID)?/FOR_RELEASE_CHANNEL_ID	SHOW RELEASE DIRECTIVES IN APPLICATION PACKAGE a FOR RELEASE CHANNEL a
 reject	undocumented	docs	showReleaseDirectives(FOR_RELEASE_CHANNEL_ID)?/FOR_RELEASE_CHANNEL_ID!drop-1	SHOW RELEASE DIRECTIVES IN APPLICATION PACKAGE a RELEASE CHANNEL a
 reject	undocumented	docs	showReleaseDirectives(FOR_RELEASE_CHANNEL_ID)?/FOR_RELEASE_CHANNEL_ID!drop-2	SHOW RELEASE DIRECTIVES IN APPLICATION PACKAGE a FOR CHANNEL a
 reject	undocumented	docs	showReleaseDirectives(FOR_RELEASE_CHANNEL_ID)?/FOR_RELEASE_CHANNEL_ID!drop-3	SHOW RELEASE DIRECTIVES IN APPLICATION PACKAGE a FOR RELEASE a
@@ -71941,7 +71941,7 @@ reject	undocumented	docs	showReplicationDatabases(LIKE_STRING)?/LIKE_STRING!drop
 reject	undocumented	docs	showReplicationDatabases(LIKE_STRING)?/LIKE_STRING!insert	SHOW REPLICATION DATABASES LIKE 's' zzz
 reject	undocumented	docs	showReplicationDatabases(LIKE_STRING)?/LIKE_STRING!swap	SHOW REPLICATION DATABASES LIMIT 's'
 accept	accept	docs	showReplicationDatabases(WITH_PRIMARY_ID_._ID)?/%empty	SHOW REPLICATION DATABASES
-reject	accept	docs	showReplicationDatabases(WITH_PRIMARY_ID_._ID)?/WITH_PRIMARY_ID_._ID	SHOW REPLICATION DATABASES WITH PRIMARY a.a
+accept	accept	docs	showReplicationDatabases(WITH_PRIMARY_ID_._ID)?/WITH_PRIMARY_ID_._ID	SHOW REPLICATION DATABASES WITH PRIMARY a.a
 reject	undocumented	docs	showReplicationDatabases(WITH_PRIMARY_ID_._ID)?/WITH_PRIMARY_ID_._ID!drop-1	SHOW REPLICATION DATABASES PRIMARY a.a
 reject	undocumented	docs	showReplicationDatabases(WITH_PRIMARY_ID_._ID)?/WITH_PRIMARY_ID_._ID!drop-2	SHOW REPLICATION DATABASES WITH a.a
 reject	undocumented	docs	showReplicationDatabases(WITH_PRIMARY_ID_._ID)?/WITH_PRIMARY_ID_._ID!drop-3	SHOW REPLICATION DATABASES WITH PRIMARY.a
@@ -71951,7 +71951,7 @@ reject	undocumented	docs	showReplicationDatabases(WITH_PRIMARY_ID_._ID)?/WITH_PR
 reject	undocumented	docs	showReplicationDatabases(WITH_PRIMARY_ID_._ID)?/WITH_PRIMARY_ID_._ID!swap	SHOW REPLICATION DATABASES WITHIN PRIMARY a.a
 accept	accept	docs	showReplicationGroups/SHOW_REPLICATION_GROUPS_(IN_ACCOUNT_ID)?	SHOW REPLICATION GROUPS
 accept	accept	docs	showReplicationGroups(IN_ACCOUNT_ID)?/%empty	SHOW REPLICATION GROUPS
-reject	accept	docs	showReplicationGroups(IN_ACCOUNT_ID)?/IN_ACCOUNT_ID	SHOW REPLICATION GROUPS IN ACCOUNT a
+accept	accept	docs	showReplicationGroups(IN_ACCOUNT_ID)?/IN_ACCOUNT_ID	SHOW REPLICATION GROUPS IN ACCOUNT a
 accept	undocumented	docs	showReplicationGroups(IN_ACCOUNT_ID)?/IN_ACCOUNT_ID!drop-1	SHOW REPLICATION GROUPS ACCOUNT a
 accept	undocumented	docs	showReplicationGroups(IN_ACCOUNT_ID)?/IN_ACCOUNT_ID!drop-2	SHOW REPLICATION GROUPS IN a
 accept	undocumented	docs	showReplicationGroups(IN_ACCOUNT_ID)?/IN_ACCOUNT_ID!drop-3	SHOW REPLICATION GROUPS IN ACCOUNT
@@ -72012,7 +72012,7 @@ reject	undocumented	docs	showRoles(LIKE_STRING)?/LIKE_STRING!drop-2	SHOW ROLES L
 reject	undocumented	docs	showRoles(LIKE_STRING)?/LIKE_STRING!insert	SHOW ROLES LIKE 's' zzz
 reject	undocumented	docs	showRoles(LIKE_STRING)?/LIKE_STRING!swap	SHOW ROLES LIMIT 's'
 accept	accept	docs	showRoles(IN_CLASS_ID)?/%empty	SHOW ROLES
-reject	accept	docs	showRoles(IN_CLASS_ID)?/IN_CLASS_ID	SHOW ROLES IN CLASS a
+accept	accept	docs	showRoles(IN_CLASS_ID)?/IN_CLASS_ID	SHOW ROLES IN CLASS a
 accept	undocumented	docs	showRoles(IN_CLASS_ID)?/IN_CLASS_ID!drop-1	SHOW ROLES CLASS a
 accept	undocumented	docs	showRoles(IN_CLASS_ID)?/IN_CLASS_ID!drop-3	SHOW ROLES IN CLASS
 reject	undocumented	docs	showRoles(IN_CLASS_ID)?/IN_CLASS_ID!insert	SHOW ROLES IN CLASS a zzz
@@ -72087,7 +72087,7 @@ reject	undocumented	docs	showRowAccessPolicies(ACCOUNT|DATABASE|DATABASE_ID|SCHE
 accept	accept	docs	showRowAccessPolicies(ACCOUNT|DATABASE|DATABASE_ID|SCHEMA|~830a9e84)/APPLICATION_PACKAGE_ID!drop-3	SHOW ROW ACCESS POLICIES IN APPLICATION PACKAGE
 reject	undocumented	docs	showRowAccessPolicies(ACCOUNT|DATABASE|DATABASE_ID|SCHEMA|~830a9e84)/APPLICATION_PACKAGE_ID!insert	SHOW ROW ACCESS POLICIES IN APPLICATION PACKAGE a zzz
 reject	undocumented	docs	showRowAccessPolicies(ACCOUNT|DATABASE|DATABASE_ID|SCHEMA|~830a9e84)/APPLICATION_PACKAGE_ID!swap	SHOW ROW ACCESS POLICIES IN APPLICATIONS PACKAGE a
-reject	accept	docs	showRulesInEventRoutingTable/SHOW_RULES_IN_EVENT_ROUTING_TABLE_(_QNAME_)	SHOW RULES IN EVENT ROUTING TABLE(a)
+accept	accept	docs	showRulesInEventRoutingTable/SHOW_RULES_IN_EVENT_ROUTING_TABLE_(_QNAME_)	SHOW RULES IN EVENT ROUTING TABLE(a)
 accept	accept	docs	showRunInExperiment/SHOW_RUN_METRICS_(LIKE_STRING)?_IN_EXPERIMENT_QNAME_(RU~b488e800	SHOW RUN METRICS IN EXPERIMENT a
 accept	accept	docs	showRunInExperiment/SHOW_RUN_PARAMETERS_(LIKE_STRING)?_IN_EXPERIMENT_QNAME_~fbd4ead3	SHOW RUN PARAMETERS IN EXPERIMENT a
 reject	undocumented	docs	showRunInExperiment/SHOW_RUN_PARAMETERS_(LIKE_STRING)?_IN_EXPERIMENT_QNAME_~fbd4ead3!drop-1	RUN PARAMETERS IN EXPERIMENT a
@@ -72106,7 +72106,7 @@ reject	undocumented	docs	showRunInExperiment(LIKE_STRING)?/LIKE_STRING!truncate	
 reject	undocumented	docs	showRunInExperiment(LIKE_STRING)?/LIKE_STRING!insert	SHOW RUN METRICS LIKE 's' zzz IN EXPERIMENT a
 reject	undocumented	docs	showRunInExperiment(LIKE_STRING)?/LIKE_STRING!swap	SHOW RUN METRICS LIMIT 's' IN EXPERIMENT a
 accept	accept	docs	showRunInExperiment(RUN_ID)?/%empty	SHOW RUN METRICS IN EXPERIMENT a
-reject	accept	docs	showRunInExperiment(RUN_ID)?/RUN_ID	SHOW RUN METRICS IN EXPERIMENT a RUN a
+accept	accept	docs	showRunInExperiment(RUN_ID)?/RUN_ID	SHOW RUN METRICS IN EXPERIMENT a RUN a
 reject	undocumented	docs	showRunInExperiment(RUN_ID)?/RUN_ID!drop-1	SHOW RUN METRICS IN EXPERIMENT a a
 reject	undocumented	docs	showRunInExperiment(RUN_ID)?/RUN_ID!drop-2	SHOW RUN METRICS IN EXPERIMENT a RUN
 reject	undocumented	docs	showRunInExperiment(RUN_ID)?/RUN_ID!insert	SHOW RUN METRICS IN EXPERIMENT a RUN a zzz
@@ -72288,23 +72288,23 @@ reject	undocumented	docs	showSemanticDimensions(LIMIT_NUMBER)?/LIMIT_NUMBER!drop
 reject	undocumented	docs	showSemanticDimensions(LIMIT_NUMBER)?/LIMIT_NUMBER!drop-2	SHOW SEMANTIC DIMENSIONS LIMIT
 reject	undocumented	docs	showSemanticDimensions(LIMIT_NUMBER)?/LIMIT_NUMBER!insert	SHOW SEMANTIC DIMENSIONS LIMIT 1 zzz
 reject	undocumented	docs	showSemanticDimensions(LIMIT_NUMBER)?/LIMIT_NUMBER!swap	SHOW SEMANTIC DIMENSIONS LINKED_CATALOG 1
-reject	accept	docs	showSemanticDimensionsForMetric/SHOW_SEMANTIC_DIMENSIONS_(LIKE_STRING)?_IN_QNAME_FOR_ME~b211e65d	SHOW SEMANTIC DIMENSIONS IN a FOR METRIC a
-reject	accept	docs	showSemanticDimensionsForMetric(LIKE_STRING)?/%empty	SHOW SEMANTIC DIMENSIONS IN a FOR METRIC a
+accept	accept	docs	showSemanticDimensionsForMetric/SHOW_SEMANTIC_DIMENSIONS_(LIKE_STRING)?_IN_QNAME_FOR_ME~b211e65d	SHOW SEMANTIC DIMENSIONS IN a FOR METRIC a
+accept	accept	docs	showSemanticDimensionsForMetric(LIKE_STRING)?/%empty	SHOW SEMANTIC DIMENSIONS IN a FOR METRIC a
 reject	undocumented	docs	showSemanticDimensionsForMetric(LIKE_STRING)?/%empty!insert	SHOW SEMANTIC DIMENSIONS zzz IN a FOR METRIC a
-reject	accept	docs	showSemanticDimensionsForMetric(LIKE_STRING)?/LIKE_STRING	SHOW SEMANTIC DIMENSIONS LIKE 's' IN a FOR METRIC a
+accept	accept	docs	showSemanticDimensionsForMetric(LIKE_STRING)?/LIKE_STRING	SHOW SEMANTIC DIMENSIONS LIKE 's' IN a FOR METRIC a
 reject	undocumented	docs	showSemanticDimensionsForMetric(LIKE_STRING)?/LIKE_STRING!drop-1	SHOW SEMANTIC DIMENSIONS 's' IN a FOR METRIC a
 reject	undocumented	docs	showSemanticDimensionsForMetric(LIKE_STRING)?/LIKE_STRING!drop-2	SHOW SEMANTIC DIMENSIONS LIKE IN a FOR METRIC a
 reject	undocumented	docs	showSemanticDimensionsForMetric(LIKE_STRING)?/LIKE_STRING!insert	SHOW SEMANTIC DIMENSIONS LIKE 's' zzz IN a FOR METRIC a
 reject	undocumented	docs	showSemanticDimensionsForMetric(LIKE_STRING)?/LIKE_STRING!swap	SHOW SEMANTIC DIMENSIONS LIMIT 's' IN a FOR METRIC a
-reject	accept	docs	showSemanticDimensionsForMetric(STARTS_WITH_STRING)?/%empty	SHOW SEMANTIC DIMENSIONS IN a FOR METRIC a
-reject	accept	docs	showSemanticDimensionsForMetric(STARTS_WITH_STRING)?/STARTS_WITH_STRING	SHOW SEMANTIC DIMENSIONS IN a FOR METRIC a STARTS WITH 's'
+accept	accept	docs	showSemanticDimensionsForMetric(STARTS_WITH_STRING)?/%empty	SHOW SEMANTIC DIMENSIONS IN a FOR METRIC a
+accept	accept	docs	showSemanticDimensionsForMetric(STARTS_WITH_STRING)?/STARTS_WITH_STRING	SHOW SEMANTIC DIMENSIONS IN a FOR METRIC a STARTS WITH 's'
 reject	undocumented	docs	showSemanticDimensionsForMetric(STARTS_WITH_STRING)?/STARTS_WITH_STRING!drop-1	SHOW SEMANTIC DIMENSIONS IN a FOR METRIC a WITH 's'
 reject	undocumented	docs	showSemanticDimensionsForMetric(STARTS_WITH_STRING)?/STARTS_WITH_STRING!drop-2	SHOW SEMANTIC DIMENSIONS IN a FOR METRIC a STARTS 's'
 reject	undocumented	docs	showSemanticDimensionsForMetric(STARTS_WITH_STRING)?/STARTS_WITH_STRING!drop-3	SHOW SEMANTIC DIMENSIONS IN a FOR METRIC a STARTS WITH
 reject	undocumented	docs	showSemanticDimensionsForMetric(STARTS_WITH_STRING)?/STARTS_WITH_STRING!insert	SHOW SEMANTIC DIMENSIONS IN a FOR METRIC a STARTS WITH 's' zzz
 reject	undocumented	docs	showSemanticDimensionsForMetric(STARTS_WITH_STRING)?/STARTS_WITH_STRING!swap	SHOW SEMANTIC DIMENSIONS IN a FOR METRIC a START_TIMESTAMP WITH 's'
-reject	accept	docs	showSemanticDimensionsForMetric(LIMIT_NUMBER)?/%empty	SHOW SEMANTIC DIMENSIONS IN a FOR METRIC a
-reject	accept	docs	showSemanticDimensionsForMetric(LIMIT_NUMBER)?/LIMIT_NUMBER	SHOW SEMANTIC DIMENSIONS IN a FOR METRIC a LIMIT 1
+accept	accept	docs	showSemanticDimensionsForMetric(LIMIT_NUMBER)?/%empty	SHOW SEMANTIC DIMENSIONS IN a FOR METRIC a
+accept	accept	docs	showSemanticDimensionsForMetric(LIMIT_NUMBER)?/LIMIT_NUMBER	SHOW SEMANTIC DIMENSIONS IN a FOR METRIC a LIMIT 1
 reject	undocumented	docs	showSemanticDimensionsForMetric(LIMIT_NUMBER)?/LIMIT_NUMBER!drop-1	SHOW SEMANTIC DIMENSIONS IN a FOR METRIC a 1
 reject	undocumented	docs	showSemanticDimensionsForMetric(LIMIT_NUMBER)?/LIMIT_NUMBER!drop-2	SHOW SEMANTIC DIMENSIONS IN a FOR METRIC a LIMIT
 reject	undocumented	docs	showSemanticDimensionsForMetric(LIMIT_NUMBER)?/LIMIT_NUMBER!insert	SHOW SEMANTIC DIMENSIONS IN a FOR METRIC a LIMIT 1 zzz
@@ -72563,13 +72563,13 @@ reject	undocumented	docs	showServices(FROM_STRING)?/FROM_STRING!swap	SHOW SERVIC
 accept	accept	docs	showServices(OF_TYPE_ID_(,_ID)*)?/%empty	SHOW SERVICES
 accept	accept	docs	showServices(OF_TYPE_ID_(,_ID)*)?/OF_TYPE_ID_(,_ID)*	SHOW SERVICES OF TYPE a
 accept	undocumented	docs	showServices(OF_TYPE_ID_(,_ID)*)?/OF_TYPE_ID_(,_ID)*!drop-1	SHOW SERVICES TYPE a
-accept	undocumented	docs	showServices(OF_TYPE_ID_(,_ID)*)?/OF_TYPE_ID_(,_ID)*!drop-2	SHOW SERVICES OF a
-accept	undocumented	docs	showServices(OF_TYPE_ID_(,_ID)*)?/OF_TYPE_ID_(,_ID)*!drop-3	SHOW SERVICES OF TYPE
-accept	undocumented	docs	showServices(OF_TYPE_ID_(,_ID)*)?/OF_TYPE_ID_(,_ID)*!insert	SHOW SERVICES OF TYPE a zzz
+reject	undocumented	docs	showServices(OF_TYPE_ID_(,_ID)*)?/OF_TYPE_ID_(,_ID)*!drop-2	SHOW SERVICES OF a
+reject	undocumented	docs	showServices(OF_TYPE_ID_(,_ID)*)?/OF_TYPE_ID_(,_ID)*!drop-3	SHOW SERVICES OF TYPE
+reject	undocumented	docs	showServices(OF_TYPE_ID_(,_ID)*)?/OF_TYPE_ID_(,_ID)*!insert	SHOW SERVICES OF TYPE a zzz
 accept	undocumented	docs	showServices(OF_TYPE_ID_(,_ID)*)?/OF_TYPE_ID_(,_ID)*!swap	SHOW SERVICES OFF TYPE a
 accept	accept	docs	showServices(,_ID)*/%empty	SHOW SERVICES OF TYPE a
-reject	accept	docs	showServices(,_ID)*/,_ID_(,_ID)*	SHOW SERVICES OF TYPE a, a
-accept	undocumented	docs	showServices(,_ID)*/,_ID_(,_ID)*!drop-1	SHOW SERVICES OF TYPE a a
+accept	accept	docs	showServices(,_ID)*/,_ID_(,_ID)*	SHOW SERVICES OF TYPE a, a
+reject	undocumented	docs	showServices(,_ID)*/,_ID_(,_ID)*!drop-1	SHOW SERVICES OF TYPE a a
 reject	undocumented	docs	showServices(,_ID)*/,_ID_(,_ID)*!drop-2	SHOW SERVICES OF TYPE a,
 reject	undocumented	docs	showServices(,_ID)*/,_ID_(,_ID)*!insert	SHOW SERVICES OF TYPE a, a zzz
 accept	accept	docs	showSessionPolicies/SHOW_SESSION_POLICIES_(LIKE_STRING)?_(IN_(ACCOUNT|DATAB~d67139ca	SHOW SESSION POLICIES
@@ -72633,7 +72633,7 @@ reject	undocumented	docs	showSessionPolicies(LIMIT_NUMBER)?/LIMIT_NUMBER!drop-1	
 reject	undocumented	docs	showSessionPolicies(LIMIT_NUMBER)?/LIMIT_NUMBER!drop-2	SHOW SESSION POLICIES LIMIT
 reject	undocumented	docs	showSessionPolicies(LIMIT_NUMBER)?/LIMIT_NUMBER!insert	SHOW SESSION POLICIES LIMIT 1 zzz
 reject	undocumented	docs	showSessionPolicies(LIMIT_NUMBER)?/LIMIT_NUMBER!swap	SHOW SESSION POLICIES LINKED_CATALOG 1
-reject	accept	docs	showSharedContent/SHOW_SHARED_CONTENT_IN_APPLICATION_PACKAGE_ID_FOR_VERSION_ID	SHOW SHARED CONTENT IN APPLICATION PACKAGE a FOR VERSION a
+accept	accept	docs	showSharedContent/SHOW_SHARED_CONTENT_IN_APPLICATION_PACKAGE_ID_FOR_VERSION_ID	SHOW SHARED CONTENT IN APPLICATION PACKAGE a FOR VERSION a
 accept	accept	docs	showShares/SHOW_SHARES_(LIKE_STRING)?_(LIMIT_NUMBER_(FROM_STRING)?)?	SHOW SHARES
 accept	accept	docs	showShares(LIKE_STRING)?/%empty	SHOW SHARES
 accept	accept	docs	showShares(LIKE_STRING)?/LIKE_STRING	SHOW SHARES LIKE 's'
@@ -73387,16 +73387,16 @@ reject	undocumented	docs	showVersions(LIKE_STRING)?/LIKE_STRING!drop-2	SHOW VERS
 reject	undocumented	docs	showVersions(LIKE_STRING)?/LIKE_STRING!truncate	SHOW VERSIONS LIKE
 reject	undocumented	docs	showVersions(LIKE_STRING)?/LIKE_STRING!insert	SHOW VERSIONS LIKE 's' zzz IN APPLICATION PACKAGE a
 reject	undocumented	docs	showVersions(LIKE_STRING)?/LIKE_STRING!swap	SHOW VERSIONS LIMIT 's' IN APPLICATION PACKAGE a
-reject	accept	docs	showVersionsInArtifactRepository/SHOW_VERSIONS_(LIKE_STRING)?_IN_ARTIFACT_REPOSITORY_QNA~26ba489b	SHOW VERSIONS IN ARTIFACT REPOSITORY a FOR PACKAGE a
-reject	accept	docs	showVersionsInArtifactRepository(LIKE_STRING)?/%empty	SHOW VERSIONS IN ARTIFACT REPOSITORY a FOR PACKAGE a
+accept	accept	docs	showVersionsInArtifactRepository/SHOW_VERSIONS_(LIKE_STRING)?_IN_ARTIFACT_REPOSITORY_QNA~26ba489b	SHOW VERSIONS IN ARTIFACT REPOSITORY a FOR PACKAGE a
+accept	accept	docs	showVersionsInArtifactRepository(LIKE_STRING)?/%empty	SHOW VERSIONS IN ARTIFACT REPOSITORY a FOR PACKAGE a
 reject	undocumented	docs	showVersionsInArtifactRepository(LIKE_STRING)?/%empty!insert	SHOW VERSIONS zzz IN ARTIFACT REPOSITORY a FOR PACKAGE a
-reject	accept	docs	showVersionsInArtifactRepository(LIKE_STRING)?/LIKE_STRING	SHOW VERSIONS LIKE 's' IN ARTIFACT REPOSITORY a FOR PACKAGE a
+accept	accept	docs	showVersionsInArtifactRepository(LIKE_STRING)?/LIKE_STRING	SHOW VERSIONS LIKE 's' IN ARTIFACT REPOSITORY a FOR PACKAGE a
 reject	undocumented	docs	showVersionsInArtifactRepository(LIKE_STRING)?/LIKE_STRING!drop-1	SHOW VERSIONS 's' IN ARTIFACT REPOSITORY a FOR PACKAGE a
 reject	undocumented	docs	showVersionsInArtifactRepository(LIKE_STRING)?/LIKE_STRING!drop-2	SHOW VERSIONS LIKE IN ARTIFACT REPOSITORY a FOR PACKAGE a
 reject	undocumented	docs	showVersionsInArtifactRepository(LIKE_STRING)?/LIKE_STRING!insert	SHOW VERSIONS LIKE 's' zzz IN ARTIFACT REPOSITORY a FOR PACKAGE a
 reject	undocumented	docs	showVersionsInArtifactRepository(LIKE_STRING)?/LIKE_STRING!swap	SHOW VERSIONS LIMIT 's' IN ARTIFACT REPOSITORY a FOR PACKAGE a
-reject	accept	docs	showVersionsInArtifactRepository(LIMIT_NUMBER)?/%empty	SHOW VERSIONS IN ARTIFACT REPOSITORY a FOR PACKAGE a
-reject	accept	docs	showVersionsInArtifactRepository(LIMIT_NUMBER)?/LIMIT_NUMBER	SHOW VERSIONS IN ARTIFACT REPOSITORY a FOR PACKAGE a LIMIT 1
+accept	accept	docs	showVersionsInArtifactRepository(LIMIT_NUMBER)?/%empty	SHOW VERSIONS IN ARTIFACT REPOSITORY a FOR PACKAGE a
+accept	accept	docs	showVersionsInArtifactRepository(LIMIT_NUMBER)?/LIMIT_NUMBER	SHOW VERSIONS IN ARTIFACT REPOSITORY a FOR PACKAGE a LIMIT 1
 reject	undocumented	docs	showVersionsInArtifactRepository(LIMIT_NUMBER)?/LIMIT_NUMBER!drop-1	SHOW VERSIONS IN ARTIFACT REPOSITORY a FOR PACKAGE a 1
 reject	undocumented	docs	showVersionsInArtifactRepository(LIMIT_NUMBER)?/LIMIT_NUMBER!drop-2	SHOW VERSIONS IN ARTIFACT REPOSITORY a FOR PACKAGE a LIMIT
 reject	undocumented	docs	showVersionsInArtifactRepository(LIMIT_NUMBER)?/LIMIT_NUMBER!insert	SHOW VERSIONS IN ARTIFACT REPOSITORY a FOR PACKAGE a LIMIT 1 zzz
@@ -73437,7 +73437,7 @@ reject	undocumented	docs	showVersionsInModel(LIKE_STRING)?/LIKE_STRING!drop-1	SH
 reject	undocumented	docs	showVersionsInModel(LIKE_STRING)?/LIKE_STRING!drop-2	SHOW VERSIONS LIKE IN MODEL a
 reject	undocumented	docs	showVersionsInModel(LIKE_STRING)?/LIKE_STRING!insert	SHOW VERSIONS LIKE 's' zzz IN MODEL a
 reject	undocumented	docs	showVersionsInModel(LIKE_STRING)?/LIKE_STRING!swap	SHOW VERSIONS LIMIT 's' IN MODEL a
-reject	accept	docs	showVersionsInOpenflowConnector/SHOW_VERSIONS_IN_OPENFLOW_CONNECTOR_QNAME	SHOW VERSIONS IN OPENFLOW CONNECTOR a
+accept	accept	docs	showVersionsInOpenflowConnector/SHOW_VERSIONS_IN_OPENFLOW_CONNECTOR_QNAME	SHOW VERSIONS IN OPENFLOW CONNECTOR a
 accept	accept	docs	showVersionsInOrganizationProfile/SHOW_VERSIONS_IN_ORGANIZATION_PROFILE_QNAME	SHOW VERSIONS IN ORGANIZATION PROFILE a
 accept	accept	docs	showViews/SHOW_(TERSE)?_VIEWS_(LIKE_STRING)?_(IN_(ACCOUNT|DATABAS~4482ab0f	SHOW VIEWS
 accept	accept	docs	showViews(TERSE)?/%empty	SHOW VIEWS

@@ -3119,6 +3119,14 @@ type ShowStmt struct {
 	// TrueFilters are SHOW AVAILABLE LISTINGS' IS_<x> = TRUE filters
 	// (IS_IMPORTED, IS_ORGANIZATION, IS_SHARED_WITH_ME), in order.
 	TrueFilters []string
+	// Qualifier is the clause one class's page writes after the scope, its
+	// keywords uppercased ("FOR METRIC", "FOR PACKAGE", "FOR RELEASE
+	// CHANNEL", "FOR VERSION", "VERSION", "RUN", "WITH PRIMARY"), and
+	// QualifierName the name it takes; "" and nil if absent.
+	Qualifier     string
+	QualifierName *ObjectName
+	// OfTypes is SHOW SERVICES' OF TYPE <workload_type> [, ...]; nil if absent.
+	OfTypes []Ident
 
 	// SHOW GRANTS specifics.
 	IsGrants bool         // SHOW GRANTS ...
