@@ -139,6 +139,9 @@ func (p *Parser) parseCreateIntegrationStmt(start ast.Loc, orReplace, orAlter bo
 		if err := p.requireIntegrationOptions(kind, opts); err != nil {
 			return nil, err
 		}
+		if err := checkIntegrationForm(kind, opts, stmt.Loc.Start, p.prev.Loc.End); err != nil {
+			return nil, err
+		}
 		stmt.Options = opts
 
 	default:
@@ -1330,9 +1333,10 @@ func (p *Parser) parseIntegrationStringPairs(opt *ast.CopyOption) error {
 		if val.Kind != ast.LitString {
 			return &ParseError{Position: val.Loc.Start, End: val.Loc.End, Message: "syntax error: expected a string"}
 		}
-		// The key keeps its quotes, as written, so that it reads apart from a
-		// word key.
-		opt.Group = append(opt.Group, &ast.CopyOption{Name: p.srcSlice(key.Loc.Start, key.Loc.End), Lit: val, Loc: ast.Loc{Start: key.Loc.Start, End: val.Loc.End}})
+		// The key is kept single-quoted, however it was written ('...' or
+		// $$...$$), so that it reads apart from a word key and writes back
+		// as the same string.
+		opt.Group = append(opt.Group, &ast.CopyOption{Name: quoteIntegrationKey(key.Str), Lit: val, Loc: ast.Loc{Start: key.Loc.Start, End: val.Loc.End}})
 		if p.cur.Type != ',' {
 			break
 		}
@@ -1487,4 +1491,369 @@ func (p *Parser) atAccessIntegrationUnsetKey() bool {
 		}
 	}
 	return false
+}
+
+// ---------------------------------------------------------------------------
+// Forms: which properties go together
+// ---------------------------------------------------------------------------
+//
+// The property maps above read a CREATE's properties by their names and
+// shapes across all of a kind's pages. Each page then documents one form:
+// which of those properties it takes, which it requires, and the values a
+// property takes on that page. A CATALOG INTEGRATION is held to a form of its
+// CATALOG_SOURCE, a NOTIFICATION INTEGRATION to a form of its TYPE.
+
+// integrationField is one property of a form: a leaf of shape value, or a
+// group whose entries match one of variants (each entry of a list of groups,
+// when list is set). parsed takes the value as the property map read it.
+type integrationField struct {
+	value    objectValue
+	variants []integrationForm
+	list     bool
+	parsed   bool
+	required bool
+}
+
+// integrationForm maps a form's property names to their fields.
+type integrationForm map[string]integrationField
+
+func reqField(v objectValue) integrationField { return integrationField{value: v, required: true} }
+func optField(v objectValue) integrationField { return integrationField{value: v} }
+func reqGroup(variants ...integrationForm) integrationField {
+	return integrationField{variants: variants, required: true}
+}
+func optGroup(variants ...integrationForm) integrationField {
+	return integrationField{variants: variants}
+}
+
+// matchesIntegrationForm reports whether opts set only form's properties,
+// each with a value the form allows, and every property it requires.
+func matchesIntegrationForm(opts []*ast.CopyOption, form integrationForm) bool {
+	seen := map[string]bool{}
+	for _, o := range opts {
+		f, ok := form[o.Name]
+		if !ok {
+			return false
+		}
+		seen[o.Name] = true
+		switch {
+		case f.parsed:
+		case f.list:
+			for _, e := range o.Group {
+				if !matchesAnyIntegrationForm(e.Group, f.variants) {
+					return false
+				}
+			}
+		case f.variants != nil:
+			if !matchesAnyIntegrationForm(o.Group, f.variants) {
+				return false
+			}
+		default:
+			if !f.value.matches(o) {
+				return false
+			}
+		}
+	}
+	for k, f := range form {
+		if f.required && !seen[k] {
+			return false
+		}
+	}
+	return true
+}
+
+func matchesAnyIntegrationForm(opts []*ast.CopyOption, forms []integrationForm) bool {
+	for _, form := range forms {
+		if matchesIntegrationForm(opts, form) {
+			return true
+		}
+	}
+	return false
+}
+
+// withIntegrationFields returns form with fields added.
+func withIntegrationFields(form integrationForm, fields integrationForm) integrationForm {
+	out := integrationForm{}
+	for k, v := range form {
+		out[k] = v
+	}
+	for k, v := range fields {
+		out[k] = v
+	}
+	return out
+}
+
+var (
+	accessDelegationMode = propOneOf("VENDED_CREDENTIALS", "EXTERNAL_VOLUME_CREDENTIALS")
+	vendedCredentials    = propOneOf("VENDED_CREDENTIALS")
+
+	// catalogCommon is what every catalog source's page takes.
+	catalogCommon = integrationForm{
+		"CATALOG_SOURCE": reqField(propName),
+		"ENABLED":        reqField(propBool),
+		"COMMENT":        optField(propString),
+	}
+
+	// openCatalogAuth is Snowflake Open Catalog's REST_AUTHENTICATION;
+	// withTokenURI says whether it takes OAUTH_TOKEN_URI.
+	openCatalogAuth = func(withTokenURI bool) integrationForm {
+		f := integrationForm{
+			"TYPE":                 reqField(propOneOf("OAUTH")),
+			"OAUTH_API_TYPE":       optField(propOneOf("PUBLIC", "PRIVATE")),
+			"OAUTH_CLIENT_ID":      reqField(propString),
+			"OAUTH_CLIENT_SECRET":  reqField(propString),
+			"OAUTH_ALLOWED_SCOPES": reqField(propStrings),
+		}
+		if withTokenURI {
+			f["OAUTH_TOKEN_URI"] = optField(propString)
+		}
+		return f
+	}
+	bearerAuth = integrationForm{"TYPE": reqField(propOneOf("BEARER")), "BEARER_TOKEN": reqField(propString)}
+
+	// catalogSourceForms maps a CATALOG_SOURCE to the forms its pages give.
+	catalogSourceForms = map[string][]integrationForm{
+		// https://docs.snowflake.com/en/sql-reference/sql/create-catalog-integration-glue
+		"GLUE": {withIntegrationFields(catalogCommon, integrationForm{
+			"TABLE_FORMAT":      reqField(propOneOf("ICEBERG")),
+			"CATALOG_NAMESPACE": optField(propString),
+			"REST_CONFIG": reqGroup(integrationForm{
+				"CATALOG_API_TYPE":       reqField(propOneOf("AWS_GLUE", "AWS_PRIVATE_GLUE")),
+				"CATALOG_NAME":           reqField(propString),
+				"ACCESS_DELEGATION_MODE": optField(accessDelegationMode),
+			}),
+			"REST_AUTHENTICATION": reqGroup(integrationForm{
+				"TYPE":                 reqField(propOneOf("SIGV4")),
+				"SIGV4_IAM_ROLE":       reqField(propString),
+				"SIGV4_SIGNING_REGION": optField(propString),
+			}),
+			"REFRESH_INTERVAL_SECONDS": optField(propNumber),
+		})},
+		// https://docs.snowflake.com/en/sql-reference/sql/create-catalog-integration-object-storage
+		"OBJECT_STORE": {withIntegrationFields(catalogCommon, integrationForm{
+			"TABLE_FORMAT":             reqField(propOneOf("ICEBERG", "DELTA", "NONE", "HIVE")),
+			"REFRESH_INTERVAL_SECONDS": optField(propNumber),
+		})},
+		"POLARIS": {
+			// https://docs.snowflake.com/en/sql-reference/sql/create-catalog-integration-open-catalog
+			withIntegrationFields(catalogCommon, integrationForm{
+				"TABLE_FORMAT":      reqField(propOneOf("ICEBERG")),
+				"CATALOG_NAMESPACE": optField(propString),
+				"REST_CONFIG": reqGroup(integrationForm{
+					"CATALOG_URI":            reqField(propString),
+					"CATALOG_API_TYPE":       optField(propOneOf("PUBLIC")),
+					"CATALOG_NAME":           reqField(propString),
+					"ACCESS_DELEGATION_MODE": optField(accessDelegationMode),
+				}),
+				"REST_AUTHENTICATION":      reqGroup(openCatalogAuth(true)),
+				"REFRESH_INTERVAL_SECONDS": optField(propNumber),
+			}),
+			withIntegrationFields(catalogCommon, integrationForm{
+				"TABLE_FORMAT":      reqField(propOneOf("ICEBERG")),
+				"CATALOG_NAMESPACE": optField(propString),
+				"REST_CONFIG": reqGroup(integrationForm{
+					"CATALOG_URI":            reqField(propString),
+					"CATALOG_API_TYPE":       reqField(propOneOf("PRIVATE")),
+					"CATALOG_NAME":           reqField(propString),
+					"ACCESS_DELEGATION_MODE": optField(accessDelegationMode),
+				}),
+				"REST_AUTHENTICATION":      reqGroup(openCatalogAuth(false)),
+				"REFRESH_INTERVAL_SECONDS": optField(propNumber),
+			}),
+			// https://docs.snowflake.com/en/sql-reference/sql/create-catalog-integration-horizon
+			withIntegrationFields(catalogCommon, integrationForm{
+				"TABLE_FORMAT": reqField(propOneOf("ICEBERG")),
+				"REST_CONFIG": reqGroup(integrationForm{
+					"CATALOG_URI":            reqField(propString),
+					"CATALOG_API_TYPE":       optField(propOneOf("PUBLIC", "PRIVATE")),
+					"CATALOG_NAME":           reqField(propString),
+					"ACCESS_DELEGATION_MODE": optField(accessDelegationMode),
+				}),
+				"REST_AUTHENTICATION": reqGroup(integrationForm{
+					"TYPE":                 reqField(propOneOf("OAUTH")),
+					"OAUTH_GRANT_TYPE":     reqField(propOneOf("TOKEN_EXCHANGE")),
+					"OAUTH_ALLOWED_SCOPES": reqField(propStrings),
+					"OAUTH_AUDIENCE":       optField(propString),
+				}),
+				"DEFAULT_STORAGE_CONFIG":   optGroup(catalogDefaultStorageForm),
+				"REFRESH_INTERVAL_SECONDS": optField(propNumber),
+			}),
+		},
+		// https://docs.snowflake.com/en/sql-reference/sql/create-catalog-integration-rest
+		"ICEBERG_REST": {withIntegrationFields(catalogCommon, integrationForm{
+			"TABLE_FORMAT":      reqField(propOneOf("ICEBERG")),
+			"CATALOG_NAMESPACE": optField(propString),
+			"REST_CONFIG": reqGroup(integrationForm{
+				"CATALOG_URI":  reqField(propString),
+				"PREFIX":       optField(propString),
+				"CATALOG_NAME": optField(propString),
+				"CATALOG_API_TYPE": optField(propOneOf("PUBLIC", "PRIVATE", "AWS_API_GATEWAY", "AWS_PRIVATE_API_GATEWAY",
+					"AWS_GLUE", "AWS_PRIVATE_GLUE", "AWS_S3TABLES", "AWS_PRIVATE_S3TABLES")),
+				"ACCESS_DELEGATION_MODE": optField(accessDelegationMode),
+			}),
+			"REST_AUTHENTICATION": reqGroup(
+				openCatalogAuth(true),
+				bearerAuth,
+				integrationForm{
+					"TYPE":                 reqField(propOneOf("SIGV4")),
+					"SIGV4_IAM_ROLE":       reqField(propString),
+					"SIGV4_SIGNING_REGION": optField(propString),
+					"SIGV4_EXTERNAL_ID":    optField(propString),
+				},
+			),
+			"REFRESH_INTERVAL_SECONDS": optField(propNumber),
+		})},
+		// https://docs.snowflake.com/en/sql-reference/sql/create-catalog-integration-snowflake-postgres
+		"SNOWFLAKE_POSTGRES": {withIntegrationFields(catalogCommon, integrationForm{
+			"TABLE_FORMAT":      reqField(propOneOf("ICEBERG")),
+			"CATALOG_NAMESPACE": optField(propString),
+			"REST_CONFIG": reqGroup(integrationForm{
+				"POSTGRES_INSTANCE":      reqField(propString),
+				"ACCESS_DELEGATION_MODE": reqField(vendedCredentials),
+				"CATALOG_NAME":           optField(propString),
+			}),
+		})},
+		// https://docs.snowflake.com/en/sql-reference/sql/create-catalog-integration-delta-sharing
+		"DELTA_SHARING": {withIntegrationFields(catalogCommon, integrationForm{
+			"TABLE_FORMAT": reqField(propOneOf("DELTA")),
+			"REST_CONFIG": reqGroup(integrationForm{
+				"CATALOG_URI":            reqField(propString),
+				"CATALOG_NAME":           reqField(propString),
+				"ACCESS_DELEGATION_MODE": reqField(vendedCredentials),
+			}),
+			"REST_AUTHENTICATION": reqGroup(
+				bearerAuth,
+				integrationForm{"TYPE": reqField(propOneOf("OIDC")), "OIDC_AUDIENCE": reqField(propString)},
+				integrationForm{
+					"TYPE":                reqField(propOneOf("OAUTH")),
+					"OAUTH_API_TYPE":      optField(propOneOf("PUBLIC", "PRIVATE")),
+					"OAUTH_CLIENT_ID":     reqField(propString),
+					"OAUTH_CLIENT_SECRET": reqField(propString),
+					"OAUTH_TOKEN_URI":     reqField(propString),
+				},
+			),
+		})},
+	}
+
+	catalogDefaultStorageForm = integrationForm{"USE_PRIVATELINK_ENDPOINT": reqField(propBool)}
+
+	// notificationCommon is what every notification type's page takes.
+	notificationCommon = integrationForm{
+		"ENABLED": reqField(propBool),
+		"TYPE":    reqField(propName),
+		"COMMENT": optField(propString),
+	}
+
+	// notificationTypeForms maps a notification integration's TYPE to the
+	// forms its pages give.
+	notificationTypeForms = map[string][]integrationForm{
+		"QUEUE": {
+			// https://docs.snowflake.com/en/sql-reference/sql/create-notification-integration-queue-inbound-azure
+			withIntegrationFields(notificationCommon, integrationForm{
+				"NOTIFICATION_PROVIDER":           reqField(propOneOf("AZURE_STORAGE_QUEUE")),
+				"AZURE_STORAGE_QUEUE_PRIMARY_URI": reqField(propString),
+				"AZURE_TENANT_ID":                 reqField(propString),
+				"USE_PRIVATELINK_ENDPOINT":        optField(propBool),
+			}),
+			// https://docs.snowflake.com/en/sql-reference/sql/create-notification-integration-queue-inbound-gcp
+			withIntegrationFields(notificationCommon, integrationForm{
+				"NOTIFICATION_PROVIDER":        reqField(propOneOf("GCP_PUBSUB")),
+				"GCP_PUBSUB_SUBSCRIPTION_NAME": reqField(propString),
+			}),
+			// https://docs.snowflake.com/en/sql-reference/sql/create-notification-integration-queue-outbound-aws
+			withIntegrationFields(notificationCommon, integrationForm{
+				"DIRECTION":             reqField(propOneOf("OUTBOUND")),
+				"NOTIFICATION_PROVIDER": reqField(propOneOf("AWS_SNS")),
+				"AWS_SNS_TOPIC_ARN":     reqField(propString),
+				"AWS_SNS_ROLE_ARN":      reqField(propString),
+			}),
+			// https://docs.snowflake.com/en/sql-reference/sql/create-notification-integration-queue-outbound-azure
+			withIntegrationFields(notificationCommon, integrationForm{
+				"DIRECTION":                       reqField(propOneOf("OUTBOUND")),
+				"NOTIFICATION_PROVIDER":           reqField(propOneOf("AZURE_EVENT_GRID")),
+				"AZURE_EVENT_GRID_TOPIC_ENDPOINT": reqField(propString),
+				"AZURE_TENANT_ID":                 reqField(propString),
+			}),
+			// https://docs.snowflake.com/en/sql-reference/sql/create-notification-integration-queue-outbound-gcp
+			withIntegrationFields(notificationCommon, integrationForm{
+				"DIRECTION":             reqField(propOneOf("OUTBOUND")),
+				"NOTIFICATION_PROVIDER": reqField(propOneOf("GCP_PUBSUB")),
+				"GCP_PUBSUB_TOPIC_NAME": reqField(propString),
+			}),
+		},
+		// https://docs.snowflake.com/en/sql-reference/sql/create-notification-integration-multi-queue
+		"MULTI_QUEUE": {withIntegrationFields(notificationCommon, integrationForm{
+			"DIRECTION": reqField(propOneOf("INBOUND")),
+			"QUEUES": {list: true, required: true, variants: []integrationForm{
+				{
+					"NAME":                  reqField(propString),
+					"NOTIFICATION_PROVIDER": reqField(propOneOf("AWS_SNS")),
+					"AWS_SNS_TOPIC_ARN":     reqField(propString),
+				},
+				{
+					"NAME":                         reqField(propString),
+					"NOTIFICATION_PROVIDER":        reqField(propOneOf("GCP_PUBSUB")),
+					"GCP_PUBSUB_SUBSCRIPTION_NAME": reqField(propString),
+				},
+				{
+					"NAME":                            reqField(propString),
+					"NOTIFICATION_PROVIDER":           reqField(propOneOf("AZURE_STORAGE_QUEUE")),
+					"AZURE_STORAGE_QUEUE_PRIMARY_URI": reqField(propString),
+					"AZURE_TENANT_ID":                 reqField(propString),
+				},
+			}},
+			"ACTIVE": reqField(propString),
+		})},
+		// https://docs.snowflake.com/en/sql-reference/sql/create-notification-integration-webhooks
+		"WEBHOOK": {withIntegrationFields(notificationCommon, integrationForm{
+			"WEBHOOK_URL":           reqField(propString),
+			"WEBHOOK_SECRET":        optField(propQName),
+			"WEBHOOK_BODY_TEMPLATE": optField(propString),
+			"WEBHOOK_HEADERS":       {parsed: true},
+		})},
+		// https://docs.snowflake.com/en/sql-reference/sql/create-notification-integration-email
+		"EMAIL": {withIntegrationFields(notificationCommon, integrationForm{
+			"ALLOWED_RECIPIENTS": optField(propStrings),
+			"DEFAULT_RECIPIENTS": optField(propStrings),
+			"DEFAULT_SUBJECT":    optField(propString),
+		})},
+	}
+)
+
+// checkIntegrationForm fails unless a CATALOG or NOTIFICATION INTEGRATION's
+// properties match a form its CATALOG_SOURCE or TYPE documents. start is the
+// statement's start, where a mismatch is reported.
+func checkIntegrationForm(kind ast.IntegrationObjectKind, opts []*ast.CopyOption, start, end int) error {
+	var forms []integrationForm
+	switch kind {
+	case ast.CatalogIntegration:
+		forms = catalogSourceForms[integrationOptionWords(opts, "CATALOG_SOURCE")]
+	case ast.NotificationIntegration:
+		forms = notificationTypeForms[integrationOptionWords(opts, "TYPE")]
+	default:
+		return nil
+	}
+	if matchesAnyIntegrationForm(opts, forms) {
+		return nil
+	}
+	return &ParseError{
+		Position: start, End: end,
+		Message: "syntax error: the properties of " + kind.String() + " match no form its documentation gives",
+	}
+}
+
+// integrationOptionWords returns the word value of the option named name.
+func integrationOptionWords(opts []*ast.CopyOption, name string) string {
+	for _, o := range opts {
+		if o.Name == name {
+			return o.Words
+		}
+	}
+	return ""
+}
+
+// quoteIntegrationKey spells a string key as a single-quoted literal that
+// reads back as s.
+func quoteIntegrationKey(s string) string {
+	return "'" + strings.ReplaceAll(strings.ReplaceAll(s, `\`, `\\`), "'", "''") + "'"
 }
