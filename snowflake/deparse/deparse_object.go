@@ -56,7 +56,9 @@ func (w *writer) writeObjectClause(kind string, c *ast.ObjectClause) error {
 	}
 	commas := objectOptionCommas(kind, c.Keywords)
 	for i, o := range c.Options {
-		if i > 0 && commas {
+		// A clause's bare entries are a list (VECTOR INDEXES); some pages
+		// separate a clause's properties with commas (objectOptionCommas).
+		if i > 0 && (commas || (o.Bare && c.Options[i-1].Bare)) {
 			w.buf.WriteByte(',')
 		}
 		w.buf.WriteByte(' ')
@@ -98,7 +100,9 @@ func objectOptionCommas(kind, keywords string) bool {
 }
 
 // writeObjectOption writes a property as `NAME = value`, or its value alone
-// when it has no name (an element of a list of groups).
+// when it has no name (an element of a list of groups). A bare entry is its
+// name alone, followed by its Group in parentheses when it has one
+// (VECTOR INDEXES' <column> ( model = '<model>' )).
 func (w *writer) writeObjectOption(o *ast.CopyOption) error {
 	if o.Name == "EXECUTE AS USER" && !o.Bare {
 		// TASK GRAPH's TASK_DEFAULTS ( EXECUTE AS USER <user_name> ): no '='.
@@ -109,6 +113,18 @@ func (w *writer) writeObjectOption(o *ast.CopyOption) error {
 	if o.Name != "" {
 		w.buf.WriteString(o.Name)
 		if o.Bare {
+			if o.Group != nil {
+				w.buf.WriteString(" (")
+				for i, e := range o.Group {
+					if i > 0 {
+						w.buf.WriteString(", ")
+					}
+					if err := w.writeObjectOption(e); err != nil {
+						return err
+					}
+				}
+				w.buf.WriteByte(')')
+			}
 			return nil
 		}
 		w.buf.WriteString(" = ")
