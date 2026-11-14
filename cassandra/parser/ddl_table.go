@@ -143,7 +143,7 @@ func (p *Parser) parseColumnMask() (*ast.ColumnMask, error) {
 		mask.Loc = p.makeLoc(start)
 		return mask, nil
 	}
-	fn, err := p.parseQualifiedName()
+	fn, err := p.parseFunctionQualifiedName()
 	if err != nil {
 		return nil, err
 	}

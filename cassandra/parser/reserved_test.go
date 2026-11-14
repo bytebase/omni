@@ -17,6 +17,9 @@ func TestReservedWords(t *testing.T) {
 		"DROP FUNCTION ks.count",
 		"CREATE AGGREGATE a(int) SFUNC token STYPE int",
 		"GRANT EXECUTE ON FUNCTION ks.token(int) TO r",
+		"ALTER TABLE t ALTER v MASKED WITH ks.token()",
+		"CREATE TABLE t(k int PRIMARY KEY, v text MASKED WITH count())",
+		"SELECT token(k), ks.count(v) FROM t",
 	} {
 		if _, err := Parse(sql); err != nil {
 			t.Errorf("Parse(%q): %v", sql, err)
@@ -32,6 +35,7 @@ func TestReservedWords(t *testing.T) {
 		"CREATE ROLE keyspace",
 		"DROP FUNCTION ttl",
 		"DROP FUNCTION ks.writetime",
+		"ALTER TABLE t ALTER v MASKED WITH ttl()",
 	} {
 		if _, err := Parse(sql); err == nil {
 			t.Errorf("Parse(%q) = nil error, want one", sql)
