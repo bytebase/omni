@@ -919,8 +919,21 @@ func showTableOptions(tbl *Table) string {
 	if tbl.Checksum != "" && tbl.Checksum != "0" {
 		parts = append(parts, fmt.Sprintf("CHECKSUM=%s", tbl.Checksum))
 	}
+	if tbl.PageChecksum != "" {
+		parts = append(parts, fmt.Sprintf("PAGE_CHECKSUM=%s", tbl.PageChecksum))
+	}
 	if tbl.DelayKeyWrite != "" && tbl.DelayKeyWrite != "0" {
 		parts = append(parts, fmt.Sprintf("DELAY_KEY_WRITE=%s", tbl.DelayKeyWrite))
+	}
+	if tbl.Transactional != "" {
+		parts = append(parts, fmt.Sprintf("TRANSACTIONAL=%s", tbl.Transactional))
+	}
+	for _, o := range tbl.EngineOptions {
+		value := o.Value
+		if o.Quoted {
+			value = "'" + escapeComment(o.Value) + "'"
+		}
+		parts = append(parts, fmt.Sprintf("`%s`=%s", o.Name, value))
 	}
 
 	return strings.Join(parts, " ")

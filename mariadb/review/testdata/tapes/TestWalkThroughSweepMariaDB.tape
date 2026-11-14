@@ -15608,12 +15608,10 @@
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "TEXT"
 < row
-: int64 4
+: int64 2
 : bytes
 | column	shop	A	x	
-| column	shop	v	x	
 | relation	shop		A	VIEW
-| relation	shop		v	BASE TABLE
 > query
 | SELECT COUNT(*), GROUP_CONCAT(SCHEMA_NAME ORDER BY BINARY SCHEMA_NAME SEPARATOR '\n') FROM information_schema.SCHEMATA WHERE SCHEMA_NAME NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys')
 < result
@@ -15666,12 +15664,10 @@
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "TEXT"
 < row
-: int64 4
+: int64 2
 : bytes
 | column	shop	A	x	
-| column	shop	v	x	
 | relation	shop		A	VIEW
-| relation	shop		v	BASE TABLE
 > query
 | SELECT COUNT(*), GROUP_CONCAT(SCHEMA_NAME ORDER BY BINARY SCHEMA_NAME SEPARATOR '\n') FROM information_schema.SCHEMATA WHERE SCHEMA_NAME NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys')
 < result
@@ -15724,12 +15720,10 @@
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "TEXT"
 < row
-: int64 4
+: int64 2
 : bytes
 | column	shop	A	x	
-| column	shop	v	x	
 | relation	shop		A	VIEW
-| relation	shop		v	BASE TABLE
 > query
 | SELECT COUNT(*), GROUP_CONCAT(SCHEMA_NAME ORDER BY BINARY SCHEMA_NAME SEPARATOR '\n') FROM information_schema.SCHEMATA WHERE SCHEMA_NAME NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys')
 < result
@@ -15782,12 +15776,10 @@
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "TEXT"
 < row
-: int64 4
+: int64 2
 : bytes
 | column	shop	A	x	
-| column	shop	v	x	
 | relation	shop		A	VIEW
-| relation	shop		v	BASE TABLE
 > query
 | SELECT COUNT(*), GROUP_CONCAT(SCHEMA_NAME ORDER BY BINARY SCHEMA_NAME SEPARATOR '\n') FROM information_schema.SCHEMATA WHERE SCHEMA_NAME NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys')
 < result
@@ -15840,12 +15832,10 @@
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "TEXT"
 < row
-: int64 4
+: int64 2
 : bytes
 | column	shop	A	x	
-| column	shop	v	x	
 | relation	shop		A	VIEW
-| relation	shop		v	BASE TABLE
 > query
 | SELECT COUNT(*), GROUP_CONCAT(SCHEMA_NAME ORDER BY BINARY SCHEMA_NAME SEPARATOR '\n') FROM information_schema.SCHEMATA WHERE SCHEMA_NAME NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys')
 < result
@@ -15898,12 +15888,10 @@
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "TEXT"
 < row
-: int64 4
+: int64 2
 : bytes
 | column	shop	A	x	
-| column	shop	v	x	
 | relation	shop		A	VIEW
-| relation	shop		v	BASE TABLE
 > query
 | SELECT COUNT(*), GROUP_CONCAT(SCHEMA_NAME ORDER BY BINARY SCHEMA_NAME SEPARATOR '\n') FROM information_schema.SCHEMATA WHERE SCHEMA_NAME NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys')
 < result
@@ -15956,12 +15944,10 @@
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "TEXT"
 < row
-: int64 4
+: int64 2
 : bytes
 | column	shop	A	x	
-| column	shop	v	x	
 | relation	shop		A	VIEW
-| relation	shop		v	BASE TABLE
 > query
 | SELECT COUNT(*), GROUP_CONCAT(SCHEMA_NAME ORDER BY BINARY SCHEMA_NAME SEPARATOR '\n') FROM information_schema.SCHEMATA WHERE SCHEMA_NAME NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys')
 < result
@@ -16014,18 +16000,16 @@
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "TEXT"
 < row
-: int64 10
+: int64 8
 : bytes
 | column	q	v	id	
 | column	q	v	x	
 | column	q	v	y	
 | column	shop	A	x	
-| column	shop	v	x	
 | index	q	v	PRIMARY	
 | index	q	v	x	
 | relation	q		v	BASE TABLE
 | relation	shop		A	VIEW
-| relation	shop		v	BASE TABLE
 > query
 | SELECT COUNT(*), GROUP_CONCAT(SCHEMA_NAME ORDER BY BINARY SCHEMA_NAME SEPARATOR '\n') FROM information_schema.SCHEMATA WHERE SCHEMA_NAME NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys')
 < result
@@ -16078,18 +16062,16 @@
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "TEXT"
 < row
-: int64 10
+: int64 8
 : bytes
 | column	q	v	id	
 | column	q	v	x	
 | column	q	v	y	
 | column	shop	A	x	
-| column	shop	v	x	
 | index	q	v	PRIMARY	
 | index	q	v	x	
 | relation	q		v	BASE TABLE
 | relation	shop		A	VIEW
-| relation	shop		v	BASE TABLE
 > query
 | SELECT COUNT(*), GROUP_CONCAT(SCHEMA_NAME ORDER BY BINARY SCHEMA_NAME SEPARATOR '\n') FROM information_schema.SCHEMATA WHERE SCHEMA_NAME NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys')
 < result
@@ -16142,18 +16124,16 @@
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "TEXT"
 < row
-: int64 10
+: int64 8
 : bytes
 | column	q	v	id	
 | column	q	v	x	
 | column	q	v	y	
 | column	shop	A	x	
-| column	shop	v	x	
 | index	q	v	PRIMARY	
 | index	q	v	x	
 | relation	q		v	BASE TABLE
 | relation	shop		A	VIEW
-| relation	shop		v	BASE TABLE
 > query
 | SELECT COUNT(*), GROUP_CONCAT(SCHEMA_NAME ORDER BY BINARY SCHEMA_NAME SEPARATOR '\n') FROM information_schema.SCHEMATA WHERE SCHEMA_NAME NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys')
 < result
@@ -16206,18 +16186,16 @@
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "TEXT"
 < row
-: int64 10
+: int64 8
 : bytes
 | column	q	v	id	
 | column	q	v	x	
 | column	q	v	y	
 | column	shop	A	x	
-| column	shop	v	x	
 | index	q	v	PRIMARY	
 | index	q	v	x	
 | relation	q		v	BASE TABLE
 | relation	shop		A	VIEW
-| relation	shop		v	BASE TABLE
 > query
 | SELECT COUNT(*), GROUP_CONCAT(SCHEMA_NAME ORDER BY BINARY SCHEMA_NAME SEPARATOR '\n') FROM information_schema.SCHEMATA WHERE SCHEMA_NAME NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys')
 < result
@@ -16270,18 +16248,16 @@
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "TEXT"
 < row
-: int64 10
+: int64 8
 : bytes
 | column	q	v	id	
 | column	q	v	x	
 | column	q	v	y	
 | column	shop	A	x	
-| column	shop	v	x	
 | index	q	v	PRIMARY	
 | index	q	v	x	
 | relation	q		v	BASE TABLE
 | relation	shop		A	VIEW
-| relation	shop		v	BASE TABLE
 > query
 | SELECT COUNT(*), GROUP_CONCAT(SCHEMA_NAME ORDER BY BINARY SCHEMA_NAME SEPARATOR '\n') FROM information_schema.SCHEMATA WHERE SCHEMA_NAME NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys')
 < result
@@ -16334,18 +16310,16 @@
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "TEXT"
 < row
-: int64 10
+: int64 8
 : bytes
 | column	q	v	id	
 | column	q	v	x	
 | column	q	v	y	
 | column	shop	A	x	
-| column	shop	v	x	
 | index	q	v	PRIMARY	
 | index	q	v	x	
 | relation	q		v	BASE TABLE
 | relation	shop		A	VIEW
-| relation	shop		v	BASE TABLE
 > query
 | SELECT COUNT(*), GROUP_CONCAT(SCHEMA_NAME ORDER BY BINARY SCHEMA_NAME SEPARATOR '\n') FROM information_schema.SCHEMATA WHERE SCHEMA_NAME NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys')
 < result
@@ -16398,7 +16372,7 @@
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "TEXT"
 < row
-: int64 13
+: int64 11
 : bytes
 | column	q	v	id	
 | column	q	v	x	
@@ -16406,13 +16380,11 @@
 | column	shop	A	x	
 | column	shop	b	x	
 | column	shop	b	y	
-| column	shop	v	x	
 | index	q	v	PRIMARY	
 | index	q	v	x	
 | relation	q		v	BASE TABLE
 | relation	shop		A	VIEW
 | relation	shop		b	SYSTEM VERSIONED
-| relation	shop		v	BASE TABLE
 > query
 | SELECT COUNT(*), GROUP_CONCAT(SCHEMA_NAME ORDER BY BINARY SCHEMA_NAME SEPARATOR '\n') FROM information_schema.SCHEMATA WHERE SCHEMA_NAME NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys')
 < result
@@ -16465,7 +16437,7 @@
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "TEXT"
 < row
-: int64 13
+: int64 11
 : bytes
 | column	q	v	id	
 | column	q	v	x	
@@ -16473,13 +16445,11 @@
 | column	shop	A	x	
 | column	shop	b	x	
 | column	shop	b	y	
-| column	shop	v	x	
 | index	q	v	PRIMARY	
 | index	q	v	x	
 | relation	q		v	BASE TABLE
 | relation	shop		A	VIEW
 | relation	shop		b	SYSTEM VERSIONED
-| relation	shop		v	BASE TABLE
 > query
 | SELECT COUNT(*), GROUP_CONCAT(SCHEMA_NAME ORDER BY BINARY SCHEMA_NAME SEPARATOR '\n') FROM information_schema.SCHEMATA WHERE SCHEMA_NAME NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys')
 < result
@@ -16532,7 +16502,7 @@
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "TEXT"
 < row
-: int64 13
+: int64 11
 : bytes
 | column	q	v	id	
 | column	q	v	x	
@@ -16540,13 +16510,11 @@
 | column	shop	A	x	
 | column	shop	b	x	
 | column	shop	b	y	
-| column	shop	s	x	
 | index	q	v	PRIMARY	
 | index	q	v	x	
 | relation	q		v	BASE TABLE
 | relation	shop		A	VIEW
 | relation	shop		b	SYSTEM VERSIONED
-| relation	shop		s	BASE TABLE
 > query
 | SELECT COUNT(*), GROUP_CONCAT(SCHEMA_NAME ORDER BY BINARY SCHEMA_NAME SEPARATOR '\n') FROM information_schema.SCHEMATA WHERE SCHEMA_NAME NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys')
 < result
@@ -16599,7 +16567,7 @@
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "TEXT"
 < row
-: int64 13
+: int64 11
 : bytes
 | column	q	v	id	
 | column	q	v	x	
@@ -16607,13 +16575,11 @@
 | column	shop	A	x	
 | column	shop	b	x	
 | column	shop	b	y	
-| column	shop	s	x	
 | index	q	v	PRIMARY	
 | index	q	v	x	
 | relation	q		v	BASE TABLE
 | relation	shop		A	VIEW
 | relation	shop		b	SYSTEM VERSIONED
-| relation	shop		s	BASE TABLE
 > query
 | SELECT COUNT(*), GROUP_CONCAT(SCHEMA_NAME ORDER BY BINARY SCHEMA_NAME SEPARATOR '\n') FROM information_schema.SCHEMATA WHERE SCHEMA_NAME NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys')
 < result
@@ -16666,7 +16632,7 @@
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "TEXT"
 < row
-: int64 13
+: int64 11
 : bytes
 | column	q	v	id	
 | column	q	v	x	
@@ -16674,13 +16640,11 @@
 | column	shop	A	x	
 | column	shop	b	x	
 | column	shop	b	y	
-| column	shop	s	x	
 | index	q	v	PRIMARY	
 | index	q	v	x	
 | relation	q		v	BASE TABLE
 | relation	shop		A	VIEW
 | relation	shop		b	SYSTEM VERSIONED
-| relation	shop		s	BASE TABLE
 > query
 | SELECT COUNT(*), GROUP_CONCAT(SCHEMA_NAME ORDER BY BINARY SCHEMA_NAME SEPARATOR '\n') FROM information_schema.SCHEMATA WHERE SCHEMA_NAME NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys')
 < result
@@ -16733,7 +16697,7 @@
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "TEXT"
 < row
-: int64 13
+: int64 11
 : bytes
 | column	q	v	id	
 | column	q	v	x	
@@ -16741,13 +16705,11 @@
 | column	shop	A	x	
 | column	shop	b	x	
 | column	shop	b	y	
-| column	shop	s	x	
 | index	q	v	PRIMARY	
 | index	q	v	x	
 | relation	q		v	BASE TABLE
 | relation	shop		A	VIEW
 | relation	shop		b	SYSTEM VERSIONED
-| relation	shop		s	BASE TABLE
 > query
 | SELECT COUNT(*), GROUP_CONCAT(SCHEMA_NAME ORDER BY BINARY SCHEMA_NAME SEPARATOR '\n') FROM information_schema.SCHEMATA WHERE SCHEMA_NAME NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys')
 < result
@@ -16800,7 +16762,7 @@
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "TEXT"
 < row
-: int64 13
+: int64 11
 : bytes
 | column	q	v	id	
 | column	q	v	x	
@@ -16808,13 +16770,11 @@
 | column	shop	A	x	
 | column	shop	b	x	
 | column	shop	b	y	
-| column	shop	s	x	
 | index	q	v	PRIMARY	
 | index	q	v	x	
 | relation	q		v	BASE TABLE
 | relation	shop		A	VIEW
 | relation	shop		b	SYSTEM VERSIONED
-| relation	shop		s	BASE TABLE
 > query
 | SELECT COUNT(*), GROUP_CONCAT(SCHEMA_NAME ORDER BY BINARY SCHEMA_NAME SEPARATOR '\n') FROM information_schema.SCHEMATA WHERE SCHEMA_NAME NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys')
 < result
@@ -16867,7 +16827,7 @@
 < column "COUNT(*)" "BIGINT"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "TEXT"
 < row
-: int64 13
+: int64 11
 : bytes
 | column	q	v	id	
 | column	q	v	x	
@@ -16875,13 +16835,11 @@
 | column	shop	A	x	
 | column	shop	b	x	
 | column	shop	b	y	
-| column	shop	s	x	
 | index	q	v	PRIMARY	
 | index	q	v	x	
 | relation	q		v	BASE TABLE
 | relation	shop		A	VIEW
 | relation	shop		b	SYSTEM VERSIONED
-| relation	shop		s	BASE TABLE
 
 == TestWalkThroughSweepMariaDB/change17 default#3
 > exec
@@ -16972,9 +16930,8 @@
 : int64 0
 : null
 > exec
-| DROP TABLE v, v;
-< error
-| 1066 42000 Not unique table/alias: 'v'
+| DROP TABLE v;
+< ok 0 0
 > query
 | SELECT COUNT(*), GROUP_CONCAT(CONCAT_WS('\t', 'temporary', TABLE_SCHEMA, '', TABLE_NAME, TABLE_TYPE) ORDER BY BINARY TABLE_SCHEMA, BINARY TABLE_NAME, TABLE_TYPE SEPARATOR '\n') FROM information_schema.TABLES WHERE TABLE_TYPE LIKE 'TEMPORARY%'
 < result
@@ -17151,7 +17108,8 @@
 : null
 > exec
 | RENAME TABLE v TO s;
-< ok 0 0
+< error
+| 1146 42S02 Table 'shop.v' doesn't exist
 > query
 | SELECT COUNT(*), GROUP_CONCAT(CONCAT_WS('\t', 'temporary', TABLE_SCHEMA, '', TABLE_NAME, TABLE_TYPE) ORDER BY BINARY TABLE_SCHEMA, BINARY TABLE_NAME, TABLE_TYPE SEPARATOR '\n') FROM information_schema.TABLES WHERE TABLE_TYPE LIKE 'TEMPORARY%'
 < result
@@ -17163,7 +17121,7 @@
 > exec
 | ALTER TABLE s ADD CONSTRAINT g FOREIGN KEY f (x) REFERENCES a_ibfk_1 (id);
 < error
-| 1005 HY000 Can't create table `shop`.`s` (errno: 150 "Foreign key constraint is incorrectly formed")
+| 1146 42S02 Table 'shop.s' doesn't exist
 > query
 | SELECT COUNT(*), GROUP_CONCAT(CONCAT_WS('\t', 'temporary', TABLE_SCHEMA, '', TABLE_NAME, TABLE_TYPE) ORDER BY BINARY TABLE_SCHEMA, BINARY TABLE_NAME, TABLE_TYPE SEPARATOR '\n') FROM information_schema.TABLES WHERE TABLE_TYPE LIKE 'TEMPORARY%'
 < result
@@ -27989,9 +27947,8 @@
 | temporary	q		b	TEMPORARY SEQUENCE
 | temporary	shop		v	TEMPORARY SEQUENCE
 > exec
-| DROP VIEW IF EXISTS c, c;
-< error
-| 1066 42000 Not unique table/alias: 'c'
+| DROP VIEW IF EXISTS c;
+< ok 0 0
 > query
 | SELECT COUNT(*), GROUP_CONCAT(CONCAT_WS('\t', 'temporary', TABLE_SCHEMA, '', TABLE_NAME, TABLE_TYPE) ORDER BY BINARY TABLE_SCHEMA, BINARY TABLE_NAME, TABLE_TYPE SEPARATOR '\n') FROM information_schema.TABLES WHERE TABLE_TYPE LIKE 'TEMPORARY%'
 < result
@@ -44139,9 +44096,9 @@
 : int64 0
 : null
 > exec
-| DROP VIEW s, s;
+| DROP VIEW s;
 < error
-| 1066 42000 Not unique table/alias: 's'
+| 4092 42S02 Unknown VIEW: 'shop.s'
 > query
 | SELECT COUNT(*), GROUP_CONCAT(CONCAT_WS('\t', 'temporary', TABLE_SCHEMA, '', TABLE_NAME, TABLE_TYPE) ORDER BY BINARY TABLE_SCHEMA, BINARY TABLE_NAME, TABLE_TYPE SEPARATOR '\n') FROM information_schema.TABLES WHERE TABLE_TYPE LIKE 'TEMPORARY%'
 < result
@@ -51280,9 +51237,8 @@
 : bytes
 | temporary	q		a_ibfk_1	TEMPORARY
 > exec
-| DROP TABLE IF EXISTS v, v;
-< error
-| 1066 42000 Not unique table/alias: 'v'
+| DROP TABLE IF EXISTS v;
+< ok 0 0
 > query
 | SELECT COUNT(*), GROUP_CONCAT(CONCAT_WS('\t', 'temporary', TABLE_SCHEMA, '', TABLE_NAME, TABLE_TYPE) ORDER BY BINARY TABLE_SCHEMA, BINARY TABLE_NAME, TABLE_TYPE SEPARATOR '\n') FROM information_schema.TABLES WHERE TABLE_TYPE LIKE 'TEMPORARY%'
 < result
@@ -52624,9 +52580,8 @@
 < error
 | 1051 42S02 Unknown table 'q.a_ibfk_1,shop.b'
 > exec
-| DROP VIEW IF EXISTS q.v, q.v;
-< error
-| 1066 42000 Not unique table/alias: 'v'
+| DROP VIEW IF EXISTS q.v;
+< ok 0 0
 > exec
 | SET SESSION system_versioning_alter_history = ERROR;
 < ok 0 0

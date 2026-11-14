@@ -91,7 +91,14 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	tblCollationExplicit := false
 	tableOptionVersioned := false
 	sawExplicitColumnWith := false // an explicit column-level WITH appeared (even if a later WITHOUT overrode it)
+	var engineOptions []*nodes.TableOption
 	for _, opt := range stmt.Options {
+		// An engine-defined option is the engine's by its form, whatever its
+		// name: `PAGE_CHECKSUM` = 1, quoted, is one, and InnoDB answers 1911.
+		if opt.EngineDefined {
+			engineOptions = append(engineOptions, opt)
+			continue
+		}
 		switch toLower(opt.Name) {
 		case "system versioning":
 			tbl.SystemVersioned = true
@@ -136,6 +143,21 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			tbl.Checksum = normalizedChecksum(opt.Value)
 		case "delay_key_write":
 			tbl.DelayKeyWrite = opt.Value
+		case "page_checksum":
+			tbl.PageChecksum = choiceValue(opt.Value)
+		case "transactional":
+			tbl.Transactional = choiceValue(opt.Value)
+		case "sequence":
+			if opt.Value == "1" {
+				return errSequenceInvalidTableStructure(db.Name, stmt.Table.Name)
+			}
+		}
+	}
+	// Engine-defined options are checked against the engine the statement leaves,
+	// which an ENGINE option after them still sets.
+	for _, opt := range engineOptions {
+		if err := tbl.setEngineOption(opt.Name, opt.Value, opt.StringValue); err != nil {
+			return err
 		}
 	}
 	// When charset is specified without explicit collation, derive the default collation.
@@ -3426,30 +3448,34 @@ func (c *Catalog) dropReplacedTable(db *Database, tbl *Table) {
 // It copies the structure (columns, indexes, constraints) from the source table.
 func (c *Catalog) createTableLike(db *Database, tableName, key string, srcTbl *Table, stmt *nodes.CreateTableStmt) error {
 	tbl := &Table{
-		Name:              tableName,
-		Database:          db,
-		Columns:           make([]*Column, 0, len(srcTbl.Columns)),
-		colByName:         make(map[string]int),
-		Indexes:           make([]*Index, 0, len(srcTbl.Indexes)),
-		Constraints:       make([]*Constraint, 0, len(srcTbl.Constraints)),
-		Engine:            srcTbl.Engine,
-		Charset:           srcTbl.Charset,
-		Collation:         srcTbl.Collation,
-		Comment:           srcTbl.Comment,
-		RowFormat:         srcTbl.RowFormat,
-		KeyBlockSize:      srcTbl.KeyBlockSize,
-		Compression:       srcTbl.Compression,
-		Encryption:        srcTbl.Encryption,
-		StatsPersistent:   srcTbl.StatsPersistent,
-		StatsAutoRecalc:   srcTbl.StatsAutoRecalc,
-		StatsSamplePages:  srcTbl.StatsSamplePages,
-		MinRows:           srcTbl.MinRows,
-		MaxRows:           srcTbl.MaxRows,
-		AvgRowLength:      srcTbl.AvgRowLength,
-		Tablespace:        srcTbl.Tablespace,
-		PackKeys:          srcTbl.PackKeys,
-		Checksum:          srcTbl.Checksum,
-		DelayKeyWrite:     srcTbl.DelayKeyWrite,
+		Name:             tableName,
+		Database:         db,
+		Columns:          make([]*Column, 0, len(srcTbl.Columns)),
+		colByName:        make(map[string]int),
+		Indexes:          make([]*Index, 0, len(srcTbl.Indexes)),
+		Constraints:      make([]*Constraint, 0, len(srcTbl.Constraints)),
+		Engine:           srcTbl.Engine,
+		Charset:          srcTbl.Charset,
+		Collation:        srcTbl.Collation,
+		Comment:          srcTbl.Comment,
+		RowFormat:        srcTbl.RowFormat,
+		KeyBlockSize:     srcTbl.KeyBlockSize,
+		Compression:      srcTbl.Compression,
+		Encryption:       srcTbl.Encryption,
+		StatsPersistent:  srcTbl.StatsPersistent,
+		StatsAutoRecalc:  srcTbl.StatsAutoRecalc,
+		StatsSamplePages: srcTbl.StatsSamplePages,
+		MinRows:          srcTbl.MinRows,
+		MaxRows:          srcTbl.MaxRows,
+		AvgRowLength:     srcTbl.AvgRowLength,
+		Tablespace:       srcTbl.Tablespace,
+		PackKeys:         srcTbl.PackKeys,
+		Checksum:         srcTbl.Checksum,
+		DelayKeyWrite:    srcTbl.DelayKeyWrite,
+		// LIKE copies TRANSACTIONAL and the engine-defined options and drops
+		// PAGE_CHECKSUM, as MariaDB 11.8.8 does.
+		Transactional:     srcTbl.Transactional,
+		EngineOptions:     append([]EngineOption(nil), srcTbl.EngineOptions...),
 		Temporary:         stmt.Temporary,
 		SystemVersioned:   srcTbl.SystemVersioned,
 		PeriodStartCol:    srcTbl.PeriodStartCol,

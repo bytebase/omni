@@ -2455,7 +2455,12 @@ func (p *Parser) parseInExpr(left nodes.ExprNode, not bool) (nodes.ExprNode, err
 			}
 			list.Items = append(list.Items, subExpr)
 		} else {
-			for p.cur.Type != ')' && p.cur.Type != tokEOF {
+			for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+				// An item that consumes nothing would come round again.
+				if p.pos() == progress {
+					return nil, p.syntaxErrorAtCur()
+				}
+				progress = p.pos()
 				item, parseErr743 := p.parseExpr()
 				if parseErr743 != nil {
 					return nil, parseErr743
@@ -2683,7 +2688,12 @@ func (p *Parser) parseXmlElement() (nodes.ExprNode, error) {
 	}
 
 	// Element name — identifier or quoted identifier
-	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+	for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+		// An item that consumes nothing would come round again.
+		if p.pos() == progress {
+			return nil, p.syntaxErrorAtCur()
+		}
+		progress = p.pos()
 		arg, parseErr750 := p.parseExpr()
 		if parseErr750 != nil {
 			return nil, parseErr750
@@ -2722,7 +2732,12 @@ func (p *Parser) parseXmlGenericFunc(name string) (nodes.ExprNode, error) {
 	}
 	p.advance() // consume '('
 
-	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+	for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+		// An item that consumes nothing would come round again.
+		if p.pos() == progress {
+			return nil, p.syntaxErrorAtCur()
+		}
+		progress = p.pos()
 		// Handle keyword-value pairs like VERSION '1.0'
 		arg, parseErr751 := p.parseExpr()
 		if parseErr751 != nil {

@@ -729,7 +729,12 @@ func (p *Parser) parseCreateMviewLogStmt(start int) (*nodes.CreateMviewLogStmt, 
 				// column list
 				p.advance()
 				stmt.Columns = &nodes.List{}
-				for p.cur.Type != ')' && p.cur.Type != tokEOF {
+				for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+					// An item that consumes nothing would come round again.
+					if p.pos() == progress {
+						return nil, p.syntaxErrorAtCur()
+					}
+					progress = p.pos()
 					name, parseErr595 := p.parseIdentifier()
 					if parseErr595 != nil {
 						return nil, parseErr595
@@ -900,7 +905,12 @@ func (p *Parser) parseAlterMviewLogStmt(start int) (*nodes.AlterMviewLogStmt, er
 		if p.cur.Type == '(' {
 			p.advance()
 			stmt.Columns = &nodes.List{}
-			for p.cur.Type != ')' && p.cur.Type != tokEOF {
+			for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+				// An item that consumes nothing would come round again.
+				if p.pos() == progress {
+					return nil, p.syntaxErrorAtCur()
+				}
+				progress = p.pos()
 				name, parseErr599 := p.parseIdentifier()
 				if parseErr599 != nil {
 					return nil, parseErr599

@@ -840,7 +840,14 @@ func walkSweepChange(rng *rand.Rand, n int) string {
 		case 4:
 			stmt = fmt.Sprintf("CREATE TABLE %s AS SELECT 1 AS x", tbl())
 		case 5, 6:
-			stmt = fmt.Sprintf("DROP %sTABLE %s%s%s", maybe("TEMPORARY "), maybe("IF EXISTS "), tbl(), maybe(", "+tbl()))
+			temporary, ifExists, first := maybe("TEMPORARY "), maybe("IF EXISTS "), tbl()
+			second := maybe(", " + tbl())
+			// A list that names one table twice is 1066 while the server parses it,
+			// which the parser refuses as well, so the sweep names it once.
+			if second == ", "+first {
+				second = ""
+			}
+			stmt = fmt.Sprintf("DROP %sTABLE %s%s%s", temporary, ifExists, first, second)
 		case 7:
 			stmt = fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s int%s", tbl(), col(), maybe(" AFTER "+col()))
 		case 8:
@@ -866,7 +873,14 @@ func walkSweepChange(rng *rand.Rand, n int) string {
 		case 18:
 			stmt = fmt.Sprintf("CREATE %sVIEW %s AS SELECT 1 AS x", maybe("OR REPLACE "), tbl())
 		case 19:
-			stmt = fmt.Sprintf("DROP VIEW %s%s%s", maybe("IF EXISTS "), tbl(), maybe(", "+tbl()))
+			ifExists, first := maybe("IF EXISTS "), tbl()
+			second := maybe(", " + tbl())
+			// A list that names one table twice is 1066 while the server parses it,
+			// which the parser refuses as well, so the sweep names it once.
+			if second == ", "+first {
+				second = ""
+			}
+			stmt = fmt.Sprintf("DROP VIEW %s%s%s", ifExists, first, second)
 		case 20:
 			stmt = pick("CREATE DATABASE q", "CREATE DATABASE IF NOT EXISTS q", "CREATE OR REPLACE DATABASE q", "DROP DATABASE IF EXISTS q", "USE q", "USE shop")
 		case 21:

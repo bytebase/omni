@@ -25,6 +25,36 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 		return errNoSuchTable(db.Name, tableName)
 	}
 
+	return c.alterTableKeepingOptions(db, tbl, key, stmt)
+}
+
+// alterTableKeepingOptions runs the ALTER and then drops PAGE_CHECKSUM unless the
+// statement set it or only renamed the table, or the table is Aria's: MariaDB
+// 11.8.8 keeps it through a RENAME and through nothing else that rewrites an
+// InnoDB or MyISAM table, and Aria's handler carries it over.
+func (c *Catalog) alterTableKeepingOptions(db *Database, tbl *Table, key string, stmt *nodes.AlterTableStmt) error {
+	if err := c.alterTableRun(db, tbl, key, stmt); err != nil {
+		return err
+	}
+	rebuilt, setsPageChecksum := false, false
+	for _, cmd := range stmt.Commands {
+		if cmd.Type != nodes.ATRenameTable {
+			rebuilt = true
+		}
+		if cmd.Type == nodes.ATTableOption && cmd.Option != nil && eqFoldStr(cmd.Option.Name, "PAGE_CHECKSUM") {
+			setsPageChecksum = true
+		}
+	}
+	// Aria recovers the checksum it has when the ALTER names none.
+	if rebuilt && !setsPageChecksum && !eqFoldStr(tbl.Engine, "Aria") {
+		tbl.PageChecksum = ""
+	}
+	return nil
+}
+
+// alterTableRun runs the commands of an ALTER TABLE, checking a partitioned
+// table's unique keys after them.
+func (c *Catalog) alterTableRun(db *Database, tbl *Table, key string, stmt *nodes.AlterTableStmt) error {
 	repartition := alterRepartition(stmt.Commands)
 	if tbl.Partitioning == nil && repartition == nil {
 		return c.alterTableCommands(db, tbl, key, stmt)
@@ -1681,6 +1711,10 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 		return nil
 	}
 
+	// An engine-defined option is the engine's by its form, whatever its name.
+	if opt.EngineDefined {
+		return tbl.setEngineOption(opt.Name, opt.Value, opt.StringValue)
+	}
 	switch toLower(opt.Name) {
 	case "engine":
 		tbl.Engine = opt.Value
@@ -1724,6 +1758,14 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 		tbl.Checksum = normalizedChecksum(opt.Value)
 	case "delay_key_write":
 		tbl.DelayKeyWrite = opt.Value
+	case "page_checksum":
+		tbl.PageChecksum = choiceValue(opt.Value)
+	case "transactional":
+		tbl.Transactional = choiceValue(opt.Value)
+	case "sequence":
+		if opt.Value == "1" {
+			return errSequenceInvalidTableStructure(tbl.Database.Name, tbl.Name)
+		}
 	}
 	return nil
 }
