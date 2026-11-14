@@ -68,7 +68,7 @@ func buildCompositeMap(c *Catalog) map[relKey]*Relation {
 	m := make(map[relKey]*Relation)
 	for _, s := range c.UserSchemas() {
 		for _, rel := range s.Relations {
-			if rel.RelKind != 'c' {
+			if rel.RelKind != 'c' || c.isExtensionMember(rel.OID) {
 				continue
 			}
 			m[relKey{schema: s.Name, name: rel.Name}] = rel
@@ -90,6 +90,9 @@ func compositeColumnsEqual(fromCat, toCat *Catalog, from, to *Relation) bool {
 			return false
 		}
 		if fromCat.FormatType(fc.TypeOID, fc.TypeMod) != toCat.FormatType(tc.TypeOID, tc.TypeMod) {
+			return false
+		}
+		if fc.CollationName != tc.CollationName {
 			return false
 		}
 	}

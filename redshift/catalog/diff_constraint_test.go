@@ -402,3 +402,18 @@ func TestDiffConstraint(t *testing.T) {
 		})
 	}
 }
+
+func TestDiffMatchesKeyColumnsByName(t *testing.T) {
+	// A column added in the middle shifts the attnums of the key and foreign
+	// key columns after it; neither changed.
+	got := migrationSQL(t,
+		`CREATE TABLE p (a int, b int, PRIMARY KEY (a));
+CREATE TABLE c (x int REFERENCES p (a));`,
+		`CREATE TABLE p (z int, a int, b int, PRIMARY KEY (a));
+CREATE TABLE c (y int, x int REFERENCES p (a));`)
+	want := `ALTER TABLE public.c ADD COLUMN y integer;
+ALTER TABLE public.p ADD COLUMN z integer`
+	if got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+}

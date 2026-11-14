@@ -132,6 +132,12 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 		hybrid = true
 	}
 
+	// CREATE [OR REPLACE] [TRANSIENT] ICEBERG TABLE (iceberg_table.go). ICEBERG is
+	// not a reserved keyword, so it is matched by text and only before TABLE.
+	if p.curIsWord("ICEBERG") && p.peekNext().Type == kwTABLE && !orAlter && !temporary && !volatile {
+		return p.parseCreateIcebergTableStmt(start, orReplace, transient)
+	}
+
 	switch p.cur.Type {
 	case kwTABLE:
 		return p.parseCreateTableStmt(start, orReplace, orAlter, transient, temporary, volatile, hybrid)
@@ -459,7 +465,7 @@ func (p *Parser) parseColumnDeclItems(stmt *ast.CreateTableStmt) error {
 // out-of-line (table-level) constraint definition.
 func (p *Parser) isOutOfLineConstraintStart() bool {
 	switch p.cur.Type {
-	case kwCONSTRAINT, kwPRIMARY, kwUNIQUE, kwFOREIGN:
+	case kwCONSTRAINT, kwPRIMARY, kwUNIQUE, kwFOREIGN, kwCHECK:
 		return true
 	}
 	return false
@@ -502,11 +508,25 @@ func (p *Parser) tryParseTableIndex() (idx *ast.TableIndex, matched bool, err er
 		return nil, false, nil
 	}
 
-	return &ast.TableIndex{
+	idx = &ast.TableIndex{
 		Name:    name,
 		Columns: cols,
-		Loc:     ast.Loc{Start: start, End: p.prev.Loc.End},
-	}, true, nil
+	}
+
+	// Optional INCLUDE ( <col> [, <col>...] ): the covering columns
+	// (https://docs.snowflake.com/en/sql-reference/sql/create-hybrid-table).
+	// The element is committed by now, so an error here is a real one.
+	if p.cur.Type == kwINCLUDE {
+		p.advance() // consume INCLUDE
+		include, err := p.parseIdentListInParens()
+		if err != nil {
+			return nil, false, err
+		}
+		idx.Include = include
+	}
+
+	idx.Loc = ast.Loc{Start: start, End: p.prev.Loc.End}
+	return idx, true, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -595,8 +615,8 @@ func (p *Parser) parseColumnOptions(col *ast.ColumnDef) error {
 			}
 			col.Collate = tok.Str
 
-		case kwCONSTRAINT, kwPRIMARY, kwUNIQUE, kwFOREIGN:
-			ic, err := p.parseInlineConstraint()
+		case kwCONSTRAINT, kwPRIMARY, kwUNIQUE, kwFOREIGN, kwREFERENCES, kwCHECK:
+			ic, err := p.parseInlineConstraint(true)
 			if err != nil {
 				return err
 			}
@@ -642,6 +662,17 @@ func (p *Parser) parseColumnOptions(col *ast.ColumnDef) error {
 					return err
 				}
 				col.Tags = append(col.Tags, tags...)
+			case tokIdent:
+				// WITH PROJECTION POLICY: nothing else begins WITH PROJECTION.
+				if !p.peekIsWord("PROJECTION") {
+					return nil
+				}
+				p.advance() // consume WITH
+				policyName, err := p.parseProjectionPolicy()
+				if err != nil {
+					return err
+				}
+				col.ProjectionPolicy = policyName
 			case kwROW:
 				// WITH ROW ACCESS POLICY ... — consume and discard
 				p.advance() // consume WITH
@@ -694,34 +725,97 @@ func (p *Parser) parseColumnOptions(col *ast.ColumnDef) error {
 			col.Tags = append(col.Tags, tags...)
 
 		case kwAS:
-			// AS (expr) — virtual column expression
-			p.advance() // consume AS
-			if _, err := p.expect('('); err != nil {
+			if err := p.parseVirtualColumnExpr(col); err != nil {
 				return err
 			}
-			expr, err := p.parseExpr()
-			if err != nil {
-				return err
-			}
-			if _, err := p.expect(')'); err != nil {
-				return err
-			}
-			col.VirtualExpr = expr
 
 		default:
-			return nil
+			switch {
+			case p.startsGeneratedAlways():
+				p.advance() // consume GENERATED
+				p.advance() // consume ALWAYS
+				if p.cur.Type != kwAS {
+					return p.syntaxErrorAtCur()
+				}
+				if err := p.parseVirtualColumnExpr(col); err != nil {
+					return err
+				}
+			case p.startsProjectionPolicy():
+				policyName, err := p.parseProjectionPolicy()
+				if err != nil {
+					return err
+				}
+				col.ProjectionPolicy = policyName
+			default:
+				return nil
+			}
 		}
 	}
+}
+
+// parseVirtualColumnExpr parses a virtual column's expression, with the
+// optional GENERATED ALWAYS already consumed
+// (https://docs.snowflake.com/en/sql-reference/sql/create-table):
+//
+//	AS ( <expr> ) [ VIRTUAL ]
+//
+// GENERATED ALWAYS and VIRTUAL restate what AS ( <expr> ) already means, so
+// the AST keeps only the expression.
+func (p *Parser) parseVirtualColumnExpr(col *ast.ColumnDef) error {
+	p.advance() // consume AS
+	if _, err := p.expect('('); err != nil {
+		return err
+	}
+	expr, err := p.parseExpr()
+	if err != nil {
+		return err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return err
+	}
+	col.VirtualExpr = expr
+	if p.curIsWord("VIRTUAL") {
+		p.advance() // consume VIRTUAL
+	}
+	return nil
+}
+
+// startsGeneratedAlways reports whether cur begins GENERATED ALWAYS, the
+// optional lead-in of a virtual column's AS ( <expr> ). Neither word is a
+// keyword token.
+func (p *Parser) startsGeneratedAlways() bool {
+	return p.curIsWord("GENERATED") && p.peekIsWord("ALWAYS")
+}
+
+// startsProjectionPolicy reports whether cur begins PROJECTION POLICY.
+// PROJECTION is not a keyword token.
+func (p *Parser) startsProjectionPolicy() bool {
+	return p.curIsWord("PROJECTION") && p.peekNext().Type == kwPOLICY
+}
+
+// parseProjectionPolicy parses PROJECTION POLICY <name>, a column's
+// projection policy (https://docs.snowflake.com/en/sql-reference/sql/create-table).
+// On entry cur is PROJECTION; a leading WITH is already consumed.
+func (p *Parser) parseProjectionPolicy() (*ast.ObjectName, error) {
+	p.advance() // consume PROJECTION
+	if _, err := p.expect(kwPOLICY); err != nil {
+		return nil, err
+	}
+	return p.parseObjectName()
 }
 
 // ---------------------------------------------------------------------------
 // Inline constraint
 // ---------------------------------------------------------------------------
 
-// parseInlineConstraint parses a column-level (inline) constraint:
+// parseInlineConstraint parses a column-level (inline) constraint
+// (https://docs.snowflake.com/en/sql-reference/sql/create-table-constraint):
 //
-//	[CONSTRAINT name] PRIMARY KEY | UNIQUE | FOREIGN KEY REFERENCES ...
-func (p *Parser) parseInlineConstraint() (*ast.InlineConstraint, error) {
+//	[CONSTRAINT name] { PRIMARY KEY | UNIQUE | [FOREIGN KEY] REFERENCES ... | CHECK ( expr ) }
+//	  [constraint_properties]
+//
+// allowCheck is false where the object's page lists no CHECK constraint.
+func (p *Parser) parseInlineConstraint(allowCheck bool) (*ast.InlineConstraint, error) {
 	ic := &ast.InlineConstraint{
 		Loc: p.cur.Loc,
 	}
@@ -748,10 +842,13 @@ func (p *Parser) parseInlineConstraint() (*ast.InlineConstraint, error) {
 		p.advance() // consume UNIQUE
 		ic.Type = ast.ConstrUnique
 
-	case kwFOREIGN:
-		p.advance() // consume FOREIGN
-		if _, err := p.expect(kwKEY); err != nil {
-			return nil, err
+	case kwFOREIGN, kwREFERENCES:
+		// An inline foreign key's FOREIGN KEY is optional.
+		if p.cur.Type == kwFOREIGN {
+			p.advance() // consume FOREIGN
+			if _, err := p.expect(kwKEY); err != nil {
+				return nil, err
+			}
 		}
 		ref, err := p.parseForeignKeyRef()
 		if err != nil {
@@ -759,6 +856,17 @@ func (p *Parser) parseInlineConstraint() (*ast.InlineConstraint, error) {
 		}
 		ic.Type = ast.ConstrForeignKey
 		ic.References = ref
+
+	case kwCHECK:
+		if !allowCheck {
+			return nil, p.syntaxErrorAtCur()
+		}
+		expr, err := p.parseCheckExpr()
+		if err != nil {
+			return nil, err
+		}
+		ic.Type = ast.ConstrCheck
+		ic.Check = expr
 
 	default:
 		return nil, p.syntaxErrorAtCur()
@@ -776,9 +884,15 @@ func (p *Parser) parseInlineConstraint() (*ast.InlineConstraint, error) {
 // Out-of-line (table-level) constraint
 // ---------------------------------------------------------------------------
 
-// parseOutOfLineConstraint parses a table-level (out-of-line) constraint:
+// parseOutOfLineConstraint parses a table-level (out-of-line) constraint
+// (https://docs.snowflake.com/en/sql-reference/sql/create-table-constraint):
 //
-//	[CONSTRAINT name] PRIMARY KEY (cols) | UNIQUE (cols) | FOREIGN KEY (cols) REFERENCES ...
+//	[CONSTRAINT name] { PRIMARY KEY (cols) | UNIQUE (cols)
+//	  | FOREIGN KEY (cols) REFERENCES ... | CHECK ( expr ) }
+//	  [constraint_properties] [COMMENT 'text']
+//
+// FOREIGN KEY is required here: the constraint page writes the out-of-line
+// form without brackets around it.
 func (p *Parser) parseOutOfLineConstraint() (*ast.TableConstraint, error) {
 	con := &ast.TableConstraint{
 		Loc: p.cur.Loc,
@@ -833,6 +947,14 @@ func (p *Parser) parseOutOfLineConstraint() (*ast.TableConstraint, error) {
 		}
 		con.References = ref
 
+	case kwCHECK:
+		expr, err := p.parseCheckExpr()
+		if err != nil {
+			return nil, err
+		}
+		con.Type = ast.ConstrCheck
+		con.Check = expr
+
 	default:
 		return nil, p.syntaxErrorAtCur()
 	}
@@ -854,6 +976,23 @@ func (p *Parser) parseOutOfLineConstraint() (*ast.TableConstraint, error) {
 
 	con.Loc.End = p.prev.Loc.End
 	return con, nil
+}
+
+// parseCheckExpr parses CHECK ( <expr> ) and returns the expression. On entry
+// cur is CHECK.
+func (p *Parser) parseCheckExpr() (ast.Node, error) {
+	p.advance() // consume CHECK
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	expr, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return expr, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -904,6 +1043,11 @@ func (p *Parser) parseForeignKeyRef() (*ast.ForeignKeyRef, error) {
 // after the REFERENCES keyword has already been consumed:
 //
 //	table_name [(cols)] [MATCH FULL|PARTIAL|SIMPLE] [ON DELETE action] [ON UPDATE action]
+//
+// The constraint page writes the actions under one ON, as
+// ON [ UPDATE action ] [ DELETE action ]
+// (https://docs.snowflake.com/en/sql-reference/sql/create-table-constraint),
+// so a DELETE action may also follow an UPDATE action without its own ON.
 func (p *Parser) parseForeignKeyRefAfterReferences() (*ast.ForeignKeyRef, error) {
 	table, err := p.parseObjectName()
 	if err != nil {
@@ -961,6 +1105,14 @@ func (p *Parser) parseForeignKeyRefAfterReferences() (*ast.ForeignKeyRef, error)
 				return nil, err
 			}
 			ref.OnUpdate = action
+			if p.cur.Type == kwDELETE {
+				p.advance() // consume DELETE
+				action, err := p.parseReferenceAction()
+				if err != nil {
+					return nil, err
+				}
+				ref.OnDelete = action
+			}
 		default:
 			// Not an ON DELETE/UPDATE — stop
 			return ref, nil
@@ -1340,26 +1492,13 @@ func (p *Parser) parseTableProperties(stmt *ast.CreateTableStmt) error {
 				}
 				stmt.Tags = append(stmt.Tags, tags...)
 			case kwROW:
-				// WITH ROW ACCESS POLICY name ON (cols) — consume and discard
+				// WITH ROW ACCESS POLICY name ON (cols)
 				p.advance() // consume WITH
-				p.advance() // consume ROW
-				if _, err := p.expect(kwACCESS); err != nil {
+				rp, err := p.parseRowAccessPolicyClause()
+				if err != nil {
 					return err
 				}
-				if _, err := p.expect(kwPOLICY); err != nil {
-					return err
-				}
-				// policy name
-				if _, err := p.parseObjectName(); err != nil {
-					return err
-				}
-				// Optional ON (cols)
-				if p.cur.Type == kwON {
-					p.advance() // consume ON
-					if err := p.skipParenthesized(); err != nil {
-						return err
-					}
-				}
+				stmt.RowPolicy = rp
 			default:
 				return nil
 			}
