@@ -177,9 +177,8 @@ func (p *Parser) parseCreateAuditPolicyStmt(start int) (nodes.StmtNode, error) {
 //	                | 'audit_condition' EVALUATE PER { STATEMENT | SESSION | INSTANCE } }
 //	    }
 //
-// The statement ending after the policy name, ADD, DROP, ONLY or
-// CONDITION Oracle answers with an error of its own at the end of the text,
-// which compat.tsv records as accepted.
+// compat.tsv records the statement ending after the policy name, after ADD
+// or DROP, and after ADD ONLY as accepted, so omni takes those ends.
 func (p *Parser) parseAlterAuditPolicyStmt(start int) (nodes.StmtNode, error) {
 	stmt := &nodes.AlterAuditPolicyStmt{Loc: nodes.Loc{Start: start}}
 	if !p.isAuditPolicyName() {
@@ -238,7 +237,6 @@ func (p *Parser) parseAlterAuditPolicyStmt(start int) (nodes.StmtNode, error) {
 	case p.isKeywordStr("CONDITION"):
 		p.advance()
 		switch {
-		case p.atStatementEnd():
 		case p.cur.Type == kwDROP:
 			p.advance()
 			stmt.ConditionDrop = true
@@ -293,15 +291,10 @@ func (p *Parser) parseAuditPrivileges() ([]string, error) {
 }
 
 // parseAuditRoles parses ROLES role [, role ]... Oracle takes CONNECT and
-// RESOURCE as role names, and no other reserved word (ORA-01937). ROLES
-// at the end of the text it answers with ORA-01937 there, which compat.tsv
-// records as accepted.
+// RESOURCE as role names, and no other reserved word (ORA-01937).
 func (p *Parser) parseAuditRoles() ([]string, error) {
 	p.advance() // ROLES
 	var roles []string
-	if p.atStatementEnd() {
-		return roles, nil
-	}
 	for {
 		if !p.isAuditRoleName() {
 			return nil, p.syntaxErrorAtCur()
@@ -469,8 +462,7 @@ var (
 	auditDirectLoadActions  = newAuditNames("ALL", "LOAD")
 	auditSQLFirewallActions = newAuditNames("ALL", "CONTEXT VIOLATION", "SQL VIOLATION")
 	// FULL is no protocol Oracle audits: it refuses it with ORA-46356, but
-	// only after reading the token after it, so the compat probe's tail
-	// moved its answer and compat.tsv records PROTOCOL FULL as accepted.
+	// compat.tsv records PROTOCOL FULL as accepted, so omni takes it.
 	auditProtocolActions = newAuditNames("AUTHENTICATION", "FTP", "HTTP", "FULL")
 )
 
@@ -592,9 +584,6 @@ func (p *Parser) parseAuditWordList() ([]string, error) {
 //
 //	CONTEXT NAMESPACE namespace ATTRIBUTES attribute [, attribute ]...
 //	    [ BY user [, user ]... ]
-//
-// ATTRIBUTES at the end of the text Oracle answers with an error of its
-// own there, which compat.tsv records as accepted.
 func (p *Parser) parseAuditContextNamespace() (ns string, attrs, users []string, err error) {
 	p.advance() // CONTEXT
 	if !p.isKeywordStr("NAMESPACE") {
@@ -609,9 +598,6 @@ func (p *Parser) parseAuditContextNamespace() (ns string, attrs, users []string,
 		return "", nil, nil, p.syntaxErrorAtCur()
 	}
 	p.advance()
-	if p.atStatementEnd() {
-		return ns, nil, nil, nil
-	}
 	if attrs, err = p.parseAuditWordList(); err != nil {
 		return "", nil, nil, err
 	}

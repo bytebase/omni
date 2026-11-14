@@ -1232,6 +1232,9 @@ func (p *Parser) parseAuditStmt() (nodes.StmtNode, error) {
 			if err != nil {
 				return nil, err
 			}
+			if !strings.HasSuffix(when, "SUCCESSFUL") {
+				return nil, p.syntaxErrorAtCur()
+			}
 			stmt.When = when
 		}
 		stmt.Loc.End = p.prev.End
@@ -1382,10 +1385,10 @@ func (p *Parser) parseNoauditStmt() (nodes.StmtNode, error) {
 	// Unified: NOAUDIT POLICY ... and NOAUDIT CONTEXT NAMESPACE ...
 	if p.isIdentLikeStr("POLICY") {
 		p.advance()
-		if p.isIdentLike() {
-			stmt.Policy = p.cur.Str
-			p.advance()
+		if !p.isIdentLike() {
+			return nil, p.syntaxErrorAtCur()
 		}
+		stmt.Policy = p.advance().Str
 		if p.cur.Type == kwBY {
 			p.advance()
 			users, roles, err := p.parseAuditPolicyUsers()

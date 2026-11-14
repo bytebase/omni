@@ -153,13 +153,14 @@ func (p *Parser) parseAlterUserStmt(start int) (nodes.StmtNode, error) {
 		p.advance()
 		stmt.IfExists = true
 	}
+	if !p.isIdentLike() {
+		return nil, p.syntaxErrorAtCur()
+	}
 	name, err := p.parseObjectName()
 	if err != nil {
 		return nil, err
 	}
 	stmt.Name = name
-	// ALTER USER with no clause Oracle answers with ORA-02157 at the end of
-	// the text, which compat.tsv records as accepted.
 	if p.cur.Type == kwGRANT || p.cur.Type == kwREVOKE {
 		if err := p.parseUserProxyClause(); err != nil {
 			return nil, err
@@ -180,6 +181,10 @@ func (p *Parser) parseAlterUserStmt(start int) (nodes.StmtNode, error) {
 	var c userClauses
 	if err := p.parseUserClauses(true, &c); err != nil {
 		return nil, err
+	}
+	// ALTER USER takes at least one clause, CONTAINER aside (ORA-02157).
+	if stmt.Identified == nil && c.options == 0 {
+		return nil, p.syntaxErrorAtCur()
 	}
 	stmt.DefaultTablespace, stmt.TempTablespace, stmt.LocalTemp = c.defaultTablespace, c.tempTablespace, c.localTemp
 	stmt.Quotas, stmt.Profile, stmt.DefaultRole, stmt.PasswordExpire = c.quotas, c.profile, c.defaultRole, c.passwordExpire

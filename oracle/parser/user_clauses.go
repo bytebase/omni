@@ -17,13 +17,8 @@ type userClauses struct {
 	enableEditions    bool
 	defaultCollation  string
 	containerAll      *bool
+	options           int // clauses read other than CONTAINER
 }
-
-// The statement ending inside some user clauses Oracle answers with an
-// error of its own at the end of the text (ORA-01937 after DEFAULT ROLE,
-// 02155 after DEFAULT TABLESPACE, 02187 after QUOTA, 02156 after ON, 28025
-// after AS), which compat.tsv records as accepted; omni takes those ends as
-// it did before it read the clauses by the grammar.
 
 // parseUserClauses parses the user clauses after the user's name and
 // IDENTIFIED clause, in any order, until one does not start.
@@ -35,7 +30,7 @@ type userClauses struct {
 //	| DEFAULT ROLE { role [, role ]... | ALL [ EXCEPT role [, role ]... ] | NONE }  -- ALTER
 //	| DEFAULT COLLATION collation_name
 //	| [ LOCAL ] TEMPORARY TABLESPACE { tablespace | tablespace_group_name }
-//	| QUOTA { integer [ K | M | G | T ] | UNLIMITED } ON tablespace
+//	| QUOTA { integer [ K | M | G | T | P | E ] | UNLIMITED } ON tablespace
 //	| PROFILE profile
 //	| PASSWORD EXPIRE
 //	| EXPIRE PASSWORD ROLLOVER PERIOD
@@ -51,6 +46,7 @@ type userClauses struct {
 func (p *Parser) parseUserClauses(alter bool, c *userClauses) error {
 	for {
 		var err error
+		container := p.isKeywordStr("CONTAINER")
 		switch {
 		case p.cur.Type == kwDEFAULT:
 			err = p.parseUserDefaultClause(alter, c)
@@ -67,9 +63,6 @@ func (p *Parser) parseUserClauses(alter bool, c *userClauses) error {
 				return p.syntaxErrorAtCur()
 			}
 			p.advance()
-			if p.atStatementEnd() {
-				return nil
-			}
 			c.tempTablespace, err = p.parseUserNameWord()
 		case p.isKeywordStr("QUOTA"):
 			err = p.parseUserQuota(c)
@@ -131,6 +124,9 @@ func (p *Parser) parseUserClauses(alter bool, c *userClauses) error {
 		if err != nil {
 			return err
 		}
+		if !container {
+			c.options++
+		}
 	}
 }
 
@@ -161,9 +157,6 @@ func (p *Parser) parseUserDefaultClause(alter bool, c *userClauses) error {
 	switch {
 	case p.cur.Type == kwTABLESPACE:
 		p.advance()
-		if p.atStatementEnd() {
-			return nil
-		}
 		c.defaultTablespace, err = p.parseUserNameWord()
 	case p.isKeywordStr("COLLATION"):
 		p.advance()
@@ -182,20 +175,17 @@ func (p *Parser) parseUserDefaultRole() (*nodes.DefaultRoleClause, error) {
 	clause := &nodes.DefaultRoleClause{Loc: nodes.Loc{Start: p.pos()}}
 	p.advance() // ROLE
 	switch {
-	case p.atStatementEnd():
 	case p.cur.Type == kwALL:
 		p.advance()
 		clause.AllRoles = true
 		if p.cur.Type == kwEXCEPT {
 			p.advance()
 			clause.ExceptAll = true
-			if !p.atStatementEnd() {
-				roles, err := p.parseUserRoleList()
-				if err != nil {
-					return nil, err
-				}
-				clause.Roles = roles
+			roles, err := p.parseUserRoleList()
+			if err != nil {
+				return nil, err
 			}
+			clause.Roles = roles
 		}
 	case p.isKeywordStr("NONE"):
 		p.advance()
@@ -227,20 +217,18 @@ func (p *Parser) parseUserRoleList() ([]*nodes.ObjectName, error) {
 	}
 }
 
-// parseUserQuota parses QUOTA { integer [ K | M | G | T ] | UNLIMITED } ON
+// parseUserQuota parses QUOTA { integer [ K | M | G | T | P | E ] | UNLIMITED } ON
 // tablespace. The current token is QUOTA.
 func (p *Parser) parseUserQuota(c *userClauses) error {
 	clause := &nodes.UserQuotaClause{Loc: nodes.Loc{Start: p.pos()}}
 	p.advance() // QUOTA
-	if p.atStatementEnd() {
-		return nil
-	}
 	switch {
 	case p.isKeywordStr("UNLIMITED"):
 		clause.Size = p.advance().Str
 	case p.cur.Type == tokICONST:
 		clause.Size = p.advance().Str
-		if p.isKeywordStr("K") || p.isKeywordStr("M") || p.isKeywordStr("G") || p.isKeywordStr("T") {
+		if p.isKeywordStr("K") || p.isKeywordStr("M") || p.isKeywordStr("G") || p.isKeywordStr("T") ||
+			p.isKeywordStr("P") || p.isKeywordStr("E") {
 			clause.Size += p.advance().Str
 		}
 	default:
@@ -250,13 +238,11 @@ func (p *Parser) parseUserQuota(c *userClauses) error {
 		return p.syntaxErrorAtCur()
 	}
 	p.advance()
-	if !p.atStatementEnd() {
-		if !p.isIdentLike() {
-			return p.syntaxErrorAtCur()
-		}
-		start := p.pos()
-		clause.Tablespace = &nodes.ObjectName{Name: p.advance().Str, Loc: nodes.Loc{Start: start, End: p.prev.End}}
+	if !p.isIdentLike() {
+		return p.syntaxErrorAtCur()
 	}
+	start := p.pos()
+	clause.Tablespace = &nodes.ObjectName{Name: p.advance().Str, Loc: nodes.Loc{Start: start, End: p.prev.End}}
 	clause.Loc.End = p.prev.End
 	c.quotas = append(c.quotas, clause)
 	return nil
@@ -376,12 +362,10 @@ func (p *Parser) parseUserIdentified(alter bool) (*nodes.IdentifiedClause, error
 		p.advance()
 		if p.cur.Type == kwAS {
 			p.advance()
-			if !p.atStatementEnd() {
-				if p.cur.Type != tokSCONST {
-					return nil, p.syntaxErrorAtCur()
-				}
-				clause.ExternalAs = p.advance().Str
+			if p.cur.Type != tokSCONST {
+				return nil, p.syntaxErrorAtCur()
 			}
+			clause.ExternalAs = p.advance().Str
 		}
 	default:
 		return nil, p.syntaxErrorAtCur()
@@ -438,10 +422,8 @@ func (p *Parser) parseUserProxyClause() error {
 		switch {
 		case p.isKeywordStr("NO"):
 			p.advance()
-			if !p.atStatementEnd() {
-				if err := p.userWords("ROLES"); err != nil {
-					return err
-				}
+			if err := p.userWords("ROLES"); err != nil {
+				return err
 			}
 		case p.cur.Type == kwROLE || p.isKeywordStr("ROLES"):
 			p.advance()
@@ -470,13 +452,6 @@ func (p *Parser) parseUserProxyClause() error {
 		p.advance()
 		if err := p.userWords("REQUIRED"); err != nil {
 			return err
-		}
-		// compat.tsv records AUTHENTICATION REQUIRED followed by a stray
-		// word as accepted: Oracle reads a token past the word before it
-		// refuses it, and the probe's tail moved its answer. omni skips to
-		// the end there, as it did before it read the clause by the grammar.
-		for !p.atStatementEnd() {
-			p.advance()
 		}
 	}
 	return nil

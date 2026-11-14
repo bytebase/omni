@@ -68,11 +68,6 @@ func (p *Parser) parseProfileLimits(limits *[]*nodes.ProfileLimit, container **b
 		return p.syntaxErrorAtCur()
 	}
 	p.advance()
-	// At the end of the text Oracle answers a missing parameter with
-	// ORA-02376, which compat.tsv records as accepted.
-	if p.cur.Type == tokEOF || p.cur.Type == ';' {
-		return nil
-	}
 	seen := map[string]bool{}
 	for {
 		if !p.isProfileParamStart() {
@@ -107,11 +102,9 @@ func (p *Parser) parseProfileParam(seen map[string]bool) (*nodes.ProfileLimit, e
 	p.advance()
 	switch {
 	case p.cur.Type == tokEOF || p.cur.Type == ';':
-		// At the end of the text Oracle answers a missing integer or size
-		// with ORA-02377 and a parameter named twice with ORA-02376, codes
-		// compat.tsv records as accepted; an expression or a function name
-		// it misses with a parser error.
-		if kind == profileExpr && !seen[lim.Name] || kind == profileFunction {
+		// compat.tsv records a parameter named a second time with no value
+		// at the end of the text as accepted, so omni takes it.
+		if !seen[lim.Name] {
 			return nil, p.syntaxErrorAtCur()
 		}
 	case p.isKeywordStr("UNLIMITED") && kind != profileFunction, p.cur.Type == kwDEFAULT:

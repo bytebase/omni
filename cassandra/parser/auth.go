@@ -288,7 +288,7 @@ func (p *Parser) parseResource() (*ast.Resource, error) {
 	case p.cur.Type == tokFUNCTION && isIdentLike(next.Type):
 		// FUNCTION fn(types): the argument types are mandatory (Parser.g:1182).
 		p.advance()
-		name, err := p.parseQualifiedName()
+		name, err := p.parseFunctionQualifiedName()
 		if err != nil {
 			return nil, err
 		}
