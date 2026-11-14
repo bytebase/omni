@@ -184,6 +184,28 @@
 : bytes
 | utf8mb4_uca1400_ai_ci
 > exec
+| DROP VIEW IF EXISTS v_trim_mariadb_schema
+< ok 0 0
+> exec
+| CREATE VIEW v_trim_mariadb_schema AS SELECT mariadb_schema.trim(LEADING 'x' FROM a) AS c1, mariadb_schema.trim('x' FROM a) AS c2, mariadb_schema.trim(a) AS c3 FROM tv
+< ok 0 0
+> query
+| SHOW CREATE VIEW v_trim_mariadb_schema
+< result
+< column "View" "VARCHAR"
+< column "Create View" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| v_trim_mariadb_schema
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_trim_mariadb_schema` AS select trim(leading 'x' from `tv`.`a`) AS `c1`,trim(both 'x' from `tv`.`a`) AS `c2`,trim(`tv`.`a`) AS `c3` from `tv`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+> exec
 | DROP VIEW IF EXISTS v_value_func
 < ok 0 0
 > exec

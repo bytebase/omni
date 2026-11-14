@@ -2310,9 +2310,13 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 	// TRIM_ORACLE(...) is read as oracle_schema.TRIM(...), which is how the
 	// server stores it: oracle_schema.trim(leading 'x' from 'xa'), measured on
 	// mariadb:11.8.8. Only these two schemas name a builtin TRIM; any other is
-	// refused (1128) before a view can hold it.
+	// refused (1128) before a view can hold it. mariadb_schema's TRIM is the
+	// default one, stored with no schema: mariadb_schema.trim(leading 'x' from
+	// 'xa') is trim(leading 'x' from 'xa') and mariadb_schema.trim('x' from 'a')
+	// is trim(both 'x' from 'a').
 	oracleTrim := strings.EqualFold(n.Schema, "oracle_schema") && n.Package == ""
-	if oracleTrim || n.Schema == "" {
+	mariadbTrim := strings.EqualFold(n.Schema, "mariadb_schema") && n.Package == ""
+	if oracleTrim || mariadbTrim || n.Schema == "" {
 		prefix := ""
 		if oracleTrim {
 			prefix = "oracle_schema."
@@ -2334,7 +2338,7 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 			// TRIM's own arms read one argument or remstr FROM str. Any other
 			// count is an ordinary call of a routine by that name, written as
 			// one below: oracle_schema.trim() parses (1630 comes later).
-			if oracleTrim && (len(n.Args) == 1 || len(n.Args) == 2) {
+			if (oracleTrim || mariadbTrim) && (len(n.Args) == 1 || len(n.Args) == 2) {
 				b.WriteString(prefix)
 				if len(n.Args) == 2 {
 					// remstr FROM str trims both ends.

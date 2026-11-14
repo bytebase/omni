@@ -471,6 +471,11 @@ func TestDeparse_Section_3_2_SpecialFunctionForms(t *testing.T) {
 		// TRIM_ORACLE is stored as oracle_schema.trim (mariadb:11.8.8).
 		{"trim_oracle", "TRIM_ORACLE('x' FROM a)", "oracle_schema.trim(both 'x' from `a`)"},
 		{"trim_oracle_leading", "TRIM_ORACLE(LEADING FROM a)", "oracle_schema.ltrim(`a`)"},
+		// mariadb_schema's TRIM is the default one, stored with no schema
+		// (mariadb:11.8.8).
+		{"mariadb_schema_trim_leading", "mariadb_schema.trim(LEADING 'x' FROM a)", "trim(leading 'x' from `a`)"},
+		{"mariadb_schema_trim_from", "mariadb_schema.trim('x' FROM a)", "trim(both 'x' from `a`)"},
+		{"mariadb_schema_trim", "mariadb_schema.trim(a)", "trim(`a`)"},
 		// No TRIM arm reads an empty list: this is an ordinary call.
 		{"oracle_schema_trim_empty", "oracle_schema.trim()", "`oracle_schema`.`trim`()"},
 		// A stored package's routine keeps its three parts as written:
