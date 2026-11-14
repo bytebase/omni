@@ -3959,7 +3959,7 @@ func TestBatch74_TablespaceSet(t *testing.T) {
 // TestBatch75_MleEnvModule tests CREATE/DROP MLE ENV and MLE MODULE.
 func TestBatch75_MleEnvModule(t *testing.T) {
 	t.Run("create_mle_env", func(t *testing.T) {
-		adminDDLTest(t, "CREATE MLE ENV my_env IMPORTS ('module1')", "CREATE", ast.OBJECT_MLE_ENV)
+		adminDDLTest(t, "CREATE MLE ENV my_env IMPORTS ('module1' MODULE m1)", "CREATE", ast.OBJECT_MLE_ENV)
 	})
 	t.Run("drop_mle_env", func(t *testing.T) {
 		result := ParseAndCheck(t, "DROP MLE ENV my_env")
@@ -4055,7 +4055,7 @@ func TestBatch78_RestorePointMisc(t *testing.T) {
 		adminDDLTest(t, "CREATE LOGICAL PARTITION TRACKING ON my_table PARTITION BY RANGE (col1) (PARTITION p1 VALUES LESS THAN (100))", "CREATE", ast.OBJECT_LOGICAL_PARTITION_TRACKING)
 	})
 	t.Run("create_pmem_filestore", func(t *testing.T) {
-		adminDDLTest(t, "CREATE PMEM FILESTORE my_pmem MOUNTPOINT '/pmem0' SIZE 100G", "CREATE", ast.OBJECT_PMEM_FILESTORE)
+		adminDDLTest(t, `CREATE PMEM FILESTORE "my_pmem" MOUNTPOINT '/pmem0' SIZE 100G`, "CREATE", ast.OBJECT_PMEM_FILESTORE)
 	})
 }
 
@@ -9013,7 +9013,7 @@ func TestBatch105_SmallObjectsBundle(t *testing.T) {
 
 	// CREATE PMEM FILESTORE with AUTOEXTEND
 	t.Run("create_pmem_filestore", func(t *testing.T) {
-		result := ParseAndCheck(t, "CREATE PMEM FILESTORE my_fs MOUNTPOINT '/pmem0' BACKINGFILE '/pmem0/backing' SIZE 100G BLOCKSIZE 8K AUTOEXTEND ON NEXT 10G MAXSIZE UNLIMITED")
+		result := ParseAndCheck(t, `CREATE PMEM FILESTORE "my_fs" MOUNTPOINT '/pmem0' BACKINGFILE '/pmem0/backing' SIZE 100G BLOCKSIZE 8K AUTOEXTEND ON NEXT 10G MAXSIZE UNLIMITED`)
 		raw := result.Items[0].(*ast.RawStmt)
 		stmt, ok := raw.Stmt.(*ast.AdminDDLStmt)
 		if !ok {
