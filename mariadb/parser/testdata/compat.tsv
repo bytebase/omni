@@ -5454,46 +5454,46 @@ reject	reject	engine	all_or_any/ANY_SYM!insert	DO a = ANY zzz(SELECT a);
 reject	reject	engine	all_or_any/ANY_SYM!swap	DO a = AS(SELECT a);
 accept	accept	engine	opt_dyncol_type/%empty	DO COLUMN_CREATE(a, a);
 reject	reject	engine	opt_dyncol_type/%empty!insert	DO COLUMN_CREATE(a, a zzz);
-reject	accept	engine	opt_dyncol_type/AS_dyncol_type	DO COLUMN_CREATE(a, a AS INT);
+accept	accept	engine	opt_dyncol_type/AS_dyncol_type	DO COLUMN_CREATE(a, a AS INT);
 reject	reject	engine	opt_dyncol_type/AS_dyncol_type!drop-1	DO COLUMN_CREATE(a, a INT);
 reject	reject	engine	opt_dyncol_type/AS_dyncol_type!drop-2	DO COLUMN_CREATE(a, a AS);
 reject	reject	engine	opt_dyncol_type/AS_dyncol_type!truncate	DO COLUMN_CREATE(a, a AS
 reject	reject	engine	opt_dyncol_type/AS_dyncol_type!insert	DO COLUMN_CREATE(a, a AS INT zzz);
 reject	reject	engine	opt_dyncol_type/AS_dyncol_type!swap	DO COLUMN_CREATE(a, a ASC INT);
-reject	accept	engine	dyncol_type/numeric_dyncol_type	DO COLUMN_CREATE(a, a AS INT);
+accept	accept	engine	dyncol_type/numeric_dyncol_type	DO COLUMN_CREATE(a, a AS INT);
 reject	reject	engine	dyncol_type/numeric_dyncol_type!swap	DO COLUMN_CREATE(a, a AS INTERSECT);
-reject	accept	engine	dyncol_type/temporal_dyncol_type	DO COLUMN_CREATE(a, a AS DATE);
+accept	accept	engine	dyncol_type/temporal_dyncol_type	DO COLUMN_CREATE(a, a AS DATE);
 reject	reject	engine	dyncol_type/temporal_dyncol_type!insert	DO COLUMN_CREATE(a, a AS DATE zzz);
-reject	accept	engine	dyncol_type/string_dyncol_type	DO COLUMN_CREATE(a, a AS CHAR);
+accept	accept	engine	dyncol_type/string_dyncol_type	DO COLUMN_CREATE(a, a AS CHAR);
 reject	reject	engine	dyncol_type/string_dyncol_type!insert	DO COLUMN_CREATE(a, a AS CHAR zzz);
 reject	reject	engine	dyncol_type/string_dyncol_type!swap	DO COLUMN_CREATE(a, a AS CHARSET);
-reject	accept	engine	numeric_dyncol_type/INT_SYM	DO COLUMN_CREATE(a, a AS INT);
-reject	accept	engine	numeric_dyncol_type/UNSIGNED_INT_SYM	DO COLUMN_CREATE(a, a AS UNSIGNED INT);
+accept	accept	engine	numeric_dyncol_type/INT_SYM	DO COLUMN_CREATE(a, a AS INT);
+accept	accept	engine	numeric_dyncol_type/UNSIGNED_INT_SYM	DO COLUMN_CREATE(a, a AS UNSIGNED INT);
 reject	reject	engine	numeric_dyncol_type/UNSIGNED_INT_SYM!drop-2	DO COLUMN_CREATE(a, a AS UNSIGNED);
 reject	reject	engine	numeric_dyncol_type/UNSIGNED_INT_SYM!truncate	DO COLUMN_CREATE(a, a AS UNSIGNED
 reject	reject	engine	numeric_dyncol_type/UNSIGNED_INT_SYM!insert	DO COLUMN_CREATE(a, a AS UNSIGNED INT zzz);
 reject	reject	engine	numeric_dyncol_type/UNSIGNED_INT_SYM!swap	DO COLUMN_CREATE(a, a AS UNTIL INT);
-reject	accept	engine	numeric_dyncol_type/DOUBLE_SYM	DO COLUMN_CREATE(a, a AS DOUBLE);
+accept	accept	engine	numeric_dyncol_type/DOUBLE_SYM	DO COLUMN_CREATE(a, a AS DOUBLE);
 reject	reject	engine	numeric_dyncol_type/DOUBLE_SYM!insert	DO COLUMN_CREATE(a, a AS DOUBLE zzz);
 reject	reject	engine	numeric_dyncol_type/DOUBLE_SYM!swap	DO COLUMN_CREATE(a, a AS DO_DOMAIN_IDS);
-reject	accept	engine	numeric_dyncol_type/REAL	DO COLUMN_CREATE(a, a AS REAL);
+accept	accept	engine	numeric_dyncol_type/REAL	DO COLUMN_CREATE(a, a AS REAL);
 reject	reject	engine	numeric_dyncol_type/REAL!insert	DO COLUMN_CREATE(a, a AS REAL zzz);
 reject	reject	engine	numeric_dyncol_type/REAL!swap	DO COLUMN_CREATE(a, a AS REBUILD);
-reject	accept	engine	numeric_dyncol_type/FLOAT_SYM	DO COLUMN_CREATE(a, a AS FLOAT);
+accept	accept	engine	numeric_dyncol_type/FLOAT_SYM	DO COLUMN_CREATE(a, a AS FLOAT);
 reject	reject	engine	numeric_dyncol_type/FLOAT_SYM!insert	DO COLUMN_CREATE(a, a AS FLOAT zzz);
 reject	reject	engine	numeric_dyncol_type/FLOAT_SYM!swap	DO COLUMN_CREATE(a, a AS FLUSH);
-reject	accept	engine	numeric_dyncol_type/DECIMAL_SYM_float_options	DO COLUMN_CREATE(a, a AS DECIMAL);
+accept	accept	engine	numeric_dyncol_type/DECIMAL_SYM_float_options	DO COLUMN_CREATE(a, a AS DECIMAL);
 reject	reject	engine	numeric_dyncol_type/DECIMAL_SYM_float_options!insert	DO COLUMN_CREATE(a, a AS DECIMAL zzz);
 reject	reject	engine	numeric_dyncol_type/DECIMAL_SYM_float_options!swap	DO COLUMN_CREATE(a, a AS DECLARE);
-reject	accept	engine	temporal_dyncol_type/DATE_SYM	DO COLUMN_CREATE(a, a AS DATE);
-reject	accept	engine	temporal_dyncol_type/TIME_SYM_opt_field_scale	DO COLUMN_CREATE(a, a AS TIME);
+accept	accept	engine	temporal_dyncol_type/DATE_SYM	DO COLUMN_CREATE(a, a AS DATE);
+accept	accept	engine	temporal_dyncol_type/TIME_SYM_opt_field_scale	DO COLUMN_CREATE(a, a AS TIME);
 reject	reject	engine	temporal_dyncol_type/TIME_SYM_opt_field_scale!insert	DO COLUMN_CREATE(a, a AS TIME zzz);
 reject	reject	engine	temporal_dyncol_type/TIME_SYM_opt_field_scale!swap	DO COLUMN_CREATE(a, a AS TIMESTAMP);
-reject	accept	engine	temporal_dyncol_type/DATETIME_opt_field_scale	DO COLUMN_CREATE(a, a AS DATETIME);
+accept	accept	engine	temporal_dyncol_type/DATETIME_opt_field_scale	DO COLUMN_CREATE(a, a AS DATETIME);
 reject	reject	engine	temporal_dyncol_type/DATETIME_opt_field_scale!insert	DO COLUMN_CREATE(a, a AS DATETIME zzz);
 reject	reject	engine	temporal_dyncol_type/DATETIME_opt_field_scale!swap	DO COLUMN_CREATE(a, a AS DATE_ADD);
-reject	accept	engine	string_dyncol_type/char_opt_binary	DO COLUMN_CREATE(a, a AS CHAR);
-reject	accept	engine	string_dyncol_type/nchar	DO COLUMN_CREATE(a, a AS NCHAR);
+accept	accept	engine	string_dyncol_type/char_opt_binary	DO COLUMN_CREATE(a, a AS CHAR);
+accept	accept	engine	string_dyncol_type/nchar	DO COLUMN_CREATE(a, a AS NCHAR);
 reject	reject	engine	string_dyncol_type/nchar!insert	DO COLUMN_CREATE(a, a AS NCHAR zzz);
 reject	reject	engine	string_dyncol_type/nchar!swap	DO COLUMN_CREATE(a, a AS NESTED);
 accept	accept	engine	dyncall_create_element/expr_,_expr_opt_dyncol_type	DO COLUMN_CREATE(a, a);
@@ -5704,7 +5704,7 @@ reject	reject	engine	column_default_non_parenthesized_expr/DEFAULT_(_simple_iden
 accept	accept	engine	column_default_non_parenthesized_expr/DEFAULT_(_simple_ident_)!swap	DO DEFINER(a);
 accept	accept	engine	column_default_non_parenthesized_expr/VALUE_SYM_(_simple_ident_nospvar_)	DO VALUE(a);
 reject	reject	engine	column_default_non_parenthesized_expr/VALUE_SYM_(_simple_ident_nospvar_)!drop-2	DO VALUE a);
-accept	reject	engine	column_default_non_parenthesized_expr/VALUE_SYM_(_simple_ident_nospvar_)!drop-3	DO VALUE();
+reject	reject	engine	column_default_non_parenthesized_expr/VALUE_SYM_(_simple_ident_nospvar_)!drop-3	DO VALUE();
 reject	reject	engine	column_default_non_parenthesized_expr/VALUE_SYM_(_simple_ident_nospvar_)!drop-4	DO VALUE(a;
 reject	reject	engine	column_default_non_parenthesized_expr/VALUE_SYM_(_simple_ident_nospvar_)!truncate	DO VALUE(a
 reject	reject	engine	column_default_non_parenthesized_expr/VALUE_SYM_(_simple_ident_nospvar_)!insert	DO VALUE(a) zzz;
@@ -6149,7 +6149,7 @@ reject	reject	engine	function_call_nonkeyword/TIMESTAMP_DIFF_(_interval_time_sta
 reject	reject	engine	function_call_nonkeyword/TIMESTAMP_DIFF_(_interval_time_stamp_,_expr_,_expr_)!swap	DO TINYBLOB(DAY, a, a);
 accept	accept	engine	function_call_nonkeyword/TRIM_ORACLE_(_trim_operands_)	DO TRIM_ORACLE(a);
 reject	reject	engine	function_call_nonkeyword/TRIM_ORACLE_(_trim_operands_)!drop-2	DO TRIM_ORACLE a);
-accept	reject	engine	function_call_nonkeyword/TRIM_ORACLE_(_trim_operands_)!drop-3	DO TRIM_ORACLE();
+reject	reject	engine	function_call_nonkeyword/TRIM_ORACLE_(_trim_operands_)!drop-3	DO TRIM_ORACLE();
 reject	reject	engine	function_call_nonkeyword/TRIM_ORACLE_(_trim_operands_)!drop-4	DO TRIM_ORACLE(a;
 reject	reject	engine	function_call_nonkeyword/TRIM_ORACLE_(_trim_operands_)!truncate	DO TRIM_ORACLE(a
 reject	reject	engine	function_call_nonkeyword/TRIM_ORACLE_(_trim_operands_)!insert	DO TRIM_ORACLE(a) zzz;
@@ -6180,13 +6180,13 @@ reject	reject	engine	function_call_nonkeyword/COLUMN_DELETE_SYM_(_expr_,_expr_li
 reject	reject	engine	function_call_nonkeyword/COLUMN_DELETE_SYM_(_expr_,_expr_list_)!drop-6	DO COLUMN_DELETE(a, a;
 reject	reject	engine	function_call_nonkeyword/COLUMN_DELETE_SYM_(_expr_,_expr_list_)!truncate	DO COLUMN_DELETE(a, a
 reject	reject	engine	function_call_nonkeyword/COLUMN_DELETE_SYM_(_expr_,_expr_list_)!insert	DO COLUMN_DELETE(a, a) zzz;
-accept	reject	engine	function_call_nonkeyword/COLUMN_DELETE_SYM_(_expr_,_expr_list_)!swap	DO COLUMN_GET(a, a);
+reject	reject	engine	function_call_nonkeyword/COLUMN_DELETE_SYM_(_expr_,_expr_list_)!swap	DO COLUMN_GET(a, a);
 accept	accept	engine	function_call_nonkeyword/COLUMN_CREATE_SYM_(_dyncall_create_list_)	DO COLUMN_CREATE(a, a);
 reject	reject	engine	function_call_nonkeyword/COLUMN_CREATE_SYM_(_dyncall_create_list_)!drop-2	DO COLUMN_CREATE a, a);
 reject	reject	engine	function_call_nonkeyword/COLUMN_CREATE_SYM_(_dyncall_create_list_)!drop-6	DO COLUMN_CREATE(a, a;
 reject	reject	engine	function_call_nonkeyword/COLUMN_CREATE_SYM_(_dyncall_create_list_)!truncate	DO COLUMN_CREATE(a, a
 reject	reject	engine	function_call_nonkeyword/COLUMN_CREATE_SYM_(_dyncall_create_list_)!insert	DO COLUMN_CREATE(a, a) zzz;
-reject	accept	engine	function_call_nonkeyword/COLUMN_GET_SYM_(_expr_,_expr_AS_cast_type_)	DO COLUMN_GET(a, a AS BINARY);
+accept	accept	engine	function_call_nonkeyword/COLUMN_GET_SYM_(_expr_,_expr_AS_cast_type_)	DO COLUMN_GET(a, a AS BINARY);
 reject	reject	engine	function_call_nonkeyword/COLUMN_GET_SYM_(_expr_,_expr_AS_cast_type_)!drop-1	DO(a, a AS BINARY);
 reject	reject	engine	function_call_nonkeyword/COLUMN_GET_SYM_(_expr_,_expr_AS_cast_type_)!drop-2	DO COLUMN_GET a, a AS BINARY);
 reject	reject	engine	function_call_nonkeyword/COLUMN_GET_SYM_(_expr_,_expr_AS_cast_type_)!drop-3	DO COLUMN_GET(, a AS BINARY);
@@ -6345,7 +6345,7 @@ reject	reject	engine	function_call_generic/ident_cli_._ident_cli_(_opt_expr_list
 reject	reject	engine	function_call_generic/ident_cli_._ident_cli_(_opt_expr_list_)!drop-5	DO a.a(;
 reject	reject	engine	function_call_generic/ident_cli_._ident_cli_(_opt_expr_list_)!truncate	DO a.a(
 reject	reject	engine	function_call_generic/ident_cli_._ident_cli_(_opt_expr_list_)!insert	DO a.a() zzz;
-reject	accept	engine	function_call_generic/ident_cli_._ident_cli_._ident_cli_(_opt_expr_list_)	DO a.a.a();
+accept	accept	engine	function_call_generic/ident_cli_._ident_cli_._ident_cli_(_opt_expr_list_)	DO a.a.a();
 reject	reject	engine	function_call_generic/ident_cli_._ident_cli_._ident_cli_(_opt_expr_list_)!drop-1	DO.a.a();
 reject	reject	engine	function_call_generic/ident_cli_._ident_cli_._ident_cli_(_opt_expr_list_)!drop-2	DO a a.a();
 reject	reject	engine	function_call_generic/ident_cli_._ident_cli_._ident_cli_(_opt_expr_list_)!drop-3	DO a..a();
@@ -6694,7 +6694,7 @@ reject	reject	engine	simple_window_func/LAG_SYM_(_expr_,_expr_)!truncate	DO LAG(
 reject	reject	engine	simple_window_func/LAG_SYM_(_expr_,_expr_)!insert	DO LAG(a, a) zzz OVER a;
 reject	reject	engine	simple_window_func/LAG_SYM_(_expr_,_expr_)!swap	DO LANGUAGE(a, a) OVER a;
 accept	accept	engine	inverse_distribution_function/percentile_function_OVER_SYM_(_opt_window_partition_clause_)	DO MEDIAN(a) OVER();
-reject	accept	engine	percentile_function/inverse_distribution_function_def_WITHIN_GROUP_SYM_(_order_by_single_element_list_)	DO PERCENTILE_CONT(a) WITHIN GROUP(ORDER BY a) OVER();
+accept	accept	engine	percentile_function/inverse_distribution_function_def_WITHIN_GROUP_SYM_(_order_by_single_element_list_)	DO PERCENTILE_CONT(a) WITHIN GROUP(ORDER BY a) OVER();
 reject	reject	engine	percentile_function/inverse_distribution_function_def_WITHIN_GROUP_SYM_(_order_by_single_element_list_)!drop-1	DO(a) WITHIN GROUP(ORDER BY a) OVER();
 reject	reject	engine	percentile_function/inverse_distribution_function_def_WITHIN_GROUP_SYM_(_order_by_single_element_list_)!drop-2	DO PERCENTILE_CONT a) WITHIN GROUP(ORDER BY a) OVER();
 reject	reject	engine	percentile_function/inverse_distribution_function_def_WITHIN_GROUP_SYM_(_order_by_single_element_list_)!drop-3	DO PERCENTILE_CONT() WITHIN GROUP(ORDER BY a) OVER();
@@ -6711,17 +6711,17 @@ reject	reject	engine	percentile_function/inverse_distribution_function_def_WITHI
 accept	accept	engine	percentile_function/MEDIAN_SYM_(_expr_)	DO MEDIAN(a) OVER();
 reject	reject	engine	percentile_function/MEDIAN_SYM_(_expr_)!truncate	DO MEDIAN(a
 reject	reject	engine	percentile_function/MEDIAN_SYM_(_expr_)!insert	DO MEDIAN(a) zzz OVER();
-reject	accept	engine	inverse_distribution_function_def/PERCENTILE_CONT_SYM_(_expr_)	DO PERCENTILE_CONT(a) WITHIN GROUP(ORDER BY a) OVER();
+accept	accept	engine	inverse_distribution_function_def/PERCENTILE_CONT_SYM_(_expr_)	DO PERCENTILE_CONT(a) WITHIN GROUP(ORDER BY a) OVER();
 reject	reject	engine	inverse_distribution_function_def/PERCENTILE_CONT_SYM_(_expr_)!truncate	DO PERCENTILE_CONT(a
 reject	reject	engine	inverse_distribution_function_def/PERCENTILE_CONT_SYM_(_expr_)!insert	DO PERCENTILE_CONT(a) zzz WITHIN GROUP(ORDER BY a) OVER();
-reject	accept	engine	inverse_distribution_function_def/PERCENTILE_DISC_SYM_(_expr_)	DO PERCENTILE_DISC(a) WITHIN GROUP(ORDER BY a) OVER();
+accept	accept	engine	inverse_distribution_function_def/PERCENTILE_DISC_SYM_(_expr_)	DO PERCENTILE_DISC(a) WITHIN GROUP(ORDER BY a) OVER();
 reject	reject	engine	inverse_distribution_function_def/PERCENTILE_DISC_SYM_(_expr_)!drop-2	DO PERCENTILE_DISC a) WITHIN GROUP(ORDER BY a) OVER();
 reject	reject	engine	inverse_distribution_function_def/PERCENTILE_DISC_SYM_(_expr_)!drop-3	DO PERCENTILE_DISC() WITHIN GROUP(ORDER BY a) OVER();
 reject	reject	engine	inverse_distribution_function_def/PERCENTILE_DISC_SYM_(_expr_)!drop-4	DO PERCENTILE_DISC(a WITHIN GROUP(ORDER BY a) OVER();
 reject	reject	engine	inverse_distribution_function_def/PERCENTILE_DISC_SYM_(_expr_)!truncate	DO PERCENTILE_DISC(a
 reject	reject	engine	inverse_distribution_function_def/PERCENTILE_DISC_SYM_(_expr_)!insert	DO PERCENTILE_DISC(a) zzz WITHIN GROUP(ORDER BY a) OVER();
 reject	reject	engine	inverse_distribution_function_def/PERCENTILE_DISC_SYM_(_expr_)!swap	DO PERCENT_RANK(a) WITHIN GROUP(ORDER BY a) OVER();
-reject	accept	engine	order_by_single_element_list/ORDER_SYM_BY_order_ident_order_dir	DO PERCENTILE_CONT(a) WITHIN GROUP(ORDER BY a) OVER();
+accept	accept	engine	order_by_single_element_list/ORDER_SYM_BY_order_ident_order_dir	DO PERCENTILE_CONT(a) WITHIN GROUP(ORDER BY a) OVER();
 reject	reject	engine	order_by_single_element_list/ORDER_SYM_BY_order_ident_order_dir!truncate	DO PERCENTILE_CONT(a) WITHIN GROUP(ORDER BY
 reject	reject	engine	order_by_single_element_list/ORDER_SYM_BY_order_ident_order_dir!insert	DO PERCENTILE_CONT(a) WITHIN GROUP(ORDER BY a zzz) OVER();
 reject	reject	engine	order_by_single_element_list/ORDER_SYM_BY_order_ident_order_dir!swap	DO PERCENTILE_CONT(a) WITHIN GROUP(ORDINALITY BY a) OVER();
@@ -9190,7 +9190,7 @@ reject	reject	engine	signed_literal/-_NUM_literal!insert	ALTER TABLE a ADD a INT
 accept	accept	engine	literal/text_literal	DO 's';
 accept	accept	engine	literal/NUM_literal	DO 1;
 reject	reject	engine	literal/NUM_literal!insert	DO 1 zzz;
-accept	reject	engine	literal/temporal_literal	DO DATE 's';
+reject	reject	engine	literal/temporal_literal	DO DATE 's';
 accept	accept	engine	literal/temporal_literal!drop-2	DO DATE;
 accept	accept	engine	literal/temporal_literal!truncate	DO DATE
 reject	reject	engine	literal/temporal_literal!insert	DO DATE 's' zzz;
@@ -9210,7 +9210,7 @@ accept	accept	engine	literal/HEX_STRING	DO x'41';
 reject	reject	engine	literal/HEX_STRING!insert	DO x'41' zzz;
 accept	accept	engine	literal/BIN_NUM	DO b'1';
 reject	reject	engine	literal/BIN_NUM!insert	DO b'1' zzz;
-reject	accept	engine	literal/UNDERSCORE_CHARSET_hex_or_bin_String	DO _utf8mb4 0x41;
+accept	accept	engine	literal/UNDERSCORE_CHARSET_hex_or_bin_String	DO _utf8mb4 0x41;
 reject	reject	engine	literal/UNDERSCORE_CHARSET_hex_or_bin_String!insert	DO _utf8mb4 0x41 zzz;
 accept	accept	engine	NUM_literal/NUM	DO 1;
 accept	accept	engine	NUM_literal/LONG_NUM	DO 2147483648;
@@ -9221,12 +9221,12 @@ accept	accept	engine	NUM_literal/DECIMAL_NUM	DO 1.5;
 reject	reject	engine	NUM_literal/DECIMAL_NUM!insert	DO 1.5 zzz;
 accept	accept	engine	NUM_literal/FLOAT_NUM	DO 1e0;
 reject	reject	engine	NUM_literal/FLOAT_NUM!insert	DO 1e0 zzz;
-accept	reject	engine	temporal_literal/DATE_SYM_TEXT_STRING	DO DATE 's';
-accept	reject	engine	temporal_literal/TIME_SYM_TEXT_STRING	DO TIME 's';
+reject	reject	engine	temporal_literal/DATE_SYM_TEXT_STRING	DO DATE 's';
+reject	reject	engine	temporal_literal/TIME_SYM_TEXT_STRING	DO TIME 's';
 accept	accept	engine	temporal_literal/TIME_SYM_TEXT_STRING!drop-2	DO TIME;
 accept	accept	engine	temporal_literal/TIME_SYM_TEXT_STRING!truncate	DO TIME
 reject	reject	engine	temporal_literal/TIME_SYM_TEXT_STRING!insert	DO TIME 's' zzz;
-accept	reject	engine	temporal_literal/TIMESTAMP_TEXT_STRING	DO TIMESTAMP 's';
+reject	reject	engine	temporal_literal/TIMESTAMP_TEXT_STRING	DO TIMESTAMP 's';
 accept	accept	engine	temporal_literal/TIMESTAMP_TEXT_STRING!drop-2	DO TIMESTAMP;
 accept	accept	engine	temporal_literal/TIMESTAMP_TEXT_STRING!truncate	DO TIMESTAMP
 reject	reject	engine	temporal_literal/TIMESTAMP_TEXT_STRING!insert	DO TIMESTAMP 's' zzz;
@@ -9343,7 +9343,7 @@ reject	reject	engine	simple_ident_nospvar/ident_._ident!drop-2	DO VALUE(a a);
 reject	reject	engine	simple_ident_nospvar/ident_._ident!drop-3	DO VALUE(a.);
 reject	reject	engine	simple_ident_nospvar/ident_._ident!truncate	DO VALUE(a.
 reject	reject	engine	simple_ident_nospvar/ident_._ident!insert	DO VALUE(a.a zzz);
-reject	accept	engine	simple_ident_nospvar/._ident_._ident	DO VALUE(.a.a);
+accept	accept	engine	simple_ident_nospvar/._ident_._ident	DO VALUE(.a.a);
 reject	reject	engine	simple_ident_nospvar/._ident_._ident!drop-2	DO VALUE(..a);
 reject	reject	engine	simple_ident_nospvar/._ident_._ident!drop-3	DO VALUE(.a a);
 reject	reject	engine	simple_ident_nospvar/._ident_._ident!drop-4	DO VALUE(.a.);

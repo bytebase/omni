@@ -2190,7 +2190,8 @@ func deparseDataType(dt *ast.DataType) string {
 		}
 		result += " charset binary"
 		return result
-	case "signed", "signed integer":
+	case "signed", "signed integer", "int":
+		// CAST(a AS INT) is SIGNED: cast(1 as signed) (mariadb:11.8.8).
 		return "signed"
 	case "unsigned", "unsigned integer":
 		return "unsigned"
@@ -2306,16 +2307,54 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 	// Parser encodes these as FuncCallExpr with Name="TRIM_LEADING" etc.
 	// Args: [remstr, str] for directional forms
 	name := strings.ToUpper(n.Name)
-	switch name {
-	case "TRIM_LEADING":
-		writeTrimDirectional(b, "leading", n.Args)
-		return
-	case "TRIM_TRAILING":
-		writeTrimDirectional(b, "trailing", n.Args)
-		return
-	case "TRIM_BOTH":
-		writeTrimDirectional(b, "both", n.Args)
-		return
+	// TRIM_ORACLE(...) is read as oracle_schema.TRIM(...), which is how the
+	// server stores it: oracle_schema.trim(leading 'x' from 'xa'), measured on
+	// mariadb:11.8.8. Only these two schemas name a builtin TRIM; any other is
+	// refused (1128) before a view can hold it.
+	oracleTrim := strings.EqualFold(n.Schema, "oracle_schema") && n.Package == ""
+	if oracleTrim || n.Schema == "" {
+		prefix := ""
+		if oracleTrim {
+			prefix = "oracle_schema."
+		}
+		switch name {
+		case "TRIM_LEADING":
+			b.WriteString(prefix)
+			writeTrimDirectional(b, "leading", n.Args)
+			return
+		case "TRIM_TRAILING":
+			b.WriteString(prefix)
+			writeTrimDirectional(b, "trailing", n.Args)
+			return
+		case "TRIM_BOTH":
+			b.WriteString(prefix)
+			writeTrimDirectional(b, "both", n.Args)
+			return
+		case "TRIM":
+			if oracleTrim {
+				b.WriteString(prefix)
+				if len(n.Args) == 2 {
+					// remstr FROM str trims both ends.
+					writeTrimDirectional(b, "both", n.Args)
+				} else {
+					b.WriteString("trim(")
+					writeExpr(b, n.Args[0])
+					b.WriteString(")")
+				}
+				return
+			}
+		}
+	}
+	if n.Schema == "" {
+		switch {
+		case len(n.ArgTypes) > 0:
+			// Only the dynamic column functions' own productions set ArgTypes.
+			writeDynColCall(b, n)
+			return
+		case n.WithinGroup, name == "MEDIAN" && n.Over != nil:
+			writePercentileCall(b, n)
+			return
+		}
 	}
 
 	// GROUP_CONCAT has special formatting, but only as the builtin: a spaced
@@ -2340,6 +2379,12 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 		}
 		b.WriteString(quoteIdent(n.Schema))
 		b.WriteString(".")
+		// A package routine's name has three parts, and the server writes
+		// each quoted and as written: `d`.`PK`.`F`(3) (mariadb:11.8.8).
+		if n.Package != "" {
+			b.WriteString(quoteIdent(n.Package))
+			b.WriteString(".")
+		}
 		b.WriteString(quoteIdent(routine))
 	} else {
 		// A spaced generic call names a routine of that literal name, not the
@@ -2422,6 +2467,12 @@ func writeWindowDef(b *strings.Builder, wd *ast.WindowDef) {
 // MySQL 8.0 writes uppercase keywords and the space before the closing
 // parenthesis instead.
 func writeWindowBody(b *strings.Builder, wd *ast.WindowDef) {
+	// An empty window is written with nothing inside: row_number() over ()
+	// (mariadb:11.8.8).
+	if len(wd.PartitionBy) == 0 && len(wd.OrderBy) == 0 && wd.Frame == nil {
+		b.WriteString("()")
+		return
+	}
 	b.WriteString("( ")
 
 	needSpace := false

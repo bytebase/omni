@@ -568,6 +568,13 @@ func (r *Resolver) resolveExpr(node ast.ExprNode, sc *fromScope) ast.ExprNode {
 		for i, arg := range n.Args {
 			n.Args[i] = r.resolveExpr(arg, sc)
 		}
+		// COLUMN_GET's type is a CAST type, and takes its character set the
+		// same way.
+		if strings.EqualFold(n.Name, "COLUMN_GET") {
+			for _, dt := range n.ArgTypes {
+				r.resolveCastCharset(dt)
+			}
+		}
 		// Resolve ORDER BY in aggregate functions (e.g., GROUP_CONCAT)
 		for _, item := range n.OrderBy {
 			item.Expr = r.resolveExpr(item.Expr, sc)

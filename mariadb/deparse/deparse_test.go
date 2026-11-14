@@ -468,6 +468,16 @@ func TestDeparse_Section_3_2_SpecialFunctionForms(t *testing.T) {
 		{"trim_trailing", "TRIM(TRAILING 'x' FROM a)", "trim(trailing 'x' from `a`)"},
 		// TRIM BOTH
 		{"trim_both", "TRIM(BOTH 'x' FROM a)", "trim(both 'x' from `a`)"},
+		// TRIM_ORACLE is stored as oracle_schema.trim (mariadb:11.8.8).
+		{"trim_oracle", "TRIM_ORACLE('x' FROM a)", "oracle_schema.trim(both 'x' from `a`)"},
+		{"trim_oracle_leading", "TRIM_ORACLE(LEADING FROM a)", "oracle_schema.ltrim(`a`)"},
+		// A stored package's routine keeps its three parts as written:
+		// `d`.`PK`.`F`(3) (mariadb:11.8.8).
+		{"package_routine", "d.PK.F(3, a)", "`d`.`PK`.`F`(3,`a`)"},
+		{"dyncol_delete", "COLUMN_DELETE(a, 'x')", "column_add(`a`,'x',NULL AS int)"},
+		{"dyncol_create", "COLUMN_CREATE('x', 1 AS UNSIGNED INT, 'y', 'z' AS CHAR BINARY)",
+			"column_create('x',1 AS unsigned int,'y','z' AS char charset utf8mb4 collate utf8mb4_bin )"},
+		{"dyncol_get", "COLUMN_GET(a, 'x' AS INT)", "column_get(`a`,'x' as signed)"},
 	}
 
 	for _, tc := range cases {
