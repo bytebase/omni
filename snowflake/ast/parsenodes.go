@@ -5790,11 +5790,18 @@ var (
 // where each <prop> is an open-ended `KEY = value` pair captured in Options,
 // preserving source order. The leading optional WITH (CREATE WAREHOUSE w WITH
 // WAREHOUSE_SIZE=...) is purely cosmetic and not retained.
+//
+// Interactive marks CREATE [ OR REPLACE ] INTERACTIVE WAREHOUSE, which may
+// name its tables first (TABLES ( <table> [ , ... ] ), held in Tables) and
+// takes only the properties its page documents: object properties before the
+// tag clause and object parameters after it, all kept in Options in order.
 type CreateWarehouseStmt struct {
 	OrReplace   bool
 	OrAlter     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
+	Interactive bool // CREATE INTERACTIVE WAREHOUSE
 	IfNotExists bool
 	Name        *ObjectName
+	Tables      []*ObjectName    // INTERACTIVE ... TABLES ( ... ); nil if absent
 	Options     []*CopyOption    // open-ended warehouse properties / object+session params
 	Tags        []*TagAssignment // [WITH] TAG (...); nil if absent
 	Loc         Loc
@@ -5817,13 +5824,16 @@ const (
 	AlterWarehouseUnsetTag                                 // UNSET TAG <tag> [ , ... ]
 	AlterWarehouseAddTables                                // ADD TABLES ( <id> [ , ... ] )
 	AlterWarehouseRemoveTables                             // { REMOVE | DROP } TABLES ( <id> [ , ... ] )
+	AlterWarehouseEnable                                   // ENABLE (an adaptive warehouse)
+	AlterWarehouseDisable                                  // DISABLE (an adaptive warehouse)
 )
 
 // AlterWarehouseStmt represents ALTER WAREHOUSE [ IF EXISTS ] <name> <action>.
 //
-//	SUSPEND
-//	RESUME [ IF SUSPENDED ]
-//	ABORT ALL QUERIES
+//	SUSPEND                                 -- name optional: the current warehouse
+//	RESUME [ IF SUSPENDED ]                 -- name optional
+//	ABORT ALL QUERIES                       -- name optional
+//	{ ENABLE | DISABLE }
 //	RENAME TO <new_name>
 //	SET <prop> [ <prop> ... ]               -- open-ended KEY = value params
 //	UNSET <key> [ , ... ]
@@ -5835,7 +5845,8 @@ const (
 // NewName holds the RENAME target. Options holds the SET properties. UnsetKeys
 // holds the UNSET key names. Tags / UnsetTags hold the SET TAG / UNSET TAG
 // assignments and names. Tables holds the ADD/REMOVE TABLES identifier list.
-// ResumeIfSuspended records the optional IF SUSPENDED on RESUME.
+// ResumeIfSuspended records the optional IF SUSPENDED on RESUME. Name is nil
+// when SUSPEND, RESUME or ABORT ALL QUERIES names no warehouse.
 type AlterWarehouseStmt struct {
 	IfExists          bool
 	Name              *ObjectName

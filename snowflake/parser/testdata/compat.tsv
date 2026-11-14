@@ -1375,7 +1375,7 @@ reject	undocumented	docs	statement/alterView!drop-4	ALTER VIEW a SECURE
 reject	undocumented	docs	statement/alterView!drop-5	ALTER VIEW a SET
 reject	undocumented	docs	statement/alterView!insert	ALTER VIEW a SET SECURE zzz
 reject	undocumented	docs	statement/alterView!swap	ALWAYS VIEW a SET SECURE
-reject	accept	docs	statement/alterWarehouse	ALTER WAREHOUSE SUSPEND
+accept	accept	docs	statement/alterWarehouse	ALTER WAREHOUSE SUSPEND
 reject	undocumented	docs	statement/alterWarehouse!drop-1	WAREHOUSE SUSPEND
 reject	undocumented	docs	statement/alterWarehouse!drop-2	ALTER SUSPEND
 reject	undocumented	docs	statement/alterWarehouse!drop-3	ALTER WAREHOUSE
@@ -2172,7 +2172,7 @@ reject	undocumented	docs	statement/createInteractiveTable!drop-10	CREATE INTERAC
 reject	undocumented	docs	statement/createInteractiveTable!drop-11	CREATE INTERACTIVE TABLE a CLUSTER BY(1) AS
 accept	undocumented	docs	statement/createInteractiveTable!insert	CREATE INTERACTIVE TABLE a CLUSTER BY(1) AS SELECT 1 zzz
 reject	undocumented	docs	statement/createInteractiveTable!swap	CREATION INTERACTIVE TABLE a CLUSTER BY(1) AS SELECT 1
-reject	accept	docs	statement/createInteractiveWarehouse	CREATE INTERACTIVE WAREHOUSE a
+accept	accept	docs	statement/createInteractiveWarehouse	CREATE INTERACTIVE WAREHOUSE a
 reject	undocumented	docs	statement/createInteractiveWarehouse!drop-1	INTERACTIVE WAREHOUSE a
 reject	undocumented	docs	statement/createInteractiveWarehouse!drop-3	CREATE INTERACTIVE a
 reject	undocumented	docs	statement/createInteractiveWarehouse!drop-4	CREATE INTERACTIVE WAREHOUSE
@@ -28700,15 +28700,15 @@ reject	undocumented	docs	alterView_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN
 reject	undocumented	docs	alterView_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~2315f5de)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_QNAME_(FORCE)?!insert	ALTER VIEW a ALTER a SET PROJECTION POLICY a zzz
 reject	undocumented	docs	alterView_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~2315f5de)/(ALTER|MODIFY)_(COLUMN)?_ID_SET_PROJECTION_POLICY_QNAME_(FORCE)?!swap	ALTER VIEW a ALWAYS a SET PROJECTION POLICY a
 accept	accept	docs	alterView_dataGovnPolicyTagAction((ALTER|MODIFY)_COLUMN?_ID_SET_PROJEC~2315f5de)/(ALTER|MODIFY)_(COLUMN)?_ID_UNSET_PROJECTION_POLICY	ALTER VIEW a ALTER a UNSET PROJECTION POLICY
-reject	accept	docs	alterWarehouse/ALTER_WAREHOUSE_(IF_EXISTS)?_(ID)?_(SUSPEND|RESUME_(IF_~6b56e531	ALTER WAREHOUSE SUSPEND
-reject	accept	docs	alterWarehouse/ALTER_WAREHOUSE_(IF_EXISTS)?_ID_(ENABLE|DISABLE)	ALTER WAREHOUSE a ENABLE
+accept	accept	docs	alterWarehouse/ALTER_WAREHOUSE_(IF_EXISTS)?_(ID)?_(SUSPEND|RESUME_(IF_~6b56e531	ALTER WAREHOUSE SUSPEND
+accept	accept	docs	alterWarehouse/ALTER_WAREHOUSE_(IF_EXISTS)?_ID_(ENABLE|DISABLE)	ALTER WAREHOUSE a ENABLE
 reject	undocumented	docs	alterWarehouse/ALTER_WAREHOUSE_(IF_EXISTS)?_ID_(ENABLE|DISABLE)!drop-1	WAREHOUSE a ENABLE
 reject	undocumented	docs	alterWarehouse/ALTER_WAREHOUSE_(IF_EXISTS)?_ID_(ENABLE|DISABLE)!drop-2	ALTER a ENABLE
 reject	undocumented	docs	alterWarehouse/ALTER_WAREHOUSE_(IF_EXISTS)?_ID_(ENABLE|DISABLE)!drop-3	ALTER WAREHOUSE ENABLE
 reject	undocumented	docs	alterWarehouse/ALTER_WAREHOUSE_(IF_EXISTS)?_ID_(ENABLE|DISABLE)!drop-4	ALTER WAREHOUSE a
 reject	undocumented	docs	alterWarehouse/ALTER_WAREHOUSE_(IF_EXISTS)?_ID_(ENABLE|DISABLE)!insert	ALTER WAREHOUSE a ENABLE zzz
 reject	undocumented	docs	alterWarehouse/ALTER_WAREHOUSE_(IF_EXISTS)?_ID_(ENABLE|DISABLE)!swap	ALWAYS WAREHOUSE a ENABLE
-reject	accept	docs	alterWarehouse/ALTER_WAREHOUSE_(IF_EXISTS)?_(ID)?_ABORT_ALL_QUERIES	ALTER WAREHOUSE ABORT ALL QUERIES
+accept	accept	docs	alterWarehouse/ALTER_WAREHOUSE_(IF_EXISTS)?_(ID)?_ABORT_ALL_QUERIES	ALTER WAREHOUSE ABORT ALL QUERIES
 reject	undocumented	docs	alterWarehouse/ALTER_WAREHOUSE_(IF_EXISTS)?_(ID)?_ABORT_ALL_QUERIES!drop-1	WAREHOUSE ABORT ALL QUERIES
 reject	undocumented	docs	alterWarehouse/ALTER_WAREHOUSE_(IF_EXISTS)?_(ID)?_ABORT_ALL_QUERIES!drop-3	ALTER WAREHOUSE ALL QUERIES
 reject	undocumented	docs	alterWarehouse/ALTER_WAREHOUSE_(IF_EXISTS)?_(ID)?_ABORT_ALL_QUERIES!drop-4	ALTER WAREHOUSE ABORT QUERIES
@@ -28778,31 +28778,31 @@ reject	undocumented	docs	alterWarehouse/ALTER_WAREHOUSE_(IF_EXISTS)?_ID_DROP_TAB
 reject	undocumented	docs	alterWarehouse/ALTER_WAREHOUSE_(IF_EXISTS)?_ID_DROP_TABLES_(_QNAME_(,_QNAME)*_)!drop-8	ALTER WAREHOUSE a DROP TABLES(a
 reject	undocumented	docs	alterWarehouse/ALTER_WAREHOUSE_(IF_EXISTS)?_ID_DROP_TABLES_(_QNAME_(,_QNAME)*_)!insert	ALTER WAREHOUSE a DROP TABLES(a) zzz
 reject	undocumented	docs	alterWarehouse/ALTER_WAREHOUSE_(IF_EXISTS)?_ID_DROP_TABLES_(_QNAME_(,_QNAME)*_)!swap	ALWAYS WAREHOUSE a DROP TABLES(a)
-reject	accept	docs	alterWarehouse(IF_EXISTS)?/%empty	ALTER WAREHOUSE SUSPEND
+accept	accept	docs	alterWarehouse(IF_EXISTS)?/%empty	ALTER WAREHOUSE SUSPEND
 accept	accept	docs	alterWarehouse(IF_EXISTS)?/%empty!insert	ALTER WAREHOUSE zzz SUSPEND
-reject	accept	docs	alterWarehouse(IF_EXISTS)?/IF_EXISTS	ALTER WAREHOUSE IF EXISTS SUSPEND
+accept	accept	docs	alterWarehouse(IF_EXISTS)?/IF_EXISTS	ALTER WAREHOUSE IF EXISTS SUSPEND
 accept	undocumented	docs	alterWarehouse(IF_EXISTS)?/IF_EXISTS!drop-1	ALTER WAREHOUSE EXISTS SUSPEND
 accept	accept	docs	alterWarehouse(IF_EXISTS)?/IF_EXISTS!drop-2	ALTER WAREHOUSE IF SUSPEND
 reject	undocumented	docs	alterWarehouse(IF_EXISTS)?/IF_EXISTS!truncate	ALTER WAREHOUSE IF
 accept	accept	docs	alterWarehouse(IF_EXISTS)?/IF_EXISTS!insert	ALTER WAREHOUSE IF EXISTS zzz SUSPEND
 reject	undocumented	docs	alterWarehouse(IF_EXISTS)?/IF_EXISTS!swap	ALTER WAREHOUSE IGNORE EXISTS SUSPEND
-reject	accept	docs	alterWarehouse(ID)?/%empty	ALTER WAREHOUSE SUSPEND
+accept	accept	docs	alterWarehouse(ID)?/%empty	ALTER WAREHOUSE SUSPEND
 accept	accept	docs	alterWarehouse(ID)?/ID	ALTER WAREHOUSE a SUSPEND
 reject	undocumented	docs	alterWarehouse(ID)?/ID!insert	ALTER WAREHOUSE a zzz SUSPEND
-reject	accept	docs	alterWarehouse(SUSPEND|RESUME_(IF_SUSPENDED)?)/SUSPEND	ALTER WAREHOUSE SUSPEND
+accept	accept	docs	alterWarehouse(SUSPEND|RESUME_(IF_SUSPENDED)?)/SUSPEND	ALTER WAREHOUSE SUSPEND
 reject	undocumented	docs	alterWarehouse(SUSPEND|RESUME_(IF_SUSPENDED)?)/SUSPEND!swap	ALTER WAREHOUSE SUSPENDED
-reject	accept	docs	alterWarehouse(SUSPEND|RESUME_(IF_SUSPENDED)?)/RESUME_(IF_SUSPENDED)?	ALTER WAREHOUSE RESUME
+accept	accept	docs	alterWarehouse(SUSPEND|RESUME_(IF_SUSPENDED)?)/RESUME_(IF_SUSPENDED)?	ALTER WAREHOUSE RESUME
 reject	undocumented	docs	alterWarehouse(SUSPEND|RESUME_(IF_SUSPENDED)?)/RESUME_(IF_SUSPENDED)?!insert	ALTER WAREHOUSE RESUME zzz
 reject	undocumented	docs	alterWarehouse(SUSPEND|RESUME_(IF_SUSPENDED)?)/RESUME_(IF_SUSPENDED)?!swap	ALTER WAREHOUSE RETAIN
-reject	accept	docs	alterWarehouse(IF_SUSPENDED)?/%empty	ALTER WAREHOUSE RESUME
-reject	accept	docs	alterWarehouse(IF_SUSPENDED)?/IF_SUSPENDED	ALTER WAREHOUSE RESUME IF SUSPENDED
+accept	accept	docs	alterWarehouse(IF_SUSPENDED)?/%empty	ALTER WAREHOUSE RESUME
+accept	accept	docs	alterWarehouse(IF_SUSPENDED)?/IF_SUSPENDED	ALTER WAREHOUSE RESUME IF SUSPENDED
 reject	undocumented	docs	alterWarehouse(IF_SUSPENDED)?/IF_SUSPENDED!drop-1	ALTER WAREHOUSE RESUME SUSPENDED
 reject	undocumented	docs	alterWarehouse(IF_SUSPENDED)?/IF_SUSPENDED!drop-2	ALTER WAREHOUSE RESUME IF
 reject	undocumented	docs	alterWarehouse(IF_SUSPENDED)?/IF_SUSPENDED!insert	ALTER WAREHOUSE RESUME IF SUSPENDED zzz
 reject	undocumented	docs	alterWarehouse(IF_SUSPENDED)?/IF_SUSPENDED!swap	ALTER WAREHOUSE RESUME IGNORE SUSPENDED
-reject	accept	docs	alterWarehouse(ENABLE|DISABLE)/ENABLE	ALTER WAREHOUSE a ENABLE
+accept	accept	docs	alterWarehouse(ENABLE|DISABLE)/ENABLE	ALTER WAREHOUSE a ENABLE
 reject	undocumented	docs	alterWarehouse(ENABLE|DISABLE)/ENABLE!swap	ALTER WAREHOUSE a ENABLED
-reject	accept	docs	alterWarehouse(ENABLE|DISABLE)/DISABLE	ALTER WAREHOUSE a DISABLE
+accept	accept	docs	alterWarehouse(ENABLE|DISABLE)/DISABLE	ALTER WAREHOUSE a DISABLE
 reject	undocumented	docs	alterWarehouse(ENABLE|DISABLE)/DISABLE!insert	ALTER WAREHOUSE a DISABLE zzz
 reject	undocumented	docs	alterWarehouse(ENABLE|DISABLE)/DISABLE!swap	ALTER WAREHOUSE a DISABLED
 accept	accept	docs	alterWarehouse(alterWarehouse_objectProperties_alte~ea10b95e)/alterWarehouse_objectProperties_(alterWarehouse_objectParams)?	ALTER WAREHOUSE a SET WAREHOUSE_TYPE = STANDARD
@@ -40854,44 +40854,44 @@ reject	undocumented	docs	createInteractiveTable(IF_NOT_EXISTS)?/IF_NOT_EXISTS!dr
 reject	undocumented	docs	createInteractiveTable(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE INTERACTIVE TABLE IF NOT
 reject	undocumented	docs	createInteractiveTable(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE INTERACTIVE TABLE IF NOT EXISTS zzz a(a INT) CLUSTER BY(1) AS SELECT 1
 reject	undocumented	docs	createInteractiveTable(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE INTERACTIVE TABLE IGNORE NOT EXISTS a(a INT) CLUSTER BY(1) AS SELECT 1
-reject	accept	docs	createInteractiveWarehouse/CREATE_(OR_REPLACE)?_INTERACTIVE_WAREHOUSE_QNAME_(TABLE~b9b3d64b	CREATE INTERACTIVE WAREHOUSE a
-reject	accept	docs	createInteractiveWarehouse/CREATE_INTERACTIVE_WAREHOUSE_(IF_NOT_EXISTS)?_QNAME_(TA~8fba636b	CREATE INTERACTIVE WAREHOUSE a
-reject	accept	docs	createInteractiveWarehouse(OR_REPLACE)?/%empty	CREATE INTERACTIVE WAREHOUSE a
+accept	accept	docs	createInteractiveWarehouse/CREATE_(OR_REPLACE)?_INTERACTIVE_WAREHOUSE_QNAME_(TABLE~b9b3d64b	CREATE INTERACTIVE WAREHOUSE a
+accept	accept	docs	createInteractiveWarehouse/CREATE_INTERACTIVE_WAREHOUSE_(IF_NOT_EXISTS)?_QNAME_(TA~8fba636b	CREATE INTERACTIVE WAREHOUSE a
+accept	accept	docs	createInteractiveWarehouse(OR_REPLACE)?/%empty	CREATE INTERACTIVE WAREHOUSE a
 reject	undocumented	docs	createInteractiveWarehouse(OR_REPLACE)?/%empty!insert	CREATE zzz INTERACTIVE WAREHOUSE a
-reject	accept	docs	createInteractiveWarehouse(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE INTERACTIVE WAREHOUSE a
+accept	accept	docs	createInteractiveWarehouse(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE INTERACTIVE WAREHOUSE a
 reject	undocumented	docs	createInteractiveWarehouse(OR_REPLACE)?/OR_REPLACE!drop-1	CREATE REPLACE INTERACTIVE WAREHOUSE a
 reject	undocumented	docs	createInteractiveWarehouse(OR_REPLACE)?/OR_REPLACE!drop-2	CREATE OR INTERACTIVE WAREHOUSE a
 reject	undocumented	docs	createInteractiveWarehouse(OR_REPLACE)?/OR_REPLACE!insert	CREATE OR REPLACE zzz INTERACTIVE WAREHOUSE a
 reject	undocumented	docs	createInteractiveWarehouse(OR_REPLACE)?/OR_REPLACE!swap	CREATE ORC REPLACE INTERACTIVE WAREHOUSE a
-reject	accept	docs	createInteractiveWarehouse(TABLES_(_QNAME_(,_QNAME)*_))?/%empty	CREATE INTERACTIVE WAREHOUSE a
-reject	accept	docs	createInteractiveWarehouse(TABLES_(_QNAME_(,_QNAME)*_))?/TABLES_(_QNAME_(,_QNAME)*_)	CREATE INTERACTIVE WAREHOUSE a TABLES(a)
+accept	accept	docs	createInteractiveWarehouse(TABLES_(_QNAME_(,_QNAME)*_))?/%empty	CREATE INTERACTIVE WAREHOUSE a
+accept	accept	docs	createInteractiveWarehouse(TABLES_(_QNAME_(,_QNAME)*_))?/TABLES_(_QNAME_(,_QNAME)*_)	CREATE INTERACTIVE WAREHOUSE a TABLES(a)
 reject	undocumented	docs	createInteractiveWarehouse(TABLES_(_QNAME_(,_QNAME)*_))?/TABLES_(_QNAME_(,_QNAME)*_)!drop-1	CREATE INTERACTIVE WAREHOUSE a(a)
 reject	undocumented	docs	createInteractiveWarehouse(TABLES_(_QNAME_(,_QNAME)*_))?/TABLES_(_QNAME_(,_QNAME)*_)!drop-2	CREATE INTERACTIVE WAREHOUSE a TABLES a)
 reject	undocumented	docs	createInteractiveWarehouse(TABLES_(_QNAME_(,_QNAME)*_))?/TABLES_(_QNAME_(,_QNAME)*_)!drop-3	CREATE INTERACTIVE WAREHOUSE a TABLES()
 reject	undocumented	docs	createInteractiveWarehouse(TABLES_(_QNAME_(,_QNAME)*_))?/TABLES_(_QNAME_(,_QNAME)*_)!drop-4	CREATE INTERACTIVE WAREHOUSE a TABLES(a
 reject	undocumented	docs	createInteractiveWarehouse(TABLES_(_QNAME_(,_QNAME)*_))?/TABLES_(_QNAME_(,_QNAME)*_)!insert	CREATE INTERACTIVE WAREHOUSE a TABLES(a) zzz
 reject	undocumented	docs	createInteractiveWarehouse(TABLES_(_QNAME_(,_QNAME)*_))?/TABLES_(_QNAME_(,_QNAME)*_)!swap	CREATE INTERACTIVE WAREHOUSE a TABLE_FORMAT(a)
-reject	accept	docs	createInteractiveWarehouse(,_QNAME)*/%empty	CREATE INTERACTIVE WAREHOUSE a TABLES(a)
+accept	accept	docs	createInteractiveWarehouse(,_QNAME)*/%empty	CREATE INTERACTIVE WAREHOUSE a TABLES(a)
 reject	undocumented	docs	createInteractiveWarehouse(,_QNAME)*/%empty!insert	CREATE INTERACTIVE WAREHOUSE a TABLES(a zzz)
-reject	accept	docs	createInteractiveWarehouse(,_QNAME)*/,_QNAME_(,_QNAME)*	CREATE INTERACTIVE WAREHOUSE a TABLES(a, a)
+accept	accept	docs	createInteractiveWarehouse(,_QNAME)*/,_QNAME_(,_QNAME)*	CREATE INTERACTIVE WAREHOUSE a TABLES(a, a)
 reject	undocumented	docs	createInteractiveWarehouse(,_QNAME)*/,_QNAME_(,_QNAME)*!drop-1	CREATE INTERACTIVE WAREHOUSE a TABLES(a a)
 reject	undocumented	docs	createInteractiveWarehouse(,_QNAME)*/,_QNAME_(,_QNAME)*!drop-2	CREATE INTERACTIVE WAREHOUSE a TABLES(a,)
 reject	undocumented	docs	createInteractiveWarehouse(,_QNAME)*/,_QNAME_(,_QNAME)*!truncate	CREATE INTERACTIVE WAREHOUSE a TABLES(a,
 reject	undocumented	docs	createInteractiveWarehouse(,_QNAME)*/,_QNAME_(,_QNAME)*!insert	CREATE INTERACTIVE WAREHOUSE a TABLES(a, a zzz)
-reject	accept	docs	createInteractiveWarehouse(WITH?_createInteractiveWarehouse_obj~837d3d16)?/%empty	CREATE INTERACTIVE WAREHOUSE a
-reject	accept	docs	createInteractiveWarehouse(WITH?_createInteractiveWarehouse_obj~837d3d16)?/(WITH)?_createInteractiveWarehouse_objectProperties	CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = XSMALL
+accept	accept	docs	createInteractiveWarehouse(WITH?_createInteractiveWarehouse_obj~837d3d16)?/%empty	CREATE INTERACTIVE WAREHOUSE a
+accept	accept	docs	createInteractiveWarehouse(WITH?_createInteractiveWarehouse_obj~837d3d16)?/(WITH)?_createInteractiveWarehouse_objectProperties	CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = XSMALL
 reject	undocumented	docs	createInteractiveWarehouse(WITH?_createInteractiveWarehouse_obj~837d3d16)?/(WITH)?_createInteractiveWarehouse_objectProperties!drop-1	CREATE INTERACTIVE WAREHOUSE a = XSMALL
 reject	undocumented	docs	createInteractiveWarehouse(WITH?_createInteractiveWarehouse_obj~837d3d16)?/(WITH)?_createInteractiveWarehouse_objectProperties!drop-2	CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE XSMALL
 reject	undocumented	docs	createInteractiveWarehouse(WITH?_createInteractiveWarehouse_obj~837d3d16)?/(WITH)?_createInteractiveWarehouse_objectProperties!drop-3	CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE =
 reject	undocumented	docs	createInteractiveWarehouse(WITH?_createInteractiveWarehouse_obj~837d3d16)?/(WITH)?_createInteractiveWarehouse_objectProperties!insert	CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = XSMALL zzz
 reject	undocumented	docs	createInteractiveWarehouse(WITH?_createInteractiveWarehouse_obj~837d3d16)?/(WITH)?_createInteractiveWarehouse_objectProperties!swap	CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_TYPE = XSMALL
-reject	accept	docs	createInteractiveWarehouse(WITH)?/%empty	CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = XSMALL
+accept	accept	docs	createInteractiveWarehouse(WITH)?/%empty	CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = XSMALL
 reject	undocumented	docs	createInteractiveWarehouse(WITH)?/%empty!insert	CREATE INTERACTIVE WAREHOUSE a zzz WAREHOUSE_SIZE = XSMALL
-reject	accept	docs	createInteractiveWarehouse(WITH)?/WITH	CREATE INTERACTIVE WAREHOUSE a WITH WAREHOUSE_SIZE = XSMALL
+accept	accept	docs	createInteractiveWarehouse(WITH)?/WITH	CREATE INTERACTIVE WAREHOUSE a WITH WAREHOUSE_SIZE = XSMALL
 reject	undocumented	docs	createInteractiveWarehouse(WITH)?/WITH!insert	CREATE INTERACTIVE WAREHOUSE a WITH zzz WAREHOUSE_SIZE = XSMALL
 reject	undocumented	docs	createInteractiveWarehouse(WITH)?/WITH!swap	CREATE INTERACTIVE WAREHOUSE a WITHIN WAREHOUSE_SIZE = XSMALL
-reject	accept	docs	createInteractiveWarehouse(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/%empty	CREATE INTERACTIVE WAREHOUSE a
-reject	accept	docs	createInteractiveWarehouse(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)	CREATE INTERACTIVE WAREHOUSE a TAG(a = 's')
+accept	accept	docs	createInteractiveWarehouse(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/%empty	CREATE INTERACTIVE WAREHOUSE a
+accept	accept	docs	createInteractiveWarehouse(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)	CREATE INTERACTIVE WAREHOUSE a TAG(a = 's')
 reject	undocumented	docs	createInteractiveWarehouse(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!drop-1	CREATE INTERACTIVE WAREHOUSE a(a = 's')
 reject	undocumented	docs	createInteractiveWarehouse(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!drop-2	CREATE INTERACTIVE WAREHOUSE a TAG a = 's')
 reject	undocumented	docs	createInteractiveWarehouse(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!drop-3	CREATE INTERACTIVE WAREHOUSE a TAG(= 's')
@@ -40900,33 +40900,33 @@ reject	undocumented	docs	createInteractiveWarehouse(WITH?_TAG_(_QNAME_=_STRING_(
 reject	undocumented	docs	createInteractiveWarehouse(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!drop-6	CREATE INTERACTIVE WAREHOUSE a TAG(a = 's'
 reject	undocumented	docs	createInteractiveWarehouse(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!insert	CREATE INTERACTIVE WAREHOUSE a TAG(a = 's') zzz
 reject	undocumented	docs	createInteractiveWarehouse(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!swap	CREATE INTERACTIVE WAREHOUSE a TAGS(a = 's')
-reject	accept	docs	createInteractiveWarehouse(,_QNAME_=_STRING)*/%empty	CREATE INTERACTIVE WAREHOUSE a TAG(a = 's')
+accept	accept	docs	createInteractiveWarehouse(,_QNAME_=_STRING)*/%empty	CREATE INTERACTIVE WAREHOUSE a TAG(a = 's')
 reject	undocumented	docs	createInteractiveWarehouse(,_QNAME_=_STRING)*/%empty!insert	CREATE INTERACTIVE WAREHOUSE a TAG(a = 's' zzz)
-reject	accept	docs	createInteractiveWarehouse(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*	CREATE INTERACTIVE WAREHOUSE a TAG(a = 's', a = 's')
+accept	accept	docs	createInteractiveWarehouse(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*	CREATE INTERACTIVE WAREHOUSE a TAG(a = 's', a = 's')
 reject	undocumented	docs	createInteractiveWarehouse(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-1	CREATE INTERACTIVE WAREHOUSE a TAG(a = 's' a = 's')
 reject	undocumented	docs	createInteractiveWarehouse(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-2	CREATE INTERACTIVE WAREHOUSE a TAG(a = 's', = 's')
 reject	undocumented	docs	createInteractiveWarehouse(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-3	CREATE INTERACTIVE WAREHOUSE a TAG(a = 's', a 's')
 reject	undocumented	docs	createInteractiveWarehouse(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-4	CREATE INTERACTIVE WAREHOUSE a TAG(a = 's', a =)
 reject	undocumented	docs	createInteractiveWarehouse(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!truncate	CREATE INTERACTIVE WAREHOUSE a TAG(a = 's', a =
 reject	undocumented	docs	createInteractiveWarehouse(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!insert	CREATE INTERACTIVE WAREHOUSE a TAG(a = 's', a = 's' zzz)
-reject	accept	docs	createInteractiveWarehouse(createInteractiveWarehouse_objectParams)?/%empty	CREATE INTERACTIVE WAREHOUSE a
-reject	accept	docs	createInteractiveWarehouse(createInteractiveWarehouse_objectParams)?/createInteractiveWarehouse_objectParams	CREATE INTERACTIVE WAREHOUSE a MAX_CONCURRENCY_LEVEL = 1
+accept	accept	docs	createInteractiveWarehouse(createInteractiveWarehouse_objectParams)?/%empty	CREATE INTERACTIVE WAREHOUSE a
+accept	accept	docs	createInteractiveWarehouse(createInteractiveWarehouse_objectParams)?/createInteractiveWarehouse_objectParams	CREATE INTERACTIVE WAREHOUSE a MAX_CONCURRENCY_LEVEL = 1
 reject	undocumented	docs	createInteractiveWarehouse(createInteractiveWarehouse_objectParams)?/createInteractiveWarehouse_objectParams!drop-1	CREATE INTERACTIVE WAREHOUSE a = 1
 reject	undocumented	docs	createInteractiveWarehouse(createInteractiveWarehouse_objectParams)?/createInteractiveWarehouse_objectParams!drop-2	CREATE INTERACTIVE WAREHOUSE a MAX_CONCURRENCY_LEVEL 1
 reject	undocumented	docs	createInteractiveWarehouse(createInteractiveWarehouse_objectParams)?/createInteractiveWarehouse_objectParams!drop-3	CREATE INTERACTIVE WAREHOUSE a MAX_CONCURRENCY_LEVEL =
 reject	undocumented	docs	createInteractiveWarehouse(createInteractiveWarehouse_objectParams)?/createInteractiveWarehouse_objectParams!insert	CREATE INTERACTIVE WAREHOUSE a MAX_CONCURRENCY_LEVEL = 1 zzz
 reject	undocumented	docs	createInteractiveWarehouse(createInteractiveWarehouse_objectParams)?/createInteractiveWarehouse_objectParams!swap	CREATE INTERACTIVE WAREHOUSE a MAX_DATA_EXTENSION_TIME_IN_DAYS = 1
-reject	accept	docs	createInteractiveWarehouse(IF_NOT_EXISTS)?/%empty	CREATE INTERACTIVE WAREHOUSE a
+accept	accept	docs	createInteractiveWarehouse(IF_NOT_EXISTS)?/%empty	CREATE INTERACTIVE WAREHOUSE a
 reject	undocumented	docs	createInteractiveWarehouse(IF_NOT_EXISTS)?/%empty!insert	CREATE INTERACTIVE WAREHOUSE zzz a
-reject	accept	docs	createInteractiveWarehouse(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE INTERACTIVE WAREHOUSE IF NOT EXISTS a
+accept	accept	docs	createInteractiveWarehouse(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE INTERACTIVE WAREHOUSE IF NOT EXISTS a
 reject	undocumented	docs	createInteractiveWarehouse(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE INTERACTIVE WAREHOUSE NOT EXISTS a
 reject	undocumented	docs	createInteractiveWarehouse(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE INTERACTIVE WAREHOUSE IF EXISTS a
 reject	undocumented	docs	createInteractiveWarehouse(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE INTERACTIVE WAREHOUSE IF NOT a
 reject	undocumented	docs	createInteractiveWarehouse(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE INTERACTIVE WAREHOUSE IF NOT
 reject	undocumented	docs	createInteractiveWarehouse(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE INTERACTIVE WAREHOUSE IF NOT EXISTS zzz a
 reject	undocumented	docs	createInteractiveWarehouse(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE INTERACTIVE WAREHOUSE IGNORE NOT EXISTS a
-reject	accept	docs	createInteractiveWarehouse_objectProperties/(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)+	CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = XSMALL
-reject	accept	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)+/(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)	CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = XSMALL
+accept	accept	docs	createInteractiveWarehouse_objectProperties/(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)+	CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = XSMALL
+accept	accept	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)+/(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)	CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = XSMALL
 reject	accept	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)+/(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)_(WAREHO~9b60bafc	CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = XSMALL WAREHOUSE_SIZE = XSMALL
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)+/(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)_(WAREHO~9b60bafc!drop-1	CREATE INTERACTIVE WAREHOUSE a = XSMALL WAREHOUSE_SIZE = XSMALL
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)+/(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)_(WAREHO~9b60bafc!drop-2	CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE XSMALL WAREHOUSE_SIZE = XSMALL
@@ -40936,81 +40936,81 @@ reject	undocumented	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_S
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)+/(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)_(WAREHO~9b60bafc!drop-6	CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = XSMALL WAREHOUSE_SIZE =
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)+/(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)_(WAREHO~9b60bafc!insert	CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = XSMALL WAREHOUSE_SIZE = XSMALL zzz
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)+/(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)_(WAREHO~9b60bafc!swap	CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_TYPE = XSMALL WAREHOUSE_SIZE = XSMALL
-reject	accept	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIUM|LARGE|XLARGE|XXL~df847472)	CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = XSMALL
-reject	accept	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/MAX_CLUSTER_COUNT_=_NUMBER	CREATE INTERACTIVE WAREHOUSE a MAX_CLUSTER_COUNT = 1
+accept	accept	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIUM|LARGE|XLARGE|XXL~df847472)	CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = XSMALL
+accept	accept	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/MAX_CLUSTER_COUNT_=_NUMBER	CREATE INTERACTIVE WAREHOUSE a MAX_CLUSTER_COUNT = 1
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/MAX_CLUSTER_COUNT_=_NUMBER!drop-2	CREATE INTERACTIVE WAREHOUSE a MAX_CLUSTER_COUNT 1
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/MAX_CLUSTER_COUNT_=_NUMBER!drop-3	CREATE INTERACTIVE WAREHOUSE a MAX_CLUSTER_COUNT =
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/MAX_CLUSTER_COUNT_=_NUMBER!insert	CREATE INTERACTIVE WAREHOUSE a MAX_CLUSTER_COUNT = 1 zzz
-reject	accept	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/MIN_CLUSTER_COUNT_=_NUMBER	CREATE INTERACTIVE WAREHOUSE a MIN_CLUSTER_COUNT = 1
+accept	accept	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/MIN_CLUSTER_COUNT_=_NUMBER	CREATE INTERACTIVE WAREHOUSE a MIN_CLUSTER_COUNT = 1
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/MIN_CLUSTER_COUNT_=_NUMBER!drop-2	CREATE INTERACTIVE WAREHOUSE a MIN_CLUSTER_COUNT 1
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/MIN_CLUSTER_COUNT_=_NUMBER!drop-3	CREATE INTERACTIVE WAREHOUSE a MIN_CLUSTER_COUNT =
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/MIN_CLUSTER_COUNT_=_NUMBER!insert	CREATE INTERACTIVE WAREHOUSE a MIN_CLUSTER_COUNT = 1 zzz
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/MIN_CLUSTER_COUNT_=_NUMBER!swap	CREATE INTERACTIVE WAREHOUSE a MIN_INSTANCES = 1
-reject	accept	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/AUTO_SUSPEND_=_(NUMBER|NULL)	CREATE INTERACTIVE WAREHOUSE a AUTO_SUSPEND = 1
+accept	accept	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/AUTO_SUSPEND_=_(NUMBER|NULL)	CREATE INTERACTIVE WAREHOUSE a AUTO_SUSPEND = 1
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/AUTO_SUSPEND_=_(NUMBER|NULL)!drop-2	CREATE INTERACTIVE WAREHOUSE a AUTO_SUSPEND 1
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/AUTO_SUSPEND_=_(NUMBER|NULL)!drop-3	CREATE INTERACTIVE WAREHOUSE a AUTO_SUSPEND =
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/AUTO_SUSPEND_=_(NUMBER|NULL)!insert	CREATE INTERACTIVE WAREHOUSE a AUTO_SUSPEND = 1 zzz
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/AUTO_SUSPEND_=_(NUMBER|NULL)!swap	CREATE INTERACTIVE WAREHOUSE a AUTO_SUSPEND_SECS = 1
-reject	accept	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/AUTO_RESUME_=_(TRUE|FALSE)	CREATE INTERACTIVE WAREHOUSE a AUTO_RESUME = TRUE
+accept	accept	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/AUTO_RESUME_=_(TRUE|FALSE)	CREATE INTERACTIVE WAREHOUSE a AUTO_RESUME = TRUE
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/AUTO_RESUME_=_(TRUE|FALSE)!drop-1	CREATE INTERACTIVE WAREHOUSE a = TRUE
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/AUTO_RESUME_=_(TRUE|FALSE)!drop-2	CREATE INTERACTIVE WAREHOUSE a AUTO_RESUME TRUE
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/AUTO_RESUME_=_(TRUE|FALSE)!drop-3	CREATE INTERACTIVE WAREHOUSE a AUTO_RESUME =
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/AUTO_RESUME_=_(TRUE|FALSE)!insert	CREATE INTERACTIVE WAREHOUSE a AUTO_RESUME = TRUE zzz
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/AUTO_RESUME_=_(TRUE|FALSE)!swap	CREATE INTERACTIVE WAREHOUSE a AUTO_SUSPEND = TRUE
-reject	accept	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/INITIALLY_SUSPENDED_=_(TRUE|FALSE)	CREATE INTERACTIVE WAREHOUSE a INITIALLY_SUSPENDED = TRUE
+accept	accept	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/INITIALLY_SUSPENDED_=_(TRUE|FALSE)	CREATE INTERACTIVE WAREHOUSE a INITIALLY_SUSPENDED = TRUE
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/INITIALLY_SUSPENDED_=_(TRUE|FALSE)!drop-2	CREATE INTERACTIVE WAREHOUSE a INITIALLY_SUSPENDED TRUE
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/INITIALLY_SUSPENDED_=_(TRUE|FALSE)!drop-3	CREATE INTERACTIVE WAREHOUSE a INITIALLY_SUSPENDED =
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/INITIALLY_SUSPENDED_=_(TRUE|FALSE)!insert	CREATE INTERACTIVE WAREHOUSE a INITIALLY_SUSPENDED = TRUE zzz
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/INITIALLY_SUSPENDED_=_(TRUE|FALSE)!swap	CREATE INTERACTIVE WAREHOUSE a INITIAL_REPLICATION_SIZE_LIMIT_IN_TB = TRUE
-reject	accept	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/RESOURCE_MONITOR_=_ID	CREATE INTERACTIVE WAREHOUSE a RESOURCE_MONITOR = a
+accept	accept	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/RESOURCE_MONITOR_=_ID	CREATE INTERACTIVE WAREHOUSE a RESOURCE_MONITOR = a
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/RESOURCE_MONITOR_=_ID!drop-1	CREATE INTERACTIVE WAREHOUSE a = a
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/RESOURCE_MONITOR_=_ID!drop-2	CREATE INTERACTIVE WAREHOUSE a RESOURCE_MONITOR a
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/RESOURCE_MONITOR_=_ID!drop-3	CREATE INTERACTIVE WAREHOUSE a RESOURCE_MONITOR =
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/RESOURCE_MONITOR_=_ID!insert	CREATE INTERACTIVE WAREHOUSE a RESOURCE_MONITOR = a zzz
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/RESOURCE_MONITOR_=_ID!swap	CREATE INTERACTIVE WAREHOUSE a RESPONSE_TRANSLATOR = a
-reject	accept	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/FALLBACK_WAREHOUSE_=_ID	CREATE INTERACTIVE WAREHOUSE a FALLBACK_WAREHOUSE = a
+accept	accept	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/FALLBACK_WAREHOUSE_=_ID	CREATE INTERACTIVE WAREHOUSE a FALLBACK_WAREHOUSE = a
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/FALLBACK_WAREHOUSE_=_ID!drop-2	CREATE INTERACTIVE WAREHOUSE a FALLBACK_WAREHOUSE a
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/FALLBACK_WAREHOUSE_=_ID!drop-3	CREATE INTERACTIVE WAREHOUSE a FALLBACK_WAREHOUSE =
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/FALLBACK_WAREHOUSE_=_ID!insert	CREATE INTERACTIVE WAREHOUSE a FALLBACK_WAREHOUSE = a zzz
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/FALLBACK_WAREHOUSE_=_ID!swap	CREATE INTERACTIVE WAREHOUSE a FALSE = a
-reject	accept	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/COMMENT_=_STRING	CREATE INTERACTIVE WAREHOUSE a COMMENT = 's'
+accept	accept	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/COMMENT_=_STRING	CREATE INTERACTIVE WAREHOUSE a COMMENT = 's'
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/COMMENT_=_STRING!drop-1	CREATE INTERACTIVE WAREHOUSE a = 's'
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/COMMENT_=_STRING!drop-2	CREATE INTERACTIVE WAREHOUSE a COMMENT 's'
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/COMMENT_=_STRING!drop-3	CREATE INTERACTIVE WAREHOUSE a COMMENT =
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/COMMENT_=_STRING!insert	CREATE INTERACTIVE WAREHOUSE a COMMENT = 's' zzz
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(WAREHOUSE_SIZE_=_(XSMALL|SMALL|MEDIU~0e4aa3f0)/COMMENT_=_STRING!swap	CREATE INTERACTIVE WAREHOUSE a COMMENTS = 's'
-reject	accept	docs	createInteractiveWarehouse_objectProperties(XSMALL|SMALL|MEDIUM|LARGE|XLARGE|XXL~df847472)/XSMALL	CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = XSMALL
-reject	accept	docs	createInteractiveWarehouse_objectProperties(XSMALL|SMALL|MEDIUM|LARGE|XLARGE|XXL~df847472)/SMALL	CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = SMALL
+accept	accept	docs	createInteractiveWarehouse_objectProperties(XSMALL|SMALL|MEDIUM|LARGE|XLARGE|XXL~df847472)/XSMALL	CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = XSMALL
+accept	accept	docs	createInteractiveWarehouse_objectProperties(XSMALL|SMALL|MEDIUM|LARGE|XLARGE|XXL~df847472)/SMALL	CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = SMALL
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(XSMALL|SMALL|MEDIUM|LARGE|XLARGE|XXL~df847472)/SMALL!insert	CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = SMALL zzz
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(XSMALL|SMALL|MEDIUM|LARGE|XLARGE|XXL~df847472)/SMALL!swap	CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = SNAPPY
-reject	accept	docs	createInteractiveWarehouse_objectProperties(XSMALL|SMALL|MEDIUM|LARGE|XLARGE|XXL~df847472)/MEDIUM	CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = MEDIUM
+accept	accept	docs	createInteractiveWarehouse_objectProperties(XSMALL|SMALL|MEDIUM|LARGE|XLARGE|XXL~df847472)/MEDIUM	CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = MEDIUM
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(XSMALL|SMALL|MEDIUM|LARGE|XLARGE|XXL~df847472)/MEDIUM!insert	CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = MEDIUM zzz
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(XSMALL|SMALL|MEDIUM|LARGE|XLARGE|XXL~df847472)/MEDIUM!swap	CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = MEMOIZABLE
-reject	accept	docs	createInteractiveWarehouse_objectProperties(XSMALL|SMALL|MEDIUM|LARGE|XLARGE|XXL~df847472)/LARGE	CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = LARGE
+accept	accept	docs	createInteractiveWarehouse_objectProperties(XSMALL|SMALL|MEDIUM|LARGE|XLARGE|XXL~df847472)/LARGE	CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = LARGE
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(XSMALL|SMALL|MEDIUM|LARGE|XLARGE|XXL~df847472)/LARGE!insert	CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = LARGE zzz
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(XSMALL|SMALL|MEDIUM|LARGE|XLARGE|XXL~df847472)/LARGE!swap	CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = LAST
-reject	accept	docs	createInteractiveWarehouse_objectProperties(XSMALL|SMALL|MEDIUM|LARGE|XLARGE|XXL~df847472)/XLARGE	CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = XLARGE
+accept	accept	docs	createInteractiveWarehouse_objectProperties(XSMALL|SMALL|MEDIUM|LARGE|XLARGE|XXL~df847472)/XLARGE	CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = XLARGE
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(XSMALL|SMALL|MEDIUM|LARGE|XLARGE|XXL~df847472)/XLARGE!insert	CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = XLARGE zzz
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(XSMALL|SMALL|MEDIUM|LARGE|XLARGE|XXL~df847472)/XLARGE!swap	CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = XML
-reject	accept	docs	createInteractiveWarehouse_objectProperties(XSMALL|SMALL|MEDIUM|LARGE|XLARGE|XXL~df847472)/XXLARGE	CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = XXLARGE
+accept	accept	docs	createInteractiveWarehouse_objectProperties(XSMALL|SMALL|MEDIUM|LARGE|XLARGE|XXL~df847472)/XXLARGE	CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = XXLARGE
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(XSMALL|SMALL|MEDIUM|LARGE|XLARGE|XXL~df847472)/XXLARGE!insert	CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = XXLARGE zzz
-reject	accept	docs	createInteractiveWarehouse_objectProperties(XSMALL|SMALL|MEDIUM|LARGE|XLARGE|XXL~df847472)/XXXLARGE	CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = XXXLARGE
+accept	accept	docs	createInteractiveWarehouse_objectProperties(XSMALL|SMALL|MEDIUM|LARGE|XLARGE|XXL~df847472)/XXXLARGE	CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = XXXLARGE
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(XSMALL|SMALL|MEDIUM|LARGE|XLARGE|XXL~df847472)/XXXLARGE!insert	CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = XXXLARGE zzz
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(XSMALL|SMALL|MEDIUM|LARGE|XLARGE|XXL~df847472)/XXXLARGE!swap	CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = YEAR
-reject	accept	docs	createInteractiveWarehouse_objectProperties(XSMALL|SMALL|MEDIUM|LARGE|XLARGE|XXL~df847472)/X4LARGE	CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = X4LARGE
+accept	accept	docs	createInteractiveWarehouse_objectProperties(XSMALL|SMALL|MEDIUM|LARGE|XLARGE|XXL~df847472)/X4LARGE	CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = X4LARGE
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(XSMALL|SMALL|MEDIUM|LARGE|XLARGE|XXL~df847472)/X4LARGE!insert	CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = X4LARGE zzz
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(XSMALL|SMALL|MEDIUM|LARGE|XLARGE|XXL~df847472)/X4LARGE!swap	CREATE INTERACTIVE WAREHOUSE a WAREHOUSE_SIZE = X5LARGE
-reject	accept	docs	createInteractiveWarehouse_objectProperties(NUMBER|NULL)/NUMBER	CREATE INTERACTIVE WAREHOUSE a AUTO_SUSPEND = 1
-reject	accept	docs	createInteractiveWarehouse_objectProperties(NUMBER|NULL)/NULL	CREATE INTERACTIVE WAREHOUSE a AUTO_SUSPEND = NULL
+accept	accept	docs	createInteractiveWarehouse_objectProperties(NUMBER|NULL)/NUMBER	CREATE INTERACTIVE WAREHOUSE a AUTO_SUSPEND = 1
+accept	accept	docs	createInteractiveWarehouse_objectProperties(NUMBER|NULL)/NULL	CREATE INTERACTIVE WAREHOUSE a AUTO_SUSPEND = NULL
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(NUMBER|NULL)/NULL!insert	CREATE INTERACTIVE WAREHOUSE a AUTO_SUSPEND = NULL zzz
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(NUMBER|NULL)/NULL!swap	CREATE INTERACTIVE WAREHOUSE a AUTO_SUSPEND = NULLS
-reject	accept	docs	createInteractiveWarehouse_objectProperties(TRUE|FALSE)/TRUE	CREATE INTERACTIVE WAREHOUSE a AUTO_RESUME = TRUE
+accept	accept	docs	createInteractiveWarehouse_objectProperties(TRUE|FALSE)/TRUE	CREATE INTERACTIVE WAREHOUSE a AUTO_RESUME = TRUE
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(TRUE|FALSE)/TRUE!swap	CREATE INTERACTIVE WAREHOUSE a AUTO_RESUME = TRUNCATE
-reject	accept	docs	createInteractiveWarehouse_objectProperties(TRUE|FALSE)/FALSE	CREATE INTERACTIVE WAREHOUSE a AUTO_RESUME = FALSE
+accept	accept	docs	createInteractiveWarehouse_objectProperties(TRUE|FALSE)/FALSE	CREATE INTERACTIVE WAREHOUSE a AUTO_RESUME = FALSE
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(TRUE|FALSE)/FALSE!insert	CREATE INTERACTIVE WAREHOUSE a AUTO_RESUME = FALSE zzz
 reject	undocumented	docs	createInteractiveWarehouse_objectProperties(TRUE|FALSE)/FALSE!swap	CREATE INTERACTIVE WAREHOUSE a AUTO_RESUME = FAMILIES
-reject	accept	docs	createInteractiveWarehouse_objectParams/(MAX_CONCURRENCY_LEVEL_=_NUMBER|STATE~ce66b9b4)+	CREATE INTERACTIVE WAREHOUSE a MAX_CONCURRENCY_LEVEL = 1
-reject	accept	docs	createInteractiveWarehouse_objectParams(MAX_CONCURRENCY_LEVEL_=_NUMBER|STATE~ce66b9b4)+/(MAX_CONCURRENCY_LEVEL_=_NUMBER|STATE~ce66b9b4)	CREATE INTERACTIVE WAREHOUSE a MAX_CONCURRENCY_LEVEL = 1
+accept	accept	docs	createInteractiveWarehouse_objectParams/(MAX_CONCURRENCY_LEVEL_=_NUMBER|STATE~ce66b9b4)+	CREATE INTERACTIVE WAREHOUSE a MAX_CONCURRENCY_LEVEL = 1
+accept	accept	docs	createInteractiveWarehouse_objectParams(MAX_CONCURRENCY_LEVEL_=_NUMBER|STATE~ce66b9b4)+/(MAX_CONCURRENCY_LEVEL_=_NUMBER|STATE~ce66b9b4)	CREATE INTERACTIVE WAREHOUSE a MAX_CONCURRENCY_LEVEL = 1
 reject	accept	docs	createInteractiveWarehouse_objectParams(MAX_CONCURRENCY_LEVEL_=_NUMBER|STATE~ce66b9b4)+/(MAX_CONCURRENCY_LEVEL_=_NUMBER|STATE~ce66b9b4)_(MAX_CO~11328d60	CREATE INTERACTIVE WAREHOUSE a MAX_CONCURRENCY_LEVEL = 1 MAX_CONCURRENCY_LEVEL = 1
 reject	undocumented	docs	createInteractiveWarehouse_objectParams(MAX_CONCURRENCY_LEVEL_=_NUMBER|STATE~ce66b9b4)+/(MAX_CONCURRENCY_LEVEL_=_NUMBER|STATE~ce66b9b4)_(MAX_CO~11328d60!drop-1	CREATE INTERACTIVE WAREHOUSE a = 1 MAX_CONCURRENCY_LEVEL = 1
 reject	undocumented	docs	createInteractiveWarehouse_objectParams(MAX_CONCURRENCY_LEVEL_=_NUMBER|STATE~ce66b9b4)+/(MAX_CONCURRENCY_LEVEL_=_NUMBER|STATE~ce66b9b4)_(MAX_CO~11328d60!drop-2	CREATE INTERACTIVE WAREHOUSE a MAX_CONCURRENCY_LEVEL 1 MAX_CONCURRENCY_LEVEL = 1
@@ -41020,12 +41020,12 @@ reject	undocumented	docs	createInteractiveWarehouse_objectParams(MAX_CONCURRENCY
 reject	undocumented	docs	createInteractiveWarehouse_objectParams(MAX_CONCURRENCY_LEVEL_=_NUMBER|STATE~ce66b9b4)+/(MAX_CONCURRENCY_LEVEL_=_NUMBER|STATE~ce66b9b4)_(MAX_CO~11328d60!drop-6	CREATE INTERACTIVE WAREHOUSE a MAX_CONCURRENCY_LEVEL = 1 MAX_CONCURRENCY_LEVEL =
 reject	undocumented	docs	createInteractiveWarehouse_objectParams(MAX_CONCURRENCY_LEVEL_=_NUMBER|STATE~ce66b9b4)+/(MAX_CONCURRENCY_LEVEL_=_NUMBER|STATE~ce66b9b4)_(MAX_CO~11328d60!insert	CREATE INTERACTIVE WAREHOUSE a MAX_CONCURRENCY_LEVEL = 1 MAX_CONCURRENCY_LEVEL = 1 zzz
 reject	undocumented	docs	createInteractiveWarehouse_objectParams(MAX_CONCURRENCY_LEVEL_=_NUMBER|STATE~ce66b9b4)+/(MAX_CONCURRENCY_LEVEL_=_NUMBER|STATE~ce66b9b4)_(MAX_CO~11328d60!swap	CREATE INTERACTIVE WAREHOUSE a MAX_DATA_EXTENSION_TIME_IN_DAYS = 1 MAX_CONCURRENCY_LEVEL = 1
-reject	accept	docs	createInteractiveWarehouse_objectParams(MAX_CONCURRENCY_LEVEL_=_NUMBER|STATE~ce66b9b4)/MAX_CONCURRENCY_LEVEL_=_NUMBER	CREATE INTERACTIVE WAREHOUSE a MAX_CONCURRENCY_LEVEL = 1
-reject	accept	docs	createInteractiveWarehouse_objectParams(MAX_CONCURRENCY_LEVEL_=_NUMBER|STATE~ce66b9b4)/STATEMENT_QUEUED_TIMEOUT_IN_SECONDS_=_NUMBER	CREATE INTERACTIVE WAREHOUSE a STATEMENT_QUEUED_TIMEOUT_IN_SECONDS = 1
+accept	accept	docs	createInteractiveWarehouse_objectParams(MAX_CONCURRENCY_LEVEL_=_NUMBER|STATE~ce66b9b4)/MAX_CONCURRENCY_LEVEL_=_NUMBER	CREATE INTERACTIVE WAREHOUSE a MAX_CONCURRENCY_LEVEL = 1
+accept	accept	docs	createInteractiveWarehouse_objectParams(MAX_CONCURRENCY_LEVEL_=_NUMBER|STATE~ce66b9b4)/STATEMENT_QUEUED_TIMEOUT_IN_SECONDS_=_NUMBER	CREATE INTERACTIVE WAREHOUSE a STATEMENT_QUEUED_TIMEOUT_IN_SECONDS = 1
 reject	undocumented	docs	createInteractiveWarehouse_objectParams(MAX_CONCURRENCY_LEVEL_=_NUMBER|STATE~ce66b9b4)/STATEMENT_QUEUED_TIMEOUT_IN_SECONDS_=_NUMBER!drop-2	CREATE INTERACTIVE WAREHOUSE a STATEMENT_QUEUED_TIMEOUT_IN_SECONDS 1
 reject	undocumented	docs	createInteractiveWarehouse_objectParams(MAX_CONCURRENCY_LEVEL_=_NUMBER|STATE~ce66b9b4)/STATEMENT_QUEUED_TIMEOUT_IN_SECONDS_=_NUMBER!drop-3	CREATE INTERACTIVE WAREHOUSE a STATEMENT_QUEUED_TIMEOUT_IN_SECONDS =
 reject	undocumented	docs	createInteractiveWarehouse_objectParams(MAX_CONCURRENCY_LEVEL_=_NUMBER|STATE~ce66b9b4)/STATEMENT_QUEUED_TIMEOUT_IN_SECONDS_=_NUMBER!insert	CREATE INTERACTIVE WAREHOUSE a STATEMENT_QUEUED_TIMEOUT_IN_SECONDS = 1 zzz
-reject	accept	docs	createInteractiveWarehouse_objectParams(MAX_CONCURRENCY_LEVEL_=_NUMBER|STATE~ce66b9b4)/STATEMENT_TIMEOUT_IN_SECONDS_=_NUMBER	CREATE INTERACTIVE WAREHOUSE a STATEMENT_TIMEOUT_IN_SECONDS = 1
+accept	accept	docs	createInteractiveWarehouse_objectParams(MAX_CONCURRENCY_LEVEL_=_NUMBER|STATE~ce66b9b4)/STATEMENT_TIMEOUT_IN_SECONDS_=_NUMBER	CREATE INTERACTIVE WAREHOUSE a STATEMENT_TIMEOUT_IN_SECONDS = 1
 reject	undocumented	docs	createInteractiveWarehouse_objectParams(MAX_CONCURRENCY_LEVEL_=_NUMBER|STATE~ce66b9b4)/STATEMENT_TIMEOUT_IN_SECONDS_=_NUMBER!drop-2	CREATE INTERACTIVE WAREHOUSE a STATEMENT_TIMEOUT_IN_SECONDS 1
 reject	undocumented	docs	createInteractiveWarehouse_objectParams(MAX_CONCURRENCY_LEVEL_=_NUMBER|STATE~ce66b9b4)/STATEMENT_TIMEOUT_IN_SECONDS_=_NUMBER!drop-3	CREATE INTERACTIVE WAREHOUSE a STATEMENT_TIMEOUT_IN_SECONDS =
 reject	undocumented	docs	createInteractiveWarehouse_objectParams(MAX_CONCURRENCY_LEVEL_=_NUMBER|STATE~ce66b9b4)/STATEMENT_TIMEOUT_IN_SECONDS_=_NUMBER!insert	CREATE INTERACTIVE WAREHOUSE a STATEMENT_TIMEOUT_IN_SECONDS = 1 zzz
