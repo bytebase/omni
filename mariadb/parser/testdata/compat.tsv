@@ -8027,7 +8027,7 @@ reject	reject	engine	opt_if_exists_table_element/IF_SYM_EXISTS!insert	ALTER TABL
 reject	reject	engine	opt_if_exists_table_element/IF_SYM_EXISTS!swap	ALTER TABLE a DROP IGNORE EXISTS a;
 accept	accept	engine	opt_if_exists/%empty	ALTER TABLE a;
 reject	reject	engine	opt_if_exists/%empty!insert	ALTER TABLE zzz a;
-reject	accept	engine	opt_if_exists/IF_SYM_EXISTS	ALTER TABLE IF EXISTS a;
+accept	accept	engine	opt_if_exists/IF_SYM_EXISTS	ALTER TABLE IF EXISTS a;
 reject	reject	engine	opt_if_exists/IF_SYM_EXISTS!drop-1	ALTER TABLE EXISTS a;
 reject	reject	engine	opt_if_exists/IF_SYM_EXISTS!drop-2	ALTER TABLE IF a;
 reject	reject	engine	opt_if_exists/IF_SYM_EXISTS!truncate	ALTER TABLE IF
@@ -11516,13 +11516,13 @@ accept	accept	engine	set_expr_misc/BINARY!insert	SET autocommit = BINARY zzz;
 accept	accept	engine	set_expr_misc/BINARY!swap	SET autocommit = BINLOG;
 accept	accept	engine	lock/LOCK_SYM_table_or_tables_table_lock_list_opt_lock_wait_timeout	LOCK TABLE a READ;
 accept	accept	engine	opt_lock_wait_timeout/%empty	TRUNCATE a;
-reject	accept	engine	opt_lock_wait_timeout/WAIT_SYM_ulong_num	TRUNCATE a WAIT 1;
+accept	accept	engine	opt_lock_wait_timeout/WAIT_SYM_ulong_num	TRUNCATE a WAIT 1;
 reject	reject	engine	opt_lock_wait_timeout/WAIT_SYM_ulong_num!drop-1	TRUNCATE a 1;
 reject	reject	engine	opt_lock_wait_timeout/WAIT_SYM_ulong_num!drop-2	TRUNCATE a WAIT;
 reject	reject	engine	opt_lock_wait_timeout/WAIT_SYM_ulong_num!truncate	TRUNCATE a WAIT
 reject	reject	engine	opt_lock_wait_timeout/WAIT_SYM_ulong_num!insert	TRUNCATE a WAIT 1 zzz;
 reject	reject	engine	opt_lock_wait_timeout/WAIT_SYM_ulong_num!swap	TRUNCATE a WARNINGS 1;
-reject	accept	engine	opt_lock_wait_timeout/NOWAIT_SYM	TRUNCATE a NOWAIT;
+accept	accept	engine	opt_lock_wait_timeout/NOWAIT_SYM	TRUNCATE a NOWAIT;
 accept	accept	engine	opt_lock_wait_timeout/NOWAIT_SYM!truncate	TRUNCATE a
 reject	reject	engine	opt_lock_wait_timeout/NOWAIT_SYM!insert	TRUNCATE a NOWAIT zzz;
 reject	reject	engine	opt_lock_wait_timeout/NOWAIT_SYM!swap	TRUNCATE a NO_WAIT;

@@ -892,6 +892,9 @@ func writeAlterTableStmt(sb *strings.Builder, n *AlterTableStmt) {
 	if n.Ignore {
 		sb.WriteString(" :ignore true")
 	}
+	if n.IfExists {
+		sb.WriteString(" :if_exists true")
+	}
 	if n.Table != nil {
 		sb.WriteString(" :table ")
 		writeNode(sb, n.Table)
@@ -1064,6 +1067,12 @@ func writeTruncateStmt(sb *strings.Builder, n *TruncateStmt) {
 			}
 			writeNode(sb, t)
 		}
+	}
+	if n.NoWait {
+		sb.WriteString(" :nowait true")
+	}
+	if n.HasWait {
+		fmt.Fprintf(sb, " :wait %s", n.WaitSeconds)
 	}
 	sb.WriteString("}")
 }
