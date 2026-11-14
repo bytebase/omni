@@ -461,3 +461,21 @@ func TestParseAlterTableObjectAndCollectionStorage(t *testing.T) {
 		ParseAndCheck(t, sql)
 	}
 }
+
+// TestParseAlterTableModifyBareColumn covers MODIFY of a column with nothing
+// after it, which Oracle 23ai runs, and a column named twice in the list,
+// which it refuses (ORA-00957).
+func TestParseAlterTableModifyBareColumn(t *testing.T) {
+	for _, sql := range []string{
+		"ALTER TABLE t MODIFY a",
+		"ALTER TABLE t MODIFY (a)",
+		"ALTER TABLE t MODIFY (a, b)",
+		"ALTER TABLE t MODIFY a LOGGING",
+		"ALTER TABLE t MODIFY (a) LOGGING",
+		"ALTER TABLE t MODIFY a DROP IDENTITY",
+	} {
+		ParseAndCheck(t, sql)
+	}
+	ParseShouldFail(t, "ALTER TABLE t MODIFY (a, a)")
+	ParseShouldFail(t, "ALTER TABLE t MODIFY (a NUMBER, a NUMBER)")
+}

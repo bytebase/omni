@@ -8495,7 +8495,7 @@ reject@38	reject@40	engine	alterMaterializedView_modify_lob_storage_clause(,_ID)
 accept	accept	engine	alterMaterializedView_alter_table_partitioning/(alterMaterializedView_modify_table_d~62f7450e)	ALTER MATERIALIZED VIEW a ADD PARTITION
 reject@51	accept	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_modify_table_default_attrs	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES
 reject@26	reject@26	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_modify_table_default_attrs!drop-1	ALTER MATERIALIZED VIEW a DEFAULT ATTRIBUTES
-reject@43	accept	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_modify_table_default_attrs!drop-2	ALTER MATERIALIZED VIEW a MODIFY ATTRIBUTES
+accept	accept	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_modify_table_default_attrs!drop-2	ALTER MATERIALIZED VIEW a MODIFY ATTRIBUTES
 reject@40	reject@40	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_modify_table_default_attrs!drop-3	ALTER MATERIALIZED VIEW a MODIFY DEFAULT
 reject@52	reject@52	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_modify_table_default_attrs!insert	ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES zzz
 reject@26	reject@26	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_modify_table_default_attrs!swap	ALTER MATERIALIZED VIEW a MODULE DEFAULT ATTRIBUTES
@@ -8522,7 +8522,7 @@ reject@52	accept	engine	alterMaterializedView_alter_table_partitioning(alterMate
 reject@26	reject@26	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_set_subpartition_template!swap	ALTER MATERIALIZED VIEW a SETS SUBPARTITION TEMPLATE SUBPARTITIONS 1
 accept	accept	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_modify_table_partition	ALTER MATERIALIZED VIEW a MODIFY PARTITION a
 reject@26	reject@26	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_modify_table_partition!drop-1	ALTER MATERIALIZED VIEW a PARTITION a
-reject@34	accept	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_modify_table_partition!drop-2	ALTER MATERIALIZED VIEW a MODIFY a
+accept	accept	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_modify_table_partition!drop-2	ALTER MATERIALIZED VIEW a MODIFY a
 reject@42	reject@42	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_modify_table_partition!drop-3	ALTER MATERIALIZED VIEW a MODIFY PARTITION
 reject@45	reject@45	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_modify_table_partition!insert	ALTER MATERIALIZED VIEW a MODIFY PARTITION a zzz
 reject@26	reject@26	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_modify_table_partition!swap	ALTER MATERIALIZED VIEW a MODULE PARTITION a
@@ -13257,8 +13257,8 @@ reject@22	reject@22	engine	alterTable(alterTable_alter_table_properties|al~8626a
 reject@14	reject@14	engine	alterTable(alterTable_alter_table_properties|al~8626ab61)/alterTable_alter_table_properties!swap	ALTER TABLE a LOGICAL
 accept	accept	engine	alterTable(alterTable_alter_table_properties|al~8626ab61)/alterTable_column_clauses	ALTER TABLE a MODIFY a VISIBLE
 reject@14	reject@14	engine	alterTable(alterTable_alter_table_properties|al~8626ab61)/alterTable_column_clauses!drop-1	ALTER TABLE a a VISIBLE
-reject@28	accept	engine	alterTable(alterTable_alter_table_properties|al~8626ab61)/alterTable_column_clauses!drop-2	ALTER TABLE a MODIFY VISIBLE
-reject@22	accept	engine	alterTable(alterTable_alter_table_properties|al~8626ab61)/alterTable_column_clauses!drop-3	ALTER TABLE a MODIFY a
+accept	accept	engine	alterTable(alterTable_alter_table_properties|al~8626ab61)/alterTable_column_clauses!drop-2	ALTER TABLE a MODIFY VISIBLE
+accept	accept	engine	alterTable(alterTable_alter_table_properties|al~8626ab61)/alterTable_column_clauses!drop-3	ALTER TABLE a MODIFY a
 reject@31	reject@31	engine	alterTable(alterTable_alter_table_properties|al~8626ab61)/alterTable_column_clauses!insert	ALTER TABLE a MODIFY a VISIBLE zzz
 reject@14	reject@14	engine	alterTable(alterTable_alter_table_properties|al~8626ab61)/alterTable_column_clauses!swap	ALTER TABLE a MODULE a VISIBLE
 reject@17	reject@17	engine	alterTable(alterTable_alter_table_properties|al~8626ab61)/alterTable_constraint_clauses	ALTER TABLE a ADD
@@ -13273,7 +13273,7 @@ accept	accept	engine	alterTable(alterTable_alter_table_properties|al~8626ab61)/a
 reject@19	reject@19	engine	alterTable(alterTable_alter_table_properties|al~8626ab61)/alterTable_move_table_clause!insert	ALTER TABLE a MOVE zzz
 reject@14	reject@14	engine	alterTable(alterTable_alter_table_properties|al~8626ab61)/alterTable_move_table_clause!swap	ALTER TABLE a MOVEMENT
 reject@20	reject@20	engine	alterTable(alterTable_alter_table_properties|al~8626ab61)/alterTable_modify_to_partitioned	ALTER TABLE a MODIFY
-reject@24	accept	engine	alterTable(alterTable_alter_table_properties|al~8626ab61)/alterTable_modify_to_partitioned!insert	ALTER TABLE a MODIFY zzz
+accept	accept	engine	alterTable(alterTable_alter_table_properties|al~8626ab61)/alterTable_modify_to_partitioned!insert	ALTER TABLE a MODIFY zzz
 reject@14	reject@14	engine	alterTable(alterTable_alter_table_properties|al~8626ab61)/alterTable_modify_to_partitioned!swap	ALTER TABLE a MODULE
 reject@43	reject@43	engine	alterTable(alterTable_alter_table_properties|al~8626ab61)/alterTable_modify_opaque_type	ALTER TABLE a MODIFY OPAQUE TYPE a STORE AS(XMLTYPE a)
 reject@14	reject@14	engine	alterTable(alterTable_alter_table_properties|al~8626ab61)/alterTable_modify_opaque_type!drop-1	ALTER TABLE a OPAQUE TYPE a STORE AS(XMLTYPE a)
@@ -13529,7 +13529,7 @@ reject@54	reject@54	engine	alterTable_column_clauses(alterTable_add_column_claus
 reject@14	reject@14	engine	alterTable_column_clauses(alterTable_add_column_clause|alterTa~8e01b512)/alterTable_modify_collection_retrieval!swap	ALTER TABLE a MODULE NESTED TABLE a RETURN AS LOCATOR
 accept	accept	engine	alterTable_column_clauses(alterTable_add_column_clause|alterTa~8e01b512)/alterTable_modify_lob_storage_clause	ALTER TABLE a MODIFY LOB(a)(RETENTION)
 reject@14	reject@14	engine	alterTable_column_clauses(alterTable_add_column_clause|alterTa~8e01b512)/alterTable_modify_lob_storage_clause!drop-1	ALTER TABLE a LOB(a)(RETENTION)
-reject@22	reject@23	engine	alterTable_column_clauses(alterTable_add_column_clause|alterTa~8e01b512)/alterTable_modify_lob_storage_clause!drop-2	ALTER TABLE a MODIFY(a)(RETENTION)
+reject@23	reject@23	engine	alterTable_column_clauses(alterTable_add_column_clause|alterTa~8e01b512)/alterTable_modify_lob_storage_clause!drop-2	ALTER TABLE a MODIFY(a)(RETENTION)
 reject@26	reject@26	engine	alterTable_column_clauses(alterTable_add_column_clause|alterTa~8e01b512)/alterTable_modify_lob_storage_clause!drop-3	ALTER TABLE a MODIFY LOB a)(RETENTION)
 reject@25	reject@25	engine	alterTable_column_clauses(alterTable_add_column_clause|alterTa~8e01b512)/alterTable_modify_lob_storage_clause!drop-4	ALTER TABLE a MODIFY LOB()(RETENTION)
 reject@37	accept	engine	alterTable_column_clauses(alterTable_add_column_clause|alterTa~8e01b512)/alterTable_modify_lob_storage_clause!drop-5	ALTER TABLE a MODIFY LOB(a(RETENTION)
@@ -13585,7 +13585,7 @@ reject@17	reject@17	engine	alterTable_constraint_clauses(alterTable_out_of_line_
 reject@33	reject@33	engine	alterTable_constraint_clauses(CONSTRAINT_ID|PRIMARY_KEY|UNIQUE_(_I~c14d2f22)/CONSTRAINT_ID	ALTER TABLE a MODIFY CONSTRAINT a
 reject@34	reject@34	engine	alterTable_constraint_clauses(CONSTRAINT_ID|PRIMARY_KEY|UNIQUE_(_I~c14d2f22)/CONSTRAINT_ID!swap	ALTER TABLE a MODIFY CONSTRAINTS a
 reject@32	reject@32	engine	alterTable_constraint_clauses(CONSTRAINT_ID|PRIMARY_KEY|UNIQUE_(_I~c14d2f22)/PRIMARY_KEY	ALTER TABLE a MODIFY PRIMARY KEY
-reject@24	accept	engine	alterTable_constraint_clauses(CONSTRAINT_ID|PRIMARY_KEY|UNIQUE_(_I~c14d2f22)/PRIMARY_KEY!drop-1	ALTER TABLE a MODIFY KEY
+accept	accept	engine	alterTable_constraint_clauses(CONSTRAINT_ID|PRIMARY_KEY|UNIQUE_(_I~c14d2f22)/PRIMARY_KEY!drop-1	ALTER TABLE a MODIFY KEY
 reject@28	reject@28	engine	alterTable_constraint_clauses(CONSTRAINT_ID|PRIMARY_KEY|UNIQUE_(_I~c14d2f22)/PRIMARY_KEY!drop-2	ALTER TABLE a MODIFY PRIMARY
 reject@33	reject@33	engine	alterTable_constraint_clauses(CONSTRAINT_ID|PRIMARY_KEY|UNIQUE_(_I~c14d2f22)/PRIMARY_KEY!insert	ALTER TABLE a MODIFY PRIMARY KEY zzz
 reject@30	accept	engine	alterTable_constraint_clauses(CONSTRAINT_ID|PRIMARY_KEY|UNIQUE_(_I~c14d2f22)/PRIMARY_KEY!swap	ALTER TABLE a MODIFY PRIORITY KEY
@@ -13609,7 +13609,7 @@ reject@34	reject@34	engine	alterTable_constraint_clauses(CASCADE)?/CASCADE!swap	
 accept	accept	engine	alterTable_alter_table_partitioning/(alterTable_modify_table_default_attr~6613a821)	ALTER TABLE a ADD PARTITION
 reject@39	reject@39	engine	alterTable_alter_table_partitioning(alterTable_modify_table_default_attr~6613a821)/alterTable_modify_table_default_attrs	ALTER TABLE a MODIFY DEFAULT ATTRIBUTES
 reject@22	reject@22	engine	alterTable_alter_table_partitioning(alterTable_modify_table_default_attr~6613a821)/alterTable_modify_table_default_attrs!drop-1	ALTER TABLE a DEFAULT ATTRIBUTES
-reject@31	accept	engine	alterTable_alter_table_partitioning(alterTable_modify_table_default_attr~6613a821)/alterTable_modify_table_default_attrs!drop-2	ALTER TABLE a MODIFY ATTRIBUTES
+accept	accept	engine	alterTable_alter_table_partitioning(alterTable_modify_table_default_attr~6613a821)/alterTable_modify_table_default_attrs!drop-2	ALTER TABLE a MODIFY ATTRIBUTES
 reject@28	reject@28	engine	alterTable_alter_table_partitioning(alterTable_modify_table_default_attr~6613a821)/alterTable_modify_table_default_attrs!drop-3	ALTER TABLE a MODIFY DEFAULT
 reject@40	reject@40	engine	alterTable_alter_table_partitioning(alterTable_modify_table_default_attr~6613a821)/alterTable_modify_table_default_attrs!insert	ALTER TABLE a MODIFY DEFAULT ATTRIBUTES zzz
 reject@14	reject@14	engine	alterTable_alter_table_partitioning(alterTable_modify_table_default_attr~6613a821)/alterTable_modify_table_default_attrs!swap	ALTER TABLE a MODULE DEFAULT ATTRIBUTES
@@ -13800,10 +13800,10 @@ reject@21	reject@21	engine	alterTable_modify_to_partitioned(alterTable_filter_co
 reject@20	reject@20	engine	alterTable_modify_to_partitioned(ONLINE)?/%empty	ALTER TABLE a MODIFY
 reject@21	reject@21	engine	alterTable_modify_to_partitioned(ONLINE)?/ONLINE	ALTER TABLE a MODIFY ONLINE
 reject@21	reject@21	engine	alterTable_modify_to_partitioned(ONLINE)?/ONLINE!insert	ALTER TABLE a MODIFY ONLINE zzz
-reject@25	accept	engine	alterTable_modify_to_partitioned(ONLINE)?/ONLINE!swap	ALTER TABLE a MODIFY ONLY
+accept	accept	engine	alterTable_modify_to_partitioned(ONLINE)?/ONLINE!swap	ALTER TABLE a MODIFY ONLY
 reject@20	reject@20	engine	alterTable_modify_to_partitioned(alterTable_update_index_clauses)?/%empty	ALTER TABLE a MODIFY
 reject@21	reject@21	engine	alterTable_modify_to_partitioned(alterTable_update_index_clauses)?/alterTable_update_index_clauses	ALTER TABLE a MODIFY UPDATE INDEXES
-reject@28	accept	engine	alterTable_modify_to_partitioned(alterTable_update_index_clauses)?/alterTable_update_index_clauses!drop-1	ALTER TABLE a MODIFY INDEXES
+accept	accept	engine	alterTable_modify_to_partitioned(alterTable_update_index_clauses)?/alterTable_update_index_clauses!drop-1	ALTER TABLE a MODIFY INDEXES
 reject@21	reject@21	engine	alterTable_modify_to_partitioned(alterTable_update_index_clauses)?/alterTable_update_index_clauses!drop-2	ALTER TABLE a MODIFY UPDATE
 reject@21	reject@21	engine	alterTable_modify_to_partitioned(alterTable_update_index_clauses)?/alterTable_update_index_clauses!insert	ALTER TABLE a MODIFY UPDATE INDEXES zzz
 accept	accept	engine	alterTable_modify_to_partitioned(alterTable_update_index_clauses)?/alterTable_update_index_clauses!swap	ALTER TABLE a MODIFY UPDATED INDEXES
@@ -14365,11 +14365,11 @@ reject@35	reject@35	engine	alterTable_add_column_clause(alterTable_column_proper
 reject@38	reject@38	engine	alterTable_add_column_clause(alterTable_column_properties)?/alterTable_column_properties!insert	ALTER TABLE a ADD(a NUMBER) XMLTYPE a zzz
 reject@28	reject@28	engine	alterTable_add_column_clause(alterTable_column_properties)?/alterTable_column_properties!swap	ALTER TABLE a ADD(a NUMBER) XS a
 accept	accept	engine	alterTable_modify_column_clauses/MODIFY_((_alterTable_modify_col_properties_(~824656fb)	ALTER TABLE a MODIFY a VISIBLE
-reject@22	accept	engine	alterTable_modify_column_clauses((_alterTable_modify_col_properties_(~824656fb)/(_alterTable_modify_col_properties_(,_alterTable_modify~180d05fa	ALTER TABLE a MODIFY(a)
+accept	accept	engine	alterTable_modify_column_clauses((_alterTable_modify_col_properties_(~824656fb)/(_alterTable_modify_col_properties_(,_alterTable_modify~180d05fa	ALTER TABLE a MODIFY(a)
 reject@22	reject@22	engine	alterTable_modify_column_clauses((_alterTable_modify_col_properties_(~824656fb)/(_alterTable_modify_col_properties_(,_alterTable_modify~180d05fa!drop-1	ALTER TABLE a MODIFY a)
 reject@21	reject@21	engine	alterTable_modify_column_clauses((_alterTable_modify_col_properties_(~824656fb)/(_alterTable_modify_col_properties_(,_alterTable_modify~180d05fa!drop-2	ALTER TABLE a MODIFY()
 reject@22	reject@22	engine	alterTable_modify_column_clauses((_alterTable_modify_col_properties_(~824656fb)/(_alterTable_modify_col_properties_(,_alterTable_modify~180d05fa!drop-3	ALTER TABLE a MODIFY(a
-reject@22	reject@24	engine	alterTable_modify_column_clauses((_alterTable_modify_col_properties_(~824656fb)/(_alterTable_modify_col_properties_(,_alterTable_modify~180d05fa!insert	ALTER TABLE a MODIFY(a) zzz
+reject@24	reject@24	engine	alterTable_modify_column_clauses((_alterTable_modify_col_properties_(~824656fb)/(_alterTable_modify_col_properties_(,_alterTable_modify~180d05fa!insert	ALTER TABLE a MODIFY(a) zzz
 accept	accept	engine	alterTable_modify_column_clauses((_alterTable_modify_col_properties_(~824656fb)/(_alterTable_modify_virtcol_properties_(,_alterTable_mo~52c4d090	ALTER TABLE a MODIFY(a AS(1))
 reject@28	reject@28	engine	alterTable_modify_column_clauses((_alterTable_modify_col_properties_(~824656fb)/(_alterTable_modify_virtcol_properties_(,_alterTable_mo~52c4d090!drop-1	ALTER TABLE a MODIFY a AS(1))
 reject@21	reject@21	engine	alterTable_modify_column_clauses((_alterTable_modify_col_properties_(~824656fb)/(_alterTable_modify_virtcol_properties_(,_alterTable_mo~52c4d090!drop-2	ALTER TABLE a MODIFY(AS(1))
@@ -14390,16 +14390,16 @@ reject@47	reject@47	engine	alterTable_modify_column_clauses((_alterTable_modify_
 reject@50	reject@50	engine	alterTable_modify_column_clauses((_alterTable_modify_col_properties_(~824656fb)/alterTable_modify_col_substitutable!drop-6	ALTER TABLE a MODIFY COLUMN a SUBSTITUTABLE AT ALL
 reject@58	reject@58	engine	alterTable_modify_column_clauses((_alterTable_modify_col_properties_(~824656fb)/alterTable_modify_col_substitutable!insert	ALTER TABLE a MODIFY COLUMN a SUBSTITUTABLE AT ALL LEVELS zzz
 reject@31	reject@31	engine	alterTable_modify_column_clauses((_alterTable_modify_col_properties_(~824656fb)/alterTable_modify_col_substitutable!swap	ALTER TABLE a MODIFY COLUMNS a SUBSTITUTABLE AT ALL LEVELS
-reject@22	accept	engine	alterTable_modify_column_clauses(,_alterTable_modify_col_properties)*/%empty	ALTER TABLE a MODIFY(a)
+accept	accept	engine	alterTable_modify_column_clauses(,_alterTable_modify_col_properties)*/%empty	ALTER TABLE a MODIFY(a)
 accept	accept	engine	alterTable_modify_column_clauses(,_alterTable_modify_col_properties)*/%empty!insert	ALTER TABLE a MODIFY(a zzz)
-reject@22	reject@24	engine	alterTable_modify_column_clauses(,_alterTable_modify_col_properties)*/,_alterTable_modify_col_properties_(,_alterTable_modify~6745ba4b	ALTER TABLE a MODIFY(a, a)
+reject@24	reject@24	engine	alterTable_modify_column_clauses(,_alterTable_modify_col_properties)*/,_alterTable_modify_col_properties_(,_alterTable_modify~6745ba4b	ALTER TABLE a MODIFY(a, a)
 accept	accept	engine	alterTable_modify_column_clauses(,_alterTable_modify_col_properties)*/,_alterTable_modify_col_properties_(,_alterTable_modify~6745ba4b!drop-1	ALTER TABLE a MODIFY(a a)
-reject@22	reject@23	engine	alterTable_modify_column_clauses(,_alterTable_modify_col_properties)*/,_alterTable_modify_col_properties_(,_alterTable_modify~6745ba4b!drop-2	ALTER TABLE a MODIFY(a,)
+reject@23	reject@23	engine	alterTable_modify_column_clauses(,_alterTable_modify_col_properties)*/,_alterTable_modify_col_properties_(,_alterTable_modify~6745ba4b!drop-2	ALTER TABLE a MODIFY(a,)
 reject@23	reject@23	engine	alterTable_modify_column_clauses(,_alterTable_modify_col_properties)*/,_alterTable_modify_col_properties_(,_alterTable_modify~6745ba4b!truncate	ALTER TABLE a MODIFY(a,
-reject@22	reject@24	engine	alterTable_modify_column_clauses(,_alterTable_modify_col_properties)*/,_alterTable_modify_col_properties_(,_alterTable_modify~6745ba4b!insert	ALTER TABLE a MODIFY(a, a zzz)
+reject@24	reject@24	engine	alterTable_modify_column_clauses(,_alterTable_modify_col_properties)*/,_alterTable_modify_col_properties_(,_alterTable_modify~6745ba4b!insert	ALTER TABLE a MODIFY(a, a zzz)
 accept	accept	engine	alterTable_modify_column_clauses(,_alterTable_modify_virtcol_properties)*/%empty	ALTER TABLE a MODIFY(a AS(1))
 reject@29	reject@29	engine	alterTable_modify_column_clauses(,_alterTable_modify_virtcol_properties)*/%empty!insert	ALTER TABLE a MODIFY(a AS(1) zzz)
-accept	reject@30	engine	alterTable_modify_column_clauses(,_alterTable_modify_virtcol_properties)*/,_alterTable_modify_virtcol_properties_(,_alterTable_mo~389a4d9a	ALTER TABLE a MODIFY(a AS(1), a AS(1))
+reject@30	reject@30	engine	alterTable_modify_column_clauses(,_alterTable_modify_virtcol_properties)*/,_alterTable_modify_virtcol_properties_(,_alterTable_mo~389a4d9a	ALTER TABLE a MODIFY(a AS(1), a AS(1))
 reject@29	reject@29	engine	alterTable_modify_column_clauses(,_alterTable_modify_virtcol_properties)*/,_alterTable_modify_virtcol_properties_(,_alterTable_mo~389a4d9a!drop-1	ALTER TABLE a MODIFY(a AS(1) a AS(1))
 reject@30	reject@30	engine	alterTable_modify_column_clauses(,_alterTable_modify_virtcol_properties)*/,_alterTable_modify_virtcol_properties_(,_alterTable_mo~389a4d9a!drop-2	ALTER TABLE a MODIFY(a AS(1), AS(1))
 reject@31	reject@30	engine	alterTable_modify_column_clauses(,_alterTable_modify_virtcol_properties)*/,_alterTable_modify_virtcol_properties_(,_alterTable_mo~389a4d9a!drop-3	ALTER TABLE a MODIFY(a AS(1), a(1))
@@ -14407,7 +14407,7 @@ reject@37	reject@30	engine	alterTable_modify_column_clauses(,_alterTable_modify_
 reject@35	reject@30	engine	alterTable_modify_column_clauses(,_alterTable_modify_virtcol_properties)*/,_alterTable_modify_virtcol_properties_(,_alterTable_mo~389a4d9a!drop-5	ALTER TABLE a MODIFY(a AS(1), a AS())
 reject@37	reject@30	engine	alterTable_modify_column_clauses(,_alterTable_modify_virtcol_properties)*/,_alterTable_modify_virtcol_properties_(,_alterTable_mo~389a4d9a!drop-6	ALTER TABLE a MODIFY(a AS(1), a AS(1)
 reject@36	reject@30	engine	alterTable_modify_column_clauses(,_alterTable_modify_virtcol_properties)*/,_alterTable_modify_virtcol_properties_(,_alterTable_mo~389a4d9a!truncate	ALTER TABLE a MODIFY(a AS(1), a AS(1
-reject@38	reject@30	engine	alterTable_modify_column_clauses(,_alterTable_modify_virtcol_properties)*/,_alterTable_modify_virtcol_properties_(,_alterTable_mo~389a4d9a!insert	ALTER TABLE a MODIFY(a AS(1), a AS(1) zzz)
+reject@30	reject@30	engine	alterTable_modify_column_clauses(,_alterTable_modify_virtcol_properties)*/,_alterTable_modify_virtcol_properties_(,_alterTable_mo~389a4d9a!insert	ALTER TABLE a MODIFY(a AS(1), a AS(1) zzz)
 reject@32	reject@30	engine	alterTable_modify_column_clauses(,_alterTable_modify_virtcol_properties)*/,_alterTable_modify_virtcol_properties_(,_alterTable_mo~389a4d9a!swap	ALTER TABLE a MODIFY(a AS(1), a ASC(1))
 accept	accept	engine	alterTable_drop_column_clause/(SET_UNUSED_(COLUMN_ID|(_ID_(,_ID)*_)~5230dfed)	ALTER TABLE a DROP COLUMN a
 accept	accept	engine	alterTable_drop_column_clause(SET_UNUSED_(COLUMN_ID|(_ID_(,_ID)*_)~5230dfed)/SET_UNUSED_(COLUMN_ID|(_ID_(,_ID)*_))_((CASCADE_CONSTRA~10dcaad2	ALTER TABLE a SET UNUSED COLUMN a
@@ -16208,19 +16208,19 @@ accept	accept	engine	alterTable_virtual_column_definition(alterTable_inline_cons
 accept	accept	engine	alterTable_virtual_column_definition(alterTable_inline_constraint)*/alterTable_inline_constraint_(alterTable_inline_constraint)*	ALTER TABLE a ADD(a AS(1) NULL)
 reject@31	reject@31	engine	alterTable_virtual_column_definition(alterTable_inline_constraint)*/alterTable_inline_constraint_(alterTable_inline_constraint)*!insert	ALTER TABLE a ADD(a AS(1) NULL zzz)
 reject@26	reject@26	engine	alterTable_virtual_column_definition(alterTable_inline_constraint)*/alterTable_inline_constraint_(alterTable_inline_constraint)*!swap	ALTER TABLE a ADD(a AS(1) NULLS)
-reject@22	accept	engine	alterTable_modify_col_properties/ID_(DATA_TYPE)?_(COLLATE_ID)?_(DEFAULT_(ON_NULL)?_EXPR|~1bd8d05a	ALTER TABLE a MODIFY(a)
+accept	accept	engine	alterTable_modify_col_properties/ID_(DATA_TYPE)?_(COLLATE_ID)?_(DEFAULT_(ON_NULL)?_EXPR|~1bd8d05a	ALTER TABLE a MODIFY(a)
 reject@21	reject@21	engine	alterTable_modify_col_properties/ID_(DATA_TYPE)?_(COLLATE_ID)?_(DEFAULT_(ON_NULL)?_EXPR|~1bd8d05a!truncate	ALTER TABLE a MODIFY(
-reject@22	accept	engine	alterTable_modify_col_properties(DATA_TYPE)?/%empty	ALTER TABLE a MODIFY(a)
+accept	accept	engine	alterTable_modify_col_properties(DATA_TYPE)?/%empty	ALTER TABLE a MODIFY(a)
 accept	accept	engine	alterTable_modify_col_properties(DATA_TYPE)?/DATA_TYPE	ALTER TABLE a MODIFY(a NUMBER)
 reject@30	reject@30	engine	alterTable_modify_col_properties(DATA_TYPE)?/DATA_TYPE!insert	ALTER TABLE a MODIFY(a NUMBER zzz)
 accept	accept	engine	alterTable_modify_col_properties(DATA_TYPE)?/DATA_TYPE!swap	ALTER TABLE a MODIFY(a OBJECT)
-reject@22	accept	engine	alterTable_modify_col_properties(COLLATE_ID)?/%empty	ALTER TABLE a MODIFY(a)
+accept	accept	engine	alterTable_modify_col_properties(COLLATE_ID)?/%empty	ALTER TABLE a MODIFY(a)
 reject@23	reject@0	engine	alterTable_modify_col_properties(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a MODIFY(a COLLATE a)
 reject@23	reject@0	engine	alterTable_modify_col_properties(COLLATE_ID)?/COLLATE_ID!drop-2	ALTER TABLE a MODIFY(a COLLATE)
 reject@30	reject@0	engine	alterTable_modify_col_properties(COLLATE_ID)?/COLLATE_ID!truncate	ALTER TABLE a MODIFY(a COLLATE
 reject@23	reject@0	engine	alterTable_modify_col_properties(COLLATE_ID)?/COLLATE_ID!insert	ALTER TABLE a MODIFY(a COLLATE a zzz)
 reject@33	reject@33	engine	alterTable_modify_col_properties(COLLATE_ID)?/COLLATE_ID!swap	ALTER TABLE a MODIFY(a COLLATION a)
-reject@22	accept	engine	alterTable_modify_col_properties(DEFAULT_(ON_NULL)?_EXPR|alterTable_i~a005e8ec)?/%empty	ALTER TABLE a MODIFY(a)
+accept	accept	engine	alterTable_modify_col_properties(DEFAULT_(ON_NULL)?_EXPR|alterTable_i~a005e8ec)?/%empty	ALTER TABLE a MODIFY(a)
 accept	accept	engine	alterTable_modify_col_properties(DEFAULT_(ON_NULL)?_EXPR|alterTable_i~a005e8ec)?/DEFAULT_(ON_NULL)?_EXPR	ALTER TABLE a MODIFY(a DEFAULT 1)
 reject@23	reject@23	engine	alterTable_modify_col_properties(DEFAULT_(ON_NULL)?_EXPR|alterTable_i~a005e8ec)?/DEFAULT_(ON_NULL)?_EXPR!drop-1	ALTER TABLE a MODIFY(a 1)
 reject@30	reject@30	engine	alterTable_modify_col_properties(DEFAULT_(ON_NULL)?_EXPR|alterTable_i~a005e8ec)?/DEFAULT_(ON_NULL)?_EXPR!drop-2	ALTER TABLE a MODIFY(a DEFAULT)
@@ -16249,7 +16249,7 @@ reject@31	reject@34	engine	alterTable_modify_col_properties(ON_NULL)?/ON_NULL!dr
 reject@33	reject@33	engine	alterTable_modify_col_properties(ON_NULL)?/ON_NULL!truncate	ALTER TABLE a MODIFY(a DEFAULT ON
 reject@43	reject@43	engine	alterTable_modify_col_properties(ON_NULL)?/ON_NULL!insert	ALTER TABLE a MODIFY(a DEFAULT ON NULL zzz 1)
 reject@40	reject@40	engine	alterTable_modify_col_properties(ON_NULL)?/ON_NULL!swap	ALTER TABLE a MODIFY(a DEFAULT ONE NULL 1)
-reject@22	accept	engine	alterTable_modify_col_properties((ENCRYPT_alterTable_encryption_spec|DECRYPT))?/%empty	ALTER TABLE a MODIFY(a)
+accept	accept	engine	alterTable_modify_col_properties((ENCRYPT_alterTable_encryption_spec|DECRYPT))?/%empty	ALTER TABLE a MODIFY(a)
 accept	accept	engine	alterTable_modify_col_properties((ENCRYPT_alterTable_encryption_spec|DECRYPT))?/(ENCRYPT_alterTable_encryption_spec|DECRYPT)	ALTER TABLE a MODIFY(a ENCRYPT)
 reject@31	reject@31	engine	alterTable_modify_col_properties((ENCRYPT_alterTable_encryption_spec|DECRYPT))?/(ENCRYPT_alterTable_encryption_spec|DECRYPT)!insert	ALTER TABLE a MODIFY(a ENCRYPT zzz)
 accept	accept	engine	alterTable_modify_col_properties((ENCRYPT_alterTable_encryption_spec|DECRYPT))?/(ENCRYPT_alterTable_encryption_spec|DECRYPT)!swap	ALTER TABLE a MODIFY(a ENCRYPTION)
@@ -16257,11 +16257,11 @@ accept	accept	engine	alterTable_modify_col_properties(ENCRYPT_alterTable_encrypt
 accept	accept	engine	alterTable_modify_col_properties(ENCRYPT_alterTable_encryption_spec|DECRYPT)/DECRYPT	ALTER TABLE a MODIFY(a DECRYPT)
 reject@31	reject@31	engine	alterTable_modify_col_properties(ENCRYPT_alterTable_encryption_spec|DECRYPT)/DECRYPT!insert	ALTER TABLE a MODIFY(a DECRYPT zzz)
 accept	accept	engine	alterTable_modify_col_properties(ENCRYPT_alterTable_encryption_spec|DECRYPT)/DECRYPT!swap	ALTER TABLE a MODIFY(a DEDUPLICATE)
-reject@22	accept	engine	alterTable_modify_col_properties(alterTable_inline_constraint)*/%empty	ALTER TABLE a MODIFY(a)
+accept	accept	engine	alterTable_modify_col_properties(alterTable_inline_constraint)*/%empty	ALTER TABLE a MODIFY(a)
 accept	accept	engine	alterTable_modify_col_properties(alterTable_inline_constraint)*/alterTable_inline_constraint_(alterTable_inline_constraint)*	ALTER TABLE a MODIFY(a NULL)
 reject@28	reject@28	engine	alterTable_modify_col_properties(alterTable_inline_constraint)*/alterTable_inline_constraint_(alterTable_inline_constraint)*!insert	ALTER TABLE a MODIFY(a NULL zzz)
 reject@23	accept	engine	alterTable_modify_col_properties(alterTable_inline_constraint)*/alterTable_inline_constraint_(alterTable_inline_constraint)*!swap	ALTER TABLE a MODIFY(a NULLS)
-reject@22	accept	engine	alterTable_modify_col_properties(alterTable_lob_storage_clause)?/%empty	ALTER TABLE a MODIFY(a)
+accept	accept	engine	alterTable_modify_col_properties(alterTable_lob_storage_clause)?/%empty	ALTER TABLE a MODIFY(a)
 reject@26	reject@23	engine	alterTable_modify_col_properties(alterTable_lob_storage_clause)?/alterTable_lob_storage_clause	ALTER TABLE a MODIFY(a LOB(a) STORE AS(LOGGING))
 reject@22	reject@22	engine	alterTable_modify_col_properties(alterTable_lob_storage_clause)?/alterTable_lob_storage_clause!drop-1	ALTER TABLE a MODIFY(a(a) STORE AS(LOGGING))
 reject@47	reject@27	engine	alterTable_modify_col_properties(alterTable_lob_storage_clause)?/alterTable_lob_storage_clause!drop-2	ALTER TABLE a MODIFY(a LOB a) STORE AS(LOGGING))
@@ -16275,14 +16275,14 @@ reject@47	reject@23	engine	alterTable_modify_col_properties(alterTable_lob_stora
 reject@46	reject@23	engine	alterTable_modify_col_properties(alterTable_lob_storage_clause)?/alterTable_lob_storage_clause!truncate	ALTER TABLE a MODIFY(a LOB(a) STORE AS(LOGGING
 reject@26	reject@23	engine	alterTable_modify_col_properties(alterTable_lob_storage_clause)?/alterTable_lob_storage_clause!insert	ALTER TABLE a MODIFY(a LOB(a) STORE AS(LOGGING) zzz)
 reject@27	reject@23	engine	alterTable_modify_col_properties(alterTable_lob_storage_clause)?/alterTable_lob_storage_clause!swap	ALTER TABLE a MODIFY(a LOBS(a) STORE AS(LOGGING))
-reject@22	accept	engine	alterTable_modify_col_properties(alterTable_alter_xmlschema_clause)?/%empty	ALTER TABLE a MODIFY(a)
+accept	accept	engine	alterTable_modify_col_properties(alterTable_alter_xmlschema_clause)?/%empty	ALTER TABLE a MODIFY(a)
 reject@29	reject@29	engine	alterTable_modify_col_properties(alterTable_alter_xmlschema_clause)?/alterTable_alter_xmlschema_clause	ALTER TABLE a MODIFY(a ALLOW ANYSCHEMA)
 accept	accept	engine	alterTable_modify_col_properties(alterTable_alter_xmlschema_clause)?/alterTable_alter_xmlschema_clause!drop-1	ALTER TABLE a MODIFY(a ANYSCHEMA)
 accept	accept	engine	alterTable_modify_col_properties(alterTable_alter_xmlschema_clause)?/alterTable_alter_xmlschema_clause!drop-2	ALTER TABLE a MODIFY(a ALLOW)
 reject@28	reject@28	engine	alterTable_modify_col_properties(alterTable_alter_xmlschema_clause)?/alterTable_alter_xmlschema_clause!truncate	ALTER TABLE a MODIFY(a ALLOW
 reject@29	reject@29	engine	alterTable_modify_col_properties(alterTable_alter_xmlschema_clause)?/alterTable_alter_xmlschema_clause!insert	ALTER TABLE a MODIFY(a ALLOW ANYSCHEMA zzz)
 reject@23	reject@23	engine	alterTable_modify_col_properties(alterTable_alter_xmlschema_clause)?/alterTable_alter_xmlschema_clause!swap	ALTER TABLE a MODIFY(a ALTER ANYSCHEMA)
-reject@22	accept	engine	alterTable_modify_col_properties(alterTable_annotations_clause)?/%empty	ALTER TABLE a MODIFY(a)
+accept	accept	engine	alterTable_modify_col_properties(alterTable_annotations_clause)?/%empty	ALTER TABLE a MODIFY(a)
 reject@41	accept	engine	alterTable_modify_col_properties(alterTable_annotations_clause)?/alterTable_annotations_clause	ALTER TABLE a MODIFY(a ANNOTATIONS(ADD a))
 reject@22	reject@22	engine	alterTable_modify_col_properties(alterTable_annotations_clause)?/alterTable_annotations_clause!drop-1	ALTER TABLE a MODIFY(a(ADD a))
 reject@41	reject@35	engine	alterTable_modify_col_properties(alterTable_annotations_clause)?/alterTable_annotations_clause!drop-2	ALTER TABLE a MODIFY(a ANNOTATIONS ADD a))
@@ -17385,27 +17385,27 @@ reject@34	reject@34	engine	alterTable_system_partitioning(PARTITION_BY_SYSTEM)?/
 reject@20	reject@20	engine	alterTable_system_partitioning(PARTITIONS_NUMBER|(_PARTITION_ID?_al~040f21d6)?/%empty	ALTER TABLE a MODIFY
 reject@32	reject@32	engine	alterTable_system_partitioning(PARTITIONS_NUMBER|(_PARTITION_ID?_al~040f21d6)?/PARTITIONS_NUMBER	ALTER TABLE a MODIFY PARTITIONS 1
 reject@21	reject@21	engine	alterTable_system_partitioning(PARTITIONS_NUMBER|(_PARTITION_ID?_al~040f21d6)?/PARTITIONS_NUMBER!drop-1	ALTER TABLE a MODIFY 1
-reject@31	accept	engine	alterTable_system_partitioning(PARTITIONS_NUMBER|(_PARTITION_ID?_al~040f21d6)?/PARTITIONS_NUMBER!drop-2	ALTER TABLE a MODIFY PARTITIONS
+accept	accept	engine	alterTable_system_partitioning(PARTITIONS_NUMBER|(_PARTITION_ID?_al~040f21d6)?/PARTITIONS_NUMBER!drop-2	ALTER TABLE a MODIFY PARTITIONS
 reject@32	reject@32	engine	alterTable_system_partitioning(PARTITIONS_NUMBER|(_PARTITION_ID?_al~040f21d6)?/PARTITIONS_NUMBER!insert	ALTER TABLE a MODIFY PARTITIONS 1 zzz
 reject@34	reject@21	engine	alterTable_system_partitioning(PARTITIONS_NUMBER|(_PARTITION_ID?_al~040f21d6)?/PARTITIONS_NUMBER!swap	ALTER TABLE a MODIFY PARTITIONSET 1
-reject@30	accept	engine	alterTable_system_partitioning(PARTITIONS_NUMBER|(_PARTITION_ID?_al~040f21d6)?/(_PARTITION_(ID)?_(alterTable_table_partition_descripti~75f3676f	ALTER TABLE a MODIFY(PARTITION)
+accept	accept	engine	alterTable_system_partitioning(PARTITIONS_NUMBER|(_PARTITION_ID?_al~040f21d6)?/(_PARTITION_(ID)?_(alterTable_table_partition_descripti~75f3676f	ALTER TABLE a MODIFY(PARTITION)
 reject@30	reject@30	engine	alterTable_system_partitioning(PARTITIONS_NUMBER|(_PARTITION_ID?_al~040f21d6)?/(_PARTITION_(ID)?_(alterTable_table_partition_descripti~75f3676f!drop-1	ALTER TABLE a MODIFY PARTITION)
 reject@30	reject@30	engine	alterTable_system_partitioning(PARTITIONS_NUMBER|(_PARTITION_ID?_al~040f21d6)?/(_PARTITION_(ID)?_(alterTable_table_partition_descripti~75f3676f!drop-3	ALTER TABLE a MODIFY(PARTITION
-reject@30	reject@32	engine	alterTable_system_partitioning(PARTITIONS_NUMBER|(_PARTITION_ID?_al~040f21d6)?/(_PARTITION_(ID)?_(alterTable_table_partition_descripti~75f3676f!insert	ALTER TABLE a MODIFY(PARTITION) zzz
-reject@33	accept	engine	alterTable_system_partitioning(PARTITIONS_NUMBER|(_PARTITION_ID?_al~040f21d6)?/(_PARTITION_(ID)?_(alterTable_table_partition_descripti~75f3676f!swap	ALTER TABLE a MODIFY(PARTITIONING)
-reject@30	accept	engine	alterTable_system_partitioning(ID)?/%empty	ALTER TABLE a MODIFY(PARTITION)
+reject@32	reject@32	engine	alterTable_system_partitioning(PARTITIONS_NUMBER|(_PARTITION_ID?_al~040f21d6)?/(_PARTITION_(ID)?_(alterTable_table_partition_descripti~75f3676f!insert	ALTER TABLE a MODIFY(PARTITION) zzz
+accept	accept	engine	alterTable_system_partitioning(PARTITIONS_NUMBER|(_PARTITION_ID?_al~040f21d6)?/(_PARTITION_(ID)?_(alterTable_table_partition_descripti~75f3676f!swap	ALTER TABLE a MODIFY(PARTITIONING)
+accept	accept	engine	alterTable_system_partitioning(ID)?/%empty	ALTER TABLE a MODIFY(PARTITION)
 accept	accept	engine	alterTable_system_partitioning(ID)?/%empty!insert	ALTER TABLE a MODIFY(PARTITION zzz)
 accept	accept	engine	alterTable_system_partitioning(ID)?/ID	ALTER TABLE a MODIFY(PARTITION a)
 reject@33	reject@33	engine	alterTable_system_partitioning(ID)?/ID!insert	ALTER TABLE a MODIFY(PARTITION a zzz)
-reject@30	accept	engine	alterTable_system_partitioning(alterTable_table_partition_description)?/%empty	ALTER TABLE a MODIFY(PARTITION)
-reject@30	accept	engine	alterTable_system_partitioning(alterTable_table_partition_description)?/alterTable_table_partition_description	ALTER TABLE a MODIFY(PARTITION)
-reject@30	accept	engine	alterTable_system_partitioning(,_PARTITION_ID?_alterTable_table_par~f066a953)*/%empty	ALTER TABLE a MODIFY(PARTITION)
-reject@30	reject@32	engine	alterTable_system_partitioning(,_PARTITION_ID?_alterTable_table_par~f066a953)*/,_PARTITION_(ID)?_(alterTable_table_partition_descripti~245cd2f0	ALTER TABLE a MODIFY(PARTITION, PARTITION)
+accept	accept	engine	alterTable_system_partitioning(alterTable_table_partition_description)?/%empty	ALTER TABLE a MODIFY(PARTITION)
+accept	accept	engine	alterTable_system_partitioning(alterTable_table_partition_description)?/alterTable_table_partition_description	ALTER TABLE a MODIFY(PARTITION)
+accept	accept	engine	alterTable_system_partitioning(,_PARTITION_ID?_alterTable_table_par~f066a953)*/%empty	ALTER TABLE a MODIFY(PARTITION)
+reject@32	reject@32	engine	alterTable_system_partitioning(,_PARTITION_ID?_alterTable_table_par~f066a953)*/,_PARTITION_(ID)?_(alterTable_table_partition_descripti~245cd2f0	ALTER TABLE a MODIFY(PARTITION, PARTITION)
 reject@31	accept	engine	alterTable_system_partitioning(,_PARTITION_ID?_alterTable_table_par~f066a953)*/,_PARTITION_(ID)?_(alterTable_table_partition_descripti~245cd2f0!drop-1	ALTER TABLE a MODIFY(PARTITION PARTITION)
-reject@30	reject@31	engine	alterTable_system_partitioning(,_PARTITION_ID?_alterTable_table_par~f066a953)*/,_PARTITION_(ID)?_(alterTable_table_partition_descripti~245cd2f0!drop-2	ALTER TABLE a MODIFY(PARTITION,)
+reject@31	reject@31	engine	alterTable_system_partitioning(,_PARTITION_ID?_alterTable_table_par~f066a953)*/,_PARTITION_(ID)?_(alterTable_table_partition_descripti~245cd2f0!drop-2	ALTER TABLE a MODIFY(PARTITION,)
 reject@31	reject@31	engine	alterTable_system_partitioning(,_PARTITION_ID?_alterTable_table_par~f066a953)*/,_PARTITION_(ID)?_(alterTable_table_partition_descripti~245cd2f0!truncate	ALTER TABLE a MODIFY(PARTITION,
-reject@30	reject@32	engine	alterTable_system_partitioning(,_PARTITION_ID?_alterTable_table_par~f066a953)*/,_PARTITION_(ID)?_(alterTable_table_partition_descripti~245cd2f0!insert	ALTER TABLE a MODIFY(PARTITION, PARTITION zzz)
-reject@30	accept	engine	alterTable_system_partitioning(,_PARTITION_ID?_alterTable_table_par~f066a953)*/,_PARTITION_(ID)?_(alterTable_table_partition_descripti~245cd2f0!swap	ALTER TABLE a MODIFY(PARTITION, PARTITIONING)
+reject@32	reject@32	engine	alterTable_system_partitioning(,_PARTITION_ID?_alterTable_table_par~f066a953)*/,_PARTITION_(ID)?_(alterTable_table_partition_descripti~245cd2f0!insert	ALTER TABLE a MODIFY(PARTITION, PARTITION zzz)
+accept	accept	engine	alterTable_system_partitioning(,_PARTITION_ID?_alterTable_table_par~f066a953)*/,_PARTITION_(ID)?_(alterTable_table_partition_descripti~245cd2f0!swap	ALTER TABLE a MODIFY(PARTITION, PARTITIONING)
 reject@34	reject@49	engine	alterTable_consistent_hash_partitions/PARTITION_BY_CONSISTENT_HASH_(_ID_(,_ID)*_)_(PARTITIONS~05d013e2	ALTER TABLE a MODIFY PARTITION BY CONSISTENT HASH(a) TABLESPACE SET a
 reject@34	reject@49	engine	alterTable_consistent_hash_partitions(,_ID)*/%empty	ALTER TABLE a MODIFY PARTITION BY CONSISTENT HASH(a) TABLESPACE SET a
 reject@34	reject@49	engine	alterTable_consistent_hash_partitions(,_ID)*/%empty!insert	ALTER TABLE a MODIFY PARTITION BY CONSISTENT HASH(a zzz) TABLESPACE SET a
