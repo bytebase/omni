@@ -232,6 +232,9 @@ type AlterTableStmt struct {
 	Loc      Loc
 	Table    *TableRef
 	Commands []*AlterTableCmd
+	// Online and Ignore record ALTER [ONLINE] [IGNORE] TABLE's alter_option_list.
+	Online bool
+	Ignore bool
 }
 
 func (s *AlterTableStmt) nodeTag()  {}
@@ -636,6 +639,11 @@ type TableOption struct {
 	Name    string
 	Value   string
 	Storage string // TABLESPACE ... STORAGE {DISK|MEMORY}
+	// EngineDefined marks an engine_defined_option, `name = value`, whose name the
+	// engine checks when the statement runs; StringValue records that its value
+	// was a quoted string.
+	EngineDefined bool
+	StringValue   bool
 }
 
 func (o *TableOption) nodeTag() {}
@@ -795,9 +803,20 @@ type FuncCallExpr struct {
 	// RawName is the name as it was written, where Name is upper-cased for
 	// comparison against the built-ins. A stored routine keeps the spelling it
 	// was declared with, which a qualified call is written back with.
-	RawName    string
-	Schema     string // schema-qualified name
-	Args       []ExprNode
+	RawName string
+	Schema  string // schema-qualified name
+	// Package is the middle part of a three-part name, db.package.routine(),
+	// which calls a routine of a stored package (MariaDB's function_call_generic
+	// arm ident_cli '.' ident_cli '.' ident_cli '(' opt_expr_list ')'). Schema
+	// then holds the database and RawName the routine, each as written.
+	Package string
+	Args    []ExprNode
+	// ArgTypes holds the `AS type` MariaDB's dynamic column functions write
+	// after an argument: a value's type in COLUMN_CREATE and COLUMN_ADD
+	// (opt_dyncol_type) and the result's type in COLUMN_GET (cast_type). It is
+	// as long as Args, nil where no type is written, and empty for every other
+	// call.
+	ArgTypes   []*DataType
 	Quantifier AggQuantifier // COUNT(DISTINCT ...), SUM(ALL ...)
 	Star       bool          // COUNT(*)
 	HasParens  bool          // true if explicit parentheses were written (e.g., NOW() vs CURRENT_TIMESTAMP)
@@ -810,6 +829,9 @@ type FuncCallExpr struct {
 	// there.
 	SpacedParen bool
 	OrderBy     []*OrderByItem
+	// WithinGroup marks PERCENTILE_CONT and PERCENTILE_DISC's
+	// WITHIN GROUP (ORDER BY ...) clause, whose one item OrderBy holds.
+	WithinGroup bool
 	Over        *WindowDef // OVER clause for window functions
 	Separator   ExprNode   // GROUP_CONCAT SEPARATOR value (nil = not specified)
 	Using       string     // CHAR(n, ... USING charset_name): the character set as written ("" = no USING)
@@ -818,6 +840,9 @@ type FuncCallExpr struct {
 	// written, else "CHAR" or "BINARY"; WeightAsLen holds its length (n).
 	WeightAs    string
 	WeightAsLen uint64
+	// WeightLevels is WEIGHT_STRING's LEVEL clause after LEVEL, "" when none:
+	// `1 DESC REVERSE, 2` or `1 - 3`.
+	WeightLevels string
 }
 
 // AggQuantifier is the prefix an aggregate's argument list carries. It is the
@@ -1437,7 +1462,8 @@ type ShowStmt struct {
 	Where        ExprNode
 	IfNotExists  bool        // SHOW CREATE DATABASE IF NOT EXISTS
 	ProfileTypes []string    // SHOW PROFILE type list (CPU, BLOCK IO, etc.)
-	ForQuery     ExprNode    // SHOW PROFILE FOR QUERY n
+	ForQuery     ExprNode    // SHOW PROFILE FOR QUERY n, SHOW {EXPLAIN | ANALYZE} FOR connection
+	Format       string      // SHOW {EXPLAIN | ANALYZE} FORMAT = format
 	ForUser      *UserSpec   // SHOW GRANTS FOR user
 	Using        []*UserSpec // SHOW GRANTS ... USING role [, role]
 	FromPos      ExprNode    // SHOW BINLOG/RELAYLOG EVENTS FROM pos
@@ -1571,6 +1597,9 @@ type ResourceOption struct {
 	HasMaxUpdates         bool
 	HasMaxConnections     bool
 	HasMaxUserConn        bool
+	// MaxStatementTime is MariaDB's MAX_STATEMENT_TIME, a number of seconds as written.
+	MaxStatementTime    string
+	HasMaxStatementTime bool
 }
 
 func (r *ResourceOption) nodeTag() {}
@@ -1737,6 +1766,9 @@ type UserSpec struct {
 	InitialAuthPlugin     string      // INITIAL AUTHENTICATION IDENTIFIED WITH plugin
 	InitialAuthString     string      // INITIAL AUTHENTICATION ... AS/BY 'auth_string'
 	InitialAuthRandom     bool        // INITIAL AUTHENTICATION IDENTIFIED BY RANDOM PASSWORD
+	// AuthAlternatives are the plugins after the first of MariaDB's `IDENTIFIED VIA p1 OR
+	// p2 ...`, each with its AuthPlugin and its AuthHash or Password.
+	AuthAlternatives []*UserSpec
 }
 
 func (u *UserSpec) nodeTag() {}
@@ -1747,6 +1779,7 @@ type CreateRoleStmt struct {
 	OrReplace   bool // CREATE OR REPLACE ROLE: drops an existing role first
 	IfNotExists bool
 	Roles       []string
+	Admin       string // WITH ADMIN user_or_role
 }
 
 func (s *CreateRoleStmt) nodeTag()  {}
@@ -1802,6 +1835,7 @@ func (s *GrantRoleStmt) stmtNode() {}
 type RevokeRoleStmt struct {
 	Loc               Loc
 	IfExists          bool
+	AdminOption       bool // REVOKE ADMIN OPTION FOR role: the grant stays, its admin option goes
 	Roles             []string
 	From              []string
 	IgnoreUnknownUser bool
@@ -2089,19 +2123,14 @@ type ShutdownStmt struct {
 func (s *ShutdownStmt) nodeTag()  {}
 func (s *ShutdownStmt) stmtNode() {}
 
-// RestartStmt represents a RESTART statement.
-type RestartStmt struct {
-	Loc Loc
-}
-
-func (s *RestartStmt) nodeTag()  {}
-func (s *RestartStmt) stmtNode() {}
-
 // AlterDatabaseStmt represents an ALTER DATABASE statement.
 type AlterDatabaseStmt struct {
 	Loc     Loc
 	Name    string
 	Options []*DatabaseOption
+	// UpgradeDataDirectoryName is ALTER DATABASE name UPGRADE DATA DIRECTORY
+	// NAME, which takes no option.
+	UpgradeDataDirectoryName bool
 }
 
 func (s *AlterDatabaseStmt) nodeTag()  {}
@@ -3202,8 +3231,9 @@ func (s *ImportTableStmt) stmtNode() {}
 
 // BinlogStmt represents a BINLOG 'str' statement.
 type BinlogStmt struct {
-	Loc Loc
-	Str string // base64-encoded string
+	Loc       Loc
+	Str       string   // base64-encoded string
+	Fragments []string // BINLOG @a, @b: the two user variables the event is split across
 }
 
 func (s *BinlogStmt) nodeTag()  {}

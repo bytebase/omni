@@ -63,65 +63,18 @@ func (p *Parser) parseAnalyzeTableStmt() (*nodes.AnalyzeTableStmt, error) {
 		p.advance()
 	}
 
-	// UPDATE HISTOGRAM ON col [, col] [WITH N BUCKETS] | [USING DATA 'json_data']
-	if p.cur.Type == kwUPDATE {
-		p.advance()
-		if p.cur.Type == kwHISTOGRAM {
-			p.advance()
-		}
+	// opt_histogram: UPDATE HISTOGRAM ON ident_string_list opt_histogram_update_param
+	// | DROP HISTOGRAM ON ident_string_list, one of the two, every word required.
+	if p.cur.Type == kwUPDATE || p.cur.Type == kwDROP {
 		stmt.HistogramOp = "UPDATE"
-		if _, err := p.expect(kwON); err != nil {
-			return nil, err
+		if p.cur.Type == kwDROP {
+			stmt.HistogramOp = "DROP"
 		}
-		for {
-			col, _, err := p.parseIdentifier()
-			if err != nil {
-				return nil, err
-			}
-			stmt.HistogramColumns = append(stmt.HistogramColumns, col)
-			if p.cur.Type != ',' {
-				break
-			}
-			p.advance()
-		}
-		// WITH N BUCKETS
-		if p.cur.Type == kwWITH {
-			p.advance()
-			if p.cur.Type == tokICONST {
-				// The count is NUM, held to 1..1024 while the statement parses (1690).
-				if p.cur.Ival < 1 || p.cur.Ival > 1024 {
-					return nil, &ParseError{Message: "Number of buckets value is out of range in 'ANALYZE TABLE'", Position: p.cur.Loc}
-				}
-				stmt.Buckets = int(p.cur.Ival)
-				p.advance()
-			}
-			// BUCKETS keyword
-			if p.cur.Type == kwBUCKETS {
-				p.advance()
-			}
-		}
-		// USING DATA 'json_data'
-		if p.cur.Type == kwUSING {
-			p.advance() // consume USING
-			if p.cur.Type == kwDATA {
-				p.advance() // consume DATA
-			}
-			if p.cur.Type == tokSCONST {
-				stmt.UsingData = p.cur.Str
-				p.advance()
-			}
-		}
-	}
-
-	// DROP HISTOGRAM ON col [, col]
-	if p.cur.Type == kwDROP {
 		p.advance()
-		if p.cur.Type == kwHISTOGRAM {
-			p.advance()
-		}
-		stmt.HistogramOp = "DROP"
-		if _, err := p.expect(kwON); err != nil {
-			return nil, err
+		for _, kw := range []int{kwHISTOGRAM, kwON} {
+			if _, err := p.expect(kw); err != nil {
+				return nil, err
+			}
 		}
 		for {
 			col, _, err := p.parseIdentifier()
@@ -133,11 +86,50 @@ func (p *Parser) parseAnalyzeTableStmt() (*nodes.AnalyzeTableStmt, error) {
 				break
 			}
 			p.advance()
+		}
+		if stmt.HistogramOp == "UPDATE" {
+			if err := p.parseHistogramUpdateParam(stmt); err != nil {
+				return nil, err
+			}
 		}
 	}
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// parseHistogramUpdateParam parses what may follow UPDATE HISTOGRAM's columns: nothing,
+// WITH n BUCKETS, or USING DATA 'json'.
+//
+// Ref: opt_histogram_update_param in MySQL 8.0 sql/sql_yacc.yy.
+func (p *Parser) parseHistogramUpdateParam(stmt *nodes.AnalyzeTableStmt) error {
+	switch p.cur.Type {
+	case kwWITH:
+		p.advance()
+		if p.cur.Type != tokICONST {
+			return p.syntaxErrorAtCur()
+		}
+		// The count is NUM, held to 1..1024 while the statement parses (1690).
+		if p.cur.Ival < 1 || p.cur.Ival > 1024 {
+			return &ParseError{Message: "Number of buckets value is out of range in 'ANALYZE TABLE'", Position: p.cur.Loc}
+		}
+		stmt.Buckets = int(p.cur.Ival)
+		p.advance()
+		if _, err := p.expect(kwBUCKETS); err != nil {
+			return err
+		}
+	case kwUSING:
+		p.advance()
+		if _, err := p.expect(kwDATA); err != nil {
+			return err
+		}
+		if p.cur.Type != tokSCONST {
+			return p.syntaxErrorAtCur()
+		}
+		stmt.UsingData = p.cur.Str
+		p.advance()
+	}
+	return nil
 }
 
 // parseOptimizeTableStmt parses an OPTIMIZE TABLE statement.
@@ -197,7 +189,10 @@ func (p *Parser) parseCheckTableStmt() (*nodes.CheckTableStmt, error) {
 	start := p.pos()
 	p.advance() // consume CHECK
 
-	p.match(kwTABLE)
+	// table_or_tables is required (check_table_stmt, sql_yacc.yy): `CHECK t` is 1064.
+	if _, ok := p.match(kwTABLE, kwTABLES); !ok {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	// Completion: after CHECK TABLE, offer table_ref.
 	p.checkCursor()
@@ -223,11 +218,12 @@ func (p *Parser) parseCheckTableStmt() (*nodes.CheckTableStmt, error) {
 	// Optional check options: FOR UPGRADE, QUICK, FAST, MEDIUM, EXTENDED, CHANGED
 	for {
 		if p.cur.Type == kwFOR {
+			// mi_check_type: FOR_SYM UPGRADE_SYM, the one check type of two words.
 			p.advance()
-			if p.cur.Type == kwUPGRADE {
-				stmt.Options = append(stmt.Options, "FOR UPGRADE")
-				p.advance()
+			if _, err := p.expect(kwUPGRADE); err != nil {
+				return nil, err
 			}
+			stmt.Options = append(stmt.Options, "FOR UPGRADE")
 		} else if p.cur.Type == kwQUICK {
 			stmt.Options = append(stmt.Options, "QUICK")
 			p.advance()
@@ -265,7 +261,10 @@ func (p *Parser) parseRepairTableStmt() (*nodes.RepairTableStmt, error) {
 		p.advance()
 	}
 
-	p.match(kwTABLE)
+	// table_or_tables is required (repair_table_stmt, sql_yacc.yy): `REPAIR t` is 1064.
+	if _, ok := p.match(kwTABLE, kwTABLES); !ok {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	// Completion: after REPAIR TABLE, offer table_ref.
 	p.checkCursor()
@@ -362,6 +361,9 @@ func (p *Parser) parseFlushStmt() (*nodes.FlushStmt, error) {
 				if _, ok := p.match(','); !ok {
 					break
 				}
+			}
+			if err := refuseRepeatedTables(stmt.Tables); err != nil {
+				return nil, err
 			}
 		}
 		switch p.cur.Type {
@@ -804,7 +806,10 @@ func (p *Parser) parseChecksumTableStmt() (*nodes.ChecksumTableStmt, error) {
 	start := p.pos()
 	p.advance() // consume CHECKSUM
 
-	p.match(kwTABLE)
+	// table_or_tables is required (checksum, sql_yacc.yy): `CHECKSUM t` is 1064.
+	if _, ok := p.match(kwTABLE, kwTABLES); !ok {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	stmt := &nodes.ChecksumTableStmt{Loc: nodes.Loc{Start: start}}
 
@@ -818,6 +823,9 @@ func (p *Parser) parseChecksumTableStmt() (*nodes.ChecksumTableStmt, error) {
 			break
 		}
 		p.advance()
+	}
+	if err := refuseRepeatedTables(stmt.Tables); err != nil {
+		return nil, err
 	}
 
 	// Optional QUICK | EXTENDED
@@ -880,8 +888,12 @@ func (p *Parser) parseCloneStmt() (*nodes.CloneStmt, error) {
 		// CLONE LOCAL DATA DIRECTORY [=] 'clone_dir'
 		stmt.Local = true
 		p.advance() // consume LOCAL
-		p.match(kwDATA)
-		p.match(kwDIRECTORY)
+		// clone_stmt: CLONE_SYM LOCAL_SYM DATA_SYM DIRECTORY_SYM opt_equal, both words required.
+		for _, kw := range []int{kwDATA, kwDIRECTORY} {
+			if _, err := p.expect(kw); err != nil {
+				return nil, err
+			}
+		}
 
 		// Optional '='
 		p.matchEqual()
@@ -898,7 +910,9 @@ func (p *Parser) parseCloneStmt() (*nodes.CloneStmt, error) {
 	} else if p.cur.Type == kwINSTANCE {
 		// CLONE INSTANCE FROM 'user'@'host':port IDENTIFIED BY 'password' ...
 		p.advance() // consume INSTANCE
-		p.match(kwFROM)
+		if _, err := p.expect(kwFROM); err != nil {
+			return nil, err
+		}
 
 		// 'user'
 		if p.cur.Type != tokSCONST {
@@ -942,8 +956,11 @@ func (p *Parser) parseCloneStmt() (*nodes.CloneStmt, error) {
 		p.advance()
 
 		// IDENTIFIED BY 'password'
-		p.match(kwIDENTIFIED)
-		p.match(kwBY)
+		for _, kw := range []int{kwIDENTIFIED, kwBY} {
+			if _, err := p.expect(kw); err != nil {
+				return nil, err
+			}
+		}
 		if p.cur.Type != tokSCONST {
 			return nil, &ParseError{
 				Message:  "expected string literal for password",
@@ -956,7 +973,9 @@ func (p *Parser) parseCloneStmt() (*nodes.CloneStmt, error) {
 		// Optional DATA DIRECTORY [=] 'clone_dir'
 		if p.cur.Type == kwDATA {
 			p.advance() // consume DATA
-			p.match(kwDIRECTORY)
+			if _, err := p.expect(kwDIRECTORY); err != nil {
+				return nil, err
+			}
 			p.matchEqual()
 			if p.cur.Type != tokSCONST {
 				return nil, &ParseError{
@@ -971,16 +990,16 @@ func (p *Parser) parseCloneStmt() (*nodes.CloneStmt, error) {
 		// Optional REQUIRE [NO] SSL
 		if p.cur.Type == kwREQUIRE {
 			p.advance() // consume REQUIRE
+			// opt_ssl: REQUIRE_SYM [NO_SYM] SSL_SYM, SSL required.
+			required := true
 			if p.cur.Type == kwNO {
 				p.advance() // consume NO
-				p.match(kwSSL)
-				f := false
-				stmt.RequireSSL = &f
-			} else {
-				p.match(kwSSL)
-				t := true
-				stmt.RequireSSL = &t
+				required = false
 			}
+			if _, err := p.expect(kwSSL); err != nil {
+				return nil, err
+			}
+			stmt.RequireSSL = &required
 		}
 	} else {
 		return nil, &ParseError{
@@ -1658,8 +1677,11 @@ func (p *Parser) parseCreateSpatialRefSysStmt(start int, orReplace bool) (*nodes
 	// Optional IF NOT EXISTS (only when not OR REPLACE)
 	if !orReplace && p.cur.Type == kwIF {
 		p.advance()
-		p.match(kwNOT)
-		p.match(kwEXISTS_KW)
+		for _, kw := range []int{kwNOT, kwEXISTS_KW} {
+			if _, err := p.expect(kw); err != nil {
+				return nil, err
+			}
+		}
 		stmt.IfNotExists = true
 	}
 
@@ -1709,9 +1731,12 @@ func (p *Parser) parseCreateSpatialRefSysStmt(start int, orReplace bool) (*nodes
 			}
 			stmt.Organization = p.cur.Str
 			p.advance()
-			// IDENTIFIED BY srid
-			p.match(kwIDENTIFIED)
-			p.match(kwBY)
+			// IDENTIFIED BY srid, both words required (srs_attributes, sql_yacc.yy).
+			for _, kw := range []int{kwIDENTIFIED, kwBY} {
+				if _, err := p.expect(kw); err != nil {
+					return nil, err
+				}
+			}
 			if p.cur.Type != tokICONST {
 				return nil, &ParseError{
 					Message:  "expected integer for ORGANIZATION IDENTIFIED BY srid",
@@ -1831,12 +1856,18 @@ func (p *Parser) parseVCPUSpecs() ([]nodes.VCPUSpec, error) {
 
 		specs = append(specs, spec)
 
-		if p.cur.Type != ',' {
+		// opt_comma: a comma between two specs is optional, and one must follow it.
+		//
+		// Ref: vcpu_range_spec_list in MySQL 8.0 sql/sql_yacc.yy.
+		if _, ok := p.match(','); ok {
+			if !p.cur.isNum() {
+				return nil, p.syntaxErrorAtCur()
+			}
+			continue
+		}
+		if !p.cur.isNum() {
 			break
 		}
-		// Peek ahead: if after comma we don't see a number, it's not a VCPU continuation
-		// but could be a comma in some other context. For safety, always continue.
-		p.advance()
 	}
 
 	return specs, nil
@@ -2178,20 +2209,23 @@ func (p *Parser) parseUnlockInstanceStmt(start int) (*nodes.UnlockInstanceStmt, 
 func (p *Parser) parseImportTableStmt() (*nodes.ImportTableStmt, error) {
 	start := p.pos()
 	p.advance() // consume IMPORT
-	p.advance() // consume TABLE
-	p.advance() // consume FROM
+	// import_stmt: IMPORT TABLE_SYM FROM TEXT_STRING_sys_list, a list of one string or more.
+	for _, kw := range []int{kwTABLE, kwFROM} {
+		if _, err := p.expect(kw); err != nil {
+			return nil, err
+		}
+	}
 
 	stmt := &nodes.ImportTableStmt{
 		Loc: nodes.Loc{Start: start},
 	}
 
 	for {
-		if p.cur.Type == tokSCONST {
-			stmt.Files = append(stmt.Files, p.cur.Str)
-			p.advance()
-		} else {
-			break
+		if p.cur.Type != tokSCONST {
+			return nil, p.syntaxErrorAtCur()
 		}
+		stmt.Files = append(stmt.Files, p.cur.Str)
+		p.advance()
 		if p.cur.Type != ',' {
 			break
 		}
@@ -2212,10 +2246,12 @@ func (p *Parser) parseBinlogStmt() (*nodes.BinlogStmt, error) {
 		Loc: nodes.Loc{Start: start},
 	}
 
-	if p.cur.Type == tokSCONST {
-		stmt.Str = p.cur.Str
-		p.advance()
+	// binlog_base64_event: BINLOG_SYM TEXT_STRING_sys, the string required.
+	if p.cur.Type != tokSCONST {
+		return nil, p.syntaxErrorAtCur()
 	}
+	stmt.Str = p.cur.Str
+	p.advance()
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil

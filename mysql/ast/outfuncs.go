@@ -2210,6 +2210,20 @@ func writeFuncCallExpr(sb *strings.Builder, n *FuncCallExpr) {
 		sb.WriteString(" :args ")
 		writeExprNodeList(sb, n.Args)
 	}
+	if len(n.ArgAliases) > 0 {
+		sb.WriteString(" :arg_aliases (")
+		for i, a := range n.ArgAliases {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			if a == nil {
+				sb.WriteString("<>")
+			} else {
+				fmt.Fprintf(sb, "%q", *a)
+			}
+		}
+		sb.WriteString(")")
+	}
 	if n.JSONValueArm {
 		sb.WriteString(" :json_value_arm true")
 	}
@@ -2360,6 +2374,12 @@ func writeCastExpr(sb *strings.Builder, n *CastExpr) {
 	if n.Array {
 		sb.WriteString(" :array true")
 	}
+	if n.AtTimeZoneInterval {
+		sb.WriteString(" :at_time_zone_interval true")
+	}
+	if n.AtTimeZone != "" {
+		fmt.Fprintf(sb, " :at_time_zone %q", n.AtTimeZone)
+	}
 	sb.WriteString("}")
 }
 
@@ -2415,6 +2435,9 @@ func writeWeightStringExpr(sb *strings.Builder, n *WeightStringExpr) {
 	if n.AsChar != nil {
 		sb.WriteString(" :aschar ")
 		writeNode(sb, n.AsChar)
+	}
+	if n.Numbers {
+		fmt.Fprintf(sb, " :result_length %d :flags %d", n.ResultLength, n.Flags)
 	}
 	sb.WriteString("}")
 }
