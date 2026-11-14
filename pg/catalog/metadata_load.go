@@ -17,17 +17,19 @@ import (
 
 // LoadMetadataOptions selects what LoadMetadata installs.
 type LoadMetadataOptions struct {
-	// Full also installs sequences, procedures, column defaults, identity and
-	// generated columns, indexes, and constraints: what DDL simulation checks
-	// against. Query analysis needs only schemas, types, relations, and
-	// functions, and loads faster without the rest.
+	// Full also installs extensions, sequences, procedures, column defaults,
+	// identity and generated columns, indexes, constraints, and comments: what
+	// DDL simulation and Diff check against. Query analysis needs only
+	// schemas, types, relations, and functions, and loads faster without the
+	// rest.
 	Full bool
 }
 
 // LoadMetadataReport lists the snapshot objects LoadMetadata could not install
-// as the snapshot defines them. Keys are "schema:<schema>", "type:<schema>.<name>",
-// "seq:<schema>.<name>", "rel:<schema>.<name>", "func:<schema>.<name>|<signature>",
-// "idx:<schema>.<relation>.<name>", and "con:<schema>.<table>.<name>".
+// as the snapshot defines them. Keys are "schema:<schema>", "ext:<name>",
+// "type:<schema>.<name>", "seq:<schema>.<name>", "rel:<schema>.<name>",
+// "func:<schema>.<name>|<signature>", "idx:<schema>.<relation>.<name>", and
+// "con:<schema>.<table>.<name>".
 type LoadMetadataReport struct {
 	// Degraded maps each object replaced by a text-typed stand-in to the error
 	// its definition failed with.
@@ -38,11 +40,12 @@ type LoadMetadataReport struct {
 }
 
 // LoadMetadata installs the objects of a Bytebase schema snapshot into c in
-// dependency order. An object that fails to install does not stop the load:
-// an enum, composite type, table, view, or materialized view is replaced by a
-// stand-in with the same name and column names, all typed text, and a function
-// by one built from its signature that returns text, so the objects that
-// depend on it still install as defined. Other kinds are left out.
+// dependency order. An object the snapshot marks skip_dump belongs to an
+// extension, and Diff leaves it out. An object that fails to install does not
+// stop the load: an enum, composite type, table, view, or materialized view is
+// replaced by a stand-in with the same name and column names, all typed text,
+// and a function by one built from its signature that returns text, so the
+// objects that depend on it still install as defined. Other kinds are left out.
 //
 // View bodies are analyzed as they install, so set the search path and session
 // user before loading. The error is non-nil only when ctx is done.
@@ -59,6 +62,9 @@ func (c *Catalog) LoadMetadata(ctx context.Context, meta *metadata.DatabaseSchem
 			return report, err
 		}
 	}
+	if opts.Full {
+		c.installMetadataComments(meta)
+	}
 	return report, nil
 }
 
@@ -74,6 +80,7 @@ type metadataObjectKind int
 
 const (
 	metadataSchema metadataObjectKind = iota
+	metadataExtension
 	metadataEnum
 	metadataComposite
 	metadataSequence
@@ -94,6 +101,7 @@ type metadataObject struct {
 	// parent is the relation an index or constraint belongs to.
 	parent string
 
+	extension *metadata.ExtensionMetadata
 	enum      *metadata.EnumTypeMetadata
 	composite *metadata.CompositeTypeMetadata
 	sequence  *metadata.SequenceMetadata
@@ -108,6 +116,8 @@ type metadataObject struct {
 
 	// procedure marks a function that is a procedure.
 	procedure bool
+	// skipDump marks an object that belongs to an extension.
+	skipDump bool
 	// createStmt is a function's parsed definition, or nil when the snapshot
 	// has none that parses.
 	createStmt *nodes.CreateFunctionStmt
@@ -117,6 +127,16 @@ type metadataObject struct {
 	// ownedSequences maps a table's columns to the sequences they own, which
 	// install only with Full.
 	ownedSequences map[string]*metadata.SequenceMetadata
+	// partitionKey is a partitioned table's PARTITION BY clause, without the
+	// keywords, as sync reports it: "RANGE (created_at)".
+	partitionKey string
+	// partitionOf names the table a partition belongs to, and partitionBound
+	// is its FOR VALUES or DEFAULT clause.
+	partitionOf    string
+	partitionBound string
+	// parentIndexKey is the key of the partitioned table's index a
+	// partition's index is attached to.
+	parentIndexKey string
 }
 
 // key names the object in the dependency graph and the report.
@@ -124,6 +144,8 @@ func (o *metadataObject) key() string {
 	switch o.kind {
 	case metadataSchema:
 		return "schema:" + o.schema
+	case metadataExtension:
+		return "ext:" + o.name
 	case metadataEnum, metadataComposite:
 		return metadataTypeKey(o.schema, o.name)
 	case metadataSequence:
@@ -172,6 +194,13 @@ func isViewObject(o *metadataObject) bool {
 
 func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata, full bool) []*metadataObject {
 	var out []*metadataObject
+	if full {
+		for _, ext := range meta.GetExtensions() {
+			if ext.GetName() != "" {
+				out = append(out, &metadataObject{kind: metadataExtension, schema: ext.GetSchema(), name: ext.GetName(), extension: ext})
+			}
+		}
+	}
 	for _, s := range meta.GetSchemas() {
 		if s.GetName() == "" {
 			continue
@@ -180,15 +209,18 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata, full bool) []
 		out = append(out, &metadataObject{kind: metadataSchema, schema: schema, name: schema})
 		owned, identity := sequenceOwners(s)
 		for _, e := range s.GetEnumTypes() {
-			out = append(out, &metadataObject{kind: metadataEnum, schema: schema, name: e.GetName(), enum: e})
+			out = append(out, &metadataObject{kind: metadataEnum, schema: schema, name: e.GetName(), enum: e, skipDump: e.GetSkipDump()})
 		}
 		for _, ct := range s.GetCompositeTypes() {
-			out = append(out, &metadataObject{kind: metadataComposite, schema: schema, name: ct.GetName(), composite: ct})
+			out = append(out, &metadataObject{kind: metadataComposite, schema: schema, name: ct.GetName(), composite: ct, skipDump: ct.GetSkipDump()})
 		}
 		for _, t := range s.GetTables() {
-			o := &metadataObject{kind: metadataTable, schema: schema, name: t.GetName(), table: t}
+			o := &metadataObject{kind: metadataTable, schema: schema, name: t.GetName(), table: t, skipDump: t.GetSkipDump()}
 			if full {
 				o.ownedSequences = owned[t.GetName()]
+			}
+			if len(t.GetPartitions()) > 0 {
+				o.partitionKey = t.GetPartitions()[0].GetExpression()
 			}
 			out = append(out, o)
 			out = appendPartitionTables(out, schema, t)
@@ -202,15 +234,16 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata, full bool) []
 		}
 		for _, v := range s.GetViews() {
 			body, err := parseSelect(v.GetDefinition())
-			out = append(out, &metadataObject{kind: metadataView, schema: schema, name: v.GetName(), view: v, body: body, bodyErr: err})
+			out = append(out, &metadataObject{kind: metadataView, schema: schema, name: v.GetName(), view: v, body: body, bodyErr: err, skipDump: v.GetSkipDump()})
 		}
 		for _, mv := range s.GetMaterializedViews() {
 			body, err := parseSelect(mv.GetDefinition())
-			out = append(out, &metadataObject{kind: metadataMatView, schema: schema, name: mv.GetName(), matView: mv, body: body, bodyErr: err})
+			out = append(out, &metadataObject{kind: metadataMatView, schema: schema, name: mv.GetName(), matView: mv, body: body, bodyErr: err, skipDump: mv.GetSkipDump()})
 		}
 		for _, fn := range s.GetFunctions() {
 			// Procedures listed here wait for full, as the snapshot's own do.
 			if o := functionObject(schema, fn, false); full || !o.procedure {
+				o.skipDump = fn.GetSkipDump()
 				out = append(out, o)
 			}
 		}
@@ -222,23 +255,23 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata, full bool) []
 			if identity[seq.GetOwnerTable()+"\x00"+seq.GetOwnerColumn()] {
 				continue
 			}
-			out = append(out, &metadataObject{kind: metadataSequence, schema: schema, name: seq.GetName(), sequence: seq})
+			out = append(out, &metadataObject{kind: metadataSequence, schema: schema, name: seq.GetName(), sequence: seq, skipDump: seq.GetSkipDump()})
 		}
 		for _, p := range s.GetProcedures() {
-			out = append(out, functionObject(schema, &metadata.FunctionMetadata{
+			o := functionObject(schema, &metadata.FunctionMetadata{
 				Name:       p.GetName(),
 				Definition: p.GetDefinition(),
 				Signature:  p.GetSignature(),
-			}, true))
+			}, true)
+			o.skipDump = p.GetSkipDump()
+			out = append(out, o)
 		}
 		for _, t := range s.GetTables() {
 			out = appendConstraintObjects(out, schema, t.GetName(), t.GetIndexes(), t.GetCheckConstraints(), t.GetExcludeConstraints())
 			for _, fk := range t.GetForeignKeys() {
 				out = append(out, &metadataObject{kind: metadataConstraint, schema: schema, name: fk.GetName(), parent: t.GetName(), fk: fk})
 			}
-			forEachPartition(t, func(p *metadata.TablePartitionMetadata) {
-				out = appendConstraintObjects(out, schema, p.GetName(), p.GetIndexes(), p.GetCheckConstraints(), p.GetExcludeConstraints())
-			})
+			out = appendPartitionConstraintObjects(out, schema, t.GetName(), t.GetPartitions())
 		}
 		for _, mv := range s.GetMaterializedViews() {
 			out = appendIndexObjects(out, schema, mv.GetName(), mv.GetIndexes())
@@ -247,8 +280,11 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata, full bool) []
 	return out
 }
 
-// appendPartitionTables adds t's partitions as plain tables with t's column
-// names and types; t keeps the columns' defaults and sequences.
+// appendPartitionTables adds t's partitions and their subpartitions. Each
+// installs as PARTITION OF its parent, which gives it the parent's columns;
+// the columns recorded here serve its stand-in. A partition's own partition
+// key is the expression its subpartitions report. A snapshot without the key
+// or the bound leaves the partition a plain table.
 func appendPartitionTables(out []*metadataObject, schema string, t *metadata.TableMetadata) []*metadataObject {
 	if len(t.GetPartitions()) == 0 {
 		return out
@@ -257,9 +293,26 @@ func appendPartitionTables(out []*metadataObject, schema string, t *metadata.Tab
 	for _, col := range t.GetColumns() {
 		columns = append(columns, &metadata.ColumnMetadata{Name: col.GetName(), Type: col.GetType(), Nullable: col.GetNullable(), Collation: col.GetCollation()})
 	}
-	forEachPartition(t, func(p *metadata.TablePartitionMetadata) {
-		out = append(out, &metadataObject{kind: metadataTable, schema: schema, name: p.GetName(), table: &metadata.TableMetadata{Name: p.GetName(), Columns: columns}})
-	})
+	var walk func(parent string, partitions []*metadata.TablePartitionMetadata)
+	walk = func(parent string, partitions []*metadata.TablePartitionMetadata) {
+		for _, p := range partitions {
+			o := &metadataObject{
+				kind:   metadataTable,
+				schema: schema,
+				name:   p.GetName(),
+				table:  &metadata.TableMetadata{Name: p.GetName(), Columns: columns},
+			}
+			if p.GetExpression() != "" && p.GetValue() != "" {
+				o.partitionOf, o.partitionBound = parent, p.GetValue()
+				if len(p.GetSubpartitions()) > 0 {
+					o.partitionKey = p.GetSubpartitions()[0].GetExpression()
+				}
+			}
+			out = append(out, o)
+			walk(p.GetName(), p.GetSubpartitions())
+		}
+	}
+	walk(t.GetName(), t.GetPartitions())
 	return out
 }
 
@@ -273,6 +326,23 @@ func forEachPartition(t *metadata.TableMetadata, f func(*metadata.TablePartition
 		}
 	}
 	walk(t.GetPartitions())
+}
+
+// appendPartitionConstraintObjects adds the indexes and constraints of the
+// partitions of parent and of their subpartitions. An index attached to its
+// parent's waits for that index.
+func appendPartitionConstraintObjects(out []*metadataObject, schema, parent string, partitions []*metadata.TablePartitionMetadata) []*metadataObject {
+	for _, p := range partitions {
+		first := len(out)
+		out = appendConstraintObjects(out, schema, p.GetName(), p.GetIndexes(), p.GetCheckConstraints(), p.GetExcludeConstraints())
+		for _, o := range out[first:] {
+			if o.index != nil && o.index.GetParentIndexName() != "" {
+				o.parentIndexKey = "idx:" + cmp.Or(o.index.GetParentIndexSchema(), schema) + "." + parent + "." + o.index.GetParentIndexName()
+			}
+		}
+		out = appendPartitionConstraintObjects(out, schema, p.GetName(), p.GetSubpartitions())
+	}
+	return out
 }
 
 // appendConstraintObjects adds a table's indexes and its CHECK and EXCLUDE
@@ -480,6 +550,9 @@ func (o *metadataObject) dependencies(byKey map[string]*metadataObject, function
 		for _, col := range o.table.GetColumns() {
 			addType(col.GetType())
 		}
+		if o.partitionOf != "" {
+			add(metadataRelationKey(o.schema, o.partitionOf))
+		}
 	case metadataView, metadataMatView:
 		// A view whose body does not parse installs as a stand-in, which needs nothing.
 		if o.body == nil {
@@ -520,6 +593,7 @@ func (o *metadataObject) dependencies(byKey map[string]*metadataObject, function
 		addTypeName(o.createStmt.ReturnType)
 	case metadataIndex:
 		add(metadataRelationKey(o.schema, o.parent))
+		add(o.parentIndexKey)
 	case metadataConstraint:
 		add(metadataRelationKey(o.schema, o.parent))
 		if o.fk != nil {
@@ -604,14 +678,27 @@ func (c *Catalog) installGroup(ctx context.Context, group []*metadataObject, ful
 			if err := ctx.Err(); err != nil {
 				return err
 			}
-			if err := c.installMetadataObject(o, full); err != nil {
+			first := c.oidGen.next
+			err := c.installMetadataObject(o, full)
+			switch {
+			case err == nil:
+				if o.skipDump {
+					c.markExtensionMembers(first, c.oidGen.next)
+				}
+			case o.skipDump && isDuplicateObject(err):
+				// The extension's script made it already.
+			default:
 				failed = append(failed, o)
 				errs = append(errs, err)
 			}
 		}
 		if len(failed) == len(group) {
 			i := max(slices.IndexFunc(failed, isViewObject), 0)
+			first := c.oidGen.next
 			c.replaceWithStandIn(failed[i], errs[i], report)
+			if failed[i].skipDump {
+				c.markExtensionMembers(first, c.oidGen.next)
+			}
 			failed = slices.Delete(failed, i, i+1)
 		}
 		group = failed
@@ -629,6 +716,19 @@ func (c *Catalog) installMetadataObject(o *metadataObject, full bool) error {
 			return nil
 		}
 		return err
+	case metadataExtension:
+		sql := "CREATE EXTENSION " + quoteIdent(o.name)
+		if o.schema != "" {
+			sql += " WITH SCHEMA " + quoteIdent(o.schema)
+		}
+		if v := o.extension.GetVersion(); v != "" {
+			sql += " VERSION " + quoteLiteral(v)
+		}
+		stmt, err := parseStatement[*nodes.CreateExtensionStmt](sql)
+		if err != nil {
+			return err
+		}
+		return c.CreateExtension(stmt)
 	case metadataEnum:
 		return c.DefineEnum(metadataEnumStmt(o.schema, o.enum))
 	case metadataComposite:
@@ -640,7 +740,7 @@ func (c *Catalog) installMetadataObject(o *metadataObject, full bool) error {
 	case metadataSequence:
 		return c.DefineSequence(metadataSequenceStmt(o.schema, o.sequence))
 	case metadataTable:
-		stmt, err := metadataTableStmt(o.schema, o.table, full, o.ownedSequences)
+		stmt, err := metadataTableStmt(o, full)
 		if err != nil {
 			return err
 		}
@@ -671,6 +771,9 @@ func (c *Catalog) installMetadataObject(o *metadataObject, full bool) error {
 		if isKeyIndex(o.index) {
 			return c.AddConstraint(o.schema, o.parent, metadataKeyConstraint(o.index))
 		}
+		if o.parentIndexKey != "" {
+			return c.installAttachedIndex(o)
+		}
 		stmt, err := metadataIndexStmt(o.schema, o.parent, o.index)
 		if err != nil {
 			return err
@@ -688,6 +791,50 @@ func (c *Catalog) installMetadataObject(o *metadataObject, full bool) error {
 	default:
 		return fmt.Errorf("unknown metadata object kind %d", o.kind)
 	}
+}
+
+// installAttachedIndex installs a partition's index attached to its parent's.
+// The partition holds a copy of the parent's index already when the parent's
+// index was there before the partition, and then that copy takes the
+// snapshot's name; otherwise the index is created and attached.
+func (c *Catalog) installAttachedIndex(o *metadataObject) error {
+	schema := c.schemaByName[o.schema]
+	parentSchema := c.schemaByName[cmp.Or(o.index.GetParentIndexSchema(), o.schema)]
+	rel := c.GetRelation(o.schema, o.parent)
+	if schema == nil || parentSchema == nil || rel == nil {
+		return fmt.Errorf("index %q: relation %q not installed", o.name, o.parent)
+	}
+	parent := parentSchema.Indexes[o.index.GetParentIndexName()]
+	if parent == nil {
+		return fmt.Errorf("index %q: parent index %q not installed", o.name, o.index.GetParentIndexName())
+	}
+	for _, idx := range c.IndexesOf(rel.OID) {
+		if idx.ParentIndexOID == parent.OID {
+			return c.renameAttachedIndex(schema, idx, o.name)
+		}
+	}
+	stmt, err := metadataIndexStmt(o.schema, o.parent, o.index)
+	if err != nil {
+		return err
+	}
+	if err := c.DefineIndex(stmt); err != nil {
+		return err
+	}
+	schema.Indexes[o.name].ParentIndexOID = parent.OID
+	return nil
+}
+
+// isDuplicateObject reports whether err says the object exists already.
+func isDuplicateObject(err error) bool {
+	var catErr *Error
+	if !errors.As(err, &catErr) {
+		return false
+	}
+	switch catErr.Code {
+	case CodeDuplicateTable, CodeDuplicateObject, CodeDuplicateFunction:
+		return true
+	}
+	return false
 }
 
 // ownSerialSequences gives the sequences the table's non-identity columns own
@@ -783,7 +930,11 @@ func sequenceOptions(seq *metadata.SequenceMetadata) []nodes.Node {
 // metadataTableStmt fails on any column whose type does not parse, so the
 // table gets a stand-in rather than a partial definition. With full, a default
 // or generation expression that does not parse is dropped instead.
-func metadataTableStmt(schema string, t *metadata.TableMetadata, full bool, ownedSequences map[string]*metadata.SequenceMetadata) (*nodes.CreateStmt, error) {
+func metadataTableStmt(o *metadataObject, full bool) (*nodes.CreateStmt, error) {
+	schema, t := o.schema, o.table
+	if o.partitionOf != "" {
+		return metadataPartitionStmt(o)
+	}
 	items := make([]nodes.Node, 0, len(t.GetColumns()))
 	for _, col := range t.GetColumns() {
 		if col.GetName() == "" {
@@ -802,14 +953,37 @@ func metadataTableStmt(schema string, t *metadata.TableMetadata, full bool, owne
 			def.CollClause = &nodes.CollateClause{Collname: metadataNameList("", col.GetCollation())}
 		}
 		if full {
-			setColumnValueProperties(schema, def, col, ownedSequences[col.GetName()])
+			setColumnValueProperties(schema, def, col, o.ownedSequences[col.GetName()])
 		}
 		items = append(items, def)
 	}
-	return &nodes.CreateStmt{
+	stmt := &nodes.CreateStmt{
 		Relation:  &nodes.RangeVar{Schemaname: schema, Relname: t.GetName(), Relpersistence: 'p'},
 		TableElts: &nodes.List{Items: items},
-	}, nil
+	}
+	if o.partitionKey != "" {
+		keyed, err := parseStatement[*nodes.CreateStmt]("CREATE TABLE t () PARTITION BY " + o.partitionKey)
+		if err != nil {
+			return nil, fmt.Errorf("partition key: %w", err)
+		}
+		stmt.Partspec = keyed.Partspec
+	}
+	return stmt, nil
+}
+
+// metadataPartitionStmt builds a partition's CREATE TABLE ... PARTITION OF,
+// which also partitions it when it has subpartitions.
+func metadataPartitionStmt(o *metadataObject) (*nodes.CreateStmt, error) {
+	sql := fmt.Sprintf("CREATE TABLE %s.%s PARTITION OF %s.%s %s",
+		quoteIdent(o.schema), quoteIdent(o.name), quoteIdent(o.schema), quoteIdent(o.partitionOf), o.partitionBound)
+	if o.partitionKey != "" {
+		sql += " PARTITION BY " + o.partitionKey
+	}
+	stmt, err := parseStatement[*nodes.CreateStmt](sql)
+	if err != nil {
+		return nil, fmt.Errorf("partition of %q: %w", o.partitionOf, err)
+	}
+	return stmt, nil
 }
 
 // setColumnValueProperties sets a column's default, generation, and identity;
@@ -963,15 +1137,98 @@ func fkMatchCode(match string) byte {
 	}
 }
 
+// --- Comments ---
+
+// installMetadataComments sets the snapshot's comments. A comment whose
+// object did not install is left out; the object is already in the report.
+func (c *Catalog) installMetadataComments(meta *metadata.DatabaseSchemaMetadata) {
+	for _, s := range meta.GetSchemas() {
+		if s.GetName() == "" {
+			continue
+		}
+		schema := quoteIdent(s.GetName())
+		comment := func(target, text string) {
+			if text == "" {
+				return
+			}
+			if stmt, err := parseStatement[*nodes.CommentStmt]("COMMENT ON " + target + " IS " + quoteLiteral(text)); err == nil {
+				_ = c.CommentObject(stmt)
+			}
+		}
+		qualified := func(name string) string { return schema + "." + quoteIdent(name) }
+		columns := func(relation string, cols []*metadata.ColumnMetadata) {
+			for _, col := range cols {
+				comment("COLUMN "+qualified(relation)+"."+quoteIdent(col.GetName()), col.GetComment())
+			}
+		}
+		indexes := func(relation string, idxs []*metadata.IndexMetadata) {
+			for _, idx := range idxs {
+				if isKeyIndex(idx) {
+					comment("CONSTRAINT "+quoteIdent(idx.GetName())+" ON "+qualified(relation), idx.GetComment())
+				} else {
+					comment("INDEX "+qualified(idx.GetName()), idx.GetComment())
+				}
+			}
+		}
+
+		comment("SCHEMA "+schema, s.GetComment())
+		for _, e := range s.GetEnumTypes() {
+			comment("TYPE "+qualified(e.GetName()), e.GetComment())
+		}
+		for _, ct := range s.GetCompositeTypes() {
+			comment("TYPE "+qualified(ct.GetName()), ct.GetComment())
+			for _, a := range ct.GetAttributes() {
+				comment("COLUMN "+qualified(ct.GetName())+"."+quoteIdent(a.GetName()), a.GetComment())
+			}
+		}
+		for _, seq := range s.GetSequences() {
+			comment("SEQUENCE "+qualified(seq.GetName()), seq.GetComment())
+		}
+		for _, t := range s.GetTables() {
+			comment("TABLE "+qualified(t.GetName()), t.GetComment())
+			columns(t.GetName(), t.GetColumns())
+			indexes(t.GetName(), t.GetIndexes())
+			forEachPartition(t, func(p *metadata.TablePartitionMetadata) {
+				indexes(p.GetName(), p.GetIndexes())
+			})
+		}
+		for _, v := range s.GetViews() {
+			comment("VIEW "+qualified(v.GetName()), v.GetComment())
+			columns(v.GetName(), v.GetColumns())
+		}
+		for _, mv := range s.GetMaterializedViews() {
+			comment("MATERIALIZED VIEW "+qualified(mv.GetName()), mv.GetComment())
+			indexes(mv.GetName(), mv.GetIndexes())
+		}
+		for _, fn := range s.GetFunctions() {
+			if fn.GetSignature() == "" {
+				continue
+			}
+			kind := "FUNCTION "
+			if isProcedureDefinition(fn.GetDefinition()) {
+				kind = "PROCEDURE "
+			}
+			comment(kind+schema+"."+signatureTypesOnly(fn.GetSignature()), fn.GetComment())
+		}
+		for _, p := range s.GetProcedures() {
+			if p.GetSignature() != "" {
+				comment("PROCEDURE "+schema+"."+signatureTypesOnly(p.GetSignature()), p.GetComment())
+			}
+		}
+	}
+}
+
 // --- Stand-ins ---
 
 // A stand-in keeps an object's name and column names and types every column
 // text, so it depends on no user object and the objects that use it resolve.
 
 // replaceWithStandIn installs the stand-in of o, whose definition failed with
-// err, and records the outcome in report.
+// err, and records the outcome in report. An extension's object that exists
+// already, made by the extension's script, needs neither.
 func (c *Catalog) replaceWithStandIn(o *metadataObject, err error, report *LoadMetadataReport) {
 	switch standInErr := c.installStandIn(o); {
+	case o.skipDump && isDuplicateObject(standInErr):
 	case standInErr == nil:
 		report.Degraded[o.key()] = err
 	case errors.Is(standInErr, errNoStandIn):

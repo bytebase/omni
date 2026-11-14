@@ -30,7 +30,8 @@ func generateConstraintDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				// If no FKs in diff entry, look up from the catalog directly.
 				if !fkFound {
 					for _, con := range to.ConstraintsOf(rel.To.OID) {
-						if con.Type == ConstraintFK {
+						// A partition's copy of its parent's FK comes with the partition.
+						if con.Type == ConstraintFK && con.ConParentID == 0 {
 							ops = append(ops, buildAddConstraintOp(to, rel.SchemaName, rel.Name, con))
 						}
 					}
@@ -73,11 +74,11 @@ func constraintOpsForRelation(to *Catalog, rel RelationDiffEntry) []MigrationOp 
 			if ce.From == nil {
 				continue
 			}
-			ops = append(ops, buildDropConstraintOp(rel.SchemaName, rel.Name, ce.From.Name))
+			ops = append(ops, buildDropConstraintOp(rel.SchemaName, rel.Name, ce.From))
 		case DiffModify:
 			// Modified constraint = DROP old + ADD new.
 			if ce.From != nil {
-				ops = append(ops, buildDropConstraintOp(rel.SchemaName, rel.Name, ce.From.Name))
+				ops = append(ops, buildDropConstraintOp(rel.SchemaName, rel.Name, ce.From))
 			}
 			if ce.To != nil {
 				ops = append(ops, buildAddConstraintOp(to, rel.SchemaName, rel.Name, ce.To))
@@ -88,18 +89,24 @@ func constraintOpsForRelation(to *Catalog, rel RelationDiffEntry) []MigrationOp 
 	return ops
 }
 
-// buildDropConstraintOp creates a DROP CONSTRAINT operation.
-func buildDropConstraintOp(schemaName, tableName, conName string) MigrationOp {
+// buildDropConstraintOp creates a DROP CONSTRAINT operation. An FK drops
+// first, through its priority: it may hold the key it references, and a
+// DROP TABLE ... CASCADE of either table would take it along.
+func buildDropConstraintOp(schemaName, tableName string, con *Constraint) MigrationOp {
 	qualifiedTable := quoteIdentifier(schemaName) + "." + quoteIdentifier(tableName)
+	priority := PriorityConstraint
+	if con.Type == ConstraintFK {
+		priority = PriorityFKDeferred
+	}
 	return MigrationOp{
 		Type:         OpDropConstraint,
 		SchemaName:   schemaName,
-		ObjectName:   conName,
+		ObjectName:   con.Name,
 		ParentObject: tableName,
-		SQL:          fmt.Sprintf("ALTER TABLE %s DROP CONSTRAINT %s", qualifiedTable, quoteIdentifier(conName)),
+		SQL:          fmt.Sprintf("ALTER TABLE %s DROP CONSTRAINT %s", qualifiedTable, quoteIdentifier(con.Name)),
 		Phase:        PhasePre,
 		ObjType:      'c',
-		Priority:     PriorityConstraint,
+		Priority:     priority,
 	}
 }
 

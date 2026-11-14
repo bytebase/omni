@@ -60,7 +60,7 @@ func buildViewMap(c *Catalog) map[relKey]*Relation {
 	m := make(map[relKey]*Relation)
 	for _, s := range c.UserSchemas() {
 		for _, rel := range s.Relations {
-			if rel.RelKind != 'v' && rel.RelKind != 'm' {
+			if rel.RelKind != 'v' && rel.RelKind != 'm' || c.isExtensionMember(rel.OID) {
 				continue
 			}
 			m[relKey{schema: s.Name, name: rel.Name}] = rel

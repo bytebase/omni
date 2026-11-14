@@ -315,6 +315,7 @@ func (c *Catalog) atExecAttachIndexPartition(parentIdx *Index, pc *nodes.Partiti
 	}
 
 	c.recordDependency('i', childIdx.OID, 0, 'i', parentIdx.OID, 0, DepInternal)
+	childIdx.ParentIndexOID = parentIdx.OID
 	return nil
 }
 

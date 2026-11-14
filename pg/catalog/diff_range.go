@@ -20,7 +20,7 @@ func diffRanges(from, to *Catalog) []RangeDiffEntry {
 		m := make(map[rangeKey]*rangeInfo, len(c.rangeTypes))
 		for typeOID, rt := range c.rangeTypes {
 			bt := c.typeByOID[typeOID]
-			if bt == nil {
+			if bt == nil || c.isExtensionMember(typeOID) {
 				continue
 			}
 			s := c.schemas[bt.Namespace]

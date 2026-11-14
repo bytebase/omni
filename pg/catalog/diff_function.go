@@ -71,6 +71,9 @@ func diffFunctions(from, to *Catalog) []FunctionDiffEntry {
 func buildFuncIdentityMap(c *Catalog) map[string]*UserProc {
 	m := make(map[string]*UserProc, len(c.userProcs))
 	for _, up := range c.userProcs {
+		if c.isExtensionMember(up.OID) {
+			continue
+		}
 		id := funcIdentity(c, up)
 		m[id] = up
 	}

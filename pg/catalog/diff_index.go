@@ -5,19 +5,21 @@ import "sort"
 // diffIndexes compares indexes between two versions of a relation.
 // Identity key is the index Name.
 // Indexes with ConstraintOID != 0 (PK/UNIQUE backing indexes) are skipped
-// because they are managed by constraints, not as standalone indexes.
+// because they are managed by constraints, not as standalone indexes, and so
+// are a partition's indexes attached to its parent's, which PostgreSQL creates
+// and drops with the parent's index or the partition.
 func diffIndexes(from, to *Catalog, fromRelOID, toRelOID uint32) []IndexDiffEntry {
 	// Build name→*Index maps, filtering out constraint-backing indexes.
 	fromMap := make(map[string]*Index)
 	for _, idx := range from.IndexesOf(fromRelOID) {
-		if idx.ConstraintOID != 0 {
+		if idx.ConstraintOID != 0 || idx.ParentIndexOID != 0 {
 			continue
 		}
 		fromMap[idx.Name] = idx
 	}
 	toMap := make(map[string]*Index)
 	for _, idx := range to.IndexesOf(toRelOID) {
-		if idx.ConstraintOID != 0 {
+		if idx.ConstraintOID != 0 || idx.ParentIndexOID != 0 {
 			continue
 		}
 		toMap[idx.Name] = idx
@@ -49,7 +51,7 @@ func diffIndexes(from, to *Catalog, fromRelOID, toRelOID uint32) []IndexDiffEntr
 		}
 
 		// Both exist — compare fields.
-		if indexesChanged(fromIdx, toIdx) {
+		if indexesChanged(from, to, fromIdx, toIdx) {
 			result = append(result, IndexDiffEntry{
 				Action: DiffModify,
 				Name:   name,
@@ -71,7 +73,7 @@ func diffIndexes(from, to *Catalog, fromRelOID, toRelOID uint32) []IndexDiffEntr
 }
 
 // indexesChanged returns true if any compared property differs between two indexes.
-func indexesChanged(a, b *Index) bool {
+func indexesChanged(fromCat, toCat *Catalog, a, b *Index) bool {
 	if a.IsUnique != b.IsUnique {
 		return true
 	}
@@ -88,8 +90,7 @@ func indexesChanged(a, b *Index) bool {
 		return true
 	}
 
-	// Compare Columns (attnums).
-	if !int16SliceEqual(a.Columns, b.Columns) {
+	if !sameColumns(fromCat, a.RelOID, a.Columns, toCat, b.RelOID, b.Columns) {
 		return true
 	}
 
@@ -100,6 +101,9 @@ func indexesChanged(a, b *Index) bool {
 
 	// Compare Exprs (deparsed expressions).
 	if !stringSliceEqual(a.Exprs, b.Exprs) {
+		return true
+	}
+	if !stringSliceEqual(a.OpClasses, b.OpClasses) {
 		return true
 	}
 

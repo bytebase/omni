@@ -134,7 +134,7 @@ func TestMigrationSequence(t *testing.T) {
 			},
 		},
 		{
-			name: "SERIAL-owned sequences not generated",
+			name:    "SERIAL-owned sequences not generated",
 			fromSQL: "",
 			toSQL: `CREATE TABLE orders (
 				id SERIAL PRIMARY KEY,
@@ -167,6 +167,61 @@ func TestMigrationSequence(t *testing.T) {
 			diff := Diff(from, to)
 			plan := GenerateMigration(from, to, diff)
 			tt.check(t, plan)
+		})
+	}
+}
+
+func TestMigrationOwnedSequence(t *testing.T) {
+	tests := []struct {
+		name, from, to, want string
+	}{
+		{
+			// s1 gains a type and an owner; s3 is owned under a name serial
+			// would not choose, so u.id is not serial; v.id is.
+			name: "owned sequences other than serial ones are their own objects",
+			from: `CREATE SEQUENCE s1; CREATE TABLE t (id bigint);`,
+			to: `CREATE SEQUENCE s1 AS integer; CREATE TABLE t (id bigint); ALTER SEQUENCE s1 OWNED BY t.id;
+CREATE SEQUENCE s3; CREATE TABLE u (id int DEFAULT nextval('s3')); ALTER SEQUENCE s3 OWNED BY u.id;
+CREATE TABLE v (id serial);`,
+			want: `CREATE SEQUENCE "public"."s3"
+    INCREMENT BY 1
+    MINVALUE 1
+    MAXVALUE 9223372036854775807
+    START WITH 1
+    CACHE 1
+    NO CYCLE;
+ALTER SEQUENCE "public"."s1"
+    AS integer
+    MAXVALUE 2147483647;
+CREATE TABLE "public"."u" (
+    "id" integer DEFAULT nextval('s3'::regclass)
+);
+CREATE TABLE "public"."v" (
+    "id" serial NOT NULL
+);
+ALTER SEQUENCE "public"."s1" OWNED BY "public"."t"."id";
+ALTER SEQUENCE "public"."s3" OWNED BY "public"."u"."id"`,
+		},
+		{
+			name: "a sequence outliving its owner is released first",
+			from: `CREATE TABLE t (id bigint); CREATE SEQUENCE s1 OWNED BY t.id;`,
+			to:   `CREATE SEQUENCE s1;`,
+			want: `ALTER SEQUENCE "public"."s1" OWNED BY NONE;
+DROP TABLE "public"."t" CASCADE`,
+		},
+		{
+			name: "an owned sequence drops before its owner",
+			from: `CREATE TABLE t (id bigint); CREATE SEQUENCE s1 OWNED BY t.id;`,
+			to:   ``,
+			want: `DROP SEQUENCE "public"."s1";
+DROP TABLE "public"."t" CASCADE`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := generateMigrationSQL(t, tt.from, tt.to); got != tt.want {
+				t.Errorf("got:\n%s\nwant:\n%s", got, tt.want)
+			}
 		})
 	}
 }

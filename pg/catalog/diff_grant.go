@@ -83,6 +83,9 @@ func grantSortKey(e GrantDiffEntry) string {
 func buildGrantMap(c *Catalog) map[grantKey]Grant {
 	m := make(map[grantKey]Grant, len(c.grants))
 	for _, g := range c.grants {
+		if c.isExtensionMember(g.ObjOID) {
+			continue
+		}
 		k := makeGrantKey(c, g)
 		m[k] = g
 	}

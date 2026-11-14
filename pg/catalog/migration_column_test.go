@@ -301,3 +301,23 @@ func TestMigrationColumn(t *testing.T) {
 	}
 }
 
+func TestMigrationCollation(t *testing.T) {
+	got := generateMigrationSQL(t,
+		`CREATE TABLE t (a text COLLATE "C", b text);
+CREATE TYPE ct AS (x text COLLATE "C", y text);`,
+		`CREATE TABLE t (a text COLLATE "POSIX", b text, c text COLLATE "C");
+CREATE TYPE ct AS (x text, y text, z text COLLATE "C");
+CREATE TABLE n (v text COLLATE "C");
+CREATE TYPE nt AS (w text COLLATE "C");`)
+	want := `CREATE TYPE "public"."nt" AS ("w" text COLLATE "C");
+ALTER TYPE "public"."ct" ADD ATTRIBUTE "z" text COLLATE "C";
+ALTER TYPE "public"."ct" ALTER ATTRIBUTE "x" TYPE text;
+CREATE TABLE "public"."n" (
+    "v" text COLLATE "C"
+);
+ALTER TABLE public.t ALTER COLUMN a TYPE text COLLATE "POSIX";
+ALTER TABLE public.t ADD COLUMN c text COLLATE "C"`
+	if got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+}

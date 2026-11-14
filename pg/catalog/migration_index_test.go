@@ -255,3 +255,14 @@ func filterOps(plan *MigrationPlan, typ MigrationOpType) []MigrationOp {
 	}
 	return result
 }
+
+func TestMigrationIndexElementSyntax(t *testing.T) {
+	got := generateMigrationSQL(t,
+		`CREATE TABLE t (p jsonb, a int, b int);`,
+		`CREATE TABLE t (p jsonb, a int, b int);
+CREATE INDEX i ON t ((p ->> 'k'), lower(p::text), (a + b), a DESC NULLS LAST, b NULLS FIRST);`)
+	want := `CREATE INDEX i ON public.t ((p ->> 'k'::text), lower(p::text), (a + b), a DESC NULLS LAST, b NULLS FIRST)`
+	if got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+}
