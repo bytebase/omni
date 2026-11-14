@@ -105,6 +105,9 @@ func TestParseComputePoolRejects(t *testing.T) {
 		"ALTER 'COMPUTE' 'POOL' p 'SUSPEND'", // a string never stands for a keyword
 		"ALTER COMPUTE \"POOL\" p SUSPEND",
 		"ALTER COMPUTE POOL p STOP \"ALL\"",
+		"ALTER COMPUTE POOL p UNSET 123",
+		"ALTER COMPUTE POOL p UNSET COMMENT, 1.5",
+		"ALTER COMPUTE POOL p UNSET 'COMMENT'",
 	} {
 		mustRejectObject(t, in)
 	}

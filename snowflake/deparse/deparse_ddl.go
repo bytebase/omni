@@ -620,11 +620,7 @@ func (w *writer) writeUndropSchemaStmt(n *ast.UndropSchemaStmt) error {
 
 func (w *writer) writeDropStmt(n *ast.DropStmt) error {
 	w.buf.WriteString("DROP ")
-	if n.Kind == ast.DropObject {
-		w.buf.WriteString(n.Object)
-	} else {
-		w.buf.WriteString(n.Kind.String())
-	}
+	w.buf.WriteString(n.ObjectType())
 	if n.IfExists {
 		w.buf.WriteString(" IF EXISTS")
 	}

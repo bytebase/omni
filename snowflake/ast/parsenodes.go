@@ -1789,6 +1789,15 @@ type DropStmt struct {
 // Tag implements Node.
 func (n *DropStmt) Tag() NodeTag { return T_DropStmt }
 
+// ObjectType returns the SQL keywords of the dropped object's type: Object
+// for a DropObject, Kind.String() otherwise.
+func (n *DropStmt) ObjectType() string {
+	if n.Kind == DropObject {
+		return n.Object
+	}
+	return n.Kind.String()
+}
+
 // UndropObjectKind enumerates the object types that can appear in an UNDROP
 // statement. DATABASE and SCHEMA are handled by T2.1.
 type UndropObjectKind int

@@ -254,7 +254,7 @@ func (p *Parser) parseObjectAlterCommon(s *ast.ObjectStmt, allow objectActions) 
 		return true, nil
 	case p.cur.Type == kwUNSET && allow&actUnset != 0:
 		p.advance() // consume UNSET
-		keys, err := p.parseUnsetPropertyNames()
+		keys, err := p.parseObjectUnsetKeys()
 		if err != nil {
 			return true, err
 		}
@@ -463,4 +463,20 @@ func (p *Parser) parseObjectAsQuery(s *ast.ObjectStmt) error {
 	}
 	s.Clauses = append(s.Clauses, &ast.ObjectClause{Keywords: "AS", Query: q, Loc: ast.Loc{Start: start, End: p.prev.Loc.End}})
 	return nil
+}
+
+// parseObjectUnsetKeys reads UNSET's <property> [ , ... ]: each an unquoted
+// identifier or a keyword, never a number, string or quoted name.
+func (p *Parser) parseObjectUnsetKeys() ([]string, error) {
+	var keys []string
+	for {
+		if p.cur.Type != tokIdent && p.cur.Type < 700 {
+			return nil, p.syntaxErrorAtCur()
+		}
+		keys = append(keys, strings.ToUpper(p.advance().Str))
+		if p.cur.Type != ',' {
+			return keys, nil
+		}
+		p.advance() // consume ','
+	}
 }
