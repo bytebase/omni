@@ -61,12 +61,18 @@ const (
 	judgeSecret = "omni_judge"
 )
 
-// JudgeFixture is the scratch schema's one object, built again after every
+// JudgeFixture builds the scratch schema's objects again after every
 // statement that ran: the table t, on which a trigger row's header stands
 // (tokens.tsv's TRIGGER_SOURCE), so the trigger's body reaches the PL/SQL
-// compiler. It is not named a, the name every other row gives, so the rows
-// on a table a find none, and answer at once.
-const JudgeFixture = "CREATE TABLE t (a NUMBER)"
+// compiler, and the materialized view v on it. Neither is named a, the
+// name every other row gives, so the rows on a table a find none, and
+// answer at once. compat.OracleVerdict asks ALTER TABLE a and ALTER
+// MATERIALIZED VIEW a again on t and v, since Oracle looks those up before
+// it reads the rest.
+const JudgeFixture = `BEGIN
+  EXECUTE IMMEDIATE 'CREATE TABLE t (a NUMBER)';
+  EXECUTE IMMEDIATE 'CREATE MATERIALIZED VIEW v AS SELECT a FROM t';
+END;`
 
 // Open returns t's connection to Oracle as user, SYSTEM or a user the test
 // created with Password: a replay of its tape, or the pinned server in a

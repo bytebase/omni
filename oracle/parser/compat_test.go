@@ -143,12 +143,10 @@ func judgeSessions(t testing.TB, pin enginetest.Pin) (open func() (*sql.DB, func
 		t.Fatalf("ORACLE_PARSER_REF_DSN runs Oracle %s, and compat.tsv's answers come from %s", version, pin.Tag)
 	}
 	// The scratch schema starts as OracleParse leaves it: the fixture alone.
-	if err := db.QueryRowContext(ctx, "SELECT 1 FROM user_tables WHERE table_name = 'T'").Scan(new(int)); errors.Is(err, sql.ErrNoRows) {
-		if _, err := db.ExecContext(ctx, testcontainer.JudgeFixture); err != nil {
-			t.Fatalf("ORACLE_PARSER_REF_DSN: %s: %v", testcontainer.JudgeFixture, err)
-		}
-	} else if err != nil {
-		t.Fatalf("ORACLE_PARSER_REF_DSN: %v", err)
+	// A DDL statement through OracleParse drops what the schema holds and
+	// builds the fixture again.
+	if _, err := db.ExecContext(ctx, compat.OracleParse, "CREATE TABLE omni_reset (a NUMBER)", testcontainer.JudgeFixture); err != nil {
+		t.Fatalf("ORACLE_PARSER_REF_DSN: build the fixture: %v", err)
 	}
 	return open, false
 }

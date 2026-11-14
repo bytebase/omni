@@ -66,7 +66,6 @@ func TestOracleVerdictReadsParseErrors(t *testing.T) {
 		{"a syntax error in a statement lexed whole first", "ALTER MATERIALIZED VIEW a zzz yyy", &answer{3049, 26, ""}, &answer{911, 35, ""}, "reject@26"},
 		{"a statement's own syntax error, lexed whole first", "ALTER MATERIALIZED VIEW a PARAMETERS", &answer{14051, 26, ""}, &answer{911, 38, ""}, "reject@26"},
 		{"a number not valid where it stands, lexed whole first", "ALTER MATERIALIZED VIEW a 1", &answer{3047, 26, ""}, &answer{911, 29, ""}, "reject@26"},
-		{"a view looked up, lexed whole first", "ALTER MATERIALIZED VIEW a NOMAPPING", &answer{12003, 0, ""}, &answer{911, 37, ""}, Accept},
 		{"a privilege no grammar knows, lexed whole first", "GRANT a a TO a", &answer{990, 6, ""}, &answer{911, 16, ""}, "reject@6"},
 		{"no column list, lexed whole first", "CREATE TABLE a NO INMEMORY", &answer{906, 15, ""}, &answer{911, 28, ""}, "reject@15"},
 		{"a role looked up, lexed whole first", "GRANT zzz TO a", &answer{1924, 6, ""}, &answer{911, 16, ""}, Accept},
@@ -104,6 +103,75 @@ func TestOracleVerdictReadsParseErrors(t *testing.T) {
 		}
 		if probed := len(asked) == 2; probed != (c.probe != nil) {
 			t.Errorf("%s: probed %v", c.name, probed)
+		}
+	}
+}
+
+// TestOracleVerdictAsksOnTheFixturesObject pins the stand-ins: Oracle looks
+// up the table of ALTER TABLE a and the view of ALTER MATERIALIZED VIEW a
+// before it reads the rest, so the verdict is the one on the fixture's t or
+// v. Each answer is the pinned server's, with the fixture
+// oracle/internal/testcontainer.JudgeFixture builds.
+func TestOracleVerdictAsksOnTheFixturesObject(t *testing.T) {
+	type answer struct{ code, position int }
+	parsed := (*answer)(nil)
+	for _, c := range []struct {
+		name      string
+		statement string
+		answers   map[string]*answer // every text the verdict may ask
+		want      string
+	}{
+		{"an option the table takes", "ALTER TABLE a LOGGING", map[string]*answer{
+			"ALTER TABLE a LOGGING": {942, 0},
+			"ALTER TABLE t LOGGING": parsed,
+		}, Accept},
+		{"a syntax error after the view's name", "ALTER MATERIALIZED VIEW a COMPILE zzz", map[string]*answer{
+			"ALTER MATERIALIZED VIEW a COMPILE zzz":                   {12003, 0},
+			"ALTER MATERIALIZED VIEW v COMPILE zzz":                   {3049, 34},
+			"ALTER MATERIALIZED VIEW v COMPILE zzz" + OracleProbeTail: {911, 39},
+		}, "reject@34"},
+		{"no option, said at byte 0", "ALTER MATERIALIZED VIEW a NOMAPPING", map[string]*answer{
+			"ALTER MATERIALIZED VIEW a NOMAPPING":                   {12003, 0},
+			"ALTER MATERIALIZED VIEW v NOMAPPING":                   {2210, 0},
+			"ALTER MATERIALIZED VIEW v NOMAPPING" + OracleProbeTail: {911, 37},
+		}, "reject@0"},
+		{"the table looked up at its name", "ALTER TABLE a ADD PARTITION zzz", map[string]*answer{
+			"ALTER TABLE a ADD PARTITION zzz":                   {942, 12},
+			"ALTER TABLE t ADD PARTITION zzz":                   {14501, 12},
+			"ALTER TABLE t ADD PARTITION zzz" + OracleProbeTail: {911, 33},
+		}, Accept},
+		{"an option the table's kind does not take", "ALTER TABLE a OVERFLOW ALLOCATE EXTENT", map[string]*answer{
+			"ALTER TABLE a OVERFLOW ALLOCATE EXTENT": {942, 0},
+			"ALTER TABLE t OVERFLOW ALLOCATE EXTENT": {1735, 0},
+		}, Accept},
+		{"a syntax error before the lookup", "ALTER TABLE a zzz", map[string]*answer{
+			"ALTER TABLE a zzz":                   {1735, 14},
+			"ALTER TABLE a zzz" + OracleProbeTail: {1735, 14},
+		}, "reject@14"},
+		{"a view's partition looked up as a table", "ALTER MATERIALIZED VIEW a ADD PARTITION", map[string]*answer{
+			"ALTER MATERIALIZED VIEW a ADD PARTITION": {942, 24},
+		}, Accept},
+		{"a materialized view log, which has no stand-in", "ALTER MATERIALIZED VIEW LOG ON a ADD(a)", map[string]*answer{
+			"ALTER MATERIALIZED VIEW LOG ON a ADD(a)": {942, 0},
+		}, Accept},
+	} {
+		parse := func(text string) error {
+			a, ok := c.answers[text]
+			if !ok {
+				t.Fatalf("%s: asked %q", c.name, text)
+			}
+			if a == nil {
+				return nil
+			}
+			return oracleRaised(a.code, a.position, "")
+		}
+		got, err := OracleVerdict(c.statement, parse)
+		if err != nil {
+			t.Errorf("%s: %v", c.name, err)
+			continue
+		}
+		if got != c.want {
+			t.Errorf("%s: got %s, want %s", c.name, got, c.want)
 		}
 	}
 }

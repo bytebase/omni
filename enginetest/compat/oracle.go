@@ -68,6 +68,13 @@ BEGIN
                                            'TABLE SUBPARTITION', 'INDEX PARTITION', 'INDEX SUBPARTITION')
                  ORDER BY DECODE(object_type, 'MATERIALIZED VIEW', 1, 'TRIGGER', 2, 'VIEW', 3, 'TABLE', 5, 4)) LOOP
         BEGIN
+          IF o.object_type = 'TABLE' THEN
+            EXECUTE IMMEDIATE 'ALTER TABLE "' || o.object_name || '" ENABLE TABLE LOCK';
+          END IF;
+        EXCEPTION
+          WHEN OTHERS THEN NULL;
+        END;
+        BEGIN
           EXECUTE IMMEDIATE 'DROP ' || o.object_type || ' "' || o.object_name || '"' ||
             CASE o.object_type
               WHEN 'TABLE' THEN ' CASCADE CONSTRAINTS PURGE'
@@ -126,6 +133,47 @@ var oracleAfterParse = map[int]bool{
 	1031: true,
 }
 
+// oracleStandIns are the statements whose object Oracle looks up before it
+// reads the rest: ALTER TABLE a answers ORA-00942 and ALTER MATERIALIZED
+// VIEW a ORA-12003, at byte 0 or at the name, whatever follows the name
+// (ALTER MATERIALIZED VIEW a COMPILE zzz among it). OracleVerdict asks again with the
+// judge's fixture object of that kind in the name's place, a table t or a
+// materialized view v, so the fixture OracleParse's :2 builds must hold
+// both. The stand-in is as long as the name, so the answer's bytes are the
+// statement's.
+var oracleStandIns = []struct {
+	code    int
+	name    *regexp.Regexp // the first submatch is the name
+	standIn string
+}{
+	{942, regexp.MustCompile(`(?i)^\s*ALTER\s+TABLE\s+(a)(?:\s|$)`), "t"},
+	{12003, regexp.MustCompile(`(?i)^\s*ALTER\s+MATERIALIZED\s+VIEW\s+(a)(?:\s|$)`), "v"},
+}
+
+// oracleStandIn returns statement with the fixture's object in place of
+// the one e says Oracle looked up and did not find, where oracleStandIns
+// knows the statement.
+func oracleStandIn(statement string, e oracleError) (string, bool) {
+	for _, s := range oracleStandIns {
+		m := s.name.FindStringSubmatchIndex(statement)
+		if s.code != e.code || m == nil || e.position != 0 && e.position != m[2] {
+			continue
+		}
+		return statement[:m[2]] + s.standIn + statement[m[3]:], true
+	}
+	return "", false
+}
+
+// oracleKindChecked are errors Oracle raises at byte 0, where no token
+// stands, when the statement asks of its object what that kind of object
+// does not take: ORA-01735 on ALTER TABLE, as OVERFLOW ALLOCATE EXTENT on
+// a heap table (an index-organized table with an overflow segment takes
+// it) or UPGRADE INCLUDING DATA NESTED TABLE a on a table without that
+// column. Oracle checks it as it reads the option and reads no further, so,
+// as with a lookup, the rest is not judged. A syntax error is at its token,
+// as ALTER TABLE t COALESCE zzz is at zzz.
+var oracleKindChecked = map[int]bool{1735: true}
+
 // oracleParserCode reports whether a code is one Oracle's SQL parser
 // raises: ORA-00900 to 00999 (invalid SQL statement, missing keyword,
 // missing expression, ...), the lexer's and the parser's of 01700 to 01799
@@ -145,8 +193,10 @@ func oracleParserCode(code int) bool {
 // missing or expected, or an option is not valid in the statement or where
 // it stands, and none names an object. Each was measured on the pinned
 // server, as in ALTER MATERIALIZED VIEW a PARAMETERS (14051, invalid ALTER
-// MATERIALIZED VIEW option) or ALTER SESSION SET CONSTRAINT = DEFAULT zzz
-// (02248, invalid option for ALTER SESSION).
+// MATERIALIZED VIEW option), ALTER MATERIALIZED VIEW v REFRESH FAST USING
+// ROLLBACK SEGMENT (12061, at USING), ALTER TABLE a DEALLOCATE UNUSED KEEP
+// 1 P (03277, invalid SIZE, at 1) or ALTER SESSION SET CONSTRAINT = DEFAULT
+// zzz (02248, invalid option for ALTER SESSION).
 var oracleStatement = map[int]bool{
 	// A keyword missing or expected.
 	1710: true, 1736: true, 1737: true, 1738: true, 1739: true, 1900: true, 1901: true, 1902: true, 1904: true,
@@ -158,8 +208,8 @@ var oracleStatement = map[int]bool{
 	// An option not valid in the statement, or a value missing where one stands.
 	1780: true, 2141: true, 2142: true, 2143: true, 2144: true, 2157: true, 2158: true, 2173: true, 2176: true,
 	2180: true, 2183: true, 2210: true, 2216: true, 2230: true, 2231: true, 2242: true, 2243: true, 2244: true,
-	2248: true, 2253: true, 2286: true, 2338: true, 2377: true, 3083: true, 3099: true, 3218: true, 3281: true,
-	3282: true, 10630: true, 11547: true, 11550: true, 11551: true, 12044: true, 12045: true, 14049: true,
+	2248: true, 2253: true, 2286: true, 2338: true, 2377: true, 3083: true, 3099: true, 3218: true, 3277: true, 3281: true,
+	3282: true, 10630: true, 11547: true, 11550: true, 11551: true, 12044: true, 12045: true, 12061: true, 14049: true,
 	14050: true, 14051: true, 14054: true, 14094: true, 14126: true, 14151: true, 14169: true, 14174: true,
 	14853: true, 19001: true, 22853: true, 38724: true, 65044: true,
 }
@@ -297,7 +347,10 @@ func oracleFailed(err error) bool {
 // inside the PL/SQL. A stored unit's errors are at a line and column of the
 // source Oracle keeps, so its rejection carries no byte; an anonymous
 // block's carries LAST_ERROR_POSITION. A probe could not tell: its tail is
-// in the block. The errors in oracleAfterParse are acceptances. An error at
+// in the block. A lookup Oracle makes before it reads the rest of ALTER
+// TABLE or ALTER MATERIALIZED VIEW is asked again on the fixture's object
+// (oracleStandIns). The errors in oracleAfterParse are acceptances, and so
+// are those in oracleKindChecked at byte 0. An error at
 // the very end of the statement, where the probe's tail is met either way,
 // is a rejection, whatever its code, unless Oracle checks it of the parsed
 // statement (oracleCheckedAtEnd). And Oracle failing in its own code on the
@@ -337,7 +390,10 @@ func OracleVerdict(statement string, parse func(text string) error) (string, err
 		}
 		return Accept, nil
 	}
-	if oracleAfterParse[e.code] {
+	if standIn, ok := oracleStandIn(statement, e); ok {
+		return OracleVerdict(standIn, parse)
+	}
+	if oracleAfterParse[e.code] || e.position == 0 && oracleKindChecked[e.code] {
 		return Accept, nil
 	}
 	reject := Reject
