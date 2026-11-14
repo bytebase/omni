@@ -264,12 +264,13 @@ func (p *Parser) parseCreatePDBClauses(opts *nodes.List, kind pdbKind, dblink bo
 					return true, nil
 				}
 				if p.adbWord("DATAFILE") {
+					datafileStart := p.pos()
 					p.advance()
 					spec, err := p.parseAlterDatabaseDatafileSpec()
 					if err != nil {
 						return false, err
 					}
-					opt.Items = &nodes.List{Items: []nodes.Node{&nodes.DDLOption{Key: "DATAFILE", Value: spec}}}
+					opt.Items = &nodes.List{Items: []nodes.Node{p.adbItem("DATAFILE", spec, datafileStart)}}
 					opt.Loc.End = p.prev.End
 				}
 			}

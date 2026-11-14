@@ -588,3 +588,36 @@ func TestAlterDatabaseManagedRecoveryQuotedOption(t *testing.T) {
 		}
 	}
 }
+
+// TestPluggableDatabaseOptionSpans checks that each option of CREATE
+// PLUGGABLE DATABASE, and the DATAFILE of its default tablespace, spans its
+// text.
+func TestPluggableDatabaseOptionSpans(t *testing.T) {
+	sql := "CREATE PLUGGABLE DATABASE p ADMIN USER u IDENTIFIED BY pw ROLES = (dba) DEFAULT TABLESPACE users DATAFILE 'users.dbf' SIZE 10M"
+	result := ParseAndCheck(t, sql)
+	stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.AdminDDLStmt)
+	want := map[string]string{
+		"ADMIN_USER":         "ADMIN USER u IDENTIFIED BY pw",
+		"ROLES":              "ROLES = (dba)",
+		"DEFAULT_TABLESPACE": "DEFAULT TABLESPACE users DATAFILE 'users.dbf' SIZE 10M",
+		"DATAFILE":           "DATAFILE 'users.dbf' SIZE 10M",
+	}
+	got := map[string]string{}
+	var walk func(*ast.List)
+	walk = func(l *ast.List) {
+		if l == nil {
+			return
+		}
+		for _, item := range l.Items {
+			o := item.(*ast.DDLOption)
+			got[o.Key] = sql[o.Loc.Start:o.Loc.End]
+			walk(o.Items)
+		}
+	}
+	walk(stmt.Options)
+	for k, v := range want {
+		if got[k] != v {
+			t.Errorf("%s spans %q, want %q", k, got[k], v)
+		}
+	}
+}
