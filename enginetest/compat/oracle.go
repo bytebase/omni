@@ -23,16 +23,18 @@ import (
 //
 // The block answers nothing when the parse succeeds. Otherwise it raises
 // ORA-20999 with what OracleVerdict reads: the error's code, its position
-// (DBMS_SQL.LAST_ERROR_POSITION, a byte offset into the statement), and,
-// for ORA-24344, a PL/SQL unit created with compilation errors, the
-// USER_ERRORS message numbers of its errors (PLS-nnnnn; 0 for "Statement
-// ignored", which follows another).
+// (DBMS_SQL.LAST_ERROR_POSITION, a byte offset into the statement), and the
+// PL/SQL compiler's errors: for ORA-24344, a unit created with compilation
+// errors, the USER_ERRORS message numbers (PLS-nnnnn; 0 for "Statement
+// ignored", which follows another), and for ORA-06550, an anonymous block
+// that did not compile, the PLS-nnnnn numbers of its error stack.
 const OracleParse = `DECLARE
   c INTEGER := DBMS_SQL.OPEN_CURSOR;
   code PLS_INTEGER := 0;
   pos PLS_INTEGER := -1;
   fn PLS_INTEGER := 0;
   compile VARCHAR2(4000);
+  stack VARCHAR2(4000);
   left_over VARCHAR2(4000);
 BEGIN
   BEGIN
@@ -41,25 +43,31 @@ BEGIN
     WHEN OTHERS THEN
       code := -SQLCODE;
       pos := DBMS_SQL.LAST_ERROR_POSITION;
+      stack := DBMS_UTILITY.FORMAT_ERROR_STACK;
   END;
   fn := DBMS_SQL.LAST_SQL_FUNCTION_CODE;
   DBMS_SQL.CLOSE_CURSOR(c);
   IF code = 24344 THEN
     SELECT LISTAGG(message_number, ',') WITHIN GROUP (ORDER BY name, type, sequence)
       INTO compile FROM user_errors WHERE attribute = 'ERROR';
+  ELSIF code = 6550 THEN
+    FOR i IN 1 .. REGEXP_COUNT(stack, 'PLS-[0-9]{5}') LOOP
+      compile := compile || CASE WHEN i > 1 THEN ',' END || TO_NUMBER(SUBSTR(REGEXP_SUBSTR(stack, 'PLS-[0-9]{5}', 1, i), 5));
+    END LOOP;
   END IF;
   IF code IN (0, 24344) AND fn NOT IN (` + oracleParsedOnly + `) THEN
     FOR pass IN 1 .. 3 LOOP
       FOR o IN (SELECT object_name, object_type FROM user_objects
-                 WHERE object_type IN ('MATERIALIZED VIEW', 'TRIGGER', 'VIEW', 'SYNONYM', 'SEQUENCE',
-                                       'PROCEDURE', 'FUNCTION', 'PACKAGE BODY', 'PACKAGE', 'TYPE BODY',
-                                       'TYPE', 'TABLE', 'CLUSTER', 'INDEX', 'LIBRARY')
+                 WHERE object_type NOT IN ('LOB', 'LOB PARTITION', 'LOB SUBPARTITION', 'TABLE PARTITION',
+                                           'TABLE SUBPARTITION', 'INDEX PARTITION', 'INDEX SUBPARTITION')
                  ORDER BY DECODE(object_type, 'MATERIALIZED VIEW', 1, 'TRIGGER', 2, 'VIEW', 3, 'TABLE', 5, 4)) LOOP
         BEGIN
           EXECUTE IMMEDIATE 'DROP ' || o.object_type || ' "' || o.object_name || '"' ||
             CASE o.object_type
               WHEN 'TABLE' THEN ' CASCADE CONSTRAINTS PURGE'
               WHEN 'TYPE' THEN ' FORCE'
+              WHEN 'OPERATOR' THEN ' FORCE'
+              WHEN 'INDEXTYPE' THEN ' FORCE'
               WHEN 'CLUSTER' THEN ' INCLUDING TABLES CASCADE CONSTRAINTS'
             END;
         EXCEPTION
@@ -163,10 +171,13 @@ func readOracle(err error) (oracleError, bool) {
 // byte, which comes before the tail. A rejection carries that byte.
 //
 // Three answers need no probe. ORA-24344 is a PL/SQL unit Oracle created
-// with compilation errors: it is a rejection when one of them is the PL/SQL
-// parser's (PLS-00100 to 00199, PLS-00103 "Encountered the symbol" among
-// them), which reports a line and column of the unit's own source, so the
-// rejection carries no byte. The errors in oracleAfterParse are
+// with compilation errors, and ORA-06550 an anonymous block the PL/SQL
+// compiler refused: either is a rejection when one of the compiler's errors
+// is its parser's (PLS-00100 to 00199, PLS-00103 "Encountered the symbol"
+// among them). A stored unit's errors are at a line and column of the
+// source Oracle keeps, so its rejection carries no byte; an anonymous
+// block's carries LAST_ERROR_POSITION. A probe could not tell: its tail is
+// in the block. The errors in oracleAfterParse are
 // acceptances. And an error at the very end of the statement, where the
 // probe's tail is met either way, is a rejection when its code is the
 // parser's (oracleParserCode), and an acceptance otherwise: CREATE
@@ -186,12 +197,15 @@ func OracleVerdict(statement string, parse func(text string) error) (string, err
 	if !ok {
 		return "", err
 	}
-	if e.code == 24344 {
+	if e.code == 24344 || e.code == 6550 {
 		if len(e.compile) == 0 {
-			return "", fmt.Errorf("Oracle created a unit with compilation errors and USER_ERRORS lists none: %w", err)
+			return "", fmt.Errorf("Oracle answered ORA-%05d and lists no PL/SQL error: %w", e.code, err)
 		}
 		for _, c := range e.compile {
 			if c >= 100 && c <= 199 {
+				if e.code == 6550 && e.position >= 0 && e.position <= len(statement) {
+					return RejectAt(e.position), nil
+				}
 				return Reject, nil
 			}
 		}
