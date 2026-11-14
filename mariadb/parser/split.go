@@ -547,7 +547,8 @@ func forLoopFollows(sql string, i int) bool {
 	default:
 		return false
 	}
-	return matchWord(sql, skipSpaceAndComments(sql, j), "IN")
+	k := skipSpaceAndComments(sql, j)
+	return matchWord(sql, k, "IN") && !inLexerIdent(sql, k, k+2)
 }
 
 // skipSingleQuoteMySQL skips a single-quoted string starting at position i.
