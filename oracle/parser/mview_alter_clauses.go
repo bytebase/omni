@@ -262,6 +262,11 @@ func (p *Parser) parseAlterMviewProperty(stmt *nodes.AlterMaterializedViewStmt) 
 		// else at the word after it.
 		p.advance() // consume ADD
 		return p.syntaxErrorAtCur()
+	case p.atWord("COALESCE") && p.peekNext().Type == kwSUBPARTITION:
+		// The pinned server refuses COALESCE SUBPARTITION on a
+		// materialized view at SUBPARTITION.
+		p.advance() // consume COALESCE
+		return p.syntaxErrorAtCur()
 	case p.isAlterMviewPartitionRefused():
 		// Oracle refuses dropping, truncating and exchanging a partition
 		// of a materialized view at PARTITION (ORA-32339).
@@ -397,7 +402,8 @@ func (p *Parser) parseAlterMviewPhysicalAttrs(stmt *nodes.AlterMaterializedViewS
 func (p *Parser) isAlterMviewIOTStart() bool {
 	switch {
 	case p.atWord("OVERFLOW"), p.atWord("MAPPING"), p.atWord("NOMAPPING"), p.atWord("INCLUDING"),
-		p.atWord("PCTTHRESHOLD"), p.atWord("COALESCE"):
+		p.atWord("PCTTHRESHOLD"):
+		// The pinned server refuses the page's COALESCE here (ORA-14051).
 		return true
 	case p.cur.Type == kwADD:
 		return p.atNextWord("OVERFLOW")
@@ -408,7 +414,7 @@ func (p *Parser) isAlterMviewIOTStart() bool {
 // parseAlterMviewIOT reads alter_iot_clauses.
 //
 //	{ index_org_table_clause | alter_overflow_clause
-//	| alter_mapping_table_clauses | COALESCE }
+//	| alter_mapping_table_clauses }
 //	index_org_table_clause:
 //	    { mapping_table_clauses | PCTTHRESHOLD integer | prefix_compression
 //	    | index_org_overflow_clause }
