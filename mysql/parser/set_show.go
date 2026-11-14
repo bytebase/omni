@@ -1826,10 +1826,15 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 		// mysql:8.0.46 parses FOR CONNECTION 0x1 and X'01'.
 		if p.cur.Type == tokXCONST {
 			tok := p.advance()
+			// The digits are held to the literal's own rules: X'GG' and X'4' are 1064.
+			if _, err := p.decodeByteLiteral(tok); err != nil {
+				return nil, err
+			}
 			digits := tok.Str
 			if p.inputText(tok.Loc, tok.Loc+1) == "0" {
 				digits = digits[2:]
 			}
+			// An id past 64 bits is no connection's, and is left 0.
 			if v, err := strconv.ParseUint(digits, 16, 64); err == nil {
 				stmt.ForConnection = int64(v)
 			}

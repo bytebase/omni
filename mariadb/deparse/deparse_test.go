@@ -1299,6 +1299,16 @@ func TestDeparseSelect_SourceClauses(t *testing.T) {
 		// A value is written as writeExpr writes any expression, which
 		// parenthesizes 1 + 1 where MariaDB does not.
 		{"VALUES (1 + 1, 'x') UNION VALUES (3, 'y')", "values (1 + 1,'x') union values (3,'y')"},
+		// PROCEDURE follows a parenthesized query and VALUES as it does a SELECT.
+		{"(SELECT 1) PROCEDURE ANALYSE()", "(select 1 AS `1`) procedure `ANALYSE`()"},
+		{"VALUES (1) PROCEDURE ANALYSE(10)", "values (1) procedure `ANALYSE`(10)"},
+		{"SELECT a FROM t PROCEDURE ANALYSE(10, 2)", "select `a` AS `a` from `t` procedure `ANALYSE`(10,2)"},
+		// Rebuilt with no source text, an unaliased item's name spells FETCH in
+		// its own words, taking FIRST and ROW(S) where the AST keeps no choice.
+		{"SELECT (SELECT 1 OFFSET 2 ROWS)", "select (select 1) AS `(SELECT 1 OFFSET 2 ROWS)`"},
+		{"SELECT (SELECT a FROM t ORDER BY a FETCH FIRST 2 ROWS WITH TIES)",
+			"select (select `a` from `t` order by `a` fetch first 2 rows with ties) AS `(SELECT a FROM t ORDER BY a FETCH FIRST 2 ROWS WITH TIES)`"},
+		{"SELECT (SELECT a FROM t FETCH NEXT ROW ONLY)", "select (select `a` from `t` limit 1) AS `(SELECT a FROM t FETCH FIRST ROW ONLY)`"},
 	}
 	for _, tc := range cases {
 		got := DeparseSelect(parseSelect(t, tc.input))
