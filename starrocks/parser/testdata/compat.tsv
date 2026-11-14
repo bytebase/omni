@@ -84,8 +84,8 @@ reject	reject	engine	statement/alterDatabaseRenameStatement!insert	ALTER DATABAS
 reject	reject	engine	statement/alterDatabaseRenameStatement!swap	ANALYZE DATABASE a RENAME a;
 accept	accept	engine	statement/recoverDbStmt	RECOVER DATABASE a;
 reject	reject	engine	statement/recoverDbStmt!drop-2	RECOVER a;
-accept	reject	engine	statement/recoverDbStmt!drop-3	RECOVER DATABASE;
-accept	reject	engine	statement/recoverDbStmt!truncate	RECOVER DATABASE
+reject	reject	engine	statement/recoverDbStmt!drop-3	RECOVER DATABASE;
+reject	reject	engine	statement/recoverDbStmt!truncate	RECOVER DATABASE
 reject	reject	engine	statement/recoverDbStmt!insert	RECOVER DATABASE a zzz;
 reject	reject	engine	statement/recoverDbStmt!swap	REFRESH DATABASE a;
 accept	accept	engine	statement/showDataStmt	SHOW DATA;
@@ -134,19 +134,19 @@ reject	reject	engine	statement/dropTableStatement!drop-3	DROP TABLE;
 reject	reject	engine	statement/dropTableStatement!truncate	DROP TABLE
 reject	reject	engine	statement/dropTableStatement!insert	DROP TABLE a zzz;
 reject	reject	engine	statement/dropTableStatement!swap	DUAL TABLE a;
-accept	reject	engine	statement/cleanTemporaryTableStatement	CLEAN TEMPORARY TABLE ON SESSION 'a';
+reject	reject	engine	statement/cleanTemporaryTableStatement	CLEAN TEMPORARY TABLE ON SESSION 'a';
 reject	reject	engine	statement/cleanTemporaryTableStatement!drop-1	TEMPORARY TABLE ON SESSION 'a';
-accept	reject	engine	statement/cleanTemporaryTableStatement!drop-2	CLEAN TABLE ON SESSION 'a';
-accept	reject	engine	statement/cleanTemporaryTableStatement!drop-3	CLEAN TEMPORARY ON SESSION 'a';
-accept	reject	engine	statement/cleanTemporaryTableStatement!drop-4	CLEAN TEMPORARY TABLE SESSION 'a';
-accept	reject	engine	statement/cleanTemporaryTableStatement!drop-5	CLEAN TEMPORARY TABLE ON 'a';
-accept	reject	engine	statement/cleanTemporaryTableStatement!drop-6	CLEAN TEMPORARY TABLE ON SESSION;
-accept	reject	engine	statement/cleanTemporaryTableStatement!truncate	CLEAN TEMPORARY TABLE ON SESSION
-accept	reject	engine	statement/cleanTemporaryTableStatement!insert	CLEAN TEMPORARY TABLE ON SESSION 'a' zzz;
+reject	reject	engine	statement/cleanTemporaryTableStatement!drop-2	CLEAN TABLE ON SESSION 'a';
+reject	reject	engine	statement/cleanTemporaryTableStatement!drop-3	CLEAN TEMPORARY ON SESSION 'a';
+reject	reject	engine	statement/cleanTemporaryTableStatement!drop-4	CLEAN TEMPORARY TABLE SESSION 'a';
+reject	reject	engine	statement/cleanTemporaryTableStatement!drop-5	CLEAN TEMPORARY TABLE ON 'a';
+reject	reject	engine	statement/cleanTemporaryTableStatement!drop-6	CLEAN TEMPORARY TABLE ON SESSION;
+reject	reject	engine	statement/cleanTemporaryTableStatement!truncate	CLEAN TEMPORARY TABLE ON SESSION
+reject	reject	engine	statement/cleanTemporaryTableStatement!insert	CLEAN TEMPORARY TABLE ON SESSION 'a' zzz;
 reject	reject	engine	statement/cleanTemporaryTableStatement!swap	CLEAR TEMPORARY TABLE ON SESSION 'a';
 accept	accept	engine	statement/recoverTableStatement	RECOVER TABLE a;
-accept	reject	engine	statement/recoverTableStatement!drop-3	RECOVER TABLE;
-accept	reject	engine	statement/recoverTableStatement!truncate	RECOVER TABLE
+reject	reject	engine	statement/recoverTableStatement!drop-3	RECOVER TABLE;
+reject	reject	engine	statement/recoverTableStatement!truncate	RECOVER TABLE
 reject	reject	engine	statement/recoverTableStatement!insert	RECOVER TABLE a zzz;
 reject	reject	engine	statement/recoverTableStatement!swap	REFRESH TABLE a;
 accept	accept	engine	statement/truncateTableStatement	TRUNCATE TABLE a;
@@ -160,8 +160,8 @@ reject	reject	engine	statement/showTableStatement!drop-1	TABLES;
 reject	reject	engine	statement/showTableStatement!insert	SHOW TABLES zzz;
 reject	reject	engine	statement/showTableStatement!swap	SIGNED TABLES;
 accept	accept	engine	statement/descTableStatement	DESC a;
-accept	reject	engine	statement/descTableStatement!drop-2	DESC;
-accept	reject	engine	statement/descTableStatement!truncate	DESC
+reject	reject	engine	statement/descTableStatement!drop-2	DESC;
+reject	reject	engine	statement/descTableStatement!truncate	DESC
 reject	reject	engine	statement/descTableStatement!insert	DESC a zzz;
 accept	accept	engine	statement/showTableStatusStatement	SHOW TABLE STATUS;
 reject	reject	engine	statement/showTableStatusStatement!drop-1	TABLE STATUS;
@@ -191,12 +191,12 @@ reject	reject	engine	statement/alterTableStatement!truncate	ALTER TABLE
 accept	reject	engine	statement/alterTableStatement!insert	ALTER TABLE a zzz;
 accept	accept	engine	statement/cancelAlterTableStatement	CANCEL ALTER TABLE FROM a;
 reject	reject	engine	statement/cancelAlterTableStatement!drop-1	ALTER TABLE FROM a;
-accept	reject	engine	statement/cancelAlterTableStatement!drop-2	CANCEL TABLE FROM a;
-accept	reject	engine	statement/cancelAlterTableStatement!drop-3	CANCEL ALTER FROM a;
-accept	reject	engine	statement/cancelAlterTableStatement!drop-4	CANCEL ALTER TABLE a;
-accept	reject	engine	statement/cancelAlterTableStatement!drop-5	CANCEL ALTER TABLE FROM;
-accept	reject	engine	statement/cancelAlterTableStatement!truncate	CANCEL ALTER TABLE FROM
-accept	reject	engine	statement/cancelAlterTableStatement!insert	CANCEL ALTER TABLE FROM a zzz;
+reject	reject	engine	statement/cancelAlterTableStatement!drop-2	CANCEL TABLE FROM a;
+reject	reject	engine	statement/cancelAlterTableStatement!drop-3	CANCEL ALTER FROM a;
+reject	reject	engine	statement/cancelAlterTableStatement!drop-4	CANCEL ALTER TABLE a;
+reject	reject	engine	statement/cancelAlterTableStatement!drop-5	CANCEL ALTER TABLE FROM;
+reject	reject	engine	statement/cancelAlterTableStatement!truncate	CANCEL ALTER TABLE FROM
+reject	reject	engine	statement/cancelAlterTableStatement!insert	CANCEL ALTER TABLE FROM a zzz;
 reject	reject	engine	statement/cancelAlterTableStatement!swap	CASE ALTER TABLE FROM a;
 accept	accept	engine	statement/showAlterStatement	SHOW ALTER TABLE COLUMN;
 reject	reject	engine	statement/showAlterStatement!drop-1	ALTER TABLE COLUMN;
@@ -246,7 +246,7 @@ reject	reject	engine	statement/showPartitionsStatement!swap	SIGNED PARTITIONS FR
 accept	accept	engine	statement/recoverPartitionStatement	RECOVER PARTITION a FROM a;
 reject	reject	engine	statement/recoverPartitionStatement!drop-1	PARTITION a FROM a;
 reject	reject	engine	statement/recoverPartitionStatement!drop-2	RECOVER a FROM a;
-accept	reject	engine	statement/recoverPartitionStatement!drop-3	RECOVER PARTITION FROM a;
+reject	reject	engine	statement/recoverPartitionStatement!drop-3	RECOVER PARTITION FROM a;
 reject	reject	engine	statement/recoverPartitionStatement!drop-4	RECOVER PARTITION a a;
 reject	reject	engine	statement/recoverPartitionStatement!drop-5	RECOVER PARTITION a FROM;
 reject	reject	engine	statement/recoverPartitionStatement!truncate	RECOVER PARTITION a FROM
@@ -340,11 +340,11 @@ reject	reject	engine	statement/refreshMaterializedViewStatement!insert	REFRESH M
 reject	reject	engine	statement/refreshMaterializedViewStatement!swap	REGEXP MATERIALIZED VIEW a;
 accept	accept	engine	statement/cancelRefreshMaterializedViewStatement	CANCEL REFRESH MATERIALIZED VIEW a;
 reject	reject	engine	statement/cancelRefreshMaterializedViewStatement!drop-2	CANCEL MATERIALIZED VIEW a;
-accept	reject	engine	statement/cancelRefreshMaterializedViewStatement!drop-3	CANCEL REFRESH VIEW a;
-accept	reject	engine	statement/cancelRefreshMaterializedViewStatement!drop-4	CANCEL REFRESH MATERIALIZED a;
-accept	reject	engine	statement/cancelRefreshMaterializedViewStatement!drop-5	CANCEL REFRESH MATERIALIZED VIEW;
-accept	reject	engine	statement/cancelRefreshMaterializedViewStatement!truncate	CANCEL REFRESH MATERIALIZED VIEW
-accept	reject	engine	statement/cancelRefreshMaterializedViewStatement!insert	CANCEL REFRESH MATERIALIZED VIEW a zzz;
+reject	reject	engine	statement/cancelRefreshMaterializedViewStatement!drop-3	CANCEL REFRESH VIEW a;
+reject	reject	engine	statement/cancelRefreshMaterializedViewStatement!drop-4	CANCEL REFRESH MATERIALIZED a;
+reject	reject	engine	statement/cancelRefreshMaterializedViewStatement!drop-5	CANCEL REFRESH MATERIALIZED VIEW;
+reject	reject	engine	statement/cancelRefreshMaterializedViewStatement!truncate	CANCEL REFRESH MATERIALIZED VIEW
+reject	reject	engine	statement/cancelRefreshMaterializedViewStatement!insert	CANCEL REFRESH MATERIALIZED VIEW a zzz;
 reject	reject	engine	statement/cancelRefreshMaterializedViewStatement!swap	CASE REFRESH MATERIALIZED VIEW a;
 accept	accept	engine	statement/createExternalCatalogStatement	CREATE EXTERNAL CATALOG a PROPERTIES('a' = 'a');
 reject	reject	engine	statement/createExternalCatalogStatement!drop-1	EXTERNAL CATALOG a PROPERTIES('a' = 'a');
@@ -552,7 +552,7 @@ reject	reject	engine	statement/adminRepairTableStatement!truncate	ADMIN REPAIR T
 reject	reject	engine	statement/adminRepairTableStatement!insert	ADMIN REPAIR TABLE a zzz;
 reject	reject	engine	statement/adminRepairTableStatement!swap	ADVISOR REPAIR TABLE a;
 accept	accept	engine	statement/adminCancelRepairTableStatement	ADMIN CANCEL REPAIR TABLE a;
-accept	reject	engine	statement/adminCancelRepairTableStatement!drop-1	CANCEL REPAIR TABLE a;
+reject	reject	engine	statement/adminCancelRepairTableStatement!drop-1	CANCEL REPAIR TABLE a;
 reject	reject	engine	statement/adminCancelRepairTableStatement!drop-3	ADMIN CANCEL TABLE a;
 reject	reject	engine	statement/adminCancelRepairTableStatement!drop-4	ADMIN CANCEL REPAIR a;
 reject	reject	engine	statement/adminCancelRepairTableStatement!drop-5	ADMIN CANCEL REPAIR TABLE;
@@ -592,8 +592,8 @@ reject	reject	engine	statement/adminSetPartitionVersion!insert	ADMIN SET TABLE a
 reject	reject	engine	statement/adminSetPartitionVersion!swap	ADVISOR SET TABLE a PARTITION(a) VERSION TO 1;
 accept	accept	engine	statement/killStatement	KILL 1;
 reject	reject	engine	statement/killStatement!drop-1	1;
-accept	reject	engine	statement/killStatement!drop-2	KILL;
-accept	reject	engine	statement/killStatement!truncate	KILL
+reject	reject	engine	statement/killStatement!drop-2	KILL;
+reject	reject	engine	statement/killStatement!truncate	KILL
 reject	reject	engine	statement/killStatement!insert	KILL 1 zzz;
 reject	reject	engine	statement/killStatement!swap	LABEL 1;
 accept	accept	engine	statement/syncStatement	SYNC;
@@ -632,10 +632,10 @@ accept	reject	engine	statement/alterSystemStatement!insert	ALTER SYSTEM zzz;
 reject	reject	engine	statement/alterSystemStatement!swap	ANALYZE SYSTEM;
 accept	accept	engine	statement/cancelAlterSystemStatement	CANCEL DECOMMISSION BACKEND 'a';
 reject	reject	engine	statement/cancelAlterSystemStatement!drop-1	DECOMMISSION BACKEND 'a';
-accept	reject	engine	statement/cancelAlterSystemStatement!drop-2	CANCEL BACKEND 'a';
-accept	reject	engine	statement/cancelAlterSystemStatement!drop-3	CANCEL DECOMMISSION 'a';
-accept	reject	engine	statement/cancelAlterSystemStatement!drop-4	CANCEL DECOMMISSION BACKEND;
-accept	reject	engine	statement/cancelAlterSystemStatement!truncate	CANCEL DECOMMISSION BACKEND
+reject	reject	engine	statement/cancelAlterSystemStatement!drop-2	CANCEL BACKEND 'a';
+reject	reject	engine	statement/cancelAlterSystemStatement!drop-3	CANCEL DECOMMISSION 'a';
+reject	reject	engine	statement/cancelAlterSystemStatement!drop-4	CANCEL DECOMMISSION BACKEND;
+reject	reject	engine	statement/cancelAlterSystemStatement!truncate	CANCEL DECOMMISSION BACKEND
 reject	reject	engine	statement/cancelAlterSystemStatement!insert	CANCEL DECOMMISSION BACKEND 'a' zzz;
 reject	reject	engine	statement/cancelAlterSystemStatement!swap	CASE DECOMMISSION BACKEND 'a';
 accept	accept	engine	statement/showComputeNodesStatement	SHOW COMPUTE NODES;
@@ -710,8 +710,8 @@ accept	reject	engine	statement/showHistogramMetaStatement!truncate	SHOW HISTOGRA
 accept	reject	engine	statement/showHistogramMetaStatement!insert	SHOW HISTOGRAM META zzz;
 reject	reject	engine	statement/showHistogramMetaStatement!swap	SIGNED HISTOGRAM META;
 accept	accept	engine	statement/killAnalyzeStatement	KILL ANALYZE 1;
-accept	reject	engine	statement/killAnalyzeStatement!drop-3	KILL ANALYZE;
-accept	reject	engine	statement/killAnalyzeStatement!truncate	KILL ANALYZE
+reject	reject	engine	statement/killAnalyzeStatement!drop-3	KILL ANALYZE;
+reject	reject	engine	statement/killAnalyzeStatement!truncate	KILL ANALYZE
 reject	reject	engine	statement/killAnalyzeStatement!insert	KILL ANALYZE 1 zzz;
 reject	reject	engine	statement/killAnalyzeStatement!swap	LABEL ANALYZE 1;
 reject	accept	engine	statement/analyzeProfileStatement	ANALYZE PROFILE FROM 'a';
@@ -837,9 +837,9 @@ accept	accept	engine	statement/showLoadWarningsStatement!truncate	SHOW LOAD
 accept	reject	engine	statement/showLoadWarningsStatement!insert	SHOW LOAD WARNINGS zzz;
 reject	reject	engine	statement/showLoadWarningsStatement!swap	SIGNED LOAD WARNINGS;
 accept	accept	engine	statement/cancelLoadStatement	CANCEL LOAD;
-accept	reject	engine	statement/cancelLoadStatement!drop-2	CANCEL;
-accept	reject	engine	statement/cancelLoadStatement!truncate	CANCEL
-accept	reject	engine	statement/cancelLoadStatement!insert	CANCEL LOAD zzz;
+reject	reject	engine	statement/cancelLoadStatement!drop-2	CANCEL;
+reject	reject	engine	statement/cancelLoadStatement!truncate	CANCEL
+reject	reject	engine	statement/cancelLoadStatement!insert	CANCEL LOAD zzz;
 reject	reject	engine	statement/cancelLoadStatement!swap	CASE LOAD;
 reject	accept	engine	statement/alterLoadStatement	ALTER LOAD FOR a;
 reject	reject	engine	statement/alterLoadStatement!drop-1	LOAD FOR a;
@@ -971,8 +971,8 @@ reject	reject	engine	statement/showWarningStatement!drop-1	WARNINGS;
 accept	reject	engine	statement/showWarningStatement!insert	SHOW WARNINGS zzz;
 reject	reject	engine	statement/showWarningStatement!swap	SIGNED WARNINGS;
 accept	accept	engine	statement/helpStatement	HELP a;
-accept	reject	engine	statement/helpStatement!drop-2	HELP;
-accept	reject	engine	statement/helpStatement!truncate	HELP
+reject	reject	engine	statement/helpStatement!drop-2	HELP;
+reject	reject	engine	statement/helpStatement!truncate	HELP
 reject	reject	engine	statement/helpStatement!insert	HELP a zzz;
 reject	reject	engine	statement/helpStatement!swap	HISTOGRAM a;
 accept	accept	engine	statement/createUserStatement	CREATE USER a;
@@ -1101,9 +1101,9 @@ reject	reject	engine	statement/backupStatement!drop-5	BACKUP SNAPSHOT a TO;
 reject	reject	engine	statement/backupStatement!truncate	BACKUP SNAPSHOT a TO
 reject	reject	engine	statement/backupStatement!insert	BACKUP SNAPSHOT a TO a zzz;
 reject	reject	engine	statement/backupStatement!swap	BASE SNAPSHOT a TO a;
-accept	reject	engine	statement/cancelBackupStatement	CANCEL BACKUP;
+reject	reject	engine	statement/cancelBackupStatement	CANCEL BACKUP;
 reject	reject	engine	statement/cancelBackupStatement!drop-1	BACKUP;
-accept	reject	engine	statement/cancelBackupStatement!insert	CANCEL BACKUP zzz;
+reject	reject	engine	statement/cancelBackupStatement!insert	CANCEL BACKUP zzz;
 reject	reject	engine	statement/cancelBackupStatement!swap	CASE BACKUP;
 accept	accept	engine	statement/showBackupStatement	SHOW BACKUP;
 accept	reject	engine	statement/showBackupStatement!insert	SHOW BACKUP zzz;
@@ -1117,9 +1117,9 @@ reject	reject	engine	statement/restoreStatement!drop-5	RESTORE SNAPSHOT a FROM;
 reject	reject	engine	statement/restoreStatement!truncate	RESTORE SNAPSHOT a FROM
 reject	reject	engine	statement/restoreStatement!insert	RESTORE SNAPSHOT a FROM a zzz;
 reject	reject	engine	statement/restoreStatement!swap	RESUME SNAPSHOT a FROM a;
-accept	reject	engine	statement/cancelRestoreStatement	CANCEL RESTORE;
+reject	reject	engine	statement/cancelRestoreStatement	CANCEL RESTORE;
 reject	reject	engine	statement/cancelRestoreStatement!drop-1	RESTORE;
-accept	reject	engine	statement/cancelRestoreStatement!insert	CANCEL RESTORE zzz;
+reject	reject	engine	statement/cancelRestoreStatement!insert	CANCEL RESTORE zzz;
 reject	reject	engine	statement/cancelRestoreStatement!swap	CASE RESTORE;
 accept	accept	engine	statement/showRestoreStatement	SHOW RESTORE;
 accept	reject	engine	statement/showRestoreStatement!insert	SHOW RESTORE zzz;
@@ -1237,7 +1237,7 @@ reject	reject	engine	statement/dataCacheSelectStatement!drop-4	CACHE SELECT CURR
 reject	reject	engine	statement/dataCacheSelectStatement!drop-5	CACHE SELECT CURRENT_USER FROM;
 reject	reject	engine	statement/dataCacheSelectStatement!truncate	CACHE SELECT CURRENT_USER FROM
 reject	reject	engine	statement/dataCacheSelectStatement!insert	CACHE SELECT CURRENT_USER FROM a zzz;
-accept	reject	engine	statement/dataCacheSelectStatement!swap	CANCEL SELECT CURRENT_USER FROM a;
+reject	reject	engine	statement/dataCacheSelectStatement!swap	CANCEL SELECT CURRENT_USER FROM a;
 accept	accept	engine	statement/exportStatement	EXPORT TABLE a TO 'a';
 reject	reject	engine	statement/exportStatement!drop-1	TABLE a TO 'a';
 reject	reject	engine	statement/exportStatement!drop-2	EXPORT a TO 'a';
@@ -1249,7 +1249,7 @@ reject	reject	engine	statement/exportStatement!insert	EXPORT TABLE a TO 'a' zzz;
 reject	reject	engine	statement/exportStatement!swap	EXTERNAL TABLE a TO 'a';
 accept	accept	engine	statement/cancelExportStatement	CANCEL EXPORT;
 reject	reject	engine	statement/cancelExportStatement!drop-1	EXPORT;
-accept	reject	engine	statement/cancelExportStatement!insert	CANCEL EXPORT zzz;
+reject	reject	engine	statement/cancelExportStatement!insert	CANCEL EXPORT zzz;
 reject	reject	engine	statement/cancelExportStatement!swap	CASE EXPORT;
 accept	accept	engine	statement/showExportStatement	SHOW EXPORT;
 accept	reject	engine	statement/showExportStatement!insert	SHOW EXPORT zzz;
@@ -1408,11 +1408,11 @@ accept	accept	engine	statement/descPipeStatement!truncate	DESC PIPE
 reject	reject	engine	statement/descPipeStatement!insert	DESC PIPE a zzz;
 accept	accept	engine	statement/cancelCompactionStatement	CANCEL COMPACTION WHERE CURRENT_USER;
 reject	reject	engine	statement/cancelCompactionStatement!drop-1	COMPACTION WHERE CURRENT_USER;
-accept	reject	engine	statement/cancelCompactionStatement!drop-2	CANCEL WHERE CURRENT_USER;
-accept	reject	engine	statement/cancelCompactionStatement!drop-3	CANCEL COMPACTION CURRENT_USER;
-accept	reject	engine	statement/cancelCompactionStatement!drop-4	CANCEL COMPACTION WHERE;
-accept	reject	engine	statement/cancelCompactionStatement!truncate	CANCEL COMPACTION WHERE
-accept	reject	engine	statement/cancelCompactionStatement!insert	CANCEL COMPACTION WHERE CURRENT_USER zzz;
+reject	reject	engine	statement/cancelCompactionStatement!drop-2	CANCEL WHERE CURRENT_USER;
+reject	reject	engine	statement/cancelCompactionStatement!drop-3	CANCEL COMPACTION CURRENT_USER;
+reject	reject	engine	statement/cancelCompactionStatement!drop-4	CANCEL COMPACTION WHERE;
+reject	reject	engine	statement/cancelCompactionStatement!truncate	CANCEL COMPACTION WHERE
+reject	reject	engine	statement/cancelCompactionStatement!insert	CANCEL COMPACTION WHERE CURRENT_USER zzz;
 reject	reject	engine	statement/cancelCompactionStatement!swap	CASE COMPACTION WHERE CURRENT_USER;
 accept	accept	engine	statement/updateFailPointStatusStatement	ADMIN DISABLE FAILPOINT 'a';
 reject	reject	engine	statement/updateFailPointStatusStatement!drop-1	DISABLE FAILPOINT 'a';
@@ -1476,11 +1476,11 @@ reject	reject	engine	statement/showDictionaryStatement!drop-1	DICTIONARY;
 accept	accept	engine	statement/showDictionaryStatement!insert	SHOW DICTIONARY zzz;
 reject	reject	engine	statement/showDictionaryStatement!swap	SIGNED DICTIONARY;
 accept	accept	engine	statement/cancelRefreshDictionaryStatement	CANCEL REFRESH DICTIONARY a;
-accept	reject	engine	statement/cancelRefreshDictionaryStatement!drop-2	CANCEL DICTIONARY a;
-accept	reject	engine	statement/cancelRefreshDictionaryStatement!drop-3	CANCEL REFRESH a;
-accept	reject	engine	statement/cancelRefreshDictionaryStatement!drop-4	CANCEL REFRESH DICTIONARY;
-accept	reject	engine	statement/cancelRefreshDictionaryStatement!truncate	CANCEL REFRESH DICTIONARY
-accept	reject	engine	statement/cancelRefreshDictionaryStatement!insert	CANCEL REFRESH DICTIONARY a zzz;
+reject	reject	engine	statement/cancelRefreshDictionaryStatement!drop-2	CANCEL DICTIONARY a;
+reject	reject	engine	statement/cancelRefreshDictionaryStatement!drop-3	CANCEL REFRESH a;
+reject	reject	engine	statement/cancelRefreshDictionaryStatement!drop-4	CANCEL REFRESH DICTIONARY;
+reject	reject	engine	statement/cancelRefreshDictionaryStatement!truncate	CANCEL REFRESH DICTIONARY
+reject	reject	engine	statement/cancelRefreshDictionaryStatement!insert	CANCEL REFRESH DICTIONARY a zzz;
 reject	reject	engine	statement/cancelRefreshDictionaryStatement!swap	CASE REFRESH DICTIONARY a;
 reject	accept	engine	statement/alterPlanAdvisorAddStatement	ALTER PLAN ADVISOR ADD SELECT CURRENT_USER;
 reject	reject	engine	statement/alterPlanAdvisorAddStatement!drop-1	PLAN ADVISOR ADD SELECT CURRENT_USER;
@@ -2244,7 +2244,7 @@ accept	accept	engine	dropTableStatement(FORCE)?/FORCE	DROP TABLE a FORCE;
 accept	accept	engine	dropTableStatement(FORCE)?/FORCE!truncate	DROP TABLE a
 reject	reject	engine	dropTableStatement(FORCE)?/FORCE!insert	DROP TABLE a FORCE zzz;
 reject	reject	engine	dropTableStatement(FORCE)?/FORCE!swap	DROP TABLE a FORMAT;
-accept	reject	engine	cleanTemporaryTableStatement/CLEAN_TEMPORARY_TABLE_ON_SESSION_string	CLEAN TEMPORARY TABLE ON SESSION 'a';
+reject	reject	engine	cleanTemporaryTableStatement/CLEAN_TEMPORARY_TABLE_ON_SESSION_string	CLEAN TEMPORARY TABLE ON SESSION 'a';
 accept	accept	engine	alterTableStatement/ALTER_TABLE_qualifiedName_alterClause_(,_alterClause)*	ALTER TABLE a;
 accept	accept	engine	alterTableStatement/ALTER_TABLE_qualifiedName_ADD_ROLLUP_rollupItem_(,_rollupItem)*	ALTER TABLE a ADD ROLLUP a(a);
 reject	reject	engine	alterTableStatement/ALTER_TABLE_qualifiedName_ADD_ROLLUP_rollupItem_(,_rollupItem)*!drop-1	TABLE a ADD ROLLUP a(a);
@@ -2632,39 +2632,39 @@ accept	accept	engine	cancelAlterTableStatement/CANCEL_ALTER_TABLE_(COLUMN|ROLLUP
 accept	accept	engine	cancelAlterTableStatement/CANCEL_ALTER_MATERIALIZED_VIEW_FROM_qualifiedName	CANCEL ALTER MATERIALIZED VIEW FROM a;
 reject	reject	engine	cancelAlterTableStatement/CANCEL_ALTER_MATERIALIZED_VIEW_FROM_qualifiedName!drop-1	ALTER MATERIALIZED VIEW FROM a;
 reject	reject	engine	cancelAlterTableStatement/CANCEL_ALTER_MATERIALIZED_VIEW_FROM_qualifiedName!drop-2	CANCEL MATERIALIZED VIEW FROM a;
-accept	reject	engine	cancelAlterTableStatement/CANCEL_ALTER_MATERIALIZED_VIEW_FROM_qualifiedName!drop-3	CANCEL ALTER VIEW FROM a;
-accept	reject	engine	cancelAlterTableStatement/CANCEL_ALTER_MATERIALIZED_VIEW_FROM_qualifiedName!drop-4	CANCEL ALTER MATERIALIZED FROM a;
-accept	reject	engine	cancelAlterTableStatement/CANCEL_ALTER_MATERIALIZED_VIEW_FROM_qualifiedName!drop-5	CANCEL ALTER MATERIALIZED VIEW a;
-accept	reject	engine	cancelAlterTableStatement/CANCEL_ALTER_MATERIALIZED_VIEW_FROM_qualifiedName!drop-6	CANCEL ALTER MATERIALIZED VIEW FROM;
-accept	reject	engine	cancelAlterTableStatement/CANCEL_ALTER_MATERIALIZED_VIEW_FROM_qualifiedName!truncate	CANCEL ALTER MATERIALIZED VIEW FROM
-accept	reject	engine	cancelAlterTableStatement/CANCEL_ALTER_MATERIALIZED_VIEW_FROM_qualifiedName!insert	CANCEL ALTER MATERIALIZED VIEW FROM a zzz;
+reject	reject	engine	cancelAlterTableStatement/CANCEL_ALTER_MATERIALIZED_VIEW_FROM_qualifiedName!drop-3	CANCEL ALTER VIEW FROM a;
+reject	reject	engine	cancelAlterTableStatement/CANCEL_ALTER_MATERIALIZED_VIEW_FROM_qualifiedName!drop-4	CANCEL ALTER MATERIALIZED FROM a;
+reject	reject	engine	cancelAlterTableStatement/CANCEL_ALTER_MATERIALIZED_VIEW_FROM_qualifiedName!drop-5	CANCEL ALTER MATERIALIZED VIEW a;
+reject	reject	engine	cancelAlterTableStatement/CANCEL_ALTER_MATERIALIZED_VIEW_FROM_qualifiedName!drop-6	CANCEL ALTER MATERIALIZED VIEW FROM;
+reject	reject	engine	cancelAlterTableStatement/CANCEL_ALTER_MATERIALIZED_VIEW_FROM_qualifiedName!truncate	CANCEL ALTER MATERIALIZED VIEW FROM
+reject	reject	engine	cancelAlterTableStatement/CANCEL_ALTER_MATERIALIZED_VIEW_FROM_qualifiedName!insert	CANCEL ALTER MATERIALIZED VIEW FROM a zzz;
 reject	reject	engine	cancelAlterTableStatement/CANCEL_ALTER_MATERIALIZED_VIEW_FROM_qualifiedName!swap	CASE ALTER MATERIALIZED VIEW FROM a;
 accept	accept	engine	cancelAlterTableStatement(COLUMN|ROLLUP|OPTIMIZE)?/%empty	CANCEL ALTER TABLE FROM a;
-accept	reject	engine	cancelAlterTableStatement(COLUMN|ROLLUP|OPTIMIZE)?/%empty!insert	CANCEL ALTER TABLE zzz FROM a;
+reject	reject	engine	cancelAlterTableStatement(COLUMN|ROLLUP|OPTIMIZE)?/%empty!insert	CANCEL ALTER TABLE zzz FROM a;
 accept	accept	engine	cancelAlterTableStatement(COLUMN|ROLLUP|OPTIMIZE)?/COLUMN	CANCEL ALTER TABLE COLUMN FROM a;
-accept	reject	engine	cancelAlterTableStatement(COLUMN|ROLLUP|OPTIMIZE)?/COLUMN!truncate	CANCEL ALTER TABLE
-accept	reject	engine	cancelAlterTableStatement(COLUMN|ROLLUP|OPTIMIZE)?/COLUMN!insert	CANCEL ALTER TABLE COLUMN zzz FROM a;
-accept	reject	engine	cancelAlterTableStatement(COLUMN|ROLLUP|OPTIMIZE)?/COLUMN!swap	CANCEL ALTER TABLE COLUMNS FROM a;
+reject	reject	engine	cancelAlterTableStatement(COLUMN|ROLLUP|OPTIMIZE)?/COLUMN!truncate	CANCEL ALTER TABLE
+reject	reject	engine	cancelAlterTableStatement(COLUMN|ROLLUP|OPTIMIZE)?/COLUMN!insert	CANCEL ALTER TABLE COLUMN zzz FROM a;
+reject	reject	engine	cancelAlterTableStatement(COLUMN|ROLLUP|OPTIMIZE)?/COLUMN!swap	CANCEL ALTER TABLE COLUMNS FROM a;
 accept	accept	engine	cancelAlterTableStatement(COLUMN|ROLLUP|OPTIMIZE)?/ROLLUP	CANCEL ALTER TABLE ROLLUP FROM a;
-accept	reject	engine	cancelAlterTableStatement(COLUMN|ROLLUP|OPTIMIZE)?/ROLLUP!insert	CANCEL ALTER TABLE ROLLUP zzz FROM a;
-accept	reject	engine	cancelAlterTableStatement(COLUMN|ROLLUP|OPTIMIZE)?/ROLLUP!swap	CANCEL ALTER TABLE ROUTINE FROM a;
+reject	reject	engine	cancelAlterTableStatement(COLUMN|ROLLUP|OPTIMIZE)?/ROLLUP!insert	CANCEL ALTER TABLE ROLLUP zzz FROM a;
+reject	reject	engine	cancelAlterTableStatement(COLUMN|ROLLUP|OPTIMIZE)?/ROLLUP!swap	CANCEL ALTER TABLE ROUTINE FROM a;
 accept	accept	engine	cancelAlterTableStatement(COLUMN|ROLLUP|OPTIMIZE)?/OPTIMIZE	CANCEL ALTER TABLE OPTIMIZE FROM a;
-accept	reject	engine	cancelAlterTableStatement(COLUMN|ROLLUP|OPTIMIZE)?/OPTIMIZE!insert	CANCEL ALTER TABLE OPTIMIZE zzz FROM a;
-accept	reject	engine	cancelAlterTableStatement(COLUMN|ROLLUP|OPTIMIZE)?/OPTIMIZE!swap	CANCEL ALTER TABLE OPTIMIZER FROM a;
+reject	reject	engine	cancelAlterTableStatement(COLUMN|ROLLUP|OPTIMIZE)?/OPTIMIZE!insert	CANCEL ALTER TABLE OPTIMIZE zzz FROM a;
+reject	reject	engine	cancelAlterTableStatement(COLUMN|ROLLUP|OPTIMIZE)?/OPTIMIZE!swap	CANCEL ALTER TABLE OPTIMIZER FROM a;
 accept	accept	engine	cancelAlterTableStatement((_INTEGER_VALUE_(,_INTEGER_VALUE)*_))?/%empty	CANCEL ALTER TABLE FROM a;
 accept	accept	engine	cancelAlterTableStatement((_INTEGER_VALUE_(,_INTEGER_VALUE)*_))?/(_INTEGER_VALUE_(,_INTEGER_VALUE)*_)	CANCEL ALTER TABLE FROM a(1);
-accept	reject	engine	cancelAlterTableStatement((_INTEGER_VALUE_(,_INTEGER_VALUE)*_))?/(_INTEGER_VALUE_(,_INTEGER_VALUE)*_)!drop-1	CANCEL ALTER TABLE FROM a 1);
-accept	reject	engine	cancelAlterTableStatement((_INTEGER_VALUE_(,_INTEGER_VALUE)*_))?/(_INTEGER_VALUE_(,_INTEGER_VALUE)*_)!drop-2	CANCEL ALTER TABLE FROM a();
-accept	reject	engine	cancelAlterTableStatement((_INTEGER_VALUE_(,_INTEGER_VALUE)*_))?/(_INTEGER_VALUE_(,_INTEGER_VALUE)*_)!drop-3	CANCEL ALTER TABLE FROM a(1;
-accept	reject	engine	cancelAlterTableStatement((_INTEGER_VALUE_(,_INTEGER_VALUE)*_))?/(_INTEGER_VALUE_(,_INTEGER_VALUE)*_)!truncate	CANCEL ALTER TABLE FROM a(1
-accept	reject	engine	cancelAlterTableStatement((_INTEGER_VALUE_(,_INTEGER_VALUE)*_))?/(_INTEGER_VALUE_(,_INTEGER_VALUE)*_)!insert	CANCEL ALTER TABLE FROM a(1) zzz;
+reject	reject	engine	cancelAlterTableStatement((_INTEGER_VALUE_(,_INTEGER_VALUE)*_))?/(_INTEGER_VALUE_(,_INTEGER_VALUE)*_)!drop-1	CANCEL ALTER TABLE FROM a 1);
+reject	reject	engine	cancelAlterTableStatement((_INTEGER_VALUE_(,_INTEGER_VALUE)*_))?/(_INTEGER_VALUE_(,_INTEGER_VALUE)*_)!drop-2	CANCEL ALTER TABLE FROM a();
+reject	reject	engine	cancelAlterTableStatement((_INTEGER_VALUE_(,_INTEGER_VALUE)*_))?/(_INTEGER_VALUE_(,_INTEGER_VALUE)*_)!drop-3	CANCEL ALTER TABLE FROM a(1;
+reject	reject	engine	cancelAlterTableStatement((_INTEGER_VALUE_(,_INTEGER_VALUE)*_))?/(_INTEGER_VALUE_(,_INTEGER_VALUE)*_)!truncate	CANCEL ALTER TABLE FROM a(1
+reject	reject	engine	cancelAlterTableStatement((_INTEGER_VALUE_(,_INTEGER_VALUE)*_))?/(_INTEGER_VALUE_(,_INTEGER_VALUE)*_)!insert	CANCEL ALTER TABLE FROM a(1) zzz;
 accept	accept	engine	cancelAlterTableStatement(,_INTEGER_VALUE)*/%empty	CANCEL ALTER TABLE FROM a(1);
-accept	reject	engine	cancelAlterTableStatement(,_INTEGER_VALUE)*/%empty!insert	CANCEL ALTER TABLE FROM a(1 zzz);
+reject	reject	engine	cancelAlterTableStatement(,_INTEGER_VALUE)*/%empty!insert	CANCEL ALTER TABLE FROM a(1 zzz);
 accept	accept	engine	cancelAlterTableStatement(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*	CANCEL ALTER TABLE FROM a(1, 1);
-accept	reject	engine	cancelAlterTableStatement(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*!drop-1	CANCEL ALTER TABLE FROM a(1 1);
-accept	reject	engine	cancelAlterTableStatement(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*!drop-2	CANCEL ALTER TABLE FROM a(1,);
-accept	reject	engine	cancelAlterTableStatement(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*!truncate	CANCEL ALTER TABLE FROM a(1,
-accept	reject	engine	cancelAlterTableStatement(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*!insert	CANCEL ALTER TABLE FROM a(1, 1 zzz);
+reject	reject	engine	cancelAlterTableStatement(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*!drop-1	CANCEL ALTER TABLE FROM a(1 1);
+reject	reject	engine	cancelAlterTableStatement(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*!drop-2	CANCEL ALTER TABLE FROM a(1,);
+reject	reject	engine	cancelAlterTableStatement(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*!truncate	CANCEL ALTER TABLE FROM a(1,
+reject	reject	engine	cancelAlterTableStatement(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*!insert	CANCEL ALTER TABLE FROM a(1, 1 zzz);
 accept	accept	engine	showPartitionsStatement/SHOW_(TEMPORARY)?_PARTITIONS_FROM_qualifiedName_(WHERE_~7b4b12d2	SHOW PARTITIONS FROM a;
 accept	accept	engine	showPartitionsStatement(TEMPORARY)?/%empty	SHOW PARTITIONS FROM a;
 accept	reject	engine	showPartitionsStatement(TEMPORARY)?/%empty!insert	SHOW zzz PARTITIONS FROM a;
@@ -3097,8 +3097,8 @@ accept	accept	engine	cancelRefreshMaterializedViewStatement/CANCEL_REFRESH_MATER
 accept	accept	engine	cancelRefreshMaterializedViewStatement(FORCE)?/%empty	CANCEL REFRESH MATERIALIZED VIEW a;
 accept	accept	engine	cancelRefreshMaterializedViewStatement(FORCE)?/FORCE	CANCEL REFRESH MATERIALIZED VIEW a FORCE;
 accept	accept	engine	cancelRefreshMaterializedViewStatement(FORCE)?/FORCE!truncate	CANCEL REFRESH MATERIALIZED VIEW a
-accept	reject	engine	cancelRefreshMaterializedViewStatement(FORCE)?/FORCE!insert	CANCEL REFRESH MATERIALIZED VIEW a FORCE zzz;
-accept	reject	engine	cancelRefreshMaterializedViewStatement(FORCE)?/FORCE!swap	CANCEL REFRESH MATERIALIZED VIEW a FORMAT;
+reject	reject	engine	cancelRefreshMaterializedViewStatement(FORCE)?/FORCE!insert	CANCEL REFRESH MATERIALIZED VIEW a FORCE zzz;
+reject	reject	engine	cancelRefreshMaterializedViewStatement(FORCE)?/FORCE!swap	CANCEL REFRESH MATERIALIZED VIEW a FORMAT;
 accept	accept	engine	adminSetConfigStatement/ADMIN_SET_FRONTEND_CONFIG_(_property_)	ADMIN SET FRONTEND CONFIG('a' = 'a');
 accept	accept	engine	adminSetReplicaStatusStatement/ADMIN_SET_REPLICA_STATUS_properties	ADMIN SET REPLICA STATUS PROPERTIES('a' = 'a');
 accept	accept	engine	adminShowConfigStatement/ADMIN_SHOW_FRONTEND_CONFIG_(LIKE_string)?	ADMIN SHOW FRONTEND CONFIG;
@@ -3166,7 +3166,7 @@ accept	accept	engine	killStatement(CONNECTION)?/CONNECTION	KILL CONNECTION 1;
 reject	reject	engine	killStatement(CONNECTION)?/CONNECTION!insert	KILL CONNECTION zzz 1;
 reject	reject	engine	killStatement(CONNECTION)?/CONNECTION!swap	KILL CONSISTENT 1;
 accept	accept	engine	killStatement(INTEGER_VALUE|string)/INTEGER_VALUE	KILL 1;
-accept	reject	engine	killStatement(INTEGER_VALUE|string)/string	KILL 'a';
+reject	reject	engine	killStatement(INTEGER_VALUE|string)/string	KILL 'a';
 reject	reject	engine	killStatement(INTEGER_VALUE|string)/string!insert	KILL 'a' zzz;
 accept	accept	engine	syncStatement/SYNC	SYNC;
 accept	accept	engine	adminSetAutomatedSnapshotOnStatement/ADMIN_SET_AUTOMATED_CLUSTER_SNAPSHOT_ON_(STORAGE_VOLUME~5a4198f5	ADMIN SET AUTOMATED CLUSTER SNAPSHOT ON;
@@ -3184,8 +3184,8 @@ accept	accept	engine	cancelAlterSystemStatement/CANCEL_DECOMMISSION_BACKEND_stri
 accept	accept	engine	cancelAlterSystemStatement(,_string)*/%empty	CANCEL DECOMMISSION BACKEND 'a';
 accept	accept	engine	cancelAlterSystemStatement(,_string)*/,_string_(,_string)*	CANCEL DECOMMISSION BACKEND 'a', 'a';
 reject	reject	engine	cancelAlterSystemStatement(,_string)*/,_string_(,_string)*!drop-1	CANCEL DECOMMISSION BACKEND 'a' 'a';
-accept	reject	engine	cancelAlterSystemStatement(,_string)*/,_string_(,_string)*!drop-2	CANCEL DECOMMISSION BACKEND 'a',;
-accept	reject	engine	cancelAlterSystemStatement(,_string)*/,_string_(,_string)*!truncate	CANCEL DECOMMISSION BACKEND 'a',
+reject	reject	engine	cancelAlterSystemStatement(,_string)*/,_string_(,_string)*!drop-2	CANCEL DECOMMISSION BACKEND 'a',;
+reject	reject	engine	cancelAlterSystemStatement(,_string)*/,_string_(,_string)*!truncate	CANCEL DECOMMISSION BACKEND 'a',
 reject	reject	engine	cancelAlterSystemStatement(,_string)*/,_string_(,_string)*!insert	CANCEL DECOMMISSION BACKEND 'a', 'a' zzz;
 accept	accept	engine	showComputeNodesStatement/SHOW_COMPUTE_NODES	SHOW COMPUTE NODES;
 accept	accept	engine	createExternalCatalogStatement/CREATE_EXTERNAL_CATALOG_(IF_NOT_EXISTS)?_identifierOrSt~5f416e29	CREATE EXTERNAL CATALOG a PROPERTIES('a' = 'a');
@@ -5721,18 +5721,18 @@ accept	reject	engine	showLoadWarningsStatement(limitElement)?/limitElement!swap	
 accept	accept	engine	cancelLoadStatement/CANCEL_LOAD_(FROM_identifier)?_(WHERE_expression)?	CANCEL LOAD;
 accept	accept	engine	cancelLoadStatement(FROM_identifier)?/%empty	CANCEL LOAD;
 accept	accept	engine	cancelLoadStatement(FROM_identifier)?/FROM_identifier	CANCEL LOAD FROM a;
-accept	reject	engine	cancelLoadStatement(FROM_identifier)?/FROM_identifier!drop-1	CANCEL LOAD a;
-accept	reject	engine	cancelLoadStatement(FROM_identifier)?/FROM_identifier!drop-2	CANCEL LOAD FROM;
-accept	reject	engine	cancelLoadStatement(FROM_identifier)?/FROM_identifier!truncate	CANCEL LOAD FROM
-accept	reject	engine	cancelLoadStatement(FROM_identifier)?/FROM_identifier!insert	CANCEL LOAD FROM a zzz;
-accept	reject	engine	cancelLoadStatement(FROM_identifier)?/FROM_identifier!swap	CANCEL LOAD FRONTEND a;
+reject	reject	engine	cancelLoadStatement(FROM_identifier)?/FROM_identifier!drop-1	CANCEL LOAD a;
+reject	reject	engine	cancelLoadStatement(FROM_identifier)?/FROM_identifier!drop-2	CANCEL LOAD FROM;
+reject	reject	engine	cancelLoadStatement(FROM_identifier)?/FROM_identifier!truncate	CANCEL LOAD FROM
+reject	reject	engine	cancelLoadStatement(FROM_identifier)?/FROM_identifier!insert	CANCEL LOAD FROM a zzz;
+reject	reject	engine	cancelLoadStatement(FROM_identifier)?/FROM_identifier!swap	CANCEL LOAD FRONTEND a;
 accept	accept	engine	cancelLoadStatement(WHERE_expression)?/%empty	CANCEL LOAD;
 accept	accept	engine	cancelLoadStatement(WHERE_expression)?/WHERE_expression	CANCEL LOAD WHERE CURRENT_USER;
-accept	reject	engine	cancelLoadStatement(WHERE_expression)?/WHERE_expression!drop-1	CANCEL LOAD CURRENT_USER;
-accept	reject	engine	cancelLoadStatement(WHERE_expression)?/WHERE_expression!drop-2	CANCEL LOAD WHERE;
-accept	reject	engine	cancelLoadStatement(WHERE_expression)?/WHERE_expression!truncate	CANCEL LOAD WHERE
-accept	reject	engine	cancelLoadStatement(WHERE_expression)?/WHERE_expression!insert	CANCEL LOAD WHERE CURRENT_USER zzz;
-accept	reject	engine	cancelLoadStatement(WHERE_expression)?/WHERE_expression!swap	CANCEL LOAD WHITELIST CURRENT_USER;
+reject	reject	engine	cancelLoadStatement(WHERE_expression)?/WHERE_expression!drop-1	CANCEL LOAD CURRENT_USER;
+reject	reject	engine	cancelLoadStatement(WHERE_expression)?/WHERE_expression!drop-2	CANCEL LOAD WHERE;
+reject	reject	engine	cancelLoadStatement(WHERE_expression)?/WHERE_expression!truncate	CANCEL LOAD WHERE
+reject	reject	engine	cancelLoadStatement(WHERE_expression)?/WHERE_expression!insert	CANCEL LOAD WHERE CURRENT_USER zzz;
+reject	reject	engine	cancelLoadStatement(WHERE_expression)?/WHERE_expression!swap	CANCEL LOAD WHITELIST CURRENT_USER;
 reject	accept	engine	alterLoadStatement/ALTER_LOAD_FOR_(qualifiedName_.)?_identifier_(jobProperties)?	ALTER LOAD FOR a;
 reject	accept	engine	alterLoadStatement(qualifiedName_.)?/%empty	ALTER LOAD FOR a;
 reject	reject	engine	alterLoadStatement(qualifiedName_.)?/%empty!insert	ALTER LOAD FOR zzz a;
@@ -6789,18 +6789,18 @@ accept	accept	engine	backupStatement(ON_(_backupRestoreObjectDesc_(,_back~1be52d
 accept	accept	engine	backupStatement(ON_(_backupRestoreObjectDesc_(,_back~1be52d7e)?/ON_(_backupRestoreObjectDesc_(,_backupRestoreObjectDesc)*_)	BACKUP SNAPSHOT a TO a ON(a);
 reject	reject	engine	backupStatement(ON_(_backupRestoreObjectDesc_(,_back~1be52d7e)?/ON_(_backupRestoreObjectDesc_(,_backupRestoreObjectDesc)*_)!drop-1	BACKUP SNAPSHOT a TO a(a);
 reject	reject	engine	backupStatement(ON_(_backupRestoreObjectDesc_(,_back~1be52d7e)?/ON_(_backupRestoreObjectDesc_(,_backupRestoreObjectDesc)*_)!drop-2	BACKUP SNAPSHOT a TO a ON a);
-accept	reject	engine	backupStatement(ON_(_backupRestoreObjectDesc_(,_back~1be52d7e)?/ON_(_backupRestoreObjectDesc_(,_backupRestoreObjectDesc)*_)!drop-3	BACKUP SNAPSHOT a TO a ON();
+reject	reject	engine	backupStatement(ON_(_backupRestoreObjectDesc_(,_back~1be52d7e)?/ON_(_backupRestoreObjectDesc_(,_backupRestoreObjectDesc)*_)!drop-3	BACKUP SNAPSHOT a TO a ON();
 reject	reject	engine	backupStatement(ON_(_backupRestoreObjectDesc_(,_back~1be52d7e)?/ON_(_backupRestoreObjectDesc_(,_backupRestoreObjectDesc)*_)!drop-4	BACKUP SNAPSHOT a TO a ON(a;
 reject	reject	engine	backupStatement(ON_(_backupRestoreObjectDesc_(,_back~1be52d7e)?/ON_(_backupRestoreObjectDesc_(,_backupRestoreObjectDesc)*_)!truncate	BACKUP SNAPSHOT a TO a ON(a
 reject	reject	engine	backupStatement(ON_(_backupRestoreObjectDesc_(,_back~1be52d7e)?/ON_(_backupRestoreObjectDesc_(,_backupRestoreObjectDesc)*_)!insert	BACKUP SNAPSHOT a TO a ON(a) zzz;
 reject	reject	engine	backupStatement(ON_(_backupRestoreObjectDesc_(,_back~1be52d7e)?/ON_(_backupRestoreObjectDesc_(,_backupRestoreObjectDesc)*_)!swap	BACKUP SNAPSHOT a TO a ONLY(a);
 accept	accept	engine	backupStatement(,_backupRestoreObjectDesc)*/%empty	BACKUP SNAPSHOT a TO a ON(a);
-accept	reject	engine	backupStatement(,_backupRestoreObjectDesc)*/%empty!insert	BACKUP SNAPSHOT a TO a ON(a zzz);
+reject	reject	engine	backupStatement(,_backupRestoreObjectDesc)*/%empty!insert	BACKUP SNAPSHOT a TO a ON(a zzz);
 accept	accept	engine	backupStatement(,_backupRestoreObjectDesc)*/,_backupRestoreObjectDesc_(,_backupRestoreObjectDesc)*	BACKUP SNAPSHOT a TO a ON(a, a);
-accept	reject	engine	backupStatement(,_backupRestoreObjectDesc)*/,_backupRestoreObjectDesc_(,_backupRestoreObjectDesc)*!drop-1	BACKUP SNAPSHOT a TO a ON(a a);
-accept	reject	engine	backupStatement(,_backupRestoreObjectDesc)*/,_backupRestoreObjectDesc_(,_backupRestoreObjectDesc)*!drop-2	BACKUP SNAPSHOT a TO a ON(a,);
+reject	reject	engine	backupStatement(,_backupRestoreObjectDesc)*/,_backupRestoreObjectDesc_(,_backupRestoreObjectDesc)*!drop-1	BACKUP SNAPSHOT a TO a ON(a a);
+reject	reject	engine	backupStatement(,_backupRestoreObjectDesc)*/,_backupRestoreObjectDesc_(,_backupRestoreObjectDesc)*!drop-2	BACKUP SNAPSHOT a TO a ON(a,);
 reject	reject	engine	backupStatement(,_backupRestoreObjectDesc)*/,_backupRestoreObjectDesc_(,_backupRestoreObjectDesc)*!truncate	BACKUP SNAPSHOT a TO a ON(a,
-accept	reject	engine	backupStatement(,_backupRestoreObjectDesc)*/,_backupRestoreObjectDesc_(,_backupRestoreObjectDesc)*!insert	BACKUP SNAPSHOT a TO a ON(a, a zzz);
+reject	reject	engine	backupStatement(,_backupRestoreObjectDesc)*/,_backupRestoreObjectDesc_(,_backupRestoreObjectDesc)*!insert	BACKUP SNAPSHOT a TO a ON(a, a zzz);
 accept	accept	engine	backupStatement(PROPERTIES_propertyList)?/%empty	BACKUP SNAPSHOT a TO a;
 accept	accept	engine	backupStatement(PROPERTIES_propertyList)?/PROPERTIES_propertyList	BACKUP SNAPSHOT a TO a PROPERTIES('a' = 'a');
 reject	reject	engine	backupStatement(PROPERTIES_propertyList)?/PROPERTIES_propertyList!drop-1	BACKUP SNAPSHOT a TO a('a' = 'a');
@@ -6812,27 +6812,27 @@ reject	reject	engine	backupStatement(PROPERTIES_propertyList)?/PROPERTIES_proper
 reject	reject	engine	backupStatement(PROPERTIES_propertyList)?/PROPERTIES_propertyList!truncate	BACKUP SNAPSHOT a TO a PROPERTIES('a' = 'a'
 reject	reject	engine	backupStatement(PROPERTIES_propertyList)?/PROPERTIES_propertyList!insert	BACKUP SNAPSHOT a TO a PROPERTIES('a' = 'a') zzz;
 reject	reject	engine	backupStatement(PROPERTIES_propertyList)?/PROPERTIES_propertyList!swap	BACKUP SNAPSHOT a TO a PROPERTY('a' = 'a');
-accept	reject	engine	cancelBackupStatement/CANCEL_BACKUP_((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?	CANCEL BACKUP;
-accept	reject	engine	cancelBackupStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/%empty	CANCEL BACKUP;
+reject	reject	engine	cancelBackupStatement/CANCEL_BACKUP_((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?	CANCEL BACKUP;
+reject	reject	engine	cancelBackupStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/%empty	CANCEL BACKUP;
 accept	accept	engine	cancelBackupStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/(FROM|IN)_identifier	CANCEL BACKUP FROM a;
-accept	reject	engine	cancelBackupStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/(FROM|IN)_identifier!drop-1	CANCEL BACKUP a;
-accept	reject	engine	cancelBackupStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/(FROM|IN)_identifier!drop-2	CANCEL BACKUP FROM;
-accept	reject	engine	cancelBackupStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/(FROM|IN)_identifier!truncate	CANCEL BACKUP FROM
-accept	reject	engine	cancelBackupStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/(FROM|IN)_identifier!insert	CANCEL BACKUP FROM a zzz;
-accept	reject	engine	cancelBackupStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/(FROM|IN)_identifier!swap	CANCEL BACKUP FRONTEND a;
+reject	reject	engine	cancelBackupStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/(FROM|IN)_identifier!drop-1	CANCEL BACKUP a;
+reject	reject	engine	cancelBackupStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/(FROM|IN)_identifier!drop-2	CANCEL BACKUP FROM;
+reject	reject	engine	cancelBackupStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/(FROM|IN)_identifier!truncate	CANCEL BACKUP FROM
+reject	reject	engine	cancelBackupStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/(FROM|IN)_identifier!insert	CANCEL BACKUP FROM a zzz;
+reject	reject	engine	cancelBackupStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/(FROM|IN)_identifier!swap	CANCEL BACKUP FRONTEND a;
 accept	accept	engine	cancelBackupStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/FOR_EXTERNAL_CATALOG	CANCEL BACKUP FOR EXTERNAL CATALOG;
-accept	reject	engine	cancelBackupStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/FOR_EXTERNAL_CATALOG!drop-1	CANCEL BACKUP EXTERNAL CATALOG;
-accept	reject	engine	cancelBackupStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/FOR_EXTERNAL_CATALOG!drop-2	CANCEL BACKUP FOR CATALOG;
-accept	reject	engine	cancelBackupStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/FOR_EXTERNAL_CATALOG!drop-3	CANCEL BACKUP FOR EXTERNAL;
-accept	reject	engine	cancelBackupStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/FOR_EXTERNAL_CATALOG!truncate	CANCEL BACKUP FOR EXTERNAL
-accept	reject	engine	cancelBackupStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/FOR_EXTERNAL_CATALOG!insert	CANCEL BACKUP FOR EXTERNAL CATALOG zzz;
-accept	reject	engine	cancelBackupStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/FOR_EXTERNAL_CATALOG!swap	CANCEL BACKUP FORCE EXTERNAL CATALOG;
+reject	reject	engine	cancelBackupStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/FOR_EXTERNAL_CATALOG!drop-1	CANCEL BACKUP EXTERNAL CATALOG;
+reject	reject	engine	cancelBackupStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/FOR_EXTERNAL_CATALOG!drop-2	CANCEL BACKUP FOR CATALOG;
+reject	reject	engine	cancelBackupStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/FOR_EXTERNAL_CATALOG!drop-3	CANCEL BACKUP FOR EXTERNAL;
+reject	reject	engine	cancelBackupStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/FOR_EXTERNAL_CATALOG!truncate	CANCEL BACKUP FOR EXTERNAL
+reject	reject	engine	cancelBackupStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/FOR_EXTERNAL_CATALOG!insert	CANCEL BACKUP FOR EXTERNAL CATALOG zzz;
+reject	reject	engine	cancelBackupStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/FOR_EXTERNAL_CATALOG!swap	CANCEL BACKUP FORCE EXTERNAL CATALOG;
 accept	accept	engine	cancelBackupStatement(FROM|IN)/FROM	CANCEL BACKUP FROM a;
-accept	reject	engine	cancelBackupStatement(FROM|IN)/FROM!truncate	CANCEL BACKUP
-accept	reject	engine	cancelBackupStatement(FROM|IN)/FROM!insert	CANCEL BACKUP FROM zzz a;
+reject	reject	engine	cancelBackupStatement(FROM|IN)/FROM!truncate	CANCEL BACKUP
+reject	reject	engine	cancelBackupStatement(FROM|IN)/FROM!insert	CANCEL BACKUP FROM zzz a;
 accept	accept	engine	cancelBackupStatement(FROM|IN)/IN	CANCEL BACKUP IN a;
-accept	reject	engine	cancelBackupStatement(FROM|IN)/IN!insert	CANCEL BACKUP IN zzz a;
-accept	reject	engine	cancelBackupStatement(FROM|IN)/IN!swap	CANCEL BACKUP INACTIVE a;
+reject	reject	engine	cancelBackupStatement(FROM|IN)/IN!insert	CANCEL BACKUP IN zzz a;
+reject	reject	engine	cancelBackupStatement(FROM|IN)/IN!swap	CANCEL BACKUP INACTIVE a;
 accept	accept	engine	showBackupStatement/SHOW_BACKUP_((FROM|IN)_identifier)?	SHOW BACKUP;
 accept	accept	engine	showBackupStatement((FROM|IN)_identifier)?/%empty	SHOW BACKUP;
 accept	accept	engine	showBackupStatement((FROM|IN)_identifier)?/(FROM|IN)_identifier	SHOW BACKUP FROM a;
@@ -6886,21 +6886,21 @@ reject	reject	engine	restoreStatement(AS_identifier)?/AS_identifier!truncate	RES
 reject	reject	engine	restoreStatement(AS_identifier)?/AS_identifier!insert	RESTORE SNAPSHOT a FROM a DATABASE a AS a zzz;
 reject	reject	engine	restoreStatement(AS_identifier)?/AS_identifier!swap	RESTORE SNAPSHOT a FROM a DATABASE a ASC a;
 accept	accept	engine	restoreStatement(ON_(_backupRestoreObjectDesc_(,_back~1be52d7e)?/%empty	RESTORE SNAPSHOT a FROM a;
-accept	reject	engine	restoreStatement(ON_(_backupRestoreObjectDesc_(,_back~1be52d7e)?/ON_(_backupRestoreObjectDesc_(,_backupRestoreObjectDesc)*_)	RESTORE SNAPSHOT a FROM a ON(a);
+reject	reject	engine	restoreStatement(ON_(_backupRestoreObjectDesc_(,_back~1be52d7e)?/ON_(_backupRestoreObjectDesc_(,_backupRestoreObjectDesc)*_)	RESTORE SNAPSHOT a FROM a ON(a);
 reject	reject	engine	restoreStatement(ON_(_backupRestoreObjectDesc_(,_back~1be52d7e)?/ON_(_backupRestoreObjectDesc_(,_backupRestoreObjectDesc)*_)!drop-1	RESTORE SNAPSHOT a FROM a(a);
 reject	reject	engine	restoreStatement(ON_(_backupRestoreObjectDesc_(,_back~1be52d7e)?/ON_(_backupRestoreObjectDesc_(,_backupRestoreObjectDesc)*_)!drop-2	RESTORE SNAPSHOT a FROM a ON a);
-accept	reject	engine	restoreStatement(ON_(_backupRestoreObjectDesc_(,_back~1be52d7e)?/ON_(_backupRestoreObjectDesc_(,_backupRestoreObjectDesc)*_)!drop-3	RESTORE SNAPSHOT a FROM a ON();
+reject	reject	engine	restoreStatement(ON_(_backupRestoreObjectDesc_(,_back~1be52d7e)?/ON_(_backupRestoreObjectDesc_(,_backupRestoreObjectDesc)*_)!drop-3	RESTORE SNAPSHOT a FROM a ON();
 reject	reject	engine	restoreStatement(ON_(_backupRestoreObjectDesc_(,_back~1be52d7e)?/ON_(_backupRestoreObjectDesc_(,_backupRestoreObjectDesc)*_)!drop-4	RESTORE SNAPSHOT a FROM a ON(a;
 reject	reject	engine	restoreStatement(ON_(_backupRestoreObjectDesc_(,_back~1be52d7e)?/ON_(_backupRestoreObjectDesc_(,_backupRestoreObjectDesc)*_)!truncate	RESTORE SNAPSHOT a FROM a ON(a
 reject	reject	engine	restoreStatement(ON_(_backupRestoreObjectDesc_(,_back~1be52d7e)?/ON_(_backupRestoreObjectDesc_(,_backupRestoreObjectDesc)*_)!insert	RESTORE SNAPSHOT a FROM a ON(a) zzz;
 reject	reject	engine	restoreStatement(ON_(_backupRestoreObjectDesc_(,_back~1be52d7e)?/ON_(_backupRestoreObjectDesc_(,_backupRestoreObjectDesc)*_)!swap	RESTORE SNAPSHOT a FROM a ONLY(a);
-accept	reject	engine	restoreStatement(,_backupRestoreObjectDesc)*/%empty	RESTORE SNAPSHOT a FROM a ON(a);
-accept	reject	engine	restoreStatement(,_backupRestoreObjectDesc)*/%empty!insert	RESTORE SNAPSHOT a FROM a ON(a zzz);
-accept	reject	engine	restoreStatement(,_backupRestoreObjectDesc)*/,_backupRestoreObjectDesc_(,_backupRestoreObjectDesc)*	RESTORE SNAPSHOT a FROM a ON(a, a);
-accept	reject	engine	restoreStatement(,_backupRestoreObjectDesc)*/,_backupRestoreObjectDesc_(,_backupRestoreObjectDesc)*!drop-1	RESTORE SNAPSHOT a FROM a ON(a a);
-accept	reject	engine	restoreStatement(,_backupRestoreObjectDesc)*/,_backupRestoreObjectDesc_(,_backupRestoreObjectDesc)*!drop-2	RESTORE SNAPSHOT a FROM a ON(a,);
+reject	reject	engine	restoreStatement(,_backupRestoreObjectDesc)*/%empty	RESTORE SNAPSHOT a FROM a ON(a);
+reject	reject	engine	restoreStatement(,_backupRestoreObjectDesc)*/%empty!insert	RESTORE SNAPSHOT a FROM a ON(a zzz);
+reject	reject	engine	restoreStatement(,_backupRestoreObjectDesc)*/,_backupRestoreObjectDesc_(,_backupRestoreObjectDesc)*	RESTORE SNAPSHOT a FROM a ON(a, a);
+reject	reject	engine	restoreStatement(,_backupRestoreObjectDesc)*/,_backupRestoreObjectDesc_(,_backupRestoreObjectDesc)*!drop-1	RESTORE SNAPSHOT a FROM a ON(a a);
+reject	reject	engine	restoreStatement(,_backupRestoreObjectDesc)*/,_backupRestoreObjectDesc_(,_backupRestoreObjectDesc)*!drop-2	RESTORE SNAPSHOT a FROM a ON(a,);
 reject	reject	engine	restoreStatement(,_backupRestoreObjectDesc)*/,_backupRestoreObjectDesc_(,_backupRestoreObjectDesc)*!truncate	RESTORE SNAPSHOT a FROM a ON(a,
-accept	reject	engine	restoreStatement(,_backupRestoreObjectDesc)*/,_backupRestoreObjectDesc_(,_backupRestoreObjectDesc)*!insert	RESTORE SNAPSHOT a FROM a ON(a, a zzz);
+reject	reject	engine	restoreStatement(,_backupRestoreObjectDesc)*/,_backupRestoreObjectDesc_(,_backupRestoreObjectDesc)*!insert	RESTORE SNAPSHOT a FROM a ON(a, a zzz);
 accept	accept	engine	restoreStatement(PROPERTIES_propertyList)?/%empty	RESTORE SNAPSHOT a FROM a;
 accept	accept	engine	restoreStatement(PROPERTIES_propertyList)?/PROPERTIES_propertyList	RESTORE SNAPSHOT a FROM a PROPERTIES('a' = 'a');
 reject	reject	engine	restoreStatement(PROPERTIES_propertyList)?/PROPERTIES_propertyList!drop-1	RESTORE SNAPSHOT a FROM a('a' = 'a');
@@ -6912,27 +6912,27 @@ reject	reject	engine	restoreStatement(PROPERTIES_propertyList)?/PROPERTIES_prope
 reject	reject	engine	restoreStatement(PROPERTIES_propertyList)?/PROPERTIES_propertyList!truncate	RESTORE SNAPSHOT a FROM a PROPERTIES('a' = 'a'
 reject	reject	engine	restoreStatement(PROPERTIES_propertyList)?/PROPERTIES_propertyList!insert	RESTORE SNAPSHOT a FROM a PROPERTIES('a' = 'a') zzz;
 reject	reject	engine	restoreStatement(PROPERTIES_propertyList)?/PROPERTIES_propertyList!swap	RESTORE SNAPSHOT a FROM a PROPERTY('a' = 'a');
-accept	reject	engine	cancelRestoreStatement/CANCEL_RESTORE_((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?	CANCEL RESTORE;
-accept	reject	engine	cancelRestoreStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/%empty	CANCEL RESTORE;
+reject	reject	engine	cancelRestoreStatement/CANCEL_RESTORE_((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?	CANCEL RESTORE;
+reject	reject	engine	cancelRestoreStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/%empty	CANCEL RESTORE;
 accept	accept	engine	cancelRestoreStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/(FROM|IN)_identifier	CANCEL RESTORE FROM a;
-accept	reject	engine	cancelRestoreStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/(FROM|IN)_identifier!drop-1	CANCEL RESTORE a;
-accept	reject	engine	cancelRestoreStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/(FROM|IN)_identifier!drop-2	CANCEL RESTORE FROM;
-accept	reject	engine	cancelRestoreStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/(FROM|IN)_identifier!truncate	CANCEL RESTORE FROM
-accept	reject	engine	cancelRestoreStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/(FROM|IN)_identifier!insert	CANCEL RESTORE FROM a zzz;
-accept	reject	engine	cancelRestoreStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/(FROM|IN)_identifier!swap	CANCEL RESTORE FRONTEND a;
+reject	reject	engine	cancelRestoreStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/(FROM|IN)_identifier!drop-1	CANCEL RESTORE a;
+reject	reject	engine	cancelRestoreStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/(FROM|IN)_identifier!drop-2	CANCEL RESTORE FROM;
+reject	reject	engine	cancelRestoreStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/(FROM|IN)_identifier!truncate	CANCEL RESTORE FROM
+reject	reject	engine	cancelRestoreStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/(FROM|IN)_identifier!insert	CANCEL RESTORE FROM a zzz;
+reject	reject	engine	cancelRestoreStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/(FROM|IN)_identifier!swap	CANCEL RESTORE FRONTEND a;
 accept	accept	engine	cancelRestoreStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/FOR_EXTERNAL_CATALOG	CANCEL RESTORE FOR EXTERNAL CATALOG;
-accept	reject	engine	cancelRestoreStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/FOR_EXTERNAL_CATALOG!drop-1	CANCEL RESTORE EXTERNAL CATALOG;
-accept	reject	engine	cancelRestoreStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/FOR_EXTERNAL_CATALOG!drop-2	CANCEL RESTORE FOR CATALOG;
-accept	reject	engine	cancelRestoreStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/FOR_EXTERNAL_CATALOG!drop-3	CANCEL RESTORE FOR EXTERNAL;
-accept	reject	engine	cancelRestoreStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/FOR_EXTERNAL_CATALOG!truncate	CANCEL RESTORE FOR EXTERNAL
-accept	reject	engine	cancelRestoreStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/FOR_EXTERNAL_CATALOG!insert	CANCEL RESTORE FOR EXTERNAL CATALOG zzz;
-accept	reject	engine	cancelRestoreStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/FOR_EXTERNAL_CATALOG!swap	CANCEL RESTORE FORCE EXTERNAL CATALOG;
+reject	reject	engine	cancelRestoreStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/FOR_EXTERNAL_CATALOG!drop-1	CANCEL RESTORE EXTERNAL CATALOG;
+reject	reject	engine	cancelRestoreStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/FOR_EXTERNAL_CATALOG!drop-2	CANCEL RESTORE FOR CATALOG;
+reject	reject	engine	cancelRestoreStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/FOR_EXTERNAL_CATALOG!drop-3	CANCEL RESTORE FOR EXTERNAL;
+reject	reject	engine	cancelRestoreStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/FOR_EXTERNAL_CATALOG!truncate	CANCEL RESTORE FOR EXTERNAL
+reject	reject	engine	cancelRestoreStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/FOR_EXTERNAL_CATALOG!insert	CANCEL RESTORE FOR EXTERNAL CATALOG zzz;
+reject	reject	engine	cancelRestoreStatement((FROM|IN)_identifier|FOR_EXTERNAL_CATALOG)?/FOR_EXTERNAL_CATALOG!swap	CANCEL RESTORE FORCE EXTERNAL CATALOG;
 accept	accept	engine	cancelRestoreStatement(FROM|IN)/FROM	CANCEL RESTORE FROM a;
-accept	reject	engine	cancelRestoreStatement(FROM|IN)/FROM!truncate	CANCEL RESTORE
-accept	reject	engine	cancelRestoreStatement(FROM|IN)/FROM!insert	CANCEL RESTORE FROM zzz a;
+reject	reject	engine	cancelRestoreStatement(FROM|IN)/FROM!truncate	CANCEL RESTORE
+reject	reject	engine	cancelRestoreStatement(FROM|IN)/FROM!insert	CANCEL RESTORE FROM zzz a;
 accept	accept	engine	cancelRestoreStatement(FROM|IN)/IN	CANCEL RESTORE IN a;
-accept	reject	engine	cancelRestoreStatement(FROM|IN)/IN!insert	CANCEL RESTORE IN zzz a;
-accept	reject	engine	cancelRestoreStatement(FROM|IN)/IN!swap	CANCEL RESTORE INACTIVE a;
+reject	reject	engine	cancelRestoreStatement(FROM|IN)/IN!insert	CANCEL RESTORE IN zzz a;
+reject	reject	engine	cancelRestoreStatement(FROM|IN)/IN!swap	CANCEL RESTORE INACTIVE a;
 accept	accept	engine	showRestoreStatement/SHOW_RESTORE_((FROM|IN)_identifier)?_(WHERE_expression)?	SHOW RESTORE;
 accept	accept	engine	showRestoreStatement((FROM|IN)_identifier)?/%empty	SHOW RESTORE;
 accept	accept	engine	showRestoreStatement((FROM|IN)_identifier)?/(FROM|IN)_identifier	SHOW RESTORE FROM a;
@@ -7113,30 +7113,30 @@ reject	reject	engine	exportStatement(brokerDesc)?/brokerDesc!swap	EXPORT TABLE a
 accept	accept	engine	cancelExportStatement/CANCEL_EXPORT_((FROM|IN)_qualifiedName)?_((LIKE_string)~8c05a336	CANCEL EXPORT;
 accept	accept	engine	cancelExportStatement((FROM|IN)_qualifiedName)?/%empty	CANCEL EXPORT;
 accept	accept	engine	cancelExportStatement((FROM|IN)_qualifiedName)?/(FROM|IN)_qualifiedName	CANCEL EXPORT FROM a;
-accept	reject	engine	cancelExportStatement((FROM|IN)_qualifiedName)?/(FROM|IN)_qualifiedName!drop-1	CANCEL EXPORT a;
-accept	reject	engine	cancelExportStatement((FROM|IN)_qualifiedName)?/(FROM|IN)_qualifiedName!drop-2	CANCEL EXPORT FROM;
-accept	reject	engine	cancelExportStatement((FROM|IN)_qualifiedName)?/(FROM|IN)_qualifiedName!truncate	CANCEL EXPORT FROM
-accept	reject	engine	cancelExportStatement((FROM|IN)_qualifiedName)?/(FROM|IN)_qualifiedName!insert	CANCEL EXPORT FROM a zzz;
-accept	reject	engine	cancelExportStatement((FROM|IN)_qualifiedName)?/(FROM|IN)_qualifiedName!swap	CANCEL EXPORT FRONTEND a;
+reject	reject	engine	cancelExportStatement((FROM|IN)_qualifiedName)?/(FROM|IN)_qualifiedName!drop-1	CANCEL EXPORT a;
+reject	reject	engine	cancelExportStatement((FROM|IN)_qualifiedName)?/(FROM|IN)_qualifiedName!drop-2	CANCEL EXPORT FROM;
+reject	reject	engine	cancelExportStatement((FROM|IN)_qualifiedName)?/(FROM|IN)_qualifiedName!truncate	CANCEL EXPORT FROM
+reject	reject	engine	cancelExportStatement((FROM|IN)_qualifiedName)?/(FROM|IN)_qualifiedName!insert	CANCEL EXPORT FROM a zzz;
+reject	reject	engine	cancelExportStatement((FROM|IN)_qualifiedName)?/(FROM|IN)_qualifiedName!swap	CANCEL EXPORT FRONTEND a;
 accept	accept	engine	cancelExportStatement(FROM|IN)/FROM	CANCEL EXPORT FROM a;
 accept	accept	engine	cancelExportStatement(FROM|IN)/FROM!truncate	CANCEL EXPORT
-accept	reject	engine	cancelExportStatement(FROM|IN)/FROM!insert	CANCEL EXPORT FROM zzz a;
+reject	reject	engine	cancelExportStatement(FROM|IN)/FROM!insert	CANCEL EXPORT FROM zzz a;
 accept	accept	engine	cancelExportStatement(FROM|IN)/IN	CANCEL EXPORT IN a;
-accept	reject	engine	cancelExportStatement(FROM|IN)/IN!insert	CANCEL EXPORT IN zzz a;
-accept	reject	engine	cancelExportStatement(FROM|IN)/IN!swap	CANCEL EXPORT INACTIVE a;
+reject	reject	engine	cancelExportStatement(FROM|IN)/IN!insert	CANCEL EXPORT IN zzz a;
+reject	reject	engine	cancelExportStatement(FROM|IN)/IN!swap	CANCEL EXPORT INACTIVE a;
 accept	accept	engine	cancelExportStatement((LIKE_string)|(WHERE_expression))?/%empty	CANCEL EXPORT;
 accept	accept	engine	cancelExportStatement((LIKE_string)|(WHERE_expression))?/LIKE_string	CANCEL EXPORT LIKE 'a';
-accept	reject	engine	cancelExportStatement((LIKE_string)|(WHERE_expression))?/LIKE_string!drop-1	CANCEL EXPORT 'a';
-accept	reject	engine	cancelExportStatement((LIKE_string)|(WHERE_expression))?/LIKE_string!drop-2	CANCEL EXPORT LIKE;
-accept	reject	engine	cancelExportStatement((LIKE_string)|(WHERE_expression))?/LIKE_string!truncate	CANCEL EXPORT LIKE
-accept	reject	engine	cancelExportStatement((LIKE_string)|(WHERE_expression))?/LIKE_string!insert	CANCEL EXPORT LIKE 'a' zzz;
-accept	reject	engine	cancelExportStatement((LIKE_string)|(WHERE_expression))?/LIKE_string!swap	CANCEL EXPORT LIMIT 'a';
+reject	reject	engine	cancelExportStatement((LIKE_string)|(WHERE_expression))?/LIKE_string!drop-1	CANCEL EXPORT 'a';
+reject	reject	engine	cancelExportStatement((LIKE_string)|(WHERE_expression))?/LIKE_string!drop-2	CANCEL EXPORT LIKE;
+reject	reject	engine	cancelExportStatement((LIKE_string)|(WHERE_expression))?/LIKE_string!truncate	CANCEL EXPORT LIKE
+reject	reject	engine	cancelExportStatement((LIKE_string)|(WHERE_expression))?/LIKE_string!insert	CANCEL EXPORT LIKE 'a' zzz;
+reject	reject	engine	cancelExportStatement((LIKE_string)|(WHERE_expression))?/LIKE_string!swap	CANCEL EXPORT LIMIT 'a';
 accept	accept	engine	cancelExportStatement((LIKE_string)|(WHERE_expression))?/WHERE_expression	CANCEL EXPORT WHERE CURRENT_USER;
-accept	reject	engine	cancelExportStatement((LIKE_string)|(WHERE_expression))?/WHERE_expression!drop-1	CANCEL EXPORT CURRENT_USER;
-accept	reject	engine	cancelExportStatement((LIKE_string)|(WHERE_expression))?/WHERE_expression!drop-2	CANCEL EXPORT WHERE;
-accept	reject	engine	cancelExportStatement((LIKE_string)|(WHERE_expression))?/WHERE_expression!truncate	CANCEL EXPORT WHERE
-accept	reject	engine	cancelExportStatement((LIKE_string)|(WHERE_expression))?/WHERE_expression!insert	CANCEL EXPORT WHERE CURRENT_USER zzz;
-accept	reject	engine	cancelExportStatement((LIKE_string)|(WHERE_expression))?/WHERE_expression!swap	CANCEL EXPORT WHITELIST CURRENT_USER;
+reject	reject	engine	cancelExportStatement((LIKE_string)|(WHERE_expression))?/WHERE_expression!drop-1	CANCEL EXPORT CURRENT_USER;
+reject	reject	engine	cancelExportStatement((LIKE_string)|(WHERE_expression))?/WHERE_expression!drop-2	CANCEL EXPORT WHERE;
+reject	reject	engine	cancelExportStatement((LIKE_string)|(WHERE_expression))?/WHERE_expression!truncate	CANCEL EXPORT WHERE
+reject	reject	engine	cancelExportStatement((LIKE_string)|(WHERE_expression))?/WHERE_expression!insert	CANCEL EXPORT WHERE CURRENT_USER zzz;
+reject	reject	engine	cancelExportStatement((LIKE_string)|(WHERE_expression))?/WHERE_expression!swap	CANCEL EXPORT WHITELIST CURRENT_USER;
 accept	accept	engine	showExportStatement/SHOW_EXPORT_((FROM|IN)_qualifiedName)?_((LIKE_string)|(~b23f75f6	SHOW EXPORT;
 accept	accept	engine	showExportStatement((FROM|IN)_qualifiedName)?/%empty	SHOW EXPORT;
 accept	accept	engine	showExportStatement((FROM|IN)_qualifiedName)?/(FROM|IN)_qualifiedName	SHOW EXPORT FROM a;
@@ -7542,15 +7542,15 @@ accept	accept	engine	unsupportedStatement/LOCK_TABLES_lock_item_(,_lock_item)*	L
 reject	reject	engine	unsupportedStatement/LOCK_TABLES_lock_item_(,_lock_item)*!drop-1	TABLES a READ;
 reject	reject	engine	unsupportedStatement/LOCK_TABLES_lock_item_(,_lock_item)*!drop-2	LOCK a READ;
 reject	reject	engine	unsupportedStatement/LOCK_TABLES_lock_item_(,_lock_item)*!drop-3	LOCK TABLES READ;
-accept	reject	engine	unsupportedStatement/LOCK_TABLES_lock_item_(,_lock_item)*!drop-4	LOCK TABLES a;
-accept	reject	engine	unsupportedStatement/LOCK_TABLES_lock_item_(,_lock_item)*!truncate	LOCK TABLES a
+reject	reject	engine	unsupportedStatement/LOCK_TABLES_lock_item_(,_lock_item)*!drop-4	LOCK TABLES a;
+reject	reject	engine	unsupportedStatement/LOCK_TABLES_lock_item_(,_lock_item)*!truncate	LOCK TABLES a
 reject	reject	engine	unsupportedStatement/LOCK_TABLES_lock_item_(,_lock_item)*!insert	LOCK TABLES a READ zzz;
 reject	reject	engine	unsupportedStatement/LOCK_TABLES_lock_item_(,_lock_item)*!swap	LOGICAL TABLES a READ;
 accept	accept	engine	unsupportedStatement/UNLOCK_TABLES	UNLOCK TABLES;
-accept	reject	engine	unsupportedStatement/UNLOCK_TABLES!drop-2	UNLOCK;
-accept	reject	engine	unsupportedStatement/UNLOCK_TABLES!truncate	UNLOCK
+reject	reject	engine	unsupportedStatement/UNLOCK_TABLES!drop-2	UNLOCK;
+reject	reject	engine	unsupportedStatement/UNLOCK_TABLES!truncate	UNLOCK
 reject	reject	engine	unsupportedStatement/UNLOCK_TABLES!insert	UNLOCK TABLES zzz;
-accept	reject	engine	unsupportedStatement/UNLOCK_TABLES!swap	UNSET TABLES;
+reject	reject	engine	unsupportedStatement/UNLOCK_TABLES!swap	UNSET TABLES;
 reject	accept	engine	unsupportedStatement(WITH_CONSISTENT_SNAPSHOT)?/%empty	START TRANSACTION;
 reject	accept	engine	unsupportedStatement(WITH_CONSISTENT_SNAPSHOT)?/WITH_CONSISTENT_SNAPSHOT	START TRANSACTION WITH CONSISTENT SNAPSHOT;
 reject	reject	engine	unsupportedStatement(WITH_CONSISTENT_SNAPSHOT)?/WITH_CONSISTENT_SNAPSHOT!drop-1	START TRANSACTION CONSISTENT SNAPSHOT;
@@ -7585,17 +7585,17 @@ accept	accept	engine	unsupportedStatement(,_lock_item)*/%empty	LOCK TABLES a REA
 accept	accept	engine	unsupportedStatement(,_lock_item)*/,_lock_item_(,_lock_item)*	LOCK TABLES a READ, a READ;
 reject	reject	engine	unsupportedStatement(,_lock_item)*/,_lock_item_(,_lock_item)*!drop-1	LOCK TABLES a READ a READ;
 reject	reject	engine	unsupportedStatement(,_lock_item)*/,_lock_item_(,_lock_item)*!drop-2	LOCK TABLES a READ, READ;
-accept	reject	engine	unsupportedStatement(,_lock_item)*/,_lock_item_(,_lock_item)*!drop-3	LOCK TABLES a READ, a;
-accept	reject	engine	unsupportedStatement(,_lock_item)*/,_lock_item_(,_lock_item)*!truncate	LOCK TABLES a READ, a
+reject	reject	engine	unsupportedStatement(,_lock_item)*/,_lock_item_(,_lock_item)*!drop-3	LOCK TABLES a READ, a;
+reject	reject	engine	unsupportedStatement(,_lock_item)*/,_lock_item_(,_lock_item)*!truncate	LOCK TABLES a READ, a
 reject	reject	engine	unsupportedStatement(,_lock_item)*/,_lock_item_(,_lock_item)*!insert	LOCK TABLES a READ, a READ zzz;
 reject	reject	engine	unsupportedStatement(,_lock_item)*/,_lock_item_(,_lock_item)*!swap	LOCK TABLES a READ, a REASON;
 accept	accept	engine	lock_item/identifier_(AS?_identifier)?_lock_type	LOCK TABLES a READ;
 reject	reject	engine	lock_item/identifier_(AS?_identifier)?_lock_type!swap	LOCK TABLES a REASON;
 accept	accept	engine	lock_item(AS?_identifier)?/%empty	LOCK TABLES a READ;
-reject	accept	engine	lock_item(AS?_identifier)?/%empty!insert	LOCK TABLES a zzz READ;
-reject	accept	engine	lock_item(AS?_identifier)?/(AS)?_identifier	LOCK TABLES a a READ;
+accept	accept	engine	lock_item(AS?_identifier)?/%empty!insert	LOCK TABLES a zzz READ;
+accept	accept	engine	lock_item(AS?_identifier)?/(AS)?_identifier	LOCK TABLES a a READ;
 reject	reject	engine	lock_item(AS?_identifier)?/(AS)?_identifier!insert	LOCK TABLES a a zzz READ;
-reject	accept	engine	lock_item(AS)?/%empty	LOCK TABLES a a READ;
+accept	accept	engine	lock_item(AS)?/%empty	LOCK TABLES a a READ;
 reject	reject	engine	lock_item(AS)?/%empty!insert	LOCK TABLES a zzz a READ;
 accept	accept	engine	lock_item(AS)?/AS	LOCK TABLES a AS a READ;
 reject	reject	engine	lock_item(AS)?/AS!insert	LOCK TABLES a AS zzz a READ;
@@ -7610,10 +7610,10 @@ accept	accept	engine	lock_type(LOCAL)?/LOCAL!truncate	LOCK TABLES a READ
 reject	reject	engine	lock_type(LOCAL)?/LOCAL!insert	LOCK TABLES a READ LOCAL zzz;
 reject	reject	engine	lock_type(LOCAL)?/LOCAL!swap	LOCK TABLES a READ LOCALTIME;
 accept	accept	engine	lock_type(LOW_PRIORITY)?/%empty	LOCK TABLES a WRITE;
-reject	accept	engine	lock_type(LOW_PRIORITY)?/%empty!insert	LOCK TABLES a zzz WRITE;
+accept	accept	engine	lock_type(LOW_PRIORITY)?/%empty!insert	LOCK TABLES a zzz WRITE;
 accept	accept	engine	lock_type(LOW_PRIORITY)?/LOW_PRIORITY	LOCK TABLES a LOW_PRIORITY WRITE;
 reject	reject	engine	lock_type(LOW_PRIORITY)?/LOW_PRIORITY!insert	LOCK TABLES a LOW_PRIORITY zzz WRITE;
-reject	accept	engine	lock_type(LOW_PRIORITY)?/LOW_PRIORITY!swap	LOCK TABLES a MANUAL WRITE;
+accept	accept	engine	lock_type(LOW_PRIORITY)?/LOW_PRIORITY!swap	LOCK TABLES a MANUAL WRITE;
 reject	accept	engine	alterPlanAdvisorAddStatement/ALTER_PLAN_ADVISOR_ADD_queryStatement	ALTER PLAN ADVISOR ADD SELECT CURRENT_USER;
 reject	accept	engine	truncatePlanAdvisorStatement/TRUNCATE_PLAN_ADVISOR	TRUNCATE PLAN ADVISOR;
 reject	accept	engine	alterPlanAdvisorDropStatement/ALTER_PLAN_ADVISOR_DROP_string	ALTER PLAN ADVISOR DROP 'a';
@@ -9640,65 +9640,65 @@ reject	reject	engine	frameBound(PRECEDING|FOLLOWING)/FOLLOWING!insert	SELECT COU
 reject	reject	engine	frameBound(PRECEDING|FOLLOWING)/FOLLOWING!swap	SELECT COUNT() OVER(RANGE CURRENT_USER FOR);
 accept	accept	engine	backupRestoreObjectDesc/backupRestoreTableDesc	BACKUP SNAPSHOT a TO a ON(a);
 reject	reject	engine	backupRestoreObjectDesc/backupRestoreTableDesc!truncate	BACKUP SNAPSHOT a TO a ON(
-reject	accept	engine	backupRestoreObjectDesc/(ALL_(FUNCTION|FUNCTIONS)|(FUNCTION|F~87557572)	BACKUP SNAPSHOT a TO a ON(ALL FUNCTION);
-accept	reject	engine	backupRestoreObjectDesc/(ALL_(FUNCTION|FUNCTIONS)|(FUNCTION|F~87557572)!drop-1	BACKUP SNAPSHOT a TO a ON(FUNCTION);
+accept	accept	engine	backupRestoreObjectDesc/(ALL_(FUNCTION|FUNCTIONS)|(FUNCTION|F~87557572)	BACKUP SNAPSHOT a TO a ON(ALL FUNCTION);
+reject	reject	engine	backupRestoreObjectDesc/(ALL_(FUNCTION|FUNCTIONS)|(FUNCTION|F~87557572)!drop-1	BACKUP SNAPSHOT a TO a ON(FUNCTION);
 reject	reject	engine	backupRestoreObjectDesc/(ALL_(FUNCTION|FUNCTIONS)|(FUNCTION|F~87557572)!drop-2	BACKUP SNAPSHOT a TO a ON(ALL);
 reject	reject	engine	backupRestoreObjectDesc/(ALL_(FUNCTION|FUNCTIONS)|(FUNCTION|F~87557572)!truncate	BACKUP SNAPSHOT a TO a ON(ALL
 reject	reject	engine	backupRestoreObjectDesc/(ALL_(FUNCTION|FUNCTIONS)|(FUNCTION|F~87557572)!insert	BACKUP SNAPSHOT a TO a ON(ALL FUNCTION zzz);
 reject	reject	engine	backupRestoreObjectDesc/(ALL_(FUNCTION|FUNCTIONS)|(FUNCTION|F~87557572)!swap	BACKUP SNAPSHOT a TO a ON(ALTER FUNCTION);
-reject	accept	engine	backupRestoreObjectDesc/(ALL_(TABLE|TABLES)|(TABLE|TABLES)_ba~bc04f5b8)	BACKUP SNAPSHOT a TO a ON(ALL TABLE);
+accept	accept	engine	backupRestoreObjectDesc/(ALL_(TABLE|TABLES)|(TABLE|TABLES)_ba~bc04f5b8)	BACKUP SNAPSHOT a TO a ON(ALL TABLE);
 reject	reject	engine	backupRestoreObjectDesc/(ALL_(TABLE|TABLES)|(TABLE|TABLES)_ba~bc04f5b8)!drop-1	BACKUP SNAPSHOT a TO a ON(TABLE);
 reject	reject	engine	backupRestoreObjectDesc/(ALL_(TABLE|TABLES)|(TABLE|TABLES)_ba~bc04f5b8)!insert	BACKUP SNAPSHOT a TO a ON(ALL TABLE zzz);
 reject	reject	engine	backupRestoreObjectDesc/(ALL_(TABLE|TABLES)|(TABLE|TABLES)_ba~bc04f5b8)!swap	BACKUP SNAPSHOT a TO a ON(ALTER TABLE);
-reject	accept	engine	backupRestoreObjectDesc/(ALL_MATERIALIZED_(VIEW|VIEWS)|MATERI~21086a5f)	BACKUP SNAPSHOT a TO a ON(ALL MATERIALIZED VIEW);
-accept	reject	engine	backupRestoreObjectDesc/(ALL_MATERIALIZED_(VIEW|VIEWS)|MATERI~21086a5f)!drop-1	BACKUP SNAPSHOT a TO a ON(MATERIALIZED VIEW);
+accept	accept	engine	backupRestoreObjectDesc/(ALL_MATERIALIZED_(VIEW|VIEWS)|MATERI~21086a5f)	BACKUP SNAPSHOT a TO a ON(ALL MATERIALIZED VIEW);
+reject	reject	engine	backupRestoreObjectDesc/(ALL_MATERIALIZED_(VIEW|VIEWS)|MATERI~21086a5f)!drop-1	BACKUP SNAPSHOT a TO a ON(MATERIALIZED VIEW);
 reject	reject	engine	backupRestoreObjectDesc/(ALL_MATERIALIZED_(VIEW|VIEWS)|MATERI~21086a5f)!drop-3	BACKUP SNAPSHOT a TO a ON(ALL MATERIALIZED);
 reject	reject	engine	backupRestoreObjectDesc/(ALL_MATERIALIZED_(VIEW|VIEWS)|MATERI~21086a5f)!truncate	BACKUP SNAPSHOT a TO a ON(ALL MATERIALIZED
 reject	reject	engine	backupRestoreObjectDesc/(ALL_MATERIALIZED_(VIEW|VIEWS)|MATERI~21086a5f)!insert	BACKUP SNAPSHOT a TO a ON(ALL MATERIALIZED VIEW zzz);
 reject	reject	engine	backupRestoreObjectDesc/(ALL_MATERIALIZED_(VIEW|VIEWS)|MATERI~21086a5f)!swap	BACKUP SNAPSHOT a TO a ON(ALTER MATERIALIZED VIEW);
-reject	accept	engine	backupRestoreObjectDesc/(ALL_(VIEW|VIEWS)|(VIEW|VIEWS)_qualif~634af61c)	BACKUP SNAPSHOT a TO a ON(ALL VIEW);
+accept	accept	engine	backupRestoreObjectDesc/(ALL_(VIEW|VIEWS)|(VIEW|VIEWS)_qualif~634af61c)	BACKUP SNAPSHOT a TO a ON(ALL VIEW);
 accept	accept	engine	backupRestoreObjectDesc/(ALL_(VIEW|VIEWS)|(VIEW|VIEWS)_qualif~634af61c)!drop-1	BACKUP SNAPSHOT a TO a ON(VIEW);
 reject	reject	engine	backupRestoreObjectDesc/(ALL_(VIEW|VIEWS)|(VIEW|VIEWS)_qualif~634af61c)!insert	BACKUP SNAPSHOT a TO a ON(ALL VIEW zzz);
 reject	reject	engine	backupRestoreObjectDesc/(ALL_(VIEW|VIEWS)|(VIEW|VIEWS)_qualif~634af61c)!swap	BACKUP SNAPSHOT a TO a ON(ALTER VIEW);
-reject	accept	engine	backupRestoreObjectDesc(ALL_(FUNCTION|FUNCTIONS)|(FUNCTION|F~87557572)/ALL_(FUNCTION|FUNCTIONS)	BACKUP SNAPSHOT a TO a ON(ALL FUNCTION);
+accept	accept	engine	backupRestoreObjectDesc(ALL_(FUNCTION|FUNCTIONS)|(FUNCTION|F~87557572)/ALL_(FUNCTION|FUNCTIONS)	BACKUP SNAPSHOT a TO a ON(ALL FUNCTION);
 accept	accept	engine	backupRestoreObjectDesc(ALL_(FUNCTION|FUNCTIONS)|(FUNCTION|F~87557572)/(FUNCTION|FUNCTIONS)_qualifiedName_(AS_identifier)?	BACKUP SNAPSHOT a TO a ON(FUNCTION a);
 reject	reject	engine	backupRestoreObjectDesc(ALL_(FUNCTION|FUNCTIONS)|(FUNCTION|F~87557572)/(FUNCTION|FUNCTIONS)_qualifiedName_(AS_identifier)?!truncate	BACKUP SNAPSHOT a TO a ON(FUNCTION
-accept	reject	engine	backupRestoreObjectDesc(ALL_(FUNCTION|FUNCTIONS)|(FUNCTION|F~87557572)/(FUNCTION|FUNCTIONS)_qualifiedName_(AS_identifier)?!insert	BACKUP SNAPSHOT a TO a ON(FUNCTION a zzz);
-reject	accept	engine	backupRestoreObjectDesc(ALL_(FUNCTION|FUNCTIONS)|(FUNCTION|F~87557572)/(FUNCTION|FUNCTIONS)_qualifiedName_(AS_identifier)?!swap	BACKUP SNAPSHOT a TO a ON(FUNCTIONS a);
-reject	accept	engine	backupRestoreObjectDesc(FUNCTION|FUNCTIONS)/FUNCTION	BACKUP SNAPSHOT a TO a ON(ALL FUNCTION);
-reject	accept	engine	backupRestoreObjectDesc(FUNCTION|FUNCTIONS)/FUNCTIONS	BACKUP SNAPSHOT a TO a ON(ALL FUNCTIONS);
+reject	reject	engine	backupRestoreObjectDesc(ALL_(FUNCTION|FUNCTIONS)|(FUNCTION|F~87557572)/(FUNCTION|FUNCTIONS)_qualifiedName_(AS_identifier)?!insert	BACKUP SNAPSHOT a TO a ON(FUNCTION a zzz);
+accept	accept	engine	backupRestoreObjectDesc(ALL_(FUNCTION|FUNCTIONS)|(FUNCTION|F~87557572)/(FUNCTION|FUNCTIONS)_qualifiedName_(AS_identifier)?!swap	BACKUP SNAPSHOT a TO a ON(FUNCTIONS a);
+accept	accept	engine	backupRestoreObjectDesc(FUNCTION|FUNCTIONS)/FUNCTION	BACKUP SNAPSHOT a TO a ON(ALL FUNCTION);
+accept	accept	engine	backupRestoreObjectDesc(FUNCTION|FUNCTIONS)/FUNCTIONS	BACKUP SNAPSHOT a TO a ON(ALL FUNCTIONS);
 reject	reject	engine	backupRestoreObjectDesc(FUNCTION|FUNCTIONS)/FUNCTIONS!insert	BACKUP SNAPSHOT a TO a ON(ALL FUNCTIONS zzz);
 reject	reject	engine	backupRestoreObjectDesc(FUNCTION|FUNCTIONS)/FUNCTIONS!swap	BACKUP SNAPSHOT a TO a ON(ALL GIN);
 accept	accept	engine	backupRestoreObjectDesc(AS_identifier)?/%empty	BACKUP SNAPSHOT a TO a ON(FUNCTION a);
 reject	reject	engine	backupRestoreObjectDesc(AS_identifier)?/AS_identifier	BACKUP SNAPSHOT a TO a ON(FUNCTION a AS a);
-accept	reject	engine	backupRestoreObjectDesc(AS_identifier)?/AS_identifier!drop-1	BACKUP SNAPSHOT a TO a ON(FUNCTION a a);
+reject	reject	engine	backupRestoreObjectDesc(AS_identifier)?/AS_identifier!drop-1	BACKUP SNAPSHOT a TO a ON(FUNCTION a a);
 reject	reject	engine	backupRestoreObjectDesc(AS_identifier)?/AS_identifier!drop-2	BACKUP SNAPSHOT a TO a ON(FUNCTION a AS);
 reject	reject	engine	backupRestoreObjectDesc(AS_identifier)?/AS_identifier!truncate	BACKUP SNAPSHOT a TO a ON(FUNCTION a AS
 reject	reject	engine	backupRestoreObjectDesc(AS_identifier)?/AS_identifier!insert	BACKUP SNAPSHOT a TO a ON(FUNCTION a AS a zzz);
 reject	reject	engine	backupRestoreObjectDesc(AS_identifier)?/AS_identifier!swap	BACKUP SNAPSHOT a TO a ON(FUNCTION a ASC a);
-reject	accept	engine	backupRestoreObjectDesc(ALL_(TABLE|TABLES)|(TABLE|TABLES)_ba~bc04f5b8)/ALL_(TABLE|TABLES)	BACKUP SNAPSHOT a TO a ON(ALL TABLE);
-reject	accept	engine	backupRestoreObjectDesc(ALL_(TABLE|TABLES)|(TABLE|TABLES)_ba~bc04f5b8)/(TABLE|TABLES)_backupRestoreTableDesc	BACKUP SNAPSHOT a TO a ON(TABLE a);
+accept	accept	engine	backupRestoreObjectDesc(ALL_(TABLE|TABLES)|(TABLE|TABLES)_ba~bc04f5b8)/ALL_(TABLE|TABLES)	BACKUP SNAPSHOT a TO a ON(ALL TABLE);
+accept	accept	engine	backupRestoreObjectDesc(ALL_(TABLE|TABLES)|(TABLE|TABLES)_ba~bc04f5b8)/(TABLE|TABLES)_backupRestoreTableDesc	BACKUP SNAPSHOT a TO a ON(TABLE a);
 reject	reject	engine	backupRestoreObjectDesc(ALL_(TABLE|TABLES)|(TABLE|TABLES)_ba~bc04f5b8)/(TABLE|TABLES)_backupRestoreTableDesc!truncate	BACKUP SNAPSHOT a TO a ON(TABLE
 reject	reject	engine	backupRestoreObjectDesc(ALL_(TABLE|TABLES)|(TABLE|TABLES)_ba~bc04f5b8)/(TABLE|TABLES)_backupRestoreTableDesc!insert	BACKUP SNAPSHOT a TO a ON(TABLE a zzz);
 accept	accept	engine	backupRestoreObjectDesc(ALL_(TABLE|TABLES)|(TABLE|TABLES)_ba~bc04f5b8)/(TABLE|TABLES)_backupRestoreTableDesc!swap	BACKUP SNAPSHOT a TO a ON(TABLES a);
-reject	accept	engine	backupRestoreObjectDesc(TABLE|TABLES)/TABLE	BACKUP SNAPSHOT a TO a ON(ALL TABLE);
-reject	accept	engine	backupRestoreObjectDesc(TABLE|TABLES)/TABLES	BACKUP SNAPSHOT a TO a ON(ALL TABLES);
+accept	accept	engine	backupRestoreObjectDesc(TABLE|TABLES)/TABLE	BACKUP SNAPSHOT a TO a ON(ALL TABLE);
+accept	accept	engine	backupRestoreObjectDesc(TABLE|TABLES)/TABLES	BACKUP SNAPSHOT a TO a ON(ALL TABLES);
 reject	reject	engine	backupRestoreObjectDesc(TABLE|TABLES)/TABLES!insert	BACKUP SNAPSHOT a TO a ON(ALL TABLES zzz);
 reject	reject	engine	backupRestoreObjectDesc(TABLE|TABLES)/TABLES!swap	BACKUP SNAPSHOT a TO a ON(ALL TABLET);
-reject	accept	engine	backupRestoreObjectDesc(ALL_MATERIALIZED_(VIEW|VIEWS)|MATERI~21086a5f)/ALL_MATERIALIZED_(VIEW|VIEWS)	BACKUP SNAPSHOT a TO a ON(ALL MATERIALIZED VIEW);
+accept	accept	engine	backupRestoreObjectDesc(ALL_MATERIALIZED_(VIEW|VIEWS)|MATERI~21086a5f)/ALL_MATERIALIZED_(VIEW|VIEWS)	BACKUP SNAPSHOT a TO a ON(ALL MATERIALIZED VIEW);
 accept	accept	engine	backupRestoreObjectDesc(ALL_MATERIALIZED_(VIEW|VIEWS)|MATERI~21086a5f)/MATERIALIZED_(VIEW|VIEWS)_qualifiedName_(AS_identifier)?	BACKUP SNAPSHOT a TO a ON(MATERIALIZED VIEW a);
-accept	reject	engine	backupRestoreObjectDesc(ALL_MATERIALIZED_(VIEW|VIEWS)|MATERI~21086a5f)/MATERIALIZED_(VIEW|VIEWS)_qualifiedName_(AS_identifier)?!drop-2	BACKUP SNAPSHOT a TO a ON(MATERIALIZED a);
+reject	reject	engine	backupRestoreObjectDesc(ALL_MATERIALIZED_(VIEW|VIEWS)|MATERI~21086a5f)/MATERIALIZED_(VIEW|VIEWS)_qualifiedName_(AS_identifier)?!drop-2	BACKUP SNAPSHOT a TO a ON(MATERIALIZED a);
 reject	reject	engine	backupRestoreObjectDesc(ALL_MATERIALIZED_(VIEW|VIEWS)|MATERI~21086a5f)/MATERIALIZED_(VIEW|VIEWS)_qualifiedName_(AS_identifier)?!truncate	BACKUP SNAPSHOT a TO a ON(MATERIALIZED VIEW
-accept	reject	engine	backupRestoreObjectDesc(ALL_MATERIALIZED_(VIEW|VIEWS)|MATERI~21086a5f)/MATERIALIZED_(VIEW|VIEWS)_qualifiedName_(AS_identifier)?!insert	BACKUP SNAPSHOT a TO a ON(MATERIALIZED VIEW a zzz);
-accept	reject	engine	backupRestoreObjectDesc(ALL_MATERIALIZED_(VIEW|VIEWS)|MATERI~21086a5f)/MATERIALIZED_(VIEW|VIEWS)_qualifiedName_(AS_identifier)?!swap	BACKUP SNAPSHOT a TO a ON(MAX VIEW a);
-reject	accept	engine	backupRestoreObjectDesc(VIEW|VIEWS)/VIEW	BACKUP SNAPSHOT a TO a ON(ALL VIEW);
-reject	accept	engine	backupRestoreObjectDesc(VIEW|VIEWS)/VIEWS	BACKUP SNAPSHOT a TO a ON(ALL VIEWS);
+reject	reject	engine	backupRestoreObjectDesc(ALL_MATERIALIZED_(VIEW|VIEWS)|MATERI~21086a5f)/MATERIALIZED_(VIEW|VIEWS)_qualifiedName_(AS_identifier)?!insert	BACKUP SNAPSHOT a TO a ON(MATERIALIZED VIEW a zzz);
+reject	reject	engine	backupRestoreObjectDesc(ALL_MATERIALIZED_(VIEW|VIEWS)|MATERI~21086a5f)/MATERIALIZED_(VIEW|VIEWS)_qualifiedName_(AS_identifier)?!swap	BACKUP SNAPSHOT a TO a ON(MAX VIEW a);
+accept	accept	engine	backupRestoreObjectDesc(VIEW|VIEWS)/VIEW	BACKUP SNAPSHOT a TO a ON(ALL VIEW);
+accept	accept	engine	backupRestoreObjectDesc(VIEW|VIEWS)/VIEWS	BACKUP SNAPSHOT a TO a ON(ALL VIEWS);
 reject	reject	engine	backupRestoreObjectDesc(VIEW|VIEWS)/VIEWS!insert	BACKUP SNAPSHOT a TO a ON(ALL VIEWS zzz);
 reject	reject	engine	backupRestoreObjectDesc(VIEW|VIEWS)/VIEWS!swap	BACKUP SNAPSHOT a TO a ON(ALL VOLUME);
-reject	accept	engine	backupRestoreObjectDesc(ALL_(VIEW|VIEWS)|(VIEW|VIEWS)_qualif~634af61c)/ALL_(VIEW|VIEWS)	BACKUP SNAPSHOT a TO a ON(ALL VIEW);
+accept	accept	engine	backupRestoreObjectDesc(ALL_(VIEW|VIEWS)|(VIEW|VIEWS)_qualif~634af61c)/ALL_(VIEW|VIEWS)	BACKUP SNAPSHOT a TO a ON(ALL VIEW);
 accept	accept	engine	backupRestoreObjectDesc(ALL_(VIEW|VIEWS)|(VIEW|VIEWS)_qualif~634af61c)/(VIEW|VIEWS)_qualifiedName_(AS_identifier)?	BACKUP SNAPSHOT a TO a ON(VIEW a);
 reject	reject	engine	backupRestoreObjectDesc(ALL_(VIEW|VIEWS)|(VIEW|VIEWS)_qualif~634af61c)/(VIEW|VIEWS)_qualifiedName_(AS_identifier)?!truncate	BACKUP SNAPSHOT a TO a ON(VIEW
-accept	reject	engine	backupRestoreObjectDesc(ALL_(VIEW|VIEWS)|(VIEW|VIEWS)_qualif~634af61c)/(VIEW|VIEWS)_qualifiedName_(AS_identifier)?!insert	BACKUP SNAPSHOT a TO a ON(VIEW a zzz);
+reject	reject	engine	backupRestoreObjectDesc(ALL_(VIEW|VIEWS)|(VIEW|VIEWS)_qualif~634af61c)/(VIEW|VIEWS)_qualifiedName_(AS_identifier)?!insert	BACKUP SNAPSHOT a TO a ON(VIEW a zzz);
 accept	accept	engine	backupRestoreObjectDesc(ALL_(VIEW|VIEWS)|(VIEW|VIEWS)_qualif~634af61c)/(VIEW|VIEWS)_qualifiedName_(AS_identifier)?!swap	BACKUP SNAPSHOT a TO a ON(VIEWS a);
 accept	accept	engine	tableDesc/qualifiedName_(partitionNames)?	EXPORT TABLE a TO 'a';
 reject	reject	engine	tableDesc/qualifiedName_(partitionNames)?!truncate	EXPORT TABLE
@@ -9712,9 +9712,9 @@ accept	accept	engine	tableDesc(partitionNames)?/partitionNames!swap	EXPORT TABLE
 accept	accept	engine	backupRestoreTableDesc/qualifiedName_(partitionNames)?_(AS_identifier)?	BACKUP SNAPSHOT a TO a ON(a);
 accept	accept	engine	backupRestoreTableDesc(partitionNames)?/%empty	BACKUP SNAPSHOT a TO a ON(a);
 accept	accept	engine	backupRestoreTableDesc(partitionNames)?/partitionNames	BACKUP SNAPSHOT a TO a ON(a PARTITION a);
-accept	reject	engine	backupRestoreTableDesc(partitionNames)?/partitionNames!drop-2	BACKUP SNAPSHOT a TO a ON(a PARTITION);
+reject	reject	engine	backupRestoreTableDesc(partitionNames)?/partitionNames!drop-2	BACKUP SNAPSHOT a TO a ON(a PARTITION);
 reject	reject	engine	backupRestoreTableDesc(partitionNames)?/partitionNames!truncate	BACKUP SNAPSHOT a TO a ON(a PARTITION
-accept	reject	engine	backupRestoreTableDesc(partitionNames)?/partitionNames!insert	BACKUP SNAPSHOT a TO a ON(a PARTITION a zzz);
+reject	reject	engine	backupRestoreTableDesc(partitionNames)?/partitionNames!insert	BACKUP SNAPSHOT a TO a ON(a PARTITION a zzz);
 accept	accept	engine	backupRestoreTableDesc(partitionNames)?/partitionNames!swap	BACKUP SNAPSHOT a TO a ON(a PARTITIONS a);
 accept	accept	engine	backupRestoreTableDesc(AS_identifier)?/%empty	BACKUP SNAPSHOT a TO a ON(a);
 reject	reject	engine	backupRestoreTableDesc(AS_identifier)?/AS_identifier	BACKUP SNAPSHOT a TO a ON(a AS a);

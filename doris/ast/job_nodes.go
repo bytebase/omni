@@ -87,12 +87,11 @@ var _ Node = (*AlterJobStmt)(nil)
 
 // DropJobStmt represents:
 //
-//	DROP JOB [IF EXISTS] job_name
-//	DROP JOB WHERE expr
+//	DROP JOB [IF EXISTS] [LIKE 'pattern' | WHERE expr]
 type DropJobStmt struct {
-	Name     *ObjectName // non-nil when dropping by name
 	IfExists bool
-	Where    Node // non-nil when dropping via WHERE clause
+	Like     string // LIKE pattern; "" when absent
+	Where    Node   // non-nil when dropping via WHERE clause
 	Loc      Loc
 }
 
@@ -107,11 +106,10 @@ var _ Node = (*DropJobStmt)(nil)
 
 // PauseJobStmt represents:
 //
-//	PAUSE JOB job_name
-//	PAUSE JOB WHERE expr
+//	PAUSE JOB [LIKE 'pattern' | WHERE expr]
 type PauseJobStmt struct {
-	Name  *ObjectName // non-nil when pausing by name
-	Where Node        // non-nil when pausing via WHERE clause
+	Like  string // LIKE pattern; "" when absent
+	Where Node   // non-nil when pausing via WHERE clause
 	Loc   Loc
 }
 
@@ -126,11 +124,10 @@ var _ Node = (*PauseJobStmt)(nil)
 
 // ResumeJobStmt represents:
 //
-//	RESUME JOB job_name
-//	RESUME JOB WHERE expr
+//	RESUME JOB [LIKE 'pattern' | WHERE expr]
 type ResumeJobStmt struct {
-	Name  *ObjectName // non-nil when resuming by name
-	Where Node        // non-nil when resuming via WHERE clause
+	Like  string // LIKE pattern; "" when absent
+	Where Node   // non-nil when resuming via WHERE clause
 	Loc   Loc
 }
 

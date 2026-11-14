@@ -6,14 +6,18 @@ import (
 	"github.com/bytebase/omni/starrocks/ast"
 )
 
+// The readers in this file follow StarRocks.g4 and, where it refuses a tree
+// the grammar admits, StarRocks's AST builder (AstBuilder.java in StarRocks
+// 3.4, the pinned version), whose ParsingException is a parse error too.
+
 // ---------------------------------------------------------------------------
 // BACKUP SNAPSHOT
 // ---------------------------------------------------------------------------
 
-// parseBackup parses:
+// parseBackup parses (StarRocks.g4:1765 backupStatement):
 //
 //	BACKUP SNAPSHOT [db.]label TO repo_name
-//	    [ON (tbl [PARTITION(p1,...)], ...)]
+//	    [ON (backupRestoreObjectDesc [, ...])]
 //	    [PROPERTIES("key"="value", ...)]
 //
 // On entry, cur is SNAPSHOT (BACKUP was consumed by the dispatch).
@@ -44,10 +48,10 @@ func (p *Parser) parseBackup(startLoc ast.Loc) (ast.Node, error) {
 	stmt.Repo = repo
 	endLoc = repoLoc
 
-	// Optional ON (table_list)
+	// Optional ON (object_list)
 	if p.cur.Kind == kwON {
 		p.advance() // consume ON
-		tables, loc, err := p.parseBackupTableList()
+		tables, loc, err := p.parseBackupObjectList(false)
 		if err != nil {
 			return nil, err
 		}
@@ -71,61 +75,198 @@ func (p *Parser) parseBackup(startLoc ast.Loc) (ast.Node, error) {
 	return stmt, nil
 }
 
-// parseBackupTableList parses the parenthesized table list in BACKUP/RESTORE ON clause.
-// We consume '(' tbl [PARTITION(...)], tbl [PARTITION(...)] ..., ')'.
-// Individual PARTITION sub-clauses are consumed but not stored (best-effort).
-func (p *Parser) parseBackupTableList() ([]*ast.ObjectName, ast.Loc, error) {
-	startTok, err := p.expect(int('('))
-	if err != nil {
+// parseBackupObjectList parses the ON list of BACKUP and RESTORE:
+// '(' backupRestoreObjectDesc (',' backupRestoreObjectDesc)* ')'
+// (StarRocks.g4:1768, 1785), where each entry is (StarRocks.g4:2564,
+// backupRestoreObjectDesc and backupRestoreTableDesc):
+//
+//	name [partitionNames] [AS alias]
+//	{TABLE | TABLES} name [partitionNames] [AS alias]
+//	{FUNCTION | FUNCTIONS | VIEW | VIEWS | MATERIALIZED {VIEW | VIEWS}} name [AS alias]
+//	ALL {FUNCTION | FUNCTIONS | TABLE | TABLES | VIEW | VIEWS | MATERIALIZED {VIEW | VIEWS}}
+//
+// A BACKUP entry takes no alias: the AST builder refuses one
+// (unsupportedSepcifyAliasInBackupStmt). Every named object is returned,
+// whatever its kind; ALL entries return nothing.
+func (p *Parser) parseBackupObjectList(restore bool) ([]*ast.ObjectName, ast.Loc, error) {
+	if _, err := p.expect(int('(')); err != nil {
 		return nil, ast.NoLoc(), err
 	}
-	endLoc := startTok.Loc
 
-	var tables []*ast.ObjectName
-	for p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
-		tbl, err := p.parseMultipartIdentifier()
+	var names []*ast.ObjectName
+	for {
+		name, err := p.parseBackupObjectDesc(restore)
 		if err != nil {
 			return nil, ast.NoLoc(), err
 		}
-		tables = append(tables, tbl)
-		endLoc = ast.NodeLoc(tbl)
-
-		// Optional PARTITION(p1, p2, ...) — consume and discard
-		if p.cur.Kind == kwPARTITION {
-			p.advance() // consume PARTITION
-			if p.cur.Kind == int('(') {
-				_, loc, err := p.consumeParenGroup()
-				if err != nil {
-					return nil, ast.NoLoc(), err
-				}
-				endLoc = loc
-			}
+		if name != nil {
+			names = append(names, name)
 		}
-
-		// Comma separator
-		if p.cur.Kind == int(',') {
-			p.advance()
+		if p.cur.Kind != int(',') {
+			break
 		}
+		p.advance() // consume ','
 	}
 
 	closeTok, err := p.expect(int(')'))
 	if err != nil {
 		return nil, ast.NoLoc(), err
 	}
-	endLoc = closeTok.Loc
+	return names, closeTok.Loc, nil
+}
 
-	return tables, endLoc, nil
+// parseBackupObjectDesc parses one entry of a BACKUP or RESTORE ON list (see
+// parseBackupObjectList). VIEW, VIEWS, TABLES and FUNCTIONS are also
+// non-reserved words, so an entry starting with one may be that kind of object
+// or a table of that name: `ON (VIEW)` and `ON (view TEMPORARY PARTITION(p))`
+// back up a table named view. As ANTLR's prediction does, the entry is read
+// with the kind first and read again as a table when that reading does not
+// end the entry. Each entry is read at most twice, and entries do not nest.
+func (p *Parser) parseBackupObjectDesc(restore bool) (*ast.ObjectName, error) {
+	isKind := func(kind int) bool {
+		switch kind {
+		case kwFUNCTION, kwFUNCTIONS, kwTABLE, kwTABLES, kwVIEW, kwVIEWS, kwMATERIALIZED:
+			return true
+		}
+		return false
+	}
+
+	if p.cur.Kind == kwALL {
+		p.advance() // consume ALL
+		if !isKind(p.cur.Kind) {
+			return nil, p.syntaxErrorAtCur()
+		}
+		mv := p.cur.Kind == kwMATERIALIZED
+		p.advance()
+		if mv {
+			if _, ok := p.match(kwVIEW, kwVIEWS); !ok {
+				return nil, p.syntaxErrorAtCur()
+			}
+		}
+		return nil, nil
+	}
+
+	if !isKind(p.cur.Kind) {
+		return p.parseBackupObjectTail(restore, true)
+	}
+	next := p.peekNext().Kind
+	if p.cur.Kind == kwMATERIALIZED {
+		if next != kwVIEW && next != kwVIEWS {
+			return p.parseBackupObjectTail(restore, true)
+		}
+		p.advance() // consume MATERIALIZED
+		p.advance() // consume VIEW | VIEWS
+		return p.parseBackupObjectTail(restore, false)
+	}
+	// FUNCTION and TABLE are not in StarRocks.g4's nonReserved, so they are
+	// never a table name here.
+	if p.cur.Kind == kwFUNCTION || p.cur.Kind == kwTABLE {
+		tableDesc := p.cur.Kind == kwTABLE
+		p.advance() // consume the kind keyword
+		return p.parseBackupObjectTail(restore, tableDesc)
+	}
+	if !isIdentifierToken(next) {
+		return p.parseBackupObjectTail(restore, true)
+	}
+
+	cp := p.save()
+	tableDesc := p.cur.Kind == kwTABLES
+	p.advance() // consume the kind keyword
+	name, err := p.parseBackupObjectTail(restore, tableDesc)
+	if err == nil && (p.cur.Kind == int(',') || p.cur.Kind == int(')')) {
+		return name, nil
+	}
+	p.restore(cp)
+	return p.parseBackupObjectTail(restore, true)
+}
+
+// parseBackupObjectTail parses the name of a BACKUP or RESTORE ON entry, its
+// partitionNames when it is a table (tableDesc), and its alias.
+func (p *Parser) parseBackupObjectTail(restore, tableDesc bool) (*ast.ObjectName, error) {
+	name, err := p.parseMultipartIdentifier()
+	if err != nil {
+		return nil, err
+	}
+	if tableDesc {
+		if err := p.skipBackupPartitionNames(); err != nil {
+			return nil, err
+		}
+	}
+	if p.cur.Kind == kwAS {
+		if !restore {
+			return nil, &ParseError{
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+				Message: "BACKUP does not take an alias for the objects it backs up",
+			}
+		}
+		p.advance() // consume AS
+		if _, _, err := p.parseIdentifier(); err != nil {
+			return nil, err
+		}
+	}
+	return name, nil
+}
+
+// skipBackupPartitionNames consumes an optional partitionNames
+// (StarRocks.g4:2268):
+//
+//	[TEMPORARY] {PARTITION | PARTITIONS} {name_or_string | (name_or_string, ...)}
+//	PARTITION (column = literal, ...)                       -- keyPartitions
+func (p *Parser) skipBackupPartitionNames() error {
+	temporary := false
+	if p.cur.Kind == kwTEMPORARY {
+		p.advance() // consume TEMPORARY
+		temporary = true
+		if p.cur.Kind != kwPARTITION && p.cur.Kind != kwPARTITIONS {
+			return p.syntaxErrorAtCur()
+		}
+	}
+	if p.cur.Kind != kwPARTITION && p.cur.Kind != kwPARTITIONS {
+		return nil
+	}
+	single := p.cur.Kind == kwPARTITION
+	p.advance() // consume PARTITION | PARTITIONS
+	if p.cur.Kind != int('(') {
+		_, _, err := p.parseIdentifierOrString()
+		return err
+	}
+	p.advance() // consume '('
+	keyed := single && !temporary && isIdentifierToken(p.cur.Kind) && p.peekNext().Kind == int('=')
+	for {
+		if keyed {
+			if _, _, err := p.parseIdentifier(); err != nil {
+				return err
+			}
+			if _, err := p.expect(int('=')); err != nil {
+				return err
+			}
+			if _, err := p.parseExpr(); err != nil {
+				return err
+			}
+		} else if _, _, err := p.parseIdentifierOrString(); err != nil {
+			return err
+		}
+		if p.cur.Kind != int(',') {
+			break
+		}
+		p.advance() // consume ','
+	}
+	_, err := p.expect(int(')'))
+	return err
 }
 
 // ---------------------------------------------------------------------------
 // RESTORE SNAPSHOT
 // ---------------------------------------------------------------------------
 
-// parseRestore parses:
+// parseRestore parses (StarRocks.g4:1780 restoreStatement):
 //
 //	RESTORE SNAPSHOT [db.]label FROM repo_name
-//	    [ON (tbl [PARTITION(p1,...)], ...)]
+//	    [ON (backupRestoreObjectDesc [, ...])]
 //	    [PROPERTIES("key"="value", ...)]
+//
+// An ON list needs the database in the label: the AST builder refuses one
+// otherwise (unsupportedOnClauseWithoutAnyDbNameInRestoreStmt).
 //
 // On entry, cur is SNAPSHOT (RESTORE was consumed by the dispatch).
 func (p *Parser) parseRestore(startLoc ast.Loc) (ast.Node, error) {
@@ -154,10 +295,16 @@ func (p *Parser) parseRestore(startLoc ast.Loc) (ast.Node, error) {
 	stmt.Repo = repo
 	endLoc = repoLoc
 
-	// Optional ON (table_list)
+	// Optional ON (object_list)
 	if p.cur.Kind == kwON {
+		if len(labelName.Parts) < 2 {
+			return nil, &ParseError{
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+				Message: "RESTORE with ON needs the database in the snapshot label",
+			}
+		}
 		p.advance()
-		tables, loc, err := p.parseBackupTableList()
+		tables, loc, err := p.parseBackupObjectList(true)
 		if err != nil {
 			return nil, err
 		}
@@ -185,46 +332,34 @@ func (p *Parser) parseRestore(startLoc ast.Loc) (ast.Node, error) {
 // KILL
 // ---------------------------------------------------------------------------
 
-// parseKill parses:
+// parseKill parses (StarRocks.g4:728 killStatement):
 //
-//	KILL [CONNECTION | QUERY] id
+//	KILL [CONNECTION] integer
+//	KILL QUERY {integer | 'query_id'}
+//
+// The grammar admits a string after KILL [CONNECTION], but the AST builder
+// refuses it ("connection id ... should be a positive integer").
 //
 // On entry, cur is CONNECTION | QUERY | the id token (KILL was consumed by dispatch).
 func (p *Parser) parseKill(startLoc ast.Loc) (ast.Node, error) {
 	stmt := &ast.KillStmt{}
-	endLoc := startLoc
 
 	switch p.cur.Kind {
 	case kwCONNECTION:
 		stmt.Kind = "CONNECTION"
-		endLoc = p.cur.Loc
 		p.advance()
 	case kwQUERY:
 		stmt.Kind = "QUERY"
-		endLoc = p.cur.Loc
 		p.advance()
 	}
 
-	// Target: integer id or string query id
-	switch p.cur.Kind {
-	case tokInt:
-		stmt.Target = p.cur.Str
-		endLoc = p.cur.Loc
-		p.advance()
-	case tokString:
-		stmt.Target = p.cur.Str
-		endLoc = p.cur.Loc
-		p.advance()
-	default:
-		// Best-effort: accept any token as a target id
-		if p.cur.Kind != tokEOF {
-			stmt.Target = p.cur.Str
-			endLoc = p.cur.Loc
-			p.advance()
-		}
+	// Target: an integer id, or a string query id after QUERY only.
+	if p.cur.Kind != tokInt && (p.cur.Kind != tokString || stmt.Kind != "QUERY") {
+		return nil, p.syntaxErrorAtCur()
 	}
-
-	stmt.Loc = startLoc.Merge(endLoc)
+	stmt.Target = p.cur.Str
+	stmt.Loc = startLoc.Merge(p.cur.Loc)
+	p.advance()
 	return stmt, nil
 }
 
@@ -232,9 +367,9 @@ func (p *Parser) parseKill(startLoc ast.Loc) (ast.Node, error) {
 // LOCK TABLES
 // ---------------------------------------------------------------------------
 
-// parseLockTables parses:
+// parseLockTables parses (StarRocks.g4:2010):
 //
-//	LOCK TABLES tbl [AS alias] {READ [LOCAL] | [LOW_PRIORITY] WRITE} [, ...]
+//	LOCK TABLES lock_item [, ...]
 //
 // On entry, cur is TABLES (LOCK was consumed by dispatch).
 func (p *Parser) parseLockTables(startLoc ast.Loc) (ast.Node, error) {
@@ -243,91 +378,91 @@ func (p *Parser) parseLockTables(startLoc ast.Loc) (ast.Node, error) {
 	}
 
 	stmt := &ast.LockTablesStmt{}
-	endLoc := startLoc
-
-	for p.cur.Kind != tokEOF {
+	for {
 		item, err := p.parseLockItem()
 		if err != nil {
 			return nil, err
 		}
 		stmt.Items = append(stmt.Items, item)
-		endLoc = ast.NodeLoc(item)
-
-		if p.cur.Kind == int(',') {
-			p.advance()
-		} else {
+		if p.cur.Kind != int(',') {
 			break
 		}
+		p.advance() // consume ','
 	}
 
-	stmt.Loc = startLoc.Merge(endLoc)
+	stmt.Loc = startLoc.Merge(p.prev.Loc)
 	return stmt, nil
 }
 
-// parseLockItem parses one lock entry: tbl [AS alias] {READ [LOCAL] | [LOW_PRIORITY] WRITE}.
+// parseLockItem parses one lock entry (StarRocks.g4:2014 lock_item,
+// 2018 lock_type):
+//
+//	tbl [[AS] alias] {READ [LOCAL] | [LOW_PRIORITY] WRITE}
+//
+// The table is a single identifier, and the lock mode is required.
 func (p *Parser) parseLockItem() (*ast.LockItem, error) {
-	tbl, err := p.parseMultipartIdentifier()
+	name, nameLoc, err := p.parseIdentifier()
 	if err != nil {
 		return nil, err
 	}
-
+	tbl := &ast.ObjectName{Parts: []string{name}, Loc: nameLoc}
 	item := &ast.LockItem{Table: tbl}
-	endLoc := ast.NodeLoc(tbl)
 
-	// Optional AS alias
+	// Optional [AS] alias. A lock-mode keyword is the alias only when a lock
+	// mode still follows it.
+	lockStart := func(kind int) bool {
+		return kind == kwREAD || kind == kwWRITE || kind == kwLOW_PRIORITY
+	}
 	if p.cur.Kind == kwAS {
 		p.advance()
-		alias, aliasLoc, err := p.parseIdentifier()
+		alias, _, err := p.parseIdentifier()
 		if err != nil {
 			return nil, err
 		}
 		item.Alias = alias
-		endLoc = aliasLoc
+	} else if isIdentifierToken(p.cur.Kind) && (!lockStart(p.cur.Kind) || lockStart(p.peekNext().Kind)) {
+		alias, _, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		item.Alias = alias
 	}
 
 	// Lock mode
 	switch p.cur.Kind {
 	case kwREAD:
 		p.advance()
-		endLoc = p.prev.Loc
+		item.Mode = "READ"
 		if p.cur.Kind == kwLOCAL {
 			p.advance()
-			endLoc = p.prev.Loc
 			item.Mode = "READ LOCAL"
-		} else {
-			item.Mode = "READ"
 		}
 	case kwLOW_PRIORITY:
 		p.advance()
 		if _, err := p.expect(kwWRITE); err != nil {
 			return nil, err
 		}
-		endLoc = p.prev.Loc
 		item.Mode = "LOW_PRIORITY WRITE"
 	case kwWRITE:
 		p.advance()
-		endLoc = p.prev.Loc
 		item.Mode = "WRITE"
 	default:
-		// Best-effort: no lock mode token found; leave Mode empty
+		return nil, p.syntaxErrorAtCur()
 	}
 
-	item.Loc = ast.NodeLoc(tbl).Merge(endLoc)
+	item.Loc = nameLoc.Merge(p.prev.Loc)
 	return item, nil
 }
 
-// parseUnlockTables parses:
-//
-//	UNLOCK TABLES
+// parseUnlockTables parses UNLOCK TABLES (StarRocks.g4:2011).
 //
 // On entry, cur is TABLES (UNLOCK was consumed by dispatch).
 func (p *Parser) parseUnlockTables(startLoc ast.Loc) (ast.Node, error) {
-	endLoc := startLoc
-	if p.cur.Kind == kwTABLES {
-		endLoc = p.cur.Loc
-		p.advance()
+	tablesTok, err := p.expect(kwTABLES)
+	if err != nil {
+		return nil, err
 	}
-	return &ast.UnlockTablesStmt{Loc: startLoc.Merge(endLoc)}, nil
+	return &ast.UnlockTablesStmt{Loc: startLoc.Merge(tablesTok.Loc)}, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -350,7 +485,6 @@ func (p *Parser) parseInstallPlugin(startLoc ast.Loc) (ast.Node, error) {
 	}
 
 	stmt := &ast.InstallPluginStmt{}
-	endLoc := p.prev.Loc
 
 	// Optional SONAME keyword
 	if p.cur.Kind == kwSONAME {
@@ -364,7 +498,7 @@ func (p *Parser) parseInstallPlugin(startLoc ast.Loc) (ast.Node, error) {
 		return nil, err
 	}
 	stmt.Source = src
-	endLoc = srcLoc
+	endLoc := srcLoc
 
 	// Optional PROPERTIES(...)
 	if p.cur.Kind == kwPROPERTIES {
@@ -404,175 +538,258 @@ func (p *Parser) parseUninstallPlugin(startLoc ast.Loc) (ast.Node, error) {
 }
 
 // ---------------------------------------------------------------------------
-// WARM UP
-// ---------------------------------------------------------------------------
-
-// parseWarmUp parses:
-//
-//	WARM UP CLUSTER cluster_name FROM ...
-//	WARM UP COMPUTE GROUP cg WITH ...
-//
-// On entry, cur is UP (WARM was consumed by dispatch).
-func (p *Parser) parseWarmUp(startLoc ast.Loc) (ast.Node, error) {
-	if _, err := p.expect(kwUP); err != nil {
-		return nil, err
-	}
-
-	stmt := &ast.WarmUpStmt{}
-	endLoc := p.prev.Loc
-
-	switch p.cur.Kind {
-	case kwCLUSTER:
-		stmt.Verb = "CLUSTER"
-		p.advance()
-	case kwCOMPUTE:
-		p.advance() // consume COMPUTE
-		stmt.Verb = "COMPUTE GROUP"
-		if p.cur.Kind == kwGROUP {
-			p.advance()
-		}
-	default:
-		// Tolerate missing verb
-		if p.cur.Kind != tokEOF {
-			stmt.Verb = strings.ToUpper(p.cur.Str)
-			p.advance()
-		}
-	}
-
-	// Collect remainder as raw text
-	raw, rawEnd := p.collectRawUntilEOF()
-	stmt.Target = raw
-	if rawEnd.IsValid() {
-		endLoc = rawEnd
-	}
-
-	stmt.Loc = startLoc.Merge(endLoc)
-	return stmt, nil
-}
-
-// ---------------------------------------------------------------------------
 // CLEAN
 // ---------------------------------------------------------------------------
 
-// parseClean parses:
+// parseClean parses the one CLEAN statement StarRocks has
+// (StarRocks.g4:505 cleanTemporaryTableStatement):
 //
-//	CLEAN ALL PROFILE
-//	CLEAN LABEL [label] [FROM db]
-//	CLEAN QUERY STATS [FROM db] [ALL]
-//	... and other variants
+//	CLEAN TEMPORARY TABLE ON SESSION 'session_id'
 //
-// On entry, cur is ALL | LABEL | QUERY | etc. (CLEAN was consumed by dispatch).
+// The AST builder reads the session id with Java's UUID.fromString and
+// refuses one it cannot read ("invalid session id format"). Verb is
+// "TEMPORARY TABLE"; Target is the session id.
+//
+// On entry, cur is the keyword after CLEAN (CLEAN was consumed by dispatch).
 func (p *Parser) parseClean(startLoc ast.Loc) (ast.Node, error) {
-	stmt := &ast.CleanStmt{}
-	endLoc := startLoc
-
-	switch p.cur.Kind {
-	case kwALL:
-		stmt.Verb = "ALL"
-		p.advance()
-		if p.cur.Kind == kwPROFILE {
-			stmt.Verb = "ALL PROFILE"
-			endLoc = p.cur.Loc
-			p.advance()
-		}
-	case kwLABEL:
-		stmt.Verb = "LABEL"
-		endLoc = p.cur.Loc
-		p.advance()
-	case kwQUERY:
-		stmt.Verb = "QUERY"
-		p.advance()
-		if p.cur.Kind == kwSTATS {
-			stmt.Verb = "QUERY STATS"
-			endLoc = p.cur.Loc
-			p.advance()
-		}
-	default:
-		if p.cur.Kind != tokEOF {
-			stmt.Verb = strings.ToUpper(p.cur.Str)
-			endLoc = p.cur.Loc
-			p.advance()
+	for _, kind := range []int{kwTEMPORARY, kwTABLE, kwON, kwSESSION} {
+		if _, err := p.expect(kind); err != nil {
+			return nil, err
 		}
 	}
-
-	// Collect remaining raw text (FROM db, ALL, etc.)
-	raw, rawEnd := p.collectRawUntilEOF()
-	stmt.Target = raw
-	if rawEnd.IsValid() {
-		endLoc = rawEnd
+	if p.cur.Kind != tokString {
+		return nil, p.syntaxErrorAtCur()
 	}
-
-	stmt.Loc = startLoc.Merge(endLoc)
+	if !isJavaUUIDString(p.cur.Str) {
+		return nil, &ParseError{
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			Message: "invalid session id format",
+		}
+	}
+	stmt := &ast.CleanStmt{Verb: "TEMPORARY TABLE", Target: p.cur.Str, Loc: startLoc.Merge(p.cur.Loc)}
+	p.advance()
 	return stmt, nil
+}
+
+// isJavaUUIDString reports whether java.util.UUID.fromString accepts s: at
+// most 36 characters in five dash-separated groups of hexadecimal digits,
+// each group fitting a long.
+func isJavaUUIDString(s string) bool {
+	if len(s) > 36 {
+		return false
+	}
+	groups := strings.Split(s, "-")
+	if len(groups) != 5 {
+		return false
+	}
+	for _, g := range groups {
+		if g == "" || len(g) > 16 {
+			return false
+		}
+		for _, c := range g {
+			if !('0' <= c && c <= '9' || 'a' <= c && c <= 'f' || 'A' <= c && c <= 'F') {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // ---------------------------------------------------------------------------
 // CANCEL (generic)
 // ---------------------------------------------------------------------------
 
-// parseCancelGeneric parses non-MTMV CANCEL commands:
+// parseCancelGeneric parses the CANCEL statements of StarRocks.g4 other than
+// DECOMMISSION (parseCancelDecommissionBackend):
 //
-//	CANCEL LOAD [FROM db] WHERE ...
-//	CANCEL EXPORT [FROM db] WHERE ...
-//	CANCEL ALTER TABLE COLUMN|ROLLUP FROM table
-//	CANCEL BACKUP [FROM db]
-//	CANCEL RESTORE [FROM db]
-//	CANCEL BUILD INDEX ON table
+//	CANCEL LOAD [FROM db] [WHERE expr]                                (1495)
+//	CANCEL EXPORT [{FROM | IN} [catalog.]db] [LIKE 'pattern' | WHERE expr]   (1877)
+//	CANCEL ALTER TABLE [COLUMN | ROLLUP | OPTIMIZE] FROM table [(id, ...)]  (585)
+//	CANCEL ALTER MATERIALIZED VIEW FROM name                          (587)
+//	CANCEL BACKUP {{FROM | IN} db | FOR EXTERNAL CATALOG}             (1772)
+//	CANCEL RESTORE {{FROM | IN} db | FOR EXTERNAL CATALOG}            (1789)
+//	CANCEL REFRESH MATERIALIZED VIEW name [FORCE]                     (688)
+//	CANCEL REFRESH DICTIONARY name                                    (860)
+//	CANCEL COMPACTION WHERE expr                                      (1506)
 //
-// On entry, cur is the keyword immediately after CANCEL (e.g. LOAD, EXPORT,
-// ALTER, BACKUP, RESTORE, BUILD).  cancelTok.Loc is the CANCEL token's Loc.
+// The grammar makes the database of CANCEL BACKUP and RESTORE optional, but
+// the AST builder refuses a statement that names neither a database nor
+// the external catalogs (nullIdentifierCancelBackupRestore).
+// Verb identifies the operation; Target holds the text after it.
+//
+// On entry, cur is the keyword immediately after CANCEL.
 func (p *Parser) parseCancelGeneric(cancelLoc ast.Loc) (ast.Node, error) {
 	stmt := &ast.CancelStmt{}
-	endLoc := cancelLoc
+	var targetStart int
 
 	switch p.cur.Kind {
 	case kwLOAD:
 		stmt.Verb = "LOAD"
-		endLoc = p.cur.Loc
 		p.advance()
+		targetStart = p.cur.Loc.Start
+		if p.cur.Kind == kwFROM {
+			p.advance()
+			if _, _, err := p.parseIdentifier(); err != nil {
+				return nil, err
+			}
+		}
+		if p.cur.Kind == kwWHERE {
+			p.advance()
+			if _, err := p.parseExpr(); err != nil {
+				return nil, err
+			}
+		}
 	case kwEXPORT:
 		stmt.Verb = "EXPORT"
-		endLoc = p.cur.Loc
 		p.advance()
-	case kwBACKUP:
-		stmt.Verb = "BACKUP"
-		endLoc = p.cur.Loc
+		targetStart = p.cur.Loc.Start
+		if p.cur.Kind == kwFROM || p.cur.Kind == kwIN {
+			p.advance()
+			if _, err := p.parseMultipartIdentifier(); err != nil {
+				return nil, err
+			}
+		}
+		switch p.cur.Kind {
+		case kwLIKE:
+			p.advance()
+			if _, err := p.expect(tokString); err != nil {
+				return nil, err
+			}
+		case kwWHERE:
+			p.advance()
+			if _, err := p.parseExpr(); err != nil {
+				return nil, err
+			}
+		}
+	case kwBACKUP, kwRESTORE:
+		stmt.Verb = strings.ToUpper(p.cur.Str)
 		p.advance()
-	case kwRESTORE:
-		stmt.Verb = "RESTORE"
-		endLoc = p.cur.Loc
-		p.advance()
+		targetStart = p.cur.Loc.Start
+		switch p.cur.Kind {
+		case kwFROM, kwIN:
+			p.advance()
+			if _, _, err := p.parseIdentifier(); err != nil {
+				return nil, err
+			}
+		case kwFOR:
+			p.advance()
+			if _, err := p.expect(kwEXTERNAL); err != nil {
+				return nil, err
+			}
+			if _, err := p.expect(kwCATALOG); err != nil {
+				return nil, err
+			}
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
 	case kwALTER:
 		p.advance() // consume ALTER
-		stmt.Verb = "ALTER"
-		if p.cur.Kind == kwTABLE {
+		switch p.cur.Kind {
+		case kwTABLE:
+			p.advance()
 			stmt.Verb = "ALTER TABLE"
-			endLoc = p.cur.Loc
+			targetStart = p.cur.Loc.Start
+			p.match(kwCOLUMN, kwROLLUP, kwOPTIMIZE) // the job kind is optional
+			if _, err := p.expect(kwFROM); err != nil {
+				return nil, err
+			}
+			if _, err := p.parseMultipartIdentifier(); err != nil {
+				return nil, err
+			}
+			if err := p.skipUtilAdminJobIDList(); err != nil {
+				return nil, err
+			}
+		case kwMATERIALIZED:
 			p.advance()
+			if _, err := p.expect(kwVIEW); err != nil {
+				return nil, err
+			}
+			stmt.Verb = "ALTER MATERIALIZED VIEW"
+			targetStart = p.cur.Loc.Start
+			if _, err := p.expect(kwFROM); err != nil {
+				return nil, err
+			}
+			if _, err := p.parseMultipartIdentifier(); err != nil {
+				return nil, err
+			}
+		default:
+			return nil, p.syntaxErrorAtCur()
 		}
-	case kwBUILD:
-		p.advance() // consume BUILD
-		stmt.Verb = "BUILD"
-		if p.cur.Kind == kwINDEX {
-			stmt.Verb = "BUILD INDEX"
-			endLoc = p.cur.Loc
+	case kwREFRESH:
+		p.advance() // consume REFRESH
+		switch p.cur.Kind {
+		case kwMATERIALIZED:
 			p.advance()
+			if _, err := p.expect(kwVIEW); err != nil {
+				return nil, err
+			}
+			stmt.Verb = "REFRESH MATERIALIZED VIEW"
+			targetStart = p.cur.Loc.Start
+			if _, err := p.parseMultipartIdentifier(); err != nil {
+				return nil, err
+			}
+			if p.cur.Kind == kwFORCE {
+				p.advance()
+			}
+		case kwDICTIONARY:
+			p.advance()
+			stmt.Verb = "REFRESH DICTIONARY"
+			targetStart = p.cur.Loc.Start
+			if _, err := p.parseMultipartIdentifier(); err != nil {
+				return nil, err
+			}
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
+	case tokIdent:
+		// COMPACTION is a plain identifier to this lexer.
+		if !strings.EqualFold(p.cur.Str, "compaction") {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance() // consume COMPACTION
+		stmt.Verb = "COMPACTION"
+		targetStart = p.cur.Loc.Start
+		if _, err := p.expect(kwWHERE); err != nil {
+			return nil, err
+		}
+		if _, err := p.parseExpr(); err != nil {
+			return nil, err
 		}
 	default:
-		if p.cur.Kind != tokEOF {
-			stmt.Verb = strings.ToUpper(p.cur.Str)
-			endLoc = p.cur.Loc
-			p.advance()
+		return nil, p.syntaxErrorAtCur()
+	}
+
+	stmt.Target = p.utilAdminRawText(targetStart)
+	stmt.Loc = cancelLoc.Merge(p.prev.Loc)
+	return stmt, nil
+}
+
+// parseCancelDecommissionBackend parses (StarRocks.g4:750
+// cancelAlterSystemStatement):
+//
+//	CANCEL DECOMMISSION BACKEND 'host:port' [, 'host:port' ...]
+//
+// CANCEL has already been consumed; cur is DECOMMISSION on entry.
+func (p *Parser) parseCancelDecommissionBackend(cancelLoc ast.Loc) (ast.Node, error) {
+	if _, err := p.expect(kwDECOMMISSION); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(kwBACKEND); err != nil {
+		return nil, err
+	}
+	stmt := &ast.CancelDecommissionStmt{Object: "BACKEND"}
+	for {
+		if p.cur.Kind != tokString {
+			return nil, p.syntaxErrorAtCur()
 		}
+		stmt.Hosts = append(stmt.Hosts, p.cur.Str)
+		p.advance()
+		if p.cur.Kind != int(',') {
+			break
+		}
+		p.advance() // consume ','
 	}
-
-	raw, rawEnd := p.collectRawUntilEOF()
-	stmt.Target = raw
-	if rawEnd.IsValid() {
-		endLoc = rawEnd
-	}
-
-	stmt.Loc = cancelLoc.Merge(endLoc)
+	stmt.Loc = cancelLoc.Merge(p.prev.Loc)
 	return stmt, nil
 }
 
@@ -582,129 +799,86 @@ func (p *Parser) parseCancelGeneric(cancelLoc ast.Loc) (ast.Node, error) {
 
 // parseRecover parses:
 //
-//	RECOVER DATABASE [name | dbid id] [AS new_name]
-//	RECOVER TABLE [db.]name [tblid id] [AS new_name]
-//	RECOVER PARTITION [name | pid id] FROM [db.]table [AS new_name]
+//	RECOVER {DATABASE | SCHEMA} name              (StarRocks.g4:369 recoverDbStmt)
+//	RECOVER TABLE [db.]name                       (StarRocks.g4:577 recoverTableStatement)
+//	RECOVER PARTITION name FROM [db.]table        (StarRocks.g4:596 recoverPartitionStatement)
 //
-// On entry, cur is DATABASE | TABLE | PARTITION (RECOVER was consumed by dispatch).
+// On entry, cur is DATABASE | SCHEMA | TABLE | PARTITION (RECOVER was consumed by dispatch).
 func (p *Parser) parseRecover(startLoc ast.Loc) (ast.Node, error) {
 	stmt := &ast.RecoverStmt{}
-	endLoc := startLoc
 
 	switch p.cur.Kind {
 	case kwDATABASE, kwSCHEMA:
 		stmt.Verb = "DATABASE"
-		p.advance()
 	case kwTABLE:
 		stmt.Verb = "TABLE"
-		p.advance()
 	case kwPARTITION:
 		stmt.Verb = "PARTITION"
-		p.advance()
 	default:
 		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance()
 
-	// Parse object name (optional for DATABASE when only dbid is given,
-	// but in practice the legacy corpus always has a name or id).
-	// We accept identifier-or-nothing to be tolerant.
-	if isIdentifierToken(p.cur.Kind) {
+	// The table name may be qualified; a database or partition name may not.
+	if stmt.Verb == "TABLE" {
 		name, err := p.parseMultipartIdentifier()
 		if err != nil {
 			return nil, err
 		}
 		stmt.Name = name
-		endLoc = ast.NodeLoc(name)
-	}
-
-	// Optional numeric id — the legacy corpus uses bare integers: 12345
-	// or uses keywords dbid/tblid/pid before the integer.
-	switch p.cur.Kind {
-	case kwDORIS_INTERNAL_TABLE_ID:
-		// legacy: just consume as id keyword
-		p.advance()
-		if p.cur.Kind == tokInt {
-			stmt.ID = p.cur.Str
-			endLoc = p.cur.Loc
-			p.advance()
-		}
-	case tokInt:
-		stmt.ID = p.cur.Str
-		endLoc = p.cur.Loc
-		p.advance()
-	default:
-		// Check for identifier keywords used as id labels (dbid, tblid, pid)
-		if p.cur.Kind == tokIdent {
-			lower := strings.ToLower(p.cur.Str)
-			if lower == "dbid" || lower == "tblid" || lower == "pid" {
-				p.advance() // consume the label
-				if p.cur.Kind == tokInt {
-					stmt.ID = p.cur.Str
-					endLoc = p.cur.Loc
-					p.advance()
-				}
-			}
-		}
-	}
-
-	// Optional AS new_name (may appear before or after FROM for PARTITION)
-	if p.cur.Kind == kwAS {
-		p.advance()
-		newName, newNameLoc, err := p.parseIdentifier()
+	} else {
+		name, loc, err := p.parseIdentifier()
 		if err != nil {
 			return nil, err
 		}
-		stmt.NewName = newName
-		endLoc = newNameLoc
+		stmt.Name = &ast.ObjectName{Parts: []string{name}, Loc: loc}
 	}
 
-	// For PARTITION: optional FROM [db.]table
-	if stmt.Verb == "PARTITION" && p.cur.Kind == kwFROM {
-		p.advance() // consume FROM
+	if stmt.Verb == "PARTITION" {
+		if _, err := p.expect(kwFROM); err != nil {
+			return nil, err
+		}
 		fromTable, err := p.parseMultipartIdentifier()
 		if err != nil {
 			return nil, err
 		}
 		stmt.FromTable = fromTable
-		endLoc = ast.NodeLoc(fromTable)
 	}
 
-	// Second AS new_name position (when AS follows FROM for TABLE/DATABASE)
-	if stmt.NewName == "" && p.cur.Kind == kwAS {
-		p.advance()
-		newName, newNameLoc, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		stmt.NewName = newName
-		endLoc = newNameLoc
-	}
-
-	stmt.Loc = startLoc.Merge(endLoc)
+	stmt.Loc = startLoc.Merge(p.prev.Loc)
 	return stmt, nil
 }
 
 // ---------------------------------------------------------------------------
-// Helper: collectRawUntilEOF
+// Helpers
 // ---------------------------------------------------------------------------
 
-// collectRawUntilEOF consumes all remaining tokens up to EOF (or ';') and
-// returns them as a single space-joined string plus the Loc of the last token.
-// Used by best-effort parsers (WARM UP, CLEAN, CANCEL) to capture unparsed
-// trailing text.
-func (p *Parser) collectRawUntilEOF() (string, ast.Loc) {
-	var parts []string
-	endLoc := ast.NoLoc()
-
-	for p.cur.Kind != tokEOF && p.cur.Kind != int(';') {
-		str := p.cur.Str
-		if str == "" {
-			str = TokenName(p.cur.Kind)
-		}
-		parts = append(parts, str)
-		endLoc = p.cur.Loc
-		p.advance()
+// skipUtilAdminJobIDList consumes an optional job id list:
+// '(' INTEGER_VALUE (',' INTEGER_VALUE)* ')' (StarRocks.g4:586).
+func (p *Parser) skipUtilAdminJobIDList() error {
+	if p.cur.Kind != int('(') {
+		return nil
 	}
+	p.advance() // consume '('
+	for {
+		if _, err := p.expect(tokInt); err != nil {
+			return err
+		}
+		if p.cur.Kind != int(',') {
+			break
+		}
+		p.advance() // consume ','
+	}
+	_, err := p.expect(int(')'))
+	return err
+}
 
-	return strings.Join(parts, " "), endLoc
+// utilAdminRawText returns the source text from the absolute offset start to
+// the end of the last consumed token, or "" when nothing was consumed.
+func (p *Parser) utilAdminRawText(start int) string {
+	end := p.prev.Loc.End
+	if start < p.baseOffset || end <= start || end-p.baseOffset > len(p.input) {
+		return ""
+	}
+	return p.input[start-p.baseOffset : end-p.baseOffset]
 }
