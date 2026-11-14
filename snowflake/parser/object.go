@@ -30,6 +30,9 @@ type objectForm struct {
 	orReplace, orAlter bool
 	// drop reports whether DROP <kind> [ IF EXISTS ] <name> is documented.
 	drop bool
+	// dropNoIfExists reports that the DROP page writes DROP <kind> <name>,
+	// without IF EXISTS.
+	dropNoIfExists bool
 	// props, when set, are the properties the page documents and the value
 	// each takes. parseObjectStmt then rejects a property of a CREATE's run
 	// or a SET that props does not name or whose value has another shape,

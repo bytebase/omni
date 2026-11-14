@@ -9269,7 +9269,7 @@ reject	undocumented	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_SET_TAG_QNA
 reject	undocumented	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_SET_TAG_QNAME_=_STRING_(,_QNA~092870cc!drop-3	ALTER BACKUP a SET TAG a = 's'
 reject	undocumented	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_SET_TAG_QNAME_=_STRING_(,_QNA~092870cc!drop-4	ALTER BACKUP POLICY SET TAG a = 's'
 reject	undocumented	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_SET_TAG_QNAME_=_STRING_(,_QNA~092870cc!drop-5	ALTER BACKUP POLICY a TAG a = 's'
-accept	undocumented	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_SET_TAG_QNAME_=_STRING_(,_QNA~092870cc!drop-6	ALTER BACKUP POLICY a SET a = 's'
+reject	undocumented	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_SET_TAG_QNAME_=_STRING_(,_QNA~092870cc!drop-6	ALTER BACKUP POLICY a SET a = 's'
 reject	undocumented	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_SET_TAG_QNAME_=_STRING_(,_QNA~092870cc!drop-7	ALTER BACKUP POLICY a SET TAG = 's'
 reject	undocumented	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_SET_TAG_QNAME_=_STRING_(,_QNA~092870cc!drop-8	ALTER BACKUP POLICY a SET TAG a 's'
 reject	undocumented	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_SET_TAG_QNAME_=_STRING_(,_QNA~092870cc!drop-9	ALTER BACKUP POLICY a SET TAG a =
@@ -9280,45 +9280,45 @@ reject	undocumented	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_UNSET_TAG_Q
 reject	undocumented	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!drop-3	ALTER BACKUP a UNSET TAG a
 reject	undocumented	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!drop-4	ALTER BACKUP POLICY UNSET TAG a
 reject	undocumented	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!drop-5	ALTER BACKUP POLICY a TAG a
-accept	undocumented	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!drop-6	ALTER BACKUP POLICY a UNSET a
+reject	undocumented	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!drop-6	ALTER BACKUP POLICY a UNSET a
 reject	undocumented	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!drop-7	ALTER BACKUP POLICY a UNSET TAG
 reject	undocumented	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!insert	ALTER BACKUP POLICY a UNSET TAG a zzz
 reject	undocumented	docs	alterBackupPolicy/ALTER_BACKUP_POLICY_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!swap	ALWAYS BACKUP POLICY a UNSET TAG a
 accept	accept	docs	alterBackupPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/COMMENT_=_STRING_(SCHEDULE_=_STRING)?_(EXPIRE_AFTER_DAY~62aa0fb2	ALTER BACKUP POLICY a SET COMMENT = 's'
-accept	undocumented	docs	alterBackupPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/COMMENT_=_STRING_(SCHEDULE_=_STRING)?_(EXPIRE_AFTER_DAY~62aa0fb2!swap	ALTER BACKUP POLICY a SET COMMENTS = 's'
+reject	undocumented	docs	alterBackupPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/COMMENT_=_STRING_(SCHEDULE_=_STRING)?_(EXPIRE_AFTER_DAY~62aa0fb2!swap	ALTER BACKUP POLICY a SET COMMENTS = 's'
 accept	accept	docs	alterBackupPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/SCHEDULE_=_STRING_(EXPIRE_AFTER_DAYS_=_NUMBER)?	ALTER BACKUP POLICY a SET SCHEDULE = 's'
 reject	undocumented	docs	alterBackupPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/SCHEDULE_=_STRING_(EXPIRE_AFTER_DAYS_=_NUMBER)?!drop-2	ALTER BACKUP POLICY a SET SCHEDULE 's'
 reject	undocumented	docs	alterBackupPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/SCHEDULE_=_STRING_(EXPIRE_AFTER_DAYS_=_NUMBER)?!drop-3	ALTER BACKUP POLICY a SET SCHEDULE =
 reject	undocumented	docs	alterBackupPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/SCHEDULE_=_STRING_(EXPIRE_AFTER_DAYS_=_NUMBER)?!insert	ALTER BACKUP POLICY a SET SCHEDULE = 's' zzz
-accept	undocumented	docs	alterBackupPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/SCHEDULE_=_STRING_(EXPIRE_AFTER_DAYS_=_NUMBER)?!swap	ALTER BACKUP POLICY a SET SCHEDULER = 's'
+reject	undocumented	docs	alterBackupPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/SCHEDULE_=_STRING_(EXPIRE_AFTER_DAYS_=_NUMBER)?!swap	ALTER BACKUP POLICY a SET SCHEDULER = 's'
 accept	accept	docs	alterBackupPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/EXPIRE_AFTER_DAYS_=_NUMBER	ALTER BACKUP POLICY a SET EXPIRE_AFTER_DAYS = 1
 reject	undocumented	docs	alterBackupPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/EXPIRE_AFTER_DAYS_=_NUMBER!drop-1	ALTER BACKUP POLICY a SET = 1
 reject	undocumented	docs	alterBackupPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/EXPIRE_AFTER_DAYS_=_NUMBER!drop-2	ALTER BACKUP POLICY a SET EXPIRE_AFTER_DAYS 1
 reject	undocumented	docs	alterBackupPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/EXPIRE_AFTER_DAYS_=_NUMBER!drop-3	ALTER BACKUP POLICY a SET EXPIRE_AFTER_DAYS =
 reject	undocumented	docs	alterBackupPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/EXPIRE_AFTER_DAYS_=_NUMBER!insert	ALTER BACKUP POLICY a SET EXPIRE_AFTER_DAYS = 1 zzz
-accept	undocumented	docs	alterBackupPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/EXPIRE_AFTER_DAYS_=_NUMBER!swap	ALTER BACKUP POLICY a SET EXPIRE_ROTATED_KEY_PAIR_AFTER_HOURS = 1
+reject	undocumented	docs	alterBackupPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/EXPIRE_AFTER_DAYS_=_NUMBER!swap	ALTER BACKUP POLICY a SET EXPIRE_ROTATED_KEY_PAIR_AFTER_HOURS = 1
 accept	accept	docs	alterBackupPolicy(SCHEDULE_=_STRING)?/%empty	ALTER BACKUP POLICY a SET COMMENT = 's'
 accept	accept	docs	alterBackupPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING	ALTER BACKUP POLICY a SET COMMENT = 's' SCHEDULE = 's'
 reject	undocumented	docs	alterBackupPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!drop-1	ALTER BACKUP POLICY a SET COMMENT = 's' = 's'
 reject	undocumented	docs	alterBackupPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!drop-2	ALTER BACKUP POLICY a SET COMMENT = 's' SCHEDULE 's'
 reject	undocumented	docs	alterBackupPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!drop-3	ALTER BACKUP POLICY a SET COMMENT = 's' SCHEDULE =
 reject	undocumented	docs	alterBackupPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!insert	ALTER BACKUP POLICY a SET COMMENT = 's' SCHEDULE = 's' zzz
-accept	undocumented	docs	alterBackupPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!swap	ALTER BACKUP POLICY a SET COMMENT = 's' SCHEDULER = 's'
+reject	undocumented	docs	alterBackupPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!swap	ALTER BACKUP POLICY a SET COMMENT = 's' SCHEDULER = 's'
 accept	accept	docs	alterBackupPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/%empty	ALTER BACKUP POLICY a SET COMMENT = 's'
 accept	accept	docs	alterBackupPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER	ALTER BACKUP POLICY a SET COMMENT = 's' EXPIRE_AFTER_DAYS = 1
 reject	undocumented	docs	alterBackupPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER!drop-1	ALTER BACKUP POLICY a SET COMMENT = 's' = 1
 reject	undocumented	docs	alterBackupPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER!drop-2	ALTER BACKUP POLICY a SET COMMENT = 's' EXPIRE_AFTER_DAYS 1
 reject	undocumented	docs	alterBackupPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER!drop-3	ALTER BACKUP POLICY a SET COMMENT = 's' EXPIRE_AFTER_DAYS =
 reject	undocumented	docs	alterBackupPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER!insert	ALTER BACKUP POLICY a SET COMMENT = 's' EXPIRE_AFTER_DAYS = 1 zzz
-accept	undocumented	docs	alterBackupPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER!swap	ALTER BACKUP POLICY a SET COMMENT = 's' EXPIRE_ROTATED_KEY_PAIR_AFTER_HOURS = 1
+reject	undocumented	docs	alterBackupPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER!swap	ALTER BACKUP POLICY a SET COMMENT = 's' EXPIRE_ROTATED_KEY_PAIR_AFTER_HOURS = 1
 accept	accept	docs	alterBackupPolicy(COMMENT|SCHEDULE|EXPIRE_AFTER_DAYS)/COMMENT	ALTER BACKUP POLICY a UNSET COMMENT
-accept	undocumented	docs	alterBackupPolicy(COMMENT|SCHEDULE|EXPIRE_AFTER_DAYS)/COMMENT!swap	ALTER BACKUP POLICY a UNSET COMMENTS
+reject	undocumented	docs	alterBackupPolicy(COMMENT|SCHEDULE|EXPIRE_AFTER_DAYS)/COMMENT!swap	ALTER BACKUP POLICY a UNSET COMMENTS
 accept	accept	docs	alterBackupPolicy(COMMENT|SCHEDULE|EXPIRE_AFTER_DAYS)/SCHEDULE	ALTER BACKUP POLICY a UNSET SCHEDULE
 reject	undocumented	docs	alterBackupPolicy(COMMENT|SCHEDULE|EXPIRE_AFTER_DAYS)/SCHEDULE!insert	ALTER BACKUP POLICY a UNSET SCHEDULE zzz
-accept	undocumented	docs	alterBackupPolicy(COMMENT|SCHEDULE|EXPIRE_AFTER_DAYS)/SCHEDULE!swap	ALTER BACKUP POLICY a UNSET SCHEDULER
+reject	undocumented	docs	alterBackupPolicy(COMMENT|SCHEDULE|EXPIRE_AFTER_DAYS)/SCHEDULE!swap	ALTER BACKUP POLICY a UNSET SCHEDULER
 accept	accept	docs	alterBackupPolicy(COMMENT|SCHEDULE|EXPIRE_AFTER_DAYS)/EXPIRE_AFTER_DAYS	ALTER BACKUP POLICY a UNSET EXPIRE_AFTER_DAYS
 reject	undocumented	docs	alterBackupPolicy(COMMENT|SCHEDULE|EXPIRE_AFTER_DAYS)/EXPIRE_AFTER_DAYS!insert	ALTER BACKUP POLICY a UNSET EXPIRE_AFTER_DAYS zzz
-accept	undocumented	docs	alterBackupPolicy(COMMENT|SCHEDULE|EXPIRE_AFTER_DAYS)/EXPIRE_AFTER_DAYS!swap	ALTER BACKUP POLICY a UNSET EXPIRE_ROTATED_KEY_PAIR_AFTER_HOURS
+reject	undocumented	docs	alterBackupPolicy(COMMENT|SCHEDULE|EXPIRE_AFTER_DAYS)/EXPIRE_AFTER_DAYS!swap	ALTER BACKUP POLICY a UNSET EXPIRE_ROTATED_KEY_PAIR_AFTER_HOURS
 accept	accept	docs	alterBackupPolicy(,_QNAME_=_STRING)*/%empty	ALTER BACKUP POLICY a SET TAG a = 's'
 accept	accept	docs	alterBackupPolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*	ALTER BACKUP POLICY a SET TAG a = 's', a = 's'
 reject	undocumented	docs	alterBackupPolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-1	ALTER BACKUP POLICY a SET TAG a = 's' a = 's'
@@ -9447,7 +9447,7 @@ reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_SET_TAG_QNAME_=_S
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_SET_TAG_QNAME_=_STRING_(,_QNAME_~7c2ec93d!drop-2	ALTER SET a SET TAG a = 's'
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_SET_TAG_QNAME_=_STRING_(,_QNAME_~7c2ec93d!drop-4	ALTER BACKUP SET SET TAG a = 's'
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_SET_TAG_QNAME_=_STRING_(,_QNAME_~7c2ec93d!drop-5	ALTER BACKUP SET a TAG a = 's'
-accept	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_SET_TAG_QNAME_=_STRING_(,_QNAME_~7c2ec93d!drop-6	ALTER BACKUP SET a SET a = 's'
+reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_SET_TAG_QNAME_=_STRING_(,_QNAME_~7c2ec93d!drop-6	ALTER BACKUP SET a SET a = 's'
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_SET_TAG_QNAME_=_STRING_(,_QNAME_~7c2ec93d!drop-7	ALTER BACKUP SET a SET TAG = 's'
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_SET_TAG_QNAME_=_STRING_(,_QNAME_~7c2ec93d!drop-8	ALTER BACKUP SET a SET TAG a 's'
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_SET_TAG_QNAME_=_STRING_(,_QNAME_~7c2ec93d!drop-9	ALTER BACKUP SET a SET TAG a =
@@ -9458,7 +9458,7 @@ reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_UNSET_TAG_QNAME_(
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!drop-2	ALTER SET a UNSET TAG a
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!drop-4	ALTER BACKUP SET UNSET TAG a
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!drop-5	ALTER BACKUP SET a TAG a
-accept	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!drop-6	ALTER BACKUP SET a UNSET a
+reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!drop-6	ALTER BACKUP SET a UNSET a
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!drop-7	ALTER BACKUP SET a UNSET TAG
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!insert	ALTER BACKUP SET a UNSET TAG a zzz
 reject	undocumented	docs	alterBackupSet/ALTER_BACKUP_SET_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!swap	ALWAYS BACKUP SET a UNSET TAG a
@@ -22827,7 +22827,7 @@ reject	undocumented	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_SET_TAG
 reject	undocumented	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_SET_TAG_QNAME_=_STRING_(,_Q~ba29d981!drop-3	ALTER SNAPSHOT a SET TAG a = 's'
 reject	undocumented	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_SET_TAG_QNAME_=_STRING_(,_Q~ba29d981!drop-4	ALTER SNAPSHOT POLICY SET TAG a = 's'
 reject	undocumented	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_SET_TAG_QNAME_=_STRING_(,_Q~ba29d981!drop-5	ALTER SNAPSHOT POLICY a TAG a = 's'
-accept	undocumented	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_SET_TAG_QNAME_=_STRING_(,_Q~ba29d981!drop-6	ALTER SNAPSHOT POLICY a SET a = 's'
+reject	undocumented	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_SET_TAG_QNAME_=_STRING_(,_Q~ba29d981!drop-6	ALTER SNAPSHOT POLICY a SET a = 's'
 reject	undocumented	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_SET_TAG_QNAME_=_STRING_(,_Q~ba29d981!drop-7	ALTER SNAPSHOT POLICY a SET TAG = 's'
 reject	undocumented	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_SET_TAG_QNAME_=_STRING_(,_Q~ba29d981!drop-8	ALTER SNAPSHOT POLICY a SET TAG a 's'
 reject	undocumented	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_SET_TAG_QNAME_=_STRING_(,_Q~ba29d981!drop-9	ALTER SNAPSHOT POLICY a SET TAG a =
@@ -22838,45 +22838,45 @@ reject	undocumented	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_UNSET_T
 reject	undocumented	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!drop-3	ALTER SNAPSHOT a UNSET TAG a
 reject	undocumented	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!drop-4	ALTER SNAPSHOT POLICY UNSET TAG a
 reject	undocumented	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!drop-5	ALTER SNAPSHOT POLICY a TAG a
-accept	undocumented	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!drop-6	ALTER SNAPSHOT POLICY a UNSET a
+reject	undocumented	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!drop-6	ALTER SNAPSHOT POLICY a UNSET a
 reject	undocumented	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!drop-7	ALTER SNAPSHOT POLICY a UNSET TAG
 reject	undocumented	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!insert	ALTER SNAPSHOT POLICY a UNSET TAG a zzz
 reject	undocumented	docs	alterSnapshotPolicy/ALTER_SNAPSHOT_POLICY_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!swap	ALWAYS SNAPSHOT POLICY a UNSET TAG a
 accept	accept	docs	alterSnapshotPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/COMMENT_=_STRING_(SCHEDULE_=_STRING)?_(EXPIRE_AFTER_DAY~62aa0fb2	ALTER SNAPSHOT POLICY a SET COMMENT = 's'
-accept	undocumented	docs	alterSnapshotPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/COMMENT_=_STRING_(SCHEDULE_=_STRING)?_(EXPIRE_AFTER_DAY~62aa0fb2!swap	ALTER SNAPSHOT POLICY a SET COMMENTS = 's'
+reject	undocumented	docs	alterSnapshotPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/COMMENT_=_STRING_(SCHEDULE_=_STRING)?_(EXPIRE_AFTER_DAY~62aa0fb2!swap	ALTER SNAPSHOT POLICY a SET COMMENTS = 's'
 accept	accept	docs	alterSnapshotPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/SCHEDULE_=_STRING_(EXPIRE_AFTER_DAYS_=_NUMBER)?	ALTER SNAPSHOT POLICY a SET SCHEDULE = 's'
 reject	undocumented	docs	alterSnapshotPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/SCHEDULE_=_STRING_(EXPIRE_AFTER_DAYS_=_NUMBER)?!drop-2	ALTER SNAPSHOT POLICY a SET SCHEDULE 's'
 reject	undocumented	docs	alterSnapshotPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/SCHEDULE_=_STRING_(EXPIRE_AFTER_DAYS_=_NUMBER)?!drop-3	ALTER SNAPSHOT POLICY a SET SCHEDULE =
 reject	undocumented	docs	alterSnapshotPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/SCHEDULE_=_STRING_(EXPIRE_AFTER_DAYS_=_NUMBER)?!insert	ALTER SNAPSHOT POLICY a SET SCHEDULE = 's' zzz
-accept	undocumented	docs	alterSnapshotPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/SCHEDULE_=_STRING_(EXPIRE_AFTER_DAYS_=_NUMBER)?!swap	ALTER SNAPSHOT POLICY a SET SCHEDULER = 's'
+reject	undocumented	docs	alterSnapshotPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/SCHEDULE_=_STRING_(EXPIRE_AFTER_DAYS_=_NUMBER)?!swap	ALTER SNAPSHOT POLICY a SET SCHEDULER = 's'
 accept	accept	docs	alterSnapshotPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/EXPIRE_AFTER_DAYS_=_NUMBER	ALTER SNAPSHOT POLICY a SET EXPIRE_AFTER_DAYS = 1
 reject	undocumented	docs	alterSnapshotPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/EXPIRE_AFTER_DAYS_=_NUMBER!drop-1	ALTER SNAPSHOT POLICY a SET = 1
 reject	undocumented	docs	alterSnapshotPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/EXPIRE_AFTER_DAYS_=_NUMBER!drop-2	ALTER SNAPSHOT POLICY a SET EXPIRE_AFTER_DAYS 1
 reject	undocumented	docs	alterSnapshotPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/EXPIRE_AFTER_DAYS_=_NUMBER!drop-3	ALTER SNAPSHOT POLICY a SET EXPIRE_AFTER_DAYS =
 reject	undocumented	docs	alterSnapshotPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/EXPIRE_AFTER_DAYS_=_NUMBER!insert	ALTER SNAPSHOT POLICY a SET EXPIRE_AFTER_DAYS = 1 zzz
-accept	undocumented	docs	alterSnapshotPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/EXPIRE_AFTER_DAYS_=_NUMBER!swap	ALTER SNAPSHOT POLICY a SET EXPIRE_ROTATED_KEY_PAIR_AFTER_HOURS = 1
+reject	undocumented	docs	alterSnapshotPolicy(COMMENT_=_STRING_(SCHEDULE_=_STRING)~89e56d19)/EXPIRE_AFTER_DAYS_=_NUMBER!swap	ALTER SNAPSHOT POLICY a SET EXPIRE_ROTATED_KEY_PAIR_AFTER_HOURS = 1
 accept	accept	docs	alterSnapshotPolicy(SCHEDULE_=_STRING)?/%empty	ALTER SNAPSHOT POLICY a SET COMMENT = 's'
 accept	accept	docs	alterSnapshotPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING	ALTER SNAPSHOT POLICY a SET COMMENT = 's' SCHEDULE = 's'
 reject	undocumented	docs	alterSnapshotPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!drop-1	ALTER SNAPSHOT POLICY a SET COMMENT = 's' = 's'
 reject	undocumented	docs	alterSnapshotPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!drop-2	ALTER SNAPSHOT POLICY a SET COMMENT = 's' SCHEDULE 's'
 reject	undocumented	docs	alterSnapshotPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!drop-3	ALTER SNAPSHOT POLICY a SET COMMENT = 's' SCHEDULE =
 reject	undocumented	docs	alterSnapshotPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!insert	ALTER SNAPSHOT POLICY a SET COMMENT = 's' SCHEDULE = 's' zzz
-accept	undocumented	docs	alterSnapshotPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!swap	ALTER SNAPSHOT POLICY a SET COMMENT = 's' SCHEDULER = 's'
+reject	undocumented	docs	alterSnapshotPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!swap	ALTER SNAPSHOT POLICY a SET COMMENT = 's' SCHEDULER = 's'
 accept	accept	docs	alterSnapshotPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/%empty	ALTER SNAPSHOT POLICY a SET COMMENT = 's'
 accept	accept	docs	alterSnapshotPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER	ALTER SNAPSHOT POLICY a SET COMMENT = 's' EXPIRE_AFTER_DAYS = 1
 reject	undocumented	docs	alterSnapshotPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER!drop-1	ALTER SNAPSHOT POLICY a SET COMMENT = 's' = 1
 reject	undocumented	docs	alterSnapshotPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER!drop-2	ALTER SNAPSHOT POLICY a SET COMMENT = 's' EXPIRE_AFTER_DAYS 1
 reject	undocumented	docs	alterSnapshotPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER!drop-3	ALTER SNAPSHOT POLICY a SET COMMENT = 's' EXPIRE_AFTER_DAYS =
 reject	undocumented	docs	alterSnapshotPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER!insert	ALTER SNAPSHOT POLICY a SET COMMENT = 's' EXPIRE_AFTER_DAYS = 1 zzz
-accept	undocumented	docs	alterSnapshotPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER!swap	ALTER SNAPSHOT POLICY a SET COMMENT = 's' EXPIRE_ROTATED_KEY_PAIR_AFTER_HOURS = 1
+reject	undocumented	docs	alterSnapshotPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER!swap	ALTER SNAPSHOT POLICY a SET COMMENT = 's' EXPIRE_ROTATED_KEY_PAIR_AFTER_HOURS = 1
 accept	accept	docs	alterSnapshotPolicy(COMMENT|SCHEDULE|EXPIRE_AFTER_DAYS)/COMMENT	ALTER SNAPSHOT POLICY a UNSET COMMENT
-accept	undocumented	docs	alterSnapshotPolicy(COMMENT|SCHEDULE|EXPIRE_AFTER_DAYS)/COMMENT!swap	ALTER SNAPSHOT POLICY a UNSET COMMENTS
+reject	undocumented	docs	alterSnapshotPolicy(COMMENT|SCHEDULE|EXPIRE_AFTER_DAYS)/COMMENT!swap	ALTER SNAPSHOT POLICY a UNSET COMMENTS
 accept	accept	docs	alterSnapshotPolicy(COMMENT|SCHEDULE|EXPIRE_AFTER_DAYS)/SCHEDULE	ALTER SNAPSHOT POLICY a UNSET SCHEDULE
 reject	undocumented	docs	alterSnapshotPolicy(COMMENT|SCHEDULE|EXPIRE_AFTER_DAYS)/SCHEDULE!insert	ALTER SNAPSHOT POLICY a UNSET SCHEDULE zzz
-accept	undocumented	docs	alterSnapshotPolicy(COMMENT|SCHEDULE|EXPIRE_AFTER_DAYS)/SCHEDULE!swap	ALTER SNAPSHOT POLICY a UNSET SCHEDULER
+reject	undocumented	docs	alterSnapshotPolicy(COMMENT|SCHEDULE|EXPIRE_AFTER_DAYS)/SCHEDULE!swap	ALTER SNAPSHOT POLICY a UNSET SCHEDULER
 accept	accept	docs	alterSnapshotPolicy(COMMENT|SCHEDULE|EXPIRE_AFTER_DAYS)/EXPIRE_AFTER_DAYS	ALTER SNAPSHOT POLICY a UNSET EXPIRE_AFTER_DAYS
 reject	undocumented	docs	alterSnapshotPolicy(COMMENT|SCHEDULE|EXPIRE_AFTER_DAYS)/EXPIRE_AFTER_DAYS!insert	ALTER SNAPSHOT POLICY a UNSET EXPIRE_AFTER_DAYS zzz
-accept	undocumented	docs	alterSnapshotPolicy(COMMENT|SCHEDULE|EXPIRE_AFTER_DAYS)/EXPIRE_AFTER_DAYS!swap	ALTER SNAPSHOT POLICY a UNSET EXPIRE_ROTATED_KEY_PAIR_AFTER_HOURS
+reject	undocumented	docs	alterSnapshotPolicy(COMMENT|SCHEDULE|EXPIRE_AFTER_DAYS)/EXPIRE_AFTER_DAYS!swap	ALTER SNAPSHOT POLICY a UNSET EXPIRE_ROTATED_KEY_PAIR_AFTER_HOURS
 accept	accept	docs	alterSnapshotPolicy(,_QNAME_=_STRING)*/%empty	ALTER SNAPSHOT POLICY a SET TAG a = 's'
 accept	accept	docs	alterSnapshotPolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*	ALTER SNAPSHOT POLICY a SET TAG a = 's', a = 's'
 reject	undocumented	docs	alterSnapshotPolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-1	ALTER SNAPSHOT POLICY a SET TAG a = 's' a = 's'
@@ -22993,7 +22993,7 @@ accept	accept	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_SET_TAG_QNAME_=_STR
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_SET_TAG_QNAME_=_STRING_(,_QNAM~a672ef58!drop-1	SNAPSHOT SET a SET TAG a = 's'
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_SET_TAG_QNAME_=_STRING_(,_QNAM~a672ef58!drop-4	ALTER SNAPSHOT SET SET TAG a = 's'
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_SET_TAG_QNAME_=_STRING_(,_QNAM~a672ef58!drop-5	ALTER SNAPSHOT SET a TAG a = 's'
-accept	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_SET_TAG_QNAME_=_STRING_(,_QNAM~a672ef58!drop-6	ALTER SNAPSHOT SET a SET a = 's'
+reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_SET_TAG_QNAME_=_STRING_(,_QNAM~a672ef58!drop-6	ALTER SNAPSHOT SET a SET a = 's'
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_SET_TAG_QNAME_=_STRING_(,_QNAM~a672ef58!drop-7	ALTER SNAPSHOT SET a SET TAG = 's'
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_SET_TAG_QNAME_=_STRING_(,_QNAM~a672ef58!drop-8	ALTER SNAPSHOT SET a SET TAG a 's'
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_SET_TAG_QNAME_=_STRING_(,_QNAM~a672ef58!drop-9	ALTER SNAPSHOT SET a SET TAG a =
@@ -23003,7 +23003,7 @@ accept	accept	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_UNSET_TAG_QNAME_(,_
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!drop-1	SNAPSHOT SET a UNSET TAG a
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!drop-4	ALTER SNAPSHOT SET UNSET TAG a
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!drop-5	ALTER SNAPSHOT SET a TAG a
-accept	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!drop-6	ALTER SNAPSHOT SET a UNSET a
+reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!drop-6	ALTER SNAPSHOT SET a UNSET a
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!drop-7	ALTER SNAPSHOT SET a UNSET TAG
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!insert	ALTER SNAPSHOT SET a UNSET TAG a zzz
 reject	undocumented	docs	alterSnapshotSet/ALTER_SNAPSHOT_SET_QNAME_UNSET_TAG_QNAME_(,_QNAME)*!swap	ALWAYS SNAPSHOT SET a UNSET TAG a
@@ -24201,7 +24201,7 @@ reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POL
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_SET_T~5b9aeafe!drop-4	ALTER STORAGE LIFECYCLE a SET TAG a = 's'
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_SET_T~5b9aeafe!drop-5	ALTER STORAGE LIFECYCLE POLICY SET TAG a = 's'
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_SET_T~5b9aeafe!drop-6	ALTER STORAGE LIFECYCLE POLICY a TAG a = 's'
-accept	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_SET_T~5b9aeafe!drop-7	ALTER STORAGE LIFECYCLE POLICY a SET a = 's'
+reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_SET_T~5b9aeafe!drop-7	ALTER STORAGE LIFECYCLE POLICY a SET a = 's'
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_SET_T~5b9aeafe!drop-8	ALTER STORAGE LIFECYCLE POLICY a SET TAG = 's'
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_SET_T~5b9aeafe!drop-9	ALTER STORAGE LIFECYCLE POLICY a SET TAG a 's'
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_SET_T~5b9aeafe!drop-10	ALTER STORAGE LIFECYCLE POLICY a SET TAG a =
@@ -24224,7 +24224,7 @@ reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POL
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_UNSET~22820137!drop-4	ALTER STORAGE LIFECYCLE a UNSET TAG a
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_UNSET~22820137!drop-5	ALTER STORAGE LIFECYCLE POLICY UNSET TAG a
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_UNSET~22820137!drop-6	ALTER STORAGE LIFECYCLE POLICY a TAG a
-accept	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_UNSET~22820137!drop-7	ALTER STORAGE LIFECYCLE POLICY a UNSET a
+reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_UNSET~22820137!drop-7	ALTER STORAGE LIFECYCLE POLICY a UNSET a
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_UNSET~22820137!drop-8	ALTER STORAGE LIFECYCLE POLICY a UNSET TAG
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_UNSET~22820137!insert	ALTER STORAGE LIFECYCLE POLICY a UNSET TAG a zzz
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_UNSET~22820137!swap	ALWAYS STORAGE LIFECYCLE POLICY a UNSET TAG a
@@ -24237,10 +24237,10 @@ reject	undocumented	docs	alterStorageLifecyclePolicy(IF_EXISTS)?/IF_EXISTS!trunc
 reject	undocumented	docs	alterStorageLifecyclePolicy(IF_EXISTS)?/IF_EXISTS!insert	ALTER STORAGE LIFECYCLE POLICY IF EXISTS zzz a UNSET ARCHIVE_FOR_DAYS
 reject	undocumented	docs	alterStorageLifecyclePolicy(IF_EXISTS)?/IF_EXISTS!swap	ALTER STORAGE LIFECYCLE POLICY IGNORE EXISTS a UNSET ARCHIVE_FOR_DAYS
 accept	accept	docs	alterStorageLifecyclePolicy(COOL|COLD)/COOL	ALTER STORAGE LIFECYCLE POLICY a SET ARCHIVE_TIER = COOL
-accept	undocumented	docs	alterStorageLifecyclePolicy(COOL|COLD)/COOL!swap	ALTER STORAGE LIFECYCLE POLICY a SET ARCHIVE_TIER = COPY
+reject	undocumented	docs	alterStorageLifecyclePolicy(COOL|COLD)/COOL!swap	ALTER STORAGE LIFECYCLE POLICY a SET ARCHIVE_TIER = COPY
 accept	accept	docs	alterStorageLifecyclePolicy(COOL|COLD)/COLD	ALTER STORAGE LIFECYCLE POLICY a SET ARCHIVE_TIER = COLD
 reject	undocumented	docs	alterStorageLifecyclePolicy(COOL|COLD)/COLD!insert	ALTER STORAGE LIFECYCLE POLICY a SET ARCHIVE_TIER = COLD zzz
-accept	undocumented	docs	alterStorageLifecyclePolicy(COOL|COLD)/COLD!swap	ALTER STORAGE LIFECYCLE POLICY a SET ARCHIVE_TIER = COLLATE
+reject	undocumented	docs	alterStorageLifecyclePolicy(COOL|COLD)/COLD!swap	ALTER STORAGE LIFECYCLE POLICY a SET ARCHIVE_TIER = COLLATE
 accept	accept	docs	alterStorageLifecyclePolicy(,_QNAME_=_STRING)*/%empty	ALTER STORAGE LIFECYCLE POLICY a SET TAG a = 's'
 accept	accept	docs	alterStorageLifecyclePolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*	ALTER STORAGE LIFECYCLE POLICY a SET TAG a = 's', a = 's'
 reject	undocumented	docs	alterStorageLifecyclePolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-1	ALTER STORAGE LIFECYCLE POLICY a SET TAG a = 's' a = 's'
@@ -32416,20 +32416,20 @@ reject	undocumented	docs	createBackupPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRIN
 reject	undocumented	docs	createBackupPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!drop-2	CREATE BACKUP POLICY a SCHEDULE 's'
 reject	undocumented	docs	createBackupPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!drop-3	CREATE BACKUP POLICY a SCHEDULE =
 reject	undocumented	docs	createBackupPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!insert	CREATE BACKUP POLICY a SCHEDULE = 's' zzz
-accept	undocumented	docs	createBackupPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!swap	CREATE BACKUP POLICY a SCHEDULER = 's'
+reject	undocumented	docs	createBackupPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!swap	CREATE BACKUP POLICY a SCHEDULER = 's'
 accept	accept	docs	createBackupPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/%empty	CREATE BACKUP POLICY a
 accept	accept	docs	createBackupPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER	CREATE BACKUP POLICY a EXPIRE_AFTER_DAYS = 1
 reject	undocumented	docs	createBackupPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER!drop-1	CREATE BACKUP POLICY a = 1
 reject	undocumented	docs	createBackupPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER!drop-2	CREATE BACKUP POLICY a EXPIRE_AFTER_DAYS 1
 reject	undocumented	docs	createBackupPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER!drop-3	CREATE BACKUP POLICY a EXPIRE_AFTER_DAYS =
 reject	undocumented	docs	createBackupPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER!insert	CREATE BACKUP POLICY a EXPIRE_AFTER_DAYS = 1 zzz
-accept	undocumented	docs	createBackupPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER!swap	CREATE BACKUP POLICY a EXPIRE_ROTATED_KEY_PAIR_AFTER_HOURS = 1
+reject	undocumented	docs	createBackupPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER!swap	CREATE BACKUP POLICY a EXPIRE_ROTATED_KEY_PAIR_AFTER_HOURS = 1
 accept	accept	docs	createBackupPolicy(COMMENT_=_STRING)?/%empty	CREATE BACKUP POLICY a
 accept	accept	docs	createBackupPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE BACKUP POLICY a COMMENT = 's'
 reject	undocumented	docs	createBackupPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	CREATE BACKUP POLICY a COMMENT 's'
 reject	undocumented	docs	createBackupPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE BACKUP POLICY a COMMENT =
 reject	undocumented	docs	createBackupPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE BACKUP POLICY a COMMENT = 's' zzz
-accept	undocumented	docs	createBackupPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE BACKUP POLICY a COMMENTS = 's'
+reject	undocumented	docs	createBackupPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE BACKUP POLICY a COMMENTS = 's'
 accept	accept	docs	createBackupPolicy(IF_NOT_EXISTS)?/%empty	CREATE BACKUP POLICY a
 reject	undocumented	docs	createBackupPolicy(IF_NOT_EXISTS)?/%empty!insert	CREATE BACKUP POLICY zzz a
 accept	accept	docs	createBackupPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE BACKUP POLICY IF NOT EXISTS a
@@ -32549,7 +32549,7 @@ reject	undocumented	docs	createBackupSet(COMMENT_=_STRING)?/COMMENT_=_STRING!dro
 reject	undocumented	docs	createBackupSet(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	CREATE BACKUP SET a FOR TABLE a COMMENT 's'
 reject	undocumented	docs	createBackupSet(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE BACKUP SET a FOR TABLE a COMMENT =
 reject	undocumented	docs	createBackupSet(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE BACKUP SET a FOR TABLE a COMMENT = 's' zzz
-accept	undocumented	docs	createBackupSet(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE BACKUP SET a FOR TABLE a COMMENTS = 's'
+reject	undocumented	docs	createBackupSet(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE BACKUP SET a FOR TABLE a COMMENTS = 's'
 accept	accept	docs	createBackupSet(IF_NOT_EXISTS)?/%empty	CREATE BACKUP SET a FOR TABLE a
 reject	undocumented	docs	createBackupSet(IF_NOT_EXISTS)?/%empty!insert	CREATE BACKUP SET zzz a FOR TABLE a
 accept	accept	docs	createBackupSet(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE BACKUP SET IF NOT EXISTS a FOR TABLE a
@@ -33825,7 +33825,7 @@ reject	undocumented	docs	createDataMovementPolicy(ENFORCE_RULES_=_(_ID_(,_ID)*_)
 reject	undocumented	docs	createDataMovementPolicy(ENFORCE_RULES_=_(_ID_(,_ID)*_))?/ENFORCE_RULES_=_(_ID_(,_ID)*_)!drop-4	CREATE DATA MOVEMENT POLICY a ENFORCE_RULES =()
 reject	undocumented	docs	createDataMovementPolicy(ENFORCE_RULES_=_(_ID_(,_ID)*_))?/ENFORCE_RULES_=_(_ID_(,_ID)*_)!drop-5	CREATE DATA MOVEMENT POLICY a ENFORCE_RULES =(a
 reject	undocumented	docs	createDataMovementPolicy(ENFORCE_RULES_=_(_ID_(,_ID)*_))?/ENFORCE_RULES_=_(_ID_(,_ID)*_)!insert	CREATE DATA MOVEMENT POLICY a ENFORCE_RULES =(a) zzz
-accept	undocumented	docs	createDataMovementPolicy(ENFORCE_RULES_=_(_ID_(,_ID)*_))?/ENFORCE_RULES_=_(_ID_(,_ID)*_)!swap	CREATE DATA MOVEMENT POLICY a ENFORCE_TAG_PROPAGATION_FOR_DATA_MOVEMENT_POLICIES =(a)
+reject	undocumented	docs	createDataMovementPolicy(ENFORCE_RULES_=_(_ID_(,_ID)*_))?/ENFORCE_RULES_=_(_ID_(,_ID)*_)!swap	CREATE DATA MOVEMENT POLICY a ENFORCE_TAG_PROPAGATION_FOR_DATA_MOVEMENT_POLICIES =(a)
 accept	accept	docs	createDataMovementPolicy(,_ID)*/%empty	CREATE DATA MOVEMENT POLICY a ENFORCE_RULES =(a)
 reject	undocumented	docs	createDataMovementPolicy(,_ID)*/%empty!insert	CREATE DATA MOVEMENT POLICY a ENFORCE_RULES =(a zzz)
 accept	accept	docs	createDataMovementPolicy(,_ID)*/,_ID_(,_ID)*	CREATE DATA MOVEMENT POLICY a ENFORCE_RULES =(a, a)
@@ -33840,14 +33840,14 @@ reject	undocumented	docs	createDataMovementPolicy(ALERT_RULES_=_(_ID_(,_ID)*_))?
 reject	undocumented	docs	createDataMovementPolicy(ALERT_RULES_=_(_ID_(,_ID)*_))?/ALERT_RULES_=_(_ID_(,_ID)*_)!drop-4	CREATE DATA MOVEMENT POLICY a ALERT_RULES =()
 reject	undocumented	docs	createDataMovementPolicy(ALERT_RULES_=_(_ID_(,_ID)*_))?/ALERT_RULES_=_(_ID_(,_ID)*_)!drop-5	CREATE DATA MOVEMENT POLICY a ALERT_RULES =(a
 reject	undocumented	docs	createDataMovementPolicy(ALERT_RULES_=_(_ID_(,_ID)*_))?/ALERT_RULES_=_(_ID_(,_ID)*_)!insert	CREATE DATA MOVEMENT POLICY a ALERT_RULES =(a) zzz
-accept	undocumented	docs	createDataMovementPolicy(ALERT_RULES_=_(_ID_(,_ID)*_))?/ALERT_RULES_=_(_ID_(,_ID)*_)!swap	CREATE DATA MOVEMENT POLICY a ALGORITHM =(a)
+reject	undocumented	docs	createDataMovementPolicy(ALERT_RULES_=_(_ID_(,_ID)*_))?/ALERT_RULES_=_(_ID_(,_ID)*_)!swap	CREATE DATA MOVEMENT POLICY a ALGORITHM =(a)
 accept	accept	docs	createDataMovementPolicy(COMMENT_=_STRING)?/%empty	CREATE DATA MOVEMENT POLICY a
 accept	accept	docs	createDataMovementPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE DATA MOVEMENT POLICY a COMMENT = 's'
 reject	undocumented	docs	createDataMovementPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-1	CREATE DATA MOVEMENT POLICY a = 's'
 reject	undocumented	docs	createDataMovementPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	CREATE DATA MOVEMENT POLICY a COMMENT 's'
 reject	undocumented	docs	createDataMovementPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE DATA MOVEMENT POLICY a COMMENT =
 reject	undocumented	docs	createDataMovementPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE DATA MOVEMENT POLICY a COMMENT = 's' zzz
-accept	undocumented	docs	createDataMovementPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE DATA MOVEMENT POLICY a COMMENTS = 's'
+reject	undocumented	docs	createDataMovementPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE DATA MOVEMENT POLICY a COMMENTS = 's'
 accept	accept	docs	createDataMovementPolicy(IF_NOT_EXISTS)?/%empty	CREATE DATA MOVEMENT POLICY a
 reject	undocumented	docs	createDataMovementPolicy(IF_NOT_EXISTS)?/%empty!insert	CREATE DATA MOVEMENT POLICY zzz a
 accept	accept	docs	createDataMovementPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE DATA MOVEMENT POLICY IF NOT EXISTS a
@@ -46587,20 +46587,20 @@ reject	undocumented	docs	createSnapshotPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STR
 reject	undocumented	docs	createSnapshotPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!drop-2	CREATE SNAPSHOT POLICY a SCHEDULE 's'
 reject	undocumented	docs	createSnapshotPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!drop-3	CREATE SNAPSHOT POLICY a SCHEDULE =
 reject	undocumented	docs	createSnapshotPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!insert	CREATE SNAPSHOT POLICY a SCHEDULE = 's' zzz
-accept	undocumented	docs	createSnapshotPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!swap	CREATE SNAPSHOT POLICY a SCHEDULER = 's'
+reject	undocumented	docs	createSnapshotPolicy(SCHEDULE_=_STRING)?/SCHEDULE_=_STRING!swap	CREATE SNAPSHOT POLICY a SCHEDULER = 's'
 accept	accept	docs	createSnapshotPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/%empty	CREATE SNAPSHOT POLICY a
 accept	accept	docs	createSnapshotPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER	CREATE SNAPSHOT POLICY a EXPIRE_AFTER_DAYS = 1
 reject	undocumented	docs	createSnapshotPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER!drop-1	CREATE SNAPSHOT POLICY a = 1
 reject	undocumented	docs	createSnapshotPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER!drop-2	CREATE SNAPSHOT POLICY a EXPIRE_AFTER_DAYS 1
 reject	undocumented	docs	createSnapshotPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER!drop-3	CREATE SNAPSHOT POLICY a EXPIRE_AFTER_DAYS =
 reject	undocumented	docs	createSnapshotPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER!insert	CREATE SNAPSHOT POLICY a EXPIRE_AFTER_DAYS = 1 zzz
-accept	undocumented	docs	createSnapshotPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER!swap	CREATE SNAPSHOT POLICY a EXPIRE_ROTATED_KEY_PAIR_AFTER_HOURS = 1
+reject	undocumented	docs	createSnapshotPolicy(EXPIRE_AFTER_DAYS_=_NUMBER)?/EXPIRE_AFTER_DAYS_=_NUMBER!swap	CREATE SNAPSHOT POLICY a EXPIRE_ROTATED_KEY_PAIR_AFTER_HOURS = 1
 accept	accept	docs	createSnapshotPolicy(COMMENT_=_STRING)?/%empty	CREATE SNAPSHOT POLICY a
 accept	accept	docs	createSnapshotPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE SNAPSHOT POLICY a COMMENT = 's'
 reject	undocumented	docs	createSnapshotPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	CREATE SNAPSHOT POLICY a COMMENT 's'
 reject	undocumented	docs	createSnapshotPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE SNAPSHOT POLICY a COMMENT =
 reject	undocumented	docs	createSnapshotPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE SNAPSHOT POLICY a COMMENT = 's' zzz
-accept	undocumented	docs	createSnapshotPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE SNAPSHOT POLICY a COMMENTS = 's'
+reject	undocumented	docs	createSnapshotPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE SNAPSHOT POLICY a COMMENTS = 's'
 accept	accept	docs	createSnapshotPolicy(IF_NOT_EXISTS)?/%empty	CREATE SNAPSHOT POLICY a
 reject	undocumented	docs	createSnapshotPolicy(IF_NOT_EXISTS)?/%empty!insert	CREATE SNAPSHOT POLICY zzz a
 accept	accept	docs	createSnapshotPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE SNAPSHOT POLICY IF NOT EXISTS a
@@ -46681,7 +46681,7 @@ reject	undocumented	docs	createSnapshotSet(COMMENT_=_STRING)?/COMMENT_=_STRING!d
 reject	undocumented	docs	createSnapshotSet(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	CREATE SNAPSHOT SET a FOR TABLE a COMMENT 's'
 reject	undocumented	docs	createSnapshotSet(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE SNAPSHOT SET a FOR TABLE a COMMENT =
 reject	undocumented	docs	createSnapshotSet(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE SNAPSHOT SET a FOR TABLE a COMMENT = 's' zzz
-accept	undocumented	docs	createSnapshotSet(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE SNAPSHOT SET a FOR TABLE a COMMENTS = 's'
+reject	undocumented	docs	createSnapshotSet(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE SNAPSHOT SET a FOR TABLE a COMMENTS = 's'
 accept	accept	docs	createSnapshotSet(IF_NOT_EXISTS)?/%empty	CREATE SNAPSHOT SET a FOR TABLE a
 reject	undocumented	docs	createSnapshotSet(IF_NOT_EXISTS)?/%empty!insert	CREATE SNAPSHOT SET zzz a FOR TABLE a
 accept	accept	docs	createSnapshotSet(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE SNAPSHOT SET IF NOT EXISTS a FOR TABLE a

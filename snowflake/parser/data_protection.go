@@ -17,8 +17,7 @@ import (
 // BACKUP POLICY, SNAPSHOT POLICY and the rest never reach it.
 //
 // The pages of BACKUP SET, BACKUP POLICY, SNAPSHOT SET and SNAPSHOT POLICY
-// write DROP <kind> <name> without IF EXISTS; the registry's DROP reads the
-// optional IF EXISTS for every object.
+// write DROP <kind> <name> without IF EXISTS (dropNoIfExists).
 
 func init() {
 	registerObject(&objectForm{
@@ -28,7 +27,8 @@ func init() {
 		// https://docs.snowflake.com/en/sql-reference/sql/create-backup-set
 		orReplace: true, orAlter: true,
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-backup-set
-		drop: true,
+		drop: true, dropNoIfExists: true,
+		props: dataProtectionCommentProps,
 	})
 	registerObject(&objectForm{
 		words:  []string{"BACKUP", "POLICY"},
@@ -37,7 +37,8 @@ func init() {
 		// https://docs.snowflake.com/en/sql-reference/sql/create-backup-policy
 		orReplace: true, orAlter: true,
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-backup-policy
-		drop: true,
+		drop: true, dropNoIfExists: true,
+		props: dataProtectionPolicyProps,
 	})
 	registerObject(&objectForm{
 		words:  []string{"SNAPSHOT", "SET"},
@@ -46,7 +47,8 @@ func init() {
 		// https://docs.snowflake.com/en/sql-reference/sql/create-snapshot-set
 		orReplace: true,
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-snapshot-set
-		drop: true,
+		drop: true, dropNoIfExists: true,
+		props: dataProtectionCommentProps,
 	})
 	registerObject(&objectForm{
 		words:  []string{"SNAPSHOT", "POLICY"},
@@ -55,7 +57,8 @@ func init() {
 		// https://docs.snowflake.com/en/sql-reference/sql/create-snapshot-policy
 		orReplace: true,
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-snapshot-policy
-		drop: true,
+		drop: true, dropNoIfExists: true,
+		props: dataProtectionPolicyProps,
 	})
 	registerObject(&objectForm{
 		words:  []string{"SNAPSHOT"},
@@ -64,7 +67,9 @@ func init() {
 		// https://docs.snowflake.com/en/sql-reference/sql/create-snapshot
 		orReplace: true,
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-snapshot
-		drop: true,
+		drop:  true,
+		props: dataProtectionCommentProps,
+		unset: []string{}, // ALTER SNAPSHOT documents no UNSET
 	})
 	// CREATE STORAGE LIFECYCLE POLICY's body (AS ( <arg> <type> ... ) RETURNS
 	// BOOLEAN -> <expr>) and ALTER's SET BODY -> <expr> hold a signature and an
@@ -75,6 +80,13 @@ func init() {
 		alter: parseAlterStorageLifecyclePolicy,
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-storage-lifecycle-policy
 		drop: true,
+		// https://docs.snowflake.com/en/sql-reference/sql/alter-storage-lifecycle-policy
+		props: objectProps{
+			"ARCHIVE_TIER":     propOneOf("COOL", "COLD"),
+			"ARCHIVE_FOR_DAYS": propNumber,
+			"COMMENT":          propString,
+		},
+		unset: []string{"ARCHIVE_FOR_DAYS", "COMMENT"},
 	})
 	registerObject(&objectForm{
 		words:  []string{"DATA", "MOVEMENT", "POLICY"},
@@ -83,7 +95,10 @@ func init() {
 		// https://docs.snowflake.com/en/sql-reference/sql/create-data-movement-policy
 		orReplace: true,
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-data-movement-policy
-		drop: true,
+		drop:  true,
+		props: dataMovementPolicyProps,
+		// https://docs.snowflake.com/en/sql-reference/sql/alter-data-movement-policy
+		unset: []string{"COMMENT"},
 	})
 	// CREATE DATA MOVEMENT RULE's MAX_ROWS AS ( ) RETURNS INTEGER -> ( <expr> )
 	// and ALTER's SET MAX_ROWS ... hold an expression too; both are left
@@ -92,8 +107,30 @@ func init() {
 		words: []string{"DATA", "MOVEMENT", "RULE"},
 		alter: parseAlterDataMovementRule,
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-data-movement-rule
-		drop: true,
+		drop:  true,
+		props: dataProtectionCommentProps,
 	})
+}
+
+// dataProtectionCommentProps is the one property of BACKUP SET, SNAPSHOT SET,
+// SNAPSHOT and DATA MOVEMENT RULE: CREATE takes COMMENT, and ALTER SETs and
+// UNSETs it (on MODIFY <word> IDENTIFIER too).
+var dataProtectionCommentProps = objectProps{"COMMENT": propString}
+
+// dataProtectionPolicyProps are BACKUP POLICY's and SNAPSHOT POLICY's
+// properties, which CREATE takes and ALTER SETs and UNSETs.
+var dataProtectionPolicyProps = objectProps{
+	"SCHEDULE":          propString,
+	"EXPIRE_AFTER_DAYS": propNumber,
+	"COMMENT":           propString,
+}
+
+// dataMovementPolicyProps are DATA MOVEMENT POLICY's properties, which CREATE
+// takes and ALTER SETs; ALTER also ADDs to and REMOVEs from the two rule lists.
+var dataMovementPolicyProps = objectProps{
+	"ENFORCE_RULES": propNames,
+	"ALERT_RULES":   propNames,
+	"COMMENT":       propString,
 }
 
 // parseCreateBackupSet reads what follows the name of
@@ -506,7 +543,7 @@ func parseCreateDataMovementPolicy(p *Parser, s *ast.ObjectStmt) error {
 			Message: "syntax error: DATA MOVEMENT POLICY does not take tags",
 		}
 	}
-	return p.checkDataMovementRules(c)
+	return nil
 }
 
 // parseAlterDataMovementPolicy reads what follows the name of
@@ -531,35 +568,17 @@ func parseAlterDataMovementPolicy(p *Parser, s *ast.ObjectStmt) error {
 		if err != nil {
 			return err
 		}
-		c := p.addObjectKeywordsClause(s, verb, start)
-		c.Options = []*ast.CopyOption{opt}
-		return p.checkDataMovementRules(c)
-	}
-	if err := p.parseAlterObjectActions(s, actSet|actUnset|actRename); err != nil {
-		return err
-	}
-	return p.checkDataMovementRules(s.Clauses[len(s.Clauses)-1])
-}
-
-// checkDataMovementRules fails unless each ENFORCE_RULES or ALERT_RULES
-// option of c is a parenthesized list of one or more rule names.
-func (p *Parser) checkDataMovementRules(c *ast.ObjectClause) error {
-	for _, o := range c.Options {
-		if o.Name != "ENFORCE_RULES" && o.Name != "ALERT_RULES" {
-			continue
-		}
-		ok := len(o.Group) > 0
-		for _, e := range o.Group {
-			ok = ok && e.Bare
-		}
-		if !ok {
+		// The registry's property check covers SET and the CREATE run only.
+		if !propNames.matches(opt) {
 			return &ParseError{
-				Position: o.Loc.Start, End: o.Loc.End,
-				Message: "syntax error: " + o.Name + " takes ( <rule_name> [ , ... ] )",
+				Position: opt.Loc.Start, End: opt.Loc.End,
+				Message: "syntax error: " + opt.Name + " takes ( <rule_name> [ , ... ] )",
 			}
 		}
+		p.addObjectKeywordsClause(s, verb, start).Options = []*ast.CopyOption{opt}
+		return nil
 	}
-	return nil
+	return p.parseAlterObjectActions(s, actSet|actUnset|actRename)
 }
 
 // parseAlterDataMovementRule reads what follows the name of
