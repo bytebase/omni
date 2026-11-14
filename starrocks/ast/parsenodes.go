@@ -69,13 +69,23 @@ func (n *DropTableStmt) Tag() NodeTag { return T_DropTableStmt }
 // Compile-time assertion that *DropTableStmt satisfies Node.
 var _ Node = (*DropTableStmt)(nil)
 
-// CreateFunctionStmt represents CREATE [GLOBAL] [AGGREGATE | ALIAS] FUNCTION ...
-// The full signature/body/properties is stored as RawSignature for best-effort
-// capture; structured parsing of UDF body is out of scope for the initial port.
+// CreateFunctionStmt represents
+//
+//	CREATE [OR REPLACE] [GLOBAL] [TABLE | AGGREGATE] FUNCTION [IF NOT EXISTS]
+//	    name(arg_types) RETURNS type [PROPERTIES (...) | key = 'value' ...]
+//
+// RawSignature holds the text after CREATE, verbatim.
 type CreateFunctionStmt struct {
+	OrReplace    bool
 	Global       bool
 	Aggregate    bool
-	Alias        bool
+	Table        bool
+	IfNotExists  bool
+	Name         *ObjectName
+	Args         []*TypeName // argument types; a trailing "..." sets Variadic
+	Variadic     bool
+	Returns      *TypeName
+	Properties   []*Property // PROPERTIES (...) or the inline key = 'value' list
 	RawSignature string
 	Loc          Loc
 }
@@ -91,6 +101,8 @@ type DropFunctionStmt struct {
 	Name         *ObjectName
 	Global       bool
 	IfExists     bool
+	Args         []*TypeName // argument types; a trailing "..." sets Variadic
+	Variadic     bool
 	RawSignature string // function name + argument-type list (verbatim)
 	Loc          Loc
 }
@@ -211,7 +223,7 @@ type StructField struct {
 type CreateIndexStmt struct {
 	Name        *ObjectName
 	Table       *ObjectName
-	Columns     []string    // column names (bare, stripped of backticks)
+	Columns     []string // column names (bare, stripped of backticks)
 	IfNotExists bool
 	IndexType   string      // BITMAP, NGRAM_BF, INVERTED, ANN, or ""
 	Properties  []*Property // optional PROPERTIES(...)

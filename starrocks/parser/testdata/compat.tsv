@@ -803,22 +803,22 @@ reject	reject	engine	statement/showFunctionsStatement!swap	SIGNED FUNCTIONS;
 accept	accept	engine	statement/dropFunctionStatement	DROP FUNCTION a();
 reject	reject	engine	statement/dropFunctionStatement!drop-1	FUNCTION a();
 reject	reject	engine	statement/dropFunctionStatement!drop-2	DROP a();
-accept	reject	engine	statement/dropFunctionStatement!drop-3	DROP FUNCTION();
+reject	reject	engine	statement/dropFunctionStatement!drop-3	DROP FUNCTION();
 reject	reject	engine	statement/dropFunctionStatement!drop-4	DROP FUNCTION a);
-accept	reject	engine	statement/dropFunctionStatement!drop-5	DROP FUNCTION a(;
-accept	reject	engine	statement/dropFunctionStatement!truncate	DROP FUNCTION a(
+reject	reject	engine	statement/dropFunctionStatement!drop-5	DROP FUNCTION a(;
+reject	reject	engine	statement/dropFunctionStatement!truncate	DROP FUNCTION a(
 reject	reject	engine	statement/dropFunctionStatement!insert	DROP FUNCTION a() zzz;
 reject	reject	engine	statement/dropFunctionStatement!swap	DUAL FUNCTION a();
 accept	accept	engine	statement/createFunctionStatement	CREATE FUNCTION a() RETURNS BOOLEAN;
 reject	reject	engine	statement/createFunctionStatement!drop-1	FUNCTION a() RETURNS BOOLEAN;
 reject	reject	engine	statement/createFunctionStatement!drop-2	CREATE a() RETURNS BOOLEAN;
-accept	reject	engine	statement/createFunctionStatement!drop-3	CREATE FUNCTION() RETURNS BOOLEAN;
-accept	reject	engine	statement/createFunctionStatement!drop-4	CREATE FUNCTION a) RETURNS BOOLEAN;
-accept	reject	engine	statement/createFunctionStatement!drop-5	CREATE FUNCTION a(RETURNS BOOLEAN;
-accept	reject	engine	statement/createFunctionStatement!drop-6	CREATE FUNCTION a() BOOLEAN;
-accept	reject	engine	statement/createFunctionStatement!drop-7	CREATE FUNCTION a() RETURNS;
-accept	reject	engine	statement/createFunctionStatement!truncate	CREATE FUNCTION a() RETURNS
-accept	reject	engine	statement/createFunctionStatement!insert	CREATE FUNCTION a() RETURNS BOOLEAN zzz;
+reject	reject	engine	statement/createFunctionStatement!drop-3	CREATE FUNCTION() RETURNS BOOLEAN;
+reject	reject	engine	statement/createFunctionStatement!drop-4	CREATE FUNCTION a) RETURNS BOOLEAN;
+reject	reject	engine	statement/createFunctionStatement!drop-5	CREATE FUNCTION a(RETURNS BOOLEAN;
+reject	reject	engine	statement/createFunctionStatement!drop-6	CREATE FUNCTION a() BOOLEAN;
+reject	reject	engine	statement/createFunctionStatement!drop-7	CREATE FUNCTION a() RETURNS;
+reject	reject	engine	statement/createFunctionStatement!truncate	CREATE FUNCTION a() RETURNS
+reject	reject	engine	statement/createFunctionStatement!insert	CREATE FUNCTION a() RETURNS BOOLEAN zzz;
 reject	reject	engine	statement/createFunctionStatement!swap	CROSS FUNCTION a() RETURNS BOOLEAN;
 reject	accept	engine	statement/loadStatement	LOAD LABEL a;
 reject	reject	engine	statement/loadStatement!drop-1	LABEL a;
@@ -1733,9 +1733,9 @@ reject	reject	engine	createTableStatement(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate
 reject	reject	engine	createTableStatement(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE TABLE IF NOT EXISTS zzz a(a);
 reject	reject	engine	createTableStatement(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE TABLE IGNORE NOT EXISTS a(a);
 reject	reject	engine	createTableStatement(,_columnDesc)*/%empty	CREATE TABLE a(a);
-accept	reject	engine	createTableStatement(,_columnDesc)*/%empty!insert	CREATE TABLE a(a zzz);
+reject	reject	engine	createTableStatement(,_columnDesc)*/%empty!insert	CREATE TABLE a(a zzz);
 reject	reject	engine	createTableStatement(,_columnDesc)*/,_columnDesc_(,_columnDesc)*	CREATE TABLE a(a, a);
-accept	reject	engine	createTableStatement(,_columnDesc)*/,_columnDesc_(,_columnDesc)*!drop-1	CREATE TABLE a(a a);
+reject	reject	engine	createTableStatement(,_columnDesc)*/,_columnDesc_(,_columnDesc)*!drop-1	CREATE TABLE a(a a);
 reject	reject	engine	createTableStatement(,_columnDesc)*/,_columnDesc_(,_columnDesc)*!drop-2	CREATE TABLE a(a,);
 reject	reject	engine	createTableStatement(,_columnDesc)*/,_columnDesc_(,_columnDesc)*!truncate	CREATE TABLE a(a,
 reject	reject	engine	createTableStatement(,_columnDesc)*/,_columnDesc_(,_columnDesc)*!insert	CREATE TABLE a(a, a zzz);
@@ -2107,22 +2107,22 @@ accept	accept	engine	fromRollup/FROM_identifier	ALTER TABLE a ADD ROLLUP a(a) FR
 accept	accept	engine	orReplace/(OR_REPLACE)?	CREATE FUNCTION a() RETURNS BOOLEAN;
 reject	reject	engine	orReplace/(OR_REPLACE)?!insert	CREATE zzz FUNCTION a() RETURNS BOOLEAN;
 accept	accept	engine	orReplace(OR_REPLACE)?/%empty	CREATE FUNCTION a() RETURNS BOOLEAN;
-reject	accept	engine	orReplace(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE FUNCTION a() RETURNS BOOLEAN;
+accept	accept	engine	orReplace(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE FUNCTION a() RETURNS BOOLEAN;
 reject	reject	engine	orReplace(OR_REPLACE)?/OR_REPLACE!drop-1	CREATE REPLACE FUNCTION a() RETURNS BOOLEAN;
 reject	reject	engine	orReplace(OR_REPLACE)?/OR_REPLACE!drop-2	CREATE OR FUNCTION a() RETURNS BOOLEAN;
 reject	reject	engine	orReplace(OR_REPLACE)?/OR_REPLACE!truncate	CREATE OR
 reject	reject	engine	orReplace(OR_REPLACE)?/OR_REPLACE!insert	CREATE OR REPLACE zzz FUNCTION a() RETURNS BOOLEAN;
 reject	reject	engine	orReplace(OR_REPLACE)?/OR_REPLACE!swap	CREATE ORDER REPLACE FUNCTION a() RETURNS BOOLEAN;
 accept	accept	engine	ifNotExists/(IF_NOT_EXISTS)?	CREATE FUNCTION a() RETURNS BOOLEAN;
-accept	reject	engine	ifNotExists/(IF_NOT_EXISTS)?!insert	CREATE FUNCTION zzz a() RETURNS BOOLEAN;
+reject	reject	engine	ifNotExists/(IF_NOT_EXISTS)?!insert	CREATE FUNCTION zzz a() RETURNS BOOLEAN;
 accept	accept	engine	ifNotExists(IF_NOT_EXISTS)?/%empty	CREATE FUNCTION a() RETURNS BOOLEAN;
 accept	accept	engine	ifNotExists(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE FUNCTION IF NOT EXISTS a() RETURNS BOOLEAN;
-accept	reject	engine	ifNotExists(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE FUNCTION NOT EXISTS a() RETURNS BOOLEAN;
-accept	reject	engine	ifNotExists(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE FUNCTION IF EXISTS a() RETURNS BOOLEAN;
-accept	reject	engine	ifNotExists(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE FUNCTION IF NOT a() RETURNS BOOLEAN;
-accept	reject	engine	ifNotExists(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE FUNCTION IF NOT
-accept	reject	engine	ifNotExists(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE FUNCTION IF NOT EXISTS zzz a() RETURNS BOOLEAN;
-accept	reject	engine	ifNotExists(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE FUNCTION IGNORE NOT EXISTS a() RETURNS BOOLEAN;
+reject	reject	engine	ifNotExists(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE FUNCTION NOT EXISTS a() RETURNS BOOLEAN;
+reject	reject	engine	ifNotExists(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE FUNCTION IF EXISTS a() RETURNS BOOLEAN;
+reject	reject	engine	ifNotExists(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE FUNCTION IF NOT a() RETURNS BOOLEAN;
+reject	reject	engine	ifNotExists(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE FUNCTION IF NOT
+reject	reject	engine	ifNotExists(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE FUNCTION IF NOT EXISTS zzz a() RETURNS BOOLEAN;
+reject	reject	engine	ifNotExists(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE FUNCTION IGNORE NOT EXISTS a() RETURNS BOOLEAN;
 accept	accept	engine	createTableAsSelectStatement/CREATE_(TEMPORARY)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNam~774ee034	CREATE TABLE a AS SELECT CURRENT_USER;
 accept	accept	engine	createTableAsSelectStatement(TEMPORARY)?/%empty	CREATE TABLE a AS SELECT CURRENT_USER;
 reject	reject	engine	createTableAsSelectStatement(TEMPORARY)?/%empty!insert	CREATE zzz TABLE a AS SELECT CURRENT_USER;
@@ -2146,7 +2146,7 @@ reject	reject	engine	createTableAsSelectStatement((_(identifier_(,_identifier)*_
 reject	reject	engine	createTableAsSelectStatement((_(identifier_(,_identifier)*_(,_ind~a46cbfe5)?/(_(identifier_(,_identifier)*_(,_indexD~e85b79bb)_)!insert	CREATE TABLE a(a) zzz AS SELECT CURRENT_USER;
 accept	accept	engine	createTableAsSelectStatement(identifier_(,_identifier)*_(,_indexD~e85b79bb)/identifier_(,_identifier)*_(,_indexDesc)*	CREATE TABLE a(a) AS SELECT CURRENT_USER;
 reject	reject	engine	createTableAsSelectStatement(identifier_(,_identifier)*_(,_indexD~e85b79bb)/identifier_(,_identifier)*_(,_indexDesc)*!truncate	CREATE TABLE a(
-accept	reject	engine	createTableAsSelectStatement(identifier_(,_identifier)*_(,_indexD~e85b79bb)/identifier_(,_identifier)*_(,_indexDesc)*!insert	CREATE TABLE a(a zzz) AS SELECT CURRENT_USER;
+reject	reject	engine	createTableAsSelectStatement(identifier_(,_identifier)*_(,_indexD~e85b79bb)/identifier_(,_identifier)*_(,_indexDesc)*!insert	CREATE TABLE a(a zzz) AS SELECT CURRENT_USER;
 accept	accept	engine	createTableAsSelectStatement(identifier_(,_identifier)*_(,_indexD~e85b79bb)/indexDesc_(,_indexDesc)*	CREATE TABLE a(INDEX a(a)) AS SELECT CURRENT_USER;
 reject	reject	engine	createTableAsSelectStatement(identifier_(,_identifier)*_(,_indexD~e85b79bb)/indexDesc_(,_indexDesc)*!drop-1	CREATE TABLE a(a(a)) AS SELECT CURRENT_USER;
 reject	reject	engine	createTableAsSelectStatement(identifier_(,_identifier)*_(,_indexD~e85b79bb)/indexDesc_(,_indexDesc)*!drop-2	CREATE TABLE a(INDEX(a)) AS SELECT CURRENT_USER;
@@ -2158,7 +2158,7 @@ reject	reject	engine	createTableAsSelectStatement(identifier_(,_identifier)*_(,_
 reject	reject	engine	createTableAsSelectStatement(identifier_(,_identifier)*_(,_indexD~e85b79bb)/indexDesc_(,_indexDesc)*!swap	CREATE TABLE a(INDEXES a(a)) AS SELECT CURRENT_USER;
 accept	accept	engine	createTableAsSelectStatement(,_identifier)*/%empty	CREATE TABLE a(a) AS SELECT CURRENT_USER;
 accept	accept	engine	createTableAsSelectStatement(,_identifier)*/,_identifier_(,_identifier)*	CREATE TABLE a(a, a) AS SELECT CURRENT_USER;
-accept	reject	engine	createTableAsSelectStatement(,_identifier)*/,_identifier_(,_identifier)*!drop-1	CREATE TABLE a(a a) AS SELECT CURRENT_USER;
+reject	reject	engine	createTableAsSelectStatement(,_identifier)*/,_identifier_(,_identifier)*!drop-1	CREATE TABLE a(a a) AS SELECT CURRENT_USER;
 accept	reject	engine	createTableAsSelectStatement(,_identifier)*/,_identifier_(,_identifier)*!drop-2	CREATE TABLE a(a,) AS SELECT CURRENT_USER;
 accept	reject	engine	createTableAsSelectStatement(,_identifier)*/,_identifier_(,_identifier)*!insert	CREATE TABLE a(a, a zzz) AS SELECT CURRENT_USER;
 accept	accept	engine	createTableAsSelectStatement(,_indexDesc)*/%empty	CREATE TABLE a(a) AS SELECT CURRENT_USER;
@@ -5376,7 +5376,7 @@ accept	accept	engine	createFunctionStatement(GLOBAL)?/GLOBAL	CREATE GLOBAL FUNCT
 reject	reject	engine	createFunctionStatement(GLOBAL)?/GLOBAL!insert	CREATE GLOBAL zzz FUNCTION a() RETURNS BOOLEAN;
 reject	reject	engine	createFunctionStatement(GLOBAL)?/GLOBAL!swap	CREATE GRANT FUNCTION a() RETURNS BOOLEAN;
 accept	accept	engine	createFunctionStatement(TABLE|AGGREGATE)?/%empty	CREATE FUNCTION a() RETURNS BOOLEAN;
-reject	accept	engine	createFunctionStatement(TABLE|AGGREGATE)?/TABLE	CREATE TABLE FUNCTION a() RETURNS BOOLEAN;
+accept	accept	engine	createFunctionStatement(TABLE|AGGREGATE)?/TABLE	CREATE TABLE FUNCTION a() RETURNS BOOLEAN;
 reject	reject	engine	createFunctionStatement(TABLE|AGGREGATE)?/TABLE!insert	CREATE TABLE zzz FUNCTION a() RETURNS BOOLEAN;
 reject	reject	engine	createFunctionStatement(TABLE|AGGREGATE)?/TABLE!swap	CREATE TABLES FUNCTION a() RETURNS BOOLEAN;
 accept	accept	engine	createFunctionStatement(TABLE|AGGREGATE)?/AGGREGATE	CREATE AGGREGATE FUNCTION a() RETURNS BOOLEAN;
@@ -5384,45 +5384,45 @@ reject	reject	engine	createFunctionStatement(TABLE|AGGREGATE)?/AGGREGATE!insert	
 reject	reject	engine	createFunctionStatement(TABLE|AGGREGATE)?/AGGREGATE!swap	CREATE ALL FUNCTION a() RETURNS BOOLEAN;
 accept	accept	engine	createFunctionStatement(properties|inlineProperties)?/%empty	CREATE FUNCTION a() RETURNS BOOLEAN;
 accept	accept	engine	createFunctionStatement(properties|inlineProperties)?/properties	CREATE FUNCTION a() RETURNS BOOLEAN PROPERTIES('a' = 'a');
-accept	reject	engine	createFunctionStatement(properties|inlineProperties)?/properties!drop-1	CREATE FUNCTION a() RETURNS BOOLEAN('a' = 'a');
-accept	reject	engine	createFunctionStatement(properties|inlineProperties)?/properties!drop-2	CREATE FUNCTION a() RETURNS BOOLEAN PROPERTIES 'a' = 'a');
-accept	reject	engine	createFunctionStatement(properties|inlineProperties)?/properties!drop-3	CREATE FUNCTION a() RETURNS BOOLEAN PROPERTIES(= 'a');
-accept	reject	engine	createFunctionStatement(properties|inlineProperties)?/properties!drop-4	CREATE FUNCTION a() RETURNS BOOLEAN PROPERTIES('a' 'a');
-accept	reject	engine	createFunctionStatement(properties|inlineProperties)?/properties!drop-5	CREATE FUNCTION a() RETURNS BOOLEAN PROPERTIES('a' =);
-accept	reject	engine	createFunctionStatement(properties|inlineProperties)?/properties!drop-6	CREATE FUNCTION a() RETURNS BOOLEAN PROPERTIES('a' = 'a';
-accept	reject	engine	createFunctionStatement(properties|inlineProperties)?/properties!truncate	CREATE FUNCTION a() RETURNS BOOLEAN PROPERTIES('a' = 'a'
-accept	reject	engine	createFunctionStatement(properties|inlineProperties)?/properties!insert	CREATE FUNCTION a() RETURNS BOOLEAN PROPERTIES('a' = 'a') zzz;
-accept	reject	engine	createFunctionStatement(properties|inlineProperties)?/properties!swap	CREATE FUNCTION a() RETURNS BOOLEAN PROPERTY('a' = 'a');
+reject	reject	engine	createFunctionStatement(properties|inlineProperties)?/properties!drop-1	CREATE FUNCTION a() RETURNS BOOLEAN('a' = 'a');
+reject	reject	engine	createFunctionStatement(properties|inlineProperties)?/properties!drop-2	CREATE FUNCTION a() RETURNS BOOLEAN PROPERTIES 'a' = 'a');
+reject	reject	engine	createFunctionStatement(properties|inlineProperties)?/properties!drop-3	CREATE FUNCTION a() RETURNS BOOLEAN PROPERTIES(= 'a');
+reject	reject	engine	createFunctionStatement(properties|inlineProperties)?/properties!drop-4	CREATE FUNCTION a() RETURNS BOOLEAN PROPERTIES('a' 'a');
+reject	reject	engine	createFunctionStatement(properties|inlineProperties)?/properties!drop-5	CREATE FUNCTION a() RETURNS BOOLEAN PROPERTIES('a' =);
+reject	reject	engine	createFunctionStatement(properties|inlineProperties)?/properties!drop-6	CREATE FUNCTION a() RETURNS BOOLEAN PROPERTIES('a' = 'a';
+reject	reject	engine	createFunctionStatement(properties|inlineProperties)?/properties!truncate	CREATE FUNCTION a() RETURNS BOOLEAN PROPERTIES('a' = 'a'
+reject	reject	engine	createFunctionStatement(properties|inlineProperties)?/properties!insert	CREATE FUNCTION a() RETURNS BOOLEAN PROPERTIES('a' = 'a') zzz;
+reject	reject	engine	createFunctionStatement(properties|inlineProperties)?/properties!swap	CREATE FUNCTION a() RETURNS BOOLEAN PROPERTY('a' = 'a');
 accept	accept	engine	createFunctionStatement(properties|inlineProperties)?/inlineProperties	CREATE FUNCTION a() RETURNS BOOLEAN a = 'a';
-accept	reject	engine	createFunctionStatement(properties|inlineProperties)?/inlineProperties!drop-1	CREATE FUNCTION a() RETURNS BOOLEAN = 'a';
-accept	reject	engine	createFunctionStatement(properties|inlineProperties)?/inlineProperties!drop-2	CREATE FUNCTION a() RETURNS BOOLEAN a 'a';
-accept	reject	engine	createFunctionStatement(properties|inlineProperties)?/inlineProperties!drop-3	CREATE FUNCTION a() RETURNS BOOLEAN a =;
-accept	reject	engine	createFunctionStatement(properties|inlineProperties)?/inlineProperties!truncate	CREATE FUNCTION a() RETURNS BOOLEAN a =
-accept	reject	engine	createFunctionStatement(properties|inlineProperties)?/inlineProperties!insert	CREATE FUNCTION a() RETURNS BOOLEAN a = 'a' zzz;
+reject	reject	engine	createFunctionStatement(properties|inlineProperties)?/inlineProperties!drop-1	CREATE FUNCTION a() RETURNS BOOLEAN = 'a';
+reject	reject	engine	createFunctionStatement(properties|inlineProperties)?/inlineProperties!drop-2	CREATE FUNCTION a() RETURNS BOOLEAN a 'a';
+reject	reject	engine	createFunctionStatement(properties|inlineProperties)?/inlineProperties!drop-3	CREATE FUNCTION a() RETURNS BOOLEAN a =;
+reject	reject	engine	createFunctionStatement(properties|inlineProperties)?/inlineProperties!truncate	CREATE FUNCTION a() RETURNS BOOLEAN a =
+reject	reject	engine	createFunctionStatement(properties|inlineProperties)?/inlineProperties!insert	CREATE FUNCTION a() RETURNS BOOLEAN a = 'a' zzz;
 accept	accept	engine	createFunctionStatement(inlineFunction)?/%empty	CREATE FUNCTION a() RETURNS BOOLEAN;
-accept	reject	engine	createFunctionStatement(inlineFunction)?/inlineFunction	CREATE FUNCTION a() RETURNS BOOLEAN AS $$a$$;
-accept	reject	engine	createFunctionStatement(inlineFunction)?/inlineFunction!drop-1	CREATE FUNCTION a() RETURNS BOOLEAN $$a$$;
-accept	reject	engine	createFunctionStatement(inlineFunction)?/inlineFunction!drop-2	CREATE FUNCTION a() RETURNS BOOLEAN AS;
-accept	reject	engine	createFunctionStatement(inlineFunction)?/inlineFunction!truncate	CREATE FUNCTION a() RETURNS BOOLEAN AS
-accept	reject	engine	createFunctionStatement(inlineFunction)?/inlineFunction!insert	CREATE FUNCTION a() RETURNS BOOLEAN AS $$a$$ zzz;
-accept	reject	engine	createFunctionStatement(inlineFunction)?/inlineFunction!swap	CREATE FUNCTION a() RETURNS BOOLEAN ASC $$a$$;
-accept	reject	engine	inlineFunction/AS_ATTACHMENT	CREATE FUNCTION a() RETURNS BOOLEAN AS $$a$$;
+reject	reject	engine	createFunctionStatement(inlineFunction)?/inlineFunction	CREATE FUNCTION a() RETURNS BOOLEAN AS $$a$$;
+reject	reject	engine	createFunctionStatement(inlineFunction)?/inlineFunction!drop-1	CREATE FUNCTION a() RETURNS BOOLEAN $$a$$;
+reject	reject	engine	createFunctionStatement(inlineFunction)?/inlineFunction!drop-2	CREATE FUNCTION a() RETURNS BOOLEAN AS;
+reject	reject	engine	createFunctionStatement(inlineFunction)?/inlineFunction!truncate	CREATE FUNCTION a() RETURNS BOOLEAN AS
+reject	reject	engine	createFunctionStatement(inlineFunction)?/inlineFunction!insert	CREATE FUNCTION a() RETURNS BOOLEAN AS $$a$$ zzz;
+reject	reject	engine	createFunctionStatement(inlineFunction)?/inlineFunction!swap	CREATE FUNCTION a() RETURNS BOOLEAN ASC $$a$$;
+reject	reject	engine	inlineFunction/AS_ATTACHMENT	CREATE FUNCTION a() RETURNS BOOLEAN AS $$a$$;
 accept	accept	engine	typeList/(type)?_(,_type)*_(,_DOTDOTDOT)?	DROP FUNCTION a();
-accept	reject	engine	typeList/(type)?_(,_type)*_(,_DOTDOTDOT)?!insert	DROP FUNCTION a(zzz);
+reject	reject	engine	typeList/(type)?_(,_type)*_(,_DOTDOTDOT)?!insert	DROP FUNCTION a(zzz);
 accept	accept	engine	typeList(type)?/%empty	DROP FUNCTION a();
 accept	accept	engine	typeList(type)?/type	DROP FUNCTION a(BOOLEAN);
-accept	reject	engine	typeList(type)?/type!insert	DROP FUNCTION a(BOOLEAN zzz);
-accept	reject	engine	typeList(type)?/type!swap	DROP FUNCTION a(BOTH);
+reject	reject	engine	typeList(type)?/type!insert	DROP FUNCTION a(BOOLEAN zzz);
+reject	reject	engine	typeList(type)?/type!swap	DROP FUNCTION a(BOTH);
 accept	accept	engine	typeList(,_type)*/%empty	DROP FUNCTION a();
 accept	accept	engine	typeList(,_type)*/,_type_(,_type)*	DROP FUNCTION a(, BOOLEAN);
-accept	reject	engine	typeList(,_type)*/,_type_(,_type)*!drop-2	DROP FUNCTION a(,);
-accept	reject	engine	typeList(,_type)*/,_type_(,_type)*!truncate	DROP FUNCTION a(,
-accept	reject	engine	typeList(,_type)*/,_type_(,_type)*!insert	DROP FUNCTION a(, BOOLEAN zzz);
-accept	reject	engine	typeList(,_type)*/,_type_(,_type)*!swap	DROP FUNCTION a(, BOTH);
+reject	reject	engine	typeList(,_type)*/,_type_(,_type)*!drop-2	DROP FUNCTION a(,);
+reject	reject	engine	typeList(,_type)*/,_type_(,_type)*!truncate	DROP FUNCTION a(,
+reject	reject	engine	typeList(,_type)*/,_type_(,_type)*!insert	DROP FUNCTION a(, BOOLEAN zzz);
+reject	reject	engine	typeList(,_type)*/,_type_(,_type)*!swap	DROP FUNCTION a(, BOTH);
 accept	accept	engine	typeList(,_DOTDOTDOT)?/%empty	DROP FUNCTION a();
 accept	accept	engine	typeList(,_DOTDOTDOT)?/,_DOTDOTDOT	DROP FUNCTION a(,...);
-accept	reject	engine	typeList(,_DOTDOTDOT)?/,_DOTDOTDOT!drop-1	DROP FUNCTION a(...);
-accept	reject	engine	typeList(,_DOTDOTDOT)?/,_DOTDOTDOT!insert	DROP FUNCTION a(,...zzz);
+reject	reject	engine	typeList(,_DOTDOTDOT)?/,_DOTDOTDOT!drop-1	DROP FUNCTION a(...);
+reject	reject	engine	typeList(,_DOTDOTDOT)?/,_DOTDOTDOT!insert	DROP FUNCTION a(,...zzz);
 reject	accept	engine	loadStatement/LOAD_LABEL_labelName_(dataDescList)?_(brokerDesc)?_(BY_~bc198010	LOAD LABEL a;
 reject	accept	engine	loadStatement/LOAD_LABEL_labelName_(dataDescList)?_resourceDesc_(PROP~970443c3	LOAD LABEL a WITH RESOURCE a;
 reject	reject	engine	loadStatement/LOAD_LABEL_labelName_(dataDescList)?_resourceDesc_(PROP~970443c3!drop-1	LABEL a WITH RESOURCE a;
@@ -10172,11 +10172,11 @@ reject	reject	engine	property/string_=_string	SET PROPERTY 'a' = 'a';
 accept	accept	engine	inlineProperties/inlineProperty_(inlineProperty)*	CREATE FUNCTION a() RETURNS BOOLEAN a = 'a';
 accept	accept	engine	inlineProperties(inlineProperty)*/%empty	CREATE FUNCTION a() RETURNS BOOLEAN a = 'a';
 accept	accept	engine	inlineProperties(inlineProperty)*/inlineProperty_(inlineProperty)*	CREATE FUNCTION a() RETURNS BOOLEAN a = 'a' a = 'a';
-accept	reject	engine	inlineProperties(inlineProperty)*/inlineProperty_(inlineProperty)*!drop-1	CREATE FUNCTION a() RETURNS BOOLEAN a = 'a' = 'a';
-accept	reject	engine	inlineProperties(inlineProperty)*/inlineProperty_(inlineProperty)*!drop-2	CREATE FUNCTION a() RETURNS BOOLEAN a = 'a' a 'a';
-accept	reject	engine	inlineProperties(inlineProperty)*/inlineProperty_(inlineProperty)*!drop-3	CREATE FUNCTION a() RETURNS BOOLEAN a = 'a' a =;
-accept	reject	engine	inlineProperties(inlineProperty)*/inlineProperty_(inlineProperty)*!truncate	CREATE FUNCTION a() RETURNS BOOLEAN a = 'a' a =
-accept	reject	engine	inlineProperties(inlineProperty)*/inlineProperty_(inlineProperty)*!insert	CREATE FUNCTION a() RETURNS BOOLEAN a = 'a' a = 'a' zzz;
+reject	reject	engine	inlineProperties(inlineProperty)*/inlineProperty_(inlineProperty)*!drop-1	CREATE FUNCTION a() RETURNS BOOLEAN a = 'a' = 'a';
+reject	reject	engine	inlineProperties(inlineProperty)*/inlineProperty_(inlineProperty)*!drop-2	CREATE FUNCTION a() RETURNS BOOLEAN a = 'a' a 'a';
+reject	reject	engine	inlineProperties(inlineProperty)*/inlineProperty_(inlineProperty)*!drop-3	CREATE FUNCTION a() RETURNS BOOLEAN a = 'a' a =;
+reject	reject	engine	inlineProperties(inlineProperty)*/inlineProperty_(inlineProperty)*!truncate	CREATE FUNCTION a() RETURNS BOOLEAN a = 'a' a =
+reject	reject	engine	inlineProperties(inlineProperty)*/inlineProperty_(inlineProperty)*!insert	CREATE FUNCTION a() RETURNS BOOLEAN a = 'a' a = 'a' zzz;
 accept	accept	engine	inlineProperty/identifier_=_string	CREATE FUNCTION a() RETURNS BOOLEAN a = 'a';
 accept	accept	engine	varType/GLOBAL	SHOW GLOBAL STATUS;
 accept	accept	engine	varType/LOCAL	SHOW LOCAL STATUS;

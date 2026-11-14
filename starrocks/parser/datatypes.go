@@ -174,11 +174,6 @@ func (p *Parser) parseDataTypeUnrecorded() (*ast.TypeName, error) {
 		if isPrimitiveTypeKeyword(tok.Kind) {
 			return p.parsePrimitiveType()
 		}
-		// Also accept unquoted identifiers as type names (for forward
-		// compatibility with new type names not yet in the keyword list).
-		if tok.Kind == tokIdent || tok.Kind == tokQuotedIdent {
-			return p.parsePrimitiveType()
-		}
 		return nil, &ParseError{
 			Position: tok.Loc.Start, End: tok.Loc.End,
 			Message: fmt.Sprintf("expected a data type, got %q", tok.Str),

@@ -6,73 +6,200 @@ import (
 	"github.com/bytebase/omni/doris/ast"
 )
 
-// parseCreateFunction parses Doris CREATE [GLOBAL] [AGGREGATE | ALIAS] FUNCTION ...
-// On entry, CREATE has been consumed. cur is one of:
-//   - kwGLOBAL (for CREATE GLOBAL ALIAS FUNCTION)
-//   - kwAGGREGATE (for CREATE AGGREGATE FUNCTION)
-//   - kwALIAS (for CREATE ALIAS FUNCTION)
-//   - kwFUNCTION (for CREATE FUNCTION)
+// Doris's ANTLR grammar derives CREATE FUNCTION, DROP FUNCTION and SHOW
+// CREATE FUNCTION from unsupportedStatement, so Doris parses them with both
+// of its parsers and takes one only if both do (testdata/README.md). The
+// readers here take what both grammars take: DorisParser.g4 and the CUP
+// parser's DorisLegacyParser.g4, cited by line.
+
+// parseCreateFunction parses (DorisParser.g4:799-807)
 //
-// The body is captured as raw text (functions in Doris contain JAR refs,
-// expressions, or other forms that vary widely).
+//	CREATE (GLOBAL | SESSION | LOCAL)? (TABLES | AGGREGATE)? FUNCTION (IF NOT EXISTS)?
+//	    functionIdentifier LEFT_PAREN functionArguments? RIGHT_PAREN
+//	    RETURNS dataType (INTERMEDIATE dataType)? propertyClause?
+//	CREATE (GLOBAL | SESSION | LOCAL)? ALIAS FUNCTION (IF NOT EXISTS)?
+//	    functionIdentifier LEFT_PAREN functionArguments? RIGHT_PAREN
+//	    WITH PARAMETER LEFT_PAREN identifierSeq? RIGHT_PAREN AS expression
+//
+// and the CUP parser's create_stmt forms (DorisLegacyParser.g4:420-422),
+// whose properties are 'k' = 'v' pairs. On entry, CREATE has been consumed
+// and cur is the word after it.
 func (p *Parser) parseCreateFunction(createLoc ast.Loc) (ast.Node, error) {
 	stmt := &ast.CreateFunctionStmt{Loc: createLoc}
 	start := p.cur.Loc.Start
 
-	if p.cur.Kind == kwGLOBAL {
+	switch p.cur.Kind {
+	case kwGLOBAL:
 		stmt.Global = true
 		p.advance()
+	case kwSESSION, kwLOCAL:
+		p.advance()
 	}
-	if p.cur.Kind == kwAGGREGATE {
+	switch p.cur.Kind {
+	case kwTABLES:
+		stmt.Tables = true
+		p.advance()
+	case kwAGGREGATE:
 		stmt.Aggregate = true
 		p.advance()
-	} else if p.cur.Kind == kwALIAS {
+	case kwALIAS:
 		stmt.Alias = true
 		p.advance()
 	}
-
 	if _, err := p.expect(kwFUNCTION); err != nil {
 		return nil, err
 	}
-
-	// Best-effort: consume the remainder of the statement up to the semicolon
-	// or EOF, storing it as raw text. The function signature, RETURNS, body,
-	// and PROPERTIES are all preserved verbatim.
-	depth := 0
-	for p.cur.Kind != tokEOF {
-		if depth == 0 && p.cur.Kind == int(';') {
-			break
+	if p.cur.Kind == kwIF {
+		p.advance()
+		if _, err := p.expect(kwNOT); err != nil {
+			return nil, err
 		}
-		if p.cur.Kind == int('(') || p.cur.Kind == int('[') || p.cur.Kind == int('{') {
-			depth++
-		} else if p.cur.Kind == int(')') || p.cur.Kind == int(']') || p.cur.Kind == int('}') {
-			if depth > 0 {
-				depth--
+		if _, err := p.expect(kwEXISTS); err != nil {
+			return nil, err
+		}
+		stmt.IfNotExists = true
+	}
+	name, err := p.parseMultipartIdentifier()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Name = name
+	if stmt.Args, stmt.Variadic, err = p.parseFunctionArguments(); err != nil {
+		return nil, err
+	}
+
+	if stmt.Alias {
+		if err := p.parseAliasFunctionBody(stmt); err != nil {
+			return nil, err
+		}
+	} else {
+		if _, err := p.expect(kwRETURNS); err != nil {
+			return nil, err
+		}
+		if stmt.Returns, err = p.parseLegacyDataType(); err != nil {
+			return nil, err
+		}
+		if p.cur.Kind == kwINTERMEDIATE {
+			p.advance()
+			if stmt.Intermediate, err = p.parseLegacyDataType(); err != nil {
+				return nil, err
 			}
 		}
-		p.advance()
+		if p.cur.Kind == kwPROPERTIES {
+			if stmt.Properties, err = p.parseProperties(); err != nil {
+				return nil, err
+			}
+		}
 	}
-	end := p.prev.Loc.End
-	if end > start {
-		stmt.RawSignature = strings.TrimSpace(p.input[start-p.baseOffset : end-p.baseOffset])
-	}
+
+	stmt.RawSignature = strings.TrimSpace(p.input[start-p.baseOffset : p.prev.Loc.End-p.baseOffset])
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
 }
 
-// parseDropFunction parses Doris DROP [GLOBAL] FUNCTION name(arg_types).
+// parseAliasFunctionBody reads the tail of CREATE ALIAS FUNCTION:
+//
+//	WITH PARAMETER LEFT_PAREN identifierSeq? RIGHT_PAREN AS expression
+//
+// (DorisParser.g4:806-807; the CUP parser's opt_ident_list and expr).
+func (p *Parser) parseAliasFunctionBody(stmt *ast.CreateFunctionStmt) error {
+	if _, err := p.expect(kwWITH); err != nil {
+		return err
+	}
+	if _, err := p.expect(kwPARAMETER); err != nil {
+		return err
+	}
+	if _, err := p.expect(int('(')); err != nil {
+		return err
+	}
+	if p.cur.Kind != int(')') {
+		for {
+			name, _, err := p.parseIdentifier()
+			if err != nil {
+				return err
+			}
+			stmt.Parameters = append(stmt.Parameters, name)
+			if p.cur.Kind != int(',') {
+				break
+			}
+			p.advance() // consume ','
+		}
+	}
+	if _, err := p.expect(int(')')); err != nil {
+		return err
+	}
+	if _, err := p.expect(kwAS); err != nil {
+		return err
+	}
+	body, err := p.parseExpr()
+	if err != nil {
+		return err
+	}
+	stmt.Body = body
+	return nil
+}
+
+// parseFunctionArguments reads a function signature's argument list, from
+// its '(' through its ')': what DorisParser.g4's
+//
+//	LEFT_PAREN functionArguments? RIGHT_PAREN
+//	functionArguments : functionArgument (COMMA functionArgument)*
+//	functionArgument  : DOTDOTDOT | dataType
+//
+// (:872-879) and the CUP parser's func_args_def (DorisLegacyParser.g4:2624:
+// empty, '...', or types with an optional trailing ', ...') both take. So
+// "..." comes last, once.
+func (p *Parser) parseFunctionArguments() ([]*ast.TypeName, bool, error) {
+	if _, err := p.expect(int('(')); err != nil {
+		return nil, false, err
+	}
+	var args []*ast.TypeName
+	variadic := false
+	if p.cur.Kind != int(')') {
+		for {
+			if p.cur.Kind == tokDotDotDot {
+				p.advance()
+				variadic = true
+				break
+			}
+			arg, err := p.parseLegacyDataType()
+			if err != nil {
+				return nil, false, err
+			}
+			args = append(args, arg)
+			if p.cur.Kind != int(',') {
+				break
+			}
+			p.advance() // consume ','
+		}
+	}
+	if _, err := p.expect(int(')')); err != nil {
+		return nil, false, err
+	}
+	return args, variadic, nil
+}
+
+// parseDropFunction parses (DorisParser.g4:730-731)
+//
+//	DROP (GLOBAL | SESSION | LOCAL)? FUNCTION (IF EXISTS)?
+//	    functionIdentifier LEFT_PAREN functionArguments? RIGHT_PAREN
+//
+// and the CUP parser's drop_stmt form (DorisLegacyParser.g4:962). On entry,
+// DROP has been consumed.
 func (p *Parser) parseDropFunction(dropLoc ast.Loc) (ast.Node, error) {
 	stmt := &ast.DropFunctionStmt{Loc: dropLoc}
 	start := p.cur.Loc.Start
 
-	if p.cur.Kind == kwGLOBAL {
+	switch p.cur.Kind {
+	case kwGLOBAL:
 		stmt.Global = true
+		p.advance()
+	case kwSESSION, kwLOCAL:
 		p.advance()
 	}
 	if _, err := p.expect(kwFUNCTION); err != nil {
 		return nil, err
 	}
-
 	if p.cur.Kind == kwIF {
 		p.advance()
 		if _, err := p.expect(kwEXISTS); err != nil {
@@ -80,36 +207,16 @@ func (p *Parser) parseDropFunction(dropLoc ast.Loc) (ast.Node, error) {
 		}
 		stmt.IfExists = true
 	}
-
-	// Function name (qualified)
-	if isIdentifierToken(p.cur.Kind) {
-		name, err := p.parseMultipartIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Name = name
+	name, err := p.parseMultipartIdentifier()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Name = name
+	if stmt.Args, stmt.Variadic, err = p.parseFunctionArguments(); err != nil {
+		return nil, err
 	}
 
-	// Argument-type list: (type, type, ...)
-	if p.cur.Kind == int('(') {
-		depth := 0
-		for p.cur.Kind != tokEOF {
-			if p.cur.Kind == int('(') {
-				depth++
-			} else if p.cur.Kind == int(')') {
-				depth--
-				if depth == 0 {
-					p.advance() // consume ')'
-					break
-				}
-			}
-			p.advance()
-		}
-	}
-	end := p.prev.Loc.End
-	if end > start {
-		stmt.RawSignature = strings.TrimSpace(p.input[start-p.baseOffset : end-p.baseOffset])
-	}
+	stmt.RawSignature = strings.TrimSpace(p.input[start-p.baseOffset : p.prev.Loc.End-p.baseOffset])
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
 }

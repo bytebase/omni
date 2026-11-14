@@ -336,6 +336,9 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		case kwDATABASE, kwSCHEMA:
 			return p.parseCreateDatabase()
 		case kwTABLE, kwTEMPORARY:
+			if isCreateFunctionStart(p.cur.Kind, p.peekNext().Kind) {
+				return p.parseCreateFunction(createTok.Loc, false)
+			}
 			return p.parseCreateTable()
 		case kwEXTERNAL:
 			// Peek past EXTERNAL to distinguish CREATE EXTERNAL CATALOG,
@@ -370,8 +373,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseCreateMTMV(createTok.Loc)
 		case kwPROCEDURE:
 			return p.parseCreateProcedure(createTok.Loc, false)
-		case kwFUNCTION, kwAGGREGATE, kwALIAS, kwGLOBAL:
-			return p.parseCreateFunction(createTok.Loc)
+		case kwFUNCTION, kwAGGREGATE, kwGLOBAL:
+			return p.parseCreateFunction(createTok.Loc, false)
 		case kwOR:
 			// CREATE OR REPLACE VIEW ... or CREATE OR REPLACE PROCEDURE ...
 			p.advance() // consume OR
@@ -380,6 +383,9 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			}
 			if p.cur.Kind == kwPROCEDURE {
 				return p.parseCreateProcedure(createTok.Loc, true)
+			}
+			if isCreateFunctionStart(p.cur.Kind, p.peekNext().Kind) {
+				return p.parseCreateFunction(createTok.Loc, true)
 			}
 			return p.parseCreateView(createTok.Loc, true)
 		case kwSTORAGE:
