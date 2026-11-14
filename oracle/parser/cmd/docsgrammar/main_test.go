@@ -1,6 +1,8 @@
 package main
 
 import (
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/enginetest/grammar/docs"
@@ -62,6 +64,42 @@ func TestPlaceholderClasses(t *testing.T) {
 	} {
 		if got := placeholderClass(name); got != want {
 			t.Errorf("<%s> is %s, want %s", name, got, want)
+		}
+	}
+}
+
+// TestUnjudgedStatementsAreNotAsked pins what the converter leaves out
+// because the pinned Oracle refuses it before it parses it: the pages of
+// unjudgedPages are not in the index, and the clauses of unjudgedClauses
+// are no definition of their page's syntax.
+func TestUnjudgedStatementsAreNotAsked(t *testing.T) {
+	t.Chdir(filepath.Join("..", "..", "..", ".."))
+	if err := load(); err != nil {
+		t.Fatal(err)
+	}
+	listed, err := read(index)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bySlug := map[string]string{}
+	for _, p := range pages {
+		bySlug[p.slug] = p.path
+	}
+	for slug := range unjudgedPages {
+		if strings.Contains("\n"+listed+"\n", "\n"+bySlug[slug]+"\n") {
+			t.Errorf("%s is in the index", slug)
+		}
+	}
+	for slug, clauses := range unjudgedClauses {
+		for _, b := range blocks(bySlug[slug]) {
+			for n := range clauses {
+				if strings.HasPrefix(b, n+" ::=") {
+					t.Errorf("%s still defines %s", slug, n)
+				}
+			}
+		}
+		if len(askedNot[slug]) != len(clauses) {
+			t.Errorf("%s: noted %v as left out, want %d clauses", slug, askedNot[slug], len(clauses))
 		}
 	}
 }

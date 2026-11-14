@@ -23,7 +23,7 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 
 	case kwTABLE:
 		p.advance() // consume TABLE
-		return p.parseDropObject(ast.DropTable, start, true, true)
+		return p.parseDropTableStmt(start, false)
 
 	case kwVIEW:
 		p.advance() // consume VIEW
@@ -202,6 +202,13 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 		return p.parseDropObject(ast.DropUser, start, true, false)
 
 	default:
+		// DROP ICEBERG TABLE. ICEBERG is not a reserved keyword, so it is
+		// matched by text and only before TABLE.
+		if p.curIsWord("ICEBERG") && p.peekNext().Type == kwTABLE {
+			p.advance() // consume ICEBERG
+			p.advance() // consume TABLE
+			return p.parseDropTableStmt(start, true)
+		}
 		// Emit a targeted error for recognized-but-unimplemented DROP forms,
 		// or a generic error for completely unknown object types.
 		return p.unsupportedDrop()
@@ -328,6 +335,18 @@ func (p *Parser) parseUndropStmt() (ast.Node, error) {
 		return p.parseUndropObject(ast.UndropTag, start)
 
 	default:
+		// UNDROP ICEBERG TABLE
+		// (https://docs.snowflake.com/en/sql-reference/sql/undrop-iceberg-table).
+		if p.curIsWord("ICEBERG") && p.peekNext().Type == kwTABLE {
+			p.advance() // consume ICEBERG
+			p.advance() // consume TABLE
+			node, err := p.parseUndropObject(ast.UndropTable, start)
+			if err != nil {
+				return nil, err
+			}
+			node.(*ast.UndropStmt).Iceberg = true
+			return node, nil
+		}
 		objText := p.cur.Str
 		if objText == "" {
 			objText = TokenName(p.cur.Type)
@@ -354,6 +373,31 @@ func (p *Parser) parseUndropObject(kind ast.UndropObjectKind, start ast.Loc) (as
 	}
 	stmt.Name = name
 
+	stmt.Loc.End = p.prev.Loc.End
+	return stmt, nil
+}
+
+// parseDropTableStmt parses the tail of DROP [ ICEBERG ] TABLE, after TABLE:
+//
+//	[ IF EXISTS ] <name> [ CASCADE | RESTRICT ] [ PURGE | NOPURGE ]
+//
+// PURGE / NOPURGE come from DROP ICEBERG TABLE, whose ICEBERG keyword is
+// optional (https://docs.snowflake.com/en/sql-reference/sql/drop-iceberg-table).
+func (p *Parser) parseDropTableStmt(start ast.Loc, iceberg bool) (ast.Node, error) {
+	node, err := p.parseDropObject(ast.DropTable, start, true, true)
+	if err != nil {
+		return nil, err
+	}
+	stmt := node.(*ast.DropStmt)
+	stmt.Iceberg = iceberg
+	switch {
+	case p.curIsWord("PURGE"):
+		p.advance() // consume PURGE
+		stmt.Purge = true
+	case p.curIsWord("NOPURGE"):
+		p.advance() // consume NOPURGE
+		stmt.NoPurge = true
+	}
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
 }

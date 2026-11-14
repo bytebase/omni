@@ -255,3 +255,46 @@ func filterOps(plan *MigrationPlan, typ MigrationOpType) []MigrationOp {
 	}
 	return result
 }
+
+func TestMigrationIndexElementSyntax(t *testing.T) {
+	got := generateMigrationSQL(t,
+		`CREATE TABLE t (p jsonb, a int, b int);`,
+		`CREATE TABLE t (p jsonb, a int, b int);
+CREATE INDEX i ON t ((p ->> 'k'), lower(p::text), (a + b), a DESC NULLS LAST, b NULLS FIRST);`)
+	want := `CREATE INDEX i ON public.t ((p ->> 'k'::text), lower(p::text), (a + b), a DESC NULLS LAST, b NULLS FIRST)`
+	if got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+func TestMigrationAttachesPartitionIndex(t *testing.T) {
+	base := `CREATE TABLE p (id int) PARTITION BY RANGE (id);
+CREATE TABLE child PARTITION OF p FOR VALUES FROM (0) TO (10);
+CREATE INDEX pi ON ONLY p (id);
+CREATE INDEX ci ON child (id);`
+	got := generateMigrationSQL(t, base, base+"\nALTER INDEX pi ATTACH PARTITION ci;")
+	if want := `ALTER INDEX public.pi ATTACH PARTITION public.ci`; got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+
+	// pi exists already, so creating ci does not come with it.
+	only := `CREATE TABLE p (id int) PARTITION BY RANGE (id);
+CREATE TABLE child PARTITION OF p FOR VALUES FROM (0) TO (10);
+CREATE INDEX pi ON ONLY p (id);`
+	got = generateMigrationSQL(t, only, only+"\nCREATE INDEX ci ON child (id);\nALTER INDEX pi ATTACH PARTITION ci;")
+	if want := `CREATE INDEX ci ON public.child (id);
+ALTER INDEX public.pi ATTACH PARTITION public.ci`; got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+
+	// Both new: zci comes first, though its name sorts last, so creating pi
+	// adopts it under its own name.
+	bare := `CREATE TABLE p (id int) PARTITION BY RANGE (id);
+CREATE TABLE child PARTITION OF p FOR VALUES FROM (0) TO (10);`
+	got = generateMigrationSQL(t, bare, bare+"\nCREATE INDEX zci ON child (id);\nCREATE INDEX pi ON ONLY p (id);\nALTER INDEX pi ATTACH PARTITION zci;")
+	if want := `CREATE INDEX zci ON public.child (id);
+CREATE INDEX pi ON public.p (id);
+ALTER INDEX public.pi ATTACH PARTITION public.zci`; got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+}

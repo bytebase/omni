@@ -10,9 +10,13 @@
 // is copied under the page that uses it, except a query, which is QUERY. A
 // clause no quoted page defines is left out where it is optional, and the
 // form or definition that requires it is not converted. Those, and a form
-// that does not read as notation, are listed under their page.
+// that does not read as notation, are listed under their page. A statement
+// the pinned Oracle refuses before it parses it, whatever follows, is not
+// converted: CREATE DATABASE, CREATE CONTROLFILE and traditional AUDIT;
+// nor, where it is optional, a clause it refuses that way: PARTITIONSET in
+// ALTER TABLE and CREATE TABLE.
 //
-// pin: docs https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/ sha256:c523850bf1fa8fa444fe7cf746e5fb2de3b63fe9c62b16b1bd1c5ab03d0b5b0e 2026-03-15
+// pin: docs https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/ sha256:4898c740ed43f093638425639be7462d426e3875a78177109d3063581aab6007 2026-03-15
 
 grammar OracleDocs;
 
@@ -61,7 +65,6 @@ statement
     | alterView
     | analyze
     | associateStatistics
-    | auditTraditionalAuditing
     | auditUnifiedAuditing
     | call
     | comment
@@ -71,9 +74,7 @@ statement
     | createAuditPolicyUnifiedAuditing
     | createCluster
     | createContext
-    | createControlfile
     | createDatabaseLink
-    | createDatabase
     | createDimension
     | createDirectory
     | createDiskgroup
@@ -442,7 +443,7 @@ alterDatabase_maximize_standby_db_clause
     : 'SET' 'STANDBY' 'DATABASE' 'TO' ('MAXIMIZE' 'PROTECTION' | 'MAXIMIZE' 'AVAILABILITY' | 'MAXIMIZE' 'PERFORMANCE')
     ;
 alterDatabase_register_logfile_clause
-    : 'RECOVER' ('MANAGED' 'STANDBY' 'DATABASE')? 'REGISTER' 'LOGFILE' STRING (',' STRING)* ('OR' 'REPLACE')? ('FOR' ID)?
+    : 'REGISTER' ('OR' 'REPLACE')? ('PHYSICAL' | 'LOGICAL')? 'LOGFILE' (alterDatabase_file_specification (',' alterDatabase_file_specification)?)* ('FOR' ID)?
     ;
 alterDatabase_commit_switchover_clause
     : ('PREPARE' 'TO' 'SWITCHOVER' 'TO' ('LOGICAL' 'STANDBY' | 'PRIMARY' 'DATABASE') | 'COMMIT' 'TO' 'SWITCHOVER' 'TO' ('PHYSICAL'? 'STANDBY' | 'LOGICAL' 'STANDBY' | 'PRIMARY' 'DATABASE')) ('WITH' 'SESSION' 'SHUTDOWN' | 'WITHOUT' 'SESSION' 'SHUTDOWN')? ('WAIT' | 'NOWAIT')? 'CANCEL'?
@@ -1717,8 +1718,9 @@ alterSystem_end_session_clauses
 
 // https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/ALTER-TABLE.html
 // fix: left out where optional, since no quoted page defines it or what it needs: create_index_statement, external_part_subpart_data_props, json_parameters, lob_parameters, opaque_format_spec, out_of_line_part_storage, storage_clause
+// fix: left out where optional, since the pinned Oracle refuses PARTITIONSET outside a composite-sharded database (ORA-02577 at PARTITIONSET): alter_table_partitionset
 alterTable
-    : 'ALTER' 'TABLE' (ID '.')? ID (alterTable_alter_table_properties | alterTable_column_clauses | alterTable_constraint_clauses | alterTable_alter_table_partitioning | alterTable_alter_table_partitionset | alterTable_alter_external_table | alterTable_move_table_clause | alterTable_modify_to_partitioned | alterTable_modify_opaque_type | alterTable_immutable_table_clauses | alterTable_blockchain_table_clauses | alterTable_duplicated_table_refresh | alterTable_enable_disable_clause) alterTable_enable_disable_clause* (('ENABLE' | 'DISABLE') 'TABLE' 'LOCK')? (('ENABLE' | 'DISABLE') 'ALL' 'TRIGGERS')?
+    : 'ALTER' 'TABLE' (ID '.')? ID (alterTable_alter_table_properties | alterTable_column_clauses | alterTable_constraint_clauses | alterTable_alter_table_partitioning | alterTable_alter_external_table | alterTable_move_table_clause | alterTable_modify_to_partitioned | alterTable_modify_opaque_type | alterTable_immutable_table_clauses | alterTable_blockchain_table_clauses | alterTable_duplicated_table_refresh | alterTable_enable_disable_clause) alterTable_enable_disable_clause* (('ENABLE' | 'DISABLE') 'TABLE' 'LOCK')? (('ENABLE' | 'DISABLE') 'ALL' 'TRIGGERS')?
     ;
 alterTable_alter_table_properties
     : (alterTable_physical_attributes_clause | alterTable_logging_clause | alterTable_table_compression | alterTable_inmemory_table_clause | alterTable_ilm_clause | alterTable_supplemental_table_logging | alterTable_allocate_extent_clause | alterTable_deallocate_unused_clause | 'RENAME' 'LOB' '(' ID ')' 'TO' ID | 'RESULT_CACHE' '(' 'MODE' ('DEFAULT' | 'FORCE') ')' | alterTable_upgrade_table_clause | 'RECORDS_PER_BLOCK' NUMBER | alterTable_parallel_clause | alterTable_row_movement_clause | alterTable_logical_replication_clause | alterTable_flashback_archive_clause | 'SHRINK' 'SPACE' 'CASCADE'? | 'MODIFY' 'CLUSTERING' alterTable_attribute_clustering_clause | alterTable_alter_iot_clauses | alterTable_alter_xmlschema_clause | 'MEMOPTIMIZE' 'FOR' 'READ' | 'NO' 'MEMOPTIMIZE' 'FOR' 'READ' | 'MEMOPTIMIZE' 'FOR' 'WRITE' | 'NO' 'MEMOPTIMIZE' 'FOR' 'WRITE' | alterTable_annotations_clause | 'RENAME' 'TO' ID)
@@ -1731,9 +1733,6 @@ alterTable_constraint_clauses
     ;
 alterTable_alter_table_partitioning
     : (alterTable_modify_table_default_attrs | alterTable_alter_automatic_partitioning | alterTable_alter_interval_partitioning | alterTable_set_subpartition_template | alterTable_modify_table_partition | alterTable_modify_table_subpartition | alterTable_move_table_partition | alterTable_move_table_subpartition | alterTable_add_table_partition | alterTable_coalesce_table_partition | alterTable_coalesce_table_subpartition | alterTable_drop_table_partition | alterTable_drop_table_subpartition | alterTable_rename_partition_subpart | alterTable_truncate_partition_subpart | alterTable_split_table_partition | alterTable_split_table_subpartition | alterTable_merge_table_partitions | alterTable_merge_table_subpartitions | alterTable_exchange_partition_subpart)
-    ;
-alterTable_alter_table_partitionset
-    : 'MODIFY' 'PARTITIONSET'
     ;
 alterTable_alter_external_table
     : (alterTable_add_column_clause | alterTable_modify_column_clauses | alterTable_drop_column_clause | alterTable_parallel_clause | alterTable_external_table_data_props | 'REJECT' 'LIMIT' (NUMBER | 'UNLIMITED') | 'PROJECT' 'COLUMN' ('ALL' | 'REFERENCED'))
@@ -2617,30 +2616,6 @@ associateStatistics_storage_table_clause
     : 'WITH' ('SYSTEM' 'MANAGED' 'STORAGE' 'TABLES' | 'USER' 'MANAGED' 'STORAGE' 'TABLES')
     ;
 
-// https://docs.oracle.com/en/database/oracle/oracle-database/19/sqlrf/AUDIT-Traditional-Auditing.html
-// fix: left out where optional, since no quoted page defines it or what it needs: sql_statement_shortcut
-auditTraditionalAuditing
-    : 'AUDIT' (auditTraditionalAuditing_audit_operation_clause (auditTraditionalAuditing_auditing_by_clause | auditTraditionalAuditing_auditing_on_clause)? | auditTraditionalAuditing_audit_schema_object_clause) ('BY' ('SESSION' | 'ACCESS'))? ('WHENEVER' 'NOT'? 'SUCCESSFUL')? ('CONTAINER' '=' ('CURRENT' | 'ALL'))?
-    ;
-auditTraditionalAuditing_audit_operation_clause
-    : (ID | 'ALL' | 'ALL' 'STATEMENTS' | 'ALL' 'PRIVILEGES') (',' ID)*
-    ;
-auditTraditionalAuditing_auditing_by_clause
-    : 'BY' (ID (',' ID)* | 'SESSION' 'CURRENT')
-    ;
-auditTraditionalAuditing_auditing_on_clause
-    : 'ON' (ID '.')? ID
-    | 'ON' 'DEFAULT'
-    | 'ON' 'DIRECTORY' ID
-    | 'ON' 'MINING' 'MODEL' ID
-    | 'ON' 'SQL' 'TRANSLATION' 'PROFILE' ID
-    | 'NETWORK'
-    | 'DIRECT_PATH' 'LOAD'
-    ;
-auditTraditionalAuditing_audit_schema_object_clause
-    : ID (',' ID)* auditTraditionalAuditing_auditing_on_clause
-    ;
-
 // https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/AUDIT-Unified-Auditing.html
 auditUnifiedAuditing
     : 'AUDIT' ('POLICY' ID (('BY' | 'EXCEPT') ID (',' ID)?)* (('BY' | 'EXCEPT') 'USERS' 'WITH' 'ROLE' ID (',' ID)?)* ('WHENEVER' 'NOT'? 'SUCCESSFUL')? | 'CONTEXT' 'NAMESPACE' ID 'ATTRIBUTES' ID (',' ID)* ('BY' ID (',' ID)?)*)
@@ -2888,79 +2863,12 @@ createContext
     : 'CREATE' ('OR' 'REPLACE')? 'CONTEXT' ID 'USING' (ID '.')? ID ('SHARING' '=' ('METADATA' | 'NONE'))? ('INITIALIZED' ('EXTERNALLY' | 'GLOBALLY'))? ('ACCESSED' 'GLOBALLY')?
     ;
 
-// https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/CREATE-CONTROLFILE.html
-createControlfile
-    : 'CREATE' 'CONTROLFILE' 'REUSE'? ('SET' 'DATABASE' ID | 'DATABASE' ID) createControlfile_logfile_clause (('RESETLOGS' | 'NORESETLOGS'))? ('DATAFILE' createControlfile_file_specification (',' createControlfile_file_specification)?)* ('MAXLOGFILES' NUMBER)? ('MAXLOGMEMBERS' NUMBER)? ('MAXLOGHISTORY' NUMBER)? ('MAXDATAFILES' NUMBER)? ('MAXINSTANCES' NUMBER)? (('ARCHIVELOG' | 'NOARCHIVELOG'))? ('FORCE' 'LOGGING')? ('SET' 'STANDBY' 'NOLOGGING' 'FOR' ('DATA' 'AVAILABILITY' | 'LOAD' 'PERFORMANCE'))? createControlfile_character_set_clause?
-    ;
-createControlfile_logfile_clause
-    : 'LOGFILE' ('GROUP' NUMBER)? createControlfile_file_specification (',' ('GROUP' NUMBER)? createControlfile_file_specification)*
-    ;
-createControlfile_file_specification
-    : STRING? ('SIZE' createControlfile_size_clause)? 'REUSE'? createControlfile_autoextend_clause?
-    ;
-createControlfile_character_set_clause
-    : 'CHARACTER' 'SET' ID
-    ;
-createControlfile_size_clause
-    : NUMBER ('K' | 'M' | 'G' | 'T' | 'P')?
-    ;
-createControlfile_autoextend_clause
-    : 'AUTOEXTEND' ('OFF' | 'ON' ('NEXT' createControlfile_size_clause)? createControlfile_maxsize_clause?)
-    ;
-createControlfile_maxsize_clause
-    : 'MAXSIZE' (createControlfile_size_clause | 'UNLIMITED')
-    ;
-
 // https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/CREATE-DATABASE-LINK.html
 createDatabaseLink
     : 'CREATE' 'SHARED'? 'PUBLIC'? 'DATABASE' 'LINK' ('IF' 'NOT' 'EXISTS')? ID ('CONNECT' 'TO' ('CURRENT_USER' | ID 'IDENTIFIED' 'BY' ID createDatabaseLink_dblink_authentication?) | 'CONNECT' 'WITH' ID)? createDatabaseLink_dblink_authentication? 'USING' STRING
     ;
 createDatabaseLink_dblink_authentication
     : 'AUTHENTICATED' 'BY' ID 'IDENTIFIED' 'BY' ID
-    ;
-
-// https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/CREATE-DATABASE.html
-createDatabase
-    : 'CREATE' 'DATABASE' ID? ('USER' 'SYS' 'IDENTIFIED' 'BY' ID)? ('USER' 'SYSTEM' 'IDENTIFIED' 'BY' ID)? ('CONTROLFILE' 'REUSE')? ('MAXDATAFILES' NUMBER)? ('MAXINSTANCES' NUMBER)? ('CHARACTER' 'SET' ID)? ('NATIONAL' 'CHARACTER' 'SET' ('AL16UTF16' | 'UTF8'))? ('SET' 'DEFAULT' ('BIGFILE' | 'SMALLFILE') 'TABLESPACE')? createDatabase_database_logging_clauses? createDatabase_tablespace_clauses? createDatabase_set_time_zone_clause? createDatabase_enable_pluggable_database? ('USING' 'MIRROR' 'COPY' ID)?
-    ;
-createDatabase_database_logging_clauses
-    : ('LOGFILE' ('GROUP' NUMBER)? createDatabase_file_specification (',' ('GROUP' NUMBER)? createDatabase_file_specification)?)* ('MAXLOGFILES' NUMBER)? ('MAXLOGMEMBERS' NUMBER)? ('MAXLOGHISTORY' NUMBER)? (('ARCHIVELOG' | 'NOARCHIVELOG'))? ('FORCE' 'LOGGING')? ('SET' 'STANDBY' 'NOLOGGING' 'FOR' ('DATA' 'AVAILABILITY' | 'LOAD' 'PERFORMANCE'))?
-    ;
-createDatabase_tablespace_clauses
-    : ('EXTENT' 'MANAGEMENT' 'LOCAL' (('AUTOALLOCATE' | 'UNIFORM' ('SIZE' createDatabase_size_clause)?))?)? ('DATAFILE' createDatabase_file_specification (',' createDatabase_file_specification)?)* ('SYSAUX' 'DATAFILE' createDatabase_file_specification (',' createDatabase_file_specification)?)* createDatabase_default_tablespace? createDatabase_default_temp_tablespace? createDatabase_undo_tablespace? ('USER_DATA' 'TABLESPACE' ID (('BIGFILE' | 'SMALLFILE'))? 'DATAFILE' createDatabase_file_specification (',' createDatabase_file_specification)?)*
-    ;
-createDatabase_set_time_zone_clause
-    : 'SET' 'TIME_ZONE' '=' (STRING | ID)
-    ;
-createDatabase_enable_pluggable_database
-    : 'ENABLE' 'PLUGGABLE' 'DATABASE' ('SEED' createDatabase_file_name_convert? ('SYSTEM' 'DATAFILES' 'SIZE' createDatabase_size_clause ('AUTOEXTEND' ('ON' ('NEXT' createDatabase_size_clause)? ('MAXSIZE' (createDatabase_size_clause | 'UNLIMITED'))? | 'OFF'))?)? ('SYSAUX' 'DATAFILES' 'SIZE' createDatabase_size_clause ('AUTOEXTEND' ('ON' ('NEXT' createDatabase_size_clause)? ('MAXSIZE' (createDatabase_size_clause | 'UNLIMITED'))? | 'OFF'))?)? createDatabase_undo_mode_clause?)?
-    ;
-createDatabase_file_specification
-    : STRING? ('SIZE' createDatabase_size_clause)? 'REUSE'? createDatabase_autoextend_clause?
-    ;
-createDatabase_size_clause
-    : NUMBER ('K' | 'M' | 'G' | 'T' | 'P')?
-    ;
-createDatabase_default_tablespace
-    : 'DEFAULT' 'TABLESPACE' ID (('BIGFILE' | 'SMALLFILE'))? ('DATAFILE' createDatabase_file_specification (',' createDatabase_file_specification)?)* ('EXTENT' 'MANAGEMENT' 'LOCAL' (('AUTOALLOCATE' | 'UNIFORM' ('SIZE' createDatabase_size_clause)?))?)?
-    ;
-createDatabase_default_temp_tablespace
-    : ('DEFAULT' 'TEMPORARY' 'TABLESPACE' | 'DEFAULT' 'LOCAL' 'TEMPORARY' 'TABLESPACE' ('FOR' ('ALL' | 'LEAF'))?) ID (('BIGFILE' | 'SMALLFILE'))? ('TEMPFILE' createDatabase_file_specification (',' createDatabase_file_specification)?)* ('EXTENT' 'MANAGEMENT' 'LOCAL' (('AUTOALLOCATE' | 'UNIFORM' ('SIZE' createDatabase_size_clause)?))?)?
-    ;
-createDatabase_undo_tablespace
-    : 'UNDO' 'TABLESPACE' ID (('BIGFILE' | 'SMALLFILE'))? ('DATAFILE' createDatabase_file_specification (',' createDatabase_file_specification)?)*
-    ;
-createDatabase_file_name_convert
-    : 'FILE_NAME_CONVERT' '=' ('(' STRING ',' STRING (',' STRING ',' STRING)* ')' | 'NONE')
-    ;
-createDatabase_undo_mode_clause
-    : 'LOCAL' 'UNDO' ('ON' | 'OFF')
-    ;
-createDatabase_autoextend_clause
-    : 'AUTOEXTEND' ('OFF' | 'ON' ('NEXT' createDatabase_size_clause)? createDatabase_maxsize_clause?)
-    ;
-createDatabase_maxsize_clause
-    : 'MAXSIZE' (createDatabase_size_clause | 'UNLIMITED')
     ;
 
 // https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/CREATE-DIMENSION.html
@@ -3902,6 +3810,7 @@ createSynonym
 
 // https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/CREATE-TABLE.html
 // fix: left out where optional, since no quoted page defines it or what it needs: create_index_statement, json_collection_table, json_parameters, oject_properties, opaque_format_spec, storage_clause, xmltype_virtual_columns
+// fix: left out where optional, since the pinned Oracle refuses PARTITIONSET outside a sharded database (ORA-02518 at PARTITIONSET): partitionset_clauses
 createTable
     : 'CREATE' (('GLOBAL' 'TEMPORARY' | 'PRIVATE' 'TEMPORARY' | 'SHARDED' | 'DUPLICATED'))? 'TABLE' ('IF' 'NOT' 'EXISTS')? (ID '.')? ID ('SHARING' '=' ('METADATA' | 'DATA' | 'EXTENDED' 'DATA' | 'NONE'))? (createTable_relational_table | createTable_object_table | createTable_xmltype_table) ('MEMOPTIMIZE' 'FOR' 'READ')? ('MEMOPTIMIZE' 'FOR' 'WRITE')? ('PARENT' (ID '.')? ID)?
     ;
@@ -4017,7 +3926,7 @@ createTable_indexing_clause
     : 'INDEXING' ('ON' | 'OFF')
     ;
 createTable_table_partitioning_clauses
-    : (createTable_range_partitions | createTable_list_partitions | createTable_hash_partitions | createTable_composite_range_partitions | createTable_composite_list_partitions | createTable_composite_hash_partitions | createTable_reference_partitioning | createTable_system_partitioning | createTable_consistent_hash_partitions | createTable_consistent_hash_with_subpartitions | createTable_partitionset_clauses)
+    : (createTable_range_partitions | createTable_list_partitions | createTable_hash_partitions | createTable_composite_range_partitions | createTable_composite_list_partitions | createTable_composite_hash_partitions | createTable_reference_partitioning | createTable_system_partitioning | createTable_consistent_hash_partitions | createTable_consistent_hash_with_subpartitions)
     ;
 createTable_attribute_clustering_clause
     : 'CLUSTERING' ((ID '.')? ID)? createTable_clustering_join 'BY' ('LINEAR' 'ORDER' | 'INTERLEAVED' 'ORDER')? '(' createTable_clustering_columns ')' createTable_clustering_when? createTable_zonemap_clause?
@@ -4143,9 +4052,6 @@ createTable_consistent_hash_partitions
 createTable_consistent_hash_with_subpartitions
     : 'PARTITION' 'BY' 'CONSISTENT' 'HASH' '(' ID (',' ID)* ')' (createTable_subpartition_by_range | createTable_subpartition_by_list | createTable_subpartition_by_hash) ('PARTITIONS' 'AUTO')? 'TABLESPACE' 'SET' ID
     ;
-createTable_partitionset_clauses
-    : (createTable_range_partitionset_clause | createTable_list_partitionset_clause)
-    ;
 createTable_clustering_join
     : 'JOIN' (ID '.')? ID 'ON' '(' ID '=' ID ')' ('JOIN' (ID '.')? ID 'ON' '(' ID '=' ID ')')* ('YES' 'ON' 'LOAD' ('YES' 'ON' 'DATA' 'MOVEMENT')? | 'NO' 'ON' 'LOAD' ('NO' 'ON' 'DATA' 'MOVEMENT')?)?
     ;
@@ -4235,12 +4141,6 @@ createTable_individual_hash_subparts
     ;
 createTable_hash_subparts_by_quantity
     : 'SUBPARTITIONS' NUMBER ('STORE' 'IN' '(' ID (',' ID)* ')')?
-    ;
-createTable_range_partitionset_clause
-    : 'PARTITIONSET' 'BY' 'RANGE' '(' ID (',' ID)* ')' 'PARTITION' 'BY' 'CONSISTENT' 'HASH' '(' ID (',' ID)* ')' (createTable_subpartition_by_range | createTable_subpartition_by_list | createTable_subpartition_by_hash)? 'PARTITIONS' 'AUTO' '(' 'PARTITIONSET' ID createTable_range_values_clause ('TABLESPACE' 'SET' ID)? createTable_lob_storage_clause? createTable_subpartition_template? (',' 'PARTITIONSET' ID createTable_range_values_clause ('TABLESPACE' 'SET' ID)? createTable_lob_storage_clause? createTable_subpartition_template?)* ')'
-    ;
-createTable_list_partitionset_clause
-    : 'PARTITIONSET' 'BY' 'LIST' '(' ID ')' 'PARTITION' 'BY' 'CONSISTENT' 'HASH' '(' ID (',' ID)* ')' (createTable_subpartition_by_range | createTable_subpartition_by_list | createTable_subpartition_by_hash)? 'PARTITIONS' 'AUTO' '(' 'PARTITIONSET' ID createTable_list_values_clause ('TABLESPACE' 'SET' ID)? createTable_lob_storage_clause? createTable_subpartition_template? (',' 'PARTITIONSET' ID createTable_list_values_clause ('TABLESPACE' 'SET' ID)? createTable_lob_storage_clause? createTable_subpartition_template?)* ')'
     ;
 createTable_index_properties
     : (createTable_global_partitioned_index | createTable_local_partitioned_index)? createTable_index_attributes? (createTable_domain_index_clause | createTable_xmlindex_clause)?

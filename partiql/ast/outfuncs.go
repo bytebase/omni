@@ -417,6 +417,10 @@ func writeNode(sb *strings.Builder, n Node) {
 		sb.WriteString(" Right:")
 		writeNode(sb, v.Right)
 		sb.WriteString("}")
+	case *ExprStmt:
+		sb.WriteString("ExprStmt{Expr:")
+		writeNode(sb, v.Expr)
+		sb.WriteString("}")
 	case *ExplainStmt:
 		sb.WriteString("ExplainStmt{Inner:")
 		writeNode(sb, v.Inner)

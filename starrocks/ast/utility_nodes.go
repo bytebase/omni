@@ -133,10 +133,12 @@ type SetItem struct {
 	// Scope is "GLOBAL", "SESSION", "LOCAL", or "" (session default).
 	Scope string
 	// Name is the variable name (without @@ prefix).
-	Name  string
-	Value Node   // parsed expression value; may be nil when Raw is set
-	Raw   string // raw text for complex RHS
-	Loc   Loc
+	Name string
+	// UserVariable marks @name, a user variable.
+	UserVariable bool
+	Value        Node   // parsed expression value; may be nil when Raw is set
+	Raw          string // raw text for complex RHS
+	Loc          Loc
 }
 
 // Tag implements Node.

@@ -159,3 +159,74 @@ func opsDebug(ops []MigrationOp) []string {
 	}
 	return result
 }
+
+func TestMigrationExtensionSchemaVersionAndMembers(t *testing.T) {
+	tests := []struct {
+		name, from, to, want string
+	}{
+		{
+			// pg_trgm's functions, types, and operators come with it.
+			name: "create names schema and version",
+			from: `CREATE SCHEMA ext;`,
+			to:   `CREATE SCHEMA ext; CREATE EXTENSION pg_trgm WITH SCHEMA ext VERSION '1.6';`,
+			want: `CREATE EXTENSION "pg_trgm" WITH SCHEMA "ext" VERSION '1.6'`,
+		},
+		{
+			name: "drop leaves the members to the extension",
+			from: `CREATE EXTENSION pg_trgm;`,
+			to:   ``,
+			want: `DROP EXTENSION "pg_trgm"`,
+		},
+		{
+			name: "version change updates in place",
+			from: `CREATE EXTENSION pg_trgm VERSION '1.5';`,
+			to:   `CREATE EXTENSION pg_trgm VERSION '1.6';`,
+			want: `ALTER EXTENSION "pg_trgm" UPDATE TO '1.6'`,
+		},
+		{
+			name: "a version one side leaves out is no change",
+			from: `CREATE EXTENSION pg_trgm;`,
+			to:   `CREATE EXTENSION pg_trgm VERSION '1.6';`,
+			want: ``,
+		},
+		{
+			name: "a grant on an extension's function is the user's",
+			from: `CREATE EXTENSION pgcrypto;`,
+			to:   `CREATE EXTENSION pgcrypto; GRANT EXECUTE ON FUNCTION public.crypt(text, text) TO app;`,
+			want: `GRANT EXECUTE ON FUNCTION public.crypt(text,text) TO "app"`,
+		},
+		{
+			name: "a comment on an extension's function is the user's",
+			from: `CREATE EXTENSION pg_trgm;`,
+			to:   `CREATE EXTENSION pg_trgm; COMMENT ON FUNCTION similarity(text, text) IS 'mine';`,
+			want: `COMMENT ON FUNCTION public.similarity(text,text) IS 'mine'`,
+		},
+		{
+			name: "a new extension's functions keep the user's settings",
+			from: ``,
+			to:   `CREATE EXTENSION pgcrypto; GRANT EXECUTE ON FUNCTION public.crypt(text, text) TO app; COMMENT ON FUNCTION crypt(text, text) IS 'mine';`,
+			want: `CREATE EXTENSION "pgcrypto" WITH SCHEMA "public";
+COMMENT ON FUNCTION public.crypt(text,text) IS 'mine';
+GRANT EXECUTE ON FUNCTION public.crypt(text,text) TO "app"`,
+		},
+		{
+			name: "a comment on an extension's function goes with the extension",
+			from: `CREATE EXTENSION pg_trgm; COMMENT ON FUNCTION similarity(text, text) IS 'mine';`,
+			to:   ``,
+			want: `DROP EXTENSION "pg_trgm"`,
+		},
+		{
+			name: "an extension without a bundled script is still created",
+			from: ``,
+			to:   `CREATE EXTENSION postgis;`,
+			want: `CREATE EXTENSION "postgis" WITH SCHEMA "public"`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := generateMigrationSQL(t, tt.from, tt.to); got != tt.want {
+				t.Errorf("got:\n%s\nwant:\n%s", got, tt.want)
+			}
+		})
+	}
+}
