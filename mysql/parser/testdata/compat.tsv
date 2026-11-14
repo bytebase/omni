@@ -10660,12 +10660,12 @@ reject	reject	engine	set_resource_group_stmt/SET_SYM_RESOURCE_SYM_GROUP_SYM_iden
 reject	reject	engine	set_resource_group_stmt/SET_SYM_RESOURCE_SYM_GROUP_SYM_ident_FOR_SYM_thread_id_list_options!drop-3	SET RESOURCE utf8mb4 FOR 1;
 reject	reject	engine	set_resource_group_stmt/SET_SYM_RESOURCE_SYM_GROUP_SYM_ident_FOR_SYM_thread_id_list_options!drop-4	SET RESOURCE GROUP FOR 1;
 reject	reject	engine	set_resource_group_stmt/SET_SYM_RESOURCE_SYM_GROUP_SYM_ident_FOR_SYM_thread_id_list_options!drop-5	SET RESOURCE GROUP utf8mb4 1;
-accept	reject	engine	set_resource_group_stmt/SET_SYM_RESOURCE_SYM_GROUP_SYM_ident_FOR_SYM_thread_id_list_options!drop-6	SET RESOURCE GROUP utf8mb4 FOR;
-accept	reject	engine	set_resource_group_stmt/SET_SYM_RESOURCE_SYM_GROUP_SYM_ident_FOR_SYM_thread_id_list_options!truncate	SET RESOURCE GROUP utf8mb4 FOR
+reject	reject	engine	set_resource_group_stmt/SET_SYM_RESOURCE_SYM_GROUP_SYM_ident_FOR_SYM_thread_id_list_options!drop-6	SET RESOURCE GROUP utf8mb4 FOR;
+reject	reject	engine	set_resource_group_stmt/SET_SYM_RESOURCE_SYM_GROUP_SYM_ident_FOR_SYM_thread_id_list_options!truncate	SET RESOURCE GROUP utf8mb4 FOR
 reject	reject	engine	set_resource_group_stmt/SET_SYM_RESOURCE_SYM_GROUP_SYM_ident_FOR_SYM_thread_id_list_options!insert	SET RESOURCE GROUP utf8mb4 FOR 1 zzz;
 reject	reject	engine	set_resource_group_stmt/SET_SYM_RESOURCE_SYM_GROUP_SYM_ident_FOR_SYM_thread_id_list_options!swap	SHARE RESOURCE GROUP utf8mb4 FOR 1;
 accept	accept	engine	thread_id_list/real_ulong_num	SET RESOURCE GROUP utf8mb4 FOR 1;
-reject	accept	engine	thread_id_list/thread_id_list_opt_comma_real_ulong_num	SET RESOURCE GROUP utf8mb4 FOR 1 1;
+accept	accept	engine	thread_id_list/thread_id_list_opt_comma_real_ulong_num	SET RESOURCE GROUP utf8mb4 FOR 1 1;
 accept	accept	engine	thread_id_list/thread_id_list_opt_comma_real_ulong_num!truncate	SET RESOURCE GROUP utf8mb4 FOR 1
 reject	reject	engine	thread_id_list/thread_id_list_opt_comma_real_ulong_num!insert	SET RESOURCE GROUP utf8mb4 FOR 1 1 zzz;
 accept	accept	engine	thread_id_list_options/thread_id_list	SET RESOURCE GROUP utf8mb4 FOR 1;
@@ -12249,7 +12249,7 @@ reject	reject	engine	opt_resource_group_vcpu_list/VCPU_SYM_opt_equal_vcpu_range_
 reject	reject	engine	opt_resource_group_vcpu_list/VCPU_SYM_opt_equal_vcpu_range_spec_list!insert	ALTER RESOURCE GROUP utf8mb4 VCPU 1 zzz;
 reject	reject	engine	opt_resource_group_vcpu_list/VCPU_SYM_opt_equal_vcpu_range_spec_list!swap	ALTER RESOURCE GROUP utf8mb4 VIEW 1;
 accept	accept	engine	vcpu_range_spec_list/vcpu_num_or_range	ALTER RESOURCE GROUP utf8mb4 VCPU 1;
-reject	accept	engine	vcpu_range_spec_list/vcpu_range_spec_list_opt_comma_vcpu_num_or_range	ALTER RESOURCE GROUP utf8mb4 VCPU 1 1;
+accept	accept	engine	vcpu_range_spec_list/vcpu_range_spec_list_opt_comma_vcpu_num_or_range	ALTER RESOURCE GROUP utf8mb4 VCPU 1 1;
 accept	accept	engine	vcpu_range_spec_list/vcpu_range_spec_list_opt_comma_vcpu_num_or_range!truncate	ALTER RESOURCE GROUP utf8mb4 VCPU 1
 reject	reject	engine	vcpu_range_spec_list/vcpu_range_spec_list_opt_comma_vcpu_num_or_range!insert	ALTER RESOURCE GROUP utf8mb4 VCPU 1 1 zzz;
 accept	accept	engine	vcpu_num_or_range/NUM	ALTER RESOURCE GROUP utf8mb4 VCPU 1;
