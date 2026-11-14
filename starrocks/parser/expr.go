@@ -855,6 +855,9 @@ func (p *Parser) parseFuncCall(name *ast.ObjectName) (*ast.FuncCallExpr, error) 
 	if quantified && funcName == "COUNT" && len(name.Parts) == 1 && p.cur.Kind == int('[') {
 		cp := p.save()
 		if err := p.skipBracketHint(); err != nil {
+			if isNestingError(err) {
+				return nil, err
+			}
 			p.restore(cp)
 		}
 	}
@@ -2206,6 +2209,12 @@ func (p *Parser) tryParseNameLambda() (ast.Node, bool, error) {
 // '[' identifier (',' identifier)* ']' or
 // '[' identifier '|' primaryExpression literalExpressionList ']'.
 func (p *Parser) skipBracketHint() error {
+	// The hint's primaryExpression can hold another COUNT with a hint, so
+	// this is a recursion cycle and passes through the nesting limit.
+	if err := p.enterNesting(); err != nil {
+		return err
+	}
+	defer p.leaveNesting()
 	p.advance() // consume '['
 	if _, _, err := p.parseIdentifier(); err != nil {
 		return err
