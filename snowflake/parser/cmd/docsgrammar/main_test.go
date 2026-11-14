@@ -7,9 +7,13 @@ import (
 	"github.com/bytebase/omni/enginetest/grammar/docs"
 )
 
+// accountPage is an account-level object's page, where <name> is one
+// part, ID.
+const accountPage = "alter-warehouse"
+
 func form(t *testing.T, notation string) string {
 	t.Helper()
-	alts, err := docs.Form(dialect, notation)
+	alts, err := docs.Form(dialect, accountPage, notation)
 	if err != nil {
 		t.Fatalf("%s: %v", notation, err)
 	}
@@ -23,7 +27,7 @@ func TestNotationReadsAsANTLR(t *testing.T) {
 	for _, c := range []struct{ in, want string }{
 		{"ALTER WAREHOUSE [ IF EXISTS ] [ <name> ] { SUSPEND | RESUME [ IF SUSPENDED ] }",
 			"'ALTER' 'WAREHOUSE' ('IF' 'EXISTS')? ID? ('SUSPEND' | 'RESUME' ('IF' 'SUSPENDED')?)"},
-		{"UNSET TAG <tag_name> [ , <tag_name> ... ]", "'UNSET' 'TAG' ID (',' ID)*"},
+		{"UNSET TAG <tag_name> [ , <tag_name> ... ]", "'UNSET' 'TAG' QNAME (',' QNAME)*"},
 		{"( <col_name> [ , ... ] )", "'(' ID (',' ID)* ')'"},
 		{"( <expr> [ , <expr> , ... ] )", "'(' EXPR (',' EXPR)* ')'"},
 		// A list element the docs spell twice is the element, however long.
@@ -60,6 +64,12 @@ func TestNotationReadsAsANTLR(t *testing.T) {
 		{"SET [ SECRETS = ( <s> ) | all | none ]", "'SET' ('SECRETS' '=' '(' ID ')' | 'SECRETS' '=' 'all' | 'SECRETS' '=' 'none')"},
 		{"DESC[RIBE] RESULT '<query_id>'", "('DESC' | 'DESCRIBE') 'RESULT' STRING"},
 		{"STORAGE_PROVIDER = '{ S3 | S3CHINA }'", "'STORAGE_PROVIDER' '=' ('\\'S3\\'' | '\\'S3CHINA\\'')"},
+		// A sequence of keywords alone repeats whole.
+		{"EVOLVE SCHEMA [ , ... ]", "'EVOLVE' 'SCHEMA' (',' 'EVOLVE' 'SCHEMA')*"},
+		// X [ , Y ] [ , ... ] repeats the comma-led group.
+		{"( <c1> <col1_type> NOT NULL [ , <c2> <col2_type> NOT NULL ] [ , ... ] )", "'(' ID DATA_TYPE 'NOT' 'NULL' (',' ID DATA_TYPE 'NOT' 'NULL')* ')'"},
+		// UNSET's list takes every optional clause after the names.
+		{"ALTER T <name> UNSET [ A ] [ B ] [ <p> [ , <p> ... ] ] [ C ]", "'ALTER' 'T' ID 'UNSET' ('A' | 'B' | ID (',' ID)* | 'C') (',' ('A' | 'B' | ID (',' ID)* | 'C'))*"},
 		// { <target> SET X | UNSET X }: UNSET keeps the target.
 		{"ALTER V <name> { MODIFY COLUMN <col> SET MASKING POLICY <p> | UNSET MASKING POLICY }", "'ALTER' 'V' ID ('MODIFY' 'COLUMN' ID 'SET' 'MASKING' 'POLICY' ID | 'MODIFY' 'COLUMN' ID 'UNSET' 'MASKING' 'POLICY')"},
 		{"ALTER V <name> { SET COMMENT = '<c>' | UNSET COMMENT }", "'ALTER' 'V' ID ('SET' 'COMMENT' '=' STRING | 'UNSET' 'COMMENT')"},
@@ -101,7 +111,7 @@ func TestSetSetsAtLeastOne(t *testing.T) {
 // statement form: a choice of what follows the object's name, not of
 // whole statements.
 func TestBareChoicesChooseWhatFollowsTheName(t *testing.T) {
-	alts, err := docs.Statement(dialect, "ALTER TASK [ IF EXISTS ] <name> RESUME | SUSPEND")
+	alts, err := docs.Statement(dialect, accountPage, "ALTER TASK [ IF EXISTS ] <name> RESUME | SUSPEND")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -109,7 +119,7 @@ func TestBareChoicesChooseWhatFollowsTheName(t *testing.T) {
 	if got := strings.Join(alts, " | "); got != want {
 		t.Errorf("got  %s\nwant %s", got, want)
 	}
-	alts, err = docs.Statement(dialect, "ALTER INTEGRATION <name> UNSET ENABLED | COMMENT")
+	alts, err = docs.Statement(dialect, accountPage, "ALTER INTEGRATION <name> UNSET ENABLED | COMMENT")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,7 +127,7 @@ func TestBareChoicesChooseWhatFollowsTheName(t *testing.T) {
 	if got := strings.Join(alts, " | "); got != want {
 		t.Errorf("got  %s\nwant %s", got, want)
 	}
-	alts, err = docs.Statement(dialect, "ALTER P <name> SET A = <num> | B = <num>")
+	alts, err = docs.Statement(dialect, accountPage, "ALTER P <name> SET A = <num> | B = <num>")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,7 +135,7 @@ func TestBareChoicesChooseWhatFollowsTheName(t *testing.T) {
 	if got := strings.Join(alts, " | "); got != want {
 		t.Errorf("got  %s\nwant %s", got, want)
 	}
-	if _, err := docs.Statement(dialect, "SHOW TASKS | SUSPEND"); err != docs.ErrScope {
+	if _, err := docs.Statement(dialect, accountPage, "SHOW TASKS | SUSPEND"); err != docs.ErrScope {
 		t.Errorf("a choice with no name to scope it: got %v, want docs.ErrScope", err)
 	}
 }
@@ -133,39 +143,51 @@ func TestBareChoicesChooseWhatFollowsTheName(t *testing.T) {
 func TestElidedTextIsNotConverted(t *testing.T) {
 	// A lowercase word is a value beside = or |, and an undefined fragment
 	// anywhere else.
-	if _, err := docs.Form(dialect, "API_PROVIDER = { aws_api_gateway | azure }"); err != nil {
+	if _, err := docs.Form(dialect, accountPage, "API_PROVIDER = { aws_api_gateway | azure }"); err != nil {
 		t.Errorf("lowercase values: %v", err)
 	}
-	if _, err := docs.Form(dialect, "{ TYPE = app | TYPE = OAUTH2 oauth_parameters | TYPE = NONE }"); err == nil || !strings.Contains(err.Error(), "oauth_parameters") {
+	if _, err := docs.Form(dialect, accountPage, "{ TYPE = app | TYPE = OAUTH2 oauth_parameters | TYPE = NONE }"); err == nil || !strings.Contains(err.Error(), "oauth_parameters") {
 		t.Errorf("an undefined lowercase fragment: got %v", err)
 	}
-	if _, err := docs.Form(dialect, "( TYPE = OAUTH2 {oauth_parameters} )"); err == nil || !strings.Contains(err.Error(), "oauth_parameters") {
+	if _, err := docs.Form(dialect, accountPage, "( TYPE = OAUTH2 {oauth_parameters} )"); err == nil || !strings.Contains(err.Error(), "oauth_parameters") {
 		t.Errorf("a lowercase word alone in braces: got %v", err)
 	}
-	if _, err := docs.Form(dialect, "CREATE S <name> [ RETENTION = ] [ COMMENT = '<s>' ]"); err == nil {
+	if _, err := docs.Form(dialect, accountPage, "CREATE S <name> [ RETENTION = ] [ COMMENT = '<s>' ]"); err == nil {
 		t.Errorf("an = with no value was converted")
 	}
-	if _, err := docs.Form(dialect, "ALTER S <name> [ INCREMENT [ BY ] [ = ] <num> ]"); err != nil {
+	if _, err := docs.Form(dialect, accountPage, "ALTER S <name> [ INCREMENT [ BY ] [ = ] <num> ]"); err != nil {
 		t.Errorf("an optional = sign: %v", err)
 	}
-	if _, err := docs.Form(dialect, "CREATE [ OR REPLACE ] <integration_type> INTEGRATION <object_name>"); err == nil {
+	if _, err := docs.Form(dialect, accountPage, "CREATE [ OR REPLACE ] <integration_type> INTEGRATION <object_name>"); err == nil {
 		t.Errorf("a placeholder for a type's keyword was converted")
 	}
-	if _, err := docs.Form(dialect, "ALTER [ <integration_type> ] INTEGRATION <object_name> <actions>"); err == nil {
+	if _, err := docs.Form(dialect, accountPage, "ALTER [ <integration_type> ] INTEGRATION <object_name> <actions>"); err == nil {
 		t.Errorf("a bracketed placeholder for a type's keyword was converted")
 	}
-	if got, err := docs.Form(dialect, "SHOW X IN APPLICATION {app_name}"); err != nil || got[0] != "'SHOW' 'X' 'IN' 'APPLICATION' ID" {
+	if got, err := docs.Form(dialect, accountPage, "SHOW X IN APPLICATION {app_name}"); err != nil || got[0] != "'SHOW' 'X' 'IN' 'APPLICATION' ID" {
 		t.Errorf("a placeholder in braces: got %v, %v", got, err)
 	}
+	if got, err := docs.Form(dialect, accountPage, "CREATE STAGE <name> CLONE <source>\n  [ ... ]"); err != nil || got[0] != "'CREATE' 'STAGE' ID 'CLONE' ID" {
+		t.Errorf("a last line of [ ... ]: got %v, %v", got, err)
+	}
+	if _, err := docs.Form(dialect, accountPage, "DEFINE TASK A.B.C\n  SCHEDULE = '1 minute'"); err != docs.ErrProjectOnly {
+		t.Errorf("a DEFINE form: got %v, want docs.ErrProjectOnly", err)
+	}
+	if _, err := docs.Form(dialect, accountPage, "CREATE TABLE <name>\n  CLONE <source>\n  ..."); err != docs.ErrElided {
+		t.Errorf("a last line of ...: got %v, want docs.ErrElided", err)
+	}
+	if got, err := docs.Form(dialect, accountPage, "SET RULES\n  <rule> = ( <r> ),\n  ..."); err != nil || got[0] != "'SET' 'RULES' ID '=' '(' ID ')' (',' ID '=' '(' ID ')')*" {
+		t.Errorf("a last line of ... after a comma: got %v, %v", got, err)
+	}
 	for _, in := range []string{"SELECT * ILIKE ... REPLACE ...", "[ ... ] SELECT 1", "VALUES ( ... )"} {
-		if _, err := docs.Form(dialect, in); err != docs.ErrElided {
+		if _, err := docs.Form(dialect, accountPage, in); err != docs.ErrElided {
 			t.Errorf("%s: got %v, want docs.ErrElided", in, err)
 		}
 	}
-	if _, err := docs.Form(dialect, "ALTER X <name> <tagAction>"); err == nil || !strings.Contains(err.Error(), "tagAction") {
+	if _, err := docs.Form(dialect, accountPage, "ALTER X <name> <tagAction>"); err == nil || !strings.Contains(err.Error(), "tagAction") {
 		t.Errorf("an undefined fragment in angle brackets: got %v", err)
 	}
-	if _, err := docs.Form(dialect, "ALTER X { tableAction }"); err == nil || !strings.Contains(err.Error(), "tableAction") {
+	if _, err := docs.Form(dialect, accountPage, "ALTER X { tableAction }"); err == nil || !strings.Contains(err.Error(), "tableAction") {
 		t.Errorf("an undefined fragment: got %v", err)
 	}
 }
@@ -251,7 +273,7 @@ func TestAPageMayShowAnotherStatement(t *testing.T) {
 	pg := docs.ConvertPage(dialect, "create-table-constraint", []string{`CREATE TABLE <name> ( <col_name> <col_type> )
 COMMENT = '<string_literal>'
 ALTER TABLE <name> ADD COLUMN <col_name> <col_type>`}, nil)
-	want := []string{"'CREATE' 'TABLE' ID '(' ID DATA_TYPE ')' 'COMMENT' '=' STRING", "'ALTER' 'TABLE' ID 'ADD' 'COLUMN' ID DATA_TYPE"}
+	want := []string{"'CREATE' 'TABLE' QNAME '(' ID DATA_TYPE ')' 'COMMENT' '=' STRING", "'ALTER' 'TABLE' QNAME 'ADD' 'COLUMN' ID DATA_TYPE"}
 	if strings.Join(pg.Forms, "\n") != strings.Join(want, "\n") {
 		t.Errorf("forms:\n%s", strings.Join(pg.Forms, "\n"))
 	}
@@ -280,7 +302,7 @@ func TestARepeatedFragmentKeepsItsOperator(t *testing.T) {
 // with its value and the list's |: the | is not a choice of values.
 func TestATrailingBarIsTheLists(t *testing.T) {
 	pg := docs.ConvertPage(dialect, "alter-x", []string{"ALTER X <name> UNSET {\n    A |\n    B = <b> |\n    C }"}, nil)
-	if len(pg.Forms) != 1 || pg.Forms[0] != "'ALTER' 'X' ID 'UNSET' ('A' | 'B' '=' ID | 'C')" {
+	if len(pg.Forms) != 1 || pg.Forms[0] != "'ALTER' 'X' QNAME 'UNSET' ('A' | 'B' '=' ID | 'C')" {
 		t.Errorf("forms %q, failed %+v", pg.Forms, pg.Failed)
 	}
 }
@@ -295,18 +317,160 @@ func TestFixesApplyToTheirPage(t *testing.T) {
 
 func TestPlaceholderClasses(t *testing.T) {
 	for name, want := range map[string]string{
-		"name": docs.ClassName, "table_name": docs.ClassName, "integer": docs.ClassNumber, "num": docs.ClassNumber, "rows": docs.ClassNumber,
-		"expr": docs.ClassExpr, "boolean_expr": docs.ClassExpr, "condition": docs.ClassExpr, "query": docs.ClassQuery,
-		"col_type": docs.ClassDataType, "arg_data_type": docs.ClassDataType, "string_literal": docs.ClassString, "copy_statement": tCopy,
-		"sql":       docs.ClassQuery,
-		"timestamp": docs.ClassString, "procedure_definition": docs.ClassString,
-		"threshold": docs.ClassNumber,
-		"col1_type": docs.ClassDataType, "specification_text": docs.ClassString,
-		"python_version": docs.ClassString, "scala_or_java_runtime_version": docs.ClassString, "version_name": docs.ClassName,
-		"object_type": tObjectType, "object_type_plural": tObjectTypes, "integration_name": docs.ClassName,
+		"name": tQName, "table_name": tQName, "col_name": tName, "schema_name": tQName2, "database_role_name": tQName2, "target_table": tQName, "additional_tables": tQName, "repository_url": tName, "integer": tNumber, "num": tNumber, "rows": tNumber,
+		"expr": tExpr, "boolean_expr": tExpr, "condition": tExpr, "query": tQuery,
+		"col_type": tType, "arg_data_type": tType, "string_literal": tString, "copy_statement": tCopy,
+		"sql":       tQuery,
+		"timestamp": tString, "procedure_definition": tString,
+		"threshold": tNumber,
+		"col1_type": tType, "specification_text": tString,
+		"python_version": tString, "scala_or_java_runtime_version": tString, "version_name": tName,
+		"object_type": tObjectType, "object_type_plural": tObjectTypes, "integration_name": tName,
 	} {
 		if got := placeholderClass(name); got != want {
 			t.Errorf("<%s> is %s, want %s", name, got, want)
 		}
+	}
+}
+
+// TestATrailingListRepeatsTheWholeChoice pins that a definition of choices
+// whose last line is only [ , ... ] is a list of the choice, not of its
+// last alternative.
+func TestATrailingListRepeatsTheWholeChoice(t *testing.T) {
+	pg := docs.ConvertPage(dialect, "grant-privilege-user", []string{
+		"GRANT schemaPrivileges ON SCHEMA <s> TO USER <u>",
+		"schemaPrivileges ::=\n    ADD SEARCH OPTIMIZATION | APPLYBUDGET\n  | MODIFY | MONITOR | USAGE\n  [ , ... ]",
+	}, nil)
+	want := "('ADD' 'SEARCH' 'OPTIMIZATION' | 'APPLYBUDGET' | 'MODIFY' | 'MONITOR' | 'USAGE') (',' ('ADD' 'SEARCH' 'OPTIMIZATION' | 'APPLYBUDGET' | 'MODIFY' | 'MONITOR' | 'USAGE'))*"
+	if len(pg.Frags) != 1 || strings.Join(pg.Frags[0].Alts, " | ") != want {
+		t.Errorf("fragments %+v, failed %+v\nwant %s", pg.Frags, pg.Failed, want)
+	}
+}
+
+// TestAdditionalColumnsTakeTheWholeDefinition pins that the abbreviated
+// line after a table's column definition repeats the whole definition.
+func TestAdditionalColumnsTakeTheWholeDefinition(t *testing.T) {
+	pg := docs.ConvertPage(dialect, "create-table", []string{"CREATE TABLE <name> (\n    -- Column definition\n    <col_name> <col_type>\n      [ NOT NULL ]\n\n    -- Additional column definitions\n    [ , <col_name> <col_type> [ ... ] ]\n  )"}, nil)
+	want := "'CREATE' 'TABLE' QNAME '(' ID DATA_TYPE ('NOT' 'NULL')? (',' ID DATA_TYPE ('NOT' 'NULL')?)* ')'"
+	if len(pg.Forms) != 1 || pg.Forms[0] != want {
+		t.Errorf("forms %q, failed %+v\nwant %s", pg.Forms, pg.Failed, want)
+	}
+}
+
+// TestTypeOptionsFollowTheirType pins that each -- If TYPE = X section of
+// formatTypeOptions follows only TYPE = X.
+func TestTypeOptionsFollowTheirType(t *testing.T) {
+	pg := docs.ConvertPage(dialect, "create-file-format", []string{
+		"CREATE FILE FORMAT <name>\n  [ TYPE = { CSV | JSON | CUSTOM } [ formatTypeOptions ] ]",
+		"formatTypeOptions ::=\n-- If TYPE = CSV\n     FIELD_DELIMITER = '<string>'\n-- If TYPE = JSON\n     STRIP_OUTER_ARRAY = TRUE | FALSE",
+	}, nil)
+	want := "'CREATE' 'FILE' 'FORMAT' QNAME (('TYPE' '=' 'CSV' createFileFormat_formatTypeOptions_CSV? | 'TYPE' '=' 'JSON' createFileFormat_formatTypeOptions_JSON? | 'TYPE' '=' 'CUSTOM'))?"
+	if len(pg.Forms) != 1 || pg.Forms[0] != want {
+		t.Errorf("forms %q, failed %+v\nwant %s", pg.Forms, pg.Failed, want)
+	}
+	frags := map[string]string{}
+	for _, f := range pg.Frags {
+		frags[f.Name] = strings.Join(f.Alts, " | ")
+	}
+	if got := frags["createFileFormat_formatTypeOptions_JSON"]; got != "'STRIP_OUTER_ARRAY' '=' ('TRUE' | 'FALSE')" {
+		t.Errorf("JSON options: %q (fragments %v)", got, frags)
+	}
+}
+
+// TestObjectPrivilegesFollowTheirObject pins that each -- For X section of
+// accountObjectPrivileges is granted on X alone.
+func TestObjectPrivilegesFollowTheirObject(t *testing.T) {
+	pg := docs.ConvertPage(dialect, "grant-privilege", []string{
+		"GRANT { accountObjectPrivileges  | ALL [ PRIVILEGES ] } ON { USER | WAREHOUSE | DATABASE } <object_name> TO ROLE <r>",
+		"accountObjectPrivileges ::=\n-- For USER\n   { MONITOR } [ , ... ]\n-- For WAREHOUSE\n   { OPERATE | USAGE } [ , ... ]",
+	}, nil)
+	want := "'GRANT' ((grantPrivilege_accountObjectPrivileges_1 | 'ALL' 'PRIVILEGES'?) 'ON' 'USER' ID | (grantPrivilege_accountObjectPrivileges_2 | 'ALL' 'PRIVILEGES'?) 'ON' 'WAREHOUSE' ID | 'ALL' 'PRIVILEGES'? 'ON' 'DATABASE' ID) 'TO' 'ROLE' ID"
+	if len(pg.Forms) != 1 || pg.Forms[0] != want {
+		t.Errorf("forms %q, failed %+v\nwant %s", pg.Forms, pg.Failed, want)
+	}
+}
+
+// TestSectionObjects pins how a privileges section header names its
+// object types, and their plurals.
+func TestSectionObjects(t *testing.T) {
+	got := sectionObjects("{ MASKING | ROW ACCESS } POLICY or TAG")
+	if strings.Join(got, ",") != "MASKING POLICY,ROW ACCESS POLICY,TAG" {
+		t.Errorf("brace header: %q", got)
+	}
+	got = sectionObjects("FILE FORMAT, FUNCTION (UDF or external function), or TYPE")
+	if strings.Join(got, ",") != "FILE FORMAT,FUNCTION,TYPE" {
+		t.Errorf("list header: %q", got)
+	}
+	if got := sectionObjects("internal STAGE"); strings.Join(got, ",") != "STAGE" {
+		t.Errorf("qualified header: %q", got)
+	}
+	for o, want := range map[string]string{"TABLE": "TABLES", "MASKING POLICY": "MASKING POLICIES", "GATEWAY": "GATEWAYS", "SNAPSHOT SET": "SNAPSHOT SETS"} {
+		if got := plural(o); got != want {
+			t.Errorf("plural(%s) = %s, want %s", o, got, want)
+		}
+	}
+}
+
+// TestAnAccountObjectsNameIsOnePart pins that <name> is a qualified name
+// on a schema object's page and one part on an account-level object's.
+func TestAnAccountObjectsNameIsOnePart(t *testing.T) {
+	for slug, want := range map[string]string{
+		"alter-table":     "'ALTER' 'TABLE' QNAME 'RENAME' 'TO' QNAME",
+		"alter-warehouse": "'ALTER' 'TABLE' ID 'RENAME' 'TO' ID",
+	} {
+		pg := docs.ConvertPage(dialect, slug, []string{"ALTER TABLE <name> RENAME TO <new_name>"}, nil)
+		if len(pg.Forms) != 1 || pg.Forms[0] != want {
+			t.Errorf("%s: forms %q, want %s", slug, pg.Forms, want)
+		}
+	}
+}
+
+// TestAnExplicitNamespaceKeepsTheNameOnePart pins [ <db_name>. ]<name>:
+// the name after the notation's own dot is one part.
+func TestAnExplicitNamespaceKeepsTheNameOnePart(t *testing.T) {
+	pg := docs.ConvertPage(dialect, "use-schema", []string{"USE [ SCHEMA ] [<db_name>.]<name>"}, nil)
+	if want := "'USE' 'SCHEMA'? (ID '.')? ID"; len(pg.Forms) != 1 || pg.Forms[0] != want {
+		t.Errorf("forms %q, want %s", pg.Forms, want)
+	}
+}
+
+// TestOrReplaceExcludesIfNotExists pins that a CREATE form takes OR
+// REPLACE or IF NOT EXISTS, not both.
+func TestOrReplaceExcludesIfNotExists(t *testing.T) {
+	got := form(t, "CREATE [ OR REPLACE ] TABLE [ IF NOT EXISTS ] <name>")
+	if want := "'CREATE' ('OR' 'REPLACE')? 'TABLE' ID | 'CREATE' 'TABLE' ('IF' 'NOT' 'EXISTS')? ID"; got != want {
+		t.Errorf("got  %s\nwant %s", got, want)
+	}
+}
+
+// TestANamespaceIsOneOrTwoParts pins [<namespace>.]<table_name>: a
+// database, or a database and a schema, then the table's one part.
+func TestANamespaceIsOneOrTwoParts(t *testing.T) {
+	pg := docs.ConvertPage(dialect, "copy-into-table", []string{"COPY INTO [<namespace>.]<table_name> FROM @<stage>"}, nil)
+	if want := "'COPY' 'INTO' (ID '.' (ID '.')?)? ID 'FROM' STAGE"; len(pg.Forms) != 1 || pg.Forms[0] != want {
+		t.Errorf("forms %q, want %s", pg.Forms, want)
+	}
+}
+
+// TestCommaKeywordsAreAChoice pins privileges written with commas: a
+// choice the [ , ... ] makes a list of.
+func TestCommaKeywordsAreAChoice(t *testing.T) {
+	pg := docs.ConvertPage(dialect, "grant-x", []string{"GRANT p ON T <n> TO <r>", "p ::=\n-- For T\n     MONITOR, OPERATE [ , ... ]\n-- For G\n     { READ, WRITE } [ , ... ]"}, nil)
+	frags := map[string]string{}
+	for _, f := range pg.Frags {
+		frags[f.Name] = strings.Join(f.Alts, " | ")
+	}
+	if got, want := frags["grantX_p"], "('MONITOR' | 'OPERATE') (',' ('MONITOR' | 'OPERATE'))* | ('READ' | 'WRITE') (',' ('READ' | 'WRITE'))*"; got != want {
+		t.Errorf("got  %s\nwant %s (fragments %v, failed %+v)", got, want, frags, pg.Failed)
+	}
+}
+
+// TestConstraintPropertiesAreASet pins the constraint properties as any of
+// them in any order.
+func TestConstraintPropertiesAreASet(t *testing.T) {
+	pg := docs.ConvertPage(dialect, "create-table", []string{"CREATE TABLE <name> ( <col_name> <col_type> PRIMARY KEY [ <constraint_properties> ] )", "\"notification_config\": {\n  \"a\": 1\n}"}, nil)
+	want := "'CREATE' 'TABLE' QNAME '(' ID DATA_TYPE 'PRIMARY' 'KEY' (('NOT'? 'ENFORCED' | 'NOT'? 'DEFERRABLE' | 'INITIALLY' ('DEFERRED' | 'IMMEDIATE') | ('ENABLE' | 'DISABLE') | ('VALIDATE' | 'NOVALIDATE') | ('RELY' | 'NORELY'))+)? ')'"
+	if len(pg.Forms) != 1 || pg.Forms[0] != want || len(pg.Failed) > 0 {
+		t.Errorf("forms %q, failed %+v\nwant %s", pg.Forms, pg.Failed, want)
 	}
 }

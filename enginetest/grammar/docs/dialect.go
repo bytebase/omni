@@ -42,12 +42,16 @@ type Dialect struct {
 	RuleName func(slug string) string
 	// Blocks returns the text of a page's Syntax blocks, in the notation.
 	Blocks func(page string) []string
-	// Prepare corrects a page's blocks in place after its docs-fixes.tsv
-	// rows, for typos the docs repeat on many pages, and returns a note
-	// for each kind it corrected. It may be nil.
-	Prepare func(slug string, blocks []string) []string
+	// Prepare rewrites a page's blocks after its docs-fixes.tsv rows, for
+	// what the docs write the same way on many pages, and returns them with
+	// a note for each kind of rewrite. It may be nil.
+	Prepare func(slug string, blocks []string) ([]string, []string)
 	// Classify returns the token class a <placeholder> stands for.
 	Classify func(placeholder string) string
+	// Value writes a value of class cls as the grammar reads it on a page:
+	// a dialect may narrow a class there, or spell a value out. Nil writes
+	// the class.
+	Value func(slug, placeholder, cls string) string
 	// StatementWords returns the words a statement form on a page can
 	// start with.
 	StatementWords func(slug string) map[string]bool

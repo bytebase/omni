@@ -20,11 +20,11 @@ var testDialect = &Dialect{
 // TestAnEqualsSignAloneInAChoiceIsASign pins { TO | = }: a choice of the
 // word or the sign, where KEY = with nothing after it is a value left out.
 func TestAnEqualsSignAloneInAChoiceIsASign(t *testing.T) {
-	got, err := Form(testDialect, "SET <p> { TO | = } <v>")
+	got, err := Form(testDialect, "p", "SET <p> { TO | = } <v>")
 	if err != nil || strings.Join(got, " | ") != "'SET' ID ('TO' | '=') ID" {
 		t.Errorf("got %q, %v", got, err)
 	}
-	if _, err := Form(testDialect, "SET <p> { A = | B }"); err == nil {
+	if _, err := Form(testDialect, "p", "SET <p> { A = | B }"); err == nil {
 		t.Errorf("KEY = with no value in a choice was converted")
 	}
 }
@@ -51,7 +51,7 @@ func TestAVariantMaySpanLines(t *testing.T) {
 // TestAnOptionalRepeatKeepsItsParentheses pins [ X [ ... ] ]: (X+)?, since
 // ANTLR reads X+? as a non-greedy X+.
 func TestAnOptionalRepeatKeepsItsParentheses(t *testing.T) {
-	got, err := Form(testDialect, "CREATE X <name> [ <e> [ ... ] ]")
+	got, err := Form(testDialect, "p", "CREATE X <name> [ <e> [ ... ] ]")
 	if err != nil || strings.Join(got, " | ") != "'CREATE' 'X' ID (ID+)?" {
 		t.Errorf("got %q, %v", got, err)
 	}
@@ -60,7 +60,7 @@ func TestAnOptionalRepeatKeepsItsParentheses(t *testing.T) {
 // TestAListElementTakesItsOptionalValues pins [ <argname> ] [ <argmode> ]
 // <argtype> [, ...]: each element after a comma may name its argument too.
 func TestAListElementTakesItsOptionalValues(t *testing.T) {
-	got, err := Form(testDialect, "F ( [ <argname> ] [ <argmode> ] <argtype> [, ...] )")
+	got, err := Form(testDialect, "p", "F ( [ <argname> ] [ <argmode> ] <argtype> [, ...] )")
 	if err != nil || strings.Join(got, " | ") != "'F' '(' ID? ID? ID (',' ID? ID? ID)* ')'" {
 		t.Errorf("got %q, %v", got, err)
 	}

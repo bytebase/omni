@@ -272,7 +272,7 @@ func TestATerminalWithNoSampleFails(t *testing.T) {
 func TestReadTokens(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "tokens.tsv")
-	if err := os.WriteFile(path, []byte("# comment\nidentifier\tident\tnote\nhint\t(empty)\n"), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte("# comment\nidentifier\tident\tnote\nhint\t(empty)\nname\tn\t(qualified) a name, db.schema.name\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	tok, err := ReadTokens(path)
@@ -281,6 +281,9 @@ func TestReadTokens(t *testing.T) {
 	}
 	if tok.forms["identifier"] != "ident" || tok.forms["hint"] != Empty {
 		t.Errorf("forms %v", tok.forms)
+	}
+	if tok.qualified["name"] != 3 || tok.qualified["identifier"] != 0 {
+		t.Errorf("qualified %v", tok.qualified)
 	}
 	for _, bad := range []string{"identifier\n", "identifier\t\n", "a\tb\nа\tb\na\tc\n"} {
 		if err := os.WriteFile(path, []byte(bad), 0o644); err != nil {

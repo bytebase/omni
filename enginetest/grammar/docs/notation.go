@@ -190,7 +190,12 @@ func lexNotation(s string, classify func(string) string) ([]ntok, error) {
 			if m == "" {
 				return nil, fmt.Errorf("$ before %q", abbreviate(rest))
 			}
-			out = append(out, ntok{nTerminal, tPosition})
+			class := tPosition
+			if strings.Contains(m, "variable") {
+				// $<session_variable>: a session variable by its name.
+				class = tVariable
+			}
+			out = append(out, ntok{nTerminal, class})
 			i += 1 + len([]rune(m))
 		default:
 			op := string(c)
@@ -383,10 +388,8 @@ func scopeValueChoice(alts [][]*node) [][]*node {
 		if len(alt) == 0 {
 			return alts
 		}
-		for _, n := range alt {
-			if n.tok != nil && isLiteral(*n.tok, "=") {
-				return alts
-			}
+		if hasEquals(alt) {
+			return alts
 		}
 		if alt[0].tok != nil && alt[0].tok.text == head[0].tok.text {
 			return alts
@@ -397,6 +400,22 @@ func scopeValueChoice(alts [][]*node) [][]*node {
 		out = append(out, append(append([]*node(nil), head[:2]...), alt...))
 	}
 	return out
+}
+
+// hasEquals reports whether a sequence assigns anything, at any depth:
+// such an alternative is not a bare value.
+func hasEquals(seq []*node) bool {
+	for _, n := range seq {
+		if n.tok != nil && isLiteral(*n.tok, "=") {
+			return true
+		}
+		for _, alt := range n.alts {
+			if hasEquals(alt) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func resolveSeq(seq []*node) ([]*node, error) {
@@ -476,6 +495,11 @@ func unsetList(seq []*node) []*node {
 		}
 		if j-i-1 < 2 {
 			return seq
+		}
+		// The optional clauses after the names are more properties UNSET
+		// may name: [ <session_parameter> [ , ... ] ], [ CONTACT <purpose> ].
+		for j < len(seq) && seq[j].tok == nil && !seq[j].brace && seq[j].op == '?' && len(seq[j].alts) == 1 {
+			j++
 		}
 		choice := &node{brace: true}
 		for _, r := range seq[i+1 : j] {
@@ -624,6 +648,11 @@ func resolveSeqEllipses(seq []*node) ([]*node, error) {
 				}
 				prev := out[len(out)-1]
 				switch {
+				case comma && secondElement(prev):
+					// X [ , Y ] [ , ... ]: more of the comma-led group, as
+					// <col1> <type> [ , <col2> <type> ] [ , ... ] repeats
+					// whole columns.
+					out[len(out)-1] = &node{alts: prev.alts, op: '*'}
 				case comma:
 					// X [ , ... ] repeats the list element before it (see
 					// listElement). An element of optional parts only,
@@ -715,6 +744,17 @@ func resolveSeqEllipses(seq []*node) ([]*node, error) {
 		}
 	}
 	return out, nil
+}
+
+// secondElement reports whether n is [ , Y ], a list's second element
+// spelled out, where Y does not start with a keyword: READ [ , WRITE ]
+// [ , ... ] is a list of keywords, which listElement reads.
+func secondElement(n *node) bool {
+	if n.tok != nil || n.brace || n.op != '?' || len(n.alts) != 1 || len(n.alts[0]) < 2 || !isComma(n.alts[0][0]) {
+		return false
+	}
+	y := n.alts[0][1]
+	return y.tok == nil || y.tok.kind != nKeyword
 }
 
 // trailingRepeat reports whether a [ ] group's one sequence ended in ...,
@@ -816,8 +856,17 @@ func listElement(seq []*node) (int, bool) {
 		return optional + 1, true
 	}
 	if i >= 0 && seq[i].tok != nil && seq[i].tok.kind == nKeyword {
-		// READ [ , WRITE ] [ , ... ]: a keyword is the required part.
-		return optional + 1, true
+		// READ [ , WRITE ] [ , ... ]: a keyword is the required part. A
+		// run of keywords that is the whole sequence before it, as
+		// EVOLVE SCHEMA [ , ... ] is, is one privilege.
+		k := 1
+		for i-k >= 0 && seq[i-k].tok != nil && seq[i-k].tok.kind == nKeyword {
+			k++
+		}
+		if i-k >= 0 || optional > 0 {
+			k = 1
+		}
+		return optional + k, true
 	}
 	depth, k := 0, 0
 	for ; i >= 0; i-- {

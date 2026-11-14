@@ -29,20 +29,25 @@ func ConvertPage(d *Dialect, slug string, blocks []string, fixes []*Fix) Page {
 	return out
 }
 
-// Form converts notation text to ANTLR alternatives, on a page named p
-// that defines no fragment.
-func Form(d *Dialect, notation string) ([]string, error) {
-	return (&converter{d: d, slug: "p", page: "p", defs: map[string]bool{}}).form(notation)
+// Form converts notation text to ANTLR alternatives, on the page slug,
+// which defines no fragment.
+func Form(d *Dialect, slug, notation string) ([]string, error) {
+	return (&converter{d: d, slug: slug, page: "p", defs: map[string]bool{}}).form(notation)
 }
 
-// Statement converts a statement form, which scopes a | outside brackets
-// to what follows the object's name.
-func Statement(d *Dialect, text string) ([]string, error) {
-	return (&converter{d: d, slug: "p", page: "p", defs: map[string]bool{}}).statement(text)
+// Statement converts a statement form on the page slug, which scopes a |
+// outside brackets to what follows the object's name.
+func Statement(d *Dialect, slug, text string) ([]string, error) {
+	return (&converter{d: d, slug: slug, page: "p", defs: map[string]bool{}}).statement(text)
 }
 
 // The errors Form and Statement return for a form they do not convert.
 var (
-	ErrScope  = errScope
-	ErrElided = errElided
+	ErrScope       = errScope
+	ErrElided      = errElided
+	ErrProjectOnly = errProjectOnly
 )
+
+// DefHead matches the head of a definition, name ::=, as the converter
+// reads one: a dialect's Prepare may split a definition into others.
+var DefHead = defHead

@@ -20,6 +20,12 @@ const (
 	ClassStage    = "STAGE"    // @<stage>
 	ClassPosition = "POSITION" // $<col_position>
 	ClassFile     = "FILE"     // file://<path>
+	ClassVariable = "VARIABLE" // $<variable>
+	// A name qualified by up to two names, or by one: db.schema.name,
+	// db.name. A dialect's Classify returns them for a schema object and a
+	// database object.
+	ClassQName  = "QNAME"
+	ClassQName2 = "QNAME2"
 )
 
 const (
@@ -30,6 +36,9 @@ const (
 	tStage    = ClassStage
 	tPosition = ClassPosition
 	tFile     = ClassFile
+	tVariable = ClassVariable
+	tQName    = ClassQName
+	tQName2   = ClassQName2
 )
 
 // A Fix is one hand correction of a page's syntax text, from
@@ -151,6 +160,51 @@ func hasCode(lines []codeLine) bool {
 
 // bracketDepth returns how far a line opens brackets, outside quotes and
 // comments.
+// repeatChoice reads a definition of choices whose last line is only
+// [ , ... ],
+//
+//	schemaPrivileges ::=
+//	    ADD SEARCH OPTIMIZATION | APPLYBUDGET
+//	  | MODIFY | MONITOR | USAGE
+//	  [ , ... ]
+//
+// as a list of the whole choice, not of its last alternative.
+func repeatChoice(lines []codeLine) []codeLine {
+	last := len(lines) - 1
+	for last >= 0 && (lines[last].comment || strings.TrimSpace(lines[last].text) == "") {
+		last--
+	}
+	if last < 1 || strings.TrimSpace(lines[last].text) != "[ , ... ]" {
+		return lines
+	}
+	depth, bar := 0, false
+	for _, l := range lines[:last] {
+		if l.comment {
+			return lines
+		}
+		t := strings.TrimSpace(l.text)
+		if depth == 0 && (strings.HasPrefix(t, "|") || strings.HasSuffix(t, "|")) {
+			bar = true
+		}
+		depth += bracketDepth(l.text)
+	}
+	if !bar || depth != 0 {
+		return lines
+	}
+	out := append([]codeLine(nil), lines...)
+	first := 0
+	for strings.TrimSpace(out[first].text) == "" {
+		first++
+	}
+	out[first].text = "{ " + out[first].text
+	prev := last - 1
+	for strings.TrimSpace(out[prev].text) == "" {
+		prev--
+	}
+	out[prev].text += " }"
+	return out
+}
+
 func bracketDepth(line string) int {
 	d := 0
 	var quote rune
@@ -204,13 +258,35 @@ var countKey = regexp.MustCompile(`_(SECONDS|MINUTES|HOURS|DAYS|COUNT)$`)
 // camelName is a placeholder written as a fragment's name, <tagAction>.
 var camelName = regexp.MustCompile(`^[a-z]+[A-Z][A-Za-z]*$`)
 
+// omittedTail is a last line holding only ..., after a line that does not
+// end in a comma: CLONE <source> ... leaves the rest of CREATE out, where
+// X ,\n ... repeats X.
+var omittedTail = regexp.MustCompile(`[^,\s][ \t]*\n[ \t]*\.\.\.\s*$`)
+
+// optionalTail is a last line holding only [ ... ], after a line that does
+// not end in a comma: optional text the page leaves out.
+var optionalTail = regexp.MustCompile(`([^,\s])[ \t]*\n[ \t]*\[ \.\.\. \]\s*$`)
+
+// errProjectOnly marks a DEFINE form, which runs only in a DCM project's
+// definition files, not as a statement of its own.
+var errProjectOnly = errors.New("DEFINE runs only in DCM project files, not as a statement")
+
 // listName is the name of a list of settings, which a fragment holds.
-var listName = regexp.MustCompile(`(parameters|params|options|properties)$`)
+var listName = regexp.MustCompile(`(parameters|params|options|properties|privileges)$`)
 
 // convertPage converts one page of d's docs: slug names it in fixes, url
 // is cited above its rules.
 func convertPage(d *Dialect, slug, url string, blocks []string, fixes []*Fix) pageGrammar {
 	pg := pageGrammar{slug: slug, url: url, rule: d.ruleName(slug)}
+	var sql []string
+	for _, b := range blocks {
+		if strings.HasPrefix(strings.TrimSpace(b), "\"") {
+			// "notification_config": { ... }: a JSON example, not SQL.
+			continue
+		}
+		sql = append(sql, b)
+	}
+	blocks = sql
 	for _, f := range fixes {
 		if f.Page != slug {
 			continue
@@ -239,7 +315,9 @@ func convertPage(d *Dialect, slug, url string, blocks []string, fixes []*Fix) pa
 		})
 	}
 	if d.Prepare != nil {
-		pg.fixes = append(pg.fixes, d.Prepare(slug, blocks)...)
+		var notes []string
+		blocks, notes = d.Prepare(slug, blocks)
+		pg.fixes = append(pg.fixes, notes...)
 	}
 	units := splitUnits(blocks, d.StatementWords(slug))
 
@@ -274,7 +352,9 @@ func convertPage(d *Dialect, slug, url string, blocks []string, fixes []*Fix) pa
 			var err error
 			for _, u := range defs[name] {
 				var a []string
+				c.commas = commaOptionLists(name)
 				a, err = c.definition(u.lines, u.variant)
+				c.commas = false
 				if err != nil {
 					break
 				}
@@ -395,11 +475,23 @@ func RuleName(slug string) string {
 	return strings.Join(parts, "")
 }
 
+// isNameClass reports whether a class is a name's, qualified or not.
+func isNameClass(cls string) bool { return cls == tName || cls == tQName || cls == tQName2 }
+
 type converter struct {
 	d    *Dialect
 	slug string
 	page string
 	defs map[string]bool // fragments the page defines and that converted
+	// commas is set while converting a list of options the pages say may be
+	// separated by spaces, commas or newlines.
+	commas bool
+}
+
+// commaOptionLists names the definitions whose options may be separated by
+// spaces, commas or newlines, as the file format and COPY pages say.
+func commaOptionLists(def string) bool {
+	return strings.HasPrefix(def, "formatTypeOptions") || def == "copyOptions"
 }
 
 func (c *converter) fragName(def string) string { return c.page + "_" + def }
@@ -416,6 +508,7 @@ func (c *converter) definition(lines []codeLine, variant bool) ([]string, error)
 		text    string
 		comment bool
 	}
+	lines = repeatChoice(lines)
 	var items []item
 	depth := 0
 	for _, l := range lines {
@@ -472,7 +565,11 @@ func (c *converter) definition(lines []codeLine, variant bool) ([]string, error)
 			}
 			alts = append(alts, a...)
 		}
-		return []string{"(" + strings.Join(dedupe(alts), " | ") + ")+"}, nil
+		x := "(" + strings.Join(dedupe(alts), " | ") + ")"
+		if c.commas {
+			return []string{x + " (','? " + x + ")*"}, nil
+		}
+		return []string{x + "+"}, nil
 	case commented && len(code) >= 2:
 		// Each line between comments is a variant, or the lines are one
 		// where a variant needs several, as a whole GRANT form does: a
@@ -519,6 +616,11 @@ func (c *converter) statement(text string) ([]string, error) {
 func (c *converter) form(text string) ([]string, error) {
 	return c.convert(text, false)
 }
+
+var (
+	orReplace   = regexp.MustCompile(`\[\s*OR\s+REPLACE\s*\]`)
+	ifNotExists = regexp.MustCompile(`\[\s*IF\s+NOT\s+EXISTS\s*\]`)
+)
 
 // scopeChoices gives each statement alternative that does not start with
 // the statement's first word the first alternative's words through the
@@ -584,6 +686,30 @@ func isName(n *node) bool {
 }
 
 func (c *converter) convert(text string, statement bool) ([]string, error) {
+	if orReplace.MatchString(text) && ifNotExists.MatchString(text) {
+		// CREATE [ OR REPLACE ] T [ IF NOT EXISTS ]: the two are mutually
+		// exclusive, as the CREATE pages say; a form has one or neither.
+		a, err := c.convert(ifNotExists.ReplaceAllString(text, ""), statement)
+		if err != nil {
+			return nil, err
+		}
+		b, err := c.convert(orReplace.ReplaceAllString(text, ""), statement)
+		if err != nil {
+			return nil, err
+		}
+		return dedupe(append(a, b...)), nil
+	}
+	if omittedTail.MatchString(text) {
+		return nil, errElided
+	}
+	if optionalTail.MatchString(text) {
+		// CLONE <source> [ ... ]: the rest is optional and left out, so the
+		// form without it is the form.
+		text = optionalTail.ReplaceAllString(text, "$1")
+	}
+	if strings.HasPrefix(strings.TrimSpace(text), "DEFINE ") {
+		return nil, errProjectOnly
+	}
 	toks, err := lexNotation(text, c.d.Classify)
 	if err != nil {
 		return nil, err
@@ -605,7 +731,7 @@ func (c *converter) convert(text string, statement bool) ([]string, error) {
 		if next < len(toks) && toks[next].kind == nClose && i > 0 && toks[i-1].kind == nOpen {
 			next++ // [ <integration_type> ] INTEGRATION
 		}
-		if t.kind == nPlaceholder && strings.HasSuffix(t.text, "_type") && c.d.Classify(t.text) == tName &&
+		if t.kind == nPlaceholder && strings.HasSuffix(t.text, "_type") && isNameClass(c.d.Classify(t.text)) &&
 			i > 0 && toks[i-1].kind != nKeyword && !isLiteral(toks[i-1], "=") &&
 			next < len(toks) && toks[next].kind == nKeyword {
 			return nil, fmt.Errorf("<%s> stands for a type's keyword, whose page gives its syntax", t.text)
@@ -614,9 +740,23 @@ func (c *converter) convert(text string, statement bool) ([]string, error) {
 	// REFRESH_INTERVAL_SECONDS = <value>: a value a key names as a count of
 	// time units, or a count, is a number, whatever the placeholder says.
 	for i, t := range toks {
-		if t.kind == nPlaceholder && c.d.Classify(t.text) == tName && i >= 2 && isLiteral(toks[i-1], "=") &&
+		if t.kind == nPlaceholder && isNameClass(c.d.Classify(t.text)) && i >= 2 && isLiteral(toks[i-1], "=") &&
 			toks[i-2].kind == nKeyword && countKey.MatchString(toks[i-2].text) {
 			toks[i].text = "num"
+		}
+	}
+	// [ <db_name>. ]<name>: a name the notation already qualifies is one
+	// part, not a QNAME qualified again.
+	for i, t := range toks {
+		if t.kind != nPlaceholder || c.d.Classify(t.text) != tQName && c.d.Classify(t.text) != tQName2 {
+			continue
+		}
+		j := i - 1
+		for j >= 0 && toks[j].kind == nClose && toks[j].text == "]" {
+			j--
+		}
+		if j >= 0 && isLiteral(toks[j], ".") {
+			toks[i].text = "part_name"
 		}
 	}
 	// KEY = with nothing after it is a value the docs left out; an = alone
@@ -742,7 +882,11 @@ func (c *converter) token(t ntok) (string, error) {
 			// not text to fill in.
 			return "", fmt.Errorf("%w fragment %q: the page does not define it", errUndefined, t.text)
 		}
-		return c.d.Classify(t.text), nil
+		cls := c.d.Classify(t.text)
+		if c.d.Value != nil {
+			return c.d.Value(c.slug, t.text, cls), nil
+		}
+		return cls, nil
 	case nFragment:
 		if c.defs[t.text] {
 			return c.fragName(t.text), nil
