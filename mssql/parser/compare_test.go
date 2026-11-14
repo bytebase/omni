@@ -5139,6 +5139,7 @@ func TestParseExternalOptionsByWords(t *testing.T) {
 		"CREATE EXTERNAL STREAM a WITH (DATA_SOURCE = 'a', LOCATION = 'a')",
 		"COPY INTO a (a DEFAULT -1 2) FROM 'a' WITH (FILE_FORMAT = f, ERRORFILE_CREDENTIAL = (IDENTITY = 'a', SECRET = 'b'))",
 		"DROP EXTERNAL LANGUAGE a AUTHORIZATION dbo",
+		"COPY INTO a (a DEFAULT @fallback, b DEFAULT @@SPID 2) FROM 'a'",
 	}
 	for _, sql := range accept {
 		t.Run(sql, func(t *testing.T) {

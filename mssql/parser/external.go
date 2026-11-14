@@ -1365,11 +1365,12 @@ func (p *Parser) parseCopyIntoStmt() (*nodes.CopyIntoStmt, error) {
 	return stmt, nil
 }
 
-// extCopyDefaultValue reads a COPY INTO column default: a literal or a signed
-// number (defaultValueLiteral, TSql160.g:33460).
+// extCopyDefaultValue reads a COPY INTO column default: a literal, which
+// takes a variable (literal, TSql160.g:33382), or a signed number
+// (defaultValueLiteral, TSql160.g:33460).
 func (p *Parser) extCopyDefaultValue() (nodes.ExprNode, error) {
 	switch p.cur.Type {
-	case tokICONST, tokFCONST, tokSCONST, tokNSCONST, tokMONEY, kwNULL:
+	case tokICONST, tokFCONST, tokSCONST, tokNSCONST, tokMONEY, kwNULL, tokVARIABLE, tokSYSVARIABLE:
 	case '-':
 		if next := p.peekNext().Type; next != tokICONST && next != tokFCONST {
 			return nil, p.syntaxErrorAtCur()
