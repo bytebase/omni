@@ -1402,6 +1402,12 @@ func walkChildren(v Visitor, node Node) {
 		if n.Type != nil {
 			Walk(v, n.Type)
 		}
+		for _, item := range n.Params {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		Walk(v, n.Body)
 		if n.TimeTravel != nil {
 			Walk(v, n.TimeTravel)
 		}

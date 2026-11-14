@@ -1876,7 +1876,7 @@ reject	undocumented	docs	statement/createDataMovementPolicy!drop-4	CREATE DATA M
 reject	undocumented	docs	statement/createDataMovementPolicy!drop-5	CREATE DATA MOVEMENT POLICY
 reject	undocumented	docs	statement/createDataMovementPolicy!insert	CREATE DATA MOVEMENT POLICY a zzz
 reject	undocumented	docs	statement/createDataMovementPolicy!swap	CREATION DATA MOVEMENT POLICY a
-reject	accept	docs	statement/createDataMovementRule	CREATE DATA MOVEMENT RULE a TYPE = 's' MAX_ROWS AS() RETURNS INTEGER ->(1)
+accept	accept	docs	statement/createDataMovementRule	CREATE DATA MOVEMENT RULE a TYPE = 's' MAX_ROWS AS() RETURNS INTEGER ->(1)
 reject	undocumented	docs	statement/createDataMovementRule!drop-1	DATA MOVEMENT RULE a TYPE = 's' MAX_ROWS AS() RETURNS INTEGER ->(1)
 reject	undocumented	docs	statement/createDataMovementRule!drop-2	CREATE MOVEMENT RULE a TYPE = 's' MAX_ROWS AS() RETURNS INTEGER ->(1)
 reject	undocumented	docs	statement/createDataMovementRule!drop-3	CREATE DATA RULE a TYPE = 's' MAX_ROWS AS() RETURNS INTEGER ->(1)
@@ -2678,7 +2678,7 @@ reject	undocumented	docs	statement/createProjectionPolicy!drop-10	CREATE PROJECT
 reject	undocumented	docs	statement/createProjectionPolicy!drop-11	CREATE PROJECTION POLICY a AS() RETURNS PROJECTION_CONSTRAINT ->
 reject	undocumented	docs	statement/createProjectionPolicy!insert	CREATE PROJECTION POLICY a AS() RETURNS PROJECTION_CONSTRAINT -> 1 zzz
 reject	undocumented	docs	statement/createProjectionPolicy!swap	CREATION PROJECTION POLICY a AS() RETURNS PROJECTION_CONSTRAINT -> 1
-reject	accept	docs	statement/createProvisionedThroughput	CREATE PROVISIONED THROUGHPUT a CLOUD_PROVIDER = 's' MODEL = 's' PTUS = 1 TERM_START = 's' TERM_END = 's'
+accept	accept	docs	statement/createProvisionedThroughput	CREATE PROVISIONED THROUGHPUT a CLOUD_PROVIDER = 's' MODEL = 's' PTUS = 1 TERM_START = 's' TERM_END = 's'
 reject	undocumented	docs	statement/createProvisionedThroughput!drop-1	PROVISIONED THROUGHPUT a CLOUD_PROVIDER = 's' MODEL = 's' PTUS = 1 TERM_START = 's' TERM_END = 's'
 reject	undocumented	docs	statement/createProvisionedThroughput!drop-2	CREATE THROUGHPUT a CLOUD_PROVIDER = 's' MODEL = 's' PTUS = 1 TERM_START = 's' TERM_END = 's'
 reject	undocumented	docs	statement/createProvisionedThroughput!drop-3	CREATE PROVISIONED a CLOUD_PROVIDER = 's' MODEL = 's' PTUS = 1 TERM_START = 's' TERM_END = 's'
@@ -3016,7 +3016,7 @@ reject	undocumented	docs	statement/createStorageIntegrationPostgresInternal!drop
 reject	undocumented	docs	statement/createStorageIntegrationPostgresInternal!drop-10	CREATE STORAGE INTEGRATION a TYPE = POSTGRES_INTERNAL_STORAGE POSTGRES_INSTANCE =
 accept	undocumented	docs	statement/createStorageIntegrationPostgresInternal!insert	CREATE STORAGE INTEGRATION a TYPE = POSTGRES_INTERNAL_STORAGE POSTGRES_INSTANCE = 's' zzz
 reject	undocumented	docs	statement/createStorageIntegrationPostgresInternal!swap	CREATION STORAGE INTEGRATION a TYPE = POSTGRES_INTERNAL_STORAGE POSTGRES_INSTANCE = 's'
-reject	accept	docs	statement/createStorageLifecyclePolicy	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1
+accept	accept	docs	statement/createStorageLifecyclePolicy	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1
 reject	undocumented	docs	statement/createStorageLifecyclePolicy!drop-1	STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1
 reject	undocumented	docs	statement/createStorageLifecyclePolicy!drop-2	CREATE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1
 reject	undocumented	docs	statement/createStorageLifecyclePolicy!drop-3	CREATE STORAGE POLICY a AS(a INT) RETURNS BOOLEAN -> 1
@@ -10258,7 +10258,7 @@ reject	undocumented	docs	alterDataMovementPolicy(,_ID)*/,_ID_(,_ID)*!drop-1	ALTE
 reject	undocumented	docs	alterDataMovementPolicy(,_ID)*/,_ID_(,_ID)*!drop-2	ALTER DATA MOVEMENT POLICY a SET ENFORCE_RULES =(a,)
 reject	undocumented	docs	alterDataMovementPolicy(,_ID)*/,_ID_(,_ID)*!truncate	ALTER DATA MOVEMENT POLICY a SET ENFORCE_RULES =(a,
 reject	undocumented	docs	alterDataMovementPolicy(,_ID)*/,_ID_(,_ID)*!insert	ALTER DATA MOVEMENT POLICY a SET ENFORCE_RULES =(a, a zzz)
-reject	accept	docs	alterDataMovementRule/ALTER_DATA_MOVEMENT_RULE_(IF_EXISTS)?_QNAME_SET_MAX_ROW~c29c5b6e	ALTER DATA MOVEMENT RULE a SET MAX_ROWS AS() RETURNS INTEGER ->(1)
+accept	accept	docs	alterDataMovementRule/ALTER_DATA_MOVEMENT_RULE_(IF_EXISTS)?_QNAME_SET_MAX_ROW~c29c5b6e	ALTER DATA MOVEMENT RULE a SET MAX_ROWS AS() RETURNS INTEGER ->(1)
 reject	undocumented	docs	alterDataMovementRule/ALTER_DATA_MOVEMENT_RULE_(IF_EXISTS)?_QNAME_SET_MAX_ROW~c29c5b6e!drop-1	DATA MOVEMENT RULE a SET MAX_ROWS AS() RETURNS INTEGER ->(1)
 reject	undocumented	docs	alterDataMovementRule/ALTER_DATA_MOVEMENT_RULE_(IF_EXISTS)?_QNAME_SET_MAX_ROW~c29c5b6e!drop-2	ALTER MOVEMENT RULE a SET MAX_ROWS AS() RETURNS INTEGER ->(1)
 reject	undocumented	docs	alterDataMovementRule/ALTER_DATA_MOVEMENT_RULE_(IF_EXISTS)?_QNAME_SET_MAX_ROW~c29c5b6e!drop-3	ALTER DATA RULE a SET MAX_ROWS AS() RETURNS INTEGER ->(1)
@@ -16359,7 +16359,7 @@ reject	undocumented	docs	alterNetworkPolicy/ALTER_NETWORK_POLICY_(IF_EXISTS)?_ID
 accept	undocumented	docs	alterNetworkPolicy/ALTER_NETWORK_POLICY_(IF_EXISTS)?_ID_SET_(ALLOWED_NETWO~c4f76a53!insert	ALTER NETWORK POLICY a SET COMMENT = 's' zzz
 reject	undocumented	docs	alterNetworkPolicy/ALTER_NETWORK_POLICY_(IF_EXISTS)?_ID_SET_(ALLOWED_NETWO~c4f76a53!swap	ALWAYS NETWORK POLICY a SET COMMENT = 's'
 accept	accept	docs	alterNetworkPolicy/ALTER_NETWORK_POLICY_(IF_EXISTS)?_ID_UNSET_COMMENT	ALTER NETWORK POLICY a UNSET COMMENT
-reject	accept	docs	alterNetworkPolicy/ALTER_NETWORK_POLICY_ID_ADD_(ALLOWED_NETWORK_RULE_LIST_~6bc0070e	ALTER NETWORK POLICY a ADD ALLOWED_NETWORK_RULE_LIST =('s')
+accept	accept	docs	alterNetworkPolicy/ALTER_NETWORK_POLICY_ID_ADD_(ALLOWED_NETWORK_RULE_LIST_~6bc0070e	ALTER NETWORK POLICY a ADD ALLOWED_NETWORK_RULE_LIST =('s')
 reject	undocumented	docs	alterNetworkPolicy/ALTER_NETWORK_POLICY_ID_ADD_(ALLOWED_NETWORK_RULE_LIST_~6bc0070e!drop-1	NETWORK POLICY a ADD ALLOWED_NETWORK_RULE_LIST =('s')
 reject	undocumented	docs	alterNetworkPolicy/ALTER_NETWORK_POLICY_ID_ADD_(ALLOWED_NETWORK_RULE_LIST_~6bc0070e!drop-2	ALTER POLICY a ADD ALLOWED_NETWORK_RULE_LIST =('s')
 reject	undocumented	docs	alterNetworkPolicy/ALTER_NETWORK_POLICY_ID_ADD_(ALLOWED_NETWORK_RULE_LIST_~6bc0070e!drop-3	ALTER NETWORK a ADD ALLOWED_NETWORK_RULE_LIST =('s')
@@ -16372,7 +16372,7 @@ reject	undocumented	docs	alterNetworkPolicy/ALTER_NETWORK_POLICY_ID_ADD_(ALLOWED
 reject	undocumented	docs	alterNetworkPolicy/ALTER_NETWORK_POLICY_ID_ADD_(ALLOWED_NETWORK_RULE_LIST_~6bc0070e!drop-10	ALTER NETWORK POLICY a ADD ALLOWED_NETWORK_RULE_LIST =('s'
 reject	undocumented	docs	alterNetworkPolicy/ALTER_NETWORK_POLICY_ID_ADD_(ALLOWED_NETWORK_RULE_LIST_~6bc0070e!insert	ALTER NETWORK POLICY a ADD ALLOWED_NETWORK_RULE_LIST =('s') zzz
 reject	undocumented	docs	alterNetworkPolicy/ALTER_NETWORK_POLICY_ID_ADD_(ALLOWED_NETWORK_RULE_LIST_~6bc0070e!swap	ALWAYS NETWORK POLICY a ADD ALLOWED_NETWORK_RULE_LIST =('s')
-reject	accept	docs	alterNetworkPolicy/ALTER_NETWORK_POLICY_ID_REMOVE_(ALLOWED_NETWORK_RULE_LI~47d50884	ALTER NETWORK POLICY a REMOVE ALLOWED_NETWORK_RULE_LIST =('s')
+accept	accept	docs	alterNetworkPolicy/ALTER_NETWORK_POLICY_ID_REMOVE_(ALLOWED_NETWORK_RULE_LI~47d50884	ALTER NETWORK POLICY a REMOVE ALLOWED_NETWORK_RULE_LIST =('s')
 reject	undocumented	docs	alterNetworkPolicy/ALTER_NETWORK_POLICY_ID_REMOVE_(ALLOWED_NETWORK_RULE_LI~47d50884!drop-1	NETWORK POLICY a REMOVE ALLOWED_NETWORK_RULE_LIST =('s')
 reject	undocumented	docs	alterNetworkPolicy/ALTER_NETWORK_POLICY_ID_REMOVE_(ALLOWED_NETWORK_RULE_LI~47d50884!drop-2	ALTER POLICY a REMOVE ALLOWED_NETWORK_RULE_LIST =('s')
 reject	undocumented	docs	alterNetworkPolicy/ALTER_NETWORK_POLICY_ID_REMOVE_(ALLOWED_NETWORK_RULE_LI~47d50884!drop-3	ALTER NETWORK a REMOVE ALLOWED_NETWORK_RULE_LIST =('s')
@@ -16494,9 +16494,9 @@ reject	undocumented	docs	alterNetworkPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!
 reject	undocumented	docs	alterNetworkPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	ALTER NETWORK POLICY a SET ALLOWED_IP_LIST =() COMMENT =
 accept	undocumented	docs	alterNetworkPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	ALTER NETWORK POLICY a SET ALLOWED_IP_LIST =() COMMENT = 's' zzz
 accept	undocumented	docs	alterNetworkPolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	ALTER NETWORK POLICY a SET ALLOWED_IP_LIST =() COMMENTS = 's'
-reject	accept	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~4202d993)/ALLOWED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)	ALTER NETWORK POLICY a ADD ALLOWED_NETWORK_RULE_LIST =('s')
+accept	accept	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~4202d993)/ALLOWED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)	ALTER NETWORK POLICY a ADD ALLOWED_NETWORK_RULE_LIST =('s')
 reject	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~4202d993)/ALLOWED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)!swap	ALTER NETWORK POLICY a ADD ALLOWED_OIDC_ISSUERS =('s')
-reject	accept	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~4202d993)/BLOCKED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)	ALTER NETWORK POLICY a ADD BLOCKED_NETWORK_RULE_LIST =('s')
+accept	accept	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~4202d993)/BLOCKED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)	ALTER NETWORK POLICY a ADD BLOCKED_NETWORK_RULE_LIST =('s')
 reject	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~4202d993)/BLOCKED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)!drop-2	ALTER NETWORK POLICY a ADD BLOCKED_NETWORK_RULE_LIST('s')
 reject	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~4202d993)/BLOCKED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)!drop-3	ALTER NETWORK POLICY a ADD BLOCKED_NETWORK_RULE_LIST = 's')
 reject	undocumented	docs	alterNetworkPolicy(ALLOWED_NETWORK_RULE_LIST_=_(_STRING~4202d993)/BLOCKED_NETWORK_RULE_LIST_=_(_STRING_(,_STRING)*_)!drop-4	ALTER NETWORK POLICY a ADD BLOCKED_NETWORK_RULE_LIST =()
@@ -18204,12 +18204,12 @@ accept	accept	docs	alterPipe(TRACE|DEBUG|INFO|WARN|ERROR|FATAL|OFF)/OFF	ALTER PI
 accept	undocumented	docs	alterPipe(TRACE|DEBUG|INFO|WARN|ERROR|FATAL|OFF)/OFF!insert	ALTER PIPE a SET LOG_EVENT_LEVEL = OFF zzz
 accept	undocumented	docs	alterPipe(TRACE|DEBUG|INFO|WARN|ERROR|FATAL|OFF)/OFF!swap	ALTER PIPE a SET LOG_EVENT_LEVEL = OFFERS
 accept	accept	docs	alterPipe(,_(ERROR_INTEGRATION_=_ID|PIPE_EXECU~a1546032)*/%empty	ALTER PIPE a SET ERROR_INTEGRATION = a
-reject	accept	docs	alterPipe(,_(ERROR_INTEGRATION_=_ID|PIPE_EXECU~a1546032)*/,_(ERROR_INTEGRATION_=_ID|PIPE_EXECUTIO~c9da609c)_(,_(E~5f7bbb16	ALTER PIPE a SET ERROR_INTEGRATION = a, ERROR_INTEGRATION = a
+accept	accept	docs	alterPipe(,_(ERROR_INTEGRATION_=_ID|PIPE_EXECU~a1546032)*/,_(ERROR_INTEGRATION_=_ID|PIPE_EXECUTIO~c9da609c)_(,_(E~5f7bbb16	ALTER PIPE a SET ERROR_INTEGRATION = a, ERROR_INTEGRATION = a
 reject	undocumented	docs	alterPipe(,_(ERROR_INTEGRATION_=_ID|PIPE_EXECU~a1546032)*/,_(ERROR_INTEGRATION_=_ID|PIPE_EXECUTIO~c9da609c)_(,_(E~5f7bbb16!drop-2	ALTER PIPE a SET ERROR_INTEGRATION = a, = a
 reject	undocumented	docs	alterPipe(,_(ERROR_INTEGRATION_=_ID|PIPE_EXECU~a1546032)*/,_(ERROR_INTEGRATION_=_ID|PIPE_EXECUTIO~c9da609c)_(,_(E~5f7bbb16!drop-3	ALTER PIPE a SET ERROR_INTEGRATION = a, ERROR_INTEGRATION a
 reject	undocumented	docs	alterPipe(,_(ERROR_INTEGRATION_=_ID|PIPE_EXECU~a1546032)*/,_(ERROR_INTEGRATION_=_ID|PIPE_EXECUTIO~c9da609c)_(,_(E~5f7bbb16!drop-4	ALTER PIPE a SET ERROR_INTEGRATION = a, ERROR_INTEGRATION =
-reject	undocumented	docs	alterPipe(,_(ERROR_INTEGRATION_=_ID|PIPE_EXECU~a1546032)*/,_(ERROR_INTEGRATION_=_ID|PIPE_EXECUTIO~c9da609c)_(,_(E~5f7bbb16!insert	ALTER PIPE a SET ERROR_INTEGRATION = a, ERROR_INTEGRATION = a zzz
-reject	undocumented	docs	alterPipe(,_(ERROR_INTEGRATION_=_ID|PIPE_EXECU~a1546032)*/,_(ERROR_INTEGRATION_=_ID|PIPE_EXECUTIO~c9da609c)_(,_(E~5f7bbb16!swap	ALTER PIPE a SET ERROR_INTEGRATION = a, ERROR_LOGGING = a
+accept	undocumented	docs	alterPipe(,_(ERROR_INTEGRATION_=_ID|PIPE_EXECU~a1546032)*/,_(ERROR_INTEGRATION_=_ID|PIPE_EXECUTIO~c9da609c)_(,_(E~5f7bbb16!insert	ALTER PIPE a SET ERROR_INTEGRATION = a, ERROR_INTEGRATION = a zzz
+accept	undocumented	docs	alterPipe(,_(ERROR_INTEGRATION_=_ID|PIPE_EXECU~a1546032)*/,_(ERROR_INTEGRATION_=_ID|PIPE_EXECUTIO~c9da609c)_(,_(E~5f7bbb16!swap	ALTER PIPE a SET ERROR_INTEGRATION = a, ERROR_LOGGING = a
 accept	accept	docs	alterPipe(,_QNAME_=_STRING)*/%empty	ALTER PIPE a SET TAG a = 's'
 accept	accept	docs	alterPipe(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*	ALTER PIPE a SET TAG a = 's', a = 's'
 reject	undocumented	docs	alterPipe(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-1	ALTER PIPE a SET TAG a = 's' a = 's'
@@ -22271,12 +22271,12 @@ accept	undocumented	docs	alterSession/ALTER_SESSION_SET_alterSession_sessionPara
 reject	undocumented	docs	alterSession/ALTER_SESSION_SET_alterSession_sessionParams_(,_alterSe~1d241c98!swap	ALWAYS SESSION SET ABORT_DETACHED_QUERY = TRUE
 accept	accept	docs	alterSession/ALTER_SESSION_UNSET_ID_(,_ID)*	ALTER SESSION UNSET a
 accept	accept	docs	alterSession(,_alterSession_sessionParams)*/%empty	ALTER SESSION SET ABORT_DETACHED_QUERY = TRUE
-reject	accept	docs	alterSession(,_alterSession_sessionParams)*/,_alterSession_sessionParams_(,_alterSession_sessionParams)*	ALTER SESSION SET ABORT_DETACHED_QUERY = TRUE, ABORT_DETACHED_QUERY = TRUE
+accept	accept	docs	alterSession(,_alterSession_sessionParams)*/,_alterSession_sessionParams_(,_alterSession_sessionParams)*	ALTER SESSION SET ABORT_DETACHED_QUERY = TRUE, ABORT_DETACHED_QUERY = TRUE
 reject	undocumented	docs	alterSession(,_alterSession_sessionParams)*/,_alterSession_sessionParams_(,_alterSession_sessionParams)*!drop-2	ALTER SESSION SET ABORT_DETACHED_QUERY = TRUE, = TRUE
 reject	undocumented	docs	alterSession(,_alterSession_sessionParams)*/,_alterSession_sessionParams_(,_alterSession_sessionParams)*!drop-3	ALTER SESSION SET ABORT_DETACHED_QUERY = TRUE, ABORT_DETACHED_QUERY TRUE
 reject	undocumented	docs	alterSession(,_alterSession_sessionParams)*/,_alterSession_sessionParams_(,_alterSession_sessionParams)*!drop-4	ALTER SESSION SET ABORT_DETACHED_QUERY = TRUE, ABORT_DETACHED_QUERY =
-reject	undocumented	docs	alterSession(,_alterSession_sessionParams)*/,_alterSession_sessionParams_(,_alterSession_sessionParams)*!insert	ALTER SESSION SET ABORT_DETACHED_QUERY = TRUE, ABORT_DETACHED_QUERY = TRUE zzz
-reject	undocumented	docs	alterSession(,_alterSession_sessionParams)*/,_alterSession_sessionParams_(,_alterSession_sessionParams)*!swap	ALTER SESSION SET ABORT_DETACHED_QUERY = TRUE, ABORT_STATEMENT = TRUE
+accept	undocumented	docs	alterSession(,_alterSession_sessionParams)*/,_alterSession_sessionParams_(,_alterSession_sessionParams)*!insert	ALTER SESSION SET ABORT_DETACHED_QUERY = TRUE, ABORT_DETACHED_QUERY = TRUE zzz
+accept	undocumented	docs	alterSession(,_alterSession_sessionParams)*/,_alterSession_sessionParams_(,_alterSession_sessionParams)*!swap	ALTER SESSION SET ABORT_DETACHED_QUERY = TRUE, ABORT_STATEMENT = TRUE
 accept	accept	docs	alterSession(,_ID)*/%empty	ALTER SESSION UNSET a
 accept	accept	docs	alterSession(,_ID)*/,_ID_(,_ID)*	ALTER SESSION UNSET a, a
 reject	undocumented	docs	alterSession(,_ID)*/,_ID_(,_ID)*!drop-1	ALTER SESSION UNSET a a
@@ -24136,7 +24136,7 @@ reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POL
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_RENAM~fe73c95a!drop-8	ALTER STORAGE LIFECYCLE POLICY a RENAME TO
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_RENAM~fe73c95a!insert	ALTER STORAGE LIFECYCLE POLICY a RENAME TO a zzz
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_RENAM~fe73c95a!swap	ALWAYS STORAGE LIFECYCLE POLICY a RENAME TO a
-reject	accept	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_SET_B~f654b1bf	ALTER STORAGE LIFECYCLE POLICY a SET BODY -> 1
+accept	accept	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_SET_B~f654b1bf	ALTER STORAGE LIFECYCLE POLICY a SET BODY -> 1
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_SET_B~f654b1bf!drop-1	STORAGE LIFECYCLE POLICY a SET BODY -> 1
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_SET_B~f654b1bf!drop-2	ALTER LIFECYCLE POLICY a SET BODY -> 1
 reject	undocumented	docs	alterStorageLifecyclePolicy/ALTER_STORAGE_LIFECYCLE_POLICY_(IF_EXISTS)?_QNAME_SET_B~f654b1bf!drop-3	ALTER STORAGE POLICY a SET BODY -> 1
@@ -29054,7 +29054,7 @@ reject	undocumented	docs	call(,_(ID_=>)?_EXPR)*/,_(ID_=>)?_EXPR_(,_(ID_=>)?_EXPR
 reject	undocumented	docs	call(,_(ID_=>)?_EXPR)*/,_(ID_=>)?_EXPR_(,_(ID_=>)?_EXPR)*!truncate	CALL a(1,
 reject	undocumented	docs	call(,_(ID_=>)?_EXPR)*/,_(ID_=>)?_EXPR_(,_(ID_=>)?_EXPR)*!insert	CALL a(1, 1 zzz)
 accept	accept	docs	call(INTO_COLON_ID)?/%empty	CALL a()
-reject	accept	docs	call(INTO_COLON_ID)?/INTO_COLON_ID	CALL a() INTO : a
+accept	accept	docs	call(INTO_COLON_ID)?/INTO_COLON_ID	CALL a() INTO : a
 reject	undocumented	docs	call(INTO_COLON_ID)?/INTO_COLON_ID!drop-1	CALL a() : a
 reject	undocumented	docs	call(INTO_COLON_ID)?/INTO_COLON_ID!drop-2	CALL a() INTO a
 reject	undocumented	docs	call(INTO_COLON_ID)?/INTO_COLON_ID!drop-3	CALL a() INTO :
@@ -29068,7 +29068,7 @@ accept	accept	docs	callWith(ID_=>)?/ID_=>	CALL a(a => 1)
 accept	accept	docs	callWith(,_(ID_=>)?_EXPR)*/%empty	CALL a(1)
 accept	accept	docs	callWith(,_(ID_=>)?_EXPR)*/,_(ID_=>)?_EXPR_(,_(ID_=>)?_EXPR)*	CALL a(1, 1)
 accept	accept	docs	callWith(INTO_COLON_ID)?/%empty	CALL a()
-reject	accept	docs	callWith(INTO_COLON_ID)?/INTO_COLON_ID	CALL a() INTO : a
+accept	accept	docs	callWith(INTO_COLON_ID)?/INTO_COLON_ID	CALL a() INTO : a
 accept	accept	docs	comment/COMMENT_(IF_EXISTS)?_ON_(TABLE|SCHEMA|VIEW|(ACCOUNT|APP~7d4c3907	COMMENT ON TABLE a IS 's'
 accept	accept	docs	comment/COMMENT_(IF_EXISTS)?_ON_COLUMN_QNAME_._ID_IS_STRING	COMMENT ON COLUMN a.a IS 's'
 reject	undocumented	docs	comment/COMMENT_(IF_EXISTS)?_ON_COLUMN_QNAME_._ID_IS_STRING!drop-1	ON COLUMN a.a IS 's'
@@ -33917,25 +33917,25 @@ reject	undocumented	docs	createDataMovementPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS!
 reject	undocumented	docs	createDataMovementPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE DATA MOVEMENT POLICY IF NOT
 reject	undocumented	docs	createDataMovementPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE DATA MOVEMENT POLICY IF NOT EXISTS zzz a
 reject	undocumented	docs	createDataMovementPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE DATA MOVEMENT POLICY IGNORE NOT EXISTS a
-reject	accept	docs	createDataMovementRule/CREATE_(OR_REPLACE)?_DATA_MOVEMENT_RULE_QNAME_TYPE_=_ST~25c7262b	CREATE DATA MOVEMENT RULE a TYPE = 's' MAX_ROWS AS() RETURNS INTEGER ->(1)
-reject	accept	docs	createDataMovementRule/CREATE_DATA_MOVEMENT_RULE_(IF_NOT_EXISTS)?_QNAME_TYPE_=~56ef5c0c	CREATE DATA MOVEMENT RULE a TYPE = 's' MAX_ROWS AS() RETURNS INTEGER ->(1)
-reject	accept	docs	createDataMovementRule(OR_REPLACE)?/%empty	CREATE DATA MOVEMENT RULE a TYPE = 's' MAX_ROWS AS() RETURNS INTEGER ->(1)
+accept	accept	docs	createDataMovementRule/CREATE_(OR_REPLACE)?_DATA_MOVEMENT_RULE_QNAME_TYPE_=_ST~25c7262b	CREATE DATA MOVEMENT RULE a TYPE = 's' MAX_ROWS AS() RETURNS INTEGER ->(1)
+accept	accept	docs	createDataMovementRule/CREATE_DATA_MOVEMENT_RULE_(IF_NOT_EXISTS)?_QNAME_TYPE_=~56ef5c0c	CREATE DATA MOVEMENT RULE a TYPE = 's' MAX_ROWS AS() RETURNS INTEGER ->(1)
+accept	accept	docs	createDataMovementRule(OR_REPLACE)?/%empty	CREATE DATA MOVEMENT RULE a TYPE = 's' MAX_ROWS AS() RETURNS INTEGER ->(1)
 reject	undocumented	docs	createDataMovementRule(OR_REPLACE)?/%empty!insert	CREATE zzz DATA MOVEMENT RULE a TYPE = 's' MAX_ROWS AS() RETURNS INTEGER ->(1)
-reject	accept	docs	createDataMovementRule(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE DATA MOVEMENT RULE a TYPE = 's' MAX_ROWS AS() RETURNS INTEGER ->(1)
+accept	accept	docs	createDataMovementRule(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE DATA MOVEMENT RULE a TYPE = 's' MAX_ROWS AS() RETURNS INTEGER ->(1)
 reject	undocumented	docs	createDataMovementRule(OR_REPLACE)?/OR_REPLACE!drop-1	CREATE REPLACE DATA MOVEMENT RULE a TYPE = 's' MAX_ROWS AS() RETURNS INTEGER ->(1)
 reject	undocumented	docs	createDataMovementRule(OR_REPLACE)?/OR_REPLACE!drop-2	CREATE OR DATA MOVEMENT RULE a TYPE = 's' MAX_ROWS AS() RETURNS INTEGER ->(1)
 reject	undocumented	docs	createDataMovementRule(OR_REPLACE)?/OR_REPLACE!insert	CREATE OR REPLACE zzz DATA MOVEMENT RULE a TYPE = 's' MAX_ROWS AS() RETURNS INTEGER ->(1)
 reject	undocumented	docs	createDataMovementRule(OR_REPLACE)?/OR_REPLACE!swap	CREATE ORC REPLACE DATA MOVEMENT RULE a TYPE = 's' MAX_ROWS AS() RETURNS INTEGER ->(1)
-reject	accept	docs	createDataMovementRule(COMMENT_=_STRING)?/%empty	CREATE DATA MOVEMENT RULE a TYPE = 's' MAX_ROWS AS() RETURNS INTEGER ->(1)
-reject	accept	docs	createDataMovementRule(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE DATA MOVEMENT RULE a TYPE = 's' MAX_ROWS AS() RETURNS INTEGER ->(1) COMMENT = 's'
+accept	accept	docs	createDataMovementRule(COMMENT_=_STRING)?/%empty	CREATE DATA MOVEMENT RULE a TYPE = 's' MAX_ROWS AS() RETURNS INTEGER ->(1)
+accept	accept	docs	createDataMovementRule(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE DATA MOVEMENT RULE a TYPE = 's' MAX_ROWS AS() RETURNS INTEGER ->(1) COMMENT = 's'
 reject	undocumented	docs	createDataMovementRule(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-1	CREATE DATA MOVEMENT RULE a TYPE = 's' MAX_ROWS AS() RETURNS INTEGER ->(1) = 's'
 reject	undocumented	docs	createDataMovementRule(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	CREATE DATA MOVEMENT RULE a TYPE = 's' MAX_ROWS AS() RETURNS INTEGER ->(1) COMMENT 's'
 reject	undocumented	docs	createDataMovementRule(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE DATA MOVEMENT RULE a TYPE = 's' MAX_ROWS AS() RETURNS INTEGER ->(1) COMMENT =
 reject	undocumented	docs	createDataMovementRule(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE DATA MOVEMENT RULE a TYPE = 's' MAX_ROWS AS() RETURNS INTEGER ->(1) COMMENT = 's' zzz
 reject	undocumented	docs	createDataMovementRule(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE DATA MOVEMENT RULE a TYPE = 's' MAX_ROWS AS() RETURNS INTEGER ->(1) COMMENTS = 's'
-reject	accept	docs	createDataMovementRule(IF_NOT_EXISTS)?/%empty	CREATE DATA MOVEMENT RULE a TYPE = 's' MAX_ROWS AS() RETURNS INTEGER ->(1)
+accept	accept	docs	createDataMovementRule(IF_NOT_EXISTS)?/%empty	CREATE DATA MOVEMENT RULE a TYPE = 's' MAX_ROWS AS() RETURNS INTEGER ->(1)
 reject	undocumented	docs	createDataMovementRule(IF_NOT_EXISTS)?/%empty!insert	CREATE DATA MOVEMENT RULE zzz a TYPE = 's' MAX_ROWS AS() RETURNS INTEGER ->(1)
-reject	accept	docs	createDataMovementRule(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE DATA MOVEMENT RULE IF NOT EXISTS a TYPE = 's' MAX_ROWS AS() RETURNS INTEGER ->(1)
+accept	accept	docs	createDataMovementRule(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE DATA MOVEMENT RULE IF NOT EXISTS a TYPE = 's' MAX_ROWS AS() RETURNS INTEGER ->(1)
 reject	undocumented	docs	createDataMovementRule(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE DATA MOVEMENT RULE NOT EXISTS a TYPE = 's' MAX_ROWS AS() RETURNS INTEGER ->(1)
 reject	undocumented	docs	createDataMovementRule(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE DATA MOVEMENT RULE IF EXISTS a TYPE = 's' MAX_ROWS AS() RETURNS INTEGER ->(1)
 reject	undocumented	docs	createDataMovementRule(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE DATA MOVEMENT RULE IF NOT a TYPE = 's' MAX_ROWS AS() RETURNS INTEGER ->(1)
@@ -43591,10 +43591,10 @@ reject	undocumented	docs	createProjectionPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS!dr
 reject	undocumented	docs	createProjectionPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE PROJECTION POLICY IF NOT
 reject	undocumented	docs	createProjectionPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE PROJECTION POLICY IF NOT EXISTS zzz a AS() RETURNS PROJECTION_CONSTRAINT -> 1
 reject	undocumented	docs	createProjectionPolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE PROJECTION POLICY IGNORE NOT EXISTS a AS() RETURNS PROJECTION_CONSTRAINT -> 1
-reject	accept	docs	createProvisionedThroughput/CREATE_(OR_REPLACE)?_PROVISIONED_THROUGHPUT_QNAME_CLOUD~16b9773d	CREATE PROVISIONED THROUGHPUT a CLOUD_PROVIDER = 's' MODEL = 's' PTUS = 1 TERM_START = 's' TERM_END = 's'
-reject	accept	docs	createProvisionedThroughput(OR_REPLACE)?/%empty	CREATE PROVISIONED THROUGHPUT a CLOUD_PROVIDER = 's' MODEL = 's' PTUS = 1 TERM_START = 's' TERM_END = 's'
+accept	accept	docs	createProvisionedThroughput/CREATE_(OR_REPLACE)?_PROVISIONED_THROUGHPUT_QNAME_CLOUD~16b9773d	CREATE PROVISIONED THROUGHPUT a CLOUD_PROVIDER = 's' MODEL = 's' PTUS = 1 TERM_START = 's' TERM_END = 's'
+accept	accept	docs	createProvisionedThroughput(OR_REPLACE)?/%empty	CREATE PROVISIONED THROUGHPUT a CLOUD_PROVIDER = 's' MODEL = 's' PTUS = 1 TERM_START = 's' TERM_END = 's'
 reject	undocumented	docs	createProvisionedThroughput(OR_REPLACE)?/%empty!insert	CREATE zzz PROVISIONED THROUGHPUT a CLOUD_PROVIDER = 's' MODEL = 's' PTUS = 1 TERM_START = 's' TERM_END = 's'
-reject	accept	docs	createProvisionedThroughput(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE PROVISIONED THROUGHPUT a CLOUD_PROVIDER = 's' MODEL = 's' PTUS = 1 TERM_START = 's' TERM_END = 's'
+accept	accept	docs	createProvisionedThroughput(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE PROVISIONED THROUGHPUT a CLOUD_PROVIDER = 's' MODEL = 's' PTUS = 1 TERM_START = 's' TERM_END = 's'
 reject	undocumented	docs	createProvisionedThroughput(OR_REPLACE)?/OR_REPLACE!drop-1	CREATE REPLACE PROVISIONED THROUGHPUT a CLOUD_PROVIDER = 's' MODEL = 's' PTUS = 1 TERM_START = 's' TERM_END = 's'
 reject	undocumented	docs	createProvisionedThroughput(OR_REPLACE)?/OR_REPLACE!drop-2	CREATE OR PROVISIONED THROUGHPUT a CLOUD_PROVIDER = 's' MODEL = 's' PTUS = 1 TERM_START = 's' TERM_END = 's'
 reject	undocumented	docs	createProvisionedThroughput(OR_REPLACE)?/OR_REPLACE!insert	CREATE OR REPLACE zzz PROVISIONED THROUGHPUT a CLOUD_PROVIDER = 's' MODEL = 's' PTUS = 1 TERM_START = 's' TERM_END = 's'
@@ -48007,52 +48007,52 @@ accept	undocumented	docs	createStorageIntegrationPostgresInternal(IF_NOT_EXISTS)
 reject	undocumented	docs	createStorageIntegrationPostgresInternal(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE STORAGE INTEGRATION IF NOT a TYPE = POSTGRES_INTERNAL_STORAGE POSTGRES_INSTANCE = 's'
 accept	undocumented	docs	createStorageIntegrationPostgresInternal(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE STORAGE INTEGRATION IF NOT EXISTS zzz a TYPE = POSTGRES_INTERNAL_STORAGE POSTGRES_INSTANCE = 's'
 accept	undocumented	docs	createStorageIntegrationPostgresInternal(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE STORAGE INTEGRATION IGNORE NOT EXISTS a TYPE = POSTGRES_INTERNAL_STORAGE POSTGRES_INSTANCE = 's'
-reject	accept	docs	createStorageLifecyclePolicy/CREATE_(OR_REPLACE)?_STORAGE_LIFECYCLE_POLICY_QNAME_AS_~85a1d16d	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1
-reject	accept	docs	createStorageLifecyclePolicy/CREATE_STORAGE_LIFECYCLE_POLICY_(IF_NOT_EXISTS)?_QNAME_~5f98a30f	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1
-reject	accept	docs	createStorageLifecyclePolicy(OR_REPLACE)?/%empty	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1
+accept	accept	docs	createStorageLifecyclePolicy/CREATE_(OR_REPLACE)?_STORAGE_LIFECYCLE_POLICY_QNAME_AS_~85a1d16d	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1
+accept	accept	docs	createStorageLifecyclePolicy/CREATE_STORAGE_LIFECYCLE_POLICY_(IF_NOT_EXISTS)?_QNAME_~5f98a30f	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1
+accept	accept	docs	createStorageLifecyclePolicy(OR_REPLACE)?/%empty	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1
 reject	undocumented	docs	createStorageLifecyclePolicy(OR_REPLACE)?/%empty!insert	CREATE zzz STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1
-reject	accept	docs	createStorageLifecyclePolicy(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1
+accept	accept	docs	createStorageLifecyclePolicy(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1
 reject	undocumented	docs	createStorageLifecyclePolicy(OR_REPLACE)?/OR_REPLACE!drop-1	CREATE REPLACE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1
 reject	undocumented	docs	createStorageLifecyclePolicy(OR_REPLACE)?/OR_REPLACE!drop-2	CREATE OR STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1
 reject	undocumented	docs	createStorageLifecyclePolicy(OR_REPLACE)?/OR_REPLACE!insert	CREATE OR REPLACE zzz STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1
 reject	undocumented	docs	createStorageLifecyclePolicy(OR_REPLACE)?/OR_REPLACE!swap	CREATE ORC REPLACE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1
-reject	accept	docs	createStorageLifecyclePolicy(,_ID_DATA_TYPE)*/%empty	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1
+accept	accept	docs	createStorageLifecyclePolicy(,_ID_DATA_TYPE)*/%empty	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1
 reject	undocumented	docs	createStorageLifecyclePolicy(,_ID_DATA_TYPE)*/%empty!insert	CREATE STORAGE LIFECYCLE POLICY a AS(a INT zzz) RETURNS BOOLEAN -> 1
-reject	accept	docs	createStorageLifecyclePolicy(,_ID_DATA_TYPE)*/,_ID_DATA_TYPE_(,_ID_DATA_TYPE)*	CREATE STORAGE LIFECYCLE POLICY a AS(a INT, a INT) RETURNS BOOLEAN -> 1
+accept	accept	docs	createStorageLifecyclePolicy(,_ID_DATA_TYPE)*/,_ID_DATA_TYPE_(,_ID_DATA_TYPE)*	CREATE STORAGE LIFECYCLE POLICY a AS(a INT, a INT) RETURNS BOOLEAN -> 1
 reject	undocumented	docs	createStorageLifecyclePolicy(,_ID_DATA_TYPE)*/,_ID_DATA_TYPE_(,_ID_DATA_TYPE)*!drop-1	CREATE STORAGE LIFECYCLE POLICY a AS(a INT a INT) RETURNS BOOLEAN -> 1
 reject	undocumented	docs	createStorageLifecyclePolicy(,_ID_DATA_TYPE)*/,_ID_DATA_TYPE_(,_ID_DATA_TYPE)*!drop-2	CREATE STORAGE LIFECYCLE POLICY a AS(a INT, INT) RETURNS BOOLEAN -> 1
 reject	undocumented	docs	createStorageLifecyclePolicy(,_ID_DATA_TYPE)*/,_ID_DATA_TYPE_(,_ID_DATA_TYPE)*!drop-3	CREATE STORAGE LIFECYCLE POLICY a AS(a INT, a) RETURNS BOOLEAN -> 1
 reject	undocumented	docs	createStorageLifecyclePolicy(,_ID_DATA_TYPE)*/,_ID_DATA_TYPE_(,_ID_DATA_TYPE)*!truncate	CREATE STORAGE LIFECYCLE POLICY a AS(a INT, a
 reject	undocumented	docs	createStorageLifecyclePolicy(,_ID_DATA_TYPE)*/,_ID_DATA_TYPE_(,_ID_DATA_TYPE)*!insert	CREATE STORAGE LIFECYCLE POLICY a AS(a INT, a INT zzz) RETURNS BOOLEAN -> 1
-reject	undocumented	docs	createStorageLifecyclePolicy(,_ID_DATA_TYPE)*/,_ID_DATA_TYPE_(,_ID_DATA_TYPE)*!swap	CREATE STORAGE LIFECYCLE POLICY a AS(a INT, a INTEGER) RETURNS BOOLEAN -> 1
-reject	accept	docs	createStorageLifecyclePolicy(ARCHIVE_TIER_=_(COOL|COLD))?/%empty	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1
-reject	accept	docs	createStorageLifecyclePolicy(ARCHIVE_TIER_=_(COOL|COLD))?/ARCHIVE_TIER_=_(COOL|COLD)	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 ARCHIVE_TIER = COOL
-reject	undocumented	docs	createStorageLifecyclePolicy(ARCHIVE_TIER_=_(COOL|COLD))?/ARCHIVE_TIER_=_(COOL|COLD)!drop-1	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 = COOL
+accept	undocumented	docs	createStorageLifecyclePolicy(,_ID_DATA_TYPE)*/,_ID_DATA_TYPE_(,_ID_DATA_TYPE)*!swap	CREATE STORAGE LIFECYCLE POLICY a AS(a INT, a INTEGER) RETURNS BOOLEAN -> 1
+accept	accept	docs	createStorageLifecyclePolicy(ARCHIVE_TIER_=_(COOL|COLD))?/%empty	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1
+accept	accept	docs	createStorageLifecyclePolicy(ARCHIVE_TIER_=_(COOL|COLD))?/ARCHIVE_TIER_=_(COOL|COLD)	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 ARCHIVE_TIER = COOL
+accept	undocumented	docs	createStorageLifecyclePolicy(ARCHIVE_TIER_=_(COOL|COLD))?/ARCHIVE_TIER_=_(COOL|COLD)!drop-1	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 = COOL
 reject	undocumented	docs	createStorageLifecyclePolicy(ARCHIVE_TIER_=_(COOL|COLD))?/ARCHIVE_TIER_=_(COOL|COLD)!drop-2	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 ARCHIVE_TIER COOL
 reject	undocumented	docs	createStorageLifecyclePolicy(ARCHIVE_TIER_=_(COOL|COLD))?/ARCHIVE_TIER_=_(COOL|COLD)!drop-3	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 ARCHIVE_TIER =
 reject	undocumented	docs	createStorageLifecyclePolicy(ARCHIVE_TIER_=_(COOL|COLD))?/ARCHIVE_TIER_=_(COOL|COLD)!insert	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 ARCHIVE_TIER = COOL zzz
 reject	undocumented	docs	createStorageLifecyclePolicy(ARCHIVE_TIER_=_(COOL|COLD))?/ARCHIVE_TIER_=_(COOL|COLD)!swap	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 ARGS = COOL
-reject	accept	docs	createStorageLifecyclePolicy(COOL|COLD)/COOL	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 ARCHIVE_TIER = COOL
+accept	accept	docs	createStorageLifecyclePolicy(COOL|COLD)/COOL	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 ARCHIVE_TIER = COOL
 reject	undocumented	docs	createStorageLifecyclePolicy(COOL|COLD)/COOL!swap	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 ARCHIVE_TIER = COPY
-reject	accept	docs	createStorageLifecyclePolicy(COOL|COLD)/COLD	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 ARCHIVE_TIER = COLD
+accept	accept	docs	createStorageLifecyclePolicy(COOL|COLD)/COLD	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 ARCHIVE_TIER = COLD
 reject	undocumented	docs	createStorageLifecyclePolicy(COOL|COLD)/COLD!insert	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 ARCHIVE_TIER = COLD zzz
 reject	undocumented	docs	createStorageLifecyclePolicy(COOL|COLD)/COLD!swap	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 ARCHIVE_TIER = COLLATE
-reject	accept	docs	createStorageLifecyclePolicy(ARCHIVE_FOR_DAYS_=_NUMBER)?/%empty	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1
-reject	accept	docs	createStorageLifecyclePolicy(ARCHIVE_FOR_DAYS_=_NUMBER)?/ARCHIVE_FOR_DAYS_=_NUMBER	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 ARCHIVE_FOR_DAYS = 1
-reject	undocumented	docs	createStorageLifecyclePolicy(ARCHIVE_FOR_DAYS_=_NUMBER)?/ARCHIVE_FOR_DAYS_=_NUMBER!drop-1	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 = 1
+accept	accept	docs	createStorageLifecyclePolicy(ARCHIVE_FOR_DAYS_=_NUMBER)?/%empty	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1
+accept	accept	docs	createStorageLifecyclePolicy(ARCHIVE_FOR_DAYS_=_NUMBER)?/ARCHIVE_FOR_DAYS_=_NUMBER	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 ARCHIVE_FOR_DAYS = 1
+accept	undocumented	docs	createStorageLifecyclePolicy(ARCHIVE_FOR_DAYS_=_NUMBER)?/ARCHIVE_FOR_DAYS_=_NUMBER!drop-1	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 = 1
 reject	undocumented	docs	createStorageLifecyclePolicy(ARCHIVE_FOR_DAYS_=_NUMBER)?/ARCHIVE_FOR_DAYS_=_NUMBER!drop-2	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 ARCHIVE_FOR_DAYS 1
 reject	undocumented	docs	createStorageLifecyclePolicy(ARCHIVE_FOR_DAYS_=_NUMBER)?/ARCHIVE_FOR_DAYS_=_NUMBER!drop-3	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 ARCHIVE_FOR_DAYS =
 reject	undocumented	docs	createStorageLifecyclePolicy(ARCHIVE_FOR_DAYS_=_NUMBER)?/ARCHIVE_FOR_DAYS_=_NUMBER!insert	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 ARCHIVE_FOR_DAYS = 1 zzz
 reject	undocumented	docs	createStorageLifecyclePolicy(ARCHIVE_FOR_DAYS_=_NUMBER)?/ARCHIVE_FOR_DAYS_=_NUMBER!swap	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 ARCHIVE_TIER = 1
-reject	accept	docs	createStorageLifecyclePolicy(COMMENT_=_STRING)?/%empty	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1
-reject	accept	docs	createStorageLifecyclePolicy(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 COMMENT = 's'
-reject	undocumented	docs	createStorageLifecyclePolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-1	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 = 's'
+accept	accept	docs	createStorageLifecyclePolicy(COMMENT_=_STRING)?/%empty	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1
+accept	accept	docs	createStorageLifecyclePolicy(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 COMMENT = 's'
+accept	undocumented	docs	createStorageLifecyclePolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-1	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 = 's'
 reject	undocumented	docs	createStorageLifecyclePolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 COMMENT 's'
 reject	undocumented	docs	createStorageLifecyclePolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 COMMENT =
 reject	undocumented	docs	createStorageLifecyclePolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 COMMENT = 's' zzz
 reject	undocumented	docs	createStorageLifecyclePolicy(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 COMMENTS = 's'
-reject	accept	docs	createStorageLifecyclePolicy(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/%empty	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1
-reject	accept	docs	createStorageLifecyclePolicy(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 TAG(a = 's')
+accept	accept	docs	createStorageLifecyclePolicy(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/%empty	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1
+accept	accept	docs	createStorageLifecyclePolicy(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 TAG(a = 's')
 reject	undocumented	docs	createStorageLifecyclePolicy(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!drop-1	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1(a = 's')
 reject	undocumented	docs	createStorageLifecyclePolicy(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!drop-2	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 TAG a = 's')
 reject	undocumented	docs	createStorageLifecyclePolicy(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!drop-3	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 TAG(= 's')
@@ -48061,23 +48061,23 @@ reject	undocumented	docs	createStorageLifecyclePolicy(WITH?_TAG_(_QNAME_=_STRING
 reject	undocumented	docs	createStorageLifecyclePolicy(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!drop-6	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 TAG(a = 's'
 reject	undocumented	docs	createStorageLifecyclePolicy(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!insert	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 TAG(a = 's') zzz
 reject	undocumented	docs	createStorageLifecyclePolicy(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!swap	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 TAGS(a = 's')
-reject	accept	docs	createStorageLifecyclePolicy(WITH)?/%empty	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 TAG(a = 's')
+accept	accept	docs	createStorageLifecyclePolicy(WITH)?/%empty	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 TAG(a = 's')
 reject	undocumented	docs	createStorageLifecyclePolicy(WITH)?/%empty!insert	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 zzz TAG(a = 's')
-reject	accept	docs	createStorageLifecyclePolicy(WITH)?/WITH	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 WITH TAG(a = 's')
+accept	accept	docs	createStorageLifecyclePolicy(WITH)?/WITH	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 WITH TAG(a = 's')
 reject	undocumented	docs	createStorageLifecyclePolicy(WITH)?/WITH!insert	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 WITH zzz TAG(a = 's')
 reject	undocumented	docs	createStorageLifecyclePolicy(WITH)?/WITH!swap	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 WITHIN TAG(a = 's')
-reject	accept	docs	createStorageLifecyclePolicy(,_QNAME_=_STRING)*/%empty	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 TAG(a = 's')
+accept	accept	docs	createStorageLifecyclePolicy(,_QNAME_=_STRING)*/%empty	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 TAG(a = 's')
 reject	undocumented	docs	createStorageLifecyclePolicy(,_QNAME_=_STRING)*/%empty!insert	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 TAG(a = 's' zzz)
-reject	accept	docs	createStorageLifecyclePolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 TAG(a = 's', a = 's')
+accept	accept	docs	createStorageLifecyclePolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 TAG(a = 's', a = 's')
 reject	undocumented	docs	createStorageLifecyclePolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-1	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 TAG(a = 's' a = 's')
 reject	undocumented	docs	createStorageLifecyclePolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-2	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 TAG(a = 's', = 's')
 reject	undocumented	docs	createStorageLifecyclePolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-3	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 TAG(a = 's', a 's')
 reject	undocumented	docs	createStorageLifecyclePolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-4	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 TAG(a = 's', a =)
 reject	undocumented	docs	createStorageLifecyclePolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!truncate	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 TAG(a = 's', a =
 reject	undocumented	docs	createStorageLifecyclePolicy(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!insert	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1 TAG(a = 's', a = 's' zzz)
-reject	accept	docs	createStorageLifecyclePolicy(IF_NOT_EXISTS)?/%empty	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1
+accept	accept	docs	createStorageLifecyclePolicy(IF_NOT_EXISTS)?/%empty	CREATE STORAGE LIFECYCLE POLICY a AS(a INT) RETURNS BOOLEAN -> 1
 reject	undocumented	docs	createStorageLifecyclePolicy(IF_NOT_EXISTS)?/%empty!insert	CREATE STORAGE LIFECYCLE POLICY zzz a AS(a INT) RETURNS BOOLEAN -> 1
-reject	accept	docs	createStorageLifecyclePolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE STORAGE LIFECYCLE POLICY IF NOT EXISTS a AS(a INT) RETURNS BOOLEAN -> 1
+accept	accept	docs	createStorageLifecyclePolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE STORAGE LIFECYCLE POLICY IF NOT EXISTS a AS(a INT) RETURNS BOOLEAN -> 1
 reject	undocumented	docs	createStorageLifecyclePolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE STORAGE LIFECYCLE POLICY NOT EXISTS a AS(a INT) RETURNS BOOLEAN -> 1
 reject	undocumented	docs	createStorageLifecyclePolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE STORAGE LIFECYCLE POLICY IF EXISTS a AS(a INT) RETURNS BOOLEAN -> 1
 reject	undocumented	docs	createStorageLifecyclePolicy(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE STORAGE LIFECYCLE POLICY IF NOT a AS(a INT) RETURNS BOOLEAN -> 1
@@ -48094,16 +48094,16 @@ reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_QNAME_(WITH?_T
 accept	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_QNAME_(WITH?_TAG_(_QNAME_=_~d5703b09!insert	CREATE STREAM a ON TABLE a zzz
 reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_QNAME_(WITH?_TAG_(_QNAME_=_~d5703b09!swap	CREATION STREAM a ON TABLE a
 accept	accept	docs	createStream/CREATE_STREAM_(IF_NOT_EXISTS)?_QNAME_(WITH?_TAG_(_QNAME~07dba165	CREATE STREAM a ON TABLE a
-reject	accept	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_QNAME_(WITH?_TAG_(_QNAME_=_~a2a8ab7e	CREATE STREAM a ON EVENT TABLE a
+accept	accept	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_QNAME_(WITH?_TAG_(_QNAME_=_~a2a8ab7e	CREATE STREAM a ON EVENT TABLE a
 reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_QNAME_(WITH?_TAG_(_QNAME_=_~a2a8ab7e!drop-1	STREAM a ON EVENT TABLE a
 reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_QNAME_(WITH?_TAG_(_QNAME_=_~a2a8ab7e!drop-2	CREATE a ON EVENT TABLE a
 reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_QNAME_(WITH?_TAG_(_QNAME_=_~a2a8ab7e!drop-3	CREATE STREAM ON EVENT TABLE a
 reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_QNAME_(WITH?_TAG_(_QNAME_=_~a2a8ab7e!drop-4	CREATE STREAM a EVENT TABLE a
 reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_QNAME_(WITH?_TAG_(_QNAME_=_~a2a8ab7e!drop-6	CREATE STREAM a ON EVENT a
 reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_QNAME_(WITH?_TAG_(_QNAME_=_~a2a8ab7e!drop-7	CREATE STREAM a ON EVENT TABLE
-reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_QNAME_(WITH?_TAG_(_QNAME_=_~a2a8ab7e!insert	CREATE STREAM a ON EVENT TABLE a zzz
+accept	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_QNAME_(WITH?_TAG_(_QNAME_=_~a2a8ab7e!insert	CREATE STREAM a ON EVENT TABLE a zzz
 reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_QNAME_(WITH?_TAG_(_QNAME_=_~a2a8ab7e!swap	CREATION STREAM a ON EVENT TABLE a
-reject	accept	docs	createStream/CREATE_STREAM_(IF_NOT_EXISTS)?_QNAME_(WITH?_TAG_(_QNAME~6604dbf9	CREATE STREAM a ON EVENT TABLE a
+accept	accept	docs	createStream/CREATE_STREAM_(IF_NOT_EXISTS)?_QNAME_(WITH?_TAG_(_QNAME~6604dbf9	CREATE STREAM a ON EVENT TABLE a
 accept	accept	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_QNAME_(WITH?_TAG_(_QNAME_=_~f7360c09	CREATE STREAM a ON EXTERNAL TABLE a
 reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_QNAME_(WITH?_TAG_(_QNAME_=_~f7360c09!drop-1	STREAM a ON EXTERNAL TABLE a
 reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_QNAME_(WITH?_TAG_(_QNAME_=_~f7360c09!drop-2	CREATE a ON EXTERNAL TABLE a
@@ -48123,16 +48123,16 @@ reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_QNAME_(WITH?_T
 accept	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_QNAME_(WITH?_TAG_(_QNAME_=_~22f26651!insert	CREATE STREAM a ON STAGE a zzz
 reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_QNAME_(WITH?_TAG_(_QNAME_=_~22f26651!swap	CREATION STREAM a ON STAGE a
 accept	accept	docs	createStream/CREATE_STREAM_(IF_NOT_EXISTS)?_QNAME_(WITH?_TAG_(_QNAME~59060e9e	CREATE STREAM a ON STAGE a
-reject	accept	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_QNAME_(WITH?_TAG_(_QNAME_=_~50a4bdf4	CREATE STREAM a ON DYNAMIC TABLE a
+accept	accept	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_QNAME_(WITH?_TAG_(_QNAME_=_~50a4bdf4	CREATE STREAM a ON DYNAMIC TABLE a
 reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_QNAME_(WITH?_TAG_(_QNAME_=_~50a4bdf4!drop-1	STREAM a ON DYNAMIC TABLE a
 reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_QNAME_(WITH?_TAG_(_QNAME_=_~50a4bdf4!drop-2	CREATE a ON DYNAMIC TABLE a
 reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_QNAME_(WITH?_TAG_(_QNAME_=_~50a4bdf4!drop-3	CREATE STREAM ON DYNAMIC TABLE a
 reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_QNAME_(WITH?_TAG_(_QNAME_=_~50a4bdf4!drop-4	CREATE STREAM a DYNAMIC TABLE a
 reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_QNAME_(WITH?_TAG_(_QNAME_=_~50a4bdf4!drop-6	CREATE STREAM a ON DYNAMIC a
 reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_QNAME_(WITH?_TAG_(_QNAME_=_~50a4bdf4!drop-7	CREATE STREAM a ON DYNAMIC TABLE
-reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_QNAME_(WITH?_TAG_(_QNAME_=_~50a4bdf4!insert	CREATE STREAM a ON DYNAMIC TABLE a zzz
+accept	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_QNAME_(WITH?_TAG_(_QNAME_=_~50a4bdf4!insert	CREATE STREAM a ON DYNAMIC TABLE a zzz
 reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_QNAME_(WITH?_TAG_(_QNAME_=_~50a4bdf4!swap	CREATION STREAM a ON DYNAMIC TABLE a
-reject	accept	docs	createStream/CREATE_STREAM_(IF_NOT_EXISTS)?_QNAME_(WITH?_TAG_(_QNAME~a5aa0a20	CREATE STREAM a ON DYNAMIC TABLE a
+accept	accept	docs	createStream/CREATE_STREAM_(IF_NOT_EXISTS)?_QNAME_(WITH?_TAG_(_QNAME~a5aa0a20	CREATE STREAM a ON DYNAMIC TABLE a
 accept	accept	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_QNAME_(WITH?_TAG_(_QNAME_=_~50ecc4b5	CREATE STREAM a ON VIEW a
 reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_QNAME_(WITH?_TAG_(_QNAME_=_~50ecc4b5!drop-1	STREAM a ON VIEW a
 reject	undocumented	docs	createStream/CREATE_(OR_REPLACE)?_STREAM_QNAME_(WITH?_TAG_(_QNAME_=_~50ecc4b5!drop-2	CREATE a ON VIEW a
@@ -48263,7 +48263,7 @@ reject	undocumented	docs	createStream(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3
 accept	undocumented	docs	createStream(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE STREAM a ON TABLE a COMMENT = 's' zzz
 accept	undocumented	docs	createStream(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE STREAM a ON TABLE a COMMENTS = 's'
 accept	accept	docs	createStream(COPY_=_(_GRANTS_))?/%empty	CREATE STREAM a CLONE a
-reject	accept	docs	createStream(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)	CREATE STREAM a CLONE a COPY =(GRANTS)
+accept	accept	docs	createStream(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)	CREATE STREAM a CLONE a COPY =(GRANTS)
 reject	undocumented	docs	createStream(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!drop-1	CREATE STREAM a CLONE a =(GRANTS)
 reject	undocumented	docs	createStream(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!drop-2	CREATE STREAM a CLONE a COPY(GRANTS)
 reject	undocumented	docs	createStream(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!drop-3	CREATE STREAM a CLONE a COPY = GRANTS)
