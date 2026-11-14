@@ -151,8 +151,8 @@ func RestoreSQL(nodes []ast.Node, opts RestoreOptions) (string, error) {
 }
 
 func generateDeleteRestore(originalDatabase, originalTable, backupDatabase, backupTable string, normalColumns []string) string {
-	quotedColumnList := quoteColumns(normalColumns)
-	return fmt.Sprintf("INSERT INTO `%s`.`%s` (%s) SELECT %s FROM `%s`.`%s`;", originalDatabase, originalTable, quotedColumnList, quotedColumnList, backupDatabase, backupTable)
+	quotedColumnList := quoteColumnList(normalColumns, "", ", ")
+	return fmt.Sprintf("INSERT INTO %s.%s (%s) SELECT %s FROM %s.%s;", quoteIdentifier(originalDatabase), quoteIdentifier(originalTable), quotedColumnList, quotedColumnList, quoteIdentifier(backupDatabase), quoteIdentifier(backupTable))
 }
 
 func generateUpdateRestore(catalog Catalog, stmts []*ast.UpdateStmt, originalDatabase, originalTable, backupDatabase, backupTable string, normalColumns []string) (string, error) {
@@ -185,25 +185,17 @@ func generateUpdateRestore(catalog Catalog, stmts []*ast.UpdateStmt, originalDat
 	}
 
 	var buf strings.Builder
-	quotedColumnList := quoteColumns(normalColumns)
-	fmt.Fprintf(&buf, "INSERT INTO `%s`.`%s` (%s) SELECT %s FROM `%s`.`%s` ON DUPLICATE KEY UPDATE ", originalDatabase, originalTable, quotedColumnList, quotedColumnList, backupDatabase, backupTable)
+	quotedColumnList := quoteColumnList(normalColumns, "", ", ")
+	fmt.Fprintf(&buf, "INSERT INTO %s.%s (%s) SELECT %s FROM %s.%s ON DUPLICATE KEY UPDATE ", quoteIdentifier(originalDatabase), quoteIdentifier(originalTable), quotedColumnList, quotedColumnList, quoteIdentifier(backupDatabase), quoteIdentifier(backupTable))
 
 	for i, field := range updateColumns {
 		if i > 0 {
 			buf.WriteString(", ")
 		}
-		fmt.Fprintf(&buf, "`%s` = VALUES(`%s`)", field, field)
+		fmt.Fprintf(&buf, "%s = VALUES(%s)", quoteIdentifier(field), quoteIdentifier(field))
 	}
 	buf.WriteString(";")
 	return buf.String(), nil
-}
-
-func quoteColumns(columns []string) string {
-	var quotedColumns []string
-	for _, column := range columns {
-		quotedColumns = append(quotedColumns, fmt.Sprintf("`%s`", column))
-	}
-	return strings.Join(quotedColumns, ", ")
 }
 
 // extractSingleTablesFromTableExprs walks omni TableExpr nodes and returns
@@ -320,7 +312,9 @@ func hasDisjointUniqueKey(catalog Catalog, originalDatabase, originalTable strin
 	// tell whether the SET clause indirectly affects them.
 	regularColumns := make(map[string]bool)
 	for _, col := range tableProto.Columns {
-		if col == nil || col.Generation != nil {
+		// NULLs never collide, so a key on a nullable column cannot match
+		// the backed-up row to the changed one either.
+		if col == nil || col.Generation != nil || col.Nullable {
 			continue
 		}
 		regularColumns[strings.ToLower(col.Name)] = true

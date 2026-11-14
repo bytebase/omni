@@ -57,9 +57,10 @@ var backupDB = &backupDatabase{
 	name: "db",
 	tables: []*metadata.TableMetadata{
 		{Name: "t", Columns: backupColumns("a", "b", "c"), Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Unique: true, Expressions: []string{"a"}}}},
-		{Name: "t1", Columns: backupColumns("a", "b")},
-		{Name: "t2", Columns: backupColumns("c", "d")},
+		{Name: "t1", Columns: backupColumns("a", "b"), Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Unique: true, Expressions: []string{"a"}}}},
+		{Name: "t2", Columns: backupColumns("c", "d"), Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Unique: true, Expressions: []string{"c"}}}},
 		{Name: "tg", Columns: backupColumns("a", "b", "g_c"), Indexes: []*metadata.IndexMetadata{{Name: "uk", Unique: true, Expressions: []string{"B"}}}},
+		{Name: "nokey", Columns: []*metadata.ColumnMetadata{{Name: "a", Nullable: true}, {Name: "b"}}, Indexes: []*metadata.IndexMetadata{{Name: "uk", Unique: true, Expressions: []string{"a"}}}},
 		{Name: "tk", Columns: backupColumns("a", "b", "g_c"), Indexes: []*metadata.IndexMetadata{
 			{Name: "uk_generated", Unique: true, Expressions: []string{"g_c"}},
 			{Name: "uk_expression", Unique: true, Expressions: []string{"(`a` + 1)"}},
@@ -98,7 +99,7 @@ func TestTransformDMLToSelect(t *testing.T) {
 		{
 			statement: "UPDATE t SET a = 1 WHERE b = 2 ORDER BY c LIMIT 3;",
 			want: []analysis.BackupStatement{{
-				Statement:   "CREATE TABLE `bak`.`pre_t_db` LIKE `db`.`t`;\nINSERT INTO `bak`.`pre_t_db`  SELECT `t`.* FROM t WHERE b = 2 ORDER BY c LIMIT 3;",
+				Statement:   "CREATE TABLE `bak`.`pre_t_db` LIKE `db`.`t`;\nINSERT INTO `bak`.`pre_t_db` (`a`,`b`,`c`)  SELECT `t`.`a`,`t`.`b`,`t`.`c` FROM t WHERE b = 2 ORDER BY c LIMIT 3;",
 				SourceTable: "t", BackupTable: "pre_t_db", ByteStart: 0, ByteEnd: 49,
 			}},
 		},
@@ -106,15 +107,16 @@ func TestTransformDMLToSelect(t *testing.T) {
 			// Two statements on one table share a backup; the range spans both.
 			statement: "SELECT 1; DELETE FROM t WHERE a = 1; DELETE FROM db.t WHERE a = 2;",
 			want: []analysis.BackupStatement{{
-				Statement:   "CREATE TABLE `bak`.`pre_t_db` LIKE `db`.`t`;\nINSERT INTO `bak`.`pre_t_db`  (SELECT `t`.* FROM t WHERE a = 1)\n  UNION DISTINCT\n  (SELECT `t`.* FROM db.t WHERE a = 2);",
+				Statement:   "CREATE TABLE `bak`.`pre_t_db` LIKE `db`.`t`;\nINSERT INTO `bak`.`pre_t_db` (`a`,`b`,`c`)  (SELECT `t`.`a`,`t`.`b`,`t`.`c` FROM t WHERE a = 1)\n  UNION DISTINCT\n  (SELECT `t`.`a`,`t`.`b`,`t`.`c` FROM db.t WHERE a = 2);",
 				SourceTable: "t", BackupTable: "pre_t_db", ByteStart: 9, ByteEnd: 65,
 			}},
 		},
 		{
-			// Generated columns are left out of the copy.
+			// Generated columns are left out of the copy, and a row a join
+			// repeats is copied once.
 			statement: "DELETE x FROM tg AS x JOIN t1 ON x.a = t1.a",
 			want: []analysis.BackupStatement{{
-				Statement:   "CREATE TABLE `bak`.`pre_tg_db` LIKE `db`.`tg`;\nINSERT INTO `bak`.`pre_tg_db` (`a`,`b`)  SELECT `x`.`a`,`x`.`b` FROM tg AS x JOIN t1 ON x.a = t1.a;",
+				Statement:   "CREATE TABLE `bak`.`pre_tg_db` LIKE `db`.`tg`;\nINSERT INTO `bak`.`pre_tg_db` (`a`,`b`)  SELECT DISTINCT `x`.`a`,`x`.`b` FROM tg AS x JOIN t1 ON x.a = t1.a;",
 				SourceTable: "tg", BackupTable: "pre_tg_db", ByteStart: 0, ByteEnd: 43,
 			}},
 		},
@@ -123,7 +125,7 @@ func TestTransformDMLToSelect(t *testing.T) {
 			// goes to the table that has it.
 			statement: "WITH c AS (SELECT a FROM t2) UPDATE t1 JOIN t2 ON t1.a = t2.c JOIN c ON c.a = t1.a SET d = 1, c.a = 2",
 			want: []analysis.BackupStatement{{
-				Statement:   "CREATE TABLE `bak`.`pre_t2_db` LIKE `db`.`t2`;\nINSERT INTO `bak`.`pre_t2_db`  WITH c AS (SELECT a FROM t2) SELECT `t2`.* FROM t1 JOIN t2 ON t1.a = t2.c JOIN c ON c.a = t1.a;",
+				Statement:   "CREATE TABLE `bak`.`pre_t2_db` LIKE `db`.`t2`;\nINSERT INTO `bak`.`pre_t2_db` (`c`,`d`)  WITH c AS (SELECT a FROM t2) SELECT DISTINCT `t2`.`c`,`t2`.`d` FROM t1 JOIN t2 ON t1.a = t2.c JOIN c ON c.a = t1.a;",
 				SourceTable: "t2", BackupTable: "pre_t2_db", ByteStart: 0, ByteEnd: 101,
 			}},
 		},
@@ -131,11 +133,11 @@ func TestTransformDMLToSelect(t *testing.T) {
 			statement: "UPDATE t SET a = 1; UPDATE t1 SET a = 1",
 			want: []analysis.BackupStatement{
 				{
-					Statement:   "CREATE TABLE `bak`.`pre_t_db` LIKE `db`.`t`;\nINSERT INTO `bak`.`pre_t_db`  SELECT `t`.* FROM t;",
+					Statement:   "CREATE TABLE `bak`.`pre_t_db` LIKE `db`.`t`;\nINSERT INTO `bak`.`pre_t_db` (`a`,`b`,`c`)  SELECT `t`.`a`,`t`.`b`,`t`.`c` FROM t;",
 					SourceTable: "t", BackupTable: "pre_t_db", ByteStart: 0, ByteEnd: 18,
 				},
 				{
-					Statement:   "CREATE TABLE `bak`.`pre_t1_db` LIKE `db`.`t1`;\nINSERT INTO `bak`.`pre_t1_db`  SELECT `t1`.* FROM t1;",
+					Statement:   "CREATE TABLE `bak`.`pre_t1_db` LIKE `db`.`t1`;\nINSERT INTO `bak`.`pre_t1_db` (`a`,`b`)  SELECT `t1`.`a`,`t1`.`b` FROM t1;",
 					SourceTable: "t1", BackupTable: "pre_t1_db", ByteStart: 19, ByteEnd: 39,
 				},
 			},
@@ -173,9 +175,9 @@ func TestTransformDMLToSelectOptions(t *testing.T) {
 		DefaultDatabase: "db",
 		BackupDatabase:  "bak",
 		TablePrefix:     strings.Repeat("回", 70),
-		Columns: func(database, table string) ([]string, []string, error) {
+		Columns: func(database, table string) (analysis.TableColumns, error) {
 			asked = append(asked, database+"."+table)
-			return []string{"g"}, []string{"x"}, nil
+			return analysis.TableColumns{Generated: []string{"g"}, Normal: []string{"x"}}, nil
 		},
 	})
 	require.NoError(t, err)
@@ -186,37 +188,36 @@ func TestTransformDMLToSelectOptions(t *testing.T) {
 
 	_, err = analysis.TransformDMLToSelect("DELETE FROM t", analysis.BackupOptions{
 		DefaultDatabase: "db",
-		Columns: func(string, string) ([]string, []string, error) {
-			return nil, nil, errors.New("no columns")
+		Columns: func(string, string) (analysis.TableColumns, error) {
+			return analysis.TableColumns{}, errors.New("no columns")
 		},
 	})
 	require.EqualError(t, err, "failed to generate SQL for table db.t: failed to classify columns: no columns")
 }
 
 func TestClassifyColumns(t *testing.T) {
-	generated, normal, err := analysis.ClassifyColumns(backupCatalog(), false, "Db", "TG")
+	columns, err := analysis.ClassifyColumns(backupCatalog(), false, "Db", "TG")
 	require.NoError(t, err)
-	require.Equal(t, []string{"g_c"}, generated)
-	require.Equal(t, []string{"a", "b"}, normal)
+	require.Equal(t, analysis.TableColumns{Generated: []string{"g_c"}, Normal: []string{"a", "b"}, RowKey: true}, columns)
 
 	// Case-sensitive lookups find neither the listed "DB" nor the table "TG".
-	_, _, err = analysis.ClassifyColumns(backupCatalog(), true, "db", "tg")
+	_, err = analysis.ClassifyColumns(backupCatalog(), true, "db", "tg")
 	var notFound *analysis.NotFoundError
 	require.ErrorAs(t, err, &notFound)
-	_, _, err = analysis.ClassifyColumns(backupCatalog(), true, "DB", "TG")
+	_, err = analysis.ClassifyColumns(backupCatalog(), true, "DB", "TG")
 	require.EqualError(t, err, "table TG not found in schema")
 
 	catalog := backupCatalog()
 	catalog.ListDatabaseNames = func() ([]string, error) { return nil, errors.New("down") }
-	_, _, err = analysis.ClassifyColumns(catalog, false, "db", "t")
+	_, err = analysis.ClassifyColumns(catalog, false, "db", "t")
 	require.EqualError(t, err, "failed to list databases names: down")
 
 	catalog = backupCatalog()
 	catalog.GetDatabase = func(string) (analysis.Database, error) { return nil, errors.New("down") }
-	_, _, err = analysis.ClassifyColumns(catalog, false, "db", "t")
+	_, err = analysis.ClassifyColumns(catalog, false, "db", "t")
 	require.EqualError(t, err, `failed to get database metadata for database "DB": down`)
 
-	_, _, err = analysis.ClassifyColumns(analysis.Catalog{}, false, "db", "t")
+	_, err = analysis.ClassifyColumns(analysis.Catalog{}, false, "db", "t")
 	require.Error(t, err)
 }
 
@@ -225,10 +226,10 @@ func TestExtractTables(t *testing.T) {
 	list, err := parser.Parse(statement)
 	require.NoError(t, err)
 	// Without metadata an unqualified SET column could be any table's.
-	got, err := analysis.ExtractTables("db", list.Items[0], statement, 3, nil)
+	got, err := analysis.ExtractTables("db", list.Items[0], statement, 3, analysis.Catalog{})
 	require.NoError(t, err)
 	require.Len(t, got, 2)
-	got, err = analysis.ExtractTables("db", list.Items[0], statement, 3, backupDB)
+	got, err = analysis.ExtractTables("db", list.Items[0], statement, 3, backupCatalog())
 	require.NoError(t, err)
 	require.Len(t, got, 1)
 	require.Equal(t, analysis.TableReference{Database: "db", Table: "t2", Alias: "b", StatementType: analysis.DMLTypeUpdate}, *got[0].Table)
@@ -237,15 +238,96 @@ func TestExtractTables(t *testing.T) {
 }
 
 func TestTransformDMLToSelectKeepsEachLimit(t *testing.T) {
-	got, err := transform(t, "DELETE FROM t WHERE a = 1 ORDER BY b LIMIT 1; DELETE FROM t WHERE a > 2 LIMIT 2")
+	got, err := transform(t, "DELETE FROM t WHERE a > 2 ORDER BY b LIMIT 2; DELETE FROM t WHERE a = 1")
 	require.NoError(t, err)
 	require.Len(t, got, 1)
-	require.Equal(t, "CREATE TABLE `bak`.`pre_t_db` LIKE `db`.`t`;\nINSERT INTO `bak`.`pre_t_db`  (SELECT `t`.* FROM t WHERE a = 1 ORDER BY b LIMIT 1)\n  UNION DISTINCT\n  (SELECT `t`.* FROM t WHERE a > 2 LIMIT 2);", got[0].Statement)
+	require.Equal(t, "CREATE TABLE `bak`.`pre_t_db` LIKE `db`.`t`;\nINSERT INTO `bak`.`pre_t_db` (`a`,`b`,`c`)  (SELECT `t`.`a`,`t`.`b`,`t`.`c` FROM t WHERE a > 2 ORDER BY b LIMIT 2)\n  UNION DISTINCT\n  (SELECT `t`.`a`,`t`.`b`,`t`.`c` FROM t WHERE a = 1);", got[0].Statement)
 
 	// A single statement's SELECT needs no parentheses.
 	got, err = transform(t, "DELETE FROM t WHERE a = 1 LIMIT 1")
 	require.NoError(t, err)
-	require.True(t, strings.HasSuffix(got[0].Statement, "  SELECT `t`.* FROM t WHERE a = 1 LIMIT 1;"), got[0].Statement)
+	require.True(t, strings.HasSuffix(got[0].Statement, "  SELECT `t`.`a`,`t`.`b`,`t`.`c` FROM t WHERE a = 1 LIMIT 1;"), got[0].Statement)
+
+	// A later statement's LIMIT may pick rows the backup, read before any
+	// statement runs, never saw.
+	for _, script := range []string{
+		"DELETE FROM t ORDER BY a LIMIT 1; DELETE FROM t ORDER BY a LIMIT 1",
+		"UPDATE t SET b = 1 WHERE a = 1; UPDATE t SET b = b + 1 ORDER BY b LIMIT 1",
+	} {
+		_, err = transform(t, script)
+		require.EqualError(t, err, "prior backup cannot handle a statement with LIMIT after another statement on the same table db.t", script)
+	}
+}
+
+func TestTransformDMLToSelectNeedsRowKey(t *testing.T) {
+	// nokey has no primary key and only a unique key on a nullable column, so
+	// a join's repeated row and two equal rows look alike.
+	got, err := transform(t, "DELETE FROM nokey WHERE a = 1")
+	require.NoError(t, err)
+	require.True(t, strings.HasSuffix(got[0].Statement, "  SELECT `nokey`.`a`,`nokey`.`b` FROM nokey WHERE a = 1;"), got[0].Statement)
+	_, err = transform(t, "DELETE nokey FROM nokey JOIN t ON nokey.a = t.a")
+	require.EqualError(t, err, "failed to generate SQL for table db.nokey: prior backup cannot back up a table without a primary key or a unique key of non-null columns from a statement that joins other tables")
+	_, err = transform(t, "DELETE FROM nokey WHERE a = 1; DELETE FROM nokey WHERE b = 2")
+	require.EqualError(t, err, "failed to generate SQL for table db.nokey: prior backup cannot combine several statements on a table without a primary key or a unique key of non-null columns")
+}
+
+func TestTransformDMLToSelectQuotesIdentifiers(t *testing.T) {
+	got, err := analysis.TransformDMLToSelect("DELETE FROM `a``b` WHERE `c``d` = 1", analysis.BackupOptions{
+		DefaultDatabase: "d`b",
+		BackupDatabase:  "b`ak",
+		TablePrefix:     "p",
+		Columns: func(string, string) (analysis.TableColumns, error) {
+			return analysis.TableColumns{Normal: []string{"c`d"}, RowKey: true}, nil
+		},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "CREATE TABLE `b``ak`.`p_a``b_d``b` LIKE `d``b`.`a``b`;\nINSERT INTO `b``ak`.`p_a``b_d``b` (`c``d`)  SELECT `a``b`.`c``d` FROM `a``b` WHERE `c``d` = 1;", got[0].Statement)
+}
+
+func TestTransformDMLToSelectBalancesTableRefs(t *testing.T) {
+	got, err := transform(t, "UPDATE (t1 JOIN t2 ON t1.a = t2.c) JOIN t ON t.a = t1.a SET t1.b = 1")
+	require.NoError(t, err)
+	require.True(t, strings.HasSuffix(got[0].Statement, "FROM (t1 JOIN t2 ON t1.a = t2.c) JOIN t ON t.a = t1.a;"), got[0].Statement)
+	got, err = transform(t, "DELETE t1 FROM (t1 JOIN t2 ON t1.a = t2.c) JOIN t ON t.a = t1.a WHERE t2.d = ')'")
+	require.NoError(t, err)
+	require.True(t, strings.HasSuffix(got[0].Statement, "FROM (t1 JOIN t2 ON t1.a = t2.c) JOIN t ON t.a = t1.a WHERE t2.d = ')';"), got[0].Statement)
+}
+
+func TestTransformDMLToSelectResolvesEachDatabase(t *testing.T) {
+	// other's u has a, which db's t also has; the SET column is other.u's.
+	catalog := backupCatalog()
+	catalog.GetDatabase = func(name string) (analysis.Database, error) {
+		switch name {
+		case "db", "DB":
+			return backupDB, nil
+		case "other":
+			return otherDB, nil
+		}
+		return nil, nil
+	}
+	got, err := analysis.TransformDMLToSelect("UPDATE other.t JOIN other.u ON other.t.id = other.u.id SET a = 1", analysis.BackupOptions{
+		DefaultDatabase: "db",
+		Catalog:         catalog,
+		Columns: func(string, string) (analysis.TableColumns, error) {
+			return analysis.TableColumns{Normal: []string{"id"}, RowKey: true}, nil
+		},
+	})
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	require.Equal(t, "u", got[0].SourceTable)
+
+	// Without other's metadata either table may own the column.
+	got, err = transform(t, "UPDATE other.t JOIN other.u ON other.t.id = other.u.id SET a = 1")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "resource not found: database: other")
+}
+
+var otherDB = &backupDatabase{
+	name: "other",
+	tables: []*metadata.TableMetadata{
+		{Name: "t", Columns: backupColumns("id", "b")},
+		{Name: "u", Columns: backupColumns("id", "a")},
+	},
 }
 
 func TestTransformDMLToSelectCTEAlias(t *testing.T) {

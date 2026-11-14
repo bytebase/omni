@@ -11,12 +11,12 @@ import (
 
 func restore(t *testing.T, statement, table string) (string, error) {
 	t.Helper()
-	columns, err := analysis.NormalColumnSet(backupCatalog(), "db", table)
+	columnSet, err := analysis.NormalColumnSet(backupCatalog(), "db", table)
 	require.NoError(t, err)
-	nodes, err := analysis.MatchingDMLs(statement, "db", table, columns)
+	nodes, err := analysis.MatchingDMLs(statement, "db", table, columnSet)
 	require.NoError(t, err)
 	require.NotEmpty(t, nodes)
-	_, normal, err := analysis.ClassifyColumns(backupCatalog(), false, "db", table)
+	columns, err := analysis.ClassifyColumns(backupCatalog(), false, "db", table)
 	require.NoError(t, err)
 	return analysis.RestoreSQL(nodes, analysis.RestoreOptions{
 		Statement:      statement,
@@ -24,7 +24,7 @@ func restore(t *testing.T, statement, table string) (string, error) {
 		Table:          table,
 		BackupDatabase: "bak",
 		BackupTable:    "pre_" + table,
-		Columns:        normal,
+		Columns:        columns.Normal,
 		Catalog:        backupCatalog(),
 	})
 }
@@ -101,4 +101,24 @@ func TestRestoreSQLEscapesCommentEnd(t *testing.T) {
 	got, err := restore(t, "DELETE /* note */ FROM t WHERE a = '*/'", "t")
 	require.NoError(t, err)
 	require.Equal(t, "/*\nOriginal SQL:\nDELETE /* note * / FROM t WHERE a = '* /'\n*/\nINSERT INTO `db`.`t` (`a`, `b`, `c`) SELECT `a`, `b`, `c` FROM `bak`.`pre_t`;", got)
+}
+
+func TestRestoreSQLSkipsNullableKeys(t *testing.T) {
+	_, err := restore(t, "UPDATE nokey SET b = 1", "nokey")
+	require.EqualError(t, err, "no disjoint unique key found for db.nokey")
+}
+
+func TestRestoreSQLQuotesIdentifiers(t *testing.T) {
+	nodes, err := analysis.MatchingDMLs("DELETE FROM `a``b`", "d`b", "a`b", nil)
+	require.NoError(t, err)
+	got, err := analysis.RestoreSQL(nodes, analysis.RestoreOptions{
+		Statement:      "DELETE FROM `a``b`",
+		Database:       "d`b",
+		Table:          "a`b",
+		BackupDatabase: "b`ak",
+		BackupTable:    "p`t",
+		Columns:        []string{"c`d", "e"},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "/*\nOriginal SQL:\nDELETE FROM `a``b`\n*/\nINSERT INTO `d``b`.`a``b` (`c``d`, `e`) SELECT `c``d`, `e` FROM `b``ak`.`p``t`;", got)
 }

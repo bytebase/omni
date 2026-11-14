@@ -30,9 +30,9 @@ type RestoreOptions struct {
 	Catalog Catalog
 }
 
-// FirstDML returns the first UPDATE or DELETE of statement, or nil. It returns
-// the parser's error as is.
-func FirstDML(statement string) (ast.Node, error) {
+// DMLs returns the UPDATE and DELETE statements of statement, in order. It
+// returns the parser's error as is.
+func DMLs(statement string) ([]ast.Node, error) {
 	stmtList, err := parser.Parse(statement)
 	if err != nil {
 		return nil, err
@@ -40,14 +40,15 @@ func FirstDML(statement string) (ast.Node, error) {
 	if stmtList == nil {
 		return nil, nil
 	}
+	var result []ast.Node
 	for _, item := range stmtList.Items {
 		switch item.(type) {
 		case *ast.UpdateStmt, *ast.DeleteStmt:
-			return item, nil
+			result = append(result, item)
 		default:
 		}
 	}
-	return nil, nil
+	return result, nil
 }
 
 // ReferencesTable reports whether an UPDATE or DELETE of statement names
@@ -66,17 +67,27 @@ func ReferencesTable(statement, database, table string) (bool, error) {
 	return false, nil
 }
 
-// RestoreSQL returns the SQL that copies the backed-up rows of node, an UPDATE
-// or DELETE, back into the table. A DELETE's rows are inserted again; an
-// UPDATE's overwrite the changed columns, which needs a unique key the UPDATE
-// leaves alone.
-func RestoreSQL(node ast.Node, opts RestoreOptions) (string, error) {
+// RestoreSQL returns the SQL that copies the backed-up rows of nodes, the
+// UPDATE and DELETE statements one backup covers, back into the table. The
+// first statement decides: a DELETE's rows are inserted again; UPDATEs'
+// overwrite every column any of them changes, which needs a unique key they
+// leave alone.
+func RestoreSQL(nodes []ast.Node, opts RestoreOptions) (string, error) {
+	if len(nodes) == 0 {
+		return "", errors.New("no DML statement to restore")
+	}
 	var result string
-	switch n := node.(type) {
+	switch node := nodes[0].(type) {
 	case *ast.DeleteStmt:
 		result = generateDeleteRestore(opts.Database, opts.Table, opts.BackupDatabase, opts.BackupTable, opts.Columns)
 	case *ast.UpdateStmt:
-		r, err := generateUpdateRestore(opts.Catalog, n, opts.Database, opts.Table, opts.BackupDatabase, opts.BackupTable, opts.Columns)
+		var updates []*ast.UpdateStmt
+		for _, n := range nodes {
+			if update, ok := n.(*ast.UpdateStmt); ok {
+				updates = append(updates, update)
+			}
+		}
+		r, err := generateUpdateRestore(opts.Catalog, updates, opts.Database, opts.Table, opts.BackupDatabase, opts.BackupTable, opts.Columns)
 		if err != nil {
 			return "", err
 		}
@@ -95,22 +106,31 @@ func RestoreSQL(node ast.Node, opts RestoreOptions) (string, error) {
 }
 
 func generateDeleteRestore(originalDatabase, originalTable, backupDatabase, backupTable string, normalColumns []string) string {
-	quotedColumnList := quoteColumns(normalColumns)
-	return fmt.Sprintf("INSERT INTO `%s`.`%s` (%s) SELECT %s FROM `%s`.`%s`;", originalDatabase, originalTable, quotedColumnList, quotedColumnList, backupDatabase, backupTable)
+	quotedColumnList := quoteColumnList(normalColumns, "", ", ")
+	return fmt.Sprintf("INSERT INTO %s.%s (%s) SELECT %s FROM %s.%s;", quoteIdentifier(originalDatabase), quoteIdentifier(originalTable), quotedColumnList, quotedColumnList, quoteIdentifier(backupDatabase), quoteIdentifier(backupTable))
 }
 
-func generateUpdateRestore(catalog Catalog, stmt *ast.UpdateStmt, originalDatabase, originalTable, backupDatabase, backupTable string, normalColumns []string) (string, error) {
-	// A self-join names the table more than once; a SET column may be
-	// qualified by any of those references.
-	var targets []*TableReference
-	for _, table := range extractSingleTablesFromTableExprs(originalDatabase, stmt.Tables) {
-		if strings.EqualFold(table.Table, originalTable) && strings.EqualFold(table.Database, originalDatabase) {
-			targets = append(targets, table)
+func generateUpdateRestore(catalog Catalog, stmts []*ast.UpdateStmt, originalDatabase, originalTable, backupDatabase, backupTable string, normalColumns []string) (string, error) {
+	// One backup can cover several UPDATEs, and the restore must undo every
+	// column any of them changes, each once.
+	seen := make(map[string]bool)
+	var updateColumns []string
+	for _, stmt := range stmts {
+		// A self-join names the table more than once; a SET column may be
+		// qualified by any of those references.
+		var targets []*TableReference
+		for _, table := range extractSingleTablesFromTableExprs(originalDatabase, stmt.Tables) {
+			if strings.EqualFold(table.Table, originalTable) && strings.EqualFold(table.Database, originalDatabase) {
+				targets = append(targets, table)
+			}
+		}
+		for _, column := range extractUpdateColumns(stmt.SetList, originalDatabase, targets, normalColumns) {
+			if key := strings.ToLower(column); !seen[key] {
+				seen[key] = true
+				updateColumns = append(updateColumns, column)
+			}
 		}
 	}
-
-	// Extract update column names that belong to the original table.
-	updateColumns := extractUpdateColumns(stmt.SetList, originalDatabase, targets, normalColumns)
 
 	has, err := hasDisjointUniqueKey(catalog, originalDatabase, originalTable, updateColumns)
 	if err != nil {
@@ -121,25 +141,17 @@ func generateUpdateRestore(catalog Catalog, stmt *ast.UpdateStmt, originalDataba
 	}
 
 	var buf strings.Builder
-	quotedColumnList := quoteColumns(normalColumns)
-	fmt.Fprintf(&buf, "INSERT INTO `%s`.`%s` (%s) SELECT %s FROM `%s`.`%s` ON DUPLICATE KEY UPDATE ", originalDatabase, originalTable, quotedColumnList, quotedColumnList, backupDatabase, backupTable)
+	quotedColumnList := quoteColumnList(normalColumns, "", ", ")
+	fmt.Fprintf(&buf, "INSERT INTO %s.%s (%s) SELECT %s FROM %s.%s ON DUPLICATE KEY UPDATE ", quoteIdentifier(originalDatabase), quoteIdentifier(originalTable), quotedColumnList, quotedColumnList, quoteIdentifier(backupDatabase), quoteIdentifier(backupTable))
 
 	for i, field := range updateColumns {
 		if i > 0 {
 			buf.WriteString(", ")
 		}
-		fmt.Fprintf(&buf, "`%s` = VALUES(`%s`)", field, field)
+		fmt.Fprintf(&buf, "%s = VALUES(%s)", quoteIdentifier(field), quoteIdentifier(field))
 	}
 	buf.WriteString(";")
 	return buf.String(), nil
-}
-
-func quoteColumns(columns []string) string {
-	var quotedColumns []string
-	for _, column := range columns {
-		quotedColumns = append(quotedColumns, fmt.Sprintf("`%s`", column))
-	}
-	return strings.Join(quotedColumns, ", ")
 }
 
 // extractSingleTablesFromTableExprs walks omni TableExpr nodes and returns
@@ -240,7 +252,7 @@ func hasDisjointUniqueKey(catalog Catalog, originalDatabase, originalTable strin
 
 	regularColumns := make(map[string]bool)
 	for _, column := range tableMetadata.Columns {
-		if column == nil || column.Generation != nil {
+		if column == nil || column.Generation != nil || column.Nullable {
 			continue
 		}
 		regularColumns[strings.ToLower(column.Name)] = true
@@ -253,7 +265,8 @@ func hasDisjointUniqueKey(catalog Catalog, originalDatabase, originalTable strin
 		// A key on a generated column or an expression can change with
 		// the columns it reads, which string comparison with the SET
 		// columns cannot see, so it never identifies a row to restore.
-		// Neither does a key with no parts, which is vacuously disjoint.
+		// Neither does a key on a nullable column, as NULLs never collide,
+		// nor a key with no parts, which is vacuously disjoint.
 		if len(index.Expressions) == 0 || !allRegular(index.Expressions, regularColumns) {
 			continue
 		}
@@ -265,8 +278,8 @@ func hasDisjointUniqueKey(catalog Catalog, originalDatabase, originalTable strin
 	return false, nil
 }
 
-// allRegular reports whether every key part is a column that is not
-// generated.
+// allRegular reports whether every key part is a column that is neither
+// generated nor nullable.
 func allRegular(parts []string, regularColumns map[string]bool) bool {
 	for _, part := range parts {
 		if !regularColumns[strings.ToLower(part)] {

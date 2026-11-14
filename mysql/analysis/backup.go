@@ -68,9 +68,20 @@ type BackupOptions struct {
 	CaseSensitive bool
 	// Catalog is the instance's metadata.
 	Catalog Catalog
-	// Columns returns a table's generated columns and its other columns. Nil
-	// means ClassifyColumns over Catalog.
-	Columns func(database, table string) (generated, normal []string, err error)
+	// Columns returns what the backup needs of a table's columns and keys.
+	// Nil means ClassifyColumns over Catalog.
+	Columns func(database, table string) (TableColumns, error)
+}
+
+// TableColumns is what a backup and its restore need of a table.
+type TableColumns struct {
+	// Generated are the generated columns, which a backup leaves out.
+	Generated []string
+	// Normal are the other columns, invisible ones included, in table order.
+	Normal []string
+	// RowKey reports whether a primary key, or a unique key whose parts are
+	// all non-nullable columns, tells the table's rows apart.
+	RowKey bool
 }
 
 // BackupStatement backs up the rows one table loses or changes.
@@ -89,14 +100,7 @@ type BackupStatement struct {
 // statements of a script change, a statement that copies the rows they touch
 // into a backup table, ordered by position and then table name.
 func TransformDMLToSelect(statement string, opts BackupOptions) ([]BackupStatement, error) {
-	var database Database
-	if opts.Catalog.GetDatabase != nil {
-		if db, err := opts.Catalog.GetDatabase(opts.DefaultDatabase); err == nil {
-			database = db
-		}
-	}
-
-	targets, err := prepareTransformation(opts.DefaultDatabase, statement, database)
+	targets, err := prepareTransformation(opts.DefaultDatabase, statement, opts.Catalog)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare transformation: %w", err)
 	}
@@ -104,7 +108,7 @@ func TransformDMLToSelect(statement string, opts BackupOptions) ([]BackupStateme
 	return generateSQL(targets, opts)
 }
 
-func prepareTransformation(databaseName, statement string, database Database) ([]DMLTarget, error) {
+func prepareTransformation(databaseName, statement string, catalog Catalog) ([]DMLTarget, error) {
 	var result []DMLTarget
 	for i, segment := range parser.Split(statement) {
 		text := segmentText(statement, segment)
@@ -121,7 +125,7 @@ func prepareTransformation(databaseName, statement string, database Database) ([
 		}
 
 		for _, node := range parsed.Items {
-			tables, err := ExtractTables(databaseName, node, text, i, database)
+			tables, err := ExtractTables(databaseName, node, text, i, catalog)
 			if err != nil {
 				return nil, fmt.Errorf("failed to extract tables: %w", err)
 			}
@@ -145,15 +149,15 @@ func segmentText(sql string, segment parser.Segment) string {
 	return sql[segment.ByteStart:end]
 }
 
-// ExtractTables returns the tables a DELETE or UPDATE changes. database, which
-// may be nil, is the default database's metadata, used to find the table an
-// unqualified SET column belongs to.
-func ExtractTables(databaseName string, node ast.Node, fullSQL string, offset int, database Database) ([]DMLTarget, error) {
+// ExtractTables returns the tables a DELETE or UPDATE changes. catalog's
+// metadata, where it has the database of each table the statement names,
+// finds the table an unqualified SET column belongs to.
+func ExtractTables(databaseName string, node ast.Node, fullSQL string, offset int, catalog Catalog) ([]DMLTarget, error) {
 	switch n := node.(type) {
 	case *ast.DeleteStmt:
 		return extractTablesFromDelete(databaseName, n, fullSQL, offset)
 	case *ast.UpdateStmt:
-		return extractTablesFromUpdate(databaseName, n, fullSQL, offset, database)
+		return extractTablesFromUpdate(databaseName, n, fullSQL, offset, catalog)
 	default:
 		return nil, nil
 	}
@@ -217,7 +221,7 @@ func extractTablesFromDelete(databaseName string, n *ast.DeleteStmt, fullSQL str
 	return result, nil
 }
 
-func extractTablesFromUpdate(databaseName string, n *ast.UpdateStmt, fullSQL string, offset int, database Database) ([]DMLTarget, error) {
+func extractTablesFromUpdate(databaseName string, n *ast.UpdateStmt, fullSQL string, offset int, catalog Catalog) ([]DMLTarget, error) {
 	cteNames := collectCTENames(fullSQL, n.Loc)
 	stmtText := extractStatementText(fullSQL, n.Loc)
 	singleTables := collectSingleTables(databaseName, n.Tables)
@@ -241,7 +245,7 @@ func extractTablesFromUpdate(databaseName string, n *ast.UpdateStmt, fullSQL str
 	// Resolve unqualified columns using metadata.
 	if updatedTables[""] {
 		delete(updatedTables, "")
-		resolved := resolveUnqualifiedColumns(unqualifiedColumns, singleTables, database)
+		resolved := resolveUnqualifiedColumns(unqualifiedColumns, singleTables, catalog)
 		for t := range resolved {
 			updatedTables[t] = true
 		}
@@ -393,7 +397,9 @@ func writeUpdateSuffix(buf *strings.Builder, n *ast.UpdateStmt, sql string) {
 		start := nodeLocStart(n.Tables[0])
 		end := nodeLocEnd(n.Tables[len(n.Tables)-1])
 		if start >= 0 && end > start && end <= len(sql) {
-			buf.WriteString(strings.TrimSpace(sql[start:end]))
+			// A table location leaves out the parentheses that group it, so
+			// the slice can hold only one of a pair.
+			buf.WriteString(balancedTableRefs(sql[start:end]))
 		}
 	}
 
@@ -422,7 +428,7 @@ func writeDeleteSuffix(buf *strings.Builder, n *ast.DeleteStmt, sql string) {
 			end = len(sql)
 		}
 		if start >= 0 && end > start {
-			buf.WriteString(strings.TrimSpace(sql[start:end]))
+			buf.WriteString(balancedTableRefs(sql[start:end]))
 		}
 	} else if len(n.Tables) > 0 {
 		start := nodeLocStart(n.Tables[0])
@@ -431,9 +437,100 @@ func writeDeleteSuffix(buf *strings.Builder, n *ast.DeleteStmt, sql string) {
 			end = len(sql)
 		}
 		if start >= 0 && end > start {
-			buf.WriteString(strings.TrimSpace(sql[start:end]))
+			buf.WriteString(balancedTableRefs(sql[start:end]))
 		}
 	}
+}
+
+// balancedTableRefs returns s (trimmed) with parentheses balanced. omni's
+// JoinClause/TableRef Loc excludes a wrapping "(" or ")", so a sliced table-ref
+// list can carry an unmatched ")" (a parenthesized left join operand) and/or an
+// unmatched "(" (a right operand). The missing parentheses only group, so their
+// source position is irrelevant — prepend "(" and append ")" to balance.
+func balancedTableRefs(s string) string {
+	leading, trailing := parenDeficit(s)
+	s = strings.TrimSpace(s)
+	if leading > 0 {
+		s = strings.Repeat("(", leading) + s
+	}
+	if trailing > 0 {
+		s += strings.Repeat(")", trailing)
+	}
+	return s
+}
+
+// parenDeficit returns how many "(" must be prepended and ")" appended to
+// balance s, ignoring parentheses inside string/identifier literals ('...',
+// "...", `...`) and comments (/* */, -- , #).
+func parenDeficit(s string) (leading int, trailing int) {
+	open := 0
+	for i := 0; i < len(s); i++ {
+		switch c := s[i]; {
+		case c == '\'' || c == '"' || c == '`':
+			i = skipQuoted(s, i)
+		case c == '/' && i+1 < len(s) && s[i+1] == '*':
+			i = skipBlockComment(s, i)
+		case c == '-' && i+1 < len(s) && s[i+1] == '-' && (i+2 >= len(s) || isASCIISpace(s[i+2])):
+			i = skipLineComment(s, i)
+		case c == '#':
+			i = skipLineComment(s, i)
+		case c == '(':
+			open++
+		case c == ')':
+			if open > 0 {
+				open--
+			} else {
+				leading++
+			}
+		default:
+		}
+	}
+	return leading, open
+}
+
+// skipQuoted returns the index of the closing quote of the string/identifier
+// literal opened at i (s[i] is the opening quote), or len(s)-1 if unterminated.
+func skipQuoted(s string, i int) int {
+	quote := s[i]
+	for j := i + 1; j < len(s); {
+		switch {
+		case s[j] == '\\' && quote != '`':
+			j += 2 // backslash escape ('...'/"..." only)
+		case s[j] == quote && j+1 < len(s) && s[j+1] == quote:
+			j += 2 // doubled-quote escape ('' "" ``)
+		case s[j] == quote:
+			return j
+		default:
+			j++
+		}
+	}
+	return len(s) - 1
+}
+
+// skipBlockComment returns the index of the closing "/" of the /* */ comment
+// opened at i, or len(s)-1 if unterminated.
+func skipBlockComment(s string, i int) int {
+	for j := i + 2; j+1 < len(s); j++ {
+		if s[j] == '*' && s[j+1] == '/' {
+			return j + 1
+		}
+	}
+	return len(s) - 1
+}
+
+// skipLineComment returns the index of the newline ending the -- or # comment
+// opened at i, or len(s)-1 if it runs to the end.
+func skipLineComment(s string, i int) int {
+	for j := i; j < len(s); j++ {
+		if s[j] == '\n' {
+			return j
+		}
+	}
+	return len(s) - 1
+}
+
+func isASCIISpace(c byte) bool {
+	return c == ' ' || c == '\t' || c == '\n' || c == '\r'
 }
 
 func nodeLocStart(expr ast.TableExpr) int {
@@ -456,21 +553,36 @@ func nodeLocEnd(expr ast.TableExpr) int {
 	return -1
 }
 
-// resolveUnqualifiedColumns resolves unqualified column names to owning tables using metadata.
-func resolveUnqualifiedColumns(columns []string, singleTables map[string]*TableReference, database Database) map[string]bool {
+// resolveUnqualifiedColumns resolves unqualified column names to owning tables
+// using each table's own database's metadata. Without the metadata of every
+// table's database, every table may own the columns.
+func resolveUnqualifiedColumns(columns []string, singleTables map[string]*TableReference, catalog Catalog) map[string]bool {
 	result := make(map[string]bool)
 
-	if database == nil || !database.HasSchema() {
-		for t := range singleTables {
-			result[t] = true
+	databases := make(map[string]Database)
+	for _, ref := range singleTables {
+		if _, ok := databases[ref.Database]; ok {
+			continue
 		}
-		return result
+		var database Database
+		if catalog.GetDatabase != nil {
+			if db, err := catalog.GetDatabase(ref.Database); err == nil {
+				database = db
+			}
+		}
+		if database == nil || !database.HasSchema() {
+			for t := range singleTables {
+				result[t] = true
+			}
+			return result
+		}
+		databases[ref.Database] = database
 	}
 
 	for _, col := range columns {
 		resolved := false
 		for aliasOrName, ref := range singleTables {
-			tableMetadata := database.GetTable(ref.Table)
+			tableMetadata := databases[ref.Database].GetTable(ref.Table)
 			if tableMetadata == nil {
 				continue
 			}
@@ -525,6 +637,13 @@ func generateSQL(targets []DMLTarget, opts BackupOptions) ([]BackupStatement, er
 				return nil, fmt.Errorf("prior backup cannot handle mixed DML statements on the same table %s", key)
 			}
 		}
+		// The backup reads every statement's rows before any runs, so a later
+		// statement's LIMIT may pick rows the backup never read.
+		for i, item := range list {
+			if i > 0 && hasLimit(item.Node) {
+				return nil, fmt.Errorf("prior backup cannot handle a statement with LIMIT after another statement on the same table %s", key)
+			}
+		}
 	}
 
 	var result []BackupStatement
@@ -558,26 +677,30 @@ func generateSQL(targets []DMLTarget, opts BackupOptions) ([]BackupStatement, er
 func generateSQLForTable(targets []DMLTarget, opts BackupOptions) (*BackupStatement, error) {
 	table := targets[0].Table
 
-	generatedColumns, normalColumns, err := opts.classifyColumns(table.Database, table.Table)
+	columns, err := opts.classifyColumns(table.Database, table.Table)
 	if err != nil {
 		return nil, fmt.Errorf("failed to classify columns: %w", err)
+	}
+	// Without a row key, a row a join repeats or two statements both read
+	// cannot be told from rows that are equal.
+	if !columns.RowKey {
+		if len(targets) > 1 {
+			return nil, errors.New("prior backup cannot combine several statements on a table without a primary key or a unique key of non-null columns")
+		}
+		if joins(targets[0].Node) {
+			return nil, errors.New("prior backup cannot back up a table without a primary key or a unique key of non-null columns from a statement that joins other tables")
+		}
 	}
 
 	targetTable := fmt.Sprintf("%s_%s_%s", opts.TablePrefix, table.Table, table.Database)
 	targetTable, _ = truncateString(targetTable, maxTableNameLength)
 	var buf strings.Builder
-	fmt.Fprintf(&buf, "CREATE TABLE `%s`.`%s` LIKE `%s`.`%s`;\n", opts.BackupDatabase, targetTable, table.Database, table.Table)
+	fmt.Fprintf(&buf, "CREATE TABLE %s.%s LIKE %s.%s;\n", quoteIdentifier(opts.BackupDatabase), quoteIdentifier(targetTable), quoteIdentifier(table.Database), quoteIdentifier(table.Table))
 
-	fmt.Fprintf(&buf, "INSERT INTO `%s`.`%s`", opts.BackupDatabase, targetTable)
-	if len(generatedColumns) > 0 {
-		buf.WriteString(" (")
-		for i, column := range normalColumns {
-			if i > 0 {
-				buf.WriteByte(',')
-			}
-			fmt.Fprintf(&buf, "`%s`", column)
-		}
-		buf.WriteString(")")
+	// The columns are listed, as a wildcard leaves invisible columns out.
+	fmt.Fprintf(&buf, "INSERT INTO %s.%s", quoteIdentifier(opts.BackupDatabase), quoteIdentifier(targetTable))
+	if len(columns.Normal) > 0 {
+		fmt.Fprintf(&buf, " (%s)", quoteColumnList(columns.Normal, "", ","))
 	}
 	for i, item := range targets {
 		if i != 0 {
@@ -599,18 +722,18 @@ func generateSQLForTable(targets []DMLTarget, opts BackupOptions) (*BackupStatem
 			fmt.Fprintf(&buf, "%s ", cteString)
 		}
 
-		if len(generatedColumns) == 0 {
-			fmt.Fprintf(&buf, "SELECT `%s`.* FROM ", tableNameOrAlias)
-		} else {
-			buf.WriteString("SELECT ")
-			for j, column := range normalColumns {
-				if j > 0 {
-					buf.WriteByte(',')
-				}
-				fmt.Fprintf(&buf, "`%s`.`%s`", tableNameOrAlias, column)
-			}
-			buf.WriteString(" FROM ")
+		buf.WriteString("SELECT ")
+		// A join repeats a row once per match; the row key makes the copies
+		// equal, so DISTINCT keeps one.
+		if joins(item.Node) {
+			buf.WriteString("DISTINCT ")
 		}
+		if len(columns.Normal) == 0 {
+			fmt.Fprintf(&buf, "%s.*", quoteIdentifier(tableNameOrAlias))
+		} else {
+			buf.WriteString(quoteColumnList(columns.Normal, quoteIdentifier(tableNameOrAlias)+".", ","))
+		}
+		buf.WriteString(" FROM ")
 		writeSuffixSelectClause(&buf, item.Node, item.FullSQL)
 		if len(targets) > 1 {
 			buf.WriteByte(')')
@@ -628,6 +751,54 @@ func generateSQLForTable(targets []DMLTarget, opts BackupOptions) (*BackupStatem
 	}, nil
 }
 
+// hasLimit reports whether an UPDATE or DELETE has a LIMIT.
+func hasLimit(node ast.Node) bool {
+	switch n := node.(type) {
+	case *ast.UpdateStmt:
+		return n.Limit != nil
+	case *ast.DeleteStmt:
+		return n.Limit != nil
+	}
+	return false
+}
+
+// joins reports whether an UPDATE or DELETE reads more than one table, so a
+// row it changes may come once per match.
+func joins(node ast.Node) bool {
+	switch n := node.(type) {
+	case *ast.UpdateStmt:
+		return !singleTable(n.Tables)
+	case *ast.DeleteStmt:
+		if len(n.Using) > 0 {
+			return !singleTable(n.Using)
+		}
+		return !singleTable(n.Tables)
+	}
+	return false
+}
+
+func singleTable(exprs []ast.TableExpr) bool {
+	if len(exprs) != 1 {
+		return false
+	}
+	_, ok := exprs[0].(*ast.TableRef)
+	return ok
+}
+
+// quoteIdentifier quotes name in backticks, doubling any backtick in it.
+func quoteIdentifier(name string) string {
+	return "`" + strings.ReplaceAll(name, "`", "``") + "`"
+}
+
+// quoteColumnList quotes each column, after prefix, and joins them with sep.
+func quoteColumnList(columns []string, prefix, sep string) string {
+	quoted := make([]string, 0, len(columns))
+	for _, column := range columns {
+		quoted = append(quoted, prefix+quoteIdentifier(column))
+	}
+	return strings.Join(quoted, sep)
+}
+
 func nodeStmtLoc(node ast.Node) ast.Loc {
 	switch n := node.(type) {
 	case *ast.UpdateStmt:
@@ -638,42 +809,42 @@ func nodeStmtLoc(node ast.Node) ast.Loc {
 	return ast.Loc{}
 }
 
-func (opts BackupOptions) classifyColumns(database, table string) ([]string, []string, error) {
+func (opts BackupOptions) classifyColumns(database, table string) (TableColumns, error) {
 	if opts.Columns != nil {
 		return opts.Columns(database, table)
 	}
 	return ClassifyColumns(opts.Catalog, opts.CaseSensitive, database, table)
 }
 
-// ClassifyColumns returns the generated columns of database.table and its
-// other columns, in table order. The database is matched against
-// ListDatabaseNames; a database the catalog does not have is a
-// *NotFoundError.
-func ClassifyColumns(catalog Catalog, caseSensitive bool, database, table string) (generated, normal []string, err error) {
+// ClassifyColumns returns what a backup needs of database.table: its
+// generated and other columns, in table order, and whether a key tells its
+// rows apart. The database is matched against ListDatabaseNames; a database
+// the catalog does not have is a *NotFoundError.
+func ClassifyColumns(catalog Catalog, caseSensitive bool, database, table string) (TableColumns, error) {
 	if catalog.GetDatabase == nil {
-		return nil, nil, errors.New("the catalog has no GetDatabase")
+		return TableColumns{}, errors.New("the catalog has no GetDatabase")
 	}
 
 	var db Database
 	allDatabaseNames, err := catalog.ListDatabaseNames()
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to list databases names: %w", err)
+		return TableColumns{}, fmt.Errorf("failed to list databases names: %w", err)
 	}
 	for _, name := range allDatabaseNames {
 		if equalIdentifier(name, database, caseSensitive) {
 			db, err = catalog.GetDatabase(name)
 			if err != nil {
-				return nil, nil, fmt.Errorf("failed to get database metadata for database %q: %w", name, err)
+				return TableColumns{}, fmt.Errorf("failed to get database metadata for database %q: %w", name, err)
 			}
 			break
 		}
 	}
 	if db == nil {
-		return nil, nil, &NotFoundError{Database: &database}
+		return TableColumns{}, &NotFoundError{Database: &database}
 	}
 
 	if !db.HasSchema() {
-		return nil, nil, errors.New("failed to get schema metadata")
+		return TableColumns{}, errors.New("failed to get schema metadata")
 	}
 
 	var tableSchema *metadata.TableMetadata
@@ -688,18 +859,48 @@ func ClassifyColumns(catalog Catalog, caseSensitive bool, database, table string
 		tableSchema = db.GetTable(table)
 	}
 	if tableSchema == nil {
-		return nil, nil, fmt.Errorf("table %s not found in schema", table)
+		return TableColumns{}, fmt.Errorf("table %s not found in schema", table)
 	}
 
+	var columns TableColumns
 	for _, column := range tableSchema.GetColumns() {
 		if column.GetGeneration() != nil {
-			generated = append(generated, column.GetName())
+			columns.Generated = append(columns.Generated, column.GetName())
 		} else {
-			normal = append(normal, column.GetName())
+			columns.Normal = append(columns.Normal, column.GetName())
 		}
 	}
+	columns.RowKey = hasRowKey(tableSchema)
+	return columns, nil
+}
 
-	return generated, normal, nil
+// hasRowKey reports whether a primary key, or a unique key whose parts are all
+// non-nullable columns, tells table's rows apart. NULLs never collide, and an
+// expression part may be NULL.
+func hasRowKey(table *metadata.TableMetadata) bool {
+	nullable := make(map[string]bool)
+	for _, column := range table.GetColumns() {
+		nullable[strings.ToLower(column.GetName())] = column.GetNullable()
+	}
+	for _, index := range table.GetIndexes() {
+		if index.GetPrimary() {
+			return true
+		}
+		if !index.GetUnique() || len(index.GetExpressions()) == 0 {
+			continue
+		}
+		key := true
+		for _, part := range index.GetExpressions() {
+			if isNullable, ok := nullable[strings.ToLower(part)]; !ok || isNullable {
+				key = false
+				break
+			}
+		}
+		if key {
+			return true
+		}
+	}
+	return false
 }
 
 func equalIdentifier(a, b string, caseSensitive bool) bool {
