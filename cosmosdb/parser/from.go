@@ -263,13 +263,14 @@ func isClauseStart(tokType int) bool {
 	return false
 }
 
-// isIdentLike returns true if the token can serve as an identifier.
+// isIdentLike returns true if the token can serve as an identifier. sql.g4:201
+// derives a name from LEX_IDENTIFIER, ALL, FIRST and LAST alone, so every
+// keyword the grammar lexes (sql.g4:212-246) is reserved. ROOT and HAVING are
+// keywords to omni's lexer but not to the grammar's, so they stay names. A
+// property name after a dot is read by parsePropertyName instead.
 func isIdentLike(tokType int) bool {
 	switch tokType {
-	case tokIDENT,
-		tokIN, tokBETWEEN, tokTOP, tokVALUE, tokORDER, tokBY,
-		tokGROUP, tokOFFSET, tokLIMIT, tokASC, tokDESC, tokEXISTS,
-		tokLIKE, tokHAVING, tokJOIN, tokESCAPE, tokARRAY, tokROOT, tokRANK:
+	case tokIDENT, tokHAVING, tokROOT:
 		return true
 	}
 	return false
