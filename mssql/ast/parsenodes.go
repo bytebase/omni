@@ -2684,7 +2684,8 @@ func (n *DropStatisticsStmt) stmtNode() {}
 type SetOptionStmt struct {
 	Option  string   // option name (e.g., "NOCOUNT", "ANSI_NULLS", "TRANSACTION ISOLATION LEVEL READ COMMITTED"); the first of Options
 	Options []string // every option name the statement sets, in written order (e.g., ["ANSI_NULLS", "QUOTED_IDENTIFIER"], ["STATISTICS IO", "STATISTICS TIME"])
-	Value   ExprNode // ON/OFF or other value; may be a ColumnRef("ON"/"OFF") or literal
+	Value   ExprNode // ON/OFF or other value; may be a ColumnRef("ON"/"OFF") or literal; the first of Values
+	Values  *List    // one value per option for a command list (SET DATEFIRST 1, LANGUAGE French), whose options do not share one; nil otherwise
 	Loc     Loc
 }
 
@@ -3058,7 +3059,10 @@ type UpdatetextStmt struct {
 	DeleteLength ExprNode
 	WithLog      bool
 	InsertedData ExprNode
-	Loc          Loc
+	// InsertedTextPtr is the source text pointer after a source column
+	// (table_name.src_column_name src_text_ptr); nil for literal data.
+	InsertedTextPtr ExprNode
+	Loc             Loc
 }
 
 func (n *UpdatetextStmt) nodeTag()  {}

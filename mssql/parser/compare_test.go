@@ -24194,3 +24194,25 @@ func TestParseProceduralFormsSQLServerTakes(t *testing.T) {
 		}
 	}
 }
+
+// TestParseProceduralForms1070 pins the forms Codex raised on #1070.
+func TestParseProceduralForms1070(t *testing.T) {
+	ParseAndCheck(t, "BEGIN TRY SELECT 1 END TRY BEGIN CATCH IF 1=1 THROW ELSE PRINT 'no' END CATCH")
+
+	sql := "SET @x.[STLength]()"
+	res := ParseAndCheck(t, sql)
+	fc := res.Items[0].(*ast.SetStmt).Value.(*ast.FuncCallExpr)
+	if got := sql[fc.Name.Loc.Start:fc.Name.Loc.End]; got != "[STLength]" {
+		t.Errorf("method name span = %q, want %q", got, "[STLength]")
+	}
+
+	set := ParseAndCheck(t, "SET DATEFIRST 1, LANGUAGE French").Items[0].(*ast.SetOptionStmt)
+	if set.Values == nil || len(set.Values.Items) != 2 {
+		t.Fatalf("SET DATEFIRST 1, LANGUAGE French: Values = %v, want two values", set.Values)
+	}
+
+	ut := ParseAndCheck(t, "UPDATETEXT t.c @dest 0 0 s.c @src1").Items[0].(*ast.UpdatetextStmt)
+	if v, ok := ut.InsertedTextPtr.(*ast.VariableRef); !ok || v.Name != "@src1" {
+		t.Errorf("UPDATETEXT source text pointer = %#v, want @src1", ut.InsertedTextPtr)
+	}
+}

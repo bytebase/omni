@@ -339,13 +339,13 @@ func (p *Parser) parseSetStmt() (nodes.StmtNode, error) {
 		}
 		stmt.Property = name
 		if p.cur.Type == '(' {
-			callLoc := p.prev.Loc
+			callLoc, callEnd := p.prev.Loc, p.prev.End
 			args, err := p.parseSetMethodArgs()
 			if err != nil {
 				return nil, err
 			}
 			stmt.Value = &nodes.FuncCallExpr{
-				Name: &nodes.TableRef{Object: name, Loc: nodes.Loc{Start: callLoc, End: callLoc + len(name)}},
+				Name: &nodes.TableRef{Object: name, Loc: nodes.Loc{Start: callLoc, End: callEnd}},
 				Args: args,
 				Loc:  nodes.Loc{Start: callLoc, End: p.prevEnd()},
 			}
@@ -593,7 +593,7 @@ func (p *Parser) parseSetOptionStmt(loc int) (*nodes.SetOptionStmt, error) {
 
 	// SET command value [, command value ...]
 	if (p.isKeywordOrIdent() && !p.isDelimited(p.cur)) && setCommandNames[strings.ToUpper(p.cur.Str)] {
-		var value nodes.ExprNode
+		var values []nodes.Node
 		for {
 			if !p.isKeywordOrIdent() || p.isDelimited(p.cur) || !setCommandNames[strings.ToUpper(p.cur.Str)] {
 				return nil, p.syntaxErrorAtCur()
@@ -607,15 +607,17 @@ func (p *Parser) parseSetOptionStmt(loc int) (*nodes.SetOptionStmt, error) {
 			if err != nil {
 				return nil, err
 			}
-			if value == nil {
-				value = v
-			}
+			values = append(values, v)
 			if _, ok := p.match(','); !ok {
 				break
 			}
 		}
 		stmt.Option = stmt.Options[0]
-		return done(value)
+		// Each command takes its own value; Value keeps the first.
+		if len(values) > 1 {
+			stmt.Values = &nodes.List{Items: values}
+		}
+		return done(values[0].(nodes.ExprNode))
 	}
 
 	// Predicate option — validated against setOptions

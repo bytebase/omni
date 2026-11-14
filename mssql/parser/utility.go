@@ -196,7 +196,7 @@ func (p *Parser) parseThrowStmt() (*nodes.ThrowStmt, error) {
 
 	// THROW without arguments = rethrow
 	if p.cur.Type == ';' || p.cur.Type == tokEOF || p.cur.Type == kwEND ||
-		p.isStatementStart() {
+		p.cur.Type == kwELSE || p.isStatementStart() {
 		if p.procCatchDepth == 0 {
 			return nil, p.newParseError(loc, "to rethrow an error, a THROW statement must be used inside a CATCH block")
 		}
@@ -546,7 +546,7 @@ func (p *Parser) parseUpdatetextStmt() (*nodes.UpdatetextStmt, error) {
 		if err != nil {
 			return nil, err
 		}
-		if _, err := p.parseProcValue(procValueKinds{binary: true, variable: true}); err != nil {
+		if stmt.InsertedTextPtr, err = p.parseProcValue(procValueKinds{binary: true, variable: true}); err != nil {
 			return nil, err
 		}
 		stmt.InsertedData = col

@@ -768,6 +768,7 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Value)
 	case *SetOptionStmt:
 		Walk(v, n.Value)
+		walkList(v, n.Values)
 	case *SetStmt:
 		Walk(v, n.Value)
 		if n.Cursor != nil {
@@ -871,6 +872,7 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.InsertOffset)
 		Walk(v, n.DeleteLength)
 		Walk(v, n.InsertedData)
+		Walk(v, n.InsertedTextPtr)
 	case *UseFederationStmt:
 		Walk(v, n.Value)
 	case *ValuesClause:

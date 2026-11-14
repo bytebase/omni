@@ -3578,6 +3578,10 @@ func writeSetOptionStmt(sb *strings.Builder, n *SetOptionStmt) {
 		sb.WriteString(" :value ")
 		writeNode(sb, n.Value)
 	}
+	if n.Values != nil {
+		sb.WriteString(" :values ")
+		writeNode(sb, n.Values)
+	}
 	fmt.Fprintf(sb, " :loc %d %d}", n.Loc.Start, n.Loc.End)
 }
 
@@ -3932,6 +3936,10 @@ func writeUpdatetextStmt(sb *strings.Builder, n *UpdatetextStmt) {
 	if n.InsertedData != nil {
 		sb.WriteString(" :insertedData ")
 		writeNode(sb, n.InsertedData)
+	}
+	if n.InsertedTextPtr != nil {
+		sb.WriteString(" :insertedTextPtr ")
+		writeNode(sb, n.InsertedTextPtr)
 	}
 	fmt.Fprintf(sb, " :withLog %v :loc %d %d}", n.WithLog, n.Loc.Start, n.Loc.End)
 }
