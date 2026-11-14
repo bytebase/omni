@@ -1980,23 +1980,22 @@ func TestParseTablespaceAll(t *testing.T) {
 	}{
 		// CREATE TABLESPACE - permanent with full options
 		{"create_perm_basic", "CREATE TABLESPACE users DATAFILE '/u01/users01.dbf' SIZE 100M"},
-		{"create_perm_if_not_exists", "CREATE TABLESPACE users IF NOT EXISTS DATAFILE '/u01/users01.dbf' SIZE 100M"},
+		{"create_perm_if_not_exists", "CREATE TABLESPACE IF NOT EXISTS users DATAFILE '/u01/users01.dbf' SIZE 100M"},
 		{"create_perm_encryption", "CREATE TABLESPACE secure_ts DATAFILE '/u01/secure.dbf' SIZE 500M ENCRYPTION USING 'AES256' ENCRYPT"},
 		{"create_perm_flashback", "CREATE TABLESPACE fb_ts DATAFILE '/u01/fb.dbf' SIZE 100M FLASHBACK ON"},
-		{"create_perm_lost_write", "CREATE TABLESPACE lw_ts DATAFILE '/u01/lw.dbf' SIZE 200M ENABLE LOST WRITE PROTECTION"},
+		{"create_perm_lost_write", "CREATE TABLESPACE lw_ts DATAFILE '/u01/lw.dbf' SIZE 200M LOST WRITE PROTECTION"},
 		{"create_perm_minimum_extent", "CREATE TABLESPACE min_ts DATAFILE '/u01/min.dbf' SIZE 100M MINIMUM EXTENT 64K"},
 		{"create_perm_extent_dictionary", "CREATE TABLESPACE dict_ts DATAFILE '/u01/dict.dbf' SIZE 100M EXTENT MANAGEMENT DICTIONARY"},
-		{"create_perm_filesystem_logging", "CREATE TABLESPACE fs_ts DATAFILE '/u01/fs.dbf' SIZE 100M FILESYSTEM_LIKE_LOGGING"},
 		{"create_perm_default_compress", "CREATE TABLESPACE comp_ts DATAFILE '/u01/comp.dbf' SIZE 100M DEFAULT TABLE COMPRESS FOR OLTP"},
-		{"create_perm_default_row_store", "CREATE TABLESPACE rs_ts DATAFILE '/u01/rs.dbf' SIZE 100M DEFAULT TABLE ROW STORE COMPRESS ADVANCED"},
-		{"create_perm_default_column_store", "CREATE TABLESPACE cs_ts DATAFILE '/u01/cs.dbf' SIZE 100M DEFAULT TABLE COLUMN STORE COMPRESS FOR QUERY HIGH"},
+		{"create_perm_default_row_store", "CREATE TABLESPACE rs_ts DATAFILE '/u01/rs.dbf' SIZE 100M DEFAULT ROW STORE COMPRESS ADVANCED"},
+		{"create_perm_default_column_store", "CREATE TABLESPACE cs_ts DATAFILE '/u01/cs.dbf' SIZE 100M DEFAULT COLUMN STORE COMPRESS FOR QUERY HIGH"},
 		{"create_perm_default_index_compress", "CREATE TABLESPACE ix_ts DATAFILE '/u01/ix.dbf' SIZE 100M DEFAULT INDEX COMPRESS ADVANCED LOW"},
 
 		// CREATE TEMPORARY TABLESPACE
 		{"create_temp", "CREATE TEMPORARY TABLESPACE temp_ts TEMPFILE '/u01/temp.dbf' SIZE 500M"},
 		{"create_temp_group", "CREATE TEMPORARY TABLESPACE temp_ts TEMPFILE '/u01/temp.dbf' SIZE 500M TABLESPACE GROUP temp_group"},
-		{"create_temp_for_all", "CREATE TEMPORARY TABLESPACE temp_ts TEMPFILE '/u01/temp.dbf' SIZE 500M FOR ALL"},
-		{"create_local_temp", "CREATE LOCAL TEMPORARY TABLESPACE temp_ts TEMPFILE '/u01/temp.dbf' SIZE 500M"},
+		{"create_local_temp_for_all", "CREATE LOCAL TEMPORARY TABLESPACE FOR ALL temp_ts TEMPFILE '/u01/temp.dbf' SIZE 500M"},
+		{"create_local_temp_for_leaf", "CREATE LOCAL TEMPORARY TABLESPACE FOR LEAF temp_ts TEMPFILE '/u01/temp.dbf' SIZE 500M"},
 
 		// CREATE UNDO TABLESPACE
 		{"create_undo", "CREATE UNDO TABLESPACE undo_ts DATAFILE '/u01/undo.dbf' SIZE 200M RETENTION GUARANTEE"},
@@ -2028,11 +2027,11 @@ func TestParseTablespaceAll(t *testing.T) {
 		{"alter_flashback_off", "ALTER TABLESPACE users FLASHBACK OFF"},
 		{"alter_retention", "ALTER TABLESPACE undo_ts RETENTION GUARANTEE"},
 		{"alter_encryption_online", "ALTER TABLESPACE secure_ts ENCRYPTION ONLINE"},
-		{"alter_lost_write_disable", "ALTER TABLESPACE users DISABLE LOST WRITE PROTECTION"},
+		{"alter_lost_write_suspend", "ALTER TABLESPACE users SUSPEND LOST WRITE PROTECTION"},
 		{"alter_permanent", "ALTER TABLESPACE temp_ts PERMANENT"},
 		{"alter_temporary", "ALTER TABLESPACE perm_ts TEMPORARY"},
 		{"alter_default_compress", "ALTER TABLESPACE users DEFAULT TABLE COMPRESS FOR OLTP"},
-		{"alter_group", "ALTER TABLESPACE temp_ts GROUP temp_grp"},
+		{"alter_group", "ALTER TABLESPACE temp_ts TABLESPACE GROUP temp_grp"},
 
 		// ALTER TABLESPACE SET
 		{"alter_ts_set_online", "ALTER TABLESPACE SET my_ts_set ONLINE"},
@@ -2067,6 +2066,39 @@ func TestParseTablespaceAll(t *testing.T) {
 			default:
 				t.Fatalf("expected tablespace statement, got %T", raw.Stmt)
 			}
+		})
+	}
+}
+
+// TestParseTablespaceRejects pins tablespace forms the pinned Oracle refuses
+// though the documentation pages show them.
+func TestParseTablespaceRejects(t *testing.T) {
+	for _, sql := range []string{
+		// IF NOT EXISTS goes before the name (ORA-02180 at IF).
+		"CREATE TABLESPACE users IF NOT EXISTS DATAFILE '/u01/users01.dbf' SIZE 100M",
+		// CREATE takes LOST WRITE PROTECTION without ENABLE (ORA-02180).
+		"CREATE TABLESPACE lw_ts DATAFILE '/u01/lw.dbf' SIZE 200M ENABLE LOST WRITE PROTECTION",
+		// FILESYSTEM_LIKE_LOGGING is refused for a tablespace (ORA-02180).
+		"CREATE TABLESPACE fs_ts DATAFILE '/u01/fs.dbf' SIZE 100M FILESYSTEM_LIKE_LOGGING",
+		// DEFAULT TABLE takes only COMPRESS or NOCOMPRESS (ORA-00922).
+		"CREATE TABLESPACE rs_ts DATAFILE '/u01/rs.dbf' SIZE 100M DEFAULT TABLE ROW STORE COMPRESS ADVANCED",
+		// FOR { ALL | LEAF } follows LOCAL TEMPORARY TABLESPACE, before the name.
+		"CREATE TEMPORARY TABLESPACE temp_ts TEMPFILE '/u01/temp.dbf' SIZE 500M FOR ALL",
+		"CREATE LOCAL TEMPORARY TABLESPACE temp_ts TEMPFILE '/u01/temp.dbf' SIZE 500M",
+		// ALTER takes no DISABLE LOST WRITE PROTECTION (ORA-02142).
+		"ALTER TABLESPACE users DISABLE LOST WRITE PROTECTION",
+		// The group clause is TABLESPACE GROUP (ORA-02142 at GROUP).
+		"ALTER TABLESPACE temp_ts GROUP temp_grp",
+		// ALTER takes one clause (ORA-03049 at FLASHBACK).
+		"ALTER TABLESPACE users ENCRYPTION ONLINE USING 'AES256' ENCRYPT FILE_NAME_CONVERT = ('old', 'new') FLASHBACK ON",
+		// A file specification names its file (ORA-02236 at SIZE).
+		"CREATE TABLESPACE SET ts_set1 USING TEMPLATE (DATAFILE SIZE 100M)",
+		"ALTER TABLESPACE ts1 ADD DATAFILE SIZE 200M",
+		// Options are taken once (ORA-25119).
+		"CREATE TABLESPACE ts1 LOGGING NOLOGGING",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			ParseShouldFail(t, sql)
 		})
 	}
 }
@@ -2981,9 +3013,9 @@ func TestParseAdministerKeyMgmt(t *testing.T) {
 		{"use_key", "ADMINISTER KEY MANAGEMENT USE KEY 'key_id_123' IDENTIFIED BY password1 WITH BACKUP"},
 		{"backup_keystore", "ADMINISTER KEY MANAGEMENT BACKUP KEYSTORE IDENTIFIED BY password1 TO '/backup/'"},
 		{"alter_password", "ADMINISTER KEY MANAGEMENT ALTER KEYSTORE PASSWORD IDENTIFIED BY old_pass SET new_pass WITH BACKUP"},
-		{"export_keys", "ADMINISTER KEY MANAGEMENT EXPORT KEYS WITH SECRET 'my_secret' TO '/tmp/export.p12' IDENTIFIED BY password1"},
-		{"import_keys", "ADMINISTER KEY MANAGEMENT IMPORT KEYS WITH SECRET 'my_secret' FROM '/tmp/export.p12' IDENTIFIED BY password1 WITH BACKUP"},
-		{"merge_keystore", "ADMINISTER KEY MANAGEMENT MERGE KEYSTORE '/u01/ks1' AND '/u01/ks2' IDENTIFIED BY password1 INTO NEW KEYSTORE '/u01/merged' IDENTIFIED BY password2"},
+		{"export_keys", "ADMINISTER KEY MANAGEMENT EXPORT KEYS WITH SECRET my_secret TO '/tmp/export.p12' IDENTIFIED BY password1"},
+		{"import_keys", "ADMINISTER KEY MANAGEMENT IMPORT KEYS WITH SECRET my_secret FROM '/tmp/export.p12' IDENTIFIED BY password1 WITH BACKUP"},
+		{"merge_keystore", "ADMINISTER KEY MANAGEMENT MERGE KEYSTORE '/u01/ks1' AND KEYSTORE '/u01/ks2' IDENTIFIED BY password1 INTO NEW KEYSTORE '/u01/merged' IDENTIFIED BY password2"},
 		{"add_secret", "ADMINISTER KEY MANAGEMENT ADD SECRET 'secret1' FOR CLIENT 'client1' IDENTIFIED BY password1"},
 		{"set_tag", "ADMINISTER KEY MANAGEMENT SET TAG 'mytag' FOR 'key123' IDENTIFIED BY password1 WITH BACKUP"},
 		{"external_store", "ADMINISTER KEY MANAGEMENT SET KEY IDENTIFIED BY EXTERNAL STORE WITH BACKUP"},
@@ -3896,8 +3928,8 @@ func TestBatch74_TablespaceSet(t *testing.T) {
 		name string
 		sql  string
 	}{
-		{"create_tablespace_set", "CREATE TABLESPACE SET ts_set1 IN SHARDSPACE shardspace1 USING TEMPLATE (DATAFILE SIZE 100M)"},
-		{"alter_tablespace_set", "ALTER TABLESPACE SET ts_set1 ADD DATAFILE SIZE 200M"},
+		{"create_tablespace_set", "CREATE TABLESPACE SET ts_set1 IN SHARDSPACE shardspace1 USING TEMPLATE (SEGMENT SPACE MANAGEMENT AUTO)"},
+		{"alter_tablespace_set", "ALTER TABLESPACE SET ts_set1 RESIZE 200M"},
 		{"drop_tablespace_set", "DROP TABLESPACE SET ts_set1"},
 	}
 	for _, tt := range tests {
@@ -9255,9 +9287,9 @@ func TestBatch106_ReviewBundleTxnUtilityDclDrop(t *testing.T) {
 		{"akm_use_key", "ADMINISTER KEY MANAGEMENT USE KEY 'key_id_123' IDENTIFIED BY password1 WITH BACKUP"},
 		{"akm_backup", "ADMINISTER KEY MANAGEMENT BACKUP KEYSTORE IDENTIFIED BY password1 TO '/backup/'"},
 		{"akm_alter_pass", "ADMINISTER KEY MANAGEMENT ALTER KEYSTORE PASSWORD IDENTIFIED BY old_pass SET new_pass WITH BACKUP"},
-		{"akm_export", "ADMINISTER KEY MANAGEMENT EXPORT KEYS WITH SECRET 'my_secret' TO '/tmp/export.p12' IDENTIFIED BY password1"},
-		{"akm_import", "ADMINISTER KEY MANAGEMENT IMPORT KEYS WITH SECRET 'my_secret' FROM '/tmp/export.p12' IDENTIFIED BY password1 WITH BACKUP"},
-		{"akm_merge", "ADMINISTER KEY MANAGEMENT MERGE KEYSTORE '/u01/ks1' AND '/u01/ks2' IDENTIFIED BY password1 INTO NEW KEYSTORE '/u01/merged' IDENTIFIED BY password2"},
+		{"akm_export", "ADMINISTER KEY MANAGEMENT EXPORT KEYS WITH SECRET my_secret TO '/tmp/export.p12' IDENTIFIED BY password1"},
+		{"akm_import", "ADMINISTER KEY MANAGEMENT IMPORT KEYS WITH SECRET my_secret FROM '/tmp/export.p12' IDENTIFIED BY password1 WITH BACKUP"},
+		{"akm_merge", "ADMINISTER KEY MANAGEMENT MERGE KEYSTORE '/u01/ks1' AND KEYSTORE '/u01/ks2' IDENTIFIED BY password1 INTO NEW KEYSTORE '/u01/merged' IDENTIFIED BY password2"},
 		{"akm_add_secret", "ADMINISTER KEY MANAGEMENT ADD SECRET 'secret1' FOR CLIENT 'client1' IDENTIFIED BY password1"},
 		{"akm_set_tag", "ADMINISTER KEY MANAGEMENT SET TAG 'mytag' FOR 'key123' IDENTIFIED BY password1 WITH BACKUP"},
 

@@ -184,11 +184,10 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 	case kwTEMPORARY:
 		// CREATE TEMPORARY TABLESPACE (standalone, not GLOBAL TEMPORARY TABLE)
 		if !global && !private {
-			p.advance() // consume TEMPORARY
-			if p.cur.Type == kwTABLESPACE {
-				p.advance() // consume TABLESPACE
-				return p.parseCreateTablespaceStmt(start, false, false, false, true, false)
+			if p.peekNext().Type == kwTABLESPACE {
+				return p.parseCreateTablespaceFamily(start)
 			}
+			p.advance() // consume TEMPORARY
 		}
 		return nil, nil
 	default:
@@ -203,34 +202,8 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 		// Check for BIGFILE/SMALLFILE/UNDO TABLESPACE, CONTROLFILE
 		if p.isIdentLike() {
 			switch p.cur.Str {
-			case "BIGFILE":
-				p.advance()
-				if p.cur.Type == kwTABLESPACE {
-					p.advance()
-					return p.parseCreateTablespaceStmt(start, true, false, false, false, false)
-				}
-			case "SMALLFILE":
-				p.advance()
-				if p.cur.Type == kwTABLESPACE {
-					p.advance()
-					return p.parseCreateTablespaceStmt(start, false, true, false, false, false)
-				}
-			case "UNDO":
-				p.advance()
-				if p.cur.Type == kwTABLESPACE {
-					p.advance()
-					return p.parseCreateTablespaceStmt(start, false, false, false, false, true)
-				}
-			case "LOCAL":
-				// CREATE LOCAL TEMPORARY TABLESPACE
-				p.advance() // consume LOCAL
-				if p.cur.Type == kwTEMPORARY {
-					p.advance() // consume TEMPORARY
-					if p.cur.Type == kwTABLESPACE {
-						p.advance() // consume TABLESPACE
-						return p.parseCreateTablespaceStmt(start, false, false, true, true, false)
-					}
-				}
+			case "BIGFILE", "SMALLFILE", "UNDO", "LOCAL":
+				return p.parseCreateTablespaceFamily(start)
 			case "CONTROLFILE":
 				p.advance() // consume CONTROLFILE
 				return p.parseCreateControlfileStmt(start)

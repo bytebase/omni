@@ -29,6 +29,18 @@ func TestWalkCoversAllChildren(t *testing.T) {
 		{"SELECT selectors", "SELECT m['a'..'c'], m[..'c'], -a, (int) ?, writetime(u.f), [a, 1h], {a: b} FROM t WHERE a IS NOT NULL AND expr(idx, 'q')"},
 		{"SELECT markers", "SELECT * FROM t WHERE a IN ? AND (b, c) IN (?, ?) AND (b, c) > ? AND (b) IN :m"},
 		{"UPDATE conditions", "UPDATE t SET x += 1, l = [1] + l WHERE id = 1 IF m['k'] = 1 AND u.f IN ? AND x IN (1)"},
+		{"DESCRIBE", "DESCRIBE ONLY KEYSPACE ks WITH INTERNALS"},
+		{"ADD IDENTITY", "ADD IDENTITY 'id' TO ROLE r"},
+		{"DROP IDENTITY", "DROP IDENTITY 'id'"},
+		{"LIST USERS", "LIST USERS"},
+		{"LIST permissions", "LIST CREATE, SELECT ON ALL TABLES IN KEYSPACE ks OF r NORECURSIVE"},
+		{"CREATE KEYSPACE options", "CREATE KEYSPACE ks WITH replication = {'class': 'x'} AND durable_writes = true AND x = KEYS"},
+		{"CREATE INDEX targets", "CREATE INDEX ON t(a, KEYS(m)) USING 'sai' WITH OPTIONS = {'k': 'v'}"},
+		{"CREATE AGGREGATE types", "CREATE AGGREGATE a(int, text) SFUNC f STYPE int INITCOND 0"},
+		{"CREATE TABLE masks", "CREATE TABLE t(a int PRIMARY KEY, b text MASKED WITH mask_inner(1, null), c ks.addr)"},
+		{"ALTER TABLE ALTER TYPE", "ALTER TABLE t ALTER a TYPE text"},
+		{"ALTER TABLE MASKED", "ALTER TABLE t ALTER a MASKED WITH mask_null()"},
+		{"ALTER TABLE DROP TIMESTAMP", "ALTER TABLE t DROP (a, b) USING TIMESTAMP 10"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

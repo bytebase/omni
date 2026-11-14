@@ -4,14 +4,20 @@ import (
 	nodes "github.com/bytebase/omni/cosmosdb/ast"
 )
 
-// parseTopClause parses TOP n.
-func (p *Parser) parseTopClause() (*int, error) {
+// parseTopClause parses TOP n or TOP @param (sql.g4:13) into stmt.
+func (p *Parser) parseTopClause(stmt *nodes.SelectStmt) error {
 	p.advance() // consume TOP
+	if p.cur.Type == tokPARAM {
+		stmt.TopParam = &nodes.ParamRef{Name: p.cur.Str, Loc: nodes.Loc{Start: p.cur.Loc, End: p.cur.End}}
+		p.advance()
+		return nil
+	}
 	val, _, err := p.parseIntLiteral()
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return &val, nil
+	stmt.Top = &val
+	return nil
 }
 
 // parseTargetList parses a comma-separated list of target entries.
@@ -109,19 +115,10 @@ func (p *Parser) parseOrderBy() ([]*nodes.SortExpr, error) {
 func (p *Parser) parseSortExpr() (*nodes.SortExpr, error) {
 	startLoc := p.pos()
 
-	// RANK expr
-	if p.cur.Type == tokRANK {
+	// RANK expr, which takes a sort order like any other item (sql.g4:67).
+	rank := p.cur.Type == tokRANK
+	if rank {
 		p.advance()
-		expr, err := p.parseExpr(0)
-		if err != nil {
-			return nil, err
-		}
-		endLoc := p.prev.End
-		return &nodes.SortExpr{
-			Expr: expr,
-			Rank: true,
-			Loc:  nodes.Loc{Start: startLoc, End: endLoc},
-		}, nil
 	}
 
 	expr, err := p.parseExpr(0)
@@ -130,7 +127,7 @@ func (p *Parser) parseSortExpr() (*nodes.SortExpr, error) {
 	}
 	endLoc := p.prev.End
 
-	se := &nodes.SortExpr{Expr: expr}
+	se := &nodes.SortExpr{Expr: expr, Rank: rank}
 	if p.cur.Type == tokASC {
 		p.advance()
 		endLoc = p.prev.End

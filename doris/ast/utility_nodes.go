@@ -113,10 +113,15 @@ var _ Node = (*UseStmt)(nil)
 //	SET TRANSACTION { READ ONLY | READ WRITE | ISOLATION LEVEL ... }
 type SetStmt struct {
 	// Type identifies special SET forms: "VARIABLE" (default), "NAMES",
-	// "CHARSET", "TRANSACTION".
+	// "CHARSET", "TRANSACTION", "PROPERTY". A VARIABLE statement's items
+	// may each be any option: an item's Name is "names" or "charset" for
+	// those forms, and UserVariable marks @name.
 	Type  string
 	Items []*SetItem
-	Loc   Loc
+	// PropertyUser and Properties hold SET PROPERTY [FOR user] 'k' = 'v', ...
+	PropertyUser string
+	Properties   []*Property
+	Loc          Loc
 }
 
 // Tag implements Node.
@@ -129,10 +134,12 @@ type SetItem struct {
 	// Scope is "GLOBAL", "SESSION", "LOCAL", or "" (session default).
 	Scope string
 	// Name is the variable name (without @@ prefix).
-	Name  string
-	Value Node   // parsed expression value; may be nil when Raw is set
-	Raw   string // raw text for complex RHS
-	Loc   Loc
+	Name string
+	// UserVariable marks @name, a user variable.
+	UserVariable bool
+	Value        Node   // parsed expression value; may be nil when Raw is set
+	Raw          string // raw text for complex RHS
+	Loc          Loc
 }
 
 // Tag implements Node.

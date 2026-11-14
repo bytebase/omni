@@ -127,6 +127,9 @@ func walkChildren(v Visitor, node Node) {
 
 	// Types
 	case *DataType:
+		if n.Keyspace != nil {
+			Walk(v, n.Keyspace)
+		}
 		Walk(v, n.Name)
 		for _, p := range n.TypeParams {
 			Walk(v, p)
@@ -139,6 +142,16 @@ func walkChildren(v Visitor, node Node) {
 	case *ColumnDef:
 		Walk(v, n.Name)
 		Walk(v, n.Type)
+		if n.Mask != nil {
+			Walk(v, n.Mask)
+		}
+	case *ColumnMask:
+		if n.Function != nil {
+			Walk(v, n.Function)
+		}
+		for _, a := range n.Args {
+			Walk(v, a)
+		}
 	case *PrimaryKeyDef:
 		for _, k := range n.PartitionKeys {
 			Walk(v, k)
@@ -279,19 +292,33 @@ func walkChildren(v Visitor, node Node) {
 	// DDL
 	case *CreateKeyspaceStmt:
 		Walk(v, n.Name)
-		if n.Replication != nil {
-			Walk(v, n.Replication)
+		// Replication and DurableWrites are values of Options when the
+		// parser fills both; walk them only for a node built without Options.
+		for _, o := range n.Options {
+			Walk(v, o)
 		}
-		if n.DurableWrites != nil {
-			Walk(v, n.DurableWrites)
+		if len(n.Options) == 0 {
+			if n.Replication != nil {
+				Walk(v, n.Replication)
+			}
+			if n.DurableWrites != nil {
+				Walk(v, n.DurableWrites)
+			}
 		}
 	case *AlterKeyspaceStmt:
 		Walk(v, n.Name)
-		if n.Replication != nil {
-			Walk(v, n.Replication)
+		// Replication and DurableWrites are values of Options when the
+		// parser fills both; walk them only for a node built without Options.
+		for _, o := range n.Options {
+			Walk(v, o)
 		}
-		if n.DurableWrites != nil {
-			Walk(v, n.DurableWrites)
+		if len(n.Options) == 0 {
+			if n.Replication != nil {
+				Walk(v, n.Replication)
+			}
+			if n.DurableWrites != nil {
+				Walk(v, n.DurableWrites)
+			}
 		}
 	case *DropKeyspaceStmt:
 		Walk(v, n.Name)
@@ -323,6 +350,18 @@ func walkChildren(v Visitor, node Node) {
 		for _, o := range n.Options {
 			Walk(v, o)
 		}
+		if n.AlterColumn != nil {
+			Walk(v, n.AlterColumn)
+		}
+		if n.AlterType != nil {
+			Walk(v, n.AlterType)
+		}
+		if n.Mask != nil {
+			Walk(v, n.Mask)
+		}
+		if n.DropTimestamp != nil {
+			Walk(v, n.DropTimestamp)
+		}
 	case *AlterTableRenameItem:
 		Walk(v, n.From)
 		Walk(v, n.To)
@@ -333,11 +372,21 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.IndexName)
 		}
 		Walk(v, n.Table)
-		Walk(v, n.Column)
+		// Column is Columns[0] and Options a value of Properties when the
+		// parser fills both; walk them only for a node built without.
+		for _, c := range n.Columns {
+			Walk(v, c)
+		}
+		if len(n.Columns) == 0 && n.Column != nil {
+			Walk(v, n.Column)
+		}
 		if n.UsingClass != nil {
 			Walk(v, n.UsingClass)
 		}
-		if n.Options != nil {
+		for _, o := range n.Properties {
+			Walk(v, o)
+		}
+		if len(n.Properties) == 0 && n.Options != nil {
 			Walk(v, n.Options)
 		}
 	case *DropIndexStmt:
@@ -418,7 +467,11 @@ func walkChildren(v Visitor, node Node) {
 		}
 	case *CreateAggregateStmt:
 		Walk(v, n.Name)
-		if n.ParamType != nil {
+		// ParamType is ParamTypes[0] when the parser fills both.
+		for _, t := range n.ParamTypes {
+			Walk(v, t)
+		}
+		if len(n.ParamTypes) == 0 && n.ParamType != nil {
 			Walk(v, n.ParamType)
 		}
 		if n.SFunc != nil {
@@ -516,6 +569,16 @@ func walkChildren(v Visitor, node Node) {
 	case *ListRolesStmt:
 		if n.Of != nil {
 			Walk(v, n.Of)
+		}
+	case *ListUsersStmt:
+	case *AddIdentityStmt:
+		Walk(v, n.Identity)
+		Walk(v, n.Role)
+	case *DropIdentityStmt:
+		Walk(v, n.Identity)
+	case *DescribeStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
 		}
 	}
 }

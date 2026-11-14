@@ -58,7 +58,7 @@ accept	accept	grammar	cqlStatement/truncateStatement	TRUNCATE a
 reject	reject	grammar	cqlStatement/truncateStatement!drop-2	TRUNCATE
 reject	reject	grammar	cqlStatement/truncateStatement!insert	TRUNCATE a zzz
 reject	reject	grammar	cqlStatement/truncateStatement!swap	TTL a
-reject	accept	grammar	cqlStatement/createKeyspaceStatement	CREATE KEYSPACE a WITH a = 'a'
+accept	accept	grammar	cqlStatement/createKeyspaceStatement	CREATE KEYSPACE a WITH a = 'a'
 reject	reject	grammar	cqlStatement/createKeyspaceStatement!drop-1	KEYSPACE a WITH a = 'a'
 reject	reject	grammar	cqlStatement/createKeyspaceStatement!drop-2	CREATE a WITH a = 'a'
 reject	reject	grammar	cqlStatement/createKeyspaceStatement!drop-3	CREATE KEYSPACE WITH a = 'a'
@@ -78,7 +78,7 @@ reject	reject	grammar	cqlStatement/createTableStatement!drop-6	CREATE TABLE a(a)
 reject	reject	grammar	cqlStatement/createTableStatement!drop-7	CREATE TABLE a(a ASCII
 reject	reject	grammar	cqlStatement/createTableStatement!insert	CREATE TABLE a(a ASCII) zzz
 reject	reject	grammar	cqlStatement/createTableStatement!swap	CUSTOM TABLE a(a ASCII)
-reject	accept	grammar	cqlStatement/createIndexStatement	CREATE INDEX ON a()
+accept	accept	grammar	cqlStatement/createIndexStatement	CREATE INDEX ON a()
 reject	reject	grammar	cqlStatement/createIndexStatement!drop-1	INDEX ON a()
 reject	reject	grammar	cqlStatement/createIndexStatement!drop-2	CREATE ON a()
 reject	reject	grammar	cqlStatement/createIndexStatement!drop-3	CREATE INDEX a()
@@ -111,7 +111,7 @@ reject	reject	grammar	cqlStatement/alterTableStatement!drop-4	ALTER TABLE a a
 reject	reject	grammar	cqlStatement/alterTableStatement!drop-5	ALTER TABLE a DROP
 reject	reject	grammar	cqlStatement/alterTableStatement!insert	ALTER TABLE a DROP a zzz
 reject	reject	grammar	cqlStatement/alterTableStatement!swap	AND TABLE a DROP a
-reject	accept	grammar	cqlStatement/alterKeyspaceStatement	ALTER KEYSPACE a WITH a = 'a'
+accept	accept	grammar	cqlStatement/alterKeyspaceStatement	ALTER KEYSPACE a WITH a = 'a'
 reject	reject	grammar	cqlStatement/alterKeyspaceStatement!drop-2	ALTER a WITH a = 'a'
 reject	reject	grammar	cqlStatement/alterKeyspaceStatement!drop-3	ALTER KEYSPACE WITH a = 'a'
 reject	reject	grammar	cqlStatement/alterKeyspaceStatement!drop-4	ALTER KEYSPACE a a = 'a'
@@ -157,7 +157,7 @@ accept	accept	grammar	cqlStatement/dropUserStatement	DROP USER a
 reject	reject	grammar	cqlStatement/dropUserStatement!drop-3	DROP USER
 reject	reject	grammar	cqlStatement/dropUserStatement!insert	DROP USER a zzz
 reject	reject	grammar	cqlStatement/dropUserStatement!swap	DURATION USER a
-reject	accept	grammar	cqlStatement/listUsersStatement	LIST USERS
+accept	accept	grammar	cqlStatement/listUsersStatement	LIST USERS
 reject	reject	grammar	cqlStatement/listUsersStatement!drop-1	USERS
 reject	reject	grammar	cqlStatement/listUsersStatement!insert	LIST USERS zzz
 reject	reject	grammar	cqlStatement/listUsersStatement!swap	LOGIN USERS
@@ -225,7 +225,7 @@ reject	reject	grammar	cqlStatement/dropFunctionStatement!drop-1	FUNCTION a
 reject	reject	grammar	cqlStatement/dropFunctionStatement!drop-3	DROP FUNCTION
 reject	reject	grammar	cqlStatement/dropFunctionStatement!insert	DROP FUNCTION a zzz
 reject	reject	grammar	cqlStatement/dropFunctionStatement!swap	DURATION FUNCTION a
-reject	accept	grammar	cqlStatement/createAggregateStatement	CREATE AGGREGATE a() SFUNC a STYPE ASCII
+accept	accept	grammar	cqlStatement/createAggregateStatement	CREATE AGGREGATE a() SFUNC a STYPE ASCII
 reject	reject	grammar	cqlStatement/createAggregateStatement!drop-1	AGGREGATE a() SFUNC a STYPE ASCII
 reject	reject	grammar	cqlStatement/createAggregateStatement!drop-2	CREATE a() SFUNC a STYPE ASCII
 reject	reject	grammar	cqlStatement/createAggregateStatement!drop-3	CREATE AGGREGATE() SFUNC a STYPE ASCII
@@ -272,7 +272,7 @@ reject	reject	grammar	cqlStatement/revokeRoleStatement!drop-3	REVOKE a a
 reject	reject	grammar	cqlStatement/revokeRoleStatement!drop-4	REVOKE a FROM
 reject	reject	grammar	cqlStatement/revokeRoleStatement!insert	REVOKE a FROM a zzz
 reject	reject	grammar	cqlStatement/revokeRoleStatement!swap	ROLE a FROM a
-reject	accept	grammar	cqlStatement/createMaterializedViewStatement	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a)
+accept	accept	grammar	cqlStatement/createMaterializedViewStatement	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a)
 reject	reject	grammar	cqlStatement/createMaterializedViewStatement!drop-1	MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a)
 reject	reject	grammar	cqlStatement/createMaterializedViewStatement!drop-2	CREATE VIEW a AS SELECT a FROM a PRIMARY KEY(a)
 reject	reject	grammar	cqlStatement/createMaterializedViewStatement!drop-3	CREATE MATERIALIZED a AS SELECT a FROM a PRIMARY KEY(a)
@@ -307,12 +307,12 @@ reject	reject	grammar	cqlStatement/alterMaterializedViewStatement!drop-7	ALTER M
 reject	reject	grammar	cqlStatement/alterMaterializedViewStatement!drop-8	ALTER MATERIALIZED VIEW a WITH a =
 reject	reject	grammar	cqlStatement/alterMaterializedViewStatement!insert	ALTER MATERIALIZED VIEW a WITH a = 'a' zzz
 reject	reject	grammar	cqlStatement/alterMaterializedViewStatement!swap	AND MATERIALIZED VIEW a WITH a = 'a'
-reject	accept	grammar	cqlStatement/describeStatement	DESCRIBE CLUSTER
+accept	accept	grammar	cqlStatement/describeStatement	DESCRIBE CLUSTER
 reject	reject	grammar	cqlStatement/describeStatement!drop-1	CLUSTER
 reject	reject	grammar	cqlStatement/describeStatement!drop-2	DESCRIBE
 reject	reject	grammar	cqlStatement/describeStatement!insert	DESCRIBE CLUSTER zzz
 reject	reject	grammar	cqlStatement/describeStatement!swap	DISTINCT CLUSTER
-reject	accept	grammar	cqlStatement/addIdentityStatement	ADD IDENTITY a TO ROLE a
+accept	accept	grammar	cqlStatement/addIdentityStatement	ADD IDENTITY a TO ROLE a
 reject	reject	grammar	cqlStatement/addIdentityStatement!drop-1	IDENTITY a TO ROLE a
 reject	reject	grammar	cqlStatement/addIdentityStatement!drop-2	ADD a TO ROLE a
 reject	reject	grammar	cqlStatement/addIdentityStatement!drop-3	ADD IDENTITY TO ROLE a
@@ -321,7 +321,7 @@ reject	reject	grammar	cqlStatement/addIdentityStatement!drop-5	ADD IDENTITY a TO
 reject	reject	grammar	cqlStatement/addIdentityStatement!drop-6	ADD IDENTITY a TO ROLE
 reject	reject	grammar	cqlStatement/addIdentityStatement!insert	ADD IDENTITY a TO ROLE a zzz
 reject	reject	grammar	cqlStatement/addIdentityStatement!swap	AGGREGATE IDENTITY a TO ROLE a
-reject	accept	grammar	cqlStatement/dropIdentityStatement	DROP IDENTITY a
+accept	accept	grammar	cqlStatement/dropIdentityStatement	DROP IDENTITY a
 reject	reject	grammar	cqlStatement/dropIdentityStatement!drop-1	IDENTITY a
 reject	reject	grammar	cqlStatement/dropIdentityStatement!drop-3	DROP IDENTITY
 reject	reject	grammar	cqlStatement/dropIdentityStatement!insert	DROP IDENTITY a zzz
@@ -890,45 +890,45 @@ reject	reject	grammar	batchStatementObjective/deleteStatement!drop-7	BEGIN BATCH
 reject	reject	grammar	batchStatementObjective/deleteStatement!truncate	BEGIN BATCH DELETE FROM a WHERE a =
 reject	reject	grammar	batchStatementObjective/deleteStatement!insert	BEGIN BATCH DELETE FROM a WHERE a = 'a' zzz APPLY BATCH
 reject	reject	grammar	batchStatementObjective/deleteStatement!swap	BEGIN BATCH DESC FROM a WHERE a = 'a' APPLY BATCH
-reject	accept	grammar	createAggregateStatement/K_CREATE_(K_OR_K_REPLACE)?_K_AGGREGATE_(K_IF_K_NOT_K_EX~dd56419f	CREATE AGGREGATE a() SFUNC a STYPE ASCII
-reject	accept	grammar	createAggregateStatement(K_OR_K_REPLACE)?/%empty	CREATE AGGREGATE a() SFUNC a STYPE ASCII
+accept	accept	grammar	createAggregateStatement/K_CREATE_(K_OR_K_REPLACE)?_K_AGGREGATE_(K_IF_K_NOT_K_EX~dd56419f	CREATE AGGREGATE a() SFUNC a STYPE ASCII
+accept	accept	grammar	createAggregateStatement(K_OR_K_REPLACE)?/%empty	CREATE AGGREGATE a() SFUNC a STYPE ASCII
 reject	reject	grammar	createAggregateStatement(K_OR_K_REPLACE)?/%empty!insert	CREATE zzz AGGREGATE a() SFUNC a STYPE ASCII
-reject	accept	grammar	createAggregateStatement(K_OR_K_REPLACE)?/K_OR_K_REPLACE	CREATE OR REPLACE AGGREGATE a() SFUNC a STYPE ASCII
+accept	accept	grammar	createAggregateStatement(K_OR_K_REPLACE)?/K_OR_K_REPLACE	CREATE OR REPLACE AGGREGATE a() SFUNC a STYPE ASCII
 reject	reject	grammar	createAggregateStatement(K_OR_K_REPLACE)?/K_OR_K_REPLACE!drop-1	CREATE REPLACE AGGREGATE a() SFUNC a STYPE ASCII
 reject	reject	grammar	createAggregateStatement(K_OR_K_REPLACE)?/K_OR_K_REPLACE!drop-2	CREATE OR AGGREGATE a() SFUNC a STYPE ASCII
 reject	reject	grammar	createAggregateStatement(K_OR_K_REPLACE)?/K_OR_K_REPLACE!truncate	CREATE OR
 reject	reject	grammar	createAggregateStatement(K_OR_K_REPLACE)?/K_OR_K_REPLACE!insert	CREATE OR REPLACE zzz AGGREGATE a() SFUNC a STYPE ASCII
 reject	reject	grammar	createAggregateStatement(K_OR_K_REPLACE)?/K_OR_K_REPLACE!swap	CREATE ORDER REPLACE AGGREGATE a() SFUNC a STYPE ASCII
-reject	accept	grammar	createAggregateStatement(K_IF_K_NOT_K_EXISTS)?/%empty	CREATE AGGREGATE a() SFUNC a STYPE ASCII
+accept	accept	grammar	createAggregateStatement(K_IF_K_NOT_K_EXISTS)?/%empty	CREATE AGGREGATE a() SFUNC a STYPE ASCII
 reject	reject	grammar	createAggregateStatement(K_IF_K_NOT_K_EXISTS)?/%empty!insert	CREATE AGGREGATE zzz a() SFUNC a STYPE ASCII
-reject	accept	grammar	createAggregateStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXISTS	CREATE AGGREGATE IF NOT EXISTS a() SFUNC a STYPE ASCII
+accept	accept	grammar	createAggregateStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXISTS	CREATE AGGREGATE IF NOT EXISTS a() SFUNC a STYPE ASCII
 reject	reject	grammar	createAggregateStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXISTS!drop-1	CREATE AGGREGATE NOT EXISTS a() SFUNC a STYPE ASCII
 reject	reject	grammar	createAggregateStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXISTS!drop-2	CREATE AGGREGATE IF EXISTS a() SFUNC a STYPE ASCII
 reject	reject	grammar	createAggregateStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXISTS!drop-3	CREATE AGGREGATE IF NOT a() SFUNC a STYPE ASCII
 reject	reject	grammar	createAggregateStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXISTS!truncate	CREATE AGGREGATE IF NOT
 reject	reject	grammar	createAggregateStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXISTS!insert	CREATE AGGREGATE IF NOT EXISTS zzz a() SFUNC a STYPE ASCII
 reject	reject	grammar	createAggregateStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXISTS!swap	CREATE AGGREGATE IN NOT EXISTS a() SFUNC a STYPE ASCII
-reject	accept	grammar	createAggregateStatement(comparatorType_(,_comparatorType)*)?/%empty	CREATE AGGREGATE a() SFUNC a STYPE ASCII
+accept	accept	grammar	createAggregateStatement(comparatorType_(,_comparatorType)*)?/%empty	CREATE AGGREGATE a() SFUNC a STYPE ASCII
 accept	accept	grammar	createAggregateStatement(comparatorType_(,_comparatorType)*)?/%empty!insert	CREATE AGGREGATE a(zzz) SFUNC a STYPE ASCII
 accept	accept	grammar	createAggregateStatement(comparatorType_(,_comparatorType)*)?/comparatorType_(,_comparatorType)*	CREATE AGGREGATE a(ASCII) SFUNC a STYPE ASCII
 reject	reject	grammar	createAggregateStatement(comparatorType_(,_comparatorType)*)?/comparatorType_(,_comparatorType)*!truncate	CREATE AGGREGATE a(
 reject	reject	grammar	createAggregateStatement(comparatorType_(,_comparatorType)*)?/comparatorType_(,_comparatorType)*!insert	CREATE AGGREGATE a(ASCII zzz) SFUNC a STYPE ASCII
 reject	reject	grammar	createAggregateStatement(comparatorType_(,_comparatorType)*)?/comparatorType_(,_comparatorType)*!swap	CREATE AGGREGATE a(AUTHORIZE) SFUNC a STYPE ASCII
 accept	accept	grammar	createAggregateStatement(,_comparatorType)*/%empty	CREATE AGGREGATE a(ASCII) SFUNC a STYPE ASCII
-reject	accept	grammar	createAggregateStatement(,_comparatorType)*/,_comparatorType_(,_comparatorType)*	CREATE AGGREGATE a(ASCII, ASCII) SFUNC a STYPE ASCII
+accept	accept	grammar	createAggregateStatement(,_comparatorType)*/,_comparatorType_(,_comparatorType)*	CREATE AGGREGATE a(ASCII, ASCII) SFUNC a STYPE ASCII
 reject	reject	grammar	createAggregateStatement(,_comparatorType)*/,_comparatorType_(,_comparatorType)*!drop-1	CREATE AGGREGATE a(ASCII ASCII) SFUNC a STYPE ASCII
 reject	reject	grammar	createAggregateStatement(,_comparatorType)*/,_comparatorType_(,_comparatorType)*!drop-2	CREATE AGGREGATE a(ASCII,) SFUNC a STYPE ASCII
 reject	reject	grammar	createAggregateStatement(,_comparatorType)*/,_comparatorType_(,_comparatorType)*!truncate	CREATE AGGREGATE a(ASCII,
 reject	reject	grammar	createAggregateStatement(,_comparatorType)*/,_comparatorType_(,_comparatorType)*!insert	CREATE AGGREGATE a(ASCII, ASCII zzz) SFUNC a STYPE ASCII
 reject	reject	grammar	createAggregateStatement(,_comparatorType)*/,_comparatorType_(,_comparatorType)*!swap	CREATE AGGREGATE a(ASCII, AUTHORIZE) SFUNC a STYPE ASCII
-reject	accept	grammar	createAggregateStatement(K_FINALFUNC_allowedFunctionName)?/%empty	CREATE AGGREGATE a() SFUNC a STYPE ASCII
-reject	accept	grammar	createAggregateStatement(K_FINALFUNC_allowedFunctionName)?/K_FINALFUNC_allowedFunctionName	CREATE AGGREGATE a() SFUNC a STYPE ASCII FINALFUNC a
+accept	accept	grammar	createAggregateStatement(K_FINALFUNC_allowedFunctionName)?/%empty	CREATE AGGREGATE a() SFUNC a STYPE ASCII
+accept	accept	grammar	createAggregateStatement(K_FINALFUNC_allowedFunctionName)?/K_FINALFUNC_allowedFunctionName	CREATE AGGREGATE a() SFUNC a STYPE ASCII FINALFUNC a
 reject	reject	grammar	createAggregateStatement(K_FINALFUNC_allowedFunctionName)?/K_FINALFUNC_allowedFunctionName!drop-1	CREATE AGGREGATE a() SFUNC a STYPE ASCII a
 reject	reject	grammar	createAggregateStatement(K_FINALFUNC_allowedFunctionName)?/K_FINALFUNC_allowedFunctionName!drop-2	CREATE AGGREGATE a() SFUNC a STYPE ASCII FINALFUNC
 reject	reject	grammar	createAggregateStatement(K_FINALFUNC_allowedFunctionName)?/K_FINALFUNC_allowedFunctionName!insert	CREATE AGGREGATE a() SFUNC a STYPE ASCII FINALFUNC a zzz
 reject	reject	grammar	createAggregateStatement(K_FINALFUNC_allowedFunctionName)?/K_FINALFUNC_allowedFunctionName!swap	CREATE AGGREGATE a() SFUNC a STYPE ASCII FLOAT a
-reject	accept	grammar	createAggregateStatement(K_INITCOND_term)?/%empty	CREATE AGGREGATE a() SFUNC a STYPE ASCII
-reject	accept	grammar	createAggregateStatement(K_INITCOND_term)?/K_INITCOND_term	CREATE AGGREGATE a() SFUNC a STYPE ASCII INITCOND 'a'
+accept	accept	grammar	createAggregateStatement(K_INITCOND_term)?/%empty	CREATE AGGREGATE a() SFUNC a STYPE ASCII
+accept	accept	grammar	createAggregateStatement(K_INITCOND_term)?/K_INITCOND_term	CREATE AGGREGATE a() SFUNC a STYPE ASCII INITCOND 'a'
 reject	reject	grammar	createAggregateStatement(K_INITCOND_term)?/K_INITCOND_term!drop-1	CREATE AGGREGATE a() SFUNC a STYPE ASCII 'a'
 reject	reject	grammar	createAggregateStatement(K_INITCOND_term)?/K_INITCOND_term!drop-2	CREATE AGGREGATE a() SFUNC a STYPE ASCII INITCOND
 reject	reject	grammar	createAggregateStatement(K_INITCOND_term)?/K_INITCOND_term!insert	CREATE AGGREGATE a() SFUNC a STYPE ASCII INITCOND 'a' zzz
@@ -1028,10 +1028,10 @@ reject	reject	grammar	dropFunctionStatement(,_comparatorType)*/,_comparatorType_
 reject	reject	grammar	dropFunctionStatement(,_comparatorType)*/,_comparatorType_(,_comparatorType)*!truncate	DROP FUNCTION a(ASCII,
 reject	reject	grammar	dropFunctionStatement(,_comparatorType)*/,_comparatorType_(,_comparatorType)*!insert	DROP FUNCTION a(ASCII, ASCII zzz)
 reject	reject	grammar	dropFunctionStatement(,_comparatorType)*/,_comparatorType_(,_comparatorType)*!swap	DROP FUNCTION a(ASCII, AUTHORIZE)
-reject	accept	grammar	createKeyspaceStatement/K_CREATE_K_KEYSPACE_(K_IF_K_NOT_K_EXISTS)?_keyspaceName~60582c5e	CREATE KEYSPACE a WITH a = 'a'
-reject	accept	grammar	createKeyspaceStatement(K_IF_K_NOT_K_EXISTS)?/%empty	CREATE KEYSPACE a WITH a = 'a'
+accept	accept	grammar	createKeyspaceStatement/K_CREATE_K_KEYSPACE_(K_IF_K_NOT_K_EXISTS)?_keyspaceName~60582c5e	CREATE KEYSPACE a WITH a = 'a'
+accept	accept	grammar	createKeyspaceStatement(K_IF_K_NOT_K_EXISTS)?/%empty	CREATE KEYSPACE a WITH a = 'a'
 reject	reject	grammar	createKeyspaceStatement(K_IF_K_NOT_K_EXISTS)?/%empty!insert	CREATE KEYSPACE zzz a WITH a = 'a'
-reject	accept	grammar	createKeyspaceStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXISTS	CREATE KEYSPACE IF NOT EXISTS a WITH a = 'a'
+accept	accept	grammar	createKeyspaceStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXISTS	CREATE KEYSPACE IF NOT EXISTS a WITH a = 'a'
 reject	reject	grammar	createKeyspaceStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXISTS!drop-1	CREATE KEYSPACE NOT EXISTS a WITH a = 'a'
 reject	reject	grammar	createKeyspaceStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXISTS!drop-2	CREATE KEYSPACE IF EXISTS a WITH a = 'a'
 reject	reject	grammar	createKeyspaceStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXISTS!drop-3	CREATE KEYSPACE IF NOT a WITH a = 'a'
@@ -1052,10 +1052,10 @@ accept	accept	grammar	tableDefinition/(_tableColumns_(,_tableColumns?)*_)_(K_WIT
 reject	reject	grammar	tableDefinition/(_tableColumns_(,_tableColumns?)*_)_(K_WITH_tableProper~fb8205e2!swap	CREATE TABLE a(a AUTHORIZE)
 accept	accept	grammar	tableDefinition(,_tableColumns?)*/%empty	CREATE TABLE a(a ASCII)
 reject	reject	grammar	tableDefinition(,_tableColumns?)*/%empty!insert	CREATE TABLE a(a ASCII zzz)
-reject	accept	grammar	tableDefinition(,_tableColumns?)*/,_(tableColumns)?_(,_tableColumns?)*	CREATE TABLE a(a ASCII,)
+accept	accept	grammar	tableDefinition(,_tableColumns?)*/,_(tableColumns)?_(,_tableColumns?)*	CREATE TABLE a(a ASCII,)
 reject	reject	grammar	tableDefinition(,_tableColumns?)*/,_(tableColumns)?_(,_tableColumns?)*!insert	CREATE TABLE a(a ASCII, zzz)
-reject	accept	grammar	tableDefinition(tableColumns)?/%empty	CREATE TABLE a(a ASCII,)
-accept	reject	grammar	tableDefinition(tableColumns)?/tableColumns	CREATE TABLE a(a ASCII, a ASCII)
+accept	accept	grammar	tableDefinition(tableColumns)?/%empty	CREATE TABLE a(a ASCII,)
+reject	reject	grammar	tableDefinition(tableColumns)?/tableColumns	CREATE TABLE a(a ASCII, a ASCII)
 reject	reject	grammar	tableDefinition(tableColumns)?/tableColumns!drop-1	CREATE TABLE a(a ASCII, ASCII)
 reject	reject	grammar	tableDefinition(tableColumns)?/tableColumns!drop-2	CREATE TABLE a(a ASCII, a)
 reject	reject	grammar	tableDefinition(tableColumns)?/tableColumns!truncate	CREATE TABLE a(a ASCII, a
@@ -1091,7 +1091,7 @@ accept	accept	grammar	tableColumns(K_STATIC)?/K_STATIC	CREATE TABLE a(a ASCII ST
 reject	reject	grammar	tableColumns(K_STATIC)?/K_STATIC!insert	CREATE TABLE a(a ASCII STATIC zzz)
 reject	reject	grammar	tableColumns(K_STATIC)?/K_STATIC!swap	CREATE TABLE a(a ASCII STORAGE)
 accept	accept	grammar	tableColumns(columnMask)?/%empty	CREATE TABLE a(a ASCII)
-reject	accept	grammar	tableColumns(columnMask)?/columnMask	CREATE TABLE a(a ASCII MASKED WITH DEFAULT)
+accept	accept	grammar	tableColumns(columnMask)?/columnMask	CREATE TABLE a(a ASCII MASKED WITH DEFAULT)
 reject	reject	grammar	tableColumns(columnMask)?/columnMask!drop-1	CREATE TABLE a(a ASCII WITH DEFAULT)
 reject	reject	grammar	tableColumns(columnMask)?/columnMask!drop-2	CREATE TABLE a(a ASCII MASKED DEFAULT)
 reject	reject	grammar	tableColumns(columnMask)?/columnMask!drop-3	CREATE TABLE a(a ASCII MASKED WITH)
@@ -1112,7 +1112,7 @@ reject	reject	grammar	tableColumns(,_ident)*/,_ident_(,_ident)*!drop-1	CREATE TA
 reject	reject	grammar	tableColumns(,_ident)*/,_ident_(,_ident)*!drop-2	CREATE TABLE a(PRIMARY KEY(a,))
 reject	reject	grammar	tableColumns(,_ident)*/,_ident_(,_ident)*!truncate	CREATE TABLE a(PRIMARY KEY(a,
 reject	reject	grammar	tableColumns(,_ident)*/,_ident_(,_ident)*!insert	CREATE TABLE a(PRIMARY KEY(a, a zzz))
-reject	accept	grammar	columnMask/K_MASKED_K_WITH_functionName_columnMaskArguments	ALTER TABLE a ALTER a MASKED WITH a()
+accept	accept	grammar	columnMask/K_MASKED_K_WITH_functionName_columnMaskArguments	ALTER TABLE a ALTER a MASKED WITH a()
 reject	reject	grammar	columnMask/K_MASKED_K_WITH_functionName_columnMaskArguments!drop-1	ALTER TABLE a ALTER a WITH a()
 reject	reject	grammar	columnMask/K_MASKED_K_WITH_functionName_columnMaskArguments!drop-2	ALTER TABLE a ALTER a MASKED a()
 reject	reject	grammar	columnMask/K_MASKED_K_WITH_functionName_columnMaskArguments!drop-3	ALTER TABLE a ALTER a MASKED WITH()
@@ -1120,20 +1120,20 @@ reject	reject	grammar	columnMask/K_MASKED_K_WITH_functionName_columnMaskArgument
 reject	reject	grammar	columnMask/K_MASKED_K_WITH_functionName_columnMaskArguments!drop-5	ALTER TABLE a ALTER a MASKED WITH a(
 reject	reject	grammar	columnMask/K_MASKED_K_WITH_functionName_columnMaskArguments!insert	ALTER TABLE a ALTER a MASKED WITH a() zzz
 reject	reject	grammar	columnMask/K_MASKED_K_WITH_functionName_columnMaskArguments!swap	ALTER TABLE a ALTER a MATERIALIZED WITH a()
-reject	accept	grammar	columnMask/K_MASKED_K_WITH_K_DEFAULT	ALTER TABLE a ALTER a MASKED WITH DEFAULT
+accept	accept	grammar	columnMask/K_MASKED_K_WITH_K_DEFAULT	ALTER TABLE a ALTER a MASKED WITH DEFAULT
 reject	reject	grammar	columnMask/K_MASKED_K_WITH_K_DEFAULT!drop-1	ALTER TABLE a ALTER a WITH DEFAULT
 reject	reject	grammar	columnMask/K_MASKED_K_WITH_K_DEFAULT!drop-2	ALTER TABLE a ALTER a MASKED DEFAULT
 reject	reject	grammar	columnMask/K_MASKED_K_WITH_K_DEFAULT!drop-3	ALTER TABLE a ALTER a MASKED WITH
 reject	reject	grammar	columnMask/K_MASKED_K_WITH_K_DEFAULT!insert	ALTER TABLE a ALTER a MASKED WITH DEFAULT zzz
 reject	reject	grammar	columnMask/K_MASKED_K_WITH_K_DEFAULT!swap	ALTER TABLE a ALTER a MATERIALIZED WITH DEFAULT
-reject	accept	grammar	columnMaskArguments/(_)	ALTER TABLE a ALTER a MASKED WITH a()
-reject	accept	grammar	columnMaskArguments/(_term_(,_term)*_)	ALTER TABLE a ALTER a MASKED WITH a('a')
+accept	accept	grammar	columnMaskArguments/(_)	ALTER TABLE a ALTER a MASKED WITH a()
+accept	accept	grammar	columnMaskArguments/(_term_(,_term)*_)	ALTER TABLE a ALTER a MASKED WITH a('a')
 reject	reject	grammar	columnMaskArguments/(_term_(,_term)*_)!drop-1	ALTER TABLE a ALTER a MASKED WITH a 'a')
 reject	reject	grammar	columnMaskArguments/(_term_(,_term)*_)!drop-3	ALTER TABLE a ALTER a MASKED WITH a('a'
 reject	reject	grammar	columnMaskArguments/(_term_(,_term)*_)!insert	ALTER TABLE a ALTER a MASKED WITH a('a') zzz
-reject	accept	grammar	columnMaskArguments(,_term)*/%empty	ALTER TABLE a ALTER a MASKED WITH a('a')
+accept	accept	grammar	columnMaskArguments(,_term)*/%empty	ALTER TABLE a ALTER a MASKED WITH a('a')
 reject	reject	grammar	columnMaskArguments(,_term)*/%empty!insert	ALTER TABLE a ALTER a MASKED WITH a('a' zzz)
-reject	accept	grammar	columnMaskArguments(,_term)*/,_term_(,_term)*	ALTER TABLE a ALTER a MASKED WITH a('a', 'a')
+accept	accept	grammar	columnMaskArguments(,_term)*/,_term_(,_term)*	ALTER TABLE a ALTER a MASKED WITH a('a', 'a')
 reject	reject	grammar	columnMaskArguments(,_term)*/,_term_(,_term)*!drop-1	ALTER TABLE a ALTER a MASKED WITH a('a' 'a')
 reject	reject	grammar	columnMaskArguments(,_term)*/,_term_(,_term)*!drop-2	ALTER TABLE a ALTER a MASKED WITH a('a',)
 reject	reject	grammar	columnMaskArguments(,_term)*/,_term_(,_term)*!truncate	ALTER TABLE a ALTER a MASKED WITH a('a',
@@ -1165,17 +1165,17 @@ reject	reject	grammar	tableProperty/K_CLUSTERING_K_ORDER_K_BY_(_tableClusteringO
 reject	reject	grammar	tableProperty/K_CLUSTERING_K_ORDER_K_BY_(_tableClusteringOrder_(,_tab~151fd45f!drop-2	CREATE TABLE a(a ASCII) WITH CLUSTERING BY(a ASC)
 reject	reject	grammar	tableProperty/K_CLUSTERING_K_ORDER_K_BY_(_tableClusteringOrder_(,_tab~151fd45f!drop-3	CREATE TABLE a(a ASCII) WITH CLUSTERING ORDER(a ASC)
 reject	reject	grammar	tableProperty/K_CLUSTERING_K_ORDER_K_BY_(_tableClusteringOrder_(,_tab~151fd45f!drop-4	CREATE TABLE a(a ASCII) WITH CLUSTERING ORDER BY a ASC)
-accept	reject	grammar	tableProperty/K_CLUSTERING_K_ORDER_K_BY_(_tableClusteringOrder_(,_tab~151fd45f!drop-5	CREATE TABLE a(a ASCII) WITH CLUSTERING ORDER BY(ASC)
-accept	reject	grammar	tableProperty/K_CLUSTERING_K_ORDER_K_BY_(_tableClusteringOrder_(,_tab~151fd45f!drop-6	CREATE TABLE a(a ASCII) WITH CLUSTERING ORDER BY(a)
+reject	reject	grammar	tableProperty/K_CLUSTERING_K_ORDER_K_BY_(_tableClusteringOrder_(,_tab~151fd45f!drop-5	CREATE TABLE a(a ASCII) WITH CLUSTERING ORDER BY(ASC)
+reject	reject	grammar	tableProperty/K_CLUSTERING_K_ORDER_K_BY_(_tableClusteringOrder_(,_tab~151fd45f!drop-6	CREATE TABLE a(a ASCII) WITH CLUSTERING ORDER BY(a)
 reject	reject	grammar	tableProperty/K_CLUSTERING_K_ORDER_K_BY_(_tableClusteringOrder_(,_tab~151fd45f!drop-7	CREATE TABLE a(a ASCII) WITH CLUSTERING ORDER BY(a ASC
 reject	reject	grammar	tableProperty/K_CLUSTERING_K_ORDER_K_BY_(_tableClusteringOrder_(,_tab~151fd45f!insert	CREATE TABLE a(a ASCII) WITH CLUSTERING ORDER BY(a ASC) zzz
 reject	reject	grammar	tableProperty/K_CLUSTERING_K_ORDER_K_BY_(_tableClusteringOrder_(,_tab~151fd45f!swap	CREATE TABLE a(a ASCII) WITH COMPACT ORDER BY(a ASC)
 accept	accept	grammar	tableProperty(,_tableClusteringOrder)*/%empty	CREATE TABLE a(a ASCII) WITH CLUSTERING ORDER BY(a ASC)
 reject	reject	grammar	tableProperty(,_tableClusteringOrder)*/%empty!insert	CREATE TABLE a(a ASCII) WITH CLUSTERING ORDER BY(a ASC zzz)
-accept	reject	grammar	tableProperty(,_tableClusteringOrder)*/,_tableClusteringOrder_(,_tableClusteringOrder)*	CREATE TABLE a(a ASCII) WITH CLUSTERING ORDER BY(a ASC, a ASC)
+reject	reject	grammar	tableProperty(,_tableClusteringOrder)*/,_tableClusteringOrder_(,_tableClusteringOrder)*	CREATE TABLE a(a ASCII) WITH CLUSTERING ORDER BY(a ASC, a ASC)
 reject	reject	grammar	tableProperty(,_tableClusteringOrder)*/,_tableClusteringOrder_(,_tableClusteringOrder)*!drop-1	CREATE TABLE a(a ASCII) WITH CLUSTERING ORDER BY(a ASC a ASC)
-accept	reject	grammar	tableProperty(,_tableClusteringOrder)*/,_tableClusteringOrder_(,_tableClusteringOrder)*!drop-2	CREATE TABLE a(a ASCII) WITH CLUSTERING ORDER BY(a ASC, ASC)
-accept	reject	grammar	tableProperty(,_tableClusteringOrder)*/,_tableClusteringOrder_(,_tableClusteringOrder)*!drop-3	CREATE TABLE a(a ASCII) WITH CLUSTERING ORDER BY(a ASC, a)
+reject	reject	grammar	tableProperty(,_tableClusteringOrder)*/,_tableClusteringOrder_(,_tableClusteringOrder)*!drop-2	CREATE TABLE a(a ASCII) WITH CLUSTERING ORDER BY(a ASC, ASC)
+reject	reject	grammar	tableProperty(,_tableClusteringOrder)*/,_tableClusteringOrder_(,_tableClusteringOrder)*!drop-3	CREATE TABLE a(a ASCII) WITH CLUSTERING ORDER BY(a ASC, a)
 reject	reject	grammar	tableProperty(,_tableClusteringOrder)*/,_tableClusteringOrder_(,_tableClusteringOrder)*!truncate	CREATE TABLE a(a ASCII) WITH CLUSTERING ORDER BY(a ASC, a
 reject	reject	grammar	tableProperty(,_tableClusteringOrder)*/,_tableClusteringOrder_(,_tableClusteringOrder)*!insert	CREATE TABLE a(a ASCII) WITH CLUSTERING ORDER BY(a ASC, a ASC zzz)
 reject	reject	grammar	tableProperty(,_tableClusteringOrder)*/,_tableClusteringOrder_(,_tableClusteringOrder)*!swap	CREATE TABLE a(a ASCII) WITH CLUSTERING ORDER BY(a ASC, a ASCII)
@@ -1198,9 +1198,9 @@ reject	reject	grammar	createTypeStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXI
 reject	reject	grammar	createTypeStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXISTS!swap	CREATE TYPE IN NOT EXISTS a(a ASCII)
 accept	accept	grammar	createTypeStatement(,_typeColumns?)*/%empty	CREATE TYPE a(a ASCII)
 reject	reject	grammar	createTypeStatement(,_typeColumns?)*/%empty!insert	CREATE TYPE a(a ASCII zzz)
-reject	accept	grammar	createTypeStatement(,_typeColumns?)*/,_(typeColumns)?_(,_typeColumns?)*	CREATE TYPE a(a ASCII,)
+accept	accept	grammar	createTypeStatement(,_typeColumns?)*/,_(typeColumns)?_(,_typeColumns?)*	CREATE TYPE a(a ASCII,)
 reject	reject	grammar	createTypeStatement(,_typeColumns?)*/,_(typeColumns)?_(,_typeColumns?)*!insert	CREATE TYPE a(a ASCII, zzz)
-reject	accept	grammar	createTypeStatement(typeColumns)?/%empty	CREATE TYPE a(a ASCII,)
+accept	accept	grammar	createTypeStatement(typeColumns)?/%empty	CREATE TYPE a(a ASCII,)
 accept	accept	grammar	createTypeStatement(typeColumns)?/typeColumns	CREATE TYPE a(a ASCII, a ASCII)
 reject	reject	grammar	createTypeStatement(typeColumns)?/typeColumns!drop-1	CREATE TYPE a(a ASCII, ASCII)
 reject	reject	grammar	createTypeStatement(typeColumns)?/typeColumns!drop-2	CREATE TYPE a(a ASCII, a)
@@ -1210,44 +1210,44 @@ reject	reject	grammar	createTypeStatement(typeColumns)?/typeColumns!swap	CREATE 
 accept	accept	grammar	typeColumns/fident_comparatorType	CREATE TYPE a(a ASCII)
 reject	reject	grammar	typeColumns/fident_comparatorType!truncate	CREATE TYPE a(a
 reject	reject	grammar	typeColumns/fident_comparatorType!swap	CREATE TYPE a(a AUTHORIZE)
-reject	accept	grammar	createIndexStatement/K_CREATE_(K_CUSTOM)?_K_INDEX_(K_IF_K_NOT_K_EXISTS)?_(id~7ee50236	CREATE INDEX ON a()
-reject	accept	grammar	createIndexStatement(K_CUSTOM)?/%empty	CREATE INDEX ON a()
+accept	accept	grammar	createIndexStatement/K_CREATE_(K_CUSTOM)?_K_INDEX_(K_IF_K_NOT_K_EXISTS)?_(id~7ee50236	CREATE INDEX ON a()
+accept	accept	grammar	createIndexStatement(K_CUSTOM)?/%empty	CREATE INDEX ON a()
 reject	reject	grammar	createIndexStatement(K_CUSTOM)?/%empty!insert	CREATE zzz INDEX ON a()
-reject	accept	grammar	createIndexStatement(K_CUSTOM)?/K_CUSTOM	CREATE CUSTOM INDEX ON a()
+accept	accept	grammar	createIndexStatement(K_CUSTOM)?/K_CUSTOM	CREATE CUSTOM INDEX ON a()
 reject	reject	grammar	createIndexStatement(K_CUSTOM)?/K_CUSTOM!truncate	CREATE
 reject	reject	grammar	createIndexStatement(K_CUSTOM)?/K_CUSTOM!insert	CREATE CUSTOM zzz INDEX ON a()
 reject	reject	grammar	createIndexStatement(K_CUSTOM)?/K_CUSTOM!swap	CREATE DATACENTERS INDEX ON a()
-reject	accept	grammar	createIndexStatement(K_IF_K_NOT_K_EXISTS)?/%empty	CREATE INDEX ON a()
-reject	accept	grammar	createIndexStatement(K_IF_K_NOT_K_EXISTS)?/%empty!insert	CREATE INDEX zzz ON a()
-reject	accept	grammar	createIndexStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXISTS	CREATE INDEX IF NOT EXISTS ON a()
+accept	accept	grammar	createIndexStatement(K_IF_K_NOT_K_EXISTS)?/%empty	CREATE INDEX ON a()
+accept	accept	grammar	createIndexStatement(K_IF_K_NOT_K_EXISTS)?/%empty!insert	CREATE INDEX zzz ON a()
+accept	accept	grammar	createIndexStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXISTS	CREATE INDEX IF NOT EXISTS ON a()
 reject	reject	grammar	createIndexStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXISTS!drop-1	CREATE INDEX NOT EXISTS ON a()
 reject	reject	grammar	createIndexStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXISTS!drop-2	CREATE INDEX IF EXISTS ON a()
 reject	reject	grammar	createIndexStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXISTS!drop-3	CREATE INDEX IF NOT ON a()
 reject	reject	grammar	createIndexStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXISTS!truncate	CREATE INDEX IF NOT
-reject	accept	grammar	createIndexStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXISTS!insert	CREATE INDEX IF NOT EXISTS zzz ON a()
+accept	accept	grammar	createIndexStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXISTS!insert	CREATE INDEX IF NOT EXISTS zzz ON a()
 reject	reject	grammar	createIndexStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXISTS!swap	CREATE INDEX IN NOT EXISTS ON a()
-reject	accept	grammar	createIndexStatement(idxName)?/%empty	CREATE INDEX ON a()
-reject	accept	grammar	createIndexStatement(idxName)?/idxName	CREATE INDEX a ON a()
+accept	accept	grammar	createIndexStatement(idxName)?/%empty	CREATE INDEX ON a()
+accept	accept	grammar	createIndexStatement(idxName)?/idxName	CREATE INDEX a ON a()
 reject	reject	grammar	createIndexStatement(idxName)?/idxName!truncate	CREATE INDEX
 reject	reject	grammar	createIndexStatement(idxName)?/idxName!insert	CREATE INDEX a zzz ON a()
-reject	accept	grammar	createIndexStatement(indexIdent_(,_indexIdent)*)?/%empty	CREATE INDEX ON a()
+accept	accept	grammar	createIndexStatement(indexIdent_(,_indexIdent)*)?/%empty	CREATE INDEX ON a()
 accept	accept	grammar	createIndexStatement(indexIdent_(,_indexIdent)*)?/%empty!insert	CREATE INDEX ON a(zzz)
 accept	accept	grammar	createIndexStatement(indexIdent_(,_indexIdent)*)?/indexIdent_(,_indexIdent)*	CREATE INDEX ON a(a)
 reject	reject	grammar	createIndexStatement(indexIdent_(,_indexIdent)*)?/indexIdent_(,_indexIdent)*!insert	CREATE INDEX ON a(a zzz)
 accept	accept	grammar	createIndexStatement(,_indexIdent)*/%empty	CREATE INDEX ON a(a)
-reject	accept	grammar	createIndexStatement(,_indexIdent)*/,_indexIdent_(,_indexIdent)*	CREATE INDEX ON a(a, a)
+accept	accept	grammar	createIndexStatement(,_indexIdent)*/,_indexIdent_(,_indexIdent)*	CREATE INDEX ON a(a, a)
 reject	reject	grammar	createIndexStatement(,_indexIdent)*/,_indexIdent_(,_indexIdent)*!drop-1	CREATE INDEX ON a(a a)
 reject	reject	grammar	createIndexStatement(,_indexIdent)*/,_indexIdent_(,_indexIdent)*!drop-2	CREATE INDEX ON a(a,)
 reject	reject	grammar	createIndexStatement(,_indexIdent)*/,_indexIdent_(,_indexIdent)*!truncate	CREATE INDEX ON a(a,
 reject	reject	grammar	createIndexStatement(,_indexIdent)*/,_indexIdent_(,_indexIdent)*!insert	CREATE INDEX ON a(a, a zzz)
-reject	accept	grammar	createIndexStatement(K_USING_STRING_LITERAL)?/%empty	CREATE INDEX ON a()
-reject	accept	grammar	createIndexStatement(K_USING_STRING_LITERAL)?/K_USING_STRING_LITERAL	CREATE INDEX ON a() USING 'a'
+accept	accept	grammar	createIndexStatement(K_USING_STRING_LITERAL)?/%empty	CREATE INDEX ON a()
+accept	accept	grammar	createIndexStatement(K_USING_STRING_LITERAL)?/K_USING_STRING_LITERAL	CREATE INDEX ON a() USING 'a'
 reject	reject	grammar	createIndexStatement(K_USING_STRING_LITERAL)?/K_USING_STRING_LITERAL!drop-1	CREATE INDEX ON a() 'a'
 reject	reject	grammar	createIndexStatement(K_USING_STRING_LITERAL)?/K_USING_STRING_LITERAL!drop-2	CREATE INDEX ON a() USING
 reject	reject	grammar	createIndexStatement(K_USING_STRING_LITERAL)?/K_USING_STRING_LITERAL!insert	CREATE INDEX ON a() USING 'a' zzz
 reject	reject	grammar	createIndexStatement(K_USING_STRING_LITERAL)?/K_USING_STRING_LITERAL!swap	CREATE INDEX ON a() UUID 'a'
-reject	accept	grammar	createIndexStatement(K_WITH_properties)?/%empty	CREATE INDEX ON a()
-reject	accept	grammar	createIndexStatement(K_WITH_properties)?/K_WITH_properties	CREATE INDEX ON a() WITH a = 'a'
+accept	accept	grammar	createIndexStatement(K_WITH_properties)?/%empty	CREATE INDEX ON a()
+accept	accept	grammar	createIndexStatement(K_WITH_properties)?/K_WITH_properties	CREATE INDEX ON a() WITH a = 'a'
 reject	reject	grammar	createIndexStatement(K_WITH_properties)?/K_WITH_properties!drop-1	CREATE INDEX ON a() a = 'a'
 reject	reject	grammar	createIndexStatement(K_WITH_properties)?/K_WITH_properties!drop-2	CREATE INDEX ON a() WITH = 'a'
 reject	reject	grammar	createIndexStatement(K_WITH_properties)?/K_WITH_properties!drop-3	CREATE INDEX ON a() WITH a 'a'
@@ -1258,45 +1258,45 @@ accept	accept	grammar	indexIdent/cident	CREATE INDEX ON a(a)
 accept	accept	grammar	indexIdent/K_VALUES_(_cident_)	CREATE INDEX ON a(VALUES(a))
 reject	reject	grammar	indexIdent/K_VALUES_(_cident_)!drop-1	CREATE INDEX ON a((a))
 reject	reject	grammar	indexIdent/K_VALUES_(_cident_)!drop-2	CREATE INDEX ON a(VALUES a))
-accept	reject	grammar	indexIdent/K_VALUES_(_cident_)!drop-3	CREATE INDEX ON a(VALUES())
+reject	reject	grammar	indexIdent/K_VALUES_(_cident_)!drop-3	CREATE INDEX ON a(VALUES())
 reject	reject	grammar	indexIdent/K_VALUES_(_cident_)!drop-4	CREATE INDEX ON a(VALUES(a)
 reject	reject	grammar	indexIdent/K_VALUES_(_cident_)!truncate	CREATE INDEX ON a(VALUES(a
 reject	reject	grammar	indexIdent/K_VALUES_(_cident_)!insert	CREATE INDEX ON a(VALUES(a) zzz)
 reject	reject	grammar	indexIdent/K_VALUES_(_cident_)!swap	CREATE INDEX ON a(VARCHAR(a))
 accept	accept	grammar	indexIdent/K_KEYS_(_cident_)	CREATE INDEX ON a(KEYS(a))
 reject	reject	grammar	indexIdent/K_KEYS_(_cident_)!drop-2	CREATE INDEX ON a(KEYS a))
-accept	reject	grammar	indexIdent/K_KEYS_(_cident_)!drop-3	CREATE INDEX ON a(KEYS())
+reject	reject	grammar	indexIdent/K_KEYS_(_cident_)!drop-3	CREATE INDEX ON a(KEYS())
 reject	reject	grammar	indexIdent/K_KEYS_(_cident_)!drop-4	CREATE INDEX ON a(KEYS(a)
 reject	reject	grammar	indexIdent/K_KEYS_(_cident_)!truncate	CREATE INDEX ON a(KEYS(a
 reject	reject	grammar	indexIdent/K_KEYS_(_cident_)!insert	CREATE INDEX ON a(KEYS(a) zzz)
 reject	reject	grammar	indexIdent/K_KEYS_(_cident_)!swap	CREATE INDEX ON a(KEYSPACE(a))
 accept	accept	grammar	indexIdent/K_ENTRIES_(_cident_)	CREATE INDEX ON a(ENTRIES(a))
 reject	reject	grammar	indexIdent/K_ENTRIES_(_cident_)!drop-2	CREATE INDEX ON a(ENTRIES a))
-accept	reject	grammar	indexIdent/K_ENTRIES_(_cident_)!drop-3	CREATE INDEX ON a(ENTRIES())
+reject	reject	grammar	indexIdent/K_ENTRIES_(_cident_)!drop-3	CREATE INDEX ON a(ENTRIES())
 reject	reject	grammar	indexIdent/K_ENTRIES_(_cident_)!drop-4	CREATE INDEX ON a(ENTRIES(a)
 reject	reject	grammar	indexIdent/K_ENTRIES_(_cident_)!truncate	CREATE INDEX ON a(ENTRIES(a
 reject	reject	grammar	indexIdent/K_ENTRIES_(_cident_)!insert	CREATE INDEX ON a(ENTRIES(a) zzz)
 reject	reject	grammar	indexIdent/K_ENTRIES_(_cident_)!swap	CREATE INDEX ON a(EXECUTE(a))
 accept	accept	grammar	indexIdent/K_FULL_(_cident_)	CREATE INDEX ON a(FULL(a))
 reject	reject	grammar	indexIdent/K_FULL_(_cident_)!drop-2	CREATE INDEX ON a(FULL a))
-accept	reject	grammar	indexIdent/K_FULL_(_cident_)!drop-3	CREATE INDEX ON a(FULL())
+reject	reject	grammar	indexIdent/K_FULL_(_cident_)!drop-3	CREATE INDEX ON a(FULL())
 reject	reject	grammar	indexIdent/K_FULL_(_cident_)!drop-4	CREATE INDEX ON a(FULL(a)
 reject	reject	grammar	indexIdent/K_FULL_(_cident_)!truncate	CREATE INDEX ON a(FULL(a
 reject	reject	grammar	indexIdent/K_FULL_(_cident_)!insert	CREATE INDEX ON a(FULL(a) zzz)
 reject	reject	grammar	indexIdent/K_FULL_(_cident_)!swap	CREATE INDEX ON a(FUNCTION(a))
-reject	accept	grammar	createMaterializedViewStatement/K_CREATE_K_MATERIALIZED_K_VIEW_(K_IF_K_NOT_K_EXISTS)?_c~95183a5d	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a)
-reject	accept	grammar	createMaterializedViewStatement(K_IF_K_NOT_K_EXISTS)?/%empty	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a)
+accept	accept	grammar	createMaterializedViewStatement/K_CREATE_K_MATERIALIZED_K_VIEW_(K_IF_K_NOT_K_EXISTS)?_c~95183a5d	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a)
+accept	accept	grammar	createMaterializedViewStatement(K_IF_K_NOT_K_EXISTS)?/%empty	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a)
 reject	reject	grammar	createMaterializedViewStatement(K_IF_K_NOT_K_EXISTS)?/%empty!insert	CREATE MATERIALIZED VIEW zzz a AS SELECT a FROM a PRIMARY KEY(a)
-reject	accept	grammar	createMaterializedViewStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXISTS	CREATE MATERIALIZED VIEW IF NOT EXISTS a AS SELECT a FROM a PRIMARY KEY(a)
+accept	accept	grammar	createMaterializedViewStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXISTS	CREATE MATERIALIZED VIEW IF NOT EXISTS a AS SELECT a FROM a PRIMARY KEY(a)
 reject	reject	grammar	createMaterializedViewStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXISTS!drop-1	CREATE MATERIALIZED VIEW NOT EXISTS a AS SELECT a FROM a PRIMARY KEY(a)
 reject	reject	grammar	createMaterializedViewStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXISTS!drop-2	CREATE MATERIALIZED VIEW IF EXISTS a AS SELECT a FROM a PRIMARY KEY(a)
 reject	reject	grammar	createMaterializedViewStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXISTS!drop-3	CREATE MATERIALIZED VIEW IF NOT a AS SELECT a FROM a PRIMARY KEY(a)
 reject	reject	grammar	createMaterializedViewStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXISTS!truncate	CREATE MATERIALIZED VIEW IF NOT
 reject	reject	grammar	createMaterializedViewStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXISTS!insert	CREATE MATERIALIZED VIEW IF NOT EXISTS zzz a AS SELECT a FROM a PRIMARY KEY(a)
 reject	reject	grammar	createMaterializedViewStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXISTS!swap	CREATE MATERIALIZED VIEW IN NOT EXISTS a AS SELECT a FROM a PRIMARY KEY(a)
-reject	accept	grammar	createMaterializedViewStatement(K_WHERE_whereClause)?/%empty	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a)
+accept	accept	grammar	createMaterializedViewStatement(K_WHERE_whereClause)?/%empty	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a)
 reject	reject	grammar	createMaterializedViewStatement(K_WHERE_whereClause)?/%empty!insert	CREATE MATERIALIZED VIEW a AS SELECT a FROM a zzz PRIMARY KEY(a)
-reject	accept	grammar	createMaterializedViewStatement(K_WHERE_whereClause)?/K_WHERE_whereClause	CREATE MATERIALIZED VIEW a AS SELECT a FROM a WHERE a = 'a' PRIMARY KEY(a)
+accept	accept	grammar	createMaterializedViewStatement(K_WHERE_whereClause)?/K_WHERE_whereClause	CREATE MATERIALIZED VIEW a AS SELECT a FROM a WHERE a = 'a' PRIMARY KEY(a)
 reject	reject	grammar	createMaterializedViewStatement(K_WHERE_whereClause)?/K_WHERE_whereClause!drop-1	CREATE MATERIALIZED VIEW a AS SELECT a FROM a a = 'a' PRIMARY KEY(a)
 reject	reject	grammar	createMaterializedViewStatement(K_WHERE_whereClause)?/K_WHERE_whereClause!drop-2	CREATE MATERIALIZED VIEW a AS SELECT a FROM a WHERE = 'a' PRIMARY KEY(a)
 reject	reject	grammar	createMaterializedViewStatement(K_WHERE_whereClause)?/K_WHERE_whereClause!drop-3	CREATE MATERIALIZED VIEW a AS SELECT a FROM a WHERE a 'a' PRIMARY KEY(a)
@@ -1304,15 +1304,15 @@ reject	reject	grammar	createMaterializedViewStatement(K_WHERE_whereClause)?/K_WH
 reject	reject	grammar	createMaterializedViewStatement(K_WHERE_whereClause)?/K_WHERE_whereClause!truncate	CREATE MATERIALIZED VIEW a AS SELECT a FROM a WHERE a =
 reject	reject	grammar	createMaterializedViewStatement(K_WHERE_whereClause)?/K_WHERE_whereClause!insert	CREATE MATERIALIZED VIEW a AS SELECT a FROM a WHERE a = 'a' zzz PRIMARY KEY(a)
 reject	reject	grammar	createMaterializedViewStatement(K_WHERE_whereClause)?/K_WHERE_whereClause!swap	CREATE MATERIALIZED VIEW a AS SELECT a FROM a WITH a = 'a' PRIMARY KEY(a)
-reject	accept	grammar	createMaterializedViewStatement(K_WITH_viewProperty_(K_AND_viewProperty)*)?/%empty	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a)
-reject	accept	grammar	createMaterializedViewStatement(K_WITH_viewProperty_(K_AND_viewProperty)*)?/K_WITH_viewProperty_(K_AND_viewProperty)*	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH a = 'a'
+accept	accept	grammar	createMaterializedViewStatement(K_WITH_viewProperty_(K_AND_viewProperty)*)?/%empty	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a)
+accept	accept	grammar	createMaterializedViewStatement(K_WITH_viewProperty_(K_AND_viewProperty)*)?/K_WITH_viewProperty_(K_AND_viewProperty)*	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH a = 'a'
 reject	reject	grammar	createMaterializedViewStatement(K_WITH_viewProperty_(K_AND_viewProperty)*)?/K_WITH_viewProperty_(K_AND_viewProperty)*!drop-1	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) a = 'a'
 reject	reject	grammar	createMaterializedViewStatement(K_WITH_viewProperty_(K_AND_viewProperty)*)?/K_WITH_viewProperty_(K_AND_viewProperty)*!drop-2	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH = 'a'
 reject	reject	grammar	createMaterializedViewStatement(K_WITH_viewProperty_(K_AND_viewProperty)*)?/K_WITH_viewProperty_(K_AND_viewProperty)*!drop-3	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH a 'a'
 reject	reject	grammar	createMaterializedViewStatement(K_WITH_viewProperty_(K_AND_viewProperty)*)?/K_WITH_viewProperty_(K_AND_viewProperty)*!drop-4	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH a =
 reject	reject	grammar	createMaterializedViewStatement(K_WITH_viewProperty_(K_AND_viewProperty)*)?/K_WITH_viewProperty_(K_AND_viewProperty)*!insert	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH a = 'a' zzz
 reject	reject	grammar	createMaterializedViewStatement(K_WITH_viewProperty_(K_AND_viewProperty)*)?/K_WITH_viewProperty_(K_AND_viewProperty)*!swap	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WRITETIME a = 'a'
-reject	accept	grammar	createMaterializedViewStatement(K_AND_viewProperty)*/%empty	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH a = 'a'
+accept	accept	grammar	createMaterializedViewStatement(K_AND_viewProperty)*/%empty	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH a = 'a'
 reject	reject	grammar	createMaterializedViewStatement(K_AND_viewProperty)*/K_AND_viewProperty_(K_AND_viewProperty)*	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH a = 'a' AND a = 'a'
 reject	reject	grammar	createMaterializedViewStatement(K_AND_viewProperty)*/K_AND_viewProperty_(K_AND_viewProperty)*!drop-1	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH a = 'a' a = 'a'
 reject	reject	grammar	createMaterializedViewStatement(K_AND_viewProperty)*/K_AND_viewProperty_(K_AND_viewProperty)*!drop-2	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH a = 'a' AND = 'a'
@@ -1320,32 +1320,32 @@ reject	reject	grammar	createMaterializedViewStatement(K_AND_viewProperty)*/K_AND
 reject	reject	grammar	createMaterializedViewStatement(K_AND_viewProperty)*/K_AND_viewProperty_(K_AND_viewProperty)*!drop-4	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH a = 'a' AND a =
 reject	reject	grammar	createMaterializedViewStatement(K_AND_viewProperty)*/K_AND_viewProperty_(K_AND_viewProperty)*!insert	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH a = 'a' AND a = 'a' zzz
 reject	reject	grammar	createMaterializedViewStatement(K_AND_viewProperty)*/K_AND_viewProperty_(K_AND_viewProperty)*!swap	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH a = 'a' ANN a = 'a'
-reject	accept	grammar	viewPrimaryKey/K_PRIMARY_K_KEY_(_viewPartitionKey_(,_ident)*_)	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a)
+accept	accept	grammar	viewPrimaryKey/K_PRIMARY_K_KEY_(_viewPartitionKey_(,_ident)*_)	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a)
 reject	reject	grammar	viewPrimaryKey/K_PRIMARY_K_KEY_(_viewPartitionKey_(,_ident)*_)!swap	CREATE MATERIALIZED VIEW a AS SELECT a FROM a RENAME KEY(a)
-reject	accept	grammar	viewPrimaryKey(,_ident)*/%empty	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a)
+accept	accept	grammar	viewPrimaryKey(,_ident)*/%empty	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a)
 reject	reject	grammar	viewPrimaryKey(,_ident)*/%empty!insert	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a zzz)
-reject	accept	grammar	viewPrimaryKey(,_ident)*/,_ident_(,_ident)*	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a, a)
+accept	accept	grammar	viewPrimaryKey(,_ident)*/,_ident_(,_ident)*	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a, a)
 reject	reject	grammar	viewPrimaryKey(,_ident)*/,_ident_(,_ident)*!drop-1	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a a)
 reject	reject	grammar	viewPrimaryKey(,_ident)*/,_ident_(,_ident)*!drop-2	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a,)
 reject	reject	grammar	viewPrimaryKey(,_ident)*/,_ident_(,_ident)*!truncate	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a,
 reject	reject	grammar	viewPrimaryKey(,_ident)*/,_ident_(,_ident)*!insert	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a, a zzz)
-reject	accept	grammar	viewPartitionKey/ident	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a)
+accept	accept	grammar	viewPartitionKey/ident	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a)
 reject	reject	grammar	viewPartitionKey/ident!truncate	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(
-reject	accept	grammar	viewPartitionKey/(_ident_(,_ident)*_)	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY((a))
+accept	accept	grammar	viewPartitionKey/(_ident_(,_ident)*_)	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY((a))
 reject	reject	grammar	viewPartitionKey/(_ident_(,_ident)*_)!drop-1	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a))
 reject	reject	grammar	viewPartitionKey/(_ident_(,_ident)*_)!drop-2	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(())
 reject	reject	grammar	viewPartitionKey/(_ident_(,_ident)*_)!drop-3	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY((a)
 reject	reject	grammar	viewPartitionKey/(_ident_(,_ident)*_)!truncate	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY((a
 reject	reject	grammar	viewPartitionKey/(_ident_(,_ident)*_)!insert	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY((a) zzz)
-reject	accept	grammar	viewPartitionKey(,_ident)*/%empty	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY((a))
+accept	accept	grammar	viewPartitionKey(,_ident)*/%empty	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY((a))
 reject	reject	grammar	viewPartitionKey(,_ident)*/%empty!insert	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY((a zzz))
-reject	accept	grammar	viewPartitionKey(,_ident)*/,_ident_(,_ident)*	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY((a, a))
+accept	accept	grammar	viewPartitionKey(,_ident)*/,_ident_(,_ident)*	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY((a, a))
 reject	reject	grammar	viewPartitionKey(,_ident)*/,_ident_(,_ident)*!drop-1	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY((a a))
 reject	reject	grammar	viewPartitionKey(,_ident)*/,_ident_(,_ident)*!drop-2	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY((a,))
 reject	reject	grammar	viewPartitionKey(,_ident)*/,_ident_(,_ident)*!truncate	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY((a,
 reject	reject	grammar	viewPartitionKey(,_ident)*/,_ident_(,_ident)*!insert	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY((a, a zzz))
-reject	accept	grammar	viewProperty/property	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH a = 'a'
-reject	accept	grammar	viewProperty/K_CLUSTERING_K_ORDER_K_BY_(_viewClusteringOrder_(,_view~75b9fb5d	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH CLUSTERING ORDER BY(a ASC)
+accept	accept	grammar	viewProperty/property	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH a = 'a'
+accept	accept	grammar	viewProperty/K_CLUSTERING_K_ORDER_K_BY_(_viewClusteringOrder_(,_view~75b9fb5d	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH CLUSTERING ORDER BY(a ASC)
 reject	reject	grammar	viewProperty/K_CLUSTERING_K_ORDER_K_BY_(_viewClusteringOrder_(,_view~75b9fb5d!drop-1	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH ORDER BY(a ASC)
 reject	reject	grammar	viewProperty/K_CLUSTERING_K_ORDER_K_BY_(_viewClusteringOrder_(,_view~75b9fb5d!drop-2	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH CLUSTERING BY(a ASC)
 reject	reject	grammar	viewProperty/K_CLUSTERING_K_ORDER_K_BY_(_viewClusteringOrder_(,_view~75b9fb5d!drop-3	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH CLUSTERING ORDER(a ASC)
@@ -1355,7 +1355,7 @@ reject	reject	grammar	viewProperty/K_CLUSTERING_K_ORDER_K_BY_(_viewClusteringOrd
 reject	reject	grammar	viewProperty/K_CLUSTERING_K_ORDER_K_BY_(_viewClusteringOrder_(,_view~75b9fb5d!drop-7	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH CLUSTERING ORDER BY(a ASC
 reject	reject	grammar	viewProperty/K_CLUSTERING_K_ORDER_K_BY_(_viewClusteringOrder_(,_view~75b9fb5d!insert	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH CLUSTERING ORDER BY(a ASC) zzz
 reject	reject	grammar	viewProperty/K_CLUSTERING_K_ORDER_K_BY_(_viewClusteringOrder_(,_view~75b9fb5d!swap	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH COMPACT ORDER BY(a ASC)
-reject	accept	grammar	viewProperty(,_viewClusteringOrder)*/%empty	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH CLUSTERING ORDER BY(a ASC)
+accept	accept	grammar	viewProperty(,_viewClusteringOrder)*/%empty	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH CLUSTERING ORDER BY(a ASC)
 reject	reject	grammar	viewProperty(,_viewClusteringOrder)*/%empty!insert	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH CLUSTERING ORDER BY(a ASC zzz)
 reject	reject	grammar	viewProperty(,_viewClusteringOrder)*/,_viewClusteringOrder_(,_viewClusteringOrder)*	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH CLUSTERING ORDER BY(a ASC, a ASC)
 reject	reject	grammar	viewProperty(,_viewClusteringOrder)*/,_viewClusteringOrder_(,_viewClusteringOrder)*!drop-1	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH CLUSTERING ORDER BY(a ASC a ASC)
@@ -1364,11 +1364,11 @@ reject	reject	grammar	viewProperty(,_viewClusteringOrder)*/,_viewClusteringOrder
 reject	reject	grammar	viewProperty(,_viewClusteringOrder)*/,_viewClusteringOrder_(,_viewClusteringOrder)*!truncate	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH CLUSTERING ORDER BY(a ASC, a
 reject	reject	grammar	viewProperty(,_viewClusteringOrder)*/,_viewClusteringOrder_(,_viewClusteringOrder)*!insert	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH CLUSTERING ORDER BY(a ASC, a ASC zzz)
 reject	reject	grammar	viewProperty(,_viewClusteringOrder)*/,_viewClusteringOrder_(,_viewClusteringOrder)*!swap	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH CLUSTERING ORDER BY(a ASC, a ASCII)
-reject	accept	grammar	viewClusteringOrder/ident_(K_ASC|K_DESC)	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH CLUSTERING ORDER BY(a ASC)
+accept	accept	grammar	viewClusteringOrder/ident_(K_ASC|K_DESC)	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH CLUSTERING ORDER BY(a ASC)
 reject	reject	grammar	viewClusteringOrder/ident_(K_ASC|K_DESC)!truncate	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH CLUSTERING ORDER BY(a
 reject	reject	grammar	viewClusteringOrder/ident_(K_ASC|K_DESC)!swap	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH CLUSTERING ORDER BY(a ASCII)
-reject	accept	grammar	viewClusteringOrder(K_ASC|K_DESC)/K_ASC	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH CLUSTERING ORDER BY(a ASC)
-reject	accept	grammar	viewClusteringOrder(K_ASC|K_DESC)/K_DESC	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH CLUSTERING ORDER BY(a DESC)
+accept	accept	grammar	viewClusteringOrder(K_ASC|K_DESC)/K_ASC	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH CLUSTERING ORDER BY(a ASC)
+accept	accept	grammar	viewClusteringOrder(K_ASC|K_DESC)/K_DESC	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH CLUSTERING ORDER BY(a DESC)
 reject	reject	grammar	viewClusteringOrder(K_ASC|K_DESC)/K_DESC!insert	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH CLUSTERING ORDER BY(a DESC zzz)
 reject	reject	grammar	viewClusteringOrder(K_ASC|K_DESC)/K_DESC!swap	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH CLUSTERING ORDER BY(a DESCRIBE)
 accept	accept	grammar	createTriggerStatement/K_CREATE_K_TRIGGER_(K_IF_K_NOT_K_EXISTS)?_ident_K_ON_co~eda430cb	CREATE TRIGGER a ON a USING 'a'
@@ -1390,10 +1390,10 @@ reject	reject	grammar	dropTriggerStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!drop-2	
 reject	reject	grammar	dropTriggerStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!truncate	DROP TRIGGER IF
 reject	reject	grammar	dropTriggerStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!insert	DROP TRIGGER IF EXISTS zzz a ON a
 reject	reject	grammar	dropTriggerStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!swap	DROP TRIGGER IN EXISTS a ON a
-reject	accept	grammar	alterKeyspaceStatement/K_ALTER_K_KEYSPACE_(K_IF_K_EXISTS)?_keyspaceName_K_WITH~c568d96c	ALTER KEYSPACE a WITH a = 'a'
-reject	accept	grammar	alterKeyspaceStatement(K_IF_K_EXISTS)?/%empty	ALTER KEYSPACE a WITH a = 'a'
+accept	accept	grammar	alterKeyspaceStatement/K_ALTER_K_KEYSPACE_(K_IF_K_EXISTS)?_keyspaceName_K_WITH~c568d96c	ALTER KEYSPACE a WITH a = 'a'
+accept	accept	grammar	alterKeyspaceStatement(K_IF_K_EXISTS)?/%empty	ALTER KEYSPACE a WITH a = 'a'
 reject	reject	grammar	alterKeyspaceStatement(K_IF_K_EXISTS)?/%empty!insert	ALTER KEYSPACE zzz a WITH a = 'a'
-reject	accept	grammar	alterKeyspaceStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS	ALTER KEYSPACE IF EXISTS a WITH a = 'a'
+accept	accept	grammar	alterKeyspaceStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS	ALTER KEYSPACE IF EXISTS a WITH a = 'a'
 reject	reject	grammar	alterKeyspaceStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!drop-1	ALTER KEYSPACE EXISTS a WITH a = 'a'
 reject	reject	grammar	alterKeyspaceStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!drop-2	ALTER KEYSPACE IF a WITH a = 'a'
 reject	reject	grammar	alterKeyspaceStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!truncate	ALTER KEYSPACE IF
@@ -1408,14 +1408,14 @@ reject	reject	grammar	alterTableStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!drop-2	A
 reject	reject	grammar	alterTableStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!truncate	ALTER TABLE IF
 reject	reject	grammar	alterTableStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!insert	ALTER TABLE IF EXISTS zzz a DROP a
 reject	reject	grammar	alterTableStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!swap	ALTER TABLE IN EXISTS a DROP a
-reject	accept	grammar	alterTableStatement(K_ALTER_cident_K_TYPE_comparatorType~3b7fd1ef)/K_ALTER_cident_K_TYPE_comparatorType	ALTER TABLE a ALTER a TYPE ASCII
+accept	accept	grammar	alterTableStatement(K_ALTER_cident_K_TYPE_comparatorType~3b7fd1ef)/K_ALTER_cident_K_TYPE_comparatorType	ALTER TABLE a ALTER a TYPE ASCII
 reject	reject	grammar	alterTableStatement(K_ALTER_cident_K_TYPE_comparatorType~3b7fd1ef)/K_ALTER_cident_K_TYPE_comparatorType!drop-1	ALTER TABLE a a TYPE ASCII
 reject	reject	grammar	alterTableStatement(K_ALTER_cident_K_TYPE_comparatorType~3b7fd1ef)/K_ALTER_cident_K_TYPE_comparatorType!drop-2	ALTER TABLE a ALTER TYPE ASCII
 reject	reject	grammar	alterTableStatement(K_ALTER_cident_K_TYPE_comparatorType~3b7fd1ef)/K_ALTER_cident_K_TYPE_comparatorType!drop-3	ALTER TABLE a ALTER a ASCII
 reject	reject	grammar	alterTableStatement(K_ALTER_cident_K_TYPE_comparatorType~3b7fd1ef)/K_ALTER_cident_K_TYPE_comparatorType!drop-4	ALTER TABLE a ALTER a TYPE
 reject	reject	grammar	alterTableStatement(K_ALTER_cident_K_TYPE_comparatorType~3b7fd1ef)/K_ALTER_cident_K_TYPE_comparatorType!insert	ALTER TABLE a ALTER a TYPE ASCII zzz
 reject	reject	grammar	alterTableStatement(K_ALTER_cident_K_TYPE_comparatorType~3b7fd1ef)/K_ALTER_cident_K_TYPE_comparatorType!swap	ALTER TABLE a AND a TYPE ASCII
-reject	accept	grammar	alterTableStatement(K_ALTER_cident_K_TYPE_comparatorType~3b7fd1ef)/K_ALTER_(K_IF_K_EXISTS)?_cident_(columnMask|K_DROP_K_MASKED)	ALTER TABLE a ALTER a DROP MASKED
+accept	accept	grammar	alterTableStatement(K_ALTER_cident_K_TYPE_comparatorType~3b7fd1ef)/K_ALTER_(K_IF_K_EXISTS)?_cident_(columnMask|K_DROP_K_MASKED)	ALTER TABLE a ALTER a DROP MASKED
 reject	reject	grammar	alterTableStatement(K_ALTER_cident_K_TYPE_comparatorType~3b7fd1ef)/K_ALTER_(K_IF_K_EXISTS)?_cident_(columnMask|K_DROP_K_MASKED)!drop-1	ALTER TABLE a a DROP MASKED
 reject	reject	grammar	alterTableStatement(K_ALTER_cident_K_TYPE_comparatorType~3b7fd1ef)/K_ALTER_(K_IF_K_EXISTS)?_cident_(columnMask|K_DROP_K_MASKED)!drop-2	ALTER TABLE a ALTER DROP MASKED
 reject	reject	grammar	alterTableStatement(K_ALTER_cident_K_TYPE_comparatorType~3b7fd1ef)/K_ALTER_(K_IF_K_EXISTS)?_cident_(columnMask|K_DROP_K_MASKED)!drop-3	ALTER TABLE a ALTER a MASKED
@@ -1440,7 +1440,7 @@ reject	reject	grammar	alterTableStatement(K_ALTER_cident_K_TYPE_comparatorType~3
 accept	accept	grammar	alterTableStatement(K_ALTER_cident_K_TYPE_comparatorType~3b7fd1ef)/K_DROP_K_COMPACT_K_STORAGE	ALTER TABLE a DROP COMPACT STORAGE
 reject	reject	grammar	alterTableStatement(K_ALTER_cident_K_TYPE_comparatorType~3b7fd1ef)/K_DROP_K_COMPACT_K_STORAGE!drop-1	ALTER TABLE a COMPACT STORAGE
 accept	accept	grammar	alterTableStatement(K_ALTER_cident_K_TYPE_comparatorType~3b7fd1ef)/K_DROP_K_COMPACT_K_STORAGE!drop-2	ALTER TABLE a DROP STORAGE
-reject	accept	grammar	alterTableStatement(K_ALTER_cident_K_TYPE_comparatorType~3b7fd1ef)/K_DROP_K_COMPACT_K_STORAGE!drop-3	ALTER TABLE a DROP COMPACT
+accept	accept	grammar	alterTableStatement(K_ALTER_cident_K_TYPE_comparatorType~3b7fd1ef)/K_DROP_K_COMPACT_K_STORAGE!drop-3	ALTER TABLE a DROP COMPACT
 reject	reject	grammar	alterTableStatement(K_ALTER_cident_K_TYPE_comparatorType~3b7fd1ef)/K_DROP_K_COMPACT_K_STORAGE!insert	ALTER TABLE a DROP COMPACT STORAGE zzz
 reject	reject	grammar	alterTableStatement(K_ALTER_cident_K_TYPE_comparatorType~3b7fd1ef)/K_DROP_K_COMPACT_K_STORAGE!swap	ALTER TABLE a DURATION COMPACT STORAGE
 accept	accept	grammar	alterTableStatement(K_ALTER_cident_K_TYPE_comparatorType~3b7fd1ef)/K_WITH_properties	ALTER TABLE a WITH a = 'a'
@@ -1450,8 +1450,8 @@ reject	reject	grammar	alterTableStatement(K_ALTER_cident_K_TYPE_comparatorType~3
 reject	reject	grammar	alterTableStatement(K_ALTER_cident_K_TYPE_comparatorType~3b7fd1ef)/K_WITH_properties!drop-4	ALTER TABLE a WITH a =
 reject	reject	grammar	alterTableStatement(K_ALTER_cident_K_TYPE_comparatorType~3b7fd1ef)/K_WITH_properties!insert	ALTER TABLE a WITH a = 'a' zzz
 reject	reject	grammar	alterTableStatement(K_ALTER_cident_K_TYPE_comparatorType~3b7fd1ef)/K_WITH_properties!swap	ALTER TABLE a WRITETIME a = 'a'
-reject	accept	grammar	alterTableStatement(columnMask|K_DROP_K_MASKED)/columnMask	ALTER TABLE a ALTER a MASKED WITH DEFAULT
-reject	accept	grammar	alterTableStatement(columnMask|K_DROP_K_MASKED)/K_DROP_K_MASKED	ALTER TABLE a ALTER a DROP MASKED
+accept	accept	grammar	alterTableStatement(columnMask|K_DROP_K_MASKED)/columnMask	ALTER TABLE a ALTER a MASKED WITH DEFAULT
+accept	accept	grammar	alterTableStatement(columnMask|K_DROP_K_MASKED)/K_DROP_K_MASKED	ALTER TABLE a ALTER a DROP MASKED
 reject	reject	grammar	alterTableStatement(columnMask|K_DROP_K_MASKED)/K_DROP_K_MASKED!swap	ALTER TABLE a ALTER a DURATION MASKED
 accept	accept	grammar	alterTableStatement(K_IF_K_NOT_K_EXISTS)?/%empty	ALTER TABLE a ADD a ASCII
 reject	reject	grammar	alterTableStatement(K_IF_K_NOT_K_EXISTS)?/%empty!insert	ALTER TABLE a ADD zzz a ASCII
@@ -1464,7 +1464,7 @@ reject	reject	grammar	alterTableStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXI
 reject	reject	grammar	alterTableStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXISTS!swap	ALTER TABLE a ADD IN NOT EXISTS a ASCII
 accept	accept	grammar	alterTableStatement(ident_comparatorType_isStaticColumn_~9d316703)/ident_comparatorType_isStaticColumn_(columnMask)?	ALTER TABLE a ADD a ASCII
 reject	reject	grammar	alterTableStatement(ident_comparatorType_isStaticColumn_~9d316703)/ident_comparatorType_isStaticColumn_(columnMask)?!swap	ALTER TABLE a ADD a AUTHORIZE
-reject	accept	grammar	alterTableStatement(ident_comparatorType_isStaticColumn_~9d316703)/(_ident_comparatorType_isStaticColumn_(columnMask)?_(,_~dd0b4cd4	ALTER TABLE a ADD(a ASCII)
+accept	accept	grammar	alterTableStatement(ident_comparatorType_isStaticColumn_~9d316703)/(_ident_comparatorType_isStaticColumn_(columnMask)?_(,_~dd0b4cd4	ALTER TABLE a ADD(a ASCII)
 reject	reject	grammar	alterTableStatement(ident_comparatorType_isStaticColumn_~9d316703)/(_ident_comparatorType_isStaticColumn_(columnMask)?_(,_~dd0b4cd4!drop-1	ALTER TABLE a ADD a ASCII)
 reject	reject	grammar	alterTableStatement(ident_comparatorType_isStaticColumn_~9d316703)/(_ident_comparatorType_isStaticColumn_(columnMask)?_(,_~dd0b4cd4!drop-2	ALTER TABLE a ADD(ASCII)
 reject	reject	grammar	alterTableStatement(ident_comparatorType_isStaticColumn_~9d316703)/(_ident_comparatorType_isStaticColumn_(columnMask)?_(,_~dd0b4cd4!drop-3	ALTER TABLE a ADD(a)
@@ -1472,15 +1472,15 @@ reject	reject	grammar	alterTableStatement(ident_comparatorType_isStaticColumn_~9
 reject	reject	grammar	alterTableStatement(ident_comparatorType_isStaticColumn_~9d316703)/(_ident_comparatorType_isStaticColumn_(columnMask)?_(,_~dd0b4cd4!insert	ALTER TABLE a ADD(a ASCII) zzz
 reject	reject	grammar	alterTableStatement(ident_comparatorType_isStaticColumn_~9d316703)/(_ident_comparatorType_isStaticColumn_(columnMask)?_(,_~dd0b4cd4!swap	ALTER TABLE a ADD(a AUTHORIZE)
 accept	accept	grammar	alterTableStatement(columnMask)?/%empty	ALTER TABLE a ADD a ASCII
-reject	accept	grammar	alterTableStatement(columnMask)?/columnMask	ALTER TABLE a ADD a ASCII MASKED WITH DEFAULT
+accept	accept	grammar	alterTableStatement(columnMask)?/columnMask	ALTER TABLE a ADD a ASCII MASKED WITH DEFAULT
 reject	reject	grammar	alterTableStatement(columnMask)?/columnMask!drop-1	ALTER TABLE a ADD a ASCII WITH DEFAULT
 reject	reject	grammar	alterTableStatement(columnMask)?/columnMask!drop-2	ALTER TABLE a ADD a ASCII MASKED DEFAULT
 reject	reject	grammar	alterTableStatement(columnMask)?/columnMask!drop-3	ALTER TABLE a ADD a ASCII MASKED WITH
 reject	reject	grammar	alterTableStatement(columnMask)?/columnMask!insert	ALTER TABLE a ADD a ASCII MASKED WITH DEFAULT zzz
 reject	reject	grammar	alterTableStatement(columnMask)?/columnMask!swap	ALTER TABLE a ADD a ASCII MATERIALIZED WITH DEFAULT
-reject	accept	grammar	alterTableStatement(,_ident_comparatorType_isStaticColum~3069d2ef)*/%empty	ALTER TABLE a ADD(a ASCII)
+accept	accept	grammar	alterTableStatement(,_ident_comparatorType_isStaticColum~3069d2ef)*/%empty	ALTER TABLE a ADD(a ASCII)
 reject	reject	grammar	alterTableStatement(,_ident_comparatorType_isStaticColum~3069d2ef)*/%empty!insert	ALTER TABLE a ADD(a ASCII zzz)
-reject	accept	grammar	alterTableStatement(,_ident_comparatorType_isStaticColum~3069d2ef)*/,_ident_comparatorType_isStaticColumn_(columnMask)?_(,_~5dbab348	ALTER TABLE a ADD(a ASCII, a ASCII)
+accept	accept	grammar	alterTableStatement(,_ident_comparatorType_isStaticColum~3069d2ef)*/,_ident_comparatorType_isStaticColumn_(columnMask)?_(,_~5dbab348	ALTER TABLE a ADD(a ASCII, a ASCII)
 reject	reject	grammar	alterTableStatement(,_ident_comparatorType_isStaticColum~3069d2ef)*/,_ident_comparatorType_isStaticColumn_(columnMask)?_(,_~5dbab348!drop-1	ALTER TABLE a ADD(a ASCII a ASCII)
 reject	reject	grammar	alterTableStatement(,_ident_comparatorType_isStaticColum~3069d2ef)*/,_ident_comparatorType_isStaticColumn_(columnMask)?_(,_~5dbab348!drop-2	ALTER TABLE a ADD(a ASCII, ASCII)
 reject	reject	grammar	alterTableStatement(,_ident_comparatorType_isStaticColum~3069d2ef)*/,_ident_comparatorType_isStaticColumn_(columnMask)?_(,_~5dbab348!drop-3	ALTER TABLE a ADD(a ASCII, a)
@@ -1488,20 +1488,20 @@ reject	reject	grammar	alterTableStatement(,_ident_comparatorType_isStaticColum~3
 reject	reject	grammar	alterTableStatement(,_ident_comparatorType_isStaticColum~3069d2ef)*/,_ident_comparatorType_isStaticColumn_(columnMask)?_(,_~5dbab348!insert	ALTER TABLE a ADD(a ASCII, a ASCII zzz)
 reject	reject	grammar	alterTableStatement(,_ident_comparatorType_isStaticColum~3069d2ef)*/,_ident_comparatorType_isStaticColumn_(columnMask)?_(,_~5dbab348!swap	ALTER TABLE a ADD(a ASCII, a AUTHORIZE)
 accept	accept	grammar	alterTableStatement(ident|((_ident_(,_ident)*_)))/ident	ALTER TABLE a DROP a
-reject	accept	grammar	alterTableStatement(ident|((_ident_(,_ident)*_)))/(_ident_(,_ident)*_)	ALTER TABLE a DROP(a)
+accept	accept	grammar	alterTableStatement(ident|((_ident_(,_ident)*_)))/(_ident_(,_ident)*_)	ALTER TABLE a DROP(a)
 reject	reject	grammar	alterTableStatement(ident|((_ident_(,_ident)*_)))/(_ident_(,_ident)*_)!drop-1	ALTER TABLE a DROP a)
 reject	reject	grammar	alterTableStatement(ident|((_ident_(,_ident)*_)))/(_ident_(,_ident)*_)!drop-2	ALTER TABLE a DROP()
 reject	reject	grammar	alterTableStatement(ident|((_ident_(,_ident)*_)))/(_ident_(,_ident)*_)!drop-3	ALTER TABLE a DROP(a
 reject	reject	grammar	alterTableStatement(ident|((_ident_(,_ident)*_)))/(_ident_(,_ident)*_)!insert	ALTER TABLE a DROP(a) zzz
-reject	accept	grammar	alterTableStatement(,_ident)*/%empty	ALTER TABLE a DROP(a)
+accept	accept	grammar	alterTableStatement(,_ident)*/%empty	ALTER TABLE a DROP(a)
 reject	reject	grammar	alterTableStatement(,_ident)*/%empty!insert	ALTER TABLE a DROP(a zzz)
-reject	accept	grammar	alterTableStatement(,_ident)*/,_ident_(,_ident)*	ALTER TABLE a DROP(a, a)
+accept	accept	grammar	alterTableStatement(,_ident)*/,_ident_(,_ident)*	ALTER TABLE a DROP(a, a)
 reject	reject	grammar	alterTableStatement(,_ident)*/,_ident_(,_ident)*!drop-1	ALTER TABLE a DROP(a a)
 reject	reject	grammar	alterTableStatement(,_ident)*/,_ident_(,_ident)*!drop-2	ALTER TABLE a DROP(a,)
 reject	reject	grammar	alterTableStatement(,_ident)*/,_ident_(,_ident)*!truncate	ALTER TABLE a DROP(a,
 reject	reject	grammar	alterTableStatement(,_ident)*/,_ident_(,_ident)*!insert	ALTER TABLE a DROP(a, a zzz)
 accept	accept	grammar	alterTableStatement(K_USING_K_TIMESTAMP_INTEGER)?/%empty	ALTER TABLE a DROP a
-reject	accept	grammar	alterTableStatement(K_USING_K_TIMESTAMP_INTEGER)?/K_USING_K_TIMESTAMP_INTEGER	ALTER TABLE a DROP a USING TIMESTAMP 1
+accept	accept	grammar	alterTableStatement(K_USING_K_TIMESTAMP_INTEGER)?/K_USING_K_TIMESTAMP_INTEGER	ALTER TABLE a DROP a USING TIMESTAMP 1
 reject	reject	grammar	alterTableStatement(K_USING_K_TIMESTAMP_INTEGER)?/K_USING_K_TIMESTAMP_INTEGER!drop-1	ALTER TABLE a DROP a TIMESTAMP 1
 reject	reject	grammar	alterTableStatement(K_USING_K_TIMESTAMP_INTEGER)?/K_USING_K_TIMESTAMP_INTEGER!drop-2	ALTER TABLE a DROP a USING 1
 reject	reject	grammar	alterTableStatement(K_USING_K_TIMESTAMP_INTEGER)?/K_USING_K_TIMESTAMP_INTEGER!drop-3	ALTER TABLE a DROP a USING TIMESTAMP
@@ -1526,7 +1526,7 @@ reject	reject	grammar	alterMaterializedViewStatement(K_IF_K_EXISTS)?/%empty!inse
 accept	accept	grammar	alterMaterializedViewStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS	ALTER MATERIALIZED VIEW IF EXISTS a WITH a = 'a'
 reject	reject	grammar	alterMaterializedViewStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!drop-1	ALTER MATERIALIZED VIEW EXISTS a WITH a = 'a'
 reject	reject	grammar	alterMaterializedViewStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!drop-2	ALTER MATERIALIZED VIEW IF a WITH a = 'a'
-accept	reject	grammar	alterMaterializedViewStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!truncate	ALTER MATERIALIZED VIEW IF
+reject	reject	grammar	alterMaterializedViewStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!truncate	ALTER MATERIALIZED VIEW IF
 reject	reject	grammar	alterMaterializedViewStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!insert	ALTER MATERIALIZED VIEW IF EXISTS zzz a WITH a = 'a'
 reject	reject	grammar	alterMaterializedViewStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!swap	ALTER MATERIALIZED VIEW IN EXISTS a WITH a = 'a'
 accept	accept	grammar	alterTypeStatement/K_ALTER_K_TYPE_(K_IF_K_EXISTS)?_userTypeName_(K_ALTER_f~83a26f03	ALTER TYPE a ADD a ASCII
@@ -1595,7 +1595,7 @@ reject	reject	grammar	dropTypeStatement(K_IF_K_EXISTS)?/%empty!insert	DROP TYPE 
 accept	accept	grammar	dropTypeStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS	DROP TYPE IF EXISTS a
 reject	reject	grammar	dropTypeStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!drop-1	DROP TYPE EXISTS a
 reject	reject	grammar	dropTypeStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!drop-2	DROP TYPE IF a
-accept	reject	grammar	dropTypeStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!truncate	DROP TYPE IF
+reject	reject	grammar	dropTypeStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!truncate	DROP TYPE IF
 reject	reject	grammar	dropTypeStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!insert	DROP TYPE IF EXISTS zzz a
 reject	reject	grammar	dropTypeStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!swap	DROP TYPE IN EXISTS a
 accept	accept	grammar	dropIndexStatement/K_DROP_K_INDEX_(K_IF_K_EXISTS)?_indexName	DROP INDEX a
@@ -1638,7 +1638,7 @@ accept	accept	grammar	listPermissionsStatement(K_OF_roleName)?/K_OF_roleName	LIS
 reject	reject	grammar	listPermissionsStatement(K_OF_roleName)?/K_OF_roleName!drop-2	LIST ALL OF
 reject	reject	grammar	listPermissionsStatement(K_OF_roleName)?/K_OF_roleName!insert	LIST ALL OF a zzz
 accept	accept	grammar	listPermissionsStatement(K_NORECURSIVE)?/%empty	LIST ALL
-reject	accept	grammar	listPermissionsStatement(K_NORECURSIVE)?/K_NORECURSIVE	LIST ALL NORECURSIVE
+accept	accept	grammar	listPermissionsStatement(K_NORECURSIVE)?/K_NORECURSIVE	LIST ALL NORECURSIVE
 reject	reject	grammar	listPermissionsStatement(K_NORECURSIVE)?/K_NORECURSIVE!insert	LIST ALL NORECURSIVE zzz
 reject	reject	grammar	listPermissionsStatement(K_NORECURSIVE)?/K_NORECURSIVE!swap	LIST ALL NOSUPERUSER
 accept	accept	grammar	permission/(K_CREATE|K_ALTER|K_DROP|K_SELECT|K_M~64926019)	LIST CREATE
@@ -1665,10 +1665,10 @@ reject	reject	grammar	permission(K_CREATE|K_ALTER|K_DROP|K_SELECT|K_M~64926019)/
 accept	accept	grammar	permission(K_CREATE|K_ALTER|K_DROP|K_SELECT|K_M~64926019)/K_EXECUTE	LIST EXECUTE
 reject	reject	grammar	permission(K_CREATE|K_ALTER|K_DROP|K_SELECT|K_M~64926019)/K_EXECUTE!insert	LIST EXECUTE zzz
 reject	reject	grammar	permission(K_CREATE|K_ALTER|K_DROP|K_SELECT|K_M~64926019)/K_EXECUTE!swap	LIST EXISTS
-reject	accept	grammar	permission(K_CREATE|K_ALTER|K_DROP|K_SELECT|K_M~64926019)/K_UNMASK	LIST UNMASK
+accept	accept	grammar	permission(K_CREATE|K_ALTER|K_DROP|K_SELECT|K_M~64926019)/K_UNMASK	LIST UNMASK
 reject	reject	grammar	permission(K_CREATE|K_ALTER|K_DROP|K_SELECT|K_M~64926019)/K_UNMASK!insert	LIST UNMASK zzz
 reject	reject	grammar	permission(K_CREATE|K_ALTER|K_DROP|K_SELECT|K_M~64926019)/K_UNMASK!swap	LIST UNSET
-reject	accept	grammar	permission(K_CREATE|K_ALTER|K_DROP|K_SELECT|K_M~64926019)/K_SELECT_MASKED	LIST SELECT_MASKED
+accept	accept	grammar	permission(K_CREATE|K_ALTER|K_DROP|K_SELECT|K_M~64926019)/K_SELECT_MASKED	LIST SELECT_MASKED
 reject	reject	grammar	permission(K_CREATE|K_ALTER|K_DROP|K_SELECT|K_M~64926019)/K_SELECT_MASKED!insert	LIST SELECT_MASKED zzz
 reject	reject	grammar	permission(K_CREATE|K_ALTER|K_DROP|K_SELECT|K_M~64926019)/K_SELECT_MASKED!swap	LIST SET
 accept	accept	grammar	permissionOrAll/K_ALL_(K_PERMISSIONS)?	LIST ALL
@@ -1683,7 +1683,7 @@ accept	accept	grammar	permissionOrAll(K_PERMISSION)?/K_PERMISSION	LIST CREATE PE
 reject	reject	grammar	permissionOrAll(K_PERMISSION)?/K_PERMISSION!insert	LIST CREATE PERMISSION zzz
 reject	reject	grammar	permissionOrAll(K_PERMISSION)?/K_PERMISSION!swap	LIST CREATE PERMISSIONS
 accept	accept	grammar	permissionOrAll(,_permission_(K_PERMISSION)?)*/%empty	LIST CREATE
-reject	accept	grammar	permissionOrAll(,_permission_(K_PERMISSION)?)*/,_permission_(K_PERMISSION)?_(,_permission_(K_PERMISSION)?)*	LIST CREATE, CREATE
+accept	accept	grammar	permissionOrAll(,_permission_(K_PERMISSION)?)*/,_permission_(K_PERMISSION)?_(,_permission_(K_PERMISSION)?)*	LIST CREATE, CREATE
 reject	reject	grammar	permissionOrAll(,_permission_(K_PERMISSION)?)*/,_permission_(K_PERMISSION)?_(,_permission_(K_PERMISSION)?)*!drop-1	LIST CREATE CREATE
 reject	reject	grammar	permissionOrAll(,_permission_(K_PERMISSION)?)*/,_permission_(K_PERMISSION)?_(,_permission_(K_PERMISSION)?)*!drop-2	LIST CREATE,
 reject	reject	grammar	permissionOrAll(,_permission_(K_PERMISSION)?)*/,_permission_(K_PERMISSION)?_(,_permission_(K_PERMISSION)?)*!insert	LIST CREATE, CREATE zzz
@@ -1691,7 +1691,7 @@ reject	reject	grammar	permissionOrAll(,_permission_(K_PERMISSION)?)*/,_permissio
 accept	accept	grammar	resource/dataResource	LIST ALL ON a
 accept	accept	grammar	resource/roleResource	LIST ALL ON ALL ROLES
 accept	accept	grammar	resource/roleResource!drop-1	LIST ALL ON ROLES
-reject	accept	grammar	resource/roleResource!drop-2	LIST ALL ON ALL
+accept	accept	grammar	resource/roleResource!drop-2	LIST ALL ON ALL
 reject	reject	grammar	resource/roleResource!insert	LIST ALL ON ALL ROLES zzz
 reject	reject	grammar	resource/roleResource!swap	LIST ALL ON ALLOW ROLES
 accept	accept	grammar	resource/functionResource	LIST ALL ON ALL FUNCTIONS
@@ -1699,7 +1699,7 @@ accept	accept	grammar	resource/functionResource!drop-1	LIST ALL ON FUNCTIONS
 reject	reject	grammar	resource/functionResource!insert	LIST ALL ON ALL FUNCTIONS zzz
 reject	reject	grammar	resource/functionResource!swap	LIST ALL ON ALLOW FUNCTIONS
 accept	accept	grammar	resource/jmxResource	LIST ALL ON ALL MBEANS
-reject	accept	grammar	resource/jmxResource!drop-1	LIST ALL ON MBEANS
+accept	accept	grammar	resource/jmxResource!drop-1	LIST ALL ON MBEANS
 reject	reject	grammar	resource/jmxResource!insert	LIST ALL ON ALL MBEANS zzz
 reject	reject	grammar	resource/jmxResource!swap	LIST ALL ON ALLOW MBEANS
 accept	accept	grammar	dataResource/K_ALL_K_KEYSPACES	LIST ALL ON ALL KEYSPACES
@@ -1711,7 +1711,7 @@ reject	reject	grammar	dataResource/K_KEYSPACE_keyspaceName!drop-2	LIST ALL ON KE
 reject	reject	grammar	dataResource/K_KEYSPACE_keyspaceName!insert	LIST ALL ON KEYSPACE a zzz
 reject	reject	grammar	dataResource/K_KEYSPACE_keyspaceName!swap	LIST ALL ON KEYSPACES a
 accept	accept	grammar	dataResource/(K_COLUMNFAMILY)?_columnFamilyName	LIST ALL ON a
-reject	accept	grammar	dataResource/K_ALL_K_TABLES_K_IN_K_KEYSPACE_keyspaceName	LIST ALL ON ALL TABLES IN KEYSPACE a
+accept	accept	grammar	dataResource/K_ALL_K_TABLES_K_IN_K_KEYSPACE_keyspaceName	LIST ALL ON ALL TABLES IN KEYSPACE a
 reject	reject	grammar	dataResource/K_ALL_K_TABLES_K_IN_K_KEYSPACE_keyspaceName!drop-1	LIST ALL ON TABLES IN KEYSPACE a
 reject	reject	grammar	dataResource/K_ALL_K_TABLES_K_IN_K_KEYSPACE_keyspaceName!drop-2	LIST ALL ON ALL IN KEYSPACE a
 reject	reject	grammar	dataResource/K_ALL_K_TABLES_K_IN_K_KEYSPACE_keyspaceName!drop-3	LIST ALL ON ALL TABLES KEYSPACE a
@@ -1725,16 +1725,16 @@ accept	accept	grammar	dataResource(K_COLUMNFAMILY)?/K_COLUMNFAMILY	LIST ALL ON T
 reject	reject	grammar	dataResource(K_COLUMNFAMILY)?/K_COLUMNFAMILY!insert	LIST ALL ON TABLE zzz a
 reject	reject	grammar	dataResource(K_COLUMNFAMILY)?/K_COLUMNFAMILY!swap	LIST ALL ON TABLES a
 accept	accept	grammar	jmxResource/K_ALL_K_MBEANS	LIST ALL ON ALL MBEANS
-accept	reject	grammar	jmxResource/K_MBEAN_mbean	LIST ALL ON MBEAN 'a'
+reject	reject	grammar	jmxResource/K_MBEAN_mbean	LIST ALL ON MBEAN 'a'
 reject	reject	grammar	jmxResource/K_MBEAN_mbean!drop-1	LIST ALL ON 'a'
-reject	accept	grammar	jmxResource/K_MBEAN_mbean!drop-2	LIST ALL ON MBEAN
+accept	accept	grammar	jmxResource/K_MBEAN_mbean!drop-2	LIST ALL ON MBEAN
 reject	reject	grammar	jmxResource/K_MBEAN_mbean!insert	LIST ALL ON MBEAN 'a' zzz
-accept	reject	grammar	jmxResource/K_MBEANS_mbean	LIST ALL ON MBEANS 'a'
+reject	reject	grammar	jmxResource/K_MBEANS_mbean	LIST ALL ON MBEANS 'a'
 reject	reject	grammar	jmxResource/K_MBEANS_mbean!insert	LIST ALL ON MBEANS 'a' zzz
 reject	reject	grammar	jmxResource/K_MBEANS_mbean!swap	LIST ALL ON MODIFY 'a'
 accept	accept	grammar	roleResource/K_ALL_K_ROLES	LIST ALL ON ALL ROLES
 accept	accept	grammar	roleResource/K_ROLE_userOrRoleName	LIST ALL ON ROLE a
-reject	accept	grammar	roleResource/K_ROLE_userOrRoleName!drop-2	LIST ALL ON ROLE
+accept	accept	grammar	roleResource/K_ROLE_userOrRoleName!drop-2	LIST ALL ON ROLE
 reject	reject	grammar	roleResource/K_ROLE_userOrRoleName!insert	LIST ALL ON ROLE a zzz
 reject	reject	grammar	roleResource/K_ROLE_userOrRoleName!swap	LIST ALL ON ROLES a
 accept	accept	grammar	functionResource/K_ALL_K_FUNCTIONS	LIST ALL ON ALL FUNCTIONS
@@ -1794,7 +1794,7 @@ reject	reject	grammar	alterUserStatement(K_IF_K_EXISTS)?/%empty!insert	ALTER USE
 accept	accept	grammar	alterUserStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS	ALTER USER IF EXISTS a
 reject	reject	grammar	alterUserStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!drop-1	ALTER USER EXISTS a
 reject	reject	grammar	alterUserStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!drop-2	ALTER USER IF a
-accept	reject	grammar	alterUserStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!truncate	ALTER USER IF
+reject	reject	grammar	alterUserStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!truncate	ALTER USER IF
 reject	reject	grammar	alterUserStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!insert	ALTER USER IF EXISTS zzz a
 reject	reject	grammar	alterUserStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!swap	ALTER USER IN EXISTS a
 accept	accept	grammar	alterUserStatement(K_WITH_userPassword)?/%empty	ALTER USER a
@@ -1817,29 +1817,29 @@ reject	reject	grammar	dropUserStatement(K_IF_K_EXISTS)?/%empty!insert	DROP USER 
 accept	accept	grammar	dropUserStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS	DROP USER IF EXISTS a
 reject	reject	grammar	dropUserStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!drop-1	DROP USER EXISTS a
 reject	reject	grammar	dropUserStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!drop-2	DROP USER IF a
-accept	reject	grammar	dropUserStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!truncate	DROP USER IF
+reject	reject	grammar	dropUserStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!truncate	DROP USER IF
 reject	reject	grammar	dropUserStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!insert	DROP USER IF EXISTS zzz a
 reject	reject	grammar	dropUserStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!swap	DROP USER IN EXISTS a
-reject	accept	grammar	addIdentityStatement/K_ADD_K_IDENTITY_(K_IF_K_NOT_K_EXISTS)?_identity_K_TO_K~a5636e42	ADD IDENTITY a TO ROLE a
-reject	accept	grammar	addIdentityStatement(K_IF_K_NOT_K_EXISTS)?/%empty	ADD IDENTITY a TO ROLE a
+accept	accept	grammar	addIdentityStatement/K_ADD_K_IDENTITY_(K_IF_K_NOT_K_EXISTS)?_identity_K_TO_K~a5636e42	ADD IDENTITY a TO ROLE a
+accept	accept	grammar	addIdentityStatement(K_IF_K_NOT_K_EXISTS)?/%empty	ADD IDENTITY a TO ROLE a
 reject	reject	grammar	addIdentityStatement(K_IF_K_NOT_K_EXISTS)?/%empty!insert	ADD IDENTITY zzz a TO ROLE a
-reject	accept	grammar	addIdentityStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXISTS	ADD IDENTITY IF NOT EXISTS a TO ROLE a
+accept	accept	grammar	addIdentityStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXISTS	ADD IDENTITY IF NOT EXISTS a TO ROLE a
 reject	reject	grammar	addIdentityStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXISTS!drop-1	ADD IDENTITY NOT EXISTS a TO ROLE a
 reject	reject	grammar	addIdentityStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXISTS!drop-2	ADD IDENTITY IF EXISTS a TO ROLE a
 reject	reject	grammar	addIdentityStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXISTS!drop-3	ADD IDENTITY IF NOT a TO ROLE a
 reject	reject	grammar	addIdentityStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXISTS!truncate	ADD IDENTITY IF NOT
 reject	reject	grammar	addIdentityStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXISTS!insert	ADD IDENTITY IF NOT EXISTS zzz a TO ROLE a
 reject	reject	grammar	addIdentityStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXISTS!swap	ADD IDENTITY IN NOT EXISTS a TO ROLE a
-reject	accept	grammar	dropIdentityStatement/K_DROP_K_IDENTITY_(K_IF_K_EXISTS)?_identity	DROP IDENTITY a
-reject	accept	grammar	dropIdentityStatement(K_IF_K_EXISTS)?/%empty	DROP IDENTITY a
+accept	accept	grammar	dropIdentityStatement/K_DROP_K_IDENTITY_(K_IF_K_EXISTS)?_identity	DROP IDENTITY a
+accept	accept	grammar	dropIdentityStatement(K_IF_K_EXISTS)?/%empty	DROP IDENTITY a
 reject	reject	grammar	dropIdentityStatement(K_IF_K_EXISTS)?/%empty!insert	DROP IDENTITY zzz a
-reject	accept	grammar	dropIdentityStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS	DROP IDENTITY IF EXISTS a
+accept	accept	grammar	dropIdentityStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS	DROP IDENTITY IF EXISTS a
 reject	reject	grammar	dropIdentityStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!drop-1	DROP IDENTITY EXISTS a
 reject	reject	grammar	dropIdentityStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!drop-2	DROP IDENTITY IF a
 reject	reject	grammar	dropIdentityStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!truncate	DROP IDENTITY IF
 reject	reject	grammar	dropIdentityStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!insert	DROP IDENTITY IF EXISTS zzz a
 reject	reject	grammar	dropIdentityStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!swap	DROP IDENTITY IN EXISTS a
-reject	accept	grammar	listUsersStatement/K_LIST_K_USERS	LIST USERS
+accept	accept	grammar	listUsersStatement/K_LIST_K_USERS	LIST USERS
 accept	accept	grammar	createRoleStatement/K_CREATE_K_ROLE_(K_IF_K_NOT_K_EXISTS)?_userOrRoleName_(~a4a5287f	CREATE ROLE a
 accept	accept	grammar	createRoleStatement(K_IF_K_NOT_K_EXISTS)?/%empty	CREATE ROLE a
 reject	reject	grammar	createRoleStatement(K_IF_K_NOT_K_EXISTS)?/%empty!insert	CREATE ROLE zzz a
@@ -1898,7 +1898,7 @@ reject	reject	grammar	listRolesStatement(K_NORECURSIVE)?/K_NORECURSIVE!swap	LIST
 accept	accept	grammar	roleOptions/roleOption_(K_AND_roleOption)*	CREATE ROLE a WITH PASSWORD = 'a'
 reject	reject	grammar	roleOptions/roleOption_(K_AND_roleOption)*!swap	CREATE ROLE a WITH PER = 'a'
 accept	accept	grammar	roleOptions(K_AND_roleOption)*/%empty	CREATE ROLE a WITH PASSWORD = 'a'
-accept	reject	grammar	roleOptions(K_AND_roleOption)*/K_AND_roleOption_(K_AND_roleOption)*	CREATE ROLE a WITH PASSWORD = 'a' AND PASSWORD = 'a'
+reject	reject	grammar	roleOptions(K_AND_roleOption)*/K_AND_roleOption_(K_AND_roleOption)*	CREATE ROLE a WITH PASSWORD = 'a' AND PASSWORD = 'a'
 reject	reject	grammar	roleOptions(K_AND_roleOption)*/K_AND_roleOption_(K_AND_roleOption)*!drop-1	CREATE ROLE a WITH PASSWORD = 'a' PASSWORD = 'a'
 reject	reject	grammar	roleOptions(K_AND_roleOption)*/K_AND_roleOption_(K_AND_roleOption)*!drop-2	CREATE ROLE a WITH PASSWORD = 'a' AND = 'a'
 reject	reject	grammar	roleOptions(K_AND_roleOption)*/K_AND_roleOption_(K_AND_roleOption)*!drop-3	CREATE ROLE a WITH PASSWORD = 'a' AND PASSWORD 'a'
@@ -1942,18 +1942,18 @@ reject	reject	grammar	roleOption/K_ACCESS_K_TO_K_DATACENTERS_{_dcPermission_(,_d
 reject	reject	grammar	roleOption/K_ACCESS_K_TO_K_DATACENTERS_{_dcPermission_(,_dcPermission)*_}!drop-2	CREATE ROLE a WITH ACCESS DATACENTERS { 'a' }
 reject	reject	grammar	roleOption/K_ACCESS_K_TO_K_DATACENTERS_{_dcPermission_(,_dcPermission)*_}!drop-3	CREATE ROLE a WITH ACCESS TO { 'a' }
 reject	reject	grammar	roleOption/K_ACCESS_K_TO_K_DATACENTERS_{_dcPermission_(,_dcPermission)*_}!drop-4	CREATE ROLE a WITH ACCESS TO DATACENTERS 'a' }
-accept	reject	grammar	roleOption/K_ACCESS_K_TO_K_DATACENTERS_{_dcPermission_(,_dcPermission)*_}!drop-5	CREATE ROLE a WITH ACCESS TO DATACENTERS { }
+reject	reject	grammar	roleOption/K_ACCESS_K_TO_K_DATACENTERS_{_dcPermission_(,_dcPermission)*_}!drop-5	CREATE ROLE a WITH ACCESS TO DATACENTERS { }
 reject	reject	grammar	roleOption/K_ACCESS_K_TO_K_DATACENTERS_{_dcPermission_(,_dcPermission)*_}!drop-6	CREATE ROLE a WITH ACCESS TO DATACENTERS { 'a'
 reject	reject	grammar	roleOption/K_ACCESS_K_TO_K_DATACENTERS_{_dcPermission_(,_dcPermission)*_}!insert	CREATE ROLE a WITH ACCESS TO DATACENTERS { 'a' } zzz
 reject	reject	grammar	roleOption/K_ACCESS_K_TO_K_DATACENTERS_{_dcPermission_(,_dcPermission)*_}!swap	CREATE ROLE a WITH ADD TO DATACENTERS { 'a' }
-reject	accept	grammar	roleOption/K_ACCESS_K_FROM_K_ALL_K_CIDRS	CREATE ROLE a WITH ACCESS FROM ALL CIDRS
+accept	accept	grammar	roleOption/K_ACCESS_K_FROM_K_ALL_K_CIDRS	CREATE ROLE a WITH ACCESS FROM ALL CIDRS
 reject	reject	grammar	roleOption/K_ACCESS_K_FROM_K_ALL_K_CIDRS!drop-1	CREATE ROLE a WITH FROM ALL CIDRS
 reject	reject	grammar	roleOption/K_ACCESS_K_FROM_K_ALL_K_CIDRS!drop-2	CREATE ROLE a WITH ACCESS ALL CIDRS
 reject	reject	grammar	roleOption/K_ACCESS_K_FROM_K_ALL_K_CIDRS!drop-3	CREATE ROLE a WITH ACCESS FROM CIDRS
 reject	reject	grammar	roleOption/K_ACCESS_K_FROM_K_ALL_K_CIDRS!drop-4	CREATE ROLE a WITH ACCESS FROM ALL
 reject	reject	grammar	roleOption/K_ACCESS_K_FROM_K_ALL_K_CIDRS!insert	CREATE ROLE a WITH ACCESS FROM ALL CIDRS zzz
 reject	reject	grammar	roleOption/K_ACCESS_K_FROM_K_ALL_K_CIDRS!swap	CREATE ROLE a WITH ADD FROM ALL CIDRS
-reject	accept	grammar	roleOption/K_ACCESS_K_FROM_K_CIDRS_{_cidrPermission_(,_cidrPermission)*_}	CREATE ROLE a WITH ACCESS FROM CIDRS { 'a' }
+accept	accept	grammar	roleOption/K_ACCESS_K_FROM_K_CIDRS_{_cidrPermission_(,_cidrPermission)*_}	CREATE ROLE a WITH ACCESS FROM CIDRS { 'a' }
 reject	reject	grammar	roleOption/K_ACCESS_K_FROM_K_CIDRS_{_cidrPermission_(,_cidrPermission)*_}!drop-1	CREATE ROLE a WITH FROM CIDRS { 'a' }
 reject	reject	grammar	roleOption/K_ACCESS_K_FROM_K_CIDRS_{_cidrPermission_(,_cidrPermission)*_}!drop-2	CREATE ROLE a WITH ACCESS CIDRS { 'a' }
 reject	reject	grammar	roleOption/K_ACCESS_K_FROM_K_CIDRS_{_cidrPermission_(,_cidrPermission)*_}!drop-3	CREATE ROLE a WITH ACCESS FROM { 'a' }
@@ -1969,16 +1969,16 @@ reject	reject	grammar	roleOption(,_dcPermission)*/,_dcPermission_(,_dcPermission
 reject	reject	grammar	roleOption(,_dcPermission)*/,_dcPermission_(,_dcPermission)*!drop-2	CREATE ROLE a WITH ACCESS TO DATACENTERS { 'a', }
 reject	reject	grammar	roleOption(,_dcPermission)*/,_dcPermission_(,_dcPermission)*!truncate	CREATE ROLE a WITH ACCESS TO DATACENTERS { 'a',
 reject	reject	grammar	roleOption(,_dcPermission)*/,_dcPermission_(,_dcPermission)*!insert	CREATE ROLE a WITH ACCESS TO DATACENTERS { 'a', 'a' zzz }
-reject	accept	grammar	roleOption(,_cidrPermission)*/%empty	CREATE ROLE a WITH ACCESS FROM CIDRS { 'a' }
+accept	accept	grammar	roleOption(,_cidrPermission)*/%empty	CREATE ROLE a WITH ACCESS FROM CIDRS { 'a' }
 reject	reject	grammar	roleOption(,_cidrPermission)*/%empty!insert	CREATE ROLE a WITH ACCESS FROM CIDRS { 'a' zzz }
-reject	accept	grammar	roleOption(,_cidrPermission)*/,_cidrPermission_(,_cidrPermission)*	CREATE ROLE a WITH ACCESS FROM CIDRS { 'a', 'a' }
+accept	accept	grammar	roleOption(,_cidrPermission)*/,_cidrPermission_(,_cidrPermission)*	CREATE ROLE a WITH ACCESS FROM CIDRS { 'a', 'a' }
 reject	reject	grammar	roleOption(,_cidrPermission)*/,_cidrPermission_(,_cidrPermission)*!drop-1	CREATE ROLE a WITH ACCESS FROM CIDRS { 'a' 'a' }
 reject	reject	grammar	roleOption(,_cidrPermission)*/,_cidrPermission_(,_cidrPermission)*!drop-2	CREATE ROLE a WITH ACCESS FROM CIDRS { 'a', }
 reject	reject	grammar	roleOption(,_cidrPermission)*/,_cidrPermission_(,_cidrPermission)*!truncate	CREATE ROLE a WITH ACCESS FROM CIDRS { 'a',
 reject	reject	grammar	roleOption(,_cidrPermission)*/,_cidrPermission_(,_cidrPermission)*!insert	CREATE ROLE a WITH ACCESS FROM CIDRS { 'a', 'a' zzz }
 accept	accept	grammar	dcPermission/STRING_LITERAL	CREATE ROLE a WITH ACCESS TO DATACENTERS { 'a' }
 reject	reject	grammar	dcPermission/STRING_LITERAL!truncate	CREATE ROLE a WITH ACCESS TO DATACENTERS {
-reject	accept	grammar	cidrPermission/STRING_LITERAL	CREATE ROLE a WITH ACCESS FROM CIDRS { 'a' }
+accept	accept	grammar	cidrPermission/STRING_LITERAL	CREATE ROLE a WITH ACCESS FROM CIDRS { 'a' }
 reject	reject	grammar	cidrPermission/STRING_LITERAL!truncate	CREATE ROLE a WITH ACCESS FROM CIDRS {
 accept	accept	grammar	userPassword/K_PASSWORD_STRING_LITERAL	CREATE USER a WITH PASSWORD 'a'
 reject	reject	grammar	userPassword/K_PASSWORD_STRING_LITERAL!swap	CREATE USER a WITH PER 'a'
@@ -1987,87 +1987,87 @@ reject	reject	grammar	userPassword/K_HASHED_K_PASSWORD_STRING_LITERAL!drop-2	CRE
 reject	reject	grammar	userPassword/K_HASHED_K_PASSWORD_STRING_LITERAL!drop-3	CREATE USER a WITH HASHED PASSWORD
 reject	reject	grammar	userPassword/K_HASHED_K_PASSWORD_STRING_LITERAL!insert	CREATE USER a WITH HASHED PASSWORD 'a' zzz
 reject	reject	grammar	userPassword/K_HASHED_K_PASSWORD_STRING_LITERAL!swap	CREATE USER a WITH IDENTITY PASSWORD 'a'
-reject	accept	grammar	describeStatement/(K_DESCRIBE|K_DESC)_(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEY~e9a06329	DESCRIBE CLUSTER
-reject	accept	grammar	describeStatement(K_DESCRIBE|K_DESC)/K_DESCRIBE	DESCRIBE CLUSTER
+accept	accept	grammar	describeStatement/(K_DESCRIBE|K_DESC)_(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEY~e9a06329	DESCRIBE CLUSTER
+accept	accept	grammar	describeStatement(K_DESCRIBE|K_DESC)/K_DESCRIBE	DESCRIBE CLUSTER
 reject	reject	grammar	describeStatement(K_DESCRIBE|K_DESC)/K_DESCRIBE!insert	DESCRIBE zzz CLUSTER
-reject	accept	grammar	describeStatement(K_DESCRIBE|K_DESC)/K_DESC	DESC CLUSTER
+accept	accept	grammar	describeStatement(K_DESCRIBE|K_DESC)/K_DESC	DESC CLUSTER
 reject	reject	grammar	describeStatement(K_DESCRIBE|K_DESC)/K_DESC!insert	DESC zzz CLUSTER
-reject	accept	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_CLUSTER	DESCRIBE CLUSTER
-reject	accept	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_CLUSTER!swap	DESCRIBE CLUSTERING
-reject	accept	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/(K_FULL)?_K_SCHEMA	DESCRIBE SCHEMA
+accept	accept	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_CLUSTER	DESCRIBE CLUSTER
+accept	accept	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_CLUSTER!swap	DESCRIBE CLUSTERING
+accept	accept	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/(K_FULL)?_K_SCHEMA	DESCRIBE SCHEMA
 reject	accept	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/(K_FULL)?_K_SCHEMA!insert	DESCRIBE SCHEMA zzz
 reject	reject	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/(K_FULL)?_K_SCHEMA!swap	DESCRIBE SELECT
-reject	accept	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_KEYSPACES	DESCRIBE KEYSPACES
+accept	accept	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_KEYSPACES	DESCRIBE KEYSPACES
 reject	reject	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_KEYSPACES!insert	DESCRIBE KEYSPACES zzz
-reject	accept	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_KEYSPACES!swap	DESCRIBE LANGUAGE
-reject	accept	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/(K_ONLY)?_K_KEYSPACE_(keyspaceName)?	DESCRIBE KEYSPACE
-reject	accept	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/(K_ONLY)?_K_KEYSPACE_(keyspaceName)?!insert	DESCRIBE KEYSPACE zzz
-reject	accept	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_TABLES	DESCRIBE TABLES
+accept	accept	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_KEYSPACES!swap	DESCRIBE LANGUAGE
+accept	accept	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/(K_ONLY)?_K_KEYSPACE_(keyspaceName)?	DESCRIBE KEYSPACE
+accept	accept	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/(K_ONLY)?_K_KEYSPACE_(keyspaceName)?!insert	DESCRIBE KEYSPACE zzz
+accept	accept	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_TABLES	DESCRIBE TABLES
 reject	reject	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_TABLES!insert	DESCRIBE TABLES zzz
-reject	accept	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_TABLES!swap	DESCRIBE TEXT
-reject	accept	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_COLUMNFAMILY_columnFamilyName	DESCRIBE TABLE a
+accept	accept	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_TABLES!swap	DESCRIBE TEXT
+accept	accept	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_COLUMNFAMILY_columnFamilyName	DESCRIBE TABLE a
 reject	reject	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_COLUMNFAMILY_columnFamilyName!drop-2	DESCRIBE TABLE
 reject	reject	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_COLUMNFAMILY_columnFamilyName!insert	DESCRIBE TABLE a zzz
 reject	reject	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_COLUMNFAMILY_columnFamilyName!swap	DESCRIBE TABLES a
-reject	accept	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_INDEX_columnFamilyName	DESCRIBE INDEX a
+accept	accept	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_INDEX_columnFamilyName	DESCRIBE INDEX a
 reject	reject	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_INDEX_columnFamilyName!drop-2	DESCRIBE INDEX
 reject	reject	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_INDEX_columnFamilyName!insert	DESCRIBE INDEX a zzz
 reject	reject	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_INDEX_columnFamilyName!swap	DESCRIBE INET a
-reject	accept	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_MATERIALIZED_K_VIEW_columnFamilyName	DESCRIBE MATERIALIZED VIEW a
+accept	accept	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_MATERIALIZED_K_VIEW_columnFamilyName	DESCRIBE MATERIALIZED VIEW a
 reject	reject	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_MATERIALIZED_K_VIEW_columnFamilyName!drop-1	DESCRIBE VIEW a
 reject	reject	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_MATERIALIZED_K_VIEW_columnFamilyName!drop-2	DESCRIBE MATERIALIZED a
 reject	reject	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_MATERIALIZED_K_VIEW_columnFamilyName!drop-3	DESCRIBE MATERIALIZED VIEW
 reject	reject	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_MATERIALIZED_K_VIEW_columnFamilyName!insert	DESCRIBE MATERIALIZED VIEW a zzz
 reject	reject	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_MATERIALIZED_K_VIEW_columnFamilyName!swap	DESCRIBE MAXWRITETIME VIEW a
-reject	accept	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_TYPES	DESCRIBE TYPES
+accept	accept	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_TYPES	DESCRIBE TYPES
 reject	reject	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_TYPES!insert	DESCRIBE TYPES zzz
 reject	reject	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_TYPES!swap	DESCRIBE UNLOGGED
-reject	accept	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_TYPE_userTypeName	DESCRIBE TYPE a
-reject	accept	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_TYPE_userTypeName!drop-2	DESCRIBE TYPE
+accept	accept	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_TYPE_userTypeName	DESCRIBE TYPE a
+accept	accept	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_TYPE_userTypeName!drop-2	DESCRIBE TYPE
 reject	reject	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_TYPE_userTypeName!insert	DESCRIBE TYPE a zzz
 reject	reject	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_TYPE_userTypeName!swap	DESCRIBE TYPES a
-reject	accept	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_FUNCTIONS	DESCRIBE FUNCTIONS
+accept	accept	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_FUNCTIONS	DESCRIBE FUNCTIONS
 reject	reject	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_FUNCTIONS!insert	DESCRIBE FUNCTIONS zzz
 reject	reject	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_FUNCTIONS!swap	DESCRIBE GRANT
-reject	accept	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_FUNCTION_functionName	DESCRIBE FUNCTION a
-reject	accept	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_FUNCTION_functionName!drop-2	DESCRIBE FUNCTION
+accept	accept	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_FUNCTION_functionName	DESCRIBE FUNCTION a
+accept	accept	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_FUNCTION_functionName!drop-2	DESCRIBE FUNCTION
 reject	reject	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_FUNCTION_functionName!insert	DESCRIBE FUNCTION a zzz
 reject	reject	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_FUNCTION_functionName!swap	DESCRIBE FUNCTIONS a
-reject	accept	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_AGGREGATES	DESCRIBE AGGREGATES
+accept	accept	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_AGGREGATES	DESCRIBE AGGREGATES
 reject	reject	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_AGGREGATES!insert	DESCRIBE AGGREGATES zzz
-reject	accept	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_AGGREGATES!swap	DESCRIBE ALL
-reject	accept	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_AGGREGATE_functionName	DESCRIBE AGGREGATE a
-reject	accept	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_AGGREGATE_functionName!drop-2	DESCRIBE AGGREGATE
+accept	accept	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_AGGREGATES!swap	DESCRIBE ALL
+accept	accept	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_AGGREGATE_functionName	DESCRIBE AGGREGATE a
+accept	accept	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_AGGREGATE_functionName!drop-2	DESCRIBE AGGREGATE
 reject	reject	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_AGGREGATE_functionName!insert	DESCRIBE AGGREGATE a zzz
 reject	reject	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/K_AGGREGATE_functionName!swap	DESCRIBE AGGREGATES a
-reject	accept	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/((IDENT|QUOTED_NAME|unreserved_keyword)_.)?_(IDENT|QUOT~a071f434	DESCRIBE a
+accept	accept	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/((IDENT|QUOTED_NAME|unreserved_keyword)_.)?_(IDENT|QUOT~a071f434	DESCRIBE a
 reject	reject	grammar	describeStatement(K_CLUSTER|(K_FULL)?_K_SCHEMA|K_KEYSP~542c909e)/((IDENT|QUOTED_NAME|unreserved_keyword)_.)?_(IDENT|QUOT~a071f434!insert	DESCRIBE a zzz
-reject	accept	grammar	describeStatement(K_FULL)?/%empty	DESCRIBE SCHEMA
+accept	accept	grammar	describeStatement(K_FULL)?/%empty	DESCRIBE SCHEMA
 reject	reject	grammar	describeStatement(K_FULL)?/%empty!insert	DESCRIBE zzz SCHEMA
-reject	accept	grammar	describeStatement(K_FULL)?/K_FULL	DESCRIBE FULL SCHEMA
+accept	accept	grammar	describeStatement(K_FULL)?/K_FULL	DESCRIBE FULL SCHEMA
 reject	reject	grammar	describeStatement(K_FULL)?/K_FULL!insert	DESCRIBE FULL zzz SCHEMA
 reject	reject	grammar	describeStatement(K_FULL)?/K_FULL!swap	DESCRIBE FUNCTION SCHEMA
-reject	accept	grammar	describeStatement(K_ONLY)?/%empty	DESCRIBE KEYSPACE
+accept	accept	grammar	describeStatement(K_ONLY)?/%empty	DESCRIBE KEYSPACE
 reject	reject	grammar	describeStatement(K_ONLY)?/%empty!insert	DESCRIBE zzz KEYSPACE
-reject	accept	grammar	describeStatement(K_ONLY)?/K_ONLY	DESCRIBE ONLY KEYSPACE
+accept	accept	grammar	describeStatement(K_ONLY)?/K_ONLY	DESCRIBE ONLY KEYSPACE
 reject	reject	grammar	describeStatement(K_ONLY)?/K_ONLY!insert	DESCRIBE ONLY zzz KEYSPACE
 reject	reject	grammar	describeStatement(K_ONLY)?/K_ONLY!swap	DESCRIBE OPTIONS KEYSPACE
-reject	accept	grammar	describeStatement(keyspaceName)?/%empty	DESCRIBE KEYSPACE
-reject	accept	grammar	describeStatement(keyspaceName)?/keyspaceName	DESCRIBE KEYSPACE a
+accept	accept	grammar	describeStatement(keyspaceName)?/%empty	DESCRIBE KEYSPACE
+accept	accept	grammar	describeStatement(keyspaceName)?/keyspaceName	DESCRIBE KEYSPACE a
 reject	reject	grammar	describeStatement(keyspaceName)?/keyspaceName!insert	DESCRIBE KEYSPACE a zzz
-reject	accept	grammar	describeStatement((IDENT|QUOTED_NAME|unreserved_keyword)_.)?/%empty	DESCRIBE a
+accept	accept	grammar	describeStatement((IDENT|QUOTED_NAME|unreserved_keyword)_.)?/%empty	DESCRIBE a
 reject	reject	grammar	describeStatement((IDENT|QUOTED_NAME|unreserved_keyword)_.)?/%empty!insert	DESCRIBE zzz a
-reject	accept	grammar	describeStatement((IDENT|QUOTED_NAME|unreserved_keyword)_.)?/(IDENT|QUOTED_NAME|unreserved_keyword)_.	DESCRIBE a.a
+accept	accept	grammar	describeStatement((IDENT|QUOTED_NAME|unreserved_keyword)_.)?/(IDENT|QUOTED_NAME|unreserved_keyword)_.	DESCRIBE a.a
 reject	reject	grammar	describeStatement((IDENT|QUOTED_NAME|unreserved_keyword)_.)?/(IDENT|QUOTED_NAME|unreserved_keyword)_.!drop-1	DESCRIBE.a
 reject	reject	grammar	describeStatement((IDENT|QUOTED_NAME|unreserved_keyword)_.)?/(IDENT|QUOTED_NAME|unreserved_keyword)_.!drop-2	DESCRIBE a a
 reject	reject	grammar	describeStatement((IDENT|QUOTED_NAME|unreserved_keyword)_.)?/(IDENT|QUOTED_NAME|unreserved_keyword)_.!insert	DESCRIBE a.zzz a
-reject	accept	grammar	describeStatement(IDENT|QUOTED_NAME|unreserved_keyword)/IDENT	DESCRIBE a
-reject	accept	grammar	describeStatement(IDENT|QUOTED_NAME|unreserved_keyword)/QUOTED_NAME	DESCRIBE "a"
+accept	accept	grammar	describeStatement(IDENT|QUOTED_NAME|unreserved_keyword)/IDENT	DESCRIBE a
+accept	accept	grammar	describeStatement(IDENT|QUOTED_NAME|unreserved_keyword)/QUOTED_NAME	DESCRIBE "a"
 reject	reject	grammar	describeStatement(IDENT|QUOTED_NAME|unreserved_keyword)/QUOTED_NAME!insert	DESCRIBE "a" zzz
-reject	accept	grammar	describeStatement(IDENT|QUOTED_NAME|unreserved_keyword)/unreserved_keyword	DESCRIBE KEYS
+accept	accept	grammar	describeStatement(IDENT|QUOTED_NAME|unreserved_keyword)/unreserved_keyword	DESCRIBE KEYS
 reject	reject	grammar	describeStatement(IDENT|QUOTED_NAME|unreserved_keyword)/unreserved_keyword!insert	DESCRIBE KEYS zzz
-reject	accept	grammar	describeStatement(K_WITH_K_INTERNALS)?/%empty	DESCRIBE CLUSTER
-reject	accept	grammar	describeStatement(K_WITH_K_INTERNALS)?/K_WITH_K_INTERNALS	DESCRIBE CLUSTER WITH INTERNALS
+accept	accept	grammar	describeStatement(K_WITH_K_INTERNALS)?/%empty	DESCRIBE CLUSTER
+accept	accept	grammar	describeStatement(K_WITH_K_INTERNALS)?/K_WITH_K_INTERNALS	DESCRIBE CLUSTER WITH INTERNALS
 reject	reject	grammar	describeStatement(K_WITH_K_INTERNALS)?/K_WITH_K_INTERNALS!drop-1	DESCRIBE CLUSTER INTERNALS
 reject	reject	grammar	describeStatement(K_WITH_K_INTERNALS)?/K_WITH_K_INTERNALS!drop-2	DESCRIBE CLUSTER WITH
 reject	reject	grammar	describeStatement(K_WITH_K_INTERNALS)?/K_WITH_K_INTERNALS!insert	DESCRIBE CLUSTER WITH INTERNALS zzz
@@ -2132,7 +2132,7 @@ accept	accept	grammar	idxName/unreserved_keyword	DROP INDEX KEYS
 reject	reject	grammar	idxName/unreserved_keyword!insert	DROP INDEX KEYS zzz
 accept	reject	grammar	idxName/unreserved_keyword!swap	DROP INDEX KEYSPACE
 accept	accept	grammar	roleName/IDENT	CREATE ROLE a
-reject	accept	grammar	roleName/STRING_LITERAL	CREATE ROLE 'a'
+accept	accept	grammar	roleName/STRING_LITERAL	CREATE ROLE 'a'
 reject	reject	grammar	roleName/STRING_LITERAL!insert	CREATE ROLE 'a' zzz
 accept	accept	grammar	roleName/QUOTED_NAME	CREATE ROLE "a"
 reject	reject	grammar	roleName/QUOTED_NAME!insert	CREATE ROLE "a" zzz
@@ -2165,19 +2165,19 @@ reject	reject	grammar	constant((K_POSITIVE_NAN|K_NEGATIVE_NAN)|K_PO~272febfb)/K_
 accept	accept	grammar	constant(K_POSITIVE_NAN|K_NEGATIVE_NAN)/K_POSITIVE_NAN	SELECT NAN FROM a
 accept	accept	grammar	constant(K_POSITIVE_NAN|K_NEGATIVE_NAN)/K_NEGATIVE_NAN	SELECT -NAN FROM a
 reject	reject	grammar	constant(K_POSITIVE_NAN|K_NEGATIVE_NAN)/K_NEGATIVE_NAN!insert	SELECT -NAN zzz FROM a
-reject	accept	grammar	fullMapLiteral/{_(term_COLON_term_(,_term_COLON_term)*)?_}	CREATE KEYSPACE a WITH a = { }
+accept	accept	grammar	fullMapLiteral/{_(term_COLON_term_(,_term_COLON_term)*)?_}	CREATE KEYSPACE a WITH a = { }
 reject	reject	grammar	fullMapLiteral/{_(term_COLON_term_(,_term_COLON_term)*)?_}!drop-1	CREATE KEYSPACE a WITH a = }
 reject	reject	grammar	fullMapLiteral/{_(term_COLON_term_(,_term_COLON_term)*)?_}!drop-2	CREATE KEYSPACE a WITH a = {
 reject	reject	grammar	fullMapLiteral/{_(term_COLON_term_(,_term_COLON_term)*)?_}!insert	CREATE KEYSPACE a WITH a = { } zzz
-reject	accept	grammar	fullMapLiteral(term_COLON_term_(,_term_COLON_term)*)?/%empty	CREATE KEYSPACE a WITH a = { }
+accept	accept	grammar	fullMapLiteral(term_COLON_term_(,_term_COLON_term)*)?/%empty	CREATE KEYSPACE a WITH a = { }
 reject	reject	grammar	fullMapLiteral(term_COLON_term_(,_term_COLON_term)*)?/%empty!insert	CREATE KEYSPACE a WITH a = { zzz }
-reject	accept	grammar	fullMapLiteral(term_COLON_term_(,_term_COLON_term)*)?/term_COLON_term_(,_term_COLON_term)*	CREATE KEYSPACE a WITH a = { 'a' : 'a' }
+accept	accept	grammar	fullMapLiteral(term_COLON_term_(,_term_COLON_term)*)?/term_COLON_term_(,_term_COLON_term)*	CREATE KEYSPACE a WITH a = { 'a' : 'a' }
 reject	reject	grammar	fullMapLiteral(term_COLON_term_(,_term_COLON_term)*)?/term_COLON_term_(,_term_COLON_term)*!drop-1	CREATE KEYSPACE a WITH a = { : 'a' }
 reject	reject	grammar	fullMapLiteral(term_COLON_term_(,_term_COLON_term)*)?/term_COLON_term_(,_term_COLON_term)*!drop-2	CREATE KEYSPACE a WITH a = { 'a' 'a' }
 reject	reject	grammar	fullMapLiteral(term_COLON_term_(,_term_COLON_term)*)?/term_COLON_term_(,_term_COLON_term)*!drop-3	CREATE KEYSPACE a WITH a = { 'a' : }
 reject	reject	grammar	fullMapLiteral(term_COLON_term_(,_term_COLON_term)*)?/term_COLON_term_(,_term_COLON_term)*!truncate	CREATE KEYSPACE a WITH a = { 'a' :
 reject	reject	grammar	fullMapLiteral(term_COLON_term_(,_term_COLON_term)*)?/term_COLON_term_(,_term_COLON_term)*!insert	CREATE KEYSPACE a WITH a = { 'a' : 'a' zzz }
-reject	accept	grammar	fullMapLiteral(,_term_COLON_term)*/%empty	CREATE KEYSPACE a WITH a = { 'a' : 'a' }
+accept	accept	grammar	fullMapLiteral(,_term_COLON_term)*/%empty	CREATE KEYSPACE a WITH a = { 'a' : 'a' }
 reject	reject	grammar	fullMapLiteral(,_term_COLON_term)*/,_term_COLON_term_(,_term_COLON_term)*	CREATE KEYSPACE a WITH a = { 'a' : 'a', 'a' : 'a' }
 reject	reject	grammar	fullMapLiteral(,_term_COLON_term)*/,_term_COLON_term_(,_term_COLON_term)*!drop-1	CREATE KEYSPACE a WITH a = { 'a' : 'a' 'a' : 'a' }
 reject	reject	grammar	fullMapLiteral(,_term_COLON_term)*/,_term_COLON_term_(,_term_COLON_term)*!drop-2	CREATE KEYSPACE a WITH a = { 'a' : 'a', : 'a' }
@@ -2460,8 +2460,8 @@ reject	reject	grammar	columnCondition(relationType_term|K_IN_(singleColumn~c69ba
 reject	reject	grammar	columnCondition(relationType_term|K_IN_(singleColumn~c69ba947)/K_IN_(singleColumnInValues|inMarker)!drop-2	DELETE FROM a WHERE a = 'a' IF a.a IN
 reject	reject	grammar	columnCondition(relationType_term|K_IN_(singleColumn~c69ba947)/K_IN_(singleColumnInValues|inMarker)!insert	DELETE FROM a WHERE a = 'a' IF a.a IN ? zzz
 reject	reject	grammar	columnCondition(relationType_term|K_IN_(singleColumn~c69ba947)/K_IN_(singleColumnInValues|inMarker)!swap	DELETE FROM a WHERE a = 'a' IF a.a INDEX ?
-reject	accept	grammar	properties/property_(K_AND_property)*	CREATE KEYSPACE a WITH a = 'a'
-reject	accept	grammar	properties(K_AND_property)*/%empty	CREATE KEYSPACE a WITH a = 'a'
+accept	accept	grammar	properties/property_(K_AND_property)*	CREATE KEYSPACE a WITH a = 'a'
+accept	accept	grammar	properties(K_AND_property)*/%empty	CREATE KEYSPACE a WITH a = 'a'
 reject	reject	grammar	properties(K_AND_property)*/K_AND_property_(K_AND_property)*	CREATE KEYSPACE a WITH a = 'a' AND a = 'a'
 reject	reject	grammar	properties(K_AND_property)*/K_AND_property_(K_AND_property)*!drop-1	CREATE KEYSPACE a WITH a = 'a' a = 'a'
 reject	reject	grammar	properties(K_AND_property)*/K_AND_property_(K_AND_property)*!drop-2	CREATE KEYSPACE a WITH a = 'a' AND = 'a'
@@ -2469,12 +2469,12 @@ reject	reject	grammar	properties(K_AND_property)*/K_AND_property_(K_AND_property
 reject	reject	grammar	properties(K_AND_property)*/K_AND_property_(K_AND_property)*!drop-4	CREATE KEYSPACE a WITH a = 'a' AND a =
 reject	reject	grammar	properties(K_AND_property)*/K_AND_property_(K_AND_property)*!insert	CREATE KEYSPACE a WITH a = 'a' AND a = 'a' zzz
 reject	reject	grammar	properties(K_AND_property)*/K_AND_property_(K_AND_property)*!swap	CREATE KEYSPACE a WITH a = 'a' ANN a = 'a'
-reject	accept	grammar	property/noncol_ident_=_propertyValue	CREATE KEYSPACE a WITH a = 'a'
-reject	accept	grammar	property/noncol_ident_=_fullMapLiteral	CREATE KEYSPACE a WITH a = { }
+accept	accept	grammar	property/noncol_ident_=_propertyValue	CREATE KEYSPACE a WITH a = 'a'
+accept	accept	grammar	property/noncol_ident_=_fullMapLiteral	CREATE KEYSPACE a WITH a = { }
 reject	reject	grammar	property/noncol_ident_=_fullMapLiteral!drop-1	CREATE KEYSPACE a WITH = { }
 reject	reject	grammar	property/noncol_ident_=_fullMapLiteral!drop-2	CREATE KEYSPACE a WITH a { }
-reject	accept	grammar	propertyValue/constant	CREATE KEYSPACE a WITH a = 'a'
-reject	accept	grammar	propertyValue/unreserved_keyword	CREATE KEYSPACE a WITH a = KEYS
+accept	accept	grammar	propertyValue/constant	CREATE KEYSPACE a WITH a = 'a'
+accept	accept	grammar	propertyValue/unreserved_keyword	CREATE KEYSPACE a WITH a = KEYS
 reject	reject	grammar	propertyValue/unreserved_keyword!insert	CREATE KEYSPACE a WITH a = KEYS zzz
 reject	reject	grammar	propertyValue/unreserved_keyword!swap	CREATE KEYSPACE a WITH a = KEYSPACE
 accept	accept	grammar	relationType/=	DELETE FROM a WHERE a = 'a'
@@ -2662,7 +2662,7 @@ reject	reject	grammar	comparatorType/vector_type!insert	ALTER TABLE a ADD a VECT
 reject	reject	grammar	comparatorType/vector_type!swap	ALTER TABLE a ADD a VIEW < ASCII, 1 >
 accept	accept	grammar	comparatorType/userTypeName	ALTER TABLE a ADD a a
 reject	reject	grammar	comparatorType/userTypeName!insert	ALTER TABLE a ADD a a zzz
-accept	reject	grammar	comparatorType/K_FROZEN_<_comparatorType_>	ALTER TABLE a ADD a FROZEN < ASCII >
+reject	reject	grammar	comparatorType/K_FROZEN_<_comparatorType_>	ALTER TABLE a ADD a FROZEN < ASCII >
 reject	reject	grammar	comparatorType/K_FROZEN_<_comparatorType_>!drop-2	ALTER TABLE a ADD a FROZEN ASCII >
 reject	reject	grammar	comparatorType/K_FROZEN_<_comparatorType_>!drop-3	ALTER TABLE a ADD a FROZEN < >
 reject	reject	grammar	comparatorType/K_FROZEN_<_comparatorType_>!drop-4	ALTER TABLE a ADD a FROZEN < ASCII
@@ -2728,7 +2728,7 @@ reject	reject	grammar	collection_type/K_MAP_<_comparatorType_,_comparatorType_>!
 reject	reject	grammar	collection_type/K_MAP_<_comparatorType_,_comparatorType_>!drop-5	ALTER TABLE a ADD a MAP < ASCII, >
 reject	reject	grammar	collection_type/K_MAP_<_comparatorType_,_comparatorType_>!drop-6	ALTER TABLE a ADD a MAP < ASCII, ASCII
 reject	reject	grammar	collection_type/K_MAP_<_comparatorType_,_comparatorType_>!insert	ALTER TABLE a ADD a MAP < ASCII, ASCII > zzz
-accept	reject	grammar	collection_type/K_MAP_<_comparatorType_,_comparatorType_>!swap	ALTER TABLE a ADD a MASKED < ASCII, ASCII >
+reject	reject	grammar	collection_type/K_MAP_<_comparatorType_,_comparatorType_>!swap	ALTER TABLE a ADD a MASKED < ASCII, ASCII >
 accept	accept	grammar	collection_type/K_LIST_<_comparatorType_>	ALTER TABLE a ADD a LIST < ASCII >
 accept	accept	grammar	collection_type/K_SET_<_comparatorType_>	ALTER TABLE a ADD a SET < ASCII >
 reject	reject	grammar	collection_type/K_SET_<_comparatorType_>!drop-2	ALTER TABLE a ADD a SET ASCII >
@@ -2747,18 +2747,18 @@ reject	reject	grammar	tuple_type(,_comparatorType)*/,_comparatorType_(,_comparat
 reject	reject	grammar	tuple_type(,_comparatorType)*/,_comparatorType_(,_comparatorType)*!swap	ALTER TABLE a ADD a TUPLE < ASCII, AUTHORIZE >
 accept	accept	grammar	vector_type/K_VECTOR_<_comparatorType_,_INTEGER_>	ALTER TABLE a ADD a VECTOR < ASCII, 1 >
 accept	accept	grammar	username/IDENT	CREATE USER a
-reject	accept	grammar	username/STRING_LITERAL	CREATE USER 'a'
+accept	accept	grammar	username/STRING_LITERAL	CREATE USER 'a'
 reject	reject	grammar	username/STRING_LITERAL!insert	CREATE USER 'a' zzz
-reject	accept	grammar	identity/IDENT	DROP IDENTITY a
-reject	accept	grammar	identity/STRING_LITERAL	DROP IDENTITY 'a'
+accept	accept	grammar	identity/IDENT	DROP IDENTITY a
+accept	accept	grammar	identity/STRING_LITERAL	DROP IDENTITY 'a'
 reject	reject	grammar	identity/STRING_LITERAL!insert	DROP IDENTITY 'a' zzz
-accept	reject	grammar	mbean/STRING_LITERAL	LIST ALL ON MBEAN 'a'
+reject	reject	grammar	mbean/STRING_LITERAL	LIST ALL ON MBEAN 'a'
 accept	accept	grammar	non_type_ident/IDENT	DROP TYPE a
 accept	accept	grammar	non_type_ident/QUOTED_NAME	DROP TYPE "a"
 reject	reject	grammar	non_type_ident/QUOTED_NAME!insert	DROP TYPE "a" zzz
 accept	accept	grammar	non_type_ident/basic_unreserved_keyword	DROP TYPE KEYS
 reject	reject	grammar	non_type_ident/basic_unreserved_keyword!insert	DROP TYPE KEYS zzz
-accept	reject	grammar	non_type_ident/basic_unreserved_keyword!swap	DROP TYPE KEYSPACE
+reject	reject	grammar	non_type_ident/basic_unreserved_keyword!swap	DROP TYPE KEYSPACE
 accept	accept	grammar	non_type_ident/K_KEY	DROP TYPE KEY
 reject	reject	grammar	non_type_ident/K_KEY!insert	DROP TYPE KEY zzz
 accept	accept	grammar	unreserved_keyword/unreserved_function_keyword	USE KEYS

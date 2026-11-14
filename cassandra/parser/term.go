@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/bytebase/omni/cassandra/ast"
@@ -32,28 +31,6 @@ func (p *Parser) mark() parserState {
 func (p *Parser) reset(s parserState) {
 	p.cur, p.prev, p.nextBuf, p.hasNext = s.cur, s.prev, s.nextBuf, s.hasNext
 	p.lexer.pos, p.lexer.Err, p.depth = s.pos, s.err, s.depth
-}
-
-// errorAt is errorf at tok rather than at the current token.
-func (p *Parser) errorAt(tok Token, format string, args ...any) *ParseError {
-	if pe, ok := p.lexer.Err.(*ParseError); ok {
-		return pe
-	}
-	line, col := offsetToLineCol(p.lexer.lineIdx, tok.Loc)
-	return &ParseError{
-		Message:  fmt.Sprintf(format, args...),
-		Position: tok.Loc, End: tok.End,
-		Line:   line,
-		Column: col,
-		Near:   tok.Str,
-	}
-}
-
-// isWord reports whether tok is the unquoted word w, in any case, whether
-// the lexer made it an identifier or a keyword. CQL keywords such as TOKEN,
-// COUNT, WRITETIME and LIKE are read this way.
-func isWord(tok Token, w string) bool {
-	return (tok.Type == tokIDENT || isKeyword(tok.Type)) && strings.EqualFold(tok.Str, w)
 }
 
 // isLiteralKeyword reports whether typ is a keyword that is a constant.
@@ -536,22 +513,6 @@ func (p *Parser) parseTermFunction() (*ast.FunctionCall, error) {
 	return &ast.FunctionCall{Name: name, Args: args, Loc: p.makeLoc(name.Loc.Start)}, nil
 }
 
-// reservedWords are the keywords of Lexer.g that Parser.g:1950
-// unreserved_keyword leaves out, so that no name may be spelled as one.
-var reservedWords = map[string]bool{
-	"add": true, "allow": true, "alter": true, "and": true, "apply": true, "asc": true,
-	"authorize": true, "batch": true, "begin": true, "by": true, "columnfamily": true,
-	"create": true, "delete": true, "desc": true, "describe": true, "drop": true,
-	"entries": true, "execute": true, "from": true, "full": true, "grant": true, "if": true,
-	"in": true, "index": true, "infinity": true, "insert": true, "into": true, "is": true,
-	"keyspace": true, "limit": true, "materialized": true, "modify": true, "nan": true,
-	"norecursive": true, "not": true, "null": true, "of": true, "on": true, "or": true,
-	"order": true, "primary": true, "rename": true, "revoke": true, "schema": true,
-	"select": true, "set": true, "table": true, "to": true, "token": true, "truncate": true,
-	"unlogged": true, "update": true, "use": true, "using": true, "view": true, "where": true,
-	"with": true,
-}
-
 // isUnreservedName reports whether tok can be a name where Parser.g wants a
 // field name (fident) or a bind marker name (noncol_ident): a name that is
 // not a reserved word.
@@ -559,5 +520,5 @@ func isUnreservedName(tok Token) bool {
 	if tok.Type == tokQUOTED {
 		return true
 	}
-	return isNameToken(tok) && !reservedWords[strings.ToLower(tok.Str)]
+	return isNameToken(tok) && !reservedKeywords[strings.ToLower(tok.Str)]
 }

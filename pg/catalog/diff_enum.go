@@ -14,7 +14,7 @@ func diffEnums(from, to *Catalog) []EnumDiffEntry {
 		m := make(map[enumKey][]string, len(c.enumTypes))
 		for typeOID, et := range c.enumTypes {
 			bt := c.typeByOID[typeOID]
-			if bt == nil {
+			if bt == nil || c.isExtensionMember(typeOID) {
 				continue
 			}
 			s := c.schemas[bt.Namespace]
