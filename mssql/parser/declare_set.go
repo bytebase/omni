@@ -105,6 +105,11 @@ var setStatisticsOptions = newOptionSet(
 //	  | { @cursor_variable_name CURSOR }
 //	  | { @table_variable_name [AS] TABLE ( { <column_definition> | <table_constraint> | <table_index> } [ , ...n ] ) }
 //	} [ , ...n ]
+//
+// declareStatements (TSql160.g:16366): a table variable is declared alone
+// (declareTableBody, TSql160.g:16697), the others in a list where each one
+// is required after a comma, and SQL Server refuses a name declared twice
+// (Msg 134; names compare without case).
 func (p *Parser) parseDeclareStmt() (*nodes.DeclareStmt, error) {
 	loc := p.pos()
 	p.advance() // consume DECLARE
@@ -120,15 +125,27 @@ func (p *Parser) parseDeclareStmt() (*nodes.DeclareStmt, error) {
 	}
 
 	var vars []nodes.Node
+	seen := map[string]bool{}
 	for {
 		vd, err := p.parseVariableDecl()
 		if err != nil {
 			return nil, err
 		}
 		if vd == nil {
+			if p.collectMode() {
+				break
+			}
+			return nil, p.syntaxErrorAtCur()
+		}
+		key := strings.ToLower(vd.Name)
+		if seen[key] {
+			return nil, p.newParseError(vd.Loc.Start, fmt.Sprintf("the variable name '%s' has already been declared", vd.Name))
+		}
+		seen[key] = true
+		vars = append(vars, vd)
+		if vd.IsTable {
 			break
 		}
-		vars = append(vars, vd)
 		if _, ok := p.match(','); !ok {
 			break
 		}
@@ -213,7 +230,14 @@ func (p *Parser) parseVariableDecl() (*nodes.VariableDecl, error) {
 			if _, err := p.expect(')'); err != nil {
 				return nil, err
 			}
+			// The body holds an element (declareTableBodyMain): SQL Server
+			// refuses TABLE () (Msg 102).
+			if len(cols) == 0 {
+				return nil, p.transSyntaxErrorAtPrev()
+			}
 			vd.TableDef = &nodes.List{Items: cols}
+		} else {
+			return nil, p.syntaxErrorAtCur()
 		}
 		vd.Loc.End = p.prevEnd()
 		return vd, nil
@@ -237,13 +261,17 @@ func (p *Parser) parseVariableDecl() (*nodes.VariableDecl, error) {
 	}
 	vd.DataType = dt
 
-	// Optional default value
+	// Optional default value, which = requires (declareVariableElement,
+	// TSql160.g:16335).
 	if p.cur.Type == '=' {
 		p.advance()
 		var err error
 		vd.Default, err = p.parseExpr()
 		if err != nil {
 			return nil, err
+		}
+		if vd.Default == nil {
+			return nil, p.syntaxErrorAtCur()
 		}
 	}
 
@@ -257,6 +285,7 @@ func (p *Parser) parseVariableDecl() (*nodes.VariableDecl, error) {
 //
 //	SET @local_variable { = | += | -= | *= | /= | %= | &= | ^= | |= } expression
 //	SET @local_variable.property_name = expression
+//	SET @local_variable.method_name ( [ argument [ ,...n ] ] )
 //	SET @local_variable = CURSOR [ FORWARD_ONLY | SCROLL ] ... FOR select_statement
 //
 // BNF: mssql/parser/bnf/set-transaction-isolation-level-transact-sql.bnf
@@ -270,6 +299,10 @@ func (p *Parser) parseVariableDecl() (*nodes.VariableDecl, error) {
 //	SET option_name [ , ...n ] { ON | OFF }
 //	SET IDENTITY_INSERT table_name { ON | OFF }
 //	SET STATISTICS { IO | TIME | PROFILE | XML } [ , ...n ] { ON | OFF }
+//
+// setVariableStatement (TSql160.g:16406): the assignment, a property or
+// method after a dot, or a cursor definition is required. SQL Server
+// refuses the :: form there (Msg 102).
 func (p *Parser) parseSetStmt() (nodes.StmtNode, error) {
 	loc := p.pos()
 	p.advance() // consume SET
@@ -282,61 +315,94 @@ func (p *Parser) parseSetStmt() (nodes.StmtNode, error) {
 		return nil, errCollecting
 	}
 
-	if p.cur.Type == tokVARIABLE {
-		// SET @var { = | += | -= | *= | /= | %= | &= | ^= | |= } expr
-		stmt := &nodes.SetStmt{
-			Loc: nodes.Loc{Start: loc, End: -1},
+	if p.cur.Type != tokVARIABLE {
+		// SET session option
+		return p.parseSetOptionStmt(loc)
+	}
+
+	// SET @var ...
+	stmt := &nodes.SetStmt{
+		Loc: nodes.Loc{Start: loc, End: -1},
+	}
+	stmt.Variable = p.cur.Str
+	p.advance()
+
+	// SET @var.property = expr | SET @var.method ( [ args ] )
+	if p.cur.Type == '.' {
+		p.advance() // consume .
+		name, ok := p.parseIdentifier()
+		if !ok {
+			return nil, p.syntaxErrorAtCur()
 		}
-		stmt.Variable = p.cur.Str
-		p.advance()
-		// Completion: after SET @v = → expression context
-		if p.cur.Type == '=' {
-			p.advance()
-			if p.collectMode() {
-				p.addRuleCandidate("columnref")
-				p.addRuleCandidate("func_name")
-				return nil, errCollecting
-			}
-			val, err := p.parseExpr()
+		stmt.Property = name
+		if p.cur.Type == '(' {
+			callLoc := p.prev.Loc
+			args, err := p.parseSetMethodArgs()
 			if err != nil {
 				return nil, err
 			}
-			if val == nil {
-				return nil, p.newParseError(p.cur.Loc, "expected expression after SET =")
+			stmt.Value = &nodes.FuncCallExpr{
+				Name: &nodes.TableRef{Object: name, Loc: nodes.Loc{Start: callLoc, End: callLoc + len(name)}},
+				Args: args,
+				Loc:  nodes.Loc{Start: callLoc, End: p.prevEnd()},
 			}
-			stmt.Value = val
 			stmt.Loc.End = p.prevEnd()
 			return stmt, nil
 		}
-		// Check for compound assignment operators or simple =
-		if op := p.isCompoundAssign(); op != "" {
-			stmt.Operator = op
-			p.advance()
-			val, err := p.parseExpr()
-			if err != nil {
-				return nil, err
-			}
-			if val == nil {
-				return nil, p.newParseError(p.cur.Loc, "expected expression after SET assignment operator")
-			}
-			stmt.Value = val
-		} else if _, err := p.expect('='); err == nil {
-			val, err2 := p.parseExpr()
-			if err2 != nil {
-				return nil, err2
-			}
-			if val == nil {
-				return nil, p.newParseError(p.cur.Loc, "expected expression after SET =")
-			}
-			stmt.Value = val
+	}
+
+	if op := p.isCompoundAssign(); op != "" {
+		stmt.Operator = op
+		p.advance()
+	} else if _, err := p.expect('='); err != nil {
+		return nil, err
+	}
+
+	// SET @var = CURSOR ... (cursorDefinition, TSql160.g:16783)
+	if p.cur.Type == kwCURSOR && stmt.Operator == "" && stmt.Property == "" {
+		cursor := &nodes.DeclareCursorStmt{Loc: nodes.Loc{Start: p.pos(), End: -1}}
+		p.advance() // consume CURSOR
+		if err := p.parseCursorDefinitionTail(cursor); err != nil {
+			return nil, err
 		}
+		cursor.Loc.End = p.prevEnd()
+		stmt.Cursor = cursor
 		stmt.Loc.End = p.prevEnd()
 		return stmt, nil
 	}
 
-	// SET session option
-	stmt, err := p.parseSetOptionStmt(loc)
-	return stmt, err
+	// Completion: after SET @v = → expression context
+	if p.collectMode() {
+		p.addRuleCandidate("columnref")
+		p.addRuleCandidate("func_name")
+		return nil, errCollecting
+	}
+	val, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if val == nil {
+		return nil, p.newParseError(p.cur.Loc, "expected expression after SET assignment")
+	}
+	stmt.Value = val
+	stmt.Loc.End = p.prevEnd()
+	return stmt, nil
+}
+
+// setCommandNames are the options of setCommand (TSql160.g:16555) that take
+// a constant or a name: SET LANGUAGE us_english, SET DATEFIRST 1, ...
+// (GeneralSetCommandTypeHelper). They may be listed:
+// SET DATEFIRST 1, LANGUAGE us_english.
+var setCommandNames = map[string]bool{
+	"LANGUAGE": true, "DATEFORMAT": true, "DATEFIRST": true, "DEADLOCK_PRIORITY": true,
+	"LOCK_TIMEOUT": true, "QUERY_GOVERNOR_COST_LIMIT": true, "CONTEXT_INFO": true,
+}
+
+// setOffsetsItems are the words of SET OFFSETS (offsetItem, TSql160.g:16520).
+var setOffsetsItems = map[string]bool{
+	"SELECT": true, "FROM": true, "ORDER": true, "COMPUTE": true, "TABLE": true,
+	"PROCEDURE": true, "PROC": true, "EXECUTE": true, "EXEC": true,
+	"STATEMENT": true, "PARAM": true,
 }
 
 // parseSetOptionStmt parses SET session option statements.
@@ -355,181 +421,228 @@ func (p *Parser) parseSetStmt() (nodes.StmtNode, error) {
 //
 // The list form is the one the indexed views reference uses:
 // https://learn.microsoft.com/en-us/sql/relational-databases/views/create-indexed-views
+//
+// setStatements (TSql160.g:16386) reads each form by its words, and each
+// part is required: the isolation level (TSql160.g:16589), the table and ON
+// or OFF of IDENTITY_INSERT (TSql160.g:16650), the OFFSETS words and ON or
+// OFF (TSql160.g:16504), the STATISTICS options and ON or OFF
+// (TSql160.g:16671), ROWCOUNT's integer or variable (TSql160.g:16494),
+// TEXTSIZE's and ERRLVL's signed integer (TSql160.g:16640, 16661),
+// FIPS_FLAGGER's OFF or level string, a command's constant or name
+// (setCommand, TSql160.g:16555), and a predicate option's ON or OFF
+// (predicateSetStatement, TSql160.g:16470).
 func (p *Parser) parseSetOptionStmt(loc int) (*nodes.SetOptionStmt, error) {
 	stmt := &nodes.SetOptionStmt{
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
+	done := func(value nodes.ExprNode) (*nodes.SetOptionStmt, error) {
+		stmt.Value = value
+		if stmt.Options == nil {
+			stmt.Options = []string{stmt.Option}
+		}
+		stmt.Loc.End = p.prevEnd()
+		return stmt, nil
+	}
 
-	// TRANSACTION ISOLATION LEVEL
-	if p.cur.Type == kwTRANSACTION {
-		p.advance() // consume TRANSACTION
-		// ISOLATION
-		if p.cur.Type == kwISOLATION {
-			p.advance()
+	switch {
+	case p.cur.Type == kwTRANSACTION || p.cur.Type == kwTRAN:
+		// TRANSACTION ISOLATION LEVEL
+		p.advance() // consume TRANSACTION or TRAN
+		if _, err := p.expect(kwISOLATION); err != nil {
+			return nil, err
 		}
-		// LEVEL
-		if p.cur.Type == kwLEVEL {
-			p.advance()
+		if _, err := p.expect(kwLEVEL); err != nil {
+			return nil, err
 		}
-		// isolation level name: READ UNCOMMITTED / READ COMMITTED / REPEATABLE READ / SNAPSHOT / SERIALIZABLE
 		stmt.Option = "TRANSACTION ISOLATION LEVEL"
 		valLoc := p.pos()
 		var level string
-		if p.cur.Type == kwREAD {
+		switch p.cur.Type {
+		case kwREAD:
 			p.advance() // consume READ
-			if p.cur.Type == kwUNCOMMITTED {
-				p.advance()
+			switch p.cur.Type {
+			case kwUNCOMMITTED:
 				level = "READ UNCOMMITTED"
-			} else if p.cur.Type == kwCOMMITTED {
-				p.advance()
+			case kwCOMMITTED:
 				level = "READ COMMITTED"
-			} else {
-				level = "READ"
-			}
-		} else if p.cur.Type == kwREPEATABLE {
-			p.advance() // consume REPEATABLE
-			if p.cur.Type == kwREAD {
-				p.advance()
-			}
-			level = "REPEATABLE READ"
-		} else if p.cur.Type == kwSERIALIZABLE {
-			p.advance()
-			level = "SERIALIZABLE"
-		} else if p.cur.Type == kwSNAPSHOT {
-			p.advance()
-			level = "SNAPSHOT"
-		}
-		stmt.Value = &nodes.ColumnRef{Column: level, Loc: nodes.Loc{Start: valLoc, End: p.prevEnd()}}
-		stmt.Options = []string{stmt.Option}
-		stmt.Loc.End = p.prevEnd()
-		return stmt, nil
-	}
-
-	// IDENTITY_INSERT table ON|OFF
-	if p.cur.Type == kwIDENTITY_INSERT {
-		p.advance() // consume IDENTITY_INSERT
-		stmt.Option = "IDENTITY_INSERT"
-		// table name
-		tableRef, _ := p.parseTableRef()
-		// ON or OFF
-		var onoff string
-		if p.cur.Type == kwON {
-			onoff = "ON"
-			p.advance()
-		} else if p.cur.Type == kwOFF {
-			onoff = "OFF"
-			p.advance()
-		}
-		valLoc := p.pos()
-		// Store "table ON/OFF" as option value
-		var tableName string
-		if tableRef != nil {
-			if tableRef.Schema != "" {
-				tableName = tableRef.Schema + "." + tableRef.Object
-			} else {
-				tableName = tableRef.Object
-			}
-		}
-		stmt.Value = &nodes.ColumnRef{Column: tableName + " " + onoff, Loc: nodes.Loc{Start: valLoc, End: -1}}
-		stmt.Options = []string{stmt.Option}
-		stmt.Loc.End = p.prevEnd()
-		return stmt, nil
-	}
-
-	// SET OFFSETS keyword_list { ON | OFF }
-	// BNF: mssql/parser/bnf/set-offsets-transact-sql.bnf
-	//
-	//	SET OFFSETS keyword_list { ON | OFF }
-	//	keyword_list: SELECT, FROM, ORDER, COMPUTE, TABLE, PROCEDURE, STATEMENT, PARAM, EXECUTE
-	if p.cur.Type == kwOFFSETS {
-		p.advance() // consume OFFSETS
-		stmt.Option = "OFFSETS"
-		// Collect comma-separated keyword list
-		var keywords []string
-		for {
-			if p.cur.Type == kwON || p.cur.Type == kwOFF {
-				break
-			}
-			if p.cur.Type == ';' || p.cur.Type == tokEOF || p.cur.Type == kwGO {
-				break
-			}
-			if p.cur.Type == ',' {
-				p.advance()
-				continue
-			}
-			keywords = append(keywords, strings.ToUpper(p.cur.Str))
-			p.advance()
-		}
-		if len(keywords) > 0 {
-			stmt.Option = "OFFSETS " + strings.Join(keywords, ", ")
-		}
-		if p.cur.Type == kwON {
-			onLoc := p.pos()
-			p.advance()
-			stmt.Value = &nodes.ColumnRef{Column: "ON", Loc: nodes.Loc{Start: onLoc, End: -1}}
-		} else if p.cur.Type == kwOFF {
-			offLoc := p.pos()
-			p.advance()
-			stmt.Value = &nodes.ColumnRef{Column: "OFF", Loc: nodes.Loc{Start: offLoc, End: -1}}
-		}
-		stmt.Options = []string{stmt.Option}
-		stmt.Loc.End = p.prevEnd()
-		return stmt, nil
-	}
-
-	// Generic option name — validated against setOptions
-	if !p.isValidOption(setOptions) {
-		return nil, p.newParseError(p.cur.Loc, "expected SET option name")
-	}
-	name := p.cur
-	listOptions, listPrefix := setOnOffListOptions, ""
-	stmt.Option = strings.ToUpper(p.cur.Str)
-	p.advance()
-
-	// STATISTICS IO|TIME|PROFILE|XML (multi-word option)
-	if stmt.Option == "STATISTICS" && p.isIdentLike() {
-		name = p.cur
-		listOptions, listPrefix = setStatisticsOptions, "STATISTICS "
-		stmt.Option = stmt.Option + " " + strings.ToUpper(p.cur.Str)
-		p.advance()
-	}
-	stmt.Options = []string{stmt.Option}
-
-	// SET option_name, option_name [, ...] { ON | OFF }
-	if p.cur.Type == ',' {
-		if !p.isSetListOption(name, listOptions) {
-			return nil, p.newParseError(name.Loc, fmt.Sprintf("SET %s cannot be listed with other options", stmt.Option))
-		}
-		for p.cur.Type == ',' {
-			p.advance() // consume ,
-			if !p.isSetListOption(p.cur, listOptions) {
+			default:
 				return nil, p.syntaxErrorAtCur()
 			}
-			stmt.Options = append(stmt.Options, listPrefix+strings.ToUpper(p.cur.Str))
 			p.advance()
+		case kwREPEATABLE:
+			p.advance() // consume REPEATABLE
+			if _, err := p.expect(kwREAD); err != nil {
+				return nil, err
+			}
+			level = "REPEATABLE READ"
+		case kwSERIALIZABLE:
+			p.advance()
+			level = "SERIALIZABLE"
+		case kwSNAPSHOT:
+			p.advance()
+			level = "SNAPSHOT"
+		default:
+			return nil, p.syntaxErrorAtCur()
 		}
+		return done(&nodes.ColumnRef{Column: level, Loc: nodes.Loc{Start: valLoc, End: p.prevEnd()}})
+
+	case p.cur.Type == kwIDENTITY_INSERT:
+		// IDENTITY_INSERT table ON|OFF
+		p.advance() // consume IDENTITY_INSERT
+		stmt.Option = "IDENTITY_INSERT"
+		tableRef, err := p.parseTableRef()
+		if err != nil {
+			return nil, err
+		}
+		if tableRef == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		valLoc := p.pos()
 		onOff := p.parseSetOnOff()
 		if onOff == nil {
 			return nil, p.syntaxErrorAtCur()
 		}
-		stmt.Value = onOff
-		stmt.Loc.End = p.prevEnd()
-		return stmt, nil
-	}
+		// Store "table ON/OFF" as option value
+		tableName := tableRef.Object
+		if tableRef.Schema != "" {
+			tableName = tableRef.Schema + "." + tableRef.Object
+		}
+		return done(&nodes.ColumnRef{Column: tableName + " " + onOff.Column, Loc: nodes.Loc{Start: valLoc, End: -1}})
 
-	if onOff := p.parseSetOnOff(); onOff != nil {
-		stmt.Value = onOff
-	} else if p.cur.Type != ';' && p.cur.Type != tokEOF && p.cur.Type != kwGO {
-		// Could be SET ROWCOUNT n, SET LANGUAGE ..., SET DATEFORMAT ..., etc.
-		var err error
-		stmt.Value, err = p.parseExpr()
+	case p.cur.Type == kwOFFSETS:
+		// SET OFFSETS keyword_list { ON | OFF }
+		p.advance() // consume OFFSETS
+		var keywords []string
+		for {
+			if !p.isKeywordOrIdent() || p.isDelimited(p.cur) || !setOffsetsItems[strings.ToUpper(p.cur.Str)] {
+				return nil, p.syntaxErrorAtCur()
+			}
+			keywords = append(keywords, strings.ToUpper(p.cur.Str))
+			p.advance()
+			if _, ok := p.match(','); !ok {
+				break
+			}
+		}
+		stmt.Option = "OFFSETS " + strings.Join(keywords, ", ")
+		onOff := p.parseSetOnOff()
+		if onOff == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		return done(onOff)
+
+	case p.cur.Type == kwROWCOUNT, p.cur.Type == kwTEXTSIZE, p.cur.Type == kwERRLVL:
+		stmt.Option = strings.ToUpper(p.cur.Str)
+		p.advance()
+		kinds := procValueKinds{signedInt: true}
+		if stmt.Option == "ROWCOUNT" {
+			kinds = procValueKinds{integer: true, variable: true}
+		}
+		value, err := p.parseProcValue(kinds)
 		if err != nil {
 			return nil, err
 		}
+		return done(value)
+
+	case p.procIsWord("FIPS_FLAGGER"):
+		stmt.Option = "FIPS_FLAGGER"
+		p.advance()
+		if p.cur.Type == kwOFF {
+			return done(p.parseSetOnOff())
+		}
+		// fipsFlaggerLevel (TSql160.g:16573): the pinned server takes
+		// 'ENTRY', 'INTERMEDIATE' and 'FULL', as a plain string (Msg 102).
+		switch strings.ToUpper(p.cur.Str) {
+		case "ENTRY", "INTERMEDIATE", "FULL":
+			if p.cur.Type == tokSCONST {
+				value, err := p.parsePrimary()
+				if err != nil {
+					return nil, err
+				}
+				return done(value)
+			}
+		}
+		return nil, p.syntaxErrorAtCur()
 	}
 
-	stmt.Loc.End = p.prevEnd()
-	return stmt, nil
+	// SET STATISTICS IO|TIME|PROFILE|XML [, ...] ON|OFF
+	if p.cur.Type == kwSTATISTICS {
+		statsTok := p.advance()
+		if p.cur.Type == ',' {
+			return nil, p.newParseError(statsTok.Loc, "SET STATISTICS cannot be listed with other options")
+		}
+		for {
+			if !p.isSetListOption(p.cur, setStatisticsOptions) {
+				return nil, p.syntaxErrorAtCur()
+			}
+			stmt.Options = append(stmt.Options, "STATISTICS "+strings.ToUpper(p.cur.Str))
+			p.advance()
+			if _, ok := p.match(','); !ok {
+				break
+			}
+		}
+		stmt.Option = stmt.Options[0]
+		onOff := p.parseSetOnOff()
+		if onOff == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		return done(onOff)
+	}
+
+	// SET command value [, command value ...]
+	if (p.isKeywordOrIdent() && !p.isDelimited(p.cur)) && setCommandNames[strings.ToUpper(p.cur.Str)] {
+		var value nodes.ExprNode
+		for {
+			if !p.isKeywordOrIdent() || p.isDelimited(p.cur) || !setCommandNames[strings.ToUpper(p.cur.Str)] {
+				return nil, p.syntaxErrorAtCur()
+			}
+			stmt.Options = append(stmt.Options, strings.ToUpper(p.cur.Str))
+			nameTok := p.advance()
+			if p.cur.Type == ',' {
+				return nil, p.newParseError(nameTok.Loc, fmt.Sprintf("SET %s needs a value before the next option", strings.ToUpper(nameTok.Str)))
+			}
+			v, err := p.parseProcConstantOrIdentifier()
+			if err != nil {
+				return nil, err
+			}
+			if value == nil {
+				value = v
+			}
+			if _, ok := p.match(','); !ok {
+				break
+			}
+		}
+		stmt.Option = stmt.Options[0]
+		return done(value)
+	}
+
+	// Predicate option — validated against setOptions
+	if !p.isValidOption(setOptions) {
+		return nil, p.newParseError(p.cur.Loc, "expected SET option name")
+	}
+	name := p.cur
+	stmt.Option = strings.ToUpper(p.cur.Str)
+	p.advance()
+	stmt.Options = []string{stmt.Option}
+
+	// SET option_name, option_name [, ...] { ON | OFF }
+	if p.cur.Type == ',' {
+		if !p.isSetListOption(name, setOnOffListOptions) {
+			return nil, p.newParseError(name.Loc, fmt.Sprintf("SET %s cannot be listed with other options", stmt.Option))
+		}
+		for p.cur.Type == ',' {
+			p.advance() // consume ,
+			if !p.isSetListOption(p.cur, setOnOffListOptions) {
+				return nil, p.syntaxErrorAtCur()
+			}
+			stmt.Options = append(stmt.Options, strings.ToUpper(p.cur.Str))
+			p.advance()
+		}
+	}
+	onOff := p.parseSetOnOff()
+	if onOff == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	return done(onOff)
 }
 
 // isSetListOption reports whether tok names an option of opts that may appear
@@ -562,4 +675,38 @@ func (p *Parser) parseSetOnOff() *nodes.ColumnRef {
 	loc := p.pos()
 	p.advance()
 	return &nodes.ColumnRef{Column: value, Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}
+}
+
+// parseSetMethodArgs parses parenthesizedOptExpressionWithDefaultList
+// (TSql160.g:32501): ( [ { expression | DEFAULT } [ ,...n ] ] ).
+func (p *Parser) parseSetMethodArgs() (*nodes.List, error) {
+	p.advance() // consume (
+	var args []nodes.Node
+	for p.cur.Type != ')' {
+		var arg nodes.ExprNode
+		if p.cur.Type == kwDEFAULT {
+			tok := p.advance()
+			arg = &nodes.Literal{Type: nodes.LitDefault, Loc: nodes.Loc{Start: tok.Loc, End: p.prevEnd()}}
+		} else {
+			var err error
+			arg, err = p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
+			if arg == nil {
+				return nil, p.syntaxErrorAtCur()
+			}
+		}
+		args = append(args, arg)
+		if _, ok := p.match(','); !ok {
+			break
+		}
+		if p.cur.Type == ')' {
+			return nil, p.syntaxErrorAtCur()
+		}
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return &nodes.List{Items: args}, nil
 }

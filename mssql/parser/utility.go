@@ -10,6 +10,8 @@ import (
 // parseUseStmt parses a USE database statement.
 //
 //	USE database
+//
+// useStatement (TSql160.g:13635): the database is required.
 func (p *Parser) parseUseStmt() (*nodes.UseStmt, error) {
 	loc := p.pos()
 	p.advance() // consume USE
@@ -24,10 +26,11 @@ func (p *Parser) parseUseStmt() (*nodes.UseStmt, error) {
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.isIdentLike() {
-		stmt.Database = p.cur.Str
-		p.advance()
+	name, ok := p.parseIdentifier()
+	if !ok {
+		return nil, p.syntaxErrorAtCur()
 	}
+	stmt.Database = name
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
@@ -74,6 +77,11 @@ func (p *Parser) parsePrintStmt() (*nodes.PrintStmt, error) {
 //	    { , severity , state }
 //	    [ , argument [ , ...n ] ] )
 //	    [ WITH option [ , ...n ] ]
+//
+// raiseErrorStatement (TSql160.g:19486): the message is a signed integer, a
+// string or a variable, severity and state signed integers or variables, an
+// argument a constant or a negative number, all required where written; the
+// options are LOG, NOWAIT and SETERROR.
 func (p *Parser) parseRaiseErrorStmt() (*nodes.RaiseErrorStmt, error) {
 	loc := p.pos()
 	p.advance() // consume RAISERROR
@@ -89,58 +97,54 @@ func (p *Parser) parseRaiseErrorStmt() (*nodes.RaiseErrorStmt, error) {
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
-	// RAISERROR can use parens or not: RAISERROR('msg', 16, 1)
-	if _, err := p.expect('('); err == nil {
-		// Completion: after RAISERROR( → expression context
-		if p.collectMode() {
-			p.addRuleCandidate("columnref")
-			p.addRuleCandidate("func_name")
-			return nil, errCollecting
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	// Completion: after RAISERROR( → expression context
+	if p.collectMode() {
+		p.addRuleCandidate("columnref")
+		p.addRuleCandidate("func_name")
+		return nil, errCollecting
+	}
+	var err error
+	stmt.Message, err = p.parseProcValue(procValueKinds{signedInt: true, str: true, variable: true})
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(','); err != nil {
+		return nil, err
+	}
+	stmt.Severity, err = p.parseProcValue(procValueKinds{signedInt: true, variable: true})
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(','); err != nil {
+		return nil, err
+	}
+	stmt.State, err = p.parseProcValue(procValueKinds{signedInt: true, variable: true})
+	if err != nil {
+		return nil, err
+	}
+	// Optional args: possibleNegativeConstant (TSql160.g:25159)
+	var args []nodes.Node
+	for {
+		if _, ok := p.match(','); !ok {
+			break
 		}
-		// Message
-		var err error
-		stmt.Message, err = p.parseExpr()
+		if p.isIdentLike() {
+			return nil, p.syntaxErrorAtCur()
+		}
+		arg, err := p.parseProcConstantOrIdentifier()
 		if err != nil {
 			return nil, err
 		}
-
-		// Severity
-		if _, ok := p.match(','); ok {
-			var err error
-			stmt.Severity, err = p.parseExpr()
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		// State
-		if _, ok := p.match(','); ok {
-			var err error
-			stmt.State, err = p.parseExpr()
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		// Optional args
-		var args []nodes.Node
-		for {
-			if _, ok := p.match(','); !ok {
-				break
-			}
-			arg, err := p.parseExpr()
-			if err != nil {
-				return nil, err
-			}
-			args = append(args, arg)
-		}
-		if len(args) > 0 {
-			stmt.Args = &nodes.List{Items: args}
-		}
-
-		if _, err := p.expect(')'); err != nil {
-			return nil, err
-		}
+		args = append(args, arg)
+	}
+	if len(args) > 0 {
+		stmt.Args = &nodes.List{Items: args}
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
 	}
 
 	// WITH options (LOG, NOWAIT, SETERROR)
@@ -148,19 +152,16 @@ func (p *Parser) parseRaiseErrorStmt() (*nodes.RaiseErrorStmt, error) {
 		p.advance()
 		var opts []nodes.Node
 		for {
-			if p.isIdentLike() || p.cur.Type == kwNOWAIT {
-				opts = append(opts, &nodes.String{Str: strings.ToUpper(p.cur.Str)})
-				p.advance()
-			} else {
-				break
+			if !p.procIsWord("LOG") && !p.procIsWord("NOWAIT") && !p.procIsWord("SETERROR") {
+				return nil, p.syntaxErrorAtCur()
 			}
+			opts = append(opts, &nodes.String{Str: strings.ToUpper(p.cur.Str)})
+			p.advance()
 			if _, ok := p.match(','); !ok {
 				break
 			}
 		}
-		if len(opts) > 0 {
-			stmt.Options = &nodes.List{Items: opts}
-		}
+		stmt.Options = &nodes.List{Items: opts}
 	}
 
 	stmt.Loc.End = p.prevEnd()
@@ -175,6 +176,9 @@ func (p *Parser) parseRaiseErrorStmt() (*nodes.RaiseErrorStmt, error) {
 //	    , { message | @local_variable }
 //	    , { state | @local_variable } ]
 //	[ ; ]
+//
+// throwStatement (TSql160.g:19537): all three arguments or none, and none
+// only inside a CATCH block (Msg 10704).
 func (p *Parser) parseThrowStmt() (*nodes.ThrowStmt, error) {
 	loc := p.pos()
 	p.advance() // consume THROW
@@ -193,33 +197,31 @@ func (p *Parser) parseThrowStmt() (*nodes.ThrowStmt, error) {
 	// THROW without arguments = rethrow
 	if p.cur.Type == ';' || p.cur.Type == tokEOF || p.cur.Type == kwEND ||
 		p.isStatementStart() {
+		if p.procCatchDepth == 0 {
+			return nil, p.newParseError(loc, "to rethrow an error, a THROW statement must be used inside a CATCH block")
+		}
 		stmt.Loc.End = p.prevEnd()
 		return stmt, nil
 	}
 
-	// Error number
 	var err error
-	stmt.ErrorNumber, err = p.parseExpr()
+	stmt.ErrorNumber, err = p.parseProcValue(procValueKinds{signedInt: true, variable: true})
 	if err != nil {
 		return nil, err
 	}
-
-	// Message
-	if _, ok := p.match(','); ok {
-		var err error
-		stmt.Message, err = p.parseExpr()
-		if err != nil {
-			return nil, err
-		}
+	if _, err := p.expect(','); err != nil {
+		return nil, err
 	}
-
-	// State
-	if _, ok := p.match(','); ok {
-		var err error
-		stmt.State, err = p.parseExpr()
-		if err != nil {
-			return nil, err
-		}
+	stmt.Message, err = p.parseProcValue(procValueKinds{str: true, variable: true})
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(','); err != nil {
+		return nil, err
+	}
+	stmt.State, err = p.parseProcValue(procValueKinds{integer: true, variable: true})
+	if err != nil {
+		return nil, err
 	}
 
 	stmt.Loc.End = p.prevEnd()
@@ -280,6 +282,8 @@ func (p *Parser) parseReconfigureStmt() (*nodes.ReconfigureStmt, error) {
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/language-elements/shutdown-transact-sql
 //
 //	SHUTDOWN [ WITH NOWAIT ]
+//
+// shutdownStatement (TSql160.g:13833).
 func (p *Parser) parseShutdownStmt() (*nodes.ShutdownStmt, error) {
 	loc := p.pos()
 	p.advance() // consume SHUTDOWN
@@ -291,10 +295,11 @@ func (p *Parser) parseShutdownStmt() (*nodes.ShutdownStmt, error) {
 	// WITH NOWAIT
 	if p.cur.Type == kwWITH {
 		p.advance()
-		if p.cur.Type == kwNOWAIT {
-			p.advance()
-			stmt.WithNoWait = true
+		if p.cur.Type != kwNOWAIT {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance()
+		stmt.WithNoWait = true
 	}
 
 	stmt.Loc.End = p.prevEnd()
@@ -308,6 +313,9 @@ func (p *Parser) parseShutdownStmt() (*nodes.ShutdownStmt, error) {
 //	KILL { session_id [ WITH STATUSONLY ] | UOW [ WITH STATUSONLY | COMMIT | ROLLBACK ] }
 //	KILL STATS JOB job_id
 //	KILL QUERY NOTIFICATION SUBSCRIPTION { ALL | subscription_id }
+//
+// killStatement (TSql160.g:13723): a signed integer or a string, which SQL
+// Server converts to a unit of work's GUID (Msg 8169 when it is not one).
 func (p *Parser) parseKillStmt() (nodes.StmtNode, error) {
 	loc := p.pos()
 	p.advance() // consume KILL
@@ -333,21 +341,29 @@ func (p *Parser) parseKillStmt() (nodes.StmtNode, error) {
 	}
 
 	// session_id or UOW
-	stmt.SessionID, _ = p.parseExpr()
+	if procIsString(p.cur) && !procIsGUID(p.cur.Str) {
+		return nil, p.newParseError(p.cur.Loc, "conversion failed when converting from a character string to uniqueidentifier")
+	}
+	var err error
+	stmt.SessionID, err = p.parseProcValue(procValueKinds{signedInt: true, str: true})
+	if err != nil {
+		return nil, err
+	}
 
 	// WITH { STATUSONLY | COMMIT | ROLLBACK }
 	if p.cur.Type == kwWITH {
 		p.advance()
-		if p.cur.Type == kwSTATUSONLY {
-			p.advance()
+		switch p.cur.Type {
+		case kwSTATUSONLY:
 			stmt.StatusOnly = true
-		} else if p.cur.Type == kwCOMMIT {
-			p.advance()
+		case kwCOMMIT:
 			stmt.WithAction = "COMMIT"
-		} else if p.cur.Type == kwROLLBACK {
-			p.advance()
+		case kwROLLBACK:
 			stmt.WithAction = "ROLLBACK"
+		default:
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance()
 	}
 
 	stmt.Loc.End = p.prevEnd()
@@ -359,6 +375,8 @@ func (p *Parser) parseKillStmt() (nodes.StmtNode, error) {
 // BNF: mssql/parser/bnf/kill-stats-job-transact-sql.bnf
 //
 //	KILL STATS JOB job_id
+//
+// killStatsJobStatement (TSql160.g:13779): the job is a signed integer.
 func (p *Parser) parseKillStatsJobStmt(loc int) (*nodes.KillStatsJobStmt, error) {
 	p.advance() // consume STATS
 	p.advance() // consume JOB
@@ -367,7 +385,11 @@ func (p *Parser) parseKillStatsJobStmt(loc int) (*nodes.KillStatsJobStmt, error)
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
-	stmt.JobID, _ = p.parseExpr()
+	var err error
+	stmt.JobID, err = p.parseProcValue(procValueKinds{signedInt: true})
+	if err != nil {
+		return nil, err
+	}
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
@@ -378,13 +400,14 @@ func (p *Parser) parseKillStatsJobStmt(loc int) (*nodes.KillStatsJobStmt, error)
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/language-elements/kill-query-notification-subscription-transact-sql
 //
 //	KILL QUERY NOTIFICATION SUBSCRIPTION { ALL | subscription_id }
+//
+// killQueryNotificationSubscriptionStatement (TSql160.g:13748): every word
+// is required, and the subscription is ALL or an integer.
 func (p *Parser) parseKillQueryNotificationStmt(loc int) (*nodes.KillQueryNotificationStmt, error) {
 	p.advance() // consume QUERY
 	p.advance() // consume NOTIFICATION
-
-	// consume SUBSCRIPTION
-	if p.cur.Type == kwSUBSCRIPTION {
-		p.advance()
+	if _, err := p.expect(kwSUBSCRIPTION); err != nil {
+		return nil, err
 	}
 
 	stmt := &nodes.KillQueryNotificationStmt{
@@ -396,7 +419,11 @@ func (p *Parser) parseKillQueryNotificationStmt(loc int) (*nodes.KillQueryNotifi
 		stmt.All = true
 		p.advance()
 	} else {
-		stmt.SubscriptionID, _ = p.parseExpr()
+		var err error
+		stmt.SubscriptionID, err = p.parseProcValue(procValueKinds{integer: true})
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	stmt.Loc.End = p.prevEnd()
@@ -408,6 +435,9 @@ func (p *Parser) parseKillQueryNotificationStmt(loc int) (*nodes.KillQueryNotifi
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/queries/readtext-transact-sql
 //
 //	READTEXT { table.column text_ptr offset size } [ HOLDLOCK ]
+//
+// readTextStatement (TSql160.g:14213): the text pointer is a binary
+// constant or a variable, offset and size integers or variables.
 func (p *Parser) parseReadtextStmt() (*nodes.ReadtextStmt, error) {
 	loc := p.pos()
 	p.advance() // consume READTEXT
@@ -416,37 +446,19 @@ func (p *Parser) parseReadtextStmt() (*nodes.ReadtextStmt, error) {
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
-	// table.column - parse as column ref
-	if p.isIdentLike() {
-		colLoc := p.pos()
-		table := p.cur.Str
-		p.advance()
-		if p.cur.Type == '.' {
-			p.advance() // consume .
-			col := ""
-			if p.isIdentLike() {
-				col = p.cur.Str
-				p.advance()
-			}
-			stmt.Column = &nodes.ColumnRef{
-				Table:  table,
-				Column: col,
-				Loc:    nodes.Loc{Start: colLoc, End: p.prevEnd()},
-			}
-		} else {
-			stmt.Column = &nodes.ColumnRef{
-				Column: table,
-				Loc:    nodes.Loc{Start: colLoc, End: p.prevEnd()},
-			}
-		}
+	var err error
+	if stmt.Column, err = p.parseProcTextColumn(); err != nil {
+		return nil, err
 	}
-
-	// text_ptr
-	stmt.TextPtr, _ = p.parseExpr()
-	// offset
-	stmt.Offset, _ = p.parseExpr()
-	// size
-	stmt.Size, _ = p.parseExpr()
+	if stmt.TextPtr, err = p.parseProcValue(procValueKinds{binary: true, variable: true}); err != nil {
+		return nil, err
+	}
+	if stmt.Offset, err = p.parseProcValue(procValueKinds{integer: true, variable: true}); err != nil {
+		return nil, err
+	}
+	if stmt.Size, err = p.parseProcValue(procValueKinds{integer: true, variable: true}); err != nil {
+		return nil, err
+	}
 
 	// HOLDLOCK
 	if p.cur.Type == kwHOLDLOCK {
@@ -458,11 +470,16 @@ func (p *Parser) parseReadtextStmt() (*nodes.ReadtextStmt, error) {
 	return stmt, nil
 }
 
+// procWriteStringKinds are the values of writeString (TSql160.g:14361).
+var procWriteStringKinds = procValueKinds{null: true, str: true, binary: true, variable: true}
+
 // parseWritetextStmt parses a WRITETEXT statement.
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/queries/writetext-transact-sql
 //
 //	WRITETEXT { table.column text_ptr } [ WITH LOG ] { data }
+//
+// writeTextStatement (TSql160.g:14294).
 func (p *Parser) parseWritetextStmt() (*nodes.WritetextStmt, error) {
 	loc := p.pos()
 	p.advance() // consume WRITETEXT
@@ -471,45 +488,16 @@ func (p *Parser) parseWritetextStmt() (*nodes.WritetextStmt, error) {
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
-	// table.column
-	if p.isIdentLike() {
-		table := p.cur.Str
-		p.advance()
-		if p.cur.Type == '.' {
-			p.advance() // .
-			col := ""
-			if p.isIdentLike() {
-				col = p.cur.Str
-				p.advance()
-			}
-			stmt.Column = &nodes.ColumnRef{
-				Table:  table,
-				Column: col,
-				Loc:    nodes.Loc{Start: loc, End: -1},
-			}
-		} else {
-			stmt.Column = &nodes.ColumnRef{
-				Column: table,
-				Loc:    nodes.Loc{Start: loc, End: -1},
-			}
-		}
+	var err error
+	if stmt.Column, stmt.TextPtr, err = p.parseProcTextTarget(); err != nil {
+		return nil, err
 	}
-
-	// text_ptr
-	stmt.TextPtr, _ = p.parseExpr()
-
-	// WITH LOG
-	if p.cur.Type == kwWITH {
-		next := p.peekNext()
-		if next.Type == kwLOG {
-			p.advance() // WITH
-			p.advance() // LOG
-			stmt.WithLog = true
-		}
+	if stmt.WithLog, err = p.parseProcTextWithLog(); err != nil {
+		return nil, err
 	}
-
-	// data
-	stmt.Data, _ = p.parseExpr()
+	if stmt.Data, err = p.parseProcValue(procWriteStringKinds); err != nil {
+		return nil, err
+	}
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
@@ -524,6 +512,10 @@ func (p *Parser) parseWritetextStmt() (*nodes.WritetextStmt, error) {
 //	    { NULL | delete_length }
 //	    [ WITH LOG ]
 //	    [ inserted_data | { table_name.src_column_name src_text_ptr } ]
+//
+// updateTextStatement (TSql160.g:14249): offset and length are signed
+// integers, variables or NULL; the source is a column and a text pointer
+// (a binary constant or a variable), or a NULL, string, binary or variable.
 func (p *Parser) parseUpdatetextStmt() (*nodes.UpdatetextStmt, error) {
 	loc := p.pos()
 	p.advance() // consume UPDATETEXT
@@ -532,50 +524,36 @@ func (p *Parser) parseUpdatetextStmt() (*nodes.UpdatetextStmt, error) {
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
-	// dest_table.dest_column dest_text_ptr
-	if p.isIdentLike() {
-		table := p.cur.Str
-		p.advance()
-		if p.cur.Type == '.' {
-			p.advance()
-			col := ""
-			if p.isIdentLike() {
-				col = p.cur.Str
-				p.advance()
-			}
-			stmt.DestColumn = &nodes.ColumnRef{
-				Table:  table,
-				Column: col,
-				Loc:    nodes.Loc{Start: loc, End: -1},
-			}
-		} else {
-			stmt.DestColumn = &nodes.ColumnRef{
-				Column: table,
-				Loc:    nodes.Loc{Start: loc, End: -1},
-			}
-		}
+	var err error
+	if stmt.DestColumn, stmt.DestTextPtr, err = p.parseProcTextTarget(); err != nil {
+		return nil, err
+	}
+	offsetKinds := procValueKinds{signedInt: true, variable: true, null: true}
+	if stmt.InsertOffset, err = p.parseProcValue(offsetKinds); err != nil {
+		return nil, err
+	}
+	if stmt.DeleteLength, err = p.parseProcValue(offsetKinds); err != nil {
+		return nil, err
+	}
+	if stmt.WithLog, err = p.parseProcTextWithLog(); err != nil {
+		return nil, err
 	}
 
-	// dest_text_ptr
-	stmt.DestTextPtr, _ = p.parseExpr()
-	// insert_offset (NULL or n)
-	stmt.InsertOffset, _ = p.parseExpr()
-	// delete_length (NULL or n)
-	stmt.DeleteLength, _ = p.parseExpr()
-
-	// WITH LOG
-	if p.cur.Type == kwWITH {
-		next := p.peekNext()
-		if next.Type == kwLOG {
-			p.advance()
-			p.advance()
-			stmt.WithLog = true
+	// inserted_data | table_name.src_column_name src_text_ptr
+	switch {
+	case p.isIdentLike():
+		col, err := p.parseProcTextColumn()
+		if err != nil {
+			return nil, err
 		}
-	}
-
-	// inserted_data
-	if p.cur.Type != ';' && p.cur.Type != tokEOF && p.cur.Type != kwGO {
-		stmt.InsertedData, _ = p.parseExpr()
+		if _, err := p.parseProcValue(procValueKinds{binary: true, variable: true}); err != nil {
+			return nil, err
+		}
+		stmt.InsertedData = col
+	case p.cur.Type == kwNULL || procIsString(p.cur) || procIsBinaryConst(p.cur) || p.cur.Type == tokVARIABLE:
+		if stmt.InsertedData, err = p.parseProcValue(procWriteStringKinds); err != nil {
+			return nil, err
+		}
 	}
 
 	stmt.Loc.End = p.prevEnd()
@@ -826,19 +804,18 @@ func (p *Parser) parseSetuserStmt() (*nodes.SecurityStmt, error) {
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	// Optional 'username'
-	if p.cur.Type == tokSCONST {
+	// Optional 'username' or variable, then optional WITH NORESET
+	// (setUserStatement, TSql160.g:13851).
+	if procIsString(p.cur) || p.cur.Type == tokVARIABLE {
 		stmt.Name = p.cur.Str
 		p.advance()
 
-		// Optional WITH NORESET
 		if p.cur.Type == kwWITH {
 			p.advance() // consume WITH
-			if p.matchIdentCI("NORESET") {
-				opts := &nodes.List{}
-				opts.Items = append(opts.Items, &nodes.String{Str: "NORESET"})
-				stmt.Options = opts
+			if err := p.procExpectWord("NORESET"); err != nil {
+				return nil, err
 			}
+			stmt.Options = &nodes.List{Items: []nodes.Node{&nodes.String{Str: "NORESET"}}}
 		}
 	}
 
@@ -1349,4 +1326,110 @@ func (p *Parser) parseLinenoStmt() (*nodes.LinenoStmt, error) {
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
+}
+
+// procIsGUID reports whether s has the form of a uniqueidentifier,
+// 8-4-4-4-12 hex digits, optionally in braces.
+func procIsGUID(s string) bool {
+	if len(s) == 38 && s[0] == '{' && s[37] == '}' {
+		s = s[1:37]
+	}
+	if len(s) != 36 {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if i == 8 || i == 13 || i == 18 || i == 23 {
+			if c != '-' {
+				return false
+			}
+			continue
+		}
+		if !isHexDigit(c) {
+			return false
+		}
+	}
+	return true
+}
+
+// parseProcTextColumn parses the column of READTEXT, WRITETEXT and
+// UPDATETEXT (column, TSql160.g:32779): a name of two to four parts, the
+// last of which may be IDENTITYCOL or ROWGUIDCOL. SQL Server needs the table
+// and the column (Msg 182).
+func (p *Parser) parseProcTextColumn() (*nodes.ColumnRef, error) {
+	loc := p.pos()
+	var parts []string
+	for {
+		if len(parts) > 0 && (p.cur.Type == kwIDENTITYCOL || p.cur.Type == kwROWGUIDCOL) {
+			parts = append(parts, p.cur.Str)
+			p.advance()
+			break
+		}
+		name, ok := p.parseIdentifier()
+		if !ok {
+			return nil, p.syntaxErrorAtCur()
+		}
+		parts = append(parts, name)
+		if p.cur.Type != '.' {
+			break
+		}
+		p.advance() // consume .
+	}
+	if len(parts) < 2 {
+		return nil, p.newParseError(loc, "table and column names must be supplied for the READTEXT or WRITETEXT utility")
+	}
+	if len(parts) > 4 {
+		return nil, p.newParseError(loc, "the column name has too many parts")
+	}
+	ref := &nodes.ColumnRef{
+		Column: parts[len(parts)-1],
+		Table:  parts[len(parts)-2],
+		Loc:    nodes.Loc{Start: loc, End: p.prevEnd()},
+	}
+	if len(parts) > 2 {
+		ref.Schema = parts[len(parts)-3]
+	}
+	if len(parts) > 3 {
+		ref.Database = parts[0]
+	}
+	return ref, nil
+}
+
+// parseProcTextTarget parses modificationTextStatement (TSql160.g:14323):
+// [ BULK ] column text_ptr [ TIMESTAMP = binary ], the text pointer a
+// binary constant, a variable or an integer.
+func (p *Parser) parseProcTextTarget() (*nodes.ColumnRef, nodes.ExprNode, error) {
+	p.match(kwBULK)
+	col, err := p.parseProcTextColumn()
+	if err != nil {
+		return nil, nil, err
+	}
+	ptr, err := p.parseProcValue(procValueKinds{binary: true, variable: true, integer: true})
+	if err != nil {
+		return nil, nil, err
+	}
+	if p.procIsWord("TIMESTAMP") {
+		p.advance()
+		if _, err := p.expect('='); err != nil {
+			return nil, nil, err
+		}
+		if !procIsBinaryConst(p.cur) {
+			return nil, nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+	}
+	return col, ptr, nil
+}
+
+// parseProcTextWithLog consumes WITH LOG (modificationTextStatementWithLog,
+// TSql160.g:14313) and reports whether it did.
+func (p *Parser) parseProcTextWithLog() (bool, error) {
+	if p.cur.Type != kwWITH {
+		return false, nil
+	}
+	p.advance() // WITH
+	if _, err := p.expect(kwLOG); err != nil {
+		return false, err
+	}
+	return true, nil
 }

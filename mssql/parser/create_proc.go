@@ -151,7 +151,9 @@ func (p *Parser) parseCreateProcedureStmt(orAlter bool) (*nodes.CreateProcedureS
 		stmt.ExternalName = p.parseMethodSpecifier()
 	} else {
 		// Body (BEGIN...END block or single statement)
+		p.procRoutineDepth++
 		body, err := p.parseStmt()
+		p.procRoutineDepth--
 		if err != nil {
 			return nil, err
 		}
@@ -449,7 +451,9 @@ func (p *Parser) parseCreateFunctionStmt(orAlter bool) (*nodes.CreateFunctionStm
 			Loc:   nodes.Loc{Start: retLoc, End: -1},
 		}
 	} else {
+		p.procRoutineDepth++
 		body, err := p.parseStmt()
+		p.procRoutineDepth--
 		if err != nil {
 			return nil, err
 		}

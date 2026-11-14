@@ -769,6 +769,9 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Value)
 	case *SetStmt:
 		Walk(v, n.Value)
+		if n.Cursor != nil {
+			Walk(v, n.Cursor)
+		}
 	case *SignatureStmt:
 		if n.ModuleName != nil {
 			Walk(v, n.ModuleName)
