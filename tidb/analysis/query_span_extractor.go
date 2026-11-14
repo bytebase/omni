@@ -111,7 +111,7 @@ func (q *querySpanExtractor) getQuerySpan(statement string) (*ResolvedSpan, erro
 
 	tableSource, err := q.extractTableSourceFromNode(node)
 	if err != nil {
-		// Surface ResourceNotFoundError on the span so the SQL service can resync stale metadata and retry.
+		// Surface NotFoundError on the span so the caller can resync stale metadata and retry.
 		var resourceNotFound *NotFoundError
 		if errors.As(err, &resourceNotFound) {
 			sourceColumns := make(ColumnSet, len(accessTables)+1)

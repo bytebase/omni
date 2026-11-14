@@ -7,7 +7,7 @@ import (
 )
 
 // clause is where a name sits in a SELECT, which decides what it can resolve
-// to. query_span_predicate_test.go checks each rule against MySQL and MariaDB.
+// to. Bytebase's query_span_predicate_test.go checks each rule against MySQL and MariaDB.
 type clause int
 
 const (

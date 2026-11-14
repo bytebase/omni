@@ -364,8 +364,7 @@ func isSystemResource(resource ColumnResource, ignoreCaseSensitive bool) bool {
 	return onDiskSystemDatabases[database]
 }
 
-// getQuerySpan is the package-internal omni entry point used by migration
-// tests and the production MySQL query-span path after cutover.
+// getQuerySpan resolves one statement; view definitions recurse through it.
 func (q *querySpanExtractor) getQuerySpan(statement string) (*ResolvedSpan, error) {
 	q.source = statement
 

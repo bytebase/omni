@@ -400,8 +400,7 @@ func isSystemResource(resource ColumnResource, ignoreCaseSensitive bool) bool {
 	return onDiskSystemDatabases[database]
 }
 
-// getQuerySpan is the package-internal entry point behind GetQuerySpan, and
-// what the golden harness drives directly.
+// getQuerySpan resolves one statement; view definitions recurse through it.
 func (q *querySpanExtractor) getQuerySpan(statement string) (*ResolvedSpan, error) {
 	q.source = statement
 
