@@ -237,6 +237,10 @@ func (p *Parser) tokenDesc() string {
 func (p *Parser) parseIdentifier() (*ast.Identifier, error) {
 	tok := p.cur
 	switch {
+	case reservedKeywords[tokWord(tok)]:
+		// A word Lexer.g reads as a keyword that unreserved_keyword
+		// (Parser.g:1946) leaves out is never a name; quote it to use it.
+		return nil, p.errorf("expected identifier, got reserved word %s", p.tokenDesc())
 	case tok.Type == tokIDENT:
 		p.advance()
 		return &ast.Identifier{Name: tok.Str, Loc: ast.Loc{Start: tok.Loc, End: tok.End}}, nil
