@@ -2936,7 +2936,7 @@ type GrantStmt struct {
 	// --- GrantPrivileges ---
 	Privileges    []*Privilege // explicit privilege list; nil when AllPrivileges is true
 	AllPrivileges bool         // ALL [PRIVILEGES]
-	GrantOption   bool         // WITH GRANT OPTION
+	GrantOption   bool         // WITH GRANT OPTION (also on an application role granted to an account role)
 
 	// --- GrantRole ---
 	Role     *ObjectName     // the role being granted (GrantRole)
@@ -2962,6 +2962,10 @@ func (n *GrantStmt) Tag() NodeTag { return T_GrantStmt }
 //
 //	REVOKE [GRANT OPTION FOR] { <privileges> | ALL [PRIVILEGES] } ON <target> FROM <grantee> [CASCADE|RESTRICT]
 //	REVOKE [DATABASE | APPLICATION] ROLE <name> FROM <grantee>
+//	REVOKE [GRANT OPTION FOR] APPLICATION ROLE <name> FROM ROLE <name> [CASCADE|RESTRICT]
+//
+// GrantOptionFor, Cascade and Restrict are also set on the RevokeRole of an
+// application role from an account role.
 type RevokeStmt struct {
 	Kind RevokeKind
 
@@ -6479,7 +6483,8 @@ var (
 //
 //	CREATE [ OR REPLACE | OR ALTER ] <kind> [ IF NOT EXISTS ] <name> <clause>...
 //	ALTER <kind> [ IF EXISTS ] <name> <clause>...
-//	EXECUTE <kind> <clause>...   (EXECUTE [ INFERENCE ] JOB SERVICE; Name is nil)
+//	EXECUTE <kind> [ <name> ] <clause>...   (EXECUTE [ INFERENCE ] JOB SERVICE, whose Name is nil;
+//	                                         EXECUTE NOTEBOOK [ PROJECT ])
 //	EXECUTE <kind> [ IF EXISTS ] [ <name> ] <clause>...   (EXECUTE DBT PROJECT, DCM PROJECT, CODE BUNDLE)
 //
 // Loc spans the whole statement, from CREATE, ALTER or EXECUTE.

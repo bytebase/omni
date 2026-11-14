@@ -13,9 +13,7 @@ import (
 // https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/ALTER-PLUGGABLE-DATABASE.html
 // (bnf/CREATE-PLUGGABLE-DATABASE.bnf, bnf/ALTER-PLUGGABLE-DATABASE.bnf),
 // corrected where the pinned Oracle reads them otherwise: the compat rows and
-// the probe decide. As in ALTER DATABASE (alter_database_clauses.go), a
-// clause that stops where Oracle reports the missing operand with a code of
-// the statement rather than of the parser ends the statement.
+// the probe decide.
 
 // pdbKind is the form of CREATE PLUGGABLE DATABASE: from the seed, a clone
 // (FROM or AS PROXY FROM), or a plug-in (USING 'filename').
@@ -74,10 +72,6 @@ func (p *Parser) parseCreatePluggableDatabaseStmt(start int) (nodes.StmtNode, er
 		Loc:        nodes.Loc{Start: start},
 	}
 	opts := &nodes.List{}
-	if p.adbEndKept() {
-		stmt.Loc.End = p.prev.End
-		return stmt, nil
-	}
 	name, err := p.pdbName()
 	if err != nil {
 		return nil, err
@@ -126,19 +120,16 @@ func (p *Parser) parseCreatePluggableDatabaseStmt(start int) (nodes.StmtNode, er
 	case p.adbWord("USING"):
 		p.advance()
 		kind = pdbFromXML
-		if !p.adbEndKept() {
-			f, err := p.adbString()
-			if err != nil {
-				return nil, err
-			}
-			p.pdbOption(opts, "USING", f, optStart)
+		f, err := p.adbString()
+		if err != nil {
+			return nil, err
 		}
+		p.pdbOption(opts, "USING", f, optStart)
 	}
-	tolerated, err := p.parseCreatePDBClauses(opts, kind, dblink)
-	if err != nil {
+	if err := p.parseCreatePDBClauses(opts, kind, dblink); err != nil {
 		return nil, err
 	}
-	if kind == pdbFromSeed && !tolerated && !p.pdbHasOption(opts, "ADMIN_USER") {
+	if kind == pdbFromSeed && !p.pdbHasOption(opts, "ADMIN_USER") && !p.pdbEndsAtDefaultTablespace(opts) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	if len(opts.Items) > 0 {
@@ -146,6 +137,18 @@ func (p *Parser) parseCreatePluggableDatabaseStmt(start int) (nodes.StmtNode, er
 	}
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// pdbEndsAtDefaultTablespace reports whether the statement ends with a seed
+// form's DEFAULT TABLESPACE name and no DATAFILE. Oracle reports the missing
+// datafile there with ORA-02199, which compat records as accepted, so omni
+// keeps reading the statement as it did before.
+func (p *Parser) pdbEndsAtDefaultTablespace(opts *nodes.List) bool {
+	if len(opts.Items) == 0 {
+		return false
+	}
+	last, ok := opts.Items[len(opts.Items)-1].(*nodes.DDLOption)
+	return ok && last.Key == "DEFAULT_TABLESPACE" && last.Items == nil && last.Loc.End == p.prev.End
 }
 
 // pdbHasOption reports whether opts holds an option with key.
@@ -159,7 +162,6 @@ func (p *Parser) pdbHasOption(opts *nodes.List, key string) bool {
 }
 
 // pdbSource reads src_pdb_name [ @ dblink ], the dblink a dotted name.
-// Oracle ends the statement without a complaint after a bare @.
 func (p *Parser) pdbSource() (string, string, error) {
 	src, err := p.adbName()
 	if err != nil {
@@ -169,9 +171,6 @@ func (p *Parser) pdbSource() (string, string, error) {
 		return src, "", nil
 	}
 	p.advance()
-	if p.adbEndKept() {
-		return src, "", nil
-	}
 	link, err := p.adbDottedName()
 	if err != nil {
 		return "", "", err
@@ -180,17 +179,14 @@ func (p *Parser) pdbSource() (string, string, error) {
 }
 
 // parseCreatePDBClauses reads the clauses of a CREATE PLUGGABLE DATABASE
-// form, in any order, each at most once. It reports whether the statement
-// ended where Oracle reports the missing operand with a code of the
-// statement (ORA-02199, ORA-02216, ORA-02236, ORA-65001), which compat reads
-// as accepted.
-func (p *Parser) parseCreatePDBClauses(opts *nodes.List, kind pdbKind, dblink bool) (bool, error) {
+// form, in any order, each at most once.
+func (p *Parser) parseCreatePDBClauses(opts *nodes.List, kind pdbKind, dblink bool) error {
 	seen := map[string]bool{}
 	for !p.adbEnd() {
 		optStart := p.pos()
 		key := p.cur.Str
 		if p.cur.Type == tokQIDENT || !p.isIdentLike() {
-			return false, p.syntaxErrorAtCur()
+			return p.syntaxErrorAtCur()
 		}
 		switch key {
 		case "NOLOGGING":
@@ -199,40 +195,40 @@ func (p *Parser) parseCreatePDBClauses(opts *nodes.List, kind pdbKind, dblink bo
 			key = "COPY_DATA"
 		}
 		if seen[key] {
-			return false, p.syntaxErrorAtCur()
+			return p.syntaxErrorAtCur()
 		}
 		seen[key] = true
 		switch {
 		case kind == pdbFromSeed && key == "ADMIN":
 			p.advance()
 			if err := p.adbExpect("USER"); err != nil {
-				return false, err
+				return err
 			}
 			user, err := p.adbName()
 			if err != nil {
-				return false, err
+				return err
 			}
 			if p.cur.Type != kwIDENTIFIED {
-				return false, p.syntaxErrorAtCur()
+				return p.syntaxErrorAtCur()
 			}
 			p.advance()
 			if p.cur.Type != kwBY {
-				return false, p.syntaxErrorAtCur()
+				return p.syntaxErrorAtCur()
 			}
 			p.advance()
 			if err := p.pdbPassword(); err != nil {
-				return false, err
+				return err
 			}
 			opt := p.pdbOption(opts, "ADMIN_USER", user, optStart)
 			if p.adbWord("ROLES") {
 				rolesStart := p.pos()
 				p.advance()
 				if err := p.pdbExpectEquals(); err != nil {
-					return false, err
+					return err
 				}
 				roles, err := p.pdbParenRoles()
 				if err != nil {
-					return false, err
+					return err
 				}
 				opt.Items = &nodes.List{Items: []nodes.Node{&nodes.DDLOption{
 					Key: "ROLES", Value: strings.Join(roles, ", "),
@@ -249,26 +245,20 @@ func (p *Parser) parseCreatePDBClauses(opts *nodes.List, kind pdbKind, dblink bo
 		case p.cur.Type == kwDEFAULT:
 			p.advance()
 			if err := p.adbExpect("TABLESPACE"); err != nil {
-				return false, err
-			}
-			if p.adbEndKept() {
-				return true, nil
+				return err
 			}
 			ts, err := p.adbName()
 			if err != nil {
-				return false, err
+				return err
 			}
 			opt := p.pdbOption(opts, "DEFAULT_TABLESPACE", ts, optStart)
 			if kind == pdbFromSeed {
-				if p.adbEndKept() {
-					return true, nil
-				}
 				if p.adbWord("DATAFILE") {
 					datafileStart := p.pos()
 					p.advance()
 					spec, err := p.parseAlterDatabaseDatafileSpec()
 					if err != nil {
-						return false, err
+						return err
 					}
 					opt.Items = &nodes.List{Items: []nodes.Node{p.adbItem("DATAFILE", spec, datafileStart)}}
 					opt.Loc.End = p.prev.End
@@ -279,26 +269,26 @@ func (p *Parser) parseCreatePDBClauses(opts *nodes.List, kind pdbKind, dblink bo
 			p.advance()
 			v, err := p.pdbConvert()
 			if err != nil {
-				return false, err
+				return err
 			}
 			p.pdbOption(opts, key, v, optStart)
 		case key == "STORAGE":
 			v, err := p.pdbStorage()
 			if err != nil {
-				return false, err
+				return err
 			}
 			p.pdbOption(opts, "STORAGE", v, optStart)
 		case key == "PATH_PREFIX", key == "CREATE_FILE_DEST",
 			kind == pdbFromXML && key == "SOURCE_FILE_DIRECTORY":
 			p.advance()
 			if err := p.pdbExpectEquals(); err != nil {
-				return false, err
+				return err
 			}
 			v := "NONE"
 			if !p.adbWord("NONE") {
 				var err error
 				if v, err = p.adbString(); err != nil {
-					return false, err
+					return err
 				}
 			} else {
 				p.advance()
@@ -307,14 +297,14 @@ func (p *Parser) parseCreatePDBClauses(opts *nodes.List, kind pdbKind, dblink bo
 		case key == "TEMPFILE":
 			p.advance()
 			if err := p.adbExpect("REUSE"); err != nil {
-				return false, err
+				return err
 			}
 			p.pdbOption(opts, "TEMPFILE_REUSE", "", optStart)
 		case key == "USER_TABLESPACES", key == "STANDBYS":
 			p.advance()
 			v, err := p.pdbAllExceptNone()
 			if err != nil {
-				return false, err
+				return err
 			}
 			p.pdbOption(opts, key, v, optStart)
 		case key == "LOGGING":
@@ -322,53 +312,53 @@ func (p *Parser) parseCreatePDBClauses(opts *nodes.List, kind pdbKind, dblink bo
 		case key == "CONTAINER_MAP":
 			v, err := p.pdbContainerMap()
 			if err != nil {
-				return false, err
+				return err
 			}
 			p.pdbOption(opts, "CONTAINER_MAP", v, optStart)
 		case kind != pdbFromXML && key == "COPY_DATA":
 			v, err := p.pdbCopyData()
 			if err != nil {
-				return false, err
+				return err
 			}
 			p.pdbOption(opts, "DATA", v, optStart)
 		case key == "KEYSTORE":
 			p.advance()
 			if p.cur.Type != kwIDENTIFIED {
-				return false, p.syntaxErrorAtCur()
+				return p.syntaxErrorAtCur()
 			}
 			p.advance()
 			if p.cur.Type != kwBY {
-				return false, p.syntaxErrorAtCur()
+				return p.syntaxErrorAtCur()
 			}
 			p.advance()
 			if err := p.pdbPassword(); err != nil {
-				return false, err
+				return err
 			}
 			p.pdbOption(opts, "KEYSTORE", "", optStart)
 		case kind == pdbClone && key == "USING":
 			p.advance()
 			v, err := p.pdbUsingSnapshot()
 			if err != nil {
-				return false, err
+				return err
 			}
 			p.pdbOption(opts, "USING_SNAPSHOT", v, optStart)
 		case kind == pdbClone && key == "RELOCATE":
 			p.advance()
 			if !dblink {
-				return false, p.syntaxErrorAtCur()
+				return p.syntaxErrorAtCur()
 			}
 			var parts []string
 			if p.adbWord("KEEP") {
 				p.advance()
 				if err := p.adbExpect("SOURCE"); err != nil {
-					return false, err
+					return err
 				}
 				parts = append(parts, "KEEP SOURCE")
 			}
 			if p.adbWord("AVAILABILITY") {
 				p.advance()
 				if !p.adbWord("NORMAL") && !p.adbWord("MAX") {
-					return false, p.syntaxErrorAtCur()
+					return p.syntaxErrorAtCur()
 				}
 				parts = append(parts, "AVAILABILITY "+p.advance().Str)
 			}
@@ -376,14 +366,14 @@ func (p *Parser) parseCreatePDBClauses(opts *nodes.List, kind pdbKind, dblink bo
 		case kind == pdbClone && key == "REFRESH":
 			p.advance()
 			if err := p.adbExpect("MODE"); err != nil {
-				return false, err
+				return err
 			}
 			if !dblink {
-				return false, p.syntaxErrorAtCur()
+				return p.syntaxErrorAtCur()
 			}
 			v, err := p.pdbRefreshMode()
 			if err != nil {
-				return false, err
+				return err
 			}
 			p.pdbOption(opts, "REFRESH_MODE", v, optStart)
 		case kind == pdbFromXML && (key == "COPY" || key == "MOVE" || key == "NOCOPY"):
@@ -392,24 +382,24 @@ func (p *Parser) parseCreatePDBClauses(opts *nodes.List, kind pdbKind, dblink bo
 		case kind == pdbFromXML && p.cur.Type == kwAS:
 			p.advance()
 			if err := p.adbExpect("CLONE"); err != nil {
-				return false, err
+				return err
 			}
 			p.pdbOption(opts, "AS_CLONE", "", optStart)
 		case kind == pdbFromXML && key == "DECRYPT":
 			p.advance()
 			if p.cur.Type != kwUSING {
-				return false, p.syntaxErrorAtCur()
+				return p.syntaxErrorAtCur()
 			}
 			p.advance()
 			if err := p.pdbPassword(); err != nil {
-				return false, err
+				return err
 			}
 			p.pdbOption(opts, "DECRYPT_USING", "", optStart)
 		default:
-			return false, p.syntaxErrorAtCur()
+			return p.syntaxErrorAtCur()
 		}
 	}
-	return false, nil
+	return nil
 }
 
 // pdbPassword reads a password or secret: an identifier, quoted or not,
@@ -800,7 +790,7 @@ func (p *Parser) isAlterPDBClauseStart() bool {
 	switch p.cur.Str {
 	case "UNPLUG", "DEFAULT", "SET", "RENAME", "DATAFILE", "TEMPFILE", "CREATE",
 		"ADD", "DROP", "STORAGE", "LOGGING", "NOLOGGING", "ENABLE", "DISABLE",
-		"FORCE", "REFRESH", "CONTAINERS", "PRIORITY", "RECOVER", "BACKUP",
+		"FORCE", "REFRESH", "CONTAINERS", "PRIORITY", "RECOVER",
 		"BEGIN", "END", "OPEN", "CLOSE", "SAVE", "DISCARD", "APPLICATION",
 		"SNAPSHOT", "MATERIALIZE", "PREPARE", "ALL":
 		return p.isIdentLike()
@@ -832,10 +822,6 @@ func (p *Parser) parseAlterPluggableDatabaseStmt(start int) (nodes.StmtNode, err
 		Loc:        nodes.Loc{Start: start},
 	}
 	opts := &nodes.List{}
-	if p.adbEndKept() {
-		stmt.Loc.End = p.prev.End
-		return stmt, nil
-	}
 	stateOnly := false
 	switch {
 	case p.cur.Type == kwALL:
@@ -954,9 +940,6 @@ func (p *Parser) parseAlterPDBClause(named bool) (*nodes.DDLOption, error) {
 			p.advance()
 			p.advance()
 			opt.Key, opt.Value = "DATAFILE", "ALL"
-			if p.adbEndKept() {
-				break
-			}
 			if p.cur.Type != kwONLINE && p.cur.Type != kwOFFLINE {
 				return nil, p.syntaxErrorAtCur()
 			}
@@ -1020,18 +1003,12 @@ func (p *Parser) parseAlterPDBClause(named bool) (*nodes.DDLOption, error) {
 		}
 	case "RECOVER":
 		err = p.parseAlterDatabaseRecover(opt)
-	case "BACKUP":
-		p.advance()
-		if !p.adbWord("BEGIN") && !p.adbWord("END") {
-			return nil, p.syntaxErrorAtCur()
-		}
-		opt.Key = "BACKUP_" + p.advance().Str
 	case "BEGIN", "END":
+		// Oracle takes { BEGIN | END } BACKUP, not the page's BACKUP { BEGIN
+		// | END }: it reads BACKUP there as the PDB's name (ORA-01906).
 		p.advance()
 		opt.Key = "BACKUP_" + word
-		if !p.adbEndKept() {
-			err = p.adbExpect("BACKUP")
-		}
+		err = p.adbExpect("BACKUP")
 	case "OPEN":
 		err = p.parseAlterPDBOpen(opt)
 	case "CLOSE":
@@ -1048,9 +1025,11 @@ func (p *Parser) parseAlterPDBClause(named bool) (*nodes.DDLOption, error) {
 		}
 		err = p.parseAlterPDBApplication(opt)
 	case "SNAPSHOT":
+		// Oracle's parser takes SNAPSHOT alone; this server lacks the
+		// feature (ORA-12754).
 		p.advance()
 		opt.Key = "SNAPSHOT"
-		if !p.adbEndKept() {
+		if !p.adbEnd() {
 			opt.Value, err = p.pdbRefreshMode()
 		}
 	case "MATERIALIZE":
@@ -1133,9 +1112,6 @@ func (p *Parser) parseAlterPDBDefault(opt *nodes.DDLOption) error {
 	default:
 		return p.syntaxErrorAtCur()
 	}
-	if p.adbEndKept() {
-		return nil
-	}
 	name, err := p.adbName()
 	opt.Value = name
 	return err
@@ -1157,9 +1133,6 @@ func (p *Parser) parseAlterPDBSet(opt *nodes.DDLOption) error {
 			return p.syntaxErrorAtCur()
 		}
 		opt.Value = p.advance().Str
-		if p.adbEndKept() {
-			return nil
-		}
 		return p.adbExpect("TABLESPACE")
 	case p.adbWord("TIME_ZONE"):
 		p.advance()
@@ -1417,13 +1390,11 @@ func (p *Parser) parseAlterPDBClose(opt *nodes.DDLOption) error {
 		value := ""
 		if p.cur.Type == kwTO {
 			p.advance()
-			if !p.adbEndKept() {
-				inst, err := p.adbString()
-				if err != nil {
-					return err
-				}
-				value = inst
+			inst, err := p.adbString()
+			if err != nil {
+				return err
 			}
+			value = inst
 		}
 		opt.Items = &nodes.List{Items: []nodes.Node{p.adbItem("RELOCATE", value, start)}}
 	case !abort && p.adbWord("NORELOCATE"):
