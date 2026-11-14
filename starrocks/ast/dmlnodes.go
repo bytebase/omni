@@ -198,10 +198,10 @@ var _ Node = (*TruncateTableStmt)(nil)
 //	    [PATTERN = 'glob']
 //	    [PROPERTIES(...)]
 type CopyIntoStmt struct {
-	Target     *ObjectName  // destination table
-	Source     string       // FROM stage/path string value
-	Files      []string     // optional FILES = ('f1', 'f2', ...)
-	Pattern    string       // optional PATTERN = '...'
+	Target     *ObjectName // destination table
+	Source     string      // FROM stage/path string value
+	Files      []string    // optional FILES = ('f1', 'f2', ...)
+	Pattern    string      // optional PATTERN = '...'
 	Properties []*Property
 	Loc        Loc
 }
@@ -216,24 +216,30 @@ var _ Node = (*CopyIntoStmt)(nil)
 // LOAD DATA statement (T6.1)
 // ---------------------------------------------------------------------------
 
-// LoadDataDesc describes one data source in a LOAD statement:
+// LoadDataDesc describes one dataDesc of a LOAD statement
+// (StarRocks.g4:1447):
 //
-//	DATA INFILE('path') [NEGATIVE] INTO TABLE t
-//	    [PARTITION(p1, p2, ...)]
-//	    [COLUMNS FROM PATH AS (col, ...)]
-//	    [COLUMNS (c1, c2, ...)]
-//	    [SET (...)]
-//	    [WHERE expr]
+//	DATA INFILE ('path', ...) [NEGATIVE] INTO TABLE t [partitionNames]
+//	    [COLUMNS TERMINATED BY 'c'] [ROWS TERMINATED BY 'r'] [FORMAT AS f]
+//	    [(SKIP_HEADER = n TRIM_SPACE = b ENCLOSE = 'e' ESCAPE = 'e')]
+//	    [(c1, ...)] [COLUMNS FROM PATH AS (c, ...)] [SET (expr, ...)] [WHERE expr]
+//	DATA FROM TABLE src [NEGATIVE] INTO TABLE t [partitionNames]
+//	    [SET (expr, ...)] [WHERE expr]
 type LoadDataDesc struct {
+	SourceFiles     []string    // DATA INFILE ('f1', 'f2', ...)
+	SourceTable     *ObjectName // DATA FROM TABLE src
 	Negative        bool        // NEGATIVE modifier
 	Target          *ObjectName // INTO TABLE target
-	Partition       []string    // optional PARTITION(...)
-	ColumnsFromPath []string    // optional COLUMNS FROM PATH AS (...)
-	ColumnList      []string    // optional COLUMNS (c1, c2, ...)
-	SetExpr         string      // raw SET(...) text; best-effort capture
-	Where           string      // raw WHERE expr text; best-effort capture
-	SourceFiles     []string    // DATA INFILE ('f1', 'f2', ...)
+	TemporaryPart   bool        // TEMPORARY PARTITION
+	Partition       []string    // optional partition names, or "col = value" key partitions
+	ColumnSeparator string      // COLUMNS TERMINATED BY
+	RowDelimiter    string      // ROWS TERMINATED BY
 	Format          string      // FORMAT AS csv/parquet/...
+	FormatProps     []*Property // (SKIP_HEADER = 1 ...), values as written
+	ColumnList      []string    // optional (c1, c2, ...)
+	ColumnsFromPath []string    // optional COLUMNS FROM PATH AS (...)
+	ColumnMappings  []Node      // optional SET (expr, ...)
+	Where           Node        // optional WHERE expr
 	Loc             Loc
 }
 
@@ -243,21 +249,20 @@ func (n *LoadDataDesc) Tag() NodeTag { return T_LoadDataDesc }
 // Compile-time assertion that *LoadDataDesc satisfies Node.
 var _ Node = (*LoadDataDesc)(nil)
 
-// LoadDataStmt represents a LOAD statement:
+// LoadDataStmt represents a LOAD statement (StarRocks.g4:1427):
 //
-//	LOAD LABEL label
-//	    (DATA INFILE(...) INTO TABLE t ...)
-//	    [WITH BROKER name (...)]
-//	    [PROPERTIES(...)]
-//	    [COMMENT 'text']
+//	LOAD LABEL [db.]label [(data_desc, ...)]
+//	    [WITH BROKER [name] [(...)] | WITH RESOURCE name [(...)]]
+//	    [BY system] [PROPERTIES (...)]
 type LoadDataStmt struct {
-	Label       string          // load label (db_name.label_name or label_name)
-	DataDescs   []*LoadDataDesc // one or more data descriptions
-	BrokerName  string          // optional WITH BROKER name
-	BrokerProperties []*Property // optional WITH BROKER name (...) list
-	Properties  []*Property     // optional PROPERTIES(...)
-	Comment     string          // optional COMMENT '...'
-	Loc         Loc
+	Label            string          // load label (db_name.label_name or label_name)
+	DataDescs        []*LoadDataDesc // data descriptions, if any
+	StorageType      string          // BROKER or RESOURCE, or ""
+	BrokerName       string          // WITH BROKER or WITH RESOURCE name
+	BrokerProperties []*Property     // the broker's or resource's (...) list
+	System           string          // BY system
+	Properties       []*Property     // optional PROPERTIES(...)
+	Loc              Loc
 }
 
 // Tag implements Node.
@@ -277,14 +282,14 @@ var _ Node = (*LoadDataStmt)(nil)
 //	    [PROPERTIES(...)]
 //	    [WITH BROKER name (...)]
 type ExportStmt struct {
-	Target     *ObjectName // table to export
-	Partition  []string    // optional PARTITION(...)
-	Where      Node        // optional WHERE clause
-	Path       string      // TO 'path'
-	Properties []*Property // optional PROPERTIES(...)
-	BrokerName string      // optional WITH BROKER name
+	Target           *ObjectName // table to export
+	Partition        []string    // optional PARTITION(...)
+	Where            Node        // optional WHERE clause
+	Path             string      // TO 'path'
+	Properties       []*Property // optional PROPERTIES(...)
+	BrokerName       string      // optional WITH BROKER name
 	BrokerProperties []*Property // optional WITH BROKER name (...) list
-	Loc        Loc
+	Loc              Loc
 }
 
 // Tag implements Node.
@@ -292,6 +297,7 @@ func (n *ExportStmt) Tag() NodeTag { return T_ExportStmt }
 
 // Compile-time assertion that *ExportStmt satisfies Node.
 var _ Node = (*ExportStmt)(nil)
+
 // ROUTINE LOAD statements (T6.2)
 // ---------------------------------------------------------------------------
 
@@ -303,13 +309,13 @@ var _ Node = (*ExportStmt)(nil)
 //	    FROM {KAFKA | S3 | HDFS} (data_source_properties)
 //	    [COMMENT 'text']
 type CreateRoutineLoadStmt struct {
-	Name                 *ObjectName  // job name, optionally qualified with db
-	OnTable              *ObjectName  // ON table name
-	LoadProps            string       // raw load_properties text (best-effort capture)
-	JobProperties        []*Property  // PROPERTIES (...) key=value pairs
-	DataSourceType       string       // "KAFKA", "S3", "HDFS", etc.
-	DataSourceProperties []*Property  // FROM ... (...) key=value pairs
-	Comment              string       // optional COMMENT 'text'
+	Name                 *ObjectName // job name, optionally qualified with db
+	OnTable              *ObjectName // ON table name
+	LoadProps            string      // raw load_properties text (best-effort capture)
+	JobProperties        []*Property // PROPERTIES (...) key=value pairs
+	DataSourceType       string      // "KAFKA", "S3", "HDFS", etc.
+	DataSourceProperties []*Property // FROM ... (...) key=value pairs
+	Comment              string      // optional COMMENT 'text'
 	Loc                  Loc
 }
 

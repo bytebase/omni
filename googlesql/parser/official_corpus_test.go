@@ -202,7 +202,7 @@ var officialCorpusSkips = map[string]string{
 	// COLUMN`) was likewise removed — it is now WIRED (alter_table.go,
 	// AlterSearchIndex). It is a documented Spanner form the union parser accepts;
 	// the live emulator non-authoritatively rejects it (proven in the
-	// bq_ddl_oracle_test.go triangulation guard). Divergence #203.
+	// the suite:bq-ddl rows of testdata/compat.tsv triangulation guard). Divergence #203.
 	// DOC-REJECTED: the block's `SELECT ARRAY<FLOAT32>(vector_length => 128)`
 	// statement is rejected by the live Spanner oracle itself — a value
 	// constructor `ARRAY<scalar>(...)` is not a query expression form (oracle @

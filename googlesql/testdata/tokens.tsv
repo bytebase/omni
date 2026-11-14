@@ -1,0 +1,32 @@
+# GoogleSQL token forms for generated compat rows: the text written for each
+# token GoogleSQL.g4 names, a class of texts or a token the tokenizer makes
+# in code (its lookahead transformer, from the words around it). Keywords and
+# punctuation spell themselves and need no row. Each note cites the token in
+# googlesql.tm, whose lexer matches keywords in any case (caseInsensitive).
+# columns: token, form, note
+IDENTIFIER	a	googlesql.tm:205 a letter or _, then letters, digits and _; or a backquoted name
+STRING_LITERAL	'a'	googlesql.tm:201 a quoted string, raw (r) or triple-quoted
+BYTES_LITERAL	b'a'	googlesql.tm:202 b or rb and a quoted string
+INTEGER_LITERAL	1	googlesql.tm:203 decimal or hex (0x) digits, which the lookahead transformer makes from DECIMAL_INTEGER_LITERAL and HEX_INTEGER_LITERAL
+FLOATING_POINT_LITERAL	1.5	googlesql.tm:204 digits with a point or an exponent, fused by the lookahead transformer
+SCRIPT_LABEL	a	googlesql.tm:212 a name the tokenizer reads as a label, before : at the start of a statement
+MACRO_BODY_TOKEN	a	googlesql.tm:775 any token in the body of DEFINE MACRO
+ATTACHED_ALIAS	(unreachable)	googlesql.tm:506 a name against a number (10K); its only alternative refuses it
+KW_OPEN_HINT	@	googlesql.tm:251 the @ that opens a hint, @{
+KW_OPEN_INTEGER_HINT	@	googlesql.tm:255 the @ of an integer hint, @1
+OPEN_INTEGER_PREFIX_HINT	@	googlesql.tm:257 the @ of an integer hint before a @{ hint
+KW_NOT_SPECIAL	NOT	googlesql.tm:466 NOT before BETWEEN, IN, LIKE or DISTINCT
+KW_DEFINE_FOR_MACROS	DEFINE	googlesql.tm:311 DEFINE first in a statement
+KW_GRAPH_TABLE_RESERVED	GRAPH_TABLE	googlesql.tm:326 GRAPH_TABLE where the language enables it as a reserved word
+KW_QUALIFY_RESERVED	QUALIFY	googlesql.tm:395 QUALIFY where the language enables it as a reserved word
+KW_MATCH_RECOGNIZE_RESERVED	MATCH_RECOGNIZE	googlesql.tm:344 MATCH_RECOGNIZE where the language enables it as a reserved word
+KW_WITH_STARTING_WITH_EXPRESSION	WITH	googlesql.tm:453 WITH before ( that opens a WITH expression
+KW_EXCEPT_IN_SET_OP	EXCEPT	googlesql.tm:454 EXCEPT between two queries
+KW_FOR_BEFORE_LOCK_MODE	FOR	googlesql.tm:456 FOR before UPDATE that ends a query
+KW_FULL_IN_SET_OP	FULL	googlesql.tm:457 FULL before a set operation
+KW_INNER_IN_SET_OP	INNER	googlesql.tm:458 INNER before a set operation
+KW_LEFT_IN_SET_OP	LEFT	googlesql.tm:459 LEFT before a set operation
+KW_TABLE_FOR_TABLE_CLAUSE	TABLE	googlesql.tm:460 TABLE in a FROM-less table clause
+KW_REPLACE_AFTER_INSERT	REPLACE	googlesql.tm:461 REPLACE after INSERT OR
+KW_UPDATE_AFTER_INSERT	UPDATE	googlesql.tm:462 UPDATE after INSERT OR
+KW_OPTIONS_IN_WITH_OPTIONS	OPTIONS	googlesql.tm:502 OPTIONS in SELECT WITH a OPTIONS(...)

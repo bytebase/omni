@@ -198,7 +198,7 @@ func (p *Parser) parseVariableDecl() (*nodes.VariableDecl, error) {
 						cols = append(cols, idx)
 					}
 				} else {
-					col, err := p.parseColumnDef()
+					col, err := p.parseTypedColumnDef()
 					if err != nil {
 						return nil, err
 					}
