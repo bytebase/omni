@@ -250,12 +250,6 @@ var (
 	)
 )
 
-// alterIndexActions: ALTER INDEX action keyword set (excluding SET which is a
-// registered kwSET and handled separately).
-var alterIndexActions = newOptionSet().withIdents(
-	"REBUILD", "REORGANIZE", "DISABLE", "RESUME", "PAUSE", "ABORT",
-)
-
 // alterDatabaseSubcommands is the closed set of ALTER DATABASE subcommands
 // that dispatch this parser (ADD and SET/COLLATE are handled by dedicated
 // keyword branches before this fallback is reached). Matches the branches
@@ -886,88 +880,6 @@ func (p *Parser) parseAlterDatabaseRemove(stmt *nodes.AlterDatabaseStmt) {
 			stmt.TargetName = id
 		}
 	}
-}
-
-// parseAlterIndexStmt parses an ALTER INDEX statement.
-//
-// BNF: mssql/parser/bnf/alter-index-transact-sql.bnf
-//
-//	ALTER INDEX { index_name | ALL } ON <object>
-//	{
-//	      REBUILD [
-//	            [ WITH ( <rebuild_index_option> [ ,...n ] ) ]
-//	          | [ PARTITION = ALL [ WITH ( <rebuild_index_option> [ ,...n ] ) ] ]
-//	          | [ PARTITION = partition_number [ WITH ( <single_partition_rebuild_index_option> ) ] ]
-//	      ]
-//	    | DISABLE
-//	    | REORGANIZE  [ PARTITION = partition_number ] [ WITH ( <reorganize_option> ) ]
-//	    | SET ( <set_index_option> [ ,...n ] )
-//	    | RESUME [ WITH ( <resumable_index_option> [ ,...n ] ) ]
-//	    | PAUSE
-//	    | ABORT
-//	}
-func (p *Parser) parseAlterIndexStmt() (*nodes.AlterIndexStmt, error) {
-	loc := p.pos()
-
-	stmt := &nodes.AlterIndexStmt{
-		Loc: nodes.Loc{Start: loc, End: -1},
-	}
-
-	// Index name or ALL. ALL is a Core keyword with special meaning
-	// ("every index on the table") in this position per SqlScriptDOM.
-	if p.isIdentLike() || p.cur.Type == kwALL {
-		stmt.IndexName = p.cur.Str
-		p.advance()
-	}
-
-	// ON table_name
-	if p.cur.Type == kwON {
-		p.advance() // consume ON
-		var err error
-		stmt.Table, err = p.parseTableRef()
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	// Action: REBUILD, REORGANIZE, DISABLE, SET, RESUME, PAUSE, ABORT.
-	if p.cur.Type == kwSET {
-		stmt.Action = "SET"
-		p.advance()
-	} else if p.isValidOption(alterIndexActions) {
-		stmt.Action = strings.ToUpper(p.cur.Str)
-		p.advance()
-	}
-
-	// Parse PARTITION = { partition_number | ALL }
-	if p.cur.Type == kwPARTITION {
-		p.advance() // consume PARTITION
-		p.match('=')
-		if p.cur.Type == kwALL {
-			stmt.Partition = "ALL"
-			p.advance()
-		} else {
-			stmt.Partition = p.cur.Str
-			p.advance()
-		}
-	}
-
-	// Parse WITH ( option = value [, ...] ) for REBUILD/REORGANIZE/RESUME or SET ( ... )
-	if p.cur.Type == kwWITH || stmt.Action == "SET" {
-		if p.cur.Type == kwWITH {
-			p.advance() // consume WITH
-		}
-		if p.cur.Type == '(' {
-			var err error
-			stmt.Options, err = p.parseAlterIndexOptions()
-			if err != nil {
-				return nil, err
-			}
-		}
-	}
-
-	stmt.Loc.End = p.prevEnd()
-	return stmt, nil
 }
 
 // indexOptions defines the valid option names for index WITH clauses.
