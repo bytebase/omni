@@ -379,7 +379,13 @@ func writeSuffixSelectClause(buf *strings.Builder, node ast.StmtNode, fullSQL st
 		if n.Alias != nil {
 			targetEnd = n.Alias.Loc.End
 		}
-		suffix = joinOracleSuffix(oracleDMLTargetText(fullSQL, n.Table, n.PartitionExt, n.Alias), oracleWhereSuffix(fullSQL, targetEnd, n.WhereClause))
+		suffix = oracleDMLTargetText(fullSQL, n.Table, n.PartitionExt, n.Alias)
+		// DELETE t FROM u ...: the FROM's tables join the target's.
+		if fromText, fromEnd, ok := oracleListText(fullSQL, n.FromClause); ok {
+			suffix += ", " + fromText
+			targetEnd = fromEnd
+		}
+		suffix = joinOracleSuffix(suffix, oracleWhereSuffix(fullSQL, targetEnd, n.WhereClause))
 	default:
 	}
 	_, err := buf.WriteString(suffix)

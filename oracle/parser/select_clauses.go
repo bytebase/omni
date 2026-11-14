@@ -12,6 +12,13 @@ import (
 // where Oracle 23ai reads them as documented, and as the engine reads them
 // where it does not.
 
+// takeSelectStar takes the * at the current token.
+func (p *Parser) takeSelectStar() *nodes.Star {
+	start := p.pos()
+	p.advance()
+	return &nodes.Star{Loc: nodes.Loc{Start: start, End: p.prev.End}}
+}
+
 // isSelectStarExpr reports whether expr is a select list's * or t.*.
 func isSelectStarExpr(expr nodes.ExprNode) bool {
 	switch e := expr.(type) {

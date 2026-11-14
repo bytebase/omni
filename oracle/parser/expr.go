@@ -656,10 +656,10 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 		}, nil
 
 	case '*':
-		p.advance()
-		return &nodes.Star{
-			Loc: nodes.Loc{Start: start, End: p.prev.End},
-		}, nil
+		// A bare * is no expression: the select list and JSON_OBJECT take
+		// it themselves (takeSelectStar), and elsewhere Oracle 23ai fails
+		// at it (ORA-00936 for SET a = * or WHERE *).
+		return nil, nil
 
 	case '(':
 		return p.parseParenExpr()
@@ -1394,6 +1394,15 @@ func (p *Parser) parseSubscriptIfPresent(expr nodes.ExprNode) (nodes.ExprNode, e
 	for {
 		if p.cur.Type == ']' {
 			break
+		}
+		// A JSON simplified path's array step takes *: doc.rows[*].
+		if p.cur.Type == '*' {
+			args.Items = append(args.Items, p.takeSelectStar())
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance()
+			continue
 		}
 		arg, parseErr713 := p.parseExpr()
 		if parseErr713 != nil {
@@ -3048,8 +3057,11 @@ func (p *Parser) parseJsonEntry(name string, fc *nodes.FuncCallExpr) error {
 	if keyKeyword {
 		p.advance() // consume KEY
 	}
-	key, err := p.parseExprPrec(precComp)
-	if err != nil {
+	var key nodes.ExprNode
+	var err error
+	if p.cur.Type == '*' && !keyKeyword {
+		key = p.takeSelectStar()
+	} else if key, err = p.parseExprPrec(precComp); err != nil {
 		return err
 	}
 	if key == nil {

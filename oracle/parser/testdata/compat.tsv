@@ -41796,7 +41796,7 @@ reject@16	reject@16	engine	select_select_list(AS)?/AS!insert	SELECT 1 AS zzz a
 reject@9	reject@9	engine	select_select_list(AS)?/AS!swap	SELECT 1 ASC a
 accept	accept	engine	select_select_list(,_(*|(ID|(ID_.)?_ID)_._*|EXPR_(AS?_ID)?))*/%empty	SELECT *
 reject@8	reject@8	engine	select_select_list(,_(*|(ID|(ID_.)?_ID)_._*|EXPR_(AS?_ID)?))*/,_(*|(ID|(ID_.)?_ID)_._*|EXPR_(AS?_ID)?)_(,_(*|(ID|(ID_~f2679f28	SELECT *, *
-reject@10	reject@9	engine	select_select_list(,_(*|(ID|(ID_.)?_ID)_._*|EXPR_(AS?_ID)?))*/,_(*|(ID|(ID_.)?_ID)_._*|EXPR_(AS?_ID)?)_(,_(*|(ID|(ID_~f2679f28!drop-1	SELECT * *
+reject@9	reject@9	engine	select_select_list(,_(*|(ID|(ID_.)?_ID)_._*|EXPR_(AS?_ID)?))*/,_(*|(ID|(ID_.)?_ID)_._*|EXPR_(AS?_ID)?)_(,_(*|(ID|(ID_~f2679f28!drop-1	SELECT * *
 reject@8	reject@8	engine	select_select_list(,_(*|(ID|(ID_.)?_ID)_._*|EXPR_(AS?_ID)?))*/,_(*|(ID|(ID_.)?_ID)_._*|EXPR_(AS?_ID)?)_(,_(*|(ID|(ID_~f2679f28!drop-2	SELECT *,
 reject@8	reject@8	engine	select_select_list(,_(*|(ID|(ID_.)?_ID)_._*|EXPR_(AS?_ID)?))*/,_(*|(ID|(ID_.)?_ID)_._*|EXPR_(AS?_ID)?)_(,_(*|(ID|(ID_~f2679f28!insert	SELECT *, * zzz
 accept	accept	engine	select_table_reference/(select_query_table_expression|(_sele~c75286c6)_(ID)?	SELECT * FROM a

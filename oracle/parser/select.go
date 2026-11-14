@@ -735,13 +735,15 @@ func (p *Parser) parseSelectList() (*nodes.List, error) {
 		if parseErr960 != nil {
 			return nil, parseErr960
 		}
-		if rt != nil {
-			list.Items = append(list.Items, rt)
+		// Every item is an expression (ORA-00936 at the ',' of 1,,2).
+		if rt == nil {
+			return nil, p.syntaxErrorAtCur()
 		}
+		list.Items = append(list.Items, rt)
 		if p.cur.Type != ',' {
 			break
 		}
-		if _, star := rt.Expr.(*nodes.Star); star && rt != nil {
+		if _, star := rt.Expr.(*nodes.Star); star {
 			return nil, p.syntaxErrorAtCur()
 		}
 		p.advance() // consume ','
@@ -767,6 +769,9 @@ func (p *Parser) isSelectListTerminator() bool {
 // parseResTarget parses a single target expression (with optional alias).
 func (p *Parser) parseResTarget() (*nodes.ResTarget, error) {
 	start := p.pos()
+	if p.cur.Type == '*' {
+		return &nodes.ResTarget{Expr: p.takeSelectStar(), Loc: nodes.Loc{Start: start, End: p.prev.End}}, nil
+	}
 	expr, parseErr961 := p.parseExpr()
 	if parseErr961 != nil {
 		return nil, parseErr961

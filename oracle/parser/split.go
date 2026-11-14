@@ -161,7 +161,9 @@ func Split(sql string) []Segment {
 		switch tok.Type {
 		case ';':
 			if state.inPLSQL {
-				if state.plsqlCanEndAtSemicolon() {
+				if state.withUnit && state.plsqlCanEndAtSemicolon() {
+					state.endWithDeclaration()
+				} else if state.plsqlCanEndAtSemicolon() {
 					end := tok.End
 					if !state.endPending && !state.callSpecKeepsSemicolon() {
 						end = tok.Loc
@@ -260,6 +262,9 @@ type splitState struct {
 	endPending      bool
 	closedOutermost bool
 
+	// pendingWith marks a statement whose first token is WITH.
+	pendingWith bool
+
 	sourceHead embeddedSourceHead
 
 	// mleLanguagePending marks that the next token is the language name of
@@ -274,6 +279,13 @@ type splitState struct {
 	// much of IS|AS MLE LANGUAGE its last tokens spell.
 	typeSpec    bool
 	typeSpecMLE int
+
+	// withDecls marks a query that opens with WITH FUNCTION or WITH
+	// PROCEDURE: each declaration is split as a PL/SQL unit whose END ;
+	// ends the declaration, not the statement, which ends at the ';' after
+	// its query. withUnit marks the declaration being split.
+	withDecls bool
+	withUnit  bool
 }
 
 // segmentKind classifies the segment that ends now.
@@ -311,6 +323,15 @@ func (s *splitState) observeTopLevel(tok Token) {
 	if tok.Type == tokHINT {
 		return
 	}
+
+	// WITH FUNCTION | PROCEDURE ...: a declaration of the query's.
+	if (s.withDecls || s.topLevelTokens == 1 && s.pendingWith) && (tok.Type == kwFUNCTION || tok.Type == kwPROCEDURE) {
+		s.startPLSQL(splitPLSQLStoredUnit)
+		s.withDecls = true
+		s.withUnit = true
+		return
+	}
+	s.pendingWith = s.topLevelTokens == 0 && tok.Type == kwWITH
 
 	if s.topLevelTokens == 0 {
 		switch tok.Type {
@@ -403,6 +424,12 @@ func (s *splitState) observeTypeSpecCallSpec(tok Token) {
 	default:
 		s.typeSpecMLE = 0
 	}
+}
+
+// endWithDeclaration returns to the query after a WITH declaration whose
+// END ; was just read, the statement going on.
+func (s *splitState) endWithDeclaration() {
+	*s = splitState{withDecls: true, topLevelTokens: 1}
 }
 
 func (s *splitState) startPLSQL(kind splitPLSQLKind) {

@@ -35,6 +35,11 @@ func TestSplitOrdinarySQL(t *testing.T) {
 			want: []string{" SELECT 1 FROM dual"},
 		},
 		{
+			name: "WITH FUNCTION and PROCEDURE declarations stay with their query",
+			sql:  "WITH FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END; PROCEDURE p IS BEGIN NULL; END; SELECT f() FROM dual; SELECT 2 FROM dual;",
+			want: []string{"WITH FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END; PROCEDURE p IS BEGIN NULL; END; SELECT f() FROM dual", " SELECT 2 FROM dual"},
+		},
+		{
 			name: "semicolon inside single quoted string",
 			sql:  "SELECT 'a;b' FROM dual; SELECT 1 FROM dual;",
 			want: []string{"SELECT 'a;b' FROM dual", " SELECT 1 FROM dual"},

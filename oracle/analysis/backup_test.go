@@ -37,6 +37,12 @@ func TestTransformDMLToSelect(t *testing.T) {
 	require.Contains(t, got[0].Statement, `WHERE ROWID IN (`)
 	require.Contains(t, got[0].Statement, "\n    UNION\n")
 
+	// DELETE t FROM u ...: the FROM's tables join the target's.
+	got, err = TransformDMLToSelect("DELETE t1 FROM t2 WHERE t1.a = t2.a", opts)
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	require.Equal(t, "CREATE TABLE \"BACKUP\".\"rollback_T1_DB\" AS\n  SELECT \"T1\".* FROM t1, t2 WHERE t1.a = t2.a;", got[0].Statement)
+
 	_, err = TransformDMLToSelect("UPDATE t1 SET a = 1;\nDELETE FROM t1;", opts)
 	require.ErrorContains(t, err, "different types on the same table")
 
