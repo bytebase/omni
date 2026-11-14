@@ -68,6 +68,9 @@ var nestingCases = []struct {
 		return "CREATE EVENT SESSION s ON SERVER ADD EVENT sqlserver.sql_batch_starting (WHERE " +
 			nest(n, "(", "sqlserver.session_id > 50", ")") + ")"
 	}, true},
+	{"filtered index predicate", func(n int) string {
+		return "CREATE INDEX i ON t (a) WHERE " + nest(n, "(", "a = 1", ")")
+	}, true},
 	{"unclosed parentheses", func(n int) string { return "SELECT " + strings.Repeat("(", n) }, false},
 	{"unclosed function calls", func(n int) string { return "SELECT " + strings.Repeat("ABS(", n) }, false},
 	{"unclosed subqueries", func(n int) string { return strings.Repeat("SELECT (", n) }, false},

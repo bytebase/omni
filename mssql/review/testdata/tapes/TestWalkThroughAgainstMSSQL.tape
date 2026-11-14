@@ -14077,38 +14077,6 @@
 | CREATE INDEX ix_a ON dbo.t (a, b) WITH (DROP_EXISTING = OFF, DROP_EXISTING = ON);
 < ok 0 -
 > exec
-| SAVE TRANSACTION walk_sp
-< ok 0 -
-> exec
-| CREATE INDEX ix_a ON dbo.t (a) WITH (DROP_EXISTING = 1);
-< error
-| 153 1 15 1 Invalid usage of the option DROP_EXISTING in the INDEX statement.
-> query
-| SELECT XACT_STATE()
-< result
-< column "" "SMALLINT"
-< row
-: int64 1
-> exec
-| ROLLBACK TRANSACTION walk_sp
-< ok 0 -
-> exec
-| SAVE TRANSACTION walk_sp
-< ok 0 -
-> exec
-| CREATE INDEX ix_a ON dbo.t (a) WITH (DROP_EXISTING);
-< error
-| 102 1 15 1 Incorrect syntax near ')'.
-> query
-| SELECT XACT_STATE()
-< result
-< column "" "SMALLINT"
-< row
-: int64 1
-> exec
-| ROLLBACK TRANSACTION walk_sp
-< ok 0 -
-> exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
 > exec ^
@@ -47188,38 +47156,6 @@
 < ok 0 -
 > exec
 | CREATE INDEX ix_a ON dbo.t (a, b) WITH (DROP_EXISTING = OFF, DROP_EXISTING = ON);
-< ok 0 -
-> exec
-| SAVE TRANSACTION walk_sp
-< ok 0 -
-> exec
-| CREATE INDEX ix_a ON dbo.t (a) WITH (DROP_EXISTING = 1);
-< error
-| 153 1 15 1 Invalid usage of the option DROP_EXISTING in the INDEX statement.
-> query
-| SELECT XACT_STATE()
-< result
-< column "" "SMALLINT"
-< row
-: int64 1
-> exec
-| ROLLBACK TRANSACTION walk_sp
-< ok 0 -
-> exec
-| SAVE TRANSACTION walk_sp
-< ok 0 -
-> exec
-| CREATE INDEX ix_a ON dbo.t (a) WITH (DROP_EXISTING);
-< error
-| 102 1 15 1 Incorrect syntax near ')'.
-> query
-| SELECT XACT_STATE()
-< result
-< column "" "SMALLINT"
-< row
-: int64 1
-> exec
-| ROLLBACK TRANSACTION walk_sp
 < ok 0 -
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
