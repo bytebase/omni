@@ -2311,7 +2311,8 @@ func (c *Catalog) alterConvertPartitionToTable(db *Database, tbl *Table, cmd *no
 // alterConvertTableToPartition runs CONVERT TABLE t TO PARTITION part_definition:
 // t becomes a new partition of the table and is gone. Measured on mariadb:11.8.8,
 // which answers 1505 on a table with no partitions, 1146 for a table t that does
-// not exist and 1736 for one whose definition is not the table's.
+// not exist, 1736 for one whose definition is not the table's or that has
+// partitions of its own, and 1517 for a partition name the table has.
 func (c *Catalog) alterConvertTableToPartition(db *Database, tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if tbl.Partitioning == nil {
 		return errPartitionMgmtOnNonpartitioned()
@@ -2324,8 +2325,19 @@ func (c *Catalog) alterConvertTableToPartition(db *Database, tbl *Table, cmd *no
 	if src == nil {
 		return errNoSuchTable(source.Name, cmd.ConvertTable.Name)
 	}
-	if c.tableDefinitionText(src) != c.tableDefinitionText(tbl) {
+	// The source is a table of no partitions: a partitioned one is 1736 whatever
+	// its columns, and so is a definition other than the table's.
+	if src.Partitioning != nil || c.tableDefinitionText(src) != c.tableDefinitionText(tbl) {
 		return errTablesDifferentMetadata()
+	}
+	// The new partition's name is one the table does not have (1517), checked
+	// before either table changes.
+	for _, pd := range cmd.PartitionDefs {
+		for _, have := range tbl.Partitioning.Partitions {
+			if strings.EqualFold(have.Name, pd.Name) {
+				return errSameNamePartition(pd.Name)
+			}
+		}
 	}
 	if err := c.alterAddPartition(tbl, &nodes.AlterTableCmd{PartitionDefs: cmd.PartitionDefs}); err != nil {
 		return err

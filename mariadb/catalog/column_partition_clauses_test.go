@@ -75,7 +75,7 @@ var columnPartitionClauseCases = []struct {
 	{
 		name:   "engine-defined options under IGNORE_BAD_TABLE_OPTIONS",
 		setup:  []string{"SET sql_mode = 'IGNORE_BAD_TABLE_OPTIONS'"},
-		sql:    "CREATE TABLE o (a INT NOT NULL DEFAULT 1 COMMENT 'c' x = 1 INVISIBLE CHECK (a > 0), b INT y = 2 z := 'it''s' Y = w, c INT q = 1 q = DEFAULT, d INT `select` = 0x41 READ_ONLY = 7)",
+		sql:    "CREATE TABLE o (a INT NOT NULL DEFAULT 1 COMMENT 'c' x = 1 INVISIBLE CHECK (a > 0), b INT y = 2 z := 'it''s' Y = w, c INT q = 1 q = DEFAULT, d INT `select` = 0x41 READ_ONLY = 7, e INT `x``y` = 1, KEY k (e) `m``n` = 2)",
 		tables: []string{"o"},
 	},
 	{
@@ -142,6 +142,18 @@ var columnPartitionClauseCases = []struct {
 		setup:   []string{"CREATE TABLE pt (a INT COMMENT '\\n PARTITION BY x', b INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))", "CREATE TABLE ct (a INT COMMENT '\\n PARTITION BY x', b VARCHAR(20))"},
 		sql:     "ALTER TABLE pt CONVERT TABLE ct TO PARTITION p1 VALUES LESS THAN (20)",
 		errCode: 1736,
+	},
+	{
+		name:    "CONVERT TABLE of a partitioned table",
+		setup:   []string{"CREATE TABLE pt (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))", "CREATE TABLE ct (a INT) PARTITION BY HASH (a)"},
+		sql:     "ALTER TABLE pt CONVERT TABLE ct TO PARTITION p1 VALUES LESS THAN (20)",
+		errCode: 1736,
+	},
+	{
+		name:    "CONVERT TABLE to a partition the table has",
+		setup:   []string{"CREATE TABLE pt (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))", "CREATE TABLE ct (a INT)"},
+		sql:     "ALTER TABLE pt CONVERT TABLE ct TO PARTITION P0 VALUES LESS THAN (20)",
+		errCode: 1517,
 	},
 	{
 		name:    "CONVERT TABLE of no table",

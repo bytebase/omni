@@ -2314,18 +2314,19 @@ func applyIndexOptions(idx *Index, opts []*nodes.IndexOption) {
 }
 
 // engineOptionText writes an engine-defined option as MariaDB 11.8.8's SHOW CREATE
-// TABLE does: the name quoted as written, a word or a number bare, a string quoted.
+// TABLE does: the name quoted as written, a backquote in it doubled, a word or a
+// number bare, a string quoted.
 // VECTOR KEY `i` (`v`) COMMENT 'c' `M`=6 `DISTANCE`=cosine
 func engineOptionText(opt *nodes.IndexOption) string {
 	// DEFAULT has no value, so it prints nothing.
 	switch v := opt.Value.(type) {
 	case *nodes.StringLit:
 		if opt.ValueIsWord {
-			return fmt.Sprintf("`%s`=%s", opt.Name, v.Value)
+			return fmt.Sprintf("%s=%s", backtickIDQ(opt.Name), v.Value)
 		}
-		return fmt.Sprintf("`%s`='%s'", opt.Name, escapeComment(v.Value))
+		return fmt.Sprintf("%s='%s'", backtickIDQ(opt.Name), escapeComment(v.Value))
 	case *nodes.IntLit:
-		return fmt.Sprintf("`%s`=%d", opt.Name, v.Value)
+		return fmt.Sprintf("%s=%d", backtickIDQ(opt.Name), v.Value)
 	}
 	return ""
 }
@@ -2366,7 +2367,7 @@ func (c *Catalog) ignoresBadTableOptions() bool {
 // `DISTANCE`=cosine `M`=7 for M=6 DISTANCE=cosine M=7. DEFAULT clears it: M=6 M=DEFAULT prints
 // nothing, and m=6 M=DEFAULT does too.
 func setEngineOption(options []string, opt *nodes.IndexOption) []string {
-	prefix := toLower("`" + opt.Name + "`=")
+	prefix := toLower(backtickIDQ(opt.Name) + "=")
 	kept := options[:0:0]
 	for _, text := range options {
 		if !strings.HasPrefix(toLower(text), prefix) {

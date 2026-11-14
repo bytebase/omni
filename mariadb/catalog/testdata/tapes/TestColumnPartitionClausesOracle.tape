@@ -203,7 +203,7 @@
 | SET sql_mode = 'IGNORE_BAD_TABLE_OPTIONS'
 < ok 0 0
 > exec
-| CREATE TABLE o (a INT NOT NULL DEFAULT 1 COMMENT 'c' x = 1 INVISIBLE CHECK (a > 0), b INT y = 2 z := 'it''s' Y = w, c INT q = 1 q = DEFAULT, d INT `select` = 0x41 READ_ONLY = 7)
+| CREATE TABLE o (a INT NOT NULL DEFAULT 1 COMMENT 'c' x = 1 INVISIBLE CHECK (a > 0), b INT y = 2 z := 'it''s' Y = w, c INT q = 1 q = DEFAULT, d INT `select` = 0x41 READ_ONLY = 7, e INT `x``y` = 1, KEY k (e) `m``n` = 2)
 < ok 0 0
 > query
 | SHOW CREATE TABLE o
@@ -218,7 +218,9 @@
 |   `a` int(11) NOT NULL DEFAULT 1 INVISIBLE `x`=1 COMMENT 'c' CHECK (`a` > 0),
 |   `b` int(11) DEFAULT NULL `z`='it''s' `Y`=w,
 |   `c` int(11) DEFAULT NULL,
-|   `d` int(11) DEFAULT NULL `select`=65 `READ_ONLY`=7
+|   `d` int(11) DEFAULT NULL `select`=65 `READ_ONLY`=7,
+|   `e` int(11) DEFAULT NULL `x``y`=1,
+|   KEY `k` (`e`) `m``n`=2
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
 > exec
 | SET sql_mode = DEFAULT
@@ -532,6 +534,38 @@
 | ALTER TABLE pt CONVERT TABLE ct TO PARTITION p1 VALUES LESS THAN (20)
 < error
 | 1736 HY000 Tables have different definitions
+> exec
+| SET sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
+< ok 0 0
+> exec
+| CREATE TABLE pt (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))
+< ok 0 0
+> exec
+| CREATE TABLE ct (a INT) PARTITION BY HASH (a)
+< ok 0 0
+> exec
+| ALTER TABLE pt CONVERT TABLE ct TO PARTITION p1 VALUES LESS THAN (20)
+< error
+| 1736 HY000 Tables have different definitions
+> exec
+| SET sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
+< ok 0 0
+> exec
+| CREATE TABLE pt (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))
+< ok 0 0
+> exec
+| CREATE TABLE ct (a INT)
+< ok 0 0
+> exec
+| ALTER TABLE pt CONVERT TABLE ct TO PARTITION P0 VALUES LESS THAN (20)
+< error
+| 1517 HY000 Duplicate partition name P0
 > exec
 | SET sql_mode = DEFAULT
 < ok 0 0
