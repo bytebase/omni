@@ -35,6 +35,10 @@ type objectForm struct {
 	// account-level object (a compute pool), 2 for one a database qualifies,
 	// 0 for a schema object, which db.schema.name may qualify.
 	nameParts int
+	// noIfNotExists and noIfExists are set where the page writes no
+	// CREATE ... IF NOT EXISTS or ALTER ... IF EXISTS, and dropNoIfExists where
+	// its DROP page writes no IF EXISTS.
+	noIfNotExists, noIfExists, dropNoIfExists bool
 	// props, when set, are the properties the page documents and the value
 	// each takes. parseObjectStmt then rejects a property of a CREATE's run
 	// or a SET that props does not name or whose value has another shape,
@@ -149,12 +153,12 @@ func (p *Parser) parseObjectStmt(verb string, f *objectForm, start ast.Loc, orRe
 		Loc:       ast.Loc{Start: start.Start},
 	}
 	// IF NOT EXISTS excludes OR REPLACE (the docs write the two forms apart).
-	if verb == "CREATE" && !orReplace {
+	if verb == "CREATE" && !orReplace && !f.noIfNotExists {
 		if err := p.parseIfNotExists(&s.IfNotExists); err != nil {
 			return nil, err
 		}
 	}
-	if verb == "ALTER" {
+	if verb == "ALTER" && !f.noIfExists {
 		if err := p.parseIfExists(&s.IfExists); err != nil {
 			return nil, err
 		}

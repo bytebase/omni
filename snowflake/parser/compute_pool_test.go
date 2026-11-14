@@ -212,3 +212,17 @@ func TestParseObjectAsQuery(t *testing.T) {
 		t.Fatalf("clause = %+v", c)
 	}
 }
+
+func TestObjectFormIfExistsFlags(t *testing.T) {
+	f := &objectForm{words: []string{"ZZ", "THING"}, noIfNotExists: true, noIfExists: true, dropNoIfExists: true, drop: true,
+		create: func(*Parser, *ast.ObjectStmt) error { return nil },
+		alter:  func(*Parser, *ast.ObjectStmt) error { return nil }}
+	registerObject(f)
+	defer delete(objectForms, "ZZ")
+	for _, in := range []string{"CREATE ZZ THING t", "ALTER ZZ THING t", "DROP ZZ THING t"} {
+		mustParseOne(t, in)
+	}
+	for _, in := range []string{"CREATE ZZ THING IF NOT EXISTS t", "ALTER ZZ THING IF EXISTS t", "DROP ZZ THING IF EXISTS t"} {
+		mustRejectObject(t, in)
+	}
+}
