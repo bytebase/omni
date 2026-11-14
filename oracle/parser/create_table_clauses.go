@@ -1257,10 +1257,21 @@ func (p *Parser) isCreateTablePeriodStart() bool {
 }
 
 // parseCreateTablePeriod reads a period_definition, which adds the hidden
-// start and end columns of its valid time.
+// start and end columns of its valid time, and keeps it as a PERIOD FOR
+// DDLOption with its text.
 //
 //	PERIOD FOR valid_time_column [ ( start_time_column , end_time_column ) ]
-func (p *Parser) parseCreateTablePeriod() error {
+func (p *Parser) parseCreateTablePeriod(stmt *nodes.CreateTableStmt) error {
+	start := p.pos()
+	if err := p.parseCreateTablePeriodDefinition(); err != nil {
+		return err
+	}
+	appendCreateTableOption(stmt, "PERIOD FOR", p.createTableOptionValue(start+len("PERIOD FOR")), nodes.Loc{Start: start, End: p.prev.End})
+	return nil
+}
+
+// parseCreateTablePeriodDefinition reads the words of a period_definition.
+func (p *Parser) parseCreateTablePeriodDefinition() error {
 	p.advance() // consume PERIOD
 	p.advance() // consume FOR
 	if err := p.parseCreateTableName(); err != nil {

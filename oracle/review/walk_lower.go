@@ -330,14 +330,15 @@ func (b *builder) declEffects(d *tableDecl, r objRef) {
 // with a column list or AS SELECT. A private temporary table, a nested
 // table, an external table, or a table with a supplemental log group,
 // which is a constraint, ends the walk (spec §6), as does an object or
-// XMLType table, whose columns come from its type.
+// XMLType table, whose columns come from its type, and a table with a
+// period, whose start and end columns Oracle adds.
 func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 	if v.Private || v.OrReplace || v.Sharded || v.Duplicated || v.Parent != nil || v.Organization == "EXTERNAL" || v.OfType != nil {
 		return false
 	}
 	if v.Options != nil {
 		for _, item := range v.Options.Items {
-			if o, ok := item.(*ast.DDLOption); ok && (o.Key == "NESTED" || o.Key == "ORGANIZATION EXTERNAL" || o.Key == "SUPPLEMENTAL LOG") {
+			if o, ok := item.(*ast.DDLOption); ok && (o.Key == "NESTED" || o.Key == "ORGANIZATION EXTERNAL" || o.Key == "SUPPLEMENTAL LOG" || o.Key == "PERIOD FOR") {
 				return false
 			}
 		}

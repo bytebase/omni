@@ -523,7 +523,7 @@ func (p *Parser) parseColumnDefsAndConstraints(stmt *nodes.CreateTableStmt) erro
 		before := stmt.Columns.Len() + stmt.Constraints.Len() + periods
 		// Check if this is a table-level constraint
 		if p.isCreateTablePeriodStart() {
-			if err := p.parseCreateTablePeriod(); err != nil {
+			if err := p.parseCreateTablePeriod(stmt); err != nil {
 				return err
 			}
 			periods++
