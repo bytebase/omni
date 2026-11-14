@@ -1,7 +1,10 @@
 package parser
 
 import (
+	"fmt"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/bytebase/omni/snowflake/ast"
 )
@@ -121,6 +124,11 @@ func TestParseComputePoolRejects(t *testing.T) {
 		"CREATE COMPUTE POOL p FOR APPLICATION db.a MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a",
 		"ALTER COMPUTE POOL p STOP ALL OF TYPE db.a",
 		"ALTER COMPUTE POOL p SET AUTO_RESUME = TRUE AUTO_RESUME = FALSE",
+		"CREATE COMPUTE POOL p MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a WITH TAG ()",
+		"CREATE COMPUTE POOL p MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a WITH TAG (t = 'v',)",
+		"CREATE COMPUTE POOL p MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a TAG (t = 'v') TAG (u = 'v')",
+		"ALTER COMPUTE POOL p SET TAG t = 'v' TAG u = 'v'",
+		"ALTER COMPUTE POOL p SET TAG t = 'v',",
 		"CREATE COMPUTE POOL p MIN_NODES = 1 MAX_NODES = 1 INSTANCE_FAMILY = a MIN_NODES = 2",
 		"ALTER COMPUTE POOL p SET TAG (t = 'x')",
 		"ALTER COMPUTE POOL p SET INSTANCE_FAMILY = foo.",
@@ -234,5 +242,21 @@ func TestObjectFormIfExistsFlags(t *testing.T) {
 	}
 	for _, in := range []string{"CREATE ZZ THING IF NOT EXISTS t", "ALTER ZZ THING IF EXISTS t", "DROP ZZ THING IF EXISTS t"} {
 		mustRejectObject(t, in)
+	}
+}
+
+// A long run of distinct properties is read in linear time.
+func TestObjectPropertiesStayLinear(t *testing.T) {
+	var b strings.Builder
+	b.WriteString("ALTER COMPUTE POOL p SET")
+	for i := 0; i < 40000; i++ {
+		fmt.Fprintf(&b, " X%d = 1", i)
+	}
+	start := time.Now()
+	if _, err := Parse(b.String()); err == nil {
+		t.Fatal("want an error: X0 is not a compute pool property")
+	}
+	if d := time.Since(start); d > 2*time.Second {
+		t.Fatalf("took %v", d)
 	}
 }
