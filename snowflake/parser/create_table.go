@@ -132,6 +132,17 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 		hybrid = true
 	}
 
+	// Optional VERSIONED modifier: CREATE OR ALTER VERSIONED SCHEMA is the only
+	// documented form (https://docs.snowflake.com/en/sql-reference/sql/create-versioned-schema).
+	// VERSIONED is not a reserved keyword; it is taken only before SCHEMA.
+	if tokIsWord(p.cur, "VERSIONED") && p.peekNext().Type == kwSCHEMA {
+		if !orAlter || transient || temporary || volatile {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance() // consume VERSIONED
+		return p.parseCreateSchemaStmt(start, orReplace, orAlter, transient, true)
+	}
+
 	switch p.cur.Type {
 	case kwTABLE:
 		return p.parseCreateTableStmt(start, orReplace, orAlter, transient, temporary, volatile, hybrid)
@@ -144,7 +155,7 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 		}
 		return p.parseCreateDatabaseStmt(start, orReplace, orAlter, transient)
 	case kwSCHEMA:
-		return p.parseCreateSchemaStmt(start, orReplace, orAlter, transient)
+		return p.parseCreateSchemaStmt(start, orReplace, orAlter, transient, false)
 	case kwVIEW:
 		return p.parseCreateViewStmt(start, orReplace, orAlter, false, false)
 	case kwMATERIALIZED:
