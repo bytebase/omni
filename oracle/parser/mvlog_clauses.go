@@ -493,7 +493,8 @@ func (p *Parser) parseMVLogForRefresh(mode, staging *string) error {
 //	ALTER MATERIALIZED VIEW LOG [ IF EXISTS ] [ FORCE ]
 //	    ON [ schema. ] table
 //	    [ mv_log_options
-//	    | MOVE ... | MODIFY ... | RENAME ... | SET ... | SPLIT ... | MERGE ... ]
+//	    | MOVE ... | MODIFY ... | RENAME ... | SET ... | SPLIT ... | MERGE ...
+//	    | ADD PARTITION ... ]
 //
 // Oracle takes the statement with nothing after the table.
 func (p *Parser) parseAlterMviewLogStmt(start int) (*nodes.AlterMviewLogStmt, error) {
@@ -530,6 +531,8 @@ func (p *Parser) parseAlterMviewLogStmt(start int) (*nodes.AlterMviewLogStmt, er
 		err = p.parseMVLogSplit(stmt)
 	case p.atWord("MERGE"):
 		err = p.parseMVLogMerge(stmt)
+	case p.cur.Type == kwADD && p.peekNext().Type == kwPARTITION:
+		err = p.parseMVLogAddPartitions(stmt)
 	default:
 		err = p.parseMVLogOptions(stmt)
 	}
@@ -1128,6 +1131,162 @@ func (p *Parser) isMVLogAddSubpartitionFollow() bool {
 		return true
 	}
 	return p.isMVLogIndexMaintenanceStart() || p.isMVLogParallelStart()
+}
+
+// parseMVLogAddPartitions reads
+//
+//	ADD add_partition [, add_partition ]...
+//
+//	add_partition:
+//	    PARTITION [ partition ] [ range_values_clause | list_values_clause ]
+//	    [ { physical_attributes_clause | TABLESPACE tablespace
+//	      | logging_clause | parallel_clause }... ]
+//	    [ ( subpartition_desc [, subpartition_desc ]... )
+//	    | SUBPARTITIONS integer [ STORE IN ( tablespace [, tablespace ]... ) ] ]
+//
+// as Oracle takes it on a log. The inmemory_clause and, after the values,
+// update_index_clauses are read and refused (ORA-14020 and ORA-30566 at what
+// follows); table_compression is refused (ORA-14020).
+func (p *Parser) parseMVLogAddPartitions(stmt *nodes.AlterMviewLogStmt) error {
+	stmt.Action = "ADD_PARTITION"
+	p.advance() // ADD
+	for {
+		values, err := p.parseMVLogAddPartition()
+		if err != nil {
+			return err
+		}
+		if p.cur.Type == ',' {
+			p.advance()
+			if p.cur.Type != kwPARTITION {
+				return p.syntaxErrorAtCur()
+			}
+			continue
+		}
+		if values && p.isMVLogIndexMaintenanceStart() {
+			return p.refuseMVLogIndexMaintenance()
+		}
+		return nil
+	}
+}
+
+// isMVLogAddPartitionAttrStart reports an attribute of a partition ADD
+// adds: physical_attributes_clause, TABLESPACE, logging_clause,
+// parallel_clause or the inmemory_clause.
+func (p *Parser) isMVLogAddPartitionAttrStart() bool {
+	return p.isMVLogSegmentAttrStart() || p.isMVLogParallelStart() || p.atWord("INMEMORY") ||
+		p.atWord("NO") && p.atNextWord("INMEMORY")
+}
+
+// isMVLogAddPartitionFollow reports what may follow a partition's name in
+// ADD: its values, its attributes, its subpartitions, the next partition or
+// the end of the statement.
+func (p *Parser) isMVLogAddPartitionFollow() bool {
+	switch p.cur.Type {
+	case kwVALUES, '(', ',', ';', tokEOF:
+		return true
+	}
+	return p.isMVLogAddPartitionAttrStart() || p.atWord("SUBPARTITIONS")
+}
+
+// parseMVLogAddPartition reads one add_partition and reports whether it
+// had values. Oracle reports a word after PARTITION that can neither name
+// the partition nor start its description at PARTITION (ORA-02000 at
+// ADD PARTITION COMPRESS), save UPDATE, at itself. A word that starts an
+// attribute with more after it is the attribute (ADD PARTITION LOGGING
+// zzz fails at zzz); another is the name. Where a name without values is
+// followed by attributes Oracle cannot read, it fails at the name
+// (ADD PARTITION OVERFLOW TABLESPACE a zzz, ORA-14020 at OVERFLOW).
+func (p *Parser) parseMVLogAddPartition() (bool, error) {
+	partition := p.cur
+	p.advance() // PARTITION
+	if p.cur.Type == '(' ||
+		p.cur.Type != kwVALUES && p.cur.Type != kwUPDATE && p.cur.Type != tokQIDENT && isOracleSQLReservedKeyword(p.cur) {
+		return false, p.syntaxErrorAtTok(partition)
+	}
+	if next := p.peekNext().Type; p.atWord("INVALIDATE") && next != ';' && next != tokEOF && next != ',' {
+		return false, p.refuseMVLogIndexMaintenance()
+	}
+	var name *Token
+	if p.isATNameStart() && p.cur.Type != kwVALUES {
+		switch p.peekNext().Type {
+		case ';', tokEOF, ',':
+			p.advance()
+			return false, nil
+		}
+		if !p.isMVLogAddPartitionAttrStart() {
+			tok := p.cur
+			name = &tok
+			p.advance()
+		}
+	}
+	values := false
+	if p.cur.Type == kwVALUES {
+		if err := p.parseATValuesClause(); err != nil {
+			return false, err
+		}
+		values = true
+	}
+	atName := func(err error) error {
+		if name != nil && !values {
+			return p.syntaxErrorAtTok(*name)
+		}
+		return err
+	}
+	for p.isMVLogAddPartitionAttrStart() {
+		var err error
+		switch {
+		case p.isMVLogParallelStart():
+			err = p.parseATParallel()
+		case p.atWord("INMEMORY"), p.atWord("NO"):
+			if p.atWord("NO") {
+				p.advance()
+			}
+			p.advance() // INMEMORY
+			err = p.mvLogRefusal("the inmemory_clause")
+		default:
+			err = p.parseMVLogSegmentAttr()
+		}
+		if err != nil {
+			return false, atName(err)
+		}
+	}
+	switch {
+	case p.cur.Type == '(':
+		p.advance()
+		for {
+			if err := p.parseMVLogSubpartitionSpec(true, p.isMVLogSpecListFollow); err != nil {
+				return false, err
+			}
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance()
+		}
+		return values, p.atExpect(')')
+	case p.atWord("SUBPARTITIONS"):
+		p.advance()
+		if err := p.parseATInteger(); err != nil {
+			return false, err
+		}
+		if p.atWord("STORE") {
+			p.advance()
+			if err := p.atExpect(kwIN); err != nil {
+				return false, err
+			}
+			if err := p.parseATNameList(); err != nil {
+				return false, err
+			}
+		}
+		return values, nil
+	}
+	switch p.cur.Type {
+	case ',', ';', tokEOF:
+	default:
+		if !values || !p.isMVLogIndexMaintenanceStart() {
+			return false, atName(p.syntaxErrorAtCur())
+		}
+	}
+	return values, nil
 }
 
 // parseMVLogRename reads RENAME { PARTITION | SUBPARTITION } name TO name.
