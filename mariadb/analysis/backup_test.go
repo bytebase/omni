@@ -508,3 +508,76 @@ func TestTransformDMLToSelectReturning(t *testing.T) {
 		require.True(t, strings.HasSuffix(got[0].Statement, tc.want), "%s: %s", tc.statement, got[0].Statement)
 	}
 }
+
+func TestTransformDMLToSelectReadsForeignKeysOfOtherDatabases(t *testing.T) {
+	key := func(name, database, table, onDelete, onUpdate string) *metadata.ForeignKeyMetadata {
+		return &metadata.ForeignKeyMetadata{Name: name, Columns: []string{"ref"}, ReferencedSchema: database, ReferencedTable: table, ReferencedColumns: []string{"id"}, OnDelete: onDelete, OnUpdate: onUpdate}
+	}
+	keyed := func(name string, foreignKeys ...*metadata.ForeignKeyMetadata) *metadata.TableMetadata {
+		return &metadata.TableMetadata{Name: name, Columns: backupColumns("id", "ref", "v"), Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Expressions: []string{"id"}}}, ForeignKeys: foreignKeys}
+	}
+	databases := map[string]*backupDatabase{
+		"db": {name: "db", tables: []*metadata.TableMetadata{keyed("p"), keyed("q"), keyed("r")}},
+		"app": {name: "app", tables: []*metadata.TableMetadata{
+			keyed("q"),
+			keyed("c",
+				key("fk_p", "DB", "p", "CASCADE", "RESTRICT"),
+				// An empty referenced database is app's own.
+				key("fk_q", "", "q", "CASCADE", "CASCADE"),
+				key("fk_r", "db", "r", "RESTRICT", "SET NULL"),
+			),
+		}},
+	}
+	catalog := analysis.Catalog{
+		ListDatabaseNames: func() ([]string, error) { return []string{"db", "app", "unsynced"}, nil },
+		GetDatabase: func(name string) (analysis.Database, error) {
+			if database, ok := databases[name]; ok {
+				return database, nil
+			}
+			return nil, nil
+		},
+	}
+	transform := func(statement string, referencing func(string) ([]string, error)) error {
+		_, err := analysis.TransformDMLToSelect(statement, analysis.BackupOptions{
+			DefaultDatabase:      "db",
+			BackupDatabase:       "bak",
+			TablePrefix:          "pre",
+			Catalog:              catalog,
+			ReferencingDatabases: referencing,
+		})
+		return err
+	}
+
+	for _, tc := range []struct {
+		statement string
+		want      string
+	}{
+		{"DELETE FROM p WHERE id = 1", "prior backup cannot back up db.p: foreign key fk_p of app.c is ON DELETE CASCADE, and the rows it changes are not backed up"},
+		{"UPDATE p SET v = 1 WHERE id = 1", ""},
+		{"UPDATE p SET id = 2 WHERE id = 1", ""},
+		{"DELETE FROM q WHERE id = 1", ""},
+		{"DELETE FROM r WHERE id = 1", ""},
+		{"UPDATE r SET id = 2 WHERE id = 1", "prior backup cannot back up db.r: foreign key fk_r of app.c is ON UPDATE SET NULL, and the rows it changes are not backed up"},
+	} {
+		err := transform(tc.statement, nil)
+		if tc.want == "" {
+			require.NoError(t, err, tc.statement)
+		} else {
+			require.ErrorContains(t, err, tc.want, tc.statement)
+		}
+	}
+
+	// ReferencingDatabases narrows the databases read.
+	var asked []string
+	require.NoError(t, transform("DELETE FROM p WHERE id = 1", func(database string) ([]string, error) {
+		asked = append(asked, database)
+		return []string{"unsynced"}, nil
+	}))
+	require.Equal(t, []string{"db"}, asked)
+	require.ErrorContains(t, transform("DELETE FROM p WHERE id = 1", func(string) ([]string, error) {
+		return []string{"app"}, nil
+	}), "foreign key fk_p of app.c is ON DELETE CASCADE")
+	require.ErrorContains(t, transform("DELETE FROM p WHERE id = 1", func(string) ([]string, error) {
+		return nil, errors.New("boom")
+	}), "prior backup cannot read the foreign keys into db.p: boom")
+}

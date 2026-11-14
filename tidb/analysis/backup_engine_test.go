@@ -39,6 +39,9 @@ type roundTrip struct {
 	restoreErr   string
 }
 
+// otherDatabase stands for the second database in a case's text.
+const otherDatabase = "omni_tidb_analysis_backup_other"
+
 var roundTrips = []roundTrip{
 	{
 		// More than five statements share a backup, and the first keeps its
@@ -319,13 +322,34 @@ var roundTrips = []roundTrip{
 		tables:       []string{"separate_swap"},
 		transformErr: "together they change unique key uk_u",
 	},
+	{
+		// Deleting a parent deletes its children in the second database,
+		// which no backup holds.
+		name: "cross_database_cascade",
+		setup: "CREATE DATABASE IF NOT EXISTS " + otherDatabase + ";CREATE TABLE xdb_parent (id INT PRIMARY KEY);" +
+			"CREATE TABLE " + otherDatabase + ".xdb_child (id INT PRIMARY KEY, parent_id INT, CONSTRAINT fk_xdb_child FOREIGN KEY (parent_id) REFERENCES test.xdb_parent (id) ON DELETE CASCADE);" +
+			"INSERT INTO xdb_parent VALUES (1), (2);INSERT INTO " + otherDatabase + ".xdb_child VALUES (1, 1), (2, 2)",
+		script:       "DELETE FROM xdb_parent WHERE id = 1",
+		tables:       []string{"xdb_parent", "other.xdb_child"},
+		transformErr: "foreign key fk_xdb_child of " + otherDatabase + ".xdb_child is ON DELETE CASCADE",
+	},
+	{
+		// The second database's xdb_twin_child cascades from its own
+		// xdb_twin, not from the first database's.
+		name: "same_name_in_other_database",
+		setup: "CREATE DATABASE IF NOT EXISTS " + otherDatabase + ";CREATE TABLE xdb_twin (id INT PRIMARY KEY);CREATE TABLE " + otherDatabase + ".xdb_twin (id INT PRIMARY KEY);" +
+			"CREATE TABLE " + otherDatabase + ".xdb_twin_child (id INT PRIMARY KEY, twin_id INT, CONSTRAINT fk_xdb_twin_child FOREIGN KEY (twin_id) REFERENCES " + otherDatabase + ".xdb_twin (id) ON DELETE CASCADE);" +
+			"INSERT INTO xdb_twin VALUES (1), (2);INSERT INTO " + otherDatabase + ".xdb_twin VALUES (1), (2);INSERT INTO " + otherDatabase + ".xdb_twin_child VALUES (1, 1), (2, 2)",
+		script: "DELETE FROM xdb_twin WHERE id = 1",
+		tables: []string{"xdb_twin", "other.xdb_twin", "other.xdb_twin_child"},
+	},
 }
 
 // TestBackupRestoreRoundTrip runs each backup, its statements and their
 // restore on TiDB, and requires the tables' rows back.
 func TestBackupRestoreRoundTrip(t *testing.T) {
 	testcontainer.Reset(t, func(ctx context.Context, db *sql.DB) error {
-		for _, stmt := range []string{"DROP DATABASE IF EXISTS test", "CREATE DATABASE test"} {
+		for _, stmt := range []string{"DROP DATABASE IF EXISTS " + otherDatabase, "DROP DATABASE IF EXISTS test", "CREATE DATABASE test"} {
 			if _, err := db.ExecContext(ctx, stmt); err != nil {
 				return err
 			}
@@ -334,7 +358,12 @@ func TestBackupRestoreRoundTrip(t *testing.T) {
 	})
 	db := testcontainer.Open(t)
 	const database = "test"
-	name := func(table string) (string, string) { return database, table }
+	name := func(table string) (string, string) {
+		if rest, ok := strings.CutPrefix(table, "other."); ok {
+			return otherDatabase, rest
+		}
+		return database, table
+	}
 	rowsOf := func(table string) []string {
 		database, table := name(table)
 		return tableRows(t, db, database, table)
@@ -345,7 +374,7 @@ func TestBackupRestoreRoundTrip(t *testing.T) {
 		for _, table := range rt.tables {
 			before = append(before, rowsOf(table))
 		}
-		catalog := engineCatalog(t, db, database)
+		catalog := engineCatalog(t, db, database, otherDatabase)
 
 		backups, err := analysis.TransformDMLToSelect(rt.script, analysis.BackupOptions{
 			DefaultDatabase: database,
@@ -528,15 +557,19 @@ func engineCatalog(t *testing.T, db *sql.DB, databases ...string) analysis.Catal
 			index.Expressions = append(index.Expressions, part)
 		}
 		require.NoError(t, rows.Close())
-		rows, err = db.Query("SELECT k.TABLE_NAME, k.CONSTRAINT_NAME, k.COLUMN_NAME, k.REFERENCED_TABLE_NAME, k.REFERENCED_COLUMN_NAME, r.UPDATE_RULE, r.DELETE_RULE FROM information_schema.KEY_COLUMN_USAGE k JOIN information_schema.REFERENTIAL_CONSTRAINTS r ON r.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA AND r.CONSTRAINT_NAME = k.CONSTRAINT_NAME WHERE k.TABLE_SCHEMA = ? AND k.REFERENCED_TABLE_NAME IS NOT NULL ORDER BY k.TABLE_NAME, k.CONSTRAINT_NAME, k.ORDINAL_POSITION", database)
+		rows, err = db.Query("SELECT k.TABLE_NAME, k.CONSTRAINT_NAME, k.COLUMN_NAME, k.REFERENCED_TABLE_SCHEMA, k.REFERENCED_TABLE_NAME, k.REFERENCED_COLUMN_NAME, r.UPDATE_RULE, r.DELETE_RULE FROM information_schema.KEY_COLUMN_USAGE k JOIN information_schema.REFERENTIAL_CONSTRAINTS r ON r.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA AND r.CONSTRAINT_NAME = k.CONSTRAINT_NAME WHERE k.TABLE_SCHEMA = ? AND k.REFERENCED_TABLE_NAME IS NOT NULL ORDER BY k.TABLE_NAME, k.CONSTRAINT_NAME, k.ORDINAL_POSITION", database)
 		require.NoError(t, err)
 		keys := map[string]*metadata.ForeignKeyMetadata{}
 		for rows.Next() {
-			var tableName, name, column, referencedTable, referencedColumn, onUpdate, onDelete string
-			require.NoError(t, rows.Scan(&tableName, &name, &column, &referencedTable, &referencedColumn, &onUpdate, &onDelete))
+			var tableName, name, column, referencedDatabase, referencedTable, referencedColumn, onUpdate, onDelete string
+			require.NoError(t, rows.Scan(&tableName, &name, &column, &referencedDatabase, &referencedTable, &referencedColumn, &onUpdate, &onDelete))
 			fk := keys[tableName+"."+name]
 			if fk == nil {
-				fk = &metadata.ForeignKeyMetadata{Name: name, ReferencedTable: referencedTable, OnUpdate: onUpdate, OnDelete: onDelete}
+				// Bytebase's sync names only another database.
+				if referencedDatabase == database {
+					referencedDatabase = ""
+				}
+				fk = &metadata.ForeignKeyMetadata{Name: name, ReferencedSchema: referencedDatabase, ReferencedTable: referencedTable, OnUpdate: onUpdate, OnDelete: onDelete}
 				keys[tableName+"."+name] = fk
 				table(tableName).ForeignKeys = append(table(tableName).ForeignKeys, fk)
 			}
