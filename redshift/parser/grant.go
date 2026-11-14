@@ -977,6 +977,20 @@ func (p *Parser) parseGranteeList() (*nodes.List, error) {
 	return result, nil
 }
 
+// granteeEnds reports whether a token ends a grantee: after it, a ROLE
+// before is the grantee's name, not ROLE role_name. ROLE is not among
+// Redshift's reserved words, so a user may be named role
+// (https://docs.aws.amazon.com/redshift/latest/dg/r_pg_keywords.html), and
+// GRANT and REVOKE take TO { username | ROLE role_name | ... }
+// (https://docs.aws.amazon.com/redshift/latest/dg/r_GRANT.html).
+func granteeEnds(t int) bool {
+	switch t {
+	case 0, ';', ',', WITH, RESTRICT, CASCADE:
+		return true
+	}
+	return false
+}
+
 func (p *Parser) parseGrantee() (*nodes.RoleSpec, error) {
 	if p.redshiftWordEqual("rls") {
 		loc := p.pos()
@@ -1027,7 +1041,7 @@ func (p *Parser) parseGrantee() (*nodes.RoleSpec, error) {
 			Loc:      nodes.Loc{Start: loc, End: p.pos()},
 		}, nil
 	}
-	if p.cur.Type == GROUP_P || p.cur.Type == ROLE {
+	if p.cur.Type == GROUP_P || p.cur.Type == ROLE && !granteeEnds(p.peekNext().Type) {
 		p.advance()
 	}
 	loc := p.pos()
