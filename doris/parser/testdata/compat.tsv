@@ -2867,7 +2867,7 @@ accept	accept	engine	unsupportedGrantRevokeStatement/GRANT_privilegeList_ON_(RES
 reject	reject	engine	unsupportedGrantRevokeStatement/GRANT_privilegeList_ON_(RESOURCE|CLUSTER|COMPUTE_GROUP|~288601a4!drop-1	a ON RESOURCE a TO a
 reject	reject	engine	unsupportedGrantRevokeStatement/GRANT_privilegeList_ON_(RESOURCE|CLUSTER|COMPUTE_GROUP|~288601a4!drop-2	GRANT ON RESOURCE a TO a
 reject	reject	engine	unsupportedGrantRevokeStatement/GRANT_privilegeList_ON_(RESOURCE|CLUSTER|COMPUTE_GROUP|~288601a4!drop-3	GRANT a RESOURCE a TO a
-reject	accept	engine	unsupportedGrantRevokeStatement/GRANT_privilegeList_ON_(RESOURCE|CLUSTER|COMPUTE_GROUP|~288601a4!drop-5	GRANT a ON RESOURCE TO a
+accept	accept	engine	unsupportedGrantRevokeStatement/GRANT_privilegeList_ON_(RESOURCE|CLUSTER|COMPUTE_GROUP|~288601a4!drop-5	GRANT a ON RESOURCE TO a
 reject	reject	engine	unsupportedGrantRevokeStatement/GRANT_privilegeList_ON_(RESOURCE|CLUSTER|COMPUTE_GROUP|~288601a4!drop-6	GRANT a ON RESOURCE a a
 reject	reject	engine	unsupportedGrantRevokeStatement/GRANT_privilegeList_ON_(RESOURCE|CLUSTER|COMPUTE_GROUP|~288601a4!drop-7	GRANT a ON RESOURCE a TO
 reject	reject	engine	unsupportedGrantRevokeStatement/GRANT_privilegeList_ON_(RESOURCE|CLUSTER|COMPUTE_GROUP|~288601a4!insert	GRANT a ON RESOURCE a TO a zzz
@@ -2886,7 +2886,7 @@ accept	accept	engine	unsupportedGrantRevokeStatement/REVOKE_privilegeList_ON_(RE
 reject	reject	engine	unsupportedGrantRevokeStatement/REVOKE_privilegeList_ON_(RESOURCE|CLUSTER|COMPUTE_GROUP~969ab691!drop-1	a ON RESOURCE a FROM a
 reject	reject	engine	unsupportedGrantRevokeStatement/REVOKE_privilegeList_ON_(RESOURCE|CLUSTER|COMPUTE_GROUP~969ab691!drop-2	REVOKE ON RESOURCE a FROM a
 reject	reject	engine	unsupportedGrantRevokeStatement/REVOKE_privilegeList_ON_(RESOURCE|CLUSTER|COMPUTE_GROUP~969ab691!drop-3	REVOKE a RESOURCE a FROM a
-reject	accept	engine	unsupportedGrantRevokeStatement/REVOKE_privilegeList_ON_(RESOURCE|CLUSTER|COMPUTE_GROUP~969ab691!drop-5	REVOKE a ON RESOURCE FROM a
+accept	accept	engine	unsupportedGrantRevokeStatement/REVOKE_privilegeList_ON_(RESOURCE|CLUSTER|COMPUTE_GROUP~969ab691!drop-5	REVOKE a ON RESOURCE FROM a
 reject	reject	engine	unsupportedGrantRevokeStatement/REVOKE_privilegeList_ON_(RESOURCE|CLUSTER|COMPUTE_GROUP~969ab691!drop-6	REVOKE a ON RESOURCE a a
 reject	reject	engine	unsupportedGrantRevokeStatement/REVOKE_privilegeList_ON_(RESOURCE|CLUSTER|COMPUTE_GROUP~969ab691!drop-7	REVOKE a ON RESOURCE a FROM
 reject	reject	engine	unsupportedGrantRevokeStatement/REVOKE_privilegeList_ON_(RESOURCE|CLUSTER|COMPUTE_GROUP~969ab691!insert	REVOKE a ON RESOURCE a FROM a zzz
@@ -2913,7 +2913,7 @@ reject	reject	engine	unsupportedGrantRevokeStatement(RESOURCE|CLUSTER|COMPUTE_GR
 reject	reject	engine	unsupportedGrantRevokeStatement(RESOURCE|CLUSTER|COMPUTE_GROUP|STAGE~6c83bd1f)/CLUSTER!swap	GRANT a ON CLUSTERS a TO a
 accept	accept	engine	unsupportedGrantRevokeStatement(RESOURCE|CLUSTER|COMPUTE_GROUP|STAGE~6c83bd1f)/COMPUTE_GROUP	GRANT a ON COMPUTE GROUP a TO a
 reject	reject	engine	unsupportedGrantRevokeStatement(RESOURCE|CLUSTER|COMPUTE_GROUP|STAGE~6c83bd1f)/COMPUTE_GROUP!drop-1	GRANT a ON GROUP a TO a
-accept	reject	engine	unsupportedGrantRevokeStatement(RESOURCE|CLUSTER|COMPUTE_GROUP|STAGE~6c83bd1f)/COMPUTE_GROUP!drop-2	GRANT a ON COMPUTE a TO a
+reject	reject	engine	unsupportedGrantRevokeStatement(RESOURCE|CLUSTER|COMPUTE_GROUP|STAGE~6c83bd1f)/COMPUTE_GROUP!drop-2	GRANT a ON COMPUTE a TO a
 reject	reject	engine	unsupportedGrantRevokeStatement(RESOURCE|CLUSTER|COMPUTE_GROUP|STAGE~6c83bd1f)/COMPUTE_GROUP!truncate	GRANT a ON COMPUTE
 reject	reject	engine	unsupportedGrantRevokeStatement(RESOURCE|CLUSTER|COMPUTE_GROUP|STAGE~6c83bd1f)/COMPUTE_GROUP!insert	GRANT a ON COMPUTE GROUP zzz a TO a
 reject	reject	engine	unsupportedGrantRevokeStatement(RESOURCE|CLUSTER|COMPUTE_GROUP|STAGE~6c83bd1f)/COMPUTE_GROUP!swap	GRANT a ON CONDITIONS GROUP a TO a
@@ -2922,12 +2922,12 @@ reject	reject	engine	unsupportedGrantRevokeStatement(RESOURCE|CLUSTER|COMPUTE_GR
 reject	reject	engine	unsupportedGrantRevokeStatement(RESOURCE|CLUSTER|COMPUTE_GROUP|STAGE~6c83bd1f)/STAGE!swap	GRANT a ON STAGES a TO a
 accept	accept	engine	unsupportedGrantRevokeStatement(RESOURCE|CLUSTER|COMPUTE_GROUP|STAGE~6c83bd1f)/STORAGE_VAULT	GRANT a ON STORAGE VAULT a TO a
 reject	reject	engine	unsupportedGrantRevokeStatement(RESOURCE|CLUSTER|COMPUTE_GROUP|STAGE~6c83bd1f)/STORAGE_VAULT!drop-1	GRANT a ON VAULT a TO a
-accept	reject	engine	unsupportedGrantRevokeStatement(RESOURCE|CLUSTER|COMPUTE_GROUP|STAGE~6c83bd1f)/STORAGE_VAULT!drop-2	GRANT a ON STORAGE a TO a
+reject	reject	engine	unsupportedGrantRevokeStatement(RESOURCE|CLUSTER|COMPUTE_GROUP|STAGE~6c83bd1f)/STORAGE_VAULT!drop-2	GRANT a ON STORAGE a TO a
 reject	reject	engine	unsupportedGrantRevokeStatement(RESOURCE|CLUSTER|COMPUTE_GROUP|STAGE~6c83bd1f)/STORAGE_VAULT!truncate	GRANT a ON STORAGE
 reject	reject	engine	unsupportedGrantRevokeStatement(RESOURCE|CLUSTER|COMPUTE_GROUP|STAGE~6c83bd1f)/STORAGE_VAULT!insert	GRANT a ON STORAGE VAULT zzz a TO a
 reject	reject	engine	unsupportedGrantRevokeStatement(RESOURCE|CLUSTER|COMPUTE_GROUP|STAGE~6c83bd1f)/STORAGE_VAULT!swap	GRANT a ON STREAM VAULT a TO a
 accept	accept	engine	unsupportedGrantRevokeStatement(RESOURCE|CLUSTER|COMPUTE_GROUP|STAGE~6c83bd1f)/WORKLOAD_GROUP	GRANT a ON WORKLOAD GROUP a TO a
-accept	reject	engine	unsupportedGrantRevokeStatement(RESOURCE|CLUSTER|COMPUTE_GROUP|STAGE~6c83bd1f)/WORKLOAD_GROUP!drop-2	GRANT a ON WORKLOAD a TO a
+reject	reject	engine	unsupportedGrantRevokeStatement(RESOURCE|CLUSTER|COMPUTE_GROUP|STAGE~6c83bd1f)/WORKLOAD_GROUP!drop-2	GRANT a ON WORKLOAD a TO a
 reject	reject	engine	unsupportedGrantRevokeStatement(RESOURCE|CLUSTER|COMPUTE_GROUP|STAGE~6c83bd1f)/WORKLOAD_GROUP!truncate	GRANT a ON WORKLOAD
 reject	reject	engine	unsupportedGrantRevokeStatement(RESOURCE|CLUSTER|COMPUTE_GROUP|STAGE~6c83bd1f)/WORKLOAD_GROUP!insert	GRANT a ON WORKLOAD GROUP zzz a TO a
 reject	reject	engine	unsupportedGrantRevokeStatement(RESOURCE|CLUSTER|COMPUTE_GROUP|STAGE~6c83bd1f)/WORKLOAD_GROUP!swap	GRANT a ON WRITE GROUP a TO a
@@ -2943,9 +2943,9 @@ reject	reject	engine	privilege/identifier_(identifierList)?!truncate	GRANT
 reject	reject	engine	privilege/identifier_(identifierList)?!insert	GRANT a zzz ON a TO a
 accept	accept	engine	privilege/ALL	GRANT ALL ON a TO a
 reject	reject	engine	privilege/ALL!insert	GRANT ALL zzz ON a TO a
-accept	reject	engine	privilege/ALL!swap	GRANT ALTER ON a TO a
+reject	reject	engine	privilege/ALL!swap	GRANT ALTER ON a TO a
 accept	accept	engine	privilege(identifierList)?/%empty	GRANT a ON a TO a
-reject	accept	engine	privilege(identifierList)?/identifierList	GRANT a(a) ON a TO a
+accept	accept	engine	privilege(identifierList)?/identifierList	GRANT a(a) ON a TO a
 reject	reject	engine	privilege(identifierList)?/identifierList!drop-1	GRANT a a) ON a TO a
 reject	reject	engine	privilege(identifierList)?/identifierList!drop-2	GRANT a() ON a TO a
 reject	reject	engine	privilege(identifierList)?/identifierList!drop-3	GRANT a(a ON a TO a
@@ -10543,7 +10543,7 @@ accept	accept	engine	grant_stmt/GRANT_privilege_list_ON_RESOURCE_resource_patter
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_RESOURCE_resource_pattern_TO_us~7050d34d!drop-1	a ON RESOURCE * TO a
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_RESOURCE_resource_pattern_TO_us~7050d34d!drop-2	GRANT ON RESOURCE * TO a
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_RESOURCE_resource_pattern_TO_us~7050d34d!drop-3	GRANT a RESOURCE * TO a
-reject	accept	engine	grant_stmt/GRANT_privilege_list_ON_RESOURCE_resource_pattern_TO_us~7050d34d!drop-5	GRANT a ON RESOURCE TO a
+accept	accept	engine	grant_stmt/GRANT_privilege_list_ON_RESOURCE_resource_pattern_TO_us~7050d34d!drop-5	GRANT a ON RESOURCE TO a
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_RESOURCE_resource_pattern_TO_us~7050d34d!drop-6	GRANT a ON RESOURCE * a
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_RESOURCE_resource_pattern_TO_us~7050d34d!drop-7	GRANT a ON RESOURCE * TO
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_RESOURCE_resource_pattern_TO_us~7050d34d!insert	GRANT a ON RESOURCE * TO a zzz
@@ -10552,7 +10552,7 @@ accept	accept	engine	grant_stmt/GRANT_privilege_list_ON_RESOURCE_resource_patter
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_RESOURCE_resource_pattern_TO_RO~9c589617!drop-1	a ON RESOURCE * TO ROLE 'a'
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_RESOURCE_resource_pattern_TO_RO~9c589617!drop-2	GRANT ON RESOURCE * TO ROLE 'a'
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_RESOURCE_resource_pattern_TO_RO~9c589617!drop-3	GRANT a RESOURCE * TO ROLE 'a'
-reject	accept	engine	grant_stmt/GRANT_privilege_list_ON_RESOURCE_resource_pattern_TO_RO~9c589617!drop-5	GRANT a ON RESOURCE TO ROLE 'a'
+accept	accept	engine	grant_stmt/GRANT_privilege_list_ON_RESOURCE_resource_pattern_TO_RO~9c589617!drop-5	GRANT a ON RESOURCE TO ROLE 'a'
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_RESOURCE_resource_pattern_TO_RO~9c589617!drop-6	GRANT a ON RESOURCE * ROLE 'a'
 accept	accept	engine	grant_stmt/GRANT_privilege_list_ON_RESOURCE_resource_pattern_TO_RO~9c589617!drop-7	GRANT a ON RESOURCE * TO 'a'
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_RESOURCE_resource_pattern_TO_RO~9c589617!drop-8	GRANT a ON RESOURCE * TO ROLE
@@ -10562,7 +10562,7 @@ accept	accept	engine	grant_stmt/GRANT_privilege_list_ON_CLUSTER_resource_pattern
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_CLUSTER_resource_pattern_TO_use~7b17c84b!drop-1	a ON CLUSTER * TO a
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_CLUSTER_resource_pattern_TO_use~7b17c84b!drop-2	GRANT ON CLUSTER * TO a
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_CLUSTER_resource_pattern_TO_use~7b17c84b!drop-3	GRANT a CLUSTER * TO a
-reject	accept	engine	grant_stmt/GRANT_privilege_list_ON_CLUSTER_resource_pattern_TO_use~7b17c84b!drop-5	GRANT a ON CLUSTER TO a
+accept	accept	engine	grant_stmt/GRANT_privilege_list_ON_CLUSTER_resource_pattern_TO_use~7b17c84b!drop-5	GRANT a ON CLUSTER TO a
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_CLUSTER_resource_pattern_TO_use~7b17c84b!drop-6	GRANT a ON CLUSTER * a
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_CLUSTER_resource_pattern_TO_use~7b17c84b!drop-7	GRANT a ON CLUSTER * TO
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_CLUSTER_resource_pattern_TO_use~7b17c84b!insert	GRANT a ON CLUSTER * TO a zzz
@@ -10571,7 +10571,7 @@ accept	accept	engine	grant_stmt/GRANT_privilege_list_ON_CLUSTER_resource_pattern
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_CLUSTER_resource_pattern_TO_ROL~8b2d7a04!drop-1	a ON CLUSTER * TO ROLE 'a'
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_CLUSTER_resource_pattern_TO_ROL~8b2d7a04!drop-2	GRANT ON CLUSTER * TO ROLE 'a'
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_CLUSTER_resource_pattern_TO_ROL~8b2d7a04!drop-3	GRANT a CLUSTER * TO ROLE 'a'
-reject	accept	engine	grant_stmt/GRANT_privilege_list_ON_CLUSTER_resource_pattern_TO_ROL~8b2d7a04!drop-5	GRANT a ON CLUSTER TO ROLE 'a'
+accept	accept	engine	grant_stmt/GRANT_privilege_list_ON_CLUSTER_resource_pattern_TO_ROL~8b2d7a04!drop-5	GRANT a ON CLUSTER TO ROLE 'a'
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_CLUSTER_resource_pattern_TO_ROL~8b2d7a04!drop-6	GRANT a ON CLUSTER * ROLE 'a'
 accept	accept	engine	grant_stmt/GRANT_privilege_list_ON_CLUSTER_resource_pattern_TO_ROL~8b2d7a04!drop-7	GRANT a ON CLUSTER * TO 'a'
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_CLUSTER_resource_pattern_TO_ROL~8b2d7a04!drop-8	GRANT a ON CLUSTER * TO ROLE
@@ -10582,7 +10582,7 @@ reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_COMPUTE_GROUP_resource_p
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_COMPUTE_GROUP_resource_pattern_~d0d2b386!drop-2	GRANT ON COMPUTE GROUP * TO a
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_COMPUTE_GROUP_resource_pattern_~d0d2b386!drop-3	GRANT a COMPUTE GROUP * TO a
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_COMPUTE_GROUP_resource_pattern_~d0d2b386!drop-4	GRANT a ON GROUP * TO a
-accept	reject	engine	grant_stmt/GRANT_privilege_list_ON_COMPUTE_GROUP_resource_pattern_~d0d2b386!drop-5	GRANT a ON COMPUTE * TO a
+reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_COMPUTE_GROUP_resource_pattern_~d0d2b386!drop-5	GRANT a ON COMPUTE * TO a
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_COMPUTE_GROUP_resource_pattern_~d0d2b386!drop-6	GRANT a ON COMPUTE GROUP TO a
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_COMPUTE_GROUP_resource_pattern_~d0d2b386!drop-7	GRANT a ON COMPUTE GROUP * a
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_COMPUTE_GROUP_resource_pattern_~d0d2b386!drop-8	GRANT a ON COMPUTE GROUP * TO
@@ -10593,7 +10593,7 @@ reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_COMPUTE_GROUP_resource_p
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_COMPUTE_GROUP_resource_pattern_~779ab238!drop-2	GRANT ON COMPUTE GROUP * TO ROLE 'a'
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_COMPUTE_GROUP_resource_pattern_~779ab238!drop-3	GRANT a COMPUTE GROUP * TO ROLE 'a'
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_COMPUTE_GROUP_resource_pattern_~779ab238!drop-4	GRANT a ON GROUP * TO ROLE 'a'
-accept	reject	engine	grant_stmt/GRANT_privilege_list_ON_COMPUTE_GROUP_resource_pattern_~779ab238!drop-5	GRANT a ON COMPUTE * TO ROLE 'a'
+reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_COMPUTE_GROUP_resource_pattern_~779ab238!drop-5	GRANT a ON COMPUTE * TO ROLE 'a'
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_COMPUTE_GROUP_resource_pattern_~779ab238!drop-6	GRANT a ON COMPUTE GROUP TO ROLE 'a'
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_COMPUTE_GROUP_resource_pattern_~779ab238!drop-7	GRANT a ON COMPUTE GROUP * ROLE 'a'
 accept	accept	engine	grant_stmt/GRANT_privilege_list_ON_COMPUTE_GROUP_resource_pattern_~779ab238!drop-8	GRANT a ON COMPUTE GROUP * TO 'a'
@@ -10604,7 +10604,7 @@ accept	accept	engine	grant_stmt/GRANT_privilege_list_ON_STAGE_resource_pattern_T
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_STAGE_resource_pattern_TO_user_identity!drop-1	a ON STAGE * TO a
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_STAGE_resource_pattern_TO_user_identity!drop-2	GRANT ON STAGE * TO a
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_STAGE_resource_pattern_TO_user_identity!drop-3	GRANT a STAGE * TO a
-reject	accept	engine	grant_stmt/GRANT_privilege_list_ON_STAGE_resource_pattern_TO_user_identity!drop-5	GRANT a ON STAGE TO a
+accept	accept	engine	grant_stmt/GRANT_privilege_list_ON_STAGE_resource_pattern_TO_user_identity!drop-5	GRANT a ON STAGE TO a
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_STAGE_resource_pattern_TO_user_identity!drop-6	GRANT a ON STAGE * a
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_STAGE_resource_pattern_TO_user_identity!drop-7	GRANT a ON STAGE * TO
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_STAGE_resource_pattern_TO_user_identity!insert	GRANT a ON STAGE * TO a zzz
@@ -10613,7 +10613,7 @@ accept	accept	engine	grant_stmt/GRANT_privilege_list_ON_STAGE_resource_pattern_T
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_STAGE_resource_pattern_TO_ROLE_~0e5674f2!drop-1	a ON STAGE * TO ROLE 'a'
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_STAGE_resource_pattern_TO_ROLE_~0e5674f2!drop-2	GRANT ON STAGE * TO ROLE 'a'
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_STAGE_resource_pattern_TO_ROLE_~0e5674f2!drop-3	GRANT a STAGE * TO ROLE 'a'
-reject	accept	engine	grant_stmt/GRANT_privilege_list_ON_STAGE_resource_pattern_TO_ROLE_~0e5674f2!drop-5	GRANT a ON STAGE TO ROLE 'a'
+accept	accept	engine	grant_stmt/GRANT_privilege_list_ON_STAGE_resource_pattern_TO_ROLE_~0e5674f2!drop-5	GRANT a ON STAGE TO ROLE 'a'
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_STAGE_resource_pattern_TO_ROLE_~0e5674f2!drop-6	GRANT a ON STAGE * ROLE 'a'
 accept	accept	engine	grant_stmt/GRANT_privilege_list_ON_STAGE_resource_pattern_TO_ROLE_~0e5674f2!drop-7	GRANT a ON STAGE * TO 'a'
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_STAGE_resource_pattern_TO_ROLE_~0e5674f2!drop-8	GRANT a ON STAGE * TO ROLE
@@ -10624,7 +10624,7 @@ reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_STORAGE_VAULT_resource_p
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_STORAGE_VAULT_resource_pattern_~3725d3f4!drop-2	GRANT ON STORAGE VAULT * TO a
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_STORAGE_VAULT_resource_pattern_~3725d3f4!drop-3	GRANT a STORAGE VAULT * TO a
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_STORAGE_VAULT_resource_pattern_~3725d3f4!drop-4	GRANT a ON VAULT * TO a
-accept	reject	engine	grant_stmt/GRANT_privilege_list_ON_STORAGE_VAULT_resource_pattern_~3725d3f4!drop-5	GRANT a ON STORAGE * TO a
+reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_STORAGE_VAULT_resource_pattern_~3725d3f4!drop-5	GRANT a ON STORAGE * TO a
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_STORAGE_VAULT_resource_pattern_~3725d3f4!drop-6	GRANT a ON STORAGE VAULT TO a
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_STORAGE_VAULT_resource_pattern_~3725d3f4!drop-7	GRANT a ON STORAGE VAULT * a
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_STORAGE_VAULT_resource_pattern_~3725d3f4!drop-8	GRANT a ON STORAGE VAULT * TO
@@ -10635,7 +10635,7 @@ reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_STORAGE_VAULT_resource_p
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_STORAGE_VAULT_resource_pattern_~80c60918!drop-2	GRANT ON STORAGE VAULT * TO ROLE 'a'
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_STORAGE_VAULT_resource_pattern_~80c60918!drop-3	GRANT a STORAGE VAULT * TO ROLE 'a'
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_STORAGE_VAULT_resource_pattern_~80c60918!drop-4	GRANT a ON VAULT * TO ROLE 'a'
-accept	reject	engine	grant_stmt/GRANT_privilege_list_ON_STORAGE_VAULT_resource_pattern_~80c60918!drop-5	GRANT a ON STORAGE * TO ROLE 'a'
+reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_STORAGE_VAULT_resource_pattern_~80c60918!drop-5	GRANT a ON STORAGE * TO ROLE 'a'
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_STORAGE_VAULT_resource_pattern_~80c60918!drop-6	GRANT a ON STORAGE VAULT TO ROLE 'a'
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_STORAGE_VAULT_resource_pattern_~80c60918!drop-7	GRANT a ON STORAGE VAULT * ROLE 'a'
 accept	accept	engine	grant_stmt/GRANT_privilege_list_ON_STORAGE_VAULT_resource_pattern_~80c60918!drop-8	GRANT a ON STORAGE VAULT * TO 'a'
@@ -10646,7 +10646,7 @@ accept	accept	engine	grant_stmt/GRANT_privilege_list_ON_WORKLOAD_GROUP_workload_
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_WORKLOAD_GROUP_workload_group_p~a7d0042d!drop-1	a ON WORKLOAD GROUP * TO a
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_WORKLOAD_GROUP_workload_group_p~a7d0042d!drop-2	GRANT ON WORKLOAD GROUP * TO a
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_WORKLOAD_GROUP_workload_group_p~a7d0042d!drop-3	GRANT a WORKLOAD GROUP * TO a
-accept	reject	engine	grant_stmt/GRANT_privilege_list_ON_WORKLOAD_GROUP_workload_group_p~a7d0042d!drop-5	GRANT a ON WORKLOAD * TO a
+reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_WORKLOAD_GROUP_workload_group_p~a7d0042d!drop-5	GRANT a ON WORKLOAD * TO a
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_WORKLOAD_GROUP_workload_group_p~a7d0042d!drop-6	GRANT a ON WORKLOAD GROUP TO a
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_WORKLOAD_GROUP_workload_group_p~a7d0042d!drop-7	GRANT a ON WORKLOAD GROUP * a
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_WORKLOAD_GROUP_workload_group_p~a7d0042d!drop-8	GRANT a ON WORKLOAD GROUP * TO
@@ -10656,7 +10656,7 @@ accept	accept	engine	grant_stmt/GRANT_privilege_list_ON_WORKLOAD_GROUP_workload_
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_WORKLOAD_GROUP_workload_group_p~e846104c!drop-1	a ON WORKLOAD GROUP * TO ROLE 'a'
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_WORKLOAD_GROUP_workload_group_p~e846104c!drop-2	GRANT ON WORKLOAD GROUP * TO ROLE 'a'
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_WORKLOAD_GROUP_workload_group_p~e846104c!drop-3	GRANT a WORKLOAD GROUP * TO ROLE 'a'
-accept	reject	engine	grant_stmt/GRANT_privilege_list_ON_WORKLOAD_GROUP_workload_group_p~e846104c!drop-5	GRANT a ON WORKLOAD * TO ROLE 'a'
+reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_WORKLOAD_GROUP_workload_group_p~e846104c!drop-5	GRANT a ON WORKLOAD * TO ROLE 'a'
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_WORKLOAD_GROUP_workload_group_p~e846104c!drop-6	GRANT a ON WORKLOAD GROUP TO ROLE 'a'
 reject	reject	engine	grant_stmt/GRANT_privilege_list_ON_WORKLOAD_GROUP_workload_group_p~e846104c!drop-7	GRANT a ON WORKLOAD GROUP * ROLE 'a'
 accept	accept	engine	grant_stmt/GRANT_privilege_list_ON_WORKLOAD_GROUP_workload_group_p~e846104c!drop-8	GRANT a ON WORKLOAD GROUP * TO 'a'
@@ -10717,7 +10717,7 @@ accept	accept	engine	revoke_stmt/REVOKE_privilege_list_ON_RESOURCE_resource_patt
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_RESOURCE_resource_pattern_FROM~45084beb!drop-1	a ON RESOURCE * FROM a
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_RESOURCE_resource_pattern_FROM~45084beb!drop-2	REVOKE ON RESOURCE * FROM a
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_RESOURCE_resource_pattern_FROM~45084beb!drop-3	REVOKE a RESOURCE * FROM a
-reject	accept	engine	revoke_stmt/REVOKE_privilege_list_ON_RESOURCE_resource_pattern_FROM~45084beb!drop-5	REVOKE a ON RESOURCE FROM a
+accept	accept	engine	revoke_stmt/REVOKE_privilege_list_ON_RESOURCE_resource_pattern_FROM~45084beb!drop-5	REVOKE a ON RESOURCE FROM a
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_RESOURCE_resource_pattern_FROM~45084beb!drop-6	REVOKE a ON RESOURCE * a
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_RESOURCE_resource_pattern_FROM~45084beb!drop-7	REVOKE a ON RESOURCE * FROM
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_RESOURCE_resource_pattern_FROM~45084beb!insert	REVOKE a ON RESOURCE * FROM a zzz
@@ -10726,7 +10726,7 @@ accept	accept	engine	revoke_stmt/REVOKE_privilege_list_ON_RESOURCE_resource_patt
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_RESOURCE_resource_pattern_FROM~bde60f22!drop-1	a ON RESOURCE * FROM ROLE 'a'
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_RESOURCE_resource_pattern_FROM~bde60f22!drop-2	REVOKE ON RESOURCE * FROM ROLE 'a'
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_RESOURCE_resource_pattern_FROM~bde60f22!drop-3	REVOKE a RESOURCE * FROM ROLE 'a'
-reject	accept	engine	revoke_stmt/REVOKE_privilege_list_ON_RESOURCE_resource_pattern_FROM~bde60f22!drop-5	REVOKE a ON RESOURCE FROM ROLE 'a'
+accept	accept	engine	revoke_stmt/REVOKE_privilege_list_ON_RESOURCE_resource_pattern_FROM~bde60f22!drop-5	REVOKE a ON RESOURCE FROM ROLE 'a'
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_RESOURCE_resource_pattern_FROM~bde60f22!drop-6	REVOKE a ON RESOURCE * ROLE 'a'
 accept	accept	engine	revoke_stmt/REVOKE_privilege_list_ON_RESOURCE_resource_pattern_FROM~bde60f22!drop-7	REVOKE a ON RESOURCE * FROM 'a'
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_RESOURCE_resource_pattern_FROM~bde60f22!drop-8	REVOKE a ON RESOURCE * FROM ROLE
@@ -10736,7 +10736,7 @@ accept	accept	engine	revoke_stmt/REVOKE_privilege_list_ON_CLUSTER_resource_patte
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_CLUSTER_resource_pattern_FROM_~7be11cc1!drop-1	a ON CLUSTER * FROM a
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_CLUSTER_resource_pattern_FROM_~7be11cc1!drop-2	REVOKE ON CLUSTER * FROM a
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_CLUSTER_resource_pattern_FROM_~7be11cc1!drop-3	REVOKE a CLUSTER * FROM a
-reject	accept	engine	revoke_stmt/REVOKE_privilege_list_ON_CLUSTER_resource_pattern_FROM_~7be11cc1!drop-5	REVOKE a ON CLUSTER FROM a
+accept	accept	engine	revoke_stmt/REVOKE_privilege_list_ON_CLUSTER_resource_pattern_FROM_~7be11cc1!drop-5	REVOKE a ON CLUSTER FROM a
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_CLUSTER_resource_pattern_FROM_~7be11cc1!drop-6	REVOKE a ON CLUSTER * a
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_CLUSTER_resource_pattern_FROM_~7be11cc1!drop-7	REVOKE a ON CLUSTER * FROM
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_CLUSTER_resource_pattern_FROM_~7be11cc1!insert	REVOKE a ON CLUSTER * FROM a zzz
@@ -10745,7 +10745,7 @@ accept	accept	engine	revoke_stmt/REVOKE_privilege_list_ON_CLUSTER_resource_patte
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_CLUSTER_resource_pattern_FROM_~0e20a5fb!drop-1	a ON CLUSTER * FROM ROLE 'a'
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_CLUSTER_resource_pattern_FROM_~0e20a5fb!drop-2	REVOKE ON CLUSTER * FROM ROLE 'a'
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_CLUSTER_resource_pattern_FROM_~0e20a5fb!drop-3	REVOKE a CLUSTER * FROM ROLE 'a'
-reject	accept	engine	revoke_stmt/REVOKE_privilege_list_ON_CLUSTER_resource_pattern_FROM_~0e20a5fb!drop-5	REVOKE a ON CLUSTER FROM ROLE 'a'
+accept	accept	engine	revoke_stmt/REVOKE_privilege_list_ON_CLUSTER_resource_pattern_FROM_~0e20a5fb!drop-5	REVOKE a ON CLUSTER FROM ROLE 'a'
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_CLUSTER_resource_pattern_FROM_~0e20a5fb!drop-6	REVOKE a ON CLUSTER * ROLE 'a'
 accept	accept	engine	revoke_stmt/REVOKE_privilege_list_ON_CLUSTER_resource_pattern_FROM_~0e20a5fb!drop-7	REVOKE a ON CLUSTER * FROM 'a'
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_CLUSTER_resource_pattern_FROM_~0e20a5fb!drop-8	REVOKE a ON CLUSTER * FROM ROLE
@@ -10756,7 +10756,7 @@ reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_COMPUTE_GROUP_resource
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_COMPUTE_GROUP_resource_pattern~f3e52d5c!drop-2	REVOKE ON COMPUTE GROUP * FROM a
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_COMPUTE_GROUP_resource_pattern~f3e52d5c!drop-3	REVOKE a COMPUTE GROUP * FROM a
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_COMPUTE_GROUP_resource_pattern~f3e52d5c!drop-4	REVOKE a ON GROUP * FROM a
-accept	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_COMPUTE_GROUP_resource_pattern~f3e52d5c!drop-5	REVOKE a ON COMPUTE * FROM a
+reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_COMPUTE_GROUP_resource_pattern~f3e52d5c!drop-5	REVOKE a ON COMPUTE * FROM a
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_COMPUTE_GROUP_resource_pattern~f3e52d5c!drop-6	REVOKE a ON COMPUTE GROUP FROM a
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_COMPUTE_GROUP_resource_pattern~f3e52d5c!drop-7	REVOKE a ON COMPUTE GROUP * a
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_COMPUTE_GROUP_resource_pattern~f3e52d5c!drop-8	REVOKE a ON COMPUTE GROUP * FROM
@@ -10767,7 +10767,7 @@ reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_COMPUTE_GROUP_resource
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_COMPUTE_GROUP_resource_pattern~8579a044!drop-2	REVOKE ON COMPUTE GROUP * FROM ROLE 'a'
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_COMPUTE_GROUP_resource_pattern~8579a044!drop-3	REVOKE a COMPUTE GROUP * FROM ROLE 'a'
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_COMPUTE_GROUP_resource_pattern~8579a044!drop-4	REVOKE a ON GROUP * FROM ROLE 'a'
-accept	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_COMPUTE_GROUP_resource_pattern~8579a044!drop-5	REVOKE a ON COMPUTE * FROM ROLE 'a'
+reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_COMPUTE_GROUP_resource_pattern~8579a044!drop-5	REVOKE a ON COMPUTE * FROM ROLE 'a'
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_COMPUTE_GROUP_resource_pattern~8579a044!drop-6	REVOKE a ON COMPUTE GROUP FROM ROLE 'a'
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_COMPUTE_GROUP_resource_pattern~8579a044!drop-7	REVOKE a ON COMPUTE GROUP * ROLE 'a'
 accept	accept	engine	revoke_stmt/REVOKE_privilege_list_ON_COMPUTE_GROUP_resource_pattern~8579a044!drop-8	REVOKE a ON COMPUTE GROUP * FROM 'a'
@@ -10778,7 +10778,7 @@ accept	accept	engine	revoke_stmt/REVOKE_privilege_list_ON_STAGE_resource_pattern
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_STAGE_resource_pattern_FROM_us~6e35fb00!drop-1	a ON STAGE * FROM a
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_STAGE_resource_pattern_FROM_us~6e35fb00!drop-2	REVOKE ON STAGE * FROM a
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_STAGE_resource_pattern_FROM_us~6e35fb00!drop-3	REVOKE a STAGE * FROM a
-reject	accept	engine	revoke_stmt/REVOKE_privilege_list_ON_STAGE_resource_pattern_FROM_us~6e35fb00!drop-5	REVOKE a ON STAGE FROM a
+accept	accept	engine	revoke_stmt/REVOKE_privilege_list_ON_STAGE_resource_pattern_FROM_us~6e35fb00!drop-5	REVOKE a ON STAGE FROM a
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_STAGE_resource_pattern_FROM_us~6e35fb00!drop-6	REVOKE a ON STAGE * a
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_STAGE_resource_pattern_FROM_us~6e35fb00!drop-7	REVOKE a ON STAGE * FROM
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_STAGE_resource_pattern_FROM_us~6e35fb00!insert	REVOKE a ON STAGE * FROM a zzz
@@ -10787,7 +10787,7 @@ accept	accept	engine	revoke_stmt/REVOKE_privilege_list_ON_STAGE_resource_pattern
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_STAGE_resource_pattern_FROM_RO~2321b21b!drop-1	a ON STAGE * FROM ROLE 'a'
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_STAGE_resource_pattern_FROM_RO~2321b21b!drop-2	REVOKE ON STAGE * FROM ROLE 'a'
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_STAGE_resource_pattern_FROM_RO~2321b21b!drop-3	REVOKE a STAGE * FROM ROLE 'a'
-reject	accept	engine	revoke_stmt/REVOKE_privilege_list_ON_STAGE_resource_pattern_FROM_RO~2321b21b!drop-5	REVOKE a ON STAGE FROM ROLE 'a'
+accept	accept	engine	revoke_stmt/REVOKE_privilege_list_ON_STAGE_resource_pattern_FROM_RO~2321b21b!drop-5	REVOKE a ON STAGE FROM ROLE 'a'
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_STAGE_resource_pattern_FROM_RO~2321b21b!drop-6	REVOKE a ON STAGE * ROLE 'a'
 accept	accept	engine	revoke_stmt/REVOKE_privilege_list_ON_STAGE_resource_pattern_FROM_RO~2321b21b!drop-7	REVOKE a ON STAGE * FROM 'a'
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_STAGE_resource_pattern_FROM_RO~2321b21b!drop-8	REVOKE a ON STAGE * FROM ROLE
@@ -10798,7 +10798,7 @@ reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_STORAGE_VAULT_resource
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_STORAGE_VAULT_resource_pattern~47514627!drop-2	REVOKE ON STORAGE VAULT * FROM a
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_STORAGE_VAULT_resource_pattern~47514627!drop-3	REVOKE a STORAGE VAULT * FROM a
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_STORAGE_VAULT_resource_pattern~47514627!drop-4	REVOKE a ON VAULT * FROM a
-accept	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_STORAGE_VAULT_resource_pattern~47514627!drop-5	REVOKE a ON STORAGE * FROM a
+reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_STORAGE_VAULT_resource_pattern~47514627!drop-5	REVOKE a ON STORAGE * FROM a
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_STORAGE_VAULT_resource_pattern~47514627!drop-6	REVOKE a ON STORAGE VAULT FROM a
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_STORAGE_VAULT_resource_pattern~47514627!drop-7	REVOKE a ON STORAGE VAULT * a
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_STORAGE_VAULT_resource_pattern~47514627!drop-8	REVOKE a ON STORAGE VAULT * FROM
@@ -10809,7 +10809,7 @@ reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_STORAGE_VAULT_resource
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_STORAGE_VAULT_resource_pattern~75045cef!drop-2	REVOKE ON STORAGE VAULT * FROM ROLE 'a'
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_STORAGE_VAULT_resource_pattern~75045cef!drop-3	REVOKE a STORAGE VAULT * FROM ROLE 'a'
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_STORAGE_VAULT_resource_pattern~75045cef!drop-4	REVOKE a ON VAULT * FROM ROLE 'a'
-accept	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_STORAGE_VAULT_resource_pattern~75045cef!drop-5	REVOKE a ON STORAGE * FROM ROLE 'a'
+reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_STORAGE_VAULT_resource_pattern~75045cef!drop-5	REVOKE a ON STORAGE * FROM ROLE 'a'
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_STORAGE_VAULT_resource_pattern~75045cef!drop-6	REVOKE a ON STORAGE VAULT FROM ROLE 'a'
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_STORAGE_VAULT_resource_pattern~75045cef!drop-7	REVOKE a ON STORAGE VAULT * ROLE 'a'
 accept	accept	engine	revoke_stmt/REVOKE_privilege_list_ON_STORAGE_VAULT_resource_pattern~75045cef!drop-8	REVOKE a ON STORAGE VAULT * FROM 'a'
@@ -10820,7 +10820,7 @@ accept	accept	engine	revoke_stmt/REVOKE_privilege_list_ON_WORKLOAD_GROUP_workloa
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_WORKLOAD_GROUP_workload_group_~c96b232b!drop-1	a ON WORKLOAD GROUP * FROM a
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_WORKLOAD_GROUP_workload_group_~c96b232b!drop-2	REVOKE ON WORKLOAD GROUP * FROM a
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_WORKLOAD_GROUP_workload_group_~c96b232b!drop-3	REVOKE a WORKLOAD GROUP * FROM a
-accept	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_WORKLOAD_GROUP_workload_group_~c96b232b!drop-5	REVOKE a ON WORKLOAD * FROM a
+reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_WORKLOAD_GROUP_workload_group_~c96b232b!drop-5	REVOKE a ON WORKLOAD * FROM a
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_WORKLOAD_GROUP_workload_group_~c96b232b!drop-6	REVOKE a ON WORKLOAD GROUP FROM a
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_WORKLOAD_GROUP_workload_group_~c96b232b!drop-7	REVOKE a ON WORKLOAD GROUP * a
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_WORKLOAD_GROUP_workload_group_~c96b232b!drop-8	REVOKE a ON WORKLOAD GROUP * FROM
@@ -10830,7 +10830,7 @@ accept	accept	engine	revoke_stmt/REVOKE_privilege_list_ON_WORKLOAD_GROUP_workloa
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_WORKLOAD_GROUP_workload_group_~9d26b2e1!drop-1	a ON WORKLOAD GROUP * FROM ROLE 'a'
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_WORKLOAD_GROUP_workload_group_~9d26b2e1!drop-2	REVOKE ON WORKLOAD GROUP * FROM ROLE 'a'
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_WORKLOAD_GROUP_workload_group_~9d26b2e1!drop-3	REVOKE a WORKLOAD GROUP * FROM ROLE 'a'
-accept	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_WORKLOAD_GROUP_workload_group_~9d26b2e1!drop-5	REVOKE a ON WORKLOAD * FROM ROLE 'a'
+reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_WORKLOAD_GROUP_workload_group_~9d26b2e1!drop-5	REVOKE a ON WORKLOAD * FROM ROLE 'a'
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_WORKLOAD_GROUP_workload_group_~9d26b2e1!drop-6	REVOKE a ON WORKLOAD GROUP FROM ROLE 'a'
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_WORKLOAD_GROUP_workload_group_~9d26b2e1!drop-7	REVOKE a ON WORKLOAD GROUP * ROLE 'a'
 accept	accept	engine	revoke_stmt/REVOKE_privilege_list_ON_WORKLOAD_GROUP_workload_group_~9d26b2e1!drop-8	REVOKE a ON WORKLOAD GROUP * FROM 'a'
@@ -15009,7 +15009,7 @@ reject	reject	engine	privilege_type/ident_opt_col_list!truncate	GRANT
 reject	reject	engine	privilege_type/ident_opt_col_list!insert	GRANT a zzz ON * TO a
 accept	accept	engine	privilege_type/ALL	GRANT ALL ON * TO a
 reject	reject	engine	privilege_type/ALL!insert	GRANT ALL zzz ON * TO a
-accept	reject	engine	privilege_type/ALL!swap	GRANT ALTER ON * TO a
+reject	reject	engine	privilege_type/ALL!swap	GRANT ALTER ON * TO a
 accept	accept	engine	privilege_list/privilege_list_,_privilege_type	GRANT a, a ON * TO a
 reject	reject	engine	privilege_list/privilege_list_,_privilege_type!drop-1	GRANT, a ON * TO a
 reject	reject	engine	privilege_list/privilege_list_,_privilege_type!drop-2	GRANT a a ON * TO a

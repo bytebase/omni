@@ -1035,7 +1035,7 @@ accept	accept	engine	statement/showRolesStatement	SHOW ROLES;
 reject	reject	engine	statement/showRolesStatement!drop-1	ROLES;
 reject	reject	engine	statement/showRolesStatement!insert	SHOW ROLES zzz;
 reject	reject	engine	statement/showRolesStatement!swap	SIGNED ROLES;
-reject	accept	engine	statement/grantRoleStatement	GRANT a TO a;
+accept	accept	engine	statement/grantRoleStatement	GRANT a TO a;
 reject	reject	engine	statement/grantRoleStatement!drop-1	a TO a;
 reject	reject	engine	statement/grantRoleStatement!drop-2	GRANT TO a;
 reject	reject	engine	statement/grantRoleStatement!drop-3	GRANT a a;
@@ -1043,7 +1043,7 @@ reject	reject	engine	statement/grantRoleStatement!drop-4	GRANT a TO;
 reject	reject	engine	statement/grantRoleStatement!truncate	GRANT a TO
 reject	reject	engine	statement/grantRoleStatement!insert	GRANT a TO a zzz;
 reject	reject	engine	statement/grantRoleStatement!swap	GRANTS a TO a;
-reject	accept	engine	statement/revokeRoleStatement	REVOKE a FROM a;
+accept	accept	engine	statement/revokeRoleStatement	REVOKE a FROM a;
 reject	reject	engine	statement/revokeRoleStatement!drop-1	a FROM a;
 reject	reject	engine	statement/revokeRoleStatement!drop-2	REVOKE FROM a;
 reject	reject	engine	statement/revokeRoleStatement!drop-3	REVOKE a a;
@@ -6219,32 +6219,32 @@ reject	reject	engine	dropRoleStatement(IF_EXISTS)?/IF_EXISTS!truncate	DROP ROLE 
 reject	reject	engine	dropRoleStatement(IF_EXISTS)?/IF_EXISTS!insert	DROP ROLE IF EXISTS zzz a;
 reject	reject	engine	dropRoleStatement(IF_EXISTS)?/IF_EXISTS!swap	DROP ROLE IGNORE EXISTS a;
 accept	accept	engine	showRolesStatement/SHOW_ROLES	SHOW ROLES;
-reject	accept	engine	grantRoleStatement/GRANT_identifierOrStringList_TO_(USER)?_user	GRANT a TO a;
-reject	accept	engine	grantRoleStatement/GRANT_identifierOrStringList_TO_ROLE_identifierOrString	GRANT a TO ROLE a;
+accept	accept	engine	grantRoleStatement/GRANT_identifierOrStringList_TO_(USER)?_user	GRANT a TO a;
+accept	accept	engine	grantRoleStatement/GRANT_identifierOrStringList_TO_ROLE_identifierOrString	GRANT a TO ROLE a;
 reject	reject	engine	grantRoleStatement/GRANT_identifierOrStringList_TO_ROLE_identifierOrString!drop-1	a TO ROLE a;
 reject	reject	engine	grantRoleStatement/GRANT_identifierOrStringList_TO_ROLE_identifierOrString!drop-2	GRANT TO ROLE a;
 reject	reject	engine	grantRoleStatement/GRANT_identifierOrStringList_TO_ROLE_identifierOrString!drop-3	GRANT a ROLE a;
-reject	accept	engine	grantRoleStatement/GRANT_identifierOrStringList_TO_ROLE_identifierOrString!drop-5	GRANT a TO ROLE;
-reject	accept	engine	grantRoleStatement/GRANT_identifierOrStringList_TO_ROLE_identifierOrString!truncate	GRANT a TO ROLE
+accept	accept	engine	grantRoleStatement/GRANT_identifierOrStringList_TO_ROLE_identifierOrString!drop-5	GRANT a TO ROLE;
+accept	accept	engine	grantRoleStatement/GRANT_identifierOrStringList_TO_ROLE_identifierOrString!truncate	GRANT a TO ROLE
 reject	reject	engine	grantRoleStatement/GRANT_identifierOrStringList_TO_ROLE_identifierOrString!insert	GRANT a TO ROLE a zzz;
 reject	reject	engine	grantRoleStatement/GRANT_identifierOrStringList_TO_ROLE_identifierOrString!swap	GRANTS a TO ROLE a;
-reject	accept	engine	grantRoleStatement(USER)?/%empty	GRANT a TO a;
+accept	accept	engine	grantRoleStatement(USER)?/%empty	GRANT a TO a;
 reject	reject	engine	grantRoleStatement(USER)?/%empty!insert	GRANT a TO zzz a;
-reject	accept	engine	grantRoleStatement(USER)?/USER	GRANT a TO USER a;
+accept	accept	engine	grantRoleStatement(USER)?/USER	GRANT a TO USER a;
 reject	reject	engine	grantRoleStatement(USER)?/USER!insert	GRANT a TO USER zzz a;
 reject	reject	engine	grantRoleStatement(USER)?/USER!swap	GRANT a TO USERS a;
-reject	accept	engine	revokeRoleStatement/REVOKE_identifierOrStringList_FROM_(USER)?_user	REVOKE a FROM a;
-reject	accept	engine	revokeRoleStatement/REVOKE_identifierOrStringList_FROM_ROLE_identifierOrString	REVOKE a FROM ROLE a;
+accept	accept	engine	revokeRoleStatement/REVOKE_identifierOrStringList_FROM_(USER)?_user	REVOKE a FROM a;
+accept	accept	engine	revokeRoleStatement/REVOKE_identifierOrStringList_FROM_ROLE_identifierOrString	REVOKE a FROM ROLE a;
 reject	reject	engine	revokeRoleStatement/REVOKE_identifierOrStringList_FROM_ROLE_identifierOrString!drop-1	a FROM ROLE a;
 reject	reject	engine	revokeRoleStatement/REVOKE_identifierOrStringList_FROM_ROLE_identifierOrString!drop-2	REVOKE FROM ROLE a;
 reject	reject	engine	revokeRoleStatement/REVOKE_identifierOrStringList_FROM_ROLE_identifierOrString!drop-3	REVOKE a ROLE a;
-reject	accept	engine	revokeRoleStatement/REVOKE_identifierOrStringList_FROM_ROLE_identifierOrString!drop-5	REVOKE a FROM ROLE;
-reject	accept	engine	revokeRoleStatement/REVOKE_identifierOrStringList_FROM_ROLE_identifierOrString!truncate	REVOKE a FROM ROLE
+accept	accept	engine	revokeRoleStatement/REVOKE_identifierOrStringList_FROM_ROLE_identifierOrString!drop-5	REVOKE a FROM ROLE;
+accept	accept	engine	revokeRoleStatement/REVOKE_identifierOrStringList_FROM_ROLE_identifierOrString!truncate	REVOKE a FROM ROLE
 reject	reject	engine	revokeRoleStatement/REVOKE_identifierOrStringList_FROM_ROLE_identifierOrString!insert	REVOKE a FROM ROLE a zzz;
 reject	reject	engine	revokeRoleStatement/REVOKE_identifierOrStringList_FROM_ROLE_identifierOrString!swap	REWRITE a FROM ROLE a;
-reject	accept	engine	revokeRoleStatement(USER)?/%empty	REVOKE a FROM a;
+accept	accept	engine	revokeRoleStatement(USER)?/%empty	REVOKE a FROM a;
 reject	reject	engine	revokeRoleStatement(USER)?/%empty!insert	REVOKE a FROM zzz a;
-reject	accept	engine	revokeRoleStatement(USER)?/USER	REVOKE a FROM USER a;
+accept	accept	engine	revokeRoleStatement(USER)?/USER	REVOKE a FROM USER a;
 reject	reject	engine	revokeRoleStatement(USER)?/USER!insert	REVOKE a FROM USER zzz a;
 reject	reject	engine	revokeRoleStatement(USER)?/USER!swap	REVOKE a FROM USERS a;
 accept	accept	engine	setRoleStatement/SET_ROLE_DEFAULT	SET ROLE DEFAULT;
@@ -6281,8 +6281,8 @@ reject	reject	engine	setDefaultRoleStatement(NONE|ALL|roleList)/roleList!insert	
 accept	accept	engine	grantRevokeClause/(USER?_user|ROLE_identifierOrString)	GRANT ALL ON * TO a;
 accept	accept	engine	grantRevokeClause(USER?_user|ROLE_identifierOrString)/(USER)?_user	GRANT ALL ON * TO a;
 accept	accept	engine	grantRevokeClause(USER?_user|ROLE_identifierOrString)/ROLE_identifierOrString	GRANT ALL ON * TO ROLE a;
-reject	accept	engine	grantRevokeClause(USER?_user|ROLE_identifierOrString)/ROLE_identifierOrString!drop-2	GRANT ALL ON * TO ROLE;
-reject	accept	engine	grantRevokeClause(USER?_user|ROLE_identifierOrString)/ROLE_identifierOrString!truncate	GRANT ALL ON * TO ROLE
+accept	accept	engine	grantRevokeClause(USER?_user|ROLE_identifierOrString)/ROLE_identifierOrString!drop-2	GRANT ALL ON * TO ROLE;
+accept	accept	engine	grantRevokeClause(USER?_user|ROLE_identifierOrString)/ROLE_identifierOrString!truncate	GRANT ALL ON * TO ROLE
 reject	reject	engine	grantRevokeClause(USER?_user|ROLE_identifierOrString)/ROLE_identifierOrString!insert	GRANT ALL ON * TO ROLE a zzz;
 reject	reject	engine	grantRevokeClause(USER?_user|ROLE_identifierOrString)/ROLE_identifierOrString!swap	GRANT ALL ON * TO ROLES a;
 accept	accept	engine	grantRevokeClause(USER)?/%empty	GRANT ALL ON * TO a;
@@ -6290,7 +6290,7 @@ reject	reject	engine	grantRevokeClause(USER)?/%empty!insert	GRANT ALL ON * TO zz
 accept	accept	engine	grantRevokeClause(USER)?/USER	GRANT ALL ON * TO USER a;
 reject	reject	engine	grantRevokeClause(USER)?/USER!insert	GRANT ALL ON * TO USER zzz a;
 reject	reject	engine	grantRevokeClause(USER)?/USER!swap	GRANT ALL ON * TO USERS a;
-reject	accept	engine	grantPrivilegeStatement/GRANT_IMPERSONATE_ON_USER_user_(,_user)*_TO_grantRevoke~6c9cf0cb	GRANT IMPERSONATE ON USER a TO a;
+accept	accept	engine	grantPrivilegeStatement/GRANT_IMPERSONATE_ON_USER_user_(,_user)*_TO_grantRevoke~6c9cf0cb	GRANT IMPERSONATE ON USER a TO a;
 reject	reject	engine	grantPrivilegeStatement/GRANT_IMPERSONATE_ON_USER_user_(,_user)*_TO_grantRevoke~6c9cf0cb!drop-1	IMPERSONATE ON USER a TO a;
 reject	reject	engine	grantPrivilegeStatement/GRANT_IMPERSONATE_ON_USER_user_(,_user)*_TO_grantRevoke~6c9cf0cb!drop-2	GRANT ON USER a TO a;
 reject	reject	engine	grantPrivilegeStatement/GRANT_IMPERSONATE_ON_USER_user_(,_user)*_TO_grantRevoke~6c9cf0cb!drop-3	GRANT IMPERSONATE USER a TO a;
@@ -6302,7 +6302,7 @@ reject	reject	engine	grantPrivilegeStatement/GRANT_IMPERSONATE_ON_USER_user_(,_u
 reject	reject	engine	grantPrivilegeStatement/GRANT_IMPERSONATE_ON_USER_user_(,_user)*_TO_grantRevoke~6c9cf0cb!insert	GRANT IMPERSONATE ON USER a TO a zzz;
 reject	reject	engine	grantPrivilegeStatement/GRANT_IMPERSONATE_ON_USER_user_(,_user)*_TO_grantRevoke~6c9cf0cb!swap	GRANTS IMPERSONATE ON USER a TO a;
 accept	accept	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_privObjectNameList_TO_grantR~7a0345b2	GRANT ALL ON * TO a;
-reject	accept	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_(GLOBAL)?_FUNCTION_privFunct~82e4ab89	GRANT ALL ON FUNCTION a() TO a;
+accept	accept	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_(GLOBAL)?_FUNCTION_privFunct~82e4ab89	GRANT ALL ON FUNCTION a() TO a;
 reject	reject	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_(GLOBAL)?_FUNCTION_privFunct~82e4ab89!drop-1	ALL ON FUNCTION a() TO a;
 reject	reject	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_(GLOBAL)?_FUNCTION_privFunct~82e4ab89!drop-2	GRANT ON FUNCTION a() TO a;
 reject	reject	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_(GLOBAL)?_FUNCTION_privFunct~82e4ab89!drop-3	GRANT ALL FUNCTION a() TO a;
@@ -6324,7 +6324,7 @@ reject	reject	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_SYSTEM_T
 reject	reject	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_SYSTEM_TO_grantRevokeClause_~d79208fa!truncate	GRANT ALL ON SYSTEM TO
 reject	reject	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_SYSTEM_TO_grantRevokeClause_~d79208fa!insert	GRANT ALL ON SYSTEM TO a zzz;
 reject	reject	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_SYSTEM_TO_grantRevokeClause_~d79208fa!swap	GRANTS ALL ON SYSTEM TO a;
-reject	accept	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_privObjectType_privObjectNam~4ff0406f	GRANT ALL ON CATALOG * TO a;
+accept	accept	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_privObjectType_privObjectNam~4ff0406f	GRANT ALL ON CATALOG * TO a;
 reject	reject	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_privObjectType_privObjectNam~4ff0406f!drop-1	ALL ON CATALOG * TO a;
 reject	reject	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_privObjectType_privObjectNam~4ff0406f!drop-2	GRANT ON CATALOG * TO a;
 reject	reject	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_privObjectType_privObjectNam~4ff0406f!drop-3	GRANT ALL CATALOG * TO a;
@@ -6334,20 +6334,20 @@ reject	reject	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_privObje
 reject	reject	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_privObjectType_privObjectNam~4ff0406f!truncate	GRANT ALL ON CATALOG * TO
 reject	reject	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_privObjectType_privObjectNam~4ff0406f!insert	GRANT ALL ON CATALOG * TO a zzz;
 reject	reject	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_privObjectType_privObjectNam~4ff0406f!swap	GRANTS ALL ON CATALOG * TO a;
-reject	accept	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_ALL_privObjectTypePlural_(IN~70a31505	GRANT ALL ON ALL CATALOGS TO a;
+accept	accept	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_ALL_privObjectTypePlural_(IN~70a31505	GRANT ALL ON ALL CATALOGS TO a;
 reject	reject	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_ALL_privObjectTypePlural_(IN~70a31505!drop-1	ALL ON ALL CATALOGS TO a;
 reject	reject	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_ALL_privObjectTypePlural_(IN~70a31505!drop-2	GRANT ON ALL CATALOGS TO a;
 reject	reject	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_ALL_privObjectTypePlural_(IN~70a31505!drop-3	GRANT ALL ALL CATALOGS TO a;
 accept	accept	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_ALL_privObjectTypePlural_(IN~70a31505!drop-4	GRANT ALL ON CATALOGS TO a;
-accept	reject	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_ALL_privObjectTypePlural_(IN~70a31505!drop-5	GRANT ALL ON ALL TO a;
+reject	reject	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_ALL_privObjectTypePlural_(IN~70a31505!drop-5	GRANT ALL ON ALL TO a;
 reject	reject	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_ALL_privObjectTypePlural_(IN~70a31505!drop-6	GRANT ALL ON ALL CATALOGS a;
 reject	reject	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_ALL_privObjectTypePlural_(IN~70a31505!drop-7	GRANT ALL ON ALL CATALOGS TO;
 reject	reject	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_ALL_privObjectTypePlural_(IN~70a31505!truncate	GRANT ALL ON ALL CATALOGS TO
 reject	reject	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_ALL_privObjectTypePlural_(IN~70a31505!insert	GRANT ALL ON ALL CATALOGS TO a zzz;
 reject	reject	engine	grantPrivilegeStatement/GRANT_privilegeTypeList_ON_ALL_privObjectTypePlural_(IN~70a31505!swap	GRANTS ALL ON ALL CATALOGS TO a;
-reject	accept	engine	grantPrivilegeStatement(,_user)*/%empty	GRANT IMPERSONATE ON USER a TO a;
+accept	accept	engine	grantPrivilegeStatement(,_user)*/%empty	GRANT IMPERSONATE ON USER a TO a;
 reject	reject	engine	grantPrivilegeStatement(,_user)*/%empty!insert	GRANT IMPERSONATE ON USER a zzz TO a;
-reject	accept	engine	grantPrivilegeStatement(,_user)*/,_user_(,_user)*	GRANT IMPERSONATE ON USER a, a TO a;
+accept	accept	engine	grantPrivilegeStatement(,_user)*/,_user_(,_user)*	GRANT IMPERSONATE ON USER a, a TO a;
 reject	reject	engine	grantPrivilegeStatement(,_user)*/,_user_(,_user)*!drop-1	GRANT IMPERSONATE ON USER a a TO a;
 reject	reject	engine	grantPrivilegeStatement(,_user)*/,_user_(,_user)*!drop-2	GRANT IMPERSONATE ON USER a, TO a;
 reject	reject	engine	grantPrivilegeStatement(,_user)*/,_user_(,_user)*!truncate	GRANT IMPERSONATE ON USER a,
@@ -6356,33 +6356,33 @@ accept	accept	engine	grantPrivilegeStatement(WITH_GRANT_OPTION)?/%empty	GRANT AL
 accept	accept	engine	grantPrivilegeStatement(WITH_GRANT_OPTION)?/WITH_GRANT_OPTION	GRANT ALL ON * TO a WITH GRANT OPTION;
 reject	reject	engine	grantPrivilegeStatement(WITH_GRANT_OPTION)?/WITH_GRANT_OPTION!drop-1	GRANT ALL ON * TO a GRANT OPTION;
 reject	reject	engine	grantPrivilegeStatement(WITH_GRANT_OPTION)?/WITH_GRANT_OPTION!drop-2	GRANT ALL ON * TO a WITH OPTION;
-accept	reject	engine	grantPrivilegeStatement(WITH_GRANT_OPTION)?/WITH_GRANT_OPTION!drop-3	GRANT ALL ON * TO a WITH GRANT;
-accept	reject	engine	grantPrivilegeStatement(WITH_GRANT_OPTION)?/WITH_GRANT_OPTION!truncate	GRANT ALL ON * TO a WITH GRANT
+reject	reject	engine	grantPrivilegeStatement(WITH_GRANT_OPTION)?/WITH_GRANT_OPTION!drop-3	GRANT ALL ON * TO a WITH GRANT;
+reject	reject	engine	grantPrivilegeStatement(WITH_GRANT_OPTION)?/WITH_GRANT_OPTION!truncate	GRANT ALL ON * TO a WITH GRANT
 reject	reject	engine	grantPrivilegeStatement(WITH_GRANT_OPTION)?/WITH_GRANT_OPTION!insert	GRANT ALL ON * TO a WITH GRANT OPTION zzz;
 reject	reject	engine	grantPrivilegeStatement(WITH_GRANT_OPTION)?/WITH_GRANT_OPTION!swap	GRANT ALL ON * TO a WORK GRANT OPTION;
-reject	accept	engine	grantPrivilegeStatement(GLOBAL)?/%empty	GRANT ALL ON FUNCTION a() TO a;
+accept	accept	engine	grantPrivilegeStatement(GLOBAL)?/%empty	GRANT ALL ON FUNCTION a() TO a;
 reject	reject	engine	grantPrivilegeStatement(GLOBAL)?/%empty!insert	GRANT ALL ON zzz FUNCTION a() TO a;
-reject	accept	engine	grantPrivilegeStatement(GLOBAL)?/GLOBAL	GRANT ALL ON GLOBAL FUNCTION a() TO a;
+accept	accept	engine	grantPrivilegeStatement(GLOBAL)?/GLOBAL	GRANT ALL ON GLOBAL FUNCTION a() TO a;
 reject	reject	engine	grantPrivilegeStatement(GLOBAL)?/GLOBAL!truncate	GRANT ALL ON
 reject	reject	engine	grantPrivilegeStatement(GLOBAL)?/GLOBAL!insert	GRANT ALL ON GLOBAL zzz FUNCTION a() TO a;
 reject	reject	engine	grantPrivilegeStatement(GLOBAL)?/GLOBAL!swap	GRANT ALL ON GRANT FUNCTION a() TO a;
-reject	accept	engine	grantPrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/%empty	GRANT ALL ON ALL CATALOGS TO a;
+accept	accept	engine	grantPrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/%empty	GRANT ALL ON ALL CATALOGS TO a;
 reject	reject	engine	grantPrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/%empty!insert	GRANT ALL ON ALL CATALOGS zzz TO a;
-reject	accept	engine	grantPrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_ALL_DATABASES	GRANT ALL ON ALL CATALOGS IN ALL DATABASES TO a;
+accept	accept	engine	grantPrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_ALL_DATABASES	GRANT ALL ON ALL CATALOGS IN ALL DATABASES TO a;
 reject	reject	engine	grantPrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_ALL_DATABASES!drop-1	GRANT ALL ON ALL CATALOGS ALL DATABASES TO a;
 reject	reject	engine	grantPrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_ALL_DATABASES!drop-2	GRANT ALL ON ALL CATALOGS IN DATABASES TO a;
 reject	reject	engine	grantPrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_ALL_DATABASES!drop-3	GRANT ALL ON ALL CATALOGS IN ALL TO a;
 reject	reject	engine	grantPrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_ALL_DATABASES!truncate	GRANT ALL ON ALL CATALOGS IN ALL
 reject	reject	engine	grantPrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_ALL_DATABASES!insert	GRANT ALL ON ALL CATALOGS IN ALL DATABASES zzz TO a;
 reject	reject	engine	grantPrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_ALL_DATABASES!swap	GRANT ALL ON ALL CATALOGS INACTIVE ALL DATABASES TO a;
-reject	accept	engine	grantPrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_DATABASE_identifierOrString	GRANT ALL ON ALL CATALOGS IN DATABASE a TO a;
+accept	accept	engine	grantPrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_DATABASE_identifierOrString	GRANT ALL ON ALL CATALOGS IN DATABASE a TO a;
 reject	reject	engine	grantPrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_DATABASE_identifierOrString!drop-1	GRANT ALL ON ALL CATALOGS DATABASE a TO a;
 reject	reject	engine	grantPrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_DATABASE_identifierOrString!drop-2	GRANT ALL ON ALL CATALOGS IN a TO a;
 reject	reject	engine	grantPrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_DATABASE_identifierOrString!drop-3	GRANT ALL ON ALL CATALOGS IN DATABASE TO a;
 reject	reject	engine	grantPrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_DATABASE_identifierOrString!truncate	GRANT ALL ON ALL CATALOGS IN DATABASE
 reject	reject	engine	grantPrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_DATABASE_identifierOrString!insert	GRANT ALL ON ALL CATALOGS IN DATABASE a zzz TO a;
 reject	reject	engine	grantPrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_DATABASE_identifierOrString!swap	GRANT ALL ON ALL CATALOGS INACTIVE DATABASE a TO a;
-reject	accept	engine	revokePrivilegeStatement/REVOKE_IMPERSONATE_ON_USER_user_(,_user)*_FROM_grantRevokeClause	REVOKE IMPERSONATE ON USER a FROM a;
+accept	accept	engine	revokePrivilegeStatement/REVOKE_IMPERSONATE_ON_USER_user_(,_user)*_FROM_grantRevokeClause	REVOKE IMPERSONATE ON USER a FROM a;
 reject	reject	engine	revokePrivilegeStatement/REVOKE_IMPERSONATE_ON_USER_user_(,_user)*_FROM_grantRevokeClause!drop-1	IMPERSONATE ON USER a FROM a;
 reject	reject	engine	revokePrivilegeStatement/REVOKE_IMPERSONATE_ON_USER_user_(,_user)*_FROM_grantRevokeClause!drop-2	REVOKE ON USER a FROM a;
 reject	reject	engine	revokePrivilegeStatement/REVOKE_IMPERSONATE_ON_USER_user_(,_user)*_FROM_grantRevokeClause!drop-3	REVOKE IMPERSONATE USER a FROM a;
@@ -6394,7 +6394,7 @@ reject	reject	engine	revokePrivilegeStatement/REVOKE_IMPERSONATE_ON_USER_user_(,
 reject	reject	engine	revokePrivilegeStatement/REVOKE_IMPERSONATE_ON_USER_user_(,_user)*_FROM_grantRevokeClause!insert	REVOKE IMPERSONATE ON USER a FROM a zzz;
 reject	reject	engine	revokePrivilegeStatement/REVOKE_IMPERSONATE_ON_USER_user_(,_user)*_FROM_grantRevokeClause!swap	REWRITE IMPERSONATE ON USER a FROM a;
 accept	accept	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_privObjectNameList_FROM_gra~677545f4	REVOKE ALL ON * FROM a;
-reject	accept	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_(GLOBAL)?_FUNCTION_privFunc~6d74e663	REVOKE ALL ON FUNCTION a() FROM a;
+accept	accept	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_(GLOBAL)?_FUNCTION_privFunc~6d74e663	REVOKE ALL ON FUNCTION a() FROM a;
 reject	reject	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_(GLOBAL)?_FUNCTION_privFunc~6d74e663!drop-1	ALL ON FUNCTION a() FROM a;
 reject	reject	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_(GLOBAL)?_FUNCTION_privFunc~6d74e663!drop-2	REVOKE ON FUNCTION a() FROM a;
 reject	reject	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_(GLOBAL)?_FUNCTION_privFunc~6d74e663!drop-3	REVOKE ALL FUNCTION a() FROM a;
@@ -6416,7 +6416,7 @@ reject	reject	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_SYSTEM
 reject	reject	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_SYSTEM_FROM_grantRevokeClause!truncate	REVOKE ALL ON SYSTEM FROM
 reject	reject	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_SYSTEM_FROM_grantRevokeClause!insert	REVOKE ALL ON SYSTEM FROM a zzz;
 reject	reject	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_SYSTEM_FROM_grantRevokeClause!swap	REWRITE ALL ON SYSTEM FROM a;
-reject	accept	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_privObjectType_privObjectNa~08de388c	REVOKE ALL ON CATALOG * FROM a;
+accept	accept	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_privObjectType_privObjectNa~08de388c	REVOKE ALL ON CATALOG * FROM a;
 reject	reject	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_privObjectType_privObjectNa~08de388c!drop-1	ALL ON CATALOG * FROM a;
 reject	reject	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_privObjectType_privObjectNa~08de388c!drop-2	REVOKE ON CATALOG * FROM a;
 reject	reject	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_privObjectType_privObjectNa~08de388c!drop-3	REVOKE ALL CATALOG * FROM a;
@@ -6426,40 +6426,40 @@ reject	reject	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_privOb
 reject	reject	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_privObjectType_privObjectNa~08de388c!truncate	REVOKE ALL ON CATALOG * FROM
 reject	reject	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_privObjectType_privObjectNa~08de388c!insert	REVOKE ALL ON CATALOG * FROM a zzz;
 reject	reject	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_privObjectType_privObjectNa~08de388c!swap	REWRITE ALL ON CATALOG * FROM a;
-reject	accept	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_ALL_privObjectTypePlural_(I~c7e458a0	REVOKE ALL ON ALL CATALOGS FROM a;
+accept	accept	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_ALL_privObjectTypePlural_(I~c7e458a0	REVOKE ALL ON ALL CATALOGS FROM a;
 reject	reject	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_ALL_privObjectTypePlural_(I~c7e458a0!drop-1	ALL ON ALL CATALOGS FROM a;
 reject	reject	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_ALL_privObjectTypePlural_(I~c7e458a0!drop-2	REVOKE ON ALL CATALOGS FROM a;
 reject	reject	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_ALL_privObjectTypePlural_(I~c7e458a0!drop-3	REVOKE ALL ALL CATALOGS FROM a;
 accept	accept	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_ALL_privObjectTypePlural_(I~c7e458a0!drop-4	REVOKE ALL ON CATALOGS FROM a;
-accept	reject	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_ALL_privObjectTypePlural_(I~c7e458a0!drop-5	REVOKE ALL ON ALL FROM a;
+reject	reject	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_ALL_privObjectTypePlural_(I~c7e458a0!drop-5	REVOKE ALL ON ALL FROM a;
 reject	reject	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_ALL_privObjectTypePlural_(I~c7e458a0!drop-6	REVOKE ALL ON ALL CATALOGS a;
 reject	reject	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_ALL_privObjectTypePlural_(I~c7e458a0!drop-7	REVOKE ALL ON ALL CATALOGS FROM;
 reject	reject	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_ALL_privObjectTypePlural_(I~c7e458a0!truncate	REVOKE ALL ON ALL CATALOGS FROM
 reject	reject	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_ALL_privObjectTypePlural_(I~c7e458a0!insert	REVOKE ALL ON ALL CATALOGS FROM a zzz;
 reject	reject	engine	revokePrivilegeStatement/REVOKE_privilegeTypeList_ON_ALL_privObjectTypePlural_(I~c7e458a0!swap	REWRITE ALL ON ALL CATALOGS FROM a;
-reject	accept	engine	revokePrivilegeStatement(,_user)*/%empty	REVOKE IMPERSONATE ON USER a FROM a;
+accept	accept	engine	revokePrivilegeStatement(,_user)*/%empty	REVOKE IMPERSONATE ON USER a FROM a;
 reject	reject	engine	revokePrivilegeStatement(,_user)*/%empty!insert	REVOKE IMPERSONATE ON USER a zzz FROM a;
-reject	accept	engine	revokePrivilegeStatement(,_user)*/,_user_(,_user)*	REVOKE IMPERSONATE ON USER a, a FROM a;
+accept	accept	engine	revokePrivilegeStatement(,_user)*/,_user_(,_user)*	REVOKE IMPERSONATE ON USER a, a FROM a;
 reject	reject	engine	revokePrivilegeStatement(,_user)*/,_user_(,_user)*!drop-1	REVOKE IMPERSONATE ON USER a a FROM a;
 reject	reject	engine	revokePrivilegeStatement(,_user)*/,_user_(,_user)*!drop-2	REVOKE IMPERSONATE ON USER a, FROM a;
 reject	reject	engine	revokePrivilegeStatement(,_user)*/,_user_(,_user)*!truncate	REVOKE IMPERSONATE ON USER a,
 reject	reject	engine	revokePrivilegeStatement(,_user)*/,_user_(,_user)*!insert	REVOKE IMPERSONATE ON USER a, a zzz FROM a;
-reject	accept	engine	revokePrivilegeStatement(GLOBAL)?/%empty	REVOKE ALL ON FUNCTION a() FROM a;
+accept	accept	engine	revokePrivilegeStatement(GLOBAL)?/%empty	REVOKE ALL ON FUNCTION a() FROM a;
 reject	reject	engine	revokePrivilegeStatement(GLOBAL)?/%empty!insert	REVOKE ALL ON zzz FUNCTION a() FROM a;
-reject	accept	engine	revokePrivilegeStatement(GLOBAL)?/GLOBAL	REVOKE ALL ON GLOBAL FUNCTION a() FROM a;
+accept	accept	engine	revokePrivilegeStatement(GLOBAL)?/GLOBAL	REVOKE ALL ON GLOBAL FUNCTION a() FROM a;
 reject	reject	engine	revokePrivilegeStatement(GLOBAL)?/GLOBAL!truncate	REVOKE ALL ON
 reject	reject	engine	revokePrivilegeStatement(GLOBAL)?/GLOBAL!insert	REVOKE ALL ON GLOBAL zzz FUNCTION a() FROM a;
 reject	reject	engine	revokePrivilegeStatement(GLOBAL)?/GLOBAL!swap	REVOKE ALL ON GRANT FUNCTION a() FROM a;
-reject	accept	engine	revokePrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/%empty	REVOKE ALL ON ALL CATALOGS FROM a;
+accept	accept	engine	revokePrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/%empty	REVOKE ALL ON ALL CATALOGS FROM a;
 reject	reject	engine	revokePrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/%empty!insert	REVOKE ALL ON ALL CATALOGS zzz FROM a;
-reject	accept	engine	revokePrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_ALL_DATABASES	REVOKE ALL ON ALL CATALOGS IN ALL DATABASES FROM a;
+accept	accept	engine	revokePrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_ALL_DATABASES	REVOKE ALL ON ALL CATALOGS IN ALL DATABASES FROM a;
 reject	reject	engine	revokePrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_ALL_DATABASES!drop-1	REVOKE ALL ON ALL CATALOGS ALL DATABASES FROM a;
 reject	reject	engine	revokePrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_ALL_DATABASES!drop-2	REVOKE ALL ON ALL CATALOGS IN DATABASES FROM a;
 reject	reject	engine	revokePrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_ALL_DATABASES!drop-3	REVOKE ALL ON ALL CATALOGS IN ALL FROM a;
 reject	reject	engine	revokePrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_ALL_DATABASES!truncate	REVOKE ALL ON ALL CATALOGS IN ALL
 reject	reject	engine	revokePrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_ALL_DATABASES!insert	REVOKE ALL ON ALL CATALOGS IN ALL DATABASES zzz FROM a;
 reject	reject	engine	revokePrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_ALL_DATABASES!swap	REVOKE ALL ON ALL CATALOGS INACTIVE ALL DATABASES FROM a;
-reject	accept	engine	revokePrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_DATABASE_identifierOrString	REVOKE ALL ON ALL CATALOGS IN DATABASE a FROM a;
+accept	accept	engine	revokePrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_DATABASE_identifierOrString	REVOKE ALL ON ALL CATALOGS IN DATABASE a FROM a;
 reject	reject	engine	revokePrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_DATABASE_identifierOrString!drop-1	REVOKE ALL ON ALL CATALOGS DATABASE a FROM a;
 reject	reject	engine	revokePrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_DATABASE_identifierOrString!drop-2	REVOKE ALL ON ALL CATALOGS IN a FROM a;
 reject	reject	engine	revokePrivilegeStatement(IN_ALL_DATABASES|IN_DATABASE_identif~2648558a)?/IN_DATABASE_identifierOrString!drop-3	REVOKE ALL ON ALL CATALOGS IN DATABASE FROM a;
@@ -6524,15 +6524,15 @@ reject	reject	engine	privObjectName(._identifierOrStringOrStar)?/._identifierOrS
 reject	reject	engine	privObjectName(._identifierOrStringOrStar)?/._identifierOrStringOrStar!insert	GRANT ALL ON *.* zzz TO a;
 accept	accept	engine	privObjectNameList/privObjectName_(,_privObjectName)*	GRANT ALL ON * TO a;
 accept	accept	engine	privObjectNameList(,_privObjectName)*/%empty	GRANT ALL ON * TO a;
-reject	accept	engine	privObjectNameList(,_privObjectName)*/,_privObjectName_(,_privObjectName)*	GRANT ALL ON *, * TO a;
+accept	accept	engine	privObjectNameList(,_privObjectName)*/,_privObjectName_(,_privObjectName)*	GRANT ALL ON *, * TO a;
 reject	reject	engine	privObjectNameList(,_privObjectName)*/,_privObjectName_(,_privObjectName)*!drop-2	GRANT ALL ON *, TO a;
 reject	reject	engine	privObjectNameList(,_privObjectName)*/,_privObjectName_(,_privObjectName)*!truncate	GRANT ALL ON *,
 reject	reject	engine	privObjectNameList(,_privObjectName)*/,_privObjectName_(,_privObjectName)*!insert	GRANT ALL ON *, * zzz TO a;
-reject	accept	engine	privFunctionObjectNameList/qualifiedName_(_typeList_)_(,_qualifiedName_(_typeList_))*	GRANT ALL ON FUNCTION a() TO a;
+accept	accept	engine	privFunctionObjectNameList/qualifiedName_(_typeList_)_(,_qualifiedName_(_typeList_))*	GRANT ALL ON FUNCTION a() TO a;
 reject	reject	engine	privFunctionObjectNameList/qualifiedName_(_typeList_)_(,_qualifiedName_(_typeList_))*!truncate	GRANT ALL ON FUNCTION a(
 reject	reject	engine	privFunctionObjectNameList/qualifiedName_(_typeList_)_(,_qualifiedName_(_typeList_))*!insert	GRANT ALL ON FUNCTION a() zzz TO a;
-reject	accept	engine	privFunctionObjectNameList(,_qualifiedName_(_typeList_))*/%empty	GRANT ALL ON FUNCTION a() TO a;
-reject	accept	engine	privFunctionObjectNameList(,_qualifiedName_(_typeList_))*/,_qualifiedName_(_typeList_)_(,_qualifiedName_(_typeList_))*	GRANT ALL ON FUNCTION a(), a() TO a;
+accept	accept	engine	privFunctionObjectNameList(,_qualifiedName_(_typeList_))*/%empty	GRANT ALL ON FUNCTION a() TO a;
+accept	accept	engine	privFunctionObjectNameList(,_qualifiedName_(_typeList_))*/,_qualifiedName_(_typeList_)_(,_qualifiedName_(_typeList_))*	GRANT ALL ON FUNCTION a(), a() TO a;
 reject	reject	engine	privFunctionObjectNameList(,_qualifiedName_(_typeList_))*/,_qualifiedName_(_typeList_)_(,_qualifiedName_(_typeList_))*!drop-1	GRANT ALL ON FUNCTION a() a() TO a;
 reject	reject	engine	privFunctionObjectNameList(,_qualifiedName_(_typeList_))*/,_qualifiedName_(_typeList_)_(,_qualifiedName_(_typeList_))*!drop-2	GRANT ALL ON FUNCTION a(),() TO a;
 reject	reject	engine	privFunctionObjectNameList(,_qualifiedName_(_typeList_))*/,_qualifiedName_(_typeList_)_(,_qualifiedName_(_typeList_))*!drop-3	GRANT ALL ON FUNCTION a(), a) TO a;
@@ -6555,28 +6555,28 @@ reject	reject	engine	privilegeType/ALTER!insert	GRANT ALTER zzz ON * TO a;
 reject	reject	engine	privilegeType/ALTER!swap	GRANT ANALYZE ON * TO a;
 accept	accept	engine	privilegeType/APPLY	GRANT APPLY ON * TO a;
 reject	reject	engine	privilegeType/APPLY!insert	GRANT APPLY zzz ON * TO a;
-accept	reject	engine	privilegeType/APPLY!swap	GRANT ARRAY ON * TO a;
+reject	reject	engine	privilegeType/APPLY!swap	GRANT ARRAY ON * TO a;
 accept	accept	engine	privilegeType/BLACKLIST	GRANT BLACKLIST ON * TO a;
 reject	reject	engine	privilegeType/BLACKLIST!insert	GRANT BLACKLIST zzz ON * TO a;
-accept	reject	engine	privilegeType/BLACKLIST!swap	GRANT BODY ON * TO a;
-reject	accept	engine	privilegeType/CREATE_(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)	GRANT CREATE DATABASE ON * TO a;
+reject	reject	engine	privilegeType/BLACKLIST!swap	GRANT BODY ON * TO a;
+accept	accept	engine	privilegeType/CREATE_(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)	GRANT CREATE DATABASE ON * TO a;
 reject	reject	engine	privilegeType/CREATE_(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)!drop-1	GRANT DATABASE ON * TO a;
-accept	reject	engine	privilegeType/CREATE_(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)!drop-2	GRANT CREATE ON * TO a;
+reject	reject	engine	privilegeType/CREATE_(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)!drop-2	GRANT CREATE ON * TO a;
 reject	reject	engine	privilegeType/CREATE_(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)!truncate	GRANT CREATE
 reject	reject	engine	privilegeType/CREATE_(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)!insert	GRANT CREATE DATABASE zzz ON * TO a;
 reject	reject	engine	privilegeType/CREATE_(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)!swap	GRANT CROSS DATABASE ON * TO a;
 accept	accept	engine	privilegeType/DELETE	GRANT DELETE ON * TO a;
 reject	reject	engine	privilegeType/DELETE!insert	GRANT DELETE zzz ON * TO a;
-accept	reject	engine	privilegeType/DELETE!swap	GRANT DENSE_RANK ON * TO a;
+reject	reject	engine	privilegeType/DELETE!swap	GRANT DENSE_RANK ON * TO a;
 accept	accept	engine	privilegeType/DROP	GRANT DROP ON * TO a;
 reject	reject	engine	privilegeType/DROP!insert	GRANT DROP zzz ON * TO a;
-accept	reject	engine	privilegeType/DROP!swap	GRANT DUAL ON * TO a;
-reject	accept	engine	privilegeType/EXPORT	GRANT EXPORT ON * TO a;
+reject	reject	engine	privilegeType/DROP!swap	GRANT DUAL ON * TO a;
+accept	accept	engine	privilegeType/EXPORT	GRANT EXPORT ON * TO a;
 reject	reject	engine	privilegeType/EXPORT!insert	GRANT EXPORT zzz ON * TO a;
-accept	reject	engine	privilegeType/EXPORT!swap	GRANT EXTERNAL ON * TO a;
+reject	reject	engine	privilegeType/EXPORT!swap	GRANT EXTERNAL ON * TO a;
 accept	accept	engine	privilegeType/FILE	GRANT FILE ON * TO a;
 reject	reject	engine	privilegeType/FILE!insert	GRANT FILE zzz ON * TO a;
-accept	reject	engine	privilegeType/FILE!swap	GRANT FILES ON * TO a;
+reject	reject	engine	privilegeType/FILE!swap	GRANT FILES ON * TO a;
 accept	accept	engine	privilegeType/IMPERSONATE	GRANT IMPERSONATE ON * TO a;
 reject	reject	engine	privilegeType/IMPERSONATE!insert	GRANT IMPERSONATE zzz ON * TO a;
 reject	reject	engine	privilegeType/IMPERSONATE!swap	GRANT IN ON * TO a;
@@ -6588,16 +6588,16 @@ reject	reject	engine	privilegeType/GRANT!insert	GRANT GRANT zzz ON * TO a;
 reject	reject	engine	privilegeType/GRANT!swap	GRANT GRANTS ON * TO a;
 accept	accept	engine	privilegeType/NODE	GRANT NODE ON * TO a;
 reject	reject	engine	privilegeType/NODE!insert	GRANT NODE zzz ON * TO a;
-accept	reject	engine	privilegeType/NODE!swap	GRANT NODES ON * TO a;
+reject	reject	engine	privilegeType/NODE!swap	GRANT NODES ON * TO a;
 accept	accept	engine	privilegeType/OPERATE	GRANT OPERATE ON * TO a;
 reject	reject	engine	privilegeType/OPERATE!insert	GRANT OPERATE zzz ON * TO a;
-accept	reject	engine	privilegeType/OPERATE!swap	GRANT OPTIMIZE ON * TO a;
+reject	reject	engine	privilegeType/OPERATE!swap	GRANT OPTIMIZE ON * TO a;
 accept	accept	engine	privilegeType/PLUGIN	GRANT PLUGIN ON * TO a;
 reject	reject	engine	privilegeType/PLUGIN!insert	GRANT PLUGIN zzz ON * TO a;
-accept	reject	engine	privilegeType/PLUGIN!swap	GRANT PLUGINS ON * TO a;
+reject	reject	engine	privilegeType/PLUGIN!swap	GRANT PLUGINS ON * TO a;
 accept	accept	engine	privilegeType/REPOSITORY	GRANT REPOSITORY ON * TO a;
 reject	reject	engine	privilegeType/REPOSITORY!insert	GRANT REPOSITORY zzz ON * TO a;
-accept	reject	engine	privilegeType/REPOSITORY!swap	GRANT RESOURCE ON * TO a;
+reject	reject	engine	privilegeType/REPOSITORY!swap	GRANT RESOURCE ON * TO a;
 accept	accept	engine	privilegeType/REFRESH	GRANT REFRESH ON * TO a;
 reject	reject	engine	privilegeType/REFRESH!insert	GRANT REFRESH zzz ON * TO a;
 reject	reject	engine	privilegeType/REFRESH!swap	GRANT REGEXP ON * TO a;
@@ -6614,60 +6614,60 @@ accept	accept	engine	privilegeType(PRIVILEGES)?/PRIVILEGES	GRANT ALL PRIVILEGES 
 reject	reject	engine	privilegeType(PRIVILEGES)?/PRIVILEGES!truncate	GRANT ALL
 reject	reject	engine	privilegeType(PRIVILEGES)?/PRIVILEGES!insert	GRANT ALL PRIVILEGES zzz ON * TO a;
 reject	reject	engine	privilegeType(PRIVILEGES)?/PRIVILEGES!swap	GRANT ALL PROBABILITY ON * TO a;
-reject	accept	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/DATABASE	GRANT CREATE DATABASE ON * TO a;
+accept	accept	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/DATABASE	GRANT CREATE DATABASE ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/DATABASE!swap	GRANT CREATE DATABASES ON * TO a;
-reject	accept	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/TABLE	GRANT CREATE TABLE ON * TO a;
+accept	accept	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/TABLE	GRANT CREATE TABLE ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/TABLE!insert	GRANT CREATE TABLE zzz ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/TABLE!swap	GRANT CREATE TABLES ON * TO a;
-reject	accept	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/VIEW	GRANT CREATE VIEW ON * TO a;
+accept	accept	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/VIEW	GRANT CREATE VIEW ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/VIEW!insert	GRANT CREATE VIEW zzz ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/VIEW!swap	GRANT CREATE VIEWS ON * TO a;
-reject	accept	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/FUNCTION	GRANT CREATE FUNCTION ON * TO a;
+accept	accept	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/FUNCTION	GRANT CREATE FUNCTION ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/FUNCTION!insert	GRANT CREATE FUNCTION zzz ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/FUNCTION!swap	GRANT CREATE FUNCTIONS ON * TO a;
-reject	accept	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/GLOBAL_FUNCTION	GRANT CREATE GLOBAL FUNCTION ON * TO a;
+accept	accept	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/GLOBAL_FUNCTION	GRANT CREATE GLOBAL FUNCTION ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/GLOBAL_FUNCTION!drop-2	GRANT CREATE GLOBAL ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/GLOBAL_FUNCTION!truncate	GRANT CREATE GLOBAL
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/GLOBAL_FUNCTION!insert	GRANT CREATE GLOBAL FUNCTION zzz ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/GLOBAL_FUNCTION!swap	GRANT CREATE GRANT FUNCTION ON * TO a;
-reject	accept	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/MATERIALIZED_VIEW	GRANT CREATE MATERIALIZED VIEW ON * TO a;
+accept	accept	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/MATERIALIZED_VIEW	GRANT CREATE MATERIALIZED VIEW ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/MATERIALIZED_VIEW!drop-2	GRANT CREATE MATERIALIZED ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/MATERIALIZED_VIEW!truncate	GRANT CREATE MATERIALIZED
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/MATERIALIZED_VIEW!insert	GRANT CREATE MATERIALIZED VIEW zzz ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/MATERIALIZED_VIEW!swap	GRANT CREATE MAX VIEW ON * TO a;
-reject	accept	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/RESOURCE	GRANT CREATE RESOURCE ON * TO a;
+accept	accept	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/RESOURCE	GRANT CREATE RESOURCE ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/RESOURCE!insert	GRANT CREATE RESOURCE zzz ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/RESOURCE!swap	GRANT CREATE RESOURCES ON * TO a;
-reject	accept	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/RESOURCE_GROUP	GRANT CREATE RESOURCE GROUP ON * TO a;
+accept	accept	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/RESOURCE_GROUP	GRANT CREATE RESOURCE GROUP ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/RESOURCE_GROUP!drop-1	GRANT CREATE GROUP ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/RESOURCE_GROUP!truncate	GRANT CREATE RESOURCE
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/RESOURCE_GROUP!insert	GRANT CREATE RESOURCE GROUP zzz ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/RESOURCE_GROUP!swap	GRANT CREATE RESOURCES GROUP ON * TO a;
-reject	accept	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/EXTERNAL_CATALOG	GRANT CREATE EXTERNAL CATALOG ON * TO a;
+accept	accept	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/EXTERNAL_CATALOG	GRANT CREATE EXTERNAL CATALOG ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/EXTERNAL_CATALOG!drop-1	GRANT CREATE CATALOG ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/EXTERNAL_CATALOG!drop-2	GRANT CREATE EXTERNAL ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/EXTERNAL_CATALOG!truncate	GRANT CREATE EXTERNAL
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/EXTERNAL_CATALOG!insert	GRANT CREATE EXTERNAL CATALOG zzz ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/EXTERNAL_CATALOG!swap	GRANT CREATE EXTRACT CATALOG ON * TO a;
-reject	accept	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/STORAGE_VOLUME	GRANT CREATE STORAGE VOLUME ON * TO a;
+accept	accept	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/STORAGE_VOLUME	GRANT CREATE STORAGE VOLUME ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/STORAGE_VOLUME!drop-1	GRANT CREATE VOLUME ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/STORAGE_VOLUME!drop-2	GRANT CREATE STORAGE ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/STORAGE_VOLUME!truncate	GRANT CREATE STORAGE
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/STORAGE_VOLUME!insert	GRANT CREATE STORAGE VOLUME zzz ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/STORAGE_VOLUME!swap	GRANT CREATE STREAM VOLUME ON * TO a;
-reject	accept	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/WAREHOUSE	GRANT CREATE WAREHOUSE ON * TO a;
+accept	accept	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/WAREHOUSE	GRANT CREATE WAREHOUSE ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/WAREHOUSE!insert	GRANT CREATE WAREHOUSE zzz ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/WAREHOUSE!swap	GRANT CREATE WAREHOUSES ON * TO a;
-reject	accept	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/PIPE	GRANT CREATE PIPE ON * TO a;
+accept	accept	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/PIPE	GRANT CREATE PIPE ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/PIPE!insert	GRANT CREATE PIPE zzz ON * TO a;
 reject	reject	engine	privilegeType(DATABASE|TABLE|VIEW|FUNCTION|GLOBAL_~9b9c3284)/PIPE!swap	GRANT CREATE PIPES ON * TO a;
-reject	accept	engine	privObjectType/CATALOG	GRANT ALL ON CATALOG * TO a;
+accept	accept	engine	privObjectType/CATALOG	GRANT ALL ON CATALOG * TO a;
 reject	reject	engine	privObjectType/CATALOG!insert	GRANT ALL ON CATALOG zzz * TO a;
 reject	reject	engine	privObjectType/CATALOG!swap	GRANT ALL ON CATALOGS * TO a;
 accept	accept	engine	privObjectType/DATABASE	GRANT ALL ON DATABASE * TO a;
 reject	reject	engine	privObjectType/DATABASE!insert	GRANT ALL ON DATABASE zzz * TO a;
 reject	reject	engine	privObjectType/DATABASE!swap	GRANT ALL ON DATABASES * TO a;
-reject	accept	engine	privObjectType/MATERIALIZED_VIEW	GRANT ALL ON MATERIALIZED VIEW * TO a;
+accept	accept	engine	privObjectType/MATERIALIZED_VIEW	GRANT ALL ON MATERIALIZED VIEW * TO a;
 reject	reject	engine	privObjectType/MATERIALIZED_VIEW!drop-2	GRANT ALL ON MATERIALIZED * TO a;
 reject	reject	engine	privObjectType/MATERIALIZED_VIEW!truncate	GRANT ALL ON MATERIALIZED
 reject	reject	engine	privObjectType/MATERIALIZED_VIEW!insert	GRANT ALL ON MATERIALIZED VIEW zzz * TO a;
@@ -6675,82 +6675,82 @@ reject	reject	engine	privObjectType/MATERIALIZED_VIEW!swap	GRANT ALL ON MAX VIEW
 accept	accept	engine	privObjectType/RESOURCE	GRANT ALL ON RESOURCE * TO a;
 reject	reject	engine	privObjectType/RESOURCE!insert	GRANT ALL ON RESOURCE zzz * TO a;
 reject	reject	engine	privObjectType/RESOURCE!swap	GRANT ALL ON RESOURCES * TO a;
-reject	accept	engine	privObjectType/RESOURCE_GROUP	GRANT ALL ON RESOURCE GROUP * TO a;
+accept	accept	engine	privObjectType/RESOURCE_GROUP	GRANT ALL ON RESOURCE GROUP * TO a;
 reject	reject	engine	privObjectType/RESOURCE_GROUP!drop-1	GRANT ALL ON GROUP * TO a;
 reject	reject	engine	privObjectType/RESOURCE_GROUP!truncate	GRANT ALL ON RESOURCE
 reject	reject	engine	privObjectType/RESOURCE_GROUP!insert	GRANT ALL ON RESOURCE GROUP zzz * TO a;
 reject	reject	engine	privObjectType/RESOURCE_GROUP!swap	GRANT ALL ON RESOURCES GROUP * TO a;
-reject	accept	engine	privObjectType/STORAGE_VOLUME	GRANT ALL ON STORAGE VOLUME * TO a;
+accept	accept	engine	privObjectType/STORAGE_VOLUME	GRANT ALL ON STORAGE VOLUME * TO a;
 reject	reject	engine	privObjectType/STORAGE_VOLUME!drop-1	GRANT ALL ON VOLUME * TO a;
-accept	reject	engine	privObjectType/STORAGE_VOLUME!drop-2	GRANT ALL ON STORAGE * TO a;
+reject	reject	engine	privObjectType/STORAGE_VOLUME!drop-2	GRANT ALL ON STORAGE * TO a;
 reject	reject	engine	privObjectType/STORAGE_VOLUME!truncate	GRANT ALL ON STORAGE
 reject	reject	engine	privObjectType/STORAGE_VOLUME!insert	GRANT ALL ON STORAGE VOLUME zzz * TO a;
 reject	reject	engine	privObjectType/STORAGE_VOLUME!swap	GRANT ALL ON STREAM VOLUME * TO a;
-reject	accept	engine	privObjectType/SYSTEM	GRANT ALL ON SYSTEM * TO a;
+accept	accept	engine	privObjectType/SYSTEM	GRANT ALL ON SYSTEM * TO a;
 reject	reject	engine	privObjectType/SYSTEM!insert	GRANT ALL ON SYSTEM zzz * TO a;
 reject	reject	engine	privObjectType/SYSTEM!swap	GRANT ALL ON SYSTEM_TIME * TO a;
-reject	accept	engine	privObjectType/TABLE	GRANT ALL ON TABLE * TO a;
+accept	accept	engine	privObjectType/TABLE	GRANT ALL ON TABLE * TO a;
 reject	reject	engine	privObjectType/TABLE!insert	GRANT ALL ON TABLE zzz * TO a;
 reject	reject	engine	privObjectType/TABLE!swap	GRANT ALL ON TABLES * TO a;
-reject	accept	engine	privObjectType/VIEW	GRANT ALL ON VIEW * TO a;
+accept	accept	engine	privObjectType/VIEW	GRANT ALL ON VIEW * TO a;
 reject	reject	engine	privObjectType/VIEW!insert	GRANT ALL ON VIEW zzz * TO a;
 reject	reject	engine	privObjectType/VIEW!swap	GRANT ALL ON VIEWS * TO a;
-reject	accept	engine	privObjectType/WAREHOUSE	GRANT ALL ON WAREHOUSE * TO a;
+accept	accept	engine	privObjectType/WAREHOUSE	GRANT ALL ON WAREHOUSE * TO a;
 reject	reject	engine	privObjectType/WAREHOUSE!insert	GRANT ALL ON WAREHOUSE zzz * TO a;
 reject	reject	engine	privObjectType/WAREHOUSE!swap	GRANT ALL ON WAREHOUSES * TO a;
-reject	accept	engine	privObjectType/PIPE	GRANT ALL ON PIPE * TO a;
+accept	accept	engine	privObjectType/PIPE	GRANT ALL ON PIPE * TO a;
 reject	reject	engine	privObjectType/PIPE!insert	GRANT ALL ON PIPE zzz * TO a;
 reject	reject	engine	privObjectType/PIPE!swap	GRANT ALL ON PIPES * TO a;
-reject	accept	engine	privObjectTypePlural/CATALOGS	GRANT ALL ON ALL CATALOGS TO a;
+accept	accept	engine	privObjectTypePlural/CATALOGS	GRANT ALL ON ALL CATALOGS TO a;
 reject	reject	engine	privObjectTypePlural/CATALOGS!truncate	GRANT ALL ON ALL
 reject	reject	engine	privObjectTypePlural/CATALOGS!swap	GRANT ALL ON ALL CEIL TO a;
-reject	accept	engine	privObjectTypePlural/DATABASES	GRANT ALL ON ALL DATABASES TO a;
+accept	accept	engine	privObjectTypePlural/DATABASES	GRANT ALL ON ALL DATABASES TO a;
 reject	reject	engine	privObjectTypePlural/DATABASES!insert	GRANT ALL ON ALL DATABASES zzz TO a;
 reject	reject	engine	privObjectTypePlural/DATABASES!swap	GRANT ALL ON ALL DATACACHE TO a;
-reject	accept	engine	privObjectTypePlural/FUNCTIONS	GRANT ALL ON ALL FUNCTIONS TO a;
+accept	accept	engine	privObjectTypePlural/FUNCTIONS	GRANT ALL ON ALL FUNCTIONS TO a;
 reject	reject	engine	privObjectTypePlural/FUNCTIONS!insert	GRANT ALL ON ALL FUNCTIONS zzz TO a;
 reject	reject	engine	privObjectTypePlural/FUNCTIONS!swap	GRANT ALL ON ALL GIN TO a;
-reject	accept	engine	privObjectTypePlural/GLOBAL_FUNCTIONS	GRANT ALL ON ALL GLOBAL FUNCTIONS TO a;
+accept	accept	engine	privObjectTypePlural/GLOBAL_FUNCTIONS	GRANT ALL ON ALL GLOBAL FUNCTIONS TO a;
 reject	reject	engine	privObjectTypePlural/GLOBAL_FUNCTIONS!drop-2	GRANT ALL ON ALL GLOBAL TO a;
 reject	reject	engine	privObjectTypePlural/GLOBAL_FUNCTIONS!truncate	GRANT ALL ON ALL GLOBAL
 reject	reject	engine	privObjectTypePlural/GLOBAL_FUNCTIONS!insert	GRANT ALL ON ALL GLOBAL FUNCTIONS zzz TO a;
 reject	reject	engine	privObjectTypePlural/GLOBAL_FUNCTIONS!swap	GRANT ALL ON ALL GRANT FUNCTIONS TO a;
-reject	accept	engine	privObjectTypePlural/MATERIALIZED_VIEWS	GRANT ALL ON ALL MATERIALIZED VIEWS TO a;
+accept	accept	engine	privObjectTypePlural/MATERIALIZED_VIEWS	GRANT ALL ON ALL MATERIALIZED VIEWS TO a;
 reject	reject	engine	privObjectTypePlural/MATERIALIZED_VIEWS!drop-2	GRANT ALL ON ALL MATERIALIZED TO a;
 reject	reject	engine	privObjectTypePlural/MATERIALIZED_VIEWS!truncate	GRANT ALL ON ALL MATERIALIZED
 reject	reject	engine	privObjectTypePlural/MATERIALIZED_VIEWS!insert	GRANT ALL ON ALL MATERIALIZED VIEWS zzz TO a;
 reject	reject	engine	privObjectTypePlural/MATERIALIZED_VIEWS!swap	GRANT ALL ON ALL MAX VIEWS TO a;
-reject	accept	engine	privObjectTypePlural/POLICIES	GRANT ALL ON ALL POLICIES TO a;
+accept	accept	engine	privObjectTypePlural/POLICIES	GRANT ALL ON ALL POLICIES TO a;
 reject	reject	engine	privObjectTypePlural/POLICIES!insert	GRANT ALL ON ALL POLICIES zzz TO a;
 reject	reject	engine	privObjectTypePlural/POLICIES!swap	GRANT ALL ON ALL POLICY TO a;
-reject	accept	engine	privObjectTypePlural/RESOURCES	GRANT ALL ON ALL RESOURCES TO a;
+accept	accept	engine	privObjectTypePlural/RESOURCES	GRANT ALL ON ALL RESOURCES TO a;
 reject	reject	engine	privObjectTypePlural/RESOURCES!insert	GRANT ALL ON ALL RESOURCES zzz TO a;
 reject	reject	engine	privObjectTypePlural/RESOURCES!swap	GRANT ALL ON ALL RESTORE TO a;
-reject	accept	engine	privObjectTypePlural/RESOURCE_GROUPS	GRANT ALL ON ALL RESOURCE GROUPS TO a;
+accept	accept	engine	privObjectTypePlural/RESOURCE_GROUPS	GRANT ALL ON ALL RESOURCE GROUPS TO a;
 reject	reject	engine	privObjectTypePlural/RESOURCE_GROUPS!drop-1	GRANT ALL ON ALL GROUPS TO a;
 reject	reject	engine	privObjectTypePlural/RESOURCE_GROUPS!drop-2	GRANT ALL ON ALL RESOURCE TO a;
 reject	reject	engine	privObjectTypePlural/RESOURCE_GROUPS!truncate	GRANT ALL ON ALL RESOURCE
 reject	reject	engine	privObjectTypePlural/RESOURCE_GROUPS!insert	GRANT ALL ON ALL RESOURCE GROUPS zzz TO a;
 reject	reject	engine	privObjectTypePlural/RESOURCE_GROUPS!swap	GRANT ALL ON ALL RESOURCES GROUPS TO a;
-reject	accept	engine	privObjectTypePlural/STORAGE_VOLUMES	GRANT ALL ON ALL STORAGE VOLUMES TO a;
+accept	accept	engine	privObjectTypePlural/STORAGE_VOLUMES	GRANT ALL ON ALL STORAGE VOLUMES TO a;
 reject	reject	engine	privObjectTypePlural/STORAGE_VOLUMES!drop-1	GRANT ALL ON ALL VOLUMES TO a;
 reject	reject	engine	privObjectTypePlural/STORAGE_VOLUMES!drop-2	GRANT ALL ON ALL STORAGE TO a;
 reject	reject	engine	privObjectTypePlural/STORAGE_VOLUMES!truncate	GRANT ALL ON ALL STORAGE
 reject	reject	engine	privObjectTypePlural/STORAGE_VOLUMES!insert	GRANT ALL ON ALL STORAGE VOLUMES zzz TO a;
 reject	reject	engine	privObjectTypePlural/STORAGE_VOLUMES!swap	GRANT ALL ON ALL STREAM VOLUMES TO a;
-reject	accept	engine	privObjectTypePlural/TABLES	GRANT ALL ON ALL TABLES TO a;
+accept	accept	engine	privObjectTypePlural/TABLES	GRANT ALL ON ALL TABLES TO a;
 reject	reject	engine	privObjectTypePlural/TABLES!insert	GRANT ALL ON ALL TABLES zzz TO a;
 reject	reject	engine	privObjectTypePlural/TABLES!swap	GRANT ALL ON ALL TABLET TO a;
-reject	accept	engine	privObjectTypePlural/USERS	GRANT ALL ON ALL USERS TO a;
+accept	accept	engine	privObjectTypePlural/USERS	GRANT ALL ON ALL USERS TO a;
 reject	reject	engine	privObjectTypePlural/USERS!insert	GRANT ALL ON ALL USERS zzz TO a;
 reject	reject	engine	privObjectTypePlural/USERS!swap	GRANT ALL ON ALL USING TO a;
-reject	accept	engine	privObjectTypePlural/VIEWS	GRANT ALL ON ALL VIEWS TO a;
+accept	accept	engine	privObjectTypePlural/VIEWS	GRANT ALL ON ALL VIEWS TO a;
 reject	reject	engine	privObjectTypePlural/VIEWS!insert	GRANT ALL ON ALL VIEWS zzz TO a;
 reject	reject	engine	privObjectTypePlural/VIEWS!swap	GRANT ALL ON ALL VOLUME TO a;
-reject	accept	engine	privObjectTypePlural/WAREHOUSES	GRANT ALL ON ALL WAREHOUSES TO a;
+accept	accept	engine	privObjectTypePlural/WAREHOUSES	GRANT ALL ON ALL WAREHOUSES TO a;
 reject	reject	engine	privObjectTypePlural/WAREHOUSES!insert	GRANT ALL ON ALL WAREHOUSES zzz TO a;
 reject	reject	engine	privObjectTypePlural/WAREHOUSES!swap	GRANT ALL ON ALL WARNINGS TO a;
-reject	accept	engine	privObjectTypePlural/PIPES	GRANT ALL ON ALL PIPES TO a;
+accept	accept	engine	privObjectTypePlural/PIPES	GRANT ALL ON ALL PIPES TO a;
 reject	reject	engine	privObjectTypePlural/PIPES!insert	GRANT ALL ON ALL PIPES zzz TO a;
 reject	reject	engine	privObjectTypePlural/PIPES!swap	GRANT ALL ON ALL PIVOT TO a;
 accept	accept	engine	backupStatement/BACKUP_(ALL_EXTERNAL_CATALOGS|EXTERNAL_(CATA~84d82201)?~7e1072bc	BACKUP SNAPSHOT a TO a;
@@ -10496,10 +10496,10 @@ reject	reject	engine	identifierList(,_identifier)*/,_identifier_(,_identifier)*!
 accept	accept	engine	identifierOrString/identifier	HELP a;
 accept	accept	engine	identifierOrString/string	HELP 'a';
 reject	reject	engine	identifierOrString/string!insert	HELP 'a' zzz;
-reject	accept	engine	identifierOrStringList/identifierOrString_(,_identifierOrString)*	GRANT a TO a;
+accept	accept	engine	identifierOrStringList/identifierOrString_(,_identifierOrString)*	GRANT a TO a;
 reject	reject	engine	identifierOrStringList/identifierOrString_(,_identifierOrString)*!insert	GRANT a zzz TO a;
-reject	accept	engine	identifierOrStringList(,_identifierOrString)*/%empty	GRANT a TO a;
-reject	accept	engine	identifierOrStringList(,_identifierOrString)*/,_identifierOrString_(,_identifierOrString)*	GRANT a, a TO a;
+accept	accept	engine	identifierOrStringList(,_identifierOrString)*/%empty	GRANT a TO a;
+accept	accept	engine	identifierOrStringList(,_identifierOrString)*/,_identifierOrString_(,_identifierOrString)*	GRANT a, a TO a;
 reject	reject	engine	identifierOrStringList(,_identifierOrString)*/,_identifierOrString_(,_identifierOrString)*!drop-1	GRANT a a TO a;
 reject	reject	engine	identifierOrStringList(,_identifierOrString)*/,_identifierOrString_(,_identifierOrString)*!drop-2	GRANT a, TO a;
 reject	reject	engine	identifierOrStringList(,_identifierOrString)*/,_identifierOrString_(,_identifierOrString)*!truncate	GRANT a,

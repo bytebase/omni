@@ -849,12 +849,22 @@ func walkChildren(v Visitor, node Node) {
 		}
 	// DCL nodes (T7.1).
 	case *GrantStmt:
-		if n.Object != nil {
-			Walk(v, n.Object)
+		for _, o := range n.Objects {
+			Walk(v, o)
+		}
+		for _, args := range n.FunctionArgs {
+			for _, a := range args {
+				Walk(v, a)
+			}
 		}
 	case *RevokeStmt:
-		if n.Object != nil {
-			Walk(v, n.Object)
+		for _, o := range n.Objects {
+			Walk(v, o)
+		}
+		for _, args := range n.FunctionArgs {
+			for _, a := range args {
+				Walk(v, a)
+			}
 		}
 
 	// TCL — Transaction Control Language nodes (T7.2).
