@@ -151,6 +151,9 @@ func (p *Parser) parseCreateProcedureStmt(orAlter bool) (*nodes.CreateProcedureS
 		return nil, errCollecting
 	}
 
+	// RETURN takes a value inside a routine's body (procRoutineDepth).
+	p.procRoutineDepth++
+	defer func() { p.procRoutineDepth-- }()
 	switch {
 	case opts.native:
 		// The body of a natively compiled procedure is an ATOMIC block,
@@ -448,7 +451,10 @@ func (p *Parser) parseCreateFunctionStmt(orAlter bool) (*nodes.CreateFunctionStm
 		}
 	default:
 		// Scalar and multi-statement table-valued functions: BEGIN ... END,
-		// an ATOMIC block when natively compiled.
+		// an ATOMIC block when natively compiled. RETURN takes a value here
+		// (procRoutineDepth).
+		p.procRoutineDepth++
+		defer func() { p.procRoutineDepth-- }()
 		var body nodes.StmtNode
 		if opts.native {
 			body, err = p.routineParseAtomicBody()

@@ -832,21 +832,25 @@ func (p *Parser) parseRevertStmt() (*nodes.SecurityStmt, error) {
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	// WITH COOKIE = @cookie_variable
+	// WITH COOKIE = expression (revertStatement, TSql160.g:32977): SQL
+	// Server takes a constant there as well as a variable.
 	if p.cur.Type == kwWITH {
 		p.advance()
-		if p.cur.Type == kwCOOKIE {
-			p.advance()
-			if p.cur.Type == '=' {
-				p.advance()
-				if p.cur.Type == tokVARIABLE {
-					var opts []nodes.Node
-					opts = append(opts, &nodes.String{Str: "COOKIE=" + p.cur.Str})
-					stmt.Options = &nodes.List{Items: opts}
-					p.advance()
-				}
-			}
+		if _, err := p.expect(kwCOOKIE); err != nil {
+			return nil, err
 		}
+		if _, err := p.expect('='); err != nil {
+			return nil, err
+		}
+		valLoc := p.pos()
+		value, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		if value == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.Options = &nodes.List{Items: []nodes.Node{&nodes.String{Str: "COOKIE=" + p.source[valLoc:p.prevEnd()]}}}
 	}
 
 	stmt.Loc.End = p.prevEnd()

@@ -48,10 +48,12 @@ func (p *Parser) parseDeclareCursorStmt() (*nodes.DeclareCursorStmt, error) {
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
-	// Parse cursor name (plain identifier, not @variable)
+	// Parse cursor name (plain identifier, not @variable). The name, CURSOR
+	// and FOR select_statement are required (declareCursorStatement,
+	// TSql160.g:16770; cursorDefinitionOptions, TSql160.g:16790).
 	name, ok := p.parseIdentifier()
 	if !ok {
-		return stmt, nil
+		return nil, p.syntaxErrorAtCur()
 	}
 	stmt.Name = name
 
@@ -73,64 +75,86 @@ func (p *Parser) parseDeclareCursorStmt() (*nodes.DeclareCursorStmt, error) {
 	}
 
 	// Expect CURSOR keyword
-	if _, ok := p.match(kwCURSOR); !ok {
-		stmt.Loc.End = p.prevEnd()
-		return stmt, nil
+	if _, err := p.expect(kwCURSOR); err != nil {
+		return nil, err
 	}
 
+	if err := p.parseCursorDefinitionTail(stmt); err != nil {
+		return nil, err
+	}
+
+	stmt.Loc.End = p.prevEnd()
+	return stmt, nil
+}
+
+// parseCursorDefinitionTail parses what follows CURSOR in DECLARE cursor
+// and SET @var = CURSOR (cursorDefinitionOptions, TSql160.g:16790): the
+// options, FOR select_statement and FOR READ ONLY or FOR UPDATE.
+func (p *Parser) parseCursorDefinitionTail(stmt *nodes.DeclareCursorStmt) error {
 	// If we already saw INSENSITIVE or SCROLL (ISO syntax), skip to FOR.
 	// Otherwise, parse T-SQL extended options between CURSOR and FOR.
 	if !stmt.Insensitive && !stmt.Scroll {
 		// T-SQL extended syntax: parse options after CURSOR
 		if err := p.parseCursorOptions(stmt); err != nil {
-			return stmt, err
+			return err
 		}
 	}
 
 	// FOR select_statement
-	if _, ok := p.match(kwFOR); ok {
-		// Completion: after DECLARE c CURSOR FOR → SELECT
+	if _, err := p.expect(kwFOR); err != nil {
 		if p.collectMode() {
-			p.addTokenCandidate(kwSELECT)
-			return nil, errCollecting
+			p.addTokenCandidate(kwFOR)
+			return errCollecting
 		}
-		var err error
-		stmt.Query, err = p.parseSelectStmtWithCTE()
-		if err != nil {
-			return nil, err
-		}
+		return err
 	}
+	// Completion: after DECLARE c CURSOR FOR → SELECT
+	if p.collectMode() {
+		p.addTokenCandidate(kwSELECT)
+		return errCollecting
+	}
+	query, err := p.parseSelectStmtWithCTE()
+	if err != nil {
+		return err
+	}
+	if isNilNode(query) {
+		return p.syntaxErrorAtCur()
+	}
+	stmt.Query = query
 
-	// Optional: FOR { READ_ONLY | UPDATE [ OF column_name [,...n] ] }
+	// Optional: FOR { READ ONLY | UPDATE [ OF column_name [,...n] ] }; SQL
+	// Server spells the first READ ONLY here and refuses READ_ONLY.
 	if _, ok := p.match(kwFOR); ok {
-		if p.matchIdentCI("READ_ONLY") || p.cur.Type == kwREADONLY {
-			if p.cur.Type == kwREADONLY {
-				p.advance()
+		switch {
+		case p.cur.Type == kwREAD:
+			p.advance() // READ
+			if err := p.procExpectWord("ONLY"); err != nil {
+				return err
 			}
 			stmt.Concurrency = "READ_ONLY"
-		} else if _, ok := p.match(kwUPDATE); ok {
+		case p.cur.Type == kwUPDATE:
+			p.advance() // UPDATE
 			stmt.ForUpdate = true
 			if _, ok := p.match(kwOF); ok {
 				var cols []nodes.Node
 				for {
 					col, ok := p.parseIdentifier()
 					if !ok {
-						break
+						return p.syntaxErrorAtCur()
 					}
 					cols = append(cols, &nodes.String{Str: col})
 					if _, ok := p.match(','); !ok {
 						break
 					}
 				}
-				if len(cols) > 0 {
-					stmt.UpdateCols = &nodes.List{Items: cols}
-				}
+				stmt.UpdateCols = &nodes.List{Items: cols}
 			}
+		default:
+			return p.syntaxErrorAtCur()
 		}
 	}
 
-	stmt.Loc.End = p.prevEnd()
-	return stmt, nil
+	return nil
 }
 
 // parseCursorOptions parses T-SQL extended cursor options after CURSOR keyword.
@@ -203,6 +227,8 @@ func (p *Parser) parseCursorOptions(stmt *nodes.DeclareCursorStmt) error {
 // BNF: mssql/parser/bnf/open-transact-sql.bnf
 //
 //	OPEN { { [ GLOBAL ] cursor_name } | cursor_variable_name }
+//
+// openCursorStatement (TSql160.g:14487): the cursor is required.
 func (p *Parser) parseOpenCursorStmt() (*nodes.OpenCursorStmt, error) {
 	loc := p.pos()
 	p.advance() // consume OPEN
@@ -217,21 +243,10 @@ func (p *Parser) parseOpenCursorStmt() (*nodes.OpenCursorStmt, error) {
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
-	// Check for @cursor_variable
-	if p.cur.Type == tokVARIABLE {
-		stmt.Name = p.cur.Str
-		p.advance()
-		stmt.Loc.End = p.prevEnd()
-		return stmt, nil
+	var err error
+	if stmt.Name, stmt.Global, err = p.parseProcCursorRef(); err != nil {
+		return nil, err
 	}
-
-	// [ GLOBAL ] cursor_name
-	if p.matchIdentCI("GLOBAL") {
-		stmt.Global = true
-	}
-
-	name, _ := p.parseIdentifier()
-	stmt.Name = name
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
@@ -250,6 +265,10 @@ func (p *Parser) parseOpenCursorStmt() (*nodes.OpenCursorStmt, error) {
 //	    ]
 //	{ { [ GLOBAL ] cursor_name } | @cursor_variable_name }
 //	[ INTO @variable_name [ ,...n ] ]
+//
+// fetchCursorStatement and rowSelector (TSql160.g:14577, 14597): an
+// orientation needs FROM, ABSOLUTE and RELATIVE a signed integer or a
+// variable (Msg 153 without), and INTO at least one variable.
 func (p *Parser) parseFetchCursorStmt() (*nodes.FetchCursorStmt, error) {
 	loc := p.pos()
 	p.advance() // consume FETCH
@@ -258,44 +277,26 @@ func (p *Parser) parseFetchCursorStmt() (*nodes.FetchCursorStmt, error) {
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
-	// Try to parse orientation [ FROM ]
 	// Orientation keywords: NEXT, PRIOR, FIRST, LAST, ABSOLUTE, RELATIVE
-	orientation := ""
-	switch {
-	case p.matchIdentCI("NEXT"):
-		orientation = "NEXT"
-	case p.matchIdentCI("PRIOR"):
-		orientation = "PRIOR"
-	case p.matchIdentCI("FIRST"):
-		orientation = "FIRST"
-	case p.matchIdentCI("LAST"):
-		orientation = "LAST"
-	case p.matchIdentCI("ABSOLUTE"):
-		orientation = "ABSOLUTE"
-		var err error
-		stmt.FetchOffset, err = p.parseExpr()
-		if err != nil {
-			return nil, err
+	for _, w := range []string{"NEXT", "PRIOR", "FIRST", "LAST", "ABSOLUTE", "RELATIVE"} {
+		if p.procIsWord(w) {
+			stmt.Orientation = w
+			p.advance()
+			break
 		}
-	case p.matchIdentCI("RELATIVE"):
-		orientation = "RELATIVE"
+	}
+	if stmt.Orientation == "ABSOLUTE" || stmt.Orientation == "RELATIVE" {
 		var err error
-		stmt.FetchOffset, err = p.parseExpr()
+		stmt.FetchOffset, err = p.parseProcValue(procValueKinds{signedInt: true, variable: true})
 		if err != nil {
 			return nil, err
 		}
 	}
-
-	if orientation != "" {
-		stmt.Orientation = orientation
-		// Expect FROM after orientation
-		p.match(kwFROM)
-	}
-
-	// If no orientation was specified, check for FROM keyword (FETCH FROM cursor_name)
-	// or just the cursor name directly.
-	if orientation == "" {
-		// Could be: FETCH FROM cursor_name or FETCH cursor_name or FETCH @var
+	if stmt.Orientation != "" {
+		if _, err := p.expect(kwFROM); err != nil {
+			return nil, err
+		}
+	} else {
 		p.match(kwFROM) // optional FROM
 	}
 
@@ -305,16 +306,9 @@ func (p *Parser) parseFetchCursorStmt() (*nodes.FetchCursorStmt, error) {
 		return nil, errCollecting
 	}
 
-	// Parse cursor reference: [ GLOBAL ] cursor_name | @cursor_variable
-	if p.cur.Type == tokVARIABLE {
-		stmt.Name = p.cur.Str
-		p.advance()
-	} else {
-		if p.matchIdentCI("GLOBAL") {
-			stmt.Global = true
-		}
-		name, _ := p.parseIdentifier()
-		stmt.Name = name
+	var err error
+	if stmt.Name, stmt.Global, err = p.parseProcCursorRef(); err != nil {
+		return nil, err
 	}
 
 	// [ INTO @variable_name [,...n] ]
@@ -322,7 +316,7 @@ func (p *Parser) parseFetchCursorStmt() (*nodes.FetchCursorStmt, error) {
 		var vars []nodes.Node
 		for {
 			if p.cur.Type != tokVARIABLE {
-				break
+				return nil, p.syntaxErrorAtCur()
 			}
 			vars = append(vars, &nodes.String{Str: p.cur.Str})
 			p.advance()
@@ -330,9 +324,7 @@ func (p *Parser) parseFetchCursorStmt() (*nodes.FetchCursorStmt, error) {
 				break
 			}
 		}
-		if len(vars) > 0 {
-			stmt.IntoVars = &nodes.List{Items: vars}
-		}
+		stmt.IntoVars = &nodes.List{Items: vars}
 	}
 
 	stmt.Loc.End = p.prevEnd()
@@ -344,6 +336,8 @@ func (p *Parser) parseFetchCursorStmt() (*nodes.FetchCursorStmt, error) {
 // BNF: mssql/parser/bnf/close-transact-sql.bnf
 //
 //	CLOSE { { [ GLOBAL ] cursor_name } | cursor_variable_name }
+//
+// closeCursorStatement (TSql160.g:14555): the cursor is required.
 func (p *Parser) parseCloseCursorStmt() (*nodes.CloseCursorStmt, error) {
 	loc := p.pos()
 	p.advance() // consume CLOSE
@@ -358,21 +352,10 @@ func (p *Parser) parseCloseCursorStmt() (*nodes.CloseCursorStmt, error) {
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
-	// Check for @cursor_variable
-	if p.cur.Type == tokVARIABLE {
-		stmt.Name = p.cur.Str
-		p.advance()
-		stmt.Loc.End = p.prevEnd()
-		return stmt, nil
+	var err error
+	if stmt.Name, stmt.Global, err = p.parseProcCursorRef(); err != nil {
+		return nil, err
 	}
-
-	// [ GLOBAL ] cursor_name
-	if p.matchIdentCI("GLOBAL") {
-		stmt.Global = true
-	}
-
-	name, _ := p.parseIdentifier()
-	stmt.Name = name
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
@@ -383,6 +366,8 @@ func (p *Parser) parseCloseCursorStmt() (*nodes.CloseCursorStmt, error) {
 // BNF: mssql/parser/bnf/deallocate-transact-sql.bnf
 //
 //	DEALLOCATE { { [ GLOBAL ] cursor_name } | @cursor_variable_name }
+//
+// deallocateCursorStatement (TSql160.g:14566): the cursor is required.
 func (p *Parser) parseDeallocateCursorStmt() (*nodes.DeallocateCursorStmt, error) {
 	loc := p.pos()
 	p.advance() // consume DEALLOCATE
@@ -397,21 +382,10 @@ func (p *Parser) parseDeallocateCursorStmt() (*nodes.DeallocateCursorStmt, error
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
-	// Check for @cursor_variable
-	if p.cur.Type == tokVARIABLE {
-		stmt.Name = p.cur.Str
-		p.advance()
-		stmt.Loc.End = p.prevEnd()
-		return stmt, nil
+	var err error
+	if stmt.Name, stmt.Global, err = p.parseProcCursorRef(); err != nil {
+		return nil, err
 	}
-
-	// [ GLOBAL ] cursor_name
-	if p.matchIdentCI("GLOBAL") {
-		stmt.Global = true
-	}
-
-	name, _ := p.parseIdentifier()
-	stmt.Name = name
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil

@@ -1264,6 +1264,13 @@ func writeDeclareStmt(sb *strings.Builder, n *DeclareStmt) {
 func writeSetStmt(sb *strings.Builder, n *SetStmt) {
 	sb.WriteString("{SET")
 	sb.WriteString(fmt.Sprintf(" :variable \"%s\"", escapeString(n.Variable)))
+	if n.Property != "" {
+		sb.WriteString(fmt.Sprintf(" :property \"%s\"", escapeString(n.Property)))
+	}
+	if n.Cursor != nil {
+		sb.WriteString(" :cursor ")
+		writeNode(sb, n.Cursor)
+	}
 	if n.Operator != "" && n.Operator != "=" {
 		sb.WriteString(fmt.Sprintf(" :operator \"%s\"", n.Operator))
 	}

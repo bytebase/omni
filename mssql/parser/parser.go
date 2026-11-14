@@ -38,6 +38,14 @@ type Parser struct {
 	graphMatchDepth int
 
 	depth int // nesting depth of the productions being parsed (see enterNesting)
+
+	// procWhileDepth, procCatchDepth and procRoutineDepth count the WHILE
+	// bodies, CATCH blocks and procedure or function bodies being parsed:
+	// BREAK and CONTINUE need a WHILE, THROW without arguments a CATCH
+	// block, and RETURN with a value a routine (control_flow.go).
+	procWhileDepth   int
+	procCatchDepth   int
+	procRoutineDepth int
 }
 
 // enterSearchCondition / leaveSearchCondition push and pop the boolean

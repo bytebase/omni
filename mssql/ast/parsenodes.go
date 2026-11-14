@@ -1026,9 +1026,11 @@ func (n *VariableDecl) nodeTag() {}
 // SetStmt represents a SET statement.
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/language-elements/set-local-variable-transact-sql
 type SetStmt struct {
-	Variable string   // @variable or SET option name
-	Operator string   // "=" (default), "+=", "-=", "*=", "/=", "%=", "&=", "^=", "|="
-	Value    ExprNode // expression
+	Variable string             // @variable or SET option name
+	Property string             // SET @variable.property = ... or SET @variable.method(...): the property or method
+	Operator string             // "=" (default), "+=", "-=", "*=", "/=", "%=", "&=", "^=", "|="
+	Value    ExprNode           // expression; for a method call, a FuncCallExpr naming the method
+	Cursor   *DeclareCursorStmt // SET @variable = CURSOR ...: the cursor definition (no name)
 	Loc      Loc
 }
 
