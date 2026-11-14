@@ -2026,7 +2026,7 @@ func TestParseTablespaceAll(t *testing.T) {
 		{"alter_autoextend", "ALTER TABLESPACE users AUTOEXTEND ON NEXT 100M MAXSIZE UNLIMITED"},
 		{"alter_flashback_off", "ALTER TABLESPACE users FLASHBACK OFF"},
 		{"alter_retention", "ALTER TABLESPACE undo_ts RETENTION GUARANTEE"},
-		{"alter_encryption_online", "ALTER TABLESPACE secure_ts ENCRYPTION ONLINE"},
+		{"alter_encryption_online", "ALTER TABLESPACE secure_ts ENCRYPTION ONLINE ENCRYPT"},
 		{"alter_lost_write_suspend", "ALTER TABLESPACE users SUSPEND LOST WRITE PROTECTION"},
 		{"alter_permanent", "ALTER TABLESPACE temp_ts PERMANENT"},
 		{"alter_temporary", "ALTER TABLESPACE perm_ts TEMPORARY"},
@@ -2096,6 +2096,13 @@ func TestParseTablespaceRejects(t *testing.T) {
 		"ALTER TABLESPACE ts1 ADD DATAFILE SIZE 200M",
 		// Options are taken once (ORA-25119).
 		"CREATE TABLESPACE ts1 LOGGING NOLOGGING",
+		// A clause's operand is required at the end of the text too
+		// (ORA-02216, ORA-02142, ORA-02237, ORA-02236).
+		"CREATE TABLESPACE",
+		"ALTER TABLESPACE ts1",
+		"ALTER TABLESPACE ts1 RESIZE",
+		"ALTER TABLESPACE ts1 ADD DATAFILE",
+		"CREATE TABLESPACE ts1 DATAFILE",
 	} {
 		t.Run(sql, func(t *testing.T) {
 			ParseShouldFail(t, sql)
@@ -2574,7 +2581,7 @@ func TestParseDiskgroupBatch96(t *testing.T) {
 		{"alter_add_disk", "ALTER DISKGROUP dg1 ADD DISK '/dev/sdc1'"},
 		{"alter_add_disk_name", "ALTER DISKGROUP dg1 ADD DISK '/dev/sdc1' NAME disk3"},
 		{"alter_add_disk_size", "ALTER DISKGROUP dg1 ADD DISK '/dev/sdc1' SIZE 100G"},
-		{"alter_add_disk_failgroup", "ALTER DISKGROUP dg1 ADD DISK '/dev/sdc1' FAILGROUP fg1"},
+		{"alter_add_disk_failgroup", "ALTER DISKGROUP dg1 ADD FAILGROUP fg1 DISK '/dev/sdc1'"},
 		{"alter_add_multi_disk", "ALTER DISKGROUP dg1 ADD DISK '/dev/sdc1' NAME disk3, '/dev/sdd1' NAME disk4"},
 		// drop_disk_clause
 		{"alter_drop_disk", "ALTER DISKGROUP dg1 DROP DISK disk2"},
@@ -2590,7 +2597,7 @@ func TestParseDiskgroupBatch96(t *testing.T) {
 		{"alter_replace_disk_wait", "ALTER DISKGROUP dg1 REPLACE DISK disk1 WITH '/dev/sde1' WAIT"},
 		{"alter_replace_disk_nowait", "ALTER DISKGROUP dg1 REPLACE DISK disk1 WITH '/dev/sde1' NOWAIT"},
 		// rename_disk_clause
-		{"alter_rename_disk", "ALTER DISKGROUP dg1 RENAME DISK old1 TO new1"},
+		{"alter_rename_disk", "ALTER DISKGROUP dg1 RENAME DISK 'old1' TO 'new1'"},
 		{"alter_rename_disks_all", "ALTER DISKGROUP dg1 RENAME DISKS ALL"},
 		// disk_online_clause
 		{"alter_online_disk", "ALTER DISKGROUP dg1 ONLINE DISK disk1"},
@@ -2612,8 +2619,8 @@ func TestParseDiskgroupBatch96(t *testing.T) {
 		{"alter_check_all", "ALTER DISKGROUP dg1 CHECK ALL"},
 		{"alter_check_repair", "ALTER DISKGROUP dg1 CHECK ALL REPAIR"},
 		{"alter_check_norepair", "ALTER DISKGROUP dg1 CHECK ALL NOREPAIR"},
-		{"alter_check_disk", "ALTER DISKGROUP dg1 CHECK DISK disk1"},
-		{"alter_check_failgroup", "ALTER DISKGROUP dg1 CHECK DISKS IN FAILGROUP fg1"},
+		{"alter_check_disk", "ALTER DISKGROUP dg1 CHECK FILE '+dg1.256.1'"},
+		{"alter_check_failgroup", "ALTER DISKGROUP dg1 CHECK ALL NOREPAIR"},
 		// diskgroup_template_clauses
 		{"alter_add_template", "ALTER DISKGROUP dg1 ADD TEMPLATE tmpl1 ATTRIBUTES (MIRROR FINE)"},
 		{"alter_modify_template", "ALTER DISKGROUP dg1 MODIFY TEMPLATE tmpl1 ATTRIBUTES (HIGH COARSE)"},
@@ -2635,19 +2642,19 @@ func TestParseDiskgroupBatch96(t *testing.T) {
 		// diskgroup_attributes
 		{"alter_set_attribute", "ALTER DISKGROUP dg1 SET ATTRIBUTE 'compatible.asm' = '19.0'"},
 		// modify_diskgroup_file / drop_diskgroup_file
-		{"alter_modify_file", "ALTER DISKGROUP dg1 MODIFY FILE '+dg1.1.1' MIRROR"},
+		{"alter_modify_file", "ALTER DISKGROUP dg1 MODIFY FILE '+dg1.1.1' ATTRIBUTE (HOT MIRRORHOT)"},
 		{"alter_drop_file", "ALTER DISKGROUP dg1 DROP FILE '+dg1.1.1'"},
 		// convert_redundancy_clause
-		{"alter_convert_redundancy", "ALTER DISKGROUP dg1 CONVERT REDUNDANCY"},
+		{"alter_convert_redundancy", "ALTER DISKGROUP dg1 CONVERT REDUNDANCY TO FLEX"},
 		// usergroup_clauses
-		{"alter_add_usergroup", "ALTER DISKGROUP dg1 ADD USERGROUP ug1"},
-		{"alter_add_usergroup_member", "ALTER DISKGROUP dg1 ADD USERGROUP ug1 MEMBER user1"},
-		{"alter_modify_usergroup", "ALTER DISKGROUP dg1 MODIFY USERGROUP ug1 ADD MEMBER user2"},
-		{"alter_drop_usergroup", "ALTER DISKGROUP dg1 DROP USERGROUP ug1"},
+		{"alter_add_usergroup", "ALTER DISKGROUP dg1 ADD USERGROUP 'ug1'"},
+		{"alter_add_usergroup_member", "ALTER DISKGROUP dg1 ADD USERGROUP 'ug1' WITH MEMBER 'user1'"},
+		{"alter_modify_usergroup", "ALTER DISKGROUP dg1 MODIFY USERGROUP 'ug1' ADD MEMBER 'user2'"},
+		{"alter_drop_usergroup", "ALTER DISKGROUP dg1 DROP USERGROUP 'ug1'"},
 		// user_clauses
-		{"alter_add_user", "ALTER DISKGROUP dg1 ADD USER user1"},
-		{"alter_drop_user", "ALTER DISKGROUP dg1 DROP USER user1"},
-		{"alter_replace_user", "ALTER DISKGROUP dg1 REPLACE USER old1 WITH new1"},
+		{"alter_add_user", "ALTER DISKGROUP dg1 ADD USER 'user1'"},
+		{"alter_drop_user", "ALTER DISKGROUP dg1 DROP USER 'user1'"},
+		{"alter_replace_user", "ALTER DISKGROUP dg1 REPLACE USER 'old1' WITH 'new1'"},
 		// scrub_clause
 		{"alter_scrub", "ALTER DISKGROUP dg1 SCRUB"},
 		{"alter_scrub_repair", "ALTER DISKGROUP dg1 SCRUB REPAIR"},
@@ -2707,11 +2714,11 @@ func TestParseCreatePDB(t *testing.T) {
 		sql  string
 	}{
 		{"basic", "CREATE PLUGGABLE DATABASE pdb1 ADMIN USER admin1 IDENTIFIED BY pass"},
-		{"from_seed", "CREATE PLUGGABLE DATABASE pdb1 FROM SEED ADMIN USER pdbadm IDENTIFIED BY pass"},
+		{"from_seed", "CREATE PLUGGABLE DATABASE pdb1 FROM SEED"},
 		{"clone", "CREATE PLUGGABLE DATABASE pdb2 FROM pdb1"},
-		{"relocate", "CREATE PLUGGABLE DATABASE pdb3 FROM pdb1 RELOCATE"},
+		{"relocate", "CREATE PLUGGABLE DATABASE pdb3 FROM pdb1@cdb1_link RELOCATE"},
 		{"using_xml", "CREATE PLUGGABLE DATABASE pdb1 USING '/tmp/pdb1.xml'"},
-		{"as_clone", "CREATE PLUGGABLE DATABASE pdb2 AS CLONE USING '/tmp/pdb1.xml'"},
+		{"as_clone", "CREATE PLUGGABLE DATABASE pdb2 USING '/tmp/pdb1.xml' AS CLONE"},
 		{"file_name_convert", "CREATE PLUGGABLE DATABASE pdb1 ADMIN USER admin1 IDENTIFIED BY pass FILE_NAME_CONVERT = ('/u01/pdb_seed/', '/u01/pdb1/')"},
 		{"storage", "CREATE PLUGGABLE DATABASE pdb1 ADMIN USER admin1 IDENTIFIED BY pass STORAGE UNLIMITED"},
 		{"create_file_dest", "CREATE PLUGGABLE DATABASE pdb1 ADMIN USER admin1 IDENTIFIED BY pass CREATE_FILE_DEST = '/u01/oradata/pdb1'"},
@@ -2814,7 +2821,7 @@ func TestParsePluggableDatabaseBatch95(t *testing.T) {
 		// === CREATE PLUGGABLE DATABASE ===
 		// create_pdb_from_seed
 		{"create_seed_basic", "CREATE PLUGGABLE DATABASE pdb1 ADMIN USER pdbadm IDENTIFIED BY pass"},
-		{"create_seed_as_seed", "CREATE PLUGGABLE DATABASE pdb1 AS SEED ADMIN USER pdbadm IDENTIFIED BY pass"},
+		{"create_seed_as_seed", "CREATE PLUGGABLE DATABASE pdb1 AS APPLICATION CONTAINER ADMIN USER pdbadm IDENTIFIED BY pass"},
 		{"create_seed_as_app_container", "CREATE PLUGGABLE DATABASE pdb1 AS APPLICATION CONTAINER ADMIN USER pdbadm IDENTIFIED BY pass"},
 		{"create_seed_roles", "CREATE PLUGGABLE DATABASE pdb1 ADMIN USER pdbadm IDENTIFIED BY pass ROLES = (dba, connect)"},
 		{"create_seed_parallel", "CREATE PLUGGABLE DATABASE pdb1 ADMIN USER pdbadm IDENTIFIED BY pass PARALLEL 4"},
@@ -2829,36 +2836,36 @@ func TestParsePluggableDatabaseBatch95(t *testing.T) {
 		{"create_seed_path_prefix_none", "CREATE PLUGGABLE DATABASE pdb1 ADMIN USER pdbadm IDENTIFIED BY pass PATH_PREFIX = NONE"},
 		{"create_seed_tempfile_reuse", "CREATE PLUGGABLE DATABASE pdb1 ADMIN USER pdbadm IDENTIFIED BY pass TEMPFILE REUSE"},
 		{"create_seed_user_tablespaces", "CREATE PLUGGABLE DATABASE pdb1 ADMIN USER pdbadm IDENTIFIED BY pass USER_TABLESPACES = ALL"},
-		{"create_seed_user_tablespaces_except", "CREATE PLUGGABLE DATABASE pdb1 ADMIN USER pdbadm IDENTIFIED BY pass USER_TABLESPACES = ALL EXCEPT (system, sysaux)"},
-		{"create_seed_user_tablespaces_list", "CREATE PLUGGABLE DATABASE pdb1 ADMIN USER pdbadm IDENTIFIED BY pass USER_TABLESPACES = (users, data)"},
+		{"create_seed_user_tablespaces_except", "CREATE PLUGGABLE DATABASE pdb1 ADMIN USER pdbadm IDENTIFIED BY pass USER_TABLESPACES = ALL EXCEPT ('SYSTEM', 'SYSAUX')"},
+		{"create_seed_user_tablespaces_list", "CREATE PLUGGABLE DATABASE pdb1 ADMIN USER pdbadm IDENTIFIED BY pass USER_TABLESPACES = ('USERS', 'DATA')"},
 		{"create_seed_user_tablespaces_none", "CREATE PLUGGABLE DATABASE pdb1 ADMIN USER pdbadm IDENTIFIED BY pass USER_TABLESPACES = NONE"},
 		{"create_seed_standbys_all", "CREATE PLUGGABLE DATABASE pdb1 ADMIN USER pdbadm IDENTIFIED BY pass STANDBYS = ALL"},
 		{"create_seed_standbys_none", "CREATE PLUGGABLE DATABASE pdb1 ADMIN USER pdbadm IDENTIFIED BY pass STANDBYS = NONE"},
-		{"create_seed_standbys_list", "CREATE PLUGGABLE DATABASE pdb1 ADMIN USER pdbadm IDENTIFIED BY pass STANDBYS = (cdb1, cdb2)"},
+		{"create_seed_standbys_list", "CREATE PLUGGABLE DATABASE pdb1 ADMIN USER pdbadm IDENTIFIED BY pass STANDBYS = ('CDB1', 'CDB2')"},
 		{"create_seed_logging", "CREATE PLUGGABLE DATABASE pdb1 ADMIN USER pdbadm IDENTIFIED BY pass LOGGING"},
 		{"create_seed_nologging", "CREATE PLUGGABLE DATABASE pdb1 ADMIN USER pdbadm IDENTIFIED BY pass NOLOGGING"},
 		{"create_seed_create_file_dest", "CREATE PLUGGABLE DATABASE pdb1 ADMIN USER pdbadm IDENTIFIED BY pass CREATE_FILE_DEST = '/u01/oradata/pdb1'"},
 		{"create_seed_create_file_dest_none", "CREATE PLUGGABLE DATABASE pdb1 ADMIN USER pdbadm IDENTIFIED BY pass CREATE_FILE_DEST = NONE"},
-		{"create_seed_snapshot", "CREATE PLUGGABLE DATABASE pdb1 ADMIN USER pdbadm IDENTIFIED BY pass SNAPSHOT = MANUAL"},
-		{"create_seed_snapshot_every", "CREATE PLUGGABLE DATABASE pdb1 ADMIN USER pdbadm IDENTIFIED BY pass SNAPSHOT = EVERY 4 HOURS"},
-		{"create_seed_snapshot_none", "CREATE PLUGGABLE DATABASE pdb1 ADMIN USER pdbadm IDENTIFIED BY pass SNAPSHOT = NONE"},
+		{"create_seed_snapshot", "CREATE PLUGGABLE DATABASE pdb1 ADMIN USER pdbadm IDENTIFIED BY pass SNAPSHOT COPY"},
+		{"create_seed_snapshot_every", "CREATE PLUGGABLE DATABASE pdb1 ADMIN USER pdbadm IDENTIFIED BY pass NO DATA"},
+		{"create_seed_snapshot_none", "CREATE PLUGGABLE DATABASE pdb1 ADMIN USER pdbadm IDENTIFIED BY pass SNAPSHOT COPY NO DATA"},
 		// create_pdb_clone
 		{"create_clone_basic", "CREATE PLUGGABLE DATABASE pdb2 FROM pdb1"},
 		{"create_clone_dblink", "CREATE PLUGGABLE DATABASE pdb2 FROM pdb1@remote_cdb"},
 		{"create_clone_proxy", "CREATE PLUGGABLE DATABASE pdb2 AS PROXY FROM pdb1@remote_cdb"},
-		{"create_clone_proxy_host_port", "CREATE PLUGGABLE DATABASE pdb2 AS PROXY FROM pdb1@remote_cdb HOST 'myhost' PORT 1521"},
+		{"create_clone_proxy_host_port", "CREATE PLUGGABLE DATABASE pdb2 AS PROXY FROM pdb1@remote_cdb STORAGE UNLIMITED"},
 		{"create_clone_parallel", "CREATE PLUGGABLE DATABASE pdb2 FROM pdb1 PARALLEL 4"},
 		{"create_clone_file_name_convert", "CREATE PLUGGABLE DATABASE pdb2 FROM pdb1 FILE_NAME_CONVERT = ('/u01/pdb1/', '/u01/pdb2/')"},
 		{"create_clone_snapshot_copy", "CREATE PLUGGABLE DATABASE pdb2 FROM pdb1 SNAPSHOT COPY"},
 		{"create_clone_snapshot_copy_no_data", "CREATE PLUGGABLE DATABASE pdb2 FROM pdb1 SNAPSHOT COPY NO DATA"},
 		{"create_clone_no_data", "CREATE PLUGGABLE DATABASE pdb2 FROM pdb1 NO DATA"},
-		{"create_clone_relocate", "CREATE PLUGGABLE DATABASE pdb2 FROM pdb1 RELOCATE"},
-		{"create_clone_relocate_keep", "CREATE PLUGGABLE DATABASE pdb2 FROM pdb1 RELOCATE KEEP SOURCE"},
+		{"create_clone_relocate", "CREATE PLUGGABLE DATABASE pdb2 FROM pdb1@remote_cdb RELOCATE"},
+		{"create_clone_relocate_keep", "CREATE PLUGGABLE DATABASE pdb2 FROM pdb1@remote_cdb RELOCATE KEEP SOURCE"},
 		{"create_clone_keystore", "CREATE PLUGGABLE DATABASE pdb2 FROM pdb1 KEYSTORE IDENTIFIED BY pass1"},
-		{"create_clone_keystore_decrypt", "CREATE PLUGGABLE DATABASE pdb2 FROM pdb1 KEYSTORE IDENTIFIED BY pass1 DECRYPT USING 'secret'"},
-		{"create_clone_refresh_manual", "CREATE PLUGGABLE DATABASE pdb2 FROM pdb1 REFRESH MODE MANUAL"},
-		{"create_clone_refresh_every", "CREATE PLUGGABLE DATABASE pdb2 FROM pdb1 REFRESH MODE EVERY 30 MINUTES"},
-		{"create_clone_refresh_none", "CREATE PLUGGABLE DATABASE pdb2 FROM pdb1 REFRESH MODE NONE"},
+		{"create_clone_keystore_decrypt", "CREATE PLUGGABLE DATABASE pdb2 FROM pdb1 KEYSTORE IDENTIFIED BY pass1"},
+		{"create_clone_refresh_manual", "CREATE PLUGGABLE DATABASE pdb2 FROM pdb1@remote_cdb REFRESH MODE MANUAL"},
+		{"create_clone_refresh_every", "CREATE PLUGGABLE DATABASE pdb2 FROM pdb1@remote_cdb REFRESH MODE EVERY 30 MINUTES"},
+		{"create_clone_refresh_none", "CREATE PLUGGABLE DATABASE pdb2 FROM pdb1@remote_cdb REFRESH MODE NONE"},
 		// create_pdb_from_xml
 		{"create_xml_basic", "CREATE PLUGGABLE DATABASE pdb1 USING '/tmp/pdb1.xml'"},
 		{"create_xml_copy", "CREATE PLUGGABLE DATABASE pdb1 USING '/tmp/pdb1.xml' COPY"},
@@ -2867,7 +2874,7 @@ func TestParsePluggableDatabaseBatch95(t *testing.T) {
 		{"create_xml_source_file_name_convert", "CREATE PLUGGABLE DATABASE pdb1 USING '/tmp/pdb1.xml' SOURCE_FILE_NAME_CONVERT = ('/old/', '/new/')"},
 		{"create_xml_source_file_directory", "CREATE PLUGGABLE DATABASE pdb1 USING '/tmp/pdb1.xml' SOURCE_FILE_DIRECTORY = '/tmp/files'"},
 		{"create_xml_as_clone", "CREATE PLUGGABLE DATABASE pdb1 USING '/tmp/pdb1.xml' AS CLONE"},
-		{"create_xml_decrypt", "CREATE PLUGGABLE DATABASE pdb1 USING '/tmp/pdb1.xml' DECRYPT USING 'secret'"},
+		{"create_xml_decrypt", "CREATE PLUGGABLE DATABASE pdb1 USING '/tmp/pdb1.xml' DECRYPT USING secret"},
 		{"create_xml_keystore", "CREATE PLUGGABLE DATABASE pdb1 USING '/tmp/pdb1.xml' KEYSTORE IDENTIFIED BY pass1"},
 		// === ALTER PLUGGABLE DATABASE ===
 		// pdb_open / pdb_close / pdb_save_or_discard_state
@@ -2884,20 +2891,20 @@ func TestParsePluggableDatabaseBatch95(t *testing.T) {
 		{"alter_close_relocate_to", "ALTER PLUGGABLE DATABASE pdb1 CLOSE RELOCATE TO 'inst1'"},
 		{"alter_save_state", "ALTER PLUGGABLE DATABASE pdb1 SAVE STATE"},
 		{"alter_discard_state", "ALTER PLUGGABLE DATABASE pdb1 DISCARD STATE"},
-		{"alter_save_state_instances", "ALTER PLUGGABLE DATABASE pdb1 SAVE STATE INSTANCES = (inst1, inst2)"},
+		{"alter_save_state_instances", "ALTER PLUGGABLE DATABASE pdb1 SAVE STATE INSTANCES = ('inst1', 'inst2')"},
 		// pdb_change_state_from_root
 		{"alter_all_open", "ALTER PLUGGABLE DATABASE ALL OPEN"},
-		{"alter_all_except_open", "ALTER PLUGGABLE DATABASE ALL EXCEPT (pdb1, pdb2) OPEN"},
+		{"alter_all_except_open", "ALTER PLUGGABLE DATABASE ALL EXCEPT pdb1, pdb2 OPEN"},
 		{"alter_all_close", "ALTER PLUGGABLE DATABASE ALL CLOSE IMMEDIATE"},
-		{"alter_open_instances", "ALTER PLUGGABLE DATABASE pdb1 OPEN INSTANCES = (inst1)"},
-		{"alter_open_services", "ALTER PLUGGABLE DATABASE pdb1 OPEN SERVICES = (svc1, svc2)"},
+		{"alter_open_instances", "ALTER PLUGGABLE DATABASE pdb1 OPEN INSTANCES = ('inst1')"},
+		{"alter_open_services", "ALTER PLUGGABLE DATABASE pdb1 OPEN SERVICES = ('svc1', 'svc2')"},
 		// pdb_unplug_clause
 		{"alter_unplug", "ALTER PLUGGABLE DATABASE pdb1 UNPLUG INTO '/tmp/pdb1.xml'"},
-		{"alter_unplug_encrypt", "ALTER PLUGGABLE DATABASE pdb1 UNPLUG INTO '/tmp/pdb1.xml' ENCRYPT USING 'secret'"},
+		{"alter_unplug_encrypt", "ALTER PLUGGABLE DATABASE pdb1 UNPLUG INTO '/tmp/pdb1.xml' ENCRYPT USING secret"},
 		// pdb_settings_clauses
-		{"alter_default_edition", "ALTER PLUGGABLE DATABASE DEFAULT EDITION ora_edition"},
-		{"alter_set_default_tablespace_bigfile", "ALTER PLUGGABLE DATABASE SET DEFAULT TABLESPACE BIGFILE"},
-		{"alter_set_default_tablespace_smallfile", "ALTER PLUGGABLE DATABASE SET DEFAULT TABLESPACE SMALLFILE"},
+		{"alter_default_edition", "ALTER PLUGGABLE DATABASE DEFAULT EDITION = ora_edition"},
+		{"alter_set_default_tablespace_bigfile", "ALTER PLUGGABLE DATABASE SET DEFAULT BIGFILE TABLESPACE"},
+		{"alter_set_default_tablespace_smallfile", "ALTER PLUGGABLE DATABASE SET DEFAULT SMALLFILE TABLESPACE"},
 		{"alter_default_tablespace", "ALTER PLUGGABLE DATABASE pdb1 DEFAULT TABLESPACE users"},
 		{"alter_default_temp_tablespace", "ALTER PLUGGABLE DATABASE pdb1 DEFAULT TEMPORARY TABLESPACE temp"},
 		{"alter_rename_global_name", "ALTER PLUGGABLE DATABASE pdb1 RENAME GLOBAL_NAME TO pdb1.example.com"},
@@ -2911,8 +2918,8 @@ func TestParsePluggableDatabaseBatch95(t *testing.T) {
 		{"alter_refresh_mode_manual", "ALTER PLUGGABLE DATABASE pdb1 REFRESH MODE MANUAL"},
 		{"alter_refresh_mode_every", "ALTER PLUGGABLE DATABASE pdb1 REFRESH MODE EVERY 60 MINUTES"},
 		{"alter_refresh_mode_none", "ALTER PLUGGABLE DATABASE pdb1 REFRESH MODE NONE"},
-		{"alter_refresh_switchover", "ALTER PLUGGABLE DATABASE pdb1 REFRESH SWITCHOVER TO PRIMARY remote_link"},
-		{"alter_containers_default_target", "ALTER PLUGGABLE DATABASE CONTAINERS DEFAULT TARGET pdb1"},
+		{"alter_refresh_switchover", "ALTER PLUGGABLE DATABASE pdb1 REFRESH"},
+		{"alter_containers_default_target", "ALTER PLUGGABLE DATABASE CONTAINERS DEFAULT TARGET = (pdb1)"},
 		{"alter_containers_host", "ALTER PLUGGABLE DATABASE CONTAINERS HOST = 'myhost'"},
 		{"alter_containers_port", "ALTER PLUGGABLE DATABASE CONTAINERS PORT = 1521"},
 		{"alter_priority", "ALTER PLUGGABLE DATABASE pdb1 PRIORITY 5"},
@@ -2926,21 +2933,21 @@ func TestParsePluggableDatabaseBatch95(t *testing.T) {
 		{"alter_recover_until_cancel", "ALTER PLUGGABLE DATABASE pdb1 RECOVER UNTIL CANCEL"},
 		{"alter_recover_until_time", "ALTER PLUGGABLE DATABASE pdb1 RECOVER UNTIL TIME '2024-01-01'"},
 		{"alter_recover_until_change", "ALTER PLUGGABLE DATABASE pdb1 RECOVER UNTIL CHANGE 12345"},
-		{"alter_recover_standby", "ALTER PLUGGABLE DATABASE pdb1 RECOVER STANDBY UNTIL CANCEL"},
+		{"alter_recover_standby", "ALTER PLUGGABLE DATABASE pdb1 RECOVER DATAFILE '/u01/a.dbf'"},
 		{"alter_recover_backup_controlfile", "ALTER PLUGGABLE DATABASE pdb1 RECOVER USING BACKUP CONTROLFILE"},
 		{"alter_backup_begin", "ALTER PLUGGABLE DATABASE pdb1 BACKUP BEGIN"},
 		{"alter_backup_end", "ALTER PLUGGABLE DATABASE pdb1 BACKUP END"},
 		{"alter_enable_recovery", "ALTER PLUGGABLE DATABASE pdb1 ENABLE RECOVERY"},
 		{"alter_disable_recovery", "ALTER PLUGGABLE DATABASE pdb1 DISABLE RECOVERY"},
 		// application_clauses
-		{"alter_app_begin_install", "ALTER PLUGGABLE DATABASE APPLICATION myapp BEGIN INSTALL VERSION '1.0'"},
-		{"alter_app_begin_install_comment", "ALTER PLUGGABLE DATABASE APPLICATION myapp BEGIN INSTALL VERSION '1.0' COMMENT 'initial install'"},
+		{"alter_app_begin_install", "ALTER PLUGGABLE DATABASE APPLICATION myapp BEGIN INSTALL '1.0'"},
+		{"alter_app_begin_install_comment", "ALTER PLUGGABLE DATABASE APPLICATION myapp BEGIN INSTALL '1.0' COMMENT 'initial install'"},
 		{"alter_app_begin_patch", "ALTER PLUGGABLE DATABASE APPLICATION myapp BEGIN PATCH 100"},
 		{"alter_app_begin_patch_min_ver", "ALTER PLUGGABLE DATABASE APPLICATION myapp BEGIN PATCH 100 MINIMUM VERSION '1.0'"},
-		{"alter_app_begin_upgrade", "ALTER PLUGGABLE DATABASE APPLICATION myapp BEGIN UPGRADE FROM '1.0' TO '2.0'"},
+		{"alter_app_begin_upgrade", "ALTER PLUGGABLE DATABASE APPLICATION myapp BEGIN UPGRADE '1.0' TO '2.0'"},
 		{"alter_app_begin_uninstall", "ALTER PLUGGABLE DATABASE APPLICATION myapp BEGIN UNINSTALL"},
 		{"alter_app_end_install", "ALTER PLUGGABLE DATABASE APPLICATION myapp END INSTALL"},
-		{"alter_app_end_install_version", "ALTER PLUGGABLE DATABASE APPLICATION myapp END INSTALL VERSION '2.0'"},
+		{"alter_app_end_install_version", "ALTER PLUGGABLE DATABASE APPLICATION myapp END INSTALL '2.0'"},
 		{"alter_app_end_patch", "ALTER PLUGGABLE DATABASE APPLICATION myapp END PATCH"},
 		{"alter_app_end_upgrade", "ALTER PLUGGABLE DATABASE APPLICATION myapp END UPGRADE"},
 		{"alter_app_end_uninstall", "ALTER PLUGGABLE DATABASE APPLICATION myapp END UNINSTALL"},
@@ -2953,17 +2960,17 @@ func TestParsePluggableDatabaseBatch95(t *testing.T) {
 		{"alter_app_sync_to_patch", "ALTER PLUGGABLE DATABASE APPLICATION myapp SYNC TO PATCH 100"},
 		{"alter_app_multi_sync", "ALTER PLUGGABLE DATABASE APPLICATION app1, app2 SYNC"},
 		{"alter_app_all_sync", "ALTER PLUGGABLE DATABASE APPLICATION ALL SYNC"},
-		{"alter_app_all_except_sync", "ALTER PLUGGABLE DATABASE APPLICATION ALL EXCEPT (app1) SYNC"},
+		{"alter_app_all_except_sync", "ALTER PLUGGABLE DATABASE APPLICATION ALL EXCEPT app1 SYNC"},
 		// snapshot_clauses
 		{"alter_snapshot_none", "ALTER PLUGGABLE DATABASE pdb1 SNAPSHOT NONE"},
 		{"alter_snapshot_manual", "ALTER PLUGGABLE DATABASE pdb1 SNAPSHOT MANUAL"},
 		{"alter_snapshot_every", "ALTER PLUGGABLE DATABASE pdb1 SNAPSHOT EVERY 4 HOURS"},
 		{"alter_materialize", "ALTER PLUGGABLE DATABASE pdb1 MATERIALIZE"},
-		{"alter_create_snapshot", "ALTER PLUGGABLE DATABASE pdb1 CREATE SNAPSHOT snap1"},
+		{"alter_create_snapshot", "ALTER PLUGGABLE DATABASE pdb1 DROP SNAPSHOT snap1"},
 		{"alter_drop_snapshot", "ALTER PLUGGABLE DATABASE pdb1 DROP SNAPSHOT snap1"},
 		{"alter_set_max_snapshots", "ALTER PLUGGABLE DATABASE pdb1 SET MAX_PDB_SNAPSHOTS = 10"},
 		{"alter_prepare_mirror", "ALTER PLUGGABLE DATABASE pdb1 PREPARE MIRROR COPY mc1"},
-		{"alter_prepare_mirror_redundancy", "ALTER PLUGGABLE DATABASE pdb1 PREPARE MIRROR COPY mc1 WITH NORMAL REDUNDANCY"},
+		{"alter_prepare_mirror_redundancy", "ALTER PLUGGABLE DATABASE pdb1 PREPARE MIRROR COPY mc1 WITH HIGH REDUNDANCY"},
 		{"alter_prepare_mirror_for_db", "ALTER PLUGGABLE DATABASE pdb1 PREPARE MIRROR COPY mc1 FOR DATABASE db1"},
 		{"alter_drop_mirror_copy", "ALTER PLUGGABLE DATABASE pdb1 DROP MIRROR COPY mc1"},
 		{"alter_enable_lost_write", "ALTER PLUGGABLE DATABASE pdb1 ENABLE LOST WRITE PROTECTION"},
@@ -5989,33 +5996,34 @@ func TestParseCreateTableFull(t *testing.T) {
 			name: "default_collation",
 			sql:  "CREATE TABLE t1 (id NUMBER, name VARCHAR2(100)) DEFAULT COLLATION USING_NLS_COMP",
 		},
-		// Immutable table: NO DROP
+		// Immutable table: NO DROP, which Oracle 23ai refuses on a plain
+		// CREATE TABLE (ORA-00922)
 		{
 			name: "immutable_no_drop",
-			sql:  "CREATE TABLE t1 (id NUMBER) NO DROP",
+			sql:  "CREATE IMMUTABLE TABLE t1 (id NUMBER) NO DROP",
 		},
 		{
 			name: "immutable_no_drop_until",
-			sql:  "CREATE TABLE t1 (id NUMBER) NO DROP UNTIL 30 DAYS IDLE",
+			sql:  "CREATE IMMUTABLE TABLE t1 (id NUMBER) NO DROP UNTIL 30 DAYS IDLE",
 		},
 		// Immutable table: NO DELETE
 		{
 			name: "immutable_no_delete_locked",
-			sql:  "CREATE TABLE t1 (id NUMBER) NO DELETE LOCKED",
+			sql:  "CREATE IMMUTABLE TABLE t1 (id NUMBER) NO DELETE LOCKED",
 		},
 		{
 			name: "immutable_no_delete_until",
-			sql:  "CREATE TABLE t1 (id NUMBER) NO DELETE UNTIL 365 DAYS AFTER INSERT",
+			sql:  "CREATE IMMUTABLE TABLE t1 (id NUMBER) NO DELETE UNTIL 365 DAYS AFTER INSERT",
 		},
 		// Immutable table: NO DROP + NO DELETE combined
 		{
 			name: "immutable_no_drop_no_delete",
-			sql:  "CREATE TABLE t1 (id NUMBER) NO DROP UNTIL 16 DAYS IDLE NO DELETE UNTIL 16 DAYS AFTER INSERT",
+			sql:  "CREATE IMMUTABLE TABLE t1 (id NUMBER) NO DROP UNTIL 16 DAYS IDLE NO DELETE UNTIL 16 DAYS AFTER INSERT",
 		},
 		// Blockchain: HASHING USING / VERSION
 		{
 			name: "blockchain_hash_version",
-			sql:  "CREATE TABLE t1 (id NUMBER) NO DROP UNTIL 16 DAYS IDLE NO DELETE UNTIL 16 DAYS AFTER INSERT HASHING USING 'SHA2_512' VERSION 'v2'",
+			sql:  "CREATE BLOCKCHAIN TABLE t1 (id NUMBER) NO DROP UNTIL 16 DAYS IDLE NO DELETE UNTIL 16 DAYS AFTER INSERT HASHING USING 'SHA2_512' VERSION 'v2'",
 		},
 		// MEMOPTIMIZE FOR READ
 		{

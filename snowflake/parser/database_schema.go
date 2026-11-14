@@ -326,7 +326,17 @@ func (p *Parser) parseCreateSchemaStmt(start ast.Loc, orReplace, orAlter, transi
 // Handles DATABASE, SCHEMA, VIEW, and MATERIALIZED VIEW; falls back to
 // unsupported for other objects.
 func (p *Parser) parseAlterStmt() (ast.Node, error) {
-	p.advance() // consume ALTER
+	alterTok := p.advance() // consume ALTER
+
+	// An object read by its documented shape (object.go) is dispatched by the
+	// registry before the switch.
+	if f := p.matchObjectForm(); f != nil {
+		return p.parseObjectStmt("ALTER", f, alterTok.Loc, false, false)
+	}
+	// Policies read by their docs pages (policy.go).
+	if d := p.startsDocPolicy(); d != nil {
+		return p.parseAlterDocPolicy(alterTok.Loc, d)
+	}
 
 	switch p.cur.Type {
 	case kwTABLE:
@@ -405,6 +415,9 @@ func (p *Parser) parseAlterStmt() (ast.Node, error) {
 	case kwSEMANTIC:
 		// ALTER SEMANTIC VIEW ... (T4.9). The sub-parser consumes SEMANTIC + VIEW.
 		return p.parseAlterSemanticViewStmt()
+	case kwDATASET:
+		// ALTER DATASET ... { ADD | DROP } VERSION. The sub-parser consumes DATASET.
+		return p.parseAlterDatasetStmt(alterTok.Loc)
 	case kwFAILOVER, kwREPLICATION:
 		// ALTER { FAILOVER | REPLICATION } GROUP ... (T4.8). The sub-parser consumes
 		// the kind keyword + GROUP.

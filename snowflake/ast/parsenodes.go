@@ -1776,6 +1776,7 @@ const (
 	DropSessionPolicy                   // DROP SESSION POLICY
 	DropShare                           // DROP SHARE
 	DropUser                            // DROP USER
+	DropObject                          // DROP of an object read by its documented shape; DropStmt.Object names it
 )
 
 // String returns the SQL object-type keyword for the kind.
@@ -1851,6 +1852,7 @@ func (k DropObjectKind) String() string {
 // DropSchemaStmt and are NOT covered by this type.
 type DropStmt struct {
 	Kind     DropObjectKind
+	Object   string // the object's keywords when Kind is DropObject: "COMPUTE POOL"
 	IfExists bool
 	Name     *ObjectName
 	// HasArgs / ArgTypes carry the argument-type signature of a DROP
@@ -1869,6 +1871,15 @@ type DropStmt struct {
 
 // Tag implements Node.
 func (n *DropStmt) Tag() NodeTag { return T_DropStmt }
+
+// ObjectType returns the SQL keywords of the dropped object's type: Object
+// for a DropObject, Kind.String() otherwise.
+func (n *DropStmt) ObjectType() string {
+	if n.Kind == DropObject {
+		return n.Object
+	}
+	return n.Kind.String()
+}
 
 // UndropObjectKind enumerates the object types that can appear in an UNDROP
 // statement. DATABASE and SCHEMA are handled by T2.1.
@@ -2220,24 +2231,31 @@ var _ Node = (*CreateMaterializedViewStmt)(nil)
 type AlterViewAction int
 
 const (
-	AlterViewRename                   AlterViewAction = iota // RENAME TO
-	AlterViewSetComment                                      // SET COMMENT = '...'
-	AlterViewUnsetComment                                    // UNSET COMMENT
-	AlterViewSetSecure                                       // SET SECURE
-	AlterViewUnsetSecure                                     // UNSET SECURE
-	AlterViewSetTag                                          // SET TAG (...)
-	AlterViewUnsetTag                                        // UNSET TAG (...)
-	AlterViewAddRowAccessPolicy                              // ADD ROW ACCESS POLICY
-	AlterViewDropRowAccessPolicy                             // DROP ROW ACCESS POLICY
-	AlterViewDropAllRowAccessPolicies                        // DROP ALL ROW ACCESS POLICIES
-	AlterViewColumnSetMaskingPolicy                          // ALTER COLUMN col SET MASKING POLICY
-	AlterViewColumnUnsetMaskingPolicy                        // ALTER COLUMN col UNSET MASKING POLICY
-	AlterViewColumnSetTag                                    // ALTER COLUMN col SET TAG (...)
-	AlterViewColumnUnsetTag                                  // ALTER COLUMN col UNSET TAG (...)
-	AlterViewSetAggregationPolicy                            // SET AGGREGATION POLICY name [ ENTITY KEY (...) ] [ FORCE ]
-	AlterViewUnsetAggregationPolicy                          // UNSET AGGREGATION POLICY
-	AlterViewSetJoinPolicy                                   // SET JOIN POLICY name [ ALLOWED/ENFORCED JOIN KEYS (...) ]
-	AlterViewUnsetJoinPolicy                                 // UNSET JOIN POLICY
+	AlterViewRename                      AlterViewAction = iota // RENAME TO
+	AlterViewSetComment                                         // SET COMMENT = '...'
+	AlterViewUnsetComment                                       // UNSET COMMENT
+	AlterViewSetSecure                                          // SET SECURE
+	AlterViewUnsetSecure                                        // UNSET SECURE
+	AlterViewSetTag                                             // SET TAG (...)
+	AlterViewUnsetTag                                           // UNSET TAG (...)
+	AlterViewAddRowAccessPolicy                                 // ADD ROW ACCESS POLICY
+	AlterViewDropRowAccessPolicy                                // DROP ROW ACCESS POLICY
+	AlterViewDropAllRowAccessPolicies                           // DROP ALL ROW ACCESS POLICIES
+	AlterViewColumnSetMaskingPolicy                             // ALTER COLUMN col SET MASKING POLICY
+	AlterViewColumnUnsetMaskingPolicy                           // ALTER COLUMN col UNSET MASKING POLICY
+	AlterViewColumnSetTag                                       // ALTER COLUMN col SET TAG (...)
+	AlterViewColumnUnsetTag                                     // ALTER COLUMN col UNSET TAG (...)
+	AlterViewSetAggregationPolicy                               // SET AGGREGATION POLICY name [ ENTITY KEY (...) ] [ FORCE ]
+	AlterViewUnsetAggregationPolicy                             // UNSET AGGREGATION POLICY
+	AlterViewSetJoinPolicy                                      // SET JOIN POLICY name [ ALLOWED/ENFORCED JOIN KEYS (...) ]
+	AlterViewUnsetJoinPolicy                                    // UNSET JOIN POLICY
+	AlterViewSetChangeTracking                                  // SET CHANGE_TRACKING = { TRUE | FALSE }
+	AlterViewSetContact                                         // SET CONTACT purpose = contact [, ...]
+	AlterViewUnsetContact                                       // UNSET CONTACT purpose
+	AlterViewDataMetric                                         // data metric function action (see DataMetric)
+	AlterViewColumnSetProjectionPolicy                          // ALTER COLUMN col SET PROJECTION POLICY p [FORCE]
+	AlterViewColumnUnsetProjectionPolicy                        // ALTER COLUMN col UNSET PROJECTION POLICY
+	AlterViewAddColumn                                          // ADD [COLUMN] [IF NOT EXISTS] col type [policies] [TAG (...)]
 )
 
 // AlterViewStmt represents ALTER VIEW ... (all action variants).
@@ -2254,8 +2272,8 @@ type AlterViewStmt struct {
 	PolicyCols    []Ident          // ON (col, ...) for ADD ROW ACCESS POLICY
 	PolicyKeyCols []Ident          // ENTITY KEY (...) / ALLOWED|ENFORCED JOIN KEYS (...) for SET {AGGREGATION|JOIN} POLICY
 	PolicyKeyKind string           // "ALLOWED" or "ENFORCED" for SET JOIN POLICY ... JOIN KEYS; "" if no keys clause
-	PolicyForce   bool             // FORCE for SET AGGREGATION POLICY
-	Column        Ident            // ALTER COLUMN col name
+	PolicyForce   bool             // FORCE for SET {AGGREGATION|JOIN} POLICY
+	Column        Ident            // ALTER COLUMN col name; ADD COLUMN col name
 	MaskingPolicy *ObjectName      // SET MASKING POLICY p
 	MaskingUsing  []Ident          // USING (col, ...)
 	// ColumnActions is the full comma-separated MODIFY/ALTER column action
@@ -2271,26 +2289,41 @@ type AlterViewStmt struct {
 	// They are set only when Action == AlterViewDropRowAccessPolicy.
 	AddPolicyName *ObjectName
 	AddPolicyCols []Ident
-	Loc           Loc
+	// ChangeTracking is the SET CHANGE_TRACKING value.
+	ChangeTracking bool
+	// Contact is the verbatim `purpose = contact [, ...]` of SET CONTACT, or
+	// the purpose of UNSET CONTACT.
+	Contact    string
+	DataMetric *DataMetricAction // AlterViewDataMetric
+	// ADD COLUMN: Column, ColumnType, IfNotExists, MaskingPolicy /
+	// MaskingUsing, ProjectionPolicy and Tags.
+	IfNotExists      bool
+	ColumnType       *TypeName
+	ProjectionPolicy *ObjectName
+	Loc              Loc
 }
 
 // AlterViewColumnAction is one element of an ALTER VIEW column action list:
 //
 //	{ALTER|MODIFY} [COLUMN] <col> SET MASKING POLICY <p> [USING (...)] [FORCE]
 //	                        | UNSET MASKING POLICY
+//	                        | SET PROJECTION POLICY <p> [FORCE]
+//	                        | UNSET PROJECTION POLICY
 //	                        | SET TAG <t> = '<v>' [, ...]
 //	                        | UNSET TAG <t> [, ...]
 //
-// Action is one of the AlterViewColumn* values.
+// Action is one of the AlterViewColumn* values. ALTER DYNAMIC TABLE's column
+// actions have the same grammar and use this type too.
 type AlterViewColumnAction struct {
-	Column        Ident
-	Action        AlterViewAction
-	MaskingPolicy *ObjectName      // SET MASKING POLICY p
-	MaskingUsing  []Ident          // USING (col, ...)
-	Force         bool             // FORCE after SET MASKING POLICY
-	Tags          []*TagAssignment // SET TAG (...)
-	UnsetTags     []*ObjectName    // UNSET TAG (...)
-	Loc           Loc
+	Column           Ident
+	Action           AlterViewAction
+	MaskingPolicy    *ObjectName      // SET MASKING POLICY p
+	MaskingUsing     []Ident          // USING (col, ...)
+	ProjectionPolicy *ObjectName      // SET PROJECTION POLICY p
+	Force            bool             // FORCE after SET MASKING / PROJECTION POLICY
+	Tags             []*TagAssignment // SET TAG (...)
+	UnsetTags        []*ObjectName    // UNSET TAG (...)
+	Loc              Loc
 }
 
 // Tag implements Node.
@@ -2317,6 +2350,9 @@ const (
 	AlterMVUnsetSecure                                          // UNSET SECURE
 	AlterMVSetComment                                           // SET COMMENT = '...'
 	AlterMVUnsetComment                                         // UNSET COMMENT
+	AlterMVSetContact                                           // SET CONTACT purpose = contact [, ...] [COMMENT = '...']
+	AlterMVUnsetContact                                         // UNSET CONTACT purpose
+	AlterMVDataMetric                                           // SET / UNSET DATA_METRIC_SCHEDULE (see DataMetric)
 )
 
 // AlterMaterializedViewStmt represents ALTER MATERIALIZED VIEW ... (all action variants).
@@ -2329,7 +2365,11 @@ type AlterMaterializedViewStmt struct {
 	Linear    bool        // CLUSTER BY LINEAR modifier
 	Comment   *string     // SET COMMENT = '...'
 	Secure    bool        // true = SET SECURE; false = UNSET SECURE (check Action)
-	Loc       Loc
+	// Contact is the verbatim `purpose = contact [, ...]` of SET [SECURE]
+	// CONTACT, or the purpose of UNSET CONTACT.
+	Contact    string
+	DataMetric *DataMetricAction // AlterMVDataMetric
+	Loc        Loc
 }
 
 // Tag implements Node.
@@ -3304,7 +3344,10 @@ const (
 // + FILE_FORMAT + FILES + PATTERN + STORAGE_INTEGRATION + CREDENTIALS + ...) and,
 // for transfer statements, PUT/GET (PARALLEL, AUTO_COMPRESS, ...). The option
 // name is uppercased; the value is one of the mutually-exclusive forms below.
-// A bare option (e.g. HEADER, FORCE with no `=`) has Bare=true and no value.
+// A bare option (e.g. HEADER, FORCE with no `=`) has Bare=true and no value,
+// except that a bare entry of an ObjectStmt clause may hold a Group, written
+// NAME ( ... ) with no `=` (CORTEX SEARCH SERVICE's VECTOR INDEXES
+// <column> ( model = '<model>' )).
 type CopyOption struct {
 	Name string // uppercased option name (e.g. "ON_ERROR", "FILE_FORMAT")
 	Bare bool   // true for a value-less option (e.g. bare HEADER)
@@ -3365,6 +3408,28 @@ type CopyIntoLocationStmt struct {
 
 // Tag implements Node.
 func (n *CopyIntoLocationStmt) Tag() NodeTag { return T_CopyIntoLocationStmt }
+
+// CopyFilesStmt represents COPY FILES (copy files from one stage to another):
+//
+//	COPY FILES INTO @<stage>[/<path>/]
+//	  FROM @<stage>[/<path>/]
+//	  [ FILES = ( '<file_name>' [ , ... ] ) ] [ PATTERN = '<regex_pattern>' ]
+//	  [ DETAILED_OUTPUT = { TRUE | FALSE } ]
+//	COPY FILES INTO @<stage>[/<path>/]
+//	  FROM ( SELECT <existing_url> [ , <new_filename> ] FROM ... )
+//	  [ DETAILED_OUTPUT = { TRUE | FALSE } ]
+//
+// https://docs.snowflake.com/en/sql-reference/sql/copy-files
+type CopyFilesStmt struct {
+	Into      *StageLocation
+	From      *StageLocation // FROM @<stage>; nil when FromQuery is set
+	FromQuery Node           // FROM ( SELECT ... ); nil when From is set
+	Options   []*CopyOption  // FILES / PATTERN / DETAILED_OUTPUT
+	Loc       Loc
+}
+
+// Tag implements Node.
+func (n *CopyFilesStmt) Tag() NodeTag { return T_CopyFilesStmt }
 
 // PutStmt represents a PUT statement (upload a local file to an internal stage):
 //
@@ -3431,6 +3496,7 @@ var (
 	_ Node = (*CopyOption)(nil)
 	_ Node = (*CopyIntoTableStmt)(nil)
 	_ Node = (*CopyIntoLocationStmt)(nil)
+	_ Node = (*CopyFilesStmt)(nil)
 	_ Node = (*PutStmt)(nil)
 	_ Node = (*GetStmt)(nil)
 	_ Node = (*ListStmt)(nil)
@@ -4020,7 +4086,7 @@ type AlterAccountStmt struct {
 	Tags         []*TagAssignment // SET TAG assignments; for AlterAccountSetTag
 	UnsetTags    []*ObjectName    // UNSET TAG names; for AlterAccountUnsetTag
 	UnsetProps   []string         // UNSET <property> names; for AlterAccountUnset
-	PolicyKind   string           // "{ AUTHENTICATION | SESSION | PACKAGES | PASSWORD | FEATURE } POLICY"; for Set/UnsetPolicy — uppercased
+	PolicyKind   string           // "{ AUTHENTICATION | SESSION | PACKAGES | PASSWORD | FEATURE | DATA MOVEMENT } POLICY"; for Set/UnsetPolicy — uppercased
 	PolicyName   *ObjectName      // the policy name; for AlterAccountSetPolicy
 	PolicyScope  string           // the trailing FOR ALL ... clause, verbatim uppercased; "" if absent
 	Force        bool             // trailing FORCE; for AlterAccountSetPolicy
@@ -4292,6 +4358,29 @@ type CreateDatasetStmt struct {
 // Tag implements Node.
 func (n *CreateDatasetStmt) Tag() NodeTag { return T_CreateDatasetStmt }
 
+// AlterDatasetStmt represents
+//
+//	ALTER DATASET <name> ADD VERSION <version_name> FROM <select_statement>
+//	  [ PARTITION BY <string_expr> ] [ COMMENT = '<comment>' ] [ METADATA = '<metadata>' ]
+//	ALTER DATASET [ IF EXISTS ] <name> DROP VERSION <version_name>
+//
+// A version's name may be written as a string ('v1'), as the ADD VERSION
+// page's example does; Version then holds its text with Quoted set, since a
+// string keeps its case as a quoted identifier does.
+type AlterDatasetStmt struct {
+	IfExists    bool
+	Name        *ObjectName
+	Drop        bool          // DROP VERSION; ADD VERSION otherwise
+	Version     Ident         // the version's name
+	Query       Node          // ADD VERSION's FROM <select_statement>
+	PartitionBy Node          // ADD VERSION's PARTITION BY expression, or nil
+	Options     []*CopyOption // ADD VERSION's COMMENT and METADATA, in order
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *AlterDatasetStmt) Tag() NodeTag { return T_AlterDatasetStmt }
+
 // Compile-time assertions for tag / semantic-view / dataset DDL nodes.
 var (
 	_ Node = (*CreateTagStmt)(nil)
@@ -4300,6 +4389,7 @@ var (
 	_ Node = (*CreateSemanticViewStmt)(nil)
 	_ Node = (*AlterSemanticViewStmt)(nil)
 	_ Node = (*CreateDatasetStmt)(nil)
+	_ Node = (*AlterDatasetStmt)(nil)
 )
 
 // ---------------------------------------------------------------------------
@@ -4682,7 +4772,7 @@ var (
 // participates in walks / query-span / analysis. COMMENT and other trailing
 // `KEY = value` options after the body are captured open-ended in Options.
 
-// PolicyKind discriminates the six access-control policy object types.
+// PolicyKind discriminates the policy object types.
 type PolicyKind int
 
 const (
@@ -4692,6 +4782,14 @@ const (
 	PolicyPassword                         // PASSWORD POLICY
 	PolicyNetwork                          // NETWORK POLICY
 	PolicyAuthentication                   // AUTHENTICATION POLICY
+	PolicyAggregation                      // AGGREGATION POLICY
+	PolicyJoin                             // JOIN POLICY
+	PolicyProjection                       // PROJECTION POLICY
+	PolicyPrivacy                          // PRIVACY POLICY
+	PolicyPackages                         // PACKAGES POLICY
+	PolicyFeature                          // FEATURE POLICY
+	PolicyMaintenance                      // MAINTENANCE POLICY
+	PolicyIngress                          // INGRESS POLICY
 )
 
 // String returns the SQL spelling of a PolicyKind (without the trailing POLICY).
@@ -4709,6 +4807,22 @@ func (k PolicyKind) String() string {
 		return "NETWORK"
 	case PolicyAuthentication:
 		return "AUTHENTICATION"
+	case PolicyAggregation:
+		return "AGGREGATION"
+	case PolicyJoin:
+		return "JOIN"
+	case PolicyProjection:
+		return "PROJECTION"
+	case PolicyPrivacy:
+		return "PRIVACY"
+	case PolicyPackages:
+		return "PACKAGES"
+	case PolicyFeature:
+		return "FEATURE"
+	case PolicyMaintenance:
+		return "MAINTENANCE"
+	case PolicyIngress:
+		return "INGRESS"
 	default:
 		return "UNKNOWN"
 	}
@@ -4789,6 +4903,27 @@ func (n *CreateUserStmt) Tag() NodeTag { return T_CreateUserStmt }
 // nil and Options holds the open-ended option bag. Trailing options after a
 // MASKING / ROW ACCESS body (COMMENT / EXEMPT_OTHER_POLICIES) are also captured
 // in Options.
+//
+// The policies read strictly by their docs pages (policy.go):
+//
+//	CREATE [ OR REPLACE ] { AGGREGATION | JOIN | PROJECTION | PRIVACY } POLICY
+//	  [ IF NOT EXISTS ] <name> AS ( ) RETURNS <constraint_type> -> <body>
+//	  [ COMMENT = '...' ]
+//	CREATE [ OR REPLACE ] PACKAGES POLICY [ IF NOT EXISTS ] <name> LANGUAGE PYTHON
+//	  [ ALLOWLIST = ( ... ) ] [ BLOCKLIST = ( ... ) ]
+//	  [ ADDITIONAL_CREATION_BLOCKLIST = ( ... ) ] [ COMMENT = '...' ]
+//	CREATE [ OR REPLACE ] FEATURE POLICY [ IF NOT EXISTS ] <name>
+//	  [ BLOCKED_OBJECT_TYPES_FOR_CREATION = ( <type> [ , ... ] ) ]
+//	  [ COMMENT = '...' ] [ AS '<definition>' ]
+//	CREATE [ OR REPLACE ] MAINTENANCE POLICY [ IF NOT EXISTS ] <name>
+//	  SCHEDULE = '...' [ COMMENT = '...' ]
+//	CREATE [ OR REPLACE ] INGRESS POLICY [ IF NOT EXISTS ] <name>
+//	  [ COMMENT = '...' ] AS '<definition>'
+//
+// The constraint-returning policies leave Args nil (their signature is empty),
+// and Returns names the constraint type. The others keep their properties in
+// Options; Language holds PACKAGES' LANGUAGE and Definition the AS body of
+// FEATURE and INGRESS.
 type CreatePolicyStmt struct {
 	Kind        PolicyKind
 	OrReplace   bool
@@ -4799,6 +4934,8 @@ type CreatePolicyStmt struct {
 	Returns     *TypeName     // RETURNS <type>; nil for option-bag policies
 	Body        Node          // `-> <expr>` body; nil for option-bag policies
 	Options     []*CopyOption // option bag + trailing COMMENT / EXEMPT_OTHER_POLICIES
+	Language    string        // LANGUAGE <language>, uppercased (PACKAGES); "" if absent
+	Definition  *string       // AS '<definition>' (FEATURE / INGRESS); nil if absent
 	Loc         Loc
 }
 
@@ -4938,14 +5075,16 @@ const (
 	AlterPolicyUnset                             // UNSET <property> [ , ... ]
 	AlterPolicySetTag                            // SET TAG <tag> = '<value>' [ , ... ]
 	AlterPolicyUnsetTag                          // UNSET TAG <tag> [ , ... ]
+	AlterPolicyAs                                // AS '<definition>' (FEATURE / INGRESS)
 )
 
-// AlterPolicyStmt represents the ALTER form of the six access-control policy
-// objects (one node, discriminated by Kind):
+// AlterPolicyStmt represents the ALTER form of the policy objects (one node,
+// discriminated by Kind):
 //
 //	RENAME TO <new_name>
-//	SET BODY -> <expr>                  -- MASKING / ROW ACCESS only
-//	SET { COMMENT = '...' | <options> }
+//	SET BODY -> <expr>                  -- policies with a body
+//	SET { COMMENT = '...' | <options> } [ AS '<definition>' ]
+//	AS '<definition>'                   -- FEATURE / INGRESS
 //	UNSET { COMMENT | <property> } [ , ... ]
 //	SET TAG <tag> = '<value>' [ , ... ]
 //	UNSET TAG <tag> [ , ... ]
@@ -4960,6 +5099,9 @@ type AlterPolicyStmt struct {
 	UnsetProps []string         // UNSET <property> names; for AlterPolicyUnset
 	Tags       []*TagAssignment // SET TAG (...) assignments; for AlterPolicySetTag
 	UnsetTags  []*ObjectName    // UNSET TAG names; for AlterPolicyUnsetTag
+	// Definition is the AS '<definition>' of FEATURE and INGRESS policies:
+	// for AlterPolicyAs, or after an AlterPolicySet's options. nil if absent.
+	Definition *string
 	Loc        Loc
 }
 
@@ -5012,7 +5154,18 @@ type RoutineArg struct {
 	Name    Ident
 	Type    *TypeName
 	Default Node // DEFAULT <expr>; nil if absent
-	Loc     Loc
+	// Table holds the columns of a data metric function's
+	// <arg> TABLE ( <col> <type> [ , ... ] ) argument, whose Type is nil.
+	Table []*RoutineTableColumn
+	Loc   Loc
+}
+
+// RoutineTableArgType is one TABLE ( <arg_type> [ , ... ] ) argument of a
+// data metric function's ALTER FUNCTION signature. It is a helper struct
+// (not a Node).
+type RoutineTableArgType struct {
+	Types []*TypeName
+	Loc   Loc
 }
 
 // RoutineTableColumn is one column of a RETURNS TABLE ( ... ) result spec:
@@ -5030,9 +5183,10 @@ type RoutineTableColumn struct {
 type RoutineKind int
 
 const (
-	RoutineFunction         RoutineKind = iota // FUNCTION (UDF / UDTF)
-	RoutineExternalFunction                    // EXTERNAL FUNCTION
-	RoutineProcedure                           // PROCEDURE
+	RoutineFunction           RoutineKind = iota // FUNCTION (UDF / UDTF)
+	RoutineExternalFunction                      // EXTERNAL FUNCTION
+	RoutineProcedure                             // PROCEDURE
+	RoutineDataMetricFunction                    // DATA METRIC FUNCTION
 )
 
 // ExecuteAs discriminates the EXECUTE AS clause of a procedure.
@@ -5094,6 +5248,33 @@ type CreateRoutineStmt struct {
 // Tag implements Node.
 func (n *CreateRoutineStmt) Tag() NodeTag { return T_CreateRoutineStmt }
 
+// CreateAiFunctionStmt represents
+//
+//	CREATE [ OR REPLACE ] AI FUNCTION [ IF NOT EXISTS ] <name> (
+//	    [ <arg_name> <arg_data_type> [ , ... ] ] )
+//	  RETURNS <result_data_type>
+//	  { [ COMMENT = '<string_literal>' ] AS <body>
+//	  | FROM EXPERIMENT <experiment_name> RUN <run_name> }
+//
+// Exactly one of Body and Experiment is set. Body holds the body verbatim with
+// its delimiters, as CreateRoutineStmt's does.
+type CreateAiFunctionStmt struct {
+	OrReplace   bool
+	IfNotExists bool
+	Name        *ObjectName
+	Args        []*RoutineArg // nil for an empty argument list
+	ReturnType  *TypeName
+	Options     []*CopyOption // COMMENT
+	Body        string        // AS <body>, incl. delimiters ('...' or $$...$$)
+	BodyDollar  bool          // true when the $$...$$ form was used
+	Experiment  *ObjectName   // FROM EXPERIMENT <experiment_name>
+	Run         Ident         // ... RUN <run_name>
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *CreateAiFunctionStmt) Tag() NodeTag { return T_CreateAiFunctionStmt }
+
 // AlterRoutineAction discriminates the action variants of ALTER FUNCTION /
 // PROCEDURE.
 type AlterRoutineAction int
@@ -5103,6 +5284,8 @@ const (
 	AlterRoutineSet                                 // SET <options> (SECURE / COMMENT / LOG_LEVEL / ...)
 	AlterRoutineUnset                               // UNSET <property> [, ...] (SECURE / COMMENT / ...)
 	AlterRoutineExecuteAs                           // EXECUTE AS {CALLER|OWNER} (procedure only)
+	AlterRoutineSetTag                              // SET TAG <tag> = '<value>' [ , ... ]
+	AlterRoutineUnsetTag                            // UNSET TAG <tag> [ , ... ]
 )
 
 // AlterRoutineStmt represents
@@ -5113,19 +5296,27 @@ const (
 //	SET <options>                              -- open-ended (SECURE / COMMENT / LOG_LEVEL / ...)
 //	UNSET <property> [ , ... ]                  -- SECURE / COMMENT / ...
 //	EXECUTE AS { CALLER | OWNER }               -- procedure only
+//	SET TAG <tag> = '<value>' [ , ... ]
+//	UNSET TAG <tag> [ , ... ]
 //
 // The ALTER signature carries argument TYPES only (no names), captured in
-// ArgTypes. Procedure is true for ALTER PROCEDURE, false for ALTER FUNCTION.
+// ArgTypes, or for a data metric function in TableArgs. Procedure is true for
+// ALTER PROCEDURE, false for ALTER FUNCTION.
 type AlterRoutineStmt struct {
-	Procedure  bool // true for ALTER PROCEDURE, false for ALTER FUNCTION
-	IfExists   bool
-	Name       *ObjectName
-	ArgTypes   []*TypeName // ( <argtype> [, ...] ) signature; nil for an empty list
+	Procedure bool // true for ALTER PROCEDURE, false for ALTER FUNCTION
+	IfExists  bool
+	Name      *ObjectName
+	ArgTypes  []*TypeName // ( <argtype> [, ...] ) signature; nil for an empty list
+	// TableArgs is a data metric function's signature,
+	// ( TABLE ( <argtype> [ , ... ] ) [ , TABLE ( ... ) ] ); ArgTypes is then nil.
+	TableArgs  []*RoutineTableArgType
 	Action     AlterRoutineAction
-	NewName    *ObjectName   // RENAME TO target; non-nil for AlterRoutineRename
-	Options    []*CopyOption // SET <options>; for AlterRoutineSet
-	UnsetProps []string      // UNSET <property> names; for AlterRoutineUnset
-	ExecuteAs  ExecuteAs     // EXECUTE AS {CALLER|OWNER}; for AlterRoutineExecuteAs
+	NewName    *ObjectName      // RENAME TO target; non-nil for AlterRoutineRename
+	Options    []*CopyOption    // SET <options>; for AlterRoutineSet
+	UnsetProps []string         // UNSET <property> names; for AlterRoutineUnset
+	ExecuteAs  ExecuteAs        // EXECUTE AS {CALLER|OWNER}; for AlterRoutineExecuteAs
+	Tags       []*TagAssignment // SET TAG assignments; for AlterRoutineSetTag
+	UnsetTags  []*ObjectName    // UNSET TAG names; for AlterRoutineUnsetTag
 	Loc        Loc
 }
 
@@ -5135,6 +5326,7 @@ func (n *AlterRoutineStmt) Tag() NodeTag { return T_AlterRoutineStmt }
 // Compile-time assertions for routine DDL nodes.
 var (
 	_ Node = (*CreateRoutineStmt)(nil)
+	_ Node = (*CreateAiFunctionStmt)(nil)
 	_ Node = (*AlterRoutineStmt)(nil)
 )
 
@@ -5229,17 +5421,31 @@ func (n *CreateDynamicTableStmt) Tag() NodeTag { return T_CreateDynamicTableStmt
 type AlterDynamicTableAction int
 
 const (
-	AlterDynamicTableSuspend           AlterDynamicTableAction = iota // SUSPEND
-	AlterDynamicTableResume                                           // RESUME
-	AlterDynamicTableRefresh                                          // REFRESH [ COPY SESSION ]
-	AlterDynamicTableRename                                           // RENAME TO <new_name>
-	AlterDynamicTableSwap                                             // SWAP WITH <other_name>
-	AlterDynamicTableSet                                              // SET <settable params>
-	AlterDynamicTableUnset                                            // UNSET <property> [, ...]
-	AlterDynamicTableSetTag                                           // SET TAG <tag> = '<value>' [, ...]
-	AlterDynamicTableUnsetTag                                         // UNSET TAG <tag> [, ...]
-	AlterDynamicTableClusterBy                                        // CLUSTER BY ( exprs )
-	AlterDynamicTableDropClusteringKey                                // DROP CLUSTERING KEY
+	AlterDynamicTableSuspend                    AlterDynamicTableAction = iota // SUSPEND
+	AlterDynamicTableResume                                                    // RESUME
+	AlterDynamicTableRefresh                                                   // REFRESH [ COPY SESSION ]
+	AlterDynamicTableRename                                                    // RENAME TO <new_name>
+	AlterDynamicTableSwap                                                      // SWAP WITH <other_name>
+	AlterDynamicTableSet                                                       // SET <settable params>
+	AlterDynamicTableUnset                                                     // UNSET <property> [, ...]
+	AlterDynamicTableSetTag                                                    // SET TAG <tag> = '<value>' [, ...]
+	AlterDynamicTableUnsetTag                                                  // UNSET TAG <tag> [, ...]
+	AlterDynamicTableClusterBy                                                 // CLUSTER BY ( exprs )
+	AlterDynamicTableDropClusteringKey                                         // DROP CLUSTERING KEY
+	AlterDynamicTableSuspendRecluster                                          // SUSPEND RECLUSTER
+	AlterDynamicTableResumeRecluster                                           // RESUME RECLUSTER
+	AlterDynamicTableAddRowAccessPolicy                                        // ADD ROW ACCESS POLICY p ON (cols)
+	AlterDynamicTableDropRowAccessPolicy                                       // DROP ROW ACCESS POLICY p [, ADD ROW ACCESS POLICY p2 ON (cols)]
+	AlterDynamicTableDropAllRowAccessPolicies                                  // DROP ALL ROW ACCESS POLICIES
+	AlterDynamicTableSetAggregationPolicy                                      // SET AGGREGATION POLICY p [ENTITY KEY (cols)] [FORCE]
+	AlterDynamicTableUnsetAggregationPolicy                                    // UNSET AGGREGATION POLICY
+	AlterDynamicTableColumn                                                    // { ALTER | MODIFY } column policy / tag actions
+	AlterDynamicTableAddSearchOpt                                              // ADD SEARCH OPTIMIZATION [ON ...]
+	AlterDynamicTableDropSearchOpt                                             // DROP SEARCH OPTIMIZATION [ON ...]
+	AlterDynamicTableSuspendSearchOpt                                          // SUSPEND SEARCH OPTIMIZATION [ON ...]
+	AlterDynamicTableResumeSearchOpt                                           // RESUME SEARCH OPTIMIZATION [ON ...]
+	AlterDynamicTableAddStorageLifecyclePolicy                                 // ADD STORAGE LIFECYCLE POLICY p ON (cols)
+	AlterDynamicTableDropStorageLifecyclePolicy                                // DROP STORAGE LIFECYCLE POLICY
 )
 
 // AlterDynamicTableStmt represents ALTER DYNAMIC TABLE [ IF EXISTS ] <name> <action>.
@@ -5268,7 +5474,25 @@ type AlterDynamicTableStmt struct {
 	ClusterBy          []Node           // CLUSTER BY exprs; for AlterDynamicTableClusterBy
 	Linear             bool             // CLUSTER BY LINEAR modifier
 	RefreshCopySession bool             // REFRESH COPY SESSION; for AlterDynamicTableRefresh
-	Loc                Loc
+	// MoreNames are the further tables of ALTER DYNAMIC TABLE a, b REFRESH.
+	MoreNames []*ObjectName
+	// Row access / aggregation / storage lifecycle policies.
+	PolicyName    *ObjectName
+	PolicyCols    []Ident     // ON (cols)
+	AddPolicyName *ObjectName // DROP ROW ACCESS POLICY p, ADD ROW ACCESS POLICY p2 ON (cols)
+	AddPolicyCols []Ident
+	PolicyKeyCols []Ident // ENTITY KEY (cols)
+	PolicyForce   bool
+	// ColumnActions is the comma-separated { ALTER | MODIFY } column action
+	// list; for AlterDynamicTableColumn.
+	ColumnActions []*AlterViewColumnAction
+	SearchOptOn   []string // SEARCH OPTIMIZATION ON targets (verbatim); nil without ON
+	// SET properties that are not KEY = value pairs.
+	Contact        string   // CONTACT ( purpose = contact [, ...] ), verbatim
+	FrozenWhere    Node     // FROZEN WHERE ( expr )
+	ExecuteAsUser  *Ident   // EXECUTE AS USER u
+	SecondaryRoles []string // USE SECONDARY ROLES { ALL | NONE | r [, ...] }
+	Loc            Loc
 }
 
 // Tag implements Node.
@@ -6201,4 +6425,60 @@ var (
 	_ Node = (*ScriptFetchStmt)(nil)
 	_ Node = (*ScriptCloseStmt)(nil)
 	_ Node = (*ScriptRaiseStmt)(nil)
+)
+
+// ---------------------------------------------------------------------------
+// Objects read by their documented shape (ObjectStmt)
+// ---------------------------------------------------------------------------
+//
+// Snowflake keeps adding account and schema objects (compute pools, services,
+// applications, Postgres instances, ...) whose CREATE and ALTER statements are
+// a name, a few structural clauses and a bag of `KEY = value` properties.
+// omni reads each such statement by the form its docs page gives, and records
+// it as an ObjectStmt instead of a node per object: the object's keywords in
+// Kind, and its clauses in source order. Properties are open-ended CopyOptions,
+// as STAGE, WAREHOUSE and NETWORK RULE keep theirs.
+
+// ObjectStmt is a CREATE or ALTER of an object read by its documented shape:
+//
+//	CREATE [ OR REPLACE | OR ALTER ] <kind> [ IF NOT EXISTS ] <name> <clause>...
+//	ALTER <kind> [ IF EXISTS ] <name> <clause>...
+//	EXECUTE <kind> <clause>...   (EXECUTE [ INFERENCE ] JOB SERVICE; Name is nil)
+//
+// Loc spans the whole statement, from CREATE, ALTER or EXECUTE.
+type ObjectStmt struct {
+	Verb        string          // "CREATE", "ALTER" or "EXECUTE"
+	Kind        string          // the object's keywords, uppercased and space-joined: "COMPUTE POOL"
+	OrReplace   bool            // CREATE OR REPLACE
+	OrAlter     bool            // CREATE OR ALTER
+	IfNotExists bool            // CREATE ... IF NOT EXISTS
+	IfExists    bool            // ALTER ... IF EXISTS
+	Name        *ObjectName     // the object's name
+	Clauses     []*ObjectClause // the clauses after the name, in source order
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *ObjectStmt) Tag() NodeTag { return T_ObjectStmt }
+
+// ObjectClause is one clause of an ObjectStmt. Keywords names it, uppercased
+// and space-joined: "SET", "UNSET", "SET TAG", "UNSET TAG", "RENAME TO",
+// "SUSPEND", "FOR APPLICATION", "STOP ALL OF TYPE", ... A CREATE's property run
+// has no keywords. The fields the clause does not take stay empty.
+type ObjectClause struct {
+	Keywords string           // the clause's keywords; "" for a CREATE's property run
+	Names    []*ObjectName    // the names the clause takes, in order
+	Options  []*CopyOption    // its `KEY = value` properties, in order
+	Keys     []string         // the property names an UNSET clears, uppercased
+	Tags     []*TagAssignment // its tag assignments (SET TAG, [ WITH ] TAG ( ... ))
+	Query    Node             // the query an AS clause holds
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *ObjectClause) Tag() NodeTag { return T_ObjectClause }
+
+var (
+	_ Node = (*ObjectStmt)(nil)
+	_ Node = (*ObjectClause)(nil)
 )

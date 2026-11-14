@@ -742,7 +742,7 @@ func (w *writer) writeDropStmt(n *ast.DropStmt) error {
 	if n.Iceberg {
 		w.buf.WriteString("ICEBERG ")
 	}
-	w.buf.WriteString(n.Kind.String())
+	w.buf.WriteString(n.ObjectType())
 	if n.IfExists {
 		w.buf.WriteString(" IF EXISTS")
 	}
@@ -894,10 +894,10 @@ func (w *writer) writeAlterViewStmt(n *ast.AlterViewStmt) error {
 	}
 	w.buf.WriteByte(' ')
 	w.writeObjectNameNoSpace(n.Name)
-	// Multi-element column action list: MODIFY COLUMN a SET MASKING POLICY p,
-	// COLUMN b UNSET MASKING POLICY. (A single action keeps the legacy
-	// single-action rendering below, driven by the mirrored fields.)
-	if len(n.ColumnActions) > 1 {
+	// Column action list: MODIFY COLUMN a SET MASKING POLICY p, COLUMN b
+	// UNSET MASKING POLICY. (A statement built without ColumnActions keeps
+	// the legacy single-action rendering below, driven by the mirrored fields.)
+	if len(n.ColumnActions) > 0 {
 		w.buf.WriteString(" MODIFY ")
 		for i, a := range n.ColumnActions {
 			if i > 0 {
@@ -1015,6 +1015,9 @@ func (w *writer) writeAlterViewStmt(n *ast.AlterViewStmt) error {
 	case ast.AlterViewSetJoinPolicy:
 		w.buf.WriteString(" SET JOIN POLICY ")
 		w.writeObjectNameNoSpace(n.PolicyName)
+		if n.PolicyForce {
+			w.buf.WriteString(" FORCE")
+		}
 		if len(n.PolicyKeyCols) > 0 {
 			w.buf.WriteByte(' ')
 			w.buf.WriteString(n.PolicyKeyKind)
@@ -1029,6 +1032,48 @@ func (w *writer) writeAlterViewStmt(n *ast.AlterViewStmt) error {
 		}
 	case ast.AlterViewUnsetJoinPolicy:
 		w.buf.WriteString(" UNSET JOIN POLICY")
+	case ast.AlterViewSetChangeTracking:
+		w.buf.WriteString(" SET CHANGE_TRACKING = ")
+		if n.ChangeTracking {
+			w.buf.WriteString("TRUE")
+		} else {
+			w.buf.WriteString("FALSE")
+		}
+	case ast.AlterViewSetContact:
+		w.buf.WriteString(" SET CONTACT ")
+		w.buf.WriteString(n.Contact)
+	case ast.AlterViewUnsetContact:
+		w.buf.WriteString(" UNSET CONTACT ")
+		w.buf.WriteString(n.Contact)
+	case ast.AlterViewDataMetric:
+		w.buf.WriteByte(' ')
+		return w.writeDataMetricAction(n.DataMetric)
+	case ast.AlterViewAddColumn:
+		w.buf.WriteString(" ADD COLUMN")
+		if n.IfNotExists {
+			w.buf.WriteString(" IF NOT EXISTS")
+		}
+		w.buf.WriteByte(' ')
+		w.buf.WriteString(n.Column.String())
+		w.buf.WriteByte(' ')
+		w.writeTypeName(n.ColumnType)
+		if n.MaskingPolicy != nil {
+			w.buf.WriteString(" WITH MASKING POLICY ")
+			w.writeObjectNameNoSpace(n.MaskingPolicy)
+			if len(n.MaskingUsing) > 0 {
+				w.buf.WriteString(" USING")
+				w.writeParenIdentList(n.MaskingUsing)
+			}
+		}
+		if n.ProjectionPolicy != nil {
+			w.buf.WriteString(" WITH PROJECTION POLICY ")
+			w.writeObjectNameNoSpace(n.ProjectionPolicy)
+		}
+		if len(n.Tags) > 0 {
+			w.buf.WriteString(" WITH TAG (")
+			w.writeTagAssignments(n.Tags)
+			w.buf.WriteByte(')')
+		}
 	default:
 		return fmt.Errorf("deparse: unsupported ALTER VIEW action %d", n.Action)
 	}
@@ -1068,6 +1113,14 @@ func (w *writer) writeAlterViewColumnAction(a *ast.AlterViewColumnAction) {
 		w.buf.WriteString(" UNSET TAG (")
 		w.writeObjectNameList(a.UnsetTags)
 		w.buf.WriteByte(')')
+	case ast.AlterViewColumnSetProjectionPolicy:
+		w.buf.WriteString(" SET PROJECTION POLICY ")
+		w.writeObjectNameNoSpace(a.ProjectionPolicy)
+		if a.Force {
+			w.buf.WriteString(" FORCE")
+		}
+	case ast.AlterViewColumnUnsetProjectionPolicy:
+		w.buf.WriteString(" UNSET PROJECTION POLICY")
 	}
 }
 
@@ -1165,8 +1218,25 @@ func (w *writer) writeAlterMaterializedViewStmt(n *ast.AlterMaterializedViewStmt
 		w.buf.WriteString(" SUSPEND RECLUSTER")
 	case ast.AlterMVResumeRecluster:
 		w.buf.WriteString(" RESUME RECLUSTER")
-	case ast.AlterMVSetSecure:
-		w.buf.WriteString(" SET SECURE")
+	case ast.AlterMVSetSecure, ast.AlterMVSetContact:
+		w.buf.WriteString(" SET")
+		if n.Action == ast.AlterMVSetSecure {
+			w.buf.WriteString(" SECURE")
+		}
+		if n.Contact != "" {
+			w.buf.WriteString(" CONTACT ")
+			w.buf.WriteString(n.Contact)
+		}
+		if n.Comment != nil {
+			w.buf.WriteString(" COMMENT = ")
+			w.buf.WriteString(quoteString(*n.Comment))
+		}
+	case ast.AlterMVUnsetContact:
+		w.buf.WriteString(" UNSET CONTACT ")
+		w.buf.WriteString(n.Contact)
+	case ast.AlterMVDataMetric:
+		w.buf.WriteByte(' ')
+		return w.writeDataMetricAction(n.DataMetric)
 	case ast.AlterMVUnsetSecure:
 		w.buf.WriteString(" UNSET SECURE")
 	case ast.AlterMVSetComment:

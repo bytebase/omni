@@ -13,7 +13,7 @@ func (p *Parser) parseCreateFunction() (*ast.CreateFunctionStmt, error) {
 		return nil, err
 	}
 
-	name, err := p.parseQualifiedName()
+	name, err := p.parseFunctionQualifiedName()
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +126,7 @@ func (p *Parser) parseDropFunction() (*ast.DropFunctionStmt, error) {
 
 	ifExists := p.parseIfExists()
 
-	name, err := p.parseQualifiedName()
+	name, err := p.parseFunctionQualifiedName()
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +162,7 @@ func (p *Parser) parseCreateAggregate() (*ast.CreateAggregateStmt, error) {
 		return nil, err
 	}
 
-	name, err := p.parseQualifiedName()
+	name, err := p.parseFunctionQualifiedName()
 	if err != nil {
 		return nil, err
 	}
@@ -188,7 +188,7 @@ func (p *Parser) parseCreateAggregate() (*ast.CreateAggregateStmt, error) {
 	if err := p.expectKeyword(tokSFUNC); err != nil {
 		return nil, err
 	}
-	sfunc, err := p.parseIdentifier()
+	sfunc, err := p.parseNameIf(isFunctionNameToken)
 	if err != nil {
 		return nil, err
 	}
@@ -204,7 +204,7 @@ func (p *Parser) parseCreateAggregate() (*ast.CreateAggregateStmt, error) {
 	var finalfunc *ast.Identifier
 	if p.cur.Type == tokFINALFUNC {
 		p.advance()
-		ff, err := p.parseIdentifier()
+		ff, err := p.parseNameIf(isFunctionNameToken)
 		if err != nil {
 			return nil, err
 		}
@@ -275,7 +275,7 @@ func (p *Parser) parseDropAggregate() (*ast.DropAggregateStmt, error) {
 
 	ifExists := p.parseIfExists()
 
-	name, err := p.parseQualifiedName()
+	name, err := p.parseFunctionQualifiedName()
 	if err != nil {
 		return nil, err
 	}

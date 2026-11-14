@@ -2665,6 +2665,12 @@ func writeCreateTableStmt(sb *strings.Builder, n *CreateTableStmt) {
 	if n.Duplicated {
 		sb.WriteString(" :duplicated true")
 	}
+	if n.Immutable {
+		sb.WriteString(" :immutable true")
+	}
+	if n.Blockchain {
+		sb.WriteString(" :blockchain true")
+	}
 	if n.Name != nil {
 		sb.WriteString(" :name ")
 		writeNode(sb, n.Name)
@@ -4096,6 +4102,10 @@ func writeCallStmt(sb *strings.Builder, n *CallStmt) {
 	}
 	if n.Package != "" {
 		sb.WriteString(fmt.Sprintf(" :package %q", n.Package))
+	}
+	if n.Object != nil {
+		sb.WriteString(" :object ")
+		writeNode(sb, n.Object)
 	}
 	if n.Args != nil {
 		sb.WriteString(" :args ")

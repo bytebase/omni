@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"errors"
 	"strings"
 
 	nodes "github.com/bytebase/omni/oracle/ast"
@@ -37,38 +36,29 @@ import (
 //     UNIFORM [ SIZE size_clause ], and ALTER the undocumented OFFLINE FOR
 //     RECOVER.
 //
-// Oracle answers an error in these statements with one of two kinds of
-// code: its SQL parser's (ORA-00905, ORA-02000, ORA-03049, ...), or one of
-// the tablespace statements' own (ORA-02142 invalid ALTER TABLESPACE option,
-// ORA-02180 invalid option for CREATE TABLESPACE, ORA-02236 invalid file
-// name, ...). Where the text ends at such a statement code, the compat judge
-// (compat.OracleVerdict) reads the answer by its code and takes the
-// statement, as it does ALTER TABLESPACE a RESIZE, and so does Parse:
-// tsOptionError marks those places. Everywhere else an error is an error.
-
-// errTablespaceCut is what tsOptionError returns at the end of the text:
-// the statement stops there and Parse takes what it read. The statement's
-// entry turns it into success (tsFinish); it never leaves this file.
-var errTablespaceCut = errors.New("tablespace statement ends at an option")
+// Oracle answers an error here with its SQL parser's code (ORA-00905,
+// ORA-02000, ORA-03049, ...) or with one of the tablespace statements' own
+// (ORA-02142 invalid ALTER TABLESPACE option, ORA-02180 invalid option for
+// CREATE TABLESPACE, ORA-02236 invalid file name, ...); either is a syntax
+// error, at the end of the text too.
 
 // tsAtEnd reports whether the statement's text has ended.
 func (p *Parser) tsAtEnd() bool {
 	return p.cur.Type == ';' || p.cur.Type == tokEOF
 }
 
-// tsOptionError is the error where Oracle answers with a tablespace
-// statement's own code: at the end of the text the statement ends there
-// (errTablespaceCut), and elsewhere it is a syntax error at the current
-// token.
-func (p *Parser) tsOptionError() error {
-	if p.tsAtEnd() {
-		return errTablespaceCut
-	}
-	return p.syntaxErrorAtCur()
+// tsEndsBeforeOperand reports whether the text ends where Oracle answers a
+// missing operand with a code that is not a syntax error, so the compat
+// judge takes the statement: ORA-25121 for MINIMUM EXTENT's size, ORA-25147
+// for UNIFORM SIZE's, ORA-02236 at byte 0 for DROP DATAFILE's file,
+// ORA-02580 for a tablespace set's ADD DATAFILE, ORA-02557 for DROP
+// TABLESPACE SET's name. Parse takes the statement there too; anywhere
+// else a missing operand is a syntax error.
+func (p *Parser) tsEndsBeforeOperand() bool {
+	return p.tsAtEnd()
 }
 
-// tsExpect consumes the word w or fails with a syntax error, where Oracle
-// answers with its parser's code.
+// tsExpect consumes the word w or fails with a syntax error.
 func (p *Parser) tsExpect(w string) error {
 	if !p.isKeywordStr(w) {
 		return p.syntaxErrorAtCur()
@@ -77,19 +67,10 @@ func (p *Parser) tsExpect(w string) error {
 	return nil
 }
 
-// tsExpectOption consumes the word w or fails with tsOptionError.
-func (p *Parser) tsExpectOption(w string) error {
-	if !p.isKeywordStr(w) {
-		return p.tsOptionError()
-	}
-	p.advance()
-	return nil
-}
-
-// tsFinish ends a tablespace statement read into loc: it takes a statement
-// cut at an option (errTablespaceCut) and passes any other error on.
+// tsFinish ends a tablespace statement read into loc, or passes its error
+// on.
 func (p *Parser) tsFinish(loc *nodes.Loc, err error) error {
-	if err != nil && !errors.Is(err, errTablespaceCut) {
+	if err != nil {
 		return err
 	}
 	loc.End = p.prev.End
@@ -135,7 +116,7 @@ func (p *Parser) isTablespaceNameToken() bool {
 // name is ORA-02216 or ORA-02140.
 func (p *Parser) parseTablespaceName() (*nodes.ObjectName, error) {
 	if !p.isTablespaceNameToken() {
-		return nil, p.tsOptionError()
+		return nil, p.syntaxErrorAtCur()
 	}
 	tok := p.advance()
 	return &nodes.ObjectName{Name: tok.Str, Loc: nodes.Loc{Start: tok.Loc, End: tok.End}}, nil
@@ -173,7 +154,7 @@ func (p *Parser) tsIfExists() bool {
 // like.
 func (p *Parser) parseTablespaceSize() (string, error) {
 	if p.cur.Type != tokICONST {
-		return "", p.tsOptionError()
+		return "", p.syntaxErrorAtCur()
 	}
 	val := p.advance().Str
 	if p.cur.Type != tokQIDENT {
@@ -232,7 +213,7 @@ func (p *Parser) parseTablespaceAutoextend() (*nodes.AutoextendClause, error) {
 			}
 		}
 	default:
-		return nil, p.tsOptionError()
+		return nil, p.syntaxErrorAtCur()
 	}
 	ac.Loc.End = p.prev.End
 	return ac, nil
@@ -242,13 +223,12 @@ func (p *Parser) parseTablespaceAutoextend() (*nodes.AutoextendClause, error) {
 //
 //	'filename' [ SIZE size_clause ] [ REUSE ] [ autoextend_clause ]
 //
-// The page shows the file name optional, but Oracle wants one wherever a
-// specification is written (CREATE TABLESPACE a DATAFILE SIZE 1M is
-// ORA-02236 at SIZE); ALTER TABLESPACE ... ADD DATAFILE with no
-// specification at all is the Oracle-managed file form.
+// The page shows the file name optional, but Oracle wants one after
+// DATAFILE or TEMPFILE (CREATE TABLESPACE a DATAFILE SIZE 1M is ORA-02236
+// at SIZE, and ALTER TABLESPACE a ADD DATAFILE ORA-02236 at its end).
 func (p *Parser) parseTablespaceFileSpec() (*nodes.DatafileClause, error) {
 	if p.cur.Type != tokSCONST {
-		return nil, p.tsOptionError()
+		return nil, p.syntaxErrorAtCur()
 	}
 	df := &nodes.DatafileClause{Loc: nodes.Loc{Start: p.pos()}, Filename: p.advance().Str}
 	if p.cur.Type == kwSIZE {
@@ -372,9 +352,6 @@ func (p *Parser) parseCreateTablespaceFamily(start int) (nodes.StmtNode, error) 
 // TEMPORARY), and FOR anywhere else.
 func (p *Parser) parseCreateTablespaceBody(stmt *nodes.CreateTablespaceStmt, kind tsCreateKind, temporaryTok Token) error {
 	if stmt.Local {
-		if p.tsAtEnd() {
-			return errTablespaceCut
-		}
 		if p.cur.Type != kwFOR {
 			return p.syntaxErrorAtTok(temporaryTok)
 		}
@@ -385,7 +362,7 @@ func (p *Parser) parseCreateTablespaceBody(stmt *nodes.CreateTablespaceStmt, kin
 		case p.isKeywordStr("LEAF"):
 			stmt.ForLeaf = "LEAF"
 		default:
-			return p.tsOptionError()
+			return p.syntaxErrorAtCur()
 		}
 		p.advance()
 	}
@@ -485,7 +462,7 @@ func (p *Parser) parseCreateTablespaceOption(stmt *nodes.CreateTablespaceStmt, s
 	case "MINIMUM":
 		// MINIMUM EXTENT size_clause (ORA-25121)
 		p.advance()
-		if err = p.tsExpectOption("EXTENT"); err == nil {
+		if err = p.tsExpect("EXTENT"); err == nil && !p.tsEndsBeforeOperand() {
 			stmt.MinimumExtent, err = p.parseTablespaceSize()
 		}
 	case "BLOCKSIZE":
@@ -497,7 +474,7 @@ func (p *Parser) parseCreateTablespaceOption(stmt *nodes.CreateTablespaceStmt, s
 	case "FORCE":
 		// FORCE LOGGING
 		p.advance()
-		if err = p.tsExpectOption("LOGGING"); err == nil {
+		if err = p.tsExpect("LOGGING"); err == nil {
 			stmt.Logging = tsJoin(stmt.Logging, "FORCE LOGGING")
 		}
 	case "ENCRYPTION":
@@ -519,9 +496,12 @@ func (p *Parser) parseCreateTablespaceOption(stmt *nodes.CreateTablespaceStmt, s
 		extent := p.advance().Str
 		if extent == "UNIFORM" && p.cur.Type == kwSIZE {
 			p.advance()
-			var size string
-			if size, err = p.parseTablespaceSize(); err == nil {
-				extent += " SIZE " + size
+			extent += " SIZE"
+			if !p.tsEndsBeforeOperand() {
+				var size string
+				if size, err = p.parseTablespaceSize(); err == nil {
+					extent += " " + size
+				}
 			}
 		}
 		if stmt.Extent == "" {
@@ -530,14 +510,14 @@ func (p *Parser) parseCreateTablespaceOption(stmt *nodes.CreateTablespaceStmt, s
 	case "SEGMENT":
 		// SEGMENT SPACE MANAGEMENT { AUTO | MANUAL } (ORA-30571)
 		p.advance()
-		if err = p.tsExpectOption("SPACE"); err == nil {
-			err = p.tsExpectOption("MANAGEMENT")
+		if err = p.tsExpect("SPACE"); err == nil {
+			err = p.tsExpect("MANAGEMENT")
 		}
 		if err == nil {
 			if p.isKeywordStr("AUTO") || p.isKeywordStr("MANUAL") {
 				stmt.Segment = p.advance().Str
 			} else {
-				err = p.tsOptionError()
+				err = p.syntaxErrorAtCur()
 			}
 		}
 	case "FLASHBACK":
@@ -545,8 +525,8 @@ func (p *Parser) parseCreateTablespaceOption(stmt *nodes.CreateTablespaceStmt, s
 	case "LOST":
 		// LOST WRITE PROTECTION (ORA-65482)
 		p.advance()
-		if err = p.tsExpectOption("WRITE"); err == nil {
-			err = p.tsExpectOption("PROTECTION")
+		if err = p.tsExpect("WRITE"); err == nil {
+			err = p.tsExpect("PROTECTION")
 		}
 		if err == nil {
 			stmt.LostWriteProtection = "LOST WRITE PROTECTION"
@@ -559,15 +539,14 @@ func (p *Parser) parseCreateTablespaceOption(stmt *nodes.CreateTablespaceStmt, s
 		// IN SHARDSPACE shardspace_name: SHARDSPACE missing is ORA-02507,
 		// the name ORA-00931.
 		p.advance()
-		if err = p.tsExpectOption("SHARDSPACE"); err == nil {
+		if err = p.tsExpect("SHARDSPACE"); err == nil {
 			if !p.isTablespaceNameToken() {
 				return p.syntaxErrorAtCur()
 			}
 			set.Shardspace = p.advance().Str
 		}
 	case "TEMPLATE":
-		// USING TEMPLATE ( options ), the options of a permanent tablespace;
-		// a missing ')' at the end of the text is ORA-02199.
+		// USING TEMPLATE ( options ), the options of a permanent tablespace.
 		p.advance()
 		if err = p.tsExpect("TEMPLATE"); err != nil {
 			return err
@@ -580,7 +559,7 @@ func (p *Parser) parseCreateTablespaceOption(stmt *nodes.CreateTablespaceStmt, s
 			return err
 		}
 		if p.cur.Type != ')' {
-			return p.tsOptionError()
+			return p.syntaxErrorAtCur()
 		}
 		p.advance()
 	}
@@ -607,7 +586,7 @@ func (p *Parser) parseCreateTablespaceEncryption() (string, string, error) {
 	if p.cur.Type == kwUSING {
 		p.advance()
 		if p.cur.Type != tokSCONST {
-			return "", "", p.tsOptionError() // ORA-28339
+			return "", "", p.syntaxErrorAtCur() // ORA-28339
 		}
 		algorithm = p.advance().Str
 	}
@@ -624,7 +603,7 @@ func (p *Parser) parseCreateTablespaceEncryption() (string, string, error) {
 // Its errors are ORA-25141.
 func (p *Parser) parseTablespaceExtentManagement() (string, error) {
 	p.advance() // EXTENT
-	if err := p.tsExpectOption("MANAGEMENT"); err != nil {
+	if err := p.tsExpect("MANAGEMENT"); err != nil {
 		return "", err
 	}
 	switch {
@@ -634,7 +613,7 @@ func (p *Parser) parseTablespaceExtentManagement() (string, error) {
 	case p.isKeywordStr("LOCAL"):
 		p.advance()
 	default:
-		return "", p.tsOptionError()
+		return "", p.syntaxErrorAtCur()
 	}
 	switch {
 	case p.isKeywordStr("AUTOALLOCATE"):
@@ -646,6 +625,9 @@ func (p *Parser) parseTablespaceExtentManagement() (string, error) {
 			return "UNIFORM", nil
 		}
 		p.advance()
+		if p.tsEndsBeforeOperand() {
+			return "UNIFORM SIZE", nil
+		}
 		size, err := p.parseTablespaceSize()
 		if err != nil {
 			return "", err
@@ -662,7 +644,7 @@ func (p *Parser) parseTablespaceFlashback() (string, error) {
 	if p.cur.Type == kwON || p.isKeywordStr("OFF") {
 		return p.advance().Str, nil
 	}
-	return "", p.tsOptionError()
+	return "", p.syntaxErrorAtCur()
 }
 
 // parseTablespaceRetention reads tablespace_retention_clause:
@@ -672,7 +654,7 @@ func (p *Parser) parseTablespaceRetention() (string, error) {
 	if p.isKeywordStr("GUARANTEE") || p.isKeywordStr("NOGUARANTEE") {
 		return p.advance().Str, nil
 	}
-	return "", p.tsOptionError()
+	return "", p.syntaxErrorAtCur()
 }
 
 // parseTablespaceGroup reads tablespace_group_clause:
@@ -682,7 +664,7 @@ func (p *Parser) parseTablespaceRetention() (string, error) {
 // A string that is not empty is ORA-10914, as is a missing GROUP or name.
 func (p *Parser) parseTablespaceGroup() (string, error) {
 	p.advance() // TABLESPACE
-	if err := p.tsExpectOption("GROUP"); err != nil {
+	if err := p.tsExpect("GROUP"); err != nil {
 		return "", err
 	}
 	switch {
@@ -695,7 +677,7 @@ func (p *Parser) parseTablespaceGroup() (string, error) {
 	case p.isTablespaceNameToken():
 		return p.advance().Str, nil
 	}
-	return "", p.tsOptionError()
+	return "", p.syntaxErrorAtCur()
 }
 
 // ---------------------------------------------------------------------------
@@ -825,7 +807,7 @@ func (p *Parser) parseTablespaceTableCompression(inDefault bool) error {
 		}
 		p.advance()
 		if !p.isKeywordStr("QUERY") && !p.isKeywordStr("ARCHIVE") {
-			return p.tsOptionError()
+			return p.syntaxErrorAtCur()
 		}
 		p.advance()
 		if p.isKeywordStr("LOW") || p.isKeywordStr("HIGH") {
@@ -854,7 +836,7 @@ func (p *Parser) parseTablespaceCompressType() error {
 				p.advance()
 			}
 		default:
-			return p.tsOptionError()
+			return p.syntaxErrorAtCur()
 		}
 	}
 	return nil
@@ -963,7 +945,10 @@ func (p *Parser) parseTablespaceInmemoryAttributes() error {
 					}
 					p.advance()
 				case p.cur.Type == kwPARTITION, p.isKeywordStr("SUBPARTITION"):
+					// Oracle refuses distribution by partition in a
+					// tablespace's defaults, at what follows it (ORA-03218).
 					p.advance()
+					return p.syntaxErrorAtCur()
 				default:
 					return p.syntaxErrorAtTok(byTok)
 				}
@@ -1061,7 +1046,7 @@ func (p *Parser) parseTablespaceILMPolicy() error {
 		case p.isKeywordStr("SEGMENT"), p.cur.Type == kwGROUP, p.cur.Type == kwROW:
 			p.advance()
 		default:
-			return p.tsOptionError()
+			return p.syntaxErrorAtCur()
 		}
 		return p.parseTablespaceILMAfter()
 	case p.isKeywordStr("TIER"):
@@ -1124,7 +1109,7 @@ func (p *Parser) parseTablespaceILMPolicy() error {
 			return err
 		}
 	default:
-		return p.tsOptionError()
+		return p.syntaxErrorAtCur()
 	}
 	if p.isKeywordStr("SEGMENT") {
 		p.advance()
@@ -1209,11 +1194,11 @@ func (p *Parser) parseTablespaceStorageClause() error {
 // parseTablespaceStorageOption reads one option of storage_clause.
 func (p *Parser) parseTablespaceStorageOption() error {
 	if p.cur.Type == tokQIDENT || !p.isIdentLike() {
-		return p.tsOptionError()
+		return p.syntaxErrorAtCur()
 	}
 	integer := func() error {
 		if p.cur.Type != tokICONST {
-			return p.tsOptionError()
+			return p.syntaxErrorAtCur()
 		}
 		p.advance()
 		return nil
@@ -1243,7 +1228,7 @@ func (p *Parser) parseTablespaceStorageOption() error {
 		p.advance()
 		return nil
 	}
-	return p.tsOptionError()
+	return p.syntaxErrorAtCur()
 }
 
 // ---------------------------------------------------------------------------
@@ -1345,7 +1330,7 @@ func (p *Parser) parseAlterTablespaceClause(stmt *nodes.AlterTablespaceStmt) err
 		stmt.DefaultParams, err = p.parseTablespaceDefaultParams()
 	case p.isKeywordStr("MINIMUM"):
 		p.advance()
-		if err = p.tsExpectOption("EXTENT"); err == nil {
+		if err = p.tsExpect("EXTENT"); err == nil && !p.tsEndsBeforeOperand() {
 			stmt.MinimumExtent, err = p.parseTablespaceSize()
 		}
 	case p.isKeywordStr("RESIZE"):
@@ -1361,7 +1346,7 @@ func (p *Parser) parseAlterTablespaceClause(stmt *nodes.AlterTablespaceStmt) err
 	case p.isKeywordStr("BEGIN"), p.isKeywordStr("END"):
 		// { BEGIN | END } BACKUP (ORA-01906)
 		begin := p.advance().Str == "BEGIN"
-		if err = p.tsExpectOption("BACKUP"); err == nil {
+		if err = p.tsExpect("BACKUP"); err == nil {
 			stmt.BeginBackup, stmt.EndBackup = begin, !begin
 		}
 	case p.cur.Type == kwADD:
@@ -1378,8 +1363,11 @@ func (p *Parser) parseAlterTablespaceClause(stmt *nodes.AlterTablespaceStmt) err
 			return p.syntaxErrorAtCur()
 		}
 		p.advance()
+		if p.tsEndsBeforeOperand() {
+			return nil
+		}
 		if p.cur.Type != tokSCONST && p.cur.Type != tokICONST {
-			return p.tsOptionError() // ORA-02236
+			return p.syntaxErrorAtCur() // ORA-02236
 		}
 		stmt.DropFileRef = p.advance().Str
 	case p.isKeywordStr("DATAFILE"), p.isKeywordStr("TEMPFILE"):
@@ -1391,7 +1379,7 @@ func (p *Parser) parseAlterTablespaceClause(stmt *nodes.AlterTablespaceStmt) err
 		case kwOFFLINE:
 			stmt.DatafileOffline, stmt.TempfileOffline = datafile, !datafile
 		default:
-			return p.tsOptionError()
+			return p.syntaxErrorAtCur()
 		}
 		p.advance()
 	case p.cur.Type == kwLOGGING, p.cur.Type == kwNOLOGGING:
@@ -1399,14 +1387,14 @@ func (p *Parser) parseAlterTablespaceClause(stmt *nodes.AlterTablespaceStmt) err
 	case p.isKeywordStr("FORCE"):
 		// FORCE LOGGING
 		p.advance()
-		if err = p.tsExpectOption("LOGGING"); err == nil {
+		if err = p.tsExpect("LOGGING"); err == nil {
 			stmt.ForceLogging = "FORCE LOGGING"
 		}
 	case p.isKeywordStr("NO"):
 		// NO FORCE LOGGING
 		p.advance()
-		if err = p.tsExpectOption("FORCE"); err == nil {
-			err = p.tsExpectOption("LOGGING")
+		if err = p.tsExpect("FORCE"); err == nil {
+			err = p.tsExpect("LOGGING")
 		}
 		if err == nil {
 			stmt.ForceLogging = "NO FORCE LOGGING"
@@ -1438,7 +1426,7 @@ func (p *Parser) parseAlterTablespaceClause(stmt *nodes.AlterTablespaceStmt) err
 		case p.isKeywordStr("WRITE"):
 			stmt.ReadWrite = true
 		default:
-			return p.tsOptionError()
+			return p.syntaxErrorAtCur()
 		}
 		p.advance()
 	case p.isKeywordStr("PERMANENT"):
@@ -1467,7 +1455,7 @@ func (p *Parser) parseAlterTablespaceClause(stmt *nodes.AlterTablespaceStmt) err
 		}
 		stmt.LostWriteProtection = action
 	default:
-		return p.tsOptionError()
+		return p.syntaxErrorAtCur()
 	}
 	return err
 }
@@ -1520,13 +1508,13 @@ func (p *Parser) parseAlterTablespaceRename(stmt *nodes.AlterTablespaceStmt) err
 	case p.isKeywordStr("DATAFILE"):
 		p.advance()
 	default:
-		return p.tsOptionError()
+		return p.syntaxErrorAtCur()
 	}
 	stmt.RenameDatafile = true
 	files := func(into *[]string) error {
 		for {
 			if p.cur.Type != tokSCONST {
-				return p.tsOptionError()
+				return p.syntaxErrorAtCur()
 			}
 			*into = append(*into, p.advance().Str)
 			if p.cur.Type != ',' {
@@ -1547,7 +1535,10 @@ func (p *Parser) parseAlterTablespaceRename(stmt *nodes.AlterTablespaceStmt) err
 
 // parseAlterTablespaceAddFile reads
 //
-//	ADD { DATAFILE | TEMPFILE } [ file_specification [, file_specification ]... ]
+//	ADD { DATAFILE | TEMPFILE } file_specification [, file_specification ]...
+//
+// The page shows the file specifications optional; Oracle wants one
+// (ALTER TABLESPACE a ADD DATAFILE is ORA-02236 at its end).
 func (p *Parser) parseAlterTablespaceAddFile(stmt *nodes.AlterTablespaceStmt) error {
 	p.advance() // ADD
 	switch {
@@ -1559,7 +1550,7 @@ func (p *Parser) parseAlterTablespaceAddFile(stmt *nodes.AlterTablespaceStmt) er
 		return p.syntaxErrorAtCur()
 	}
 	p.advance()
-	if p.tsAtEnd() {
+	if stmt.IsSet && stmt.AddDatafile && p.tsEndsBeforeOperand() {
 		return nil
 	}
 	files, err := p.parseTablespaceFileSpecs()
@@ -1592,7 +1583,7 @@ func (p *Parser) parseAlterTablespaceEncryption() error {
 		using = true
 	}
 	if !p.isKeywordStr("ENCRYPT") && !p.isKeywordStr("DECRYPT") {
-		return p.tsOptionError()
+		return p.syntaxErrorAtCur()
 	}
 	p.advance()
 	if mode == "OFFLINE" {
@@ -1603,7 +1594,7 @@ func (p *Parser) parseAlterTablespaceEncryption() error {
 			// Oracle reads FILE_NAME_CONVERT here and refuses what
 			// follows it (ORA-02142): OFFLINE converts no file names.
 			p.advance()
-			return p.tsOptionError()
+			return p.syntaxErrorAtCur()
 		}
 		return nil
 	}
@@ -1618,7 +1609,7 @@ func (p *Parser) parseAlterTablespaceEncryption() error {
 func (p *Parser) parseTablespaceEncryptionSpec() error {
 	p.advance() // USING
 	if p.cur.Type != tokSCONST {
-		return p.tsOptionError()
+		return p.syntaxErrorAtCur()
 	}
 	p.advance()
 	return nil
@@ -1638,7 +1629,7 @@ func (p *Parser) parseTablespaceFileNameConvert() error {
 	}
 	p.advance()
 	if p.cur.Type != tokSCONST {
-		return p.tsOptionError()
+		return p.syntaxErrorAtCur()
 	}
 	for {
 		if p.cur.Type != tokSCONST {
@@ -1695,6 +1686,9 @@ func (p *Parser) parseDropTablespaceStmt(start int, isSet bool) (*nodes.DropTabl
 
 func (p *Parser) parseDropTablespaceBody(stmt *nodes.DropTablespaceStmt) error {
 	stmt.IfExists = p.tsIfExists()
+	if stmt.IsSet && !stmt.IfExists && p.tsEndsBeforeOperand() {
+		return nil
+	}
 	var err error
 	if stmt.Name, err = p.parseTablespaceName(); err != nil {
 		return err
@@ -1703,7 +1697,7 @@ func (p *Parser) parseDropTablespaceBody(stmt *nodes.DropTablespaceStmt) error {
 		switch {
 		case p.isKeywordStr("INCLUDING") && !stmt.IncludingContents:
 			p.advance()
-			if err := p.tsExpectOption("CONTENTS"); err != nil { // ORA-01911
+			if err := p.tsExpect("CONTENTS"); err != nil { // ORA-01911
 				return err
 			}
 			stmt.IncludingContents = true
