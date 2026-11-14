@@ -360,6 +360,24 @@ func (p *Parser) parseSequenceValueRange(bounded bool) (nodes.ExprNode, error) {
 	case '+':
 		p.advance()
 	}
+	// MINVALUE and MAXVALUE take DECIMAL_NUM as well, a number with a point or too wide
+	// for 64 bits, and read it as the widest value of its sign: mariadb:11.8.8 runs
+	// `ALTER SEQUENCE s MINVALUE 1.5` and `MINVALUE - 1.5`, and answers 1064 for 1e5.
+	//
+	// Ref: sequence_truncated_value_hybrid_num in MariaDB 11.8 sql/sql_yacc.yy.
+	if !bounded && p.cur.isDecimalNum() {
+		tok := p.advance()
+		lit := &nodes.FloatLit{Loc: nodes.Loc{Start: tok.Loc, End: tok.End}, Value: tok.Str}
+		if neg {
+			return &nodes.UnaryExpr{
+				Loc:        nodes.Loc{Start: start, End: p.prev.End},
+				Op:         nodes.UnaryMinus,
+				Operand:    lit,
+				OriginalOp: "-",
+			}, nil
+		}
+		return lit, nil
+	}
 	if p.cur.Type != tokICONST {
 		return nil, p.syntaxErrorAtCur()
 	}
@@ -406,6 +424,13 @@ func (p *Parser) parseSequenceASType() (*nodes.DataType, error) {
 			Message:  "sequence AS type must be an integer type without display width",
 			Position: loc,
 		}
+	}
+	// field_options takes ZEROFILL and the action refuses it: mariadb:11.8.8 answers 1912,
+	// ER_BAD_OPTION_VALUE, for `AS INT ZEROFILL`.
+	//
+	// Ref: sequence_def in MariaDB 11.8 sql/sql_yacc.yy.
+	if dt.Zerofill {
+		return nil, &ParseError{Message: "Incorrect value 'ZEROFILL' for option 'AS'", Position: loc}
 	}
 	return dt, nil
 }
@@ -491,6 +516,13 @@ func (p *Parser) sequenceValue(v nodes.ExprNode) *big.Int {
 	if unary, ok := v.(*nodes.UnaryExpr); ok {
 		neg = true
 		v = unary.Operand
+	}
+	if _, ok := v.(*nodes.FloatLit); ok {
+		// DECIMAL_NUM is ULONGLONG_MAX, and LONGLONG_MIN after a minus.
+		if neg {
+			return new(big.Int).SetInt64(math.MinInt64)
+		}
+		return new(big.Int).SetUint64(math.MaxUint64)
 	}
 	lit, ok := v.(*nodes.IntLit)
 	if !ok {

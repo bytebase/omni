@@ -25,6 +25,17 @@ get no row: its other entry points, `singleStatement` and
 comment. 7 of `DorisLegacyParser.g4`'s need a token its scanner never makes
 (`../../testdata/tokens.tsv`).
 
+## Suites
+
+`suite:conformance` holds the 339 cases of the container test that compared
+`Parse` with a running Doris (`TestDorisSyntaxConformance`), each judged by the
+same recording; all agree. A statement added to it is a row with `?` in both
+verdict cells, judged by a recording:
+
+```text
+?	?	-	suite:conformance	<statement>
+```
+
 ## What the judge needs
 
 - **A statement is sent inside a transaction.** The judge sends `BEGIN` and
