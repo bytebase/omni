@@ -1887,9 +1887,12 @@ func TestParseAlterTableBnfReview(t *testing.T) {
 		ParseAndCheck(t, sql)
 	})
 
+	// SPARSE comes before NULL: SQL Server 2022 refuses NULL SPARSE (Msg 102).
 	t.Run("alter column sparse", func(t *testing.T) {
-		sql := "ALTER TABLE t ALTER COLUMN col1 int NULL SPARSE"
-		ParseAndCheck(t, sql)
+		ParseAndCheck(t, "ALTER TABLE t ALTER COLUMN col1 int SPARSE NULL")
+		if _, err := Parse("ALTER TABLE t ALTER COLUMN col1 int NULL SPARSE"); err == nil {
+			t.Error("Parse(NULL SPARSE) = nil error, want SQL Server's rejection")
+		}
 	})
 
 	t.Run("drop column if exists", func(t *testing.T) {
@@ -2013,25 +2016,13 @@ func TestParseAlterTableBnfReview(t *testing.T) {
 		ParseAndCheck(t, sql)
 	})
 
-	t.Run("split range", func(t *testing.T) {
-		sql := "ALTER TABLE t SPLIT RANGE (100)"
-		result := ParseAndCheck(t, sql)
-		stmt := result.Items[0].(*ast.AlterTableStmt)
-		action := stmt.Actions.Items[0].(*ast.AlterTableAction)
-		if action.Type != ast.ATSplitRange {
-			t.Errorf("expected ATSplitRange, got %d", action.Type)
+	// SPLIT and MERGE RANGE belong to ALTER PARTITION FUNCTION: SQL Server
+	// 2022 refuses them after ALTER TABLE (Msg 102), as compat.tsv records.
+	for _, sql := range []string{"ALTER TABLE t SPLIT RANGE (100)", "ALTER TABLE t MERGE RANGE (100)"} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) = nil error, want SQL Server's rejection", sql)
 		}
-	})
-
-	t.Run("merge range", func(t *testing.T) {
-		sql := "ALTER TABLE t MERGE RANGE (100)"
-		result := ParseAndCheck(t, sql)
-		stmt := result.Items[0].(*ast.AlterTableStmt)
-		action := stmt.Actions.Items[0].(*ast.AlterTableAction)
-		if action.Type != ast.ATMergeRange {
-			t.Errorf("expected ATMergeRange, got %d", action.Type)
-		}
-	})
+	}
 
 	t.Run("add period for system time", func(t *testing.T) {
 		sql := "ALTER TABLE t ADD PERIOD FOR SYSTEM_TIME (SysStartTime, SysEndTime)"
@@ -2067,9 +2058,12 @@ func TestParseAlterTableBnfReview(t *testing.T) {
 		}
 	})
 
+	// DATA_DELETION is Azure SQL Edge's; SQL Server 2022 refuses it (Msg 102).
 	t.Run("set data deletion", func(t *testing.T) {
 		sql := "ALTER TABLE t SET (DATA_DELETION = ON (FILTER_COLUMN = col1))"
-		ParseAndCheck(t, sql)
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) = nil error, want SQL Server's rejection", sql)
+		}
 	})
 }
 
@@ -24011,4 +24005,29 @@ func TestParseInsertBulkLineno(t *testing.T) {
 			t.Errorf("expected LineNo=9999, got %d", stmt.LineNo)
 		}
 	})
+}
+
+// TestParseTableFormsSQLServerTakes pins forms the pinned SQL Server 2022
+// accepts that a stricter column or ALTER TABLE reading could lose.
+func TestParseTableFormsSQLServerTakes(t *testing.T) {
+	for _, sql := range []string{
+		"CREATE TABLE t (id int, timestamp)",
+		"CREATE TABLE t (id int, timestamp NOT NULL)",
+		"CREATE TABLE t (id int, [timestamp])",
+		"ALTER TABLE a ADD timestamp",
+		"DECLARE @t TABLE (id int, timestamp)",
+		"ALTER TABLE a SET (REMOTE_DATA_ARCHIVE (MIGRATION_STATE = INBOUND))",
+		"ALTER TABLE a SET (REMOTE_DATA_ARCHIVE (MIGRATION_STATE = INBOUND), LOCK_ESCALATION = AUTO)",
+	} {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q): %v", sql, err)
+		}
+	}
+	for _, sql := range []string{
+		"ALTER TABLE a SET (REMOTE_DATA_ARCHIVE (FILTER_PREDICATE = NULL))",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) = nil error, want SQL Server's rejection", sql)
+		}
+	}
 }
