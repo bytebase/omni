@@ -823,13 +823,24 @@ func (p *Parser) parseFuncCall(name *ast.ObjectName) (*ast.FuncCallExpr, error) 
 		return fc, nil
 	}
 
-	// DISTINCT handling for aggregates like COUNT(DISTINCT x)
+	// DISTINCT handling for aggregates like COUNT(DISTINCT x). ALL, the
+	// default, is the other setQuantifier, which only the aggregates of
+	// StarRocks.g4:2453-2462 take; all but COUNT then need an argument.
+	needArg := false
 	if p.cur.Kind == kwDISTINCT {
 		p.advance()
 		fc.Distinct = true
+	} else if p.cur.Kind == kwALL && len(name.Parts) == 1 {
+		switch funcName {
+		case "COUNT":
+			p.advance()
+		case "AVG", "MAX", "MIN", "SUM", "ARRAY_AGG", "GROUP_CONCAT":
+			p.advance()
+			needArg = true
+		}
 	}
 
-	if p.cur.Kind != int(')') {
+	if p.cur.Kind != int(')') || needArg {
 		args, err := p.parseFuncArgList()
 		if err != nil {
 			return nil, err
