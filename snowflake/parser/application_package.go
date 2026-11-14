@@ -16,8 +16,12 @@ func init() {
 		create: parseCreateApplicationPackage,
 		alter:  parseAlterApplicationPackage,
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-application-package
-		drop:  true,
-		props: applicationPackageProps,
+		drop:      true,
+		nameParts: 1, // an account-level object
+		props:     applicationPackageProps,
+		// SET's properties, and a release channel's SET ACCOUNTS
+		// (parseAlterApplicationPackage keeps ACCOUNTS to the channel).
+		alterProps: applicationPackageAlterProps,
 		unset: []string{"DATA_RETENTION_TIME_IN_DAYS", "MAX_DATA_EXTENSION_TIME_IN_DAYS",
 			"DEFAULT_DDL_COLLATION", "COMMENT", "DISTRIBUTION"},
 	})
@@ -36,6 +40,16 @@ var applicationPackageProps = objectProps{
 	"ENABLE_RELEASE_CHANNELS":           propBool,
 	"AUTOMATIC_APPLICATION_MAINTENANCE": propBool,
 }
+
+// applicationPackageAlterProps are applicationPackageProps and the ACCOUNTS a
+// release channel's SET ACCOUNTS = ( ... ) takes.
+var applicationPackageAlterProps = func() objectProps {
+	m := objectProps{"ACCOUNTS": propNames}
+	for k, v := range applicationPackageProps {
+		m[k] = v
+	}
+	return m
+}()
 
 // applicationReleaseDirectiveProps are the properties a release directive
 // takes after its accounts: the version and patch it serves and when
@@ -104,30 +118,28 @@ func parseAlterApplicationPackage(p *Parser, s *ast.ObjectStmt) error {
 	start := p.cur.Loc.Start
 	switch {
 	case p.acceptWords("ADD", "VERSION"):
-		return p.parseApplicationPackageVersionUsing(p.addObjectKeywordsClause(s, "ADD VERSION", start))
+		return p.parseApplicationPackageVersionUsing(s, "ADD VERSION", start)
 	case p.acceptWords("REGISTER", "VERSION"):
-		return p.parseApplicationPackageVersionUsing(p.addObjectKeywordsClause(s, "REGISTER VERSION", start))
+		return p.parseApplicationPackageVersionUsing(s, "REGISTER VERSION", start)
 	case p.acceptWords("ADD", "PATCH"):
-		c := p.addObjectKeywordsClause(s, "ADD PATCH FOR VERSION", start)
 		if p.cur.Type == tokInt {
-			lit, err := p.parseCopyLiteral()
-			if err != nil {
+			if _, err := p.parseApplicationLiteralClause(s, "ADD PATCH", start, tokInt); err != nil {
 				return err
 			}
-			c.Options = append(c.Options, &ast.CopyOption{Name: "PATCH", Lit: lit, Loc: lit.Loc})
+		} else {
+			p.addObjectKeywordsClause(s, "ADD PATCH", start)
 		}
+		start := p.cur.Loc.Start
 		if err := p.expectWords("FOR", "VERSION"); err != nil {
 			return err
 		}
-		return p.parseApplicationPackageVersionUsing(c)
+		return p.parseApplicationPackageVersionUsing(s, "FOR VERSION", start)
 	case p.acceptWords("DROP", "VERSION"):
-		c, err := p.parseApplicationNamedClause(s, "DROP VERSION", start)
-		if err != nil {
+		if _, err := p.parseApplicationNamedClause(s, "DROP VERSION", start); err != nil {
 			return err
 		}
-		if p.acceptWords("ASYNC") {
-			c.Keywords = "DROP VERSION ASYNC"
-			c.Loc.End = p.prev.Loc.End
+		if start := p.cur.Loc.Start; p.acceptWords("ASYNC") {
+			p.addObjectKeywordsClause(s, "ASYNC", start)
 		}
 		return nil
 	case p.acceptWords("DEREGISTER", "VERSION"):
@@ -146,34 +158,55 @@ func parseAlterApplicationPackage(p *Parser, s *ast.ObjectStmt) error {
 	}
 	ok, err := p.parseObjectAlterCommon(s, actSet|actUnset|actRename|actTags)
 	if err != nil || ok {
+		if err == nil {
+			err = rejectApplicationPackageAccounts(s)
+		}
 		return err
 	}
 	return p.syntaxErrorAtCur()
 }
 
+// rejectApplicationPackageAccounts fails a package's own SET of ACCOUNTS,
+// which alterProps admits for a release channel's SET ACCOUNTS alone.
+func rejectApplicationPackageAccounts(s *ast.ObjectStmt) error {
+	c := s.Clauses[len(s.Clauses)-1]
+	if c.Keywords != "SET" {
+		return nil
+	}
+	for _, o := range c.Options {
+		if o.Name == "ACCOUNTS" {
+			return applicationOptionError(o)
+		}
+	}
+	return nil
+}
+
 // parseApplicationPackageVersionUsing reads
-// [ <version> ] USING '<path>' [ LABEL = '<label>' ] into c, after ADD
-// VERSION, REGISTER VERSION or ADD PATCH [ <num> ] FOR VERSION.
-func (p *Parser) parseApplicationPackageVersionUsing(c *ast.ObjectClause) error {
+// [ <version> ] USING '<path>' [ LABEL = '<label>' ] after ADD VERSION,
+// REGISTER VERSION or ADD PATCH [ <num> ] FOR VERSION, whose keywords start
+// began: a clause of those keywords naming the version, and a USING clause
+// holding the path and label.
+func (p *Parser) parseApplicationPackageVersionUsing(s *ast.ObjectStmt, keywords string, start int) error {
+	c := p.addObjectKeywordsClause(s, keywords, start)
 	if !p.curIsWord("USING") {
-		version, err := p.parseObjectName()
+		version, err := p.parseObjectSimpleName()
 		if err != nil {
 			return err
 		}
 		c.Names = []*ast.ObjectName{version}
+		c.Loc.End = p.prev.Loc.End
 	}
-	return p.parseApplicationPackageUsing(c)
-}
-
-// parseApplicationPackageUsing reads USING '<path>' [ LABEL = '<label>' ] into c.
-func (p *Parser) parseApplicationPackageUsing(c *ast.ObjectClause) error {
-	if err := p.parseApplicationLiteral(c, "USING", tokString); err != nil {
+	start = p.cur.Loc.Start
+	if err := p.expectWords("USING"); err != nil {
+		return err
+	}
+	using, err := p.parseApplicationLiteralClause(s, "USING", start, tokString)
+	if err != nil {
 		return err
 	}
 	if p.curIsWord("LABEL") {
-		return p.parseApplicationRequiredOption(c, "LABEL", propString)
+		return p.parseApplicationRequiredOption(using, "LABEL", propString)
 	}
-	c.Loc.End = p.prev.Loc.End
 	return nil
 }
 
@@ -206,8 +239,7 @@ func (p *Parser) parseApplicationReleaseChannelAction(s *ast.ObjectStmt) error {
 	for _, verb := range []string{"ADD", "REMOVE", "SET"} {
 		if p.curIsWord(verb) && p.peekIsWord("ACCOUNTS") {
 			p.advance() // consume the verb
-			p.advance() // consume ACCOUNTS
-			return p.parseApplicationAccounts(p.addObjectKeywordsClause(s, verb+" ACCOUNTS", start))
+			return p.parseApplicationAccounts(p.addObjectKeywordsClause(s, verb, start))
 		}
 	}
 	return p.syntaxErrorAtCur()
@@ -239,10 +271,6 @@ func (p *Parser) parseApplicationSetReleaseDirective(s *ast.ObjectStmt, force bo
 		if err != nil {
 			return true, err
 		}
-		if !p.curIsWord("ACCOUNTS") {
-			return true, p.syntaxErrorAtCur()
-		}
-		p.advance() // consume ACCOUNTS
 		if err := p.parseApplicationAccounts(c); err != nil {
 			return true, err
 		}
@@ -286,8 +314,7 @@ func (p *Parser) parseApplicationModifyReleaseDirective(s *ast.ObjectStmt) error
 	for _, verb := range []string{"ADD", "REMOVE"} {
 		if p.curIsWord(verb) && p.peekIsWord("ACCOUNTS") {
 			p.advance() // consume the verb
-			p.advance() // consume ACCOUNTS
-			c := p.addObjectKeywordsClause(s, verb+" ACCOUNTS", start)
+			c := p.addObjectKeywordsClause(s, verb, start)
 			if err := p.parseApplicationAccounts(c); err != nil {
 				return err
 			}
@@ -314,10 +341,13 @@ func (p *Parser) parseApplicationModifyReleaseDirective(s *ast.ObjectStmt) error
 	return p.requireObjectProperties(c, "VERSION", "PATCH")
 }
 
-// parseApplicationAccounts reads = ( <org_name>.<account_name> [ , ... ] )
-// after ACCOUNTS, which the caller consumed, into an ACCOUNTS option of c.
+// parseApplicationAccounts reads ACCOUNTS = ( <org_name>.<account_name>
+// [ , ... ] ) into an ACCOUNTS option of c.
 func (p *Parser) parseApplicationAccounts(c *ast.ObjectClause) error {
-	opt := &ast.CopyOption{Name: "ACCOUNTS", Loc: ast.Loc{Start: p.prev.Loc.Start}}
+	opt := &ast.CopyOption{Name: "ACCOUNTS", Loc: ast.Loc{Start: p.cur.Loc.Start}}
+	if err := p.expectWords("ACCOUNTS"); err != nil {
+		return err
+	}
 	if _, err := p.expect('='); err != nil {
 		return err
 	}

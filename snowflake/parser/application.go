@@ -8,8 +8,8 @@ import "github.com/bytebase/omni/snowflake/ast"
 // ---------------------------------------------------------------------------
 //
 // A clause keyword followed by a bare literal rather than `= value`
-// (USING '<path>', PATCH <num>) is recorded as an option named by the keyword,
-// so a clause's values all sit in its Options.
+// (USING '<path>', PATCH <num>) is recorded as a clause of that keyword with a
+// nameless option holding the literal, which deparse writes back as written.
 
 func init() {
 	registerObject(&objectForm{
@@ -17,9 +17,11 @@ func init() {
 		create: parseCreateApplication,
 		alter:  parseAlterApplication,
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-application
-		drop:        true,
-		dropCascade: true,
-		props:       applicationProps,
+		drop:          true,
+		dropCascade:   true,
+		nameParts:     1, // an account-level object
+		noIfNotExists: true,
+		props:         applicationProps,
 		unset: []string{"COMMENT", "SHARE_EVENTS_WITH_PROVIDER", "DEBUG_MODE",
 			"AUTHORIZE_RESTRICTED_PROVIDER_REMOTE_OPERATIONS_UNTIL"},
 	})
@@ -33,30 +35,39 @@ func init() {
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-application-role
 		drop:  true,
 		props: objectProps{"COMMENT": propString},
+		// nameParts stays 0: the pages write the name QNAME (<app_name>.<role_name>).
 	})
 	// The pages below write ALTER APPLICATION with no application name: they
 	// run in an app's setup script against the app itself. Each registers its
 	// leading keywords as the object's, so the name read after them is the
 	// specification's or the configuration's.
 	registerObject(&objectForm{
-		words: []string{"APPLICATION", "SET", "SPECIFICATION"},
-		alter: parseAlterApplicationSetAppSpec,
-		props: applicationSpecProps,
+		words:      []string{"APPLICATION", "SET", "SPECIFICATION"},
+		alter:      parseAlterApplicationSetAppSpec,
+		nameParts:  1,
+		noIfExists: true,
+		props:      applicationSpecProps,
 	})
 	registerObject(&objectForm{
-		words: []string{"APPLICATION", "DROP", "SPECIFICATION"},
-		alter: parseAlterApplicationDropNamed,
-		props: objectProps{},
+		words:      []string{"APPLICATION", "DROP", "SPECIFICATION"},
+		alter:      parseAlterApplicationDropNamed,
+		nameParts:  1,
+		noIfExists: true,
+		props:      objectProps{},
 	})
 	registerObject(&objectForm{
-		words: []string{"APPLICATION", "SET", "CONFIGURATION", "DEFINITION"},
-		alter: parseAlterApplicationSetConfigurationDefinition,
-		props: applicationConfigurationProps,
+		words:      []string{"APPLICATION", "SET", "CONFIGURATION", "DEFINITION"},
+		alter:      parseAlterApplicationSetConfigurationDefinition,
+		nameParts:  1,
+		noIfExists: true,
+		props:      applicationConfigurationProps,
 	})
 	registerObject(&objectForm{
-		words: []string{"APPLICATION", "DROP", "CONFIGURATION", "DEFINITION"},
-		alter: parseAlterApplicationDropNamed,
-		props: objectProps{},
+		words:      []string{"APPLICATION", "DROP", "CONFIGURATION", "DEFINITION"},
+		alter:      parseAlterApplicationDropNamed,
+		nameParts:  1,
+		noIfExists: true,
+		props:      objectProps{},
 	})
 }
 
@@ -140,11 +151,9 @@ func parseCreateApplication(p *Parser, s *ast.ObjectStmt) error {
 	default:
 		return p.syntaxErrorAtCur()
 	}
-	from, err := p.parseObjectName()
-	if err != nil {
+	if _, err := p.parseApplicationNamedClause(s, keywords, start); err != nil {
 		return err
 	}
-	p.addObjectKeywordsClause(s, keywords, start).Names = []*ast.ObjectName{from}
 
 	if start := p.cur.Loc.Start; p.curIsWord("USING") {
 		switch {
@@ -159,26 +168,32 @@ func parseCreateApplication(p *Parser, s *ast.ObjectStmt) error {
 				return err
 			}
 		default:
-			c := &ast.ObjectClause{Keywords: "USING", Loc: ast.Loc{Start: start}}
-			if err := p.parseApplicationLiteral(c, "USING", tokString); err != nil {
+			p.advance() // consume USING
+			if _, err := p.parseApplicationLiteralClause(s, "USING", start, tokString); err != nil {
 				return err
 			}
-			c.Loc.End = p.prev.Loc.End
-			s.Clauses = append(s.Clauses, c)
 		}
 	}
 	if _, err := p.parseObjectProperties(s, "", false); err != nil {
 		return err
 	}
-	if start := p.cur.Loc.Start; p.acceptWords("WITH", "FEATURE", "POLICY") {
+	// WITH FEATURE POLICY = <policy_name> is a WITH clause holding a
+	// FEATURE POLICY option, so deparse writes its '=' back.
+	if start := p.cur.Loc.Start; p.atWords("WITH", "FEATURE", "POLICY") {
+		p.advance() // consume WITH
+		opt := &ast.CopyOption{Name: "FEATURE POLICY", Loc: ast.Loc{Start: p.cur.Loc.Start}}
+		p.advance() // consume FEATURE
+		p.advance() // consume POLICY
 		if _, err := p.expect('='); err != nil {
 			return err
 		}
-		policy, err := p.parseObjectName()
+		policy, err := p.parseObjectWord()
 		if err != nil {
 			return err
 		}
-		p.addObjectKeywordsClause(s, "WITH FEATURE POLICY", start).Names = []*ast.ObjectName{policy}
+		opt.Words = policy
+		opt.Loc.End = p.prev.Loc.End
+		p.addObjectKeywordsClause(s, "WITH", start).Options = []*ast.CopyOption{opt}
 	}
 	return nil
 }
@@ -196,20 +211,16 @@ func (p *Parser) parseApplicationReleaseChannel(s *ast.ObjectStmt, start int) er
 }
 
 // parseApplicationUsingVersion reads <version_identifier> [ PATCH <num> ] after
-// USING VERSION, which start began, into a clause named keywords.
+// USING VERSION, which start began, into a clause named keywords and a PATCH
+// clause.
 func (p *Parser) parseApplicationUsingVersion(s *ast.ObjectStmt, keywords string, start int) error {
-	version, err := p.parseObjectName()
-	if err != nil {
+	if _, err := p.parseApplicationNamedClause(s, keywords, start); err != nil {
 		return err
 	}
-	c := p.addObjectKeywordsClause(s, keywords, start)
-	c.Names = []*ast.ObjectName{version}
-	if p.curIsWord("PATCH") {
-		if err := p.parseApplicationLiteral(c, "PATCH", tokInt); err != nil {
-			return err
-		}
+	if start := p.cur.Loc.Start; p.acceptWords("PATCH") {
+		_, err := p.parseApplicationLiteralClause(s, "PATCH", start, tokInt)
+		return err
 	}
-	c.Loc.End = p.prev.Loc.End
 	return nil
 }
 
@@ -255,7 +266,7 @@ func parseAlterApplication(p *Parser, s *ast.ObjectStmt) error {
 		p.addObjectKeywordsClause(s, "UNSET MAINTENANCE POLICY", start)
 		return nil
 	case p.acceptWords("SET", "SHARED", "TELEMETRY", "EVENTS"):
-		opt := &ast.CopyOption{Name: "EVENTS", Loc: ast.Loc{Start: p.cur.Loc.Start}}
+		opt := &ast.CopyOption{Loc: ast.Loc{Start: p.cur.Loc.Start}}
 		if err := p.parseApplicationStringList(opt, 0); err != nil {
 			return err
 		}
@@ -264,7 +275,7 @@ func parseAlterApplication(p *Parser, s *ast.ObjectStmt) error {
 	case p.acceptWords("UNSET", "REFERENCES"):
 		c := p.addObjectKeywordsClause(s, "UNSET REFERENCES", start)
 		if p.cur.Type == '(' {
-			opt := &ast.CopyOption{Name: "REFERENCES", Loc: ast.Loc{Start: p.cur.Loc.Start}}
+			opt := &ast.CopyOption{Loc: ast.Loc{Start: p.cur.Loc.Start}}
 			if err := p.parseApplicationStringList(opt, 2); err != nil {
 				return err
 			}
@@ -294,17 +305,13 @@ func parseAlterApplication(p *Parser, s *ast.ObjectStmt) error {
 		}
 		return p.parseApplicationRequiredOption(c, "SEQUENCE_NUMBER", propNumber)
 	case p.acceptWords("UPGRADE"):
-		upgradeEnd := p.prev.Loc.End
 		if p.acceptWords("USING", "VERSION") {
 			return p.parseApplicationUsingVersion(s, "UPGRADE USING VERSION", start)
 		}
-		c := p.addObjectKeywordsClause(s, "UPGRADE", start)
-		c.Loc.End = upgradeEnd
-		if p.curIsWord("USING") {
-			if err := p.parseApplicationLiteral(c, "USING", tokString); err != nil {
-				return err
-			}
-			c.Loc.End = p.prev.Loc.End
+		p.addObjectKeywordsClause(s, "UPGRADE", start)
+		if start := p.cur.Loc.Start; p.acceptWords("USING") {
+			_, err := p.parseApplicationLiteralClause(s, "USING", start, tokString)
+			return err
 		}
 		return nil
 	}
@@ -318,9 +325,11 @@ func parseAlterApplication(p *Parser, s *ast.ObjectStmt) error {
 // parseApplicationPolicy reads <policy_name> [ FORCE ] after SET FEATURE
 // POLICY or SET MAINTENANCE POLICY, which start began.
 func (p *Parser) parseApplicationPolicy(s *ast.ObjectStmt, keywords string, start int) error {
-	if _, err := p.parseApplicationNamedClause(s, keywords, start); err != nil {
+	policy, err := p.parseObjectName()
+	if err != nil {
 		return err
 	}
+	p.addObjectKeywordsClause(s, keywords, start).Names = []*ast.ObjectName{policy}
 	if start := p.cur.Loc.Start; p.acceptWords("FORCE") {
 		p.addObjectKeywordsClause(s, "FORCE", start)
 	}
@@ -328,9 +337,11 @@ func (p *Parser) parseApplicationPolicy(s *ast.ObjectStmt, keywords string, star
 }
 
 // parseApplicationNamedClause reads the one name a clause takes after its
-// keywords, which start began, and appends the clause.
+// keywords, which start began, and appends the clause. The pages write each
+// such name (a version, channel, directive, specification, configuration,
+// package or listing) as a single <name>.
 func (p *Parser) parseApplicationNamedClause(s *ast.ObjectStmt, keywords string, start int) (*ast.ObjectClause, error) {
-	name, err := p.parseObjectName()
+	name, err := p.parseObjectSimpleName()
 	if err != nil {
 		return nil, err
 	}
@@ -386,23 +397,20 @@ func applicationOptionError(o *ast.CopyOption) error {
 	return &ParseError{Position: o.Loc.Start, End: o.Loc.End, Message: "syntax error at or near " + o.Name}
 }
 
-// parseApplicationLiteral reads <word> <literal>, a clause keyword followed by
-// a bare literal of type typ (USING '<path>', PATCH <num>), into an option of
-// c named by the word. cur is the word.
-func (p *Parser) parseApplicationLiteral(c *ast.ObjectClause, word string, typ int) error {
-	if !p.curIsWord(word) {
-		return p.syntaxErrorAtCur()
-	}
-	key := p.advance()
+// parseApplicationLiteralClause reads the bare literal of type typ that
+// follows a clause's keywords (USING '<path>', PATCH <num>), which the caller
+// consumed from start, into a clause holding it as a nameless option.
+func (p *Parser) parseApplicationLiteralClause(s *ast.ObjectStmt, keywords string, start, typ int) (*ast.ObjectClause, error) {
 	if p.cur.Type != typ {
-		return p.syntaxErrorAtCur()
+		return nil, p.syntaxErrorAtCur()
 	}
 	lit, err := p.parseCopyLiteral()
 	if err != nil {
-		return err
+		return nil, err
 	}
-	c.Options = append(c.Options, &ast.CopyOption{Name: word, Lit: lit, Loc: ast.Loc{Start: key.Loc.Start, End: lit.Loc.End}})
-	return nil
+	c := p.addObjectKeywordsClause(s, keywords, start)
+	c.Options = []*ast.CopyOption{{Lit: lit, Loc: lit.Loc}}
+	return c, nil
 }
 
 // parseApplicationStringList reads ( '<string>' [ , ... ] ) into opt.List,
@@ -432,18 +440,6 @@ func (p *Parser) parseApplicationStringList(opt *ast.CopyOption, max int) error 
 	return nil
 }
 
-// rejectApplicationIfExists fails an ALTER whose page does not document
-// IF EXISTS, as the pages that name no application do not.
-func rejectApplicationIfExists(s *ast.ObjectStmt) error {
-	if !s.IfExists {
-		return nil
-	}
-	return &ParseError{
-		Position: s.Name.Loc.Start, End: s.Name.Loc.End,
-		Message: "syntax error: IF EXISTS is not allowed in ALTER " + s.Kind,
-	}
-}
-
 // parseAlterApplicationSetAppSpec reads what follows the specification's name
 // in
 //
@@ -457,9 +453,6 @@ func rejectApplicationIfExists(s *ast.ObjectStmt) error {
 //
 // https://docs.snowflake.com/en/sql-reference/sql/alter-application-set-app-spec
 func parseAlterApplicationSetAppSpec(p *Parser, s *ast.ObjectStmt) error {
-	if err := rejectApplicationIfExists(s); err != nil {
-		return err
-	}
 	props, err := p.parseObjectProperties(s, "", true)
 	if err != nil {
 		return err
@@ -477,9 +470,6 @@ func parseAlterApplicationSetAppSpec(p *Parser, s *ast.ObjectStmt) error {
 //
 // https://docs.snowflake.com/en/sql-reference/sql/alter-application-set-configuration-definition
 func parseAlterApplicationSetConfigurationDefinition(p *Parser, s *ast.ObjectStmt) error {
-	if err := rejectApplicationIfExists(s); err != nil {
-		return err
-	}
 	props, err := p.parseObjectProperties(s, "", true)
 	if err != nil {
 		return err
@@ -497,7 +487,7 @@ func parseAlterApplicationSetConfigurationDefinition(p *Parser, s *ast.ObjectStm
 // https://docs.snowflake.com/en/sql-reference/sql/alter-application-drop-app-spec
 // https://docs.snowflake.com/en/sql-reference/sql/alter-application-drop-configuration-definition
 func parseAlterApplicationDropNamed(p *Parser, s *ast.ObjectStmt) error {
-	return rejectApplicationIfExists(s)
+	return nil
 }
 
 // parseCreateApplicationRole reads what follows the name of

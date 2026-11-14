@@ -55,9 +55,11 @@ func parseCreateApplicationService(p *Parser, s *ast.ObjectStmt) error {
 	if err := p.expectWords("FROM", "ARTIFACT", "REPOSITORY"); err != nil {
 		return err
 	}
-	if _, err := p.parseApplicationNamedClause(s, "FROM ARTIFACT REPOSITORY", start); err != nil {
+	repo, err := p.parseObjectName()
+	if err != nil {
 		return err
 	}
+	p.addObjectKeywordsClause(s, "FROM ARTIFACT REPOSITORY", start).Names = []*ast.ObjectName{repo}
 	start = p.cur.Loc.Start
 	if err := p.expectWords("PACKAGE"); err != nil {
 		return err

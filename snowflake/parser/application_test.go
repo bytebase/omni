@@ -23,20 +23,23 @@ func wantClauses(t *testing.T, in, verb, kind string, keywords ...string) *ast.O
 func TestParseCreateApplication(t *testing.T) {
 	s := wantClauses(t, "CREATE APPLICATION app FROM APPLICATION PACKAGE pkg USING VERSION v1 PATCH 2 "+
 		"DEBUG_MODE = TRUE COMMENT = 'c' WITH TAG (t = 'v') WITH FEATURE POLICY = db.s.fp",
-		"CREATE", "APPLICATION", "FROM APPLICATION PACKAGE", "USING VERSION", "", "WITH FEATURE POLICY")
-	if c := s.Clauses[1]; c.Names[0].String() != "v1" || len(c.Options) != 1 || c.Options[0].Name != "PATCH" || c.Options[0].Lit.Ival != 2 {
+		"CREATE", "APPLICATION", "FROM APPLICATION PACKAGE", "USING VERSION", "PATCH", "", "WITH")
+	if c := s.Clauses[1]; c.Names[0].String() != "v1" {
 		t.Errorf("USING VERSION = %+v", c)
 	}
-	if c := s.Clauses[2]; len(c.Options) != 2 || len(c.Tags) != 1 {
+	if c := s.Clauses[2]; len(c.Options) != 1 || c.Options[0].Name != "" || c.Options[0].Lit.Ival != 2 {
+		t.Errorf("PATCH = %+v", c)
+	}
+	if c := s.Clauses[3]; len(c.Options) != 2 || len(c.Tags) != 1 {
 		t.Errorf("properties = %+v", c)
 	}
-	if c := s.Clauses[3]; c.Names[0].String() != "db.s.fp" {
-		t.Errorf("WITH FEATURE POLICY = %+v", c)
+	if o := s.Clauses[4].Options[0]; o.Name != "FEATURE POLICY" || o.Words != "DB.S.FP" {
+		t.Errorf("WITH FEATURE POLICY = %+v", o)
 	}
 
 	s = wantClauses(t, "CREATE APPLICATION app FROM APPLICATION PACKAGE pkg USING '@stage/v1'",
 		"CREATE", "APPLICATION", "FROM APPLICATION PACKAGE", "USING")
-	if v, ok := optLitString(s.Clauses[1].Options, "USING"); !ok || v != "@stage/v1" {
+	if v, ok := optLitString(s.Clauses[1].Options, ""); !ok || v != "@stage/v1" {
 		t.Errorf("USING = %q", v)
 	}
 	wantClauses(t, "CREATE APPLICATION app FROM APPLICATION PACKAGE pkg USING RELEASE CHANNEL QA",
@@ -62,8 +65,8 @@ func TestParseAlterApplication(t *testing.T) {
 		"ALTER APPLICATION a UNSET REFERENCES":                                                         {"UNSET REFERENCES"},
 		"ALTER APPLICATION a UNSET REFERENCES ('r', 'alias')":                                          {"UNSET REFERENCES"},
 		"ALTER APPLICATION a UPGRADE":                                                                  {"UPGRADE"},
-		"ALTER APPLICATION a UPGRADE USING '@s/v2'":                                                    {"UPGRADE"},
-		"ALTER APPLICATION a UPGRADE USING VERSION v2 PATCH 1":                                         {"UPGRADE USING VERSION"},
+		"ALTER APPLICATION a UPGRADE USING '@s/v2'":                                                    {"UPGRADE", "USING"},
+		"ALTER APPLICATION a UPGRADE USING VERSION v2 PATCH 1":                                         {"UPGRADE USING VERSION", "PATCH"},
 		"ALTER APPLICATION a APPROVE SPECIFICATION spec SEQUENCE_NUMBER = 3":                           {"APPROVE SPECIFICATION"},
 		"ALTER APPLICATION a DECLINE SPECIFICATION spec SEQUENCE_NUMBER = 3":                           {"DECLINE SPECIFICATION"},
 		"ALTER APPLICATION a SET CONFIGURATION cfg VALUE = 'x'":                                        {"SET CONFIGURATION"},
@@ -132,20 +135,20 @@ func TestParseApplicationPackage(t *testing.T) {
 		"ALTER APPLICATION PACKAGE p SET TAG t = 'v'":                                             {"SET TAG"},
 		"ALTER APPLICATION PACKAGE p UNSET TAG t":                                                 {"UNSET TAG"},
 		// alter-application-package-version
-		"ALTER APPLICATION PACKAGE p ADD VERSION v1 USING '@s/v1' LABEL = 'l'": {"ADD VERSION"},
-		"ALTER APPLICATION PACKAGE p ADD VERSION USING '@s/v1'":                {"ADD VERSION"},
+		"ALTER APPLICATION PACKAGE p ADD VERSION v1 USING '@s/v1' LABEL = 'l'": {"ADD VERSION", "USING"},
+		"ALTER APPLICATION PACKAGE p ADD VERSION USING '@s/v1'":                {"ADD VERSION", "USING"},
 		"ALTER APPLICATION PACKAGE p DROP VERSION v1":                          {"DROP VERSION"},
-		"ALTER APPLICATION PACKAGE p DROP VERSION v1 ASYNC":                    {"DROP VERSION ASYNC"},
-		"ALTER APPLICATION PACKAGE p ADD PATCH 3 FOR VERSION v1 USING '@s/v1'": {"ADD PATCH FOR VERSION"},
-		"ALTER APPLICATION PACKAGE p ADD PATCH FOR VERSION USING '@s/v1'":      {"ADD PATCH FOR VERSION"},
+		"ALTER APPLICATION PACKAGE p DROP VERSION v1 ASYNC":                    {"DROP VERSION", "ASYNC"},
+		"ALTER APPLICATION PACKAGE p ADD PATCH 3 FOR VERSION v1 USING '@s/v1'": {"ADD PATCH", "FOR VERSION", "USING"},
+		"ALTER APPLICATION PACKAGE p ADD PATCH FOR VERSION USING '@s/v1'":      {"ADD PATCH", "FOR VERSION", "USING"},
 		// alter-application-package-release-channel
-		"ALTER APPLICATION PACKAGE p REGISTER VERSION v1 USING '@s/v1' LABEL = 'l'":       {"REGISTER VERSION"},
+		"ALTER APPLICATION PACKAGE p REGISTER VERSION v1 USING '@s/v1' LABEL = 'l'":       {"REGISTER VERSION", "USING"},
 		"ALTER APPLICATION PACKAGE p DEREGISTER VERSION v1":                               {"DEREGISTER VERSION"},
 		"ALTER APPLICATION PACKAGE p MODIFY RELEASE CHANNEL QA ADD VERSION v1":            {"MODIFY RELEASE CHANNEL", "ADD VERSION"},
 		"ALTER APPLICATION PACKAGE p MODIFY RELEASE CHANNEL QA DROP VERSION v1":           {"MODIFY RELEASE CHANNEL", "DROP VERSION"},
-		"ALTER APPLICATION PACKAGE p MODIFY RELEASE CHANNEL QA ADD ACCOUNTS = (o.a, o.b)": {"MODIFY RELEASE CHANNEL", "ADD ACCOUNTS"},
-		"ALTER APPLICATION PACKAGE p MODIFY RELEASE CHANNEL QA REMOVE ACCOUNTS = (o.a)":   {"MODIFY RELEASE CHANNEL", "REMOVE ACCOUNTS"},
-		"ALTER APPLICATION PACKAGE p MODIFY RELEASE CHANNEL QA SET ACCOUNTS = (o.a)":      {"MODIFY RELEASE CHANNEL", "SET ACCOUNTS"},
+		"ALTER APPLICATION PACKAGE p MODIFY RELEASE CHANNEL QA ADD ACCOUNTS = (o.a, o.b)": {"MODIFY RELEASE CHANNEL", "ADD"},
+		"ALTER APPLICATION PACKAGE p MODIFY RELEASE CHANNEL QA REMOVE ACCOUNTS = (o.a)":   {"MODIFY RELEASE CHANNEL", "REMOVE"},
+		"ALTER APPLICATION PACKAGE p MODIFY RELEASE CHANNEL QA SET ACCOUNTS = (o.a)":      {"MODIFY RELEASE CHANNEL", "SET"},
 		"ALTER APPLICATION PACKAGE p MODIFY RELEASE CHANNEL QA UNSET RELEASE DIRECTIVE d": {"MODIFY RELEASE CHANNEL", "UNSET RELEASE DIRECTIVE"},
 		"ALTER APPLICATION PACKAGE p MODIFY RELEASE CHANNEL QA SET DEFAULT RELEASE DIRECTIVE VERSION = v1 PATCH = 0 UPGRADE_AFTER = 't'": {
 			"MODIFY RELEASE CHANNEL", "SET DEFAULT RELEASE DIRECTIVE"},
@@ -157,8 +160,8 @@ func TestParseApplicationPackage(t *testing.T) {
 		"ALTER APPLICATION PACKAGE p MODIFY RELEASE DIRECTIVE d VERSION = v1 PATCH = 0 UPGRADE_IN_MAINTENANCE_WINDOW = TRUE": {
 			"MODIFY RELEASE DIRECTIVE"},
 		"ALTER APPLICATION PACKAGE p MODIFY RELEASE DIRECTIVE d ADD ACCOUNTS = (o.a) VERSION = v1 PATCH = 0 FORCE": {
-			"MODIFY RELEASE DIRECTIVE", "ADD ACCOUNTS", "FORCE"},
-		"ALTER APPLICATION PACKAGE p MODIFY RELEASE DIRECTIVE d REMOVE ACCOUNTS = (o.a)":                    {"MODIFY RELEASE DIRECTIVE", "REMOVE ACCOUNTS"},
+			"MODIFY RELEASE DIRECTIVE", "ADD", "FORCE"},
+		"ALTER APPLICATION PACKAGE p MODIFY RELEASE DIRECTIVE d REMOVE ACCOUNTS = (o.a)":                    {"MODIFY RELEASE DIRECTIVE", "REMOVE"},
 		"ALTER APPLICATION PACKAGE p SET DEFAULT RELEASE DIRECTIVE VERSION = v1 PATCH = 0":                  {"SET DEFAULT RELEASE DIRECTIVE"},
 		"ALTER APPLICATION PACKAGE p SET RELEASE DIRECTIVE d ACCOUNTS = (o.a) VERSION = v1 PATCH = 0 FORCE": {"SET RELEASE DIRECTIVE", "FORCE"},
 		"ALTER APPLICATION PACKAGE p UNSET RELEASE DIRECTIVE d":                                             {"UNSET RELEASE DIRECTIVE"},
@@ -167,9 +170,14 @@ func TestParseApplicationPackage(t *testing.T) {
 	}
 
 	s = mustObjectStmt(t, "ALTER APPLICATION PACKAGE p ADD PATCH 3 FOR VERSION v1 USING '@s/v1' LABEL = 'l'")
-	c := s.Clauses[0]
-	if len(c.Names) != 1 || c.Names[0].String() != "v1" || len(c.Options) != 3 || c.Options[0].Lit.Ival != 3 {
+	if c := s.Clauses[0]; len(c.Options) != 1 || c.Options[0].Lit.Ival != 3 {
 		t.Errorf("ADD PATCH = %+v", c)
+	}
+	if c := s.Clauses[1]; len(c.Names) != 1 || c.Names[0].String() != "v1" {
+		t.Errorf("FOR VERSION = %+v", c)
+	}
+	if c := s.Clauses[2]; len(c.Options) != 2 || c.Options[0].Lit.Value != "@s/v1" || c.Options[1].Name != "LABEL" {
+		t.Errorf("USING = %+v", c)
 	}
 	s = mustObjectStmt(t, "ALTER APPLICATION PACKAGE p MODIFY RELEASE CHANNEL QA ADD ACCOUNTS = (o.a, o.b)")
 	if acc := s.Clauses[1].Options[0]; acc.Name != "ACCOUNTS" || len(acc.Group) != 2 || acc.Group[1].Name != "O.B" {
@@ -316,6 +324,18 @@ func TestParseApplicationRejects(t *testing.T) {
 		"ALTER APPLICATION SERVICE s RENAME TO t",
 		"DROP APPLICATION PACKAGE p CASCADE",
 		"DROP APPLICATION a RESTRICT",
+		// names the pages write with one part
+		"CREATE APPLICATION db.a FROM LISTING l",
+		"CREATE APPLICATION a FROM LISTING db.l",
+		"CREATE APPLICATION IF NOT EXISTS a FROM LISTING l",
+		"DROP APPLICATION db.a",
+		"ALTER APPLICATION PACKAGE db.p SET COMMENT = 'c'",
+		"ALTER APPLICATION PACKAGE p DROP VERSION s.v",
+		"ALTER APPLICATION a UPGRADE USING VERSION s.v",
+		"ALTER APPLICATION SET SPECIFICATION db.s TYPE = SETTING LABEL = 'l' DESCRIPTION = 'd' SETTING = x",
+		"CREATE APPLICATION SERVICE s FROM ARTIFACT REPOSITORY r PACKAGE db.p",
+		"ALTER APPLICATION PACKAGE p SET ACCOUNTS = (o.a)", // a release channel's alone
+		"ALTER APPLICATION PACKAGE p MODIFY RELEASE CHANNEL QA SET ACCOUNTS = (o.a) COMMENT = 'c'",
 		// properties the pages do not document, or values of another shape
 		"CREATE APPLICATION a FROM LISTING l NOT_A_PROPERTY = 1",
 		"CREATE APPLICATION a FROM LISTING l COMMENT = 1",
