@@ -73,7 +73,7 @@ var nestingShapes = []struct {
 	{"struct literal", func(n int) string { return "SELECT " + nest(n, "{1, ", "1", "}") }},
 	{"ARRAY type", func(n int) string { return "SELECT CAST(NULL AS " + nest(n, "ARRAY<", "INT", ">") + ")" }},
 	{"MAP type", func(n int) string { return "SELECT CAST(NULL AS " + nest(n, "MAP<INT, ", "INT", ">") + ")" }},
-	{"STRUCT type", func(n int) string { return "SELECT CAST(NULL AS " + nest(n, "STRUCT<a ", "INT", ">") + ")" }},
+	{"STRUCT type", func(n int) string { return "SELECT CAST(NULL AS " + nest(n, "STRUCT<a:", "INT", ">") + ")" }},
 	{"scalar subquery", func(n int) string { return nest(n, "SELECT (", "SELECT 1", ")") }},
 	{"EXISTS", func(n int) string { return nest(n, "SELECT 1 FROM t WHERE EXISTS (", "SELECT 1", ")") }},
 	{"IN subquery", func(n int) string { return nest(n, "SELECT 1 FROM t WHERE a IN (", "SELECT a FROM t", ")") }},

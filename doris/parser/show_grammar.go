@@ -57,7 +57,7 @@ var dorisShowForms = compileShowForms([]string{
 	"SHOW CREATE VIEW name",
 	"SHOW CREATE ( DATABASE | SCHEMA ) name",
 	"SHOW CREATE CATALOG ident",
-	"SHOW CREATE [ ( GLOBAL | SESSION | LOCAL ) ] FUNCTION dbname '(' [ fargs ] ')' [ ( FROM | IN ) ident ]",
+	"SHOW CREATE [ ( GLOBAL | SESSION | LOCAL ) ] FUNCTION fsig [ ( FROM | IN ) ident ]",
 	"SHOW ( DATABASES | SCHEMAS ) [ FROM ident ] [ wild ]",
 	"SHOW DATABASE int",
 	"SHOW DATA TYPES",
@@ -356,17 +356,12 @@ func (p *Parser) showShapeNonterminal(name string) bool {
 		return false
 	case "tableref": // baseTableRef, as the ADMIN statements read it
 		return p.parseAdminBaseTableRef(&ast.AdminStmt{}) == nil
-	case "fargs": // functionArguments (:872)
-		for {
-			if !p.showShapeToken(tokDotDotDot) {
-				if _, err := p.parseDataType(); err != nil {
-					return false
-				}
-			}
-			if !p.showShapeToken(int(',')) {
-				return true
-			}
+	case "fsig": // functionIdentifier and its argument list, as function.go reads them
+		if _, err := p.parseFunctionIdentifier(); err != nil {
+			return false
 		}
+		_, _, err := p.parseFunctionArguments()
+		return err == nil
 	}
 	panic("show pattern names an unknown nonterminal: " + name)
 }
@@ -472,7 +467,7 @@ var showNonterminals = map[string]bool{
 	"ident": true, "name": true, "dbname": true, "text": true, "str": true,
 	"int": true, "ints": true, "expr": true, "wild": true, "sort": true,
 	"limit": true, "props": true, "user": true, "idlist": true, "part": true,
-	"tableref": true, "fargs": true,
+	"tableref": true, "fsig": true,
 }
 
 func (c *showCompiler) expect(t string) {

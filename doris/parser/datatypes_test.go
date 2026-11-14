@@ -285,12 +285,12 @@ func TestDataType_VARIANT(t *testing.T) {
 	assertTypeName(t, tn, "VARIANT")
 }
 
+// TestDataType_VARBINARY: Doris 3.1.4's grammar has no VARBINARY type
+// (primitiveColType, DorisParser.g4:1717), nor its lexer the word.
 func TestDataType_VARBINARY(t *testing.T) {
-	tn, err := parseType("VARBINARY")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	if _, err := parseType("VARBINARY"); err == nil {
+		t.Fatal("VARBINARY parsed; Doris 3.1.4 has no such type")
 	}
-	assertTypeName(t, tn, "VARBINARY")
 }
 
 // ---------------------------------------------------------------------------
@@ -461,7 +461,7 @@ func TestDataType_MAP_NoSpaces(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestDataType_STRUCT_SingleField(t *testing.T) {
-	tn, err := parseType("STRUCT<name VARCHAR(50)>")
+	tn, err := parseType("STRUCT<name:VARCHAR(50)>")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -477,7 +477,7 @@ func TestDataType_STRUCT_SingleField(t *testing.T) {
 }
 
 func TestDataType_STRUCT_TwoFields(t *testing.T) {
-	tn, err := parseType("STRUCT<name VARCHAR(50), age INT>")
+	tn, err := parseType("STRUCT<name:VARCHAR(50), age:INT>")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -497,7 +497,7 @@ func TestDataType_STRUCT_TwoFields(t *testing.T) {
 }
 
 func TestDataType_STRUCT_ThreeFields(t *testing.T) {
-	tn, err := parseType("STRUCT<id BIGINT, label VARCHAR(100), score DOUBLE>")
+	tn, err := parseType("STRUCT<id:BIGINT, label:VARCHAR(100) COMMENT 'l', score:DOUBLE>")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -516,7 +516,7 @@ func TestDataType_STRUCT_ThreeFields(t *testing.T) {
 }
 
 func TestDataType_STRUCT_NestedArray(t *testing.T) {
-	tn, err := parseType("STRUCT<tags ARRAY<STRING>, metadata MAP<STRING, INT>>")
+	tn, err := parseType("STRUCT<tags:ARRAY<STRING>, metadata:MAP<STRING, INT>>")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -635,4 +635,80 @@ func TestDataType_Lowercase_array(t *testing.T) {
 	}
 	assertTypeName(t, tn, "ARRAY")
 	assertTypeName(t, tn.ElementType, "INT")
+}
+
+// TestDataType_Grammar holds parseDataType to DorisParser.g4's dataType
+// (:1705) and parseLegacyDataType to the part of it the CUP parser's type
+// (DorisLegacyParser.g4:2528) also takes. The legacy verdicts are Doris's,
+// recorded in testdata/compat.tsv as DROP FUNCTION a(<type>).
+func TestDataType_Grammar(t *testing.T) {
+	cases := []struct {
+		in            string
+		antlr, legacy bool
+	}{
+		{"TINYINT(1)", true, true},
+		{"DATEV1(1)", true, false},
+		{"DATETIMEV1(1)", true, false},
+		{"BOOLEAN(1)", true, false},
+		{"DECIMAL(1, 1)", true, true},
+		{"DECIMAL(1, 1, 1)", true, false},
+		{"CHAR(1, 1)", true, false},
+		{"VARCHAR(*)", true, true},
+		{"VARCHAR(*, 1)", true, false},
+		{"CHAR(*)", true, false},
+		{"DECIMAL(a)", false, false},
+		{"AGG_STATE", true, false},
+		{"AGG_STATE<sum(INT NOT NULL, BIGINT NULL)>", true, true},
+		{"AGG_STATE<LEFT(INT)>", true, false},
+		{"AGG_STATE<a()>", false, false},
+		{"STRUCT<a:INT COMMENT 'c'>", true, true},
+		{"STRUCT<a INT>", false, false},
+		{"STRUCT<a:INT,>", false, false},
+		{"VARIANT<'a':INT, 'b':STRING COMMENT 'c'>", true, true},
+		{"VARIANT<MATCH_NAME 'a':INT>", true, false},
+		{"VARIANT<PROPERTIES('k' = 'v')>", true, true},
+		{"VARIANT<PROPERTIES(k = v)>", true, false},
+		{"VARIANT<'a':INT, PROPERTIES('k' = 'v')>", true, true},
+		{"VARIANT<'a':INT,>", false, false},
+		{"VARIANT<'a':INT PROPERTIES('k' = 'v')>", false, false},
+		{"MAP<INT, ARRAY<VARIANT>>", true, true},
+		{"VARBINARY", false, false},
+		{"foo", false, false},
+	}
+	for _, c := range cases {
+		for _, legacy := range []bool{false, true} {
+			p := makeParser(c.in)
+			_, err := p.readDataType(legacy)
+			if err == nil && p.cur.Kind != tokEOF {
+				err = p.syntaxErrorAtCur()
+			}
+			want := c.antlr
+			if legacy {
+				want = c.legacy
+			}
+			if (err == nil) != want {
+				t.Errorf("readDataType(%q, legacy=%v): err = %v, want accepted=%v", c.in, legacy, err, want)
+			}
+		}
+	}
+}
+
+func TestDataType_VariantAndAggState(t *testing.T) {
+	tn, err := parseType("VARIANT<MATCH_NAME_GLOB 'a*':INT COMMENT 'c', PROPERTIES(k = 1)>")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tn.Fields) != 1 || tn.Fields[0].Name != "a*" || tn.Fields[0].MatchType != "MATCH_NAME_GLOB" || tn.Fields[0].Comment != "c" {
+		t.Errorf("Fields = %+v", tn.Fields)
+	}
+	if len(tn.Properties) != 1 || tn.Properties[0].Key != "k" {
+		t.Errorf("Properties = %+v", tn.Properties)
+	}
+	tn, err = parseType("AGG_STATE<sum(INT NOT NULL)>")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tn.Func != "sum" || len(tn.Args) != 1 || tn.Args[0].Nullable != "NOT NULL" {
+		t.Errorf("AGG_STATE = %+v", tn)
+	}
 }
