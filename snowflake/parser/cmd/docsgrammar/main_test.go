@@ -380,3 +380,24 @@ func TestObjectPrivilegesFollowTheirObject(t *testing.T) {
 		t.Errorf("forms %q, failed %+v\nwant %s", pg.forms, pg.failed, want)
 	}
 }
+
+// TestSectionObjects pins how a privileges section header names its
+// object types, and their plurals.
+func TestSectionObjects(t *testing.T) {
+	got := sectionObjects("{ MASKING | ROW ACCESS } POLICY or TAG")
+	if strings.Join(got, ",") != "MASKING POLICY,ROW ACCESS POLICY,TAG" {
+		t.Errorf("brace header: %q", got)
+	}
+	got = sectionObjects("FILE FORMAT, FUNCTION (UDF or external function), or TYPE")
+	if strings.Join(got, ",") != "FILE FORMAT,FUNCTION,TYPE" {
+		t.Errorf("list header: %q", got)
+	}
+	if got := sectionObjects("internal STAGE"); strings.Join(got, ",") != "STAGE" {
+		t.Errorf("qualified header: %q", got)
+	}
+	for o, want := range map[string]string{"TABLE": "TABLES", "MASKING POLICY": "MASKING POLICIES", "GATEWAY": "GATEWAYS", "SNAPSHOT SET": "SNAPSHOT SETS"} {
+		if got := plural(o); got != want {
+			t.Errorf("plural(%s) = %s, want %s", o, got, want)
+		}
+	}
+}

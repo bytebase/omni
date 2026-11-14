@@ -455,25 +455,57 @@ func typeOptions(blocks []string) ([]string, bool) {
 	return res, true
 }
 
-// objectSection starts a section of accountObjectPrivileges for one kind
-// of object: -- For WAREHOUSE.
-var objectSection = regexp.MustCompile(`^\s*--\s*For\s+([A-Z][A-Z ]*[A-Z])\s*$`)
+// privilegeSection starts a section of a privileges definition for the
+// objects it names: -- For WAREHOUSE, -- For FILE FORMAT, FUNCTION (UDF or
+// external function), or TYPE, -- For { MASKING | ROW ACCESS } POLICY or TAG.
+var privilegeSection = regexp.MustCompile(`^\s*--\s*For\s+(.+?)\s*$`)
 
-// objectPrivilegesRef grants account-object privileges on a choice of
-// object types, as GRANT and REVOKE write it.
-var objectPrivilegesRef = regexp.MustCompile(`\{ accountObjectPrivileges\s+\| ALL \[ PRIVILEGES \] \} ON \{ ([A-Z |]+) \} (<[a-z_]+>)`)
+var (
+	parenthetical = regexp.MustCompile(`\([^)]*\)`)
+	braceObjects  = regexp.MustCompile(`\{([^}]*)\}\s*([A-Z][A-Z ]*[A-Z])`)
+	lowerWord     = regexp.MustCompile(`\b[a-z]+\b`)
+)
 
-// objectPrivileges splits accountObjectPrivileges ::= into one definition
-// for each of its -- For X sections, and has each grant choose an object
-// type with its own privileges:
-//
-//	{ accountObjectPrivileges | ALL [ PRIVILEGES ] } ON { USER | WAREHOUSE } <name>
-//
-// reads as { { accountObjectPrivileges_1 | ALL [ PRIVILEGES ] } ON USER
-// <name> | ... }, since the pages list each privilege under the objects it
-// applies to.
-func objectPrivileges(blocks []string) ([]string, bool) {
-	const head = "accountObjectPrivileges ::="
+// sectionObjects lists the object types a section header names.
+func sectionObjects(h string) []string {
+	h = parenthetical.ReplaceAllString(h, "")
+	h = braceObjects.ReplaceAllStringFunc(h, func(m string) string {
+		sub := braceObjects.FindStringSubmatch(m)
+		var out []string
+		for _, a := range strings.Split(sub[1], "|") {
+			out = append(out, strings.TrimSpace(a)+" "+sub[2])
+		}
+		return strings.Join(out, ", ")
+	})
+	h = strings.ReplaceAll(h, " or ", ", ")
+	h = lowerWord.ReplaceAllString(h, "")
+	var out []string
+	for _, o := range strings.Split(h, ",") {
+		o = strings.Join(strings.Fields(o), " ")
+		if o != "" {
+			out = append(out, o)
+		}
+	}
+	return out
+}
+
+// plural is an object type's plural, as ON ALL <object_type_plural> writes
+// it: TABLE, TABLES; POLICY, POLICIES.
+func plural(o string) string {
+	switch {
+	case strings.HasSuffix(o, "Y") && !strings.ContainsRune("AEIOU", rune(o[len(o)-2])):
+		return o[:len(o)-1] + "IES"
+	case strings.HasSuffix(o, "S") || strings.HasSuffix(o, "X"):
+		return o + "ES"
+	}
+	return o + "S"
+}
+
+// privilegeSections splits name ::= into one definition for each of its
+// -- For X sections, name_1 ::= and on, and returns which of them each
+// object type takes.
+func privilegeSections(blocks []string, name string) ([]string, map[string][]string, bool) {
+	head := name + " ::="
 	at := -1
 	for i, b := range blocks {
 		if strings.Contains(b, head) {
@@ -482,11 +514,11 @@ func objectPrivileges(blocks []string) ([]string, bool) {
 		}
 	}
 	if at < 0 {
-		return blocks, false
+		return blocks, nil, false
 	}
-	section := map[string]string{}
-	var names []string
+	takes := map[string][]string{}
 	var out []string
+	n := 0
 	in, done := false, false
 	for _, l := range strings.Split(blocks[at], "\n") {
 		switch {
@@ -496,51 +528,130 @@ func objectPrivileges(blocks []string) ([]string, bool) {
 			in = true
 		case !in:
 			out = append(out, l)
-		case objectSection.MatchString(l):
-			name := fmt.Sprintf("accountObjectPrivileges_%d", len(names)+1)
-			names = append(names, name)
-			section[objectSection.FindStringSubmatch(l)[1]] = name
-			out = append(out, name+" ::=")
+		case privilegeSection.MatchString(l):
+			n++
+			sec := fmt.Sprintf("%s_%d", name, n)
+			for _, o := range sectionObjects(privilegeSection.FindStringSubmatch(l)[1]) {
+				takes[o] = append(takes[o], sec)
+			}
+			out = append(out, sec+" ::=")
 		case defHead.MatchString(l):
 			done = true
 			out = append(out, l)
-		case len(names) == 0:
+		case n == 0:
 			if strings.TrimSpace(l) != "" {
-				return blocks, false
+				return blocks, nil, false
 			}
 		default:
 			out = append(out, l)
 		}
 	}
-	if len(names) == 0 {
-		return blocks, false
+	if n == 0 {
+		return blocks, nil, false
 	}
 	res := append([]string(nil), blocks...)
 	res[at] = strings.Join(out, "\n")
-	for i, b := range res {
-		if i == at {
-			continue
-		}
-		res[i] = objectPrivilegesRef.ReplaceAllStringFunc(b, func(m string) string {
-			sub := objectPrivilegesRef.FindStringSubmatch(m)
-			var alts []string
-			for _, o := range strings.Split(sub[1], "|") {
-				o = strings.TrimSpace(o)
-				privs := "ALL [ PRIVILEGES ]"
-				if name, ok := section[o]; ok {
-					privs = "{ " + name + " | ALL [ PRIVILEGES ] }"
+	return res, takes, true
+}
+
+// privilegesFor is the privileges an object type takes, or ALL.
+func privilegesFor(secs []string) string {
+	if len(secs) == 0 {
+		return "ALL [ PRIVILEGES ]"
+	}
+	return "{ " + strings.Join(secs, " | ") + " | ALL [ PRIVILEGES ] }"
+}
+
+// sortedObjects lists the object types in a stable order.
+func sortedObjects(takes map[string][]string) []string {
+	var out []string
+	for o := range takes {
+		out = append(out, o)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// objectPrivilegesRef grants account-object privileges on a choice of
+// object types, as GRANT and REVOKE write it.
+var objectPrivilegesRef = regexp.MustCompile(`\{ accountObjectPrivileges\s+\| ALL \[ PRIVILEGES \] \} ON \{ ([A-Z |]+) \} (<[a-z_]+>)`)
+
+// schemaObjectRef grants schema-object privileges on an object or on all
+// of a type in a schema; schemaFutureRef on future ones. Each leaves the
+// brace that closes it where it is, on its line or the next.
+var (
+	schemaObjectRef = regexp.MustCompile(`\{ schemaObjectPrivileges\s+\| ALL \[ PRIVILEGES \] \} ON \{ <object_type> <object_name> \| ALL <object_type_plural> IN (\{ DATABASE <db_name> \| SCHEMA <schema_name> \}|SCHEMA <schema_name>)`)
+	schemaFutureRef = regexp.MustCompile(`\{ schemaObjectPrivileges\s+\| ALL \[ PRIVILEGES \] \} ON FUTURE <object_type_plural> IN (\{ DATABASE <db_name> \| SCHEMA <schema_name> \}|SCHEMA <schema_name>)`)
+)
+
+// objectPrivileges splits accountObjectPrivileges ::= and
+// schemaObjectPrivileges ::= into one definition for each of their -- For X
+// sections, and has each grant choose an object type with its own
+// privileges:
+//
+//	{ accountObjectPrivileges | ALL [ PRIVILEGES ] } ON { USER | WAREHOUSE } <name>
+//
+// reads as { { accountObjectPrivileges_1 | ALL [ PRIVILEGES ] } ON USER
+// <name> | ... }, and ON <object_type> <object_name> as ON TABLE <name>
+// and every other type a section names, since the pages list each
+// privilege under the objects it applies to.
+func objectPrivileges(blocks []string) ([]string, bool) {
+	changed := false
+	if res, takes, ok := privilegeSections(blocks, "accountObjectPrivileges"); ok {
+		for i, b := range res {
+			res[i] = objectPrivilegesRef.ReplaceAllStringFunc(b, func(m string) string {
+				sub := objectPrivilegesRef.FindStringSubmatch(m)
+				var alts []string
+				for _, o := range strings.Split(sub[1], "|") {
+					o = strings.TrimSpace(o)
+					alts = append(alts, privilegesFor(takes[o])+" ON "+o+" "+sub[2])
 				}
-				alts = append(alts, privs+" ON "+o+" "+sub[2])
-			}
-			return "{ " + strings.Join(alts, " | ") + " }"
-		})
-		if strings.Contains(res[i], "accountObjectPrivileges ") || strings.Contains(res[i], "accountObjectPrivileges}") {
-			// A reference this does not rewrite would name a definition
-			// that is gone.
-			return blocks, false
+				return "{ " + strings.Join(alts, " | ") + " }"
+			})
+		}
+		if !mentions(res, "accountObjectPrivileges") {
+			blocks, changed = res, true
 		}
 	}
-	return res, true
+	if res, takes, ok := privilegeSections(blocks, "schemaObjectPrivileges"); ok {
+		objects := sortedObjects(takes)
+		for i, b := range res {
+			b = schemaObjectRef.ReplaceAllStringFunc(b, func(m string) string {
+				in := schemaObjectRef.FindStringSubmatch(m)[1]
+				var alts []string
+				for _, o := range objects {
+					alts = append(alts, privilegesFor(takes[o])+" ON { "+o+" <object_name> | ALL "+plural(o)+" IN "+in+" }")
+				}
+				// The brace the page closes the ON choice with closes this.
+				return "{ " + strings.Join(alts, " | ")
+			})
+			res[i] = schemaFutureRef.ReplaceAllStringFunc(b, func(m string) string {
+				in := schemaFutureRef.FindStringSubmatch(m)[1]
+				var alts []string
+				for _, o := range objects {
+					alts = append(alts, privilegesFor(takes[o])+" ON FUTURE "+plural(o)+" IN "+in)
+				}
+				return "{ " + strings.Join(alts, " | ") + " }"
+			})
+		}
+		if !mentions(res, "schemaObjectPrivileges") {
+			blocks, changed = res, true
+		}
+	}
+	return blocks, changed
+}
+
+// mentions reports whether a block still names the definition name, which a
+// split has replaced: a reference the rewrite did not read.
+func mentions(blocks []string, name string) bool {
+	for _, b := range blocks {
+		for _, l := range strings.Split(b, "\n") {
+			if i := strings.Index(l, name); i >= 0 && !strings.HasPrefix(l[i+len(name):], "_") {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // foreignKeyRef is a foreign key's REFERENCES clause, which takes the
@@ -641,7 +752,7 @@ func convertPage(slug string, blocks []string, fixes []*fix) pageGrammar {
 	}
 	if split, ok := objectPrivileges(blocks); ok {
 		blocks = split
-		pg.fixes = append(pg.fixes, "read: each -- For X section of accountObjectPrivileges is the privileges on X alone, and ON { X | Y } chooses an object type with its own privileges")
+		pg.fixes = append(pg.fixes, "read: each -- For X section of accountObjectPrivileges and schemaObjectPrivileges is the privileges on X alone, and the ON clause chooses an object type with its own privileges")
 	}
 	fk, prefixes := false, false
 	for i, b := range blocks {
