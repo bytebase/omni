@@ -1377,7 +1377,12 @@ func (p *Parser) parseAlterMaterializedViewStmt(start int) (nodes.StmtNode, erro
 		// optional ( SIZE size DATAFILE 'filename' INSTANCE integer )
 		if p.cur.Type == '(' {
 			p.advance()
-			for p.cur.Type != ')' && p.cur.Type != tokEOF {
+			for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+				// An item that consumes nothing would come round again.
+				if p.pos() == progress {
+					return nil, p.syntaxErrorAtCur()
+				}
+				progress = p.pos()
 				switch {
 				case p.isIdentLikeStr("SIZE"):
 					p.advance()
@@ -1567,7 +1572,12 @@ func (p *Parser) parseAlterMaterializedViewStmt(start int) (nodes.StmtNode, erro
 			stmt.Action = "MODIFY"
 			if p.cur.Type == '(' {
 				p.advance() // consume (
-				for p.cur.Type != ')' && p.cur.Type != tokEOF {
+				for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+					// An item that consumes nothing would come round again.
+					if p.pos() == progress {
+						return nil, p.syntaxErrorAtCur()
+					}
+					progress = p.pos()
 					// column_name
 					columnName, parseErr40 := p.parseIdentifier()
 					_ = columnName
@@ -4291,7 +4301,12 @@ func (p *Parser) parseAlterTypeReplaceClause(stmt *nodes.AlterTypeStmt) error {
 		// Parse attributes and method specs inside parentheses.
 		// Attributes are: name datatype
 		// Methods start with MEMBER, STATIC, MAP, ORDER, or CONSTRUCTOR
-		for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+			// An item that consumes nothing would come round again.
+			if p.pos() == progress {
+				return p.syntaxErrorAtCur()
+			}
+			progress = p.pos()
 			switch {
 			case p.isIdentLikeStr("MEMBER") || p.isIdentLikeStr("STATIC") ||
 				p.isIdentLikeStr("MAP") || p.isIdentLikeStr("ORDER") ||

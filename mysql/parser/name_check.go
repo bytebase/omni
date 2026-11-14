@@ -21,6 +21,25 @@ import (
 
 const maxIdentifierChars = 64
 
+// refuseRepeatedTables is 1066, ER_NONUNIQ_TABLE, for a name a statement's table list
+// holds twice: DROP TABLE, DROP VIEW, CHECKSUM TABLE and FLUSH TABLES add each name in
+// an action (add_table_to_list), so `DROP TABLE t, t` is refused while it parses.
+// CHECK, REPAIR, OPTIMIZE and ANALYZE TABLE add theirs after parsing and keep reading.
+// Names compare as written: whether t and T, or t and d.t, are one table is the
+// server's lower_case_table_names and current database, which the parser can't see.
+func refuseRepeatedTables(refs []*nodes.TableRef) error {
+	type key struct{ schema, name string }
+	seen := make(map[key]bool, len(refs))
+	for _, r := range refs {
+		k := key{r.Schema, r.Name}
+		if seen[k] {
+			return &ParseError{Message: "Not unique table/alias: '" + r.Name + "'", Position: r.Loc.Start}
+		}
+		seen[k] = true
+	}
+	return nil
+}
+
 func identifierNameRefused(name string) bool {
 	return name == "" || strings.HasSuffix(name, " ") || utf8.RuneCountInString(name) > maxIdentifierChars
 }

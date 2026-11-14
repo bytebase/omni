@@ -1,0 +1,32 @@
+# T-SQL token forms for generated compat rows: the text written for each
+# token of TSql160.g4 that is a class of texts, or that ScriptDOM's lexer
+# makes only by setting a type ($setType). Keywords and punctuation spell
+# themselves and need no row. Each note cites the lexer rule in TSql160.g,
+# whose lexer matches keywords in any case (caseSensitiveLiterals = false).
+# columns: token, form, note
+Identifier	a	TSql160.g:34277 a letter, _ or #, then letters, digits, _, #, @ and $; a keyword when its text is one (testLiterals)
+QuotedIdentifier	[a]	TSql160.g:34324 a bracketed name, ]] a bracket in it; or a double-quoted one, "" a quote in it, with QUOTED_IDENTIFIER ON
+AsciiStringOrQuotedIdentifier	"a"	TSql160.g:34346 a double-quoted text: a name under QUOTED_IDENTIFIER ON, which a session starts with, and a string under OFF
+AsciiStringLiteral	'a'	TSql160.g:34251 a single-quoted string; '' is a quote in it
+UnicodeStringLiteral	N'a'	TSql160.g:34264 N and a single-quoted string
+Variable	@a	TSql160.g:34360 @, then letters and digits; @@a is one too
+Integer	1	TSql160.g:34163 Number: digits that fit a 32-bit integer
+Numeric	1.5	TSql160.g:34163 Number: digits with a point, or too many for an integer
+Real	1E1	TSql160.g:34163 Number: digits with an exponent
+HexLiteral	0x00	TSql160.g:34163 Number: 0x and hex digits, none at all included
+Money	$1	TSql160.g:34308 Identifier: a currency sign and a number
+Label	a:	TSql160.g:34316 Identifier: a name followed by one colon
+SqlCommandIdentifier	$(a)	TSql160.g:34289 Identifier: $( ... ), a sqlcmd variable, which sqlcmd replaces before the server reads the text
+PseudoColumn	$IDENTITY	TSql160.g:34295 Identifier: $ and a name, such as $IDENTITY, $ROWGUID, $ACTION
+DollarPartition	$PARTITION	TSql160.g:34295 Identifier: $PARTITION, read as a partition function's prefix
+Go	GO	TSql160.g:34125 go at the start of a line, the client's batch separator; the server reads it as a name
+Dot	.	TSql160.g:34163 Number: a point with no digit after it
+Semicolon	;	TSql160.g:33987 a protected rule ProcNameSemicolon retypes
+SingleLineComment	-- a	TSql160.g:34367 -- to the end of the line, which the parser never sees
+MultilineComment	/* a */	TSql160.g:34386 /* to */, nesting, which the parser never sees
+Credential	(unreachable)	TSql160.g:399 a token the parser names and neither tokens block gives a text, so the lexer never makes it
+Connection	(unreachable)	TSql160.g a token the parser names and neither tokens block gives a text, so the lexer never makes it
+Object	(unreachable)	TSql160.g:33828 a token the parser names and neither tokens block gives a text, so the lexer never makes it
+Disk	(unreachable)	TSqlTokenTypes.g:208 a keyword of T-SQL 80 only, with no text in TSql160
+Precision	(unreachable)	TSqlTokenTypes.g:209 a keyword of T-SQL 80 only, with no text in TSql160; DOUBLE PRECISION matches an identifier
+statement	SELECT 1	TSql160.g:5013 the plainest statement, where the grammar's first, BREAK, is refused outside a WHILE (135)

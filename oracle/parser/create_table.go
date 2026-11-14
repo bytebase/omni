@@ -529,7 +529,12 @@ func selectStmtHasTargets(stmt nodes.StmtNode) bool {
 // parseColumnDefsAndConstraints parses the contents inside the parentheses of a CREATE TABLE.
 // It handles both column definitions and table-level constraints.
 func (p *Parser) parseColumnDefsAndConstraints(stmt *nodes.CreateTableStmt) error {
-	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+	for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+		// An item that consumes nothing would come round again.
+		if p.pos() == progress {
+			return p.syntaxErrorAtCur()
+		}
+		progress = p.pos()
 		before := stmt.Columns.Len() + stmt.Constraints.Len()
 		// Check if this is a table-level constraint
 		if p.isOutOfLineRefConstraintStart() {
@@ -1270,7 +1275,12 @@ func (p *Parser) parseEncryptionSpec(col *nodes.ColumnDef) error {
 //	[ { CACHE integer | NOCACHE } ]
 //	[ { ORDER | NOORDER } ]
 func (p *Parser) parseIdentityOptions(identity *nodes.IdentityClause) error {
-	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+	for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+		// An item that consumes nothing would come round again.
+		if p.pos() == progress {
+			return p.syntaxErrorAtCur()
+		}
+		progress = p.pos()
 		if !p.isIdentLike() {
 			return nil
 		}
@@ -2488,7 +2498,12 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 	// (columns)
 	if p.cur.Type == '(' {
 		p.advance()
-		for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+			// An item that consumes nothing would come round again.
+			if p.pos() == progress {
+				return nil, p.syntaxErrorAtCur()
+			}
+			progress = p.pos()
 			col, parseErr559 := p.parseExpr()
 			if parseErr559 != nil {
 				return nil, parseErr559
@@ -2555,7 +2570,12 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 
 	if p.cur.Type == '(' {
 		p.advance()
-		for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+			// An item that consumes nothing would come round again.
+			if p.pos() == progress {
+				return nil, p.syntaxErrorAtCur()
+			}
+			progress = p.pos()
 			pDef, parseErr561 := p.parsePartitionDef()
 			if parseErr561 != nil {
 				return nil, parseErr561
@@ -2623,7 +2643,12 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 		// (expr [,...])
 		if p.cur.Type == '(' {
 			p.advance()
-			for p.cur.Type != ')' && p.cur.Type != tokEOF {
+			for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+				// An item that consumes nothing would come round again.
+				if p.pos() == progress {
+					return nil, p.syntaxErrorAtCur()
+				}
+				progress = p.pos()
 				val, parseErr562 := p.parseExpr()
 				if parseErr562 != nil {
 					return nil, parseErr562

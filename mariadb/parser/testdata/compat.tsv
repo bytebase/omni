@@ -1132,7 +1132,7 @@ reject	reject	engine	sp_fdparam_list/sp_fdparams!drop-2	CREATE FUNCTION a(a) RET
 reject	reject	engine	sp_fdparam_list/sp_fdparams!truncate	CREATE FUNCTION a(a
 reject	reject	engine	sp_fdparam_list/sp_fdparams!insert	CREATE FUNCTION a(a INT zzz) RETURNS INT RETURN a;
 reject	reject	engine	sp_fdparam_list/sp_fdparams!swap	CREATE FUNCTION a(a INTERSECT) RETURNS INT RETURN a;
-accept	reject	engine	sp_fdparams/sp_fdparams_,_sp_param_default	CREATE FUNCTION a(a INT, a INT) RETURNS INT RETURN a;
+reject	reject	engine	sp_fdparams/sp_fdparams_,_sp_param_default	CREATE FUNCTION a(a INT, a INT) RETURNS INT RETURN a;
 reject	reject	engine	sp_fdparams/sp_fdparams_,_sp_param_default!drop-1	CREATE FUNCTION a(INT, a INT) RETURNS INT RETURN a;
 reject	reject	engine	sp_fdparams/sp_fdparams_,_sp_param_default!drop-2	CREATE FUNCTION a(a, a INT) RETURNS INT RETURN a;
 reject	reject	engine	sp_fdparams/sp_fdparams_,_sp_param_default!drop-3	CREATE FUNCTION a(a INT a INT) RETURNS INT RETURN a;
@@ -1169,7 +1169,7 @@ reject	reject	engine	sp_pdparam_list/sp_pdparams!drop-2	CREATE PROCEDURE a(a) CO
 reject	reject	engine	sp_pdparam_list/sp_pdparams!truncate	CREATE PROCEDURE a(a
 reject	reject	engine	sp_pdparam_list/sp_pdparams!insert	CREATE PROCEDURE a(a INT zzz) COMMIT;
 reject	reject	engine	sp_pdparam_list/sp_pdparams!swap	CREATE PROCEDURE a(a INTERSECT) COMMIT;
-accept	reject	engine	sp_pdparams/sp_pdparams_,_sp_param_default	CREATE PROCEDURE a(a INT, a INT) COMMIT;
+reject	reject	engine	sp_pdparams/sp_pdparams_,_sp_param_default	CREATE PROCEDURE a(a INT, a INT) COMMIT;
 reject	reject	engine	sp_pdparams/sp_pdparams_,_sp_param_default!drop-1	CREATE PROCEDURE a(INT, a INT) COMMIT;
 reject	reject	engine	sp_pdparams/sp_pdparams_,_sp_param_default!drop-2	CREATE PROCEDURE a(a, a INT) COMMIT;
 reject	reject	engine	sp_pdparams/sp_pdparams_,_sp_param_default!drop-3	CREATE PROCEDURE a(a INT a INT) COMMIT;
@@ -1463,7 +1463,7 @@ reject	reject	engine	statement_information/statement_information_,_statement_inf
 reject	reject	engine	statement_information/statement_information_,_statement_information_item!insert	GET DIAGNOSTICS @a = NUMBER, @a = NUMBER zzz;
 reject	reject	engine	statement_information/statement_information_,_statement_information_item!swap	GET DIAGNOSTICS @a = NUMERIC, @a = NUMBER;
 accept	accept	engine	statement_information_item/simple_target_specification_=_statement_information_item_name	GET DIAGNOSTICS @a = NUMBER;
-accept	reject	engine	simple_target_specification/ident_cli	GET DIAGNOSTICS a = NUMBER;
+reject	reject	engine	simple_target_specification/ident_cli	GET DIAGNOSTICS a = NUMBER;
 reject	reject	engine	simple_target_specification/ident_cli!truncate	GET DIAGNOSTICS
 reject	reject	engine	simple_target_specification/ident_cli!insert	GET DIAGNOSTICS a zzz = NUMBER;
 accept	accept	engine	simple_target_specification/@_ident_or_text	GET DIAGNOSTICS@a = NUMBER;
@@ -1591,18 +1591,18 @@ reject	reject	engine	cursor_actual_parameters/cursor_actual_parameters_,_assignm
 reject	reject	engine	cursor_actual_parameters/cursor_actual_parameters_,_assignment_source_expr!drop-3	ALTER EVENT a DO OPEN a(a,);
 reject	reject	engine	cursor_actual_parameters/cursor_actual_parameters_,_assignment_source_expr!truncate	ALTER EVENT a DO OPEN a(a,
 reject	reject	engine	cursor_actual_parameters/cursor_actual_parameters_,_assignment_source_expr!insert	ALTER EVENT a DO OPEN a(a, a zzz);
-accept	reject	engine	opt_parenthesized_cursor_actual_parameters/%empty	ALTER EVENT a DO OPEN a;
+reject	reject	engine	opt_parenthesized_cursor_actual_parameters/%empty	ALTER EVENT a DO OPEN a;
 reject	reject	engine	opt_parenthesized_cursor_actual_parameters/%empty!insert	ALTER EVENT a DO OPEN a zzz;
 reject	reject	engine	opt_parenthesized_cursor_actual_parameters/(_cursor_actual_parameters_)	ALTER EVENT a DO OPEN a(a);
 reject	reject	engine	opt_parenthesized_cursor_actual_parameters/(_cursor_actual_parameters_)!drop-1	ALTER EVENT a DO OPEN a a);
 reject	reject	engine	opt_parenthesized_cursor_actual_parameters/(_cursor_actual_parameters_)!drop-3	ALTER EVENT a DO OPEN a(a;
 reject	reject	engine	opt_parenthesized_cursor_actual_parameters/(_cursor_actual_parameters_)!truncate	ALTER EVENT a DO OPEN a(a
 reject	reject	engine	opt_parenthesized_cursor_actual_parameters/(_cursor_actual_parameters_)!insert	ALTER EVENT a DO OPEN a(a) zzz;
-accept	reject	engine	sp_proc_stmt_with_cursor/sp_proc_stmt_open	ALTER EVENT a DO OPEN a;
+reject	reject	engine	sp_proc_stmt_with_cursor/sp_proc_stmt_open	ALTER EVENT a DO OPEN a;
 reject	reject	engine	sp_proc_stmt_with_cursor/sp_proc_stmt_open!drop-2	ALTER EVENT a DO OPEN;
 reject	reject	engine	sp_proc_stmt_with_cursor/sp_proc_stmt_open!truncate	ALTER EVENT a DO OPEN
 reject	reject	engine	sp_proc_stmt_with_cursor/sp_proc_stmt_open!swap	ALTER EVENT a DO OPTIMIZE a;
-accept	reject	engine	sp_proc_stmt_with_cursor/sp_proc_stmt_fetch	ALTER EVENT a DO FETCH a INTO a;
+reject	reject	engine	sp_proc_stmt_with_cursor/sp_proc_stmt_fetch	ALTER EVENT a DO FETCH a INTO a;
 reject	reject	engine	sp_proc_stmt_with_cursor/sp_proc_stmt_fetch!drop-1	ALTER EVENT a DO a INTO a;
 reject	reject	engine	sp_proc_stmt_with_cursor/sp_proc_stmt_fetch!drop-2	ALTER EVENT a DO FETCH INTO a;
 reject	reject	engine	sp_proc_stmt_with_cursor/sp_proc_stmt_fetch!drop-3	ALTER EVENT a DO FETCH a a;
@@ -1610,31 +1610,31 @@ reject	reject	engine	sp_proc_stmt_with_cursor/sp_proc_stmt_fetch!drop-4	ALTER EV
 reject	reject	engine	sp_proc_stmt_with_cursor/sp_proc_stmt_fetch!truncate	ALTER EVENT a DO FETCH a INTO
 reject	reject	engine	sp_proc_stmt_with_cursor/sp_proc_stmt_fetch!insert	ALTER EVENT a DO FETCH a INTO a zzz;
 reject	reject	engine	sp_proc_stmt_with_cursor/sp_proc_stmt_fetch!swap	ALTER EVENT a DO FILE a INTO a;
-accept	reject	engine	sp_proc_stmt_with_cursor/sp_proc_stmt_close	ALTER EVENT a DO CLOSE a;
+reject	reject	engine	sp_proc_stmt_with_cursor/sp_proc_stmt_close	ALTER EVENT a DO CLOSE a;
 reject	reject	engine	sp_proc_stmt_with_cursor/sp_proc_stmt_close!drop-2	ALTER EVENT a DO CLOSE;
 reject	reject	engine	sp_proc_stmt_with_cursor/sp_proc_stmt_close!truncate	ALTER EVENT a DO CLOSE
 reject	reject	engine	sp_proc_stmt_with_cursor/sp_proc_stmt_close!insert	ALTER EVENT a DO CLOSE a zzz;
 reject	reject	engine	sp_proc_stmt_with_cursor/sp_proc_stmt_close!swap	ALTER EVENT a DO COALESCE a;
-accept	reject	engine	sp_proc_stmt_open/OPEN_SYM_ident_opt_parenthesized_cursor_actual_parameters	ALTER EVENT a DO OPEN a;
-accept	reject	engine	sp_proc_stmt_fetch_head/FETCH_SYM_ident_INTO	ALTER EVENT a DO FETCH a INTO a;
+reject	reject	engine	sp_proc_stmt_open/OPEN_SYM_ident_opt_parenthesized_cursor_actual_parameters	ALTER EVENT a DO OPEN a;
+reject	reject	engine	sp_proc_stmt_fetch_head/FETCH_SYM_ident_INTO	ALTER EVENT a DO FETCH a INTO a;
 reject	reject	engine	sp_proc_stmt_fetch_head/FETCH_SYM_ident_INTO!truncate	ALTER EVENT a DO FETCH a
 reject	reject	engine	sp_proc_stmt_fetch_head/FETCH_SYM_ident_INTO!insert	ALTER EVENT a DO FETCH a INTO zzz a;
-accept	reject	engine	sp_proc_stmt_fetch_head/FETCH_SYM_FROM_ident_INTO	ALTER EVENT a DO FETCH FROM a INTO a;
+reject	reject	engine	sp_proc_stmt_fetch_head/FETCH_SYM_FROM_ident_INTO	ALTER EVENT a DO FETCH FROM a INTO a;
 reject	reject	engine	sp_proc_stmt_fetch_head/FETCH_SYM_FROM_ident_INTO!drop-1	ALTER EVENT a DO FROM a INTO a;
 reject	reject	engine	sp_proc_stmt_fetch_head/FETCH_SYM_FROM_ident_INTO!drop-3	ALTER EVENT a DO FETCH FROM INTO a;
 reject	reject	engine	sp_proc_stmt_fetch_head/FETCH_SYM_FROM_ident_INTO!drop-4	ALTER EVENT a DO FETCH FROM a a;
 reject	reject	engine	sp_proc_stmt_fetch_head/FETCH_SYM_FROM_ident_INTO!truncate	ALTER EVENT a DO FETCH FROM a
 reject	reject	engine	sp_proc_stmt_fetch_head/FETCH_SYM_FROM_ident_INTO!insert	ALTER EVENT a DO FETCH FROM a INTO zzz a;
 reject	reject	engine	sp_proc_stmt_fetch_head/FETCH_SYM_FROM_ident_INTO!swap	ALTER EVENT a DO FILE FROM a INTO a;
-accept	reject	engine	sp_proc_stmt_fetch_head/FETCH_SYM_NEXT_SYM_FROM_ident_INTO	ALTER EVENT a DO FETCH NEXT FROM a INTO a;
+reject	reject	engine	sp_proc_stmt_fetch_head/FETCH_SYM_NEXT_SYM_FROM_ident_INTO	ALTER EVENT a DO FETCH NEXT FROM a INTO a;
 reject	reject	engine	sp_proc_stmt_fetch_head/FETCH_SYM_NEXT_SYM_FROM_ident_INTO!drop-1	ALTER EVENT a DO NEXT FROM a INTO a;
-accept	reject	engine	sp_proc_stmt_fetch_head/FETCH_SYM_NEXT_SYM_FROM_ident_INTO!drop-3	ALTER EVENT a DO FETCH NEXT a INTO a;
+reject	reject	engine	sp_proc_stmt_fetch_head/FETCH_SYM_NEXT_SYM_FROM_ident_INTO!drop-3	ALTER EVENT a DO FETCH NEXT a INTO a;
 reject	reject	engine	sp_proc_stmt_fetch_head/FETCH_SYM_NEXT_SYM_FROM_ident_INTO!drop-4	ALTER EVENT a DO FETCH NEXT FROM INTO a;
 reject	reject	engine	sp_proc_stmt_fetch_head/FETCH_SYM_NEXT_SYM_FROM_ident_INTO!drop-5	ALTER EVENT a DO FETCH NEXT FROM a a;
 reject	reject	engine	sp_proc_stmt_fetch_head/FETCH_SYM_NEXT_SYM_FROM_ident_INTO!truncate	ALTER EVENT a DO FETCH NEXT FROM a
 reject	reject	engine	sp_proc_stmt_fetch_head/FETCH_SYM_NEXT_SYM_FROM_ident_INTO!insert	ALTER EVENT a DO FETCH NEXT FROM a INTO zzz a;
 reject	reject	engine	sp_proc_stmt_fetch_head/FETCH_SYM_NEXT_SYM_FROM_ident_INTO!swap	ALTER EVENT a DO FILE NEXT FROM a INTO a;
-accept	reject	engine	sp_proc_stmt_fetch/sp_proc_stmt_fetch_head_sp_fetch_list	ALTER EVENT a DO FETCH a INTO a;
+reject	reject	engine	sp_proc_stmt_fetch/sp_proc_stmt_fetch_head_sp_fetch_list	ALTER EVENT a DO FETCH a INTO a;
 reject	reject	engine	sp_proc_stmt_fetch/FETCH_SYM_GROUP_SYM_NEXT_SYM_ROW_SYM	ALTER EVENT a DO FETCH GROUP NEXT ROW;
 reject	reject	engine	sp_proc_stmt_fetch/FETCH_SYM_GROUP_SYM_NEXT_SYM_ROW_SYM!drop-1	ALTER EVENT a DO GROUP NEXT ROW;
 reject	reject	engine	sp_proc_stmt_fetch/FETCH_SYM_GROUP_SYM_NEXT_SYM_ROW_SYM!drop-2	ALTER EVENT a DO FETCH NEXT ROW;
@@ -1643,9 +1643,9 @@ reject	reject	engine	sp_proc_stmt_fetch/FETCH_SYM_GROUP_SYM_NEXT_SYM_ROW_SYM!dro
 reject	reject	engine	sp_proc_stmt_fetch/FETCH_SYM_GROUP_SYM_NEXT_SYM_ROW_SYM!truncate	ALTER EVENT a DO FETCH GROUP NEXT
 reject	reject	engine	sp_proc_stmt_fetch/FETCH_SYM_GROUP_SYM_NEXT_SYM_ROW_SYM!insert	ALTER EVENT a DO FETCH GROUP NEXT ROW zzz;
 reject	reject	engine	sp_proc_stmt_fetch/FETCH_SYM_GROUP_SYM_NEXT_SYM_ROW_SYM!swap	ALTER EVENT a DO FILE GROUP NEXT ROW;
-accept	reject	engine	sp_proc_stmt_close/CLOSE_SYM_ident	ALTER EVENT a DO CLOSE a;
-accept	reject	engine	sp_fetch_list/ident	ALTER EVENT a DO FETCH a INTO a;
-accept	reject	engine	sp_fetch_list/sp_fetch_list_,_ident	ALTER EVENT a DO FETCH a INTO a, a;
+reject	reject	engine	sp_proc_stmt_close/CLOSE_SYM_ident	ALTER EVENT a DO CLOSE a;
+reject	reject	engine	sp_fetch_list/ident	ALTER EVENT a DO FETCH a INTO a;
+reject	reject	engine	sp_fetch_list/sp_fetch_list_,_ident	ALTER EVENT a DO FETCH a INTO a, a;
 reject	reject	engine	sp_fetch_list/sp_fetch_list_,_ident!drop-1	ALTER EVENT a DO FETCH a INTO, a;
 reject	reject	engine	sp_fetch_list/sp_fetch_list_,_ident!drop-2	ALTER EVENT a DO FETCH a INTO a a;
 reject	reject	engine	sp_fetch_list/sp_fetch_list_,_ident!drop-3	ALTER EVENT a DO FETCH a INTO a,;
@@ -4521,7 +4521,7 @@ reject	reject	engine	opt_view_repair_type/FROM_MYSQL_SYM!insert	REPAIR VIEW a FR
 reject	reject	engine	opt_view_repair_type/FROM_MYSQL_SYM!swap	REPAIR VIEW a FULL MYSQL;
 accept	accept	engine	analyze/ANALYZE_SYM_opt_no_write_to_binlog_table_or_tables_analyze_table_list	ANALYZE TABLE a;
 accept	accept	engine	analyze_table_list/analyze_table_elem_spec	ANALYZE TABLE a;
-accept	reject	engine	analyze_table_list/analyze_table_list_,_analyze_table_elem_spec	ANALYZE TABLE a, a;
+reject	reject	engine	analyze_table_list/analyze_table_list_,_analyze_table_elem_spec	ANALYZE TABLE a, a;
 reject	reject	engine	analyze_table_list/analyze_table_list_,_analyze_table_elem_spec!drop-1	ANALYZE TABLE, a;
 reject	reject	engine	analyze_table_list/analyze_table_list_,_analyze_table_elem_spec!drop-2	ANALYZE TABLE a a;
 reject	reject	engine	analyze_table_list/analyze_table_list_,_analyze_table_elem_spec!drop-3	ANALYZE TABLE a,;
@@ -4696,7 +4696,7 @@ reject	reject	engine	keycache_list_or_parts/assign_to_keycache_parts!truncate	CA
 reject	reject	engine	keycache_list_or_parts/assign_to_keycache_parts!insert	CACHE INDEX a PARTITION(ALL) zzz IN a;
 reject	reject	engine	keycache_list_or_parts/assign_to_keycache_parts!swap	CACHE INDEX a PARTITIONING(ALL) IN a;
 accept	accept	engine	keycache_list/assign_to_keycache	CACHE INDEX a IN a;
-accept	reject	engine	keycache_list/keycache_list_,_assign_to_keycache	CACHE INDEX a, a IN a;
+reject	reject	engine	keycache_list/keycache_list_,_assign_to_keycache	CACHE INDEX a, a IN a;
 reject	reject	engine	keycache_list/keycache_list_,_assign_to_keycache!drop-1	CACHE INDEX, a IN a;
 reject	reject	engine	keycache_list/keycache_list_,_assign_to_keycache!drop-2	CACHE INDEX a a IN a;
 reject	reject	engine	keycache_list/keycache_list_,_assign_to_keycache!drop-3	CACHE INDEX a, IN a;
@@ -4720,7 +4720,7 @@ reject	reject	engine	preload_list_or_parts/preload_keys_parts!insert	LOAD INDEX 
 reject	reject	engine	preload_list_or_parts/preload_keys_parts!swap	LOAD INDEX INTO CACHE a PARTITIONING(ALL);
 accept	accept	engine	preload_list_or_parts/preload_list	LOAD INDEX INTO CACHE a;
 accept	accept	engine	preload_list/preload_keys	LOAD INDEX INTO CACHE a;
-accept	reject	engine	preload_list/preload_list_,_preload_keys	LOAD INDEX INTO CACHE a, a;
+reject	reject	engine	preload_list/preload_list_,_preload_keys	LOAD INDEX INTO CACHE a, a;
 reject	reject	engine	preload_list/preload_list_,_preload_keys!drop-1	LOAD INDEX INTO CACHE, a;
 reject	reject	engine	preload_list/preload_list_,_preload_keys!drop-2	LOAD INDEX INTO CACHE a a;
 reject	reject	engine	preload_list/preload_list_,_preload_keys!drop-3	LOAD INDEX INTO CACHE a,;
@@ -7923,7 +7923,7 @@ accept	accept	engine	select_outvar/@_ident_or_text	SELECT a INTO@a;
 reject	reject	engine	select_outvar/@_ident_or_text!drop-2	SELECT a INTO@;
 reject	reject	engine	select_outvar/@_ident_or_text!truncate	SELECT a INTO@
 reject	reject	engine	select_outvar/@_ident_or_text!insert	SELECT a INTO@a zzz;
-accept	reject	engine	select_outvar/ident_or_text	SELECT a INTO a;
+reject	reject	engine	select_outvar/ident_or_text	SELECT a INTO a;
 reject	reject	engine	select_outvar/ident_or_text!insert	SELECT a INTO a zzz;
 reject	reject	engine	select_outvar/ident_._ident	SELECT a INTO a.a;
 reject	reject	engine	select_outvar/ident_._ident!drop-1	SELECT a INTO.a;
@@ -7999,7 +7999,7 @@ reject	reject	engine	drop/DROP_opt_temporary_SEQUENCE_SYM_opt_if_exists_table_li
 reject	reject	engine	drop/DROP_opt_temporary_SEQUENCE_SYM_opt_if_exists_table_list!swap	DUAL SEQUENCE a;
 accept	accept	engine	drop/drop_routine	DROP FUNCTION a;
 accept	accept	engine	table_list/table_name	CHECK TABLE a;
-accept	reject	engine	table_list/table_list_,_table_name	CHECK TABLE a, a;
+reject	reject	engine	table_list/table_list_,_table_name	CHECK TABLE a, a;
 reject	reject	engine	table_list/table_list_,_table_name!drop-1	CHECK TABLE, a;
 reject	reject	engine	table_list/table_list_,_table_name!drop-2	CHECK TABLE a a;
 reject	reject	engine	table_list/table_list_,_table_name!drop-3	CHECK TABLE a,;
@@ -9242,7 +9242,7 @@ reject	reject	engine	opt_recursive/RECURSIVE_SYM!insert	WITH RECURSIVE zzz a AS(
 reject	reject	engine	opt_recursive/RECURSIVE_SYM!swap	WITH REDOFILE a AS(SELECT a) SELECT a;
 accept	accept	engine	with_list/with_list_element	WITH a AS(SELECT a) SELECT a;
 reject	reject	engine	with_list/with_list_element!swap	WITH a ASC(SELECT a) SELECT a;
-accept	reject	engine	with_list/with_list_,_with_list_element	WITH a AS(SELECT a), a AS(SELECT a) SELECT a;
+reject	reject	engine	with_list/with_list_,_with_list_element	WITH a AS(SELECT a), a AS(SELECT a) SELECT a;
 reject	reject	engine	with_list/with_list_,_with_list_element!drop-1	WITH AS(SELECT a), a AS(SELECT a) SELECT a;
 reject	reject	engine	with_list/with_list_,_with_list_element!drop-2	WITH a(SELECT a), a AS(SELECT a) SELECT a;
 reject	reject	engine	with_list/with_list_,_with_list_element!drop-3	WITH a AS SELECT a), a AS(SELECT a) SELECT a;
@@ -12819,7 +12819,7 @@ reject	reject	engine	sp_proc_stmt/sp_proc_stmt_in_returns_clause	ALTER EVENT a D
 accept	accept	engine	sp_proc_stmt/sp_proc_stmt_statement	ALTER EVENT a DO COMMIT;
 reject	reject	engine	sp_proc_stmt/sp_proc_stmt_leave	ALTER EVENT a DO LEAVE a;
 reject	reject	engine	sp_proc_stmt/sp_proc_stmt_iterate	ALTER EVENT a DO ITERATE a;
-accept	reject	engine	sp_proc_stmt/sp_proc_stmt_with_cursor	ALTER EVENT a DO OPEN a;
+reject	reject	engine	sp_proc_stmt/sp_proc_stmt_with_cursor	ALTER EVENT a DO OPEN a;
 reject	reject	engine	sp_proc_stmt_compound_ok/sp_proc_stmt_if	IF a THEN COMMIT; END IF;
 reject	reject	engine	sp_proc_stmt_compound_ok/case_stmt_specification	CASE WHEN a THEN COMMIT; END CASE;
 reject	accept	engine	sp_proc_stmt_compound_ok/sp_unlabeled_block_not_atomic	BEGIN NOT ATOMIC END;
