@@ -790,11 +790,11 @@ reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~8
 accept	accept	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createApplicationRoleStatement_APPLICATION	CREATE APPLICATION ROLE a WITH PASSWORD = 'a'
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createApplicationRoleStatement_APPLICATION!drop-1	CREATE ROLE a WITH PASSWORD = 'a'
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createApplicationRoleStatement_APPLICATION!drop-2	CREATE APPLICATION a WITH PASSWORD = 'a'
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createApplicationRoleStatement_APPLICATION!drop-3	CREATE APPLICATION ROLE WITH PASSWORD = 'a'
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createApplicationRoleStatement_APPLICATION!drop-3	CREATE APPLICATION ROLE WITH PASSWORD = 'a'
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createApplicationRoleStatement_APPLICATION!drop-4	CREATE APPLICATION ROLE a PASSWORD = 'a'
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createApplicationRoleStatement_APPLICATION!drop-5	CREATE APPLICATION ROLE a WITH = 'a'
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createApplicationRoleStatement_APPLICATION!drop-6	CREATE APPLICATION ROLE a WITH PASSWORD 'a'
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createApplicationRoleStatement_APPLICATION!drop-7	CREATE APPLICATION ROLE a WITH PASSWORD =
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createApplicationRoleStatement_APPLICATION!drop-7	CREATE APPLICATION ROLE a WITH PASSWORD =
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createApplicationRoleStatement_APPLICATION!insert	CREATE APPLICATION ROLE a WITH PASSWORD = 'a' zzz
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createApplicationRoleStatement_APPLICATION!swap	CREATE APPLICATION_LOG ROLE a WITH PASSWORD = 'a'
 accept	accept	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createAssemblyStatement_ASSEMBLY	CREATE ASSEMBLY a FROM 1
@@ -981,9 +981,9 @@ reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~8
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createXmlStatements_XML!swap	CREATE XMLNAMESPACES SCHEMA COLLECTION a AS 1
 accept	accept	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createLoginStatement_LOGIN	CREATE LOGIN a FROM WINDOWS
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createLoginStatement_LOGIN!drop-1	CREATE a FROM WINDOWS
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createLoginStatement_LOGIN!drop-2	CREATE LOGIN FROM WINDOWS
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createLoginStatement_LOGIN!drop-2	CREATE LOGIN FROM WINDOWS
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createLoginStatement_LOGIN!drop-3	CREATE LOGIN a WINDOWS
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createLoginStatement_LOGIN!drop-4	CREATE LOGIN a FROM
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createLoginStatement_LOGIN!drop-4	CREATE LOGIN a FROM
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createLoginStatement_LOGIN!insert	CREATE LOGIN a FROM WINDOWS zzz
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createLoginStatement_LOGIN!swap	CREATE LOGIN_TYPE a FROM WINDOWS
 accept	accept	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createMessageTypeStatement_MESSAGE	CREATE MESSAGE TYPE a
@@ -1032,7 +1032,7 @@ accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~8
 accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createResourcePoolStatement_RESOURCE!insert	CREATE RESOURCE POOL a zzz
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createResourcePoolStatement_RESOURCE!swap	CREATE RESPECT POOL a
 accept	accept	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createRoleStatement_ROLE	CREATE ROLE a
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createRoleStatement_ROLE!drop-2	CREATE ROLE
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createRoleStatement_ROLE!drop-2	CREATE ROLE
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createRoleStatement_ROLE!insert	CREATE ROLE a zzz
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createRoleStatement_ROLE!swap	CREATE ROLLBACK a
 accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createRouteStatement_ROUTE	CREATE ROUTE a WITH LIFETIME = 1
@@ -1094,7 +1094,7 @@ reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~8
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createTypeStatement_TYPE!swap	CREATE UNBOUNDED a FROM a
 accept	accept	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createServerStatements_SERVER	CREATE SERVER ROLE a
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createServerStatements_SERVER!drop-2	CREATE SERVER a
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createServerStatements_SERVER!drop-3	CREATE SERVER ROLE
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createServerStatements_SERVER!drop-3	CREATE SERVER ROLE
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createServerStatements_SERVER!insert	CREATE SERVER ROLE a zzz
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createServerStatements_SERVER!swap	CREATE SERVICE ROLE a
 accept	accept	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createWorkloadStatements_WORKLOAD	CREATE WORKLOAD GROUP a
@@ -1114,7 +1114,7 @@ accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~8
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSecurityPolicyStatement_SECURITY!insert	CREATE SECURITY POLICY a zzz
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSecurityPolicyStatement_SECURITY!swap	CREATE SECURITY_LOG POLICY a
 accept	accept	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createUserStatement	CREATE USER a
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createUserStatement!drop-2	CREATE USER
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createUserStatement!drop-2	CREATE USER
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createUserStatement!insert	CREATE USER a zzz
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createUserStatement!swap	CREATE USER_DB a
 accept	accept	engine	aggregateParameter/identifierVariable_(As)?_scalarDataType_(nullableConstraint)?	CREATE AGGREGATE a(@a a) RETURNS a EXTERNAL NAME a
@@ -4381,52 +4381,52 @@ reject	reject	engine	promotedSelectiveXmlIndexPathInAlter/REMOVE_identifier!drop
 reject	reject	engine	promotedSelectiveXmlIndexPathInAlter/REMOVE_identifier!truncate	ALTER INDEX a ON a FOR(REMOVE
 reject	reject	engine	promotedSelectiveXmlIndexPathInAlter/REMOVE_identifier!insert	ALTER INDEX a ON a FOR(REMOVE a zzz)
 reject	reject	engine	promotedSelectiveXmlIndexPathInAlter/REMOVE_identifier!swap	ALTER INDEX a ON a FOR(RENAME a)
-accept	reject	engine	passwordLoginSource/With_PASSWORD_EqualsSign_loginPassword_(createLoginPass~ee437d02	CREATE LOGIN a WITH PASSWORD = 0x00
+reject	reject	engine	passwordLoginSource/With_PASSWORD_EqualsSign_loginPassword_(createLoginPass~ee437d02	CREATE LOGIN a WITH PASSWORD = 0x00
 reject	reject	engine	passwordLoginSource/With_PASSWORD_EqualsSign_loginPassword_(createLoginPass~ee437d02!drop-1	CREATE LOGIN a PASSWORD = 0x00
 reject	reject	engine	passwordLoginSource/With_PASSWORD_EqualsSign_loginPassword_(createLoginPass~ee437d02!drop-2	CREATE LOGIN a WITH = 0x00
 reject	reject	engine	passwordLoginSource/With_PASSWORD_EqualsSign_loginPassword_(createLoginPass~ee437d02!drop-3	CREATE LOGIN a WITH PASSWORD 0x00
-accept	reject	engine	passwordLoginSource/With_PASSWORD_EqualsSign_loginPassword_(createLoginPass~ee437d02!drop-4	CREATE LOGIN a WITH PASSWORD =
+reject	reject	engine	passwordLoginSource/With_PASSWORD_EqualsSign_loginPassword_(createLoginPass~ee437d02!drop-4	CREATE LOGIN a WITH PASSWORD =
 reject	reject	engine	passwordLoginSource/With_PASSWORD_EqualsSign_loginPassword_(createLoginPass~ee437d02!insert	CREATE LOGIN a WITH PASSWORD = 0x00 zzz
 reject	reject	engine	passwordLoginSource/With_PASSWORD_EqualsSign_loginPassword_(createLoginPass~ee437d02!swap	CREATE LOGIN a WITHIN PASSWORD = 0x00
-accept	reject	engine	passwordLoginSource(createLoginPasswordOption)*/%empty	CREATE LOGIN a WITH PASSWORD = 0x00
+reject	reject	engine	passwordLoginSource(createLoginPasswordOption)*/%empty	CREATE LOGIN a WITH PASSWORD = 0x00
 accept	accept	engine	passwordLoginSource(createLoginPasswordOption)*/createLoginPasswordOption_(createLoginPasswordOption)*	CREATE LOGIN a WITH PASSWORD = 0x00 HASHED
 reject	reject	engine	passwordLoginSource(createLoginPasswordOption)*/createLoginPasswordOption_(createLoginPasswordOption)*!insert	CREATE LOGIN a WITH PASSWORD = 0x00 HASHED zzz
 reject	reject	engine	passwordLoginSource(createLoginPasswordOption)*/createLoginPasswordOption_(createLoginPasswordOption)*!swap	CREATE LOGIN a WITH PASSWORD = 0x00 HAVING
-accept	reject	engine	passwordLoginSource(Comma_createLoginParam)*/%empty	CREATE LOGIN a WITH PASSWORD = 0x00
-accept	reject	engine	passwordLoginSource(Comma_createLoginParam)*/Comma_createLoginParam_(Comma_createLoginParam)*	CREATE LOGIN a WITH PASSWORD = 0x00, a = ON
+reject	reject	engine	passwordLoginSource(Comma_createLoginParam)*/%empty	CREATE LOGIN a WITH PASSWORD = 0x00
+reject	reject	engine	passwordLoginSource(Comma_createLoginParam)*/Comma_createLoginParam_(Comma_createLoginParam)*	CREATE LOGIN a WITH PASSWORD = 0x00, a = ON
 reject	reject	engine	passwordLoginSource(Comma_createLoginParam)*/Comma_createLoginParam_(Comma_createLoginParam)*!drop-1	CREATE LOGIN a WITH PASSWORD = 0x00 a = ON
 reject	reject	engine	passwordLoginSource(Comma_createLoginParam)*/Comma_createLoginParam_(Comma_createLoginParam)*!drop-2	CREATE LOGIN a WITH PASSWORD = 0x00, = ON
 reject	reject	engine	passwordLoginSource(Comma_createLoginParam)*/Comma_createLoginParam_(Comma_createLoginParam)*!drop-3	CREATE LOGIN a WITH PASSWORD = 0x00, a ON
-accept	reject	engine	passwordLoginSource(Comma_createLoginParam)*/Comma_createLoginParam_(Comma_createLoginParam)*!drop-4	CREATE LOGIN a WITH PASSWORD = 0x00, a =
+reject	reject	engine	passwordLoginSource(Comma_createLoginParam)*/Comma_createLoginParam_(Comma_createLoginParam)*!drop-4	CREATE LOGIN a WITH PASSWORD = 0x00, a =
 reject	reject	engine	passwordLoginSource(Comma_createLoginParam)*/Comma_createLoginParam_(Comma_createLoginParam)*!insert	CREATE LOGIN a WITH PASSWORD = 0x00, a = ON zzz
-accept	reject	engine	passwordLoginSource(Comma_createLoginParam)*/Comma_createLoginParam_(Comma_createLoginParam)*!swap	CREATE LOGIN a WITH PASSWORD = 0x00, a = ONLINE
-accept	reject	engine	loginPassword/binary	ALTER LOGIN a WITH a = 0x00
-accept	reject	engine	loginPassword/binary!drop-1	ALTER LOGIN a WITH a =
+reject	reject	engine	passwordLoginSource(Comma_createLoginParam)*/Comma_createLoginParam_(Comma_createLoginParam)*!swap	CREATE LOGIN a WITH PASSWORD = 0x00, a = ONLINE
+reject	reject	engine	loginPassword/binary	ALTER LOGIN a WITH a = 0x00
+reject	reject	engine	loginPassword/binary!drop-1	ALTER LOGIN a WITH a =
 reject	reject	engine	loginPassword/binary!insert	ALTER LOGIN a WITH a = 0x00 zzz
-accept	reject	engine	loginPassword/stringLiteral	ALTER LOGIN a WITH a = 'a'
+reject	reject	engine	loginPassword/stringLiteral	ALTER LOGIN a WITH a = 'a'
 reject	reject	engine	loginPassword/stringLiteral!insert	ALTER LOGIN a WITH a = 'a' zzz
 accept	accept	engine	createLoginPasswordOption/(HASHED|MUST_CHANGE)	CREATE LOGIN a WITH PASSWORD = 0x00 HASHED
 accept	accept	engine	createLoginPasswordOption(HASHED|MUST_CHANGE)/HASHED	CREATE LOGIN a WITH PASSWORD = 0x00 HASHED
-accept	reject	engine	createLoginPasswordOption(HASHED|MUST_CHANGE)/MUST_CHANGE	CREATE LOGIN a WITH PASSWORD = 0x00 MUST_CHANGE
+reject	reject	engine	createLoginPasswordOption(HASHED|MUST_CHANGE)/MUST_CHANGE	CREATE LOGIN a WITH PASSWORD = 0x00 MUST_CHANGE
 reject	reject	engine	createLoginPasswordOption(HASHED|MUST_CHANGE)/MUST_CHANGE!insert	CREATE LOGIN a WITH PASSWORD = 0x00 MUST_CHANGE zzz
 reject	reject	engine	createLoginPasswordOption(HASHED|MUST_CHANGE)/MUST_CHANGE!swap	CREATE LOGIN a WITH PASSWORD = 0x00 NAME
-accept	reject	engine	createLoginParam/Identifier_EqualsSign_(onOffPrincipalOption|binary|identifier)	CREATE LOGIN a WITH PASSWORD = 0x00, a = ON
-accept	reject	engine	createLoginParam(onOffPrincipalOption|binary|identifier)/onOffPrincipalOption	CREATE LOGIN a WITH PASSWORD = 0x00, a = ON
-accept	reject	engine	createLoginParam(onOffPrincipalOption|binary|identifier)/binary	CREATE LOGIN a WITH PASSWORD = 0x00, a = 0x00
+reject	reject	engine	createLoginParam/Identifier_EqualsSign_(onOffPrincipalOption|binary|identifier)	CREATE LOGIN a WITH PASSWORD = 0x00, a = ON
+reject	reject	engine	createLoginParam(onOffPrincipalOption|binary|identifier)/onOffPrincipalOption	CREATE LOGIN a WITH PASSWORD = 0x00, a = ON
+reject	reject	engine	createLoginParam(onOffPrincipalOption|binary|identifier)/binary	CREATE LOGIN a WITH PASSWORD = 0x00, a = 0x00
 reject	reject	engine	createLoginParam(onOffPrincipalOption|binary|identifier)/binary!insert	CREATE LOGIN a WITH PASSWORD = 0x00, a = 0x00 zzz
-accept	reject	engine	createLoginParam(onOffPrincipalOption|binary|identifier)/identifier	CREATE LOGIN a WITH PASSWORD = 0x00, a = a
+reject	reject	engine	createLoginParam(onOffPrincipalOption|binary|identifier)/identifier	CREATE LOGIN a WITH PASSWORD = 0x00, a = a
 reject	reject	engine	createLoginParam(onOffPrincipalOption|binary|identifier)/identifier!insert	CREATE LOGIN a WITH PASSWORD = 0x00, a = a zzz
-accept	reject	engine	onOffPrincipalOption/optionOnOff	ALTER LOGIN a WITH a = ON
+reject	reject	engine	onOffPrincipalOption/optionOnOff	ALTER LOGIN a WITH a = ON
 reject	reject	engine	onOffPrincipalOption/optionOnOff!insert	ALTER LOGIN a WITH a = ON zzz
-accept	reject	engine	onOffPrincipalOption/optionOnOff!swap	ALTER LOGIN a WITH a = ONLINE
-accept	reject	engine	createLoginParamWin/Identifier_EqualsSign_identifier	CREATE LOGIN a FROM WINDOWS WITH a = a
+reject	reject	engine	onOffPrincipalOption/optionOnOff!swap	ALTER LOGIN a WITH a = ONLINE
+reject	reject	engine	createLoginParamWin/Identifier_EqualsSign_identifier	CREATE LOGIN a FROM WINDOWS WITH a = a
 reject	reject	engine	createLoginParamWin/Identifier_EqualsSign_identifier!drop-1	CREATE LOGIN a FROM WINDOWS WITH = a
 reject	reject	engine	createLoginParamWin/Identifier_EqualsSign_identifier!drop-2	CREATE LOGIN a FROM WINDOWS WITH a a
-accept	reject	engine	createLoginParamWin/Identifier_EqualsSign_identifier!drop-3	CREATE LOGIN a FROM WINDOWS WITH a =
+reject	reject	engine	createLoginParamWin/Identifier_EqualsSign_identifier!drop-3	CREATE LOGIN a FROM WINDOWS WITH a =
 reject	reject	engine	createLoginParamWin/Identifier_EqualsSign_identifier!insert	CREATE LOGIN a FROM WINDOWS WITH a = a zzz
 accept	accept	engine	externalLoginSource/External_PROVIDER_(With_createLoginParamExt_(Comma_crea~7a83d163	CREATE LOGIN a FROM EXTERNAL PROVIDER
 reject	reject	engine	externalLoginSource/External_PROVIDER_(With_createLoginParamExt_(Comma_crea~7a83d163!drop-1	CREATE LOGIN a FROM PROVIDER
-accept	reject	engine	externalLoginSource/External_PROVIDER_(With_createLoginParamExt_(Comma_crea~7a83d163!drop-2	CREATE LOGIN a FROM EXTERNAL
+reject	reject	engine	externalLoginSource/External_PROVIDER_(With_createLoginParamExt_(Comma_crea~7a83d163!drop-2	CREATE LOGIN a FROM EXTERNAL
 reject	reject	engine	externalLoginSource/External_PROVIDER_(With_createLoginParamExt_(Comma_crea~7a83d163!insert	CREATE LOGIN a FROM EXTERNAL PROVIDER zzz
 reject	reject	engine	externalLoginSource/External_PROVIDER_(With_createLoginParamExt_(Comma_crea~7a83d163!swap	CREATE LOGIN a FROM EXTERNAL_MONITOR PROVIDER
 accept	accept	engine	externalLoginSource(With_createLoginParamExt_(Comma_crea~052027f0)?/%empty	CREATE LOGIN a FROM EXTERNAL PROVIDER
@@ -4434,36 +4434,36 @@ accept	accept	engine	externalLoginSource(With_createLoginParamExt_(Comma_crea~05
 reject	reject	engine	externalLoginSource(With_createLoginParamExt_(Comma_crea~052027f0)?/With_createLoginParamExt_(Comma_createLoginParamExt)*!drop-1	CREATE LOGIN a FROM EXTERNAL PROVIDER TYPE = a
 reject	reject	engine	externalLoginSource(With_createLoginParamExt_(Comma_crea~052027f0)?/With_createLoginParamExt_(Comma_createLoginParamExt)*!drop-2	CREATE LOGIN a FROM EXTERNAL PROVIDER WITH = a
 reject	reject	engine	externalLoginSource(With_createLoginParamExt_(Comma_crea~052027f0)?/With_createLoginParamExt_(Comma_createLoginParamExt)*!drop-3	CREATE LOGIN a FROM EXTERNAL PROVIDER WITH TYPE a
-accept	reject	engine	externalLoginSource(With_createLoginParamExt_(Comma_crea~052027f0)?/With_createLoginParamExt_(Comma_createLoginParamExt)*!drop-4	CREATE LOGIN a FROM EXTERNAL PROVIDER WITH TYPE =
+reject	reject	engine	externalLoginSource(With_createLoginParamExt_(Comma_crea~052027f0)?/With_createLoginParamExt_(Comma_createLoginParamExt)*!drop-4	CREATE LOGIN a FROM EXTERNAL PROVIDER WITH TYPE =
 reject	reject	engine	externalLoginSource(With_createLoginParamExt_(Comma_crea~052027f0)?/With_createLoginParamExt_(Comma_createLoginParamExt)*!insert	CREATE LOGIN a FROM EXTERNAL PROVIDER WITH TYPE = a zzz
 reject	reject	engine	externalLoginSource(With_createLoginParamExt_(Comma_crea~052027f0)?/With_createLoginParamExt_(Comma_createLoginParamExt)*!swap	CREATE LOGIN a FROM EXTERNAL PROVIDER WITHIN TYPE = a
 accept	accept	engine	externalLoginSource(Comma_createLoginParamExt)*/%empty	CREATE LOGIN a FROM EXTERNAL PROVIDER WITH TYPE = a
-accept	reject	engine	externalLoginSource(Comma_createLoginParamExt)*/Comma_createLoginParamExt_(Comma_createLoginParamExt)*	CREATE LOGIN a FROM EXTERNAL PROVIDER WITH TYPE = a, TYPE = a
+reject	reject	engine	externalLoginSource(Comma_createLoginParamExt)*/Comma_createLoginParamExt_(Comma_createLoginParamExt)*	CREATE LOGIN a FROM EXTERNAL PROVIDER WITH TYPE = a, TYPE = a
 reject	reject	engine	externalLoginSource(Comma_createLoginParamExt)*/Comma_createLoginParamExt_(Comma_createLoginParamExt)*!drop-1	CREATE LOGIN a FROM EXTERNAL PROVIDER WITH TYPE = a TYPE = a
 reject	reject	engine	externalLoginSource(Comma_createLoginParamExt)*/Comma_createLoginParamExt_(Comma_createLoginParamExt)*!drop-2	CREATE LOGIN a FROM EXTERNAL PROVIDER WITH TYPE = a, = a
 reject	reject	engine	externalLoginSource(Comma_createLoginParamExt)*/Comma_createLoginParamExt_(Comma_createLoginParamExt)*!drop-3	CREATE LOGIN a FROM EXTERNAL PROVIDER WITH TYPE = a, TYPE a
-accept	reject	engine	externalLoginSource(Comma_createLoginParamExt)*/Comma_createLoginParamExt_(Comma_createLoginParamExt)*!drop-4	CREATE LOGIN a FROM EXTERNAL PROVIDER WITH TYPE = a, TYPE =
+reject	reject	engine	externalLoginSource(Comma_createLoginParamExt)*/Comma_createLoginParamExt_(Comma_createLoginParamExt)*!drop-4	CREATE LOGIN a FROM EXTERNAL PROVIDER WITH TYPE = a, TYPE =
 reject	reject	engine	externalLoginSource(Comma_createLoginParamExt)*/Comma_createLoginParamExt_(Comma_createLoginParamExt)*!insert	CREATE LOGIN a FROM EXTERNAL PROVIDER WITH TYPE = a, TYPE = a zzz
-accept	reject	engine	externalLoginSource(Comma_createLoginParamExt)*/Comma_createLoginParamExt_(Comma_createLoginParamExt)*!swap	CREATE LOGIN a FROM EXTERNAL PROVIDER WITH TYPE = a, UNBOUNDED = a
+reject	reject	engine	externalLoginSource(Comma_createLoginParamExt)*/Comma_createLoginParamExt_(Comma_createLoginParamExt)*!swap	CREATE LOGIN a FROM EXTERNAL PROVIDER WITH TYPE = a, UNBOUNDED = a
 accept	accept	engine	createLoginParamExt/(TYPE|SID|DEFAULT_LANGUAGE|DEFAULT_DATABASE)_EqualsSign~9a76f630	CREATE LOGIN a FROM EXTERNAL PROVIDER WITH TYPE = a
-accept	reject	engine	createLoginParamExt/(TYPE|SID|DEFAULT_LANGUAGE|DEFAULT_DATABASE)_EqualsSign~9a76f630!swap	CREATE LOGIN a FROM EXTERNAL PROVIDER WITH UNBOUNDED = a
+reject	reject	engine	createLoginParamExt/(TYPE|SID|DEFAULT_LANGUAGE|DEFAULT_DATABASE)_EqualsSign~9a76f630!swap	CREATE LOGIN a FROM EXTERNAL PROVIDER WITH UNBOUNDED = a
 accept	accept	engine	createLoginParamExt(TYPE|SID|DEFAULT_LANGUAGE|DEFAULT_DATABASE)/TYPE	CREATE LOGIN a FROM EXTERNAL PROVIDER WITH TYPE = a
-accept	reject	engine	createLoginParamExt(TYPE|SID|DEFAULT_LANGUAGE|DEFAULT_DATABASE)/TYPE!truncate	CREATE LOGIN a FROM EXTERNAL PROVIDER WITH
+reject	reject	engine	createLoginParamExt(TYPE|SID|DEFAULT_LANGUAGE|DEFAULT_DATABASE)/TYPE!truncate	CREATE LOGIN a FROM EXTERNAL PROVIDER WITH
 reject	reject	engine	createLoginParamExt(TYPE|SID|DEFAULT_LANGUAGE|DEFAULT_DATABASE)/TYPE!insert	CREATE LOGIN a FROM EXTERNAL PROVIDER WITH TYPE zzz = a
-accept	reject	engine	createLoginParamExt(TYPE|SID|DEFAULT_LANGUAGE|DEFAULT_DATABASE)/SID	CREATE LOGIN a FROM EXTERNAL PROVIDER WITH SID = a
+reject	reject	engine	createLoginParamExt(TYPE|SID|DEFAULT_LANGUAGE|DEFAULT_DATABASE)/SID	CREATE LOGIN a FROM EXTERNAL PROVIDER WITH SID = a
 reject	reject	engine	createLoginParamExt(TYPE|SID|DEFAULT_LANGUAGE|DEFAULT_DATABASE)/SID!insert	CREATE LOGIN a FROM EXTERNAL PROVIDER WITH SID zzz = a
-accept	reject	engine	createLoginParamExt(TYPE|SID|DEFAULT_LANGUAGE|DEFAULT_DATABASE)/SID!swap	CREATE LOGIN a FROM EXTERNAL PROVIDER WITH SIGNATURE = a
+reject	reject	engine	createLoginParamExt(TYPE|SID|DEFAULT_LANGUAGE|DEFAULT_DATABASE)/SID!swap	CREATE LOGIN a FROM EXTERNAL PROVIDER WITH SIGNATURE = a
 accept	accept	engine	createLoginParamExt(TYPE|SID|DEFAULT_LANGUAGE|DEFAULT_DATABASE)/DEFAULT_LANGUAGE	CREATE LOGIN a FROM EXTERNAL PROVIDER WITH DEFAULT_LANGUAGE = a
 reject	reject	engine	createLoginParamExt(TYPE|SID|DEFAULT_LANGUAGE|DEFAULT_DATABASE)/DEFAULT_LANGUAGE!insert	CREATE LOGIN a FROM EXTERNAL PROVIDER WITH DEFAULT_LANGUAGE zzz = a
-accept	reject	engine	createLoginParamExt(TYPE|SID|DEFAULT_LANGUAGE|DEFAULT_DATABASE)/DEFAULT_LANGUAGE!swap	CREATE LOGIN a FROM EXTERNAL PROVIDER WITH DEFAULT_LOGON_DOMAIN = a
+reject	reject	engine	createLoginParamExt(TYPE|SID|DEFAULT_LANGUAGE|DEFAULT_DATABASE)/DEFAULT_LANGUAGE!swap	CREATE LOGIN a FROM EXTERNAL PROVIDER WITH DEFAULT_LOGON_DOMAIN = a
 accept	accept	engine	createLoginParamExt(TYPE|SID|DEFAULT_LANGUAGE|DEFAULT_DATABASE)/DEFAULT_DATABASE	CREATE LOGIN a FROM EXTERNAL PROVIDER WITH DEFAULT_DATABASE = a
 reject	reject	engine	createLoginParamExt(TYPE|SID|DEFAULT_LANGUAGE|DEFAULT_DATABASE)/DEFAULT_DATABASE!insert	CREATE LOGIN a FROM EXTERNAL PROVIDER WITH DEFAULT_DATABASE zzz = a
 accept	accept	engine	createLoginParamExt(identifier|binary)/identifier	CREATE LOGIN a FROM EXTERNAL PROVIDER WITH TYPE = a
-accept	reject	engine	createLoginParamExt(identifier|binary)/binary	CREATE LOGIN a FROM EXTERNAL PROVIDER WITH TYPE = 0x00
+reject	reject	engine	createLoginParamExt(identifier|binary)/binary	CREATE LOGIN a FROM EXTERNAL PROVIDER WITH TYPE = 0x00
 reject	reject	engine	createLoginParamExt(identifier|binary)/binary!insert	CREATE LOGIN a FROM EXTERNAL PROVIDER WITH TYPE = 0x00 zzz
 accept	accept	engine	certificateLoginSource/CERTIFICATE_identifier_createLoginParamCertOpt	CREATE LOGIN a FROM CERTIFICATE a
 reject	reject	engine	certificateLoginSource/CERTIFICATE_identifier_createLoginParamCertOpt!drop-1	CREATE LOGIN a FROM a
-accept	reject	engine	certificateLoginSource/CERTIFICATE_identifier_createLoginParamCertOpt!drop-2	CREATE LOGIN a FROM CERTIFICATE
+reject	reject	engine	certificateLoginSource/CERTIFICATE_identifier_createLoginParamCertOpt!drop-2	CREATE LOGIN a FROM CERTIFICATE
 reject	reject	engine	certificateLoginSource/CERTIFICATE_identifier_createLoginParamCertOpt!insert	CREATE LOGIN a FROM CERTIFICATE a zzz
 reject	reject	engine	certificateLoginSource/CERTIFICATE_identifier_createLoginParamCertOpt!swap	CREATE LOGIN a FROM CHANGETABLE a
 accept	accept	engine	createLoginParamCertOpt/(With_CREDENTIAL_EqualsSign_identifier)?	CREATE LOGIN a FROM CERTIFICATE a
@@ -4472,13 +4472,13 @@ accept	accept	engine	createLoginParamCertOpt(With_CREDENTIAL_EqualsSign_identifi
 reject	reject	engine	createLoginParamCertOpt(With_CREDENTIAL_EqualsSign_identifier)?/With_CREDENTIAL_EqualsSign_identifier!drop-1	CREATE LOGIN a FROM CERTIFICATE a CREDENTIAL = a
 reject	reject	engine	createLoginParamCertOpt(With_CREDENTIAL_EqualsSign_identifier)?/With_CREDENTIAL_EqualsSign_identifier!drop-2	CREATE LOGIN a FROM CERTIFICATE a WITH = a
 reject	reject	engine	createLoginParamCertOpt(With_CREDENTIAL_EqualsSign_identifier)?/With_CREDENTIAL_EqualsSign_identifier!drop-3	CREATE LOGIN a FROM CERTIFICATE a WITH CREDENTIAL a
-accept	reject	engine	createLoginParamCertOpt(With_CREDENTIAL_EqualsSign_identifier)?/With_CREDENTIAL_EqualsSign_identifier!drop-4	CREATE LOGIN a FROM CERTIFICATE a WITH CREDENTIAL =
+reject	reject	engine	createLoginParamCertOpt(With_CREDENTIAL_EqualsSign_identifier)?/With_CREDENTIAL_EqualsSign_identifier!drop-4	CREATE LOGIN a FROM CERTIFICATE a WITH CREDENTIAL =
 reject	reject	engine	createLoginParamCertOpt(With_CREDENTIAL_EqualsSign_identifier)?/With_CREDENTIAL_EqualsSign_identifier!insert	CREATE LOGIN a FROM CERTIFICATE a WITH CREDENTIAL = a zzz
 reject	reject	engine	createLoginParamCertOpt(With_CREDENTIAL_EqualsSign_identifier)?/With_CREDENTIAL_EqualsSign_identifier!swap	CREATE LOGIN a FROM CERTIFICATE a WITHIN CREDENTIAL = a
 accept	accept	engine	asymmetricKeyLoginSource/ASYMMETRIC_Key_identifier_createLoginParamCertOpt	CREATE LOGIN a FROM ASYMMETRIC KEY a
 reject	reject	engine	asymmetricKeyLoginSource/ASYMMETRIC_Key_identifier_createLoginParamCertOpt!drop-1	CREATE LOGIN a FROM KEY a
-accept	reject	engine	asymmetricKeyLoginSource/ASYMMETRIC_Key_identifier_createLoginParamCertOpt!drop-2	CREATE LOGIN a FROM ASYMMETRIC a
-accept	reject	engine	asymmetricKeyLoginSource/ASYMMETRIC_Key_identifier_createLoginParamCertOpt!drop-3	CREATE LOGIN a FROM ASYMMETRIC KEY
+reject	reject	engine	asymmetricKeyLoginSource/ASYMMETRIC_Key_identifier_createLoginParamCertOpt!drop-2	CREATE LOGIN a FROM ASYMMETRIC a
+reject	reject	engine	asymmetricKeyLoginSource/ASYMMETRIC_Key_identifier_createLoginParamCertOpt!drop-3	CREATE LOGIN a FROM ASYMMETRIC KEY
 reject	reject	engine	asymmetricKeyLoginSource/ASYMMETRIC_Key_identifier_createLoginParamCertOpt!insert	CREATE LOGIN a FROM ASYMMETRIC KEY a zzz
 reject	reject	engine	asymmetricKeyLoginSource/ASYMMETRIC_Key_identifier_createLoginParamCertOpt!swap	CREATE LOGIN a FROM ASYNCHRONOUS_COMMIT KEY a
 reject	reject	engine	messageTypeValidation/VALIDATION_EqualsSign_Identifier_(With_Schema_COLLECTIO~c2bd2540	ALTER MESSAGE TYPE a VALIDATION = a
@@ -4916,12 +4916,12 @@ reject	reject	engine	createTypeTableStatement(withTypeTableOptions)?/withTypeTab
 accept	reject	engine	withTypeTableOptions/With_LeftParenthesis_memoryOptimizedTableOption_RightParenthesis	CREATE TYPE a AS TABLE(a) WITH(MEMORY_OPTIMIZED = ON)
 reject	reject	engine	userLoginOption/(For|From)_(((ASYMMETRIC_Key|Identifier)_identif~0d340fb4)	CREATE USER a FOR a a
 reject	reject	engine	userLoginOption/(For|From)_(((ASYMMETRIC_Key|Identifier)_identif~0d340fb4)!drop-1	CREATE USER a a a
-accept	reject	engine	userLoginOption/(For|From)_(((ASYMMETRIC_Key|Identifier)_identif~0d340fb4)!drop-2	CREATE USER a FOR a
+reject	reject	engine	userLoginOption/(For|From)_(((ASYMMETRIC_Key|Identifier)_identif~0d340fb4)!drop-2	CREATE USER a FOR a
 reject	reject	engine	userLoginOption/(For|From)_(((ASYMMETRIC_Key|Identifier)_identif~0d340fb4)!insert	CREATE USER a FOR a a zzz
 reject	reject	engine	userLoginOption/(For|From)_(((ASYMMETRIC_Key|Identifier)_identif~0d340fb4)!swap	CREATE USER a FORCE a a
 accept	accept	engine	userLoginOption/WITHOUT_LOGIN	CREATE USER a WITHOUT LOGIN
 reject	reject	engine	userLoginOption/WITHOUT_LOGIN!drop-1	CREATE USER a LOGIN
-accept	reject	engine	userLoginOption/WITHOUT_LOGIN!drop-2	CREATE USER a WITHOUT
+reject	reject	engine	userLoginOption/WITHOUT_LOGIN!drop-2	CREATE USER a WITHOUT
 reject	reject	engine	userLoginOption/WITHOUT_LOGIN!insert	CREATE USER a WITHOUT LOGIN zzz
 reject	reject	engine	userLoginOption/WITHOUT_LOGIN!swap	CREATE USER a WITNESS LOGIN
 reject	reject	engine	userLoginOption(For|From)/For	CREATE USER a FOR a a
@@ -4931,59 +4931,59 @@ reject	reject	engine	userLoginOption(For|From)/From!insert	CREATE USER a FROM zz
 reject	reject	engine	userLoginOption(For|From)/From!swap	CREATE USER a FULL a a
 reject	reject	engine	userLoginOption(((ASYMMETRIC_Key|Identifier)_identif~0d340fb4)/(ASYMMETRIC_Key|Identifier)_identifier	CREATE USER a FOR a a
 accept	accept	engine	userLoginOption(((ASYMMETRIC_Key|Identifier)_identif~0d340fb4)/External_PROVIDER	CREATE USER a FOR EXTERNAL PROVIDER
-accept	reject	engine	userLoginOption(((ASYMMETRIC_Key|Identifier)_identif~0d340fb4)/External_PROVIDER!drop-1	CREATE USER a FOR PROVIDER
-accept	reject	engine	userLoginOption(((ASYMMETRIC_Key|Identifier)_identif~0d340fb4)/External_PROVIDER!drop-2	CREATE USER a FOR EXTERNAL
+reject	reject	engine	userLoginOption(((ASYMMETRIC_Key|Identifier)_identif~0d340fb4)/External_PROVIDER!drop-1	CREATE USER a FOR PROVIDER
+reject	reject	engine	userLoginOption(((ASYMMETRIC_Key|Identifier)_identif~0d340fb4)/External_PROVIDER!drop-2	CREATE USER a FOR EXTERNAL
 reject	reject	engine	userLoginOption(((ASYMMETRIC_Key|Identifier)_identif~0d340fb4)/External_PROVIDER!insert	CREATE USER a FOR EXTERNAL PROVIDER zzz
 reject	reject	engine	userLoginOption(((ASYMMETRIC_Key|Identifier)_identif~0d340fb4)/External_PROVIDER!swap	CREATE USER a FOR EXTERNAL_MONITOR PROVIDER
 accept	accept	engine	userLoginOption(ASYMMETRIC_Key|Identifier)/ASYMMETRIC_Key	CREATE USER a FOR ASYMMETRIC KEY a
 reject	reject	engine	userLoginOption(ASYMMETRIC_Key|Identifier)/ASYMMETRIC_Key!drop-1	CREATE USER a FOR KEY a
-accept	reject	engine	userLoginOption(ASYMMETRIC_Key|Identifier)/ASYMMETRIC_Key!drop-2	CREATE USER a FOR ASYMMETRIC a
-accept	reject	engine	userLoginOption(ASYMMETRIC_Key|Identifier)/ASYMMETRIC_Key!truncate	CREATE USER a FOR ASYMMETRIC
+reject	reject	engine	userLoginOption(ASYMMETRIC_Key|Identifier)/ASYMMETRIC_Key!drop-2	CREATE USER a FOR ASYMMETRIC a
+reject	reject	engine	userLoginOption(ASYMMETRIC_Key|Identifier)/ASYMMETRIC_Key!truncate	CREATE USER a FOR ASYMMETRIC
 reject	reject	engine	userLoginOption(ASYMMETRIC_Key|Identifier)/ASYMMETRIC_Key!insert	CREATE USER a FOR ASYMMETRIC KEY zzz a
 reject	reject	engine	userLoginOption(ASYMMETRIC_Key|Identifier)/ASYMMETRIC_Key!swap	CREATE USER a FOR ASYNCHRONOUS_COMMIT KEY a
 reject	reject	engine	userLoginOption(ASYMMETRIC_Key|Identifier)/Identifier	CREATE USER a FOR a a
-accept	reject	engine	userLoginOption(ASYMMETRIC_Key|Identifier)/Identifier!truncate	CREATE USER a FOR
+reject	reject	engine	userLoginOption(ASYMMETRIC_Key|Identifier)/Identifier!truncate	CREATE USER a FOR
 reject	reject	engine	userLoginOption(ASYMMETRIC_Key|Identifier)/Identifier!insert	CREATE USER a FOR a zzz a
 accept	accept	engine	createUserStatement/User_identifier_(userLoginOption)?_(With_createUserOpti~94e50842	CREATE USER a
 accept	accept	engine	createUserStatement(userLoginOption)?/%empty	CREATE USER a
 accept	accept	engine	createUserStatement(userLoginOption)?/userLoginOption	CREATE USER a WITHOUT LOGIN
 accept	accept	engine	createUserStatement(With_createUserOption_(Comma_createU~8af70058)?/%empty	CREATE USER a
-accept	reject	engine	createUserStatement(With_createUserOption_(Comma_createU~8af70058)?/With_createUserOption_(Comma_createUserOption)*	CREATE USER a WITH a = a
+reject	reject	engine	createUserStatement(With_createUserOption_(Comma_createU~8af70058)?/With_createUserOption_(Comma_createUserOption)*	CREATE USER a WITH a = a
 reject	reject	engine	createUserStatement(With_createUserOption_(Comma_createU~8af70058)?/With_createUserOption_(Comma_createUserOption)*!drop-1	CREATE USER a a = a
 reject	reject	engine	createUserStatement(With_createUserOption_(Comma_createU~8af70058)?/With_createUserOption_(Comma_createUserOption)*!drop-2	CREATE USER a WITH = a
 reject	reject	engine	createUserStatement(With_createUserOption_(Comma_createU~8af70058)?/With_createUserOption_(Comma_createUserOption)*!drop-3	CREATE USER a WITH a a
-accept	reject	engine	createUserStatement(With_createUserOption_(Comma_createU~8af70058)?/With_createUserOption_(Comma_createUserOption)*!drop-4	CREATE USER a WITH a =
+reject	reject	engine	createUserStatement(With_createUserOption_(Comma_createU~8af70058)?/With_createUserOption_(Comma_createUserOption)*!drop-4	CREATE USER a WITH a =
 reject	reject	engine	createUserStatement(With_createUserOption_(Comma_createU~8af70058)?/With_createUserOption_(Comma_createUserOption)*!insert	CREATE USER a WITH a = a zzz
 reject	reject	engine	createUserStatement(With_createUserOption_(Comma_createU~8af70058)?/With_createUserOption_(Comma_createUserOption)*!swap	CREATE USER a WITHIN a = a
-accept	reject	engine	createUserStatement(Comma_createUserOption)*/%empty	CREATE USER a WITH a = a
-accept	reject	engine	createUserStatement(Comma_createUserOption)*/Comma_createUserOption_(Comma_createUserOption)*	CREATE USER a WITH a = a, a = a
+reject	reject	engine	createUserStatement(Comma_createUserOption)*/%empty	CREATE USER a WITH a = a
+reject	reject	engine	createUserStatement(Comma_createUserOption)*/Comma_createUserOption_(Comma_createUserOption)*	CREATE USER a WITH a = a, a = a
 reject	reject	engine	createUserStatement(Comma_createUserOption)*/Comma_createUserOption_(Comma_createUserOption)*!drop-1	CREATE USER a WITH a = a a = a
 reject	reject	engine	createUserStatement(Comma_createUserOption)*/Comma_createUserOption_(Comma_createUserOption)*!drop-2	CREATE USER a WITH a = a, = a
 reject	reject	engine	createUserStatement(Comma_createUserOption)*/Comma_createUserOption_(Comma_createUserOption)*!drop-3	CREATE USER a WITH a = a, a a
-accept	reject	engine	createUserStatement(Comma_createUserOption)*/Comma_createUserOption_(Comma_createUserOption)*!drop-4	CREATE USER a WITH a = a, a =
+reject	reject	engine	createUserStatement(Comma_createUserOption)*/Comma_createUserOption_(Comma_createUserOption)*!drop-4	CREATE USER a WITH a = a, a =
 reject	reject	engine	createUserStatement(Comma_createUserOption)*/Comma_createUserOption_(Comma_createUserOption)*!insert	CREATE USER a WITH a = a, a = a zzz
-accept	reject	engine	createUserOption/Identifier_EqualsSign_(identifierCreateUserOption|liter~60e03bce	CREATE USER a WITH a = a
-accept	reject	engine	createUserOption(identifierCreateUserOption|literalCr~2e1f5c46)/identifierCreateUserOption	CREATE USER a WITH a = a
-accept	reject	engine	createUserOption(identifierCreateUserOption|literalCr~2e1f5c46)/literalCreateUserOption	CREATE USER a WITH a = 0x00
+reject	reject	engine	createUserOption/Identifier_EqualsSign_(identifierCreateUserOption|liter~60e03bce	CREATE USER a WITH a = a
+reject	reject	engine	createUserOption(identifierCreateUserOption|literalCr~2e1f5c46)/identifierCreateUserOption	CREATE USER a WITH a = a
+reject	reject	engine	createUserOption(identifierCreateUserOption|literalCr~2e1f5c46)/literalCreateUserOption	CREATE USER a WITH a = 0x00
 reject	reject	engine	createUserOption(identifierCreateUserOption|literalCr~2e1f5c46)/literalCreateUserOption!insert	CREATE USER a WITH a = 0x00 zzz
-accept	reject	engine	identifierCreateUserOption/identifier	CREATE USER a WITH a = a
-accept	reject	engine	literalCreateUserOption/binary	CREATE USER a WITH a = 0x00
-accept	reject	engine	literalCreateUserOption/stringLiteral	CREATE USER a WITH a = 'a'
+reject	reject	engine	identifierCreateUserOption/identifier	CREATE USER a WITH a = a
+reject	reject	engine	literalCreateUserOption/binary	CREATE USER a WITH a = 0x00
+reject	reject	engine	literalCreateUserOption/stringLiteral	CREATE USER a WITH a = 'a'
 reject	reject	engine	literalCreateUserOption/stringLiteral!insert	CREATE USER a WITH a = 'a' zzz
-accept	reject	engine	literalCreateUserOption/integer	CREATE USER a WITH a = 1
+reject	reject	engine	literalCreateUserOption/integer	CREATE USER a WITH a = 1
 reject	reject	engine	literalCreateUserOption/integer!insert	CREATE USER a WITH a = 1 zzz
 reject	reject	engine	literalCreateUserOption/nullLiteral	CREATE USER a WITH a = NULL
 reject	reject	engine	literalCreateUserOption/nullLiteral!insert	CREATE USER a WITH a = NULL zzz
 reject	reject	engine	literalCreateUserOption/nullLiteral!swap	CREATE USER a WITH a = NULLIF
 accept	reject	engine	alter2005Statements/Alter_(alterApplicationRoleStatement_APPLIC~c8ed16c5)	ALTER ASSEMBLY a
 accept	accept	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterApplicationRoleStatement_APPLICATION	ALTER APPLICATION ROLE a WITH PASSWORD = 'a'
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterApplicationRoleStatement_APPLICATION!drop-1	ALTER ROLE a WITH PASSWORD = 'a'
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterApplicationRoleStatement_APPLICATION!drop-1	ALTER ROLE a WITH PASSWORD = 'a'
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterApplicationRoleStatement_APPLICATION!drop-2	ALTER APPLICATION a WITH PASSWORD = 'a'
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterApplicationRoleStatement_APPLICATION!drop-3	ALTER APPLICATION ROLE WITH PASSWORD = 'a'
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterApplicationRoleStatement_APPLICATION!drop-3	ALTER APPLICATION ROLE WITH PASSWORD = 'a'
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterApplicationRoleStatement_APPLICATION!drop-4	ALTER APPLICATION ROLE a PASSWORD = 'a'
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterApplicationRoleStatement_APPLICATION!drop-5	ALTER APPLICATION ROLE a WITH = 'a'
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterApplicationRoleStatement_APPLICATION!drop-6	ALTER APPLICATION ROLE a WITH PASSWORD 'a'
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterApplicationRoleStatement_APPLICATION!drop-7	ALTER APPLICATION ROLE a WITH PASSWORD =
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterApplicationRoleStatement_APPLICATION!drop-7	ALTER APPLICATION ROLE a WITH PASSWORD =
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterApplicationRoleStatement_APPLICATION!insert	ALTER APPLICATION ROLE a WITH PASSWORD = 'a' zzz
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterApplicationRoleStatement_APPLICATION!swap	ALTER APPLICATION_LOG ROLE a WITH PASSWORD = 'a'
 accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterAssemblyStatement_ASSEMBLY	ALTER ASSEMBLY a
@@ -5090,7 +5090,7 @@ reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterIndexStatement!swap	ALTER INFINITE a ON a DISABLE
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterLoginStatement_LOGIN	ALTER LOGIN a a
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterLoginStatement_LOGIN!drop-1	ALTER a a
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterLoginStatement_LOGIN!drop-2	ALTER LOGIN a
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterLoginStatement_LOGIN!drop-2	ALTER LOGIN a
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterLoginStatement_LOGIN!insert	ALTER LOGIN a a zzz
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterLoginStatement_LOGIN!swap	ALTER LOGIN_TYPE a a
 accept	accept	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterMasterKeyStatement_MASTER	ALTER MASTER KEY ADD ENCRYPTION BY SERVICE MASTER KEY
@@ -5128,10 +5128,10 @@ reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterQueueStatement_QUEUE!swap	ALTER RAISERROR a WITH STATUS = ON
 accept	accept	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterRoleStatement_ROLE	ALTER ROLE a ADD MEMBER a
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterRoleStatement_ROLE!drop-1	ALTER a ADD MEMBER a
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterRoleStatement_ROLE!drop-2	ALTER ROLE ADD MEMBER a
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterRoleStatement_ROLE!drop-2	ALTER ROLE ADD MEMBER a
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterRoleStatement_ROLE!drop-3	ALTER ROLE a MEMBER a
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterRoleStatement_ROLE!drop-4	ALTER ROLE a ADD a
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterRoleStatement_ROLE!drop-5	ALTER ROLE a ADD MEMBER
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterRoleStatement_ROLE!drop-4	ALTER ROLE a ADD a
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterRoleStatement_ROLE!drop-5	ALTER ROLE a ADD MEMBER
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterRoleStatement_ROLE!insert	ALTER ROLE a ADD MEMBER a zzz
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterRoleStatement_ROLE!swap	ALTER ROLLBACK a ADD MEMBER a
 accept	accept	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterRouteStatement_ROUTE	ALTER ROUTE a WITH LIFETIME = 1
@@ -5177,13 +5177,13 @@ reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterServerStatements_SERVER!drop-1	ALTER AUDIT a
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterServerStatements_SERVER!drop-2	ALTER SERVER a
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterServerStatements_SERVER!swap	ALTER SERVICE AUDIT a
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterUserStatement	ALTER USER a WITH a = 0x00
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterUserStatement	ALTER USER a WITH a = 0x00
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterUserStatement!drop-1	ALTER a WITH a = 0x00
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterUserStatement!drop-2	ALTER USER WITH a = 0x00
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterUserStatement!drop-2	ALTER USER WITH a = 0x00
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterUserStatement!drop-3	ALTER USER a a = 0x00
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterUserStatement!drop-4	ALTER USER a WITH = 0x00
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterUserStatement!drop-5	ALTER USER a WITH a 0x00
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterUserStatement!drop-6	ALTER USER a WITH a =
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterUserStatement!drop-6	ALTER USER a WITH a =
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterUserStatement!insert	ALTER USER a WITH a = 0x00 zzz
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterUserStatement!swap	ALTER USER_DB a WITH a = 0x00
 accept	accept	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterXmlSchemaCollectionStatement_XML	ALTER XML SCHEMA COLLECTION a ADD 1
@@ -5221,11 +5221,11 @@ accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterColumnEncryptionKeyStatement!swap	ALTER COLUMNSTORE ENCRYPTION KEY a DROP VALUE(COLUMN_MASTER_KEY = a)
 accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterMaterializedViewStatement_MATERIALIZED	ALTER MATERIALIZED VIEW a REBUILD
 accept	accept	engine	applicationRoleOption/PASSWORD_EqualsSign_stringLiteral	ALTER APPLICATION ROLE a WITH PASSWORD = 'a'
-accept	reject	engine	applicationRoleOption/PASSWORD_EqualsSign_stringLiteral!swap	ALTER APPLICATION ROLE a WITH PATH = 'a'
-accept	reject	engine	applicationRoleOption/Identifier_EqualsSign_identifier	ALTER APPLICATION ROLE a WITH a = a
+reject	reject	engine	applicationRoleOption/PASSWORD_EqualsSign_stringLiteral!swap	ALTER APPLICATION ROLE a WITH PATH = 'a'
+reject	reject	engine	applicationRoleOption/Identifier_EqualsSign_identifier	ALTER APPLICATION ROLE a WITH a = a
 reject	reject	engine	applicationRoleOption/Identifier_EqualsSign_identifier!drop-1	ALTER APPLICATION ROLE a WITH = a
 reject	reject	engine	applicationRoleOption/Identifier_EqualsSign_identifier!drop-2	ALTER APPLICATION ROLE a WITH a a
-accept	reject	engine	applicationRoleOption/Identifier_EqualsSign_identifier!drop-3	ALTER APPLICATION ROLE a WITH a =
+reject	reject	engine	applicationRoleOption/Identifier_EqualsSign_identifier!drop-3	ALTER APPLICATION ROLE a WITH a =
 reject	reject	engine	applicationRoleOption/Identifier_EqualsSign_identifier!insert	ALTER APPLICATION ROLE a WITH a = a zzz
 reject	accept	engine	alterAssemblyFromClause/From_expression	ALTER ASSEMBLY a FROM 1
 reject	reject	engine	alterAssemblyFromClause/From_expression!drop-1	ALTER ASSEMBLY a 1
@@ -5498,21 +5498,21 @@ accept	accept	engine	partitionSpecifier(expression|All)/All!swap	ALTER TABLE a R
 reject	reject	engine	alterLoginEnableDisable/Identifier	ALTER LOGIN a a
 accept	accept	engine	alterLoginOptions/With_alterLoginParam_(Comma_alterLoginParam)*	ALTER LOGIN a WITH NO CREDENTIAL
 reject	reject	engine	alterLoginOptions/With_alterLoginParam_(Comma_alterLoginParam)*!drop-1	ALTER LOGIN a NO CREDENTIAL
-accept	reject	engine	alterLoginOptions/With_alterLoginParam_(Comma_alterLoginParam)*!drop-2	ALTER LOGIN a WITH CREDENTIAL
-accept	reject	engine	alterLoginOptions/With_alterLoginParam_(Comma_alterLoginParam)*!drop-3	ALTER LOGIN a WITH NO
+reject	reject	engine	alterLoginOptions/With_alterLoginParam_(Comma_alterLoginParam)*!drop-2	ALTER LOGIN a WITH CREDENTIAL
+reject	reject	engine	alterLoginOptions/With_alterLoginParam_(Comma_alterLoginParam)*!drop-3	ALTER LOGIN a WITH NO
 reject	reject	engine	alterLoginOptions/With_alterLoginParam_(Comma_alterLoginParam)*!insert	ALTER LOGIN a WITH NO CREDENTIAL zzz
 reject	reject	engine	alterLoginOptions/With_alterLoginParam_(Comma_alterLoginParam)*!swap	ALTER LOGIN a WITHIN NO CREDENTIAL
 accept	accept	engine	alterLoginOptions(Comma_alterLoginParam)*/%empty	ALTER LOGIN a WITH NO CREDENTIAL
-accept	reject	engine	alterLoginOptions(Comma_alterLoginParam)*/Comma_alterLoginParam_(Comma_alterLoginParam)*	ALTER LOGIN a WITH NO CREDENTIAL, NO CREDENTIAL
+reject	reject	engine	alterLoginOptions(Comma_alterLoginParam)*/Comma_alterLoginParam_(Comma_alterLoginParam)*	ALTER LOGIN a WITH NO CREDENTIAL, NO CREDENTIAL
 reject	reject	engine	alterLoginOptions(Comma_alterLoginParam)*/Comma_alterLoginParam_(Comma_alterLoginParam)*!drop-1	ALTER LOGIN a WITH NO CREDENTIAL NO CREDENTIAL
-accept	reject	engine	alterLoginOptions(Comma_alterLoginParam)*/Comma_alterLoginParam_(Comma_alterLoginParam)*!drop-2	ALTER LOGIN a WITH NO CREDENTIAL, CREDENTIAL
-accept	reject	engine	alterLoginOptions(Comma_alterLoginParam)*/Comma_alterLoginParam_(Comma_alterLoginParam)*!drop-3	ALTER LOGIN a WITH NO CREDENTIAL, NO
+reject	reject	engine	alterLoginOptions(Comma_alterLoginParam)*/Comma_alterLoginParam_(Comma_alterLoginParam)*!drop-2	ALTER LOGIN a WITH NO CREDENTIAL, CREDENTIAL
+reject	reject	engine	alterLoginOptions(Comma_alterLoginParam)*/Comma_alterLoginParam_(Comma_alterLoginParam)*!drop-3	ALTER LOGIN a WITH NO CREDENTIAL, NO
 reject	reject	engine	alterLoginOptions(Comma_alterLoginParam)*/Comma_alterLoginParam_(Comma_alterLoginParam)*!insert	ALTER LOGIN a WITH NO CREDENTIAL, NO CREDENTIAL zzz
 reject	reject	engine	alterLoginOptions(Comma_alterLoginParam)*/Comma_alterLoginParam_(Comma_alterLoginParam)*!swap	ALTER LOGIN a WITH NO CREDENTIAL, NOCHECK CREDENTIAL
 accept	accept	engine	alterLoginAddDropCredential/(Add|Drop)_CREDENTIAL_identifier	ALTER LOGIN a ADD CREDENTIAL a
 reject	reject	engine	alterLoginAddDropCredential/(Add|Drop)_CREDENTIAL_identifier!drop-1	ALTER LOGIN a CREDENTIAL a
 reject	reject	engine	alterLoginAddDropCredential/(Add|Drop)_CREDENTIAL_identifier!drop-2	ALTER LOGIN a ADD a
-accept	reject	engine	alterLoginAddDropCredential/(Add|Drop)_CREDENTIAL_identifier!drop-3	ALTER LOGIN a ADD CREDENTIAL
+reject	reject	engine	alterLoginAddDropCredential/(Add|Drop)_CREDENTIAL_identifier!drop-3	ALTER LOGIN a ADD CREDENTIAL
 reject	reject	engine	alterLoginAddDropCredential/(Add|Drop)_CREDENTIAL_identifier!insert	ALTER LOGIN a ADD CREDENTIAL a zzz
 reject	reject	engine	alterLoginAddDropCredential/(Add|Drop)_CREDENTIAL_identifier!swap	ALTER LOGIN a ADMIN CREDENTIAL a
 accept	accept	engine	alterLoginAddDropCredential(Add|Drop)/Add	ALTER LOGIN a ADD CREDENTIAL a
@@ -5522,23 +5522,23 @@ reject	reject	engine	alterLoginAddDropCredential(Add|Drop)/Drop!insert	ALTER LOG
 reject	reject	engine	alterLoginAddDropCredential(Add|Drop)/Drop!swap	ALTER LOGIN a DROP_INDEX CREDENTIAL a
 accept	accept	engine	alterLoginParam/((Identifier_EqualsSign_(passwordAlte~55f57656)	ALTER LOGIN a WITH NO CREDENTIAL
 reject	reject	engine	alterLoginParam/((Identifier_EqualsSign_(passwordAlte~55f57656)!swap	ALTER LOGIN a WITH NOCHECK CREDENTIAL
-accept	reject	engine	alterLoginParam((Identifier_EqualsSign_(passwordAlte~55f57656)/Identifier_EqualsSign_(passwordAlterLoginOption|onOffPr~4c6ec0ea	ALTER LOGIN a WITH a = 0x00
+reject	reject	engine	alterLoginParam((Identifier_EqualsSign_(passwordAlte~55f57656)/Identifier_EqualsSign_(passwordAlterLoginOption|onOffPr~4c6ec0ea	ALTER LOGIN a WITH a = 0x00
 reject	reject	engine	alterLoginParam((Identifier_EqualsSign_(passwordAlte~55f57656)/Identifier_EqualsSign_(passwordAlterLoginOption|onOffPr~4c6ec0ea!drop-1	ALTER LOGIN a WITH = 0x00
 reject	reject	engine	alterLoginParam((Identifier_EqualsSign_(passwordAlte~55f57656)/Identifier_EqualsSign_(passwordAlterLoginOption|onOffPr~4c6ec0ea!drop-2	ALTER LOGIN a WITH a 0x00
 accept	accept	engine	alterLoginParam((Identifier_EqualsSign_(passwordAlte~55f57656)/NO_CREDENTIAL	ALTER LOGIN a WITH NO CREDENTIAL
-accept	reject	engine	alterLoginParam(passwordAlterLoginOption|onOffPrinci~5cc546af)/passwordAlterLoginOption	ALTER LOGIN a WITH a = 0x00
-accept	reject	engine	alterLoginParam(passwordAlterLoginOption|onOffPrinci~5cc546af)/onOffPrincipalOption	ALTER LOGIN a WITH a = ON
-accept	reject	engine	alterLoginParam(passwordAlterLoginOption|onOffPrinci~5cc546af)/identifier	ALTER LOGIN a WITH a = a
+reject	reject	engine	alterLoginParam(passwordAlterLoginOption|onOffPrinci~5cc546af)/passwordAlterLoginOption	ALTER LOGIN a WITH a = 0x00
+reject	reject	engine	alterLoginParam(passwordAlterLoginOption|onOffPrinci~5cc546af)/onOffPrincipalOption	ALTER LOGIN a WITH a = ON
+reject	reject	engine	alterLoginParam(passwordAlterLoginOption|onOffPrinci~5cc546af)/identifier	ALTER LOGIN a WITH a = a
 reject	reject	engine	alterLoginParam(passwordAlterLoginOption|onOffPrinci~5cc546af)/identifier!insert	ALTER LOGIN a WITH a = a zzz
-accept	reject	engine	passwordAlterLoginOption/loginPassword_(OLD_PASSWORD_EqualsSign_stringLitera~30aaabbc)	ALTER LOGIN a WITH a = 0x00
+reject	reject	engine	passwordAlterLoginOption/loginPassword_(OLD_PASSWORD_EqualsSign_stringLitera~30aaabbc)	ALTER LOGIN a WITH a = 0x00
 reject	reject	engine	passwordAlterLoginOption(OLD_PASSWORD_EqualsSign_stringLitera~30aaabbc)/OLD_PASSWORD_EqualsSign_stringLiteral	ALTER LOGIN a WITH a = 0x00 OLD_PASSWORD = 'a'
 reject	reject	engine	passwordAlterLoginOption(OLD_PASSWORD_EqualsSign_stringLitera~30aaabbc)/OLD_PASSWORD_EqualsSign_stringLiteral!drop-1	ALTER LOGIN a WITH a = 0x00 = 'a'
 reject	reject	engine	passwordAlterLoginOption(OLD_PASSWORD_EqualsSign_stringLitera~30aaabbc)/OLD_PASSWORD_EqualsSign_stringLiteral!drop-2	ALTER LOGIN a WITH a = 0x00 OLD_PASSWORD 'a'
 reject	reject	engine	passwordAlterLoginOption(OLD_PASSWORD_EqualsSign_stringLitera~30aaabbc)/OLD_PASSWORD_EqualsSign_stringLiteral!drop-3	ALTER LOGIN a WITH a = 0x00 OLD_PASSWORD =
 reject	reject	engine	passwordAlterLoginOption(OLD_PASSWORD_EqualsSign_stringLitera~30aaabbc)/OLD_PASSWORD_EqualsSign_stringLiteral!insert	ALTER LOGIN a WITH a = 0x00 OLD_PASSWORD = 'a' zzz
 reject	reject	engine	passwordAlterLoginOption(OLD_PASSWORD_EqualsSign_stringLitera~30aaabbc)/OLD_PASSWORD_EqualsSign_stringLiteral!swap	ALTER LOGIN a WITH a = 0x00 ON = 'a'
-accept	reject	engine	passwordAlterLoginOption(OLD_PASSWORD_EqualsSign_stringLitera~30aaabbc)/(Identifier)*	ALTER LOGIN a WITH a = 0x00
-accept	reject	engine	passwordAlterLoginOption(Identifier)*/%empty	ALTER LOGIN a WITH a = 0x00
+reject	reject	engine	passwordAlterLoginOption(OLD_PASSWORD_EqualsSign_stringLitera~30aaabbc)/(Identifier)*	ALTER LOGIN a WITH a = 0x00
+reject	reject	engine	passwordAlterLoginOption(Identifier)*/%empty	ALTER LOGIN a WITH a = 0x00
 reject	reject	engine	passwordAlterLoginOption(Identifier)*/Identifier_(Identifier)*	ALTER LOGIN a WITH a = 0x00 a
 reject	reject	engine	passwordAlterLoginOption(Identifier)*/Identifier_(Identifier)*!insert	ALTER LOGIN a WITH a = 0x00 a zzz
 accept	accept	engine	alterPartitionFunctionStatement/Function_identifier_LeftParenthesis_RightParenthesis_(S~10a29a71	ALTER PARTITION FUNCTION a() SPLIT
@@ -5650,15 +5650,15 @@ accept	accept	engine	queuePoisonMessageHandlingOption/POISON_MESSAGE_HANDLING_Le
 accept	accept	engine	alterRoleAction/addMemberAlterRoleAction	ALTER ROLE a ADD MEMBER a
 reject	reject	engine	alterRoleAction/addMemberAlterRoleAction!swap	ALTER ROLE a ADMIN MEMBER a
 accept	accept	engine	alterRoleAction/dropMemberAlterRoleAction	ALTER ROLE a DROP MEMBER a
-accept	reject	engine	alterRoleAction/dropMemberAlterRoleAction!drop-2	ALTER ROLE a DROP a
-accept	reject	engine	alterRoleAction/dropMemberAlterRoleAction!drop-3	ALTER ROLE a DROP MEMBER
+reject	reject	engine	alterRoleAction/dropMemberAlterRoleAction!drop-2	ALTER ROLE a DROP a
+reject	reject	engine	alterRoleAction/dropMemberAlterRoleAction!drop-3	ALTER ROLE a DROP MEMBER
 reject	reject	engine	alterRoleAction/dropMemberAlterRoleAction!insert	ALTER ROLE a DROP MEMBER a zzz
 reject	reject	engine	alterRoleAction/dropMemberAlterRoleAction!swap	ALTER ROLE a DROP_INDEX MEMBER a
 accept	accept	engine	alterRoleAction/renameAlterRoleAction	ALTER ROLE a WITH NAME = a
 reject	reject	engine	alterRoleAction/renameAlterRoleAction!drop-1	ALTER ROLE a NAME = a
 reject	reject	engine	alterRoleAction/renameAlterRoleAction!drop-2	ALTER ROLE a WITH = a
 reject	reject	engine	alterRoleAction/renameAlterRoleAction!drop-3	ALTER ROLE a WITH NAME a
-accept	reject	engine	alterRoleAction/renameAlterRoleAction!drop-4	ALTER ROLE a WITH NAME =
+reject	reject	engine	alterRoleAction/renameAlterRoleAction!drop-4	ALTER ROLE a WITH NAME =
 reject	reject	engine	alterRoleAction/renameAlterRoleAction!insert	ALTER ROLE a WITH NAME = a zzz
 reject	reject	engine	alterRoleAction/renameAlterRoleAction!swap	ALTER ROLE a WITHIN NAME = a
 accept	accept	engine	renameAlterRoleAction/With_NAME_EqualsSign_identifier	ALTER ROLE a WITH NAME = a
@@ -5743,32 +5743,32 @@ accept	reject	engine	alterServiceMasterKeyStatement(OLD_PASSWORD|NEW_PASSWORD)/O
 accept	reject	engine	alterServiceMasterKeyStatement(OLD_PASSWORD|NEW_PASSWORD)/NEW_PASSWORD	ALTER SERVICE MASTER KEY WITH OLD_ACCOUNT = 'a', NEW_PASSWORD = 'a'
 accept	reject	engine	alterServiceMasterKeyStatement(OLD_PASSWORD|NEW_PASSWORD)/NEW_PASSWORD!insert	ALTER SERVICE MASTER KEY WITH OLD_ACCOUNT = 'a', NEW_PASSWORD zzz = 'a'
 accept	reject	engine	alterServiceMasterKeyStatement(OLD_PASSWORD|NEW_PASSWORD)/NEW_PASSWORD!swap	ALTER SERVICE MASTER KEY WITH OLD_ACCOUNT = 'a', NEXT = 'a'
-accept	reject	engine	alterUserOption/Identifier_EqualsSign_(passwordAlterUserOption|identifi~c166bd3e	ALTER USER a WITH a = 0x00
-accept	reject	engine	alterUserOption(passwordAlterUserOption|identifierAl~683efc22)/passwordAlterUserOption	ALTER USER a WITH a = 0x00
-accept	reject	engine	alterUserOption(passwordAlterUserOption|identifierAl~683efc22)/identifierAlterUserOption	ALTER USER a WITH a = a
+reject	reject	engine	alterUserOption/Identifier_EqualsSign_(passwordAlterUserOption|identifi~c166bd3e	ALTER USER a WITH a = 0x00
+reject	reject	engine	alterUserOption(passwordAlterUserOption|identifierAl~683efc22)/passwordAlterUserOption	ALTER USER a WITH a = 0x00
+reject	reject	engine	alterUserOption(passwordAlterUserOption|identifierAl~683efc22)/identifierAlterUserOption	ALTER USER a WITH a = a
 reject	reject	engine	alterUserOption(passwordAlterUserOption|identifierAl~683efc22)/identifierAlterUserOption!insert	ALTER USER a WITH a = a zzz
-accept	reject	engine	alterUserOption(passwordAlterUserOption|identifierAl~683efc22)/literalAlterUserOption	ALTER USER a WITH a = 1
+reject	reject	engine	alterUserOption(passwordAlterUserOption|identifierAl~683efc22)/literalAlterUserOption	ALTER USER a WITH a = 1
 reject	reject	engine	alterUserOption(passwordAlterUserOption|identifierAl~683efc22)/literalAlterUserOption!insert	ALTER USER a WITH a = 1 zzz
-accept	reject	engine	identifierAlterUserOption/identifier	ALTER USER a WITH a = a
-accept	reject	engine	literalAlterUserOption/integer	ALTER USER a WITH a = 1
+reject	reject	engine	identifierAlterUserOption/identifier	ALTER USER a WITH a = a
+reject	reject	engine	literalAlterUserOption/integer	ALTER USER a WITH a = 1
 reject	reject	engine	literalAlterUserOption/nullLiteral	ALTER USER a WITH a = NULL
 reject	reject	engine	literalAlterUserOption/nullLiteral!insert	ALTER USER a WITH a = NULL zzz
 reject	reject	engine	literalAlterUserOption/nullLiteral!swap	ALTER USER a WITH a = NULLIF
-accept	reject	engine	passwordAlterUserOption/loginPassword_(OLD_PASSWORD_EqualsSign_stringLiteral)?	ALTER USER a WITH a = 0x00
-accept	reject	engine	passwordAlterUserOption(OLD_PASSWORD_EqualsSign_stringLiteral)?/%empty	ALTER USER a WITH a = 0x00
+reject	reject	engine	passwordAlterUserOption/loginPassword_(OLD_PASSWORD_EqualsSign_stringLiteral)?	ALTER USER a WITH a = 0x00
+reject	reject	engine	passwordAlterUserOption(OLD_PASSWORD_EqualsSign_stringLiteral)?/%empty	ALTER USER a WITH a = 0x00
 reject	reject	engine	passwordAlterUserOption(OLD_PASSWORD_EqualsSign_stringLiteral)?/OLD_PASSWORD_EqualsSign_stringLiteral	ALTER USER a WITH a = 0x00 OLD_PASSWORD = 'a'
 reject	reject	engine	passwordAlterUserOption(OLD_PASSWORD_EqualsSign_stringLiteral)?/OLD_PASSWORD_EqualsSign_stringLiteral!drop-1	ALTER USER a WITH a = 0x00 = 'a'
 reject	reject	engine	passwordAlterUserOption(OLD_PASSWORD_EqualsSign_stringLiteral)?/OLD_PASSWORD_EqualsSign_stringLiteral!drop-2	ALTER USER a WITH a = 0x00 OLD_PASSWORD 'a'
 reject	reject	engine	passwordAlterUserOption(OLD_PASSWORD_EqualsSign_stringLiteral)?/OLD_PASSWORD_EqualsSign_stringLiteral!drop-3	ALTER USER a WITH a = 0x00 OLD_PASSWORD =
 reject	reject	engine	passwordAlterUserOption(OLD_PASSWORD_EqualsSign_stringLiteral)?/OLD_PASSWORD_EqualsSign_stringLiteral!insert	ALTER USER a WITH a = 0x00 OLD_PASSWORD = 'a' zzz
 reject	reject	engine	passwordAlterUserOption(OLD_PASSWORD_EqualsSign_stringLiteral)?/OLD_PASSWORD_EqualsSign_stringLiteral!swap	ALTER USER a WITH a = 0x00 ON = 'a'
-accept	reject	engine	alterUserStatement/User_identifier_With_alterUserOption_(Comma_alterUserOption)*	ALTER USER a WITH a = 0x00
-accept	reject	engine	alterUserStatement(Comma_alterUserOption)*/%empty	ALTER USER a WITH a = 0x00
-accept	reject	engine	alterUserStatement(Comma_alterUserOption)*/Comma_alterUserOption_(Comma_alterUserOption)*	ALTER USER a WITH a = 0x00, a = 0x00
+reject	reject	engine	alterUserStatement/User_identifier_With_alterUserOption_(Comma_alterUserOption)*	ALTER USER a WITH a = 0x00
+reject	reject	engine	alterUserStatement(Comma_alterUserOption)*/%empty	ALTER USER a WITH a = 0x00
+reject	reject	engine	alterUserStatement(Comma_alterUserOption)*/Comma_alterUserOption_(Comma_alterUserOption)*	ALTER USER a WITH a = 0x00, a = 0x00
 reject	reject	engine	alterUserStatement(Comma_alterUserOption)*/Comma_alterUserOption_(Comma_alterUserOption)*!drop-1	ALTER USER a WITH a = 0x00 a = 0x00
 reject	reject	engine	alterUserStatement(Comma_alterUserOption)*/Comma_alterUserOption_(Comma_alterUserOption)*!drop-2	ALTER USER a WITH a = 0x00, = 0x00
 reject	reject	engine	alterUserStatement(Comma_alterUserOption)*/Comma_alterUserOption_(Comma_alterUserOption)*!drop-3	ALTER USER a WITH a = 0x00, a 0x00
-accept	reject	engine	alterUserStatement(Comma_alterUserOption)*/Comma_alterUserOption_(Comma_alterUserOption)*!drop-4	ALTER USER a WITH a = 0x00, a =
+reject	reject	engine	alterUserStatement(Comma_alterUserOption)*/Comma_alterUserOption_(Comma_alterUserOption)*!drop-4	ALTER USER a WITH a = 0x00, a =
 reject	reject	engine	alterUserStatement(Comma_alterUserOption)*/Comma_alterUserOption_(Comma_alterUserOption)*!insert	ALTER USER a WITH a = 0x00, a = 0x00 zzz
 accept	accept	engine	createSchemaStatement/Create_Schema_(identifier_authorizationOpt|authorizatio~38441c4c	CREATE SCHEMA a
 accept	accept	engine	createSchemaStatement(identifier_authorizationOpt|authorization)/identifier_authorizationOpt	CREATE SCHEMA a
@@ -6626,8 +6626,8 @@ accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e448
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSynonymStatement_SYNONYM!insert	DROP SYNONYM a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSynonymStatement_SYNONYM!swap	DROP SYSTEM a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropApplicationRoleStatement_APPLICATION	DROP APPLICATION ROLE a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropApplicationRoleStatement_APPLICATION!drop-2	DROP APPLICATION a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropApplicationRoleStatement_APPLICATION!drop-3	DROP APPLICATION ROLE
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropApplicationRoleStatement_APPLICATION!drop-2	DROP APPLICATION a
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropApplicationRoleStatement_APPLICATION!drop-3	DROP APPLICATION ROLE
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropApplicationRoleStatement_APPLICATION!insert	DROP APPLICATION ROLE a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropApplicationRoleStatement_APPLICATION!swap	DROP APPLICATION_LOG ROLE a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropBrokerPriorityStatement_BROKER	DROP BROKER PRIORITY a
@@ -6648,7 +6648,7 @@ accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e448
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropFulltextStatements_FULLTEXT!insert	DROP FULLTEXT CATALOG a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropFulltextStatements_FULLTEXT!swap	DROP FUNCTION CATALOG a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropLoginStatement_LOGIN	DROP LOGIN a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropLoginStatement_LOGIN!drop-2	DROP LOGIN
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropLoginStatement_LOGIN!drop-2	DROP LOGIN
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropLoginStatement_LOGIN!insert	DROP LOGIN a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropLoginStatement_LOGIN!swap	DROP LOGIN_TYPE a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropResourcePoolStatement_RESOURCE	DROP RESOURCE POOL a
@@ -6663,7 +6663,7 @@ accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e448
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropWorkloadStatements_WORKLOAD!insert	DROP WORKLOAD GROUP a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropWorkloadStatements_WORKLOAD!swap	DROP WORKLOAD_GROUP GROUP a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropRoleStatement_ROLE	DROP ROLE a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropRoleStatement_ROLE!drop-2	DROP ROLE
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropRoleStatement_ROLE!drop-2	DROP ROLE
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropRoleStatement_ROLE!insert	DROP ROLE a zzz
 accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropRoleStatement_ROLE!swap	DROP ROLLBACK a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropMasterKeyStatement_MASTER	DROP MASTER KEY
@@ -6793,7 +6793,7 @@ reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e448
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropServerStatements!insert	DROP SERVER AUDIT a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropServerStatements!swap	DROP SERVICE AUDIT a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropUserStatement	DROP USER a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropUserStatement!drop-2	DROP USER
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropUserStatement!drop-2	DROP USER
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropUserStatement!insert	DROP USER a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropUserStatement!swap	DROP USER_DB a
 accept	accept	engine	dropSchemaStatement/Schema_(If_Exists)?_schemaObjectThreePartName_(Cascade|~3b8d0d05	DROP SCHEMA a
@@ -6816,7 +6816,7 @@ accept	accept	engine	dropServerStatements/SERVER_((AUDIT_(dropServerAuditSpecifi
 accept	accept	engine	dropServerStatements((AUDIT_(dropServerAuditSpecification~3b4ec644)/AUDIT_(dropServerAuditSpecificationStatemen~0daf37bb)	DROP SERVER AUDIT a
 reject	reject	engine	dropServerStatements((AUDIT_(dropServerAuditSpecification~3b4ec644)/AUDIT_(dropServerAuditSpecificationStatemen~0daf37bb)!swap	DROP SERVER AUTHENTICATION a
 accept	accept	engine	dropServerStatements((AUDIT_(dropServerAuditSpecification~3b4ec644)/dropServerRoleStatement	DROP SERVER ROLE a
-accept	reject	engine	dropServerStatements((AUDIT_(dropServerAuditSpecification~3b4ec644)/dropServerRoleStatement!drop-2	DROP SERVER ROLE
+reject	reject	engine	dropServerStatements((AUDIT_(dropServerAuditSpecification~3b4ec644)/dropServerRoleStatement!drop-2	DROP SERVER ROLE
 reject	reject	engine	dropServerStatements((AUDIT_(dropServerAuditSpecification~3b4ec644)/dropServerRoleStatement!insert	DROP SERVER ROLE a zzz
 reject	reject	engine	dropServerStatements((AUDIT_(dropServerAuditSpecification~3b4ec644)/dropServerRoleStatement!swap	DROP SERVER ROLLBACK a
 accept	accept	engine	dropServerStatements(dropServerAuditSpecificationStatemen~0daf37bb)/dropServerAuditSpecificationStatement_SPECIFICATION	DROP SERVER AUDIT SPECIFICATION a
@@ -15060,13 +15060,13 @@ accept	reject	engine	createAggregateStatement_AGGREGATE(Comma_aggregateParameter
 reject	reject	engine	createAggregateStatement_AGGREGATE(Comma_aggregateParameter)*/Comma_aggregateParameter_(Comma_aggregateParameter)*!insert	CREATE AGGREGATE a(@a a, @a a zzz) RETURNS a EXTERNAL NAME a
 accept	accept	engine	applicationRoleStatement_APPLICATION/APPLICATION_ROLE_identifier_With_applicationRoleOption_~101c0358	ALTER APPLICATION ROLE a WITH PASSWORD = 'a'
 accept	accept	engine	applicationRoleStatement_APPLICATION(Comma_applicationRoleOption)*/%empty	ALTER APPLICATION ROLE a WITH PASSWORD = 'a'
-accept	reject	engine	applicationRoleStatement_APPLICATION(Comma_applicationRoleOption)*/Comma_applicationRoleOption_(Comma_applicationRoleOption)*	ALTER APPLICATION ROLE a WITH PASSWORD = 'a', PASSWORD = 'a'
+reject	reject	engine	applicationRoleStatement_APPLICATION(Comma_applicationRoleOption)*/Comma_applicationRoleOption_(Comma_applicationRoleOption)*	ALTER APPLICATION ROLE a WITH PASSWORD = 'a', PASSWORD = 'a'
 reject	reject	engine	applicationRoleStatement_APPLICATION(Comma_applicationRoleOption)*/Comma_applicationRoleOption_(Comma_applicationRoleOption)*!drop-1	ALTER APPLICATION ROLE a WITH PASSWORD = 'a' PASSWORD = 'a'
 reject	reject	engine	applicationRoleStatement_APPLICATION(Comma_applicationRoleOption)*/Comma_applicationRoleOption_(Comma_applicationRoleOption)*!drop-2	ALTER APPLICATION ROLE a WITH PASSWORD = 'a', = 'a'
 reject	reject	engine	applicationRoleStatement_APPLICATION(Comma_applicationRoleOption)*/Comma_applicationRoleOption_(Comma_applicationRoleOption)*!drop-3	ALTER APPLICATION ROLE a WITH PASSWORD = 'a', PASSWORD 'a'
-accept	reject	engine	applicationRoleStatement_APPLICATION(Comma_applicationRoleOption)*/Comma_applicationRoleOption_(Comma_applicationRoleOption)*!drop-4	ALTER APPLICATION ROLE a WITH PASSWORD = 'a', PASSWORD =
+reject	reject	engine	applicationRoleStatement_APPLICATION(Comma_applicationRoleOption)*/Comma_applicationRoleOption_(Comma_applicationRoleOption)*!drop-4	ALTER APPLICATION ROLE a WITH PASSWORD = 'a', PASSWORD =
 reject	reject	engine	applicationRoleStatement_APPLICATION(Comma_applicationRoleOption)*/Comma_applicationRoleOption_(Comma_applicationRoleOption)*!insert	ALTER APPLICATION ROLE a WITH PASSWORD = 'a', PASSWORD = 'a' zzz
-accept	reject	engine	applicationRoleStatement_APPLICATION(Comma_applicationRoleOption)*/Comma_applicationRoleOption_(Comma_applicationRoleOption)*!swap	ALTER APPLICATION ROLE a WITH PASSWORD = 'a', PATH = 'a'
+reject	reject	engine	applicationRoleStatement_APPLICATION(Comma_applicationRoleOption)*/Comma_applicationRoleOption_(Comma_applicationRoleOption)*!swap	ALTER APPLICATION ROLE a WITH PASSWORD = 'a', PATH = 'a'
 accept	accept	engine	createApplicationRoleStatement_APPLICATION/applicationRoleStatement_APPLICATION	CREATE APPLICATION ROLE a WITH PASSWORD = 'a'
 accept	accept	engine	createAssemblyStatement_ASSEMBLY/ASSEMBLY_identifier_authorizationOpt_From_expressionLis~8f7a276f	CREATE ASSEMBLY a FROM 1
 accept	accept	engine	createAssemblyStatement_ASSEMBLY(With_Identifier_EqualsSign_assemblyP~34fa135b)?/%empty	CREATE ASSEMBLY a FROM 1
@@ -15279,11 +15279,11 @@ accept	accept	engine	createXmlStatements_XML/XML_(createXmlIndexStatement|create
 accept	reject	engine	createXmlStatements_XML(createXmlIndexStatement|createXmlSch~9e0e2168)/createXmlIndexStatement	CREATE XML INDEX a ON a(a)
 accept	accept	engine	createXmlStatements_XML(createXmlIndexStatement|createXmlSch~9e0e2168)/createXmlSchemaCollectionStatement	CREATE XML SCHEMA COLLECTION a AS 1
 accept	accept	engine	createLoginStatement_LOGIN/LOGIN_identifier_(passwordLoginSource|From_(windowsLog~e1c81036)	CREATE LOGIN a FROM WINDOWS
-accept	reject	engine	createLoginStatement_LOGIN(passwordLoginSource|From_(windowsLog~e1c81036)/passwordLoginSource	CREATE LOGIN a WITH PASSWORD = 0x00
+reject	reject	engine	createLoginStatement_LOGIN(passwordLoginSource|From_(windowsLog~e1c81036)/passwordLoginSource	CREATE LOGIN a WITH PASSWORD = 0x00
 accept	accept	engine	createLoginStatement_LOGIN(passwordLoginSource|From_(windowsLog~e1c81036)/From_(windowsLoginSource_WINDOWS|externalL~6caea3e5)	CREATE LOGIN a FROM WINDOWS
 reject	reject	engine	createLoginStatement_LOGIN(passwordLoginSource|From_(windowsLog~e1c81036)/From_(windowsLoginSource_WINDOWS|externalL~6caea3e5)!swap	CREATE LOGIN a FULL WINDOWS
 accept	accept	engine	createLoginStatement_LOGIN(windowsLoginSource_WINDOWS|externalL~6caea3e5)/windowsLoginSource_WINDOWS	CREATE LOGIN a FROM WINDOWS
-accept	reject	engine	createLoginStatement_LOGIN(windowsLoginSource_WINDOWS|externalL~6caea3e5)/windowsLoginSource_WINDOWS!swap	CREATE LOGIN a FROM WITH
+reject	reject	engine	createLoginStatement_LOGIN(windowsLoginSource_WINDOWS|externalL~6caea3e5)/windowsLoginSource_WINDOWS!swap	CREATE LOGIN a FROM WITH
 accept	accept	engine	createLoginStatement_LOGIN(windowsLoginSource_WINDOWS|externalL~6caea3e5)/externalLoginSource	CREATE LOGIN a FROM EXTERNAL PROVIDER
 accept	accept	engine	createLoginStatement_LOGIN(windowsLoginSource_WINDOWS|externalL~6caea3e5)/certificateLoginSource	CREATE LOGIN a FROM CERTIFICATE a
 accept	accept	engine	createLoginStatement_LOGIN(windowsLoginSource_WINDOWS|externalL~6caea3e5)/asymmetricKeyLoginSource	CREATE LOGIN a FROM ASYMMETRIC KEY a
@@ -15557,10 +15557,10 @@ reject	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServer
 reject	reject	engine	alterServerConfigurationStatement_CONFIGURATION(alterServerConfigurationSetProcessAf~79ce3d93)/alterServerConfigurationSetExternalAuthenticationStatem~2ac2a07f!swap	ALTER SERVER CONFIGURATION SET EXTERNAL_MONITOR AUTHENTICATION ON
 accept	accept	engine	alterServerRoleStatement_ROLE/ROLE_identifier_alterRoleAction	ALTER SERVER ROLE a ADD MEMBER a
 reject	reject	engine	alterServerRoleStatement_ROLE/ROLE_identifier_alterRoleAction!drop-1	ALTER SERVER a ADD MEMBER a
-accept	reject	engine	alterServerRoleStatement_ROLE/ROLE_identifier_alterRoleAction!drop-2	ALTER SERVER ROLE ADD MEMBER a
+reject	reject	engine	alterServerRoleStatement_ROLE/ROLE_identifier_alterRoleAction!drop-2	ALTER SERVER ROLE ADD MEMBER a
 reject	reject	engine	alterServerRoleStatement_ROLE/ROLE_identifier_alterRoleAction!drop-3	ALTER SERVER ROLE a MEMBER a
-accept	reject	engine	alterServerRoleStatement_ROLE/ROLE_identifier_alterRoleAction!drop-4	ALTER SERVER ROLE a ADD a
-accept	reject	engine	alterServerRoleStatement_ROLE/ROLE_identifier_alterRoleAction!drop-5	ALTER SERVER ROLE a ADD MEMBER
+reject	reject	engine	alterServerRoleStatement_ROLE/ROLE_identifier_alterRoleAction!drop-4	ALTER SERVER ROLE a ADD a
+reject	reject	engine	alterServerRoleStatement_ROLE/ROLE_identifier_alterRoleAction!drop-5	ALTER SERVER ROLE a ADD MEMBER
 reject	reject	engine	alterServerRoleStatement_ROLE/ROLE_identifier_alterRoleAction!insert	ALTER SERVER ROLE a ADD MEMBER a zzz
 reject	reject	engine	alterServerRoleStatement_ROLE/ROLE_identifier_alterRoleAction!swap	ALTER SERVER ROLLBACK a ADD MEMBER a
 accept	accept	engine	alterServerAuditSpecificationStatement_SPECIFICATION/SPECIFICATION_identifier_(auditSpecificationForClause)?~dc40e6a6	ALTER SERVER AUDIT SPECIFICATION a
@@ -16255,15 +16255,15 @@ reject	accept	engine	identifier_MAXLENGTH/MAXLENGTH	ALTER INDEX a ON a FOR(ADD a
 reject	reject	engine	identifier_MAXLENGTH/MAXLENGTH!insert	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY MAXLENGTH zzz(1))
 accept	accept	engine	windowsLoginSource_WINDOWS/WINDOWS_(With_createLoginParamWin_(Comma_crea~7f70ec3c)?	CREATE LOGIN a FROM WINDOWS
 accept	accept	engine	windowsLoginSource_WINDOWS(With_createLoginParamWin_(Comma_crea~7f70ec3c)?/%empty	CREATE LOGIN a FROM WINDOWS
-accept	reject	engine	windowsLoginSource_WINDOWS(With_createLoginParamWin_(Comma_crea~7f70ec3c)?/With_createLoginParamWin_(Comma_createLoginParamWin)*	CREATE LOGIN a FROM WINDOWS WITH a = a
+reject	reject	engine	windowsLoginSource_WINDOWS(With_createLoginParamWin_(Comma_crea~7f70ec3c)?/With_createLoginParamWin_(Comma_createLoginParamWin)*	CREATE LOGIN a FROM WINDOWS WITH a = a
 reject	reject	engine	windowsLoginSource_WINDOWS(With_createLoginParamWin_(Comma_crea~7f70ec3c)?/With_createLoginParamWin_(Comma_createLoginParamWin)*!drop-1	CREATE LOGIN a FROM WINDOWS a = a
 reject	reject	engine	windowsLoginSource_WINDOWS(With_createLoginParamWin_(Comma_crea~7f70ec3c)?/With_createLoginParamWin_(Comma_createLoginParamWin)*!swap	CREATE LOGIN a FROM WINDOWS WITHIN a = a
-accept	reject	engine	windowsLoginSource_WINDOWS(Comma_createLoginParamWin)*/%empty	CREATE LOGIN a FROM WINDOWS WITH a = a
-accept	reject	engine	windowsLoginSource_WINDOWS(Comma_createLoginParamWin)*/Comma_createLoginParamWin_(Comma_createLoginParamWin)*	CREATE LOGIN a FROM WINDOWS WITH a = a, a = a
+reject	reject	engine	windowsLoginSource_WINDOWS(Comma_createLoginParamWin)*/%empty	CREATE LOGIN a FROM WINDOWS WITH a = a
+reject	reject	engine	windowsLoginSource_WINDOWS(Comma_createLoginParamWin)*/Comma_createLoginParamWin_(Comma_createLoginParamWin)*	CREATE LOGIN a FROM WINDOWS WITH a = a, a = a
 reject	reject	engine	windowsLoginSource_WINDOWS(Comma_createLoginParamWin)*/Comma_createLoginParamWin_(Comma_createLoginParamWin)*!drop-1	CREATE LOGIN a FROM WINDOWS WITH a = a a = a
 reject	reject	engine	windowsLoginSource_WINDOWS(Comma_createLoginParamWin)*/Comma_createLoginParamWin_(Comma_createLoginParamWin)*!drop-2	CREATE LOGIN a FROM WINDOWS WITH a = a, = a
 reject	reject	engine	windowsLoginSource_WINDOWS(Comma_createLoginParamWin)*/Comma_createLoginParamWin_(Comma_createLoginParamWin)*!drop-3	CREATE LOGIN a FROM WINDOWS WITH a = a, a a
-accept	reject	engine	windowsLoginSource_WINDOWS(Comma_createLoginParamWin)*/Comma_createLoginParamWin_(Comma_createLoginParamWin)*!drop-4	CREATE LOGIN a FROM WINDOWS WITH a = a, a =
+reject	reject	engine	windowsLoginSource_WINDOWS(Comma_createLoginParamWin)*/Comma_createLoginParamWin_(Comma_createLoginParamWin)*!drop-4	CREATE LOGIN a FROM WINDOWS WITH a = a, a =
 reject	reject	engine	windowsLoginSource_WINDOWS(Comma_createLoginParamWin)*/Comma_createLoginParamWin_(Comma_createLoginParamWin)*!insert	CREATE LOGIN a FROM WINDOWS WITH a = a, a = a zzz
 accept	accept	engine	alterAvailabilityGroupModifyReplica_MODIFY/MODIFY_REPLICA_On_availabilityReplica_(Comma_availabili~7214b9b1	ALTER AVAILABILITY GROUP a MODIFY REPLICA ON 'a' WITH(AVAILABILITY_MODE = SYNCHRONOUS_COMMIT)
 accept	reject	engine	alterAvailabilityGroupModifyReplica_MODIFY/MODIFY_REPLICA_On_availabilityReplica_(Comma_availabili~7214b9b1!drop-2	ALTER AVAILABILITY GROUP a MODIFY ON 'a' WITH(AVAILABILITY_MODE = SYNCHRONOUS_COMMIT)
