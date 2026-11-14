@@ -469,6 +469,8 @@ func TestShowStrictRejects(t *testing.T) {
 	}
 	for _, sql := range []string{
 		"SHOW FULL TABLES FROM db LIKE 'a%'",
+		"SHOW LOAD WHERE role = 'a'",
+		"SHOW LOAD WHERE Label MATCH !Label",
 		"SHOW LOAD WHERE GROUP_CONCAT(Label SEPARATOR Label) = 'a'",
 		"SHOW LOAD WHERE !(Label = 'job')",
 		"SHOW LOAD WHERE Label MATCH 'job' AND 5 MOD 2 = 1",
@@ -504,5 +506,21 @@ func TestMatchBindsAsPrimary(t *testing.T) {
 	}
 	if _, ok := cmp.Left.(*ast.MatchExpr); !ok {
 		t.Errorf("left of = is %T, want *ast.MatchExpr", cmp.Left)
+	}
+}
+
+// TestShiftWordsBindLooserThanBitOr holds the shift words to StarRocks.g4:
+// 2389-2394, where they come after | and so bind looser.
+func TestShiftWordsBindLooserThanBitOr(t *testing.T) {
+	file, err := Parse("SELECT 1 | 2 BITSHIFTLEFT 3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	shift, ok := file.Stmts[0].(*ast.SelectStmt).Items[0].Expr.(*ast.BinaryExpr)
+	if !ok || shift.Op != ast.BinShiftLeft {
+		t.Fatalf("got %T, want a BITSHIFTLEFT at the top", file.Stmts[0].(*ast.SelectStmt).Items[0].Expr)
+	}
+	if or, ok := shift.Left.(*ast.BinaryExpr); !ok || or.Op != ast.BinBitOr {
+		t.Errorf("left of BITSHIFTLEFT is %T, want 1 | 2", shift.Left)
 	}
 }

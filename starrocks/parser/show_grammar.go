@@ -340,6 +340,22 @@ var starRocksNonReservedWords = map[TokenKind]bool{
 	kwWHITELIST: true, kwWRITE: true,
 }
 
+// starRocksNonReservedColumnWords are the starRocksNonReservedWords that do
+// not open another expression form (CAST, EXTRACT, INTERVAL, MATCH, ...), so
+// that in an expression they can only name a column.
+var starRocksNonReservedColumnWords = func() map[TokenKind]bool {
+	m := map[TokenKind]bool{}
+	for k := range starRocksNonReservedWords {
+		switch k {
+		case kwBINARY, kwCAST, kwCURRENT, kwEXTRACT, kwINTERVAL, kwMATCH, kwROW,
+			kwMINUS, kwANTI, kwSEMI, kwFOLLOWING, kwPRECEDING, kwUNBOUNDED:
+			continue
+		}
+		m[k] = true
+	}
+	return m
+}()
+
 // showShapeLimitValue reads INTEGER_VALUE or PARAMETER.
 func (p *Parser) showShapeLimitValue() bool {
 	return p.showShapeToken(tokInt) || p.showShapeToken(tokPlaceholder)

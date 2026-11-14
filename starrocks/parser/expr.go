@@ -207,14 +207,15 @@ func (p *Parser) infixBindingPower() (int, ast.BinaryOp, string, bool) {
 		if strings.EqualFold(p.cur.Str, "MOD") {
 			return bpMul, ast.BinMod, "", true
 		}
-		// The shift words of StarRocks.g4:2392-2394, reserved there too.
+		// The shift words of StarRocks.g4:2392-2394, reserved there too. They
+		// bind looser than | (:2391), each looser than the one before.
 		switch strings.ToUpper(p.cur.Str) {
 		case "BITSHIFTLEFT":
-			return bpShift, ast.BinShiftLeft, "", true
+			return bpBitOr - 1, ast.BinShiftLeft, "", true
 		case "BITSHIFTRIGHT":
-			return bpShift, ast.BinShiftRight, "", true
+			return bpBitOr - 2, ast.BinShiftRight, "", true
 		case "BITSHIFTRIGHTLOGICAL":
-			return bpShift, ast.BinShiftRightLogical, "", true
+			return bpBitOr - 3, ast.BinShiftRightLogical, "", true
 		}
 
 	// Bitwise XOR
@@ -616,6 +617,23 @@ func (p *Parser) parsePrimaryExpr() (ast.Node, error) {
 		// Identifier-based: column ref or function call.
 		if p.isExprIdentToken() {
 			return p.parseIdentExpr()
+		}
+
+		// A word of StarRocks.g4's nonReserved that omni's keyword table
+		// reserves names a column too (SELECT role).
+		if starRocksNonReservedColumnWords[p.cur.Kind] {
+			tok := p.advance()
+			name := &ast.ObjectName{Parts: []string{tok.Str}, Loc: tok.Loc}
+			for p.cur.Kind == int('.') && isIdentifierTokenQualified(p.peekNext().Kind) {
+				p.advance() // consume '.'
+				part := p.advance()
+				name.Parts = append(name.Parts, part.Str)
+				name.Loc.End = part.Loc.End
+			}
+			if p.cur.Kind == int('(') {
+				return p.parseFuncCall(name)
+			}
+			return &ast.ColumnRef{Name: name, Loc: name.Loc}, nil
 		}
 
 		return nil, p.syntaxErrorAtCur()
@@ -1980,6 +1998,47 @@ func (p *Parser) parseMatchExpr(left ast.Node, notFlag bool) (ast.Node, error) {
 // parseMatchOperand reads the primaryExpression right of MATCH, with the
 // subscripts and COLLATE that bind as tightly.
 func (p *Parser) parseMatchOperand() (ast.Node, error) {
+	// A primaryExpression may open with unary operators (StarRocks.g4:2408-
+	// 2409); a loop reads them, so a long run of them cannot deepen the stack.
+	type prefix struct {
+		op    ast.UnaryOp
+		start int
+	}
+	var prefixes []prefix
+	for {
+		var op ast.UnaryOp
+		switch p.cur.Kind {
+		case int('-'):
+			op = ast.UnaryMinus
+		case int('+'):
+			op = ast.UnaryPlus
+		case int('~'):
+			op = ast.UnaryBitNot
+		case int('!'):
+			op = ast.UnaryNot
+		default:
+			goto operand
+		}
+		prefixes = append(prefixes, prefix{op, p.advance().Loc.Start})
+	}
+operand:
+	node, err := p.parseMatchPrimary()
+	if err != nil {
+		return nil, err
+	}
+	for i := len(prefixes) - 1; i >= 0; i-- {
+		node = &ast.UnaryExpr{
+			Op:   prefixes[i].op,
+			Expr: node,
+			Loc:  ast.Loc{Start: prefixes[i].start, End: ast.NodeLoc(node).End},
+		}
+	}
+	return node, nil
+}
+
+// parseMatchPrimary reads a primary expression with the suffixes that bind
+// as tightly.
+func (p *Parser) parseMatchPrimary() (ast.Node, error) {
 	node, err := p.parsePrimaryExpr()
 	if err != nil {
 		return nil, err
