@@ -41,6 +41,14 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 	if f := p.matchObjectForm(); f != nil {
 		return p.parseObjectStmt("CREATE", f, start, orReplace, orAlter)
 	}
+	// Policies and data metric functions read by their docs pages (policy.go,
+	// data_metric_function.go).
+	if d := p.startsDocPolicy(); d != nil {
+		return p.parseCreateDocPolicy(start, orReplace, orAlter, d)
+	}
+	if p.startsCreateDataMetricFunction() {
+		return p.parseCreateDataMetricFunction(start, orReplace, orAlter)
+	}
 
 	// Optional SECURE modifier. SECURE applies to VIEW / MATERIALIZED VIEW
 	// (T2.4) and to FUNCTION / EXTERNAL FUNCTION / PROCEDURE (T4.5). It is
