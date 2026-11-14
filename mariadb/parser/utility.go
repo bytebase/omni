@@ -73,6 +73,9 @@ func (p *Parser) parseAnalyzeTableStmt() (*nodes.AnalyzeTableStmt, error) {
 		}
 		p.advance()
 	}
+	if err := refuseRepeatedTables(stmt.Tables); err != nil {
+		return nil, err
+	}
 
 	// UPDATE HISTOGRAM ON col [, col] [WITH N BUCKETS] | [USING DATA 'json_data']
 	if p.cur.Type == kwUPDATE {
@@ -190,6 +193,9 @@ func (p *Parser) parseOptimizeTableStmt() (*nodes.OptimizeTableStmt, error) {
 		}
 		p.advance()
 	}
+	if err := refuseRepeatedTables(stmt.Tables); err != nil {
+		return nil, err
+	}
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
@@ -234,6 +240,9 @@ func (p *Parser) parseCheckTableStmt() (*nodes.CheckTableStmt, error) {
 			break
 		}
 		p.advance()
+	}
+	if err := refuseRepeatedTables(stmt.Tables); err != nil {
+		return nil, err
 	}
 
 	// Optional check options: FOR UPGRADE, QUICK, FAST, MEDIUM, EXTENDED, CHANGED
@@ -313,6 +322,9 @@ func (p *Parser) parseRepairTableStmt() (*nodes.RepairTableStmt, error) {
 			break
 		}
 		p.advance()
+	}
+	if err := refuseRepeatedTables(stmt.Tables); err != nil {
+		return nil, err
 	}
 
 	// Options: QUICK, EXTENDED, USE_FRM
@@ -422,6 +434,9 @@ func (p *Parser) parseFlushStmt() (*nodes.FlushStmt, error) {
 				if _, ok := p.match(','); !ok {
 					break
 				}
+			}
+			if err := refuseRepeatedTables(stmt.Tables); err != nil {
+				return nil, err
 			}
 		}
 		switch p.cur.Type {
@@ -995,6 +1010,9 @@ func (p *Parser) parseChecksumTableStmt() (*nodes.ChecksumTableStmt, error) {
 		}
 		p.advance()
 	}
+	if err := refuseRepeatedTables(stmt.Tables); err != nil {
+		return nil, err
+	}
 
 	// Optional QUICK | EXTENDED
 	if p.cur.Type == kwQUICK {
@@ -1019,20 +1037,6 @@ func (p *Parser) parseShutdownStmt() (*nodes.ShutdownStmt, error) {
 	p.advance() // consume SHUTDOWN
 
 	stmt := &nodes.ShutdownStmt{Loc: nodes.Loc{Start: start}}
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
-}
-
-// parseRestartStmt parses a RESTART statement.
-//
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/restart.html
-//
-//	RESTART
-func (p *Parser) parseRestartStmt() (*nodes.RestartStmt, error) {
-	start := p.pos()
-	p.advance() // consume RESTART
-
-	stmt := &nodes.RestartStmt{Loc: nodes.Loc{Start: start}}
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
@@ -1837,8 +1841,13 @@ func (p *Parser) parseImportTableStmt() (*nodes.ImportTableStmt, error) {
 	return stmt, nil
 }
 
-// parseBinlogStmt parses BINLOG 'str'.
+// parseBinlogStmt parses BINLOG 'str' and BINLOG @a, @b, an event in two user variables.
 // p.cur is BINLOG.
+//
+// Ref: binlog_base64_event in MariaDB 11.8 sql/sql_yacc.yy:
+//
+//	BINLOG_SYM TEXT_STRING_sys
+//	| BINLOG_SYM '@' ident_or_text ',' '@' ident_or_text
 func (p *Parser) parseBinlogStmt() (*nodes.BinlogStmt, error) {
 	start := p.pos()
 	p.advance() // consume BINLOG
@@ -1850,6 +1859,24 @@ func (p *Parser) parseBinlogStmt() (*nodes.BinlogStmt, error) {
 	if p.cur.Type == tokSCONST {
 		stmt.Str = p.cur.Str
 		p.advance()
+		stmt.Loc.End = p.prev.End
+		return stmt, nil
+	}
+
+	for i := 0; i < 2; i++ {
+		if i == 1 {
+			if _, err := p.expect(','); err != nil {
+				return nil, err
+			}
+		}
+		if !p.atUserVar() {
+			return nil, p.syntaxErrorAtCur()
+		}
+		ref, err := p.parseVariableRef()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Fragments = append(stmt.Fragments, ref.Name)
 	}
 
 	stmt.Loc.End = p.prev.End
@@ -1947,6 +1974,9 @@ func (p *Parser) parseCacheIndexStmt() (*nodes.CacheIndexStmt, error) {
 			break
 		}
 		p.advance()
+	}
+	if err := refuseRepeatedTables(stmt.Tables); err != nil {
+		return nil, err
 	}
 
 	if _, err := p.expect(kwIN); err != nil {
@@ -2066,6 +2096,13 @@ func (p *Parser) parseLoadIndexIntoCacheStmt(start int) (*nodes.LoadIndexIntoCac
 			break
 		}
 		p.advance()
+	}
+	refs := make([]*nodes.TableRef, 0, len(stmt.Tables))
+	for _, entry := range stmt.Tables {
+		refs = append(refs, entry.Table)
+	}
+	if err := refuseRepeatedTables(refs); err != nil {
+		return nil, err
 	}
 
 	stmt.Loc.End = p.prev.End

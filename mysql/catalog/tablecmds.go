@@ -334,6 +334,8 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 				col.Invisible = false
 			case nodes.ColConstrInvisible:
 				col.Invisible = true
+			case nodes.ColConstrNotSecondary:
+				col.NotSecondary = true
 			case nodes.ColConstrCollate:
 				// Collation specified via constraint.
 				if cc.Expr != nil {
@@ -2664,6 +2666,7 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 			OnUpdate:                     srcCol.OnUpdate,
 			OnUpdateKind:                 srcCol.OnUpdateKind,
 			Invisible:                    srcCol.Invisible,
+			NotSecondary:                 srcCol.NotSecondary,
 			GeneratedInvisiblePrimaryKey: srcCol.GeneratedInvisiblePrimaryKey,
 			Hidden:                       srcCol.Hidden,
 			// SRID copied by presence: MySQL's CREATE TABLE ... LIKE preserves the source
