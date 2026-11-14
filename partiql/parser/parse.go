@@ -1,6 +1,11 @@
 package parser
 
-import "github.com/bytebase/omni/partiql/ast"
+import (
+	"fmt"
+	"strings"
+
+	"github.com/bytebase/omni/partiql/ast"
+)
 
 // Parse parses a PartiQL script and returns an *ast.List of statement nodes.
 //
@@ -83,7 +88,7 @@ func (p *Parser) parseCheckedRoot() (ast.StmtNode, error) {
 	first := p.cur
 	stmt, err := p.parseRoot()
 	// No later statement parses these tokens again.
-	p.parenMemo, p.tableMemo, p.trimFroms = nil, nil, nil
+	p.parenMemo, p.tableMemo, p.trimFroms, p.positionCommas = nil, nil, nil, nil
 	if err != nil {
 		return nil, err
 	}
@@ -114,14 +119,18 @@ func (p *Parser) parseRoot() (ast.StmtNode, error) {
 	// not representable in the current AST.
 	if p.cur.Type == tokPAREN_LEFT {
 		p.advance() // consume (
+		var params, values []Token
 		for {
 			// Each option is a pair of identifiers: param=IDENTIFIER value=IDENTIFIER.
-			if _, err := p.expect(tokIDENT); err != nil {
+			param, err := p.expect(tokIDENT)
+			if err != nil {
 				return nil, err
 			}
-			if _, err := p.expect(tokIDENT); err != nil {
+			value, err := p.expect(tokIDENT)
+			if err != nil {
 				return nil, err
 			}
+			params, values = append(params, param), append(values, value)
 			if p.cur.Type != tokCOMMA {
 				break
 			}
@@ -129,6 +138,25 @@ func (p *Parser) parseRoot() (ast.StmtNode, error) {
 		}
 		if _, err := p.expect(tokPAREN_RIGHT); err != nil {
 			return nil, err
+		}
+		// The reference parser's visitor takes TYPE and FORMAT, each once
+		// (PartiQLParserDefault.kt:524, 2298).
+		seen := map[string]bool{}
+		for i, param := range params {
+			name := strings.ToUpper(param.Str)
+			if name != "TYPE" && name != "FORMAT" {
+				return nil, &ParseError{
+					Message:  fmt.Sprintf("unknown EXPLAIN parameter %q", param.Str),
+					Position: param.Loc.Start, End: param.Loc.End,
+				}
+			}
+			if seen[name] {
+				return nil, &ParseError{
+					Message:  fmt.Sprintf("cannot set EXPLAIN parameter %s multiple times", name),
+					Position: values[i].Loc.Start, End: values[i].Loc.End,
+				}
+			}
+			seen[name] = true
 		}
 	}
 
@@ -168,29 +196,20 @@ func (p *Parser) parseRootStatement() (ast.StmtNode, error) {
 		return p.parseUpsertStmt()
 	case tokREMOVE:
 		return p.parseRemoveStmt()
+	case tokSET:
+		// A SET command alone is DML: dml#DmlBase (PartiQLParser.g4:125).
+		return p.parseSetStmt()
 	case tokFROM:
 		// FROM-led DML: `FROM fromClause whereClause? dmlBaseCommand+
 		// returningClause?` (dml#DmlBaseWrapper 2nd alt). A leading FROM at
 		// statement position is always DML.
 		return p.parseFromLedDml()
-	case tokEXEC, tokEXECUTE:
-		p.advance() // consume EXEC/EXECUTE
+	case tokEXEC:
+		// execCommand begins with EXEC alone (PartiQLParser.g4:64-65);
+		// EXECUTE is a reserved word no rule uses.
+		p.advance() // consume EXEC
 		return p.parseExecCommand()
 	default:
-		// DQL fallback: parse as expression. If the result is a StmtNode
-		// (e.g. SelectStmt via SubLink unwrap), return it. Bare non-statement
-		// expressions (e.g. `1 + 2`) are deferred — the grammar allows them
-		// as dql but there is no ExprStmt wrapper in the AST.
-		expr, err := p.parseExprTop()
-		if err != nil {
-			return nil, err
-		}
-		if sub, ok := expr.(*ast.SubLink); ok {
-			return sub.Stmt, nil
-		}
-		if sn, ok := expr.(ast.StmtNode); ok {
-			return sn, nil
-		}
-		return nil, p.deferredFeature("bare expression as statement", "parse-entry (DAG node 8)")
+		return p.parseDqlStatement()
 	}
 }

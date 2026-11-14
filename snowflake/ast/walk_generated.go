@@ -32,11 +32,30 @@ func walkChildren(v Visitor, node Node) {
 		if n.NewName != nil {
 			Walk(v, n.NewName)
 		}
+		if n.UserGroup != nil {
+			Walk(v, n.UserGroup)
+		}
+		for _, item := range n.Contacts {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 	case *AlterAlertStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+		if n.Template != nil {
+			Walk(v, n.Template)
+		}
 		for _, item := range n.Options {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		for _, item := range n.Tags {
+			walkTagAssignment(v, item)
+		}
+		for _, item := range n.UnsetTags {
 			if item != nil {
 				Walk(v, item)
 			}
@@ -50,10 +69,26 @@ func walkChildren(v Visitor, node Node) {
 		if n.NewName != nil {
 			Walk(v, n.NewName)
 		}
+		walkDBSchemaProps(v, n.SetProps)
 		for _, item := range n.Tags {
 			walkTagAssignment(v, item)
 		}
 		for _, item := range n.UnsetTags {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		if n.FeaturePolicy != nil {
+			Walk(v, n.FeaturePolicy)
+		}
+		walkLinkedCatalogUpdate(v, n.LinkedCatalog)
+	case *AlterDatasetStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		Walk(v, n.Query)
+		Walk(v, n.PartitionBy)
+		for _, item := range n.Options {
 			if item != nil {
 				Walk(v, item)
 			}
@@ -79,6 +114,21 @@ func walkChildren(v Visitor, node Node) {
 			}
 		}
 		walkNodes(v, n.ClusterBy)
+		for _, item := range n.MoreNames {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		if n.PolicyName != nil {
+			Walk(v, n.PolicyName)
+		}
+		if n.AddPolicyName != nil {
+			Walk(v, n.AddPolicyName)
+		}
+		for _, item := range n.ColumnActions {
+			walkAlterViewColumnAction(v, item)
+		}
+		Walk(v, n.FrozenWhere)
 	case *AlterExternalTableStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -148,6 +198,7 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.NewName)
 		}
 		walkNodes(v, n.ClusterBy)
+		walkDataMetricAction(v, n.DataMetric)
 	case *AlterNetworkRuleStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -247,10 +298,21 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+		for _, item := range n.TableArgs {
+			walkRoutineTableArgType(v, item)
+		}
 		if n.NewName != nil {
 			Walk(v, n.NewName)
 		}
 		for _, item := range n.Options {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		for _, item := range n.Tags {
+			walkTagAssignment(v, item)
+		}
+		for _, item := range n.UnsetTags {
 			if item != nil {
 				Walk(v, item)
 			}
@@ -262,6 +324,7 @@ func walkChildren(v Visitor, node Node) {
 		if n.NewName != nil {
 			Walk(v, n.NewName)
 		}
+		walkDBSchemaProps(v, n.SetProps)
 		for _, item := range n.Tags {
 			walkTagAssignment(v, item)
 		}
@@ -290,6 +353,24 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+		if n.Materialization != nil {
+			Walk(v, n.Materialization)
+		}
+		if n.Warehouse != nil {
+			Walk(v, n.Warehouse)
+		}
+		Walk(v, n.ImmutableWhere)
+		for _, item := range n.Dimensions {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		for _, item := range n.Metrics {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		Walk(v, n.Where)
 	case *AlterSequenceStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -430,6 +511,12 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+		if n.PolicyName != nil {
+			Walk(v, n.PolicyName)
+		}
+		if n.CredentialName != nil {
+			Walk(v, n.CredentialName)
+		}
 	case *AlterViewStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -456,6 +543,13 @@ func walkChildren(v Visitor, node Node) {
 		}
 		if n.AddPolicyName != nil {
 			Walk(v, n.AddPolicyName)
+		}
+		walkDataMetricAction(v, n.DataMetric)
+		if n.ColumnType != nil {
+			Walk(v, n.ColumnType)
+		}
+		if n.ProjectionPolicy != nil {
+			Walk(v, n.ProjectionPolicy)
 		}
 	case *AlterWarehouseStmt:
 		if n.Name != nil {
@@ -526,6 +620,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.MaskingPolicy != nil {
 			Walk(v, n.MaskingPolicy)
 		}
+		if n.ProjectionPolicy != nil {
+			Walk(v, n.ProjectionPolicy)
+		}
 		walkInlineConstraint(v, n.InlineConstraint)
 		for _, item := range n.Tags {
 			walkTagAssignment(v, item)
@@ -547,9 +644,27 @@ func walkChildren(v Visitor, node Node) {
 		if n.Source != nil {
 			Walk(v, n.Source)
 		}
+	case *CopyFilesStmt:
+		if n.Into != nil {
+			Walk(v, n.Into)
+		}
+		if n.From != nil {
+			Walk(v, n.From)
+		}
+		Walk(v, n.FromQuery)
+		for _, item := range n.Options {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 	case *CopyIntoLocationStmt:
 		if n.Into != nil {
 			Walk(v, n.Into)
+		}
+		for _, item := range n.IntoOptions {
+			if item != nil {
+				Walk(v, item)
+			}
 		}
 		if n.FromTable != nil {
 			Walk(v, n.FromTable)
@@ -590,6 +705,10 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+		Walk(v, n.Expr)
+		if n.Alias != nil {
+			Walk(v, n.Alias)
+		}
 	case *CreateAccountStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -599,9 +718,33 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+	case *CreateAiFunctionStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, item := range n.Args {
+			walkRoutineArg(v, item)
+		}
+		if n.ReturnType != nil {
+			Walk(v, n.ReturnType)
+		}
+		for _, item := range n.Options {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		if n.Experiment != nil {
+			Walk(v, n.Experiment)
+		}
 	case *CreateAlertStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
+		}
+		if n.Clone != nil {
+			Walk(v, n.Clone)
+		}
+		if n.Template != nil {
+			Walk(v, n.Template)
 		}
 		for _, item := range n.Tags {
 			walkTagAssignment(v, item)
@@ -621,6 +764,13 @@ func walkChildren(v Visitor, node Node) {
 		if n.FromShare != nil {
 			Walk(v, n.FromShare)
 		}
+		if n.FromBackupSet != nil {
+			Walk(v, n.FromBackupSet)
+		}
+		if n.ReplicaOf != nil {
+			Walk(v, n.ReplicaOf)
+		}
+		walkDBSchemaProps(v, &n.Props)
 		for _, item := range n.Tags {
 			walkTagAssignment(v, item)
 		}
@@ -647,6 +797,9 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.AsQuery)
 		Walk(v, n.RefreshUsing)
 		walkCloneSource(v, n.Clone)
+		walkNodes(v, n.PartitionBy)
+		Walk(v, n.StartAt)
+		walkBackupSource(v, n.FromBackup)
 	case *CreateEventTableStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -660,6 +813,7 @@ func walkChildren(v Visitor, node Node) {
 		for _, item := range n.Tags {
 			walkTagAssignment(v, item)
 		}
+		walkCloneSource(v, n.Clone)
 	case *CreateExternalTableStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -809,6 +963,10 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Name)
 		}
 		walkCloneSource(v, n.Clone)
+		if n.FromBackupSet != nil {
+			Walk(v, n.FromBackupSet)
+		}
+		walkDBSchemaProps(v, &n.Props)
 		for _, item := range n.Tags {
 			walkTagAssignment(v, item)
 		}
@@ -901,6 +1059,24 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Like)
 		}
 		walkCloneSource(v, n.Clone)
+		Walk(v, n.UsingTemplate)
+		walkArchiveSource(v, n.FromArchive)
+		walkBackupSource(v, n.FromBackup)
+		walkRowAccessPolicy(v, n.RowPolicy)
+		for _, item := range n.Options {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		walkNodes(v, n.PartitionBy)
+		if n.AggregationPolicy != nil {
+			Walk(v, n.AggregationPolicy)
+		}
+		for _, item := range n.Contacts {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 	case *CreateTagStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -916,6 +1092,11 @@ func walkChildren(v Visitor, node Node) {
 		}
 		for _, item := range n.Tags {
 			walkTagAssignment(v, item)
+		}
+		for _, item := range n.Contacts {
+			if item != nil {
+				Walk(v, item)
+			}
 		}
 		for _, item := range n.Options {
 			if item != nil {
@@ -963,6 +1144,11 @@ func walkChildren(v Visitor, node Node) {
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+		for _, item := range n.Tables {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 		for _, item := range n.Options {
 			if item != nil {
 				Walk(v, item)
@@ -989,6 +1175,9 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+		for _, item := range n.TableArgs {
+			walkRoutineTableArgType(v, item)
+		}
 	case *DollarRef:
 		if n.Qualifier != nil {
 			Walk(v, n.Qualifier)
@@ -1005,7 +1194,26 @@ func walkChildren(v Visitor, node Node) {
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+		if n.Table != nil {
+			Walk(v, n.Table)
+		}
 		for _, item := range n.ArgTypes {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		for _, item := range n.TableArgs {
+			walkRoutineTableArgType(v, item)
+		}
+		if n.GracePeriodInDays != nil {
+			Walk(v, n.GracePeriodInDays)
+		}
+	case *ExecuteAlertStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+	case *ExecuteImmediateStmt:
+		for _, item := range n.Vars {
 			if item != nil {
 				Walk(v, item)
 			}
@@ -1077,6 +1285,16 @@ func walkChildren(v Visitor, node Node) {
 	case *GroupOption:
 		if n.Lit != nil {
 			Walk(v, n.Lit)
+		}
+		for _, item := range n.Pairs {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		for _, item := range n.List {
+			if item != nil {
+				Walk(v, item)
+			}
 		}
 	case *IffExpr:
 		Walk(v, n.Cond)
@@ -1160,6 +1378,47 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.On)
 		for _, item := range n.Whens {
 			walkMergeWhen(v, item)
+		}
+	case *ObjectClause:
+		for _, item := range n.Names {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		for _, item := range n.Options {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		for _, item := range n.Args {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		for _, item := range n.Tags {
+			walkTagAssignment(v, item)
+		}
+		Walk(v, n.Query)
+		if n.Type != nil {
+			Walk(v, n.Type)
+		}
+		for _, item := range n.Params {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		Walk(v, n.Body)
+		if n.TimeTravel != nil {
+			Walk(v, n.TimeTravel)
+		}
+	case *ObjectStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, item := range n.Clauses {
+			if item != nil {
+				Walk(v, item)
+			}
 		}
 	case *OuterJoinExpr:
 		Walk(v, n.Operand)
@@ -1309,6 +1568,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.ScopeName != nil {
 			Walk(v, n.ScopeName)
 		}
+		if n.QualifierName != nil {
+			Walk(v, n.QualifierName)
+		}
 		if n.GrantsOn != nil {
 			Walk(v, n.GrantsOn)
 		}
@@ -1324,6 +1586,7 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Query)
 	case *TableConstraint:
 		walkForeignKeyRef(v, n.References)
+		Walk(v, n.Check)
 	case *TableRef:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -1379,6 +1642,9 @@ func walkChildren(v Visitor, node Node) {
 	case *UndropStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
+		}
+		if n.NewName != nil {
+			Walk(v, n.NewName)
 		}
 	case *UnpivotClause:
 		for _, item := range n.Columns {
@@ -1441,6 +1707,20 @@ func walkAlterTableAction(v Visitor, n *AlterTableAction) {
 	if n.MaskingPolicy != nil {
 		Walk(v, n.MaskingPolicy)
 	}
+	if n.ProjectionPolicy != nil {
+		Walk(v, n.ProjectionPolicy)
+	}
+	walkDataMetricAction(v, n.DataMetric)
+	for _, item := range n.Options {
+		if item != nil {
+			Walk(v, item)
+		}
+	}
+	Walk(v, n.Partition)
+	Walk(v, n.NewPartition)
+	if n.VersionTag != nil {
+		Walk(v, n.VersionTag)
+	}
 }
 
 // walkAlterViewColumnAction walks the node-bearing fields of the non-Node helper struct
@@ -1453,6 +1733,9 @@ func walkAlterViewColumnAction(v Visitor, n *AlterViewColumnAction) {
 	if n.MaskingPolicy != nil {
 		Walk(v, n.MaskingPolicy)
 	}
+	if n.ProjectionPolicy != nil {
+		Walk(v, n.ProjectionPolicy)
+	}
 	for _, item := range n.Tags {
 		walkTagAssignment(v, item)
 	}
@@ -1460,6 +1743,31 @@ func walkAlterViewColumnAction(v Visitor, n *AlterViewColumnAction) {
 		if item != nil {
 			Walk(v, item)
 		}
+	}
+}
+
+// walkArchiveSource walks the node-bearing fields of the non-Node helper struct
+// ArchiveSource. The helper itself is not visited (it is not a Node); its child
+// nodes are walked in field order.
+func walkArchiveSource(v Visitor, n *ArchiveSource) {
+	if n == nil {
+		return
+	}
+	if n.Table != nil {
+		Walk(v, n.Table)
+	}
+	Walk(v, n.Where)
+}
+
+// walkBackupSource walks the node-bearing fields of the non-Node helper struct
+// BackupSource. The helper itself is not visited (it is not a Node); its child
+// nodes are walked in field order.
+func walkBackupSource(v Visitor, n *BackupSource) {
+	if n == nil {
+		return
+	}
+	if n.BackupSet != nil {
+		Walk(v, n.BackupSet)
 	}
 }
 
@@ -1497,6 +1805,71 @@ func walkColumnAlter(v Visitor, n *ColumnAlter) {
 		Walk(v, n.DataType)
 	}
 	Walk(v, n.DefaultExpr)
+}
+
+// walkDBSchemaProps walks the node-bearing fields of the non-Node helper struct
+// DBSchemaProps. The helper itself is not visited (it is not a Node); its child
+// nodes are walked in field order.
+func walkDBSchemaProps(v Visitor, n *DBSchemaProps) {
+	if n == nil {
+		return
+	}
+	for _, item := range n.Options {
+		if item != nil {
+			Walk(v, item)
+		}
+	}
+	for _, item := range n.Contacts {
+		if item != nil {
+			Walk(v, item)
+		}
+	}
+}
+
+// walkDataMetricAction walks the node-bearing fields of the non-Node helper struct
+// DataMetricAction. The helper itself is not visited (it is not a Node); its child
+// nodes are walked in field order.
+func walkDataMetricAction(v Visitor, n *DataMetricAction) {
+	if n == nil {
+		return
+	}
+	for _, item := range n.Functions {
+		walkDataMetricFunctionClause(v, item)
+	}
+}
+
+// walkDataMetricExpectation walks the node-bearing fields of the non-Node helper struct
+// DataMetricExpectation. The helper itself is not visited (it is not a Node); its child
+// nodes are walked in field order.
+func walkDataMetricExpectation(v Visitor, n *DataMetricExpectation) {
+	if n == nil {
+		return
+	}
+	Walk(v, n.Expr)
+}
+
+// walkDataMetricFunctionClause walks the node-bearing fields of the non-Node helper struct
+// DataMetricFunctionClause. The helper itself is not visited (it is not a Node); its child
+// nodes are walked in field order.
+func walkDataMetricFunctionClause(v Visitor, n *DataMetricFunctionClause) {
+	if n == nil {
+		return
+	}
+	if n.Name != nil {
+		Walk(v, n.Name)
+	}
+	if n.RefTable != nil {
+		Walk(v, n.RefTable)
+	}
+	Walk(v, n.Filter)
+	for _, item := range n.Expectations {
+		walkDataMetricExpectation(v, item)
+	}
+	for _, item := range n.Options {
+		if item != nil {
+			Walk(v, item)
+		}
+	}
 }
 
 // walkFetchClause walks the node-bearing fields of the non-Node helper struct
@@ -1539,6 +1912,7 @@ func walkInlineConstraint(v Visitor, n *InlineConstraint) {
 		return
 	}
 	walkForeignKeyRef(v, n.References)
+	Walk(v, n.Check)
 }
 
 // walkInsertMultiBranch walks the node-bearing fields of the non-Node helper struct
@@ -1563,6 +1937,20 @@ func walkKeyValuePair(v Visitor, n *KeyValuePair) {
 		return
 	}
 	Walk(v, n.Value)
+}
+
+// walkLinkedCatalogUpdate walks the node-bearing fields of the non-Node helper struct
+// LinkedCatalogUpdate. The helper itself is not visited (it is not a Node); its child
+// nodes are walked in field order.
+func walkLinkedCatalogUpdate(v Visitor, n *LinkedCatalogUpdate) {
+	if n == nil {
+		return
+	}
+	for _, item := range n.Options {
+		if item != nil {
+			Walk(v, item)
+		}
+	}
 }
 
 // walkMergeWhen walks the node-bearing fields of the non-Node helper struct
@@ -1600,6 +1988,23 @@ func walkRoutineArg(v Visitor, n *RoutineArg) {
 		Walk(v, n.Type)
 	}
 	Walk(v, n.Default)
+	for _, item := range n.Table {
+		walkRoutineTableColumn(v, item)
+	}
+}
+
+// walkRoutineTableArgType walks the node-bearing fields of the non-Node helper struct
+// RoutineTableArgType. The helper itself is not visited (it is not a Node); its child
+// nodes are walked in field order.
+func walkRoutineTableArgType(v Visitor, n *RoutineTableArgType) {
+	if n == nil {
+		return
+	}
+	for _, item := range n.Types {
+		if item != nil {
+			Walk(v, item)
+		}
+	}
 }
 
 // walkRoutineTableColumn walks the node-bearing fields of the non-Node helper struct
@@ -1706,6 +2111,9 @@ func walkViewColumn(v Visitor, n *ViewColumn) {
 	}
 	if n.MaskingPolicy != nil {
 		Walk(v, n.MaskingPolicy)
+	}
+	if n.ProjectionPolicy != nil {
+		Walk(v, n.ProjectionPolicy)
 	}
 	for _, item := range n.Tags {
 		walkTagAssignment(v, item)

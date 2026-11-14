@@ -316,19 +316,25 @@ func (p *Parser) parseCallStmt() (nodes.StmtNode, error) {
 	}
 	var parseErr1153 error
 
-	stmt.Name, stmt.Package, parseErr1153 = p.parseRoutineName()
-	if parseErr1153 !=
-
-		// Arguments
-		nil {
-		return nil, parseErr1153
+	if p.cur.Type == '(' {
+		// object_access_expression: ( expr ) . method_name, the object
+		// required (ORA-00936 for CALL ().m()).
+		if parseErr1153 = p.parseCallObjectAccess(stmt); parseErr1153 != nil {
+			return nil, parseErr1153
+		}
+	} else {
+		stmt.Name, stmt.Package, parseErr1153 = p.parseRoutineName()
+		if parseErr1153 != nil {
+			return nil, parseErr1153
+		}
 	}
 
-	// A routine takes its arguments in parentheses, which it needs even
-	// without any (ORA-06576 on Oracle 23ai for CALL k.p), in positional,
-	// named, or mixed notation. No positional argument follows a named one
+	// A routine takes its arguments in parentheses, in positional, named,
+	// or mixed notation. No positional argument follows a named one
 	// (PLS-00312), and none is left out (ORA-00936 for (1,) and (,1)).
-	if stmt.Name != nil && stmt.Name.Name != "" && p.cur.Type != '(' {
+	// Oracle 23ai parses CALL k.p without them and refuses it after the
+	// parse (ORA-06576); an object's method takes them.
+	if stmt.Object != nil && p.cur.Type != '(' {
 		return nil, p.syntaxErrorAtCur()
 	}
 	if p.cur.Type == '(' {
@@ -377,10 +383,58 @@ func (p *Parser) parseCallStmt() (nodes.StmtNode, error) {
 			}
 			return nil, p.syntaxErrorAtNode(stmt.Into)
 		}
+		// [ [ INDICATOR ] :indicator_variable ]
+		indicator := p.isKeywordStr("INDICATOR")
+		if indicator {
+			p.advance()
+		}
+		if indicator || p.cur.Type == tokBIND || p.cur.Type == ':' {
+			if stmt.Indicator, parseErr1155 = p.parseExpr(); parseErr1155 != nil {
+				return nil, parseErr1155
+			}
+			if _, ok := stmt.Indicator.(*nodes.BindVariable); !ok {
+				if stmt.Indicator == nil {
+					return nil, p.syntaxErrorAtCur()
+				}
+				return nil, p.syntaxErrorAtNode(stmt.Indicator)
+			}
+		}
 	}
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// parseCallObjectAccess parses the ( expr ) . method_name that opens a
+// CALL of an object's method, up to its arguments.
+func (p *Parser) parseCallObjectAccess(stmt *nodes.CallStmt) error {
+	p.advance() // consume (
+	obj, err := p.parseExpr()
+	if err != nil {
+		return err
+	}
+	if obj == nil || p.cur.Type != ')' {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance()
+	if p.cur.Type != '.' {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance()
+	methodStart := p.pos()
+	if !p.isIdentLike() {
+		return p.syntaxErrorAtCur()
+	}
+	if err := p.syntaxErrorIfReservedIdentifier(); err != nil {
+		return err
+	}
+	method, err := p.parseIdentifier()
+	if err != nil {
+		return err
+	}
+	stmt.Object = obj
+	stmt.Name = &nodes.ObjectName{Name: method, Loc: nodes.Loc{Start: methodStart, End: p.prev.End}}
+	return nil
 }
 
 // parseRenameStmt parses a RENAME statement.
@@ -1202,7 +1256,7 @@ func (p *Parser) parseAuditStmt() (nodes.StmtNode, error) {
 		Loc: nodes.Loc{Start: start},
 	}
 
-	// Unified: AUDIT POLICY ...
+	// Unified: AUDIT POLICY ... and AUDIT CONTEXT NAMESPACE ...
 	if p.isIdentLikeStr("POLICY") {
 		p.advance()
 		if p.isIdentLike() {
@@ -1212,100 +1266,40 @@ func (p *Parser) parseAuditStmt() (nodes.StmtNode, error) {
 		if stmt.Policy == "" {
 			return nil, p.syntaxErrorAtCur()
 		}
-		// [ { BY | EXCEPT } user [, user]... ]
-		// [ { BY | EXCEPT } USERS WITH ROLE role [, role]... ]
-		for p.cur.Type != ';' && p.cur.Type != tokEOF {
-			if p.cur.Type == kwBY {
-				p.advance()
-				if p.isIdentLikeStr("USERS") {
-					// BY USERS WITH ROLE role [, role]...
-					p.advance()
-					if p.cur.Type == kwWITH {
-						p.advance()
-					}
-					if p.cur.Type == kwROLE {
-						p.advance()
-					}
-					var parseErr1180 error
-					stmt.WithRoles, parseErr1180 = p.parseIdentListForAudit()
-					if parseErr1180 != nil {
-
-						// BY user [, user]...
-						return nil, parseErr1180
-					}
-				} else {
-					var parseErr1181 error
-
-					stmt.ByUsers, parseErr1181 = p.parseIdentListForAudit()
-					if parseErr1181 != nil {
-						return nil, parseErr1181
-					}
-				}
-			} else if p.cur.Type == kwEXCEPT {
-				p.advance()
-				if p.isIdentLikeStr("USERS") {
-					// EXCEPT USERS WITH ROLE role [, role]...
-					p.advance()
-					if p.cur.Type == kwWITH {
-						p.advance()
-					}
-					if p.cur.Type == kwROLE {
-						p.advance()
-					}
-					var parseErr1182 error
-					stmt.WithRoles, parseErr1182 = p.parseIdentListForAudit()
-					if parseErr1182 != nil {
-						return nil, parseErr1182
-					}
-					stmt.WithRoleExcept = true
-				} else {
-					var parseErr1183 error
-					// EXCEPT user [, user]...
-					stmt.ExceptUsers, parseErr1183 = p.parseIdentListForAudit()
-					if parseErr1183 != nil {
-						return nil, parseErr1183
-					}
-				}
-			} else if p.cur.Type == kwWHENEVER {
-				var parseErr1184 error
-				stmt.When, parseErr1184 = p.parseWheneverClause()
-				if parseErr1184 != nil {
-					return nil, parseErr1184
-				}
-			} else {
-				break
+		if p.cur.Type == kwBY || p.cur.Type == kwEXCEPT {
+			except := p.advance().Type == kwEXCEPT
+			users, roles, err := p.parseAuditPolicyUsers()
+			if err != nil {
+				return nil, err
 			}
+			switch {
+			case roles != nil:
+				stmt.WithRoles, stmt.WithRoleExcept = roles, except
+			case except:
+				stmt.ExceptUsers = users
+			default:
+				stmt.ByUsers = users
+			}
+		}
+		if p.cur.Type == kwWHENEVER {
+			when, err := p.parseWheneverClause()
+			if err != nil {
+				return nil, err
+			}
+			if !strings.HasSuffix(when, "SUCCESSFUL") {
+				return nil, p.syntaxErrorAtCur()
+			}
+			stmt.When = when
 		}
 		stmt.Loc.End = p.prev.End
 		return stmt, nil
 	}
-
-	// Unified: AUDIT CONTEXT NAMESPACE ...
 	if p.cur.Type == kwCONTEXT {
-		p.advance()
-		if p.isIdentLikeStr("NAMESPACE") {
-			p.advance()
+		ns, attrs, users, err := p.parseAuditContextNamespace()
+		if err != nil {
+			return nil, err
 		}
-		if p.isIdentLike() {
-			stmt.ContextNS = p.cur.Str
-			p.advance()
-		}
-		if p.isIdentLikeStr("ATTRIBUTES") {
-			p.advance()
-			var parseErr1185 error
-			stmt.ContextAttrs, parseErr1185 = p.parseIdentListForAudit()
-			if parseErr1185 != nil {
-				return nil, parseErr1185
-			}
-		}
-		if p.cur.Type == kwBY {
-			p.advance()
-			var parseErr1186 error
-			stmt.ByUsers, parseErr1186 = p.parseIdentListForAudit()
-			if parseErr1186 != nil {
-				return nil, parseErr1186
-			}
-		}
+		stmt.ContextNS, stmt.ContextAttrs, stmt.ByUsers = ns, attrs, users
 		stmt.Loc.End = p.prev.End
 		return stmt, nil
 	}
@@ -1442,135 +1436,36 @@ func (p *Parser) parseNoauditStmt() (nodes.StmtNode, error) {
 		Loc: nodes.Loc{Start: start},
 	}
 
-	// Unified: NOAUDIT POLICY ...
+	// Unified: NOAUDIT POLICY ... and NOAUDIT CONTEXT NAMESPACE ...
 	if p.isIdentLikeStr("POLICY") {
 		p.advance()
-		if p.isIdentLike() {
-			stmt.Policy = p.cur.Str
-			p.advance()
+		if !p.isIdentLike() {
+			return nil, p.syntaxErrorAtCur()
 		}
+		stmt.Policy = p.advance().Str
 		if p.cur.Type == kwBY {
 			p.advance()
-			var parseErr1192 error
-			stmt.ByUsers, parseErr1192 = p.parseIdentListForAudit()
-			if parseErr1192 != nil {
-				return nil, parseErr1192
+			users, roles, err := p.parseAuditPolicyUsers()
+			if err != nil {
+				return nil, err
 			}
-			if p.cur.Type == kwWITH {
-				p.advance()
-				if p.cur.Type == kwROLE {
-					p.advance()
-				}
-				var parseErr1193 error
-				stmt.WithRoles, parseErr1193 = p.parseIdentListForAudit()
-				if parseErr1193 != nil {
-					return nil, parseErr1193
-				}
-			}
+			stmt.ByUsers, stmt.WithRoles = users, roles
 		}
 		stmt.Loc.End = p.prev.End
 		return stmt, nil
 	}
-
-	// Unified: NOAUDIT CONTEXT NAMESPACE ...
-	if p.cur.Type == kwCONTEXT {
-		p.advance()
-		if p.isIdentLikeStr("NAMESPACE") {
-			p.advance()
+	// CONTEXT alone is a statement option of traditional auditing.
+	if p.cur.Type == kwCONTEXT && !isNoauditOptionEndTok(p.peekNext()) {
+		ns, attrs, users, err := p.parseAuditContextNamespace()
+		if err != nil {
+			return nil, err
 		}
-		if p.isIdentLike() {
-			stmt.ContextNS = p.cur.Str
-			p.advance()
-		}
-		if p.isIdentLikeStr("ATTRIBUTES") {
-			p.advance()
-			var parseErr1194 error
-			stmt.ContextAttrs, parseErr1194 = p.parseIdentListForAudit()
-			if parseErr1194 != nil {
-				return nil, parseErr1194
-			}
-		}
-		if p.cur.Type == kwBY {
-			p.advance()
-			var parseErr1195 error
-			stmt.ByUsers, parseErr1195 = p.parseIdentListForAudit()
-			if parseErr1195 != nil {
-				return nil, parseErr1195
-			}
-			if p.cur.Type == kwWITH {
-				p.advance()
-				if p.cur.Type == kwROLE {
-					p.advance()
-				}
-				var parseErr1196 error
-				stmt.WithRoles, parseErr1196 = p.parseIdentListForAudit()
-				if parseErr1196 != nil {
-					return nil, parseErr1196
-				}
-			}
-		}
+		stmt.ContextNS, stmt.ContextAttrs, stmt.ByUsers = ns, attrs, users
 		stmt.Loc.End = p.prev.End
 		return stmt, nil
 	}
-	var parseErr1197 error
-
-	// Traditional: parse audit actions
-	stmt.Actions, parseErr1197 = p.parseAuditActions()
-	if parseErr1197 !=
-
-		// ON clause
-		nil {
-		return nil, parseErr1197
-	}
-
-	if p.cur.Type == kwON {
-		p.advance()
-		parseErr1198 := p.parseTraditionalNoauditOnClause(stmt)
-		if parseErr1198 != nil {
-			return nil, parseErr1198
-		}
-	} else if p.isIdentLikeStr("NETWORK") {
-		stmt.OnNetwork = true
-		p.advance()
-	} else if p.isIdentLikeStr("DIRECT_PATH") {
-		stmt.OnDirectPath = true
-		p.advance()
-		if p.isIdentLikeStr("LOAD") {
-			p.advance()
-		}
-	}
-
-	// BY user [, user]...
-	if p.cur.Type == kwBY {
-		p.advance()
-		var parseErr1199 error
-		stmt.ByUsers2, parseErr1199 = p.parseIdentListForAudit()
-		if parseErr1199 !=
-
-			// WHENEVER [NOT] SUCCESSFUL
-			nil {
-			return nil, parseErr1199
-		}
-	}
-
-	if p.cur.Type == kwWHENEVER {
-		var parseErr1200 error
-		stmt.When, parseErr1200 = p.parseWheneverClause()
-		if parseErr1200 !=
-
-			// CONTAINER = { CURRENT | ALL }
-			nil {
-			return nil, parseErr1200
-		}
-	}
-
-	if p.isIdentLikeStr("CONTAINER") {
-		p.advance()
-		var parseErr1201 error
-		stmt.ContainerAll, parseErr1201 = p.parseContainerClause()
-		if parseErr1201 != nil {
-			return nil, parseErr1201
-		}
+	if err := p.parseNoauditTraditional(stmt); err != nil {
+		return nil, err
 	}
 
 	stmt.Loc.End = p.prev.End
@@ -1616,61 +1511,50 @@ func (p *Parser) parseTraditionalAuditOnClause(stmt *nodes.AuditStmt) error {
 	} else {
 		var parseErr1204 error
 		stmt.Object, parseErr1204 = p.parseObjectName()
-		if parseErr1204 !=
-
-			// parseTraditionalNoauditOnClause parses the ON clause for traditional NOAUDIT.
-			// Called after ON has been consumed.
-			nil {
+		if parseErr1204 != nil {
 			return parseErr1204
 		}
 	}
 	return nil
 }
 
+// parseTraditionalNoauditOnClause parses the auditing_on_clause of a
+// traditional NOAUDIT, after ON.
+//
+//	auditing_on_clause::=
+//	    [ schema. ] object
+//	  | DIRECTORY directory_name
+//	  | SQL TRANSLATION PROFILE [ schema. ] profile
+//	  | DEFAULT
+//
+// Each name is there (ORA-00903 otherwise) and an object has no database
+// link (ORA-02021). Oracle 23ai also reads MINING MODEL [ schema. ] model.
 func (p *Parser) parseTraditionalNoauditOnClause(stmt *nodes.NoauditStmt) error {
-	if p.cur.Type == kwDEFAULT {
+	var err error
+	switch {
+	case p.cur.Type == kwDEFAULT:
 		stmt.OnDefault = true
 		p.advance()
-	} else if p.isIdentLikeStr("DIRECTORY") {
+	case p.isKeywordStr("DIRECTORY") && p.peekNext().Type != '.':
 		p.advance()
-		if p.isIdentLike() {
-			stmt.OnDirectory = p.cur.Str
-			p.advance()
+		var dir *nodes.ObjectName
+		if dir, err = p.parseGrantObjectName(false); err != nil {
+			return err
 		}
-	} else if p.isIdentLikeStr("SQL") {
-		// SQL TRANSLATION PROFILE
+		stmt.OnDirectory = dir.Name
+	case p.isKeywordStr("SQL") && p.isGrantTranslationProfileAhead():
 		p.advance()
-		if p.isIdentLikeStr("TRANSLATION") {
-			p.advance()
-		}
-		if p.cur.Type == kwPROFILE {
-			p.advance()
-		}
-		var parseErr1205 error
-		stmt.Object, parseErr1205 = p.parseObjectName()
-		if parseErr1205 != nil {
-			return parseErr1205
-		}
-	} else if p.isIdentLikeStr("NETWORK") {
-		stmt.OnNetwork = true
 		p.advance()
-	} else if p.isIdentLikeStr("DIRECT_PATH") {
-		stmt.OnDirectPath = true
 		p.advance()
-		if p.isIdentLikeStr("LOAD") {
-			p.advance()
-		}
-	} else {
-		var parseErr1206 error
-		stmt.Object, parseErr1206 = p.parseObjectName()
-		if parseErr1206 !=
-
-			// parseAuditActions collects audit action identifiers separated by commas.
-			nil {
-			return parseErr1206
-		}
+		stmt.Object, err = p.parseGrantObjectName(true)
+	case p.isKeywordStr("MINING") && p.peekNext().Type == kwMODEL:
+		p.advance()
+		p.advance()
+		stmt.Object, err = p.parseGrantObjectName(true)
+	default:
+		stmt.Object, err = p.parseGrantObjectName(true)
 	}
-	return nil
+	return err
 }
 
 func (p *Parser) parseAuditActions() ([]string, error) {
@@ -1775,59 +1659,136 @@ func (p *Parser) parseIdentListForAudit() ([]string, error) {
 //	    WITH { SYSTEM MANAGED STORAGE TABLES
 //	         | USER MANAGED STORAGE TABLES
 //	         }
+//
+// Oracle takes INDEXES for DOMAIN INDEXES and refuses any other kind
+// (ORA-29813 at the word). It reads USING and the DEFAULT clauses as
+// alternatives, one of which must be there (USING a DEFAULT COST (1, 1, 1)
+// is ORA-03048 at DEFAULT, FUNCTIONS a alone ORA-29814), takes integers
+// only in them (ORA-02017), and refuses the storage table clause after
+// USING (ORA-00922).
 func (p *Parser) parseAssociateStatisticsStmt() (nodes.StmtNode, error) {
 	start := p.pos()
 	p.advance() // consume ASSOCIATE
-	if p.cur.Type == kwSTATISTICS {
-		p.advance()
+	if p.cur.Type != kwSTATISTICS {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance()
 
 	stmt := &nodes.AssociateStatisticsStmt{
 		Loc: nodes.Loc{Start: start},
 	}
 
-	// WITH
-	if p.cur.Type == kwWITH {
-		p.advance()
+	if p.cur.Type != kwWITH {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	kind, err := p.parseStatisticsObjectKind()
+	if err != nil {
+		return nil, err
+	}
+	stmt.ObjectType = kind
+	if stmt.Objects, err = p.parseStatisticsObjects(kind); err != nil {
+		return nil, err
 	}
 
-	// Object type: COLUMNS, FUNCTIONS, PACKAGES, TYPES, INDEXES
-	if p.isIdentLike() || p.cur.Type == kwINDEX {
-		if p.cur.Type == kwINDEX {
-			stmt.ObjectType = "INDEXES"
-		} else {
-			stmt.ObjectType = p.cur.Str
+	// using_statistics_type: USING { [ schema. ] statistics_type | NULL }
+	if p.cur.Type == kwUSING {
+		p.advance()
+		if p.cur.Type == kwNULL {
+			stmt.Using = &nodes.ObjectName{Name: p.cur.Str, Loc: nodes.Loc{Start: p.pos(), End: p.cur.End}}
+			p.advance()
+		} else if stmt.Using, err = p.ixObjectName(); err != nil {
+			return nil, err
 		}
-		p.advance()
+		stmt.Loc.End = p.prev.End
+		return stmt, nil
 	}
 
-	// Object names
+	// [ DEFAULT COST ( cpu_cost , io_cost , network_cost ) ]
+	// [ DEFAULT SELECTIVITY default_selectivity ]
+	seen := map[string]bool{}
 	for {
-		name, parseErr1207 := p.parseObjectName()
-		if parseErr1207 != nil {
-			return nil, parseErr1207
+		if p.cur.Type != kwDEFAULT {
+			return nil, p.syntaxErrorAtCur()
 		}
-		if name != nil {
-			stmt.Objects = append(stmt.Objects, name)
+		p.advance()
+		switch {
+		case p.isKeywordStr("COST"):
+			if err := p.ixOnce(seen, "COST"); err != nil {
+				return nil, err
+			}
+			p.advance()
+			if p.cur.Type != '(' {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance()
+			for i := 0; i < 3; i++ {
+				if i > 0 {
+					if p.cur.Type != ',' {
+						return nil, p.syntaxErrorAtCur()
+					}
+					p.advance()
+				}
+				if _, err := p.ixInteger(); err != nil {
+					return nil, err
+				}
+			}
+			if p.cur.Type != ')' {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance()
+		case p.isKeywordStr("SELECTIVITY"):
+			if err := p.ixOnce(seen, "SELECTIVITY"); err != nil {
+				return nil, err
+			}
+			p.advance()
+			if _, err := p.ixInteger(); err != nil {
+				return nil, err
+			}
+		default:
+			return nil, p.syntaxErrorAtCur()
 		}
-		if p.cur.Type != ',' {
+		if p.cur.Type != kwDEFAULT {
 			break
-		}
-		p.advance()
-	}
-
-	// USING statistics_type
-	if p.isIdentLike() && p.cur.Str == "USING" {
-		p.advance()
-		var parseErr1208 error
-		stmt.Using, parseErr1208 = p.parseObjectName()
-		if parseErr1208 != nil {
-			return nil, parseErr1208
 		}
 	}
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// parseStatisticsObjectKind reads the kind of object ASSOCIATE and
+// DISASSOCIATE STATISTICS name: COLUMNS, FUNCTIONS, PACKAGES, TYPES,
+// INDEXES or INDEXTYPES. Another word is ORA-29813 (ORA-29817 for
+// DISASSOCIATE) at it.
+func (p *Parser) parseStatisticsObjectKind() (string, error) {
+	if p.cur.Type != tokQIDENT && p.isIdentLike() {
+		switch p.cur.Str {
+		case "COLUMNS", "FUNCTIONS", "PACKAGES", "TYPES", "INDEXES", "INDEXTYPES":
+			return p.advance().Str, nil
+		}
+	}
+	return "", p.syntaxErrorAtCur()
+}
+
+// parseStatisticsObjects reads [ schema. ] name [, [ schema. ] name ]...,
+// or table . column for COLUMNS (COLUMNS a is ORA-29818 after the a).
+func (p *Parser) parseStatisticsObjects(kind string) ([]*nodes.ObjectName, error) {
+	var objs []*nodes.ObjectName
+	for {
+		name, err := p.ixObjectName()
+		if err != nil {
+			return nil, err
+		}
+		if kind == "COLUMNS" && name.Schema == "" {
+			return nil, p.syntaxErrorAtCur()
+		}
+		objs = append(objs, name)
+		if p.cur.Type != ',' {
+			return objs, nil
+		}
+		p.advance()
+	}
 }
 
 // parseDisassociateStatisticsStmt parses a DISASSOCIATE STATISTICS statement.
@@ -1841,45 +1802,28 @@ func (p *Parser) parseAssociateStatisticsStmt() (nodes.StmtNode, error) {
 func (p *Parser) parseDisassociateStatisticsStmt() (nodes.StmtNode, error) {
 	start := p.pos()
 	p.advance() // consume DISASSOCIATE
-	if p.cur.Type == kwSTATISTICS {
-		p.advance()
+	if p.cur.Type != kwSTATISTICS {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance()
 
 	stmt := &nodes.DisassociateStatisticsStmt{
 		Loc: nodes.Loc{Start: start},
 	}
 
-	// FROM
-	if p.cur.Type == kwFROM {
-		p.advance()
+	if p.cur.Type != kwFROM {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	kind, err := p.parseStatisticsObjectKind()
+	if err != nil {
+		return nil, err
+	}
+	stmt.ObjectType = kind
+	if stmt.Objects, err = p.parseStatisticsObjects(kind); err != nil {
+		return nil, err
 	}
 
-	// Object type
-	if p.isIdentLike() || p.cur.Type == kwINDEX {
-		if p.cur.Type == kwINDEX {
-			stmt.ObjectType = "INDEXES"
-		} else {
-			stmt.ObjectType = p.cur.Str
-		}
-		p.advance()
-	}
-
-	// Object names
-	for {
-		name, parseErr1209 := p.parseObjectName()
-		if parseErr1209 != nil {
-			return nil, parseErr1209
-		}
-		if name != nil {
-			stmt.Objects = append(stmt.Objects, name)
-		}
-		if p.cur.Type != ',' {
-			break
-		}
-		p.advance()
-	}
-
-	// FORCE
 	if p.cur.Type == kwFORCE {
 		stmt.Force = true
 		p.advance()

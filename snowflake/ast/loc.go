@@ -24,6 +24,8 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *DollarRef:
 		return v.Loc
+	case *BindVariable:
+		return v.Loc
 	case *BinaryExpr:
 		return v.Loc
 	case *UnaryExpr:

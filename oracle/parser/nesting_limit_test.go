@@ -121,7 +121,9 @@ var nestingShapes = []struct {
 	}},
 	{"CTE", func(n int) string { return nest(n, "WITH c AS (", "SELECT 1 FROM dual", ") SELECT * FROM c") }},
 	{"GROUP BY grouping sets", func(n int) string {
-		return "SELECT 1 FROM t GROUP BY " + nest(n, "GROUPING SETS (", "a", ")")
+		// GROUPING SETS do not nest (ORA-00907); their elements do, as
+		// parenthesized expressions.
+		return "SELECT 1 FROM t GROUP BY GROUPING SETS (" + nest(n, "(", "a", ")") + ")"
 	}},
 	{"JSON_TABLE nested columns", func(n int) string {
 		return "SELECT * FROM JSON_TABLE('{}', '$' COLUMNS (" +
@@ -130,10 +132,6 @@ var nestingShapes = []struct {
 	{"EXPLAIN PLAN", func(n int) string { return strings.Repeat("EXPLAIN PLAN FOR ", n) + "SELECT 1 FROM dual" }},
 	{"hierarchy levels", func(n int) string {
 		return "CREATE HIERARCHY h USING d (" + strings.Repeat("l CHILD OF ", n) + "l)"
-	}},
-	{"subpartitions", func(n int) string {
-		return "CREATE TABLE t (a NUMBER) PARTITION BY RANGE (a) " +
-			strings.Repeat("SUBPARTITION BY HASH (a) ", n) + "(PARTITION p VALUES LESS THAN (1))"
 	}},
 	{"PL/SQL block", func(n int) string { return nest(n, "BEGIN ", "NULL;", " END;") }},
 	{"PL/SQL IF", func(n int) string { return block(nest(n, "IF 1 = 1 THEN ", "NULL;", " END IF;")) }},

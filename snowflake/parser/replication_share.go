@@ -419,6 +419,25 @@ func (p *Parser) parseAlterAccountStmt() (ast.Node, error) {
 
 	stmt := &ast.AlterAccountStmt{Loc: ast.Loc{Start: startLoc.Start}}
 
+	// ADD | REMOVE ORGANIZATION USER GROUP <group_name>
+	// https://docs.snowflake.com/en/sql-reference/sql/alter-account
+	if p.atWords("ADD", "ORGANIZATION", "USER", "GROUP") || p.atWords("REMOVE", "ORGANIZATION", "USER", "GROUP") {
+		stmt.Action = ast.AlterAccountAddOrganizationUserGroup
+		if p.cur.Type == kwREMOVE {
+			stmt.Action = ast.AlterAccountRemoveOrganizationUserGroup
+		}
+		for range 4 {
+			p.advance() // consume ADD|REMOVE ORGANIZATION USER GROUP
+		}
+		group, err := p.parseObjectSimpleName()
+		if err != nil {
+			return nil, err
+		}
+		stmt.UserGroup = group
+		stmt.Loc.End = p.prev.Loc.End
+		return stmt, nil
+	}
+
 	// Cross-account form: a name precedes the action when the next token is not
 	// SET / UNSET.
 	if p.cur.Type != kwSET && p.cur.Type != kwUNSET {
@@ -510,12 +529,35 @@ func (p *Parser) parseAlterAccountSet(stmt *ast.AlterAccountStmt) error {
 		return p.parseAlterAccountSetPolicy(stmt)
 	}
 
+	// SET CONTACT <purpose> = <contact_name> [ , ... ]; a CONTACT followed by
+	// '=' is a parameter of that name.
+	// https://docs.snowflake.com/en/sql-reference/sql/alter-account
+	if p.curIsWord("CONTACT") && p.peekNext().Type != '=' {
+		p.advance() // consume CONTACT
+		contacts, err := p.parseAccountContacts()
+		if err != nil {
+			return err
+		}
+		stmt.Action = ast.AlterAccountSetContact
+		stmt.Contacts = contacts
+		return nil
+	}
+
 	opts, err := p.parseGroupOptions()
 	if err != nil {
 		return err
 	}
 	if len(opts) == 0 {
 		return p.syntaxErrorAtCur()
+	}
+	// DOMAIN_NAMES is set on a named account only (ALTER ACCOUNT <name> SET).
+	for _, opt := range opts {
+		if opt.List != nil && stmt.Name == nil {
+			return &ParseError{
+				Position: opt.Loc.Start, End: opt.Loc.End,
+				Message: "syntax error: " + opt.Name + " is set on a named account",
+			}
+		}
 	}
 	stmt.Action = ast.AlterAccountSet
 	stmt.Options = opts
@@ -548,14 +590,11 @@ func (p *Parser) parseAlterAccountUnset(stmt *ast.AlterAccountStmt) error {
 		}
 		stmt.Action = ast.AlterAccountUnsetPolicy
 		stmt.PolicyKind = kind
-		// Optional trailing scope (FOR ALL ... ).
-		if p.cur.Type == kwFOR {
-			scope, err := p.parseAccountPolicyScope()
-			if err != nil {
-				return err
-			}
-			stmt.PolicyScope = scope
+		scope, err := p.parseAccountPolicyScope(kind)
+		if err != nil {
+			return err
 		}
+		stmt.PolicyScope = scope
 		return nil
 	}
 
@@ -584,20 +623,53 @@ func (p *Parser) parseAlterAccountSetPolicy(stmt *ast.AlterAccountStmt) error {
 	stmt.PolicyKind = kind
 	stmt.PolicyName = name
 
-	// Optional FOR ALL ... scope.
-	if p.cur.Type == kwFOR {
-		scope, err := p.parseAccountPolicyScope()
-		if err != nil {
-			return err
-		}
-		stmt.PolicyScope = scope
+	// SET MAINTENANCE POLICY <name> [ FORCE ] FOR ALL APPLICATIONS writes FORCE
+	// before its scope.
+	if kind == "MAINTENANCE POLICY" && p.cur.Type == kwFORCE {
+		p.advance() // consume FORCE
+		stmt.Force = true
 	}
+	scope, err := p.parseAccountPolicyScope(kind)
+	if err != nil {
+		return err
+	}
+	stmt.PolicyScope = scope
 	// Optional trailing FORCE.
-	if p.cur.Type == kwFORCE {
+	if !stmt.Force && kind != "MAINTENANCE POLICY" && p.cur.Type == kwFORCE {
 		p.advance() // consume FORCE
 		stmt.Force = true
 	}
 	return nil
+}
+
+// parseAccountContacts reads ALTER ACCOUNT SET CONTACT's
+// <purpose> = <contact_name> [ , ... ] once CONTACT is consumed. Each is one
+// GroupOption: Name holds the purpose and Values the contact's name.
+func (p *Parser) parseAccountContacts() ([]*ast.GroupOption, error) {
+	var contacts []*ast.GroupOption
+	for {
+		purpose, err := p.parseIdent()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect('='); err != nil {
+			return nil, err
+		}
+		// A contact is a schema-level object, so its name may be qualified.
+		contact, err := p.parseObjectName()
+		if err != nil {
+			return nil, err
+		}
+		contacts = append(contacts, &ast.GroupOption{
+			Name:   purpose.Normalize(),
+			Values: []string{contact.Normalize()},
+			Loc:    ast.Loc{Start: purpose.Loc.Start, End: contact.Loc.End},
+		})
+		if p.cur.Type != ',' {
+			return contacts, nil
+		}
+		p.advance() // consume ','
+	}
 }
 
 // startsAccountPolicy reports whether the current position begins an ALTER
@@ -613,14 +685,23 @@ func (p *Parser) startsAccountPolicy() bool {
 		return p.peekNext().Type == kwPOLICY
 	case p.curIsWord("AUTHENTICATION"), p.curIsWord("FEATURE"):
 		return p.peekNext().Type == kwPOLICY
+	case p.curIsWord("INGRESS"), p.curIsWord("MAINTENANCE"):
+		// https://docs.snowflake.com/en/sql-reference/sql/alter-account-set-ingress-policy
+		// https://docs.snowflake.com/en/sql-reference/sql/alter-account
+		return p.peekNext().Type == kwPOLICY
 	}
-	return false
+	// DATA MOVEMENT POLICY
+	// (https://docs.snowflake.com/en/sql-reference/sql/alter-account).
+	return p.atWords("DATA", "MOVEMENT", "POLICY")
 }
 
 // parseAccountPolicyKind consumes the policy-kind word(s) and the POLICY keyword
 // and returns the uppercased "<KIND> POLICY" text (e.g. "PACKAGES POLICY"). The
 // caller has confirmed startsAccountPolicy.
 func (p *Parser) parseAccountPolicyKind() (string, error) {
+	if p.acceptWords("DATA", "MOVEMENT", "POLICY") {
+		return "DATA MOVEMENT POLICY", nil
+	}
 	kindTok := p.advance() // consume the policy-kind word
 	if _, err := p.expect(kwPOLICY); err != nil {
 		return "", err
@@ -628,22 +709,40 @@ func (p *Parser) parseAccountPolicyKind() (string, error) {
 	return strings.ToUpper(kindTok.Str) + " POLICY", nil
 }
 
-// parseAccountPolicyScope parses a trailing policy scope clause and returns it
-// verbatim (uppercased, space-joined). cur is the FOR keyword. The two documented
-// shapes are `FOR ALL { PERSON | SERVICE } USERS` and `FOR ALL APPLICATIONS`;
-// rather than enumerate them, the run of words after FOR is captured whole (it
-// runs to the FORCE keyword or the statement boundary).
-func (p *Parser) parseAccountPolicyScope() (string, error) {
-	if _, err := p.expect(kwFOR); err != nil {
-		return "", err
+// accountPolicyScope is the FOR ALL ... scopes the ALTER ACCOUNT page writes
+// for one policy kind, and whether the kind requires one.
+type accountPolicyScope struct {
+	scopes   [][]string
+	required bool
+}
+
+// accountPolicyScopes maps a policy kind to its scopes; a kind not listed
+// takes none.
+// https://docs.snowflake.com/en/sql-reference/sql/alter-account
+var accountPolicyScopes = map[string]accountPolicyScope{
+	"AUTHENTICATION POLICY": {scopes: [][]string{{"FOR", "ALL", "PERSON", "USERS"}, {"FOR", "ALL", "SERVICE", "USERS"}}},
+	"SESSION POLICY":        {scopes: [][]string{{"FOR", "ALL", "PERSON", "USERS"}, {"FOR", "ALL", "SERVICE", "USERS"}}},
+	"FEATURE POLICY": {
+		scopes:   [][]string{{"FOR", "ALL", "APPLICATIONS"}, {"FOR", "ALL", "DATABASES"}, {"FOR", "ALL", "PERSONAL", "DATABASES"}},
+		required: true,
+	},
+	"MAINTENANCE POLICY": {scopes: [][]string{{"FOR", "ALL", "APPLICATIONS"}}, required: true},
+}
+
+// parseAccountPolicyScope parses the policy scope clause kind takes, one of
+// accountPolicyScopes[kind], and returns it uppercased and space-joined, or
+// "" when the kind's scope is optional and absent.
+func (p *Parser) parseAccountPolicyScope(kind string) (string, error) {
+	rule := accountPolicyScopes[kind]
+	for _, words := range rule.scopes {
+		if p.acceptWords(words...) {
+			return strings.Join(words, " "), nil
+		}
 	}
-	var b strings.Builder
-	b.WriteString("FOR")
-	for p.isOptionWord(p.cur.Type) && p.cur.Type != kwFORCE {
-		b.WriteByte(' ')
-		b.WriteString(strings.ToUpper(p.advance().Str))
+	if rule.required || p.cur.Type == kwFOR {
+		return "", p.syntaxErrorAtCur()
 	}
-	return b.String(), nil
+	return "", nil
 }
 
 // ---------------------------------------------------------------------------
@@ -941,6 +1040,19 @@ func (p *Parser) parseGroupOption() (*ast.GroupOption, error) {
 		return opt, nil
 	}
 
+	// ALTER ACCOUNT's parenthesized values:
+	//   LOGIN_IDP_REDIRECT = ( <interface> = <security_integration> [ , ... ] )
+	//   DOMAIN_NAMES = ( '<domain>' [ , ... ] )
+	// https://docs.snowflake.com/en/sql-reference/sql/alter-account
+	if p.cur.Type == '(' {
+		switch opt.Name {
+		case "LOGIN_IDP_REDIRECT":
+			return p.parseGroupOptionPairs(opt)
+		case "DOMAIN_NAMES":
+			return p.parseGroupOptionStrings(opt)
+		}
+	}
+
 	// A run of word/dotted items: a comma list for the known list options, a
 	// single element otherwise.
 	values, end, err := p.parseGroupValueList(isGroupListOption(opt.Name))
@@ -949,6 +1061,62 @@ func (p *Parser) parseGroupOption() (*ast.GroupOption, error) {
 	}
 	opt.Values = values
 	opt.Loc.End = end
+	return opt, nil
+}
+
+// parseGroupOptionPairs reads opt's value ( <name> = <name> [ , ... ] ) into
+// opt.Pairs, each a GroupOption whose Values hold the one name after '='. cur
+// is '('.
+func (p *Parser) parseGroupOptionPairs(opt *ast.GroupOption) (*ast.GroupOption, error) {
+	p.advance() // consume '('
+	for {
+		key, err := p.parseIdent()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect('='); err != nil {
+			return nil, err
+		}
+		val, err := p.parseIdent()
+		if err != nil {
+			return nil, err
+		}
+		opt.Pairs = append(opt.Pairs, &ast.GroupOption{
+			Name:   key.Normalize(),
+			Values: []string{val.Normalize()},
+			Loc:    ast.Loc{Start: key.Loc.Start, End: val.Loc.End},
+		})
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance() // consume ','
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	opt.Loc.End = p.prev.Loc.End
+	return opt, nil
+}
+
+// parseGroupOptionStrings reads opt's value ( '<s>' [ , ... ] ) into opt.List.
+// cur is '('.
+func (p *Parser) parseGroupOptionStrings(opt *ast.GroupOption) (*ast.GroupOption, error) {
+	p.advance() // consume '('
+	for {
+		tok, err := p.expect(tokString)
+		if err != nil {
+			return nil, err
+		}
+		opt.List = append(opt.List, &ast.Literal{Kind: ast.LitString, Value: tok.Str, Loc: tok.Loc})
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance() // consume ','
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	opt.Loc.End = p.prev.Loc.End
 	return opt, nil
 }
 

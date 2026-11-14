@@ -161,7 +161,9 @@ func Split(sql string) []Segment {
 		switch tok.Type {
 		case ';':
 			if state.inPLSQL {
-				if state.plsqlCanEndAtSemicolon() {
+				if state.withUnit && state.plsqlCanEndAtSemicolon() {
+					state.endWithDeclaration()
+				} else if state.plsqlCanEndAtSemicolon() {
 					end := tok.End
 					if !state.endPending && !state.callSpecKeepsSemicolon() {
 						end = tok.Loc
@@ -260,6 +262,11 @@ type splitState struct {
 	endPending      bool
 	closedOutermost bool
 
+	// pendingWith marks the token after a WITH that may open a query's
+	// declarations; prevTopType is the type of the last top-level token.
+	pendingWith bool
+	prevTopType int
+
 	sourceHead embeddedSourceHead
 
 	// mleLanguagePending marks that the next token is the language name of
@@ -274,6 +281,13 @@ type splitState struct {
 	// much of IS|AS MLE LANGUAGE its last tokens spell.
 	typeSpec    bool
 	typeSpecMLE int
+
+	// withDecls marks a query that opens with WITH FUNCTION or WITH
+	// PROCEDURE: each declaration is split as a PL/SQL unit whose END ;
+	// ends the declaration, not the statement, which ends at the ';' after
+	// its query. withUnit marks the declaration being split.
+	withDecls bool
+	withUnit  bool
 }
 
 // segmentKind classifies the segment that ends now.
@@ -311,6 +325,24 @@ func (s *splitState) observeTopLevel(tok Token) {
 	if tok.Type == tokHINT {
 		return
 	}
+	prev := s.prevTopType
+	s.prevTopType = tok.Type
+
+	// WITH FUNCTION | PROCEDURE ...: a declaration of the query's, which
+	// may open the statement or stand in it (CREATE TABLE t AS WITH
+	// FUNCTION ..., INSERT INTO t WITH FUNCTION ...).
+	if (s.withDecls || s.pendingWith) && (tok.Type == kwFUNCTION || tok.Type == kwPROCEDURE) {
+		s.startPLSQL(splitPLSQLStoredUnit)
+		s.withDecls = true
+		s.withUnit = true
+		return
+	}
+	// Any other token after a declaration starts the query, where FUNCTION
+	// and PROCEDURE are names.
+	s.withDecls = false
+	// The WITH of START WITH opens a condition, which may name a column
+	// FUNCTION.
+	s.pendingWith = tok.Type == kwWITH && prev != kwSTART
 
 	if s.topLevelTokens == 0 {
 		switch tok.Type {
@@ -403,6 +435,12 @@ func (s *splitState) observeTypeSpecCallSpec(tok Token) {
 	default:
 		s.typeSpecMLE = 0
 	}
+}
+
+// endWithDeclaration returns to the query after a WITH declaration whose
+// END ; was just read, the statement going on.
+func (s *splitState) endWithDeclaration() {
+	*s = splitState{withDecls: true, topLevelTokens: 1}
 }
 
 func (s *splitState) startPLSQL(kind splitPLSQLKind) {

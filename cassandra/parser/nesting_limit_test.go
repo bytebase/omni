@@ -15,6 +15,8 @@ func nest(n int, open, mid, closing string) string {
 
 func insert(value string) string { return "INSERT INTO t (a) VALUES (" + value + ")" }
 
+func sel(selector string) string { return "SELECT " + selector + " FROM t" }
+
 // nestingShapes are the constructs the parser descends into recursively,
 // n levels deep.
 var nestingShapes = []struct {
@@ -28,7 +30,15 @@ var nestingShapes = []struct {
 	{"function call", func(n int) string { return insert(nest(n, "f(", "1", ")")) }},
 	{"tuple function argument", func(n int) string { return insert(nest(n, "f((", "1", "))")) }},
 	{"CAST", func(n int) string { return insert(nest(n, "CAST(", "1", " AS int)")) }},
-	{"index access", func(n int) string { return insert(nest(n, "a[", "0", "]")) }},
+	{"type hint", func(n int) string { return insert(strings.Repeat("(int) ", n) + "1") }},
+	{"selector in parentheses", func(n int) string { return sel(nest(n, "(", "a", ")")) }},
+	{"selector negation", func(n int) string { return sel(strings.Repeat("- ", n) + "a") }},
+	{"selector function", func(n int) string { return sel(nest(n, "f(", "a", ")")) }},
+	{"selector type hint", func(n int) string { return sel(strings.Repeat("(int) ", n) + "a") }},
+	{"selector map", func(n int) string { return sel(nest(n, "{a: ", "a", "}")) }},
+	{"relation in parentheses", func(n int) string {
+		return "SELECT * FROM t WHERE " + nest(n, "(", "a = 1", ")")
+	}},
 	{"nested type", func(n int) string {
 		return "CREATE TABLE t (a " + nest(n, "frozen<list<", "int", ">>") + " PRIMARY KEY)"
 	}},
@@ -93,16 +103,20 @@ func treeHeight(root ast.Node) int {
 }
 
 // chainShapes build left-deep chains of n terms: the parser builds each with
-// a loop, so only the tree, not the parse, gets deep. Index access is the
-// grammar's one such loop: WHERE relations, BATCH statements, and the other
-// repeated clauses are kept in flat lists.
+// a loop, so only the tree, not the parse, gets deep. Field and element
+// selection on a selector and the arithmetic operators of terms and
+// selectors are the grammar's loops: WHERE relations, BATCH statements, and
+// the other repeated clauses are kept in flat lists.
 var chainShapes = []struct {
 	name string
 	cql  func(n int) string
 }{
-	{"index access", func(n int) string { return insert("a" + strings.Repeat("[0]", n)) }},
-	{"index access in SET", func(n int) string {
-		return "UPDATE t SET a = b" + strings.Repeat("[0]", n) + " WHERE k = 1"
+	{"element selection", func(n int) string { return sel("a" + strings.Repeat("[0]", n)) }},
+	{"field selection", func(n int) string { return sel("a" + strings.Repeat(".b", n)) }},
+	{"selector addition", func(n int) string { return sel("a" + strings.Repeat("+a", n)) }},
+	{"term addition", func(n int) string { return insert("1" + strings.Repeat("+1", n)) }},
+	{"term multiplication in SET", func(n int) string {
+		return "UPDATE t SET a = 1" + strings.Repeat("*1", n) + " WHERE k = 1"
 	}},
 }
 

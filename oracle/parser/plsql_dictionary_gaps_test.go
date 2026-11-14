@@ -103,12 +103,14 @@ func TestCallStmtArguments(t *testing.T) {
 		`CALL app.pkg."SELECT"()`,
 		"CALL app.pkg.proc@remote.example.com@instance()",
 		"CALL pkg.proc@remote@inst()",
+		// Oracle 23ai parses a routine without parentheses and refuses it
+		// after the parse (ORA-06576).
+		"CALL app.audit_pkg.record_change",
+		"CALL k.p",
 	} {
 		ParseAndCheck(t, sql)
 	}
 	for _, sql := range []string{
-		"CALL app.audit_pkg.record_change",
-		"CALL k.p",
 		"CALL app.audit_pkg.record_change(1,)",
 		"CALL app.audit_pkg.record_change(,1)",
 		"CALL app.audit_pkg.record_change(1,,2)",

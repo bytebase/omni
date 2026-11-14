@@ -45,17 +45,30 @@ func (p *Parser) parseGrantStmt() (ast.Node, error) {
 		return p.parseGrantRole(start, ast.GrantedDatabaseRole)
 	case p.cur.Type == kwAPPLICATION && p.peekNext().Type == kwROLE:
 		return p.parseGrantRole(start, ast.GrantedApplicationRole)
+	case p.atWords("SERVICE", "ROLE"):
+		return p.parseGrantRole(start, ast.GrantedServiceRole)
 	default:
 		return p.parseGrantPrivileges(start)
 	}
 }
 
-// parseGrantRole parses GRANT [DATABASE | APPLICATION] ROLE <name> TO <grantee>.
-// start is the Loc of the GRANT token. roleKind selects the granted-role flavor;
-// on entry cur is ROLE (account) or the DATABASE/APPLICATION qualifier.
+// parseGrantRole parses GRANT [DATABASE | APPLICATION | SERVICE] ROLE <name>
+// TO <grantee> and its trailing options. start is the Loc of the GRANT token.
+// roleKind selects the granted-role flavor; on entry cur is ROLE (account) or
+// the DATABASE/APPLICATION/SERVICE qualifier.
+//
+//	GRANT ROLE <name> TO ROLE <parent> [ WITH GRANT OPTION ]
+//	GRANT ROLE <name> TO USER <user> [ { FOR INTERVAL <interval> | UNTIL <timestamp> } [ RESET EXPIRATION ] ]
+//	  https://docs.snowflake.com/en/sql-reference/sql/grant-role
+//	GRANT DATABASE ROLE <name> TO { DATABASE ROLE | ROLE } <parent> [ WITH GRANT OPTION ]
+//	  https://docs.snowflake.com/en/sql-reference/sql/grant-database-role
+//	GRANT APPLICATION ROLE <name> TO ROLE <parent> [ WITH GRANT OPTION ]
+//	  https://docs.snowflake.com/en/sql-reference/sql/grant-application-role
+//	GRANT SERVICE ROLE <service>!<role> TO { ROLE | APPLICATION ROLE | DATABASE ROLE } <name>
+//	  https://docs.snowflake.com/en/sql-reference/sql/grant-service-role
 func (p *Parser) parseGrantRole(start ast.Loc, roleKind ast.GrantedRoleKind) (ast.Node, error) {
 	if roleKind != ast.GrantedAccountRole {
-		p.advance() // consume DATABASE / APPLICATION qualifier
+		p.advance() // consume DATABASE / APPLICATION / SERVICE qualifier
 	}
 	if _, err := p.expect(kwROLE); err != nil {
 		return nil, err
@@ -67,23 +80,121 @@ func (p *Parser) parseGrantRole(start ast.Loc, roleKind ast.GrantedRoleKind) (as
 		Loc:      ast.Loc{Start: start.Start},
 	}
 
-	name, err := p.parseObjectName()
+	name, svcRole, err := p.parseGrantedRoleName(roleKind)
 	if err != nil {
 		return nil, err
 	}
 	stmt.Role = name
+	stmt.ServiceRole = svcRole
 
 	if _, err := p.expect(kwTO); err != nil {
 		return nil, err
 	}
+	toRole := p.cur.Type == kwROLE
 	grantee, err := p.parseGrantee()
 	if err != nil {
 		return nil, err
 	}
 	stmt.Grantee = grantee
+	if roleKind == ast.GrantedServiceRole {
+		if err := checkServiceRoleGrantee(grantee, toRole); err != nil {
+			return nil, err
+		}
+	}
+
+	// WITH GRANT OPTION follows a grant to an account role (and, for a
+	// database role, to a database role).
+	if roleGrantOptionTarget(roleKind, grantee, toRole) && p.acceptWords("WITH", "GRANT", "OPTION") {
+		stmt.GrantOption = true
+	}
+
+	// An account role granted to a user may expire: FOR INTERVAL and UNTIL
+	// each take a quoted string, and RESET EXPIRATION follows either.
+	if roleKind == ast.GrantedAccountRole && grantee.Kind == ast.GranteeUser {
+		switch {
+		case p.atWords("FOR", "INTERVAL"):
+			p.advance() // consume FOR
+			p.advance() // consume INTERVAL
+			v, err := p.expectStringValue()
+			if err != nil {
+				return nil, err
+			}
+			stmt.ExpireInterval = v
+		case p.atWords("UNTIL"):
+			p.advance() // consume UNTIL
+			v, err := p.expectStringValue()
+			if err != nil {
+				return nil, err
+			}
+			stmt.ExpireUntil = v
+		}
+		if (stmt.ExpireInterval != "" || stmt.ExpireUntil != "") && p.acceptWords("RESET", "EXPIRATION") {
+			stmt.ResetExpiration = true
+		}
+	}
 
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
+}
+
+// expectStringValue consumes a string literal and returns its value.
+func (p *Parser) expectStringValue() (string, error) {
+	if p.cur.Type != tokString {
+		return "", p.syntaxErrorAtCur()
+	}
+	return p.advance().Str, nil
+}
+
+// parseGrantedRoleName reads the role named after [DATABASE | APPLICATION |
+// SERVICE] ROLE. A service role is <service>!<role>: the page requires the
+// service-name!service-role-name form, so a bare name is rejected.
+// https://docs.snowflake.com/en/sql-reference/sql/grant-service-role
+func (p *Parser) parseGrantedRoleName(roleKind ast.GrantedRoleKind) (*ast.ObjectName, ast.Ident, error) {
+	name, err := p.parseObjectName()
+	if err != nil {
+		return nil, ast.Ident{}, err
+	}
+	if roleKind != ast.GrantedServiceRole {
+		return name, ast.Ident{}, nil
+	}
+	if _, err := p.expect(tokBang); err != nil {
+		return nil, ast.Ident{}, err
+	}
+	role, err := p.parseIdent()
+	if err != nil {
+		return nil, ast.Ident{}, err
+	}
+	return name, role, nil
+}
+
+// checkServiceRoleGrantee holds a service role's grantee to the pages' list:
+// ROLE, APPLICATION ROLE or DATABASE ROLE, each written with its keywords.
+func checkServiceRoleGrantee(g *ast.Grantee, keywordRole bool) error {
+	switch {
+	case g.Kind == ast.GranteeRole && keywordRole,
+		g.Kind == ast.GranteeApplicationRole,
+		g.Kind == ast.GranteeDatabaseRole:
+		return nil
+	}
+	return &ParseError{
+		Position: g.Loc.Start, End: g.Loc.End,
+		Message: "syntax error: a service role goes to a ROLE, APPLICATION ROLE or DATABASE ROLE",
+	}
+}
+
+// roleGrantOptionTarget reports whether a role of roleKind granted to, or
+// revoked from, grantee takes WITH GRANT OPTION (GRANT) or GRANT OPTION FOR
+// and RESTRICT | CASCADE (REVOKE): an account, database or application role
+// to/from ROLE <name>, and a database role to/from DATABASE ROLE <name>.
+// keywordRole reports that the grantee was written with the ROLE keyword.
+func roleGrantOptionTarget(roleKind ast.GrantedRoleKind, g *ast.Grantee, keywordRole bool) bool {
+	switch roleKind {
+	case ast.GrantedAccountRole, ast.GrantedApplicationRole:
+		return keywordRole
+	case ast.GrantedDatabaseRole:
+		return keywordRole || g.Kind == ast.GranteeDatabaseRole
+	}
+	return false
 }
 
 // parseGrantOwnership parses GRANT OWNERSHIP ON <target> TO <grantee>
@@ -157,7 +268,7 @@ func (p *Parser) parseGrantPrivileges(start ast.Loc) (ast.Node, error) {
 	if _, err := p.expect(kwON); err != nil {
 		return nil, err
 	}
-	target, err := p.parseGrantTarget()
+	target, err := p.parseGrantTargetFor(inheritedCallerPrivileges(privs))
 	if err != nil {
 		return nil, err
 	}
@@ -200,51 +311,113 @@ func (p *Parser) parseRevokeStmt() (ast.Node, error) {
 	revokeTok := p.advance() // consume REVOKE
 	start := revokeTok.Loc
 
-	// REVOKE [DATABASE | APPLICATION] ROLE ... — GRANT OPTION FOR applies only
-	// to privilege revocation, so a leading ROLE/DATABASE ROLE/APPLICATION ROLE
-	// is unambiguously a role revoke.
+	// REVOKE [DATABASE | APPLICATION] ROLE ... — a leading ROLE/DATABASE
+	// ROLE/APPLICATION ROLE is unambiguously a role revoke. GRANT OPTION FOR
+	// precedes privileges, or an APPLICATION ROLE (below).
 	if p.cur.Type == kwROLE {
-		return p.parseRevokeRole(start, ast.GrantedAccountRole)
+		return p.parseRevokeRole(start, ast.GrantedAccountRole, false)
 	}
 	if p.cur.Type == kwDATABASE && p.peekNext().Type == kwROLE {
-		return p.parseRevokeRole(start, ast.GrantedDatabaseRole)
+		return p.parseRevokeRole(start, ast.GrantedDatabaseRole, false)
 	}
 	if p.cur.Type == kwAPPLICATION && p.peekNext().Type == kwROLE {
-		return p.parseRevokeRole(start, ast.GrantedApplicationRole)
+		return p.parseRevokeRole(start, ast.GrantedApplicationRole, false)
+	}
+	if p.atWords("SERVICE", "ROLE") {
+		return p.parseRevokeRole(start, ast.GrantedServiceRole, false)
+	}
+	// REVOKE GRANT OPTION FOR [DATABASE | APPLICATION] ROLE <name> FROM ...
+	// https://docs.snowflake.com/en/sql-reference/sql/revoke-role
+	// https://docs.snowflake.com/en/sql-reference/sql/revoke-database-role
+	// https://docs.snowflake.com/en/sql-reference/sql/revoke-application-role
+	switch {
+	case p.atWords("GRANT", "OPTION", "FOR", "ROLE"):
+		p.skipGrantOptionFor()
+		return p.parseRevokeRole(start, ast.GrantedAccountRole, true)
+	case p.atWords("GRANT", "OPTION", "FOR", "DATABASE", "ROLE"):
+		p.skipGrantOptionFor()
+		return p.parseRevokeRole(start, ast.GrantedDatabaseRole, true)
+	case p.atWords("GRANT", "OPTION", "FOR", "APPLICATION", "ROLE"):
+		p.skipGrantOptionFor()
+		return p.parseRevokeRole(start, ast.GrantedApplicationRole, true)
 	}
 	return p.parseRevokePrivileges(start)
 }
 
-// parseRevokeRole parses REVOKE [DATABASE | APPLICATION] ROLE <name> FROM <grantee>.
-// On entry cur is ROLE (account) or the DATABASE/APPLICATION qualifier.
-func (p *Parser) parseRevokeRole(start ast.Loc, roleKind ast.GrantedRoleKind) (ast.Node, error) {
+// skipGrantOptionFor consumes GRANT OPTION FOR, which the caller has matched.
+func (p *Parser) skipGrantOptionFor() {
+	p.advance() // consume GRANT
+	p.advance() // consume OPTION
+	p.advance() // consume FOR
+}
+
+// parseRevokeRole parses REVOKE [DATABASE | APPLICATION | SERVICE] ROLE
+// <name> FROM <grantee>. On entry cur is ROLE (account) or the
+// DATABASE/APPLICATION/SERVICE qualifier. grantOptionFor reports that REVOKE
+// GRANT OPTION FOR preceded the role.
+//
+// The pages write GRANT OPTION FOR and a trailing RESTRICT | CASCADE where the
+// role is revoked from an account role, and for a database role also from a
+// database role (roleGrantOptionTarget).
+//
+//	REVOKE [ GRANT OPTION FOR ] ROLE <name> FROM ROLE <parent> [ RESTRICT | CASCADE ]
+//	  https://docs.snowflake.com/en/sql-reference/sql/revoke-role
+//	REVOKE [ GRANT OPTION FOR ] DATABASE ROLE <name> FROM { ROLE | DATABASE ROLE } <parent> [ RESTRICT | CASCADE ]
+//	  https://docs.snowflake.com/en/sql-reference/sql/revoke-database-role
+//	REVOKE SERVICE ROLE <service>!<role> FROM { ROLE | APPLICATION ROLE | DATABASE ROLE } <name>
+//	  https://docs.snowflake.com/en/sql-reference/sql/revoke-service-role
+func (p *Parser) parseRevokeRole(start ast.Loc, roleKind ast.GrantedRoleKind, grantOptionFor bool) (ast.Node, error) {
 	if roleKind != ast.GrantedAccountRole {
-		p.advance() // consume DATABASE / APPLICATION qualifier
+		p.advance() // consume DATABASE / APPLICATION / SERVICE qualifier
 	}
 	if _, err := p.expect(kwROLE); err != nil {
 		return nil, err
 	}
 
 	stmt := &ast.RevokeStmt{
-		Kind:     ast.RevokeRole,
-		RoleKind: roleKind,
-		Loc:      ast.Loc{Start: start.Start},
+		Kind:           ast.RevokeRole,
+		RoleKind:       roleKind,
+		GrantOptionFor: grantOptionFor,
+		Loc:            ast.Loc{Start: start.Start},
 	}
 
-	name, err := p.parseObjectName()
+	name, svcRole, err := p.parseGrantedRoleName(roleKind)
 	if err != nil {
 		return nil, err
 	}
 	stmt.Role = name
+	stmt.ServiceRole = svcRole
 
 	if _, err := p.expect(kwFROM); err != nil {
 		return nil, err
 	}
+	fromRole := p.cur.Type == kwROLE
 	grantee, err := p.parseGrantee()
 	if err != nil {
 		return nil, err
 	}
 	stmt.Grantee = grantee
+	if roleKind == ast.GrantedServiceRole {
+		if err := checkServiceRoleGrantee(grantee, fromRole); err != nil {
+			return nil, err
+		}
+	}
+
+	if roleGrantOptionTarget(roleKind, grantee, fromRole) {
+		switch p.cur.Type {
+		case kwCASCADE:
+			p.advance()
+			stmt.Cascade = true
+		case kwRESTRICT:
+			p.advance()
+			stmt.Restrict = true
+		}
+	} else if grantOptionFor {
+		return nil, &ParseError{
+			Position: grantee.Loc.Start, End: grantee.Loc.End,
+			Message: "syntax error: GRANT OPTION FOR revokes a role from a role only",
+		}
+	}
 
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
@@ -280,7 +453,7 @@ func (p *Parser) parseRevokePrivileges(start ast.Loc) (ast.Node, error) {
 	if _, err := p.expect(kwON); err != nil {
 		return nil, err
 	}
-	target, err := p.parseGrantTarget()
+	target, err := p.parseGrantTargetFor(inheritedCallerPrivileges(privs))
 	if err != nil {
 		return nil, err
 	}
@@ -428,6 +601,36 @@ func (p *Parser) isPrivilegeWord(tokType int) bool {
 //	ALL <object_type_plural> IN { DATABASE <db> | SCHEMA <schema> }
 //	FUTURE <object_type_plural> IN { DATABASE <db> | SCHEMA <schema> }
 func (p *Parser) parseGrantTarget() (*ast.GrantTarget, error) {
+	return p.parseGrantTargetFor(false)
+}
+
+// inheritedCallerPrivileges reports whether privs open with INHERITED CALLER
+// (GRANT INHERITED CALLER <privilege>, ...) or are ALL INHERITED CALLER
+// PRIVILEGES, the caller grants whose ON ALL form takes the wider IN list.
+// https://docs.snowflake.com/en/sql-reference/sql/grant-caller
+func inheritedCallerPrivileges(privs []*ast.Privilege) bool {
+	if len(privs) == 0 {
+		return false
+	}
+	first := privs[0].Name
+	if first == "ALL INHERITED CALLER PRIVILEGES" {
+		return true
+	}
+	// INHERITED CALLER PRIVILEGES names no privilege: the ALL form writes ALL.
+	return strings.HasPrefix(first, "INHERITED CALLER ") && first != "INHERITED CALLER PRIVILEGES"
+}
+
+// parseGrantTargetFor parses the ON clause body like parseGrantTarget.
+// inheritedCaller lets ON ALL ... IN also name ACCOUNT, APPLICATION <app> or
+// APPLICATION PACKAGE <pkg>, which the caller-grant pages write for INHERITED
+// CALLER privileges only:
+//
+//	ON ALL <object_type_plural>
+//	IN { ACCOUNT | DATABASE <db_name> | SCHEMA <schema_name> | APPLICATION <app_name> | APPLICATION PACKAGE <app_pkg_name> }
+//
+// https://docs.snowflake.com/en/sql-reference/sql/grant-caller
+// https://docs.snowflake.com/en/sql-reference/sql/revoke-caller
+func (p *Parser) parseGrantTargetFor(inheritedCaller bool) (*ast.GrantTarget, error) {
 	startLoc := p.cur.Loc
 
 	switch p.cur.Type {
@@ -440,11 +643,11 @@ func (p *Parser) parseGrantTarget() (*ast.GrantTarget, error) {
 
 	case kwALL:
 		p.advance() // consume ALL
-		return p.parseGrantTargetContainer(ast.GrantTargetAllIn, startLoc)
+		return p.parseGrantTargetContainer(ast.GrantTargetAllIn, startLoc, inheritedCaller)
 
 	case kwFUTURE:
 		p.advance() // consume FUTURE
-		return p.parseGrantTargetContainer(ast.GrantTargetFutureIn, startLoc)
+		return p.parseGrantTargetContainer(ast.GrantTargetFutureIn, startLoc, false)
 
 	default:
 		// <object_type> <name> [ ( signature ) ]
@@ -547,8 +750,10 @@ func objectNameToType(n *ast.ObjectName) string {
 //	<object_type_plural> IN { DATABASE <db> | SCHEMA <schema> }
 //
 // kind is GrantTargetAllIn or GrantTargetFutureIn. startLoc is the Loc of the
-// ALL/FUTURE keyword. On entry ALL/FUTURE has already been consumed.
-func (p *Parser) parseGrantTargetContainer(kind ast.GrantTargetKind, startLoc ast.Loc) (*ast.GrantTarget, error) {
+// ALL/FUTURE keyword. On entry ALL/FUTURE has already been consumed. callerIn
+// also admits IN ACCOUNT, IN APPLICATION <app> and IN APPLICATION PACKAGE
+// <pkg> (see parseGrantTargetFor); those names take no qualifier.
+func (p *Parser) parseGrantTargetContainer(kind ast.GrantTargetKind, startLoc ast.Loc, callerIn bool) (*ast.GrantTarget, error) {
 	plural, err := p.parsePluralObjectType()
 	if err != nil {
 		return nil, err
@@ -569,6 +774,30 @@ func (p *Parser) parseGrantTargetContainer(kind ast.GrantTargetKind, startLoc as
 	case kwSCHEMA:
 		p.advance() // consume SCHEMA
 		target.Container = ast.GrantContainerSchema
+	case kwACCOUNT:
+		if !callerIn {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance() // consume ACCOUNT
+		target.Container = ast.GrantContainerAccount
+		target.Loc.End = p.prev.Loc.End
+		return target, nil
+	case kwAPPLICATION:
+		if !callerIn {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance() // consume APPLICATION
+		target.Container = ast.GrantContainerApplication
+		if p.acceptWords("PACKAGE") {
+			target.Container = ast.GrantContainerApplicationPackage
+		}
+		name, err := p.parseObjectSimpleName()
+		if err != nil {
+			return nil, err
+		}
+		target.ContainerName = name
+		target.Loc.End = p.prev.Loc.End
+		return target, nil
 	default:
 		return nil, p.syntaxErrorAtCur()
 	}

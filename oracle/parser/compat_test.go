@@ -45,6 +45,11 @@ func TestCompatibility(t *testing.T) {
 		Omni:    omniVerdict,
 		Source:  compat.SourceEngine,
 		Judge:   compatJudge,
+		// 1: a probe the lexer refuses at the tail says nothing, since
+		// Oracle lexes some statements whole before it parses them, and an
+		// error past the last token is a missing token. 2: the statement
+		// parsers' own errors are syntax errors.
+		JudgeRevision: 2,
 	})
 }
 

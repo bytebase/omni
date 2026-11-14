@@ -10,9 +10,22 @@ import (
 // CREATE DATABASE
 // ---------------------------------------------------------------------------
 
-// parseCreateDatabaseStmt parses CREATE [OR REPLACE] [TRANSIENT] DATABASE ...
-// The CREATE keyword and optional OR REPLACE / TRANSIENT modifiers have already
-// been consumed by parseCreateStmt; start is the Loc of the CREATE token.
+// parseCreateDatabaseStmt parses
+//
+//	CREATE [ OR REPLACE | OR ALTER ] [ TRANSIENT ] DATABASE [ IF NOT EXISTS ] <name>
+//	  [ CLONE <source> [ { AT | BEFORE } ( ... ) ]
+//	      [ IGNORE TABLES WITH INSUFFICIENT DATA RETENTION ] [ IGNORE HYBRID TABLES ]
+//	  | FROM SHARE <provider>.<share>
+//	  | FROM LISTING '<listing>'
+//	  | FROM BACKUP SET <set> IDENTIFIER '<id>'
+//	  | AS REPLICA OF <account>.<database> ]
+//	  [ <property> = <value> ... ] [ [ WITH ] TAG ( ... ) ] [ WITH CONTACT ( ... ) ]
+//
+// per https://docs.snowflake.com/en/sql-reference/sql/create-database and
+// https://docs.snowflake.com/en/sql-reference/sql/create-database-catalog-linked
+// (whose LINKED_CATALOG = ( ... ) is one more KEY = value property). The CREATE
+// keyword and optional OR REPLACE / TRANSIENT modifiers have already been
+// consumed by parseCreateStmt; start is the Loc of the CREATE token.
 func (p *Parser) parseCreateDatabaseStmt(start ast.Loc, orReplace, orAlter, transient bool) (ast.Node, error) {
 	p.advance() // consume DATABASE
 
@@ -43,18 +56,21 @@ func (p *Parser) parseCreateDatabaseStmt(start ast.Loc, orReplace, orAlter, tran
 	}
 	stmt.Name = name
 
-	// Optional CLONE source [AT|BEFORE (...)]
-	if p.cur.Type == kwCLONE {
+	// Optional source: CLONE, FROM { SHARE | LISTING | BACKUP SET }, or
+	// AS REPLICA OF.
+	switch {
+	case p.cur.Type == kwCLONE:
 		clone, err := p.parseCloneSource()
 		if err != nil {
 			return nil, err
 		}
 		stmt.Clone = clone
-	}
+		stmt.IgnoreInsufficientRetention, stmt.IgnoreHybridTables, err = p.parseCloneIgnoreClauses()
+		if err != nil {
+			return nil, err
+		}
 
-	// Optional FROM SHARE <provider_account>.<share_name> — creates the
-	// database from an inbound share.
-	if p.cur.Type == kwFROM && p.peekNext().Type == kwSHARE {
+	case p.cur.Type == kwFROM && p.peekNext().Type == kwSHARE:
 		p.advance() // consume FROM
 		p.advance() // consume SHARE
 		share, err := p.parseObjectName()
@@ -62,44 +78,171 @@ func (p *Parser) parseCreateDatabaseStmt(start ast.Loc, orReplace, orAlter, tran
 			return nil, err
 		}
 		stmt.FromShare = share
-	}
 
-	// Optional properties
-	if err := p.parseDBSchemaPropsInto(&stmt.Props); err != nil {
-		return nil, err
-	}
-
-	// Optional WITH TAG (...)
-	for p.cur.Type == kwWITH || p.cur.Type == kwTAG {
-		if p.cur.Type == kwWITH {
-			if p.peekNext().Type != kwTAG {
-				break
-			}
-			p.advance() // consume WITH
-		}
-		tags, err := p.parseTagAssignments()
+	case p.cur.Type == kwFROM && p.peekNext().Type == kwLISTING:
+		p.advance() // consume FROM
+		p.advance() // consume LISTING
+		tok, err := p.expect(tokString)
 		if err != nil {
 			return nil, err
 		}
-		stmt.Tags = append(stmt.Tags, tags...)
+		listing := tok.Str
+		stmt.FromListing = &listing
+
+	case p.cur.Type == kwFROM && tokIsWord(p.peekNext(), "BACKUP"):
+		set, id, err := p.parseFromBackupSet()
+		if err != nil {
+			return nil, err
+		}
+		stmt.FromBackupSet = set
+		stmt.BackupID = id
+
+	case p.cur.Type == kwAS && p.peekNext().Type == kwREPLICA:
+		p.advance() // consume AS
+		p.advance() // consume REPLICA
+		if _, err := p.expect(kwOF); err != nil {
+			return nil, err
+		}
+		primary, err := p.parseObjectName()
+		if err != nil {
+			return nil, err
+		}
+		stmt.ReplicaOf = primary
 	}
+
+	// Properties, [WITH] TAG (...) and WITH CONTACT (...), in any order.
+	tags, err := p.parseCreateDBSchemaTail(&stmt.Props)
+	if err != nil {
+		return nil, err
+	}
+	stmt.Tags = tags
 
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
+}
+
+// parseFromBackupSet parses FROM BACKUP SET <set> IDENTIFIER '<id>' (CREATE
+// DATABASE / CREATE SCHEMA, restoring from a backup:
+// https://docs.snowflake.com/en/sql-reference/sql/create-database). On entry
+// cur is FROM and the next token is BACKUP.
+func (p *Parser) parseFromBackupSet() (*ast.ObjectName, string, error) {
+	p.advance() // consume FROM
+	p.advance() // consume BACKUP
+	if _, err := p.expect(kwSET); err != nil {
+		return nil, "", err
+	}
+	set, err := p.parseObjectName()
+	if err != nil {
+		return nil, "", err
+	}
+	if err := p.expectWord("IDENTIFIER"); err != nil {
+		return nil, "", err
+	}
+	tok, err := p.expect(tokString)
+	if err != nil {
+		return nil, "", err
+	}
+	return set, tok.Str, nil
+}
+
+// parseCloneIgnoreClauses parses the optional clauses that follow a database or
+// schema CLONE source:
+//
+//	[ IGNORE TABLES WITH INSUFFICIENT DATA RETENTION ] [ IGNORE HYBRID TABLES ]
+//
+// per https://docs.snowflake.com/en/sql-reference/sql/create-database and
+// https://docs.snowflake.com/en/sql-reference/sql/create-schema.
+func (p *Parser) parseCloneIgnoreClauses() (insufficient, hybrid bool, err error) {
+	if p.cur.Type == kwIGNORE && p.peekNext().Type == kwTABLES {
+		p.advance() // consume IGNORE
+		p.advance() // consume TABLES
+		for _, w := range []string{"WITH", "INSUFFICIENT", "DATA", "RETENTION"} {
+			if err := p.expectWord(w); err != nil {
+				return false, false, err
+			}
+		}
+		insufficient = true
+	}
+	if p.cur.Type == kwIGNORE && tokIsWord(p.peekNext(), "HYBRID") {
+		p.advance() // consume IGNORE
+		p.advance() // consume HYBRID
+		if _, err := p.expect(kwTABLES); err != nil {
+			return false, false, err
+		}
+		hybrid = true
+	}
+	return insufficient, hybrid, nil
+}
+
+// parseCreateDBSchemaTail parses the trailing clauses of CREATE DATABASE /
+// CREATE SCHEMA: properties, [ WITH ] TAG ( ... ) and WITH CONTACT ( ... ). The
+// docs list properties on both sides of the TAG and CONTACT clauses (e.g.
+// OBJECT_VISIBILITY after WITH CONTACT), so the three may come in any order.
+// Each iteration consumes at least one token or ends the loop.
+func (p *Parser) parseCreateDBSchemaTail(props *ast.DBSchemaProps) ([]*ast.TagAssignment, error) {
+	var tags []*ast.TagAssignment
+	for {
+		if err := p.parseDBSchemaPropsInto(props, false); err != nil {
+			return nil, err
+		}
+		switch {
+		case p.cur.Type == kwTAG || (p.cur.Type == kwWITH && p.peekNext().Type == kwTAG):
+			if p.cur.Type == kwWITH {
+				p.advance() // consume WITH
+			}
+			t, err := p.parseTagAssignments()
+			if err != nil {
+				return nil, err
+			}
+			tags = append(tags, t...)
+		case p.cur.Type == kwWITH && tokIsWord(p.peekNext(), "CONTACT"):
+			p.advance() // consume WITH
+			p.advance() // consume CONTACT
+			if _, err := p.expect('('); err != nil {
+				return nil, err
+			}
+			contacts, err := p.parseContactAssignments()
+			if err != nil {
+				return nil, err
+			}
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
+			props.Contacts = append(props.Contacts, contacts...)
+		default:
+			return tags, nil
+		}
+	}
 }
 
 // ---------------------------------------------------------------------------
 // CREATE SCHEMA
 // ---------------------------------------------------------------------------
 
-// parseCreateSchemaStmt parses CREATE [OR REPLACE] [TRANSIENT] SCHEMA ...
-func (p *Parser) parseCreateSchemaStmt(start ast.Loc, orReplace, orAlter, transient bool) (ast.Node, error) {
+// parseCreateSchemaStmt parses
+//
+//	CREATE [ OR REPLACE | OR ALTER ] [ TRANSIENT ] SCHEMA [ IF NOT EXISTS ] <name>
+//	  [ CLONE <source> [ { AT | BEFORE } ( ... ) ]
+//	      [ IGNORE TABLES WITH INSUFFICIENT DATA RETENTION ] [ IGNORE HYBRID TABLES ]
+//	  | FROM BACKUP SET <set> IDENTIFIER '<id>' ]
+//	  [ WITH MANAGED ACCESS ]
+//	  [ <property> = <value> ... ] [ [ WITH ] TAG ( ... ) ] [ WITH CONTACT ( ... ) ]
+//
+// per https://docs.snowflake.com/en/sql-reference/sql/create-schema, and
+//
+//	CREATE OR ALTER VERSIONED SCHEMA <name> [ WITH MANAGED ACCESS ] [ <property> = <value> ... ]
+//
+// per https://docs.snowflake.com/en/sql-reference/sql/create-versioned-schema
+// (versioned is set when parseCreateStmt consumed VERSIONED; it never takes a
+// CLONE or backup source).
+func (p *Parser) parseCreateSchemaStmt(start ast.Loc, orReplace, orAlter, transient, versioned bool) (ast.Node, error) {
 	p.advance() // consume SCHEMA
 
 	stmt := &ast.CreateSchemaStmt{
 		OrReplace: orReplace,
 		OrAlter:   orAlter,
 		Transient: transient,
+		Versioned: versioned,
 		Loc:       ast.Loc{Start: start.Start},
 	}
 
@@ -123,13 +266,26 @@ func (p *Parser) parseCreateSchemaStmt(start ast.Loc, orReplace, orAlter, transi
 	}
 	stmt.Name = name
 
-	// Optional CLONE source [AT|BEFORE (...)]
-	if p.cur.Type == kwCLONE {
+	// Optional source: CLONE or FROM BACKUP SET (not for a versioned schema).
+	switch {
+	case versioned:
+	case p.cur.Type == kwCLONE:
 		clone, err := p.parseCloneSource()
 		if err != nil {
 			return nil, err
 		}
 		stmt.Clone = clone
+		stmt.IgnoreInsufficientRetention, stmt.IgnoreHybridTables, err = p.parseCloneIgnoreClauses()
+		if err != nil {
+			return nil, err
+		}
+	case p.cur.Type == kwFROM && tokIsWord(p.peekNext(), "BACKUP"):
+		set, id, err := p.parseFromBackupSet()
+		if err != nil {
+			return nil, err
+		}
+		stmt.FromBackupSet = set
+		stmt.BackupID = id
 	}
 
 	// Optional WITH MANAGED ACCESS
@@ -144,24 +300,18 @@ func (p *Parser) parseCreateSchemaStmt(start ast.Loc, orReplace, orAlter, transi
 		}
 	}
 
-	// Optional properties
-	if err := p.parseDBSchemaPropsInto(&stmt.Props); err != nil {
-		return nil, err
-	}
-
-	// Optional WITH TAG (...)
-	for p.cur.Type == kwWITH || p.cur.Type == kwTAG {
-		if p.cur.Type == kwWITH {
-			if p.peekNext().Type != kwTAG {
-				break
-			}
-			p.advance() // consume WITH
+	// Properties, [WITH] TAG (...) and WITH CONTACT (...), in any order. A
+	// versioned schema takes properties only.
+	if versioned {
+		if err := p.parseDBSchemaPropsInto(&stmt.Props, false); err != nil {
+			return nil, err
 		}
-		tags, err := p.parseTagAssignments()
+	} else {
+		tags, err := p.parseCreateDBSchemaTail(&stmt.Props)
 		if err != nil {
 			return nil, err
 		}
-		stmt.Tags = append(stmt.Tags, tags...)
+		stmt.Tags = tags
 	}
 
 	stmt.Loc.End = p.prev.Loc.End
@@ -176,7 +326,21 @@ func (p *Parser) parseCreateSchemaStmt(start ast.Loc, orReplace, orAlter, transi
 // Handles DATABASE, SCHEMA, VIEW, and MATERIALIZED VIEW; falls back to
 // unsupported for other objects.
 func (p *Parser) parseAlterStmt() (ast.Node, error) {
-	p.advance() // consume ALTER
+	alterTok := p.advance() // consume ALTER
+
+	// An object read by its documented shape (object.go) is dispatched by the
+	// registry before the switch.
+	if f := p.matchObjectForm(); f != nil {
+		return p.parseObjectStmt("ALTER", f, alterTok.Loc, false, false)
+	}
+	// CATALOG / EXTERNAL ACCESS INTEGRATION (integration.go).
+	if p.startsCatalogOrAccessIntegration() {
+		return p.parseAlterIntegrationStmt()
+	}
+	// Policies read by their docs pages (policy.go).
+	if d := p.startsDocPolicy(); d != nil {
+		return p.parseAlterDocPolicy(alterTok.Loc, d)
+	}
 
 	switch p.cur.Type {
 	case kwTABLE:
@@ -210,7 +374,12 @@ func (p *Parser) parseAlterStmt() (ast.Node, error) {
 		// ALTER STREAM ... (T4.3).
 		return p.parseAlterStreamStmt()
 	case kwTASK:
-		// ALTER TASK ... (T4.3).
+		// ALTER TASK ... (T4.3), or TASK GRAPH (task_graph.go).
+		if p.startsTaskGraph() {
+			return p.parseTaskOrGraph(func() (ast.Node, error) {
+				return p.parseObjectStmt("ALTER", taskGraphForm, alterTok.Loc, false, false)
+			}, p.parseAlterTaskStmt)
+		}
 		return p.parseAlterTaskStmt()
 	case kwALERT:
 		// ALTER ALERT ... (T4.3).
@@ -255,6 +424,9 @@ func (p *Parser) parseAlterStmt() (ast.Node, error) {
 	case kwSEMANTIC:
 		// ALTER SEMANTIC VIEW ... (T4.9). The sub-parser consumes SEMANTIC + VIEW.
 		return p.parseAlterSemanticViewStmt()
+	case kwDATASET:
+		// ALTER DATASET ... { ADD | DROP } VERSION. The sub-parser consumes DATASET.
+		return p.parseAlterDatasetStmt(alterTok.Loc)
 	case kwFAILOVER, kwREPLICATION:
 		// ALTER { FAILOVER | REPLICATION } GROUP ... (T4.8). The sub-parser consumes
 		// the kind keyword + GROUP.
@@ -297,6 +469,10 @@ func (p *Parser) parseAlterStmt() (ast.Node, error) {
 		}
 		return p.unsupported("ALTER")
 	default:
+		// ALTER ICEBERG TABLE: ICEBERG is not a keyword.
+		if p.startsAlterIcebergTable() {
+			return p.parseAlterIcebergTableStmt()
+		}
 		// AUTHENTICATION is not a reserved keyword, so ALTER AUTHENTICATION POLICY
 		// lexes as an "AUTHENTICATION" identifier followed by POLICY (T4.6).
 		if p.startsPolicyKeyword() {
@@ -322,7 +498,9 @@ func (p *Parser) parseAlterPolicyDispatch() (ast.Node, error) {
 // ALTER DATABASE
 // ---------------------------------------------------------------------------
 
-// parseAlterDatabaseStmt parses ALTER DATABASE ... (all action variants).
+// parseAlterDatabaseStmt parses ALTER DATABASE ... (all action variants) per
+// https://docs.snowflake.com/en/sql-reference/sql/alter-database and
+// https://docs.snowflake.com/en/sql-reference/sql/alter-database-catalog-linked.
 // The ALTER keyword has already been consumed.
 func (p *Parser) parseAlterDatabaseStmt() (ast.Node, error) {
 	altTok := p.advance() // consume DATABASE
@@ -374,16 +552,30 @@ func (p *Parser) parseAlterDatabaseStmt() (ast.Node, error) {
 
 	case kwSET:
 		p.advance() // consume SET
-		// Could be SET TAG (...) or SET <properties>
-		if p.cur.Type == kwTAG {
-			tags, err := p.parseTagAssignments()
+		switch {
+		case p.startsFeaturePolicy():
+			// SET FEATURE POLICY <name> [ FORCE ]
+			p.advance() // consume FEATURE
+			p.advance() // consume POLICY
+			policy, err := p.parseObjectName()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Action = ast.AlterDBSetFeaturePolicy
+			stmt.FeaturePolicy = policy
+			if p.cur.Type == kwFORCE {
+				p.advance() // consume FORCE
+				stmt.Force = true
+			}
+		case p.cur.Type == kwTAG:
+			tags, err := p.parseDBSchemaSetTags()
 			if err != nil {
 				return nil, err
 			}
 			stmt.Action = ast.AlterDBSetTag
 			stmt.Tags = tags
-		} else {
-			props, err := p.parseDBSchemaProps()
+		default:
+			props, err := p.parseDBSchemaSetProps()
 			if err != nil {
 				return nil, err
 			}
@@ -393,23 +585,49 @@ func (p *Parser) parseAlterDatabaseStmt() (ast.Node, error) {
 
 	case kwUNSET:
 		p.advance() // consume UNSET
-		if p.cur.Type == kwTAG {
-			// UNSET TAG ( name, name, ... )
-			names, err := p.parseUnsetTagList()
+		switch {
+		case p.startsFeaturePolicy():
+			// UNSET FEATURE POLICY
+			p.advance() // consume FEATURE
+			p.advance() // consume POLICY
+			stmt.Action = ast.AlterDBUnsetFeaturePolicy
+		case p.cur.Type == kwTAG:
+			names, err := p.parseDBSchemaUnsetTags()
 			if err != nil {
 				return nil, err
 			}
 			stmt.Action = ast.AlterDBUnsetTag
 			stmt.UnsetTags = names
-		} else {
-			// UNSET property [, property ...]
-			props, err := p.parsePropertyNameList()
+		default:
+			props, err := p.parseDBSchemaUnsetProps()
 			if err != nil {
 				return nil, err
 			}
 			stmt.Action = ast.AlterDBUnset
 			stmt.UnsetProps = props
 		}
+
+	case kwSUSPEND, kwRESUME:
+		// { SUSPEND | RESUME } DISCOVERY (catalog-linked database)
+		action := ast.AlterDBSuspendDiscovery
+		if p.cur.Type == kwRESUME {
+			action = ast.AlterDBResumeDiscovery
+		}
+		p.advance() // consume SUSPEND / RESUME
+		if err := p.expectWord("DISCOVERY"); err != nil {
+			return nil, err
+		}
+		stmt.Action = action
+
+	case kwUPDATE:
+		// UPDATE LINKED_CATALOG ... (catalog-linked database)
+		p.advance() // consume UPDATE
+		upd, err := p.parseLinkedCatalogUpdate()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Action = ast.AlterDBUpdateLinkedCatalog
+		stmt.LinkedCatalog = upd
 
 	case kwENABLE:
 		p.advance() // consume ENABLE
@@ -501,11 +719,91 @@ func (p *Parser) parseAlterDatabaseStmt() (ast.Node, error) {
 	return stmt, nil
 }
 
+// startsFeaturePolicy reports whether cur begins FEATURE POLICY (ALTER DATABASE
+// { SET | UNSET } FEATURE POLICY). FEATURE is not a reserved keyword.
+func (p *Parser) startsFeaturePolicy() bool {
+	return tokIsWord(p.cur, "FEATURE") && p.peekNext().Type == kwPOLICY
+}
+
+// parseLinkedCatalogUpdate parses the body of ALTER DATABASE ... UPDATE
+// LINKED_CATALOG (cur is LINKED_CATALOG):
+//
+//	ADD ( '<namespace>' [ , ... ] ) TO { ALLOWED_NAMESPACES | BLOCKED_NAMESPACES }
+//	REMOVE ( '<namespace>' [ , ... ] ) FROM { ALLOWED_NAMESPACES | BLOCKED_NAMESPACES }
+//	UNSET { ALLOWED_NAMESPACES | BLOCKED_NAMESPACES }
+//	SET <key> = <value> [ ... ]
+//
+// per https://docs.snowflake.com/en/sql-reference/sql/alter-database-catalog-linked.
+// The namespace-list name and the SET keys are open-ended name words.
+func (p *Parser) parseLinkedCatalogUpdate() (*ast.LinkedCatalogUpdate, error) {
+	if err := p.expectWord("LINKED_CATALOG"); err != nil {
+		return nil, err
+	}
+	upd := &ast.LinkedCatalogUpdate{}
+	switch p.cur.Type {
+	case kwADD, kwREMOVE:
+		upd.Op = "ADD"
+		joiner := kwTO
+		if p.cur.Type == kwREMOVE {
+			upd.Op = "REMOVE"
+			joiner = kwFROM
+		}
+		p.advance() // consume ADD / REMOVE
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+		names, err := p.parseTagStringList()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		upd.Namespaces = names
+		if _, err := p.expect(joiner); err != nil {
+			return nil, err
+		}
+		target, err := p.parseDBPropName()
+		if err != nil {
+			return nil, err
+		}
+		upd.Target = target
+	case kwUNSET:
+		p.advance() // consume UNSET
+		upd.Op = "UNSET"
+		target, err := p.parseDBPropName()
+		if err != nil {
+			return nil, err
+		}
+		upd.Target = target
+	case kwSET:
+		p.advance() // consume SET
+		upd.Op = "SET"
+		for i := 0; p.startsDBSchemaOption(); i++ {
+			if i >= dbSchemaOptionCap {
+				return nil, p.syntaxErrorAtCur()
+			}
+			opt, err := p.parseDBSchemaOption()
+			if err != nil {
+				return nil, err
+			}
+			upd.Options = append(upd.Options, opt)
+		}
+		if len(upd.Options) == 0 {
+			return nil, p.syntaxErrorAtCur()
+		}
+	default:
+		return nil, p.syntaxErrorAtCur()
+	}
+	return upd, nil
+}
+
 // ---------------------------------------------------------------------------
 // ALTER SCHEMA
 // ---------------------------------------------------------------------------
 
-// parseAlterSchemaStmt parses ALTER SCHEMA ... (all action variants).
+// parseAlterSchemaStmt parses ALTER SCHEMA ... (all action variants) per
+// https://docs.snowflake.com/en/sql-reference/sql/alter-schema.
 // The ALTER keyword has already been consumed.
 func (p *Parser) parseAlterSchemaStmt() (ast.Node, error) {
 	altTok := p.advance() // consume SCHEMA
@@ -558,14 +856,14 @@ func (p *Parser) parseAlterSchemaStmt() (ast.Node, error) {
 	case kwSET:
 		p.advance() // consume SET
 		if p.cur.Type == kwTAG {
-			tags, err := p.parseTagAssignments()
+			tags, err := p.parseDBSchemaSetTags()
 			if err != nil {
 				return nil, err
 			}
 			stmt.Action = ast.AlterSchemaSetTag
 			stmt.Tags = tags
 		} else {
-			props, err := p.parseDBSchemaProps()
+			props, err := p.parseDBSchemaSetProps()
 			if err != nil {
 				return nil, err
 			}
@@ -576,14 +874,14 @@ func (p *Parser) parseAlterSchemaStmt() (ast.Node, error) {
 	case kwUNSET:
 		p.advance() // consume UNSET
 		if p.cur.Type == kwTAG {
-			names, err := p.parseUnsetTagList()
+			names, err := p.parseDBSchemaUnsetTags()
 			if err != nil {
 				return nil, err
 			}
 			stmt.Action = ast.AlterSchemaUnsetTag
 			stmt.UnsetTags = names
 		} else {
-			props, err := p.parsePropertyNameList()
+			props, err := p.parseDBSchemaUnsetProps()
 			if err != nil {
 				return nil, err
 			}
@@ -671,8 +969,7 @@ func (p *Parser) parseAlterSessionStmt() (ast.Node, error) {
 // parseSessionParamUnsetKeys reads the comma-separated parameter-name list of an
 // ALTER SESSION UNSET. Session parameter names are open-ended: most lex as
 // reserved keywords (LOCK_TIMEOUT, AUTOCOMMIT, ...), so any option word is
-// accepted (not only the closed DB-property set parsePropertyName allows). The
-// names are uppercased; the loop is bounded.
+// accepted. The names are uppercased; the loop is bounded.
 func (p *Parser) parseSessionParamUnsetKeys() ([]string, error) {
 	var keys []string
 	for i := 0; ; i++ {
@@ -709,6 +1006,9 @@ func (p *Parser) parseSessionParamOptions() ([]*ast.CopyOption, error) {
 			return nil, err
 		}
 		opts = append(opts, opt)
+		// The parameters may be separated "by spaces or commas" (SET,
+		// https://docs.snowflake.com/en/sql-reference/sql/alter-session).
+		p.acceptOptionComma()
 		if p.cur.Loc.Start == before && p.cur.Type != tokEOF {
 			// No forward progress on a non-EOF token: abort rather than spin.
 			return nil, p.syntaxErrorAtCur()
@@ -854,22 +1154,41 @@ func (p *Parser) parseUndropSchemaStmt() (ast.Node, error) {
 // Property parsing helpers
 // ---------------------------------------------------------------------------
 
-// parseDBSchemaProps parses zero or more optional DATABASE/SCHEMA properties
-// (DATA_RETENTION_TIME_IN_DAYS, MAX_DATA_EXTENSION_TIME_IN_DAYS,
-// DEFAULT_DDL_COLLATION, COMMENT). Returns a new *DBSchemaProps; the pointer
-// fields inside are nil unless the corresponding property was present.
-func (p *Parser) parseDBSchemaProps() (*ast.DBSchemaProps, error) {
+// dbSchemaOptionCap bounds an open-ended DATABASE/SCHEMA property or UNSET run.
+// Real statements carry a handful of properties; a far larger run signals a
+// runaway parse and aborts loudly rather than spinning.
+const dbSchemaOptionCap = 1024
+
+// parseDBSchemaSetProps parses the property list of ALTER { DATABASE | SCHEMA }
+// ... SET, which also takes CONTACT <purpose> = <contact> [ , ... ] inline
+// (https://docs.snowflake.com/en/sql-reference/sql/alter-database). SET with
+// nothing to set is a syntax error.
+func (p *Parser) parseDBSchemaSetProps() (*ast.DBSchemaProps, error) {
 	props := &ast.DBSchemaProps{}
-	if err := p.parseDBSchemaPropsInto(props); err != nil {
+	if err := p.parseDBSchemaPropsInto(props, true); err != nil {
 		return nil, err
+	}
+	if props.DataRetention == nil && props.MaxDataExt == nil && props.DefaultDDLCol == nil &&
+		props.Comment == nil && len(props.Options) == 0 && len(props.Contacts) == 0 {
+		return nil, p.syntaxErrorAtCur()
 	}
 	return props, nil
 }
 
-// parseDBSchemaPropsInto populates *props in-place. Used by CREATE statements
-// that hold DBSchemaProps by value.
-func (p *Parser) parseDBSchemaPropsInto(props *ast.DBSchemaProps) error {
-	for {
+// parseDBSchemaPropsInto populates *props in place with a run of DATABASE/SCHEMA
+// properties. DATA_RETENTION_TIME_IN_DAYS, MAX_DATA_EXTENSION_TIME_IN_DAYS,
+// DEFAULT_DDL_COLLATION and COMMENT keep their typed fields; every other
+// property is an open-ended `KEY = value` pair (ast.CopyOption) in
+// props.Options, since the documented set (EXTERNAL_VOLUME, CATALOG,
+// LOG_LEVEL, OBJECT_VISIBILITY, LINKED_CATALOG = ( ... ), ...) keeps growing.
+// With inlineContact (ALTER ... SET), CONTACT <purpose> = <contact> [ , ... ]
+// is read into props.Contacts. The run ends at the first token that begins no
+// property.
+func (p *Parser) parseDBSchemaPropsInto(props *ast.DBSchemaProps, inlineContact bool) error {
+	for i := 0; ; i++ {
+		if i >= dbSchemaOptionCap {
+			return p.syntaxErrorAtCur()
+		}
 		switch p.cur.Type {
 		case kwDATA_RETENTION_TIME_IN_DAYS:
 			p.advance() // consume DATA_RETENTION_TIME_IN_DAYS
@@ -882,6 +1201,7 @@ func (p *Parser) parseDBSchemaPropsInto(props *ast.DBSchemaProps) error {
 			}
 			v := tok.Ival
 			props.DataRetention = &v
+			continue
 
 		case kwMAX_DATA_EXTENSION_TIME_IN_DAYS:
 			p.advance() // consume MAX_DATA_EXTENSION_TIME_IN_DAYS
@@ -894,6 +1214,7 @@ func (p *Parser) parseDBSchemaPropsInto(props *ast.DBSchemaProps) error {
 			}
 			v := tok.Ival
 			props.MaxDataExt = &v
+			continue
 
 		case kwDEFAULT_DDL_COLLATION:
 			p.advance() // consume DEFAULT_DDL_COLLATION / DEFAULT_DDL_COLLATION_
@@ -906,6 +1227,7 @@ func (p *Parser) parseDBSchemaPropsInto(props *ast.DBSchemaProps) error {
 			}
 			s := tok.Str
 			props.DefaultDDLCol = &s
+			continue
 
 		case kwCOMMENT:
 			p.advance() // consume COMMENT
@@ -918,56 +1240,277 @@ func (p *Parser) parseDBSchemaPropsInto(props *ast.DBSchemaProps) error {
 			}
 			s := tok.Str
 			props.Comment = &s
+			continue
+		}
 
+		switch {
+		case inlineContact && p.startsInlineContact():
+			p.advance() // consume CONTACT
+			contacts, err := p.parseContactAssignments()
+			if err != nil {
+				return err
+			}
+			props.Contacts = append(props.Contacts, contacts...)
+		case p.startsDBSchemaOption():
+			opt, err := p.parseDBSchemaOption()
+			if err != nil {
+				return err
+			}
+			props.Options = append(props.Options, opt)
 		default:
 			return nil
 		}
 	}
 }
 
-// parsePropertyNameList parses a comma-separated list of property names
-// (identifiers or reserved keywords) for UNSET clauses. Returns the uppercased
-// names. Consumes at least one name.
-func (p *Parser) parsePropertyNameList() ([]string, error) {
-	name, err := p.parsePropertyName()
-	if err != nil {
+// startsDBSchemaOption reports whether cur begins an open-ended `KEY = value`
+// DATABASE/SCHEMA property: a name word followed by '='. WITH and TAG never
+// start one; they anchor the [ WITH ] TAG and WITH CONTACT clauses.
+func (p *Parser) startsDBSchemaOption() bool {
+	if p.cur.Type == kwWITH || p.cur.Type == kwTAG || !isNameWordTok(p.cur) {
+		return false
+	}
+	return p.peekNext().Type == '='
+}
+
+// parseDBSchemaOption parses one `KEY = value` DATABASE/SCHEMA property; the
+// caller has confirmed startsDBSchemaOption. The value is one of
+//
+//	'<string>' | <number> | <name> [ . <name> ... ]
+//	( '<string>' [ , ... ] )                 e.g. ALLOWED_NAMESPACES = ( 'a', 'b' )
+//	( <key> = <value> [ , ... ] )            e.g. LINKED_CATALOG = ( CATALOG = 'c', ... )
+//
+// Unlike the COPY option groups (parseCopyOptionParen), a group here separates
+// its entries with commas and every entry has a value, as in
+// https://docs.snowflake.com/en/sql-reference/sql/create-database-catalog-linked.
+func (p *Parser) parseDBSchemaOption() (*ast.CopyOption, error) {
+	nameTok := p.advance() // consume the property name
+	opt := &ast.CopyOption{
+		Name: strings.ToUpper(nameTok.Str),
+		Loc:  ast.Loc{Start: nameTok.Loc.Start},
+	}
+	if _, err := p.expect('='); err != nil {
 		return nil, err
 	}
-	names := []string{name}
+	if err := p.parseDBSchemaOptionValue(opt); err != nil {
+		return nil, err
+	}
+	opt.Loc.End = p.prev.Loc.End
+	return opt, nil
+}
 
-	for p.cur.Type == ',' {
-		p.advance() // consume ','
-		name, err = p.parsePropertyName()
+// parseDBSchemaOptionValue parses the value of a parseDBSchemaOption property
+// into opt.
+func (p *Parser) parseDBSchemaOptionValue(opt *ast.CopyOption) error {
+	switch p.cur.Type {
+	case tokString:
+		tok := p.advance()
+		opt.Lit = &ast.Literal{Kind: ast.LitString, Value: tok.Str, Loc: tok.Loc}
+		return nil
+	case tokInt:
+		tok := p.advance()
+		opt.Lit = &ast.Literal{Kind: ast.LitInt, Value: tok.Str, Ival: tok.Ival, Loc: tok.Loc}
+		return nil
+	case tokFloat, tokReal:
+		tok := p.advance()
+		opt.Lit = &ast.Literal{Kind: ast.LitFloat, Value: tok.Str, Loc: tok.Loc}
+		return nil
+	case '(':
+		return p.parseDBSchemaOptionParen(opt)
+	}
+	words, err := p.parseDBSchemaWordValue()
+	if err != nil {
+		return err
+	}
+	opt.Words = words
+	return nil
+}
+
+// parseDBSchemaOptionParen parses a parenthesized property value: a non-empty
+// string list or a non-empty comma-separated `KEY = value` group. cur is '('.
+func (p *Parser) parseDBSchemaOptionParen(opt *ast.CopyOption) error {
+	if err := p.enterNesting(); err != nil {
+		return err
+	}
+	defer p.leaveNesting()
+	p.advance() // consume '('
+
+	if p.cur.Type == tokString {
+		for i := 0; ; i++ {
+			if i >= dbSchemaOptionCap {
+				return p.syntaxErrorAtCur()
+			}
+			tok, err := p.expect(tokString)
+			if err != nil {
+				return err
+			}
+			opt.List = append(opt.List, &ast.Literal{Kind: ast.LitString, Value: tok.Str, Loc: tok.Loc})
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance() // consume ','
+		}
+	} else {
+		for i := 0; ; i++ {
+			if i >= dbSchemaOptionCap || !isNameWordTok(p.cur) {
+				return p.syntaxErrorAtCur()
+			}
+			sub, err := p.parseDBSchemaOption()
+			if err != nil {
+				return err
+			}
+			opt.Group = append(opt.Group, sub)
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance() // consume ','
+		}
+	}
+	_, err := p.expect(')')
+	return err
+}
+
+// parseDBSchemaWordValue parses a name-valued property (TRUE, COMPATIBLE, an
+// external volume or a qualified event table): one or more dot-separated name
+// parts. Unquoted parts are uppercased; a quoted part keeps its source text,
+// quotes included, so its case survives.
+func (p *Parser) parseDBSchemaWordValue() (string, error) {
+	var b strings.Builder
+	for i := 0; ; i++ {
+		if i >= dbSchemaOptionCap {
+			return "", p.syntaxErrorAtCur()
+		}
+		switch {
+		case p.cur.Type == tokQuotedIdent:
+			tok := p.advance()
+			b.WriteString(p.srcSlice(tok.Loc.Start, tok.Loc.End))
+		case isNameWordTok(p.cur):
+			b.WriteString(strings.ToUpper(p.advance().Str))
+		default:
+			return "", p.syntaxErrorAtCur()
+		}
+		if p.cur.Type != '.' {
+			return b.String(), nil
+		}
+		p.advance() // consume '.'
+		b.WriteByte('.')
+	}
+}
+
+// startsInlineContact reports whether cur begins the ALTER ... SET form
+// CONTACT <purpose> = <contact>: the word CONTACT followed by a name word.
+func (p *Parser) startsInlineContact() bool {
+	return tokIsWord(p.cur, "CONTACT") && isNameWordTok(p.peekNext())
+}
+
+// parseContactAssignments parses <purpose> = <contact> [ , ... ], the body of
+// WITH CONTACT ( ... ) on CREATE and of CONTACT ... on ALTER ... SET
+// (https://docs.snowflake.com/en/sql-reference/sql/create-database). Each pair
+// is a CopyOption whose Name is the uppercased purpose and whose Words is the
+// contact name.
+func (p *Parser) parseContactAssignments() ([]*ast.CopyOption, error) {
+	var contacts []*ast.CopyOption
+	for i := 0; ; i++ {
+		if i >= dbSchemaOptionCap {
+			return nil, p.syntaxErrorAtCur()
+		}
+		if !isNameWordTok(p.cur) {
+			return nil, p.syntaxErrorAtCur()
+		}
+		purpose := p.advance()
+		if _, err := p.expect('='); err != nil {
+			return nil, err
+		}
+		contact, err := p.parseDBSchemaWordValue()
 		if err != nil {
 			return nil, err
 		}
-		names = append(names, name)
+		contacts = append(contacts, &ast.CopyOption{
+			Name:  strings.ToUpper(purpose.Str),
+			Words: contact,
+			Loc:   ast.Loc{Start: purpose.Loc.Start, End: p.prev.Loc.End},
+		})
+		if p.cur.Type != ',' {
+			return contacts, nil
+		}
+		p.advance() // consume ','
 	}
-	return names, nil
 }
 
-// parsePropertyName parses a single property name. Property names can be
-// keywords (DATA_RETENTION_TIME_IN_DAYS, COMMENT, etc.) or identifiers.
-func (p *Parser) parsePropertyName() (string, error) {
-	switch p.cur.Type {
-	case kwDATA_RETENTION_TIME_IN_DAYS:
-		p.advance()
-		return "DATA_RETENTION_TIME_IN_DAYS", nil
-	case kwMAX_DATA_EXTENSION_TIME_IN_DAYS:
-		p.advance()
-		return "MAX_DATA_EXTENSION_TIME_IN_DAYS", nil
-	case kwDEFAULT_DDL_COLLATION:
-		p.advance()
-		return "DEFAULT_DDL_COLLATION", nil
-	case kwCOMMENT:
-		p.advance()
-		return "COMMENT", nil
-	case tokIdent:
-		tok := p.advance()
-		return tok.Str, nil
-	default:
+// parseDBSchemaSetTags parses SET TAG <tag> = '<value>' [ , ... ] of ALTER
+// { DATABASE | SCHEMA } (the documented, unparenthesized form), and the
+// parenthesized TAG ( ... ) form omni has long accepted. cur is TAG.
+func (p *Parser) parseDBSchemaSetTags() ([]*ast.TagAssignment, error) {
+	if p.peekNext().Type == '(' {
+		return p.parseTagAssignments()
+	}
+	return p.parseTagSetList()
+}
+
+// parseDBSchemaUnsetTags parses UNSET TAG <tag> [ , ... ] of ALTER { DATABASE |
+// SCHEMA } (the documented, unparenthesized form), and the parenthesized
+// TAG ( ... ) form omni has long accepted. cur is TAG.
+func (p *Parser) parseDBSchemaUnsetTags() ([]*ast.ObjectName, error) {
+	if p.peekNext().Type == '(' {
+		return p.parseUnsetTagList()
+	}
+	return p.parseUnsetTagNameList()
+}
+
+// parseDBSchemaUnsetProps parses the comma-separated property list of ALTER
+// { DATABASE | SCHEMA } ... UNSET. Property names are open-ended name words,
+// uppercased. CONTACT takes an optional purpose (UNSET CONTACT <purpose>),
+// recorded as "CONTACT <PURPOSE>". Consumes at least one name.
+func (p *Parser) parseDBSchemaUnsetProps() ([]string, error) {
+	var names []string
+	for i := 0; ; i++ {
+		if i >= dbSchemaOptionCap {
+			return nil, p.syntaxErrorAtCur()
+		}
+		name, err := p.parseDBPropName()
+		if err != nil {
+			return nil, err
+		}
+		if name == "CONTACT" && isNameWordTok(p.cur) {
+			name += " " + strings.ToUpper(p.advance().Str)
+		}
+		names = append(names, name)
+		if p.cur.Type != ',' {
+			return names, nil
+		}
+		p.advance() // consume ','
+	}
+}
+
+// parseDBPropName parses one property name word and returns it uppercased.
+func (p *Parser) parseDBPropName() (string, error) {
+	if !isNameWordTok(p.cur) {
 		return "", p.syntaxErrorAtCur()
 	}
+	return strings.ToUpper(p.advance().Str), nil
+}
+
+// isNameWordTok reports whether tok is an unquoted name word: an identifier or
+// a keyword.
+func isNameWordTok(tok Token) bool {
+	return tok.Type == tokIdent || tok.Type >= 700
+}
+
+// tokIsWord reports whether tok is the unquoted name word upper (an identifier
+// or keyword spelled so, case-insensitively). Unlike curIsWord it never
+// matches a string literal or quoted identifier with that text.
+func tokIsWord(tok Token, upper string) bool {
+	return isNameWordTok(tok) && strings.EqualFold(tok.Str, upper)
+}
+
+// expectWord consumes cur when it is the unquoted name word upper, and fails
+// with a syntax error otherwise.
+func (p *Parser) expectWord(upper string) error {
+	if !tokIsWord(p.cur, upper) {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance()
+	return nil
 }
 
 // parseUnsetTagList parses TAG ( name [, name ...] ) for UNSET TAG clauses.

@@ -1,1 +1,0 @@
-FuncCall{Name:LAG Args:[VarRef{Name:x}] Over:WindowSpec{PartitionBy:[VarRef{Name:a}] OrderBy:[]}}

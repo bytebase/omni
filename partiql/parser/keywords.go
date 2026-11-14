@@ -5,9 +5,9 @@ package parser
 // `options { caseInsensitive = true; }`. The lexer lowercases the
 // identifier text before lookup.
 //
-// Built once at package init via a literal map. The 265 entries here
+// Built once at package init via a literal map. The 267 entries here
 // each map to a distinct tokKEYWORD constant in token.go (group 3000) —
-// TestKeywords_LenMatchesConstants asserts len(keywords) == 265.
+// TestKeywords_LenMatchesConstants asserts len(keywords) == 267.
 //
 // Source: every uppercase rule in PartiQLLexer.g4 from line 13 (ABSOLUTE)
 // through line 295 (BAG), generated via:
@@ -113,6 +113,8 @@ var keywords = map[string]int{
 	"escape":            tokESCAPE,
 	"except":            tokEXCEPT,
 	"exception":         tokEXCEPTION,
+	"every":             tokEVERY,
+	"exclude":           tokEXCLUDE,
 	"excluded":          tokEXCLUDED,
 	"exec":              tokEXEC,
 	"execute":           tokEXECUTE,

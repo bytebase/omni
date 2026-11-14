@@ -130,14 +130,38 @@ var oracleAfterParse = map[int]bool{
 // raises: ORA-00900 to 00999 (invalid SQL statement, missing keyword,
 // missing expression, ...), the lexer's and the parser's of 01700 to 01799
 // (oracleLexer), 02000 to 02099 (missing keyword and option errors) and
-// 03048 to 03050 (23ai's errors naming the word that is not valid where it
-// stands), less the codes of those ranges raised after the parse, in
-// oracleResolved. It decides an error at the end of the statement, where
-// the probe cannot, one whose probe says nothing, and a SQL statement's
-// error inside PL/SQL.
+// 03046 to 03050 (23ai's errors naming the string, number or word that is
+// not valid where it stands), and the statement parsers' own (oracleStatement),
+// less the codes of those ranges raised after the parse, in oracleResolved.
+// It decides an error whose probe says nothing, and a SQL statement's error
+// inside PL/SQL.
 func oracleParserCode(code int) bool {
-	return (code >= 900 && code <= 999 || oracleLexer[code] ||
-		code >= 2000 && code <= 2099 || code >= 3048 && code <= 3050) && !oracleResolved[code]
+	return (code >= 900 && code <= 999 || oracleLexer[code] || oracleStatement[code] ||
+		code >= 2000 && code <= 2099 || code >= 3046 && code <= 3050) && !oracleResolved[code]
+}
+
+// oracleStatement are the errors of the parsers Oracle keeps for its
+// statements, outside the generic parser's range: each says a keyword is
+// missing or expected, or an option is not valid in the statement or where
+// it stands, and none names an object. Each was measured on the pinned
+// server, as in ALTER MATERIALIZED VIEW a PARAMETERS (14051, invalid ALTER
+// MATERIALIZED VIEW option) or ALTER SESSION SET CONSTRAINT = DEFAULT zzz
+// (02248, invalid option for ALTER SESSION).
+var oracleStatement = map[int]bool{
+	// A keyword missing or expected.
+	1710: true, 1736: true, 1737: true, 1738: true, 1739: true, 1900: true, 1901: true, 1902: true, 1904: true,
+	1905: true, 1906: true, 1907: true, 1910: true, 1911: true, 1912: true, 1916: true, 3055: true, 3079: true,
+	3290: true, 3291: true, 14004: true, 14007: true, 14008: true, 14028: true, 14150: true, 14155: true,
+	14166: true, 19000: true, 19766: true, 19767: true, 19769: true, 25134: true, 28158: true, 28160: true,
+	28161: true, 28162: true, 29811: true, 29814: true, 29826: true, 29852: true, 29935: true, 29963: true,
+	30652: true, 32576: true, 38722: true, 39877: true, 65043: true,
+	// An option not valid in the statement, or a value missing where one stands.
+	1780: true, 2141: true, 2142: true, 2143: true, 2144: true, 2157: true, 2158: true, 2173: true, 2176: true,
+	2180: true, 2183: true, 2210: true, 2216: true, 2230: true, 2231: true, 2242: true, 2243: true, 2244: true,
+	2248: true, 2253: true, 2286: true, 2338: true, 2377: true, 3083: true, 3099: true, 3218: true, 3281: true,
+	3282: true, 10630: true, 11547: true, 11550: true, 11551: true, 12044: true, 12045: true, 14049: true,
+	14050: true, 14051: true, 14054: true, 14094: true, 14126: true, 14151: true, 14169: true, 14174: true,
+	14853: true, 19001: true, 22853: true, 38724: true, 65044: true,
 }
 
 // oracleLexer are the codes of 01700 to 01799 the lexer and the parser
@@ -151,11 +175,53 @@ var oracleLexer = map[int]bool{1735: true, 1740: true, 1741: true, 1742: true, 1
 
 // oracleResolved are codes among the parser's that Oracle raises after the
 // parse, resolving names and types: an invalid identifier (00904, a column
-// that is not there), a column ambiguously defined (00918), inconsistent
-// datatypes (00932), group functions where none may stand (00934, 00937,
-// 00979), a missing table or view (00942), too few values (00947), a name
-// already used (00955), a column named twice (00957).
-var oracleResolved = map[int]bool{904: true, 918: true, 932: true, 934: true, 937: true, 942: true, 947: true, 955: true, 957: true, 979: true}
+// that is not there), a data type that is no built-in one or type the user
+// has (00902, CREATE TABLE a (a UNITE)), a column ambiguously defined
+// (00918), inconsistent datatypes (00932), group functions where none may
+// stand (00934, 00937, 00979), a missing table or view (00942), a missing
+// cluster (00943) or tablespace (00959), too few or too many values (00947,
+// 00913), a name already used (00955), a column named twice (00957), a
+// table not in the FROM list (00964, SELECT a.a.*), more passwords than
+// users (00989), an expression a view must name (00998), FOR UPDATE where
+// it cannot lock (02014), and a database link that is not there (02019,
+// 02024).
+var oracleResolved = map[int]bool{
+	902: true, 904: true, 913: true, 918: true, 932: true, 934: true, 937: true, 942: true, 943: true, 947: true,
+	955: true, 957: true, 959: true, 964: true, 979: true, 989: true, 998: true, 2014: true, 2019: true, 2024: true,
+}
+
+// oracleCheckedAtEnd are codes Oracle reports at the end of a statement it
+// has parsed, checking the statement as a whole against the server or
+// itself; any other error there names what the parser wanted and did not
+// find (ALTER TABLE a, ORA-02210; ALTER DATABASE DEFAULT TABLESPACE,
+// ORA-02216). Each was measured at the end of a row on the pinned server.
+// The server's setup: a data file needs a name without managed files
+// (02199, CREATE BIGFILE TABLESPACE a) and a PDB's file names a conversion
+// (65016); shard DDL is off (02557, 02523, 02501); a time zone file (01804);
+// a feature not built in (03001). The statement against itself: a key the
+// table does not define (02432, 02433, 02434), an annotation named twice
+// (11562, 11602), INMEMORY twice for a column (64360), a zonemap's query
+// without GROUP BY (31974), MAXVALUE for some bound columns only (32373),
+// too many bound values (14017), a split into other than two partitions
+// (14046, 14804), partitions named both ways (14764), a resource twice
+// (02376), sizes out of range (25121, 25147, 30020), data files of a
+// tablespace set (02580, 02238), SINGLE TABLE on a cluster that is not a
+// hash cluster (25135), a LOB option of a hash partition (22877), an ILM
+// operation the statement does not support (38346).
+var oracleCheckedAtEnd = map[int]bool{
+	1804: true, 2199: true, 2238: true, 2376: true, 2432: true, 2433: true, 2434: true, 2501: true,
+	2523: true, 2557: true, 2580: true, 3001: true, 11562: true, 11602: true, 14017: true, 14046: true,
+	14764: true, 14804: true, 22877: true, 25121: true, 25135: true, 25147: true, 30020: true, 31974: true,
+	32373: true, 38346: true, 64360: true, 65016: true,
+}
+
+// oracleLexerOnly is ORA-00911, an invalid character: the probe's ~ when
+// the lexer meets it. Oracle reads some statements' every token before it
+// parses any (ALTER MATERIALIZED VIEW, CREATE TABLE, GRANT, REVOKE), so on
+// those a probe answered with it at the tail says only that the lexer got
+// there, not the parser: ALTER MATERIALIZED VIEW a zzz yyy answers ORA-03049
+// at zzz, and its probe ORA-00911 at the tail.
+const oracleLexerOnly = 911
 
 // oracleAnswer reads what OracleParse raised.
 var oracleAnswer = regexp.MustCompile(`ORA-20999: omni-parse code=(\d+) position=(-?\d+) compile=([A-Z0-9,-]*)`)
@@ -214,7 +280,10 @@ func oracleFailed(err error) bool {
 // Oracle reads all of a statement before it looks anything up, so a
 // statement refused after its parse is answered at the probe's tail, and
 // one its parser refused is answered with the same error at the same byte,
-// which comes before the tail. A rejection carries that byte. A probe that
+// which comes before the tail. A probe the lexer refuses at the tail
+// (ORA-00911) says nothing, since Oracle lexes some statements whole before
+// it parses them: the first answer's code decides. A rejection carries that
+// byte. A probe that
 // stops anywhere else has changed how the parser reads the text before the
 // tail, as ALTER INDEX a UNUSABLE followed by more is refused at UNUSABLE,
 // and says nothing: the first answer's code decides, a rejection when it
@@ -230,7 +299,8 @@ func oracleFailed(err error) bool {
 // block's carries LAST_ERROR_POSITION. A probe could not tell: its tail is
 // in the block. The errors in oracleAfterParse are acceptances. An error at
 // the very end of the statement, where the probe's tail is met either way,
-// is decided by its code. And Oracle failing in its own code on the
+// is a rejection, whatever its code, unless Oracle checks it of the parsed
+// statement (oracleCheckedAtEnd). And Oracle failing in its own code on the
 // statement (oracleFailure, or no answer at all: ErrNoAnswer), on two
 // sessions, is a rejection with no byte: no statement Oracle runs, though
 // not one its parser names an error in.
@@ -281,7 +351,13 @@ func OracleVerdict(statement string, parse func(text string) error) (string, err
 		return Accept
 	}
 	if e.position == len(statement) {
-		return byCode(), nil
+		// Past the last token nothing is looked up: what the parser wanted
+		// is missing, whatever the code, unless it is a check Oracle makes
+		// of the whole statement after the parse.
+		if oracleCheckedAtEnd[e.code] {
+			return Accept, nil
+		}
+		return reject, nil
 	}
 	probeErr := parse(statement + OracleProbeTail)
 	if probeErr == nil {
@@ -295,6 +371,10 @@ func OracleVerdict(statement string, parse func(text string) error) (string, err
 		return "", probeErr
 	case p.code == e.code && p.position == e.position:
 		return reject, nil
+	case p.position == len(statement)+oracleTail && p.code == oracleLexerOnly:
+		// The lexer reached the tail, which it may do before the parse:
+		// the first answer's code decides.
+		return byCode(), nil
 	case p.position == len(statement)+oracleTail:
 		return Accept, nil
 	}

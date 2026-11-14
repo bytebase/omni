@@ -635,6 +635,17 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 	case tokBIND:
 		return p.parseBindVariable()
 
+	case ':':
+		// A host variable with blanks after its colon: Oracle 23ai parses
+		// SELECT : a FROM dual as SELECT :a FROM dual.
+		if next := p.peekNext(); next.Type == tokIDENT || next.Type == tokQIDENT || next.Type == tokICONST || next.Type >= 2000 {
+			p.advance() // consume ':'
+			name := p.cur.Str
+			p.advance()
+			return &nodes.BindVariable{Name: name, Loc: nodes.Loc{Start: start, End: p.prev.End}}, nil
+		}
+		return nil, nil
+
 	case tokINQUIRY:
 		// An inquiry directive is a literal the compiler substitutes
 		// ($$PLSQL_LINE, $$PLSQL_UNIT): no name, no call, no field.
@@ -645,10 +656,10 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 		}, nil
 
 	case '*':
-		p.advance()
-		return &nodes.Star{
-			Loc: nodes.Loc{Start: start, End: p.prev.End},
-		}, nil
+		// A bare * is no expression: the select list and JSON_OBJECT take
+		// it themselves (takeSelectStar), and elsewhere Oracle 23ai fails
+		// at it (ORA-00936 for SET a = * or WHERE *).
+		return nil, nil
 
 	case '(':
 		return p.parseParenExpr()
@@ -734,6 +745,11 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 		if isOracleClauseStarterKeyword(p.cur.Type) && isOracleSQLReservedKeyword(p.cur) &&
 			(p.cur.Type != kwEXCEPT || !p.plsqlCode) {
 			return nil, nil
+		}
+		// CURRENT is reserved and starts no expression: Oracle 23ai
+		// fails at it as a column or a function (ORA-00936).
+		if p.cur.Type == kwCURRENT {
+			return nil, p.syntaxErrorAtCur()
 		}
 		if p.isIdentLike() {
 			return p.parseIdentExpr()
@@ -1379,6 +1395,15 @@ func (p *Parser) parseSubscriptIfPresent(expr nodes.ExprNode) (nodes.ExprNode, e
 		if p.cur.Type == ']' {
 			break
 		}
+		// A JSON simplified path's array step takes *: doc.rows[*].
+		if p.cur.Type == '*' {
+			args.Items = append(args.Items, p.takeSelectStar())
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance()
+			continue
+		}
 		arg, parseErr713 := p.parseExpr()
 		if parseErr713 != nil {
 			return nil, parseErr713
@@ -1981,6 +2006,8 @@ func (p *Parser) parseParenExpr() (nodes.ExprNode, error) {
 	start := p.pos()
 	iterand := p.queryIterand
 	p.queryIterand = false
+	scalar := p.scalarParen
+	p.scalarParen = false
 	p.advance() // consume '('
 
 	// Detect a subquery: (SELECT ...), or ((SELECT ...) UNION ...)
@@ -2012,6 +2039,9 @@ func (p *Parser) parseParenExpr() (nodes.ExprNode, error) {
 		return nil, parseErr729
 	}
 	if inner == nil {
+		if scalar {
+			return nil, p.syntaxErrorAtCur()
+		}
 		if p.cur.Type == ')' {
 			p.advance()
 		}
@@ -2021,6 +2051,9 @@ func (p *Parser) parseParenExpr() (nodes.ExprNode, error) {
 	}
 
 	if p.cur.Type == ',' {
+		if scalar {
+			return nil, p.syntaxErrorAtCur()
+		}
 		items := &nodes.List{Items: []nodes.Node{inner}}
 		for p.cur.Type == ',' {
 			p.advance()
@@ -3024,8 +3057,11 @@ func (p *Parser) parseJsonEntry(name string, fc *nodes.FuncCallExpr) error {
 	if keyKeyword {
 		p.advance() // consume KEY
 	}
-	key, err := p.parseExprPrec(precComp)
-	if err != nil {
+	var key nodes.ExprNode
+	var err error
+	if p.cur.Type == '*' && !keyKeyword {
+		key = p.takeSelectStar()
+	} else if key, err = p.parseExprPrec(precComp); err != nil {
 		return err
 	}
 	if key == nil {

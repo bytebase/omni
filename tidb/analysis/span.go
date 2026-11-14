@@ -104,6 +104,9 @@ var ErrMixUserSystemTables = errors.New("cannot access user and system tables at
 
 // Catalog is the synced metadata of the instance a statement runs on.
 type Catalog struct {
+	// ListDatabaseNames lists the instance's databases. Query span does not
+	// read it; prior backup does.
+	ListDatabaseNames func() ([]string, error)
 	// GetDatabase returns a database's metadata, or nil when the database
 	// has not been synced. A nil GetDatabase means no metadata is available.
 	GetDatabase func(name string) (Database, error)

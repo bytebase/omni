@@ -41,6 +41,20 @@ func TestDeparse_AlterWarehouse(t *testing.T) {
 	assertRoundTrip(t, "ALTER WAREHOUSE my_wh UNSET TAG cost_center, env")
 	assertRoundTrip(t, "ALTER WAREHOUSE interactive_demo ADD TABLES (orders, customers)")
 	assertRoundTrip(t, "ALTER WAREHOUSE interactive_demo REMOVE TABLES (orders, customers)")
+	assertRoundTrip(t, "ALTER WAREHOUSE SUSPEND")
+	assertRoundTrip(t, "ALTER WAREHOUSE IF EXISTS RESUME IF SUSPENDED")
+	assertRoundTrip(t, "ALTER WAREHOUSE ABORT ALL QUERIES")
+	assertRoundTrip(t, "ALTER WAREHOUSE adaptive_wh ENABLE")
+	assertRoundTrip(t, "ALTER WAREHOUSE IF EXISTS adaptive_wh DISABLE")
+}
+
+func TestDeparse_CreateInteractiveWarehouse(t *testing.T) {
+	assertRoundTrip(t, "CREATE INTERACTIVE WAREHOUSE a")
+	assertRoundTrip(t, "CREATE OR REPLACE INTERACTIVE WAREHOUSE sales_interactive_wh TABLES (orders, customers, products) WAREHOUSE_SIZE = 'MEDIUM' COMMENT = 'Interactive warehouse for sales team analytics'")
+	assertRoundTrip(t, "CREATE INTERACTIVE WAREHOUSE IF NOT EXISTS a WITH WAREHOUSE_SIZE = XSMALL AUTO_SUSPEND = NULL RESOURCE_MONITOR = m")
+	assertRoundTrip(t, "CREATE INTERACTIVE WAREHOUSE a TABLES (db.s.t) AUTO_RESUME = TRUE WITH TAG (cost = 'eng') MAX_CONCURRENCY_LEVEL = 4 STATEMENT_TIMEOUT_IN_SECONDS = 60")
+	assertRoundTrip(t, "CREATE INTERACTIVE WAREHOUSE a TAG (cost = 'eng') STATEMENT_QUEUED_TIMEOUT_IN_SECONDS = 1")
+	assertRoundTrip(t, "CREATE INTERACTIVE WAREHOUSE a MIN_CLUSTER_COUNT = 1 STATEMENT_QUEUED_TIMEOUT_IN_SECONDS = 1")
 }
 
 // TestDeparse_AlterWarehouse_DropTablesNormalizes documents that DROP TABLES and

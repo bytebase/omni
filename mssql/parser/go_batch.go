@@ -11,6 +11,7 @@ import (
 func (p *Parser) parseGoStmt() (*nodes.GoStmt, error) {
 	loc := p.pos()
 	p.advance() // consume GO
+	p.procedureBatch = false
 
 	stmt := &nodes.GoStmt{
 		Count: 1,

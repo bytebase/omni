@@ -52,13 +52,15 @@ func diffExtensions(from, to *Catalog) []ExtensionDiffEntry {
 		}
 	}
 
-	// Modified: in both, compare schema and relocatable.
+	// Modified: in both, compare schema, relocatable, and version. A version
+	// one side does not name is the default and matches any.
 	for name, fi := range fromMap {
 		ti, ok := toMap[name]
 		if !ok {
 			continue
 		}
-		if fi.schemaName != ti.schemaName || fi.ext.Relocatable != ti.ext.Relocatable {
+		versionChanged := fi.ext.Version != "" && ti.ext.Version != "" && fi.ext.Version != ti.ext.Version
+		if fi.schemaName != ti.schemaName || fi.ext.Relocatable != ti.ext.Relocatable || versionChanged {
 			entries = append(entries, ExtensionDiffEntry{
 				Action: DiffModify,
 				Name:   name,

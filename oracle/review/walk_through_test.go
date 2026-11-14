@@ -190,7 +190,7 @@ func TestWalkThroughOracleEffects(t *testing.T) {
 	oneFinding(t, "DROP TABLE IF EXISTS other.x;\nALTER TABLE other.x ADD (a NUMBER);", 1, "Table `OTHER.X` doesn't exist.", shop)
 	oneFinding(t, "CREATE INDEX IF NOT EXISTS i ON nokey (a);\nCREATE INDEX i ON p (note);", 1, "The name `I` is already taken.", shop)
 	oneFinding(t, "DROP INDEX IF EXISTS i;\nDROP INDEX i;", 1, "Index `I` doesn't exist.", shop)
-	noFinding(t, "ALTER INDEX IF EXISTS i REBUILD;\nDROP INDEX i;", shop)
+	noFinding(t, "ALTER SEQUENCE IF EXISTS other.sq INCREMENT BY 2;\nDROP SEQUENCE other.sq;", shop)
 	noFinding(t, "DROP SYNONYM IF EXISTS s;\nDROP SYNONYM s;", shop)
 	// A dropped table takes its indexes, constraint names, and columns.
 	noFinding(t, "DROP TABLE t;\nCREATE INDEX ix_n ON nokey (a);\nALTER TABLE nokey ADD CONSTRAINT ck_n CHECK (a > 0);\nCREATE TABLE t (z NUMBER);\nALTER TABLE t ADD (code NUMBER);", shop)
@@ -292,6 +292,8 @@ func TestWalkThroughOracleUserCode(t *testing.T) {
 	oneFinding(t, "INSERT INTO nokey (a) VALUES (sq.nextval + 1);\nINSERT INTO nokey (a) SELECT p.id FROM p JOIN t ON t.p_id = p.id WHERE note = current_date;\nCREATE TABLE t (a NUMBER);", 2, "Table `T` already exists.", shop)
 	oneFinding(t, "MERGE INTO nokey k USING p ON (k.a = p.id) WHEN NOT MATCHED THEN INSERT (a) VALUES (p.id);\nDELETE FROM shop.t WHERE shop.t.id = 1;\nCREATE INDEX i ON nokey (a);\nCREATE TABLE t (a NUMBER);", 3, "Table `T` already exists.", shop)
 	oneFinding(t, "CREATE TABLE x (a NUMBER);\nUPDATE x SET a = 1 WHERE a = 2;\nCREATE TABLE x (b NUMBER);", 2, "Table `X` already exists.", shop)
+	// A DELETE's FROM tables are in scope, as an UPDATE's are.
+	oneFinding(t, "DELETE nokey FROM p WHERE nokey.a = p.id;\nCREATE TABLE t (a NUMBER);", 1, "Table `T` already exists.", shop)
 	// A quoted name of a function of a syntax of its own is a plain call.
 	noFinding(t, "SELECT \"EXTRACT\"(1) FROM dual;\nCREATE TABLE t (a NUMBER);", shop)
 	oneFinding(t, "SELECT extract(year FROM sysdate) FROM dual;\nCREATE TABLE t (a NUMBER);", 1, "Table `T` already exists.", shop)

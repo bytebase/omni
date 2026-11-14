@@ -58,6 +58,9 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 	}
 	defer p.leaveNesting()
 	defer p.restorePLSQLCode(p.setPLSQLCode(false))
+	// A query's own FROM is no DML statement's.
+	defer func(saved bool) { p.dmlFromClause = saved }(p.dmlFromClause)
+	p.dmlFromClause = false
 
 	sel, more, err := p.parseQueryOperand()
 	if err != nil || !more {
@@ -92,6 +95,10 @@ func (p *Parser) parseQueryOperand() (sel *nodes.SelectStmt, more bool, err erro
 		return p.parseParenthesizedQuery(sel)
 	}
 	if p.cur.Type != kwSELECT {
+		// A WITH clause is followed by its query (ORA-00928).
+		if sel.WithClause != nil {
+			return nil, false, p.syntaxErrorAtCur()
+		}
 		sel.Loc.End = p.prev.End
 		return sel, false, nil
 	}
@@ -539,9 +546,10 @@ func (p *Parser) parseQueryBlockClauses(sel *nodes.SelectStmt) (*nodes.SelectStm
 
 	if p.cur.Type == kwGROUP {
 		p.advance()
-		if p.cur.Type == kwBY {
-			p.advance()
+		if p.cur.Type != kwBY {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance()
 		var parseErr949 error
 		sel.GroupClause, parseErr949 = p.parseGroupByList()
 		if parseErr949 != nil {
@@ -574,9 +582,10 @@ func (p *Parser) parseQueryBlockClauses(sel *nodes.SelectStmt) (*nodes.SelectStm
 
 	if p.cur.Type == kwGROUP && (sel.GroupClause == nil || sel.GroupClause.Len() == 0) {
 		p.advance()
-		if p.cur.Type == kwBY {
-			p.advance()
+		if p.cur.Type != kwBY {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance()
 		var parseErr951 error
 		sel.GroupClause, parseErr951 = p.parseGroupByList()
 		if parseErr951 != nil {
@@ -587,6 +596,11 @@ func (p *Parser) parseQueryBlockClauses(sel *nodes.SelectStmt) (*nodes.SelectStm
 		}
 	}
 
+	// A MODEL clause reads the rows of a FROM clause (ORA-00923 at MODEL
+	// without one).
+	if p.cur.Type == kwMODEL && (sel.FromClause == nil || sel.FromClause.Len() == 0) {
+		return nil, p.syntaxErrorAtCur()
+	}
 	if p.cur.Type == kwMODEL {
 		var parseErr951 error
 		sel.ModelClause, parseErr951 = p.parseModelClause()
@@ -613,11 +627,11 @@ func (p *Parser) parseQueryBlockClauses(sel *nodes.SelectStmt) (*nodes.SelectStm
 		p.advance()
 		var parseErr953 error
 		sel.QualifyClause, parseErr953 = p.parseExpr()
-		if parseErr953 !=
-
-			// ORDER [SIBLINGS] BY
-			nil {
+		if parseErr953 != nil {
 			return nil, parseErr953
+		}
+		if sel.QualifyClause == nil {
+			return nil, p.syntaxErrorAtCur()
 		}
 	}
 	return sel, nil
@@ -632,12 +646,17 @@ func (p *Parser) parseQueryTail(sel *nodes.SelectStmt) (more bool, err error) {
 	if p.cur.Type == kwORDER {
 		p.advance()
 		if p.isIdentLikeStr("SIBLINGS") {
+			// SIBLINGS orders a hierarchical query's rows (ORA-30929).
+			if sel.Hierarchical == nil {
+				return false, p.syntaxErrorAtCur()
+			}
 			sel.SiblingsOrder = true
 			p.advance()
 		}
-		if p.cur.Type == kwBY {
-			p.advance()
+		if p.cur.Type != kwBY {
+			return false, p.syntaxErrorAtCur()
 		}
+		p.advance()
 		sel.OrderBy, err = p.parseOrderByList()
 		if err != nil {
 			return false, err
@@ -707,15 +726,25 @@ func (p *Parser) parseSelectList() (*nodes.List, error) {
 		if p.isSelectListTerminator() {
 			break
 		}
+		// A bare * is the whole select list: Oracle 23ai fails at the
+		// ',' after it (ORA-00923) and at a * after a ',' (ORA-00936).
+		if p.cur.Type == '*' && list.Len() > 0 {
+			return nil, p.syntaxErrorAtCur()
+		}
 		rt, parseErr960 := p.parseResTarget()
 		if parseErr960 != nil {
 			return nil, parseErr960
 		}
-		if rt != nil {
-			list.Items = append(list.Items, rt)
+		// Every item is an expression (ORA-00936 at the ',' of 1,,2).
+		if rt == nil {
+			return nil, p.syntaxErrorAtCur()
 		}
+		list.Items = append(list.Items, rt)
 		if p.cur.Type != ',' {
 			break
+		}
+		if _, star := rt.Expr.(*nodes.Star); star {
+			return nil, p.syntaxErrorAtCur()
 		}
 		p.advance() // consume ','
 	}
@@ -740,6 +769,9 @@ func (p *Parser) isSelectListTerminator() bool {
 // parseResTarget parses a single target expression (with optional alias).
 func (p *Parser) parseResTarget() (*nodes.ResTarget, error) {
 	start := p.pos()
+	if p.cur.Type == '*' {
+		return &nodes.ResTarget{Expr: p.takeSelectStar(), Loc: nodes.Loc{Start: start, End: p.prev.End}}, nil
+	}
 	expr, parseErr961 := p.parseExpr()
 	if parseErr961 != nil {
 		return nil, parseErr961
@@ -751,6 +783,12 @@ func (p *Parser) parseResTarget() (*nodes.ResTarget, error) {
 	rt := &nodes.ResTarget{
 		Expr: expr,
 		Loc:  nodes.Loc{Start: start},
+	}
+
+	// * and t.* take no alias (ORA-00923 at it).
+	if p.isWildcard(expr) {
+		rt.Loc.End = p.prev.End
+		return rt, nil
 	}
 
 	// Optional alias: AS name or just name
@@ -864,8 +902,21 @@ func (p *Parser) parseGroupByList() (*nodes.List, error) {
 	return list, nil
 }
 
-// parseGroupByItem parses a single GROUP BY item: expression, ROLLUP(...), CUBE(...),
-// or GROUPING SETS(...).
+// parseGroupByItem parses a single GROUP BY item: an expression, ROLLUP(...),
+// CUBE(...), or GROUPING SETS(...).
+//
+//	rollup_cube_clause:
+//	    { ROLLUP | CUBE } ( grouping_expression_list )
+//
+//	grouping_sets_clause:
+//	    GROUPING SETS
+//	    ( { rollup_cube_clause | grouping_expression_list }
+//	      [, { rollup_cube_clause | grouping_expression_list } ]... )
+//
+// An empty ( ) is a grouping set, and a whole GROUP BY list, but not an
+// element of ROLLUP or CUBE (ORA-00936 at its ')'). GROUPING SETS do not
+// nest (ORA-00907 at the inner SETS), and the GROUPING function groups
+// nothing (ORA-00934).
 func (p *Parser) parseGroupByItem() (nodes.Node, error) {
 	if err := p.enterNesting(); err != nil {
 		return nil, err
@@ -873,77 +924,99 @@ func (p *Parser) parseGroupByItem() (nodes.Node, error) {
 	defer p.leaveNesting()
 	start := p.pos()
 
-	switch p.cur.Type {
-	case kwROLLUP:
-		p.advance() // consume ROLLUP
-		rc := &nodes.RollupClause{Loc: nodes.Loc{Start: start}}
-		if p.cur.Type == '(' {
-			p.advance()
-			var parseErr966 error
-			rc.Args, parseErr966 = p.parseExprList()
-			if parseErr966 != nil {
-				return nil, parseErr966
-			}
-			if p.cur.Type == ')' {
-				p.advance()
-			}
+	switch {
+	case (p.cur.Type == kwROLLUP || p.cur.Type == kwCUBE) && p.peekNext().Type == '(':
+		rollup := p.cur.Type == kwROLLUP
+		p.advance() // consume ROLLUP or CUBE
+		args, err := p.parseSelectGroupingList()
+		if err != nil {
+			return nil, err
 		}
-		rc.Loc.End = p.prev.End
-		return rc, nil
-
-	case kwCUBE:
-		p.advance() // consume CUBE
-		cc := &nodes.CubeClause{Loc: nodes.Loc{Start: start}}
-		if p.cur.Type == '(' {
-			p.advance()
-			var parseErr967 error
-			cc.Args, parseErr967 = p.parseExprList()
-			if parseErr967 != nil {
-				return nil, parseErr967
-			}
-			if p.cur.Type == ')' {
-				p.advance()
-			}
+		if rollup {
+			return &nodes.RollupClause{Args: args, Loc: nodes.Loc{Start: start, End: p.prev.End}}, nil
 		}
-		cc.Loc.End = p.prev.End
-		return cc, nil
+		return &nodes.CubeClause{Args: args, Loc: nodes.Loc{Start: start, End: p.prev.End}}, nil
 
-	case kwGROUPING:
-		// GROUPING SETS(...)
-		if p.peekNext().Type == kwSETS {
-			p.advance() // consume GROUPING
-			p.advance() // consume SETS
-			gs := &nodes.GroupingSetsClause{Loc: nodes.Loc{Start: start}}
-			if p.cur.Type == '(' {
+	case p.cur.Type == kwGROUPING && p.peekNext().Type == kwSETS:
+		p.advance() // consume GROUPING
+		p.advance() // consume SETS
+		gs := &nodes.GroupingSetsClause{Loc: nodes.Loc{Start: start}}
+		if p.cur.Type != '(' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		gs.Sets = &nodes.List{}
+		for {
+			var item nodes.Node
+			switch {
+			case p.cur.Type == kwGROUPING && p.peekNext().Type == kwSETS:
 				p.advance()
-				gs.Sets = &nodes.List{}
-				for {
-					item, parseErr968 := p.parseGroupByItem()
-					if parseErr968 != nil {
-						return nil, parseErr968
-					}
-					if item == nil {
-						break
-					}
-					gs.Sets.Items = append(gs.Sets.Items, item)
-					if p.cur.Type != ',' {
-						break
-					}
-					p.advance()
+				return nil, p.syntaxErrorAtCur()
+			case p.cur.Type == '(' && p.peekNext().Type == ')':
+				parenStart := p.pos()
+				p.advance()
+				p.advance()
+				item = &nodes.ParenExpr{Loc: nodes.Loc{Start: parenStart, End: p.prev.End}}
+			default:
+				var err error
+				if item, err = p.parseGroupByItem(); err != nil {
+					return nil, err
 				}
-				if p.cur.Type == ')' {
-					p.advance()
+				if item == nil {
+					return nil, p.syntaxErrorAtCur()
 				}
 			}
-			gs.Loc.End = p.prev.End
-			return gs, nil
+			gs.Sets.Items = append(gs.Sets.Items, item)
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance()
 		}
-		// GROUPING(expr) is a function call, fall through to parseExpr
-		return p.parseExpr()
+		if p.cur.Type != ')' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		gs.Loc.End = p.prev.End
+		return gs, nil
 
-	default:
-		return p.parseExpr()
+	case p.cur.Type == kwGROUPING && p.peekNext().Type == '(':
+		return nil, p.syntaxErrorAtCur()
 	}
+	return p.parseExpr()
+}
+
+// parseSelectGroupingList parses the parenthesized grouping expression list
+// of ROLLUP or CUBE: expressions, each maybe a parenthesized list, never an
+// empty one.
+func (p *Parser) parseSelectGroupingList() (*nodes.List, error) {
+	if p.cur.Type != '(' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	args := &nodes.List{}
+	for {
+		if p.cur.Type == '(' && p.peekNext().Type == ')' {
+			p.advance()
+			return nil, p.syntaxErrorAtCur()
+		}
+		e, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		if e == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		args.Items = append(args.Items, e)
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	if p.cur.Type != ')' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	return args, nil
 }
 
 // parseFromClause parses a FROM clause (comma-separated table references).
@@ -1086,10 +1159,16 @@ func (p *Parser) parseTableRef() (nodes.TableExpr, error) {
 		Loc:  nodes.Loc{Start: start},
 	}
 
-	// Partition extension clause: PARTITION (name) | PARTITION FOR (key) | SUBPARTITION ...
-	if p.cur.Type == kwPARTITION || p.cur.Type == kwSUBPARTITION {
+	// A table function called without TABLE (Oracle 23ai): name ( args ).
+	if p.cur.Type == '(' && name.DBLink == "" {
+		return p.parseSelectTableFunctionRef(name, start)
+	}
+
+	// Partition extension clause: PARTITION (name) | PARTITION FOR (key) |
+	// SUBPARTITION ..., not the PARTITION BY of a partitioned outer join.
+	if (p.cur.Type == kwPARTITION || p.cur.Type == kwSUBPARTITION) && p.peekNext().Type != kwBY {
 		var parseErr972 error
-		tr.PartitionExt, parseErr972 = p.parsePartitionExtClause()
+		tr.PartitionExt, parseErr972 = p.parsePartitionExtClause(true)
 		if parseErr972 !=
 
 			// @ dblink
@@ -1121,6 +1200,23 @@ func (p *Parser) parseTableRef() (nodes.TableExpr, error) {
 		}
 	}
 
+	// SAMPLE opens the clause before ( or BLOCK; otherwise Oracle 23ai reads
+	// it as the table's alias (FROM t SAMPLE parses, FROM t SAMPLE 1 is
+	// ORA-03047 at the 1).
+	// A DML statement's FROM samples no table, nor takes SAMPLE as an alias
+	// (ORA-03049 at SAMPLE).
+	if p.cur.Type == kwSAMPLE && p.dmlFromClause {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if p.cur.Type == kwSAMPLE && !p.isSelectSampleClauseAhead() {
+		alias, err := p.parseAlias()
+		if err != nil {
+			return nil, err
+		}
+		tr.Alias = alias
+		tr.Loc.End = p.prev.End
+		return p.parsePivotSuffix(tr)
+	}
 	if p.cur.Type == kwSAMPLE {
 		var parseErr975 error
 		tr.Sample, parseErr975 = p.parseSampleClause()
@@ -1137,6 +1233,11 @@ func (p *Parser) parseTableRef() (nodes.TableExpr, error) {
 		return p.parsePivotSuffix(tr)
 	}
 
+	// Nor does it match patterns: Oracle 23ai fails in its own code on
+	// MATCH_RECOGNIZE there.
+	if p.isIdentLikeStr("MATCH_RECOGNIZE") && p.dmlFromClause {
+		return nil, p.syntaxErrorAtCur()
+	}
 	if p.isIdentLikeStr("MATCH_RECOGNIZE") {
 		// The clause wraps the table it reads, so it starts where the table
 		// does, and the table ends before it.
@@ -1180,6 +1281,15 @@ func (p *Parser) isTableAliasCandidate() bool {
 	if p.cur.Type == tokQIDENT {
 		return true
 	}
+	// LOG ERRORS opens a DML statement's error_logging_clause.
+	if p.cur.Type == kwLOG && p.peekNext().Type == kwERRORS {
+		return false
+	}
+	// PIVOT and UNPIVOT name an alias where no clause of theirs follows:
+	// FROM t PIVOT parses on Oracle 23ai.
+	if p.cur.Type == kwPIVOT && !p.pivotClauseAhead() || p.cur.Type == kwUNPIVOT && !p.unpivotClauseAhead() {
+		return true
+	}
 	if p.cur.Type == tokIDENT {
 		switch strings.ToUpper(p.cur.Str) {
 		case "WINDOW", "QUALIFY", "MATCH_RECOGNIZE", "CONTAINERS", "SHARDS",
@@ -1214,13 +1324,17 @@ func (p *Parser) parseSubqueryRef(start int) (nodes.TableExpr, error) {
 		return nil, parseErr979
 	}
 
-	if p.cur.Type == ')' {
-		p.advance()
-	}
-
 	ref := &nodes.SubqueryRef{
 		Subquery: subSel,
 		Loc:      nodes.Loc{Start: start},
+	}
+	// ( subquery [ subquery_restriction_clause ] )
+	if ref.Restriction, parseErr979 = p.parseDMLSubqueryRestriction(subSel); parseErr979 != nil {
+		return nil, parseErr979
+	}
+
+	if p.cur.Type == ')' {
+		p.advance()
 	}
 
 	if p.pivotClauseAhead() || p.unpivotClauseAhead() {
@@ -1323,218 +1437,6 @@ func (p *Parser) parseParenthesizedTableRef(start int) (nodes.TableExpr, error) 
 		n.Loc.End = p.prev.End
 	}
 	return p.parsePivotSuffix(tref)
-}
-
-// parseInlineExternalTable parses Oracle's inline external table source.
-//
-//	inline_external_table:
-//	    EXTERNAL ( ( column_definition [, column_definition ]... )
-//	      TYPE external_table_type
-//	      DEFAULT DIRECTORY directory
-//	      [ ACCESS PARAMETERS { ( opaque_format_spec ) | USING CLOB subquery } ]
-//	      LOCATION ( 'file_uri_list' )
-//	      [ REJECT LIMIT { integer | UNLIMITED } ] ) [ alias ]
-func (p *Parser) parseInlineExternalTable(start int) (nodes.TableExpr, error) {
-	p.advance() // consume EXTERNAL
-	if p.cur.Type != '(' {
-		return nil, p.syntaxErrorAtCur()
-	}
-	p.advance() // consume outer '('
-
-	if p.cur.Type != '(' {
-		return nil, p.syntaxErrorAtCur()
-	}
-	p.advance() // consume column-definition '('
-
-	ref := &nodes.InlineExternalTable{
-		Columns: &nodes.List{},
-		Loc:     nodes.Loc{Start: start},
-	}
-	for {
-		col, err := p.parseColumnDef()
-		if err != nil {
-			return nil, err
-		}
-		if col == nil {
-			return nil, p.syntaxErrorAtCur()
-		}
-		ref.Columns.Items = append(ref.Columns.Items, col)
-		if p.cur.Type != ',' {
-			break
-		}
-		p.advance()
-	}
-	if p.cur.Type != ')' {
-		return nil, p.syntaxErrorAtCur()
-	}
-	p.advance() // consume column-definition ')'
-
-	if p.cur.Type != kwTYPE {
-		return nil, p.syntaxErrorAtCur()
-	}
-	p.advance()
-	var err error
-	ref.Type, err = p.parseIdentifier()
-	if err != nil {
-		return nil, err
-	}
-	if ref.Type == "" {
-		return nil, p.syntaxErrorAtCur()
-	}
-
-	if p.cur.Type != kwDEFAULT {
-		return nil, p.syntaxErrorAtCur()
-	}
-	p.advance()
-	if p.cur.Type != kwDIRECTORY {
-		return nil, p.syntaxErrorAtCur()
-	}
-	p.advance()
-	ref.Directory, err = p.parseIdentifier()
-	if err != nil {
-		return nil, err
-	}
-	if ref.Directory == "" {
-		return nil, p.syntaxErrorAtCur()
-	}
-
-	if p.cur.Type == kwACCESS {
-		p.advance()
-		if !p.isIdentLikeStr("PARAMETERS") {
-			return nil, p.syntaxErrorAtCur()
-		}
-		p.advance()
-		ref.AccessParams, err = p.parseInlineExternalAccessParams()
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if !p.isIdentLikeStr("LOCATION") {
-		return nil, p.syntaxErrorAtCur()
-	}
-	p.advance()
-	ref.Location, err = p.parseInlineExternalLocation()
-	if err != nil {
-		return nil, err
-	}
-
-	if p.cur.Type == kwREJECT {
-		p.advance()
-		if p.cur.Type != kwLIMIT {
-			return nil, p.syntaxErrorAtCur()
-		}
-		p.advance()
-		ref.RejectLimit, err = p.parseExpr()
-		if err != nil {
-			return nil, err
-		}
-		if ref.RejectLimit == nil {
-			return nil, p.syntaxErrorAtCur()
-		}
-	}
-
-	if p.cur.Type != ')' {
-		return nil, p.syntaxErrorAtCur()
-	}
-	p.advance() // consume outer ')'
-
-	if p.cur.Type == kwAS {
-		p.advance()
-		ref.Alias, err = p.parseAlias()
-		if err != nil {
-			return nil, err
-		}
-	} else if p.isTableAliasCandidate() {
-		ref.Alias, err = p.parseAlias()
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	ref.Loc.End = p.prev.End
-	return ref, nil
-}
-
-func (p *Parser) parseInlineExternalAccessParams() (string, error) {
-	if p.cur.Type == '(' {
-		return p.collectBalancedRaw()
-	}
-	start := p.pos()
-	depth := 0
-	for p.cur.Type != tokEOF {
-		if depth == 0 && p.isIdentLikeStr("LOCATION") {
-			break
-		}
-		switch p.cur.Type {
-		case '(':
-			depth++
-		case ')':
-			if depth == 0 {
-				return "", p.syntaxErrorAtCur()
-			}
-			depth--
-		}
-		p.advance()
-	}
-	if p.cur.Type == tokEOF {
-		return "", p.syntaxErrorAtCur()
-	}
-	return strings.TrimSpace(p.source[start:p.cur.Loc]), nil
-}
-
-func (p *Parser) parseInlineExternalLocation() (string, error) {
-	if p.cur.Type != '(' {
-		return "", p.syntaxErrorAtCur()
-	}
-	p.advance()
-	start := p.pos()
-	var files []string
-	depth := 0
-	for p.cur.Type != tokEOF {
-		if depth == 0 && p.cur.Type == ')' {
-			raw := strings.TrimSpace(p.source[start:p.cur.Loc])
-			p.advance()
-			if len(files) == 1 {
-				return files[0], nil
-			}
-			return raw, nil
-		}
-		if p.cur.Type == tokSCONST {
-			files = append(files, p.cur.Str)
-		}
-		switch p.cur.Type {
-		case '(':
-			depth++
-		case ')':
-			depth--
-		}
-		p.advance()
-	}
-	return "", p.syntaxErrorAtCur()
-}
-
-func (p *Parser) collectBalancedRaw() (string, error) {
-	if p.cur.Type != '(' {
-		return "", p.syntaxErrorAtCur()
-	}
-	p.advance()
-	start := p.pos()
-	depth := 1
-	for p.cur.Type != tokEOF {
-		if p.cur.Type == '(' {
-			depth++
-		} else if p.cur.Type == ')' {
-			depth--
-			if depth == 0 {
-				raw := strings.TrimSpace(p.source[start:p.cur.Loc])
-				p.advance()
-				return raw, nil
-			}
-		}
-		p.advance()
-	}
-	return "", p.syntaxErrorAtCur()
 }
 
 // parseLateralRef parses a LATERAL inline view.
@@ -1967,181 +1869,6 @@ func (p *Parser) parseJsonTableValueColumnModifiers() error {
 	return nil
 }
 
-// parseJoinContinuation parses any JOIN clauses that follow a table reference.
-func (p *Parser) parseJoinContinuation(left nodes.TableExpr) (nodes.TableExpr, error) {
-	for {
-		joinStart := p.pos()
-		jt, ok := p.matchJoinType()
-		if !ok {
-			break
-		}
-
-		right, parseErr1006 := p.parseTableRef()
-		if parseErr1006 != nil {
-			return nil, parseErr1006
-		}
-		if right == nil {
-
-			return left, p.syntaxErrorAtCur()
-		}
-
-		// A join starts where its left table does.
-		jc := &nodes.JoinClause{
-			Type:  jt,
-			Left:  left,
-			Right: right,
-			Loc:   nodes.Loc{Start: exprLocStart(left, joinStart)},
-		}
-
-		// ON condition
-		if p.cur.Type == kwON {
-			p.advance()
-			var parseErr1007 error
-			jc.On, parseErr1007 = p.parseExpr()
-			if parseErr1007 != nil {
-				return nil, parseErr1007
-			}
-			if jc.On == nil {
-				return nil, p.syntaxErrorAtCur()
-
-				jc.Loc.End = p.prev.End
-				return jc, nil
-			}
-		}
-
-		// USING ( col1, col2, ... )
-		if p.cur.Type == kwUSING {
-			p.advance()
-			if p.cur.Type != '(' {
-				return nil, p.syntaxErrorAtCur()
-			}
-			p.advance()
-			jc.Using = &nodes.List{}
-			for {
-				name, parseErr1008 := p.parseIdentifier()
-				if parseErr1008 != nil {
-					return nil, parseErr1008
-				}
-				if name == "" {
-					return nil, p.syntaxErrorAtCur()
-				}
-				jc.Using.Items = append(jc.Using.Items, &nodes.String{Str: name})
-				if p.cur.Type != ',' {
-					break
-				}
-				p.advance()
-			}
-			if p.cur.Type != ')' {
-				return nil, p.syntaxErrorAtCur()
-			}
-			p.advance()
-		}
-
-		jc.Loc.End = p.prev.End
-		left = jc
-	}
-	return left, nil
-}
-
-// matchJoinType tries to match a JOIN keyword sequence.
-// Returns the JoinType and true if matched, or false if no JOIN found.
-func (p *Parser) matchJoinType() (nodes.JoinType, bool) {
-	natural := false
-	if p.cur.Type == kwNATURAL {
-		natural = true
-		p.advance()
-	}
-
-	switch p.cur.Type {
-	case kwJOIN:
-		p.advance()
-		if natural {
-			return nodes.JOIN_NATURAL_INNER, true
-		}
-		return nodes.JOIN_INNER, true
-
-	case kwINNER:
-		p.advance()
-		if p.cur.Type == kwJOIN {
-			p.advance()
-		}
-		if natural {
-			return nodes.JOIN_NATURAL_INNER, true
-		}
-		return nodes.JOIN_INNER, true
-
-	case kwLEFT:
-		p.advance()
-		if p.cur.Type == kwOUTER {
-			p.advance()
-		}
-		if p.cur.Type == kwJOIN {
-			p.advance()
-		}
-		if natural {
-			return nodes.JOIN_NATURAL_LEFT, true
-		}
-		return nodes.JOIN_LEFT, true
-
-	case kwRIGHT:
-		p.advance()
-		if p.cur.Type == kwOUTER {
-			p.advance()
-		}
-		if p.cur.Type == kwJOIN {
-			p.advance()
-		}
-		if natural {
-			return nodes.JOIN_NATURAL_RIGHT, true
-		}
-		return nodes.JOIN_RIGHT, true
-
-	case kwFULL:
-		p.advance()
-		if p.cur.Type == kwOUTER {
-			p.advance()
-		}
-		if p.cur.Type == kwJOIN {
-			p.advance()
-		}
-		if natural {
-			return nodes.JOIN_NATURAL_FULL, true
-		}
-		return nodes.JOIN_FULL, true
-
-	case kwCROSS:
-		p.advance()
-		// CROSS APPLY
-		if p.isIdentLikeStr("APPLY") {
-			p.advance()
-			return nodes.JOIN_CROSS_APPLY, true
-		}
-		if p.cur.Type == kwJOIN {
-			p.advance()
-		}
-		return nodes.JOIN_CROSS, true
-
-	case kwOUTER:
-		// OUTER APPLY
-		if p.peekNext().Type == tokIDENT || p.isIdentLikeStr("APPLY") {
-			p.advance() // consume OUTER
-			if p.isIdentLikeStr("APPLY") {
-				p.advance()
-				return nodes.JOIN_OUTER_APPLY, true
-			}
-		}
-		// OUTER JOIN handled by LEFT/RIGHT/FULL above
-		return 0, false
-	}
-
-	if natural {
-		// NATURAL without a recognized join keyword — treat as NATURAL INNER JOIN
-		return nodes.JOIN_NATURAL_INNER, true
-	}
-
-	return 0, false
-}
-
 // parseHierarchicalClause parses START WITH / CONNECT BY clauses (either order).
 //
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/Hierarchical-Queries.html
@@ -2153,48 +1880,52 @@ func (p *Parser) parseHierarchicalClause() (*nodes.HierarchicalClause, error) {
 	hc := &nodes.HierarchicalClause{
 		Loc: nodes.Loc{Start: start},
 	}
+	startWith := func() error {
+		p.advance() // START
+		if p.cur.Type != kwWITH {
+			return p.syntaxErrorAtCur()
+		}
+		p.advance()
+		var err error
+		if hc.StartWith, err = p.parseExpr(); err != nil {
+			return err
+		}
+		if hc.StartWith == nil {
+			return p.syntaxErrorAtCur()
+		}
+		return nil
+	}
 
 	// START WITH first, then CONNECT BY
 	if p.cur.Type == kwSTART {
-		p.advance() // START
-		if p.cur.Type == kwWITH {
-			p.advance() // WITH
-		}
-		var parseErr1009 error
-		hc.StartWith, parseErr1009 = p.parseExpr()
-		if parseErr1009 != nil {
-			return nil, parseErr1009
+		if err := startWith(); err != nil {
+			return nil, err
 		}
 	}
 
 	if p.cur.Type == kwCONNECT {
 		p.advance() // CONNECT
-		if p.cur.Type == kwBY {
-			p.advance() // BY
+		if p.cur.Type != kwBY {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance()
 		if p.isIdentLikeStr("NOCYCLE") {
 			hc.IsNocycle = true
 			p.advance()
 		}
-		var parseErr1010 error
-		hc.ConnectBy, parseErr1010 = p.parseExpr()
-		if parseErr1010 !=
-
-			// START WITH may come after CONNECT BY
-			nil {
-			return nil, parseErr1010
+		var err error
+		if hc.ConnectBy, err = p.parseExpr(); err != nil {
+			return nil, err
+		}
+		if hc.ConnectBy == nil {
+			return nil, p.syntaxErrorAtCur()
 		}
 	}
 
+	// START WITH may come after CONNECT BY
 	if hc.StartWith == nil && p.cur.Type == kwSTART {
-		p.advance()
-		if p.cur.Type == kwWITH {
-			p.advance()
-		}
-		var parseErr1011 error
-		hc.StartWith, parseErr1011 = p.parseExpr()
-		if parseErr1011 != nil {
-			return nil, parseErr1011
+		if err := startWith(); err != nil {
+			return nil, err
 		}
 	}
 
@@ -2278,9 +2009,11 @@ func (p *Parser) parseForUpdateClause() (*nodes.ForUpdateClause, error) {
 	start := p.pos()
 	p.advance() // consume FOR
 
-	if p.cur.Type == kwUPDATE {
-		p.advance()
+	// FOR takes UPDATE (ORA-02000).
+	if p.cur.Type != kwUPDATE {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance()
 
 	fu := &nodes.ForUpdateClause{
 		Loc: nodes.Loc{Start: start},
@@ -2310,12 +2043,16 @@ func (p *Parser) parseForUpdateClause() (*nodes.ForUpdateClause, error) {
 		if parseErr1015 != nil {
 			return nil, parseErr1015
 		}
+		if fu.Wait == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 	case kwSKIP:
 		p.advance()
-		if p.cur.Type == kwLOCKED {
-			fu.SkipLocked = true
-			p.advance()
+		if p.cur.Type != kwLOCKED {
+			return nil, p.syntaxErrorAtCur()
 		}
+		fu.SkipLocked = true
+		p.advance()
 	}
 
 	fu.Loc.End = p.prev.End
@@ -2351,9 +2088,11 @@ func (p *Parser) parseFetchFirstClause() (*nodes.FetchFirstClause, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 
-		if p.cur.Type == kwROW || p.cur.Type == kwROWS {
-			p.advance()
+		// ROW | ROWS (ORA-02000)
+		if p.cur.Type != kwROW && p.cur.Type != kwROWS {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance()
 	}
 
 	// FETCH FIRST|NEXT
@@ -2429,13 +2168,27 @@ func (p *Parser) parseWithClause() (*nodes.WithClause, error) {
 		p.advance()
 	}
 
+	// plsql_declarations: FUNCTION and PROCEDURE definitions, then the
+	// query or more elements.
+	if p.cur.Type == kwFUNCTION || p.cur.Type == kwPROCEDURE {
+		var err error
+		if wc.PLSQLDeclarations, err = p.parseSelectWithDeclarations(); err != nil {
+			return nil, err
+		}
+		if p.cur.Type == kwSELECT || p.cur.Type == '(' {
+			wc.Loc.End = p.prev.End
+			return wc, nil
+		}
+	}
+
 	for {
 		cte, parseErr1018 := p.parseCTE()
 		if parseErr1018 != nil {
 			return nil, parseErr1018
 		}
+		// WITH names a query first (ORA-00903), and again after a ','.
 		if cte == nil {
-			break
+			return nil, p.syntaxErrorAtCur()
 		}
 		wc.CTEs.Items = append(wc.CTEs.Items, cte)
 		if p.cur.Type != ',' {
@@ -2465,44 +2218,61 @@ func (p *Parser) parseCTE() (*nodes.CTE, error) {
 		Loc:  nodes.Loc{Start: start},
 	}
 
-	// Optional column list
+	// Optional column list, each name once (ORA-32049 at its ')').
 	if p.cur.Type == '(' {
 		p.advance()
 		cte.Columns = &nodes.List{}
+		seen := map[string]bool{}
+		dup := false
 		for {
+			if !p.isIdentLike() {
+				return nil, p.syntaxErrorAtCur()
+			}
 			col, parseErr1020 := p.parseIdentifier()
 			if parseErr1020 != nil {
 				return nil, parseErr1020
 			}
-			if col != "" {
-				cte.Columns.Items = append(cte.Columns.Items, &nodes.String{Str: col})
-			}
+			dup = dup || seen[col]
+			seen[col] = true
+			cte.Columns.Items = append(cte.Columns.Items, &nodes.String{Str: col})
 			if p.cur.Type != ',' {
 				break
 			}
 			p.advance()
 		}
-		if p.cur.Type == ')' {
-			p.advance()
+		if p.cur.Type != ')' || dup {
+			return nil, p.syntaxErrorAtCur()
 		}
-	}
-
-	// AS
-	if p.cur.Type == kwAS {
 		p.advance()
 	}
 
-	// ( subquery )
-	if p.cur.Type == '(' {
-		p.advance()
-		var parseErr1021 error
-		cte.Query, parseErr1021 = p.parseSelectStmt()
-		if parseErr1021 != nil {
-			return nil, parseErr1021
-		}
-		if p.cur.Type == ')' {
-			p.advance()
-		}
+	// AS ( subquery ) (ORA-02000 without AS)
+	if p.cur.Type != kwAS {
+		return nil, p.syntaxErrorAtCur()
+	}
+	asTok := p.cur
+	p.advance()
+	if p.cur.Type != '(' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	if !p.atQuery() {
+		return nil, p.syntaxErrorAtCur()
+	}
+	var parseErr1021 error
+	cte.Query, parseErr1021 = p.parseSelectStmt()
+	if parseErr1021 != nil {
+		return nil, parseErr1021
+	}
+	if p.cur.Type != ')' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+
+	// SEARCH and CYCLE belong to a recursive WITH element, which names its
+	// columns (ORA-32488 at its AS).
+	if (p.isIdentLikeStr("SEARCH") || p.cur.Type == kwCYCLE) && cte.Columns == nil {
+		return nil, p.syntaxErrorAtTok(asTok)
 	}
 
 	// SEARCH { BREADTH FIRST | DEPTH FIRST } BY col [, ...] SET ordering_column
@@ -2722,291 +2492,6 @@ func (p *Parser) parsePivotSuffix(source nodes.TableExpr) (nodes.TableExpr, erro
 	}
 }
 
-// parsePivotClause parses a PIVOT clause.
-//
-// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/SELECT.html
-//
-//	pivot_clause ::=
-//	    PIVOT (
-//	        aggregate_function ( expr ) [ [ AS ] c_alias ]
-//	        [, aggregate_function ( expr ) [ [ AS ] c_alias ] ] ...
-//	        FOR { column | ( column [, column ] ... ) }
-//	        IN ( { { expr | ( expr [, expr] ... ) } [ [ AS ] c_alias ] } [, ...] )
-//	    )
-func (p *Parser) parsePivotClause() (*nodes.PivotClause, error) {
-	start := p.pos()
-	p.advance() // consume PIVOT
-
-	pc := &nodes.PivotClause{
-		Loc: nodes.Loc{Start: start},
-	}
-
-	// PIVOT [ XML ]
-	if p.isIdentLikeStr("XML") {
-		pc.XML = true
-		p.advance()
-	}
-
-	if p.cur.Type != '(' {
-		return nil, p.syntaxErrorAtCur()
-	}
-	p.advance() // consume '('
-
-	// Parse aggregate function list (before FOR keyword)
-	pc.AggFuncs = &nodes.List{}
-	pc.Aggregates = &nodes.List{}
-	for {
-		agg, parseErr1030 := p.parseResTarget()
-		if parseErr1030 != nil {
-			return nil, parseErr1030
-		}
-		if agg != nil {
-			pc.AggFuncs.Items = append(pc.AggFuncs.Items, agg)
-			pc.Aggregates.Items = append(pc.Aggregates.Items, &nodes.PivotAggregate{
-				Expr:  agg.Expr,
-				Alias: agg.Name,
-				Loc:   agg.Loc,
-			})
-		}
-		if p.cur.Type != ',' {
-			break
-		}
-		// Peek ahead to see if this comma separates aggregates (before FOR)
-		// or if we've reached the FOR keyword
-		if p.cur.Type == kwFOR {
-			break
-		}
-		p.advance() // consume ','
-		// If the next token is FOR, we went too far — this shouldn't happen
-		// because FOR is not an expression start, but be safe
-		if p.cur.Type == kwFOR {
-			break
-		}
-	}
-
-	// FOR column | ( column, column, ... ) — mandatory (Oracle: ORA-02000)
-	if p.cur.Type != kwFOR {
-		return nil, p.syntaxErrorAtCur()
-	}
-	{
-		p.advance() // consume FOR
-		pc.ForColumns = &nodes.List{}
-		if p.cur.Type == '(' {
-			// Multi-column: ( col1, col2, ... )
-			p.advance() // consume '('
-			colList := &nodes.List{}
-			for {
-				col, parseErr1031 := p.parseColumnRef()
-				if parseErr1031 != nil {
-					return nil, parseErr1031
-				}
-				if col != nil {
-					colList.Items = append(colList.Items, col)
-					pc.ForColumns.Items = append(pc.ForColumns.Items, col)
-				}
-				if p.cur.Type != ',' {
-					break
-				}
-				p.advance()
-			}
-			if p.cur.Type == ')' {
-				p.advance()
-			}
-			if len(colList.Items) == 1 {
-				if e, ok := colList.Items[0].(nodes.ExprNode); ok {
-					pc.ForCol = e
-				}
-			} else {
-				pc.ForCols = colList
-			}
-		} else {
-			var parseErr1032 error
-			// Single column reference (not a full expression, to avoid consuming IN)
-			pc.ForCol, parseErr1032 = p.parseColumnRef()
-			if parseErr1032 !=
-
-				// IN ( ... )
-				nil {
-				return nil, parseErr1032
-			}
-			if pc.ForCol != nil {
-				pc.ForColumns.Items = append(pc.ForColumns.Items, pc.ForCol)
-			}
-		}
-	}
-
-	// IN ( ... ) — mandatory (Oracle: ORA-01738)
-	if p.cur.Type != kwIN {
-		return nil, p.syntaxErrorAtCur()
-	}
-	{
-		p.advance() // consume IN
-		if p.cur.Type != '(' {
-			return nil, p.syntaxErrorAtCur()
-		}
-		{
-			if pc.XML && p.peekNext().Type == kwSELECT {
-				// PIVOT XML allows a subquery in the IN clause
-				p.advance() // consume '('
-				sub, parseErr1033 := p.parseSelectStmt()
-				if parseErr1033 != nil {
-					return nil, parseErr1033
-				}
-				if p.cur.Type == ')' {
-					p.advance()
-				}
-				pc.InList = &nodes.List{Items: []nodes.Node{sub}}
-			} else if pc.XML && p.peekNext().Type == kwANY {
-				// PIVOT XML allows ANY in IN clause
-				p.advance() // consume '('
-				anyStart := p.pos()
-				p.advance() // consume ANY
-				pc.InList = &nodes.List{Items: []nodes.Node{&nodes.ColumnRef{
-					Column: "ANY",
-					Loc:    nodes.Loc{Start: anyStart, End: p.prev.End},
-				}}}
-				if p.cur.Type == ')' {
-					p.advance()
-				}
-			} else {
-				p.advance()
-				var // consume '('
-				parseErr1034 error
-				pc.InList, pc.InItems, parseErr1034 = p.parsePivotInList()
-				if parseErr1034 != nil {
-					return nil, parseErr1034
-				}
-				if p.cur.Type == ')' {
-					p.advance()
-				}
-			}
-		}
-	}
-
-	if p.cur.Type != ')' {
-		return nil, p.syntaxErrorAtCur()
-	}
-	p.advance() // consume outer ')'
-
-	pc.Loc.End = p.prev.End
-	return pc, nil
-}
-
-// parsePivotInList parses the IN list of a PIVOT clause.
-// Each item is: expr [ [ AS ] c_alias ] | ( expr, expr, ... ) [ [ AS ] c_alias ]
-func (p *Parser) parsePivotInList() (*nodes.List, *nodes.List, error) {
-	list := &nodes.List{}
-	items := &nodes.List{}
-	for {
-		start := p.pos()
-		var expr nodes.ExprNode
-		values := &nodes.List{}
-
-		if p.cur.Type == '(' {
-			// Tuple value: ( expr, expr, ... )
-			p.advance() // consume '('
-			tupleList, parseErr1035 := p.parseExprList()
-			if parseErr1035 != nil {
-				return nil, nil, parseErr1035
-			}
-			if p.cur.Type == ')' {
-				p.advance()
-			}
-			// Wrap tuple as a ParenExpr containing the first item
-			// For multi-value, store as a List via a special representation
-			if tupleList.Len() == 1 {
-				if e, ok := tupleList.Items[0].(nodes.ExprNode); ok {
-					expr = &nodes.ParenExpr{Expr: e, Loc: nodes.Loc{Start: start, End: p.prev.End}}
-					values.Items = append(values.Items, e)
-				}
-			} else {
-				// Use a FuncCallExpr with empty name to represent a row/tuple
-				args := &nodes.List{Items: tupleList.Items}
-				expr = &nodes.FuncCallExpr{
-					FuncName: &nodes.ObjectName{Name: "", Loc: nodes.Loc{Start: start, End: p.prev.End}},
-					Args:     args,
-					Loc:      nodes.Loc{Start: start, End: p.prev.End},
-				}
-				values.Items = append(values.Items, tupleList.Items...)
-			}
-		} else {
-			var parseErr1036 error
-			expr, parseErr1036 = p.parseExpr()
-			if parseErr1036 != nil {
-				return nil, nil, parseErr1036
-			}
-			if expr != nil {
-				values.Items = append(values.Items, expr)
-			}
-		}
-
-		if expr == nil {
-			break
-		}
-
-		rt := &nodes.ResTarget{
-			Expr: expr,
-			Loc:  nodes.Loc{Start: start},
-		}
-
-		// Optional alias: [ AS ] c_alias
-		if p.cur.Type == kwAS {
-			p.advance()
-			var parseErr1037 error
-			rt.Name, parseErr1037 = p.parseIdentifier()
-			if parseErr1037 != nil {
-				return nil, nil, parseErr1037
-			}
-		} else if p.isAliasCandidate() {
-			var parseErr1038 error
-			rt.Name, parseErr1038 = p.parseIdentifier()
-			if parseErr1038 != nil {
-				return nil, nil, parseErr1038
-			}
-		}
-
-		rt.Loc.End = p.prev.End
-		list.Items = append(list.Items, rt)
-		items.Items = append(items.Items, &nodes.PivotInItem{
-			Values: values,
-			Alias:  rt.Name,
-			Loc:    rt.Loc,
-		})
-
-		if p.cur.Type != ',' {
-			break
-		}
-		p.advance()
-	}
-	return list, items, nil
-}
-
-func (p *Parser) parseColumnRefListInOptionalParens() (*nodes.List, error) {
-	list := &nodes.List{}
-	hasParens := p.cur.Type == '('
-	if hasParens {
-		p.advance()
-	}
-	for {
-		col, err := p.parseColumnRef()
-		if err != nil {
-			return nil, err
-		}
-		if col == nil || col.Column == "" {
-			break
-		}
-		list.Items = append(list.Items, col)
-		if p.cur.Type != ',' {
-			break
-		}
-		p.advance()
-	}
-	if hasParens && p.cur.Type == ')' {
-		p.advance()
-	}
-	return list, nil
-}
-
 func (p *Parser) parseIdentifierListInParens() (*nodes.List, error) {
 	list := &nodes.List{}
 	if p.cur.Type != '(' {
@@ -3014,6 +2499,9 @@ func (p *Parser) parseIdentifierListInParens() (*nodes.List, error) {
 	}
 	p.advance()
 	for {
+		if !p.isIdentLike() {
+			return nil, p.syntaxErrorAtCur()
+		}
 		name, err := p.parseIdentifier()
 		if err != nil {
 			return nil, err
@@ -3024,152 +2512,11 @@ func (p *Parser) parseIdentifierListInParens() (*nodes.List, error) {
 		}
 		p.advance()
 	}
-	if p.cur.Type == ')' {
-		p.advance()
-	}
-	return list, nil
-}
-
-// parseUnpivotClause parses an UNPIVOT clause.
-//
-// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/SELECT.html
-//
-//	unpivot_clause ::=
-//	    UNPIVOT [ { INCLUDE | EXCLUDE } NULLS ]
-//	    (
-//	        column
-//	        FOR column
-//	        IN ( column [ [ AS ] literal ] [, column [ [ AS ] literal ] ] ... )
-//	    )
-func (p *Parser) parseUnpivotClause() (*nodes.UnpivotClause, error) {
-	start := p.pos()
-	p.advance() // consume UNPIVOT
-
-	uc := &nodes.UnpivotClause{
-		Loc: nodes.Loc{Start: start},
-	}
-
-	// [ INCLUDE | EXCLUDE ] NULLS
-	if p.cur.Type == kwINCLUDE {
-		p.advance()
-		if p.cur.Type == kwNULLS {
-			p.advance()
-		}
-		uc.IncludeNulls = true
-	} else if p.isIdentLikeStr("EXCLUDE") {
-		p.advance()
-		if p.cur.Type == kwNULLS {
-			p.advance()
-		}
-		// IncludeNulls stays false (EXCLUDE is the default)
-	}
-
-	if p.cur.Type != '(' {
+	if p.cur.Type != ')' {
 		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance()
-	var // consume '('
-	parseErr1039 error
-
-	// Value column(s)
-	uc.ValueColumns, parseErr1039 = p.parseColumnRefListInOptionalParens()
-	if parseErr1039 != nil {
-		return nil, parseErr1039
-	}
-	if uc.ValueColumns != nil && uc.ValueColumns.Len() > 0 {
-		uc.ValueCol, _ = uc.ValueColumns.Items[0].(nodes.ExprNode)
-	}
-
-	// FOR column — mandatory (Oracle: ORA-02000)
-	if p.cur.Type != kwFOR {
-		return nil, p.syntaxErrorAtCur()
-	}
-	{
-		p.advance()
-		var parseErr1040 error
-		uc.PivotColumn, parseErr1040 = p.parseColumnRef()
-		if parseErr1040 !=
-
-			// IN ( column [ AS literal ], ... )
-			nil {
-			return nil, parseErr1040
-		}
-		uc.PivotCol = uc.PivotColumn
-	}
-
-	// IN ( ... ) — mandatory (Oracle: ORA-01738)
-	if p.cur.Type != kwIN {
-		return nil, p.syntaxErrorAtCur()
-	}
-	{
-		p.advance()
-		if p.cur.Type != '(' {
-			return nil, p.syntaxErrorAtCur()
-		}
-		{
-			p.advance()
-			uc.InList = &nodes.List{}
-			uc.InputMappings = &nodes.List{}
-			for {
-				start := p.pos()
-				inputCols, parseErr1041 := p.parseColumnRefListInOptionalParens()
-				if parseErr1041 != nil {
-					return nil, parseErr1041
-				}
-				if inputCols == nil || inputCols.Len() == 0 {
-					break
-				}
-				col, _ := inputCols.Items[0].(nodes.ExprNode)
-				rt := &nodes.ResTarget{
-					Expr: col,
-					Loc:  nodes.Loc{Start: start},
-				}
-				item := &nodes.UnpivotInItem{
-					InputColumns: inputCols,
-					Loc:          nodes.Loc{Start: start},
-				}
-				// Optional AS alias (can be identifier or string literal)
-				if p.cur.Type == kwAS {
-					p.advance()
-					if p.cur.Type == tokSCONST {
-						rt.Name = p.cur.Str
-						item.Alias = p.cur.Str
-						item.Label = &nodes.StringLiteral{
-							Val: p.cur.Str,
-							Loc: nodes.Loc{Start: p.pos(), End: p.cur.End},
-						}
-						p.advance()
-					} else {
-						var parseErr1042 error
-						rt.Name, parseErr1042 = p.parseIdentifier()
-						if parseErr1042 != nil {
-							return nil, parseErr1042
-						}
-						item.Alias = rt.Name
-						item.Label = &nodes.ColumnRef{Column: rt.Name, Loc: nodes.Loc{Start: start, End: p.prev.End}}
-					}
-				}
-				rt.Loc.End = p.prev.End
-				item.Loc.End = p.prev.End
-				uc.InList.Items = append(uc.InList.Items, rt)
-				uc.InputMappings.Items = append(uc.InputMappings.Items, item)
-				if p.cur.Type != ',' {
-					break
-				}
-				p.advance()
-			}
-			if p.cur.Type == ')' {
-				p.advance()
-			}
-		}
-	}
-
-	if p.cur.Type == ')' {
-		p.advance() // consume outer ')'
-	}
-
-	uc.Loc.End = p.prev.End
-	return uc, nil
+	return list, nil
 }
 
 // parseModelClause parses an Oracle MODEL clause.
@@ -3716,195 +3063,6 @@ func (p *Parser) parseModelCellRef() (nodes.ExprNode, *nodes.ModelCellReference,
 	}, nil
 }
 
-// parseSampleClause parses a SAMPLE clause on a table reference.
-//
-// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/SELECT.html
-//
-//	sample_clause ::=
-//	    SAMPLE [ BLOCK ] ( sample_percent )
-//	    [ SEED ( seed_value ) ]
-func (p *Parser) parseSampleClause() (*nodes.SampleClause, error) {
-	start := p.pos()
-	p.advance() // consume SAMPLE
-
-	sc := &nodes.SampleClause{
-		Loc: nodes.Loc{Start: start},
-	}
-
-	// [ BLOCK ]
-	if p.cur.Type == kwBLOCK {
-		sc.Block = true
-		p.advance()
-	}
-
-	// ( percent )
-	if p.cur.Type == '(' {
-		p.advance()
-		var parseErr1065 error
-		sc.Percent, parseErr1065 = p.parseExpr()
-		if parseErr1065 != nil {
-			return nil, parseErr1065
-		}
-		if p.cur.Type == ')' {
-			p.advance()
-		}
-	}
-
-	// [ SEED ( value ) ]
-	if p.cur.Type == kwSEED {
-		p.advance()
-		if p.cur.Type == '(' {
-			p.advance()
-			var parseErr1066 error
-			sc.Seed, parseErr1066 = p.parseExpr()
-			if parseErr1066 != nil {
-				return nil, parseErr1066
-			}
-			if p.cur.Type == ')' {
-				p.advance()
-			}
-		}
-	}
-
-	sc.Loc.End = p.prev.End
-	return sc, nil
-}
-
-// parseFlashbackClause parses a flashback query clause on a table reference.
-//
-// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/SELECT.html
-//
-//	flashback_query_clause ::=
-//	    { VERSIONS BETWEEN { SCN | TIMESTAMP } expr AND expr
-//	    | AS OF { SCN | TIMESTAMP } expr
-//	    }
-func (p *Parser) parseFlashbackClause() (*nodes.FlashbackClause, error) {
-	start := p.pos()
-	fc := &nodes.FlashbackClause{
-		Loc: nodes.Loc{Start: start},
-	}
-
-	if p.cur.Type == kwVERSIONS {
-		// VERSIONS BETWEEN { SCN | TIMESTAMP } expr AND expr
-		// VERSIONS PERIOD FOR valid_time_column BETWEEN expr AND expr
-		fc.IsVersions = true
-		p.advance() // consume VERSIONS
-
-		// PERIOD FOR valid_time_column
-		if p.isIdentLikeStr("PERIOD") {
-			fc.IsPeriodFor = true
-			p.advance() // consume PERIOD
-			if p.cur.Type == kwFOR {
-				p.advance() // consume FOR
-			}
-			var parseErr1067 error
-			fc.PeriodColumn, parseErr1067 = p.parseIdentifier()
-			if parseErr1067 != nil {
-				return nil, parseErr1067
-			}
-		}
-
-		if p.cur.Type == kwBETWEEN {
-			p.advance() // consume BETWEEN
-		}
-
-		// SCN | TIMESTAMP type marker
-		if p.cur.Type == kwSCN {
-			fc.Type = "SCN"
-			p.advance()
-		} else if p.cur.Type == kwTIMESTAMP {
-			fc.Type = "TIMESTAMP"
-			p.advance()
-		}
-		var parseErr1068 error
-
-		// low expr — parse above AND precedence to not consume the BETWEEN...AND
-		fc.VersionsLow, parseErr1068 = p.parseExprPrec(precNot)
-		if parseErr1068 !=
-
-			// AND
-			nil {
-			return nil, parseErr1068
-		}
-
-		if p.cur.Type == kwAND {
-			p.advance()
-		}
-
-		// Skip repeated SCN/TIMESTAMP keyword before high expr
-		if p.cur.Type == kwSCN || p.cur.Type == kwTIMESTAMP {
-			p.advance()
-		}
-		var parseErr1069 error
-
-		// high expr
-		fc.VersionsHigh, parseErr1069 = p.parseExpr()
-		if parseErr1069 != nil {
-			return nil, parseErr1069
-
-			// AS OF { SCN | TIMESTAMP } expr
-			// AS OF PERIOD FOR valid_time_column expr
-		}
-
-	} else if p.cur.Type == kwAS {
-
-		p.advance() // consume AS
-		if p.cur.Type == kwOF {
-			p.advance() // consume OF
-		}
-
-		// PERIOD FOR valid_time_column
-		if p.isIdentLikeStr("PERIOD") {
-			fc.IsPeriodFor = true
-			p.advance() // consume PERIOD
-			if p.cur.Type == kwFOR {
-				p.advance() // consume FOR
-			}
-			var parseErr1070 error
-			fc.PeriodColumn, parseErr1070 = p.parseIdentifier()
-			if parseErr1070 !=
-				// SCN | TIMESTAMP type marker
-				nil {
-				return nil, parseErr1070
-			}
-
-			if p.cur.Type == kwSCN {
-				fc.Type = "SCN"
-				p.advance()
-			} else if p.cur.Type == kwTIMESTAMP {
-				fc.Type = "TIMESTAMP"
-				p.advance()
-			}
-			var parseErr1071 error
-			fc.Expr, parseErr1071 = p.parseExpr()
-			if parseErr1071 !=
-
-				// SCN | TIMESTAMP
-				nil {
-				return nil, parseErr1071
-			}
-		} else {
-
-			if p.cur.Type == kwSCN {
-				fc.Type = "SCN"
-				p.advance()
-			} else if p.cur.Type == kwTIMESTAMP {
-				fc.Type = "TIMESTAMP"
-				p.advance()
-			}
-			var parseErr1072 error
-			// expr
-			fc.Expr, parseErr1072 = p.parseExpr()
-			if parseErr1072 != nil {
-				return nil, parseErr1072
-			}
-		}
-	}
-
-	fc.Loc.End = p.prev.End
-	return fc, nil
-}
-
 // parseWindowClause parses a WINDOW clause.
 //
 // BNF: oracle/parser/bnf/SELECT.bnf
@@ -3915,94 +3073,43 @@ func (p *Parser) parseFlashbackClause() (*nodes.FlashbackClause, error) {
 func (p *Parser) parseWindowClause() ([]*nodes.WindowDef, error) {
 	p.advance() // consume WINDOW (soft keyword)
 
+	// Each window is named once (ORA-32782), and a window it builds on is
+	// one named before it (ORA-32784).
 	var defs []*nodes.WindowDef
+	// ordered records each window named so far, and whether it orders its
+	// rows, itself or through the window it builds on.
+	ordered := map[string]bool{}
 	for {
-		if !p.isIdentLike() {
-			break
-		}
 		start := p.pos()
-		name, parseErr1073 := p.parseIdentifier()
-		if parseErr1073 != nil {
-			return nil, parseErr1073
+		nameTok := p.cur
+		if !p.isIdentLike() {
+			return nil, p.syntaxErrorAtCur()
+		}
+		if err := p.syntaxErrorIfReservedIdentifier(); err != nil {
+			return nil, err
+		}
+		name, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		if _, dup := ordered[name]; dup {
+			return nil, p.syntaxErrorAtTok(nameTok)
 		}
 		wd := &nodes.WindowDef{
 			Name: name,
 			Loc:  nodes.Loc{Start: start},
 		}
-
-		// AS ( window_specification )
-		if p.cur.Type == kwAS {
-			p.advance()
+		if p.cur.Type != kwAS {
+			return nil, p.syntaxErrorAtCur()
 		}
-		if p.cur.Type == '(' {
-			p.advance()
-			ws := &nodes.WindowSpec{Loc: nodes.Loc{Start: p.pos()}}
-
-			// [ existing_window_name ] — only if followed by something other than BY
-			if p.isIdentLike() && p.peekNext().Type != kwBY &&
-				p.cur.Type != kwPARTITION && p.cur.Type != kwORDER &&
-				p.cur.Type != kwROWS && p.cur.Type != kwRANGE && p.cur.Type != kwGROUPS {
-				var parseErr1074 error
-				ws.WindowName, parseErr1074 = p.parseIdentifier()
-				if parseErr1074 !=
-
-					// PARTITION BY
-					nil {
-					return nil, parseErr1074
-				}
-			}
-
-			if p.cur.Type == kwPARTITION {
-				p.advance()
-				if p.cur.Type == kwBY {
-					p.advance()
-				}
-				ws.PartitionBy = &nodes.List{}
-				for {
-					expr, parseErr1075 := p.parseExpr()
-					if parseErr1075 != nil {
-						return nil, parseErr1075
-					}
-					if expr != nil {
-						ws.PartitionBy.Items = append(ws.PartitionBy.Items, expr)
-					}
-					if p.cur.Type != ',' {
-						break
-					}
-					p.advance()
-				}
-			}
-
-			// ORDER BY
-			if p.cur.Type == kwORDER {
-				p.advance()
-				if p.cur.Type == kwBY {
-					p.advance()
-				}
-				var parseErr1076 error
-				ws.OrderBy, parseErr1076 = p.parseOrderByList()
-				if parseErr1076 !=
-
-					// Windowing clause: ROWS | RANGE | GROUPS
-					nil {
-					return nil, parseErr1076
-				}
-			}
-
-			if p.cur.Type == kwROWS || p.cur.Type == kwRANGE || p.cur.Type == kwGROUPS {
-				var parseErr1077 error
-				ws.Frame, parseErr1077 = p.parseWindowFrame()
-				if parseErr1077 != nil {
-					return nil, parseErr1077
-				}
-			}
-
-			if p.cur.Type == ')' {
-				p.advance()
-			}
-			ws.Loc.End = p.prev.End
-			wd.Spec = ws
+		p.advance()
+		if p.cur.Type != '(' {
+			return nil, p.syntaxErrorAtCur()
 		}
+		if wd.Spec, err = p.parseSelectWindowSpec(nameTok, ordered); err != nil {
+			return nil, err
+		}
+		ordered[name] = wd.Spec.OrderBy != nil || wd.Spec.WindowName != "" && ordered[wd.Spec.WindowName]
 
 		wd.Loc.End = p.prev.End
 		defs = append(defs, wd)
@@ -4025,7 +3132,11 @@ func (p *Parser) parseWindowClause() ([]*nodes.WindowDef, error) {
 //	    | SUBPARTITION ( subpartition_name )
 //	    | SUBPARTITION FOR ( subpartition_key_value [, subpartition_key_value ]... )
 //	    }
-func (p *Parser) parsePartitionExtClause() (*nodes.PartitionExtClause, error) {
+//
+// Each form takes its parentheses and what they hold (ORA-00906, ORA-00936).
+// Oracle 23ai reports a missing name at the '(' in a query, UPDATE and
+// DELETE (emptyAtOpen), and at the ')' in INSERT (ORA-00928).
+func (p *Parser) parsePartitionExtClause(emptyAtOpen bool) (*nodes.PartitionExtClause, error) {
 	start := p.pos()
 	pe := &nodes.PartitionExtClause{Loc: nodes.Loc{Start: start}}
 
@@ -4040,25 +3151,39 @@ func (p *Parser) parsePartitionExtClause() (*nodes.PartitionExtClause, error) {
 		p.advance()
 	}
 
-	if p.cur.Type == '(' {
-		p.advance()
-		if pe.IsFor {
-			var parseErr1078 error
-			pe.Keys, parseErr1078 = p.parseExprList()
-			if parseErr1078 != nil {
-				return nil, parseErr1078
-			}
-		} else {
-			var parseErr1079 error
-			pe.Name, parseErr1079 = p.parseIdentifier()
-			if parseErr1079 != nil {
-				return nil, parseErr1079
-			}
+	if p.cur.Type != '(' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	open := p.cur
+	p.advance()
+	switch {
+	case pe.IsFor:
+		var err error
+		if pe.Keys, err = p.parseExprList(); err != nil {
+			return nil, err
 		}
-		if p.cur.Type == ')' {
-			p.advance()
+		if pe.Keys == nil || pe.Keys.Len() == 0 {
+			return nil, p.syntaxErrorAtCur()
+		}
+	case p.cur.Type == ')' && emptyAtOpen:
+		return nil, p.syntaxErrorAtTok(open)
+	case p.cur.Type == tokICONST:
+		// Oracle 23ai parses a number as the name and looks it up later.
+		pe.Name = p.cur.Str
+		p.advance()
+	default:
+		if !p.isIdentLike() {
+			return nil, p.syntaxErrorAtCur()
+		}
+		var err error
+		if pe.Name, err = p.parseIdentifier(); err != nil {
+			return nil, err
 		}
 	}
+	if p.cur.Type != ')' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
 
 	pe.Loc.End = p.prev.End
 	return pe, nil
@@ -4074,30 +3199,46 @@ func (p *Parser) parseTableCollectionExpr(start int) (nodes.TableExpr, error) {
 	p.advance() // consume TABLE
 	tc := &nodes.TableCollectionExpr{Loc: nodes.Loc{Start: start}}
 
-	if p.cur.Type == '(' {
-		p.advance()
-		var parseErr1080 error
-		tc.Expr, parseErr1080 = p.parseExpr()
-		if parseErr1080 != nil {
-			return nil, parseErr1080
+	if p.cur.Type != '(' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	// The collection expression may be a subquery, as it is where a DML
+	// statement changes a nested table.
+	if p.atQueryStart() {
+		subStart := p.pos()
+		sub, err := p.parseSelectStmt()
+		if err != nil {
+			return nil, err
 		}
-		if fn, ok := tc.Expr.(*nodes.FuncCallExpr); ok {
-			tc.FunctionCall = fn
-		} else {
-			tc.CollectionExpr = tc.Expr
+		tc.Expr = &nodes.SubqueryExpr{Subquery: sub, Loc: nodes.Loc{Start: subStart, End: p.prev.End}}
+	} else {
+		var err error
+		if tc.Expr, err = p.parseExpr(); err != nil {
+			return nil, err
 		}
-		if p.cur.Type == ')' {
-			p.advance()
+		if tc.Expr == nil {
+			return nil, p.syntaxErrorAtCur()
 		}
 	}
+	if fn, ok := tc.Expr.(*nodes.FuncCallExpr); ok {
+		tc.FunctionCall = fn
+	} else {
+		tc.CollectionExpr = tc.Expr
+	}
+	if p.cur.Type != ')' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
 
 	// Optional (+)
 	if p.cur.Type == '(' && p.peekNext().Type == '+' {
 		p.advance() // (
 		p.advance() // +
-		if p.cur.Type == ')' {
-			p.advance()
+		if p.cur.Type != ')' {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance()
 		tc.OuterJoin = true
 	}
 
@@ -4176,320 +3317,4 @@ func (p *Parser) parseContainersOrShards(start int, isShards bool) (nodes.TableE
 
 	ce.Loc.End = p.prev.End
 	return ce, nil
-}
-
-// parseMatchRecognize parses a MATCH_RECOGNIZE clause.
-//
-// BNF: oracle/parser/bnf/SELECT.bnf
-//
-//	row_pattern_clause:
-//	    MATCH_RECOGNIZE (
-//	      [ PARTITION BY column [, column ]... ]
-//	      [ ORDER BY column [ ASC | DESC ] [, column [ ASC | DESC ] ]... ]
-//	      [ MEASURES row_pattern_measure_column [, row_pattern_measure_column ]... ]
-//	      [ ONE ROW PER MATCH | ALL ROWS PER MATCH [ { SHOW | OMIT } EMPTY MATCHES ] ]
-//	      [ AFTER MATCH SKIP
-//	        { PAST LAST ROW | TO NEXT ROW | TO FIRST variable_name
-//	        | TO LAST variable_name | TO variable_name } ]
-//	      PATTERN ( row_pattern )
-//	      [ SUBSET subset_item [, subset_item ]... ]
-//	      DEFINE row_pattern_definition [, row_pattern_definition ]...
-//	    )
-func (p *Parser) parseMatchRecognize(start int) (nodes.TableExpr, error) {
-	p.advance() // consume MATCH_RECOGNIZE
-	mr := &nodes.MatchRecognizeClause{Loc: nodes.Loc{Start: start}}
-
-	if p.cur.Type != '(' {
-		mr.Loc.End = p.prev.End
-		return mr, nil
-	}
-	p.advance() // consume '('
-
-	// PARTITION BY
-	if p.cur.Type == kwPARTITION {
-		p.advance()
-		if p.cur.Type == kwBY {
-			p.advance()
-		}
-		var parseErr1086 error
-		mr.PartitionBy, parseErr1086 = p.parseExprList()
-		if parseErr1086 !=
-
-			// ORDER BY
-			nil {
-			return nil, parseErr1086
-		}
-	}
-
-	if p.cur.Type == kwORDER {
-		p.advance()
-		if p.cur.Type == kwBY {
-			p.advance()
-		}
-		var parseErr1087 error
-		mr.OrderBy, parseErr1087 = p.parseOrderByList()
-		if parseErr1087 !=
-
-			// MEASURES
-			nil {
-			return nil, parseErr1087
-		}
-	}
-
-	if p.cur.Type == kwMEASURES {
-		p.advance()
-		mr.Measures = &nodes.List{}
-		for {
-			rt, parseErr1088 := p.parseResTarget()
-			if parseErr1088 != nil {
-				return nil, parseErr1088
-			}
-			if rt == nil {
-				break
-			}
-			mr.Measures.Items = append(mr.Measures.Items, rt)
-			if p.cur.Type != ',' {
-				break
-			}
-			p.advance()
-		}
-	}
-
-	// ONE ROW PER MATCH | ALL ROWS PER MATCH [...]
-	if p.isIdentLikeStr("ONE") {
-		p.advance() // ONE
-		if p.cur.Type == kwROW {
-			p.advance()
-		}
-		if p.isIdentLikeStr("PER") {
-			p.advance()
-		}
-		if p.isIdentLikeStr("MATCH") {
-			p.advance()
-		}
-		mr.RowsPerMatch = "ONE ROW PER MATCH"
-	} else if p.cur.Type == kwALL {
-		p.advance() // ALL
-		if p.cur.Type == kwROWS {
-			p.advance()
-		}
-		if p.isIdentLikeStr("PER") {
-			p.advance()
-		}
-		if p.isIdentLikeStr("MATCH") {
-			p.advance()
-		}
-		mr.RowsPerMatch = "ALL ROWS PER MATCH"
-		if p.isIdentLikeStr("SHOW") {
-			p.advance()
-			if p.isIdentLikeStr("EMPTY") {
-				p.advance()
-			}
-			if p.isIdentLikeStr("MATCHES") {
-				p.advance()
-			}
-			mr.RowsPerMatch = "ALL ROWS PER MATCH SHOW EMPTY MATCHES"
-		} else if p.isIdentLikeStr("OMIT") {
-			p.advance()
-			if p.isIdentLikeStr("EMPTY") {
-				p.advance()
-			}
-			if p.isIdentLikeStr("MATCHES") {
-				p.advance()
-			}
-			mr.RowsPerMatch = "ALL ROWS PER MATCH OMIT EMPTY MATCHES"
-		}
-	}
-
-	// AFTER MATCH SKIP ...
-	if p.isIdentLikeStr("AFTER") {
-		p.advance()
-		if p.isIdentLikeStr("MATCH") {
-			p.advance()
-		}
-		if p.cur.Type == kwSKIP {
-			p.advance()
-		}
-		if p.isIdentLikeStr("PAST") {
-			p.advance()
-			if p.cur.Type == kwLAST {
-				p.advance()
-			}
-			if p.cur.Type == kwROW {
-				p.advance()
-			}
-			mr.AfterMatch = "PAST LAST ROW"
-		} else if p.cur.Type == kwTO {
-			p.advance()
-			if p.cur.Type == kwNEXT {
-				p.advance()
-				if p.cur.Type == kwROW {
-					p.advance()
-				}
-				mr.AfterMatch = "TO NEXT ROW"
-			} else if p.cur.Type == kwFIRST {
-				p.advance()
-				name, parseErr1089 := p.parseIdentifier()
-				if parseErr1089 != nil {
-					return nil, parseErr1089
-				}
-				mr.AfterMatch = "TO FIRST " + name
-			} else if p.cur.Type == kwLAST {
-				p.advance()
-				name, parseErr1090 := p.parseIdentifier()
-				if parseErr1090 != nil {
-					return nil, parseErr1090
-				}
-				mr.AfterMatch = "TO LAST " + name
-			} else {
-				name, parseErr1091 := p.parseIdentifier()
-				if parseErr1091 != nil {
-					return nil, parseErr1091
-				}
-				mr.AfterMatch = "TO " + name
-			}
-		}
-	}
-
-	// PATTERN ( row_pattern ) — capture raw text between parens
-	if p.isIdentLikeStr("PATTERN") {
-		p.advance()
-		if p.cur.Type == '(' {
-			mr.Pattern = p.consumeBalancedParensAsText()
-		}
-	}
-
-	// SUBSET
-	if p.isIdentLikeStr("SUBSET") {
-		p.advance()
-		mr.Subsets = &nodes.List{}
-		for {
-			if !p.isIdentLike() {
-				break
-			}
-			subStart := p.pos()
-			name, parseErr1092 := p.parseIdentifier()
-			if parseErr1092 != nil {
-				return nil, parseErr1092
-			}
-			rt := &nodes.ResTarget{
-				Name: name,
-				Loc:  nodes.Loc{Start: subStart},
-			}
-			// = ( var1, var2, ... )
-			if p.cur.Type == '=' {
-				p.advance()
-				if p.cur.Type == '(' {
-					p.advance()
-					var parseErr1093 error
-					rt.Expr, parseErr1093 = p.parseExpr()
-					if parseErr1093 != nil {
-						return nil, parseErr1093
-					}
-					if p.cur.Type == ')' {
-						p.advance()
-					}
-				}
-			}
-			rt.Loc.End = p.prev.End
-			mr.Subsets.Items = append(mr.Subsets.Items, rt)
-			if p.cur.Type != ',' {
-				break
-			}
-			p.advance()
-		}
-	}
-
-	// DEFINE
-	if p.isIdentLikeStr("DEFINE") {
-		p.advance()
-		mr.Definitions = &nodes.List{}
-		for {
-			if !p.isIdentLike() {
-				break
-			}
-			defStart := p.pos()
-			name, parseErr1094 := p.parseIdentifier()
-			if parseErr1094 != nil {
-				return nil, parseErr1094
-			}
-			rt := &nodes.ResTarget{
-				Name: name,
-				Loc:  nodes.Loc{Start: defStart},
-			}
-			if p.cur.Type == kwAS {
-				p.advance()
-			}
-			var parseErr1095 error
-			rt.Expr, parseErr1095 = p.parseExpr()
-			if parseErr1095 != nil {
-				return nil, parseErr1095
-			}
-			rt.Loc.End = p.prev.End
-			mr.Definitions.Items = append(mr.Definitions.Items, rt)
-			if p.cur.Type != ',' {
-				break
-			}
-			p.advance()
-		}
-	}
-
-	if p.cur.Type == ')' {
-		p.advance()
-	}
-
-	// Optional alias
-	if p.cur.Type == kwAS {
-		p.advance()
-		var parseErr1096 error
-		mr.Alias, parseErr1096 = p.parseAlias()
-		if parseErr1096 != nil {
-			return nil, parseErr1096
-		}
-	} else if p.isTableAliasCandidate() {
-		var parseErr1097 error
-		mr.Alias, parseErr1097 = p.parseAlias()
-		if parseErr1097 != nil {
-			return nil, parseErr1097
-		}
-	}
-
-	mr.Loc.End = p.prev.End
-	return mr, nil
-}
-
-// consumeBalancedParensAsText consumes tokens between ( and ) and returns them as a concatenated string.
-func (p *Parser) consumeBalancedParensAsText() string {
-	if p.cur.Type != '(' {
-		return ""
-	}
-	p.advance() // consume '('
-	depth := 1
-	var parts []string
-	for depth > 0 {
-		if p.cur.Type == '(' {
-			depth++
-			parts = append(parts, "(")
-		} else if p.cur.Type == ')' {
-			depth--
-			if depth == 0 {
-				p.advance() // consume final ')'
-				break
-			}
-			parts = append(parts, ")")
-		} else if p.cur.Type == tokEOF {
-			break
-		} else {
-			parts = append(parts, p.cur.Str)
-		}
-		p.advance()
-	}
-	result := ""
-	for i, s := range parts {
-		if i > 0 {
-			result += " "
-		}
-		result += s
-	}
-	return result
 }

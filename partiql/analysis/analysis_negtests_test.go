@@ -35,8 +35,9 @@ import (
 // --- ValidateQuery: remaining non-DQL DML kinds rejected ---
 
 // TestValidateQuery_DMLExtraRejected covers the PartiQL-specific DML kinds
-// not exercised by analysis_test.go's DML test: UPSERT, REPLACE, REMOVE.
-// Each parses to *ast.UpsertStmt / *ast.ReplaceStmt / *ast.RemoveStmt, which
+// not exercised by analysis_test.go's DML test: UPSERT, REPLACE, REMOVE, SET.
+// Each parses to *ast.UpsertStmt / *ast.ReplaceStmt / *ast.RemoveStmt /
+// *ast.SetStmt, which
 // validateStatement classifies as DML and rejects.
 func TestValidateQuery_DMLExtraRejected(t *testing.T) {
 	cases := []struct {
@@ -51,6 +52,8 @@ func TestValidateQuery_DMLExtraRejected(t *testing.T) {
 		{"remove", "REMOVE t"},
 		// REMOVE with a path step still classifies as DML.
 		{"remove_path_step", "REMOVE t.a"},
+		// setCommand alone: dml#DmlBase -> dmlBaseCommand -> setCommand.
+		{"set", "SET a = 1"},
 	}
 	for _, tc := range cases {
 		tc := tc
@@ -159,14 +162,14 @@ func TestValidateQuery_ExceptAccepted(t *testing.T) {
 // the root rule `(EXPLAIN (PAREN_LEFT explainOption (COMMA explainOption)*
 // PAREN_RIGHT)?)? statement` where `explainOption : IDENTIFIER IDENTIFIER`.
 // analysis_test.go only covers bare `EXPLAIN <stmt>`. This parses to
-// *ast.ExplainStmt (options are parsed and discarded), which is accepted
-// regardless of the inner statement.
+// *ast.ExplainStmt (options are checked, TYPE and FORMAT once each, and
+// discarded), which is accepted regardless of the inner statement.
 func TestValidateQuery_ExplainWithOptionsAccepted(t *testing.T) {
 	cases := []string{
-		"EXPLAIN (a b) SELECT * FROM t",
-		"EXPLAIN (a b, c d) SELECT * FROM t",
+		"EXPLAIN (TYPE logical) SELECT * FROM t",
+		"EXPLAIN (type logical, FORMAT ion) SELECT * FROM t",
 		// EXPLAIN stays read-only even wrapping DML, with options present.
-		"EXPLAIN (a b) UPDATE t SET a = 1",
+		"EXPLAIN (FORMAT ion) UPDATE t SET a = 1",
 	}
 	for _, input := range cases {
 		input := input

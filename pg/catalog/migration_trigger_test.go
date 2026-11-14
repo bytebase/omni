@@ -251,3 +251,14 @@ func TestMigrationTrigger(t *testing.T) {
 		}
 	})
 }
+
+func TestMigrationLeavesPartitionTriggerClonesToParent(t *testing.T) {
+	base := `CREATE FUNCTION f() RETURNS trigger LANGUAGE plpgsql AS $$BEGIN RETURN NEW; END$$;
+CREATE TABLE p (id int) PARTITION BY RANGE (id);
+CREATE TABLE c1 PARTITION OF p FOR VALUES FROM (0) TO (10);
+CREATE TRIGGER tg BEFORE INSERT ON p FOR EACH ROW EXECUTE FUNCTION f();`
+	got := generateMigrationSQL(t, base, base+"\nCREATE TABLE c2 PARTITION OF p FOR VALUES FROM (10) TO (20);")
+	if want := `CREATE TABLE "public"."c2" PARTITION OF "public"."p" FOR VALUES FROM ('10') TO ('20')`; got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+}

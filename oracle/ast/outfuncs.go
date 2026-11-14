@@ -1195,6 +1195,14 @@ func writeJoinClause(sb *strings.Builder, n *JoinClause) {
 		sb.WriteString(" :right ")
 		writeNode(sb, n.Right)
 	}
+	if n.LeftPartitionBy != nil {
+		sb.WriteString(" :leftPartitionBy ")
+		writeNode(sb, n.LeftPartitionBy)
+	}
+	if n.RightPartitionBy != nil {
+		sb.WriteString(" :rightPartitionBy ")
+		writeNode(sb, n.RightPartitionBy)
+	}
 	if n.On != nil {
 		sb.WriteString(" :on ")
 		writeNode(sb, n.On)
@@ -1482,6 +1490,10 @@ func writeWithClause(sb *strings.Builder, n *WithClause) {
 	sb.WriteString("{WITH")
 	if n.Recursive {
 		sb.WriteString(" :recursive true")
+	}
+	if n.PLSQLDeclarations != nil {
+		sb.WriteString(" :plsqlDeclarations ")
+		writeNode(sb, n.PLSQLDeclarations)
 	}
 	if n.CTEs != nil {
 		sb.WriteString(" :ctes ")
@@ -2005,6 +2017,9 @@ func writeSetClause(sb *strings.Builder, n *SetClause) {
 	if n.Columns != nil {
 		sb.WriteString(" :columns ")
 		writeNode(sb, n.Columns)
+	}
+	if n.ValueOf != "" {
+		sb.WriteString(fmt.Sprintf(" :valueOf %q", n.ValueOf))
 	}
 	if n.Value != nil {
 		sb.WriteString(" :value ")
@@ -2587,6 +2602,10 @@ func writeDeleteStmt(sb *strings.Builder, n *DeleteStmt) {
 			writeNode(sb, n.Alias)
 		}
 	}
+	if n.FromClause != nil {
+		sb.WriteString(" :fromClause ")
+		writeNode(sb, n.FromClause)
+	}
 	if n.WhereClause != nil {
 		sb.WriteString(" :whereClause ")
 		writeNode(sb, n.WhereClause)
@@ -2664,6 +2683,16 @@ func writeCreateTableStmt(sb *strings.Builder, n *CreateTableStmt) {
 	}
 	if n.Duplicated {
 		sb.WriteString(" :duplicated true")
+	}
+	if n.Immutable {
+		sb.WriteString(" :immutable true")
+	}
+	if n.Blockchain {
+		sb.WriteString(" :blockchain true")
+	}
+	if n.OfType != nil {
+		sb.WriteString(" :of ")
+		writeNode(sb, n.OfType)
 	}
 	if n.Name != nil {
 		sb.WriteString(" :name ")
@@ -4097,6 +4126,10 @@ func writeCallStmt(sb *strings.Builder, n *CallStmt) {
 	if n.Package != "" {
 		sb.WriteString(fmt.Sprintf(" :package %q", n.Package))
 	}
+	if n.Object != nil {
+		sb.WriteString(" :object ")
+		writeNode(sb, n.Object)
+	}
 	if n.Args != nil {
 		sb.WriteString(" :args ")
 		writeNode(sb, n.Args)
@@ -4104,6 +4137,10 @@ func writeCallStmt(sb *strings.Builder, n *CallStmt) {
 	if n.Into != nil {
 		sb.WriteString(" :into ")
 		writeNode(sb, n.Into)
+	}
+	if n.Indicator != nil {
+		sb.WriteString(" :indicator ")
+		writeNode(sb, n.Indicator)
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
@@ -5894,6 +5931,9 @@ func writeCreateTablespaceSetStmt(sb *strings.Builder, n *CreateTablespaceSetStm
 		sb.WriteString(" :name ")
 		writeNode(sb, n.Name)
 	}
+	if n.IfNotExists {
+		sb.WriteString(" :if_not_exists true")
+	}
 	if n.Shardspace != "" {
 		sb.WriteString(fmt.Sprintf(" :shardspace %q", n.Shardspace))
 	}
@@ -6448,9 +6488,15 @@ func writeAlterInmemoryJoinGroupStmt(sb *strings.Builder, n *AlterInmemoryJoinGr
 	if n.Action != "" {
 		sb.WriteString(fmt.Sprintf(" :action %q", n.Action))
 	}
-	if n.Member != nil {
-		sb.WriteString(" :member ")
-		writeNode(sb, n.Member)
+	if len(n.Members) > 0 {
+		sb.WriteString(" :members (")
+		for i, m := range n.Members {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, m)
+		}
+		sb.WriteString(")")
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
@@ -6462,8 +6508,8 @@ func writeJoinGroupMember(sb *strings.Builder, n *JoinGroupMember) {
 		sb.WriteString(" :table ")
 		writeNode(sb, n.Table)
 	}
-	if n.Column != "" {
-		sb.WriteString(fmt.Sprintf(" :column %q", n.Column))
+	if len(n.Columns) > 0 {
+		sb.WriteString(fmt.Sprintf(" :columns %q", n.Columns))
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")

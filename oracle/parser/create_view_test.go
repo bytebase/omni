@@ -110,11 +110,7 @@ func TestParseCreateViewWithReadOnly(t *testing.T) {
 }
 
 func TestParseCreateMaterializedView(t *testing.T) {
-	p := newTestParser("MATERIALIZED VIEW mv_emp AS SELECT employee_id FROM employees")
-	stmt, parseErr7 := p.parseCreateViewStmt(0, false)
-	if parseErr7 != nil {
-		t.Fatalf("parse: %v", parseErr7)
-	}
+	stmt := parseCreateMaterializedViewForTest(t, "CREATE MATERIALIZED VIEW mv_emp AS SELECT employee_id FROM employees")
 	if !stmt.Materialized {
 		t.Error("expected Materialized to be true")
 	}
@@ -127,25 +123,24 @@ func TestParseCreateMaterializedView(t *testing.T) {
 }
 
 func TestParseCreateMaterializedViewRefresh(t *testing.T) {
-	p := newTestParser("MATERIALIZED VIEW mv_emp REFRESH FAST AS SELECT 1 FROM dual")
-	stmt, parseErr8 := p.parseCreateViewStmt(0, false)
-	if parseErr8 != nil {
-		t.Fatalf("parse: %v", parseErr8)
-	}
+	stmt := parseCreateMaterializedViewForTest(t, "CREATE MATERIALIZED VIEW mv_emp REFRESH FAST AS SELECT 1 FROM dual")
 	if stmt.RefreshMethod != "FAST" {
 		t.Errorf("expected RefreshMethod FAST, got %q", stmt.RefreshMethod)
 	}
 }
 
 func TestParseCreateMaterializedViewBuildDeferred(t *testing.T) {
-	p := newTestParser("MATERIALIZED VIEW mv_emp BUILD DEFERRED AS SELECT 1 FROM dual")
-	stmt, parseErr9 := p.parseCreateViewStmt(0, false)
-	if parseErr9 != nil {
-		t.Fatalf("parse: %v", parseErr9)
-	}
+	stmt := parseCreateMaterializedViewForTest(t, "CREATE MATERIALIZED VIEW mv_emp BUILD DEFERRED AS SELECT 1 FROM dual")
 	if stmt.BuildMode != "DEFERRED" {
 		t.Errorf("expected BuildMode DEFERRED, got %q", stmt.BuildMode)
 	}
+}
+
+// parseCreateMaterializedViewForTest parses one CREATE MATERIALIZED VIEW.
+func parseCreateMaterializedViewForTest(t *testing.T, sql string) *ast.CreateViewStmt {
+	t.Helper()
+	result := ParseAndCheck(t, sql)
+	return result.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateViewStmt)
 }
 
 func TestParseCreateViewLoc(t *testing.T) {
@@ -205,7 +200,7 @@ func TestParseCreateMaterializedViewUsingIndex(t *testing.T) {
 		{"using_index_tablespace", `CREATE MATERIALIZED VIEW mv USING INDEX TABLESPACE ts1 AS SELECT * FROM t`},
 		{"using_index_attrs", `CREATE MATERIALIZED VIEW mv USING INDEX PCTFREE 10 INITRANS 2 MAXTRANS 255 AS SELECT * FROM t`},
 		{"using_no_index", `CREATE MATERIALIZED VIEW mv USING NO INDEX AS SELECT * FROM t`},
-		{"refresh_then_using_index", `CREATE MATERIALIZED VIEW mv REFRESH FAST WITH PRIMARY KEY USING INDEX AS SELECT * FROM t`},
+		{"using_index_then_refresh", `CREATE MATERIALIZED VIEW mv USING INDEX REFRESH FAST WITH PRIMARY KEY AS SELECT * FROM t`},
 		{"using_trusted_constraints", `CREATE MATERIALIZED VIEW mv REFRESH FORCE USING TRUSTED CONSTRAINTS AS SELECT * FROM t`},
 	}
 	for _, tt := range tests {

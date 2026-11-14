@@ -21,62 +21,88 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 	// OR REPLACE | IF NOT EXISTS
 	orReplace := false
 	ifNotExists := false
+	ifTok := p.cur
 	if p.cur.Type == kwOR {
 		p.advance() // consume OR
-		if p.cur.Type == kwREPLACE {
-			p.advance() // consume REPLACE
-			orReplace = true
+		if p.cur.Type != kwREPLACE {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance() // consume REPLACE
+		orReplace = true
 	} else if p.cur.Type == kwIF {
 		if p.peekNext().Type == kwNOT {
 			p.advance() // consume IF
 			p.advance() // consume NOT
-			if p.cur.Type == kwEXISTS {
-				p.advance() // consume EXISTS
-				ifNotExists = true
+			// CREATE IF NOT without EXISTS is ORA-00901 at IF.
+			if p.cur.Type != kwEXISTS {
+				return nil, p.syntaxErrorAtTok(ifTok)
+			}
+			p.advance() // consume EXISTS
+			ifNotExists = true
+			// IF NOT EXISTS follows OPERATOR (ORA-00901 at IF before it).
+			if p.isKeywordStr("OPERATOR") {
+				return nil, p.syntaxErrorAtTok(ifTok)
 			}
 		}
 	}
 
-	// EDITIONABLE | NONEDITIONABLE (only for PL/SQL objects: PROCEDURE, FUNCTION, PACKAGE, TRIGGER, TYPE)
+	// EDITIONABLE | NONEDITIONABLE (only for PL/SQL objects: PROCEDURE, FUNCTION, PACKAGE, TRIGGER, TYPE, LIBRARY)
 	// Note: Views handle EDITIONABLE internally in parseCreateViewStmt.
 	editionable := false
 	nonEditionable := false
+	editionTok := p.cur // the EDITIONABLE or NONEDITIONABLE, when consumed
 	if p.isIdentLikeStr("EDITIONABLE") {
 		// Peek to see if the next token is a PL/SQL object keyword
 		next := p.peekNext()
 		if next.Type == kwPROCEDURE || next.Type == kwFUNCTION || next.Type == kwPACKAGE ||
-			next.Type == kwTRIGGER || next.Type == kwTYPE {
+			next.Type == kwTRIGGER || next.Type == kwTYPE || next.Type == kwLIBRARY {
 			editionable = true
 			p.advance()
 		}
 	} else if p.isIdentLikeStr("NONEDITIONABLE") {
 		next := p.peekNext()
 		if next.Type == kwPROCEDURE || next.Type == kwFUNCTION || next.Type == kwPACKAGE ||
-			next.Type == kwTRIGGER || next.Type == kwTYPE {
+			next.Type == kwTRIGGER || next.Type == kwTYPE || next.Type == kwLIBRARY {
 			nonEditionable = true
 			p.advance()
 		}
 	}
 
-	// GLOBAL TEMPORARY
+	// GLOBAL TEMPORARY | PRIVATE TEMPORARY: GLOBAL and PRIVATE lead only a
+	// temporary table (ORA-00901 for CREATE GLOBAL TABLE).
 	global := false
 	private := false
 	if p.cur.Type == kwGLOBAL {
 		p.advance() // consume GLOBAL
-		if p.cur.Type == kwTEMPORARY {
+		if p.cur.Type != kwTEMPORARY {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance() // consume TEMPORARY
+		global = true
+	}
+
+	// PRIVATE also leads CREATE PRIVATE OUTLINE.
+	if p.cur.Type == kwPRIVATE {
+		p.advance() // consume PRIVATE
+		switch p.cur.Type {
+		case kwTEMPORARY:
 			p.advance() // consume TEMPORARY
-			global = true
+			private = true
+		case kwTABLE:
+			return nil, p.syntaxErrorAtCur()
 		}
 	}
 
-	// PRIVATE TEMPORARY
-	if p.cur.Type == kwPRIVATE {
-		p.advance() // consume PRIVATE
-		if p.cur.Type == kwTEMPORARY {
-			p.advance() // consume TEMPORARY
-			private = true
+	// IMMUTABLE TABLE | BLOCKCHAIN TABLE
+	if (p.isKeywordStr("IMMUTABLE") || p.isKeywordStr("BLOCKCHAIN")) && p.peekNext().Type == kwTABLE &&
+		!orReplace && !ifNotExists && !global && !private {
+		stmt := &nodes.CreateTableStmt{
+			Immutable:  p.cur.Str == "IMMUTABLE",
+			Blockchain: p.cur.Str == "BLOCKCHAIN",
+			Loc:        nodes.Loc{Start: start},
 		}
+		p.advance() // consume IMMUTABLE / BLOCKCHAIN
+		return p.parseCreateTableOfKind(stmt)
 	}
 
 	// SHARDED / DUPLICATED
@@ -92,8 +118,11 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 
 	// PUBLIC (for CREATE PUBLIC SYNONYM / DATABASE LINK)
 	public := false
+	var publicTok *Token
 	if p.cur.Type == kwPUBLIC {
 		public = true
+		tok := p.cur
+		publicTok = &tok
 		p.advance()
 	}
 
@@ -116,8 +145,8 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 	}
 	if ifNotExists && (len(javaMods) > 0 || p.cur.Type == kwJAVA) {
 		// CREATE JAVA takes IF NOT EXISTS after its kind, not before JAVA
-		// (ORA-00901 on Oracle 23ai).
-		return nil, p.syntaxErrorAtCur()
+		// (ORA-00901 on Oracle 23ai, at the IF).
+		return nil, p.syntaxErrorAtTok(ifTok)
 	}
 	if len(javaMods) > 0 {
 		if p.cur.Type != kwJAVA {
@@ -125,6 +154,25 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 		}
 		p.advance() // consume JAVA
 		return p.parseCreateJavaStmt(start, orReplace, javaMods)
+	}
+
+	if p.cur.Type == kwLIBRARY {
+		// CREATE LIBRARY takes no IF NOT EXISTS (ORA-00901 on Oracle 23ai,
+		// at the IF).
+		if ifNotExists {
+			return nil, p.syntaxErrorAtTok(ifTok)
+		}
+		p.advance() // consume LIBRARY
+		var edition *Token
+		if editionable || nonEditionable {
+			edition = &editionTok
+		}
+		return p.parseCreateLibraryStmt(start, orReplace, edition)
+	}
+
+	// CONTEXT, RESTORE POINT, ROLLBACK SEGMENT, INMEMORY JOIN GROUP
+	if stmt, ok, err := p.parseCreateAdminTail(start, orReplace, ifNotExists, ifTok, publicTok); ok {
+		return stmt, err
 	}
 
 	switch p.cur.Type {
@@ -135,6 +183,9 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 	case kwMATERIALIZED:
 		return p.parseCreateMaterializedOrView(start, orReplace)
 	case kwFORCE, kwVIEW:
+		if p.cur.Type == kwFORCE && isAnalyticObjectWord(p.peekNext()) {
+			return p.parseCreateForcedAnalyticObject(start, orReplace)
+		}
 		return p.parseCreateViewStmt(start, orReplace)
 	case kwSEQUENCE:
 		return p.parseCreateSequenceStmt(start)
@@ -160,9 +211,10 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 	case kwAUDIT:
 		// CREATE AUDIT POLICY
 		p.advance() // consume AUDIT
-		if p.isIdentLikeStr("POLICY") {
-			p.advance() // consume POLICY
+		if !p.isKeywordStr("POLICY") {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance() // consume POLICY
 		return p.parseCreateAuditPolicyStmt(start)
 	case kwJSON:
 		// CREATE JSON RELATIONAL DUALITY VIEW
@@ -178,20 +230,22 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 		}
 		return p.parseCreateJsonDualityViewStmt(start, orReplace, false)
 	case kwUSER, kwROLE, kwPROFILE,
-		kwTABLESPACE, kwDIRECTORY, kwCONTEXT,
-		kwCLUSTER, kwJAVA, kwLIBRARY, kwSCHEMA:
+		kwTABLESPACE, kwDIRECTORY,
+		kwCLUSTER, kwJAVA, kwSCHEMA:
 		return p.parseCreateAdminObject(start, orReplace)
 	case kwTEMPORARY:
 		// CREATE TEMPORARY TABLESPACE (standalone, not GLOBAL TEMPORARY TABLE)
 		if !global && !private {
-			p.advance() // consume TEMPORARY
-			if p.cur.Type == kwTABLESPACE {
-				p.advance() // consume TABLESPACE
-				return p.parseCreateTablespaceStmt(start, false, false, false, true, false)
+			if p.peekNext().Type == kwTABLESPACE {
+				return p.parseCreateTablespaceFamily(start)
 			}
+			p.advance() // consume TEMPORARY
 		}
 		return nil, nil
 	default:
+		if p.isKeywordStr("NOFORCE") && isAnalyticObjectWord(p.peekNext()) {
+			return p.parseCreateForcedAnalyticObject(start, orReplace)
+		}
 		// Check for "NO FORCE VIEW"
 		if p.isIdentLikeStr("NO") || p.cur.Type == kwNOT {
 			return p.parseCreateViewStmt(start, orReplace)
@@ -203,34 +257,8 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 		// Check for BIGFILE/SMALLFILE/UNDO TABLESPACE, CONTROLFILE
 		if p.isIdentLike() {
 			switch p.cur.Str {
-			case "BIGFILE":
-				p.advance()
-				if p.cur.Type == kwTABLESPACE {
-					p.advance()
-					return p.parseCreateTablespaceStmt(start, true, false, false, false, false)
-				}
-			case "SMALLFILE":
-				p.advance()
-				if p.cur.Type == kwTABLESPACE {
-					p.advance()
-					return p.parseCreateTablespaceStmt(start, false, true, false, false, false)
-				}
-			case "UNDO":
-				p.advance()
-				if p.cur.Type == kwTABLESPACE {
-					p.advance()
-					return p.parseCreateTablespaceStmt(start, false, false, false, false, true)
-				}
-			case "LOCAL":
-				// CREATE LOCAL TEMPORARY TABLESPACE
-				p.advance() // consume LOCAL
-				if p.cur.Type == kwTEMPORARY {
-					p.advance() // consume TEMPORARY
-					if p.cur.Type == kwTABLESPACE {
-						p.advance() // consume TABLESPACE
-						return p.parseCreateTablespaceStmt(start, false, false, true, true, false)
-					}
-				}
+			case "BIGFILE", "SMALLFILE", "UNDO", "LOCAL":
+				return p.parseCreateTablespaceFamily(start)
 			case "CONTROLFILE":
 				p.advance() // consume CONTROLFILE
 				return p.parseCreateControlfileStmt(start)
@@ -251,15 +279,17 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 				return p.parseCreateOperatorStmt(start, orReplace, false)
 			case "ANALYTIC":
 				p.advance() // consume ANALYTIC
-				if p.cur.Type == kwVIEW {
-					p.advance() // consume VIEW
+				if p.cur.Type != kwVIEW {
+					return nil, p.syntaxErrorAtCur()
 				}
+				p.advance() // consume VIEW
 				return p.parseCreateAnalyticViewStmt(start, orReplace, false, false)
 			case "ATTRIBUTE":
 				p.advance() // consume ATTRIBUTE
-				if p.isIdentLike() && p.cur.Str == "DIMENSION" {
-					p.advance() // consume DIMENSION
+				if !p.isKeywordStr("DIMENSION") {
+					return nil, p.syntaxErrorAtCur()
 				}
+				p.advance() // consume DIMENSION
 				return p.parseCreateAttributeDimensionStmt(start, orReplace, false, false)
 			case "HIERARCHY":
 				p.advance() // consume HIERARCHY
@@ -284,27 +314,27 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 				return p.parseCreatePropertyGraphStmt(start, orReplace, ifNotExists)
 			case "VECTOR":
 				p.advance() // consume VECTOR
-				if p.cur.Type == kwINDEX {
-					p.advance() // consume INDEX
+				if p.cur.Type != kwINDEX {
+					return nil, p.syntaxErrorAtCur()
 				}
+				p.advance() // consume INDEX
 				return p.parseCreateVectorIndexStmt(start, ifNotExists)
-			case "ROLLBACK":
-				// CREATE [PUBLIC] ROLLBACK SEGMENT
-				p.advance() // consume ROLLBACK
-				if p.isIdentLike() && p.cur.Str == "SEGMENT" {
-					p.advance() // consume SEGMENT
+			case "MLE":
+				// CREATE MLE { ENV | MODULE } takes IF NOT EXISTS after its
+				// kind, not before MLE (ORA-00901 on Oracle 23ai, at the IF).
+				if ifNotExists {
+					return nil, p.syntaxErrorAtTok(ifTok)
 				}
-				return p.parseCreateRollbackSegmentStmt(start, public)
-			case "PURE":
-				// CREATE [PURE] MLE ENV
-				p.advance() // consume PURE
-				if p.isIdentLike() && p.cur.Str == "MLE" {
-					p.advance() // consume MLE
-					if p.isIdentLike() && p.cur.Str == "ENV" {
-						p.advance() // consume ENV
-						return p.parseCreateMLEEnvStmt(start, orReplace)
-					}
+				p.advance() // consume MLE
+				switch {
+				case p.isKeywordStr("ENV"):
+					p.advance() // consume ENV
+					return p.parseCreateMLEEnvStmt(start, orReplace)
+				case p.isKeywordStr("MODULE"):
+					p.advance() // consume MODULE
+					return p.parseCreateMLEModuleStmt(start, orReplace)
 				}
+				return nil, p.syntaxErrorAtCur()
 			}
 		}
 		// Check for DIMENSION, FLASHBACK ARCHIVE
@@ -334,18 +364,28 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 //	    [ MEMOPTIMIZE FOR WRITE ]
 //	    [ PARENT [ schema. ] table ] ;
 func (p *Parser) parseCreateTableStmt(start int, orReplace, global, private, sharded, duplicated bool) (*nodes.CreateTableStmt, error) {
-	p.advance() // consume TABLE
+	return p.parseCreateTableOfKind(&nodes.CreateTableStmt{
+		OrReplace:  orReplace,
+		Global:     global,
+		Private:    private,
+		Sharded:    sharded,
+		Duplicated: duplicated,
+		Loc:        nodes.Loc{Start: start},
+	})
+}
 
-	stmt := &nodes.CreateTableStmt{
-		OrReplace:   orReplace,
-		Global:      global,
-		Private:     private,
-		Sharded:     sharded,
-		Duplicated:  duplicated,
-		Columns:     &nodes.List{},
-		Constraints: &nodes.List{},
-		Loc:         nodes.Loc{Start: start},
-	}
+// parseCreateTableOfKind parses a CREATE TABLE statement after the TABLE
+// keyword into stmt, which holds the kind of table the words before TABLE
+// named and the statement's start. CREATE IMMUTABLE TABLE and CREATE
+// BLOCKCHAIN TABLE take the immutable_table_clauses and
+// blockchain_table_clauses.
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/CREATE-TABLE.html
+func (p *Parser) parseCreateTableOfKind(stmt *nodes.CreateTableStmt) (*nodes.CreateTableStmt, error) {
+	p.advance() // consume TABLE
+	immutable, blockchain := stmt.Immutable, stmt.Blockchain
+	stmt.Columns = &nodes.List{}
+	stmt.Constraints = &nodes.List{}
 
 	// IF NOT EXISTS (Oracle 23c)
 	if p.cur.Type == kwIF && p.peekNext().Type == kwNOT {
@@ -373,28 +413,16 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, global, private, sha
 	if stmt.Name.Name == "" {
 		return nil, p.syntaxErrorAtCur()
 	}
+	// A relational table is created from its column list or from its AS
+	// subquery: Oracle refuses one with neither at the word after its name
+	// (ORA-00906), once it has read the rest of the statement.
+	afterName := p.cur
+	defer func(saved bool) { p.createTableEngineCheck = saved }(p.createTableEngineCheck)
+	p.createTableEngineCheck = false
 
 	if p.isIdentLikeStr("SHARING") {
-		p.advance() // consume SHARING
-		if p.cur.Type == '=' {
-			p.advance() // consume '='
-		}
-		switch {
-		case p.isIdentLikeStr("METADATA"):
-			stmt.Sharing = "METADATA"
-			p.advance()
-		case p.isIdentLikeStr("DATA"):
-			stmt.Sharing = "DATA"
-			p.advance()
-		case p.isIdentLikeStr("EXTENDED"):
-			p.advance() // consume EXTENDED
-			if p.isIdentLikeStr("DATA") {
-				p.advance() // consume DATA
-			}
-			stmt.Sharing = "EXTENDED DATA"
-		case p.isIdentLikeStr("NONE"):
-			stmt.Sharing = "NONE"
-			p.advance()
+		if err := p.parseCreateTableSharing(stmt); err != nil {
+			return nil, err
 		}
 	}
 
@@ -415,7 +443,13 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, global, private, sha
 	}
 
 	// Column definitions and table constraints
-	if p.cur.Type == '(' {
+	hasColumns := false
+	if p.cur.Type == kwOF {
+		if err := p.parseCreateTableObjectTable(stmt); err != nil {
+			return nil, err
+		}
+		hasColumns = true
+	} else if p.cur.Type == '(' {
 		p.advance()
 		parseErr489 := // consume '('
 			p.parseColumnDefsAndConstraints(stmt)
@@ -426,25 +460,21 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, global, private, sha
 			return nil, p.syntaxErrorAtCur()
 		}
 		p.advance() // consume ')'
+		hasColumns = true
 	}
-	parseErr490 :=
 
-		// Immutable table clauses (before table options)
-		// BNF (lines 733-741): immutable_table_clauses
-		p.parseImmutableTableClauses(stmt)
-	if parseErr490 !=
-
-		// Blockchain table clauses
-		// BNF (lines 743-756): blockchain_table_clauses
-		nil {
-		return nil, parseErr490
+	// immutable_table_clauses and blockchain_table_clauses belong to CREATE
+	// IMMUTABLE TABLE and CREATE BLOCKCHAIN TABLE: Oracle 23ai refuses NO
+	// DROP, NO DELETE and HASHING on any other table (ORA-00922).
+	if immutable {
+		if err := p.parseImmutableTableClauses(stmt); err != nil {
+			return nil, err
+		}
 	}
-	parseErr491 := p.parseBlockchainTableClauses(stmt)
-	if parseErr491 !=
-
-		// DEFAULT COLLATION collation_name
-		nil {
-		return nil, parseErr491
+	if blockchain {
+		if err := p.parseBlockchainTableClauses(stmt); err != nil {
+			return nil, err
+		}
 	}
 
 	if p.cur.Type == kwDEFAULT {
@@ -452,6 +482,7 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, global, private, sha
 		if (next.Type == tokIDENT || next.Type >= 2000) && next.Str == "COLLATION" {
 			p.advance() // consume DEFAULT
 			p.advance()
+			p.createTableEngineCheck = true
 			var // consume COLLATION
 			parseErr492 error
 			stmt.Collation, parseErr492 = p.parseIdentifier()
@@ -463,51 +494,42 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, global, private, sha
 			}
 		}
 	}
-	parseErr493 := p.parseTableOptions(stmt)
-	if parseErr493 !=
-
-		// MEMOPTIMIZE FOR READ
-		nil {
+	parseErr493 := p.parseTableOptions(stmt, hasColumns)
+	if parseErr493 != nil {
 		return nil, parseErr493
 	}
 
-	if p.isIdentLikeStr("MEMOPTIMIZE") {
+	// [ MEMOPTIMIZE FOR READ ] [ MEMOPTIMIZE FOR WRITE ]
+	for p.isKeywordStr("MEMOPTIMIZE") {
 		p.advance() // consume MEMOPTIMIZE
-		if p.cur.Type == kwFOR {
-			p.advance() // consume FOR
-			if p.cur.Type == kwREAD {
-				p.advance() // consume READ
-				stmt.MemoptimizeRead = true
-			} else if p.cur.Type == kwWRITE {
-				p.advance() // consume WRITE
-				stmt.MemoptimizeWrite = true
-			}
+		if err := p.expectCreateTableToken(kwFOR); err != nil {
+			return nil, err
 		}
-	}
-	// MEMOPTIMIZE FOR WRITE (can appear after READ)
-	if p.isIdentLikeStr("MEMOPTIMIZE") {
-		p.advance() // consume MEMOPTIMIZE
-		if p.cur.Type == kwFOR {
-			p.advance() // consume FOR
-			if p.cur.Type == kwWRITE {
-				p.advance() // consume WRITE
-				stmt.MemoptimizeWrite = true
-			} else if p.cur.Type == kwREAD {
-				p.advance() // consume READ
-				stmt.MemoptimizeRead = true
-			}
+		switch {
+		case p.cur.Type == kwREAD && !stmt.MemoptimizeRead:
+			stmt.MemoptimizeRead = true
+		case p.cur.Type == kwWRITE && !stmt.MemoptimizeWrite:
+			stmt.MemoptimizeWrite = true
+		default:
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance()
 	}
 
 	// PARENT [ schema. ] table
 	if p.isIdentLikeStr("PARENT") {
 		p.advance()
+		p.createTableEngineCheck = true
 		var // consume PARENT
 		parseErr494 error
 		stmt.Parent, parseErr494 = p.parseObjectName()
 		if parseErr494 != nil {
 			return nil, parseErr494
 		}
+	}
+
+	if !hasColumns && stmt.AsQuery == nil && p.isStatementEnd() && !p.createTableEngineCheck {
+		return nil, p.syntaxErrorAtTok(afterName)
 	}
 
 	stmt.Loc.End = p.prev.End
@@ -529,15 +551,23 @@ func selectStmtHasTargets(stmt nodes.StmtNode) bool {
 // parseColumnDefsAndConstraints parses the contents inside the parentheses of a CREATE TABLE.
 // It handles both column definitions and table-level constraints.
 func (p *Parser) parseColumnDefsAndConstraints(stmt *nodes.CreateTableStmt) error {
+	defer func(saved bool) { p.createTableColumns = saved }(p.createTableColumns)
+	p.createTableColumns = true
+	periods := 0
 	for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
 		// An item that consumes nothing would come round again.
 		if p.pos() == progress {
 			return p.syntaxErrorAtCur()
 		}
 		progress = p.pos()
-		before := stmt.Columns.Len() + stmt.Constraints.Len()
+		before := stmt.Columns.Len() + stmt.Constraints.Len() + periods
 		// Check if this is a table-level constraint
-		if p.isOutOfLineRefConstraintStart() {
+		if p.isCreateTablePeriodStart() {
+			if err := p.parseCreateTablePeriod(stmt); err != nil {
+				return err
+			}
+			periods++
+		} else if p.isOutOfLineRefConstraintStart() {
 			tc, err := p.parseOutOfLineRefConstraint()
 			if err != nil {
 				return err
@@ -561,7 +591,7 @@ func (p *Parser) parseColumnDefsAndConstraints(stmt *nodes.CreateTableStmt) erro
 				stmt.Columns.Items = append(stmt.Columns.Items, col)
 			}
 		}
-		if stmt.Columns.Len()+stmt.Constraints.Len() == before {
+		if stmt.Columns.Len()+stmt.Constraints.Len()+periods == before {
 			return p.syntaxErrorAtCur()
 		}
 
@@ -572,6 +602,16 @@ func (p *Parser) parseColumnDefsAndConstraints(stmt *nodes.CreateTableStmt) erro
 		if p.cur.Type == ')' || p.cur.Type == tokEOF {
 			return p.syntaxErrorAtCur()
 		}
+	}
+	// relational_properties holds at least one item (ORA-00931 for
+	// CREATE TABLE a()), and a table at least one column, which a
+	// period_definition adds: a list of constraints alone is ORA-03079 at
+	// its closing parenthesis.
+	if stmt.Columns.Len()+stmt.Constraints.Len()+periods == 0 {
+		return p.syntaxErrorAtCur()
+	}
+	if stmt.Columns.Len()+periods == 0 && p.cur.Type == ')' {
+		return p.syntaxErrorAtCur()
 	}
 	return p.checkOutOfLineRefConstraints(stmt, true)
 }
@@ -644,10 +684,13 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 		col.Domain, parseErr498 = p.parseObjectName()
 		if parseErr498 != nil {
 			return nil, parseErr498
-
-			// Data type (optional for some Oracle column types, but typical)
 		}
-	} else if p.isTypeName() {
+		if col.Domain == nil || col.Domain.Name == "" {
+			return nil, p.syntaxErrorAtCur()
+		}
+	} else if p.isTypeName() && !p.isCreateTableColumnClauseStart() {
+		// COLLATE, ENCRYPT, ANNOTATIONS and SCOPE IS start clauses of a
+		// column without a datatype, not a datatype.
 		var parseErr499 error
 
 		col.TypeName, parseErr499 = p.parseTypeName()
@@ -662,7 +705,10 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 	if parseErr500 != nil {
 		return nil, parseErr500
 	}
-	if col.Domain == nil && col.TypeName == nil && !columnDefHasProperties(col) {
+	// CREATE TABLE's column_definition takes its datatype as optional
+	// (CREATE TABLE t (a, b) AS SELECT ...); a bare column elsewhere is
+	// an error.
+	if col.Domain == nil && col.TypeName == nil && !columnDefHasProperties(col) && !p.createTableColumns {
 		return nil, p.syntaxErrorAtCur()
 	}
 
@@ -730,13 +776,13 @@ func (p *Parser) parseColumnProperties(col *nodes.ColumnDef) error {
 					// FOR INSERT ONLY
 					if p.cur.Type == kwFOR {
 						p.advance() // consume FOR
-						if p.cur.Type == kwINSERT {
-							p.advance() // consume INSERT
-							if p.isIdentLikeStr("ONLY") {
-								p.advance() // consume ONLY
-							}
-							col.DefaultOnNullInsertOnly = true
+						if err := p.expectCreateTableToken(kwINSERT); err != nil {
+							return err
 						}
+						if err := p.expectCreateTableWord("ONLY"); err != nil {
+							return err
+						}
+						col.DefaultOnNullInsertOnly = true
 					}
 				}
 			}
@@ -772,18 +818,28 @@ func (p *Parser) parseColumnProperties(col *nodes.ColumnDef) error {
 				always = true
 			} else if p.cur.Type == kwBY {
 				p.advance() // consume BY
-				if p.cur.Type == kwDEFAULT {
-					p.advance() // consume DEFAULT
-					byDefault = true
-					// ON NULL
-					if p.cur.Type == kwON {
-						next := p.peekNext()
-						if next.Type == kwNULL {
-							p.advance() // consume ON
-							p.advance() // consume NULL
-						}
+				if err := p.expectCreateTableToken(kwDEFAULT); err != nil {
+					return err
+				}
+				byDefault = true
+				// ON NULL
+				if p.cur.Type == kwON {
+					next := p.peekNext()
+					if next.Type == kwNULL {
+						p.advance() // consume ON
+						p.advance() // consume NULL
 					}
 				}
+			}
+			// GENERATED AS IDENTITY is GENERATED ALWAYS; a virtual column
+			// says ALWAYS (ORA-02000 at the parenthesis of GENERATED AS
+			// (expr)).
+			if p.cur.Type != kwAS {
+				return p.syntaxErrorAtCur()
+			}
+			if !always && !byDefault && p.peekNext().Type == '(' {
+				p.advance() // consume AS
+				return p.syntaxErrorAtCur()
 			}
 			if p.cur.Type == kwAS {
 				p.advance() // consume AS
@@ -813,30 +869,42 @@ func (p *Parser) parseColumnProperties(col *nodes.ColumnDef) error {
 					if err := p.parseVirtualColumnExpression(col); err != nil {
 						return err
 					}
+				} else {
+					return p.syntaxErrorAtCur()
 				}
 			}
 			_ = byDefault // stored implicitly: !always means BY DEFAULT
 
 		case kwNOT:
-			next := p.peekNext()
-			if next.Type == kwNULL {
-				p.advance() // consume NOT
-				p.advance() // consume NULL
-				col.NotNull = true
-				var cs constraintState
-				if err := p.parseConstraintState(&cs); err != nil {
-					return err
-				}
-			} else {
-				return nil
+			// NOT starts NOT NULL here: Oracle 23ai answers a NOT followed
+			// by anything else with ORA-02000 at the word after it.
+			not := p.cur
+			p.advance() // consume NOT
+			if p.cur.Type != kwNULL {
+				return p.syntaxErrorAtCur()
 			}
-
-		case kwNULL:
+			// A second NULL or NOT NULL is ORA-02258 at it.
+			if col.Null || col.NotNull {
+				return p.syntaxErrorAtTok(not)
+			}
 			p.advance() // consume NULL
-			col.Null = true
+			col.NotNull = true
 			var cs constraintState
 			if err := p.parseConstraintState(&cs); err != nil {
 				return err
+			}
+
+		case kwNULL:
+			// A NULL constraint takes no constraint_state: Oracle 23ai
+			// answers NULL DEFERRABLE, NULL RELY, NULL USING INDEX and
+			// NULL ENABLE with ORA-03099 at the state.
+			if col.Null || col.NotNull {
+				return p.syntaxErrorAtCur()
+			}
+			p.advance() // consume NULL
+			col.Null = true
+			if p.isCreateTableConstraintStateStart() {
+				return p.syntaxErrorAtCur()
 			}
 
 		case kwINVISIBLE:
@@ -919,6 +987,10 @@ func (p *Parser) parseColumnProperties(col *nodes.ColumnDef) error {
 					if err := p.parseInlineRefConstraint(col); err != nil {
 						return err
 					}
+				case "ANNOTATIONS":
+					if err := p.parseCreateTableAnnotations(); err != nil {
+						return err
+					}
 				case "SORT":
 					p.advance()
 					col.Sort = true
@@ -938,6 +1010,12 @@ func (p *Parser) parseColumnProperties(col *nodes.ColumnDef) error {
 					p.advance() // consume DECRYPT
 					col.Encrypt = "DECRYPT"
 				case "COLLATE":
+					// A column collation needs the column's datatype:
+					// Oracle 23ai answers a COLLATE without one with
+					// ORA-03099 at COLLATE.
+					if col.TypeName == nil && col.Domain == nil {
+						return p.syntaxErrorAtCur()
+					}
 					p.advance()
 					var // consume COLLATE
 					parseErr510 error
@@ -1210,13 +1288,13 @@ func (p *Parser) parseVirtualColumnExpression(col *nodes.ColumnDef) error {
 		return p.syntaxErrorAtCur()
 	}
 	col.Virtual = expr
-	if p.cur.Type == ')' {
-		p.advance()
+	if err := p.expectCreateTableToken(')'); err != nil {
+		return err
 	}
 	if p.cur.Type == kwVIRTUAL {
 		p.advance() // consume VIRTUAL
 	}
-	return nil
+	return p.parseCreateTableEditionClauses()
 }
 
 // parseEncryptionSpec parses the encryption_spec after ENCRYPT keyword.
@@ -1227,38 +1305,29 @@ func (p *Parser) parseVirtualColumnExpression(col *nodes.ColumnDef) error {
 //	[ IDENTIFIED BY password ]
 //	[ SALT | NO SALT ]
 func (p *Parser) parseEncryptionSpec(col *nodes.ColumnDef) error {
-	for {
-		if p.cur.Type == kwUSING {
-			p.advance() // consume USING
-			if p.cur.Type == tokSCONST {
-				col.Encrypt = "ENCRYPT USING " + p.cur.Str
-				p.advance()
-			}
-		} else if p.isIdentLikeStr("IDENTIFIED") {
-			p.advance() // consume IDENTIFIED
-			if p.cur.Type == kwBY {
-				p.advance()
-				parseDiscard512, // consume BY
-					parseErr511 := p.parseIdentifier()
-				_ = // consume password
-					parseDiscard512
-				if parseErr511 != nil {
-					return parseErr511
-				}
-			}
-		} else if p.isIdentLikeStr("SALT") {
-			p.advance() // consume SALT
-		} else if p.isIdentLikeStr("NO") {
-			next := p.peekNext()
-			if (next.Type == tokIDENT || next.Type >= 2000) && next.Str == "SALT" {
-				p.advance() // consume NO
-				p.advance() // consume SALT
-			} else {
-				return nil
-			}
-		} else {
-			return nil
+	if p.cur.Type == kwUSING {
+		p.advance() // consume USING
+		if p.cur.Type != tokSCONST {
+			return p.syntaxErrorAtCur()
 		}
+		col.Encrypt = "ENCRYPT USING " + p.cur.Str
+		p.advance()
+	}
+	if p.isKeywordStr("IDENTIFIED") {
+		p.advance() // consume IDENTIFIED
+		if err := p.expectCreateTableToken(kwBY); err != nil {
+			return err
+		}
+		if err := p.parseCreateTableName(); err != nil {
+			return err
+		}
+	}
+	switch {
+	case p.isKeywordStr("SALT"):
+		p.advance()
+	case p.isKeywordStr("NO") && isCreateTableWordTok(p.peekNext(), "SALT"):
+		p.advance() // consume NO
+		p.advance() // consume SALT
 	}
 	return nil
 }
@@ -1287,75 +1356,49 @@ func (p *Parser) parseIdentityOptions(identity *nodes.IdentityClause) error {
 		switch p.cur.Str {
 		case "START":
 			p.advance() // consume START
-			if p.cur.Type == kwWITH {
-				p.advance() // consume WITH
+			if err := p.expectCreateTableToken(kwWITH); err != nil {
+				return err
 			}
-			if p.isIdentLikeStr("LIMIT") {
+			// START WITH LIMIT VALUE is ALTER TABLE MODIFY's: CREATE TABLE
+			// answers it with ORA-03089 at LIMIT.
+			if p.isIdentLikeStr("LIMIT") && !p.createTableColumns {
 				p.advance() // consume LIMIT
-				if p.isIdentLike() {
-					p.advance() // consume VALUE
+				if err := p.expectCreateTableWord("VALUE"); err != nil {
+					return err
 				}
-			} else {
-				parseDiscard514, parseErr513 := p.parseExpr()
-				_ = // consume integer
-					parseDiscard514
-				if parseErr513 != nil {
-					return parseErr513
-				}
+			} else if err := p.parseIdentitySignedInteger(); err != nil {
+				return err
 			}
 		case "INCREMENT":
 			p.advance() // consume INCREMENT
-			if p.cur.Type == kwBY {
-				p.advance() // consume BY
+			if err := p.expectCreateTableToken(kwBY); err != nil {
+				return err
 			}
-			parseDiscard516, parseErr515 := p.parseExpr()
-			_ = // consume integer
-				parseDiscard516
-			if parseErr515 != nil {
-				return parseErr515
+			if err := p.parseIdentitySignedInteger(); err != nil {
+				return err
 			}
-		case "MAXVALUE":
+		case "MAXVALUE", "MINVALUE", "CACHE":
 			p.advance()
-			parseDiscard518, parseErr517 := p.parseExpr()
-			_ = parseDiscard518
-			if parseErr517 != nil {
-				return parseErr517
+			if err := p.parseIdentitySignedInteger(); err != nil {
+				return err
 			}
-		case "NOMAXVALUE":
-			p.advance()
-		case "MINVALUE":
-			p.advance()
-			parseDiscard520, parseErr519 := p.parseExpr()
-			_ = parseDiscard520
-			if parseErr519 != nil {
-				return parseErr519
-			}
-		case "NOMINVALUE":
-			p.advance()
-		case "CYCLE":
-			p.advance()
-		case "NOCYCLE":
-			p.advance()
-		case "CACHE":
-			p.advance()
-			parseDiscard522, // consume CACHE
-				parseErr521 := p.parseExpr()
-			_ = // consume integer
-				parseDiscard522
-			if parseErr521 != nil {
-				return parseErr521
-			}
-		case "NOCACHE":
-			p.advance()
-		case "ORDER":
-			p.advance()
-		case "NOORDER":
+		case "NOMAXVALUE", "NOMINVALUE", "CYCLE", "NOCYCLE", "NOCACHE", "ORDER", "NOORDER":
 			p.advance()
 		default:
 			return nil
 		}
 	}
 	return nil
+}
+
+// parseIdentitySignedInteger reads the integer of an identity option,
+// which may carry a sign. Oracle 23ai answers a missing one with ORA-03089
+// at the word after the option.
+func (p *Parser) parseIdentitySignedInteger() error {
+	if p.cur.Type == '-' || p.cur.Type == '+' {
+		p.advance()
+	}
+	return p.parseCreateTableInteger()
 }
 
 // parseColumnConstraint parses a named column constraint: CONSTRAINT name
@@ -1399,8 +1442,8 @@ func (p *Parser) parseColumnConstraintInline() (*nodes.ColumnConstraint, error) 
 	switch p.cur.Type {
 	case kwPRIMARY:
 		p.advance() // consume PRIMARY
-		if p.cur.Type == kwKEY {
-			p.advance() // consume KEY
+		if err := p.expectCreateTableToken(kwKEY); err != nil {
+			return nil, err
 		}
 		cc.Type = nodes.CONSTRAINT_PRIMARY
 
@@ -1441,8 +1484,11 @@ func (p *Parser) parseColumnConstraintInline() (*nodes.ColumnConstraint, error) 
 			if parseErr527 != nil {
 				return nil, parseErr527
 			}
-			if p.cur.Type == ')' {
-				p.advance() // consume ')'
+			if cc.RefColumns.Len() == 0 || p.prev.Type == ',' {
+				return nil, p.syntaxErrorAtCur()
+			}
+			if err := p.expectCreateTableToken(')'); err != nil {
+				return nil, err
 			}
 		}
 		// ON DELETE
@@ -1748,25 +1794,12 @@ func (p *Parser) parseDeleteAction() (string, error) {
 		return "CASCADE", nil
 	case kwSET:
 		p.advance() // consume SET
-		if p.cur.Type == kwNULL {
-			p.advance() // consume NULL
-			return "SET NULL", nil
+		if err := p.expectCreateTableToken(kwNULL); err != nil {
+			return "", err
 		}
-		return "SET", nil
-	default:
-		if p.isIdentLikeStr("RESTRICT") || p.cur.Type == kwRESTRICT {
-			p.advance()
-			return "RESTRICT", nil
-		}
-		if p.isIdentLikeStr("NO") {
-			p.advance()
-			if p.isIdentLikeStr("ACTION") {
-				p.advance()
-				return "NO ACTION", nil
-			}
-		}
-		return "", nil
+		return "SET NULL", nil
 	}
+	return "", p.syntaxErrorAtCur()
 }
 
 // parseTableOptions parses table-level options after the column definitions.
@@ -1780,7 +1813,8 @@ func (p *Parser) parseDeleteAction() (string, error) {
 //	    table_partitioning_clauses | CACHE/NOCACHE | RESULT_CACHE |
 //	    parallel_clause | ROWDEPENDENCIES | enable_disable_clause |
 //	    row_movement_clause | flashback_archive_clause | AS subquery
-func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt) error {
+func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt, hasColumns bool) error {
+	inmemoryTable := false
 	for {
 		switch p.cur.Type {
 		case kwTABLESPACE:
@@ -1798,6 +1832,11 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt) error {
 
 			next := p.peekNext()
 			if next.Type == kwCOMMIT {
+				// ON COMMIT is a temporary table's: Oracle 23ai refuses it
+				// on any other table (ORA-00922 at ON).
+				if !stmt.Global && !stmt.Private {
+					return p.syntaxErrorAtCur()
+				}
 				p.advance() // consume ON
 				p.advance()
 				var // consume COMMIT
@@ -1823,7 +1862,12 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt) error {
 			stmt.Parallel = "NOPARALLEL"
 
 		case kwCOMPRESS:
-			p.advance()
+			p.createTableIndexOrganized = stmt.Organization == "INDEX"
+			err := p.parseCreateTablePartitionCompression()
+			p.createTableIndexOrganized = false
+			if err != nil {
+				return err
+			}
 			stmt.Compress = "COMPRESS"
 
 		case kwNOCOMPRESS:
@@ -1832,7 +1876,7 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt) error {
 
 		case kwPARTITION:
 			var parseErr540 error
-			stmt.Partition, parseErr540 = p.parsePartitionClause()
+			stmt.Partition, parseErr540 = p.parsePartitionClause(stmt, hasColumns)
 			if parseErr540 != nil {
 				return parseErr540
 			}
@@ -1852,29 +1896,33 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt) error {
 		case kwRESULT_CACHE:
 			// RESULT_CACHE ( MODE { DEFAULT | FORCE } )
 			p.advance() // consume RESULT_CACHE
-			if p.cur.Type == '(' {
-				p.advance() // consume '('
-				if p.isIdentLikeStr("MODE") {
-					p.advance() // consume MODE
-				}
-				if p.cur.Type == kwDEFAULT {
-					stmt.ResultCache = "DEFAULT"
-					p.advance()
-				} else if p.isIdentLikeStr("FORCE") {
-					stmt.ResultCache = "FORCE"
-					p.advance()
-				}
-				if p.cur.Type == ')' {
-					p.advance() // consume ')'
-				}
+			if err := p.expectCreateTableToken('('); err != nil {
+				return err
+			}
+			if err := p.expectCreateTableWord("MODE"); err != nil {
+				return err
+			}
+			switch {
+			case p.cur.Type == kwDEFAULT:
+				stmt.ResultCache = "DEFAULT"
+			case p.isKeywordStr("FORCE"):
+				stmt.ResultCache = "FORCE"
+			default:
+				return p.syntaxErrorAtCur()
+			}
+			p.advance()
+			if err := p.expectCreateTableToken(')'); err != nil {
+				return err
 			}
 
 		case kwFLASHBACK:
 			// FLASHBACK ARCHIVE [ flashback_archive ]
 			p.advance() // consume FLASHBACK
-			if p.isIdentLikeStr("ARCHIVE") {
-				p.advance() // consume ARCHIVE
-				if p.isIdentLike() && !p.isStatementEnd() {
+			if err := p.expectCreateTableWord("ARCHIVE"); err != nil {
+				return err
+			}
+			{
+				if p.isIdentLike() && !p.isStatementEnd() && !p.isCreateTableOptionBoundary() {
 					var parseErr541 error
 					stmt.FlashbackArchive, parseErr541 = p.parseIdentifier()
 					if parseErr541 != nil {
@@ -1924,11 +1972,12 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt) error {
 			if next.Type == kwROW {
 				p.advance() // consume ENABLE
 				p.advance() // consume ROW
-				if p.isIdentLikeStr("MOVEMENT") {
-					p.advance() // consume MOVEMENT
+				if err := p.expectCreateTableWord("MOVEMENT"); err != nil {
+					return err
 				}
 				stmt.RowMovement = "ENABLE"
 			} else {
+				p.createTableEngineCheck = true
 				parseErr542 :=
 					// ENABLE [VALIDATE|NOVALIDATE] constraint_clause - skip it
 					p.parseEnableDisableClause()
@@ -1942,11 +1991,12 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt) error {
 			if next.Type == kwROW {
 				p.advance() // consume DISABLE
 				p.advance() // consume ROW
-				if p.isIdentLikeStr("MOVEMENT") {
-					p.advance() // consume MOVEMENT
+				if err := p.expectCreateTableWord("MOVEMENT"); err != nil {
+					return err
 				}
 				stmt.RowMovement = "DISABLE"
 			} else {
+				p.createTableEngineCheck = true
 				parseErr543 := p.parseEnableDisableClause()
 				if parseErr543 != nil {
 					return parseErr543
@@ -1964,6 +2014,9 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt) error {
 			if parseErr544 != nil {
 				return parseErr544
 			}
+			if !selectStmtHasTargets(stmt.AsQuery) {
+				return p.syntaxErrorAtCur()
+			}
 			return nil
 
 		default:
@@ -1977,16 +2030,18 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt) error {
 				case "SEGMENT":
 					// SEGMENT CREATION { IMMEDIATE | DEFERRED }
 					p.advance() // consume SEGMENT
-					if p.isIdentLikeStr("CREATION") {
-						p.advance() // consume CREATION
-						if p.cur.Type == kwIMMEDIATE {
-							stmt.SegmentCreation = "IMMEDIATE"
-							p.advance()
-						} else if p.cur.Type == kwDEFERRED {
-							stmt.SegmentCreation = "DEFERRED"
-							p.advance()
-						}
+					if err := p.expectCreateTableWord("CREATION"); err != nil {
+						return err
 					}
+					switch p.cur.Type {
+					case kwIMMEDIATE:
+						stmt.SegmentCreation = "IMMEDIATE"
+					case kwDEFERRED:
+						stmt.SegmentCreation = "DEFERRED"
+					default:
+						return p.syntaxErrorAtCur()
+					}
+					p.advance()
 				case "ORGANIZATION":
 					if stmt.Organization != "" {
 						return p.syntaxErrorAtCur()
@@ -2003,19 +2058,23 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt) error {
 						optStart := p.pos()
 						stmt.Organization = "EXTERNAL"
 						p.advance()
-						value := p.collectCreateTableOptionValue()
-						appendCreateTableOption(stmt, "ORGANIZATION EXTERNAL", value, nodes.Loc{Start: optStart, End: p.prev.End})
+						if err := p.parseCreateTableExternalData(); err != nil {
+							return err
+						}
+						appendCreateTableOption(stmt, "ORGANIZATION EXTERNAL", p.createTableOptionValue(optStart+len("EXTERNAL")), nodes.Loc{Start: optStart, End: p.prev.End})
 					}
 				case "INDEXING":
 					// INDEXING { ON | OFF }
 					p.advance() // consume INDEXING
-					if p.cur.Type == kwON {
+					switch {
+					case p.cur.Type == kwON:
 						stmt.Indexing = "ON"
-						p.advance()
-					} else if p.isIdentLikeStr("OFF") {
+					case p.isKeywordStr("OFF"):
 						stmt.Indexing = "OFF"
-						p.advance()
+					default:
+						return p.syntaxErrorAtCur()
 					}
+					p.advance()
 				case "ROWDEPENDENCIES":
 					p.advance()
 					stmt.RowDependencies = "ROWDEPENDENCIES"
@@ -2082,60 +2141,64 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt) error {
 						return nil
 					}
 				case "INMEMORY":
-					optStart := p.pos()
-					p.advance()
-					value := p.collectCreateTableOptionValue()
-					appendCreateTableOption(stmt, "INMEMORY", value, nodes.Loc{Start: optStart, End: p.prev.End})
+					if err := p.parseCreateTableInmemory(stmt, hasColumns, &inmemoryTable); err != nil {
+						return err
+					}
 				case "LOB":
 					optStart := p.pos()
-					p.advance() // consume LOB
-					if p.cur.Type != '(' {
-						return p.syntaxErrorAtCur()
+					if err := p.parseCreateTableLobStorageClause(); err != nil {
+						return err
 					}
-					value := p.collectCreateTableStorageOptionValue()
-					appendCreateTableOption(stmt, "LOB", value, nodes.Loc{Start: optStart, End: p.prev.End})
+					appendCreateTableOption(stmt, "LOB", p.createTableOptionValue(optStart+len("LOB")), nodes.Loc{Start: optStart, End: p.prev.End})
 				case "VARRAY":
 					optStart := p.pos()
-					p.advance()
-					value := p.collectCreateTableStorageOptionValue()
-					appendCreateTableOption(stmt, "VARRAY", value, nodes.Loc{Start: optStart, End: p.prev.End})
+					if err := p.parseCreateTableVarrayColProperties(hasColumns); err != nil {
+						return err
+					}
+					appendCreateTableOption(stmt, "VARRAY", p.createTableOptionValue(optStart+len("VARRAY")), nodes.Loc{Start: optStart, End: p.prev.End})
 				case "NESTED":
 					optStart := p.pos()
-					p.advance() // consume NESTED
-					value := p.collectCreateTableStorageOptionValue()
-					appendCreateTableOption(stmt, "NESTED", value, nodes.Loc{Start: optStart, End: p.prev.End})
+					if err := p.parseCreateTableNestedTableColProperties(hasColumns); err != nil {
+						return err
+					}
+					appendCreateTableOption(stmt, "NESTED", p.createTableOptionValue(optStart+len("NESTED")), nodes.Loc{Start: optStart, End: p.prev.End})
 				case "NO":
 					// NO FLASHBACK ARCHIVE / NO INMEMORY
 					next := p.peekNext()
 					if next.Type == kwFLASHBACK {
 						p.advance() // consume NO
 						p.advance() // consume FLASHBACK
-						if p.isIdentLikeStr("ARCHIVE") {
-							p.advance() // consume ARCHIVE
+						if err := p.expectCreateTableWord("ARCHIVE"); err != nil {
+							return err
 						}
 						stmt.FlashbackArchive = "NO FLASHBACK ARCHIVE"
-					} else if (next.Type == tokIDENT || next.Type >= 2000) && next.Str == "INMEMORY" {
-						p.advance() // consume NO
-						p.advance() // consume INMEMORY
+					} else if isCreateTableWordTok(next, "INMEMORY") {
+						if err := p.parseCreateTableInmemory(stmt, hasColumns, &inmemoryTable); err != nil {
+							return err
+						}
 					} else {
 						return nil
 					}
 				case "STORAGE":
 					optStart := p.pos()
-					p.advance()
-					value := p.collectCreateTableOptionValue()
-					appendCreateTableOption(stmt, "STORAGE", value, nodes.Loc{Start: optStart, End: p.prev.End})
-				case "FILESYSTEM_LIKE_LOGGING":
-					p.advance()
-					stmt.Logging = "FILESYSTEM_LIKE_LOGGING"
-				case "MAPPING":
-					// MAPPING TABLE
-					p.advance()
-					if p.cur.Type == kwTABLE {
-						p.advance()
+					if err := p.parseCreateTableStorageClause(); err != nil {
+						return err
 					}
-				case "NOMAPPING":
+					appendCreateTableOption(stmt, "STORAGE", p.createTableOptionValue(optStart+len("STORAGE")), nodes.Loc{Start: optStart, End: p.prev.End})
+				case "MAPPING", "NOMAPPING":
+					// { MAPPING TABLE | NOMAPPING } belongs to
+					// index_org_table_clause: on any other table Oracle
+					// 23ai answers ORA-00922 at the word after it.
+					mapping := p.cur.Str == "MAPPING"
 					p.advance()
+					if mapping {
+						if err := p.expectCreateTableToken(kwTABLE); err != nil {
+							return err
+						}
+					}
+					if stmt.Organization != "INDEX" {
+						return p.syntaxErrorAtCur()
+					}
 				case "INCLUDING":
 					// INCLUDING column_name OVERFLOW
 					p.advance()
@@ -2159,12 +2222,23 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt) error {
 					}
 				case "ILM":
 					optStart := p.pos()
-					p.advance()
-					value := p.collectCreateTableOptionValue()
-					appendCreateTableOption(stmt, "ILM", value, nodes.Loc{Start: optStart, End: p.prev.End})
+					if p.peekNext().Type != kwADD && p.peekNext().Type != kwDELETE &&
+						p.peekNext().Type != kwENABLE && p.peekNext().Type != kwDISABLE {
+						p.createTableEngineCheck = true
+					}
+					if err := p.parseCreateTableIlmClause(); err != nil {
+						return err
+					}
+					appendCreateTableOption(stmt, "ILM", p.createTableOptionValue(optStart+len("ILM")), nodes.Loc{Start: optStart, End: p.prev.End})
 				case "CLUSTERING":
 					optStart := p.pos()
 					p.advance()
+					// attribute_clustering_clause names a table, a JOIN or
+					// BY after CLUSTERING (ORA-00903 at the end of
+					// CREATE TABLE a CLUSTERING).
+					if p.isStatementEnd() {
+						return p.syntaxErrorAtCur()
+					}
 					value := p.collectCreateTableOptionValue()
 					appendCreateTableOption(stmt, "CLUSTERING", value, nodes.Loc{Start: optStart, End: p.prev.End})
 				case "SUPPLEMENTAL":
@@ -2199,18 +2273,6 @@ func appendCreateTableOption(stmt *nodes.CreateTableStmt, key, value string, loc
 func (p *Parser) collectCreateTableOptionValue() string {
 	tokens := p.collectDDLTokensUntil(p.isCreateTableOptionBoundary)
 	return strings.Join(tokens, " ")
-}
-
-func (p *Parser) collectCreateTableStorageOptionValue() string {
-	tokens := p.collectDDLTokensUntil(p.isCreateTableStorageOptionBoundary)
-	return strings.Join(tokens, " ")
-}
-
-func (p *Parser) isCreateTableStorageOptionBoundary() bool {
-	if p.cur.Type == kwAS {
-		return false
-	}
-	return p.isCreateTableOptionBoundary()
 }
 
 func (p *Parser) isCreateTableOptionBoundary() bool {
@@ -2268,102 +2330,119 @@ func (p *Parser) ddlOptionTokenText(tok Token) string {
 	return ""
 }
 
-// parseImmutableTableClauses parses immutable table clauses.
+// parseImmutableTableClauses parses the immutable_table_clauses of CREATE
+// IMMUTABLE TABLE.
 //
-// BNF (CREATE-TABLE.bnf lines 733-741):
+// BNF (CREATE-TABLE.bnf):
 //
+//	immutable_table_clauses:
+//	    [ immutable_table_no_drop_clause ] [ immutable_table_no_delete_clause ]
 //	immutable_table_no_drop_clause: NO DROP [ UNTIL integer DAYS IDLE ]
 //	immutable_table_no_delete_clause: NO DELETE [ LOCKED | UNTIL integer DAYS AFTER INSERT ]
 func (p *Parser) parseImmutableTableClauses(stmt *nodes.CreateTableStmt) error {
-	if !p.isIdentLikeStr("NO") {
+	if err := p.parseCreateTableNoDrop(stmt); err != nil {
+		return err
+	}
+	return p.parseCreateTableNoDelete(stmt, false)
+}
+
+// parseCreateTableNoDrop reads NO DROP [ UNTIL integer DAYS IDLE ] when it
+// is next.
+func (p *Parser) parseCreateTableNoDrop(stmt *nodes.CreateTableStmt) error {
+	if !p.isKeywordStr("NO") || p.peekNext().Type != kwDROP {
 		return nil
 	}
-	next := p.peekNext()
-	// NO DROP
-	if next.Type == kwDROP {
-		p.advance() // consume NO
-		p.advance() // consume DROP
-		noDrop := "NO DROP"
-		if p.isIdentLikeStr("UNTIL") {
-			p.advance() // consume UNTIL
-			days := ""
-			if p.cur.Type == tokICONST {
-				days = p.cur.Str
-				p.advance()
-			}
-			if p.isIdentLikeStr("DAYS") {
-				p.advance() // consume DAYS
-			}
-			if p.isIdentLikeStr("IDLE") {
-				p.advance() // consume IDLE
-			}
-			noDrop = "NO DROP UNTIL " + days + " DAYS IDLE"
+	p.advance() // consume NO
+	p.advance() // consume DROP
+	stmt.ImmutableNoDrop = "NO DROP"
+	if p.isKeywordStr("UNTIL") {
+		p.advance() // consume UNTIL
+		days := p.cur.Str
+		if err := p.parseCreateTableInteger(); err != nil {
+			return err
 		}
-		stmt.ImmutableNoDrop = noDrop
-	}
-
-	// NO DELETE
-	if p.isIdentLikeStr("NO") {
-		next2 := p.peekNext()
-		if next2.Type == kwDELETE {
-			p.advance() // consume NO
-			p.advance() // consume DELETE
-			noDel := "NO DELETE"
-			if p.isIdentLikeStr("LOCKED") {
-				p.advance()
-				noDel = "NO DELETE LOCKED"
-			} else if p.isIdentLikeStr("UNTIL") {
-				p.advance() // consume UNTIL
-				days := ""
-				if p.cur.Type == tokICONST {
-					days = p.cur.Str
-					p.advance()
-				}
-				if p.isIdentLikeStr("DAYS") {
-					p.advance() // consume DAYS
-				}
-				if p.cur.Type == kwAFTER {
-					p.advance() // consume AFTER
-				}
-				if p.cur.Type == kwINSERT {
-					p.advance() // consume INSERT
-				}
-				noDel = "NO DELETE UNTIL " + days + " DAYS AFTER INSERT"
-			}
-			stmt.ImmutableNoDel = noDel
+		if err := p.expectCreateTableWord("DAYS"); err != nil {
+			return err
 		}
+		if err := p.expectCreateTableWord("IDLE"); err != nil {
+			return err
+		}
+		stmt.ImmutableNoDrop = "NO DROP UNTIL " + days + " DAYS IDLE"
 	}
 	return nil
 }
 
-// parseBlockchainTableClauses parses blockchain table clauses.
+// parseCreateTableNoDelete reads NO DELETE [ LOCKED | UNTIL integer DAYS
+// AFTER INSERT ] when it is next. A blockchain table's
+// blockchain_row_retention_clause requires LOCKED or UNTIL.
+func (p *Parser) parseCreateTableNoDelete(stmt *nodes.CreateTableStmt, retention bool) error {
+	if !p.isKeywordStr("NO") || p.peekNext().Type != kwDELETE {
+		return nil
+	}
+	p.advance() // consume NO
+	p.advance() // consume DELETE
+	stmt.ImmutableNoDel = "NO DELETE"
+	switch {
+	case p.isKeywordStr("LOCKED"):
+		p.advance()
+		stmt.ImmutableNoDel = "NO DELETE LOCKED"
+	case p.isKeywordStr("UNTIL"):
+		p.advance() // consume UNTIL
+		days := p.cur.Str
+		if err := p.parseCreateTableInteger(); err != nil {
+			return err
+		}
+		if err := p.expectCreateTableWord("DAYS"); err != nil {
+			return err
+		}
+		if err := p.expectCreateTableToken(kwAFTER); err != nil {
+			return err
+		}
+		if err := p.expectCreateTableToken(kwINSERT); err != nil {
+			return err
+		}
+		stmt.ImmutableNoDel = "NO DELETE UNTIL " + days + " DAYS AFTER INSERT"
+	case retention:
+		return p.syntaxErrorAtCur()
+	}
+	return nil
+}
+
+// parseBlockchainTableClauses parses the blockchain_table_clauses of CREATE
+// BLOCKCHAIN TABLE.
 //
-// BNF (CREATE-TABLE.bnf lines 743-756):
+// BNF (CREATE-TABLE.bnf):
 //
+//	blockchain_table_clauses:
+//	    [ blockchain_drop_table_clause ]
+//	    [ blockchain_row_retention_clause ]
+//	    [ blockchain_hash_and_data_format_clause ]
 //	blockchain_drop_table_clause: NO DROP [ UNTIL integer DAYS IDLE ]
 //	blockchain_row_retention_clause: NO DELETE { LOCKED | UNTIL integer DAYS AFTER INSERT }
 //	blockchain_hash_and_data_format_clause: HASHING USING 'hash_algorithm' VERSION 'version_string'
 func (p *Parser) parseBlockchainTableClauses(stmt *nodes.CreateTableStmt) error {
-	// HASHING USING 'hash_algorithm'
-	if p.isIdentLikeStr("HASHING") {
-		p.advance() // consume HASHING
-		if p.cur.Type == kwUSING {
-			p.advance() // consume USING
-		}
-		if p.cur.Type == tokSCONST {
-			stmt.BlockchainHash = p.cur.Str
-			p.advance()
-		}
+	if err := p.parseCreateTableNoDrop(stmt); err != nil {
+		return err
 	}
-	// VERSION 'version_string'
-	if p.isIdentLikeStr("VERSION") {
-		p.advance() // consume VERSION
-		if p.cur.Type == tokSCONST {
-			stmt.BlockchainVer = p.cur.Str
-			p.advance()
-		}
+	if err := p.parseCreateTableNoDelete(stmt, true); err != nil {
+		return err
 	}
-	return nil
+	if !p.isKeywordStr("HASHING") {
+		return nil
+	}
+	p.advance() // consume HASHING
+	if err := p.expectCreateTableToken(kwUSING); err != nil {
+		return err
+	}
+	stmt.BlockchainHash = p.cur.Str
+	if err := p.expectCreateTableToken(tokSCONST); err != nil {
+		return err
+	}
+	if err := p.expectCreateTableWord("VERSION"); err != nil {
+		return err
+	}
+	stmt.BlockchainVer = p.cur.Str
+	return p.expectCreateTableToken(tokSCONST)
 }
 
 // parseEnableDisableClause parses ENABLE/DISABLE [VALIDATE|NOVALIDATE] constraint clause.
@@ -2385,26 +2464,21 @@ func (p *Parser) parseEnableDisableClause() error {
 	switch p.cur.Type {
 	case kwUNIQUE:
 		p.advance()
-		if p.cur.Type == '(' {
-			p.skipParenthesized()
+		if err := p.parseCreateTableColumnNames(); err != nil {
+			return err
 		}
 	case kwPRIMARY:
 		p.advance()
-		if p.cur.Type == kwKEY {
-			p.advance()
+		if err := p.expectCreateTableToken(kwKEY); err != nil {
+			return err
 		}
 	case kwCONSTRAINT:
 		p.advance()
-		parseDiscard554, parseErr553 := p.parseIdentifier()
-		_ = parseDiscard554
-		if parseErr553 !=
-
-			// [ USING INDEX ... ]
-			nil {
-			return parseErr553
+		if err := p.parseCreateTableName(); err != nil {
+			return err
 		}
 	default:
-		return nil
+		return p.syntaxErrorAtCur()
 	}
 
 	if p.cur.Type == kwUSING {
@@ -2459,257 +2533,22 @@ func (p *Parser) isStatementEnd() bool {
 	return p.cur.Type == ';' || p.cur.Type == tokEOF
 }
 
-// parsePartitionClause parses a PARTITION BY clause.
-//
-//	PARTITION BY { RANGE | LIST | HASH } (columns)
-//	    ( partition_def [,...] )
-func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
-	if err := p.enterNesting(); err != nil {
-		return nil, err
-	}
-	defer p.leaveNesting()
-	start := p.pos()
-	p.advance() // consume PARTITION
-
-	clause := &nodes.PartitionClause{
-		Columns:    &nodes.List{},
-		Partitions: &nodes.List{},
-		Loc:        nodes.Loc{Start: start},
-	}
-
-	// BY
-	if p.cur.Type == kwBY {
-		p.advance()
-	}
-
-	// RANGE / LIST / HASH
-	switch {
-	case p.isIdentLike() && p.cur.Str == "RANGE":
-		clause.Type = nodes.PARTITION_RANGE
-		p.advance()
-	case p.isIdentLike() && p.cur.Str == "LIST":
-		clause.Type = nodes.PARTITION_LIST
-		p.advance()
-	case p.isIdentLike() && p.cur.Str == "HASH":
-		clause.Type = nodes.PARTITION_HASH
-		p.advance()
-	}
-
-	// (columns)
-	if p.cur.Type == '(' {
-		p.advance()
-		for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
-			// An item that consumes nothing would come round again.
-			if p.pos() == progress {
-				return nil, p.syntaxErrorAtCur()
-			}
-			progress = p.pos()
-			col, parseErr559 := p.parseExpr()
-			if parseErr559 != nil {
-				return nil, parseErr559
-			}
-			if col != nil {
-				clause.Columns.Items = append(clause.Columns.Items, col)
-			}
-			if p.cur.Type != ',' {
-				break
-			}
-			p.advance()
-		}
-		if p.cur.Type == ')' {
-			p.advance()
-		}
-	}
-	if clause.Type == nodes.PARTITION_HASH && p.isIdentLikeStr("PARTITIONS") {
-		p.advance()
-		partitionCount, parseErr560 := p.parseExpr()
-		if parseErr560 != nil {
-			return nil, parseErr560
-		}
-		if partitionCount == nil {
-			return nil, p.syntaxErrorAtCur()
-		}
-	}
-
-	// Optional INTERVAL (expr) for range-interval partitioned tables.
-	if p.cur.Type == kwINTERVAL {
-		p.advance()
-		if p.cur.Type != '(' {
-			return nil, p.syntaxErrorAtCur()
-		}
-		p.advance()
-		interval, parseErr560 := p.parseExpr()
-		if parseErr560 != nil {
-			return nil, parseErr560
-		}
-		if interval == nil {
-			return nil, p.syntaxErrorAtCur()
-		}
-		if p.cur.Type != ')' {
-			return nil, p.syntaxErrorAtCur()
-		}
-		p.advance()
-		clause.Interval = interval
-	}
-
-	// Optional SUBPARTITION BY
-	if p.isIdentLike() && p.cur.Str == "SUBPARTITION" {
-		p.advance()
-		if p.cur.Type == kwBY {
-			p.advance()
-		}
-		var parseErr560 error
-		clause.Subpartition, parseErr560 = p.parsePartitionClause()
-		if parseErr560 !=
-
-			// Partition definitions: ( partition p1 ... [,...] )
-			nil {
-			return nil, parseErr560
-		}
-	}
-
-	if p.cur.Type == '(' {
-		p.advance()
-		for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
-			// An item that consumes nothing would come round again.
-			if p.pos() == progress {
-				return nil, p.syntaxErrorAtCur()
-			}
-			progress = p.pos()
-			pDef, parseErr561 := p.parsePartitionDef()
-			if parseErr561 != nil {
-				return nil, parseErr561
-			}
-			if pDef != nil {
-				if clause.Type != nodes.PARTITION_HASH && pDef.Values.Len() == 0 {
-					return nil, p.syntaxErrorAtCur()
-				}
-				clause.Partitions.Items = append(clause.Partitions.Items, pDef)
-			}
-			if p.cur.Type != ',' {
-				break
-			}
-			p.advance()
-		}
-		if p.cur.Type == ')' {
-			p.advance()
-		}
-	}
-
-	if clause.Interval != nil && (clause.Partitions == nil || clause.Partitions.Len() == 0) {
-		return nil, p.syntaxErrorAtCur()
-	}
-
-	clause.Loc.End = p.prev.End
-	return clause, nil
-}
-
-// parsePartitionDef parses a single partition definition.
-//
-//	PARTITION name VALUES LESS THAN (expr) [TABLESPACE ts]
-//	PARTITION name VALUES (expr [,...]) [TABLESPACE ts]
-func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
-	start := p.pos()
-
-	if p.cur.Type != kwPARTITION {
-		// Skip unknown tokens until , or )
-		for p.cur.Type != ',' && p.cur.Type != ')' && p.cur.Type != tokEOF {
-			p.advance()
-		}
-		return nil, nil
-	}
-	p.advance() // consume PARTITION
-
-	def := &nodes.PartitionDef{
-		Values: &nodes.List{},
-		Loc:    nodes.Loc{Start: start},
-	}
-
-	// Partition name
-	if p.isIdentLike() {
-		def.Name = p.cur.Str
-		p.advance()
-	}
-
-	// VALUES LESS THAN (expr) or VALUES (expr,...)
-	if p.isIdentLike() && p.cur.Str == "VALUES" {
-		p.advance()
-		if p.isIdentLike() && p.cur.Str == "LESS" {
-			p.advance()
-			if p.isIdentLike() && p.cur.Str == "THAN" {
-				p.advance()
-			}
-		}
-		// (expr [,...])
-		if p.cur.Type == '(' {
-			p.advance()
-			for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
-				// An item that consumes nothing would come round again.
-				if p.pos() == progress {
-					return nil, p.syntaxErrorAtCur()
-				}
-				progress = p.pos()
-				val, parseErr562 := p.parseExpr()
-				if parseErr562 != nil {
-					return nil, parseErr562
-				}
-				if val != nil {
-					def.Values.Items = append(def.Values.Items, val)
-				}
-				if p.cur.Type != ',' {
-					break
-				}
-				p.advance()
-			}
-			if p.cur.Type == ')' {
-				p.advance()
-			}
-		}
-	}
-
-	// TABLESPACE
-	if p.cur.Type == kwTABLESPACE {
-		p.advance()
-		var parseErr563 error
-		def.Tablespace, parseErr563 = p.parseIdentifier()
-		if parseErr563 !=
-
-			// Skip any remaining options (LOGGING, etc.) until , or )
-			nil {
-			return nil, parseErr563
-		}
-	}
-
-	for p.cur.Type != ',' && p.cur.Type != ')' && p.cur.Type != tokEOF {
-		if p.cur.Type == '(' {
-			p.skipParenthesized()
-			continue
-		}
-		p.advance()
-	}
-
-	def.Loc.End = p.prev.End
-	return def, nil
-}
-
 // parseOnCommitAction parses the action after ON COMMIT.
 //
 //	PRESERVE ROWS | DELETE ROWS
 func (p *Parser) parseOnCommitAction() (string, error) {
+	var action string
 	switch {
-	case p.isIdentLikeStr("PRESERVE"):
-		p.advance() // consume PRESERVE
-		if p.cur.Type == kwROWS {
-			p.advance() // consume ROWS
-		}
-		return "PRESERVE ROWS", nil
+	case p.isKeywordStr("PRESERVE"):
+		action = "PRESERVE ROWS"
 	case p.cur.Type == kwDELETE:
-		p.advance() // consume DELETE
-		if p.cur.Type == kwROWS {
-			p.advance() // consume ROWS
-		}
-		return "DELETE ROWS", nil
+		action = "DELETE ROWS"
 	default:
-		return "", nil
+		return "", p.syntaxErrorAtCur()
 	}
+	p.advance() // consume PRESERVE / DELETE
+	if err := p.expectCreateTableToken(kwROWS); err != nil {
+		return "", err
+	}
+	return action, nil
 }

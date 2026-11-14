@@ -219,23 +219,23 @@ func TestParseAlterTableMultipleActions(t *testing.T) {
 }
 
 func TestP2AlterTablePartitionOptionsAndActionBoundaries(t *testing.T) {
-	sql := "ALTER TABLE sales ADD PARTITION p1 VALUES LESS THAN (10) TABLESPACE ts1 MOVE PARTITION p2 TABLESPACE ts2 UPDATE INDEXES"
-	stmt := parseAlterTableForP2(t, sql)
-	if stmt.Actions.Len() != 2 {
-		t.Fatalf("expected 2 actions, got %d", stmt.Actions.Len())
-	}
+	// A partition operation stands alone in its statement: Oracle refuses
+	// ADD PARTITION ... MOVE PARTITION ... (ORA-14020 at MOVE).
+	ParseShouldFail(t, "ALTER TABLE sales ADD PARTITION p1 VALUES LESS THAN (10) TABLESPACE ts1 MOVE PARTITION p2 TABLESPACE ts2 UPDATE INDEXES")
 
+	stmt := parseAlterTableForP2(t, "ALTER TABLE sales ADD PARTITION p1 VALUES LESS THAN (10) TABLESPACE ts1")
+	if stmt.Actions.Len() != 1 {
+		t.Fatalf("expected 1 action, got %d", stmt.Actions.Len())
+	}
 	add := stmt.Actions.Items[0].(*ast.AlterTableCmd)
 	if add.Action != ast.AT_ADD_PARTITION || add.Subtype != "PARTITION" || add.ColumnName != "P1" {
 		t.Fatalf("unexpected ADD PARTITION command: action=%d subtype=%q name=%q", add.Action, add.Subtype, add.ColumnName)
 	}
 	assertAlterTableOption(t, add, "VALUES", "LESS THAN ( 10 )")
 	assertAlterTableOption(t, add, "TABLESPACE", "TS1")
-	if option := findAlterTableOption(add, "MOVE"); option != nil {
-		t.Fatalf("ADD PARTITION options swallowed next action: %#v", option)
-	}
 
-	move := stmt.Actions.Items[1].(*ast.AlterTableCmd)
+	stmt = parseAlterTableForP2(t, "ALTER TABLE sales MOVE PARTITION p2 TABLESPACE ts2 UPDATE INDEXES")
+	move := stmt.Actions.Items[0].(*ast.AlterTableCmd)
 	if move.Action != ast.AT_MOVE || move.Subtype != "PARTITION" || move.ColumnName != "P2" {
 		t.Fatalf("unexpected MOVE PARTITION command: action=%d subtype=%q name=%q", move.Action, move.Subtype, move.ColumnName)
 	}
@@ -438,5 +438,26 @@ func TestParseAlterTableAddConstraintExceptions(t *testing.T) {
 	cmd := stmt.Actions.Items[0].(*ast.AlterTableCmd)
 	if cmd.Action != ast.AT_ADD_CONSTRAINT || cmd.Constraint == nil {
 		t.Fatal("expected ADD_CONSTRAINT with constraint")
+	}
+}
+
+// TestParseAlterTableObjectAndCollectionStorage covers forms Oracle 23ai
+// parses: a LOB item naming an object attribute, read_only_clause and
+// indexing_clause on hash partitions, and the storage of an inner
+// collection level or the object_properties of a nested table's storage.
+func TestParseAlterTableObjectAndCollectionStorage(t *testing.T) {
+	for _, sql := range []string{
+		"ALTER TABLE t MODIFY LOB (obj.c) (CACHE)",
+		"ALTER TABLE t MOVE LOB (obj.c) STORE AS (TABLESPACE x)",
+		"ALTER TABLE t MODIFY PARTITION BY HASH (a) (PARTITION p1 READ ONLY)",
+		"ALTER TABLE t MODIFY PARTITION BY HASH (a) (PARTITION p1 INDEXING OFF TABLESPACE x)",
+		"ALTER TABLE t ADD (c outer_nt) NESTED TABLE c STORE AS c_store (NESTED TABLE COLUMN_VALUE STORE AS inner_store)",
+		"ALTER TABLE t ADD (c nt) NESTED TABLE c STORE AS s ((PRIMARY KEY (nested_table_id)) ORGANIZATION INDEX)",
+		"ALTER TABLE t ADD (c nt) NESTED TABLE c STORE AS s (TABLESPACE x)",
+		"ALTER TABLE t ADD (a CLOB, b CLOB) LOB (a) STORE AS SECUREFILE LOB (b) STORE AS SECUREFILE",
+		"ALTER TABLE t ADD PARTITION p VALUES LESS THAN (10) DEFAULT DIRECTORY d LOCATION (d:'data.csv')",
+		"ALTER TABLE t ADD PARTITION p VALUES LESS THAN (10) LOCATION ('x') (SUBPARTITION s VALUES (1) LOCATION ('y'))",
+	} {
+		ParseAndCheck(t, sql)
 	}
 }
