@@ -3354,6 +3354,11 @@ type CopyOption struct {
 	Lit   *Literal      // a string/number literal value (e.g. 'RETURN_ROWS', 32000000)
 	Group []*CopyOption // a nested ( k = v, ... ) group (e.g. FILE_FORMAT, CREDENTIALS, INCLUDE_METADATA)
 	List  []*Literal    // a ( 'a', 'b', ... ) literal list (e.g. FILES = ('f1', 'f2'))
+	Expr  Node          // an element written as an expression: IMPORTS = ( SYSTEM$DBT_GET_LAST_RUN_TARGET('p') )
+
+	// Alias is the AS '<alias>' an element of a list may carry (EXECUTE DBT
+	// PROJECT's IMPORTS = ( '<source>' AS '<alias>' )); nil when absent.
+	Alias *Literal
 
 	Loc Loc
 }
@@ -5800,6 +5805,7 @@ func (n *CallStmt) Tag() NodeTag { return T_CallStmt }
 //	EXECUTE IMMEDIATE $$<dollar_body>$$    -> ExecImmDollar
 //	EXECUTE IMMEDIATE <variable>           -> ExecImmVariable  (Snowflake Scripting local var, no $)
 //	EXECUTE IMMEDIATE $<session_variable>  -> ExecImmSessionVar ($-prefixed session variable)
+//	EXECUTE IMMEDIATE FROM <file>          -> ExecImmFrom      (a SQL file on a stage)
 type ExecImmSource int
 
 const (
@@ -5811,6 +5817,8 @@ const (
 	ExecImmVariable
 	// ExecImmSessionVar is a $-prefixed session variable.
 	ExecImmSessionVar
+	// ExecImmFrom runs a SQL file on a stage: EXECUTE IMMEDIATE FROM <file>.
+	ExecImmFrom
 )
 
 // String returns a human-readable name for the source kind.
@@ -5824,6 +5832,8 @@ func (k ExecImmSource) String() string {
 		return "VARIABLE"
 	case ExecImmSessionVar:
 		return "SESSION_VARIABLE"
+	case ExecImmFrom:
+		return "FROM"
 	default:
 		return "UNKNOWN"
 	}
@@ -5845,11 +5855,24 @@ func (k ExecImmSource) String() string {
 // (for $<session_variable>, Var.Name excludes the leading $). Using holds the
 // optional bind-variable list (bare identifiers per the legacy grammar and the
 // official corpus).
+//
+// The FROM form (https://docs.snowflake.com/en/sql-reference/sql/execute-immediate-from)
+// runs a SQL file on a stage:
+//
+//	EXECUTE IMMEDIATE FROM { @<stage>/<path>/<file> | '<relative_path>' }
+//	  [ USING ( <key> => <value> [ , ... ] ) ] [ DRY_RUN = { TRUE | FALSE } ]
+//
+// File holds the path verbatim, Vars the template variables and DryRun the
+// DRY_RUN value.
 type ExecuteImmediateStmt struct {
 	Source ExecImmSource
 	Body   string  // verbatim body for ExecImmString / ExecImmDollar (incl. delimiters); "" otherwise
 	Var    Ident   // variable name for ExecImmVariable / ExecImmSessionVar; zero Ident otherwise
 	Using  []Ident // optional USING ( <bind_variable> , ... ) list
+	// ExecImmFrom only:
+	File   string     // the file, verbatim: an @stage path or a quoted relative path
+	Vars   []*CallArg // USING ( <key> => <value> [ , ... ] ) template variables; nil if absent
+	DryRun string     // "TRUE" or "FALSE" when DRY_RUN = is written; "" otherwise
 	Loc    Loc
 }
 
@@ -6291,10 +6314,11 @@ var (
 //
 //	CREATE [ OR REPLACE | OR ALTER ] <kind> [ IF NOT EXISTS ] <name> <clause>...
 //	ALTER <kind> [ IF EXISTS ] <name> <clause>...
+//	EXECUTE <kind> [ IF EXISTS ] [ <name> ] <clause>...   (EXECUTE DBT PROJECT, DCM PROJECT, CODE BUNDLE)
 //
-// Loc spans the whole statement, from CREATE or ALTER.
+// Loc spans the whole statement, from CREATE, ALTER or EXECUTE.
 type ObjectStmt struct {
-	Verb        string          // "CREATE" or "ALTER"
+	Verb        string          // "CREATE", "ALTER" or "EXECUTE"
 	Kind        string          // the object's keywords, uppercased and space-joined: "COMPUTE POOL"
 	OrReplace   bool            // CREATE OR REPLACE
 	OrAlter     bool            // CREATE OR ALTER
@@ -6316,6 +6340,7 @@ type ObjectClause struct {
 	Keywords string           // the clause's keywords; "" for a CREATE's property run
 	Names    []*ObjectName    // the names the clause takes, in order
 	Options  []*CopyOption    // its `KEY = value` properties, in order
+	Args     []*CallArg       // a ( <name> => <value> [ , ... ] ) list after the names; nil if absent
 	Keys     []string         // the property names an UNSET clears, uppercased
 	Tags     []*TagAssignment // its tag assignments (SET TAG, [ WITH ] TAG ( ... ))
 	Query    Node             // the query an AS clause holds

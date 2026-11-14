@@ -1,6 +1,10 @@
 package parser
 
-import "github.com/bytebase/omni/snowflake/ast"
+import (
+	"strings"
+
+	"github.com/bytebase/omni/snowflake/ast"
+)
 
 // ---------------------------------------------------------------------------
 // CALL / EXECUTE IMMEDIATE / EXECUTE TASK / EXPLAIN (T5.4)
@@ -145,6 +149,9 @@ func (p *Parser) parseCallArgValue() (ast.Node, error) {
 // keyword) has NOT yet been consumed when this function is called.
 func (p *Parser) parseExecuteStmt() (ast.Node, error) {
 	execTok := p.advance() // consume EXECUTE
+	if p.startsExecuteProject() {
+		return p.parseExecuteProject(execTok.Loc) // project.go
+	}
 	switch p.cur.Type {
 	case kwIMMEDIATE:
 		return p.parseExecuteImmediateStmt(execTok.Loc)
@@ -174,6 +181,9 @@ func (p *Parser) parseExecuteImmediateStmt(start ast.Loc) (ast.Node, error) {
 	}
 
 	switch {
+	case p.cur.Type == kwFROM:
+		return p.parseExecuteImmediateFrom(stmt)
+
 	case p.cur.Type == tokVariable:
 		// $<session_variable>. The lexer strips the leading $; Str is the name.
 		varTok := p.advance()
@@ -220,6 +230,54 @@ func (p *Parser) parseExecuteImmediateStmt(start ast.Loc) (ast.Node, error) {
 		stmt.Loc.End = end
 	}
 
+	return stmt, nil
+}
+
+// parseExecuteImmediateFrom parses the rest of
+//
+//	EXECUTE IMMEDIATE FROM { @<stage>/<path>/<file> | '<relative_path>' }
+//	  [ USING ( <key> => <value> [ , ... ] ) ] [ DRY_RUN = { TRUE | FALSE } ]
+//
+// https://docs.snowflake.com/en/sql-reference/sql/execute-immediate-from
+//
+// On entry cur is FROM; stmt holds EXECUTE's start.
+func (p *Parser) parseExecuteImmediateFrom(stmt *ast.ExecuteImmediateStmt) (ast.Node, error) {
+	p.advance() // consume FROM
+	stmt.Source = ast.ExecImmFrom
+	switch p.cur.Type {
+	case '@':
+		// An absolute path: a file on a stage.
+		loc, err := p.parseStageRef()
+		if err != nil {
+			return nil, err
+		}
+		stmt.File = loc.Raw
+	case tokString:
+		// A path relative to the file that runs this statement.
+		tok := p.advance()
+		stmt.File = p.srcSlice(tok.Loc.Start, tok.Loc.End)
+	default:
+		return nil, p.syntaxErrorAtCur()
+	}
+	if p.cur.Type == kwUSING {
+		p.advance() // consume USING
+		vars, err := p.parseNamedArgList()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Vars = vars
+	}
+	if p.atWords("DRY_RUN") {
+		p.advance() // consume DRY_RUN
+		if _, err := p.expect('='); err != nil {
+			return nil, err
+		}
+		if !isWordToken(p.cur, "TRUE") && !isWordToken(p.cur, "FALSE") {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.DryRun = strings.ToUpper(p.advance().Str)
+	}
+	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
 }
 

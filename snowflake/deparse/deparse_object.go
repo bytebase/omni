@@ -50,6 +50,19 @@ func (w *writer) writeObjectClause(c *ast.ObjectClause) error {
 		}
 		w.writeObjectNameNoSpace(name)
 	}
+	if c.Args != nil {
+		// ( <name> => <value> [ , ... ] ): USING ( ... ) of EXECUTE DCM PROJECT.
+		w.buf.WriteString(" (")
+		for i, a := range c.Args {
+			if i > 0 {
+				w.buf.WriteString(", ")
+			}
+			if err := w.writeCallArg(a); err != nil {
+				return err
+			}
+		}
+		w.buf.WriteByte(')')
+	}
 	if len(c.Keys) > 0 {
 		w.buf.WriteByte(' ')
 		w.buf.WriteString(strings.Join(c.Keys, ", "))
@@ -82,8 +95,21 @@ func (w *writer) writeObjectClause(c *ast.ObjectClause) error {
 }
 
 // writeObjectOption writes a property as `NAME = value`, or its value alone
-// when it has no name (an element of a list of groups).
+// when it has no name (an element of a list of groups), then AS '<alias>'
+// when the element has one.
 func (w *writer) writeObjectOption(o *ast.CopyOption) error {
+	if err := w.writeObjectOptionValue(o); err != nil {
+		return err
+	}
+	if o.Alias != nil {
+		w.buf.WriteString(" AS ")
+		return w.writeCopyOptionLiteral(o.Alias)
+	}
+	return nil
+}
+
+// writeObjectOptionValue writes writeObjectOption's `NAME = value`.
+func (w *writer) writeObjectOptionValue(o *ast.CopyOption) error {
 	if o.Name != "" {
 		w.buf.WriteString(o.Name)
 		if o.Bare {
@@ -96,6 +122,8 @@ func (w *writer) writeObjectOption(o *ast.CopyOption) error {
 		return w.writeCopyOptionLiteral(o.Lit)
 	case o.Words != "":
 		w.buf.WriteString(o.Words)
+	case o.Expr != nil:
+		return w.writeExpr(o.Expr)
 	case o.List != nil:
 		w.buf.WriteByte('(')
 		for i, lit := range o.List {

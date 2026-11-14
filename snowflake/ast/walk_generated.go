@@ -628,6 +628,10 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+		Walk(v, n.Expr)
+		if n.Alias != nil {
+			Walk(v, n.Alias)
+		}
 	case *CreateAccountStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -1081,6 +1085,12 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+	case *ExecuteImmediateStmt:
+		for _, item := range n.Vars {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 	case *ExecuteTaskStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -1239,6 +1249,11 @@ func walkChildren(v Visitor, node Node) {
 			}
 		}
 		for _, item := range n.Options {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		for _, item := range n.Args {
 			if item != nil {
 				Walk(v, item)
 			}
