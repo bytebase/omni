@@ -14,7 +14,7 @@ func init() {
 	registerObject(&objectForm{
 		words:  []string{"APPLICATION", "PACKAGE"},
 		create: parseCreateApplicationPackage,
-		alter:  parseAlterApplicationPackage,
+		alter:  applicationTagless(applicationIfExistsOn(parseAlterApplicationPackage, "SET", "UNSET", "RENAME TO"), "SET"),
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-application-package
 		drop:      true,
 		nameParts: 1, // an account-level object

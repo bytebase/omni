@@ -9,8 +9,8 @@ import "github.com/bytebase/omni/snowflake/ast"
 func init() {
 	registerObject(&objectForm{
 		words:  []string{"APPLICATION", "SERVICE"},
-		create: parseCreateApplicationService,
-		alter:  parseAlterApplicationService,
+		create: applicationTagless(parseCreateApplicationService, ""),
+		alter:  applicationTagless(parseAlterApplicationService, "SET"),
 		// https://docs.snowflake.com/en/sql-reference/sql/create-application-service
 		orAlter: true,
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-application-service
@@ -64,6 +64,9 @@ var applicationServiceAlterProps = func() objectProps {
 //
 // https://docs.snowflake.com/en/sql-reference/sql/create-application-service
 func parseCreateApplicationService(p *Parser, s *ast.ObjectStmt) error {
+	if err := rejectApplicationOrAlterIfNotExists(s); err != nil {
+		return err
+	}
 	start := p.cur.Loc.Start
 	if err := p.expectWords("FROM", "ARTIFACT", "REPOSITORY"); err != nil {
 		return err
@@ -90,8 +93,17 @@ func parseCreateApplicationService(p *Parser, s *ast.ObjectStmt) error {
 	if err != nil {
 		return err
 	}
-	if s.OrAlter {
-		return p.requireObjectProperties(props, "SPECIFICATION")
+	if !s.OrAlter {
+		return nil
+	}
+	// CREATE OR ALTER takes COMMENT and the required SPECIFICATION alone.
+	if err := p.requireObjectProperties(props, "SPECIFICATION"); err != nil {
+		return err
+	}
+	for _, o := range props.Options {
+		if o.Name != "COMMENT" && o.Name != "SPECIFICATION" {
+			return applicationOptionError(o)
+		}
 	}
 	return nil
 }

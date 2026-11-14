@@ -19,7 +19,7 @@ func init() {
 	registerObject(&objectForm{
 		words:  []string{"APPLICATION"},
 		create: parseCreateApplication,
-		alter:  parseAlterApplication,
+		alter:  applicationTagless(applicationIfExistsOn(parseAlterApplication, "SET", "UNSET", "RENAME TO"), "SET"),
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-application
 		drop:          true,
 		dropCascade:   true,
@@ -32,8 +32,8 @@ func init() {
 	})
 	registerObject(&objectForm{
 		words:  []string{"APPLICATION", "ROLE"},
-		create: parseCreateApplicationRole,
-		alter:  parseAlterApplicationRole,
+		create: applicationTagless(parseCreateApplicationRole, ""),
+		alter:  applicationTagless(parseAlterApplicationRole, "SET"),
 		// https://docs.snowflake.com/en/sql-reference/sql/create-application-role
 		orReplace: true,
 		orAlter:   true,
@@ -48,7 +48,7 @@ func init() {
 	// specification's or the configuration's.
 	registerObject(&objectForm{
 		words:      []string{"APPLICATION", "SET", "SPECIFICATION"},
-		alter:      parseAlterApplicationSetAppSpec,
+		alter:      applicationTagless(parseAlterApplicationSetAppSpec, ""),
 		nameParts:  1,
 		noIfExists: true,
 		props:      applicationSpecProps,
@@ -62,7 +62,7 @@ func init() {
 	})
 	registerObject(&objectForm{
 		words:      []string{"APPLICATION", "SET", "CONFIGURATION", "DEFINITION"},
-		alter:      parseAlterApplicationSetConfigurationDefinition,
+		alter:      applicationTagless(parseAlterApplicationSetConfigurationDefinition, ""),
 		nameParts:  1,
 		noIfExists: true,
 		props:      applicationConfigurationProps,
@@ -74,6 +74,68 @@ func init() {
 		noIfExists: true,
 		props:      objectProps{},
 	})
+}
+
+// applicationTagless wraps a form's read so that it fails when a clause named
+// by one of keywords holds tags: parseObjectProperties takes [ WITH ] TAG
+// ( ... ) in a property run and TAG <tag> = '<value>' among SET's properties,
+// where these pages document neither (APPLICATION and APPLICATION PACKAGE set
+// tags by their own SET TAG and CREATE ... WITH TAG alone).
+func applicationTagless(read func(*Parser, *ast.ObjectStmt) error, keywords ...string) func(*Parser, *ast.ObjectStmt) error {
+	return func(p *Parser, s *ast.ObjectStmt) error {
+		if err := read(p, s); err != nil {
+			return err
+		}
+		for _, c := range s.Clauses {
+			if len(c.Tags) == 0 {
+				continue
+			}
+			for _, k := range keywords {
+				if c.Keywords == k {
+					return &ParseError{
+						Position: c.Loc.Start, End: c.Loc.End,
+						Message: "syntax error: " + s.Kind + " takes no tags here",
+					}
+				}
+			}
+		}
+		return nil
+	}
+}
+
+// applicationIfExistsOn wraps an ALTER's read so that ALTER ... IF EXISTS
+// fails unless its action is one of keywords, the actions whose forms the page
+// writes with IF EXISTS.
+func applicationIfExistsOn(read func(*Parser, *ast.ObjectStmt) error, keywords ...string) func(*Parser, *ast.ObjectStmt) error {
+	return func(p *Parser, s *ast.ObjectStmt) error {
+		if err := read(p, s); err != nil {
+			return err
+		}
+		if !s.IfExists {
+			return nil
+		}
+		for _, k := range keywords {
+			if s.Clauses[0].Keywords == k {
+				return nil
+			}
+		}
+		return &ParseError{
+			Position: s.Clauses[0].Loc.Start, End: s.Clauses[0].Loc.End,
+			Message: "syntax error: ALTER " + s.Kind + " IF EXISTS does not take " + s.Clauses[0].Keywords,
+		}
+	}
+}
+
+// rejectApplicationOrAlterIfNotExists fails CREATE OR ALTER ... IF NOT
+// EXISTS, which the pages write apart.
+func rejectApplicationOrAlterIfNotExists(s *ast.ObjectStmt) error {
+	if s.OrAlter && s.IfNotExists {
+		return &ParseError{
+			Position: s.Name.Loc.Start, End: s.Name.Loc.End,
+			Message: "syntax error: CREATE OR ALTER " + s.Kind + " takes no IF NOT EXISTS",
+		}
+	}
+	return nil
 }
 
 // applicationProps are the properties CREATE APPLICATION documents.
@@ -658,6 +720,9 @@ func parseAlterApplicationDropNamed(p *Parser, s *ast.ObjectStmt) error {
 //
 // https://docs.snowflake.com/en/sql-reference/sql/create-application-role
 func parseCreateApplicationRole(p *Parser, s *ast.ObjectStmt) error {
+	if err := rejectApplicationOrAlterIfNotExists(s); err != nil {
+		return err
+	}
 	_, err := p.parseObjectProperties(s, "", false)
 	return err
 }
