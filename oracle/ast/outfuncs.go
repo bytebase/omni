@@ -5894,6 +5894,9 @@ func writeCreateTablespaceSetStmt(sb *strings.Builder, n *CreateTablespaceSetStm
 		sb.WriteString(" :name ")
 		writeNode(sb, n.Name)
 	}
+	if n.IfNotExists {
+		sb.WriteString(" :if_not_exists true")
+	}
 	if n.Shardspace != "" {
 		sb.WriteString(fmt.Sprintf(" :shardspace %q", n.Shardspace))
 	}
