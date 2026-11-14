@@ -1432,20 +1432,24 @@ type CreateTableStmt struct {
 	Volatile    bool
 	Hybrid      bool // CREATE HYBRID TABLE (Unistore); mutually exclusive with the temp modifiers
 	Interactive bool // CREATE INTERACTIVE TABLE
-	ReadOnly    bool // TEMP[ORARY] READ ONLY, which the page gives only the CLONE form
-	IfNotExists bool
-	Name        *ObjectName
-	Columns     []*ColumnDef
-	Constraints []*TableConstraint
-	Indexes     []*TableIndex // inline INDEX name (cols) elements (HYBRID TABLE only); nil if absent
-	ClusterBy   []Node        // CLUSTER BY expressions; nil if absent
-	Linear      bool          // CLUSTER BY LINEAR modifier
-	Comment     *string       // COMMENT = 'text'; nil if absent
-	CopyGrants  bool
-	Tags        []*TagAssignment // WITH TAG (...); nil if absent
-	AsSelect    Node             // CREATE TABLE ... AS SELECT; nil if absent
-	Like        *ObjectName      // CREATE TABLE ... LIKE source; nil if absent
-	Clone       *CloneSource     // CREATE TABLE ... CLONE source; nil if absent
+	// ProcedureScoped is CREATE [ OR REPLACE ] PROCEDURE SCOPED
+	// { TEMP | TEMPORARY } TABLE, a Snowflake Scripting procedure's temporary
+	// table (Temporary is set too).
+	ProcedureScoped bool
+	ReadOnly        bool // TEMP[ORARY] READ ONLY, which the page gives only the CLONE form
+	IfNotExists     bool
+	Name            *ObjectName
+	Columns         []*ColumnDef
+	Constraints     []*TableConstraint
+	Indexes         []*TableIndex // inline INDEX name (cols) elements (HYBRID TABLE only); nil if absent
+	ClusterBy       []Node        // CLUSTER BY expressions; nil if absent
+	Linear          bool          // CLUSTER BY LINEAR modifier
+	Comment         *string       // COMMENT = 'text'; nil if absent
+	CopyGrants      bool
+	Tags            []*TagAssignment // WITH TAG (...); nil if absent
+	AsSelect        Node             // CREATE TABLE ... AS SELECT; nil if absent
+	Like            *ObjectName      // CREATE TABLE ... LIKE source; nil if absent
+	Clone           *CloneSource     // CREATE TABLE ... CLONE source; nil if absent
 	// UsingTemplate is CREATE TABLE ... USING TEMPLATE ( <query> ); nil if absent.
 	UsingTemplate Node
 	// FromArchive is CREATE TABLE ... FROM ARCHIVE OF <table> [ [ AS ] <alias> ]
@@ -5244,7 +5248,11 @@ var (
 // It is a helper struct (not a Node); the walker does not descend into it,
 // mirroring TagAssignment / CloneSource / ForeignKeyRef.
 type RoutineArg struct {
-	Name    Ident
+	Name Ident
+	// Mode is the argument's mode as written, uppercased: IN, INPUT, OUT or
+	// OUTPUT, which a Snowflake Scripting procedure's argument may give; ""
+	// when absent.
+	Mode    string
 	Type    *TypeName
 	Default Node // DEFAULT <expr>; nil if absent
 	// Table holds the columns of a data metric function's
@@ -5286,9 +5294,10 @@ const (
 type ExecuteAs int
 
 const (
-	ExecuteAsUnset  ExecuteAs = iota // no EXECUTE AS clause
-	ExecuteAsCaller                  // EXECUTE AS CALLER
-	ExecuteAsOwner                   // EXECUTE AS OWNER
+	ExecuteAsUnset            ExecuteAs = iota // no EXECUTE AS clause
+	ExecuteAsCaller                            // EXECUTE AS CALLER
+	ExecuteAsOwner                             // EXECUTE AS OWNER
+	ExecuteAsRestrictedCaller                  // EXECUTE AS RESTRICTED CALLER
 )
 
 // CreateRoutineStmt represents CREATE [OR REPLACE] [SECURE] [TEMP|TEMPORARY]
@@ -5327,6 +5336,7 @@ type CreateRoutineStmt struct {
 	IfNotExists   bool
 	Name          *ObjectName
 	Args          []*RoutineArg         // ( <arg> [, ...] ); nil for an empty arg list
+	CopyGrants    bool                  // COPY GRANTS between the arguments and RETURNS
 	ReturnType    *TypeName             // scalar RETURNS type; nil for the TABLE form
 	ReturnTable   []*RoutineTableColumn // RETURNS TABLE ( ... ) columns; non-nil for the TABLE form
 	ReturnNotNull bool                  // RETURNS ... NOT NULL

@@ -38,7 +38,7 @@ func (p *Parser) parseCreateAiFunctionStmt(start ast.Loc, orReplace bool) (ast.N
 		return nil, err
 	}
 	stmt.Name = name
-	args, err := p.parseRoutineArgList()
+	args, err := p.parseRoutineArgList(false)
 	if err != nil {
 		return nil, err
 	}

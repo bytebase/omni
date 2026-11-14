@@ -45,6 +45,26 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 
 	switch p.cur.Type {
 	case kwDATABASE:
+		// DROP DATABASE ROLE [ IF EXISTS ] <name>
+		// (https://docs.snowflake.com/en/sql-reference/sql/drop-database-role),
+		// whose name a database may qualify.
+		if p.startsDropDatabaseRole() {
+			p.advance() // consume DATABASE
+			p.advance() // consume ROLE
+			node, err := p.parseDropObject(ast.DropObject, start, true, false)
+			if err != nil {
+				return nil, err
+			}
+			ds := node.(*ast.DropStmt)
+			ds.Object = "DATABASE ROLE"
+			if !ds.Name.Database.IsEmpty() {
+				return nil, &ParseError{
+					Position: ds.Name.Loc.Start, End: ds.Name.Loc.End,
+					Message: "syntax error: a database role's name has at most 2 part(s)",
+				}
+			}
+			return ds, nil
+		}
 		// DATABASE handled by T2.1; parseDropDatabaseStmt consumes DATABASE.
 		return p.parseDropDatabaseStmt()
 
@@ -443,4 +463,23 @@ func (p *Parser) parseDropTableStmt(start ast.Loc, iceberg bool) (ast.Node, erro
 	}
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
+}
+
+// startsDropDatabaseRole reports whether cur, after DROP, begins DATABASE ROLE
+// <name>: DATABASE, then ROLE, then a token other than the end of the
+// statement, CASCADE or RESTRICT, which would make ROLE the name of the
+// database DROP DATABASE drops. It consumes nothing.
+func (p *Parser) startsDropDatabaseRole() bool {
+	if p.cur.Type != kwDATABASE || p.peekNext().Type != kwROLE {
+		return false
+	}
+	snap := p.snapshot()
+	defer p.restore(snap)
+	p.advance() // DATABASE
+	p.advance() // ROLE
+	switch p.cur.Type {
+	case tokEOF, ';', tokFlow, kwCASCADE, kwRESTRICT:
+		return false
+	}
+	return true
 }
