@@ -122,6 +122,11 @@ func TestParsePostgresInstanceRejects(t *testing.T) {
 		"ALTER POSTGRES INSTANCE a SET AUTHENTICATION_PROPERTIES = (a, b)",
 		"ALTER POSTGRES INSTANCE a SET \"COMMENT\" = 'c'",
 		"ALTER POSTGRES INSTANCE a UNSET POSTGRES_VERSION",
+		"ALTER POSTGRES INSTANCE a SET COMMENT = 'c' TAG t = 'v'", // SET lists no TAG
+		// A timestamp is a string; an offset is a negative number.
+		"CREATE POSTGRES INSTANCE a FORK b AT (TIMESTAMP => 1)",
+		"CREATE POSTGRES INSTANCE a FORK b AT (OFFSET => 60)",
+		"CREATE POSTGRES INSTANCE a FORK b AT (OFFSET => '-60')",
 	} {
 		mustRejectObject(t, in)
 	}

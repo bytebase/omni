@@ -95,6 +95,19 @@ func pgOpenflowOnlyProps(c *ast.ObjectClause, names ...string) error {
 	return nil
 }
 
+// pgOpenflowNoTags fails when clause c holds a tag: a SET or a CREATE whose
+// page lists no TAG among its properties.
+func pgOpenflowNoTags(c *ast.ObjectClause) error {
+	if c == nil || len(c.Tags) == 0 {
+		return nil
+	}
+	t := c.Tags[0]
+	return &ParseError{
+		Position: t.Name.Loc.Start, End: t.Name.Loc.End,
+		Message: "syntax error: TAG is not a property here",
+	}
+}
+
 // pgOpenflowAlterCommon reads one of the shared ALTER actions allow names, as
 // parseObjectAlterCommon does, and holds a SET's properties to setProps.
 func pgOpenflowAlterCommon(p *Parser, s *ast.ObjectStmt, allow objectActions, setProps []string) (bool, error) {
@@ -104,6 +117,9 @@ func pgOpenflowAlterCommon(p *Parser, s *ast.ObjectStmt, allow objectActions, se
 		return ok, err
 	}
 	if c := s.Clauses[n]; c.Keywords == "SET" {
+		if err := pgOpenflowNoTags(c); err != nil {
+			return true, err
+		}
 		return true, pgOpenflowOnlyProps(c, setProps...)
 	}
 	return true, nil
@@ -122,8 +138,11 @@ func pgOpenflowAlterCommon(p *Parser, s *ast.ObjectStmt, allow objectActions, se
 //
 // https://docs.snowflake.com/en/sql-reference/sql/create-openflow-deployment
 func parseCreateOpenflowDeployment(p *Parser, s *ast.ObjectStmt) error {
-	_, err := p.parseObjectProperties(s, "", false)
-	return err
+	props, err := p.parseObjectProperties(s, "", false)
+	if err != nil {
+		return err
+	}
+	return pgOpenflowNoTags(props)
 }
 
 // parseAlterOpenflowDeployment reads what follows the name of
@@ -184,6 +203,9 @@ func parseCreateOpenflowRuntime(p *Parser, s *ast.ObjectStmt) error {
 	p.addObjectKeywordsClause(s, "IN DEPLOYMENT", start).Names = []*ast.ObjectName{dep}
 	props, err := p.parseObjectProperties(s, "", true)
 	if err != nil {
+		return err
+	}
+	if err := pgOpenflowNoTags(props); err != nil {
 		return err
 	}
 	return p.requireObjectProperties(props, "NODE_TYPE", "MIN_NODES", "MAX_NODES", "EXECUTE_AS_ROLE")
@@ -260,7 +282,7 @@ func parseAlterOpenflowRuntime(p *Parser, s *ast.ObjectStmt) error {
 //
 // https://docs.snowflake.com/en/sql-reference/sql/alter-oflow-data-plane
 func parseAlterOpenflowDataPlaneIntegration(p *Parser, s *ast.ObjectStmt) error {
-	ok, err := p.parseObjectAlterCommon(s, actSet)
+	ok, err := pgOpenflowAlterCommon(p, s, actSet, []string{"EVENT_TABLE"})
 	if err != nil || ok {
 		return err
 	}

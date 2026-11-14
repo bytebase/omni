@@ -124,12 +124,13 @@ func parsePostgresInstanceForkPoint(p *Parser, s *ast.ObjectStmt) error {
 	if _, err := p.expect(tokAssoc); err != nil {
 		return err
 	}
+	// A timestamp is a '<string>'; an offset is - <seconds>, back from now.
+	if anchor.Type == kwTIMESTAMP && p.cur.Type != tokString ||
+		anchor.Type == kwOFFSET && (p.cur.Type != '-' || p.peekNext().Type != tokInt && p.peekNext().Type != tokFloat) {
+		return p.syntaxErrorAtCur()
+	}
 	if err := p.parseObjectValue(opt); err != nil {
 		return err
-	}
-	if opt.Lit == nil {
-		// A timestamp is a string and an offset a number of seconds.
-		return &ParseError{Position: opt.Loc.Start, End: p.prev.Loc.End, Message: "syntax error: expected a literal"}
 	}
 	opt.Loc.End = p.prev.Loc.End
 	if _, err := p.expect(')'); err != nil {
@@ -184,6 +185,9 @@ func parseAlterPostgresInstance(p *Parser, s *ast.ObjectStmt) error {
 		p.advance() // consume SET
 		c, err := p.parseObjectProperties(s, "SET", false)
 		if err != nil {
+			return err
+		}
+		if err := pgOpenflowNoTags(c); err != nil {
 			return err
 		}
 		if c != nil {
