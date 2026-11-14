@@ -6,34 +6,25 @@ import (
 	"github.com/bytebase/omni/starrocks/ast"
 )
 
-// parseCreateMTMV parses a CREATE MATERIALIZED VIEW statement.
+// parseCreateMTMV parses createMaterializedViewStatement (StarRocks.g4:646):
+//
+//	CREATE MATERIALIZED VIEW (IF NOT EXISTS)? qualifiedName
+//	    ('(' columnNameWithComment (',' columnNameWithComment)* (',' indexDesc)* ')')?
+//	    comment?
+//	    materializedViewDesc*
+//	    AS queryStatement
+//	materializedViewDesc : PARTITION BY mvPartitionExprs | distributionDesc
+//	    | orderByDesc | refreshSchemeDesc | properties
+//
 // On entry, CREATE has been consumed and cur is MATERIALIZED.
-//
-// Syntax:
-//
-//	CREATE MATERIALIZED VIEW [IF NOT EXISTS] mv_name
-//	    [BUILD IMMEDIATE | DEFERRED]
-//	    [REFRESH COMPLETE | AUTO | NEVER | INCREMENTAL]
-//	    [(col_name [COMMENT 'text'], ...)]
-//	    [COMMENT 'text']
-//	    [PARTITION BY ...]
-//	    [DISTRIBUTED BY ...]
-//	    [ON SCHEDULE EVERY interval [STARTS ts] | ON COMMIT | ON MANUAL]
-//	    [PROPERTIES (...)]
-//	    AS query
 func (p *Parser) parseCreateMTMV(startLoc ast.Loc) (ast.Node, error) {
-	// Consume MATERIALIZED
 	if _, err := p.expect(kwMATERIALIZED); err != nil {
 		return nil, err
 	}
-	// Consume VIEW
 	if _, err := p.expect(kwVIEW); err != nil {
 		return nil, err
 	}
-
 	stmt := &ast.CreateMTMVStmt{}
-
-	// Optional IF NOT EXISTS
 	if p.cur.Kind == kwIF {
 		p.advance() // consume IF
 		if _, err := p.expect(kwNOT); err != nil {
@@ -44,139 +35,70 @@ func (p *Parser) parseCreateMTMV(startLoc ast.Loc) (ast.Node, error) {
 		}
 		stmt.IfNotExists = true
 	}
-
-	// MV name
 	name, err := p.parseMultipartIdentifier()
 	if err != nil {
 		return nil, err
 	}
 	stmt.Name = name
 
-	// Parse optional clauses in a tolerant loop until we see AS or EOF.
-	// Clauses can appear in any order per Doris docs.
-	for p.cur.Kind != kwAS && p.cur.Kind != tokEOF {
-		switch p.cur.Kind {
-		case kwBUILD:
-			// BUILD IMMEDIATE | DEFERRED
-			p.advance() // consume BUILD
-			switch p.cur.Kind {
-			case kwIMMEDIATE:
-				stmt.BuildMode = "IMMEDIATE"
-				p.advance()
-			case kwDEFERRED:
-				stmt.BuildMode = "DEFERRED"
-				p.advance()
-			default:
-				// tolerate unknown token after BUILD
-				stmt.BuildMode = strings.ToUpper(p.cur.Str)
-				p.advance()
-			}
-
-		case kwREFRESH:
-			// doris: REFRESH COMPLETE | AUTO | NEVER | INCREMENTAL [ON ...]
-			// StarRocks: REFRESH [IMMEDIATE|DEFERRED] (ASYNC [START('ts')] EVERY
-			//            '(' INTERVAL n unit ')' | MANUAL | INCREMENTAL)
-			p.advance() // consume REFRESH
-			// Optional IMMEDIATE | DEFERRED moment (StarRocks); parse-only.
-			if p.cur.Kind == kwIMMEDIATE || p.cur.Kind == kwDEFERRED {
-				p.advance()
-			}
-			switch p.cur.Kind {
-			case kwCOMPLETE:
-				stmt.RefreshMethod = "COMPLETE"
-				p.advance()
-			case kwAUTO:
-				stmt.RefreshMethod = "AUTO"
-				p.advance()
-			case kwNEVER:
-				stmt.RefreshMethod = "NEVER"
-				p.advance()
-			case kwINCREMENTAL:
-				stmt.RefreshMethod = "INCREMENTAL"
-				p.advance()
-			default:
-				// ASYNC / MANUAL / unknown — captured as the method string.
-				stmt.RefreshMethod = strings.ToUpper(p.cur.Str)
-				p.advance()
-			}
-			// StarRocks async scheduling tail (attached directly to REFRESH, no
-			// ON SCHEDULE): [START '(' string ')'] EVERY '(' INTERVAL n unit ')'.
-			// Only the ASYNC method takes this tail — MANUAL/INCREMENTAL do not.
-			if stmt.RefreshMethod == "ASYNC" && (p.cur.Kind == kwSTART || p.cur.Kind == kwEVERY) {
-				trigger, err := p.parseRefreshAsyncSchedule()
-				if err != nil {
-					return nil, err
-				}
-				stmt.RefreshTrigger = trigger
-			}
-
-		case kwON:
-			// ON SCHEDULE EVERY interval [STARTS ts]
-			// ON COMMIT
-			// ON MANUAL
-			trigger, err := p.parseMTMVRefreshTrigger()
-			if err != nil {
-				return nil, err
-			}
-			stmt.RefreshTrigger = trigger
-
-		case int('('):
-			// Optional column list: (col_name [COMMENT 'text'], ...)
-			cols, err := p.parseViewColumns()
-			if err != nil {
-				return nil, err
-			}
-			stmt.Columns = cols
-
-		case kwCOMMENT:
-			p.advance() // consume COMMENT
-			if p.cur.Kind != tokString {
-				return nil, p.syntaxErrorAtCur()
-			}
-			stmt.Comment = p.cur.Str
-			p.advance()
-
-		case kwPARTITION:
-			partDesc, err := p.parsePartitionBy()
-			if err != nil {
-				return nil, err
-			}
-			stmt.PartitionBy = partDesc
-
-		case kwAUTO:
-			// AUTO PARTITION BY ...
-			partDesc, err := p.parsePartitionBy()
-			if err != nil {
-				return nil, err
-			}
-			stmt.PartitionBy = partDesc
-
-		case kwDISTRIBUTED:
-			distDesc, err := p.parseDistributedBy()
-			if err != nil {
-				return nil, err
-			}
-			stmt.DistributedBy = distDesc
-
-		case kwPROPERTIES:
-			props, err := p.parseProperties()
-			if err != nil {
-				return nil, err
-			}
-			stmt.Properties = props
-
-		default:
-			// Tolerate unknown tokens — advance to avoid infinite loop.
-			p.advance()
+	if p.cur.Kind == int('(') {
+		if err := p.parseMTMVColumns(stmt); err != nil {
+			return nil, err
 		}
 	}
+	if p.cur.Kind == kwCOMMENT {
+		p.advance() // consume COMMENT
+		if p.cur.Kind != tokString {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.Comment = p.advance().Str
+	}
 
-	// AS keyword is required
+	for {
+		switch p.cur.Kind {
+		case kwPARTITION:
+			if err := p.parseMVPartitionExprs(stmt); err != nil {
+				return nil, err
+			}
+			continue
+		case kwDISTRIBUTED:
+			if stmt.DistributedBy, err = p.parseDistributedBy(); err != nil {
+				return nil, err
+			}
+			continue
+		case kwORDER:
+			// orderByDesc (:436): ORDER BY identifierList
+			p.advance() // consume ORDER
+			if _, err := p.expect(kwBY); err != nil {
+				return nil, err
+			}
+			if _, err := p.expect(int('(')); err != nil {
+				return nil, err
+			}
+			if stmt.OrderBy, err = p.parseIdentifierList(); err != nil {
+				return nil, err
+			}
+			if _, err := p.expect(int(')')); err != nil {
+				return nil, err
+			}
+			continue
+		case kwREFRESH:
+			if err := p.parseMVRefreshScheme(stmt); err != nil {
+				return nil, err
+			}
+			continue
+		case kwPROPERTIES:
+			if stmt.Properties, err = p.parseProperties(); err != nil {
+				return nil, err
+			}
+			continue
+		}
+		break
+	}
+
 	if _, err := p.expect(kwAS); err != nil {
 		return nil, err
 	}
-
-	// Query — SELECT or WITH ... SELECT or set operation
 	var queryNode ast.Node
 	if p.cur.Kind == kwWITH {
 		wq, err := p.parseWithSelect()
@@ -198,6 +120,158 @@ func (p *Parser) parseCreateMTMV(startLoc ast.Loc) (ast.Node, error) {
 
 	stmt.Loc = startLoc.Merge(ast.NodeLoc(stmt.Query))
 	return stmt, nil
+}
+
+// parseMTMVColumns reads the column list after the view's name:
+//
+//	'(' columnNameWithComment (',' columnNameWithComment)* (',' indexDesc)* ')'
+//	columnNameWithComment : identifier comment?
+//	indexDesc : INDEX identifier identifierList (indexType propertyList?)? comment?
+//	indexType : USING (BITMAP | GIN | NGRAMBF | VECTOR)
+func (p *Parser) parseMTMVColumns(stmt *ast.CreateMTMVStmt) error {
+	p.advance() // consume '('
+	for {
+		start := p.cur.Loc
+		if p.cur.Kind == kwINDEX {
+			if len(stmt.Columns) == 0 {
+				return p.syntaxErrorAtCur()
+			}
+			p.advance() // consume INDEX
+			if _, _, err := p.parseIdentifier(); err != nil {
+				return err
+			}
+			if _, err := p.expect(int('(')); err != nil {
+				return err
+			}
+			if _, err := p.parseIdentifierList(); err != nil {
+				return err
+			}
+			if _, err := p.expect(int(')')); err != nil {
+				return err
+			}
+			if p.cur.Kind == kwUSING {
+				p.advance() // consume USING
+				word := strings.ToUpper(p.cur.Str)
+				if p.cur.Kind != kwBITMAP && (p.cur.Kind != tokIdent ||
+					(word != "GIN" && word != "NGRAMBF" && word != "VECTOR")) {
+					return p.syntaxErrorAtCur()
+				}
+				p.advance()
+				if p.cur.Kind == int('(') {
+					if _, err := p.parsePropertyList(); err != nil {
+						return err
+					}
+				}
+			}
+			if p.cur.Kind == kwCOMMENT {
+				p.advance() // consume COMMENT
+				if p.cur.Kind != tokString {
+					return p.syntaxErrorAtCur()
+				}
+				p.advance()
+			}
+			stmt.Indexes = append(stmt.Indexes, p.input[start.Start-p.baseOffset:p.prev.Loc.End-p.baseOffset])
+		} else {
+			if len(stmt.Indexes) > 0 {
+				return p.syntaxErrorAtCur()
+			}
+			name, _, err := p.parseIdentifier()
+			if err != nil {
+				return err
+			}
+			col := &ast.ViewColumn{Name: name, Loc: start}
+			if p.cur.Kind == kwCOMMENT {
+				p.advance() // consume COMMENT
+				if p.cur.Kind != tokString {
+					return p.syntaxErrorAtCur()
+				}
+				col.Comment = p.advance().Str
+			}
+			col.Loc.End = p.prev.Loc.End
+			stmt.Columns = append(stmt.Columns, col)
+		}
+		if p.cur.Kind != int(',') {
+			break
+		}
+		p.advance() // consume ','
+	}
+	_, err := p.expect(int(')'))
+	return err
+}
+
+// parseMVPartitionExprs reads PARTITION BY mvPartitionExprs (StarRocks.g4:654):
+//
+//	primaryExpression | '(' primaryExpression (',' primaryExpression)* ')'
+func (p *Parser) parseMVPartitionExprs(stmt *ast.CreateMTMVStmt) error {
+	start := p.advance().Loc // consume PARTITION
+	if _, err := p.expect(kwBY); err != nil {
+		return err
+	}
+	desc := &ast.PartitionDesc{}
+	// StarRocks refuses a partition expression that names no column of the
+	// query: testdata/compat.tsv refuses PARTITION BY CURRENT_USER and
+	// PARTITION BY (CURRENT_USER) beside AS SELECT CURRENT_USER. omni, which
+	// does not resolve the query's columns here, reads a primaryExpression
+	// that starts with a name: a column reference or a function call.
+	read := func() error {
+		exprStart := p.cur.Loc
+		if !isIdentifierToken(p.cur.Kind) {
+			return p.syntaxErrorAtCur()
+		}
+		if _, err := p.parsePrimaryExpr(); err != nil {
+			return err
+		}
+		desc.FuncExprs = append(desc.FuncExprs, p.input[exprStart.Start-p.baseOffset:p.prev.Loc.End-p.baseOffset])
+		return nil
+	}
+	if p.cur.Kind == int('(') {
+		p.advance() // consume '('
+		for {
+			if err := read(); err != nil {
+				return err
+			}
+			if p.cur.Kind != int(',') {
+				break
+			}
+			p.advance() // consume ','
+		}
+		if _, err := p.expect(int(')')); err != nil {
+			return err
+		}
+	} else if err := read(); err != nil {
+		return err
+	}
+	desc.Loc = ast.Loc{Start: start.Start, End: p.prev.Loc.End}
+	stmt.PartitionBy = desc
+	return nil
+}
+
+// parseMVRefreshScheme reads refreshSchemeDesc (StarRocks.g4:2687):
+//
+//	REFRESH (IMMEDIATE | DEFERRED)?
+//	    (ASYNC | ASYNC (START '(' string ')')? EVERY '(' interval ')' | INCREMENTAL | MANUAL)
+func (p *Parser) parseMVRefreshScheme(stmt *ast.CreateMTMVStmt) error {
+	p.advance() // consume REFRESH
+	if p.cur.Kind == kwIMMEDIATE || p.cur.Kind == kwDEFERRED {
+		stmt.BuildMode = strings.ToUpper(p.advance().Str)
+	}
+	switch {
+	case p.cur.Kind == kwINCREMENTAL, p.cur.Kind == kwMANUAL:
+		stmt.RefreshMethod = strings.ToUpper(p.advance().Str)
+	case p.cur.Kind == tokIdent && strings.EqualFold(p.cur.Str, "ASYNC"):
+		p.advance()
+		stmt.RefreshMethod = "ASYNC"
+		if p.cur.Kind == kwSTART || p.cur.Kind == kwEVERY {
+			trigger, err := p.parseRefreshAsyncSchedule()
+			if err != nil {
+				return err
+			}
+			stmt.RefreshTrigger = trigger
+		}
+	default:
+		return p.syntaxErrorAtCur()
+	}
+	return nil
 }
 
 // parseMTMVRefreshTrigger parses the ON clause of CREATE MATERIALIZED VIEW:
@@ -551,66 +625,109 @@ func (p *Parser) parseDropMTMV(startLoc ast.Loc) (ast.Node, error) {
 	return stmt, nil
 }
 
-// parseRefreshMTMV parses a REFRESH MATERIALIZED VIEW statement.
+// parseRefreshMTMV parses refreshMaterializedViewStatement (StarRocks.g4:684):
+//
+//	REFRESH MATERIALIZED VIEW qualifiedName
+//	    (PARTITION (partitionRangeDesc | listPartitionValues))? FORCE?
+//	    (WITH (SYNC | ASYNC) MODE)? (WITH PRIORITY INTEGER_VALUE)?
+//	partitionRangeDesc  : START '(' string ')' END '(' string ')'
+//	listPartitionValues : '(' (NULL | string) (',' (NULL | string))* ')'
+//	    | '(' ('(' (NULL | string) (',' ...)* ')') (',' ...)* ')'
+//
 // On entry, REFRESH has been consumed and cur is MATERIALIZED.
-//
-// Syntax:
-//
-//	REFRESH MATERIALIZED VIEW mv_name [COMPLETE | AUTO | PARTITIONS(p1, p2, ...)]
 func (p *Parser) parseRefreshMTMV(startLoc ast.Loc) (ast.Node, error) {
-	// Consume MATERIALIZED
 	if _, err := p.expect(kwMATERIALIZED); err != nil {
 		return nil, err
 	}
-	// Consume VIEW
 	if _, err := p.expect(kwVIEW); err != nil {
 		return nil, err
 	}
-
 	stmt := &ast.RefreshMTMVStmt{}
-
-	// MV name
 	name, err := p.parseMultipartIdentifier()
 	if err != nil {
 		return nil, err
 	}
 	stmt.Name = name
-	stmt.Loc = startLoc.Merge(ast.NodeLoc(name))
 
-	// Optional mode or PARTITIONS
-	switch p.cur.Kind {
-	case kwCOMPLETE:
-		stmt.Mode = "COMPLETE"
-		stmt.Loc.End = p.cur.Loc.End
-		p.advance()
-	case kwAUTO:
-		stmt.Mode = "AUTO"
-		stmt.Loc.End = p.cur.Loc.End
-		p.advance()
-	case kwPARTITIONS:
-		p.advance() // consume PARTITIONS
-		if _, err := p.expect(int('(')); err != nil {
-			return nil, err
-		}
-		// Parse comma-separated partition names
-		for p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
-			partName, _, err := p.parseIdentifier()
-			if err != nil {
-				return nil, err
-			}
-			stmt.Partitions = append(stmt.Partitions, partName)
-			if p.cur.Kind == int(',') {
+	if p.cur.Kind == kwPARTITION {
+		p.advance() // consume PARTITION
+		start := p.cur.Loc
+		if p.cur.Kind == kwSTART {
+			for _, kw := range []int{kwSTART, kwEND} {
+				if _, err := p.expect(kw); err != nil {
+					return nil, err
+				}
+				if _, err := p.expect(int('(')); err != nil {
+					return nil, err
+				}
+				if p.cur.Kind != tokString {
+					return nil, p.syntaxErrorAtCur()
+				}
 				p.advance()
+				if _, err := p.expect(int(')')); err != nil {
+					return nil, err
+				}
 			}
-		}
-		closeTok, err := p.expect(int(')'))
-		if err != nil {
+		} else if err := p.parseListPartitionValues(true); err != nil {
 			return nil, err
 		}
-		stmt.Loc.End = closeTok.Loc.End
+		stmt.Partitions = []string{p.input[start.Start-p.baseOffset : p.prev.Loc.End-p.baseOffset]}
 	}
-
+	if p.cur.Kind == kwFORCE {
+		p.advance()
+		stmt.Force = true
+	}
+	if p.cur.Kind == kwWITH && p.peekNext().Kind != tokEOF {
+		next := p.peekNext()
+		if next.Kind == kwSYNC || (next.Kind == tokIdent && strings.EqualFold(next.Str, "ASYNC")) {
+			p.advance() // consume WITH
+			stmt.Mode = strings.ToUpper(p.advance().Str)
+			if p.cur.Kind != tokIdent || !strings.EqualFold(p.cur.Str, "MODE") {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance()
+		}
+	}
+	if p.cur.Kind == kwWITH {
+		p.advance() // consume WITH
+		if p.cur.Kind != tokIdent || !strings.EqualFold(p.cur.Str, "PRIORITY") {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		if p.cur.Kind != tokInt {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.Priority = p.advance().Ival
+	}
+	stmt.Loc = ast.Loc{Start: startLoc.Start, End: p.prev.Loc.End}
 	return stmt, nil
+}
+
+// parseListPartitionValues reads listPartitionValues (StarRocks.g4:2624): a
+// parenthesized list of NULL or strings, or, when nested is set, a
+// parenthesized list of such lists.
+func (p *Parser) parseListPartitionValues(nested bool) error {
+	if _, err := p.expect(int('(')); err != nil {
+		return err
+	}
+	multi := nested && p.cur.Kind == int('(')
+	for {
+		if multi {
+			if err := p.parseListPartitionValues(false); err != nil {
+				return err
+			}
+		} else if p.cur.Kind == kwNULL || p.cur.Kind == tokString {
+			p.advance()
+		} else {
+			return p.syntaxErrorAtCur()
+		}
+		if p.cur.Kind != int(',') {
+			break
+		}
+		p.advance() // consume ','
+	}
+	_, err := p.expect(int(')'))
+	return err
 }
 
 // parseMTMVPropertyList parses a parenthesised key=value list:
