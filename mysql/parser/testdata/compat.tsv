@@ -8066,7 +8066,7 @@ reject	reject	engine	with_clause/WITH_RECURSIVE_SYM_with_list!drop-8	WITH RECURS
 reject	reject	engine	with_clause/WITH_RECURSIVE_SYM_with_list!truncate	WITH RECURSIVE utf8mb4 AS(SELECT utf8mb4
 reject	reject	engine	with_clause/WITH_RECURSIVE_SYM_with_list!insert	WITH RECURSIVE utf8mb4 AS(SELECT utf8mb4) zzz SELECT utf8mb4;
 reject	reject	engine	with_clause/WITH_RECURSIVE_SYM_with_list!swap	WITHOUT RECURSIVE utf8mb4 AS(SELECT utf8mb4) SELECT utf8mb4;
-accept	reject	engine	with_list/with_list_,_common_table_expr	WITH utf8mb4 AS(SELECT utf8mb4), utf8mb4 AS(SELECT utf8mb4) SELECT utf8mb4;
+reject	reject	engine	with_list/with_list_,_common_table_expr	WITH utf8mb4 AS(SELECT utf8mb4), utf8mb4 AS(SELECT utf8mb4) SELECT utf8mb4;
 reject	reject	engine	with_list/with_list_,_common_table_expr!drop-1	WITH AS(SELECT utf8mb4), utf8mb4 AS(SELECT utf8mb4) SELECT utf8mb4;
 reject	reject	engine	with_list/with_list_,_common_table_expr!drop-2	WITH utf8mb4(SELECT utf8mb4), utf8mb4 AS(SELECT utf8mb4) SELECT utf8mb4;
 reject	reject	engine	with_list/with_list_,_common_table_expr!drop-3	WITH utf8mb4 AS SELECT utf8mb4), utf8mb4 AS(SELECT utf8mb4) SELECT utf8mb4;

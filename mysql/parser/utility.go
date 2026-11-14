@@ -370,6 +370,9 @@ func (p *Parser) parseFlushStmt() (*nodes.FlushStmt, error) {
 					break
 				}
 			}
+			if err := refuseRepeatedTables(stmt.Tables); err != nil {
+				return nil, err
+			}
 		}
 		switch p.cur.Type {
 		case kwWITH:
@@ -828,6 +831,9 @@ func (p *Parser) parseChecksumTableStmt() (*nodes.ChecksumTableStmt, error) {
 			break
 		}
 		p.advance()
+	}
+	if err := refuseRepeatedTables(stmt.Tables); err != nil {
+		return nil, err
 	}
 
 	// Optional QUICK | EXTENDED
