@@ -35,6 +35,7 @@ func TestDorisVerdictReadsTheParsersExceptions(t *testing.T) {
 		{"extraneous input", "errCode = 2, detailMessage = \nextraneous input 'zzz' expecting {<EOF>, ';'}(line 1, pos 35)\n", Reject},
 		{"a missing token", "errCode = 2, detailMessage = \nmissing EQ at '\"v\"'(line 1, pos 92)\n", Reject},
 		{"the AST builder refuses", "errCode = 2, detailMessage = \nEvery derived table must have its own alias(line 1, pos 13)\n\n== SQL ==\nSELECT 1 FROM(SELECT 1)\n-------------^^^\n", Reject},
+		{"the AST builder refuses a statement that quotes the refusal", "errCode = 2, detailMessage = \nEvery derived table must have its own alias(line 1, pos 103)\n\n== SQL ==\nSELECT 'This is in a transaction, only insert, update, delete, commit, rollback is acceptable.' FROM(SELECT 1)\n-------^^^\n", Reject},
 		{"the CUP parser refuses", "errCode = 2, detailMessage = Syntax error in line 1:\nCREATE MATERIALIZED VIEW a SELECT CURRENT_DATE\n                           ^\nEncountered: SELECT\nExpected\n", Reject},
 		{"the CUP parser fails", "errCode = 2, detailMessage = sql parsing error, please check your sql", Reject},
 		{"a check of the AST builder", "errCode = 2, detailMessage = Unknown privilege type a", Accept},

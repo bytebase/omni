@@ -138,14 +138,23 @@ func TestANTLRLongGroupsAreCutAndHashed(t *testing.T) {
 
 func TestANTLRRefusesWhatHasNoShortestText(t *testing.T) {
 	for src, want := range map[string]string{
-		"grammar X; s : ~'A' ;":         "~ in a parser rule",
-		"grammar X; s : . ;":            ". in a parser rule",
-		"grammar X; import Y; s : 'A';": "import",
-		"grammar X; s : ID ;":           "ID",
+		"grammar X; s : ~'A' ;": "~ in a parser rule",
+		"grammar X; s : . ;":    ". in a parser rule",
+		"grammar X; s : ID ;":   "ID",
 	} {
 		if _, err := ReadANTLR(src, tokens(nil)); err == nil || !strings.Contains(err.Error(), want) {
 			t.Errorf("%s: got %v, want an error naming %q", src, err, want)
 		}
+	}
+}
+
+// TestANTLRSkipsAnImportGivenAfter: import Y; is read past, since the
+// caller gives Y's text after the grammar, as StarRocks.g4 imports
+// StarRocksLex.g4.
+func TestANTLRSkipsAnImportGivenAfter(t *testing.T) {
+	got, _ := antlrRows(t, "grammar X; import Y; s : A ;\nlexer grammar Y; A : 'A' ;", nil)
+	if !strings.Contains(render(got), "s/A\tA") {
+		t.Errorf("rows:\n%s", render(got))
 	}
 }
 

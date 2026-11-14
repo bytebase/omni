@@ -408,7 +408,11 @@ func (p *antlrParser) file() error {
 			}
 			p.i += 2
 		case t.kind == aIdent && t.text == "import":
-			return p.errorf("import is not supported: give the imported grammar's text along with this one")
+			// import X; as StarRocks.g4 imports its lexer: the caller gives
+			// the imported grammar's text after this one (compat.Suite.Lexer).
+			if err := p.skipTo(";"); err != nil {
+				return err
+			}
 		case t.kind == aPunct && t.text == "@":
 			// A named action: @header {...}, @parser::members {...}.
 			p.i++
