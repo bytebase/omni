@@ -264,6 +264,54 @@ var columnPartitionClauseCases = []struct {
 		tables: []string{"pt"},
 	},
 	{
+		name:    "CONVERT PARTITION of a subpartitioned table",
+		setup:   []string{"CREATE TABLE pt (a INT) PARTITION BY RANGE (a) SUBPARTITION BY HASH (a) SUBPARTITIONS 2 (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (20))"},
+		sql:     "ALTER TABLE pt CONVERT PARTITION p0 TO TABLE ct",
+		errCode: 4184,
+	},
+	{
+		name:    "CONVERT TABLE into a subpartitioned table",
+		setup:   []string{"CREATE TABLE pt (a INT) PARTITION BY RANGE (a) SUBPARTITION BY HASH (a) SUBPARTITIONS 2 (PARTITION p0 VALUES LESS THAN (10))", "CREATE TABLE ct (a INT)"},
+		sql:     "ALTER TABLE pt CONVERT TABLE ct TO PARTITION p1 VALUES LESS THAN (20)",
+		errCode: 1734,
+	},
+	{
+		name:    "CONVERT TABLE to a RANGE COLUMNS bound one column short",
+		setup:   []string{"CREATE TABLE pt (a INT, b INT) PARTITION BY RANGE COLUMNS (a, b) (PARTITION p0 VALUES LESS THAN (10, 10))", "CREATE TABLE ct (a INT, b INT)"},
+		sql:     "ALTER TABLE pt CONVERT TABLE ct TO PARTITION p1 VALUES LESS THAN (20)",
+		errCode: 1653,
+	},
+	{
+		name:    "ADD PARTITION of a RANGE COLUMNS bound one column long",
+		setup:   []string{"CREATE TABLE pt (a INT, b INT) PARTITION BY RANGE COLUMNS (a, b) (PARTITION p0 VALUES LESS THAN (10, 10))"},
+		sql:     "ALTER TABLE pt ADD PARTITION (p1 VALUES LESS THAN (20, 20, 20))",
+		errCode: 1653,
+	},
+	{
+		name:    "ADD PARTITION of two values to a RANGE table",
+		setup:   []string{"CREATE TABLE pt (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))"},
+		sql:     "ALTER TABLE pt ADD PARTITION (p1 VALUES LESS THAN (20, 30))",
+		errCode: 1653,
+	},
+	{
+		name:    "ADD PARTITION of a scalar to LIST COLUMNS of two",
+		setup:   []string{"CREATE TABLE pt (a INT, b INT) PARTITION BY LIST COLUMNS (a, b) (PARTITION p0 VALUES IN ((1, 2)))"},
+		sql:     "ALTER TABLE pt ADD PARTITION (p1 VALUES IN (3))",
+		errCode: 1653,
+	},
+	{
+		name:    "ADD PARTITION of a tuple to LIST",
+		setup:   []string{"CREATE TABLE pt (a INT) PARTITION BY LIST (a) (PARTITION p0 VALUES IN (1))"},
+		sql:     "ALTER TABLE pt ADD PARTITION (p1 VALUES IN ((3, 4)))",
+		errCode: 1653,
+	},
+	{
+		name:   "ADD PARTITION of LIST COLUMNS tuples",
+		setup:  []string{"CREATE TABLE pt (a INT, b INT) PARTITION BY LIST COLUMNS (a, b) (PARTITION p0 VALUES IN ((1, 2)))"},
+		sql:    "ALTER TABLE pt ADD PARTITION (p1 VALUES IN ((3, 4), (5, 6)))",
+		tables: []string{"pt"},
+	},
+	{
 		name:    "CONVERT TABLE of no table",
 		setup:   []string{"CREATE TABLE pt (a INT PRIMARY KEY) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))"},
 		sql:     "ALTER TABLE pt CONVERT TABLE ct TO PARTITION p1 VALUES LESS THAN (20)",
@@ -361,4 +409,18 @@ func showCreateOrNone(t *testing.T, conn *sql.DB, table string) string {
 		return ""
 	}
 	return ddl
+}
+
+// TestListValuesPastInt64NotCompared: the lexer clamps an integer past 2^63-1, so
+// two such LIST values written apart read alike, and the duplicate check must not
+// take them for one value. (MariaDB 11.8.8 answers 1654 for the second on a BIGINT
+// UNSIGNED column, which the catalog does not check.)
+func TestListValuesPastInt64NotCompared(t *testing.T) {
+	c := New()
+	execAlterClauses(t, c, "CREATE DATABASE d; USE d; CREATE TABLE pt (a BIGINT UNSIGNED) PARTITION BY LIST COLUMNS (a) (PARTITION p0 VALUES IN (9223372036854775808));")
+	err := execAlterClausesExpectError(t, c, "ALTER TABLE pt ADD PARTITION (PARTITION p1 VALUES IN (9223372036854775809));")
+	var cerr *Error
+	if errors.As(err, &cerr) && cerr.Code == 1495 {
+		t.Fatalf("two values past 2^63-1 were taken for one: %v", err)
+	}
 }

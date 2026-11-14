@@ -2275,7 +2275,8 @@ func (c *Catalog) alterExchangePartition(db *Database, tbl *Table, cmd *nodes.Al
 // alterConvertPartitionToTable runs CONVERT PARTITION p TO TABLE t: the partition
 // leaves the table and becomes t, a table of the same definition with no
 // partitioning. Measured on mariadb:11.8.8, which answers 1505 on a table with no
-// partitions, 1512 on one partitioned other than by RANGE or LIST, 1507 for a
+// partitions, 1512 on one partitioned other than by RANGE or LIST, 4184 on one
+// with subpartitions, 1507 for a
 // partition it does not have, 1508 for its last partition and 1050 for a table t
 // that exists.
 func (c *Catalog) alterConvertPartitionToTable(db *Database, tbl *Table, cmd *nodes.AlterTableCmd) error {
@@ -2284,6 +2285,9 @@ func (c *Catalog) alterConvertPartitionToTable(db *Database, tbl *Table, cmd *no
 	}
 	if !strings.HasPrefix(tbl.Partitioning.Type, "RANGE") && !strings.HasPrefix(tbl.Partitioning.Type, "LIST") {
 		return errOnlyOnRangeListPartitioning("CONVERT PARTITION")
+	}
+	if tbl.Partitioning.SubType != "" {
+		return &Error{Code: 4184, SQLState: "HY000", Message: "Convert partition is not supported for subpartitioned table."}
 	}
 	at := -1
 	for i, pd := range tbl.Partitioning.Partitions {
@@ -2323,12 +2327,16 @@ func (c *Catalog) alterConvertPartitionToTable(db *Database, tbl *Table, cmd *no
 
 // alterConvertTableToPartition runs CONVERT TABLE t TO PARTITION part_definition:
 // t becomes a new partition of the table and is gone. Measured on mariadb:11.8.8,
-// which answers 1505 on a table with no partitions, 1146 for a table t that does
+// which answers 1505 on a table with no partitions, 1734 on one with
+// subpartitions, 1146 for a table t that does
 // not exist, 1736 for one whose definition is not the table's or that has
 // partitions of its own, and 1517 for a partition name the table has.
 func (c *Catalog) alterConvertTableToPartition(db *Database, tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if tbl.Partitioning == nil {
 		return errPartitionMgmtOnNonpartitioned()
+	}
+	if tbl.Partitioning.SubType != "" {
+		return &Error{Code: 1734, SQLState: "HY000", Message: "Subpartitioned table, use subpartition instead of partition"}
 	}
 	source, err := c.resolveDatabase(cmd.ConvertTable.Schema)
 	if err != nil {
@@ -2405,8 +2413,32 @@ func checkAddedPartitionKinds(pi *PartitionInfo, defs []*nodes.PartitionDef) err
 		case isList:
 			return &Error{Code: 1479, SQLState: "HY000", Message: "Syntax error: LIST PARTITIONING requires definition of VALUES IN for each partition"}
 		}
+		if !isDefault && pd.Values != nil && !boundFitsColumns(pi, pd) {
+			return &Error{Code: 1653, SQLState: "HY000", Message: "Inconsistency in usage of column lists for partitioning"}
+		}
 	}
 	return nil
+}
+
+// boundFitsColumns reports whether a partition's bound has the width its table's
+// partitioning takes: one value per COLUMNS column, one value with no COLUMNS, and
+// for LIST each value of that width. MariaDB 11.8.8 answers 1653 for LESS THAN (20)
+// on RANGE COLUMNS (a, b), for LESS THAN (20, 30) on RANGE (a), for IN (3) on LIST
+// COLUMNS (a, b) and for IN ((3, 4)) on LIST (a).
+func boundFitsColumns(pi *PartitionInfo, pd *nodes.PartitionDef) bool {
+	width := len(pi.Columns)
+	if width == 0 {
+		width = 1
+	}
+	if !pd.ValuesIn {
+		return len(partitionBoundItems(pd.Values)) == width
+	}
+	for _, item := range partitionBoundItems(pd.Values) {
+		if len(partitionBoundItems(item)) != width {
+			return false
+		}
+	}
+	return true
 }
 
 // checkAddedRangeBounds holds the partitions ADD PARTITION and CONVERT TABLE add
@@ -2501,12 +2533,19 @@ func listValueKey(n nodes.Node) string {
 		}
 		keys := make([]string, len(l.Items))
 		for i, item := range l.Items {
-			keys[i] = listValueKey(item)
+			if keys[i] = listValueKey(item); keys[i] == "" {
+				return ""
+			}
 		}
 		return "(" + strings.Join(keys, ", ") + ")"
 	}
 	if v, ok := partitionBoundInt(n); ok {
 		return strconv.FormatInt(v, 10)
+	}
+	// An integer partitionBoundInt declines is one the lexer clamped, so two of
+	// them written apart can read alike: not comparable.
+	if _, ok := n.(*nodes.IntLit); ok {
+		return ""
 	}
 	switch v := n.(type) {
 	case nodes.ExprNode:

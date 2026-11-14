@@ -879,6 +879,131 @@
 | DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
 < ok 0 0
 > exec
+| CREATE TABLE pt (a INT) PARTITION BY RANGE (a) SUBPARTITION BY HASH (a) SUBPARTITIONS 2 (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (20))
+< ok 0 0
+> exec
+| ALTER TABLE pt CONVERT PARTITION p0 TO TABLE ct
+< error
+| 4184 HY000 Convert partition is not supported for subpartitioned table.
+> exec
+| SET sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
+< ok 0 0
+> exec
+| CREATE TABLE pt (a INT) PARTITION BY RANGE (a) SUBPARTITION BY HASH (a) SUBPARTITIONS 2 (PARTITION p0 VALUES LESS THAN (10))
+< ok 0 0
+> exec
+| CREATE TABLE ct (a INT)
+< ok 0 0
+> exec
+| ALTER TABLE pt CONVERT TABLE ct TO PARTITION p1 VALUES LESS THAN (20)
+< error
+| 1734 HY000 Subpartitioned table, use subpartition instead of partition
+> exec
+| SET sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
+< ok 0 0
+> exec
+| CREATE TABLE pt (a INT, b INT) PARTITION BY RANGE COLUMNS (a, b) (PARTITION p0 VALUES LESS THAN (10, 10))
+< ok 0 0
+> exec
+| CREATE TABLE ct (a INT, b INT)
+< ok 0 0
+> exec
+| ALTER TABLE pt CONVERT TABLE ct TO PARTITION p1 VALUES LESS THAN (20)
+< error
+| 1653 HY000 Inconsistency in usage of column lists for partitioning
+> exec
+| SET sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
+< ok 0 0
+> exec
+| CREATE TABLE pt (a INT, b INT) PARTITION BY RANGE COLUMNS (a, b) (PARTITION p0 VALUES LESS THAN (10, 10))
+< ok 0 0
+> exec
+| ALTER TABLE pt ADD PARTITION (p1 VALUES LESS THAN (20, 20, 20))
+< error
+| 1653 HY000 Inconsistency in usage of column lists for partitioning
+> exec
+| SET sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
+< ok 0 0
+> exec
+| CREATE TABLE pt (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))
+< ok 0 0
+> exec
+| ALTER TABLE pt ADD PARTITION (p1 VALUES LESS THAN (20, 30))
+< error
+| 1653 HY000 Inconsistency in usage of column lists for partitioning
+> exec
+| SET sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
+< ok 0 0
+> exec
+| CREATE TABLE pt (a INT, b INT) PARTITION BY LIST COLUMNS (a, b) (PARTITION p0 VALUES IN ((1, 2)))
+< ok 0 0
+> exec
+| ALTER TABLE pt ADD PARTITION (p1 VALUES IN (3))
+< error
+| 1653 HY000 Inconsistency in usage of column lists for partitioning
+> exec
+| SET sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
+< ok 0 0
+> exec
+| CREATE TABLE pt (a INT) PARTITION BY LIST (a) (PARTITION p0 VALUES IN (1))
+< ok 0 0
+> exec
+| ALTER TABLE pt ADD PARTITION (p1 VALUES IN ((3, 4)))
+< error
+| 1653 HY000 Inconsistency in usage of column lists for partitioning
+> exec
+| SET sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
+< ok 0 0
+> exec
+| CREATE TABLE pt (a INT, b INT) PARTITION BY LIST COLUMNS (a, b) (PARTITION p0 VALUES IN ((1, 2)))
+< ok 0 0
+> exec
+| ALTER TABLE pt ADD PARTITION (p1 VALUES IN ((3, 4), (5, 6)))
+< ok 0 0
+> query
+| SHOW CREATE TABLE pt
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| pt
+: bytes
+| CREATE TABLE `pt` (
+|   `a` int(11) DEFAULT NULL,
+|   `b` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY LIST  COLUMNS(`a`,`b`)
+| (PARTITION `p0` VALUES IN ((1,2)) ENGINE = InnoDB,
+|  PARTITION `p1` VALUES IN ((3,4),(5,6)) ENGINE = InnoDB)
+> exec
+| SET sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
+< ok 0 0
+> exec
 | CREATE TABLE pt (a INT PRIMARY KEY) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))
 < ok 0 0
 > exec
