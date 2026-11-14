@@ -172,9 +172,12 @@ func readOracle(err error) (oracleError, bool) {
 }
 
 // oracleFailure matches Oracle failing in its own code while it parses: an
-// internal error (ORA-00600), a process that died (ORA-07445), or the
-// session the server dropped with it (end-of-file on the connection).
-var oracleFailure = regexp.MustCompile(`ORA-00600|ORA-07445|ORA-03113|ORA-03114|^EOF$`)
+// internal error (ORA-00600), one that leaves the session failing the next
+// query it runs with ORA-00000, "normal, successful completion", as ALTER
+// MATERIALIZED VIEW LOG ON a SPLIT PARTITION a AT(1) INCLUDING ROWS WHERE
+// 1 = 1 does, a process that died (ORA-07445), or the session the server
+// dropped with it (end-of-file on the connection).
+var oracleFailure = regexp.MustCompile(`ORA-00600|ORA-00000|ORA-07445|ORA-03113|ORA-03114|^EOF$`)
 
 // OracleVerdict reads Oracle's answer to OracleParse of a statement:
 // whether Oracle takes its syntax. parse runs OracleParse on a text and

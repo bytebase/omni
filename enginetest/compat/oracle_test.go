@@ -126,6 +126,7 @@ func TestOracleVerdictRefusesWhatIsNoVerdict(t *testing.T) {
 // ALTER MATERIALIZED VIEW LOG ... SPLIT PARTITION raises ORA-00600.
 func TestOracleVerdictReadsOraclesOwnFailures(t *testing.T) {
 	eof := errors.New("EOF")
+	normal := errors.New("ORA-00000: normal, successful completion\nORA-06512: at line 33")
 	internal := errors.New("ORA-00600: internal error code, arguments: [12333], [PTI], [prspo_set_up]\nORA-06512: at \"SYS.DBMS_SQL\", line 1251")
 	for _, c := range []struct {
 		name    string
@@ -134,6 +135,7 @@ func TestOracleVerdictReadsOraclesOwnFailures(t *testing.T) {
 	}{
 		{"a dropped session, twice", []error{eof, eof}, Reject},
 		{"an internal error, twice", []error{internal, internal}, Reject},
+		{"a session failing the block's next query, twice", []error{normal, normal}, Reject},
 		{"a dropped session, then parsed", []error{eof, nil}, Accept},
 		{"a dropped session, then a syntax error", []error{eof, oracleRaised(936, 7, ""), oracleRaised(936, 7, "")}, "reject@7"},
 		{"a probe Oracle fails on, after a parser's error", []error{oracleRaised(936, 7, ""), internal}, "reject@7"},
