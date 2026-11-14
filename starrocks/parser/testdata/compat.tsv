@@ -9211,7 +9211,7 @@ reject	reject	engine	aggregationFunction(,_sortItem)*/,_sortItem_(,_sortItem)*!i
 accept	accept	engine	aggregationFunction(,_sortItem)*/,_sortItem_(,_sortItem)*!swap	SELECT ARRAY_AGG(CURRENT_USER ORDER BY CURRENT_USER, DATA);
 accept	accept	engine	aggregationFunction(SEPARATOR_expression)?/%empty	SELECT GROUP_CONCAT(CURRENT_USER);
 reject	reject	engine	aggregationFunction(SEPARATOR_expression)?/%empty!insert	SELECT GROUP_CONCAT(CURRENT_USER zzz);
-reject	accept	engine	aggregationFunction(SEPARATOR_expression)?/SEPARATOR_expression	SELECT GROUP_CONCAT(CURRENT_USER SEPARATOR CURRENT_USER);
+accept	accept	engine	aggregationFunction(SEPARATOR_expression)?/SEPARATOR_expression	SELECT GROUP_CONCAT(CURRENT_USER SEPARATOR CURRENT_USER);
 reject	reject	engine	aggregationFunction(SEPARATOR_expression)?/SEPARATOR_expression!drop-1	SELECT GROUP_CONCAT(CURRENT_USER CURRENT_USER);
 reject	reject	engine	aggregationFunction(SEPARATOR_expression)?/SEPARATOR_expression!drop-2	SELECT GROUP_CONCAT(CURRENT_USER SEPARATOR);
 reject	reject	engine	aggregationFunction(SEPARATOR_expression)?/SEPARATOR_expression!truncate	SELECT GROUP_CONCAT(CURRENT_USER SEPARATOR

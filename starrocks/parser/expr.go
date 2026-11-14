@@ -821,15 +821,18 @@ func (p *Parser) parseFuncCall(name *ast.ObjectName) (*ast.FuncCallExpr, error) 
 		}
 
 		// Optional SEPARATOR for GROUP_CONCAT
+		// (SEPARATOR expression)? (StarRocks.g4:2462).
 		if p.cur.Kind == kwSEPARATOR {
 			p.advance() // consume SEPARATOR
-			if p.cur.Kind != tokString {
-				return nil, &ParseError{
-					Position: p.cur.Loc.Start, End: p.cur.Loc.End,
-					Message: "expected string after SEPARATOR",
+			if p.cur.Kind == tokString && p.peekNext().Kind == int(')') {
+				fc.Separator = p.advance().Str
+			} else {
+				sep, err := p.parseExpr()
+				if err != nil {
+					return nil, err
 				}
+				fc.SeparatorExpr = sep
 			}
-			fc.Separator = p.advance().Str
 		}
 	}
 

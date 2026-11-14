@@ -267,15 +267,16 @@ var _ Node = (*RegexpExpr)(nil)
 
 // FuncCallExpr represents a function call: name(args...).
 type FuncCallExpr struct {
-	Name        *ObjectName
-	Args        []Node
-	Distinct    bool           // COUNT(DISTINCT x)
-	Star        bool           // COUNT(*)
-	OrderBy     []*OrderByItem // optional ORDER BY in aggregate (GROUP_CONCAT)
-	Separator   string         // optional SEPARATOR value for GROUP_CONCAT
-	IgnoreNulls bool           // IGNORE NULLS null-treatment (FIRST_VALUE/LAST_VALUE/LEAD/LAG)
-	Over        *WindowSpec    // optional OVER (...) window specification
-	Loc         Loc
+	Name          *ObjectName
+	Args          []Node
+	Distinct      bool           // COUNT(DISTINCT x)
+	Star          bool           // COUNT(*)
+	OrderBy       []*OrderByItem // optional ORDER BY in aggregate (GROUP_CONCAT)
+	Separator     string         // optional SEPARATOR value for GROUP_CONCAT, when a string
+	SeparatorExpr Node           // the SEPARATOR when it is another expression
+	IgnoreNulls   bool           // IGNORE NULLS null-treatment (FIRST_VALUE/LAST_VALUE/LEAD/LAG)
+	Over          *WindowSpec    // optional OVER (...) window specification
+	Loc           Loc
 }
 
 func (n *FuncCallExpr) Tag() NodeTag { return T_FuncCallExpr }

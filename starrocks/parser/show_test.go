@@ -469,6 +469,7 @@ func TestShowStrictRejects(t *testing.T) {
 	}
 	for _, sql := range []string{
 		"SHOW FULL TABLES FROM db LIKE 'a%'",
+		"SHOW LOAD WHERE GROUP_CONCAT(Label SEPARATOR Label) = 'a'",
 		"SHOW LOAD WHERE !(Label = 'job')",
 		"SHOW LOAD WHERE Label MATCH 'job' AND 5 MOD 2 = 1",
 		"SHOW LOAD WHERE Label COLLATE utf8_general_ci = 'job'",

@@ -88,6 +88,9 @@ func walkChildren(v Visitor, node Node) {
 	case *FuncCallExpr:
 		Walk(v, n.Name)
 		walkNodes(v, n.Args)
+		if n.SeparatorExpr != nil {
+			Walk(v, n.SeparatorExpr)
+		}
 		for _, item := range n.OrderBy {
 			Walk(v, item)
 		}
