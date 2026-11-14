@@ -459,8 +459,21 @@ func classify(kind string, err error) verdict {
 // statement's text: its own "Syntax error:", or the same error the emulator
 // wraps when it parses the SQL inside a definition the statement holds
 // ("Error analyzing the definition of function `f`: Syntax error: ...").
+//
+// GoogleSQL's grammar also refuses input in its actions with messages of its
+// own, as "ROLE is not a supported object type" or "QUALIFY is not supported"
+// where the emulator leaves the feature off: grammarRefusals, generated from
+// googlesql.tm.
 func isSyntaxError(msg string) bool {
-	return strings.HasPrefix(msg, "Syntax error:") || strings.Contains(msg, ": Syntax error:")
+	if strings.HasPrefix(msg, "Syntax error:") || strings.Contains(msg, ": Syntax error:") {
+		return true
+	}
+	for _, re := range grammarRefusals {
+		if re.MatchString(msg) {
+			return true
+		}
+	}
+	return false
 }
 
 // isResourceLevel reports whether a NotFound/AlreadyExists message is about the

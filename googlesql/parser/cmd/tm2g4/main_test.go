@@ -22,6 +22,40 @@ func TestGoogleSQLG4IsTheConversion(t *testing.T) {
 	if string(got) != want {
 		t.Errorf("googlesql/testdata/%s is not the conversion of %s. Rerun it:\n  go run ./googlesql/parser/cmd/tm2g4", output, tmFile)
 	}
+	wantRefusals, err := refusalsDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gotRefusals, err := os.ReadFile(filepath.Join("..", "..", "..", "..", refusalsOutput))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(gotRefusals) != wantRefusals {
+		t.Errorf("%s is not what %s's refusing actions write. Rerun it:\n  go run ./googlesql/parser/cmd/tm2g4", refusalsOutput, tmFile)
+	}
+}
+
+// TestMessagePattern pins how an action's call becomes a pattern.
+func TestMessagePattern(t *testing.T) {
+	cases := []struct{ args, want string }{
+		{`@1, "RUN statement is not supported."`, `^RUN statement is not supported\.(?:$|\s+\[at |\s+at \[)`},
+		{`@1, absl::StrCat(entity_type, " is not a supported object type")`, `^.* is not a supported object type(?:$|\s+\[at |\s+at \[)`},
+		{`@1, absl::StrCat("ALTER ", kind, " is not supported")`, `^ALTER .* is not supported(?:$|\s+\[at |\s+at \[)`},
+		{`@1, "PRIMARY KEY must be defined in the "
+            "table element list."`, `^PRIMARY KEY must be defined in the table element list\.(?:$|\s+\[at |\s+at \[)`},
+		{`@1, absl::StrCat("Unclosed ", what)`, `^Unclosed .*`},
+	}
+	for _, c := range cases {
+		got, ok := messagePattern(c.args)
+		if !ok || got != c.want {
+			t.Errorf("messagePattern(%q) = %q, %v; want %q", c.args, got, ok, c.want)
+		}
+	}
+	for _, args := range []string{`@1, "Syntax error: Unexpected FROM"`, `@1, error_info.message`} {
+		if got, ok := messagePattern(args); ok {
+			t.Errorf("messagePattern(%q) = %q, want no pattern", args, got)
+		}
+	}
 }
 
 // TestConvert pins what the conversion keeps and drops.
