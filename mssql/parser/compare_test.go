@@ -5878,14 +5878,14 @@ func TestParseServerLevelObjects(t *testing.T) {
 				sql:        "ALTER SERVER CONFIGURATION SET MEMORY_OPTIMIZED HYBRID_BUFFER_POOL = OFF",
 				optionType: "MEMORY_OPTIMIZED",
 			},
-			// HARDWARE_OFFLOAD ON
+			// HARDWARE_OFFLOAD = ON (SQL Server refuses it without the accelerator)
 			{
-				sql:        "ALTER SERVER CONFIGURATION SET HARDWARE_OFFLOAD ON",
+				sql:        "ALTER SERVER CONFIGURATION SET HARDWARE_OFFLOAD = ON (ACCELERATOR = QAT)",
 				optionType: "HARDWARE_OFFLOAD",
 			},
-			// HARDWARE_OFFLOAD OFF
+			// HARDWARE_OFFLOAD = OFF
 			{
-				sql:        "ALTER SERVER CONFIGURATION SET HARDWARE_OFFLOAD OFF",
+				sql:        "ALTER SERVER CONFIGURATION SET HARDWARE_OFFLOAD = OFF (ACCELERATOR = QAT)",
 				optionType: "HARDWARE_OFFLOAD",
 			},
 		}
@@ -13501,11 +13501,12 @@ func TestParseServerConfigOptionsDepth(t *testing.T) {
 			optionType: "FAILOVER CLUSTER PROPERTY",
 			wantOpts:   []string{"FailureConditionLevel=DEFAULT"},
 		},
-		// FAILOVER CLUSTER PROPERTY ClusterConnectionOptions
+		// FAILOVER CLUSTER PROPERTY SqlDumperDumpTimeOut (SQL Server 2022
+		// refuses ClusterConnectionOptions)
 		{
-			sql:        `ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY ClusterConnectionOptions = 'Encrypt=Strict'`,
+			sql:        `ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY SqlDumperDumpTimeOut = 60`,
 			optionType: "FAILOVER CLUSTER PROPERTY",
-			wantOpts:   []string{`ClusterConnectionOptions='Encrypt=Strict'`},
+			wantOpts:   []string{`SqlDumperDumpTimeOut=60`},
 		},
 		// HADR CLUSTER CONTEXT string
 		{
@@ -13597,17 +13598,17 @@ func TestParseServerConfigOptionsDepth(t *testing.T) {
 			optionType: "MEMORY_OPTIMIZED",
 			wantOpts:   []string{"HYBRID_BUFFER_POOL=OFF"},
 		},
-		// HARDWARE_OFFLOAD ON
+		// HARDWARE_OFFLOAD = ON (SQL Server refuses it without the accelerator)
 		{
-			sql:        "ALTER SERVER CONFIGURATION SET HARDWARE_OFFLOAD ON",
+			sql:        "ALTER SERVER CONFIGURATION SET HARDWARE_OFFLOAD = ON (ACCELERATOR = QAT, MODE = SOFTWARE)",
 			optionType: "HARDWARE_OFFLOAD",
-			wantOpts:   []string{"ON"},
+			wantOpts:   []string{"ON", "ACCELERATOR=QAT", "MODE=SOFTWARE"},
 		},
-		// HARDWARE_OFFLOAD OFF
+		// HARDWARE_OFFLOAD = OFF
 		{
-			sql:        "ALTER SERVER CONFIGURATION SET HARDWARE_OFFLOAD OFF",
+			sql:        "ALTER SERVER CONFIGURATION SET HARDWARE_OFFLOAD = OFF (ACCELERATOR = QAT)",
 			optionType: "HARDWARE_OFFLOAD",
-			wantOpts:   []string{"OFF"},
+			wantOpts:   []string{"OFF", "ACCELERATOR=QAT"},
 		},
 		// SUSPEND_FOR_SNAPSHOT_BACKUP ON
 		{
@@ -15468,21 +15469,35 @@ func TestParseExternalNestedParensDepth(t *testing.T) {
 // server config remaining depth issues.
 func TestParseServerConfigRemainingDepth(t *testing.T) {
 	t.Run("server_config_remaining_structured", func(t *testing.T) {
-		// Unknown option type should still parse the statement with detected keyword
-		sql := "ALTER SERVER CONFIGURATION SET UNKNOWN_OPTION = 42"
-		result, _ := Parse(sql)
-		if result.Len() != 1 {
-			t.Fatalf("Parse(%q): got %d statements, want 1", sql, result.Len())
+		// SQL Server refuses an option it does not know, and these forms of
+		// ones it does.
+		for _, sql := range []string{
+			"ALTER SERVER CONFIGURATION SET UNKNOWN_OPTION = 42",
+			"ALTER SERVER CONFIGURATION PROCESS AFFINITY CPU = AUTO",
+			"ALTER SERVER CONFIGURATION SET PROCESS AFFINITY a = 1",
+			"ALTER SERVER CONFIGURATION SET PROCESS AFFINITY NUMANODE = AUTO",
+			"ALTER SERVER CONFIGURATION SET PROCESS AFFINITY CPU = 1 TO 2 TO 3",
+			"ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG MAX_SIZE = 10",
+			"ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG MAX_FILES = 0",
+			"ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY VerboseLogging = '7'",
+			"ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY VerboseLogging = 3",
+			"ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY HealthCheckTimeout = 14999",
+			"ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY ClusterConnectionOptions = 'Encrypt=Strict'",
+			"ALTER SERVER CONFIGURATION SET HADR CLUSTER CONTEXT = ''",
+			"ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON",
+			"ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON (FILENAME = 'cache.bpe', SIZE = 100)",
+			"ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON (FILENAME = 'cache.bpe', SIZE = 1 TB)",
+			"ALTER SERVER CONFIGURATION SET SOFTNUMA",
+			"ALTER SERVER CONFIGURATION SET HARDWARE_OFFLOAD ON",
+			"ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION ON",
+			"ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION OFF (USE_IDENTITY)",
+			"ALTER SERVER CONFIGURATION SET MEMORY_OPTIMIZED TEMPDB_METADATA = OFF (RESOURCE_POOL = 'p')",
+			"ALTER SERVER CONFIGURATION SET SUSPEND_FOR_SNAPSHOT_BACKUP = ON (GROUP = (a), GROUP = (b))",
+		} {
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q): want an error, SQL Server refuses it", sql)
+			}
 		}
-		stmt, ok := result.Items[0].(*ast.AlterServerConfigurationStmt)
-		if !ok {
-			t.Fatalf("Parse(%q): expected *AlterServerConfigurationStmt, got %T", sql, result.Items[0])
-		}
-		// Unknown option type should still be detected by the first keyword
-		if stmt.OptionType == "" {
-			t.Errorf("Parse(%q): expected non-empty optionType", sql)
-		}
-		checkLocation(t, sql, "AlterServerConfigurationStmt", stmt.Loc)
 	})
 
 	t.Run("buffer_pool_extension_structured", func(t *testing.T) {
@@ -15494,11 +15509,6 @@ func TestParseServerConfigRemainingDepth(t *testing.T) {
 			{
 				sql:      `ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON (FILENAME = 'D:\cache.bpe', SIZE = 20 GB)`,
 				wantOpts: []string{"ON", `FILENAME='D:\cache.bpe'`, "SIZE=20 GB"},
-			},
-			// SIZE without unit suffix
-			{
-				sql:      `ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON (FILENAME = 'cache.bpe', SIZE = 100)`,
-				wantOpts: []string{"ON", `FILENAME='cache.bpe'`, "SIZE=100"},
 			},
 			// OFF
 			{
@@ -17853,11 +17863,11 @@ func TestParseServerConfigStringsDepth(t *testing.T) {
 
 	// server_config_opts_final: FAILOVER CLUSTER PROPERTY key=string
 	t.Run("config_failover_cluster_string", func(t *testing.T) {
-		sql := "ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY VerboseLogging = '7'"
+		sql := "ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY SqlDumperDumpPath = 'dumps'"
 		result := ParseAndCheck(t, sql)
 		opt := getSrvOpt(t, result, 0)
-		if opt.Name != "VerboseLogging" || opt.Value != "'7'" {
-			t.Errorf("option[0] = %q/%q, want VerboseLogging/'7'", opt.Name, opt.Value)
+		if opt.Name != "SqlDumperDumpPath" || opt.Value != "'dumps'" {
+			t.Errorf("option[0] = %q/%q, want SqlDumperDumpPath/'dumps'", opt.Name, opt.Value)
 		}
 	})
 
@@ -22740,8 +22750,8 @@ func TestParseHAServerBNFReview(t *testing.T) {
 			"ALTER SERVER CONFIGURATION SET MEMORY_OPTIMIZED TEMPDB_METADATA = ON",
 			"ALTER SERVER CONFIGURATION SET MEMORY_OPTIMIZED TEMPDB_METADATA = ON (RESOURCE_POOL = 'mypool')",
 			"ALTER SERVER CONFIGURATION SET MEMORY_OPTIMIZED HYBRID_BUFFER_POOL = OFF",
-			"ALTER SERVER CONFIGURATION SET HARDWARE_OFFLOAD ON",
-			"ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION ON",
+			"ALTER SERVER CONFIGURATION SET HARDWARE_OFFLOAD = ON (ACCELERATOR = QAT)",
+			"ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION ON (USE_IDENTITY)",
 			"ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION OFF",
 			"ALTER SERVER CONFIGURATION SET EXTERNAL AUTHENTICATION ON (CREDENTIAL_NAME = 'mycred')",
 		}
