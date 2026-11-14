@@ -79,6 +79,8 @@ func TestParseListingRejects(t *testing.T) {
 		"ALTER LISTING l AS 'm' FOO = 1",
 		"ALTER LISTING IF EXISTS l ADD VERSION v FROM @st",
 		"ALTER LISTING l ADD VERSION v FROM st", // the page writes a stage location
+		"ALTER LISTING l ADD VERSION v GARBAGE @st",
+		"ALTER LISTING l ADD VERSION v FROM @",
 		"ALTER LISTING l ADD VERSION v FROM @st REVIEW = TRUE",
 		"ALTER LISTING l ADD VERSION IF NOT EXISTS FROM @st",
 		"ALTER LISTING l ADD TARGETS t", // the manifest is a string

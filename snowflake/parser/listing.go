@@ -128,10 +128,12 @@ func (p *Parser) parseCreateListing(s *ast.ObjectStmt, external bool) error {
 }
 
 // parseObjectKeywordString reads <keyword> '<string>' into a clause holding
-// the string as a nameless option. cur is the keyword.
+// the string as a nameless option.
 func (p *Parser) parseObjectKeywordString(s *ast.ObjectStmt, keyword string) error {
 	start := p.cur.Loc.Start
-	p.advance() // consume the keyword
+	if err := p.expectWords(keyword); err != nil {
+		return err
+	}
 	if p.cur.Type != tokString {
 		return p.syntaxErrorAtCur()
 	}

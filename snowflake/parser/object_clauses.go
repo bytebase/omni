@@ -45,10 +45,12 @@ func (p *Parser) parseObjectStringList() ([]*ast.CopyOption, error) {
 }
 
 // parseObjectAsString reads AS '<string>' into a clause holding the string as
-// a nameless option. cur is AS.
+// a nameless option.
 func (p *Parser) parseObjectAsString(s *ast.ObjectStmt) error {
 	start := p.cur.Loc.Start
-	p.advance() // consume AS
+	if _, err := p.expect(kwAS); err != nil {
+		return err
+	}
 	if p.cur.Type != tokString {
 		return p.syntaxErrorAtCur()
 	}
@@ -61,16 +63,22 @@ func (p *Parser) parseObjectAsString(s *ast.ObjectStmt) error {
 }
 
 // parseObjectFromStage reads FROM @<stage> into a clause holding the stage
-// location, verbatim, as a nameless option's Words. cur is FROM.
+// location, verbatim, as a nameless option's Words.
 func (p *Parser) parseObjectFromStage(s *ast.ObjectStmt) error {
 	start := p.cur.Loc.Start
-	p.advance() // consume FROM
+	if _, err := p.expect(kwFROM); err != nil {
+		return err
+	}
 	if p.cur.Type != '@' {
 		return p.syntaxErrorAtCur()
 	}
 	loc, err := p.parseStageRef()
 	if err != nil {
 		return err
+	}
+	if loc.Raw == "@" {
+		// A stage location names its stage.
+		return p.syntaxErrorAtCur()
 	}
 	p.addObjectKeywordsClause(s, "FROM", start).Options = []*ast.CopyOption{{Words: loc.Raw, Loc: loc.Loc}}
 	return nil
