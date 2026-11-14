@@ -1,6 +1,10 @@
 package parser
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/bytebase/omni/oracle/ast"
+)
 
 // TestMaterializedViewGrammar holds CREATE and ALTER MATERIALIZED VIEW to
 // the pinned Oracle's answers, probed on a server with a materialized view
@@ -63,5 +67,21 @@ func TestMaterializedViewGrammar(t *testing.T) {
 		t.Run(sql, func(t *testing.T) {
 			ParseShouldFail(t, sql)
 		})
+	}
+}
+
+// TestAlterMaterializedViewExtentFields holds the extent values ALTER
+// MATERIALIZED VIEW keeps on its AST.
+func TestAlterMaterializedViewExtentFields(t *testing.T) {
+	alter := func(sql string) *ast.AlterMaterializedViewStmt {
+		t.Helper()
+		return ParseAndCheck(t, sql).Items[0].(*ast.RawStmt).Stmt.(*ast.AlterMaterializedViewStmt)
+	}
+	if got := alter("ALTER MATERIALIZED VIEW mv DEALLOCATE UNUSED KEEP 100M").DeallocateKeep; got != "100M" {
+		t.Errorf("DeallocateKeep = %q, want 100M", got)
+	}
+	stmt := alter("ALTER MATERIALIZED VIEW mv ALLOCATE EXTENT (SIZE 10K DATAFILE 'disk.dbf' INSTANCE 2)")
+	if stmt.AllocateSize != "10K" || stmt.AllocateDatafile != "disk.dbf" || stmt.AllocateInstance != 2 {
+		t.Errorf("got size %q, datafile %q, instance %d", stmt.AllocateSize, stmt.AllocateDatafile, stmt.AllocateInstance)
 	}
 }

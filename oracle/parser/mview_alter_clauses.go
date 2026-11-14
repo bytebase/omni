@@ -340,10 +340,18 @@ func (p *Parser) parseAlterMviewProperty(stmt *nodes.AlterMaterializedViewStmt) 
 			}
 			return nil
 		}
-		return p.parseATAllocateExtent()
+		start := p.pos()
+		if err := p.parseATAllocateExtent(); err != nil {
+			return err
+		}
+		p.recordAlterMviewExtent(stmt, start)
 	case p.isATDeallocateStart():
 		setAlterMviewAction(stmt, "DEALLOCATE_UNUSED")
-		return p.parseATDeallocateUnused()
+		start := p.pos()
+		if err := p.parseATDeallocateUnused(); err != nil {
+			return err
+		}
+		p.recordAlterMviewExtent(stmt, start)
 	case p.isATShrinkStart():
 		// SHRINK SPACE [ COMPACT ] [ CASCADE ]
 		setAlterMviewAction(stmt, "SHRINK")
@@ -726,4 +734,42 @@ func (p *Parser) parseAlterMviewModifyColumns() error {
 		p.advance() // consume ','
 	}
 	return p.atExpect(')')
+}
+
+// recordAlterMviewExtent keeps on stmt the values of the allocate_extent_clause
+// or deallocate_unused_clause read from byte start: SIZE, DATAFILE,
+// INSTANCE and KEEP.
+func (p *Parser) recordAlterMviewExtent(stmt *nodes.AlterMaterializedViewStmt, start int) {
+	var toks []Token
+	lexer := NewLexerRange(p.source, start, p.prev.End)
+	for tok := lexer.NextToken(); tok.Type != tokEOF && tok.Loc < p.prev.End; tok = lexer.NextToken() {
+		toks = append(toks, tok)
+	}
+	size := func(i int) string {
+		if i >= len(toks) || toks[i].Type != tokICONST {
+			return ""
+		}
+		v := toks[i].Str
+		if i+1 < len(toks) && toks[i+1].Type != tokQIDENT {
+			switch toks[i+1].Str {
+			case "K", "M", "G", "T", "P", "E":
+				v += toks[i+1].Str
+			}
+		}
+		return v
+	}
+	for i, tok := range toks {
+		switch {
+		case tok.Type == kwSIZE:
+			stmt.AllocateSize = size(i + 1)
+		case tok.Type == kwKEEP:
+			stmt.DeallocateKeep = size(i + 1)
+		case isCreateTableWordTok(tok, "DATAFILE") && i+1 < len(toks) && toks[i+1].Type == tokSCONST:
+			stmt.AllocateDatafile = toks[i+1].Str
+		case isCreateTableWordTok(tok, "INSTANCE") && i+1 < len(toks) && toks[i+1].Type == tokICONST:
+			if n, err := strconv.Atoi(toks[i+1].Str); err == nil {
+				stmt.AllocateInstance = n
+			}
+		}
+	}
 }
