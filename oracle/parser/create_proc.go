@@ -977,7 +977,12 @@ func (p *Parser) parseParameterList() (*nodes.List, error) {
 	params := &nodes.List{}
 	p.advance() // consume '('
 
-	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+	for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+		// An item that consumes nothing would come round again.
+		if p.pos() == progress {
+			return nil, p.syntaxErrorAtCur()
+		}
+		progress = p.pos()
 		param, parseErr481 := p.parseParameter()
 		if parseErr481 != nil {
 			return nil, parseErr481
