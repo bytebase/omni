@@ -8,6 +8,7 @@ import (
 
 	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/mssql"
+	"github.com/bytebase/omni/mssql/ast"
 )
 
 type testDatabase struct {
@@ -86,6 +87,7 @@ func testCatalog() Catalog {
 					Views: []*metadata.ViewMetadata{
 						{Name: "v", Definition: "CREATE VIEW v (x, y) AS SELECT a, b + c FROM t"},
 						{Name: "v_cycle", Definition: "CREATE VIEW v_cycle AS SELECT a FROM v_cycle"},
+						{Name: "v_filtered", Definition: "CREATE VIEW v_filtered AS SELECT a FROM t WHERE b > 0"},
 					},
 				},
 			},
@@ -181,6 +183,28 @@ func TestResolveQuerySpanLineage(t *testing.T) {
 			},
 		},
 		{
+			// The recursive arm reads the CTE by its column list's names.
+			statement: "WITH r(n) AS (SELECT a FROM t UNION ALL SELECT n + 1 FROM r WHERE n < 10) SELECT n FROM r",
+			want: []QuerySpanResult{
+				{Name: "n", SourceColumns: set(column("t", "a")), IsPlainField: true},
+			},
+		},
+		{
+			statement: "SELECT PARSE(b AS int) AS p, TRY_PARSE(c AS int USING 'en-US') AS q, JSON_OBJECT('k': a) AS j FROM t",
+			want: []QuerySpanResult{
+				{Name: "p", SourceColumns: set(column("t", "b"))},
+				{Name: "q", SourceColumns: set(column("t", "c"))},
+				{Name: "j", SourceColumns: set(column("t", "a"))},
+			},
+		},
+		{
+			statement: "SELECT COALESCE((SELECT a FROM t1), 0) AS c, IIF(1 = 1, (SELECT b FROM t1), 0) AS i FROM t",
+			want: []QuerySpanResult{
+				{Name: "c", SourceColumns: set(column("t1", "a"))},
+				{Name: "i", SourceColumns: set(column("t1", "b"))},
+			},
+		},
+		{
 			statement: "SELECT $IDENTITY FROM ident_t",
 			want: []QuerySpanResult{
 				{Name: "id", SourceColumns: set(column("ident_t", "id")), IsPlainField: true},
@@ -215,6 +239,81 @@ func TestResolveQuerySpanPredicates(t *testing.T) {
 	}
 }
 
+func TestResolveQuerySpanPredicatesThroughExpressionsAndViews(t *testing.T) {
+	tests := []struct {
+		statement string
+		want      ColumnSet
+	}{
+		{"SELECT a FROM t WHERE PARSE(b AS int) > 0", set(column("t", "b"))},
+		{"SELECT a FROM t WHERE JSON_OBJECT('k': c) IS NOT NULL", set(column("t", "c"))},
+		{"SELECT a FROM v_filtered", set(column("t", "b"))},
+	}
+	for _, tc := range tests {
+		if got := resolve(t, tc.statement).PredicateColumns; !equalSet(got, tc.want) {
+			t.Errorf("%q: got %v, want %v", tc.statement, got, tc.want)
+		}
+	}
+}
+
+func TestResolveQuerySpanCaseSensitiveAliases(t *testing.T) {
+	for _, statement := range []string{
+		"SELECT D.X FROM (SELECT a AS X FROM t) AS D",
+		"WITH C(X) AS (SELECT a FROM t) SELECT C.X FROM C",
+	} {
+		span, err := ResolveQuerySpan(statement, ResolveOptions{DefaultDatabase: "db", Catalog: testCatalog()})
+		if err != nil {
+			t.Fatalf("%q: %v", statement, err)
+		}
+		if len(span.Results) != 1 || span.Results[0].Name != "X" || !equalSet(span.Results[0].SourceColumns, set(column("t", "a"))) {
+			t.Errorf("%q: got %+v", statement, span.Results)
+		}
+	}
+}
+
+func TestResolveQuerySpanAccessTables(t *testing.T) {
+	table := func(database, name string) ColumnResource {
+		return ColumnResource{Database: database, Schema: "dbo", Table: name}
+	}
+	tests := []struct {
+		statement string
+		want      ColumnSet
+	}{
+		{"SELECT COALESCE((SELECT a FROM t1), 0)", set(table("db", "t1"))},
+		{"SELECT NULLIF(a, (SELECT b FROM t1)) FROM t", set(table("db", "t"), table("db", "t1"))},
+		{"SELECT TOP ((SELECT COUNT(*) FROM t1)) a FROM t", set(table("db", "t"), table("db", "t1"))},
+		// A CTE reference names no physical table, in every arm of a set
+		// operation, while a schema-qualified name still does.
+		{"WITH x AS (SELECT a FROM t) SELECT a FROM x UNION SELECT a FROM x UNION SELECT a FROM x", set(table("db", "t"))},
+		{"WITH x AS (SELECT a FROM t) SELECT x.a FROM x JOIN dbo.x AS y ON x.a = y.a", set(table("db", "t"), table("db", "x"))},
+		{"WITH x AS (SELECT a FROM t1) DELETE FROM t WHERE a IN (SELECT a FROM x)", set(table("db", "t"), table("db", "t1"))},
+		{"UPDATE t SET a = (SELECT a FROM t1)", set(table("db", "t"), table("db", "t1"))},
+		{"INSERT INTO t (a) VALUES ((SELECT a FROM t1))", set(table("db", "t"), table("db", "t1"))},
+	}
+	for _, tc := range tests {
+		span, err := ResolveQuerySpan(tc.statement, ResolveOptions{DefaultDatabase: "db", IgnoreCaseSensitive: true, Catalog: testCatalog()})
+		if err != nil {
+			t.Fatalf("%q: %v", tc.statement, err)
+		}
+		if !equalSet(span.SourceColumns, tc.want) {
+			t.Errorf("%q: got %v, want %v", tc.statement, span.SourceColumns, tc.want)
+		}
+	}
+
+	span := resolve(t, "WITH x AS (SELECT name FROM master.dbo.spt_values) SELECT * FROM x")
+	if span.Type != SelectInfoSchema || !equalSet(span.SourceColumns, set(table("master", "spt_values"))) {
+		t.Errorf("system CTE: got %+v", span)
+	}
+	for _, statement := range []string{
+		"SELECT COALESCE((SELECT name FROM master.dbo.spt_values), a) FROM t",
+		"SELECT IIF(a > 0, (SELECT name FROM master.dbo.spt_values), '') FROM t",
+		"SELECT TOP ((SELECT COUNT(*) FROM master.dbo.spt_values)) a FROM t",
+	} {
+		if _, err := ResolveQuerySpan(statement, ResolveOptions{DefaultDatabase: "db", Catalog: testCatalog()}); err != ErrMixUserSystemTables {
+			t.Errorf("%q: got %v, want ErrMixUserSystemTables", statement, err)
+		}
+	}
+}
+
 func TestResolveQuerySpanNotFound(t *testing.T) {
 	span := resolve(t, "SELECT a FROM missing")
 	if span.NotFoundError == nil || *span.NotFoundError.Table != "missing" || len(span.Results) != 0 {
@@ -222,6 +321,17 @@ func TestResolveQuerySpanNotFound(t *testing.T) {
 	}
 	if got := span.NotFoundError.Error(); got != "resource not found: database: db, schema: dbo, table: missing" {
 		t.Errorf("got %q", got)
+	}
+	for _, statement := range []string{
+		"SELECT missing FROM t",
+		"SELECT a FROM t WHERE t.missing > 0",
+		"SELECT a FROM t WHERE b IN (SELECT x FROM t1)",
+	} {
+		_, err := ResolveQuerySpan(statement, ResolveOptions{DefaultDatabase: "db", Catalog: testCatalog()})
+		var notFound *NotFoundError
+		if err == nil || errors.As(err, &notFound) {
+			t.Errorf("%q: got %v, want a hard error", statement, err)
+		}
 	}
 }
 
@@ -238,6 +348,10 @@ func TestResolveQuerySpanErrors(t *testing.T) {
 	var typeNotSupported *TypeNotSupportedError
 	if !errors.As(err, &typeNotSupported) || typeNotSupported.Type != "*ast.PivotExpr" {
 		t.Errorf("pivot: got %v", err)
+	}
+	_, err = newQuerySpanExtractor("db", "", testCatalog(), nil, false).resolveExpressionNode(&ast.WindowDef{})
+	if !errors.As(err, &typeNotSupported) || typeNotSupported.Type != "*ast.WindowDef" {
+		t.Errorf("unmodeled expression: got %v", err)
 	}
 	_, err = ResolveQuerySpan("SELECT $edge_id FROM bare_edge", ResolveOptions{DefaultDatabase: "db", Catalog: testCatalog()})
 	if err == nil || !strings.Contains(err.Error(), "cannot derive lineage") {
