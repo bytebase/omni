@@ -795,7 +795,9 @@ func (p *Parser) parseAlterServiceMasterKeyStmt() (*nodes.SecurityKeyStmt, error
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	p.parseSecurityKeyOptions(stmt)
+	if err := p.keysServiceMasterKeyBody("ALTER", stmt); err != nil {
+		return nil, err
+	}
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
@@ -816,7 +818,9 @@ func (p *Parser) parseBackupServiceMasterKeyStmt() (*nodes.SecurityKeyStmt, erro
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	p.parseSecurityKeyOptions(stmt)
+	if err := p.keysServiceMasterKeyBody("BACKUP", stmt); err != nil {
+		return nil, err
+	}
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
@@ -837,7 +841,9 @@ func (p *Parser) parseRestoreServiceMasterKeyStmt() (*nodes.SecurityKeyStmt, err
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	p.parseSecurityKeyOptions(stmt)
+	if err := p.keysServiceMasterKeyBody("RESTORE", stmt); err != nil {
+		return nil, err
+	}
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
