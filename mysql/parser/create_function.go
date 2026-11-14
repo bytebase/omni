@@ -330,11 +330,16 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 				Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "SQL SECURITY", Value: name,
 			}, true, nil
 		}
-		return nil, false, nil
+		// SQL starts only SQL SECURITY here.
+		return nil, false, p.syntaxErrorAtCur()
 
+	// CONTAINS SQL, READS SQL DATA and MODIFIES SQL DATA are read whole.
+	// Ref: sp_chistic in sql/sql_yacc.yy.
 	case p.cur.Type == kwCONTAINS:
 		p.advance()
-		p.match(kwSQL)
+		if _, err := p.expect(kwSQL); err != nil {
+			return nil, false, err
+		}
 		return &nodes.RoutineCharacteristic{
 			Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "DATA ACCESS", Value: "CONTAINS SQL",
 		}, true, nil
@@ -351,9 +356,8 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 
 	case p.cur.Type == kwREADS:
 		p.advance()
-		p.match(kwSQL)
-		if p.cur.Type == kwDATA {
-			p.advance()
+		if err := p.expectSQLData(); err != nil {
+			return nil, false, err
 		}
 		return &nodes.RoutineCharacteristic{
 			Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "DATA ACCESS", Value: "READS SQL DATA",
@@ -361,9 +365,8 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 
 	case p.cur.Type == kwMODIFIES:
 		p.advance()
-		p.match(kwSQL)
-		if p.cur.Type == kwDATA {
-			p.advance()
+		if err := p.expectSQLData(); err != nil {
+			return nil, false, err
 		}
 		return &nodes.RoutineCharacteristic{
 			Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "DATA ACCESS", Value: "MODIFIES SQL DATA",
@@ -371,6 +374,15 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 	}
 
 	return nil, false, nil
+}
+
+// expectSQLData reads the SQL DATA after READS or MODIFIES.
+func (p *Parser) expectSQLData() error {
+	if _, err := p.expect(kwSQL); err != nil {
+		return err
+	}
+	_, err := p.expect(kwDATA)
+	return err
 }
 
 // parseRoutineDataType reads the type of a routine's parameter, return value or local

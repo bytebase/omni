@@ -1844,7 +1844,7 @@ reject	reject	engine	sp_c_chistics/sp_c_chistics_sp_c_chistic!insert	CREATE PROC
 reject	reject	engine	sp_c_chistics/sp_c_chistics_sp_c_chistic!swap	CREATE PROCEDURE utf8mb4() DIAGNOSTICS COMMIT;
 accept	accept	engine	sp_chistic/COMMENT_SYM_TEXT_STRING_sys	ALTER FUNCTION utf8mb4 COMMENT 's';
 accept	accept	engine	sp_chistic/LANGUAGE_SYM_SQL_SYM	ALTER FUNCTION utf8mb4 LANGUAGE SQL;
-accept	reject	engine	sp_chistic/LANGUAGE_SYM_SQL_SYM!drop-1	ALTER FUNCTION utf8mb4 SQL;
+reject	reject	engine	sp_chistic/LANGUAGE_SYM_SQL_SYM!drop-1	ALTER FUNCTION utf8mb4 SQL;
 reject	reject	engine	sp_chistic/LANGUAGE_SYM_SQL_SYM!drop-2	ALTER FUNCTION utf8mb4 LANGUAGE;
 reject	reject	engine	sp_chistic/LANGUAGE_SYM_SQL_SYM!truncate	ALTER FUNCTION utf8mb4 LANGUAGE
 reject	reject	engine	sp_chistic/LANGUAGE_SYM_SQL_SYM!insert	ALTER FUNCTION utf8mb4 LANGUAGE SQL zzz;
@@ -1855,21 +1855,21 @@ reject	reject	engine	sp_chistic/NO_SYM_SQL_SYM!truncate	ALTER FUNCTION utf8mb4 N
 reject	reject	engine	sp_chistic/NO_SYM_SQL_SYM!insert	ALTER FUNCTION utf8mb4 NO SQL zzz;
 reject	reject	engine	sp_chistic/NO_SYM_SQL_SYM!swap	ALTER FUNCTION utf8mb4 NODEGROUP SQL;
 accept	accept	engine	sp_chistic/CONTAINS_SYM_SQL_SYM	ALTER FUNCTION utf8mb4 CONTAINS SQL;
-accept	reject	engine	sp_chistic/CONTAINS_SYM_SQL_SYM!drop-2	ALTER FUNCTION utf8mb4 CONTAINS;
-accept	reject	engine	sp_chistic/CONTAINS_SYM_SQL_SYM!truncate	ALTER FUNCTION utf8mb4 CONTAINS
+reject	reject	engine	sp_chistic/CONTAINS_SYM_SQL_SYM!drop-2	ALTER FUNCTION utf8mb4 CONTAINS;
+reject	reject	engine	sp_chistic/CONTAINS_SYM_SQL_SYM!truncate	ALTER FUNCTION utf8mb4 CONTAINS
 reject	reject	engine	sp_chistic/CONTAINS_SYM_SQL_SYM!insert	ALTER FUNCTION utf8mb4 CONTAINS SQL zzz;
 reject	reject	engine	sp_chistic/CONTAINS_SYM_SQL_SYM!swap	ALTER FUNCTION utf8mb4 CONTEXT SQL;
 accept	accept	engine	sp_chistic/READS_SYM_SQL_SYM_DATA_SYM	ALTER FUNCTION utf8mb4 READS SQL DATA;
 reject	reject	engine	sp_chistic/READS_SYM_SQL_SYM_DATA_SYM!drop-1	ALTER FUNCTION utf8mb4 SQL DATA;
-accept	reject	engine	sp_chistic/READS_SYM_SQL_SYM_DATA_SYM!drop-2	ALTER FUNCTION utf8mb4 READS DATA;
-accept	reject	engine	sp_chistic/READS_SYM_SQL_SYM_DATA_SYM!drop-3	ALTER FUNCTION utf8mb4 READS SQL;
-accept	reject	engine	sp_chistic/READS_SYM_SQL_SYM_DATA_SYM!truncate	ALTER FUNCTION utf8mb4 READS SQL
+reject	reject	engine	sp_chistic/READS_SYM_SQL_SYM_DATA_SYM!drop-2	ALTER FUNCTION utf8mb4 READS DATA;
+reject	reject	engine	sp_chistic/READS_SYM_SQL_SYM_DATA_SYM!drop-3	ALTER FUNCTION utf8mb4 READS SQL;
+reject	reject	engine	sp_chistic/READS_SYM_SQL_SYM_DATA_SYM!truncate	ALTER FUNCTION utf8mb4 READS SQL
 reject	reject	engine	sp_chistic/READS_SYM_SQL_SYM_DATA_SYM!insert	ALTER FUNCTION utf8mb4 READS SQL DATA zzz;
 reject	reject	engine	sp_chistic/READS_SYM_SQL_SYM_DATA_SYM!swap	ALTER FUNCTION utf8mb4 READ_ONLY SQL DATA;
 accept	accept	engine	sp_chistic/MODIFIES_SYM_SQL_SYM_DATA_SYM	ALTER FUNCTION utf8mb4 MODIFIES SQL DATA;
-accept	reject	engine	sp_chistic/MODIFIES_SYM_SQL_SYM_DATA_SYM!drop-2	ALTER FUNCTION utf8mb4 MODIFIES DATA;
-accept	reject	engine	sp_chistic/MODIFIES_SYM_SQL_SYM_DATA_SYM!drop-3	ALTER FUNCTION utf8mb4 MODIFIES SQL;
-accept	reject	engine	sp_chistic/MODIFIES_SYM_SQL_SYM_DATA_SYM!truncate	ALTER FUNCTION utf8mb4 MODIFIES SQL
+reject	reject	engine	sp_chistic/MODIFIES_SYM_SQL_SYM_DATA_SYM!drop-2	ALTER FUNCTION utf8mb4 MODIFIES DATA;
+reject	reject	engine	sp_chistic/MODIFIES_SYM_SQL_SYM_DATA_SYM!drop-3	ALTER FUNCTION utf8mb4 MODIFIES SQL;
+reject	reject	engine	sp_chistic/MODIFIES_SYM_SQL_SYM_DATA_SYM!truncate	ALTER FUNCTION utf8mb4 MODIFIES SQL
 reject	reject	engine	sp_chistic/MODIFIES_SYM_SQL_SYM_DATA_SYM!insert	ALTER FUNCTION utf8mb4 MODIFIES SQL DATA zzz;
 reject	reject	engine	sp_chistic/MODIFIES_SYM_SQL_SYM_DATA_SYM!swap	ALTER FUNCTION utf8mb4 MODIFY SQL DATA;
 accept	accept	engine	sp_chistic/sp_suid	ALTER FUNCTION utf8mb4 SQL SECURITY DEFINER;
