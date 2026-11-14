@@ -26,8 +26,8 @@ reject@0	reject@0	engine	statement/alterAttributeDimension!swap	ALTERNATE ATTRIB
 accept	accept	engine	statement/alterAuditPolicyUnifiedAuditing	ALTER AUDIT POLICY a ADD
 reject@15	reject@15	engine	statement/alterAuditPolicyUnifiedAuditing!drop-1	AUDIT POLICY a ADD
 reject@6	reject@6	engine	statement/alterAuditPolicyUnifiedAuditing!drop-2	ALTER POLICY a ADD
-accept	reject@12	engine	statement/alterAuditPolicyUnifiedAuditing!drop-3	ALTER AUDIT a ADD
-accept	reject@19	engine	statement/alterAuditPolicyUnifiedAuditing!drop-4	ALTER AUDIT POLICY ADD
+reject@12	reject@12	engine	statement/alterAuditPolicyUnifiedAuditing!drop-3	ALTER AUDIT a ADD
+reject@19	reject@19	engine	statement/alterAuditPolicyUnifiedAuditing!drop-4	ALTER AUDIT POLICY ADD
 accept	accept	engine	statement/alterAuditPolicyUnifiedAuditing!drop-5	ALTER AUDIT POLICY a
 reject@25	reject@25	engine	statement/alterAuditPolicyUnifiedAuditing!insert	ALTER AUDIT POLICY a ADD zzz
 reject@0	reject@0	engine	statement/alterAuditPolicyUnifiedAuditing!swap	ALTERNATE AUDIT POLICY a ADD
@@ -206,8 +206,8 @@ reject@0	reject@0	engine	statement/alterProcedure!swap	ALTERNATE PROCEDURE a
 accept	accept	engine	statement/alterProfile	ALTER PROFILE a LIMIT SESSIONS_PER_USER 1
 reject@0	reject@0	engine	statement/alterProfile!drop-1	PROFILE a LIMIT SESSIONS_PER_USER 1
 reject@6	reject@6	engine	statement/alterProfile!drop-2	ALTER a LIMIT SESSIONS_PER_USER 1
-accept	reject@20	engine	statement/alterProfile!drop-3	ALTER PROFILE LIMIT SESSIONS_PER_USER 1
-accept	reject@16	engine	statement/alterProfile!drop-4	ALTER PROFILE a SESSIONS_PER_USER 1
+reject@20	reject@20	engine	statement/alterProfile!drop-3	ALTER PROFILE LIMIT SESSIONS_PER_USER 1
+reject@16	reject@16	engine	statement/alterProfile!drop-4	ALTER PROFILE a SESSIONS_PER_USER 1
 reject@22	reject@22	engine	statement/alterProfile!drop-5	ALTER PROFILE a LIMIT 1
 accept	accept	engine	statement/alterProfile!drop-6	ALTER PROFILE a LIMIT SESSIONS_PER_USER
 reject@42	reject@42	engine	statement/alterProfile!insert	ALTER PROFILE a LIMIT SESSIONS_PER_USER 1 zzz
@@ -389,7 +389,7 @@ reject@65	reject@65	engine	statement/createAttributeDimension!insert	CREATE ATTR
 reject@0	reject@0	engine	statement/createAttributeDimension!swap	CREATE_FILE_DEST ATTRIBUTE DIMENSION a USING a ATTRIBUTES(a) LEVEL a KEY a
 accept	accept	engine	statement/createAuditPolicyUnifiedAuditing	CREATE AUDIT POLICY a
 reject@7	reject@7	engine	statement/createAuditPolicyUnifiedAuditing!drop-2	CREATE POLICY a
-accept	reject@13	engine	statement/createAuditPolicyUnifiedAuditing!drop-3	CREATE AUDIT a
+reject@13	reject@13	engine	statement/createAuditPolicyUnifiedAuditing!drop-3	CREATE AUDIT a
 reject@19	accept	engine	statement/createAuditPolicyUnifiedAuditing!drop-4	CREATE AUDIT POLICY
 reject@22	reject@0	engine	statement/createAuditPolicyUnifiedAuditing!insert	CREATE AUDIT POLICY a zzz
 reject@0	reject@0	engine	statement/createAuditPolicyUnifiedAuditing!swap	CREATE_FILE_DEST AUDIT POLICY a
@@ -549,7 +549,7 @@ accept	accept	engine	statement/createLibrary!insert	CREATE LIBRARY a IS 's' zzz
 reject@0	reject@0	engine	statement/createLibrary!swap	CREATE_FILE_DEST LIBRARY a IS 's'
 accept	accept	engine	statement/createLockdownProfile	CREATE LOCKDOWN PROFILE a
 reject@0	reject@0	engine	statement/createLockdownProfile!drop-1	LOCKDOWN PROFILE a
-accept	reject@16	engine	statement/createLockdownProfile!drop-2	CREATE PROFILE a
+reject@16	reject@16	engine	statement/createLockdownProfile!drop-2	CREATE PROFILE a
 accept	reject@16	engine	statement/createLockdownProfile!drop-3	CREATE LOCKDOWN a
 reject@23	accept	engine	statement/createLockdownProfile!drop-4	CREATE LOCKDOWN PROFILE
 reject@26	reject@26	engine	statement/createLockdownProfile!insert	CREATE LOCKDOWN PROFILE a zzz
@@ -637,8 +637,8 @@ reject@39	reject	engine	statement/createProcedure!insert	CREATE PROCEDURE a IS B
 reject@0	reject@0	engine	statement/createProcedure!swap	CREATE_FILE_DEST PROCEDURE a IS BEGIN NULL; END;
 accept	accept	engine	statement/createProfile	CREATE PROFILE a LIMIT SESSIONS_PER_USER 1
 reject@7	reject@7	engine	statement/createProfile!drop-2	CREATE a LIMIT SESSIONS_PER_USER 1
-accept	reject@21	engine	statement/createProfile!drop-3	CREATE PROFILE LIMIT SESSIONS_PER_USER 1
-accept	reject@17	engine	statement/createProfile!drop-4	CREATE PROFILE a SESSIONS_PER_USER 1
+reject@21	reject@21	engine	statement/createProfile!drop-3	CREATE PROFILE LIMIT SESSIONS_PER_USER 1
+reject@17	reject@17	engine	statement/createProfile!drop-4	CREATE PROFILE a SESSIONS_PER_USER 1
 reject@23	reject@23	engine	statement/createProfile!drop-5	CREATE PROFILE a LIMIT 1
 accept	accept	engine	statement/createProfile!drop-6	CREATE PROFILE a LIMIT SESSIONS_PER_USER
 reject@43	reject@43	engine	statement/createProfile!insert	CREATE PROFILE a LIMIT SESSIONS_PER_USER 1 zzz
@@ -731,7 +731,7 @@ reject@0	reject@0	engine	statement/createUser!drop-1	USER a IDENTIFIED EXTERNALL
 reject@7	reject@7	engine	statement/createUser!drop-2	CREATE a IDENTIFIED EXTERNALLY
 reject@23	reject@12	engine	statement/createUser!drop-3	CREATE USER IDENTIFIED EXTERNALLY
 reject@14	accept	engine	statement/createUser!drop-4	CREATE USER a EXTERNALLY
-accept	reject@24	engine	statement/createUser!drop-5	CREATE USER a IDENTIFIED
+reject@24	reject@24	engine	statement/createUser!drop-5	CREATE USER a IDENTIFIED
 reject@36	accept	engine	statement/createUser!insert	CREATE USER a IDENTIFIED EXTERNALLY zzz
 reject@0	reject@0	engine	statement/createUser!swap	CREATE_FILE_DEST USER a IDENTIFIED EXTERNALLY
 accept	accept	engine	statement/createView	CREATE VIEW a AS SELECT 1 FROM dual
@@ -2265,7 +2265,7 @@ accept	accept	engine	alterAuditPolicyUnifiedAuditing/ALTER_AUDIT_POLICY_ID_(ADD|
 accept	accept	engine	alterAuditPolicyUnifiedAuditing/ALTER_AUDIT_POLICY_ID_CONDITION_(DROP|STRING_(EVALUATE_~24d5d549	ALTER AUDIT POLICY a CONDITION DROP
 reject@15	reject@15	engine	alterAuditPolicyUnifiedAuditing/ALTER_AUDIT_POLICY_ID_CONDITION_(DROP|STRING_(EVALUATE_~24d5d549!drop-1	AUDIT POLICY a CONDITION DROP
 reject@6	reject@6	engine	alterAuditPolicyUnifiedAuditing/ALTER_AUDIT_POLICY_ID_CONDITION_(DROP|STRING_(EVALUATE_~24d5d549!drop-2	ALTER POLICY a CONDITION DROP
-accept	reject@12	engine	alterAuditPolicyUnifiedAuditing/ALTER_AUDIT_POLICY_ID_CONDITION_(DROP|STRING_(EVALUATE_~24d5d549!drop-3	ALTER AUDIT a CONDITION DROP
+reject@12	reject@12	engine	alterAuditPolicyUnifiedAuditing/ALTER_AUDIT_POLICY_ID_CONDITION_(DROP|STRING_(EVALUATE_~24d5d549!drop-3	ALTER AUDIT a CONDITION DROP
 accept	accept	engine	alterAuditPolicyUnifiedAuditing/ALTER_AUDIT_POLICY_ID_CONDITION_(DROP|STRING_(EVALUATE_~24d5d549!drop-4	ALTER AUDIT POLICY CONDITION DROP
 accept	accept	engine	alterAuditPolicyUnifiedAuditing/ALTER_AUDIT_POLICY_ID_CONDITION_(DROP|STRING_(EVALUATE_~24d5d549!drop-6	ALTER AUDIT POLICY a CONDITION
 reject@36	reject@36	engine	alterAuditPolicyUnifiedAuditing/ALTER_AUDIT_POLICY_ID_CONDITION_(DROP|STRING_(EVALUATE_~24d5d549!insert	ALTER AUDIT POLICY a CONDITION DROP zzz
@@ -2273,8 +2273,8 @@ reject@0	reject@0	engine	alterAuditPolicyUnifiedAuditing/ALTER_AUDIT_POLICY_ID_C
 accept	accept	engine	alterAuditPolicyUnifiedAuditing/ALTER_AUDIT_POLICY_ID_(ADD|DROP)_ONLY_TOPLEVEL	ALTER AUDIT POLICY a ADD ONLY TOPLEVEL
 reject@15	reject@15	engine	alterAuditPolicyUnifiedAuditing/ALTER_AUDIT_POLICY_ID_(ADD|DROP)_ONLY_TOPLEVEL!drop-1	AUDIT POLICY a ADD ONLY TOPLEVEL
 reject@6	reject@6	engine	alterAuditPolicyUnifiedAuditing/ALTER_AUDIT_POLICY_ID_(ADD|DROP)_ONLY_TOPLEVEL!drop-2	ALTER POLICY a ADD ONLY TOPLEVEL
-accept	reject@12	engine	alterAuditPolicyUnifiedAuditing/ALTER_AUDIT_POLICY_ID_(ADD|DROP)_ONLY_TOPLEVEL!drop-3	ALTER AUDIT a ADD ONLY TOPLEVEL
-reject@23	reject@19	engine	alterAuditPolicyUnifiedAuditing/ALTER_AUDIT_POLICY_ID_(ADD|DROP)_ONLY_TOPLEVEL!drop-4	ALTER AUDIT POLICY ADD ONLY TOPLEVEL
+reject@12	reject@12	engine	alterAuditPolicyUnifiedAuditing/ALTER_AUDIT_POLICY_ID_(ADD|DROP)_ONLY_TOPLEVEL!drop-3	ALTER AUDIT a ADD ONLY TOPLEVEL
+reject@19	reject@19	engine	alterAuditPolicyUnifiedAuditing/ALTER_AUDIT_POLICY_ID_(ADD|DROP)_ONLY_TOPLEVEL!drop-4	ALTER AUDIT POLICY ADD ONLY TOPLEVEL
 reject@21	reject@21	engine	alterAuditPolicyUnifiedAuditing/ALTER_AUDIT_POLICY_ID_(ADD|DROP)_ONLY_TOPLEVEL!drop-5	ALTER AUDIT POLICY a ONLY TOPLEVEL
 reject@25	reject@25	engine	alterAuditPolicyUnifiedAuditing/ALTER_AUDIT_POLICY_ID_(ADD|DROP)_ONLY_TOPLEVEL!drop-6	ALTER AUDIT POLICY a ADD TOPLEVEL
 accept	accept	engine	alterAuditPolicyUnifiedAuditing/ALTER_AUDIT_POLICY_ID_(ADD|DROP)_ONLY_TOPLEVEL!drop-7	ALTER AUDIT POLICY a ADD ONLY
@@ -2286,15 +2286,15 @@ accept	accept	engine	alterAuditPolicyUnifiedAuditing(ADD|DROP)/DROP	ALTER AUDIT 
 reject@26	reject@26	engine	alterAuditPolicyUnifiedAuditing(ADD|DROP)/DROP!insert	ALTER AUDIT POLICY a DROP zzz
 reject@21	reject@21	engine	alterAuditPolicyUnifiedAuditing(ADD|DROP)/DROP!swap	ALTER AUDIT POLICY a DUALITY
 accept	accept	engine	alterAuditPolicyUnifiedAuditing(alterAuditPolicyUnifiedAuditing_priv~6bb36c9a)?/%empty	ALTER AUDIT POLICY a ADD
-accept	reject@36	engine	alterAuditPolicyUnifiedAuditing(alterAuditPolicyUnifiedAuditing_priv~6bb36c9a)?/alterAuditPolicyUnifiedAuditing_privilege_audit_clause	ALTER AUDIT POLICY a ADD PRIVILEGES a
+reject@36	reject@36	engine	alterAuditPolicyUnifiedAuditing(alterAuditPolicyUnifiedAuditing_priv~6bb36c9a)?/alterAuditPolicyUnifiedAuditing_privilege_audit_clause	ALTER AUDIT POLICY a ADD PRIVILEGES a
 reject@25	reject@25	engine	alterAuditPolicyUnifiedAuditing(alterAuditPolicyUnifiedAuditing_priv~6bb36c9a)?/alterAuditPolicyUnifiedAuditing_privilege_audit_clause!drop-1	ALTER AUDIT POLICY a ADD a
-accept	reject@35	engine	alterAuditPolicyUnifiedAuditing(alterAuditPolicyUnifiedAuditing_priv~6bb36c9a)?/alterAuditPolicyUnifiedAuditing_privilege_audit_clause!drop-2	ALTER AUDIT POLICY a ADD PRIVILEGES
-accept	reject@36	engine	alterAuditPolicyUnifiedAuditing(alterAuditPolicyUnifiedAuditing_priv~6bb36c9a)?/alterAuditPolicyUnifiedAuditing_privilege_audit_clause!insert	ALTER AUDIT POLICY a ADD PRIVILEGES a zzz
+reject@35	reject@35	engine	alterAuditPolicyUnifiedAuditing(alterAuditPolicyUnifiedAuditing_priv~6bb36c9a)?/alterAuditPolicyUnifiedAuditing_privilege_audit_clause!drop-2	ALTER AUDIT POLICY a ADD PRIVILEGES
+reject@36	reject@36	engine	alterAuditPolicyUnifiedAuditing(alterAuditPolicyUnifiedAuditing_priv~6bb36c9a)?/alterAuditPolicyUnifiedAuditing_privilege_audit_clause!insert	ALTER AUDIT POLICY a ADD PRIVILEGES a zzz
 reject@25	reject@25	engine	alterAuditPolicyUnifiedAuditing(alterAuditPolicyUnifiedAuditing_priv~6bb36c9a)?/alterAuditPolicyUnifiedAuditing_privilege_audit_clause!swap	ALTER AUDIT POLICY a ADD PROCEDURE a
 accept	accept	engine	alterAuditPolicyUnifiedAuditing(alterAuditPolicyUnifiedAuditing_acti~8f38fcaf)?/%empty	ALTER AUDIT POLICY a ADD
-accept	reject@33	engine	alterAuditPolicyUnifiedAuditing(alterAuditPolicyUnifiedAuditing_acti~8f38fcaf)?/alterAuditPolicyUnifiedAuditing_action_audit_clause	ALTER AUDIT POLICY a ADD ACTIONS a
-accept	reject@32	engine	alterAuditPolicyUnifiedAuditing(alterAuditPolicyUnifiedAuditing_acti~8f38fcaf)?/alterAuditPolicyUnifiedAuditing_action_audit_clause!drop-2	ALTER AUDIT POLICY a ADD ACTIONS
-accept	reject@33	engine	alterAuditPolicyUnifiedAuditing(alterAuditPolicyUnifiedAuditing_acti~8f38fcaf)?/alterAuditPolicyUnifiedAuditing_action_audit_clause!insert	ALTER AUDIT POLICY a ADD ACTIONS a zzz
+reject@33	reject@33	engine	alterAuditPolicyUnifiedAuditing(alterAuditPolicyUnifiedAuditing_acti~8f38fcaf)?/alterAuditPolicyUnifiedAuditing_action_audit_clause	ALTER AUDIT POLICY a ADD ACTIONS a
+reject@32	reject@32	engine	alterAuditPolicyUnifiedAuditing(alterAuditPolicyUnifiedAuditing_acti~8f38fcaf)?/alterAuditPolicyUnifiedAuditing_action_audit_clause!drop-2	ALTER AUDIT POLICY a ADD ACTIONS
+reject@33	reject@33	engine	alterAuditPolicyUnifiedAuditing(alterAuditPolicyUnifiedAuditing_acti~8f38fcaf)?/alterAuditPolicyUnifiedAuditing_action_audit_clause!insert	ALTER AUDIT POLICY a ADD ACTIONS a zzz
 reject@25	reject@25	engine	alterAuditPolicyUnifiedAuditing(alterAuditPolicyUnifiedAuditing_acti~8f38fcaf)?/alterAuditPolicyUnifiedAuditing_action_audit_clause!swap	ALTER AUDIT POLICY a ADD ACTIVATE a
 accept	accept	engine	alterAuditPolicyUnifiedAuditing(alterAuditPolicyUnifiedAuditing_role~50c8ef27)?/%empty	ALTER AUDIT POLICY a ADD
 accept	accept	engine	alterAuditPolicyUnifiedAuditing(alterAuditPolicyUnifiedAuditing_role~50c8ef27)?/alterAuditPolicyUnifiedAuditing_role_audit_clause	ALTER AUDIT POLICY a ADD ROLES a
@@ -2303,81 +2303,81 @@ reject@33	reject@33	engine	alterAuditPolicyUnifiedAuditing(alterAuditPolicyUnifi
 reject@25	reject@25	engine	alterAuditPolicyUnifiedAuditing(alterAuditPolicyUnifiedAuditing_role~50c8ef27)?/alterAuditPolicyUnifiedAuditing_role_audit_clause!swap	ALTER AUDIT POLICY a ADD ROLLBACK a
 accept	accept	engine	alterAuditPolicyUnifiedAuditing(DROP|STRING_(EVALUATE_(PER_STATEMENT~7ee74c5b)/DROP	ALTER AUDIT POLICY a CONDITION DROP
 reject@31	reject@31	engine	alterAuditPolicyUnifiedAuditing(DROP|STRING_(EVALUATE_(PER_STATEMENT~7ee74c5b)/DROP!swap	ALTER AUDIT POLICY a CONDITION DUALITY
-accept	reject@34	engine	alterAuditPolicyUnifiedAuditing(DROP|STRING_(EVALUATE_(PER_STATEMENT~7ee74c5b)/STRING_(EVALUATE_(PER_STATEMENT|PER_SESSION|~60e70afb)?	ALTER AUDIT POLICY a CONDITION 's'
+reject@34	reject@34	engine	alterAuditPolicyUnifiedAuditing(DROP|STRING_(EVALUATE_(PER_STATEMENT~7ee74c5b)/STRING_(EVALUATE_(PER_STATEMENT|PER_SESSION|~60e70afb)?	ALTER AUDIT POLICY a CONDITION 's'
 reject@35	reject@35	engine	alterAuditPolicyUnifiedAuditing(DROP|STRING_(EVALUATE_(PER_STATEMENT~7ee74c5b)/STRING_(EVALUATE_(PER_STATEMENT|PER_SESSION|~60e70afb)?!insert	ALTER AUDIT POLICY a CONDITION 's' zzz
-accept	reject@34	engine	alterAuditPolicyUnifiedAuditing(EVALUATE_(PER_STATEMENT|PER_SESSION|~60e70afb)?/%empty	ALTER AUDIT POLICY a CONDITION 's'
+reject@34	reject@34	engine	alterAuditPolicyUnifiedAuditing(EVALUATE_(PER_STATEMENT|PER_SESSION|~60e70afb)?/%empty	ALTER AUDIT POLICY a CONDITION 's'
 accept	reject@0	engine	alterAuditPolicyUnifiedAuditing(EVALUATE_(PER_STATEMENT|PER_SESSION|~60e70afb)?/EVALUATE_(PER_STATEMENT|PER_SESSION|PER_INSTANCE)	ALTER AUDIT POLICY a CONDITION 's' EVALUATE PER STATEMENT
 reject@35	reject@35	engine	alterAuditPolicyUnifiedAuditing(EVALUATE_(PER_STATEMENT|PER_SESSION|~60e70afb)?/EVALUATE_(PER_STATEMENT|PER_SESSION|PER_INSTANCE)!drop-1	ALTER AUDIT POLICY a CONDITION 's' PER STATEMENT
-accept	reject@44	engine	alterAuditPolicyUnifiedAuditing(EVALUATE_(PER_STATEMENT|PER_SESSION|~60e70afb)?/EVALUATE_(PER_STATEMENT|PER_SESSION|PER_INSTANCE)!drop-2	ALTER AUDIT POLICY a CONDITION 's' EVALUATE STATEMENT
-accept	reject@47	engine	alterAuditPolicyUnifiedAuditing(EVALUATE_(PER_STATEMENT|PER_SESSION|~60e70afb)?/EVALUATE_(PER_STATEMENT|PER_SESSION|PER_INSTANCE)!drop-3	ALTER AUDIT POLICY a CONDITION 's' EVALUATE PER
+reject@44	reject@44	engine	alterAuditPolicyUnifiedAuditing(EVALUATE_(PER_STATEMENT|PER_SESSION|~60e70afb)?/EVALUATE_(PER_STATEMENT|PER_SESSION|PER_INSTANCE)!drop-2	ALTER AUDIT POLICY a CONDITION 's' EVALUATE STATEMENT
+reject@47	reject@47	engine	alterAuditPolicyUnifiedAuditing(EVALUATE_(PER_STATEMENT|PER_SESSION|~60e70afb)?/EVALUATE_(PER_STATEMENT|PER_SESSION|PER_INSTANCE)!drop-3	ALTER AUDIT POLICY a CONDITION 's' EVALUATE PER
 reject@58	reject@0	engine	alterAuditPolicyUnifiedAuditing(EVALUATE_(PER_STATEMENT|PER_SESSION|~60e70afb)?/EVALUATE_(PER_STATEMENT|PER_SESSION|PER_INSTANCE)!insert	ALTER AUDIT POLICY a CONDITION 's' EVALUATE PER STATEMENT zzz
 reject@35	reject@35	engine	alterAuditPolicyUnifiedAuditing(EVALUATE_(PER_STATEMENT|PER_SESSION|~60e70afb)?/EVALUATE_(PER_STATEMENT|PER_SESSION|PER_INSTANCE)!swap	ALTER AUDIT POLICY a CONDITION 's' EVERY PER STATEMENT
 accept	reject@0	engine	alterAuditPolicyUnifiedAuditing(PER_STATEMENT|PER_SESSION|PER_INSTANCE)/PER_STATEMENT	ALTER AUDIT POLICY a CONDITION 's' EVALUATE PER STATEMENT
-reject@52	reject@44	engine	alterAuditPolicyUnifiedAuditing(PER_STATEMENT|PER_SESSION|PER_INSTANCE)/PER_STATEMENT!swap	ALTER AUDIT POLICY a CONDITION 's' EVALUATE PERCENT STATEMENT
+reject@44	reject@44	engine	alterAuditPolicyUnifiedAuditing(PER_STATEMENT|PER_SESSION|PER_INSTANCE)/PER_STATEMENT!swap	ALTER AUDIT POLICY a CONDITION 's' EVALUATE PERCENT STATEMENT
 accept	reject@0	engine	alterAuditPolicyUnifiedAuditing(PER_STATEMENT|PER_SESSION|PER_INSTANCE)/PER_SESSION	ALTER AUDIT POLICY a CONDITION 's' EVALUATE PER SESSION
-accept	reject@44	engine	alterAuditPolicyUnifiedAuditing(PER_STATEMENT|PER_SESSION|PER_INSTANCE)/PER_SESSION!drop-1	ALTER AUDIT POLICY a CONDITION 's' EVALUATE SESSION
+reject@44	reject@44	engine	alterAuditPolicyUnifiedAuditing(PER_STATEMENT|PER_SESSION|PER_INSTANCE)/PER_SESSION!drop-1	ALTER AUDIT POLICY a CONDITION 's' EVALUATE SESSION
 reject@56	reject@0	engine	alterAuditPolicyUnifiedAuditing(PER_STATEMENT|PER_SESSION|PER_INSTANCE)/PER_SESSION!insert	ALTER AUDIT POLICY a CONDITION 's' EVALUATE PER SESSION zzz
-reject@52	reject@44	engine	alterAuditPolicyUnifiedAuditing(PER_STATEMENT|PER_SESSION|PER_INSTANCE)/PER_SESSION!swap	ALTER AUDIT POLICY a CONDITION 's' EVALUATE PERCENT SESSION
+reject@44	reject@44	engine	alterAuditPolicyUnifiedAuditing(PER_STATEMENT|PER_SESSION|PER_INSTANCE)/PER_SESSION!swap	ALTER AUDIT POLICY a CONDITION 's' EVALUATE PERCENT SESSION
 accept	reject@0	engine	alterAuditPolicyUnifiedAuditing(PER_STATEMENT|PER_SESSION|PER_INSTANCE)/PER_INSTANCE	ALTER AUDIT POLICY a CONDITION 's' EVALUATE PER INSTANCE
-accept	reject@44	engine	alterAuditPolicyUnifiedAuditing(PER_STATEMENT|PER_SESSION|PER_INSTANCE)/PER_INSTANCE!drop-1	ALTER AUDIT POLICY a CONDITION 's' EVALUATE INSTANCE
+reject@44	reject@44	engine	alterAuditPolicyUnifiedAuditing(PER_STATEMENT|PER_SESSION|PER_INSTANCE)/PER_INSTANCE!drop-1	ALTER AUDIT POLICY a CONDITION 's' EVALUATE INSTANCE
 reject@57	reject@0	engine	alterAuditPolicyUnifiedAuditing(PER_STATEMENT|PER_SESSION|PER_INSTANCE)/PER_INSTANCE!insert	ALTER AUDIT POLICY a CONDITION 's' EVALUATE PER INSTANCE zzz
-reject@52	reject@44	engine	alterAuditPolicyUnifiedAuditing(PER_STATEMENT|PER_SESSION|PER_INSTANCE)/PER_INSTANCE!swap	ALTER AUDIT POLICY a CONDITION 's' EVALUATE PERCENT INSTANCE
-accept	reject@36	engine	alterAuditPolicyUnifiedAuditing_privilege_audit_clause/PRIVILEGES_ID_(,_ID)*	ALTER AUDIT POLICY a ADD PRIVILEGES a
-accept	reject@36	engine	alterAuditPolicyUnifiedAuditing_privilege_audit_clause(,_ID)*/%empty	ALTER AUDIT POLICY a ADD PRIVILEGES a
-accept	reject@36	engine	alterAuditPolicyUnifiedAuditing_privilege_audit_clause(,_ID)*/,_ID_(,_ID)*	ALTER AUDIT POLICY a ADD PRIVILEGES a, a
-accept	reject@36	engine	alterAuditPolicyUnifiedAuditing_privilege_audit_clause(,_ID)*/,_ID_(,_ID)*!drop-1	ALTER AUDIT POLICY a ADD PRIVILEGES a a
-reject@38	reject@36	engine	alterAuditPolicyUnifiedAuditing_privilege_audit_clause(,_ID)*/,_ID_(,_ID)*!drop-2	ALTER AUDIT POLICY a ADD PRIVILEGES a,
-accept	reject@36	engine	alterAuditPolicyUnifiedAuditing_privilege_audit_clause(,_ID)*/,_ID_(,_ID)*!insert	ALTER AUDIT POLICY a ADD PRIVILEGES a, a zzz
-accept	reject@33	engine	alterAuditPolicyUnifiedAuditing_action_audit_clause/ACTIONS_(alterAuditPolicyUnifiedAuditing_stan~9d1512de)~65506652	ALTER AUDIT POLICY a ADD ACTIONS a
-accept	reject@33	engine	alterAuditPolicyUnifiedAuditing_action_audit_clause(alterAuditPolicyUnifiedAuditing_stan~9d1512de)/alterAuditPolicyUnifiedAuditing_standard_actions	ALTER AUDIT POLICY a ADD ACTIONS a
-accept	reject@45	engine	alterAuditPolicyUnifiedAuditing_action_audit_clause(alterAuditPolicyUnifiedAuditing_stan~9d1512de)/alterAuditPolicyUnifiedAuditing_component_actions	ALTER AUDIT POLICY a ADD ACTIONS COMPONENT = a a
+reject@44	reject@44	engine	alterAuditPolicyUnifiedAuditing(PER_STATEMENT|PER_SESSION|PER_INSTANCE)/PER_INSTANCE!swap	ALTER AUDIT POLICY a CONDITION 's' EVALUATE PERCENT INSTANCE
+reject@36	reject@36	engine	alterAuditPolicyUnifiedAuditing_privilege_audit_clause/PRIVILEGES_ID_(,_ID)*	ALTER AUDIT POLICY a ADD PRIVILEGES a
+reject@36	reject@36	engine	alterAuditPolicyUnifiedAuditing_privilege_audit_clause(,_ID)*/%empty	ALTER AUDIT POLICY a ADD PRIVILEGES a
+reject@36	reject@36	engine	alterAuditPolicyUnifiedAuditing_privilege_audit_clause(,_ID)*/,_ID_(,_ID)*	ALTER AUDIT POLICY a ADD PRIVILEGES a, a
+reject@36	reject@36	engine	alterAuditPolicyUnifiedAuditing_privilege_audit_clause(,_ID)*/,_ID_(,_ID)*!drop-1	ALTER AUDIT POLICY a ADD PRIVILEGES a a
+reject@36	reject@36	engine	alterAuditPolicyUnifiedAuditing_privilege_audit_clause(,_ID)*/,_ID_(,_ID)*!drop-2	ALTER AUDIT POLICY a ADD PRIVILEGES a,
+reject@36	reject@36	engine	alterAuditPolicyUnifiedAuditing_privilege_audit_clause(,_ID)*/,_ID_(,_ID)*!insert	ALTER AUDIT POLICY a ADD PRIVILEGES a, a zzz
+reject@33	reject@33	engine	alterAuditPolicyUnifiedAuditing_action_audit_clause/ACTIONS_(alterAuditPolicyUnifiedAuditing_stan~9d1512de)~65506652	ALTER AUDIT POLICY a ADD ACTIONS a
+reject@33	reject@33	engine	alterAuditPolicyUnifiedAuditing_action_audit_clause(alterAuditPolicyUnifiedAuditing_stan~9d1512de)/alterAuditPolicyUnifiedAuditing_standard_actions	ALTER AUDIT POLICY a ADD ACTIONS a
+reject@45	reject@45	engine	alterAuditPolicyUnifiedAuditing_action_audit_clause(alterAuditPolicyUnifiedAuditing_stan~9d1512de)/alterAuditPolicyUnifiedAuditing_component_actions	ALTER AUDIT POLICY a ADD ACTIONS COMPONENT = a a
 reject@33	reject@33	engine	alterAuditPolicyUnifiedAuditing_action_audit_clause(alterAuditPolicyUnifiedAuditing_stan~9d1512de)/alterAuditPolicyUnifiedAuditing_component_actions!drop-1	ALTER AUDIT POLICY a ADD ACTIONS = a a
-accept	reject@43	engine	alterAuditPolicyUnifiedAuditing_action_audit_clause(alterAuditPolicyUnifiedAuditing_stan~9d1512de)/alterAuditPolicyUnifiedAuditing_component_actions!drop-2	ALTER AUDIT POLICY a ADD ACTIONS COMPONENT a a
-accept	reject@45	engine	alterAuditPolicyUnifiedAuditing_action_audit_clause(alterAuditPolicyUnifiedAuditing_stan~9d1512de)/alterAuditPolicyUnifiedAuditing_component_actions!drop-3	ALTER AUDIT POLICY a ADD ACTIONS COMPONENT = a
-accept	reject@45	engine	alterAuditPolicyUnifiedAuditing_action_audit_clause(alterAuditPolicyUnifiedAuditing_stan~9d1512de)/alterAuditPolicyUnifiedAuditing_component_actions!insert	ALTER AUDIT POLICY a ADD ACTIONS COMPONENT = a a zzz
-reject@49	reject@33	engine	alterAuditPolicyUnifiedAuditing_action_audit_clause(alterAuditPolicyUnifiedAuditing_stan~9d1512de)/alterAuditPolicyUnifiedAuditing_component_actions!swap	ALTER AUDIT POLICY a ADD ACTIONS COMPOSITE_LIMIT = a a
-accept	reject@33	engine	alterAuditPolicyUnifiedAuditing_action_audit_clause(,_(alterAuditPolicyUnifiedAuditing_s~7f6beb81)*/%empty	ALTER AUDIT POLICY a ADD ACTIONS a
-accept	reject@33	engine	alterAuditPolicyUnifiedAuditing_action_audit_clause(,_(alterAuditPolicyUnifiedAuditing_s~7f6beb81)*/,_(alterAuditPolicyUnifiedAuditing_stan~9d1512de)_(,_(a~58a0351a	ALTER AUDIT POLICY a ADD ACTIONS a, a
-accept	reject@33	engine	alterAuditPolicyUnifiedAuditing_action_audit_clause(,_(alterAuditPolicyUnifiedAuditing_s~7f6beb81)*/,_(alterAuditPolicyUnifiedAuditing_stan~9d1512de)_(,_(a~58a0351a!drop-1	ALTER AUDIT POLICY a ADD ACTIONS a a
-reject@35	reject@33	engine	alterAuditPolicyUnifiedAuditing_action_audit_clause(,_(alterAuditPolicyUnifiedAuditing_s~7f6beb81)*/,_(alterAuditPolicyUnifiedAuditing_stan~9d1512de)_(,_(a~58a0351a!drop-2	ALTER AUDIT POLICY a ADD ACTIONS a,
-accept	reject@33	engine	alterAuditPolicyUnifiedAuditing_action_audit_clause(,_(alterAuditPolicyUnifiedAuditing_s~7f6beb81)*/,_(alterAuditPolicyUnifiedAuditing_stan~9d1512de)_(,_(a~58a0351a!insert	ALTER AUDIT POLICY a ADD ACTIONS a, a zzz
+reject@43	reject@43	engine	alterAuditPolicyUnifiedAuditing_action_audit_clause(alterAuditPolicyUnifiedAuditing_stan~9d1512de)/alterAuditPolicyUnifiedAuditing_component_actions!drop-2	ALTER AUDIT POLICY a ADD ACTIONS COMPONENT a a
+reject@45	reject@45	engine	alterAuditPolicyUnifiedAuditing_action_audit_clause(alterAuditPolicyUnifiedAuditing_stan~9d1512de)/alterAuditPolicyUnifiedAuditing_component_actions!drop-3	ALTER AUDIT POLICY a ADD ACTIONS COMPONENT = a
+reject@45	reject@45	engine	alterAuditPolicyUnifiedAuditing_action_audit_clause(alterAuditPolicyUnifiedAuditing_stan~9d1512de)/alterAuditPolicyUnifiedAuditing_component_actions!insert	ALTER AUDIT POLICY a ADD ACTIONS COMPONENT = a a zzz
+reject@33	reject@33	engine	alterAuditPolicyUnifiedAuditing_action_audit_clause(alterAuditPolicyUnifiedAuditing_stan~9d1512de)/alterAuditPolicyUnifiedAuditing_component_actions!swap	ALTER AUDIT POLICY a ADD ACTIONS COMPOSITE_LIMIT = a a
+reject@33	reject@33	engine	alterAuditPolicyUnifiedAuditing_action_audit_clause(,_(alterAuditPolicyUnifiedAuditing_s~7f6beb81)*/%empty	ALTER AUDIT POLICY a ADD ACTIONS a
+reject@33	reject@33	engine	alterAuditPolicyUnifiedAuditing_action_audit_clause(,_(alterAuditPolicyUnifiedAuditing_s~7f6beb81)*/,_(alterAuditPolicyUnifiedAuditing_stan~9d1512de)_(,_(a~58a0351a	ALTER AUDIT POLICY a ADD ACTIONS a, a
+reject@33	reject@33	engine	alterAuditPolicyUnifiedAuditing_action_audit_clause(,_(alterAuditPolicyUnifiedAuditing_s~7f6beb81)*/,_(alterAuditPolicyUnifiedAuditing_stan~9d1512de)_(,_(a~58a0351a!drop-1	ALTER AUDIT POLICY a ADD ACTIONS a a
+reject@33	reject@33	engine	alterAuditPolicyUnifiedAuditing_action_audit_clause(,_(alterAuditPolicyUnifiedAuditing_s~7f6beb81)*/,_(alterAuditPolicyUnifiedAuditing_stan~9d1512de)_(,_(a~58a0351a!drop-2	ALTER AUDIT POLICY a ADD ACTIONS a,
+reject@33	reject@33	engine	alterAuditPolicyUnifiedAuditing_action_audit_clause(,_(alterAuditPolicyUnifiedAuditing_s~7f6beb81)*/,_(alterAuditPolicyUnifiedAuditing_stan~9d1512de)_(,_(a~58a0351a!insert	ALTER AUDIT POLICY a ADD ACTIONS a, a zzz
 accept	accept	engine	alterAuditPolicyUnifiedAuditing_role_audit_clause/ROLES_ID_(,_ID)*	ALTER AUDIT POLICY a ADD ROLES a
 accept	accept	engine	alterAuditPolicyUnifiedAuditing_role_audit_clause(,_ID)*/%empty	ALTER AUDIT POLICY a ADD ROLES a
 accept	accept	engine	alterAuditPolicyUnifiedAuditing_role_audit_clause(,_ID)*/,_ID_(,_ID)*	ALTER AUDIT POLICY a ADD ROLES a, a
 reject@33	reject@33	engine	alterAuditPolicyUnifiedAuditing_role_audit_clause(,_ID)*/,_ID_(,_ID)*!drop-1	ALTER AUDIT POLICY a ADD ROLES a a
 reject@33	accept	engine	alterAuditPolicyUnifiedAuditing_role_audit_clause(,_ID)*/,_ID_(,_ID)*!drop-2	ALTER AUDIT POLICY a ADD ROLES a,
 reject@36	reject@36	engine	alterAuditPolicyUnifiedAuditing_role_audit_clause(,_ID)*/,_ID_(,_ID)*!insert	ALTER AUDIT POLICY a ADD ROLES a, a zzz
-accept	reject@33	engine	alterAuditPolicyUnifiedAuditing_standard_actions/ID_(ON_(ID_.)?_ID_((_ID_(,_ID)*_))?)?	ALTER AUDIT POLICY a ADD ACTIONS a
-accept	reject@33	engine	alterAuditPolicyUnifiedAuditing_standard_actions(ON_(ID_.)?_ID_((_ID_(,_ID)*_))?)?/%empty	ALTER AUDIT POLICY a ADD ACTIONS a
-accept	reject@33	engine	alterAuditPolicyUnifiedAuditing_standard_actions(ON_(ID_.)?_ID_((_ID_(,_ID)*_))?)?/ON_(ID_.)?_ID_((_ID_(,_ID)*_))?	ALTER AUDIT POLICY a ADD ACTIONS a ON a
-accept	reject@33	engine	alterAuditPolicyUnifiedAuditing_standard_actions(ON_(ID_.)?_ID_((_ID_(,_ID)*_))?)?/ON_(ID_.)?_ID_((_ID_(,_ID)*_))?!drop-2	ALTER AUDIT POLICY a ADD ACTIONS a ON
-reject@40	reject@33	engine	alterAuditPolicyUnifiedAuditing_standard_actions(ON_(ID_.)?_ID_((_ID_(,_ID)*_))?)?/ON_(ID_.)?_ID_((_ID_(,_ID)*_))?!insert	ALTER AUDIT POLICY a ADD ACTIONS a ON a zzz
-accept	reject@33	engine	alterAuditPolicyUnifiedAuditing_standard_actions(ON_(ID_.)?_ID_((_ID_(,_ID)*_))?)?/ON_(ID_.)?_ID_((_ID_(,_ID)*_))?!swap	ALTER AUDIT POLICY a ADD ACTIONS a ONE a
-accept	reject@33	engine	alterAuditPolicyUnifiedAuditing_standard_actions(ID_.)?/%empty	ALTER AUDIT POLICY a ADD ACTIONS a ON a
-reject@42	reject@33	engine	alterAuditPolicyUnifiedAuditing_standard_actions(ID_.)?/%empty!insert	ALTER AUDIT POLICY a ADD ACTIONS a ON zzz a
-accept	reject@33	engine	alterAuditPolicyUnifiedAuditing_standard_actions(ID_.)?/ID_.	ALTER AUDIT POLICY a ADD ACTIONS a ON a.a
-reject@37	reject@33	engine	alterAuditPolicyUnifiedAuditing_standard_actions(ID_.)?/ID_.!drop-1	ALTER AUDIT POLICY a ADD ACTIONS a ON.a
-reject@40	reject@33	engine	alterAuditPolicyUnifiedAuditing_standard_actions(ID_.)?/ID_.!drop-2	ALTER AUDIT POLICY a ADD ACTIONS a ON a a
-reject@44	reject@33	engine	alterAuditPolicyUnifiedAuditing_standard_actions(ID_.)?/ID_.!insert	ALTER AUDIT POLICY a ADD ACTIONS a ON a.zzz a
-accept	reject@33	engine	alterAuditPolicyUnifiedAuditing_standard_actions((_ID_(,_ID)*_))?/%empty	ALTER AUDIT POLICY a ADD ACTIONS a ON a
-reject@39	reject@33	engine	alterAuditPolicyUnifiedAuditing_standard_actions((_ID_(,_ID)*_))?/(_ID_(,_ID)*_)	ALTER AUDIT POLICY a ADD ACTIONS a ON a(a)
+reject@33	reject@33	engine	alterAuditPolicyUnifiedAuditing_standard_actions/ID_(ON_(ID_.)?_ID_((_ID_(,_ID)*_))?)?	ALTER AUDIT POLICY a ADD ACTIONS a
+reject@33	reject@33	engine	alterAuditPolicyUnifiedAuditing_standard_actions(ON_(ID_.)?_ID_((_ID_(,_ID)*_))?)?/%empty	ALTER AUDIT POLICY a ADD ACTIONS a
+reject@33	reject@33	engine	alterAuditPolicyUnifiedAuditing_standard_actions(ON_(ID_.)?_ID_((_ID_(,_ID)*_))?)?/ON_(ID_.)?_ID_((_ID_(,_ID)*_))?	ALTER AUDIT POLICY a ADD ACTIONS a ON a
+reject@33	reject@33	engine	alterAuditPolicyUnifiedAuditing_standard_actions(ON_(ID_.)?_ID_((_ID_(,_ID)*_))?)?/ON_(ID_.)?_ID_((_ID_(,_ID)*_))?!drop-2	ALTER AUDIT POLICY a ADD ACTIONS a ON
+reject@33	reject@33	engine	alterAuditPolicyUnifiedAuditing_standard_actions(ON_(ID_.)?_ID_((_ID_(,_ID)*_))?)?/ON_(ID_.)?_ID_((_ID_(,_ID)*_))?!insert	ALTER AUDIT POLICY a ADD ACTIONS a ON a zzz
+reject@33	reject@33	engine	alterAuditPolicyUnifiedAuditing_standard_actions(ON_(ID_.)?_ID_((_ID_(,_ID)*_))?)?/ON_(ID_.)?_ID_((_ID_(,_ID)*_))?!swap	ALTER AUDIT POLICY a ADD ACTIONS a ONE a
+reject@33	reject@33	engine	alterAuditPolicyUnifiedAuditing_standard_actions(ID_.)?/%empty	ALTER AUDIT POLICY a ADD ACTIONS a ON a
+reject@33	reject@33	engine	alterAuditPolicyUnifiedAuditing_standard_actions(ID_.)?/%empty!insert	ALTER AUDIT POLICY a ADD ACTIONS a ON zzz a
+reject@33	reject@33	engine	alterAuditPolicyUnifiedAuditing_standard_actions(ID_.)?/ID_.	ALTER AUDIT POLICY a ADD ACTIONS a ON a.a
+reject@33	reject@33	engine	alterAuditPolicyUnifiedAuditing_standard_actions(ID_.)?/ID_.!drop-1	ALTER AUDIT POLICY a ADD ACTIONS a ON.a
+reject@33	reject@33	engine	alterAuditPolicyUnifiedAuditing_standard_actions(ID_.)?/ID_.!drop-2	ALTER AUDIT POLICY a ADD ACTIONS a ON a a
+reject@33	reject@33	engine	alterAuditPolicyUnifiedAuditing_standard_actions(ID_.)?/ID_.!insert	ALTER AUDIT POLICY a ADD ACTIONS a ON a.zzz a
+reject@33	reject@33	engine	alterAuditPolicyUnifiedAuditing_standard_actions((_ID_(,_ID)*_))?/%empty	ALTER AUDIT POLICY a ADD ACTIONS a ON a
+reject@33	reject@33	engine	alterAuditPolicyUnifiedAuditing_standard_actions((_ID_(,_ID)*_))?/(_ID_(,_ID)*_)	ALTER AUDIT POLICY a ADD ACTIONS a ON a(a)
 reject@41	reject@33	engine	alterAuditPolicyUnifiedAuditing_standard_actions((_ID_(,_ID)*_))?/(_ID_(,_ID)*_)!drop-1	ALTER AUDIT POLICY a ADD ACTIONS a ON a a)
-reject@39	reject@33	engine	alterAuditPolicyUnifiedAuditing_standard_actions((_ID_(,_ID)*_))?/(_ID_(,_ID)*_)!drop-2	ALTER AUDIT POLICY a ADD ACTIONS a ON a()
+reject@33	reject@33	engine	alterAuditPolicyUnifiedAuditing_standard_actions((_ID_(,_ID)*_))?/(_ID_(,_ID)*_)!drop-2	ALTER AUDIT POLICY a ADD ACTIONS a ON a()
 reject@41	reject@33	engine	alterAuditPolicyUnifiedAuditing_standard_actions((_ID_(,_ID)*_))?/(_ID_(,_ID)*_)!drop-3	ALTER AUDIT POLICY a ADD ACTIONS a ON a(a
-reject@39	reject@33	engine	alterAuditPolicyUnifiedAuditing_standard_actions((_ID_(,_ID)*_))?/(_ID_(,_ID)*_)!insert	ALTER AUDIT POLICY a ADD ACTIONS a ON a(a) zzz
-reject@39	reject@33	engine	alterAuditPolicyUnifiedAuditing_standard_actions(,_ID)*/%empty	ALTER AUDIT POLICY a ADD ACTIONS a ON a(a)
-reject@39	reject@33	engine	alterAuditPolicyUnifiedAuditing_standard_actions(,_ID)*/%empty!insert	ALTER AUDIT POLICY a ADD ACTIONS a ON a(a zzz)
-reject@39	reject@33	engine	alterAuditPolicyUnifiedAuditing_standard_actions(,_ID)*/,_ID_(,_ID)*	ALTER AUDIT POLICY a ADD ACTIONS a ON a(a, a)
-reject@39	reject@33	engine	alterAuditPolicyUnifiedAuditing_standard_actions(,_ID)*/,_ID_(,_ID)*!drop-1	ALTER AUDIT POLICY a ADD ACTIONS a ON a(a a)
-reject@39	reject@33	engine	alterAuditPolicyUnifiedAuditing_standard_actions(,_ID)*/,_ID_(,_ID)*!drop-2	ALTER AUDIT POLICY a ADD ACTIONS a ON a(a,)
+reject@33	reject@33	engine	alterAuditPolicyUnifiedAuditing_standard_actions((_ID_(,_ID)*_))?/(_ID_(,_ID)*_)!insert	ALTER AUDIT POLICY a ADD ACTIONS a ON a(a) zzz
+reject@33	reject@33	engine	alterAuditPolicyUnifiedAuditing_standard_actions(,_ID)*/%empty	ALTER AUDIT POLICY a ADD ACTIONS a ON a(a)
+reject@33	reject@33	engine	alterAuditPolicyUnifiedAuditing_standard_actions(,_ID)*/%empty!insert	ALTER AUDIT POLICY a ADD ACTIONS a ON a(a zzz)
+reject@33	reject@33	engine	alterAuditPolicyUnifiedAuditing_standard_actions(,_ID)*/,_ID_(,_ID)*	ALTER AUDIT POLICY a ADD ACTIONS a ON a(a, a)
+reject@33	reject@33	engine	alterAuditPolicyUnifiedAuditing_standard_actions(,_ID)*/,_ID_(,_ID)*!drop-1	ALTER AUDIT POLICY a ADD ACTIONS a ON a(a a)
+reject@33	reject@33	engine	alterAuditPolicyUnifiedAuditing_standard_actions(,_ID)*/,_ID_(,_ID)*!drop-2	ALTER AUDIT POLICY a ADD ACTIONS a ON a(a,)
 reject@42	reject@33	engine	alterAuditPolicyUnifiedAuditing_standard_actions(,_ID)*/,_ID_(,_ID)*!truncate	ALTER AUDIT POLICY a ADD ACTIONS a ON a(a,
-reject@39	reject@33	engine	alterAuditPolicyUnifiedAuditing_standard_actions(,_ID)*/,_ID_(,_ID)*!insert	ALTER AUDIT POLICY a ADD ACTIONS a ON a(a, a zzz)
-accept	reject@45	engine	alterAuditPolicyUnifiedAuditing_component_actions/COMPONENT_=_ID_ID_(,_ID)*	ALTER AUDIT POLICY a ADD ACTIONS COMPONENT = a a
-accept	reject@45	engine	alterAuditPolicyUnifiedAuditing_component_actions(,_ID)*/%empty	ALTER AUDIT POLICY a ADD ACTIONS COMPONENT = a a
-accept	reject@45	engine	alterAuditPolicyUnifiedAuditing_component_actions(,_ID)*/,_ID_(,_ID)*	ALTER AUDIT POLICY a ADD ACTIONS COMPONENT = a a, a
-accept	reject@45	engine	alterAuditPolicyUnifiedAuditing_component_actions(,_ID)*/,_ID_(,_ID)*!drop-1	ALTER AUDIT POLICY a ADD ACTIONS COMPONENT = a a a
-reject@49	reject@45	engine	alterAuditPolicyUnifiedAuditing_component_actions(,_ID)*/,_ID_(,_ID)*!drop-2	ALTER AUDIT POLICY a ADD ACTIONS COMPONENT = a a,
-accept	reject@45	engine	alterAuditPolicyUnifiedAuditing_component_actions(,_ID)*/,_ID_(,_ID)*!insert	ALTER AUDIT POLICY a ADD ACTIONS COMPONENT = a a, a zzz
+reject@33	reject@33	engine	alterAuditPolicyUnifiedAuditing_standard_actions(,_ID)*/,_ID_(,_ID)*!insert	ALTER AUDIT POLICY a ADD ACTIONS a ON a(a, a zzz)
+reject@45	reject@45	engine	alterAuditPolicyUnifiedAuditing_component_actions/COMPONENT_=_ID_ID_(,_ID)*	ALTER AUDIT POLICY a ADD ACTIONS COMPONENT = a a
+reject@45	reject@45	engine	alterAuditPolicyUnifiedAuditing_component_actions(,_ID)*/%empty	ALTER AUDIT POLICY a ADD ACTIONS COMPONENT = a a
+reject@45	reject@45	engine	alterAuditPolicyUnifiedAuditing_component_actions(,_ID)*/,_ID_(,_ID)*	ALTER AUDIT POLICY a ADD ACTIONS COMPONENT = a a, a
+reject@45	reject@45	engine	alterAuditPolicyUnifiedAuditing_component_actions(,_ID)*/,_ID_(,_ID)*!drop-1	ALTER AUDIT POLICY a ADD ACTIONS COMPONENT = a a a
+reject@45	reject@45	engine	alterAuditPolicyUnifiedAuditing_component_actions(,_ID)*/,_ID_(,_ID)*!drop-2	ALTER AUDIT POLICY a ADD ACTIONS COMPONENT = a a,
+reject@45	reject@45	engine	alterAuditPolicyUnifiedAuditing_component_actions(,_ID)*/,_ID_(,_ID)*!insert	ALTER AUDIT POLICY a ADD ACTIONS COMPONENT = a a, a zzz
 reject@15	accept	engine	alterCluster/ALTER_CLUSTER_(IF_EXISTS)?_(ID_.)?_ID_(alterCluster_phy~23bd58aa	ALTER CLUSTER a
 reject@15	accept	engine	alterCluster(IF_EXISTS)?/%empty	ALTER CLUSTER a
 reject@19	reject@18	engine	alterCluster(IF_EXISTS)?/%empty!insert	ALTER CLUSTER zzz a
@@ -12221,12 +12221,12 @@ accept	accept	engine	alterProfile/ALTER_PROFILE_ID_LIMIT_(alterProfile_resource_
 accept	accept	engine	alterProfile(alterProfile_resource_parameters|alt~3a58211b)/alterProfile_resource_parameters	ALTER PROFILE a LIMIT SESSIONS_PER_USER 1
 reject@22	reject@22	engine	alterProfile(alterProfile_resource_parameters|alt~3a58211b)/alterProfile_resource_parameters!swap	ALTER PROFILE a LIMIT SET 1
 accept	accept	engine	alterProfile(alterProfile_resource_parameters|alt~3a58211b)/alterProfile_password_parameters	ALTER PROFILE a LIMIT PASSWORD_LIFE_TIME 1
-accept	reject@40	engine	alterProfile(alterProfile_resource_parameters|alt~3a58211b)/alterProfile_password_parameters!drop-2	ALTER PROFILE a LIMIT PASSWORD_LIFE_TIME
+reject@40	reject@40	engine	alterProfile(alterProfile_resource_parameters|alt~3a58211b)/alterProfile_password_parameters!drop-2	ALTER PROFILE a LIMIT PASSWORD_LIFE_TIME
 reject@43	reject@43	engine	alterProfile(alterProfile_resource_parameters|alt~3a58211b)/alterProfile_password_parameters!insert	ALTER PROFILE a LIMIT PASSWORD_LIFE_TIME 1 zzz
 accept	accept	engine	alterProfile(CONTAINER_=_(ALL|CURRENT))?/%empty	ALTER PROFILE a LIMIT SESSIONS_PER_USER 1
 accept	accept	engine	alterProfile(CONTAINER_=_(ALL|CURRENT))?/CONTAINER_=_(ALL|CURRENT)	ALTER PROFILE a LIMIT SESSIONS_PER_USER 1 CONTAINER = ALL
 reject@42	reject@42	engine	alterProfile(CONTAINER_=_(ALL|CURRENT))?/CONTAINER_=_(ALL|CURRENT)!drop-1	ALTER PROFILE a LIMIT SESSIONS_PER_USER 1 = ALL
-accept	reject@52	engine	alterProfile(CONTAINER_=_(ALL|CURRENT))?/CONTAINER_=_(ALL|CURRENT)!drop-2	ALTER PROFILE a LIMIT SESSIONS_PER_USER 1 CONTAINER ALL
+reject@52	reject@52	engine	alterProfile(CONTAINER_=_(ALL|CURRENT))?/CONTAINER_=_(ALL|CURRENT)!drop-2	ALTER PROFILE a LIMIT SESSIONS_PER_USER 1 CONTAINER ALL
 reject@53	accept	engine	alterProfile(CONTAINER_=_(ALL|CURRENT))?/CONTAINER_=_(ALL|CURRENT)!drop-3	ALTER PROFILE a LIMIT SESSIONS_PER_USER 1 CONTAINER =
 reject@58	reject@58	engine	alterProfile(CONTAINER_=_(ALL|CURRENT))?/CONTAINER_=_(ALL|CURRENT)!insert	ALTER PROFILE a LIMIT SESSIONS_PER_USER 1 CONTAINER = ALL zzz
 reject@42	reject@42	engine	alterProfile(CONTAINER_=_(ALL|CURRENT))?/CONTAINER_=_(ALL|CURRENT)!swap	ALTER PROFILE a LIMIT SESSIONS_PER_USER 1 CONTAINERS = ALL
@@ -12270,17 +12270,17 @@ reject@22	reject@22	engine	alterProfile_resource_parameters(SESSIONS_PER_USER_(N
 accept	accept	engine	alterProfile_resource_parameters(NUMBER|UNLIMITED|DEFAULT)/NUMBER	ALTER PROFILE a LIMIT SESSIONS_PER_USER 1
 accept	accept	engine	alterProfile_resource_parameters(NUMBER|UNLIMITED|DEFAULT)/UNLIMITED	ALTER PROFILE a LIMIT SESSIONS_PER_USER UNLIMITED
 reject@50	reject@50	engine	alterProfile_resource_parameters(NUMBER|UNLIMITED|DEFAULT)/UNLIMITED!insert	ALTER PROFILE a LIMIT SESSIONS_PER_USER UNLIMITED zzz
-accept	reject@40	engine	alterProfile_resource_parameters(NUMBER|UNLIMITED|DEFAULT)/UNLIMITED!swap	ALTER PROFILE a LIMIT SESSIONS_PER_USER UNLOCK
+reject@40	reject@40	engine	alterProfile_resource_parameters(NUMBER|UNLIMITED|DEFAULT)/UNLIMITED!swap	ALTER PROFILE a LIMIT SESSIONS_PER_USER UNLOCK
 accept	accept	engine	alterProfile_resource_parameters(NUMBER|UNLIMITED|DEFAULT)/DEFAULT	ALTER PROFILE a LIMIT SESSIONS_PER_USER DEFAULT
 reject@48	reject@48	engine	alterProfile_resource_parameters(NUMBER|UNLIMITED|DEFAULT)/DEFAULT!insert	ALTER PROFILE a LIMIT SESSIONS_PER_USER DEFAULT zzz
-accept	reject@40	engine	alterProfile_resource_parameters(NUMBER|UNLIMITED|DEFAULT)/DEFAULT!swap	ALTER PROFILE a LIMIT SESSIONS_PER_USER DEFAULT_COLLATION
+reject@40	reject@40	engine	alterProfile_resource_parameters(NUMBER|UNLIMITED|DEFAULT)/DEFAULT!swap	ALTER PROFILE a LIMIT SESSIONS_PER_USER DEFAULT_COLLATION
 accept	accept	engine	alterProfile_resource_parameters(alterProfile_size_clause|UNLIMITED|DEFAULT)/alterProfile_size_clause	ALTER PROFILE a LIMIT PRIVATE_SGA 1
 accept	accept	engine	alterProfile_resource_parameters(alterProfile_size_clause|UNLIMITED|DEFAULT)/UNLIMITED	ALTER PROFILE a LIMIT PRIVATE_SGA UNLIMITED
 reject@44	reject@44	engine	alterProfile_resource_parameters(alterProfile_size_clause|UNLIMITED|DEFAULT)/UNLIMITED!insert	ALTER PROFILE a LIMIT PRIVATE_SGA UNLIMITED zzz
-accept	reject@34	engine	alterProfile_resource_parameters(alterProfile_size_clause|UNLIMITED|DEFAULT)/UNLIMITED!swap	ALTER PROFILE a LIMIT PRIVATE_SGA UNLOCK
+reject@34	reject@34	engine	alterProfile_resource_parameters(alterProfile_size_clause|UNLIMITED|DEFAULT)/UNLIMITED!swap	ALTER PROFILE a LIMIT PRIVATE_SGA UNLOCK
 accept	accept	engine	alterProfile_resource_parameters(alterProfile_size_clause|UNLIMITED|DEFAULT)/DEFAULT	ALTER PROFILE a LIMIT PRIVATE_SGA DEFAULT
 reject@42	reject@42	engine	alterProfile_resource_parameters(alterProfile_size_clause|UNLIMITED|DEFAULT)/DEFAULT!insert	ALTER PROFILE a LIMIT PRIVATE_SGA DEFAULT zzz
-accept	reject@34	engine	alterProfile_resource_parameters(alterProfile_size_clause|UNLIMITED|DEFAULT)/DEFAULT!swap	ALTER PROFILE a LIMIT PRIVATE_SGA DEFAULT_COLLATION
+reject@34	reject@34	engine	alterProfile_resource_parameters(alterProfile_size_clause|UNLIMITED|DEFAULT)/DEFAULT!swap	ALTER PROFILE a LIMIT PRIVATE_SGA DEFAULT_COLLATION
 accept	accept	engine	alterProfile_resource_parameters((SESSIONS_PER_USER_(NUMBER|UNLIMITED~a0b3cede)*/%empty	ALTER PROFILE a LIMIT SESSIONS_PER_USER 1
 accept	reject@60	engine	alterProfile_resource_parameters((SESSIONS_PER_USER_(NUMBER|UNLIMITED~a0b3cede)*/(SESSIONS_PER_USER_(NUMBER|UNLIMITED|~f3bfdbb4)_((SESSI~9c8ef620	ALTER PROFILE a LIMIT SESSIONS_PER_USER 1 SESSIONS_PER_USER 1
 reject@42	reject@42	engine	alterProfile_resource_parameters((SESSIONS_PER_USER_(NUMBER|UNLIMITED~a0b3cede)*/(SESSIONS_PER_USER_(NUMBER|UNLIMITED|~f3bfdbb4)_((SESSI~9c8ef620!drop-1	ALTER PROFILE a LIMIT SESSIONS_PER_USER 1 1
@@ -12290,32 +12290,32 @@ reject@42	reject@42	engine	alterProfile_resource_parameters((SESSIONS_PER_USER_(
 accept	accept	engine	alterProfile_password_parameters/(PASSWORD_LIFE_TIME_(NUMBER|UNLIMITED~158ed97c)_((PASSW~e48e4cf9	ALTER PROFILE a LIMIT PASSWORD_LIFE_TIME 1
 accept	accept	engine	alterProfile_password_parameters(PASSWORD_LIFE_TIME_(NUMBER|UNLIMITED~158ed97c)/PASSWORD_LIFE_TIME_(NUMBER|UNLIMITED|DEFAULT)	ALTER PROFILE a LIMIT PASSWORD_LIFE_TIME 1
 accept	accept	engine	alterProfile_password_parameters(PASSWORD_LIFE_TIME_(NUMBER|UNLIMITED~158ed97c)/PASSWORD_GRACE_TIME_(NUMBER|UNLIMITED|DEFAULT)	ALTER PROFILE a LIMIT PASSWORD_GRACE_TIME 1
-accept	reject@41	engine	alterProfile_password_parameters(PASSWORD_LIFE_TIME_(NUMBER|UNLIMITED~158ed97c)/PASSWORD_GRACE_TIME_(NUMBER|UNLIMITED|DEFAULT)!drop-2	ALTER PROFILE a LIMIT PASSWORD_GRACE_TIME
+reject@41	reject@41	engine	alterProfile_password_parameters(PASSWORD_LIFE_TIME_(NUMBER|UNLIMITED~158ed97c)/PASSWORD_GRACE_TIME_(NUMBER|UNLIMITED|DEFAULT)!drop-2	ALTER PROFILE a LIMIT PASSWORD_GRACE_TIME
 reject@44	reject@44	engine	alterProfile_password_parameters(PASSWORD_LIFE_TIME_(NUMBER|UNLIMITED~158ed97c)/PASSWORD_GRACE_TIME_(NUMBER|UNLIMITED|DEFAULT)!insert	ALTER PROFILE a LIMIT PASSWORD_GRACE_TIME 1 zzz
 accept	accept	engine	alterProfile_password_parameters(PASSWORD_LIFE_TIME_(NUMBER|UNLIMITED~158ed97c)/PASSWORD_REUSE_TIME_(NUMBER|UNLIMITED|DEFAULT)	ALTER PROFILE a LIMIT PASSWORD_REUSE_TIME 1
-accept	reject@41	engine	alterProfile_password_parameters(PASSWORD_LIFE_TIME_(NUMBER|UNLIMITED~158ed97c)/PASSWORD_REUSE_TIME_(NUMBER|UNLIMITED|DEFAULT)!drop-2	ALTER PROFILE a LIMIT PASSWORD_REUSE_TIME
+reject@41	reject@41	engine	alterProfile_password_parameters(PASSWORD_LIFE_TIME_(NUMBER|UNLIMITED~158ed97c)/PASSWORD_REUSE_TIME_(NUMBER|UNLIMITED|DEFAULT)!drop-2	ALTER PROFILE a LIMIT PASSWORD_REUSE_TIME
 reject@44	reject@44	engine	alterProfile_password_parameters(PASSWORD_LIFE_TIME_(NUMBER|UNLIMITED~158ed97c)/PASSWORD_REUSE_TIME_(NUMBER|UNLIMITED|DEFAULT)!insert	ALTER PROFILE a LIMIT PASSWORD_REUSE_TIME 1 zzz
 accept	accept	engine	alterProfile_password_parameters(PASSWORD_LIFE_TIME_(NUMBER|UNLIMITED~158ed97c)/PASSWORD_REUSE_MAX_(NUMBER|UNLIMITED|DEFAULT)	ALTER PROFILE a LIMIT PASSWORD_REUSE_MAX 1
 accept	accept	engine	alterProfile_password_parameters(PASSWORD_LIFE_TIME_(NUMBER|UNLIMITED~158ed97c)/PASSWORD_REUSE_MAX_(NUMBER|UNLIMITED|DEFAULT)!drop-2	ALTER PROFILE a LIMIT PASSWORD_REUSE_MAX
 reject@43	reject@43	engine	alterProfile_password_parameters(PASSWORD_LIFE_TIME_(NUMBER|UNLIMITED~158ed97c)/PASSWORD_REUSE_MAX_(NUMBER|UNLIMITED|DEFAULT)!insert	ALTER PROFILE a LIMIT PASSWORD_REUSE_MAX 1 zzz
 accept	accept	engine	alterProfile_password_parameters(PASSWORD_LIFE_TIME_(NUMBER|UNLIMITED~158ed97c)/PASSWORD_LOCK_TIME_(NUMBER|UNLIMITED|DEFAULT)	ALTER PROFILE a LIMIT PASSWORD_LOCK_TIME 1
-accept	reject@40	engine	alterProfile_password_parameters(PASSWORD_LIFE_TIME_(NUMBER|UNLIMITED~158ed97c)/PASSWORD_LOCK_TIME_(NUMBER|UNLIMITED|DEFAULT)!drop-2	ALTER PROFILE a LIMIT PASSWORD_LOCK_TIME
+reject@40	reject@40	engine	alterProfile_password_parameters(PASSWORD_LIFE_TIME_(NUMBER|UNLIMITED~158ed97c)/PASSWORD_LOCK_TIME_(NUMBER|UNLIMITED|DEFAULT)!drop-2	ALTER PROFILE a LIMIT PASSWORD_LOCK_TIME
 reject@43	reject@43	engine	alterProfile_password_parameters(PASSWORD_LIFE_TIME_(NUMBER|UNLIMITED~158ed97c)/PASSWORD_LOCK_TIME_(NUMBER|UNLIMITED|DEFAULT)!insert	ALTER PROFILE a LIMIT PASSWORD_LOCK_TIME 1 zzz
 accept	accept	engine	alterProfile_password_parameters(PASSWORD_LIFE_TIME_(NUMBER|UNLIMITED~158ed97c)/FAILED_LOGIN_ATTEMPTS_(NUMBER|UNLIMITED|DEFAULT)	ALTER PROFILE a LIMIT FAILED_LOGIN_ATTEMPTS 1
 accept	accept	engine	alterProfile_password_parameters(PASSWORD_LIFE_TIME_(NUMBER|UNLIMITED~158ed97c)/FAILED_LOGIN_ATTEMPTS_(NUMBER|UNLIMITED|DEFAULT)!drop-2	ALTER PROFILE a LIMIT FAILED_LOGIN_ATTEMPTS
 reject@46	reject@46	engine	alterProfile_password_parameters(PASSWORD_LIFE_TIME_(NUMBER|UNLIMITED~158ed97c)/FAILED_LOGIN_ATTEMPTS_(NUMBER|UNLIMITED|DEFAULT)!insert	ALTER PROFILE a LIMIT FAILED_LOGIN_ATTEMPTS 1 zzz
 reject@22	reject@22	engine	alterProfile_password_parameters(PASSWORD_LIFE_TIME_(NUMBER|UNLIMITED~158ed97c)/FAILED_LOGIN_ATTEMPTS_(NUMBER|UNLIMITED|DEFAULT)!swap	ALTER PROFILE a LIMIT FAILGROUP 1
 accept	accept	engine	alterProfile_password_parameters(PASSWORD_LIFE_TIME_(NUMBER|UNLIMITED~158ed97c)/INACTIVE_ACCOUNT_TIME_(NUMBER|UNLIMITED|DEFAULT)	ALTER PROFILE a LIMIT INACTIVE_ACCOUNT_TIME 1
-accept	reject@43	engine	alterProfile_password_parameters(PASSWORD_LIFE_TIME_(NUMBER|UNLIMITED~158ed97c)/INACTIVE_ACCOUNT_TIME_(NUMBER|UNLIMITED|DEFAULT)!drop-2	ALTER PROFILE a LIMIT INACTIVE_ACCOUNT_TIME
+reject@43	reject@43	engine	alterProfile_password_parameters(PASSWORD_LIFE_TIME_(NUMBER|UNLIMITED~158ed97c)/INACTIVE_ACCOUNT_TIME_(NUMBER|UNLIMITED|DEFAULT)!drop-2	ALTER PROFILE a LIMIT INACTIVE_ACCOUNT_TIME
 reject@46	reject@46	engine	alterProfile_password_parameters(PASSWORD_LIFE_TIME_(NUMBER|UNLIMITED~158ed97c)/INACTIVE_ACCOUNT_TIME_(NUMBER|UNLIMITED|DEFAULT)!insert	ALTER PROFILE a LIMIT INACTIVE_ACCOUNT_TIME 1 zzz
 reject@22	reject@22	engine	alterProfile_password_parameters(PASSWORD_LIFE_TIME_(NUMBER|UNLIMITED~158ed97c)/INACTIVE_ACCOUNT_TIME_(NUMBER|UNLIMITED|DEFAULT)!swap	ALTER PROFILE a LIMIT INCLUDE 1
 accept	accept	engine	alterProfile_password_parameters(PASSWORD_LIFE_TIME_(NUMBER|UNLIMITED~158ed97c)/PASSWORD_ROLLOVER_TIME_(NUMBER|UNLIMITED|DEFAULT)	ALTER PROFILE a LIMIT PASSWORD_ROLLOVER_TIME 1
-accept	reject@44	engine	alterProfile_password_parameters(PASSWORD_LIFE_TIME_(NUMBER|UNLIMITED~158ed97c)/PASSWORD_ROLLOVER_TIME_(NUMBER|UNLIMITED|DEFAULT)!drop-2	ALTER PROFILE a LIMIT PASSWORD_ROLLOVER_TIME
+reject@44	reject@44	engine	alterProfile_password_parameters(PASSWORD_LIFE_TIME_(NUMBER|UNLIMITED~158ed97c)/PASSWORD_ROLLOVER_TIME_(NUMBER|UNLIMITED|DEFAULT)!drop-2	ALTER PROFILE a LIMIT PASSWORD_ROLLOVER_TIME
 reject@47	reject@47	engine	alterProfile_password_parameters(PASSWORD_LIFE_TIME_(NUMBER|UNLIMITED~158ed97c)/PASSWORD_ROLLOVER_TIME_(NUMBER|UNLIMITED|DEFAULT)!insert	ALTER PROFILE a LIMIT PASSWORD_ROLLOVER_TIME 1 zzz
-accept	reject@47	engine	alterProfile_password_parameters(PASSWORD_LIFE_TIME_(NUMBER|UNLIMITED~158ed97c)/PASSWORD_ROLLOVER_TIME_(NUMBER|UNLIMITED|DEFAULT)!swap	ALTER PROFILE a LIMIT PASSWORD_VERIFY_FUNCTION 1
+reject@47	reject@47	engine	alterProfile_password_parameters(PASSWORD_LIFE_TIME_(NUMBER|UNLIMITED~158ed97c)/PASSWORD_ROLLOVER_TIME_(NUMBER|UNLIMITED|DEFAULT)!swap	ALTER PROFILE a LIMIT PASSWORD_VERIFY_FUNCTION 1
 accept	accept	engine	alterProfile_password_parameters(PASSWORD_LIFE_TIME_(NUMBER|UNLIMITED~158ed97c)/PASSWORD_VERIFY_FUNCTION_(ID|NULL|DEFAULT)	ALTER PROFILE a LIMIT PASSWORD_VERIFY_FUNCTION a
 reject@22	reject@22	engine	alterProfile_password_parameters(PASSWORD_LIFE_TIME_(NUMBER|UNLIMITED~158ed97c)/PASSWORD_VERIFY_FUNCTION_(ID|NULL|DEFAULT)!drop-1	ALTER PROFILE a LIMIT a
-accept	reject@46	engine	alterProfile_password_parameters(PASSWORD_LIFE_TIME_(NUMBER|UNLIMITED~158ed97c)/PASSWORD_VERIFY_FUNCTION_(ID|NULL|DEFAULT)!drop-2	ALTER PROFILE a LIMIT PASSWORD_VERIFY_FUNCTION
+reject@46	reject@46	engine	alterProfile_password_parameters(PASSWORD_LIFE_TIME_(NUMBER|UNLIMITED~158ed97c)/PASSWORD_VERIFY_FUNCTION_(ID|NULL|DEFAULT)!drop-2	ALTER PROFILE a LIMIT PASSWORD_VERIFY_FUNCTION
 reject@49	reject@49	engine	alterProfile_password_parameters(PASSWORD_LIFE_TIME_(NUMBER|UNLIMITED~158ed97c)/PASSWORD_VERIFY_FUNCTION_(ID|NULL|DEFAULT)!insert	ALTER PROFILE a LIMIT PASSWORD_VERIFY_FUNCTION a zzz
 reject@22	reject@22	engine	alterProfile_password_parameters(PASSWORD_LIFE_TIME_(NUMBER|UNLIMITED~158ed97c)/PASSWORD_VERIFY_FUNCTION_(ID|NULL|DEFAULT)!swap	ALTER PROFILE a LIMIT PAST a
 accept	accept	engine	alterProfile_password_parameters(NUMBER|UNLIMITED|DEFAULT)/NUMBER	ALTER PROFILE a LIMIT PASSWORD_LIFE_TIME 1
@@ -12349,11 +12349,11 @@ reject@36	reject@36	engine	alterProfile_size_clause(K|M|G|T|P)?/M!swap	ALTER PRO
 accept	accept	engine	alterProfile_size_clause(K|M|G|T|P)?/G	ALTER PROFILE a LIMIT PRIVATE_SGA 1 G
 reject@38	reject@38	engine	alterProfile_size_clause(K|M|G|T|P)?/G!insert	ALTER PROFILE a LIMIT PRIVATE_SGA 1 G zzz
 reject@36	reject@36	engine	alterProfile_size_clause(K|M|G|T|P)?/G!swap	ALTER PROFILE a LIMIT PRIVATE_SGA 1 GENERATED
-accept	reject@34	engine	alterProfile_size_clause(K|M|G|T|P)?/T	ALTER PROFILE a LIMIT PRIVATE_SGA 1 T
-reject@38	reject@34	engine	alterProfile_size_clause(K|M|G|T|P)?/T!insert	ALTER PROFILE a LIMIT PRIVATE_SGA 1 T zzz
+reject@34	reject@34	engine	alterProfile_size_clause(K|M|G|T|P)?/T	ALTER PROFILE a LIMIT PRIVATE_SGA 1 T
+reject@34	reject@34	engine	alterProfile_size_clause(K|M|G|T|P)?/T!insert	ALTER PROFILE a LIMIT PRIVATE_SGA 1 T zzz
 reject@36	reject@36	engine	alterProfile_size_clause(K|M|G|T|P)?/T!swap	ALTER PROFILE a LIMIT PRIVATE_SGA 1 TABLE
-reject@36	reject@34	engine	alterProfile_size_clause(K|M|G|T|P)?/P	ALTER PROFILE a LIMIT PRIVATE_SGA 1 P
-reject@36	reject@34	engine	alterProfile_size_clause(K|M|G|T|P)?/P!insert	ALTER PROFILE a LIMIT PRIVATE_SGA 1 P zzz
+reject@34	reject@34	engine	alterProfile_size_clause(K|M|G|T|P)?/P	ALTER PROFILE a LIMIT PRIVATE_SGA 1 P
+reject@34	reject@34	engine	alterProfile_size_clause(K|M|G|T|P)?/P!insert	ALTER PROFILE a LIMIT PRIVATE_SGA 1 P zzz
 reject@36	reject@36	engine	alterProfile_size_clause(K|M|G|T|P)?/P!swap	ALTER PROFILE a LIMIT PRIVATE_SGA 1 PACKAGE
 accept	accept	engine	alterResourceCost/ALTER_RESOURCE_COST_(CPU_PER_SESSION_NUMBER|CONNECT_TIM~d5f0bb0a	ALTER RESOURCE COST CPU_PER_SESSION 1
 accept	accept	engine	alterResourceCost(CPU_PER_SESSION_NUMBER|CONNECT_TIME_~23bd4b84)/CPU_PER_SESSION_NUMBER	ALTER RESOURCE COST CPU_PER_SESSION 1
@@ -20635,26 +20635,26 @@ reject@13	reject@13	engine	alterUser(IF_EXISTS)?/IF_EXISTS!insert	ALTER USER a I
 reject@13	reject@13	engine	alterUser(IF_EXISTS)?/IF_EXISTS!swap	ALTER USER a IGNORE EXISTS
 accept	accept	engine	alterUser(alterUser_alter_identified_clause|al~c8482c00)/alterUser_alter_identified_clause	ALTER USER a IDENTIFIED EXTERNALLY
 reject@13	accept	engine	alterUser(alterUser_alter_identified_clause|al~c8482c00)/alterUser_alter_identified_clause!drop-1	ALTER USER a EXTERNALLY
-accept	reject@23	engine	alterUser(alterUser_alter_identified_clause|al~c8482c00)/alterUser_alter_identified_clause!drop-2	ALTER USER a IDENTIFIED
+reject@23	reject@23	engine	alterUser(alterUser_alter_identified_clause|al~c8482c00)/alterUser_alter_identified_clause!drop-2	ALTER USER a IDENTIFIED
 reject@35	accept	engine	alterUser(alterUser_alter_identified_clause|al~c8482c00)/alterUser_alter_identified_clause!insert	ALTER USER a IDENTIFIED EXTERNALLY zzz
 reject@13	reject@13	engine	alterUser(alterUser_alter_identified_clause|al~c8482c00)/alterUser_alter_identified_clause!swap	ALTER USER a IDENTIFIER EXTERNALLY
 accept	accept	engine	alterUser(alterUser_alter_identified_clause|al~c8482c00)/alterUser_proxy_clause	ALTER USER a GRANT CONNECT THROUGH a
 reject@13	reject@13	engine	alterUser(alterUser_alter_identified_clause|al~c8482c00)/alterUser_proxy_clause!drop-1	ALTER USER a CONNECT THROUGH a
-accept	reject@19	engine	alterUser(alterUser_alter_identified_clause|al~c8482c00)/alterUser_proxy_clause!drop-2	ALTER USER a GRANT THROUGH a
-accept	reject@27	engine	alterUser(alterUser_alter_identified_clause|al~c8482c00)/alterUser_proxy_clause!drop-3	ALTER USER a GRANT CONNECT a
-accept	reject@34	engine	alterUser(alterUser_alter_identified_clause|al~c8482c00)/alterUser_proxy_clause!drop-4	ALTER USER a GRANT CONNECT THROUGH
-accept	reject@37	engine	alterUser(alterUser_alter_identified_clause|al~c8482c00)/alterUser_proxy_clause!insert	ALTER USER a GRANT CONNECT THROUGH a zzz
+reject@19	reject@19	engine	alterUser(alterUser_alter_identified_clause|al~c8482c00)/alterUser_proxy_clause!drop-2	ALTER USER a GRANT THROUGH a
+reject@27	reject@27	engine	alterUser(alterUser_alter_identified_clause|al~c8482c00)/alterUser_proxy_clause!drop-3	ALTER USER a GRANT CONNECT a
+reject@34	reject@34	engine	alterUser(alterUser_alter_identified_clause|al~c8482c00)/alterUser_proxy_clause!drop-4	ALTER USER a GRANT CONNECT THROUGH
+reject@37	reject@37	engine	alterUser(alterUser_alter_identified_clause|al~c8482c00)/alterUser_proxy_clause!insert	ALTER USER a GRANT CONNECT THROUGH a zzz
 reject@13	reject@13	engine	alterUser(alterUser_alter_identified_clause|al~c8482c00)/alterUser_proxy_clause!swap	ALTER USER a GRAPH CONNECT THROUGH a
 accept	accept	engine	alterUser(alterUser_alter_identified_clause|al~c8482c00)/alterUser_alter_user_clauses	ALTER USER a
 accept	accept	engine	alterUser_alter_identified_clause/IDENTIFIED_(BY_ID_(REPLACE_ID)?|EXTERNALLY_(AS_S~c9f1f9ed)	ALTER USER a IDENTIFIED EXTERNALLY
 accept	accept	engine	alterUser_alter_identified_clause/NO_AUTHENTICATION	ALTER USER a NO AUTHENTICATION
 reject@13	accept	engine	alterUser_alter_identified_clause/NO_AUTHENTICATION!drop-1	ALTER USER a AUTHENTICATION
-accept	reject@15	engine	alterUser_alter_identified_clause/NO_AUTHENTICATION!drop-2	ALTER USER a NO
+reject@15	reject@15	engine	alterUser_alter_identified_clause/NO_AUTHENTICATION!drop-2	ALTER USER a NO
 reject@31	accept	engine	alterUser_alter_identified_clause/NO_AUTHENTICATION!insert	ALTER USER a NO AUTHENTICATION zzz
 reject@13	reject@13	engine	alterUser_alter_identified_clause/NO_AUTHENTICATION!swap	ALTER USER a NOARCHIVELOG AUTHENTICATION
 accept	accept	engine	alterUser_alter_identified_clause(BY_ID_(REPLACE_ID)?|EXTERNALLY_(AS_S~c9f1f9ed)/BY_ID_(REPLACE_ID)?	ALTER USER a IDENTIFIED BY a
 reject@24	reject@24	engine	alterUser_alter_identified_clause(BY_ID_(REPLACE_ID)?|EXTERNALLY_(AS_S~c9f1f9ed)/BY_ID_(REPLACE_ID)?!drop-1	ALTER USER a IDENTIFIED a
-accept	reject@26	engine	alterUser_alter_identified_clause(BY_ID_(REPLACE_ID)?|EXTERNALLY_(AS_S~c9f1f9ed)/BY_ID_(REPLACE_ID)?!drop-2	ALTER USER a IDENTIFIED BY
+reject@26	reject@26	engine	alterUser_alter_identified_clause(BY_ID_(REPLACE_ID)?|EXTERNALLY_(AS_S~c9f1f9ed)/BY_ID_(REPLACE_ID)?!drop-2	ALTER USER a IDENTIFIED BY
 reject@29	accept	engine	alterUser_alter_identified_clause(BY_ID_(REPLACE_ID)?|EXTERNALLY_(AS_S~c9f1f9ed)/BY_ID_(REPLACE_ID)?!insert	ALTER USER a IDENTIFIED BY a zzz
 reject@24	reject@24	engine	alterUser_alter_identified_clause(BY_ID_(REPLACE_ID)?|EXTERNALLY_(AS_S~c9f1f9ed)/BY_ID_(REPLACE_ID)?!swap	ALTER USER a IDENTIFIED CACHE a
 accept	accept	engine	alterUser_alter_identified_clause(BY_ID_(REPLACE_ID)?|EXTERNALLY_(AS_S~c9f1f9ed)/EXTERNALLY_(AS_STRING)?	ALTER USER a IDENTIFIED EXTERNALLY
@@ -20665,7 +20665,7 @@ reject@24	reject@24	engine	alterUser_alter_identified_clause(BY_ID_(REPLACE_ID)?
 accept	accept	engine	alterUser_alter_identified_clause(REPLACE_ID)?/%empty	ALTER USER a IDENTIFIED BY a
 accept	accept	engine	alterUser_alter_identified_clause(REPLACE_ID)?/REPLACE_ID	ALTER USER a IDENTIFIED BY a REPLACE a
 reject@29	accept	engine	alterUser_alter_identified_clause(REPLACE_ID)?/REPLACE_ID!drop-1	ALTER USER a IDENTIFIED BY a a
-accept	reject@36	engine	alterUser_alter_identified_clause(REPLACE_ID)?/REPLACE_ID!drop-2	ALTER USER a IDENTIFIED BY a REPLACE
+reject@36	reject@36	engine	alterUser_alter_identified_clause(REPLACE_ID)?/REPLACE_ID!drop-2	ALTER USER a IDENTIFIED BY a REPLACE
 reject@39	accept	engine	alterUser_alter_identified_clause(REPLACE_ID)?/REPLACE_ID!insert	ALTER USER a IDENTIFIED BY a REPLACE a zzz
 reject@29	reject@29	engine	alterUser_alter_identified_clause(REPLACE_ID)?/REPLACE_ID!swap	ALTER USER a IDENTIFIED BY a REPLAY a
 accept	accept	engine	alterUser_alter_identified_clause(AS_STRING)?/%empty	ALTER USER a IDENTIFIED EXTERNALLY
@@ -20677,24 +20677,24 @@ reject@35	reject@35	engine	alterUser_alter_identified_clause(AS_STRING)?/AS_STRI
 accept	accept	engine	alterUser_proxy_clause/(GRANT_CONNECT_THROUGH_(ENTERPRISE_US~9f1c7957)	ALTER USER a GRANT CONNECT THROUGH a
 accept	accept	engine	alterUser_proxy_clause(GRANT_CONNECT_THROUGH_(ENTERPRISE_US~9f1c7957)/GRANT_CONNECT_THROUGH_(ENTERPRISE_USERS|ID_alterUser_pr~3bff2657	ALTER USER a GRANT CONNECT THROUGH a
 accept	accept	engine	alterUser_proxy_clause(GRANT_CONNECT_THROUGH_(ENTERPRISE_US~9f1c7957)/REVOKE_CONNECT_THROUGH_(ENTERPRISE_USERS|ID)	ALTER USER a REVOKE CONNECT THROUGH a
-accept	reject@20	engine	alterUser_proxy_clause(GRANT_CONNECT_THROUGH_(ENTERPRISE_US~9f1c7957)/REVOKE_CONNECT_THROUGH_(ENTERPRISE_USERS|ID)!drop-2	ALTER USER a REVOKE THROUGH a
-accept	reject@28	engine	alterUser_proxy_clause(GRANT_CONNECT_THROUGH_(ENTERPRISE_US~9f1c7957)/REVOKE_CONNECT_THROUGH_(ENTERPRISE_USERS|ID)!drop-3	ALTER USER a REVOKE CONNECT a
-accept	reject@35	engine	alterUser_proxy_clause(GRANT_CONNECT_THROUGH_(ENTERPRISE_US~9f1c7957)/REVOKE_CONNECT_THROUGH_(ENTERPRISE_USERS|ID)!drop-4	ALTER USER a REVOKE CONNECT THROUGH
-accept	reject@38	engine	alterUser_proxy_clause(GRANT_CONNECT_THROUGH_(ENTERPRISE_US~9f1c7957)/REVOKE_CONNECT_THROUGH_(ENTERPRISE_USERS|ID)!insert	ALTER USER a REVOKE CONNECT THROUGH a zzz
+reject@20	reject@20	engine	alterUser_proxy_clause(GRANT_CONNECT_THROUGH_(ENTERPRISE_US~9f1c7957)/REVOKE_CONNECT_THROUGH_(ENTERPRISE_USERS|ID)!drop-2	ALTER USER a REVOKE THROUGH a
+reject@28	reject@28	engine	alterUser_proxy_clause(GRANT_CONNECT_THROUGH_(ENTERPRISE_US~9f1c7957)/REVOKE_CONNECT_THROUGH_(ENTERPRISE_USERS|ID)!drop-3	ALTER USER a REVOKE CONNECT a
+reject@35	reject@35	engine	alterUser_proxy_clause(GRANT_CONNECT_THROUGH_(ENTERPRISE_US~9f1c7957)/REVOKE_CONNECT_THROUGH_(ENTERPRISE_USERS|ID)!drop-4	ALTER USER a REVOKE CONNECT THROUGH
+reject@38	reject@38	engine	alterUser_proxy_clause(GRANT_CONNECT_THROUGH_(ENTERPRISE_US~9f1c7957)/REVOKE_CONNECT_THROUGH_(ENTERPRISE_USERS|ID)!insert	ALTER USER a REVOKE CONNECT THROUGH a zzz
 reject@13	reject@13	engine	alterUser_proxy_clause(GRANT_CONNECT_THROUGH_(ENTERPRISE_US~9f1c7957)/REVOKE_CONNECT_THROUGH_(ENTERPRISE_USERS|ID)!swap	ALTER USER a REWRITE CONNECT THROUGH a
 accept	accept	engine	alterUser_proxy_clause(ENTERPRISE_USERS|ID_alterUser_proxy_~69f0d666)/ENTERPRISE_USERS	ALTER USER a GRANT CONNECT THROUGH ENTERPRISE USERS
 accept	accept	engine	alterUser_proxy_clause(ENTERPRISE_USERS|ID_alterUser_proxy_~69f0d666)/ENTERPRISE_USERS!drop-1	ALTER USER a GRANT CONNECT THROUGH USERS
 accept	accept	engine	alterUser_proxy_clause(ENTERPRISE_USERS|ID_alterUser_proxy_~69f0d666)/ENTERPRISE_USERS!drop-2	ALTER USER a GRANT CONNECT THROUGH ENTERPRISE
-accept	reject@52	engine	alterUser_proxy_clause(ENTERPRISE_USERS|ID_alterUser_proxy_~69f0d666)/ENTERPRISE_USERS!insert	ALTER USER a GRANT CONNECT THROUGH ENTERPRISE USERS zzz
-accept	reject@41	engine	alterUser_proxy_clause(ENTERPRISE_USERS|ID_alterUser_proxy_~69f0d666)/ENTERPRISE_USERS!swap	ALTER USER a GRANT CONNECT THROUGH ENTRY USERS
+reject@52	reject@52	engine	alterUser_proxy_clause(ENTERPRISE_USERS|ID_alterUser_proxy_~69f0d666)/ENTERPRISE_USERS!insert	ALTER USER a GRANT CONNECT THROUGH ENTERPRISE USERS zzz
+reject@41	reject@41	engine	alterUser_proxy_clause(ENTERPRISE_USERS|ID_alterUser_proxy_~69f0d666)/ENTERPRISE_USERS!swap	ALTER USER a GRANT CONNECT THROUGH ENTRY USERS
 accept	accept	engine	alterUser_proxy_clause(ENTERPRISE_USERS|ID_alterUser_proxy_~69f0d666)/ID_(alterUser_proxy_clause_options)?	ALTER USER a GRANT CONNECT THROUGH a
 accept	accept	engine	alterUser_proxy_clause(alterUser_proxy_clause_options)?/%empty	ALTER USER a GRANT CONNECT THROUGH a
 accept	accept	engine	alterUser_proxy_clause(alterUser_proxy_clause_options)?/alterUser_proxy_clause_options	ALTER USER a GRANT CONNECT THROUGH a
 accept	accept	engine	alterUser_proxy_clause(ENTERPRISE_USERS|ID)/ENTERPRISE_USERS	ALTER USER a REVOKE CONNECT THROUGH ENTERPRISE USERS
 accept	accept	engine	alterUser_proxy_clause(ENTERPRISE_USERS|ID)/ENTERPRISE_USERS!drop-1	ALTER USER a REVOKE CONNECT THROUGH USERS
 accept	accept	engine	alterUser_proxy_clause(ENTERPRISE_USERS|ID)/ENTERPRISE_USERS!drop-2	ALTER USER a REVOKE CONNECT THROUGH ENTERPRISE
-accept	reject@53	engine	alterUser_proxy_clause(ENTERPRISE_USERS|ID)/ENTERPRISE_USERS!insert	ALTER USER a REVOKE CONNECT THROUGH ENTERPRISE USERS zzz
-accept	reject@42	engine	alterUser_proxy_clause(ENTERPRISE_USERS|ID)/ENTERPRISE_USERS!swap	ALTER USER a REVOKE CONNECT THROUGH ENTRY USERS
+reject@53	reject@53	engine	alterUser_proxy_clause(ENTERPRISE_USERS|ID)/ENTERPRISE_USERS!insert	ALTER USER a REVOKE CONNECT THROUGH ENTERPRISE USERS zzz
+reject@42	reject@42	engine	alterUser_proxy_clause(ENTERPRISE_USERS|ID)/ENTERPRISE_USERS!swap	ALTER USER a REVOKE CONNECT THROUGH ENTRY USERS
 accept	accept	engine	alterUser_proxy_clause(ENTERPRISE_USERS|ID)/ID	ALTER USER a REVOKE CONNECT THROUGH a
 accept	accept	engine	alterUser_alter_user_clauses/(DEFAULT_TABLESPACE_ID)?_(TEMPORARY_TABLESPACE_ID)?_(LO~9e4e5e15	ALTER USER a
 accept	accept	engine	alterUser_alter_user_clauses(DEFAULT_TABLESPACE_ID)?/%empty	ALTER USER a
@@ -20720,7 +20720,7 @@ reject@13	reject@13	engine	alterUser_alter_user_clauses(LOCAL_TEMPORARY_TABLESPA
 accept	accept	engine	alterUser_alter_user_clauses(alterUser_quota_clause_(,_alterUser_~db177312)*/%empty	ALTER USER a
 accept	accept	engine	alterUser_alter_user_clauses(alterUser_quota_clause_(,_alterUser_~db177312)*/alterUser_quota_clause_(,_alterUser_quota_clause)?_(alt~b980d654	ALTER USER a QUOTA 1 ON a
 reject@13	reject@13	engine	alterUser_alter_user_clauses(alterUser_quota_clause_(,_alterUser_~db177312)*/alterUser_quota_clause_(,_alterUser_quota_clause)?_(alt~b980d654!drop-1	ALTER USER a 1 ON a
-accept	reject@19	engine	alterUser_alter_user_clauses(alterUser_quota_clause_(,_alterUser_~db177312)*/alterUser_quota_clause_(,_alterUser_quota_clause)?_(alt~b980d654!drop-2	ALTER USER a QUOTA ON a
+reject@19	reject@19	engine	alterUser_alter_user_clauses(alterUser_quota_clause_(,_alterUser_~db177312)*/alterUser_quota_clause_(,_alterUser_quota_clause)?_(alt~b980d654!drop-2	ALTER USER a QUOTA ON a
 reject@21	reject@21	engine	alterUser_alter_user_clauses(alterUser_quota_clause_(,_alterUser_~db177312)*/alterUser_quota_clause_(,_alterUser_quota_clause)?_(alt~b980d654!drop-3	ALTER USER a QUOTA 1 a
 accept	accept	engine	alterUser_alter_user_clauses(alterUser_quota_clause_(,_alterUser_~db177312)*/alterUser_quota_clause_(,_alterUser_quota_clause)?_(alt~b980d654!drop-4	ALTER USER a QUOTA 1 ON
 reject@26	accept	engine	alterUser_alter_user_clauses(alterUser_quota_clause_(,_alterUser_~db177312)*/alterUser_quota_clause_(,_alterUser_quota_clause)?_(alt~b980d654!insert	ALTER USER a QUOTA 1 ON a zzz
@@ -20737,12 +20737,12 @@ reject@25	reject@25	engine	alterUser_alter_user_clauses(,_alterUser_quota_clause
 accept	accept	engine	alterUser_alter_user_clauses(PROFILE_ID)?/%empty	ALTER USER a
 accept	accept	engine	alterUser_alter_user_clauses(PROFILE_ID)?/PROFILE_ID	ALTER USER a PROFILE a
 reject@13	accept	engine	alterUser_alter_user_clauses(PROFILE_ID)?/PROFILE_ID!drop-1	ALTER USER a a
-accept	reject@20	engine	alterUser_alter_user_clauses(PROFILE_ID)?/PROFILE_ID!drop-2	ALTER USER a PROFILE
+reject@20	reject@20	engine	alterUser_alter_user_clauses(PROFILE_ID)?/PROFILE_ID!drop-2	ALTER USER a PROFILE
 reject@23	accept	engine	alterUser_alter_user_clauses(PROFILE_ID)?/PROFILE_ID!insert	ALTER USER a PROFILE a zzz
 reject@13	reject@13	engine	alterUser_alter_user_clauses(PROFILE_ID)?/PROFILE_ID!swap	ALTER USER a PROJECT a
 accept	accept	engine	alterUser_alter_user_clauses(DEFAULT_ROLE_(ID_(,_ID)*|ALL_(EXCEPT~5845a63c)?/%empty	ALTER USER a
 accept	accept	engine	alterUser_alter_user_clauses(DEFAULT_ROLE_(ID_(,_ID)*|ALL_(EXCEPT~5845a63c)?/DEFAULT_ROLE_(ID_(,_ID)*|ALL_(EXCEPT_ID_(,_ID)?)*|NONE)	ALTER USER a DEFAULT ROLE a
-accept	reject@13	engine	alterUser_alter_user_clauses(DEFAULT_ROLE_(ID_(,_ID)*|ALL_(EXCEPT~5845a63c)?/DEFAULT_ROLE_(ID_(,_ID)*|ALL_(EXCEPT_ID_(,_ID)?)*|NONE)!drop-1	ALTER USER a ROLE a
+reject@13	reject@13	engine	alterUser_alter_user_clauses(DEFAULT_ROLE_(ID_(,_ID)*|ALL_(EXCEPT~5845a63c)?/DEFAULT_ROLE_(ID_(,_ID)*|ALL_(EXCEPT_ID_(,_ID)?)*|NONE)!drop-1	ALTER USER a ROLE a
 accept	accept	engine	alterUser_alter_user_clauses(DEFAULT_ROLE_(ID_(,_ID)*|ALL_(EXCEPT~5845a63c)?/DEFAULT_ROLE_(ID_(,_ID)*|ALL_(EXCEPT_ID_(,_ID)?)*|NONE)!drop-3	ALTER USER a DEFAULT ROLE
 reject@28	accept	engine	alterUser_alter_user_clauses(DEFAULT_ROLE_(ID_(,_ID)*|ALL_(EXCEPT~5845a63c)?/DEFAULT_ROLE_(ID_(,_ID)*|ALL_(EXCEPT_ID_(,_ID)?)*|NONE)!insert	ALTER USER a DEFAULT ROLE a zzz
 reject@13	reject@13	engine	alterUser_alter_user_clauses(DEFAULT_ROLE_(ID_(,_ID)*|ALL_(EXCEPT~5845a63c)?/DEFAULT_ROLE_(ID_(,_ID)*|ALL_(EXCEPT_ID_(,_ID)?)*|NONE)!swap	ALTER USER a DEFAULT_COLLATION ROLE a
@@ -20764,16 +20764,16 @@ reject@30	accept	engine	alterUser_alter_user_clauses(EXCEPT_ID_(,_ID)?)*/EXCEPT_
 accept	accept	engine	alterUser_alter_user_clauses(EXCEPT_ID_(,_ID)?)*/EXCEPT_ID_(,_ID)?_(EXCEPT_ID_(,_ID)?)*!drop-2	ALTER USER a DEFAULT ROLE ALL EXCEPT
 reject@39	accept	engine	alterUser_alter_user_clauses(EXCEPT_ID_(,_ID)?)*/EXCEPT_ID_(,_ID)?_(EXCEPT_ID_(,_ID)?)*!insert	ALTER USER a DEFAULT ROLE ALL EXCEPT a zzz
 reject@30	reject@30	engine	alterUser_alter_user_clauses(EXCEPT_ID_(,_ID)?)*/EXCEPT_ID_(,_ID)?_(EXCEPT_ID_(,_ID)?)*!swap	ALTER USER a DEFAULT ROLE ALL EXCEPTIONS a
-accept	reject@33	engine	alterUser_alter_user_clauses(,_ID)?/%empty	ALTER USER a ENABLE EDITIONS FOR a
-accept	reject@33	engine	alterUser_alter_user_clauses(,_ID)?/%empty!insert	ALTER USER a ENABLE EDITIONS FOR a zzz
-accept	reject@33	engine	alterUser_alter_user_clauses(,_ID)?/,_ID	ALTER USER a ENABLE EDITIONS FOR a, a
-accept	reject@33	engine	alterUser_alter_user_clauses(,_ID)?/,_ID!drop-1	ALTER USER a ENABLE EDITIONS FOR a a
-reject@35	reject@33	engine	alterUser_alter_user_clauses(,_ID)?/,_ID!drop-2	ALTER USER a ENABLE EDITIONS FOR a,
-accept	reject@33	engine	alterUser_alter_user_clauses(,_ID)?/,_ID!insert	ALTER USER a ENABLE EDITIONS FOR a, a zzz
+reject@33	reject@33	engine	alterUser_alter_user_clauses(,_ID)?/%empty	ALTER USER a ENABLE EDITIONS FOR a
+reject@33	reject@33	engine	alterUser_alter_user_clauses(,_ID)?/%empty!insert	ALTER USER a ENABLE EDITIONS FOR a zzz
+reject@33	reject@33	engine	alterUser_alter_user_clauses(,_ID)?/,_ID	ALTER USER a ENABLE EDITIONS FOR a, a
+reject@33	reject@33	engine	alterUser_alter_user_clauses(,_ID)?/,_ID!drop-1	ALTER USER a ENABLE EDITIONS FOR a a
+reject@33	reject@33	engine	alterUser_alter_user_clauses(,_ID)?/,_ID!drop-2	ALTER USER a ENABLE EDITIONS FOR a,
+reject@33	reject@33	engine	alterUser_alter_user_clauses(,_ID)?/,_ID!insert	ALTER USER a ENABLE EDITIONS FOR a, a zzz
 accept	accept	engine	alterUser_alter_user_clauses(PASSWORD_EXPIRE)?/%empty	ALTER USER a
 accept	accept	engine	alterUser_alter_user_clauses(PASSWORD_EXPIRE)?/PASSWORD_EXPIRE	ALTER USER a PASSWORD EXPIRE
-accept	reject@19	engine	alterUser_alter_user_clauses(PASSWORD_EXPIRE)?/PASSWORD_EXPIRE!drop-1	ALTER USER a EXPIRE
-accept	reject@21	engine	alterUser_alter_user_clauses(PASSWORD_EXPIRE)?/PASSWORD_EXPIRE!drop-2	ALTER USER a PASSWORD
+reject@19	reject@19	engine	alterUser_alter_user_clauses(PASSWORD_EXPIRE)?/PASSWORD_EXPIRE!drop-1	ALTER USER a EXPIRE
+reject@21	reject@21	engine	alterUser_alter_user_clauses(PASSWORD_EXPIRE)?/PASSWORD_EXPIRE!drop-2	ALTER USER a PASSWORD
 reject@29	accept	engine	alterUser_alter_user_clauses(PASSWORD_EXPIRE)?/PASSWORD_EXPIRE!insert	ALTER USER a PASSWORD EXPIRE zzz
 reject@13	reject@13	engine	alterUser_alter_user_clauses(PASSWORD_EXPIRE)?/PASSWORD_EXPIRE!swap	ALTER USER a PASSWORDFILE_METADATA_CACHE EXPIRE
 accept	accept	engine	alterUser_alter_user_clauses(EXPIRE_PASSWORD_ROLLOVER_PERIOD)?/%empty	ALTER USER a
@@ -20781,13 +20781,13 @@ accept	accept	engine	alterUser_alter_user_clauses(EXPIRE_PASSWORD_ROLLOVER_PERIO
 reject@22	reject@22	engine	alterUser_alter_user_clauses(EXPIRE_PASSWORD_ROLLOVER_PERIOD)?/EXPIRE_PASSWORD_ROLLOVER_PERIOD!drop-1	ALTER USER a PASSWORD ROLLOVER PERIOD
 reject@20	reject@20	engine	alterUser_alter_user_clauses(EXPIRE_PASSWORD_ROLLOVER_PERIOD)?/EXPIRE_PASSWORD_ROLLOVER_PERIOD!drop-2	ALTER USER a EXPIRE ROLLOVER PERIOD
 reject@29	reject@29	engine	alterUser_alter_user_clauses(EXPIRE_PASSWORD_ROLLOVER_PERIOD)?/EXPIRE_PASSWORD_ROLLOVER_PERIOD!drop-3	ALTER USER a EXPIRE PASSWORD PERIOD
-accept	reject@37	engine	alterUser_alter_user_clauses(EXPIRE_PASSWORD_ROLLOVER_PERIOD)?/EXPIRE_PASSWORD_ROLLOVER_PERIOD!drop-4	ALTER USER a EXPIRE PASSWORD ROLLOVER
+reject@37	reject@37	engine	alterUser_alter_user_clauses(EXPIRE_PASSWORD_ROLLOVER_PERIOD)?/EXPIRE_PASSWORD_ROLLOVER_PERIOD!drop-4	ALTER USER a EXPIRE PASSWORD ROLLOVER
 reject@45	accept	engine	alterUser_alter_user_clauses(EXPIRE_PASSWORD_ROLLOVER_PERIOD)?/EXPIRE_PASSWORD_ROLLOVER_PERIOD!insert	ALTER USER a EXPIRE PASSWORD ROLLOVER PERIOD zzz
 reject@13	reject@13	engine	alterUser_alter_user_clauses(EXPIRE_PASSWORD_ROLLOVER_PERIOD)?/EXPIRE_PASSWORD_ROLLOVER_PERIOD!swap	ALTER USER a EXPLAIN PASSWORD ROLLOVER PERIOD
 accept	accept	engine	alterUser_alter_user_clauses(ACCOUNT_(LOCK|UNLOCK))?/%empty	ALTER USER a
 accept	accept	engine	alterUser_alter_user_clauses(ACCOUNT_(LOCK|UNLOCK))?/ACCOUNT_(LOCK|UNLOCK)	ALTER USER a ACCOUNT LOCK
 reject@13	accept	engine	alterUser_alter_user_clauses(ACCOUNT_(LOCK|UNLOCK))?/ACCOUNT_(LOCK|UNLOCK)!drop-1	ALTER USER a LOCK
-accept	reject@20	engine	alterUser_alter_user_clauses(ACCOUNT_(LOCK|UNLOCK))?/ACCOUNT_(LOCK|UNLOCK)!drop-2	ALTER USER a ACCOUNT
+reject@20	reject@20	engine	alterUser_alter_user_clauses(ACCOUNT_(LOCK|UNLOCK))?/ACCOUNT_(LOCK|UNLOCK)!drop-2	ALTER USER a ACCOUNT
 reject@26	accept	engine	alterUser_alter_user_clauses(ACCOUNT_(LOCK|UNLOCK))?/ACCOUNT_(LOCK|UNLOCK)!insert	ALTER USER a ACCOUNT LOCK zzz
 reject@13	reject@13	engine	alterUser_alter_user_clauses(ACCOUNT_(LOCK|UNLOCK))?/ACCOUNT_(LOCK|UNLOCK)!swap	ALTER USER a ACCURACY LOCK
 accept	accept	engine	alterUser_alter_user_clauses(LOCK|UNLOCK)/LOCK	ALTER USER a ACCOUNT LOCK
@@ -20798,13 +20798,13 @@ reject@21	reject@21	engine	alterUser_alter_user_clauses(LOCK|UNLOCK)/UNLOCK!swap
 accept	accept	engine	alterUser_alter_user_clauses(ENABLE_EDITIONS_(FOR_ID_(,_ID)?)*_FORCE?)?/%empty	ALTER USER a
 accept	accept	engine	alterUser_alter_user_clauses(ENABLE_EDITIONS_(FOR_ID_(,_ID)?)*_FORCE?)?/ENABLE_EDITIONS_(FOR_ID_(,_ID)?)*_(FORCE)?	ALTER USER a ENABLE EDITIONS
 reject@13	accept	engine	alterUser_alter_user_clauses(ENABLE_EDITIONS_(FOR_ID_(,_ID)?)*_FORCE?)?/ENABLE_EDITIONS_(FOR_ID_(,_ID)?)*_(FORCE)?!drop-1	ALTER USER a EDITIONS
-accept	reject@19	engine	alterUser_alter_user_clauses(ENABLE_EDITIONS_(FOR_ID_(,_ID)?)*_FORCE?)?/ENABLE_EDITIONS_(FOR_ID_(,_ID)?)*_(FORCE)?!drop-2	ALTER USER a ENABLE
+reject@19	reject@19	engine	alterUser_alter_user_clauses(ENABLE_EDITIONS_(FOR_ID_(,_ID)?)*_FORCE?)?/ENABLE_EDITIONS_(FOR_ID_(,_ID)?)*_(FORCE)?!drop-2	ALTER USER a ENABLE
 reject@29	accept	engine	alterUser_alter_user_clauses(ENABLE_EDITIONS_(FOR_ID_(,_ID)?)*_FORCE?)?/ENABLE_EDITIONS_(FOR_ID_(,_ID)?)*_(FORCE)?!insert	ALTER USER a ENABLE EDITIONS zzz
 reject@13	reject@13	engine	alterUser_alter_user_clauses(ENABLE_EDITIONS_(FOR_ID_(,_ID)?)*_FORCE?)?/ENABLE_EDITIONS_(FOR_ID_(,_ID)?)*_(FORCE)?!swap	ALTER USER a ENABLE_ALL EDITIONS
 accept	accept	engine	alterUser_alter_user_clauses(FOR_ID_(,_ID)?)*/%empty	ALTER USER a ENABLE EDITIONS
-accept	reject@33	engine	alterUser_alter_user_clauses(FOR_ID_(,_ID)?)*/FOR_ID_(,_ID)?_(FOR_ID_(,_ID)?)*	ALTER USER a ENABLE EDITIONS FOR a
+reject@33	reject@33	engine	alterUser_alter_user_clauses(FOR_ID_(,_ID)?)*/FOR_ID_(,_ID)?_(FOR_ID_(,_ID)?)*	ALTER USER a ENABLE EDITIONS FOR a
 reject@29	accept	engine	alterUser_alter_user_clauses(FOR_ID_(,_ID)?)*/FOR_ID_(,_ID)?_(FOR_ID_(,_ID)?)*!drop-1	ALTER USER a ENABLE EDITIONS a
-accept	reject@32	engine	alterUser_alter_user_clauses(FOR_ID_(,_ID)?)*/FOR_ID_(,_ID)?_(FOR_ID_(,_ID)?)*!drop-2	ALTER USER a ENABLE EDITIONS FOR
+reject@32	reject@32	engine	alterUser_alter_user_clauses(FOR_ID_(,_ID)?)*/FOR_ID_(,_ID)?_(FOR_ID_(,_ID)?)*!drop-2	ALTER USER a ENABLE EDITIONS FOR
 reject@35	accept	engine	alterUser_alter_user_clauses(FOR_ID_(,_ID)?)*/FOR_ID_(,_ID)?_(FOR_ID_(,_ID)?)*!swap	ALTER USER a ENABLE EDITIONS FORCE a
 accept	accept	engine	alterUser_alter_user_clauses(FORCE)?/%empty	ALTER USER a ENABLE EDITIONS
 accept	accept	engine	alterUser_alter_user_clauses(FORCE)?/FORCE	ALTER USER a ENABLE EDITIONS FORCE
@@ -20812,7 +20812,7 @@ reject@35	accept	engine	alterUser_alter_user_clauses(FORCE)?/FORCE!insert	ALTER 
 reject@29	accept	engine	alterUser_alter_user_clauses(FORCE)?/FORCE!swap	ALTER USER a ENABLE EDITIONS FOREIGN
 accept	accept	engine	alterUser_alter_user_clauses(HTTP?_DIGEST_(ENABLE|DISABLE))?/%empty	ALTER USER a
 accept	accept	engine	alterUser_alter_user_clauses(HTTP?_DIGEST_(ENABLE|DISABLE))?/(HTTP)?_DIGEST_(ENABLE|DISABLE)	ALTER USER a DIGEST ENABLE
-accept	reject@19	engine	alterUser_alter_user_clauses(HTTP?_DIGEST_(ENABLE|DISABLE))?/(HTTP)?_DIGEST_(ENABLE|DISABLE)!drop-2	ALTER USER a DIGEST
+reject@19	reject@19	engine	alterUser_alter_user_clauses(HTTP?_DIGEST_(ENABLE|DISABLE))?/(HTTP)?_DIGEST_(ENABLE|DISABLE)!drop-2	ALTER USER a DIGEST
 reject@27	accept	engine	alterUser_alter_user_clauses(HTTP?_DIGEST_(ENABLE|DISABLE))?/(HTTP)?_DIGEST_(ENABLE|DISABLE)!insert	ALTER USER a DIGEST ENABLE zzz
 reject@13	reject@13	engine	alterUser_alter_user_clauses(HTTP?_DIGEST_(ENABLE|DISABLE))?/(HTTP)?_DIGEST_(ENABLE|DISABLE)!swap	ALTER USER a DIMENSION ENABLE
 accept	accept	engine	alterUser_alter_user_clauses(HTTP)?/%empty	ALTER USER a DIGEST ENABLE
@@ -20828,7 +20828,7 @@ reject@20	reject@20	engine	alterUser_alter_user_clauses(ENABLE|DISABLE)/DISABLE!
 accept	accept	engine	alterUser_alter_user_clauses(CONTAINER_=_(ALL|CURRENT))?/%empty	ALTER USER a
 accept	accept	engine	alterUser_alter_user_clauses(CONTAINER_=_(ALL|CURRENT))?/CONTAINER_=_(ALL|CURRENT)	ALTER USER a CONTAINER = ALL
 reject@13	reject@13	engine	alterUser_alter_user_clauses(CONTAINER_=_(ALL|CURRENT))?/CONTAINER_=_(ALL|CURRENT)!drop-1	ALTER USER a = ALL
-accept	reject@23	engine	alterUser_alter_user_clauses(CONTAINER_=_(ALL|CURRENT))?/CONTAINER_=_(ALL|CURRENT)!drop-2	ALTER USER a CONTAINER ALL
+reject@23	reject@23	engine	alterUser_alter_user_clauses(CONTAINER_=_(ALL|CURRENT))?/CONTAINER_=_(ALL|CURRENT)!drop-2	ALTER USER a CONTAINER ALL
 reject@24	accept	engine	alterUser_alter_user_clauses(CONTAINER_=_(ALL|CURRENT))?/CONTAINER_=_(ALL|CURRENT)!drop-3	ALTER USER a CONTAINER =
 reject@29	accept	engine	alterUser_alter_user_clauses(CONTAINER_=_(ALL|CURRENT))?/CONTAINER_=_(ALL|CURRENT)!insert	ALTER USER a CONTAINER = ALL zzz
 reject@13	reject@13	engine	alterUser_alter_user_clauses(CONTAINER_=_(ALL|CURRENT))?/CONTAINER_=_(ALL|CURRENT)!swap	ALTER USER a CONTAINERS = ALL
@@ -20841,55 +20841,55 @@ accept	accept	engine	alterUser_alter_user_clauses((ENABLE|DISABLE)_DICTIONARY_PR
 accept	accept	engine	alterUser_alter_user_clauses((ENABLE|DISABLE)_DICTIONARY_PROTECTION)?/(ENABLE|DISABLE)_DICTIONARY_PROTECTION	ALTER USER a ENABLE DICTIONARY PROTECTION
 reject@13	reject@13	engine	alterUser_alter_user_clauses((ENABLE|DISABLE)_DICTIONARY_PROTECTION)?/(ENABLE|DISABLE)_DICTIONARY_PROTECTION!drop-1	ALTER USER a DICTIONARY PROTECTION
 reject@20	reject@20	engine	alterUser_alter_user_clauses((ENABLE|DISABLE)_DICTIONARY_PROTECTION)?/(ENABLE|DISABLE)_DICTIONARY_PROTECTION!drop-2	ALTER USER a ENABLE PROTECTION
-accept	reject@30	engine	alterUser_alter_user_clauses((ENABLE|DISABLE)_DICTIONARY_PROTECTION)?/(ENABLE|DISABLE)_DICTIONARY_PROTECTION!drop-3	ALTER USER a ENABLE DICTIONARY
+reject@30	reject@30	engine	alterUser_alter_user_clauses((ENABLE|DISABLE)_DICTIONARY_PROTECTION)?/(ENABLE|DISABLE)_DICTIONARY_PROTECTION!drop-3	ALTER USER a ENABLE DICTIONARY
 reject@42	accept	engine	alterUser_alter_user_clauses((ENABLE|DISABLE)_DICTIONARY_PROTECTION)?/(ENABLE|DISABLE)_DICTIONARY_PROTECTION!insert	ALTER USER a ENABLE DICTIONARY PROTECTION zzz
 reject@13	reject@13	engine	alterUser_alter_user_clauses((ENABLE|DISABLE)_DICTIONARY_PROTECTION)?/(ENABLE|DISABLE)_DICTIONARY_PROTECTION!swap	ALTER USER a ENABLE_ALL DICTIONARY PROTECTION
 accept	accept	engine	alterUser_alter_user_clauses(DEFAULT_COLLATION_ID)?/%empty	ALTER USER a
 accept	reject@0	engine	alterUser_alter_user_clauses(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID	ALTER USER a DEFAULT COLLATION a
 reject@13	reject@13	engine	alterUser_alter_user_clauses(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID!drop-1	ALTER USER a COLLATION a
-accept	reject@0	engine	alterUser_alter_user_clauses(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID!drop-3	ALTER USER a DEFAULT COLLATION
+reject@30	reject@0	engine	alterUser_alter_user_clauses(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID!drop-3	ALTER USER a DEFAULT COLLATION
 reject@33	reject@0	engine	alterUser_alter_user_clauses(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID!insert	ALTER USER a DEFAULT COLLATION a zzz
 reject@13	reject@13	engine	alterUser_alter_user_clauses(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID!swap	ALTER USER a DEFAULT_COLLATION COLLATION a
 accept	accept	engine	alterUser_alter_user_clauses(alterUser_container_data_clause)?/%empty	ALTER USER a
-accept	reject@32	engine	alterUser_alter_user_clauses(alterUser_container_data_clause)?/alterUser_container_data_clause	ALTER USER a SET CONTAINER_DATA ALL
+reject@32	reject@32	engine	alterUser_alter_user_clauses(alterUser_container_data_clause)?/alterUser_container_data_clause	ALTER USER a SET CONTAINER_DATA ALL
 reject@13	reject@13	engine	alterUser_alter_user_clauses(alterUser_container_data_clause)?/alterUser_container_data_clause!drop-1	ALTER USER a CONTAINER_DATA ALL
 reject@17	reject@17	engine	alterUser_alter_user_clauses(alterUser_container_data_clause)?/alterUser_container_data_clause!drop-2	ALTER USER a SET ALL
-accept	reject@31	engine	alterUser_alter_user_clauses(alterUser_container_data_clause)?/alterUser_container_data_clause!drop-3	ALTER USER a SET CONTAINER_DATA
-reject@36	reject@32	engine	alterUser_alter_user_clauses(alterUser_container_data_clause)?/alterUser_container_data_clause!insert	ALTER USER a SET CONTAINER_DATA ALL zzz
+reject@31	reject@31	engine	alterUser_alter_user_clauses(alterUser_container_data_clause)?/alterUser_container_data_clause!drop-3	ALTER USER a SET CONTAINER_DATA
+reject@32	reject@32	engine	alterUser_alter_user_clauses(alterUser_container_data_clause)?/alterUser_container_data_clause!insert	ALTER USER a SET CONTAINER_DATA ALL zzz
 reject@13	reject@13	engine	alterUser_alter_user_clauses(alterUser_container_data_clause)?/alterUser_container_data_clause!swap	ALTER USER a SETS CONTAINER_DATA ALL
 accept	accept	engine	alterUser_proxy_clause_options/(WITH_(ROLE_(ID_(,_ID)*|ALL_EXCEPT_ID~29dc438f)?_(AUTHE~6565c5d0	ALTER USER a GRANT CONNECT THROUGH a
 accept	accept	engine	alterUser_proxy_clause_options(WITH_(ROLE_(ID_(,_ID)*|ALL_EXCEPT_ID~29dc438f)?/%empty	ALTER USER a GRANT CONNECT THROUGH a
 accept	accept	engine	alterUser_proxy_clause_options(WITH_(ROLE_(ID_(,_ID)*|ALL_EXCEPT_ID~29dc438f)?/WITH_(ROLE_(ID_(,_ID)*|ALL_EXCEPT_ID_(,_ID~b92d21ce)	ALTER USER a GRANT CONNECT THROUGH a WITH ROLE a
-accept	reject@37	engine	alterUser_proxy_clause_options(WITH_(ROLE_(ID_(,_ID)*|ALL_EXCEPT_ID~29dc438f)?/WITH_(ROLE_(ID_(,_ID)*|ALL_EXCEPT_ID_(,_ID~b92d21ce)!drop-1	ALTER USER a GRANT CONNECT THROUGH a ROLE a
-accept	reject@42	engine	alterUser_proxy_clause_options(WITH_(ROLE_(ID_(,_ID)*|ALL_EXCEPT_ID~29dc438f)?/WITH_(ROLE_(ID_(,_ID)*|ALL_EXCEPT_ID_(,_ID~b92d21ce)!drop-2	ALTER USER a GRANT CONNECT THROUGH a WITH a
-accept	reject@46	engine	alterUser_proxy_clause_options(WITH_(ROLE_(ID_(,_ID)*|ALL_EXCEPT_ID~29dc438f)?/WITH_(ROLE_(ID_(,_ID)*|ALL_EXCEPT_ID_(,_ID~b92d21ce)!drop-3	ALTER USER a GRANT CONNECT THROUGH a WITH ROLE
-accept	reject@49	engine	alterUser_proxy_clause_options(WITH_(ROLE_(ID_(,_ID)*|ALL_EXCEPT_ID~29dc438f)?/WITH_(ROLE_(ID_(,_ID)*|ALL_EXCEPT_ID_(,_ID~b92d21ce)!insert	ALTER USER a GRANT CONNECT THROUGH a WITH ROLE a zzz
-accept	reject@37	engine	alterUser_proxy_clause_options(WITH_(ROLE_(ID_(,_ID)*|ALL_EXCEPT_ID~29dc438f)?/WITH_(ROLE_(ID_(,_ID)*|ALL_EXCEPT_ID_(,_ID~b92d21ce)!swap	ALTER USER a GRANT CONNECT THROUGH a WITHOUT ROLE a
+reject@37	reject@37	engine	alterUser_proxy_clause_options(WITH_(ROLE_(ID_(,_ID)*|ALL_EXCEPT_ID~29dc438f)?/WITH_(ROLE_(ID_(,_ID)*|ALL_EXCEPT_ID_(,_ID~b92d21ce)!drop-1	ALTER USER a GRANT CONNECT THROUGH a ROLE a
+reject@42	reject@42	engine	alterUser_proxy_clause_options(WITH_(ROLE_(ID_(,_ID)*|ALL_EXCEPT_ID~29dc438f)?/WITH_(ROLE_(ID_(,_ID)*|ALL_EXCEPT_ID_(,_ID~b92d21ce)!drop-2	ALTER USER a GRANT CONNECT THROUGH a WITH a
+reject@46	reject@46	engine	alterUser_proxy_clause_options(WITH_(ROLE_(ID_(,_ID)*|ALL_EXCEPT_ID~29dc438f)?/WITH_(ROLE_(ID_(,_ID)*|ALL_EXCEPT_ID_(,_ID~b92d21ce)!drop-3	ALTER USER a GRANT CONNECT THROUGH a WITH ROLE
+reject@49	reject@49	engine	alterUser_proxy_clause_options(WITH_(ROLE_(ID_(,_ID)*|ALL_EXCEPT_ID~29dc438f)?/WITH_(ROLE_(ID_(,_ID)*|ALL_EXCEPT_ID_(,_ID~b92d21ce)!insert	ALTER USER a GRANT CONNECT THROUGH a WITH ROLE a zzz
+reject@37	reject@37	engine	alterUser_proxy_clause_options(WITH_(ROLE_(ID_(,_ID)*|ALL_EXCEPT_ID~29dc438f)?/WITH_(ROLE_(ID_(,_ID)*|ALL_EXCEPT_ID_(,_ID~b92d21ce)!swap	ALTER USER a GRANT CONNECT THROUGH a WITHOUT ROLE a
 accept	accept	engine	alterUser_proxy_clause_options(ROLE_(ID_(,_ID)*|ALL_EXCEPT_ID_(,_ID~b92d21ce)/ROLE_(ID_(,_ID)*|ALL_EXCEPT_ID_(,_ID)*)	ALTER USER a GRANT CONNECT THROUGH a WITH ROLE a
 accept	accept	engine	alterUser_proxy_clause_options(ROLE_(ID_(,_ID)*|ALL_EXCEPT_ID_(,_ID~b92d21ce)/ROLE_(ID_(,_ID)*|ALL_EXCEPT_ID_(,_ID)*)!swap	ALTER USER a GRANT CONNECT THROUGH a WITH ROLES a
 accept	accept	engine	alterUser_proxy_clause_options(ROLE_(ID_(,_ID)*|ALL_EXCEPT_ID_(,_ID~b92d21ce)/NO_ROLES	ALTER USER a GRANT CONNECT THROUGH a WITH NO ROLES
-accept	reject@47	engine	alterUser_proxy_clause_options(ROLE_(ID_(,_ID)*|ALL_EXCEPT_ID_(,_ID~b92d21ce)/NO_ROLES!drop-1	ALTER USER a GRANT CONNECT THROUGH a WITH ROLES
+reject@47	reject@47	engine	alterUser_proxy_clause_options(ROLE_(ID_(,_ID)*|ALL_EXCEPT_ID_(,_ID~b92d21ce)/NO_ROLES!drop-1	ALTER USER a GRANT CONNECT THROUGH a WITH ROLES
 accept	accept	engine	alterUser_proxy_clause_options(ROLE_(ID_(,_ID)*|ALL_EXCEPT_ID_(,_ID~b92d21ce)/NO_ROLES!drop-2	ALTER USER a GRANT CONNECT THROUGH a WITH NO
-accept	reject@51	engine	alterUser_proxy_clause_options(ROLE_(ID_(,_ID)*|ALL_EXCEPT_ID_(,_ID~b92d21ce)/NO_ROLES!insert	ALTER USER a GRANT CONNECT THROUGH a WITH NO ROLES zzz
-accept	reject@42	engine	alterUser_proxy_clause_options(ROLE_(ID_(,_ID)*|ALL_EXCEPT_ID_(,_ID~b92d21ce)/NO_ROLES!swap	ALTER USER a GRANT CONNECT THROUGH a WITH NOARCHIVELOG ROLES
+reject@51	reject@51	engine	alterUser_proxy_clause_options(ROLE_(ID_(,_ID)*|ALL_EXCEPT_ID_(,_ID~b92d21ce)/NO_ROLES!insert	ALTER USER a GRANT CONNECT THROUGH a WITH NO ROLES zzz
+reject@42	reject@42	engine	alterUser_proxy_clause_options(ROLE_(ID_(,_ID)*|ALL_EXCEPT_ID_(,_ID~b92d21ce)/NO_ROLES!swap	ALTER USER a GRANT CONNECT THROUGH a WITH NOARCHIVELOG ROLES
 accept	accept	engine	alterUser_proxy_clause_options(ID_(,_ID)*|ALL_EXCEPT_ID_(,_ID)*)/ID_(,_ID)*	ALTER USER a GRANT CONNECT THROUGH a WITH ROLE a
 accept	accept	engine	alterUser_proxy_clause_options(ID_(,_ID)*|ALL_EXCEPT_ID_(,_ID)*)/ALL_EXCEPT_ID_(,_ID)*	ALTER USER a GRANT CONNECT THROUGH a WITH ROLE ALL EXCEPT a
-accept	reject@47	engine	alterUser_proxy_clause_options(ID_(,_ID)*|ALL_EXCEPT_ID_(,_ID)*)/ALL_EXCEPT_ID_(,_ID)*!drop-1	ALTER USER a GRANT CONNECT THROUGH a WITH ROLE EXCEPT a
-accept	reject@51	engine	alterUser_proxy_clause_options(ID_(,_ID)*|ALL_EXCEPT_ID_(,_ID)*)/ALL_EXCEPT_ID_(,_ID)*!drop-2	ALTER USER a GRANT CONNECT THROUGH a WITH ROLE ALL a
-accept	reject@57	engine	alterUser_proxy_clause_options(ID_(,_ID)*|ALL_EXCEPT_ID_(,_ID)*)/ALL_EXCEPT_ID_(,_ID)*!drop-3	ALTER USER a GRANT CONNECT THROUGH a WITH ROLE ALL EXCEPT
-accept	reject@60	engine	alterUser_proxy_clause_options(ID_(,_ID)*|ALL_EXCEPT_ID_(,_ID)*)/ALL_EXCEPT_ID_(,_ID)*!insert	ALTER USER a GRANT CONNECT THROUGH a WITH ROLE ALL EXCEPT a zzz
-accept	reject@56	engine	alterUser_proxy_clause_options(ID_(,_ID)*|ALL_EXCEPT_ID_(,_ID)*)/ALL_EXCEPT_ID_(,_ID)*!swap	ALTER USER a GRANT CONNECT THROUGH a WITH ROLE ALLOCATE EXCEPT a
+reject@47	reject@47	engine	alterUser_proxy_clause_options(ID_(,_ID)*|ALL_EXCEPT_ID_(,_ID)*)/ALL_EXCEPT_ID_(,_ID)*!drop-1	ALTER USER a GRANT CONNECT THROUGH a WITH ROLE EXCEPT a
+reject@51	reject@51	engine	alterUser_proxy_clause_options(ID_(,_ID)*|ALL_EXCEPT_ID_(,_ID)*)/ALL_EXCEPT_ID_(,_ID)*!drop-2	ALTER USER a GRANT CONNECT THROUGH a WITH ROLE ALL a
+reject@57	reject@57	engine	alterUser_proxy_clause_options(ID_(,_ID)*|ALL_EXCEPT_ID_(,_ID)*)/ALL_EXCEPT_ID_(,_ID)*!drop-3	ALTER USER a GRANT CONNECT THROUGH a WITH ROLE ALL EXCEPT
+reject@60	reject@60	engine	alterUser_proxy_clause_options(ID_(,_ID)*|ALL_EXCEPT_ID_(,_ID)*)/ALL_EXCEPT_ID_(,_ID)*!insert	ALTER USER a GRANT CONNECT THROUGH a WITH ROLE ALL EXCEPT a zzz
+reject@56	reject@56	engine	alterUser_proxy_clause_options(ID_(,_ID)*|ALL_EXCEPT_ID_(,_ID)*)/ALL_EXCEPT_ID_(,_ID)*!swap	ALTER USER a GRANT CONNECT THROUGH a WITH ROLE ALLOCATE EXCEPT a
 accept	accept	engine	alterUser_proxy_clause_options(,_ID)*/%empty	ALTER USER a GRANT CONNECT THROUGH a WITH ROLE a
 accept	accept	engine	alterUser_proxy_clause_options(,_ID)*/,_ID_(,_ID)*	ALTER USER a GRANT CONNECT THROUGH a WITH ROLE a, a
-accept	reject@49	engine	alterUser_proxy_clause_options(,_ID)*/,_ID_(,_ID)*!drop-1	ALTER USER a GRANT CONNECT THROUGH a WITH ROLE a a
+reject@49	reject@49	engine	alterUser_proxy_clause_options(,_ID)*/,_ID_(,_ID)*!drop-1	ALTER USER a GRANT CONNECT THROUGH a WITH ROLE a a
 reject@49	reject@49	engine	alterUser_proxy_clause_options(,_ID)*/,_ID_(,_ID)*!drop-2	ALTER USER a GRANT CONNECT THROUGH a WITH ROLE a,
-accept	reject@50	engine	alterUser_proxy_clause_options(,_ID)*/,_ID_(,_ID)*!insert	ALTER USER a GRANT CONNECT THROUGH a WITH ROLE a, a zzz
+reject@52	reject@50	engine	alterUser_proxy_clause_options(,_ID)*/,_ID_(,_ID)*!insert	ALTER USER a GRANT CONNECT THROUGH a WITH ROLE a, a zzz
 accept	accept	engine	alterUser_proxy_clause_options(AUTHENTICATION_REQUIRED)?/%empty	ALTER USER a GRANT CONNECT THROUGH a
 accept	accept	engine	alterUser_proxy_clause_options(AUTHENTICATION_REQUIRED)?/AUTHENTICATION_REQUIRED	ALTER USER a GRANT CONNECT THROUGH a AUTHENTICATION REQUIRED
-accept	reject@37	engine	alterUser_proxy_clause_options(AUTHENTICATION_REQUIRED)?/AUTHENTICATION_REQUIRED!drop-1	ALTER USER a GRANT CONNECT THROUGH a REQUIRED
-accept	reject@51	engine	alterUser_proxy_clause_options(AUTHENTICATION_REQUIRED)?/AUTHENTICATION_REQUIRED!drop-2	ALTER USER a GRANT CONNECT THROUGH a AUTHENTICATION
+reject@37	reject@37	engine	alterUser_proxy_clause_options(AUTHENTICATION_REQUIRED)?/AUTHENTICATION_REQUIRED!drop-1	ALTER USER a GRANT CONNECT THROUGH a REQUIRED
+reject@51	reject@51	engine	alterUser_proxy_clause_options(AUTHENTICATION_REQUIRED)?/AUTHENTICATION_REQUIRED!drop-2	ALTER USER a GRANT CONNECT THROUGH a AUTHENTICATION
 accept	accept	engine	alterUser_proxy_clause_options(AUTHENTICATION_REQUIRED)?/AUTHENTICATION_REQUIRED!insert	ALTER USER a GRANT CONNECT THROUGH a AUTHENTICATION REQUIRED zzz
-accept	reject@37	engine	alterUser_proxy_clause_options(AUTHENTICATION_REQUIRED)?/AUTHENTICATION_REQUIRED!swap	ALTER USER a GRANT CONNECT THROUGH a AUTHID REQUIRED
+reject@37	reject@37	engine	alterUser_proxy_clause_options(AUTHENTICATION_REQUIRED)?/AUTHENTICATION_REQUIRED!swap	ALTER USER a GRANT CONNECT THROUGH a AUTHID REQUIRED
 accept	accept	engine	alterUser_quota_clause/QUOTA_(alterUser_size_clause|UNLIMITED)_ON_ID	ALTER USER a QUOTA 1 ON a
 accept	accept	engine	alterUser_quota_clause(alterUser_size_clause|UNLIMITED)/alterUser_size_clause	ALTER USER a QUOTA 1 ON a
 accept	accept	engine	alterUser_quota_clause(alterUser_size_clause|UNLIMITED)/alterUser_size_clause!truncate	ALTER USER a QUOTA
@@ -20897,48 +20897,48 @@ reject@21	reject@21	engine	alterUser_quota_clause(alterUser_size_clause|UNLIMITE
 accept	accept	engine	alterUser_quota_clause(alterUser_size_clause|UNLIMITED)/UNLIMITED	ALTER USER a QUOTA UNLIMITED ON a
 reject@29	reject@29	engine	alterUser_quota_clause(alterUser_size_clause|UNLIMITED)/UNLIMITED!insert	ALTER USER a QUOTA UNLIMITED zzz ON a
 reject@19	reject@19	engine	alterUser_quota_clause(alterUser_size_clause|UNLIMITED)/UNLIMITED!swap	ALTER USER a QUOTA UNLOCK ON a
-accept	reject@32	engine	alterUser_container_data_clause/(SET|ADD|REMOVE)_CONTAINER_DATA_((_ID_(,_ID)*_)|ALL|DEF~0d6770a5	ALTER USER a SET CONTAINER_DATA ALL
-accept	reject@32	engine	alterUser_container_data_clause(SET|ADD|REMOVE)/SET	ALTER USER a SET CONTAINER_DATA ALL
+reject@32	reject@32	engine	alterUser_container_data_clause/(SET|ADD|REMOVE)_CONTAINER_DATA_((_ID_(,_ID)*_)|ALL|DEF~0d6770a5	ALTER USER a SET CONTAINER_DATA ALL
+reject@32	reject@32	engine	alterUser_container_data_clause(SET|ADD|REMOVE)/SET	ALTER USER a SET CONTAINER_DATA ALL
 reject@17	reject@17	engine	alterUser_container_data_clause(SET|ADD|REMOVE)/SET!insert	ALTER USER a SET zzz CONTAINER_DATA ALL
-accept	reject@32	engine	alterUser_container_data_clause(SET|ADD|REMOVE)/ADD	ALTER USER a ADD CONTAINER_DATA ALL
+reject@32	reject@32	engine	alterUser_container_data_clause(SET|ADD|REMOVE)/ADD	ALTER USER a ADD CONTAINER_DATA ALL
 reject@17	reject@17	engine	alterUser_container_data_clause(SET|ADD|REMOVE)/ADD!insert	ALTER USER a ADD zzz CONTAINER_DATA ALL
 reject@13	reject@13	engine	alterUser_container_data_clause(SET|ADD|REMOVE)/ADD!swap	ALTER USER a ADMIN CONTAINER_DATA ALL
-accept	reject@35	engine	alterUser_container_data_clause(SET|ADD|REMOVE)/REMOVE	ALTER USER a REMOVE CONTAINER_DATA ALL
+reject@35	reject@35	engine	alterUser_container_data_clause(SET|ADD|REMOVE)/REMOVE	ALTER USER a REMOVE CONTAINER_DATA ALL
 reject@20	reject@20	engine	alterUser_container_data_clause(SET|ADD|REMOVE)/REMOVE!insert	ALTER USER a REMOVE zzz CONTAINER_DATA ALL
 reject@13	reject@13	engine	alterUser_container_data_clause(SET|ADD|REMOVE)/REMOVE!swap	ALTER USER a RENAME CONTAINER_DATA ALL
-accept	reject@31	engine	alterUser_container_data_clause((_ID_(,_ID)*_)|ALL|DEFAULT)/(_ID_(,_ID)*_)	ALTER USER a SET CONTAINER_DATA(a)
+reject@31	reject@31	engine	alterUser_container_data_clause((_ID_(,_ID)*_)|ALL|DEFAULT)/(_ID_(,_ID)*_)	ALTER USER a SET CONTAINER_DATA(a)
 reject@33	reject@32	engine	alterUser_container_data_clause((_ID_(,_ID)*_)|ALL|DEFAULT)/(_ID_(,_ID)*_)!drop-1	ALTER USER a SET CONTAINER_DATA a)
-accept	reject@31	engine	alterUser_container_data_clause((_ID_(,_ID)*_)|ALL|DEFAULT)/(_ID_(,_ID)*_)!drop-2	ALTER USER a SET CONTAINER_DATA()
+reject@31	reject@31	engine	alterUser_container_data_clause((_ID_(,_ID)*_)|ALL|DEFAULT)/(_ID_(,_ID)*_)!drop-2	ALTER USER a SET CONTAINER_DATA()
 reject@33	reject@31	engine	alterUser_container_data_clause((_ID_(,_ID)*_)|ALL|DEFAULT)/(_ID_(,_ID)*_)!drop-3	ALTER USER a SET CONTAINER_DATA(a
-reject@35	reject@31	engine	alterUser_container_data_clause((_ID_(,_ID)*_)|ALL|DEFAULT)/(_ID_(,_ID)*_)!insert	ALTER USER a SET CONTAINER_DATA(a) zzz
-accept	reject@32	engine	alterUser_container_data_clause((_ID_(,_ID)*_)|ALL|DEFAULT)/ALL	ALTER USER a SET CONTAINER_DATA ALL
+reject@31	reject@31	engine	alterUser_container_data_clause((_ID_(,_ID)*_)|ALL|DEFAULT)/(_ID_(,_ID)*_)!insert	ALTER USER a SET CONTAINER_DATA(a) zzz
+reject@32	reject@32	engine	alterUser_container_data_clause((_ID_(,_ID)*_)|ALL|DEFAULT)/ALL	ALTER USER a SET CONTAINER_DATA ALL
 reject@32	reject@32	engine	alterUser_container_data_clause((_ID_(,_ID)*_)|ALL|DEFAULT)/ALL!swap	ALTER USER a SET CONTAINER_DATA ALLOCATE
-accept	reject@32	engine	alterUser_container_data_clause((_ID_(,_ID)*_)|ALL|DEFAULT)/DEFAULT	ALTER USER a SET CONTAINER_DATA DEFAULT
-reject@40	reject@32	engine	alterUser_container_data_clause((_ID_(,_ID)*_)|ALL|DEFAULT)/DEFAULT!insert	ALTER USER a SET CONTAINER_DATA DEFAULT zzz
+reject@32	reject@32	engine	alterUser_container_data_clause((_ID_(,_ID)*_)|ALL|DEFAULT)/DEFAULT	ALTER USER a SET CONTAINER_DATA DEFAULT
+reject@32	reject@32	engine	alterUser_container_data_clause((_ID_(,_ID)*_)|ALL|DEFAULT)/DEFAULT!insert	ALTER USER a SET CONTAINER_DATA DEFAULT zzz
 reject@32	reject@32	engine	alterUser_container_data_clause((_ID_(,_ID)*_)|ALL|DEFAULT)/DEFAULT!swap	ALTER USER a SET CONTAINER_DATA DEFAULT_COLLATION
-accept	reject@31	engine	alterUser_container_data_clause(,_ID)*/%empty	ALTER USER a SET CONTAINER_DATA(a)
-accept	reject@31	engine	alterUser_container_data_clause(,_ID)*/%empty!insert	ALTER USER a SET CONTAINER_DATA(a zzz)
-accept	reject@31	engine	alterUser_container_data_clause(,_ID)*/,_ID_(,_ID)*	ALTER USER a SET CONTAINER_DATA(a, a)
-accept	reject@31	engine	alterUser_container_data_clause(,_ID)*/,_ID_(,_ID)*!drop-1	ALTER USER a SET CONTAINER_DATA(a a)
-accept	reject@31	engine	alterUser_container_data_clause(,_ID)*/,_ID_(,_ID)*!drop-2	ALTER USER a SET CONTAINER_DATA(a,)
+reject@31	reject@31	engine	alterUser_container_data_clause(,_ID)*/%empty	ALTER USER a SET CONTAINER_DATA(a)
+reject@31	reject@31	engine	alterUser_container_data_clause(,_ID)*/%empty!insert	ALTER USER a SET CONTAINER_DATA(a zzz)
+reject@31	reject@31	engine	alterUser_container_data_clause(,_ID)*/,_ID_(,_ID)*	ALTER USER a SET CONTAINER_DATA(a, a)
+reject@31	reject@31	engine	alterUser_container_data_clause(,_ID)*/,_ID_(,_ID)*!drop-1	ALTER USER a SET CONTAINER_DATA(a a)
+reject@31	reject@31	engine	alterUser_container_data_clause(,_ID)*/,_ID_(,_ID)*!drop-2	ALTER USER a SET CONTAINER_DATA(a,)
 reject@34	reject@31	engine	alterUser_container_data_clause(,_ID)*/,_ID_(,_ID)*!truncate	ALTER USER a SET CONTAINER_DATA(a,
-accept	reject@31	engine	alterUser_container_data_clause(,_ID)*/,_ID_(,_ID)*!insert	ALTER USER a SET CONTAINER_DATA(a, a zzz)
-accept	reject@32	engine	alterUser_container_data_clause(FOR_(ID_.)?_ID)?/%empty	ALTER USER a SET CONTAINER_DATA ALL
-accept	reject@32	engine	alterUser_container_data_clause(FOR_(ID_.)?_ID)?/FOR_(ID_.)?_ID	ALTER USER a SET CONTAINER_DATA ALL FOR a
-reject@36	reject@32	engine	alterUser_container_data_clause(FOR_(ID_.)?_ID)?/FOR_(ID_.)?_ID!drop-1	ALTER USER a SET CONTAINER_DATA ALL a
-accept	reject@32	engine	alterUser_container_data_clause(FOR_(ID_.)?_ID)?/FOR_(ID_.)?_ID!drop-2	ALTER USER a SET CONTAINER_DATA ALL FOR
-reject@42	reject@32	engine	alterUser_container_data_clause(FOR_(ID_.)?_ID)?/FOR_(ID_.)?_ID!insert	ALTER USER a SET CONTAINER_DATA ALL FOR a zzz
-reject@36	reject@32	engine	alterUser_container_data_clause(FOR_(ID_.)?_ID)?/FOR_(ID_.)?_ID!swap	ALTER USER a SET CONTAINER_DATA ALL FORCE a
-accept	reject@32	engine	alterUser_container_data_clause(ID_.)?/%empty	ALTER USER a SET CONTAINER_DATA ALL FOR a
-reject@44	reject@32	engine	alterUser_container_data_clause(ID_.)?/%empty!insert	ALTER USER a SET CONTAINER_DATA ALL FOR zzz a
-accept	reject@32	engine	alterUser_container_data_clause(ID_.)?/ID_.	ALTER USER a SET CONTAINER_DATA ALL FOR a.a
-reject@39	reject@32	engine	alterUser_container_data_clause(ID_.)?/ID_.!drop-1	ALTER USER a SET CONTAINER_DATA ALL FOR.a
-reject@42	reject@32	engine	alterUser_container_data_clause(ID_.)?/ID_.!drop-2	ALTER USER a SET CONTAINER_DATA ALL FOR a a
-reject@46	reject@32	engine	alterUser_container_data_clause(ID_.)?/ID_.!insert	ALTER USER a SET CONTAINER_DATA ALL FOR a.zzz a
+reject@31	reject@31	engine	alterUser_container_data_clause(,_ID)*/,_ID_(,_ID)*!insert	ALTER USER a SET CONTAINER_DATA(a, a zzz)
+reject@32	reject@32	engine	alterUser_container_data_clause(FOR_(ID_.)?_ID)?/%empty	ALTER USER a SET CONTAINER_DATA ALL
+reject@32	reject@32	engine	alterUser_container_data_clause(FOR_(ID_.)?_ID)?/FOR_(ID_.)?_ID	ALTER USER a SET CONTAINER_DATA ALL FOR a
+reject@32	reject@32	engine	alterUser_container_data_clause(FOR_(ID_.)?_ID)?/FOR_(ID_.)?_ID!drop-1	ALTER USER a SET CONTAINER_DATA ALL a
+reject@32	reject@32	engine	alterUser_container_data_clause(FOR_(ID_.)?_ID)?/FOR_(ID_.)?_ID!drop-2	ALTER USER a SET CONTAINER_DATA ALL FOR
+reject@32	reject@32	engine	alterUser_container_data_clause(FOR_(ID_.)?_ID)?/FOR_(ID_.)?_ID!insert	ALTER USER a SET CONTAINER_DATA ALL FOR a zzz
+reject@32	reject@32	engine	alterUser_container_data_clause(FOR_(ID_.)?_ID)?/FOR_(ID_.)?_ID!swap	ALTER USER a SET CONTAINER_DATA ALL FORCE a
+reject@32	reject@32	engine	alterUser_container_data_clause(ID_.)?/%empty	ALTER USER a SET CONTAINER_DATA ALL FOR a
+reject@32	reject@32	engine	alterUser_container_data_clause(ID_.)?/%empty!insert	ALTER USER a SET CONTAINER_DATA ALL FOR zzz a
+reject@32	reject@32	engine	alterUser_container_data_clause(ID_.)?/ID_.	ALTER USER a SET CONTAINER_DATA ALL FOR a.a
+reject@32	reject@32	engine	alterUser_container_data_clause(ID_.)?/ID_.!drop-1	ALTER USER a SET CONTAINER_DATA ALL FOR.a
+reject@32	reject@32	engine	alterUser_container_data_clause(ID_.)?/ID_.!drop-2	ALTER USER a SET CONTAINER_DATA ALL FOR a a
+reject@32	reject@32	engine	alterUser_container_data_clause(ID_.)?/ID_.!insert	ALTER USER a SET CONTAINER_DATA ALL FOR a.zzz a
 accept	accept	engine	alterUser_size_clause/NUMBER_(K|M|G|T|P)?	ALTER USER a QUOTA 1 ON a
 accept	accept	engine	alterUser_size_clause(K|M|G|T|P)?/%empty	ALTER USER a QUOTA 1 ON a
 accept	accept	engine	alterUser_size_clause(K|M|G|T|P)?/K	ALTER USER a QUOTA 1 K ON a
-accept	reject@20	engine	alterUser_size_clause(K|M|G|T|P)?/K!truncate	ALTER USER a QUOTA 1
+reject@20	reject@20	engine	alterUser_size_clause(K|M|G|T|P)?/K!truncate	ALTER USER a QUOTA 1
 reject@23	reject@23	engine	alterUser_size_clause(K|M|G|T|P)?/K!insert	ALTER USER a QUOTA 1 K zzz ON a
 reject@21	reject@21	engine	alterUser_size_clause(K|M|G|T|P)?/K!swap	ALTER USER a QUOTA 1 KEEP ON a
 accept	accept	engine	alterUser_size_clause(K|M|G|T|P)?/M	ALTER USER a QUOTA 1 M ON a
@@ -21508,7 +21508,7 @@ accept	accept	engine	auditUnifiedAuditing(POLICY_ID_((BY|EXCEPT)_ID_(,_ID)?)*_~f
 accept	reject@6	engine	auditUnifiedAuditing(POLICY_ID_((BY|EXCEPT)_ID_(,_ID)?)*_~f1e36f25)/POLICY_ID_((BY|EXCEPT)_ID_(,_ID)?)*_((BY|EXCEPT)_USERS_~4fd4a9b0!swap	AUDIT PORT a
 accept	accept	engine	auditUnifiedAuditing(POLICY_ID_((BY|EXCEPT)_ID_(,_ID)?)*_~f1e36f25)/CONTEXT_NAMESPACE_ID_ATTRIBUTES_ID_(,_ID)*_(BY_ID_(,_ID)?)*	AUDIT CONTEXT NAMESPACE a ATTRIBUTES a
 accept	reject@6	engine	auditUnifiedAuditing(POLICY_ID_((BY|EXCEPT)_ID_(,_ID)?)*_~f1e36f25)/CONTEXT_NAMESPACE_ID_ATTRIBUTES_ID_(,_ID)*_(BY_ID_(,_ID)?)*!drop-1	AUDIT NAMESPACE a ATTRIBUTES a
-accept	reject@14	engine	auditUnifiedAuditing(POLICY_ID_((BY|EXCEPT)_ID_(,_ID)?)*_~f1e36f25)/CONTEXT_NAMESPACE_ID_ATTRIBUTES_ID_(,_ID)*_(BY_ID_(,_ID)?)*!drop-2	AUDIT CONTEXT a ATTRIBUTES a
+reject@14	reject@14	engine	auditUnifiedAuditing(POLICY_ID_((BY|EXCEPT)_ID_(,_ID)?)*_~f1e36f25)/CONTEXT_NAMESPACE_ID_ATTRIBUTES_ID_(,_ID)*_(BY_ID_(,_ID)?)*!drop-2	AUDIT CONTEXT a ATTRIBUTES a
 reject@35	reject@35	engine	auditUnifiedAuditing(POLICY_ID_((BY|EXCEPT)_ID_(,_ID)?)*_~f1e36f25)/CONTEXT_NAMESPACE_ID_ATTRIBUTES_ID_(,_ID)*_(BY_ID_(,_ID)?)*!drop-3	AUDIT CONTEXT NAMESPACE ATTRIBUTES a
 reject@26	reject@26	engine	auditUnifiedAuditing(POLICY_ID_((BY|EXCEPT)_ID_(,_ID)?)*_~f1e36f25)/CONTEXT_NAMESPACE_ID_ATTRIBUTES_ID_(,_ID)*_(BY_ID_(,_ID)?)*!drop-4	AUDIT CONTEXT NAMESPACE a a
 accept	accept	engine	auditUnifiedAuditing(POLICY_ID_((BY|EXCEPT)_ID_(,_ID)?)*_~f1e36f25)/CONTEXT_NAMESPACE_ID_ATTRIBUTES_ID_(,_ID)*_(BY_ID_(,_ID)?)*!drop-5	AUDIT CONTEXT NAMESPACE a ATTRIBUTES
@@ -21517,7 +21517,7 @@ accept	reject@6	engine	auditUnifiedAuditing(POLICY_ID_((BY|EXCEPT)_ID_(,_ID)?)*_
 accept	accept	engine	auditUnifiedAuditing((BY|EXCEPT)_ID_(,_ID)?)*/%empty	AUDIT POLICY a
 accept	accept	engine	auditUnifiedAuditing((BY|EXCEPT)_ID_(,_ID)?)*/(BY|EXCEPT)_ID_(,_ID)?_((BY|EXCEPT)_ID_(,_ID)?)*	AUDIT POLICY a BY a
 reject@15	reject@15	engine	auditUnifiedAuditing((BY|EXCEPT)_ID_(,_ID)?)*/(BY|EXCEPT)_ID_(,_ID)?_((BY|EXCEPT)_ID_(,_ID)?)*!drop-1	AUDIT POLICY a a
-accept	reject@17	engine	auditUnifiedAuditing((BY|EXCEPT)_ID_(,_ID)?)*/(BY|EXCEPT)_ID_(,_ID)?_((BY|EXCEPT)_ID_(,_ID)?)*!drop-2	AUDIT POLICY a BY
+reject@17	reject@17	engine	auditUnifiedAuditing((BY|EXCEPT)_ID_(,_ID)?)*/(BY|EXCEPT)_ID_(,_ID)?_((BY|EXCEPT)_ID_(,_ID)?)*!drop-2	AUDIT POLICY a BY
 reject@20	reject@20	engine	auditUnifiedAuditing((BY|EXCEPT)_ID_(,_ID)?)*/(BY|EXCEPT)_ID_(,_ID)?_((BY|EXCEPT)_ID_(,_ID)?)*!insert	AUDIT POLICY a BY a zzz
 reject@15	reject@15	engine	auditUnifiedAuditing((BY|EXCEPT)_ID_(,_ID)?)*/(BY|EXCEPT)_ID_(,_ID)?_((BY|EXCEPT)_ID_(,_ID)?)*!swap	AUDIT POLICY a CACHE a
 accept	accept	engine	auditUnifiedAuditing(BY|EXCEPT)/BY	AUDIT POLICY a BY a
@@ -21531,13 +21531,13 @@ reject@20	reject@20	engine	auditUnifiedAuditing(,_ID)?/,_ID!drop-1	AUDIT POLICY 
 reject@20	reject@20	engine	auditUnifiedAuditing(,_ID)?/,_ID!drop-2	AUDIT POLICY a BY a,
 reject@23	reject@21	engine	auditUnifiedAuditing(,_ID)?/,_ID!insert	AUDIT POLICY a BY a, a zzz
 accept	accept	engine	auditUnifiedAuditing((BY|EXCEPT)_USERS_WITH_ROLE_ID_(,_ID)?)*/%empty	AUDIT POLICY a
-accept	reject@29	engine	auditUnifiedAuditing((BY|EXCEPT)_USERS_WITH_ROLE_ID_(,_ID)?)*/(BY|EXCEPT)_USERS_WITH_ROLE_ID_(,_ID)?_((BY|EXCEPT)_USE~14826db3	AUDIT POLICY a BY USERS WITH ROLE a
+reject@29	reject@29	engine	auditUnifiedAuditing((BY|EXCEPT)_USERS_WITH_ROLE_ID_(,_ID)?)*/(BY|EXCEPT)_USERS_WITH_ROLE_ID_(,_ID)?_((BY|EXCEPT)_USE~14826db3	AUDIT POLICY a BY USERS WITH ROLE a
 reject@15	reject@15	engine	auditUnifiedAuditing((BY|EXCEPT)_USERS_WITH_ROLE_ID_(,_ID)?)*/(BY|EXCEPT)_USERS_WITH_ROLE_ID_(,_ID)?_((BY|EXCEPT)_USE~14826db3!drop-1	AUDIT POLICY a USERS WITH ROLE a
 reject@23	reject@18	engine	auditUnifiedAuditing((BY|EXCEPT)_USERS_WITH_ROLE_ID_(,_ID)?)*/(BY|EXCEPT)_USERS_WITH_ROLE_ID_(,_ID)?_((BY|EXCEPT)_USE~14826db3!drop-2	AUDIT POLICY a BY WITH ROLE a
-accept	reject@24	engine	auditUnifiedAuditing((BY|EXCEPT)_USERS_WITH_ROLE_ID_(,_ID)?)*/(BY|EXCEPT)_USERS_WITH_ROLE_ID_(,_ID)?_((BY|EXCEPT)_USE~14826db3!drop-3	AUDIT POLICY a BY USERS ROLE a
-accept	reject@29	engine	auditUnifiedAuditing((BY|EXCEPT)_USERS_WITH_ROLE_ID_(,_ID)?)*/(BY|EXCEPT)_USERS_WITH_ROLE_ID_(,_ID)?_((BY|EXCEPT)_USE~14826db3!drop-4	AUDIT POLICY a BY USERS WITH a
-accept	reject@29	engine	auditUnifiedAuditing((BY|EXCEPT)_USERS_WITH_ROLE_ID_(,_ID)?)*/(BY|EXCEPT)_USERS_WITH_ROLE_ID_(,_ID)?_((BY|EXCEPT)_USE~14826db3!drop-5	AUDIT POLICY a BY USERS WITH ROLE
-reject@36	reject@29	engine	auditUnifiedAuditing((BY|EXCEPT)_USERS_WITH_ROLE_ID_(,_ID)?)*/(BY|EXCEPT)_USERS_WITH_ROLE_ID_(,_ID)?_((BY|EXCEPT)_USE~14826db3!insert	AUDIT POLICY a BY USERS WITH ROLE a zzz
+reject@24	reject@24	engine	auditUnifiedAuditing((BY|EXCEPT)_USERS_WITH_ROLE_ID_(,_ID)?)*/(BY|EXCEPT)_USERS_WITH_ROLE_ID_(,_ID)?_((BY|EXCEPT)_USE~14826db3!drop-3	AUDIT POLICY a BY USERS ROLE a
+reject@29	reject@29	engine	auditUnifiedAuditing((BY|EXCEPT)_USERS_WITH_ROLE_ID_(,_ID)?)*/(BY|EXCEPT)_USERS_WITH_ROLE_ID_(,_ID)?_((BY|EXCEPT)_USE~14826db3!drop-4	AUDIT POLICY a BY USERS WITH a
+reject@29	reject@29	engine	auditUnifiedAuditing((BY|EXCEPT)_USERS_WITH_ROLE_ID_(,_ID)?)*/(BY|EXCEPT)_USERS_WITH_ROLE_ID_(,_ID)?_((BY|EXCEPT)_USE~14826db3!drop-5	AUDIT POLICY a BY USERS WITH ROLE
+reject@29	reject@29	engine	auditUnifiedAuditing((BY|EXCEPT)_USERS_WITH_ROLE_ID_(,_ID)?)*/(BY|EXCEPT)_USERS_WITH_ROLE_ID_(,_ID)?_((BY|EXCEPT)_USE~14826db3!insert	AUDIT POLICY a BY USERS WITH ROLE a zzz
 reject@15	reject@15	engine	auditUnifiedAuditing((BY|EXCEPT)_USERS_WITH_ROLE_ID_(,_ID)?)*/(BY|EXCEPT)_USERS_WITH_ROLE_ID_(,_ID)?_((BY|EXCEPT)_USE~14826db3!swap	AUDIT POLICY a CACHE USERS WITH ROLE a
 accept	accept	engine	auditUnifiedAuditing(WHENEVER_NOT?_SUCCESSFUL)?/%empty	AUDIT POLICY a
 accept	accept	engine	auditUnifiedAuditing(WHENEVER_NOT?_SUCCESSFUL)?/WHENEVER_(NOT)?_SUCCESSFUL	AUDIT POLICY a WHENEVER SUCCESSFUL
@@ -21557,7 +21557,7 @@ reject@39	accept	engine	auditUnifiedAuditing(,_ID)*/,_ID_(,_ID)*!drop-2	AUDIT CO
 reject@42	reject@42	engine	auditUnifiedAuditing(,_ID)*/,_ID_(,_ID)*!insert	AUDIT CONTEXT NAMESPACE a ATTRIBUTES a, a zzz
 accept	accept	engine	auditUnifiedAuditing(BY_ID_(,_ID)?)*/%empty	AUDIT CONTEXT NAMESPACE a ATTRIBUTES a
 accept	accept	engine	auditUnifiedAuditing(BY_ID_(,_ID)?)*/BY_ID_(,_ID)?_(BY_ID_(,_ID)?)*	AUDIT CONTEXT NAMESPACE a ATTRIBUTES a BY a
-accept	reject@41	engine	auditUnifiedAuditing(BY_ID_(,_ID)?)*/BY_ID_(,_ID)?_(BY_ID_(,_ID)?)*!drop-2	AUDIT CONTEXT NAMESPACE a ATTRIBUTES a BY
+reject@41	reject@41	engine	auditUnifiedAuditing(BY_ID_(,_ID)?)*/BY_ID_(,_ID)?_(BY_ID_(,_ID)?)*!drop-2	AUDIT CONTEXT NAMESPACE a ATTRIBUTES a BY
 reject@44	reject@44	engine	auditUnifiedAuditing(BY_ID_(,_ID)?)*/BY_ID_(,_ID)?_(BY_ID_(,_ID)?)*!insert	AUDIT CONTEXT NAMESPACE a ATTRIBUTES a BY a zzz
 reject@39	reject@39	engine	auditUnifiedAuditing(BY_ID_(,_ID)?)*/BY_ID_(,_ID)?_(BY_ID_(,_ID)?)*!swap	AUDIT CONTEXT NAMESPACE a ATTRIBUTES a CACHE a
 accept	accept	engine	call/CALL_(call_routine_clause|call_object_acce~73bee1f4)_(I~cfdedb44	CALL a()
@@ -22498,14 +22498,14 @@ accept	reject@45	engine	createAttributeDimension_join_condition_elem(ID_.)?/ID_.
 reject@58	reject@45	engine	createAttributeDimension_join_condition_elem(ID_.)?/ID_.!insert	CREATE ATTRIBUTE DIMENSION a USING JOIN PATH a ON a.zzz a = a ATTRIBUTES(a) LEVEL a KEY a
 accept	accept	engine	createAuditPolicyUnifiedAuditing/CREATE_AUDIT_POLICY_ID_(createAuditPolicyUnifiedAuditin~7bf15a13	CREATE AUDIT POLICY a
 accept	accept	engine	createAuditPolicyUnifiedAuditing(createAuditPolicyUnifiedAuditing_pri~860338e3)?/%empty	CREATE AUDIT POLICY a
-accept	reject@33	engine	createAuditPolicyUnifiedAuditing(createAuditPolicyUnifiedAuditing_pri~860338e3)?/createAuditPolicyUnifiedAuditing_privilege_audit_clause	CREATE AUDIT POLICY a PRIVILEGES a
+reject@33	reject@33	engine	createAuditPolicyUnifiedAuditing(createAuditPolicyUnifiedAuditing_pri~860338e3)?/createAuditPolicyUnifiedAuditing_privilege_audit_clause	CREATE AUDIT POLICY a PRIVILEGES a
 reject@22	reject@0	engine	createAuditPolicyUnifiedAuditing(createAuditPolicyUnifiedAuditing_pri~860338e3)?/createAuditPolicyUnifiedAuditing_privilege_audit_clause!drop-1	CREATE AUDIT POLICY a a
 reject@32	reject@32	engine	createAuditPolicyUnifiedAuditing(createAuditPolicyUnifiedAuditing_pri~860338e3)?/createAuditPolicyUnifiedAuditing_privilege_audit_clause!drop-2	CREATE AUDIT POLICY a PRIVILEGES
-accept	reject@33	engine	createAuditPolicyUnifiedAuditing(createAuditPolicyUnifiedAuditing_pri~860338e3)?/createAuditPolicyUnifiedAuditing_privilege_audit_clause!insert	CREATE AUDIT POLICY a PRIVILEGES a zzz
+reject@33	reject@33	engine	createAuditPolicyUnifiedAuditing(createAuditPolicyUnifiedAuditing_pri~860338e3)?/createAuditPolicyUnifiedAuditing_privilege_audit_clause!insert	CREATE AUDIT POLICY a PRIVILEGES a zzz
 reject@22	reject@0	engine	createAuditPolicyUnifiedAuditing(createAuditPolicyUnifiedAuditing_pri~860338e3)?/createAuditPolicyUnifiedAuditing_privilege_audit_clause!swap	CREATE AUDIT POLICY a PROCEDURE a
 accept	accept	engine	createAuditPolicyUnifiedAuditing(createAuditPolicyUnifiedAuditing_act~2e078129)?/%empty	CREATE AUDIT POLICY a
-accept	reject@29	engine	createAuditPolicyUnifiedAuditing(createAuditPolicyUnifiedAuditing_act~2e078129)?/createAuditPolicyUnifiedAuditing_action_audit_clause	CREATE AUDIT POLICY a ACTIONS
-accept	reject@30	engine	createAuditPolicyUnifiedAuditing(createAuditPolicyUnifiedAuditing_act~2e078129)?/createAuditPolicyUnifiedAuditing_action_audit_clause!insert	CREATE AUDIT POLICY a ACTIONS zzz
+reject@29	reject@29	engine	createAuditPolicyUnifiedAuditing(createAuditPolicyUnifiedAuditing_act~2e078129)?/createAuditPolicyUnifiedAuditing_action_audit_clause	CREATE AUDIT POLICY a ACTIONS
+reject@30	reject@30	engine	createAuditPolicyUnifiedAuditing(createAuditPolicyUnifiedAuditing_act~2e078129)?/createAuditPolicyUnifiedAuditing_action_audit_clause!insert	CREATE AUDIT POLICY a ACTIONS zzz
 reject@22	reject@0	engine	createAuditPolicyUnifiedAuditing(createAuditPolicyUnifiedAuditing_act~2e078129)?/createAuditPolicyUnifiedAuditing_action_audit_clause!swap	CREATE AUDIT POLICY a ACTIVATE
 accept	accept	engine	createAuditPolicyUnifiedAuditing(createAuditPolicyUnifiedAuditing_rol~166a5200)?/%empty	CREATE AUDIT POLICY a
 accept	accept	engine	createAuditPolicyUnifiedAuditing(createAuditPolicyUnifiedAuditing_rol~166a5200)?/createAuditPolicyUnifiedAuditing_role_audit_clause	CREATE AUDIT POLICY a ROLES a
@@ -22515,30 +22515,30 @@ reject@22	reject@0	engine	createAuditPolicyUnifiedAuditing(createAuditPolicyUnif
 accept	accept	engine	createAuditPolicyUnifiedAuditing(WHEN_STRING_EVALUATE_PER_(STATEMENT|~7c5ee2ff)?/%empty	CREATE AUDIT POLICY a
 accept	reject@0	engine	createAuditPolicyUnifiedAuditing(WHEN_STRING_EVALUATE_PER_(STATEMENT|~7c5ee2ff)?/WHEN_STRING_EVALUATE_PER_(STATEMENT|SESSION|INSTANCE)	CREATE AUDIT POLICY a WHEN 's' EVALUATE PER STATEMENT
 reject@22	reject@0	engine	createAuditPolicyUnifiedAuditing(WHEN_STRING_EVALUATE_PER_(STATEMENT|~7c5ee2ff)?/WHEN_STRING_EVALUATE_PER_(STATEMENT|SESSION|INSTANCE)!drop-1	CREATE AUDIT POLICY a 's' EVALUATE PER STATEMENT
-accept	reject@0	engine	createAuditPolicyUnifiedAuditing(WHEN_STRING_EVALUATE_PER_(STATEMENT|~7c5ee2ff)?/WHEN_STRING_EVALUATE_PER_(STATEMENT|SESSION|INSTANCE)!drop-2	CREATE AUDIT POLICY a WHEN EVALUATE PER STATEMENT
+reject@27	reject@0	engine	createAuditPolicyUnifiedAuditing(WHEN_STRING_EVALUATE_PER_(STATEMENT|~7c5ee2ff)?/WHEN_STRING_EVALUATE_PER_(STATEMENT|SESSION|INSTANCE)!drop-2	CREATE AUDIT POLICY a WHEN EVALUATE PER STATEMENT
 reject@31	reject@0	engine	createAuditPolicyUnifiedAuditing(WHEN_STRING_EVALUATE_PER_(STATEMENT|~7c5ee2ff)?/WHEN_STRING_EVALUATE_PER_(STATEMENT|SESSION|INSTANCE)!drop-3	CREATE AUDIT POLICY a WHEN 's' PER STATEMENT
-accept	reject@0	engine	createAuditPolicyUnifiedAuditing(WHEN_STRING_EVALUATE_PER_(STATEMENT|~7c5ee2ff)?/WHEN_STRING_EVALUATE_PER_(STATEMENT|SESSION|INSTANCE)!drop-4	CREATE AUDIT POLICY a WHEN 's' EVALUATE STATEMENT
-accept	reject@0	engine	createAuditPolicyUnifiedAuditing(WHEN_STRING_EVALUATE_PER_(STATEMENT|~7c5ee2ff)?/WHEN_STRING_EVALUATE_PER_(STATEMENT|SESSION|INSTANCE)!drop-5	CREATE AUDIT POLICY a WHEN 's' EVALUATE PER
+reject@40	reject@0	engine	createAuditPolicyUnifiedAuditing(WHEN_STRING_EVALUATE_PER_(STATEMENT|~7c5ee2ff)?/WHEN_STRING_EVALUATE_PER_(STATEMENT|SESSION|INSTANCE)!drop-4	CREATE AUDIT POLICY a WHEN 's' EVALUATE STATEMENT
+reject@43	reject@0	engine	createAuditPolicyUnifiedAuditing(WHEN_STRING_EVALUATE_PER_(STATEMENT|~7c5ee2ff)?/WHEN_STRING_EVALUATE_PER_(STATEMENT|SESSION|INSTANCE)!drop-5	CREATE AUDIT POLICY a WHEN 's' EVALUATE PER
 reject@54	reject@0	engine	createAuditPolicyUnifiedAuditing(WHEN_STRING_EVALUATE_PER_(STATEMENT|~7c5ee2ff)?/WHEN_STRING_EVALUATE_PER_(STATEMENT|SESSION|INSTANCE)!insert	CREATE AUDIT POLICY a WHEN 's' EVALUATE PER STATEMENT zzz
 reject@22	reject@0	engine	createAuditPolicyUnifiedAuditing(WHEN_STRING_EVALUATE_PER_(STATEMENT|~7c5ee2ff)?/WHEN_STRING_EVALUATE_PER_(STATEMENT|SESSION|INSTANCE)!swap	CREATE AUDIT POLICY a WHENEVER 's' EVALUATE PER STATEMENT
 accept	reject@0	engine	createAuditPolicyUnifiedAuditing(STATEMENT|SESSION|INSTANCE)/STATEMENT	CREATE AUDIT POLICY a WHEN 's' EVALUATE PER STATEMENT
-accept	reject@0	engine	createAuditPolicyUnifiedAuditing(STATEMENT|SESSION|INSTANCE)/STATEMENT!swap	CREATE AUDIT POLICY a WHEN 's' EVALUATE PER STATEMENTS
+reject@44	reject@0	engine	createAuditPolicyUnifiedAuditing(STATEMENT|SESSION|INSTANCE)/STATEMENT!swap	CREATE AUDIT POLICY a WHEN 's' EVALUATE PER STATEMENTS
 accept	reject@0	engine	createAuditPolicyUnifiedAuditing(STATEMENT|SESSION|INSTANCE)/SESSION	CREATE AUDIT POLICY a WHEN 's' EVALUATE PER SESSION
 reject@52	reject@0	engine	createAuditPolicyUnifiedAuditing(STATEMENT|SESSION|INSTANCE)/SESSION!insert	CREATE AUDIT POLICY a WHEN 's' EVALUATE PER SESSION zzz
-accept	reject@0	engine	createAuditPolicyUnifiedAuditing(STATEMENT|SESSION|INSTANCE)/SESSION!swap	CREATE AUDIT POLICY a WHEN 's' EVALUATE PER SESSIONS_PER_USER
+reject@44	reject@0	engine	createAuditPolicyUnifiedAuditing(STATEMENT|SESSION|INSTANCE)/SESSION!swap	CREATE AUDIT POLICY a WHEN 's' EVALUATE PER SESSIONS_PER_USER
 accept	reject@0	engine	createAuditPolicyUnifiedAuditing(STATEMENT|SESSION|INSTANCE)/INSTANCE	CREATE AUDIT POLICY a WHEN 's' EVALUATE PER INSTANCE
 reject@53	reject@0	engine	createAuditPolicyUnifiedAuditing(STATEMENT|SESSION|INSTANCE)/INSTANCE!insert	CREATE AUDIT POLICY a WHEN 's' EVALUATE PER INSTANCE zzz
-accept	reject@0	engine	createAuditPolicyUnifiedAuditing(STATEMENT|SESSION|INSTANCE)/INSTANCE!swap	CREATE AUDIT POLICY a WHEN 's' EVALUATE PER INSTANCES
+reject@44	reject@0	engine	createAuditPolicyUnifiedAuditing(STATEMENT|SESSION|INSTANCE)/INSTANCE!swap	CREATE AUDIT POLICY a WHEN 's' EVALUATE PER INSTANCES
 accept	accept	engine	createAuditPolicyUnifiedAuditing(ONLY_TOPLEVEL)?/%empty	CREATE AUDIT POLICY a
 accept	reject@0	engine	createAuditPolicyUnifiedAuditing(ONLY_TOPLEVEL)?/ONLY_TOPLEVEL	CREATE AUDIT POLICY a ONLY TOPLEVEL
 reject@22	reject@0	engine	createAuditPolicyUnifiedAuditing(ONLY_TOPLEVEL)?/ONLY_TOPLEVEL!drop-1	CREATE AUDIT POLICY a TOPLEVEL
-accept	reject@0	engine	createAuditPolicyUnifiedAuditing(ONLY_TOPLEVEL)?/ONLY_TOPLEVEL!drop-2	CREATE AUDIT POLICY a ONLY
+reject@26	reject@0	engine	createAuditPolicyUnifiedAuditing(ONLY_TOPLEVEL)?/ONLY_TOPLEVEL!drop-2	CREATE AUDIT POLICY a ONLY
 reject@36	reject@0	engine	createAuditPolicyUnifiedAuditing(ONLY_TOPLEVEL)?/ONLY_TOPLEVEL!insert	CREATE AUDIT POLICY a ONLY TOPLEVEL zzz
 reject@22	reject@0	engine	createAuditPolicyUnifiedAuditing(ONLY_TOPLEVEL)?/ONLY_TOPLEVEL!swap	CREATE AUDIT POLICY a OPAQUE TOPLEVEL
 accept	accept	engine	createAuditPolicyUnifiedAuditing(CONTAINER_=_(ALL|CURRENT))?/%empty	CREATE AUDIT POLICY a
 accept	reject@0	engine	createAuditPolicyUnifiedAuditing(CONTAINER_=_(ALL|CURRENT))?/CONTAINER_=_(ALL|CURRENT)	CREATE AUDIT POLICY a CONTAINER = ALL
 reject@22	reject@0	engine	createAuditPolicyUnifiedAuditing(CONTAINER_=_(ALL|CURRENT))?/CONTAINER_=_(ALL|CURRENT)!drop-1	CREATE AUDIT POLICY a = ALL
-accept	reject@0	engine	createAuditPolicyUnifiedAuditing(CONTAINER_=_(ALL|CURRENT))?/CONTAINER_=_(ALL|CURRENT)!drop-2	CREATE AUDIT POLICY a CONTAINER ALL
+reject@32	reject@0	engine	createAuditPolicyUnifiedAuditing(CONTAINER_=_(ALL|CURRENT))?/CONTAINER_=_(ALL|CURRENT)!drop-2	CREATE AUDIT POLICY a CONTAINER ALL
 reject@33	reject@0	engine	createAuditPolicyUnifiedAuditing(CONTAINER_=_(ALL|CURRENT))?/CONTAINER_=_(ALL|CURRENT)!drop-3	CREATE AUDIT POLICY a CONTAINER =
 reject@38	reject@0	engine	createAuditPolicyUnifiedAuditing(CONTAINER_=_(ALL|CURRENT))?/CONTAINER_=_(ALL|CURRENT)!insert	CREATE AUDIT POLICY a CONTAINER = ALL zzz
 reject@22	reject@0	engine	createAuditPolicyUnifiedAuditing(CONTAINER_=_(ALL|CURRENT))?/CONTAINER_=_(ALL|CURRENT)!swap	CREATE AUDIT POLICY a CONTAINERS = ALL
@@ -22547,141 +22547,141 @@ reject@34	reject@0	engine	createAuditPolicyUnifiedAuditing(ALL|CURRENT)/ALL!swap
 accept	reject@0	engine	createAuditPolicyUnifiedAuditing(ALL|CURRENT)/CURRENT	CREATE AUDIT POLICY a CONTAINER = CURRENT
 reject@42	reject@0	engine	createAuditPolicyUnifiedAuditing(ALL|CURRENT)/CURRENT!insert	CREATE AUDIT POLICY a CONTAINER = CURRENT zzz
 reject@34	reject@0	engine	createAuditPolicyUnifiedAuditing(ALL|CURRENT)/CURRENT!swap	CREATE AUDIT POLICY a CONTAINER = CURRENT_SCHEMA
-accept	reject@33	engine	createAuditPolicyUnifiedAuditing_privilege_audit_clause/PRIVILEGES_ID_(,_ID)*	CREATE AUDIT POLICY a PRIVILEGES a
-accept	reject@33	engine	createAuditPolicyUnifiedAuditing_privilege_audit_clause(,_ID)*/%empty	CREATE AUDIT POLICY a PRIVILEGES a
-accept	reject@33	engine	createAuditPolicyUnifiedAuditing_privilege_audit_clause(,_ID)*/,_ID_(,_ID)*	CREATE AUDIT POLICY a PRIVILEGES a, a
-accept	reject@33	engine	createAuditPolicyUnifiedAuditing_privilege_audit_clause(,_ID)*/,_ID_(,_ID)*!drop-1	CREATE AUDIT POLICY a PRIVILEGES a a
-reject@35	reject@33	engine	createAuditPolicyUnifiedAuditing_privilege_audit_clause(,_ID)*/,_ID_(,_ID)*!drop-2	CREATE AUDIT POLICY a PRIVILEGES a,
-accept	reject@33	engine	createAuditPolicyUnifiedAuditing_privilege_audit_clause(,_ID)*/,_ID_(,_ID)*!insert	CREATE AUDIT POLICY a PRIVILEGES a, a zzz
-accept	reject@29	engine	createAuditPolicyUnifiedAuditing_action_audit_clause/ACTIONS_(createAuditPolicyUnifiedAuditing_sta~48eef3d7)~a3ed7378	CREATE AUDIT POLICY a ACTIONS
-accept	reject@29	engine	createAuditPolicyUnifiedAuditing_action_audit_clause(createAuditPolicyUnifiedAuditing_sta~48eef3d7)?/%empty	CREATE AUDIT POLICY a ACTIONS
-accept	reject@30	engine	createAuditPolicyUnifiedAuditing_action_audit_clause(createAuditPolicyUnifiedAuditing_sta~48eef3d7)?/createAuditPolicyUnifiedAuditing_standard_actions	CREATE AUDIT POLICY a ACTIONS a
-accept	reject@30	engine	createAuditPolicyUnifiedAuditing_action_audit_clause(createAuditPolicyUnifiedAuditing_sta~48eef3d7)?/createAuditPolicyUnifiedAuditing_standard_actions!insert	CREATE AUDIT POLICY a ACTIONS a zzz
-accept	reject@29	engine	createAuditPolicyUnifiedAuditing_action_audit_clause(createAuditPolicyUnifiedAuditing_com~731dc3a1)?/%empty	CREATE AUDIT POLICY a ACTIONS
-accept	reject@54	engine	createAuditPolicyUnifiedAuditing_action_audit_clause(createAuditPolicyUnifiedAuditing_com~731dc3a1)?/createAuditPolicyUnifiedAuditing_component_actions	CREATE AUDIT POLICY a ACTIONS COMPONENT = SQL_FIREWALL
+reject@33	reject@33	engine	createAuditPolicyUnifiedAuditing_privilege_audit_clause/PRIVILEGES_ID_(,_ID)*	CREATE AUDIT POLICY a PRIVILEGES a
+reject@33	reject@33	engine	createAuditPolicyUnifiedAuditing_privilege_audit_clause(,_ID)*/%empty	CREATE AUDIT POLICY a PRIVILEGES a
+reject@33	reject@33	engine	createAuditPolicyUnifiedAuditing_privilege_audit_clause(,_ID)*/,_ID_(,_ID)*	CREATE AUDIT POLICY a PRIVILEGES a, a
+reject@33	reject@33	engine	createAuditPolicyUnifiedAuditing_privilege_audit_clause(,_ID)*/,_ID_(,_ID)*!drop-1	CREATE AUDIT POLICY a PRIVILEGES a a
+reject@33	reject@33	engine	createAuditPolicyUnifiedAuditing_privilege_audit_clause(,_ID)*/,_ID_(,_ID)*!drop-2	CREATE AUDIT POLICY a PRIVILEGES a,
+reject@33	reject@33	engine	createAuditPolicyUnifiedAuditing_privilege_audit_clause(,_ID)*/,_ID_(,_ID)*!insert	CREATE AUDIT POLICY a PRIVILEGES a, a zzz
+reject@29	reject@29	engine	createAuditPolicyUnifiedAuditing_action_audit_clause/ACTIONS_(createAuditPolicyUnifiedAuditing_sta~48eef3d7)~a3ed7378	CREATE AUDIT POLICY a ACTIONS
+reject@29	reject@29	engine	createAuditPolicyUnifiedAuditing_action_audit_clause(createAuditPolicyUnifiedAuditing_sta~48eef3d7)?/%empty	CREATE AUDIT POLICY a ACTIONS
+reject@30	reject@30	engine	createAuditPolicyUnifiedAuditing_action_audit_clause(createAuditPolicyUnifiedAuditing_sta~48eef3d7)?/createAuditPolicyUnifiedAuditing_standard_actions	CREATE AUDIT POLICY a ACTIONS a
+reject@30	reject@30	engine	createAuditPolicyUnifiedAuditing_action_audit_clause(createAuditPolicyUnifiedAuditing_sta~48eef3d7)?/createAuditPolicyUnifiedAuditing_standard_actions!insert	CREATE AUDIT POLICY a ACTIONS a zzz
+reject@29	reject@29	engine	createAuditPolicyUnifiedAuditing_action_audit_clause(createAuditPolicyUnifiedAuditing_com~731dc3a1)?/%empty	CREATE AUDIT POLICY a ACTIONS
+reject@54	reject@54	engine	createAuditPolicyUnifiedAuditing_action_audit_clause(createAuditPolicyUnifiedAuditing_com~731dc3a1)?/createAuditPolicyUnifiedAuditing_component_actions	CREATE AUDIT POLICY a ACTIONS COMPONENT = SQL_FIREWALL
 reject@30	reject@30	engine	createAuditPolicyUnifiedAuditing_action_audit_clause(createAuditPolicyUnifiedAuditing_com~731dc3a1)?/createAuditPolicyUnifiedAuditing_component_actions!drop-1	CREATE AUDIT POLICY a ACTIONS = SQL_FIREWALL
-accept	reject@40	engine	createAuditPolicyUnifiedAuditing_action_audit_clause(createAuditPolicyUnifiedAuditing_com~731dc3a1)?/createAuditPolicyUnifiedAuditing_component_actions!drop-2	CREATE AUDIT POLICY a ACTIONS COMPONENT SQL_FIREWALL
+reject@40	reject@40	engine	createAuditPolicyUnifiedAuditing_action_audit_clause(createAuditPolicyUnifiedAuditing_com~731dc3a1)?/createAuditPolicyUnifiedAuditing_component_actions!drop-2	CREATE AUDIT POLICY a ACTIONS COMPONENT SQL_FIREWALL
 reject@41	accept	engine	createAuditPolicyUnifiedAuditing_action_audit_clause(createAuditPolicyUnifiedAuditing_com~731dc3a1)?/createAuditPolicyUnifiedAuditing_component_actions!drop-3	CREATE AUDIT POLICY a ACTIONS COMPONENT =
-accept	reject@55	engine	createAuditPolicyUnifiedAuditing_action_audit_clause(createAuditPolicyUnifiedAuditing_com~731dc3a1)?/createAuditPolicyUnifiedAuditing_component_actions!insert	CREATE AUDIT POLICY a ACTIONS COMPONENT = SQL_FIREWALL zzz
-reject@46	reject@30	engine	createAuditPolicyUnifiedAuditing_action_audit_clause(createAuditPolicyUnifiedAuditing_com~731dc3a1)?/createAuditPolicyUnifiedAuditing_component_actions!swap	CREATE AUDIT POLICY a ACTIONS COMPOSITE_LIMIT = SQL_FIREWALL
+reject@55	reject@55	engine	createAuditPolicyUnifiedAuditing_action_audit_clause(createAuditPolicyUnifiedAuditing_com~731dc3a1)?/createAuditPolicyUnifiedAuditing_component_actions!insert	CREATE AUDIT POLICY a ACTIONS COMPONENT = SQL_FIREWALL zzz
+reject@30	reject@30	engine	createAuditPolicyUnifiedAuditing_action_audit_clause(createAuditPolicyUnifiedAuditing_com~731dc3a1)?/createAuditPolicyUnifiedAuditing_component_actions!swap	CREATE AUDIT POLICY a ACTIONS COMPOSITE_LIMIT = SQL_FIREWALL
 accept	accept	engine	createAuditPolicyUnifiedAuditing_role_audit_clause/ROLES_ID_(,_ID)*	CREATE AUDIT POLICY a ROLES a
 accept	accept	engine	createAuditPolicyUnifiedAuditing_role_audit_clause(,_ID)*/%empty	CREATE AUDIT POLICY a ROLES a
 accept	accept	engine	createAuditPolicyUnifiedAuditing_role_audit_clause(,_ID)*/,_ID_(,_ID)*	CREATE AUDIT POLICY a ROLES a, a
 reject@30	reject@30	engine	createAuditPolicyUnifiedAuditing_role_audit_clause(,_ID)*/,_ID_(,_ID)*!drop-1	CREATE AUDIT POLICY a ROLES a a
 reject@30	accept	engine	createAuditPolicyUnifiedAuditing_role_audit_clause(,_ID)*/,_ID_(,_ID)*!drop-2	CREATE AUDIT POLICY a ROLES a,
 reject@33	reject@33	engine	createAuditPolicyUnifiedAuditing_role_audit_clause(,_ID)*/,_ID_(,_ID)*!insert	CREATE AUDIT POLICY a ROLES a, a zzz
-accept	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions/(ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_ID|~f55e43b3)_(,_(ID_~91a7b213	CREATE AUDIT POLICY a ACTIONS a
-accept	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_ID|~f55e43b3)/ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_ID|DIRECTORY_ID|MINING~41861a96	CREATE AUDIT POLICY a ACTIONS a ON a
-accept	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_ID|~f55e43b3)/ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_ID|DIRECTORY_ID|MINING~41861a96!drop-1	CREATE AUDIT POLICY a ACTIONS ON a
-accept	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_ID|~f55e43b3)/ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_ID|DIRECTORY_ID|MINING~41861a96!drop-2	CREATE AUDIT POLICY a ACTIONS a a
-accept	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_ID|~f55e43b3)/ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_ID|DIRECTORY_ID|MINING~41861a96!drop-3	CREATE AUDIT POLICY a ACTIONS a ON
-reject@37	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_ID|~f55e43b3)/ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_ID|DIRECTORY_ID|MINING~41861a96!insert	CREATE AUDIT POLICY a ACTIONS a ON a zzz
-accept	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_ID|~f55e43b3)/ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_ID|DIRECTORY_ID|MINING~41861a96!swap	CREATE AUDIT POLICY a ACTIONS a ONE a
+reject@30	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions/(ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_ID|~f55e43b3)_(,_(ID_~91a7b213	CREATE AUDIT POLICY a ACTIONS a
+reject@30	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_ID|~f55e43b3)/ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_ID|DIRECTORY_ID|MINING~41861a96	CREATE AUDIT POLICY a ACTIONS a ON a
+reject@30	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_ID|~f55e43b3)/ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_ID|DIRECTORY_ID|MINING~41861a96!drop-1	CREATE AUDIT POLICY a ACTIONS ON a
+reject@30	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_ID|~f55e43b3)/ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_ID|DIRECTORY_ID|MINING~41861a96!drop-2	CREATE AUDIT POLICY a ACTIONS a a
+reject@30	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_ID|~f55e43b3)/ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_ID|DIRECTORY_ID|MINING~41861a96!drop-3	CREATE AUDIT POLICY a ACTIONS a ON
+reject@30	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_ID|~f55e43b3)/ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_ID|DIRECTORY_ID|MINING~41861a96!insert	CREATE AUDIT POLICY a ACTIONS a ON a zzz
+reject@30	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_ID|~f55e43b3)/ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_ID|DIRECTORY_ID|MINING~41861a96!swap	CREATE AUDIT POLICY a ACTIONS a ONE a
 accept	accept	engine	createAuditPolicyUnifiedAuditing_standard_actions(ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_ID|~f55e43b3)/ALL_ON_((ID_.)?_ID|DIRECTORY_ID|MINING_MODEL~0d5c11cd)	CREATE AUDIT POLICY a ACTIONS ALL ON a
-accept	reject@34	engine	createAuditPolicyUnifiedAuditing_standard_actions(ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_ID|~f55e43b3)/ALL_ON_((ID_.)?_ID|DIRECTORY_ID|MINING_MODEL~0d5c11cd)!drop-2	CREATE AUDIT POLICY a ACTIONS ALL a
-accept	reject@36	engine	createAuditPolicyUnifiedAuditing_standard_actions(ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_ID|~f55e43b3)/ALL_ON_((ID_.)?_ID|DIRECTORY_ID|MINING_MODEL~0d5c11cd)!drop-3	CREATE AUDIT POLICY a ACTIONS ALL ON
+reject@34	reject@34	engine	createAuditPolicyUnifiedAuditing_standard_actions(ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_ID|~f55e43b3)/ALL_ON_((ID_.)?_ID|DIRECTORY_ID|MINING_MODEL~0d5c11cd)!drop-2	CREATE AUDIT POLICY a ACTIONS ALL a
+reject@36	reject@36	engine	createAuditPolicyUnifiedAuditing_standard_actions(ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_ID|~f55e43b3)/ALL_ON_((ID_.)?_ID|DIRECTORY_ID|MINING_MODEL~0d5c11cd)!drop-3	CREATE AUDIT POLICY a ACTIONS ALL ON
 reject@39	reject@39	engine	createAuditPolicyUnifiedAuditing_standard_actions(ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_ID|~f55e43b3)/ALL_ON_((ID_.)?_ID|DIRECTORY_ID|MINING_MODEL~0d5c11cd)!insert	CREATE AUDIT POLICY a ACTIONS ALL ON a zzz
-accept	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_ID|~f55e43b3)/ALL_ON_((ID_.)?_ID|DIRECTORY_ID|MINING_MODEL~0d5c11cd)!swap	CREATE AUDIT POLICY a ACTIONS ALLOCATE ON a
-accept	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_ID|~f55e43b3)/ID	CREATE AUDIT POLICY a ACTIONS a
+reject@30	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_ID|~f55e43b3)/ALL_ON_((ID_.)?_ID|DIRECTORY_ID|MINING_MODEL~0d5c11cd)!swap	CREATE AUDIT POLICY a ACTIONS ALLOCATE ON a
+reject@30	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_ID|~f55e43b3)/ID	CREATE AUDIT POLICY a ACTIONS a
 accept	accept	engine	createAuditPolicyUnifiedAuditing_standard_actions(ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_ID|~f55e43b3)/ALL	CREATE AUDIT POLICY a ACTIONS ALL
-accept	reject@34	engine	createAuditPolicyUnifiedAuditing_standard_actions(ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_ID|~f55e43b3)/ALL!insert	CREATE AUDIT POLICY a ACTIONS ALL zzz
-accept	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_ID|~f55e43b3)/ALL!swap	CREATE AUDIT POLICY a ACTIONS ALLOCATE
-accept	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions((_ID_(,_ID)*_))?/%empty	CREATE AUDIT POLICY a ACTIONS a ON a
-accept	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions((_ID_(,_ID)*_))?/%empty!insert	CREATE AUDIT POLICY a ACTIONS a zzz ON a
-accept	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions((_ID_(,_ID)*_))?/(_ID_(,_ID)*_)	CREATE AUDIT POLICY a ACTIONS a(a) ON a
+reject@34	reject@34	engine	createAuditPolicyUnifiedAuditing_standard_actions(ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_ID|~f55e43b3)/ALL!insert	CREATE AUDIT POLICY a ACTIONS ALL zzz
+reject@30	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_ID|~f55e43b3)/ALL!swap	CREATE AUDIT POLICY a ACTIONS ALLOCATE
+reject@30	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions((_ID_(,_ID)*_))?/%empty	CREATE AUDIT POLICY a ACTIONS a ON a
+reject@30	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions((_ID_(,_ID)*_))?/%empty!insert	CREATE AUDIT POLICY a ACTIONS a zzz ON a
+reject@30	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions((_ID_(,_ID)*_))?/(_ID_(,_ID)*_)	CREATE AUDIT POLICY a ACTIONS a(a) ON a
 reject@33	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions((_ID_(,_ID)*_))?/(_ID_(,_ID)*_)!drop-1	CREATE AUDIT POLICY a ACTIONS a a) ON a
-accept	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions((_ID_(,_ID)*_))?/(_ID_(,_ID)*_)!drop-2	CREATE AUDIT POLICY a ACTIONS a() ON a
+reject@30	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions((_ID_(,_ID)*_))?/(_ID_(,_ID)*_)!drop-2	CREATE AUDIT POLICY a ACTIONS a() ON a
 reject@38	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions((_ID_(,_ID)*_))?/(_ID_(,_ID)*_)!drop-3	CREATE AUDIT POLICY a ACTIONS a(a ON a
 reject@33	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions((_ID_(,_ID)*_))?/(_ID_(,_ID)*_)!truncate	CREATE AUDIT POLICY a ACTIONS a(a
-reject@35	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions((_ID_(,_ID)*_))?/(_ID_(,_ID)*_)!insert	CREATE AUDIT POLICY a ACTIONS a(a) zzz ON a
-accept	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(,_ID)*/%empty	CREATE AUDIT POLICY a ACTIONS a(a) ON a
-reject@34	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(,_ID)*/%empty!insert	CREATE AUDIT POLICY a ACTIONS a(a zzz) ON a
-accept	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(,_ID)*/,_ID_(,_ID)*	CREATE AUDIT POLICY a ACTIONS a(a, a) ON a
-reject@34	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(,_ID)*/,_ID_(,_ID)*!drop-1	CREATE AUDIT POLICY a ACTIONS a(a a) ON a
-accept	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(,_ID)*/,_ID_(,_ID)*!drop-2	CREATE AUDIT POLICY a ACTIONS a(a,) ON a
+reject@30	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions((_ID_(,_ID)*_))?/(_ID_(,_ID)*_)!insert	CREATE AUDIT POLICY a ACTIONS a(a) zzz ON a
+reject@30	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(,_ID)*/%empty	CREATE AUDIT POLICY a ACTIONS a(a) ON a
+reject@30	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(,_ID)*/%empty!insert	CREATE AUDIT POLICY a ACTIONS a(a zzz) ON a
+reject@30	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(,_ID)*/,_ID_(,_ID)*	CREATE AUDIT POLICY a ACTIONS a(a, a) ON a
+reject@30	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(,_ID)*/,_ID_(,_ID)*!drop-1	CREATE AUDIT POLICY a ACTIONS a(a a) ON a
+reject@30	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(,_ID)*/,_ID_(,_ID)*!drop-2	CREATE AUDIT POLICY a ACTIONS a(a,) ON a
 reject@34	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(,_ID)*/,_ID_(,_ID)*!truncate	CREATE AUDIT POLICY a ACTIONS a(a,
-reject@37	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(,_ID)*/,_ID_(,_ID)*!insert	CREATE AUDIT POLICY a ACTIONS a(a, a zzz) ON a
-accept	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions((ID_.)?_ID|DIRECTORY_ID|MINING_MODEL~0d5c11cd)/(ID_.)?_ID	CREATE AUDIT POLICY a ACTIONS a ON a
-accept	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions((ID_.)?_ID|DIRECTORY_ID|MINING_MODEL~0d5c11cd)/DIRECTORY_ID	CREATE AUDIT POLICY a ACTIONS a ON DIRECTORY a
-accept	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions((ID_.)?_ID|DIRECTORY_ID|MINING_MODEL~0d5c11cd)/DIRECTORY_ID!drop-2	CREATE AUDIT POLICY a ACTIONS a ON DIRECTORY
-reject@47	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions((ID_.)?_ID|DIRECTORY_ID|MINING_MODEL~0d5c11cd)/DIRECTORY_ID!insert	CREATE AUDIT POLICY a ACTIONS a ON DIRECTORY a zzz
-reject@47	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions((ID_.)?_ID|DIRECTORY_ID|MINING_MODEL~0d5c11cd)/DIRECTORY_ID!swap	CREATE AUDIT POLICY a ACTIONS a ON DIRECT_LOAD a
-accept	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions((ID_.)?_ID|DIRECTORY_ID|MINING_MODEL~0d5c11cd)/MINING_MODEL_(ID_.)?_ID	CREATE AUDIT POLICY a ACTIONS a ON MINING MODEL a
-reject@41	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions((ID_.)?_ID|DIRECTORY_ID|MINING_MODEL~0d5c11cd)/MINING_MODEL_(ID_.)?_ID!drop-1	CREATE AUDIT POLICY a ACTIONS a ON MODEL a
-accept	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions((ID_.)?_ID|DIRECTORY_ID|MINING_MODEL~0d5c11cd)/MINING_MODEL_(ID_.)?_ID!drop-2	CREATE AUDIT POLICY a ACTIONS a ON MINING a
-accept	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions((ID_.)?_ID|DIRECTORY_ID|MINING_MODEL~0d5c11cd)/MINING_MODEL_(ID_.)?_ID!drop-3	CREATE AUDIT POLICY a ACTIONS a ON MINING MODEL
-reject@50	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions((ID_.)?_ID|DIRECTORY_ID|MINING_MODEL~0d5c11cd)/MINING_MODEL_(ID_.)?_ID!insert	CREATE AUDIT POLICY a ACTIONS a ON MINING MODEL a zzz
-reject@41	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions((ID_.)?_ID|DIRECTORY_ID|MINING_MODEL~0d5c11cd)/MINING_MODEL_(ID_.)?_ID!swap	CREATE AUDIT POLICY a ACTIONS a ON MINUS MODEL a
-accept	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(ID_.)?/%empty	CREATE AUDIT POLICY a ACTIONS a ON a
-reject@39	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(ID_.)?/%empty!insert	CREATE AUDIT POLICY a ACTIONS a ON zzz a
-accept	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(ID_.)?/ID_.	CREATE AUDIT POLICY a ACTIONS a ON a.a
-reject@34	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(ID_.)?/ID_.!drop-1	CREATE AUDIT POLICY a ACTIONS a ON.a
-reject@37	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(ID_.)?/ID_.!drop-2	CREATE AUDIT POLICY a ACTIONS a ON a a
-reject@41	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(ID_.)?/ID_.!insert	CREATE AUDIT POLICY a ACTIONS a ON a.zzz a
-accept	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(,_(ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_~85adb6a9)*/%empty	CREATE AUDIT POLICY a ACTIONS a
-accept	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(,_(ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_~85adb6a9)*/,_(ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_ID|~f55e43b3)_(,_(I~ecd9f367	CREATE AUDIT POLICY a ACTIONS a, a
-reject@32	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(,_(ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_~85adb6a9)*/,_(ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_ID|~f55e43b3)_(,_(I~ecd9f367!drop-2	CREATE AUDIT POLICY a ACTIONS a,
-accept	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(,_(ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_~85adb6a9)*/,_(ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_ID|~f55e43b3)_(,_(I~ecd9f367!insert	CREATE AUDIT POLICY a ACTIONS a, a zzz
-accept	reject@54	engine	createAuditPolicyUnifiedAuditing_component_actions/COMPONENT_=_(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)	CREATE AUDIT POLICY a ACTIONS COMPONENT = SQL_FIREWALL
-accept	reject@51	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/DATAPUMP_(ID|ALL)_(,_(ID|ALL))*	CREATE AUDIT POLICY a ACTIONS COMPONENT = DATAPUMP a
-accept	reject@0	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/DATAPUMP_(ID|ALL)_(,_(ID|ALL))*!drop-1	CREATE AUDIT POLICY a ACTIONS COMPONENT = a
-accept	reject@50	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/DATAPUMP_(ID|ALL)_(,_(ID|ALL))*!drop-2	CREATE AUDIT POLICY a ACTIONS COMPONENT = DATAPUMP
-accept	reject@51	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/DATAPUMP_(ID|ALL)_(,_(ID|ALL))*!insert	CREATE AUDIT POLICY a ACTIONS COMPONENT = DATAPUMP a zzz
-accept	reject@0	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/DATAPUMP_(ID|ALL)_(,_(ID|ALL))*!swap	CREATE AUDIT POLICY a ACTIONS COMPONENT = DAY a
-accept	reject@54	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/DIRECT_LOAD_(ID|ALL)_(,_(ID|ALL))*	CREATE AUDIT POLICY a ACTIONS COMPONENT = DIRECT_LOAD a
-accept	reject@53	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/DIRECT_LOAD_(ID|ALL)_(,_(ID|ALL))*!drop-2	CREATE AUDIT POLICY a ACTIONS COMPONENT = DIRECT_LOAD
-accept	reject@54	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/DIRECT_LOAD_(ID|ALL)_(,_(ID|ALL))*!insert	CREATE AUDIT POLICY a ACTIONS COMPONENT = DIRECT_LOAD a zzz
-accept	reject@0	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/DIRECT_LOAD_(ID|ALL)_(,_(ID|ALL))*!swap	CREATE AUDIT POLICY a ACTIONS COMPONENT = DIRECT_PATH a
-accept	reject@46	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/OLS_(ID|ALL)_(,_(ID|ALL))*	CREATE AUDIT POLICY a ACTIONS COMPONENT = OLS a
-accept	reject@45	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/OLS_(ID|ALL)_(,_(ID|ALL))*!drop-2	CREATE AUDIT POLICY a ACTIONS COMPONENT = OLS
-accept	reject@46	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/OLS_(ID|ALL)_(,_(ID|ALL))*!insert	CREATE AUDIT POLICY a ACTIONS COMPONENT = OLS a zzz
-accept	reject@0	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/OLS_(ID|ALL)_(,_(ID|ALL))*!swap	CREATE AUDIT POLICY a ACTIONS COMPONENT = OLTP a
-accept	reject@45	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/XS_(ID|ALL)_(,_(ID|ALL))*	CREATE AUDIT POLICY a ACTIONS COMPONENT = XS a
-accept	reject@44	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/XS_(ID|ALL)_(,_(ID|ALL))*!drop-2	CREATE AUDIT POLICY a ACTIONS COMPONENT = XS
-accept	reject@45	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/XS_(ID|ALL)_(,_(ID|ALL))*!insert	CREATE AUDIT POLICY a ACTIONS COMPONENT = XS a zzz
-accept	reject@0	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/XS_(ID|ALL)_(,_(ID|ALL))*!swap	CREATE AUDIT POLICY a ACTIONS COMPONENT = YEAR a
-accept	reject@45	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/DV_(ID_(ON_ID)?|ALL)_(,_(ID_(ON_ID)?|ALL))*	CREATE AUDIT POLICY a ACTIONS COMPONENT = DV a
-accept	reject@44	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/DV_(ID_(ON_ID)?|ALL)_(,_(ID_(ON_ID)?|ALL))*!drop-2	CREATE AUDIT POLICY a ACTIONS COMPONENT = DV
-accept	reject@45	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/DV_(ID_(ON_ID)?|ALL)_(,_(ID_(ON_ID)?|ALL))*!insert	CREATE AUDIT POLICY a ACTIONS COMPONENT = DV a zzz
-accept	reject@0	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/DV_(ID_(ON_ID)?|ALL)_(,_(ID_(ON_ID)?|ALL))*!swap	CREATE AUDIT POLICY a ACTIONS COMPONENT = E a
-accept	reject@54	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/SQL_FIREWALL	CREATE AUDIT POLICY a ACTIONS COMPONENT = SQL_FIREWALL
-accept	reject@0	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/SQL_FIREWALL!swap	CREATE AUDIT POLICY a ACTIONS COMPONENT = SQL_ID
+reject@30	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(,_ID)*/,_ID_(,_ID)*!insert	CREATE AUDIT POLICY a ACTIONS a(a, a zzz) ON a
+reject@30	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions((ID_.)?_ID|DIRECTORY_ID|MINING_MODEL~0d5c11cd)/(ID_.)?_ID	CREATE AUDIT POLICY a ACTIONS a ON a
+reject@30	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions((ID_.)?_ID|DIRECTORY_ID|MINING_MODEL~0d5c11cd)/DIRECTORY_ID	CREATE AUDIT POLICY a ACTIONS a ON DIRECTORY a
+reject@30	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions((ID_.)?_ID|DIRECTORY_ID|MINING_MODEL~0d5c11cd)/DIRECTORY_ID!drop-2	CREATE AUDIT POLICY a ACTIONS a ON DIRECTORY
+reject@30	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions((ID_.)?_ID|DIRECTORY_ID|MINING_MODEL~0d5c11cd)/DIRECTORY_ID!insert	CREATE AUDIT POLICY a ACTIONS a ON DIRECTORY a zzz
+reject@30	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions((ID_.)?_ID|DIRECTORY_ID|MINING_MODEL~0d5c11cd)/DIRECTORY_ID!swap	CREATE AUDIT POLICY a ACTIONS a ON DIRECT_LOAD a
+reject@30	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions((ID_.)?_ID|DIRECTORY_ID|MINING_MODEL~0d5c11cd)/MINING_MODEL_(ID_.)?_ID	CREATE AUDIT POLICY a ACTIONS a ON MINING MODEL a
+reject@30	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions((ID_.)?_ID|DIRECTORY_ID|MINING_MODEL~0d5c11cd)/MINING_MODEL_(ID_.)?_ID!drop-1	CREATE AUDIT POLICY a ACTIONS a ON MODEL a
+reject@30	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions((ID_.)?_ID|DIRECTORY_ID|MINING_MODEL~0d5c11cd)/MINING_MODEL_(ID_.)?_ID!drop-2	CREATE AUDIT POLICY a ACTIONS a ON MINING a
+reject@30	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions((ID_.)?_ID|DIRECTORY_ID|MINING_MODEL~0d5c11cd)/MINING_MODEL_(ID_.)?_ID!drop-3	CREATE AUDIT POLICY a ACTIONS a ON MINING MODEL
+reject@30	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions((ID_.)?_ID|DIRECTORY_ID|MINING_MODEL~0d5c11cd)/MINING_MODEL_(ID_.)?_ID!insert	CREATE AUDIT POLICY a ACTIONS a ON MINING MODEL a zzz
+reject@30	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions((ID_.)?_ID|DIRECTORY_ID|MINING_MODEL~0d5c11cd)/MINING_MODEL_(ID_.)?_ID!swap	CREATE AUDIT POLICY a ACTIONS a ON MINUS MODEL a
+reject@30	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(ID_.)?/%empty	CREATE AUDIT POLICY a ACTIONS a ON a
+reject@30	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(ID_.)?/%empty!insert	CREATE AUDIT POLICY a ACTIONS a ON zzz a
+reject@30	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(ID_.)?/ID_.	CREATE AUDIT POLICY a ACTIONS a ON a.a
+reject@30	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(ID_.)?/ID_.!drop-1	CREATE AUDIT POLICY a ACTIONS a ON.a
+reject@30	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(ID_.)?/ID_.!drop-2	CREATE AUDIT POLICY a ACTIONS a ON a a
+reject@30	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(ID_.)?/ID_.!insert	CREATE AUDIT POLICY a ACTIONS a ON a.zzz a
+reject@30	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(,_(ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_~85adb6a9)*/%empty	CREATE AUDIT POLICY a ACTIONS a
+reject@30	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(,_(ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_~85adb6a9)*/,_(ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_ID|~f55e43b3)_(,_(I~ecd9f367	CREATE AUDIT POLICY a ACTIONS a, a
+reject@30	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(,_(ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_~85adb6a9)*/,_(ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_ID|~f55e43b3)_(,_(I~ecd9f367!drop-2	CREATE AUDIT POLICY a ACTIONS a,
+reject@30	reject@30	engine	createAuditPolicyUnifiedAuditing_standard_actions(,_(ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_~85adb6a9)*/,_(ID_((_ID_(,_ID)*_))?_ON_((ID_.)?_ID|~f55e43b3)_(,_(I~ecd9f367!insert	CREATE AUDIT POLICY a ACTIONS a, a zzz
+reject@54	reject@54	engine	createAuditPolicyUnifiedAuditing_component_actions/COMPONENT_=_(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)	CREATE AUDIT POLICY a ACTIONS COMPONENT = SQL_FIREWALL
+reject@51	reject@51	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/DATAPUMP_(ID|ALL)_(,_(ID|ALL))*	CREATE AUDIT POLICY a ACTIONS COMPONENT = DATAPUMP a
+reject@42	reject@0	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/DATAPUMP_(ID|ALL)_(,_(ID|ALL))*!drop-1	CREATE AUDIT POLICY a ACTIONS COMPONENT = a
+reject@50	reject@50	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/DATAPUMP_(ID|ALL)_(,_(ID|ALL))*!drop-2	CREATE AUDIT POLICY a ACTIONS COMPONENT = DATAPUMP
+reject@51	reject@51	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/DATAPUMP_(ID|ALL)_(,_(ID|ALL))*!insert	CREATE AUDIT POLICY a ACTIONS COMPONENT = DATAPUMP a zzz
+reject@42	reject@0	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/DATAPUMP_(ID|ALL)_(,_(ID|ALL))*!swap	CREATE AUDIT POLICY a ACTIONS COMPONENT = DAY a
+reject@54	reject@54	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/DIRECT_LOAD_(ID|ALL)_(,_(ID|ALL))*	CREATE AUDIT POLICY a ACTIONS COMPONENT = DIRECT_LOAD a
+reject@53	reject@53	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/DIRECT_LOAD_(ID|ALL)_(,_(ID|ALL))*!drop-2	CREATE AUDIT POLICY a ACTIONS COMPONENT = DIRECT_LOAD
+reject@54	reject@54	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/DIRECT_LOAD_(ID|ALL)_(,_(ID|ALL))*!insert	CREATE AUDIT POLICY a ACTIONS COMPONENT = DIRECT_LOAD a zzz
+reject@42	reject@0	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/DIRECT_LOAD_(ID|ALL)_(,_(ID|ALL))*!swap	CREATE AUDIT POLICY a ACTIONS COMPONENT = DIRECT_PATH a
+reject@46	reject@46	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/OLS_(ID|ALL)_(,_(ID|ALL))*	CREATE AUDIT POLICY a ACTIONS COMPONENT = OLS a
+reject@45	reject@45	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/OLS_(ID|ALL)_(,_(ID|ALL))*!drop-2	CREATE AUDIT POLICY a ACTIONS COMPONENT = OLS
+reject@46	reject@46	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/OLS_(ID|ALL)_(,_(ID|ALL))*!insert	CREATE AUDIT POLICY a ACTIONS COMPONENT = OLS a zzz
+reject@42	reject@0	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/OLS_(ID|ALL)_(,_(ID|ALL))*!swap	CREATE AUDIT POLICY a ACTIONS COMPONENT = OLTP a
+reject@45	reject@45	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/XS_(ID|ALL)_(,_(ID|ALL))*	CREATE AUDIT POLICY a ACTIONS COMPONENT = XS a
+reject@44	reject@44	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/XS_(ID|ALL)_(,_(ID|ALL))*!drop-2	CREATE AUDIT POLICY a ACTIONS COMPONENT = XS
+reject@45	reject@45	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/XS_(ID|ALL)_(,_(ID|ALL))*!insert	CREATE AUDIT POLICY a ACTIONS COMPONENT = XS a zzz
+reject@42	reject@0	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/XS_(ID|ALL)_(,_(ID|ALL))*!swap	CREATE AUDIT POLICY a ACTIONS COMPONENT = YEAR a
+reject@45	reject@45	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/DV_(ID_(ON_ID)?|ALL)_(,_(ID_(ON_ID)?|ALL))*	CREATE AUDIT POLICY a ACTIONS COMPONENT = DV a
+reject@44	reject@44	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/DV_(ID_(ON_ID)?|ALL)_(,_(ID_(ON_ID)?|ALL))*!drop-2	CREATE AUDIT POLICY a ACTIONS COMPONENT = DV
+reject@45	reject@45	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/DV_(ID_(ON_ID)?|ALL)_(,_(ID_(ON_ID)?|ALL))*!insert	CREATE AUDIT POLICY a ACTIONS COMPONENT = DV a zzz
+reject@42	reject@0	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/DV_(ID_(ON_ID)?|ALL)_(,_(ID_(ON_ID)?|ALL))*!swap	CREATE AUDIT POLICY a ACTIONS COMPONENT = E a
+reject@54	reject@54	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/SQL_FIREWALL	CREATE AUDIT POLICY a ACTIONS COMPONENT = SQL_FIREWALL
+reject@42	reject@0	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/SQL_FIREWALL!swap	CREATE AUDIT POLICY a ACTIONS COMPONENT = SQL_ID
 accept	accept	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/PROTOCOL_(HTTP|FTP|AUTHENTICATION)	CREATE AUDIT POLICY a ACTIONS COMPONENT = PROTOCOL HTTP
-accept	reject@0	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/PROTOCOL_(HTTP|FTP|AUTHENTICATION)!drop-1	CREATE AUDIT POLICY a ACTIONS COMPONENT = HTTP
-accept	reject@50	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/PROTOCOL_(HTTP|FTP|AUTHENTICATION)!drop-2	CREATE AUDIT POLICY a ACTIONS COMPONENT = PROTOCOL
-accept	reject@56	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/PROTOCOL_(HTTP|FTP|AUTHENTICATION)!insert	CREATE AUDIT POLICY a ACTIONS COMPONENT = PROTOCOL HTTP zzz
-accept	reject@0	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/PROTOCOL_(HTTP|FTP|AUTHENTICATION)!swap	CREATE AUDIT POLICY a ACTIONS COMPONENT = PROXY HTTP
-accept	reject@51	engine	createAuditPolicyUnifiedAuditing_component_actions(ID|ALL)/ID	CREATE AUDIT POLICY a ACTIONS COMPONENT = DATAPUMP a
+reject@42	reject@0	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/PROTOCOL_(HTTP|FTP|AUTHENTICATION)!drop-1	CREATE AUDIT POLICY a ACTIONS COMPONENT = HTTP
+reject@50	reject@50	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/PROTOCOL_(HTTP|FTP|AUTHENTICATION)!drop-2	CREATE AUDIT POLICY a ACTIONS COMPONENT = PROTOCOL
+reject@56	reject@56	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/PROTOCOL_(HTTP|FTP|AUTHENTICATION)!insert	CREATE AUDIT POLICY a ACTIONS COMPONENT = PROTOCOL HTTP zzz
+reject@42	reject@0	engine	createAuditPolicyUnifiedAuditing_component_actions(DATAPUMP_(ID|ALL)_(,_(ID|ALL))*|DIRE~217a3a77)/PROTOCOL_(HTTP|FTP|AUTHENTICATION)!swap	CREATE AUDIT POLICY a ACTIONS COMPONENT = PROXY HTTP
+reject@51	reject@51	engine	createAuditPolicyUnifiedAuditing_component_actions(ID|ALL)/ID	CREATE AUDIT POLICY a ACTIONS COMPONENT = DATAPUMP a
 accept	accept	engine	createAuditPolicyUnifiedAuditing_component_actions(ID|ALL)/ALL	CREATE AUDIT POLICY a ACTIONS COMPONENT = DATAPUMP ALL
-accept	reject@55	engine	createAuditPolicyUnifiedAuditing_component_actions(ID|ALL)/ALL!insert	CREATE AUDIT POLICY a ACTIONS COMPONENT = DATAPUMP ALL zzz
-accept	reject@51	engine	createAuditPolicyUnifiedAuditing_component_actions(ID|ALL)/ALL!swap	CREATE AUDIT POLICY a ACTIONS COMPONENT = DATAPUMP ALLOCATE
-accept	reject@51	engine	createAuditPolicyUnifiedAuditing_component_actions(,_(ID|ALL))*/%empty	CREATE AUDIT POLICY a ACTIONS COMPONENT = DATAPUMP a
-accept	reject@51	engine	createAuditPolicyUnifiedAuditing_component_actions(,_(ID|ALL))*/,_(ID|ALL)_(,_(ID|ALL))*	CREATE AUDIT POLICY a ACTIONS COMPONENT = DATAPUMP a, a
-accept	reject@51	engine	createAuditPolicyUnifiedAuditing_component_actions(,_(ID|ALL))*/,_(ID|ALL)_(,_(ID|ALL))*!drop-1	CREATE AUDIT POLICY a ACTIONS COMPONENT = DATAPUMP a a
-reject@53	reject@51	engine	createAuditPolicyUnifiedAuditing_component_actions(,_(ID|ALL))*/,_(ID|ALL)_(,_(ID|ALL))*!drop-2	CREATE AUDIT POLICY a ACTIONS COMPONENT = DATAPUMP a,
-accept	reject@51	engine	createAuditPolicyUnifiedAuditing_component_actions(,_(ID|ALL))*/,_(ID|ALL)_(,_(ID|ALL))*!insert	CREATE AUDIT POLICY a ACTIONS COMPONENT = DATAPUMP a, a zzz
-accept	reject@45	engine	createAuditPolicyUnifiedAuditing_component_actions(ID_(ON_ID)?|ALL)/ID_(ON_ID)?	CREATE AUDIT POLICY a ACTIONS COMPONENT = DV a
+reject@55	reject@55	engine	createAuditPolicyUnifiedAuditing_component_actions(ID|ALL)/ALL!insert	CREATE AUDIT POLICY a ACTIONS COMPONENT = DATAPUMP ALL zzz
+reject@51	reject@51	engine	createAuditPolicyUnifiedAuditing_component_actions(ID|ALL)/ALL!swap	CREATE AUDIT POLICY a ACTIONS COMPONENT = DATAPUMP ALLOCATE
+reject@51	reject@51	engine	createAuditPolicyUnifiedAuditing_component_actions(,_(ID|ALL))*/%empty	CREATE AUDIT POLICY a ACTIONS COMPONENT = DATAPUMP a
+reject@51	reject@51	engine	createAuditPolicyUnifiedAuditing_component_actions(,_(ID|ALL))*/,_(ID|ALL)_(,_(ID|ALL))*	CREATE AUDIT POLICY a ACTIONS COMPONENT = DATAPUMP a, a
+reject@51	reject@51	engine	createAuditPolicyUnifiedAuditing_component_actions(,_(ID|ALL))*/,_(ID|ALL)_(,_(ID|ALL))*!drop-1	CREATE AUDIT POLICY a ACTIONS COMPONENT = DATAPUMP a a
+reject@51	reject@51	engine	createAuditPolicyUnifiedAuditing_component_actions(,_(ID|ALL))*/,_(ID|ALL)_(,_(ID|ALL))*!drop-2	CREATE AUDIT POLICY a ACTIONS COMPONENT = DATAPUMP a,
+reject@51	reject@51	engine	createAuditPolicyUnifiedAuditing_component_actions(,_(ID|ALL))*/,_(ID|ALL)_(,_(ID|ALL))*!insert	CREATE AUDIT POLICY a ACTIONS COMPONENT = DATAPUMP a, a zzz
+reject@45	reject@45	engine	createAuditPolicyUnifiedAuditing_component_actions(ID_(ON_ID)?|ALL)/ID_(ON_ID)?	CREATE AUDIT POLICY a ACTIONS COMPONENT = DV a
 accept	accept	engine	createAuditPolicyUnifiedAuditing_component_actions(ID_(ON_ID)?|ALL)/ALL	CREATE AUDIT POLICY a ACTIONS COMPONENT = DV ALL
-accept	reject@45	engine	createAuditPolicyUnifiedAuditing_component_actions(ID_(ON_ID)?|ALL)/ALL!insert	CREATE AUDIT POLICY a ACTIONS COMPONENT = DV ALL zzz
-accept	reject@45	engine	createAuditPolicyUnifiedAuditing_component_actions(ID_(ON_ID)?|ALL)/ALL!swap	CREATE AUDIT POLICY a ACTIONS COMPONENT = DV ALLOCATE
-accept	reject@45	engine	createAuditPolicyUnifiedAuditing_component_actions(ON_ID)?/%empty	CREATE AUDIT POLICY a ACTIONS COMPONENT = DV a
-accept	reject@45	engine	createAuditPolicyUnifiedAuditing_component_actions(ON_ID)?/ON_ID	CREATE AUDIT POLICY a ACTIONS COMPONENT = DV a ON a
-accept	reject@45	engine	createAuditPolicyUnifiedAuditing_component_actions(ON_ID)?/ON_ID!drop-1	CREATE AUDIT POLICY a ACTIONS COMPONENT = DV a a
-accept	reject@45	engine	createAuditPolicyUnifiedAuditing_component_actions(ON_ID)?/ON_ID!drop-2	CREATE AUDIT POLICY a ACTIONS COMPONENT = DV a ON
-accept	reject@45	engine	createAuditPolicyUnifiedAuditing_component_actions(ON_ID)?/ON_ID!insert	CREATE AUDIT POLICY a ACTIONS COMPONENT = DV a ON a zzz
-accept	reject@45	engine	createAuditPolicyUnifiedAuditing_component_actions(ON_ID)?/ON_ID!swap	CREATE AUDIT POLICY a ACTIONS COMPONENT = DV a ONE a
-accept	reject@45	engine	createAuditPolicyUnifiedAuditing_component_actions(,_(ID_(ON_ID)?|ALL))*/%empty	CREATE AUDIT POLICY a ACTIONS COMPONENT = DV a
-accept	reject@45	engine	createAuditPolicyUnifiedAuditing_component_actions(,_(ID_(ON_ID)?|ALL))*/,_(ID_(ON_ID)?|ALL)_(,_(ID_(ON_ID)?|ALL))*	CREATE AUDIT POLICY a ACTIONS COMPONENT = DV a, a
-reject@47	reject@45	engine	createAuditPolicyUnifiedAuditing_component_actions(,_(ID_(ON_ID)?|ALL))*/,_(ID_(ON_ID)?|ALL)_(,_(ID_(ON_ID)?|ALL))*!drop-2	CREATE AUDIT POLICY a ACTIONS COMPONENT = DV a,
-accept	reject@45	engine	createAuditPolicyUnifiedAuditing_component_actions(,_(ID_(ON_ID)?|ALL))*/,_(ID_(ON_ID)?|ALL)_(,_(ID_(ON_ID)?|ALL))*!insert	CREATE AUDIT POLICY a ACTIONS COMPONENT = DV a, a zzz
+reject@49	reject@45	engine	createAuditPolicyUnifiedAuditing_component_actions(ID_(ON_ID)?|ALL)/ALL!insert	CREATE AUDIT POLICY a ACTIONS COMPONENT = DV ALL zzz
+reject@45	reject@45	engine	createAuditPolicyUnifiedAuditing_component_actions(ID_(ON_ID)?|ALL)/ALL!swap	CREATE AUDIT POLICY a ACTIONS COMPONENT = DV ALLOCATE
+reject@45	reject@45	engine	createAuditPolicyUnifiedAuditing_component_actions(ON_ID)?/%empty	CREATE AUDIT POLICY a ACTIONS COMPONENT = DV a
+reject@45	reject@45	engine	createAuditPolicyUnifiedAuditing_component_actions(ON_ID)?/ON_ID	CREATE AUDIT POLICY a ACTIONS COMPONENT = DV a ON a
+reject@45	reject@45	engine	createAuditPolicyUnifiedAuditing_component_actions(ON_ID)?/ON_ID!drop-1	CREATE AUDIT POLICY a ACTIONS COMPONENT = DV a a
+reject@45	reject@45	engine	createAuditPolicyUnifiedAuditing_component_actions(ON_ID)?/ON_ID!drop-2	CREATE AUDIT POLICY a ACTIONS COMPONENT = DV a ON
+reject@45	reject@45	engine	createAuditPolicyUnifiedAuditing_component_actions(ON_ID)?/ON_ID!insert	CREATE AUDIT POLICY a ACTIONS COMPONENT = DV a ON a zzz
+reject@45	reject@45	engine	createAuditPolicyUnifiedAuditing_component_actions(ON_ID)?/ON_ID!swap	CREATE AUDIT POLICY a ACTIONS COMPONENT = DV a ONE a
+reject@45	reject@45	engine	createAuditPolicyUnifiedAuditing_component_actions(,_(ID_(ON_ID)?|ALL))*/%empty	CREATE AUDIT POLICY a ACTIONS COMPONENT = DV a
+reject@45	reject@45	engine	createAuditPolicyUnifiedAuditing_component_actions(,_(ID_(ON_ID)?|ALL))*/,_(ID_(ON_ID)?|ALL)_(,_(ID_(ON_ID)?|ALL))*	CREATE AUDIT POLICY a ACTIONS COMPONENT = DV a, a
+reject@45	reject@45	engine	createAuditPolicyUnifiedAuditing_component_actions(,_(ID_(ON_ID)?|ALL))*/,_(ID_(ON_ID)?|ALL)_(,_(ID_(ON_ID)?|ALL))*!drop-2	CREATE AUDIT POLICY a ACTIONS COMPONENT = DV a,
+reject@45	reject@45	engine	createAuditPolicyUnifiedAuditing_component_actions(,_(ID_(ON_ID)?|ALL))*/,_(ID_(ON_ID)?|ALL)_(,_(ID_(ON_ID)?|ALL))*!insert	CREATE AUDIT POLICY a ACTIONS COMPONENT = DV a, a zzz
 accept	accept	engine	createAuditPolicyUnifiedAuditing_component_actions(HTTP|FTP|AUTHENTICATION)/HTTP	CREATE AUDIT POLICY a ACTIONS COMPONENT = PROTOCOL HTTP
-accept	reject@51	engine	createAuditPolicyUnifiedAuditing_component_actions(HTTP|FTP|AUTHENTICATION)/HTTP!swap	CREATE AUDIT POLICY a ACTIONS COMPONENT = PROTOCOL HYBRID
+reject@51	reject@51	engine	createAuditPolicyUnifiedAuditing_component_actions(HTTP|FTP|AUTHENTICATION)/HTTP!swap	CREATE AUDIT POLICY a ACTIONS COMPONENT = PROTOCOL HYBRID
 accept	accept	engine	createAuditPolicyUnifiedAuditing_component_actions(HTTP|FTP|AUTHENTICATION)/FTP	CREATE AUDIT POLICY a ACTIONS COMPONENT = PROTOCOL FTP
-accept	reject@55	engine	createAuditPolicyUnifiedAuditing_component_actions(HTTP|FTP|AUTHENTICATION)/FTP!insert	CREATE AUDIT POLICY a ACTIONS COMPONENT = PROTOCOL FTP zzz
+reject@55	reject@55	engine	createAuditPolicyUnifiedAuditing_component_actions(HTTP|FTP|AUTHENTICATION)/FTP!insert	CREATE AUDIT POLICY a ACTIONS COMPONENT = PROTOCOL FTP zzz
 accept	accept	engine	createAuditPolicyUnifiedAuditing_component_actions(HTTP|FTP|AUTHENTICATION)/FTP!swap	CREATE AUDIT POLICY a ACTIONS COMPONENT = PROTOCOL FULL
 accept	accept	engine	createAuditPolicyUnifiedAuditing_component_actions(HTTP|FTP|AUTHENTICATION)/AUTHENTICATION	CREATE AUDIT POLICY a ACTIONS COMPONENT = PROTOCOL AUTHENTICATION
-accept	reject@66	engine	createAuditPolicyUnifiedAuditing_component_actions(HTTP|FTP|AUTHENTICATION)/AUTHENTICATION!insert	CREATE AUDIT POLICY a ACTIONS COMPONENT = PROTOCOL AUTHENTICATION zzz
-accept	reject@51	engine	createAuditPolicyUnifiedAuditing_component_actions(HTTP|FTP|AUTHENTICATION)/AUTHENTICATION!swap	CREATE AUDIT POLICY a ACTIONS COMPONENT = PROTOCOL AUTHID
+reject@66	reject@66	engine	createAuditPolicyUnifiedAuditing_component_actions(HTTP|FTP|AUTHENTICATION)/AUTHENTICATION!insert	CREATE AUDIT POLICY a ACTIONS COMPONENT = PROTOCOL AUTHENTICATION zzz
+reject@51	reject@51	engine	createAuditPolicyUnifiedAuditing_component_actions(HTTP|FTP|AUTHENTICATION)/AUTHENTICATION!swap	CREATE AUDIT POLICY a ACTIONS COMPONENT = PROTOCOL AUTHID
 accept	accept	engine	createCluster/CREATE_CLUSTER_(IF_NOT_EXISTS)?_(ID_.)?_ID_(SHARING_=_(~55ddf9c0	CREATE CLUSTER a(a NUMBER)
 accept	accept	engine	createCluster(IF_NOT_EXISTS)?/%empty	CREATE CLUSTER a(a NUMBER)
 reject@19	reject@19	engine	createCluster(IF_NOT_EXISTS)?/%empty!insert	CREATE CLUSTER zzz a(a NUMBER)
@@ -31252,7 +31252,7 @@ reject@43	reject@43	engine	createProfile((createProfile_resource_parameters|c~73
 accept	accept	engine	createProfile(CONTAINER_=_(ALL|CURRENT))?/%empty	CREATE PROFILE a LIMIT SESSIONS_PER_USER 1
 accept	accept	engine	createProfile(CONTAINER_=_(ALL|CURRENT))?/CONTAINER_=_(ALL|CURRENT)	CREATE PROFILE a LIMIT SESSIONS_PER_USER 1 CONTAINER = ALL
 reject@43	reject@43	engine	createProfile(CONTAINER_=_(ALL|CURRENT))?/CONTAINER_=_(ALL|CURRENT)!drop-1	CREATE PROFILE a LIMIT SESSIONS_PER_USER 1 = ALL
-accept	reject@53	engine	createProfile(CONTAINER_=_(ALL|CURRENT))?/CONTAINER_=_(ALL|CURRENT)!drop-2	CREATE PROFILE a LIMIT SESSIONS_PER_USER 1 CONTAINER ALL
+reject@53	reject@53	engine	createProfile(CONTAINER_=_(ALL|CURRENT))?/CONTAINER_=_(ALL|CURRENT)!drop-2	CREATE PROFILE a LIMIT SESSIONS_PER_USER 1 CONTAINER ALL
 reject@54	accept	engine	createProfile(CONTAINER_=_(ALL|CURRENT))?/CONTAINER_=_(ALL|CURRENT)!drop-3	CREATE PROFILE a LIMIT SESSIONS_PER_USER 1 CONTAINER =
 reject@59	reject@59	engine	createProfile(CONTAINER_=_(ALL|CURRENT))?/CONTAINER_=_(ALL|CURRENT)!insert	CREATE PROFILE a LIMIT SESSIONS_PER_USER 1 CONTAINER = ALL zzz
 reject@43	reject@43	engine	createProfile(CONTAINER_=_(ALL|CURRENT))?/CONTAINER_=_(ALL|CURRENT)!swap	CREATE PROFILE a LIMIT SESSIONS_PER_USER 1 CONTAINERS = ALL
@@ -31296,54 +31296,54 @@ reject@23	reject@23	engine	createProfile_resource_parameters(SESSIONS_PER_USER_(
 accept	accept	engine	createProfile_resource_parameters(NUMBER|UNLIMITED|DEFAULT)/NUMBER	CREATE PROFILE a LIMIT SESSIONS_PER_USER 1
 accept	accept	engine	createProfile_resource_parameters(NUMBER|UNLIMITED|DEFAULT)/UNLIMITED	CREATE PROFILE a LIMIT SESSIONS_PER_USER UNLIMITED
 reject@51	reject@51	engine	createProfile_resource_parameters(NUMBER|UNLIMITED|DEFAULT)/UNLIMITED!insert	CREATE PROFILE a LIMIT SESSIONS_PER_USER UNLIMITED zzz
-accept	reject@41	engine	createProfile_resource_parameters(NUMBER|UNLIMITED|DEFAULT)/UNLIMITED!swap	CREATE PROFILE a LIMIT SESSIONS_PER_USER UNLOCK
+reject@41	reject@41	engine	createProfile_resource_parameters(NUMBER|UNLIMITED|DEFAULT)/UNLIMITED!swap	CREATE PROFILE a LIMIT SESSIONS_PER_USER UNLOCK
 accept	accept	engine	createProfile_resource_parameters(NUMBER|UNLIMITED|DEFAULT)/DEFAULT	CREATE PROFILE a LIMIT SESSIONS_PER_USER DEFAULT
 reject@49	reject@49	engine	createProfile_resource_parameters(NUMBER|UNLIMITED|DEFAULT)/DEFAULT!insert	CREATE PROFILE a LIMIT SESSIONS_PER_USER DEFAULT zzz
-accept	reject@41	engine	createProfile_resource_parameters(NUMBER|UNLIMITED|DEFAULT)/DEFAULT!swap	CREATE PROFILE a LIMIT SESSIONS_PER_USER DEFAULT_COLLATION
+reject@41	reject@41	engine	createProfile_resource_parameters(NUMBER|UNLIMITED|DEFAULT)/DEFAULT!swap	CREATE PROFILE a LIMIT SESSIONS_PER_USER DEFAULT_COLLATION
 accept	accept	engine	createProfile_resource_parameters(createProfile_size_clause|UNLIMITED|DEFAULT)/createProfile_size_clause	CREATE PROFILE a LIMIT PRIVATE_SGA 1
 accept	accept	engine	createProfile_resource_parameters(createProfile_size_clause|UNLIMITED|DEFAULT)/UNLIMITED	CREATE PROFILE a LIMIT PRIVATE_SGA UNLIMITED
 reject@45	reject@45	engine	createProfile_resource_parameters(createProfile_size_clause|UNLIMITED|DEFAULT)/UNLIMITED!insert	CREATE PROFILE a LIMIT PRIVATE_SGA UNLIMITED zzz
-accept	reject@35	engine	createProfile_resource_parameters(createProfile_size_clause|UNLIMITED|DEFAULT)/UNLIMITED!swap	CREATE PROFILE a LIMIT PRIVATE_SGA UNLOCK
+reject@35	reject@35	engine	createProfile_resource_parameters(createProfile_size_clause|UNLIMITED|DEFAULT)/UNLIMITED!swap	CREATE PROFILE a LIMIT PRIVATE_SGA UNLOCK
 accept	accept	engine	createProfile_resource_parameters(createProfile_size_clause|UNLIMITED|DEFAULT)/DEFAULT	CREATE PROFILE a LIMIT PRIVATE_SGA DEFAULT
 reject@43	reject@43	engine	createProfile_resource_parameters(createProfile_size_clause|UNLIMITED|DEFAULT)/DEFAULT!insert	CREATE PROFILE a LIMIT PRIVATE_SGA DEFAULT zzz
-accept	reject@35	engine	createProfile_resource_parameters(createProfile_size_clause|UNLIMITED|DEFAULT)/DEFAULT!swap	CREATE PROFILE a LIMIT PRIVATE_SGA DEFAULT_COLLATION
+reject@35	reject@35	engine	createProfile_resource_parameters(createProfile_size_clause|UNLIMITED|DEFAULT)/DEFAULT!swap	CREATE PROFILE a LIMIT PRIVATE_SGA DEFAULT_COLLATION
 accept	accept	engine	createProfile_password_parameters/(FAILED_LOGIN_ATTEMPTS_(NUMBER|UNLIMI~c040bd4e)	CREATE PROFILE a LIMIT FAILED_LOGIN_ATTEMPTS 1
 accept	accept	engine	createProfile_password_parameters(FAILED_LOGIN_ATTEMPTS_(NUMBER|UNLIMI~c040bd4e)/FAILED_LOGIN_ATTEMPTS_(NUMBER|UNLIMITED|DEFAULT)	CREATE PROFILE a LIMIT FAILED_LOGIN_ATTEMPTS 1
 accept	accept	engine	createProfile_password_parameters(FAILED_LOGIN_ATTEMPTS_(NUMBER|UNLIMI~c040bd4e)/PASSWORD_LIFE_TIME_(EXPR|UNLIMITED|DEFAULT)	CREATE PROFILE a LIMIT PASSWORD_LIFE_TIME 1
-accept	reject@41	engine	createProfile_password_parameters(FAILED_LOGIN_ATTEMPTS_(NUMBER|UNLIMI~c040bd4e)/PASSWORD_LIFE_TIME_(EXPR|UNLIMITED|DEFAULT)!drop-2	CREATE PROFILE a LIMIT PASSWORD_LIFE_TIME
+reject@41	reject@41	engine	createProfile_password_parameters(FAILED_LOGIN_ATTEMPTS_(NUMBER|UNLIMI~c040bd4e)/PASSWORD_LIFE_TIME_(EXPR|UNLIMITED|DEFAULT)!drop-2	CREATE PROFILE a LIMIT PASSWORD_LIFE_TIME
 reject@44	reject@44	engine	createProfile_password_parameters(FAILED_LOGIN_ATTEMPTS_(NUMBER|UNLIMI~c040bd4e)/PASSWORD_LIFE_TIME_(EXPR|UNLIMITED|DEFAULT)!insert	CREATE PROFILE a LIMIT PASSWORD_LIFE_TIME 1 zzz
 accept	accept	engine	createProfile_password_parameters(FAILED_LOGIN_ATTEMPTS_(NUMBER|UNLIMI~c040bd4e)/PASSWORD_REUSE_TIME_(EXPR|UNLIMITED|DEFAULT)	CREATE PROFILE a LIMIT PASSWORD_REUSE_TIME 1
-accept	reject@42	engine	createProfile_password_parameters(FAILED_LOGIN_ATTEMPTS_(NUMBER|UNLIMI~c040bd4e)/PASSWORD_REUSE_TIME_(EXPR|UNLIMITED|DEFAULT)!drop-2	CREATE PROFILE a LIMIT PASSWORD_REUSE_TIME
+reject@42	reject@42	engine	createProfile_password_parameters(FAILED_LOGIN_ATTEMPTS_(NUMBER|UNLIMI~c040bd4e)/PASSWORD_REUSE_TIME_(EXPR|UNLIMITED|DEFAULT)!drop-2	CREATE PROFILE a LIMIT PASSWORD_REUSE_TIME
 reject@45	reject@45	engine	createProfile_password_parameters(FAILED_LOGIN_ATTEMPTS_(NUMBER|UNLIMI~c040bd4e)/PASSWORD_REUSE_TIME_(EXPR|UNLIMITED|DEFAULT)!insert	CREATE PROFILE a LIMIT PASSWORD_REUSE_TIME 1 zzz
 accept	accept	engine	createProfile_password_parameters(FAILED_LOGIN_ATTEMPTS_(NUMBER|UNLIMI~c040bd4e)/PASSWORD_REUSE_MAX_(NUMBER|UNLIMITED|DEFAULT)	CREATE PROFILE a LIMIT PASSWORD_REUSE_MAX 1
 accept	accept	engine	createProfile_password_parameters(FAILED_LOGIN_ATTEMPTS_(NUMBER|UNLIMI~c040bd4e)/PASSWORD_REUSE_MAX_(NUMBER|UNLIMITED|DEFAULT)!drop-2	CREATE PROFILE a LIMIT PASSWORD_REUSE_MAX
 reject@44	reject@44	engine	createProfile_password_parameters(FAILED_LOGIN_ATTEMPTS_(NUMBER|UNLIMI~c040bd4e)/PASSWORD_REUSE_MAX_(NUMBER|UNLIMITED|DEFAULT)!insert	CREATE PROFILE a LIMIT PASSWORD_REUSE_MAX 1 zzz
 accept	accept	engine	createProfile_password_parameters(FAILED_LOGIN_ATTEMPTS_(NUMBER|UNLIMI~c040bd4e)/PASSWORD_LOCK_TIME_(EXPR|UNLIMITED|DEFAULT)	CREATE PROFILE a LIMIT PASSWORD_LOCK_TIME 1
-accept	reject@41	engine	createProfile_password_parameters(FAILED_LOGIN_ATTEMPTS_(NUMBER|UNLIMI~c040bd4e)/PASSWORD_LOCK_TIME_(EXPR|UNLIMITED|DEFAULT)!drop-2	CREATE PROFILE a LIMIT PASSWORD_LOCK_TIME
+reject@41	reject@41	engine	createProfile_password_parameters(FAILED_LOGIN_ATTEMPTS_(NUMBER|UNLIMI~c040bd4e)/PASSWORD_LOCK_TIME_(EXPR|UNLIMITED|DEFAULT)!drop-2	CREATE PROFILE a LIMIT PASSWORD_LOCK_TIME
 reject@44	reject@44	engine	createProfile_password_parameters(FAILED_LOGIN_ATTEMPTS_(NUMBER|UNLIMI~c040bd4e)/PASSWORD_LOCK_TIME_(EXPR|UNLIMITED|DEFAULT)!insert	CREATE PROFILE a LIMIT PASSWORD_LOCK_TIME 1 zzz
 accept	accept	engine	createProfile_password_parameters(FAILED_LOGIN_ATTEMPTS_(NUMBER|UNLIMI~c040bd4e)/PASSWORD_GRACE_TIME_(EXPR|UNLIMITED|DEFAULT)	CREATE PROFILE a LIMIT PASSWORD_GRACE_TIME 1
-accept	reject@42	engine	createProfile_password_parameters(FAILED_LOGIN_ATTEMPTS_(NUMBER|UNLIMI~c040bd4e)/PASSWORD_GRACE_TIME_(EXPR|UNLIMITED|DEFAULT)!drop-2	CREATE PROFILE a LIMIT PASSWORD_GRACE_TIME
+reject@42	reject@42	engine	createProfile_password_parameters(FAILED_LOGIN_ATTEMPTS_(NUMBER|UNLIMI~c040bd4e)/PASSWORD_GRACE_TIME_(EXPR|UNLIMITED|DEFAULT)!drop-2	CREATE PROFILE a LIMIT PASSWORD_GRACE_TIME
 reject@45	reject@45	engine	createProfile_password_parameters(FAILED_LOGIN_ATTEMPTS_(NUMBER|UNLIMI~c040bd4e)/PASSWORD_GRACE_TIME_(EXPR|UNLIMITED|DEFAULT)!insert	CREATE PROFILE a LIMIT PASSWORD_GRACE_TIME 1 zzz
 accept	accept	engine	createProfile_password_parameters(FAILED_LOGIN_ATTEMPTS_(NUMBER|UNLIMI~c040bd4e)/INACTIVE_ACCOUNT_TIME_(NUMBER|UNLIMITED|DEFAULT)	CREATE PROFILE a LIMIT INACTIVE_ACCOUNT_TIME 1
-accept	reject@44	engine	createProfile_password_parameters(FAILED_LOGIN_ATTEMPTS_(NUMBER|UNLIMI~c040bd4e)/INACTIVE_ACCOUNT_TIME_(NUMBER|UNLIMITED|DEFAULT)!drop-2	CREATE PROFILE a LIMIT INACTIVE_ACCOUNT_TIME
+reject@44	reject@44	engine	createProfile_password_parameters(FAILED_LOGIN_ATTEMPTS_(NUMBER|UNLIMI~c040bd4e)/INACTIVE_ACCOUNT_TIME_(NUMBER|UNLIMITED|DEFAULT)!drop-2	CREATE PROFILE a LIMIT INACTIVE_ACCOUNT_TIME
 reject@47	reject@47	engine	createProfile_password_parameters(FAILED_LOGIN_ATTEMPTS_(NUMBER|UNLIMI~c040bd4e)/INACTIVE_ACCOUNT_TIME_(NUMBER|UNLIMITED|DEFAULT)!insert	CREATE PROFILE a LIMIT INACTIVE_ACCOUNT_TIME 1 zzz
 reject@23	reject@23	engine	createProfile_password_parameters(FAILED_LOGIN_ATTEMPTS_(NUMBER|UNLIMI~c040bd4e)/INACTIVE_ACCOUNT_TIME_(NUMBER|UNLIMITED|DEFAULT)!swap	CREATE PROFILE a LIMIT INCLUDE 1
 accept	accept	engine	createProfile_password_parameters(FAILED_LOGIN_ATTEMPTS_(NUMBER|UNLIMI~c040bd4e)/PASSWORD_VERIFY_FUNCTION_(ID|NULL|DEFAULT)	CREATE PROFILE a LIMIT PASSWORD_VERIFY_FUNCTION a
 reject@23	reject@23	engine	createProfile_password_parameters(FAILED_LOGIN_ATTEMPTS_(NUMBER|UNLIMI~c040bd4e)/PASSWORD_VERIFY_FUNCTION_(ID|NULL|DEFAULT)!drop-1	CREATE PROFILE a LIMIT a
-accept	reject@47	engine	createProfile_password_parameters(FAILED_LOGIN_ATTEMPTS_(NUMBER|UNLIMI~c040bd4e)/PASSWORD_VERIFY_FUNCTION_(ID|NULL|DEFAULT)!drop-2	CREATE PROFILE a LIMIT PASSWORD_VERIFY_FUNCTION
+reject@47	reject@47	engine	createProfile_password_parameters(FAILED_LOGIN_ATTEMPTS_(NUMBER|UNLIMI~c040bd4e)/PASSWORD_VERIFY_FUNCTION_(ID|NULL|DEFAULT)!drop-2	CREATE PROFILE a LIMIT PASSWORD_VERIFY_FUNCTION
 reject@50	reject@50	engine	createProfile_password_parameters(FAILED_LOGIN_ATTEMPTS_(NUMBER|UNLIMI~c040bd4e)/PASSWORD_VERIFY_FUNCTION_(ID|NULL|DEFAULT)!insert	CREATE PROFILE a LIMIT PASSWORD_VERIFY_FUNCTION a zzz
 reject@23	reject@23	engine	createProfile_password_parameters(FAILED_LOGIN_ATTEMPTS_(NUMBER|UNLIMI~c040bd4e)/PASSWORD_VERIFY_FUNCTION_(ID|NULL|DEFAULT)!swap	CREATE PROFILE a LIMIT PAST a
 accept	accept	engine	createProfile_password_parameters(FAILED_LOGIN_ATTEMPTS_(NUMBER|UNLIMI~c040bd4e)/PASSWORD_ROLLOVER_TIME_(EXPR|UNLIMITED|DEFAULT)	CREATE PROFILE a LIMIT PASSWORD_ROLLOVER_TIME 1
-accept	reject@45	engine	createProfile_password_parameters(FAILED_LOGIN_ATTEMPTS_(NUMBER|UNLIMI~c040bd4e)/PASSWORD_ROLLOVER_TIME_(EXPR|UNLIMITED|DEFAULT)!drop-2	CREATE PROFILE a LIMIT PASSWORD_ROLLOVER_TIME
+reject@45	reject@45	engine	createProfile_password_parameters(FAILED_LOGIN_ATTEMPTS_(NUMBER|UNLIMI~c040bd4e)/PASSWORD_ROLLOVER_TIME_(EXPR|UNLIMITED|DEFAULT)!drop-2	CREATE PROFILE a LIMIT PASSWORD_ROLLOVER_TIME
 reject@48	reject@48	engine	createProfile_password_parameters(FAILED_LOGIN_ATTEMPTS_(NUMBER|UNLIMI~c040bd4e)/PASSWORD_ROLLOVER_TIME_(EXPR|UNLIMITED|DEFAULT)!insert	CREATE PROFILE a LIMIT PASSWORD_ROLLOVER_TIME 1 zzz
-accept	reject@48	engine	createProfile_password_parameters(FAILED_LOGIN_ATTEMPTS_(NUMBER|UNLIMI~c040bd4e)/PASSWORD_ROLLOVER_TIME_(EXPR|UNLIMITED|DEFAULT)!swap	CREATE PROFILE a LIMIT PASSWORD_VERIFY_FUNCTION 1
+reject@48	reject@48	engine	createProfile_password_parameters(FAILED_LOGIN_ATTEMPTS_(NUMBER|UNLIMI~c040bd4e)/PASSWORD_ROLLOVER_TIME_(EXPR|UNLIMITED|DEFAULT)!swap	CREATE PROFILE a LIMIT PASSWORD_VERIFY_FUNCTION 1
 accept	accept	engine	createProfile_password_parameters(NUMBER|UNLIMITED|DEFAULT)/NUMBER	CREATE PROFILE a LIMIT FAILED_LOGIN_ATTEMPTS 1
 accept	accept	engine	createProfile_password_parameters(NUMBER|UNLIMITED|DEFAULT)/UNLIMITED	CREATE PROFILE a LIMIT FAILED_LOGIN_ATTEMPTS UNLIMITED
 reject@55	reject@55	engine	createProfile_password_parameters(NUMBER|UNLIMITED|DEFAULT)/UNLIMITED!insert	CREATE PROFILE a LIMIT FAILED_LOGIN_ATTEMPTS UNLIMITED zzz
-accept	reject@45	engine	createProfile_password_parameters(NUMBER|UNLIMITED|DEFAULT)/UNLIMITED!swap	CREATE PROFILE a LIMIT FAILED_LOGIN_ATTEMPTS UNLOCK
+reject@45	reject@45	engine	createProfile_password_parameters(NUMBER|UNLIMITED|DEFAULT)/UNLIMITED!swap	CREATE PROFILE a LIMIT FAILED_LOGIN_ATTEMPTS UNLOCK
 accept	accept	engine	createProfile_password_parameters(NUMBER|UNLIMITED|DEFAULT)/DEFAULT	CREATE PROFILE a LIMIT FAILED_LOGIN_ATTEMPTS DEFAULT
 reject@53	reject@53	engine	createProfile_password_parameters(NUMBER|UNLIMITED|DEFAULT)/DEFAULT!insert	CREATE PROFILE a LIMIT FAILED_LOGIN_ATTEMPTS DEFAULT zzz
-accept	reject@45	engine	createProfile_password_parameters(NUMBER|UNLIMITED|DEFAULT)/DEFAULT!swap	CREATE PROFILE a LIMIT FAILED_LOGIN_ATTEMPTS DEFAULT_COLLATION
+reject@45	reject@45	engine	createProfile_password_parameters(NUMBER|UNLIMITED|DEFAULT)/DEFAULT!swap	CREATE PROFILE a LIMIT FAILED_LOGIN_ATTEMPTS DEFAULT_COLLATION
 accept	accept	engine	createProfile_password_parameters(EXPR|UNLIMITED|DEFAULT)/EXPR	CREATE PROFILE a LIMIT PASSWORD_LIFE_TIME 1
 accept	accept	engine	createProfile_password_parameters(EXPR|UNLIMITED|DEFAULT)/UNLIMITED	CREATE PROFILE a LIMIT PASSWORD_LIFE_TIME UNLIMITED
 reject@52	reject@52	engine	createProfile_password_parameters(EXPR|UNLIMITED|DEFAULT)/UNLIMITED!insert	CREATE PROFILE a LIMIT PASSWORD_LIFE_TIME UNLIMITED zzz
@@ -31369,14 +31369,14 @@ reject@37	reject@37	engine	createProfile_size_clause(K|M|G|T|P|E)?/M!swap	CREATE
 accept	accept	engine	createProfile_size_clause(K|M|G|T|P|E)?/G	CREATE PROFILE a LIMIT PRIVATE_SGA 1 G
 reject@39	reject@39	engine	createProfile_size_clause(K|M|G|T|P|E)?/G!insert	CREATE PROFILE a LIMIT PRIVATE_SGA 1 G zzz
 reject@37	reject@37	engine	createProfile_size_clause(K|M|G|T|P|E)?/G!swap	CREATE PROFILE a LIMIT PRIVATE_SGA 1 GENERATED
-accept	reject@35	engine	createProfile_size_clause(K|M|G|T|P|E)?/T	CREATE PROFILE a LIMIT PRIVATE_SGA 1 T
-reject@39	reject@35	engine	createProfile_size_clause(K|M|G|T|P|E)?/T!insert	CREATE PROFILE a LIMIT PRIVATE_SGA 1 T zzz
+reject@35	reject@35	engine	createProfile_size_clause(K|M|G|T|P|E)?/T	CREATE PROFILE a LIMIT PRIVATE_SGA 1 T
+reject@35	reject@35	engine	createProfile_size_clause(K|M|G|T|P|E)?/T!insert	CREATE PROFILE a LIMIT PRIVATE_SGA 1 T zzz
 reject@37	reject@37	engine	createProfile_size_clause(K|M|G|T|P|E)?/T!swap	CREATE PROFILE a LIMIT PRIVATE_SGA 1 TABLE
-reject@37	reject@35	engine	createProfile_size_clause(K|M|G|T|P|E)?/P	CREATE PROFILE a LIMIT PRIVATE_SGA 1 P
-reject@37	reject@35	engine	createProfile_size_clause(K|M|G|T|P|E)?/P!insert	CREATE PROFILE a LIMIT PRIVATE_SGA 1 P zzz
+reject@35	reject@35	engine	createProfile_size_clause(K|M|G|T|P|E)?/P	CREATE PROFILE a LIMIT PRIVATE_SGA 1 P
+reject@35	reject@35	engine	createProfile_size_clause(K|M|G|T|P|E)?/P!insert	CREATE PROFILE a LIMIT PRIVATE_SGA 1 P zzz
 reject@37	reject@37	engine	createProfile_size_clause(K|M|G|T|P|E)?/P!swap	CREATE PROFILE a LIMIT PRIVATE_SGA 1 PACKAGE
-reject@37	reject@35	engine	createProfile_size_clause(K|M|G|T|P|E)?/E	CREATE PROFILE a LIMIT PRIVATE_SGA 1 E
-reject@37	reject@35	engine	createProfile_size_clause(K|M|G|T|P|E)?/E!insert	CREATE PROFILE a LIMIT PRIVATE_SGA 1 E zzz
+reject@35	reject@35	engine	createProfile_size_clause(K|M|G|T|P|E)?/E	CREATE PROFILE a LIMIT PRIVATE_SGA 1 E
+reject@35	reject@35	engine	createProfile_size_clause(K|M|G|T|P|E)?/E!insert	CREATE PROFILE a LIMIT PRIVATE_SGA 1 E zzz
 reject@37	reject@37	engine	createProfile_size_clause(K|M|G|T|P|E)?/E!swap	CREATE PROFILE a LIMIT PRIVATE_SGA 1 EDGE
 accept	accept	engine	createRestorePoint/CREATE_(CLEAN)?_RESTORE_POINT_ID_(FOR_PLUGGABLE_DATABAS~6b8a5094	CREATE RESTORE POINT a
 accept	accept	engine	createRestorePoint(CLEAN)?/%empty	CREATE RESTORE POINT a
@@ -37186,14 +37186,14 @@ accept	accept	engine	createUser(IF_NOT_EXISTS)?/%empty	CREATE USER a IDENTIFIED 
 reject@16	reject@16	engine	createUser(IF_NOT_EXISTS)?/%empty!insert	CREATE USER zzz a IDENTIFIED EXTERNALLY
 accept	accept	engine	createUser(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE USER IF NOT EXISTS a IDENTIFIED EXTERNALLY
 reject@16	reject@12	engine	createUser(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE USER NOT EXISTS a IDENTIFIED EXTERNALLY
-reject@22	reject@12	engine	createUser(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE USER IF EXISTS a IDENTIFIED EXTERNALLY
-accept	reject@12	engine	createUser(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE USER IF NOT a IDENTIFIED EXTERNALLY
-accept	reject@12	engine	createUser(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE USER IF NOT
+reject@12	reject@12	engine	createUser(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE USER IF EXISTS a IDENTIFIED EXTERNALLY
+reject@12	reject@12	engine	createUser(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE USER IF NOT a IDENTIFIED EXTERNALLY
+reject@12	reject@12	engine	createUser(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE USER IF NOT
 reject@30	reject@30	engine	createUser(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE USER IF NOT EXISTS zzz a IDENTIFIED EXTERNALLY
 reject@19	reject@19	engine	createUser(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE USER IGNORE NOT EXISTS a IDENTIFIED EXTERNALLY
 accept	accept	engine	createUser(BY_ID|EXTERNALLY_(AS_STRING)?|GLOBAL~36e41243)/BY_ID	CREATE USER a IDENTIFIED BY a
 reject@25	reject@25	engine	createUser(BY_ID|EXTERNALLY_(AS_STRING)?|GLOBAL~36e41243)/BY_ID!drop-1	CREATE USER a IDENTIFIED a
-accept	reject@27	engine	createUser(BY_ID|EXTERNALLY_(AS_STRING)?|GLOBAL~36e41243)/BY_ID!drop-2	CREATE USER a IDENTIFIED BY
+reject@27	reject@27	engine	createUser(BY_ID|EXTERNALLY_(AS_STRING)?|GLOBAL~36e41243)/BY_ID!drop-2	CREATE USER a IDENTIFIED BY
 reject@30	accept	engine	createUser(BY_ID|EXTERNALLY_(AS_STRING)?|GLOBAL~36e41243)/BY_ID!insert	CREATE USER a IDENTIFIED BY a zzz
 reject@25	reject@25	engine	createUser(BY_ID|EXTERNALLY_(AS_STRING)?|GLOBAL~36e41243)/BY_ID!swap	CREATE USER a IDENTIFIED CACHE a
 accept	accept	engine	createUser(BY_ID|EXTERNALLY_(AS_STRING)?|GLOBAL~36e41243)/EXTERNALLY_(AS_STRING)?	CREATE USER a IDENTIFIED EXTERNALLY
@@ -37223,8 +37223,8 @@ reject@36	reject@36	engine	createUser(AND_FACTOR_STRING_AS_STRING)?/AND_FACTOR_S
 reject@36	reject@36	engine	createUser(AND_FACTOR_STRING_AS_STRING)?/AND_FACTOR_STRING_AS_STRING!swap	CREATE USER a IDENTIFIED EXTERNALLY ANNOTATIONS FACTOR 's' AS 's'
 accept	accept	engine	createUser(HTTP?_DIGEST_(ENABLE|DISABLE))?/%empty	CREATE USER a IDENTIFIED EXTERNALLY
 accept	accept	engine	createUser(HTTP?_DIGEST_(ENABLE|DISABLE))?/(HTTP)?_DIGEST_(ENABLE|DISABLE)	CREATE USER a IDENTIFIED EXTERNALLY DIGEST ENABLE
-accept	reject@42	engine	createUser(HTTP?_DIGEST_(ENABLE|DISABLE))?/(HTTP)?_DIGEST_(ENABLE|DISABLE)!drop-1	CREATE USER a IDENTIFIED EXTERNALLY ENABLE
-accept	reject@42	engine	createUser(HTTP?_DIGEST_(ENABLE|DISABLE))?/(HTTP)?_DIGEST_(ENABLE|DISABLE)!drop-2	CREATE USER a IDENTIFIED EXTERNALLY DIGEST
+reject@36	reject@42	engine	createUser(HTTP?_DIGEST_(ENABLE|DISABLE))?/(HTTP)?_DIGEST_(ENABLE|DISABLE)!drop-1	CREATE USER a IDENTIFIED EXTERNALLY ENABLE
+reject@42	reject@42	engine	createUser(HTTP?_DIGEST_(ENABLE|DISABLE))?/(HTTP)?_DIGEST_(ENABLE|DISABLE)!drop-2	CREATE USER a IDENTIFIED EXTERNALLY DIGEST
 reject@50	accept	engine	createUser(HTTP?_DIGEST_(ENABLE|DISABLE))?/(HTTP)?_DIGEST_(ENABLE|DISABLE)!insert	CREATE USER a IDENTIFIED EXTERNALLY DIGEST ENABLE zzz
 reject@36	reject@36	engine	createUser(HTTP?_DIGEST_(ENABLE|DISABLE))?/(HTTP)?_DIGEST_(ENABLE|DISABLE)!swap	CREATE USER a IDENTIFIED EXTERNALLY DIMENSION ENABLE
 accept	accept	engine	createUser(HTTP)?/%empty	CREATE USER a IDENTIFIED EXTERNALLY DIGEST ENABLE
@@ -37241,7 +37241,7 @@ accept	accept	engine	createUser(DEFAULT_COLLATION_ID)?/%empty	CREATE USER a IDEN
 accept	reject@0	engine	createUser(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID	CREATE USER a IDENTIFIED EXTERNALLY DEFAULT COLLATION a
 reject@36	reject@36	engine	createUser(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID!drop-1	CREATE USER a IDENTIFIED EXTERNALLY COLLATION a
 reject@44	reject@44	engine	createUser(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID!drop-2	CREATE USER a IDENTIFIED EXTERNALLY DEFAULT a
-accept	reject@0	engine	createUser(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID!drop-3	CREATE USER a IDENTIFIED EXTERNALLY DEFAULT COLLATION
+reject@53	reject@0	engine	createUser(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID!drop-3	CREATE USER a IDENTIFIED EXTERNALLY DEFAULT COLLATION
 reject@56	reject@0	engine	createUser(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID!insert	CREATE USER a IDENTIFIED EXTERNALLY DEFAULT COLLATION a zzz
 reject@36	reject@36	engine	createUser(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID!swap	CREATE USER a IDENTIFIED EXTERNALLY DEFAULT_COLLATION COLLATION a
 accept	accept	engine	createUser(DEFAULT_TABLESPACE_ID)?/%empty	CREATE USER a IDENTIFIED EXTERNALLY
@@ -37264,7 +37264,7 @@ reject@36	reject@36	engine	createUser(LOCAL)?/LOCAL!swap	CREATE USER a IDENTIFIE
 accept	accept	engine	createUser(QUOTA_(createUser_size_clause|UNLIMI~baf4d235)*/%empty	CREATE USER a IDENTIFIED EXTERNALLY
 accept	accept	engine	createUser(QUOTA_(createUser_size_clause|UNLIMI~baf4d235)*/QUOTA_(createUser_size_clause|UNLIMITED)_ON_ID_(QUOTA_(~dfdd3dfe	CREATE USER a IDENTIFIED EXTERNALLY QUOTA UNLIMITED ON a
 reject@36	reject@36	engine	createUser(QUOTA_(createUser_size_clause|UNLIMI~baf4d235)*/QUOTA_(createUser_size_clause|UNLIMITED)_ON_ID_(QUOTA_(~dfdd3dfe!drop-1	CREATE USER a IDENTIFIED EXTERNALLY UNLIMITED ON a
-accept	reject@42	engine	createUser(QUOTA_(createUser_size_clause|UNLIMI~baf4d235)*/QUOTA_(createUser_size_clause|UNLIMITED)_ON_ID_(QUOTA_(~dfdd3dfe!drop-2	CREATE USER a IDENTIFIED EXTERNALLY QUOTA ON a
+reject@42	reject@42	engine	createUser(QUOTA_(createUser_size_clause|UNLIMI~baf4d235)*/QUOTA_(createUser_size_clause|UNLIMITED)_ON_ID_(QUOTA_(~dfdd3dfe!drop-2	CREATE USER a IDENTIFIED EXTERNALLY QUOTA ON a
 reject@52	reject@52	engine	createUser(QUOTA_(createUser_size_clause|UNLIMI~baf4d235)*/QUOTA_(createUser_size_clause|UNLIMITED)_ON_ID_(QUOTA_(~dfdd3dfe!drop-3	CREATE USER a IDENTIFIED EXTERNALLY QUOTA UNLIMITED a
 accept	accept	engine	createUser(QUOTA_(createUser_size_clause|UNLIMI~baf4d235)*/QUOTA_(createUser_size_clause|UNLIMITED)_ON_ID_(QUOTA_(~dfdd3dfe!drop-4	CREATE USER a IDENTIFIED EXTERNALLY QUOTA UNLIMITED ON
 reject@57	accept	engine	createUser(QUOTA_(createUser_size_clause|UNLIMI~baf4d235)*/QUOTA_(createUser_size_clause|UNLIMITED)_ON_ID_(QUOTA_(~dfdd3dfe!insert	CREATE USER a IDENTIFIED EXTERNALLY QUOTA UNLIMITED ON a zzz
@@ -37272,7 +37272,7 @@ reject@36	reject@36	engine	createUser(QUOTA_(createUser_size_clause|UNLIMI~baf4d
 accept	accept	engine	createUser(createUser_size_clause|UNLIMITED)/createUser_size_clause	CREATE USER a IDENTIFIED EXTERNALLY QUOTA 1 K ON a
 reject@42	reject@42	engine	createUser(createUser_size_clause|UNLIMITED)/createUser_size_clause!drop-1	CREATE USER a IDENTIFIED EXTERNALLY QUOTA K ON a
 accept	accept	engine	createUser(createUser_size_clause|UNLIMITED)/createUser_size_clause!drop-2	CREATE USER a IDENTIFIED EXTERNALLY QUOTA 1 ON a
-accept	reject@43	engine	createUser(createUser_size_clause|UNLIMITED)/createUser_size_clause!truncate	CREATE USER a IDENTIFIED EXTERNALLY QUOTA 1
+reject@43	reject@43	engine	createUser(createUser_size_clause|UNLIMITED)/createUser_size_clause!truncate	CREATE USER a IDENTIFIED EXTERNALLY QUOTA 1
 reject@46	reject@46	engine	createUser(createUser_size_clause|UNLIMITED)/createUser_size_clause!insert	CREATE USER a IDENTIFIED EXTERNALLY QUOTA 1 K zzz ON a
 reject@44	reject@44	engine	createUser(createUser_size_clause|UNLIMITED)/createUser_size_clause!swap	CREATE USER a IDENTIFIED EXTERNALLY QUOTA 1 KEEP ON a
 accept	accept	engine	createUser(createUser_size_clause|UNLIMITED)/UNLIMITED	CREATE USER a IDENTIFIED EXTERNALLY QUOTA UNLIMITED ON a
@@ -37282,19 +37282,19 @@ reject@42	reject@42	engine	createUser(createUser_size_clause|UNLIMITED)/UNLIMITE
 accept	accept	engine	createUser(PROFILE_ID)?/%empty	CREATE USER a IDENTIFIED EXTERNALLY
 accept	accept	engine	createUser(PROFILE_ID)?/PROFILE_ID	CREATE USER a IDENTIFIED EXTERNALLY PROFILE a
 reject@36	accept	engine	createUser(PROFILE_ID)?/PROFILE_ID!drop-1	CREATE USER a IDENTIFIED EXTERNALLY a
-accept	reject@43	engine	createUser(PROFILE_ID)?/PROFILE_ID!drop-2	CREATE USER a IDENTIFIED EXTERNALLY PROFILE
+reject@43	reject@43	engine	createUser(PROFILE_ID)?/PROFILE_ID!drop-2	CREATE USER a IDENTIFIED EXTERNALLY PROFILE
 reject@46	accept	engine	createUser(PROFILE_ID)?/PROFILE_ID!insert	CREATE USER a IDENTIFIED EXTERNALLY PROFILE a zzz
 reject@36	reject@36	engine	createUser(PROFILE_ID)?/PROFILE_ID!swap	CREATE USER a IDENTIFIED EXTERNALLY PROJECT a
 accept	accept	engine	createUser(PASSWORD_EXPIRE)?/%empty	CREATE USER a IDENTIFIED EXTERNALLY
 accept	accept	engine	createUser(PASSWORD_EXPIRE)?/PASSWORD_EXPIRE	CREATE USER a IDENTIFIED EXTERNALLY PASSWORD EXPIRE
-accept	reject@42	engine	createUser(PASSWORD_EXPIRE)?/PASSWORD_EXPIRE!drop-1	CREATE USER a IDENTIFIED EXTERNALLY EXPIRE
-accept	reject@44	engine	createUser(PASSWORD_EXPIRE)?/PASSWORD_EXPIRE!drop-2	CREATE USER a IDENTIFIED EXTERNALLY PASSWORD
+reject@42	reject@42	engine	createUser(PASSWORD_EXPIRE)?/PASSWORD_EXPIRE!drop-1	CREATE USER a IDENTIFIED EXTERNALLY EXPIRE
+reject@44	reject@44	engine	createUser(PASSWORD_EXPIRE)?/PASSWORD_EXPIRE!drop-2	CREATE USER a IDENTIFIED EXTERNALLY PASSWORD
 reject@52	accept	engine	createUser(PASSWORD_EXPIRE)?/PASSWORD_EXPIRE!insert	CREATE USER a IDENTIFIED EXTERNALLY PASSWORD EXPIRE zzz
 reject@36	reject@36	engine	createUser(PASSWORD_EXPIRE)?/PASSWORD_EXPIRE!swap	CREATE USER a IDENTIFIED EXTERNALLY PASSWORDFILE_METADATA_CACHE EXPIRE
 accept	accept	engine	createUser(ACCOUNT_(LOCK|UNLOCK))?/%empty	CREATE USER a IDENTIFIED EXTERNALLY
 accept	accept	engine	createUser(ACCOUNT_(LOCK|UNLOCK))?/ACCOUNT_(LOCK|UNLOCK)	CREATE USER a IDENTIFIED EXTERNALLY ACCOUNT LOCK
 reject@36	accept	engine	createUser(ACCOUNT_(LOCK|UNLOCK))?/ACCOUNT_(LOCK|UNLOCK)!drop-1	CREATE USER a IDENTIFIED EXTERNALLY LOCK
-accept	reject@43	engine	createUser(ACCOUNT_(LOCK|UNLOCK))?/ACCOUNT_(LOCK|UNLOCK)!drop-2	CREATE USER a IDENTIFIED EXTERNALLY ACCOUNT
+reject@43	reject@43	engine	createUser(ACCOUNT_(LOCK|UNLOCK))?/ACCOUNT_(LOCK|UNLOCK)!drop-2	CREATE USER a IDENTIFIED EXTERNALLY ACCOUNT
 reject@49	accept	engine	createUser(ACCOUNT_(LOCK|UNLOCK))?/ACCOUNT_(LOCK|UNLOCK)!insert	CREATE USER a IDENTIFIED EXTERNALLY ACCOUNT LOCK zzz
 reject@36	reject@36	engine	createUser(ACCOUNT_(LOCK|UNLOCK))?/ACCOUNT_(LOCK|UNLOCK)!swap	CREATE USER a IDENTIFIED EXTERNALLY ACCURACY LOCK
 accept	accept	engine	createUser(LOCK|UNLOCK)/LOCK	CREATE USER a IDENTIFIED EXTERNALLY ACCOUNT LOCK
@@ -37310,7 +37310,7 @@ reject@36	reject@36	engine	createUser(ENABLE_EDITIONS)?/ENABLE_EDITIONS!swap	CRE
 accept	accept	engine	createUser(CONTAINER_=_(ALL|CURRENT))?/%empty	CREATE USER a IDENTIFIED EXTERNALLY
 accept	accept	engine	createUser(CONTAINER_=_(ALL|CURRENT))?/CONTAINER_=_(ALL|CURRENT)	CREATE USER a IDENTIFIED EXTERNALLY CONTAINER = ALL
 reject@36	reject@36	engine	createUser(CONTAINER_=_(ALL|CURRENT))?/CONTAINER_=_(ALL|CURRENT)!drop-1	CREATE USER a IDENTIFIED EXTERNALLY = ALL
-accept	reject@46	engine	createUser(CONTAINER_=_(ALL|CURRENT))?/CONTAINER_=_(ALL|CURRENT)!drop-2	CREATE USER a IDENTIFIED EXTERNALLY CONTAINER ALL
+reject@46	reject@46	engine	createUser(CONTAINER_=_(ALL|CURRENT))?/CONTAINER_=_(ALL|CURRENT)!drop-2	CREATE USER a IDENTIFIED EXTERNALLY CONTAINER ALL
 reject@47	accept	engine	createUser(CONTAINER_=_(ALL|CURRENT))?/CONTAINER_=_(ALL|CURRENT)!drop-3	CREATE USER a IDENTIFIED EXTERNALLY CONTAINER =
 reject@52	accept	engine	createUser(CONTAINER_=_(ALL|CURRENT))?/CONTAINER_=_(ALL|CURRENT)!insert	CREATE USER a IDENTIFIED EXTERNALLY CONTAINER = ALL zzz
 reject@36	reject@36	engine	createUser(CONTAINER_=_(ALL|CURRENT))?/CONTAINER_=_(ALL|CURRENT)!swap	CREATE USER a IDENTIFIED EXTERNALLY CONTAINERS = ALL
@@ -37322,7 +37322,7 @@ reject@48	reject@48	engine	createUser(ALL|CURRENT)/CURRENT!swap	CREATE USER a ID
 accept	accept	engine	createUser(READ_ONLY|READ_WRITE)?/%empty	CREATE USER a IDENTIFIED EXTERNALLY
 accept	accept	engine	createUser(READ_ONLY|READ_WRITE)?/READ_ONLY	CREATE USER a IDENTIFIED EXTERNALLY READ ONLY
 reject@36	accept	engine	createUser(READ_ONLY|READ_WRITE)?/READ_ONLY!drop-1	CREATE USER a IDENTIFIED EXTERNALLY ONLY
-accept	reject@40	engine	createUser(READ_ONLY|READ_WRITE)?/READ_ONLY!drop-2	CREATE USER a IDENTIFIED EXTERNALLY READ
+reject@40	reject@40	engine	createUser(READ_ONLY|READ_WRITE)?/READ_ONLY!drop-2	CREATE USER a IDENTIFIED EXTERNALLY READ
 reject@46	accept	engine	createUser(READ_ONLY|READ_WRITE)?/READ_ONLY!insert	CREATE USER a IDENTIFIED EXTERNALLY READ ONLY zzz
 reject@36	reject@36	engine	createUser(READ_ONLY|READ_WRITE)?/READ_ONLY!swap	CREATE USER a IDENTIFIED EXTERNALLY READS ONLY
 accept	accept	engine	createUser(READ_ONLY|READ_WRITE)?/READ_WRITE	CREATE USER a IDENTIFIED EXTERNALLY READ WRITE
@@ -41043,7 +41043,7 @@ accept	accept	engine	noauditUnifiedAuditing/NOAUDIT_POLICY_ID_(BY_ID_(,_ID)*_(WI
 accept	accept	engine	noauditUnifiedAuditing/NOAUDIT_CONTEXT_NAMESPACE_ID_ATTRIBUTES_ID_(,_ID)*_(BY_~d7334bdf	NOAUDIT CONTEXT NAMESPACE a ATTRIBUTES a
 reject@0	reject@0	engine	noauditUnifiedAuditing/NOAUDIT_CONTEXT_NAMESPACE_ID_ATTRIBUTES_ID_(,_ID)*_(BY_~d7334bdf!drop-1	CONTEXT NAMESPACE a ATTRIBUTES a
 accept	reject@8	engine	noauditUnifiedAuditing/NOAUDIT_CONTEXT_NAMESPACE_ID_ATTRIBUTES_ID_(,_ID)*_(BY_~d7334bdf!drop-2	NOAUDIT NAMESPACE a ATTRIBUTES a
-accept	reject@16	engine	noauditUnifiedAuditing/NOAUDIT_CONTEXT_NAMESPACE_ID_ATTRIBUTES_ID_(,_ID)*_(BY_~d7334bdf!drop-3	NOAUDIT CONTEXT a ATTRIBUTES a
+reject@16	reject@16	engine	noauditUnifiedAuditing/NOAUDIT_CONTEXT_NAMESPACE_ID_ATTRIBUTES_ID_(,_ID)*_(BY_~d7334bdf!drop-3	NOAUDIT CONTEXT a ATTRIBUTES a
 reject@37	reject@37	engine	noauditUnifiedAuditing/NOAUDIT_CONTEXT_NAMESPACE_ID_ATTRIBUTES_ID_(,_ID)*_(BY_~d7334bdf!drop-4	NOAUDIT CONTEXT NAMESPACE ATTRIBUTES a
 reject@28	reject@28	engine	noauditUnifiedAuditing/NOAUDIT_CONTEXT_NAMESPACE_ID_ATTRIBUTES_ID_(,_ID)*_(BY_~d7334bdf!drop-5	NOAUDIT CONTEXT NAMESPACE a a
 accept	accept	engine	noauditUnifiedAuditing/NOAUDIT_CONTEXT_NAMESPACE_ID_ATTRIBUTES_ID_(,_ID)*_(BY_~d7334bdf!drop-6	NOAUDIT CONTEXT NAMESPACE a ATTRIBUTES
@@ -41052,7 +41052,7 @@ reject@0	reject@0	engine	noauditUnifiedAuditing/NOAUDIT_CONTEXT_NAMESPACE_ID_ATT
 accept	accept	engine	noauditUnifiedAuditing(BY_ID_(,_ID)*_(WITH_ROLE_ID_(,_ID)?)*)?/%empty	NOAUDIT POLICY a
 accept	accept	engine	noauditUnifiedAuditing(BY_ID_(,_ID)*_(WITH_ROLE_ID_(,_ID)?)*)?/BY_ID_(,_ID)*_(WITH_ROLE_ID_(,_ID)?)*	NOAUDIT POLICY a BY a
 reject@17	reject@17	engine	noauditUnifiedAuditing(BY_ID_(,_ID)*_(WITH_ROLE_ID_(,_ID)?)*)?/BY_ID_(,_ID)*_(WITH_ROLE_ID_(,_ID)?)*!drop-1	NOAUDIT POLICY a a
-accept	reject@19	engine	noauditUnifiedAuditing(BY_ID_(,_ID)*_(WITH_ROLE_ID_(,_ID)?)*)?/BY_ID_(,_ID)*_(WITH_ROLE_ID_(,_ID)?)*!drop-2	NOAUDIT POLICY a BY
+reject@19	reject@19	engine	noauditUnifiedAuditing(BY_ID_(,_ID)*_(WITH_ROLE_ID_(,_ID)?)*)?/BY_ID_(,_ID)*_(WITH_ROLE_ID_(,_ID)?)*!drop-2	NOAUDIT POLICY a BY
 reject@22	reject@22	engine	noauditUnifiedAuditing(BY_ID_(,_ID)*_(WITH_ROLE_ID_(,_ID)?)*)?/BY_ID_(,_ID)*_(WITH_ROLE_ID_(,_ID)?)*!insert	NOAUDIT POLICY a BY a zzz
 reject@17	reject@17	engine	noauditUnifiedAuditing(BY_ID_(,_ID)*_(WITH_ROLE_ID_(,_ID)?)*)?/BY_ID_(,_ID)*_(WITH_ROLE_ID_(,_ID)?)*!swap	NOAUDIT POLICY a CACHE a
 accept	accept	engine	noauditUnifiedAuditing(,_ID)*/%empty	NOAUDIT POLICY a BY a
@@ -41061,17 +41061,17 @@ reject@22	reject@22	engine	noauditUnifiedAuditing(,_ID)*/,_ID_(,_ID)*!drop-1	NOA
 reject@22	reject@22	engine	noauditUnifiedAuditing(,_ID)*/,_ID_(,_ID)*!drop-2	NOAUDIT POLICY a BY a,
 reject@25	reject@23	engine	noauditUnifiedAuditing(,_ID)*/,_ID_(,_ID)*!insert	NOAUDIT POLICY a BY a, a zzz
 accept	accept	engine	noauditUnifiedAuditing(WITH_ROLE_ID_(,_ID)?)*/%empty	NOAUDIT POLICY a BY a
-accept	reject@22	engine	noauditUnifiedAuditing(WITH_ROLE_ID_(,_ID)?)*/WITH_ROLE_ID_(,_ID)?_(WITH_ROLE_ID_(,_ID)?)*	NOAUDIT POLICY a BY a WITH ROLE a
+reject@22	reject@22	engine	noauditUnifiedAuditing(WITH_ROLE_ID_(,_ID)?)*/WITH_ROLE_ID_(,_ID)?_(WITH_ROLE_ID_(,_ID)?)*	NOAUDIT POLICY a BY a WITH ROLE a
 reject@22	reject@22	engine	noauditUnifiedAuditing(WITH_ROLE_ID_(,_ID)?)*/WITH_ROLE_ID_(,_ID)?_(WITH_ROLE_ID_(,_ID)?)*!drop-1	NOAUDIT POLICY a BY a ROLE a
-accept	reject@22	engine	noauditUnifiedAuditing(WITH_ROLE_ID_(,_ID)?)*/WITH_ROLE_ID_(,_ID)?_(WITH_ROLE_ID_(,_ID)?)*!drop-2	NOAUDIT POLICY a BY a WITH a
-accept	reject@22	engine	noauditUnifiedAuditing(WITH_ROLE_ID_(,_ID)?)*/WITH_ROLE_ID_(,_ID)?_(WITH_ROLE_ID_(,_ID)?)*!drop-3	NOAUDIT POLICY a BY a WITH ROLE
-reject@34	reject@22	engine	noauditUnifiedAuditing(WITH_ROLE_ID_(,_ID)?)*/WITH_ROLE_ID_(,_ID)?_(WITH_ROLE_ID_(,_ID)?)*!insert	NOAUDIT POLICY a BY a WITH ROLE a zzz
+reject@22	reject@22	engine	noauditUnifiedAuditing(WITH_ROLE_ID_(,_ID)?)*/WITH_ROLE_ID_(,_ID)?_(WITH_ROLE_ID_(,_ID)?)*!drop-2	NOAUDIT POLICY a BY a WITH a
+reject@22	reject@22	engine	noauditUnifiedAuditing(WITH_ROLE_ID_(,_ID)?)*/WITH_ROLE_ID_(,_ID)?_(WITH_ROLE_ID_(,_ID)?)*!drop-3	NOAUDIT POLICY a BY a WITH ROLE
+reject@22	reject@22	engine	noauditUnifiedAuditing(WITH_ROLE_ID_(,_ID)?)*/WITH_ROLE_ID_(,_ID)?_(WITH_ROLE_ID_(,_ID)?)*!insert	NOAUDIT POLICY a BY a WITH ROLE a zzz
 reject@22	reject@22	engine	noauditUnifiedAuditing(WITH_ROLE_ID_(,_ID)?)*/WITH_ROLE_ID_(,_ID)?_(WITH_ROLE_ID_(,_ID)?)*!swap	NOAUDIT POLICY a BY a WITHOUT ROLE a
-accept	reject@22	engine	noauditUnifiedAuditing(,_ID)?/%empty	NOAUDIT POLICY a BY a WITH ROLE a
-accept	reject@22	engine	noauditUnifiedAuditing(,_ID)?/,_ID	NOAUDIT POLICY a BY a WITH ROLE a, a
-reject@34	reject@22	engine	noauditUnifiedAuditing(,_ID)?/,_ID!drop-1	NOAUDIT POLICY a BY a WITH ROLE a a
-reject@34	reject@22	engine	noauditUnifiedAuditing(,_ID)?/,_ID!drop-2	NOAUDIT POLICY a BY a WITH ROLE a,
-reject@37	reject@22	engine	noauditUnifiedAuditing(,_ID)?/,_ID!insert	NOAUDIT POLICY a BY a WITH ROLE a, a zzz
+reject@22	reject@22	engine	noauditUnifiedAuditing(,_ID)?/%empty	NOAUDIT POLICY a BY a WITH ROLE a
+reject@22	reject@22	engine	noauditUnifiedAuditing(,_ID)?/,_ID	NOAUDIT POLICY a BY a WITH ROLE a, a
+reject@22	reject@22	engine	noauditUnifiedAuditing(,_ID)?/,_ID!drop-1	NOAUDIT POLICY a BY a WITH ROLE a a
+reject@22	reject@22	engine	noauditUnifiedAuditing(,_ID)?/,_ID!drop-2	NOAUDIT POLICY a BY a WITH ROLE a,
+reject@22	reject@22	engine	noauditUnifiedAuditing(,_ID)?/,_ID!insert	NOAUDIT POLICY a BY a WITH ROLE a, a zzz
 accept	accept	engine	purge/PURGE_(TABLE_(ID_.)?_ID|INDEX_(ID_.)?_ID|TA~8f47112d)	PURGE RECYCLEBIN
 accept	accept	engine	purge(TABLE_(ID_.)?_ID|INDEX_(ID_.)?_ID|TA~8f47112d)/TABLE_(ID_.)?_ID	PURGE TABLE a
 accept	reject@6	engine	purge(TABLE_(ID_.)?_ID|INDEX_(ID_.)?_ID|TA~8f47112d)/TABLE_(ID_.)?_ID!drop-1	PURGE a
