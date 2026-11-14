@@ -302,7 +302,7 @@ var dbtExecuteProps = map[string]execValue{
 	"DBT_VERSION":                  execString,
 	"EXTERNAL_ACCESS_INTEGRATIONS": execNames,
 	"ENVIRONMENT":                  execString,
-	"ENV_VARS":                     execStringPairs,
+	"ENV_VARS":                     execEnvVars,
 	"IMPORTS":                      execImports,
 	"WRITEBACK":                    execBool,
 }
@@ -314,7 +314,7 @@ var dbtExecuteWorkspaceProps = map[string]execValue{
 	"DBT_VERSION":                  execString,
 	"EXTERNAL_ACCESS_INTEGRATIONS": execNames,
 	"ENVIRONMENT":                  execString,
-	"ENV_VARS":                     execStringPairs,
+	"ENV_VARS":                     execEnvVars,
 	"PROJECT_ROOT":                 execString,
 }
 
@@ -324,7 +324,7 @@ var dbtExecuteWorkspaceProps = map[string]execValue{
 //	  [ ARGS = '<string>' ] [ DBT_VERSION = '<version>' ]
 //	  [ EXTERNAL_ACCESS_INTEGRATIONS = ( <integration_name> [ , ... ] ) ]
 //	  [ ENVIRONMENT = '<environment_name>' ]
-//	  [ ENV_VARS = ( '<key>' = '<value>' [ , ... ] ) ]
+//	  [ ENV_VARS = ( '<key>' = <value> [ , ... ] ) ]
 //	  [ IMPORTS = ( { '<source_location>' | <system_function> } [ AS '<alias>' ] [ , ... ] ) ]
 //	  [ WRITEBACK = { TRUE | FALSE } ]
 //	EXECUTE DBT PROJECT [ IF EXISTS ] [ FROM WORKSPACE <name> ]
@@ -438,8 +438,11 @@ func execNames(p *Parser, opt *ast.CopyOption) error {
 	})
 }
 
-// execStringPairs reads ( '<key>' = '<value>' [ , ... ] ).
-func execStringPairs(p *Parser, opt *ast.CopyOption) error {
+// execEnvVars reads ENV_VARS' ( '<key>' = <value> [ , ... ] ), where a value
+// is a string, a session variable, or SQL that resolves to one VARCHAR, as
+// the page's parameters say: a string alone is kept as Lit, anything else as
+// Expr.
+func execEnvVars(p *Parser, opt *ast.CopyOption) error {
 	return p.parseExecList(opt, func(e *ast.CopyOption) error {
 		if p.cur.Type != tokString {
 			return p.syntaxErrorAtCur()
@@ -449,12 +452,21 @@ func execStringPairs(p *Parser, opt *ast.CopyOption) error {
 		if _, err := p.expect('='); err != nil {
 			return err
 		}
-		v, err := p.parseObjectStringValue()
-		if err != nil {
-			return err
+		if p.cur.Type == tokString && (p.peekNext().Type == ',' || p.peekNext().Type == ')') {
+			v, err := p.parseObjectStringValue()
+			if err != nil {
+				return err
+			}
+			e.Lit = v.Lit
+			return nil
 		}
-		e.Lit = v.Lit
-		return nil
+		var err error
+		if p.cur.Type == ':' {
+			e.Expr, err = p.parseBindVariable()
+		} else {
+			e.Expr, err = p.parseExpr()
+		}
+		return err
 	})
 }
 
@@ -777,8 +789,9 @@ func (p *Parser) parseDcmSource(s *ast.ObjectStmt) error {
 }
 
 // parseDcmEnvironment reads an optional ENVIRONMENT ( <bind_variable> ),
-// where the variable is a session variable ($name) or a Snowflake Scripting
-// variable (:name), kept verbatim as the one bare element of a list.
+// where the variable is a client placeholder (?), a session variable ($name)
+// or a Snowflake Scripting variable (:name), kept verbatim as the one bare
+// element of a list.
 func (p *Parser) parseDcmEnvironment(s *ast.ObjectStmt) error {
 	start := p.cur.Loc.Start
 	if !p.acceptWords("ENVIRONMENT") {
@@ -786,7 +799,7 @@ func (p *Parser) parseDcmEnvironment(s *ast.ObjectStmt) error {
 	}
 	opt := &ast.CopyOption{Loc: ast.Loc{Start: p.cur.Loc.Start}}
 	err := p.parseExecList(opt, func(e *ast.CopyOption) error {
-		if p.cur.Type == tokVariable {
+		if p.cur.Type == tokVariable || p.cur.Type == '?' {
 			tok := p.advance()
 			e.Name = p.srcSlice(tok.Loc.Start, tok.Loc.End)
 		} else {

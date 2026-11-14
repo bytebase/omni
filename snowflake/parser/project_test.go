@@ -129,6 +129,12 @@ func TestParseExecuteDbtProject(t *testing.T) {
 	if !s.IfExists || s.Name.String() != "db.sch.p" || len(s.Clauses) != 1 || len(s.Clauses[0].Options) != 7 {
 		t.Fatalf("got %+v", s)
 	}
+	// An ENV_VARS value may be a session variable or SQL resolving to a VARCHAR.
+	env := findOption(mustExecuteStmt(t, "EXECUTE DBT PROJECT p ENV_VARS = ('A' = $region, 'B' = UPPER('prod'), "+
+		"'C' = :v, 'D' = 'x' || 'y', 'E' = 'z')", "DBT PROJECT").Clauses[0].Options, "ENV_VARS")
+	if len(env.Group) != 5 || env.Group[0].Expr == nil || env.Group[2].Expr == nil || env.Group[3].Expr == nil || env.Group[4].Lit == nil {
+		t.Fatalf("ENV_VARS = %+v", env.Group)
+	}
 	imports := findOption(s.Clauses[0].Options, "IMPORTS")
 	if len(imports.Group) != 3 || imports.Group[0].Alias == nil || imports.Group[1].Expr == nil || imports.Group[2].Alias != nil {
 		t.Fatalf("IMPORTS = %+v", imports.Group)
@@ -159,7 +165,8 @@ func TestParseExecuteDbtProject(t *testing.T) {
 		"EXECUTE DBT PROJECT p IMPORTS = ('s' AS a)",
 		"EXECUTE DBT PROJECT p IMPORTS = ()",
 		"EXECUTE DBT PROJECT p ENV_VARS = (K = 'v')",
-		"EXECUTE DBT PROJECT p ENV_VARS = ('K' = 1)",
+		"EXECUTE DBT PROJECT p ENV_VARS = ('K' = )",
+		"EXECUTE DBT PROJECT p ENV_VARS = ('K' = : v)",
 		"EXECUTE DBT PROJECT p ENV_VARS = ('K' = 'v',)",
 		"EXECUTE DBT PROJECT p EXTERNAL_ACCESS_INTEGRATIONS = (db.i)",
 		"EXECUTE DBT PROJECT p WRITEBACK = 'TRUE'",
@@ -179,6 +186,7 @@ func TestParseExecuteDcmProject(t *testing.T) {
 			"DEPLOY AS", "USING CONFIGURATION", "ENVIRONMENT", "FROM"},
 		"EXECUTE DCM PROJECT p DEPLOY FROM DEPLOYMENT DEPLOYMENT$3":                                       {"DEPLOY", "FROM DEPLOYMENT"},
 		"EXECUTE DCM PROJECT p DEPLOY ENVIRONMENT ($env) FROM 's'":                                        {"DEPLOY", "ENVIRONMENT", "FROM"},
+		"EXECUTE DCM PROJECT p PLAN ENVIRONMENT (?) FROM '@s/defs'":                                       {"PLAN", "ENVIRONMENT", "FROM"},
 		"EXECUTE DCM PROJECT p TEST ALL":                                                                  {"TEST ALL"},
 		"EXECUTE DCM PROJECT p PREVIEW db.sch.t USING CONFIGURATION c ENVIRONMENT (:e) FROM 's' LIMIT 10": {"PREVIEW", "USING CONFIGURATION", "ENVIRONMENT", "FROM", "LIMIT"},
 		"EXECUTE DCM PROJECT p PURGE":                                                                     {"PURGE"},
@@ -212,6 +220,9 @@ func TestParseExecuteDcmProject(t *testing.T) {
 		"EXECUTE DCM PROJECT p PLAN ENVIRONMENT (e) FROM 's'",
 		"EXECUTE DCM PROJECT p PLAN ENVIRONMENT (: e) FROM 's'",
 		"EXECUTE DCM PROJECT p PLAN ENVIRONMENT (:a, :b) FROM 's'",
+		"EXECUTE DCM PROJECT p PLAN ENVIRONMENT (?, ?) FROM 's'",
+		"EXECUTE DCM PROJECT p PLAN USING (a => ?) FROM 's'",
+		"SELECT ?",
 		"EXECUTE DCM PROJECT p PLAN FROM @s/defs",
 		"EXECUTE DCM PROJECT p PLAN FROM 's' OUTPUT_PATH = 'o'",
 		"EXECUTE DCM PROJECT p DEPLOY FROM 's' OUTPUT_PATH 'o'",

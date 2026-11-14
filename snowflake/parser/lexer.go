@@ -601,6 +601,12 @@ func (l *Lexer) scanOperatorOrPunct(ch byte) Token {
 	case '+', '*', '/', '%', '~', '(', ')', '[', ']', '{', '}', ',', ';', '.', '@':
 		l.pos++
 		return Token{Type: int(ch), Loc: ast.Loc{Start: start, End: l.pos}}
+	case '?':
+		// A client's positional bind placeholder, as EXECUTE DCM PROJECT's
+		// ENVIRONMENT ( ? ) takes one. It lexes as its own token; contexts
+		// that do not expect it reject it at parse time.
+		l.pos++
+		return Token{Type: int('?'), Loc: ast.Loc{Start: start, End: l.pos}}
 	}
 	// Unknown byte.
 	l.errors = append(l.errors, LexError{
