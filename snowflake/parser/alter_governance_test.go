@@ -178,9 +178,11 @@ func TestAlterTable_NewProperties(t *testing.T) {
 		"ALTER TABLE t SET",            // nothing to set
 		"ALTER TABLE t SET ANY = TRUE", // a reserved word is no property name
 		"ALTER TABLE t SET NOT_A_PROPERTY = 12",
-		"ALTER TABLE t SET PATH_LAYOUT = FLAT",  // an ALTER ICEBERG TABLE property
-		"ALTER TABLE t SET ERROR_LOGGING",       // a property needs = value
-		"ALTER TABLE t SET ERROR_LOGGING = 1 2", // one value per property
+		"ALTER TABLE t UNSET NOT_A_PROPERTY",
+		"ALTER TABLE t UNSET COMMENT, PATH_LAYOUT", // an ALTER ICEBERG TABLE property
+		"ALTER TABLE t SET PATH_LAYOUT = FLAT",     // an ALTER ICEBERG TABLE property
+		"ALTER TABLE t SET ERROR_LOGGING",          // a property needs = value
+		"ALTER TABLE t SET ERROR_LOGGING = 1 2",    // one value per property
 		// Documented properties take their documented values.
 		"ALTER TABLE t SET ENABLE_SCHEMA_EVOLUTION = 'garbage'",
 		"ALTER TABLE t SET ERROR_LOGGING = 1",

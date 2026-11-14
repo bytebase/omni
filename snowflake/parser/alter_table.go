@@ -423,7 +423,7 @@ func (p *Parser) parseAlterTableAction(iceberg bool) (*ast.AlterTableAction, err
 			action.Kind = ast.AlterTableUnsetJoinPolicy
 		default:
 			// UNSET property_name [, ...]
-			props, err := p.parseTableUnsetProps()
+			props, err := p.parseTableUnsetProps(iceberg)
 			if err != nil {
 				return nil, err
 			}
@@ -1530,9 +1530,43 @@ func (p *Parser) parseOneTableProp(iceberg bool) (*ast.TableProp, bool, error) {
 	}
 }
 
+// tableUnsetProperties and icebergTableUnsetProperties are the properties the
+// ALTER TABLE and ALTER ICEBERG TABLE pages let UNSET name (CONTACT <purpose>
+// is handled apart, for ALTER TABLE only). STAGE_FILE_FORMAT and
+// STAGE_COPY_OPTIONS stay because omni's SET has always taken them.
+//
+//	https://docs.snowflake.com/en/sql-reference/sql/alter-table
+//	https://docs.snowflake.com/en/sql-reference/sql/alter-iceberg-table
+var (
+	tableUnsetProperties = map[string]bool{
+		"DATA_RETENTION_TIME_IN_DAYS":     true,
+		"MAX_DATA_EXTENSION_TIME_IN_DAYS": true,
+		"CHANGE_TRACKING":                 true,
+		"DEFAULT_DDL_COLLATION":           true,
+		"ICEBERG_DEFAULT_DDL_COLLATION":   true,
+		"ENABLE_SCHEMA_EVOLUTION":         true,
+		"ERROR_LOGGING":                   true,
+		"COMMENT":                         true,
+		"ROW_TIMESTAMP":                   true,
+		"STAGE_FILE_FORMAT":               true,
+		"STAGE_COPY_OPTIONS":              true,
+	}
+	icebergTableUnsetProperties = map[string]bool{
+		"REPLACE_INVALID_CHARACTERS":     true,
+		"PATH_LAYOUT":                    true,
+		"LOG_EVENT_LEVEL":                true,
+		"ERROR_LOGGING":                  true,
+		"ENABLE_DATA_COMPACTION":         true,
+		"ICEBERG_MERGE_ON_READ_BEHAVIOR": true,
+		"ENABLE_ICEBERG_MERGE_ON_READ":   true,
+		"ENABLE_SCHEMA_EVOLUTION":        true,
+		"ALLOW_V3_EXPRESSION_DEFAULTS":   true,
+	}
+)
+
 // parseTableUnsetProps parses the UNSET property names (one or more, comma-sep).
-func (p *Parser) parseTableUnsetProps() ([]string, error) {
-	name, err := p.parseTableUnsetPropName()
+func (p *Parser) parseTableUnsetProps(iceberg bool) ([]string, error) {
+	name, err := p.parseTableUnsetPropName(iceberg)
 	if err != nil {
 		return nil, err
 	}
@@ -1543,7 +1577,7 @@ func (p *Parser) parseTableUnsetProps() ([]string, error) {
 			break
 		}
 		p.advance() // consume ','
-		name, err = p.parseTableUnsetPropName()
+		name, err = p.parseTableUnsetPropName(iceberg)
 		if err != nil {
 			return nil, err
 		}
@@ -1552,36 +1586,23 @@ func (p *Parser) parseTableUnsetProps() ([]string, error) {
 	return names, nil
 }
 
-// parseTableUnsetPropName parses a single UNSET property name keyword.
-func (p *Parser) parseTableUnsetPropName() (string, error) {
-	switch p.cur.Type {
-	case kwDATA_RETENTION_TIME_IN_DAYS:
-		p.advance()
-		return "DATA_RETENTION_TIME_IN_DAYS", nil
-	case kwMAX_DATA_EXTENSION_TIME_IN_DAYS:
-		p.advance()
-		return "MAX_DATA_EXTENSION_TIME_IN_DAYS", nil
-	case kwCHANGE_TRACKING:
-		p.advance()
-		return "CHANGE_TRACKING", nil
-	case kwDEFAULT_DDL_COLLATION:
-		p.advance()
-		return "DEFAULT_DDL_COLLATION", nil
-	case kwCOMMENT:
-		p.advance()
-		return "COMMENT", nil
-	}
-	if p.curIsWord("CONTACT") && p.isColumnNameToken(p.peekNext().Type) {
+// parseTableUnsetPropName parses a single UNSET property name: one the page
+// lists, or (ALTER TABLE only) CONTACT <purpose>.
+func (p *Parser) parseTableUnsetPropName(iceberg bool) (string, error) {
+	if !iceberg && p.curIsWord("CONTACT") && p.isColumnNameToken(p.peekNext().Type) {
 		// UNSET CONTACT <purpose>
 		return p.parseUnsetContact()
 	}
-	if p.isColumnNameToken(p.cur.Type) {
-		// Any other property name (ENABLE_SCHEMA_EVOLUTION, ERROR_LOGGING, the
-		// ALTER ICEBERG TABLE properties, ...).
-		tok := p.advance()
-		return strings.ToUpper(tok.Str), nil
+	known := tableUnsetProperties
+	if iceberg {
+		known = icebergTableUnsetProperties
 	}
-	return "", p.syntaxErrorAtCur()
+	name := strings.ToUpper(p.cur.Str)
+	if p.cur.Type == tokQuotedIdent || !known[name] {
+		return "", p.syntaxErrorAtCur()
+	}
+	p.advance()
+	return name, nil
 }
 
 // isTableUnsetPropToken returns true if tok can be a TABLE UNSET prop name.
