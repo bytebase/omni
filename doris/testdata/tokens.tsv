@@ -1,0 +1,25 @@
+# Doris token forms for generated compat rows: the text written for each
+# token of DorisLexer.g4 that is a class of texts. Keywords and punctuation
+# spell themselves and need no row. Each note cites the lexer rule in
+# DorisLexer.g4, whose keywords match in any case (the parser reads a
+# CaseInsensitiveStream).
+# columns: token, form, note
+IDENTIFIER	a	DorisLexer.g4:659 letters, digits, _ and $
+BACKQUOTED_IDENTIFIER	`a`	DorisLexer.g4:663 a backquoted name; `` is a backquote in it
+STRING_LITERAL	'a'	DorisLexer.g4:617 a single- or double-quoted string
+INTEGER_VALUE	1	DorisLexer.g4:641 decimal digits
+EXPONENT_VALUE	1E1	DorisLexer.g4:645 digits with an exponent
+DECIMAL_VALUE	1.5	DorisLexer.g4:650 digits with a point
+BIGINT_LITERAL	1L	DorisLexer.g4:629 digits and L
+SMALLINT_LITERAL	1S	DorisLexer.g4:633 digits and S
+TINYINT_LITERAL	1Y	DorisLexer.g4:637 digits and Y
+BIGDECIMAL_LITERAL	1BD	DorisLexer.g4:654 digits and BD
+.	a	DorisParser.g4:44 createProcedure takes any tokens between its parentheses and after them (.*?), which PLParser.g4 reads
+LARGE_INTEGER_LITERAL	9223372036854775808	sql_scanner.flex:807 {IntegerLiteral} above 2^63-1, for DorisLegacyParser.g4
+COMMENTED_PLAN_HINT_START	/*+	sql_scanner.flex:789 {CommentedHintBegin}, for DorisLegacyParser.g4
+COMMENTED_PLAN_HINT_END	*/	sql_scanner.flex:793 {CommentedHintEnd}, for DorisLegacyParser.g4
+UNMATCHED_STRING_LITERAL	(unreachable)	sql_scanner.flex:741 a lone quote, which no statement holds
+NUMERIC_OVERFLOW	(unreachable)	sql_scanner.flex:807 a number too large for its literal, which no statement holds
+COMMENTED_PLAN_HINTS	(unreachable)	sql_parser.cup declares it and sql_scanner.flex never makes it
+FLOATINGPOINT_LITERAL	(unreachable)	sql_parser.cup declares it and sql_scanner.flex never makes it
+KW_TREE	(unreachable)	sql_parser.cup declares it and sql_scanner.flex never makes it

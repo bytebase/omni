@@ -1581,7 +1581,12 @@ func (p *Parser) parseCreateTablespaceSetStmt(start int) (*nodes.CreateTablespac
 		}
 		if p.cur.Type == '(' {
 			p.advance() // consume (
-			for p.cur.Type != ')' && p.cur.Type != tokEOF {
+			for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+				// An item that consumes nothing would come round again.
+				if p.pos() == progress {
+					return nil, p.syntaxErrorAtCur()
+				}
+				progress = p.pos()
 				switch {
 				case p.isIdentLike() && p.cur.Str == "DATAFILE":
 					p.advance()
@@ -1967,7 +1972,12 @@ func (p *Parser) parseCreateClusterStmt(start int) (*nodes.CreateClusterStmt, er
 	if p.cur.Type == ')' || p.cur.Type == tokEOF {
 		return nil, p.syntaxErrorAtCur()
 	}
-	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+	for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+		// An item that consumes nothing would come round again.
+		if p.pos() == progress {
+			return nil, p.syntaxErrorAtCur()
+		}
+		progress = p.pos()
 		col := &nodes.ClusterColumn{
 			Loc: nodes.Loc{Start: p.pos()},
 		}
@@ -2289,7 +2299,12 @@ func (p *Parser) parseDimensionLevel() (*nodes.DimensionLevel, error) {
 	// Column list: ( col [, ...] ) or just col
 	if p.cur.Type == '(' {
 		p.advance()
-		for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+			// An item that consumes nothing would come round again.
+			if p.pos() == progress {
+				return nil, p.syntaxErrorAtCur()
+			}
+			progress = p.pos()
 			parseValue19, parseErr20 := p.parseObjectName()
 			if parseErr20 != nil {
 				return nil, parseErr20
@@ -2365,7 +2380,12 @@ func (p *Parser) parseDimensionHierarchy() (*nodes.DimensionHierarchy, error) {
 			hier.Levels = append(hier.Levels, parseValue23)
 		}
 
-		for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+			// An item that consumes nothing would come round again.
+			if p.pos() == progress {
+				return nil, p.syntaxErrorAtCur()
+			}
+			progress = p.pos()
 			// Check for CHILD OF
 			if p.isIdentLike() && p.cur.Str == "CHILD" {
 				p.advance() // CHILD
@@ -2417,7 +2437,12 @@ func (p *Parser) parseDimensionJoinKey() (*nodes.DimensionJoinKey, error) {
 	// ( child_key_column [, ...] )
 	if p.cur.Type == '(' {
 		p.advance()
-		for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+			// An item that consumes nothing would come round again.
+			if p.pos() == progress {
+				return nil, p.syntaxErrorAtCur()
+			}
+			progress = p.pos()
 			parseValue27, parseErr28 := p.parseObjectName()
 			if parseErr28 != nil {
 				return nil, parseErr28
@@ -2486,7 +2511,12 @@ func (p *Parser) parseDimensionAttribute() (*nodes.DimensionAttribute, error) {
 	// ( dependent_column [, ...] ) or single column
 	if p.cur.Type == '(' {
 		p.advance()
-		for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+			// An item that consumes nothing would come round again.
+			if p.pos() == progress {
+				return nil, p.syntaxErrorAtCur()
+			}
+			progress = p.pos()
 			parseValue29, parseErr30 := p.parseObjectName()
 			if parseErr30 != nil {
 				return nil, parseErr30
@@ -2985,7 +3015,12 @@ func (p *Parser) parseCreateMaterializedZonemapStmt(start int) (*nodes.CreateMat
 			}
 			if p.cur.Type == '(' {
 				p.advance()
-				for p.cur.Type != ')' && p.cur.Type != tokEOF {
+				for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+					// An item that consumes nothing would come round again.
+					if p.pos() == progress {
+						return nil, p.syntaxErrorAtCur()
+					}
+					progress = p.pos()
 					parseValue45, parseErr46 := p.parseIdentifier()
 					if parseErr46 != nil {
 						return nil, parseErr46
@@ -3004,7 +3039,12 @@ func (p *Parser) parseCreateMaterializedZonemapStmt(start int) (*nodes.CreateMat
 		case p.cur.Type == '(' && stmt.OnTable == nil && stmt.AsQuery == nil:
 			// column aliases before AS
 			p.advance()
-			for p.cur.Type != ')' && p.cur.Type != tokEOF {
+			for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+				// An item that consumes nothing would come round again.
+				if p.pos() == progress {
+					return nil, p.syntaxErrorAtCur()
+				}
+				progress = p.pos()
 				parseValue47, parseErr48 := p.parseIdentifier()
 				if parseErr48 != nil {
 					return nil, parseErr48
@@ -3271,7 +3311,12 @@ func (p *Parser) parseCreateInmemoryJoinGroupStmt(start int) (*nodes.CreateInmem
 
 	if p.cur.Type == '(' {
 		p.advance()
-		for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+			// An item that consumes nothing would come round again.
+			if p.pos() == progress {
+				return nil, p.syntaxErrorAtCur()
+			}
+			progress = p.pos()
 			member, parseErr276 := p.parseJoinGroupMember()
 			if parseErr276 != nil {
 				return nil, parseErr276
@@ -3704,7 +3749,12 @@ func (p *Parser) parseCreateAttributeDimensionStmt(start int, orReplace, force, 
 		stmt.Attributes = &nodes.List{}
 		if p.cur.Type == '(' {
 			p.advance()
-			for p.cur.Type != ')' && p.cur.Type != tokEOF {
+			for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+				// An item that consumes nothing would come round again.
+				if p.pos() == progress {
+					return nil, p.syntaxErrorAtCur()
+				}
+				progress = p.pos()
 				attr, parseErr285 := p.parseAttrDimAttributeClause()
 				if parseErr285 != nil {
 					return nil, parseErr285
@@ -3990,7 +4040,12 @@ func (p *Parser) parseAttrDimLevelClause() (*nodes.AttrDimLevel, error) {
 		lvl.KeyAttrs = &nodes.List{}
 		if p.cur.Type == '(' {
 			p.advance()
-			for p.cur.Type != ')' && p.cur.Type != tokEOF {
+			for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+				// An item that consumes nothing would come round again.
+				if p.pos() == progress {
+					return nil, p.syntaxErrorAtCur()
+				}
+				progress = p.pos()
 				parseValue49, parseErr50 := p.parseIdentifier()
 				if parseErr50 != nil {
 					return nil, parseErr50
@@ -4038,7 +4093,12 @@ func (p *Parser) parseAttrDimLevelClause() (*nodes.AttrDimLevel, error) {
 		lvl.AltKeyAttrs = &nodes.List{}
 		if p.cur.Type == '(' {
 			p.advance()
-			for p.cur.Type != ')' && p.cur.Type != tokEOF {
+			for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+				// An item that consumes nothing would come round again.
+				if p.pos() == progress {
+					return nil, p.syntaxErrorAtCur()
+				}
+				progress = p.pos()
 				parseValue53, parseErr54 := p.parseIdentifier()
 				if parseErr54 != nil {
 					return nil, parseErr54
@@ -4079,7 +4139,12 @@ func (p *Parser) parseAttrDimLevelClause() (*nodes.AttrDimLevel, error) {
 		lvl.OrderByAttrs = &nodes.List{}
 		if p.cur.Type == '(' {
 			p.advance()
-			for p.cur.Type != ')' && p.cur.Type != tokEOF {
+			for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+				// An item that consumes nothing would come round again.
+				if p.pos() == progress {
+					return nil, p.syntaxErrorAtCur()
+				}
+				progress = p.pos()
 				item := &nodes.AttrDimOrderByItem{Loc: nodes.Loc{Start: p.pos()}}
 				var parseErr303 error
 				item.Attribute, parseErr303 = p.parseIdentifier()
@@ -4127,7 +4192,12 @@ func (p *Parser) parseAttrDimLevelClause() (*nodes.AttrDimLevel, error) {
 		lvl.Determines = &nodes.List{}
 		if p.cur.Type == '(' {
 			p.advance()
-			for p.cur.Type != ')' && p.cur.Type != tokEOF {
+			for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+				// An item that consumes nothing would come round again.
+				if p.pos() == progress {
+					return nil, p.syntaxErrorAtCur()
+				}
+				progress = p.pos()
 				parseValue57, parseErr58 := p.parseIdentifier()
 				if parseErr58 != nil {
 					return nil, parseErr58
@@ -4352,7 +4422,12 @@ func (p *Parser) parseCreateHierarchyStmt(start int, orReplace, force, noForce b
 		if p.cur.Type == '(' {
 			p.advance()
 			stmt.HierAttrs = &nodes.List{}
-			for p.cur.Type != ')' && p.cur.Type != tokEOF {
+			for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+				// An item that consumes nothing would come round again.
+				if p.pos() == progress {
+					return nil, p.syntaxErrorAtCur()
+				}
+				progress = p.pos()
 				ha := &nodes.HierAttr{Loc: nodes.Loc{Start: p.pos()}}
 				var parseErr314 error
 				ha.Name, parseErr314 = p.parseIdentifier()
@@ -4593,7 +4668,12 @@ func (p *Parser) parseCreateDomainStmt(start int, orReplace, usecase bool) (*nod
 		if p.cur.Type == '(' {
 			p.advance()
 			stmt.FlexColumns = &nodes.List{}
-			for p.cur.Type != ')' && p.cur.Type != tokEOF {
+			for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+				// An item that consumes nothing would come round again.
+				if p.pos() == progress {
+					return nil, p.syntaxErrorAtCur()
+				}
+				progress = p.pos()
 				parseValue59, parseErr60 := p.parseIdentifier()
 				if parseErr60 != nil {
 					return nil, parseErr60
@@ -4619,7 +4699,12 @@ func (p *Parser) parseCreateDomainStmt(start int, orReplace, usecase bool) (*nod
 			if p.cur.Type == '(' {
 				p.advance()
 				stmt.ChooseUsing = &nodes.List{}
-				for p.cur.Type != ')' && p.cur.Type != tokEOF {
+				for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+					// An item that consumes nothing would come round again.
+					if p.pos() == progress {
+						return nil, p.syntaxErrorAtCur()
+					}
+					progress = p.pos()
 					col := &nodes.DomainColumn{Loc: nodes.Loc{Start: p.pos()}}
 					var parseErr323 error
 					col.Name, parseErr323 = p.parseIdentifier()
@@ -4659,7 +4744,12 @@ func (p *Parser) parseCreateDomainStmt(start int, orReplace, usecase bool) (*nod
 		if p.cur.Type == '(' {
 			p.advance()
 			stmt.EnumItems = &nodes.List{}
-			for p.cur.Type != ')' && p.cur.Type != tokEOF {
+			for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+				// An item that consumes nothing would come round again.
+				if p.pos() == progress {
+					return nil, p.syntaxErrorAtCur()
+				}
+				progress = p.pos()
 				item := &nodes.DomainEnumItem{Loc: nodes.Loc{Start: p.pos()}}
 				var parseErr326 error
 				item.Name, parseErr326 = p.parseIdentifier()
@@ -4718,7 +4808,12 @@ func (p *Parser) parseCreateDomainStmt(start int, orReplace, usecase bool) (*nod
 		stmt.DomainType = "MULTI"
 		p.advance() // consume (
 		stmt.Columns = &nodes.List{}
-		for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+			// An item that consumes nothing would come round again.
+			if p.pos() == progress {
+				return nil, p.syntaxErrorAtCur()
+			}
+			progress = p.pos()
 			col := &nodes.DomainColumn{Loc: nodes.Loc{Start: p.pos()}}
 			var parseErr330 error
 			col.Name, parseErr330 = p.parseIdentifier()
@@ -4921,7 +5016,12 @@ func (p *Parser) parseDomainAnnotations() (*nodes.List, error) {
 	result := &nodes.List{}
 	if p.cur.Type == '(' {
 		p.advance()
-		for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+			// An item that consumes nothing would come round again.
+			if p.pos() == progress {
+				return nil, p.syntaxErrorAtCur()
+			}
+			progress = p.pos()
 			key, parseErr343 := p.parseIdentifier()
 			if parseErr343 != nil {
 				return nil, parseErr343
@@ -5105,7 +5205,12 @@ func (p *Parser) parseCreatePropertyGraphStmt(start int, orReplace, ifNotExists 
 		}
 		if p.cur.Type == '(' {
 			p.advance() // consume (
-			for p.cur.Type != ')' && p.cur.Type != tokEOF {
+			for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+				// An item that consumes nothing would come round again.
+				if p.pos() == progress {
+					return nil, p.syntaxErrorAtCur()
+				}
+				progress = p.pos()
 				vtd, parseErr353 := p.parseGraphTableDef()
 				if parseErr353 != nil {
 					return nil, parseErr353
@@ -5129,7 +5234,12 @@ func (p *Parser) parseCreatePropertyGraphStmt(start int, orReplace, ifNotExists 
 		}
 		if p.cur.Type == '(' {
 			p.advance() // consume (
-			for p.cur.Type != ')' && p.cur.Type != tokEOF {
+			for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+				// An item that consumes nothing would come round again.
+				if p.pos() == progress {
+					return nil, p.syntaxErrorAtCur()
+				}
+				progress = p.pos()
 				etd, parseErr354 := p.parseGraphEdgeDef()
 				if parseErr354 != nil {
 					return nil, parseErr354
@@ -5151,7 +5261,12 @@ func (p *Parser) parseCreatePropertyGraphStmt(start int, orReplace, ifNotExists 
 		if p.cur.Type == '(' {
 			p.advance() // consume (
 			opts := &nodes.GraphOptions{}
-			for p.cur.Type != ')' && p.cur.Type != tokEOF {
+			for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+				// An item that consumes nothing would come round again.
+				if p.pos() == progress {
+					return nil, p.syntaxErrorAtCur()
+				}
+				progress = p.pos()
 				if p.isIdentLikeStr("ENFORCED") {
 					opts.Mode = "ENFORCED"
 					p.advance()
@@ -5391,7 +5506,12 @@ func (p *Parser) parseGraphLabelAndProperties(def *nodes.GraphTableDef) error {
 		} else if p.cur.Type == '(' {
 			def.Properties = "LIST"
 			p.advance()
-			for p.cur.Type != ')' && p.cur.Type != tokEOF {
+			for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+				// An item that consumes nothing would come round again.
+				if p.pos() == progress {
+					return p.syntaxErrorAtCur()
+				}
+				progress = p.pos()
 				if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT {
 					def.PropColumns = append(def.PropColumns, p.cur.Str)
 					p.advance()
@@ -5437,7 +5557,12 @@ func (p *Parser) parseParenIdentList() ([]string, error) {
 		return result, nil
 	}
 	p.advance() // consume (
-	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+	for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+		// An item that consumes nothing would come round again.
+		if p.pos() == progress {
+			return nil, p.syntaxErrorAtCur()
+		}
+		progress = p.pos()
 		if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT {
 			result = append(result, p.cur.Str)
 			p.advance()
@@ -5599,7 +5724,12 @@ func (p *Parser) parseCreateVectorIndexStmt(start int, ifNotExists bool) (*nodes
 					}
 				}
 				// Parse remaining HNSW/IVF parameters
-				for p.cur.Type != ')' && p.cur.Type != tokEOF {
+				for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+					// An item that consumes nothing would come round again.
+					if p.pos() == progress {
+						return nil, p.syntaxErrorAtCur()
+					}
+					progress = p.pos()
 					if p.cur.Type == ',' {
 						p.advance()
 					}
@@ -5951,7 +6081,12 @@ func (p *Parser) parseLockdownItemList() (items []string, allItems bool, exceptI
 			}
 			if p.cur.Type == '(' {
 				p.advance()
-				for p.cur.Type != ')' && p.cur.Type != tokEOF {
+				for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+					// An item that consumes nothing would come round again.
+					if p.pos() == progress {
+						return nil, false, nil, p.syntaxErrorAtCur()
+					}
+					progress = p.pos()
 					if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT || p.cur.Type == tokSCONST {
 						exceptItems = append(exceptItems, p.cur.Str)
 						p.advance()
@@ -5969,7 +6104,12 @@ func (p *Parser) parseLockdownItemList() (items []string, allItems bool, exceptI
 		}
 		allItems = true
 	} else {
-		for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
+			// An item that consumes nothing would come round again.
+			if p.pos() == progress {
+				return nil, false, nil, p.syntaxErrorAtCur()
+			}
+			progress = p.pos()
 			if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT || p.cur.Type == tokSCONST {
 				items = append(items, p.cur.Str)
 				p.advance()

@@ -664,8 +664,28 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 	// only immediately before TABLE and carries no AST state.
 	// Ref: MariaDB ALTER TABLE grammar, "ALTER [ONLINE] [IGNORE] TABLE ...";
 	// measured accept on MariaDB 11.8.8.
-	if p.cur.Type == kwIGNORE && p.peekNext().Type == kwTABLE {
-		p.advance() // consume IGNORE; fall through to the TABLE arm
+	// ALTER [ONLINE] [IGNORE] TABLE: alter_option_list, ONLINE and IGNORE in any
+	// order and number, before TABLE only.
+	// Ref: alter and alter_option_list in MariaDB 11.8 sql/sql_yacc.yy.
+	var online, ignore bool
+	for p.cur.Type == kwIGNORE || p.atBareWord("ONLINE") {
+		if p.cur.Type == kwIGNORE {
+			ignore = true
+		} else {
+			online = true
+		}
+		p.advance()
+		if p.cur.Type != kwIGNORE && !p.atBareWord("ONLINE") && p.cur.Type != kwTABLE {
+			return nil, p.syntaxErrorAtCur()
+		}
+	}
+	if online || ignore {
+		stmt, err := p.parseAlterTableStmt(start)
+		if err != nil {
+			return nil, err
+		}
+		stmt.Online, stmt.Ignore = online, ignore
+		return stmt, nil
 	}
 
 	switch p.cur.Type {

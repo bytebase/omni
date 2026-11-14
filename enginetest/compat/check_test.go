@@ -485,3 +485,36 @@ func TestReadFileKeepsEveryStatementByte(t *testing.T) {
 		}
 	}
 }
+
+// TestCheckJoinsTheRowsOfMoreGrammars: a second parser grammar read with the
+// same lexer adds the rows of its own rules, and a row both generate fails.
+func TestCheckJoinsTheRowsOfMoreGrammars(t *testing.T) {
+	s := suite(t, "", nil)
+	dir := filepath.Dir(s.Path)
+	s.Grammar, s.Lexer, s.Tokens = filepath.Join(dir, "P.g4"), filepath.Join(dir, "L.g4"), filepath.Join(dir, "tokens.tsv")
+	s.More = []string{filepath.Join(dir, "Q.g4")}
+	write(t, s.Grammar, "parser grammar P;\nstmt : DROP TABLE NAME ;\n")
+	write(t, s.More[0], "parser grammar Q;\nlegacy : DROP VIEW NAME ;\n")
+	write(t, s.Lexer, "lexer grammar L;\nDROP : 'DROP' ;\nTABLE : 'TABLE' ;\nVIEW : 'VIEW' ;\nNAME : [a-z]+ ;\nWS : ' '+ -> channel(2) ;\n")
+	write(t, s.Tokens, "NAME\tt\n")
+
+	t.Setenv(enginetest.RecordEnv, "1")
+	t.Setenv("CI", "")
+	s.Judge = func(testing.TB, enginetest.Pin) func(string) (string, error) {
+		return func(sql string) (string, error) { return Reject, nil }
+	}
+	if rec := run(t, s); len(rec.errors) > 0 || rec.fatal != "" {
+		t.Fatalf("recording: %q %q", rec.errors, rec.fatal)
+	}
+	got := read(t, s.Path)
+	for _, want := range []string{"\tstmt/DROP_TABLE_NAME\tDROP TABLE t\n", "\tlegacy/DROP_VIEW_NAME\tDROP VIEW t\n"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("the recording holds no row %q:\n%s", want, got)
+		}
+	}
+
+	write(t, s.More[0], "parser grammar Q;\nstmt : DROP TABLE NAME ;\n")
+	if rec := run(t, s); !strings.Contains(rec.fatal, "generate a row twice") {
+		t.Errorf("a row two grammars generate: %q %q", rec.errors, rec.fatal)
+	}
+}
