@@ -60,6 +60,19 @@ func (w *writer) writeObjectClause(kind string, c *ast.ObjectClause) error {
 		w.buf.WriteByte(' ')
 		w.buf.WriteString(strings.Join(c.Keys, ", "))
 	}
+	if tt := c.TimeTravel; tt != nil {
+		// A point in time: { AT | BEFORE } ( <anchor> => <expr> ), as a
+		// POSTGRES INSTANCE's FORK writes it. Keywords already wrote AT or
+		// BEFORE.
+		w.buf.WriteString(" (")
+		w.buf.WriteString(timeTravelAnchorName(tt.Anchor))
+		w.buf.WriteString(" => ")
+		if err := w.writeExpr(tt.Expr); err != nil {
+			return err
+		}
+		w.buf.WriteByte(')')
+		return nil
+	}
 	commas := objectOptionCommas(kind, c.Keywords)
 	for i, o := range c.Options {
 		// A clause's bare entries are a list (VECTOR INDEXES); some pages
@@ -164,4 +177,17 @@ func (w *writer) writeObjectOption(o *ast.CopyOption) error {
 		w.buf.WriteByte(')')
 	}
 	return nil
+}
+
+// timeTravelAnchorName is the keyword a time-travel anchor is written with.
+func timeTravelAnchorName(a ast.TimeTravelAnchor) string {
+	switch a {
+	case ast.TimeTravelOffset:
+		return "OFFSET"
+	case ast.TimeTravelStatement:
+		return "STATEMENT"
+	case ast.TimeTravelStream:
+		return "STREAM"
+	}
+	return "TIMESTAMP"
 }

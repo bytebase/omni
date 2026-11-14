@@ -6542,7 +6542,10 @@ type ObjectClause struct {
 	Keys     []string         // the property names an UNSET clears, uppercased
 	Tags     []*TagAssignment // its tag assignments (SET TAG, [ WITH ] TAG ( ... ))
 	Query    Node             // the query an AS clause holds
-	Loc      Loc
+	// TimeTravel is the point in time an AT or BEFORE clause names, as a
+	// POSTGRES INSTANCE's FORK writes it.
+	TimeTravel *TimeTravelClause
+	Loc        Loc
 }
 
 // Tag implements Node.

@@ -244,19 +244,20 @@ func (p *Parser) checkFormNameParts(f *objectForm, name *ast.ObjectName) (*ast.O
 // objectValue is the shape of value a documented property takes.
 type objectValue struct {
 	kind  objectValueKind
-	words []string // for valWord: the keywords it may be, uppercased; nil takes any name
+	words []string // valWord: the keywords it may be, uppercased (nil takes any name); valStringOr: those besides a string
 }
 
 type objectValueKind int
 
 const (
-	valNumber  objectValueKind = iota + 1 // <num>, optionally signed
-	valString                             // '<string>'
-	valWord                               // a one-part name, or one of words
-	valQName                              // a name db.schema.name may qualify
-	valStrings                            // ( '<string>' [ , ... ] )
-	valNames                              // ( <name> [ , ... ] )
-	valGroup                              // ( <key> = <value> [ , ... ] ), as the page spells it
+	valNumber   objectValueKind = iota + 1 // <num>, optionally signed
+	valString                              // '<string>'
+	valWord                                // a one-part name, or one of words
+	valQName                               // a name db.schema.name may qualify
+	valStrings                             // ( '<string>' [ , ... ] )
+	valNames                               // ( <name> [ , ... ] )
+	valGroup                               // ( <key> = <value> [ , ... ] ), as the page spells it
+	valStringOr                            // '<string>', or one of words
 )
 
 // objectProps maps a documented property's name to its value's shape.
@@ -275,6 +276,10 @@ var (
 
 // propOneOf is a property whose value is one of words.
 func propOneOf(words ...string) objectValue { return objectValue{kind: valWord, words: words} }
+
+// propStringOr is a property whose value is a '<string>' or one of words, as
+// EVENT_TABLE = { '<name>' | NONE }.
+func propStringOr(words ...string) objectValue { return objectValue{kind: valStringOr, words: words} }
 
 // checkClauses holds a statement's property runs, SETs and UNSETs to f's
 // documented properties.
@@ -337,6 +342,16 @@ func (v objectValue) matches(o *ast.CopyOption) bool {
 			return false
 		}
 		if v.words == nil {
+			return true
+		}
+		for _, w := range v.words {
+			if o.Words == w {
+				return true
+			}
+		}
+		return false
+	case valStringOr:
+		if o.Lit != nil && o.Lit.Kind == ast.LitString {
 			return true
 		}
 		for _, w := range v.words {
