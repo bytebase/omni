@@ -289,8 +289,11 @@ func (p *Parser) parseAlterRoutineStmt(start int, isProcedure bool) (*nodes.Alte
 	}
 	stmt.Name = ref
 
-	// Characteristics
+	// Characteristics: sp_a_chistics takes sp_chistic, which has no [NOT] DETERMINISTIC.
 	for {
+		if p.cur.Type == kwDETERMINISTIC || (p.cur.Type == kwNOT && p.peekNext().Type == kwDETERMINISTIC) {
+			return nil, p.syntaxErrorAtCur()
+		}
 		ch, ok, err := p.parseRoutineCharacteristic()
 		if err != nil {
 			return nil, err
