@@ -95,6 +95,15 @@ func TestParseNotebookRejects(t *testing.T) {
 		"EXECUTE NOTEBOOK PROJECT db.s.p MAIN_FILE = 'm' COMPUTE_POOL = 'c' QUERY_WAREHOUSE = 'w'", // RUNTIME is required
 		"EXECUTE NOTEBOOK PROJECT db.s.p",
 		"EXECUTE NOTEBOOK",
+		// Properties the page does not document, or of another shape.
+		"CREATE NOTEBOOK a SECRETS = ('k' = s)",                   // ALTER's alone
+		"CREATE NOTEBOOK a IDLE_AUTO_SHUTDOWN_TIME_SECONDS = 'x'", //
+		"ALTER NOTEBOOK a SET MAIN_FILE = 'm'",                    // CREATE's alone
+		"CREATE NOTEBOOK PROJECT db.s.p FROM 's' MAIN_FILE = 'm'",
+		"CREATE NOTEBOOK PROJECT db.s.p FROM 's' TAG (t = 'v')",
+		"EXECUTE NOTEBOOK PROJECT db.s.p MAIN_FILE = 'm' COMPUTE_POOL = 'c' QUERY_WAREHOUSE = 'w' RUNTIME = 'r' X = 1",
+		"EXECUTE NOTEBOOK PROJECT db.s.p MAIN_FILE = 'm' COMPUTE_POOL = c QUERY_WAREHOUSE = 'w' RUNTIME = 'r'",
+		"EXECUTE NOTEBOOK PROJECT db.s.p MAIN_FILE = 'm' COMPUTE_POOL = 'c' QUERY_WAREHOUSE = 'w' RUNTIME = 'r' SECRETS = ('s')",
 	} {
 		mustRejectObject(t, in)
 	}

@@ -13,8 +13,51 @@ func init() {
 		alter:     parseAlterStreamlit,
 		orReplace: true,
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-streamlit
-		drop: true,
+		drop:  true,
+		props: streamlitProps,
+		unset: []string{"SECRETS", "EXTERNAL_ACCESS_INTEGRATIONS", "QUERY_WAREHOUSE", "TITLE", "COMMENT"},
 	})
+}
+
+// streamlitProps are the properties CREATE STREAMLIT and ALTER STREAMLIT ...
+// SET document, in both their current and their ROOT_LOCATION forms.
+var streamlitProps = objectProps{
+	"ROOT_LOCATION":                propString,
+	"MAIN_FILE":                    propString,
+	"QUERY_WAREHOUSE":              propName,
+	"RUNTIME_NAME":                 propString,
+	"COMPUTE_POOL":                 propName,
+	"COMMENT":                      propString,
+	"TITLE":                        propString,
+	"IMPORTS":                      propStrings,
+	"EXTERNAL_ACCESS_INTEGRATIONS": propNames,
+	"SECRETS":                      propGroup,
+}
+
+// streamlitCheckPush holds PUSH's options to the ones the page documents. The
+// page writes their values as bare placeholders (<git_author_email>, ...),
+// which an email address cannot be, so the ones a person types (TO, USERNAME,
+// NAME, EMAIL, COMMENT) take a string or a name; GIT_CREDENTIALS names a
+// secret, and PASSWORD is a string.
+func streamlitCheckPush(opts []*ast.CopyOption) error {
+	for _, o := range opts {
+		ok := false
+		switch o.Name {
+		case "TO", "USERNAME", "NAME", "EMAIL", "COMMENT":
+			ok = propName.matches(o) || propString.matches(o)
+		case "GIT_CREDENTIALS":
+			ok = propName.matches(o)
+		case "PASSWORD":
+			ok = propString.matches(o)
+		}
+		if !ok {
+			return &ParseError{
+				Position: o.Loc.Start, End: o.Loc.End,
+				Message: "syntax error at or near " + o.Name,
+			}
+		}
+	}
+	return nil
 }
 
 // parseCreateStreamlit reads what follows the name of
@@ -132,7 +175,7 @@ func (p *Parser) parseStreamlitPush(s *ast.ObjectStmt, start int) error {
 		c.Options = append(c.Options, opt)
 	}
 	c.Loc.End = p.prev.Loc.End
-	return nil
+	return streamlitCheckPush(c.Options)
 }
 
 // parseStreamlitFrom reads FROM '<source_location>' into a FROM clause whose

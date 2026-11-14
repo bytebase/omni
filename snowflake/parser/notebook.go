@@ -30,7 +30,60 @@ func init() {
 		// https://docs.snowflake.com/en/sql-reference/sql/drop-notebook writes
 		// DROP NOTEBOOK <name> with no IF EXISTS, which the registry's DROP
 		// always takes, so DROP NOTEBOOK is not registered.
+		props: objectProps{
+			"MAIN_FILE":                       propString,
+			"COMMENT":                         propString,
+			"QUERY_WAREHOUSE":                 propName,
+			"IDLE_AUTO_SHUTDOWN_TIME_SECONDS": propNumber,
+			"RUNTIME_NAME":                    propString,
+			"COMPUTE_POOL":                    propString,
+			"WAREHOUSE":                       propName,
+		},
+		alterProps: objectProps{
+			"COMMENT":                         propString,
+			"QUERY_WAREHOUSE":                 propName,
+			"IDLE_AUTO_SHUTDOWN_TIME_SECONDS": propNumber,
+			"SECRETS":                         propGroup,
+		},
+		unset: []string{},
 	})
+}
+
+// notebookProjectProps are CREATE NOTEBOOK PROJECT's properties, and
+// notebookExecuteProjectProps EXECUTE NOTEBOOK PROJECT's.
+var (
+	notebookProjectProps        = objectProps{"COMMENT": propString}
+	notebookExecuteProjectProps = objectProps{
+		"MAIN_FILE":                    propString,
+		"COMPUTE_POOL":                 propString,
+		"QUERY_WAREHOUSE":              propString,
+		"RUNTIME":                      propString,
+		"ARGUMENTS":                    propString,
+		"REQUIREMENTS_FILE":            propString,
+		"ARTIFACT_REPOSITORIES":        propNames,
+		"EXTERNAL_ACCESS_INTEGRATIONS": propNames,
+		"SECRETS":                      propNames,
+	}
+)
+
+// notebookCheckOptions holds the options of a clause that the registry does
+// not check (NOTEBOOK PROJECT's, EXECUTE's) to props.
+func notebookCheckOptions(c *ast.ObjectClause, props objectProps) error {
+	if c == nil {
+		return nil
+	}
+	if len(c.Tags) > 0 {
+		return &ParseError{Position: c.Loc.Start, End: c.Loc.End, Message: "syntax error: TAG is not documented here"}
+	}
+	for _, o := range c.Options {
+		if v, ok := props[o.Name]; !ok || !v.matches(o) {
+			return &ParseError{
+				Position: o.Loc.Start, End: o.Loc.End,
+				Message: "syntax error at or near " + o.Name,
+			}
+		}
+	}
+	return nil
 }
 
 // parseCreateNotebook reads what follows the name of
@@ -110,8 +163,11 @@ func (p *Parser) parseCreateNotebookProject(s *ast.ObjectStmt) error {
 	if err := p.parseStreamlitFrom(s); err != nil {
 		return err
 	}
-	_, err = p.parseObjectProperties(s, "", false)
-	return err
+	props, err := p.parseObjectProperties(s, "", false)
+	if err != nil {
+		return err
+	}
+	return notebookCheckOptions(props, notebookProjectProps)
 }
 
 // parseAlterNotebook reads what follows the name of
@@ -172,6 +228,9 @@ func (p *Parser) parseExecuteNotebook(start ast.Loc) (ast.Node, error) {
 	if project {
 		props, err := p.parseObjectProperties(s, "", true)
 		if err != nil {
+			return nil, err
+		}
+		if err := notebookCheckOptions(props, notebookExecuteProjectProps); err != nil {
 			return nil, err
 		}
 		if err := p.requireObjectProperties(props, "MAIN_FILE", "COMPUTE_POOL", "QUERY_WAREHOUSE", "RUNTIME"); err != nil {

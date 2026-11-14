@@ -82,6 +82,17 @@ func TestParseStreamlitRejects(t *testing.T) {
 		"ALTER STREAMLIT a PUSH TO (x)",
 		"ALTER STREAMLIT a PUSH NAME",
 		"DROP STREAMLIT a CASCADE",
+		// Properties the page does not document, or of another shape.
+		"CREATE STREAMLIT a NOT_A_PROPERTY = 1",
+		"CREATE STREAMLIT a MAIN_FILE = main",
+		"CREATE STREAMLIT a IMPORTS = ()",
+		"CREATE STREAMLIT a EXTERNAL_ACCESS_INTEGRATIONS = ('i')",
+		"CREATE STREAMLIT a SECRETS = (s)",
+		"ALTER STREAMLIT a SET TITLE = 1",
+		"ALTER STREAMLIT a UNSET MAIN_FILE",
+		"ALTER STREAMLIT a PUSH BRANCH = b",
+		"ALTER STREAMLIT a PUSH PASSWORD = p",
+		"ALTER STREAMLIT a PUSH GIT_CREDENTIALS = 's'",
 	} {
 		mustRejectObject(t, in)
 	}

@@ -16592,19 +16592,19 @@ reject	undocumented	docs	alterNotebook(IF_EXISTS)?/IF_EXISTS!truncate	ALTER NOTE
 reject	undocumented	docs	alterNotebook(IF_EXISTS)?/IF_EXISTS!insert	ALTER NOTEBOOK IF EXISTS zzz a RENAME TO a
 reject	undocumented	docs	alterNotebook(IF_EXISTS)?/IF_EXISTS!swap	ALTER NOTEBOOK IGNORE EXISTS a RENAME TO a
 accept	accept	docs	alterNotebook(COMMENT_=_STRING_(QUERY_WAREHOUSE_=_~59932ab4)/COMMENT_=_STRING_(QUERY_WAREHOUSE_=_ID)?_(IDLE_AUTO_SHU~aea881fc	ALTER NOTEBOOK a SET COMMENT = 's'
-accept	undocumented	docs	alterNotebook(COMMENT_=_STRING_(QUERY_WAREHOUSE_=_~59932ab4)/COMMENT_=_STRING_(QUERY_WAREHOUSE_=_ID)?_(IDLE_AUTO_SHU~aea881fc!swap	ALTER NOTEBOOK a SET COMMENTS = 's'
+reject	undocumented	docs	alterNotebook(COMMENT_=_STRING_(QUERY_WAREHOUSE_=_~59932ab4)/COMMENT_=_STRING_(QUERY_WAREHOUSE_=_ID)?_(IDLE_AUTO_SHU~aea881fc!swap	ALTER NOTEBOOK a SET COMMENTS = 's'
 accept	accept	docs	alterNotebook(COMMENT_=_STRING_(QUERY_WAREHOUSE_=_~59932ab4)/QUERY_WAREHOUSE_=_ID_(IDLE_AUTO_SHUTDOWN_TIME_SECONDS_=~f0c7fef7	ALTER NOTEBOOK a SET QUERY_WAREHOUSE = a
 reject	undocumented	docs	alterNotebook(COMMENT_=_STRING_(QUERY_WAREHOUSE_=_~59932ab4)/QUERY_WAREHOUSE_=_ID_(IDLE_AUTO_SHUTDOWN_TIME_SECONDS_=~f0c7fef7!drop-1	ALTER NOTEBOOK a SET = a
 reject	undocumented	docs	alterNotebook(COMMENT_=_STRING_(QUERY_WAREHOUSE_=_~59932ab4)/QUERY_WAREHOUSE_=_ID_(IDLE_AUTO_SHUTDOWN_TIME_SECONDS_=~f0c7fef7!drop-2	ALTER NOTEBOOK a SET QUERY_WAREHOUSE a
 reject	undocumented	docs	alterNotebook(COMMENT_=_STRING_(QUERY_WAREHOUSE_=_~59932ab4)/QUERY_WAREHOUSE_=_ID_(IDLE_AUTO_SHUTDOWN_TIME_SECONDS_=~f0c7fef7!drop-3	ALTER NOTEBOOK a SET QUERY_WAREHOUSE =
 reject	undocumented	docs	alterNotebook(COMMENT_=_STRING_(QUERY_WAREHOUSE_=_~59932ab4)/QUERY_WAREHOUSE_=_ID_(IDLE_AUTO_SHUTDOWN_TIME_SECONDS_=~f0c7fef7!insert	ALTER NOTEBOOK a SET QUERY_WAREHOUSE = a zzz
-accept	undocumented	docs	alterNotebook(COMMENT_=_STRING_(QUERY_WAREHOUSE_=_~59932ab4)/QUERY_WAREHOUSE_=_ID_(IDLE_AUTO_SHUTDOWN_TIME_SECONDS_=~f0c7fef7!swap	ALTER NOTEBOOK a SET QUESTION = a
+reject	undocumented	docs	alterNotebook(COMMENT_=_STRING_(QUERY_WAREHOUSE_=_~59932ab4)/QUERY_WAREHOUSE_=_ID_(IDLE_AUTO_SHUTDOWN_TIME_SECONDS_=~f0c7fef7!swap	ALTER NOTEBOOK a SET QUESTION = a
 accept	accept	docs	alterNotebook(COMMENT_=_STRING_(QUERY_WAREHOUSE_=_~59932ab4)/IDLE_AUTO_SHUTDOWN_TIME_SECONDS_=_NUMBER_(SECRETS_=_(_S~66524b96	ALTER NOTEBOOK a SET IDLE_AUTO_SHUTDOWN_TIME_SECONDS = 1
 reject	undocumented	docs	alterNotebook(COMMENT_=_STRING_(QUERY_WAREHOUSE_=_~59932ab4)/IDLE_AUTO_SHUTDOWN_TIME_SECONDS_=_NUMBER_(SECRETS_=_(_S~66524b96!drop-1	ALTER NOTEBOOK a SET = 1
 reject	undocumented	docs	alterNotebook(COMMENT_=_STRING_(QUERY_WAREHOUSE_=_~59932ab4)/IDLE_AUTO_SHUTDOWN_TIME_SECONDS_=_NUMBER_(SECRETS_=_(_S~66524b96!drop-2	ALTER NOTEBOOK a SET IDLE_AUTO_SHUTDOWN_TIME_SECONDS 1
 reject	undocumented	docs	alterNotebook(COMMENT_=_STRING_(QUERY_WAREHOUSE_=_~59932ab4)/IDLE_AUTO_SHUTDOWN_TIME_SECONDS_=_NUMBER_(SECRETS_=_(_S~66524b96!drop-3	ALTER NOTEBOOK a SET IDLE_AUTO_SHUTDOWN_TIME_SECONDS =
 reject	undocumented	docs	alterNotebook(COMMENT_=_STRING_(QUERY_WAREHOUSE_=_~59932ab4)/IDLE_AUTO_SHUTDOWN_TIME_SECONDS_=_NUMBER_(SECRETS_=_(_S~66524b96!insert	ALTER NOTEBOOK a SET IDLE_AUTO_SHUTDOWN_TIME_SECONDS = 1 zzz
-accept	undocumented	docs	alterNotebook(COMMENT_=_STRING_(QUERY_WAREHOUSE_=_~59932ab4)/IDLE_AUTO_SHUTDOWN_TIME_SECONDS_=_NUMBER_(SECRETS_=_(_S~66524b96!swap	ALTER NOTEBOOK a SET ID_COLUMNS = 1
+reject	undocumented	docs	alterNotebook(COMMENT_=_STRING_(QUERY_WAREHOUSE_=_~59932ab4)/IDLE_AUTO_SHUTDOWN_TIME_SECONDS_=_NUMBER_(SECRETS_=_(_S~66524b96!swap	ALTER NOTEBOOK a SET ID_COLUMNS = 1
 accept	accept	docs	alterNotebook(COMMENT_=_STRING_(QUERY_WAREHOUSE_=_~59932ab4)/SECRETS_=_(_STRING_=_QNAME_(,_STRING_=_QNAME)*_)	ALTER NOTEBOOK a SET SECRETS =('s' = a)
 reject	undocumented	docs	alterNotebook(COMMENT_=_STRING_(QUERY_WAREHOUSE_=_~59932ab4)/SECRETS_=_(_STRING_=_QNAME_(,_STRING_=_QNAME)*_)!drop-1	ALTER NOTEBOOK a SET =('s' = a)
 reject	undocumented	docs	alterNotebook(COMMENT_=_STRING_(QUERY_WAREHOUSE_=_~59932ab4)/SECRETS_=_(_STRING_=_QNAME_(,_STRING_=_QNAME)*_)!drop-2	ALTER NOTEBOOK a SET SECRETS('s' = a)
@@ -16614,21 +16614,21 @@ reject	undocumented	docs	alterNotebook(COMMENT_=_STRING_(QUERY_WAREHOUSE_=_~5993
 reject	undocumented	docs	alterNotebook(COMMENT_=_STRING_(QUERY_WAREHOUSE_=_~59932ab4)/SECRETS_=_(_STRING_=_QNAME_(,_STRING_=_QNAME)*_)!drop-6	ALTER NOTEBOOK a SET SECRETS =('s' =)
 reject	undocumented	docs	alterNotebook(COMMENT_=_STRING_(QUERY_WAREHOUSE_=_~59932ab4)/SECRETS_=_(_STRING_=_QNAME_(,_STRING_=_QNAME)*_)!drop-7	ALTER NOTEBOOK a SET SECRETS =('s' = a
 reject	undocumented	docs	alterNotebook(COMMENT_=_STRING_(QUERY_WAREHOUSE_=_~59932ab4)/SECRETS_=_(_STRING_=_QNAME_(,_STRING_=_QNAME)*_)!insert	ALTER NOTEBOOK a SET SECRETS =('s' = a) zzz
-accept	undocumented	docs	alterNotebook(COMMENT_=_STRING_(QUERY_WAREHOUSE_=_~59932ab4)/SECRETS_=_(_STRING_=_QNAME_(,_STRING_=_QNAME)*_)!swap	ALTER NOTEBOOK a SET SECRET_AUTHORIZATION =('s' = a)
+reject	undocumented	docs	alterNotebook(COMMENT_=_STRING_(QUERY_WAREHOUSE_=_~59932ab4)/SECRETS_=_(_STRING_=_QNAME_(,_STRING_=_QNAME)*_)!swap	ALTER NOTEBOOK a SET SECRET_AUTHORIZATION =('s' = a)
 accept	accept	docs	alterNotebook(QUERY_WAREHOUSE_=_ID)?/%empty	ALTER NOTEBOOK a SET COMMENT = 's'
 accept	accept	docs	alterNotebook(QUERY_WAREHOUSE_=_ID)?/QUERY_WAREHOUSE_=_ID	ALTER NOTEBOOK a SET COMMENT = 's' QUERY_WAREHOUSE = a
 reject	undocumented	docs	alterNotebook(QUERY_WAREHOUSE_=_ID)?/QUERY_WAREHOUSE_=_ID!drop-1	ALTER NOTEBOOK a SET COMMENT = 's' = a
 reject	undocumented	docs	alterNotebook(QUERY_WAREHOUSE_=_ID)?/QUERY_WAREHOUSE_=_ID!drop-2	ALTER NOTEBOOK a SET COMMENT = 's' QUERY_WAREHOUSE a
 reject	undocumented	docs	alterNotebook(QUERY_WAREHOUSE_=_ID)?/QUERY_WAREHOUSE_=_ID!drop-3	ALTER NOTEBOOK a SET COMMENT = 's' QUERY_WAREHOUSE =
 reject	undocumented	docs	alterNotebook(QUERY_WAREHOUSE_=_ID)?/QUERY_WAREHOUSE_=_ID!insert	ALTER NOTEBOOK a SET COMMENT = 's' QUERY_WAREHOUSE = a zzz
-accept	undocumented	docs	alterNotebook(QUERY_WAREHOUSE_=_ID)?/QUERY_WAREHOUSE_=_ID!swap	ALTER NOTEBOOK a SET COMMENT = 's' QUESTION = a
+reject	undocumented	docs	alterNotebook(QUERY_WAREHOUSE_=_ID)?/QUERY_WAREHOUSE_=_ID!swap	ALTER NOTEBOOK a SET COMMENT = 's' QUESTION = a
 accept	accept	docs	alterNotebook(IDLE_AUTO_SHUTDOWN_TIME_SECONDS_=_NUMBER)?/%empty	ALTER NOTEBOOK a SET COMMENT = 's'
 accept	accept	docs	alterNotebook(IDLE_AUTO_SHUTDOWN_TIME_SECONDS_=_NUMBER)?/IDLE_AUTO_SHUTDOWN_TIME_SECONDS_=_NUMBER	ALTER NOTEBOOK a SET COMMENT = 's' IDLE_AUTO_SHUTDOWN_TIME_SECONDS = 1
 reject	undocumented	docs	alterNotebook(IDLE_AUTO_SHUTDOWN_TIME_SECONDS_=_NUMBER)?/IDLE_AUTO_SHUTDOWN_TIME_SECONDS_=_NUMBER!drop-1	ALTER NOTEBOOK a SET COMMENT = 's' = 1
 reject	undocumented	docs	alterNotebook(IDLE_AUTO_SHUTDOWN_TIME_SECONDS_=_NUMBER)?/IDLE_AUTO_SHUTDOWN_TIME_SECONDS_=_NUMBER!drop-2	ALTER NOTEBOOK a SET COMMENT = 's' IDLE_AUTO_SHUTDOWN_TIME_SECONDS 1
 reject	undocumented	docs	alterNotebook(IDLE_AUTO_SHUTDOWN_TIME_SECONDS_=_NUMBER)?/IDLE_AUTO_SHUTDOWN_TIME_SECONDS_=_NUMBER!drop-3	ALTER NOTEBOOK a SET COMMENT = 's' IDLE_AUTO_SHUTDOWN_TIME_SECONDS =
 reject	undocumented	docs	alterNotebook(IDLE_AUTO_SHUTDOWN_TIME_SECONDS_=_NUMBER)?/IDLE_AUTO_SHUTDOWN_TIME_SECONDS_=_NUMBER!insert	ALTER NOTEBOOK a SET COMMENT = 's' IDLE_AUTO_SHUTDOWN_TIME_SECONDS = 1 zzz
-accept	undocumented	docs	alterNotebook(IDLE_AUTO_SHUTDOWN_TIME_SECONDS_=_NUMBER)?/IDLE_AUTO_SHUTDOWN_TIME_SECONDS_=_NUMBER!swap	ALTER NOTEBOOK a SET COMMENT = 's' ID_COLUMNS = 1
+reject	undocumented	docs	alterNotebook(IDLE_AUTO_SHUTDOWN_TIME_SECONDS_=_NUMBER)?/IDLE_AUTO_SHUTDOWN_TIME_SECONDS_=_NUMBER!swap	ALTER NOTEBOOK a SET COMMENT = 's' ID_COLUMNS = 1
 accept	accept	docs	alterNotebook(SECRETS_=_(_STRING_=_QNAME_(,_STRING~96f98eb0)?/%empty	ALTER NOTEBOOK a SET COMMENT = 's'
 accept	accept	docs	alterNotebook(SECRETS_=_(_STRING_=_QNAME_(,_STRING~96f98eb0)?/SECRETS_=_(_STRING_=_QNAME_(,_STRING_=_QNAME)*_)	ALTER NOTEBOOK a SET COMMENT = 's' SECRETS =('s' = a)
 reject	undocumented	docs	alterNotebook(SECRETS_=_(_STRING_=_QNAME_(,_STRING~96f98eb0)?/SECRETS_=_(_STRING_=_QNAME_(,_STRING_=_QNAME)*_)!drop-1	ALTER NOTEBOOK a SET COMMENT = 's' =('s' = a)
@@ -16639,7 +16639,7 @@ reject	undocumented	docs	alterNotebook(SECRETS_=_(_STRING_=_QNAME_(,_STRING~96f9
 reject	undocumented	docs	alterNotebook(SECRETS_=_(_STRING_=_QNAME_(,_STRING~96f98eb0)?/SECRETS_=_(_STRING_=_QNAME_(,_STRING_=_QNAME)*_)!drop-6	ALTER NOTEBOOK a SET COMMENT = 's' SECRETS =('s' =)
 reject	undocumented	docs	alterNotebook(SECRETS_=_(_STRING_=_QNAME_(,_STRING~96f98eb0)?/SECRETS_=_(_STRING_=_QNAME_(,_STRING_=_QNAME)*_)!drop-7	ALTER NOTEBOOK a SET COMMENT = 's' SECRETS =('s' = a
 reject	undocumented	docs	alterNotebook(SECRETS_=_(_STRING_=_QNAME_(,_STRING~96f98eb0)?/SECRETS_=_(_STRING_=_QNAME_(,_STRING_=_QNAME)*_)!insert	ALTER NOTEBOOK a SET COMMENT = 's' SECRETS =('s' = a) zzz
-accept	undocumented	docs	alterNotebook(SECRETS_=_(_STRING_=_QNAME_(,_STRING~96f98eb0)?/SECRETS_=_(_STRING_=_QNAME_(,_STRING_=_QNAME)*_)!swap	ALTER NOTEBOOK a SET COMMENT = 's' SECRET_AUTHORIZATION =('s' = a)
+reject	undocumented	docs	alterNotebook(SECRETS_=_(_STRING_=_QNAME_(,_STRING~96f98eb0)?/SECRETS_=_(_STRING_=_QNAME_(,_STRING_=_QNAME)*_)!swap	ALTER NOTEBOOK a SET COMMENT = 's' SECRET_AUTHORIZATION =('s' = a)
 accept	accept	docs	alterNotebook(,_STRING_=_QNAME)*/%empty	ALTER NOTEBOOK a SET SECRETS =('s' = a)
 reject	undocumented	docs	alterNotebook(,_STRING_=_QNAME)*/%empty!insert	ALTER NOTEBOOK a SET SECRETS =('s' = a zzz)
 accept	accept	docs	alterNotebook(,_STRING_=_QNAME)*/,_STRING_=_QNAME_(,_STRING_=_QNAME)*	ALTER NOTEBOOK a SET SECRETS =('s' = a, 's' = a)
@@ -24375,49 +24375,49 @@ reject	undocumented	docs	alterStreamlit(IF_EXISTS)?/IF_EXISTS!truncate	ALTER STR
 reject	undocumented	docs	alterStreamlit(IF_EXISTS)?/IF_EXISTS!insert	ALTER STREAMLIT IF EXISTS zzz a UNSET SECRETS
 reject	undocumented	docs	alterStreamlit(IF_EXISTS)?/IF_EXISTS!swap	ALTER STREAMLIT IGNORE EXISTS a UNSET SECRETS
 accept	accept	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_=_ID)?_(RUNTIME_NAM~dfb06286	ALTER STREAMLIT a SET MAIN_FILE = 's'
-accept	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_=_ID)?_(RUNTIME_NAM~dfb06286!swap	ALTER STREAMLIT a SET MANAGE = 's'
+reject	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_=_ID)?_(RUNTIME_NAM~dfb06286!swap	ALTER STREAMLIT a SET MANAGE = 's'
 accept	accept	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/QUERY_WAREHOUSE_=_ID_(RUNTIME_NAME_=_STRING)?_(COMPUTE_~7c4431f1	ALTER STREAMLIT a SET QUERY_WAREHOUSE = a
 reject	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/QUERY_WAREHOUSE_=_ID_(RUNTIME_NAME_=_STRING)?_(COMPUTE_~7c4431f1!drop-1	ALTER STREAMLIT a SET = a
 reject	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/QUERY_WAREHOUSE_=_ID_(RUNTIME_NAME_=_STRING)?_(COMPUTE_~7c4431f1!drop-2	ALTER STREAMLIT a SET QUERY_WAREHOUSE a
 reject	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/QUERY_WAREHOUSE_=_ID_(RUNTIME_NAME_=_STRING)?_(COMPUTE_~7c4431f1!drop-3	ALTER STREAMLIT a SET QUERY_WAREHOUSE =
 reject	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/QUERY_WAREHOUSE_=_ID_(RUNTIME_NAME_=_STRING)?_(COMPUTE_~7c4431f1!insert	ALTER STREAMLIT a SET QUERY_WAREHOUSE = a zzz
-accept	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/QUERY_WAREHOUSE_=_ID_(RUNTIME_NAME_=_STRING)?_(COMPUTE_~7c4431f1!swap	ALTER STREAMLIT a SET QUESTION = a
+reject	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/QUERY_WAREHOUSE_=_ID_(RUNTIME_NAME_=_STRING)?_(COMPUTE_~7c4431f1!swap	ALTER STREAMLIT a SET QUESTION = a
 accept	accept	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/RUNTIME_NAME_=_STRING_(COMPUTE_POOL_=_ID)?_(COMMENT_=_S~c4d967a9	ALTER STREAMLIT a SET RUNTIME_NAME = 's'
 reject	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/RUNTIME_NAME_=_STRING_(COMPUTE_POOL_=_ID)?_(COMMENT_=_S~c4d967a9!drop-2	ALTER STREAMLIT a SET RUNTIME_NAME 's'
 reject	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/RUNTIME_NAME_=_STRING_(COMPUTE_POOL_=_ID)?_(COMMENT_=_S~c4d967a9!drop-3	ALTER STREAMLIT a SET RUNTIME_NAME =
 reject	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/RUNTIME_NAME_=_STRING_(COMPUTE_POOL_=_ID)?_(COMMENT_=_S~c4d967a9!insert	ALTER STREAMLIT a SET RUNTIME_NAME = 's' zzz
-accept	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/RUNTIME_NAME_=_STRING_(COMPUTE_POOL_=_ID)?_(COMMENT_=_S~c4d967a9!swap	ALTER STREAMLIT a SET RUNTIME_VERSION = 's'
+reject	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/RUNTIME_NAME_=_STRING_(COMPUTE_POOL_=_ID)?_(COMMENT_=_S~c4d967a9!swap	ALTER STREAMLIT a SET RUNTIME_VERSION = 's'
 accept	accept	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/COMPUTE_POOL_=_ID_(COMMENT_=_STRING)?_(TITLE_=_STRING)?~1f189c9a	ALTER STREAMLIT a SET COMPUTE_POOL = a
 reject	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/COMPUTE_POOL_=_ID_(COMMENT_=_STRING)?_(TITLE_=_STRING)?~1f189c9a!drop-2	ALTER STREAMLIT a SET COMPUTE_POOL a
 reject	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/COMPUTE_POOL_=_ID_(COMMENT_=_STRING)?_(TITLE_=_STRING)?~1f189c9a!drop-3	ALTER STREAMLIT a SET COMPUTE_POOL =
 reject	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/COMPUTE_POOL_=_ID_(COMMENT_=_STRING)?_(TITLE_=_STRING)?~1f189c9a!insert	ALTER STREAMLIT a SET COMPUTE_POOL = a zzz
-accept	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/COMPUTE_POOL_=_ID_(COMMENT_=_STRING)?_(TITLE_=_STRING)?~1f189c9a!swap	ALTER STREAMLIT a SET CONDITION = a
+reject	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/COMPUTE_POOL_=_ID_(COMMENT_=_STRING)?_(TITLE_=_STRING)?~1f189c9a!swap	ALTER STREAMLIT a SET CONDITION = a
 accept	accept	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/COMMENT_=_STRING_(TITLE_=_STRING)?_(IMPORTS_=_(_STRING_~78e1bec7	ALTER STREAMLIT a SET COMMENT = 's'
 reject	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/COMMENT_=_STRING_(TITLE_=_STRING)?_(IMPORTS_=_(_STRING_~78e1bec7!drop-2	ALTER STREAMLIT a SET COMMENT 's'
 reject	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/COMMENT_=_STRING_(TITLE_=_STRING)?_(IMPORTS_=_(_STRING_~78e1bec7!drop-3	ALTER STREAMLIT a SET COMMENT =
 reject	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/COMMENT_=_STRING_(TITLE_=_STRING)?_(IMPORTS_=_(_STRING_~78e1bec7!insert	ALTER STREAMLIT a SET COMMENT = 's' zzz
-accept	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/COMMENT_=_STRING_(TITLE_=_STRING)?_(IMPORTS_=_(_STRING_~78e1bec7!swap	ALTER STREAMLIT a SET COMMENTS = 's'
+reject	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/COMMENT_=_STRING_(TITLE_=_STRING)?_(IMPORTS_=_(_STRING_~78e1bec7!swap	ALTER STREAMLIT a SET COMMENTS = 's'
 accept	accept	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/TITLE_=_STRING_(IMPORTS_=_(_STRING_(,_STRING)*_))?_(EXT~bb5c3429	ALTER STREAMLIT a SET TITLE = 's'
 reject	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/TITLE_=_STRING_(IMPORTS_=_(_STRING_(,_STRING)*_))?_(EXT~bb5c3429!drop-2	ALTER STREAMLIT a SET TITLE 's'
 reject	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/TITLE_=_STRING_(IMPORTS_=_(_STRING_(,_STRING)*_))?_(EXT~bb5c3429!drop-3	ALTER STREAMLIT a SET TITLE =
 reject	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/TITLE_=_STRING_(IMPORTS_=_(_STRING_(,_STRING)*_))?_(EXT~bb5c3429!insert	ALTER STREAMLIT a SET TITLE = 's' zzz
-accept	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/TITLE_=_STRING_(IMPORTS_=_(_STRING_(,_STRING)*_))?_(EXT~bb5c3429!swap	ALTER STREAMLIT a SET TLS_TRUSTED_CERTIFICATES = 's'
+reject	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/TITLE_=_STRING_(IMPORTS_=_(_STRING_(,_STRING)*_))?_(EXT~bb5c3429!swap	ALTER STREAMLIT a SET TLS_TRUSTED_CERTIFICATES = 's'
 accept	accept	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/IMPORTS_=_(_STRING_(,_STRING)*_)_(EXTERNAL_ACCESS_INTEG~23ecfa18	ALTER STREAMLIT a SET IMPORTS =('s')
 reject	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/IMPORTS_=_(_STRING_(,_STRING)*_)_(EXTERNAL_ACCESS_INTEG~23ecfa18!drop-1	ALTER STREAMLIT a SET =('s')
 reject	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/IMPORTS_=_(_STRING_(,_STRING)*_)_(EXTERNAL_ACCESS_INTEG~23ecfa18!drop-2	ALTER STREAMLIT a SET IMPORTS('s')
 reject	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/IMPORTS_=_(_STRING_(,_STRING)*_)_(EXTERNAL_ACCESS_INTEG~23ecfa18!drop-3	ALTER STREAMLIT a SET IMPORTS = 's')
-accept	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/IMPORTS_=_(_STRING_(,_STRING)*_)_(EXTERNAL_ACCESS_INTEG~23ecfa18!drop-4	ALTER STREAMLIT a SET IMPORTS =()
+reject	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/IMPORTS_=_(_STRING_(,_STRING)*_)_(EXTERNAL_ACCESS_INTEG~23ecfa18!drop-4	ALTER STREAMLIT a SET IMPORTS =()
 reject	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/IMPORTS_=_(_STRING_(,_STRING)*_)_(EXTERNAL_ACCESS_INTEG~23ecfa18!drop-5	ALTER STREAMLIT a SET IMPORTS =('s'
 reject	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/IMPORTS_=_(_STRING_(,_STRING)*_)_(EXTERNAL_ACCESS_INTEG~23ecfa18!insert	ALTER STREAMLIT a SET IMPORTS =('s') zzz
-accept	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/IMPORTS_=_(_STRING_(,_STRING)*_)_(EXTERNAL_ACCESS_INTEG~23ecfa18!swap	ALTER STREAMLIT a SET IN =('s')
+reject	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/IMPORTS_=_(_STRING_(,_STRING)*_)_(EXTERNAL_ACCESS_INTEG~23ecfa18!swap	ALTER STREAMLIT a SET IN =('s')
 accept	accept	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)_(SECRETS_~fe565eaf	ALTER STREAMLIT a SET EXTERNAL_ACCESS_INTEGRATIONS =(a)
 reject	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)_(SECRETS_~fe565eaf!drop-1	ALTER STREAMLIT a SET =(a)
 reject	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)_(SECRETS_~fe565eaf!drop-2	ALTER STREAMLIT a SET EXTERNAL_ACCESS_INTEGRATIONS(a)
 reject	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)_(SECRETS_~fe565eaf!drop-3	ALTER STREAMLIT a SET EXTERNAL_ACCESS_INTEGRATIONS = a)
-accept	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)_(SECRETS_~fe565eaf!drop-4	ALTER STREAMLIT a SET EXTERNAL_ACCESS_INTEGRATIONS =()
+reject	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)_(SECRETS_~fe565eaf!drop-4	ALTER STREAMLIT a SET EXTERNAL_ACCESS_INTEGRATIONS =()
 reject	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)_(SECRETS_~fe565eaf!drop-5	ALTER STREAMLIT a SET EXTERNAL_ACCESS_INTEGRATIONS =(a
 reject	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)_(SECRETS_~fe565eaf!insert	ALTER STREAMLIT a SET EXTERNAL_ACCESS_INTEGRATIONS =(a) zzz
-accept	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)_(SECRETS_~fe565eaf!swap	ALTER STREAMLIT a SET EXTERNAL_OAUTH =(a)
+reject	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)_(SECRETS_~fe565eaf!swap	ALTER STREAMLIT a SET EXTERNAL_OAUTH =(a)
 accept	accept	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_)	ALTER STREAMLIT a SET SECRETS =('s' = a)
 reject	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_)!drop-1	ALTER STREAMLIT a SET =('s' = a)
 reject	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_)!drop-2	ALTER STREAMLIT a SET SECRETS('s' = a)
@@ -24427,48 +24427,48 @@ reject	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~859
 reject	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_)!drop-6	ALTER STREAMLIT a SET SECRETS =('s' =)
 reject	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_)!drop-7	ALTER STREAMLIT a SET SECRETS =('s' = a
 reject	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_)!insert	ALTER STREAMLIT a SET SECRETS =('s' = a) zzz
-accept	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_)!swap	ALTER STREAMLIT a SET SECRET_AUTHORIZATION =('s' = a)
+reject	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_~8599ded5)/SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_)!swap	ALTER STREAMLIT a SET SECRET_AUTHORIZATION =('s' = a)
 accept	accept	docs	alterStreamlit(QUERY_WAREHOUSE_=_ID)?/%empty	ALTER STREAMLIT a SET MAIN_FILE = 's'
 accept	accept	docs	alterStreamlit(QUERY_WAREHOUSE_=_ID)?/QUERY_WAREHOUSE_=_ID	ALTER STREAMLIT a SET MAIN_FILE = 's' QUERY_WAREHOUSE = a
 reject	undocumented	docs	alterStreamlit(QUERY_WAREHOUSE_=_ID)?/QUERY_WAREHOUSE_=_ID!drop-1	ALTER STREAMLIT a SET MAIN_FILE = 's' = a
 reject	undocumented	docs	alterStreamlit(QUERY_WAREHOUSE_=_ID)?/QUERY_WAREHOUSE_=_ID!drop-2	ALTER STREAMLIT a SET MAIN_FILE = 's' QUERY_WAREHOUSE a
 reject	undocumented	docs	alterStreamlit(QUERY_WAREHOUSE_=_ID)?/QUERY_WAREHOUSE_=_ID!drop-3	ALTER STREAMLIT a SET MAIN_FILE = 's' QUERY_WAREHOUSE =
 reject	undocumented	docs	alterStreamlit(QUERY_WAREHOUSE_=_ID)?/QUERY_WAREHOUSE_=_ID!insert	ALTER STREAMLIT a SET MAIN_FILE = 's' QUERY_WAREHOUSE = a zzz
-accept	undocumented	docs	alterStreamlit(QUERY_WAREHOUSE_=_ID)?/QUERY_WAREHOUSE_=_ID!swap	ALTER STREAMLIT a SET MAIN_FILE = 's' QUESTION = a
+reject	undocumented	docs	alterStreamlit(QUERY_WAREHOUSE_=_ID)?/QUERY_WAREHOUSE_=_ID!swap	ALTER STREAMLIT a SET MAIN_FILE = 's' QUESTION = a
 accept	accept	docs	alterStreamlit(RUNTIME_NAME_=_STRING)?/%empty	ALTER STREAMLIT a SET MAIN_FILE = 's'
 accept	accept	docs	alterStreamlit(RUNTIME_NAME_=_STRING)?/RUNTIME_NAME_=_STRING	ALTER STREAMLIT a SET MAIN_FILE = 's' RUNTIME_NAME = 's'
 reject	undocumented	docs	alterStreamlit(RUNTIME_NAME_=_STRING)?/RUNTIME_NAME_=_STRING!drop-1	ALTER STREAMLIT a SET MAIN_FILE = 's' = 's'
 reject	undocumented	docs	alterStreamlit(RUNTIME_NAME_=_STRING)?/RUNTIME_NAME_=_STRING!drop-2	ALTER STREAMLIT a SET MAIN_FILE = 's' RUNTIME_NAME 's'
 reject	undocumented	docs	alterStreamlit(RUNTIME_NAME_=_STRING)?/RUNTIME_NAME_=_STRING!drop-3	ALTER STREAMLIT a SET MAIN_FILE = 's' RUNTIME_NAME =
 reject	undocumented	docs	alterStreamlit(RUNTIME_NAME_=_STRING)?/RUNTIME_NAME_=_STRING!insert	ALTER STREAMLIT a SET MAIN_FILE = 's' RUNTIME_NAME = 's' zzz
-accept	undocumented	docs	alterStreamlit(RUNTIME_NAME_=_STRING)?/RUNTIME_NAME_=_STRING!swap	ALTER STREAMLIT a SET MAIN_FILE = 's' RUNTIME_VERSION = 's'
+reject	undocumented	docs	alterStreamlit(RUNTIME_NAME_=_STRING)?/RUNTIME_NAME_=_STRING!swap	ALTER STREAMLIT a SET MAIN_FILE = 's' RUNTIME_VERSION = 's'
 accept	accept	docs	alterStreamlit(COMPUTE_POOL_=_ID)?/%empty	ALTER STREAMLIT a SET MAIN_FILE = 's'
 accept	accept	docs	alterStreamlit(COMPUTE_POOL_=_ID)?/COMPUTE_POOL_=_ID	ALTER STREAMLIT a SET MAIN_FILE = 's' COMPUTE_POOL = a
 reject	undocumented	docs	alterStreamlit(COMPUTE_POOL_=_ID)?/COMPUTE_POOL_=_ID!drop-2	ALTER STREAMLIT a SET MAIN_FILE = 's' COMPUTE_POOL a
 reject	undocumented	docs	alterStreamlit(COMPUTE_POOL_=_ID)?/COMPUTE_POOL_=_ID!drop-3	ALTER STREAMLIT a SET MAIN_FILE = 's' COMPUTE_POOL =
 reject	undocumented	docs	alterStreamlit(COMPUTE_POOL_=_ID)?/COMPUTE_POOL_=_ID!insert	ALTER STREAMLIT a SET MAIN_FILE = 's' COMPUTE_POOL = a zzz
-accept	undocumented	docs	alterStreamlit(COMPUTE_POOL_=_ID)?/COMPUTE_POOL_=_ID!swap	ALTER STREAMLIT a SET MAIN_FILE = 's' CONDITION = a
+reject	undocumented	docs	alterStreamlit(COMPUTE_POOL_=_ID)?/COMPUTE_POOL_=_ID!swap	ALTER STREAMLIT a SET MAIN_FILE = 's' CONDITION = a
 accept	accept	docs	alterStreamlit(COMMENT_=_STRING)?/%empty	ALTER STREAMLIT a SET MAIN_FILE = 's'
 accept	accept	docs	alterStreamlit(COMMENT_=_STRING)?/COMMENT_=_STRING	ALTER STREAMLIT a SET MAIN_FILE = 's' COMMENT = 's'
 reject	undocumented	docs	alterStreamlit(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	ALTER STREAMLIT a SET MAIN_FILE = 's' COMMENT 's'
 reject	undocumented	docs	alterStreamlit(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	ALTER STREAMLIT a SET MAIN_FILE = 's' COMMENT =
 reject	undocumented	docs	alterStreamlit(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	ALTER STREAMLIT a SET MAIN_FILE = 's' COMMENT = 's' zzz
-accept	undocumented	docs	alterStreamlit(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	ALTER STREAMLIT a SET MAIN_FILE = 's' COMMENTS = 's'
+reject	undocumented	docs	alterStreamlit(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	ALTER STREAMLIT a SET MAIN_FILE = 's' COMMENTS = 's'
 accept	accept	docs	alterStreamlit(TITLE_=_STRING)?/%empty	ALTER STREAMLIT a SET MAIN_FILE = 's'
 accept	accept	docs	alterStreamlit(TITLE_=_STRING)?/TITLE_=_STRING	ALTER STREAMLIT a SET MAIN_FILE = 's' TITLE = 's'
 reject	undocumented	docs	alterStreamlit(TITLE_=_STRING)?/TITLE_=_STRING!drop-2	ALTER STREAMLIT a SET MAIN_FILE = 's' TITLE 's'
 reject	undocumented	docs	alterStreamlit(TITLE_=_STRING)?/TITLE_=_STRING!drop-3	ALTER STREAMLIT a SET MAIN_FILE = 's' TITLE =
 reject	undocumented	docs	alterStreamlit(TITLE_=_STRING)?/TITLE_=_STRING!insert	ALTER STREAMLIT a SET MAIN_FILE = 's' TITLE = 's' zzz
-accept	undocumented	docs	alterStreamlit(TITLE_=_STRING)?/TITLE_=_STRING!swap	ALTER STREAMLIT a SET MAIN_FILE = 's' TLS_TRUSTED_CERTIFICATES = 's'
+reject	undocumented	docs	alterStreamlit(TITLE_=_STRING)?/TITLE_=_STRING!swap	ALTER STREAMLIT a SET MAIN_FILE = 's' TLS_TRUSTED_CERTIFICATES = 's'
 accept	accept	docs	alterStreamlit(IMPORTS_=_(_STRING_(,_STRING)*_))?/%empty	ALTER STREAMLIT a SET MAIN_FILE = 's'
 accept	accept	docs	alterStreamlit(IMPORTS_=_(_STRING_(,_STRING)*_))?/IMPORTS_=_(_STRING_(,_STRING)*_)	ALTER STREAMLIT a SET MAIN_FILE = 's' IMPORTS =('s')
 reject	undocumented	docs	alterStreamlit(IMPORTS_=_(_STRING_(,_STRING)*_))?/IMPORTS_=_(_STRING_(,_STRING)*_)!drop-1	ALTER STREAMLIT a SET MAIN_FILE = 's' =('s')
 reject	undocumented	docs	alterStreamlit(IMPORTS_=_(_STRING_(,_STRING)*_))?/IMPORTS_=_(_STRING_(,_STRING)*_)!drop-2	ALTER STREAMLIT a SET MAIN_FILE = 's' IMPORTS('s')
 reject	undocumented	docs	alterStreamlit(IMPORTS_=_(_STRING_(,_STRING)*_))?/IMPORTS_=_(_STRING_(,_STRING)*_)!drop-3	ALTER STREAMLIT a SET MAIN_FILE = 's' IMPORTS = 's')
-accept	undocumented	docs	alterStreamlit(IMPORTS_=_(_STRING_(,_STRING)*_))?/IMPORTS_=_(_STRING_(,_STRING)*_)!drop-4	ALTER STREAMLIT a SET MAIN_FILE = 's' IMPORTS =()
+reject	undocumented	docs	alterStreamlit(IMPORTS_=_(_STRING_(,_STRING)*_))?/IMPORTS_=_(_STRING_(,_STRING)*_)!drop-4	ALTER STREAMLIT a SET MAIN_FILE = 's' IMPORTS =()
 reject	undocumented	docs	alterStreamlit(IMPORTS_=_(_STRING_(,_STRING)*_))?/IMPORTS_=_(_STRING_(,_STRING)*_)!drop-5	ALTER STREAMLIT a SET MAIN_FILE = 's' IMPORTS =('s'
 reject	undocumented	docs	alterStreamlit(IMPORTS_=_(_STRING_(,_STRING)*_))?/IMPORTS_=_(_STRING_(,_STRING)*_)!insert	ALTER STREAMLIT a SET MAIN_FILE = 's' IMPORTS =('s') zzz
-accept	undocumented	docs	alterStreamlit(IMPORTS_=_(_STRING_(,_STRING)*_))?/IMPORTS_=_(_STRING_(,_STRING)*_)!swap	ALTER STREAMLIT a SET MAIN_FILE = 's' IN =('s')
+reject	undocumented	docs	alterStreamlit(IMPORTS_=_(_STRING_(,_STRING)*_))?/IMPORTS_=_(_STRING_(,_STRING)*_)!swap	ALTER STREAMLIT a SET MAIN_FILE = 's' IN =('s')
 accept	accept	docs	alterStreamlit(,_STRING)*/%empty	ALTER STREAMLIT a SET IMPORTS =('s')
 reject	undocumented	docs	alterStreamlit(,_STRING)*/%empty!insert	ALTER STREAMLIT a SET IMPORTS =('s' zzz)
 accept	accept	docs	alterStreamlit(,_STRING)*/,_STRING_(,_STRING)*	ALTER STREAMLIT a SET IMPORTS =('s', 's')
@@ -24481,10 +24481,10 @@ accept	accept	docs	alterStreamlit(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))
 reject	undocumented	docs	alterStreamlit(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))?/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)!drop-1	ALTER STREAMLIT a SET MAIN_FILE = 's' =(a)
 reject	undocumented	docs	alterStreamlit(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))?/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)!drop-2	ALTER STREAMLIT a SET MAIN_FILE = 's' EXTERNAL_ACCESS_INTEGRATIONS(a)
 reject	undocumented	docs	alterStreamlit(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))?/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)!drop-3	ALTER STREAMLIT a SET MAIN_FILE = 's' EXTERNAL_ACCESS_INTEGRATIONS = a)
-accept	undocumented	docs	alterStreamlit(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))?/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)!drop-4	ALTER STREAMLIT a SET MAIN_FILE = 's' EXTERNAL_ACCESS_INTEGRATIONS =()
+reject	undocumented	docs	alterStreamlit(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))?/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)!drop-4	ALTER STREAMLIT a SET MAIN_FILE = 's' EXTERNAL_ACCESS_INTEGRATIONS =()
 reject	undocumented	docs	alterStreamlit(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))?/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)!drop-5	ALTER STREAMLIT a SET MAIN_FILE = 's' EXTERNAL_ACCESS_INTEGRATIONS =(a
 reject	undocumented	docs	alterStreamlit(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))?/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)!insert	ALTER STREAMLIT a SET MAIN_FILE = 's' EXTERNAL_ACCESS_INTEGRATIONS =(a) zzz
-accept	undocumented	docs	alterStreamlit(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))?/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)!swap	ALTER STREAMLIT a SET MAIN_FILE = 's' EXTERNAL_OAUTH =(a)
+reject	undocumented	docs	alterStreamlit(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))?/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)!swap	ALTER STREAMLIT a SET MAIN_FILE = 's' EXTERNAL_OAUTH =(a)
 accept	accept	docs	alterStreamlit(,_ID)*/%empty	ALTER STREAMLIT a SET EXTERNAL_ACCESS_INTEGRATIONS =(a)
 reject	undocumented	docs	alterStreamlit(,_ID)*/%empty!insert	ALTER STREAMLIT a SET EXTERNAL_ACCESS_INTEGRATIONS =(a zzz)
 accept	accept	docs	alterStreamlit(,_ID)*/,_ID_(,_ID)*	ALTER STREAMLIT a SET EXTERNAL_ACCESS_INTEGRATIONS =(a, a)
@@ -24502,7 +24502,7 @@ reject	undocumented	docs	alterStreamlit(SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*
 reject	undocumented	docs	alterStreamlit(SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_))?/SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_)!drop-6	ALTER STREAMLIT a SET MAIN_FILE = 's' SECRETS =('s' =)
 reject	undocumented	docs	alterStreamlit(SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_))?/SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_)!drop-7	ALTER STREAMLIT a SET MAIN_FILE = 's' SECRETS =('s' = a
 reject	undocumented	docs	alterStreamlit(SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_))?/SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_)!insert	ALTER STREAMLIT a SET MAIN_FILE = 's' SECRETS =('s' = a) zzz
-accept	undocumented	docs	alterStreamlit(SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_))?/SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_)!swap	ALTER STREAMLIT a SET MAIN_FILE = 's' SECRET_AUTHORIZATION =('s' = a)
+reject	undocumented	docs	alterStreamlit(SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_))?/SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_)!swap	ALTER STREAMLIT a SET MAIN_FILE = 's' SECRET_AUTHORIZATION =('s' = a)
 accept	accept	docs	alterStreamlit(,_STRING_=_ID)*/%empty	ALTER STREAMLIT a SET SECRETS =('s' = a)
 reject	undocumented	docs	alterStreamlit(,_STRING_=_ID)*/%empty!insert	ALTER STREAMLIT a SET SECRETS =('s' = a zzz)
 accept	accept	docs	alterStreamlit(,_STRING_=_ID)*/,_STRING_=_ID_(,_STRING_=_ID)*	ALTER STREAMLIT a SET SECRETS =('s' = a, 's' = a)
@@ -24513,25 +24513,25 @@ reject	undocumented	docs	alterStreamlit(,_STRING_=_ID)*/,_STRING_=_ID_(,_STRING_
 reject	undocumented	docs	alterStreamlit(,_STRING_=_ID)*/,_STRING_=_ID_(,_STRING_=_ID)*!truncate	ALTER STREAMLIT a SET SECRETS =('s' = a, 's' =
 reject	undocumented	docs	alterStreamlit(,_STRING_=_ID)*/,_STRING_=_ID_(,_STRING_=_ID)*!insert	ALTER STREAMLIT a SET SECRETS =('s' = a, 's' = a zzz)
 accept	accept	docs	alterStreamlit(SECRETS|EXTERNAL_ACCESS_INTEGRATIONS~f2665360)/SECRETS	ALTER STREAMLIT a UNSET SECRETS
-accept	undocumented	docs	alterStreamlit(SECRETS|EXTERNAL_ACCESS_INTEGRATIONS~f2665360)/SECRETS!swap	ALTER STREAMLIT a UNSET SECRET_AUTHORIZATION
+reject	undocumented	docs	alterStreamlit(SECRETS|EXTERNAL_ACCESS_INTEGRATIONS~f2665360)/SECRETS!swap	ALTER STREAMLIT a UNSET SECRET_AUTHORIZATION
 accept	accept	docs	alterStreamlit(SECRETS|EXTERNAL_ACCESS_INTEGRATIONS~f2665360)/EXTERNAL_ACCESS_INTEGRATIONS	ALTER STREAMLIT a UNSET EXTERNAL_ACCESS_INTEGRATIONS
 reject	undocumented	docs	alterStreamlit(SECRETS|EXTERNAL_ACCESS_INTEGRATIONS~f2665360)/EXTERNAL_ACCESS_INTEGRATIONS!insert	ALTER STREAMLIT a UNSET EXTERNAL_ACCESS_INTEGRATIONS zzz
-accept	undocumented	docs	alterStreamlit(SECRETS|EXTERNAL_ACCESS_INTEGRATIONS~f2665360)/EXTERNAL_ACCESS_INTEGRATIONS!swap	ALTER STREAMLIT a UNSET EXTERNAL_OAUTH
+reject	undocumented	docs	alterStreamlit(SECRETS|EXTERNAL_ACCESS_INTEGRATIONS~f2665360)/EXTERNAL_ACCESS_INTEGRATIONS!swap	ALTER STREAMLIT a UNSET EXTERNAL_OAUTH
 accept	accept	docs	alterStreamlit(SECRETS|EXTERNAL_ACCESS_INTEGRATIONS~f2665360)/QUERY_WAREHOUSE	ALTER STREAMLIT a UNSET QUERY_WAREHOUSE
 reject	undocumented	docs	alterStreamlit(SECRETS|EXTERNAL_ACCESS_INTEGRATIONS~f2665360)/QUERY_WAREHOUSE!insert	ALTER STREAMLIT a UNSET QUERY_WAREHOUSE zzz
-accept	undocumented	docs	alterStreamlit(SECRETS|EXTERNAL_ACCESS_INTEGRATIONS~f2665360)/QUERY_WAREHOUSE!swap	ALTER STREAMLIT a UNSET QUESTION
+reject	undocumented	docs	alterStreamlit(SECRETS|EXTERNAL_ACCESS_INTEGRATIONS~f2665360)/QUERY_WAREHOUSE!swap	ALTER STREAMLIT a UNSET QUESTION
 accept	accept	docs	alterStreamlit(SECRETS|EXTERNAL_ACCESS_INTEGRATIONS~f2665360)/TITLE	ALTER STREAMLIT a UNSET TITLE
 reject	undocumented	docs	alterStreamlit(SECRETS|EXTERNAL_ACCESS_INTEGRATIONS~f2665360)/TITLE!insert	ALTER STREAMLIT a UNSET TITLE zzz
-accept	undocumented	docs	alterStreamlit(SECRETS|EXTERNAL_ACCESS_INTEGRATIONS~f2665360)/TITLE!swap	ALTER STREAMLIT a UNSET TLS_TRUSTED_CERTIFICATES
+reject	undocumented	docs	alterStreamlit(SECRETS|EXTERNAL_ACCESS_INTEGRATIONS~f2665360)/TITLE!swap	ALTER STREAMLIT a UNSET TLS_TRUSTED_CERTIFICATES
 accept	accept	docs	alterStreamlit(SECRETS|EXTERNAL_ACCESS_INTEGRATIONS~f2665360)/COMMENT	ALTER STREAMLIT a UNSET COMMENT
 reject	undocumented	docs	alterStreamlit(SECRETS|EXTERNAL_ACCESS_INTEGRATIONS~f2665360)/COMMENT!insert	ALTER STREAMLIT a UNSET COMMENT zzz
-accept	undocumented	docs	alterStreamlit(SECRETS|EXTERNAL_ACCESS_INTEGRATIONS~f2665360)/COMMENT!swap	ALTER STREAMLIT a UNSET COMMENTS
+reject	undocumented	docs	alterStreamlit(SECRETS|EXTERNAL_ACCESS_INTEGRATIONS~f2665360)/COMMENT!swap	ALTER STREAMLIT a UNSET COMMENTS
 accept	accept	docs	alterStreamlit(,_(SECRETS|EXTERNAL_ACCESS_INTEGRATI~c6baa12b)*/%empty	ALTER STREAMLIT a UNSET SECRETS
 accept	accept	docs	alterStreamlit(,_(SECRETS|EXTERNAL_ACCESS_INTEGRATI~c6baa12b)*/,_(SECRETS|EXTERNAL_ACCESS_INTEGRATIONS~f2665360)_(,_(S~3543dfaa	ALTER STREAMLIT a UNSET SECRETS, SECRETS
 reject	undocumented	docs	alterStreamlit(,_(SECRETS|EXTERNAL_ACCESS_INTEGRATI~c6baa12b)*/,_(SECRETS|EXTERNAL_ACCESS_INTEGRATIONS~f2665360)_(,_(S~3543dfaa!drop-1	ALTER STREAMLIT a UNSET SECRETS SECRETS
 reject	undocumented	docs	alterStreamlit(,_(SECRETS|EXTERNAL_ACCESS_INTEGRATI~c6baa12b)*/,_(SECRETS|EXTERNAL_ACCESS_INTEGRATIONS~f2665360)_(,_(S~3543dfaa!drop-2	ALTER STREAMLIT a UNSET SECRETS,
 reject	undocumented	docs	alterStreamlit(,_(SECRETS|EXTERNAL_ACCESS_INTEGRATI~c6baa12b)*/,_(SECRETS|EXTERNAL_ACCESS_INTEGRATIONS~f2665360)_(,_(S~3543dfaa!insert	ALTER STREAMLIT a UNSET SECRETS, SECRETS zzz
-accept	undocumented	docs	alterStreamlit(,_(SECRETS|EXTERNAL_ACCESS_INTEGRATI~c6baa12b)*/,_(SECRETS|EXTERNAL_ACCESS_INTEGRATIONS~f2665360)_(,_(S~3543dfaa!swap	ALTER STREAMLIT a UNSET SECRETS, SECRET_AUTHORIZATION
+reject	undocumented	docs	alterStreamlit(,_(SECRETS|EXTERNAL_ACCESS_INTEGRATI~c6baa12b)*/,_(SECRETS|EXTERNAL_ACCESS_INTEGRATIONS~f2665360)_(,_(S~3543dfaa!swap	ALTER STREAMLIT a UNSET SECRETS, SECRET_AUTHORIZATION
 accept	accept	docs	alterStreamlit(TO_ID)?/%empty	ALTER STREAMLIT a PUSH
 accept	accept	docs	alterStreamlit(TO_ID)?/TO_ID	ALTER STREAMLIT a PUSH TO a
 reject	undocumented	docs	alterStreamlit(TO_ID)?/TO_ID!drop-1	ALTER STREAMLIT a PUSH a
@@ -24550,7 +24550,7 @@ reject	undocumented	docs	alterStreamlit((GIT_CREDENTIALS_=_ID|USERNAME_=_ID_~81e
 reject	undocumented	docs	alterStreamlit((GIT_CREDENTIALS_=_ID|USERNAME_=_ID_~81e9bf02)?/(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~a9d214c8)_NAME_=_~0d462aa2!drop-8	ALTER STREAMLIT a PUSH GIT_CREDENTIALS = a NAME = a EMAIL a
 reject	undocumented	docs	alterStreamlit((GIT_CREDENTIALS_=_ID|USERNAME_=_ID_~81e9bf02)?/(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~a9d214c8)_NAME_=_~0d462aa2!drop-9	ALTER STREAMLIT a PUSH GIT_CREDENTIALS = a NAME = a EMAIL =
 reject	undocumented	docs	alterStreamlit((GIT_CREDENTIALS_=_ID|USERNAME_=_ID_~81e9bf02)?/(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~a9d214c8)_NAME_=_~0d462aa2!insert	ALTER STREAMLIT a PUSH GIT_CREDENTIALS = a NAME = a EMAIL = a zzz
-accept	undocumented	docs	alterStreamlit((GIT_CREDENTIALS_=_ID|USERNAME_=_ID_~81e9bf02)?/(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~a9d214c8)_NAME_=_~0d462aa2!swap	ALTER STREAMLIT a PUSH GLOBAL = a NAME = a EMAIL = a
+reject	undocumented	docs	alterStreamlit((GIT_CREDENTIALS_=_ID|USERNAME_=_ID_~81e9bf02)?/(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~a9d214c8)_NAME_=_~0d462aa2!swap	ALTER STREAMLIT a PUSH GLOBAL = a NAME = a EMAIL = a
 accept	accept	docs	alterStreamlit(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~a9d214c8)/GIT_CREDENTIALS_=_ID	ALTER STREAMLIT a PUSH GIT_CREDENTIALS = a NAME = a EMAIL = a
 reject	undocumented	docs	alterStreamlit(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~a9d214c8)/GIT_CREDENTIALS_=_ID!truncate	ALTER STREAMLIT a PUSH GIT_CREDENTIALS =
 reject	undocumented	docs	alterStreamlit(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~a9d214c8)/GIT_CREDENTIALS_=_ID!insert	ALTER STREAMLIT a PUSH GIT_CREDENTIALS = a zzz NAME = a EMAIL = a
@@ -24563,16 +24563,16 @@ reject	undocumented	docs	alterStreamlit(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~a9d
 reject	undocumented	docs	alterStreamlit(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~a9d214c8)/USERNAME_=_ID_PASSWORD_=_STRING!drop-6	ALTER STREAMLIT a PUSH USERNAME = a PASSWORD = NAME = a EMAIL = a
 reject	undocumented	docs	alterStreamlit(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~a9d214c8)/USERNAME_=_ID_PASSWORD_=_STRING!truncate	ALTER STREAMLIT a PUSH USERNAME = a PASSWORD =
 reject	undocumented	docs	alterStreamlit(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~a9d214c8)/USERNAME_=_ID_PASSWORD_=_STRING!insert	ALTER STREAMLIT a PUSH USERNAME = a PASSWORD = 's' zzz NAME = a EMAIL = a
-accept	undocumented	docs	alterStreamlit(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~a9d214c8)/USERNAME_=_ID_PASSWORD_=_STRING!swap	ALTER STREAMLIT a PUSH USERS = a PASSWORD = 's' NAME = a EMAIL = a
+reject	undocumented	docs	alterStreamlit(GIT_CREDENTIALS_=_ID|USERNAME_=_ID_P~a9d214c8)/USERNAME_=_ID_PASSWORD_=_STRING!swap	ALTER STREAMLIT a PUSH USERS = a PASSWORD = 's' NAME = a EMAIL = a
 accept	accept	docs	alterStreamlit(COMMENT_=_ID)?/%empty	ALTER STREAMLIT a PUSH
 accept	accept	docs	alterStreamlit(COMMENT_=_ID)?/COMMENT_=_ID	ALTER STREAMLIT a PUSH COMMENT = a
 reject	undocumented	docs	alterStreamlit(COMMENT_=_ID)?/COMMENT_=_ID!drop-1	ALTER STREAMLIT a PUSH = a
 reject	undocumented	docs	alterStreamlit(COMMENT_=_ID)?/COMMENT_=_ID!drop-2	ALTER STREAMLIT a PUSH COMMENT a
 reject	undocumented	docs	alterStreamlit(COMMENT_=_ID)?/COMMENT_=_ID!drop-3	ALTER STREAMLIT a PUSH COMMENT =
 reject	undocumented	docs	alterStreamlit(COMMENT_=_ID)?/COMMENT_=_ID!insert	ALTER STREAMLIT a PUSH COMMENT = a zzz
-accept	undocumented	docs	alterStreamlit(COMMENT_=_ID)?/COMMENT_=_ID!swap	ALTER STREAMLIT a PUSH COMMENTS = a
+reject	undocumented	docs	alterStreamlit(COMMENT_=_ID)?/COMMENT_=_ID!swap	ALTER STREAMLIT a PUSH COMMENTS = a
 accept	accept	docs	alterStreamlit(ROOT_LOCATION_=_STRING_(MAIN_FILE_=_~4a57c760)/ROOT_LOCATION_=_STRING_(MAIN_FILE_=_STRING)?_(QUERY_WAR~d2ec9ad5	ALTER STREAMLIT a SET ROOT_LOCATION = 's'
-accept	undocumented	docs	alterStreamlit(ROOT_LOCATION_=_STRING_(MAIN_FILE_=_~4a57c760)/ROOT_LOCATION_=_STRING_(MAIN_FILE_=_STRING)?_(QUERY_WAR~d2ec9ad5!swap	ALTER STREAMLIT a SET ROTATE = 's'
+reject	undocumented	docs	alterStreamlit(ROOT_LOCATION_=_STRING_(MAIN_FILE_=_~4a57c760)/ROOT_LOCATION_=_STRING_(MAIN_FILE_=_STRING)?_(QUERY_WAR~d2ec9ad5!swap	ALTER STREAMLIT a SET ROTATE = 's'
 accept	accept	docs	alterStreamlit(ROOT_LOCATION_=_STRING_(MAIN_FILE_=_~4a57c760)/MAIN_FILE_=_STRING_(QUERY_WAREHOUSE_=_ID)?_(COMMENT_=_S~0002a1db	ALTER STREAMLIT a SET MAIN_FILE = 's'
 accept	accept	docs	alterStreamlit(ROOT_LOCATION_=_STRING_(MAIN_FILE_=_~4a57c760)/QUERY_WAREHOUSE_=_ID_(COMMENT_=_STRING)?_(TITLE_=_STRIN~9b2bda81	ALTER STREAMLIT a SET QUERY_WAREHOUSE = a
 accept	accept	docs	alterStreamlit(ROOT_LOCATION_=_STRING_(MAIN_FILE_=_~4a57c760)/COMMENT_=_STRING_(TITLE_=_STRING)?_(IMPORTS_=_(_STRING_~30294f54	ALTER STREAMLIT a SET COMMENT = 's'
@@ -24585,7 +24585,7 @@ reject	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING)?/MAIN_FILE_=_STRING!
 reject	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING)?/MAIN_FILE_=_STRING!drop-2	ALTER STREAMLIT a SET ROOT_LOCATION = 's' MAIN_FILE 's'
 reject	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING)?/MAIN_FILE_=_STRING!drop-3	ALTER STREAMLIT a SET ROOT_LOCATION = 's' MAIN_FILE =
 reject	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING)?/MAIN_FILE_=_STRING!insert	ALTER STREAMLIT a SET ROOT_LOCATION = 's' MAIN_FILE = 's' zzz
-accept	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING)?/MAIN_FILE_=_STRING!swap	ALTER STREAMLIT a SET ROOT_LOCATION = 's' MANAGE = 's'
+reject	undocumented	docs	alterStreamlit(MAIN_FILE_=_STRING)?/MAIN_FILE_=_STRING!swap	ALTER STREAMLIT a SET ROOT_LOCATION = 's' MANAGE = 's'
 accept	accept	docs	alterTable/ALTER_TABLE_(IF_EXISTS)?_QNAME_RENAME_TO_QNAME	ALTER TABLE a RENAME TO a
 reject	undocumented	docs	alterTable/ALTER_TABLE_(IF_EXISTS)?_QNAME_RENAME_TO_QNAME!drop-1	TABLE a RENAME TO a
 reject	undocumented	docs	alterTable/ALTER_TABLE_(IF_EXISTS)?_QNAME_RENAME_TO_QNAME!drop-3	ALTER TABLE RENAME TO a
@@ -41800,45 +41800,45 @@ reject	undocumented	docs	createNotebook(MAIN_FILE_=_STRING)?/MAIN_FILE_=_STRING!
 reject	undocumented	docs	createNotebook(MAIN_FILE_=_STRING)?/MAIN_FILE_=_STRING!drop-2	CREATE NOTEBOOK a MAIN_FILE 's'
 reject	undocumented	docs	createNotebook(MAIN_FILE_=_STRING)?/MAIN_FILE_=_STRING!drop-3	CREATE NOTEBOOK a MAIN_FILE =
 reject	undocumented	docs	createNotebook(MAIN_FILE_=_STRING)?/MAIN_FILE_=_STRING!insert	CREATE NOTEBOOK a MAIN_FILE = 's' zzz
-accept	undocumented	docs	createNotebook(MAIN_FILE_=_STRING)?/MAIN_FILE_=_STRING!swap	CREATE NOTEBOOK a MANAGE = 's'
+reject	undocumented	docs	createNotebook(MAIN_FILE_=_STRING)?/MAIN_FILE_=_STRING!swap	CREATE NOTEBOOK a MANAGE = 's'
 accept	accept	docs	createNotebook(COMMENT_=_STRING)?/%empty	CREATE NOTEBOOK a
 accept	accept	docs	createNotebook(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE NOTEBOOK a COMMENT = 's'
 reject	undocumented	docs	createNotebook(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	CREATE NOTEBOOK a COMMENT 's'
 reject	undocumented	docs	createNotebook(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE NOTEBOOK a COMMENT =
 reject	undocumented	docs	createNotebook(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE NOTEBOOK a COMMENT = 's' zzz
-accept	undocumented	docs	createNotebook(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE NOTEBOOK a COMMENTS = 's'
+reject	undocumented	docs	createNotebook(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE NOTEBOOK a COMMENTS = 's'
 accept	accept	docs	createNotebook(QUERY_WAREHOUSE_=_ID)?/%empty	CREATE NOTEBOOK a
 accept	accept	docs	createNotebook(QUERY_WAREHOUSE_=_ID)?/QUERY_WAREHOUSE_=_ID	CREATE NOTEBOOK a QUERY_WAREHOUSE = a
 reject	undocumented	docs	createNotebook(QUERY_WAREHOUSE_=_ID)?/QUERY_WAREHOUSE_=_ID!drop-1	CREATE NOTEBOOK a = a
 reject	undocumented	docs	createNotebook(QUERY_WAREHOUSE_=_ID)?/QUERY_WAREHOUSE_=_ID!drop-2	CREATE NOTEBOOK a QUERY_WAREHOUSE a
 reject	undocumented	docs	createNotebook(QUERY_WAREHOUSE_=_ID)?/QUERY_WAREHOUSE_=_ID!drop-3	CREATE NOTEBOOK a QUERY_WAREHOUSE =
 reject	undocumented	docs	createNotebook(QUERY_WAREHOUSE_=_ID)?/QUERY_WAREHOUSE_=_ID!insert	CREATE NOTEBOOK a QUERY_WAREHOUSE = a zzz
-accept	undocumented	docs	createNotebook(QUERY_WAREHOUSE_=_ID)?/QUERY_WAREHOUSE_=_ID!swap	CREATE NOTEBOOK a QUESTION = a
+reject	undocumented	docs	createNotebook(QUERY_WAREHOUSE_=_ID)?/QUERY_WAREHOUSE_=_ID!swap	CREATE NOTEBOOK a QUESTION = a
 accept	accept	docs	createNotebook(IDLE_AUTO_SHUTDOWN_TIME_SECONDS_=_NUMBER)?/%empty	CREATE NOTEBOOK a
 accept	accept	docs	createNotebook(IDLE_AUTO_SHUTDOWN_TIME_SECONDS_=_NUMBER)?/IDLE_AUTO_SHUTDOWN_TIME_SECONDS_=_NUMBER	CREATE NOTEBOOK a IDLE_AUTO_SHUTDOWN_TIME_SECONDS = 1
 reject	undocumented	docs	createNotebook(IDLE_AUTO_SHUTDOWN_TIME_SECONDS_=_NUMBER)?/IDLE_AUTO_SHUTDOWN_TIME_SECONDS_=_NUMBER!drop-1	CREATE NOTEBOOK a = 1
 reject	undocumented	docs	createNotebook(IDLE_AUTO_SHUTDOWN_TIME_SECONDS_=_NUMBER)?/IDLE_AUTO_SHUTDOWN_TIME_SECONDS_=_NUMBER!drop-2	CREATE NOTEBOOK a IDLE_AUTO_SHUTDOWN_TIME_SECONDS 1
 reject	undocumented	docs	createNotebook(IDLE_AUTO_SHUTDOWN_TIME_SECONDS_=_NUMBER)?/IDLE_AUTO_SHUTDOWN_TIME_SECONDS_=_NUMBER!drop-3	CREATE NOTEBOOK a IDLE_AUTO_SHUTDOWN_TIME_SECONDS =
 reject	undocumented	docs	createNotebook(IDLE_AUTO_SHUTDOWN_TIME_SECONDS_=_NUMBER)?/IDLE_AUTO_SHUTDOWN_TIME_SECONDS_=_NUMBER!insert	CREATE NOTEBOOK a IDLE_AUTO_SHUTDOWN_TIME_SECONDS = 1 zzz
-accept	undocumented	docs	createNotebook(IDLE_AUTO_SHUTDOWN_TIME_SECONDS_=_NUMBER)?/IDLE_AUTO_SHUTDOWN_TIME_SECONDS_=_NUMBER!swap	CREATE NOTEBOOK a ID_COLUMNS = 1
+reject	undocumented	docs	createNotebook(IDLE_AUTO_SHUTDOWN_TIME_SECONDS_=_NUMBER)?/IDLE_AUTO_SHUTDOWN_TIME_SECONDS_=_NUMBER!swap	CREATE NOTEBOOK a ID_COLUMNS = 1
 accept	accept	docs	createNotebook(RUNTIME_NAME_=_STRING)?/%empty	CREATE NOTEBOOK a
 accept	accept	docs	createNotebook(RUNTIME_NAME_=_STRING)?/RUNTIME_NAME_=_STRING	CREATE NOTEBOOK a RUNTIME_NAME = 's'
 reject	undocumented	docs	createNotebook(RUNTIME_NAME_=_STRING)?/RUNTIME_NAME_=_STRING!drop-2	CREATE NOTEBOOK a RUNTIME_NAME 's'
 reject	undocumented	docs	createNotebook(RUNTIME_NAME_=_STRING)?/RUNTIME_NAME_=_STRING!drop-3	CREATE NOTEBOOK a RUNTIME_NAME =
 reject	undocumented	docs	createNotebook(RUNTIME_NAME_=_STRING)?/RUNTIME_NAME_=_STRING!insert	CREATE NOTEBOOK a RUNTIME_NAME = 's' zzz
-accept	undocumented	docs	createNotebook(RUNTIME_NAME_=_STRING)?/RUNTIME_NAME_=_STRING!swap	CREATE NOTEBOOK a RUNTIME_VERSION = 's'
+reject	undocumented	docs	createNotebook(RUNTIME_NAME_=_STRING)?/RUNTIME_NAME_=_STRING!swap	CREATE NOTEBOOK a RUNTIME_VERSION = 's'
 accept	accept	docs	createNotebook(COMPUTE_POOL_=_STRING)?/%empty	CREATE NOTEBOOK a
 accept	accept	docs	createNotebook(COMPUTE_POOL_=_STRING)?/COMPUTE_POOL_=_STRING	CREATE NOTEBOOK a COMPUTE_POOL = 's'
 reject	undocumented	docs	createNotebook(COMPUTE_POOL_=_STRING)?/COMPUTE_POOL_=_STRING!drop-2	CREATE NOTEBOOK a COMPUTE_POOL 's'
 reject	undocumented	docs	createNotebook(COMPUTE_POOL_=_STRING)?/COMPUTE_POOL_=_STRING!drop-3	CREATE NOTEBOOK a COMPUTE_POOL =
 reject	undocumented	docs	createNotebook(COMPUTE_POOL_=_STRING)?/COMPUTE_POOL_=_STRING!insert	CREATE NOTEBOOK a COMPUTE_POOL = 's' zzz
-accept	undocumented	docs	createNotebook(COMPUTE_POOL_=_STRING)?/COMPUTE_POOL_=_STRING!swap	CREATE NOTEBOOK a CONDITION = 's'
+reject	undocumented	docs	createNotebook(COMPUTE_POOL_=_STRING)?/COMPUTE_POOL_=_STRING!swap	CREATE NOTEBOOK a CONDITION = 's'
 accept	accept	docs	createNotebook(WAREHOUSE_=_ID)?/%empty	CREATE NOTEBOOK a
 accept	accept	docs	createNotebook(WAREHOUSE_=_ID)?/WAREHOUSE_=_ID	CREATE NOTEBOOK a WAREHOUSE = a
 reject	undocumented	docs	createNotebook(WAREHOUSE_=_ID)?/WAREHOUSE_=_ID!drop-2	CREATE NOTEBOOK a WAREHOUSE a
 reject	undocumented	docs	createNotebook(WAREHOUSE_=_ID)?/WAREHOUSE_=_ID!drop-3	CREATE NOTEBOOK a WAREHOUSE =
 reject	undocumented	docs	createNotebook(WAREHOUSE_=_ID)?/WAREHOUSE_=_ID!insert	CREATE NOTEBOOK a WAREHOUSE = a zzz
-accept	undocumented	docs	createNotebook(WAREHOUSE_=_ID)?/WAREHOUSE_=_ID!swap	CREATE NOTEBOOK a WAREHOUSES = a
+reject	undocumented	docs	createNotebook(WAREHOUSE_=_ID)?/WAREHOUSE_=_ID!swap	CREATE NOTEBOOK a WAREHOUSES = a
 accept	accept	docs	createNotebook(IF_NOT_EXISTS)?/%empty	CREATE NOTEBOOK a
 reject	undocumented	docs	createNotebook(IF_NOT_EXISTS)?/%empty!insert	CREATE NOTEBOOK zzz a
 accept	accept	docs	createNotebook(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE NOTEBOOK IF NOT EXISTS a
@@ -41856,7 +41856,7 @@ reject	undocumented	docs	createNotebookProject(COMMENT_=_STRING)?/COMMENT_=_STRI
 reject	undocumented	docs	createNotebookProject(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	CREATE NOTEBOOK PROJECT a.a.a FROM 's' COMMENT 's'
 reject	undocumented	docs	createNotebookProject(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE NOTEBOOK PROJECT a.a.a FROM 's' COMMENT =
 reject	undocumented	docs	createNotebookProject(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE NOTEBOOK PROJECT a.a.a FROM 's' COMMENT = 's' zzz
-accept	undocumented	docs	createNotebookProject(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE NOTEBOOK PROJECT a.a.a FROM 's' COMMENTS = 's'
+reject	undocumented	docs	createNotebookProject(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE NOTEBOOK PROJECT a.a.a FROM 's' COMMENTS = 's'
 accept	accept	docs	createNotebookProject(IF_NOT_EXISTS)?/%empty	CREATE NOTEBOOK PROJECT a.a.a FROM 's'
 reject	undocumented	docs	createNotebookProject(IF_NOT_EXISTS)?/%empty!insert	CREATE NOTEBOOK PROJECT zzz a.a.a FROM 's'
 accept	accept	docs	createNotebookProject(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE NOTEBOOK PROJECT IF NOT EXISTS a.a.a FROM 's'
@@ -48252,47 +48252,47 @@ reject	undocumented	docs	createStreamlit(MAIN_FILE_=_STRING)?/MAIN_FILE_=_STRING
 reject	undocumented	docs	createStreamlit(MAIN_FILE_=_STRING)?/MAIN_FILE_=_STRING!drop-2	CREATE STREAMLIT a MAIN_FILE 's'
 reject	undocumented	docs	createStreamlit(MAIN_FILE_=_STRING)?/MAIN_FILE_=_STRING!drop-3	CREATE STREAMLIT a MAIN_FILE =
 reject	undocumented	docs	createStreamlit(MAIN_FILE_=_STRING)?/MAIN_FILE_=_STRING!insert	CREATE STREAMLIT a MAIN_FILE = 's' zzz
-accept	undocumented	docs	createStreamlit(MAIN_FILE_=_STRING)?/MAIN_FILE_=_STRING!swap	CREATE STREAMLIT a MANAGE = 's'
+reject	undocumented	docs	createStreamlit(MAIN_FILE_=_STRING)?/MAIN_FILE_=_STRING!swap	CREATE STREAMLIT a MANAGE = 's'
 accept	accept	docs	createStreamlit(QUERY_WAREHOUSE_=_ID)?/%empty	CREATE STREAMLIT a
 accept	accept	docs	createStreamlit(QUERY_WAREHOUSE_=_ID)?/QUERY_WAREHOUSE_=_ID	CREATE STREAMLIT a QUERY_WAREHOUSE = a
 reject	undocumented	docs	createStreamlit(QUERY_WAREHOUSE_=_ID)?/QUERY_WAREHOUSE_=_ID!drop-1	CREATE STREAMLIT a = a
 reject	undocumented	docs	createStreamlit(QUERY_WAREHOUSE_=_ID)?/QUERY_WAREHOUSE_=_ID!drop-2	CREATE STREAMLIT a QUERY_WAREHOUSE a
 reject	undocumented	docs	createStreamlit(QUERY_WAREHOUSE_=_ID)?/QUERY_WAREHOUSE_=_ID!drop-3	CREATE STREAMLIT a QUERY_WAREHOUSE =
 reject	undocumented	docs	createStreamlit(QUERY_WAREHOUSE_=_ID)?/QUERY_WAREHOUSE_=_ID!insert	CREATE STREAMLIT a QUERY_WAREHOUSE = a zzz
-accept	undocumented	docs	createStreamlit(QUERY_WAREHOUSE_=_ID)?/QUERY_WAREHOUSE_=_ID!swap	CREATE STREAMLIT a QUESTION = a
+reject	undocumented	docs	createStreamlit(QUERY_WAREHOUSE_=_ID)?/QUERY_WAREHOUSE_=_ID!swap	CREATE STREAMLIT a QUESTION = a
 accept	accept	docs	createStreamlit(RUNTIME_NAME_=_STRING)?/%empty	CREATE STREAMLIT a
 accept	accept	docs	createStreamlit(RUNTIME_NAME_=_STRING)?/RUNTIME_NAME_=_STRING	CREATE STREAMLIT a RUNTIME_NAME = 's'
 reject	undocumented	docs	createStreamlit(RUNTIME_NAME_=_STRING)?/RUNTIME_NAME_=_STRING!drop-2	CREATE STREAMLIT a RUNTIME_NAME 's'
 reject	undocumented	docs	createStreamlit(RUNTIME_NAME_=_STRING)?/RUNTIME_NAME_=_STRING!drop-3	CREATE STREAMLIT a RUNTIME_NAME =
 reject	undocumented	docs	createStreamlit(RUNTIME_NAME_=_STRING)?/RUNTIME_NAME_=_STRING!insert	CREATE STREAMLIT a RUNTIME_NAME = 's' zzz
-accept	undocumented	docs	createStreamlit(RUNTIME_NAME_=_STRING)?/RUNTIME_NAME_=_STRING!swap	CREATE STREAMLIT a RUNTIME_VERSION = 's'
+reject	undocumented	docs	createStreamlit(RUNTIME_NAME_=_STRING)?/RUNTIME_NAME_=_STRING!swap	CREATE STREAMLIT a RUNTIME_VERSION = 's'
 accept	accept	docs	createStreamlit(COMPUTE_POOL_=_ID)?/%empty	CREATE STREAMLIT a
 accept	accept	docs	createStreamlit(COMPUTE_POOL_=_ID)?/COMPUTE_POOL_=_ID	CREATE STREAMLIT a COMPUTE_POOL = a
 reject	undocumented	docs	createStreamlit(COMPUTE_POOL_=_ID)?/COMPUTE_POOL_=_ID!drop-2	CREATE STREAMLIT a COMPUTE_POOL a
 reject	undocumented	docs	createStreamlit(COMPUTE_POOL_=_ID)?/COMPUTE_POOL_=_ID!drop-3	CREATE STREAMLIT a COMPUTE_POOL =
 reject	undocumented	docs	createStreamlit(COMPUTE_POOL_=_ID)?/COMPUTE_POOL_=_ID!insert	CREATE STREAMLIT a COMPUTE_POOL = a zzz
-accept	undocumented	docs	createStreamlit(COMPUTE_POOL_=_ID)?/COMPUTE_POOL_=_ID!swap	CREATE STREAMLIT a CONDITION = a
+reject	undocumented	docs	createStreamlit(COMPUTE_POOL_=_ID)?/COMPUTE_POOL_=_ID!swap	CREATE STREAMLIT a CONDITION = a
 accept	accept	docs	createStreamlit(COMMENT_=_STRING)?/%empty	CREATE STREAMLIT a
 accept	accept	docs	createStreamlit(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE STREAMLIT a COMMENT = 's'
 reject	undocumented	docs	createStreamlit(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	CREATE STREAMLIT a COMMENT 's'
 reject	undocumented	docs	createStreamlit(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE STREAMLIT a COMMENT =
 reject	undocumented	docs	createStreamlit(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE STREAMLIT a COMMENT = 's' zzz
-accept	undocumented	docs	createStreamlit(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE STREAMLIT a COMMENTS = 's'
+reject	undocumented	docs	createStreamlit(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE STREAMLIT a COMMENTS = 's'
 accept	accept	docs	createStreamlit(TITLE_=_STRING)?/%empty	CREATE STREAMLIT a
 accept	accept	docs	createStreamlit(TITLE_=_STRING)?/TITLE_=_STRING	CREATE STREAMLIT a TITLE = 's'
 reject	undocumented	docs	createStreamlit(TITLE_=_STRING)?/TITLE_=_STRING!drop-2	CREATE STREAMLIT a TITLE 's'
 reject	undocumented	docs	createStreamlit(TITLE_=_STRING)?/TITLE_=_STRING!drop-3	CREATE STREAMLIT a TITLE =
 reject	undocumented	docs	createStreamlit(TITLE_=_STRING)?/TITLE_=_STRING!insert	CREATE STREAMLIT a TITLE = 's' zzz
-accept	undocumented	docs	createStreamlit(TITLE_=_STRING)?/TITLE_=_STRING!swap	CREATE STREAMLIT a TLS_TRUSTED_CERTIFICATES = 's'
+reject	undocumented	docs	createStreamlit(TITLE_=_STRING)?/TITLE_=_STRING!swap	CREATE STREAMLIT a TLS_TRUSTED_CERTIFICATES = 's'
 accept	accept	docs	createStreamlit(IMPORTS_=_(_STRING_(,_STRING)*_))?/%empty	CREATE STREAMLIT a
 accept	accept	docs	createStreamlit(IMPORTS_=_(_STRING_(,_STRING)*_))?/IMPORTS_=_(_STRING_(,_STRING)*_)	CREATE STREAMLIT a IMPORTS =('s')
 reject	undocumented	docs	createStreamlit(IMPORTS_=_(_STRING_(,_STRING)*_))?/IMPORTS_=_(_STRING_(,_STRING)*_)!drop-1	CREATE STREAMLIT a =('s')
 reject	undocumented	docs	createStreamlit(IMPORTS_=_(_STRING_(,_STRING)*_))?/IMPORTS_=_(_STRING_(,_STRING)*_)!drop-2	CREATE STREAMLIT a IMPORTS('s')
 reject	undocumented	docs	createStreamlit(IMPORTS_=_(_STRING_(,_STRING)*_))?/IMPORTS_=_(_STRING_(,_STRING)*_)!drop-3	CREATE STREAMLIT a IMPORTS = 's')
-accept	undocumented	docs	createStreamlit(IMPORTS_=_(_STRING_(,_STRING)*_))?/IMPORTS_=_(_STRING_(,_STRING)*_)!drop-4	CREATE STREAMLIT a IMPORTS =()
+reject	undocumented	docs	createStreamlit(IMPORTS_=_(_STRING_(,_STRING)*_))?/IMPORTS_=_(_STRING_(,_STRING)*_)!drop-4	CREATE STREAMLIT a IMPORTS =()
 reject	undocumented	docs	createStreamlit(IMPORTS_=_(_STRING_(,_STRING)*_))?/IMPORTS_=_(_STRING_(,_STRING)*_)!drop-5	CREATE STREAMLIT a IMPORTS =('s'
 reject	undocumented	docs	createStreamlit(IMPORTS_=_(_STRING_(,_STRING)*_))?/IMPORTS_=_(_STRING_(,_STRING)*_)!insert	CREATE STREAMLIT a IMPORTS =('s') zzz
-accept	undocumented	docs	createStreamlit(IMPORTS_=_(_STRING_(,_STRING)*_))?/IMPORTS_=_(_STRING_(,_STRING)*_)!swap	CREATE STREAMLIT a IN =('s')
+reject	undocumented	docs	createStreamlit(IMPORTS_=_(_STRING_(,_STRING)*_))?/IMPORTS_=_(_STRING_(,_STRING)*_)!swap	CREATE STREAMLIT a IN =('s')
 accept	accept	docs	createStreamlit(,_STRING)*/%empty	CREATE STREAMLIT a IMPORTS =('s')
 reject	undocumented	docs	createStreamlit(,_STRING)*/%empty!insert	CREATE STREAMLIT a IMPORTS =('s' zzz)
 accept	accept	docs	createStreamlit(,_STRING)*/,_STRING_(,_STRING)*	CREATE STREAMLIT a IMPORTS =('s', 's')
@@ -48305,10 +48305,10 @@ accept	accept	docs	createStreamlit(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)
 reject	undocumented	docs	createStreamlit(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))?/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)!drop-1	CREATE STREAMLIT a =(a)
 reject	undocumented	docs	createStreamlit(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))?/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)!drop-2	CREATE STREAMLIT a EXTERNAL_ACCESS_INTEGRATIONS(a)
 reject	undocumented	docs	createStreamlit(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))?/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)!drop-3	CREATE STREAMLIT a EXTERNAL_ACCESS_INTEGRATIONS = a)
-accept	undocumented	docs	createStreamlit(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))?/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)!drop-4	CREATE STREAMLIT a EXTERNAL_ACCESS_INTEGRATIONS =()
+reject	undocumented	docs	createStreamlit(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))?/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)!drop-4	CREATE STREAMLIT a EXTERNAL_ACCESS_INTEGRATIONS =()
 reject	undocumented	docs	createStreamlit(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))?/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)!drop-5	CREATE STREAMLIT a EXTERNAL_ACCESS_INTEGRATIONS =(a
 reject	undocumented	docs	createStreamlit(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))?/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)!insert	CREATE STREAMLIT a EXTERNAL_ACCESS_INTEGRATIONS =(a) zzz
-accept	undocumented	docs	createStreamlit(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))?/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)!swap	CREATE STREAMLIT a EXTERNAL_OAUTH =(a)
+reject	undocumented	docs	createStreamlit(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))?/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)!swap	CREATE STREAMLIT a EXTERNAL_OAUTH =(a)
 accept	accept	docs	createStreamlit(,_ID)*/%empty	CREATE STREAMLIT a EXTERNAL_ACCESS_INTEGRATIONS =(a)
 reject	undocumented	docs	createStreamlit(,_ID)*/%empty!insert	CREATE STREAMLIT a EXTERNAL_ACCESS_INTEGRATIONS =(a zzz)
 accept	accept	docs	createStreamlit(,_ID)*/,_ID_(,_ID)*	CREATE STREAMLIT a EXTERNAL_ACCESS_INTEGRATIONS =(a, a)
@@ -48326,7 +48326,7 @@ reject	undocumented	docs	createStreamlit(SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)
 reject	undocumented	docs	createStreamlit(SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_))?/SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_)!drop-6	CREATE STREAMLIT a SECRETS =('s' =)
 reject	undocumented	docs	createStreamlit(SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_))?/SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_)!drop-7	CREATE STREAMLIT a SECRETS =('s' = a
 reject	undocumented	docs	createStreamlit(SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_))?/SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_)!insert	CREATE STREAMLIT a SECRETS =('s' = a) zzz
-accept	undocumented	docs	createStreamlit(SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_))?/SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_)!swap	CREATE STREAMLIT a SECRET_AUTHORIZATION =('s' = a)
+reject	undocumented	docs	createStreamlit(SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_))?/SECRETS_=_(_STRING_=_ID_(,_STRING_=_ID)*_)!swap	CREATE STREAMLIT a SECRET_AUTHORIZATION =('s' = a)
 accept	accept	docs	createStreamlit(,_STRING_=_ID)*/%empty	CREATE STREAMLIT a SECRETS =('s' = a)
 reject	undocumented	docs	createStreamlit(,_STRING_=_ID)*/%empty!insert	CREATE STREAMLIT a SECRETS =('s' = a zzz)
 accept	accept	docs	createStreamlit(,_STRING_=_ID)*/,_STRING_=_ID_(,_STRING_=_ID)*	CREATE STREAMLIT a SECRETS =('s' = a, 's' = a)
@@ -53235,22 +53235,22 @@ reject	undocumented	docs	executeNotebookProject(ARGUMENTS_=_STRING)?/ARGUMENTS_=
 reject	undocumented	docs	executeNotebookProject(ARGUMENTS_=_STRING)?/ARGUMENTS_=_STRING!drop-2	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' ARGUMENTS 's'
 reject	undocumented	docs	executeNotebookProject(ARGUMENTS_=_STRING)?/ARGUMENTS_=_STRING!drop-3	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' ARGUMENTS =
 reject	undocumented	docs	executeNotebookProject(ARGUMENTS_=_STRING)?/ARGUMENTS_=_STRING!insert	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' ARGUMENTS = 's' zzz
-accept	undocumented	docs	executeNotebookProject(ARGUMENTS_=_STRING)?/ARGUMENTS_=_STRING!swap	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' ARN = 's'
+reject	undocumented	docs	executeNotebookProject(ARGUMENTS_=_STRING)?/ARGUMENTS_=_STRING!swap	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' ARN = 's'
 accept	accept	docs	executeNotebookProject(REQUIREMENTS_FILE_=_STRING)?/%empty	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's'
 accept	accept	docs	executeNotebookProject(REQUIREMENTS_FILE_=_STRING)?/REQUIREMENTS_FILE_=_STRING	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' REQUIREMENTS_FILE = 's'
 reject	undocumented	docs	executeNotebookProject(REQUIREMENTS_FILE_=_STRING)?/REQUIREMENTS_FILE_=_STRING!drop-2	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' REQUIREMENTS_FILE 's'
 reject	undocumented	docs	executeNotebookProject(REQUIREMENTS_FILE_=_STRING)?/REQUIREMENTS_FILE_=_STRING!drop-3	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' REQUIREMENTS_FILE =
 reject	undocumented	docs	executeNotebookProject(REQUIREMENTS_FILE_=_STRING)?/REQUIREMENTS_FILE_=_STRING!insert	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' REQUIREMENTS_FILE = 's' zzz
-accept	undocumented	docs	executeNotebookProject(REQUIREMENTS_FILE_=_STRING)?/REQUIREMENTS_FILE_=_STRING!swap	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' REQUIRE_ROLE_RESTRICTION_FOR_SERVICE_USERS = 's'
+reject	undocumented	docs	executeNotebookProject(REQUIREMENTS_FILE_=_STRING)?/REQUIREMENTS_FILE_=_STRING!swap	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' REQUIRE_ROLE_RESTRICTION_FOR_SERVICE_USERS = 's'
 accept	accept	docs	executeNotebookProject(ARTIFACT_REPOSITORIES_=_(_QNAME_(,_QNAME)*_))?/%empty	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's'
 accept	accept	docs	executeNotebookProject(ARTIFACT_REPOSITORIES_=_(_QNAME_(,_QNAME)*_))?/ARTIFACT_REPOSITORIES_=_(_QNAME_(,_QNAME)*_)	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' ARTIFACT_REPOSITORIES =(a)
 reject	undocumented	docs	executeNotebookProject(ARTIFACT_REPOSITORIES_=_(_QNAME_(,_QNAME)*_))?/ARTIFACT_REPOSITORIES_=_(_QNAME_(,_QNAME)*_)!drop-1	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' =(a)
 reject	undocumented	docs	executeNotebookProject(ARTIFACT_REPOSITORIES_=_(_QNAME_(,_QNAME)*_))?/ARTIFACT_REPOSITORIES_=_(_QNAME_(,_QNAME)*_)!drop-2	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' ARTIFACT_REPOSITORIES(a)
 reject	undocumented	docs	executeNotebookProject(ARTIFACT_REPOSITORIES_=_(_QNAME_(,_QNAME)*_))?/ARTIFACT_REPOSITORIES_=_(_QNAME_(,_QNAME)*_)!drop-3	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' ARTIFACT_REPOSITORIES = a)
-accept	undocumented	docs	executeNotebookProject(ARTIFACT_REPOSITORIES_=_(_QNAME_(,_QNAME)*_))?/ARTIFACT_REPOSITORIES_=_(_QNAME_(,_QNAME)*_)!drop-4	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' ARTIFACT_REPOSITORIES =()
+reject	undocumented	docs	executeNotebookProject(ARTIFACT_REPOSITORIES_=_(_QNAME_(,_QNAME)*_))?/ARTIFACT_REPOSITORIES_=_(_QNAME_(,_QNAME)*_)!drop-4	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' ARTIFACT_REPOSITORIES =()
 reject	undocumented	docs	executeNotebookProject(ARTIFACT_REPOSITORIES_=_(_QNAME_(,_QNAME)*_))?/ARTIFACT_REPOSITORIES_=_(_QNAME_(,_QNAME)*_)!drop-5	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' ARTIFACT_REPOSITORIES =(a
 reject	undocumented	docs	executeNotebookProject(ARTIFACT_REPOSITORIES_=_(_QNAME_(,_QNAME)*_))?/ARTIFACT_REPOSITORIES_=_(_QNAME_(,_QNAME)*_)!insert	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' ARTIFACT_REPOSITORIES =(a) zzz
-accept	undocumented	docs	executeNotebookProject(ARTIFACT_REPOSITORIES_=_(_QNAME_(,_QNAME)*_))?/ARTIFACT_REPOSITORIES_=_(_QNAME_(,_QNAME)*_)!swap	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' ARTIFACT_REPOSITORY =(a)
+reject	undocumented	docs	executeNotebookProject(ARTIFACT_REPOSITORIES_=_(_QNAME_(,_QNAME)*_))?/ARTIFACT_REPOSITORIES_=_(_QNAME_(,_QNAME)*_)!swap	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' ARTIFACT_REPOSITORY =(a)
 accept	accept	docs	executeNotebookProject(,_QNAME)*/%empty	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' ARTIFACT_REPOSITORIES =(a)
 reject	undocumented	docs	executeNotebookProject(,_QNAME)*/%empty!insert	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' ARTIFACT_REPOSITORIES =(a zzz)
 accept	accept	docs	executeNotebookProject(,_QNAME)*/,_QNAME_(,_QNAME)*	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' ARTIFACT_REPOSITORIES =(a, a)
@@ -53262,10 +53262,10 @@ accept	accept	docs	executeNotebookProject(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,
 accept	accept	docs	executeNotebookProject(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))?/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' EXTERNAL_ACCESS_INTEGRATIONS =(a)
 reject	undocumented	docs	executeNotebookProject(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))?/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)!drop-2	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' EXTERNAL_ACCESS_INTEGRATIONS(a)
 reject	undocumented	docs	executeNotebookProject(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))?/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)!drop-3	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' EXTERNAL_ACCESS_INTEGRATIONS = a)
-accept	undocumented	docs	executeNotebookProject(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))?/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)!drop-4	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' EXTERNAL_ACCESS_INTEGRATIONS =()
+reject	undocumented	docs	executeNotebookProject(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))?/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)!drop-4	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' EXTERNAL_ACCESS_INTEGRATIONS =()
 reject	undocumented	docs	executeNotebookProject(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))?/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)!drop-5	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' EXTERNAL_ACCESS_INTEGRATIONS =(a
 reject	undocumented	docs	executeNotebookProject(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))?/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)!insert	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' EXTERNAL_ACCESS_INTEGRATIONS =(a) zzz
-accept	undocumented	docs	executeNotebookProject(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))?/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)!swap	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' EXTERNAL_OAUTH =(a)
+reject	undocumented	docs	executeNotebookProject(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))?/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)!swap	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' EXTERNAL_OAUTH =(a)
 accept	accept	docs	executeNotebookProject(,_ID)*/%empty	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' EXTERNAL_ACCESS_INTEGRATIONS =(a)
 reject	undocumented	docs	executeNotebookProject(,_ID)*/%empty!insert	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' EXTERNAL_ACCESS_INTEGRATIONS =(a zzz)
 accept	accept	docs	executeNotebookProject(,_ID)*/,_ID_(,_ID)*	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' EXTERNAL_ACCESS_INTEGRATIONS =(a, a)
@@ -53285,7 +53285,7 @@ reject	undocumented	docs	executeNotebookProject(SECRETS_=_(_ID_._ID_._ID_(,_ID_.
 accept	undocumented	docs	executeNotebookProject(SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_))?/SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_)!drop-8	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.)
 reject	undocumented	docs	executeNotebookProject(SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_))?/SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_)!drop-9	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.a
 reject	undocumented	docs	executeNotebookProject(SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_))?/SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_)!insert	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.a) zzz
-accept	undocumented	docs	executeNotebookProject(SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_))?/SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_)!swap	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRET_AUTHORIZATION =(a.a.a)
+reject	undocumented	docs	executeNotebookProject(SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_))?/SECRETS_=_(_ID_._ID_._ID_(,_ID_._ID_._ID)*_)!swap	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRET_AUTHORIZATION =(a.a.a)
 accept	accept	docs	executeNotebookProject(,_ID_._ID_._ID)*/%empty	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.a)
 reject	undocumented	docs	executeNotebookProject(,_ID_._ID_._ID)*/%empty!insert	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.a zzz)
 accept	accept	docs	executeNotebookProject(,_ID_._ID_._ID)*/,_ID_._ID_._ID_(,_ID_._ID_._ID)*	EXECUTE NOTEBOOK PROJECT a.a.a MAIN_FILE = 's' COMPUTE_POOL = 's' QUERY_WAREHOUSE = 's' RUNTIME = 's' SECRETS =(a.a.a, a.a.a)
