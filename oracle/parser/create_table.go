@@ -23,17 +23,25 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 	ifNotExists := false
 	if p.cur.Type == kwOR {
 		p.advance() // consume OR
-		if p.cur.Type == kwREPLACE {
-			p.advance() // consume REPLACE
-			orReplace = true
+		// CREATE OR without REPLACE is ORA-02000 at the word after OR.
+		if p.cur.Type != kwREPLACE {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance() // consume REPLACE
+		orReplace = true
 	} else if p.cur.Type == kwIF {
 		if p.peekNext().Type == kwNOT {
-			p.advance() // consume IF
-			p.advance() // consume NOT
-			if p.cur.Type == kwEXISTS {
-				p.advance() // consume EXISTS
-				ifNotExists = true
+			ifTok := p.advance() // consume IF
+			p.advance()          // consume NOT
+			// CREATE IF NOT without EXISTS is ORA-00901 at IF.
+			if p.cur.Type != kwEXISTS {
+				return nil, p.syntaxErrorAtTok(ifTok)
+			}
+			p.advance() // consume EXISTS
+			ifNotExists = true
+			// IF NOT EXISTS follows OPERATOR (ORA-00901 at IF before it).
+			if p.isKeywordStr("OPERATOR") {
+				return nil, p.syntaxErrorAtTok(ifTok)
 			}
 		}
 	}
@@ -257,9 +265,10 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 				return p.parseCreatePropertyGraphStmt(start, orReplace, ifNotExists)
 			case "VECTOR":
 				p.advance() // consume VECTOR
-				if p.cur.Type == kwINDEX {
-					p.advance() // consume INDEX
+				if p.cur.Type != kwINDEX {
+					return nil, p.syntaxErrorAtCur()
 				}
+				p.advance() // consume INDEX
 				return p.parseCreateVectorIndexStmt(start, ifNotExists)
 			case "ROLLBACK":
 				// CREATE [PUBLIC] ROLLBACK SEGMENT

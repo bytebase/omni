@@ -286,9 +286,10 @@ func (p *Parser) parseCreateAdminObject(start int, orReplace bool) (nodes.StmtNo
 				return p.parseCreatePropertyGraphStmt(start, false, false)
 			case "VECTOR":
 				p.advance() // consume VECTOR
-				if p.cur.Type == kwINDEX {
-					p.advance() // consume INDEX
+				if p.cur.Type != kwINDEX {
+					return nil, p.syntaxErrorAtCur()
 				}
+				p.advance() // consume INDEX
 				return p.parseCreateVectorIndexStmt(start, false)
 			case "RESTORE":
 				p.advance() // consume RESTORE
@@ -4350,278 +4351,310 @@ func (p *Parser) parseParenIdentList() ([]string, error) {
 // parseCreateVectorIndexStmt parses a CREATE VECTOR INDEX statement.
 // Called after CREATE VECTOR INDEX has been consumed.
 //
-// BNF:
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/create-vector-index.html
 //
 //	CREATE VECTOR INDEX [ IF NOT EXISTS ] [ schema. ] index_name
 //	    ON [ schema. ] table_name ( column_name )
 //	    [ INCLUDE ( column_name [, column_name ]... ) ]
 //	    [ vector_index_organization_clause ]
 //	    [ DISTANCE metric_name ]
-//	    [ WITH TARGET ACCURACY integer [ PARAMETERS ( ... ) ] ]
+//	    [ WITH TARGET ACCURACY integer [ PARAMETERS ( vector_index_parameters_clause ) ] ]
 //	    [ vector_index_hnsw_replication_clause ]
 //	    [ ONLINE ]
 //	    [ PARALLEL integer ] ;
+//
+// Where Oracle answers otherwise than the page: it takes DISTANCE and WITH
+// TARGET ACCURACY in either order, but neither after PARAMETERS
+// (ORA-02158); ONLINE,
+// PARALLEL and LOCAL in any order; each clause and each parameter once
+// (ORA-51918). Of the parameters it takes NEIGHBORS, M and EFCONSTRUCTION
+// for HNSW and NEIGHBOR PARTITIONS, SAMPLES_PER_PARTITION and
+// MIN_VECTORS_PER_PARTITION for IVF; RESCORE_FACTOR and QUANTIZATION are
+// ORA-00922, a parameter of the other type ORA-51916.
+//
+// Oracle also answers ORA-51914 (ORGANIZATION clause required) when the
+// organization clause is left out, even at the end of the statement. The
+// page's syntax and text make it optional, and compat.tsv reads the answer
+// at the end as accept, so omni keeps it optional until the rejudge.
 func (p *Parser) parseCreateVectorIndexStmt(start int, ifNotExists bool) (*nodes.CreateVectorIndexStmt, error) {
 	stmt := &nodes.CreateVectorIndexStmt{
 		IfNotExists: ifNotExists,
 		Loc:         nodes.Loc{Start: start},
 	}
 
-	// IF NOT EXISTS
-	if !ifNotExists && p.cur.Type == kwIF {
-		next := p.peekNext()
-		if next.Type == kwNOT {
-			p.advance() // consume IF
-			p.advance() // consume NOT
-			if p.cur.Type == kwEXISTS {
-				p.advance() // consume EXISTS
-				stmt.IfNotExists = true
-			}
+	// IF NOT EXISTS: IF NOT without EXISTS is ORA-11543 at IF.
+	if !ifNotExists && p.cur.Type == kwIF && p.peekNext().Type == kwNOT {
+		ifTok := p.advance()
+		p.advance() // NOT
+		if p.cur.Type != kwEXISTS {
+			return nil, p.syntaxErrorAtTok(ifTok)
 		}
-	}
-	var parseErr366 error
-
-	// Index name
-	stmt.Name, parseErr366 = p.parseObjectName()
-	if parseErr366 !=
-
-		// ON [schema.]table_name (column_name)
-		nil {
-		return nil, parseErr366
-	}
-
-	if p.cur.Type == kwON {
 		p.advance()
-		var parseErr367 error
-		stmt.TableName, parseErr367 = p.parseObjectName()
-		if parseErr367 != nil {
-			return nil, parseErr367
-		}
-		if p.cur.Type == '(' {
-			p.advance()
-			if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT {
-				stmt.Column = p.cur.Str
-				p.advance()
-			}
-			if p.cur.Type == ')' {
-				p.advance()
-			}
-		}
+		stmt.IfNotExists = true
 	}
 
-	// INCLUDE ( col, ... )
+	var err error
+	if stmt.Name, err = p.parseRequiredObjectName(); err != nil {
+		return nil, err
+	}
+	if p.cur.Type != kwON {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	if stmt.TableName, err = p.parseRequiredObjectName(); err != nil {
+		return nil, err
+	}
+	if p.cur.Type != '(' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	if stmt.Column, err = p.ixName(); err != nil {
+		return nil, err
+	}
+	if p.cur.Type != ')' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+
+	// INCLUDE ( column_name [, column_name ]... )
 	if p.cur.Type == kwINCLUDE {
 		p.advance()
-		var parseErr368 error
-		stmt.IncludeColumns, parseErr368 = p.parseParenIdentList()
-		if parseErr368 !=
-
-			// ORGANIZATION { INMEMORY NEIGHBOR GRAPH | NEIGHBOR PARTITIONS }
-			nil {
-			return nil, parseErr368
+		if p.cur.Type != '(' {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance()
+		for {
+			col, err := p.ixName()
+			if err != nil {
+				return nil, err
+			}
+			stmt.IncludeColumns = append(stmt.IncludeColumns, col)
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance()
+		}
+		if p.cur.Type != ')' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
 	}
 
-	if p.isIdentLikeStr("ORGANIZATION") {
+	// ORGANIZATION { INMEMORY [ NEIGHBOR ] GRAPH | NEIGHBOR PARTITIONS }:
+	// Oracle takes INMEMORY GRAPH without NEIGHBOR.
+	if p.isKeywordStr("ORGANIZATION") {
 		p.advance()
-		if p.isIdentLikeStr("INMEMORY") {
+		switch {
+		case p.isKeywordStr("INMEMORY"):
 			p.advance()
+			if p.isKeywordStr("NEIGHBOR") {
+				p.advance()
+			}
+			if err := p.ixWord("GRAPH"); err != nil {
+				return nil, err
+			}
 			stmt.Organization = "INMEMORY_NEIGHBOR_GRAPH"
-			// consume NEIGHBOR GRAPH
-			if p.isIdentLikeStr("NEIGHBOR") {
-				p.advance()
-			}
-			if p.isIdentLikeStr("GRAPH") {
-				p.advance()
-			}
-		} else if p.isIdentLikeStr("NEIGHBOR") {
+		case p.isKeywordStr("NEIGHBOR"):
 			p.advance()
+			if err := p.ixWord("PARTITIONS"); err != nil {
+				return nil, err
+			}
 			stmt.Organization = "NEIGHBOR_PARTITIONS"
-			if p.isIdentLikeStr("PARTITIONS") {
-				p.advance()
-			}
+		default:
+			return nil, p.syntaxErrorAtCur()
 		}
 	}
 
-	// DISTANCE metric_name
-	if p.isIdentLikeStr("DISTANCE") {
-		p.advance()
-		if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT {
-			stmt.Distance = p.cur.Str
+	seen := map[string]bool{}
+	for {
+		if p.isKeywordStr("DISTANCE") {
+			if err := p.ixOnce(seen, "DISTANCE"); err != nil {
+				return nil, err
+			}
 			p.advance()
+			if p.ixEnd() {
+				break // see ixEnd
+			}
+			if p.cur.Type == tokQIDENT || !p.isIxName() {
+				return nil, p.syntaxErrorAtCur()
+			}
+			stmt.Distance = p.advance().Str
+			continue
 		}
+		if p.cur.Type == kwWITH {
+			if err := p.ixOnce(seen, "ACCURACY"); err != nil {
+				return nil, err
+			}
+			p.advance()
+			if err := p.ixWord("TARGET"); err != nil {
+				return nil, err
+			}
+			if err := p.ixWord("ACCURACY"); err != nil {
+				return nil, err
+			}
+			if p.cur.Type == tokICONST {
+				v, err := p.parseIntValue()
+				if err != nil {
+					return nil, err
+				}
+				stmt.TargetAccuracy = v
+			} else if !p.ixEnd() {
+				return nil, p.syntaxErrorAtCur()
+			}
+			if p.isKeywordStr("PARAMETERS") {
+				if err := p.parseVectorIndexParameters(stmt); err != nil {
+					return nil, err
+				}
+				break
+			}
+			continue
+		}
+		break
 	}
 
-	// WITH TARGET ACCURACY integer [ PARAMETERS (...) ]
-	if p.cur.Type == kwWITH {
-		p.advance()
-		if p.isIdentLikeStr("TARGET") {
-			p.advance()
-		}
-		if p.isIdentLikeStr("ACCURACY") {
-			p.advance()
-		}
-		if p.cur.Type == tokICONST {
-			var parseErr369 error
-			stmt.TargetAccuracy, parseErr369 = p.parseIntValue()
-			if parseErr369 !=
-
-				// PARAMETERS ( ... )
-				nil {
-				return nil, parseErr369
+	for !p.ixEnd() {
+		switch {
+		case p.isKeywordStr("DUPLICATE"):
+			if err := p.ixOnce(seen, "REPLICATION"); err != nil {
+				return nil, err
 			}
-		}
-
-		if p.isIdentLikeStr("PARAMETERS") {
 			p.advance()
-			if p.cur.Type == '(' {
-				p.advance()
-				// TYPE HNSW | IVF
-				if p.cur.Type == kwTYPE || p.isIdentLikeStr("TYPE") {
-					p.advance()
-					if p.isIdentLikeStr("HNSW") {
-						stmt.ParameterType = "HNSW"
-						p.advance()
-					} else if p.isIdentLikeStr("IVF") {
-						stmt.ParameterType = "IVF"
-						p.advance()
-					}
-				}
-				// Parse remaining HNSW/IVF parameters
-				for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
-					// An item that consumes nothing would come round again.
-					if p.pos() == progress {
-						return nil, p.syntaxErrorAtCur()
-					}
-					progress = p.pos()
-					if p.cur.Type == ',' {
-						p.advance()
-					}
-					if p.isIdentLikeStr("NEIGHBORS") || p.isIdentLikeStr("M") {
-						p.advance()
-						if p.cur.Type == tokICONST {
-							var parseErr370 error
-							stmt.Neighbors, parseErr370 = p.parseIntValue()
-							if parseErr370 != nil {
-								return nil, parseErr370
-							}
-						}
-					} else if p.isIdentLikeStr("EFCONSTRUCTION") {
-						p.advance()
-						if p.cur.Type == tokICONST {
-							var parseErr371 error
-							stmt.EfConstruction, parseErr371 = p.parseIntValue()
-							if parseErr371 != nil {
-								return nil, parseErr371
-							}
-						}
-					} else if p.isIdentLikeStr("RESCORE_FACTOR") {
-						p.advance()
-						if p.cur.Type == tokICONST {
-							var parseErr372 error
-							stmt.RescoreFactor, parseErr372 = p.parseIntValue()
-							if parseErr372 != nil {
-								return nil, parseErr372
-							}
-						}
-					} else if p.isIdentLikeStr("QUANTIZATION") {
-						p.advance()
-						if p.isIdentLike() || p.cur.Type == tokIDENT {
-							stmt.Quantization = p.cur.Str
-							p.advance()
-						}
-					} else if p.isIdentLikeStr("NEIGHBOR") {
-						p.advance()
-						if p.isIdentLikeStr("PARTITIONS") {
-							p.advance()
-						}
-						if p.cur.Type == tokICONST {
-							var parseErr373 error
-							stmt.NeighborParts, parseErr373 = p.parseIntValue()
-							if parseErr373 != nil {
-								return nil, parseErr373
-							}
-						}
-					} else if p.isIdentLikeStr("SAMPLES_PER_PARTITION") {
-						p.advance()
-						if p.cur.Type == tokICONST {
-							var parseErr374 error
-							stmt.SamplesPerPart, parseErr374 = p.parseIntValue()
-							if parseErr374 != nil {
-								return nil, parseErr374
-							}
-						}
-					} else if p.isIdentLikeStr("MIN_VECTORS_PER_PARTITION") {
-						p.advance()
-						if p.cur.Type == tokICONST {
-							var parseErr375 error
-							stmt.MinVecsPerPart, parseErr375 = p.parseIntValue()
-							if parseErr375 != nil {
-								return nil, parseErr375
-							}
-						}
-					} else {
-						p.advance()
-					}
-				}
-				if p.cur.Type == ')' {
-					p.advance()
-				}
+			if p.cur.Type != kwALL {
+				return nil, p.syntaxErrorAtCur()
 			}
-		}
-	}
-
-	// Replication clause: DUPLICATE ALL | DISTRIBUTE [AUTO | BY ...]
-	if p.isIdentLikeStr("DUPLICATE") {
-		p.advance()
-		if p.cur.Type == kwALL {
 			p.advance()
 			stmt.Replication = "DUPLICATE_ALL"
-		}
-	} else if p.isIdentLikeStr("DISTRIBUTE") {
-		p.advance()
-		stmt.Replication = "DISTRIBUTE"
-		if p.isIdentLikeStr("AUTO") {
+		case p.isKeywordStr("DISTRIBUTE"):
+			if err := p.ixOnce(seen, "REPLICATION"); err != nil {
+				return nil, err
+			}
 			p.advance()
-			stmt.Replication = "DISTRIBUTE_AUTO"
-		} else if p.cur.Type == kwBY {
-			p.advance()
-			if p.isIdentLikeStr("ROWID") {
+			stmt.Replication = "DISTRIBUTE"
+			if p.isKeywordStr("AUTO") {
 				p.advance()
-				if p.isIdentLikeStr("RANGE") {
+				stmt.Replication = "DISTRIBUTE_AUTO"
+			} else if p.cur.Type == kwBY {
+				p.advance()
+				switch {
+				case p.isKeywordStr("ROWID"):
 					p.advance()
+					if err := p.ixWord("RANGE"); err != nil {
+						return nil, err
+					}
+					stmt.Replication = "DISTRIBUTE_BY_ROWID_RANGE"
+				case p.cur.Type == kwPARTITION:
+					p.advance()
+					stmt.Replication = "DISTRIBUTE_BY_PARTITION"
+				case p.cur.Type == kwSUBPARTITION:
+					p.advance()
+					stmt.Replication = "DISTRIBUTE_BY_SUBPARTITION"
+				default:
+					return nil, p.syntaxErrorAtCur()
 				}
-				stmt.Replication = "DISTRIBUTE_BY_ROWID_RANGE"
-			} else if p.cur.Type == kwPARTITION {
-				p.advance()
-				stmt.Replication = "DISTRIBUTE_BY_PARTITION"
-			} else if p.isIdentLikeStr("SUBPARTITION") {
-				p.advance()
-				stmt.Replication = "DISTRIBUTE_BY_SUBPARTITION"
 			}
-		}
-	}
-
-	// ONLINE
-	if p.cur.Type == kwONLINE {
-		p.advance()
-		stmt.Online = true
-	}
-
-	// PARALLEL integer
-	if p.cur.Type == kwPARALLEL {
-		p.advance()
-		if p.cur.Type == tokICONST {
-			var parseErr376 error
-			stmt.Parallel, parseErr376 = p.parseIntValue()
-			if parseErr376 != nil {
-				return nil, parseErr376
+		case p.cur.Type == kwONLINE:
+			if err := p.ixOnce(seen, "ONLINE"); err != nil {
+				return nil, err
 			}
+			p.advance()
+			stmt.Online = true
+		case p.cur.Type == kwPARALLEL:
+			if err := p.ixOnce(seen, "PARALLEL"); err != nil {
+				return nil, err
+			}
+			p.advance()
+			if p.cur.Type == tokICONST {
+				v, err := p.parseIntValue()
+				if err != nil {
+					return nil, err
+				}
+				stmt.Parallel = v
+			} else if !p.ixEnd() {
+				return nil, p.syntaxErrorAtCur()
+			}
+		case p.cur.Type == kwLOCAL:
+			if err := p.ixOnce(seen, "LOCAL"); err != nil {
+				return nil, err
+			}
+			p.advance()
+		default:
+			return nil, p.syntaxErrorAtCur()
 		}
 	}
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// parseVectorIndexParameters reads PARAMETERS ( vector_index_parameters_clause ):
+//
+//	TYPE HNSW [, { NEIGHBORS | M } integer ] [, EFCONSTRUCTION integer ]
+//	TYPE IVF [, NEIGHBOR PARTITIONS integer ] [, SAMPLES_PER_PARTITION integer ]
+//	         [, MIN_VECTORS_PER_PARTITION integer ]
+//
+// See parseCreateVectorIndexStmt for the parameters Oracle refuses.
+func (p *Parser) parseVectorIndexParameters(stmt *nodes.CreateVectorIndexStmt) error {
+	p.advance() // PARAMETERS
+	if p.cur.Type != '(' {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance()
+	if p.cur.Type != kwTYPE {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance()
+	switch {
+	case p.isKeywordStr("HNSW"), p.isKeywordStr("IVF"):
+		stmt.ParameterType = p.advance().Str
+	default:
+		return p.syntaxErrorAtCur()
+	}
+	hnsw := stmt.ParameterType == "HNSW"
+	seen := map[string]bool{}
+	for p.cur.Type == ',' {
+		p.advance()
+		var key string
+		var target *int
+		switch {
+		case hnsw && (p.isKeywordStr("NEIGHBORS") || p.isKeywordStr("M")):
+			key, target = "NEIGHBORS", &stmt.Neighbors
+			p.advance()
+		case hnsw && p.isKeywordStr("EFCONSTRUCTION"):
+			key, target = "EFCONSTRUCTION", &stmt.EfConstruction
+			p.advance()
+		case !hnsw && p.isKeywordStr("NEIGHBOR"):
+			p.advance()
+			if err := p.ixWord("PARTITIONS"); err != nil {
+				return err
+			}
+			key, target = "NEIGHBOR PARTITIONS", &stmt.NeighborParts
+		case !hnsw && p.isKeywordStr("SAMPLES_PER_PARTITION"):
+			key, target = "SAMPLES_PER_PARTITION", &stmt.SamplesPerPart
+			p.advance()
+		case !hnsw && p.isKeywordStr("MIN_VECTORS_PER_PARTITION"):
+			key, target = "MIN_VECTORS_PER_PARTITION", &stmt.MinVecsPerPart
+			p.advance()
+		default:
+			return p.syntaxErrorAtCur()
+		}
+		if seen[key] {
+			return p.syntaxErrorAtTok(p.prev)
+		}
+		seen[key] = true
+		if p.cur.Type != tokICONST {
+			return p.syntaxErrorAtCur()
+		}
+		v, err := p.parseIntValue()
+		if err != nil {
+			return err
+		}
+		*target = v
+	}
+	if p.cur.Type != ')' {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance()
+	return nil
 }
 
 // ---------------------------------------------------------------------------

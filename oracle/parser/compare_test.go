@@ -4365,14 +4365,9 @@ func TestParseAlterIndexProper(t *testing.T) {
 		}
 	})
 
-	// IF EXISTS
+	// IF EXISTS: Oracle 23.26 refuses it on ALTER INDEX (ORA-11557 at IF).
 	t.Run("alter_index_if_exists", func(t *testing.T) {
-		result := ParseAndCheck(t, "ALTER INDEX IF EXISTS idx1 REBUILD")
-		raw := result.Items[0].(*ast.RawStmt)
-		stmt := raw.Stmt.(*ast.AlterIndexStmt)
-		if !stmt.IfExists {
-			t.Error("expected IfExists=true")
-		}
+		ParseShouldFail(t, "ALTER INDEX IF EXISTS idx1 REBUILD")
 	})
 }
 
@@ -6638,7 +6633,9 @@ func TestParseIndexIndextypeOperator(t *testing.T) {
 		}
 	})
 	t.Run("alter_index_pctfree", func(t *testing.T) {
-		result := ParseAndCheck(t, "ALTER INDEX idx1 PCTFREE 30")
+		// PCTFREE belongs to REBUILD, not to ALTER INDEX itself (ORA-02243).
+		ParseShouldFail(t, "ALTER INDEX idx1 PCTFREE 30")
+		result := ParseAndCheck(t, "ALTER INDEX idx1 REBUILD PCTFREE 30")
 		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.AlterIndexStmt)
 		if stmt.PctFree != "30" {
 			t.Errorf("expected 30, got %q", stmt.PctFree)
@@ -6933,7 +6930,9 @@ func TestParseIndexIndextypeOperator(t *testing.T) {
 		}
 	})
 	t.Run("create_operator_sharing", func(t *testing.T) {
-		result := ParseAndCheck(t, "CREATE OPERATOR my_eq BINDING (NUMBER, NUMBER) RETURN NUMBER USING my_eq_func SHARING = METADATA")
+		// Oracle reads SHARING after the name; after the binding it is ORA-00922.
+		ParseShouldFail(t, "CREATE OPERATOR my_eq BINDING (NUMBER, NUMBER) RETURN NUMBER USING my_eq_func SHARING = METADATA")
+		result := ParseAndCheck(t, "CREATE OPERATOR my_eq SHARING = METADATA BINDING (NUMBER, NUMBER) RETURN NUMBER USING my_eq_func")
 		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateOperatorStmt)
 		if stmt.Sharing != "METADATA" {
 			t.Errorf("expected METADATA, got %q", stmt.Sharing)
@@ -7010,7 +7009,7 @@ func TestParseIndexIndextypeOperator(t *testing.T) {
 	t.Run("serialize_all", func(t *testing.T) {
 		sqls := []string{
 			"CREATE UNIQUE BITMAP INDEX IF NOT EXISTS hr.idx1 ON hr.emp (last_name DESC, first_name) TABLESPACE ts1 ONLINE PARALLEL 4 COMPRESS 2 NOLOGGING VISIBLE REVERSE",
-			"ALTER INDEX IF EXISTS hr.idx1 REBUILD PARTITION p1 TABLESPACE ts1 ONLINE REVERSE PARALLEL 4 COMPRESS 2 LOGGING",
+			"ALTER INDEX hr.idx1 REBUILD PARTITION p1 TABLESPACE ts1 ONLINE PARALLEL 4 COMPRESS LOGGING",
 			"CREATE OR REPLACE INDEXTYPE my_itype FOR my_op(NUMBER, VARCHAR2) USING my_type WITH LOCAL RANGE PARTITION",
 			"CREATE OPERATOR my_eq BINDING (NUMBER, NUMBER) RETURN NUMBER USING hr.my_eq_func",
 			"ALTER OPERATOR my_eq ADD BINDING (VARCHAR2, VARCHAR2) RETURN NUMBER USING my_eq_str",

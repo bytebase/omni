@@ -190,7 +190,7 @@ func TestWalkThroughOracleEffects(t *testing.T) {
 	oneFinding(t, "DROP TABLE IF EXISTS other.x;\nALTER TABLE other.x ADD (a NUMBER);", 1, "Table `OTHER.X` doesn't exist.", shop)
 	oneFinding(t, "CREATE INDEX IF NOT EXISTS i ON nokey (a);\nCREATE INDEX i ON p (note);", 1, "The name `I` is already taken.", shop)
 	oneFinding(t, "DROP INDEX IF EXISTS i;\nDROP INDEX i;", 1, "Index `I` doesn't exist.", shop)
-	noFinding(t, "ALTER INDEX IF EXISTS i REBUILD;\nDROP INDEX i;", shop)
+	noFinding(t, "ALTER SEQUENCE IF EXISTS other.sq INCREMENT BY 2;\nDROP SEQUENCE other.sq;", shop)
 	noFinding(t, "DROP SYNONYM IF EXISTS s;\nDROP SYNONYM s;", shop)
 	// A dropped table takes its indexes, constraint names, and columns.
 	noFinding(t, "DROP TABLE t;\nCREATE INDEX ix_n ON nokey (a);\nALTER TABLE nokey ADD CONSTRAINT ck_n CHECK (a > 0);\nCREATE TABLE t (z NUMBER);\nALTER TABLE t ADD (code NUMBER);", shop)
