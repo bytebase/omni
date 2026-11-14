@@ -202,6 +202,9 @@ var walkCases = []walkCase{
 	// database. A call before a base table read in one query counts too.
 	{name: "a function a view or another database holds may create a temporary table", setup: "CREATE DATABASE q;\nCREATE FUNCTION q.mk() RETURNS int DETERMINISTIC BEGIN CREATE TEMPORARY TABLE IF NOT EXISTS shop.made (a int); RETURN 1; END;\nCREATE FUNCTION q.mk2() RETURNS int DETERMINISTIC BEGIN CREATE TEMPORARY TABLE IF NOT EXISTS shop.made2 (a int); RETURN 1; END;\nCREATE FUNCTION q.mk3() RETURNS int DETERMINISTIC BEGIN CREATE TEMPORARY TABLE IF NOT EXISTS shop.made3 (a int); RETURN 1; END;\nCREATE FUNCTION q.mk4() RETURNS int DETERMINISTIC BEGIN CREATE TEMPORARY TABLE IF NOT EXISTS shop.made4 (a int); RETURN 1; END;\nCREATE VIEW vv AS SELECT q.mk() AS x;\nCREATE VIEW q.qv AS SELECT q.mk3() AS x;\nINSERT INTO nokey VALUES (1);", change: "SELECT q.mk4() FROM nokey;\nDROP TEMPORARY TABLE made4;\nSELECT * FROM vv;\nDROP TEMPORARY TABLE made;\nUSE q;\nSELECT mk2();\nUSE shop;\nDROP TEMPORARY TABLE made2;\nINSERT INTO nokey SELECT x FROM q.qv;\nDROP TEMPORARY TABLE made3;\nDROP TEMPORARY TABLE made3;", complete: true},
 	{name: "a trigger may create a temporary table", change: "CREATE TRIGGER tt BEFORE INSERT ON nokey FOR EACH ROW CREATE TEMPORARY TABLE IF NOT EXISTS shadow (a int);\nINSERT INTO nokey VALUES (1);\nINSERT INTO shadow VALUES (1);\nDROP TABLE shadow;"},
+	// ADD [COLUMN] IF NOT EXISTS finds a column the table has and leaves it, as the
+	// keys do above; a plain ADD of the name after it fails.
+	{name: "add column if not exists", change: "ALTER TABLE t ADD COLUMN IF NOT EXISTS a int;\nALTER TABLE t ADD IF NOT EXISTS z int, ADD IF NOT EXISTS z int;\nALTER TABLE t ADD z int;\nALTER TABLE t ADD IF NOT EXISTS y int, ADD y int;\nALTER TABLE t ADD y int, ADD IF NOT EXISTS y int;\nALTER TABLE t ADD IF NOT EXISTS (a int, w int);\nALTER TABLE t ADD w int;\nCREATE TABLE x LIKE r;\nALTER TABLE x ADD IF NOT EXISTS id int;\nALTER TABLE x ADD id int;", complete: true},
 }
 
 // walkSystem are the databases the server starts with, which no change of
@@ -827,7 +830,13 @@ func walkSweepChange(rng *rand.Rand, n int) string {
 		case 2:
 			stmt = fmt.Sprintf("CREATE TABLE %s (x int, y int, KEY %s (x)%s)", tbl(), idx(), maybe(", "+fkDef()+" (y) REFERENCES a (id)"))
 		case 3:
-			stmt = fmt.Sprintf("CREATE TABLE %s%s LIKE %s", maybe("IF NOT EXISTS "), tbl(), tbl())
+			ine, dst, src := maybe("IF NOT EXISTS "), tbl(), tbl()
+			// A table LIKE itself is 1066 while MariaDB parses, which the parser
+			// refuses as it does.
+			if src == dst {
+				src = "nosuch"
+			}
+			stmt = fmt.Sprintf("CREATE TABLE %s%s LIKE %s", ine, dst, src)
 		case 4:
 			stmt = fmt.Sprintf("CREATE TABLE %s AS SELECT 1 AS x", tbl())
 		case 5, 6:
